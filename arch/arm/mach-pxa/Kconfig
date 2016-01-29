@@ -528,7 +528,7 @@ config MACH_TOSA
 
 config TOSA_BT
 	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
-	depends on MACH_TOSA
+	depends on MACH_TOSA && NET
 	select RFKILL
 	help
 	  This is a simple driver that is able to control
