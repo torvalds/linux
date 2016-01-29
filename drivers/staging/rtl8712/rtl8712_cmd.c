@@ -293,7 +293,7 @@ u8 r8712_fw_cmd(struct _adapter *pAdapter, u32 cmd)
 
 	r8712_write32(pAdapter, IOCMD_CTRL_REG, cmd);
 	msleep(100);
-	while ((0 != r8712_read32(pAdapter, IOCMD_CTRL_REG)) &&
+	while ((r8712_read32(pAdapter, IOCMD_CTRL_REG != 0)) &&
 	       (pollingcnts > 0)) {
 		pollingcnts--;
 		msleep(20);
