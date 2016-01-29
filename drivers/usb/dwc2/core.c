@@ -1958,19 +1958,11 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 	}
 
 	if (hsotg->core_params->dma_enable > 0) {
-		dma_addr_t dma_addr;
-
-		if (chan->align_buf) {
-			if (dbg_hc(chan))
-				dev_vdbg(hsotg->dev, "align_buf\n");
-			dma_addr = chan->align_buf;
-		} else {
-			dma_addr = chan->xfer_dma;
-		}
-		dwc2_writel((u32)dma_addr, hsotg->regs + HCDMA(chan->hc_num));
+		dwc2_writel((u32)chan->xfer_dma,
+			    hsotg->regs + HCDMA(chan->hc_num));
 		if (dbg_hc(chan))
 			dev_vdbg(hsotg->dev, "Wrote %08lx to HCDMA(%d)\n",
-				 (unsigned long)dma_addr, chan->hc_num);
+				 (unsigned long)chan->xfer_dma, chan->hc_num);
 	}
 
 	/* Start the split */
@@ -3355,13 +3347,6 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	width = (hwcfg3 & GHWCFG3_XFER_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_XFER_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_transfer_size = (1 << (width + 11)) - 1;
-	/*
-	 * Clip max_transfer_size to 65535. dwc2_hc_setup_align_buf() allocates
-	 * coherent buffers with this size, and if it's too large we can
-	 * exhaust the coherent DMA pool.
-	 */
-	if (hw->max_transfer_size > 65535)
-		hw->max_transfer_size = 65535;
 	width = (hwcfg3 & GHWCFG3_PACKET_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_PACKET_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_packet_count = (1 << (width + 4)) - 1;
