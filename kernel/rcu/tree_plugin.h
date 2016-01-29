@@ -750,12 +750,14 @@ void synchronize_rcu_expedited(void)
 	}
 
 	s = rcu_exp_gp_seq_snap(rsp);
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("snap"));
 
 	rnp_unlock = exp_funnel_lock(rsp, s);
 	if (rnp_unlock == NULL)
 		return;  /* Someone else did our work for us. */
 
 	rcu_exp_gp_seq_start(rsp);
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("start"));
 
 	/* Initialize the rcu_node tree in preparation for the wait. */
 	sync_rcu_exp_select_cpus(rsp, sync_rcu_exp_handler);
@@ -766,6 +768,7 @@ void synchronize_rcu_expedited(void)
 
 	/* Clean up and exit. */
 	rcu_exp_gp_seq_end(rsp);
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("end"));
 	mutex_unlock(&rnp_unlock->exp_funnel_mutex);
 	trace_rcu_exp_funnel_lock(rsp->name, rnp_unlock->level,
 				  rnp_unlock->grplo, rnp_unlock->grphi,

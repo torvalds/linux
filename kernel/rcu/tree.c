@@ -3584,17 +3584,18 @@ static bool sync_exp_work_done(struct rcu_state *rsp, struct rcu_node *rnp,
 			       atomic_long_t *stat, unsigned long s)
 {
 	if (rcu_exp_gp_seq_done(rsp, s)) {
+		trace_rcu_exp_grace_period(rsp->name, s, TPS("done"));
 		if (rnp) {
-			mutex_unlock(&rnp->exp_funnel_mutex);
 			trace_rcu_exp_funnel_lock(rsp->name, rnp->level,
 						  rnp->grplo, rnp->grphi,
 						  TPS("rel"));
+			mutex_unlock(&rnp->exp_funnel_mutex);
 		} else if (rdp) {
-			mutex_unlock(&rdp->exp_funnel_mutex);
 			trace_rcu_exp_funnel_lock(rsp->name,
 						  rdp->mynode->level + 1,
 						  rdp->cpu, rdp->cpu,
 						  TPS("rel"));
+			mutex_unlock(&rdp->exp_funnel_mutex);
 		}
 		/* Ensure test happens before caller kfree(). */
 		smp_mb__before_atomic(); /* ^^^ */
@@ -3624,12 +3625,12 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	rnp0 = rcu_get_root(rsp);
 	if (!mutex_is_locked(&rnp0->exp_funnel_mutex)) {
 		if (mutex_trylock(&rnp0->exp_funnel_mutex)) {
-			if (sync_exp_work_done(rsp, rnp0, NULL,
-					       &rdp->expedited_workdone0, s))
-				return NULL;
 			trace_rcu_exp_funnel_lock(rsp->name, rnp0->level,
 						  rnp0->grplo, rnp0->grphi,
 						  TPS("acq"));
+			if (sync_exp_work_done(rsp, rnp0, NULL,
+					       &rdp->expedited_workdone0, s))
+				return NULL;
 			return rnp0;
 		}
 	}
@@ -3656,16 +3657,16 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 		trace_rcu_exp_funnel_lock(rsp->name, rnp0->level,
 					  rnp0->grplo, rnp0->grphi, TPS("acq"));
 		if (rnp1) {
-			mutex_unlock(&rnp1->exp_funnel_mutex);
 			trace_rcu_exp_funnel_lock(rsp->name, rnp1->level,
 						  rnp1->grplo, rnp1->grphi,
 						  TPS("rel"));
+			mutex_unlock(&rnp1->exp_funnel_mutex);
 		} else {
-			mutex_unlock(&rdp->exp_funnel_mutex);
 			trace_rcu_exp_funnel_lock(rsp->name,
 						  rdp->mynode->level + 1,
 						  rdp->cpu, rdp->cpu,
 						  TPS("rel"));
+			mutex_unlock(&rdp->exp_funnel_mutex);
 		}
 		rnp1 = rnp0;
 	}
@@ -3895,16 +3896,21 @@ void synchronize_sched_expedited(void)
 
 	/* Take a snapshot of the sequence number.  */
 	s = rcu_exp_gp_seq_snap(rsp);
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("snap"));
 
 	rnp = exp_funnel_lock(rsp, s);
 	if (rnp == NULL)
 		return;  /* Someone else did our work for us. */
 
 	rcu_exp_gp_seq_start(rsp);
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("start"));
 	sync_rcu_exp_select_cpus(rsp, sync_sched_exp_handler);
 	synchronize_sched_expedited_wait(rsp);
 
 	rcu_exp_gp_seq_end(rsp);
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("end"));
+	trace_rcu_exp_funnel_lock(rsp->name, rnp->level,
+				  rnp->grplo, rnp->grphi, TPS("rel"));
 	mutex_unlock(&rnp->exp_funnel_mutex);
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
