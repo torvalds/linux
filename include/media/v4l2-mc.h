@@ -42,3 +42,35 @@ enum tuner_pad_index {
 	TUNER_PAD_AUD_OUT,
 	TUNER_NUM_PADS
 };
+
+/**
+ * enum if_vid_dec_index - video IF-PLL pad index for
+ *			   MEDIA_ENT_F_IF_VID_DECODER
+ *
+ * @IF_VID_DEC_PAD_IF_INPUT:	video Intermediate Frequency (IF) sink pad
+ * @IF_VID_DEC_PAD_OUT:		IF-PLL video output source pad. Contains the
+ *				video chrominance and luminance IF signals.
+ * @IF_VID_DEC_PAD_NUM_PADS:	Number of pads of the video IF-PLL.
+ */
+enum if_vid_dec_pad_index {
+	IF_VID_DEC_PAD_IF_INPUT,
+	IF_VID_DEC_PAD_OUT,
+	IF_VID_DEC_PAD_NUM_PADS
+};
+
+/**
+ * enum if_aud_dec_index - audio/sound IF-PLL pad index for
+ *			   MEDIA_ENT_F_IF_AUD_DECODER
+ *
+ * @IF_AUD_DEC_PAD_IF_INPUT:	audio Intermediate Frequency (IF) sink pad
+ * @IF_AUD_DEC_PAD_OUT:		IF-PLL audio output source pad. Contains the
+ *				audio sampled stream data, usually connected
+ *				to the bridge bus via an Inter-IC Sound (I2S)
+ *				bus.
+ * @IF_AUD_DEC_PAD_NUM_PADS:	Number of pads of the audio IF-PLL.
+ */
+enum if_aud_dec_pad_index {
+	IF_AUD_DEC_PAD_IF_INPUT,
+	IF_AUD_DEC_PAD_OUT,
+	IF_AUD_DEC_PAD_NUM_PADS
+};
