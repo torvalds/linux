@@ -196,6 +196,23 @@ void __init arm64_memblock_init(void)
 		memblock_add(__pa(_text), (u64)(_end - _text));
 	}
 
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
+		extern u16 memstart_offset_seed;
+		u64 range = linear_region_size -
+			    (memblock_end_of_DRAM() - memblock_start_of_DRAM());
+
+		/*
+		 * If the size of the linear region exceeds, by a sufficient
+		 * margin, the size of the region that the available physical
+		 * memory spans, randomize the linear region as well.
+		 */
+		if (memstart_offset_seed > 0 && range >= ARM64_MEMSTART_ALIGN) {
+			range = range / ARM64_MEMSTART_ALIGN + 1;
+			memstart_addr -= ARM64_MEMSTART_ALIGN *
+					 ((range * memstart_offset_seed) >> 16);
+		}
+	}
+
 	/*
 	 * Register the kernel text, kernel data, initrd, and initial
 	 * pagetables with memblock.
@@ -365,12 +382,13 @@ void __init mem_init(void)
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 		  MLG((unsigned long)vmemmap,
 		      (unsigned long)vmemmap + VMEMMAP_SIZE),
-		  MLM((unsigned long)virt_to_page(PAGE_OFFSET),
+		  MLM((unsigned long)phys_to_page(memblock_start_of_DRAM()),
 		      (unsigned long)virt_to_page(high_memory)),
 #endif
 		  MLK(FIXADDR_START, FIXADDR_TOP),
 		  MLM(PCI_IO_START, PCI_IO_END),
-		  MLM(PAGE_OFFSET, (unsigned long)high_memory));
+		  MLM(__phys_to_virt(memblock_start_of_DRAM()),
+		      (unsigned long)high_memory));
 
 #undef MLK
 #undef MLM
