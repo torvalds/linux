@@ -236,10 +236,14 @@ enum dwc2_transaction_type {
  * @do_split:           Full/low speed endpoint on high-speed hub requires split
  * @td_first:           Index of first activated isochronous transfer descriptor
  * @td_last:            Index of last activated isochronous transfer descriptor
- * @usecs:              Bandwidth in microseconds per (micro)frame
- * @interval:           Interval between transfers in (micro)frames
- * @sched_frame:        (Micro)frame to initialize a periodic transfer.
- *                      The transfer executes in the following (micro)frame.
+ * @host_us:            Bandwidth in microseconds per transfer as seen by host
+ * @host_interval:      Interval between transfers as seen by the host.  If
+ *                      the host is high speed and the device is low speed this
+ *                      will be 8 times device interval.
+ * @next_active_frame:  (Micro)frame before we next need to put something on
+ *                      the bus.  We'll move the qh to active here.  If the
+ *                      host is in high speed mode this will be a uframe.  If
+ *                      the host is in low speed mode this will be a full frame.
  * @frame_usecs:        Internal variable used by the microframe scheduler
  * @start_split_frame:  (Micro)frame at which last start split was initialized
  * @ntd:                Actual number of transfer descriptors in a list
@@ -272,9 +276,9 @@ struct dwc2_qh {
 	u8 do_split;
 	u8 td_first;
 	u8 td_last;
-	u16 usecs;
-	u16 interval;
-	u16 sched_frame;
+	u16 host_us;
+	u16 host_interval;
+	u16 next_active_frame;
 	u16 frame_usecs[8];
 	u16 start_split_frame;
 	u16 ntd;
@@ -651,7 +655,7 @@ static inline u16 dwc2_hcd_get_ep_bandwidth(struct dwc2_hsotg *hsotg,
 		return 0;
 	}
 
-	return qh->usecs;
+	return qh->host_us;
 }
 
 extern void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
