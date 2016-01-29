@@ -74,3 +74,18 @@ enum if_aud_dec_pad_index {
 	IF_AUD_DEC_PAD_OUT,
 	IF_AUD_DEC_PAD_NUM_PADS
 };
+
+/**
+ * enum demod_pad_index - analog TV pad index for MEDIA_ENT_F_ATV_DECODER
+ *
+ * @DEMOD_PAD_IF_INPUT:	IF input sink pad.
+ * @DEMOD_PAD_VID_OUT:	Video output source pad.
+ * @DEMOD_PAD_VBI_OUT:	Vertical Blank Interface (VBI) output source pad.
+ * @DEMOD_NUM_PADS:	Maximum number of output pads.
+ */
+enum demod_pad_index {
+	DEMOD_PAD_IF_INPUT,
+	DEMOD_PAD_VID_OUT,
+	DEMOD_PAD_VBI_OUT,
+	DEMOD_NUM_PADS
+};
