@@ -223,9 +223,12 @@ static int ccp_aes_cmac_digest(struct ahash_request *req)
 static int ccp_aes_cmac_export(struct ahash_request *req, void *out)
 {
 	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx(req);
-	struct ccp_aes_cmac_req_ctx *state = out;
+	struct ccp_aes_cmac_exp_ctx *state = out;
 
-	*state = *rctx;
+	state->null_msg = rctx->null_msg;
+	memcpy(state->iv, rctx->iv, sizeof(state->iv));
+	state->buf_count = rctx->buf_count;
+	memcpy(state->buf, rctx->buf, sizeof(state->buf));
 
 	return 0;
 }
@@ -233,9 +236,12 @@ static int ccp_aes_cmac_export(struct ahash_request *req, void *out)
 static int ccp_aes_cmac_import(struct ahash_request *req, const void *in)
 {
 	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx(req);
-	const struct ccp_aes_cmac_req_ctx *state = in;
+	const struct ccp_aes_cmac_exp_ctx *state = in;
 
-	*rctx = *state;
+	rctx->null_msg = state->null_msg;
+	memcpy(rctx->iv, state->iv, sizeof(rctx->iv));
+	rctx->buf_count = state->buf_count;
+	memcpy(rctx->buf, state->buf, sizeof(rctx->buf));
 
 	return 0;
 }
@@ -378,7 +384,7 @@ int ccp_register_aes_cmac_algs(struct list_head *head)
 
 	halg = &alg->halg;
 	halg->digestsize = AES_BLOCK_SIZE;
-	halg->statesize = sizeof(struct ccp_aes_cmac_req_ctx);
+	halg->statesize = sizeof(struct ccp_aes_cmac_exp_ctx);
 
 	base = &halg->base;
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "cmac(aes)");
