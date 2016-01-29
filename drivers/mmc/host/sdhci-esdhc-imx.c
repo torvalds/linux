@@ -1046,6 +1046,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	if (of_get_property(np, "wifi-host", NULL)) {
 		wifi_mmc_host = host->mmc;
+		host->quirks2 |= SDHCI_QUIRK2_SDIO_IRQ_THREAD;
 		dev_info(mmc_dev(host->mmc), "assigned as wifi host\n");
 	}
 

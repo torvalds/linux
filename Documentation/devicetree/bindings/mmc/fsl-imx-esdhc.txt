@@ -36,7 +36,7 @@ Optional properties:
 - fsl,tuning-start-tap: Specify the start dealy cell point when send first CMD19
   in tuning procedure.
 - wifi-host : assigned as a wifi host.
-  This is required for some WiFi cards to do card detect
+  This is required for Broadcom BCM WiFi cards to do card detect
 
 Examples:
 

@@ -412,6 +412,9 @@ struct sdhci_host {
 #define SDHCI_QUIRK2_ACMD23_BROKEN			(1<<14)
 /* Broken Clock divider zero in controller */
 #define SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN		(1<<15)
+/* Host or Card can't support no thread sdio irq */
+#define SDHCI_QUIRK2_SDIO_IRQ_THREAD			(1<<16)
+
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
