@@ -55,12 +55,16 @@
 /* This function is for debug only */
 static void dwc2_track_missed_sofs(struct dwc2_hsotg *hsotg)
 {
-#ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 	u16 curr_frame_number = hsotg->frame_number;
+	u16 expected = dwc2_frame_num_inc(hsotg->last_frame_num, 1);
 
+	if (expected != curr_frame_number)
+		dwc2_sch_vdbg(hsotg, "MISSED SOF %04x != %04x\n",
+			expected, curr_frame_number);
+
+#ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 	if (hsotg->frame_num_idx < FRAME_NUM_ARRAY_SIZE) {
-		if (((hsotg->last_frame_num + 1) & HFNUM_MAX_FRNUM) !=
-		    curr_frame_number) {
+		if (expected != curr_frame_number) {
 			hsotg->frame_num_array[hsotg->frame_num_idx] =
 					curr_frame_number;
 			hsotg->last_frame_num_array[hsotg->frame_num_idx] =
@@ -79,8 +83,8 @@ static void dwc2_track_missed_sofs(struct dwc2_hsotg *hsotg)
 		}
 		hsotg->dumped_frame_num_array = 1;
 	}
-	hsotg->last_frame_num = curr_frame_number;
 #endif
+	hsotg->last_frame_num = curr_frame_number;
 }
 
 static void dwc2_hc_handle_tt_clear(struct dwc2_hsotg *hsotg,

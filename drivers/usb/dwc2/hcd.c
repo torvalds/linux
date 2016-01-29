@@ -3084,8 +3084,8 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 			FRAME_NUM_ARRAY_SIZE, GFP_KERNEL);
 	if (!hsotg->last_frame_num_array)
 		goto error1;
-	hsotg->last_frame_num = HFNUM_MAX_FRNUM;
 #endif
+	hsotg->last_frame_num = HFNUM_MAX_FRNUM;
 
 	/* Check if the bus driver or platform code has setup a dma_mask */
 	if (hsotg->core_params->dma_enable > 0 &&
