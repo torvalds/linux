@@ -985,6 +985,14 @@ static int dwc2_next_periodic_start(struct dwc2_hsotg *hsotg,
 	 *   and next_active_frame are always 1 frame before we want things
 	 *   to be active and we assume we can still get scheduled in the
 	 *   current frame number.
+	 * - It's possible for start_active_frame (now incremented) to be
+	 *   next_active_frame if we got an EO MISS (even_odd miss) which
+	 *   basically means that we detected there wasn't enough time for
+	 *   the last packet and dwc2_hc_set_even_odd_frame() rescheduled us
+	 *   at the last second.  We want to make sure we don't schedule
+	 *   another transfer for the same frame.  My test webcam doesn't seem
+	 *   terribly upset by missing a transfer but really doesn't like when
+	 *   we do two transfers in the same frame.
 	 * - Some misses are expected.  Specifically, in order to work
 	 *   perfectly dwc2 really needs quite spectacular interrupt latency
 	 *   requirements.  It needs to be able to handle its interrupts
@@ -995,7 +1003,8 @@ static int dwc2_next_periodic_start(struct dwc2_hsotg *hsotg,
 	 *   guarantee that a system will have interrupt latency < 125 us, so
 	 *   we have to be robust to some misses.
 	 */
-	if (dwc2_frame_num_gt(prev_frame_number, qh->start_active_frame)) {
+	if (qh->start_active_frame == qh->next_active_frame ||
+	    dwc2_frame_num_gt(prev_frame_number, qh->start_active_frame)) {
 		u16 ideal_start = qh->start_active_frame;
 
 		/* Adjust interval as per gcd with plan length. */
