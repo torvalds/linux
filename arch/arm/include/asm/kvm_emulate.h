@@ -138,6 +138,11 @@ static inline bool kvm_vcpu_dabt_iss1tw(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & HSR_DABT_S1PTW;
 }
 
+static inline bool kvm_vcpu_dabt_is_cm(struct kvm_vcpu *vcpu)
+{
+	return !!(kvm_vcpu_get_hsr(vcpu) & HSR_DABT_CM);
+}
+
 /* Get Access Size from a data abort */
 static inline int kvm_vcpu_dabt_get_as(struct kvm_vcpu *vcpu)
 {
