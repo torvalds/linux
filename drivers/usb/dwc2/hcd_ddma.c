@@ -1326,8 +1326,8 @@ void dwc2_hcd_complete_xfer_ddma(struct dwc2_hsotg *hsotg,
 			dwc2_hcd_qh_unlink(hsotg, qh);
 		} else {
 			/* Keep in assigned schedule to continue transfer */
-			list_move(&qh->qh_list_entry,
-				  &hsotg->periodic_sched_assigned);
+			list_move_tail(&qh->qh_list_entry,
+				       &hsotg->periodic_sched_assigned);
 			/*
 			 * If channel has been halted during giveback of urb
 			 * then prevent any new scheduling.
