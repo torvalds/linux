@@ -1028,7 +1028,7 @@ static int isp_stat_init_entities(struct ispstat *stat, const char *name,
 	stat->pad.flags = MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 	me->ops = NULL;
 
-	return media_entity_init(me, 1, &stat->pad, 0);
+	return media_entity_pads_init(me, 1, &stat->pad);
 }
 
 int omap3isp_stat_init(struct ispstat *stat, const char *name,

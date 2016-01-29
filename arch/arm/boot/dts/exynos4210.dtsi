@@ -185,8 +185,8 @@
 		interrupts = <0 89 0>;
 		clocks = <&clock CLK_SCLK_FIMG2D>, <&clock CLK_G2D>;
 		clock-names = "sclk_fimg2d", "fimg2d";
+		power-domains = <&pd_lcd0>;
 		iommus = <&sysmmu_g2d>;
-		status = "disabled";
 	};
 
 	camera {
@@ -271,6 +271,10 @@
 		     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>;
 };
 
+&mdma1 {
+	power-domains = <&pd_lcd0>;
+};
+
 &pmu_system_controller {
 	clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
 			"clkout4", "clkout8", "clkout9";
@@ -278,4 +282,12 @@
 		<&clock CLK_OUT_LEFTBUS>, <&clock CLK_OUT_RIGHTBUS>,
 		<&clock CLK_OUT_CPU>, <&clock CLK_XXTI>, <&clock CLK_XUSBXTI>;
 	#clock-cells = <1>;
+};
+
+&rotator {
+	power-domains = <&pd_lcd0>;
+};
+
+&sysmmu_rotator {
+	power-domains = <&pd_lcd0>;
 };

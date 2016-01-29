@@ -436,9 +436,8 @@ static void null_del_dev(struct nullb *nullb)
 static void null_lnvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
-	struct nvm_dev *dev = rqd->dev;
 
-	dev->mt->end_io(rqd, error);
+	nvm_end_io(rqd, error);
 
 	blk_put_request(rq);
 }
@@ -449,7 +448,7 @@ static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
-	rq = blk_mq_alloc_request(q, bio_rw(bio), GFP_KERNEL, 0);
+	rq = blk_mq_alloc_request(q, bio_rw(bio), 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
@@ -495,17 +494,17 @@ static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 	id->ppaf.ch_offset = 56;
 	id->ppaf.ch_len = 8;
 
-	do_div(size, bs); /* convert size to pages */
-	do_div(size, 256); /* concert size to pgs pr blk */
+	sector_div(size, bs); /* convert size to pages */
+	size >>= 8; /* concert size to pgs pr blk */
 	grp = &id->groups[0];
 	grp->mtype = 0;
 	grp->fmtype = 0;
 	grp->num_ch = 1;
 	grp->num_pg = 256;
 	blksize = size;
-	do_div(size, (1 << 16));
+	size >>= 16;
 	grp->num_lun = size + 1;
-	do_div(blksize, grp->num_lun);
+	sector_div(blksize, grp->num_lun);
 	grp->num_blk = blksize;
 	grp->num_pln = 1;
 

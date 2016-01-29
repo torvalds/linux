@@ -8,12 +8,12 @@
 #include <uapi/linux/netfilter/nfnetlink.h>
 
 struct nfnl_callback {
-	int (*call)(struct sock *nl, struct sk_buff *skb, 
+	int (*call)(struct net *net, struct sock *nl, struct sk_buff *skb,
 		    const struct nlmsghdr *nlh,
 		    const struct nlattr * const cda[]);
-	int (*call_rcu)(struct sock *nl, struct sk_buff *skb, 
-		    const struct nlmsghdr *nlh,
-		    const struct nlattr * const cda[]);
+	int (*call_rcu)(struct net *net, struct sock *nl, struct sk_buff *skb,
+			const struct nlmsghdr *nlh,
+			const struct nlattr * const cda[]);
 	int (*call_batch)(struct net *net, struct sock *nl, struct sk_buff *skb,
 			  const struct nlmsghdr *nlh,
 			  const struct nlattr * const cda[]);
@@ -26,8 +26,8 @@ struct nfnetlink_subsystem {
 	__u8 subsys_id;			/* nfnetlink subsystem ID */
 	__u8 cb_count;			/* number of callbacks */
 	const struct nfnl_callback *cb;	/* callback for individual types */
-	int (*commit)(struct sk_buff *skb);
-	int (*abort)(struct sk_buff *skb);
+	int (*commit)(struct net *net, struct sk_buff *skb);
+	int (*abort)(struct net *net, struct sk_buff *skb);
 };
 
 int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n);

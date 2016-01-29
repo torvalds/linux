@@ -2,10 +2,13 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/amd/include/asic_reg \
-	-Idrivers/gpu/drm/amd/include \
-	-Idrivers/gpu/drm/amd/amdgpu \
-	-Idrivers/gpu/drm/amd/scheduler
+FULL_AMD_PATH=$(src)/..
+
+ccflags-y := -Iinclude/drm -I$(FULL_AMD_PATH)/include/asic_reg \
+	-I$(FULL_AMD_PATH)/include \
+	-I$(FULL_AMD_PATH)/amdgpu \
+	-I$(FULL_AMD_PATH)/scheduler \
+	-I$(FULL_AMD_PATH)/powerplay/inc
 
 amdgpu-y := amdgpu_drv.o
 
@@ -44,6 +47,7 @@ amdgpu-y += \
 # add SMC block
 amdgpu-y += \
 	amdgpu_dpm.o \
+	amdgpu_powerplay.o \
 	cz_smc.o cz_dpm.o \
 	tonga_smc.o tonga_dpm.o \
 	fiji_smc.o fiji_dpm.o \
@@ -93,6 +97,14 @@ amdgpu-$(CONFIG_COMPAT) += amdgpu_ioc32.o
 amdgpu-$(CONFIG_VGA_SWITCHEROO) += amdgpu_atpx_handler.o
 amdgpu-$(CONFIG_ACPI) += amdgpu_acpi.o
 amdgpu-$(CONFIG_MMU_NOTIFIER) += amdgpu_mn.o
+
+ifneq ($(CONFIG_DRM_AMD_POWERPLAY),)
+
+include $(FULL_AMD_PATH)/powerplay/Makefile
+
+amdgpu-y += $(AMD_POWERPLAY_FILES)
+
+endif
 
 obj-$(CONFIG_DRM_AMDGPU)+= amdgpu.o
 

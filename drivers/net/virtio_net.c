@@ -522,8 +522,6 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 		skb_shinfo(skb)->gso_segs = 0;
 	}
 
-	skb_mark_napi_id(skb, &rq->napi);
-
 	napi_gro_receive(&rq->napi, skb);
 	return;
 
@@ -1616,7 +1614,6 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 		vi->rq[i].pages = NULL;
 		netif_napi_add(vi->dev, &vi->rq[i].napi, virtnet_poll,
 			       napi_weight);
-		napi_hash_add(&vi->rq[i].napi);
 
 		sg_init_table(vi->rq[i].sg, ARRAY_SIZE(vi->rq[i].sg));
 		ewma_pkt_len_init(&vi->rq[i].mrg_avg_pkt_len);

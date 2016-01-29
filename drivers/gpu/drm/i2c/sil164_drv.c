@@ -341,7 +341,7 @@ sil164_encoder_destroy(struct drm_encoder *encoder)
 	drm_i2c_encoder_destroy(encoder);
 }
 
-static struct drm_encoder_slave_funcs sil164_encoder_funcs = {
+static const struct drm_encoder_slave_funcs sil164_encoder_funcs = {
 	.set_config = sil164_encoder_set_config,
 	.destroy = sil164_encoder_destroy,
 	.dpms = sil164_encoder_dpms,

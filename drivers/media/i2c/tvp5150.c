@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
-#include <media/tvp5150.h>
+#include <media/i2c/tvp5150.h>
 #include <media/v4l2-ctrls.h>
 
 #include "tvp5150_reg.h"

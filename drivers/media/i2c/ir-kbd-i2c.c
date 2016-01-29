@@ -47,7 +47,7 @@
 #include <linux/workqueue.h>
 
 #include <media/rc-core.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/i2c/ir-kbd-i2c.h>
 
 /* ----------------------------------------------------------------------- */
 /* insmod parameters                                                       */

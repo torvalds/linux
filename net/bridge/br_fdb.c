@@ -135,6 +135,7 @@ static void fdb_del_external_learn(struct net_bridge_fdb_entry *f)
 {
 	struct switchdev_obj_port_fdb fdb = {
 		.obj = {
+			.orig_dev = f->dst->dev,
 			.id = SWITCHDEV_OBJ_ID_PORT_FDB,
 			.flags = SWITCHDEV_F_DEFER,
 		},

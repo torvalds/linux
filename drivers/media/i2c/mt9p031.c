@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
-#include <media/mt9p031.h>
+#include <media/i2c/mt9p031.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -817,7 +817,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9p031_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9p031_ctrl_ops = {
 	.s_ctrl = mt9p031_s_ctrl,
 };
 
@@ -1112,7 +1112,7 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->subdev.internal_ops = &mt9p031_subdev_internal_ops;
 
 	mt9p031->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&mt9p031->subdev.entity, 1, &mt9p031->pad, 0);
+	ret = media_entity_pads_init(&mt9p031->subdev.entity, 1, &mt9p031->pad);
 	if (ret < 0)
 		goto done;
 

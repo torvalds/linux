@@ -4,7 +4,7 @@ CFLAGS = -Wall -O2 -g
 
 CFLAGS += -I../../../../usr/include/
 
-NET_PROGS = socket psock_fanout psock_tpacket
+NET_PROGS = socket psock_fanout psock_tpacket reuseport_bpf
 
 all: $(NET_PROGS)
 %: %.c

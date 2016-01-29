@@ -1,0 +1,22 @@
+CIRRUS LOGIC Fractional-N Clock Synthesizer & Clock Multiplier
+
+Required properties:
+
+- compatible:		"cirrus,cs2000-cp"
+- reg:			The chip select number on the I2C bus
+- clocks:		common clock binding for CLK_IN, XTI/REF_CLK
+- clock-names:		CLK_IN : clk_in, XTI/REF_CLK : ref_clk
+- #clock-cells:		must be <0>
+
+Example:
+
+&i2c2 {
+	...
+	cs2000: clk_multiplier@4f {
+		#clock-cells = <0>;
+		compatible = "cirrus,cs2000-cp";
+		reg = <0x4f>;
+		clocks = <&rcar_sound 0>, <&x12_clk>;
+		clock-names = "clk_in", "ref_clk";
+	};
+};

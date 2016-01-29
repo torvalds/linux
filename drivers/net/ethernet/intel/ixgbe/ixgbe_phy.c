@@ -2393,6 +2393,9 @@ s32 ixgbe_set_copper_phy_power(struct ixgbe_hw *hw, bool on)
 	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_copper)
 		return 0;
 
+	if (!on && ixgbe_mng_present(hw))
+		return 0;
+
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_VENDOR_SPECIFIC_1_CONTROL,
 				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
 				      &reg);

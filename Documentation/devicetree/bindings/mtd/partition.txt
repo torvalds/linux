@@ -32,6 +32,8 @@ Optional properties:
   partition should only be mounted read-only. This is usually used for flash
   partitions containing early-boot firmware images or data which should not be
   clobbered.
+- lock : Do not unlock the partition at initialization time (not supported on
+  all devices)
 
 Examples:
 

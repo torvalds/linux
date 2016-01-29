@@ -37,6 +37,8 @@
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
 #include <linux/dynamic_debug.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -118,6 +120,75 @@ typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
 
 typedef int (*acpi_tbl_entry_handler)(struct acpi_subtable_header *header,
 				      const unsigned long end);
+
+/* Debugger support */
+
+struct acpi_debugger_ops {
+	int (*create_thread)(acpi_osd_exec_callback function, void *context);
+	ssize_t (*write_log)(const char *msg);
+	ssize_t (*read_cmd)(char *buffer, size_t length);
+	int (*wait_command_ready)(bool single_step, char *buffer, size_t length);
+	int (*notify_command_complete)(void);
+};
+
+struct acpi_debugger {
+	const struct acpi_debugger_ops *ops;
+	struct module *owner;
+	struct mutex lock;
+};
+
+#ifdef CONFIG_ACPI_DEBUGGER
+int __init acpi_debugger_init(void);
+int acpi_register_debugger(struct module *owner,
+			   const struct acpi_debugger_ops *ops);
+void acpi_unregister_debugger(const struct acpi_debugger_ops *ops);
+int acpi_debugger_create_thread(acpi_osd_exec_callback function, void *context);
+ssize_t acpi_debugger_write_log(const char *msg);
+ssize_t acpi_debugger_read_cmd(char *buffer, size_t buffer_length);
+int acpi_debugger_wait_command_ready(void);
+int acpi_debugger_notify_command_complete(void);
+#else
+static inline int acpi_debugger_init(void)
+{
+	return -ENODEV;
+}
+
+static inline int acpi_register_debugger(struct module *owner,
+					 const struct acpi_debugger_ops *ops)
+{
+	return -ENODEV;
+}
+
+static inline void acpi_unregister_debugger(const struct acpi_debugger_ops *ops)
+{
+}
+
+static inline int acpi_debugger_create_thread(acpi_osd_exec_callback function,
+					      void *context)
+{
+	return -ENODEV;
+}
+
+static inline int acpi_debugger_write_log(const char *msg)
+{
+	return -ENODEV;
+}
+
+static inline int acpi_debugger_read_cmd(char *buffer, u32 buffer_length)
+{
+	return -ENODEV;
+}
+
+static inline int acpi_debugger_wait_command_ready(void)
+{
+	return -ENODEV;
+}
+
+static inline int acpi_debugger_notify_command_complete(void)
+{
+	return -ENODEV;
+}
+#endif
 
 #ifdef CONFIG_ACPI_INITRD_TABLE_OVERRIDE
 void acpi_initrd_override(void *data, size_t size);
@@ -318,6 +389,7 @@ bool acpi_dev_resource_address_space(struct acpi_resource *ares,
 bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
 					 struct resource_win *win);
 unsigned long acpi_dev_irq_flags(u8 triggering, u8 polarity, u8 shareable);
+unsigned int acpi_dev_get_irq_type(int triggering, int polarity);
 bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 				 struct resource *res);
 

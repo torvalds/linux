@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,6 +121,7 @@ void acpi_tb_check_dsdt_header(void)
 		ACPI_BIOS_ERROR((AE_INFO,
 				 "The DSDT has been corrupted or replaced - "
 				 "old, new headers below"));
+
 		acpi_tb_print_table_header(0, &acpi_gbl_original_dsdt_header);
 		acpi_tb_print_table_header(0, acpi_gbl_DSDT);
 
@@ -379,7 +380,6 @@ next_table:
 	}
 
 	acpi_os_unmap_memory(table, length);
-
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -389,7 +389,7 @@ next_table:
  *
  * PARAMETERS:  signature           - Sig string to be validated
  *
- * RETURN:      TRUE if signature is correct length and has valid characters
+ * RETURN:      TRUE if signature is has 4 valid ACPI characters
  *
  * DESCRIPTION: Validate an ACPI table signature.
  *
@@ -398,12 +398,6 @@ next_table:
 u8 acpi_is_valid_signature(char *signature)
 {
 	u32 i;
-
-	/* Validate the signature length */
-
-	if (strlen(signature) != ACPI_NAME_SIZE) {
-		return (FALSE);
-	}
 
 	/* Validate each character in the signature */
 

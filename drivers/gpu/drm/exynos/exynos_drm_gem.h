@@ -55,8 +55,6 @@ struct exynos_drm_gem {
 	struct sg_table		*sgt;
 };
 
-struct page **exynos_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
-
 /* destroy a buffer with gem object */
 void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem);
 
@@ -91,10 +89,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
 					struct drm_file *filp);
 
-/* map user space allocated by malloc to pages. */
-int exynos_drm_gem_userptr_ioctl(struct drm_device *dev, void *data,
-				      struct drm_file *file_priv);
-
 /* get buffer information to memory region allocated by gem. */
 int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
@@ -122,28 +116,6 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 
 /* set vm_flags and we can change the vm attribute to other one at here. */
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
-
-static inline int vma_is_io(struct vm_area_struct *vma)
-{
-	return !!(vma->vm_flags & (VM_IO | VM_PFNMAP));
-}
-
-/* get a copy of a virtual memory region. */
-struct vm_area_struct *exynos_gem_get_vma(struct vm_area_struct *vma);
-
-/* release a userspace virtual memory area. */
-void exynos_gem_put_vma(struct vm_area_struct *vma);
-
-/* get pages from user space. */
-int exynos_gem_get_pages_from_userptr(unsigned long start,
-						unsigned int npages,
-						struct page **pages,
-						struct vm_area_struct *vma);
-
-/* drop the reference to pages. */
-void exynos_gem_put_pages_to_userptr(struct page **pages,
-					unsigned int npages,
-					struct vm_area_struct *vma);
 
 /* map sgt with dma region. */
 int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,

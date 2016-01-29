@@ -338,6 +338,9 @@ Options passed to clang when compiling BPF scriptlets.
 Specify vmlinux path which has debuginfo.
 (enabled when BPF prologue is on)
 
+--buildid-all::
+Record build-id of all DSOs regardless whether it's actually hit or not.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1]

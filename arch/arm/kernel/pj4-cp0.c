@@ -66,9 +66,13 @@ static void __init pj4_cp_access_write(u32 value)
 
 	__asm__ __volatile__ (
 		"mcr	p15, 0, %1, c1, c0, 2\n\t"
+#ifdef CONFIG_THUMB2_KERNEL
+		"isb\n\t"
+#else
 		"mrc	p15, 0, %0, c1, c0, 2\n\t"
 		"mov	%0, %0\n\t"
 		"sub	pc, pc, #4\n\t"
+#endif
 		: "=r" (temp) : "r" (value));
 }
 

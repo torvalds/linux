@@ -314,16 +314,10 @@ static void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 
 static struct kvm_vcpu *kvmppc_find_vcpu(struct kvm *kvm, int id)
 {
-	int r;
-	struct kvm_vcpu *v, *ret = NULL;
+	struct kvm_vcpu *ret;
 
 	mutex_lock(&kvm->lock);
-	kvm_for_each_vcpu(r, v, kvm) {
-		if (v->vcpu_id == id) {
-			ret = v;
-			break;
-		}
-	}
+	ret = kvm_get_vcpu_by_id(kvm, id);
 	mutex_unlock(&kvm->lock);
 	return ret;
 }
@@ -2706,9 +2700,8 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			goto out;
 	}
 
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
-	flush_vsx_to_thread(current);
+	flush_all_to_thread(current);
+
 	vcpu->arch.wqp = &vcpu->arch.vcore->wq;
 	vcpu->arch.pgdir = current->mm->pgd;
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;

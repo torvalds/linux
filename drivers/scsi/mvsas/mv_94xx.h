@@ -38,6 +38,10 @@ enum VANIR_REVISION_ID {
 	VANIR_C2_REV		= 0xC2,
 };
 
+enum host_registers {
+	MVS_HST_CHIP_CONFIG	= 0x10104,	/* chip configuration */
+};
+
 enum hw_registers {
 	MVS_GBL_CTL		= 0x04,  /* global control */
 	MVS_GBL_INT_STAT	= 0x00,  /* global irq status */
@@ -238,6 +242,73 @@ struct mvs_prd {
 	/* 22-bit length */
 	__le32			im_len;
 } __attribute__ ((packed));
+
+enum sgpio_registers {
+	MVS_SGPIO_HOST_OFFSET	= 0x100,	/* offset between hosts */
+
+	MVS_SGPIO_CFG0	= 0xc200,
+	MVS_SGPIO_CFG0_ENABLE	= (1 << 0),	/* enable pins */
+	MVS_SGPIO_CFG0_BLINKB	= (1 << 1),	/* blink generators */
+	MVS_SGPIO_CFG0_BLINKA	= (1 << 2),
+	MVS_SGPIO_CFG0_INVSCLK	= (1 << 3),	/* invert signal? */
+	MVS_SGPIO_CFG0_INVSLOAD	= (1 << 4),
+	MVS_SGPIO_CFG0_INVSDOUT	= (1 << 5),
+	MVS_SGPIO_CFG0_SLOAD_FALLEDGE = (1 << 6),	/* rise/fall edge? */
+	MVS_SGPIO_CFG0_SDOUT_FALLEDGE = (1 << 7),
+	MVS_SGPIO_CFG0_SDIN_RISEEDGE = (1 << 8),
+	MVS_SGPIO_CFG0_MAN_BITLEN_SHIFT = 18,	/* bits/frame manual mode */
+	MVS_SGPIO_CFG0_AUT_BITLEN_SHIFT = 24,	/* bits/frame auto mode */
+
+	MVS_SGPIO_CFG1	= 0xc204,	/* blink timing register */
+	MVS_SGPIO_CFG1_LOWA_SHIFT	= 0,	/* A off time */
+	MVS_SGPIO_CFG1_HIA_SHIFT	= 4,	/* A on time */
+	MVS_SGPIO_CFG1_LOWB_SHIFT	= 8,	/* B off time */
+	MVS_SGPIO_CFG1_HIB_SHIFT	= 12,	/* B on time */
+	MVS_SGPIO_CFG1_MAXACTON_SHIFT	= 16,	/* max activity on time */
+
+		/* force activity off time */
+	MVS_SGPIO_CFG1_FORCEACTOFF_SHIFT	= 20,
+		/* stretch activity on time */
+	MVS_SGPIO_CFG1_STRCHACTON_SHIFT	= 24,
+		/* stretch activiity off time */
+	MVS_SGPIO_CFG1_STRCHACTOFF_SHIFT	= 28,
+
+
+	MVS_SGPIO_CFG2	= 0xc208,	/* clock speed register */
+	MVS_SGPIO_CFG2_CLK_SHIFT	= 0,
+	MVS_SGPIO_CFG2_BLINK_SHIFT	= 20,
+
+	MVS_SGPIO_CTRL	= 0xc20c,	/* SDOUT/SDIN mode control */
+	MVS_SGPIO_CTRL_SDOUT_AUTO	= 2,
+	MVS_SGPIO_CTRL_SDOUT_SHIFT	= 2,
+
+	MVS_SGPIO_DSRC	= 0xc220,	/* map ODn bits to drives */
+
+	MVS_SGPIO_DCTRL	= 0xc238,
+	MVS_SGPIO_DCTRL_ERR_SHIFT	= 0,
+	MVS_SGPIO_DCTRL_LOC_SHIFT	= 3,
+	MVS_SGPIO_DCTRL_ACT_SHIFT	= 5,
+};
+
+enum sgpio_led_status {
+	LED_OFF	= 0,
+	LED_ON	= 1,
+	LED_BLINKA	= 2,
+	LED_BLINKA_INV	= 3,
+	LED_BLINKA_SOF	= 4,
+	LED_BLINKA_EOF	= 5,
+	LED_BLINKB	= 6,
+	LED_BLINKB_INV	= 7,
+};
+
+#define DEFAULT_SGPIO_BITS ((LED_BLINKA_SOF << \
+				MVS_SGPIO_DCTRL_ACT_SHIFT) << (8 * 3) | \
+			(LED_BLINKA_SOF << \
+				MVS_SGPIO_DCTRL_ACT_SHIFT) << (8 * 2) | \
+			(LED_BLINKA_SOF << \
+				MVS_SGPIO_DCTRL_ACT_SHIFT) << (8 * 1) | \
+			(LED_BLINKA_SOF << \
+				MVS_SGPIO_DCTRL_ACT_SHIFT) << (8 * 0))
 
 /*
  * these registers are accessed through port vendor

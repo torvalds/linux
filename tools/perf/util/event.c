@@ -503,7 +503,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 	if (comm_event == NULL)
 		goto out;
 
-	mmap_event = malloc(sizeof(mmap_event->mmap) + machine->id_hdr_size);
+	mmap_event = malloc(sizeof(mmap_event->mmap2) + machine->id_hdr_size);
 	if (mmap_event == NULL)
 		goto out_free_comm;
 
@@ -577,7 +577,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (comm_event == NULL)
 		goto out;
 
-	mmap_event = malloc(sizeof(mmap_event->mmap) + machine->id_hdr_size);
+	mmap_event = malloc(sizeof(mmap_event->mmap2) + machine->id_hdr_size);
 	if (mmap_event == NULL)
 		goto out_free_comm;
 

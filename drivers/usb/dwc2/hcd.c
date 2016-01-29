@@ -268,15 +268,33 @@ static void dwc2_hcd_cleanup_channels(struct dwc2_hsotg *hsotg)
 }
 
 /**
- * dwc2_hcd_disconnect() - Handles disconnect of the HCD
+ * dwc2_hcd_connect() - Handles connect of the HCD
  *
  * @hsotg: Pointer to struct dwc2_hsotg
  *
  * Must be called with interrupt disabled and spinlock held
  */
-void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg)
+void dwc2_hcd_connect(struct dwc2_hsotg *hsotg)
+{
+	if (hsotg->lx_state != DWC2_L0)
+		usb_hcd_resume_root_hub(hsotg->priv);
+
+	hsotg->flags.b.port_connect_status_change = 1;
+	hsotg->flags.b.port_connect_status = 1;
+}
+
+/**
+ * dwc2_hcd_disconnect() - Handles disconnect of the HCD
+ *
+ * @hsotg: Pointer to struct dwc2_hsotg
+ * @force: If true, we won't try to reconnect even if we see device connected.
+ *
+ * Must be called with interrupt disabled and spinlock held
+ */
+void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force)
 {
 	u32 intr;
+	u32 hprt0;
 
 	/* Set status flags for the hub driver */
 	hsotg->flags.b.port_connect_status_change = 1;
@@ -315,6 +333,24 @@ void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg)
 		dwc2_hcd_cleanup_channels(hsotg);
 
 	dwc2_host_disconnect(hsotg);
+
+	/*
+	 * Add an extra check here to see if we're actually connected but
+	 * we don't have a detection interrupt pending.  This can happen if:
+	 *   1. hardware sees connect
+	 *   2. hardware sees disconnect
+	 *   3. hardware sees connect
+	 *   4. dwc2_port_intr() - clears connect interrupt
+	 *   5. dwc2_handle_common_intr() - calls here
+	 *
+	 * Without the extra check here we will end calling disconnect
+	 * and won't get any future interrupts to handle the connect.
+	 */
+	if (!force) {
+		hprt0 = dwc2_readl(hsotg->regs + HPRT0);
+		if (!(hprt0 & HPRT0_CONNDET) && (hprt0 & HPRT0_CONNSTS))
+			dwc2_hcd_connect(hsotg);
+	}
 }
 
 /**
@@ -881,8 +917,10 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		 */
 		chan->multi_count = dwc2_hb_mult(qh->maxp);
 
-	if (hsotg->core_params->dma_desc_enable > 0)
+	if (hsotg->core_params->dma_desc_enable > 0) {
 		chan->desc_list_addr = qh->desc_list_dma;
+		chan->desc_list_sz = qh->desc_list_sz;
+	}
 
 	dwc2_hc_init(hsotg, chan);
 	chan->qh = qh;
@@ -1382,7 +1420,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 			dev_err(hsotg->dev,
 				"Connection id status change timed out\n");
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
-		dwc2_core_init(hsotg, false, -1);
+		dwc2_core_init(hsotg, false);
 		dwc2_enable_global_interrupts(hsotg);
 		spin_lock_irqsave(&hsotg->lock, flags);
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
@@ -1405,7 +1443,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		hsotg->op_state = OTG_STATE_A_HOST;
 
 		/* Initialize the Core for Host mode */
-		dwc2_core_init(hsotg, false, -1);
+		dwc2_core_init(hsotg, false);
 		dwc2_enable_global_interrupts(hsotg);
 		dwc2_hcd_start(hsotg);
 	}
@@ -1733,6 +1771,28 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		if (hprt0 & HPRT0_TSTCTL_MASK)
 			port_status |= USB_PORT_STAT_TEST;
 		/* USB_PORT_FEAT_INDICATOR unsupported always 0 */
+
+		if (hsotg->core_params->dma_desc_fs_enable) {
+			/*
+			 * Enable descriptor DMA only if a full speed
+			 * device is connected.
+			 */
+			if (hsotg->new_connection &&
+			    ((port_status &
+			      (USB_PORT_STAT_CONNECTION |
+			       USB_PORT_STAT_HIGH_SPEED |
+			       USB_PORT_STAT_LOW_SPEED)) ==
+			       USB_PORT_STAT_CONNECTION)) {
+				u32 hcfg;
+
+				dev_info(hsotg->dev, "Enabling descriptor DMA mode\n");
+				hsotg->core_params->dma_desc_enable = 1;
+				hcfg = dwc2_readl(hsotg->regs + HCFG);
+				hcfg |= HCFG_DESCDMA;
+				dwc2_writel(hcfg, hsotg->regs + HCFG);
+				hsotg->new_connection = false;
+			}
+		}
 
 		dev_vdbg(hsotg->dev, "port_status=%08x\n", port_status);
 		*(__le32 *)buf = cpu_to_le32(port_status);
@@ -2298,13 +2358,19 @@ static void dwc2_hcd_reset_func(struct work_struct *work)
 {
 	struct dwc2_hsotg *hsotg = container_of(work, struct dwc2_hsotg,
 						reset_work.work);
+	unsigned long flags;
 	u32 hprt0;
 
 	dev_dbg(hsotg->dev, "USB RESET function called\n");
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+
 	hprt0 = dwc2_read_hprt0(hsotg);
 	hprt0 &= ~HPRT0_RST;
 	dwc2_writel(hprt0, hsotg->regs + HPRT0);
 	hsotg->flags.b.port_reset_change = 1;
+
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 
 /*
@@ -2366,7 +2432,7 @@ static void _dwc2_hcd_stop(struct usb_hcd *hcd)
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 	/* Ensure hcd is disconnected */
-	dwc2_hcd_disconnect(hsotg);
+	dwc2_hcd_disconnect(hsotg, true);
 	dwc2_hcd_stop(hsotg);
 	hsotg->lx_state = DWC2_L3;
 	hcd->state = HC_STATE_HALT;
@@ -3054,7 +3120,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	dwc2_disable_global_interrupts(hsotg);
 
 	/* Initialize the DWC_otg core, and select the Phy type */
-	retval = dwc2_core_init(hsotg, true, irq);
+	retval = dwc2_core_init(hsotg, true);
 	if (retval)
 		goto error2;
 
@@ -3122,6 +3188,47 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	if (!hsotg->status_buf)
 		goto error3;
 
+	/*
+	 * Create kmem caches to handle descriptor buffers in descriptor
+	 * DMA mode.
+	 * Alignment must be set to 512 bytes.
+	 */
+	if (hsotg->core_params->dma_desc_enable ||
+	    hsotg->core_params->dma_desc_fs_enable) {
+		hsotg->desc_gen_cache = kmem_cache_create("dwc2-gen-desc",
+				sizeof(struct dwc2_hcd_dma_desc) *
+				MAX_DMA_DESC_NUM_GENERIC, 512, SLAB_CACHE_DMA,
+				NULL);
+		if (!hsotg->desc_gen_cache) {
+			dev_err(hsotg->dev,
+				"unable to create dwc2 generic desc cache\n");
+
+			/*
+			 * Disable descriptor dma mode since it will not be
+			 * usable.
+			 */
+			hsotg->core_params->dma_desc_enable = 0;
+			hsotg->core_params->dma_desc_fs_enable = 0;
+		}
+
+		hsotg->desc_hsisoc_cache = kmem_cache_create("dwc2-hsisoc-desc",
+				sizeof(struct dwc2_hcd_dma_desc) *
+				MAX_DMA_DESC_NUM_HS_ISOC, 512, 0, NULL);
+		if (!hsotg->desc_hsisoc_cache) {
+			dev_err(hsotg->dev,
+				"unable to create dwc2 hs isoc desc cache\n");
+
+			kmem_cache_destroy(hsotg->desc_gen_cache);
+
+			/*
+			 * Disable descriptor dma mode since it will not be
+			 * usable.
+			 */
+			hsotg->core_params->dma_desc_enable = 0;
+			hsotg->core_params->dma_desc_fs_enable = 0;
+		}
+	}
+
 	hsotg->otg_port = 1;
 	hsotg->frame_list = NULL;
 	hsotg->frame_list_dma = 0;
@@ -3145,7 +3252,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	 */
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval < 0)
-		goto error3;
+		goto error4;
 
 	device_wakeup_enable(hcd->self.controller);
 
@@ -3155,6 +3262,9 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 
 	return 0;
 
+error4:
+	kmem_cache_destroy(hsotg->desc_gen_cache);
+	kmem_cache_destroy(hsotg->desc_hsisoc_cache);
 error3:
 	dwc2_hcd_release(hsotg);
 error2:
@@ -3195,6 +3305,10 @@ void dwc2_hcd_remove(struct dwc2_hsotg *hsotg)
 
 	usb_remove_hcd(hcd);
 	hsotg->priv = NULL;
+
+	kmem_cache_destroy(hsotg->desc_gen_cache);
+	kmem_cache_destroy(hsotg->desc_hsisoc_cache);
+
 	dwc2_hcd_release(hsotg);
 	usb_put_hcd(hcd);
 

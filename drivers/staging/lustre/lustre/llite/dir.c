@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -239,12 +239,6 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	return rc;
 }
 
-static void ll_check_page(struct inode *dir, struct page *page)
-{
-	/* XXX: check page format later */
-	SetPageChecked(page);
-}
-
 void ll_release_page(struct page *page, int remove)
 {
 	kunmap(page);
@@ -432,7 +426,8 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		goto fail;
 	}
 	if (!PageChecked(page))
-		ll_check_page(dir, page);
+		/* XXX: check page format later */
+		SetPageChecked(page);
 	if (PageError(page)) {
 		CERROR("page error: "DFID" at %llu: rc %d\n",
 		       PFID(ll_inode2fid(dir)), hash, -5);
@@ -641,7 +636,7 @@ static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 	if (!msp)
 		return -ENOMEM;
 
-	strncpy(msp->mgs_param, string, MGS_PARAM_MAXLEN);
+	strlcpy(msp->mgs_param, string, sizeof(msp->mgs_param));
 	rc = obd_set_info_async(NULL, mgc, sizeof(KEY_SET_INFO), KEY_SET_INFO,
 				sizeof(struct mgs_send_param), msp, NULL);
 	if (rc)
@@ -1863,7 +1858,7 @@ static loff_t ll_dir_seek(struct file *file, loff_t offset, int origin)
 	int api32 = ll_need_32bit_api(sbi);
 	loff_t ret = -EINVAL;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	switch (origin) {
 	case SEEK_SET:
 		break;
@@ -1901,7 +1896,7 @@ static loff_t ll_dir_seek(struct file *file, loff_t offset, int origin)
 	goto out;
 
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return ret;
 }
 

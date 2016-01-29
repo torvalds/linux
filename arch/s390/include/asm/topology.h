@@ -7,7 +7,7 @@
 struct sysinfo_15_1_x;
 struct cpu;
 
-#ifdef CONFIG_SCHED_BOOK
+#ifdef CONFIG_SCHED_TOPOLOGY
 
 struct cpu_topology_s390 {
 	unsigned short thread_id;
@@ -40,13 +40,13 @@ void store_topology(struct sysinfo_15_1_x *info);
 void topology_expect_change(void);
 const struct cpumask *cpu_coregroup_mask(int cpu);
 
-#else /* CONFIG_SCHED_BOOK */
+#else /* CONFIG_SCHED_TOPOLOGY */
 
 static inline void topology_schedule_update(void) { }
 static inline int topology_cpu_init(struct cpu *cpu) { return 0; }
 static inline void topology_expect_change(void) { }
 
-#endif /* CONFIG_SCHED_BOOK */
+#endif /* CONFIG_SCHED_TOPOLOGY */
 
 #define POLARIZATION_UNKNOWN	(-1)
 #define POLARIZATION_HRZ	(0)

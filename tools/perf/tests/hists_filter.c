@@ -120,6 +120,7 @@ int test__hists_filter(int subtest __maybe_unused)
 	err = parse_events(evlist, "task-clock", NULL);
 	if (err)
 		goto out;
+	err = TEST_FAIL;
 
 	/* default sort order (comm,dso,sym) will be used */
 	if (setup_sorting(NULL) < 0)

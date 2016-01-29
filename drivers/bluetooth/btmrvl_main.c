@@ -196,7 +196,7 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 	if (len)
 		memcpy(skb_put(skb, len), param, len);
 
-	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
+	hci_skb_pkt_type(skb) = MRVL_VENDOR_PKT;
 
 	skb_queue_head(&priv->adapter->tx_queue, skb);
 
@@ -387,7 +387,7 @@ static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 	skb->data[0] = (skb->len & 0x0000ff);
 	skb->data[1] = (skb->len & 0x00ff00) >> 8;
 	skb->data[2] = (skb->len & 0xff0000) >> 16;
-	skb->data[3] = bt_cb(skb)->pkt_type;
+	skb->data[3] = hci_skb_pkt_type(skb);
 
 	if (priv->hw_host_to_card)
 		ret = priv->hw_host_to_card(priv, skb->data, skb->len);
@@ -434,9 +434,14 @@ static int btmrvl_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 
-	BT_DBG("type=%d, len=%d", skb->pkt_type, skb->len);
+	BT_DBG("type=%d, len=%d", hci_skb_pkt_type(skb), skb->len);
 
-	switch (bt_cb(skb)->pkt_type) {
+	if (priv->adapter->is_suspending || priv->adapter->is_suspended) {
+		BT_ERR("%s: Device is suspending or suspended", __func__);
+		return -EBUSY;
+	}
+
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;
@@ -452,7 +457,8 @@ static int btmrvl_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	skb_queue_tail(&priv->adapter->tx_queue, skb);
 
-	wake_up_interruptible(&priv->main_thread.wait_q);
+	if (!priv->adapter->is_suspended)
+		wake_up_interruptible(&priv->main_thread.wait_q);
 
 	return 0;
 }
@@ -543,7 +549,7 @@ static int btmrvl_setup(struct hci_dev *hdev)
 	if (ret)
 		return ret;
 
-	priv->btmrvl_dev.gpio_gap = 0xffff;
+	priv->btmrvl_dev.gpio_gap = 0xfffe;
 
 	btmrvl_check_device_tree(priv);
 
@@ -643,7 +649,8 @@ static int btmrvl_service_main_thread(void *data)
 		if (adapter->ps_state == PS_SLEEP)
 			continue;
 
-		if (!priv->btmrvl_dev.tx_dnld_rdy)
+		if (!priv->btmrvl_dev.tx_dnld_rdy ||
+		    priv->adapter->is_suspended)
 			continue;
 
 		skb = skb_dequeue(&adapter->tx_queue);

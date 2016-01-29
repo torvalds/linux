@@ -26,9 +26,10 @@ static bool node_has_compatible(struct device_node *pp)
 }
 
 static int parse_ofpart_partitions(struct mtd_info *master,
-				   struct mtd_partition **pparts,
+				   const struct mtd_partition **pparts,
 				   struct mtd_part_parser_data *data)
 {
+	struct mtd_partition *parts;
 	struct device_node *mtd_node;
 	struct device_node *ofpart_node;
 	const char *partname;
@@ -37,10 +38,8 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 	bool dedicated = true;
 
 
-	if (!data)
-		return 0;
-
-	mtd_node = data->of_node;
+	/* Pull of_node from the master device node */
+	mtd_node = mtd_get_of_node(master);
 	if (!mtd_node)
 		return 0;
 
@@ -72,8 +71,8 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 	if (nr_parts == 0)
 		return 0;
 
-	*pparts = kzalloc(nr_parts * sizeof(**pparts), GFP_KERNEL);
-	if (!*pparts)
+	parts = kzalloc(nr_parts * sizeof(*parts), GFP_KERNEL);
+	if (!parts)
 		return -ENOMEM;
 
 	i = 0;
@@ -107,19 +106,19 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 			goto ofpart_fail;
 		}
 
-		(*pparts)[i].offset = of_read_number(reg, a_cells);
-		(*pparts)[i].size = of_read_number(reg + a_cells, s_cells);
+		parts[i].offset = of_read_number(reg, a_cells);
+		parts[i].size = of_read_number(reg + a_cells, s_cells);
 
 		partname = of_get_property(pp, "label", &len);
 		if (!partname)
 			partname = of_get_property(pp, "name", &len);
-		(*pparts)[i].name = partname;
+		parts[i].name = partname;
 
 		if (of_get_property(pp, "read-only", &len))
-			(*pparts)[i].mask_flags |= MTD_WRITEABLE;
+			parts[i].mask_flags |= MTD_WRITEABLE;
 
 		if (of_get_property(pp, "lock", &len))
-			(*pparts)[i].mask_flags |= MTD_POWERUP_LOCK;
+			parts[i].mask_flags |= MTD_POWERUP_LOCK;
 
 		i++;
 	}
@@ -127,6 +126,7 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 	if (!nr_parts)
 		goto ofpart_none;
 
+	*pparts = parts;
 	return nr_parts;
 
 ofpart_fail:
@@ -135,21 +135,20 @@ ofpart_fail:
 	ret = -EINVAL;
 ofpart_none:
 	of_node_put(pp);
-	kfree(*pparts);
-	*pparts = NULL;
+	kfree(parts);
 	return ret;
 }
 
 static struct mtd_part_parser ofpart_parser = {
-	.owner = THIS_MODULE,
 	.parse_fn = parse_ofpart_partitions,
 	.name = "ofpart",
 };
 
 static int parse_ofoldpart_partitions(struct mtd_info *master,
-				      struct mtd_partition **pparts,
+				      const struct mtd_partition **pparts,
 				      struct mtd_part_parser_data *data)
 {
+	struct mtd_partition *parts;
 	struct device_node *dp;
 	int i, plen, nr_parts;
 	const struct {
@@ -157,10 +156,8 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 	} *part;
 	const char *names;
 
-	if (!data)
-		return 0;
-
-	dp = data->of_node;
+	/* Pull of_node from the master device node */
+	dp = mtd_get_of_node(master);
 	if (!dp)
 		return 0;
 
@@ -173,37 +170,37 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 
 	nr_parts = plen / sizeof(part[0]);
 
-	*pparts = kzalloc(nr_parts * sizeof(*(*pparts)), GFP_KERNEL);
-	if (!*pparts)
+	parts = kzalloc(nr_parts * sizeof(*parts), GFP_KERNEL);
+	if (!parts)
 		return -ENOMEM;
 
 	names = of_get_property(dp, "partition-names", &plen);
 
 	for (i = 0; i < nr_parts; i++) {
-		(*pparts)[i].offset = be32_to_cpu(part->offset);
-		(*pparts)[i].size   = be32_to_cpu(part->len) & ~1;
+		parts[i].offset = be32_to_cpu(part->offset);
+		parts[i].size   = be32_to_cpu(part->len) & ~1;
 		/* bit 0 set signifies read only partition */
 		if (be32_to_cpu(part->len) & 1)
-			(*pparts)[i].mask_flags = MTD_WRITEABLE;
+			parts[i].mask_flags = MTD_WRITEABLE;
 
 		if (names && (plen > 0)) {
 			int len = strlen(names) + 1;
 
-			(*pparts)[i].name = names;
+			parts[i].name = names;
 			plen -= len;
 			names += len;
 		} else {
-			(*pparts)[i].name = "unnamed";
+			parts[i].name = "unnamed";
 		}
 
 		part++;
 	}
 
+	*pparts = parts;
 	return nr_parts;
 }
 
 static struct mtd_part_parser ofoldpart_parser = {
-	.owner = THIS_MODULE,
 	.parse_fn = parse_ofoldpart_partitions,
 	.name = "ofoldpart",
 };

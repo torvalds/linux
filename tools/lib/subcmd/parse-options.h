@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifndef NORETURN
+#define NORETURN __attribute__((__noreturn__))
+#endif
+
 enum parse_opt_type {
 	/* special types */
 	OPTION_END,

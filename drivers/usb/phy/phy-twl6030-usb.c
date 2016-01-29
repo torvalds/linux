@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/usb/musb-omap.h>
+#include <linux/usb/musb.h>
 #include <linux/usb/phy_companion.h>
 #include <linux/phy/omap_usb.h>
 #include <linux/i2c/twl.h>
@@ -102,7 +102,7 @@ struct twl6030_usb {
 
 	int			irq1;
 	int			irq2;
-	enum omap_musb_vbus_id_status linkstat;
+	enum musb_vbus_id_status linkstat;
 	u8			asleep;
 	bool			vbus_enable;
 	const char		*regulator;
@@ -189,13 +189,13 @@ static ssize_t twl6030_usb_vbus_show(struct device *dev,
 	spin_lock_irqsave(&twl->lock, flags);
 
 	switch (twl->linkstat) {
-	case OMAP_MUSB_VBUS_VALID:
+	case MUSB_VBUS_VALID:
 	       ret = snprintf(buf, PAGE_SIZE, "vbus\n");
 	       break;
-	case OMAP_MUSB_ID_GROUND:
+	case MUSB_ID_GROUND:
 	       ret = snprintf(buf, PAGE_SIZE, "id\n");
 	       break;
-	case OMAP_MUSB_VBUS_OFF:
+	case MUSB_VBUS_OFF:
 	       ret = snprintf(buf, PAGE_SIZE, "none\n");
 	       break;
 	default:
@@ -210,7 +210,7 @@ static DEVICE_ATTR(vbus, 0444, twl6030_usb_vbus_show, NULL);
 static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
-	enum omap_musb_vbus_id_status status = OMAP_MUSB_UNKNOWN;
+	enum musb_vbus_id_status status = MUSB_UNKNOWN;
 	u8 vbus_state, hw_state;
 	int ret;
 
@@ -225,14 +225,14 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 				dev_err(twl->dev, "Failed to enable usb3v3\n");
 
 			twl->asleep = 1;
-			status = OMAP_MUSB_VBUS_VALID;
+			status = MUSB_VBUS_VALID;
 			twl->linkstat = status;
-			omap_musb_mailbox(status);
+			musb_mailbox(status);
 		} else {
-			if (twl->linkstat != OMAP_MUSB_UNKNOWN) {
-				status = OMAP_MUSB_VBUS_OFF;
+			if (twl->linkstat != MUSB_UNKNOWN) {
+				status = MUSB_VBUS_OFF;
 				twl->linkstat = status;
-				omap_musb_mailbox(status);
+				musb_mailbox(status);
 				if (twl->asleep) {
 					regulator_disable(twl->usb3v3);
 					twl->asleep = 0;
@@ -248,7 +248,7 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
-	enum omap_musb_vbus_id_status status = OMAP_MUSB_UNKNOWN;
+	enum musb_vbus_id_status status = MUSB_UNKNOWN;
 	u8 hw_state;
 	int ret;
 
@@ -262,9 +262,9 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		twl->asleep = 1;
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x1, USB_ID_INT_EN_HI_CLR);
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_SET);
-		status = OMAP_MUSB_ID_GROUND;
+		status = MUSB_ID_GROUND;
 		twl->linkstat = status;
-		omap_musb_mailbox(status);
+		musb_mailbox(status);
 	} else  {
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_CLR);
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x1, USB_ID_INT_EN_HI_SET);
@@ -334,7 +334,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	twl->dev		= &pdev->dev;
 	twl->irq1		= platform_get_irq(pdev, 0);
 	twl->irq2		= platform_get_irq(pdev, 1);
-	twl->linkstat		= OMAP_MUSB_UNKNOWN;
+	twl->linkstat		= MUSB_UNKNOWN;
 
 	twl->comparator.set_vbus	= twl6030_set_vbus;
 	twl->comparator.start_srp	= twl6030_start_srp;

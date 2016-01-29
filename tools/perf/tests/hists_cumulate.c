@@ -706,6 +706,7 @@ int test__hists_cumulate(int subtest __maybe_unused)
 	err = parse_events(evlist, "cpu-clock", NULL);
 	if (err)
 		goto out;
+	err = TEST_FAIL;
 
 	machines__init(&machines);
 

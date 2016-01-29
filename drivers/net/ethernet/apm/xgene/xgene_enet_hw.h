@@ -340,8 +340,8 @@ int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
 bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
 
-extern struct xgene_mac_ops xgene_gmac_ops;
-extern struct xgene_port_ops xgene_gport_ops;
+extern const struct xgene_mac_ops xgene_gmac_ops;
+extern const struct xgene_port_ops xgene_gport_ops;
 extern struct xgene_ring_ops xgene_ring1_ops;
 
 #endif /* __XGENE_ENET_HW_H__ */

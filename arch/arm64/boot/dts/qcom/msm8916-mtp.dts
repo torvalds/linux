@@ -17,6 +17,6 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM 8916 MTP";
-	compatible = "qcom,msm8916-mtp", "qcom,msm8916-mtp-smb1360",
+	compatible = "qcom,msm8916-mtp", "qcom,msm8916-mtp/1",
 			"qcom,msm8916", "qcom,mtp";
 };

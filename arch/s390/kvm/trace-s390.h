@@ -55,8 +55,8 @@ TRACE_EVENT(kvm_s390_create_vcpu,
 		    __entry->sie_block = sie_block;
 		    ),
 
-	    TP_printk("create cpu %d at %p, sie block at %p", __entry->id,
-		      __entry->vcpu, __entry->sie_block)
+	    TP_printk("create cpu %d at 0x%pK, sie block at 0x%pK",
+		      __entry->id, __entry->vcpu, __entry->sie_block)
 	);
 
 TRACE_EVENT(kvm_s390_destroy_vcpu,
@@ -254,7 +254,7 @@ TRACE_EVENT(kvm_s390_enable_css,
 		    __entry->kvm = kvm;
 		    ),
 
-	    TP_printk("enabling channel I/O support (kvm @ %p)\n",
+	    TP_printk("enabling channel I/O support (kvm @ %pK)\n",
 		      __entry->kvm)
 	);
 

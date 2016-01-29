@@ -46,12 +46,11 @@ struct nfacct_filter {
 #define NFACCT_F_QUOTA (NFACCT_F_QUOTA_PKTS | NFACCT_F_QUOTA_BYTES)
 #define NFACCT_OVERQUOTA_BIT	2	/* NFACCT_F_OVERQUOTA */
 
-static int
-nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
-	     const struct nlmsghdr *nlh, const struct nlattr * const tb[])
+static int nfnl_acct_new(struct net *net, struct sock *nfnl,
+			 struct sk_buff *skb, const struct nlmsghdr *nlh,
+			 const struct nlattr * const tb[])
 {
 	struct nf_acct *nfacct, *matching = NULL;
-	struct net *net = sock_net(nfnl);
 	char *acct_name;
 	unsigned int size = 0;
 	u32 flags = 0;
@@ -253,11 +252,10 @@ nfacct_filter_alloc(const struct nlattr * const attr)
 	return filter;
 }
 
-static int
-nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
-	     const struct nlmsghdr *nlh, const struct nlattr * const tb[])
+static int nfnl_acct_get(struct net *net, struct sock *nfnl,
+			 struct sk_buff *skb, const struct nlmsghdr *nlh,
+			 const struct nlattr * const tb[])
 {
-	struct net *net = sock_net(nfnl);
 	int ret = -ENOENT;
 	struct nf_acct *cur;
 	char *acct_name;
@@ -333,11 +331,10 @@ static int nfnl_acct_try_del(struct nf_acct *cur)
 	return ret;
 }
 
-static int
-nfnl_acct_del(struct sock *nfnl, struct sk_buff *skb,
-	     const struct nlmsghdr *nlh, const struct nlattr * const tb[])
+static int nfnl_acct_del(struct net *net, struct sock *nfnl,
+			 struct sk_buff *skb, const struct nlmsghdr *nlh,
+			 const struct nlattr * const tb[])
 {
-	struct net *net = sock_net(nfnl);
 	char *acct_name;
 	struct nf_acct *cur;
 	int ret = -ENOENT;

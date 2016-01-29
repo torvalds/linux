@@ -13,3 +13,4 @@ menuconfig RESET_CONTROLLER
 	  If unsure, say no.
 
 source "drivers/reset/sti/Kconfig"
+source "drivers/reset/hisilicon/Kconfig"

@@ -81,14 +81,13 @@ on higher end storage.
 
 Default value for this parameter is 8ms.
 
-latency
--------
-This parameter is used to enable/disable the latency mode of the CFQ
-scheduler. If latency mode (called low_latency) is enabled, CFQ tries
-to recompute the slice time for each process based on the target_latency set
-for the system. This favors fairness over throughput. Disabling low
-latency (setting it to 0) ignores target latency, allowing each process in the
-system to get a full time slice.
+low_latency
+-----------
+This parameter is used to enable/disable the low latency mode of the CFQ
+scheduler. If enabled, CFQ tries to recompute the slice time for each process
+based on the target_latency set for the system. This favors fairness over
+throughput. Disabling low latency (setting it to 0) ignores target latency,
+allowing each process in the system to get a full time slice.
 
 By default low latency mode is enabled.
 

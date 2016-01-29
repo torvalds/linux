@@ -32,7 +32,6 @@
 #include <linux/delay.h>
 
 #undef SERIAL_PARANOIA_CHECK
-#define SERIAL_DO_RESTART
 
 /* Set of debugging defines */
 

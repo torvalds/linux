@@ -19,7 +19,6 @@
 extern "C" {
 #endif
 
-
 /**
  * MOST DIM errors.
  */
@@ -58,7 +57,6 @@ enum dim_errors_t {
 
 	DIM_ERR_OVERFLOW,
 };
-
 
 #ifdef __cplusplus
 }

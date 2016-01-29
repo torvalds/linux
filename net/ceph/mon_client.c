@@ -364,10 +364,6 @@ static bool have_debugfs_info(struct ceph_mon_client *monc)
 	return monc->client->have_fsid && monc->auth->global_id > 0;
 }
 
-/*
- * The monitor responds with mount ack indicate mount success.  The
- * included client ticket allows the client to talk to MDSs and OSDs.
- */
 static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 				 struct ceph_msg *msg)
 {

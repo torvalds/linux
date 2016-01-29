@@ -847,6 +847,15 @@ static struct platform_driver mv64x60_mc_err_driver = {
 	}
 };
 
+static struct platform_driver * const drivers[] = {
+	&mv64x60_mc_err_driver,
+	&mv64x60_cpu_err_driver,
+	&mv64x60_sram_err_driver,
+#ifdef CONFIG_PCI
+	&mv64x60_pci_err_driver,
+#endif
+};
+
 static int __init mv64x60_edac_init(void)
 {
 	int ret = 0;
@@ -863,39 +872,13 @@ static int __init mv64x60_edac_init(void)
 		break;
 	}
 
-	ret = platform_driver_register(&mv64x60_mc_err_driver);
-	if (ret)
-		printk(KERN_WARNING EDAC_MOD_STR "MC err failed to register\n");
-
-	ret = platform_driver_register(&mv64x60_cpu_err_driver);
-	if (ret)
-		printk(KERN_WARNING EDAC_MOD_STR
-			"CPU err failed to register\n");
-
-	ret = platform_driver_register(&mv64x60_sram_err_driver);
-	if (ret)
-		printk(KERN_WARNING EDAC_MOD_STR
-			"SRAM err failed to register\n");
-
-#ifdef CONFIG_PCI
-	ret = platform_driver_register(&mv64x60_pci_err_driver);
-	if (ret)
-		printk(KERN_WARNING EDAC_MOD_STR
-			"PCI err failed to register\n");
-#endif
-
-	return ret;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_init(mv64x60_edac_init);
 
 static void __exit mv64x60_edac_exit(void)
 {
-#ifdef CONFIG_PCI
-	platform_driver_unregister(&mv64x60_pci_err_driver);
-#endif
-	platform_driver_unregister(&mv64x60_sram_err_driver);
-	platform_driver_unregister(&mv64x60_cpu_err_driver);
-	platform_driver_unregister(&mv64x60_mc_err_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(mv64x60_edac_exit);
 

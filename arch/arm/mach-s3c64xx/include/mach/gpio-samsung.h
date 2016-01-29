@@ -14,6 +14,8 @@
 #ifndef GPIO_SAMSUNG_S3C64XX_H
 #define GPIO_SAMSUNG_S3C64XX_H
 
+#ifdef CONFIG_GPIO_SAMSUNG
+
 /* GPIO bank sizes */
 #define S3C64XX_GPIO_A_NR	(8)
 #define S3C64XX_GPIO_B_NR	(7)
@@ -90,5 +92,6 @@ enum s3c_gpio_number {
 /* define the number of gpios we need to the one after the GPQ() range */
 #define GPIO_BOARD_START (S3C64XX_GPQ(S3C64XX_GPIO_Q_NR) + 1)
 
+#endif /* GPIO_SAMSUNG */
 #endif /* GPIO_SAMSUNG_S3C64XX_H */
 

@@ -25,8 +25,8 @@
 #include <mach/hardware.h>
 
 #include <mach/spitz.h>
-#include <mach/pxa27x.h>
-#include <mach/sharpsl_pm.h>
+#include "pxa27x.h"
+#include "sharpsl_pm.h"
 
 #include "generic.h"
 

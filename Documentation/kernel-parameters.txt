@@ -608,6 +608,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			cut the overhead, others just disable the usage. So
 			only cgroup_disable=memory is actually worthy}
 
+	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
+			Format: <string>
+			nosocket -- Disable socket memory accounting.
+			nokmem -- Disable kernel memory accounting.
+
 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
 			See security/selinux/Kconfig help text.
@@ -730,16 +735,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
+		uart[8250],mmio16,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]
 		uart[8250],0x<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address,
 			switching to the matching ttyS device later.
 			MMIO inter-register address stride is either 8-bit
-			(mmio) or 32-bit (mmio32).
-			If none of [io|mmio|mmio32], <addr> is assumed to be
-			equivalent to 'mmio'. 'options' are specified in the
-			same format described for ttyS above; if unspecified,
+			(mmio), 16-bit (mmio16), or 32-bit (mmio32).
+			If none of [io|mmio|mmio16|mmio32], <addr> is assumed
+			to be equivalent to 'mmio'. 'options' are specified in
+			the same format described for ttyS above; if unspecified,
 			the h/w is not re-initialized.
 
 		hvc<n>	Use the hypervisor console device <n>. This is for
@@ -1011,10 +1017,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unspecified, the h/w is not initialized.
 
 		pl011,<addr>
+		pl011,mmio32,<addr>
 			Start an early, polled-mode console on a pl011 serial
 			port at the specified address. The pl011 serial port
 			must already be setup and configured. Options are not
-			yet supported.
+			yet supported.  If 'mmio32' is specified, then only
+			the driver will use only 32-bit accessors to read/write
+			the device registers.
 
 		msm_serial,<addr>
 			Start an early, polled-mode console on an msm serial
@@ -1444,6 +1453,41 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			idle=halt: Halt is forced to be used for CPU idle.
 			In such case C2/C3 won't be used again.
 			idle=nomwait: Disable mwait for CPU C-states
+
+	ieee754=	[MIPS] Select IEEE Std 754 conformance mode
+			Format: { strict | legacy | 2008 | relaxed }
+			Default: strict
+
+			Choose which programs will be accepted for execution
+			based on the IEEE 754 NaN encoding(s) supported by
+			the FPU and the NaN encoding requested with the value
+			of an ELF file header flag individually set by each
+			binary.  Hardware implementations are permitted to
+			support either or both of the legacy and the 2008 NaN
+			encoding mode.
+
+			Available settings are as follows:
+			strict	accept binaries that request a NaN encoding
+				supported by the FPU
+			legacy	only accept legacy-NaN binaries, if supported
+				by the FPU
+			2008	only accept 2008-NaN binaries, if supported
+				by the FPU
+			relaxed	accept any binaries regardless of whether
+				supported by the FPU
+
+			The FPU emulator is always able to support both NaN
+			encodings, so if no FPU hardware is present or it has
+			been disabled with 'nofpu', then the settings of
+			'legacy' and '2008' strap the emulator accordingly,
+			'relaxed' straps the emulator for both legacy-NaN and
+			2008-NaN, whereas 'strict' enables legacy-NaN only on
+			legacy processors and both NaN encodings on MIPS32 or
+			MIPS64 CPUs.
+
+			The setting for ABS.fmt/NEG.fmt instruction execution
+			mode generally follows that for the NaN encoding,
+			except where unsupported by hardware.
 
 	ignore_loglevel	[KNL]
 			Ignore loglevel setting - this will print /all/
@@ -2584,8 +2628,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	notsc		[BUGS=X86-32] Disable Time Stamp Counter
 
-	nousb		[USB] Disable the USB subsystem
-
 	nowatchdog	[KNL] Disable both lockup detectors, i.e.
                         soft-lockup and NMI watchdog (hard-lockup).
 
@@ -2742,10 +2784,16 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				hardware access methods are allowed. Use this
 				if you experience crashes upon bootup and you
 				suspect they are caused by the BIOS.
-		conf1		[X86] Force use of PCI Configuration
-				Mechanism 1.
-		conf2		[X86] Force use of PCI Configuration
-				Mechanism 2.
+		conf1		[X86] Force use of PCI Configuration Access
+				Mechanism 1 (config address in IO port 0xCF8,
+				data in IO port 0xCFC, both 32-bit).
+		conf2		[X86] Force use of PCI Configuration Access
+				Mechanism 2 (IO port 0xCF8 is an 8-bit port for
+				the function, IO port 0xCFA, also 8-bit, sets
+				bus number. The config space is then accessed
+				through ports 0xC000-0xCFFF).
+				See http://wiki.osdev.org/PCI for more info
+				on the configuration access mechanisms.
 		noaer		[PCIE] If the PCIEAER kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of PCIE advanced error reporting.
@@ -2987,6 +3035,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			may be specified.
 			Format: <port>,<port>....
 
+	ppc_strict_facility_enable
+			[PPC] This option catches any kernel floating point,
+			Altivec, VSX and SPE outside of regions specifically
+			allowed (eg kernel_enable_fpu()/kernel_disable_fpu()).
+			There is some performance impact when enabling this.
+
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
 
@@ -3058,9 +3112,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	raid=		[HW,RAID]
 			See Documentation/md.txt.
-
-	ramdisk_blocksize=	[RAM]
-			See Documentation/blockdev/ramdisk.txt.
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.
@@ -3900,6 +3951,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	usbcore.usbfs_snoop=
 			[USB] Set to log all usbfs traffic (default 0 = off).
 
+	usbcore.usbfs_snoop_max=
+			[USB] Maximum number of bytes to snoop in each URB
+			(default = 65536).
+
 	usbcore.blinkenlights=
 			[USB] Set to cycle leds on hubs (default 0 = off).
 
@@ -3919,6 +3974,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[USB] Specifies timeout for the initial 64-byte
                         USB_REQ_GET_DESCRIPTOR request in milliseconds
 			(default 5000 = 5.0 seconds).
+
+	usbcore.nousb	[USB] Disable the USB subsystem
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
@@ -4139,6 +4196,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			see Documentation/watchdog/watchdog-parameters.txt
 			or other driver-specific files in the
 			Documentation/watchdog/ directory.
+
+	workqueue.watchdog_thresh=
+			If CONFIG_WQ_WATCHDOG is configured, workqueue can
+			warn stall conditions and dump internal state to
+			help debugging.  0 disables workqueue stall
+			detection; otherwise, it's the stall threshold
+			duration in seconds.  The default value is 30 and
+			it can be updated at runtime by writing to the
+			corresponding sysfs file.
 
 	workqueue.disable_numa
 			By default, all work items queued to unbound

@@ -235,42 +235,10 @@ ioat_chan_by_index(struct ioatdma_device *ioat_dma, int index)
 	return ioat_dma->idx[index];
 }
 
-static inline u64 ioat_chansts_32(struct ioatdma_chan *ioat_chan)
-{
-	u8 ver = ioat_chan->ioat_dma->version;
-	u64 status;
-	u32 status_lo;
-
-	/* We need to read the low address first as this causes the
-	 * chipset to latch the upper bits for the subsequent read
-	 */
-	status_lo = readl(ioat_chan->reg_base + IOAT_CHANSTS_OFFSET_LOW(ver));
-	status = readl(ioat_chan->reg_base + IOAT_CHANSTS_OFFSET_HIGH(ver));
-	status <<= 32;
-	status |= status_lo;
-
-	return status;
-}
-
-#if BITS_PER_LONG == 64
-
 static inline u64 ioat_chansts(struct ioatdma_chan *ioat_chan)
 {
-	u8 ver = ioat_chan->ioat_dma->version;
-	u64 status;
-
-	 /* With IOAT v3.3 the status register is 64bit.  */
-	if (ver >= IOAT_VER_3_3)
-		status = readq(ioat_chan->reg_base + IOAT_CHANSTS_OFFSET(ver));
-	else
-		status = ioat_chansts_32(ioat_chan);
-
-	return status;
+	return readq(ioat_chan->reg_base + IOAT_CHANSTS_OFFSET);
 }
-
-#else
-#define ioat_chansts ioat_chansts_32
-#endif
 
 static inline u64 ioat_chansts_to_addr(u64 status)
 {

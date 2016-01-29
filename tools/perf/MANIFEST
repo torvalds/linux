@@ -28,6 +28,7 @@ tools/lib/string.c
 tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
 tools/lib/find_bit.c
+tools/lib/bitmap.c
 tools/include/asm/atomic.h
 tools/include/asm/barrier.h
 tools/include/asm/bug.h
@@ -57,6 +58,7 @@ tools/include/linux/rbtree_augmented.h
 tools/include/linux/string.h
 tools/include/linux/types.h
 tools/include/linux/err.h
+tools/include/linux/bitmap.h
 include/asm-generic/bitops/arch_hweight.h
 include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/fls64.h

@@ -32,6 +32,7 @@
 	};
 
 	aliases {
+		leds0 = &leds0;
 		uart0 = &uart0;
 	};
 
@@ -50,6 +51,19 @@
 		compatible = "simple-bus";
 		ranges;
 
+		periph_cntl: syscon@10000000 {
+			compatible = "syscon";
+			reg = <0x10000000 0x14>;
+			little-endian;
+		};
+
+		reboot: syscon-reboot@10000008 {
+			compatible = "syscon-reboot";
+			regmap = <&periph_cntl>;
+			offset = <0x8>;
+			mask = <0x1>;
+		};
+
 		periph_intc: periph_intc@10000020 {
 			compatible = "brcm,bcm3380-l2-intc";
 			reg = <0x10000024 0x4 0x1000002c 0x4>,
@@ -60,6 +74,14 @@
 
 			interrupt-parent = <&cpu_intc>;
 			interrupts = <2>;
+		};
+
+		leds0: led-controller@100000d0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,bcm6358-leds";
+			reg = <0x100000d0 0x8>;
+			status = "disabled";
 		};
 
 		uart0: serial@10000100 {
