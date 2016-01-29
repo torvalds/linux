@@ -159,7 +159,7 @@ struct i2c_piix4_adapdata {
 
 	/* SB800 */
 	bool sb800_main;
-	u8 port;
+	u8 port;		/* Port number, shifted */
 };
 
 static int piix4_setup(struct pci_dev *PIIX4_dev,
@@ -595,8 +595,8 @@ static s32 piix4_access_sb800(struct i2c_adapter *adap, u16 addr,
 	smba_en_lo = inb_p(SB800_PIIX4_SMB_IDX + 1);
 
 	port = adapdata->port;
-	if ((smba_en_lo & SB800_PIIX4_PORT_IDX_MASK) != (port << 1))
-		outb_p((smba_en_lo & ~SB800_PIIX4_PORT_IDX_MASK) | (port << 1),
+	if ((smba_en_lo & SB800_PIIX4_PORT_IDX_MASK) != port)
+		outb_p((smba_en_lo & ~SB800_PIIX4_PORT_IDX_MASK) | port,
 		       SB800_PIIX4_SMB_IDX + 1);
 
 	retval = piix4_access(adap, addr, flags, read_write,
@@ -682,7 +682,7 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 
 	adapdata->smba = smba;
 	adapdata->sb800_main = sb800_main;
-	adapdata->port = port;
+	adapdata->port = port << 1;
 
 	/* set up the sysfs linkage to our parent device */
 	adap->dev.parent = &dev->dev;
@@ -818,7 +818,7 @@ static void piix4_adap_remove(struct i2c_adapter *adap)
 
 	if (adapdata->smba) {
 		i2c_del_adapter(adap);
-		if (adapdata->port == 0) {
+		if (adapdata->port == (0 << 1)) {
 			release_region(adapdata->smba, SMBIOSIZE);
 			if (adapdata->sb800_main)
 				release_region(SB800_PIIX4_SMB_IDX, 2);
