@@ -2855,7 +2855,9 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	if (!mgr->proposed_vcpis)
 		return -ENOMEM;
 	set_bit(0, &mgr->payload_mask);
-	test_calc_pbn_mode();
+	if (test_calc_pbn_mode() < 0)
+		DRM_ERROR("MST PBN self-test failed\n");
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_init);
