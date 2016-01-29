@@ -156,6 +156,11 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 150000,
 		.max_probe_resp_desc_thres = 24,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
+		.num_msdu_desc = 1424,
+		.qcache_active_peers = 50,
+		.tx_chain_mask = 0xf,
+		.rx_chain_mask = 0xf,
+		.max_spatial_stream = 4,
 		.fw = {
 			.dir = QCA99X0_HW_2_0_FW_DIR,
 			.fw = QCA99X0_HW_2_0_FW_FILE,
@@ -212,6 +217,11 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 125000,
 		.max_probe_resp_desc_thres = 24,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
+		.num_msdu_desc = 2500,
+		.qcache_active_peers = 35,
+		.tx_chain_mask = 0x3,
+		.rx_chain_mask = 0x3,
+		.max_spatial_stream = 2,
 		.fw = {
 			.dir = QCA4019_HW_1_0_FW_DIR,
 			.fw = QCA4019_HW_1_0_FW_FILE,
@@ -1523,9 +1533,9 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->num_active_peers = TARGET_10_4_ACTIVE_PEERS;
 		ar->max_num_vdevs = TARGET_10_4_NUM_VDEVS;
 		ar->num_tids = TARGET_10_4_TGT_NUM_TIDS;
-		ar->htt.max_num_pending_tx = TARGET_10_4_NUM_MSDU_DESC;
+		ar->htt.max_num_pending_tx = ar->hw_params.num_msdu_desc;
 		ar->fw_stats_req_mask = WMI_STAT_PEER;
-		ar->max_spatial_stream = WMI_10_4_MAX_SPATIAL_STREAM;
+		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:

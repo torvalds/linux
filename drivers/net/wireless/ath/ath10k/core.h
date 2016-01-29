@@ -680,6 +680,12 @@ struct ath10k {
 		/* The padding bytes's location is different on various chips */
 		enum ath10k_hw_4addr_pad hw_4addr_pad;
 
+		u32 num_msdu_desc;
+		u32 qcache_active_peers;
+		u32 tx_chain_mask;
+		u32 rx_chain_mask;
+		u32 max_spatial_stream;
+
 		struct ath10k_hw_params_fw {
 			const char *dir;
 			const char *fw;
