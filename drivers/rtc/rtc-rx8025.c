@@ -7,7 +7,7 @@
  * All rights reserved.
  *
  * Modified by fengjh at rising.com.cn
- * <http://lists.lm-sensors.org/mailman/listinfo/lm-sensors>
+ * <lm-sensors@lm-sensors.org>
  * 2006.11
  *
  * Code cleanup by Sergei Poselenov, <sposelenov@emcraft.com>
