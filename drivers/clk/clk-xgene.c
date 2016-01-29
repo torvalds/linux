@@ -50,7 +50,7 @@ static inline u32 xgene_clk_read(void __iomem *csr)
 
 static inline void xgene_clk_write(u32 data, void __iomem *csr)
 {
-	return writel_relaxed(data, csr);
+	writel_relaxed(data, csr);
 }
 
 /* PLL Clock */
