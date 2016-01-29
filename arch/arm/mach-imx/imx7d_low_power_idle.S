@@ -628,7 +628,8 @@ last_cpu:
 
 	ldr	r10, [r0, #PM_INFO_MX7D_GIC_DIST_V_OFFSET]
 	ldr	r7, =0x0
-	str	r7, [r10]
+	ldr	r8, =0x1000
+	str	r7, [r10, r8]
 
 	ldr	r10, [r0, #PM_INFO_MX7D_GPC_V_OFFSET]
 	ldr	r4, [r10, #MX7D_GPC_IMR1]
@@ -745,7 +746,8 @@ do_exit_wfi:
 
 	ldr	r10, [r0, #PM_INFO_MX7D_GIC_DIST_V_OFFSET]
 	ldr	r7, =0x1
-	str	r7, [r10]
+	ldr	r8, =0x1000
+	str	r7, [r10, r8]
 	/* clear lpi enter flag */
 	ldr	r7, =0x0
 	str	r7, [r0, #PM_INFO_PM_INFO_LPI_ENTER_OFFSET]

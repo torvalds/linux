@@ -570,11 +570,13 @@ wait_shutdown:
 
 ddr_only_self_refresh:
 	ddrc_enter_self_refresh
+	b	wfi
 ddr_retention_enter_out:
 
 	ldr	r11, [r0, #PM_INFO_MX7_GIC_DIST_V_OFFSET]
 	ldr	r7, =0x0
-	str	r7, [r11]
+	ldr	r8, =0x1000
+	str	r7, [r11, r8]
 
 	ldr	r11, [r0, #PM_INFO_MX7_GPC_V_OFFSET]
 	ldr	r4, [r11, #MX7D_GPC_IMR1]
@@ -625,7 +627,7 @@ ddr_retention_enter_out:
 rbc_loop:
 	subs	r7, r7, #0x1
 	bne	rbc_loop
-
+wfi:
 	/* Zzz, enter stop mode */
 	wfi
 	nop
@@ -646,15 +648,16 @@ wfi_ddr_self_refresh_out:
 	ddrc_exit_self_refresh
 wfi_ddr_retention_out:
 
-	ldr	r11, [r0, #PM_INFO_MX7_GIC_DIST_V_OFFSET]
-	ldr	r7, =0x1
-	str	r7, [r11]
-
 	/* check whether it is a standby mode */
 	ldr	r11, [r0, #PM_INFO_MX7_GPC_V_OFFSET]
 	ldr	r7, [r11, #GPC_PGC_C0]
 	cmp	r7, #0
 	beq	standby_out
+
+	ldr	r11, [r0, #PM_INFO_MX7_GIC_DIST_V_OFFSET]
+	ldr	r7, =0x1
+	ldr	r8, =0x1000
+	str	r7, [r11, r8]
 
 	restore_ttbr1
 standby_out:
