@@ -547,6 +547,7 @@ config ARCH_PXA
 	select CLKSRC_PXA
 	select CLKSRC_MMIO
 	select CLKSRC_OF
+	select CPU_XSCALE if !CPU_XSC3
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
 	select HAVE_IDE
