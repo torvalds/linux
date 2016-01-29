@@ -809,9 +809,10 @@ struct dwc2_hsotg {
 	bool bus_suspended;
 	bool new_connection;
 
+	u16 last_frame_num;
+
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 #define FRAME_NUM_ARRAY_SIZE 1000
-	u16 last_frame_num;
 	u16 *frame_num_array;
 	u16 *last_frame_num_array;
 	int frame_num_idx;
