@@ -297,7 +297,6 @@ config MACH_MAGICIAN
 
 config MACH_MIOA701
 	bool "Mitac Mio A701 Support"
-	select GPIO_SYSFS
 	select IWMMXT
 	select PXA27x
 	help
