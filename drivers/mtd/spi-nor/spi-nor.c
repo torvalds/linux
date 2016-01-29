@@ -540,6 +540,9 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 
 	status_new = (status_old & ~mask) | val;
 
+	/* Disallow further writes if WP pin is asserted */
+	status_new |= SR_SRWD;
+
 	/* Don't bother if they're the same */
 	if (status_new == status_old)
 		return 0;
@@ -604,6 +607,10 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	}
 
 	status_new = (status_old & ~mask) | val;
+
+	/* Don't protect status register if we're fully unlocked */
+	if (lock_len == mtd->size)
+		status_new &= ~SR_SRWD;
 
 	/* Don't bother if they're the same */
 	if (status_new == status_old)
