@@ -19,20 +19,26 @@
  *
  * @TUNER_PAD_RF_INPUT:	Radiofrequency (RF) sink pad, usually linked to a
  *			RF connector entity.
- * @TUNER_PAD_OUTPUT:	Tuner output pad. This is actually more complex than
- *			a single pad output, as, in addition to luminance and
- *			chrominance IF a tuner may have internally an
- *			audio decoder (like xc3028) or it may produce an audio
- *			IF that will be used by an audio decoder like msp34xx.
- *			It may also have an IF-PLL demodulator on it, like
- *			tuners with tda9887. Yet, currently, we don't need to
- *			represent all the dirty details, as this is transparent
- *			for the V4L2 API usage. So, let's represent all kinds
- *			of different outputs as a single source pad.
+ * @TUNER_PAD_OUTPUT:	Tuner video output source pad. Contains the video
+ *			chrominance and luminance or the hole bandwidth
+ *			of the signal converted to an Intermediate Frequency
+ *			(IF) or to baseband (on zero-IF tuners).
+ * @TUNER_PAD_AUD_OUT:	Tuner audio output source pad. Tuners used to decode
+ *			analog TV signals have an extra pad for audio output.
+ *			Old tuners use an analog stage with a saw filter for
+ *			the audio IF frequency. The output of the pad is, in
+ *			this case, the audio IF, with should be decoded either
+ *			by the bridge chipset (that's the case of cx2388x
+ *			chipsets) or may require an external IF sound
+ *			processor, like msp34xx. On modern silicon tuners,
+ *			the audio IF decoder is usually incorporated at the
+ *			tuner. On such case, the output of this pad is an
+ *			audio sampled data.
  * @TUNER_NUM_PADS:	Number of pads of the tuner.
  */
 enum tuner_pad_index {
 	TUNER_PAD_RF_INPUT,
 	TUNER_PAD_OUTPUT,
+	TUNER_PAD_AUD_OUT,
 	TUNER_NUM_PADS
 };
