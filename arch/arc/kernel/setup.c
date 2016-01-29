@@ -339,6 +339,7 @@ static void arc_chk_core_config(void)
 		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
 
 	if (is_isa_arcv2() && IS_ENABLED(CONFIG_SMP) && cpu->isa.atomic &&
+	    IS_ENABLED(CONFIG_ARC_HAS_LLSC) &&
 	    !IS_ENABLED(CONFIG_ARC_STAR_9000923308))
 		panic("llock/scond livelock workaround missing\n");
 }
