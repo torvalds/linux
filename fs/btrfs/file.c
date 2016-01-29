@@ -2939,8 +2939,7 @@ const struct file_operations btrfs_file_operations = {
 
 void btrfs_auto_defrag_exit(void)
 {
-	if (btrfs_inode_defrag_cachep)
-		kmem_cache_destroy(btrfs_inode_defrag_cachep);
+	kmem_cache_destroy(btrfs_inode_defrag_cachep);
 }
 
 int btrfs_auto_defrag_init(void)

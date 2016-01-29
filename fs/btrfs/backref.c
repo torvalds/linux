@@ -148,8 +148,7 @@ int __init btrfs_prelim_ref_init(void)
 
 void btrfs_prelim_ref_exit(void)
 {
-	if (btrfs_prelim_ref_cache)
-		kmem_cache_destroy(btrfs_prelim_ref_cache);
+	kmem_cache_destroy(btrfs_prelim_ref_cache);
 }
 
 /*
