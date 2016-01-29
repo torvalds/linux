@@ -11,6 +11,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "hip05.dtsi"
 
 / {
@@ -29,8 +30,25 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pwrbutton {
+			label = "Power Button";
+			gpios = <&porta 8 GPIO_ACTIVE_LOW>;
+			linux,code = <116>;
+			debounce-interval = <0>;
+		};
+	};
 };
 
 &uart0 {
+	status = "ok";
+};
+
+&peri_gpio0 {
 	status = "ok";
 };
