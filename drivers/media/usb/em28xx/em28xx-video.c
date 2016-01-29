@@ -2579,6 +2579,22 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	return 0;
 
 unregister_dev:
+	if (video_is_registered(&v4l2->radio_dev)) {
+		em28xx_info("V4L2 device %s deregistered\n",
+			    video_device_node_name(&v4l2->radio_dev));
+		video_unregister_device(&v4l2->radio_dev);
+	}
+	if (video_is_registered(&v4l2->vbi_dev)) {
+		em28xx_info("V4L2 device %s deregistered\n",
+			    video_device_node_name(&v4l2->vbi_dev));
+		video_unregister_device(&v4l2->vbi_dev);
+	}
+	if (video_is_registered(&v4l2->vdev)) {
+		em28xx_info("V4L2 device %s deregistered\n",
+			    video_device_node_name(&v4l2->vdev));
+		video_unregister_device(&v4l2->vdev);
+	}
+
 	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
 	v4l2_device_unregister(&v4l2->v4l2_dev);
 err:
