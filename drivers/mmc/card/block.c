@@ -1362,8 +1362,8 @@ static int mmc_blk_err_check(struct mmc_card *card,
 
 	if (brq->data.error) {
 		if (need_retune && !brq->retune_retry_done) {
-			pr_info("%s: retrying because a re-tune was needed\n",
-				req->rq_disk->disk_name);
+			pr_debug("%s: retrying because a re-tune was needed\n",
+				 req->rq_disk->disk_name);
 			brq->retune_retry_done = 1;
 			return MMC_BLK_RETRY;
 		}
