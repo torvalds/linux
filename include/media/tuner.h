@@ -20,29 +20,7 @@
 #ifdef __KERNEL__
 
 #include <linux/videodev2.h>
-
-/**
- * enum tuner_pad_index - tuner pad index
- *
- * @TUNER_PAD_RF_INPUT:	Radiofrequency (RF) sink pad, usually linked to a
- *			RF connector entity.
- * @TUNER_PAD_OUTPUT:	Tuner output pad. This is actually more complex than
- *			a single pad output, as, in addition to luminance and
- *			chrominance IF a tuner may have internally an
- *			audio decoder (like xc3028) or it may produce an audio
- *			IF that will be used by an audio decoder like msp34xx.
- *			It may also have an IF-PLL demodulator on it, like
- *			tuners with tda9887. Yet, currently, we don't need to
- *			represent all the dirty details, as this is transparent
- *			for the V4L2 API usage. So, let's represent all kinds
- *			of different outputs as a single source pad.
- * @TUNER_NUM_PADS:	Number of pads of the tuner.
- */
-enum tuner_pad_index {
-	TUNER_PAD_RF_INPUT,
-	TUNER_PAD_OUTPUT,
-	TUNER_NUM_PADS
-};
+#include <media/v4l2-mc.h>
 
 #define ADDR_UNSET (255)
 
