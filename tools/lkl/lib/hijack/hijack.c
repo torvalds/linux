@@ -219,7 +219,7 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
 	/* FIXME: need to handle mixed case of hostfd and lklfd. */
 	if (lklfds && hostfds)
-		return lkl_set_errno(LKL_EOPNOTSUPP);
+		return lkl_set_errno(-LKL_EOPNOTSUPP);
 
 
 	if (hostfds)
@@ -260,7 +260,7 @@ int select(int nfds, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
 
 	/* FIXME: handle mixed case of hostfd and lklfd */
 	if (lklfds && hostfds)
-		return lkl_set_errno(LKL_EOPNOTSUPP);
+		return lkl_set_errno(-LKL_EOPNOTSUPP);
 
 	if (hostfds)
 		return host_select(nfds, r, w, e, t);
@@ -276,7 +276,7 @@ int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
 	CHECK_HOST_CALL(epoll_ctl);
 
 	if (is_lklfd(epollfd) != is_lklfd(fd))
-		return lkl_set_errno(LKL_EOPNOTSUPP);
+		return lkl_set_errno(-LKL_EOPNOTSUPP);
 
 	if (!is_lklfd(epollfd))
 		return host_epoll_ctl(epollfd, op, fd, event);
