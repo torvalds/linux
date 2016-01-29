@@ -215,6 +215,7 @@ enum dwc2_transaction_type {
 /**
  * struct dwc2_qh - Software queue head structure
  *
+ * @hsotg:              The HCD state structure for the DWC OTG controller
  * @ep_type:            Endpoint type. One of the following values:
  *                       - USB_ENDPOINT_XFER_CONTROL
  *                       - USB_ENDPOINT_XFER_BULK
@@ -252,13 +253,16 @@ enum dwc2_transaction_type {
  * @n_bytes:            Xfer Bytes array. Each element corresponds to a transfer
  *                      descriptor and indicates original XferSize value for the
  *                      descriptor
+ * @unreserve_timer:    Timer for releasing periodic reservation.
  * @tt_buffer_dirty     True if clear_tt_buffer_complete is pending
+ * @unreserve_pending:  True if we planned to unreserve but haven't yet.
  *
  * A Queue Head (QH) holds the static characteristics of an endpoint and
  * maintains a list of transfers (QTDs) for that endpoint. A QH structure may
  * be entered in either the non-periodic or periodic schedule.
  */
 struct dwc2_qh {
+	struct dwc2_hsotg *hsotg;
 	u8 ep_type;
 	u8 ep_is_in;
 	u16 maxp;
@@ -281,7 +285,9 @@ struct dwc2_qh {
 	dma_addr_t desc_list_dma;
 	u32 desc_list_sz;
 	u32 *n_bytes;
+	struct timer_list unreserve_timer;
 	unsigned tt_buffer_dirty:1;
+	unsigned unreserve_pending:1;
 };
 
 /**
