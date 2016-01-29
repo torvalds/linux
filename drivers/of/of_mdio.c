@@ -143,11 +143,31 @@ int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
 }
 EXPORT_SYMBOL(of_mdio_parse_addr);
 
+/* The following is a list of PHY compatible strings which appear in
+ * some DTBs. The compatible string is never matched against a PHY
+ * driver, so is pointless. We only expect devices which are not PHYs
+ * to have a compatible string, so they can be matched to an MDIO
+ * driver.  Encourage users to upgrade their DT blobs to remove these.
+ */
+static const struct of_device_id whitelist_phys[] = {
+	{ .compatible = "brcm,40nm-ephy" },
+	{ .compatible = "marvell,88E1111", },
+	{ .compatible = "marvell,88e1116", },
+	{ .compatible = "marvell,88e1118", },
+	{ .compatible = "marvell,88e1149r", },
+	{ .compatible = "marvell,88e1310", },
+	{ .compatible = "marvell,88E1510", },
+	{ .compatible = "marvell,88E1514", },
+	{ .compatible = "moxa,moxart-rtl8201cp", },
+	{}
+};
+
 /*
  * Return true if the child node is for a phy. It must either:
  * o Compatible string of "ethernet-phy-idX.X"
  * o Compatible string of "ethernet-phy-ieee802.3-c45"
  * o Compatible string of "ethernet-phy-ieee802.3-c22"
+ * o In the white list above (and issue a warning)
  * o No compatibility string
  *
  * A device which is not a phy is expected to have a compatible string
@@ -165,6 +185,13 @@ static bool of_mdiobus_child_is_phy(struct device_node *child)
 
 	if (of_device_is_compatible(child, "ethernet-phy-ieee802.3-c22"))
 		return true;
+
+	if (of_match_node(whitelist_phys, child)) {
+		pr_warn(FW_WARN
+			"%s: Whitelisted compatible string. Please remove\n",
+			child->full_name);
+		return true;
+	}
 
 	if (!of_find_property(child, "compatible", NULL))
 		return true;
