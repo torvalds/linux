@@ -106,6 +106,7 @@ struct dwc2_qh;
  * @hc_list_entry:      For linking to list of host channels
  * @desc_list_addr:     Current QH's descriptor list DMA address
  * @desc_list_sz:       Current QH's descriptor list size
+ * @split_order_list_entry: List entry for keeping track of the order of splits
  *
  * This structure represents the state of a single host channel when acting in
  * host mode. It contains the data items needed to transfer packets to an
@@ -158,6 +159,7 @@ struct dwc2_host_chan {
 	struct list_head hc_list_entry;
 	dma_addr_t desc_list_addr;
 	u32 desc_list_sz;
+	struct list_head split_order_list_entry;
 };
 
 struct dwc2_hcd_pipe_info {
