@@ -373,7 +373,7 @@ static int scpi_send_message(u8 cmd, void *tx_buf, unsigned int tx_len,
 		ret = -ETIMEDOUT;
 	else
 		/* first status word */
-		ret = le32_to_cpu(msg->status);
+		ret = msg->status;
 out:
 	if (ret < 0 && rx_buf) /* remove entry from the list if timed-out */
 		scpi_process_cmd(scpi_chan, msg->cmd);
@@ -527,10 +527,11 @@ static int scpi_sensor_get_info(u16 sensor_id, struct scpi_sensor_info *info)
 
 int scpi_sensor_get_value(u16 sensor, u32 *val)
 {
+	__le16 id = cpu_to_le16(sensor);
 	struct sensor_value buf;
 	int ret;
 
-	ret = scpi_send_message(SCPI_CMD_SENSOR_VALUE, &sensor, sizeof(sensor),
+	ret = scpi_send_message(SCPI_CMD_SENSOR_VALUE, &id, sizeof(id),
 				&buf, sizeof(buf));
 	if (!ret)
 		*val = le32_to_cpu(buf.val);
