@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <dirent.h>
 
-#define MAX_NUM_DEVICES 50
+#define MAX_NUM_DEVICES 10
 #define MAX_SYSFS_PATH	0x200
 #define CSV_MAX_LINE	0x1000
 #define SYSFS_MAX_INT	0x20
