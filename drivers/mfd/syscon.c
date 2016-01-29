@@ -36,7 +36,7 @@ struct syscon {
 	struct list_head list;
 };
 
-static struct regmap_config syscon_regmap_config = {
+static const struct regmap_config syscon_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -199,6 +199,7 @@ static int syscon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct syscon_platform_data *pdata = dev_get_platdata(dev);
 	struct syscon *syscon;
+	struct regmap_config syscon_config = syscon_regmap_config;
 	struct resource *res;
 	void __iomem *base;
 
@@ -214,11 +215,10 @@ static int syscon_probe(struct platform_device *pdev)
 	if (!base)
 		return -ENOMEM;
 
-	syscon_regmap_config.max_register = res->end - res->start - 3;
+	syscon_config.max_register = res->end - res->start - 3;
 	if (pdata)
-		syscon_regmap_config.name = pdata->label;
-	syscon->regmap = devm_regmap_init_mmio(dev, base,
-					&syscon_regmap_config);
+		syscon_config.name = pdata->label;
+	syscon->regmap = devm_regmap_init_mmio(dev, base, &syscon_config);
 	if (IS_ERR(syscon->regmap)) {
 		dev_err(dev, "regmap init failed\n");
 		return PTR_ERR(syscon->regmap);
