@@ -15,6 +15,7 @@
 #include <net/if.h>
 #include <linux/if_tun.h>
 #include <sys/ioctl.h>
+#include <sys/epoll.h>
 #else
 #include <windows.h>
 #endif
@@ -77,9 +78,8 @@ void perror_msg(char *to_perror, char *str)
 {
 	/* No error handling here because we can't recover from it
 	 * anyway */
-	char tmp[MAX_MSG_LEN] = {0};
-	strerror_r(errno, str, MAX_MSG_LEN);
-	snprintf(str, MAX_MSG_LEN, "%s: error %d (%s)", to_perror, errno, tmp);
+	char *err_msg = strerror(errno);
+	snprintf(str, MAX_MSG_LEN, "%s: error %d (%s)", to_perror, errno, err_msg);
 }
 
 static int g_test_pass = 0;
@@ -442,6 +442,58 @@ static int test_pipe2(char *str, int len)
 
 	return TEST_SUCCESS;
 }
+
+static int test_epoll(char *str, int len)
+{
+	int epoll_fd, pipe_fds[2];
+	int READ_IDX = 0, WRITE_IDX = 1;
+	struct lkl_epoll_event wait_on, read_result;
+	const char msg[] = "Hello world!";
+
+	memset(&wait_on, 0, sizeof(wait_on));
+	memset(&read_result, 0, sizeof(read_result));
+
+	if (lkl_sys_pipe2(pipe_fds, O_NONBLOCK)) {
+		perror_msg("pipe2", str);
+		return TEST_FAILURE;
+	}
+
+	if ((epoll_fd = lkl_sys_epoll_create(1)) == -1) {
+		perror_msg("lkl_sys_epoll_create", str);
+		return TEST_FAILURE;
+	}
+
+	wait_on.events = EPOLLIN | EPOLLOUT;
+	wait_on.data = pipe_fds[READ_IDX];
+
+	if (lkl_sys_epoll_ctl(epoll_fd, LKL_EPOLL_CTL_ADD, pipe_fds[READ_IDX], &wait_on)) {
+		perror_msg("epoll_ctl", str);
+		return TEST_FAILURE;
+	}
+
+	/* Shouldn't be ready before we have written something */
+	if (lkl_sys_epoll_wait(epoll_fd, &read_result, 1, 0)) {
+		perror_msg("epoll_wait", str);
+		return TEST_FAILURE;
+	}
+
+	if (lkl_sys_write(pipe_fds[WRITE_IDX], msg, strlen(msg) + 1) == -1) {
+		perror_msg("write", str);
+		return TEST_FAILURE;
+	}
+
+	/* We expect exactly 1 fd to be ready immediately */
+	if (lkl_sys_epoll_wait(epoll_fd, &read_result, 1, 0) != 1) {
+		perror_msg("epoll_wait", str);
+		return TEST_FAILURE;
+	}
+
+	/* Already tested reading from pipe2 so no need to do it
+	 * here */
+	snprintf(str, MAX_MSG_LEN, "%s", msg);
+
+	return TEST_SUCCESS;
+}
 #endif /* __MINGW32__ */
 
 static char mnt_point[32];
@@ -644,6 +696,7 @@ int main(int argc, char **argv)
 	if (netdev_id >= 0)
 		TEST(netdev_ifup);
 	TEST(pipe2);
+	TEST(epoll);
 #endif  /* __MINGW32__ */
 	TEST(mount);
 	TEST(chdir);
