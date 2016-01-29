@@ -2366,8 +2366,6 @@ static void tcp_undo_cwnd_reduction(struct sock *sk, bool unmark_loss)
 			tp->snd_ssthresh = tp->prior_ssthresh;
 			tcp_ecn_withdraw_cwr(tp);
 		}
-	} else {
-		tp->snd_cwnd = max(tp->snd_cwnd, tp->snd_ssthresh);
 	}
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 	tp->undo_marker = 0;
