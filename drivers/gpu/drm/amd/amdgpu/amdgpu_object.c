@@ -399,7 +399,8 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		}
 		if (fpfn > bo->placements[i].fpfn)
 			bo->placements[i].fpfn = fpfn;
-		if (lpfn && lpfn < bo->placements[i].lpfn)
+		if (!bo->placements[i].lpfn ||
+		    (lpfn && lpfn < bo->placements[i].lpfn))
 			bo->placements[i].lpfn = lpfn;
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
