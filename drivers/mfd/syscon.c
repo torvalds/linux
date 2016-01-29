@@ -50,6 +50,7 @@ static struct syscon *of_syscon_register(struct device_node *np)
 	u32 reg_io_width;
 	int ret;
 	struct regmap_config syscon_config = syscon_regmap_config;
+	struct resource res;
 
 	if (!of_device_is_compatible(np, "syscon"))
 		return ERR_PTR(-EINVAL);
@@ -58,7 +59,12 @@ static struct syscon *of_syscon_register(struct device_node *np)
 	if (!syscon)
 		return ERR_PTR(-ENOMEM);
 
-	base = of_iomap(np, 0);
+	if (of_address_to_resource(np, 0, &res)) {
+		ret = -ENOMEM;
+		goto err_map;
+	}
+
+	base = ioremap(res.start, resource_size(&res));
 	if (!base) {
 		ret = -ENOMEM;
 		goto err_map;
@@ -81,6 +87,7 @@ static struct syscon *of_syscon_register(struct device_node *np)
 
 	syscon_config.reg_stride = reg_io_width;
 	syscon_config.val_bits = reg_io_width * 8;
+	syscon_config.max_register = resource_size(&res) - reg_io_width;
 
 	regmap = regmap_init_mmio(NULL, base, &syscon_config);
 	if (IS_ERR(regmap)) {
