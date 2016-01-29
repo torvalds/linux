@@ -283,3 +283,32 @@ int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
 
 	return lkl_call(__lkl__NR_epoll_ctl, 4, epollfd, op, fd, event);
 }
+
+int eventfd(unsigned int count, int flags)
+{
+	return lkl_sys_eventfd2(count, flags);
+}
+
+HOST_CALL(eventfd_read);
+int eventfd_read(int fd, uint64_t *value)
+{
+	CHECK_HOST_CALL(eventfd_read);
+
+	if (!is_lklfd(fd))
+		return host_eventfd_read(fd, value);
+
+	return lkl_sys_read(fd, (void *) value,
+			    sizeof(*value)) != sizeof(*value) ? -1 : 0;
+}
+
+HOST_CALL(eventfd_write);
+int eventfd_write(int fd, uint64_t value)
+{
+	CHECK_HOST_CALL(eventfd_write);
+
+	if (!is_lklfd(fd))
+		return host_eventfd_write(fd, value);
+
+	return lkl_sys_write(fd, (void *) &value,
+			     sizeof(value)) != sizeof(value) ? -1 : 0;
+}
