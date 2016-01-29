@@ -201,6 +201,26 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
 		},
 	},
+	{
+		.id = QCA4019_HW_1_0_DEV_VERSION,
+		.dev_id = 0,
+		.name = "qca4019 hw1.0",
+		.patch_load_addr = QCA4019_HW_1_0_PATCH_LOAD_ADDR,
+		.uart_pin = 7,
+		.otp_exe_param = 0x0010000,
+		.continuous_frag_desc = true,
+		.channel_counters_freq_hz = 125000,
+		.max_probe_resp_desc_thres = 24,
+		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
+		.fw = {
+			.dir = QCA4019_HW_1_0_FW_DIR,
+			.fw = QCA4019_HW_1_0_FW_FILE,
+			.otp = QCA4019_HW_1_0_OTP_FILE,
+			.board = QCA4019_HW_1_0_BOARD_DATA_FILE,
+			.board_size = QCA4019_BOARD_DATA_SZ,
+			.board_ext_size = QCA4019_BOARD_EXT_DATA_SZ,
+		},
+	},
 };
 
 static const char *const ath10k_core_fw_feature_str[] = {
