@@ -215,6 +215,7 @@
 #define SDXC_CLK_25M		1
 #define SDXC_CLK_50M		2
 #define SDXC_CLK_50M_DDR	3
+#define SDXC_CLK_50M_DDR_8BIT	4
 
 struct sunxi_mmc_clk_delay {
 	u32 output;
@@ -656,11 +657,17 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 				  struct mmc_ios *ios)
 {
 	u32 rate, oclk_dly, rval, sclk_dly;
+	u32 clock = ios->clock;
 	int ret;
 
-	rate = clk_round_rate(host->clk_mmc, ios->clock);
+	/* 8 bit DDR requires a higher module clock */
+	if (ios->timing == MMC_TIMING_MMC_DDR52 &&
+	    ios->bus_width == MMC_BUS_WIDTH_8)
+		clock <<= 1;
+
+	rate = clk_round_rate(host->clk_mmc, clock);
 	dev_dbg(mmc_dev(host->mmc), "setting clk to %d, rounded %d\n",
-		ios->clock, rate);
+		clock, rate);
 
 	/* setting clock rate */
 	ret = clk_set_rate(host->clk_mmc, rate);
@@ -677,6 +684,12 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	/* clear internal divider */
 	rval = mmc_readl(host, REG_CLKCR);
 	rval &= ~0xff;
+	/* set internal divider for 8 bit eMMC DDR, so card clock is right */
+	if (ios->timing == MMC_TIMING_MMC_DDR52 &&
+	    ios->bus_width == MMC_BUS_WIDTH_8) {
+		rval |= 1;
+		rate >>= 1;
+	}
 	mmc_writel(host, REG_CLKCR, rval);
 
 	/* determine delays */
@@ -687,13 +700,16 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 		oclk_dly = host->clk_delays[SDXC_CLK_25M].output;
 		sclk_dly = host->clk_delays[SDXC_CLK_25M].sample;
 	} else if (rate <= 52000000) {
-		if (ios->timing == MMC_TIMING_UHS_DDR50 ||
-		    ios->timing == MMC_TIMING_MMC_DDR52) {
-			oclk_dly = host->clk_delays[SDXC_CLK_50M_DDR].output;
-			sclk_dly = host->clk_delays[SDXC_CLK_50M_DDR].sample;
-		} else {
+		if (ios->timing != MMC_TIMING_UHS_DDR50 &&
+		    ios->timing != MMC_TIMING_MMC_DDR52) {
 			oclk_dly = host->clk_delays[SDXC_CLK_50M].output;
 			sclk_dly = host->clk_delays[SDXC_CLK_50M].sample;
+		} else if (ios->bus_width == MMC_BUS_WIDTH_8) {
+			oclk_dly = host->clk_delays[SDXC_CLK_50M_DDR_8BIT].output;
+			sclk_dly = host->clk_delays[SDXC_CLK_50M_DDR_8BIT].sample;
+		} else {
+			oclk_dly = host->clk_delays[SDXC_CLK_50M_DDR].output;
+			sclk_dly = host->clk_delays[SDXC_CLK_50M_DDR].sample;
 		}
 	} else {
 		return -EINVAL;
@@ -951,6 +967,8 @@ static const struct sunxi_mmc_clk_delay sunxi_mmc_clk_delays[] = {
 	[SDXC_CLK_25M]		= { .output = 180, .sample =  75 },
 	[SDXC_CLK_50M]		= { .output =  90, .sample = 120 },
 	[SDXC_CLK_50M_DDR]	= { .output =  60, .sample = 120 },
+	/* Value from A83T "new timing mode". Works but might not be right. */
+	[SDXC_CLK_50M_DDR_8BIT]	= { .output =  90, .sample = 180 },
 };
 
 static const struct sunxi_mmc_clk_delay sun9i_mmc_clk_delays[] = {
@@ -958,6 +976,7 @@ static const struct sunxi_mmc_clk_delay sun9i_mmc_clk_delays[] = {
 	[SDXC_CLK_25M]		= { .output = 180, .sample =  75 },
 	[SDXC_CLK_50M]		= { .output = 150, .sample = 120 },
 	[SDXC_CLK_50M_DDR]	= { .output =  90, .sample = 120 },
+	[SDXC_CLK_50M_DDR_8BIT]	= { .output =  90, .sample = 120 },
 };
 
 static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
