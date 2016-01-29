@@ -460,7 +460,6 @@ config MACH_AT2440EVB
 
 config MACH_MINI2440
 	bool "MINI2440 development board"
-	select EEPROM_AT24 if I2C
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_BACKLIGHT
