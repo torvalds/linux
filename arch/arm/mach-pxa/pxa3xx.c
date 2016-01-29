@@ -68,7 +68,6 @@ static unsigned long wakeup_src;
  */
 static void pxa3xx_cpu_standby(unsigned int pwrmode)
 {
-	extern const char pm_enter_standby_start[], pm_enter_standby_end[];
 	void (*fn)(unsigned int) = (void __force *)(sram + 0x8000);
 
 	memcpy_toio(sram + 0x8000, pm_enter_standby_start,
@@ -105,8 +104,6 @@ static void pxa3xx_cpu_pm_suspend(void)
 
 	asm volatile("mra %Q0, %R0, acc0" : "=r" (acc0));
 #endif
-
-	extern int pxa3xx_finish_suspend(unsigned long);
 
 	/* resuming from D2 requires the HSIO2/BOOT/TPM clocks enabled */
 	CKENA |= (1 << CKEN_BOOT) | (1 << CKEN_TPM);
