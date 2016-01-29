@@ -244,8 +244,11 @@ enum dwc2_transaction_type {
  *                      the bus.  We'll move the qh to active here.  If the
  *                      host is in high speed mode this will be a uframe.  If
  *                      the host is in low speed mode this will be a full frame.
+ * @start_active_frame: If we are partway through a split transfer, this will be
+ *			what next_active_frame was when we started.  Otherwise
+ *			it should always be the same as next_active_frame.
+ * @assigned_uframe:    The uframe (0 -7) assigned by dwc2_find_uframe().
  * @frame_usecs:        Internal variable used by the microframe scheduler
- * @start_split_frame:  (Micro)frame at which last start split was initialized
  * @ntd:                Actual number of transfer descriptors in a list
  * @qtd_list:           List of QTDs for this QH
  * @channel:            Host channel currently processing transfers for this QH
@@ -279,8 +282,9 @@ struct dwc2_qh {
 	u16 host_us;
 	u16 host_interval;
 	u16 next_active_frame;
+	u16 start_active_frame;
+	u16 assigned_uframe;
 	u16 frame_usecs[8];
-	u16 start_split_frame;
 	u16 ntd;
 	struct list_head qtd_list;
 	struct dwc2_host_chan *channel;
@@ -746,7 +750,7 @@ do {									\
 	_qtd_ = list_entry((_qh_)->qtd_list.next, struct dwc2_qtd,	\
 			   qtd_list_entry);				\
 	if (usb_pipeint(_qtd_->urb->pipe) &&				\
-	    (_qh_)->start_split_frame != 0 && !_qtd_->complete_split) {	\
+	    (_qh_)->start_active_frame != 0 && !_qtd_->complete_split) { \
 		_hfnum_.d32 = dwc2_readl((_hcd_)->regs + HFNUM);	\
 		switch (_hfnum_.b.frnum & 0x7) {			\
 		case 7:							\

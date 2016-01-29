@@ -38,6 +38,7 @@
  * This file contains the functions to manage Queue Heads and Queue
  * Transfer Descriptors for Host mode
  */
+#include <linux/gcd.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -245,6 +246,96 @@ static int dwc2_find_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 }
 
 /**
+ * dwc2_pick_first_frame() - Choose 1st frame for qh that's already scheduled
+ *
+ * Takes a qh that has already been scheduled (which means we know we have the
+ * bandwdith reserved for us) and set the next_active_frame and the
+ * start_active_frame.
+ *
+ * This is expected to be called on qh's that weren't previously actively
+ * running.  It just picks the next frame that we can fit into without any
+ * thought about the past.
+ *
+ * @hsotg: The HCD state structure for the DWC OTG controller
+ * @qh:    QH for a periodic endpoint
+ *
+ */
+static void dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+{
+	u16 frame_number;
+	u16 earliest_frame;
+	u16 next_active_frame;
+	u16 interval;
+
+	/*
+	 * Use the real frame number rather than the cached value as of the
+	 * last SOF to give us a little extra slop.
+	 */
+	frame_number = dwc2_hcd_get_frame_number(hsotg);
+
+	/*
+	 * We wouldn't want to start any earlier than the next frame just in
+	 * case the frame number ticks as we're doing this calculation.
+	 *
+	 * NOTE: if we could quantify how long till we actually get scheduled
+	 * we might be able to avoid the "+ 1" by looking at the upper part of
+	 * HFNUM (the FRREM field).  For now we'll just use the + 1 though.
+	 */
+	earliest_frame = dwc2_frame_num_inc(frame_number, 1);
+	next_active_frame = earliest_frame;
+
+	/* Get the "no microframe schduler" out of the way... */
+	if (hsotg->core_params->uframe_sched <= 0) {
+		if (qh->do_split)
+			/* Splits are active at microframe 0 minus 1 */
+			next_active_frame |= 0x7;
+		goto exit;
+	}
+
+	/* Adjust interval as per high speed schedule which has 8 uFrame */
+	interval = gcd(qh->host_interval, 8);
+
+	/*
+	 * We know interval must divide (HFNUM_MAX_FRNUM + 1) now that we've
+	 * done the gcd(), so it's safe to move to the beginning of the current
+	 * interval like this.
+	 *
+	 * After this we might be before earliest_frame, but don't worry,
+	 * we'll fix it...
+	 */
+	next_active_frame = (next_active_frame / interval) * interval;
+
+	/*
+	 * Actually choose to start at the frame number we've been
+	 * scheduled for.
+	 */
+	next_active_frame = dwc2_frame_num_inc(next_active_frame,
+					       qh->assigned_uframe);
+
+	/*
+	 * We actually need 1 frame before since the next_active_frame is
+	 * the frame number we'll be put on the ready list and we won't be on
+	 * the bus until 1 frame later.
+	 */
+	next_active_frame = dwc2_frame_num_dec(next_active_frame, 1);
+
+	/*
+	 * By now we might actually be before the earliest_frame.  Let's move
+	 * up intervals until we're not.
+	 */
+	while (dwc2_frame_num_gt(earliest_frame, next_active_frame))
+		next_active_frame = dwc2_frame_num_inc(next_active_frame,
+						       interval);
+
+exit:
+	qh->next_active_frame = next_active_frame;
+	qh->start_active_frame = next_active_frame;
+
+	dwc2_sch_vdbg(hsotg, "QH=%p First fn=%04x nxt=%04x\n",
+		     qh, frame_number, qh->next_active_frame);
+}
+
+/**
  * dwc2_do_reserve() - Make a periodic reservation
  *
  * Try to allocate space in the periodic schedule.  Depending on parameters
@@ -260,25 +351,9 @@ static int dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	int status;
 
 	if (hsotg->core_params->uframe_sched > 0) {
-		int frame = -1;
-
 		status = dwc2_find_uframe(hsotg, qh);
-		if (status == 0)
-			frame = 7;
-		else if (status > 0)
-			frame = status - 1;
-
-		/* Set the new frame up */
-		if (frame >= 0) {
-			qh->next_active_frame &= ~0x7;
-			qh->next_active_frame |= (frame & 7);
-			dwc2_sch_dbg(hsotg,
-				     "QH=%p sched_p nxt=%04x, uf=%d\n",
-				     qh, qh->next_active_frame, frame);
-		}
-
-		if (status > 0)
-			status = 0;
+		if (status >= 0)
+			qh->assigned_uframe = status;
 	} else {
 		status = dwc2_periodic_channel_available(hsotg);
 		if (status) {
@@ -304,6 +379,8 @@ static int dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	/* Update claimed usecs per (micro)frame */
 	hsotg->periodic_usecs += qh->host_us;
+
+	dwc2_pick_first_frame(hsotg, qh);
 
 	return 0;
 }
@@ -460,6 +537,16 @@ static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		status = dwc2_do_reserve(hsotg, qh);
 		if (status)
 			return status;
+	} else {
+		/*
+		 * It might have been a while, so make sure that frame_number
+		 * is still good.  Note: we could also try to use the similar
+		 * dwc2_next_periodic_start() but that schedules much more
+		 * tightly and we might need to hurry and queue things up.
+		 */
+		if (dwc2_frame_num_le(qh->next_active_frame,
+				      hsotg->frame_number))
+			dwc2_pick_first_frame(hsotg, qh);
 	}
 
 	qh->unreserve_pending = 0;
@@ -520,7 +607,6 @@ static void dwc2_deschedule_periodic(struct dwc2_hsotg *hsotg,
  * @urb:   Holds the information about the device/endpoint needed to initialize
  *         the QH
  */
-#define SCHEDULE_SLOP 10
 static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			 struct dwc2_hcd_urb *urb)
 {
@@ -569,11 +655,6 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			      qh->ep_type == USB_ENDPOINT_XFER_ISOC,
 			      bytecount));
 
-		/* Ensure frame_number corresponds to the reality */
-		hsotg->frame_number = dwc2_hcd_get_frame_number(hsotg);
-		/* Start in a slightly future (micro)frame */
-		qh->next_active_frame = dwc2_frame_num_inc(hsotg->frame_number,
-						     SCHEDULE_SLOP);
 		qh->host_interval = urb->interval;
 		dwc2_sch_dbg(hsotg, "QH=%p init nxt=%04x, fn=%04x, int=%#x\n",
 			     qh, qh->next_active_frame, hsotg->frame_number,
@@ -589,8 +670,6 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 		    (dev_speed == USB_SPEED_LOW ||
 		     dev_speed == USB_SPEED_FULL)) {
 			qh->host_interval *= 8;
-			qh->next_active_frame |= 0x7;
-			qh->start_split_frame = qh->next_active_frame;
 			dwc2_sch_dbg(hsotg,
 				     "QH=%p init*8 nxt=%04x, fn=%04x, int=%#x\n",
 				     qh, qh->next_active_frame,
@@ -738,22 +817,12 @@ int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		/* QH already in a schedule */
 		return 0;
 
-	if (!dwc2_frame_num_le(qh->next_active_frame, hsotg->frame_number) &&
-			!hsotg->frame_number) {
-		u16 new_frame;
-
-		dev_dbg(hsotg->dev,
-				"reset frame number counter\n");
-		new_frame = dwc2_frame_num_inc(hsotg->frame_number,
-				SCHEDULE_SLOP);
-
-		dwc2_sch_vdbg(hsotg, "QH=%p reset nxt=%04x=>%04x\n",
-			      qh, qh->next_active_frame, new_frame);
-		qh->next_active_frame = new_frame;
-	}
-
 	/* Add the new QH to the appropriate schedule */
 	if (dwc2_qh_is_non_per(qh)) {
+		/* Schedule right away */
+		qh->start_active_frame = hsotg->frame_number;
+		qh->next_active_frame = qh->start_active_frame;
+
 		/* Always start in inactive schedule */
 		list_add_tail(&qh->qh_list_entry,
 			      &hsotg->non_periodic_sched_inactive);
@@ -807,46 +876,145 @@ void dwc2_hcd_qh_unlink(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	}
 }
 
-/*
- * Schedule the next continuing periodic split transfer
+/**
+ * dwc2_next_for_periodic_split() - Set next_active_frame midway thru a split.
+ *
+ * This is called for setting next_active_frame for periodic splits for all but
+ * the first packet of the split.  Confusing?  I thought so...
+ *
+ * Periodic splits are single low/full speed transfers that we end up splitting
+ * up into several high speed transfers.  They always fit into one full (1 ms)
+ * frame but might be split over several microframes (125 us each).  We to put
+ * each of the parts on a very specific high speed frame.
+ *
+ * This function figures out where the next active uFrame needs to be.
+ *
+ * @hsotg:        The HCD state structure
+ * @qh:           QH for the periodic transfer.
+ * @frame_number: The current frame number.
+ *
+ * Return: number missed by (or 0 if we didn't miss).
  */
-static void dwc2_sched_periodic_split(struct dwc2_hsotg *hsotg,
-				      struct dwc2_qh *qh, u16 frame_number,
-				      int sched_next_periodic_split)
+static int dwc2_next_for_periodic_split(struct dwc2_hsotg *hsotg,
+					 struct dwc2_qh *qh, u16 frame_number)
 {
-	u16 incr;
 	u16 old_frame = qh->next_active_frame;
+	u16 prev_frame_number = dwc2_frame_num_dec(frame_number, 1);
+	int missed = 0;
+	u16 incr;
 
-	if (sched_next_periodic_split) {
+	/*
+	 * Basically: increment 1 normally, but 2 right after the start split
+	 * (except for ISOC out).
+	 */
+	if (old_frame == qh->start_active_frame &&
+	    !(qh->ep_type == USB_ENDPOINT_XFER_ISOC && !qh->ep_is_in))
+		incr = 2;
+	else
+		incr = 1;
+
+	qh->next_active_frame = dwc2_frame_num_inc(old_frame, incr);
+
+	/*
+	 * Note that it's OK for frame_number to be 1 frame past
+	 * next_active_frame.  Remember that next_active_frame is supposed to
+	 * be 1 frame _before_ when we want to be scheduled.  If we're 1 frame
+	 * past it just means schedule ASAP.
+	 *
+	 * It's _not_ OK, however, if we're more than one frame past.
+	 */
+	if (dwc2_frame_num_gt(prev_frame_number, qh->next_active_frame)) {
+		/*
+		 * OOPS, we missed.  That's actually pretty bad since
+		 * the hub will be unhappy; try ASAP I guess.
+		 */
+		missed = dwc2_frame_num_dec(prev_frame_number,
+					    qh->next_active_frame);
 		qh->next_active_frame = frame_number;
-		incr = dwc2_frame_num_inc(qh->start_split_frame, 1);
-		if (dwc2_frame_num_le(frame_number, incr)) {
-			/*
-			 * Allow one frame to elapse after start split
-			 * microframe before scheduling complete split, but
-			 * DON'T if we are doing the next start split in the
-			 * same frame for an ISOC out
-			 */
-			if (qh->ep_type != USB_ENDPOINT_XFER_ISOC ||
-			    qh->ep_is_in != 0) {
-				qh->next_active_frame = dwc2_frame_num_inc(
-					qh->next_active_frame, 1);
-			}
-		}
-	} else {
-		qh->next_active_frame =
-			dwc2_frame_num_inc(qh->start_split_frame,
-					   qh->host_interval);
-		if (dwc2_frame_num_le(qh->next_active_frame, frame_number))
-			qh->next_active_frame = frame_number;
-		qh->next_active_frame |= 0x7;
-		qh->start_split_frame = qh->next_active_frame;
 	}
 
-	dwc2_sch_vdbg(hsotg, "QH=%p next(%d) fn=%04x, nxt=%04x=>%04x (%+d)\n",
-		      qh, sched_next_periodic_split, frame_number, old_frame,
-		      qh->next_active_frame,
-		      dwc2_frame_num_dec(qh->next_active_frame, old_frame));
+	return missed;
+}
+
+/**
+ * dwc2_next_periodic_start() - Set next_active_frame for next transfer start
+ *
+ * This is called for setting next_active_frame for a periodic transfer for
+ * all cases other than midway through a periodic split.  This will also update
+ * start_active_frame.
+ *
+ * Since we _always_ keep start_active_frame as the start of the previous
+ * transfer this is normally pretty easy: we just add our interval to
+ * start_active_frame and we've got our answer.
+ *
+ * The tricks come into play if we miss.  In that case we'll look for the next
+ * slot we can fit into.
+ *
+ * @hsotg:        The HCD state structure
+ * @qh:           QH for the periodic transfer.
+ * @frame_number: The current frame number.
+ *
+ * Return: number missed by (or 0 if we didn't miss).
+ */
+static int dwc2_next_periodic_start(struct dwc2_hsotg *hsotg,
+				     struct dwc2_qh *qh, u16 frame_number)
+{
+	int missed = 0;
+	u16 interval = qh->host_interval;
+	u16 prev_frame_number = dwc2_frame_num_dec(frame_number, 1);
+
+	qh->start_active_frame = dwc2_frame_num_inc(qh->start_active_frame,
+						    interval);
+
+	/*
+	 * The dwc2_frame_num_gt() function used below won't work terribly well
+	 * with if we just incremented by a really large intervals since the
+	 * frame counter only goes to 0x3fff.  It's terribly unlikely that we
+	 * will have missed in this case anyway.  Just go to exit.  If we want
+	 * to try to do better we'll need to keep track of a bigger counter
+	 * somewhere in the driver and handle overflows.
+	 */
+	if (interval >= 0x1000)
+		goto exit;
+
+	/*
+	 * Test for misses, which is when it's too late to schedule.
+	 *
+	 * A few things to note:
+	 * - We compare against prev_frame_number since start_active_frame
+	 *   and next_active_frame are always 1 frame before we want things
+	 *   to be active and we assume we can still get scheduled in the
+	 *   current frame number.
+	 * - Some misses are expected.  Specifically, in order to work
+	 *   perfectly dwc2 really needs quite spectacular interrupt latency
+	 *   requirements.  It needs to be able to handle its interrupts
+	 *   completely within 125 us of them being asserted. That not only
+	 *   means that the dwc2 interrupt handler needs to be fast but it
+	 *   means that nothing else in the system has to block dwc2 for a long
+	 *   time.  We can help with the dwc2 parts of this, but it's hard to
+	 *   guarantee that a system will have interrupt latency < 125 us, so
+	 *   we have to be robust to some misses.
+	 */
+	if (dwc2_frame_num_gt(prev_frame_number, qh->start_active_frame)) {
+		u16 ideal_start = qh->start_active_frame;
+
+		/* Adjust interval as per gcd with plan length. */
+		interval = gcd(interval, 8);
+
+		do {
+			qh->start_active_frame = dwc2_frame_num_inc(
+				qh->start_active_frame, interval);
+		} while (dwc2_frame_num_gt(prev_frame_number,
+					   qh->start_active_frame));
+
+		missed = dwc2_frame_num_dec(qh->start_active_frame,
+					    ideal_start);
+	}
+
+exit:
+	qh->next_active_frame = qh->start_active_frame;
+
+	return missed;
 }
 
 /*
@@ -865,7 +1033,9 @@ static void dwc2_sched_periodic_split(struct dwc2_hsotg *hsotg,
 void dwc2_hcd_qh_deactivate(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			    int sched_next_periodic_split)
 {
+	u16 old_frame = qh->next_active_frame;
 	u16 frame_number;
+	int missed;
 
 	if (dbg_qh(qh))
 		dev_vdbg(hsotg->dev, "%s()\n", __func__);
@@ -878,30 +1048,39 @@ void dwc2_hcd_qh_deactivate(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 		return;
 	}
 
+	/*
+	 * Use the real frame number rather than the cached value as of the
+	 * last SOF just to get us a little closer to reality.  Note that
+	 * means we don't actually know if we've already handled the SOF
+	 * interrupt for this frame.
+	 */
 	frame_number = dwc2_hcd_get_frame_number(hsotg);
 
-	if (qh->do_split) {
-		dwc2_sched_periodic_split(hsotg, qh, frame_number,
-					  sched_next_periodic_split);
-	} else {
-		qh->next_active_frame = dwc2_frame_num_inc(
-			qh->next_active_frame, qh->host_interval);
-		if (dwc2_frame_num_le(qh->next_active_frame, frame_number))
-			qh->next_active_frame = frame_number;
-	}
+	if (sched_next_periodic_split)
+		missed = dwc2_next_for_periodic_split(hsotg, qh, frame_number);
+	else
+		missed = dwc2_next_periodic_start(hsotg, qh, frame_number);
+
+	dwc2_sch_vdbg(hsotg,
+		     "QH=%p next(%d) fn=%04x, sch=%04x=>%04x (%+d) miss=%d %s\n",
+		     qh, sched_next_periodic_split, frame_number, old_frame,
+		     qh->next_active_frame,
+		     dwc2_frame_num_dec(qh->next_active_frame, old_frame),
+		missed, missed ? "MISS" : "");
 
 	if (list_empty(&qh->qtd_list)) {
 		dwc2_hcd_qh_unlink(hsotg, qh);
 		return;
 	}
+
 	/*
 	 * Remove from periodic_sched_queued and move to
 	 * appropriate queue
+	 *
+	 * Note: we purposely use the frame_number from the "hsotg" structure
+	 * since we know SOF interrupt will handle future frames.
 	 */
-	if ((hsotg->core_params->uframe_sched > 0 &&
-	     dwc2_frame_num_le(qh->next_active_frame, frame_number)) ||
-	    (hsotg->core_params->uframe_sched <= 0 &&
-	     qh->next_active_frame == frame_number))
+	if (dwc2_frame_num_le(qh->next_active_frame, hsotg->frame_number))
 		list_move_tail(&qh->qh_list_entry,
 			       &hsotg->periodic_sched_ready);
 	else
