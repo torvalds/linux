@@ -1371,14 +1371,50 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 
 		if (chan->ep_type == USB_ENDPOINT_XFER_INT ||
 		    chan->ep_type == USB_ENDPOINT_XFER_ISOC) {
-			int frnum = dwc2_hcd_get_frame_number(hsotg);
+			struct dwc2_qh *qh = chan->qh;
+			bool past_end;
 
-			if (dwc2_full_frame_num(frnum) !=
-			    dwc2_full_frame_num(chan->qh->next_active_frame)) {
+			if (hsotg->core_params->uframe_sched <= 0) {
+				int frnum = dwc2_hcd_get_frame_number(hsotg);
+
+				/* Don't have num_hs_transfers; simple logic */
+				past_end = dwc2_full_frame_num(frnum) !=
+				     dwc2_full_frame_num(qh->next_active_frame);
+			} else {
+				int end_frnum;
+
 				/*
-				 * No longer in the same full speed frame.
-				 * Treat this as a transaction error.
-				 */
+				* Figure out the end frame based on schedule.
+				*
+				* We don't want to go on trying again and again
+				* forever.  Let's stop when we've done all the
+				* transfers that were scheduled.
+				*
+				* We're going to be comparing start_active_frame
+				* and next_active_frame, both of which are 1
+				* before the time the packet goes on the wire,
+				* so that cancels out.  Basically if had 1
+				* transfer and we saw 1 NYET then we're done.
+				* We're getting a NYET here so if next >=
+				* (start + num_transfers) we're done. The
+				* complexity is that for all but ISOC_OUT we
+				* skip one slot.
+				*/
+				end_frnum = dwc2_frame_num_inc(
+					qh->start_active_frame,
+					qh->num_hs_transfers);
+
+				if (qh->ep_type != USB_ENDPOINT_XFER_ISOC ||
+				    qh->ep_is_in)
+					end_frnum =
+					       dwc2_frame_num_inc(end_frnum, 1);
+
+				past_end = dwc2_frame_num_le(
+					end_frnum, qh->next_active_frame);
+			}
+
+			if (past_end) {
+				/* Treat this as a transaction error. */
 #if 0
 				/*
 				 * Todo: Fix system performance so this can
