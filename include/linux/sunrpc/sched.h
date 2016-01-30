@@ -69,6 +69,8 @@ struct rpc_task {
 	const struct rpc_call_ops *tk_ops;	/* Caller callbacks */
 
 	struct rpc_clnt *	tk_client;	/* RPC client */
+	struct rpc_xprt *	tk_xprt;	/* Transport */
+
 	struct rpc_rqst *	tk_rqstp;	/* RPC request */
 
 	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could

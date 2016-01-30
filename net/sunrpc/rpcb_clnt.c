@@ -683,11 +683,9 @@ void rpcb_getport_async(struct rpc_task *task)
 	int status;
 
 	rcu_read_lock();
-	do {
-		clnt = rpcb_find_transport_owner(task->tk_client);
-		xprt = xprt_get(rcu_dereference(clnt->cl_xprt));
-	} while (xprt == NULL);
+	clnt = rpcb_find_transport_owner(task->tk_client);
 	rcu_read_unlock();
+	xprt = xprt_get(task->tk_xprt);
 
 	dprintk("RPC: %5u %s(%s, %u, %u, %d)\n",
 		task->tk_pid, __func__,
