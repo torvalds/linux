@@ -257,6 +257,10 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 			       "EVENT: in FULL POWER mode, ignoring PS_SLEEP\n");
 			break;
 		}
+		if (!list_empty(&priv->cmdpendingq)) {
+			lbs_deb_cmd("EVENT: commands in queue, do not sleep\n");
+			break;
+		}
 		priv->psstate = PS_STATE_PRE_SLEEP;
 
 		lbs_ps_confirm_sleep(priv);
