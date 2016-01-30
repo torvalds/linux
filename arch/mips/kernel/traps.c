@@ -663,7 +663,7 @@ static int simulate_rdhwr_normal(struct pt_regs *regs, unsigned int opcode)
 	return -1;
 }
 
-static int simulate_rdhwr_mm(struct pt_regs *regs, unsigned short opcode)
+static int simulate_rdhwr_mm(struct pt_regs *regs, unsigned int opcode)
 {
 	if ((opcode & MM_POOL32A_FUNC) == MM_RDHWR) {
 		int rd = (opcode & MM_RS) >> 16;
@@ -1119,11 +1119,12 @@ no_r2_instr:
 	if (get_isa16_mode(regs->cp0_epc)) {
 		unsigned short mmop[2] = { 0 };
 
-		if (unlikely(get_user(mmop[0], epc) < 0))
+		if (unlikely(get_user(mmop[0], (u16 __user *)epc + 0) < 0))
 			status = SIGSEGV;
-		if (unlikely(get_user(mmop[1], epc) < 0))
+		if (unlikely(get_user(mmop[1], (u16 __user *)epc + 1) < 0))
 			status = SIGSEGV;
-		opcode = (mmop[0] << 16) | mmop[1];
+		opcode = mmop[0];
+		opcode = (opcode << 16) | mmop[1];
 
 		if (status < 0)
 			status = simulate_rdhwr_mm(regs, opcode);
