@@ -71,6 +71,7 @@ struct clk_wzrd {
 	int speed_grade;
 	bool suspended;
 };
+
 #define to_clk_wzrd(_nb) container_of(_nb, struct clk_wzrd, nb)
 
 /* maximum frequencies for input/output clocks per speed grade */
