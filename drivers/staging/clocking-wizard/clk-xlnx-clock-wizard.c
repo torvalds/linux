@@ -32,8 +32,8 @@
 
 #define WZRD_CLK_CFG_REG(n)	(0x200 + 4 * (n))
 
-#define WZRD_CLkOUT0_FRAC_EN	BIT(18)
-#define WZRD_CLkFBOUT_FRAC_EN	BIT(26)
+#define WZRD_CLKOUT0_FRAC_EN	BIT(18)
+#define WZRD_CLKFBOUT_FRAC_EN	BIT(26)
 
 #define WZRD_CLKFBOUT_MULT_SHIFT	8
 #define WZRD_CLKFBOUT_MULT_MASK		(0xff << WZRD_CLKFBOUT_MULT_SHIFT)
@@ -195,9 +195,9 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 
 	/* we don't support fractional div/mul yet */
 	reg = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(0)) &
-		    WZRD_CLkFBOUT_FRAC_EN;
+		    WZRD_CLKFBOUT_FRAC_EN;
 	reg |= readl(clk_wzrd->base + WZRD_CLK_CFG_REG(2)) &
-		     WZRD_CLkOUT0_FRAC_EN;
+		     WZRD_CLKOUT0_FRAC_EN;
 	if (reg)
 		dev_warn(&pdev->dev, "fractional div/mul not supported\n");
 
