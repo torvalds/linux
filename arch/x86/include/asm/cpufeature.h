@@ -268,6 +268,7 @@
 #define X86_FEATURE_DECODEASSISTS (15*32+ 7) /* Decode Assists support */
 #define X86_FEATURE_PAUSEFILTER (15*32+10) /* filtered pause intercept */
 #define X86_FEATURE_PFTHRESHOLD (15*32+12) /* pause filter threshold */
+#define X86_FEATURE_AVIC	(15*32+13) /* Virtual Interrupt Controller */
 
 /*
  * BUG word(s)
