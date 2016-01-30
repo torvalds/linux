@@ -60,7 +60,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 			unsigned int rs;
 			s32 v;
 
-			rs = (((insn.mm_a_format.rs + 0x1e) & 0xf) + 2);
+			rs = (((insn.mm_a_format.rs + 0xe) & 0xf) + 2);
 			v = regs->cp0_epc & ~3;
 			v += insn.mm_a_format.simmediate << 2;
 			regs->regs[rs] = (long)v;
