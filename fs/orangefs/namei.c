@@ -443,4 +443,5 @@ struct inode_operations orangefs_dir_inode_operations = {
 	.getxattr = generic_getxattr,
 	.removexattr = generic_removexattr,
 	.listxattr = orangefs_listxattr,
+	.permission = orangefs_permission,
 };

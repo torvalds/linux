@@ -493,6 +493,8 @@ int orangefs_getattr(struct vfsmount *mnt,
 		  struct dentry *dentry,
 		  struct kstat *kstat);
 
+int orangefs_permission(struct inode *inode, int mask);
+
 /*
  * defined in xattr.c
  */

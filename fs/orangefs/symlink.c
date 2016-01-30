@@ -28,4 +28,5 @@ struct inode_operations orangefs_symlink_inode_operations = {
 	.getattr = orangefs_getattr,
 	.listxattr = orangefs_listxattr,
 	.setxattr = generic_setxattr,
+	.permission = orangefs_permission,
 };

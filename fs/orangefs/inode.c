@@ -291,6 +291,24 @@ int orangefs_getattr(struct vfsmount *mnt,
 	return ret;
 }
 
+int orangefs_permission(struct inode *inode, int mask)
+{
+	int ret;
+
+	if (mask & MAY_NOT_BLOCK)
+		return -ECHILD;
+
+	gossip_debug(GOSSIP_INODE_DEBUG, "%s: refreshing\n", __func__);
+
+	/* Make sure the permission (and other common attrs) are up to date. */
+	ret = orangefs_inode_getattr(inode,
+	    ORANGEFS_ATTR_SYS_ALL_NOHINT_NOSIZE, 0);
+	if (ret < 0)
+		return ret;
+
+	return generic_permission(inode, mask);
+}
+
 /* ORANGEDS2 implementation of VFS inode operations for files */
 struct inode_operations orangefs_file_inode_operations = {
 	.get_acl = orangefs_get_acl,
@@ -301,6 +319,7 @@ struct inode_operations orangefs_file_inode_operations = {
 	.getxattr = generic_getxattr,
 	.listxattr = orangefs_listxattr,
 	.removexattr = generic_removexattr,
+	.permission = orangefs_permission,
 };
 
 static int orangefs_init_iops(struct inode *inode)
