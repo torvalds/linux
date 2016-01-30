@@ -160,11 +160,10 @@ static int mesh_table_grow(struct mesh_table *oldtbl,
 	int i;
 
 	if (atomic_read(&oldtbl->entries)
-			< oldtbl->mean_chain_len * (oldtbl->hash_mask + 1))
+			< MEAN_CHAIN_LEN * (oldtbl->hash_mask + 1))
 		return -EAGAIN;
 
 	newtbl->free_node = oldtbl->free_node;
-	newtbl->mean_chain_len = oldtbl->mean_chain_len;
 	newtbl->copy_node = oldtbl->copy_node;
 	newtbl->known_gates = oldtbl->known_gates;
 	atomic_set(&newtbl->entries, atomic_read(&oldtbl->entries));
@@ -585,7 +584,7 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 
 	hlist_add_head_rcu(&new_node->list, bucket);
 	if (atomic_inc_return(&tbl->entries) >=
-	    tbl->mean_chain_len * (tbl->hash_mask + 1))
+	    MEAN_CHAIN_LEN * (tbl->hash_mask + 1))
 		grow = 1;
 
 	mesh_paths_generation++;
@@ -714,7 +713,7 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 
 	hlist_add_head_rcu(&new_node->list, bucket);
 	if (atomic_inc_return(&tbl->entries) >=
-	    tbl->mean_chain_len * (tbl->hash_mask + 1))
+	    MEAN_CHAIN_LEN * (tbl->hash_mask + 1))
 		grow = 1;
 
 	spin_unlock(&tbl->hashwlock[hash_idx]);
@@ -1076,7 +1075,6 @@ int mesh_pathtbl_init(void)
 		return -ENOMEM;
 	tbl_path->free_node = &mesh_path_node_free;
 	tbl_path->copy_node = &mesh_path_node_copy;
-	tbl_path->mean_chain_len = MEAN_CHAIN_LEN;
 	tbl_path->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
 	if (!tbl_path->known_gates) {
 		ret = -ENOMEM;
@@ -1092,7 +1090,6 @@ int mesh_pathtbl_init(void)
 	}
 	tbl_mpp->free_node = &mesh_path_node_free;
 	tbl_mpp->copy_node = &mesh_path_node_copy;
-	tbl_mpp->mean_chain_len = MEAN_CHAIN_LEN;
 	tbl_mpp->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
 	if (!tbl_mpp->known_gates) {
 		ret = -ENOMEM;
