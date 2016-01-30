@@ -187,7 +187,7 @@ apply a patch.
 If you do not know where you want to start, but you want to look for
 some task to start doing to join into the kernel development community,
 go to the Linux Kernel Janitor's project:
-	http://kernelnewbies.org/KernelJanitors	
+	http://kernelnewbies.org/KernelJanitors
 It is a great place to start.  It describes a list of relatively simple
 problems that need to be cleaned up and fixed within the Linux kernel
 source tree.  Working with the developers in charge of this project, you
@@ -250,11 +250,6 @@ process is as follows:
     release a new -rc kernel every week.
   - Process continues until the kernel is considered "ready", the
     process should last around 6 weeks.
-  - Known regressions in each release are periodically posted to the 
-    linux-kernel mailing list.  The goal is to reduce the length of 
-    that list to zero before declaring the kernel to be "ready," but, in
-    the real world, a small number of regressions often remain at 
-    release time.
 
 It is worth mentioning what Andrew Morton wrote on the linux-kernel
 mailing list about kernel releases:
