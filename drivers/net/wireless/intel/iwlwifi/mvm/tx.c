@@ -1029,7 +1029,6 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		mvmsta->tid_data[tid].rate_n_flags =
 			le32_to_cpu(tx_resp->initial_rate);
-		mvmsta->tid_data[tid].reduced_tpc = tx_resp->reduced_tpc;
 		mvmsta->tid_data[tid].tx_time =
 			le16_to_cpu(tx_resp->wireless_media_time);
 	}
@@ -1060,7 +1059,7 @@ static void iwl_mvm_tx_info_from_ba_notif(struct ieee80211_tx_info *info,
 	/* TODO: not accounted if the whole A-MPDU failed */
 	info->status.tx_time = tid_data->tx_time;
 	info->status.status_driver_data[0] =
-		(void *)(uintptr_t)tid_data->reduced_tpc;
+		(void *)(uintptr_t)ba_notif->reduced_txp;
 	info->status.status_driver_data[1] =
 		(void *)(uintptr_t)tid_data->rate_n_flags;
 }
@@ -1133,6 +1132,8 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 			   scd_flow, ba_resp_scd_ssn, ba_notif->txed,
 			   ba_notif->txed_2_done);
 
+	IWL_DEBUG_TX_REPLY(mvm, "reduced txp from ba notif %d\n",
+			   ba_notif->reduced_txp);
 	tid_data->next_reclaimed = ba_resp_scd_ssn;
 
 	iwl_mvm_check_ratid_empty(mvm, sta, tid);
