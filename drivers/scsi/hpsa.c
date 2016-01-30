@@ -3748,6 +3748,52 @@ static unsigned char hpsa_volume_offline(struct ctlr_info *h,
 	return HPSA_LV_OK;
 }
 
+/*
+ * Find out if a logical device supports aborts by simply trying one.
+ * Smart Array may claim not to support aborts on logical drives, but
+ * if a MSA2000 * is connected, the drives on that will be presented
+ * by the Smart Array as logical drives, and aborts may be sent to
+ * those devices successfully.  So the simplest way to find out is
+ * to simply try an abort and see how the device responds.
+ */
+static int hpsa_device_supports_aborts(struct ctlr_info *h,
+					unsigned char *scsi3addr)
+{
+	struct CommandList *c;
+	struct ErrorInfo *ei;
+	int rc = 0;
+
+	u64 tag = (u64) -1; /* bogus tag */
+
+	/* Assume that physical devices support aborts */
+	if (!is_logical_dev_addr_mode(scsi3addr))
+		return 1;
+
+	c = cmd_alloc(h);
+
+	(void) fill_cmd(c, HPSA_ABORT_MSG, h, &tag, 0, 0, scsi3addr, TYPE_MSG);
+	(void) hpsa_scsi_do_simple_cmd(h, c, DEFAULT_REPLY_QUEUE, NO_TIMEOUT);
+	/* no unmap needed here because no data xfer. */
+	ei = c->err_info;
+	switch (ei->CommandStatus) {
+	case CMD_INVALID:
+		rc = 0;
+		break;
+	case CMD_UNABORTABLE:
+	case CMD_ABORT_FAILED:
+		rc = 1;
+		break;
+	case CMD_TMF_STATUS:
+		rc = hpsa_evaluate_tmf_status(h, c);
+		break;
+	default:
+		rc = 0;
+		break;
+	}
+	cmd_free(h, c);
+	return rc;
+}
+
 static int hpsa_update_device_info(struct ctlr_info *h,
 	unsigned char scsi3addr[], struct hpsa_scsi_dev_t *this_device,
 	unsigned char *is_OBDR_device)
