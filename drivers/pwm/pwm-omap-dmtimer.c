@@ -102,7 +102,8 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 	unsigned long clk_rate;
 	bool timer_active;
 
-	dev_dbg(chip->dev, "duty cycle: %d, period %d\n", duty_ns, period_ns);
+	dev_dbg(chip->dev, "requested duty cycle: %d ns, period: %d ns\n",
+		duty_ns, period_ns);
 
 	mutex_lock(&omap->mutex);
 	if (duty_ns == pwm_get_duty_cycle(pwm) &&
@@ -165,6 +166,12 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 		dev_dbg(chip->dev, "using maximum of 1 clock cycle less than period\n");
 		duty_cycles = period_cycles - 1;
 	}
+
+	dev_dbg(chip->dev, "effective duty cycle: %lld ns, period: %lld ns\n",
+		DIV_ROUND_CLOSEST_ULL((u64)NSEC_PER_SEC * duty_cycles,
+				      clk_rate),
+		DIV_ROUND_CLOSEST_ULL((u64)NSEC_PER_SEC * period_cycles,
+				      clk_rate));
 
 	load_value = (DM_TIMER_MAX - period_cycles) + 1;
 	match_value = load_value + duty_cycles - 1;
