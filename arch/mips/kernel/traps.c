@@ -1122,19 +1122,7 @@ no_r2_instr:
 	if (unlikely(compute_return_epc(regs) < 0))
 		goto out;
 
-	if (get_isa16_mode(regs->cp0_epc)) {
-		unsigned short mmop[2] = { 0 };
-
-		if (unlikely(get_user(mmop[0], (u16 __user *)epc + 0) < 0))
-			status = SIGSEGV;
-		if (unlikely(get_user(mmop[1], (u16 __user *)epc + 1) < 0))
-			status = SIGSEGV;
-		opcode = mmop[0];
-		opcode = (opcode << 16) | mmop[1];
-
-		if (status < 0)
-			status = simulate_rdhwr_mm(regs, opcode);
-	} else {
+	if (!get_isa16_mode(regs->cp0_epc)) {
 		if (unlikely(get_user(opcode, epc) < 0))
 			status = SIGSEGV;
 
@@ -1149,6 +1137,18 @@ no_r2_instr:
 
 		if (status < 0)
 			status = simulate_fp(regs, opcode, old_epc, old31);
+	} else if (cpu_has_mmips) {
+		unsigned short mmop[2] = { 0 };
+
+		if (unlikely(get_user(mmop[0], (u16 __user *)epc + 0) < 0))
+			status = SIGSEGV;
+		if (unlikely(get_user(mmop[1], (u16 __user *)epc + 1) < 0))
+			status = SIGSEGV;
+		opcode = mmop[0];
+		opcode = (opcode << 16) | mmop[1];
+
+		if (status < 0)
+			status = simulate_rdhwr_mm(regs, opcode);
 	}
 
 	if (status < 0)
