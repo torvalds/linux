@@ -1,5 +1,5 @@
 /*
- * arch/arm/plat-rk/rk_fiq_debugger.c
+ * drivers/soc/rockchip/rk_fiq_debugger.c
  *
  * Serial Debugger Interface for Rockchip
  *
@@ -36,7 +36,7 @@
 #include <../drivers/staging/android/fiq_debugger/fiq_debugger.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/clk.h>
-#include "rk_fiq_debugger.h"
+#include <linux/soc/rockchip/rk_fiq_debugger.h>
 
 #ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
 #include "linux/rockchip/psci.h"
@@ -430,7 +430,7 @@ static int __init rk_fiq_debugger_init(void) {
 
 	void __iomem *base;
 	struct device_node *np;
-	unsigned int i, id, serial_id, ok = 0;
+	unsigned int id, serial_id, ok = 0;
 	unsigned int irq, signal_irq = 0, wake_irq = 0;
 	unsigned int baudrate = 0, irq_mode = 0;
 	struct clk *clk;
@@ -466,7 +466,8 @@ static int __init rk_fiq_debugger_init(void) {
 		baudrate = -1;
 
 	np = NULL;
-	for (i = 0; i < 5; i++) {
+
+	do {
 		np = of_find_node_by_name(np, "serial");
 		if (np) {
 			id = of_alias_get_id(np, "serial");
@@ -475,12 +476,13 @@ static int __init rk_fiq_debugger_init(void) {
 				break;
 			}
 		}
-	}
+	} while(np);
+
 	if (!ok)
 		return -EINVAL;
 
-	pclk = of_clk_get_by_name(np, "pclk_uart");
-	clk = of_clk_get_by_name(np, "sclk_uart");
+	pclk = of_clk_get_by_name(np, "apb_pclk");
+	clk = of_clk_get_by_name(np, "baudclk");
 	if (unlikely(IS_ERR(clk)) || unlikely(IS_ERR(pclk))) {
 		pr_err("fiq-debugger get clock fail\n");
 		return -EINVAL;
