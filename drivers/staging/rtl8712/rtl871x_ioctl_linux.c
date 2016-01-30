@@ -398,12 +398,9 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 			wep_key_idx = 0;
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
-			pwep = kmalloc((u32)(wep_key_len +
-				FIELD_OFFSET(struct NDIS_802_11_WEP,
-				KeyMaterial)), GFP_ATOMIC);
+			pwep = kzalloc(sizeof(*pwep), GFP_ATOMIC);
 			if (pwep == NULL)
 				return -ENOMEM;
-			memset(pwep, 0, sizeof(struct NDIS_802_11_WEP));
 			pwep->KeyLength = wep_key_len;
 			pwep->Length = wep_key_len +
 				 FIELD_OFFSET(struct NDIS_802_11_WEP,
