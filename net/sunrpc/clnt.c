@@ -354,6 +354,7 @@ static void rpc_free_clid(struct rpc_clnt *clnt)
 }
 
 static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
+		struct rpc_xprt_switch *xps,
 		struct rpc_xprt *xprt,
 		struct rpc_clnt *parent)
 {
@@ -411,6 +412,8 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 	}
 
 	rpc_clnt_set_transport(clnt, xprt, timeout);
+	xprt_iter_init(&clnt->cl_xpi, xps);
+	xprt_switch_put(xps);
 
 	clnt->cl_rtt = &clnt->cl_rtt_default;
 	rpc_init_rtt(&clnt->cl_rtt_default, clnt->cl_timeout->to_initval);
@@ -438,6 +441,7 @@ out_no_clid:
 out_err:
 	rpciod_down();
 out_no_rpciod:
+	xprt_switch_put(xps);
 	xprt_put(xprt);
 	return ERR_PTR(err);
 }
@@ -446,8 +450,13 @@ struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 					struct rpc_xprt *xprt)
 {
 	struct rpc_clnt *clnt = NULL;
+	struct rpc_xprt_switch *xps;
 
-	clnt = rpc_new_client(args, xprt, NULL);
+	xps = xprt_switch_alloc(xprt, GFP_KERNEL);
+	if (xps == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	clnt = rpc_new_client(args, xps, xprt, NULL);
 	if (IS_ERR(clnt))
 		return clnt;
 
@@ -564,6 +573,7 @@ EXPORT_SYMBOL_GPL(rpc_create);
 static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 					   struct rpc_clnt *clnt)
 {
+	struct rpc_xprt_switch *xps;
 	struct rpc_xprt *xprt;
 	struct rpc_clnt *new;
 	int err;
@@ -571,13 +581,17 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	err = -ENOMEM;
 	rcu_read_lock();
 	xprt = xprt_get(rcu_dereference(clnt->cl_xprt));
+	xps = xprt_switch_get(rcu_dereference(clnt->cl_xpi.xpi_xpswitch));
 	rcu_read_unlock();
-	if (xprt == NULL)
+	if (xprt == NULL || xps == NULL) {
+		xprt_put(xprt);
+		xprt_switch_put(xps);
 		goto out_err;
+	}
 	args->servername = xprt->servername;
 	args->nodename = clnt->cl_nodename;
 
-	new = rpc_new_client(args, xprt, clnt);
+	new = rpc_new_client(args, xps, xprt, clnt);
 	if (IS_ERR(new)) {
 		err = PTR_ERR(new);
 		goto out_err;
@@ -657,6 +671,7 @@ int rpc_switch_client_transport(struct rpc_clnt *clnt,
 {
 	const struct rpc_timeout *old_timeo;
 	rpc_authflavor_t pseudoflavor;
+	struct rpc_xprt_switch *xps, *oldxps;
 	struct rpc_xprt *xprt, *old;
 	struct rpc_clnt *parent;
 	int err;
@@ -668,10 +683,17 @@ int rpc_switch_client_transport(struct rpc_clnt *clnt,
 		return PTR_ERR(xprt);
 	}
 
+	xps = xprt_switch_alloc(xprt, GFP_KERNEL);
+	if (xps == NULL) {
+		xprt_put(xprt);
+		return -ENOMEM;
+	}
+
 	pseudoflavor = clnt->cl_auth->au_flavor;
 
 	old_timeo = clnt->cl_timeout;
 	old = rpc_clnt_set_transport(clnt, xprt, timeout);
+	oldxps = xprt_iter_xchg_switch(&clnt->cl_xpi, xps);
 
 	rpc_unregister_client(clnt);
 	__rpc_clnt_remove_pipedir(clnt);
@@ -697,14 +719,17 @@ int rpc_switch_client_transport(struct rpc_clnt *clnt,
 	synchronize_rcu();
 	if (parent != clnt)
 		rpc_release_client(parent);
+	xprt_switch_put(oldxps);
 	xprt_put(old);
 	dprintk("RPC:       replaced xprt for clnt %p\n", clnt);
 	return 0;
 
 out_revert:
+	xps = xprt_iter_xchg_switch(&clnt->cl_xpi, oldxps);
 	rpc_clnt_set_transport(clnt, old, old_timeo);
 	clnt->cl_parent = parent;
 	rpc_client_register(clnt, pseudoflavor, NULL);
+	xprt_switch_put(xps);
 	xprt_put(xprt);
 	dprintk("RPC:       failed to switch xprt for clnt %p\n", clnt);
 	return err;
@@ -783,6 +808,7 @@ rpc_free_client(struct rpc_clnt *clnt)
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
 	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
+	xprt_iter_destroy(&clnt->cl_xpi);
 	rpciod_down();
 	rpc_free_clid(clnt);
 	kfree(clnt);

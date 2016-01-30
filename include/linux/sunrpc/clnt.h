@@ -25,6 +25,7 @@
 #include <asm/signal.h>
 #include <linux/path.h>
 #include <net/ipv6.h>
+#include <linux/sunrpc/xprtmultipath.h>
 
 struct rpc_inode;
 
@@ -67,6 +68,7 @@ struct rpc_clnt {
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	struct dentry		*cl_debugfs;	/* debugfs directory */
 #endif
+	struct rpc_xprt_iter	cl_xpi;
 };
 
 /*
