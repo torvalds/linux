@@ -735,6 +735,58 @@ static void aggr_printout(struct perf_evsel *evsel, int id, int nr)
 	}
 }
 
+struct outstate {
+	FILE *fh;
+	bool newline;
+};
+
+#define METRIC_LEN  35
+
+static void new_line_std(void *ctx)
+{
+	struct outstate *os = ctx;
+
+	os->newline = true;
+}
+
+static void do_new_line_std(struct outstate *os)
+{
+	fputc('\n', os->fh);
+	if (stat_config.aggr_mode == AGGR_NONE)
+		fprintf(os->fh, "        ");
+	if (stat_config.aggr_mode == AGGR_CORE)
+		fprintf(os->fh, "                  ");
+	if (stat_config.aggr_mode == AGGR_SOCKET)
+		fprintf(os->fh, "            ");
+	fprintf(os->fh, "                                                 ");
+}
+
+static void print_metric_std(void *ctx, const char *color, const char *fmt,
+			     const char *unit, double val)
+{
+	struct outstate *os = ctx;
+	FILE *out = os->fh;
+	int n;
+	bool newline = os->newline;
+
+	os->newline = false;
+
+	if (unit == NULL || fmt == NULL) {
+		fprintf(out, "%-*s", METRIC_LEN, "");
+		return;
+	}
+
+	if (newline)
+		do_new_line_std(os);
+
+	n = fprintf(out, " # ");
+	if (color)
+		n += color_fprintf(out, color, fmt, val);
+	else
+		n += fprintf(out, fmt, val);
+	fprintf(out, " %-*s", METRIC_LEN - n - 1, unit);
+}
+
 static void nsec_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 {
 	FILE *output = stat_config.output;
@@ -795,20 +847,27 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 
 static void printout(int id, int nr, struct perf_evsel *counter, double uval)
 {
-	int cpu = cpu_map__id_to_cpu(id);
+	struct outstate os = { .fh = stat_config.output };
+	struct perf_stat_output_ctx out;
+	print_metric_t pm = print_metric_std;
+	void (*nl)(void *);
 
-	if (stat_config.aggr_mode == AGGR_GLOBAL)
-		cpu = 0;
+	nl = new_line_std;
 
 	if (nsec_counter(counter))
 		nsec_printout(id, nr, counter, uval);
 	else
 		abs_printout(id, nr, counter, uval);
 
+	out.print_metric = pm;
+	out.new_line = nl;
+	out.ctx = &os;
+
 	if (!csv_output && !stat_config.interval)
-		perf_stat__print_shadow_stats(stat_config.output, counter,
-					      uval, cpu,
-					      stat_config.aggr_mode);
+		perf_stat__print_shadow_stats(counter, uval,
+				stat_config.aggr_mode == AGGR_GLOBAL ? 0 :
+				cpu_map__id_to_cpu(id),
+				&out);
 }
 
 static void print_aggr(char *prefix)
