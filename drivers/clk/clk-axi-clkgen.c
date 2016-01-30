@@ -328,10 +328,7 @@ static unsigned long axi_clkgen_recalc_rate(struct clk_hw *clk_hw,
 	tmp = (unsigned long long)(parent_rate / d) * m;
 	do_div(tmp, dout);
 
-	if (tmp > ULONG_MAX)
-		return ULONG_MAX;
-
-	return tmp;
+	return min_t(unsigned long long, tmp, ULONG_MAX);
 }
 
 static int axi_clkgen_enable(struct clk_hw *clk_hw)
