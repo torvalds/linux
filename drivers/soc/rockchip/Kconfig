@@ -34,4 +34,10 @@ config ROCKCHIP_PM_DOMAINS
 
           If unsure, say N.
 
+config ROCKCHIP_FIQ_DEBUGGER
+	tristate "Rockchip FIQ Debugger"
+	depends on FIQ_DEBUGGER
+	help
+	  Say y here to enable Rockchip FIQ Debugger platform driver.
+
 endif
