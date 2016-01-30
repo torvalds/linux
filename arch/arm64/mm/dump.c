@@ -27,8 +27,6 @@
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 
-#define LOWEST_ADDR	(UL(0xffffffffffffffff) << VA_BITS)
-
 struct addr_marker {
 	unsigned long start_address;
 	const char *name;
@@ -321,7 +319,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 		.marker = address_markers,
 	};
 
-	walk_pgd(&st, &init_mm, LOWEST_ADDR);
+	walk_pgd(&st, &init_mm, VA_START);
 
 	note_page(&st, 0, 0, 0);
 	return 0;
