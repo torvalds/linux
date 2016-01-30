@@ -31,6 +31,7 @@
 #include <linux/time.h>
 
 #define DM_TIMER_LOAD_MIN 0xfffffffe
+#define DM_TIMER_MAX      0xffffffff
 
 struct pwm_omap_dmtimer_chip {
 	struct pwm_chip chip;
@@ -46,13 +47,13 @@ to_pwm_omap_dmtimer_chip(struct pwm_chip *chip)
 	return container_of(chip, struct pwm_omap_dmtimer_chip, chip);
 }
 
-static int pwm_omap_dmtimer_calc_value(unsigned long clk_rate, int ns)
+static u32 pwm_omap_dmtimer_get_clock_cycles(unsigned long clk_rate, int ns)
 {
 	u64 c = (u64)clk_rate * ns;
 
 	do_div(c, NSEC_PER_SEC);
 
-	return DM_TIMER_LOAD_MIN - c;
+	return c;
 }
 
 static void pwm_omap_dmtimer_start(struct pwm_omap_dmtimer_chip *omap)
@@ -99,7 +100,8 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 				   int duty_ns, int period_ns)
 {
 	struct pwm_omap_dmtimer_chip *omap = to_pwm_omap_dmtimer_chip(chip);
-	int load_value, match_value;
+	u32 period_cycles, duty_cycles;
+	u32 load_value, match_value;
 	struct clk *fclk;
 	unsigned long clk_rate;
 	bool timer_active;
@@ -133,11 +135,22 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 	/*
 	 * Calculate the appropriate load and match values based on the
 	 * specified period and duty cycle. The load value determines the
-	 * cycle time and the match value determines the duty cycle.
+	 * period time and the match value determines the duty time.
+	 *
+	 * The period lasts for (DM_TIMER_MAX-load_value+1) clock cycles.
+	 * Similarly, the active time lasts (match_value-load_value+1) cycles.
+	 * The non-active time is the remainder: (DM_TIMER_MAX-match_value)
+	 * clock cycles.
+	 *
+	 * References:
+	 *   OMAP4430/60/70 TRM sections 22.2.4.10 and 22.2.4.11
+	 *   AM335x Sitara TRM sections 20.1.3.5 and 20.1.3.6
 	 */
-	load_value = pwm_omap_dmtimer_calc_value(clk_rate, period_ns);
-	match_value = pwm_omap_dmtimer_calc_value(clk_rate,
-						  period_ns - duty_ns);
+	period_cycles = pwm_omap_dmtimer_get_clock_cycles(clk_rate, period_ns);
+	duty_cycles = pwm_omap_dmtimer_get_clock_cycles(clk_rate, duty_ns);
+
+	load_value = (DM_TIMER_MAX - period_cycles) + 1;
+	match_value = load_value + duty_cycles - 1;
 
 	/*
 	 * We MUST stop the associated dual-mode timer before attempting to
