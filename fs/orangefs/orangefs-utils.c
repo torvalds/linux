@@ -355,26 +355,37 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 
 static int compare_attributes_to_inode(struct inode *inode,
 				       struct ORANGEFS_sys_attr_s *attrs,
-				       char *symname)
+				       char *symname,
+				       int mask)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	loff_t inode_size, rounded_up_size;
+
+	/* Much of what happens below relies on the type being around. */
+	if (!(mask & ORANGEFS_ATTR_SYS_TYPE))
+		return 0;
+
+	if (attrs->objtype == ORANGEFS_TYPE_METAFILE &&
+	    inode->i_flags != orangefs_inode_flags(attrs))
+		return 0;
 
 	/* Compare file size. */
 
 	switch (attrs->objtype) {
 	case ORANGEFS_TYPE_METAFILE:
-		if(inode->i_flags != orangefs_inode_flags(attrs))
-			return 0;
-		inode_size = attrs->size;
-		rounded_up_size = inode_size + (4096 - (inode_size % 4096));
-		if (inode->i_bytes != inode_size ||
-		    inode->i_blocks != rounded_up_size/512)
-			return 0;
+		if (mask & ORANGEFS_ATTR_SYS_SIZE) {
+			inode_size = attrs->size;
+			rounded_up_size = inode_size +
+			    (4096 - (inode_size % 4096));
+			if (inode->i_bytes != inode_size ||
+			    inode->i_blocks != rounded_up_size/512)
+				return 0;
+		}
 		break;
 	case ORANGEFS_TYPE_SYMLINK:
-		if (symname && strlen(symname) != inode->i_size)
-			return 0;
+		if (mask & ORANGEFS_ATTR_SYS_SIZE)
+			if (symname && strlen(symname) != inode->i_size)
+				return 0;
 		break;
 	default:
 		if (inode->i_size != PAGE_CACHE_SIZE &&
@@ -384,17 +395,28 @@ static int compare_attributes_to_inode(struct inode *inode,
 
 	/* Compare general attributes. */
 
-	if (!uid_eq(inode->i_uid, make_kuid(&init_user_ns, attrs->owner)) ||
-	    !gid_eq(inode->i_gid, make_kgid(&init_user_ns, attrs->group)) ||
-	    inode->i_atime.tv_sec != attrs->atime ||
-	    inode->i_mtime.tv_sec != attrs->mtime ||
-	    inode->i_ctime.tv_sec != attrs->ctime ||
-	    inode->i_atime.tv_nsec != 0 ||
+	if (mask & ORANGEFS_ATTR_SYS_UID &&
+	    !uid_eq(inode->i_uid, make_kuid(&init_user_ns, attrs->owner)))
+		return 0;
+	if (mask & ORANGEFS_ATTR_SYS_GID &&
+	    !gid_eq(inode->i_gid, make_kgid(&init_user_ns, attrs->group)))
+		return 0;
+	if (mask & ORANGEFS_ATTR_SYS_ATIME &&
+	    inode->i_atime.tv_sec != attrs->atime)
+		return 0;
+	if (mask & ORANGEFS_ATTR_SYS_MTIME &&
+	    inode->i_atime.tv_sec != attrs->mtime)
+		return 0;
+	if (mask & ORANGEFS_ATTR_SYS_CTIME &&
+	    inode->i_atime.tv_sec != attrs->ctime)
+		return 0;
+	if (inode->i_atime.tv_nsec != 0 ||
 	    inode->i_mtime.tv_nsec != 0 ||
 	    inode->i_ctime.tv_nsec != 0)
 		return 0;
 
-	if ((inode->i_mode & ~(S_ISVTX|S_IFREG|S_IFDIR|S_IFLNK)) !=
+	if (mask & ORANGEFS_ATTR_SYS_PERM &&
+	    (inode->i_mode & ~(S_ISVTX|S_IFREG|S_IFDIR|S_IFLNK)) !=
 	    orangefs_inode_perms(attrs))
 		return 0;
 
@@ -418,7 +440,8 @@ static int compare_attributes_to_inode(struct inode *inode,
 	case ORANGEFS_TYPE_SYMLINK:
 		if (!(inode->i_mode & S_IFLNK))
 			return 0;
-		if (orangefs_inode && symname)
+		if (orangefs_inode && symname &&
+		    mask & ORANGEFS_ATTR_SYS_LNK_TARGET)
 			if (strcmp(orangefs_inode->link_target, symname))
 				return 0;
 		break;
@@ -462,7 +485,8 @@ int orangefs_inode_getattr(struct inode *inode, __u32 getattr_mask, int check)
 	if (check) {
 		ret = compare_attributes_to_inode(inode,
 		    &new_op->downcall.resp.getattr.attributes,
-		    new_op->downcall.resp.getattr.link_target);
+		    new_op->downcall.resp.getattr.link_target,
+		    getattr_mask);
 
 		if (new_op->downcall.resp.getattr.attributes.objtype ==
 		    ORANGEFS_TYPE_METAFILE) {
