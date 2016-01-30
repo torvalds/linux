@@ -889,6 +889,13 @@ config GPIO_TIMBERDALE
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
 
+config GPIO_TPS65218
+	tristate "TPS65218 GPIO"
+	depends on MFD_TPS65218
+	help
+	  Select this option to enable GPIO driver for the TPS65218
+	  chip family.
+
 config GPIO_TPS6586X
 	bool "TPS6586X GPIO"
 	depends on MFD_TPS6586X
