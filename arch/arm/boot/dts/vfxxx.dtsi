@@ -16,6 +16,8 @@
 	aliases {
 		can0 = &can0;
 		can1 = &can1;
+		ethernet0 = &fec0;
+		ethernet1 = &fec1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
