@@ -2641,7 +2641,7 @@ void clk_unregister(struct clk *clk)
 	if (clk->core->ops == &clk_nodrv_ops) {
 		pr_err("%s: unregistered clock: %s\n", __func__,
 		       clk->core->name);
-		return;
+		goto unlock;
 	}
 	/*
 	 * Assign empty clock ops for consumers that might still hold
@@ -2667,7 +2667,7 @@ void clk_unregister(struct clk *clk)
 		pr_warn("%s: unregistering prepared clock: %s\n",
 					__func__, clk->core->name);
 	kref_put(&clk->core->ref, __clk_release);
-
+unlock:
 	clk_prepare_unlock();
 }
 EXPORT_SYMBOL_GPL(clk_unregister);
