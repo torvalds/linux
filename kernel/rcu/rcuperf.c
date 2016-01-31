@@ -404,11 +404,15 @@ rcu_perf_writer(void *arg)
 			started = true;
 		if (!done && i >= MIN_MEAS) {
 			done = true;
+			sp.sched_priority = 0;
+			sched_setscheduler_nocheck(current,
+						   SCHED_NORMAL, &sp);
 			pr_alert("%s" PERF_FLAG
 				 "rcu_perf_writer %ld has %d measurements\n",
 				 perf_type, me, MIN_MEAS);
 			if (atomic_inc_return(&n_rcu_perf_writer_finished) >=
 			    nrealwriters) {
+				schedule_timeout_interruptible(10);
 				rcu_ftrace_dump(DUMP_ALL);
 				PERFOUT_STRING("Test complete");
 				t_rcu_perf_writer_finished = t;
