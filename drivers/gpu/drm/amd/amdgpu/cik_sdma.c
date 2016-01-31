@@ -796,9 +796,9 @@ static void cik_sdma_vm_set_pte_pde(struct amdgpu_ib *ib,
  * @ib: indirect buffer to fill with padding
  *
  */
-static void cik_sdma_vm_pad_ib(struct amdgpu_ib *ib)
+static void cik_sdma_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 {
-	struct amdgpu_sdma_instance *sdma = amdgpu_get_sdma_instance(ib->ring);
+	struct amdgpu_sdma_instance *sdma = amdgpu_get_sdma_instance(ring);
 	u32 pad_count;
 	int i;
 
@@ -1271,6 +1271,7 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.test_ring = cik_sdma_ring_test_ring,
 	.test_ib = cik_sdma_ring_test_ib,
 	.insert_nop = cik_sdma_ring_insert_nop,
+	.pad_ib = cik_sdma_ring_pad_ib,
 };
 
 static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev)
@@ -1367,7 +1368,6 @@ static const struct amdgpu_vm_pte_funcs cik_sdma_vm_pte_funcs = {
 	.copy_pte = cik_sdma_vm_copy_pte,
 	.write_pte = cik_sdma_vm_write_pte,
 	.set_pte_pde = cik_sdma_vm_set_pte_pde,
-	.pad_ib = cik_sdma_vm_pad_ib,
 };
 
 static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev)

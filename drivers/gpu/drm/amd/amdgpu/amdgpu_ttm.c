@@ -1058,7 +1058,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		byte_count -= cur_size_in_bytes;
 	}
 
-	amdgpu_vm_pad_ib(adev, ib);
+	amdgpu_ring_pad_ib(ring, ib);
 	WARN_ON(ib->length_dw > num_dw);
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
 						 &amdgpu_vm_free_job,

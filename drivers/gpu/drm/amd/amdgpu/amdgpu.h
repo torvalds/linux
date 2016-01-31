@@ -289,8 +289,6 @@ struct amdgpu_vm_pte_funcs {
 			    uint64_t pe,
 			    uint64_t addr, unsigned count,
 			    uint32_t incr, uint32_t flags);
-	/* pad the indirect buffer to the necessary number of dw */
-	void (*pad_ib)(struct amdgpu_ib *ib);
 };
 
 /* provided by the gmc block */
@@ -340,6 +338,8 @@ struct amdgpu_ring_funcs {
 	int (*test_ib)(struct amdgpu_ring *ring);
 	/* insert NOP packets */
 	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
+	/* pad the indirect buffer to the necessary number of dw */
+	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 };
 
 /*
@@ -1188,6 +1188,7 @@ void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
 int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
+void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
 unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
@@ -2224,7 +2225,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
 #define amdgpu_vm_write_pte(adev, ib, pa, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pa), (pe), (addr), (count), (incr), (flags)))
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
-#define amdgpu_vm_pad_ib(adev, ib) ((adev)->vm_manager.vm_pte_funcs->pad_ib((ib)))
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
 #define amdgpu_ring_test_ib(r) (r)->funcs->test_ib((r))
@@ -2236,6 +2236,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))
 #define amdgpu_ring_emit_gds_switch(r, v, db, ds, wb, ws, ab, as) (r)->funcs->emit_gds_switch((r), (v), (db), (ds), (wb), (ws), (ab), (as))
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
+#define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
 #define amdgpu_ih_get_wptr(adev) (adev)->irq.ih_funcs->get_wptr((adev))
 #define amdgpu_ih_decode_iv(adev, iv) (adev)->irq.ih_funcs->decode_iv((adev), (iv))
 #define amdgpu_ih_set_rptr(adev) (adev)->irq.ih_funcs->set_rptr((adev))

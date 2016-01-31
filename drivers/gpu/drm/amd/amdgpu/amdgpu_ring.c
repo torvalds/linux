@@ -90,6 +90,19 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 		amdgpu_ring_write(ring, ring->nop);
 }
 
+/** amdgpu_ring_generic_pad_ib - pad IB with NOP packets
+ *
+ * @ring: amdgpu_ring structure holding ring information
+ * @ib: IB to add NOP packets to
+ *
+ * This is the generic pad_ib function for rings except SDMA
+ */
+void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
+{
+	while (ib->length_dw & ring->align_mask)
+		ib->ptr[ib->length_dw++] = ring->nop;
+}
+
 /**
  * amdgpu_ring_commit - tell the GPU to execute the new
  * commands on the ring buffer

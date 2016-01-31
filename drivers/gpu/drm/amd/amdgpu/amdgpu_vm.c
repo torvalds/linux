@@ -362,7 +362,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	ib->length_dw = 0;
 
 	amdgpu_vm_update_pages(adev, NULL, 0, ib, addr, 0, entries, 0, 0);
-	amdgpu_vm_pad_ib(adev, ib);
+	amdgpu_ring_pad_ib(ring, ib);
 
 	WARN_ON(ib->length_dw > 64);
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
@@ -492,7 +492,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				       count, incr, AMDGPU_PTE_VALID);
 
 	if (ib->length_dw != 0) {
-		amdgpu_vm_pad_ib(adev, ib);
+		amdgpu_ring_pad_ib(ring, ib);
 		amdgpu_sync_resv(adev, &ib->sync, pd->tbo.resv, AMDGPU_FENCE_OWNER_VM);
 		WARN_ON(ib->length_dw > ndw);
 		r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
@@ -755,7 +755,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	amdgpu_vm_update_ptes(adev, gtt, gtt_flags, vm, ib, start, last + 1,
 			      addr, flags);
 
-	amdgpu_vm_pad_ib(adev, ib);
+	amdgpu_ring_pad_ib(ring, ib);
 	WARN_ON(ib->length_dw > ndw);
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
 						 &amdgpu_vm_free_job,
