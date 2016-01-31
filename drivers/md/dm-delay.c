@@ -204,7 +204,7 @@ out:
 
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
-	ti->per_bio_data_size = sizeof(struct dm_delay_info);
+	ti->per_io_data_size = sizeof(struct dm_delay_info);
 	ti->private = dc;
 	return 0;
 

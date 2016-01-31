@@ -4037,7 +4037,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	ti->num_flush_bios = 1;
 	ti->flush_supported = true;
-	ti->per_bio_data_size = sizeof(struct dm_thin_endio_hook);
+	ti->per_io_data_size = sizeof(struct dm_thin_endio_hook);
 
 	/* In case the pool supports discards, pass them on. */
 	ti->discard_zeroes_data_unsupported = true;

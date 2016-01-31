@@ -957,7 +957,7 @@ bool dm_table_mq_request_based(struct dm_table *t)
 static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *md)
 {
 	unsigned type = dm_table_get_type(t);
-	unsigned per_bio_data_size = 0;
+	unsigned per_io_data_size = 0;
 	struct dm_target *tgt;
 	unsigned i;
 
@@ -969,10 +969,10 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 	if (type == DM_TYPE_BIO_BASED)
 		for (i = 0; i < t->num_targets; i++) {
 			tgt = t->targets + i;
-			per_bio_data_size = max(per_bio_data_size, tgt->per_bio_data_size);
+			per_io_data_size = max(per_io_data_size, tgt->per_io_data_size);
 		}
 
-	t->mempools = dm_alloc_md_mempools(md, type, t->integrity_supported, per_bio_data_size);
+	t->mempools = dm_alloc_md_mempools(md, type, t->integrity_supported, per_io_data_size);
 	if (!t->mempools)
 		return -ENOMEM;
 
