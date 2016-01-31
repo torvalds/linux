@@ -1304,7 +1304,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 		dm_set_md_type(md, dm_table_get_type(t));
 
 		/* setup md->queue to reflect md's type (may block) */
-		r = dm_setup_md_queue(md);
+		r = dm_setup_md_queue(md, t);
 		if (r) {
 			DMWARN("unable to set up device queue for new table.");
 			goto err_unlock_md_type;

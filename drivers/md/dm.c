@@ -224,7 +224,8 @@ struct mapped_device {
 
 	/* for blk-mq request-based DM support */
 	struct blk_mq_tag_set *tag_set;
-	bool use_blk_mq;
+	bool use_blk_mq:1;
+	bool init_tio_pdu:1;
 };
 
 #ifdef CONFIG_DM_MQ_DEFAULT
@@ -243,6 +244,7 @@ bool dm_use_blk_mq(struct mapped_device *md)
 {
 	return md->use_blk_mq;
 }
+EXPORT_SYMBOL_GPL(dm_use_blk_mq);
 
 /*
  * For mempools pre-allocation at the table loading time.
@@ -1889,7 +1891,13 @@ static void init_tio(struct dm_rq_target_io *tio, struct request *rq,
 	tio->clone = NULL;
 	tio->orig = rq;
 	tio->error = 0;
-	memset(&tio->info, 0, sizeof(tio->info));
+	/*
+	 * Avoid initializing info for blk-mq; it passes
+	 * target-specific data through info.ptr
+	 * (see: dm_mq_init_request)
+	 */
+	if (!md->init_tio_pdu)
+		memset(&tio->info, 0, sizeof(tio->info));
 	if (md->kworker_task)
 		init_kthread_work(&tio->work, map_tio_request);
 }
@@ -2313,6 +2321,7 @@ static struct mapped_device *alloc_dev(int minor)
 		goto bad_io_barrier;
 
 	md->use_blk_mq = use_blk_mq;
+	md->init_tio_pdu = false;
 	md->type = DM_TYPE_NONE;
 	mutex_init(&md->suspend_lock);
 	mutex_init(&md->type_lock);
@@ -2653,6 +2662,11 @@ static int dm_mq_init_request(void *data, struct request *rq,
 	 */
 	tio->md = md;
 
+	if (md->init_tio_pdu) {
+		/* target-specific per-io data is immediately after the tio */
+		tio->info.ptr = tio + 1;
+	}
+
 	return 0;
 }
 
@@ -2704,7 +2718,8 @@ static struct blk_mq_ops dm_mq_ops = {
 	.init_request = dm_mq_init_request,
 };
 
-static int dm_mq_init_request_queue(struct mapped_device *md)
+static int dm_mq_init_request_queue(struct mapped_device *md,
+				    struct dm_target *immutable_tgt)
 {
 	struct request_queue *q;
 	int err;
@@ -2726,6 +2741,11 @@ static int dm_mq_init_request_queue(struct mapped_device *md)
 	md->tag_set->driver_data = md;
 
 	md->tag_set->cmd_size = sizeof(struct dm_rq_target_io);
+	if (immutable_tgt && immutable_tgt->per_io_data_size) {
+		/* any target-specific per-io data is immediately after the tio */
+		md->tag_set->cmd_size += immutable_tgt->per_io_data_size;
+		md->init_tio_pdu = true;
+	}
 
 	err = blk_mq_alloc_tag_set(md->tag_set);
 	if (err)
@@ -2763,7 +2783,7 @@ static unsigned filter_md_type(unsigned type, struct mapped_device *md)
 /*
  * Setup the DM device's queue based on md's type
  */
-int dm_setup_md_queue(struct mapped_device *md)
+int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 {
 	int r;
 	unsigned md_type = filter_md_type(dm_get_md_type(md), md);
@@ -2777,7 +2797,7 @@ int dm_setup_md_queue(struct mapped_device *md)
 		}
 		break;
 	case DM_TYPE_MQ_REQUEST_BASED:
-		r = dm_mq_init_request_queue(md);
+		r = dm_mq_init_request_queue(md, dm_table_get_immutable_target(t));
 		if (r) {
 			DMERR("Cannot initialize queue for request-based dm-mq mapped device");
 			return r;
@@ -3505,8 +3525,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned t
 		if (!pool_size)
 			pool_size = dm_get_reserved_rq_based_ios();
 		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
-		/* per_io_data_size is not used. */
-		WARN_ON(per_io_data_size != 0);
+		/* per_io_data_size is used for blk-mq pdu at queue allocation */
 		break;
 	default:
 		BUG();
