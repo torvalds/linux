@@ -211,6 +211,10 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		}
 	}
 
+	if (p->num_ibs == 0) {
+		ret = -EINVAL;
+		goto free_all_kdata;
+	}
 
 	p->ibs = kcalloc(p->num_ibs, sizeof(struct amdgpu_ib), GFP_KERNEL);
 	if (!p->ibs) {
@@ -551,9 +555,6 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 	struct amdgpu_ring *ring;
 	int i, r;
 
-	if (parser->num_ibs == 0)
-		return 0;
-
 	/* Only for UVD/VCE VM emulation */
 	for (i = 0; i < parser->num_ibs; i++) {
 		ring = parser->ibs[i].ring;
@@ -660,9 +661,6 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		j++;
 	}
 
-	if (!parser->num_ibs)
-		return 0;
-
 	/* add GDS resources to first IB */
 	if (parser->bo_list) {
 		struct amdgpu_bo *gds = parser->bo_list->gds_obj;
@@ -704,9 +702,6 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_ib *ib;
 	int i, j, r;
-
-	if (!p->num_ibs)
-		return 0;
 
 	/* Add dependencies to first IB */
 	ib = &p->ibs[0];
@@ -866,8 +861,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r)
 		goto out;
 
-	if (parser.num_ibs)
-		r = amdgpu_cs_submit(&parser, cs);
+	r = amdgpu_cs_submit(&parser, cs);
 
 out:
 	amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
