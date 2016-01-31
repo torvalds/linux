@@ -519,7 +519,6 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 			       int lo, int hi, unsigned size, uint32_t index)
 {
 	struct amdgpu_bo_va_mapping *mapping;
-	struct amdgpu_ib *ib = &p->ibs[ib_idx];
 	struct amdgpu_bo *bo;
 	uint64_t addr;
 
@@ -548,8 +547,8 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 	addr += amdgpu_bo_gpu_offset(bo);
 	addr -= ((uint64_t)size) * ((uint64_t)index);
 
-	ib->ptr[lo] = addr & 0xFFFFFFFF;
-	ib->ptr[hi] = addr >> 32;
+	amdgpu_set_ib_value(p, ib_idx, lo, lower_32_bits(addr));
+	amdgpu_set_ib_value(p, ib_idx, hi, upper_32_bits(addr));
 
 	return 0;
 }

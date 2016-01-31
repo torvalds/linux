@@ -616,7 +616,6 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
-	struct amdgpu_ib *ib;
 	uint32_t cmd, lo, hi;
 	uint64_t start, end;
 	uint64_t addr;
@@ -638,9 +637,10 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 	addr -= ((uint64_t)mapping->it.start) * AMDGPU_GPU_PAGE_SIZE;
 	start += addr;
 
-	ib = &ctx->parser->ibs[ctx->ib_idx];
-	ib->ptr[ctx->data0] = start & 0xFFFFFFFF;
-	ib->ptr[ctx->data1] = start >> 32;
+	amdgpu_set_ib_value(ctx->parser, ctx->ib_idx, ctx->data0,
+			    lower_32_bits(start));
+	amdgpu_set_ib_value(ctx->parser, ctx->ib_idx, ctx->data1,
+			    upper_32_bits(start));
 
 	cmd = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->idx) >> 1;
 	if (cmd < 0x4) {

@@ -1250,9 +1250,17 @@ struct amdgpu_job {
 #define to_amdgpu_job(sched_job)		\
 		container_of((sched_job), struct amdgpu_job, base)
 
-static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p, uint32_t ib_idx, int idx)
+static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,
+				      uint32_t ib_idx, int idx)
 {
 	return p->ibs[ib_idx].ptr[idx];
+}
+
+static inline void amdgpu_set_ib_value(struct amdgpu_cs_parser *p,
+				       uint32_t ib_idx, int idx,
+				       uint32_t value)
+{
+	p->ibs[ib_idx].ptr[idx] = value;
 }
 
 /*
