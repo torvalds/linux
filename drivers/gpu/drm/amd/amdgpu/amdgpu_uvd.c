@@ -867,7 +867,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 		r = -ENOMEM;
 		goto err;
 	}
-	r = amdgpu_ib_get(ring, NULL, 64, ib);
+	r = amdgpu_ib_get(adev, NULL, 64, ib);
 	if (r)
 		goto err1;
 

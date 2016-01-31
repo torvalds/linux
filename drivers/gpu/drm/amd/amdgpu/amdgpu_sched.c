@@ -70,7 +70,7 @@ static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 	struct fence *fence = amdgpu_sync_get_fence(sync);
 
 	if (fence == NULL && vm && !job->ibs->grabbed_vmid) {
-		struct amdgpu_ring *ring = job->ibs->ring;
+		struct amdgpu_ring *ring = job->ring;
 		int r;
 
 		r = amdgpu_vm_grab_id(vm, ring, sync,
@@ -98,7 +98,7 @@ static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 	}
 	job = to_amdgpu_job(sched_job);
 	trace_amdgpu_sched_run_job(job);
-	r = amdgpu_ib_schedule(job->adev, job->num_ibs, job->ibs, job->owner);
+	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job->owner);
 	if (r) {
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		goto err;
@@ -142,6 +142,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 	*f = fence_get(&job->base.s_fence->base);
 
 	job->adev = adev;
+	job->ring = ring;
 	job->ibs = ibs;
 	job->num_ibs = num_ibs;
 	job->owner = owner;

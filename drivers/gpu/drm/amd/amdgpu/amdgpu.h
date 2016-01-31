@@ -771,7 +771,6 @@ struct amdgpu_ib {
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
-	struct amdgpu_ring		*ring;
 	struct amdgpu_fence		*fence;
 	struct amdgpu_user_fence        *user;
 	bool				grabbed_vmid;
@@ -1178,10 +1177,10 @@ struct amdgpu_gfx {
 	unsigned ce_ram_size;
 };
 
-int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
+int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib);
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib);
-int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
+int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct amdgpu_ib *ib, void *owner);
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
@@ -1239,6 +1238,7 @@ struct amdgpu_cs_parser {
 struct amdgpu_job {
 	struct amd_sched_job    base;
 	struct amdgpu_device	*adev;
+	struct amdgpu_ring	*ring;
 	struct amdgpu_ib	*ibs;
 	uint32_t		num_ibs;
 	void			*owner;

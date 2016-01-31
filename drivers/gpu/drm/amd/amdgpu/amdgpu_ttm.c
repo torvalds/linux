@@ -1030,7 +1030,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	if (!ib)
 		return -ENOMEM;
 
-	r = amdgpu_ib_get(ring, NULL, num_dw * 4, ib);
+	r = amdgpu_ib_get(adev, NULL, num_dw * 4, ib);
 	if (r) {
 		kfree(ib);
 		return r;

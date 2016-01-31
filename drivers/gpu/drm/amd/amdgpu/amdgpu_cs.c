@@ -542,26 +542,25 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 }
 
 static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
-				 struct amdgpu_cs_parser *parser)
+				 struct amdgpu_cs_parser *p)
 {
-	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
+	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
-	struct amdgpu_ring *ring;
+	struct amdgpu_ring *ring = p->job->ring;
 	int i, r;
 
 	/* Only for UVD/VCE VM emulation */
-	for (i = 0; i < parser->job->num_ibs; i++) {
-		ring = parser->job->ibs[i].ring;
-		if (ring->funcs->parse_cs) {
-			r = amdgpu_ring_parse_cs(ring, parser, i);
+	if (ring->funcs->parse_cs) {
+		for (i = 0; i < p->job->num_ibs; i++) {
+			r = amdgpu_ring_parse_cs(ring, p, i);
 			if (r)
 				return r;
 		}
 	}
 
-	r = amdgpu_bo_vm_update_pte(parser, vm);
+	r = amdgpu_bo_vm_update_pte(p, vm);
 	if (!r)
-		amdgpu_cs_sync_rings(parser);
+		amdgpu_cs_sync_rings(p);
 
 	return r;
 }
@@ -603,6 +602,11 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
+		if (parser->job->ring && parser->job->ring != ring)
+			return -EINVAL;
+
+		parser->job->ring = ring;
+
 		if (ring->funcs->parse_cs) {
 			struct amdgpu_bo_va_mapping *m;
 			struct amdgpu_bo *aobj = NULL;
@@ -631,7 +635,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			offset = ((uint64_t)m->it.start) * AMDGPU_GPU_PAGE_SIZE;
 			kptr += chunk_ib->va_start - offset;
 
-			r =  amdgpu_ib_get(ring, NULL, chunk_ib->ib_bytes, ib);
+			r =  amdgpu_ib_get(adev, NULL, chunk_ib->ib_bytes, ib);
 			if (r) {
 				DRM_ERROR("Failed to get ib !\n");
 				return r;
@@ -640,7 +644,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			memcpy(ib->ptr, kptr, chunk_ib->ib_bytes);
 			amdgpu_bo_kunmap(aobj);
 		} else {
-			r =  amdgpu_ib_get(ring, vm, 0, ib);
+			r =  amdgpu_ib_get(adev, vm, 0, ib);
 			if (r) {
 				DRM_ERROR("Failed to get ib !\n");
 				return r;
@@ -680,8 +684,8 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		struct amdgpu_ib *ib = &parser->job->ibs[parser->job->num_ibs - 1];
 
 		/* UVD & VCE fw doesn't support user fences */
-		if (ib->ring->type == AMDGPU_RING_TYPE_UVD ||
-		    ib->ring->type == AMDGPU_RING_TYPE_VCE)
+		if (parser->job->ring->type == AMDGPU_RING_TYPE_UVD ||
+		    parser->job->ring->type == AMDGPU_RING_TYPE_VCE)
 			return -EINVAL;
 
 		ib->user = &parser->job->uf;
@@ -757,7 +761,7 @@ static int amdgpu_cs_free_job(struct amdgpu_job *job)
 static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			    union drm_amdgpu_cs *cs)
 {
-	struct amdgpu_ring * ring = p->job->ibs->ring;
+	struct amdgpu_ring *ring = p->job->ring;
 	struct amd_sched_fence *fence;
 	struct amdgpu_job *job;
 
@@ -766,7 +770,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	job->base.sched = &ring->sched;
 	job->base.s_entity = &p->ctx->rings[ring->idx].entity;
-	job->adev = p->adev;
 	job->owner = p->filp;
 	job->free_job = amdgpu_cs_free_job;
 

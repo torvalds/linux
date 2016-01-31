@@ -355,7 +355,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (!ib)
 		goto error;
 
-	r = amdgpu_ib_get(ring, NULL, 64, ib);
+	r = amdgpu_ib_get(adev, NULL, 64, ib);
 	if (r)
 		goto error_free;
 
@@ -448,7 +448,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	if (!ib)
 		return -ENOMEM;
 
-	r = amdgpu_ib_get(ring, NULL, ndw * 4, ib);
+	r = amdgpu_ib_get(adev, NULL, ndw * 4, ib);
 	if (r) {
 		kfree(ib);
 		return r;
@@ -737,7 +737,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (!ib)
 		return -ENOMEM;
 
-	r = amdgpu_ib_get(ring, NULL, ndw * 4, ib);
+	r = amdgpu_ib_get(adev, NULL, ndw * 4, ib);
 	if (r) {
 		kfree(ib);
 		return r;

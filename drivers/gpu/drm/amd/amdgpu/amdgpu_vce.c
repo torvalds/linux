@@ -377,7 +377,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
 	if (!ib)
 		return -ENOMEM;
-	r = amdgpu_ib_get(ring, NULL, ib_size_dw * 4, ib);
+	r = amdgpu_ib_get(adev, NULL, ib_size_dw * 4, ib);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
 		kfree(ib);
@@ -463,7 +463,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	if (!ib)
 		return -ENOMEM;
 
-	r = amdgpu_ib_get(ring, NULL, ib_size_dw * 4, ib);
+	r = amdgpu_ib_get(adev, NULL, ib_size_dw * 4, ib);
 	if (r) {
 		kfree(ib);
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);

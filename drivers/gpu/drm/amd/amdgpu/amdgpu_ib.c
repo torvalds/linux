@@ -55,10 +55,9 @@ static int amdgpu_debugfs_sa_init(struct amdgpu_device *adev);
  * suballocator.
  * Returns 0 on success, error on failure.
  */
-int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
+int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib)
 {
-	struct amdgpu_device *adev = ring->adev;
 	int r;
 
 	if (size) {
@@ -77,7 +76,6 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
 
 	amdgpu_sync_create(&ib->sync);
 
-	ib->ring = ring;
 	ib->vm = vm;
 
 	return 0;
@@ -120,11 +118,11 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
  * a CONST_IB), it will be put on the ring prior to the DE IB.  Prior
  * to SI there was just a DE IB.
  */
-int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
+int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct amdgpu_ib *ibs, void *owner)
 {
+	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];
-	struct amdgpu_ring *ring;
 	struct amdgpu_ctx *ctx, *old_ctx;
 	struct amdgpu_vm *vm;
 	unsigned i;
@@ -133,7 +131,6 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	if (num_ibs == 0)
 		return -EINVAL;
 
-	ring = ibs->ring;
 	ctx = ibs->ctx;
 	vm = ibs->vm;
 
@@ -178,7 +175,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];
 
-		if (ib->ring != ring || ib->ctx != ctx || ib->vm != vm) {
+		if (ib->ctx != ctx || ib->vm != vm) {
 			ring->current_ctx = old_ctx;
 			amdgpu_ring_undo(ring);
 			return -EINVAL;
