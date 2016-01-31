@@ -191,8 +191,8 @@ entry_SYSCALL_64_fastpath:
 
 	/*
 	 * This call instruction is handled specially in stub_ptregs_64.
-	 * It might end up jumping to the slow path.  If it jumps, RAX is
-	 * clobbered.
+	 * It might end up jumping to the slow path.  If it jumps, RAX
+	 * and all argument registers are clobbered.
 	 */
 	call	*sys_call_table(, %rax, 8)
 .Lentry_SYSCALL_64_after_fastpath_call:
@@ -315,17 +315,24 @@ END(entry_SYSCALL_64)
 ENTRY(stub_ptregs_64)
 	/*
 	 * Syscalls marked as needing ptregs land here.
-	 * If we are on the fast path, we need to save the extra regs.
-	 * If we are on the slow path, the extra regs are already saved.
+	 * If we are on the fast path, we need to save the extra regs,
+	 * which we achieve by trying again on the slow path.  If we are on
+	 * the slow path, the extra regs are already saved.
 	 *
 	 * RAX stores a pointer to the C function implementing the syscall.
+	 * IRQs are on.
 	 */
 	cmpq	$.Lentry_SYSCALL_64_after_fastpath_call, (%rsp)
 	jne	1f
 
-	/* Called from fast path -- pop return address and jump to slow path */
+	/*
+	 * Called from fast path -- disable IRQs again, pop return address
+	 * and jump to slow path
+	 */
+	DISABLE_INTERRUPTS(CLBR_NONE)
+	TRACE_IRQS_OFF
 	popq	%rax
-	jmp	entry_SYSCALL64_slow_path	/* called from fast path */
+	jmp	entry_SYSCALL64_slow_path
 
 1:
 	/* Called from C */
