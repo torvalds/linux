@@ -899,6 +899,17 @@ int security_kernel_module_from_file(struct file *file)
 	return ima_module_check(file);
 }
 
+int security_kernel_read_file(struct file *file, enum kernel_read_file_id id)
+{
+	int ret;
+
+	ret = call_int_hook(kernel_read_file, 0, file, id);
+	if (ret)
+		return ret;
+	return ima_read_file(file, id);
+}
+EXPORT_SYMBOL_GPL(security_kernel_read_file);
+
 int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
 				   enum kernel_read_file_id id)
 {
@@ -1696,6 +1707,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.kernel_module_request),
 	.kernel_module_from_file =
 		LIST_HEAD_INIT(security_hook_heads.kernel_module_from_file),
+	.kernel_read_file =
+		LIST_HEAD_INIT(security_hook_heads.kernel_read_file),
 	.kernel_post_read_file =
 		LIST_HEAD_INIT(security_hook_heads.kernel_post_read_file),
 	.task_fix_setuid =

@@ -338,6 +338,22 @@ int ima_module_check(struct file *file)
 }
 
 /**
+ * ima_read_file - pre-measure/appraise hook decision based on policy
+ * @file: pointer to the file to be measured/appraised/audit
+ * @read_id: caller identifier
+ *
+ * Permit reading a file based on policy. The policy rules are written
+ * in terms of the policy identifier.  Appraising the integrity of
+ * a file requires a file descriptor.
+ *
+ * For permission return 0, otherwise return -EACCES.
+ */
+int ima_read_file(struct file *file, enum kernel_read_file_id read_id)
+{
+	return 0;
+}
+
+/**
  * ima_post_read_file - in memory collect/appraise/audit measurement
  * @file: pointer to the file to be measured/appraised/audit
  * @buf: pointer to in memory file contents

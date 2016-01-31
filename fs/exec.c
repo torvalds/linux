@@ -842,6 +842,10 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 	if (!S_ISREG(file_inode(file)->i_mode) || max_size < 0)
 		return -EINVAL;
 
+	ret = security_kernel_read_file(file, id);
+	if (ret)
+		return ret;
+
 	i_size = i_size_read(file_inode(file));
 	if (max_size > 0 && i_size > max_size)
 		return -EFBIG;

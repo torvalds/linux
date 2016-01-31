@@ -19,6 +19,7 @@ extern int ima_file_check(struct file *file, int mask, int opened);
 extern void ima_file_free(struct file *file);
 extern int ima_file_mmap(struct file *file, unsigned long prot);
 extern int ima_module_check(struct file *file);
+extern int ima_read_file(struct file *file, enum kernel_read_file_id id);
 extern int ima_post_read_file(struct file *file, void *buf, loff_t size,
 			      enum kernel_read_file_id id);
 
@@ -44,6 +45,11 @@ static inline int ima_file_mmap(struct file *file, unsigned long prot)
 }
 
 static inline int ima_module_check(struct file *file)
+{
+	return 0;
+}
+
+static inline int ima_read_file(struct file *file, enum kernel_read_file_id id)
 {
 	return 0;
 }
