@@ -121,13 +121,9 @@ static void show_last_breaking_event(struct pt_regs *regs)
 	printk(" [<%016lx>] %pSR\n", regs->args[0], (void *)regs->args[0]);
 }
 
-static inline int mask_bits(struct pt_regs *regs, unsigned long bits)
-{
-	return (regs->psw.mask & bits) / ((~bits + 1) & bits);
-}
-
 void show_registers(struct pt_regs *regs)
 {
+	struct psw_bits *psw = &psw_bits(regs->psw);
 	char *mode;
 
 	mode = user_mode(regs) ? "User" : "Krnl";
@@ -136,14 +132,9 @@ void show_registers(struct pt_regs *regs)
 		printk(" (%pSR)", (void *)regs->psw.addr);
 	printk("\n");
 	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
-	       "P:%x AS:%x CC:%x PM:%x", mask_bits(regs, PSW_MASK_PER),
-	       mask_bits(regs, PSW_MASK_DAT), mask_bits(regs, PSW_MASK_IO),
-	       mask_bits(regs, PSW_MASK_EXT), mask_bits(regs, PSW_MASK_KEY),
-	       mask_bits(regs, PSW_MASK_MCHECK), mask_bits(regs, PSW_MASK_WAIT),
-	       mask_bits(regs, PSW_MASK_PSTATE), mask_bits(regs, PSW_MASK_ASC),
-	       mask_bits(regs, PSW_MASK_CC), mask_bits(regs, PSW_MASK_PM));
-	printk(" RI:%x EA:%x", mask_bits(regs, PSW_MASK_RI),
-	       mask_bits(regs, PSW_MASK_EA | PSW_MASK_BA));
+	       "P:%x AS:%x CC:%x PM:%x", psw->r, psw->t, psw->i, psw->e,
+	       psw->key, psw->m, psw->w, psw->p, psw->as, psw->cc, psw->pm);
+	printk(" RI:%x EA:%x", psw->ri, psw->eaba);
 	printk("\n%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
 	printk("           %016lx %016lx %016lx %016lx\n",
