@@ -904,6 +904,13 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 	if (!overwrite && new_is_dir && !old_opaque && new_opaque)
 		ovl_remove_opaque(newdentry);
 
+	/*
+	 * Old dentry now lives in different location. Dentries in
+	 * lowerstack are stale. We cannot drop them here because
+	 * access to them is lockless. This could be only pure upper
+	 * or opaque directory - numlower is zero. Or upper non-dir
+	 * entry - its pureness is tracked by flag opaque.
+	 */
 	if (old_opaque != new_opaque) {
 		ovl_dentry_set_opaque(old, new_opaque);
 		if (!overwrite)
