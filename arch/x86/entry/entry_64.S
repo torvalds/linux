@@ -212,7 +212,9 @@ entry_SYSCALL_64_fastpath:
 
 	LOCKDEP_SYS_EXIT
 	TRACE_IRQS_ON		/* user mode is traced as IRQs on */
-	RESTORE_C_REGS
+	movq	RIP(%rsp), %rcx
+	movq	EFLAGS(%rsp), %r11
+	RESTORE_C_REGS_EXCEPT_RCX_R11
 	movq	RSP(%rsp), %rsp
 	USERGS_SYSRET64
 
