@@ -59,6 +59,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
 	do { if (verbose) pr_alert("%s" PERF_FLAG "!!! %s\n", perf_type, s); } while (0)
 
 torture_param(bool, gp_exp, true, "Use expedited GP wait primitives");
+torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
 torture_param(bool, shutdown, false, "Shutdown at end of performance tests.");
@@ -368,6 +369,10 @@ rcu_perf_writer(void *arg)
 	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
 	sp.sched_priority = 1;
 	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
+
+	if (holdoff)
+		schedule_timeout_uninterruptible(holdoff * HZ);
+
 	t = ktime_get_mono_fast_ns();
 	if (atomic_inc_return(&n_rcu_perf_writer_started) >= nrealwriters) {
 		t_rcu_perf_writer_started = t;

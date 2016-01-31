@@ -3288,6 +3288,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Measure performance of expedited synchronous
 			grace-period primitives.
 
+	rcuperf.holdoff= [KNL]
+			Set test-start holdoff period.  The purpose of
+			this parameter is to delay the start of the
+			test until boot completes in order to avoid
+			interference.
+
 	rcuperf.nreaders= [KNL]
 			Set number of RCU readers.  The value -1 selects
 			N, where N is the number of CPUs.  A value
