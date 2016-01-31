@@ -237,17 +237,17 @@ o	"ktl" is the low-order 16 bits (in hexadecimal) of the count of
 
 The output of "cat rcu/rcu_preempt/rcuexp" looks as follows:
 
-s=21872 wd0=0 wd1=0 wd2=0 wd3=5 n=0 enq=0 sc=21872
+s=21872 wd1=0 wd2=0 wd3=5 n=0 enq=0 sc=21872
 
 These fields are as follows:
 
 o	"s" is the sequence number, with an odd number indicating that
 	an expedited grace period is in progress.
 
-o	"wd0", "wd1", "wd2", and "wd3" are the number of times that an
-	attempt to start an expedited grace period found that someone
-	else had completed an expedited grace period that satisfies the
-	attempted request.  "Our work is done."
+o	"wd1", "wd2", and "wd3" are the number of times that an attempt
+	to start an expedited grace period found that someone else had
+	completed an expedited grace period that satisfies the attempted
+	request.  "Our work is done."
 
 o	"n" is number of times that a concurrent CPU-hotplug operation
 	forced a fallback to a normal grace period.

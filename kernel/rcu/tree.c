@@ -3617,25 +3617,6 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	struct rcu_node *rnp1 = NULL;
 
 	/*
-	 * First try directly acquiring the root lock in order to reduce
-	 * latency in the common case where expedited grace periods are
-	 * rare.  We check mutex_is_locked() to avoid pathological levels of
-	 * memory contention on ->exp_funnel_mutex in the heavy-load case.
-	 */
-	rnp0 = rcu_get_root(rsp);
-	if (!mutex_is_locked(&rnp0->exp_funnel_mutex)) {
-		if (mutex_trylock(&rnp0->exp_funnel_mutex)) {
-			trace_rcu_exp_funnel_lock(rsp->name, rnp0->level,
-						  rnp0->grplo, rnp0->grphi,
-						  TPS("acq"));
-			if (sync_exp_work_done(rsp, rnp0, NULL,
-					       &rdp->expedited_workdone0, s))
-				return NULL;
-			return rnp0;
-		}
-	}
-
-	/*
 	 * Each pass through the following loop works its way
 	 * up the rcu_node tree, returning if others have done the
 	 * work or otherwise falls through holding the root rnp's
