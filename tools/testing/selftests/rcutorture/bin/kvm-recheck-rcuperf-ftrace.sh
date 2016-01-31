@@ -1,8 +1,11 @@
 #!/bin/bash
 #
-# Analyze a given results directory for rcuperf performance measurements.
+# Analyze a given results directory for rcuperf performance measurements,
+# looking for ftrace data.  Exits with 0 if data was found, analyzed, and
+# printed.  Intended to be invoked from kvm-recheck-rcuperf.sh after
+# argument checking.
 #
-# Usage: kvm-recheck-rcuperf.sh resdir
+# Usage: kvm-recheck-rcuperf-ftrace.sh resdir
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,41 +26,51 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 i="$1"
-if test -d $i
-then
-	:
-else
-	echo Unreadable results directory: $i
-	exit 1
-fi
-PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
 . tools/testing/selftests/rcutorture/bin/functions.sh
 
-if kvm-recheck-rcuperf-ftrace.sh $i
+if test "`grep -c 'rcu_exp_grace_period.*start' < $i/console.log`" -lt 100
 then
-	# ftrace data was successfully analyzed, call it good!
-	exit 0
+	exit 10
 fi
 
-configfile=`echo $i | sed -e 's/^.*\///'`
-
 sed -e 's/^\[[^]]*]//' < $i/console.log |
+grep 'us : rcu_exp_grace_period' |
+sed -e 's/us : / : /' |
+tr -d '\015' |
 awk '
-/-perf: .* gps: .* batches:/ {
-	ngps = $9;
-	nbatches = $11;
+$8 == "start" {
+	if (starttask != "")
+		nlost++;
+	starttask = $1;
+	starttime = $3;
+	startseq = $7;
 }
 
-/-perf: .*writer-duration/ {
-	gptimes[++n] = $5 / 1000.;
-	sum += $5 / 1000.;
+$8 == "end" {
+	if (starttask == $1 && startseq == $7) {
+		curgpdur = $3 - starttime;
+		gptimes[++n] = curgpdur;
+		gptaskcnt[starttask]++;
+		sum += curgpdur;
+		if (curgpdur > 1000)
+			print "Long GP " starttime "us to " $3 "us (" curgpdur "us)";
+		starttask = "";
+	} else {
+		# Lost a message or some such, reset.
+		starttask = "";
+		nlost++;
+	}
+}
+
+$8 == "done" {
+	piggybackcnt[$1]++;
 }
 
 END {
 	newNR = asort(gptimes);
 	if (newNR <= 0) {
-		print "No rcuperf records found???"
-		exit;
+		print "No ftrace records found???"
+		exit 10;
 	}
 	pct50 = int(newNR * 50 / 100);
 	if (pct50 < 1)
@@ -85,12 +98,24 @@ END {
 	}
 	if (count > 0)
 		print last, count;
+	print "Distribution of grace periods across tasks:";
+	for (i in gptaskcnt) {
+		print "\t" i, gptaskcnt[i];
+		nbatches += gptaskcnt[i];
+	}
+	ngps = nbatches;
+	print "Distribution of piggybacking across tasks:";
+	for (i in piggybackcnt) {
+		print "\t" i, piggybackcnt[i];
+		ngps += piggybackcnt[i];
+	}
 	print "Average grace-period duration: " sum / newNR " microseconds";
 	print "Minimum grace-period duration: " gptimes[1];
 	print "50th percentile grace-period duration: " gptimes[pct50];
 	print "90th percentile grace-period duration: " gptimes[pct90];
 	print "99th percentile grace-period duration: " gptimes[pct99];
 	print "Maximum grace-period duration: " gptimes[newNR];
-	print "Grace periods: " ngps + 0 " Batches: " nbatches + 0 " Ratio: " ngps / nbatches;
-	print "Computed from rcuperf printk output.";
+	print "Grace periods: " ngps + 0 " Batches: " nbatches + 0 " Ratio: " ngps / nbatches " Lost: " nlost + 0;
+	print "Computed from ftrace data.";
 }'
+exit 0
