@@ -154,6 +154,7 @@ struct mapped_device {
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
 
+	struct dm_target *immutable_target;
 	struct target_type *immutable_target_type;
 
 	struct gendisk *disk;
@@ -2492,8 +2493,15 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	 * This must be done before setting the queue restrictions,
 	 * because request-based dm may be run just after the setting.
 	 */
-	if (dm_table_request_based(t))
+	if (dm_table_request_based(t)) {
 		stop_queue(q);
+		/*
+		 * Leverage the fact that request-based DM targets are
+		 * immutable singletons and establish md->immutable_target
+		 * - used to optimize both dm_request_fn and dm_mq_queue_rq
+		 */
+		md->immutable_target = dm_table_get_immutable_target(t);
+	}
 
 	__bind_mempools(md, t);
 
@@ -2564,7 +2572,6 @@ void dm_set_md_type(struct mapped_device *md, unsigned type)
 
 unsigned dm_get_md_type(struct mapped_device *md)
 {
-	BUG_ON(!mutex_is_locked(&md->type_lock));
 	return md->type;
 }
 
@@ -2641,28 +2648,15 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request *rq = bd->rq;
 	struct dm_rq_target_io *tio = blk_mq_rq_to_pdu(rq);
 	struct mapped_device *md = tio->md;
-	int srcu_idx;
-	struct dm_table *map = dm_get_live_table(md, &srcu_idx);
-	struct dm_target *ti;
-	sector_t pos;
+	struct dm_target *ti = md->immutable_target;
 
-	/* always use block 0 to find the target for flushes for now */
-	pos = 0;
-	if (!(rq->cmd_flags & REQ_FLUSH))
-		pos = blk_rq_pos(rq);
+	if (unlikely(!ti)) {
+		int srcu_idx;
+		struct dm_table *map = dm_get_live_table(md, &srcu_idx);
 
-	ti = dm_table_find_target(map, pos);
-	if (!dm_target_is_valid(ti)) {
+		ti = dm_table_find_target(map, 0);
 		dm_put_live_table(md, srcu_idx);
-		DMERR_LIMIT("request attempted access beyond the end of device");
-		/*
-		 * Must perform setup, that rq_completed() requires,
-		 * before returning BLK_MQ_RQ_QUEUE_ERROR
-		 */
-		dm_start_request(md, rq);
-		return BLK_MQ_RQ_QUEUE_ERROR;
 	}
-	dm_put_live_table(md, srcu_idx);
 
 	if (ti->type->busy && ti->type->busy(ti))
 		return BLK_MQ_RQ_QUEUE_BUSY;
@@ -2678,8 +2672,10 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 */
 	tio->ti = ti;
 
-	/* Clone the request if underlying devices aren't blk-mq */
-	if (dm_table_get_type(map) == DM_TYPE_REQUEST_BASED) {
+	/*
+	 * Both the table and md type cannot change after initial table load
+	 */
+	if (dm_get_md_type(md) == DM_TYPE_REQUEST_BASED) {
 		/* clone request is allocated at the end of the pdu */
 		tio->clone = (void *)blk_mq_rq_to_pdu(rq) + sizeof(struct dm_rq_target_io);
 		(void) clone_rq(rq, md, tio, GFP_ATOMIC);

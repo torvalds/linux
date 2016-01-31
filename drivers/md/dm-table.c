@@ -920,6 +920,16 @@ struct target_type *dm_table_get_immutable_target_type(struct dm_table *t)
 	return t->immutable_target_type;
 }
 
+struct dm_target *dm_table_get_immutable_target(struct dm_table *t)
+{
+	/* Immutable target is implicitly a singleton */
+	if (t->num_targets > 1 ||
+	    !dm_target_is_immutable(t->targets[0].type))
+		return NULL;
+
+	return t->targets;
+}
+
 struct dm_target *dm_table_get_wildcard_target(struct dm_table *t)
 {
 	struct dm_target *uninitialized_var(ti);
