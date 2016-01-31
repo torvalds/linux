@@ -736,6 +736,57 @@ out_revert:
 }
 EXPORT_SYMBOL_GPL(rpc_switch_client_transport);
 
+static
+int rpc_clnt_xprt_iter_init(struct rpc_clnt *clnt, struct rpc_xprt_iter *xpi)
+{
+	struct rpc_xprt_switch *xps;
+
+	rcu_read_lock();
+	xps = xprt_switch_get(rcu_dereference(clnt->cl_xpi.xpi_xpswitch));
+	rcu_read_unlock();
+	if (xps == NULL)
+		return -EAGAIN;
+	xprt_iter_init_listall(xpi, xps);
+	xprt_switch_put(xps);
+	return 0;
+}
+
+/**
+ * rpc_clnt_iterate_for_each_xprt - Apply a function to all transports
+ * @clnt: pointer to client
+ * @fn: function to apply
+ * @data: void pointer to function data
+ *
+ * Iterates through the list of RPC transports currently attached to the
+ * client and applies the function fn(clnt, xprt, data).
+ *
+ * On error, the iteration stops, and the function returns the error value.
+ */
+int rpc_clnt_iterate_for_each_xprt(struct rpc_clnt *clnt,
+		int (*fn)(struct rpc_clnt *, struct rpc_xprt *, void *),
+		void *data)
+{
+	struct rpc_xprt_iter xpi;
+	int ret;
+
+	ret = rpc_clnt_xprt_iter_init(clnt, &xpi);
+	if (ret)
+		return ret;
+	for (;;) {
+		struct rpc_xprt *xprt = xprt_iter_get_next(&xpi);
+
+		if (!xprt)
+			break;
+		ret = fn(clnt, xprt, data);
+		xprt_put(xprt);
+		if (ret < 0)
+			break;
+	}
+	xprt_iter_destroy(&xpi);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rpc_clnt_iterate_for_each_xprt);
+
 /*
  * Kill all tasks for the given client.
  * XXX: kill their descendants as well?
