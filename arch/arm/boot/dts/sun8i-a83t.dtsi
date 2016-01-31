@@ -118,6 +118,7 @@
 		#size-cells = <1>;
 		ranges;
 
+		/* TODO: PRCM block has a mux for this. */
 		osc24M: osc24M_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -125,11 +126,25 @@
 			clock-output-names = "osc24M";
 		};
 
-		osc32k: osc32k_clk {
+		/*
+		 * This is called "internal OSC" in some places.
+		 * It is an internal RC-based oscillator.
+		 * TODO: Its controls are in the PRCM block.
+		 */
+		osc16M: osc16M_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
-			clock-frequency = <32768>;
-			clock-output-names = "osc32k";
+			clock-frequency = <16000000>;
+			clock-output-names = "osc16M";
+		};
+
+		osc16Md512: osc16Md512_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <512>;
+			clock-mult = <1>;
+			clocks = <&osc16M>;
+			clock-output-names = "osc16M-d512";
 		};
 	};
 
