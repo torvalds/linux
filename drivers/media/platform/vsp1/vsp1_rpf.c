@@ -283,23 +283,3 @@ error:
 	vsp1_entity_destroy(&rpf->entity);
 	return ERR_PTR(ret);
 }
-
-/*
- * vsp1_rpf_create_links() - RPF pads links creation
- * @vsp1: Pointer to VSP1 device
- * @entity: Pointer to VSP1 entity
- *
- * return negative error code or zero on success
- */
-int vsp1_rpf_create_links(struct vsp1_device *vsp1,
-			       struct vsp1_entity *entity)
-{
-	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
-
-	/* Connect the video device to the RPF. */
-	return media_create_pad_link(&rpf->video.video.entity, 0,
-				     &rpf->entity.subdev.entity,
-				     RWPF_PAD_SINK,
-				     MEDIA_LNK_FL_ENABLED |
-				     MEDIA_LNK_FL_IMMUTABLE);
-}

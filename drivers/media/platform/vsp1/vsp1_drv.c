@@ -82,6 +82,19 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 	unsigned int pad;
 	int ret;
 
+	if (sink->type == VSP1_ENTITY_RPF) {
+		struct vsp1_rwpf *rpf = to_rwpf(&sink->subdev);
+
+		/* RPFs have no source entities, just connect their source pad
+		 * to their video device.
+		 */
+		return media_create_pad_link(&rpf->video.video.entity, 0,
+					     &rpf->entity.subdev.entity,
+					     RWPF_PAD_SINK,
+					     MEDIA_LNK_FL_ENABLED |
+					     MEDIA_LNK_FL_IMMUTABLE);
+	}
+
 	list_for_each_entry(source, &vsp1->entities, list_dev) {
 		u32 flags;
 
@@ -110,6 +123,23 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 			if (flags & MEDIA_LNK_FL_ENABLED)
 				source->sink = entity;
 		}
+	}
+
+	if (sink->type == VSP1_ENTITY_WPF) {
+		struct vsp1_rwpf *wpf = to_rwpf(&sink->subdev);
+		unsigned int flags = MEDIA_LNK_FL_ENABLED;
+
+		/* Connect the video device to the WPF. All connections are
+		 * immutable except for the WPF0 source link if a LIF is
+		 * present.
+		 */
+		if (!(vsp1->pdata.features & VSP1_HAS_LIF) || sink->index != 0)
+			flags |= MEDIA_LNK_FL_IMMUTABLE;
+
+		return media_create_pad_link(&wpf->entity.subdev.entity,
+					     RWPF_PAD_SOURCE,
+					     &wpf->video.video.entity, 0,
+					     flags);
 	}
 
 	return 0;
@@ -256,22 +286,12 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 	/* Create links. */
 	list_for_each_entry(entity, &vsp1->entities, list_dev) {
-		if (entity->type == VSP1_ENTITY_WPF) {
-			ret = vsp1_wpf_create_links(vsp1, entity);
-			if (ret < 0)
-				goto done;
-		} else if (entity->type == VSP1_ENTITY_RPF) {
-			ret = vsp1_rpf_create_links(vsp1, entity);
-			if (ret < 0)
-				goto done;
-		}
+		if (entity->type == VSP1_ENTITY_LIF)
+			continue;
 
-		if (entity->type != VSP1_ENTITY_LIF &&
-		    entity->type != VSP1_ENTITY_RPF) {
-			ret = vsp1_create_links(vsp1, entity);
-			if (ret < 0)
-				goto done;
-		}
+		ret = vsp1_create_links(vsp1, entity);
+		if (ret < 0)
+			goto done;
 	}
 
 	if (vsp1->pdata.features & VSP1_HAS_LIF) {

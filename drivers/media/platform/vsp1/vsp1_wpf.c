@@ -283,28 +283,3 @@ error:
 	vsp1_entity_destroy(&wpf->entity);
 	return ERR_PTR(ret);
 }
-
-/*
- * vsp1_wpf_create_links() - RPF pads links creation
- * @vsp1: Pointer to VSP1 device
- * @entity: Pointer to VSP1 entity
- *
- * return negative error code or zero on success
- */
-int vsp1_wpf_create_links(struct vsp1_device *vsp1,
-			       struct vsp1_entity *entity)
-{
-	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
-	unsigned int flags;
-
-	/* Connect the video device to the WPF. All connections are immutable
-	 * except for the WPF0 source link if a LIF is present.
-	 */
-	flags = MEDIA_LNK_FL_ENABLED;
-	if (!(vsp1->pdata.features & VSP1_HAS_LIF) || entity->index != 0)
-		flags |= MEDIA_LNK_FL_IMMUTABLE;
-
-	return media_create_pad_link(&wpf->entity.subdev.entity,
-				     RWPF_PAD_SOURCE,
-				     &wpf->video.video.entity, 0, flags);
-}
