@@ -835,7 +835,8 @@ int crush_do_rule(const struct crush_map *map,
 		case CRUSH_RULE_TAKE:
 			if ((curstep->arg1 >= 0 &&
 			     curstep->arg1 < map->max_devices) ||
-			    (-1-curstep->arg1 < map->max_buckets &&
+			    (-1-curstep->arg1 >= 0 &&
+			     -1-curstep->arg1 < map->max_buckets &&
 			     map->buckets[-1-curstep->arg1])) {
 				w[0] = curstep->arg1;
 				wsize = 1;
