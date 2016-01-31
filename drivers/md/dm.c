@@ -106,14 +106,6 @@ struct dm_rq_clone_bio_info {
 	struct bio clone;
 };
 
-union map_info *dm_get_rq_mapinfo(struct request *rq)
-{
-	if (rq && rq->end_io_data)
-		return &((struct dm_rq_target_io *)rq->end_io_data)->info;
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(dm_get_rq_mapinfo);
-
 #define MINOR_ALLOCED ((void *)-1)
 
 /*
