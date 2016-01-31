@@ -908,7 +908,7 @@ config I2C_TEGRA
 
 config I2C_UNIPHIER
 	tristate "UniPhier FIFO-less I2C controller"
-	depends on ARCH_UNIPHIER
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for
 	  the UniPhier FIFO-less I2C interface embedded in PH1-LD4, PH1-sLD8,
@@ -916,7 +916,7 @@ config I2C_UNIPHIER
 
 config I2C_UNIPHIER_F
 	tristate "UniPhier FIFO-builtin I2C controller"
-	depends on ARCH_UNIPHIER
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for
 	  the UniPhier FIFO-builtin I2C interface embedded in PH1-Pro4,
