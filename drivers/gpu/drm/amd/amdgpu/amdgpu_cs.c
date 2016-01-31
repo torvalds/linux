@@ -766,6 +766,54 @@ static int amdgpu_cs_free_job(struct amdgpu_job *job)
 	return 0;
 }
 
+static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
+			    union drm_amdgpu_cs *cs)
+{
+	struct amdgpu_ring * ring = p->ibs->ring;
+	struct amd_sched_fence *fence;
+	struct amdgpu_job *job;
+
+	job = kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
+	if (!job)
+		return -ENOMEM;
+
+	job->base.sched = &ring->sched;
+	job->base.s_entity = &p->ctx->rings[ring->idx].entity;
+	job->adev = p->adev;
+	job->owner = p->filp;
+	job->free_job = amdgpu_cs_free_job;
+
+	job->ibs = p->ibs;
+	job->num_ibs = p->num_ibs;
+	p->ibs = NULL;
+	p->num_ibs = 0;
+
+	if (job->ibs[job->num_ibs - 1].user) {
+		job->uf = p->uf;
+		job->ibs[job->num_ibs - 1].user = &job->uf;
+		p->uf.bo = NULL;
+	}
+
+	fence = amd_sched_fence_create(job->base.s_entity, p->filp);
+	if (!fence) {
+		amdgpu_cs_free_job(job);
+		kfree(job);
+		return -ENOMEM;
+	}
+
+	job->base.s_fence = fence;
+	p->fence = fence_get(&fence->base);
+
+	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring,
+					      &fence->base);
+	job->ibs[job->num_ibs - 1].sequence = cs->out.handle;
+
+	trace_amdgpu_cs_ioctl(job);
+	amd_sched_entity_push_job(&job->base);
+
+	return 0;
+}
+
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
@@ -813,52 +861,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r)
 		goto out;
 
-	if (parser.num_ibs) {
-		struct amdgpu_ring * ring = parser.ibs->ring;
-		struct amd_sched_fence *fence;
-		struct amdgpu_job *job;
-
-		job = kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
-		if (!job) {
-			r = -ENOMEM;
-			goto out;
-		}
-
-		job->base.sched = &ring->sched;
-		job->base.s_entity = &parser.ctx->rings[ring->idx].entity;
-		job->adev = parser.adev;
-		job->owner = parser.filp;
-		job->free_job = amdgpu_cs_free_job;
-
-		job->ibs = parser.ibs;
-		job->num_ibs = parser.num_ibs;
-		parser.ibs = NULL;
-		parser.num_ibs = 0;
-
-		if (job->ibs[job->num_ibs - 1].user) {
-			job->uf = parser.uf;
-			job->ibs[job->num_ibs - 1].user = &job->uf;
-			parser.uf.bo = NULL;
-		}
-
-		fence = amd_sched_fence_create(job->base.s_entity,
-					       parser.filp);
-		if (!fence) {
-			r = -ENOMEM;
-			amdgpu_cs_free_job(job);
-			kfree(job);
-			goto out;
-		}
-		job->base.s_fence = fence;
-		parser.fence = fence_get(&fence->base);
-
-		cs->out.handle = amdgpu_ctx_add_fence(parser.ctx, ring,
-						      &fence->base);
-		job->ibs[job->num_ibs - 1].sequence = cs->out.handle;
-
-		trace_amdgpu_cs_ioctl(job);
-		amd_sched_entity_push_job(&job->base);
-	}
+	if (parser.num_ibs)
+		r = amdgpu_cs_submit(&parser, cs);
 
 out:
 	amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
