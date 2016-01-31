@@ -134,6 +134,8 @@ struct gdd_trn {
  * @gdd_tasklet: bottom half for DMA transfers
  * @gdd_trn: Array of GDD transaction data for ongoing GDD transfers
  * @lock: lock to serialize access to GDD
+ * @fck_nb: DVFS notfifier block
+ * @fck_rate: clock rate
  * @loss_count: To follow if we need to restore context or not
  * @max_speed: Maximum TX speed (Kb/s) set by the clients.
  * @sysconfig: SSI controller saved context
@@ -151,6 +153,7 @@ struct omap_ssi_controller {
 	struct tasklet_struct	gdd_tasklet;
 	struct gdd_trn		gdd_trn[SSI_MAX_GDD_LCH];
 	spinlock_t		lock;
+	struct notifier_block	fck_nb;
 	unsigned long		fck_rate;
 	u32			loss_count;
 	u32			max_speed;
@@ -163,6 +166,9 @@ struct omap_ssi_controller {
 	struct dentry *dir;
 #endif
 };
+
+void omap_ssi_port_update_fclk(struct hsi_controller *ssi,
+			       struct omap_ssi_port *omap_port);
 
 extern struct platform_driver ssi_port_pdriver;
 

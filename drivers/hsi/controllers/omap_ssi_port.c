@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/delay.h>
 
 #include <linux/gpio/consumer.h>
 #include <linux/debugfs.h>
@@ -514,6 +515,11 @@ static int ssi_flush(struct hsi_client *cl)
 
 	pm_runtime_get_sync(omap_port->pdev);
 	spin_lock_bh(&omap_port->lock);
+
+	/* stop all ssi communication */
+	pinctrl_pm_select_idle_state(omap_port->pdev);
+	udelay(1); /* wait for racing frames */
+
 	/* Stop all DMA transfers */
 	for (i = 0; i < SSI_MAX_GDD_LCH; i++) {
 		msg = omap_ssi->gdd_trn[i].msg;
@@ -550,6 +556,10 @@ static int ssi_flush(struct hsi_client *cl)
 		ssi_flush_queue(&omap_port->rxqueue[i], NULL);
 	}
 	ssi_flush_queue(&omap_port->brkqueue, NULL);
+
+	/* Resume SSI communication */
+	pinctrl_pm_select_default_state(omap_port->pdev);
+
 	spin_unlock_bh(&omap_port->lock);
 	pm_runtime_put_sync(omap_port->pdev);
 
@@ -1301,6 +1311,16 @@ static int ssi_restore_divisor(struct omap_ssi_port *omap_port)
 
 	return 0;
 }
+
+void omap_ssi_port_update_fclk(struct hsi_controller *ssi,
+			       struct omap_ssi_port *omap_port)
+{
+	/* update divisor */
+	u32 div = ssi_calculate_div(ssi);
+	omap_port->sst.divisor = div;
+	ssi_restore_divisor(omap_port);
+}
+EXPORT_SYMBOL_GPL(omap_ssi_port_update_fclk);
 
 static int omap_ssi_port_runtime_suspend(struct device *dev)
 {

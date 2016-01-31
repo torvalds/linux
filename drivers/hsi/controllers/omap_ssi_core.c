@@ -290,6 +290,64 @@ static unsigned long ssi_get_clk_rate(struct hsi_controller *ssi)
 	return rate;
 }
 
+static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
+								void *data)
+{
+	struct omap_ssi_controller *omap_ssi = container_of(nb,
+					struct omap_ssi_controller, fck_nb);
+	struct hsi_controller *ssi = to_hsi_controller(omap_ssi->dev);
+	struct clk_notifier_data *clk_data = data;
+	struct omap_ssi_port *omap_port;
+	int i;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		dev_dbg(&ssi->device, "pre rate change\n");
+
+		for (i = 0; i < ssi->num_ports; i++) {
+			omap_port = omap_ssi->port[i];
+
+			if (!omap_port)
+				continue;
+
+			/* Workaround for SWBREAK + CAwake down race in CMT */
+			tasklet_disable(&omap_port->wake_tasklet);
+
+			/* stop all ssi communication */
+			pinctrl_pm_select_idle_state(omap_port->pdev);
+			udelay(1); /* wait for racing frames */
+		}
+
+		break;
+	case ABORT_RATE_CHANGE:
+		dev_dbg(&ssi->device, "abort rate change\n");
+		/* Fall through */
+	case POST_RATE_CHANGE:
+		dev_dbg(&ssi->device, "post rate change (%lu -> %lu)\n",
+			clk_data->old_rate, clk_data->new_rate);
+		omap_ssi->fck_rate = DIV_ROUND_CLOSEST(clk_data->new_rate, 1000); /* KHz */
+
+		for (i = 0; i < ssi->num_ports; i++) {
+			omap_port = omap_ssi->port[i];
+
+			if (!omap_port)
+				continue;
+
+			omap_ssi_port_update_fclk(ssi, omap_port);
+
+			/* resume ssi communication */
+			pinctrl_pm_select_default_state(omap_port->pdev);
+			tasklet_enable(&omap_port->wake_tasklet);
+		}
+
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int ssi_get_iomem(struct platform_device *pd,
 		const char *name, void __iomem **pbase, dma_addr_t *phy)
 {
@@ -369,6 +427,10 @@ static int ssi_add_controller(struct hsi_controller *ssi,
 		goto out_err;
 	}
 
+	omap_ssi->fck_nb.notifier_call = ssi_clk_event;
+	omap_ssi->fck_nb.priority = INT_MAX;
+	clk_notifier_register(omap_ssi->fck, &omap_ssi->fck_nb);
+
 	/* TODO: find register, which can be used to detect context loss */
 	omap_ssi->get_loss = NULL;
 
@@ -432,6 +494,7 @@ static void ssi_remove_controller(struct hsi_controller *ssi)
 	int id = ssi->id;
 	tasklet_kill(&omap_ssi->gdd_tasklet);
 	hsi_unregister_controller(ssi);
+	clk_notifier_unregister(omap_ssi->fck, &omap_ssi->fck_nb);
 	ida_simple_remove(&platform_omap_ssi_ida, id);
 }
 
