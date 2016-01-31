@@ -77,10 +77,9 @@ static void __save_stack_trace(struct stack_trace *trace, unsigned long sp)
 
 void save_stack_trace(struct stack_trace *trace)
 {
-	register unsigned long r15 asm ("15");
 	unsigned long sp;
 
-	sp = r15;
+	sp = current_stack_pointer();
 	__save_stack_trace(trace, sp);
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
@@ -92,10 +91,8 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	unsigned long sp, low, high;
 
 	sp = tsk->thread.ksp;
-	if (tsk == current) {
-		/* Get current stack pointer. */
-		asm volatile("la %0,0(15)" : "=a" (sp));
-	}
+	if (tsk == current)
+		sp = current_stack_pointer();
 	low = (unsigned long) task_stack_page(tsk);
 	high = (unsigned long) task_pt_regs(tsk);
 	save_context_stack(trace, sp, low, high, 1);

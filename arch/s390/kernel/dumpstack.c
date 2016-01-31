@@ -67,12 +67,11 @@ static void show_trace(struct task_struct *task, unsigned long *stack)
 {
 	const unsigned long frame_size =
 		STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
-	register unsigned long __r15 asm ("15");
 	unsigned long sp;
 
 	sp = (unsigned long) stack;
 	if (!sp)
-		sp = task ? task->thread.ksp : __r15;
+		sp = task ? task->thread.ksp : current_stack_pointer();
 	printk("Call Trace:\n");
 #ifdef CONFIG_CHECK_STACK
 	sp = __show_trace(sp,
@@ -95,15 +94,16 @@ static void show_trace(struct task_struct *task, unsigned long *stack)
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	register unsigned long *__r15 asm ("15");
 	unsigned long *stack;
 	int i;
 
-	if (!sp)
-		stack = task ? (unsigned long *) task->thread.ksp : __r15;
-	else
-		stack = sp;
-
+	stack = sp;
+	if (!stack) {
+		if (!task)
+			stack = (unsigned long *)current_stack_pointer();
+		else
+			stack = (unsigned long *)task->thread.ksp;
+	}
 	for (i = 0; i < 20; i++) {
 		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
 			break;
