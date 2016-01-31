@@ -142,7 +142,8 @@ void show_registers(struct pt_regs *regs)
 	       mask_bits(regs, PSW_MASK_MCHECK), mask_bits(regs, PSW_MASK_WAIT),
 	       mask_bits(regs, PSW_MASK_PSTATE), mask_bits(regs, PSW_MASK_ASC),
 	       mask_bits(regs, PSW_MASK_CC), mask_bits(regs, PSW_MASK_PM));
-	printk(" EA:%x", mask_bits(regs, PSW_MASK_EA | PSW_MASK_BA));
+	printk(" RI:%x EA:%x", mask_bits(regs, PSW_MASK_RI),
+	       mask_bits(regs, PSW_MASK_EA | PSW_MASK_BA));
 	printk("\n%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
 	printk("           %016lx %016lx %016lx %016lx\n",
