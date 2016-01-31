@@ -76,12 +76,14 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry)
 	if (oe->__upperdentry) {
 		type = __OVL_PATH_UPPER;
 
-		if (oe->numlower) {
-			if (S_ISDIR(dentry->d_inode->i_mode))
-				type |= __OVL_PATH_MERGE;
-		} else if (!oe->opaque) {
+		/*
+		 * Non-dir dentry can hold lower dentry from previous
+		 * location. Its purity depends only on opaque flag.
+		 */
+		if (oe->numlower && S_ISDIR(dentry->d_inode->i_mode))
+			type |= __OVL_PATH_MERGE;
+		else if (!oe->opaque)
 			type |= __OVL_PATH_PURE;
-		}
 	} else {
 		if (oe->numlower > 1)
 			type |= __OVL_PATH_MERGE;
