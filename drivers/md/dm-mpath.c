@@ -181,10 +181,9 @@ static void free_priority_group(struct priority_group *pg,
 	kfree(pg);
 }
 
-static struct multipath *alloc_multipath(struct dm_target *ti)
+static struct multipath *alloc_multipath(struct dm_target *ti, bool use_blk_mq)
 {
 	struct multipath *m;
-	unsigned min_ios = dm_get_reserved_rq_based_ios();
 
 	m = kzalloc(sizeof(*m), GFP_KERNEL);
 	if (m) {
@@ -195,11 +194,18 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 		INIT_WORK(&m->trigger_event, trigger_event);
 		init_waitqueue_head(&m->pg_init_wait);
 		mutex_init(&m->work_mutex);
-		m->mpio_pool = mempool_create_slab_pool(min_ios, _mpio_cache);
-		if (!m->mpio_pool) {
-			kfree(m);
-			return NULL;
+
+		m->mpio_pool = NULL;
+		if (!use_blk_mq) {
+			unsigned min_ios = dm_get_reserved_rq_based_ios();
+
+			m->mpio_pool = mempool_create_slab_pool(min_ios, _mpio_cache);
+			if (!m->mpio_pool) {
+				kfree(m);
+				return NULL;
+			}
 		}
+
 		m->ti = ti;
 		ti->private = m;
 	}
@@ -226,6 +232,13 @@ static int set_mapinfo(struct multipath *m, union map_info *info)
 {
 	struct dm_mpath_io *mpio;
 
+	if (!m->mpio_pool) {
+		/* Use blk-mq pdu memory requested via per_io_data_size */
+		mpio = info->ptr;
+		memset(mpio, 0, sizeof(*mpio));
+		return mpio;
+	}
+
 	mpio = mempool_alloc(m->mpio_pool, GFP_ATOMIC);
 	if (!mpio)
 		return -ENOMEM;
@@ -238,10 +251,13 @@ static int set_mapinfo(struct multipath *m, union map_info *info)
 
 static void clear_mapinfo(struct multipath *m, union map_info *info)
 {
-	struct dm_mpath_io *mpio = info->ptr;
+	/* Only needed for non blk-mq */
+	if (m->mpio_pool) {
+		struct dm_mpath_io *mpio = info->ptr;
 
-	info->ptr = NULL;
-	mempool_free(mpio, m->mpio_pool);
+		info->ptr = NULL;
+		mempool_free(mpio, m->mpio_pool);
+	}
 }
 
 /*-----------------------------------------------
@@ -827,11 +843,12 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 	struct dm_arg_set as;
 	unsigned pg_count = 0;
 	unsigned next_pg_num;
+	bool use_blk_mq = dm_use_blk_mq(dm_table_get_md(ti->table));
 
 	as.argc = argc;
 	as.argv = argv;
 
-	m = alloc_multipath(ti);
+	m = alloc_multipath(ti, use_blk_mq);
 	if (!m) {
 		ti->error = "can't allocate multipath";
 		return -EINVAL;
@@ -887,6 +904,8 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 	ti->num_write_same_bios = 1;
+	if (use_blk_mq)
+		ti->per_io_data_size = sizeof(struct dm_mpath_io);
 
 	return 0;
 
