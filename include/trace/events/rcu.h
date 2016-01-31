@@ -179,6 +179,7 @@ TRACE_EVENT(rcu_grace_period_init,
  *	"snap": Captured snapshot of expedited grace period sequence number.
  *	"start": Started a real expedited grace period.
  *	"end": Ended a real expedited grace period.
+ *	"endwake": Woke piggybackers up.
  *	"done": Someone else did the expedited grace period for us.
  */
 TRACE_EVENT(rcu_exp_grace_period,
@@ -210,8 +211,8 @@ TRACE_EVENT(rcu_exp_grace_period,
  * and highest-numbered CPU associated with the current rcu_node structure,
  * and a string.  identifying the grace-period-related event as follows:
  *
- *	"acq": Acquired a level of funnel lock
- *	"rel": Released a level of funnel lock
+ *	"nxtlvl": Advance to next level of rcu_node funnel
+ *	"wait": Wait for someone else to do expedited GP
  */
 TRACE_EVENT(rcu_exp_funnel_lock,
 

@@ -738,8 +738,6 @@ static void sync_rcu_exp_handler(void *info)
  */
 void synchronize_rcu_expedited(void)
 {
-	struct rcu_node *rnp;
-	struct rcu_node *rnp_unlock;
 	struct rcu_state *rsp = rcu_state_p;
 	unsigned long s;
 
@@ -752,8 +750,7 @@ void synchronize_rcu_expedited(void)
 	s = rcu_exp_gp_seq_snap(rsp);
 	trace_rcu_exp_grace_period(rsp->name, s, TPS("snap"));
 
-	rnp_unlock = exp_funnel_lock(rsp, s);
-	if (rnp_unlock == NULL)
+	if (exp_funnel_lock(rsp, s))
 		return;  /* Someone else did our work for us. */
 
 	rcu_exp_gp_seq_start(rsp);
@@ -763,16 +760,13 @@ void synchronize_rcu_expedited(void)
 	sync_rcu_exp_select_cpus(rsp, sync_rcu_exp_handler);
 
 	/* Wait for snapshotted ->blkd_tasks lists to drain. */
-	rnp = rcu_get_root(rsp);
 	synchronize_sched_expedited_wait(rsp);
-
-	/* Clean up and exit. */
 	rcu_exp_gp_seq_end(rsp);
 	trace_rcu_exp_grace_period(rsp->name, s, TPS("end"));
-	mutex_unlock(&rnp_unlock->exp_funnel_mutex);
-	trace_rcu_exp_funnel_lock(rsp->name, rnp_unlock->level,
-				  rnp_unlock->grplo, rnp_unlock->grphi,
-				  TPS("rel"));
+	rcu_exp_wake(rsp, s);
+
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("endwake"));
+	mutex_unlock(&rsp->exp_mutex);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
