@@ -19,7 +19,6 @@
 #include <linux/libfdt.h>
 
 #include <asm/asm-offsets.h>
-#include <asm/clk.h>
 #include <asm/io.h>
 #include <asm/mach_desc.h>
 #include <asm/mcip.h>
@@ -448,7 +447,6 @@ static void __init axs103_early_init(void)
 
 	/* Patching .dtb in-place with new core clock value */
 	if (freq != orig ) {
-		arc_set_core_freq(freq * 1000000);
 		freq = cpu_to_be32(freq * 1000000);
 		fdt_setprop_inplace(initial_boot_params, offset,
 				    "clock-frequency", &freq, sizeof(freq));
