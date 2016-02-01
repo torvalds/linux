@@ -980,9 +980,9 @@ static netdev_tx_t geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			opts = ip_tunnel_info_opts(info);
 
 		if (key->tun_flags & TUNNEL_CSUM)
-			flags |= GENEVE_F_UDP_CSUM;
+			flags &= ~GENEVE_F_UDP_ZERO_CSUM6_TX;
 		else
-			flags &= ~GENEVE_F_UDP_CSUM;
+			flags |= GENEVE_F_UDP_ZERO_CSUM6_TX;
 
 		err = geneve6_build_skb(dst, skb, key->tun_flags, vni,
 					info->options_len, opts,

@@ -669,6 +669,7 @@ enum rt2x00_state_flags {
 	CONFIG_POWERSAVING,
 	CONFIG_HT_DISABLED,
 	CONFIG_QOS_DISABLED,
+	CONFIG_MONITORING,
 
 	/*
 	 * Mark we currently are sequentially reading TX_STA_FIFO register
