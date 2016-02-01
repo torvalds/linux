@@ -525,7 +525,9 @@ typedef efi_status_t efi_query_capsule_caps_t(efi_capsule_header_t **capsules,
 					      unsigned long count,
 					      u64 *max_size,
 					      int *reset_type);
-typedef efi_status_t efi_query_variable_store_t(u32 attributes, unsigned long size);
+typedef efi_status_t efi_query_variable_store_t(u32 attributes,
+						unsigned long size,
+						bool nonblocking);
 
 void efi_native_runtime_setup(void);
 
@@ -881,13 +883,17 @@ extern void efi_enter_virtual_mode (void);	/* switch EFI to virtual mode, if pos
 #ifdef CONFIG_X86
 extern void efi_late_init(void);
 extern void efi_free_boot_services(void);
-extern efi_status_t efi_query_variable_store(u32 attributes, unsigned long size);
+extern efi_status_t efi_query_variable_store(u32 attributes,
+					     unsigned long size,
+					     bool nonblocking);
 extern void efi_find_mirror(void);
 #else
 static inline void efi_late_init(void) {}
 static inline void efi_free_boot_services(void) {}
 
-static inline efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
+static inline efi_status_t efi_query_variable_store(u32 attributes,
+						    unsigned long size,
+						    bool nonblocking)
 {
 	return EFI_SUCCESS;
 }
