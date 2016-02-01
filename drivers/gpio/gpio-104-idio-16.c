@@ -317,4 +317,4 @@ module_exit(idio_16_exit);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-IDIO-16 GPIO driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

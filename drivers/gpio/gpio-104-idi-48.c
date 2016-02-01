@@ -341,4 +341,4 @@ module_exit(idi_48_exit);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-IDI-48 GPIO driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

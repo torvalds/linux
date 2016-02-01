@@ -436,4 +436,4 @@ module_exit(dio48e_exit);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-DIO-48E GPIO driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
