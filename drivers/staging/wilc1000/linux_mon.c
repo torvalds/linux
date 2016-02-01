@@ -11,7 +11,6 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 
-
 struct wilc_wfi_radiotap_hdr {
 	struct ieee80211_radiotap_header hdr;
 	u8 rate;
@@ -121,8 +120,6 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 		hdr->rate = 5; /* txrate->bitrate / 5; */
 	}
 
-
-
 	skb->dev = wilc_wfi_mon;
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -143,16 +140,12 @@ static void mgmt_tx_complete(void *priv, int status)
 	struct tx_complete_mon_data *pv_data = (struct tx_complete_mon_data *)priv;
 	u8 *buf =  pv_data->buff;
 
-
-
 	if (status == 1) {
 		if (INFO || buf[0] == 0x10 || buf[0] == 0xb0)
 			PRINT_INFO(HOSTAPD_DBG, "Packet sent successfully - Size = %d - Address = %p.\n", pv_data->size, pv_data->buff);
 	} else {
 		PRINT_INFO(HOSTAPD_DBG, "Couldn't send packet - Size = %d - Address = %p.\n", pv_data->size, pv_data->buff);
 	}
-
-
 
 	/* incase of fully hosting mode, the freeing will be done in response to the cfg packet */
 	kfree(pv_data->buff);
@@ -220,7 +213,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 		return -EFAULT;
 	}
 
-
 	rtap_len = ieee80211_get_radiotap_len(skb->data);
 	if (skb->len < rtap_len) {
 		PRINT_ER("Error in radiotap header\n");
@@ -272,8 +264,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	skb->dev = mon_priv->real_ndev;
 
 	PRINT_INFO(HOSTAPD_DBG, "Skipping the radiotap header\n");
-
-
 
 	/* actual deliver of data is device-specific, and not shown here */
 	PRINT_INFO(HOSTAPD_DBG, "SKB netdevice name = %s\n", skb->dev->name);
