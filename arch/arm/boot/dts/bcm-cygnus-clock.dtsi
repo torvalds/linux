@@ -121,4 +121,13 @@ clocks {
 		clocks = <&osc>;
 		clock-output-names = "keypad", "adc/touch", "pwm";
 	};
+
+	audiopll: audiopll {
+		#clock-cells = <1>;
+		compatible = "brcm,cygnus-audiopll";
+		reg = <0x180aeb00 0x68>;
+		clocks = <&osc>;
+		clock-output-names = "audiopll", "ch0_audio",
+					"ch1_audio", "ch2_audio";
+	};
 };
