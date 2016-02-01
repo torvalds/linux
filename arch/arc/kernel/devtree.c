@@ -14,7 +14,6 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <asm/clk.h>
 #include <asm/mach_desc.h>
 
 #ifdef CONFIG_SERIAL_EARLYCON
@@ -63,8 +62,6 @@ const struct machine_desc * __init setup_machine_fdt(void *dt)
 {
 	const struct machine_desc *mdesc;
 	unsigned long dt_root;
-	const void *clk;
-	int len;
 
 	if (!early_init_dt_scan(dt))
 		return NULL;
@@ -74,10 +71,6 @@ const struct machine_desc * __init setup_machine_fdt(void *dt)
 		machine_halt();
 
 	dt_root = of_get_flat_dt_root();
-	clk = of_get_flat_dt_prop(dt_root, "clock-frequency", &len);
-	if (clk)
-		arc_set_core_freq(of_read_ulong(clk, len/4));
-
 	arc_set_early_base_baud(dt_root);
 
 	return mdesc;
