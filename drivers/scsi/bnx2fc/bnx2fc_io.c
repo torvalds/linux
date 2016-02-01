@@ -1104,8 +1104,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	struct bnx2fc_cmd *io_req;
 	struct fc_lport *lport;
 	struct bnx2fc_rport *tgt;
-	int rc = FAILED;
-
+	int rc;
 
 	rc = fc_block_scsi_eh(sc_cmd);
 	if (rc)
@@ -1114,7 +1113,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	lport = shost_priv(sc_cmd->device->host);
 	if ((lport->state != LPORT_ST_READY) || !(lport->link_up)) {
 		printk(KERN_ERR PFX "eh_abort: link not ready\n");
-		return rc;
+		return FAILED;
 	}
 
 	tgt = (struct bnx2fc_rport *)&rp[1];
