@@ -127,22 +127,15 @@ void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 {
 	struct recv_frame *hdr;
-	struct list_head *plist, *phead;
 	struct adapter *padapter;
 	struct recv_priv *precvpriv;
 
-	if (list_empty(&pfree_recv_queue->queue)) {
-		hdr = NULL;
-	} else {
-		phead = get_list_head(pfree_recv_queue);
-
-		plist = phead->next;
-
-		hdr = container_of(plist, struct recv_frame, list);
-
+	hdr = list_first_entry_or_null(&pfree_recv_queue->queue,
+				       struct recv_frame, list);
+	if (hdr) {
 		list_del_init(&hdr->list);
 		padapter = hdr->adapter;
-		if (padapter != NULL) {
+		if (padapter) {
 			precvpriv = &padapter->recvpriv;
 			if (pfree_recv_queue == &precvpriv->free_recv_queue)
 				precvpriv->free_recvframe_cnt--;
