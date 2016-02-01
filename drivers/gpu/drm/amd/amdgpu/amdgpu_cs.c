@@ -478,9 +478,9 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	unsigned i;
 
-	amdgpu_vm_move_pt_bos_in_lru(parser->adev, &fpriv->vm);
-
 	if (!error) {
+		amdgpu_vm_move_pt_bos_in_lru(parser->adev, &fpriv->vm);
+
 		/* Sort the buffer list from the smallest to largest buffer,
 		 * which affects the order of buffers in the LRU list.
 		 * This assures that the smallest buffers are added first

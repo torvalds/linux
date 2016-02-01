@@ -39,7 +39,6 @@ struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
 
 	return rk_fb->obj[plane];
 }
-EXPORT_SYMBOL_GPL(rockchip_fb_get_gem_obj);
 
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
@@ -177,8 +176,23 @@ static void rockchip_crtc_wait_for_update(struct drm_crtc *crtc)
 		crtc_funcs->wait_for_update(crtc);
 }
 
+/*
+ * We can't use drm_atomic_helper_wait_for_vblanks() because rk3288 and rk3066
+ * have hardware counters for neither vblanks nor scanlines, which results in
+ * a race where:
+ *				| <-- HW vsync irq and reg take effect
+ *	       plane_commit --> |
+ *	get_vblank and wait --> |
+ *				| <-- handle_vblank, vblank->count + 1
+ *		 cleanup_fb --> |
+ *		iommu crash --> |
+ *				| <-- HW vsync irq and reg take effect
+ *
+ * This function is equivalent but uses rockchip_crtc_wait_for_update() instead
+ * of waiting for vblank_count to change.
+ */
 static void
-rockchip_atomic_wait_for_complete(struct drm_atomic_state *old_state)
+rockchip_atomic_wait_for_complete(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
 	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc *crtc;
@@ -192,6 +206,10 @@ rockchip_atomic_wait_for_complete(struct drm_atomic_state *old_state)
 		old_crtc_state->enable = false;
 
 		if (!crtc->state->active)
+			continue;
+
+		if (!drm_atomic_helper_framebuffer_changed(dev,
+				old_state, crtc))
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);
@@ -241,7 +259,7 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 
 	drm_atomic_helper_commit_planes(dev, state, true);
 
-	rockchip_atomic_wait_for_complete(state);
+	rockchip_atomic_wait_for_complete(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 

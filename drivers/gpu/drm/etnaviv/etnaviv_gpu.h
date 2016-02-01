@@ -46,6 +46,12 @@ struct etnaviv_chip_identity {
 	/* Supported minor feature 3 fields. */
 	u32 minor_features3;
 
+	/* Supported minor feature 4 fields. */
+	u32 minor_features4;
+
+	/* Supported minor feature 5 fields. */
+	u32 minor_features5;
+
 	/* Number of streams supported. */
 	u32 stream_count;
 
@@ -75,6 +81,9 @@ struct etnaviv_chip_identity {
 
 	/* Buffer size */
 	u32 buffer_size;
+
+	/* Number of varyings */
+	u8 varyings_count;
 };
 
 struct etnaviv_event {
