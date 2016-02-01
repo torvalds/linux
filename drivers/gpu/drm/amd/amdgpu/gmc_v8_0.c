@@ -252,6 +252,12 @@ static int gmc_v8_0_mc_load_microcode(struct amdgpu_device *adev)
 	if (!adev->mc.fw)
 		return -EINVAL;
 
+	/* Skip MC ucode loading on SR-IOV capable boards.
+	 * vbios does this for us in asic_init in that case.
+	 */
+	if (adev->virtualization.supports_sr_iov)
+		return 0;
+
 	hdr = (const struct mc_firmware_header_v1_0 *)adev->mc.fw->data;
 	amdgpu_ucode_print_mc_hdr(&hdr->header);
 
