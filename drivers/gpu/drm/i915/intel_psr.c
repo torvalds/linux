@@ -225,7 +225,12 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT));
 	}
 
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, DP_PSR_ENABLE);
+	if (dev_priv->psr.link_standby)
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
+				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
+	else
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
+				   DP_PSR_ENABLE);
 }
 
 static void vlv_psr_enable_source(struct intel_dp *intel_dp)
@@ -280,6 +285,9 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 	if (IS_HASWELL(dev))
 		val |= EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
+	if (dev_priv->psr.link_standby)
+		val |= EDP_PSR_LINK_STANDBY;
+
 	I915_WRITE(EDP_PSR_CTL, val |
 		   max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT |
 		   idle_frames << EDP_PSR_IDLE_FRAME_SHIFT |
@@ -331,12 +339,6 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 	if (IS_HASWELL(dev) &&
 	    intel_crtc->config->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
-		return false;
-	}
-
-	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
-	    dev_priv->vbt.psr.full_link) {
-		DRM_DEBUG_KMS("PSR condition failed: Link Standby requested/needed but not supported on this platform\n");
 		return false;
 	}
 
@@ -769,6 +771,16 @@ void intel_psr_init(struct drm_device *dev)
 
 	dev_priv->psr_mmio_base = IS_HASWELL(dev_priv) ?
 		HSW_EDP_PSR_BASE : BDW_EDP_PSR_BASE;
+
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		/* HSW and BDW require workarounds that we don't implement. */
+		dev_priv->psr.link_standby = false;
+	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+		/* On VLV and CHV only standby mode is supported. */
+		dev_priv->psr.link_standby = true;
+	else
+		/* For new platforms let's respect VBT back again */
+		dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
 
 	INIT_DELAYED_WORK(&dev_priv->psr.work, intel_psr_work);
 	mutex_init(&dev_priv->psr.lock);
