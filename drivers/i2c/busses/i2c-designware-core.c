@@ -874,7 +874,8 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	i2c_set_adapdata(adap, dev);
 
 	i2c_dw_disable_int(dev);
-	r = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr, IRQF_SHARED,
+	r = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr,
+			     IRQF_SHARED | IRQF_COND_SUSPEND,
 			     dev_name(dev->dev), dev);
 	if (r) {
 		dev_err(dev->dev, "failure requesting irq %i: %d\n",

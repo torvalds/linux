@@ -368,6 +368,16 @@ static int mxu1_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
+static int mxu1_port_remove(struct usb_serial_port *port)
+{
+	struct mxu1_port *mxport;
+
+	mxport = usb_get_serial_port_data(port);
+	kfree(mxport);
+
+	return 0;
+}
+
 static int mxu1_startup(struct usb_serial *serial)
 {
 	struct mxu1_device *mxdev;
@@ -425,6 +435,14 @@ err_free_mxdev:
 	kfree(mxdev);
 
 	return err;
+}
+
+static void mxu1_release(struct usb_serial *serial)
+{
+	struct mxu1_device *mxdev;
+
+	mxdev = usb_get_serial_data(serial);
+	kfree(mxdev);
 }
 
 static int mxu1_write_byte(struct usb_serial_port *port, u32 addr,
@@ -957,7 +975,9 @@ static struct usb_serial_driver mxu11x0_device = {
 	.id_table		= mxu1_idtable,
 	.num_ports		= 1,
 	.port_probe             = mxu1_port_probe,
+	.port_remove            = mxu1_port_remove,
 	.attach			= mxu1_startup,
+	.release                = mxu1_release,
 	.open			= mxu1_open,
 	.close			= mxu1_close,
 	.ioctl			= mxu1_ioctl,
