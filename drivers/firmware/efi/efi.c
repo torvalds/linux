@@ -555,7 +555,8 @@ static __initdata char memory_type_name[][20] = {
 	"ACPI Memory NVS",
 	"Memory Mapped I/O",
 	"MMIO Port Space",
-	"PAL Code"
+	"PAL Code",
+	"Persistent Memory",
 };
 
 char * __init efi_md_typeattr_format(char *buf, size_t size,
