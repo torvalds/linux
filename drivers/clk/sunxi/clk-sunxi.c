@@ -644,6 +644,11 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 		goto out_unmap;
 	}
 
+	if (of_property_read_bool(node, "critical-clocks")) {
+		pr_debug("marked clock %s as critical\n", clk_name);
+		clk_prepare_enable(clk);
+	}
+
 	of_clk_add_provider(node, of_clk_src_simple_get, clk);
 	clk_register_clkdev(clk, clk_name, NULL);
 	return;
@@ -1064,6 +1069,10 @@ CLK_OF_DECLARE(sun8i_a23_clk_init, "allwinner,sun8i-a23", sun6i_init_clocks);
 CLK_OF_DECLARE(sun8i_a33_clk_init, "allwinner,sun8i-a33", sun6i_init_clocks);
 CLK_OF_DECLARE(sun8i_h3_clk_init, "allwinner,sun8i-h3", sun6i_init_clocks);
 
+/*
+ * Those SoCs here either don't have a specific critical clock to
+ * protect or they mark the critical clocks as such in their DT.
+ */
 static void __init sunxi_generic_init_clocks(struct device_node *node)
 {
 	sunxi_init_clocks(NULL, 0);
