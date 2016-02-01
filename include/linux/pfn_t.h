@@ -29,7 +29,7 @@ static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
 	return __pfn_to_pfn_t(pfn, 0);
 }
 
-extern pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags);
+extern pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags);
 
 static inline bool pfn_t_has_page(pfn_t pfn)
 {
@@ -48,7 +48,7 @@ static inline struct page *pfn_t_to_page(pfn_t pfn)
 	return NULL;
 }
 
-static inline dma_addr_t pfn_t_to_phys(pfn_t pfn)
+static inline phys_addr_t pfn_t_to_phys(pfn_t pfn)
 {
 	return PFN_PHYS(pfn_t_to_pfn(pfn));
 }
