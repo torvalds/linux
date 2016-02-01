@@ -173,14 +173,14 @@ static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
 }
 
 /**
- * __genpd_poweron - Restore power to a given PM domain and its masters.
+ * genpd_poweron - Restore power to a given PM domain and its masters.
  * @genpd: PM domain to power up.
  * @depth: nesting count for lockdep.
  *
  * Restore power to @genpd and all of its masters so that it is possible to
  * resume a device belonging to it.
  */
-static int __genpd_poweron(struct generic_pm_domain *genpd, unsigned int depth)
+static int genpd_poweron(struct generic_pm_domain *genpd, unsigned int depth)
 {
 	struct gpd_link *link;
 	int ret = 0;
@@ -200,7 +200,7 @@ static int __genpd_poweron(struct generic_pm_domain *genpd, unsigned int depth)
 		genpd_sd_counter_inc(master);
 
 		mutex_lock_nested(&master->lock, depth + 1);
-		ret = __genpd_poweron(master, depth + 1);
+		ret = genpd_poweron(master, depth + 1);
 		mutex_unlock(&master->lock);
 
 		if (ret) {
@@ -226,21 +226,6 @@ static int __genpd_poweron(struct generic_pm_domain *genpd, unsigned int depth)
 
 	return ret;
 }
-
-/**
- * genpd_poweron - Restore power to a given PM domain and its masters.
- * @genpd: PM domain to power up.
- */
-static int genpd_poweron(struct generic_pm_domain *genpd)
-{
-	int ret;
-
-	mutex_lock(&genpd->lock);
-	ret = __genpd_poweron(genpd, 0);
-	mutex_unlock(&genpd->lock);
-	return ret;
-}
-
 
 static int genpd_save_dev(struct generic_pm_domain *genpd, struct device *dev)
 {
@@ -489,7 +474,7 @@ static int pm_genpd_runtime_resume(struct device *dev)
 	}
 
 	mutex_lock(&genpd->lock);
-	ret = __genpd_poweron(genpd, 0);
+	ret = genpd_poweron(genpd, 0);
 	mutex_unlock(&genpd->lock);
 
 	if (ret)
@@ -1821,8 +1806,10 @@ int genpd_dev_pm_attach(struct device *dev)
 
 	dev->pm_domain->detach = genpd_dev_pm_detach;
 	dev->pm_domain->sync = genpd_dev_pm_sync;
-	ret = genpd_poweron(pd);
 
+	mutex_lock(&pd->lock);
+	ret = genpd_poweron(pd, 0);
+	mutex_unlock(&pd->lock);
 out:
 	return ret ? -EPROBE_DEFER : 0;
 }
