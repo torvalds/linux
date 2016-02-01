@@ -131,6 +131,8 @@ static int cpufreq_sched_thread(void *data)
 		new_request = gd->requested_freq;
 		if (new_request == last_request) {
 			set_current_state(TASK_INTERRUPTIBLE);
+			if (kthread_should_stop())
+				break;
 			schedule();
 		} else {
 			/*
@@ -293,6 +295,7 @@ static int cpufreq_sched_policy_init(struct cpufreq_policy *policy)
 		goto err;
 	}
 
+	policy->governor_data = gd;
 	if (cpufreq_driver_is_slow()) {
 		cpufreq_driver_slow = true;
 		gd->task = kthread_create(cpufreq_sched_thread, policy,
@@ -309,12 +312,12 @@ static int cpufreq_sched_policy_init(struct cpufreq_policy *policy)
 		init_irq_work(&gd->irq_work, cpufreq_sched_irq_work);
 	}
 
-	policy->governor_data = gd;
 	set_sched_freq();
 
 	return 0;
 
 err:
+	policy->governor_data = NULL;
 	kfree(gd);
 	return -ENOMEM;
 }
