@@ -87,6 +87,7 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 }
 
 static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
+				      struct amdgpu_user_fence *uf,
 				      struct drm_amdgpu_cs_chunk_fence *fence_data)
 {
 	struct drm_gem_object *gobj;
@@ -98,15 +99,15 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	if (gobj == NULL)
 		return -EINVAL;
 
-	p->uf.bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
-	p->uf.offset = fence_data->offset;
+	uf->bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
+	uf->offset = fence_data->offset;
 
-	if (amdgpu_ttm_tt_get_usermm(p->uf.bo->tbo.ttm)) {
+	if (amdgpu_ttm_tt_get_usermm(uf->bo->tbo.ttm)) {
 		drm_gem_object_unreference_unlocked(gobj);
 		return -EINVAL;
 	}
 
-	p->uf_entry.robj = amdgpu_bo_ref(p->uf.bo);
+	p->uf_entry.robj = amdgpu_bo_ref(uf->bo);
 	p->uf_entry.priority = 0;
 	p->uf_entry.tv.bo = &p->uf_entry.robj->tbo;
 	p->uf_entry.tv.shared = true;
@@ -117,10 +118,11 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 
 int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 {
+	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	union drm_amdgpu_cs *cs = data;
 	uint64_t *chunk_array_user;
 	uint64_t *chunk_array;
-	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
+	struct amdgpu_user_fence uf = {};
 	unsigned size, num_ibs = 0;
 	int i;
 	int ret;
@@ -196,7 +198,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 				goto free_partial_kdata;
 			}
 
-			ret = amdgpu_cs_user_fence_chunk(p, (void *)p->chunks[i].kdata);
+			ret = amdgpu_cs_user_fence_chunk(p, &uf, (void *)p->chunks[i].kdata);
 			if (ret)
 				goto free_partial_kdata;
 
@@ -214,6 +216,8 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	ret = amdgpu_job_alloc(p->adev, num_ibs, &p->job);
 	if (ret)
 		goto free_all_kdata;
+
+	p->job->uf = uf;
 
 	kfree(chunk_array);
 	return 0;
@@ -353,7 +357,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	INIT_LIST_HEAD(&duplicates);
 	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
 
-	if (p->uf.bo)
+	if (p->job->uf.bo)
 		list_add(&p->uf_entry.tv.head, &p->validated);
 
 	if (need_mmap_lock)
@@ -472,7 +476,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 	kfree(parser->chunks);
 	if (parser->job)
 		amdgpu_job_free(parser->job);
-	amdgpu_bo_unref(&parser->uf.bo);
 	amdgpu_bo_unref(&parser->uf_entry.robj);
 }
 
@@ -673,7 +676,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		}
 	}
 	/* wrap the last IB with user fence */
-	if (parser->uf.bo) {
+	if (parser->job->uf.bo) {
 		struct amdgpu_ib *ib = &parser->job->ibs[parser->job->num_ibs - 1];
 
 		/* UVD & VCE fw doesn't support user fences */
@@ -681,7 +684,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		    ib->ring->type == AMDGPU_RING_TYPE_VCE)
 			return -EINVAL;
 
-		ib->user = &parser->uf;
+		ib->user = &parser->job->uf;
 	}
 
 	return 0;
@@ -766,12 +769,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job->adev = p->adev;
 	job->owner = p->filp;
 	job->free_job = amdgpu_cs_free_job;
-
-	if (job->ibs[job->num_ibs - 1].user) {
-		job->uf = p->uf;
-		job->ibs[job->num_ibs - 1].user = &job->uf;
-		p->uf.bo = NULL;
-	}
 
 	fence = amd_sched_fence_create(job->base.s_entity, p->filp);
 	if (!fence) {
