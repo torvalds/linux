@@ -51,9 +51,18 @@
 #define HDMI_SW_DI_2_PKT_WORD4          0x0614
 #define HDMI_SW_DI_2_PKT_WORD5          0x0618
 #define HDMI_SW_DI_2_PKT_WORD6          0x061C
+#define HDMI_SW_DI_3_HEAD_WORD          0x0620
+#define HDMI_SW_DI_3_PKT_WORD0          0x0624
+#define HDMI_SW_DI_3_PKT_WORD1          0x0628
+#define HDMI_SW_DI_3_PKT_WORD2          0x062C
+#define HDMI_SW_DI_3_PKT_WORD3          0x0630
+#define HDMI_SW_DI_3_PKT_WORD4          0x0634
+#define HDMI_SW_DI_3_PKT_WORD5          0x0638
+#define HDMI_SW_DI_3_PKT_WORD6          0x063C
 
 #define HDMI_IFRAME_SLOT_AVI            1
 #define HDMI_IFRAME_SLOT_AUDIO          2
+#define HDMI_IFRAME_SLOT_VENDOR         3
 
 #define  XCAT(prefix, x, suffix)        prefix ## x ## suffix
 #define  HDMI_SW_DI_N_HEAD_WORD(x)      XCAT(HDMI_SW_DI_, x, _HEAD_WORD)
@@ -264,6 +273,10 @@ static void hdmi_infoframe_reset(struct sti_hdmi *hdmi,
 		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AUDIO);
 		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AUDIO);
 		break;
+	case HDMI_IFRAME_SLOT_VENDOR:
+		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_VENDOR);
+		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_VENDOR);
+		break;
 	default:
 		DRM_ERROR("unsupported infoframe slot: %#x\n", slot);
 		return;
@@ -305,12 +318,13 @@ static inline unsigned int hdmi_infoframe_subpack(const u8 *ptr, size_t size)
  * @data: infoframe to write
  * @size: size to write
  */
-static void hdmi_infoframe_write_infopack(struct sti_hdmi *hdmi, const u8 *data)
+static void hdmi_infoframe_write_infopack(struct sti_hdmi *hdmi,
+					  const u8 *data,
+					  size_t size)
 {
 	const u8 *ptr = data;
 	u32 val, slot, mode, i;
 	u32 head_offset, pack_offset;
-	size_t size;
 
 	switch (*ptr) {
 	case HDMI_INFOFRAME_TYPE_AVI:
@@ -318,17 +332,19 @@ static void hdmi_infoframe_write_infopack(struct sti_hdmi *hdmi, const u8 *data)
 		mode = HDMI_IFRAME_FIELD;
 		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AVI);
 		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AVI);
-		size = HDMI_AVI_INFOFRAME_SIZE;
 		break;
-
 	case HDMI_INFOFRAME_TYPE_AUDIO:
 		slot = HDMI_IFRAME_SLOT_AUDIO;
 		mode = HDMI_IFRAME_FRAME;
 		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AUDIO);
 		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AUDIO);
-		size = HDMI_AUDIO_INFOFRAME_SIZE;
 		break;
-
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		slot = HDMI_IFRAME_SLOT_VENDOR;
+		mode = HDMI_IFRAME_FRAME;
+		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_VENDOR);
+		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_VENDOR);
+		break;
 	default:
 		DRM_ERROR("unsupported infoframe type: %#x\n", *ptr);
 		return;
@@ -347,8 +363,9 @@ static void hdmi_infoframe_write_infopack(struct sti_hdmi *hdmi, const u8 *data)
 	/*
 	 * Each subpack contains 4 bytes
 	 * The First Bytes of the first subpacket must contain the checksum
-	 * Packet size in increase by one.
+	 * Packet size is increase by one.
 	 */
+	size = size - HDMI_INFOFRAME_HEADER_SIZE + 1;
 	for (i = 0; i < size; i += sizeof(u32)) {
 		size_t num;
 
@@ -401,7 +418,7 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 		return ret;
 	}
 
-	hdmi_infoframe_write_infopack(hdmi, buffer);
+	hdmi_infoframe_write_infopack(hdmi, buffer, ret);
 
 	return 0;
 }
@@ -437,7 +454,49 @@ static int hdmi_audio_infoframe_config(struct sti_hdmi *hdmi)
 		return ret;
 	}
 
-	hdmi_infoframe_write_infopack(hdmi, buffer);
+	hdmi_infoframe_write_infopack(hdmi, buffer, ret);
+
+	return 0;
+}
+
+/*
+ * Prepare and configure the VS infoframe
+ *
+ * Vendor Specific infoframe are transmitted once per frame and
+ * contains vendor specific information.
+ *
+ * @hdmi: pointer on the hdmi internal structure
+ *
+ * Return negative value if error occurs
+ */
+#define HDMI_VENDOR_INFOFRAME_MAX_SIZE 6
+static int hdmi_vendor_infoframe_config(struct sti_hdmi *hdmi)
+{
+	struct drm_display_mode *mode = &hdmi->mode;
+	struct hdmi_vendor_infoframe infoframe;
+	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_VENDOR_INFOFRAME_MAX_SIZE];
+	int ret;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	ret = drm_hdmi_vendor_infoframe_from_display_mode(&infoframe, mode);
+	if (ret < 0) {
+		/*
+		 * Going into that statement does not means vendor infoframe
+		 * fails. It just informed us that vendor infoframe is not
+		 * needed for the selected mode. Only  4k or stereoscopic 3D
+		 * mode requires vendor infoframe. So just simply return 0.
+		 */
+		return 0;
+	}
+
+	ret = hdmi_vendor_infoframe_pack(&infoframe, buffer, sizeof(buffer));
+	if (ret < 0) {
+		DRM_ERROR("failed to pack VS infoframe: %d\n", ret);
+		return ret;
+	}
+
+	hdmi_infoframe_write_infopack(hdmi, buffer, ret);
 
 	return 0;
 }
@@ -510,6 +569,7 @@ static void sti_hdmi_disable(struct drm_bridge *bridge)
 	/* Reset info frame transmission */
 	hdmi_infoframe_reset(hdmi, HDMI_IFRAME_SLOT_AVI);
 	hdmi_infoframe_reset(hdmi, HDMI_IFRAME_SLOT_AUDIO);
+	hdmi_infoframe_reset(hdmi, HDMI_IFRAME_SLOT_VENDOR);
 
 	/* Set the default channel data to be a dark red */
 	hdmi_write(hdmi, 0x0000, HDMI_DFLT_CHL0_DAT);
@@ -565,6 +625,10 @@ static void sti_hdmi_pre_enable(struct drm_bridge *bridge)
 	/* Program AUDIO infoframe */
 	if (hdmi_audio_infoframe_config(hdmi))
 		DRM_ERROR("Unable to configure AUDIO infoframe\n");
+
+	/* Program VS infoframe */
+	if (hdmi_vendor_infoframe_config(hdmi))
+		DRM_ERROR("Unable to configure VS infoframe\n");
 
 	/* Sw reset */
 	hdmi_swreset(hdmi);
