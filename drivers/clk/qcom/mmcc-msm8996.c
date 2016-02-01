@@ -1294,6 +1294,21 @@ static struct clk_branch mmss_mmagic_axi_clk = {
 	},
 };
 
+static struct clk_branch mmss_s0_axi_clk = {
+	.halt_reg = 0x5064,
+	.clkr = {
+		.enable_reg = 0x5064,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "mmss_s0_axi_clk",
+			.parent_names = (const char *[]){ "axi_clk_src" },
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch mmss_mmagic_maxi_clk = {
 	.halt_reg = 0x5074,
 	.clkr = {
@@ -3122,6 +3137,7 @@ static struct clk_regmap *mmcc_msm8996_clocks[] = {
 	[MMSS_MISC_AHB_CLK] = &mmss_misc_ahb_clk.clkr,
 	[MMSS_MISC_CXO_CLK] = &mmss_misc_cxo_clk.clkr,
 	[MMSS_MMAGIC_AXI_CLK] = &mmss_mmagic_axi_clk.clkr,
+	[MMSS_S0_AXI_CLK] = &mmss_s0_axi_clk.clkr,
 	[MMSS_MMAGIC_MAXI_CLK] = &mmss_mmagic_maxi_clk.clkr,
 	[MMAGIC_CAMSS_AXI_CLK] = &mmagic_camss_axi_clk.clkr,
 	[MMAGIC_CAMSS_NOC_CFG_AHB_CLK] = &mmagic_camss_noc_cfg_ahb_clk.clkr,
