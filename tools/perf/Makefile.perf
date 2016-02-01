@@ -77,6 +77,9 @@ include config/utilities.mak
 # Define NO_AUXTRACE if you do not want AUX area tracing support
 #
 # Define NO_LIBBPF if you do not want BPF support
+#
+# Define FEATURES_DUMP to provide features detection dump file
+# and bypass the feature detection
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -164,6 +167,15 @@ endif
 
 ifeq ($(config),1)
 include config/Makefile
+endif
+
+# The FEATURE_DUMP_EXPORT holds location of the actual
+# FEATURE_DUMP file to be used to bypass feature detection
+# (for bpf or any other subproject)
+ifeq ($(FEATURES_DUMP),)
+FEATURE_DUMP_EXPORT := $(realpath $(OUTPUT)FEATURE-DUMP)
+else
+FEATURE_DUMP_EXPORT := $(FEATURES_DUMP)
 endif
 
 export prefix bindir sharedir sysconfdir DESTDIR
@@ -436,7 +448,7 @@ $(LIBAPI)-clean:
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 
 $(LIBBPF): fixdep FORCE
-	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(realpath $(OUTPUT)FEATURE-DUMP)
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(FEATURE_DUMP_EXPORT)
 
 $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
@@ -609,6 +621,17 @@ clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean
 		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue}.c
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
 	$(python-clean)
+
+#
+# To provide FEATURE-DUMP into $(FEATURE_DUMP_COPY)
+# file if defined, with no further action.
+feature-dump:
+ifdef FEATURE_DUMP_COPY
+	@cp $(OUTPUT)FEATURE-DUMP $(FEATURE_DUMP_COPY)
+	@echo "FEATURE-DUMP file copied into $(FEATURE_DUMP_COPY)"
+else
+	@echo "FEATURE-DUMP file available in $(OUTPUT)FEATURE-DUMP"
+endif
 
 #
 # Trick: if ../../.git does not exist - we are building out of tree for example,
