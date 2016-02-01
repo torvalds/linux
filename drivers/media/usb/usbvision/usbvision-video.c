@@ -1147,6 +1147,7 @@ static int usbvision_radio_close(struct file *file)
 	usbvision_audio_off(usbvision);
 	usbvision->radio = 0;
 	usbvision->user--;
+	mutex_unlock(&usbvision->v4l2_lock);
 
 	if (usbvision->remove_pending) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
@@ -1155,7 +1156,6 @@ static int usbvision_radio_close(struct file *file)
 		return 0;
 	}
 
-	mutex_unlock(&usbvision->v4l2_lock);
 	PDEBUG(DBG_IO, "success");
 	return v4l2_fh_release(file);
 }
