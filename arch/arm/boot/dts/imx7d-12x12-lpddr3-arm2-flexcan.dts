@@ -23,3 +23,7 @@
 &sai1 {
 	status = "disabled";
 };
+
+&sim1 {
+	status = "disabled";
+};

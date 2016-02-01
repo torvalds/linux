@@ -905,7 +905,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_sim1_1>;
 	pinctrl-1 = <&pinctrl_sim1_1>;
-	status = "disabled";
+	status = "okay";
 };
 
 &uart1 {
@@ -986,12 +986,6 @@
 	bus-width = <8>;
 	non-removable;
 	keep-power-in-suspend;
-	status = "okay";
-};
-
-&sim1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sim1_1>;
 	status = "okay";
 };
 
