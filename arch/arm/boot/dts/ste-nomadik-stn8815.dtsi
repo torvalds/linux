@@ -127,22 +127,14 @@
 			};
 			mmcsd_default_mode: mmcsd_default {
 				mmcsd_default_cfg1 {
-					/* MCCLK */
-					pins = "GPIO8_B10";
-					ste,output = <0>;
-				};
-				mmcsd_default_cfg2 {
-					/* MCCMDDIR, MCDAT0DIR, MCDAT31DIR, MCDATDIR2 */
-					pins = "GPIO10_C11", "GPIO15_A12",
-					"GPIO16_C13", "GPIO23_D15";
-					ste,output = <1>;
-				};
-				mmcsd_default_cfg3 {
-					/* MCCMD, MCDAT3-0, MCMSFBCLK */
-					pins = "GPIO9_A10", "GPIO11_B11",
-					"GPIO12_A11", "GPIO13_C12",
-					"GPIO14_B12", "GPIO24_C15";
-					ste,input = <1>;
+					/*
+					 * MCCLK, MCCMDDIR, MCDAT0DIR, MCDAT31DIR, MCDATDIR2
+					 * MCCMD, MCDAT3-0, MCMSFBCLK
+					 */
+					pins = "GPIO8_B10", "GPIO9_A10", "GPIO10_C11", "GPIO11_B11",
+					       "GPIO12_A11", "GPIO13_C12", "GPIO14_B12", "GPIO15_A12",
+					       "GPIO16_C13", "GPIO23_D15", "GPIO24_C15";
+					ste,output = <2>;
 				};
 			};
 		};
@@ -802,10 +794,21 @@
 			clock-names = "mclk", "apb_pclk";
 			interrupt-parent = <&vica>;
 			interrupts = <22>;
-			max-frequency = <48000000>;
+			max-frequency = <400000>;
 			bus-width = <4>;
 			cap-mmc-highspeed;
 			cap-sd-highspeed;
+			full-pwr-cycle;
+			/*
+			 * The STw4811 circuit used with the Nomadik strictly
+			 * requires that all of these signal direction pins be
+			 * routed and used for its 4-bit levelshifter.
+			 */
+			st,sig-dir-dat0;
+			st,sig-dir-dat2;
+			st,sig-dir-dat31;
+			st,sig-dir-cmd;
+			st,sig-pin-fbclk;
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmcsd_default_mux>, <&mmcsd_default_mode>;
 			vmmc-supply = <&vmmc_regulator>;
