@@ -166,24 +166,6 @@ int crypto_ahash_walk_first(struct ahash_request *req,
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_walk_first);
 
-int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
-				  struct crypto_hash_walk *walk,
-				  struct scatterlist *sg, unsigned int len)
-{
-	walk->total = len;
-
-	if (!walk->total) {
-		walk->entrylen = 0;
-		return 0;
-	}
-
-	walk->alignmask = crypto_hash_alignmask(hdesc->tfm);
-	walk->sg = sg;
-	walk->flags = hdesc->flags & CRYPTO_TFM_REQ_MASK;
-
-	return hash_walk_new_entry(walk);
-}
-
 static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 				unsigned int keylen)
 {

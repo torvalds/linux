@@ -349,24 +349,6 @@ static inline struct cipher_alg *crypto_cipher_alg(struct crypto_cipher *tfm)
 	return &crypto_cipher_tfm(tfm)->__crt_alg->cra_cipher;
 }
 
-static inline struct crypto_hash *crypto_spawn_hash(struct crypto_spawn *spawn)
-{
-	u32 type = CRYPTO_ALG_TYPE_HASH;
-	u32 mask = CRYPTO_ALG_TYPE_HASH_MASK;
-
-	return __crypto_hash_cast(crypto_spawn_tfm(spawn, type, mask));
-}
-
-static inline void *crypto_hash_ctx(struct crypto_hash *tfm)
-{
-	return crypto_tfm_ctx(&tfm->base);
-}
-
-static inline void *crypto_hash_ctx_aligned(struct crypto_hash *tfm)
-{
-	return crypto_tfm_ctx_aligned(&tfm->base);
-}
-
 static inline void blkcipher_walk_init(struct blkcipher_walk *walk,
 				       struct scatterlist *dst,
 				       struct scatterlist *src,
