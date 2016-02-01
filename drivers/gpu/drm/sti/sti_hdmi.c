@@ -65,6 +65,8 @@
 #define  HDMI_SW_DI_N_PKT_WORD5(x)      XCAT(HDMI_SW_DI_, x, _PKT_WORD5)
 #define  HDMI_SW_DI_N_PKT_WORD6(x)      XCAT(HDMI_SW_DI_, x, _PKT_WORD6)
 
+#define HDMI_SW_DI_MAX_WORD             7
+
 #define HDMI_IFRAME_DISABLED            0x0
 #define HDMI_IFRAME_SINGLE_SHOT         0x1
 #define HDMI_IFRAME_FIELD               0x2
@@ -239,6 +241,43 @@ static void hdmi_config(struct sti_hdmi *hdmi)
 	conf |= HDMI_CFG_DEVICE_EN;
 
 	hdmi_write(hdmi, conf, HDMI_CFG);
+}
+
+/*
+ * Helper to reset info frame
+ *
+ * @hdmi: pointer on the hdmi internal structure
+ * @slot: infoframe to reset
+ */
+static void hdmi_infoframe_reset(struct sti_hdmi *hdmi,
+				 u32 slot)
+{
+	u32 val, i;
+	u32 head_offset, pack_offset;
+
+	switch (slot) {
+	case HDMI_IFRAME_SLOT_AVI:
+		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AVI);
+		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AVI);
+		break;
+	case HDMI_IFRAME_SLOT_AUDIO:
+		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AUDIO);
+		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AUDIO);
+		break;
+	default:
+		DRM_ERROR("unsupported infoframe slot: %#x\n", slot);
+		return;
+	}
+
+	/* Disable transmission for the selected slot */
+	val = hdmi_read(hdmi, HDMI_SW_DI_CFG);
+	val &= ~HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, slot);
+	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
+
+	/* Reset info frame registers */
+	hdmi_write(hdmi, 0x0, head_offset);
+	for (i = 0; i < HDMI_SW_DI_MAX_WORD; i += sizeof(u32))
+		hdmi_write(hdmi, 0x0, pack_offset + i);
 }
 
 /**
@@ -467,6 +506,10 @@ static void sti_hdmi_disable(struct drm_bridge *bridge)
 
 	/* Stop the phy */
 	hdmi->phy_ops->stop(hdmi);
+
+	/* Reset info frame transmission */
+	hdmi_infoframe_reset(hdmi, HDMI_IFRAME_SLOT_AVI);
+	hdmi_infoframe_reset(hdmi, HDMI_IFRAME_SLOT_AUDIO);
 
 	/* Set the default channel data to be a dark red */
 	hdmi_write(hdmi, 0x0000, HDMI_DFLT_CHL0_DAT);
