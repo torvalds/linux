@@ -878,11 +878,6 @@ static void sunxi_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		if ((cmd->flags & MMC_CMD_MASK) == MMC_CMD_ADTC) {
 			cmd_val |= SDXC_DATA_EXPIRE | SDXC_WAIT_PRE_OVER;
-			if (cmd->data->flags & MMC_DATA_STREAM) {
-				imask |= SDXC_AUTO_COMMAND_DONE;
-				cmd_val |= SDXC_SEQUENCE_MODE |
-					   SDXC_SEND_AUTO_STOP;
-			}
 
 			if (cmd->data->stop) {
 				imask |= SDXC_AUTO_COMMAND_DONE;
