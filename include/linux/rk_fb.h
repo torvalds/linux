@@ -280,6 +280,21 @@ struct rk_vop_property {
 	u32 max_output_y;
 };
 
+enum rk_win_feature {
+	SUPPORT_WIN_IDENTIFY	= BIT(0),
+	SUPPORT_SCALE		= BIT(1),
+	SUPPORT_YUV		= BIT(2),
+	SUPPORT_YUV10BIT	= BIT(3),
+	SUPPORT_MULTI_AREA	= BIT(4),
+	SUPPORT_HWC_LAYER	= BIT(5)
+};
+
+struct rk_win_property {
+	u32 feature;
+	u32 max_input_x;
+	u32 max_input_y;
+};
+
 struct rk_fb_rgb {
 	struct fb_bitfield red;
 	struct fb_bitfield green;
@@ -412,6 +427,7 @@ struct rk_lcdc_win_area {
 struct rk_lcdc_win {
 	char name[5];
 	int id;
+	struct rk_win_property property;
 	bool state;		/*on or off*/
 	bool last_state;		/*on or off*/
 	u32 pseudo_pal[16];

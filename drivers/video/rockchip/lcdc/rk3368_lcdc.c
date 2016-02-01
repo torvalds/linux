@@ -53,30 +53,42 @@ module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
 #define EARLY_TIME 500 /*us*/
 static struct rk_lcdc_win lcdc_win[] = {
 	[0] = {
-	       .name = "win0",
-	       .id = 0,
-	       .support_3d = false,
-	       },
+		.name = "win0",
+		.id = 0,
+		.property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_SCALE |
+					SUPPORT_YUV,
+		.property.max_input_x = 4096,
+		.property.max_input_y = 2304
+		},
 	[1] = {
-	       .name = "win1",
-	       .id = 1,
-	       .support_3d = false,
-	       },
+		.name = "win1",
+		.id = 1,
+		.property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_SCALE |
+					SUPPORT_YUV,
+		.property.max_input_x = 4096,
+		.property.max_input_y = 2304
+		},
 	[2] = {
-	       .name = "win2",
-	       .id = 2,
-	       .support_3d = false,
-	       },
+		.name = "win2",
+		.id = 2,
+		.property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_MULTI_AREA,
+		.property.max_input_x = 4096,
+		.property.max_input_y = 2304
+		},
 	[3] = {
-	       .name = "win3",
-	       .id = 3,
-	       .support_3d = false,
-	       },
+		.name = "win3",
+		.id = 3,
+		.property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_MULTI_AREA,
+		.property.max_input_x = 4096,
+		.property.max_input_y = 2304
+		},
 	[4] = {
-	       .name = "hwc",
-	       .id = 4,
-	       .support_3d = false,
-	       }
+		.name = "hwc",
+		.id = 4,
+		.property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HWC_LAYER,
+		.property.max_input_x = 128,
+		.property.max_input_y = 128
+		},
 };
 
 static int rk3368_lcdc_set_bcsh(struct rk_lcdc_driver *dev_drv, bool enable);

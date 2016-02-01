@@ -1194,6 +1194,23 @@ static ssize_t show_lcdc_id(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", dev_drv->id);
 }
 
+static ssize_t show_win_property(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+	int win_id = 0;
+
+	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
+	return snprintf(buf, PAGE_SIZE,
+			"feature: %d, max_input_x: %d, max_input_y: %d\n",
+			dev_drv->win[win_id]->property.feature,
+			dev_drv->win[win_id]->property.max_input_x,
+			dev_drv->win[win_id]->property.max_input_y);
+}
+
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
@@ -1213,6 +1230,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(bcsh, S_IRUGO | S_IWUSR, show_dsp_bcsh, set_dsp_bcsh),
 	__ATTR(scale, S_IRUGO | S_IWUSR, show_scale, set_scale),
 	__ATTR(lcdcid, S_IRUGO, show_lcdc_id, NULL),
+	__ATTR(win_property, S_IRUGO, show_win_property, NULL),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)

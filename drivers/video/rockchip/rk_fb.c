@@ -3946,6 +3946,9 @@ static int init_lcdc_win(struct rk_lcdc_driver *dev_drv,
 		strcpy(win->name, def_win[i].name);
 		win->id = def_win[i].id;
 		win->support_3d = def_win[i].support_3d;
+		win->property.feature = def_win[i].property.feature;
+		win->property.max_input_x = def_win[i].property.max_input_x;
+		win->property.max_input_y = def_win[i].property.max_input_y;
 		dev_drv->win[i] = win;
 	}
 
