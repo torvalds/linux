@@ -2364,10 +2364,23 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_160:
-		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_160MHZ;
+		/*
+		 * Convert 160 MHz channel width to new style as interop
+		 * workaround.
+		 */
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		vht_oper->center_freq_seg2_idx = vht_oper->center_freq_seg1_idx;
+		if (chandef->chan->center_freq < chandef->center_freq1)
+			vht_oper->center_freq_seg1_idx -= 8;
+		else
+			vht_oper->center_freq_seg1_idx += 8;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
-		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80P80MHZ;
+		/*
+		 * Convert 80+80 MHz channel width to new style as interop
+		 * workaround.
+		 */
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
@@ -2430,6 +2443,20 @@ bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
 	case IEEE80211_VHT_CHANWIDTH_80MHZ:
 		new.width = NL80211_CHAN_WIDTH_80;
 		new.center_freq1 = cf1;
+		/* If needed, adjust based on the newer interop workaround. */
+		if (oper->center_freq_seg2_idx) {
+			unsigned int diff;
+
+			diff = abs(oper->center_freq_seg2_idx -
+				   oper->center_freq_seg1_idx);
+			if (diff == 8) {
+				new.width = NL80211_CHAN_WIDTH_160;
+				new.center_freq1 = cf2;
+			} else if (diff > 8) {
+				new.width = NL80211_CHAN_WIDTH_80P80;
+				new.center_freq2 = cf2;
+			}
+		}
 		break;
 	case IEEE80211_VHT_CHANWIDTH_160MHZ:
 		new.width = NL80211_CHAN_WIDTH_160;
