@@ -54,7 +54,7 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 
 	PRINT_INFO(HOSTAPD_DBG, "In monitor interface receive function\n");
 
-	if (wilc_wfi_mon == NULL)
+	if (!wilc_wfi_mon)
 		return;
 
 	if (!netif_running(wilc_wfi_mon)) {
@@ -73,7 +73,7 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 		/* hostapd callback mgmt frame */
 
 		skb = dev_alloc_skb(size + sizeof(struct wilc_wfi_radiotap_cb_hdr));
-		if (skb == NULL) {
+		if (!skb) {
 			PRINT_INFO(HOSTAPD_DBG, "Monitor if : No memory to allocate skb");
 			return;
 		}
@@ -103,7 +103,7 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 	} else {
 		skb = dev_alloc_skb(size + sizeof(struct wilc_wfi_radiotap_hdr));
 
-		if (skb == NULL) {
+		if (!skb) {
 			PRINT_INFO(HOSTAPD_DBG, "Monitor if : No memory to allocate skb");
 			return;
 		}
@@ -156,20 +156,20 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 {
 	struct tx_complete_mon_data *mgmt_tx = NULL;
 
-	if (dev == NULL) {
+	if (!dev) {
 		PRINT_D(HOSTAPD_DBG, "ERROR: dev == NULL\n");
 		return -EFAULT;
 	}
 
 	netif_stop_queue(dev);
 	mgmt_tx = kmalloc(sizeof(struct tx_complete_mon_data), GFP_ATOMIC);
-	if (mgmt_tx == NULL) {
+	if (!mgmt_tx) {
 		PRINT_ER("Failed to allocate memory for mgmt_tx structure\n");
 		return -EFAULT;
 	}
 
 	mgmt_tx->buff = kmalloc(len, GFP_ATOMIC);
-	if (mgmt_tx->buff == NULL) {
+	if (!mgmt_tx->buff) {
 		PRINT_ER("Failed to allocate memory for mgmt_tx buff\n");
 		kfree(mgmt_tx);
 		return -EFAULT;
@@ -203,12 +203,12 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	struct sk_buff *skb2;
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;
 
-	if (wilc_wfi_mon == NULL)
+	if (!wilc_wfi_mon)
 		return -EFAULT;
 
 	mon_priv = netdev_priv(wilc_wfi_mon);
 
-	if (mon_priv == NULL) {
+	if (!mon_priv) {
 		PRINT_ER("Monitor interface private structure is NULL\n");
 		return -EFAULT;
 	}
@@ -324,7 +324,7 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_devi
 		return NULL;
 	}
 	priv = netdev_priv(wilc_wfi_mon);
-	if (priv == NULL) {
+	if (!priv) {
 		PRINT_ER("private structure is NULL\n");
 		return NULL;
 	}
@@ -347,7 +347,7 @@ int WILC_WFI_deinit_mon_interface(void)
 {
 	bool rollback_lock = false;
 
-	if (wilc_wfi_mon != NULL) {
+	if (wilc_wfi_mon) {
 		PRINT_D(HOSTAPD_DBG, "In Deinit monitor interface\n");
 		PRINT_D(HOSTAPD_DBG, "RTNL is being locked\n");
 		if (rtnl_is_locked()) {
