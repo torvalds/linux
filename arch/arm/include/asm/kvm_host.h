@@ -224,6 +224,7 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 
 static inline void __cpu_init_stage2(void)
 {
+	kvm_call_hyp(__init_stage2_translation);
 }
 
 static inline int kvm_arch_dev_ioctl_check_extension(long ext)

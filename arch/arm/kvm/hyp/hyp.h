@@ -71,6 +71,8 @@
 #define HCPTR		__ACCESS_CP15(c1, 4, c1, 2)
 #define HSTR		__ACCESS_CP15(c1, 4, c1, 3)
 #define TTBCR		__ACCESS_CP15(c2, 0, c0, 2)
+#define HTCR		__ACCESS_CP15(c2, 4, c0, 2)
+#define VTCR		__ACCESS_CP15(c2, 4, c1, 2)
 #define DACR		__ACCESS_CP15(c3, 0, c0, 0)
 #define DFSR		__ACCESS_CP15(c5, 0, c0, 0)
 #define IFSR		__ACCESS_CP15(c5, 0, c0, 1)
