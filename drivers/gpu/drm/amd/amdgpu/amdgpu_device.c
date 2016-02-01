@@ -1505,7 +1505,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		amdgpu_atombios_has_gpu_virtualization_table(adev);
 
 	/* Post card if necessary */
-	if (!amdgpu_card_posted(adev)) {
+	if (!amdgpu_card_posted(adev) ||
+	    adev->virtualization.supports_sr_iov) {
 		if (!adev->bios) {
 			dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
 			return -EINVAL;
