@@ -272,6 +272,16 @@ static inline void crypto_free_ahash(struct crypto_ahash *tfm)
  */
 int crypto_has_ahash(const char *alg_name, u32 type, u32 mask);
 
+static inline const char *crypto_ahash_alg_name(struct crypto_ahash *tfm)
+{
+	return crypto_tfm_alg_name(crypto_ahash_tfm(tfm));
+}
+
+static inline const char *crypto_ahash_driver_name(struct crypto_ahash *tfm)
+{
+	return crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
+}
+
 static inline unsigned int crypto_ahash_alignmask(
 	struct crypto_ahash *tfm)
 {
@@ -674,6 +684,16 @@ static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm)
 static inline void crypto_free_shash(struct crypto_shash *tfm)
 {
 	crypto_destroy_tfm(tfm, crypto_shash_tfm(tfm));
+}
+
+static inline const char *crypto_shash_alg_name(struct crypto_shash *tfm)
+{
+	return crypto_tfm_alg_name(crypto_shash_tfm(tfm));
+}
+
+static inline const char *crypto_shash_driver_name(struct crypto_shash *tfm)
+{
+	return crypto_tfm_alg_driver_name(crypto_shash_tfm(tfm));
 }
 
 static inline unsigned int crypto_shash_alignmask(
