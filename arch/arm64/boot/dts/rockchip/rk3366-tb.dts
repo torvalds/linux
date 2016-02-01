@@ -52,6 +52,19 @@
 		bootargs = "console=uart,mmio32,0xff690000";
 	};
 
+	ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cma-heap {
+			reg = <0x00000000 0x02000000>;
+		};
+
+		system-heap {
+		};
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 25000 PWM_POLARITY_INVERTED>;
