@@ -62,17 +62,18 @@ static unsigned long save_context_stack(struct stack_trace *trace,
 void save_stack_trace(struct stack_trace *trace)
 {
 	register unsigned long sp asm ("15");
-	unsigned long orig_sp, new_sp;
+	unsigned long orig_sp, new_sp, frame_size;
 
+	frame_size = STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	orig_sp = sp;
 	new_sp = save_context_stack(trace, orig_sp,
-				    S390_lowcore.panic_stack - PAGE_SIZE,
-				    S390_lowcore.panic_stack, 1);
+			S390_lowcore.panic_stack + frame_size - PAGE_SIZE,
+			S390_lowcore.panic_stack + frame_size, 1);
 	if (new_sp != orig_sp)
 		return;
 	new_sp = save_context_stack(trace, new_sp,
-				    S390_lowcore.async_stack - ASYNC_SIZE,
-				    S390_lowcore.async_stack, 1);
+			S390_lowcore.async_stack + frame_size - ASYNC_SIZE,
+			S390_lowcore.async_stack + frame_size, 1);
 	if (new_sp != orig_sp)
 		return;
 	save_context_stack(trace, new_sp,
