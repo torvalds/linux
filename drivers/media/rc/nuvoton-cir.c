@@ -950,6 +950,10 @@ static irqreturn_t nvt_cir_wake_isr(int irq, void *data)
 
 static void nvt_disable_cir(struct nvt_dev *nvt)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&nvt->nvt_lock, flags);
+
 	/* disable CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);
 
@@ -962,6 +966,8 @@ static void nvt_disable_cir(struct nvt_dev *nvt)
 	/* clear hardware rx and tx fifos */
 	nvt_clear_cir_fifo(nvt);
 	nvt_clear_tx_fifo(nvt);
+
+	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
 	/* disable the CIR logical device */
 	nvt_disable_logical_dev(nvt, LOGICAL_DEV_CIR);
@@ -996,11 +1002,8 @@ static int nvt_open(struct rc_dev *dev)
 static void nvt_close(struct rc_dev *dev)
 {
 	struct nvt_dev *nvt = dev->priv;
-	unsigned long flags;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
 	nvt_disable_cir(nvt);
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 }
 
 /* Allocate memory, probe hardware, and initialize everything */
@@ -1152,13 +1155,8 @@ exit_free_dev_rdev:
 static void nvt_remove(struct pnp_dev *pdev)
 {
 	struct nvt_dev *nvt = pnp_get_drvdata(pdev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
-	/* disable CIR */
-	nvt_cir_reg_write(nvt, 0, CIR_IREN);
 	nvt_disable_cir(nvt);
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
 	/* enable CIR Wake (for IR power-on) */
 	nvt_enable_wake(nvt);
