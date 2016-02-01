@@ -196,6 +196,8 @@ int amdgpu_atombios_init_mc_reg_table(struct amdgpu_device *adev,
 				      u8 module_index,
 				      struct atom_mc_reg_table *reg_table);
 
+bool amdgpu_atombios_has_gpu_virtualization_table(struct amdgpu_device *adev);
+
 void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock);
 void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev);
 void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev);
