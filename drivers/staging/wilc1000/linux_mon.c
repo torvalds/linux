@@ -164,14 +164,11 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 
 	netif_stop_queue(dev);
 	mgmt_tx = kmalloc(sizeof(*mgmt_tx), GFP_ATOMIC);
-	if (!mgmt_tx) {
-		PRINT_ER("Failed to allocate memory for mgmt_tx structure\n");
+	if (!mgmt_tx)
 		return -ENOMEM;
-	}
 
 	mgmt_tx->buff = kmalloc(len, GFP_ATOMIC);
 	if (!mgmt_tx->buff) {
-		PRINT_ER("Failed to allocate memory for mgmt_tx buff\n");
 		kfree(mgmt_tx);
 		return -ENOMEM;
 	}
