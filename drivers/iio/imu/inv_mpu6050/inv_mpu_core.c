@@ -727,8 +727,7 @@ static const struct iio_info mpu_info = {
 /**
  *  inv_check_and_setup_chip() - check and setup chip.
  */
-static int inv_check_and_setup_chip(struct inv_mpu6050_state *st,
-		const struct i2c_device_id *id)
+static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 {
 	int result;
 
@@ -795,7 +794,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 	if (pdata)
 		st->plat_data = *pdata;
 	/* power is turned on inside check chip type*/
-	result = inv_check_and_setup_chip(st, id);
+	result = inv_check_and_setup_chip(st);
 	if (result)
 		return result;
 

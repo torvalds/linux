@@ -131,6 +131,16 @@ config AT91_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called at91_adc.
 
+config AT91_SAMA5D2_ADC
+	tristate "Atmel AT91 SAMA5D2 ADC"
+	depends on ARCH_AT91 || COMPILE_TEST
+	help
+	  Say yes here to build support for Atmel SAMA5D2 ADC which is
+	  available on SAMA5D2 SoC family.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called at91-sama5d2_adc.
+
 config AXP288_ADC
 	tristate "X-Powers AXP288 ADC driver"
 	depends on MFD_AXP20X
@@ -265,11 +275,11 @@ config MCP320X
 	  called mcp320x.
 
 config MCP3422
-	tristate "Microchip Technology MCP3422/3/4/6/7/8 driver"
+	tristate "Microchip Technology MCP3421/2/3/4/5/6/7/8 driver"
 	depends on I2C
 	help
-	  Say yes here to build support for Microchip Technology's
-	  MCP3422, MCP3423, MCP3424, MCP3426, MCP3427 or MCP3428
+	  Say yes here to build support for Microchip Technology's MCP3421
+	  MCP3422, MCP3423, MCP3424, MCP3425, MCP3426, MCP3427 or MCP3428
 	  analog to digital converters.
 
 	  This driver can also be built as a module. If so, the module will be
