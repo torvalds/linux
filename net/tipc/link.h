@@ -153,7 +153,6 @@ struct tipc_stats {
 struct tipc_link {
 	u32 addr;
 	char name[TIPC_MAX_LINK_NAME];
-	struct tipc_media_addr *media_addr;
 	struct net *net;
 
 	/* Management and link supervision data */
