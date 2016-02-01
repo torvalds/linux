@@ -152,6 +152,7 @@ static void mgmt_tx_complete(void *priv, int status)
 
 	kfree(pv_data);
 }
+
 static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 {
 	struct tx_complete_mon_data *mgmt_tx = NULL;
