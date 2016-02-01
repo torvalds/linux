@@ -434,7 +434,7 @@ static void iwl_pcie_free_rbs_pool(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
-	for (i = 0; i < MQ_RX_POOL_SIZE; i++) {
+	for (i = 0; i < RX_POOL_SIZE; i++) {
 		if (!trans_pcie->rx_pool[i].page)
 			continue;
 		dma_unmap_page(trans->dev, trans_pcie->rx_pool[i].page_dma,
@@ -835,7 +835,7 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rxq *def_rxq;
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
-	int i, err, num_rbds, allocator_pool_size;
+	int i, err, queue_size, allocator_pool_size, num_alloc;
 
 	if (!trans_pcie->rxq) {
 		err = iwl_pcie_rx_alloc(trans);
@@ -887,11 +887,12 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	}
 
 	/* move the pool to the default queue and allocator ownerships */
-	num_rbds = trans->cfg->mq_rx_supported ?
-		     MQ_RX_POOL_SIZE : RX_QUEUE_SIZE;
+	queue_size = trans->cfg->mq_rx_supported ?
+		     MQ_RX_NUM_RBDS : RX_QUEUE_SIZE;
 	allocator_pool_size = trans->num_rx_queues *
 		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
-	for (i = 0; i < num_rbds; i++) {
+	num_alloc = queue_size + allocator_pool_size;
+	for (i = 0; i < num_alloc; i++) {
 		struct iwl_rx_mem_buffer *rxb = &trans_pcie->rx_pool[i];
 
 		if (i < allocator_pool_size)

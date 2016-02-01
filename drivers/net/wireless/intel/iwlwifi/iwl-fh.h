@@ -511,9 +511,12 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
  */
 #define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
-#define MQ_RX_TABLE_SIZE		512
-#define MQ_RX_TABLE_MASK		(MQ_RX_TABLE_SIZE - 1)
-#define MQ_RX_POOL_SIZE			MQ_RX_TABLE_MASK
+#define MQ_RX_TABLE_SIZE	512
+#define MQ_RX_TABLE_MASK	(MQ_RX_TABLE_SIZE - 1)
+#define MQ_RX_NUM_RBDS		(MQ_RX_TABLE_SIZE - 1)
+#define RX_POOL_SIZE		(MQ_RX_NUM_RBDS +	\
+				 IWL_MAX_RX_HW_QUEUES *	\
+				 (RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC))
 
 #define RX_QUEUE_SIZE                         256
 #define RX_QUEUE_MASK                         255
