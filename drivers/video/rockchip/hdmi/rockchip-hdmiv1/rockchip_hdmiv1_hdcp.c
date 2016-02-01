@@ -15,7 +15,7 @@ static struct hdcp *hdcp;
 
 static void hdcp_work_queue(struct work_struct *work);
 
-#define AUTH_TIMEOUT (2*HZ)
+#define AUTH_TIMEOUT (2 * HZ)
 static struct timer_list auth_timer;
 static int timer_state;
 
@@ -85,7 +85,7 @@ static void rockchip_hdmiv1_hdcp_disable(struct hdmi_dev *hdmi_dev)
 			     m_REG_CLK_SOURCE, v_REG_CLK_SOURCE_SYS);
 	}
 
-	/* Diable HDCP Interrupt*/
+	/* Disable HDCP Interrupt */
 	hdmi_writel(hdmi_dev, HDCP_INT_MASK1, 0x00);
 	/* Stop and Reset HDCP*/
 	hdmi_msk_reg(hdmi_dev, HDCP_CTRL1,
@@ -146,7 +146,7 @@ static int rockchip_hdmiv1_hdcp_start_authentication(struct hdmi_dev *hdmi_dev)
 	int tmds_clk;
 
 	tmds_clk = hdmi_dev->tmdsclk;
-	if (hdcp->keys == NULL) {
+	if (!hdcp->keys) {
 		HDCP_WARN("HDCP: key is not loaded\n");
 		return HDCP_KEY_ERR;
 	}
@@ -175,7 +175,7 @@ static int rockchip_hdmiv1_hdcp_start_authentication(struct hdmi_dev *hdmi_dev)
 		retry++;
 	}
 	/*Config DDC bus clock: ddc_clk = reg_clk/4*(reg 0x4c 0x4b)*/
-	retry = hdmi_dev->hclk_rate/(HDCP_DDC_CLK << 2);
+	retry = hdmi_dev->hclk_rate / (HDCP_DDC_CLK << 2);
 	hdmi_writel(hdmi_dev, DDC_CLK_L, retry & 0xFF);
 	hdmi_writel(hdmi_dev, DDC_CLK_H, (retry >> 8) & 0xFF);
 	hdmi_writel(hdmi_dev, HDCP_CTRL2, 0x67);
@@ -399,6 +399,7 @@ static void hdcp_wq_start_authentication(void)
 		hdcp->hdcp_state = HDCP_LINK_INTEGRITY_CHECK;
 	}
 }
+
 #if 0
 /*-----------------------------------------------------------------------------
  * Function: hdcp_wq_check_bksv
@@ -426,10 +427,10 @@ static void hdcp_wq_check_bksv(void)
 }
 #endif
 /*-----------------------------------------------------------------------------
- * Function: hdcp_wq_authentication_sucess
+ * Function: hdcp_wq_authentication_success
  *-----------------------------------------------------------------------------
  */
-static void hdcp_wq_authentication_sucess(void)
+static void hdcp_wq_authentication_success(void)
 {
 	hdcp->auth_state = 1;
 	if (timer_state == 1) {
@@ -539,11 +540,11 @@ static void hdcp_work_queue(struct work_struct *work)
 			HDCP_WARN("HDCP: Ri check failure\n");
 			hdcp_wq_authentication_failure();
 		} else if (event == HDCP_AUTH_PASS_EVENT) {
-			hdcp_wq_authentication_sucess();
+			hdcp_wq_authentication_success();
 		}
 		break;
 	default:
-		HDCP_WARN("HDCP: error - unknow HDCP state\n");
+		HDCP_WARN("HDCP: error - unknown HDCP state\n");
 		break;
 	}
 	kfree(hdcp_w);
@@ -671,13 +672,13 @@ static void hdcp_load_keys_cb(const struct firmware *fw, void *context)
 		}
 		hdcp->invalidkeys =
 			kmalloc(fw->size - HDCP_KEY_SIZE, GFP_KERNEL);
-		if (hdcp->invalidkeys == NULL) {
+		if (!hdcp->invalidkeys) {
 			pr_err("HDCP: can't allocated space for invalid keys\n");
 			return;
 		}
 		memcpy(hdcp->invalidkeys, fw->data +
 		       HDCP_KEY_SIZE, fw->size - HDCP_KEY_SIZE);
-		hdcp->invalidkey = (fw->size - HDCP_KEY_SIZE)/5;
+		hdcp->invalidkey = (fw->size - HDCP_KEY_SIZE) / 5;
 		HDCP_WARN("HDCP: loaded hdcp invalid key success\n");
 	}
 }
@@ -699,7 +700,7 @@ static ssize_t hdcp_enable_write(struct device *device,
 {
 	int enable;
 
-	if (hdcp == NULL)
+	if (!hdcp)
 		return -EINVAL;
 	if (kstrtoint(buf, 0, &enable))
 		return -EINVAL;
@@ -721,7 +722,7 @@ static ssize_t hdcp_enable_write(struct device *device,
 	return count;
 }
 
-static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR,
+static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,
 			 hdcp_enable_read, hdcp_enable_write);
 
 static ssize_t hdcp_trytimes_read(struct device *device,
@@ -741,7 +742,7 @@ static ssize_t hdcp_trytimes_wrtie(struct device *device,
 {
 	int trytimes;
 
-	if (hdcp == NULL)
+	if (!hdcp)
 		return -EINVAL;
 	if (kstrtoint(buf, 0, &trytimes))
 		return -EINVAL;
@@ -750,8 +751,7 @@ static ssize_t hdcp_trytimes_wrtie(struct device *device,
 	return count;
 }
 
-
-static DEVICE_ATTR(trytimes, S_IRUGO|S_IWUSR,
+static DEVICE_ATTR(trytimes, S_IRUGO | S_IWUSR,
 			 hdcp_trytimes_read, hdcp_trytimes_wrtie);
 static struct miscdevice mdev;
 
@@ -792,7 +792,7 @@ int rockchip_hdmiv1_hdcp_init(struct hdmi *hdmi)
 			goto error3;
 	}
 	hdcp->workqueue = create_singlethread_workqueue("hdcp");
-	if (hdcp->workqueue == NULL) {
+	if (!hdcp->workqueue) {
 		HDCP_WARN("HDCP,: create workqueue failed.\n");
 		goto error4;
 	}

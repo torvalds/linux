@@ -29,7 +29,7 @@ struct hdmi_dev {
 	int			enable;
 	unsigned char		clk_disable;
 	unsigned char		clk_on;
-	spinlock_t		reg_lock;
+	spinlock_t		reg_lock;	/* lock for clk */
 
 	unsigned int		tmdsclk;
 	unsigned int		pixelrepeat;

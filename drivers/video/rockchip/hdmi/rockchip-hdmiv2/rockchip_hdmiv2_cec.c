@@ -21,7 +21,7 @@ static int rockchip_hdmiv2_cec_readframe(struct hdmi *hdmi,
 	int i, count;
 	char *data = (char *)frame;
 
-	if (frame == NULL)
+	if (!frame)
 		return -1;
 	count = hdmi_readl(hdmi_dev, CEC_RX_CNT);
 	CECDBG("%s count %d\n", __func__, count);
@@ -34,7 +34,6 @@ static int rockchip_hdmiv2_cec_readframe(struct hdmi *hdmi,
 	return 0;
 }
 
-
 void rockchip_hdmiv2_cec_setcecla(struct hdmi *hdmi, int ceclgaddr)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
@@ -44,7 +43,7 @@ void rockchip_hdmiv2_cec_setcecla(struct hdmi *hdmi, int ceclgaddr)
 		return;
 	val = 1 << ceclgaddr;
 	hdmi_writel(hdmi_dev, CEC_ADDR_L, val & 0xff);
-	hdmi_writel(hdmi_dev, CEC_ADDR_H, val>>8);
+	hdmi_writel(hdmi_dev, CEC_ADDR_H, val >> 8);
 }
 
 static int rockchip_hdmiv2_cec_sendframe(struct hdmi *hdmi,

@@ -9,17 +9,17 @@
 #endif
 
 #define HDMI_VIDEO_NORMAL				0
-#define HDMI_VIDEO_DMT					(1 << 9)
-#define HDMI_VIDEO_YUV420				(1 << 10)
+#define HDMI_VIDEO_DMT					BIT(9)
+#define HDMI_VIDEO_YUV420				BIT(10)
 #define HDMI_VIC_MASK					(0xFF)
 #define HDMI_TYPE_MASK					(0xFF << 8)
 #define HDMI_MAX_ID					4
 
-#define HDMI_UBOOT_NOT_INIT				(1 << 16)
+#define HDMI_UBOOT_NOT_INIT				BIT(16)
 #define HDMI_UBOOT_VIC_MASK				0xFFFF
 
 /* HDMI video information code according CEA-861-F */
-enum hdmi_video_infomation_code {
+enum hdmi_video_information_code {
 	HDMI_640X480P_60HZ = 1,
 	HDMI_720X480P_60HZ_4_3,
 	HDMI_720X480P_60HZ_16_9,
@@ -247,7 +247,7 @@ enum hdmi_mute_status {
 
 /* HDMI Error Code */
 enum hdmi_error_code {
-	HDMI_ERROR_SUCESS = 0,
+	HDMI_ERROR_SUCCESS = 0,
 	HDMI_ERROR_FALSE,
 	HDMI_ERROR_I2C,
 	HDMI_ERROR_EDID,

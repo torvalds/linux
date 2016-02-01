@@ -8,6 +8,7 @@ enum PWR_MODE {
 	NORMAL,
 	LOWER_PWR,
 };
+
 enum {
 	OUTPUT_DVI = 0,
 	OUTPUT_HDMI
@@ -25,13 +26,13 @@ enum {
 	AUTO_CSC_ENABLE	/* enable auto csc*/
 };
 
-
 /* Color Limit Range */
 enum {
 	COLOR_LIMIT_RANGE_0_255,	/* Color Limit Range 0 To 255*/
 	COLOR_LIMIT_RANGE_16_235,	/* Color Limit Range 16 To 235*/
 };
-/* Color Space Convertion Mode */
+
+/* Color Space Conversion Mode */
 enum {
 	CSC_ITU601_16_235_TO_RGB_0_255_8BIT,/* YCbCr 16-235 input to RGB
 					     * 0-255 output according BT601
@@ -58,7 +59,6 @@ enum {
 					     */
 };
 
-
 #define AUTO_DEFINE_CSC
 #ifdef RK616_USE_MCLK_12M
 #define HDMI_SYS_FREG_CLK        12000000
@@ -66,52 +66,53 @@ enum {
 #define HDMI_SYS_FREG_CLK        11289600
 #endif
 
-#define HDMI_SCL_RATE            (100*1000)
+#define HDMI_SCL_RATE            (100 * 1000)
 #define DDC_BUS_FREQ_L			0x4b
 #define DDC_BUS_FREQ_H			0x4c
 
 #define SYS_CTRL			0x00
-#define m_RST_ANALOG		(1 << 6)
+#define m_RST_ANALOG		BIT(6)
 #define v_RST_ANALOG		(0 << 6)
-#define v_NOT_RST_ANALOG	(1 << 6)
+#define v_NOT_RST_ANALOG	BIT(6)
 
-#define m_RST_DIGITAL		(1 << 5)
+#define m_RST_DIGITAL		BIT(5)
 #define v_RST_DIGITAL		(0 << 5)
-#define v_NOT_RST_DIGITAL	(1 << 5)
+#define v_NOT_RST_DIGITAL	BIT(5)
 
-#define m_REG_CLK_INV		(1 << 4)
+#define m_REG_CLK_INV		BIT(4)
 #define v_REG_CLK_NOT_INV	(0 << 4)
-#define v_REG_CLK_INV		(1 << 4)
-#define m_VCLK_INV		(1 << 3)
+#define v_REG_CLK_INV		BIT(4)
+#define m_VCLK_INV		BIT(3)
 #define v_VCLK_NOT_INV		(0 << 3)
-#define v_VCLK_INV		(1 << 3)
-#define m_REG_CLK_SOURCE	(1 << 2)
+#define v_VCLK_INV		BIT(3)
+#define m_REG_CLK_SOURCE	BIT(2)
 #define v_REG_CLK_SOURCE_TMDS	(0 << 2)
-#define v_REG_CLK_SOURCE_SYS	(1 << 2)
-#define m_POWER			(1 << 1)
+#define v_REG_CLK_SOURCE_SYS	BIT(2)
+#define m_POWER			BIT(1)
 #define v_PWR_ON		(0 << 1)
-#define v_PWR_OFF		(1 << 1)
-#define m_INT_POL		(1 << 0)
+#define v_PWR_OFF		BIT(1)
+#define m_INT_POL		BIT(0)
 #define v_INT_POL_HIGH		1
 #define v_INT_POL_LOW		0
 
 #define VIDEO_CONTRL1			0x01
 #define m_VIDEO_INPUT_FORMAT	(7 << 1)
-#define m_DE_SOURCE		(1 << 0)
+#define m_DE_SOURCE		BIT(0)
 enum {
 	VIDEO_INPUT_SDR_RGB444 = 0,
 	VIDEO_INPUT_DDR_RGB444 = 5,
 	VIDEO_INPUT_DDR_YCBCR422 = 6
 };
+
 #define v_VIDEO_INPUT_FORMAT(n)	(n << 1)
 #define v_DE_EXTERNAL		1
-#define v_DE_INTERANL		0
+#define v_DE_INTERNAL		0
 
 #define VIDEO_CONTRL2			0x02
 #define m_VIDEO_OUTPUT_COLOR	(3 << 6)
 #define m_VIDEO_INPUT_BITS	(3 << 4)
-#define m_VIDEO_INPUT_CSP	(1 << 0)
-#define v_VIDEO_OUTPUT_COLOR(n) (((n)&0x3) << 6)
+#define m_VIDEO_INPUT_CSP	BIT(0)
+#define v_VIDEO_OUTPUT_COLOR(n) (((n) & 0x3) << 6)
 #define v_VIDEO_INPUT_BITS(n)	(n << 4)
 #define v_VIDEO_INPUT_CSP(n)	(n << 0)
 
@@ -121,35 +122,35 @@ enum {
 	VIDEO_INPUT_REVERT,
 	VIDEO_INPUT_8BITS
 };
+
 #define VIDEO_CONTRL			0x03
-#define m_VIDEO_AUTO_CSC		(1 << 7)
+#define m_VIDEO_AUTO_CSC		BIT(7)
 #define v_VIDEO_AUTO_CSC(n)		(n << 7)
-#define m_VIDEO_C0_C2_SWAP		(1 << 0)
+#define m_VIDEO_C0_C2_SWAP		BIT(0)
 #define v_VIDEO_C0_C2_SWAP(n)		(n << 0)
 
-
 #define VIDEO_CONTRL3			0x04
-#define m_COLOR_DEPTH_NOT_INDICATED (1 << 4)
-#define m_SOF			(1 << 3)
-#define m_COLOR_RANGE		(1 << 2)
-#define m_CSC			(1 << 0)
+#define m_COLOR_DEPTH_NOT_INDICATED BIT(4)
+#define m_SOF			BIT(3)
+#define m_COLOR_RANGE		BIT(2)
+#define m_CSC			BIT(0)
 #define v_COLOR_DEPTH_NOT_INDICATED(n) ((n) << 4) /* 1: Force GCP CD[3:0] zero
 						   * 0: GCP CD[3:0] according
 						   *    color depth
 						   */
 #define v_SOF_ENABLE		(0 << 3)
-#define v_SOF_DISABLE		(1 << 3)
-#define v_COLOR_RANGE_FULL	(1 << 2)
+#define v_SOF_DISABLE		BIT(3)
+#define v_COLOR_RANGE_FULL	BIT(2)
 #define v_COLOR_RANGE_LIMITED	(0 << 2)
 #define v_CSC_ENABLE		1
 #define v_CSC_DISABLE		0
 
 #define AV_MUTE				0x05
-#define m_AVMUTE_CLEAR		(1 << 7)
-#define m_AVMUTE_ENABLE		(1 << 6)
-#define m_AUDIO_PD		(1 << 2)
-#define m_AUDIO_MUTE		(1 << 1)
-#define m_VIDEO_BLACK		(1 << 0)
+#define m_AVMUTE_CLEAR		BIT(7)
+#define m_AVMUTE_ENABLE		BIT(6)
+#define m_AUDIO_PD		BIT(2)
+#define m_AUDIO_MUTE		BIT(1)
+#define m_VIDEO_BLACK		BIT(0)
 #define v_AVMUTE_CLEAR(n)	(n << 7)
 #define v_AVMUTE_ENABLE(n)	(n << 6)
 #define v_AUDIO_PD(n)		(n << 2)
@@ -178,23 +179,25 @@ enum {
 
 #define VIDEO_CSC_COEF			0x18
 
-
 #define AUDIO_CTRL1			0x35
 enum {
 	CTS_SOURCE_INTERNAL = 0,
 	CTS_SOURCE_EXTERNAL
 };
+
 #define v_CTS_SOURCE(n)		(n << 7)
 enum {
 	DOWNSAMPLE_DISABLE = 0,
 	DOWNSAMPLE_1_2,
 	DOWNSAMPLE_1_4
 };
+
 #define v_DOWN_SAMPLE(n)	(n << 5)
 enum {
 	AUDIO_SOURCE_IIS = 0,
 	AUDIO_SOURCE_SPDIF
 };
+
 #define v_AUDIO_SOURCE(n)	(n << 3)
 #define v_MCLK_ENABLE(n)	(n << 2)
 enum {
@@ -203,6 +206,7 @@ enum {
 	MCLK_384FS,
 	MCLK_512FS
 };
+
 #define v_MCLK_RATIO(n)		(n)
 
 #define AUDIO_SAMPLE_RATE		0x37
@@ -223,12 +227,14 @@ enum {
 	I2S_CHANNEL_5_6 = 7,
 	I2S_CHANNEL_7_8 = 0xf
 };
+
 #define v_I2S_CHANNEL(n)	((n) << 2)
 enum {
 	I2S_STANDARD = 0,
 	I2S_LEFT_JUSTIFIED,
 	I2S_RIGHT_JUSTIFIED
 };
+
 #define v_I2S_MODE(n)		(n)
 
 #define AUDIO_I2S_MAP			0x39
@@ -244,9 +250,9 @@ enum {
 #define N_192K		0x6000
 
 #define AUDIO_CHANNEL_STATUS		0x3e
-	#define m_AUDIO_STATUS_NLPCM		(1 << 7)
-	#define m_AUDIO_STATUS_USE		(1 << 6)
-	#define m_AUDIO_STATUS_COPYRIGHT	(1 << 5)
+	#define m_AUDIO_STATUS_NLPCM		BIT(7)
+	#define m_AUDIO_STATUS_USE		BIT(6)
+	#define m_AUDIO_STATUS_COPYRIGHT	BIT(5)
 	#define m_AUDIO_STATUS_ADDITION		(3 << 2)
 	#define m_AUDIO_STATUS_CLK_ACCURACY	(2 << 0)
 
@@ -267,13 +273,12 @@ enum {
 #define EDID_FIFO_OFFSET		0x4f
 #define EDID_FIFO_ADDR			0x50
 
-
 #define PACKET_SEND_MANUAL		0x9c
 #define PACKET_SEND_AUTO		0x9d
-	#define m_PACKET_GCP_EN		(1 << 7)
-	#define m_PACKET_MSI_EN		(1 << 6) /* MPEG Source InfoFrame */
-	#define m_PACKET_SDI_EN		(1 << 5) /* Source product descriptor */
-	#define m_PACKET_VSI_EN		(1 << 4) /* HDMI Vendor Specific
+	#define m_PACKET_GCP_EN		BIT(7)
+	#define m_PACKET_MSI_EN		BIT(6) /* MPEG Source InfoFrame */
+	#define m_PACKET_SDI_EN		BIT(5) /* Source product descriptor */
+	#define m_PACKET_VSI_EN		BIT(4) /* HDMI Vendor Specific
 						  * InfoFrame
 						  */
 	#define v_PACKET_GCP_EN(n)	((n & 1) << 7)
@@ -288,6 +293,7 @@ enum {
 	INFOFRAME_AVI = 0x06,
 	INFOFRAME_AAI = 0x08,
 };
+
 #define CONTROL_PACKET_ADDR		0xa0
 #define SIZE_VSI_INFOFRAME		0x0A	/* 10 bytes */
 #define SIZE_AVI_INFOFRAME		0x11	/* 14 bytes */
@@ -297,17 +303,20 @@ enum {
 	AVI_COLOR_MODE_YCBCR422,
 	AVI_COLOR_MODE_YCBCR444
 };
+
 enum {
 	AVI_COLORIMETRY_NO_DATA = 0,
 	AVI_COLORIMETRY_SMPTE_170M,
 	AVI_COLORIMETRY_ITU709,
 	AVI_COLORIMETRY_EXTENDED
 };
+
 enum {
 	AVI_CODED_FRAME_ASPECT_NO_DATA,
 	AVI_CODED_FRAME_ASPECT_4_3,
 	AVI_CODED_FRAME_ASPECT_16_9
 };
+
 enum {
 	ACTIVE_ASPECT_RATE_SAME_AS_CODED_FRAME = 0x08,
 	ACTIVE_ASPECT_RATE_4_3,
@@ -316,48 +325,48 @@ enum {
 };
 
 #define HDCP_CTRL			0x52
-#define m_HDMI_DVI		(1 << 1)
+#define m_HDMI_DVI		BIT(1)
 #define v_HDMI_DVI(n)		(n << 1)
 
 #define INTERRUPT_MASK1			0xc0
 #define INTERRUPT_STATUS1		0xc1
-#define	m_INT_ACTIVE_VSYNC	(1 << 5)
-#define m_INT_EDID_READY	(1 << 2)
+#define	m_INT_ACTIVE_VSYNC	BIT(5)
+#define m_INT_EDID_READY	BIT(2)
 
 #define INTERRUPT_MASK2			0xc2
 #define INTERRUPT_STATUS2		0xc3
-#define m_INT_HDCP_ERR		(1 << 7)
-#define m_INT_BKSV_FLAG		(1 << 6)
-#define m_INT_HDCP_OK		(1 << 4)
+#define m_INT_HDCP_ERR		BIT(7)
+#define m_INT_BKSV_FLAG		BIT(6)
+#define m_INT_HDCP_OK		BIT(4)
 
 #define HDMI_STATUS			0xc8
-	#define m_HOTPLUG	(1 << 7)
-	#define m_MASK_INT_HOTPLUG	(1 << 5)
-	#define m_INT_HOTPLUG		(1 << 1)
+	#define m_HOTPLUG	BIT(7)
+	#define m_MASK_INT_HOTPLUG	BIT(5)
+	#define m_INT_HOTPLUG		BIT(1)
 	#define v_MASK_INT_HOTPLUG(n)	((n & 0x1) << 5)
 
 #define HDMI_COLORBAR                   0xc9
 
 #define PHY_SYNC			0xce	/* sync phy parameter */
 #define PHY_SYS_CTL			0xe0
-#define m_TMDS_CLK_SOURCE	(1 << 5)
+#define m_TMDS_CLK_SOURCE	BIT(5)
 #define v_TMDS_FROM_PLL		(0 << 5)
-#define v_TMDS_FROM_GEN		(1 << 5)
-#define m_PHASE_CLK		(1 << 4)
+#define v_TMDS_FROM_GEN		BIT(5)
+#define m_PHASE_CLK		BIT(4)
 #define v_DEFAULT_PHASE		(0 << 4)
-#define v_SYNC_PHASE		(1 << 4)
-#define m_TMDS_CURRENT_PWR	(1 << 3)
+#define v_SYNC_PHASE		BIT(4)
+#define m_TMDS_CURRENT_PWR	BIT(3)
 #define v_TURN_ON_CURRENT	(0 << 3)
-#define v_CAT_OFF_CURRENT	(1 << 3)
-#define m_BANDGAP_PWR		(1 << 2)
+#define v_CAT_OFF_CURRENT	BIT(3)
+#define m_BANDGAP_PWR		BIT(2)
 #define v_BANDGAP_PWR_UP	(0 << 2)
-#define v_BANDGAP_PWR_DOWN	(1 << 2)
-#define m_PLL_PWR		(1 << 1)
+#define v_BANDGAP_PWR_DOWN	BIT(2)
+#define m_PLL_PWR		BIT(1)
 #define v_PLL_PWR_UP		(0 << 1)
-#define v_PLL_PWR_DOWN		(1 << 1)
-#define m_TMDS_CHG_PWR		(1 << 0)
+#define v_PLL_PWR_DOWN		BIT(1)
+#define m_TMDS_CHG_PWR		BIT(0)
 #define v_TMDS_CHG_PWR_UP	(0 << 0)
-#define v_TMDS_CHG_PWR_DOWN	(1 << 0)
+#define v_TMDS_CHG_PWR_DOWN	BIT(0)
 
 #define PHY_CHG_PWR			0xe1
 #define v_CLK_CHG_PWR(n)	((n & 1) << 3)
@@ -380,14 +389,13 @@ enum {
 #define PHY_PRE_DIV_RATIO		0xed
 #define v_PRE_DIV_RATIO(n)	(n & 0x1f)
 
-
 /*-----START----- HDMI CEC CTRL------START------*/
 #define CEC_CTRL		0xd0
-	#define m_ADJUST_FOR_HISENSE	(1 << 6)
-	#define m_REJECT_RX_BROADCAST	(1 << 5)
-	#define m_BUSFREETIME_ENABLE	(1 << 2)
-	#define m_REJECT_RX				(1 << 1)
-	#define m_START_TX				(1 << 0)
+	#define m_ADJUST_FOR_HISENSE	BIT(6)
+	#define m_REJECT_RX_BROADCAST	BIT(5)
+	#define m_BUSFREETIME_ENABLE	BIT(2)
+	#define m_REJECT_RX				BIT(1)
+	#define m_START_TX				BIT(0)
 
 #define CEC_DATA		0xd1
 #define CEC_TX_OFFSET	0xd2
@@ -397,15 +405,15 @@ enum {
 #define CEC_TX_LENGTH	0xd6
 #define CEC_RX_LENGTH	0xd7
 #define CEC_TX_INT_MASK	0xd8
-	#define m_TX_DONE			(1 << 3)
-	#define m_TX_NOACK			(1 << 2)
-	#define m_TX_BROADCAST_REJ	(1 << 1)
-	#define m_TX_BUSNOTFREE		(1 << 0)
+	#define m_TX_DONE			BIT(3)
+	#define m_TX_NOACK			BIT(2)
+	#define m_TX_BROADCAST_REJ		BIT(1)
+	#define m_TX_BUSNOTFREE			BIT(0)
 
 #define CEC_RX_INT_MASK 0xd9
-	#define m_RX_LA_ERR			(1 << 4)
-	#define m_RX_GLITCH			(1 << 3)
-	#define m_RX_DONE			(1 << 0)
+	#define m_RX_LA_ERR			BIT(4)
+	#define m_RX_GLITCH			BIT(3)
+	#define m_RX_DONE			BIT(0)
 
 #define CEC_TX_INT		0xda
 #define CEC_RX_INT		0xdb
@@ -413,7 +421,6 @@ enum {
 #define CEC_BUSFREETIME_H	0xdd
 #define CEC_LOGICADDR		0xde
 /*------END------ HDMI CEC CTRL------END-------*/
-
 
 static inline int hdmi_readl(struct hdmi_dev *hdmi_dev,
 			     u16 offset,
@@ -447,14 +454,13 @@ static inline int hdmi_msk_reg(struct hdmi_dev *hdmi_dev,
 		       hdmi_dev->regbase + (offset) * 0x04);
 	return ret;
 }
+
 static inline void rockchip_hdmiv1_reset_pclk(void)
 {
 	writel_relaxed(0x00010001, RK_CRU_VIRT + 0x128);
 	msleep(100);
 	writel_relaxed(0x00010000, RK_CRU_VIRT + 0x128);
 }
-
-
 
 void rockchip_hdmiv1_dev_init_ops(struct hdmi_ops *ops);
 int rockchip_hdmiv1_initial(struct hdmi *hdmi);

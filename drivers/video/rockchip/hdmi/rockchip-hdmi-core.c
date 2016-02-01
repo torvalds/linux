@@ -54,7 +54,7 @@ static void hdmi_send_uevent(struct hdmi *hdmi, int uevent)
 
 	envp[0] = "INTERFACE=HDMI";
 	envp[1] = kmalloc(32, GFP_KERNEL);
-	if (envp[1] == NULL)
+	if (!envp[1])
 		return;
 	sprintf(envp[1], "SCREEN=%d", hdmi->ddev->property);
 	envp[2] = NULL;
@@ -78,7 +78,7 @@ static inline void hdmi_wq_set_audio(struct hdmi *hdmi)
 
 static void hdmi_wq_set_video(struct hdmi *hdmi)
 {
-	struct hdmi_video *video = &(hdmi->video);
+	struct hdmi_video *video = &hdmi->video;
 	int	deepcolor;
 
 	DBG("%s\n", __func__);
@@ -146,14 +146,14 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 {
 	struct hdmi_edid *pedid;
 
-	int rc = HDMI_ERROR_SUCESS, extendblock = 0, i, trytimes;
+	int rc = HDMI_ERROR_SUCCESS, extendblock = 0, i, trytimes;
 
-	if (hdmi == NULL)
+	if (!hdmi)
 		return;
 
 	DBG("%s\n", __func__);
 
-	pedid = &(hdmi->edid);
+	pedid = &hdmi->edid;
 	fb_destroy_modelist(&pedid->modelist);
 	memset(pedid, 0, sizeof(struct hdmi_edid));
 	INIT_LIST_HEAD(&pedid->modelist);
@@ -164,7 +164,7 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 		goto out;
 	}
 
-	if (hdmi->ops->getedid == NULL) {
+	if (!hdmi->ops->getedid) {
 		rc = HDMI_ERROR_FALSE;
 		goto out;
 	}
@@ -195,7 +195,7 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 
 	for (i = 1; (i < extendblock + 1) && (i < HDMI_MAX_EDID_BLOCK); i++) {
 		pedid->raw[i] = kmalloc(HDMI_EDID_BLOCK_SIZE, GFP_KERNEL);
-		if (pedid->raw[i] == NULL) {
+		if (!pedid->raw[i]) {
 			dev_err(hdmi->dev,
 				"[%s] can not allocate memory for edid buff.\n",
 				__func__);
@@ -243,7 +243,7 @@ static void hdmi_wq_insert(struct hdmi *hdmi)
 		/*hdmi->autoset = 0;*/
 		hdmi_wq_set_video(hdmi);
 		#ifdef CONFIG_SWITCH
-		switch_set_state(&(hdmi->switchdev), 1);
+		switch_set_state(&hdmi->switchdev, 1);
 		#endif
 		hdmi_wq_set_audio(hdmi);
 		hdmi_wq_set_output(hdmi, hdmi->mute);
@@ -271,7 +271,7 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 		rk_fb_switch_screen(&screen, 0, hdmi->lcdc->id);
 	}
 	#ifdef CONFIG_SWITCH
-	switch_set_state(&(hdmi->switchdev), 0);
+	switch_set_state(&hdmi->switchdev, 0);
 	#endif
 	list_for_each_safe(pos, n, &hdmi->edid.modelist) {
 		list_del(pos);
@@ -443,7 +443,6 @@ static void hdmi_work_queue(struct work_struct *work)
 			hdmi->ops->hdcp_auth2nd(hdmi);
 		break;
 	default:
-		pr_err("HDMI: hdmi_work_queue() unkown event\n");
 		break;
 	}
 
@@ -464,7 +463,7 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	char name[32];
 	int i;
 
-	if (property == NULL || ops == NULL) {
+	if (!property || !ops) {
 		pr_err("HDMI: %s invalid parameter\n", __func__);
 		return NULL;
 	}
@@ -528,12 +527,12 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	memset(name, 0, 32);
 	sprintf(name, "hdmi-%s", hdmi->property->name);
 	hdmi->workqueue = create_singlethread_workqueue(name);
-	if (hdmi->workqueue == NULL) {
+	if (!hdmi->workqueue) {
 		pr_err("HDMI,: create workqueue failed.\n");
 		goto err_create_wq;
 	}
 	hdmi->ddev = hdmi_register_display_sysfs(hdmi, NULL);
-	if (hdmi->ddev == NULL) {
+	if (!hdmi->ddev) {
 		pr_err("HDMI : register display sysfs failed.\n");
 		goto err_register_display;
 	}
@@ -547,7 +546,7 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 		memset((char *)hdmi->switchdev.name, 0, 32);
 		sprintf((char *)hdmi->switchdev.name, "hdmi%d", hdmi->id);
 	}
-	switch_dev_register(&(hdmi->switchdev));
+	switch_dev_register(&hdmi->switchdev);
 	#endif
 
 	ref_info[i].hdmi = hdmi;
@@ -567,7 +566,7 @@ void rockchip_hdmi_unregister(struct hdmi *hdmi)
 		flush_workqueue(hdmi->workqueue);
 		destroy_workqueue(hdmi->workqueue);
 		#ifdef CONFIG_SWITCH
-		switch_dev_unregister(&(hdmi->switchdev));
+		switch_dev_unregister(&hdmi->switchdev);
 		#endif
 		hdmi_unregister_display_sysfs(hdmi);
 		fb_destroy_modelist(&hdmi->edid.modelist);
@@ -598,7 +597,7 @@ int hdmi_config_audio(struct hdmi_audio	*audio)
 	int i;
 	struct hdmi *hdmi;
 
-	if (audio == NULL)
+	if (!audio)
 		return HDMI_ERROR_FALSE;
 
 	for (i = 0; i < HDMI_MAX_ID; i++) {

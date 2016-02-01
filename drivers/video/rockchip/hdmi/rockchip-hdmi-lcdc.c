@@ -778,7 +778,7 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 	int i, vic;
 	struct fb_videomode *mode;
 
-	if (screen == NULL || hdmi == NULL)
+	if (!screen || !hdmi)
 		return HDMI_ERROR_FALSE;
 
 	if (hdmi->vic == 0)
@@ -816,7 +816,7 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 			screen->face = hdmi_mode[i].interface;
 	}
 	screen->pixelrepeat = hdmi_mode[i].pixelrepeat - 1;
-	mode = (struct fb_videomode *)&(hdmi_mode[i].mode);
+	mode = (struct fb_videomode *)&hdmi_mode[i].mode;
 
 	screen->mode = *mode;
 	if (hdmi->video.format_3d == HDMI_3D_FRAME_PACKING) {
@@ -906,11 +906,12 @@ int hdmi_find_best_mode(struct hdmi *hdmi, int vic)
 			return hdmi->property->defaultmode;
 	}
 
-	if (modelist != NULL)
+	if (modelist)
 		return modelist->vic;
 	else
 		return 0;
 }
+
 /**
  * hdmi_set_lcdc: switch lcdc mode to required video mode
  * @hdmi:
@@ -1026,7 +1027,7 @@ static int hdmi_add_videomode(const struct fb_videomode *mode,
 	int i, found = 0;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
-		m = (struct fb_videomode *)&(hdmi_mode[i].mode);
+		m = (struct fb_videomode *)&hdmi_mode[i].mode;
 		if (fb_mode_is_equal(m, mode)) {
 			found = 1;
 			break;
@@ -1111,7 +1112,7 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 					modelist->mode.flag = 1;
 
 				compare = 1;
-				m = (struct fb_videomode *)&(modelist->mode);
+				m = (struct fb_videomode *)&modelist->mode;
 				list_for_each(pos_new, &head_new) {
 					modelist_new =
 					list_entry(pos_new,
@@ -1151,7 +1152,7 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 /**
  * hdmi_ouputmode_select - select hdmi transmitter output mode: hdmi or dvi?
  * @hdmi: handle of hdmi
- * @edid_ok: get EDID data success or not, HDMI_ERROR_SUCESS means success.
+ * @edid_ok: get EDID data success or not, HDMI_ERROR_SUCCESS means success.
  */
 int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 {
@@ -1160,7 +1161,7 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 	struct fb_videomode *modedb = NULL, *mode = NULL;
 	int i, pixclock, feature = hdmi->property->feature;
 
-	if (edid_ok != HDMI_ERROR_SUCESS) {
+	if (edid_ok != HDMI_ERROR_SUCCESS) {
 		dev_err(hdmi->dev, "warning: EDID error, assume sink as HDMI !!!!");
 		hdmi->edid.status = -1;
 		hdmi->edid.sink_hdmi = 1;
@@ -1202,7 +1203,7 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 		}
 
 		for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
-			mode = (struct fb_videomode *)&(hdmi_mode[i].mode);
+			mode = (struct fb_videomode *)&hdmi_mode[i].mode;
 			if (modedb) {
 				if ((mode->pixclock < specs->dclkmin) ||
 				    (mode->pixclock > specs->dclkmax) ||
@@ -1255,7 +1256,7 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 		hdmi_sort_modelist(&hdmi->edid, hdmi->property->feature);
 	}
 
-	return HDMI_ERROR_SUCESS;
+	return HDMI_ERROR_SUCCESS;
 }
 
 /**
@@ -1270,7 +1271,7 @@ int hdmi_videomode_to_vic(struct fb_videomode *vmode)
 	int i = 0;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
-		mode = (struct fb_videomode *)&(hdmi_mode[i].mode);
+		mode = (struct fb_videomode *)&hdmi_mode[i].mode;
 		if (vmode->vmode == mode->vmode &&
 		    vmode->refresh == mode->refresh &&
 		    vmode->xres == mode->xres &&
@@ -1302,7 +1303,7 @@ const struct hdmi_video_timing *hdmi_vic2timing(int vic)
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
 		if (hdmi_mode[i].vic == vic || hdmi_mode[i].vic_2nd == vic)
-			return &(hdmi_mode[i]);
+			return &hdmi_mode[i];
 	}
 	return NULL;
 }
@@ -1364,6 +1365,6 @@ void hdmi_init_modelist(struct hdmi *hdmi)
 		    hdmi_mode[i].mode.xres == 720 &&
 		    (hdmi_mode[i].mode.vmode & FB_VMODE_INTERLACED))
 			continue;
-		hdmi_add_videomode(&(hdmi_mode[i].mode), head);
+		hdmi_add_videomode(&hdmi_mode[i].mode, head);
 	}
 }

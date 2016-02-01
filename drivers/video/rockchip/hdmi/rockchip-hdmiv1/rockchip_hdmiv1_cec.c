@@ -18,7 +18,7 @@ static int rockchip_hdmiv1_cec_read_frame(struct hdmi *hdmi,
 	char *data = (char *)frame;
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	if (frame == NULL)
+	if (!frame)
 		return -1;
 
 	hdmi_readl(hdmi_dev, CEC_RX_LENGTH, &length);
@@ -69,7 +69,7 @@ static int rockchip_hdmiv1_cec_send_frame(struct hdmi *hdmi,
 	CECDBG("end wait bus free,start tx,busfree=%d\n", cec.busfree);
 	/*Start TX*/
 	cec.tx_done = 0;
-	hdmi_writel(hdmi_dev, CEC_CTRL, m_BUSFREETIME_ENABLE|m_START_TX);
+	hdmi_writel(hdmi_dev, CEC_CTRL, m_BUSFREETIME_ENABLE | m_START_TX);
 	if (wait_event_interruptible_timeout(cec.wait,
 					     cec.tx_done != 0,
 					     msecs_to_jiffies(100)))
@@ -88,17 +88,6 @@ void rockchip_hdmiv1_cec_setcecla(struct hdmi *hdmi, int ceclgaddr)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
-	/*for(i = 0; i < 3; i++) {
-		if(Cec_Ping(la_player[i]) == 1) {
-			cec.address_logic = la_player[i];
-			break;
-		}
-	}
-	if(i == 3)
-		return -1;
-	//Broadcast our physical address.
-	GPIO_CecSendMessage(CECOP_GET_MENU_LANGUAGE,CEC_LOGADDR_TV);
-	msleep(100);*/
 	CECDBG("CEC: %s\n", __func__);
 	hdmi_writel(hdmi_dev, CEC_LOGICADDR, ceclgaddr);
 }
@@ -150,7 +139,7 @@ void rockchip_hdmiv1_cec_init(struct hdmi *hdmi)
 		hdmi_writel(hdmi_dev, CEC_TX_INT, 0xFF);
 		hdmi_writel(hdmi_dev, CEC_RX_INT, 0xFF);
 
-		CECDBG(KERN_ERR "CEC: rockchip_hdmiv1_cec_init sucess\n");
+		CECDBG(KERN_ERR "CEC: rockchip_hdmiv1_cec_init success\n");
 		rockchip_hdmi_cec_init(hdmi,
 				       rockchip_hdmiv1_cec_send_frame,
 				       rockchip_hdmiv1_cec_read_frame,

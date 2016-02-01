@@ -204,6 +204,7 @@ static struct hdmi_property rockchip_hdmiv1_property = {
 	.videosrc = DISPLAY_SOURCE_LCDC0,
 	.display = DISPLAY_MAIN,
 };
+
 static struct hdmi_ops rockchip_hdmiv1_ops;
 
 #if defined(CONFIG_OF)
@@ -261,7 +262,6 @@ static int rockchip_hdmiv1_parse_dt(struct hdmi_dev *hdmi_dev)
 }
 MODULE_DEVICE_TABLE(of, rockchip_hdmiv1_dt_ids);
 #endif
-
 
 static int rockchip_hdmiv1_probe(struct platform_device *pdev)
 {
@@ -321,7 +321,7 @@ static int rockchip_hdmiv1_probe(struct platform_device *pdev)
 						    SUPPORT_480I_576I;
 	hdmi_dev->hdmi = rockchip_hdmi_register(&rockchip_hdmiv1_property,
 						&rockchip_hdmiv1_ops);
-	if (hdmi_dev->hdmi == NULL) {
+	if (!hdmi_dev->hdmi) {
 		dev_err(&pdev->dev, "register hdmi device failed\n");
 		ret = -ENOMEM;
 		goto failed;
@@ -414,7 +414,6 @@ static void rockchip_hdmiv1_shutdown(struct platform_device *pdev)
 	}
 	dev_info(hdmi_drv->dev, "rk hdmi shut down.\n");
 }
-
 
 static struct platform_driver rockchip_hdmiv1_driver = {
 	.probe = rockchip_hdmiv1_probe,

@@ -7,8 +7,8 @@
 
 /* Status / error codes */
 #define HDCP_OK			0
-#define HDCP_KEY_ERR	1
-#define HDCP_KSV_ERR	2
+#define HDCP_KEY_ERR		1
+#define HDCP_KSV_ERR		2
 #define HDCP_KEY_VALID		3
 #define HDCP_KEY_INVALID	4
 
@@ -24,14 +24,14 @@
 #define HDCP_WORKQUEUE_SRC	(0x8 << HDCP_SRC_SHIFT)
 
 /* Event */
-#define HDCP_ENABLE_CTL			(HDCP_IOCTL_SRC		| 0)
-#define HDCP_DISABLE_CTL		(HDCP_IOCTL_SRC		| 1)
-#define HDCP_START_FRAME_EVENT	(HDCP_HDMI_SRC		| 2)
-#define HDCP_STOP_FRAME_EVENT	(HDCP_HDMI_SRC		| 3)
-#define HDCP_KSV_LIST_RDY_EVENT	(HDCP_IRQ_SRC		| 4)
-#define HDCP_FAIL_EVENT			(HDCP_IRQ_SRC		| 5)
-#define HDCP_AUTH_PASS_EVENT	(HDCP_IRQ_SRC		| 6)
-#define HDCP_AUTH_REATT_EVENT	(HDCP_WORKQUEUE_SRC	| 7)
+#define HDCP_ENABLE_CTL		(HDCP_IOCTL_SRC	| 0)
+#define HDCP_DISABLE_CTL	(HDCP_IOCTL_SRC	| 1)
+#define HDCP_START_FRAME_EVENT	(HDCP_HDMI_SRC	| 2)
+#define HDCP_STOP_FRAME_EVENT	(HDCP_HDMI_SRC	| 3)
+#define HDCP_KSV_LIST_RDY_EVENT	(HDCP_IRQ_SRC	| 4)
+#define HDCP_FAIL_EVENT		(HDCP_IRQ_SRC	| 5)
+#define HDCP_AUTH_PASS_EVENT	(HDCP_IRQ_SRC	| 6)
+#define HDCP_AUTH_REATT_EVENT	(HDCP_WORKQUEUE_SRC | 7)
 
 /* Key size */
 #define HDCP_KEY_SIZE			308
@@ -44,14 +44,14 @@
 
 /* HDCP Regs */
 #define HDCP_CTRL1				0x52
-	#define m_AUTH_START		(1 << 7)
-	#define m_BKSV_VALID		(1 << 6)
-	#define m_BKSV_INVALID		(1 << 5)
-	#define m_ENCRYPT_ENABLE	(1 << 4)
-	#define m_AUTH_STOP			(1 << 3)
-	#define m_ADVANED_ENABLE	(1 << 2)
-	#define m_HDMI_DVI			(1 << 1)
-	#define m_HDCP_RESET		(1 << 0)
+	#define m_AUTH_START		BIT(7)
+	#define m_BKSV_VALID		BIT(6)
+	#define m_BKSV_INVALID		BIT(5)
+	#define m_ENCRYPT_ENABLE	BIT(4)
+	#define m_AUTH_STOP		BIT(3)
+	#define m_ADVANED_ENABLE	BIT(2)
+	#define m_HDMI_DVI		BIT(1)
+	#define m_HDCP_RESET		BIT(0)
 
 	#define v_AUTH_START(n)		(n << 7)
 	#define v_BKSV_VALID(n)		(n << 6)
@@ -63,13 +63,13 @@
 	#define v_HDCP_RESET(n)		(n << 0)
 
 #define HDCP_CTRL2				0x53
-	#define m_DISABLE_127_CHECK				(1 << 7)
-	#define m_SKIP_BKSV_CHECK				(1 << 6)
-	#define m_ENABLE_PJ_CHECK				(1 << 5)
-	#define m_DISABLE_DEVICE_NUMBER_CHECK	(1 << 4)
-	#define m_DELAY_RI_1_CLK				(1 << 3)
-	#define m_USE_PRESET_AN					(1 << 2)
-	#define m_KEY_COMBINATION				(3 << 0)
+	#define m_DISABLE_127_CHECK			BIT(7)
+	#define m_SKIP_BKSV_CHECK			BIT(6)
+	#define m_ENABLE_PJ_CHECK			BIT(5)
+	#define m_DISABLE_DEVICE_NUMBER_CHECK		BIT(4)
+	#define m_DELAY_RI_1_CLK			BIT(3)
+	#define m_USE_PRESET_AN				BIT(2)
+	#define m_KEY_COMBINATION			(BIT(1) | BIT(0))
 
 	#define v_DISABLE_127_CHECK(n)			(n << 7)
 	#define v_SKIP_BKSV_CHECK(n)			(n << 6)
@@ -80,23 +80,23 @@
 	#define v_KEY_COMBINATION(n)			(n << 0)
 
 #define HDCP_KEY_STATUS			0x54
-	#define m_KEY_READY			(1 << 0)
+	#define m_KEY_READY			BIT(0)
 
 #define HDCP_CTRL_SOFT			0x57
-	#define m_DISABLE_127_CHECK				(1 << 7)
-	#define m_SKIP_BKSV_CHECK				(1 << 6)
-	#define m_NOT_AUTHENTICATED				(1 << 5)
-	#define m_ENCRYPTED						(1 << 4)
-	#define m_ADVANCED_CIPHER				(1 << 3)
+	#define m_DISABLE_127_CHECK			BIT(7)
+	#define m_SKIP_BKSV_CHECK			BIT(6)
+	#define m_NOT_AUTHENTICATED			BIT(5)
+	#define m_ENCRYPTED				BIT(4)
+	#define m_ADVANCED_CIPHER			BIT(3)
 
 #define HDCP_BCAPS_RX			0x58
 #define HDCP_TIMER_100MS		0x63
 #define HDCP_TIMER_5S			0x64
 #define HDCP_ERROR				0x65
-	#define m_DDC_NO_ACK		(1 << 3)
-	#define m_PJ_MISMACH		(1 << 2)
-	#define m_RI_MISMACH		(1 << 1)
-	#define m_BKSV_WRONG		(1 << 0)
+	#define m_DDC_NO_ACK		BIT(3)
+	#define m_PJ_MISMACH		BIT(2)
+	#define m_RI_MISMACH		BIT(1)
+	#define m_BKSV_WRONG		BIT(0)
 
 #define HDCP_KSV_BYTE0			0x66
 #define HDCP_KSV_BYTE1			0x67
@@ -114,21 +114,21 @@
 
 #define HDCP_INT_MASK1			0xc2
 #define HDCP_INT_STATUS1		0xc3
-	#define m_INT_HDCP_ERR		(1 << 7)
-	#define m_INT_BKSV_READY	(1 << 6)
-	#define m_INT_BKSV_UPDATE	(1 << 5)
-	#define m_INT_AUTH_SUCCESS	(1 << 4)
-	#define m_INT_AUTH_READY	(1 << 3)
+	#define m_INT_HDCP_ERR		BIT(7)
+	#define m_INT_BKSV_READY	BIT(6)
+	#define m_INT_BKSV_UPDATE	BIT(5)
+	#define m_INT_AUTH_SUCCESS	BIT(4)
+	#define m_INT_AUTH_READY	BIT(3)
 
 #define HDCP_INT_MASK2			0xc4
 #define HDCP_INT_STATUS2		0xc5
-	#define m_INT_SOFT_MODE_READY			(1 << 7)
-	#define m_INT_AUTH_M0_REDAY				(1 << 6)
-	#define m_INT_1st_FRAME_ARRIVE			(1 << 5)
-	#define m_INT_AN_READY					(1 << 4)
-	#define m_INT_ENCRYPTED					(1 << 2)
-	#define m_INT_NOT_ENCRYPTED_AVMUTE		(1 << 1)
-	#define m_INT_NOT_ENCRYPTED_AVUNMUTE	(1 << 0)
+	#define m_INT_SOFT_MODE_READY			BIT(7)
+	#define m_INT_AUTH_M0_REDAY			BIT(6)
+	#define m_INT_1st_FRAME_ARRIVE			BIT(5)
+	#define m_INT_AN_READY				BIT(4)
+	#define m_INT_ENCRYPTED				BIT(2)
+	#define m_INT_NOT_ENCRYPTED_AVMUTE		BIT(1)
+	#define m_INT_NOT_ENCRYPTED_AVUNMUTE	BIT(0)
 
 enum hdcp_states {
 	HDCP_DISABLED,
@@ -163,7 +163,7 @@ struct hdcp {
 	struct hdcp_keys *keys;
 	int invalidkey;
 	char *invalidkeys;
-	struct mutex lock;
+	struct mutex lock;	/* use for workqueue */
 	struct completion	complete;
 	struct workqueue_struct *workqueue;
 

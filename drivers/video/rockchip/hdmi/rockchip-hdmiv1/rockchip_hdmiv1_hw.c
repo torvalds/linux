@@ -81,7 +81,7 @@ static void rockchip_hdmiv1_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 		hdmi_writel(hdmi_dev, PHY_SYS_CTL, 0x17);
 		break;
 	default:
-		dev_info(hdmi_drv->dev, "unkown rk3036 hdmi pwr mode %d\n",
+		dev_info(hdmi_drv->dev, "unknown rk3036 hdmi pwr mode %d\n",
 			 mode);
 	}
 
@@ -108,7 +108,6 @@ int rockchip_hdmiv1_insert(struct hdmi *hdmi_drv)
 	rockchip_hdmiv1_set_pwr_mode(hdmi_drv, NORMAL);
 	return 0;
 }
-
 
 int rockchip_hdmiv1_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 {
@@ -173,7 +172,7 @@ int rockchip_hdmiv1_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 			if ((checksum & 0xff) == 0) {
 				ret = 0;
 				dev_info(hdmi_drv->dev,
-					 "[%s] edid read sucess\n", __func__);
+					 "[%s] edid read success\n", __func__);
 				break;
 			}
 		}
@@ -339,7 +338,7 @@ static int rockchip_hdmiv1_video_csc(struct hdmi *hdmi_drv,
 
 	coeff = coeff_csc[csc_mode];
 	for (i = 0; i < 24; i++)
-		hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
+		hdmi_writel(hdmi_dev, VIDEO_CSC_COEF + i, coeff[i]);
 
 	value = v_SOF_DISABLE | csc_enable | v_COLOR_DEPTH_NOT_INDICATED(1);
 	hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
@@ -355,7 +354,7 @@ static int rockchip_hdmiv1_video_csc(struct hdmi *hdmi_drv,
 			coeff = coeff_csc[3];
 			for (i = 0; i < 24; i++)
 				hdmi_writel(hdmi_dev,
-					    VIDEO_CSC_COEF+i, coeff[i]);
+					    VIDEO_CSC_COEF + i, coeff[i]);
 
 			value = v_SOF_DISABLE | v_CSC_ENABLE;
 			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
@@ -384,7 +383,7 @@ static int rockchip_hdmiv1_video_csc(struct hdmi *hdmi_drv,
 			}
 			for (i = 0; i < 24; i++)
 				hdmi_writel(hdmi_dev,
-					    VIDEO_CSC_COEF+i, coeff[i]);
+					    VIDEO_CSC_COEF + i, coeff[i]);
 
 			value = v_SOF_DISABLE | v_CSC_ENABLE;
 			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
@@ -401,7 +400,7 @@ static int rockchip_hdmiv1_video_csc(struct hdmi *hdmi_drv,
 			coeff = coeff_csc[5];
 			for (i = 0; i < 24; i++)
 				hdmi_writel(hdmi_dev,
-					    VIDEO_CSC_COEF+i, coeff[i]);
+					    VIDEO_CSC_COEF + i, coeff[i]);
 
 			value = v_SOF_DISABLE | v_CSC_ENABLE;
 			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
@@ -550,7 +549,7 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 
 	dev_dbg(hdmi_drv->dev, "[%s]\n", __func__);
 
-	if (vpara == NULL) {
+	if (!vpara) {
 		dev_err(hdmi_drv->dev, "[%s] input parameter error\n",
 			__func__);
 		return -1;
@@ -562,7 +561,7 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 	}
 
 	mode = (struct fb_videomode *)hdmi_vic_to_videomode(vpara->vic);
-	if (mode == NULL) {
+	if (!mode) {
 		dev_err(hdmi_drv->dev, "[%s] not found vic %d\n", __func__,
 			vpara->vic);
 		return -ENOENT;
@@ -694,10 +693,10 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 						   HDMI_VIDEO_FORMAT_NORMAL);
 		}
 		dev_info(hdmi_drv->dev,
-			 "[%s] sucess output HDMI.\n", __func__);
+			 "[%s] success output HDMI.\n", __func__);
 	} else {
 		dev_info(hdmi_drv->dev,
-			 "[%s] sucess output DVI.\n", __func__);
+			 "[%s] success output DVI.\n", __func__);
 	}
 
 	/* rk3028a */
@@ -885,7 +884,7 @@ int rockchip_hdmiv1_removed(struct hdmi *hdmi_drv)
 	rockchip_hdmiv1_control_output(hdmi_drv, -1);
 	rockchip_hdmiv1_set_pwr_mode(hdmi_drv, LOWER_PWR);
 
-	return HDMI_ERROR_SUCESS;
+	return HDMI_ERROR_SUCCESS;
 }
 
 static int rockchip_hdmiv1_enable(struct hdmi *hdmi_drv)
@@ -971,7 +970,7 @@ void rockchip_hdmiv1_dev_init_ops(struct hdmi_ops *ops)
 
 int rockchip_hdmiv1_initial(struct hdmi *hdmi_drv)
 {
-	int rc = HDMI_ERROR_SUCESS;
+	int rc = HDMI_ERROR_SUCCESS;
 	struct hdmi_dev *hdmi_dev = hdmi_drv->property->priv;
 
 	hdmi_dev->pwr_mode = NORMAL;
