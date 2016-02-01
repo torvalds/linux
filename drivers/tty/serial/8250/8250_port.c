@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
+#include <linux/timer.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -522,6 +523,20 @@ static void serial8250_clear_fifos(struct uart_8250_port *p)
 	}
 }
 
+static inline void serial8250_em485_rts_after_send(struct uart_8250_port *p)
+{
+	unsigned char mcr = serial_in(p, UART_MCR);
+
+	if (p->port.rs485.flags & SER_RS485_RTS_AFTER_SEND)
+		mcr |= UART_MCR_RTS;
+	else
+		mcr &= ~UART_MCR_RTS;
+	serial_out(p, UART_MCR, mcr);
+}
+
+static void serial8250_em485_handle_start_tx(unsigned long arg);
+static void serial8250_em485_handle_stop_tx(unsigned long arg);
+
 void serial8250_clear_and_reinit_fifos(struct uart_8250_port *p)
 {
 	serial8250_clear_fifos(p);
@@ -545,6 +560,73 @@ void serial8250_rpm_put(struct uart_8250_port *p)
 	pm_runtime_put_autosuspend(p->port.dev);
 }
 EXPORT_SYMBOL_GPL(serial8250_rpm_put);
+
+/**
+ *	serial8250_em485_init() - put uart_8250_port into rs485 emulating
+ *	@p:	uart_8250_port port instance
+ *
+ *	The function is used to start rs485 software emulating on the
+ *	&struct uart_8250_port* @p. Namely, RTS is switched before/after
+ *	transmission. The function is idempotent, so it is safe to call it
+ *	multiple times.
+ *
+ *	The caller MUST enable interrupt on empty shift register before
+ *	calling serial8250_em485_init(). This interrupt is not a part of
+ *	8250 standard, but implementation defined.
+ *
+ *	The function is supposed to be called from .rs485_config callback
+ *	or from any other callback protected with p->port.lock spinlock.
+ *
+ *	See also serial8250_em485_destroy()
+ *
+ *	Return 0 - success, -errno - otherwise
+ */
+int serial8250_em485_init(struct uart_8250_port *p)
+{
+	if (p->em485 != NULL)
+		return 0;
+
+	p->em485 = kmalloc(sizeof(struct uart_8250_em485), GFP_KERNEL);
+	if (p->em485 == NULL)
+		return -ENOMEM;
+
+	setup_timer(&p->em485->stop_tx_timer,
+		serial8250_em485_handle_stop_tx, (unsigned long)p);
+	setup_timer(&p->em485->start_tx_timer,
+		serial8250_em485_handle_start_tx, (unsigned long)p);
+	p->em485->active_timer = NULL;
+
+	serial8250_em485_rts_after_send(p);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(serial8250_em485_init);
+
+/**
+ *	serial8250_em485_destroy() - put uart_8250_port into normal state
+ *	@p:	uart_8250_port port instance
+ *
+ *	The function is used to stop rs485 software emulating on the
+ *	&struct uart_8250_port* @p. The function is idempotent, so it is safe to
+ *	call it multiple times.
+ *
+ *	The function is supposed to be called from .rs485_config callback
+ *	or from any other callback protected with p->port.lock spinlock.
+ *
+ *	See also serial8250_em485_init()
+ */
+void serial8250_em485_destroy(struct uart_8250_port *p)
+{
+	if (p->em485 == NULL)
+		return;
+
+	del_timer(&p->em485->start_tx_timer);
+	del_timer(&p->em485->stop_tx_timer);
+
+	kfree(p->em485);
+	p->em485 = NULL;
+}
+EXPORT_SYMBOL_GPL(serial8250_em485_destroy);
 
 /*
  * These two wrappers ensure that enable_runtime_pm_tx() can be called more than
@@ -1317,13 +1399,84 @@ static void serial8250_stop_rx(struct uart_port *port)
 	serial8250_rpm_put(up);
 }
 
-static inline void __stop_tx(struct uart_8250_port *p)
+static void __do_stop_tx_rs485(struct uart_8250_port *p)
+{
+	if (!p->em485)
+		return;
+
+	serial8250_em485_rts_after_send(p);
+	/*
+	 * Empty the RX FIFO, we are not interested in anything
+	 * received during the half-duplex transmission.
+	 */
+	if (!(p->port.rs485.flags & SER_RS485_RX_DURING_TX))
+		serial8250_clear_fifos(p);
+}
+
+static void serial8250_em485_handle_stop_tx(unsigned long arg)
+{
+	struct uart_8250_port *p = (struct uart_8250_port *)arg;
+	struct uart_8250_em485 *em485 = p->em485;
+	unsigned long flags;
+
+	spin_lock_irqsave(&p->port.lock, flags);
+	if (em485 &&
+	    em485->active_timer == &em485->stop_tx_timer) {
+		__do_stop_tx_rs485(p);
+		em485->active_timer = NULL;
+	}
+	spin_unlock_irqrestore(&p->port.lock, flags);
+}
+
+static void __stop_tx_rs485(struct uart_8250_port *p)
+{
+	struct uart_8250_em485 *em485 = p->em485;
+
+	if (!em485)
+		return;
+
+	/*
+	 * __do_stop_tx_rs485 is going to set RTS according to config
+	 * AND flush RX FIFO if required.
+	 */
+	if (p->port.rs485.delay_rts_after_send > 0) {
+		em485->active_timer = &em485->stop_tx_timer;
+		mod_timer(&em485->stop_tx_timer, jiffies +
+			p->port.rs485.delay_rts_after_send * HZ / 1000);
+	} else {
+		__do_stop_tx_rs485(p);
+	}
+}
+
+static inline void __do_stop_tx(struct uart_8250_port *p)
 {
 	if (p->ier & UART_IER_THRI) {
 		p->ier &= ~UART_IER_THRI;
 		serial_out(p, UART_IER, p->ier);
 		serial8250_rpm_put_tx(p);
 	}
+}
+
+static inline void __stop_tx(struct uart_8250_port *p)
+{
+	struct uart_8250_em485 *em485 = p->em485;
+
+	if (em485) {
+		unsigned char lsr = serial_in(p, UART_LSR);
+		/*
+		 * To provide required timeing and allow FIFO transfer,
+		 * __stop_tx_rs485 must be called only when both FIFO and
+		 * shift register are empty. It is for device driver to enable
+		 * interrupt on TEMT.
+		 */
+		if ((lsr & BOTH_EMPTY) != BOTH_EMPTY)
+			return;
+
+		del_timer(&em485->start_tx_timer);
+		em485->active_timer = NULL;
+	}
+	__do_stop_tx(p);
+	__stop_tx_rs485(p);
 }
 
 static void serial8250_stop_tx(struct uart_port *port)
@@ -1343,11 +1496,9 @@ static void serial8250_stop_tx(struct uart_port *port)
 	serial8250_rpm_put(up);
 }
 
-static void serial8250_start_tx(struct uart_port *port)
+static inline void __start_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
-
-	serial8250_rpm_get_tx(up);
 
 	if (up->dma && !up->dma->tx_dma(up))
 		return;
@@ -1372,6 +1523,70 @@ static void serial8250_start_tx(struct uart_port *port)
 		up->acr &= ~UART_ACR_TXDIS;
 		serial_icr_write(up, UART_ACR, up->acr);
 	}
+}
+
+static inline void start_tx_rs485(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	struct uart_8250_em485 *em485 = up->em485;
+	unsigned char mcr;
+
+	if (!(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
+		serial8250_stop_rx(&up->port);
+
+	del_timer(&em485->stop_tx_timer);
+	em485->active_timer = NULL;
+
+	mcr = serial_in(up, UART_MCR);
+	if (!!(up->port.rs485.flags & SER_RS485_RTS_ON_SEND) !=
+	    !!(mcr & UART_MCR_RTS)) {
+		if (up->port.rs485.flags & SER_RS485_RTS_ON_SEND)
+			mcr |= UART_MCR_RTS;
+		else
+			mcr &= ~UART_MCR_RTS;
+		serial_out(up, UART_MCR, mcr);
+
+		if (up->port.rs485.delay_rts_before_send > 0) {
+			em485->active_timer = &em485->start_tx_timer;
+			mod_timer(&em485->start_tx_timer, jiffies +
+				up->port.rs485.delay_rts_before_send * HZ / 1000);
+			return;
+		}
+	}
+
+	__start_tx(port);
+}
+
+static void serial8250_em485_handle_start_tx(unsigned long arg)
+{
+	struct uart_8250_port *p = (struct uart_8250_port *)arg;
+	struct uart_8250_em485 *em485 = p->em485;
+	unsigned long flags;
+
+	spin_lock_irqsave(&p->port.lock, flags);
+	if (em485 &&
+	    em485->active_timer == &em485->start_tx_timer) {
+		__start_tx(&p->port);
+		em485->active_timer = NULL;
+	}
+	spin_unlock_irqrestore(&p->port.lock, flags);
+}
+
+static void serial8250_start_tx(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	struct uart_8250_em485 *em485 = up->em485;
+
+	serial8250_rpm_get_tx(up);
+
+	if (em485 &&
+	    em485->active_timer == &em485->start_tx_timer)
+		return;
+
+	if (em485)
+		start_tx_rs485(port);
+	else
+		__start_tx(port);
 }
 
 static void serial8250_throttle(struct uart_port *port)

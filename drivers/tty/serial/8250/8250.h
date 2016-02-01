@@ -117,6 +117,8 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 struct uart_8250_port *serial8250_get_port(int line);
 void serial8250_rpm_get(struct uart_8250_port *p);
 void serial8250_rpm_put(struct uart_8250_port *p);
+int serial8250_em485_init(struct uart_8250_port *p);
+void serial8250_em485_destroy(struct uart_8250_port *p);
 
 #if defined(__alpha__) && !defined(CONFIG_PCI)
 /*
