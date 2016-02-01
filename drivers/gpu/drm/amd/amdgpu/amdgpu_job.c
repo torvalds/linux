@@ -80,13 +80,17 @@ void amdgpu_job_free(struct amdgpu_job *job)
 }
 
 int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
-		      void *owner, struct fence **f)
+		      struct amd_sched_entity *entity, void *owner,
+		      struct fence **f)
 {
 	struct amdgpu_device *adev = job->adev;
 
+	if (!entity)
+		entity = &adev->kernel_ctx.rings[ring->idx].entity;
+
 	job->ring = ring;
 	job->base.sched = &ring->sched;
-	job->base.s_entity = &adev->kernel_ctx.rings[ring->idx].entity;
+	job->base.s_entity = entity;
 	job->base.s_fence = amd_sched_fence_create(job->base.s_entity, owner);
 	if (!job->base.s_fence)
 		return -ENOMEM;

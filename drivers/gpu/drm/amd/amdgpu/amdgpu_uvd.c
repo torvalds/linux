@@ -880,7 +880,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 
 		amdgpu_job_free(job);
 	} else {
-		r = amdgpu_job_submit(job, ring,
+		r = amdgpu_job_submit(job, ring, NULL,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 		if (r)
 			goto err_free;

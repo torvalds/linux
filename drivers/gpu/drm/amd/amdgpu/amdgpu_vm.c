@@ -322,6 +322,7 @@ static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
  * need to reserve bo first before calling it.
  */
 static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
+			      struct amdgpu_vm *vm,
 			      struct amdgpu_bo *bo)
 {
 	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
@@ -351,7 +352,8 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 
 	WARN_ON(job->ibs[0].length_dw > 64);
-	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_VM, &fence);
+	r = amdgpu_job_submit(job, ring, &vm->entity,
+			      AMDGPU_FENCE_OWNER_VM, &fence);
 	if (r)
 		goto error_free;
 
@@ -476,7 +478,8 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		amdgpu_sync_resv(adev, &job->sync, pd->tbo.resv,
 				 AMDGPU_FENCE_OWNER_VM);
 		WARN_ON(ib->length_dw > ndw);
-		r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_VM, &fence);
+		r = amdgpu_job_submit(job, ring, &vm->entity,
+				      AMDGPU_FENCE_OWNER_VM, &fence);
 		if (r)
 			goto error_free;
 
@@ -729,7 +732,8 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	amdgpu_ring_pad_ib(ring, ib);
 	WARN_ON(ib->length_dw > ndw);
-	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_VM, &f);
+	r = amdgpu_job_submit(job, ring, &vm->entity,
+			      AMDGPU_FENCE_OWNER_VM, &f);
 	if (r)
 		goto error_free;
 
@@ -1104,7 +1108,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		 */
 		pt->parent = amdgpu_bo_ref(vm->page_directory);
 
-		r = amdgpu_vm_clear_bo(adev, pt);
+		r = amdgpu_vm_clear_bo(adev, vm, pt);
 		if (r) {
 			amdgpu_bo_unref(&pt);
 			goto error_free;
@@ -1265,9 +1269,11 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
  */
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
+	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
 		AMDGPU_VM_PTE_COUNT * 8);
 	unsigned pd_size, pd_entries;
+	struct amd_sched_rq *rq;
 	int i, r;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -1291,6 +1297,13 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		return -ENOMEM;
 	}
 
+	/* create scheduler entity for page table updates */
+	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_KERNEL];
+	r = amd_sched_entity_init(&ring->sched, &vm->entity,
+				  rq, amdgpu_sched_jobs);
+	if (r)
+		return r;
+
 	vm->page_directory_fence = NULL;
 
 	r = amdgpu_bo_create(adev, pd_size, align, true,
@@ -1298,22 +1311,27 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 			     AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
 			     NULL, NULL, &vm->page_directory);
 	if (r)
-		return r;
+		goto error_free_sched_entity;
+
 	r = amdgpu_bo_reserve(vm->page_directory, false);
-	if (r) {
-		amdgpu_bo_unref(&vm->page_directory);
-		vm->page_directory = NULL;
-		return r;
-	}
-	r = amdgpu_vm_clear_bo(adev, vm->page_directory);
+	if (r)
+		goto error_free_page_directory;
+
+	r = amdgpu_vm_clear_bo(adev, vm, vm->page_directory);
 	amdgpu_bo_unreserve(vm->page_directory);
-	if (r) {
-		amdgpu_bo_unref(&vm->page_directory);
-		vm->page_directory = NULL;
-		return r;
-	}
+	if (r)
+		goto error_free_page_directory;
 
 	return 0;
+
+error_free_page_directory:
+	amdgpu_bo_unref(&vm->page_directory);
+	vm->page_directory = NULL;
+
+error_free_sched_entity:
+	amd_sched_entity_fini(&ring->sched, &vm->entity);
+
+	return r;
 }
 
 /**
@@ -1327,8 +1345,11 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
  */
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
+	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
 	int i;
+
+	amd_sched_entity_fini(&ring->sched, &vm->entity);
 
 	if (!RB_EMPTY_ROOT(&vm->va)) {
 		dev_err(adev->dev, "still active bo inside vm\n");
