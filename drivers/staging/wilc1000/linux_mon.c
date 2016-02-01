@@ -278,8 +278,9 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	if (!(memcmp(srcAdd, bssid, 6))) {
 		mon_mgmt_tx(mon_priv->real_ndev, skb->data, skb->len);
 		dev_kfree_skb(skb);
-	} else
+	} else {
 		ret = wilc_mac_xmit(skb, mon_priv->real_ndev);
+	}
 
 	return ret;
 }
