@@ -1162,7 +1162,7 @@ static long snd_rawmidi_kernel_write1(struct snd_rawmidi_substream *substream,
 	long count1, result;
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 
-	if (snd_BUG_ON(!kernelbuf && !userbuf))
+	if (!kernelbuf && !userbuf)
 		return -EINVAL;
 	if (snd_BUG_ON(!runtime->buffer))
 		return -EINVAL;
