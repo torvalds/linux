@@ -45,6 +45,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/display/rk_fb.h>
 
 / {
 	compatible = "rockchip,rk3366";
@@ -427,6 +428,64 @@
 		reg = <0x0 0xff770000 0x0 0x1000>;
 	};
 
+	fb: fb {
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <DUAL>;
+		status = "disabled";
+	};
+
+	rk_screen: screen {
+		compatible = "rockchip,screen";
+		status = "disabled";
+	};
+
+	vop_lite: vop@ff8f0000 {
+		compatible = "rockchip,rk3366-lcdc-lite";
+		rockchip,grf = <&grf>;
+		rockchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <1>;
+		reg = <0x0 0xff8f0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP_LITE>, <&cru DCLK_VOP_LITE>, <&cru HCLK_VOP_LITE>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
+		resets = <&cru SRST_VOP1_AXI>, <&cru SRST_VOP1_DCLK>, <&cru SRST_VOP1_AHB>;
+		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
+	};
+
+	vopl_mmu: vopl-mmu {
+		dbgname = "vop";
+		compatible = "rockchip,vopl_mmu";
+		reg = <0x0 0xff8f0f00 0x0 0x100>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vopl_mmu";
+		status = "disabled";
+	};
+
+	vop_big: vop@ff930000 {
+		compatible = "rockchip,rk3366-lcdc-big";
+		rockchip,grf = <&grf>;
+		rockchip,prop = <PRMRY>;
+		rockchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <1>;
+		reg = <0x0 0xff930000 0x0 0x23f0>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP_FULL>, <&cru DCLK_VOP_FULL>, <&cru HCLK_VOP_FULL>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
+		resets = <&cru SRST_VOP0_AXI>, <&cru SRST_VOP0_DCLK>, <&cru SRST_VOP0_AHB>;
+		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
+	};
+
+	vopb_mmu: vopb-mmu {
+		dbgname = "vop";
+		compatible = "rockchip,vopb_mmu";
+		reg = <0x0 0xff932400 0x0 0x100>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vop_mmu";
+		status = "disabled";
+	};
+
 	dsihost0: mipi@ff960000 {
 		compatible = "rockchip,rk3368-dsi";
 		rockchip,prop = <0>;
@@ -435,6 +494,16 @@
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pclk_mipi_dsi_host";
+		status = "disabled";
+	};
+
+	lvds: lvds@ff968000 {
+		compatible = "rockchip,rk3366-lvds";
+		rockchip,grf = <&grf>;
+		reg = <0x0 0xff968000 0x0 0x4000>, <0x0 0xff9600a0 0x0 0x20>;
+		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
+		clocks = <&cru PCLK_DPHYTX>, <&cru PCLK_MIPI_DSI0>;
+		clock-names = "pclk_lvds", "pclk_lvds_ctl";
 		status = "disabled";
 	};
 
@@ -859,6 +928,52 @@
 			pwm3_t2_pin: pwm3_t2-pin {
 				rockchip,pins =
 					<5 18 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		lcdc {
+			lcdc_lcdc: lcdc-lcdc {
+				rockchip,pins =
+					<0 24 RK_FUNC_2 &pcfg_pull_none>, /* HSYNC */
+					<0 25 RK_FUNC_2 &pcfg_pull_none>, /* VSYNC */
+					<0 26 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D10 */
+					<0 27 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D11 */
+					<0 28 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D12 */
+					<0 29 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D13 */
+					<0 30 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D14 */
+					<0 31 RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D15 */
+					<1 0  RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D16 */
+					<1 1  RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D17 */
+					<1 2  RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D18 */
+					<1 3  RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D19 */
+					<1 4  RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D20 */
+					<1 5  RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D21 */
+					<1 6  RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D22 */
+					<1 7  RK_FUNC_1 &pcfg_pull_none>, /* LCDC_D23 */
+					<1 8  RK_FUNC_1 &pcfg_pull_none>, /* DEN */
+					<1 9  RK_FUNC_1 &pcfg_pull_none>; /* DCLK */
+			};
+
+			lcdc_gpio: lcdc-gpio {
+				rockchip,pins =
+					<0 24 RK_FUNC_GPIO &pcfg_pull_none>, /* HSYNC */
+					<0 25 RK_FUNC_GPIO &pcfg_pull_none>, /* VSYNC */
+					<0 26 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D10 */
+					<0 27 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D11 */
+					<0 28 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D12 */
+					<0 29 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D13 */
+					<0 30 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D14 */
+					<0 31 RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D15 */
+					<1 0  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D16 */
+					<1 1  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D17 */
+					<1 2  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D18 */
+					<1 3  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D19 */
+					<1 4  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D20 */
+					<1 5  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D21 */
+					<1 6  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D22 */
+					<1 7  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D23 */
+					<1 8  RK_FUNC_GPIO &pcfg_pull_none>, /* DEN */
+					<1 9  RK_FUNC_GPIO &pcfg_pull_none>; /* DCLK */
 			};
 		};
 	};
