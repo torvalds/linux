@@ -93,7 +93,7 @@ amdgpu-y += amdgpu_cgs.o
 amdgpu-y += \
 	../scheduler/gpu_scheduler.o \
 	../scheduler/sched_fence.o \
-	amdgpu_sched.o
+	amdgpu_job.o
 
 # ACP componet
 ifneq ($(CONFIG_DRM_AMD_ACP),)

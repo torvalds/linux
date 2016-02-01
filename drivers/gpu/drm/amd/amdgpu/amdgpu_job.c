@@ -96,7 +96,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	return 0;
 }
 
-static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
+static struct fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 {
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_sync *sync = &job->ibs->sync;
@@ -121,7 +121,7 @@ static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 	return fence;
 }
 
-static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
+static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 {
 	struct fence *fence = NULL;
 	struct amdgpu_job *job;
@@ -146,6 +146,6 @@ err:
 }
 
 struct amd_sched_backend_ops amdgpu_sched_ops = {
-	.dependency = amdgpu_sched_dependency,
-	.run_job = amdgpu_sched_run_job,
+	.dependency = amdgpu_job_dependency,
+	.run_job = amdgpu_job_run,
 };
