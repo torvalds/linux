@@ -190,6 +190,10 @@ static int ufshcd_config_pwr_mode(struct ufs_hba *hba,
 		struct ufs_pa_layer_attr *desired_pwr_mode);
 static int ufshcd_change_power_mode(struct ufs_hba *hba,
 			     struct ufs_pa_layer_attr *pwr_mode);
+static inline bool ufshcd_valid_tag(struct ufs_hba *hba, int tag)
+{
+	return tag >= 0 && tag < hba->nutrs;
+}
 
 static inline int ufshcd_enable_irq(struct ufs_hba *hba)
 {
@@ -1309,6 +1313,12 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	hba = shost_priv(host);
 
 	tag = cmd->request->tag;
+	if (!ufshcd_valid_tag(hba, tag)) {
+		dev_err(hba->dev,
+			"%s: invalid command tag %d: cmd=0x%p, cmd->request=0x%p",
+			__func__, tag, cmd, cmd->request);
+		BUG();
+	}
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	switch (hba->ufshcd_state) {
@@ -3861,13 +3871,23 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	host = cmd->device->host;
 	hba = shost_priv(host);
 	tag = cmd->request->tag;
+	if (!ufshcd_valid_tag(hba, tag)) {
+		dev_err(hba->dev,
+			"%s: invalid command tag %d: cmd=0x%p, cmd->request=0x%p",
+			__func__, tag, cmd, cmd->request);
+		BUG();
+	}
 
 	ufshcd_hold(hba, false);
-	/* If command is already aborted/completed, return SUCCESS */
-	if (!(test_bit(tag, &hba->outstanding_reqs)))
-		goto out;
-
 	reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
+	/* If command is already aborted/completed, return SUCCESS */
+	if (!(test_bit(tag, &hba->outstanding_reqs))) {
+		dev_err(hba->dev,
+			"%s: cmd at tag %d already completed, outstanding=0x%lx, doorbell=0x%x\n",
+			__func__, tag, hba->outstanding_reqs, reg);
+		goto out;
+	}
+
 	if (!(reg & (1 << tag))) {
 		dev_err(hba->dev,
 		"%s: cmd was completed, but without a notifying intr, tag = %d",
