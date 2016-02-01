@@ -88,6 +88,7 @@
 #define SCLK_USBPHY480M		121
 #define SCLK_WIFI_WPLL		122
 #define SCLK_WIFI_USBPHY480M	123
+#define SCLK_MIPIDSI_24M	124
 
 #define DCLK_VOP_FULL		170
 #define DCLK_VOP_LITE		171
@@ -158,6 +159,7 @@
 #define PCLK_BUS		361
 #define PCLK_PERI0		362
 #define PCLK_PERI1		363
+#define PCLK_MIPI_DSI0		364
 
 /* hclk gates */
 #define HCLK_I2S_8CH		448
