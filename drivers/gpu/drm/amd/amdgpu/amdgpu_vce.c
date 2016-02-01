@@ -346,14 +346,6 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 	}
 }
 
-static int amdgpu_vce_free_job(
-	struct amdgpu_job *job)
-{
-	amdgpu_ib_free(job->adev, job->ibs);
-	kfree(job->ibs);
-	return 0;
-}
-
 /**
  * amdgpu_vce_get_create_msg - generate a VCE create msg
  *
@@ -368,21 +360,17 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 			      struct fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
-	struct amdgpu_ib *ib = NULL;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
-	struct amdgpu_device *adev = ring->adev;
 	uint64_t dummy;
 	int i, r;
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
-		return -ENOMEM;
-	r = amdgpu_ib_get(adev, NULL, ib_size_dw * 4, ib);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
-		kfree(ib);
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	if (r)
 		return r;
-	}
+
+	ib = &job->ibs[0];
 
 	dummy = ib->gpu_addr + 1024;
 
@@ -423,19 +411,16 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_vce_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED,
-						 &f);
+	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 	if (r)
 		goto err;
 	if (fence)
 		*fence = fence_get(f);
 	fence_put(f);
 	return 0;
+
 err:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 	return r;
 }
 
@@ -453,23 +438,17 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 			       struct fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
-	struct amdgpu_ib *ib = NULL;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
-	struct amdgpu_device *adev = ring->adev;
 	uint64_t dummy;
 	int i, r;
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
-		return -ENOMEM;
-
-	r = amdgpu_ib_get(adev, NULL, ib_size_dw * 4, ib);
-	if (r) {
-		kfree(ib);
-		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	if (r)
 		return r;
-	}
 
+	ib = &job->ibs[0];
 	dummy = ib->gpu_addr + 1024;
 
 	/* stitch together an VCE destroy msg */
@@ -489,19 +468,16 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_vce_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED,
-						 &f);
+	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 	if (r)
 		goto err;
 	if (fence)
 		*fence = fence_get(f);
 	fence_put(f);
 	return 0;
+
 err:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 	return r;
 }
 

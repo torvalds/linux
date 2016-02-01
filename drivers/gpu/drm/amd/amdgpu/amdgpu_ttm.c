@@ -1012,9 +1012,10 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       struct fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_job *job;
+
 	uint32_t max_bytes;
 	unsigned num_loops, num_dw;
-	struct amdgpu_ib *ib;
 	unsigned i;
 	int r;
 
@@ -1026,20 +1027,12 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	while (num_dw & 0x7)
 		num_dw++;
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
-		return -ENOMEM;
-
-	r = amdgpu_ib_get(adev, NULL, num_dw * 4, ib);
-	if (r) {
-		kfree(ib);
+	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, &job);
+	if (r)
 		return r;
-	}
-
-	ib->length_dw = 0;
 
 	if (resv) {
-		r = amdgpu_sync_resv(adev, &ib->sync, resv,
+		r = amdgpu_sync_resv(adev, &job->ibs[0].sync, resv,
 				     AMDGPU_FENCE_OWNER_UNDEFINED);
 		if (r) {
 			DRM_ERROR("sync failed (%d).\n", r);
@@ -1050,27 +1043,24 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	for (i = 0; i < num_loops; i++) {
 		uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
 
-		amdgpu_emit_copy_buffer(adev, ib, src_offset, dst_offset,
-					cur_size_in_bytes);
+		amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_offset,
+					dst_offset, cur_size_in_bytes);
 
 		src_offset += cur_size_in_bytes;
 		dst_offset += cur_size_in_bytes;
 		byte_count -= cur_size_in_bytes;
 	}
 
-	amdgpu_ring_pad_ib(ring, ib);
-	WARN_ON(ib->length_dw > num_dw);
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_vm_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED,
-						 fence);
+	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
+	WARN_ON(job->ibs[0].length_dw > num_dw);
+	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_UNDEFINED, fence);
 	if (r)
 		goto error_free;
 
 	return 0;
+
 error_free:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 	return r;
 }
 

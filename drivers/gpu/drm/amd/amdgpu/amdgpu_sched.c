@@ -45,9 +45,24 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->adev = adev;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
-	(*job)->free_job = NULL;
 
 	return 0;
+}
+
+int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
+			     struct amdgpu_job **job)
+{
+	int r;
+
+	r = amdgpu_job_alloc(adev, 1, job);
+	if (r)
+		return r;
+
+	r = amdgpu_ib_get(adev, NULL, size, &(*job)->ibs[0]);
+	if (r)
+		kfree(*job);
+
+	return r;
 }
 
 void amdgpu_job_free(struct amdgpu_job *job)
@@ -58,7 +73,27 @@ void amdgpu_job_free(struct amdgpu_job *job)
 		amdgpu_ib_free(job->adev, &job->ibs[i]);
 
 	amdgpu_bo_unref(&job->uf.bo);
-	/* TODO: Free the job structure here as well */
+	kfree(job);
+}
+
+int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
+		      void *owner, struct fence **f)
+{
+	struct amdgpu_device *adev = job->adev;
+
+	job->ring = ring;
+	job->base.sched = &ring->sched;
+	job->base.s_entity = &adev->kernel_ctx.rings[ring->idx].entity;
+	job->base.s_fence = amd_sched_fence_create(job->base.s_entity, owner);
+	if (!job->base.s_fence)
+		return -ENOMEM;
+
+	*f = fence_get(&job->base.s_fence->base);
+
+	job->owner = owner;
+	amd_sched_entity_push_job(&job->base);
+
+	return 0;
 }
 
 static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
@@ -106,10 +141,7 @@ static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 	}
 
 err:
-	if (job->free_job)
-		job->free_job(job);
-
-	kfree(job);
+	amdgpu_job_free(job);
 	return fence;
 }
 
@@ -117,35 +149,3 @@ struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_sched_dependency,
 	.run_job = amdgpu_sched_run_job,
 };
-
-int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
-					 struct amdgpu_ring *ring,
-					 struct amdgpu_ib *ibs,
-					 unsigned num_ibs,
-					 int (*free_job)(struct amdgpu_job *),
-					 void *owner,
-					 struct fence **f)
-{
-	struct amdgpu_job *job =
-		kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
-	if (!job)
-		return -ENOMEM;
-	job->base.sched = &ring->sched;
-	job->base.s_entity = &adev->kernel_ctx.rings[ring->idx].entity;
-	job->base.s_fence = amd_sched_fence_create(job->base.s_entity, owner);
-	if (!job->base.s_fence) {
-		kfree(job);
-		return -ENOMEM;
-	}
-	*f = fence_get(&job->base.s_fence->base);
-
-	job->adev = adev;
-	job->ring = ring;
-	job->ibs = ibs;
-	job->num_ibs = num_ibs;
-	job->owner = owner;
-	job->free_job = free_job;
-	amd_sched_entity_push_job(&job->base);
-
-	return 0;
-}

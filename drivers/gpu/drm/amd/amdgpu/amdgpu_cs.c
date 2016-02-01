@@ -752,12 +752,6 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int amdgpu_cs_free_job(struct amdgpu_job *job)
-{
-	amdgpu_job_free(job);
-	return 0;
-}
-
 static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			    union drm_amdgpu_cs *cs)
 {
@@ -771,12 +765,10 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job->base.sched = &ring->sched;
 	job->base.s_entity = &p->ctx->rings[ring->idx].entity;
 	job->owner = p->filp;
-	job->free_job = amdgpu_cs_free_job;
 
 	fence = amd_sched_fence_create(job->base.s_entity, p->filp);
 	if (!fence) {
-		amdgpu_cs_free_job(job);
-		kfree(job);
+		amdgpu_job_free(job);
 		return -ENOMEM;
 	}
 

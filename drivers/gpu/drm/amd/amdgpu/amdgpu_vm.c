@@ -313,15 +313,6 @@ static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
 	}
 }
 
-int amdgpu_vm_free_job(struct amdgpu_job *job)
-{
-	int i;
-	for (i = 0; i < job->num_ibs; i++)
-		amdgpu_ib_free(job->adev, &job->ibs[i]);
-	kfree(job->ibs);
-	return 0;
-}
-
 /**
  * amdgpu_vm_clear_bo - initially clear the page dir/table
  *
@@ -335,7 +326,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 {
 	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	struct fence *fence = NULL;
-	struct amdgpu_ib *ib;
+	struct amdgpu_job *job;
 	unsigned entries;
 	uint64_t addr;
 	int r;
@@ -351,32 +342,25 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	addr = amdgpu_bo_gpu_offset(bo);
 	entries = amdgpu_bo_size(bo) / 8;
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
+	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
+	if (r)
 		goto error;
 
-	r = amdgpu_ib_get(adev, NULL, 64, ib);
+	amdgpu_vm_update_pages(adev, NULL, 0, &job->ibs[0], addr, 0, entries,
+			       0, 0);
+	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
+
+	WARN_ON(job->ibs[0].length_dw > 64);
+	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_VM, &fence);
 	if (r)
 		goto error_free;
 
-	ib->length_dw = 0;
-
-	amdgpu_vm_update_pages(adev, NULL, 0, ib, addr, 0, entries, 0, 0);
-	amdgpu_ring_pad_ib(ring, ib);
-
-	WARN_ON(ib->length_dw > 64);
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_vm_free_job,
-						 AMDGPU_FENCE_OWNER_VM,
-						 &fence);
-	if (!r)
-		amdgpu_bo_fence(bo, fence, true);
+	amdgpu_bo_fence(bo, fence, true);
 	fence_put(fence);
 	return 0;
 
 error_free:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 
 error:
 	return r;
@@ -433,6 +417,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	uint32_t incr = AMDGPU_VM_PTE_COUNT * 8;
 	uint64_t last_pde = ~0, last_pt = ~0;
 	unsigned count = 0, pt_idx, ndw;
+	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct fence *fence = NULL;
 
@@ -444,16 +429,11 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	/* assume the worst case */
 	ndw += vm->max_pde_used * 6;
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
-		return -ENOMEM;
-
-	r = amdgpu_ib_get(adev, NULL, ndw * 4, ib);
-	if (r) {
-		kfree(ib);
+	r = amdgpu_job_alloc_with_ib(adev, ndw * 4, &job);
+	if (r)
 		return r;
-	}
-	ib->length_dw = 0;
+
+	ib = &job->ibs[0];
 
 	/* walk over the address space and update the page directory */
 	for (pt_idx = 0; pt_idx <= vm->max_pde_used; ++pt_idx) {
@@ -495,10 +475,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		amdgpu_ring_pad_ib(ring, ib);
 		amdgpu_sync_resv(adev, &ib->sync, pd->tbo.resv, AMDGPU_FENCE_OWNER_VM);
 		WARN_ON(ib->length_dw > ndw);
-		r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-							 &amdgpu_vm_free_job,
-							 AMDGPU_FENCE_OWNER_VM,
-							 &fence);
+		r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_VM, &fence);
 		if (r)
 			goto error_free;
 
@@ -506,18 +483,15 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		fence_put(vm->page_directory_fence);
 		vm->page_directory_fence = fence_get(fence);
 		fence_put(fence);
-	}
 
-	if (ib->length_dw == 0) {
-		amdgpu_ib_free(adev, ib);
-		kfree(ib);
+	} else {
+		amdgpu_job_free(job);
 	}
 
 	return 0;
 
 error_free:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 	return r;
 }
 
@@ -695,6 +669,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	void *owner = AMDGPU_FENCE_OWNER_VM;
 	unsigned nptes, ncmds, ndw;
+	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
 	int r;
@@ -733,15 +708,11 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		ndw += 2 * 10;
 	}
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
-		return -ENOMEM;
-
-	r = amdgpu_ib_get(adev, NULL, ndw * 4, ib);
-	if (r) {
-		kfree(ib);
+	r = amdgpu_job_alloc_with_ib(adev, ndw * 4, &job);
+	if (r)
 		return r;
-	}
+
+	ib = &job->ibs[0];
 
 	r = amdgpu_sync_resv(adev, &ib->sync, vm->page_directory->tbo.resv,
 			     owner);
@@ -757,10 +728,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	amdgpu_ring_pad_ib(ring, ib);
 	WARN_ON(ib->length_dw > ndw);
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_vm_free_job,
-						 AMDGPU_FENCE_OWNER_VM,
-						 &f);
+	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_VM, &f);
 	if (r)
 		goto error_free;
 
@@ -773,8 +741,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	return 0;
 
 error_free:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 	return r;
 }
 

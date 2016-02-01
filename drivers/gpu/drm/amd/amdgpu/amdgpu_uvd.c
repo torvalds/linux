@@ -823,14 +823,6 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 	return 0;
 }
 
-static int amdgpu_uvd_free_job(
-	struct amdgpu_job *job)
-{
-	amdgpu_ib_free(job->adev, job->ibs);
-	kfree(job->ibs);
-	return 0;
-}
-
 static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 			       struct amdgpu_bo *bo,
 			       struct fence **fence)
@@ -838,7 +830,8 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct list_head head;
-	struct amdgpu_ib *ib = NULL;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
 	struct amdgpu_device *adev = ring->adev;
 	uint64_t addr;
@@ -862,15 +855,12 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
 	if (r)
 		goto err;
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib) {
-		r = -ENOMEM;
-		goto err;
-	}
-	r = amdgpu_ib_get(adev, NULL, 64, ib);
-	if (r)
-		goto err1;
 
+	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
+	if (r)
+		goto err;
+
+	ib = &job->ibs[0];
 	addr = amdgpu_bo_gpu_offset(bo);
 	ib->ptr[0] = PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0);
 	ib->ptr[1] = addr;
@@ -882,12 +872,9 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 		ib->ptr[i] = PACKET2(0);
 	ib->length_dw = 16;
 
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_uvd_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED,
-						 &f);
+	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 	if (r)
-		goto err2;
+		goto err_free;
 
 	ttm_eu_fence_buffer_objects(&ticket, &head, f);
 
@@ -897,10 +884,10 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 	fence_put(f);
 
 	return 0;
-err2:
-	amdgpu_ib_free(ring->adev, ib);
-err1:
-	kfree(ib);
+
+err_free:
+	amdgpu_job_free(job);
+
 err:
 	ttm_eu_backoff_reservation(&ticket, &head);
 	return r;

@@ -797,14 +797,11 @@ extern struct amd_sched_backend_ops amdgpu_sched_ops;
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job);
+int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
+			     struct amdgpu_job **job);
 void amdgpu_job_free(struct amdgpu_job *job);
-int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
-					 struct amdgpu_ring *ring,
-					 struct amdgpu_ib *ibs,
-					 unsigned num_ibs,
-					 int (*free_job)(struct amdgpu_job *),
-					 void *owner,
-					 struct fence **fence);
+int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
+		      void *owner, struct fence **f);
 
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
@@ -987,7 +984,6 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		       uint64_t addr);
 void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va);
-int amdgpu_vm_free_job(struct amdgpu_job *job);
 
 /*
  * context related structures
@@ -1244,7 +1240,6 @@ struct amdgpu_job {
 	uint32_t		num_ibs;
 	void			*owner;
 	struct amdgpu_user_fence uf;
-	int (*free_job)(struct amdgpu_job *job);
 };
 #define to_amdgpu_job(sched_job)		\
 		container_of((sched_job), struct amdgpu_job, base)
