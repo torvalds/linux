@@ -119,7 +119,6 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 				(1 << IEEE80211_RADIOTAP_RATE);                   /* | */
 		PRINT_INFO(HOSTAPD_DBG, "Presentflags %d\n", hdr->hdr.it_present);
 		hdr->rate = 5; /* txrate->bitrate / 5; */
-
 	}
 
 
@@ -132,8 +131,6 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 	memset(skb->cb, 0, sizeof(skb->cb));
 
 	netif_rx(skb);
-
-
 }
 
 struct tx_complete_mon_data {
@@ -183,7 +180,6 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 		PRINT_ER("Failed to allocate memory for mgmt_tx buff\n");
 		kfree(mgmt_tx);
 		return -EFAULT;
-
 	}
 
 	mgmt_tx->size = len;
@@ -325,7 +321,6 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_devi
 	if (!wilc_wfi_mon) {
 		PRINT_ER("failed to allocate memory\n");
 		return NULL;
-
 	}
 
 	wilc_wfi_mon->type = ARPHRD_IEEE80211_RADIOTAP;
@@ -379,5 +374,4 @@ int WILC_WFI_deinit_mon_interface(void)
 		wilc_wfi_mon = NULL;
 	}
 	return 0;
-
 }
