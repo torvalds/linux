@@ -304,8 +304,15 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 
 	dev_priv->psr.source_ok = false;
 
-	if (IS_HASWELL(dev) && dig_port->port != PORT_A) {
-		DRM_DEBUG_KMS("HSW ties PSR to DDI A (eDP)\n");
+	/*
+	 * HSW spec explicitly says PSR is tied to port A.
+	 * BDW+ platforms with DDI implementation of PSR have different
+	 * PSR registers per transcoder and we only implement transcoder EDP
+	 * ones. Since by Display design transcoder EDP is tied to port A
+	 * we can safely escape based on the port A.
+	 */
+	if (HAS_DDI(dev) && dig_port->port != PORT_A) {
+		DRM_DEBUG_KMS("PSR condition failed: Port not supported\n");
 		return false;
 	}
 
@@ -328,7 +335,7 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 	}
 
 	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
-	    ((dev_priv->vbt.psr.full_link) || (dig_port->port != PORT_A))) {
+	    dev_priv->vbt.psr.full_link) {
 		DRM_DEBUG_KMS("PSR condition failed: Link Standby requested/needed but not supported on this platform\n");
 		return false;
 	}
