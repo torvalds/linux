@@ -464,6 +464,12 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	tbl = &clp->cl_session->bc_slot_table;
 	slot = tbl->slots + args->csa_slotid;
 
+	/* Set up res before grabbing the spinlock */
+	memcpy(&res->csr_sessionid, &args->csa_sessionid,
+	       sizeof(res->csr_sessionid));
+	res->csr_sequenceid = args->csa_sequenceid;
+	res->csr_slotid = args->csa_slotid;
+
 	spin_lock(&tbl->slot_tbl_lock);
 	/* state manager is resetting the session */
 	if (test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
@@ -480,6 +486,10 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	slot = nfs4_lookup_slot(tbl, args->csa_slotid);
 	if (IS_ERR(slot))
 		goto out_unlock;
+
+	res->csr_highestslotid = tbl->server_highest_slotid;
+	res->csr_target_highestslotid = tbl->target_highest_slotid;
+
 	status = validate_seqid(tbl, slot, args);
 	if (status)
 		goto out_unlock;
@@ -488,13 +498,6 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out_unlock;
 	}
 	cps->slot = slot;
-
-	memcpy(&res->csr_sessionid, &args->csa_sessionid,
-	       sizeof(res->csr_sessionid));
-	res->csr_sequenceid = args->csa_sequenceid;
-	res->csr_slotid = args->csa_slotid;
-	res->csr_highestslotid = tbl->server_highest_slotid;
-	res->csr_target_highestslotid = tbl->target_highest_slotid;
 
 	/* The ca_maxresponsesize_cached is 0 with no DRC */
 	if (args->csa_cachethis != 0)
