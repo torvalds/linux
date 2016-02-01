@@ -79,6 +79,7 @@ struct clk;
 enum rockchip_pll_type {
 	pll_rk3036,
 	pll_rk3066,
+	pll_rk3366,
 };
 
 #define RK3036_PLL_RATE(_rate, _refdiv, _fbdiv, _postdiv1,	\
