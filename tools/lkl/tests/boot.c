@@ -122,7 +122,7 @@ int test_nanosleep(char *str, int len)
 
 	snprintf(str, len, "%ld", delta);
 
-	if (ret == 0 && delta > sleep_ns * 0.9 && delta < sleep_ns * 1.1)
+	if (ret == 0 && delta > sleep_ns * 0.9)
 		return TEST_SUCCESS;
 
 	return TEST_FAILURE;
