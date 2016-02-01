@@ -71,7 +71,6 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 	pkt_offset = GET_PKT_OFFSET(header);
 
 	if (pkt_offset & IS_MANAGMEMENT_CALLBACK) {
-
 		/* hostapd callback mgmt frame */
 
 		skb = dev_alloc_skb(size + sizeof(struct wilc_wfi_radiotap_cb_hdr));
@@ -103,7 +102,6 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 		}
 
 	} else {
-
 		skb = dev_alloc_skb(size + sizeof(struct wilc_wfi_radiotap_hdr));
 
 		if (skb == NULL) {
@@ -145,7 +143,6 @@ struct tx_complete_mon_data {
 
 static void mgmt_tx_complete(void *priv, int status)
 {
-
 	struct tx_complete_mon_data *pv_data = (struct tx_complete_mon_data *)priv;
 	u8 *buf =  pv_data->buff;
 
@@ -316,8 +313,6 @@ static const struct net_device_ops wilc_wfi_netdev_ops = {
  */
 struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_device *real_dev)
 {
-
-
 	u32 ret = 0;
 	struct WILC_WFI_mon_priv *priv;
 
