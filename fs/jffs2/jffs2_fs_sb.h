@@ -49,7 +49,7 @@ struct jffs2_sb_info {
 	struct mtd_info *mtd;
 
 	uint32_t highest_ino;
-	uint32_t checked_ino;
+	uint32_t check_ino;		/* *NEXT* inode to be checked */
 
 	unsigned int flags;
 

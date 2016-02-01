@@ -134,37 +134,59 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	if (mutex_lock_interruptible(&c->alloc_sem))
 		return -EINTR;
 
+
 	for (;;) {
+		/* We can't start doing GC until we've finished checking
+		   the node CRCs etc. */
+		int bucket, want_ino;
+
 		spin_lock(&c->erase_completion_lock);
 		if (!c->unchecked_size)
 			break;
-
-		/* We can't start doing GC yet. We haven't finished checking
-		   the node CRCs etc. Do it now. */
-
-		/* checked_ino is protected by the alloc_sem */
-		if (c->checked_ino > c->highest_ino && xattr) {
-			pr_crit("Checked all inodes but still 0x%x bytes of unchecked space?\n",
-				c->unchecked_size);
-			jffs2_dbg_dump_block_lists_nolock(c);
-			spin_unlock(&c->erase_completion_lock);
-			mutex_unlock(&c->alloc_sem);
-			return -ENOSPC;
-		}
-
 		spin_unlock(&c->erase_completion_lock);
 
 		if (!xattr)
 			xattr = jffs2_verify_xattr(c);
 
 		spin_lock(&c->inocache_lock);
+		/* Instead of doing the inodes in numeric order, doing a lookup
+		 * in the hash for each possible number, just walk the hash
+		 * buckets of *existing* inodes. This means that we process
+		 * them out-of-order, but it can be a lot faster if there's
+		 * a sparse inode# space. Which there often is. */
+		want_ino = c->check_ino;
+		for (bucket = c->check_ino % c->inocache_hashsize ; bucket < c->inocache_hashsize; bucket++) {
+			for (ic = c->inocache_list[bucket]; ic; ic = ic->next) {
+				if (ic->ino < want_ino)
+					continue;
 
-		ic = jffs2_get_ino_cache(c, c->checked_ino++);
+				if (ic->state != INO_STATE_CHECKEDABSENT &&
+				    ic->state != INO_STATE_PRESENT)
+					goto got_next; /* with inocache_lock held */
 
-		if (!ic) {
-			spin_unlock(&c->inocache_lock);
-			continue;
+				jffs2_dbg(1, "Skipping ino #%u already checked\n",
+					  ic->ino);
+			}
+			want_ino = 0;
 		}
+
+		/* Point c->check_ino past the end of the last bucket. */
+		c->check_ino = ((c->highest_ino + c->inocache_hashsize + 1) &
+				~c->inocache_hashsize) - 1;
+
+		spin_unlock(&c->inocache_lock);
+
+		pr_crit("Checked all inodes but still 0x%x bytes of unchecked space?\n",
+			c->unchecked_size);
+		jffs2_dbg_dump_block_lists_nolock(c);
+		mutex_unlock(&c->alloc_sem);
+		return -ENOSPC;
+
+	got_next:
+		/* For next time round the loop, we want c->checked_ino to indicate
+		 * the *next* one we want to check. And since we're walking the
+		 * buckets rather than doing it sequentially, it's: */
+		c->check_ino = ic->ino + c->inocache_hashsize;
 
 		if (!ic->pino_nlink) {
 			jffs2_dbg(1, "Skipping check of ino #%d with nlink/pino zero\n",
@@ -176,8 +198,6 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		switch(ic->state) {
 		case INO_STATE_CHECKEDABSENT:
 		case INO_STATE_PRESENT:
-			jffs2_dbg(1, "Skipping ino #%u already checked\n",
-				  ic->ino);
 			spin_unlock(&c->inocache_lock);
 			continue;
 
@@ -196,7 +216,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 				  ic->ino);
 			/* We need to come back again for the _same_ inode. We've
 			 made no progress in this case, but that should be OK */
-			c->checked_ino--;
+			c->check_ino = ic->ino;
 
 			mutex_unlock(&c->alloc_sem);
 			sleep_on_spinunlock(&c->inocache_wq, &c->inocache_lock);
