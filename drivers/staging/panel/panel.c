@@ -823,8 +823,7 @@ static void lcd_write_cmd_s(int cmd)
 	lcd_send_serial(0x1F);	/* R/W=W, RS=0 */
 	lcd_send_serial(cmd & 0x0F);
 	lcd_send_serial((cmd >> 4) & 0x0F);
-	/* the shortest command takes at least 40 us */
-	usleep_range(40, 100);
+	udelay(40);		/* the shortest command takes at least 40 us */
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -835,8 +834,7 @@ static void lcd_write_data_s(int data)
 	lcd_send_serial(0x5F);	/* R/W=W, RS=1 */
 	lcd_send_serial(data & 0x0F);
 	lcd_send_serial((data >> 4) & 0x0F);
-	/* the shortest data takes at least 40 us */
-	usleep_range(40, 100);
+	udelay(40);		/* the shortest data takes at least 40 us */
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -846,20 +844,19 @@ static void lcd_write_cmd_p8(int cmd)
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, cmd);
-	/* maintain the data during 20 us before the strobe */
-	usleep_range(20, 100);
+	udelay(20);	/* maintain the data during 20 us before the strobe */
 
 	bits.e = BIT_SET;
 	bits.rs = BIT_CLR;
 	bits.rw = BIT_CLR;
 	set_ctrl_bits();
 
-	usleep_range(40, 100);	/* maintain the strobe during 40 us */
+	udelay(40);	/* maintain the strobe during 40 us */
 
 	bits.e = BIT_CLR;
 	set_ctrl_bits();
 
-	usleep_range(120, 500);	/* the shortest command takes at least 120 us */
+	udelay(120);	/* the shortest command takes at least 120 us */
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -869,20 +866,19 @@ static void lcd_write_data_p8(int data)
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, data);
-	/* maintain the data during 20 us before the strobe */
-	usleep_range(20, 100);
+	udelay(20);	/* maintain the data during 20 us before the strobe */
 
 	bits.e = BIT_SET;
 	bits.rs = BIT_SET;
 	bits.rw = BIT_CLR;
 	set_ctrl_bits();
 
-	usleep_range(40, 100);	/* maintain the strobe during 40 us */
+	udelay(40);	/* maintain the strobe during 40 us */
 
 	bits.e = BIT_CLR;
 	set_ctrl_bits();
 
-	usleep_range(45, 100);	/* the shortest data takes at least 45 us */
+	udelay(45);	/* the shortest data takes at least 45 us */
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -892,7 +888,7 @@ static void lcd_write_cmd_tilcd(int cmd)
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the control port */
 	w_ctr(pprt, cmd);
-	usleep_range(60, 120);
+	udelay(60);
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -902,7 +898,7 @@ static void lcd_write_data_tilcd(int data)
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, data);
-	usleep_range(60, 120);
+	udelay(60);
 	spin_unlock_irq(&pprt_lock);
 }
 
@@ -946,7 +942,7 @@ static void lcd_clear_fast_s(void)
 		lcd_send_serial(' ' & 0x0F);
 		lcd_send_serial((' ' >> 4) & 0x0F);
 		/* the shortest data takes at least 40 us */
-		usleep_range(40, 100);
+		udelay(40);
 	}
 	spin_unlock_irq(&pprt_lock);
 
@@ -970,7 +966,7 @@ static void lcd_clear_fast_p8(void)
 		w_dtr(pprt, ' ');
 
 		/* maintain the data during 20 us before the strobe */
-		usleep_range(20, 100);
+		udelay(20);
 
 		bits.e = BIT_SET;
 		bits.rs = BIT_SET;
@@ -978,13 +974,13 @@ static void lcd_clear_fast_p8(void)
 		set_ctrl_bits();
 
 		/* maintain the strobe during 40 us */
-		usleep_range(40, 100);
+		udelay(40);
 
 		bits.e = BIT_CLR;
 		set_ctrl_bits();
 
 		/* the shortest data takes at least 45 us */
-		usleep_range(45, 100);
+		udelay(45);
 	}
 	spin_unlock_irq(&pprt_lock);
 
@@ -1006,7 +1002,7 @@ static void lcd_clear_fast_tilcd(void)
 	for (pos = 0; pos < lcd.height * lcd.hwidth; pos++) {
 		/* present the data to the data port */
 		w_dtr(pprt, ' ');
-		usleep_range(60, 120);
+		udelay(60);
 	}
 
 	spin_unlock_irq(&pprt_lock);

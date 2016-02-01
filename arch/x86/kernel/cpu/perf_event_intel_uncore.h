@@ -336,6 +336,7 @@ int snb_uncore_pci_init(void);
 int ivb_uncore_pci_init(void);
 int hsw_uncore_pci_init(void);
 int bdw_uncore_pci_init(void);
+int skl_uncore_pci_init(void);
 void snb_uncore_cpu_init(void);
 void nhm_uncore_cpu_init(void);
 int snb_pci2phy_map_init(int devid);
