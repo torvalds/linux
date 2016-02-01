@@ -636,31 +636,6 @@ bool amdgpu_card_posted(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_boot_test_post_card - check and possibly initialize the hw
- *
- * @adev: amdgpu_device pointer
- *
- * Check if the asic is initialized and if not, attempt to initialize
- * it (all asics).
- * Returns true if initialized or false if not.
- */
-bool amdgpu_boot_test_post_card(struct amdgpu_device *adev)
-{
-	if (amdgpu_card_posted(adev))
-		return true;
-
-	if (adev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		if (adev->is_atom_bios)
-			amdgpu_atom_asic_init(adev->mode_info.atom_context);
-		return true;
-	} else {
-		dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
-		return false;
-	}
-}
-
-/**
  * amdgpu_dummy_page_init - init dummy page used by the driver
  *
  * @adev: amdgpu_device pointer

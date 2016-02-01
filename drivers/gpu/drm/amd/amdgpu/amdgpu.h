@@ -2340,7 +2340,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev);
 void amdgpu_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_card_posted(struct amdgpu_device *adev);
 void amdgpu_update_display_priority(struct amdgpu_device *adev);
-bool amdgpu_boot_test_post_card(struct amdgpu_device *adev);
 
 int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data);
 int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
