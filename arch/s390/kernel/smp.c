@@ -623,8 +623,6 @@ void __init smp_save_dump_cpus(void)
 		return;
 	/* Allocate a page as dumping area for the store status sigps */
 	page = memblock_alloc_base(PAGE_SIZE, PAGE_SIZE, 1UL << 31);
-	if (!page)
-		panic("could not allocate memory for save area\n");
 	/* Set multi-threading state to the previous system. */
 	pcpu_set_smt(sclp.mtid_prev);
 	boot_cpu_addr = stap();
