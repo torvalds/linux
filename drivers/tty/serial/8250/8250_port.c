@@ -1304,6 +1304,19 @@ static void autoconfig_irq(struct uart_8250_port *up)
 	port->irq = (irq > 0) ? irq : 0;
 }
 
+static void serial8250_stop_rx(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	serial8250_rpm_get(up);
+
+	up->ier &= ~(UART_IER_RLSI | UART_IER_RDI);
+	up->port.read_status_mask &= ~UART_LSR_DR;
+	serial_port_out(port, UART_IER, up->ier);
+
+	serial8250_rpm_put(up);
+}
+
 static inline void __stop_tx(struct uart_8250_port *p)
 {
 	if (p->ier & UART_IER_THRI) {
@@ -1369,19 +1382,6 @@ static void serial8250_throttle(struct uart_port *port)
 static void serial8250_unthrottle(struct uart_port *port)
 {
 	port->unthrottle(port);
-}
-
-static void serial8250_stop_rx(struct uart_port *port)
-{
-	struct uart_8250_port *up = up_to_u8250p(port);
-
-	serial8250_rpm_get(up);
-
-	up->ier &= ~(UART_IER_RLSI | UART_IER_RDI);
-	up->port.read_status_mask &= ~UART_LSR_DR;
-	serial_port_out(port, UART_IER, up->ier);
-
-	serial8250_rpm_put(up);
 }
 
 static void serial8250_disable_ms(struct uart_port *port)
