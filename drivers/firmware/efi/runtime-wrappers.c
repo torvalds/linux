@@ -61,24 +61,14 @@
  */
 static DEFINE_SPINLOCK(efi_runtime_lock);
 
-/*
- * As per commit ef68c8f87ed1 ("x86: Serialize EFI time accesses on rtc_lock"),
- * the EFI specification requires that callers of the time related runtime
- * functions serialize with other CMOS accesses in the kernel, as the EFI time
- * functions may choose to also use the legacy CMOS RTC.
- */
-__weak DEFINE_SPINLOCK(rtc_lock);
-
 static efi_status_t virt_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 {
 	unsigned long flags;
 	efi_status_t status;
 
-	spin_lock_irqsave(&rtc_lock, flags);
-	spin_lock(&efi_runtime_lock);
+	spin_lock_irqsave(&efi_runtime_lock, flags);
 	status = efi_call_virt(get_time, tm, tc);
-	spin_unlock(&efi_runtime_lock);
-	spin_unlock_irqrestore(&rtc_lock, flags);
+	spin_unlock_irqrestore(&efi_runtime_lock, flags);
 	return status;
 }
 
@@ -87,11 +77,9 @@ static efi_status_t virt_efi_set_time(efi_time_t *tm)
 	unsigned long flags;
 	efi_status_t status;
 
-	spin_lock_irqsave(&rtc_lock, flags);
-	spin_lock(&efi_runtime_lock);
+	spin_lock_irqsave(&efi_runtime_lock, flags);
 	status = efi_call_virt(set_time, tm);
-	spin_unlock(&efi_runtime_lock);
-	spin_unlock_irqrestore(&rtc_lock, flags);
+	spin_unlock_irqrestore(&efi_runtime_lock, flags);
 	return status;
 }
 
@@ -102,11 +90,9 @@ static efi_status_t virt_efi_get_wakeup_time(efi_bool_t *enabled,
 	unsigned long flags;
 	efi_status_t status;
 
-	spin_lock_irqsave(&rtc_lock, flags);
-	spin_lock(&efi_runtime_lock);
+	spin_lock_irqsave(&efi_runtime_lock, flags);
 	status = efi_call_virt(get_wakeup_time, enabled, pending, tm);
-	spin_unlock(&efi_runtime_lock);
-	spin_unlock_irqrestore(&rtc_lock, flags);
+	spin_unlock_irqrestore(&efi_runtime_lock, flags);
 	return status;
 }
 
@@ -115,11 +101,9 @@ static efi_status_t virt_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 	unsigned long flags;
 	efi_status_t status;
 
-	spin_lock_irqsave(&rtc_lock, flags);
-	spin_lock(&efi_runtime_lock);
+	spin_lock_irqsave(&efi_runtime_lock, flags);
 	status = efi_call_virt(set_wakeup_time, enabled, tm);
-	spin_unlock(&efi_runtime_lock);
-	spin_unlock_irqrestore(&rtc_lock, flags);
+	spin_unlock_irqrestore(&efi_runtime_lock, flags);
 	return status;
 }
 
