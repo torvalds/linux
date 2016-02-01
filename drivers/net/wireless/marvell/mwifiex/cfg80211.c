@@ -3793,8 +3793,8 @@ static int mwifiex_cfg80211_get_channel(struct wiphy *wiphy,
 		freq = ieee80211_channel_to_frequency(curr_bss->channel, band);
 		chan = ieee80211_get_channel(wiphy, freq);
 
-		if (curr_bss->bcn_ht_oper) {
-			second_chan_offset = curr_bss->bcn_ht_oper->ht_param &
+		if (priv->ht_param_present) {
+			second_chan_offset = priv->assoc_resp_ht_param &
 					IEEE80211_HT_PARAM_CHA_SEC_OFFSET;
 			chan_type = mwifiex_sec_chan_offset_to_chan_type
 							(second_chan_offset);

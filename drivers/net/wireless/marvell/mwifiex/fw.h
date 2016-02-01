@@ -1063,7 +1063,7 @@ struct ieee_types_assoc_rsp {
 	__le16 cap_info_bitmap;
 	__le16 status_code;
 	__le16 a_id;
-	u8 ie_buffer[1];
+	u8 ie_buffer[0];
 } __packed;
 
 struct host_cmd_ds_802_11_associate_rsp {
