@@ -230,6 +230,27 @@ static efi_status_t virt_efi_query_variable_info(u32 attr,
 	return status;
 }
 
+static efi_status_t
+virt_efi_query_variable_info_nonblocking(u32 attr,
+					 u64 *storage_space,
+					 u64 *remaining_space,
+					 u64 *max_variable_size)
+{
+	unsigned long flags;
+	efi_status_t status;
+
+	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
+		return EFI_UNSUPPORTED;
+
+	if (!spin_trylock_irqsave(&efi_runtime_lock, flags))
+		return EFI_NOT_READY;
+
+	status = efi_call_virt(query_variable_info, attr, storage_space,
+			       remaining_space, max_variable_size);
+	spin_unlock_irqrestore(&efi_runtime_lock, flags);
+	return status;
+}
+
 static efi_status_t virt_efi_get_next_high_mono_count(u32 *count)
 {
 	unsigned long flags;
@@ -300,6 +321,7 @@ void efi_native_runtime_setup(void)
 	efi.get_next_high_mono_count = virt_efi_get_next_high_mono_count;
 	efi.reset_system = virt_efi_reset_system;
 	efi.query_variable_info = virt_efi_query_variable_info;
+	efi.query_variable_info_nonblocking = virt_efi_query_variable_info_nonblocking;
 	efi.update_capsule = virt_efi_update_capsule;
 	efi.query_capsule_caps = virt_efi_query_capsule_caps;
 }

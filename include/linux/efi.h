@@ -849,6 +849,7 @@ extern struct efi {
 	efi_set_variable_t *set_variable;
 	efi_set_variable_t *set_variable_nonblocking;
 	efi_query_variable_info_t *query_variable_info;
+	efi_query_variable_info_t *query_variable_info_nonblocking;
 	efi_update_capsule_t *update_capsule;
 	efi_query_capsule_caps_t *query_capsule_caps;
 	efi_get_next_high_mono_count_t *get_next_high_mono_count;
