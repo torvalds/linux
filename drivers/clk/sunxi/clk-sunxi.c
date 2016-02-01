@@ -627,17 +627,29 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 	reg = of_iomap(node, 0);
 
 	i = of_clk_parent_fill(node, parents, SUNXI_MAX_PARENTS);
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	if (of_property_read_string(node, "clock-output-names", &clk_name)) {
+		pr_warn("%s: could not read clock-output-names for \"%s\"\n",
+			__func__, clk_name);
+		goto out_unmap;
+	}
 
 	clk = clk_register_mux(NULL, clk_name, parents, i,
 			       CLK_SET_RATE_PARENT, reg,
 			       data->shift, SUNXI_MUX_GATE_WIDTH,
 			       0, &clk_lock);
 
-	if (clk) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-		clk_register_clkdev(clk, clk_name, NULL);
+	if (IS_ERR(clk)) {
+		pr_warn("%s: failed to register mux clock %s: %ld\n", __func__,
+			clk_name, PTR_ERR(clk));
+		goto out_unmap;
 	}
+
+	of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	clk_register_clkdev(clk, clk_name, NULL);
+	return;
+
+out_unmap:
+	iounmap(reg);
 }
 
 
