@@ -2255,6 +2255,9 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 
 	WARN_ON(!map->bus);
 
+	if (!map->bus || !map->bus->read)
+		return -EINVAL;
+
 	range = _regmap_range_lookup(map, reg);
 	if (range) {
 		ret = _regmap_select_page(map, &reg, range,
