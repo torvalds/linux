@@ -76,6 +76,9 @@ host-clean:
 clean: host-clean
 	$(MAKE) -C ../.. ARCH=lkl clean
 
+mrproper:
+	$(MAKE) -C ../.. mrproper
+
 fs2tar: LDFLAGS += -larchive
 lklfuse: LDFLAGS += -lfuse
 ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd))
