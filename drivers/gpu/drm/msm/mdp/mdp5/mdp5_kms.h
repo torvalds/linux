@@ -56,6 +56,12 @@ struct mdp5_kms {
 	struct clk *mmagic_ahb_clk;
 	struct clk *iommu_clk;
 
+	/* bus clocks */
+	struct clk *mmagic_bimc_axi_clk;
+	struct clk *mmss_s0_axi_clk;
+	struct clk *mmagic_mmss_axi_clk;
+	struct clk *mmagic_mdss_axi_clk;
+
 	/*
 	 * lock to protect access to global resources: ie., following register:
 	 *	- REG_MDP5_MDP_DISP_INTF_SEL
