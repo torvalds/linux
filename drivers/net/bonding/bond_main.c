@@ -3309,6 +3309,7 @@ static struct rtnl_link_stats64 *bond_get_stats(struct net_device *bond_dev,
 		stats->rx_bytes += sstats->rx_bytes - pstats->rx_bytes;
 		stats->rx_errors += sstats->rx_errors - pstats->rx_errors;
 		stats->rx_dropped += sstats->rx_dropped - pstats->rx_dropped;
+		stats->rx_nohandler += sstats->rx_nohandler - pstats->rx_nohandler;
 
 		stats->tx_packets += sstats->tx_packets - pstats->tx_packets;;
 		stats->tx_bytes += sstats->tx_bytes - pstats->tx_bytes;
