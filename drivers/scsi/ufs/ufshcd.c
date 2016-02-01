@@ -400,11 +400,9 @@ static inline int ufshcd_get_lists_status(u32 reg)
 	 *  1		UTRLRDY
 	 *  2		UTMRLRDY
 	 *  3		UCRDY
-	 *  4		HEI
-	 *  5		DEI
-	 * 6-7		reserved
+	 * 4-7		reserved
 	 */
-	return (((reg) & (0xFF)) >> 1) ^ (0x07);
+	return ((reg & 0xFF) >> 1) ^ 0x07;
 }
 
 /**
@@ -2724,7 +2722,7 @@ out:
  * To bring UFS host controller to operational state,
  * 1. Enable required interrupts
  * 2. Configure interrupt aggregation
- * 3. Program UTRL and UTMRL base addres
+ * 3. Program UTRL and UTMRL base address
  * 4. Configure run-stop-registers
  *
  * Returns 0 on success, non-zero value on failure
@@ -2754,8 +2752,13 @@ static int ufshcd_make_hba_operational(struct ufs_hba *hba)
 			REG_UTP_TASK_REQ_LIST_BASE_H);
 
 	/*
+	 * Make sure base address and interrupt setup are updated before
+	 * enabling the run/stop registers below.
+	 */
+	wmb();
+
+	/*
 	 * UCRDY, UTMRLDY and UTRLRDY bits must be 1
-	 * DEI, HEI bits must be 0
 	 */
 	reg = ufshcd_readl(hba, REG_CONTROLLER_STATUS);
 	if (!(ufshcd_get_lists_status(reg))) {
@@ -3918,6 +3921,10 @@ static int ufshcd_issue_tm_cmd(struct ufs_hba *hba, int lun_id, int task_id,
 
 	/* send command to the controller */
 	__set_bit(free_slot, &hba->outstanding_tasks);
+
+	/* Make sure descriptors are ready before ringing the task doorbell */
+	wmb();
+
 	ufshcd_writel(hba, 1 << free_slot, REG_UTP_TASK_REQ_DOOR_BELL);
 
 	spin_unlock_irqrestore(host->host_lock, flags);
