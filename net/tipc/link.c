@@ -1458,6 +1458,12 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL))
 			l->tolerance = peers_tol;
 
+		if (peers_prio && in_range(peers_prio, TIPC_MIN_LINK_PRI,
+					   TIPC_MAX_LINK_PRI)) {
+			l->priority = peers_prio;
+			rc = tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
+		}
+
 		l->silent_intv_cnt = 0;
 		l->stats.recv_states++;
 		if (msg_probe(hdr))
