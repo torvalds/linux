@@ -101,21 +101,17 @@ void _r8712_free_recv_priv(struct recv_priv *precvpriv)
 	r8712_free_recv_priv(precvpriv);
 }
 
-union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue)
+union recv_frame *r8712_alloc_recvframe(struct __queue *pfree_recv_queue)
 {
 	unsigned long irqL;
 	union recv_frame  *precvframe;
-	struct list_head *plist, *phead;
 	struct _adapter *padapter;
 	struct recv_priv *precvpriv;
 
 	spin_lock_irqsave(&pfree_recv_queue->lock, irqL);
-	if (list_empty(&pfree_recv_queue->queue)) {
-		precvframe = NULL;
-	} else {
-		phead = &pfree_recv_queue->queue;
-		plist = phead->next;
-		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
+	precvframe = list_first_entry_or_null(&pfree_recv_queue->queue,
+					      union recv_frame, u.hdr.list);
+	if (precvframe) {
 		list_del_init(&precvframe->u.hdr.list);
 		padapter = precvframe->u.hdr.adapter;
 		if (padapter != NULL) {

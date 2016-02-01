@@ -87,16 +87,15 @@ struct wlan_network *_r8712_alloc_network(struct mlme_priv *pmlmepriv)
 	unsigned long irqL;
 	struct wlan_network *pnetwork;
 	struct  __queue *free_queue = &pmlmepriv->free_bss_pool;
-	struct list_head *plist = NULL;
 
-	if (list_empty(&free_queue->queue))
-		return NULL;
 	spin_lock_irqsave(&free_queue->lock, irqL);
-	plist = free_queue->queue.next;
-	pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
-	list_del_init(&pnetwork->list);
-	pnetwork->last_scanned = jiffies;
-	pmlmepriv->num_of_scanned++;
+	pnetwork = list_first_entry_or_null(&free_queue->queue,
+					    struct wlan_network, list);
+	if (pnetwork) {
+		list_del_init(&pnetwork->list);
+		pnetwork->last_scanned = jiffies;
+		pmlmepriv->num_of_scanned++;
+	}
 	spin_unlock_irqrestore(&free_queue->lock, irqL);
 	return pnetwork;
 }

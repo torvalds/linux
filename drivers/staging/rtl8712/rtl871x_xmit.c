@@ -741,21 +741,16 @@ void r8712_update_protection(struct _adapter *padapter, u8 *ie, uint ie_len)
 struct xmit_buf *r8712_alloc_xmitbuf(struct xmit_priv *pxmitpriv)
 {
 	unsigned long irqL;
-	struct xmit_buf *pxmitbuf =  NULL;
-	struct list_head *plist, *phead;
+	struct xmit_buf *pxmitbuf;
 	struct  __queue *pfree_xmitbuf_queue = &pxmitpriv->free_xmitbuf_queue;
 
 	spin_lock_irqsave(&pfree_xmitbuf_queue->lock, irqL);
-	if (list_empty(&pfree_xmitbuf_queue->queue)) {
-		pxmitbuf = NULL;
-	} else {
-		phead = &pfree_xmitbuf_queue->queue;
-		plist = phead->next;
-		pxmitbuf = LIST_CONTAINOR(plist, struct xmit_buf, list);
-		list_del_init(&(pxmitbuf->list));
-	}
-	if (pxmitbuf !=  NULL)
+	pxmitbuf = list_first_entry_or_null(&pfree_xmitbuf_queue->queue,
+					    struct xmit_buf, list);
+	if (pxmitbuf) {
+		list_del_init(&pxmitbuf->list);
 		pxmitpriv->free_xmitbuf_cnt--;
+	}
 	spin_unlock_irqrestore(&pfree_xmitbuf_queue->lock, irqL);
 	return pxmitbuf;
 }
@@ -795,20 +790,14 @@ struct xmit_frame *r8712_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 		pfree_xmit_queue
 	*/
 	unsigned long irqL;
-	struct xmit_frame *pxframe = NULL;
-	struct list_head *plist, *phead;
+	struct xmit_frame *pxframe;
 	struct  __queue *pfree_xmit_queue = &pxmitpriv->free_xmit_queue;
 
 	spin_lock_irqsave(&pfree_xmit_queue->lock, irqL);
-	if (list_empty(&pfree_xmit_queue->queue)) {
-		pxframe =  NULL;
-	} else {
-		phead = &pfree_xmit_queue->queue;
-		plist = phead->next;
-		pxframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
-		list_del_init(&(pxframe->list));
-	}
-	if (pxframe !=  NULL) {
+	pxframe = list_first_entry_or_null(&pfree_xmit_queue->queue,
+					   struct xmit_frame, list);
+	if (pxframe) {
+		list_del_init(&pxframe->list);
 		pxmitpriv->free_xmitframe_cnt--;
 		pxframe->buf_addr = NULL;
 		pxframe->pxmitbuf = NULL;

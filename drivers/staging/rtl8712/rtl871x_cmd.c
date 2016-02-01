@@ -136,15 +136,12 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 	unsigned long irqL;
 	struct cmd_obj *obj;
 
-	spin_lock_irqsave(&(queue->lock), irqL);
-	if (list_empty(&(queue->queue))) {
-		obj = NULL;
-	} else {
-		obj = LIST_CONTAINOR(queue->queue.next,
-				     struct cmd_obj, list);
+	spin_lock_irqsave(&queue->lock, irqL);
+	obj = list_first_entry_or_null(&queue->queue,
+				       struct cmd_obj, list);
+	if (obj)
 		list_del_init(&obj->list);
-	}
-	spin_unlock_irqrestore(&(queue->lock), irqL);
+	spin_unlock_irqrestore(&queue->lock, irqL);
 	return obj;
 }
 
