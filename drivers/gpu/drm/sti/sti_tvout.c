@@ -326,9 +326,8 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 				  TVO_VIP_REORDER_Y_G_SEL,
 				  TVO_VIP_REORDER_CB_B_SEL);
 
-	/* Set clipping mode (Limited range RGB/Y) */
-	tvout_vip_set_clip_mode(tvout, TVO_VIP_DVO,
-				TVO_VIP_CLIP_LIMITED_RANGE_RGB_Y);
+	/* Set clipping mode */
+	tvout_vip_set_clip_mode(tvout, TVO_VIP_DVO, TVO_VIP_CLIP_DISABLED);
 
 	/* Set round mode (rounded to 8-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_DVO, TVO_VIP_RND_8BIT_ROUNDED);
@@ -383,9 +382,8 @@ static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
 				  TVO_VIP_REORDER_Y_G_SEL,
 				  TVO_VIP_REORDER_CB_B_SEL);
 
-	/* set clipping mode (Limited range RGB/Y) */
-	tvout_vip_set_clip_mode(tvout, TVO_VIP_HDMI,
-			TVO_VIP_CLIP_LIMITED_RANGE_RGB_Y);
+	/* set clipping mode */
+	tvout_vip_set_clip_mode(tvout, TVO_VIP_HDMI, TVO_VIP_CLIP_DISABLED);
 
 	/* set round mode (rounded to 8-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_HDMI, TVO_VIP_RND_8BIT_ROUNDED);
@@ -442,8 +440,8 @@ static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 				  TVO_VIP_REORDER_Y_G_SEL,
 				  TVO_VIP_REORDER_CB_B_SEL);
 
-	/* set clipping mode (EAV/SAV clipping) */
-	tvout_vip_set_clip_mode(tvout, TVO_VIP_HDF, TVO_VIP_CLIP_EAV_SAV);
+	/* set clipping mode */
+	tvout_vip_set_clip_mode(tvout, TVO_VIP_HDF, TVO_VIP_CLIP_DISABLED);
 
 	/* set round mode (rounded to 10-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_HDF, TVO_VIP_RND_10BIT_ROUNDED);
