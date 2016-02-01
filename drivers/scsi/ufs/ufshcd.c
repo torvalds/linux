@@ -1129,6 +1129,8 @@ static void ufshcd_prepare_req_desc_hdr(struct ufshcd_lrb *lrbp,
 		cpu_to_le32(OCS_INVALID_COMMAND_STATUS);
 	/* dword_3 is reserved, hence it is set to 0 */
 	req_desc->header.dword_3 = 0;
+
+	req_desc->prd_table_length = 0;
 }
 
 /**
@@ -1197,6 +1199,7 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 	if (query->request.upiu_req.opcode == UPIU_QUERY_OPCODE_WRITE_DESC)
 		memcpy(descp, query->descriptor, len);
 
+	memset(lrbp->ucd_rsp_ptr, 0, sizeof(struct utp_upiu_rsp));
 }
 
 static inline void ufshcd_prepare_utp_nop_upiu(struct ufshcd_lrb *lrbp)
@@ -1209,6 +1212,11 @@ static inline void ufshcd_prepare_utp_nop_upiu(struct ufshcd_lrb *lrbp)
 	ucd_req_ptr->header.dword_0 =
 		UPIU_HEADER_DWORD(
 			UPIU_TRANSACTION_NOP_OUT, 0, 0, lrbp->task_tag);
+	/* clear rest of the fields of basic header */
+	ucd_req_ptr->header.dword_1 = 0;
+	ucd_req_ptr->header.dword_2 = 0;
+
+	memset(lrbp->ucd_rsp_ptr, 0, sizeof(struct utp_upiu_rsp));
 }
 
 /**
