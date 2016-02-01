@@ -57,11 +57,6 @@ void __init efi_bgrt_init(void)
 		       bgrt_tab->status);
 		return;
 	}
-	if (bgrt_tab->status != 1) {
-		pr_debug("Ignoring BGRT: invalid status %u (expected 1)\n",
-			 bgrt_tab->status);
-		return;
-	}
 	if (bgrt_tab->image_type != 0) {
 		pr_err("Ignoring BGRT: invalid image type %u (expected 0)\n",
 		       bgrt_tab->image_type);
@@ -80,6 +75,11 @@ void __init efi_bgrt_init(void)
 
 	memcpy(&bmp_header, image, sizeof(bmp_header));
 	memunmap(image);
+	if (bmp_header.id != 0x4d42) {
+		pr_err("Ignoring BGRT: Incorrect BMP magic number 0x%x (expected 0x4d42)\n",
+			bmp_header.id);
+		return;
+	}
 	bgrt_image_size = bmp_header.size;
 
 	bgrt_image = kmalloc(bgrt_image_size, GFP_KERNEL | __GFP_NOWARN);
