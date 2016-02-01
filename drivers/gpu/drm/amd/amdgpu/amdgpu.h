@@ -1898,6 +1898,11 @@ void *amdgpu_cgs_create_device(struct amdgpu_device *adev);
 void amdgpu_cgs_destroy_device(void *cgs_device);
 
 
+/* GPU virtualization */
+struct amdgpu_virtualization {
+	bool supports_sr_iov;
+};
+
 /*
  * Core structure, functions and helpers.
  */
@@ -2071,6 +2076,8 @@ struct amdgpu_device {
 
 	/* kernel conext for IB submission */
 	struct amdgpu_ctx	kernel_ctx;
+
+	struct amdgpu_virtualization virtualization;
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);

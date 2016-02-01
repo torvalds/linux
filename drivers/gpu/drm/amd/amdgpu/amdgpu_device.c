@@ -1500,6 +1500,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 	}
 
+	/* See if the asic supports SR-IOV */
+	adev->virtualization.supports_sr_iov =
+		amdgpu_atombios_has_gpu_virtualization_table(adev);
+
 	/* Post card if necessary */
 	if (!amdgpu_card_posted(adev)) {
 		if (!adev->bios) {
