@@ -88,7 +88,7 @@ static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 
 static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 {
-	struct amdgpu_fence *fence = NULL;
+	struct fence *fence = NULL;
 	struct amdgpu_job *job;
 	int r;
 
@@ -98,21 +98,19 @@ static struct fence *amdgpu_sched_run_job(struct amd_sched_job *sched_job)
 	}
 	job = to_amdgpu_job(sched_job);
 	trace_amdgpu_sched_run_job(job);
-	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job->owner);
+	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
+			       job->owner, &fence);
 	if (r) {
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		goto err;
 	}
-
-	fence = job->ibs[job->num_ibs - 1].fence;
-	fence_get(&fence->base);
 
 err:
 	if (job->free_job)
 		job->free_job(job);
 
 	kfree(job);
-	return fence ? &fence->base : NULL;
+	return fence;
 }
 
 struct amd_sched_backend_ops amdgpu_sched_ops = {

@@ -104,6 +104,7 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
  * @num_ibs: number of IBs to schedule
  * @ibs: IB objects to schedule
  * @owner: owner for creating the fences
+ * @f: fence created during this submission
  *
  * Schedule an IB on the associated ring (all asics).
  * Returns 0 on success, error on failure.
@@ -119,7 +120,8 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
  * to SI there was just a DE IB.
  */
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
-		       struct amdgpu_ib *ibs, void *owner)
+		       struct amdgpu_ib *ibs, void *owner,
+		       struct fence **f)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];
@@ -199,6 +201,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		amdgpu_ring_emit_fence(ring, addr, ib->sequence,
 				       AMDGPU_FENCE_FLAG_64BIT);
 	}
+
+	if (f)
+		*f = fence_get(&ib->fence->base);
 
 	amdgpu_ring_commit(ring);
 	return 0;
