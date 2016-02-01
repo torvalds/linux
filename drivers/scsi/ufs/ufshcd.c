@@ -74,6 +74,9 @@
 /* maximum number of link-startup retries */
 #define DME_LINKSTARTUP_RETRIES 3
 
+/* Maximum retries for Hibern8 enter */
+#define UIC_HIBERN8_ENTER_RETRIES 3
+
 /* maximum number of reset retries before giving up */
 #define MAX_HOST_RESET_RETRIES 5
 
@@ -2387,13 +2390,32 @@ out:
 	return ret;
 }
 
-static int ufshcd_uic_hibern8_enter(struct ufs_hba *hba)
+static int __ufshcd_uic_hibern8_enter(struct ufs_hba *hba)
 {
+	int ret;
 	struct uic_command uic_cmd = {0};
 
 	uic_cmd.command = UIC_CMD_DME_HIBER_ENTER;
+	ret = ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
 
-	return ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
+	if (ret)
+		dev_err(hba->dev, "%s: hibern8 enter failed. ret = %d\n",
+			__func__, ret);
+
+	return ret;
+}
+
+static int ufshcd_uic_hibern8_enter(struct ufs_hba *hba)
+{
+	int ret = 0, retries;
+
+	for (retries = UIC_HIBERN8_ENTER_RETRIES; retries > 0; retries--) {
+		ret = __ufshcd_uic_hibern8_enter(hba);
+		if (!ret || ret == -ENOLINK)
+			goto out;
+	}
+out:
+	return ret;
 }
 
 static int ufshcd_uic_hibern8_exit(struct ufs_hba *hba)
