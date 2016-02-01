@@ -329,6 +329,12 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
+	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	    !dev_priv->psr.link_standby) {
+		DRM_ERROR("PSR condition failed: Link off requested but not supported on this platform\n");
+		return false;
+	}
+
 	if (IS_HASWELL(dev) &&
 	    I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config->cpu_transcoder)) &
 		      S3D_ENABLE) {
@@ -772,6 +778,7 @@ void intel_psr_init(struct drm_device *dev)
 	dev_priv->psr_mmio_base = IS_HASWELL(dev_priv) ?
 		HSW_EDP_PSR_BASE : BDW_EDP_PSR_BASE;
 
+	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		/* HSW and BDW require workarounds that we don't implement. */
 		dev_priv->psr.link_standby = false;
@@ -781,6 +788,16 @@ void intel_psr_init(struct drm_device *dev)
 	else
 		/* For new platforms let's respect VBT back again */
 		dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
+
+	/* Override link_standby x link_off defaults */
+	if (i915.enable_psr == 2 && !dev_priv->psr.link_standby) {
+		DRM_DEBUG_KMS("PSR: Forcing link standby\n");
+		dev_priv->psr.link_standby = true;
+	}
+	if (i915.enable_psr == 3 && dev_priv->psr.link_standby) {
+		DRM_DEBUG_KMS("PSR: Forcing main link off\n");
+		dev_priv->psr.link_standby = false;
+	}
 
 	INIT_DELAYED_WORK(&dev_priv->psr.work, intel_psr_work);
 	mutex_init(&dev_priv->psr.lock);
