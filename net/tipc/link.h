@@ -112,8 +112,10 @@ char tipc_link_plane(struct tipc_link *l);
 int tipc_link_prio(struct tipc_link *l);
 int tipc_link_window(struct tipc_link *l);
 unsigned long tipc_link_tolerance(struct tipc_link *l);
-void tipc_link_set_tolerance(struct tipc_link *l, u32 tol);
-void tipc_link_set_prio(struct tipc_link *l, u32 prio);
+void tipc_link_set_tolerance(struct tipc_link *l, u32 tol,
+			     struct sk_buff_head *xmitq);
+void tipc_link_set_prio(struct tipc_link *l, u32 prio,
+			struct sk_buff_head *xmitq);
 void tipc_link_set_abort_limit(struct tipc_link *l, u32 limit);
 void tipc_link_set_queue_limits(struct tipc_link *l, u32 window);
 int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,

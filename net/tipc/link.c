@@ -123,7 +123,6 @@ struct tipc_stats {
 struct tipc_link {
 	u32 addr;
 	char name[TIPC_MAX_LINK_NAME];
-	struct tipc_media_addr *media_addr;
 	struct net *net;
 
 	/* Management and link supervision data */
@@ -1261,26 +1260,6 @@ drop:
 	return rc;
 }
 
-/*
- * Send protocol message to the other endpoint.
- */
-static void tipc_link_proto_xmit(struct tipc_link *l, u32 msg_typ,
-				 int probe_msg, u32 gap, u32 tolerance,
-				 u32 priority)
-{
-	struct sk_buff *skb = NULL;
-	struct sk_buff_head xmitq;
-
-	__skb_queue_head_init(&xmitq);
-	tipc_link_build_proto_msg(l, msg_typ, probe_msg, gap,
-				  tolerance, priority, &xmitq);
-	skb = __skb_dequeue(&xmitq);
-	if (!skb)
-		return;
-	tipc_bearer_xmit_skb(l->net, l->bearer_id, skb, l->media_addr);
-	l->rcv_unacked = 0;
-}
-
 static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 				      u16 rcvgap, int tolerance, int priority,
 				      struct sk_buff_head *xmitq)
@@ -2021,16 +2000,18 @@ msg_full:
 	return -EMSGSIZE;
 }
 
-void tipc_link_set_tolerance(struct tipc_link *l, u32 tol)
+void tipc_link_set_tolerance(struct tipc_link *l, u32 tol,
+			     struct sk_buff_head *xmitq)
 {
 	l->tolerance = tol;
-	tipc_link_proto_xmit(l, STATE_MSG, 0, 0, tol, 0);
+	tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, tol, 0, xmitq);
 }
 
-void tipc_link_set_prio(struct tipc_link *l, u32 prio)
+void tipc_link_set_prio(struct tipc_link *l, u32 prio,
+			struct sk_buff_head *xmitq)
 {
 	l->priority = prio;
-	tipc_link_proto_xmit(l, STATE_MSG, 0, 0, 0, prio);
+	tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, prio, xmitq);
 }
 
 void tipc_link_set_abort_limit(struct tipc_link *l, u32 limit)

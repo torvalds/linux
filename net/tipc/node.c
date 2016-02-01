@@ -1637,8 +1637,11 @@ int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info)
 	char *name;
 	struct tipc_link *link;
 	struct tipc_node *node;
+	struct sk_buff_head xmitq;
 	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
 	struct net *net = sock_net(skb->sk);
+
+	__skb_queue_head_init(&xmitq);
 
 	if (!info->attrs[TIPC_NLA_LINK])
 		return -EINVAL;
@@ -1683,13 +1686,13 @@ int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info)
 			u32 tol;
 
 			tol = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
-			tipc_link_set_tolerance(link, tol);
+			tipc_link_set_tolerance(link, tol, &xmitq);
 		}
 		if (props[TIPC_NLA_PROP_PRIO]) {
 			u32 prio;
 
 			prio = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
-			tipc_link_set_prio(link, prio);
+			tipc_link_set_prio(link, prio, &xmitq);
 		}
 		if (props[TIPC_NLA_PROP_WIN]) {
 			u32 win;
@@ -1701,7 +1704,7 @@ int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info)
 
 out:
 	tipc_node_read_unlock(node);
-
+	tipc_bearer_xmit(net, bearer_id, &xmitq, &node->links[bearer_id].maddr);
 	return res;
 }
 
