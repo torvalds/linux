@@ -670,7 +670,7 @@ static __init int perf_event_ibs_init(void)
 	perf_ibs_pmu_init(&perf_ibs_op, "ibs_op");
 
 	register_nmi_handler(NMI_LOCAL, perf_ibs_nmi_handler, 0, "perf_ibs");
-	printk(KERN_INFO "perf: AMD IBS detected (0x%08x)\n", ibs_caps);
+	pr_info("perf: AMD IBS detected (0x%08x)\n", ibs_caps);
 
 	return 0;
 }
@@ -774,14 +774,14 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 		pci_read_config_dword(cpu_cfg, IBSCTL, &value);
 		if (value != (ibs_eilvt_off | IBSCTL_LVT_OFFSET_VALID)) {
 			pci_dev_put(cpu_cfg);
-			printk(KERN_DEBUG "Failed to setup IBS LVT offset, "
-			       "IBSCTL = 0x%08x\n", value);
+			pr_debug("Failed to setup IBS LVT offset, IBSCTL = 0x%08x\n",
+				 value);
 			return -EINVAL;
 		}
 	} while (1);
 
 	if (!nodes) {
-		printk(KERN_DEBUG "No CPU node configured for IBS\n");
+		pr_debug("No CPU node configured for IBS\n");
 		return -ENODEV;
 	}
 
@@ -810,7 +810,7 @@ static void force_ibs_eilvt_setup(void)
 	preempt_enable();
 
 	if (offset == APIC_EILVT_NR_MAX) {
-		printk(KERN_DEBUG "No EILVT entry available\n");
+		pr_debug("No EILVT entry available\n");
 		return;
 	}
 
