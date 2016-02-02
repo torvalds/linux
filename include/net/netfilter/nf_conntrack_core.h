@@ -79,12 +79,10 @@ print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
             const struct nf_conntrack_l3proto *l3proto,
             const struct nf_conntrack_l4proto *proto);
 
-#ifdef CONFIG_LOCKDEP
-# define CONNTRACK_LOCKS 8
-#else
-# define CONNTRACK_LOCKS 1024
-#endif
+#define CONNTRACK_LOCKS 1024
+
 extern spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
+void nf_conntrack_lock(spinlock_t *lock);
 
 extern spinlock_t nf_conntrack_expect_lock;
 
