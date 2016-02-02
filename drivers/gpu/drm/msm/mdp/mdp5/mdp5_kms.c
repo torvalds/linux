@@ -478,7 +478,7 @@ static void read_hw_revision(struct mdp5_kms *mdp5_kms,
 
 	mdp5_enable(mdp5_kms);
 	version = mdp5_read(mdp5_kms, REG_MDSS_HW_VERSION);
-	mdp5_disable(mdp5_kms);
+	//mdp5_disable(mdp5_kms);
 
 	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
 	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
