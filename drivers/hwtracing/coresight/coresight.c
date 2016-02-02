@@ -536,7 +536,7 @@ static void coresight_fixup_orphan_conns(struct coresight_device *csdev)
 	 * are hooked-up with each newly added component.
 	 */
 	bus_for_each_dev(&coresight_bustype, NULL,
-				 csdev, coresight_orphan_match);
+			 csdev, coresight_orphan_match);
 }
 
 
