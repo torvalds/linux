@@ -97,6 +97,20 @@ static struct quirk_entry quirk_asm100 = {
 	.deepslp = 0,
 };
 
+static struct quirk_entry quirk_asm200 = {
+	.num_zones = 2,
+	.hdmi_mux = 1,
+	.amplifier = 0,
+	.deepslp = 1,
+};
+
+static struct quirk_entry quirk_asm201 = {
+	.num_zones = 2,
+	.hdmi_mux = 1,
+	.amplifier = 1,
+	.deepslp = 1,
+};
+
 static int __init dmi_matched(const struct dmi_system_id *dmi)
 {
 	quirks = dmi->driver_data;
@@ -139,6 +153,24 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "ASM100"),
 		     },
 	 .driver_data = &quirk_asm100,
+	 },
+	{
+	 .callback = dmi_matched,
+	 .ident = "Alienware ASM200",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "ASM200"),
+		     },
+	 .driver_data = &quirk_asm200,
+	 },
+	{
+	 .callback = dmi_matched,
+	 .ident = "Alienware ASM201",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "ASM201"),
+		     },
+	 .driver_data = &quirk_asm201,
 	 },
 	{}
 };
