@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -120,33 +120,5 @@ struct cvmx_sysinfo {
  */
 
 extern struct cvmx_sysinfo *cvmx_sysinfo_get(void);
-
-/**
- * This function is used in non-simple executive environments (such as
- * Linux kernel, u-boot, etc.)	to configure the minimal fields that
- * are required to use simple executive files directly.
- *
- * Locking (if required) must be handled outside of this
- * function
- *
- * @phy_mem_desc_ptr: Pointer to global physical memory descriptor
- *		     (bootmem descriptor) @board_type: Octeon board
- *		     type enumeration
- *
- * @board_rev_major:
- *		     Board major revision
- * @board_rev_minor:
- *		     Board minor revision
- * @cpu_clock_hz:
- *		     CPU clock freqency in hertz
- *
- * Returns 0: Failure
- *	   1: success
- */
-extern int cvmx_sysinfo_minimal_initialize(void *phy_mem_desc_ptr,
-					   uint16_t board_type,
-					   uint8_t board_rev_major,
-					   uint8_t board_rev_minor,
-					   uint32_t cpu_clock_hz);
 
 #endif /* __CVMX_SYSINFO_H__ */
