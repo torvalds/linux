@@ -305,4 +305,12 @@ static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
 #define PSY_HAVE_PUT
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+#define SPI_DEV_MODALIAS "spidev"
+#define SPI_NOR_MODALIAS "spi-nor"
+#else
+#define SPI_DEV_MODALIAS "spidev"
+#define SPI_NOR_MODALIAS "m25p80"
+#endif
+
 #endif	/* __GREYBUS_KERNEL_VER_H */

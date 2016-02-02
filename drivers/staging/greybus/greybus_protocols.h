@@ -737,6 +737,10 @@ struct gb_spi_device_config_response {
 	__le16	mode;
 	__u8	bits_per_word;
 	__le32	max_speed_hz;
+	__u8	device_type;
+#define GB_SPI_SPI_DEV		0x00
+#define GB_SPI_SPI_NOR		0x01
+#define GB_SPI_SPI_MODALIAS	0x02
 	__u8	name[32];
 } __packed;
 
