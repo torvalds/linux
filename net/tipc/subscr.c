@@ -309,7 +309,8 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 	int swap;
 
 	/* Determine subscriber's endianness */
-	swap = !(s->filter & (TIPC_SUB_PORTS | TIPC_SUB_SERVICE));
+	swap = !(s->filter & (TIPC_SUB_PORTS | TIPC_SUB_SERVICE |
+			      TIPC_SUB_CANCEL));
 
 	/* Detect & process a subscription cancellation request */
 	if (s->filter & htohl(TIPC_SUB_CANCEL, swap)) {
