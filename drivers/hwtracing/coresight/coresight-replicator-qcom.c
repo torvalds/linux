@@ -156,15 +156,6 @@ static int replicator_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 }
 
-static int replicator_remove(struct amba_device *adev)
-{
-	struct replicator_state *drvdata = amba_get_drvdata(adev);
-
-	pm_runtime_disable(&adev->dev);
-	coresight_unregister(drvdata->csdev);
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int replicator_runtime_suspend(struct device *dev)
 {
@@ -206,9 +197,9 @@ static struct amba_driver replicator_driver = {
 	.drv = {
 		.name	= "coresight-replicator-qcom",
 		.pm	= &replicator_dev_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= replicator_probe,
-	.remove		= replicator_remove,
 	.id_table	= replicator_ids,
 };
 
