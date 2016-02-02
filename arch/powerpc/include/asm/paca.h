@@ -49,6 +49,9 @@ extern unsigned int debug_smp_processor_id(void); /* from linux/smp.h */
 #define get_lppaca()	(get_paca()->lppaca_ptr)
 #define get_slb_shadow()	(get_paca()->slb_shadow_ptr)
 
+/* Maximum number of threads per core. */
+#define	MAX_SMT		8
+
 struct task_struct;
 
 /*

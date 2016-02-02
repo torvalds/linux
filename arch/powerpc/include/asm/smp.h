@@ -30,6 +30,7 @@
 #include <asm/percpu.h>
 
 extern int boot_cpuid;
+extern int boot_hw_cpuid;
 extern int spinning_secondaries;
 
 extern void cpu_die(void);

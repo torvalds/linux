@@ -207,6 +207,7 @@ void __init allocate_pacas(void)
 {
 	u64 limit;
 	int cpu;
+	unsigned int nr_cpus;
 
 	limit = ppc64_rma_size;
 
@@ -219,20 +220,32 @@ void __init allocate_pacas(void)
 	limit = min(0x10000000ULL, limit);
 #endif
 
-	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
+	/*
+	 * Always align up the nr_cpu_ids to SMT threads and allocate
+	 * the paca. This will help us to prepare for a situation where
+	 * boot cpu id > nr_cpus_id. We will use the last nthreads
+	 * slots (nthreads == threads per core) to accommodate a core
+	 * that contains boot cpu thread.
+	 *
+	 * Do not change nr_cpu_ids value here. Let us do that in
+	 * early_init_dt_scan_cpus() where we know exact value
+	 * of threads per core.
+	 */
+	nr_cpus = _ALIGN_UP(nr_cpu_ids, MAX_SMT);
+	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpus);
 
 	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
 	memset(paca, 0, paca_size);
 
 	printk(KERN_DEBUG "Allocated %u bytes for %u pacas at %p\n",
-		paca_size, nr_cpu_ids, paca);
+		paca_size, nr_cpus, paca);
 
-	allocate_lppacas(nr_cpu_ids, limit);
+	allocate_lppacas(nr_cpus, limit);
 
-	allocate_slb_shadows(nr_cpu_ids, limit);
+	allocate_slb_shadows(nr_cpus, limit);
 
 	/* Can't use for_each_*_cpu, as they aren't functional yet */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
+	for (cpu = 0; cpu < nr_cpus; cpu++)
 		initialise_paca(&paca[cpu], cpu);
 }
 
