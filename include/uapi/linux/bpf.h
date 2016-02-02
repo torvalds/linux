@@ -81,6 +81,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_ARRAY,
 	BPF_MAP_TYPE_PROG_ARRAY,
 	BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+	BPF_MAP_TYPE_PERCPU_HASH,
 };
 
 enum bpf_prog_type {
