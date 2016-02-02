@@ -9793,10 +9793,11 @@ S:	Supported
 F:	drivers/scsi/be2iscsi/
 
 Emulex 10Gbps NIC BE2, BE3-R, Lancer, Skyhawk-R DRIVER
-M:	Sathya Perla <sathya.perla@avagotech.com>
-M:	Ajit Khaparde <ajit.khaparde@avagotech.com>
-M:	Padmanabh Ratnakar <padmanabh.ratnakar@avagotech.com>
-M:	Sriharsha Basavapatna <sriharsha.basavapatna@avagotech.com>
+M:	Sathya Perla <sathya.perla@broadcom.com>
+M:	Ajit Khaparde <ajit.khaparde@broadcom.com>
+M:	Padmanabh Ratnakar <padmanabh.ratnakar@broadcom.com>
+M:	Sriharsha Basavapatna <sriharsha.basavapatna@broadcom.com>
+M:	Somnath Kotur <somnath.kotur@broadcom.com>
 L:	netdev@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported
