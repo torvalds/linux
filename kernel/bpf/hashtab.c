@@ -290,7 +290,7 @@ static void free_htab_elem(struct htab_elem *l, bool percpu, u32 key_size)
 
 static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 					 void *value, u32 key_size, u32 hash,
-					 bool percpu)
+					 bool percpu, bool onallcpus)
 {
 	u32 size = htab->map.value_size;
 	struct htab_elem *l_new;
@@ -312,8 +312,18 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 			return NULL;
 		}
 
-		/* copy true value_size bytes */
-		memcpy(this_cpu_ptr(pptr), value, htab->map.value_size);
+		if (!onallcpus) {
+			/* copy true value_size bytes */
+			memcpy(this_cpu_ptr(pptr), value, htab->map.value_size);
+		} else {
+			int off = 0, cpu;
+
+			for_each_possible_cpu(cpu) {
+				bpf_long_memcpy(per_cpu_ptr(pptr, cpu),
+						value + off, size);
+				off += size;
+			}
+		}
 		htab_elem_set_ptr(l_new, key_size, pptr);
 	} else {
 		memcpy(l_new->key + round_up(key_size, 8), value, size);
@@ -368,7 +378,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	/* allocate new element outside of the lock, since
 	 * we're most likley going to insert it
 	 */
-	l_new = alloc_htab_elem(htab, key, value, key_size, hash, false);
+	l_new = alloc_htab_elem(htab, key, value, key_size, hash, false, false);
 	if (!l_new)
 		return -ENOMEM;
 
@@ -402,8 +412,9 @@ err:
 	return ret;
 }
 
-static int htab_percpu_map_update_elem(struct bpf_map *map, void *key,
-				       void *value, u64 map_flags)
+static int __htab_percpu_map_update_elem(struct bpf_map *map, void *key,
+					 void *value, u64 map_flags,
+					 bool onallcpus)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct htab_elem *l_new = NULL, *l_old;
@@ -436,12 +447,25 @@ static int htab_percpu_map_update_elem(struct bpf_map *map, void *key,
 		goto err;
 
 	if (l_old) {
+		void __percpu *pptr = htab_elem_get_ptr(l_old, key_size);
+		u32 size = htab->map.value_size;
+
 		/* per-cpu hash map can update value in-place */
-		memcpy(this_cpu_ptr(htab_elem_get_ptr(l_old, key_size)),
-		       value, htab->map.value_size);
+		if (!onallcpus) {
+			memcpy(this_cpu_ptr(pptr), value, size);
+		} else {
+			int off = 0, cpu;
+
+			size = round_up(size, 8);
+			for_each_possible_cpu(cpu) {
+				bpf_long_memcpy(per_cpu_ptr(pptr, cpu),
+						value + off, size);
+				off += size;
+			}
+		}
 	} else {
 		l_new = alloc_htab_elem(htab, key, value, key_size,
-					hash, true);
+					hash, true, onallcpus);
 		if (!l_new) {
 			ret = -ENOMEM;
 			goto err;
@@ -453,6 +477,12 @@ static int htab_percpu_map_update_elem(struct bpf_map *map, void *key,
 err:
 	raw_spin_unlock_irqrestore(&b->lock, flags);
 	return ret;
+}
+
+static int htab_percpu_map_update_elem(struct bpf_map *map, void *key,
+				       void *value, u64 map_flags)
+{
+	return __htab_percpu_map_update_elem(map, key, value, map_flags, false);
 }
 
 /* Called from syscall or from eBPF program */
@@ -555,6 +585,41 @@ static void *htab_percpu_map_lookup_elem(struct bpf_map *map, void *key)
 		return this_cpu_ptr(htab_elem_get_ptr(l, map->key_size));
 	else
 		return NULL;
+}
+
+int bpf_percpu_hash_copy(struct bpf_map *map, void *key, void *value)
+{
+	struct htab_elem *l;
+	void __percpu *pptr;
+	int ret = -ENOENT;
+	int cpu, off = 0;
+	u32 size;
+
+	/* per_cpu areas are zero-filled and bpf programs can only
+	 * access 'value_size' of them, so copying rounded areas
+	 * will not leak any kernel data
+	 */
+	size = round_up(map->value_size, 8);
+	rcu_read_lock();
+	l = __htab_map_lookup_elem(map, key);
+	if (!l)
+		goto out;
+	pptr = htab_elem_get_ptr(l, map->key_size);
+	for_each_possible_cpu(cpu) {
+		bpf_long_memcpy(value + off,
+				per_cpu_ptr(pptr, cpu), size);
+		off += size;
+	}
+	ret = 0;
+out:
+	rcu_read_unlock();
+	return ret;
+}
+
+int bpf_percpu_hash_update(struct bpf_map *map, void *key, void *value,
+			   u64 map_flags)
+{
+	return __htab_percpu_map_update_elem(map, key, value, map_flags, true);
 }
 
 static const struct bpf_map_ops htab_percpu_ops = {

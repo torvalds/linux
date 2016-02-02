@@ -130,6 +130,32 @@ static void *percpu_array_map_lookup_elem(struct bpf_map *map, void *key)
 	return this_cpu_ptr(array->pptrs[index]);
 }
 
+int bpf_percpu_array_copy(struct bpf_map *map, void *key, void *value)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	u32 index = *(u32 *)key;
+	void __percpu *pptr;
+	int cpu, off = 0;
+	u32 size;
+
+	if (unlikely(index >= array->map.max_entries))
+		return -ENOENT;
+
+	/* per_cpu areas are zero-filled and bpf programs can only
+	 * access 'value_size' of them, so copying rounded areas
+	 * will not leak any kernel data
+	 */
+	size = round_up(map->value_size, 8);
+	rcu_read_lock();
+	pptr = array->pptrs[index];
+	for_each_possible_cpu(cpu) {
+		bpf_long_memcpy(value + off, per_cpu_ptr(pptr, cpu), size);
+		off += size;
+	}
+	rcu_read_unlock();
+	return 0;
+}
+
 /* Called from syscall */
 static int array_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
@@ -174,6 +200,44 @@ static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 	else
 		memcpy(array->value + array->elem_size * index,
 		       value, map->value_size);
+	return 0;
+}
+
+int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
+			    u64 map_flags)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	u32 index = *(u32 *)key;
+	void __percpu *pptr;
+	int cpu, off = 0;
+	u32 size;
+
+	if (unlikely(map_flags > BPF_EXIST))
+		/* unknown flags */
+		return -EINVAL;
+
+	if (unlikely(index >= array->map.max_entries))
+		/* all elements were pre-allocated, cannot insert a new one */
+		return -E2BIG;
+
+	if (unlikely(map_flags == BPF_NOEXIST))
+		/* all elements already exist */
+		return -EEXIST;
+
+	/* the user space will provide round_up(value_size, 8) bytes that
+	 * will be copied into per-cpu area. bpf programs can only access
+	 * value_size of it. During lookup the same extra bytes will be
+	 * returned or zeros which were zero-filled by percpu_alloc,
+	 * so no kernel data leaks possible
+	 */
+	size = round_up(map->value_size, 8);
+	rcu_read_lock();
+	pptr = array->pptrs[index];
+	for_each_possible_cpu(cpu) {
+		bpf_long_memcpy(per_cpu_ptr(pptr, cpu), value + off, size);
+		off += size;
+	}
+	rcu_read_unlock();
 	return 0;
 }
 
