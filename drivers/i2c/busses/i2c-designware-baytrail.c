@@ -11,7 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/acpi.h>
@@ -151,7 +150,3 @@ int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev)
 
 	return 0;
 }
-
-MODULE_AUTHOR("David E. Box <david.e.box@linux.intel.com>");
-MODULE_DESCRIPTION("Baytrail I2C Semaphore driver");
-MODULE_LICENSE("GPL v2");
