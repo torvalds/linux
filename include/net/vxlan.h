@@ -9,9 +9,6 @@
 #include <linux/udp.h>
 #include <net/dst_metadata.h>
 
-#define VNI_HASH_BITS	10
-#define VNI_HASH_SIZE	(1<<VNI_HASH_BITS)
-
 /*
  * VXLAN Group Based Policy Extension:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
