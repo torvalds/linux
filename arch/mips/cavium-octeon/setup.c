@@ -637,9 +637,22 @@ void __init prom_init(void)
 	sysinfo = cvmx_sysinfo_get();
 	memset(sysinfo, 0, sizeof(*sysinfo));
 	sysinfo->system_dram_size = octeon_bootinfo->dram_size << 20;
-	sysinfo->phy_mem_desc_ptr =
-		cvmx_phys_to_ptr(octeon_bootinfo->phy_mem_desc_addr);
-	sysinfo->core_mask = octeon_bootinfo->core_mask;
+	sysinfo->phy_mem_desc_addr = (u64)phys_to_virt(octeon_bootinfo->phy_mem_desc_addr);
+
+	if ((octeon_bootinfo->major_version > 1) ||
+	    (octeon_bootinfo->major_version == 1 &&
+	     octeon_bootinfo->minor_version >= 4))
+		cvmx_coremask_copy(&sysinfo->core_mask,
+				   &octeon_bootinfo->ext_core_mask);
+	else
+		cvmx_coremask_set64(&sysinfo->core_mask,
+				    octeon_bootinfo->core_mask);
+
+	/* Some broken u-boot pass garbage in upper bits, clear them out */
+	if (!OCTEON_IS_MODEL(OCTEON_CN78XX))
+		for (i = 512; i < 1024; i++)
+			cvmx_coremask_clear_core(&sysinfo->core_mask, i);
+
 	sysinfo->exception_base_addr = octeon_bootinfo->exception_base_addr;
 	sysinfo->cpu_clock_hz = octeon_bootinfo->eclock_hz;
 	sysinfo->dram_data_rate_hz = octeon_bootinfo->dclock_hz * 2;

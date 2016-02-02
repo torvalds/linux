@@ -32,6 +32,8 @@
 #ifndef __CVMX_SYSINFO_H__
 #define __CVMX_SYSINFO_H__
 
+#include "cvmx-coremask.h"
+
 #define OCTEON_SERIAL_LEN 20
 /**
  * Structure describing application specific information.
@@ -50,8 +52,7 @@ struct cvmx_sysinfo {
 	uint64_t system_dram_size;
 
 	/* ptr to memory descriptor block */
-	void *phy_mem_desc_ptr;
-
+	uint64_t phy_mem_desc_addr;
 
 	/* Application image specific variables */
 	/* stack top address (virtual) */
@@ -63,7 +64,7 @@ struct cvmx_sysinfo {
 	/* heap size in bytes */
 	uint32_t heap_size;
 	/* coremask defining cores running application */
-	uint32_t core_mask;
+	struct cvmx_coremask core_mask;
 	/* Deprecated, use cvmx_coremask_first_core() to select init core */
 	uint32_t init_core;
 
