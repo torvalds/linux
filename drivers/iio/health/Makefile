@@ -4,4 +4,5 @@
 
 # When adding new entries keep the list in alphabetical order
 
+obj-$(CONFIG_AFE4404)		+= afe4404.o
 obj-$(CONFIG_MAX30100)		+= max30100.o
