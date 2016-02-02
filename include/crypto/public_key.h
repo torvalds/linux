@@ -14,7 +14,6 @@
 #ifndef _LINUX_PUBLIC_KEY_H
 #define _LINUX_PUBLIC_KEY_H
 
-#include <linux/mpi.h>
 #include <crypto/hash_info.h>
 
 enum pkey_algo {
@@ -73,20 +72,9 @@ struct public_key_signature {
 	u8 *s;			/* Signature */
 	u32 s_size;		/* Number of bytes in signature */
 	u8 *digest;
-	u8 digest_size;			/* Number of bytes in digest */
-	u8 nr_mpi;			/* Occupancy of mpi[] */
+	u8 digest_size;		/* Number of bytes in digest */
 	enum pkey_algo pkey_algo : 8;
 	enum hash_algo pkey_hash_algo : 8;
-	union {
-		MPI mpi[2];
-		struct {
-			MPI s;		/* m^d mod n */
-		} rsa;
-		struct {
-			MPI r;
-			MPI s;
-		} dsa;
-	};
 };
 
 extern struct asymmetric_key_subtype public_key_subtype;
