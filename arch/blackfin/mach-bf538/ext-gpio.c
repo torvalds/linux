@@ -8,8 +8,8 @@
 
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <asm/blackfin.h>
-#include <asm/gpio.h>
 #include <asm/portmux.h>
 
 #define DEFINE_REG(reg, off) \
