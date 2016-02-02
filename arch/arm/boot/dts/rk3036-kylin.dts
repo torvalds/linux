@@ -130,6 +130,10 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
 &i2c1 {
 	clock-frequency = <400000>;
 
@@ -382,6 +386,14 @@
 };
 
 &usb_otg {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
 	status = "okay";
 };
 
