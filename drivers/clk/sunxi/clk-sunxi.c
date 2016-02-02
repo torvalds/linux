@@ -615,8 +615,8 @@ static const struct mux_data sun8i_h3_ahb2_mux_data __initconst = {
 	.shift = 0,
 };
 
-static void __init sunxi_mux_clk_setup(struct device_node *node,
-				       struct mux_data *data)
+static struct clk * __init sunxi_mux_clk_setup(struct device_node *node,
+					       struct mux_data *data)
 {
 	struct clk *clk;
 	const char *clk_name = node->name;
@@ -646,10 +646,12 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 
 	of_clk_add_provider(node, of_clk_src_simple_get, clk);
 	clk_register_clkdev(clk, clk_name, NULL);
-	return;
+
+	return clk;
 
 out_unmap:
 	iounmap(reg);
+	return NULL;
 }
 
 
@@ -820,8 +822,8 @@ static const struct divs_data sun6i_a31_pll6_divs_data __initconst = {
  *           |________________________|
  */
 
-static void __init sunxi_divs_clk_setup(struct device_node *node,
-					struct divs_data *data)
+static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
+						 struct divs_data *data)
 {
 	struct clk_onecell_data *clk_data;
 	const char *parent;
@@ -848,7 +850,7 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 
 	clk_data = kmalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
 	if (!clk_data)
-		return;
+		return NULL;
 
 	clks = kcalloc(ndivs, sizeof(*clks), GFP_KERNEL);
 	if (!clks)
@@ -934,7 +936,7 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 
 	of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
 
-	return;
+	return clks;
 
 free_gate:
 	kfree(gate);
@@ -942,6 +944,7 @@ free_clks:
 	kfree(clks);
 free_clkdata:
 	kfree(clk_data);
+	return NULL;
 }
 
 
