@@ -40,6 +40,12 @@ enum nfit_uuids {
 	NFIT_UUID_MAX,
 };
 
+enum nfit_fic {
+	NFIT_FIC_BYTE = 0x101, /* byte-addressable energy backed */
+	NFIT_FIC_BLK = 0x201, /* block-addressable non-energy backed */
+	NFIT_FIC_BYTEN = 0x301, /* byte-addressable non-energy backed */
+};
+
 enum {
 	ND_BLK_READ_FLUSH = 1,
 	ND_BLK_DCR_LATCH = 2,

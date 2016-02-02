@@ -823,6 +823,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	dcr->device_id = 0;
 	dcr->revision_id = 1;
 	dcr->serial_number = ~handle[0];
+	dcr->code = NFIT_FIC_BLK;
 	dcr->windows = 1;
 	dcr->window_size = DCR_SIZE;
 	dcr->command_offset = 0;
@@ -839,6 +840,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	dcr->device_id = 0;
 	dcr->revision_id = 1;
 	dcr->serial_number = ~handle[1];
+	dcr->code = NFIT_FIC_BLK;
 	dcr->windows = 1;
 	dcr->window_size = DCR_SIZE;
 	dcr->command_offset = 0;
@@ -855,6 +857,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	dcr->device_id = 0;
 	dcr->revision_id = 1;
 	dcr->serial_number = ~handle[2];
+	dcr->code = NFIT_FIC_BLK;
 	dcr->windows = 1;
 	dcr->window_size = DCR_SIZE;
 	dcr->command_offset = 0;
@@ -871,6 +874,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	dcr->device_id = 0;
 	dcr->revision_id = 1;
 	dcr->serial_number = ~handle[3];
+	dcr->code = NFIT_FIC_BLK;
 	dcr->windows = 1;
 	dcr->window_size = DCR_SIZE;
 	dcr->command_offset = 0;
@@ -967,6 +971,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 		dcr->device_id = 0;
 		dcr->revision_id = 1;
 		dcr->serial_number = ~handle[4];
+		dcr->code = NFIT_FIC_BLK;
 		dcr->windows = 1;
 		dcr->window_size = DCR_SIZE;
 		dcr->command_offset = 0;
@@ -1136,7 +1141,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	dcr->device_id = 0;
 	dcr->revision_id = 1;
 	dcr->serial_number = ~0;
-	dcr->code = 0x201;
+	dcr->code = NFIT_FIC_BYTE;
 	dcr->windows = 0;
 	dcr->window_size = 0;
 	dcr->command_offset = 0;
