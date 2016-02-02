@@ -1546,8 +1546,10 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 		}
 
 		cfgcr1 = cfgcr2 = 0;
-	} else /* eDP */
+	} else if (intel_encoder->type == INTEL_OUTPUT_EDP) {
 		return true;
+	} else
+		return false;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
