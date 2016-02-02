@@ -321,7 +321,7 @@ static void hdmi_infoframe_write_infopack(struct sti_hdmi *hdmi, const u8 *data)
 
 	/* Enable transmission slot for updated infoframe */
 	val = hdmi_read(hdmi, HDMI_SW_DI_CFG);
-	val |= HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_FIELD, slot);
+	val |= HDMI_IFRAME_CFG_DI_N(mode, slot);
 	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
 }
 
