@@ -2556,10 +2556,8 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	u32 duration = min(IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS,
-			   200 + vif->bss_conf.beacon_int);
-	u32 min_duration = min(IWL_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS,
-			       100 + vif->bss_conf.beacon_int);
+	u32 duration = IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
+	u32 min_duration = IWL_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS;
 
 	if (WARN_ON_ONCE(vif->bss_conf.assoc))
 		return;
