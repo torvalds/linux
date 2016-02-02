@@ -644,73 +644,75 @@ int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 }
 EXPORT_SYMBOL(ieee80211_data_from_8023);
 
+static struct sk_buff *
+__ieee80211_amsdu_copy(struct sk_buff *skb, unsigned int hlen,
+		       int offset, int len)
+{
+	struct sk_buff *frame;
+
+	if (skb->len - offset < len)
+		return NULL;
+
+	/*
+	 * Allocate and reserve two bytes more for payload
+	 * alignment since sizeof(struct ethhdr) is 14.
+	 */
+	frame = dev_alloc_skb(hlen + sizeof(struct ethhdr) + 2 + len);
+
+	skb_reserve(frame, hlen + sizeof(struct ethhdr) + 2);
+	skb_copy_bits(skb, offset, skb_put(frame, len), len);
+
+	return frame;
+}
 
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
 			      const unsigned int extra_headroom,
 			      bool has_80211_header)
 {
+	unsigned int hlen = ALIGN(extra_headroom, 4);
 	struct sk_buff *frame = NULL;
 	u16 ethertype;
 	u8 *payload;
-	const struct ethhdr *eth;
-	int remaining, err;
-	u8 dst[ETH_ALEN], src[ETH_ALEN];
-
-	if (skb_linearize(skb))
-		goto out;
+	int offset = 0, remaining, err;
+	struct ethhdr eth;
+	bool reuse_skb = true;
+	bool last = false;
 
 	if (has_80211_header) {
-		err = ieee80211_data_to_8023(skb, addr, iftype);
+		err = __ieee80211_data_to_8023(skb, &eth, addr, iftype);
 		if (err)
 			goto out;
-
-		/* skip the wrapping header */
-		eth = (struct ethhdr *) skb_pull(skb, sizeof(struct ethhdr));
-		if (!eth)
-			goto out;
-	} else {
-		eth = (struct ethhdr *) skb->data;
 	}
 
-	while (skb != frame) {
+	while (!last) {
+		unsigned int subframe_len;
+		int len;
 		u8 padding;
-		__be16 len = eth->h_proto;
-		unsigned int subframe_len = sizeof(struct ethhdr) + ntohs(len);
 
-		remaining = skb->len;
-		memcpy(dst, eth->h_dest, ETH_ALEN);
-		memcpy(src, eth->h_source, ETH_ALEN);
-
+		skb_copy_bits(skb, offset, &eth, sizeof(eth));
+		len = ntohs(eth.h_proto);
+		subframe_len = sizeof(struct ethhdr) + len;
 		padding = (4 - subframe_len) & 0x3;
+
 		/* the last MSDU has no padding */
+		remaining = skb->len - offset;
 		if (subframe_len > remaining)
 			goto purge;
 
-		skb_pull(skb, sizeof(struct ethhdr));
+		offset += sizeof(struct ethhdr);
 		/* reuse skb for the last subframe */
-		if (remaining <= subframe_len + padding)
+		last = remaining <= subframe_len + padding;
+		if (!skb_is_nonlinear(skb) && last) {
+			skb_pull(skb, offset);
 			frame = skb;
-		else {
-			unsigned int hlen = ALIGN(extra_headroom, 4);
-			/*
-			 * Allocate and reserve two bytes more for payload
-			 * alignment since sizeof(struct ethhdr) is 14.
-			 */
-			frame = dev_alloc_skb(hlen + subframe_len + 2);
+			reuse_skb = true;
+		} else {
+			frame = __ieee80211_amsdu_copy(skb, hlen, offset, len);
 			if (!frame)
 				goto purge;
 
-			skb_reserve(frame, hlen + sizeof(struct ethhdr) + 2);
-			memcpy(skb_put(frame, ntohs(len)), skb->data,
-				ntohs(len));
-
-			eth = (struct ethhdr *)skb_pull(skb, ntohs(len) +
-							padding);
-			if (!eth) {
-				dev_kfree_skb(frame);
-				goto purge;
-			}
+			offset += len + padding;
 		}
 
 		skb_reset_network_header(frame);
@@ -719,23 +721,19 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 
 		payload = frame->data;
 		ethertype = (payload[6] << 8) | payload[7];
-
 		if (likely((ether_addr_equal(payload, rfc1042_header) &&
 			    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
 			   ether_addr_equal(payload, bridge_tunnel_header))) {
-			/* remove RFC1042 or Bridge-Tunnel
-			 * encapsulation and replace EtherType */
-			skb_pull(frame, 6);
-			memcpy(skb_push(frame, ETH_ALEN), src, ETH_ALEN);
-			memcpy(skb_push(frame, ETH_ALEN), dst, ETH_ALEN);
-		} else {
-			memcpy(skb_push(frame, sizeof(__be16)), &len,
-				sizeof(__be16));
-			memcpy(skb_push(frame, ETH_ALEN), src, ETH_ALEN);
-			memcpy(skb_push(frame, ETH_ALEN), dst, ETH_ALEN);
+			eth.h_proto = htons(ethertype);
+			skb_pull(frame, ETH_ALEN + 2);
 		}
+
+		memcpy(skb_push(frame, sizeof(eth)), &eth, sizeof(eth));
 		__skb_queue_tail(list, frame);
 	}
+
+	if (!reuse_skb)
+		dev_kfree_skb(skb);
 
 	return;
 
