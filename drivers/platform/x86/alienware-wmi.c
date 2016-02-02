@@ -229,7 +229,7 @@ static u8 global_brightness;
 
 /*
  * Helpers used for zone control
-*/
+ */
 static int parse_rgb(const char *buf, struct platform_zone *zone)
 {
 	long unsigned int rgb;
@@ -269,7 +269,7 @@ static struct platform_zone *match_zone(struct device_attribute *attr)
 
 /*
  * Individual RGB zone control
-*/
+ */
 static int alienware_update_led(struct platform_zone *zone)
 {
 	int method_id;
@@ -342,7 +342,7 @@ static ssize_t zone_set(struct device *dev, struct device_attribute *attr,
 
 /*
  * LED Brightness (Global)
-*/
+ */
 static int wmax_brightness(int brightness)
 {
 	acpi_status status;
@@ -386,7 +386,7 @@ static struct led_classdev global_led = {
 
 /*
  * Lighting control state device attribute (Global)
-*/
+ */
 static ssize_t show_control_state(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -622,11 +622,7 @@ static int create_hdmi(struct platform_device *dev)
 
 	ret = sysfs_create_group(&dev->dev.kobj, &hdmi_attribute_group);
 	if (ret)
-		goto error_create_hdmi;
-	return 0;
-
-error_create_hdmi:
-	remove_hdmi(dev);
+		remove_hdmi(dev);
 	return ret;
 }
 
