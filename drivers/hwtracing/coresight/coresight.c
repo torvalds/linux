@@ -713,12 +713,8 @@ EXPORT_SYMBOL_GPL(coresight_register);
 
 void coresight_unregister(struct coresight_device *csdev)
 {
-	mutex_lock(&coresight_mutex);
-
 	kfree(csdev->conns);
 	device_unregister(&csdev->dev);
-
-	mutex_unlock(&coresight_mutex);
 }
 EXPORT_SYMBOL_GPL(coresight_unregister);
 
