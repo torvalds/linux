@@ -64,6 +64,9 @@
 /* Delay introduced by the HDMI in nb of pixel */
 #define HDMI_DELAY          (5)
 
+/* Delay introduced by the DVO in nb of pixel */
+#define DVO_DELAY           (2)
+
 /* delay introduced by the Arbitrary Waveform Generator in nb of pixels */
 #define AWG_DELAY_HD        (-9)
 #define AWG_DELAY_ED        (-8)
@@ -278,7 +281,7 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	vtg_set_hsync_vsync_pos(&sync[VTG_SYNC_ID_HDF - 1], AWG_DELAY_HD, mode);
 
 	/* Set hsync and vsync position for DVO */
-	vtg_set_hsync_vsync_pos(&sync[VTG_SYNC_ID_DVO - 1], 0, mode);
+	vtg_set_hsync_vsync_pos(&sync[VTG_SYNC_ID_DVO - 1], DVO_DELAY, mode);
 
 	/* Progam the syncs outputs */
 	for (i = 0; i < VTG_MAX_SYNC_OUTPUT ; i++) {
