@@ -143,6 +143,9 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 	__skb_pull(skb, tcp_hdrlen(skb));
 	skb_set_owner_r(skb, sk);
 
+	TCP_SKB_CB(skb)->seq++;
+	TCP_SKB_CB(skb)->tcp_flags &= ~TCPHDR_SYN;
+
 	tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	tp->syn_data_acked = 1;
