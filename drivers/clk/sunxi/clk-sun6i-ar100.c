@@ -60,7 +60,7 @@ static const struct clk_factors_config sun6i_ar100_config = {
 	.pshift = 4,
 };
 
-static const struct factors_data sun6i_ar100_data __initconst = {
+static const struct factors_data sun6i_ar100_data = {
 	.mux = 16,
 	.muxmask = GENMASK(1, 0),
 	.table = &sun6i_ar100_config,
