@@ -26,5 +26,19 @@
 		serial@75b0000 {
 			status = "okay";
 		};
+
+		qcom,hdmi_phy@9a0600 {
+			status = "okay";
+
+			vddio-supply = <&pm8994_l12>;
+			vcca-supply = <&pm8994_l28>;
+		};
+
+		qcom,hdmi_tx@9a0000 {
+			status = "okay";
+
+			core-vdda-supply = <&pm8994_l12>;
+			core-vcc-supply = <&pm8994_s4>;
+		};
 	};
 };
