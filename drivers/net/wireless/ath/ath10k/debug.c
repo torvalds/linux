@@ -2182,9 +2182,6 @@ static ssize_t ath10k_debug_fw_checksums_read(struct file *file,
 
 	mutex_lock(&ar->conf_mutex);
 
-	if (len > buf_len)
-		len = buf_len;
-
 	len += scnprintf(buf + len, buf_len - len,
 			 "firmware-N.bin\t\t%08x\n",
 			 crc32_le(0, ar->firmware->data, ar->firmware->size));
