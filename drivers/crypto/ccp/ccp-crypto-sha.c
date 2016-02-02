@@ -210,14 +210,17 @@ static int ccp_sha_digest(struct ahash_request *req)
 static int ccp_sha_export(struct ahash_request *req, void *out)
 {
 	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
-	struct ccp_sha_exp_ctx *state = out;
+	struct ccp_sha_exp_ctx state;
 
-	state->type = rctx->type;
-	state->msg_bits = rctx->msg_bits;
-	state->first = rctx->first;
-	memcpy(state->ctx, rctx->ctx, sizeof(state->ctx));
-	state->buf_count = rctx->buf_count;
-	memcpy(state->buf, rctx->buf, sizeof(state->buf));
+	state.type = rctx->type;
+	state.msg_bits = rctx->msg_bits;
+	state.first = rctx->first;
+	memcpy(state.ctx, rctx->ctx, sizeof(state.ctx));
+	state.buf_count = rctx->buf_count;
+	memcpy(state.buf, rctx->buf, sizeof(state.buf));
+
+	/* 'out' may not be aligned so memcpy from local variable */
+	memcpy(out, &state, sizeof(state));
 
 	return 0;
 }
@@ -225,14 +228,17 @@ static int ccp_sha_export(struct ahash_request *req, void *out)
 static int ccp_sha_import(struct ahash_request *req, const void *in)
 {
 	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
-	const struct ccp_sha_exp_ctx *state = in;
+	struct ccp_sha_exp_ctx state;
 
-	rctx->type = state->type;
-	rctx->msg_bits = state->msg_bits;
-	rctx->first = state->first;
-	memcpy(rctx->ctx, state->ctx, sizeof(rctx->ctx));
-	rctx->buf_count = state->buf_count;
-	memcpy(rctx->buf, state->buf, sizeof(rctx->buf));
+	/* 'in' may not be aligned so memcpy to local variable */
+	memcpy(&state, in, sizeof(state));
+
+	rctx->type = state.type;
+	rctx->msg_bits = state.msg_bits;
+	rctx->first = state.first;
+	memcpy(rctx->ctx, state.ctx, sizeof(rctx->ctx));
+	rctx->buf_count = state.buf_count;
+	memcpy(rctx->buf, state.buf, sizeof(rctx->buf));
 
 	return 0;
 }
