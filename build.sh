@@ -31,6 +31,18 @@ for arg in "$@"; do
 		GRUB=0
 	elif [[ "$arg" == '--noreboot' || "$arg" == '-noreboot' ]]; then
 		REBOOT=0
+        elif [[ "$arg" == '--medusa-only' || "$arg" == '-medusa-only' ]]; then
+		sudo find security/ -name '*.o' -delete
+		sudo find security/ -name '*.cmd' -delete
+                sudo make -j4
+                sudo cp arch/x86/boot/bzImage /boot/vmlinuz-`uname -r`
+                if [ "$DEST" != "NONE" ]; then
+	                rsync -avz --exclude 'Documentation' --exclude '*.o' --exclude '.*' --exclude '*.cmd' --exclude '.git' --exclude '*.xz' -e ssh . $DEST 
+                fi
+                #sudo update-initramfs -u -k `uname -r`
+                #sudo update-grub
+                [ $REBOOT == 1 ] && sudo reboot
+                exit 0
 	fi
 done
 sudo rm vmlinux 2> /dev/null
