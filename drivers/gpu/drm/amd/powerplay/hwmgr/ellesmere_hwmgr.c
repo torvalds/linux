@@ -57,6 +57,8 @@
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
 
+#include "ellesmere_thermal.h"
+
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
 #define MC_CG_ARB_FREQ_F2           0x0c
@@ -4198,8 +4200,14 @@ static int ellesmere_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *i
 
 static int ellesmere_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm)
 {
+	hwmgr->thermal_controller.
+	advanceFanControlParameters.usMaxFanPWM = us_max_fan_pwm;
 
+	if (phm_is_hw_access_blocked(hwmgr))
 		return 0;
+
+	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm);
 }
 
 int ellesmere_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
@@ -4290,9 +4298,16 @@ int ellesmere_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 * @param    usMaxFanRpm:  max operating fan RPM value.
 * @return   The response that came from the SMC.
 */
-static int ellesmere_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm)
+static int ellesmere_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_rpm)
 {
-	return 0;
+	hwmgr->thermal_controller.
+	advanceFanControlParameters.usMaxFanRPM = us_max_fan_rpm;
+
+	if (phm_is_hw_access_blocked(hwmgr))
+		return 0;
+
+	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
 }
 
 int ellesmere_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
@@ -4529,15 +4544,15 @@ static const struct pp_hwmgr_func ellesmere_hwmgr_funcs = {
 	.display_config_changed = ellesmere_display_configuration_changed_task,
 	.set_max_fan_pwm_output = ellesmere_set_max_fan_pwm_output,
 	.set_max_fan_rpm_output = ellesmere_set_max_fan_rpm_output,
-	.get_temperature = NULL,
-	.stop_thermal_controller = NULL,
-	.get_fan_speed_info = NULL,
-	.get_fan_speed_percent = NULL,
-	.set_fan_speed_percent = NULL,
-	.reset_fan_speed_to_default = NULL,
-	.get_fan_speed_rpm = NULL,
-	.set_fan_speed_rpm = NULL,
-	.uninitialize_thermal_controller = NULL,
+	.get_temperature = ellesmere_thermal_get_temperature,
+	.stop_thermal_controller = ellesmere_thermal_stop_thermal_controller,
+	.get_fan_speed_info = ellesmere_fan_ctrl_get_fan_speed_info,
+	.get_fan_speed_percent = ellesmere_fan_ctrl_get_fan_speed_percent,
+	.set_fan_speed_percent = ellesmere_fan_ctrl_set_fan_speed_percent,
+	.reset_fan_speed_to_default = ellesmere_fan_ctrl_reset_fan_speed_to_default,
+	.get_fan_speed_rpm = ellesmere_fan_ctrl_get_fan_speed_rpm,
+	.set_fan_speed_rpm = ellesmere_fan_ctrl_set_fan_speed_rpm,
+	.uninitialize_thermal_controller = ellesmere_thermal_ctrl_uninitialize_thermal_controller,
 	.register_internal_thermal_interrupt = ellesmere_register_internal_thermal_interrupt,
 	.check_smc_update_required_for_display_configuration = ellesmere_check_smc_update_required_for_display_configuration,
 	.check_states_equal = ellesmere_check_states_equal,
@@ -4554,7 +4569,7 @@ int ellesemere_hwmgr_init(struct pp_hwmgr *hwmgr)
 	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &ellesmere_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
-
+	pp_ellesmere_thermal_initialize(hwmgr);
 
 	return 0;
 }
