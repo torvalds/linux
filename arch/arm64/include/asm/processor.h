@@ -29,6 +29,7 @@
 
 #include <linux/string.h>
 
+#include <asm/alternative.h>
 #include <asm/fpsimd.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/pgtable-hwdef.h>
@@ -177,9 +178,11 @@ static inline void prefetchw(const void *ptr)
 }
 
 #define ARCH_HAS_SPINLOCK_PREFETCH
-static inline void spin_lock_prefetch(const void *x)
+static inline void spin_lock_prefetch(const void *ptr)
 {
-	prefetchw(x);
+	asm volatile(ARM64_LSE_ATOMIC_INSN(
+		     "prfm pstl1strm, %a0",
+		     "nop") : : "p" (ptr));
 }
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
