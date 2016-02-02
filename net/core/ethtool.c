@@ -632,7 +632,7 @@ static int ethtool_copy_validate_indir(u32 *indir, void __user *useraddr,
 	return 0;
 }
 
-u8 netdev_rss_key[NETDEV_RSS_KEY_LEN];
+u8 netdev_rss_key[NETDEV_RSS_KEY_LEN] __read_mostly;
 
 void netdev_rss_key_fill(void *buffer, size_t len)
 {
