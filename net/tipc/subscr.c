@@ -284,13 +284,13 @@ static void tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
 
 	spin_lock_bh(&subscriber->lock);
 	list_add(&sub->subscrp_list, &subscriber->subscrp_list);
+	tipc_subscrb_get(subscriber);
 	sub->subscriber = subscriber;
 	tipc_nametbl_subscribe(sub);
 	spin_unlock_bh(&subscriber->lock);
 
 	timeout = htohl(sub->evt.s.timeout, swap);
-	if (!mod_timer(&sub->timer, jiffies + msecs_to_jiffies(timeout)))
-		tipc_subscrb_get(subscriber);
+	mod_timer(&sub->timer, jiffies + msecs_to_jiffies(timeout));
 }
 
 /* Handle one termination request for the subscriber */
