@@ -393,9 +393,9 @@ unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ieee80211_get_hdrlen_from_skb);
 
-unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
+static unsigned int __ieee80211_get_mesh_hdrlen(u8 flags)
 {
-	int ae = meshhdr->flags & MESH_FLAGS_AE;
+	int ae = flags & MESH_FLAGS_AE;
 	/* 802.11-2012, 8.2.4.7.3 */
 	switch (ae) {
 	default:
@@ -407,21 +407,31 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 		return 18;
 	}
 }
+
+unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
+{
+	return __ieee80211_get_mesh_hdrlen(meshhdr->flags);
+}
 EXPORT_SYMBOL(ieee80211_get_mesh_hdrlen);
 
-int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
-			   enum nl80211_iftype iftype)
+static int __ieee80211_data_to_8023(struct sk_buff *skb, struct ethhdr *ehdr,
+				    const u8 *addr, enum nl80211_iftype iftype)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u16 hdrlen, ethertype;
-	u8 *payload;
-	u8 dst[ETH_ALEN];
-	u8 src[ETH_ALEN] __aligned(2);
+	struct {
+		u8 hdr[ETH_ALEN] __aligned(2);
+		__be16 proto;
+	} payload;
+	struct ethhdr tmp;
+	u16 hdrlen;
+	u8 mesh_flags = 0;
 
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
 		return -1;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	if (skb->len < hdrlen + 8)
+		return -1;
 
 	/* convert IEEE 802.11 header + possible LLC headers into Ethernet
 	 * header
@@ -432,8 +442,11 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 	 *   1     0   BSSID SA    DA    n/a
 	 *   1     1   RA    TA    DA    SA
 	 */
-	memcpy(dst, ieee80211_get_DA(hdr), ETH_ALEN);
-	memcpy(src, ieee80211_get_SA(hdr), ETH_ALEN);
+	memcpy(tmp.h_dest, ieee80211_get_DA(hdr), ETH_ALEN);
+	memcpy(tmp.h_source, ieee80211_get_SA(hdr), ETH_ALEN);
+
+	if (iftype == NL80211_IFTYPE_MESH_POINT)
+		skb_copy_bits(skb, hdrlen, &mesh_flags, 1);
 
 	switch (hdr->frame_control &
 		cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
@@ -450,44 +463,31 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 			     iftype != NL80211_IFTYPE_STATION))
 			return -1;
 		if (iftype == NL80211_IFTYPE_MESH_POINT) {
-			struct ieee80211s_hdr *meshdr =
-				(struct ieee80211s_hdr *) (skb->data + hdrlen);
-			/* make sure meshdr->flags is on the linear part */
-			if (!pskb_may_pull(skb, hdrlen + 1))
+			if (mesh_flags & MESH_FLAGS_AE_A4)
 				return -1;
-			if (meshdr->flags & MESH_FLAGS_AE_A4)
-				return -1;
-			if (meshdr->flags & MESH_FLAGS_AE_A5_A6) {
+			if (mesh_flags & MESH_FLAGS_AE_A5_A6) {
 				skb_copy_bits(skb, hdrlen +
 					offsetof(struct ieee80211s_hdr, eaddr1),
-				       	dst, ETH_ALEN);
-				skb_copy_bits(skb, hdrlen +
-					offsetof(struct ieee80211s_hdr, eaddr2),
-				        src, ETH_ALEN);
+					tmp.h_dest, 2 * ETH_ALEN);
 			}
-			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
+			hdrlen += __ieee80211_get_mesh_hdrlen(mesh_flags);
 		}
 		break;
 	case cpu_to_le16(IEEE80211_FCTL_FROMDS):
 		if ((iftype != NL80211_IFTYPE_STATION &&
 		     iftype != NL80211_IFTYPE_P2P_CLIENT &&
 		     iftype != NL80211_IFTYPE_MESH_POINT) ||
-		    (is_multicast_ether_addr(dst) &&
-		     ether_addr_equal(src, addr)))
+		    (is_multicast_ether_addr(tmp.h_dest) &&
+		     ether_addr_equal(tmp.h_source, addr)))
 			return -1;
 		if (iftype == NL80211_IFTYPE_MESH_POINT) {
-			struct ieee80211s_hdr *meshdr =
-				(struct ieee80211s_hdr *) (skb->data + hdrlen);
-			/* make sure meshdr->flags is on the linear part */
-			if (!pskb_may_pull(skb, hdrlen + 1))
+			if (mesh_flags & MESH_FLAGS_AE_A5_A6)
 				return -1;
-			if (meshdr->flags & MESH_FLAGS_AE_A5_A6)
-				return -1;
-			if (meshdr->flags & MESH_FLAGS_AE_A4)
+			if (mesh_flags & MESH_FLAGS_AE_A4)
 				skb_copy_bits(skb, hdrlen +
 					offsetof(struct ieee80211s_hdr, eaddr1),
-					src, ETH_ALEN);
-			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
+					tmp.h_source, ETH_ALEN);
+			hdrlen += __ieee80211_get_mesh_hdrlen(mesh_flags);
 		}
 		break;
 	case cpu_to_le16(0):
@@ -498,32 +498,32 @@ int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 		break;
 	}
 
-	if (!pskb_may_pull(skb, hdrlen + 8))
-		return -1;
+	skb_copy_bits(skb, hdrlen, &payload, sizeof(payload));
+	tmp.h_proto = payload.proto;
 
-	payload = skb->data + hdrlen;
-	ethertype = (payload[6] << 8) | payload[7];
-
-	if (likely((ether_addr_equal(payload, rfc1042_header) &&
-		    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
-		   ether_addr_equal(payload, bridge_tunnel_header))) {
+	if (likely((ether_addr_equal(payload.hdr, rfc1042_header) &&
+		    tmp.h_proto != htons(ETH_P_AARP) &&
+		    tmp.h_proto != htons(ETH_P_IPX)) ||
+		   ether_addr_equal(payload.hdr, bridge_tunnel_header)))
 		/* remove RFC1042 or Bridge-Tunnel encapsulation and
 		 * replace EtherType */
-		skb_pull(skb, hdrlen + 6);
-		memcpy(skb_push(skb, ETH_ALEN), src, ETH_ALEN);
-		memcpy(skb_push(skb, ETH_ALEN), dst, ETH_ALEN);
-	} else {
-		struct ethhdr *ehdr;
-		__be16 len;
+		hdrlen += ETH_ALEN + 2;
+	else
+		tmp.h_proto = htons(skb->len);
 
-		skb_pull(skb, hdrlen);
-		len = htons(skb->len);
+	pskb_pull(skb, hdrlen);
+
+	if (!ehdr)
 		ehdr = (struct ethhdr *) skb_push(skb, sizeof(struct ethhdr));
-		memcpy(ehdr->h_dest, dst, ETH_ALEN);
-		memcpy(ehdr->h_source, src, ETH_ALEN);
-		ehdr->h_proto = len;
-	}
+	memcpy(ehdr, &tmp, sizeof(tmp));
+
 	return 0;
+}
+
+int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
+			   enum nl80211_iftype iftype)
+{
+	return __ieee80211_data_to_8023(skb, NULL, addr, iftype);
 }
 EXPORT_SYMBOL(ieee80211_data_to_8023);
 
