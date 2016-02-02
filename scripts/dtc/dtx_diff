@@ -136,8 +136,7 @@ compile_to_dts() {
 			echo ""                                              >&2
 			echo "  architecture ${dtx_arch} is in file path,"   >&2
 			echo "  but does not match shell variable \$ARCH"    >&2
-			echo "  (${ARCH}) does not match shell variable"     >&2
-			echo "  \$ARCH (${ARCH})"                            >&2
+			echo "  >>\$ARCH<< is: >>${ARCH}<<"                  >&2
 		fi
 
 		if [ ! -d ${srctree}/arch/${ARCH} ] ; then
@@ -267,6 +266,14 @@ DTC="${__KBUILD_OUTPUT}/scripts/dtc/dtc"
 
 if [ ! -x ${DTC} ] ; then
 	__DTC="dtc"
+	if grep -q "^CONFIG_DTC=y" ${__KBUILD_OUTPUT}/.config ; then
+		make_command='
+         make scripts'
+	else
+		make_command='
+         Enable CONFIG_DTC in the kernel configuration
+         make scripts'
+	fi
 	if ( ! which ${__DTC} >/dev/null ) ; then
 
 		# use spaces instead of tabs in the error message
@@ -280,8 +287,7 @@ ERROR: unable to find a 'dtc' program
       'dtc' is: ${DTC}
 
       If it does not exist, create it from the root of the Linux source tree:
-
-         'make scripts'.
+${make_command}
 
       If not at the root of the Linux kernel source tree -s SRCTREE or -S
       may need to be specified to find 'dtc'.
