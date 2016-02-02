@@ -104,7 +104,7 @@ struct msp_state {
 	unsigned int         restart:1;
 	unsigned int         watch_stereo:1;
 
-#if CONFIG_MEDIA_CONTROLLER
+#if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
 	struct media_pad pads[IF_AUD_DEC_PAD_NUM_PADS];
 #endif
 };
