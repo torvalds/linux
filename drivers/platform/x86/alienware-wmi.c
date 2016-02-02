@@ -69,9 +69,14 @@ static struct quirk_entry quirk_unknown = {
 	.hdmi_mux = 0,
 };
 
-static struct quirk_entry quirk_x51_family = {
+static struct quirk_entry quirk_x51_r1_r2 = {
 	.num_zones = 3,
 	.hdmi_mux = 0.
+};
+
+static struct quirk_entry quirk_x51_r3 = {
+	.num_zones = 4,
+	.hdmi_mux = 0,
 };
 
 static struct quirk_entry quirk_asm100 = {
@@ -88,12 +93,12 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 static const struct dmi_system_id alienware_quirks[] __initconst = {
 	{
 	 .callback = dmi_matched,
-	 .ident = "Alienware X51 R1",
+	 .ident = "Alienware X51 R3",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "Alienware X51"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "Alienware X51 R3"),
 		     },
-	 .driver_data = &quirk_x51_family,
+	 .driver_data = &quirk_x51_r3,
 	 },
 	{
 	 .callback = dmi_matched,
@@ -102,7 +107,16 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "Alienware X51 R2"),
 		     },
-	 .driver_data = &quirk_x51_family,
+	 .driver_data = &quirk_x51_r1_r2,
+	 },
+	{
+	 .callback = dmi_matched,
+	 .ident = "Alienware X51 R1",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "Alienware X51"),
+		     },
+	 .driver_data = &quirk_x51_r1_r2,
 	 },
 	{
 	 .callback = dmi_matched,
