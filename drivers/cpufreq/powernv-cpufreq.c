@@ -43,6 +43,7 @@
 
 static struct cpufreq_frequency_table powernv_freqs[POWERNV_MAX_PSTATES+1];
 static bool rebooting, throttled, occ_reset;
+static unsigned int *core_to_chip_map;
 
 static struct chip {
 	unsigned int id;
@@ -313,13 +314,14 @@ static inline unsigned int get_nominal_index(void)
 static void powernv_cpufreq_throttle_check(void *data)
 {
 	unsigned int cpu = smp_processor_id();
+	unsigned int chip_id = core_to_chip_map[cpu_core_index_of_thread(cpu)];
 	unsigned long pmsr;
 	int pmsr_pmax, i;
 
 	pmsr = get_pmspr(SPRN_PMSR);
 
 	for (i = 0; i < nr_chips; i++)
-		if (chips[i].id == cpu_to_chip_id(cpu))
+		if (chips[i].id == chip_id)
 			break;
 
 	/* Check for Pmax Capping */
@@ -559,19 +561,29 @@ static int init_chip_info(void)
 	unsigned int chip[256];
 	unsigned int cpu, i;
 	unsigned int prev_chip_id = UINT_MAX;
+	cpumask_t cpu_mask;
+	int ret = -ENOMEM;
 
-	for_each_possible_cpu(cpu) {
+	core_to_chip_map = kcalloc(cpu_nr_cores(), sizeof(unsigned int),
+				   GFP_KERNEL);
+	if (!core_to_chip_map)
+		goto out;
+
+	cpumask_copy(&cpu_mask, cpu_possible_mask);
+	for_each_cpu(cpu, &cpu_mask) {
 		unsigned int id = cpu_to_chip_id(cpu);
 
 		if (prev_chip_id != id) {
 			prev_chip_id = id;
 			chip[nr_chips++] = id;
 		}
+		core_to_chip_map[cpu_core_index_of_thread(cpu)] = id;
+		cpumask_andnot(&cpu_mask, &cpu_mask, cpu_sibling_mask(cpu));
 	}
 
 	chips = kmalloc_array(nr_chips, sizeof(struct chip), GFP_KERNEL);
 	if (!chips)
-		return -ENOMEM;
+		goto free_chip_map;
 
 	for (i = 0; i < nr_chips; i++) {
 		chips[i].id = chip[i];
@@ -582,6 +594,10 @@ static int init_chip_info(void)
 	}
 
 	return 0;
+free_chip_map:
+	kfree(core_to_chip_map);
+out:
+	return ret;
 }
 
 static int __init powernv_cpufreq_init(void)
@@ -616,6 +632,7 @@ static void __exit powernv_cpufreq_exit(void)
 	opal_message_notifier_unregister(OPAL_MSG_OCC,
 					 &powernv_cpufreq_opal_nb);
 	kfree(chips);
+	kfree(core_to_chip_map);
 	cpufreq_unregister_driver(&powernv_cpufreq_driver);
 }
 module_exit(powernv_cpufreq_exit);
