@@ -579,6 +579,50 @@ static void coresight_fixup_device_conns(struct coresight_device *csdev)
 	}
 }
 
+static int coresight_remove_match(struct device *dev, void *data)
+{
+	int i;
+	struct coresight_device *csdev, *iterator;
+	struct coresight_connection *conn;
+
+	csdev = data;
+	iterator = to_coresight_device(dev);
+
+	/* No need to check oneself */
+	if (csdev == iterator)
+		return 0;
+
+	/*
+	 * Circle throuch all the connection of that component.  If we find
+	 * a connection whose name matches @csdev, remove it.
+	 */
+	for (i = 0; i < iterator->nr_outport; i++) {
+		conn = &iterator->conns[i];
+
+		if (conn->child_dev == NULL)
+			continue;
+
+		if (!strcmp(dev_name(&csdev->dev), conn->child_name)) {
+			iterator->orphan = true;
+			conn->child_dev = NULL;
+			/* No need to continue */
+			break;
+		}
+	}
+
+	/*
+	 * Returning '0' ensures that all known component on the
+	 * bus will be checked.
+	 */
+	return 0;
+}
+
+static void coresight_remove_conns(struct coresight_device *csdev)
+{
+	bus_for_each_dev(&coresight_bustype, NULL,
+			 csdev, coresight_remove_match);
+}
+
 /**
  * coresight_timeout - loop until a bit has changed to a specific state.
  * @addr: base address of the area of interest.
@@ -717,6 +761,8 @@ EXPORT_SYMBOL_GPL(coresight_register);
 
 void coresight_unregister(struct coresight_device *csdev)
 {
+	/* Remove references of that device in the topology */
+	coresight_remove_conns(csdev);
 	device_unregister(&csdev->dev);
 }
 EXPORT_SYMBOL_GPL(coresight_unregister);
