@@ -258,14 +258,8 @@ struct clk *sunxi_factors_register(struct device_node *node,
 	if (ret)
 		goto err_provider;
 
-	ret = clk_register_clkdev(clk, clk_name, NULL);
-	if (ret)
-		goto err_clkdev;
-
 	return clk;
 
-err_clkdev:
-	of_clk_del_provider(node);
 err_provider:
 	/* TODO: The composite clock stuff will leak a bit here. */
 	clk_unregister(clk);
@@ -291,7 +285,6 @@ void sunxi_factors_unregister(struct device_node *node, struct clk *clk)
 	factors = to_clk_factors(hw);
 	name = clk_hw_get_name(hw);
 
-	/* No unregister call for clkdev_* */
 	of_clk_del_provider(node);
 	/* TODO: The composite clock stuff will leak a bit here. */
 	clk_unregister(clk);

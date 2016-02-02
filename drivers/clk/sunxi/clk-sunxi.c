@@ -694,7 +694,6 @@ static struct clk * __init sunxi_mux_clk_setup(struct device_node *node,
 	}
 
 	of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	clk_register_clkdev(clk, clk_name, NULL);
 
 	return clk;
 
@@ -806,10 +805,8 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 					 reg, data->shift, data->width,
 					 data->pow ? CLK_DIVIDER_POWER_OF_TWO : 0,
 					 data->table, &clk_lock);
-	if (clk) {
+	if (clk)
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-		clk_register_clkdev(clk, clk_name, NULL);
-	}
 }
 
 static void __init sun4i_ahb_clk_setup(struct device_node *node)
@@ -1033,7 +1030,6 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 						 clkflags);
 
 		WARN_ON(IS_ERR(clk_data->clks[i]));
-		clk_register_clkdev(clks[i], clk_name, NULL);
 	}
 
 	/* Adjust to the real max */
