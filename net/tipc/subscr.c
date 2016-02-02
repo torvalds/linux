@@ -188,12 +188,14 @@ static struct tipc_subscriber *tipc_subscrb_create(int conid)
 static void tipc_subscrb_delete(struct tipc_subscriber *subscriber)
 {
 	struct tipc_subscription *sub, *temp;
+	u32 timeout;
 
 	spin_lock_bh(&subscriber->lock);
 	/* Destroy any existing subscriptions for subscriber */
 	list_for_each_entry_safe(sub, temp, &subscriber->subscrp_list,
 				 subscrp_list) {
-		if (del_timer(&sub->timer)) {
+		timeout = htohl(sub->evt.s.timeout, sub->swap);
+		if ((timeout == TIPC_WAIT_FOREVER) || del_timer(&sub->timer)) {
 			tipc_subscrp_delete(sub);
 			tipc_subscrb_put(subscriber);
 		}
@@ -217,13 +219,16 @@ static void tipc_subscrp_cancel(struct tipc_subscr *s,
 				struct tipc_subscriber *subscriber)
 {
 	struct tipc_subscription *sub, *temp;
+	u32 timeout;
 
 	spin_lock_bh(&subscriber->lock);
 	/* Find first matching subscription, exit if not found */
 	list_for_each_entry_safe(sub, temp, &subscriber->subscrp_list,
 				 subscrp_list) {
 		if (!memcmp(s, &sub->evt.s, sizeof(struct tipc_subscr))) {
-			if (del_timer(&sub->timer)) {
+			timeout = htohl(sub->evt.s.timeout, sub->swap);
+			if ((timeout == TIPC_WAIT_FOREVER) ||
+			    del_timer(&sub->timer)) {
 				tipc_subscrp_delete(sub);
 				tipc_subscrb_put(subscriber);
 			}
@@ -267,7 +272,6 @@ static struct tipc_subscription *tipc_subscrp_create(struct net *net,
 	sub->swap = swap;
 	memcpy(&sub->evt.s, s, sizeof(*s));
 	atomic_inc(&tn->subscription_count);
-	setup_timer(&sub->timer, tipc_subscrp_timeout, (unsigned long)sub);
 	return sub;
 }
 
@@ -290,6 +294,10 @@ static void tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
 	spin_unlock_bh(&subscriber->lock);
 
 	timeout = htohl(sub->evt.s.timeout, swap);
+	if (timeout == TIPC_WAIT_FOREVER)
+		return;
+
+	setup_timer(&sub->timer, tipc_subscrp_timeout, (unsigned long)sub);
 	mod_timer(&sub->timer, jiffies + msecs_to_jiffies(timeout));
 }
 
