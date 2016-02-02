@@ -270,8 +270,7 @@ static int tipc_subscrp_create(struct net *net, struct tipc_subscr *s,
 	memcpy(&sub->evt.s, s, sizeof(*s));
 	atomic_inc(&tn->subscription_count);
 	setup_timer(&sub->timer, tipc_subscrp_timeout, (unsigned long)sub);
-	if (sub->timeout != TIPC_WAIT_FOREVER)
-		sub->timeout += jiffies;
+	sub->timeout += jiffies;
 	if (!mod_timer(&sub->timer, sub->timeout))
 		tipc_subscrb_get(subscriber);
 	*sub_p = sub;
