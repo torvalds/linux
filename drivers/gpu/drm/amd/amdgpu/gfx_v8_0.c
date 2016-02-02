@@ -3851,10 +3851,16 @@ static int gfx_v8_0_cp_resume(struct amdgpu_device *adev)
 			if (r)
 				return -EINVAL;
 
-			r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
-							AMDGPU_UCODE_ID_CP_MEC1);
-			if (r)
-				return -EINVAL;
+			if (adev->asic_type == CHIP_TOPAZ) {
+				r = gfx_v8_0_cp_compute_load_microcode(adev);
+				if (r)
+					return r;
+			} else {
+				r = adev->smu.smumgr_funcs->check_fw_load_finish(adev,
+										 AMDGPU_UCODE_ID_CP_MEC1);
+				if (r)
+					return -EINVAL;
+			}
 		}
 	}
 
