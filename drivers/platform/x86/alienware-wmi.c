@@ -105,14 +105,14 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 	 .driver_data = &quirk_x51_family,
 	 },
 	{
-		.callback = dmi_matched,
-		.ident = "Alienware ASM100",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "ASM100"),
-		},
-		.driver_data = &quirk_asm100,
-	},
+	 .callback = dmi_matched,
+	 .ident = "Alienware ASM100",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "ASM100"),
+		     },
+	 .driver_data = &quirk_asm100,
+	 },
 	{}
 };
 
