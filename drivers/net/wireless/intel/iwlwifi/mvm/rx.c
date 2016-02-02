@@ -448,6 +448,12 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	iwl_mvm_update_frame_stats(mvm, rate_n_flags,
 				   rx_status->flag & RX_FLAG_AMPDU_DETAILS);
 #endif
+
+	if (unlikely((ieee80211_is_beacon(hdr->frame_control) ||
+		      ieee80211_is_probe_resp(hdr->frame_control)) &&
+		     mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_ENABLED))
+		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_FOUND;
+
 	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, hdr, len, ampdu_status,
 					crypt_len, rxb);
 }

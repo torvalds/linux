@@ -493,6 +493,12 @@ enum iwl_mvm_scan_type {
 	IWL_SCAN_TYPE_FRAGMENTED,
 };
 
+enum iwl_mvm_sched_scan_pass_all_states {
+	SCHED_SCAN_PASS_ALL_DISABLED,
+	SCHED_SCAN_PASS_ALL_ENABLED,
+	SCHED_SCAN_PASS_ALL_FOUND,
+};
+
 /**
  * struct iwl_nvm_section - describes an NVM section in memory.
  *
@@ -687,6 +693,7 @@ struct iwl_mvm {
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 	enum iwl_mvm_scan_type scan_type;
+	enum iwl_mvm_sched_scan_pass_all_states sched_scan_pass_all;
 
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
