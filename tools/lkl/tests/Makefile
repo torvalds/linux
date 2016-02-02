@@ -18,7 +18,7 @@ define for_fs
 endef
 
 define run
-	for fs in $(FS_TYPES); do ./boot.sh -t $$fs; done
+	for fs in $(FS_TYPES); do ./boot.sh -t $$fs || exit 1; done
 endef
 
 QUICK?=0
