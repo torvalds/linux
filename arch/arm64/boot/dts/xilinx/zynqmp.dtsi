@@ -51,6 +51,7 @@
 
 	pmu {
 		compatible = "arm,armv8-pmuv3";
+		interrupt-parent = <&gic>;
 		interrupts = <0 143 4>,
 			     <0 144 4>,
 			     <0 145 4>,
