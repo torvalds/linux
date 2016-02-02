@@ -251,6 +251,7 @@ struct xenvif {
 	unsigned int stalled_queues;
 
 	struct xenbus_watch credit_watch;
+	struct xenbus_watch mcast_ctrl_watch;
 
 	spinlock_t lock;
 
