@@ -92,7 +92,6 @@ struct mtk_afe_memif_data {
 struct mtk_afe_memif {
 	unsigned int phys_buf_addr;
 	int buffer_size;
-	unsigned int hw_ptr;		/* Previous IRQ's HW ptr */
 	struct snd_pcm_substream *substream;
 	const struct mtk_afe_memif_data *data;
 	const struct mtk_afe_irq_data *irqdata;

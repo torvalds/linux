@@ -124,6 +124,43 @@
     <para>
       [Insert diagram of typical DRM stack here]
     </para>
+  <sect1>
+    <title>Style Guidelines</title>
+    <para>
+      For consistency this documentation uses American English. Abbreviations
+      are written as all-uppercase, for example: DRM, KMS, IOCTL, CRTC, and so
+      on. To aid in reading, documentations make full use of the markup
+      characters kerneldoc provides: @parameter for function parameters, @member
+      for structure members, &amp;structure to reference structures and
+      function() for functions. These all get automatically hyperlinked if
+      kerneldoc for the referenced objects exists. When referencing entries in
+      function vtables please use -&gt;vfunc(). Note that kerneldoc does
+      not support referencing struct members directly, so please add a reference
+      to the vtable struct somewhere in the same paragraph or at least section.
+    </para>
+    <para>
+      Except in special situations (to separate locked from unlocked variants)
+      locking requirements for functions aren't documented in the kerneldoc.
+      Instead locking should be check at runtime using e.g.
+      <code>WARN_ON(!mutex_is_locked(...));</code>. Since it's much easier to
+      ignore documentation than runtime noise this provides more value. And on
+      top of that runtime checks do need to be updated when the locking rules
+      change, increasing the chances that they're correct. Within the
+      documentation the locking rules should be explained in the relevant
+      structures: Either in the comment for the lock explaining what it
+      protects, or data fields need a note about which lock protects them, or
+      both.
+    </para>
+    <para>
+      Functions which have a non-<code>void</code> return value should have a
+      section called "Returns" explaining the expected return values in
+      different cases and their meanings. Currently there's no consensus whether
+      that section name should be all upper-case or not, and whether it should
+      end in a colon or not. Go with the file-local style. Other common section
+      names are "Notes" with information for dangerous or tricky corner cases,
+      and "FIXME" where the interface could be cleaned up.
+    </para>
+  </sect1>
   </chapter>
 
   <!-- Internals -->
@@ -615,18 +652,6 @@ char *date;</synopsis>
           <function>drm_gem_object_init</function>. Storage for private GEM
           objects must be managed by drivers.
         </para>
-        <para>
-          Drivers that do not need to extend GEM objects with private information
-          can call the <function>drm_gem_object_alloc</function> function to
-          allocate and initialize a struct <structname>drm_gem_object</structname>
-          instance. The GEM core will call the optional driver
-          <methodname>gem_init_object</methodname> operation after initializing
-          the GEM object with <function>drm_gem_object_init</function>.
-          <synopsis>int (*gem_init_object) (struct drm_gem_object *obj);</synopsis>
-        </para>
-        <para>
-          No alloc-and-init function exists for private GEM objects.
-        </para>
       </sect3>
       <sect3>
         <title>GEM Objects Lifetime</title>
@@ -635,10 +660,10 @@ char *date;</synopsis>
           acquired and release by <function>calling drm_gem_object_reference</function>
           and <function>drm_gem_object_unreference</function> respectively. The
           caller must hold the <structname>drm_device</structname>
-          <structfield>struct_mutex</structfield> lock. As a convenience, GEM
-          provides the <function>drm_gem_object_reference_unlocked</function> and
-          <function>drm_gem_object_unreference_unlocked</function> functions that
-          can be called without holding the lock.
+	  <structfield>struct_mutex</structfield> lock when calling
+	  <function>drm_gem_object_reference</function>. As a convenience, GEM
+	  provides <function>drm_gem_object_unreference_unlocked</function>
+	  functions that can be called without holding the lock.
         </para>
         <para>
           When the last reference to a GEM object is released the GEM core calls
@@ -649,15 +674,9 @@ char *date;</synopsis>
         </para>
         <para>
           <synopsis>void (*gem_free_object) (struct drm_gem_object *obj);</synopsis>
-          Drivers are responsible for freeing all GEM object resources, including
-          the resources created by the GEM core. If an mmap offset has been
-          created for the object (in which case
-          <structname>drm_gem_object</structname>::<structfield>map_list</structfield>::<structfield>map</structfield>
-          is not NULL) it must be freed by a call to
-          <function>drm_gem_free_mmap_offset</function>. The shmfs backing store
-          must be released by calling <function>drm_gem_object_release</function>
-          (that function can safely be called if no shmfs backing store has been
-          created).
+          Drivers are responsible for freeing all GEM object resources. This includes
+          the resources created by the GEM core, which need to be released with
+          <function>drm_gem_object_release</function>.
         </para>
       </sect3>
       <sect3>
@@ -740,17 +759,10 @@ char *date;</synopsis>
           DRM identifies the GEM object to be mapped by a fake offset passed
           through the mmap offset argument. Prior to being mapped, a GEM object
           must thus be associated with a fake offset. To do so, drivers must call
-          <function>drm_gem_create_mmap_offset</function> on the object. The
-          function allocates a fake offset range from a pool and stores the
-          offset divided by PAGE_SIZE in
-          <literal>obj-&gt;map_list.hash.key</literal>. Care must be taken not to
-          call <function>drm_gem_create_mmap_offset</function> if a fake offset
-          has already been allocated for the object. This can be tested by
-          <literal>obj-&gt;map_list.map</literal> being non-NULL.
+          <function>drm_gem_create_mmap_offset</function> on the object.
         </para>
         <para>
           Once allocated, the fake offset value
-          (<literal>obj-&gt;map_list.hash.key &lt;&lt; PAGE_SHIFT</literal>)
           must be passed to the application in a driver-specific way and can then
           be used as the mmap offset argument.
         </para>
@@ -836,10 +848,11 @@ char *date;</synopsis>
           abstracted from the client in libdrm.
         </para>
       </sect3>
-      <sect3>
-        <title>GEM Function Reference</title>
+    </sect2>
+    <sect2>
+      <title>GEM Function Reference</title>
 !Edrivers/gpu/drm/drm_gem.c
-      </sect3>
+!Iinclude/drm/drm_gem.h
     </sect2>
     <sect2>
       <title>VMA Offset Manager</title>
@@ -970,12 +983,10 @@ int max_width, max_height;</synopsis>
     <sect2>
       <title>Atomic Mode Setting Function Reference</title>
 !Edrivers/gpu/drm/drm_atomic.c
+!Idrivers/gpu/drm/drm_atomic.c
     </sect2>
     <sect2>
-      <title>Frame Buffer Creation</title>
-      <synopsis>struct drm_framebuffer *(*fb_create)(struct drm_device *dev,
-				     struct drm_file *file_priv,
-				     struct drm_mode_fb_cmd2 *mode_cmd);</synopsis>
+      <title>Frame Buffer Abstraction</title>
       <para>
         Frame buffers are abstract memory objects that provide a source of
         pixels to scanout to a CRTC. Applications explicitly request the
@@ -992,73 +1003,6 @@ int max_width, max_height;</synopsis>
 	handle.  Drivers are however free to use their own backing storage object
 	handles, e.g. vmwgfx directly exposes special TTM handles to userspace
 	and so expects TTM handles in the create ioctl and not GEM handles.
-      </para>
-      <para>
-        Drivers must first validate the requested frame buffer parameters passed
-        through the mode_cmd argument. In particular this is where invalid
-        sizes, pixel formats or pitches can be caught.
-      </para>
-      <para>
-        If the parameters are deemed valid, drivers then create, initialize and
-        return an instance of struct <structname>drm_framebuffer</structname>.
-        If desired the instance can be embedded in a larger driver-specific
-	structure. Drivers must fill its <structfield>width</structfield>,
-	<structfield>height</structfield>, <structfield>pitches</structfield>,
-        <structfield>offsets</structfield>, <structfield>depth</structfield>,
-        <structfield>bits_per_pixel</structfield> and
-        <structfield>pixel_format</structfield> fields from the values passed
-        through the <parameter>drm_mode_fb_cmd2</parameter> argument. They
-        should call the <function>drm_helper_mode_fill_fb_struct</function>
-        helper function to do so.
-      </para>
-
-      <para>
-	The initialization of the new framebuffer instance is finalized with a
-	call to <function>drm_framebuffer_init</function> which takes a pointer
-	to DRM frame buffer operations (struct
-	<structname>drm_framebuffer_funcs</structname>). Note that this function
-	publishes the framebuffer and so from this point on it can be accessed
-	concurrently from other threads. Hence it must be the last step in the
-	driver's framebuffer initialization sequence. Frame buffer operations
-	are
-        <itemizedlist>
-          <listitem>
-            <synopsis>int (*create_handle)(struct drm_framebuffer *fb,
-		     struct drm_file *file_priv, unsigned int *handle);</synopsis>
-            <para>
-              Create a handle to the frame buffer underlying memory object. If
-              the frame buffer uses a multi-plane format, the handle will
-              reference the memory object associated with the first plane.
-            </para>
-            <para>
-              Drivers call <function>drm_gem_handle_create</function> to create
-              the handle.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>void (*destroy)(struct drm_framebuffer *framebuffer);</synopsis>
-            <para>
-              Destroy the frame buffer object and frees all associated
-              resources. Drivers must call
-              <function>drm_framebuffer_cleanup</function> to free resources
-              allocated by the DRM core for the frame buffer object, and must
-              make sure to unreference all memory objects associated with the
-              frame buffer. Handles created by the
-              <methodname>create_handle</methodname> operation are released by
-              the DRM core.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>int (*dirty)(struct drm_framebuffer *framebuffer,
-	     struct drm_file *file_priv, unsigned flags, unsigned color,
-	     struct drm_clip_rect *clips, unsigned num_clips);</synopsis>
-            <para>
-              This optional operation notifies the driver that a region of the
-              frame buffer has changed in response to a DRM_IOCTL_MODE_DIRTYFB
-              ioctl call.
-            </para>
-          </listitem>
-        </itemizedlist>
       </para>
       <para>
 	The lifetime of a drm framebuffer is controlled with a reference count,
@@ -1197,137 +1141,6 @@ int max_width, max_height;</synopsis>
           pointer to CRTC functions.
         </para>
       </sect3>
-      <sect3 id="drm-kms-crtcops">
-        <title>CRTC Operations</title>
-        <sect4>
-          <title>Set Configuration</title>
-          <synopsis>int (*set_config)(struct drm_mode_set *set);</synopsis>
-          <para>
-            Apply a new CRTC configuration to the device. The configuration
-            specifies a CRTC, a frame buffer to scan out from, a (x,y) position in
-            the frame buffer, a display mode and an array of connectors to drive
-            with the CRTC if possible.
-          </para>
-          <para>
-            If the frame buffer specified in the configuration is NULL, the driver
-            must detach all encoders connected to the CRTC and all connectors
-            attached to those encoders and disable them.
-          </para>
-          <para>
-            This operation is called with the mode config lock held.
-          </para>
-          <note><para>
-	    Note that the drm core has no notion of restoring the mode setting
-	    state after resume, since all resume handling is in the full
-	    responsibility of the driver. The common mode setting helper library
-	    though provides a helper which can be used for this:
-	    <function>drm_helper_resume_force_mode</function>.
-          </para></note>
-        </sect4>
-        <sect4>
-          <title>Page Flipping</title>
-          <synopsis>int (*page_flip)(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-                   struct drm_pending_vblank_event *event);</synopsis>
-          <para>
-            Schedule a page flip to the given frame buffer for the CRTC. This
-            operation is called with the mode config mutex held.
-          </para>
-          <para>
-            Page flipping is a synchronization mechanism that replaces the frame
-            buffer being scanned out by the CRTC with a new frame buffer during
-            vertical blanking, avoiding tearing. When an application requests a page
-            flip the DRM core verifies that the new frame buffer is large enough to
-            be scanned out by  the CRTC in the currently configured mode and then
-            calls the CRTC <methodname>page_flip</methodname> operation with a
-            pointer to the new frame buffer.
-          </para>
-          <para>
-            The <methodname>page_flip</methodname> operation schedules a page flip.
-            Once any pending rendering targeting the new frame buffer has
-            completed, the CRTC will be reprogrammed to display that frame buffer
-            after the next vertical refresh. The operation must return immediately
-            without waiting for rendering or page flip to complete and must block
-            any new rendering to the frame buffer until the page flip completes.
-          </para>
-          <para>
-            If a page flip can be successfully scheduled the driver must set the
-            <code>drm_crtc-&gt;fb</code> field to the new framebuffer pointed to
-            by <code>fb</code>. This is important so that the reference counting
-            on framebuffers stays balanced.
-          </para>
-          <para>
-            If a page flip is already pending, the
-            <methodname>page_flip</methodname> operation must return
-            -<errorname>EBUSY</errorname>.
-          </para>
-          <para>
-            To synchronize page flip to vertical blanking the driver will likely
-            need to enable vertical blanking interrupts. It should call
-            <function>drm_vblank_get</function> for that purpose, and call
-            <function>drm_vblank_put</function> after the page flip completes.
-          </para>
-          <para>
-            If the application has requested to be notified when page flip completes
-            the <methodname>page_flip</methodname> operation will be called with a
-            non-NULL <parameter>event</parameter> argument pointing to a
-            <structname>drm_pending_vblank_event</structname> instance. Upon page
-            flip completion the driver must call <methodname>drm_send_vblank_event</methodname>
-            to fill in the event and send to wake up any waiting processes.
-            This can be performed with
-            <programlisting><![CDATA[
-            spin_lock_irqsave(&dev->event_lock, flags);
-            ...
-            drm_send_vblank_event(dev, pipe, event);
-            spin_unlock_irqrestore(&dev->event_lock, flags);
-            ]]></programlisting>
-          </para>
-          <note><para>
-            FIXME: Could drivers that don't need to wait for rendering to complete
-            just add the event to <literal>dev-&gt;vblank_event_list</literal> and
-            let the DRM core handle everything, as for "normal" vertical blanking
-            events?
-          </para></note>
-          <para>
-            While waiting for the page flip to complete, the
-            <literal>event-&gt;base.link</literal> list head can be used freely by
-            the driver to store the pending event in a driver-specific list.
-          </para>
-          <para>
-            If the file handle is closed before the event is signaled, drivers must
-            take care to destroy the event in their
-            <methodname>preclose</methodname> operation (and, if needed, call
-            <function>drm_vblank_put</function>).
-          </para>
-        </sect4>
-        <sect4>
-          <title>Miscellaneous</title>
-          <itemizedlist>
-            <listitem>
-              <synopsis>void (*set_property)(struct drm_crtc *crtc,
-                     struct drm_property *property, uint64_t value);</synopsis>
-              <para>
-                Set the value of the given CRTC property to
-                <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
-                for more information about properties.
-              </para>
-            </listitem>
-            <listitem>
-              <synopsis>void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-                        uint32_t start, uint32_t size);</synopsis>
-              <para>
-                Apply a gamma table to the device. The operation is optional.
-              </para>
-            </listitem>
-            <listitem>
-              <synopsis>void (*destroy)(struct drm_crtc *crtc);</synopsis>
-              <para>
-                Destroy the CRTC when not needed anymore. See
-                <xref linkend="drm-kms-init"/>.
-              </para>
-            </listitem>
-          </itemizedlist>
-        </sect4>
-      </sect3>
     </sect2>
     <sect2>
       <title>Planes (struct <structname>drm_plane</structname>)</title>
@@ -1344,7 +1157,7 @@ int max_width, max_height;</synopsis>
         <listitem>
         DRM_PLANE_TYPE_PRIMARY represents a "main" plane for a CRTC.  Primary
         planes are the planes operated upon by CRTC modesetting and flipping
-        operations described in <xref linkend="drm-kms-crtcops"/>.
+	operations described in the page_flip hook in <structname>drm_crtc_funcs</structname>.
         </listitem>
         <listitem>
         DRM_PLANE_TYPE_CURSOR represents a "cursor" plane for a CRTC.  Cursor
@@ -1380,52 +1193,6 @@ int max_width, max_height;</synopsis>
           <xref linkend="drm-kms-planehelpers"/> to create and register a
           primary plane with standard capabilities.
         </para>
-      </sect3>
-      <sect3>
-        <title>Plane Operations</title>
-        <itemizedlist>
-          <listitem>
-            <synopsis>int (*update_plane)(struct drm_plane *plane, struct drm_crtc *crtc,
-                        struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-                        unsigned int crtc_w, unsigned int crtc_h,
-                        uint32_t src_x, uint32_t src_y,
-                        uint32_t src_w, uint32_t src_h);</synopsis>
-            <para>
-              Enable and configure the plane to use the given CRTC and frame buffer.
-            </para>
-            <para>
-              The source rectangle in frame buffer memory coordinates is given by
-              the <parameter>src_x</parameter>, <parameter>src_y</parameter>,
-              <parameter>src_w</parameter> and <parameter>src_h</parameter>
-              parameters (as 16.16 fixed point values). Devices that don't support
-              subpixel plane coordinates can ignore the fractional part.
-            </para>
-            <para>
-              The destination rectangle in CRTC coordinates is given by the
-              <parameter>crtc_x</parameter>, <parameter>crtc_y</parameter>,
-              <parameter>crtc_w</parameter> and <parameter>crtc_h</parameter>
-              parameters (as integer values). Devices scale the source rectangle to
-              the destination rectangle. If scaling is not supported, and the source
-              rectangle size doesn't match the destination rectangle size, the
-              driver must return a -<errorname>EINVAL</errorname> error.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>int (*disable_plane)(struct drm_plane *plane);</synopsis>
-            <para>
-              Disable the plane. The DRM core calls this method in response to a
-              DRM_IOCTL_MODE_SETPLANE ioctl call with the frame buffer ID set to 0.
-              Disabled planes must not be processed by the CRTC.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>void (*destroy)(struct drm_plane *plane);</synopsis>
-            <para>
-              Destroy the plane when not needed anymore. See
-              <xref linkend="drm-kms-init"/>.
-            </para>
-          </listitem>
-        </itemizedlist>
       </sect3>
     </sect2>
     <sect2>
@@ -1482,27 +1249,6 @@ int max_width, max_height;</synopsis>
           compatibility layer when implemented) are responsible for attaching the
           encoders they want to use to a CRTC.
         </para>
-      </sect3>
-      <sect3>
-        <title>Encoder Operations</title>
-        <itemizedlist>
-          <listitem>
-            <synopsis>void (*destroy)(struct drm_encoder *encoder);</synopsis>
-            <para>
-              Called to destroy the encoder when not needed anymore. See
-              <xref linkend="drm-kms-init"/>.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>void (*set_property)(struct drm_plane *plane,
-                     struct drm_property *property, uint64_t value);</synopsis>
-            <para>
-              Set the value of the given plane property to
-              <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
-              for more information about properties.
-            </para>
-          </listitem>
-        </itemizedlist>
       </sect3>
     </sect2>
     <sect2>
@@ -1707,27 +1453,6 @@ int max_width, max_height;</synopsis>
             connector_status_unknown.
           </para>
         </sect4>
-        <sect4>
-          <title>Miscellaneous</title>
-          <itemizedlist>
-            <listitem>
-              <synopsis>void (*set_property)(struct drm_connector *connector,
-                     struct drm_property *property, uint64_t value);</synopsis>
-              <para>
-                Set the value of the given connector property to
-                <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
-                for more information about properties.
-              </para>
-            </listitem>
-            <listitem>
-              <synopsis>void (*destroy)(struct drm_connector *connector);</synopsis>
-              <para>
-                Destroy the connector when not needed anymore. See
-                <xref linkend="drm-kms-init"/>.
-              </para>
-            </listitem>
-          </itemizedlist>
-        </sect4>
       </sect3>
     </sect2>
     <sect2>
@@ -1854,462 +1579,6 @@ void intel_crt_init(struct drm_device *dev)
       entities.
     </para>
     <sect2>
-      <title>Helper Functions</title>
-      <itemizedlist>
-        <listitem>
-          <synopsis>int drm_crtc_helper_set_config(struct drm_mode_set *set);</synopsis>
-          <para>
-            The <function>drm_crtc_helper_set_config</function> helper function
-            is a CRTC <methodname>set_config</methodname> implementation. It
-            first tries to locate the best encoder for each connector by calling
-            the connector <methodname>best_encoder</methodname> helper
-            operation.
-          </para>
-          <para>
-            After locating the appropriate encoders, the helper function will
-            call the <methodname>mode_fixup</methodname> encoder and CRTC helper
-            operations to adjust the requested mode, or reject it completely in
-            which case an error will be returned to the application. If the new
-            configuration after mode adjustment is identical to the current
-            configuration the helper function will return without performing any
-            other operation.
-          </para>
-          <para>
-            If the adjusted mode is identical to the current mode but changes to
-            the frame buffer need to be applied, the
-            <function>drm_crtc_helper_set_config</function> function will call
-            the CRTC <methodname>mode_set_base</methodname> helper operation. If
-            the adjusted mode differs from the current mode, or if the
-            <methodname>mode_set_base</methodname> helper operation is not
-            provided, the helper function performs a full mode set sequence by
-            calling the <methodname>prepare</methodname>,
-            <methodname>mode_set</methodname> and
-            <methodname>commit</methodname> CRTC and encoder helper operations,
-            in that order.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void drm_helper_connector_dpms(struct drm_connector *connector, int mode);</synopsis>
-          <para>
-            The <function>drm_helper_connector_dpms</function> helper function
-            is a connector <methodname>dpms</methodname> implementation that
-            tracks power state of connectors. To use the function, drivers must
-            provide <methodname>dpms</methodname> helper operations for CRTCs
-            and encoders to apply the DPMS state to the device.
-          </para>
-          <para>
-            The mid-layer doesn't track the power state of CRTCs and encoders.
-            The <methodname>dpms</methodname> helper operations can thus be
-            called with a mode identical to the currently active mode.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
-                                            uint32_t maxX, uint32_t maxY);</synopsis>
-          <para>
-            The <function>drm_helper_probe_single_connector_modes</function> helper
-            function is a connector <methodname>fill_modes</methodname>
-            implementation that updates the connection status for the connector
-            and then retrieves a list of modes by calling the connector
-            <methodname>get_modes</methodname> helper operation.
-          </para>
-         <para>
-            If the helper operation returns no mode, and if the connector status
-            is connector_status_connected, standard VESA DMT modes up to
-            1024x768 are automatically added to the modes list by a call to
-            <function>drm_add_modes_noedid</function>.
-          </para>
-          <para>
-            The function then filters out modes larger than
-            <parameter>max_width</parameter> and <parameter>max_height</parameter>
-            if specified. It finally calls the optional connector
-            <methodname>mode_valid</methodname> helper operation for each mode in
-            the probed list to check whether the mode is valid for the connector.
-          </para>
-        </listitem>
-      </itemizedlist>
-    </sect2>
-    <sect2>
-      <title>CRTC Helper Operations</title>
-      <itemizedlist>
-        <listitem id="drm-helper-crtc-mode-fixup">
-          <synopsis>bool (*mode_fixup)(struct drm_crtc *crtc,
-                       const struct drm_display_mode *mode,
-                       struct drm_display_mode *adjusted_mode);</synopsis>
-          <para>
-            Let CRTCs adjust the requested mode or reject it completely. This
-            operation returns true if the mode is accepted (possibly after being
-            adjusted) or false if it is rejected.
-          </para>
-          <para>
-            The <methodname>mode_fixup</methodname> operation should reject the
-            mode if it can't reasonably use it. The definition of "reasonable"
-            is currently fuzzy in this context. One possible behaviour would be
-            to set the adjusted mode to the panel timings when a fixed-mode
-            panel is used with hardware capable of scaling. Another behaviour
-            would be to accept any input mode and adjust it to the closest mode
-            supported by the hardware (FIXME: This needs to be clarified).
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
-                     struct drm_framebuffer *old_fb)</synopsis>
-          <para>
-            Move the CRTC on the current frame buffer (stored in
-            <literal>crtc-&gt;fb</literal>) to position (x,y). Any of the frame
-            buffer, x position or y position may have been modified.
-          </para>
-          <para>
-            This helper operation is optional. If not provided, the
-            <function>drm_crtc_helper_set_config</function> function will fall
-            back to the <methodname>mode_set</methodname> helper operation.
-          </para>
-          <note><para>
-            FIXME: Why are x and y passed as arguments, as they can be accessed
-            through <literal>crtc-&gt;x</literal> and
-            <literal>crtc-&gt;y</literal>?
-          </para></note>
-        </listitem>
-        <listitem>
-          <synopsis>void (*prepare)(struct drm_crtc *crtc);</synopsis>
-          <para>
-            Prepare the CRTC for mode setting. This operation is called after
-            validating the requested mode. Drivers use it to perform
-            device-specific operations required before setting the new mode.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
-                struct drm_display_mode *adjusted_mode, int x, int y,
-                struct drm_framebuffer *old_fb);</synopsis>
-          <para>
-            Set a new mode, position and frame buffer. Depending on the device
-            requirements, the mode can be stored internally by the driver and
-            applied in the <methodname>commit</methodname> operation, or
-            programmed to the hardware immediately.
-          </para>
-          <para>
-            The <methodname>mode_set</methodname> operation returns 0 on success
-	    or a negative error code if an error occurs.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void (*commit)(struct drm_crtc *crtc);</synopsis>
-          <para>
-            Commit a mode. This operation is called after setting the new mode.
-            Upon return the device must use the new mode and be fully
-            operational.
-          </para>
-        </listitem>
-      </itemizedlist>
-    </sect2>
-    <sect2>
-      <title>Encoder Helper Operations</title>
-      <itemizedlist>
-        <listitem>
-          <synopsis>bool (*mode_fixup)(struct drm_encoder *encoder,
-                       const struct drm_display_mode *mode,
-                       struct drm_display_mode *adjusted_mode);</synopsis>
-          <para>
-            Let encoders adjust the requested mode or reject it completely. This
-            operation returns true if the mode is accepted (possibly after being
-            adjusted) or false if it is rejected. See the
-            <link linkend="drm-helper-crtc-mode-fixup">mode_fixup CRTC helper
-            operation</link> for an explanation of the allowed adjustments.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void (*prepare)(struct drm_encoder *encoder);</synopsis>
-          <para>
-            Prepare the encoder for mode setting. This operation is called after
-            validating the requested mode. Drivers use it to perform
-            device-specific operations required before setting the new mode.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void (*mode_set)(struct drm_encoder *encoder,
-                 struct drm_display_mode *mode,
-                 struct drm_display_mode *adjusted_mode);</synopsis>
-          <para>
-            Set a new mode. Depending on the device requirements, the mode can
-            be stored internally by the driver and applied in the
-            <methodname>commit</methodname> operation, or programmed to the
-            hardware immediately.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void (*commit)(struct drm_encoder *encoder);</synopsis>
-          <para>
-            Commit a mode. This operation is called after setting the new mode.
-            Upon return the device must use the new mode and be fully
-            operational.
-          </para>
-        </listitem>
-      </itemizedlist>
-    </sect2>
-    <sect2>
-      <title>Connector Helper Operations</title>
-      <itemizedlist>
-        <listitem>
-          <synopsis>struct drm_encoder *(*best_encoder)(struct drm_connector *connector);</synopsis>
-          <para>
-            Return a pointer to the best encoder for the connecter. Device that
-            map connectors to encoders 1:1 simply return the pointer to the
-            associated encoder. This operation is mandatory.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int (*get_modes)(struct drm_connector *connector);</synopsis>
-          <para>
-            Fill the connector's <structfield>probed_modes</structfield> list
-            by parsing EDID data with <function>drm_add_edid_modes</function>,
-            adding standard VESA DMT modes with <function>drm_add_modes_noedid</function>,
-            or calling <function>drm_mode_probed_add</function> directly for every
-            supported mode and return the number of modes it has detected. This
-            operation is mandatory.
-          </para>
-          <para>
-            Note that the caller function will automatically add standard VESA
-            DMT modes up to 1024x768 if the <methodname>get_modes</methodname>
-            helper operation returns no mode and if the connector status is
-            connector_status_connected. There is no need to call
-            <function>drm_add_edid_modes</function> manually in that case.
-          </para>
-          <para>
-            When adding modes manually the driver creates each mode with a call to
-            <function>drm_mode_create</function> and must fill the following fields.
-            <itemizedlist>
-              <listitem>
-                <synopsis>__u32 type;</synopsis>
-                <para>
-                  Mode type bitmask, a combination of
-                  <variablelist>
-                    <varlistentry>
-                      <term>DRM_MODE_TYPE_BUILTIN</term>
-                      <listitem><para>not used?</para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_TYPE_CLOCK_C</term>
-                      <listitem><para>not used?</para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_TYPE_CRTC_C</term>
-                      <listitem><para>not used?</para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>
-        DRM_MODE_TYPE_PREFERRED - The preferred mode for the connector
-                      </term>
-                      <listitem>
-                        <para>not used?</para>
-                      </listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_TYPE_DEFAULT</term>
-                      <listitem><para>not used?</para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_TYPE_USERDEF</term>
-                      <listitem><para>not used?</para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_TYPE_DRIVER</term>
-                      <listitem>
-                        <para>
-                          The mode has been created by the driver (as opposed to
-                          to user-created modes).
-                        </para>
-                      </listitem>
-                    </varlistentry>
-                  </variablelist>
-                  Drivers must set the DRM_MODE_TYPE_DRIVER bit for all modes they
-                  create, and set the DRM_MODE_TYPE_PREFERRED bit for the preferred
-                  mode.
-                </para>
-              </listitem>
-              <listitem>
-                <synopsis>__u32 clock;</synopsis>
-                <para>Pixel clock frequency in kHz unit</para>
-              </listitem>
-              <listitem>
-                <synopsis>__u16 hdisplay, hsync_start, hsync_end, htotal;
-    __u16 vdisplay, vsync_start, vsync_end, vtotal;</synopsis>
-                <para>Horizontal and vertical timing information</para>
-                <screen><![CDATA[
-             Active                 Front           Sync           Back
-             Region                 Porch                          Porch
-    <-----------------------><----------------><-------------><-------------->
-
-      //////////////////////|
-     ////////////////////// |
-    //////////////////////  |..................               ................
-                                               _______________
-
-    <----- [hv]display ----->
-    <------------- [hv]sync_start ------------>
-    <--------------------- [hv]sync_end --------------------->
-    <-------------------------------- [hv]total ----------------------------->
-]]></screen>
-              </listitem>
-              <listitem>
-                <synopsis>__u16 hskew;
-    __u16 vscan;</synopsis>
-                <para>Unknown</para>
-              </listitem>
-              <listitem>
-                <synopsis>__u32 flags;</synopsis>
-                <para>
-                  Mode flags, a combination of
-                  <variablelist>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_PHSYNC</term>
-                      <listitem><para>
-                        Horizontal sync is active high
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_NHSYNC</term>
-                      <listitem><para>
-                        Horizontal sync is active low
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_PVSYNC</term>
-                      <listitem><para>
-                        Vertical sync is active high
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_NVSYNC</term>
-                      <listitem><para>
-                        Vertical sync is active low
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_INTERLACE</term>
-                      <listitem><para>
-                        Mode is interlaced
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_DBLSCAN</term>
-                      <listitem><para>
-                        Mode uses doublescan
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_CSYNC</term>
-                      <listitem><para>
-                        Mode uses composite sync
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_PCSYNC</term>
-                      <listitem><para>
-                        Composite sync is active high
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_NCSYNC</term>
-                      <listitem><para>
-                        Composite sync is active low
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_HSKEW</term>
-                      <listitem><para>
-                        hskew provided (not used?)
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_BCAST</term>
-                      <listitem><para>
-                        not used?
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_PIXMUX</term>
-                      <listitem><para>
-                        not used?
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_DBLCLK</term>
-                      <listitem><para>
-                        not used?
-                      </para></listitem>
-                    </varlistentry>
-                    <varlistentry>
-                      <term>DRM_MODE_FLAG_CLKDIV2</term>
-                      <listitem><para>
-                        ?
-                      </para></listitem>
-                    </varlistentry>
-                  </variablelist>
-                </para>
-                <para>
-                  Note that modes marked with the INTERLACE or DBLSCAN flags will be
-                  filtered out by
-                  <function>drm_helper_probe_single_connector_modes</function> if
-                  the connector's <structfield>interlace_allowed</structfield> or
-                  <structfield>doublescan_allowed</structfield> field is set to 0.
-                </para>
-              </listitem>
-              <listitem>
-                <synopsis>char name[DRM_DISPLAY_MODE_LEN];</synopsis>
-                <para>
-                  Mode name. The driver must call
-                  <function>drm_mode_set_name</function> to fill the mode name from
-                  <structfield>hdisplay</structfield>,
-                  <structfield>vdisplay</structfield> and interlace flag after
-                  filling the corresponding fields.
-                </para>
-              </listitem>
-            </itemizedlist>
-          </para>
-          <para>
-            The <structfield>vrefresh</structfield> value is computed by
-            <function>drm_helper_probe_single_connector_modes</function>.
-          </para>
-          <para>
-            When parsing EDID data, <function>drm_add_edid_modes</function> fills the
-            connector <structfield>display_info</structfield>
-            <structfield>width_mm</structfield> and
-            <structfield>height_mm</structfield> fields. When creating modes
-            manually the <methodname>get_modes</methodname> helper operation must
-            set the <structfield>display_info</structfield>
-            <structfield>width_mm</structfield> and
-            <structfield>height_mm</structfield> fields if they haven't been set
-            already (for instance at initialization time when a fixed-size panel is
-            attached to the connector). The mode <structfield>width_mm</structfield>
-            and <structfield>height_mm</structfield> fields are only used internally
-            during EDID parsing and should not be set when creating modes manually.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int (*mode_valid)(struct drm_connector *connector,
-		  struct drm_display_mode *mode);</synopsis>
-          <para>
-            Verify whether a mode is valid for the connector. Return MODE_OK for
-            supported modes and one of the enum drm_mode_status values (MODE_*)
-            for unsupported modes. This operation is optional.
-          </para>
-          <para>
-            As the mode rejection reason is currently not used beside for
-            immediately removing the unsupported mode, an implementation can
-            return MODE_BAD regardless of the exact reason why the mode is not
-            valid.
-          </para>
-          <note><para>
-            Note that the <methodname>mode_valid</methodname> helper operation is
-            only called for modes detected by the device, and
-            <emphasis>not</emphasis> for modes set by the user through the CRTC
-            <methodname>set_config</methodname> operation.
-          </para></note>
-        </listitem>
-      </itemizedlist>
-    </sect2>
-    <sect2>
       <title>Atomic Modeset Helper Functions Reference</title>
       <sect3>
 	<title>Overview</title>
@@ -2327,8 +1596,12 @@ void intel_crt_init(struct drm_device *dev)
 !Edrivers/gpu/drm/drm_atomic_helper.c
     </sect2>
     <sect2>
-      <title>Modeset Helper Functions Reference</title>
-!Iinclude/drm/drm_crtc_helper.h
+      <title>Modeset Helper Reference for Common Vtables</title>
+!Iinclude/drm/drm_modeset_helper_vtables.h
+!Pinclude/drm/drm_modeset_helper_vtables.h overview
+    </sect2>
+    <sect2>
+      <title>Legacy CRTC/Modeset Helper Functions Reference</title>
 !Edrivers/gpu/drm/drm_crtc_helper.c
 !Pdrivers/gpu/drm/drm_crtc_helper.c overview
     </sect2>
@@ -4039,92 +3312,6 @@ int num_ioctls;</synopsis>
       <sect2>
         <title>DPIO</title>
 !Pdrivers/gpu/drm/i915/i915_reg.h DPIO
-	<table id="dpiox2">
-	  <title>Dual channel PHY (VLV/CHV/BXT)</title>
-	  <tgroup cols="8">
-	    <colspec colname="c0" />
-	    <colspec colname="c1" />
-	    <colspec colname="c2" />
-	    <colspec colname="c3" />
-	    <colspec colname="c4" />
-	    <colspec colname="c5" />
-	    <colspec colname="c6" />
-	    <colspec colname="c7" />
-	    <spanspec spanname="ch0" namest="c0" nameend="c3" />
-	    <spanspec spanname="ch1" namest="c4" nameend="c7" />
-	    <spanspec spanname="ch0pcs01" namest="c0" nameend="c1" />
-	    <spanspec spanname="ch0pcs23" namest="c2" nameend="c3" />
-	    <spanspec spanname="ch1pcs01" namest="c4" nameend="c5" />
-	    <spanspec spanname="ch1pcs23" namest="c6" nameend="c7" />
-	    <thead>
-	      <row>
-		<entry spanname="ch0">CH0</entry>
-		<entry spanname="ch1">CH1</entry>
-	      </row>
-	    </thead>
-	    <tbody valign="top" align="center">
-	      <row>
-		<entry spanname="ch0">CMN/PLL/REF</entry>
-		<entry spanname="ch1">CMN/PLL/REF</entry>
-	      </row>
-	      <row>
-		<entry spanname="ch0pcs01">PCS01</entry>
-		<entry spanname="ch0pcs23">PCS23</entry>
-		<entry spanname="ch1pcs01">PCS01</entry>
-		<entry spanname="ch1pcs23">PCS23</entry>
-	      </row>
-	      <row>
-		<entry>TX0</entry>
-		<entry>TX1</entry>
-		<entry>TX2</entry>
-		<entry>TX3</entry>
-		<entry>TX0</entry>
-		<entry>TX1</entry>
-		<entry>TX2</entry>
-		<entry>TX3</entry>
-	      </row>
-	      <row>
-		<entry spanname="ch0">DDI0</entry>
-		<entry spanname="ch1">DDI1</entry>
-	      </row>
-	    </tbody>
-	  </tgroup>
-	</table>
-	<table id="dpiox1">
-	  <title>Single channel PHY (CHV/BXT)</title>
-	  <tgroup cols="4">
-	    <colspec colname="c0" />
-	    <colspec colname="c1" />
-	    <colspec colname="c2" />
-	    <colspec colname="c3" />
-	    <spanspec spanname="ch0" namest="c0" nameend="c3" />
-	    <spanspec spanname="ch0pcs01" namest="c0" nameend="c1" />
-	    <spanspec spanname="ch0pcs23" namest="c2" nameend="c3" />
-	    <thead>
-	      <row>
-		<entry spanname="ch0">CH0</entry>
-	      </row>
-	    </thead>
-	    <tbody valign="top" align="center">
-	      <row>
-		<entry spanname="ch0">CMN/PLL/REF</entry>
-	      </row>
-	      <row>
-		<entry spanname="ch0pcs01">PCS01</entry>
-		<entry spanname="ch0pcs23">PCS23</entry>
-	      </row>
-	      <row>
-		<entry>TX0</entry>
-		<entry>TX1</entry>
-		<entry>TX2</entry>
-		<entry>TX3</entry>
-	      </row>
-	      <row>
-		<entry spanname="ch0">DDI2</entry>
-	      </row>
-	    </tbody>
-	  </tgroup>
-	</table>
       </sect2>
 
       <sect2>
@@ -4201,16 +3388,20 @@ int num_ioctls;</synopsis>
       </sect2>
     </sect1>
     <sect1>
-      <title>GuC-based Command Submission</title>
+      <title>GuC</title>
       <sect2>
-        <title>GuC</title>
+        <title>GuC-specific firmware loader</title>
 !Pdrivers/gpu/drm/i915/intel_guc_loader.c GuC-specific firmware loader
 !Idrivers/gpu/drm/i915/intel_guc_loader.c
       </sect2>
       <sect2>
-        <title>GuC Client</title>
-!Pdrivers/gpu/drm/i915/i915_guc_submission.c GuC-based command submissison
+        <title>GuC-based command submission</title>
+!Pdrivers/gpu/drm/i915/i915_guc_submission.c GuC-based command submission
 !Idrivers/gpu/drm/i915/i915_guc_submission.c
+      </sect2>
+      <sect2>
+        <title>GuC Firmware Layout</title>
+!Pdrivers/gpu/drm/i915/intel_guc_fwif.h GuC Firmware Layout
       </sect2>
     </sect1>
 
@@ -4246,41 +3437,63 @@ int num_ioctls;</synopsis>
 
   <chapter id="modes_of_use">
     <title>Modes of Use</title>
-  <sect1>
-    <title>Manual switching and manual power control</title>
+    <sect1>
+      <title>Manual switching and manual power control</title>
 !Pdrivers/gpu/vga/vga_switcheroo.c Manual switching and manual power control
-  </sect1>
-  <sect1>
-    <title>Driver power control</title>
+    </sect1>
+    <sect1>
+      <title>Driver power control</title>
 !Pdrivers/gpu/vga/vga_switcheroo.c Driver power control
-  </sect1>
+    </sect1>
   </chapter>
 
-  <chapter id="pubfunctions">
-    <title>Public functions</title>
+  <chapter id="api">
+    <title>API</title>
+    <sect1>
+      <title>Public functions</title>
 !Edrivers/gpu/vga/vga_switcheroo.c
-  </chapter>
-
-  <chapter id="pubstructures">
-    <title>Public structures</title>
+    </sect1>
+    <sect1>
+      <title>Public structures</title>
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_handler
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_client_ops
-  </chapter>
-
-  <chapter id="pubconstants">
-    <title>Public constants</title>
+    </sect1>
+    <sect1>
+      <title>Public constants</title>
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_client_id
 !Finclude/linux/vga_switcheroo.h vga_switcheroo_state
-  </chapter>
-
-  <chapter id="privstructures">
-    <title>Private structures</title>
+    </sect1>
+    <sect1>
+      <title>Private structures</title>
 !Fdrivers/gpu/vga/vga_switcheroo.c vgasr_priv
 !Fdrivers/gpu/vga/vga_switcheroo.c vga_switcheroo_client
+    </sect1>
+  </chapter>
+
+  <chapter id="handlers">
+    <title>Handlers</title>
+    <sect1>
+      <title>apple-gmux Handler</title>
+!Pdrivers/platform/x86/apple-gmux.c Overview
+!Pdrivers/platform/x86/apple-gmux.c Interrupt
+      <sect2>
+        <title>Graphics mux</title>
+!Pdrivers/platform/x86/apple-gmux.c Graphics mux
+      </sect2>
+      <sect2>
+        <title>Power control</title>
+!Pdrivers/platform/x86/apple-gmux.c Power control
+      </sect2>
+      <sect2>
+        <title>Backlight control</title>
+!Pdrivers/platform/x86/apple-gmux.c Backlight control
+      </sect2>
+    </sect1>
   </chapter>
 
 !Cdrivers/gpu/vga/vga_switcheroo.c
 !Cinclude/linux/vga_switcheroo.h
+!Cdrivers/platform/x86/apple-gmux.c
 </part>
 
 </book>

@@ -104,9 +104,9 @@
 /* Device instance number, incremented each time a device is probed. */
 static int instance;
 
-struct list_head online_list;
-struct list_head removing_list;
-spinlock_t dev_lock;
+static struct list_head online_list;
+static struct list_head removing_list;
+static spinlock_t dev_lock;
 
 /*
  * Global variable used to hold the major block device number
@@ -173,7 +173,7 @@ static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 {
 	struct request *rq;
 
-	rq = blk_mq_alloc_request(dd->queue, 0, __GFP_RECLAIM, true);
+	rq = blk_mq_alloc_request(dd->queue, 0, BLK_MQ_REQ_RESERVED);
 	return blk_mq_rq_to_pdu(rq);
 }
 

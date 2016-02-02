@@ -12,10 +12,12 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
+#include <linux/notifier.h>
 #include <uapi/linux/watchdog.h>
 
 struct watchdog_ops;
 struct watchdog_device;
+struct watchdog_core_data;
 
 /** struct watchdog_ops - The watchdog-devices operations
  *
@@ -26,8 +28,7 @@ struct watchdog_device;
  * @status:	The routine that shows the status of the watchdog device.
  * @set_timeout:The routine for setting the watchdog devices timeout value (in seconds).
  * @get_timeleft:The routine that gets the time left before a reset (in seconds).
- * @ref:	The ref operation for dyn. allocated watchdog_device structs
- * @unref:	The unref operation for dyn. allocated watchdog_device structs
+ * @restart:	The routine for restarting the machine.
  * @ioctl:	The routines that handles extra ioctl calls.
  *
  * The watchdog_ops structure contains a list of low-level operations
@@ -45,25 +46,26 @@ struct watchdog_ops {
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
 	unsigned int (*get_timeleft)(struct watchdog_device *);
-	void (*ref)(struct watchdog_device *);
-	void (*unref)(struct watchdog_device *);
+	int (*restart)(struct watchdog_device *);
 	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
 };
 
 /** struct watchdog_device - The structure that defines a watchdog device
  *
  * @id:		The watchdog's ID. (Allocated by watchdog_register_device)
- * @cdev:	The watchdog's Character device.
- * @dev:	The device for our watchdog
  * @parent:	The parent bus device
+ * @groups:	List of sysfs attribute groups to create when creating the
+ *		watchdog device.
  * @info:	Pointer to a watchdog_info structure.
  * @ops:	Pointer to the list of watchdog operations.
  * @bootstatus:	Status of the watchdog device at boot.
  * @timeout:	The watchdog devices timeout value (in seconds).
  * @min_timeout:The watchdog devices minimum timeout value (in seconds).
  * @max_timeout:The watchdog devices maximum timeout value (in seconds).
- * @driver-data:Pointer to the drivers private data.
- * @lock:	Lock for watchdog core internal use only.
+ * @reboot_nb:	The notifier block to stop watchdog on reboot.
+ * @restart_nb:	The notifier block to register a restart function.
+ * @driver_data:Pointer to the drivers private data.
+ * @wd_data:	Pointer to watchdog core internal data.
  * @status:	Field that contains the devices internal status bits.
  * @deferred: entry in wtd_deferred_reg_list which is used to
  *			   register early initialized watchdogs.
@@ -79,24 +81,23 @@ struct watchdog_ops {
  */
 struct watchdog_device {
 	int id;
-	struct cdev cdev;
-	struct device *dev;
 	struct device *parent;
+	const struct attribute_group **groups;
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
 	unsigned int bootstatus;
 	unsigned int timeout;
 	unsigned int min_timeout;
 	unsigned int max_timeout;
+	struct notifier_block reboot_nb;
+	struct notifier_block restart_nb;
 	void *driver_data;
-	struct mutex lock;
+	struct watchdog_core_data *wd_data;
 	unsigned long status;
 /* Bit numbers for status flags */
 #define WDOG_ACTIVE		0	/* Is the watchdog running/active */
-#define WDOG_DEV_OPEN		1	/* Opened via /dev/watchdog ? */
-#define WDOG_ALLOW_RELEASE	2	/* Did we receive the magic char ? */
-#define WDOG_NO_WAY_OUT		3	/* Is 'nowayout' feature set ? */
-#define WDOG_UNREGISTERED	4	/* Has the device been unregistered */
+#define WDOG_NO_WAY_OUT		1	/* Is 'nowayout' feature set ? */
+#define WDOG_STOP_ON_REBOOT	2	/* Should be stopped on reboot */
 	struct list_head deferred;
 };
 
@@ -114,6 +115,12 @@ static inline void watchdog_set_nowayout(struct watchdog_device *wdd, bool noway
 {
 	if (nowayout)
 		set_bit(WDOG_NO_WAY_OUT, &wdd->status);
+}
+
+/* Use the following function to stop the watchdog on reboot */
+static inline void watchdog_stop_on_reboot(struct watchdog_device *wdd)
+{
+	set_bit(WDOG_STOP_ON_REBOOT, &wdd->status);
 }
 
 /* Use the following function to check if a timeout value is invalid */
@@ -142,6 +149,7 @@ static inline void *watchdog_get_drvdata(struct watchdog_device *wdd)
 }
 
 /* drivers/watchdog/watchdog_core.c */
+void watchdog_set_restart_priority(struct watchdog_device *wdd, int priority);
 extern int watchdog_init_timeout(struct watchdog_device *wdd,
 				  unsigned int timeout_parm, struct device *dev);
 extern int watchdog_register_device(struct watchdog_device *);

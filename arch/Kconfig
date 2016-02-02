@@ -205,9 +205,6 @@ config HAVE_NMI_WATCHDOG
 config HAVE_ARCH_TRACEHOOK
 	bool
 
-config HAVE_DMA_ATTRS
-	bool
-
 config HAVE_DMA_CONTIGUOUS
 	bool
 
@@ -630,6 +627,9 @@ config OLD_SIGACTION
 	  compatibility...
 
 config COMPAT_OLD_SIGACTION
+	bool
+
+config ARCH_NO_COHERENT_DMA_MMAP
 	bool
 
 source "kernel/gcov/Kconfig"

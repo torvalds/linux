@@ -658,7 +658,7 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 	mutex_unlock(&virtio_9p_lock);
 
 	if (!found) {
-		pr_err("no channels available\n");
+		pr_err("no channels available for device %s\n", devname);
 		return ret;
 	}
 

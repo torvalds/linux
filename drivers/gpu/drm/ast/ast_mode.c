@@ -751,7 +751,7 @@ static int ast_encoder_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	drm_encoder_init(dev, &ast_encoder->base, &ast_enc_funcs,
-			 DRM_MODE_ENCODER_DAC);
+			 DRM_MODE_ENCODER_DAC, NULL);
 	drm_encoder_helper_add(&ast_encoder->base, &ast_enc_helper_funcs);
 
 	ast_encoder->base.possible_crtcs = 1;

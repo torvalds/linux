@@ -255,7 +255,7 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 		/* no inode means this hasn't been made visible yet */
 		return;
 
-	mutex_lock(&d_inode(dir)->i_mutex);
+	inode_lock(d_inode(dir));
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;
@@ -268,5 +268,5 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 			break;
 		}
 	}
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 }

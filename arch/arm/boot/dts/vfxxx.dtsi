@@ -455,6 +455,30 @@
 				status = "disabled";
 			};
 
+			dspi2: dspi2@400ac000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-dspi";
+				reg = <0x400ac000 0x1000>;
+				interrupts = <69 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_DSPI2>;
+				clock-names = "dspi";
+				spi-num-chipselects = <2>;
+				status = "disabled";
+			};
+
+			dspi3: dspi3@400ad000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-dspi";
+				reg = <0x400ad000 0x1000>;
+				interrupts = <70 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_DSPI3>;
+				clock-names = "dspi";
+				spi-num-chipselects = <2>;
+				status = "disabled";
+			};
+
 			adc1: adc@400bb000 {
 				compatible = "fsl,vf610-adc";
 				reg = <0x400bb000 0x1000>;

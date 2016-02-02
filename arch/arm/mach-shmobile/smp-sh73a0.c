@@ -56,7 +56,7 @@ static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 	shmobile_smp_scu_prepare_cpus(max_cpus);
 }
 
-struct smp_operations sh73a0_smp_ops __initdata = {
+const struct smp_operations sh73a0_smp_ops __initconst = {
 	.smp_prepare_cpus	= sh73a0_smp_prepare_cpus,
 	.smp_boot_secondary	= sh73a0_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

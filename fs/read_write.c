@@ -238,7 +238,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 	struct inode *inode = file_inode(file);
 	loff_t retval;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	switch (whence) {
 		case SEEK_END:
 			offset += i_size_read(inode);
@@ -283,7 +283,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 		retval = offset;
 	}
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return retval;
 }
 EXPORT_SYMBOL(default_llseek);
@@ -1656,6 +1656,9 @@ next_file:
 		mnt_drop_write_file(dst_file);
 next_loop:
 		fdput(dst_fd);
+
+		if (fatal_signal_pending(current))
+			goto out;
 	}
 
 out:

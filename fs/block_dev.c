@@ -75,7 +75,7 @@ void kill_bdev(struct block_device *bdev)
 {
 	struct address_space *mapping = bdev->bd_inode->i_mapping;
 
-	if (mapping->nrpages == 0 && mapping->nrshadows == 0)
+	if (mapping->nrpages == 0 && mapping->nrexceptional == 0)
 		return;
 
 	invalidate_bh_lrus();
@@ -346,9 +346,9 @@ static loff_t block_llseek(struct file *file, loff_t offset, int whence)
 	struct inode *bd_inode = bdev_file_inode(file);
 	loff_t retval;
 
-	mutex_lock(&bd_inode->i_mutex);
+	inode_lock(bd_inode);
 	retval = fixed_size_llseek(file, offset, whence, i_size_read(bd_inode));
-	mutex_unlock(&bd_inode->i_mutex);
+	inode_unlock(bd_inode);
 	return retval;
 }
 	
@@ -400,7 +400,7 @@ int bdev_read_page(struct block_device *bdev, sector_t sector,
 	if (!ops->rw_page || bdev_get_integrity(bdev))
 		return result;
 
-	result = blk_queue_enter(bdev->bd_queue, GFP_KERNEL);
+	result = blk_queue_enter(bdev->bd_queue, false);
 	if (result)
 		return result;
 	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, READ);
@@ -437,7 +437,7 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 
 	if (!ops->rw_page || bdev_get_integrity(bdev))
 		return -EOPNOTSUPP;
-	result = blk_queue_enter(bdev->bd_queue, GFP_NOIO);
+	result = blk_queue_enter(bdev->bd_queue, false);
 	if (result)
 		return result;
 
@@ -455,10 +455,7 @@ EXPORT_SYMBOL_GPL(bdev_write_page);
 /**
  * bdev_direct_access() - Get the address for directly-accessibly memory
  * @bdev: The device containing the memory
- * @sector: The offset within the device
- * @addr: Where to put the address of the memory
- * @pfn: The Page Frame Number for the memory
- * @size: The number of bytes requested
+ * @dax: control and output parameters for ->direct_access
  *
  * If a block device is made up of directly addressable memory, this function
  * will tell the caller the PFN and the address of the memory.  The address
@@ -469,10 +466,10 @@ EXPORT_SYMBOL_GPL(bdev_write_page);
  * Return: negative errno if an error occurs, otherwise the number of bytes
  * accessible at this address.
  */
-long bdev_direct_access(struct block_device *bdev, sector_t sector,
-			void __pmem **addr, unsigned long *pfn, long size)
+long bdev_direct_access(struct block_device *bdev, struct blk_dax_ctl *dax)
 {
-	long avail;
+	sector_t sector = dax->sector;
+	long avail, size = dax->size;
 	const struct block_device_operations *ops = bdev->bd_disk->fops;
 
 	/*
@@ -491,9 +488,11 @@ long bdev_direct_access(struct block_device *bdev, sector_t sector,
 	sector += get_start_sect(bdev);
 	if (sector % (PAGE_SIZE / 512))
 		return -EINVAL;
-	avail = ops->direct_access(bdev, sector, addr, pfn);
+	avail = ops->direct_access(bdev, sector, &dax->addr, &dax->pfn);
 	if (!avail)
 		return -ERANGE;
+	if (avail > 0 && avail & ~PAGE_MASK)
+		return -ENXIO;
 	return min(avail, size);
 }
 EXPORT_SYMBOL_GPL(bdev_direct_access);
@@ -701,7 +700,7 @@ static struct block_device *bd_acquire(struct inode *inode)
 	spin_lock(&bdev_lock);
 	bdev = inode->i_bdev;
 	if (bdev) {
-		ihold(bdev->bd_inode);
+		bdgrab(bdev);
 		spin_unlock(&bdev_lock);
 		return bdev;
 	}
@@ -717,7 +716,7 @@ static struct block_device *bd_acquire(struct inode *inode)
 			 * So, we can access it via ->i_mapping always
 			 * without igrab().
 			 */
-			ihold(bdev->bd_inode);
+			bdgrab(bdev);
 			inode->i_bdev = bdev;
 			inode->i_mapping = bdev->bd_inode->i_mapping;
 			list_add(&inode->i_devices, &bdev->bd_inodes);
@@ -740,7 +739,7 @@ void bd_forget(struct inode *inode)
 	spin_unlock(&bdev_lock);
 
 	if (bdev)
-		iput(bdev->bd_inode);
+		bdput(bdev);
 }
 
 /**
@@ -1143,9 +1142,9 @@ void bd_set_size(struct block_device *bdev, loff_t size)
 {
 	unsigned bsize = bdev_logical_block_size(bdev);
 
-	mutex_lock(&bdev->bd_inode->i_mutex);
+	inode_lock(bdev->bd_inode);
 	i_size_write(bdev->bd_inode, size);
-	mutex_unlock(&bdev->bd_inode->i_mutex);
+	inode_unlock(bdev->bd_inode);
 	while (bsize < PAGE_CACHE_SIZE) {
 		if (size & bsize)
 			break;
@@ -1737,37 +1736,13 @@ static int blkdev_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 	return __dax_pmd_fault(vma, addr, pmd, flags, blkdev_get_block, NULL);
 }
 
-static void blkdev_vm_open(struct vm_area_struct *vma)
-{
-	struct inode *bd_inode = bdev_file_inode(vma->vm_file);
-	struct block_device *bdev = I_BDEV(bd_inode);
-
-	mutex_lock(&bd_inode->i_mutex);
-	bdev->bd_map_count++;
-	mutex_unlock(&bd_inode->i_mutex);
-}
-
-static void blkdev_vm_close(struct vm_area_struct *vma)
-{
-	struct inode *bd_inode = bdev_file_inode(vma->vm_file);
-	struct block_device *bdev = I_BDEV(bd_inode);
-
-	mutex_lock(&bd_inode->i_mutex);
-	bdev->bd_map_count--;
-	mutex_unlock(&bd_inode->i_mutex);
-}
-
 static const struct vm_operations_struct blkdev_dax_vm_ops = {
-	.open		= blkdev_vm_open,
-	.close		= blkdev_vm_close,
 	.fault		= blkdev_dax_fault,
 	.pmd_fault	= blkdev_dax_pmd_fault,
 	.pfn_mkwrite	= blkdev_dax_fault,
 };
 
 static const struct vm_operations_struct blkdev_default_vm_ops = {
-	.open		= blkdev_vm_open,
-	.close		= blkdev_vm_close,
 	.fault		= filemap_fault,
 	.map_pages	= filemap_map_pages,
 };
@@ -1775,18 +1750,14 @@ static const struct vm_operations_struct blkdev_default_vm_ops = {
 static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *bd_inode = bdev_file_inode(file);
-	struct block_device *bdev = I_BDEV(bd_inode);
 
 	file_accessed(file);
-	mutex_lock(&bd_inode->i_mutex);
-	bdev->bd_map_count++;
 	if (IS_DAX(bd_inode)) {
 		vma->vm_ops = &blkdev_dax_vm_ops;
 		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
 	} else {
 		vma->vm_ops = &blkdev_default_vm_ops;
 	}
-	mutex_unlock(&bd_inode->i_mutex);
 
 	return 0;
 }

@@ -36,15 +36,16 @@
  */
 static DEFINE_PER_CPU(struct tick_sched, tick_cpu_sched);
 
-/*
- * The time, when the last jiffy update happened. Protected by jiffies_lock.
- */
-static ktime_t last_jiffies_update;
-
 struct tick_sched *tick_get_tick_sched(int cpu)
 {
 	return &per_cpu(tick_cpu_sched, cpu);
 }
+
+#if defined(CONFIG_NO_HZ_COMMON) || defined(CONFIG_HIGH_RES_TIMERS)
+/*
+ * The time, when the last jiffy update happened. Protected by jiffies_lock.
+ */
+static ktime_t last_jiffies_update;
 
 /*
  * Must be called with interrupts disabled !
@@ -151,6 +152,7 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 	update_process_times(user_mode(regs));
 	profile_tick(CPU_PROFILING);
 }
+#endif
 
 #ifdef CONFIG_NO_HZ_FULL
 cpumask_var_t tick_nohz_full_mask;
@@ -387,7 +389,7 @@ void __init tick_nohz_init(void)
 /*
  * NO HZ enabled ?
  */
-static int tick_nohz_enabled __read_mostly  = 1;
+int tick_nohz_enabled __read_mostly = 1;
 unsigned long tick_nohz_active  __read_mostly;
 /*
  * Enable / Disable tickless mode
@@ -993,9 +995,9 @@ static void tick_nohz_switch_to_nohz(void)
 	/* Get the next period */
 	next = tick_init_jiffy_update();
 
-	hrtimer_forward_now(&ts->sched_timer, tick_period);
 	hrtimer_set_expires(&ts->sched_timer, next);
-	tick_program_event(next, 1);
+	hrtimer_forward_now(&ts->sched_timer, tick_period);
+	tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
 	tick_nohz_activate(ts, NOHZ_MODE_LOWRES);
 }
 

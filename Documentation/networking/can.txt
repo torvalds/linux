@@ -372,6 +372,15 @@ solution for a couple of reasons:
     nbytes = sendto(s, &frame, sizeof(struct can_frame),
                     0, (struct sockaddr*)&addr, sizeof(addr));
 
+  An accurate timestamp can be obtained with an ioctl(2) call after reading
+  a message from the socket:
+
+    struct timeval tv;
+    ioctl(s, SIOCGSTAMP, &tv);
+
+  The timestamp has a resolution of one microsecond and is set automatically
+  at the reception of a CAN frame.
+
   Remark about CAN FD (flexible data rate) support:
 
   Generally the handling of CAN FD is very similar to the formerly described

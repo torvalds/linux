@@ -520,13 +520,10 @@ static inline int ref_for_same_block(struct __prelim_ref *ref1,
 static int __add_missing_keys(struct btrfs_fs_info *fs_info,
 			      struct list_head *head)
 {
-	struct list_head *pos;
+	struct __prelim_ref *ref;
 	struct extent_buffer *eb;
 
-	list_for_each(pos, head) {
-		struct __prelim_ref *ref;
-		ref = list_entry(pos, struct __prelim_ref, list);
-
+	list_for_each_entry(ref, head, list) {
 		if (ref->parent)
 			continue;
 		if (ref->key_for_search.type)
@@ -563,22 +560,14 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
  */
 static void __merge_refs(struct list_head *head, int mode)
 {
-	struct list_head *pos1;
+	struct __prelim_ref *pos1;
 
-	list_for_each(pos1, head) {
-		struct list_head *n2;
-		struct list_head *pos2;
-		struct __prelim_ref *ref1;
+	list_for_each_entry(pos1, head, list) {
+		struct __prelim_ref *pos2 = pos1, *tmp;
 
-		ref1 = list_entry(pos1, struct __prelim_ref, list);
-
-		for (pos2 = pos1->next, n2 = pos2->next; pos2 != head;
-		     pos2 = n2, n2 = pos2->next) {
-			struct __prelim_ref *ref2;
-			struct __prelim_ref *xchg;
+		list_for_each_entry_safe_continue(pos2, tmp, head, list) {
+			struct __prelim_ref *xchg, *ref1 = pos1, *ref2 = pos2;
 			struct extent_inode_elem *eie;
-
-			ref2 = list_entry(pos2, struct __prelim_ref, list);
 
 			if (!ref_for_same_block(ref1, ref2))
 				continue;

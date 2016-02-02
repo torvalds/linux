@@ -647,6 +647,13 @@ static int add_memory_block(int base_section_nr)
 	return 0;
 }
 
+static bool is_zone_device_section(struct mem_section *ms)
+{
+	struct page *page;
+
+	page = sparse_decode_mem_map(ms->section_mem_map, __section_nr(ms));
+	return is_zone_device_page(page);
+}
 
 /*
  * need an interface for the VM to add new memory regions,
@@ -656,6 +663,9 @@ int register_new_memory(int nid, struct mem_section *section)
 {
 	int ret = 0;
 	struct memory_block *mem;
+
+	if (is_zone_device_section(section))
+		return 0;
 
 	mutex_lock(&mem_sysfs_mutex);
 
@@ -692,6 +702,9 @@ static int remove_memory_section(unsigned long node_id,
 			       struct mem_section *section, int phys_device)
 {
 	struct memory_block *mem;
+
+	if (is_zone_device_section(section))
+		return 0;
 
 	mutex_lock(&mem_sysfs_mutex);
 	mem = find_memory_block(section);

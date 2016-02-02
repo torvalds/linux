@@ -191,24 +191,13 @@ static void da9063_tm_to_data(struct rtc_time *tm, u8 *data,
 {
 	const struct da9063_compatible_rtc_regmap *config = rtc->config;
 
-	data[RTC_SEC] &= ~config->rtc_count_sec_mask;
-	data[RTC_SEC] |= tm->tm_sec & config->rtc_count_sec_mask;
-
-	data[RTC_MIN] &= ~config->rtc_count_min_mask;
-	data[RTC_MIN] |= tm->tm_min & config->rtc_count_min_mask;
-
-	data[RTC_HOUR] &= ~config->rtc_count_hour_mask;
-	data[RTC_HOUR] |= tm->tm_hour & config->rtc_count_hour_mask;
-
-	data[RTC_DAY] &= ~config->rtc_count_day_mask;
-	data[RTC_DAY] |= tm->tm_mday & config->rtc_count_day_mask;
-
-	data[RTC_MONTH] &= ~config->rtc_count_month_mask;
-	data[RTC_MONTH] |= MONTHS_TO_DA9063(tm->tm_mon) &
+	data[RTC_SEC]   = tm->tm_sec & config->rtc_count_sec_mask;
+	data[RTC_MIN]   = tm->tm_min & config->rtc_count_min_mask;
+	data[RTC_HOUR]  = tm->tm_hour & config->rtc_count_hour_mask;
+	data[RTC_DAY]   = tm->tm_mday & config->rtc_count_day_mask;
+	data[RTC_MONTH] = MONTHS_TO_DA9063(tm->tm_mon) &
 				config->rtc_count_month_mask;
-
-	data[RTC_YEAR] &= ~config->rtc_count_year_mask;
-	data[RTC_YEAR] |= YEARS_TO_DA9063(tm->tm_year) &
+	data[RTC_YEAR]  = YEARS_TO_DA9063(tm->tm_year) &
 				config->rtc_count_year_mask;
 }
 

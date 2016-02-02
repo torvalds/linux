@@ -575,10 +575,15 @@ unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
 	unsigned int type = IRQ_TYPE_NONE;
 	int virq;
 
-	if (fwspec->fwnode)
-		domain = irq_find_matching_fwnode(fwspec->fwnode, DOMAIN_BUS_ANY);
-	else
+	if (fwspec->fwnode) {
+		domain = irq_find_matching_fwnode(fwspec->fwnode,
+						  DOMAIN_BUS_WIRED);
+		if (!domain)
+			domain = irq_find_matching_fwnode(fwspec->fwnode,
+							  DOMAIN_BUS_ANY);
+	} else {
 		domain = irq_default_domain;
+	}
 
 	if (!domain) {
 		pr_warn("no irq domain found for %s !\n",
@@ -1061,6 +1066,7 @@ void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
 	__irq_set_handler(virq, handler, 0, handler_name);
 	irq_set_handler_data(virq, handler_data);
 }
+EXPORT_SYMBOL(irq_domain_set_info);
 
 /**
  * irq_domain_reset_irq_data - Clear hwirq, chip and chip_data in @irq_data

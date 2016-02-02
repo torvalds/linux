@@ -47,7 +47,6 @@ config ARM
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_DMA_ATTRS
 	select HAVE_DMA_CONTIGUOUS if MMU
 	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL) && !CPU_ENDIAN_BE32 && MMU
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && MMU
@@ -168,11 +167,6 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
-config HAVE_LATENCYTOP_SUPPORT
-	bool
-	depends on !SMP
-	default y
-
 config LOCKDEP_SUPPORT
 	bool
 	default y
@@ -245,7 +239,6 @@ config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime" if EMBEDDED
 	default y
 	depends on !XIP_KERNEL && MMU
-	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help
 	  Patch phys-to-virt and virt-to-phys translation functions at
 	  boot and module load time according to the position of the
@@ -326,7 +319,7 @@ config ARCH_MMAP_RND_BITS_MAX
 #
 choice
 	prompt "ARM system type"
-	default ARCH_VERSATILE if !MMU
+	default ARM_SINGLE_ARMV7M if !MMU
 	default ARCH_MULTIPLATFORM if MMU
 
 config ARCH_MULTIPLATFORM
@@ -358,38 +351,6 @@ config ARM_SINGLE_ARMV7M
 	select SPARSE_IRQ
 	select USE_OF
 
-config ARCH_REALVIEW
-	bool "ARM Ltd. RealView family"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_AMBA
-	select ARM_TIMER_SP804
-	select COMMON_CLK
-	select COMMON_CLK_VERSATILE
-	select GENERIC_CLOCKEVENTS
-	select GPIO_PL061 if GPIOLIB
-	select ICST
-	select NEED_MACH_MEMORY_H
-	select PLAT_VERSATILE
-	select PLAT_VERSATILE_SCHED_CLOCK
-	help
-	  This enables support for ARM Ltd RealView boards.
-
-config ARCH_VERSATILE
-	bool "ARM Ltd. Versatile family"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_AMBA
-	select ARM_TIMER_SP804
-	select ARM_VIC
-	select CLKDEV_LOOKUP
-	select GENERIC_CLOCKEVENTS
-	select HAVE_MACH_CLKDEV
-	select ICST
-	select PLAT_VERSATILE
-	select PLAT_VERSATILE_CLOCK
-	select PLAT_VERSATILE_SCHED_CLOCK
-	select VERSATILE_FPGA_IRQ
-	help
-	  This enables support for ARM Ltd Versatile board.
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
@@ -524,55 +485,15 @@ config ARCH_DOVE
 	select CPU_PJ4
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
+	select MULTI_IRQ_HANDLER
 	select MVEBU_MBUS
 	select PINCTRL
 	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
+	select SPARSE_IRQ
+	select PM_GENERIC_DOMAINS if PM
 	help
 	  Support for the Marvell Dove SoC 88AP510
-
-config ARCH_MV78XX0
-	bool "Marvell MV78xx0"
-	select ARCH_REQUIRE_GPIOLIB
-	select CPU_FEROCEON
-	select GENERIC_CLOCKEVENTS
-	select MVEBU_MBUS
-	select PCI
-	select PLAT_ORION_LEGACY
-	help
-	  Support for the following Marvell MV78xx0 series SoCs:
-	  MV781x0, MV782x0.
-
-config ARCH_ORION5X
-	bool "Marvell Orion"
-	depends on MMU
-	select ARCH_REQUIRE_GPIOLIB
-	select CPU_FEROCEON
-	select GENERIC_CLOCKEVENTS
-	select MVEBU_MBUS
-	select PCI
-	select PLAT_ORION_LEGACY
-	select MULTI_IRQ_HANDLER
-	help
-	  Support for the following Marvell Orion 5x series SoCs:
-	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
-	  Orion-2 (5281), Orion-1-90 (6183).
-
-config ARCH_MMP
-	bool "Marvell PXA168/910/MMP2"
-	depends on MMU
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
-	select GENERIC_ALLOCATOR
-	select GENERIC_CLOCKEVENTS
-	select GPIO_PXA
-	select IRQ_DOMAIN
-	select MULTI_IRQ_HANDLER
-	select PINCTRL
-	select PLAT_PXA
-	select SPARSE_IRQ
-	help
-	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
 
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
@@ -697,32 +618,6 @@ config ARCH_S3C24XX
 	  (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or the
 	  Samsung SMDK2410 development board (and derivatives).
 
-config ARCH_S3C64XX
-	bool "Samsung S3C64XX"
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_AMBA
-	select ARM_VIC
-	select ATAGS
-	select CLKDEV_LOOKUP
-	select CLKSRC_SAMSUNG_PWM
-	select COMMON_CLK_SAMSUNG
-	select CPU_V6K
-	select GENERIC_CLOCKEVENTS
-	select GPIO_SAMSUNG
-	select HAVE_S3C2410_I2C if I2C
-	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	select HAVE_TCM
-	select NO_IOPORT_MAP
-	select PLAT_SAMSUNG
-	select PM_GENERIC_DOMAINS if PM
-	select S3C_DEV_NAND
-	select S3C_GPIO_TRACK
-	select SAMSUNG_ATAGS
-	select SAMSUNG_WAKEMASK
-	select SAMSUNG_WDT_RESET
-	help
-	  Samsung S3C64XX series based systems
-
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -811,7 +706,8 @@ config ARCH_MULTI_CPU_AUTO
 endmenu
 
 config ARCH_VIRT
-	bool "Dummy Virtual Machine" if ARCH_MULTI_V7
+	bool "Dummy Virtual Machine"
+	depends on ARCH_MULTI_V7
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_GIC_V2M if PCI_MSI
@@ -933,6 +829,8 @@ source "arch/arm/mach-shmobile/Kconfig"
 source "arch/arm/mach-sunxi/Kconfig"
 
 source "arch/arm/mach-prima2/Kconfig"
+
+source "arch/arm/mach-tango/Kconfig"
 
 source "arch/arm/mach-tegra/Kconfig"
 

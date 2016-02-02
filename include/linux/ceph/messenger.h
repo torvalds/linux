@@ -220,6 +220,7 @@ struct ceph_connection {
 	struct ceph_entity_addr actual_peer_addr;
 
 	/* message out temps */
+	struct ceph_msg_header out_hdr;
 	struct ceph_msg *out_msg;        /* sending message (== tail of
 					    out_sent) */
 	bool out_msg_done;
@@ -229,7 +230,6 @@ struct ceph_connection {
 	int out_kvec_left;   /* kvec's left in out_kvec */
 	int out_skip;        /* skip this many bytes */
 	int out_kvec_bytes;  /* total bytes left */
-	bool out_kvec_is_msg; /* kvec refers to out_msg */
 	int out_more;        /* there is more data after the kvecs */
 	__le64 out_temp_ack; /* for writing an ack */
 	struct ceph_timespec out_temp_keepalive2; /* for writing keepalive2

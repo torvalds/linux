@@ -83,8 +83,7 @@ static ssize_t mode_store(struct device *dev,
 
 		if (strncmp(buf, "pmem\n", n) == 0
 				|| strncmp(buf, "pmem", n) == 0) {
-			/* TODO: allocate from PMEM support */
-			rc = -ENOTTY;
+			nd_pfn->mode = PFN_MODE_PMEM;
 		} else if (strncmp(buf, "ram\n", n) == 0
 				|| strncmp(buf, "ram", n) == 0)
 			nd_pfn->mode = PFN_MODE_RAM;
@@ -302,10 +301,8 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 
 	switch (le32_to_cpu(pfn_sb->mode)) {
 	case PFN_MODE_RAM:
-		break;
 	case PFN_MODE_PMEM:
-		/* TODO: allocate from PMEM support */
-		return -ENOTTY;
+		break;
 	default:
 		return -ENXIO;
 	}

@@ -37,7 +37,7 @@ static int ar7_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 				container_of(chip, struct ar7_gpio_chip, chip);
 	void __iomem *gpio_in = gpch->regs + AR7_GPIO_INPUT;
 
-	return readl(gpio_in) & (1 << gpio);
+	return !!(readl(gpio_in) & (1 << gpio));
 }
 
 static int titan_gpio_get_value(struct gpio_chip *chip, unsigned gpio)

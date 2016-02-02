@@ -21,6 +21,9 @@
 #include <linux/magic.h>
 #include "btrfs-tests.h"
 #include "../ctree.h"
+#include "../free-space-cache.h"
+#include "../free-space-tree.h"
+#include "../transaction.h"
 #include "../volumes.h"
 #include "../disk-io.h"
 #include "../qgroup.h"
@@ -79,18 +82,18 @@ void btrfs_destroy_test_fs(void)
 struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(void)
 {
 	struct btrfs_fs_info *fs_info = kzalloc(sizeof(struct btrfs_fs_info),
-						GFP_NOFS);
+						GFP_KERNEL);
 
 	if (!fs_info)
 		return fs_info;
 	fs_info->fs_devices = kzalloc(sizeof(struct btrfs_fs_devices),
-				      GFP_NOFS);
+				      GFP_KERNEL);
 	if (!fs_info->fs_devices) {
 		kfree(fs_info);
 		return NULL;
 	}
 	fs_info->super_copy = kzalloc(sizeof(struct btrfs_super_block),
-				      GFP_NOFS);
+				      GFP_KERNEL);
 	if (!fs_info->super_copy) {
 		kfree(fs_info->fs_devices);
 		kfree(fs_info);
@@ -122,6 +125,9 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(void)
 	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
 	INIT_RADIX_TREE(&fs_info->buffer_radix, GFP_ATOMIC);
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
+	extent_io_tree_init(&fs_info->freed_extents[0], NULL);
+	extent_io_tree_init(&fs_info->freed_extents[1], NULL);
+	fs_info->pinned_extents = &fs_info->freed_extents[0];
 	return fs_info;
 }
 
@@ -169,3 +175,55 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	kfree(root);
 }
 
+struct btrfs_block_group_cache *
+btrfs_alloc_dummy_block_group(unsigned long length)
+{
+	struct btrfs_block_group_cache *cache;
+
+	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
+	if (!cache)
+		return NULL;
+	cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
+					GFP_KERNEL);
+	if (!cache->free_space_ctl) {
+		kfree(cache);
+		return NULL;
+	}
+	cache->fs_info = btrfs_alloc_dummy_fs_info();
+	if (!cache->fs_info) {
+		kfree(cache->free_space_ctl);
+		kfree(cache);
+		return NULL;
+	}
+
+	cache->key.objectid = 0;
+	cache->key.offset = length;
+	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
+	cache->sectorsize = 4096;
+	cache->full_stripe_len = 4096;
+
+	INIT_LIST_HEAD(&cache->list);
+	INIT_LIST_HEAD(&cache->cluster_list);
+	INIT_LIST_HEAD(&cache->bg_list);
+	btrfs_init_free_space_ctl(cache);
+	mutex_init(&cache->free_space_lock);
+
+	return cache;
+}
+
+void btrfs_free_dummy_block_group(struct btrfs_block_group_cache *cache)
+{
+	if (!cache)
+		return;
+	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	kfree(cache->free_space_ctl);
+	kfree(cache);
+}
+
+void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans)
+{
+	memset(trans, 0, sizeof(*trans));
+	trans->transid = 1;
+	INIT_LIST_HEAD(&trans->qgroup_ref_list);
+	trans->type = __TRANS_DUMMY;
+}

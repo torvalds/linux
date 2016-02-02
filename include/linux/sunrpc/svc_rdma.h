@@ -51,6 +51,7 @@
 /* RPC/RDMA parameters and stats */
 extern unsigned int svcrdma_ord;
 extern unsigned int svcrdma_max_requests;
+extern unsigned int svcrdma_max_bc_requests;
 extern unsigned int svcrdma_max_req_size;
 
 extern atomic_t rdma_stat_recv;
@@ -69,6 +70,7 @@ extern atomic_t rdma_stat_sq_prod;
  * completes.
  */
 struct svc_rdma_op_ctxt {
+	struct list_head free;
 	struct svc_rdma_op_ctxt *read_hdr;
 	struct svc_rdma_fastreg_mr *frmr;
 	int hdr_count;
@@ -112,6 +114,7 @@ struct svc_rdma_fastreg_mr {
 	struct list_head frmr_list;
 };
 struct svc_rdma_req_map {
+	struct list_head free;
 	unsigned long count;
 	union {
 		struct kvec sge[RPCSVC_MAXPAGES];
@@ -132,28 +135,32 @@ struct svcxprt_rdma {
 	int                  sc_max_sge;
 	int                  sc_max_sge_rd;	/* max sge for read target */
 
-	int                  sc_sq_depth;	/* Depth of SQ */
 	atomic_t             sc_sq_count;	/* Number of SQ WR on queue */
-
-	int                  sc_max_requests;	/* Depth of RQ */
+	unsigned int	     sc_sq_depth;	/* Depth of SQ */
+	unsigned int	     sc_rq_depth;	/* Depth of RQ */
+	u32		     sc_max_requests;	/* Forward credits */
+	u32		     sc_max_bc_requests;/* Backward credits */
 	int                  sc_max_req_size;	/* Size of each RQ WR buf */
 
 	struct ib_pd         *sc_pd;
 
 	atomic_t	     sc_dma_used;
-	atomic_t	     sc_ctxt_used;
+	spinlock_t	     sc_ctxt_lock;
+	struct list_head     sc_ctxts;
+	int		     sc_ctxt_used;
+	spinlock_t	     sc_map_lock;
+	struct list_head     sc_maps;
+
 	struct list_head     sc_rq_dto_q;
 	spinlock_t	     sc_rq_dto_lock;
 	struct ib_qp         *sc_qp;
 	struct ib_cq         *sc_rq_cq;
 	struct ib_cq         *sc_sq_cq;
-	struct ib_mr         *sc_phys_mr;	/* MR for server memory */
 	int		     (*sc_reader)(struct svcxprt_rdma *,
 					  struct svc_rqst *,
 					  struct svc_rdma_op_ctxt *,
 					  int *, u32 *, u32, u32, u64, bool);
 	u32		     sc_dev_caps;	/* distilled device caps */
-	u32		     sc_dma_lkey;	/* local dma key */
 	unsigned int	     sc_frmr_pg_list_len;
 	struct list_head     sc_frmr_q;
 	spinlock_t	     sc_frmr_q_lock;
@@ -179,7 +186,17 @@ struct svcxprt_rdma {
 #define RPCRDMA_MAX_REQUESTS    32
 #define RPCRDMA_MAX_REQ_SIZE    4096
 
+/* Typical ULP usage of BC requests is NFSv4.1 backchannel. Our
+ * current NFSv4.1 implementation supports one backchannel slot.
+ */
+#define RPCRDMA_MAX_BC_REQUESTS	2
+
 #define RPCSVC_MAXPAYLOAD_RDMA	RPCSVC_MAXPAYLOAD
+
+/* svc_rdma_backchannel.c */
+extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,
+				    struct rpcrdma_msg *rmsgp,
+				    struct xdr_buf *rcvbuf);
 
 /* svc_rdma_marshal.c */
 extern int svc_rdma_xdr_decode_req(struct rpcrdma_msg **, struct svc_rqst *);
@@ -206,6 +223,8 @@ extern int rdma_read_chunk_frmr(struct svcxprt_rdma *, struct svc_rqst *,
 				u32, u32, u64, bool);
 
 /* svc_rdma_sendto.c */
+extern int svc_rdma_map_xdr(struct svcxprt_rdma *, struct xdr_buf *,
+			    struct svc_rdma_req_map *);
 extern int svc_rdma_sendto(struct svc_rqst *);
 extern struct rpcrdma_read_chunk *
 	svc_rdma_get_read_chunk(struct rpcrdma_msg *);
@@ -214,13 +233,14 @@ extern struct rpcrdma_read_chunk *
 extern int svc_rdma_send(struct svcxprt_rdma *, struct ib_send_wr *);
 extern void svc_rdma_send_error(struct svcxprt_rdma *, struct rpcrdma_msg *,
 				enum rpcrdma_errcode);
-extern int svc_rdma_post_recv(struct svcxprt_rdma *);
+extern int svc_rdma_post_recv(struct svcxprt_rdma *, gfp_t);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
 extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
 extern void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt);
-extern struct svc_rdma_req_map *svc_rdma_get_req_map(void);
-extern void svc_rdma_put_req_map(struct svc_rdma_req_map *);
+extern struct svc_rdma_req_map *svc_rdma_get_req_map(struct svcxprt_rdma *);
+extern void svc_rdma_put_req_map(struct svcxprt_rdma *,
+				 struct svc_rdma_req_map *);
 extern struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *);
 extern void svc_rdma_put_frmr(struct svcxprt_rdma *,
 			      struct svc_rdma_fastreg_mr *);
@@ -234,6 +254,7 @@ extern struct svc_xprt_class svc_rdma_bc_class;
 #endif
 
 /* svc_rdma.c */
+extern struct workqueue_struct *svc_rdma_wq;
 extern int svc_rdma_init(void);
 extern void svc_rdma_cleanup(void);
 

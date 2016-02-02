@@ -28,7 +28,7 @@
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
 
-#include <nvif/class.h>
+#include <nvif/cl826e.h>
 
 int
 g84_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,

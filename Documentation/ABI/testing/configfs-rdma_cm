@@ -1,0 +1,22 @@
+What: 		/config/rdma_cm
+Date: 		November 29, 2015
+KernelVersion:  4.4.0
+Description: 	Interface is used to configure RDMA-cable HCAs in respect to
+		RDMA-CM attributes.
+
+		Attributes are visible only when configfs is mounted. To mount
+		configfs in /config directory use:
+		# mount -t configfs none /config/
+
+		In order to set parameters related to a specific HCA, a directory
+		for this HCA has to be created:
+		mkdir -p /config/rdma_cm/<hca>
+
+
+What: 		/config/rdma_cm/<hca>/ports/<port-num>/default_roce_mode
+Date: 		November 29, 2015
+KernelVersion:  4.4.0
+Description: 	RDMA-CM based connections from HCA <hca> at port <port-num>
+		will be initiated with this RoCE type as default.
+		The possible RoCE types are either "IB/RoCE v1" or "RoCE v2".
+		This parameter has RW access.

@@ -898,89 +898,6 @@ static struct ib_mr *mthca_get_dma_mr(struct ib_pd *pd, int acc)
 	return &mr->ibmr;
 }
 
-static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
-				       struct ib_phys_buf *buffer_list,
-				       int                 num_phys_buf,
-				       int                 acc,
-				       u64                *iova_start)
-{
-	struct mthca_mr *mr;
-	u64 *page_list;
-	u64 total_size;
-	unsigned long mask;
-	int shift;
-	int npages;
-	int err;
-	int i, j, n;
-
-	mask = buffer_list[0].addr ^ *iova_start;
-	total_size = 0;
-	for (i = 0; i < num_phys_buf; ++i) {
-		if (i != 0)
-			mask |= buffer_list[i].addr;
-		if (i != num_phys_buf - 1)
-			mask |= buffer_list[i].addr + buffer_list[i].size;
-
-		total_size += buffer_list[i].size;
-	}
-
-	if (mask & ~PAGE_MASK)
-		return ERR_PTR(-EINVAL);
-
-	shift = __ffs(mask | 1 << 31);
-
-	buffer_list[0].size += buffer_list[0].addr & ((1ULL << shift) - 1);
-	buffer_list[0].addr &= ~0ull << shift;
-
-	mr = kmalloc(sizeof *mr, GFP_KERNEL);
-	if (!mr)
-		return ERR_PTR(-ENOMEM);
-
-	npages = 0;
-	for (i = 0; i < num_phys_buf; ++i)
-		npages += (buffer_list[i].size + (1ULL << shift) - 1) >> shift;
-
-	if (!npages)
-		return &mr->ibmr;
-
-	page_list = kmalloc(npages * sizeof *page_list, GFP_KERNEL);
-	if (!page_list) {
-		kfree(mr);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	n = 0;
-	for (i = 0; i < num_phys_buf; ++i)
-		for (j = 0;
-		     j < (buffer_list[i].size + (1ULL << shift) - 1) >> shift;
-		     ++j)
-			page_list[n++] = buffer_list[i].addr + ((u64) j << shift);
-
-	mthca_dbg(to_mdev(pd->device), "Registering memory at %llx (iova %llx) "
-		  "in PD %x; shift %d, npages %d.\n",
-		  (unsigned long long) buffer_list[0].addr,
-		  (unsigned long long) *iova_start,
-		  to_mpd(pd)->pd_num,
-		  shift, npages);
-
-	err = mthca_mr_alloc_phys(to_mdev(pd->device),
-				  to_mpd(pd)->pd_num,
-				  page_list, shift, npages,
-				  *iova_start, total_size,
-				  convert_access(acc), mr);
-
-	if (err) {
-		kfree(page_list);
-		kfree(mr);
-		return ERR_PTR(err);
-	}
-
-	kfree(page_list);
-	mr->umem = NULL;
-
-	return &mr->ibmr;
-}
-
 static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				       u64 virt, int acc, struct ib_udata *udata)
 {
@@ -1346,7 +1263,6 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.destroy_cq           = mthca_destroy_cq;
 	dev->ib_dev.poll_cq              = mthca_poll_cq;
 	dev->ib_dev.get_dma_mr           = mthca_get_dma_mr;
-	dev->ib_dev.reg_phys_mr          = mthca_reg_phys_mr;
 	dev->ib_dev.reg_user_mr          = mthca_reg_user_mr;
 	dev->ib_dev.dereg_mr             = mthca_dereg_mr;
 	dev->ib_dev.get_port_immutable   = mthca_port_immutable;

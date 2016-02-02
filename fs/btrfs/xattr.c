@@ -126,7 +126,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	 * locks the inode's i_mutex before calling setxattr or removexattr.
 	 */
 	if (flags & XATTR_REPLACE) {
-		ASSERT(mutex_is_locked(&inode->i_mutex));
+		ASSERT(inode_is_locked(inode));
 		di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(inode),
 					name, name_len, 0);
 		if (!di)
@@ -283,7 +283,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 
 	/* search for our xattrs */
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -446,7 +446,7 @@ static int btrfs_initxattrs(struct inode *inode,
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
 		name = kmalloc(XATTR_SECURITY_PREFIX_LEN +
-			       strlen(xattr->name) + 1, GFP_NOFS);
+			       strlen(xattr->name) + 1, GFP_KERNEL);
 		if (!name) {
 			err = -ENOMEM;
 			break;
