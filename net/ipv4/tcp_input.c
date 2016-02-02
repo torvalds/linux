@@ -3660,7 +3660,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		tcp_cwnd_reduction(sk, acked_sacked, flag);
 	} else if (tcp_may_raise_cwnd(sk, flag)) {
 		/* Advance cwnd if state allows */
-		tcp_cong_avoid(sk, ack, acked);
+		tcp_cong_avoid(sk, ack, acked_sacked);
 	}
 
 	if ((flag & FLAG_FORWARD_PROGRESS) || !(flag & FLAG_NOT_DUP)) {
