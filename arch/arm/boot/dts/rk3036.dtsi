@@ -60,6 +60,7 @@
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
+		spi = &spi;
 	};
 
 	memory {
@@ -407,6 +408,21 @@
 		status = "disabled";
 	};
 
+	spi: spi@20074000 {
+		compatible = "rockchip,rockchip-spi";
+		reg = <0x20074000 0x1000>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		clocks =<&cru PCLK_SPI>, <&cru SCLK_SPI>;
+		clock-names = "apb-pclk","spi_pclk";
+		dmas = <&pdma 8>, <&pdma 9>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi_txd &spi_rxd &spi_clk &spi_cs0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3036-pinctrl";
 		rockchip,grf = <&grf>;
@@ -617,6 +633,30 @@
 						<1 19 RK_FUNC_2 &pcfg_pull_none>;
 			};
 			/* no rts / cts for uart2 */
+		};
+
+		spi {
+			spi_txd:spi-txd {
+				rockchip,pins = <1 29 RK_FUNC_3 &pcfg_pull_default>;
+			};
+
+			spi_rxd:spi-rxd {
+				rockchip,pins = <1 28 RK_FUNC_3 &pcfg_pull_default>;
+			};
+
+			spi_clk:spi-clk {
+				rockchip,pins = <2 0 RK_FUNC_2 &pcfg_pull_default>;
+			};
+
+			spi_cs0:spi-cs0 {
+				rockchip,pins = <1 30 RK_FUNC_3 &pcfg_pull_default>;
+
+			};
+
+			spi_cs1:spi-cs1 {
+				rockchip,pins = <1 31 RK_FUNC_3 &pcfg_pull_default>;
+
+			};
 		};
 	};
 };
