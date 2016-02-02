@@ -241,8 +241,6 @@ static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
 {
 	edac_dbg(0, "\n");
 
-	pci->op_state = OP_OFFLINE;
-
 	edac_stop_work(&pci->work);
 }
 
@@ -289,7 +287,7 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 		goto fail1;
 	}
 
-	if (pci->edac_check != NULL) {
+	if (pci->edac_check) {
 		pci->op_state = OP_RUNNING_POLL;
 
 		edac_pci_workq_setup(pci, 1000);
@@ -350,8 +348,8 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 
 	mutex_unlock(&edac_pci_ctls_mutex);
 
-	/* stop the workq timer */
-	edac_pci_workq_teardown(pci);
+	if (pci->edac_check)
+		edac_pci_workq_teardown(pci);
 
 	edac_printk(KERN_INFO, EDAC_PCI,
 		"Removed device %d for %s %s: DEV %s\n",

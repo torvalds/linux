@@ -583,8 +583,6 @@ static void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
  */
 static void edac_mc_workq_teardown(struct mem_ctl_info *mci)
 {
-	mci->op_state = OP_OFFLINE;
-
 	edac_stop_work(&mci->work);
 }
 
@@ -772,7 +770,7 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 	}
 
 	/* If there IS a check routine, then we are running POLLED */
-	if (mci->edac_check != NULL) {
+	if (mci->edac_check) {
 		/* This instance is NOW RUNNING */
 		mci->op_state = OP_RUNNING_POLL;
 
@@ -823,15 +821,16 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 		return NULL;
 	}
 
+	/* mark MCI offline: */
+	mci->op_state = OP_OFFLINE;
+
 	if (!del_mc_from_global_list(mci))
 		edac_mc_owner = NULL;
+
 	mutex_unlock(&mem_ctls_mutex);
 
-	/* flush workq processes */
-	edac_mc_workq_teardown(mci);
-
-	/* marking MCI offline */
-	mci->op_state = OP_OFFLINE;
+	if (mci->edac_check)
+		edac_mc_workq_teardown(mci);
 
 	/* remove from sysfs */
 	edac_remove_sysfs_mci_device(mci);
