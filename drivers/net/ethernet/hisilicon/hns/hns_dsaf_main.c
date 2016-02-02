@@ -35,21 +35,13 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	int ret, i;
 	u32 desc_num;
 	u32 buf_size;
-	const char *name, *mode_str;
+	const char *mode_str;
 	struct device_node *np = dsaf_dev->dev->of_node;
 
 	if (of_device_is_compatible(np, "hisilicon,hns-dsaf-v1"))
 		dsaf_dev->dsaf_ver = AE_VERSION_1;
 	else
 		dsaf_dev->dsaf_ver = AE_VERSION_2;
-
-	ret = of_property_read_string(np, "dsa_name", &name);
-	if (ret) {
-		dev_err(dsaf_dev->dev, "get dsaf name fail, ret=%d!\n", ret);
-		return ret;
-	}
-	strncpy(dsaf_dev->ae_dev.name, name, AE_NAME_SIZE);
-	dsaf_dev->ae_dev.name[AE_NAME_SIZE - 1] = '\0';
 
 	ret = of_property_read_string(np, "mode", &mode_str);
 	if (ret) {

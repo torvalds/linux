@@ -301,10 +301,8 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 
 	switch (le32_to_cpu(pfn_sb->mode)) {
 	case PFN_MODE_RAM:
-		break;
 	case PFN_MODE_PMEM:
-		/* TODO: allocate from PMEM support */
-		return -ENOTTY;
+		break;
 	default:
 		return -ENXIO;
 	}

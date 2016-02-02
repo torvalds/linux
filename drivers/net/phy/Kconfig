@@ -186,6 +186,7 @@ config MDIO_GPIO
 config MDIO_OCTEON
 	tristate "Support for MDIO buses on Octeon and ThunderX SOCs"
 	depends on 64BIT
+	depends on HAS_IOMEM
 	help
 
 	  This module provides a driver for the Octeon and ThunderX MDIO
