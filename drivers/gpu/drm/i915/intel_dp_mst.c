@@ -371,12 +371,17 @@ static enum drm_mode_status
 intel_dp_mst_mode_valid(struct drm_connector *connector,
 			struct drm_display_mode *mode)
 {
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+
 	/* TODO - validate mode against available PBN for link */
 	if (mode->clock < 10000)
 		return MODE_CLOCK_LOW;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return MODE_H_ILLEGAL;
+
+	if (mode->clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
 }
