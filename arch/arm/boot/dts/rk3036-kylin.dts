@@ -313,6 +313,8 @@
 	rt5616: rt5616@1b {
 		compatible = "rt5616";
 		reg = <0x1b>;
+		clocks = <&cru SCLK_I2S_OUT>;
+		clock-names = "mclk";
 		#sound-dai-cells = <0>;
 	};
 };
