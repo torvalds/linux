@@ -15,11 +15,10 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/oid_registry.h>
-#include "public_key.h"
+#include <crypto/public_key.h>
 #include "x509_parser.h"
 #include "x509-asn1.h"
 #include "x509_akid-asn1.h"
-#include "x509_rsakey-asn1.h"
 
 struct x509_parse_context {
 	struct x509_certificate	*cert;		/* Certificate being constructed */
@@ -56,7 +55,7 @@ void x509_free_certificate(struct x509_certificate *cert)
 		kfree(cert->akid_id);
 		kfree(cert->akid_skid);
 		kfree(cert->sig.digest);
-		mpi_free(cert->sig.rsa.s);
+		kfree(cert->sig.s);
 		kfree(cert);
 	}
 }
@@ -103,11 +102,11 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 		}
 	}
 
-	/* Decode the public key */
-	ret = asn1_ber_decoder(&x509_rsakey_decoder, ctx,
-			       ctx->key, ctx->key_size);
-	if (ret < 0)
+	cert->pub->key = kmemdup(ctx->key, ctx->key_size, GFP_KERNEL);
+	if (!cert->pub->key)
 		goto error_decode;
+
+	cert->pub->keylen = ctx->key_size;
 
 	/* Generate cert issuer + serial number key ID */
 	kid = asymmetric_key_generate_id(cert->raw_serial,
@@ -124,6 +123,7 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 	return cert;
 
 error_decode:
+	kfree(cert->pub->key);
 	kfree(ctx);
 error_no_ctx:
 	x509_free_certificate(cert);
@@ -401,29 +401,6 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 	/* Discard the BIT STRING metadata */
 	ctx->key = value + 1;
 	ctx->key_size = vlen - 1;
-	return 0;
-}
-
-/*
- * Extract a RSA public key value
- */
-int rsa_extract_mpi(void *context, size_t hdrlen,
-		    unsigned char tag,
-		    const void *value, size_t vlen)
-{
-	struct x509_parse_context *ctx = context;
-	MPI mpi;
-
-	if (ctx->nr_mpi >= ARRAY_SIZE(ctx->cert->pub->mpi)) {
-		pr_err("Too many public key MPIs in certificate\n");
-		return -EBADMSG;
-	}
-
-	mpi = mpi_read_raw_data(value, vlen);
-	if (!mpi)
-		return -ENOMEM;
-
-	ctx->cert->pub->mpi[ctx->nr_mpi++] = mpi;
 	return 0;
 }
 

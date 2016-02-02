@@ -11,10 +11,10 @@
 
 #define pr_fmt(fmt) "RSA: "fmt
 #include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/slab.h>
+#include <crypto/akcipher.h>
+#include <crypto/public_key.h>
 #include <crypto/algapi.h>
-#include "public_key.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RSA Public Key Algorithm");
@@ -84,72 +84,10 @@ static const struct {
 #undef _
 };
 
-/*
- * RSAVP1() function [RFC3447 sec 5.2.2]
- */
-static int RSAVP1(const struct public_key *key, MPI s, MPI *_m)
-{
-	MPI m;
-	int ret;
-
-	/* (1) Validate 0 <= s < n */
-	if (mpi_cmp_ui(s, 0) < 0) {
-		kleave(" = -EBADMSG [s < 0]");
-		return -EBADMSG;
-	}
-	if (mpi_cmp(s, key->rsa.n) >= 0) {
-		kleave(" = -EBADMSG [s >= n]");
-		return -EBADMSG;
-	}
-
-	m = mpi_alloc(0);
-	if (!m)
-		return -ENOMEM;
-
-	/* (2) m = s^e mod n */
-	ret = mpi_powm(m, s, key->rsa.e, key->rsa.n);
-	if (ret < 0) {
-		mpi_free(m);
-		return ret;
-	}
-
-	*_m = m;
-	return 0;
-}
-
-/*
- * Integer to Octet String conversion [RFC3447 sec 4.1]
- */
-static int RSA_I2OSP(MPI x, size_t xLen, u8 **pX)
-{
-	unsigned X_size, x_size;
-	int X_sign;
-	u8 *X;
-
-	/* Make sure the string is the right length.  The number should begin
-	 * with { 0x00, 0x01, ... } so we have to account for 15 leading zero
-	 * bits not being reported by MPI.
-	 */
-	x_size = mpi_get_nbits(x);
-	pr_devel("size(x)=%u xLen*8=%zu\n", x_size, xLen * 8);
-	if (x_size != xLen * 8 - 15)
-		return -ERANGE;
-
-	X = mpi_get_buffer(x, &X_size, &X_sign);
-	if (!X)
-		return -ENOMEM;
-	if (X_sign < 0) {
-		kfree(X);
-		return -EBADMSG;
-	}
-	if (X_size != xLen - 1) {
-		kfree(X);
-		return -EBADMSG;
-	}
-
-	*pX = X;
-	return 0;
-}
+struct rsa_completion {
+	struct completion completion;
+	int err;
+};
 
 /*
  * Perform the RSA signature verification.
@@ -160,7 +98,7 @@ static int RSA_I2OSP(MPI x, size_t xLen, u8 **pX)
  * @asn1_template: The DigestInfo ASN.1 template
  * @asn1_size: Size of asm1_template[]
  */
-static int RSA_verify(const u8 *H, const u8 *EM, size_t k, size_t hash_size,
+static int rsa_verify(const u8 *H, const u8 *EM, size_t k, size_t hash_size,
 		      const u8 *asn1_template, size_t asn1_size)
 {
 	unsigned PS_end, T_offset, i;
@@ -169,10 +107,10 @@ static int RSA_verify(const u8 *H, const u8 *EM, size_t k, size_t hash_size,
 
 	if (k < 2 + 1 + asn1_size + hash_size)
 		return -EBADMSG;
-
-	/* Decode the EMSA-PKCS1-v1_5 */
-	if (EM[1] != 0x01) {
-		kleave(" = -EBADMSG [EM[1] == %02u]", EM[1]);
+	/* Decode the EMSA-PKCS1-v1_5
+	 * note: leading zeros are stirpped by the RSA implementation */
+	if (EM[0] != 0x01) {
+		kleave(" = -EBADMSG [EM[0] == %02u]", EM[0]);
 		return -EBADMSG;
 	}
 
@@ -183,7 +121,7 @@ static int RSA_verify(const u8 *H, const u8 *EM, size_t k, size_t hash_size,
 		return -EBADMSG;
 	}
 
-	for (i = 2; i < PS_end; i++) {
+	for (i = 1; i < PS_end; i++) {
 		if (EM[i] != 0xff) {
 			kleave(" = -EBADMSG [EM[PS%x] == %02u]", i - 2, EM[i]);
 			return -EBADMSG;
@@ -204,75 +142,82 @@ static int RSA_verify(const u8 *H, const u8 *EM, size_t k, size_t hash_size,
 	return 0;
 }
 
-/*
- * Perform the verification step [RFC3447 sec 8.2.2].
- */
-static int RSA_verify_signature(const struct public_key *key,
-				const struct public_key_signature *sig)
+static void public_key_verify_done(struct crypto_async_request *req, int err)
 {
-	size_t tsize;
-	int ret;
+	struct rsa_completion *compl = req->data;
 
-	/* Variables as per RFC3447 sec 8.2.2 */
-	const u8 *H = sig->digest;
-	u8 *EM = NULL;
-	MPI m = NULL;
-	size_t k;
+	if (err == -EINPROGRESS)
+		return;
 
-	kenter("");
-
-	if (!RSA_ASN1_templates[sig->pkey_hash_algo].data)
-		return -ENOTSUPP;
-
-	/* (1) Check the signature size against the public key modulus size */
-	k = mpi_get_nbits(key->rsa.n);
-	tsize = mpi_get_nbits(sig->rsa.s);
-
-	/* According to RFC 4880 sec 3.2, length of MPI is computed starting
-	 * from most significant bit.  So the RFC 3447 sec 8.2.2 size check
-	 * must be relaxed to conform with shorter signatures - so we fail here
-	 * only if signature length is longer than modulus size.
-	 */
-	pr_devel("step 1: k=%zu size(S)=%zu\n", k, tsize);
-	if (k < tsize) {
-		ret = -EBADMSG;
-		goto error;
-	}
-
-	/* Round up and convert to octets */
-	k = (k + 7) / 8;
-
-	/* (2b) Apply the RSAVP1 verification primitive to the public key */
-	ret = RSAVP1(key, sig->rsa.s, &m);
-	if (ret < 0)
-		goto error;
-
-	/* (2c) Convert the message representative (m) to an encoded message
-	 *      (EM) of length k octets.
-	 *
-	 *      NOTE!  The leading zero byte is suppressed by MPI, so we pass a
-	 *      pointer to the _preceding_ byte to RSA_verify()!
-	 */
-	ret = RSA_I2OSP(m, k, &EM);
-	if (ret < 0)
-		goto error;
-
-	ret = RSA_verify(H, EM - 1, k, sig->digest_size,
-			 RSA_ASN1_templates[sig->pkey_hash_algo].data,
-			 RSA_ASN1_templates[sig->pkey_hash_algo].size);
-
-error:
-	kfree(EM);
-	mpi_free(m);
-	kleave(" = %d", ret);
-	return ret;
+	compl->err = err;
+	complete(&compl->completion);
 }
 
-const struct public_key_algorithm RSA_public_key_algorithm = {
-	.name		= "RSA",
-	.n_pub_mpi	= 2,
-	.n_sec_mpi	= 3,
-	.n_sig_mpi	= 1,
-	.verify_signature = RSA_verify_signature,
-};
-EXPORT_SYMBOL_GPL(RSA_public_key_algorithm);
+int rsa_verify_signature(const struct public_key *pkey,
+			 const struct public_key_signature *sig)
+{
+	struct crypto_akcipher *tfm;
+	struct akcipher_request *req;
+	struct rsa_completion compl;
+	struct scatterlist sig_sg, sg_out;
+	void *outbuf = NULL;
+	unsigned int outlen = 0;
+	int ret = -ENOMEM;
+
+	tfm = crypto_alloc_akcipher("rsa", 0, 0);
+	if (IS_ERR(tfm))
+		goto error_out;
+
+	req = akcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		goto error_free_tfm;
+
+	ret = crypto_akcipher_set_pub_key(tfm, pkey->key, pkey->keylen);
+	if (ret)
+		goto error_free_req;
+
+	ret = -EINVAL;
+	outlen = crypto_akcipher_maxsize(tfm);
+	if (!outlen)
+		goto error_free_req;
+
+	/* initlialzie out buf */
+	ret = -ENOMEM;
+	outbuf = kmalloc(outlen, GFP_KERNEL);
+	if (!outbuf)
+		goto error_free_req;
+
+	sg_init_one(&sig_sg, sig->s, sig->s_size);
+	sg_init_one(&sg_out, outbuf, outlen);
+	akcipher_request_set_crypt(req, &sig_sg, &sg_out, sig->s_size, outlen);
+	init_completion(&compl.completion);
+	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
+				      CRYPTO_TFM_REQ_MAY_SLEEP,
+				      public_key_verify_done, &compl);
+
+	ret = crypto_akcipher_verify(req);
+	if (ret == -EINPROGRESS) {
+		wait_for_completion(&compl.completion);
+		ret = compl.err;
+	}
+
+	if (ret)
+		goto error_free_req;
+
+	/*
+	 * Output from the operation is an encoded message (EM) of
+	 * length k octets.
+	 */
+	outlen = req->dst_len;
+	ret = rsa_verify(sig->digest, outbuf, outlen, sig->digest_size,
+			 RSA_ASN1_templates[sig->pkey_hash_algo].data,
+			 RSA_ASN1_templates[sig->pkey_hash_algo].size);
+error_free_req:
+	akcipher_request_free(req);
+error_free_tfm:
+	crypto_free_akcipher(tfm);
+error_out:
+	kfree(outbuf);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rsa_verify_signature);
