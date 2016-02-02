@@ -32,10 +32,6 @@
 #define GDP_ABGR8888    (GDP_ARGB8888 | BIGNOTLITTLE | ALPHASWITCH)
 #define GDP_ARGB1555    0x06
 #define GDP_ARGB4444    0x07
-#define GDP_CLUT8       0x0B
-#define GDP_YCBR888     0x10
-#define GDP_YCBR422R    0x12
-#define GDP_AYCBR8888   0x15
 
 #define GAM_GDP_CTL_OFFSET      0x00
 #define GAM_GDP_AGC_OFFSET      0x04
@@ -123,10 +119,6 @@ static const uint32_t gdp_supported_formats[] = {
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
-	DRM_FORMAT_AYUV,
-	DRM_FORMAT_YUV444,
-	DRM_FORMAT_VYUY,
-	DRM_FORMAT_C8,
 };
 
 static int sti_gdp_fourcc2format(int fourcc)
@@ -148,14 +140,6 @@ static int sti_gdp_fourcc2format(int fourcc)
 		return GDP_RGB565;
 	case DRM_FORMAT_RGB888:
 		return GDP_RGB888;
-	case DRM_FORMAT_AYUV:
-		return GDP_AYCBR8888;
-	case DRM_FORMAT_YUV444:
-		return GDP_YCBR888;
-	case DRM_FORMAT_VYUY:
-		return GDP_YCBR422R;
-	case DRM_FORMAT_C8:
-		return GDP_CLUT8;
 	}
 	return -1;
 }
@@ -165,7 +149,6 @@ static int sti_gdp_get_alpharange(int format)
 	switch (format) {
 	case GDP_ARGB8565:
 	case GDP_ARGB8888:
-	case GDP_AYCBR8888:
 	case GDP_ABGR8888:
 		return GAM_GDP_ALPHARANGE_255;
 	}
