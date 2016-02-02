@@ -1414,6 +1414,58 @@ static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
 	[IFLA_PORT_RESPONSE]	= { .type = NLA_U16, },
 };
 
+static const struct rtnl_link_ops *linkinfo_to_kind_ops(const struct nlattr *nla)
+{
+	const struct rtnl_link_ops *ops = NULL;
+	struct nlattr *linfo[IFLA_INFO_MAX + 1];
+
+	if (nla_parse_nested(linfo, IFLA_INFO_MAX, nla, ifla_info_policy) < 0)
+		return NULL;
+
+	if (linfo[IFLA_INFO_KIND]) {
+		char kind[MODULE_NAME_LEN];
+
+		nla_strlcpy(kind, linfo[IFLA_INFO_KIND], sizeof(kind));
+		ops = rtnl_link_ops_get(kind);
+	}
+
+	return ops;
+}
+
+static bool link_master_filtered(struct net_device *dev, int master_idx)
+{
+	struct net_device *master;
+
+	if (!master_idx)
+		return false;
+
+	master = netdev_master_upper_dev_get(dev);
+	if (!master || master->ifindex != master_idx)
+		return true;
+
+	return false;
+}
+
+static bool link_kind_filtered(const struct net_device *dev,
+			       const struct rtnl_link_ops *kind_ops)
+{
+	if (kind_ops && dev->rtnl_link_ops != kind_ops)
+		return true;
+
+	return false;
+}
+
+static bool link_dump_filtered(struct net_device *dev,
+			       int master_idx,
+			       const struct rtnl_link_ops *kind_ops)
+{
+	if (link_master_filtered(dev, master_idx) ||
+	    link_kind_filtered(dev, kind_ops))
+		return true;
+
+	return false;
+}
+
 static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1423,6 +1475,9 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_head *head;
 	struct nlattr *tb[IFLA_MAX+1];
 	u32 ext_filter_mask = 0;
+	const struct rtnl_link_ops *kind_ops = NULL;
+	unsigned int flags = NLM_F_MULTI;
+	int master_idx = 0;
 	int err;
 	int hdrlen;
 
@@ -1445,18 +1500,29 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 
 		if (tb[IFLA_EXT_MASK])
 			ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
+
+		if (tb[IFLA_MASTER])
+			master_idx = nla_get_u32(tb[IFLA_MASTER]);
+
+		if (tb[IFLA_LINKINFO])
+			kind_ops = linkinfo_to_kind_ops(tb[IFLA_LINKINFO]);
+
+		if (master_idx || kind_ops)
+			flags |= NLM_F_DUMP_FILTERED;
 	}
 
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
 		idx = 0;
 		head = &net->dev_index_head[h];
 		hlist_for_each_entry(dev, head, index_hlist) {
+			if (link_dump_filtered(dev, master_idx, kind_ops))
+				continue;
 			if (idx < s_idx)
 				goto cont;
 			err = rtnl_fill_ifinfo(skb, dev, RTM_NEWLINK,
 					       NETLINK_CB(cb->skb).portid,
 					       cb->nlh->nlmsg_seq, 0,
-					       NLM_F_MULTI,
+					       flags,
 					       ext_filter_mask);
 			/* If we ran out of room on the first message,
 			 * we're in trouble
