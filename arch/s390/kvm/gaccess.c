@@ -1091,26 +1091,24 @@ int kvm_s390_shadow_fault(struct gmap *sg, unsigned long saddr, int write)
 	int dat_protection;
 	int rc;
 
+	down_read(&sg->mm->mmap_sem);
+
 	rc = gmap_shadow_pgt_lookup(sg, saddr, &pgt, &dat_protection);
-	if (rc) {
+	if (rc)
 		rc = kvm_s390_shadow_tables(sg, saddr, &pgt, &dat_protection);
-		if (rc)
-			return rc;
-	}
 
 	vaddr.addr = saddr;
-	rc = gmap_read_table(sg->parent, pgt + vaddr.px * 8, &pte.val);
-	if (rc)
-		return rc;
-	if (pte.i)
-		return PGM_PAGE_TRANSLATION;
-	if (pte.z || pte.co)
-		return PGM_TRANSLATION_SPEC;
+	if (!rc)
+		rc = gmap_read_table(sg->parent, pgt + vaddr.px * 8, &pte.val);
+	if (!rc && pte.i)
+		rc = PGM_PAGE_TRANSLATION;
+	if (!rc && (pte.z || pte.co))
+		rc = PGM_TRANSLATION_SPEC;
 	dat_protection |= pte.p;
-	if (write && dat_protection)
-		return PGM_PROTECTION;
-	rc = gmap_shadow_page(sg, saddr, __pte(pte.val));
-	if (rc)
-		return rc;
-	return 0;
+	if (!rc && write && dat_protection)
+		rc = PGM_PROTECTION;
+	if (!rc)
+		rc = gmap_shadow_page(sg, saddr, __pte(pte.val));
+	up_read(&sg->mm->mmap_sem);
+	return rc;
 }
