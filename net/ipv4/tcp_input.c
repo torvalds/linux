@@ -3323,6 +3323,24 @@ static inline bool tcp_may_raise_cwnd(const struct sock *sk, const int flag)
 	return flag & FLAG_DATA_ACKED;
 }
 
+/* The "ultimate" congestion control function that aims to replace the rigid
+ * cwnd increase and decrease control (tcp_cong_avoid,tcp_*cwnd_reduction).
+ * It's called toward the end of processing an ACK with precise rate
+ * information. All transmission or retransmission are delayed afterwards.
+ */
+static void tcp_cong_control(struct sock *sk, u32 ack, u32 acked_sacked,
+			     int flag)
+{
+	if (tcp_in_cwnd_reduction(sk)) {
+		/* Reduce cwnd if state mandates */
+		tcp_cwnd_reduction(sk, acked_sacked, flag);
+	} else if (tcp_may_raise_cwnd(sk, flag)) {
+		/* Advance cwnd if state allows */
+		tcp_cong_avoid(sk, ack, acked_sacked);
+	}
+	tcp_update_pacing_rate(sk);
+}
+
 /* Check that window update is acceptable.
  * The function assumes that snd_una<=ack<=snd_next.
  */
@@ -3553,7 +3571,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	int prior_packets = tp->packets_out;
 	u32 prior_delivered = tp->delivered;
 	int acked = 0; /* Number of packets newly acked */
-	u32 acked_sacked; /* Number of packets newly acked or sacked */
 	int rexmit = REXMIT_NONE; /* Flag to (re)transmit to recover losses */
 
 	sack_state.first_sackt.v64 = 0;
@@ -3653,16 +3670,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	if (tp->tlp_high_seq)
 		tcp_process_tlp_ack(sk, ack, flag);
 
-	acked_sacked = tp->delivered - prior_delivered;
-	/* Advance cwnd if state allows */
-	if (tcp_in_cwnd_reduction(sk)) {
-		/* Reduce cwnd if state mandates */
-		tcp_cwnd_reduction(sk, acked_sacked, flag);
-	} else if (tcp_may_raise_cwnd(sk, flag)) {
-		/* Advance cwnd if state allows */
-		tcp_cong_avoid(sk, ack, acked_sacked);
-	}
-
 	if ((flag & FLAG_FORWARD_PROGRESS) || !(flag & FLAG_NOT_DUP)) {
 		struct dst_entry *dst = __sk_dst_get(sk);
 		if (dst)
@@ -3671,7 +3678,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	if (icsk->icsk_pending == ICSK_TIME_RETRANS)
 		tcp_schedule_loss_probe(sk);
-	tcp_update_pacing_rate(sk);
+	tcp_cong_control(sk, ack, tp->delivered - prior_delivered, flag);
 	tcp_xmit_recovery(sk, rexmit);
 	return 1;
 
