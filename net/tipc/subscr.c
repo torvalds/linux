@@ -110,7 +110,8 @@ void tipc_subscrp_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 {
 	if (!tipc_subscrp_check_overlap(sub, found_lower, found_upper))
 		return;
-	if (!must && !(sub->filter & TIPC_SUB_PORTS))
+	if (!must &&
+	    !(htohl(sub->evt.s.filter, sub->swap) & TIPC_SUB_PORTS))
 		return;
 
 	tipc_subscrp_send_event(sub, found_lower, found_upper, event, port_ref,
@@ -222,6 +223,7 @@ static int tipc_subscrp_create(struct net *net, struct tipc_subscr *s,
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_subscription *sub;
+	u32 timeout, filter;
 	int swap;
 
 	/* Determine subscriber's endianness */
@@ -253,10 +255,8 @@ static int tipc_subscrp_create(struct net *net, struct tipc_subscr *s,
 	sub->seq.type = htohl(s->seq.type, swap);
 	sub->seq.lower = htohl(s->seq.lower, swap);
 	sub->seq.upper = htohl(s->seq.upper, swap);
-	sub->timeout = msecs_to_jiffies(htohl(s->timeout, swap));
-	sub->filter = htohl(s->filter, swap);
-	if ((!(sub->filter & TIPC_SUB_PORTS) ==
-	     !(sub->filter & TIPC_SUB_SERVICE)) ||
+	filter = htohl(s->filter, swap);
+	if (((filter & TIPC_SUB_PORTS) && (filter & TIPC_SUB_SERVICE)) ||
 	    (sub->seq.lower > sub->seq.upper)) {
 		pr_warn("Subscription rejected, illegal request\n");
 		kfree(sub);
@@ -265,13 +265,14 @@ static int tipc_subscrp_create(struct net *net, struct tipc_subscr *s,
 	spin_lock_bh(&subscriber->lock);
 	list_add(&sub->subscrp_list, &subscriber->subscrp_list);
 	spin_unlock_bh(&subscriber->lock);
+
 	sub->subscriber = subscriber;
 	sub->swap = swap;
 	memcpy(&sub->evt.s, s, sizeof(*s));
 	atomic_inc(&tn->subscription_count);
 	setup_timer(&sub->timer, tipc_subscrp_timeout, (unsigned long)sub);
-	sub->timeout += jiffies;
-	if (!mod_timer(&sub->timer, sub->timeout))
+	timeout = htohl(sub->evt.s.timeout, swap);
+	if (!mod_timer(&sub->timer, jiffies + msecs_to_jiffies(timeout)))
 		tipc_subscrb_get(subscriber);
 	*sub_p = sub;
 	return 0;
