@@ -1152,6 +1152,16 @@ config RTC_DRV_ZYNQMP
 
 comment "on-CPU RTC drivers"
 
+config RTC_DRV_ASM9260
+	tristate "Alphascale asm9260 RTC"
+	depends on MACH_ASM9260
+	help
+	  If you say yes here you get support for the RTC on the
+	  Alphascale asm9260 SoC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-asm9260.
+
 config RTC_DRV_DAVINCI
 	tristate "TI DaVinci RTC"
 	depends on ARCH_DAVINCI_DM365
