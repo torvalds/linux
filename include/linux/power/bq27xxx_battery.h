@@ -49,6 +49,7 @@ struct bq27xxx_reg_cache {
 
 struct bq27xxx_device_info {
 	struct device *dev;
+	int id;
 	enum bq27xxx_chip chip;
 	const char *name;
 	struct bq27xxx_access_methods bus;
