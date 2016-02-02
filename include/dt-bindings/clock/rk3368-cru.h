@@ -163,6 +163,7 @@
 #define PCLK_EFUSE256		371
 
 /* hclk gates */
+#define HCLK_USB_PERI		447
 #define HCLK_SFC		448
 #define HCLK_OTG0		449
 #define HCLK_HOST0		450
