@@ -405,6 +405,14 @@ enum {
 
 #define IFLA_VRF_MAX (__IFLA_VRF_MAX - 1)
 
+enum {
+	IFLA_VRF_PORT_UNSPEC,
+	IFLA_VRF_PORT_TABLE,
+	__IFLA_VRF_PORT_MAX
+};
+
+#define IFLA_VRF_PORT_MAX (__IFLA_VRF_PORT_MAX - 1)
+
 /* IPVLAN section */
 enum {
 	IFLA_IPVLAN_UNSPEC,
