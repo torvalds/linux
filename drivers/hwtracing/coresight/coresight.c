@@ -570,6 +570,8 @@ static void coresight_fixup_device_conns(struct coresight_device *csdev)
 
 		if (dev) {
 			conn->child_dev = to_coresight_device(dev);
+			/* and put reference from 'bus_find_device()' */
+			put_device(dev);
 		} else {
 			csdev->orphan = true;
 			conn->child_dev = NULL;
