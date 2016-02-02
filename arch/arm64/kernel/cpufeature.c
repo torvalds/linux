@@ -621,6 +621,18 @@ static bool has_useable_gicv3_cpuif(const struct arm64_cpu_capabilities *entry)
 	return has_sre;
 }
 
+static bool has_no_hw_prefetch(const struct arm64_cpu_capabilities *entry)
+{
+	u32 midr = read_cpuid_id();
+	u32 rv_min, rv_max;
+
+	/* Cavium ThunderX pass 1.x and 2.x */
+	rv_min = 0;
+	rv_max = (1 << MIDR_VARIANT_SHIFT) | MIDR_REVISION_MASK;
+
+	return MIDR_IS_CPU_MODEL_RANGE(midr, MIDR_THUNDERX, rv_min, rv_max);
+}
+
 static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.desc = "GIC system register CPU interface",
@@ -651,6 +663,11 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.min_field_value = 2,
 	},
 #endif /* CONFIG_AS_LSE && CONFIG_ARM64_LSE_ATOMICS */
+	{
+		.desc = "Software prefetching using PRFM",
+		.capability = ARM64_HAS_NO_HW_PREFETCH,
+		.matches = has_no_hw_prefetch,
+	},
 	{},
 };
 
