@@ -489,15 +489,6 @@ err_misc_register:
 	return ret;
 }
 
-static int etb_remove(struct amba_device *adev)
-{
-	struct etb_drvdata *drvdata = amba_get_drvdata(adev);
-
-	misc_deregister(&drvdata->miscdev);
-	coresight_unregister(drvdata->csdev);
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int etb_runtime_suspend(struct device *dev)
 {
@@ -537,10 +528,10 @@ static struct amba_driver etb_driver = {
 		.name	= "coresight-etb10",
 		.owner	= THIS_MODULE,
 		.pm	= &etb_dev_pm_ops,
+		.suppress_bind_attrs = true,
 
 	},
 	.probe		= etb_probe,
-	.remove		= etb_remove,
 	.id_table	= etb_ids,
 };
 
