@@ -657,6 +657,9 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 	int remaining, err;
 	u8 dst[ETH_ALEN], src[ETH_ALEN];
 
+	if (skb_linearize(skb))
+		goto out;
+
 	if (has_80211_header) {
 		err = ieee80211_data_to_8023(skb, addr, iftype);
 		if (err)
