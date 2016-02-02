@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/oid_registry.h>
-#include "public_key.h"
+#include <crypto/public_key.h>
 #include "pkcs7_parser.h"
 #include "pkcs7-asn1.h"
 
@@ -44,7 +44,7 @@ struct pkcs7_parse_context {
 static void pkcs7_free_signed_info(struct pkcs7_signed_info *sinfo)
 {
 	if (sinfo) {
-		mpi_free(sinfo->sig.mpi[0]);
+		kfree(sinfo->sig.s);
 		kfree(sinfo->sig.digest);
 		kfree(sinfo->signing_cert_id);
 		kfree(sinfo);
@@ -614,16 +614,14 @@ int pkcs7_sig_note_signature(void *context, size_t hdrlen,
 			     const void *value, size_t vlen)
 {
 	struct pkcs7_parse_context *ctx = context;
-	MPI mpi;
 
 	BUG_ON(ctx->sinfo->sig.pkey_algo != PKEY_ALGO_RSA);
 
-	mpi = mpi_read_raw_data(value, vlen);
-	if (!mpi)
+	ctx->sinfo->sig.s = kmemdup(value, vlen, GFP_KERNEL);
+	if (!ctx->sinfo->sig.s)
 		return -ENOMEM;
 
-	ctx->sinfo->sig.mpi[0] = mpi;
-	ctx->sinfo->sig.nr_mpi = 1;
+	ctx->sinfo->sig.s_size = vlen;
 	return 0;
 }
 
