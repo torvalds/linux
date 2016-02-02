@@ -129,7 +129,14 @@ void __init imx_init_revision_from_anatop(void)
 
 	switch (digprog & 0xff) {
 	case 0:
-		revision = IMX_CHIP_REVISION_1_0;
+		/*
+		 * For i.MX6QP, most of the code for i.MX6Q can be resued,
+		 * so internally, we identify it as i.MX6Q Rev 2.0
+		 */
+		if (digprog >> 8 & 0x01)
+			revision = IMX_CHIP_REVISION_2_0;
+		else
+			revision = IMX_CHIP_REVISION_1_0;
 		break;
 	case 1:
 		revision = IMX_CHIP_REVISION_1_1;
