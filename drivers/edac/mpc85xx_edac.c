@@ -1244,7 +1244,7 @@ static struct platform_driver * const drivers[] = {
 static int __init mpc85xx_mc_init(void)
 {
 	int res = 0;
-	u32 pvr = 0;
+	u32 __maybe_unused pvr = 0;
 
 	printk(KERN_INFO "Freescale(R) MPC85xx EDAC driver, "
 	       "(C) 2006 Montavista Software\n");
