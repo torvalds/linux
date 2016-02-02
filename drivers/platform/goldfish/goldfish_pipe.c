@@ -313,7 +313,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 				     !is_write, 0, &page, NULL);
 		up_read(&current->mm->mmap_sem);
 		if (ret < 0)
-			return ret;
+			break;
 
 		if (dev->version) {
 			/* Device version 1 or newer (qemu-android) expects the
@@ -400,22 +400,16 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		while (test_bit(wakeBit, &pipe->flags)) {
 			if (wait_event_interruptible(
 					pipe->wake_queue,
-					!test_bit(wakeBit, &pipe->flags))) {
-				ret = -ERESTARTSYS;
-				break;
-			}
+					!test_bit(wakeBit, &pipe->flags)))
+				return -ERESTARTSYS;
 
-			if (test_bit(BIT_CLOSED_ON_HOST, &pipe->flags)) {
-				ret = -EIO;
-				break;
-			}
+			if (test_bit(BIT_CLOSED_ON_HOST, &pipe->flags))
+				return -EIO;
 		}
 
 		/* Try to re-acquire the lock */
-		if (mutex_lock_interruptible(&pipe->lock)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
+		if (mutex_lock_interruptible(&pipe->lock))
+			return -ERESTARTSYS;
 	}
 	mutex_unlock(&pipe->lock);
 
