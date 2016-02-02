@@ -562,6 +562,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 
 	cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
 	cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[mvm->queue_info[queue].mac80211_ac];
+	cmd.tid = mvm->queue_info[queue].txq_tid;
 	mq = mvm->queue_info[queue].hw_queue_to_mac80211;
 	shared_queue = (mvm->queue_info[queue].hw_queue_refcount > 1);
 	spin_unlock_bh(&mvm->queue_info_lock);
@@ -590,6 +591,11 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 	iwl_trans_txq_enable(mvm->trans, queue, iwl_mvm_ac_to_tx_fifo[ac],
 			     cmd.sta_id, tid, LINK_QUAL_AGG_FRAME_LIMIT_DEF,
 			     ssn, wdg_timeout);
+
+	/* Update the TID "owner" of the queue */
+	spin_lock_bh(&mvm->queue_info_lock);
+	mvm->queue_info[queue].txq_tid = tid;
+	spin_unlock_bh(&mvm->queue_info_lock);
 
 	/* TODO: Work-around SCD bug when moving back by multiples of 0x40 */
 
@@ -749,6 +755,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		ac = mvm->queue_info[queue].mac80211_ac;
 		cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
 		cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[ac];
+		cmd.tid = mvm->queue_info[queue].txq_tid;
 		spin_unlock_bh(&mvm->queue_info_lock);
 
 		/* Disable the queue */

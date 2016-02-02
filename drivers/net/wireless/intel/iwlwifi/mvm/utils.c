@@ -669,6 +669,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 				tid_to_mac80211_ac[cfg->tid];
 		else
 			mvm->queue_info[queue].mac80211_ac = IEEE80211_AC_VO;
+
+		mvm->queue_info[queue].txq_tid = cfg->tid;
 	}
 
 	IWL_DEBUG_TX_QUEUES(mvm,
@@ -761,6 +763,7 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	}
 
 	cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
+	cmd.tid = mvm->queue_info[queue].txq_tid;
 
 	/* Make sure queue info is correct even though we overwrite it */
 	WARN(mvm->queue_info[queue].hw_queue_refcount ||

@@ -772,6 +772,7 @@ struct iwl_mvm {
 		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
 		bool reserved; /* Is this the TXQ reserved for a STA */
 		u8 mac80211_ac; /* The mac80211 AC this queue is mapped to */
+		u8 txq_tid; /* The TID "owner" of this queue*/
 		u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
 		/* Timestamp for inactivation per TID of this queue */
 		unsigned long last_frame_time[IWL_MAX_TID_COUNT + 1];
