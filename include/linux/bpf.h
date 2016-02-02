@@ -151,6 +151,7 @@ struct bpf_array {
 	union {
 		char value[0] __aligned(8);
 		void *ptrs[0] __aligned(8);
+		void __percpu *pptrs[0] __aligned(8);
 	};
 };
 #define MAX_TAIL_CALL_CNT 32
