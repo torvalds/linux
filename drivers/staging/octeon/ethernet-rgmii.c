@@ -247,9 +247,7 @@ int cvm_oct_rgmii_init(struct net_device *dev)
 	if (((priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII)
 	     && (priv->port == 0))
 	    || (priv->imode == CVMX_HELPER_INTERFACE_MODE_RGMII)) {
-
 		if (!octeon_is_simulation()) {
-
 			union cvmx_gmxx_rxx_int_en gmx_rx_int_en;
 			int interface = INTERFACE(priv->port);
 			int index = INDEX(priv->port);
@@ -283,9 +281,7 @@ void cvm_oct_rgmii_uninit(struct net_device *dev)
 	if (((priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII)
 	     && (priv->port == 0))
 	    || (priv->imode == CVMX_HELPER_INTERFACE_MODE_RGMII)) {
-
 		if (!octeon_is_simulation()) {
-
 			union cvmx_gmxx_rxx_int_en gmx_rx_int_en;
 			int interface = INTERFACE(priv->port);
 			int index = INDEX(priv->port);
