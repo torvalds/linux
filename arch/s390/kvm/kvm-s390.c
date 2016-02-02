@@ -125,6 +125,11 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
+/* allow nested virtualization in KVM (if enabled by user space) */
+static int nested;
+module_param(nested, int, S_IRUGO);
+MODULE_PARM_DESC(nested, "Nested virtualization support");
+
 /* upper facilities limit for kvm */
 unsigned long kvm_s390_fac_list_mask[16] = {
 	0xffe6000000000000UL,
@@ -264,7 +269,7 @@ static void kvm_s390_cpu_feat_init(void)
 	 * 64bit SCAO (SCA passthrough) and IDTE (for gmap_shadow unshadowing).
 	 */
 	if (!sclp.has_sief2 || !MACHINE_HAS_ESOP || !sclp.has_64bscao ||
-	    !test_facility(3))
+	    !test_facility(3) || !nested)
 		return;
 	allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIEF2);
 	if (sclp.has_64bscao)
