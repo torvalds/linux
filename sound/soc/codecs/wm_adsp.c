@@ -295,6 +295,8 @@ struct wm_adsp_compr {
 
 	u32 *raw_buf;
 	unsigned int copied_total;
+
+	unsigned int sample_rate;
 };
 
 #define WM_ADSP_DATA_WORD_SIZE         3
@@ -2471,6 +2473,8 @@ int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
 	if (!compr->raw_buf)
 		return -ENOMEM;
 
+	compr->sample_rate = params->codec.sample_rate;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_set_params);
@@ -2911,6 +2915,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	tstamp->copied_total = compr->copied_total;
 	tstamp->copied_total += buf->avail * WM_ADSP_DATA_WORD_SIZE;
+	tstamp->sampling_rate = compr->sample_rate;
 
 out:
 	mutex_unlock(&dsp->pwr_lock);
