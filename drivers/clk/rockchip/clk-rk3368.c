@@ -356,7 +356,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(HCLK_BUS, "hclk_bus", "aclk_bus_src", CLK_IGNORE_UNUSED,
 			RK3368_CLKSEL_CON(8), 8, 2, DFLAGS,
 			RK3368_CLKGATE_CON(1), 1, GFLAGS),
-	COMPOSITE_NOMUX(0, "sclk_crypto", "aclk_bus_src", 0,
+	COMPOSITE_NOMUX(SCLK_CRYPTO, "sclk_crypto", "aclk_bus_src", 0,
 			RK3368_CLKSEL_CON(10), 14, 2, DFLAGS,
 			RK3368_CLKGATE_CON(7), 2, GFLAGS),
 
