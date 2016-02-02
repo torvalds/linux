@@ -55,6 +55,10 @@ config PINCTRL_SUN8I_H3
 	def_bool MACH_SUN8I
 	select PINCTRL_SUNXI
 
+config PINCTRL_SUN8I_H3_R
+	def_bool MACH_SUN8I
+	select PINCTRL_SUNXI_COMMON
+
 config PINCTRL_SUN9I_A80
 	def_bool MACH_SUN9I
 	select PINCTRL_SUNXI
