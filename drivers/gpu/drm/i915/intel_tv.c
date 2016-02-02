@@ -897,6 +897,10 @@ intel_tv_mode_valid(struct drm_connector *connector,
 {
 	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+
+	if (mode->clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
 
 	/* Ensure TV refresh is close to desired refresh */
 	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000)
