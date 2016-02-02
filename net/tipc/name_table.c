@@ -418,6 +418,9 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq,
 				   struct tipc_subscription *s)
 {
 	struct sub_seq *sseq = nseq->sseqs;
+	struct tipc_name_seq ns;
+
+	tipc_subscrp_convert_seq(&s->evt.s.seq, s->swap, &ns);
 
 	list_add(&s->nameseq_list, &nseq->subscriptions);
 
@@ -425,7 +428,7 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq,
 		return;
 
 	while (sseq != &nseq->sseqs[nseq->first_free]) {
-		if (tipc_subscrp_check_overlap(s, sseq->lower, sseq->upper)) {
+		if (tipc_subscrp_check_overlap(&ns, sseq->lower, sseq->upper)) {
 			struct publication *crs;
 			struct name_info *info = sseq->info;
 			int must_report = 1;
@@ -722,9 +725,10 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 ref,
 void tipc_nametbl_subscribe(struct tipc_subscription *s)
 {
 	struct tipc_net *tn = net_generic(s->net, tipc_net_id);
-	u32 type = s->seq.type;
+	u32 type = tipc_subscrp_convert_seq_type(s->evt.s.seq.type, s->swap);
 	int index = hash(type);
 	struct name_seq *seq;
+	struct tipc_name_seq ns;
 
 	spin_lock_bh(&tn->nametbl_lock);
 	seq = nametbl_find_seq(s->net, type);
@@ -735,8 +739,9 @@ void tipc_nametbl_subscribe(struct tipc_subscription *s)
 		tipc_nameseq_subscribe(seq, s);
 		spin_unlock_bh(&seq->lock);
 	} else {
+		tipc_subscrp_convert_seq(&s->evt.s.seq, s->swap, &ns);
 		pr_warn("Failed to create subscription for {%u,%u,%u}\n",
-			s->seq.type, s->seq.lower, s->seq.upper);
+			ns.type, ns.lower, ns.upper);
 	}
 	spin_unlock_bh(&tn->nametbl_lock);
 }
@@ -748,9 +753,10 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
 {
 	struct tipc_net *tn = net_generic(s->net, tipc_net_id);
 	struct name_seq *seq;
+	u32 type = tipc_subscrp_convert_seq_type(s->evt.s.seq.type, s->swap);
 
 	spin_lock_bh(&tn->nametbl_lock);
-	seq = nametbl_find_seq(s->net, s->seq.type);
+	seq = nametbl_find_seq(s->net, type);
 	if (seq != NULL) {
 		spin_lock_bh(&seq->lock);
 		list_del_init(&s->nameseq_list);

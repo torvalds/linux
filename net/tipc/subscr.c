@@ -92,23 +92,39 @@ static void tipc_subscrp_send_event(struct tipc_subscription *sub,
  *
  * Returns 1 if there is overlap, otherwise 0.
  */
-int tipc_subscrp_check_overlap(struct tipc_subscription *sub, u32 found_lower,
+int tipc_subscrp_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
 			       u32 found_upper)
 {
-	if (found_lower < sub->seq.lower)
-		found_lower = sub->seq.lower;
-	if (found_upper > sub->seq.upper)
-		found_upper = sub->seq.upper;
+	if (found_lower < seq->lower)
+		found_lower = seq->lower;
+	if (found_upper > seq->upper)
+		found_upper = seq->upper;
 	if (found_lower > found_upper)
 		return 0;
 	return 1;
+}
+
+u32 tipc_subscrp_convert_seq_type(u32 type, int swap)
+{
+	return htohl(type, swap);
+}
+
+void tipc_subscrp_convert_seq(struct tipc_name_seq *in, int swap,
+			      struct tipc_name_seq *out)
+{
+	out->type = htohl(in->type, swap);
+	out->lower = htohl(in->lower, swap);
+	out->upper = htohl(in->upper, swap);
 }
 
 void tipc_subscrp_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 				 u32 found_upper, u32 event, u32 port_ref,
 				 u32 node, int must)
 {
-	if (!tipc_subscrp_check_overlap(sub, found_lower, found_upper))
+	struct tipc_name_seq seq;
+
+	tipc_subscrp_convert_seq(&sub->evt.s.seq, sub->swap, &seq);
+	if (!tipc_subscrp_check_overlap(&seq, found_lower, found_upper))
 		return;
 	if (!must &&
 	    !(htohl(sub->evt.s.filter, sub->swap) & TIPC_SUB_PORTS))
@@ -252,12 +268,9 @@ static int tipc_subscrp_create(struct net *net, struct tipc_subscr *s,
 
 	/* Initialize subscription object */
 	sub->net = net;
-	sub->seq.type = htohl(s->seq.type, swap);
-	sub->seq.lower = htohl(s->seq.lower, swap);
-	sub->seq.upper = htohl(s->seq.upper, swap);
 	filter = htohl(s->filter, swap);
 	if (((filter & TIPC_SUB_PORTS) && (filter & TIPC_SUB_SERVICE)) ||
-	    (sub->seq.lower > sub->seq.upper)) {
+	    (htohl(s->seq.lower, swap) > htohl(s->seq.upper, swap))) {
 		pr_warn("Subscription rejected, illegal request\n");
 		kfree(sub);
 		return -EINVAL;

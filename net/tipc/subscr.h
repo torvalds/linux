@@ -58,7 +58,6 @@ struct tipc_subscriber;
  */
 struct tipc_subscription {
 	struct tipc_subscriber *subscriber;
-	struct tipc_name_seq seq;
 	struct net *net;
 	struct timer_list timer;
 	struct list_head nameseq_list;
@@ -67,11 +66,14 @@ struct tipc_subscription {
 	struct tipc_event evt;
 };
 
-int tipc_subscrp_check_overlap(struct tipc_subscription *sub, u32 found_lower,
+int tipc_subscrp_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
 			       u32 found_upper);
 void tipc_subscrp_report_overlap(struct tipc_subscription *sub,
 				 u32 found_lower, u32 found_upper, u32 event,
 				 u32 port_ref, u32 node, int must);
+void tipc_subscrp_convert_seq(struct tipc_name_seq *in, int swap,
+			      struct tipc_name_seq *out);
+u32 tipc_subscrp_convert_seq_type(u32 type, int swap);
 int tipc_topsrv_start(struct net *net);
 void tipc_topsrv_stop(struct net *net);
 
