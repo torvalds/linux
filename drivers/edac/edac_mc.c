@@ -535,19 +535,17 @@ static void edac_mc_workq_function(struct work_struct *work_req)
 
 	mutex_lock(&mem_ctls_mutex);
 
-	/* if this control struct has movd to offline state, we are done */
-	if (mci->op_state == OP_OFFLINE) {
+	if (mci->op_state != OP_RUNNING_POLL) {
 		mutex_unlock(&mem_ctls_mutex);
 		return;
 	}
 
-	/* Only poll controllers that are running polled and have a check */
-	if (edac_mc_assert_error_check_and_clear() && (mci->edac_check != NULL))
+	if (edac_mc_assert_error_check_and_clear())
 		mci->edac_check(mci);
 
 	mutex_unlock(&mem_ctls_mutex);
 
-	/* Reschedule */
+	/* Queue ourselves again. */
 	edac_queue_work(&mci->work, msecs_to_jiffies(edac_mc_get_poll_msec()));
 }
 

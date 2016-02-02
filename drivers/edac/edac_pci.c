@@ -195,22 +195,22 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 
 	mutex_lock(&edac_pci_ctls_mutex);
 
-	if (pci->op_state == OP_RUNNING_POLL) {
-		/* we might be in POLL mode, but there may NOT be a poll func
-		 */
-		if ((pci->edac_check != NULL) && edac_pci_get_check_errors())
-			pci->edac_check(pci);
-
-		/* if we are on a one second period, then use round */
-		msec = edac_pci_get_poll_msec();
-		if (msec == 1000)
-			delay = round_jiffies_relative(msecs_to_jiffies(msec));
-		else
-			delay = msecs_to_jiffies(msec);
-
-		/* Reschedule only if we are in POLL mode */
-		edac_queue_work(&pci->work, delay);
+	if (pci->op_state != OP_RUNNING_POLL) {
+		mutex_unlock(&edac_pci_ctls_mutex);
+		return;
 	}
+
+	if (edac_pci_get_check_errors())
+		pci->edac_check(pci);
+
+	/* if we are on a one second period, then use round */
+	msec = edac_pci_get_poll_msec();
+	if (msec == 1000)
+		delay = round_jiffies_relative(msecs_to_jiffies(msec));
+	else
+		delay = msecs_to_jiffies(msec);
+
+	edac_queue_work(&pci->work, delay);
 
 	mutex_unlock(&edac_pci_ctls_mutex);
 }
