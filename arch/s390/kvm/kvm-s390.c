@@ -281,6 +281,7 @@ static void kvm_s390_sync_dirty_log(struct kvm *kvm,
 
 		if (gmap_test_and_clear_dirty(address, gmap))
 			mark_page_dirty(kvm, cur_gfn);
+		cond_resched();
 	}
 }
 
