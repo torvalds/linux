@@ -616,7 +616,7 @@ static const struct mux_data sun8i_h3_ahb2_mux_data __initconst = {
 };
 
 static struct clk * __init sunxi_mux_clk_setup(struct device_node *node,
-					       struct mux_data *data)
+					       const struct mux_data *data)
 {
 	struct clk *clk;
 	const char *clk_name = node->name;
@@ -712,7 +712,7 @@ static const struct div_data sun4i_apb0_data __initconst = {
 };
 
 static void __init sunxi_divider_clk_setup(struct device_node *node,
-					   struct div_data *data)
+					   const struct div_data *data)
 {
 	struct clk *clk;
 	const char *clk_name = node->name;
@@ -823,7 +823,7 @@ static const struct divs_data sun6i_a31_pll6_divs_data __initconst = {
  */
 
 static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
-						 struct divs_data *data)
+						 const struct divs_data *data)
 {
 	struct clk_onecell_data *clk_data;
 	const char *parent;
