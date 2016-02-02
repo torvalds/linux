@@ -2196,7 +2196,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 			pmatch = adapter->nd_info->matches[idx];
 
-			if (!pmatch) {
+			if (pmatch) {
 				memset(pmatch, 0, sizeof(*pmatch));
 				if (chan_band_tlv) {
 					pmatch->n_channels = 1;
