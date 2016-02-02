@@ -552,41 +552,6 @@ static void edac_mc_workq_function(struct work_struct *work_req)
 }
 
 /*
- * edac_mc_workq_setup
- *	initialize a workq item for this mci
- *	passing in the new delay period in msec
- *
- *	locking model:
- *
- *		called with the mem_ctls_mutex held
- */
-static void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
-{
-	edac_dbg(0, "\n");
-
-	/* if this instance is not in the POLL state, then simply return */
-	if (mci->op_state != OP_RUNNING_POLL)
-		return;
-
-	INIT_DELAYED_WORK(&mci->work, edac_mc_workq_function);
-
-	edac_queue_work(&mci->work, msecs_to_jiffies(msec));
-}
-
-/*
- * edac_mc_workq_teardown
- *	stop the workq processing on this mci
- *
- *	locking model:
- *
- *		called WITHOUT lock held
- */
-static void edac_mc_workq_teardown(struct mem_ctl_info *mci)
-{
-	edac_stop_work(&mci->work);
-}
-
-/*
  * edac_mc_reset_delay_period(unsigned long value)
  *
  *	user space has updated our poll period value, need to
@@ -769,12 +734,12 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 		goto fail1;
 	}
 
-	/* If there IS a check routine, then we are running POLLED */
 	if (mci->edac_check) {
-		/* This instance is NOW RUNNING */
 		mci->op_state = OP_RUNNING_POLL;
 
-		edac_mc_workq_setup(mci, edac_mc_get_poll_msec());
+		INIT_DELAYED_WORK(&mci->work, edac_mc_workq_function);
+		edac_queue_work(&mci->work, msecs_to_jiffies(edac_mc_get_poll_msec()));
+
 	} else {
 		mci->op_state = OP_RUNNING_INTERRUPT;
 	}
@@ -830,7 +795,7 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 	mutex_unlock(&mem_ctls_mutex);
 
 	if (mci->edac_check)
-		edac_mc_workq_teardown(mci);
+		edac_stop_work(&mci->work);
 
 	/* remove from sysfs */
 	edac_remove_sysfs_mci_device(mci);

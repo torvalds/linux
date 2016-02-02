@@ -216,35 +216,6 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 }
 
 /*
- * edac_pci_workq_setup()
- * 	initialize a workq item for this edac_pci instance
- * 	passing in the new delay period in msec
- *
- *	locking model:
- *		called when 'edac_pci_ctls_mutex' is locked
- */
-static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
-				 unsigned int msec)
-{
-	edac_dbg(0, "\n");
-
-	INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
-
-	edac_queue_work(&pci->work, msecs_to_jiffies(edac_pci_get_poll_msec()));
-}
-
-/*
- * edac_pci_workq_teardown()
- * 	stop the workq processing on this edac_pci instance
- */
-static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
-{
-	edac_dbg(0, "\n");
-
-	edac_stop_work(&pci->work);
-}
-
-/*
  * edac_pci_alloc_index: Allocate a unique PCI index number
  *
  * Return:
@@ -290,7 +261,9 @@ int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 	if (pci->edac_check) {
 		pci->op_state = OP_RUNNING_POLL;
 
-		edac_pci_workq_setup(pci, 1000);
+		INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
+		edac_queue_work(&pci->work, msecs_to_jiffies(edac_pci_get_poll_msec()));
+
 	} else {
 		pci->op_state = OP_RUNNING_INTERRUPT;
 	}
@@ -349,7 +322,7 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 	mutex_unlock(&edac_pci_ctls_mutex);
 
 	if (pci->edac_check)
-		edac_pci_workq_teardown(pci);
+		edac_stop_work(&pci->work);
 
 	edac_printk(KERN_INFO, EDAC_PCI,
 		"Removed device %d for %s %s: DEV %s\n",
