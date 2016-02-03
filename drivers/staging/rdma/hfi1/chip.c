@@ -6085,13 +6085,19 @@ static void hreq_response(struct hfi1_devdata *dd, u8 return_code, u16 rsp_data)
 }
 
 /*
- * Handle requests from the 8051.
+ * Handle host requests from the 8051.
+ *
+ * This is a work-queue function outside of the interrupt.
  */
-static void handle_8051_request(struct hfi1_devdata *dd)
+void handle_8051_request(struct work_struct *work)
 {
+	struct hfi1_pportdata *ppd = container_of(work, struct hfi1_pportdata,
+							dc_host_req_work);
+	struct hfi1_devdata *dd = ppd->dd;
 	u64 reg;
-	u16 data;
-	u8 type;
+	u16 data = 0;
+	u8 type, i, lanes, *cache = ppd->qsfp_info.cache;
+	u8 cdr_ctrl_byte = cache[QSFP_CDR_CTRL_BYTE_OFFS];
 
 	reg = read_csr(dd, DC_DC8051_CFG_EXT_DEV_1);
 	if ((reg & DC_DC8051_CFG_EXT_DEV_1_REQ_NEW_SMASK) == 0)
@@ -6112,10 +6118,44 @@ static void handle_8051_request(struct hfi1_devdata *dd)
 	case HREQ_READ_CONFIG:
 	case HREQ_SET_TX_EQ_ABS:
 	case HREQ_SET_TX_EQ_REL:
-	case HREQ_ENABLE:
 		dd_dev_info(dd, "8051 request: request 0x%x not supported\n",
 			type);
 		hreq_response(dd, HREQ_NOT_SUPPORTED, 0);
+		break;
+
+	case HREQ_ENABLE:
+		lanes = data & 0xF;
+		for (i = 0; lanes; lanes >>= 1, i++) {
+			if (!(lanes & 1))
+				continue;
+			if (data & 0x200) {
+				/* enable TX CDR */
+				if (cache[QSFP_MOD_PWR_OFFS] & 0x8 &&
+				    cache[QSFP_CDR_INFO_OFFS] & 0x80)
+					cdr_ctrl_byte |= (1 << (i + 4));
+			} else {
+				/* disable TX CDR */
+				if (cache[QSFP_MOD_PWR_OFFS] & 0x8 &&
+				    cache[QSFP_CDR_INFO_OFFS] & 0x80)
+					cdr_ctrl_byte &= ~(1 << (i + 4));
+			}
+
+			if (data & 0x800) {
+				/* enable RX CDR */
+				if (cache[QSFP_MOD_PWR_OFFS] & 0x4 &&
+				    cache[QSFP_CDR_INFO_OFFS] & 0x40)
+					cdr_ctrl_byte |= (1 << i);
+			} else {
+				/* disable RX CDR */
+				if (cache[QSFP_MOD_PWR_OFFS] & 0x4 &&
+				    cache[QSFP_CDR_INFO_OFFS] & 0x40)
+					cdr_ctrl_byte &= ~(1 << i);
+			}
+		}
+		qsfp_write(ppd, ppd->dd->hfi1_id, QSFP_CDR_CTRL_BYTE_OFFS,
+			   &cdr_ctrl_byte, 1);
+		hreq_response(dd, HREQ_SUCCESS, data);
+		refresh_qsfp_cache(ppd, &ppd->qsfp_info);
 		break;
 
 	case HREQ_CONFIG_DONE:
@@ -7373,7 +7413,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			host_msg &= ~(u64)LINKUP_ACHIEVED;
 		}
 		if (host_msg & EXT_DEVICE_CFG_REQ) {
-			handle_8051_request(dd);
+			queue_work(ppd->hfi1_wq, &ppd->dc_host_req_work);
 			host_msg &= ~(u64)EXT_DEVICE_CFG_REQ;
 		}
 		if (host_msg & VERIFY_CAP_FRAME) {
