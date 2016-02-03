@@ -381,27 +381,6 @@ static int bq24735_charger_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, charger);
 
-	ret = bq24735_read_word(client, BQ24735_MANUFACTURER_ID);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to read manufacturer id : %d\n",
-			ret);
-		return ret;
-	} else if (ret != 0x0040) {
-		dev_err(&client->dev,
-			"manufacturer id mismatch. 0x0040 != 0x%04x\n", ret);
-		return -ENODEV;
-	}
-
-	ret = bq24735_read_word(client, BQ24735_DEVICE_ID);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to read device id : %d\n", ret);
-		return ret;
-	} else if (ret != 0x000B) {
-		dev_err(&client->dev,
-			"device id mismatch. 0x000b != 0x%04x\n", ret);
-		return -ENODEV;
-	}
-
 	if (gpio_is_valid(charger->pdata->status_gpio)) {
 		ret = devm_gpio_request(&client->dev,
 					charger->pdata->status_gpio,
@@ -413,6 +392,30 @@ static int bq24735_charger_probe(struct i2c_client *client,
 		}
 
 		charger->pdata->status_gpio_valid = !ret;
+	}
+
+	if (!charger->pdata->status_gpio_valid
+	    || bq24735_charger_is_present(charger)) {
+		ret = bq24735_read_word(client, BQ24735_MANUFACTURER_ID);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to read manufacturer id : %d\n",
+				ret);
+			return ret;
+		} else if (ret != 0x0040) {
+			dev_err(&client->dev,
+				"manufacturer id mismatch. 0x0040 != 0x%04x\n", ret);
+			return -ENODEV;
+		}
+
+		ret = bq24735_read_word(client, BQ24735_DEVICE_ID);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to read device id : %d\n", ret);
+			return ret;
+		} else if (ret != 0x000B) {
+			dev_err(&client->dev,
+				"device id mismatch. 0x000b != 0x%04x\n", ret);
+			return -ENODEV;
+		}
 	}
 
 	ret = bq24735_config_charger(charger);
