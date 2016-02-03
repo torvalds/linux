@@ -37,17 +37,6 @@ static struct mwifiex_if_ops pcie_ops;
 
 static struct semaphore add_remove_card_sem;
 
-static struct memory_type_mapping mem_type_mapping_tbl[] = {
-	{"ITCM", NULL, 0, 0xF0},
-	{"DTCM", NULL, 0, 0xF1},
-	{"SQRAM", NULL, 0, 0xF2},
-	{"IRAM", NULL, 0, 0xF3},
-	{"APU", NULL, 0, 0xF4},
-	{"CIU", NULL, 0, 0xF5},
-	{"ICU", NULL, 0, 0xF6},
-	{"MAC", NULL, 0, 0xF7},
-};
-
 static int
 mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		       size_t size, int flags)
@@ -206,6 +195,8 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		card->pcie.blksz_fw_dl = data->blksz_fw_dl;
 		card->pcie.tx_buf_size = data->tx_buf_size;
 		card->pcie.can_dump_fw = data->can_dump_fw;
+		card->pcie.mem_type_mapping_tbl = data->mem_type_mapping_tbl;
+		card->pcie.num_mem_types = data->num_mem_types;
 		card->pcie.can_ext_scan = data->can_ext_scan;
 	}
 
@@ -2373,7 +2364,8 @@ mwifiex_pcie_rdwr_firmware(struct mwifiex_adapter *adapter, u8 doneflag)
 	if (mwifiex_read_reg(adapter, reg->fw_status, &fw_status))
 		return RDWR_STATUS_FAILURE;
 
-	ret = mwifiex_write_reg(adapter, reg->fw_dump_ctrl, FW_DUMP_HOST_READY);
+	ret = mwifiex_write_reg(adapter, reg->fw_dump_ctrl,
+				reg->fw_dump_host_ready);
 	if (ret) {
 		mwifiex_dbg(adapter, ERROR,
 			    "PCIE write err\n");
@@ -2386,11 +2378,11 @@ mwifiex_pcie_rdwr_firmware(struct mwifiex_adapter *adapter, u8 doneflag)
 			return RDWR_STATUS_SUCCESS;
 		if (doneflag && ctrl_data == doneflag)
 			return RDWR_STATUS_DONE;
-		if (ctrl_data != FW_DUMP_HOST_READY) {
+		if (ctrl_data != reg->fw_dump_host_ready) {
 			mwifiex_dbg(adapter, WARN,
 				    "The ctrl reg was changed, re-try again!\n");
 			ret = mwifiex_write_reg(adapter, reg->fw_dump_ctrl,
-						FW_DUMP_HOST_READY);
+						reg->fw_dump_host_ready);
 			if (ret) {
 				mwifiex_dbg(adapter, ERROR,
 					    "PCIE write err\n");
@@ -2418,8 +2410,9 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 	if (!card->pcie.can_dump_fw)
 		return;
 
-	for (idx = 0; idx < ARRAY_SIZE(mem_type_mapping_tbl); idx++) {
-		struct memory_type_mapping *entry = &mem_type_mapping_tbl[idx];
+	for (idx = 0; idx < adapter->num_mem_types; idx++) {
+		struct memory_type_mapping *entry =
+				&adapter->mem_type_mapping_tbl[idx];
 
 		if (entry->mem_ptr) {
 			vfree(entry->mem_ptr);
@@ -2440,8 +2433,8 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 
 	/* Read the length of every memory which will dump */
 	for (idx = 0; idx < dump_num; idx++) {
-		struct memory_type_mapping *entry = &mem_type_mapping_tbl[idx];
-
+		struct memory_type_mapping *entry =
+				&adapter->mem_type_mapping_tbl[idx];
 		stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
 		if (stat == RDWR_STATUS_FAILURE)
 			return;
@@ -2457,7 +2450,7 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 		if (memory_size == 0) {
 			mwifiex_dbg(adapter, MSG, "Firmware dump Finished!\n");
 			ret = mwifiex_write_reg(adapter, creg->fw_dump_ctrl,
-						FW_DUMP_READ_DONE);
+						creg->fw_dump_read_done);
 			if (ret) {
 				mwifiex_dbg(adapter, ERROR, "PCIE write err\n");
 				return;
@@ -2762,8 +2755,8 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		return -1;
 
 	adapter->tx_buf_size = card->pcie.tx_buf_size;
-	adapter->mem_type_mapping_tbl = mem_type_mapping_tbl;
-	adapter->num_mem_types = ARRAY_SIZE(mem_type_mapping_tbl);
+	adapter->mem_type_mapping_tbl = card->pcie.mem_type_mapping_tbl;
+	adapter->num_mem_types = card->pcie.num_mem_types;
 	strcpy(adapter->fw_name, card->pcie.firmware);
 	adapter->ext_scan = card->pcie.can_ext_scan;
 

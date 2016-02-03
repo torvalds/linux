@@ -136,6 +136,8 @@ struct mwifiex_pcie_card_reg {
 	u16 fw_dump_ctrl;
 	u16 fw_dump_start;
 	u16 fw_dump_end;
+	u8 fw_dump_host_ready;
+	u8 fw_dump_read_done;
 	u8 msix_support;
 };
 
@@ -203,6 +205,8 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
 	.fw_dump_ctrl = 0xcf4,
 	.fw_dump_start = 0xcf8,
 	.fw_dump_end = 0xcff,
+	.fw_dump_host_ready = 0xee,
+	.fw_dump_read_done = 0xfe,
 	.msix_support = 0,
 };
 
@@ -238,12 +242,25 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8997 = {
 	.msix_support = 1,
 };
 
+static struct memory_type_mapping mem_type_mapping_tbl_w8897[] = {
+	{"ITCM", NULL, 0, 0xF0},
+	{"DTCM", NULL, 0, 0xF1},
+	{"SQRAM", NULL, 0, 0xF2},
+	{"IRAM", NULL, 0, 0xF3},
+	{"APU", NULL, 0, 0xF4},
+	{"CIU", NULL, 0, 0xF5},
+	{"ICU", NULL, 0, 0xF6},
+	{"MAC", NULL, 0, 0xF7},
+};
+
 struct mwifiex_pcie_device {
 	const char *firmware;
 	const struct mwifiex_pcie_card_reg *reg;
 	u16 blksz_fw_dl;
 	u16 tx_buf_size;
 	bool can_dump_fw;
+	struct memory_type_mapping *mem_type_mapping_tbl;
+	u8 num_mem_types;
 	bool can_ext_scan;
 };
 
@@ -262,6 +279,8 @@ static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
 	.can_dump_fw = true,
+	.mem_type_mapping_tbl = mem_type_mapping_tbl_w8897,
+	.num_mem_types = ARRAY_SIZE(mem_type_mapping_tbl_w8897),
 	.can_ext_scan = true,
 };
 
