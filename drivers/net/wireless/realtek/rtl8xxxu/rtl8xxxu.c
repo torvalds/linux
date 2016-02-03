@@ -5034,13 +5034,11 @@ static void rtl8xxxu_rx_complete(struct urb *urb)
 	struct device *dev = &priv->udev->dev;
 	__le32 *_rx_desc_le = (__le32 *)skb->data;
 	u32 *_rx_desc = (u32 *)skb->data;
-	int cnt, len, drvinfo_sz, desc_shift, i;
+	int drvinfo_sz, desc_shift, i;
 
 	for (i = 0; i < (sizeof(struct rtl8xxxu_rx_desc) / sizeof(u32)); i++)
 		_rx_desc[i] = le32_to_cpu(_rx_desc_le[i]);
 
-	cnt = rx_desc->frag;
-	len = rx_desc->pktlen;
 	drvinfo_sz = rx_desc->drvinfo_sz * 8;
 	desc_shift = rx_desc->shift;
 	skb_put(skb, urb->actual_length);
