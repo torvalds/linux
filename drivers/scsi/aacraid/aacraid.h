@@ -1235,6 +1235,7 @@ struct aac_dev
 	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	u8			adapter_shutdown;
+	u32			handle_pci_error;
 };
 
 #define aac_adapter_interrupt(dev) \
