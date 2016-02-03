@@ -1553,7 +1553,7 @@ static void e1000_diag_test(struct net_device *netdev,
 
 		if (if_running)
 			/* indicate we're in test mode */
-			dev_close(netdev);
+			e1000_close(netdev);
 		else
 			e1000_reset(adapter);
 
@@ -1582,7 +1582,7 @@ static void e1000_diag_test(struct net_device *netdev,
 		e1000_reset(adapter);
 		clear_bit(__E1000_TESTING, &adapter->flags);
 		if (if_running)
-			dev_open(netdev);
+			e1000_open(netdev);
 	} else {
 		e_info(hw, "online testing starting\n");
 		/* Online tests */
