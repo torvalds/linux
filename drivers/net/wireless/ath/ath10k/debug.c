@@ -348,6 +348,9 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	 */
 
 	peer_stats_svc = test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map);
+	if (peer_stats_svc)
+		ath10k_sta_update_rx_duration(ar, &stats.peers);
+
 	if (ar->debug.fw_stats_done && !peer_stats_svc) {
 		ath10k_warn(ar, "received unsolicited stats update event\n");
 		goto free;
@@ -383,9 +386,6 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 			ath10k_warn(ar, "dropping fw vdev stats\n");
 			goto free;
 		}
-
-		if (peer_stats_svc)
-			ath10k_sta_update_rx_duration(ar, &stats.peers);
 
 		list_splice_tail_init(&stats.peers, &ar->debug.fw_stats.peers);
 		list_splice_tail_init(&stats.vdevs, &ar->debug.fw_stats.vdevs);
