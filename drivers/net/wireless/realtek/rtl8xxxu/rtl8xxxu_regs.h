@@ -213,6 +213,7 @@
 #define  SYS_CFG_PCIRSTB		BIT(4)
 #define  SYS_CFG_V15_VLD		BIT(5)
 #define  SYS_CFG_TRP_B15V_EN		BIT(7)
+#define  SYS_CFG_SW_OFFLOAD_EN		BIT(7)	/* For chips with IOL support */
 #define  SYS_CFG_SIC_IDLE		BIT(8)
 #define  SYS_CFG_BD_MAC2		BIT(9)
 #define  SYS_CFG_BD_MAC1		BIT(10)
