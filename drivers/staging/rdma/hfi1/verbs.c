@@ -1345,28 +1345,20 @@ static int modify_port(struct ib_device *ibdev, u8 port,
 	return ret;
 }
 
-static int query_gid(struct ib_device *ibdev, u8 port,
-		     int index, union ib_gid *gid)
+static int hfi1_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
+			    int guid_index, __be64 *guid)
 {
-	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
-	int ret = 0;
+	struct hfi1_ibport *ibp = container_of(rvp, struct hfi1_ibport, rvp);
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 
-	if (!port || port > dd->num_pports)
-		ret = -EINVAL;
-	else {
-		struct hfi1_ibport *ibp = to_iport(ibdev, port);
-		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	if (guid_index == 0)
+		*guid = cpu_to_be64(ppd->guid);
+	else if (guid_index < HFI1_GUIDS_PER_PORT)
+		*guid = ibp->guids[guid_index - 1];
+	else
+		return -EINVAL;
 
-		gid->global.subnet_prefix = ibp->rvp.gid_prefix;
-		if (index == 0)
-			gid->global.interface_id = cpu_to_be64(ppd->guid);
-		else if (index < HFI1_GUIDS_PER_PORT)
-			gid->global.interface_id = ibp->guids[index - 1];
-		else
-			ret = -EINVAL;
-	}
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -1538,7 +1530,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->modify_device = modify_device;
 	ibdev->query_port = query_port;
 	ibdev->modify_port = modify_port;
-	ibdev->query_gid = query_gid;
 
 	/* keep process mad in the driver */
 	ibdev->process_mad = hfi1_process_mad;
@@ -1555,6 +1546,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = hfi1_check_ah;
 	dd->verbs_dev.rdi.driver_f.notify_new_ah = hfi1_notify_new_ah;
+	dd->verbs_dev.rdi.driver_f.get_guid_be = hfi1_get_guid_be;
 	/*
 	 * Fill in rvt info device attributes.
 	 */
