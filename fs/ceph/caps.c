@@ -2895,8 +2895,11 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 
 	if (newcaps & (CEPH_CAP_ANY_FILE_RD | CEPH_CAP_ANY_FILE_WR)) {
 		/* file layout may have changed */
-		ci->i_layout = grant->layout;
+		s64 old_pool = ci->i_layout.pool_id;
+		ceph_file_layout_from_legacy(&ci->i_layout, &grant->layout);
 		ci->i_pool_ns_len = pool_ns_len;
+		if (ci->i_layout.pool_id != old_pool)
+			ci->i_ceph_flags &= ~CEPH_I_POOL_PERM;
 
 		/* size/truncate_seq? */
 		queue_trunc = ceph_fill_file_size(inode, issued,

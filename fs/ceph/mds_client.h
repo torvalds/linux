@@ -275,8 +275,8 @@ struct ceph_mds_request {
 
 struct ceph_pool_perm {
 	struct rb_node node;
-	u32 pool;
 	int perm;
+	s64 pool;
 };
 
 /*

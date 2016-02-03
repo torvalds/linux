@@ -72,7 +72,7 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 	int ret;
 	struct ceph_fs_client *fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
 	struct ceph_osd_client *osdc = &fsc->client->osdc;
-	s64 pool = ceph_file_layout_pg_pool(ci->i_layout);
+	s64 pool = ci->i_layout.pool_id;
 	const char *pool_name;
 	char buf[128];
 
@@ -82,10 +82,9 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 	if (pool_name) {
 		size_t len = strlen(pool_name);
 		ret = snprintf(buf, sizeof(buf),
-		"stripe_unit=%lld stripe_count=%lld object_size=%lld pool=",
-		(unsigned long long)ceph_file_layout_su(ci->i_layout),
-		(unsigned long long)ceph_file_layout_stripe_count(ci->i_layout),
-	        (unsigned long long)ceph_file_layout_object_size(ci->i_layout));
+		"stripe_unit=%u stripe_count=%u object_size=%u pool=",
+		ci->i_layout.stripe_unit, ci->i_layout.stripe_count,
+	        ci->i_layout.object_size);
 		if (!size) {
 			ret += len;
 		} else if (ret + len > size) {
@@ -97,11 +96,9 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 		}
 	} else {
 		ret = snprintf(buf, sizeof(buf),
-		"stripe_unit=%lld stripe_count=%lld object_size=%lld pool=%lld",
-		(unsigned long long)ceph_file_layout_su(ci->i_layout),
-		(unsigned long long)ceph_file_layout_stripe_count(ci->i_layout),
-	        (unsigned long long)ceph_file_layout_object_size(ci->i_layout),
-		(unsigned long long)pool);
+		"stripe_unit=%u stripe_count=%u object_size=%u pool=%lld",
+		ci->i_layout.stripe_unit, ci->i_layout.stripe_count,
+	        ci->i_layout.object_size, (unsigned long long)pool);
 		if (size) {
 			if (ret <= size)
 				memcpy(val, buf, ret);
@@ -116,22 +113,19 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 static size_t ceph_vxattrcb_layout_stripe_unit(struct ceph_inode_info *ci,
 					       char *val, size_t size)
 {
-	return snprintf(val, size, "%lld",
-			(unsigned long long)ceph_file_layout_su(ci->i_layout));
+	return snprintf(val, size, "%u", ci->i_layout.stripe_unit);
 }
 
 static size_t ceph_vxattrcb_layout_stripe_count(struct ceph_inode_info *ci,
 						char *val, size_t size)
 {
-	return snprintf(val, size, "%lld",
-	       (unsigned long long)ceph_file_layout_stripe_count(ci->i_layout));
+	return snprintf(val, size, "%u", ci->i_layout.stripe_count);
 }
 
 static size_t ceph_vxattrcb_layout_object_size(struct ceph_inode_info *ci,
 					       char *val, size_t size)
 {
-	return snprintf(val, size, "%lld",
-	       (unsigned long long)ceph_file_layout_object_size(ci->i_layout));
+	return snprintf(val, size, "%u", ci->i_layout.object_size);
 }
 
 static size_t ceph_vxattrcb_layout_pool(struct ceph_inode_info *ci,
@@ -140,7 +134,7 @@ static size_t ceph_vxattrcb_layout_pool(struct ceph_inode_info *ci,
 	int ret;
 	struct ceph_fs_client *fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
 	struct ceph_osd_client *osdc = &fsc->client->osdc;
-	s64 pool = ceph_file_layout_pg_pool(ci->i_layout);
+	s64 pool = ci->i_layout.pool_id;
 	const char *pool_name;
 
 	down_read(&osdc->lock);

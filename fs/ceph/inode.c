@@ -814,10 +814,11 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 
 	if (new_version ||
 	    (new_issued & (CEPH_CAP_ANY_FILE_RD | CEPH_CAP_ANY_FILE_WR))) {
-		if (ci->i_layout.fl_pg_pool != info->layout.fl_pg_pool)
-			ci->i_ceph_flags &= ~CEPH_I_POOL_PERM;
-		ci->i_layout = info->layout;
+		s64 old_pool = ci->i_layout.pool_id;
+		ceph_file_layout_from_legacy(&ci->i_layout, &info->layout);
 		ci->i_pool_ns_len = iinfo->pool_ns_len;
+		if (ci->i_layout.pool_id != old_pool)
+			ci->i_ceph_flags &= ~CEPH_I_POOL_PERM;
 
 		queue_trunc = ceph_fill_file_size(inode, issued,
 					le32_to_cpu(info->truncate_seq),
