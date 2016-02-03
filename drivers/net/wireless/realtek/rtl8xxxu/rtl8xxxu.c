@@ -4521,9 +4521,6 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 			rtl8xxxu_update_rate_mask(priv, ramask, sgi);
 
-			/* Enable RX of data frames */
-			rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0xffff);
-
 			rtl8xxxu_write8(priv, REG_BCN_MAX_ERR, 0xff);
 
 			rtl8723a_stop_tx_beacon(priv);
@@ -4538,8 +4535,6 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			val8 |= BEACON_DISABLE_TSF_UPDATE;
 			rtl8xxxu_write8(priv, REG_BEACON_CTRL, val8);
 
-			/* Disable RX of data frames */
-			rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0x0000);
 			h2c.joinbss.data = H2C_JOIN_BSS_DISCONNECT;
 		}
 		h2c.joinbss.cmd = H2C_JOIN_BSS_REPORT;
@@ -5542,12 +5537,9 @@ static int rtl8xxxu_start(struct ieee80211_hw *hw)
 	}
 exit:
 	/*
-	 * Disable all data frames
+	 * Accept all data and mgmt frames
 	 */
-	rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0x0000);
-	/*
-	 * Accept all mgmt frames
-	 */
+	rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0xffff);
 	rtl8xxxu_write16(priv, REG_RXFLTMAP0, 0xffff);
 
 	rtl8xxxu_write32(priv, REG_OFDM0_XA_AGC_CORE1, 0x6954341e);
