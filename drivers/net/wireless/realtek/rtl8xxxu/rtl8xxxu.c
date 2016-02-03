@@ -5031,7 +5031,6 @@ static void rtl8xxxu_rx_complete(struct urb *urb)
 	struct rtl8xxxu_rx_desc *rx_desc = (struct rtl8xxxu_rx_desc *)skb->data;
 	struct rtl8723au_phy_stats *phy_stats;
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_mgmt *mgmt;
 	struct device *dev = &priv->udev->dev;
 	__le32 *_rx_desc_le = (__le32 *)skb->data;
 	u32 *_rx_desc = (u32 *)skb->data;
@@ -5051,8 +5050,6 @@ static void rtl8xxxu_rx_complete(struct urb *urb)
 		phy_stats = (struct rtl8723au_phy_stats *)skb->data;
 
 		skb_pull(skb, drvinfo_sz + desc_shift);
-
-		mgmt = (struct ieee80211_mgmt *)skb->data;
 
 		memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
