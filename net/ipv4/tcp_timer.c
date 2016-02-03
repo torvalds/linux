@@ -22,7 +22,6 @@
 #include <linux/gfp.h>
 #include <net/tcp.h>
 
-int sysctl_tcp_syn_retries __read_mostly = TCP_SYN_RETRIES;
 int sysctl_tcp_synack_retries __read_mostly = TCP_SYNACK_RETRIES;
 int sysctl_tcp_retries1 __read_mostly = TCP_RETR1;
 int sysctl_tcp_retries2 __read_mostly = TCP_RETR2;
@@ -157,6 +156,7 @@ static int tcp_write_timeout(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	int retry_until;
 	bool do_reset, syn_set = false;
 
@@ -169,7 +169,7 @@ static int tcp_write_timeout(struct sock *sk)
 				NET_INC_STATS_BH(sock_net(sk),
 						 LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 		}
-		retry_until = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
+		retry_until = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_syn_retries;
 		syn_set = true;
 	} else {
 		if (retransmits_timed_out(sk, sysctl_tcp_retries1, 0, 0)) {

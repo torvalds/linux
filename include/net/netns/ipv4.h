@@ -98,6 +98,8 @@ struct netns_ipv4 {
 	int sysctl_tcp_keepalive_probes;
 	int sysctl_tcp_keepalive_intvl;
 
+	int sysctl_tcp_syn_retries;
+
 	struct ping_group_range ping_group_range;
 
 	atomic_t dev_addr_genid;

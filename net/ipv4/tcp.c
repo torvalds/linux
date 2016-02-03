@@ -2731,6 +2731,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	int val, len;
 
 	if (get_user(len, optlen))
@@ -2765,7 +2766,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		val = keepalive_probes(tp);
 		break;
 	case TCP_SYNCNT:
-		val = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
+		val = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_syn_retries;
 		break;
 	case TCP_LINGER2:
 		val = tp->linger2;
