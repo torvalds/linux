@@ -631,7 +631,8 @@ done:
 		fw_err = -ENOENT;
 	} else {
 		/* success */
-		if (fw_state == FW_EMPTY)
+		if (fw_state == FW_EMPTY &&
+		    dd->icode != ICODE_FUNCTIONAL_SIMULATOR)
 			fw_state = FW_TRY;	/* may retry later */
 		else
 			fw_state = FW_FINAL;	/* cannot try again */
