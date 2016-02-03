@@ -274,6 +274,7 @@ struct mwifiex_11h_intf_state {
 } __packed;
 
 #define MWIFIEX_FW_DUMP_IDX		0xff
+#define MWIFIEX_FW_DUMP_MAX_MEMSIZE     0x160000
 #define MWIFIEX_DRV_INFO_IDX		20
 #define FW_DUMP_MAX_NAME_LEN		8
 #define FW_DUMP_HOST_READY      0xEE

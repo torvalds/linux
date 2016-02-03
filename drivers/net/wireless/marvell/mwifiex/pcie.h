@@ -239,6 +239,11 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8997 = {
 	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
 	.pfu_enabled = 1,
 	.sleep_cookie = 0,
+	.fw_dump_ctrl = 0xcf4,
+	.fw_dump_start = 0xcf8,
+	.fw_dump_end = 0xcff,
+	.fw_dump_host_ready = 0xcc,
+	.fw_dump_read_done = 0xdd,
 	.msix_support = 1,
 };
 
@@ -251,6 +256,10 @@ static struct memory_type_mapping mem_type_mapping_tbl_w8897[] = {
 	{"CIU", NULL, 0, 0xF5},
 	{"ICU", NULL, 0, 0xF6},
 	{"MAC", NULL, 0, 0xF7},
+};
+
+static struct memory_type_mapping mem_type_mapping_tbl_w8997[] = {
+	{"DUMP", NULL, 0, 0xDD},
 };
 
 struct mwifiex_pcie_device {
@@ -289,7 +298,9 @@ static const struct mwifiex_pcie_device mwifiex_pcie8997 = {
 	.reg            = &mwifiex_reg_8997,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
-	.can_dump_fw = false,
+	.can_dump_fw = true,
+	.mem_type_mapping_tbl = mem_type_mapping_tbl_w8997,
+	.num_mem_types = ARRAY_SIZE(mem_type_mapping_tbl_w8997),
 	.can_ext_scan = true,
 };
 

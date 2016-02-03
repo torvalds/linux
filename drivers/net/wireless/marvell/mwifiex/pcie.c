@@ -2402,7 +2402,7 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *creg = card->pcie.reg;
 	unsigned int reg, reg_start, reg_end;
-	u8 *dbg_ptr, *end_ptr, *tmp_ptr, dump_num;
+	u8 *dbg_ptr, *end_ptr, *tmp_ptr, fw_dump_num, dump_num;
 	u8 idx, i, read_reg, doneflag = 0;
 	enum rdwr_status stat;
 	u32 memory_size;
@@ -2430,22 +2430,32 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 		return;
 
 	reg = creg->fw_dump_start;
-	mwifiex_read_reg_byte(adapter, reg, &dump_num);
+	mwifiex_read_reg_byte(adapter, reg, &fw_dump_num);
+
+	/* W8997 chipset firmware dump will be restore in single region*/
+	if (fw_dump_num == 0)
+		dump_num = 1;
+	else
+		dump_num = fw_dump_num;
 
 	/* Read the length of every memory which will dump */
 	for (idx = 0; idx < dump_num; idx++) {
 		struct memory_type_mapping *entry =
 				&adapter->mem_type_mapping_tbl[idx];
-		stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
-		if (stat == RDWR_STATUS_FAILURE)
-			return;
-
 		memory_size = 0;
-		reg = creg->fw_dump_start;
-		for (i = 0; i < 4; i++) {
-			mwifiex_read_reg_byte(adapter, reg, &read_reg);
-			memory_size |= (read_reg << (i * 8));
+		if (fw_dump_num != 0) {
+			stat = mwifiex_pcie_rdwr_firmware(adapter, doneflag);
+			if (stat == RDWR_STATUS_FAILURE)
+				return;
+
+			reg = creg->fw_dump_start;
+			for (i = 0; i < 4; i++) {
+				mwifiex_read_reg_byte(adapter, reg, &read_reg);
+				memory_size |= (read_reg << (i * 8));
 			reg++;
+			}
+		} else {
+			memory_size = MWIFIEX_FW_DUMP_MAX_MEMSIZE;
 		}
 
 		if (memory_size == 0) {
