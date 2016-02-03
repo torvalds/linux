@@ -1526,13 +1526,6 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 			goto bail;
 		}
 
-		/* Event mask is per device now and is in hfi1_devdata */
-		/*if (rcd->ctxt >= dd->first_user_ctxt) {
-			rcd->user_event_mask = vmalloc_user(PAGE_SIZE);
-			if (!rcd->user_event_mask)
-				goto bail_free_hdrq;
-				}*/
-
 		if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL)) {
 			rcd->rcvhdrtail_kvaddr = dma_zalloc_coherent(
 				&dd->pcidev->dev, PAGE_SIZE, &phys_hdrqtail,
