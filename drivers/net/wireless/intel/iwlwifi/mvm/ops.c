@@ -897,15 +897,9 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
 
-static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
+void iwl_mvm_stop_mac_queues(struct iwl_mvm *mvm, unsigned long mq)
 {
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	unsigned long mq;
 	int q;
-
-	spin_lock_bh(&mvm->queue_info_lock);
-	mq = mvm->queue_info[queue].hw_queue_to_mac80211;
-	spin_unlock_bh(&mvm->queue_info_lock);
 
 	if (WARN_ON_ONCE(!mq))
 		return;
@@ -913,8 +907,7 @@ static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	for_each_set_bit(q, &mq, IEEE80211_MAX_QUEUES) {
 		if (atomic_inc_return(&mvm->mac80211_queue_stop_count[q]) > 1) {
 			IWL_DEBUG_TX_QUEUES(mvm,
-					    "queue %d (mac80211 %d) already stopped\n",
-					    queue, q);
+					    "mac80211 %d already stopped\n", q);
 			continue;
 		}
 
@@ -934,15 +927,21 @@ static void iwl_mvm_async_cb(struct iwl_op_mode *op_mode,
 	iwl_trans_block_txq_ptrs(mvm->trans, false);
 }
 
-static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
+static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	unsigned long mq;
-	int q;
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	mq = mvm->queue_info[queue].hw_queue_to_mac80211;
+	mq = mvm->queue_info[hw_queue].hw_queue_to_mac80211;
 	spin_unlock_bh(&mvm->queue_info_lock);
+
+	iwl_mvm_stop_mac_queues(mvm, mq);
+}
+
+void iwl_mvm_start_mac_queues(struct iwl_mvm *mvm, unsigned long mq)
+{
+	int q;
 
 	if (WARN_ON_ONCE(!mq))
 		return;
@@ -950,13 +949,24 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	for_each_set_bit(q, &mq, IEEE80211_MAX_QUEUES) {
 		if (atomic_dec_return(&mvm->mac80211_queue_stop_count[q]) > 0) {
 			IWL_DEBUG_TX_QUEUES(mvm,
-					    "queue %d (mac80211 %d) still stopped\n",
-					    queue, q);
+					    "mac80211 %d still stopped\n", q);
 			continue;
 		}
 
 		ieee80211_wake_queue(mvm->hw, q);
 	}
+}
+
+static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	unsigned long mq;
+
+	spin_lock_bh(&mvm->queue_info_lock);
+	mq = mvm->queue_info[hw_queue].hw_queue_to_mac80211;
+	spin_unlock_bh(&mvm->queue_info_lock);
+
+	iwl_mvm_start_mac_queues(mvm, mq);
 }
 
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
