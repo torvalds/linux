@@ -1392,6 +1392,8 @@ static int bond_option_ad_actor_sys_prio_set(struct bonding *bond,
 		    newval->value);
 
 	bond->params.ad_actor_sys_prio = newval->value;
+	bond_3ad_update_ad_actor_settings(bond);
+
 	return 0;
 }
 
@@ -1418,6 +1420,8 @@ static int bond_option_ad_actor_system_set(struct bonding *bond,
 
 	netdev_info(bond->dev, "Setting ad_actor_system to %pM\n", mac);
 	ether_addr_copy(bond->params.ad_actor_system, mac);
+	bond_3ad_update_ad_actor_settings(bond);
+
 	return 0;
 
 err:
