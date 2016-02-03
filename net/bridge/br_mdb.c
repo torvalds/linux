@@ -41,6 +41,14 @@ fail:
 	return -EMSGSIZE;
 }
 
+static void __mdb_entry_fill_flags(struct br_mdb_entry *e, unsigned char flags)
+{
+	e->state = flags & MDB_PG_FLAGS_PERMANENT;
+	e->flags = 0;
+	if (flags & MDB_PG_FLAGS_OFFLOAD)
+		e->flags |= MDB_FLAGS_OFFLOAD;
+}
+
 static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev)
 {
@@ -85,8 +93,8 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 					struct br_mdb_entry e;
 					memset(&e, 0, sizeof(e));
 					e.ifindex = port->dev->ifindex;
-					e.state = p->state;
 					e.vid = p->addr.vid;
+					__mdb_entry_fill_flags(&e, p->flags);
 					if (p->addr.proto == htons(ETH_P_IP))
 						e.addr.u.ip4 = p->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -254,7 +262,7 @@ errout:
 }
 
 void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
-		   struct br_ip *group, int type, u8 state)
+		   struct br_ip *group, int type, u8 flags)
 {
 	struct br_mdb_entry entry;
 
@@ -265,8 +273,8 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 #if IS_ENABLED(CONFIG_IPV6)
 	entry.addr.u.ip6 = group->u.ip6;
 #endif
-	entry.state = state;
 	entry.vid = group->vid;
+	__mdb_entry_fill_flags(&entry, flags);
 	__br_mdb_notify(dev, &entry, type);
 }
 
@@ -568,7 +576,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 		if (p->port->state == BR_STATE_DISABLED)
 			goto unlock;
 
-		entry->state = p->state;
+		__mdb_entry_fill_flags(entry, p->flags);
 		rcu_assign_pointer(*pp, p->next);
 		hlist_del_init(&p->mglist);
 		del_timer(&p->timer);
