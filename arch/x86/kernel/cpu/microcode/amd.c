@@ -469,8 +469,7 @@ void reload_ucode_amd(void)
 	if (mc && rev < mc->hdr.patch_id) {
 		if (!__apply_microcode_amd(mc)) {
 			ucode_new_rev = mc->hdr.patch_id;
-			pr_info("microcode: reload patch_level=0x%08x\n",
-				ucode_new_rev);
+			pr_info("reload patch_level=0x%08x\n", ucode_new_rev);
 		}
 	}
 }
