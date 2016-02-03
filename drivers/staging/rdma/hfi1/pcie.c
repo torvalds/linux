@@ -398,9 +398,7 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	/* obtain the link width and current speed */
 	update_lbus_info(dd);
 
-	/* check against expected pcie width and complain if "wrong" */
-	if (dd->lbus_width < 16)
-		dd_dev_err(dd, "PCIe width %u (x16 HFI)\n", dd->lbus_width);
+	dd_dev_info(dd, "%s\n", dd->lbus_info);
 
 	return 0;
 }
