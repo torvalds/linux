@@ -217,7 +217,7 @@ static inline size_t rtnl_mdb_nlmsg_size(void)
 }
 
 static void __br_mdb_notify(struct net_device *dev, struct br_mdb_entry *entry,
-			    int type)
+			    int type, struct net_bridge_port_group *pg)
 {
 	struct switchdev_obj_port_mdb mdb = {
 		.obj = {
@@ -240,10 +240,13 @@ static void __br_mdb_notify(struct net_device *dev, struct br_mdb_entry *entry,
 #endif
 
 	mdb.obj.orig_dev = port_dev;
-	if (port_dev && type == RTM_NEWMDB)
-		switchdev_port_obj_add(port_dev, &mdb.obj);
-	else if (port_dev && type == RTM_DELMDB)
+	if (port_dev && type == RTM_NEWMDB) {
+		err = switchdev_port_obj_add(port_dev, &mdb.obj);
+		if (!err && pg)
+			pg->flags |= MDB_PG_FLAGS_OFFLOAD;
+	} else if (port_dev && type == RTM_DELMDB) {
 		switchdev_port_obj_del(port_dev, &mdb.obj);
+	}
 
 	skb = nlmsg_new(rtnl_mdb_nlmsg_size(), GFP_ATOMIC);
 	if (!skb)
@@ -261,21 +264,21 @@ errout:
 	rtnl_set_sk_err(net, RTNLGRP_MDB, err);
 }
 
-void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
-		   struct br_ip *group, int type, u8 flags)
+void br_mdb_notify(struct net_device *dev, struct net_bridge_port_group *pg,
+		   int type)
 {
 	struct br_mdb_entry entry;
 
 	memset(&entry, 0, sizeof(entry));
-	entry.ifindex = port->dev->ifindex;
-	entry.addr.proto = group->proto;
-	entry.addr.u.ip4 = group->u.ip4;
+	entry.ifindex = pg->port->dev->ifindex;
+	entry.addr.proto = pg->addr.proto;
+	entry.addr.u.ip4 = pg->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
-	entry.addr.u.ip6 = group->u.ip6;
+	entry.addr.u.ip6 = pg->addr.u.ip6;
 #endif
-	entry.vid = group->vid;
-	__mdb_entry_fill_flags(&entry, flags);
-	__br_mdb_notify(dev, &entry, type);
+	entry.vid = pg->addr.vid;
+	__mdb_entry_fill_flags(&entry, pg->flags);
+	__br_mdb_notify(dev, &entry, type, pg);
 }
 
 static int nlmsg_populate_rtr_fill(struct sk_buff *skb,
@@ -420,7 +423,8 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 }
 
 static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
-			    struct br_ip *group, unsigned char state)
+			    struct br_ip *group, unsigned char state,
+			    struct net_bridge_port_group **pg)
 {
 	struct net_bridge_mdb_entry *mp;
 	struct net_bridge_port_group *p;
@@ -451,6 +455,7 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	if (unlikely(!p))
 		return -ENOMEM;
 	rcu_assign_pointer(*pp, p);
+	*pg = p;
 	if (state == MDB_TEMPORARY)
 		mod_timer(&p->timer, now + br->multicast_membership_interval);
 
@@ -458,7 +463,8 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 }
 
 static int __br_mdb_add(struct net *net, struct net_bridge *br,
-			struct br_mdb_entry *entry)
+			struct br_mdb_entry *entry,
+			struct net_bridge_port_group **pg)
 {
 	struct br_ip ip;
 	struct net_device *dev;
@@ -487,7 +493,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 #endif
 
 	spin_lock_bh(&br->multicast_lock);
-	ret = br_mdb_add_group(br, p, &ip, entry->state);
+	ret = br_mdb_add_group(br, p, &ip, entry->state, pg);
 	spin_unlock_bh(&br->multicast_lock);
 	return ret;
 }
@@ -495,6 +501,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
+	struct net_bridge_port_group *pg;
 	struct net_bridge_vlan_group *vg;
 	struct net_device *dev, *pdev;
 	struct br_mdb_entry *entry;
@@ -524,15 +531,15 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (br_vlan_enabled(br) && vg && entry->vid == 0) {
 		list_for_each_entry(v, &vg->vlan_list, vlist) {
 			entry->vid = v->vid;
-			err = __br_mdb_add(net, br, entry);
+			err = __br_mdb_add(net, br, entry, &pg);
 			if (err)
 				break;
-			__br_mdb_notify(dev, entry, RTM_NEWMDB);
+			__br_mdb_notify(dev, entry, RTM_NEWMDB, pg);
 		}
 	} else {
-		err = __br_mdb_add(net, br, entry);
+		err = __br_mdb_add(net, br, entry, &pg);
 		if (!err)
-			__br_mdb_notify(dev, entry, RTM_NEWMDB);
+			__br_mdb_notify(dev, entry, RTM_NEWMDB, pg);
 	}
 
 	return err;
@@ -628,12 +635,12 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 			entry->vid = v->vid;
 			err = __br_mdb_del(br, entry);
 			if (!err)
-				__br_mdb_notify(dev, entry, RTM_DELMDB);
+				__br_mdb_notify(dev, entry, RTM_DELMDB, NULL);
 		}
 	} else {
 		err = __br_mdb_del(br, entry);
 		if (!err)
-			__br_mdb_notify(dev, entry, RTM_DELMDB);
+			__br_mdb_notify(dev, entry, RTM_DELMDB, NULL);
 	}
 
 	return err;
