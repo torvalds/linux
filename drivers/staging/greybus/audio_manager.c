@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/rwlock.h>
+#include <linux/idr.h>
 
 #include "audio_manager.h"
 #include "audio_manager_private.h"
