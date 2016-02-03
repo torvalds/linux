@@ -64,6 +64,7 @@
 #include "sdma.h"
 #include "eprom.h"
 #include "efivar.h"
+#include "platform.h"
 
 #define NUM_IB_PORTS 1
 
@@ -5826,7 +5827,7 @@ static void is_various_int(struct hfi1_devdata *dd, unsigned int source)
 
 static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 {
-	/* source is always zero */
+	/* src_ctx is always zero */
 	struct hfi1_pportdata *ppd = dd->pport;
 	unsigned long flags;
 	u64 qsfp_int_mgmt = (u64)(QSFP_HFI0_INT_N | QSFP_HFI0_MODPRST_N);
@@ -5849,14 +5850,13 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 			 * an interrupt when a cable is inserted
 			 */
 			ppd->qsfp_info.cache_valid = 0;
-			ppd->qsfp_info.qsfp_interrupt_functional = 0;
+			ppd->qsfp_info.reset_needed = 0;
+			ppd->qsfp_info.limiting_active = 0;
 			spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock,
 						flags);
-			write_csr(dd,
-					dd->hfi1_id ?
-						ASIC_QSFP2_INVERT :
-						ASIC_QSFP1_INVERT,
-				qsfp_int_mgmt);
+			/* Invert the ModPresent pin now to detect plug-in */
+			write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_INVERT :
+				  ASIC_QSFP1_INVERT, qsfp_int_mgmt);
 
 			if ((ppd->offline_disabled_reason >
 			  HFI1_ODR_MASK(
@@ -5883,12 +5883,16 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 			spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock,
 						flags);
 
+			/*
+			 * Stop inversion of ModPresent pin to detect
+			 * removal of the cable
+			 */
 			qsfp_int_mgmt &= ~(u64)QSFP_HFI0_MODPRST_N;
-			write_csr(dd,
-					dd->hfi1_id ?
-						ASIC_QSFP2_INVERT :
-						ASIC_QSFP1_INVERT,
-				qsfp_int_mgmt);
+			write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_INVERT :
+				  ASIC_QSFP1_INVERT, qsfp_int_mgmt);
+
+			ppd->offline_disabled_reason =
+				HFI1_ODR_MASK(OPA_LINKDOWN_REASON_TRANSIENT);
 		}
 	}
 
@@ -5898,7 +5902,6 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 				__func__);
 		spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 		ppd->qsfp_info.check_interrupt_flags = 1;
-		ppd->qsfp_info.qsfp_interrupt_functional = 1;
 		spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock, flags);
 	}
 
@@ -6666,6 +6669,7 @@ void handle_link_up(struct work_struct *work)
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SPEED_POLICY, 0,
 			OPA_LINKDOWN_REASON_SPEED_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
+		tune_serdes(ppd);
 		start_link(ppd);
 	}
 }
@@ -6691,7 +6695,13 @@ void handle_link_down(struct work_struct *work)
 	struct hfi1_pportdata *ppd = container_of(work, struct hfi1_pportdata,
 								link_down_work);
 
-	/* go offline first, then deal with reasons */
+	if ((ppd->host_link_state &
+	     (HLS_DN_POLL | HLS_VERIFY_CAP | HLS_GOING_UP)) &&
+	     ppd->port_type == PORT_TYPE_FIXED)
+		ppd->offline_disabled_reason =
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NOT_INSTALLED);
+
+	/* Go offline first, then deal with reading/writing through 8051 */
 	set_link_state(ppd, HLS_DN_OFFLINE);
 
 	lcl_reason = 0;
@@ -6713,10 +6723,12 @@ void handle_link_down(struct work_struct *work)
 
 	/* If there is no cable attached, turn the DC off. Otherwise,
 	 * start the link bring up. */
-	if (!qsfp_mod_present(ppd))
+	if (!qsfp_mod_present(ppd)) {
 		dc_shutdown(ppd->dd);
-	else
+	} else {
+		tune_serdes(ppd);
 		start_link(ppd);
+	}
 }
 
 void handle_link_bounce(struct work_struct *work)
@@ -6729,6 +6741,7 @@ void handle_link_bounce(struct work_struct *work)
 	 */
 	if (ppd->host_link_state & HLS_UP) {
 		set_link_state(ppd, HLS_DN_OFFLINE);
+		tune_serdes(ppd);
 		start_link(ppd);
 	} else {
 		dd_dev_info(ppd->dd, "%s: link not up (%s), nothing to do\n",
@@ -7237,6 +7250,7 @@ done:
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_WIDTH_POLICY, 0,
 		  OPA_LINKDOWN_REASON_WIDTH_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
+		tune_serdes(ppd);
 		start_link(ppd);
 	}
 }
@@ -8235,8 +8249,8 @@ static int set_physical_link_state(struct hfi1_devdata *dd, u64 state)
 	return do_8051_command(dd, HCMD_CHANGE_PHY_STATE, state, NULL);
 }
 
-static int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
-			    u8 lane_id, u32 config_data)
+int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
+		     u8 lane_id, u32 config_data)
 {
 	u64 data;
 	int ret;
@@ -8258,8 +8272,8 @@ static int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
  * set the result, even on error.
  * Return 0 on success, -errno on failure
  */
-static int read_8051_config(struct hfi1_devdata *dd, u8 field_id, u8 lane_id,
-			    u32 *result)
+int read_8051_config(struct hfi1_devdata *dd, u8 field_id, u8 lane_id,
+		     u32 *result)
 {
 	u64 big_data;
 	u32 addr;
@@ -8881,32 +8895,80 @@ int start_link(struct hfi1_pportdata *ppd)
 	return -EAGAIN;
 }
 
-static void reset_qsfp(struct hfi1_pportdata *ppd)
+static void wait_for_qsfp_init(struct hfi1_pportdata *ppd)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+	u64 mask;
+	unsigned long timeout;
+
+	/*
+	 * Check for QSFP interrupt for t_init (SFF 8679)
+	 */
+	timeout = jiffies + msecs_to_jiffies(2000);
+	while (1) {
+		mask = read_csr(dd, dd->hfi1_id ?
+				ASIC_QSFP2_IN : ASIC_QSFP1_IN);
+		if (!(mask & QSFP_HFI0_INT_N)) {
+			write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_CLEAR :
+				  ASIC_QSFP1_CLEAR, QSFP_HFI0_INT_N);
+			break;
+		}
+		if (time_after(jiffies, timeout)) {
+			dd_dev_info(dd, "%s: No IntN detected, reset complete\n",
+				    __func__);
+			break;
+		}
+		udelay(2);
+	}
+}
+
+static void set_qsfp_int_n(struct hfi1_pportdata *ppd, u8 enable)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+	u64 mask;
+
+	mask = read_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK);
+	if (enable)
+		mask |= (u64)QSFP_HFI0_INT_N;
+	else
+		mask &= ~(u64)QSFP_HFI0_INT_N;
+	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK, mask);
+}
+
+void reset_qsfp(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	u64 mask, qsfp_mask;
 
+	/* Disable INT_N from triggering QSFP interrupts */
+	set_qsfp_int_n(ppd, 0);
+
+	/* Reset the QSFP */
 	mask = (u64)QSFP_HFI0_RESET_N;
-	qsfp_mask = read_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE);
+	qsfp_mask = read_csr(dd, dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE);
 	qsfp_mask |= mask;
 	write_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE,
-		qsfp_mask);
+		dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE, qsfp_mask);
 
-	qsfp_mask = read_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT);
+	qsfp_mask = read_csr(dd, dd->hfi1_id ?
+				ASIC_QSFP2_OUT : ASIC_QSFP1_OUT);
 	qsfp_mask &= ~mask;
 	write_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT,
-		qsfp_mask);
+		dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT, qsfp_mask);
 
 	udelay(10);
 
 	qsfp_mask |= mask;
 	write_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT,
-		qsfp_mask);
+		dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT, qsfp_mask);
+
+	wait_for_qsfp_init(ppd);
+
+	/*
+	 * Allow INT_N to trigger the QSFP interrupt to watch
+	 * for alarms and warnings
+	 */
+	set_qsfp_int_n(ppd, 1);
 }
 
 static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
@@ -9018,35 +9080,8 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 	return 0;
 }
 
-static int do_pre_lni_host_behaviors(struct hfi1_pportdata *ppd)
-{
-	refresh_qsfp_cache(ppd, &ppd->qsfp_info);
-
-	return 0;
-}
-
-static int do_qsfp_intr_fallback(struct hfi1_pportdata *ppd)
-{
-	struct hfi1_devdata *dd = ppd->dd;
-	u8 qsfp_interrupt_status = 0;
-
-	if (qsfp_read(ppd, dd->hfi1_id, 2, &qsfp_interrupt_status, 1)
-		!= 1) {
-		dd_dev_info(dd,
-			"%s: Failed to read status of QSFP module\n",
-			__func__);
-		return -EIO;
-	}
-
-	/* We don't care about alarms & warnings with a non-functional INT_N */
-	if (!(qsfp_interrupt_status & QSFP_DATA_NOT_READY))
-		do_pre_lni_host_behaviors(ppd);
-
-	return 0;
-}
-
 /* This routine will only be scheduled if the QSFP module is present */
-static void qsfp_event(struct work_struct *work)
+void qsfp_event(struct work_struct *work)
 {
 	struct qsfp_data *qd;
 	struct hfi1_pportdata *ppd;
@@ -9068,20 +9103,20 @@ static void qsfp_event(struct work_struct *work)
 	dc_start(dd);
 
 	if (qd->cache_refresh_required) {
-		msleep(3000);
-		reset_qsfp(ppd);
 
-		/* Check for QSFP interrupt after t_init (SFF 8679)
-		 * + extra
+		set_qsfp_int_n(ppd, 0);
+
+		wait_for_qsfp_init(ppd);
+
+		/*
+		 * Allow INT_N to trigger the QSFP interrupt to watch
+		 * for alarms and warnings
 		 */
-		msleep(3000);
-		if (!qd->qsfp_interrupt_functional) {
-			if (do_qsfp_intr_fallback(ppd) < 0)
-				dd_dev_info(dd, "%s: QSFP fallback failed\n",
-					__func__);
-			ppd->driver_link_ready = 1;
-			start_link(ppd);
-		}
+		set_qsfp_int_n(ppd, 1);
+
+		tune_serdes(ppd);
+
+		start_link(ppd);
 	}
 
 	if (qd->check_interrupt_flags) {
@@ -9094,50 +9129,50 @@ static void qsfp_event(struct work_struct *work)
 				__func__);
 		} else {
 			unsigned long flags;
-			u8 data_status;
 
+			handle_qsfp_error_conditions(
+					ppd, qsfp_interrupt_status);
 			spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 			ppd->qsfp_info.check_interrupt_flags = 0;
 			spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock,
 								flags);
-
-			if (qsfp_read(ppd, dd->hfi1_id, 2, &data_status, 1)
-				 != 1) {
-				dd_dev_info(dd,
-				"%s: Failed to read status of QSFP module\n",
-					__func__);
-			}
-			if (!(data_status & QSFP_DATA_NOT_READY)) {
-				do_pre_lni_host_behaviors(ppd);
-				start_link(ppd);
-			} else
-				handle_qsfp_error_conditions(ppd,
-						qsfp_interrupt_status);
 		}
 	}
 }
 
-void init_qsfp(struct hfi1_pportdata *ppd)
+static void init_qsfp_int(struct hfi1_devdata *dd)
 {
-	struct hfi1_devdata *dd = ppd->dd;
-	u64 qsfp_mask;
+	struct hfi1_pportdata *ppd = dd->pport;
+	u64 qsfp_mask, cce_int_mask;
+	const int qsfp1_int_smask = QSFP1_INT % 64;
+	const int qsfp2_int_smask = QSFP2_INT % 64;
 
-	if (loopback == LOOPBACK_SERDES || loopback == LOOPBACK_LCB ||
-			ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
-		ppd->driver_link_ready = 1;
-		return;
+	/*
+	 * disable QSFP1 interrupts for HFI1, QSFP2 interrupts for HFI0
+	 * Qsfp1Int and Qsfp2Int are adjacent bits in the same CSR,
+	 * therefore just one of QSFP1_INT/QSFP2_INT can be used to find
+	 * the index of the appropriate CSR in the CCEIntMask CSR array
+	 */
+	cce_int_mask = read_csr(dd, CCE_INT_MASK +
+				(8 * (QSFP1_INT / 64)));
+	if (dd->hfi1_id) {
+		cce_int_mask &= ~((u64)1 << qsfp1_int_smask);
+		write_csr(dd, CCE_INT_MASK + (8 * (QSFP1_INT / 64)),
+			  cce_int_mask);
+	} else {
+		cce_int_mask &= ~((u64)1 << qsfp2_int_smask);
+		write_csr(dd, CCE_INT_MASK + (8 * (QSFP2_INT / 64)),
+			  cce_int_mask);
 	}
-
-	ppd->qsfp_info.ppd = ppd;
-	INIT_WORK(&ppd->qsfp_info.qsfp_work, qsfp_event);
 
 	qsfp_mask = (u64)(QSFP_HFI0_INT_N | QSFP_HFI0_MODPRST_N);
 	/* Clear current status to avoid spurious interrupts */
-	write_csr(dd,
-			dd->hfi1_id ?
-				ASIC_QSFP2_CLEAR :
-				ASIC_QSFP1_CLEAR,
-		qsfp_mask);
+	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_CLEAR : ASIC_QSFP1_CLEAR,
+		  qsfp_mask);
+	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK,
+		  qsfp_mask);
+
+	set_qsfp_int_n(ppd, 0);
 
 	/* Handle active low nature of INT_N and MODPRST_N pins */
 	if (qsfp_mod_present(ppd))
@@ -9145,29 +9180,6 @@ void init_qsfp(struct hfi1_pportdata *ppd)
 	write_csr(dd,
 		  dd->hfi1_id ? ASIC_QSFP2_INVERT : ASIC_QSFP1_INVERT,
 		  qsfp_mask);
-
-	/* Allow only INT_N and MODPRST_N to trigger QSFP interrupts */
-	qsfp_mask |= (u64)QSFP_HFI0_MODPRST_N;
-	write_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK,
-		qsfp_mask);
-
-	if (qsfp_mod_present(ppd)) {
-		msleep(3000);
-		reset_qsfp(ppd);
-
-		/* Check for QSFP interrupt after t_init (SFF 8679)
-		 * + extra
-		 */
-		msleep(3000);
-		if (!ppd->qsfp_info.qsfp_interrupt_functional) {
-			if (do_qsfp_intr_fallback(ppd) < 0)
-				dd_dev_info(dd,
-					"%s: QSFP fallback failed\n",
-					__func__);
-			ppd->driver_link_ready = 1;
-		}
-	}
 }
 
 /*
@@ -9203,8 +9215,6 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 		ppd->guid = guid;
 	}
 
-	/* the link defaults to enabled */
-	ppd->link_enabled = 1;
 	/* Set linkinit_reason on power up per OPA spec */
 	ppd->linkinit_reason = OPA_LINKINIT_REASON_LINKUP;
 
@@ -9216,6 +9226,12 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 		if (ret < 0)
 			return ret;
 	}
+
+	/* tune the SERDES to a ballpark setting for
+	 * optimal signal and bit error rate
+	 * Needs to be done before starting the link
+	 */
+	tune_serdes(ppd);
 
 	return start_link(ppd);
 }
@@ -9234,6 +9250,8 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 	ppd->driver_link_ready = 0;
 	ppd->link_enabled = 0;
 
+	ppd->offline_disabled_reason =
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_SMA_DISABLED);
 	set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SMA_DISABLED, 0,
 	  OPA_LINKDOWN_REASON_SMA_DISABLED);
 	set_link_state(ppd, HLS_DN_OFFLINE);
@@ -9648,6 +9666,12 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	set_host_lcb_access(dd);
 	write_csr(dd, DC_LCB_ERR_EN, ~0ull); /* watch LCB errors */
 	ppd->host_link_state = HLS_LINK_COOLDOWN; /* LCB access allowed */
+
+	if (ppd->port_type == PORT_TYPE_QSFP &&
+	    ppd->qsfp_info.limiting_active &&
+	    qsfp_mod_present(ppd)) {
+		set_qsfp_tx(ppd, 0);
+	}
 
 	/*
 	 * The LNI has a mandatory wait time after the physical state
@@ -12078,31 +12102,11 @@ void set_intr_state(struct hfi1_devdata *dd, u32 enable)
 	 * In HFI, the mask needs to be 1 to allow interrupts.
 	 */
 	if (enable) {
-		u64 cce_int_mask;
-		const int qsfp1_int_smask = QSFP1_INT % 64;
-		const int qsfp2_int_smask = QSFP2_INT % 64;
-
 		/* enable all interrupts */
 		for (i = 0; i < CCE_NUM_INT_CSRS; i++)
 			write_csr(dd, CCE_INT_MASK + (8*i), ~(u64)0);
 
-		/*
-		 * disable QSFP1 interrupts for HFI1, QSFP2 interrupts for HFI0
-		 * Qsfp1Int and Qsfp2Int are adjacent bits in the same CSR,
-		 * therefore just one of QSFP1_INT/QSFP2_INT can be used to find
-		 * the index of the appropriate CSR in the CCEIntMask CSR array
-		 */
-		cce_int_mask = read_csr(dd, CCE_INT_MASK +
-						(8*(QSFP1_INT/64)));
-		if (dd->hfi1_id) {
-			cce_int_mask &= ~((u64)1 << qsfp1_int_smask);
-			write_csr(dd, CCE_INT_MASK + (8*(QSFP1_INT/64)),
-					cce_int_mask);
-		} else {
-			cce_int_mask &= ~((u64)1 << qsfp2_int_smask);
-			write_csr(dd, CCE_INT_MASK + (8*(QSFP2_INT/64)),
-					cce_int_mask);
-		}
+		init_qsfp_int(dd);
 	} else {
 		for (i = 0; i < CCE_NUM_INT_CSRS; i++)
 			write_csr(dd, CCE_INT_MASK + (8*i), 0ull);

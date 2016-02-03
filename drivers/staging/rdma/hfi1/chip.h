@@ -371,6 +371,9 @@
 #define NUM_LANE_FIELDS    0x8
 
 /* 8051 general register Field IDs */
+#define LINK_OPTIMIZATION_SETTINGS   0x00
+#define LINK_TUNING_PARAMETERS	     0x02
+#define DC_HOST_COMM_SETTINGS	     0x03
 #define TX_SETTINGS		     0x06
 #define VERIFY_CAP_LOCAL_PHY	     0x07
 #define VERIFY_CAP_LOCAL_FABRIC	     0x08
@@ -647,10 +650,13 @@ void handle_link_down(struct work_struct *work);
 void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
+void reset_qsfp(struct hfi1_pportdata *ppd);
+void qsfp_event(struct work_struct *work);
 void start_freeze_handling(struct hfi1_pportdata *ppd, int flags);
 int send_idle_sma(struct hfi1_devdata *dd, u64 message);
+int load_8051_config(struct hfi1_devdata *, u8, u8, u32);
+int read_8051_config(struct hfi1_devdata *, u8, u8, u32 *);
 int start_link(struct hfi1_pportdata *ppd);
-void init_qsfp(struct hfi1_pportdata *ppd);
 int bringup_serdes(struct hfi1_pportdata *ppd);
 void set_intr_state(struct hfi1_devdata *dd, u32 enable);
 void apply_link_downgrade_policy(struct hfi1_pportdata *ppd,

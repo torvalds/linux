@@ -213,7 +213,8 @@ struct qsfp_data {
 	u8 cache[QSFP_MAX_NUM_PAGES*128];
 	spinlock_t qsfp_lock;
 	u8 check_interrupt_flags;
-	u8 qsfp_interrupt_functional;
+	u8 reset_needed;
+	u8 limiting_active;
 	u8 cache_valid;
 	u8 cache_refresh_required;
 };

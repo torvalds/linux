@@ -500,10 +500,13 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 	INIT_WORK(&ppd->sma_message_work, handle_sma_message);
 	INIT_WORK(&ppd->link_bounce_work, handle_link_bounce);
 	INIT_WORK(&ppd->linkstate_active_work, receive_interrupt_work);
+	INIT_WORK(&ppd->qsfp_info.qsfp_work, qsfp_event);
+
 	mutex_init(&ppd->hls_lock);
 	spin_lock_init(&ppd->sdma_alllock);
 	spin_lock_init(&ppd->qsfp_info.qsfp_lock);
 
+	ppd->qsfp_info.ppd = ppd;
 	ppd->sm_trap_qp = 0x0;
 	ppd->sa_qp = 0x1;
 
@@ -780,13 +783,6 @@ done:
 		/* chip is OK for user apps; mark it as initialized */
 		for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 			ppd = dd->pport + pidx;
-
-			/* initialize the qsfp if it exists
-			 * Requires interrupts to be enabled so we are notified
-			 * when the QSFP completes reset, and has
-			 * to be done before bringing up the SERDES
-			 */
-			init_qsfp(ppd);
 
 			/* start the serdes - must be after interrupts are
 			   enabled so we are notified when the link goes up */

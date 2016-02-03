@@ -47,8 +47,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef __PLATFORM_CONFIG_H
-#define __PLATFORM_CONFIG_H
+#ifndef __PLATFORM_H
+#define __PLATFORM_H
 
 #define METADATA_TABLE_FIELD_START_SHIFT		0
 #define METADATA_TABLE_FIELD_START_LEN_BITS		15
@@ -94,17 +94,18 @@ enum platform_config_system_table_fields {
 enum platform_config_port_table_fields {
 	PORT_TABLE_RESERVED,
 	PORT_TABLE_PORT_TYPE,
-	PORT_TABLE_ATTENUATION_12G,
-	PORT_TABLE_ATTENUATION_25G,
+	PORT_TABLE_LOCAL_ATTEN_12G,
+	PORT_TABLE_LOCAL_ATTEN_25G,
 	PORT_TABLE_LINK_SPEED_SUPPORTED,
 	PORT_TABLE_LINK_WIDTH_SUPPORTED,
+	PORT_TABLE_AUTO_LANE_SHEDDING_ENABLED,
+	PORT_TABLE_EXTERNAL_LOOPBACK_ALLOWED,
 	PORT_TABLE_VL_CAP,
 	PORT_TABLE_MTU_CAP,
 	PORT_TABLE_TX_LANE_ENABLE_MASK,
 	PORT_TABLE_LOCAL_MAX_TIMEOUT,
-	PORT_TABLE_AUTO_LANE_SHEDDING_ENABLED,
-	PORT_TABLE_EXTERNAL_LOOPBACK_ALLOWED,
-	PORT_TABLE_TX_PRESET_IDX_PASSIVE_CU,
+	PORT_TABLE_REMOTE_ATTEN_12G,
+	PORT_TABLE_REMOTE_ATTEN_25G,
 	PORT_TABLE_TX_PRESET_IDX_ACTIVE_NO_EQ,
 	PORT_TABLE_TX_PRESET_IDX_ACTIVE_EQ,
 	PORT_TABLE_RX_PRESET_IDX,
@@ -115,10 +116,10 @@ enum platform_config_port_table_fields {
 enum platform_config_rx_preset_table_fields {
 	RX_PRESET_TABLE_RESERVED,
 	RX_PRESET_TABLE_QSFP_RX_CDR_APPLY,
-	RX_PRESET_TABLE_QSFP_RX_EQ_APPLY,
+	RX_PRESET_TABLE_QSFP_RX_EMP_APPLY,
 	RX_PRESET_TABLE_QSFP_RX_AMP_APPLY,
 	RX_PRESET_TABLE_QSFP_RX_CDR,
-	RX_PRESET_TABLE_QSFP_RX_EQ,
+	RX_PRESET_TABLE_QSFP_RX_EMP,
 	RX_PRESET_TABLE_QSFP_RX_AMP,
 	RX_PRESET_TABLE_MAX
 };
@@ -179,9 +180,11 @@ static const u32 platform_config_table_limits[PLATFORM_CONFIG_TABLE_MAX] = {
  * fields defined for each table above
  */
 
-/*=====================================================
+/*
+ *=====================================================
  *  System table encodings
- *====================================================*/
+ *====================================================
+ */
 #define PLATFORM_CONFIG_MAGIC_NUM		0x3d4f5041
 #define PLATFORM_CONFIG_MAGIC_NUMBER_LEN	4
 
@@ -199,12 +202,13 @@ enum platform_config_qsfp_power_class_encoding {
 	QSFP_POWER_CLASS_7
 };
 
-
-/*=====================================================
+/*
+ *=====================================================
  *  Port table encodings
- *==================================================== */
+ *====================================================
+ */
 enum platform_config_port_type_encoding {
-	PORT_TYPE_RESERVED,
+	PORT_TYPE_UNKNOWN,
 	PORT_TYPE_DISCONNECTED,
 	PORT_TYPE_FIXED,
 	PORT_TYPE_VARIABLE,
@@ -283,4 +287,12 @@ enum platform_config_local_max_timeout_encoding {
 	LOCAL_MAX_TIMEOUT_1000_S
 };
 
-#endif			/*__PLATFORM_CONFIG_H*/
+enum link_tuning_encoding {
+	OPA_PASSIVE_TUNING,
+	OPA_ACTIVE_TUNING,
+	OPA_UNKNOWN_TUNING
+};
+
+int set_qsfp_tx(struct hfi1_pportdata *ppd, int on);
+void tune_serdes(struct hfi1_pportdata *ppd);
+#endif			/*__PLATFORM_H*/

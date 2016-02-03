@@ -74,7 +74,7 @@
 #include "chip.h"
 #include "mad.h"
 #include "qsfp.h"
-#include "platform_config.h"
+#include "platform.h"
 
 /* bumped 1 from s/w major version of TrueScale */
 #define HFI1_CHIP_VERS_MAJ 3U
@@ -563,7 +563,8 @@ struct hfi1_pportdata {
 	struct kobject sl2sc_kobj;
 	struct kobject vl2mtu_kobj;
 
-	/* QSFP support */
+	/* PHY support */
+	u32 port_type;
 	struct qsfp_data qsfp_info;
 
 	/* GUID for this interface, in host order */
