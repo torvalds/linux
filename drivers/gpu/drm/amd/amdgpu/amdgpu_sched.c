@@ -28,6 +28,39 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
+int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
+		     struct amdgpu_job **job)
+{
+	size_t size = sizeof(struct amdgpu_job);
+
+	if (num_ibs == 0)
+		return -EINVAL;
+
+	size += sizeof(struct amdgpu_ib) * num_ibs;
+
+	*job = kzalloc(size, GFP_KERNEL);
+	if (!*job)
+		return -ENOMEM;
+
+	(*job)->adev = adev;
+	(*job)->ibs = (void *)&(*job)[1];
+	(*job)->num_ibs = num_ibs;
+	(*job)->free_job = NULL;
+
+	return 0;
+}
+
+void amdgpu_job_free(struct amdgpu_job *job)
+{
+	unsigned i;
+
+	for (i = 0; i < job->num_ibs; ++i)
+		amdgpu_ib_free(job->adev, &job->ibs[i]);
+
+	amdgpu_bo_unref(&job->uf.bo);
+	/* TODO: Free the job structure here as well */
+}
+
 static struct fence *amdgpu_sched_dependency(struct amd_sched_job *sched_job)
 {
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);

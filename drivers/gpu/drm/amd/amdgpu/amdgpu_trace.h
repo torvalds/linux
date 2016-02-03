@@ -38,10 +38,10 @@ TRACE_EVENT(amdgpu_cs,
 
 	    TP_fast_assign(
 			   __entry->bo_list = p->bo_list;
-			   __entry->ring = p->ibs[i].ring->idx;
-			   __entry->dw = p->ibs[i].length_dw;
+			   __entry->ring = p->job->ibs[i].ring->idx;
+			   __entry->dw = p->job->ibs[i].length_dw;
 			   __entry->fences = amdgpu_fence_count_emitted(
-				p->ibs[i].ring);
+				p->job->ibs[i].ring);
 			   ),
 	    TP_printk("bo_list=%p, ring=%u, dw=%u, fences=%u",
 		      __entry->bo_list, __entry->ring, __entry->dw,

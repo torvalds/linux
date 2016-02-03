@@ -796,6 +796,9 @@ enum amdgpu_ring_type {
 
 extern struct amd_sched_backend_ops amdgpu_sched_ops;
 
+int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
+		     struct amdgpu_job **job);
+void amdgpu_job_free(struct amdgpu_job *job);
 int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 					 struct amdgpu_ring *ring,
 					 struct amdgpu_ib *ibs,
@@ -1216,9 +1219,8 @@ struct amdgpu_cs_parser {
 	unsigned		nchunks;
 	struct amdgpu_cs_chunk	*chunks;
 
-	/* indirect buffers */
-	uint32_t		num_ibs;
-	struct amdgpu_ib	*ibs;
+	/* scheduler job object */
+	struct amdgpu_job	*job;
 
 	/* buffer objects */
 	struct ww_acquire_ctx		ticket;
@@ -1249,14 +1251,14 @@ struct amdgpu_job {
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,
 				      uint32_t ib_idx, int idx)
 {
-	return p->ibs[ib_idx].ptr[idx];
+	return p->job->ibs[ib_idx].ptr[idx];
 }
 
 static inline void amdgpu_set_ib_value(struct amdgpu_cs_parser *p,
 				       uint32_t ib_idx, int idx,
 				       uint32_t value)
 {
-	p->ibs[ib_idx].ptr[idx] = value;
+	p->job->ibs[ib_idx].ptr[idx] = value;
 }
 
 /*

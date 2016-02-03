@@ -702,7 +702,7 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 static int amdgpu_uvd_cs_reg(struct amdgpu_uvd_cs_ctx *ctx,
 			     int (*cb)(struct amdgpu_uvd_cs_ctx *ctx))
 {
-	struct amdgpu_ib *ib = &ctx->parser->ibs[ctx->ib_idx];
+	struct amdgpu_ib *ib = &ctx->parser->job->ibs[ctx->ib_idx];
 	int i, r;
 
 	ctx->idx++;
@@ -748,7 +748,7 @@ static int amdgpu_uvd_cs_reg(struct amdgpu_uvd_cs_ctx *ctx,
 static int amdgpu_uvd_cs_packets(struct amdgpu_uvd_cs_ctx *ctx,
 				 int (*cb)(struct amdgpu_uvd_cs_ctx *ctx))
 {
-	struct amdgpu_ib *ib = &ctx->parser->ibs[ctx->ib_idx];
+	struct amdgpu_ib *ib = &ctx->parser->job->ibs[ctx->ib_idx];
 	int r;
 
 	for (ctx->idx = 0 ; ctx->idx < ib->length_dw; ) {
@@ -790,7 +790,7 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 		[0x00000003]	=	2048,
 		[0x00000004]	=	0xFFFFFFFF,
 	};
-	struct amdgpu_ib *ib = &parser->ibs[ib_idx];
+	struct amdgpu_ib *ib = &parser->job->ibs[ib_idx];
 	int r;
 
 	if (ib->length_dw % 16) {

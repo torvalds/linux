@@ -603,7 +603,7 @@ static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
  */
 int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 {
-	struct amdgpu_ib *ib = &p->ibs[ib_idx];
+	struct amdgpu_ib *ib = &p->job->ibs[ib_idx];
 	unsigned fb_idx = 0, bs_idx = 0;
 	int session_idx = -1;
 	bool destroyed = false;
