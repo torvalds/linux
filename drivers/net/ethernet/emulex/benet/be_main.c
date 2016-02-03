@@ -4859,21 +4859,27 @@ static int be_resume(struct be_adapter *adapter)
 
 static int be_err_recover(struct be_adapter *adapter)
 {
-	struct device *dev = &adapter->pdev->dev;
 	int status;
+
+	/* Error recovery is supported only Lancer as of now */
+	if (!lancer_chip(adapter))
+		return -EIO;
+
+	/* Wait for adapter to reach quiescent state before
+	 * destroying queues
+	 */
+	status = be_fw_wait_ready(adapter);
+	if (status)
+		goto err;
+
+	be_cleanup(adapter);
 
 	status = be_resume(adapter);
 	if (status)
 		goto err;
 
-	dev_info(dev, "Adapter recovery successful\n");
 	return 0;
 err:
-	if (be_physfn(adapter))
-		dev_err(dev, "Adapter recovery failed\n");
-	else
-		dev_err(dev, "Re-trying adapter recovery\n");
-
 	return status;
 }
 
@@ -4882,21 +4888,32 @@ static void be_err_detection_task(struct work_struct *work)
 	struct be_adapter *adapter =
 				container_of(work, struct be_adapter,
 					     be_err_detection_work.work);
-	int status = 0;
+	struct device *dev = &adapter->pdev->dev;
+	int recovery_status;
 
 	be_detect_error(adapter);
 
-	if (be_check_error(adapter, BE_ERROR_HW)) {
-		be_cleanup(adapter);
+	if (be_check_error(adapter, BE_ERROR_HW))
+		recovery_status = be_err_recover(adapter);
+	else
+		goto reschedule_task;
 
-		/* As of now error recovery support is in Lancer only */
-		if (lancer_chip(adapter))
-			status = be_err_recover(adapter);
+	if (!recovery_status) {
+		dev_info(dev, "Adapter recovery successful\n");
+		goto reschedule_task;
+	} else if (be_virtfn(adapter)) {
+		/* For VFs, check if PF have allocated resources
+		 * every second.
+		 */
+		dev_err(dev, "Re-trying adapter recovery\n");
+		goto reschedule_task;
+	} else {
+		dev_err(dev, "Adapter recovery failed\n");
 	}
 
-	/* Always attempt recovery on VFs */
-	if (!status || be_virtfn(adapter))
-		be_schedule_err_detection(adapter);
+	return;
+reschedule_task:
+	be_schedule_err_detection(adapter);
 }
 
 static void be_log_sfp_info(struct be_adapter *adapter)
