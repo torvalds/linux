@@ -1473,18 +1473,19 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
 static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
 		unsigned long addr, unsigned long end, struct mm_walk *walk)
 {
+	pte_t huge_pte = huge_ptep_get(pte);
 	struct numa_maps *md;
 	struct page *page;
 
-	if (!pte_present(*pte))
+	if (!pte_present(huge_pte))
 		return 0;
 
-	page = pte_page(*pte);
+	page = pte_page(huge_pte);
 	if (!page)
 		return 0;
 
 	md = walk->private;
-	gather_stats(page, md, pte_dirty(*pte), 1);
+	gather_stats(page, md, pte_dirty(huge_pte), 1);
 	return 0;
 }
 
