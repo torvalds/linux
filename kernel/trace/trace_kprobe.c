@@ -30,7 +30,7 @@
 struct trace_kprobe {
 	struct list_head	list;
 	struct kretprobe	rp;	/* Use rp.kp for kprobe use */
-	unsigned long 		nhit;
+	unsigned long __percpu *nhit;
 	const char		*symbol;	/* symbol name */
 	struct trace_probe	tp;
 };
@@ -274,6 +274,10 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 	if (!tk)
 		return ERR_PTR(ret);
 
+	tk->nhit = alloc_percpu(unsigned long);
+	if (!tk->nhit)
+		goto error;
+
 	if (symbol) {
 		tk->symbol = kstrdup(symbol, GFP_KERNEL);
 		if (!tk->symbol)
@@ -313,6 +317,7 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 error:
 	kfree(tk->tp.call.name);
 	kfree(tk->symbol);
+	free_percpu(tk->nhit);
 	kfree(tk);
 	return ERR_PTR(ret);
 }
@@ -327,6 +332,7 @@ static void free_trace_kprobe(struct trace_kprobe *tk)
 	kfree(tk->tp.call.class->system);
 	kfree(tk->tp.call.name);
 	kfree(tk->symbol);
+	free_percpu(tk->nhit);
 	kfree(tk);
 }
 
@@ -874,9 +880,14 @@ static const struct file_operations kprobe_events_ops = {
 static int probes_profile_seq_show(struct seq_file *m, void *v)
 {
 	struct trace_kprobe *tk = v;
+	unsigned long nhit = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		nhit += *per_cpu_ptr(tk->nhit, cpu);
 
 	seq_printf(m, "  %-44s %15lu %15lu\n",
-		   trace_event_name(&tk->tp.call), tk->nhit,
+		   trace_event_name(&tk->tp.call), nhit,
 		   tk->rp.kp.nmissed);
 
 	return 0;
@@ -1225,7 +1236,7 @@ static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 {
 	struct trace_kprobe *tk = container_of(kp, struct trace_kprobe, rp.kp);
 
-	tk->nhit++;
+	raw_cpu_inc(*tk->nhit);
 
 	if (tk->tp.flags & TP_FLAG_TRACE)
 		kprobe_trace_func(tk, regs);
@@ -1242,7 +1253,7 @@ kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct trace_kprobe *tk = container_of(ri->rp, struct trace_kprobe, rp);
 
-	tk->nhit++;
+	raw_cpu_inc(*tk->nhit);
 
 	if (tk->tp.flags & TP_FLAG_TRACE)
 		kretprobe_trace_func(tk, ri, regs);
