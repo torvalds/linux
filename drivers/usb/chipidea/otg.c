@@ -130,6 +130,14 @@ void ci_handle_id_switch(struct ci_hdrc *ci)
 			/* wait vbus lower than OTGSC_BSV */
 			ret = hw_wait_reg(ci, OP_OTGSC, OTGSC_BSV, 0,
 					CI_VBUS_STABLE_TIMEOUT_MS);
+		else if (ci->vbus_active)
+			/*
+			 * If the role switch happens(e.g. during
+			 * system sleep), and we lose vbus drop
+			 * event, disconnect gadget for it before
+			 * start host.
+			 */
+		       usb_gadget_vbus_disconnect(&ci->gadget);
 
 		ci_role_start(ci, role);
 		/*
