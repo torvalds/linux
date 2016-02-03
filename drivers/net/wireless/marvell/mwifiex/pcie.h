@@ -26,6 +26,7 @@
 #include    <linux/pcieport_if.h>
 #include    <linux/interrupt.h>
 
+#include    "decl.h"
 #include    "main.h"
 
 #define PCIE8766_DEFAULT_FW_NAME "mrvl/pcie8766_uapsta.bin"
