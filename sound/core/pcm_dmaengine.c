@@ -5,7 +5,7 @@
  *  Based on:
  *	imx-pcm-dma-mx2.c, Copyright 2009 Sascha Hauer <s.hauer@pengutronix.de>
  *	mxs-pcm.c, Copyright (C) 2011 Freescale Semiconductor, Inc.
- *	imx-pcm-dma.c, Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
+ *	imx-pcm-dma.c, Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  *	ep93xx-pcm.c, Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
  *		      Copyright (C) 2006 Applied Data Systems
  *
@@ -344,6 +344,7 @@ int snd_dmaengine_pcm_close(struct snd_pcm_substream *substream)
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
 	dma_sync_wait_tasklet(prtd->dma_chan);
+	dmaengine_terminate_all(prtd->dma_chan);
 
 	kfree(prtd);
 
