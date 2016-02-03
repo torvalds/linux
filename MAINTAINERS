@@ -686,13 +686,6 @@ M:	Michael Hanselmann <linux-kernel@hansmi.ch>
 S:	Supported
 F:	drivers/macintosh/ams/
 
-AMSO1100 RNIC DRIVER
-M:	Tom Tucker <tom@opengridcomputing.com>
-M:	Steve Wise <swise@opengridcomputing.com>
-L:	linux-rdma@vger.kernel.org
-S:	Maintained
-F:	drivers/infiniband/hw/amso1100/
-
 ANALOG DEVICES INC AD9389B DRIVER
 M:	Hans Verkuil <hans.verkuil@cisco.com>
 L:	linux-media@vger.kernel.org
