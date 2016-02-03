@@ -459,10 +459,12 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 		    bss_conf->mu_group.membership, WLAN_MEMBERSHIP_LEN))
 		return;
 
-	memcpy(mgmt->u.action.u.vht_group_notif.membership,
-	       bss_conf->mu_group.membership, WLAN_MEMBERSHIP_LEN);
-	memcpy(mgmt->u.action.u.vht_group_notif.position,
-	       bss_conf->mu_group.position, WLAN_USER_POSITION_LEN);
+	memcpy(bss_conf->mu_group.membership,
+	       mgmt->u.action.u.vht_group_notif.membership,
+	       WLAN_MEMBERSHIP_LEN);
+	memcpy(bss_conf->mu_group.position,
+	       mgmt->u.action.u.vht_group_notif.position,
+	       WLAN_USER_POSITION_LEN);
 
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MU_GROUPS);
 }
