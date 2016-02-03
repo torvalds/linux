@@ -130,14 +130,9 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 {
 	unsigned i;
 	int ret;
-	int local_node_id = pcibus_to_node(dd->pcidev->bus);
 
 	/* Control context has to be always 0 */
 	BUILD_BUG_ON(HFI1_CTRL_CTXT != 0);
-
-	if (local_node_id < 0)
-		local_node_id = numa_node_id();
-	dd->assigned_node_id = local_node_id;
 
 	dd->rcd = kcalloc(dd->num_rcv_contexts, sizeof(*dd->rcd), GFP_KERNEL);
 	if (!dd->rcd)

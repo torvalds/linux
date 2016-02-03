@@ -1567,7 +1567,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	snprintf(dd->verbs_dev.rdi.dparms.cq_name,
 		 sizeof(dd->verbs_dev.rdi.dparms.cq_name),
 		 "hfi1_cq%d", dd->unit);
-	dd->verbs_dev.rdi.dparms.node = dd->assigned_node_id;
+	dd->verbs_dev.rdi.dparms.node = dd->node;
 
 	/* misc settings */
 	dd->verbs_dev.rdi.flags = 0; /* Let rdmavt handle it all */

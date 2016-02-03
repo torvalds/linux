@@ -1128,7 +1128,6 @@ struct hfi1_devdata {
 	struct timer_list rcverr_timer;
 	u32 rcv_ovfl_cnt;
 
-	int assigned_node_id;
 	wait_queue_head_t event_queue;
 
 	/* Save the enabled LCB error bits */
