@@ -709,8 +709,9 @@ struct hfi1_pportdata {
 	u64 *cntrs;
 	/* port relative synthetic counter buffer */
 	u64 *scntrs;
-	/* we synthesize port_xmit_discards from several egress errors */
+	/* port_xmit_discards are synthesized from different egress errors */
 	u64 port_xmit_discards;
+	u64 port_xmit_discards_vl[C_VL_COUNT];
 	u64 port_xmit_constraint_errors;
 	u64 port_rcv_constraint_errors;
 	/* count of 'link_err' interrupts from DC */

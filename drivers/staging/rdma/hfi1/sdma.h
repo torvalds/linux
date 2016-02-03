@@ -1087,6 +1087,7 @@ struct sdma_map_elem {
 
 /**
  * struct sdma_map_el - mapping for a vl
+ * @engine_to_vl - map of an engine to a vl
  * @list - rcu head for free callback
  * @mask - vl mask to "mod" the vl to produce an index to map array
  * @actual_vls - number of vls
@@ -1098,6 +1099,7 @@ struct sdma_map_elem {
  * in turn point to an array of sde's for that vl.
  */
 struct sdma_vl_map {
+	s8 engine_to_vl[TXE_NUM_SDMA_ENGINES];
 	struct rcu_head list;
 	u32 mask;
 	u8 actual_vls;

@@ -890,6 +890,9 @@ int sdma_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_engines)
 	newmap->actual_vls = num_vls;
 	newmap->vls = roundup_pow_of_two(num_vls);
 	newmap->mask = (1 << ilog2(newmap->vls)) - 1;
+	/* initialize back-map */
+	for (i = 0; i < TXE_NUM_SDMA_ENGINES; i++)
+		newmap->engine_to_vl[i] = -1;
 	for (i = 0; i < newmap->vls; i++) {
 		/* save for wrap around */
 		int first_engine = engine;
@@ -913,6 +916,9 @@ int sdma_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_engines)
 					/* wrap back to first engine */
 					engine = first_engine;
 			}
+			/* assign back-map */
+			for (j = 0; j < vl_engines[i]; j++)
+				newmap->engine_to_vl[first_engine + j] = i;
 		} else {
 			/* just re-use entry without allocating */
 			newmap->map[i] = newmap->map[i % num_vls];
