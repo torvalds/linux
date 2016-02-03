@@ -623,31 +623,42 @@ static int reset_hw_v1_hw(struct hisi_hba *hisi_hba)
 			return -EIO;
 	}
 
-	/* Apply reset and disable clock */
-	/* clk disable reg is offset by +4 bytes from clk enable reg */
-	regmap_write(hisi_hba->ctrl, hisi_hba->ctrl_reset_reg,
-		     RESET_VALUE);
-	regmap_write(hisi_hba->ctrl, hisi_hba->ctrl_clock_ena_reg + 4,
-		     RESET_VALUE);
-	msleep(1);
-	regmap_read(hisi_hba->ctrl, hisi_hba->ctrl_reset_sts_reg, &val);
-	if (RESET_VALUE != (val & RESET_VALUE)) {
-		dev_err(dev, "Reset failed\n");
-		return -EIO;
-	}
+	if (ACPI_HANDLE(dev)) {
+		acpi_status s;
 
-	/* De-reset and enable clock */
-	/* deassert rst reg is offset by +4 bytes from assert reg */
-	regmap_write(hisi_hba->ctrl, hisi_hba->ctrl_reset_reg + 4,
-		     RESET_VALUE);
-	regmap_write(hisi_hba->ctrl, hisi_hba->ctrl_clock_ena_reg,
-		     RESET_VALUE);
-	msleep(1);
-	regmap_read(hisi_hba->ctrl, hisi_hba->ctrl_reset_sts_reg, &val);
-	if (val & RESET_VALUE) {
-		dev_err(dev, "De-reset failed\n");
-		return -EIO;
-	}
+		s = acpi_evaluate_object(ACPI_HANDLE(dev), "_RST", NULL, NULL);
+		if (ACPI_FAILURE(s)) {
+			dev_err(dev, "Reset failed\n");
+			return -EIO;
+		}
+	} else if (hisi_hba->ctrl) {
+		/* Apply reset and disable clock */
+		/* clk disable reg is offset by +4 bytes from clk enable reg */
+		regmap_write(hisi_hba->ctrl, hisi_hba->ctrl_reset_reg,
+			     RESET_VALUE);
+		regmap_write(hisi_hba->ctrl, hisi_hba->ctrl_clock_ena_reg + 4,
+			     RESET_VALUE);
+		msleep(1);
+		regmap_read(hisi_hba->ctrl, hisi_hba->ctrl_reset_sts_reg, &val);
+		if (RESET_VALUE != (val & RESET_VALUE)) {
+			dev_err(dev, "Reset failed\n");
+			return -EIO;
+		}
+
+		/* De-reset and enable clock */
+		/* deassert rst reg is offset by +4 bytes from assert reg */
+		regmap_write(hisi_hba->ctrl, hisi_hba->ctrl_reset_reg + 4,
+			     RESET_VALUE);
+		regmap_write(hisi_hba->ctrl, hisi_hba->ctrl_clock_ena_reg,
+			     RESET_VALUE);
+		msleep(1);
+		regmap_read(hisi_hba->ctrl, hisi_hba->ctrl_reset_sts_reg, &val);
+		if (val & RESET_VALUE) {
+			dev_err(dev, "De-reset failed\n");
+			return -EIO;
+		}
+	} else
+		dev_warn(dev, "no reset method\n");
 
 	return 0;
 }
@@ -1831,12 +1842,20 @@ static const struct of_device_id sas_v1_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sas_v1_of_match);
 
+static const struct acpi_device_id sas_v1_acpi_match[] = {
+	{ "HISI0161", 0 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(acpi, sas_v1_acpi_match);
+
 static struct platform_driver hisi_sas_v1_driver = {
 	.probe = hisi_sas_v1_probe,
 	.remove = hisi_sas_v1_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sas_v1_of_match,
+		.acpi_match_table = ACPI_PTR(sas_v1_acpi_match),
 	},
 };
 
