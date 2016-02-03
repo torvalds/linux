@@ -822,29 +822,42 @@ void _hfi1_do_send(struct work_struct *work)
 void hfi1_do_send(struct rvt_qp *qp)
 {
 	struct hfi1_pkt_state ps;
+	struct hfi1_qp_priv *priv = qp->priv;
 	int (*make_req)(struct rvt_qp *qp);
 	unsigned long flags;
 	unsigned long timeout;
+	unsigned long timeout_int;
+	int cpu;
 
 	ps.dev = to_idev(qp->ibqp.device);
 	ps.ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ps.ppd = ppd_from_ibp(ps.ibp);
 
-	if ((qp->ibqp.qp_type == IB_QPT_RC ||
-	     qp->ibqp.qp_type == IB_QPT_UC) &&
-	    !loopback &&
-	    (qp->remote_ah_attr.dlid & ~((1 << ps.ppd->lmc) - 1)) ==
-	    ps.ppd->lid) {
-		ruc_loopback(qp);
-		return;
-	}
-
-	if (qp->ibqp.qp_type == IB_QPT_RC)
+	switch (qp->ibqp.qp_type) {
+	case IB_QPT_RC:
+		if (!loopback && ((qp->remote_ah_attr.dlid & ~((1 << ps.ppd->lmc
+								) - 1)) ==
+				 ps.ppd->lid)) {
+			ruc_loopback(qp);
+			return;
+		}
 		make_req = hfi1_make_rc_req;
-	else if (qp->ibqp.qp_type == IB_QPT_UC)
+		timeout_int = (qp->timeout_jiffies);
+		break;
+	case IB_QPT_UC:
+		if (!loopback && ((qp->remote_ah_attr.dlid & ~((1 << ps.ppd->lmc
+								) - 1)) ==
+				 ps.ppd->lid)) {
+			ruc_loopback(qp);
+			return;
+		}
 		make_req = hfi1_make_uc_req;
-	else
+		timeout_int = SEND_RESCHED_TIMEOUT;
+		break;
+	default:
 		make_req = hfi1_make_ud_req;
+		timeout_int = SEND_RESCHED_TIMEOUT;
+	}
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
@@ -858,7 +871,9 @@ void hfi1_do_send(struct rvt_qp *qp)
 
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 
-	timeout = jiffies + SEND_RESCHED_TIMEOUT;
+	timeout = jiffies + (timeout_int) / 8;
+	cpu = priv->s_sde ? priv->s_sde->cpu :
+			cpumask_first(cpumask_of_node(ps.ppd->dd->node));
 	do {
 		/* Check for a constructed packet to be sent. */
 		if (qp->s_hdrwords != 0) {
@@ -874,9 +889,18 @@ void hfi1_do_send(struct rvt_qp *qp)
 
 		/* allow other tasks to run */
 		if (unlikely(time_after(jiffies, timeout))) {
+			if (workqueue_congested(cpu, ps.ppd->hfi1_wq)) {
+				spin_lock_irqsave(&qp->s_lock, flags);
+				qp->s_flags &= ~RVT_S_BUSY;
+				hfi1_schedule_send(qp);
+				spin_unlock_irqrestore(&qp->s_lock,
+						       flags);
+				this_cpu_inc(*ps.ppd->dd->send_schedule);
+				return;
+			}
 			cond_resched();
 			this_cpu_inc(*ps.ppd->dd->send_schedule);
-			timeout = jiffies + SEND_RESCHED_TIMEOUT;
+			timeout = jiffies + (timeout_int) / 8;
 		}
 	} while (make_req(qp));
 }
