@@ -58,6 +58,26 @@ static void dax_unmap_atomic(struct block_device *bdev,
 	blk_queue_exit(bdev->bd_queue);
 }
 
+struct page *read_dax_sector(struct block_device *bdev, sector_t n)
+{
+	struct page *page = alloc_pages(GFP_KERNEL, 0);
+	struct blk_dax_ctl dax = {
+		.size = PAGE_SIZE,
+		.sector = n & ~((((int) PAGE_SIZE) / 512) - 1),
+	};
+	long rc;
+
+	if (!page)
+		return ERR_PTR(-ENOMEM);
+
+	rc = dax_map_atomic(bdev, &dax);
+	if (rc < 0)
+		return ERR_PTR(rc);
+	memcpy_from_pmem(page_address(page), dax.addr, PAGE_SIZE);
+	dax_unmap_atomic(bdev, &dax);
+	return page;
+}
+
 /*
  * dax_clear_blocks() is called from within transaction context from XFS,
  * and hence this means the stack from this point must follow GFP_NOFS
