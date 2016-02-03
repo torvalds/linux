@@ -265,6 +265,8 @@ struct rvt_driver_provided {
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
 
+	int (*check_send_wr)(struct rvt_qp *qp, struct ib_send_wr *wr);
+
 	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 };

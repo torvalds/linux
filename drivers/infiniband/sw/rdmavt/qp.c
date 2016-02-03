@@ -1394,6 +1394,10 @@ static int rvt_post_one_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
 	if (next == qp->s_last)
 		return -ENOMEM;
 
+	if (rdi->driver_f.check_send_wr &&
+	    rdi->driver_f.check_send_wr(qp, wr))
+		return -EINVAL;
+
 	rkt = &rdi->lkey_table;
 	pd = ibpd_to_rvtpd(qp->ibqp.pd);
 	wqe = rvt_get_swqe_ptr(qp, qp->s_head);
