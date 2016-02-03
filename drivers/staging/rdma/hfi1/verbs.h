@@ -279,22 +279,6 @@ struct hfi1_ibdev {
 #endif
 };
 
-struct hfi1_verbs_counters {
-	u64 symbol_error_counter;
-	u64 link_error_recovery_counter;
-	u64 link_downed_counter;
-	u64 port_rcv_errors;
-	u64 port_rcv_remphys_errors;
-	u64 port_xmit_discards;
-	u64 port_xmit_data;
-	u64 port_rcv_data;
-	u64 port_xmit_packets;
-	u64 port_rcv_packets;
-	u32 local_link_integrity_errors;
-	u32 excessive_buffer_overrun_errors;
-	u32 vl15_dropped;
-};
-
 static inline struct hfi1_ibdev *to_idev(struct ib_device *ibdev)
 {
 	struct rvt_dev_info *rdi;
