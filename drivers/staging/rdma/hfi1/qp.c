@@ -185,6 +185,9 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_AV) {
 		sc = ah_to_sc(ibqp->device, &attr->ah_attr);
+		if (sc == 0xf)
+			return -EINVAL;
+
 		if (!qp_to_sdma_engine(qp, sc) &&
 		    dd->flags & HFI1_HAS_SEND_DMA)
 			return -EINVAL;
@@ -192,6 +195,9 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_ALT_PATH) {
 		sc = ah_to_sc(ibqp->device, &attr->alt_ah_attr);
+		if (sc == 0xf)
+			return -EINVAL;
+
 		if (!qp_to_sdma_engine(qp, sc) &&
 		    dd->flags & HFI1_HAS_SEND_DMA)
 			return -EINVAL;
@@ -218,6 +224,20 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		priv->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
 		priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
 	}
+}
+
+int hfi1_check_send_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
+{
+	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct rvt_ah *ah = ibah_to_rvtah(ud_wr(wr)->ah);
+
+	if (qp->ibqp.qp_type != IB_QPT_RC &&
+	    qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_SMI &&
+	    ibp->sl_to_sc[ah->attr.sl] == 0xf) {
+		return -EINVAL;
+	}
+	return 0;
 }
 
 /**
