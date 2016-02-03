@@ -2197,6 +2197,10 @@ static int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name)
 	}
 
 	priv->fw_data = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!priv->fw_data) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 	priv->fw_size = fw->size - sizeof(struct rtl8xxxu_firmware_header);
 
 	signature = le16_to_cpu(priv->fw_data->signature);
