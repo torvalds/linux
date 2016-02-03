@@ -46,6 +46,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/display/rk_fb.h>
+#include <dt-bindings/power/rk3366-power.h>
 
 / {
 	compatible = "rockchip,rk3366";
@@ -400,6 +401,110 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2_t1_xfer>;
 		status = "disabled";
+	};
+
+	pmu: power-management@ff730000 {
+		compatible = "rockchip,rk3366-pmu", "syscon", "simple-mfd";
+		reg = <0x0 0xff730000 0x0 0x1000>;
+
+		power: power-controller {
+			status = "disabled";
+			compatible = "rockchip,rk3366-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/*
+			 * Note: Although SCLK_* are the working clocks
+			 * of device without including on the NOC, needed for
+			 * synchronous reset.
+			 *
+			 * The clocks on the which NOC:
+			 * ACLK_IEP/ACLK_VOP0 are on ACLK_VIO0_NIU.
+			 * ACLK_RGA/ACLK_VOP1 are on ACLK_RGA_NIU.
+			 * ACLK_ISP is on ACLK_ISP_NIU.
+			 * ACLK_HDCP is on ACLK_HDCP_NIU.
+			 * The others (HCLK_*,PLCK_*) are on HCLK_VIO_NIU.
+			 *
+			 * Which clock are device clocks:
+			 *	clocks		devices
+			 *	*_IEP		IEP:Image Enhancement Processor
+			 *	*_ISP		ISP:Image Signal Processing
+			 *	*_VOP*		VOP:Visual Output Processor
+			 *	*_RGA		RGA
+			 *	*_DPHY*		LVDS
+			 *	*_HDMI		HDMI
+			 *	*_MIPI_*	MIPI
+			 */
+			pd_vio {
+				reg = <RK3366_PD_VIO>;
+				clocks = <&cru ACLK_IEP>,
+					 <&cru ACLK_ISP>,
+					 <&cru ACLK_RGA>,
+					 <&cru ACLK_HDCP>,
+					 <&cru ACLK_VOP_FULL>,
+					 <&cru ACLK_VOP_LITE>,
+					 <&cru ACLK_VOP_IEP>,
+					 <&cru DCLK_VOP_FULL>,
+					 <&cru DCLK_VOP_LITE>,
+					 <&cru HCLK_IEP>,
+					 <&cru HCLK_ISP>,
+					 <&cru HCLK_RGA>,
+					 <&cru HCLK_VOP_FULL>,
+					 <&cru HCLK_VOP_LITE>,
+					 <&cru HCLK_VIO_HDCPMMU>,
+					 <&cru PCLK_HDMI_CTRL>,
+					 <&cru PCLK_HDCP>,
+					 <&cru PCLK_MIPI_DSI0>,
+					 <&cru SCLK_VOP_FULL_PWM>,
+					 <&cru SCLK_HDCP>,
+					 <&cru SCLK_ISP>,
+					 <&cru SCLK_RGA>,
+					 <&cru SCLK_HDMI_CEC>,
+					 <&cru SCLK_HDMI_HDCP>;
+			};
+
+			/*
+			 * Note: ACLK_VCODEC/HCLK_VCODEC are VCODEC
+			 * (video endecoder & decoder) clocks that on the
+			 * ACLK_VCODEC_NIU and HCLK_VCODEC_NIU (NOC).
+			 */
+			pd_vpu {
+				reg = <RK3366_PD_VPU>;
+				clocks = <&cru ACLK_VIDEO>,
+					 <&cru HCLK_VIDEO>;
+			};
+
+			/*
+			 * Note: ACLK_RKVDEC/HCLK_RKVDEC are RKVDEC
+			 * (video decoder) clocks that on the
+			 * ACLK_RKVDEC_NIU and HCLK_RKVDEC_NIU (NOC).
+			 */
+			pd_rkvdec {
+				reg = <RK3366_PD_RKVDEC>;
+				clocks = <&cru ACLK_RKVDEC>,
+					 <&cru HCLK_RKVDEC>;
+			};
+
+			pd_video {
+				reg = <RK3366_PD_VIDEO>;
+				clocks = <&cru ACLK_VIDEO>,
+					 <&cru ACLK_RKVDEC>,
+					 <&cru HCLK_VIDEO>,
+					 <&cru HCLK_RKVDEC>,
+					 <&cru SCLK_HEVC_CABAC>,
+					 <&cru SCLK_HEVC_CORE>;
+			};
+
+			/*
+			 * Note: ACLK_GPU is the GPU clock,
+			 * and on the ACLK_GPU_NIU (NOC).
+			 */
+			pd_gpu {
+				reg = <RK3366_PD_GPU>;
+				clocks = <&cru ACLK_GPU>;
+			};
+		};
 	};
 
 	pmugrf: syscon@ff738000 {
