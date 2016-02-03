@@ -2137,19 +2137,18 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 	struct dm_table *map;
 
 	if (!test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) {
-		map = dm_get_live_table_fast(md);
-		if (map) {
+		if (dm_request_based(md)) {
 			/*
-			 * Request-based dm cares about only own queue for
-			 * the query about congestion status of request_queue
+			 * With request-based DM we only need to check the
+			 * top-level queue for congestion.
 			 */
-			if (dm_request_based(md))
-				r = md->queue->backing_dev_info.wb.state &
-				    bdi_bits;
-			else
+			r = md->queue->backing_dev_info.wb.state & bdi_bits;
+		} else {
+			map = dm_get_live_table_fast(md);
+			if (map)
 				r = dm_table_any_congested(map, bdi_bits);
+			dm_put_live_table_fast(md);
 		}
-		dm_put_live_table_fast(md);
 	}
 
 	return r;
