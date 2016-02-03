@@ -42,6 +42,7 @@ static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 
 MODULE_FIRMWARE("radeon/bonaire_mc.bin");
 MODULE_FIRMWARE("radeon/hawaii_mc.bin");
+MODULE_FIRMWARE("amdgpu/topaz_mc.bin");
 
 /**
  * gmc8_mc_wait_for_idle - wait for MC idle callback.
@@ -132,13 +133,20 @@ static int gmc_v7_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_HAWAII:
 		chip_name = "hawaii";
 		break;
+	case CHIP_TOPAZ:
+		chip_name = "topaz";
+		break;
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
 		return 0;
 	default: BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+	if(adev->asic_type == CHIP_TOPAZ)
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mc.bin", chip_name);
+	else
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+
 	err = request_firmware(&adev->mc.fw, fw_name, adev->dev);
 	if (err)
 		goto out;
