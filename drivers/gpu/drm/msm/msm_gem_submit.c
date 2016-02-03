@@ -339,13 +339,11 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (args->nr_cmds > MAX_CMDS)
 		return -EINVAL;
 
-	mutex_lock(&dev->struct_mutex);
-
 	submit = submit_create(dev, gpu, args->nr_bos);
-	if (!submit) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!submit)
+		return -ENOMEM;
+
+	mutex_lock(&dev->struct_mutex);
 
 	ret = submit_lookup_objects(submit, args, file);
 	if (ret)
@@ -420,8 +418,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	args->fence = submit->fence;
 
 out:
-	if (submit)
-		submit_cleanup(submit, !!ret);
+	submit_cleanup(submit, !!ret);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
