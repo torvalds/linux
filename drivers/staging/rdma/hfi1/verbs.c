@@ -242,14 +242,28 @@ __be64 ib_hfi1_sys_image_guid;
  * @ss: the SGE state
  * @data: the data to copy
  * @length: the length of the data
+ * @copy_last: do a separate copy of the last 8 bytes
  */
 void hfi1_copy_sge(
 	struct rvt_sge_state *ss,
 	void *data, u32 length,
-	int release)
+	int release,
+	int copy_last)
 {
 	struct rvt_sge *sge = &ss->sge;
+	int in_last = 0;
+	int i;
 
+	if (copy_last) {
+		if (length > 8) {
+			length -= 8;
+		} else {
+			copy_last = 0;
+			in_last = 1;
+		}
+	}
+
+again:
 	while (length) {
 		u32 len = sge->length;
 
@@ -258,7 +272,13 @@ void hfi1_copy_sge(
 		if (len > sge->sge_length)
 			len = sge->sge_length;
 		WARN_ON_ONCE(len == 0);
-		memcpy(sge->vaddr, data, len);
+		if (in_last) {
+			/* enforce byte transer ordering */
+			for (i = 0; i < len; i++)
+				((u8 *)sge->vaddr)[i] = ((u8 *)data)[i];
+		} else {
+			memcpy(sge->vaddr, data, len);
+		}
 		sge->vaddr += len;
 		sge->length -= len;
 		sge->sge_length -= len;
@@ -280,6 +300,13 @@ void hfi1_copy_sge(
 		}
 		data += len;
 		length -= len;
+	}
+
+	if (copy_last) {
+		copy_last = 0;
+		in_last = 1;
+		length = 8;
+		goto again;
 	}
 }
 

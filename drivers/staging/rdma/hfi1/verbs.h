@@ -398,7 +398,7 @@ void hfi1_put_txreq(struct verbs_txreq *tx);
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
 void hfi1_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
-		   int release);
+		   int release, int copy_last);
 
 void hfi1_skip_sge(struct rvt_sge_state *ss, u32 length, int release);
 

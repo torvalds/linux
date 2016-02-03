@@ -1539,7 +1539,7 @@ read_middle:
 		qp->s_rdma_read_len -= pmtu;
 		update_last_psn(qp, psn);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
-		hfi1_copy_sge(&qp->s_rdma_read_sge, data, pmtu, 0);
+		hfi1_copy_sge(&qp->s_rdma_read_sge, data, pmtu, 0, 0);
 		goto bail;
 
 	case OP(RDMA_READ_RESPONSE_ONLY):
@@ -1583,7 +1583,7 @@ read_last:
 		if (unlikely(tlen != qp->s_rdma_read_len))
 			goto ack_len_err;
 		aeth = be32_to_cpu(ohdr->u.aeth);
-		hfi1_copy_sge(&qp->s_rdma_read_sge, data, tlen, 0);
+		hfi1_copy_sge(&qp->s_rdma_read_sge, data, tlen, 0, 0);
 		WARN_ON(qp->s_rdma_read_sge.num_sge);
 		(void) do_rc_ack(qp, aeth, psn,
 				 OP(RDMA_READ_RESPONSE_LAST), 0, rcd);
@@ -1977,6 +1977,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	unsigned long flags;
 	u32 bth1;
 	int ret, is_fecn = 0;
+	int copy_last = 0;
 
 	bth0 = be32_to_cpu(ohdr->bth[0]);
 	if (hfi1_ruc_check_hdr(ibp, hdr, rcv_flags & HFI1_HAS_GRH, qp, bth0))
@@ -2081,7 +2082,7 @@ send_middle:
 		qp->r_rcv_len += pmtu;
 		if (unlikely(qp->r_rcv_len > qp->r_len))
 			goto nack_inv;
-		hfi1_copy_sge(&qp->r_sge, data, pmtu, 1);
+		hfi1_copy_sge(&qp->r_sge, data, pmtu, 1, 0);
 		break;
 
 	case OP(RDMA_WRITE_LAST_WITH_IMMEDIATE):
@@ -2109,8 +2110,10 @@ send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
 		goto send_last;
-	case OP(SEND_LAST):
 	case OP(RDMA_WRITE_LAST):
+		copy_last = ibpd_to_rvtpd(qp->ibqp.pd)->user;
+		/* fall through */
+	case OP(SEND_LAST):
 no_immediate_data:
 		wc.wc_flags = 0;
 		wc.ex.imm_data = 0;
@@ -2126,7 +2129,7 @@ send_last:
 		wc.byte_len = tlen + qp->r_rcv_len;
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto nack_inv;
-		hfi1_copy_sge(&qp->r_sge, data, tlen, 1);
+		hfi1_copy_sge(&qp->r_sge, data, tlen, 1, copy_last);
 		rvt_put_ss(&qp->r_sge);
 		qp->r_msn++;
 		if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
@@ -2163,8 +2166,10 @@ send_last:
 			     (bth0 & IB_BTH_SOLICITED) != 0);
 		break;
 
-	case OP(RDMA_WRITE_FIRST):
 	case OP(RDMA_WRITE_ONLY):
+		copy_last = 1;
+		/* fall through */
+	case OP(RDMA_WRITE_FIRST):
 	case OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE):
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_WRITE)))
 			goto nack_inv;

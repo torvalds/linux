@@ -370,6 +370,7 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	enum ib_wc_status send_status;
 	int release;
 	int ret;
+	int copy_last = 0;
 
 	rcu_read_lock();
 
@@ -459,10 +460,13 @@ again:
 			goto op_err;
 		if (!ret)
 			goto rnr_nak;
-		/* FALLTHROUGH */
+		/* skip copy_last set and qp_access_flags recheck */
+		goto do_write;
 	case IB_WR_RDMA_WRITE:
+		copy_last = ibpd_to_rvtpd(qp->ibqp.pd)->user;
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_WRITE)))
 			goto inv_err;
+do_write:
 		if (wqe->length == 0)
 		if (unlikely(!rvt_rkey_ok(qp, &qp->r_sge.sge, wqe->length,
 					  wqe->rdma_wr.remote_addr,
@@ -526,7 +530,7 @@ again:
 		if (len > sge->sge_length)
 			len = sge->sge_length;
 		WARN_ON_ONCE(len == 0);
-		hfi1_copy_sge(&qp->r_sge, sge->vaddr, len, release);
+		hfi1_copy_sge(&qp->r_sge, sge->vaddr, len, release, copy_last);
 		sge->vaddr += len;
 		sge->length -= len;
 		sge->sge_length -= len;
