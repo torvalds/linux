@@ -352,6 +352,8 @@
 #define REG_TXDMA_OFFSET_CHK		0x020c
 #define REG_TXDMA_STATUS		0x0210
 #define REG_RQPN_NPQ			0x0214
+#define  RQPN_NPQ_SHIFT			0
+#define  RQPN_EPQ_SHIFT			16
 
 /* 0x0280 ~ 0x02FF	RXDMA Configuration */
 #define REG_RXDMA_AGG_PG_TH		0x0280
