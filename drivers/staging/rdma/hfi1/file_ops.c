@@ -1029,7 +1029,7 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	 * Allocate and enable a PIO send context.
 	 */
 	uctxt->sc = sc_alloc(dd, SC_USER, uctxt->rcvhdrqentsize,
-			     uctxt->numa_id);
+			     uctxt->dd->node);
 	if (!uctxt->sc)
 		return -ENOMEM;
 
