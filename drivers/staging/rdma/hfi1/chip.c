@@ -12201,18 +12201,17 @@ static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 
 u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd)
 {
-	static u32 remembered_state = 0xff;
 	u32 pstate;
 	u32 ib_pstate;
 
 	pstate = read_physical_state(ppd->dd);
 	ib_pstate = chip_to_opa_pstate(ppd->dd, pstate);
-	if (remembered_state != ib_pstate) {
+	if (ppd->last_pstate != ib_pstate) {
 		dd_dev_info(ppd->dd,
 			"%s: physical state changed to %s (0x%x), phy 0x%x\n",
 			__func__, opa_pstate_name(ib_pstate), ib_pstate,
 			pstate);
-		remembered_state = ib_pstate;
+		ppd->last_pstate = ib_pstate;
 	}
 	return ib_pstate;
 }
@@ -14019,6 +14018,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		/* start in offline */
 		ppd->host_link_state = HLS_DN_OFFLINE;
 		init_vl_arb_caches(ppd);
+		ppd->last_pstate = 0xff; /* invalid value */
 	}
 
 	dd->link_default = HLS_DN_POLL;

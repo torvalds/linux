@@ -663,6 +663,7 @@ struct hfi1_pportdata {
 	u8 link_enabled;	/* link enabled? */
 	u8 linkinit_reason;
 	u8 local_tx_rate;	/* rate given to 8051 firmware */
+	u8 last_pstate;		/* info only */
 
 	/* placeholders for IB MAD packet settings */
 	u8 overrun_threshold;
