@@ -256,7 +256,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		 */
 		list_for_each_entry(tmp, &list, links) {
 			desc_cport = tmp->data;
-			if (cport_id == desc_cport->id) {
+			if (cport_id == le16_to_cpu(desc_cport->id)) {
 				dev_err(&bundle->dev,
 						"duplicate CPort %u found\n",
 						cport_id);
