@@ -7,7 +7,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,8 +54,9 @@
 
 struct hfi1_devdata;
 
-/* Bit position of SDA pin in ASIC_QSFP* registers  */
+/* Bit position of SDA/SCL pins in ASIC_QSFP* registers  */
 #define  GPIO_SDA_NUM 1
+#define  GPIO_SCL_NUM 0
 
 /* these functions must be called with qsfp_lock held */
 int hfi1_twsi_reset(struct hfi1_devdata *dd, u32 target);

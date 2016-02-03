@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -134,6 +134,19 @@ static void scl_out(struct hfi1_devdata *dd, u32 target, u8 bit)
 				    SCL_WAIT_USEC);
 	}
 	i2c_wait_for_writes(dd, target);
+}
+
+static u8 scl_in(struct hfi1_devdata *dd, u32 target, int wait)
+{
+	u32 read_val, mask;
+
+	mask = QSFP_HFI0_I2CCLK;
+	/* SCL is meant to be bare-drain, so never set "OUT", just DIR */
+	hfi1_gpio_mod(dd, target, 0, 0, mask);
+	read_val = hfi1_gpio_mod(dd, target, 0, 0, 0);
+	if (wait)
+		i2c_wait_for_writes(dd, target);
+	return (read_val & mask) >> GPIO_SCL_NUM;
 }
 
 static void sda_out(struct hfi1_devdata *dd, u32 target, u8 bit)
@@ -274,13 +287,12 @@ static void stop_cmd(struct hfi1_devdata *dd, u32 target)
 /**
  * hfi1_twsi_reset - reset I2C communication
  * @dd: the hfi1_ib device
+ * returns 0 if ok, -EIO on error
  */
-
 int hfi1_twsi_reset(struct hfi1_devdata *dd, u32 target)
 {
 	int clock_cycles_left = 9;
-	int was_high = 0;
-	u32 pins, mask;
+	u32 mask;
 
 	/* Both SCL and SDA should be high. If not, there
 	 * is something wrong.
@@ -294,43 +306,23 @@ int hfi1_twsi_reset(struct hfi1_devdata *dd, u32 target)
 	 */
 	hfi1_gpio_mod(dd, target, 0, 0, mask);
 
-	/*
-	 * Clock nine times to get all listeners into a sane state.
-	 * If SDA does not go high at any point, we are wedged.
-	 * One vendor recommends then issuing START followed by STOP.
-	 * we cannot use our "normal" functions to do that, because
-	 * if SCL drops between them, another vendor's part will
-	 * wedge, dropping SDA and keeping it low forever, at the end of
-	 * the next transaction (even if it was not the device addressed).
-	 * So our START and STOP take place with SCL held high.
+	/* Check if SCL is low, if it is low then we have a slave device
+	 * misbehaving and there is not much we can do.
+	 */
+	if (!scl_in(dd, target, 0))
+		return -EIO;
+
+	/* Check if SDA is low, if it is low then we have to clock SDA
+	 * up to 9 times for the device to release the bus
 	 */
 	while (clock_cycles_left--) {
+		if (sda_in(dd, target, 0))
+			return 0;
 		scl_out(dd, target, 0);
 		scl_out(dd, target, 1);
-		/* Note if SDA is high, but keep clocking to sync slave */
-		was_high |= sda_in(dd, target, 0);
 	}
 
-	if (was_high) {
-		/*
-		 * We saw a high, which we hope means the slave is sync'd.
-		 * Issue START, STOP, pause for T_BUF.
-		 */
-
-		pins = hfi1_gpio_mod(dd, target, 0, 0, 0);
-		if ((pins & mask) != mask)
-			dd_dev_err(dd, "GPIO pins not at rest: %d\n",
-				    pins & mask);
-		/* Drop SDA to issue START */
-		udelay(1); /* Guarantee .6 uSec setup */
-		sda_out(dd, target, 0);
-		udelay(1); /* Guarantee .6 uSec hold */
-		/* At this point, SCL is high, SDA low. Raise SDA for STOP */
-		sda_out(dd, target, 1);
-		udelay(TWSI_BUF_WAIT_USEC);
-	}
-
-	return !was_high;
+	return -EIO;
 }
 
 #define HFI1_TWSI_START 0x100

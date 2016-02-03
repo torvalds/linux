@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -106,7 +106,6 @@ int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	if (ret) {
 		hfi1_dev_porterr(ppd->dd, ppd->port,
 				 "I2C write interface reset failed\n");
-		ret = -EIO;
 		goto done;
 	}
 
@@ -179,7 +178,6 @@ int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	if (ret) {
 		hfi1_dev_porterr(ppd->dd, ppd->port,
 				 "I2C read interface reset failed\n");
-		ret = -EIO;
 		goto done;
 	}
 
@@ -213,7 +211,7 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		hfi1_dev_porterr(ppd->dd, ppd->port,
 				 "QSFP write interface reset failed\n");
 		mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
-		return -EIO;
+		return ret;
 	}
 
 	while (count < len) {
@@ -279,7 +277,7 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		hfi1_dev_porterr(ppd->dd, ppd->port,
 				 "QSFP read interface reset failed\n");
 		mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
-		return -EIO;
+		return ret;
 	}
 
 	while (count < len) {
