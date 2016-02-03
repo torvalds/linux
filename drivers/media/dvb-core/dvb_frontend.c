@@ -1162,18 +1162,24 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_STAT_TOTAL_BLOCK_COUNT, 0, 0),
 };
 
-static void dtv_property_dump(struct dvb_frontend *fe, struct dtv_property *tvp)
+static void dtv_property_dump(struct dvb_frontend *fe,
+			      bool is_set,
+			      struct dtv_property *tvp)
 {
 	int i;
 
 	if (tvp->cmd <= 0 || tvp->cmd > DTV_MAX_COMMAND) {
-		dev_warn(fe->dvb->device, "%s: tvp.cmd = 0x%08x undefined\n",
-				__func__, tvp->cmd);
+		dev_warn(fe->dvb->device, "%s: %s tvp.cmd = 0x%08x undefined\n",
+				__func__,
+				is_set ? "SET" : "GET",
+				tvp->cmd);
 		return;
 	}
 
-	dev_dbg(fe->dvb->device, "%s: tvp.cmd    = 0x%08x (%s)\n", __func__,
-			tvp->cmd, dtv_cmds[tvp->cmd].name);
+	dev_dbg(fe->dvb->device, "%s: %s tvp.cmd    = 0x%08x (%s)\n", __func__,
+		is_set ? "SET" : "GET",
+		tvp->cmd,
+		dtv_cmds[tvp->cmd].name);
 
 	if (dtv_cmds[tvp->cmd].buffer) {
 		dev_dbg(fe->dvb->device, "%s: tvp.u.buffer.len = 0x%02x\n",
@@ -1589,7 +1595,7 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 			return r;
 	}
 
-	dtv_property_dump(fe, tvp);
+	dtv_property_dump(fe, false, tvp);
 
 	return 0;
 }
@@ -1829,6 +1835,8 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		if (r < 0)
 			return r;
 	}
+
+	dtv_property_dump(fe, true, tvp);
 
 	switch(tvp->cmd) {
 	case DTV_CLEAR:
