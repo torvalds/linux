@@ -385,7 +385,7 @@ static unsigned long clk_core_get_rate_nolock(struct clk_core *core)
 
 	ret = core->rate;
 
-	if (core->flags & CLK_IS_ROOT)
+	if (!core->num_parents)
 		goto out;
 
 	if (!core->parent)
@@ -2351,7 +2351,7 @@ static int __clk_core_init(struct clk_core *core)
 	/*
 	 * Populate core->parent if parent has already been __clk_init'd.  If
 	 * parent has not yet been __clk_init'd then place clk in the orphan
-	 * list.  If clk has set the CLK_IS_ROOT flag then place it in the root
+	 * list.  If clk doesn't have any parents then place it in the root
 	 * clk list.
 	 *
 	 * Every time a new clk is clk_init'd then we walk the list of orphan
@@ -2362,7 +2362,7 @@ static int __clk_core_init(struct clk_core *core)
 		hlist_add_head(&core->child_node,
 				&core->parent->children);
 		core->orphan = core->parent->orphan;
-	} else if (core->flags & CLK_IS_ROOT) {
+	} else if (!core->num_parents) {
 		hlist_add_head(&core->child_node, &clk_root_list);
 		core->orphan = false;
 	} else {
