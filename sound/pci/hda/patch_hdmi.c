@@ -437,6 +437,20 @@ static int hinfo_to_pin_index(struct hda_codec *codec,
 	return -EINVAL;
 }
 
+static struct hdmi_spec_per_pin *pcm_idx_to_pin(struct hdmi_spec *spec,
+						int pcm_idx)
+{
+	int i;
+	struct hdmi_spec_per_pin *per_pin;
+
+	for (i = 0; i < spec->num_pins; i++) {
+		per_pin = get_pin(spec, i);
+		if (per_pin->pcm_idx == pcm_idx)
+			return per_pin;
+	}
+	return NULL;
+}
+
 static int cvt_nid_to_cvt_index(struct hda_codec *codec, hda_nid_t cvt_nid)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -2398,9 +2412,15 @@ static int hdmi_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
 	struct hda_codec *codec = info->private_data;
 	struct hdmi_spec *spec = codec->spec;
-	int pin_idx = kcontrol->private_value;
-	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
+	int pcm_idx = kcontrol->private_value;
+	struct hdmi_spec_per_pin *per_pin = pcm_idx_to_pin(spec, pcm_idx);
 	int i;
+
+	if (!per_pin) {
+		for (i = 0; i < spec->channels_max; i++)
+			ucontrol->value.integer.value[i] = 0;
+		return 0;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(per_pin->chmap); i++)
 		ucontrol->value.integer.value[i] = per_pin->chmap[i];
@@ -2413,12 +2433,18 @@ static int hdmi_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
 	struct hda_codec *codec = info->private_data;
 	struct hdmi_spec *spec = codec->spec;
-	int pin_idx = kcontrol->private_value;
-	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
+	int pcm_idx = kcontrol->private_value;
+	struct hdmi_spec_per_pin *per_pin = pcm_idx_to_pin(spec, pcm_idx);
 	unsigned int ctl_idx;
 	struct snd_pcm_substream *substream;
 	unsigned char chmap[8];
 	int i, err, ca, prepared = 0;
+
+	/* No monitor is connected in dyn_pcm_assign.
+	 * It's invalid to setup the chmap
+	 */
+	if (!per_pin)
+		return 0;
 
 	ctl_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	substream = snd_pcm_chmap_substream(info, ctl_idx);
@@ -2596,18 +2622,18 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 	}
 
 	/* add channel maps */
-	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+	for (pcm_idx = 0; pcm_idx < spec->pcm_used; pcm_idx++) {
 		struct hda_pcm *pcm;
 		struct snd_pcm_chmap *chmap;
 		struct snd_kcontrol *kctl;
 		int i;
 
-		pcm = get_pcm_rec(spec, pin_idx);
+		pcm = get_pcm_rec(spec, pcm_idx);
 		if (!pcm || !pcm->pcm)
 			break;
 		err = snd_pcm_add_chmap_ctls(pcm->pcm,
 					     SNDRV_PCM_STREAM_PLAYBACK,
-					     NULL, 0, pin_idx, &chmap);
+					     NULL, 0, pcm_idx, &chmap);
 		if (err < 0)
 			return err;
 		/* override handlers */
