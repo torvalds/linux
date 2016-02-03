@@ -1704,6 +1704,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 			priv->has_bluetooth = 1;
 		if (val32 & MULTI_GPS_FUNC_EN)
 			priv->has_gps = 1;
+		priv->is_multi_func = 1;
 	} else if (val32 & SYS_CFG_TYPE_ID) {
 		bonding = rtl8xxxu_read32(priv, REG_HPON_FSM);
 		bonding &= HPON_FSM_BONDING_MASK;
@@ -1938,9 +1939,11 @@ static int rtl8xxxu_read_efuse(struct rtl8xxxu_priv *priv)
 	if (val16 & EEPROM_BOOT)
 		priv->boot_eeprom = 1;
 
-	val32 = rtl8xxxu_read32(priv, REG_EFUSE_TEST);
-	val32 = (val32 & ~EFUSE_SELECT_MASK) | EFUSE_WIFI_SELECT;
-	rtl8xxxu_write32(priv, REG_EFUSE_TEST, val32);
+	if (priv->is_multi_func) {
+		val32 = rtl8xxxu_read32(priv, REG_EFUSE_TEST);
+		val32 = (val32 & ~EFUSE_SELECT_MASK) | EFUSE_WIFI_SELECT;
+		rtl8xxxu_write32(priv, REG_EFUSE_TEST, val32);
+	}
 
 	dev_dbg(dev, "Booting from %s\n",
 		priv->boot_eeprom ? "EEPROM" : "EFUSE");
