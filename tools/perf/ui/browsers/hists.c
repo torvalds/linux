@@ -1782,7 +1782,7 @@ static int
 add_thread_opt(struct hist_browser *browser, struct popup_action *act,
 	       char **optstr, struct thread *thread)
 {
-	if (thread == NULL)
+	if (!sort__has_thread || thread == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Zoom %s %s(%d) thread",
@@ -1825,7 +1825,7 @@ static int
 add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 	    char **optstr, struct map *map)
 {
-	if (map == NULL)
+	if (!sort__has_dso || map == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Zoom %s %s DSO",
@@ -1850,7 +1850,7 @@ static int
 add_map_opt(struct hist_browser *browser __maybe_unused,
 	    struct popup_action *act, char **optstr, struct map *map)
 {
-	if (map == NULL)
+	if (!sort__has_dso || map == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Browse map details") < 0)
@@ -1971,7 +1971,7 @@ static int
 add_socket_opt(struct hist_browser *browser, struct popup_action *act,
 	       char **optstr, int socket_id)
 {
-	if (socket_id < 0)
+	if (!sort__has_socket || socket_id < 0)
 		return 0;
 
 	if (asprintf(optstr, "Zoom %s Processor Socket %d",
@@ -2263,10 +2263,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		}
 
-		if (!sort__has_sym)
-			goto add_exit_option;
-
-		if (browser->selection == NULL)
+		if (!sort__has_sym || browser->selection == NULL)
 			goto skip_annotation;
 
 		if (sort__mode == SORT_MODE__BRANCH) {
@@ -2306,11 +2303,16 @@ skip_annotation:
 					     &options[nr_options],
 					     socked_id);
 		/* perf script support */
+		if (!is_report_browser(hbt))
+			goto skip_scripting;
+
 		if (browser->he_selection) {
-			nr_options += add_script_opt(browser,
-						     &actions[nr_options],
-						     &options[nr_options],
-						     thread, NULL);
+			if (sort__has_thread && thread) {
+				nr_options += add_script_opt(browser,
+							     &actions[nr_options],
+							     &options[nr_options],
+							     thread, NULL);
+			}
 			/*
 			 * Note that browser->selection != NULL
 			 * when browser->he_selection is not NULL,
@@ -2320,16 +2322,18 @@ skip_annotation:
 			 *
 			 * See hist_browser__show_entry.
 			 */
-			nr_options += add_script_opt(browser,
-						     &actions[nr_options],
-						     &options[nr_options],
-						     NULL, browser->selection->sym);
+			if (sort__has_sym && browser->selection->sym) {
+				nr_options += add_script_opt(browser,
+							     &actions[nr_options],
+							     &options[nr_options],
+							     NULL, browser->selection->sym);
+			}
 		}
 		nr_options += add_script_opt(browser, &actions[nr_options],
 					     &options[nr_options], NULL, NULL);
 		nr_options += add_switch_opt(browser, &actions[nr_options],
 					     &options[nr_options]);
-add_exit_option:
+skip_scripting:
 		nr_options += add_exit_opt(browser, &actions[nr_options],
 					   &options[nr_options]);
 

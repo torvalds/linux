@@ -62,7 +62,7 @@ Given a $HOME/.perfconfig like this:
 		medium = green, default
 		normal = lightgray, default
 		selected = white, lightgray
-		code = blue, default
+		jump_arrows = blue, default
 		addr = magenta, default
 		root = white, blue
 
@@ -97,6 +97,204 @@ Given a $HOME/.perfconfig like this:
 		print-type = graph
 		order = caller
 		sort-key = function
+
+Variables
+~~~~~~~~~
+
+colors.*::
+	The variables for customizing the colors used in the output for the
+	'report', 'top' and 'annotate' in the TUI. They should specify the
+	foreground and background colors, separated by a comma, for example:
+
+		medium = green, lightgray
+
+	If you want to use the color configured for you terminal, just leave it
+	as 'default', for example:
+
+		medium = default, lightgray
+
+	Available colors:
+	red, yellow, green, cyan, gray, black, blue,
+	white, default, magenta, lightgray
+
+	colors.top::
+		'top' means a overhead percentage which is more than 5%.
+		And values of this variable specify percentage colors.
+		Basic key values are foreground-color 'red' and
+		background-color 'default'.
+	colors.medium::
+		'medium' means a overhead percentage which has more than 0.5%.
+		Default values are 'green' and 'default'.
+	colors.normal::
+		'normal' means the rest of overhead percentages
+		except 'top', 'medium', 'selected'.
+		Default values are 'lightgray' and 'default'.
+	colors.selected::
+		This selects the colors for the current entry in a list of entries
+		from sub-commands (top, report, annotate).
+		Default values are 'black' and 'lightgray'.
+	colors.jump_arrows::
+		Colors for jump arrows on assembly code listings
+		such as 'jns', 'jmp', 'jane', etc.
+		Default values are 'blue', 'default'.
+	colors.addr::
+		This selects colors for addresses from 'annotate'.
+		Default values are 'magenta', 'default'.
+	colors.root::
+		Colors for headers in the output of a sub-commands (top, report).
+		Default values are 'white', 'blue'.
+
+tui.*, gtk.*::
+	Subcommands that can be configured here are 'top', 'report' and 'annotate'.
+	These values are booleans, for example:
+
+	[tui]
+		top = true
+
+	will make the TUI be the default for the 'top' subcommand. Those will be
+	available if the required libs were detected at tool build time.
+
+buildid.*::
+	buildid.dir::
+		Each executable and shared library in modern distributions comes with a
+		content based identifier that, if available, will be inserted in a
+		'perf.data' file header to, at analysis time find what is needed to do
+		symbol resolution, code annotation, etc.
+
+		The recording tools also stores a hard link or copy in a per-user
+		directory, $HOME/.debug/, of binaries, shared libraries, /proc/kallsyms
+		and /proc/kcore files to be used at analysis time.
+
+		The buildid.dir variable can be used to either change this directory
+		cache location, or to disable it altogether. If you want to disable it,
+		set buildid.dir to /dev/null. The default is $HOME/.debug
+
+annotate.*::
+	These options work only for TUI.
+	These are in control of addresses, jump function, source code
+	in lines of assembly code from a specific program.
+
+	annotate.hide_src_code::
+		If a program which is analyzed has source code,
+		this option lets 'annotate' print a list of assembly code with the source code.
+		For example, let's see a part of a program. There're four lines.
+		If this option is 'true', they can be printed
+		without source code from a program as below.
+
+		│        push   %rbp
+		│        mov    %rsp,%rbp
+		│        sub    $0x10,%rsp
+		│        mov    (%rdi),%rdx
+
+		But if this option is 'false', source code of the part
+		can be also printed as below. Default is 'false'.
+
+		│      struct rb_node *rb_next(const struct rb_node *node)
+		│      {
+		│        push   %rbp
+		│        mov    %rsp,%rbp
+		│        sub    $0x10,%rsp
+		│              struct rb_node *parent;
+		│
+		│              if (RB_EMPTY_NODE(node))
+		│        mov    (%rdi),%rdx
+		│              return n;
+
+        annotate.use_offset::
+		Basing on a first address of a loaded function, offset can be used.
+		Instead of using original addresses of assembly code,
+		addresses subtracted from a base address can be printed.
+		Let's illustrate an example.
+		If a base address is 0XFFFFFFFF81624d50 as below,
+
+		ffffffff81624d50 <load0>
+
+		an address on assembly code has a specific absolute address as below
+
+		ffffffff816250b8:│  mov    0x8(%r14),%rdi
+
+		but if use_offset is 'true', an address subtracted from a base address is printed.
+		Default is true. This option is only applied to TUI.
+
+		             368:│  mov    0x8(%r14),%rdi
+
+	annotate.jump_arrows::
+		There can be jump instruction among assembly code.
+		Depending on a boolean value of jump_arrows,
+		arrows can be printed or not which represent
+		where do the instruction jump into as below.
+
+		│     ┌──jmp    1333
+		│     │  xchg   %ax,%ax
+		│1330:│  mov    %r15,%r10
+		│1333:└─→cmp    %r15,%r14
+
+		If jump_arrow is 'false', the arrows isn't printed as below.
+		Default is 'false'.
+
+		│      ↓ jmp    1333
+		│        xchg   %ax,%ax
+		│1330:   mov    %r15,%r10
+		│1333:   cmp    %r15,%r14
+
+        annotate.show_linenr::
+		When showing source code if this option is 'true',
+		line numbers are printed as below.
+
+		│1628         if (type & PERF_SAMPLE_IDENTIFIER) {
+		│     ↓ jne    508
+		│1628                 data->id = *array;
+		│1629                 array++;
+		│1630         }
+
+		However if this option is 'false', they aren't printed as below.
+		Default is 'false'.
+
+		│             if (type & PERF_SAMPLE_IDENTIFIER) {
+		│     ↓ jne    508
+		│                     data->id = *array;
+		│                     array++;
+		│             }
+
+        annotate.show_nr_jumps::
+		Let's see a part of assembly code.
+
+		│1382:   movb   $0x1,-0x270(%rbp)
+
+		If use this, the number of branches jumping to that address can be printed as below.
+		Default is 'false'.
+
+		│1 1382:   movb   $0x1,-0x270(%rbp)
+
+        annotate.show_total_period::
+		To compare two records on an instruction base, with this option
+		provided, display total number of samples that belong to a line
+		in assembly code. If this option is 'true', total periods are printed
+		instead of percent values as below.
+
+		  302 │      mov    %eax,%eax
+
+		But if this option is 'false', percent values for overhead are printed i.e.
+		Default is 'false'.
+
+		99.93 │      mov    %eax,%eax
+
+hist.*::
+	hist.percentage::
+		This option control the way to calculate overhead of filtered entries -
+		that means the value of this option is effective only if there's a
+		filter (by comm, dso or symbol name). Suppose a following example:
+
+		       Overhead  Symbols
+		       ........  .......
+		        33.33%     foo
+		        33.33%     bar
+		        33.33%     baz
+
+	       This is an original overhead and we'll filter out the first 'foo'
+	       entry. The value of 'relative' would increase the overhead of 'bar'
+	       and 'baz' to 50.00% for each, while 'absolute' would show their
+	       current overhead (33.33%).
 
 SEE ALSO
 --------
