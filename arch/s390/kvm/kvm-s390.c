@@ -274,7 +274,6 @@ static void kvm_s390_sync_dirty_log(struct kvm *kvm,
 	unsigned long address;
 	struct gmap *gmap = kvm->arch.gmap;
 
-	down_read(&gmap->mm->mmap_sem);
 	/* Loop over all guest pages */
 	last_gfn = memslot->base_gfn + memslot->npages;
 	for (cur_gfn = memslot->base_gfn; cur_gfn <= last_gfn; cur_gfn++) {
@@ -283,7 +282,6 @@ static void kvm_s390_sync_dirty_log(struct kvm *kvm,
 		if (gmap_test_and_clear_dirty(address, gmap))
 			mark_page_dirty(kvm, cur_gfn);
 	}
-	up_read(&gmap->mm->mmap_sem);
 }
 
 /* Section: vm related */
