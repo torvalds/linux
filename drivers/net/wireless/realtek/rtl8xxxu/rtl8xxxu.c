@@ -2100,7 +2100,8 @@ static int rtl8xxxu_download_firmware(struct rtl8xxxu_priv *priv)
 
 	/* 8051 enable */
 	val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
-	rtl8xxxu_write16(priv, REG_SYS_FUNC, val16 | SYS_FUNC_CPU_ENABLE);
+	val16 |= SYS_FUNC_CPU_ENABLE;
+	rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
 
 	/* MCU firmware download enable */
 	val8 = rtl8xxxu_read8(priv, REG_MCU_FW_DL);
