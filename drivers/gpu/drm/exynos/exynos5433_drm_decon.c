@@ -402,8 +402,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 		decon_enable_vblank(ctx->crtc);
 
 	decon_commit(ctx->crtc);
-
-	set_bit(BIT_SUSPENDED, &ctx->flags);
 }
 
 static void decon_disable(struct exynos_drm_crtc *crtc)
