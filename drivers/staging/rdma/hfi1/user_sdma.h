@@ -69,7 +69,8 @@ struct hfi1_user_sdma_pkt_q {
 	struct iowait busy;
 	unsigned state;
 	wait_queue_head_t wait;
-	struct mm_struct *user_mm;
+	struct list_head iovec_list;
+	spinlock_t iovec_lock;   /* protect iovec_list */
 };
 
 struct hfi1_user_sdma_comp_q {
