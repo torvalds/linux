@@ -39,7 +39,7 @@ for arg in "$@"; do
                 if [ "$DEST" != "NONE" ]; then
 	                rsync -avz --exclude 'Documentation' --exclude '*.o' --exclude '.*' --exclude '*.cmd' --exclude '.git' --exclude '*.xz' -e ssh . $DEST 
                 fi
-                #sudo update-initramfs -u -k `uname -r`
+                sudo update-initramfs -u 
                 #sudo update-grub
                 [ $REBOOT == 1 ] && sudo reboot
                 exit 0
@@ -57,7 +57,8 @@ sudo rm -rf ../linux-image-*.deb
 PROCESSORS=`cat /proc/cpuinfo | grep processor | wc -l`
 export CONCURRENCY_LEVEL=`expr $PROCESSORS + 1`
 #export CLEAN_SOURCE=no
-fakeroot make-kpkg --initrd --revision=1.2 --append_to_version medusa kernel_image
+#fakeroot make-kpkg --initrd --revision=1.2 --append_to_version medusa kernel_image
+fakeroot make-kpkg --initrd --revision=1.2 kernel_image
 
 [ $? -ne 0 ] && exit 1
 
