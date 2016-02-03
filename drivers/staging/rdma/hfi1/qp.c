@@ -596,13 +596,13 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 {
 	struct hfi1_qp_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), gfp);
+	priv = kzalloc_node(sizeof(*priv), gfp, rdi->dparms.node);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
 	priv->owner = qp;
 
-	priv->s_hdr = kzalloc(sizeof(*priv->s_hdr), gfp);
+	priv->s_hdr = kzalloc_node(sizeof(*priv->s_hdr), gfp, rdi->dparms.node);
 	if (!priv->s_hdr) {
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
