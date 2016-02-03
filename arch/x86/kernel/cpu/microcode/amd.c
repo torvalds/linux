@@ -432,8 +432,8 @@ int __init save_microcode_in_initrd_amd(void)
 		container = cont_va;
 
 	if (ucode_new_rev)
-		pr_info("microcode: updated early to new patch_level=0x%08x\n",
-			ucode_new_rev);
+		pr_info_once("microcode updated early to new patch_level=0x%08x\n",
+			     ucode_new_rev);
 
 	eax   = cpuid_eax(0x00000001);
 	eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);
