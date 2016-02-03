@@ -236,7 +236,8 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 
 	if (base_status != MCC_STATUS_SUCCESS &&
 	    !be_skip_err_log(opcode, base_status, addl_status)) {
-		if (base_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
+		if (base_status == MCC_STATUS_UNAUTHORIZED_REQUEST ||
+		    addl_status == MCC_ADDL_STATUS_INSUFFICIENT_PRIVILEGES) {
 			dev_warn(&adapter->pdev->dev,
 				 "VF is not privileged to issue opcode %d-%d\n",
 				 opcode, subsystem);
