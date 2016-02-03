@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -85,10 +85,9 @@ static u8 snoop_flags;
 
 /*
  * Extract packet length from LRH header.
- * Why & 0x7FF? Because len is only 11 bits in case it wasn't 0'd we throw the
- * bogus bits away. This is in Dwords so multiply by 4 to get size in bytes
+ * This is in Dwords so multiply by 4 to get size in bytes
  */
-#define HFI1_GET_PKT_LEN(x)      (((be16_to_cpu((x)->lrh[2]) & 0x7FF)) << 2)
+#define HFI1_GET_PKT_LEN(x)      (((be16_to_cpu((x)->lrh[2]) & 0xFFF)) << 2)
 
 enum hfi1_filter_status {
 	HFI1_FILTER_HIT,
