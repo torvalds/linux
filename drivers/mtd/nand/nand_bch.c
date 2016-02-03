@@ -158,14 +158,6 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 
 	eccsteps = mtd->writesize/eccsize;
 
-	/*
-	 * Rely on the default ecclayout to ooblayout wrapper provided by MTD
-	 * core if ecc.layout is not NULL.
-	 * FIXME: this should be removed when all callers have moved to the
-	 * mtd_ooblayout_ops approach.
-	 */
-	mtd_set_ecclayout(mtd, nand->ecc.layout);
-
 	/* Check that we have an oob layout description. */
 	if (!mtd->ooblayout) {
 		pr_warn("missing oob scheme");
