@@ -472,7 +472,7 @@ static enum ucode_state microcode_init_cpu(int cpu, bool refresh_fw)
 	enum ucode_state ustate;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	if (uci && uci->valid)
+	if (uci->valid)
 		return UCODE_OK;
 
 	if (collect_cpu_info(cpu))
