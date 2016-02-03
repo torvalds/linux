@@ -77,6 +77,7 @@
 #define HFI1_MIN_USER_CTXT_BUFCNT 7
 
 #define HFI1_MIN_HDRQ_EGRBUF_CNT 2
+#define HFI1_MAX_HDRQ_EGRBUF_CNT 16352
 #define HFI1_MIN_EAGER_BUFFER_SIZE (4 * 1024) /* 4KB */
 #define HFI1_MAX_EAGER_BUFFER_SIZE (256 * 1024) /* 256KB */
 
@@ -1352,6 +1353,13 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Validate some global module parameters */
 	if (rcvhdrcnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
 		hfi1_early_err(&pdev->dev, "Header queue  count too small\n");
+		ret = -EINVAL;
+		goto bail;
+	}
+	if (rcvhdrcnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
+		hfi1_early_err(&pdev->dev,
+			       "Receive header queue count cannot be greater than %u\n",
+			       HFI1_MAX_HDRQ_EGRBUF_CNT);
 		ret = -EINVAL;
 		goto bail;
 	}
