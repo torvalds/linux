@@ -10711,8 +10711,7 @@ static void wait_for_vl_status_clear(struct hfi1_devdata *dd, u64 mask,
  * raise = if the new limit is higher than the current value (may be changed
  *	earlier in the algorithm), set the new limit to the new value
  */
-static int set_buffer_control(struct hfi1_devdata *dd,
-			      struct buffer_control *new_bc)
+int set_buffer_control(struct hfi1_devdata *dd, struct buffer_control *new_bc)
 {
 	u64 changing_mask, ld_mask, stat_mask;
 	int change_count;
