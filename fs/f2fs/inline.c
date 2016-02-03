@@ -124,8 +124,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	if (err)
 		return err;
 
-	f2fs_wait_on_page_writeback(page, DATA, true);
-
+	f2fs_bug_on(F2FS_P_SB(page), PageWriteback(page));
 	if (PageUptodate(page))
 		goto no_update;
 
