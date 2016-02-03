@@ -208,6 +208,7 @@ BUILD_CM_RW(l2_config,		MIPS_CM_GCB_OFS + 0x130)
 BUILD_CM_RW(sys_config2,	MIPS_CM_GCB_OFS + 0x150)
 BUILD_CM_RW(l2_pft_control,	MIPS_CM_GCB_OFS + 0x300)
 BUILD_CM_RW(l2_pft_control_b,	MIPS_CM_GCB_OFS + 0x308)
+BUILD_CM_RW(bev_base,		MIPS_CM_GCB_OFS + 0x680)
 
 /* Core Local & Core Other register accessor functions */
 BUILD_CM_Cx_RW(reset_release,	0x00)
