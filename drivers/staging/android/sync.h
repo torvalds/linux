@@ -32,10 +32,6 @@ struct sync_file;
  *			  1 if pt has signaled
  *			  0 if pt has not signaled
  *			 <0 on error
- * @fill_driver_data:	write implementation specific driver data to data.
- *			  should return an error if there is not enough room
- *			  as specified by size.  This information is returned
- *			  to userspace by SYNC_IOC_FENCE_INFO.
  * @timeline_value_str: fill str with the value of the sync_timeline's counter
  * @fence_value_str:	fill str with the value of the fence
  */
@@ -44,9 +40,6 @@ struct sync_timeline_ops {
 
 	/* required */
 	int (*has_signaled)(struct fence *fence);
-
-	/* optional */
-	int (*fill_driver_data)(struct fence *fence, void *data, int size);
 
 	/* optional */
 	void (*timeline_value_str)(struct sync_timeline *timeline, char *str,

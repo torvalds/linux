@@ -28,12 +28,11 @@ struct sync_merge_data {
 
 /**
  * struct sync_fence_info - detailed fence information
- * @len:		length of sync_fence_info including any driver_data
+ * @len:		length of sync_fence_info
  * @obj_name:		name of parent sync_timeline
  * @driver_name:	name of driver implementing the parent
  * @status:		status of the fence 0:active 1:signaled <0:error
  * @timestamp_ns:	timestamp of status change in nanoseconds
- * @driver_data:	any driver dependent data
  */
 struct sync_fence_info {
 	__u32	len;
@@ -41,8 +40,6 @@ struct sync_fence_info {
 	char	driver_name[32];
 	__s32	status;
 	__u64	timestamp_ns;
-
-	__u8	driver_data[0];
 };
 
 /**

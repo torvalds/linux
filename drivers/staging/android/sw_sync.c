@@ -47,19 +47,6 @@ static int sw_sync_fence_has_signaled(struct fence *fence)
 	return (pt->value > obj->value) ? 0 : 1;
 }
 
-static int sw_sync_fill_driver_data(struct fence *fence,
-				    void *data, int size)
-{
-	struct sw_sync_pt *pt = (struct sw_sync_pt *)fence;
-
-	if (size < sizeof(pt->value))
-		return -ENOMEM;
-
-	memcpy(data, &pt->value, sizeof(pt->value));
-
-	return sizeof(pt->value);
-}
-
 static void sw_sync_timeline_value_str(struct sync_timeline *sync_timeline,
 				       char *str, int size)
 {
@@ -78,7 +65,6 @@ static void sw_sync_fence_value_str(struct fence *fence, char *str, int size)
 static struct sync_timeline_ops sw_sync_timeline_ops = {
 	.driver_name = "sw_sync",
 	.has_signaled = sw_sync_fence_has_signaled,
-	.fill_driver_data = sw_sync_fill_driver_data,
 	.timeline_value_str = sw_sync_timeline_value_str,
 	.fence_value_str = sw_sync_fence_value_str,
 };
