@@ -93,7 +93,7 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
  */
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
 {
-	amdgpu_sync_free(adev, &ib->sync, &ib->fence->base);
+	amdgpu_sync_free(&ib->sync);
 	amdgpu_sa_bo_free(adev, &ib->sa_bo, &ib->fence->base);
 	if (ib->fence)
 		fence_put(&ib->fence->base);

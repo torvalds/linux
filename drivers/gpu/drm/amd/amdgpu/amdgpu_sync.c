@@ -240,15 +240,11 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync)
 /**
  * amdgpu_sync_free - free the sync object
  *
- * @adev: amdgpu_device pointer
  * @sync: sync object to use
- * @fence: fence to use for the free
  *
  * Free the sync object.
  */
-void amdgpu_sync_free(struct amdgpu_device *adev,
-		      struct amdgpu_sync *sync,
-		      struct fence *fence)
+void amdgpu_sync_free(struct amdgpu_sync *sync)
 {
 	struct amdgpu_sync_entry *e;
 	struct hlist_node *tmp;

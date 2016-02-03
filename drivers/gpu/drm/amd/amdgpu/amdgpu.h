@@ -644,8 +644,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     void *owner);
 struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
 int amdgpu_sync_wait(struct amdgpu_sync *sync);
-void amdgpu_sync_free(struct amdgpu_device *adev, struct amdgpu_sync *sync,
-		      struct fence *fence);
+void amdgpu_sync_free(struct amdgpu_sync *sync);
 
 /*
  * GART structures, functions & helpers
