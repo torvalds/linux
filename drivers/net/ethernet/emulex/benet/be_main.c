@@ -1917,8 +1917,7 @@ static u32 be_get_eq_delay_mult_enc(struct be_eq_obj *eqo)
 	if (!aic->enable)
 		return 0;
 
-	if (time_before_eq(now, aic->jiffies) ||
-	    jiffies_to_msecs(now - aic->jiffies) < 1)
+	if (jiffies_to_msecs(now - aic->jiffies) < 1)
 		eqd = aic->prev_eqd;
 	else
 		eqd = be_get_new_eqd(eqo);
