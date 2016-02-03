@@ -101,6 +101,9 @@ struct mtd_oob_ops {
  * similar, smaller struct nand_ecclayout_user (in mtd-abi.h) that is retained
  * for export to user-space via the ECCGETLAYOUT ioctl.
  * nand_ecclayout should be expandable in the future simply by the above macros.
+ *
+ * This structure is now deprecated, you should use struct nand_ecclayout_ops
+ * to describe your OOB layout.
  */
 struct nand_ecclayout {
 	__u32 eccbytes;
@@ -121,6 +124,22 @@ struct nand_ecclayout {
 struct mtd_oob_region {
 	u32 offset;
 	u32 length;
+};
+
+/*
+ * struct mtd_ooblayout_ops - NAND OOB layout operations
+ * @ecc: function returning an ECC region in the OOB area.
+ *	 Should return -ERANGE if %section exceeds the total number of
+ *	 ECC sections.
+ * @free: function returning a free region in the OOB area.
+ *	  Should return -ERANGE if %section exceeds the total number of
+ *	  free sections.
+ */
+struct mtd_ooblayout_ops {
+	int (*ecc)(struct mtd_info *mtd, int section,
+		   struct mtd_oob_region *oobecc);
+	int (*free)(struct mtd_info *mtd, int section,
+		    struct mtd_oob_region *oobfree);
 };
 
 struct module;	/* only needed for owner field in mtd_info */
@@ -181,8 +200,11 @@ struct mtd_info {
 	const char *name;
 	int index;
 
-	/* ECC layout structure pointer - read only! */
+	/* [Deprecated] ECC layout structure pointer - read only! */
 	struct nand_ecclayout *ecclayout;
+
+	/* OOB layout description */
+	const struct mtd_ooblayout_ops *ooblayout;
 
 	/* the ecc step size. */
 	unsigned int ecc_step_size;
@@ -286,10 +308,12 @@ int mtd_ooblayout_set_databytes(struct mtd_info *mtd, const u8 *databuf,
 int mtd_ooblayout_count_freebytes(struct mtd_info *mtd);
 int mtd_ooblayout_count_eccbytes(struct mtd_info *mtd);
 
-static inline void mtd_set_ecclayout(struct mtd_info *mtd,
-				     struct nand_ecclayout *ecclayout)
+void mtd_set_ecclayout(struct mtd_info *mtd, struct nand_ecclayout *ecclayout);
+
+static inline void mtd_set_ooblayout(struct mtd_info *mtd,
+				     const struct mtd_ooblayout_ops *ooblayout)
 {
-	mtd->ecclayout = ecclayout;
+	mtd->ooblayout = ooblayout;
 }
 
 static inline void mtd_set_of_node(struct mtd_info *mtd,
