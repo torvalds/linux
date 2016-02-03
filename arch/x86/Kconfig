@@ -1126,22 +1126,23 @@ config MICROCODE
 	bool "CPU microcode loading support"
 	default y
 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
-	depends on BLK_DEV_INITRD
 	select FW_LOADER
 	---help---
-
 	  If you say Y here, you will be able to update the microcode on
-	  certain Intel and AMD processors. The Intel support is for the
-	  IA32 family, e.g. Pentium Pro, Pentium II, Pentium III, Pentium 4,
-	  Xeon etc. The AMD support is for families 0x10 and later. You will
-	  obviously need the actual microcode binary data itself which is not
-	  shipped with the Linux kernel.
+	  Intel and AMD processors. The Intel support is for the IA32 family,
+	  e.g. Pentium Pro, Pentium II, Pentium III, Pentium 4, Xeon etc. The
+	  AMD support is for families 0x10 and later. You will obviously need
+	  the actual microcode binary data itself which is not shipped with
+	  the Linux kernel.
 
-	  This option selects the general module only, you need to select
-	  at least one vendor specific module as well.
+	  The preferred method to load microcode from a detached initrd is described
+	  in Documentation/x86/early-microcode.txt. For that you need to enable
+	  CONFIG_BLK_DEV_INITRD in order for the loader to be able to scan the
+	  initrd for microcode blobs.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called microcode.
+	  In addition, you can build-in the microcode into the kernel. For that you
+	  need to enable FIRMWARE_IN_KERNEL and add the vendor-supplied microcode
+	  to the CONFIG_EXTRA_FIRMWARE config option.
 
 config MICROCODE_INTEL
 	bool "Intel microcode loading support"

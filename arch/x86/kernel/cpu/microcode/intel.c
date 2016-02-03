@@ -698,7 +698,7 @@ int __init save_microcode_in_initrd_intel(void)
 	if (count == 0)
 		return ret;
 
-	copy_initrd_ptrs(mc_saved, mc_saved_in_initrd, initrd_start, count);
+	copy_initrd_ptrs(mc_saved, mc_saved_in_initrd, get_initrd_start(), count);
 	ret = save_microcode(&mc_saved_data, mc_saved, count);
 	if (ret)
 		pr_err("Cannot save microcode patches from initrd.\n");
@@ -760,20 +760,14 @@ void load_ucode_intel_ap(void)
 	struct mc_saved_data *mc_saved_data_p;
 	struct ucode_cpu_info uci;
 	unsigned long *mc_saved_in_initrd_p;
-	unsigned long initrd_start_addr;
 	enum ucode_state ret;
 #ifdef CONFIG_X86_32
-	unsigned long *initrd_start_p;
 
-	mc_saved_in_initrd_p =
-		(unsigned long *)__pa_nodebug(mc_saved_in_initrd);
+	mc_saved_in_initrd_p = (unsigned long *)__pa_nodebug(mc_saved_in_initrd);
 	mc_saved_data_p = (struct mc_saved_data *)__pa_nodebug(&mc_saved_data);
-	initrd_start_p = (unsigned long *)__pa_nodebug(&initrd_start);
-	initrd_start_addr = (unsigned long)__pa_nodebug(*initrd_start_p);
 #else
-	mc_saved_data_p = &mc_saved_data;
 	mc_saved_in_initrd_p = mc_saved_in_initrd;
-	initrd_start_addr = initrd_start;
+	mc_saved_data_p = &mc_saved_data;
 #endif
 
 	/*
@@ -785,7 +779,7 @@ void load_ucode_intel_ap(void)
 
 	collect_cpu_info_early(&uci);
 	ret = load_microcode(mc_saved_data_p, mc_saved_in_initrd_p,
-			     initrd_start_addr, &uci);
+			     get_initrd_start_addr(), &uci);
 
 	if (ret != UCODE_OK)
 		return;
