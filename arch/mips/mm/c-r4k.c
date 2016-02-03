@@ -1285,6 +1285,7 @@ static void probe_pcache(void)
 	case CPU_M5150:
 	case CPU_QEMU_GENERIC:
 	case CPU_I6400:
+	case CPU_P6600:
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
 		    (c->icache.waysize > PAGE_SIZE))
 			c->icache.flags |= MIPS_CACHE_ALIASES;

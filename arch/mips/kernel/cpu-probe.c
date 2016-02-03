@@ -539,6 +539,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 	switch (c->cputype) {
 	case CPU_PROAPTIV:
 	case CPU_P5600:
+	case CPU_P6600:
 		/* proAptiv & related cores use Config6 to enable the FTLB */
 		config = read_c0_config6();
 		/* Clear the old probability value */
