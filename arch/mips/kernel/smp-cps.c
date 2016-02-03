@@ -35,7 +35,8 @@ static unsigned core_vpe_count(unsigned core)
 {
 	unsigned cfg;
 
-	if (!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
+	if ((!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
+		&& (!config_enabled(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
 		return 1;
 
 	mips_cm_lock_other(core, 0);
@@ -47,11 +48,12 @@ static unsigned core_vpe_count(unsigned core)
 static void __init cps_smp_setup(void)
 {
 	unsigned int ncores, nvpes, core_vpes;
+	unsigned long core_entry;
 	int c, v;
 
 	/* Detect & record VPE topology */
 	ncores = mips_cm_numcores();
-	pr_info("VPE topology ");
+	pr_info("%s topology ", cpu_has_mips_r6 ? "VP" : "VPE");
 	for (c = nvpes = 0; c < ncores; c++) {
 		core_vpes = core_vpe_count(c);
 		pr_cont("%c%u", c ? ',' : '{', core_vpes);
@@ -62,7 +64,7 @@ static void __init cps_smp_setup(void)
 
 		for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
 			cpu_data[nvpes + v].core = c;
-#ifdef CONFIG_MIPS_MT_SMP
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
 			cpu_data[nvpes + v].vpe_id = v;
 #endif
 		}
@@ -90,6 +92,11 @@ static void __init cps_smp_setup(void)
 
 	/* Make core 0 coherent with everything */
 	write_gcr_cl_coherence(0xff);
+
+	if (mips_cm_revision() >= CM_REV_CM3) {
+		core_entry = CKSEG1ADDR((unsigned long)mips_cps_core_entry);
+		write_gcr_bev_base(core_entry);
+	}
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
@@ -213,6 +220,18 @@ static void boot_core(unsigned core)
 	if (mips_cpc_present()) {
 		/* Reset the core */
 		mips_cpc_lock_other(core);
+
+		if (mips_cm_revision() >= CM_REV_CM3) {
+			/* Run VP0 following the reset */
+			write_cpc_co_vp_run(0x1);
+
+			/*
+			 * Ensure that the VP_RUN register is written before the
+			 * core leaves reset.
+			 */
+			wmb();
+		}
+
 		write_cpc_co_cmd(CPC_Cx_CMD_RESET);
 
 		timeout = 100;
@@ -262,6 +281,7 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
 	struct vpe_boot_config *vpe_cfg = &core_cfg->vpe_config[vpe_id];
+	unsigned long core_entry;
 	unsigned int remote;
 	int err;
 
@@ -277,6 +297,13 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 		/* Boot a VPE on a powered down core */
 		boot_core(core);
 		goto out;
+	}
+
+	if (cpu_has_vp) {
+		mips_cm_lock_other(core, vpe_id);
+		core_entry = CKSEG1ADDR((unsigned long)mips_cps_core_entry);
+		write_gcr_co_reset_base(core_entry);
+		mips_cm_unlock_other();
 	}
 
 	if (core != current_cpu_data.core) {
@@ -296,7 +323,7 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 		goto out;
 	}
 
-	BUG_ON(!cpu_has_mipsmt);
+	BUG_ON(!cpu_has_mipsmt && !cpu_has_vp);
 
 	/* Boot a VPE on this core */
 	mips_cps_boot_vpes(core_cfg, vpe_id);

@@ -18,8 +18,11 @@
 #include <asm/mipsmtregs.h>
 #include <asm/pm.h>
 
+#define GCR_CPC_BASE_OFS	0x0088
 #define GCR_CL_COHERENCE_OFS	0x2008
 #define GCR_CL_ID_OFS		0x2028
+
+#define CPC_CL_VC_RUN_OFS	0x2028
 
 .extern mips_cm_base
 
@@ -56,6 +59,26 @@
 	bgez	\dest, \nomt
 	 mfc0	\dest, CP0_CONFIG, 3
 	andi	\dest, \dest, MIPS_CONF3_MT
+	beqz	\dest, \nomt
+	 nop
+	.endm
+
+	/*
+	 * Set dest to non-zero if the core supports MIPSr6 multithreading
+	 * (ie. VPs), else zero. If MIPSr6 multithreading is not supported then
+	 * branch to nomt.
+	 */
+	.macro	has_vp	dest, nomt
+	mfc0	\dest, CP0_CONFIG, 1
+	bgez	\dest, \nomt
+	 mfc0	\dest, CP0_CONFIG, 2
+	bgez	\dest, \nomt
+	 mfc0	\dest, CP0_CONFIG, 3
+	bgez	\dest, \nomt
+	 mfc0	\dest, CP0_CONFIG, 4
+	bgez	\dest, \nomt
+	 mfc0	\dest, CP0_CONFIG, 5
+	andi	\dest, \dest, MIPS_CONF5_VP
 	beqz	\dest, \nomt
 	 nop
 	.endm
@@ -296,7 +319,17 @@ LEAF(mips_cps_get_bootcfg)
 
 	/* Calculate this VPEs ID. If the core doesn't support MT use 0 */
 	li	t9, 0
-#ifdef CONFIG_MIPS_MT_SMP
+#if defined(CONFIG_CPU_MIPSR6)
+	has_vp	ta2, 1f
+
+	/*
+	 * Assume non-contiguous numbering. Perhaps some day we'll need
+	 * to handle contiguous VP numbering, but no such systems yet
+	 * exist.
+	 */
+	mfc0	t9, $3, 1
+	andi	t9, t9, 0xff
+#elif defined(CONFIG_MIPS_MT_SMP)
 	has_mt	ta2, 1f
 
 	/* Find the number of VPEs present in the core */
@@ -332,7 +365,23 @@ LEAF(mips_cps_boot_vpes)
 	PTR_L	ta2, COREBOOTCFG_VPEMASK(a0)
 	PTR_L	ta3, COREBOOTCFG_VPECONFIG(a0)
 
-#ifdef CONFIG_MIPS_MT
+#if defined(CONFIG_CPU_MIPSR6)
+
+	has_vp	t0, 5f
+
+	/* Find base address of CPC */
+	cmgcrb	t3
+	PTR_L	t1, GCR_CPC_BASE_OFS(t3)
+	PTR_LI	t2, ~0x7fff
+	and	t1, t1, t2
+	PTR_LI	t2, UNCAC_BASE
+	PTR_ADD	t1, t1, t2
+
+	/* Set VC_RUN to the VPE mask */
+	PTR_S	ta2, CPC_CL_VC_RUN_OFS(t1)
+	ehb
+
+#elif defined(CONFIG_MIPS_MT)
 
 	.set	push
 	.set	mt
