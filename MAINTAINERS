@@ -8168,6 +8168,13 @@ S:	Maintained
 F:	Documentation/mn10300/
 F:	arch/mn10300/
 
+PARALLEL LCD/KEYPAD PANEL DRIVER
+M:      Willy Tarreau <willy@haproxy.com>
+M:      Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+S:      Odd Fixes
+F:      Documentation/misc-devices/lcd-panel-cgram.txt
+F:      drivers/misc/panel.c
+
 PARALLEL PORT SUBSYSTEM
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 M:	Sudip Mukherjee <sudip@vectorindia.org>
@@ -10390,11 +10397,6 @@ L:	ac100@lists.launchpad.net (moderated for non-subscribers)
 L:	linux-tegra@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/nvec/
-
-STAGING - PARALLEL LCD/KEYPAD PANEL DRIVER
-M:	Willy Tarreau <willy@haproxy.com>
-S:	Odd Fixes
-F:	drivers/staging/panel/
 
 STAGING - REALTEK RTL8712U DRIVERS
 M:	Larry Finger <Larry.Finger@lwfinger.net>
