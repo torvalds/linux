@@ -323,17 +323,18 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct drm_msm_gem_submit *args = data;
 	struct msm_file_private *ctx = file->driver_priv;
 	struct msm_gem_submit *submit;
-	struct msm_gpu *gpu;
+	struct msm_gpu *gpu = priv->gpu;
 	unsigned i;
 	int ret;
+
+	if (!gpu)
+		return -ENXIO;
 
 	/* for now, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
 	 */
 	if (args->pipe != MSM_PIPE_3D0)
 		return -EINVAL;
-
-	gpu = priv->gpu;
 
 	if (args->nr_cmds > MAX_CMDS)
 		return -EINVAL;
