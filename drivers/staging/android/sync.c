@@ -300,44 +300,6 @@ struct sync_file *sync_file_merge(const char *name,
 }
 EXPORT_SYMBOL(sync_file_merge);
 
-int sync_file_wait(struct sync_file *sync_file, long timeout)
-{
-	long ret;
-	int i;
-
-	if (timeout < 0)
-		timeout = MAX_SCHEDULE_TIMEOUT;
-	else
-		timeout = msecs_to_jiffies(timeout);
-
-	trace_sync_wait(sync_file, 1);
-	for (i = 0; i < sync_file->num_fences; ++i)
-		trace_fence(sync_file->cbs[i].fence);
-	ret = wait_event_interruptible_timeout(sync_file->wq,
-					       atomic_read(&sync_file->status) <= 0,
-					       timeout);
-	trace_sync_wait(sync_file, 0);
-
-	if (ret < 0) {
-		return ret;
-	} else if (ret == 0) {
-		if (timeout) {
-			pr_info("sync_file timeout on [%p] after %dms\n",
-				sync_file, jiffies_to_msecs(timeout));
-			sync_dump();
-		}
-		return -ETIME;
-	}
-
-	ret = atomic_read(&sync_file->status);
-	if (ret) {
-		pr_info("sync_file error %ld on [%p]\n", ret, sync_file);
-		sync_dump();
-	}
-	return ret;
-}
-EXPORT_SYMBOL(sync_file_wait);
-
 static const char *android_fence_get_driver_name(struct fence *fence)
 {
 	struct sync_timeline *parent = fence_parent(fence);
@@ -476,17 +438,6 @@ static unsigned int sync_file_poll(struct file *file, poll_table *wait)
 	else if (status < 0)
 		return POLLERR;
 	return 0;
-}
-
-static long sync_file_ioctl_wait(struct sync_file *sync_file,
-				  unsigned long arg)
-{
-	__s32 value;
-
-	if (copy_from_user(&value, (void __user *)arg, sizeof(value)))
-		return -EFAULT;
-
-	return sync_file_wait(sync_file, value);
 }
 
 static long sync_file_ioctl_merge(struct sync_file *sync_file,
@@ -629,9 +580,6 @@ static long sync_file_ioctl(struct file *file, unsigned int cmd,
 	struct sync_file *sync_file = file->private_data;
 
 	switch (cmd) {
-	case SYNC_IOC_WAIT:
-		return sync_file_ioctl_wait(sync_file, arg);
-
 	case SYNC_IOC_MERGE:
 		return sync_file_ioctl_merge(sync_file, arg);
 

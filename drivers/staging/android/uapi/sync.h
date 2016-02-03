@@ -65,13 +65,6 @@ struct sync_file_info_data {
 #define SYNC_IOC_MAGIC		'>'
 
 /**
- * DOC: SYNC_IOC_WAIT - wait for a fence to signal
- *
- * pass timeout in milliseconds.  Waits indefinitely timeout < 0.
- */
-#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __s32)
-
-/**
  * DOC: SYNC_IOC_MERGE - merge two fences
  *
  * Takes a struct sync_merge_data.  Creates a new fence containing copies of

@@ -18,7 +18,6 @@
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/wait.h>
 #include <linux/fence.h>
 
 #include "uapi/sync.h"
@@ -229,18 +228,6 @@ void sync_file_put(struct sync_file *sync_file);
  * get_unused_fd_flags(O_CLOEXEC).
  */
 void sync_file_install(struct sync_file *sync_file, int fd);
-
-/**
- * sync_file_wait() - wait on sync file
- * @sync_file:	file to wait on
- * @tiemout:	timeout in ms
- *
- * Wait for @sync_file to be signaled or have an error. Waits indefinitely
- * if @timeout < 0.
- *
- * Returns 0 if fence signaled, > 0 if it is still active and <0 on error
- */
-int sync_file_wait(struct sync_file *sync_file, long timeout);
 
 #ifdef CONFIG_DEBUG_FS
 
