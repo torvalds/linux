@@ -351,8 +351,10 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	if (peer_stats_svc)
 		ath10k_sta_update_rx_duration(ar, &stats.peers);
 
-	if (ar->debug.fw_stats_done && !peer_stats_svc) {
-		ath10k_warn(ar, "received unsolicited stats update event\n");
+	if (ar->debug.fw_stats_done) {
+		if (!peer_stats_svc)
+			ath10k_warn(ar, "received unsolicited stats update event\n");
+
 		goto free;
 	}
 
