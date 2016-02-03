@@ -99,6 +99,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_keepalive_intvl;
 
 	int sysctl_tcp_syn_retries;
+	int sysctl_tcp_synack_retries;
 
 	struct ping_group_range ping_group_range;
 
