@@ -106,6 +106,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_retries2;
 	int sysctl_tcp_orphan_retries;
 	int sysctl_tcp_fin_timeout;
+	unsigned int sysctl_tcp_notsent_lowat;
 
 	struct ping_group_range ping_group_range;
 
