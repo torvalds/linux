@@ -720,29 +720,32 @@ static int be_set_phys_id(struct net_device *netdev,
 			  enum ethtool_phys_id_state state)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	int status = 0;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		be_cmd_get_beacon_state(adapter, adapter->hba_port_num,
-					&adapter->beacon_state);
-		return 1;	/* cycle on/off once per second */
+		status = be_cmd_get_beacon_state(adapter, adapter->hba_port_num,
+						 &adapter->beacon_state);
+		if (status)
+			return be_cmd_status(status);
+		return 1;       /* cycle on/off once per second */
 
 	case ETHTOOL_ID_ON:
-		be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
-					BEACON_STATE_ENABLED);
+		status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num,
+						 0, 0, BEACON_STATE_ENABLED);
 		break;
 
 	case ETHTOOL_ID_OFF:
-		be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
-					BEACON_STATE_DISABLED);
+		status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num,
+						 0, 0, BEACON_STATE_DISABLED);
 		break;
 
 	case ETHTOOL_ID_INACTIVE:
-		be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
-					adapter->beacon_state);
+		status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num,
+						 0, 0, adapter->beacon_state);
 	}
 
-	return 0;
+	return be_cmd_status(status);
 }
 
 static int be_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
