@@ -747,7 +747,7 @@ int skl_bind_modules(struct skl_sst *ctx,
 
 	skl_dump_bind_info(ctx, src_mcfg, dst_mcfg);
 
-	if (src_mcfg->m_state < SKL_MODULE_INIT_DONE &&
+	if (src_mcfg->m_state < SKL_MODULE_INIT_DONE ||
 		dst_mcfg->m_state < SKL_MODULE_INIT_DONE)
 		return 0;
 
