@@ -406,7 +406,7 @@ void tcp_init_sock(struct sock *sk)
 	tp->mss_cache = TCP_MSS_DEFAULT;
 	u64_stats_init(&tp->syncp);
 
-	tp->reordering = sysctl_tcp_reordering;
+	tp->reordering = sock_net(sk)->ipv4.sysctl_tcp_reordering;
 	tcp_enable_early_retrans(tp);
 	tcp_assign_congestion_control(sk);
 

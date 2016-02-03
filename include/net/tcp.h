@@ -961,9 +961,11 @@ static inline void tcp_enable_fack(struct tcp_sock *tp)
  */
 static inline void tcp_enable_early_retrans(struct tcp_sock *tp)
 {
+	struct net *net = sock_net((struct sock *)tp);
+
 	tp->do_early_retrans = sysctl_tcp_early_retrans &&
 		sysctl_tcp_early_retrans < 4 && !sysctl_tcp_thin_dupack &&
-		sysctl_tcp_reordering == 3;
+		net->ipv4.sysctl_tcp_reordering == 3;
 }
 
 static inline void tcp_disable_early_retrans(struct tcp_sock *tp)
