@@ -104,6 +104,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_reordering;
 	int sysctl_tcp_retries1;
 	int sysctl_tcp_retries2;
+	int sysctl_tcp_orphan_retries;
 
 	struct ping_group_range ping_group_range;
 
