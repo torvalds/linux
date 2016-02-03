@@ -737,7 +737,8 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 	ppd->driver_link_ready = 0;
 	ppd->offline_disabled_reason = HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
 
-	if (loopback == LOOPBACK_SERDES || loopback == LOOPBACK_LCB ||
+	/* Skip the tuning for testing (loopback != none) and simulations */
+	if (loopback != LOOPBACK_NONE ||
 	    ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR ||
 	    !dd->pcfg_cache.cache_valid) {
 		ppd->driver_link_ready = 1;
