@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -236,8 +236,6 @@ struct user_sdma_request {
 	u64 seqcomp;
 	u64 seqsubmitted;
 	struct list_head txps;
-	spinlock_t txcmp_lock;  /* protect txcmp list */
-	struct list_head txcmp;
 	unsigned long flags;
 	/* status of the last txreq completed */
 	int status;
@@ -381,14 +379,12 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 		goto pq_reqs_nomem;
 
 	INIT_LIST_HEAD(&pq->list);
-	INIT_LIST_HEAD(&pq->iovec_list);
 	pq->dd = dd;
 	pq->ctxt = uctxt->ctxt;
 	pq->subctxt = fd->subctxt;
 	pq->n_max_reqs = hfi1_sdma_comp_ring_size;
 	pq->state = SDMA_PKT_Q_INACTIVE;
 	atomic_set(&pq->n_reqs, 0);
-	spin_lock_init(&pq->iovec_lock);
 	init_waitqueue_head(&pq->wait);
 
 	iowait_init(&pq->busy, 0, NULL, defer_packet_queue,
@@ -444,7 +440,6 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_user_sdma_pkt_q *pq;
-	struct user_sdma_iovec *iov;
 	unsigned long flags;
 
 	hfi1_cdbg(SDMA, "[%u:%u:%u] Freeing user SDMA queues", uctxt->dd->unit,
@@ -460,15 +455,6 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 		wait_event_interruptible(
 			pq->wait,
 			(ACCESS_ONCE(pq->state) == SDMA_PKT_Q_INACTIVE));
-		/* Unpin any left over buffers. */
-		while (!list_empty(&pq->iovec_list)) {
-			spin_lock_irqsave(&pq->iovec_lock, flags);
-			iov = list_first_entry(&pq->iovec_list,
-					       struct user_sdma_iovec, list);
-			list_del_init(&iov->list);
-			spin_unlock_irqrestore(&pq->iovec_lock, flags);
-			unpin_vector_pages(iov);
-		}
 		kfree(pq->reqs);
 		kmem_cache_destroy(pq->txreq_cache);
 		kfree(pq);
@@ -492,11 +478,10 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	struct hfi1_user_sdma_pkt_q *pq = fd->pq;
 	struct hfi1_user_sdma_comp_q *cq = fd->cq;
 	struct hfi1_devdata *dd = pq->dd;
-	unsigned long idx = 0, flags;
+	unsigned long idx = 0, unpinned;
 	u8 pcount = initial_pkt_count;
 	struct sdma_req_info info;
 	struct user_sdma_request *req;
-	struct user_sdma_iovec *ioptr;
 	u8 opcode, sc, vl;
 
 	if (iovec[idx].iov_len < sizeof(info) + sizeof(req->hdr)) {
@@ -515,13 +500,11 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	}
 
 	/* Process any completed vectors */
-	while (!list_empty(&pq->iovec_list)) {
-		spin_lock_irqsave(&pq->iovec_lock, flags);
-		ioptr = list_first_entry(&pq->iovec_list,
-					 struct user_sdma_iovec, list);
-		list_del_init(&ioptr->list);
-		spin_unlock_irqrestore(&pq->iovec_lock, flags);
-		unpin_vector_pages(ioptr);
+	unpinned = xchg(&pq->unpinned, 0);
+	if (unpinned) {
+		down_write(&current->mm->mmap_sem);
+		current->mm->pinned_vm -= unpinned;
+		up_write(&current->mm->mmap_sem);
 	}
 
 	trace_hfi1_sdma_user_reqinfo(dd, uctxt->ctxt, fd->subctxt,
@@ -1075,10 +1058,6 @@ static int pin_vector_pages(struct user_sdma_request *req,
 		unpin_vector_pages(iovec);
 		return -EFAULT;
 	}
-	/*
-	 * Get a reference to the process's mm so we can use it when
-	 * unpinning the io vectors.
-	 */
 	return 0;
 }
 
@@ -1368,7 +1347,7 @@ static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status,
 	struct hfi1_user_sdma_pkt_q *pq;
 	struct hfi1_user_sdma_comp_q *cq;
 	u16 idx;
-	int i;
+	int i, j;
 
 	if (!tx->req)
 		return;
@@ -1379,15 +1358,19 @@ static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status,
 
 	/*
 	 * If we have any io vectors associated with this txreq,
-	 * check whether they need to be 'freed'. We can't free them
-	 * here because the unpin function needs to be able to sleep.
+	 * check whether they need to be 'freed'.
 	 */
 	for (i = tx->idx; i >= 0; i--) {
 		if (tx->iovecs[i].flags & TXREQ_FLAGS_IOVEC_LAST_PKT) {
-			spin_lock(&pq->iovec_lock);
-			list_add_tail(&tx->iovecs[i].vec->list,
-				      &pq->iovec_list);
-			spin_unlock(&pq->iovec_lock);
+			struct user_sdma_iovec *vec =
+				tx->iovecs[i].vec;
+
+			for (j = 0; j < vec->npages; j++)
+				put_page(vec->pages[j]);
+			xadd(&pq->unpinned, vec->npages);
+			kfree(vec->pages);
+			vec->pages = NULL;
+			vec->npages = 0;
 		}
 	}
 
