@@ -1729,7 +1729,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	init_completion(&req->r_safe_completion);
 	INIT_LIST_HEAD(&req->r_unsafe_item);
 
-	req->r_stamp = CURRENT_TIME;
+	req->r_stamp = current_fs_time(mdsc->fsc->sb);
 
 	req->r_op = op;
 	req->r_direct_mode = mode;

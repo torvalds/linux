@@ -999,7 +999,7 @@ retry:
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL,
 					       &prealloc_cf);
 		ci->i_xattrs.dirty = true;
-		inode->i_ctime = CURRENT_TIME;
+		inode->i_ctime = current_fs_time(inode->i_sb);
 	}
 
 	spin_unlock(&ci->i_ceph_lock);
@@ -1136,7 +1136,7 @@ retry:
 	dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL,
 				       &prealloc_cf);
 	ci->i_xattrs.dirty = true;
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_fs_time(inode->i_sb);
 	spin_unlock(&ci->i_ceph_lock);
 	if (lock_snap_rwsem)
 		up_read(&mdsc->snap_rwsem);
