@@ -311,6 +311,16 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 
 	aggr->val = aggr->ena = aggr->run = 0;
 
+	/*
+	 * We calculate counter's data every interval,
+	 * and the display code shows ps->res_stats
+	 * avg value. We need to zero the stats for
+	 * interval mode, otherwise overall avg running
+	 * averages will be shown for each interval.
+	 */
+	if (config->interval)
+		init_stats(ps->res_stats);
+
 	if (counter->per_pkg)
 		zero_per_pkg(counter);
 
