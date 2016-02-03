@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -3449,7 +3449,10 @@ static int __subn_set_opa_led_info(struct opa_smp *smp, u32 am, u8 *data,
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	setextled(dd, on);
+	if (on)
+		hfi1_set_led_override(dd->pport, 2000, 1500);
+	else
+		hfi1_set_led_override(dd->pport, 0, 0);
 
 	return __subn_get_opa_led_info(smp, am, data, ibdev, port, resp_len);
 }

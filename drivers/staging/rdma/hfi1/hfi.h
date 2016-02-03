@@ -7,7 +7,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -669,14 +669,17 @@ struct hfi1_pportdata {
 	u8 overrun_threshold;
 	u8 phy_error_threshold;
 
-	/* used to override LED behavior */
-	u8 led_override;  /* Substituted for normal value, if non-zero */
-	u16 led_override_timeoff; /* delta to next timer event */
-	u8 led_override_vals[2]; /* Alternates per blink-frame */
-	u8 led_override_phase; /* Just counts, LSB picks from vals[] */
+	/* Used to override LED behavior for things like maintenance beaconing*/
+	/*
+	 * Alternates per phase of blink
+	 * [0] holds LED off duration, [1] holds LED on duration
+	 */
+	unsigned long led_override_vals[2];
+	u8 led_override_phase; /* LSB picks from vals[] */
 	atomic_t led_override_timer_active;
 	/* Used to flash LEDs in override mode */
 	struct timer_list led_override_timer;
+
 	u32 sm_trap_qp;
 	u32 sa_qp;
 
@@ -1599,14 +1602,14 @@ void hfi1_free_devdata(struct hfi1_devdata *);
 void cc_state_reclaim(struct rcu_head *rcu);
 struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
+void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
+			   unsigned int timeoff);
 /*
- * Set LED override, only the two LSBs have "public" meaning, but
- * any non-zero value substitutes them for the Link and LinkTrain
- * LED states.
+ * Only to be used for driver unload or device reset where we cannot allow
+ * the timer to fire even the one extra time, else use hfi1_set_led_override
+ * with timeon = timeoff = 0
  */
-#define HFI1_LED_PHYS 1 /* Physical (linktraining) GREEN LED */
-#define HFI1_LED_LOG 2  /* Logical (link) YELLOW LED */
-void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int val);
+void shutdown_led_override(struct hfi1_pportdata *ppd);
 
 #define HFI1_CREDIT_RETURN_RATE (100)
 

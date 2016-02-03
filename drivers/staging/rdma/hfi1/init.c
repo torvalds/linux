@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -907,6 +907,8 @@ static void shutdown_device(struct hfi1_devdata *dd)
 			sc_disable(dd->send_contexts[i].sc);
 		/* disable the send device */
 		pio_send_control(dd, PSC_GLOBAL_DISABLE);
+
+		shutdown_led_override(ppd);
 
 		/*
 		 * Clear SerdesEnable.

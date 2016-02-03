@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1172,63 +1172,64 @@ int hfi1_set_lid(struct hfi1_pportdata *ppd, u32 lid, u8 lmc)
 	return 0;
 }
 
-/*
- * Following deal with the "obviously simple" task of overriding the state
- * of the LEDs, which normally indicate link physical and logical status.
- * The complications arise in dealing with different hardware mappings
- * and the board-dependent routine being called from interrupts.
- * and then there's the requirement to _flash_ them.
- */
-#define LED_OVER_FREQ_SHIFT 8
-#define LED_OVER_FREQ_MASK (0xFF<<LED_OVER_FREQ_SHIFT)
-/* Below is "non-zero" to force override, but both actual LEDs are off */
-#define LED_OVER_BOTH_OFF (8)
+void shutdown_led_override(struct hfi1_pportdata *ppd)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+
+	if (atomic_read(&ppd->led_override_timer_active)) {
+		del_timer_sync(&ppd->led_override_timer);
+		atomic_set(&ppd->led_override_timer_active, 0);
+	}
+
+	/* Shut off LEDs after we are sure timer is not running */
+	setextled(dd, 0);
+}
 
 static void run_led_override(unsigned long opaque)
 {
 	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)opaque;
 	struct hfi1_devdata *dd = ppd->dd;
-	int timeoff;
-	int ph_idx;
+	unsigned long timeout;
+	int phase_idx;
 
 	if (!(dd->flags & HFI1_INITTED))
 		return;
 
-	ph_idx = ppd->led_override_phase++ & 1;
-	ppd->led_override = ppd->led_override_vals[ph_idx];
-	timeoff = ppd->led_override_timeoff;
+	phase_idx = ppd->led_override_phase & 1;
+	setextled(dd, phase_idx);
+
+	timeout = ppd->led_override_vals[phase_idx];
+	/* Set up for next phase */
+	ppd->led_override_phase = !ppd->led_override_phase;
 
 	/*
 	 * don't re-fire the timer if user asked for it to be off; we let
 	 * it fire one more time after they turn it off to simplify
 	 */
 	if (ppd->led_override_vals[0] || ppd->led_override_vals[1])
-		mod_timer(&ppd->led_override_timer, jiffies + timeoff);
+		mod_timer(&ppd->led_override_timer, jiffies + timeout);
+	else
+		/* Hand control of the LED to the DC for normal operation */
+		write_csr(dd, DCC_CFG_LED_CNTRL, 0);
 }
 
-void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int val)
+/*
+ * To have the LED blink in a particular pattern, provide timeon and timeoff
+ * in milliseconds. To turn off custom blinking and return to normal operation,
+ * provide timeon = timeoff = 0.
+ */
+void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
+			   unsigned int timeoff)
 {
 	struct hfi1_devdata *dd = ppd->dd;
-	int timeoff, freq;
 
 	if (!(dd->flags & HFI1_INITTED))
 		return;
 
-	/* First check if we are blinking. If not, use 1HZ polling */
-	timeoff = HZ;
-	freq = (val & LED_OVER_FREQ_MASK) >> LED_OVER_FREQ_SHIFT;
-
-	if (freq) {
-		/* For blink, set each phase from one nybble of val */
-		ppd->led_override_vals[0] = val & 0xF;
-		ppd->led_override_vals[1] = (val >> 4) & 0xF;
-		timeoff = (HZ << 4)/freq;
-	} else {
-		/* Non-blink set both phases the same. */
-		ppd->led_override_vals[0] = val & 0xF;
-		ppd->led_override_vals[1] = val & 0xF;
-	}
-	ppd->led_override_timeoff = timeoff;
+	/* Convert to jiffies for direct use in timer */
+	ppd->led_override_vals[0] = msecs_to_jiffies(timeoff);
+	ppd->led_override_vals[1] = msecs_to_jiffies(timeon);
+	ppd->led_override_phase = 1; /* Arbitrarily start from LED on phase */
 
 	/*
 	 * If the timer has not already been started, do so. Use a "quick"
@@ -1293,14 +1294,8 @@ int hfi1_reset_device(int unit)
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		ppd = dd->pport + pidx;
-		if (atomic_read(&ppd->led_override_timer_active)) {
-			/* Need to stop LED timer, _then_ shut off LEDs */
-			del_timer_sync(&ppd->led_override_timer);
-			atomic_set(&ppd->led_override_timer_active, 0);
-		}
 
-		/* Shut off LEDs after we are sure timer is not running */
-		ppd->led_override = LED_OVER_BOTH_OFF;
+		shutdown_led_override(ppd);
 	}
 	if (dd->flags & HFI1_HAS_SEND_DMA)
 		sdma_exit(dd);
