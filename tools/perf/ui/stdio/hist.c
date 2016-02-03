@@ -165,8 +165,28 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 	return ret;
 }
 
+/*
+ * If have one single callchain root, don't bother printing
+ * its percentage (100 % in fractal mode and the same percentage
+ * than the hist in graph mode). This also avoid one level of column.
+ *
+ * However when percent-limit applied, it's possible that single callchain
+ * node have different (non-100% in fractal mode) percentage.
+ */
+static bool need_percent_display(struct rb_node *node, u64 parent_samples)
+{
+	struct callchain_node *cnode;
+
+	if (rb_next(node))
+		return true;
+
+	cnode = rb_entry(node, struct callchain_node, rb_node);
+	return callchain_cumul_hits(cnode) != parent_samples;
+}
+
 static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
-				       u64 total_samples, int left_margin)
+				       u64 total_samples, u64 parent_samples,
+				       int left_margin)
 {
 	struct callchain_node *cnode;
 	struct callchain_list *chain;
@@ -177,13 +197,8 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 	int ret = 0;
 	char bf[1024];
 
-	/*
-	 * If have one single callchain root, don't bother printing
-	 * its percentage (100 % in fractal mode and the same percentage
-	 * than the hist in graph mode). This also avoid one level of column.
-	 */
 	node = rb_first(root);
-	if (node && !rb_next(node)) {
+	if (node && !need_percent_display(node, parent_samples)) {
 		cnode = rb_entry(node, struct callchain_node, rb_node);
 		list_for_each_entry(chain, &cnode->val, list) {
 			/*
@@ -213,9 +228,15 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 		root = &cnode->rb_root;
 	}
 
+	if (callchain_param.mode == CHAIN_GRAPH_REL)
+		total_samples = parent_samples;
+
 	ret += __callchain__fprintf_graph(fp, root, total_samples,
 					  1, 1, left_margin);
-	ret += fprintf(fp, "\n");
+	if (ret) {
+		/* do not add a blank line if it printed nothing */
+		ret += fprintf(fp, "\n");
+	}
 
 	return ret;
 }
@@ -323,16 +344,19 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 					    u64 total_samples, int left_margin,
 					    FILE *fp)
 {
+	u64 parent_samples = he->stat.period;
+
+	if (symbol_conf.cumulate_callchain)
+		parent_samples = he->stat_acc->period;
+
 	switch (callchain_param.mode) {
 	case CHAIN_GRAPH_REL:
-		return callchain__fprintf_graph(fp, &he->sorted_chain,
-						symbol_conf.cumulate_callchain ?
-						he->stat_acc->period : he->stat.period,
-						left_margin);
+		return callchain__fprintf_graph(fp, &he->sorted_chain, total_samples,
+						parent_samples, left_margin);
 		break;
 	case CHAIN_GRAPH_ABS:
 		return callchain__fprintf_graph(fp, &he->sorted_chain, total_samples,
-						left_margin);
+						parent_samples, left_margin);
 		break;
 	case CHAIN_FLAT:
 		return callchain__fprintf_flat(fp, &he->sorted_chain, total_samples);
@@ -347,30 +371,6 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 	}
 
 	return 0;
-}
-
-static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
-					    struct hists *hists,
-					    FILE *fp)
-{
-	int left_margin = 0;
-	u64 total_period = hists->stats.total_period;
-
-	if (field_order == NULL && (sort_order == NULL ||
-				    !prefixcmp(sort_order, "comm"))) {
-		struct perf_hpp_fmt *fmt;
-
-		perf_hpp__for_each_format(fmt) {
-			if (!perf_hpp__is_sort_entry(fmt))
-				continue;
-
-			/* must be 'comm' sort entry */
-			left_margin = fmt->width(fmt, NULL, hists_to_evsel(hists));
-			left_margin -= thread__comm_len(he->thread);
-			break;
-		}
-	}
-	return hist_entry_callchain__fprintf(he, total_period, left_margin, fp);
 }
 
 static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
@@ -418,6 +418,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 		.buf		= bf,
 		.size		= size,
 	};
+	u64 total_period = hists->stats.total_period;
 
 	if (size == 0 || size > bfsz)
 		size = hpp.size = bfsz;
@@ -427,7 +428,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	ret = fprintf(fp, "%s\n", bf);
 
 	if (symbol_conf.use_callchain)
-		ret += hist_entry__callchain_fprintf(he, hists, fp);
+		ret += hist_entry_callchain__fprintf(he, total_period, 0, fp);
 
 	return ret;
 }

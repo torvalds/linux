@@ -432,8 +432,12 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 		cmp = hist_entry__cmp(he, entry);
 
 		if (!cmp) {
-			if (sample_self)
+			if (sample_self) {
 				he_stat__add_period(&he->stat, period, weight);
+				hists->stats.total_period += period;
+				if (!he->filtered)
+					hists->stats.total_non_filtered_period += period;
+			}
 			if (symbol_conf.cumulate_callchain)
 				he_stat__add_period(he->stat_acc, period, weight);
 
@@ -466,7 +470,10 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 	if (!he)
 		return NULL;
 
-	hists->nr_entries++;
+	if (sample_self)
+		hists__inc_stats(hists, he);
+	else
+		hists->nr_entries++;
 
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, hists->entries_in);
@@ -1163,9 +1170,18 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
 
-	if (use_callchain)
+	if (use_callchain) {
+		if (callchain_param.mode == CHAIN_GRAPH_REL) {
+			u64 total = he->stat.period;
+
+			if (symbol_conf.cumulate_callchain)
+				total = he->stat_acc->period;
+
+			min_callchain_hits = total * (callchain_param.min_percent / 100);
+		}
 		callchain_param.sort(&he->sorted_chain, he->callchain,
 				      min_callchain_hits, &callchain_param);
+	}
 
 	while (*p != NULL) {
 		parent = *p;
@@ -1195,7 +1211,7 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 	else
 		use_callchain = symbol_conf.use_callchain;
 
-	min_callchain_hits = hists->stats.total_period * (callchain_param.min_percent / 100);
+	min_callchain_hits = hists__total_period(hists) * (callchain_param.min_percent / 100);
 
 	if (sort__need_collapse)
 		root = &hists->entries_collapsed;

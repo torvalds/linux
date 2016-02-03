@@ -75,7 +75,10 @@ static int report__config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 	if (!strcmp(var, "report.percent-limit")) {
-		rep->min_percent = strtof(value, NULL);
+		double pcnt = strtof(value, NULL);
+
+		rep->min_percent = pcnt;
+		callchain_param.min_percent = pcnt;
 		return 0;
 	}
 	if (!strcmp(var, "report.children")) {
@@ -633,8 +636,10 @@ parse_percent_limit(const struct option *opt, const char *str,
 		    int unset __maybe_unused)
 {
 	struct report *rep = opt->value;
+	double pcnt = strtof(str, NULL);
 
-	rep->min_percent = strtof(str, NULL);
+	rep->min_percent = pcnt;
+	callchain_param.min_percent = pcnt;
 	return 0;
 }
 
