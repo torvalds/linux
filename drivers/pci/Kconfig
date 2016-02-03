@@ -1,6 +1,9 @@
 #
 # PCI configuration
 #
+
+source "drivers/pci/pcie/Kconfig"
+
 config PCI_BUS_ADDR_T_64BIT
 	def_bool y if (ARCH_DMA_ADDR_T_64BIT || 64BIT)
 	depends on PCI

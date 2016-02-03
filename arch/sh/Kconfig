@@ -847,8 +847,6 @@ config PCI
 config PCI_DOMAINS
 	bool
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"

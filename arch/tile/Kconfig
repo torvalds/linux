@@ -455,7 +455,6 @@ config TILE_PCI_IO
 
 source "drivers/pci/Kconfig"
 
-source "drivers/pci/pcie/Kconfig"
 
 config TILE_USB
 	tristate "Tilera USB host adapter support"

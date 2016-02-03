@@ -605,7 +605,6 @@ config PCI_NR_MSI
 	  PCI devices.
 
 source "drivers/pci/Kconfig"
-source "drivers/pci/pcie/Kconfig"
 source "drivers/pci/hotplug/Kconfig"
 
 endif	# PCI
