@@ -13,7 +13,7 @@ config RTL8XXXU
 	  This driver is under development and has a limited feature
 	  set. In particular it does not yet support 40MHz channels
 	  and power management. However it should have a smaller
-	  memory footprint than the vendor drivers and benetifs
+	  memory footprint than the vendor drivers and benefits
 	  from the in kernel mac80211 stack.
 
 	  It can coexist with drivers from drivers/staging/rtl8723au,
