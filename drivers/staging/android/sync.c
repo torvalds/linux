@@ -525,7 +525,7 @@ static int sync_fill_fence_info(struct fence *fence, void *data, int size)
 static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 					unsigned long arg)
 {
-	struct sync_file_info_data *data;
+	struct sync_file_info *info;
 	__u32 size;
 	__u32 len = 0;
 	int ret, i;
@@ -533,27 +533,27 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	if (copy_from_user(&size, (void __user *)arg, sizeof(size)))
 		return -EFAULT;
 
-	if (size < sizeof(struct sync_file_info_data))
+	if (size < sizeof(struct sync_file_info))
 		return -EINVAL;
 
 	if (size > 4096)
 		size = 4096;
 
-	data = kzalloc(size, GFP_KERNEL);
-	if (!data)
+	info = kzalloc(size, GFP_KERNEL);
+	if (!info)
 		return -ENOMEM;
 
-	strlcpy(data->name, sync_file->name, sizeof(data->name));
-	data->status = atomic_read(&sync_file->status);
-	if (data->status >= 0)
-		data->status = !data->status;
+	strlcpy(info->name, sync_file->name, sizeof(info->name));
+	info->status = atomic_read(&sync_file->status);
+	if (info->status >= 0)
+		info->status = !info->status;
 
-	len = sizeof(struct sync_file_info_data);
+	len = sizeof(struct sync_file_info);
 
 	for (i = 0; i < sync_file->num_fences; ++i) {
 		struct fence *fence = sync_file->cbs[i].fence;
 
-		ret = sync_fill_fence_info(fence, (u8 *)data + len, size - len);
+		ret = sync_fill_fence_info(fence, (u8 *)info + len, size - len);
 
 		if (ret < 0)
 			goto out;
@@ -561,15 +561,15 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 		len += ret;
 	}
 
-	data->len = len;
+	info->len = len;
 
-	if (copy_to_user((void __user *)arg, data, len))
+	if (copy_to_user((void __user *)arg, info, len))
 		ret = -EFAULT;
 	else
 		ret = 0;
 
 out:
-	kfree(data);
+	kfree(info);
 
 	return ret;
 }
