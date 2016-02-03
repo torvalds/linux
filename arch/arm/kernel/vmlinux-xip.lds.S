@@ -3,10 +3,6 @@
  * Written by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  */
 
-#ifdef CONFIG_XIP_KERNEL
-#include "vmlinux-xip.lds.S"
-#else
-
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
@@ -88,7 +84,8 @@ SECTIONS
 		*(.discard.*)
 	}
 
-	. = PAGE_OFFSET + TEXT_OFFSET;
+	. = XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR);
+
 	.head.text : {
 		_text = .;
 		HEAD_TEXT
@@ -117,7 +114,7 @@ SECTIONS
 			ARM_CPU_KEEP(PROC_INFO)
 	}
 
-#ifdef CONFIG_DEBUG_ALIGN_RODATA
+#ifdef CONFIG_DEBUG_RODATA
 	. = ALIGN(1<<SECTION_SHIFT);
 #endif
 	RO_DATA(PAGE_SIZE)
@@ -151,13 +148,6 @@ SECTIONS
 	NOTES
 
 	_etext = .;			/* End of text and rodata section */
-
-#ifdef CONFIG_DEBUG_RODATA
-	. = ALIGN(1<<SECTION_SHIFT);
-#else
-	. = ALIGN(PAGE_SIZE);
-#endif
-	__init_begin = .;
 
 	/*
 	 * The vectors and stubs are relocatable code, and the
@@ -207,28 +197,19 @@ SECTIONS
 		__pv_table_end = .;
 	}
 	.init.data : {
-		INIT_DATA
 		INIT_SETUP(16)
 		INIT_CALLS
 		CON_INITCALL
 		SECURITY_INITCALL
 		INIT_RAM_FS
 	}
-	.exit.data : {
-		ARM_EXIT_KEEP(EXIT_DATA)
-	}
 
 #ifdef CONFIG_SMP
 	PERCPU_SECTION(L1_CACHE_BYTES)
 #endif
 
-#ifdef CONFIG_DEBUG_RODATA
-	. = ALIGN(1<<SECTION_SHIFT);
-#else
-	. = ALIGN(THREAD_SIZE);
-#endif
-	__init_end = .;
-	__data_loc = .;
+	__data_loc = ALIGN(4);		/* location in binary */
+	. = PAGE_OFFSET + TEXT_OFFSET;
 
 	.data : AT(__data_loc) {
 		_data = .;		/* address in memory */
@@ -239,6 +220,13 @@ SECTIONS
 		 * to an 8192 byte boundary.
 		 */
 		INIT_TASK_DATA(THREAD_SIZE)
+
+		. = ALIGN(PAGE_SIZE);
+		__init_begin = .;
+		INIT_DATA
+		ARM_EXIT_KEEP(EXIT_DATA)
+		. = ALIGN(PAGE_SIZE);
+		__init_end = .;
 
 		NOSAVE_DATA
 		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
@@ -332,5 +320,3 @@ ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")
  */
 ASSERT(__hyp_idmap_text_end - (__hyp_idmap_text_start & PAGE_MASK) <= PAGE_SIZE,
 	"HYP init code too big or misaligned")
-
-#endif /* CONFIG_XIP_KERNEL */
