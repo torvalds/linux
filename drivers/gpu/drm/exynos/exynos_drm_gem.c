@@ -218,7 +218,7 @@ static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
 		return ERR_PTR(ret);
 	}
 
-	DRM_DEBUG_KMS("created file object = 0x%x\n", (unsigned int)obj->filp);
+	DRM_DEBUG_KMS("created file object = %p\n", obj->filp);
 
 	return exynos_gem;
 }
