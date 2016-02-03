@@ -571,16 +571,25 @@ ssize_t f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t ret = 0;
 
 	map.m_lblk = F2FS_BYTES_TO_BLK(iocb->ki_pos);
-	map.m_len = F2FS_BYTES_TO_BLK(iov_iter_count(from));
+	map.m_len = F2FS_BLK_ALIGN(iov_iter_count(from));
 	map.m_next_pgofs = NULL;
 
-	if (iocb->ki_flags & IOCB_DIRECT &&
-		!(f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))) {
+	if (f2fs_encrypted_inode(inode))
+		return 0;
+
+	if (iocb->ki_flags & IOCB_DIRECT) {
 		ret = f2fs_convert_inline_inode(inode);
 		if (ret)
 			return ret;
-		ret = f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_DIO);
+		return f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_DIO);
 	}
+	if (iocb->ki_pos + iov_iter_count(from) > MAX_INLINE_DATA) {
+		ret = f2fs_convert_inline_inode(inode);
+		if (ret)
+			return ret;
+	}
+	if (!f2fs_has_inline_data(inode))
+		return f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_AIO);
 	return ret;
 }
 
@@ -612,7 +621,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	/* it only supports block size == page size */
 	pgofs =	(pgoff_t)map->m_lblk;
 
-	if (f2fs_lookup_extent_cache(inode, pgofs, &ei)) {
+	if (!create && f2fs_lookup_extent_cache(inode, pgofs, &ei)) {
 		map->m_pblk = ei.blk + pgofs - ei.fofs;
 		map->m_len = min((pgoff_t)maxblocks, ei.fofs + ei.len - pgofs);
 		map->m_flags = F2FS_MAP_MAPPED;
@@ -647,7 +656,12 @@ next_block:
 				err = -EIO;
 				goto sync_out;
 			}
-			err = __allocate_data_block(&dn);
+			if (flag == F2FS_GET_BLOCK_PRE_AIO) {
+				if (blkaddr == NULL_ADDR)
+					err = reserve_new_block(&dn);
+			} else {
+				err = __allocate_data_block(&dn);
+			}
 			if (err)
 				goto sync_out;
 			allocated = true;
@@ -679,7 +693,8 @@ next_block:
 	} else if ((map->m_pblk != NEW_ADDR &&
 			blkaddr == (map->m_pblk + ofs)) ||
 			(map->m_pblk == NEW_ADDR && blkaddr == NEW_ADDR) ||
-			flag == F2FS_GET_BLOCK_PRE_DIO) {
+			flag == F2FS_GET_BLOCK_PRE_DIO ||
+			flag == F2FS_GET_BLOCK_PRE_AIO) {
 		ofs++;
 		map->m_len++;
 	} else {
@@ -1417,6 +1432,14 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
 	bool locked = false;
 	struct extent_info ei;
 	int err = 0;
+
+	/*
+	 * we already allocated all the blocks, so we don't need to get
+	 * the block addresses when there is no need to fill the page.
+	 */
+	if (!f2fs_has_inline_data(inode) && !f2fs_encrypted_inode(inode) &&
+					len == PAGE_CACHE_SIZE)
+		return 0;
 
 	if (f2fs_has_inline_data(inode) ||
 			(pos & PAGE_CACHE_MASK) >= i_size_read(inode)) {
