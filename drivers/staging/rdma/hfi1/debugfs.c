@@ -463,7 +463,8 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 		goto _free;
 	}
 
-	i2c_addr = (*ppos >> 16) & 0xff;
+	/* byte offset format: [offsetSize][i2cAddr][offsetHigh][offsetLow] */
+	i2c_addr = (*ppos >> 16) & 0xffff;
 	offset = *ppos & 0xffff;
 
 	total_written = i2c_write(ppd, target, i2c_addr, offset, buff, count);
@@ -517,7 +518,8 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 		goto _return;
 	}
 
-	i2c_addr = (*ppos >> 16) & 0xff;
+	/* byte offset format: [offsetSize][i2cAddr][offsetHigh][offsetLow] */
+	i2c_addr = (*ppos >> 16) & 0xffff;
 	offset = *ppos & 0xffff;
 
 	total_read = i2c_read(ppd, target, i2c_addr, offset, buff, count);

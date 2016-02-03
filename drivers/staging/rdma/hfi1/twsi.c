@@ -365,17 +365,25 @@ static int twsi_wr(struct hfi1_devdata *dd, u32 target, int data, int flags)
  * HFI1_TWSI_NO_DEV and does the correct operation for the legacy part,
  * which responded to all TWSI device codes, interpreting them as
  * address within device. On all other devices found on board handled by
- * this driver, the device is followed by a one-byte "address" which selects
+ * this driver, the device is followed by a N-byte "address" which selects
  * the "register" or "offset" within the device from which data should
  * be read.
  */
 int hfi1_twsi_blk_rd(struct hfi1_devdata *dd, u32 target, int dev, int addr,
 		     void *buffer, int len)
 {
-	int ret;
 	u8 *bp = buffer;
+	int ret = 1;
+	int i;
+	int offset_size;
 
-	ret = 1;
+	/* obtain the offset size, strip it from the device address */
+	offset_size = (dev >> 8) & 0xff;
+	dev &= 0xff;
+
+	/* allow at most a 2 byte offset */
+	if (offset_size > 2)
+		goto bail;
 
 	if (dev == HFI1_TWSI_NO_DEV) {
 		/* legacy not-really-I2C */
@@ -383,34 +391,29 @@ int hfi1_twsi_blk_rd(struct hfi1_devdata *dd, u32 target, int dev, int addr,
 		ret = twsi_wr(dd, target, addr, HFI1_TWSI_START);
 	} else {
 		/* Actual I2C */
-		ret = twsi_wr(dd, target, dev | WRITE_CMD, HFI1_TWSI_START);
-		if (ret) {
-			stop_cmd(dd, target);
-			ret = 1;
-			goto bail;
-		}
-		/*
-		 * SFF spec claims we do _not_ stop after the addr
-		 * but simply issue a start with the "read" dev-addr.
-		 * Since we are implicitly waiting for ACK here,
-		 * we need t_buf (nominally 20uSec) before that start,
-		 * and cannot rely on the delay built in to the STOP
-		 */
-		ret = twsi_wr(dd, target, addr, 0);
-		udelay(TWSI_BUF_WAIT_USEC);
+		if (offset_size) {
+			ret = twsi_wr(dd, target,
+				      dev | WRITE_CMD, HFI1_TWSI_START);
+			if (ret) {
+				stop_cmd(dd, target);
+				goto bail;
+			}
 
-		if (ret) {
-			dd_dev_err(dd,
-				"Failed to write interface read addr %02X\n",
-				addr);
-			ret = 1;
-			goto bail;
+			for (i = 0; i < offset_size; i++) {
+				ret = twsi_wr(dd, target,
+					      (addr >> (i * 8)) & 0xff, 0);
+				udelay(TWSI_BUF_WAIT_USEC);
+				if (ret) {
+					dd_dev_err(dd, "Failed to write byte %d of offset 0x%04X\n",
+						   i, addr);
+					goto bail;
+				}
+			}
 		}
 		ret = twsi_wr(dd, target, dev | READ_CMD, HFI1_TWSI_START);
 	}
 	if (ret) {
 		stop_cmd(dd, target);
-		ret = 1;
 		goto bail;
 	}
 
@@ -442,76 +445,55 @@ bail:
  * HFI1_TWSI_NO_DEV and does the correct operation for the legacy part,
  * which responded to all TWSI device codes, interpreting them as
  * address within device. On all other devices found on board handled by
- * this driver, the device is followed by a one-byte "address" which selects
+ * this driver, the device is followed by a N-byte "address" which selects
  * the "register" or "offset" within the device to which data should
  * be written.
  */
 int hfi1_twsi_blk_wr(struct hfi1_devdata *dd, u32 target, int dev, int addr,
 		     const void *buffer, int len)
 {
-	int sub_len;
 	const u8 *bp = buffer;
-	int max_wait_time, i;
 	int ret = 1;
+	int i;
+	int offset_size;
 
-	while (len > 0) {
-		if (dev == HFI1_TWSI_NO_DEV) {
-			if (twsi_wr(dd, target, (addr << 1) | WRITE_CMD,
-				    HFI1_TWSI_START)) {
-				goto failed_write;
-			}
-		} else {
-			/* Real I2C */
-			if (twsi_wr(dd, target,
-				    dev | WRITE_CMD, HFI1_TWSI_START))
-				goto failed_write;
-			ret = twsi_wr(dd, target, addr, 0);
-			if (ret) {
-				dd_dev_err(dd,
-					"Failed to write interface write addr %02X\n",
-					addr);
-				goto failed_write;
-			}
+	/* obtain the offset size, strip it from the device address */
+	offset_size = (dev >> 8) & 0xff;
+	dev &= 0xff;
+
+	/* allow at most a 2 byte offset */
+	if (offset_size > 2)
+		goto bail;
+
+	if (dev == HFI1_TWSI_NO_DEV) {
+		if (twsi_wr(dd, target, (addr << 1) | WRITE_CMD,
+			    HFI1_TWSI_START)) {
+			goto failed_write;
 		}
-
-		sub_len = min(len, 4);
-		addr += sub_len;
-		len -= sub_len;
-
-		for (i = 0; i < sub_len; i++)
-			if (twsi_wr(dd, target, *bp++, 0))
-				goto failed_write;
-
-		stop_cmd(dd, target);
-
-		/*
-		 * Wait for write complete by waiting for a successful
-		 * read (the chip replies with a zero after the write
-		 * cmd completes, and before it writes to the eeprom.
-		 * The startcmd for the read will fail the ack until
-		 * the writes have completed.   We do this inline to avoid
-		 * the debug prints that are in the real read routine
-		 * if the startcmd fails.
-		 * We also use the proper device address, so it doesn't matter
-		 * whether we have real eeprom_dev. Legacy likes any address.
-		 */
-		max_wait_time = 100;
-		while (twsi_wr(dd, target,
-			       dev | READ_CMD, HFI1_TWSI_START)) {
-			stop_cmd(dd, target);
-			if (!--max_wait_time)
-				goto failed_write;
-		}
-		/* now read (and ignore) the resulting byte */
-		rd_byte(dd, target, 1);
+	} else {
+		/* Real I2C */
+		if (twsi_wr(dd, target, dev | WRITE_CMD, HFI1_TWSI_START))
+			goto failed_write;
 	}
 
+	for (i = 0; i < offset_size; i++) {
+		ret = twsi_wr(dd, target, (addr >> (i * 8)) & 0xff, 0);
+		udelay(TWSI_BUF_WAIT_USEC);
+		if (ret) {
+			dd_dev_err(dd, "Failed to write byte %d of offset 0x%04X\n",
+				   i, addr);
+			goto bail;
+		}
+	}
+
+	for (i = 0; i < len; i++)
+		if (twsi_wr(dd, target, *bp++, 0))
+			goto failed_write;
+
 	ret = 0;
-	goto bail;
 
 failed_write:
 	stop_cmd(dd, target);
-	ret = 1;
 
 bail:
 	return ret;
