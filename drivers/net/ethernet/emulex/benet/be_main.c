@@ -4265,10 +4265,10 @@ static void be_schedule_worker(struct be_adapter *adapter)
 	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
 }
 
-static void be_schedule_err_detection(struct be_adapter *adapter)
+static void be_schedule_err_detection(struct be_adapter *adapter, u32 delay)
 {
 	schedule_delayed_work(&adapter->be_err_detection_work,
-			      msecs_to_jiffies(1000));
+			      msecs_to_jiffies(delay));
 	adapter->flags |= BE_FLAGS_ERR_DETECTION_SCHEDULED;
 }
 
@@ -4890,6 +4890,7 @@ static void be_err_detection_task(struct work_struct *work)
 					     be_err_detection_work.work);
 	struct device *dev = &adapter->pdev->dev;
 	int recovery_status;
+	int delay = ERR_DETECTION_DELAY;
 
 	be_detect_error(adapter);
 
@@ -4899,6 +4900,7 @@ static void be_err_detection_task(struct work_struct *work)
 		goto reschedule_task;
 
 	if (!recovery_status) {
+		adapter->recovery_retries = 0;
 		dev_info(dev, "Adapter recovery successful\n");
 		goto reschedule_task;
 	} else if (be_virtfn(adapter)) {
@@ -4907,13 +4909,22 @@ static void be_err_detection_task(struct work_struct *work)
 		 */
 		dev_err(dev, "Re-trying adapter recovery\n");
 		goto reschedule_task;
+	} else if (adapter->recovery_retries++ <
+		   MAX_ERR_RECOVERY_RETRY_COUNT) {
+		/* In case of another error during recovery, it takes 30 sec
+		 * for adapter to come out of error. Retry error recovery after
+		 * this time interval.
+		 */
+		dev_err(&adapter->pdev->dev, "Re-trying adapter recovery\n");
+		delay = ERR_RECOVERY_RETRY_DELAY;
+		goto reschedule_task;
 	} else {
 		dev_err(dev, "Adapter recovery failed\n");
 	}
 
 	return;
 reschedule_task:
-	be_schedule_err_detection(adapter);
+	be_schedule_err_detection(adapter, delay);
 }
 
 static void be_log_sfp_info(struct be_adapter *adapter)
@@ -5309,7 +5320,7 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 
 	be_roce_dev_add(adapter);
 
-	be_schedule_err_detection(adapter);
+	be_schedule_err_detection(adapter, ERR_DETECTION_DELAY);
 
 	/* On Die temperature not supported for VF. */
 	if (be_physfn(adapter) && IS_ENABLED(CONFIG_BE2NET_HWMON)) {
@@ -5376,7 +5387,7 @@ static int be_pci_resume(struct pci_dev *pdev)
 	if (status)
 		return status;
 
-	be_schedule_err_detection(adapter);
+	be_schedule_err_detection(adapter, ERR_DETECTION_DELAY);
 
 	if (adapter->wol_en)
 		be_setup_wol(adapter, false);
@@ -5476,7 +5487,7 @@ static void be_eeh_resume(struct pci_dev *pdev)
 	if (status)
 		goto err;
 
-	be_schedule_err_detection(adapter);
+	be_schedule_err_detection(adapter, ERR_DETECTION_DELAY);
 	return;
 err:
 	dev_err(&adapter->pdev->dev, "EEH resume failed\n");
