@@ -1714,7 +1714,7 @@ static void i40e_diag_test(struct net_device *netdev,
 		/* If the device is online then take it offline */
 		if (if_running)
 			/* indicate we're in test mode */
-			dev_close(netdev);
+			i40e_close(netdev);
 		else
 			/* This reset does not affect link - if it is
 			 * changed to a type of reset that does affect
@@ -1743,7 +1743,7 @@ static void i40e_diag_test(struct net_device *netdev,
 		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
 
 		if (if_running)
-			dev_open(netdev);
+			i40e_open(netdev);
 	} else {
 		/* Online tests */
 		netif_info(pf, drv, netdev, "online testing starting\n");

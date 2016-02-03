@@ -5509,11 +5509,7 @@ static void i40e_fdir_filter_exit(struct i40e_pf *pf)
  *
  * Returns 0, this is not allowed to fail
  **/
-#ifdef I40E_FCOE
 int i40e_close(struct net_device *netdev)
-#else
-static int i40e_close(struct net_device *netdev)
-#endif
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
