@@ -307,9 +307,9 @@ exit:
 	return ret;
 }
 
-void mic_disable(struct drm_bridge *bridge) { }
+static void mic_disable(struct drm_bridge *bridge) { }
 
-void mic_post_disable(struct drm_bridge *bridge)
+static void mic_post_disable(struct drm_bridge *bridge)
 {
 	struct exynos_mic *mic = bridge->driver_private;
 	int i;
@@ -329,7 +329,7 @@ already_disabled:
 	mutex_unlock(&mic_mutex);
 }
 
-void mic_pre_enable(struct drm_bridge *bridge)
+static void mic_pre_enable(struct drm_bridge *bridge)
 {
 	struct exynos_mic *mic = bridge->driver_private;
 	int ret, i;
@@ -372,7 +372,7 @@ already_enabled:
 	mutex_unlock(&mic_mutex);
 }
 
-void mic_enable(struct drm_bridge *bridge) { }
+static void mic_enable(struct drm_bridge *bridge) { }
 
 static const struct drm_bridge_funcs mic_bridge_funcs = {
 	.disable = mic_disable,
@@ -421,7 +421,7 @@ static const struct component_ops exynos_mic_component_ops = {
 	.unbind	= exynos_mic_unbind,
 };
 
-int exynos_mic_probe(struct platform_device *pdev)
+static int exynos_mic_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct exynos_mic *mic;
