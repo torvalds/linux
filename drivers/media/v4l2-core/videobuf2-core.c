@@ -2742,7 +2742,7 @@ static int vb2_thread(void *data)
 			break;
 		try_to_freeze();
 
-		if (vb->state == VB2_BUF_STATE_DONE)
+		if (vb->state != VB2_BUF_STATE_ERROR)
 			if (threadio->fnc(vb, threadio->priv))
 				break;
 		call_void_qop(q, wait_finish, q);
