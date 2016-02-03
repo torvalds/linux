@@ -1609,7 +1609,8 @@ static u64 access_sw_send_schedule(const struct cntr_entry *entry,
 {
 	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
 
-	return dd->verbs_dev.n_send_schedule;
+	return read_write_cpu(dd, &dd->z_send_schedule, dd->send_schedule, vl,
+			      mode, data);
 }
 
 /* Software counters for the error status bits within MISC_ERR_STATUS */

@@ -270,7 +270,6 @@ struct hfi1_ibdev {
 	u64 n_piowait;
 	u64 n_txwait;
 	u64 n_kmem_wait;
-	u64 n_send_schedule;
 
 #ifdef CONFIG_DEBUG_FS
 	/* per HFI debugfs */
