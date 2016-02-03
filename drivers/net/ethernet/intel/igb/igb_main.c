@@ -122,8 +122,8 @@ static void igb_setup_mrqc(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
 static void igb_remove(struct pci_dev *pdev);
 static int igb_sw_init(struct igb_adapter *);
-static int igb_open(struct net_device *);
-static int igb_close(struct net_device *);
+int igb_open(struct net_device *);
+int igb_close(struct net_device *);
 static void igb_configure(struct igb_adapter *);
 static void igb_configure_tx(struct igb_adapter *);
 static void igb_configure_rx(struct igb_adapter *);
@@ -3172,7 +3172,7 @@ err_setup_tx:
 	return err;
 }
 
-static int igb_open(struct net_device *netdev)
+int igb_open(struct net_device *netdev)
 {
 	return __igb_open(netdev, false);
 }
@@ -3209,7 +3209,7 @@ static int __igb_close(struct net_device *netdev, bool suspending)
 	return 0;
 }
 
-static int igb_close(struct net_device *netdev)
+int igb_close(struct net_device *netdev)
 {
 	return __igb_close(netdev, false);
 }
