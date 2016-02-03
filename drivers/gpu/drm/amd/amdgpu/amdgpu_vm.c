@@ -355,15 +355,15 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (!ib)
 		goto error;
 
-	r = amdgpu_ib_get(ring, NULL, entries * 2 + 64, ib);
+	r = amdgpu_ib_get(ring, NULL, 64, ib);
 	if (r)
 		goto error_free;
 
 	ib->length_dw = 0;
 
 	amdgpu_vm_update_pages(adev, NULL, 0, ib, addr, 0, entries, 0, 0);
-
 	amdgpu_vm_pad_ib(adev, ib);
+
 	WARN_ON(ib->length_dw > 64);
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
 						 &amdgpu_vm_free_job,
