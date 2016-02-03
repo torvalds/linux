@@ -290,6 +290,7 @@ enum iwl_phy_ops_subcmd_ids {
 enum iwl_data_path_subcmd_ids {
 	UPDATE_MU_GROUPS_CMD = 0x1,
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+	MU_GROUP_MGMT_NOTIF = 0xFE,
 	RX_QUEUES_NOTIFICATION = 0xFF,
 };
 
@@ -1964,6 +1965,18 @@ struct iwl_mu_group_mgmt_cmd {
 	__le32 membership_status[2];
 	__le32 user_position[4];
 } __packed; /* MU_GROUP_ID_MNG_TABLE_API_S_VER_1 */
+
+/**
+ * struct iwl_mu_group_mgmt_notif - VHT MU-MIMO group id notification
+ *
+ * @membership_status: a bitmap of MU groups
+ * @user_position: the position of station in a group. If the station is in the
+ *	group then bits (group * 2) is the position -1
+ */
+struct iwl_mu_group_mgmt_notif {
+	__le32 membership_status[2];
+	__le32 user_position[4];
+} __packed; /* MU_GROUP_MNG_NTFY_API_S_VER_1 */
 
 #define MAX_STORED_BEACON_SIZE 600
 
