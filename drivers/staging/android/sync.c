@@ -490,15 +490,15 @@ err_put_fd:
 	return err;
 }
 
-static int sync_fill_pt_info(struct fence *fence, void *data, int size)
+static int sync_fill_fence_info(struct fence *fence, void *data, int size)
 {
-	struct sync_pt_info *info = data;
+	struct sync_fence_info *info = data;
 	int ret;
 
-	if (size < sizeof(struct sync_pt_info))
+	if (size < sizeof(*info))
 		return -ENOMEM;
 
-	info->len = sizeof(struct sync_pt_info);
+	info->len = sizeof(*info);
 
 	if (fence->ops->fill_driver_data) {
 		ret = fence->ops->fill_driver_data(fence, info->driver_data,
@@ -553,7 +553,7 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	for (i = 0; i < sync_file->num_fences; ++i) {
 		struct fence *fence = sync_file->cbs[i].fence;
 
-		ret = sync_fill_pt_info(fence, (u8 *)data + len, size - len);
+		ret = sync_fill_fence_info(fence, (u8 *)data + len, size - len);
 
 		if (ret < 0)
 			goto out;

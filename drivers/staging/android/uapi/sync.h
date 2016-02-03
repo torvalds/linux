@@ -27,15 +27,15 @@ struct sync_merge_data {
 };
 
 /**
- * struct sync_pt_info - detailed sync_pt information
- * @len:		length of sync_pt_info including any driver_data
+ * struct sync_fence_info - detailed fence information
+ * @len:		length of sync_fence_info including any driver_data
  * @obj_name:		name of parent sync_timeline
  * @driver_name:	name of driver implementing the parent
- * @status:		status of the sync_pt 0:active 1:signaled <0:error
+ * @status:		status of the fence 0:active 1:signaled <0:error
  * @timestamp_ns:	timestamp of status change in nanoseconds
  * @driver_data:	any driver dependent data
  */
-struct sync_pt_info {
+struct sync_fence_info {
 	__u32	len;
 	char	obj_name[32];
 	char	driver_name[32];
@@ -52,14 +52,14 @@ struct sync_pt_info {
  *		userspace including pt_info.
  * @name:	name of fence
  * @status:	status of fence. 1: signaled 0:active <0:error
- * @pt_info:	a sync_pt_info struct for every sync_pt in the fence
+ * @sync_fence_info: array of sync_fence_info for every fence in the sync_file
  */
 struct sync_file_info_data {
 	__u32	len;
 	char	name[32];
 	__s32	status;
 
-	__u8	pt_info[0];
+	__u8	sync_fence_info[0];
 };
 
 #define SYNC_IOC_MAGIC		'>'
