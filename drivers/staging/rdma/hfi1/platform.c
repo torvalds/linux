@@ -816,7 +816,7 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 		} else
 			ppd->offline_disabled_reason =
 			   HFI1_ODR_MASK(
-				OPA_LINKDOWN_REASONLOCAL_MEDIA_NOT_INSTALLED);
+				OPA_LINKDOWN_REASON_LOCAL_MEDIA_NOT_INSTALLED);
 		break;
 	default:
 		dd_dev_info(ppd->dd, "%s: Unknown port type\n", __func__);
