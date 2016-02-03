@@ -186,7 +186,8 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 		return -EINVAL;
 
 	/* allocate parent object */
-	rdi->qp_dev = kzalloc(sizeof(*rdi->qp_dev), GFP_KERNEL);
+	rdi->qp_dev = kzalloc_node(sizeof(*rdi->qp_dev), GFP_KERNEL,
+				   rdi->dparms.node);
 	if (!rdi->qp_dev)
 		return -ENOMEM;
 
@@ -194,9 +195,9 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 	rdi->qp_dev->qp_table_size = rdi->dparms.qp_table_size;
 	rdi->qp_dev->qp_table_bits = ilog2(rdi->dparms.qp_table_size);
 	rdi->qp_dev->qp_table =
-		kmalloc(rdi->qp_dev->qp_table_size *
-			sizeof(*rdi->qp_dev->qp_table),
-			GFP_KERNEL);
+		kmalloc_node(rdi->qp_dev->qp_table_size *
+			     sizeof(*rdi->qp_dev->qp_table),
+			     GFP_KERNEL, rdi->dparms.node);
 	if (!rdi->qp_dev->qp_table)
 		goto no_qp_table;
 
@@ -542,8 +543,9 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				(init_attr->cap.max_send_wr + 1) * sz,
 				gfp, PAGE_KERNEL);
 		else
-			swq = vmalloc(
-				(init_attr->cap.max_send_wr + 1) * sz);
+			swq = vmalloc_node(
+				(init_attr->cap.max_send_wr + 1) * sz,
+				rdi->dparms.node);
 		if (!swq)
 			return ERR_PTR(-ENOMEM);
 
@@ -558,7 +560,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		} else if (init_attr->cap.max_recv_sge > 1)
 			sg_list_sz = sizeof(*qp->r_sg_list) *
 				(init_attr->cap.max_recv_sge - 1);
-		qp = kzalloc(sz + sg_list_sz, gfp);
+		qp = kzalloc_node(sz + sg_list_sz, gfp, rdi->dparms.node);
 		if (!qp)
 			goto bail_swq;
 
@@ -592,9 +594,10 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 						qp->r_rq.size * sz,
 						gfp, PAGE_KERNEL);
 			else
-				qp->r_rq.wq = vmalloc(
+				qp->r_rq.wq = vmalloc_node(
 						sizeof(struct rvt_rwq) +
-						qp->r_rq.size * sz);
+						qp->r_rq.size * sz,
+						rdi->dparms.node);
 			if (!qp->r_rq.wq)
 				goto bail_driver_priv;
 		}

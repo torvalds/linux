@@ -157,7 +157,7 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
 {
 	struct rvt_mmap_info *ip;
 
-	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
+	ip = kmalloc_node(sizeof(*ip), GFP_KERNEL, rdi->dparms.node);
 	if (!ip)
 		return ip;
 
