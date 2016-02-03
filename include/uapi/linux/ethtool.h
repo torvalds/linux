@@ -1319,10 +1319,44 @@ enum ethtool_sfeatures_retval_bits {
 
 #define SPEED_UNKNOWN		-1
 
+static inline int ethtool_validate_speed(__u32 speed)
+{
+	switch (speed) {
+	case SPEED_10:
+	case SPEED_100:
+	case SPEED_1000:
+	case SPEED_2500:
+	case SPEED_5000:
+	case SPEED_10000:
+	case SPEED_20000:
+	case SPEED_25000:
+	case SPEED_40000:
+	case SPEED_50000:
+	case SPEED_56000:
+	case SPEED_100000:
+	case SPEED_UNKNOWN:
+		return 1;
+	}
+
+	return 0;
+}
+
 /* Duplex, half or full. */
 #define DUPLEX_HALF		0x00
 #define DUPLEX_FULL		0x01
 #define DUPLEX_UNKNOWN		0xff
+
+static inline int ethtool_validate_duplex(__u8 duplex)
+{
+	switch (duplex) {
+	case DUPLEX_HALF:
+	case DUPLEX_FULL:
+	case DUPLEX_UNKNOWN:
+		return 1;
+	}
+
+	return 0;
+}
 
 /* Which connector port. */
 #define PORT_TP			0x00
