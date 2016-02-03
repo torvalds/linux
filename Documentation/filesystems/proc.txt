@@ -240,8 +240,8 @@ Table 1-2: Contents of the status files (as of 4.1)
  RssFile                     size of resident file mappings
  RssShmem                    size of resident shmem memory (includes SysV shm,
                              mapping of tmpfs and shared anonymous mappings)
- VmData                      size of data, stack, and text segments
- VmStk                       size of data, stack, and text segments
+ VmData                      size of private data segments
+ VmStk                       size of stack segments
  VmExe                       size of text segment
  VmLib                       size of shared library code
  VmPTE                       size of page table entries

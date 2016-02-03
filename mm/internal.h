@@ -216,20 +216,35 @@ static inline bool is_cow_mapping(vm_flags_t flags)
 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
 }
 
+/*
+ * These three helpers classifies VMAs for virtual memory accounting.
+ */
+
+/*
+ * Executable code area - executable, not writable, not stack
+ */
 static inline bool is_exec_mapping(vm_flags_t flags)
 {
-	return (flags & (VM_EXEC | VM_WRITE)) == VM_EXEC;
+	return (flags & (VM_EXEC | VM_WRITE | VM_STACK)) == VM_EXEC;
 }
 
+/*
+ * Stack area - atomatically grows in one direction
+ *
+ * VM_GROWSUP / VM_GROWSDOWN VMAs are always private anonymous:
+ * do_mmap() forbids all other combinations.
+ */
 static inline bool is_stack_mapping(vm_flags_t flags)
 {
-	return (flags & (VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN))) != 0;
+	return (flags & VM_STACK) == VM_STACK;
 }
 
+/*
+ * Data area - private, writable, not stack
+ */
 static inline bool is_data_mapping(vm_flags_t flags)
 {
-	return (flags & ((VM_STACK_FLAGS & (VM_GROWSUP | VM_GROWSDOWN)) |
-					VM_WRITE | VM_SHARED)) == VM_WRITE;
+	return (flags & (VM_WRITE | VM_SHARED | VM_STACK)) == VM_WRITE;
 }
 
 /* mm/util.c */
