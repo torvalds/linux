@@ -12,11 +12,13 @@
 #ifndef _HISI_SAS_H_
 #define _HISI_SAS_H_
 
+#include <linux/acpi.h>
 #include <linux/dmapool.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <scsi/sas_ata.h>
 #include <scsi/libsas.h>
