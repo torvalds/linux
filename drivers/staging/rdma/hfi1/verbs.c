@@ -1474,7 +1474,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 
-	spin_lock_init(&dev->n_srqs_lock);
 	init_timer(&dev->mem_timer);
 	dev->mem_timer.function = mem_timer;
 	dev->mem_timer.data = (unsigned long) dev;
@@ -1513,11 +1512,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->query_port = query_port;
 	ibdev->modify_port = modify_port;
 	ibdev->query_gid = query_gid;
-	ibdev->create_srq = hfi1_create_srq;
-	ibdev->modify_srq = hfi1_modify_srq;
-	ibdev->query_srq = hfi1_query_srq;
-	ibdev->destroy_srq = hfi1_destroy_srq;
-	ibdev->post_srq_recv = hfi1_post_srq_receive;
 
 	/* keep process mad in the driver */
 	ibdev->process_mad = hfi1_process_mad;

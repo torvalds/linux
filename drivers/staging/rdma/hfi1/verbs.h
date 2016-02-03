@@ -272,8 +272,6 @@ struct hfi1_ibdev {
 	u64 n_kmem_wait;
 	u64 n_send_schedule;
 
-	u32 n_srqs_allocated;   /* number of SRQs allocated for device */
-	spinlock_t n_srqs_lock;
 #ifdef CONFIG_DEBUG_FS
 	/* per HFI debugfs */
 	struct dentry *hfi1_ibdev_dbg;
@@ -430,21 +428,6 @@ void hfi1_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
 void hfi1_ud_rcv(struct hfi1_packet *packet);
 
 int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey);
-
-int hfi1_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-			  struct ib_recv_wr **bad_wr);
-
-struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
-			       struct ib_srq_init_attr *srq_init_attr,
-			       struct ib_udata *udata);
-
-int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
-		    enum ib_srq_attr_mask attr_mask,
-		    struct ib_udata *udata);
-
-int hfi1_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
-
-int hfi1_destroy_srq(struct ib_srq *ibsrq);
 
 int hfi1_rvt_get_rwqe(struct rvt_qp *qp, int wr_id_only);
 
