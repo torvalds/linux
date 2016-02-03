@@ -792,6 +792,13 @@
 	tve: tve{
 		compatible = "rockchip,rk312x-tve";
 		reg = <0x1010e200 0x100>;
+		saturation = <0x002b4d3c>;
+		brightcontrast = <0x00007700>;
+		adjtiming = <0xa6c00880>;
+		lumafilter0 = <0x02ff0000>;
+		lumafilter1 = <0xf40202fd>;
+		lumafilter2 = <0xf332d919>;
+		daclevel = <0x3a>;
 		status = "disabled";
 	};
 
