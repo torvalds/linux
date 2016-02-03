@@ -749,6 +749,9 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	/* drain user sdma queue */
 	hfi1_user_sdma_free_queues(fdata);
 
+	/* release the cpu */
+	hfi1_put_proc_affinity(dd, fdata->rec_cpu_num);
+
 	/*
 	 * Clear any left over, unhandled events so the next process that
 	 * gets this context doesn't get confused.
@@ -842,8 +845,16 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 
 	mutex_lock(&hfi1_mutex);
 	/* First, lets check if we need to setup a shared context? */
-	if (uinfo->subctxt_cnt)
+	if (uinfo->subctxt_cnt) {
+		struct hfi1_filedata *fd = fp->private_data;
+
 		ret = find_shared_ctxt(fp, uinfo);
+		if (ret < 0)
+			goto done_unlock;
+		if (ret)
+			fd->rec_cpu_num = hfi1_get_proc_affinity(
+				fd->uctxt->dd, fd->uctxt->numa_id);
+	}
 
 	/*
 	 * We execute the following block if we couldn't find a
@@ -853,6 +864,7 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 		i_minor = iminor(file_inode(fp)) - HFI1_USER_MINOR_BASE;
 		ret = get_user_context(fp, uinfo, i_minor - 1, alg);
 	}
+done_unlock:
 	mutex_unlock(&hfi1_mutex);
 done:
 	return ret;
@@ -978,7 +990,7 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt;
 	unsigned ctxt;
-	int ret;
+	int ret, numa;
 
 	if (dd->flags & HFI1_FROZEN) {
 		/*
@@ -998,12 +1010,21 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	if (ctxt == dd->num_rcv_contexts)
 		return -EBUSY;
 
-	uctxt = hfi1_create_ctxtdata(dd->pport, ctxt);
+	fd->rec_cpu_num = hfi1_get_proc_affinity(dd, -1);
+	if (fd->rec_cpu_num != -1)
+		numa = cpu_to_node(fd->rec_cpu_num);
+	else
+		numa = numa_node_id();
+	uctxt = hfi1_create_ctxtdata(dd->pport, ctxt, numa);
 	if (!uctxt) {
 		dd_dev_err(dd,
 			   "Unable to allocate ctxtdata memory, failing open\n");
 		return -ENOMEM;
 	}
+	hfi1_cdbg(PROC, "[%u:%u] pid %u assigned to CPU %d (NUMA %u)",
+		  uctxt->ctxt, fd->subctxt, current->pid, fd->rec_cpu_num,
+		  uctxt->numa_id);
+
 	/*
 	 * Allocate and enable a PIO send context.
 	 */

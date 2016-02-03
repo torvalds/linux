@@ -12349,9 +12349,8 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 
 		for (i = 0; i < dd->num_msix_entries; i++, me++) {
 			if (me->arg == NULL) /* => no irq, no affinity */
-				break;
-			irq_set_affinity_hint(dd->msix_entries[i].msix.vector,
-					NULL);
+				continue;
+			hfi1_put_irq_affinity(dd, &dd->msix_entries[i]);
 			free_irq(me->msix.vector, me->arg);
 		}
 	} else {
@@ -12372,8 +12371,6 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 	}
 
 	/* clean structures */
-	for (i = 0; i < dd->num_msix_entries; i++)
-		free_cpumask_var(dd->msix_entries[i].mask);
 	kfree(dd->msix_entries);
 	dd->msix_entries = NULL;
 	dd->num_msix_entries = 0;
@@ -12438,68 +12435,16 @@ static int request_intx_irq(struct hfi1_devdata *dd)
 
 static int request_msix_irqs(struct hfi1_devdata *dd)
 {
-	const struct cpumask *local_mask;
-	cpumask_var_t def, rcv;
-	bool def_ret, rcv_ret;
 	int first_general, last_general;
 	int first_sdma, last_sdma;
 	int first_rx, last_rx;
-	int first_cpu, curr_cpu;
-	int rcv_cpu, sdma_cpu;
-	int i, ret = 0, possible;
-	int ht;
+	int i, ret = 0;
 
 	/* calculate the ranges we are going to use */
 	first_general = 0;
 	first_sdma = last_general = first_general + 1;
 	first_rx = last_sdma = first_sdma + dd->num_sdma;
 	last_rx = first_rx + dd->n_krcv_queues;
-
-	/*
-	 * Interrupt affinity.
-	 *
-	 * non-rcv avail gets a default mask that
-	 * starts as possible cpus with threads reset
-	 * and each rcv avail reset.
-	 *
-	 * rcv avail gets node relative 1 wrapping back
-	 * to the node relative 1 as necessary.
-	 *
-	 */
-	local_mask = cpumask_of_pcibus(dd->pcidev->bus);
-	/* if first cpu is invalid, use NUMA 0 */
-	if (cpumask_first(local_mask) >= nr_cpu_ids)
-		local_mask = topology_core_cpumask(0);
-
-	def_ret = zalloc_cpumask_var(&def, GFP_KERNEL);
-	rcv_ret = zalloc_cpumask_var(&rcv, GFP_KERNEL);
-	if (!def_ret || !rcv_ret)
-		goto bail;
-	/* use local mask as default */
-	cpumask_copy(def, local_mask);
-	possible = cpumask_weight(def);
-	/* disarm threads from default */
-	ht = cpumask_weight(
-			topology_sibling_cpumask(cpumask_first(local_mask)));
-	for (i = possible/ht; i < possible; i++)
-		cpumask_clear_cpu(i, def);
-	/* def now has full cores on chosen node*/
-	first_cpu = cpumask_first(def);
-	if (nr_cpu_ids >= first_cpu)
-		first_cpu++;
-	curr_cpu = first_cpu;
-
-	/*  One context is reserved as control context */
-	for (i = first_cpu; i < dd->n_krcv_queues + first_cpu - 1; i++) {
-		cpumask_clear_cpu(curr_cpu, def);
-		cpumask_set_cpu(curr_cpu, rcv);
-		curr_cpu = cpumask_next(curr_cpu, def);
-		if (curr_cpu >= nr_cpu_ids)
-			break;
-	}
-	/* def mask has non-rcv, rcv has recv mask */
-	rcv_cpu = cpumask_first(rcv);
-	sdma_cpu = cpumask_first(def);
 
 	/*
 	 * Sanity check - the code expects all SDMA chip source
@@ -12526,6 +12471,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			snprintf(me->name, sizeof(me->name),
 				 DRIVER_NAME "_%d", dd->unit);
 			err_info = "general";
+			me->type = IRQ_GENERAL;
 		} else if (first_sdma <= i && i < last_sdma) {
 			idx = i - first_sdma;
 			sde = &dd->per_sdma[idx];
@@ -12535,6 +12481,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 				 DRIVER_NAME "_%d sdma%d", dd->unit, idx);
 			err_info = "sdma";
 			remap_sdma_interrupts(dd, idx, i);
+			me->type = IRQ_SDMA;
 		} else if (first_rx <= i && i < last_rx) {
 			idx = i - first_rx;
 			rcd = dd->rcd[idx];
@@ -12555,6 +12502,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 				 DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
 			err_info = "receive context";
 			remap_intr(dd, IS_RCVAVAIL_START + idx, i);
+			me->type = IRQ_RCVCTXT;
 		} else {
 			/* not in our expected range - complain, then
 			   ignore it */
@@ -12582,52 +12530,13 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		 */
 		me->arg = arg;
 
-		if (!zalloc_cpumask_var(
-			&dd->msix_entries[i].mask,
-			GFP_KERNEL))
-			goto bail;
-		if (handler == sdma_interrupt) {
-			dd_dev_info(dd, "sdma engine %d cpu %d\n",
-				sde->this_idx, sdma_cpu);
-			sde->cpu = sdma_cpu;
-			cpumask_set_cpu(sdma_cpu, dd->msix_entries[i].mask);
-			sdma_cpu = cpumask_next(sdma_cpu, def);
-			if (sdma_cpu >= nr_cpu_ids)
-				sdma_cpu = cpumask_first(def);
-		} else if (handler == receive_context_interrupt) {
-			dd_dev_info(dd, "rcv ctxt %d cpu %d\n", rcd->ctxt,
-				    (rcd->ctxt == HFI1_CTRL_CTXT) ?
-					    cpumask_first(def) : rcv_cpu);
-			if (rcd->ctxt == HFI1_CTRL_CTXT) {
-				/* map to first default */
-				cpumask_set_cpu(cpumask_first(def),
-						dd->msix_entries[i].mask);
-			} else {
-				cpumask_set_cpu(rcv_cpu,
-						dd->msix_entries[i].mask);
-				rcv_cpu = cpumask_next(rcv_cpu, rcv);
-				if (rcv_cpu >= nr_cpu_ids)
-					rcv_cpu = cpumask_first(rcv);
-			}
-		} else {
-			/* otherwise first def */
-			dd_dev_info(dd, "%s cpu %d\n",
-				err_info, cpumask_first(def));
-			cpumask_set_cpu(
-				cpumask_first(def), dd->msix_entries[i].mask);
-		}
-		irq_set_affinity_hint(
-			dd->msix_entries[i].msix.vector,
-			dd->msix_entries[i].mask);
+		ret = hfi1_get_irq_affinity(dd, me);
+		if (ret)
+			dd_dev_err(dd,
+				   "unable to pin IRQ %d\n", ret);
 	}
 
-out:
-	free_cpumask_var(def);
-	free_cpumask_var(rcv);
 	return ret;
-bail:
-	ret = -ENOMEM;
-	goto  out;
 }
 
 /*
@@ -14237,6 +14146,10 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	init_other(dd);
 	/* set up KDETH QP prefix in both RX and TX CSRs */
 	init_kdeth_qp(dd);
+
+	ret = hfi1_dev_affinity_init(dd);
+	if (ret)
+		goto bail_cleanup;
 
 	/* send contexts must be set up before receive contexts */
 	ret = init_send_contexts(dd);

@@ -144,7 +144,7 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 		struct hfi1_ctxtdata *rcd;
 
 		ppd = dd->pport + (i % dd->num_pports);
-		rcd = hfi1_create_ctxtdata(ppd, i);
+		rcd = hfi1_create_ctxtdata(ppd, i, dd->node);
 		if (!rcd) {
 			dd_dev_err(dd,
 				"Unable to allocate kernel receive context, failing\n");
@@ -204,7 +204,8 @@ bail:
 /*
  * Common code for user and kernel context setup.
  */
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
+struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
+					   int numa)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	struct hfi1_ctxtdata *rcd;
@@ -227,7 +228,7 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 		rcd->cnt = 1;
 		rcd->ctxt = ctxt;
 		dd->rcd[ctxt] = rcd;
-		rcd->numa_id = numa_node_id();
+		rcd->numa_id = numa;
 		rcd->rcv_array_groups = dd->rcv_entries.ngroups;
 
 		mutex_init(&rcd->exp_lock);
@@ -982,6 +983,7 @@ void hfi1_free_devdata(struct hfi1_devdata *dd)
 	rcu_barrier(); /* wait for rcu callbacks to complete */
 	free_percpu(dd->int_counter);
 	free_percpu(dd->rcv_limit);
+	hfi1_dev_affinity_free(dd);
 	ib_dealloc_device(&dd->verbs_dev.rdi.ibdev);
 }
 
@@ -1010,9 +1012,6 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	dd->pport = (struct hfi1_pportdata *)(dd + 1);
 
 	INIT_LIST_HEAD(&dd->list);
-	dd->node = dev_to_node(&pdev->dev);
-	if (dd->node < 0)
-		dd->node = 0;
 	idr_preload(GFP_KERNEL);
 	spin_lock_irqsave(&hfi1_devs_lock, flags);
 

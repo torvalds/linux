@@ -75,6 +75,7 @@
 #include "mad.h"
 #include "qsfp.h"
 #include "platform.h"
+#include "affinity.h"
 
 /* bumped 1 from s/w major version of TrueScale */
 #define HFI1_CHIP_VERS_MAJ 3U
@@ -529,10 +530,11 @@ static inline void incr_cntr32(u32 *cntr)
 
 #define MAX_NAME_SIZE 64
 struct hfi1_msix_entry {
+	enum irq_type type;
 	struct msix_entry msix;
 	void *arg;
 	char name[MAX_NAME_SIZE];
-	cpumask_var_t mask;
+	cpumask_t mask;
 };
 
 /* per-SL CCA information */
@@ -1144,6 +1146,8 @@ struct hfi1_devdata {
 	spinlock_t aspm_lock;
 	/* Number of verbs contexts which have disabled ASPM */
 	atomic_t aspm_disabled_cnt;
+
+	struct hfi1_affinity *affinity;
 };
 
 /* 8051 firmware version helper */
@@ -1197,7 +1201,7 @@ void handle_user_interrupt(struct hfi1_ctxtdata *rcd);
 int hfi1_create_rcvhdrq(struct hfi1_devdata *, struct hfi1_ctxtdata *);
 int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *);
 int hfi1_create_ctxts(struct hfi1_devdata *dd);
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *, u32);
+struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *, u32, int);
 void hfi1_init_pportdata(struct pci_dev *, struct hfi1_pportdata *,
 			 struct hfi1_devdata *, u8, u8);
 void hfi1_free_ctxtdata(struct hfi1_devdata *, struct hfi1_ctxtdata *);
