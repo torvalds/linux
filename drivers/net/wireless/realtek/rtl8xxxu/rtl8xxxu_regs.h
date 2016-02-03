@@ -341,6 +341,11 @@
 #define REG_BB_ACCEESS_CTRL		0x01e8
 #define REG_BB_ACCESS_DATA		0x01ec
 
+#define REG_HMBOX_EXT0_8723B		0x01f0
+#define REG_HMBOX_EXT1_8723B		0x01f4
+#define REG_HMBOX_EXT2_8723B		0x01f8
+#define REG_HMBOX_EXT3_8723B		0x01fc
+
 /* 0x0200 ~ 0x027F	TXDMA Configuration */
 #define REG_RQPN			0x0200
 #define  RQPN_HI_PQ_SHIFT		0
