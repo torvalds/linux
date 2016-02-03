@@ -370,7 +370,7 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 		native_rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
 		csig.pf = 1 << ((val[1] >> 18) & 7);
 	}
-	native_wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
 	sync_core();
@@ -648,10 +648,8 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 		return 0;
 
 	/* write microcode via MSR 0x79 */
-	native_wrmsr(MSR_IA32_UCODE_WRITE,
-	      (unsigned long)mc->bits,
-	      (unsigned long)mc->bits >> 16 >> 16);
-	native_wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+	native_wrmsrl(MSR_IA32_UCODE_WRITE, (unsigned long)mc->bits);
+	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
 	sync_core();
@@ -860,10 +858,8 @@ static int apply_microcode_intel(int cpu)
 		return 0;
 
 	/* write microcode via MSR 0x79 */
-	wrmsr(MSR_IA32_UCODE_WRITE,
-	      (unsigned long) mc->bits,
-	      (unsigned long) mc->bits >> 16 >> 16);
-	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+	wrmsrl(MSR_IA32_UCODE_WRITE, (unsigned long)mc->bits);
+	wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
 	sync_core();
