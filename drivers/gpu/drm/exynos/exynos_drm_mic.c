@@ -445,7 +445,7 @@ int exynos_mic_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < NUM_CLKS; i++) {
-		mic->clks[i] = of_clk_get_by_name(dev->of_node, clk_names[i]);
+		mic->clks[i] = devm_clk_get(dev, clk_names[i]);
 		if (IS_ERR(mic->clks[i])) {
 			DRM_ERROR("mic: Failed to get clock (%s)\n",
 								clk_names[i]);
@@ -463,12 +463,8 @@ err:
 static int exynos_mic_remove(struct platform_device *pdev)
 {
 	struct exynos_mic *mic = platform_get_drvdata(pdev);
-	int i;
 
 	drm_bridge_remove(&mic->bridge);
-
-	for (i = NUM_CLKS - 1; i > -1; i--)
-		clk_put(mic->clks[i]);
 
 	return 0;
 }
