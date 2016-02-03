@@ -4343,14 +4343,17 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	val8 = ((30000 + NAV_UPPER_UNIT - 1) / NAV_UPPER_UNIT);
 	rtl8xxxu_write8(priv, REG_NAV_UPPER, val8);
 
-	/*
-	 * 2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test,
-	 * but we need to fin root cause.
-	 */
-	val32 = rtl8xxxu_read32(priv, REG_FPGA0_RF_MODE);
-	if ((val32 & 0xff000000) != 0x83000000) {
-		val32 |= FPGA_RF_MODE_CCK;
-		rtl8xxxu_write32(priv, REG_FPGA0_RF_MODE, val32);
+	if (priv->rtlchip == 0x8723a) {
+		/*
+		 * 2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test,
+		 * but we need to find root cause.
+		 * This is 8723au only.
+		 */
+		val32 = rtl8xxxu_read32(priv, REG_FPGA0_RF_MODE);
+		if ((val32 & 0xff000000) != 0x83000000) {
+			val32 |= FPGA_RF_MODE_CCK;
+			rtl8xxxu_write32(priv, REG_FPGA0_RF_MODE, val32);
+		}
 	}
 
 	val32 = rtl8xxxu_read32(priv, REG_FWHW_TXQ_CTRL);
