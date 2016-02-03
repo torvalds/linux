@@ -282,8 +282,6 @@
 #include <asm/unaligned.h>
 #include <net/busy_poll.h>
 
-int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
-
 int sysctl_tcp_min_tso_segs __read_mostly = 2;
 
 int sysctl_tcp_autocorking __read_mostly = 1;
@@ -2330,6 +2328,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct net *net = sock_net(sk);
 	int val;
 	int err = 0;
 
@@ -2526,7 +2525,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_LINGER2:
 		if (val < 0)
 			tp->linger2 = -1;
-		else if (val > sysctl_tcp_fin_timeout / HZ)
+		else if (val > net->ipv4.sysctl_tcp_fin_timeout / HZ)
 			tp->linger2 = 0;
 		else
 			tp->linger2 = val * HZ;
@@ -2771,7 +2770,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 	case TCP_LINGER2:
 		val = tp->linger2;
 		if (val >= 0)
-			val = (val ? : sysctl_tcp_fin_timeout) / HZ;
+			val = (val ? : net->ipv4.sysctl_tcp_fin_timeout) / HZ;
 		break;
 	case TCP_DEFER_ACCEPT:
 		val = retrans_to_secs(icsk->icsk_accept_queue.rskq_defer_accept,
