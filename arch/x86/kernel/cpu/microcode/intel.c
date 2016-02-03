@@ -287,7 +287,7 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
  * BSP can stay in the platform.
  */
 static enum ucode_state __init
-get_matching_model_microcode(int cpu, unsigned long start,
+get_matching_model_microcode(unsigned long start,
 			     void *data, size_t size,
 			     struct mc_saved_data *mcs,
 			     unsigned long *mc_ptrs,
@@ -564,7 +564,7 @@ scan_microcode(struct mc_saved_data *mcs, unsigned long *mc_ptrs,
 			return UCODE_ERROR;
 	}
 
-	return get_matching_model_microcode(0, start, cd.data, cd.size,
+	return get_matching_model_microcode(start, cd.data, cd.size,
 					    mcs, mc_ptrs, uci);
 }
 
