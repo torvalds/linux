@@ -1517,7 +1517,42 @@ bail:
 int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		      struct ib_recv_wr **bad_wr)
 {
-	return -EOPNOTSUPP;
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
+	struct rvt_rwq *wq;
+	unsigned long flags;
+
+	for (; wr; wr = wr->next) {
+		struct rvt_rwqe *wqe;
+		u32 next;
+		int i;
+
+		if ((unsigned)wr->num_sge > srq->rq.max_sge) {
+			*bad_wr = wr;
+			return -EINVAL;
+		}
+
+		spin_lock_irqsave(&srq->rq.lock, flags);
+		wq = srq->rq.wq;
+		next = wq->head + 1;
+		if (next >= srq->rq.size)
+			next = 0;
+		if (next == wq->tail) {
+			spin_unlock_irqrestore(&srq->rq.lock, flags);
+			*bad_wr = wr;
+			return -ENOMEM;
+		}
+
+		wqe = rvt_get_rwqe_ptr(&srq->rq, wq->head);
+		wqe->wr_id = wr->wr_id;
+		wqe->num_sge = wr->num_sge;
+		for (i = 0; i < wr->num_sge; i++)
+			wqe->sg_list[i] = wr->sg_list[i];
+		/* Make sure queue entry is written before the head index. */
+		smp_wmb();
+		wq->head = next;
+		spin_unlock_irqrestore(&srq->rq.lock, flags);
+	}
+	return 0;
 }
 
 void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)

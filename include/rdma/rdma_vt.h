@@ -299,6 +299,9 @@ struct rvt_dev_info {
 	int n_ahs_allocated;
 	spinlock_t n_ahs_lock; /* Protect ah allocated count */
 
+	u32 n_srqs_allocated;
+	spinlock_t n_srqs_lock; /* Protect srqs allocated count */
+
 	int flags;
 	struct rvt_ibport **ports;
 
