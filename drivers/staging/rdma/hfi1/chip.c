@@ -8022,9 +8022,9 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 }
 
 /*
- * Clear the receive interrupt, forcing the write and making sure
- * we have data from the chip, pushing everything in front of it
- * back to the host.
+ * Clear the receive interrupt.  Use a read of the interrupt clear CSR
+ * to insure that the write completed.  This does NOT guarantee that
+ * queued DMA writes to memory from the chip are pushed.
  */
 static inline void clear_recv_intr(struct hfi1_ctxtdata *rcd)
 {
@@ -8043,15 +8043,33 @@ void force_recv_intr(struct hfi1_ctxtdata *rcd)
 	write_csr(rcd->dd, CCE_INT_FORCE + (8 * rcd->ireg), rcd->imask);
 }
 
-/* return non-zero if a packet is present */
+/*
+ * Return non-zero if a packet is present.
+ *
+ * This routine is called when rechecking for packets after the RcvAvail
+ * interrupt has been cleared down.  First, do a quick check of memory for
+ * a packet present.  If not found, use an expensive CSR read of the context
+ * tail to determine the actual tail.  The CSR read is necessary because there
+ * is no method to push pending DMAs to memory other than an interrupt and we
+ * are trying to determine if we need to force an interrupt.
+ */
 static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
 {
-	if (!HFI1_CAP_IS_KSET(DMA_RTAIL))
-		return (rcd->seq_cnt ==
-				rhf_rcv_seq(rhf_to_cpu(get_rhf_addr(rcd))));
+	u32 tail;
+	int present;
 
-	/* else is RDMA rtail */
-	return (rcd->head != get_rcvhdrtail(rcd));
+	if (!HFI1_CAP_IS_KSET(DMA_RTAIL))
+		present = (rcd->seq_cnt ==
+				rhf_rcv_seq(rhf_to_cpu(get_rhf_addr(rcd))));
+	else /* is RDMA rtail */
+		present = (rcd->head != get_rcvhdrtail(rcd));
+
+	if (present)
+		return 1;
+
+	/* fall back to a CSR read, correct indpendent of DMA_RTAIL */
+	tail = (u32)read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL);
+	return rcd->head != tail;
 }
 
 /*
