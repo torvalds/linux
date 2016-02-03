@@ -490,7 +490,7 @@ resizer_configure_in_continious_mode(struct vpfe_resizer_device *resizer)
 	int line_len;
 	int ret;
 
-	if (resizer->resizer_a.output != RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_a.output != RESIZER_OUTPUT_MEMORY) {
 		dev_err(dev, "enable resizer - Resizer-A\n");
 		return -EINVAL;
 	}
@@ -502,7 +502,7 @@ resizer_configure_in_continious_mode(struct vpfe_resizer_device *resizer)
 	param->rsz_en[RSZ_B] = DISABLE;
 	param->oper_mode = RESIZER_MODE_CONTINIOUS;
 
-	if (resizer->resizer_b.output == RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_b.output == RESIZER_OUTPUT_MEMORY) {
 		struct v4l2_mbus_framefmt *outformat2;
 
 		param->rsz_en[RSZ_B] = ENABLE;
@@ -1043,13 +1043,13 @@ static void resizer_ss_isr(struct vpfe_resizer_device *resizer)
 	if (ipipeif_sink != IPIPEIF_INPUT_MEMORY)
 		return;
 
-	if (resizer->resizer_a.output == RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_a.output == RESIZER_OUTPUT_MEMORY) {
 		val = vpss_dma_complete_interrupt();
 		if (val != 0 && val != 2)
 			return;
 	}
 
-	if (resizer->resizer_a.output == RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_a.output == RESIZER_OUTPUT_MEMORY) {
 		spin_lock(&video_out->dma_queue_lock);
 		vpfe_video_process_buffer_complete(video_out);
 		video_out->state = VPFE_VIDEO_BUFFER_NOT_QUEUED;
@@ -1059,7 +1059,7 @@ static void resizer_ss_isr(struct vpfe_resizer_device *resizer)
 
 	/* If resizer B is enabled */
 	if (pipe->output_num > 1 && resizer->resizer_b.output ==
-	    RESIZER_OUPUT_MEMORY) {
+	    RESIZER_OUTPUT_MEMORY) {
 		spin_lock(&video_out->dma_queue_lock);
 		vpfe_video_process_buffer_complete(video_out2);
 		video_out2->state = VPFE_VIDEO_BUFFER_NOT_QUEUED;
@@ -1069,7 +1069,7 @@ static void resizer_ss_isr(struct vpfe_resizer_device *resizer)
 
 	/* start HW if buffers are queued */
 	if (vpfe_video_is_pipe_ready(pipe) &&
-	    resizer->resizer_a.output == RESIZER_OUPUT_MEMORY) {
+	    resizer->resizer_a.output == RESIZER_OUTPUT_MEMORY) {
 		resizer_enable(resizer, 1);
 		vpfe_ipipe_enable(vpfe_dev, 1);
 		vpfe_ipipeif_enable(vpfe_dev);
@@ -1237,8 +1237,8 @@ static int resizer_do_hw_setup(struct vpfe_resizer_device *resizer)
 	struct resizer_params *param = &resizer->config;
 	int ret = 0;
 
-	if (resizer->resizer_a.output == RESIZER_OUPUT_MEMORY ||
-	    resizer->resizer_b.output == RESIZER_OUPUT_MEMORY) {
+	if (resizer->resizer_a.output == RESIZER_OUTPUT_MEMORY ||
+	    resizer->resizer_b.output == RESIZER_OUTPUT_MEMORY) {
 		if (ipipeif_sink == IPIPEIF_INPUT_MEMORY &&
 		    ipipeif_source == IPIPEIF_OUTPUT_RESIZER)
 			ret = resizer_configure_in_single_shot_mode(resizer);
@@ -1263,7 +1263,7 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
 	if (&resizer->crop_resizer.subdev != sd)
 		return 0;
 
-	if (resizer->resizer_a.output != RESIZER_OUPUT_MEMORY)
+	if (resizer->resizer_a.output != RESIZER_OUTPUT_MEMORY)
 		return 0;
 
 	switch (enable) {
@@ -1724,7 +1724,7 @@ static int resizer_link_setup(struct media_entity *entity,
 			}
 			if (resizer->resizer_a.output != RESIZER_OUTPUT_NONE)
 				return -EBUSY;
-			resizer->resizer_a.output = RESIZER_OUPUT_MEMORY;
+			resizer->resizer_a.output = RESIZER_OUTPUT_MEMORY;
 			break;
 
 		default:
@@ -1749,7 +1749,7 @@ static int resizer_link_setup(struct media_entity *entity,
 			}
 			if (resizer->resizer_b.output != RESIZER_OUTPUT_NONE)
 				return -EBUSY;
-			resizer->resizer_b.output = RESIZER_OUPUT_MEMORY;
+			resizer->resizer_b.output = RESIZER_OUTPUT_MEMORY;
 			break;
 
 		default:
