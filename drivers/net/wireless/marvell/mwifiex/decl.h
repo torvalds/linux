@@ -122,6 +122,8 @@
 #define BLOCK_NUMBER_OFFSET		15
 #define SDIO_HEADER_OFFSET		28
 
+#define MWIFIEX_SIZE_4K 0x4000
+
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
 	MWIFIEX_BSS_TYPE_UAP = 1,
