@@ -636,6 +636,13 @@
 	tve: tve{
 		compatible = "rockchip,rk3036-tve";
 		reg = <0x10118200 0x100>;
+		saturation = <0x00386346>;
+		brightcontrast = <0x00008b00>;
+		adjtiming = <0xa6c00880>;
+		lumafilter0 = <0x02ff0000>;
+		lumafilter1 = <0xf40202fd>;
+		lumafilter2 = <0xf332d919>;
+		daclevel = <0x3e>;
 		status = "disabled";
 	};
 
