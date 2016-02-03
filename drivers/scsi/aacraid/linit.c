@@ -703,23 +703,18 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 static long aac_cfg_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
-	int ret;
-	struct aac_dev *aac;
-	aac = (struct aac_dev *)file->private_data;
+	struct aac_dev *aac = (struct aac_dev *)file->private_data;
+
 	if (!capable(CAP_SYS_RAWIO) || aac->adapter_shutdown)
 		return -EPERM;
-	mutex_lock(&aac_mutex);
-	ret = aac_do_ioctl(file->private_data, cmd, (void __user *)arg);
-	mutex_unlock(&aac_mutex);
 
-	return ret;
+	return aac_do_ioctl(aac, cmd, (void __user *)arg);
 }
 
 #ifdef CONFIG_COMPAT
 static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long arg)
 {
 	long ret;
-	mutex_lock(&aac_mutex);
 	switch (cmd) {
 	case FSACTL_MINIPORT_REV_CHECK:
 	case FSACTL_SENDFIB:
@@ -753,7 +748,6 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 		ret = -ENOIOCTLCMD;
 		break;
 	}
-	mutex_unlock(&aac_mutex);
 	return ret;
 }
 
@@ -1194,6 +1188,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_free_host;
 	spin_lock_init(&aac->fib_lock);
 
+	mutex_init(&aac->ioctl_mutex);
 	/*
 	 *	Map in the registers from the adapter.
 	 */
