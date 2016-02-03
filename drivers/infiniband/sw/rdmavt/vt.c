@@ -128,14 +128,27 @@ static int rvt_modify_device(struct ib_device *device,
 static int rvt_query_port(struct ib_device *ibdev, u8 port_num,
 			  struct ib_port_attr *props)
 {
-	if (ibport_num_to_idx(ibdev, port_num) < 0)
+	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
+	struct rvt_ibport *rvp;
+	int port_index = ibport_num_to_idx(ibdev, port_num);
+
+	if (port_index < 0)
 		return -EINVAL;
 
-	/*
-	 * VT-DRIVER-API: query_port_state()
-	 * driver returns pretty much everything in ib_port_attr
-	 */
-	return -EOPNOTSUPP;
+	rvp = rdi->ports[port_index];
+	memset(props, 0, sizeof(*props));
+	props->sm_lid = rvp->sm_lid;
+	props->sm_sl = rvp->sm_sl;
+	props->port_cap_flags = rvp->port_cap_flags;
+	props->max_msg_sz = 0x80000000;
+	props->pkey_tbl_len = rvt_get_npkeys(rdi);
+	props->bad_pkey_cntr = rvp->pkey_violations;
+	props->qkey_viol_cntr = rvp->qkey_violations;
+	props->subnet_timeout = rvp->subnet_timeout;
+	props->init_type_reply = 0;
+
+	/* Populate the remaining ib_port_attr elements */
+	return rdi->driver_f.query_port_state(rdi, port_num, props);
 }
 
 /**
@@ -150,23 +163,26 @@ static int rvt_query_port(struct ib_device *ibdev, u8 port_num,
 static int rvt_modify_port(struct ib_device *ibdev, u8 port_num,
 			   int port_modify_mask, struct ib_port_modify *props)
 {
-	/*
-	 * VT-DRIVER-API: set_link_state()
-	 * driver will set the link state using the IB enumeration
-	 *
-	 * VT-DRIVER-API: clear_qkey_violations()
-	 * clears driver private qkey counter
-	 *
-	 * VT-DRIVER-API: get_lid()
-	 * driver needs to return the LID
-	 *
-	 * TBD: send_trap() and post_mad_send() need examined to see where they
-	 * fit in.
-	 */
-	if (ibport_num_to_idx(ibdev, port_num) < 0)
+	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
+	struct rvt_ibport *rvp;
+	int ret = 0;
+	int port_index = ibport_num_to_idx(ibdev, port_num);
+
+	if (port_index < 0)
 		return -EINVAL;
 
-	return -EOPNOTSUPP;
+	rvp = rdi->ports[port_index];
+	rvp->port_cap_flags |= props->set_port_cap_mask;
+	rvp->port_cap_flags &= ~props->clr_port_cap_mask;
+
+	if (props->set_port_cap_mask || props->clr_port_cap_mask)
+		rdi->driver_f.cap_mask_chg(rdi, port_num);
+	if (port_modify_mask & IB_PORT_SHUTDOWN)
+		ret = rdi->driver_f.shut_down_port(rdi, port_num);
+	if (port_modify_mask & IB_PORT_RESET_QKEY_CNTR)
+		rvp->qkey_violations = 0;
+
+	return ret;
 }
 
 /**
@@ -273,7 +289,24 @@ static int rvt_dealloc_ucontext(struct ib_ucontext *context)
 static int rvt_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 				  struct ib_port_immutable *immutable)
 {
-	return -EOPNOTSUPP;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
+	struct ib_port_attr attr;
+	int err, port_index;
+
+	port_index = ibport_num_to_idx(ibdev, port_num);
+	if (port_index < 0)
+		return -EINVAL;
+
+	err = rvt_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = rdi->dparms.core_cap_flags;
+	immutable->max_mad_size = rdi->dparms.max_mad_size;
+
+	return 0;
 }
 
 /*

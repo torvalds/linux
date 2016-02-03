@@ -200,6 +200,8 @@ struct rvt_driver_params {
 	int psn_mask;
 	int psn_shift;
 	int psn_modify_mask;
+	u32 core_cap_flags;
+	u32 max_mad_size;
 };
 
 /* Protection domain */
@@ -250,6 +252,10 @@ struct rvt_driver_provided {
 	int (*mtu_to_path_mtu)(u32 mtu);
 	int (*get_guid_be)(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
 			   int guid_index, __be64 *guid);
+	int (*query_port_state)(struct rvt_dev_info *rdi, u8 port_num,
+				struct ib_port_attr *props);
+	int (*shut_down_port)(struct rvt_dev_info *rdi, u8 port_num);
+	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u8 port_num);
 
 	/*--------------------*/
 	/* Optional functions */
