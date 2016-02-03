@@ -147,7 +147,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return -EINVAL;
 	}
 
-	r = amdgpu_ring_alloc(ring, (256 + AMDGPU_NUM_SYNCS * 8) * num_ibs);
+	r = amdgpu_ring_alloc(ring, 256 * num_ibs);
 	if (r) {
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
