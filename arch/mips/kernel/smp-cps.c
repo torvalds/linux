@@ -27,13 +27,24 @@
 #include <asm/time.h>
 #include <asm/uasm.h>
 
+static bool threads_disabled;
 static DECLARE_BITMAP(core_power, NR_CPUS);
 
 struct core_boot_config *mips_cps_core_bootcfg;
 
+static int __init setup_nothreads(char *s)
+{
+	threads_disabled = true;
+	return 0;
+}
+early_param("nothreads", setup_nothreads);
+
 static unsigned core_vpe_count(unsigned core)
 {
 	unsigned cfg;
+
+	if (threads_disabled)
+		return 1;
 
 	if ((!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
 		&& (!config_enabled(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
