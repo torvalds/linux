@@ -2144,8 +2144,8 @@ nodesc:
  * side locking.
  *
  * Return:
- * 0 - Success, -EINVAL - sdma_txreq incomplete, -EBUSY - no space in ring
- * (wait == NULL)
+ * > 0 - Success (value is number of sdma_txreq's submitted),
+ * -EINVAL - sdma_txreq incomplete, -EBUSY - no space in ring (wait == NULL)
  * -EIOCBQUEUED - tx queued to iowait, -ECOMM bad sdma state
  */
 int sdma_send_txlist(struct sdma_engine *sde,
@@ -2185,7 +2185,7 @@ update_tail:
 	if (tail != INVALID_TAIL)
 		sdma_update_tail(sde, tail);
 	spin_unlock_irqrestore(&sde->tail_lock, flags);
-	return ret;
+	return ret == 0 ? count : ret;
 unlock_noconn:
 	spin_lock(&sde->flushlist_lock);
 	list_for_each_entry_safe(tx, tx_next, tx_list, list) {

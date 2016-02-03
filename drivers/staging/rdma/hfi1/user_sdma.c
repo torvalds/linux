@@ -234,6 +234,7 @@ struct user_sdma_request {
 	u32 sent;
 	u64 seqnum;
 	u64 seqcomp;
+	u64 seqsubmitted;
 	struct list_head txps;
 	spinlock_t txcmp_lock;  /* protect txcmp list */
 	struct list_head txcmp;
@@ -1001,18 +1002,19 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 					TXREQ_FLAGS_IOVEC_LAST_PKT;
 		}
 
+		list_add_tail(&tx->txreq.list, &req->txps);
 		/*
 		 * It is important to increment this here as it is used to
 		 * generate the BTH.PSN and, therefore, can't be bulk-updated
 		 * outside of the loop.
 		 */
 		tx->seqnum = req->seqnum++;
-		list_add_tail(&tx->txreq.list, &req->txps);
 		npkts++;
 	}
 dosend:
 	ret = sdma_send_txlist(req->sde, &pq->busy, &req->txps);
-	if (list_empty(&req->txps))
+	if (list_empty(&req->txps)) {
+		req->seqsubmitted = req->seqnum;
 		if (req->seqnum == req->info.npkts) {
 			set_bit(SDMA_REQ_SEND_DONE, &req->flags);
 			/*
@@ -1024,6 +1026,10 @@ dosend:
 			if (test_bit(SDMA_REQ_HAVE_AHG, &req->flags))
 				sdma_ahg_free(req->sde, req->ahg_idx);
 		}
+	} else if (ret > 0) {
+		req->seqsubmitted += ret;
+		ret = 0;
+	}
 	return ret;
 
 free_txreq:
@@ -1406,8 +1412,9 @@ static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status,
 	} else {
 		if (status != SDMA_TXREQ_S_OK)
 			req->status = status;
-		if (req->seqcomp == ACCESS_ONCE(req->seqnum) &&
-		    test_bit(SDMA_REQ_DONE_ERROR, &req->flags)) {
+		if (req->seqcomp == (ACCESS_ONCE(req->seqsubmitted) - 1) &&
+		    (test_bit(SDMA_REQ_SEND_DONE, &req->flags) ||
+		     test_bit(SDMA_REQ_DONE_ERROR, &req->flags))) {
 			user_sdma_free_request(req, false);
 			pq_update(pq);
 			set_comp_state(pq, cq, idx, ERROR, req->status);
