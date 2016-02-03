@@ -734,6 +734,8 @@ struct hfi1_pportdata {
 	/* Error events that will cause a port bounce. */
 	u32 port_error_action;
 	struct work_struct linkstate_active_work;
+	/* Does this port need to prescan for FECNs */
+	bool cc_prescan;
 };
 
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);

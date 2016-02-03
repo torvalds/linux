@@ -26,13 +26,3 @@ config SDMA_VERBOSITY
 	---help---
 	This is a configuration flag to enable verbose
 	SDMA debug
-config PRESCAN_RXQ
-	bool "Enable prescanning of the RX queue for ECNs"
-	depends on INFINIBAND_HFI1
-	default n
-	---help---
-	This option toggles the prescanning of the receive queue for
-	Explicit Congestion Notifications. If an ECN is detected, it
-	is processed as quickly as possible, the ECN is toggled off.
-	After the prescanning step, the receive queue is processed as
-	usual.

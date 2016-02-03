@@ -453,11 +453,6 @@ static inline void init_packet(struct hfi1_ctxtdata *rcd,
 	packet->rcv_flags = 0;
 }
 
-#ifndef CONFIG_PRESCAN_RXQ
-static void prescan_rxq(struct hfi1_packet *packet) {}
-#else /* !CONFIG_PRESCAN_RXQ */
-static int prescan_receive_queue;
-
 static void process_ecn(struct rvt_qp *qp, struct hfi1_ib_header *hdr,
 			struct hfi1_other_headers *ohdr,
 			u64 rhf, u32 bth1, struct ib_grh *grh)
@@ -581,14 +576,18 @@ static inline void update_ps_mdata(struct ps_mdata *mdata,
  * containing Excplicit Congestion Notifications (FECNs, or BECNs).
  * When an ECN is found, process the Congestion Notification, and toggle
  * it off.
+ * This is declared as a macro to allow quick checking of the port to avoid
+ * the overhead of a function call if not enabled.
  */
-static void prescan_rxq(struct hfi1_packet *packet)
+#define prescan_rxq(rcd, packet) \
+	do { \
+		if (rcd->ppd->cc_prescan) \
+			__prescan_rxq(packet); \
+	} while (0)
+static void __prescan_rxq(struct hfi1_packet *packet)
 {
 	struct hfi1_ctxtdata *rcd = packet->rcd;
 	struct ps_mdata mdata;
-
-	if (!prescan_receive_queue)
-		return;
 
 	init_ps_mdata(&mdata, packet);
 
@@ -653,7 +652,6 @@ next:
 		update_ps_mdata(&mdata, rcd);
 	}
 }
-#endif /* CONFIG_PRESCAN_RXQ */
 
 static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 {
@@ -819,7 +817,7 @@ int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 		goto bail;
 	}
 
-	prescan_rxq(&packet);
+	prescan_rxq(rcd, &packet);
 
 	while (last == RCV_PKT_OK) {
 		last = process_rcv_packet(&packet, thread);
@@ -850,7 +848,7 @@ int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 	}
 	smp_rmb();  /* prevent speculative reads of dma'ed hdrq */
 
-	prescan_rxq(&packet);
+	prescan_rxq(rcd, &packet);
 
 	while (last == RCV_PKT_OK) {
 		last = process_rcv_packet(&packet, thread);
@@ -961,7 +959,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 		}
 	}
 
-	prescan_rxq(&packet);
+	prescan_rxq(rcd, &packet);
 
 	while (last == RCV_PKT_OK) {
 

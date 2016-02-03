@@ -99,10 +99,6 @@ static void port_release(struct kobject *kobj)
 	/* nothing to do since memory is freed by hfi1_free_devdata() */
 }
 
-static struct kobj_type port_cc_ktype = {
-	.release = port_release,
-};
-
 static struct bin_attribute cc_table_bin_attr = {
 	.attr = {.name = "cc_table_bin", .mode = 0444},
 	.read = read_cc_table_bin,
@@ -149,6 +145,68 @@ static struct bin_attribute cc_setting_bin_attr = {
 	.attr = {.name = "cc_settings_bin", .mode = 0444},
 	.read = read_cc_setting_bin,
 	.size = PAGE_SIZE,
+};
+
+struct hfi1_port_attr {
+	struct attribute attr;
+	ssize_t	(*show)(struct hfi1_pportdata *, char *);
+	ssize_t	(*store)(struct hfi1_pportdata *, const char *, size_t);
+};
+
+static ssize_t cc_prescan_show(struct hfi1_pportdata *ppd, char *buf)
+{
+	return sprintf(buf, "%s\n", ppd->cc_prescan ? "on" : "off");
+}
+
+static ssize_t cc_prescan_store(struct hfi1_pportdata *ppd, const char *buf,
+				size_t count)
+{
+	if (!memcmp(buf, "on", 2))
+		ppd->cc_prescan = true;
+	else if (!memcmp(buf, "off", 3))
+		ppd->cc_prescan = false;
+
+	return count;
+}
+
+static struct hfi1_port_attr cc_prescan_attr =
+		__ATTR(cc_prescan, 0600, cc_prescan_show, cc_prescan_store);
+
+static ssize_t cc_attr_show(struct kobject *kobj, struct attribute *attr,
+			    char *buf)
+{
+	struct hfi1_port_attr *port_attr =
+		container_of(attr, struct hfi1_port_attr, attr);
+	struct hfi1_pportdata *ppd =
+		container_of(kobj, struct hfi1_pportdata, pport_cc_kobj);
+
+	return port_attr->show(ppd, buf);
+}
+
+static ssize_t cc_attr_store(struct kobject *kobj, struct attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct hfi1_port_attr *port_attr =
+		container_of(attr, struct hfi1_port_attr, attr);
+	struct hfi1_pportdata *ppd =
+		container_of(kobj, struct hfi1_pportdata, pport_cc_kobj);
+
+	return port_attr->store(ppd, buf, count);
+}
+
+static const struct sysfs_ops port_cc_sysfs_ops = {
+	.show = cc_attr_show,
+	.store = cc_attr_store
+};
+
+static struct attribute *port_cc_default_attributes[] = {
+	&cc_prescan_attr.attr
+};
+
+static struct kobj_type port_cc_ktype = {
+	.release = port_release,
+	.sysfs_ops = &port_cc_sysfs_ops,
+	.default_attrs = port_cc_default_attributes
 };
 
 /* Start sc2vl */
