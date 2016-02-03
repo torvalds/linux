@@ -55,6 +55,7 @@ struct qib_verbs_txreq;
 
 #define QIB_MAX_RDMA_ATOMIC     16
 #define QIB_GUIDS_PER_PORT	5
+#define QIB_PSN_SHIFT		8
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -200,18 +201,6 @@ struct qib_qp_priv {
 
 #define QIB_PSN_CREDIT  16
 
-/*
- * Since struct rvt_rwqe is not a fixed size, we can't simply index into
- * struct rvt_rwq.wq.  This function does the array index computation.
- */
-static inline struct rvt_rwqe *get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
-{
-	return (struct rvt_rwqe *)
-		((char *) rq->wq->wq +
-		 (sizeof(struct rvt_rwqe) +
-		  rq->max_sge * sizeof(struct ib_sge)) * n);
-}
-
 struct qib_opcode_stats {
 	u64 n_packets;          /* number of packets */
 	u64 n_bytes;            /* total number of bytes */
@@ -268,8 +257,6 @@ struct qib_ibdev {
 	u32 n_piowait;
 	u32 n_txwait;
 
-	u32 n_qps_allocated;    /* number of QPs allocated for device */
-	spinlock_t n_qps_lock;
 #ifdef CONFIG_DEBUG_FS
 	/* per HCA debugfs */
 	struct dentry *qib_ibdev_dbg;
@@ -361,10 +348,6 @@ __be32 qib_compute_aeth(struct rvt_qp *qp);
 
 int qib_destroy_qp(struct ib_qp *ibqp);
 
-int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
-
-int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		  int attr_mask, struct ib_udata *udata);
 /*
  * Functions provided by qib driver for rdmavt to use
  */
@@ -425,15 +408,6 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
 void mr_rcu_callback(struct rcu_head *list);
-
-static inline void qib_put_ss(struct rvt_sge_state *ss)
-{
-	while (ss->num_sge) {
-		rvt_put_mr(ss->sge.mr);
-		if (--ss->num_sge)
-			ss->sge = *ss->sg_list++;
-	}
-}
 
 int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only);
 

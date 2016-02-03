@@ -673,7 +673,7 @@ unmap:
 	if (qp->ibqp.qp_type == IB_QPT_RC) {
 		/* XXX what about error sending RDMA read responses? */
 		if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)
-			qib_error_qp(qp, IB_WC_GENERAL_ERR);
+			rvt_error_qp(qp, IB_WC_GENERAL_ERR);
 	} else if (qp->s_wqe)
 		qib_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
 	spin_unlock(&qp->s_lock);

@@ -209,44 +209,9 @@ bail:
 	return ret;
 }
 
-static void free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
-{
-	struct rvt_qpn_map *map;
-
-	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
-	if (map->page)
-		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
-}
-
 static inline unsigned qpn_hash(struct qib_ibdev *dev, u32 qpn)
 {
 	return hash_32(qpn, dev->rdi.qp_dev->qp_table_bits);
-}
-
-
-/*
- * Put the QP into the hash table.
- * The hash table holds a reference to the QP.
- */
-static void insert_qp(struct qib_ibdev *dev, struct rvt_qp *qp)
-{
-	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	unsigned long flags;
-	unsigned n = qpn_hash(dev, qp->ibqp.qp_num);
-
-	atomic_inc(&qp->refcount);
-	spin_lock_irqsave(&dev->rdi.qp_dev->qpt_lock, flags);
-
-	if (qp->ibqp.qp_num == 0)
-		rcu_assign_pointer(ibp->rvp.qp[0], qp);
-	else if (qp->ibqp.qp_num == 1)
-		rcu_assign_pointer(ibp->rvp.qp[1], qp);
-	else {
-		qp->next = dev->rdi.qp_dev->qp_table[n];
-		rcu_assign_pointer(dev->rdi.qp_dev->qp_table[n], qp);
-	}
-
-	spin_unlock_irqrestore(&dev->rdi.qp_dev->qpt_lock, flags);
 }
 
 /*
@@ -326,82 +291,10 @@ void notify_qp_reset(struct rvt_qp *qp)
 	atomic_set(&priv->s_dma_busy, 0);
 }
 
-static void clear_mr_refs(struct rvt_qp *qp, int clr_sends)
-{
-	unsigned n;
-
-	if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
-		qib_put_ss(&qp->s_rdma_read_sge);
-
-	qib_put_ss(&qp->r_sge);
-
-	if (clr_sends) {
-		while (qp->s_last != qp->s_head) {
-			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-			unsigned i;
-
-			for (i = 0; i < wqe->wr.num_sge; i++) {
-				struct rvt_sge *sge = &wqe->sg_list[i];
-
-				rvt_put_mr(sge->mr);
-			}
-			if (qp->ibqp.qp_type == IB_QPT_UD ||
-			    qp->ibqp.qp_type == IB_QPT_SMI ||
-			    qp->ibqp.qp_type == IB_QPT_GSI)
-				atomic_dec(
-				 &ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
-			if (++qp->s_last >= qp->s_size)
-				qp->s_last = 0;
-		}
-		if (qp->s_rdma_mr) {
-			rvt_put_mr(qp->s_rdma_mr);
-			qp->s_rdma_mr = NULL;
-		}
-	}
-
-	if (qp->ibqp.qp_type != IB_QPT_RC)
-		return;
-
-	for (n = 0; n < ARRAY_SIZE(qp->s_ack_queue); n++) {
-		struct rvt_ack_entry *e = &qp->s_ack_queue[n];
-
-		if (e->opcode == IB_OPCODE_RC_RDMA_READ_REQUEST &&
-		    e->rdma_sge.mr) {
-			rvt_put_mr(e->rdma_sge.mr);
-			e->rdma_sge.mr = NULL;
-		}
-	}
-}
-
-/**
- * qib_error_qp - put a QP into the error state
- * @qp: the QP to put into the error state
- * @err: the receive completion error to signal if a RWQE is active
- *
- * Flushes both send and receive work queues.
- * Returns true if last WQE event should be generated.
- * The QP r_lock and s_lock should be held and interrupts disabled.
- * If we are already in error state, just return.
- */
-int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
+void notify_error_qp(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
-	struct ib_wc wc;
-	int ret = 0;
-
-	if (qp->state == IB_QPS_ERR || qp->state == IB_QPS_RESET)
-		goto bail;
-
-	qp->state = IB_QPS_ERR;
-
-	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
-		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
-		del_timer(&qp->s_timer);
-	}
-
-	if (qp->s_flags & RVT_S_ANY_WAIT_SEND)
-		qp->s_flags &= ~RVT_S_ANY_WAIT_SEND;
 
 	spin_lock(&dev->rdi.pending_lock);
 	if (!list_empty(&priv->iowait) && !(qp->s_flags & RVT_S_BUSY)) {
@@ -421,351 +314,60 @@ int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 			priv->s_tx = NULL;
 		}
 	}
-
-	/* Schedule the sending tasklet to drain the send work queue. */
-	if (qp->s_last != qp->s_head)
-		qib_schedule_send(qp);
-
-	clear_mr_refs(qp, 0);
-
-	memset(&wc, 0, sizeof(wc));
-	wc.qp = &qp->ibqp;
-	wc.opcode = IB_WC_RECV;
-
-	if (test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags)) {
-		wc.wr_id = qp->r_wr_id;
-		wc.status = err;
-		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, 1);
-	}
-	wc.status = IB_WC_WR_FLUSH_ERR;
-
-	if (qp->r_rq.wq) {
-		struct rvt_rwq *wq;
-		u32 head;
-		u32 tail;
-
-		spin_lock(&qp->r_rq.lock);
-
-		/* sanity check pointers before trusting them */
-		wq = qp->r_rq.wq;
-		head = wq->head;
-		if (head >= qp->r_rq.size)
-			head = 0;
-		tail = wq->tail;
-		if (tail >= qp->r_rq.size)
-			tail = 0;
-		while (tail != head) {
-			wc.wr_id = get_rwqe_ptr(&qp->r_rq, tail)->wr_id;
-			if (++tail >= qp->r_rq.size)
-				tail = 0;
-			rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, 1);
-		}
-		wq->tail = tail;
-
-		spin_unlock(&qp->r_rq.lock);
-	} else if (qp->ibqp.event_handler)
-		ret = 1;
-
-bail:
-	return ret;
 }
 
-/**
- * qib_modify_qp - modify the attributes of a queue pair
- * @ibqp: the queue pair who's attributes we're modifying
- * @attr: the new attributes
- * @attr_mask: the mask of attributes to modify
- * @udata: user data for libibverbs.so
- *
- * Returns 0 on success, otherwise returns an errno.
- */
-int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-		  int attr_mask, struct ib_udata *udata)
+static int mtu_to_enum(u32 mtu)
 {
-	struct qib_ibdev *dev = to_idev(ibqp->device);
-	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
-	struct qib_qp_priv *priv = qp->priv;
-	enum ib_qp_state cur_state, new_state;
-	struct ib_event ev;
-	int lastwqe = 0;
-	int mig = 0;
-	int ret;
-	u32 pmtu = 0; /* for gcc warning only */
+	int enum_mtu;
 
-	spin_lock_irq(&qp->r_lock);
-	spin_lock(&qp->s_lock);
-
-	cur_state = attr_mask & IB_QP_CUR_STATE ?
-		attr->cur_qp_state : qp->state;
-	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
-
-	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
-				attr_mask, IB_LINK_LAYER_UNSPECIFIED))
-		goto inval;
-
-	if (attr_mask & IB_QP_AV) {
-		if (attr->ah_attr.dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
-			goto inval;
-		if (rvt_check_ah(qp->ibqp.device, &attr->ah_attr))
-			goto inval;
-	}
-
-	if (attr_mask & IB_QP_ALT_PATH) {
-		if (attr->alt_ah_attr.dlid >=
-		    be16_to_cpu(IB_MULTICAST_LID_BASE))
-			goto inval;
-		if (rvt_check_ah(qp->ibqp.device, &attr->alt_ah_attr))
-			goto inval;
-		if (attr->alt_pkey_index >= qib_get_npkeys(dd_from_dev(dev)))
-			goto inval;
-	}
-
-	if (attr_mask & IB_QP_PKEY_INDEX)
-		if (attr->pkey_index >= qib_get_npkeys(dd_from_dev(dev)))
-			goto inval;
-
-	if (attr_mask & IB_QP_MIN_RNR_TIMER)
-		if (attr->min_rnr_timer > 31)
-			goto inval;
-
-	if (attr_mask & IB_QP_PORT)
-		if (qp->ibqp.qp_type == IB_QPT_SMI ||
-		    qp->ibqp.qp_type == IB_QPT_GSI ||
-		    attr->port_num == 0 ||
-		    attr->port_num > ibqp->device->phys_port_cnt)
-			goto inval;
-
-	if (attr_mask & IB_QP_DEST_QPN)
-		if (attr->dest_qp_num > QIB_QPN_MASK)
-			goto inval;
-
-	if (attr_mask & IB_QP_RETRY_CNT)
-		if (attr->retry_cnt > 7)
-			goto inval;
-
-	if (attr_mask & IB_QP_RNR_RETRY)
-		if (attr->rnr_retry > 7)
-			goto inval;
-
-	/*
-	 * Don't allow invalid path_mtu values.  OK to set greater
-	 * than the active mtu (or even the max_cap, if we have tuned
-	 * that to a small mtu.  We'll set qp->path_mtu
-	 * to the lesser of requested attribute mtu and active,
-	 * for packetizing messages.
-	 * Note that the QP port has to be set in INIT and MTU in RTR.
-	 */
-	if (attr_mask & IB_QP_PATH_MTU) {
-		struct qib_devdata *dd = dd_from_dev(dev);
-		int mtu, pidx = qp->port_num - 1;
-
-		mtu = ib_mtu_enum_to_int(attr->path_mtu);
-		if (mtu == -1)
-			goto inval;
-		if (mtu > dd->pport[pidx].ibmtu) {
-			switch (dd->pport[pidx].ibmtu) {
-			case 4096:
-				pmtu = IB_MTU_4096;
-				break;
-			case 2048:
-				pmtu = IB_MTU_2048;
-				break;
-			case 1024:
-				pmtu = IB_MTU_1024;
-				break;
-			case 512:
-				pmtu = IB_MTU_512;
-				break;
-			case 256:
-				pmtu = IB_MTU_256;
-				break;
-			default:
-				pmtu = IB_MTU_2048;
-			}
-		} else
-			pmtu = attr->path_mtu;
-	}
-
-	if (attr_mask & IB_QP_PATH_MIG_STATE) {
-		if (attr->path_mig_state == IB_MIG_REARM) {
-			if (qp->s_mig_state == IB_MIG_ARMED)
-				goto inval;
-			if (new_state != IB_QPS_RTS)
-				goto inval;
-		} else if (attr->path_mig_state == IB_MIG_MIGRATED) {
-			if (qp->s_mig_state == IB_MIG_REARM)
-				goto inval;
-			if (new_state != IB_QPS_RTS && new_state != IB_QPS_SQD)
-				goto inval;
-			if (qp->s_mig_state == IB_MIG_ARMED)
-				mig = 1;
-		} else
-			goto inval;
-	}
-
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
-		if (attr->max_dest_rd_atomic > QIB_MAX_RDMA_ATOMIC)
-			goto inval;
-
-	switch (new_state) {
-	case IB_QPS_RESET:
-		if (qp->state != IB_QPS_RESET) {
-			qp->state = IB_QPS_RESET;
-			spin_lock(&dev->rdi.pending_lock);
-			if (!list_empty(&priv->iowait))
-				list_del_init(&priv->iowait);
-			spin_unlock(&dev->rdi.pending_lock);
-			qp->s_flags &= ~(RVT_S_TIMER | RVT_S_ANY_WAIT);
-			spin_unlock(&qp->s_lock);
-			spin_unlock_irq(&qp->r_lock);
-			/* Stop the sending work queue and retry timer */
-			cancel_work_sync(&priv->s_work);
-			del_timer_sync(&qp->s_timer);
-			wait_event(priv->wait_dma,
-				   !atomic_read(&priv->s_dma_busy));
-			if (priv->s_tx) {
-				qib_put_txreq(priv->s_tx);
-				priv->s_tx = NULL;
-			}
-			remove_qp(dev, qp);
-			wait_event(qp->wait, !atomic_read(&qp->refcount));
-			spin_lock_irq(&qp->r_lock);
-			spin_lock(&qp->s_lock);
-			clear_mr_refs(qp, 1);
-			rvt_reset_qp(&dev->rdi, qp, ibqp->qp_type);
-		}
+	switch (mtu) {
+	case 4096:
+		enum_mtu = IB_MTU_4096;
 		break;
-
-	case IB_QPS_RTR:
-		/* Allow event to retrigger if QP set to RTR more than once */
-		qp->r_flags &= ~RVT_R_COMM_EST;
-		qp->state = new_state;
+	case 2048:
+		enum_mtu = IB_MTU_2048;
 		break;
-
-	case IB_QPS_SQD:
-		qp->s_draining = qp->s_last != qp->s_cur;
-		qp->state = new_state;
+	case 1024:
+		enum_mtu = IB_MTU_1024;
 		break;
-
-	case IB_QPS_SQE:
-		if (qp->ibqp.qp_type == IB_QPT_RC)
-			goto inval;
-		qp->state = new_state;
+	case 512:
+		enum_mtu = IB_MTU_512;
 		break;
-
-	case IB_QPS_ERR:
-		lastwqe = qib_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+	case 256:
+		enum_mtu = IB_MTU_256;
 		break;
-
 	default:
-		qp->state = new_state;
-		break;
+		enum_mtu = IB_MTU_2048;
 	}
+	return enum_mtu;
+}
 
-	if (attr_mask & IB_QP_PKEY_INDEX)
-		qp->s_pkey_index = attr->pkey_index;
+int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+		       struct ib_qp_attr *attr)
+{
+	int mtu, pmtu, pidx = qp->port_num - 1;
+	struct qib_ibdev *verbs_dev = container_of(rdi, struct qib_ibdev, rdi);
+	struct qib_devdata *dd = container_of(verbs_dev, struct qib_devdata,
+					      verbs_dev);
+	mtu = ib_mtu_enum_to_int(attr->path_mtu);
+	if (mtu == -1)
+		return -EINVAL;
 
-	if (attr_mask & IB_QP_PORT)
-		qp->port_num = attr->port_num;
+	if (mtu > dd->pport[pidx].ibmtu)
+		pmtu = mtu_to_enum(dd->pport[pidx].ibmtu);
+	else
+		pmtu = attr->path_mtu;
+	return pmtu;
+}
 
-	if (attr_mask & IB_QP_DEST_QPN)
-		qp->remote_qpn = attr->dest_qp_num;
+int mtu_to_path_mtu(u32 mtu)
+{
+	return mtu_to_enum(mtu);
+}
 
-	if (attr_mask & IB_QP_SQ_PSN) {
-		qp->s_next_psn = attr->sq_psn & QIB_PSN_MASK;
-		qp->s_psn = qp->s_next_psn;
-		qp->s_sending_psn = qp->s_next_psn;
-		qp->s_last_psn = qp->s_next_psn - 1;
-		qp->s_sending_hpsn = qp->s_last_psn;
-	}
-
-	if (attr_mask & IB_QP_RQ_PSN)
-		qp->r_psn = attr->rq_psn & QIB_PSN_MASK;
-
-	if (attr_mask & IB_QP_ACCESS_FLAGS)
-		qp->qp_access_flags = attr->qp_access_flags;
-
-	if (attr_mask & IB_QP_AV) {
-		qp->remote_ah_attr = attr->ah_attr;
-		qp->s_srate = attr->ah_attr.static_rate;
-	}
-
-	if (attr_mask & IB_QP_ALT_PATH) {
-		qp->alt_ah_attr = attr->alt_ah_attr;
-		qp->s_alt_pkey_index = attr->alt_pkey_index;
-	}
-
-	if (attr_mask & IB_QP_PATH_MIG_STATE) {
-		qp->s_mig_state = attr->path_mig_state;
-		if (mig) {
-			qp->remote_ah_attr = qp->alt_ah_attr;
-			qp->port_num = qp->alt_ah_attr.port_num;
-			qp->s_pkey_index = qp->s_alt_pkey_index;
-		}
-	}
-
-	if (attr_mask & IB_QP_PATH_MTU) {
-		qp->path_mtu = pmtu;
-		qp->pmtu = ib_mtu_enum_to_int(pmtu);
-	}
-
-	if (attr_mask & IB_QP_RETRY_CNT) {
-		qp->s_retry_cnt = attr->retry_cnt;
-		qp->s_retry = attr->retry_cnt;
-	}
-
-	if (attr_mask & IB_QP_RNR_RETRY) {
-		qp->s_rnr_retry_cnt = attr->rnr_retry;
-		qp->s_rnr_retry = attr->rnr_retry;
-	}
-
-	if (attr_mask & IB_QP_MIN_RNR_TIMER)
-		qp->r_min_rnr_timer = attr->min_rnr_timer;
-
-	if (attr_mask & IB_QP_TIMEOUT) {
-		qp->timeout = attr->timeout;
-		qp->timeout_jiffies =
-			usecs_to_jiffies((4096UL * (1UL << qp->timeout)) /
-				1000UL);
-	}
-
-	if (attr_mask & IB_QP_QKEY)
-		qp->qkey = attr->qkey;
-
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
-		qp->r_max_rd_atomic = attr->max_dest_rd_atomic;
-
-	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
-		qp->s_max_rd_atomic = attr->max_rd_atomic;
-
-	spin_unlock(&qp->s_lock);
-	spin_unlock_irq(&qp->r_lock);
-
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
-		insert_qp(dev, qp);
-
-	if (lastwqe) {
-		ev.device = qp->ibqp.device;
-		ev.element.qp = &qp->ibqp;
-		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
-		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
-	}
-	if (mig) {
-		ev.device = qp->ibqp.device;
-		ev.element.qp = &qp->ibqp;
-		ev.event = IB_EVENT_PATH_MIG;
-		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
-	}
-	ret = 0;
-	goto bail;
-
-inval:
-	spin_unlock(&qp->s_lock);
-	spin_unlock_irq(&qp->r_lock);
-	ret = -EINVAL;
-
-bail:
-	return ret;
+u32 mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu)
+{
+	return ib_mtu_enum_to_int(pmtu);
 }
 
 /**
@@ -857,6 +459,35 @@ void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 	kfree(priv);
 }
 
+void stop_send_queue(struct rvt_qp *qp)
+{
+	struct qib_qp_priv *priv = qp->priv;
+
+	cancel_work_sync(&priv->s_work);
+}
+
+void quiesce_qp(struct rvt_qp *qp)
+{
+	struct qib_qp_priv *priv = qp->priv;
+
+	wait_event(priv->wait_dma, !atomic_read(&priv->s_dma_busy));
+	if (priv->s_tx) {
+		qib_put_txreq(priv->s_tx);
+		priv->s_tx = NULL;
+	}
+}
+
+void flush_qp_waiters(struct rvt_qp *qp)
+{
+	struct qib_qp_priv *priv = qp->priv;
+	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
+
+	spin_lock(&dev->rdi.pending_lock);
+	if (!list_empty(&priv->iowait))
+		list_del_init(&priv->iowait);
+	spin_unlock(&dev->rdi.pending_lock);
+}
+
 /**
  * qib_destroy_qp - destroy a queue pair
  * @ibqp: the queue pair to destroy
@@ -891,15 +522,13 @@ int qib_destroy_qp(struct ib_qp *ibqp)
 		}
 		remove_qp(dev, qp);
 		wait_event(qp->wait, !atomic_read(&qp->refcount));
-		clear_mr_refs(qp, 1);
+		rvt_clear_mr_refs(qp, 1);
 	} else
 		spin_unlock_irq(&qp->s_lock);
 
 	/* all user's cleaned up, mark it available */
-	free_qpn(&dev->rdi.qp_dev->qpn_table, qp->ibqp.qp_num);
-	spin_lock(&dev->n_qps_lock);
-	dev->n_qps_allocated--;
-	spin_unlock(&dev->n_qps_lock);
+	rvt_free_qpn(&dev->rdi.qp_dev->qpn_table, qp->ibqp.qp_num);
+	rvt_dec_qp_cnt(&dev->rdi);
 
 	if (qp->ip)
 		kref_put(&qp->ip->ref, rvt_release_mmap_info);

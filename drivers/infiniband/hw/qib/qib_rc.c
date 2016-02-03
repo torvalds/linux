@@ -879,7 +879,7 @@ static void qib_restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 			qp->s_retry = qp->s_retry_cnt;
 		} else if (qp->s_last == qp->s_acked) {
 			qib_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
-			qib_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+			rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			return;
 		} else /* XXX need to handle delayed completion */
 			return;
@@ -1324,7 +1324,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 class_b:
 			if (qp->s_last == qp->s_acked) {
 				qib_send_complete(qp, wqe, status);
-				qib_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+				rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			}
 			break;
 
@@ -1599,7 +1599,7 @@ ack_len_err:
 ack_err:
 	if (qp->s_last == qp->s_acked) {
 		qib_send_complete(qp, wqe, status);
-		qib_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+		rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 	}
 ack_done:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -1825,7 +1825,7 @@ void qib_rc_error(struct rvt_qp *qp, enum ib_wc_status err)
 	int lastwqe;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
-	lastwqe = qib_error_qp(qp, err);
+	lastwqe = rvt_error_qp(qp, err);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 
 	if (lastwqe) {
@@ -2027,7 +2027,7 @@ send_last:
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto nack_inv;
 		qib_copy_sge(&qp->r_sge, data, tlen, 1);
-		qib_put_ss(&qp->r_sge);
+		rvt_put_ss(&qp->r_sge);
 		qp->r_msn++;
 		if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 			break;

@@ -747,7 +747,6 @@ struct qib_tid_session_member {
 #define QIB_AETH_CREDIT_INVAL 0x1F
 #define QIB_PSN_MASK 0xFFFFFF
 #define QIB_MSN_MASK 0xFFFFFF
-#define QIB_QPN_MASK 0xFFFFFF
 #define QIB_EAGER_TID_ID QLOGIC_IB_I_TID_MASK
 #define QIB_MULTICAST_QPN 0xFFFFFF
 

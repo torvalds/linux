@@ -411,7 +411,7 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 #endif
 
 	/* Get the destination QP number. */
-	qp_num = be32_to_cpu(ohdr->bth[1]) & QIB_QPN_MASK;
+	qp_num = be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
 	if (qp_num == QIB_MULTICAST_QPN) {
 		struct rvt_mcast *mcast;
 		struct rvt_mcast_qp *p;
@@ -1644,7 +1644,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 		init_ibport(ppd + i);
 
 	/* Only need to initialize non-zero fields. */
-	spin_lock_init(&dev->n_qps_lock);
 	init_timer(&dev->mem_timer);
 	dev->mem_timer.function = mem_timer;
 	dev->mem_timer.data = (unsigned long) dev;
@@ -1698,7 +1697,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->query_port = qib_query_port;
 	ibdev->modify_port = qib_modify_port;
 	ibdev->query_gid = qib_query_gid;
-	ibdev->modify_qp = qib_modify_qp;
 	ibdev->destroy_qp = qib_destroy_qp;
 	ibdev->process_mad = qib_process_mad;
 	ibdev->get_port_immutable = qib_port_immutable;
@@ -1721,7 +1719,15 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
 	dd->verbs_dev.rdi.driver_f.do_send = qib_do_send;
 	dd->verbs_dev.rdi.driver_f.schedule_send = qib_schedule_send;
+	dd->verbs_dev.rdi.driver_f.quiesce_qp = quiesce_qp;
+	dd->verbs_dev.rdi.driver_f.stop_send_queue = stop_send_queue;
+	dd->verbs_dev.rdi.driver_f.flush_qp_waiters = flush_qp_waiters;
+	dd->verbs_dev.rdi.driver_f.notify_error_qp = notify_error_qp;
+	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = mtu_to_path_mtu;
+	dd->verbs_dev.rdi.driver_f.mtu_from_qp = mtu_from_qp;
+	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = get_pmtu_from_attr;
 
+	dd->verbs_dev.rdi.dparms.max_rdma_atomic = QIB_MAX_RDMA_ATOMIC;
 	dd->verbs_dev.rdi.dparms.lkey_table_size = qib_lkey_table_size;
 	dd->verbs_dev.rdi.dparms.qp_table_size = ib_qib_qp_table_size;
 	dd->verbs_dev.rdi.dparms.qpn_start = 1;
@@ -1730,6 +1736,8 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.dparms.qpn_inc = 1;
 	dd->verbs_dev.rdi.dparms.qos_shift = 1;
 	dd->verbs_dev.rdi.dparms.psn_mask = QIB_PSN_MASK;
+	dd->verbs_dev.rdi.dparms.psn_shift = QIB_PSN_SHIFT;
+	dd->verbs_dev.rdi.dparms.psn_modify_mask = QIB_PSN_MASK;
 	dd->verbs_dev.rdi.dparms.nports = dd->num_pports;
 	dd->verbs_dev.rdi.dparms.npkeys = qib_get_npkeys(dd);
 	dd->verbs_dev.rdi.dparms.node = dd->assigned_node_id;

@@ -364,7 +364,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 		psn = be32_to_cpu(ohdr->bth[2]);
 
 		/* Get the destination QP number. */
-		qp_num = be32_to_cpu(ohdr->bth[1]) & QIB_QPN_MASK;
+		qp_num = be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
 		if (qp_num != QIB_MULTICAST_QPN) {
 			int ruc_res;
 

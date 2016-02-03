@@ -174,7 +174,7 @@ int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only)
 	}
 	/* Make sure entry is read after head index is read. */
 	smp_rmb();
-	wqe = get_rwqe_ptr(rq, tail);
+	wqe = rvt_get_rwqe_ptr(rq, tail);
 	/*
 	 * Even though we update the tail index in memory, the verbs
 	 * consumer is not supposed to post more entries until a
@@ -551,7 +551,7 @@ again:
 		sqp->s_len -= len;
 	}
 	if (release)
-		qib_put_ss(&qp->r_sge);
+		rvt_put_ss(&qp->r_sge);
 
 	if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 		goto send_comp;
@@ -626,7 +626,7 @@ serr:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	qib_send_complete(sqp, wqe, send_status);
 	if (sqp->ibqp.qp_type == IB_QPT_RC) {
-		int lastwqe = qib_error_qp(sqp, IB_WC_WR_FLUSH_ERR);
+		int lastwqe = rvt_error_qp(sqp, IB_WC_WR_FLUSH_ERR);
 
 		sqp->s_flags &= ~RVT_S_BUSY;
 		spin_unlock_irqrestore(&sqp->s_lock, flags);
