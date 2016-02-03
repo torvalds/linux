@@ -409,7 +409,7 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 	case HFI1_CMD_EP_ERASE_RANGE:
 	case HFI1_CMD_EP_READ_RANGE:
 	case HFI1_CMD_EP_WRITE_RANGE:
-		ret = handle_eprom_command(&cmd);
+		ret = handle_eprom_command(fp, &cmd);
 		break;
 	}
 

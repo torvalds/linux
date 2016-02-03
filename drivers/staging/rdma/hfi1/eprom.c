@@ -353,21 +353,26 @@ static inline u32 extract_rstart(u32 composite)
  *
  * Return 0 on success, -ERRNO on error
  */
-int handle_eprom_command(const struct hfi1_cmd *cmd)
+int handle_eprom_command(struct file *fp, const struct hfi1_cmd *cmd)
 {
 	struct hfi1_devdata *dd;
 	u32 dev_id;
 	u32 rlen;	/* range length */
 	u32 rstart;	/* range start */
+	int i_minor;
 	int ret = 0;
 
 	/*
-	 * The EPROM is per-device, so use unit 0 as that will always
-	 * exist.
+	 * Map the device file to device data using the relative minor.
+	 * The device file minor number is the unit number + 1.  0 is
+	 * the generic device file - reject it.
 	 */
-	dd = hfi1_lookup(0);
+	i_minor = iminor(file_inode(fp)) - HFI1_USER_MINOR_BASE;
+	if (i_minor <= 0)
+		return -EINVAL;
+	dd = hfi1_lookup(i_minor - 1);
 	if (!dd) {
-		pr_err("%s: cannot find unit 0!\n", __func__);
+		pr_err("%s: cannot find unit %d!\n", __func__, i_minor);
 		return -EINVAL;
 	}
 
