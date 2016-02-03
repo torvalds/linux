@@ -555,9 +555,13 @@ scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
 	cd.data = NULL;
 	cd.size = 0;
 
-	cd = find_cpio_data(p, (void *)start, size, &offset);
-	if (!cd.data) {
+	/* try built-in microcode if no initrd */
+	if (!size) {
 		if (!load_builtin_intel_microcode(&cd))
+			return UCODE_ERROR;
+	} else {
+		cd = find_cpio_data(p, (void *)start, size, &offset);
+		if (!cd.data)
 			return UCODE_ERROR;
 	}
 
@@ -732,16 +736,20 @@ void __init load_ucode_intel_bsp(void)
 	struct boot_params *p;
 
 	p	= (struct boot_params *)__pa_nodebug(&boot_params);
-	start	= p->hdr.ramdisk_image;
 	size	= p->hdr.ramdisk_size;
 
-	_load_ucode_intel_bsp(
-			(struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
-			(unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
-			start, size);
+	/*
+	 * Set start only if we have an initrd image. We cannot use initrd_start
+	 * because it is not set that early yet.
+	 */
+	start	= (size ? p->hdr.ramdisk_image : 0);
+
+	_load_ucode_intel_bsp((struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
+			      (unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
+			      start, size);
 #else
-	start	= boot_params.hdr.ramdisk_image + PAGE_OFFSET;
 	size	= boot_params.hdr.ramdisk_size;
+	start	= (size ? boot_params.hdr.ramdisk_image + PAGE_OFFSET : 0);
 
 	_load_ucode_intel_bsp(&mc_saved_data, mc_saved_in_initrd, start, size);
 #endif
