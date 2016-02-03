@@ -10174,6 +10174,7 @@ S:	Supported
 F:	drivers/media/pci/solo6x10/
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
+M:	Shaohua Li <shli@kernel.org>
 L:	linux-raid@vger.kernel.org
 T:	git git://neil.brown.name/md
 S:	Supported
