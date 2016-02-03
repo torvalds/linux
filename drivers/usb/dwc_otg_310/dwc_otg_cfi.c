@@ -413,14 +413,14 @@ static void cfi_release(cfiobject_t *cfiobj)
 	CFI_INFO("%s\n", __func__);
 
 	if (cfiobj->buf_in.buf) {
-		DWC_DMA_FREE(CFI_IN_BUF_LEN, cfiobj->buf_in.buf,
-			     cfiobj->buf_in.addr);
+		DWC_DEV_DMA_FREE(CFI_IN_BUF_LEN, cfiobj->buf_in.buf,
+				 cfiobj->buf_in.addr);
 		cfiobj->buf_in.buf = NULL;
 	}
 
 	if (cfiobj->buf_out.buf) {
-		DWC_DMA_FREE(CFI_OUT_BUF_LEN, cfiobj->buf_out.buf,
-			     cfiobj->buf_out.addr);
+		DWC_DEV_DMA_FREE(CFI_OUT_BUF_LEN, cfiobj->buf_out.buf,
+				 cfiobj->buf_out.addr);
 		cfiobj->buf_out.buf = NULL;
 	}
 

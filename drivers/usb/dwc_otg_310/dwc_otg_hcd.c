@@ -828,9 +828,9 @@ static void dwc_otg_hcd_free(dwc_otg_hcd_t *dwc_otg_hcd)
 
 	if (dwc_otg_hcd->core_if->dma_enable) {
 		if (dwc_otg_hcd->status_buf_dma) {
-			DWC_DMA_FREE(DWC_OTG_HCD_STATUS_BUF_SIZE,
-				     dwc_otg_hcd->status_buf,
-				     dwc_otg_hcd->status_buf_dma);
+			DWC_DEV_DMA_FREE(DWC_OTG_HCD_STATUS_BUF_SIZE,
+					 dwc_otg_hcd->status_buf,
+					 dwc_otg_hcd->status_buf_dma);
 		}
 	} else if (dwc_otg_hcd->status_buf != NULL) {
 		DWC_FREE(dwc_otg_hcd->status_buf);
@@ -932,8 +932,8 @@ int dwc_otg_hcd_init(dwc_otg_hcd_t *hcd, dwc_otg_core_if_t *core_if)
 	 */
 	if (hcd->core_if->dma_enable) {
 		hcd->status_buf =
-		    DWC_DMA_ALLOC_ATOMIC(DWC_OTG_HCD_STATUS_BUF_SIZE,
-					 &hcd->status_buf_dma);
+		    DWC_DEV_DMA_ALLOC_ATOMIC(DWC_OTG_HCD_STATUS_BUF_SIZE,
+					     &hcd->status_buf_dma);
 	} else {
 		hcd->status_buf = DWC_ALLOC(DWC_OTG_HCD_STATUS_BUF_SIZE);
 	}
@@ -1214,9 +1214,10 @@ static int assign_and_init_hc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 			buf_size = 4096;
 		}
 		if (!qh->dw_align_buf) {
-			qh->dw_align_buf = DWC_DMA_ALLOC_ATOMIC(buf_size,
-								&qh->
-								dw_align_buf_dma);
+			qh->dw_align_buf =
+				DWC_DEV_DMA_ALLOC_ATOMIC(buf_size,
+							 &qh->
+							 dw_align_buf_dma);
 			if (!qh->dw_align_buf) {
 				DWC_ERROR
 				    ("%s: Failed to allocate memory to handle "

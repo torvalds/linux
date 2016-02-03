@@ -53,6 +53,8 @@ obj-$(CONFIG_EARLY_PRINTK_DBGP)	+= early/
 obj-$(CONFIG_USB_ATM)		+= atm/
 obj-$(CONFIG_USB_SPEEDTOUCH)	+= atm/
 
+obj-$(CONFIG_DWC_OTG_310)	+= dwc_otg_310/
+
 obj-$(CONFIG_USB_MUSB_HDRC)	+= musb/
 obj-$(CONFIG_USB_CHIPIDEA)	+= chipidea/
 obj-$(CONFIG_USB_RENESAS_USBHS)	+= renesas_usbhs/

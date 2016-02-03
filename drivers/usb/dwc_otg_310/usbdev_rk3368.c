@@ -99,15 +99,15 @@ static void usb20otg_clock_init(void *pdata)
 	struct dwc_otg_platform_data *usbpdata = pdata;
 	struct clk *ahbclk, *phyclk;
 
-	ahbclk = devm_clk_get(usbpdata->dev, "hclk_otg");
+	ahbclk = devm_clk_get(usbpdata->dev, "otg");
 	if (IS_ERR(ahbclk)) {
-		dev_err(usbpdata->dev, "Failed to get hclk_usb0\n");
+		dev_err(usbpdata->dev, "Failed to get otg clk\n");
 		return;
 	}
 
-	phyclk = devm_clk_get(usbpdata->dev, "clk_usbphy0");
+	phyclk = devm_clk_get(usbpdata->dev, "sclk_otgphy0");
 	if (IS_ERR(phyclk)) {
-		dev_err(usbpdata->dev, "Failed to get clk_usbphy0\n");
+		dev_err(usbpdata->dev, "Failed to get sclk_otgphy0\n");
 		return;
 	}
 

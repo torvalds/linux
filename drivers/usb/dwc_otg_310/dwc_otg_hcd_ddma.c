@@ -83,8 +83,9 @@ static int desc_list_alloc(dwc_otg_qh_t *qh)
 	int retval = 0;
 
 	qh->desc_list = (dwc_otg_host_dma_desc_t *)
-	    DWC_DMA_ALLOC_ATOMIC(sizeof(dwc_otg_host_dma_desc_t) * max_desc_num(qh),
-				 &qh->desc_list_dma);
+	    DWC_DEV_DMA_ALLOC_ATOMIC(sizeof(dwc_otg_host_dma_desc_t) *
+				     max_desc_num(qh),
+				     &qh->desc_list_dma);
 
 	if (!qh->desc_list) {
 		retval = -DWC_E_NO_MEMORY;
@@ -113,8 +114,8 @@ static int desc_list_alloc(dwc_otg_qh_t *qh)
 static void desc_list_free(dwc_otg_qh_t *qh)
 {
 	if (qh->desc_list) {
-		DWC_DMA_FREE(max_desc_num(qh), qh->desc_list,
-			     qh->desc_list_dma);
+		DWC_DEV_DMA_FREE(max_desc_num(qh), qh->desc_list,
+				 qh->desc_list_dma);
 		qh->desc_list = NULL;
 	}
 
@@ -130,8 +131,8 @@ static int frame_list_alloc(dwc_otg_hcd_t *hcd)
 	if (hcd->frame_list)
 		return 0;
 
-	hcd->frame_list = DWC_DMA_ALLOC_ATOMIC(4 * MAX_FRLIST_EN_NUM,
-					       &hcd->frame_list_dma);
+	hcd->frame_list = DWC_DEV_DMA_ALLOC_ATOMIC(4 * MAX_FRLIST_EN_NUM,
+						   &hcd->frame_list_dma);
 	if (!hcd->frame_list) {
 		retval = -DWC_E_NO_MEMORY;
 		DWC_ERROR("%s: Frame List allocation failed\n", __func__);
@@ -147,8 +148,8 @@ static void frame_list_free(dwc_otg_hcd_t *hcd)
 	if (!hcd->frame_list)
 		return;
 
-	DWC_DMA_FREE(4 * MAX_FRLIST_EN_NUM, hcd->frame_list,
-		     hcd->frame_list_dma);
+	DWC_DEV_DMA_FREE(4 * MAX_FRLIST_EN_NUM, hcd->frame_list,
+			 hcd->frame_list_dma);
 	hcd->frame_list = NULL;
 }
 

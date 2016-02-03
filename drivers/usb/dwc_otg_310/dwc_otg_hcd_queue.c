@@ -70,7 +70,8 @@ void dwc_otg_hcd_qh_free(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 		} else {
 			buf_size = hcd->core_if->core_params->max_transfer_size;
 		}
-		DWC_DMA_FREE(buf_size, qh->dw_align_buf, qh->dw_align_buf_dma);
+		DWC_DEV_DMA_FREE(buf_size, qh->dw_align_buf,
+				 qh->dw_align_buf_dma);
 	}
 
 	DWC_FREE(qh);

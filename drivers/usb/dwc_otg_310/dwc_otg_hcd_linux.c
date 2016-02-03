@@ -520,7 +520,7 @@ int otg20_hcd_init(struct platform_device *_dev)
 	 * IRQ line, and calls hcd_start method.
 	 */
 	irq = platform_get_irq(_dev, 0);
-	retval = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval < 0) {
 		goto error2;
 	}
@@ -612,7 +612,7 @@ int host20_hcd_init(struct platform_device *_dev)
 	 * IRQ line, and calls hcd_start method.
 	 */
 	irq = platform_get_irq(_dev, 0);
-	retval = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval < 0) {
 		goto error2;
 	}

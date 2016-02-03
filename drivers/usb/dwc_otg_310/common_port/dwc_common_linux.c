@@ -346,7 +346,8 @@ void DWC_DMA_POOL_FREE(dwc_pool_t *pool, void *vaddr, void *daddr)
 void *__DWC_DMA_ALLOC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
 {
 #if 1 /* def xxCOSIM  Only works for 32-bit cosim */
-	void *buf = dma_alloc_coherent(dma_ctx, (size_t)size, dma_addr, GFP_KERNEL);
+	void *buf = dma_alloc_coherent((struct device *)dma_ctx, (size_t)size,
+				       dma_addr, GFP_KERNEL);
 #else
 	void *buf = dma_alloc_coherent(dma_ctx, (size_t)size, dma_addr, GFP_KERNEL | GFP_DMA32);
 #endif
@@ -360,7 +361,8 @@ void *__DWC_DMA_ALLOC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
 
 void *__DWC_DMA_ALLOC_ATOMIC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
 {
-	void *buf = dma_alloc_coherent(NULL, (size_t)size, dma_addr, GFP_ATOMIC);
+	void *buf = dma_alloc_coherent((struct device *)dma_ctx, (size_t)size,
+				       dma_addr, GFP_ATOMIC);
 	if (!buf) {
 		return NULL;
 	}
@@ -370,7 +372,7 @@ void *__DWC_DMA_ALLOC_ATOMIC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
 
 void __DWC_DMA_FREE(void *dma_ctx, uint32_t size, void *virt_addr, dwc_dma_t dma_addr)
 {
-	dma_free_coherent(dma_ctx, size, virt_addr, dma_addr);
+	dma_free_coherent((struct device *)dma_ctx, size, virt_addr, dma_addr);
 }
 
 void *__DWC_ALLOC(void *mem_ctx, uint32_t size)
@@ -793,7 +795,6 @@ dwc_timer_t *DWC_TIMER_ALLOC(char *name, dwc_timer_callback_t cb, void *data)
 	}
 
 	t->scheduled = 0;
-	t->t->base = &boot_tvec_bases;
 	t->t->expires = jiffies;
 	setup_timer(t->t, timer_callback, (unsigned long)t);
 

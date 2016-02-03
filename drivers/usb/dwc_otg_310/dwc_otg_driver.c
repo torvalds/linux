@@ -68,6 +68,7 @@ static const char dwc_host20_driver_name[] = "usb20_host";
 static const char dwc_otg20_driver_name[] = "usb20_otg";
 
 dwc_otg_device_t *g_otgdev;
+void *dwc_otg_dev;
 
 extern int pcd_init(struct platform_device *_dev);
 extern int otg20_hcd_init(struct platform_device *_dev);
@@ -1310,7 +1311,7 @@ static const struct of_device_id usb20_otg_of_match[] = {
 #endif
 #ifdef CONFIG_ARM64
 	{
-	 .compatible = "rockchip,rk3368_usb20_otg",
+	 .compatible = "rockchip,rk3368-usb",
 	 .data = &usb20otg_pdata_rk3368,
 	 },
 #endif
@@ -1419,6 +1420,7 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 */
 
 	g_otgdev = dwc_otg_device;
+	dwc_otg_dev = (struct device *)&_dev->dev;
 	pldata->privdata = dwc_otg_device;
 	dwc_otg_device->pldata = pldata;
 
@@ -1619,7 +1621,9 @@ void rk_usb_power_up(void)
 {
 	struct dwc_otg_platform_data *pldata_otg;
 	struct dwc_otg_platform_data *pldata_host;
+#ifdef CONFIG_USB_EHCI_RK
 	struct rkehci_platform_data *pldata_ehci;
+#endif
 
 	if (cpu_is_rk3288()) {
 #ifdef CONFIG_RK_USB_UART
@@ -1673,7 +1677,9 @@ void rk_usb_power_down(void)
 {
 	struct dwc_otg_platform_data *pldata_otg;
 	struct dwc_otg_platform_data *pldata_host;
+#ifdef CONFIG_USB_EHCI_RK
 	struct rkehci_platform_data *pldata_ehci;
+#endif
 
 	if (cpu_is_rk3288()) {
 #ifdef CONFIG_RK_USB_UART
