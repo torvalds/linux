@@ -1697,7 +1697,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->query_port = qib_query_port;
 	ibdev->modify_port = qib_modify_port;
 	ibdev->query_gid = qib_query_gid;
-	ibdev->destroy_qp = qib_destroy_qp;
 	ibdev->process_mad = qib_process_mad;
 	ibdev->get_port_immutable = qib_port_immutable;
 

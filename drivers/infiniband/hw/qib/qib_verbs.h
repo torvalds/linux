@@ -346,8 +346,6 @@ int qib_get_counters(struct qib_pportdata *ppd,
 
 __be32 qib_compute_aeth(struct rvt_qp *qp);
 
-int qib_destroy_qp(struct ib_qp *ibqp);
-
 /*
  * Functions provided by qib driver for rdmavt to use
  */
