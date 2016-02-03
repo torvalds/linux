@@ -556,4 +556,11 @@ config MTD_NAND_HISI504
 	help
 	  Enables support for NAND controller on Hisilicon SoC Hip04.
 
+config MTD_NAND_QCOM
+	tristate "Support for NAND on QCOM SoCs"
+	depends on ARCH_QCOM
+	help
+	  Enables support for NAND flash chips on SoCs containing the EBI2 NAND
+	  controller. This controller is found on IPQ806x SoC.
+
 endif # MTD_NAND
