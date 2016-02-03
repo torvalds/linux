@@ -103,6 +103,7 @@
 #define GIC_VPE_SWINT0_MAP_OFS		0x0054
 #define GIC_VPE_SWINT1_MAP_OFS		0x0058
 #define GIC_VPE_OTHER_ADDR_OFS		0x0080
+#define GIC_VP_IDENT_OFS		0x0088
 #define GIC_VPE_WD_CONFIG0_OFS		0x0090
 #define GIC_VPE_WD_COUNT0_OFS		0x0094
 #define GIC_VPE_WD_INITIAL0_OFS		0x0098
@@ -211,6 +212,10 @@
 #define GIC_VPE_SMASK_FDC_SHF		6
 #define GIC_VPE_SMASK_FDC_MSK		(MSK(1) << GIC_VPE_SMASK_FDC_SHF)
 
+/* GIC_VP_IDENT fields */
+#define GIC_VP_IDENT_VCNUM_SHF		0
+#define GIC_VP_IDENT_VCNUM_MSK		(MSK(6) << GIC_VP_IDENT_VCNUM_SHF)
+
 /* GIC nomenclature for Core Interrupt Pins. */
 #define GIC_CPU_INT0		0 /* Core Interrupt 2 */
 #define GIC_CPU_INT1		1 /* .		      */
@@ -280,5 +285,17 @@ static inline int gic_get_usm_range(struct resource *gic_usm_res)
 }
 
 #endif /* CONFIG_MIPS_GIC */
+
+/**
+ * gic_read_local_vp_id() - read the local VPs VCNUM
+ *
+ * Read the VCNUM of the local VP from the GIC_VP_IDENT register and
+ * return it to the caller. This ID should be used to refer to the VP
+ * via the GICs VP-other region, or when calculating an offset to a
+ * bit representing the VP in interrupt masks.
+ *
+ * Return: The VCNUM value for the local VP.
+ */
+extern unsigned gic_read_local_vp_id(void);
 
 #endif /* __LINUX_IRQCHIP_MIPS_GIC_H */

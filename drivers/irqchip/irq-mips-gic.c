@@ -230,6 +230,14 @@ void gic_stop_count(void)
 
 #endif
 
+unsigned gic_read_local_vp_id(void)
+{
+	unsigned long ident;
+
+	ident = gic_read(GIC_REG(VPE_LOCAL, GIC_VP_IDENT));
+	return ident & GIC_VP_IDENT_VCNUM_MSK;
+}
+
 static bool gic_local_irq_is_routable(int intr)
 {
 	u32 vpe_ctl;
