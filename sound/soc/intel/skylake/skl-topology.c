@@ -54,12 +54,9 @@ static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w)
 
 /*
  * Each pipelines needs memory to be allocated. Check if we have free memory
- * from available pool. Then only add this to pool
- * This is freed when pipe is deleted
- * Note: DSP does actual memory management we only keep track for complete
- * pool
+ * from available pool.
  */
-static bool skl_tplg_alloc_pipe_mem(struct skl *skl,
+static bool skl_is_pipe_mem_avail(struct skl *skl,
 				struct skl_module_cfg *mconfig)
 {
 	struct skl_sst *ctx = skl->skl_sst;
@@ -74,10 +71,20 @@ static bool skl_tplg_alloc_pipe_mem(struct skl *skl,
 				"exceeds ppl memory available %d mem %d\n",
 				skl->resource.max_mem, skl->resource.mem);
 		return false;
+	} else {
+		return true;
 	}
+}
 
+/*
+ * Add the mem to the mem pool. This is freed when pipe is deleted.
+ * Note: DSP does actual memory management we only keep track for complete
+ * pool
+ */
+static void skl_tplg_alloc_pipe_mem(struct skl *skl,
+				struct skl_module_cfg *mconfig)
+{
 	skl->resource.mem += mconfig->pipe->memory_pages;
-	return true;
 }
 
 /*
@@ -85,10 +92,10 @@ static bool skl_tplg_alloc_pipe_mem(struct skl *skl,
  * quantified in MCPS (Million Clocks Per Second) required for module/pipe
  *
  * Each pipelines needs mcps to be allocated. Check if we have mcps for this
- * pipe. This adds the mcps to driver counter
- * This is removed on pipeline delete
+ * pipe.
  */
-static bool skl_tplg_alloc_pipe_mcps(struct skl *skl,
+
+static bool skl_is_pipe_mcps_avail(struct skl *skl,
 				struct skl_module_cfg *mconfig)
 {
 	struct skl_sst *ctx = skl->skl_sst;
@@ -101,10 +108,15 @@ static bool skl_tplg_alloc_pipe_mcps(struct skl *skl,
 			"exceeds ppl mcps available %d > mem %d\n",
 			skl->resource.max_mcps, skl->resource.mcps);
 		return false;
+	} else {
+		return true;
 	}
+}
 
+static void skl_tplg_alloc_pipe_mcps(struct skl *skl,
+				struct skl_module_cfg *mconfig)
+{
 	skl->resource.mcps += mconfig->mcps;
-	return true;
 }
 
 /*
@@ -411,7 +423,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		mconfig = w->priv;
 
 		/* check resource available */
-		if (!skl_tplg_alloc_pipe_mcps(skl, mconfig))
+		if (!skl_is_pipe_mcps_avail(skl, mconfig))
 			return -ENOMEM;
 
 		if (mconfig->is_loadable && ctx->dsp->fw_ops.load_mod) {
@@ -435,6 +447,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
 			return ret;
+		skl_tplg_alloc_pipe_mcps(skl, mconfig);
 	}
 
 	return 0;
@@ -477,10 +490,10 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	struct skl_sst *ctx = skl->skl_sst;
 
 	/* check resource available */
-	if (!skl_tplg_alloc_pipe_mcps(skl, mconfig))
+	if (!skl_is_pipe_mcps_avail(skl, mconfig))
 		return -EBUSY;
 
-	if (!skl_tplg_alloc_pipe_mem(skl, mconfig))
+	if (!skl_is_pipe_mem_avail(skl, mconfig))
 		return -ENOMEM;
 
 	/*
@@ -525,6 +538,9 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 
 		src_module = dst_module;
 	}
+
+	skl_tplg_alloc_pipe_mem(skl, mconfig);
+	skl_tplg_alloc_pipe_mcps(skl, mconfig);
 
 	return 0;
 }
