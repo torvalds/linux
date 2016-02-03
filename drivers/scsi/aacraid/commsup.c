@@ -137,6 +137,7 @@ int aac_fib_setup(struct aac_dev * dev)
 		i++, fibptr++)
 	{
 		fibptr->flags = 0;
+		fibptr->size = sizeof(struct fib);
 		fibptr->dev = dev;
 		fibptr->hw_fib_va = hw_fib;
 		fibptr->data = (void *) fibptr->hw_fib_va->data;
@@ -156,10 +157,35 @@ int aac_fib_setup(struct aac_dev * dev)
 	 */
 	dev->fibs[dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB - 1].next = NULL;
 	/*
-	 *	Enable this to debug out of queue space
-	 */
-	dev->free_fib = &dev->fibs[0];
+	*	Set 8 fibs aside for management tools
+	*/
+	dev->free_fib = &dev->fibs[dev->scsi_host_ptr->can_queue];
 	return 0;
+}
+
+/**
+ *	aac_fib_alloc_tag-allocate a fib using tags
+ *	@dev: Adapter to allocate the fib for
+ *
+ *	Allocate a fib from the adapter fib pool using tags
+ *	from the blk layer.
+ */
+
+struct fib *aac_fib_alloc_tag(struct aac_dev *dev, struct scsi_cmnd *scmd)
+{
+	struct fib *fibptr;
+
+	fibptr = &dev->fibs[scmd->request->tag];
+	/*
+	 *	Null out fields that depend on being zero at the start of
+	 *	each I/O
+	 */
+	fibptr->hw_fib_va->header.XferState = 0;
+	fibptr->type = FSAFS_NTC_FIB_CONTEXT;
+	fibptr->callback_data = NULL;
+	fibptr->callback = NULL;
+
+	return fibptr;
 }
 
 /**
