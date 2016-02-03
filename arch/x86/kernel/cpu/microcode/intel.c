@@ -601,19 +601,19 @@ void show_ucode_info_early(void)
  */
 static void print_ucode(struct ucode_cpu_info *uci)
 {
-	struct microcode_intel *mc_intel;
+	struct microcode_intel *mc;
 	int *delay_ucode_info_p;
 	int *current_mc_date_p;
 
-	mc_intel = uci->mc;
-	if (mc_intel == NULL)
+	mc = uci->mc;
+	if (!mc)
 		return;
 
 	delay_ucode_info_p = (int *)__pa_nodebug(&delay_ucode_info);
 	current_mc_date_p = (int *)__pa_nodebug(&current_mc_date);
 
 	*delay_ucode_info_p = 1;
-	*current_mc_date_p = mc_intel->hdr.date;
+	*current_mc_date_p = mc->hdr.date;
 }
 #else
 
@@ -628,29 +628,29 @@ static inline void flush_tlb_early(void)
 
 static inline void print_ucode(struct ucode_cpu_info *uci)
 {
-	struct microcode_intel *mc_intel;
+	struct microcode_intel *mc;
 
-	mc_intel = uci->mc;
-	if (mc_intel == NULL)
+	mc = uci->mc;
+	if (!mc)
 		return;
 
-	print_ucode_info(uci, mc_intel->hdr.date);
+	print_ucode_info(uci, mc->hdr.date);
 }
 #endif
 
 static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 {
-	struct microcode_intel *mc_intel;
+	struct microcode_intel *mc;
 	unsigned int val[2];
 
-	mc_intel = uci->mc;
-	if (mc_intel == NULL)
+	mc = uci->mc;
+	if (!mc)
 		return 0;
 
 	/* write microcode via MSR 0x79 */
 	native_wrmsr(MSR_IA32_UCODE_WRITE,
-	      (unsigned long) mc_intel->bits,
-	      (unsigned long) mc_intel->bits >> 16 >> 16);
+	      (unsigned long)mc->bits,
+	      (unsigned long)mc->bits >> 16 >> 16);
 	native_wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
@@ -658,7 +658,7 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 
 	/* get the current revision from MSR 0x8B */
 	native_rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
-	if (val[1] != mc_intel->hdr.rev)
+	if (val[1] != mc->hdr.rev)
 		return -1;
 
 #ifdef CONFIG_X86_64
@@ -670,7 +670,7 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 	if (early)
 		print_ucode(uci);
 	else
-		print_ucode_info(uci, mc_intel->hdr.date);
+		print_ucode_info(uci, mc->hdr.date);
 
 	return 0;
 }
@@ -821,7 +821,7 @@ static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
  * return 0 - no update found
  * return 1 - found update
  */
-static int get_matching_mc(struct microcode_intel *mc_intel, int cpu)
+static int get_matching_mc(struct microcode_intel *mc, int cpu)
 {
 	struct cpu_signature cpu_sig;
 	unsigned int csig, cpf, crev;
@@ -832,38 +832,38 @@ static int get_matching_mc(struct microcode_intel *mc_intel, int cpu)
 	cpf = cpu_sig.pf;
 	crev = cpu_sig.rev;
 
-	return has_newer_microcode(mc_intel, csig, cpf, crev);
+	return has_newer_microcode(mc, csig, cpf, crev);
 }
 
 static int apply_microcode_intel(int cpu)
 {
-	struct microcode_intel *mc_intel;
+	struct microcode_intel *mc;
 	struct ucode_cpu_info *uci;
 	unsigned int val[2];
 	int cpu_num = raw_smp_processor_id();
 	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
 
 	uci = ucode_cpu_info + cpu;
-	mc_intel = uci->mc;
+	mc = uci->mc;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu_num != cpu);
 
-	if (mc_intel == NULL)
+	if (!mc)
 		return 0;
 
 	/*
 	 * Microcode on this CPU could be updated earlier. Only apply the
-	 * microcode patch in mc_intel when it is newer than the one on this
+	 * microcode patch in mc when it is newer than the one on this
 	 * CPU.
 	 */
-	if (get_matching_mc(mc_intel, cpu) == 0)
+	if (!get_matching_mc(mc, cpu))
 		return 0;
 
 	/* write microcode via MSR 0x79 */
 	wrmsr(MSR_IA32_UCODE_WRITE,
-	      (unsigned long) mc_intel->bits,
-	      (unsigned long) mc_intel->bits >> 16 >> 16);
+	      (unsigned long) mc->bits,
+	      (unsigned long) mc->bits >> 16 >> 16);
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
@@ -872,16 +872,16 @@ static int apply_microcode_intel(int cpu)
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
 
-	if (val[1] != mc_intel->hdr.rev) {
+	if (val[1] != mc->hdr.rev) {
 		pr_err("CPU%d update to revision 0x%x failed\n",
-		       cpu_num, mc_intel->hdr.rev);
+		       cpu_num, mc->hdr.rev);
 		return -1;
 	}
 	pr_info("CPU%d updated to revision 0x%x, date = %04x-%02x-%02x\n",
 		cpu_num, val[1],
-		mc_intel->hdr.date & 0xffff,
-		mc_intel->hdr.date >> 24,
-		(mc_intel->hdr.date >> 16) & 0xff);
+		mc->hdr.date & 0xffff,
+		mc->hdr.date >> 24,
+		(mc->hdr.date >> 16) & 0xff);
 
 	uci->cpu_sig.rev = val[1];
 	c->microcode = val[1];
