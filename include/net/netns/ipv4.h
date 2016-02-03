@@ -103,6 +103,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_syncookies;
 	int sysctl_tcp_reordering;
 	int sysctl_tcp_retries1;
+	int sysctl_tcp_retries2;
 
 	struct ping_group_range ping_group_range;
 
