@@ -4285,7 +4285,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		ecc->write_oob_raw = ecc->write_oob;
 
 	/* propagate ecc info to mtd_info */
-	mtd->ecclayout = ecc->layout;
+	mtd_set_ecclayout(mtd, ecc->layout);
 	mtd->ecc_strength = ecc->strength;
 	mtd->ecc_step_size = ecc->size;
 
