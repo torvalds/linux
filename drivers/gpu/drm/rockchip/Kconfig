@@ -53,3 +53,11 @@ config ROCKCHIP_ANALOGIX_DP
 	  This selects support for Rockchip SoC specific extensions
 	  for the Analogix Core DP driver. If you want to enable DP
 	  on RK3288 based SoC, you should selet this option.
+
+config ROCKCHIP_INNO_HDMI
+	tristate "Rockchip specific extensions for Innosilicon HDMI"
+	depends on DRM_ROCKCHIP
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Innosilicon HDMI driver. If you want to enable
+	  HDMI on RK3036 based SoC, you should select this option.
