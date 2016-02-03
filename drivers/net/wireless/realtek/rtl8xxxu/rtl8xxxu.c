@@ -1599,9 +1599,9 @@ rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 static void rtl8xxxu_set_linktype(struct rtl8xxxu_priv *priv,
 				  enum nl80211_iftype linktype)
 {
-	u16 val8;
+	u8 val8;
 
-	val8 = rtl8xxxu_read16(priv, REG_MSR);
+	val8 = rtl8xxxu_read8(priv, REG_MSR);
 	val8 &= ~MSR_LINKTYPE_MASK;
 
 	switch (linktype) {
