@@ -101,22 +101,27 @@ not_nmi:
 	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV | STATUS_BITDEPS
 	mtc0	t0, CP0_STATUS
 
+	/* Skip cache & coherence setup if we're already coherent */
+	cmgcrb	v1
+	lw	s7, GCR_CL_COHERENCE_OFS(v1)
+	bnez	s7, 1f
+	 nop
+
 	/* Initialize the L1 caches */
 	jal	mips_cps_cache_init
 	 nop
 
+	/* Enter the coherent domain */
+	li	t0, 0xff
+	sw	t0, GCR_CL_COHERENCE_OFS(v1)
+	ehb
+
 	/* Set Kseg0 CCA to that in s0 */
-	mfc0	t0, CP0_CONFIG
+1:	mfc0	t0, CP0_CONFIG
 	ori	t0, 0x7
 	xori	t0, 0x7
 	or	t0, t0, s0
 	mtc0	t0, CP0_CONFIG
-	ehb
-
-	/* Enter the coherent domain */
-	cmgcrb	v1
-	li	t0, 0xff
-	sw	t0, GCR_CL_COHERENCE_OFS(v1)
 	ehb
 
 	/* Jump to kseg0 */
@@ -125,17 +130,21 @@ not_nmi:
 	 nop
 
 	/*
-	 * We're up, cached & coherent. Perform any further required core-level
-	 * initialisation.
+	 * We're up, cached & coherent. Perform any EVA initialization necessary
+	 * before we access memory.
 	 */
-1:	jal	mips_cps_core_init
-	 nop
-
-	/* Do any EVA initialization if necessary */
-	eva_init
+1:	eva_init
 
 	/* Retrieve boot configuration pointers */
 	jal	mips_cps_get_bootcfg
+	 nop
+
+	/* Skip core-level init if we started up coherent */
+	bnez	s7, 1f
+	 nop
+
+	/* Perform any further required core-level initialisation */
+	jal	mips_cps_core_init
 	 nop
 
 	/*
@@ -147,7 +156,7 @@ not_nmi:
 	 move	a0, v0
 
 	/* Off we go! */
-	PTR_L	t1, VPEBOOTCFG_PC(v1)
+1:	PTR_L	t1, VPEBOOTCFG_PC(v1)
 	PTR_L	gp, VPEBOOTCFG_GP(v1)
 	PTR_L	sp, VPEBOOTCFG_SP(v1)
 	jr	t1
