@@ -228,30 +228,35 @@ static void free_multipath(struct multipath *m)
 	kfree(m);
 }
 
-static int set_mapinfo(struct multipath *m, union map_info *info)
+static struct dm_mpath_io *get_mpio(union map_info *info)
+{
+	return info->ptr;
+}
+
+static struct dm_mpath_io *set_mpio(struct multipath *m, union map_info *info)
 {
 	struct dm_mpath_io *mpio;
 
 	if (!m->mpio_pool) {
 		/* Use blk-mq pdu memory requested via per_io_data_size */
-		mpio = info->ptr;
+		mpio = get_mpio(info);
 		memset(mpio, 0, sizeof(*mpio));
 		return mpio;
 	}
 
 	mpio = mempool_alloc(m->mpio_pool, GFP_ATOMIC);
 	if (!mpio)
-		return -ENOMEM;
+		return NULL;
 
 	memset(mpio, 0, sizeof(*mpio));
 	info->ptr = mpio;
 
-	return 0;
+	return mpio;
 }
 
-static void clear_mapinfo(struct multipath *m, union map_info *info)
+static void clear_request_fn_mpio(struct multipath *m, union map_info *info)
 {
-	/* Only needed for non blk-mq */
+	/* Only needed for non blk-mq (.request_fn) multipath */
 	if (m->mpio_pool) {
 		struct dm_mpath_io *mpio = info->ptr;
 
@@ -421,11 +426,11 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 		goto out_unlock;
 	}
 
-	if (set_mapinfo(m, map_context) < 0)
+	mpio = set_mpio(m, map_context);
+	if (!mpio)
 		/* ENOMEM, requeue */
 		goto out_unlock;
 
-	mpio = map_context->ptr;
 	mpio->pgpath = pgpath;
 	mpio->nr_bytes = nr_bytes;
 
@@ -451,7 +456,7 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 					   rq_data_dir(rq), GFP_ATOMIC);
 		if (IS_ERR(*__clone)) {
 			/* ENOMEM, requeue */
-			clear_mapinfo(m, map_context);
+			clear_request_fn_mpio(m, map_context);
 			return r;
 		}
 		(*__clone)->bio = (*__clone)->biotail = NULL;
@@ -1317,21 +1322,21 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 			    int error, union map_info *map_context)
 {
 	struct multipath *m = ti->private;
-	struct dm_mpath_io *mpio = map_context->ptr;
+	struct dm_mpath_io *mpio = get_mpio(map_context);
 	struct pgpath *pgpath;
 	struct path_selector *ps;
 	int r;
 
 	BUG_ON(!mpio);
 
-	r  = do_end_io(m, clone, error, mpio);
+	r = do_end_io(m, clone, error, mpio);
 	pgpath = mpio->pgpath;
 	if (pgpath) {
 		ps = &pgpath->pg->ps;
 		if (ps->type->end_io)
 			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes);
 	}
-	clear_mapinfo(m, map_context);
+	clear_request_fn_mpio(m, map_context);
 
 	return r;
 }
