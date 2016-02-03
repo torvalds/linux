@@ -223,7 +223,6 @@ LEAF(excep_intex)
 
 .org 0x480
 LEAF(excep_ejtag)
-	DUMP_EXCEP("EJTAG")
 	PTR_LA	k0, ejtag_debug_handler
 	jr	k0
 	 nop
