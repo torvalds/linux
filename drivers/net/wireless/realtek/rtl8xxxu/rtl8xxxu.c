@@ -5355,8 +5355,9 @@ static void rtl8xxxu_configure_filter(struct ieee80211_hw *hw,
 
 	rtl8xxxu_write32(priv, REG_RCR, rcr);
 
-	*total_flags &= (FIF_ALLMULTI | FIF_FCSFAIL | FIF_BCN_PRBRESP_PROMISC | \
-			 FIF_CONTROL | FIF_OTHER_BSS | FIF_PSPOLL | FIF_PROBE_REQ);
+	*total_flags &= (FIF_ALLMULTI | FIF_FCSFAIL | FIF_BCN_PRBRESP_PROMISC |
+			 FIF_CONTROL | FIF_OTHER_BSS | FIF_PSPOLL |
+			 FIF_PROBE_REQ);
 }
 
 static int rtl8xxxu_set_rts_threshold(struct ieee80211_hw *hw, u32 rts)
