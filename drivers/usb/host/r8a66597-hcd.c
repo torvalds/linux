@@ -2099,11 +2099,13 @@ static void r8a66597_check_detect_child(struct r8a66597 *r8a66597,
 
 	memset(now_map, 0, sizeof(now_map));
 
+	mutex_lock(&usb_bus_idr_lock);
 	bus = idr_find(&usb_bus_idr, hcd->self.busnum);
 	if (bus && bus->root_hub) {
 		collect_usb_address_map(bus->root_hub, now_map);
 		update_usb_address_map(r8a66597, bus->root_hub, now_map);
 	}
+	mutex_unlock(&usb_bus_idr_lock);
 }
 
 static int r8a66597_hub_status_data(struct usb_hcd *hcd, char *buf)
