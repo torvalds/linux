@@ -860,7 +860,6 @@ static void tcp_v4_reqsk_destructor(struct request_sock *req)
 	kfree(inet_rsk(req)->opt);
 }
 
-
 #ifdef CONFIG_TCP_MD5SIG
 /*
  * RFC2385 MD5 checksumming requires a mapping of
@@ -2390,6 +2389,8 @@ static int __net_init tcp_sk_init(struct net *net)
 
 	net->ipv4.sysctl_tcp_syn_retries = TCP_SYN_RETRIES;
 	net->ipv4.sysctl_tcp_synack_retries = TCP_SYNACK_RETRIES;
+
+	net->ipv4.sysctl_tcp_syncookies = 0;
 
 	return 0;
 fail:

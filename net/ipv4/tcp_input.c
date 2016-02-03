@@ -6163,9 +6163,10 @@ static bool tcp_syn_flood_action(const struct sock *sk,
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 	const char *msg = "Dropping request";
 	bool want_cookie = false;
+	struct net *net = sock_net(sk);
 
 #ifdef CONFIG_SYN_COOKIES
-	if (sysctl_tcp_syncookies) {
+	if (net->ipv4.sysctl_tcp_syncookies) {
 		msg = "Sending cookies";
 		want_cookie = true;
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPREQQFULLDOCOOKIES);
@@ -6174,7 +6175,7 @@ static bool tcp_syn_flood_action(const struct sock *sk,
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPREQQFULLDROP);
 
 	if (!queue->synflood_warned &&
-	    sysctl_tcp_syncookies != 2 &&
+	    net->ipv4.sysctl_tcp_syncookies != 2 &&
 	    xchg(&queue->synflood_warned, 1) == 0)
 		pr_info("%s: Possible SYN flooding on port %d. %s.  Check SNMP counters.\n",
 			proto, ntohs(tcp_hdr(skb)->dest), msg);
@@ -6207,6 +6208,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	__u32 isn = TCP_SKB_CB(skb)->tcp_tw_isn;
 	struct tcp_options_received tmp_opt;
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	struct sock *fastopen_sk = NULL;
 	struct dst_entry *dst = NULL;
 	struct request_sock *req;
@@ -6217,7 +6219,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	 * limitations, they conserve resources and peer is
 	 * evidently real one.
 	 */
-	if ((sysctl_tcp_syncookies == 2 ||
+	if ((net->ipv4.sysctl_tcp_syncookies == 2 ||
 	     inet_csk_reqsk_queue_is_full(sk)) && !isn) {
 		want_cookie = tcp_syn_flood_action(sk, skb, rsk_ops->slab_name);
 		if (!want_cookie)
@@ -6283,7 +6285,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 			}
 		}
 		/* Kill the following clause, if you dislike this way. */
-		else if (!sysctl_tcp_syncookies &&
+		else if (!net->ipv4.sysctl_tcp_syncookies &&
 			 (sysctl_max_syn_backlog - inet_csk_reqsk_queue_len(sk) <
 			  (sysctl_max_syn_backlog >> 2)) &&
 			 !tcp_peer_is_proven(req, dst, false,
