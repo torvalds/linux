@@ -13941,7 +13941,7 @@ static int obtain_boardname(struct hfi1_devdata *dd)
 	ret = read_hfi1_efi_var(dd, "description", &size,
 				(void **)&dd->boardname);
 	if (ret) {
-		dd_dev_err(dd, "Board description not found\n");
+		dd_dev_info(dd, "Board description not found\n");
 		/* use generic description */
 		dd->boardname = kstrdup(generic, GFP_KERNEL);
 		if (!dd->boardname)
