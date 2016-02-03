@@ -955,7 +955,6 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	uint default_pset;
 	u16 target_vector, target_speed;
 	u16 lnkctl2, vendor;
-	u8 nsbr = 1;
 	u8 div;
 	const u8 (*eq)[3];
 	int return_error = 0;
@@ -987,12 +986,6 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 		if (!pcie_force)
 			return 0;
 	}
-
-	/*
-	 * A0 needs an additional SBR
-	 */
-	if (is_ax(dd))
-		nsbr++;
 
 	/*
 	 * Do the Gen3 transition.  Steps are those of the PCIe Gen3
