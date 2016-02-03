@@ -24,6 +24,4 @@ if STAGING_RDMA
 
 source "drivers/staging/rdma/hfi1/Kconfig"
 
-source "drivers/staging/rdma/ipath/Kconfig"
-
 endif
