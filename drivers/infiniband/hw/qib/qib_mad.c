@@ -206,8 +206,11 @@ static void qib_bad_mkey(struct qib_ibport *ibp, struct ib_smp *smp)
 /*
  * Send a Port Capability Mask Changed trap (ch. 14.3.11).
  */
-void qib_cap_mask_chg(struct qib_ibport *ibp)
+void qib_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
 {
+	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
+	struct qib_devdata *dd = dd_from_dev(ibdev);
+	struct qib_ibport *ibp = &dd->pport[port_num - 1].ibport_data;
 	struct ib_mad_notice_attr data;
 
 	data.generic_type = IB_NOTICE_TYPE_INFO;

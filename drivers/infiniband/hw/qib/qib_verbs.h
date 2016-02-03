@@ -317,7 +317,7 @@ static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)
 
 void qib_bad_pqkey(struct qib_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
 		   u32 qp1, u32 qp2, __be16 lid1, __be16 lid2);
-void qib_cap_mask_chg(struct qib_ibport *ibp);
+void qib_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num);
 void qib_sys_guid_chg(struct qib_ibport *ibp);
 void qib_node_desc_chg(struct qib_ibport *ibp);
 int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
