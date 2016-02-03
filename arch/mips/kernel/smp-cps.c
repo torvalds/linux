@@ -307,6 +307,17 @@ static void cps_init_secondary(void)
 	if (cpu_has_mipsmt)
 		dmt();
 
+	if (mips_cm_revision() >= CM_REV_CM3) {
+		unsigned ident = gic_read_local_vp_id();
+
+		/*
+		 * Ensure that our calculation of the VP ID matches up with
+		 * what the GIC reports, otherwise we'll have configured
+		 * interrupts incorrectly.
+		 */
+		BUG_ON(ident != mips_cm_vp_id(smp_processor_id()));
+	}
+
 	change_c0_status(ST0_IM, STATUSF_IP2 | STATUSF_IP3 | STATUSF_IP4 |
 				 STATUSF_IP5 | STATUSF_IP6 | STATUSF_IP7);
 }
