@@ -544,7 +544,6 @@ struct intel_mmio_flip {
  */
 struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
-	bool pre_disable_primary;
 
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;

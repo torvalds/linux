@@ -4804,19 +4804,33 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 	memset(atomic, 0, sizeof(*atomic));
 }
 
-static void intel_pre_plane_update(struct intel_crtc *crtc)
+static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc->base.state);
+	struct drm_atomic_state *old_state = old_crtc_state->base.state;
+	struct drm_plane *primary = crtc->base.primary;
+	struct drm_plane_state *old_pri_state =
+		drm_atomic_get_existing_plane_state(old_state, primary);
+	bool modeset = needs_modeset(&pipe_config->base);
 
 	if (atomic->update_fbc)
 		intel_fbc_pre_update(crtc);
 
-	if (atomic->pre_disable_primary)
-		intel_pre_disable_primary(&crtc->base);
+	if (old_pri_state) {
+		struct intel_plane_state *primary_state =
+			to_intel_plane_state(primary->state);
+		struct intel_plane_state *old_primary_state =
+			to_intel_plane_state(old_pri_state);
+
+		if (old_primary_state->visible &&
+		    (modeset || !primary_state->visible))
+			intel_pre_disable_primary(&crtc->base);
+	}
 
 	if (pipe_config->disable_cxsr) {
 		crtc->wm.cxsr_allowed = false;
@@ -11882,7 +11896,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:
-		intel_crtc->atomic.pre_disable_primary = turn_off;
 		intel_crtc->atomic.post_enable_primary = turn_on;
 		intel_crtc->atomic.update_fbc = true;
 
@@ -13494,7 +13507,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		if (!needs_modeset(crtc->state))
 			continue;
 
-		intel_pre_plane_update(intel_crtc);
+		intel_pre_plane_update(to_intel_crtc_state(crtc_state));
 
 		if (crtc_state->active) {
 			intel_crtc_disable_planes(crtc, crtc_state->plane_mask);
@@ -13550,7 +13563,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		}
 
 		if (!modeset)
-			intel_pre_plane_update(intel_crtc);
+			intel_pre_plane_update(to_intel_crtc_state(crtc_state));
 
 		if (crtc->state->active && intel_crtc->atomic.update_fbc)
 			intel_fbc_enable(intel_crtc);
