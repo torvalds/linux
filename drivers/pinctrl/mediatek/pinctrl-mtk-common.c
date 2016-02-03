@@ -43,6 +43,7 @@
 
 #define MAX_GPIO_MODE_PER_REG 5
 #define GPIO_MODE_BITS        3
+#define GPIO_MODE_PREFIX "GPIO"
 
 static const char * const mtk_gpio_functions[] = {
 	"func0", "func1", "func2", "func3",
@@ -733,12 +734,47 @@ static int mtk_pmx_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int mtk_pmx_find_gpio_mode(struct mtk_pinctrl *pctl,
+				unsigned offset)
+{
+	const struct mtk_desc_pin *pin = pctl->devdata->pins + offset;
+	const struct mtk_desc_function *func = pin->functions;
+
+	while (func && func->name) {
+		if (!strncmp(func->name, GPIO_MODE_PREFIX,
+			sizeof(GPIO_MODE_PREFIX)-1))
+			return func->muxval;
+		func++;
+	}
+	return -EINVAL;
+}
+
+static int mtk_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
+				    struct pinctrl_gpio_range *range,
+				    unsigned offset)
+{
+	unsigned long muxval;
+	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+
+	muxval = mtk_pmx_find_gpio_mode(pctl, offset);
+
+	if (muxval < 0) {
+		dev_err(pctl->dev, "invalid gpio pin %d.\n", offset);
+		return -EINVAL;
+	}
+
+	mtk_pmx_set_mode(pctldev, offset, muxval);
+
+	return 0;
+}
+
 static const struct pinmux_ops mtk_pmx_ops = {
 	.get_functions_count	= mtk_pmx_get_funcs_cnt,
 	.get_function_name	= mtk_pmx_get_func_name,
 	.get_function_groups	= mtk_pmx_get_func_groups,
 	.set_mux		= mtk_pmx_set_mux,
 	.gpio_set_direction	= mtk_pmx_gpio_set_direction,
+	.gpio_request_enable	= mtk_pmx_gpio_request_enable,
 };
 
 static int mtk_gpio_direction_input(struct gpio_chip *chip,
