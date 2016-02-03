@@ -678,7 +678,6 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	ret = user_sdma_send_pkts(req, pcount);
 	if (unlikely(ret < 0 && ret != -EBUSY)) {
 		req->status = ret;
-		atomic_dec(&pq->n_reqs);
 		goto free_req;
 	}
 
@@ -703,6 +702,9 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 			if (ret != -EBUSY) {
 				req->status = ret;
 				set_bit(SDMA_REQ_DONE_ERROR, &req->flags);
+				if (ACCESS_ONCE(req->seqcomp) ==
+				    req->seqsubmitted - 1)
+					goto free_req;
 				return ret;
 			}
 			wait_event_interruptible_timeout(
@@ -717,6 +719,7 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	return 0;
 free_req:
 	user_sdma_free_request(req, true);
+	pq_update(pq);
 	set_comp_state(pq, cq, info.comp_idx, ERROR, req->status);
 	return ret;
 }
