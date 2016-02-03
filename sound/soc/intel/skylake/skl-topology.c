@@ -827,9 +827,6 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 			 * This is a connecter and if path is found that means
 			 * unbind between source and sink has not happened yet
 			 */
-			ret = skl_stop_pipe(ctx, sink_mconfig->pipe);
-			if (ret < 0)
-				return ret;
 			ret = skl_unbind_modules(ctx, src_mconfig,
 							sink_mconfig);
 		}
