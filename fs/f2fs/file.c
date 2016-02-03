@@ -1873,14 +1873,32 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 static ssize_t f2fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
+	ssize_t ret;
 
 	if (f2fs_encrypted_inode(inode) &&
 				!f2fs_has_encryption_key(inode) &&
 				f2fs_get_encryption_info(inode))
 		return -EACCES;
 
-	return generic_file_write_iter(iocb, from);
+	inode_lock(inode);
+	ret = generic_write_checks(iocb, from);
+	if (ret > 0) {
+		ret = f2fs_preallocate_blocks(iocb, from);
+		if (!ret)
+			ret = __generic_file_write_iter(iocb, from);
+	}
+	inode_unlock(inode);
+
+	if (ret > 0) {
+		ssize_t err;
+
+		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
+		if (err < 0)
+			ret = err;
+	}
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT
