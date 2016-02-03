@@ -4177,13 +4177,6 @@ W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
 F:	fs/efs/
 
-EHCA (IBM GX bus InfiniBand adapter) DRIVER
-M:	Hoang-Nam Nguyen <hnguyen@de.ibm.com>
-M:	Christoph Raisch <raisch@de.ibm.com>
-L:	linux-rdma@vger.kernel.org
-S:	Supported
-F:	drivers/infiniband/hw/ehca/
-
 EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
 M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
