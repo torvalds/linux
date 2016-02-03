@@ -1162,26 +1162,18 @@ static int sahara_sha_digest(struct ahash_request *req)
 
 static int sahara_sha_export(struct ahash_request *req, void *out)
 {
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct sahara_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct sahara_sha_reqctx *rctx = ahash_request_ctx(req);
 
-	memcpy(out, ctx, sizeof(struct sahara_ctx));
-	memcpy(out + sizeof(struct sahara_sha_reqctx), rctx,
-	       sizeof(struct sahara_sha_reqctx));
+	memcpy(out, rctx, sizeof(struct sahara_sha_reqctx));
 
 	return 0;
 }
 
 static int sahara_sha_import(struct ahash_request *req, const void *in)
 {
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
-	struct sahara_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct sahara_sha_reqctx *rctx = ahash_request_ctx(req);
 
-	memcpy(ctx, in, sizeof(struct sahara_ctx));
-	memcpy(rctx, in + sizeof(struct sahara_sha_reqctx),
-	       sizeof(struct sahara_sha_reqctx));
+	memcpy(rctx, in, sizeof(struct sahara_sha_reqctx));
 
 	return 0;
 }
