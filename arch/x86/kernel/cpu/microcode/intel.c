@@ -287,19 +287,17 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
  * BSP can stay in the platform.
  */
 static enum ucode_state __init
-get_matching_model_microcode(unsigned long start,
-			     void *data, size_t size,
-			     struct mc_saved_data *mcs,
-			     unsigned long *mc_ptrs,
+get_matching_model_microcode(unsigned long start, void *data, size_t size,
+			     struct mc_saved_data *mcs, unsigned long *mc_ptrs,
 			     struct ucode_cpu_info *uci)
 {
-	u8 *ucode_ptr = data;
-	unsigned int leftover = size;
-	enum ucode_state state = UCODE_OK;
-	unsigned int mc_size;
-	struct microcode_header_intel *mc_header;
 	struct microcode_intel *mc_saved_tmp[MAX_UCODE_COUNT];
+	struct microcode_header_intel *mc_header;
 	unsigned int num_saved = mcs->num_saved;
+	enum ucode_state state = UCODE_OK;
+	unsigned int leftover = size;
+	u8 *ucode_ptr = data;
+	unsigned int mc_size;
 	int i;
 
 	while (leftover && num_saved < ARRAY_SIZE(mc_saved_tmp)) {
@@ -321,8 +319,7 @@ get_matching_model_microcode(unsigned long start,
 		 * the platform, we need to find and save microcode patches
 		 * with the same family and model as the BSP.
 		 */
-		if (matching_model_microcode(mc_header, uci->cpu_sig.sig) !=
-			 UCODE_OK) {
+		if (matching_model_microcode(mc_header, uci->cpu_sig.sig) != UCODE_OK) {
 			ucode_ptr += mc_size;
 			continue;
 		}
@@ -334,19 +331,19 @@ get_matching_model_microcode(unsigned long start,
 
 	if (leftover) {
 		state = UCODE_ERROR;
-		goto out;
+		return state;
 	}
 
 	if (!num_saved) {
 		state = UCODE_NFOUND;
-		goto out;
+		return state;
 	}
 
 	for (i = 0; i < num_saved; i++)
 		mc_ptrs[i] = (unsigned long)mc_saved_tmp[i] - start;
 
 	mcs->num_saved = num_saved;
-out:
+
 	return state;
 }
 
