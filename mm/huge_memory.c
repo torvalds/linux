@@ -3478,17 +3478,19 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
 	int split = 0;
 
 	spin_lock_irqsave(&pgdata->split_queue_lock, flags);
-	list_splice_init(&pgdata->split_queue, &list);
-
 	/* Take pin on all head pages to avoid freeing them under us */
 	list_for_each_safe(pos, next, &list) {
 		page = list_entry((void *)pos, struct page, mapping);
 		page = compound_head(page);
-		/* race with put_compound_page() */
-		if (!get_page_unless_zero(page)) {
+		if (get_page_unless_zero(page)) {
+			list_move(page_deferred_list(page), &list);
+		} else {
+			/* We lost race with put_compound_page() */
 			list_del_init(page_deferred_list(page));
 			pgdata->split_queue_len--;
 		}
+		if (!--sc->nr_to_scan)
+			break;
 	}
 	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
 
