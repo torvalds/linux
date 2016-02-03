@@ -388,6 +388,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_FTLB		0x20000000000ull /* CPU has Fixed-page-size TLB */
 #define MIPS_CPU_NAN_LEGACY	0x40000000000ull /* Legacy NaN implemented */
 #define MIPS_CPU_NAN_2008	0x80000000000ull /* 2008 NaN implemented */
+#define MIPS_CPU_VP		0x100000000000ull /* MIPSr6 Virtual Processors (multi-threading) */
 
 /*
  * CPU ASE encodings

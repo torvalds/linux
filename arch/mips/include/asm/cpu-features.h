@@ -311,6 +311,10 @@
 #define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
 #endif
 
+#ifndef cpu_has_vp
+#define cpu_has_vp		(cpu_data[0].options & MIPS_CPU_VP)
+#endif
+
 #ifndef cpu_has_userlocal
 #define cpu_has_userlocal	(cpu_data[0].options & MIPS_CPU_ULRI)
 #endif
