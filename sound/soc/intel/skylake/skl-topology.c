@@ -98,7 +98,7 @@ static bool skl_tplg_alloc_pipe_mcps(struct skl *skl,
 			"%s: module_id %d instance %d\n", __func__,
 			mconfig->id.module_id, mconfig->id.instance_id);
 		dev_err(ctx->dev,
-			"exceeds ppl memory available %d > mem %d\n",
+			"exceeds ppl mcps available %d > mem %d\n",
 			skl->resource.max_mcps, skl->resource.mcps);
 		return false;
 	}
@@ -773,10 +773,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 			continue;
 		}
 
-		ret = skl_unbind_modules(ctx, src_module, dst_module);
-		if (ret < 0)
-			return ret;
-
+		skl_unbind_modules(ctx, src_module, dst_module);
 		src_module = dst_module;
 	}
 
