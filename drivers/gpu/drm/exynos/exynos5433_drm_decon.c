@@ -93,7 +93,7 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return -EPERM;
 
-	if (test_and_set_bit(BIT_IRQS_ENABLED, &ctx->flags)) {
+	if (!test_and_set_bit(BIT_IRQS_ENABLED, &ctx->flags)) {
 		val = VIDINTCON0_INTEN;
 		if (ctx->out_type == IFTYPE_I80)
 			val |= VIDINTCON0_FRAMEDONE;
