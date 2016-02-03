@@ -320,14 +320,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "tcp_retries1",
-		.data		= &sysctl_tcp_retries1,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra2		= &tcp_retr1_max
-	},
-	{
 		.procname	= "tcp_retries2",
 		.data		= &sysctl_tcp_retries2,
 		.maxlen		= sizeof(int),
@@ -959,6 +951,14 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "tcp_retries1",
+		.data		= &init_net.ipv4.sysctl_tcp_retries1,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra2		= &tcp_retr1_max
 	},
 	{ }
 };
