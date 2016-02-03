@@ -5857,6 +5857,16 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 						ASIC_QSFP2_INVERT :
 						ASIC_QSFP1_INVERT,
 				qsfp_int_mgmt);
+
+			if ((ppd->offline_disabled_reason >
+			  HFI1_ODR_MASK(
+			  OPA_LINKDOWN_REASONLOCAL_MEDIA_NOT_INSTALLED)) ||
+			  (ppd->offline_disabled_reason ==
+			  HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE)))
+				ppd->offline_disabled_reason =
+				HFI1_ODR_MASK(
+				OPA_LINKDOWN_REASONLOCAL_MEDIA_NOT_INSTALLED);
+
 			if (ppd->host_link_state == HLS_DN_POLL) {
 				/*
 				 * The link is still in POLL. This means
@@ -9615,9 +9625,10 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 				ret);
 			return -EINVAL;
 		}
-		if (ppd->offline_disabled_reason == OPA_LINKDOWN_REASON_NONE)
+		if (ppd->offline_disabled_reason ==
+				HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE))
 			ppd->offline_disabled_reason =
-			OPA_LINKDOWN_REASON_TRANSIENT;
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_TRANSIENT);
 	}
 
 	if (do_wait) {
@@ -9972,7 +9983,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 				ret = -EINVAL;
 			}
 		}
-		ppd->offline_disabled_reason = OPA_LINKDOWN_REASON_NONE;
+		ppd->offline_disabled_reason =
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
 		/*
 		 * If an error occurred above, go back to offline.  The
 		 * caller may reschedule another attempt.

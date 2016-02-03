@@ -152,7 +152,8 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 
 		/* physical link went up */
 		ppd->linkup = 1;
-		ppd->offline_disabled_reason = OPA_LINKDOWN_REASON_NONE;
+		ppd->offline_disabled_reason =
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
 
 		/* link widths are not available until the link is fully up */
 		get_linkup_link_widths(ppd);

@@ -99,6 +99,8 @@ extern unsigned long hfi1_cap_mask;
 #define HFI1_CAP_IS_USET(cap) (!!HFI1_CAP_UGET(cap))
 #define HFI1_MISC_GET() ((hfi1_cap_mask >> HFI1_CAP_MISC_SHIFT) & \
 			HFI1_CAP_MISC_MASK)
+/* Offline Disabled Reason is 4-bits */
+#define HFI1_ODR_MASK(rsn) ((rsn) & OPA_PI_MASK_OFFLINE_REASON)
 
 /*
  * Control context is always 0 and handles the error packets.

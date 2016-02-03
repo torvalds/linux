@@ -590,12 +590,11 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	pi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
 	pi->port_states.ledenable_offlinereason |=
-		ppd->offline_disabled_reason & OPA_PI_MASK_OFFLINE_REASON;
+		ppd->offline_disabled_reason;
 #else
 	pi->port_states.offline_reason = ppd->neighbor_normal << 4;
 	pi->port_states.offline_reason |= ppd->is_sm_config_started << 5;
-	pi->port_states.offline_reason |= ppd->offline_disabled_reason &
-						OPA_PI_MASK_OFFLINE_REASON;
+	pi->port_states.offline_reason |= ppd->offline_disabled_reason;
 #endif /* PI_LED_ENABLE_SUP */
 
 	pi->port_states.portphysstate_portstate =
@@ -930,6 +929,14 @@ static int port_states_transition_allowed(struct hfi1_pportdata *ppd,
 		return HFI_TRANSITION_IGNORED;
 
 	/*
+	 * A change request of Physical Port State from
+	 * 'Offline' to 'Polling' should be ignored.
+	 */
+	if ((physical_old == OPA_PORTPHYSSTATE_OFFLINE) &&
+	    (physical_new == IB_PORTPHYSSTATE_POLLING))
+		return HFI_TRANSITION_IGNORED;
+
+	/*
 	 * Either physical_allowed or logical_allowed is
 	 * HFI_TRANSITION_ALLOWED.
 	 */
@@ -993,11 +1000,11 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 		set_link_state(ppd, link_state);
 		if (link_state == HLS_DN_DISABLE &&
 		    (ppd->offline_disabled_reason >
-		     OPA_LINKDOWN_REASON_SMA_DISABLED ||
+		     HFI1_ODR_MASK(OPA_LINKDOWN_REASON_SMA_DISABLED) ||
 		     ppd->offline_disabled_reason ==
-		     OPA_LINKDOWN_REASON_NONE))
+		     HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE)))
 			ppd->offline_disabled_reason =
-			OPA_LINKDOWN_REASON_SMA_DISABLED;
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_SMA_DISABLED);
 		/*
 		 * Don't send a reply if the response would be sent
 		 * through the disabled port.
@@ -1710,12 +1717,11 @@ static int __subn_get_opa_psi(struct opa_smp *smp, u32 am, u8 *data,
 	psi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
 	psi->port_states.ledenable_offlinereason |=
-		ppd->offline_disabled_reason & OPA_PI_MASK_OFFLINE_REASON;
+		ppd->offline_disabled_reason;
 #else
 	psi->port_states.offline_reason = ppd->neighbor_normal << 4;
 	psi->port_states.offline_reason |= ppd->is_sm_config_started << 5;
-	psi->port_states.offline_reason |= ppd->offline_disabled_reason &
-				OPA_PI_MASK_OFFLINE_REASON;
+	psi->port_states.offline_reason |= ppd->offline_disabled_reason;
 #endif /* PI_LED_ENABLE_SUP */
 
 	psi->port_states.portphysstate_portstate =
