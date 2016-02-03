@@ -34,7 +34,6 @@
 
 #include <linux/err.h>
 #include <linux/vmalloc.h>
-#include <linux/jhash.h>
 #include <rdma/rdma_vt.h>
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
@@ -221,8 +220,7 @@ static void free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
 
 static inline unsigned qpn_hash(struct qib_ibdev *dev, u32 qpn)
 {
-	return jhash_1word(qpn, dev->qp_rnd) &
-		(dev->rdi.qp_dev->qp_table_size - 1);
+	return hash_32(qpn, dev->rdi.qp_dev->qp_table_bits);
 }
 
 
@@ -293,7 +291,8 @@ static void remove_qp(struct qib_ibdev *dev, struct rvt_qp *qp)
 	spin_unlock_irqrestore(&dev->rdi.qp_dev->qpt_lock, flags);
 	if (removed) {
 		synchronize_rcu();
-		atomic_dec(&qp->refcount);
+		if (atomic_dec_and_test(&qp->refcount))
+			wake_up(&qp->wait);
 	}
 }
 
@@ -318,41 +317,6 @@ unsigned qib_free_all_qps(struct rvt_dev_info *rdi)
 		rcu_read_unlock();
 	}
 	return qp_inuse;
-}
-
-/**
- * qib_lookup_qpn - return the QP with the given QPN
- * @qpt: the QP table
- * @qpn: the QP number to look up
- *
- * The caller is responsible for decrementing the QP reference count
- * when done.
- */
-struct rvt_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
-{
-	struct rvt_qp *qp = NULL;
-
-	rcu_read_lock();
-	if (unlikely(qpn <= 1)) {
-		if (qpn == 0)
-			qp = rcu_dereference(ibp->rvp.qp[0]);
-		else
-			qp = rcu_dereference(ibp->rvp.qp[1]);
-		if (qp)
-			atomic_inc(&qp->refcount);
-	} else {
-		struct qib_ibdev *dev = &ppd_from_ibp(ibp)->dd->verbs_dev;
-		unsigned n = qpn_hash(dev, qpn);
-
-		for (qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]); qp;
-			qp = rcu_dereference(qp->next))
-			if (qp->ibqp.qp_num == qpn) {
-				atomic_inc(&qp->refcount);
-				break;
-			}
-	}
-	rcu_read_unlock();
-	return qp;
 }
 
 void notify_qp_reset(struct rvt_qp *qp)

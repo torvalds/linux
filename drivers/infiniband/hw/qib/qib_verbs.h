@@ -359,8 +359,6 @@ int qib_get_counters(struct qib_pportdata *ppd,
 
 __be32 qib_compute_aeth(struct rvt_qp *qp);
 
-struct rvt_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn);
-
 int qib_destroy_qp(struct ib_qp *ibqp);
 
 int qib_error_qp(struct rvt_qp *qp, enum ib_wc_status err);

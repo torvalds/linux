@@ -322,6 +322,8 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 		struct qib_ib_header *hdr = (struct qib_ib_header *) rhdr;
 		struct qib_other_headers *ohdr = NULL;
 		struct qib_ibport *ibp = &ppd->ibport_data;
+		struct qib_devdata *dd = ppd->dd;
+		struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 		struct rvt_qp *qp = NULL;
 		u32 tlen = qib_hdrget_length_in_bytes(rhf_addr);
 		u16 lid  = be16_to_cpu(hdr->lrh[1]);
@@ -366,9 +368,12 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 		if (qp_num != QIB_MULTICAST_QPN) {
 			int ruc_res;
 
-			qp = qib_lookup_qpn(ibp, qp_num);
-			if (!qp)
+			rcu_read_lock();
+			qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
+			if (!qp) {
+				rcu_read_unlock();
 				goto drop;
+			}
 
 			/*
 			 * Handle only RC QPs - for other QP types drop error
@@ -435,12 +440,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 
 unlock:
 			spin_unlock(&qp->r_lock);
-			/*
-			 * Notify qib_destroy_qp() if it is waiting
-			 * for us to finish.
-			 */
-			if (atomic_dec_and_test(&qp->refcount))
-				wake_up(&qp->wait);
+			rcu_read_unlock();
 		} /* Unicast QP */
 	} /* Valid packet with TIDErr */
 
@@ -564,15 +564,6 @@ move_along:
 			dd->f_update_usrhead(rcd, lval, updegr, etail, i);
 			updegr = 0;
 		}
-	}
-	/*
-	 * Notify qib_destroy_qp() if it is waiting
-	 * for lookaside_qp to finish.
-	 */
-	if (rcd->lookaside_qp) {
-		if (atomic_dec_and_test(&rcd->lookaside_qp->refcount))
-			wake_up(&rcd->lookaside_qp->wait);
-		rcd->lookaside_qp = NULL;
 	}
 
 	rcd->head = l;

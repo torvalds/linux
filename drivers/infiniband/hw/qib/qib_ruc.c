@@ -358,6 +358,9 @@ err:
 static void qib_ruc_loopback(struct rvt_qp *sqp)
 {
 	struct qib_ibport *ibp = to_iport(sqp->ibqp.device, sqp->port_num);
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	struct qib_devdata *dd = ppd->dd;
+	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 	struct rvt_qp *qp;
 	struct rvt_swqe *wqe;
 	struct rvt_sge *sge;
@@ -369,11 +372,14 @@ static void qib_ruc_loopback(struct rvt_qp *sqp)
 	int release;
 	int ret;
 
+	rcu_read_lock();
 	/*
 	 * Note that we check the responder QP state after
 	 * checking the requester's state.
 	 */
-	qp = qib_lookup_qpn(ibp, sqp->remote_qpn);
+	qp = rvt_lookup_qpn(rdi, &ibp->rvp, sqp->remote_qpn);
+	if (!qp)
+		goto done;
 
 	spin_lock_irqsave(&sqp->s_lock, flags);
 
@@ -639,8 +645,7 @@ clr_busy:
 unlock:
 	spin_unlock_irqrestore(&sqp->s_lock, flags);
 done:
-	if (qp && atomic_dec_and_test(&qp->refcount))
-		wake_up(&qp->wait);
+	rcu_read_unlock();
 }
 
 /**

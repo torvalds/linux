@@ -367,6 +367,8 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 	struct qib_pportdata *ppd = rcd->ppd;
 	struct qib_ibport *ibp = &ppd->ibport_data;
 	struct qib_ib_header *hdr = rhdr;
+	struct qib_devdata *dd = ppd->dd;
+	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 	struct qib_other_headers *ohdr;
 	struct rvt_qp *qp;
 	u32 qp_num;
@@ -429,25 +431,15 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 		if (atomic_dec_return(&mcast->refcount) <= 1)
 			wake_up(&mcast->wait);
 	} else {
-		if (rcd->lookaside_qp) {
-			if (rcd->lookaside_qpn != qp_num) {
-				if (atomic_dec_and_test(
-					&rcd->lookaside_qp->refcount))
-					wake_up(
-					 &rcd->lookaside_qp->wait);
-				rcd->lookaside_qp = NULL;
-			}
+		rcu_read_lock();
+		qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
+		if (!qp) {
+			rcu_read_unlock();
+			goto drop;
 		}
-		if (!rcd->lookaside_qp) {
-			qp = qib_lookup_qpn(ibp, qp_num);
-			if (!qp)
-				goto drop;
-			rcd->lookaside_qp = qp;
-			rcd->lookaside_qpn = qp_num;
-		} else
-			qp = rcd->lookaside_qp;
 		this_cpu_inc(ibp->pmastats->n_unicast_rcv);
 		qib_qp_rcv(rcd, hdr, lnh == QIB_LRH_GRH, data, tlen, qp);
+		rcu_read_unlock();
 	}
 	return;
 
@@ -747,8 +739,6 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
 	qp = tx->qp;
 	dev = to_idev(qp->ibqp.device);
 
-	if (atomic_dec_and_test(&qp->refcount))
-		wake_up(&qp->wait);
 	if (tx->mr) {
 		rvt_put_mr(tx->mr);
 		tx->mr = NULL;
@@ -929,7 +919,6 @@ static int qib_verbs_send_dma(struct rvt_qp *qp, struct qib_ib_header *hdr,
 	control = dd->f_setpbc_control(ppd, plen, qp->s_srate,
 				       be16_to_cpu(hdr->lrh[0]) >> 12);
 	tx->qp = qp;
-	atomic_inc(&qp->refcount);
 	tx->wqe = qp->s_wqe;
 	tx->mr = qp->s_rdma_mr;
 	if (qp->s_rdma_mr)

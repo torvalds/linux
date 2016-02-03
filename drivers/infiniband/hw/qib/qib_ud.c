@@ -50,7 +50,9 @@
 static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 {
 	struct qib_ibport *ibp = to_iport(sqp->ibqp.device, sqp->port_num);
-	struct qib_pportdata *ppd;
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	struct qib_devdata *dd = ppd->dd;
+	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 	struct rvt_qp *qp;
 	struct ib_ah_attr *ah_attr;
 	unsigned long flags;
@@ -60,9 +62,11 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	u32 length;
 	enum ib_qp_type sqptype, dqptype;
 
-	qp = qib_lookup_qpn(ibp, swqe->ud_wr.remote_qpn);
+	rcu_read_lock();
+	qp = rvt_lookup_qpn(rdi, &ibp->rvp, swqe->ud_wr.remote_qpn);
 	if (!qp) {
 		ibp->rvp.n_pkt_drops++;
+		rcu_read_unlock();
 		return;
 	}
 
@@ -223,8 +227,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 bail_unlock:
 	spin_unlock_irqrestore(&qp->r_lock, flags);
 drop:
-	if (atomic_dec_and_test(&qp->refcount))
-		wake_up(&qp->wait);
+	rcu_read_unlock();
 }
 
 /**

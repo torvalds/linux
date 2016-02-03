@@ -230,9 +230,6 @@ struct qib_ctxtdata {
 	u8 redirect_seq_cnt;
 	/* ctxt rcvhdrq head offset */
 	u32 head;
-	/* lookaside fields */
-	struct rvt_qp *lookaside_qp;
-	u32 lookaside_qpn;
 	/* QPs waiting for context processing */
 	struct list_head qp_wait_list;
 #ifdef CONFIG_DEBUG_FS
