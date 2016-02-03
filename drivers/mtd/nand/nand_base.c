@@ -4294,6 +4294,21 @@ int nand_scan_tail(struct mtd_info *mtd)
 			ecc->strength = 4;
 		}
 
+		/*
+		 * if no ecc placement scheme was provided pickup the default
+		 * large page one.
+		 */
+		if (!mtd->ooblayout) {
+			/* handle large page devices only */
+			if (mtd->oobsize < 64) {
+				WARN(1, "OOB layout is required when using software BCH on small pages\n");
+				ret = -EINVAL;
+				goto err_free;
+			}
+
+			mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
+		}
+
 		/* See nand_bch_init() for details. */
 		ecc->bytes = 0;
 		ecc->priv = nand_bch_init(mtd);
