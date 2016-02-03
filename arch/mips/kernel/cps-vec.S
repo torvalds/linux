@@ -90,74 +90,9 @@ not_nmi:
 	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV | STATUS_BITDEPS
 	mtc0	t0, CP0_STATUS
 
-	/*
-	 * Clear the bits used to index the caches. Note that the architecture
-	 * dictates that writing to any of TagLo or TagHi selects 0 or 2 should
-	 * be valid for all MIPS32 CPUs, even those for which said writes are
-	 * unnecessary.
-	 */
-	mtc0	zero, CP0_TAGLO, 0
-	mtc0	zero, CP0_TAGHI, 0
-	mtc0	zero, CP0_TAGLO, 2
-	mtc0	zero, CP0_TAGHI, 2
-	ehb
-
-	/* Primary cache configuration is indicated by Config1 */
-	mfc0	v0, CP0_CONFIG, 1
-
-	/* Detect I-cache line size */
-	_EXT	t0, v0, MIPS_CONF1_IL_SHF, MIPS_CONF1_IL_SZ
-	beqz	t0, icache_done
-	 li	t1, 2
-	sllv	t0, t1, t0
-
-	/* Detect I-cache size */
-	_EXT	t1, v0, MIPS_CONF1_IS_SHF, MIPS_CONF1_IS_SZ
-	xori	t2, t1, 0x7
-	beqz	t2, 1f
-	 li	t3, 32
-	addiu	t1, t1, 1
-	sllv	t1, t3, t1
-1:	/* At this point t1 == I-cache sets per way */
-	_EXT	t2, v0, MIPS_CONF1_IA_SHF, MIPS_CONF1_IA_SZ
-	addiu	t2, t2, 1
-	mul	t1, t1, t0
-	mul	t1, t1, t2
-
-	li	a0, CKSEG0
-	PTR_ADD	a1, a0, t1
-1:	cache	Index_Store_Tag_I, 0(a0)
-	PTR_ADD	a0, a0, t0
-	bne	a0, a1, 1b
+	/* Initialize the L1 caches */
+	jal	mips_cps_cache_init
 	 nop
-icache_done:
-
-	/* Detect D-cache line size */
-	_EXT	t0, v0, MIPS_CONF1_DL_SHF, MIPS_CONF1_DL_SZ
-	beqz	t0, dcache_done
-	 li	t1, 2
-	sllv	t0, t1, t0
-
-	/* Detect D-cache size */
-	_EXT	t1, v0, MIPS_CONF1_DS_SHF, MIPS_CONF1_DS_SZ
-	xori	t2, t1, 0x7
-	beqz	t2, 1f
-	 li	t3, 32
-	addiu	t1, t1, 1
-	sllv	t1, t3, t1
-1:	/* At this point t1 == D-cache sets per way */
-	_EXT	t2, v0, MIPS_CONF1_DA_SHF, MIPS_CONF1_DA_SZ
-	addiu	t2, t2, 1
-	mul	t1, t1, t0
-	mul	t1, t1, t2
-
-	li	a0, CKSEG0
-	PTR_ADDU a1, a0, t1
-	PTR_SUBU a1, a1, t0
-1:	cache	Index_Store_Tag_D, 0(a0)
-	bne	a0, a1, 1b
-	 PTR_ADD a0, a0, t0
-dcache_done:
 
 	/* Set Kseg0 CCA to that in s0 */
 	mfc0	t0, CP0_CONFIG
@@ -485,6 +420,80 @@ LEAF(mips_cps_boot_vpes)
 	jr	ra
 	 nop
 	END(mips_cps_boot_vpes)
+
+LEAF(mips_cps_cache_init)
+	/*
+	 * Clear the bits used to index the caches. Note that the architecture
+	 * dictates that writing to any of TagLo or TagHi selects 0 or 2 should
+	 * be valid for all MIPS32 CPUs, even those for which said writes are
+	 * unnecessary.
+	 */
+	mtc0	zero, CP0_TAGLO, 0
+	mtc0	zero, CP0_TAGHI, 0
+	mtc0	zero, CP0_TAGLO, 2
+	mtc0	zero, CP0_TAGHI, 2
+	ehb
+
+	/* Primary cache configuration is indicated by Config1 */
+	mfc0	v0, CP0_CONFIG, 1
+
+	/* Detect I-cache line size */
+	_EXT	t0, v0, MIPS_CONF1_IL_SHF, MIPS_CONF1_IL_SZ
+	beqz	t0, icache_done
+	 li	t1, 2
+	sllv	t0, t1, t0
+
+	/* Detect I-cache size */
+	_EXT	t1, v0, MIPS_CONF1_IS_SHF, MIPS_CONF1_IS_SZ
+	xori	t2, t1, 0x7
+	beqz	t2, 1f
+	 li	t3, 32
+	addiu	t1, t1, 1
+	sllv	t1, t3, t1
+1:	/* At this point t1 == I-cache sets per way */
+	_EXT	t2, v0, MIPS_CONF1_IA_SHF, MIPS_CONF1_IA_SZ
+	addiu	t2, t2, 1
+	mul	t1, t1, t0
+	mul	t1, t1, t2
+
+	li	a0, CKSEG0
+	PTR_ADD	a1, a0, t1
+1:	cache	Index_Store_Tag_I, 0(a0)
+	PTR_ADD	a0, a0, t0
+	bne	a0, a1, 1b
+	 nop
+icache_done:
+
+	/* Detect D-cache line size */
+	_EXT	t0, v0, MIPS_CONF1_DL_SHF, MIPS_CONF1_DL_SZ
+	beqz	t0, dcache_done
+	 li	t1, 2
+	sllv	t0, t1, t0
+
+	/* Detect D-cache size */
+	_EXT	t1, v0, MIPS_CONF1_DS_SHF, MIPS_CONF1_DS_SZ
+	xori	t2, t1, 0x7
+	beqz	t2, 1f
+	 li	t3, 32
+	addiu	t1, t1, 1
+	sllv	t1, t3, t1
+1:	/* At this point t1 == D-cache sets per way */
+	_EXT	t2, v0, MIPS_CONF1_DA_SHF, MIPS_CONF1_DA_SZ
+	addiu	t2, t2, 1
+	mul	t1, t1, t0
+	mul	t1, t1, t2
+
+	li	a0, CKSEG0
+	PTR_ADDU a1, a0, t1
+	PTR_SUBU a1, a1, t0
+1:	cache	Index_Store_Tag_D, 0(a0)
+	bne	a0, a1, 1b
+	 PTR_ADD a0, a0, t0
+dcache_done:
+
+	jr	ra
+	 nop
+	END(mips_cps_cache_init)
 
 #if defined(CONFIG_MIPS_CPS_PM) && defined(CONFIG_CPU_PM)
 
