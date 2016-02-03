@@ -9315,6 +9315,10 @@ static void init_qsfp_int(struct hfi1_devdata *dd)
  */
 static void init_lcb(struct hfi1_devdata *dd)
 {
+	/* simulator does not correctly handle LCB cclk loopback, skip */
+	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
+		return;
+
 	/* the DC has been reset earlier in the driver load */
 
 	/* set LCB for cclk loopback on the port */
