@@ -111,6 +111,9 @@ run := make_pure
 # disable features detection
 ifeq ($(MK),Makefile)
 run += make_clean_all
+MAKE_F := $(MAKE)
+else
+MAKE_F := $(MAKE) -f $(MK)
 endif
 run += make_python_perf_so
 run += make_debug
@@ -270,12 +273,12 @@ endif
 
 MAKEFLAGS := --no-print-directory
 
-clean := @(cd $(PERF); make -s -f $(MK) $(O_OPT) clean >/dev/null)
+clean := @(cd $(PERF); $(MAKE_F) -s $(O_OPT) clean >/dev/null)
 
 $(run):
 	$(call clean)
 	@TMP_DEST=$$(mktemp -d); \
-	cmd="cd $(PERF) && make -f $(MK) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST $($@)"; \
+	cmd="cd $(PERF) && $(MAKE_F) $(PARALLEL_OPT) $(O_OPT) DESTDIR=$$TMP_DEST $($@)"; \
 	printf "%*.*s: %s\n" $(max_width) $(max_width) "$@" "$$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1; \
 	echo "  test: $(call test,$@)" >> $@ 2>&1; \
@@ -286,7 +289,7 @@ $(run_O):
 	$(call clean)
 	@TMP_O=$$(mktemp -d); \
 	TMP_DEST=$$(mktemp -d); \
-	cmd="cd $(PERF) && make -f $(MK) $(PARALLEL_OPT) O=$$TMP_O DESTDIR=$$TMP_DEST $($(patsubst %_O,%,$@))"; \
+	cmd="cd $(PERF) && $(MAKE_F) $(PARALLEL_OPT) O=$$TMP_O DESTDIR=$$TMP_DEST $($(patsubst %_O,%,$@))"; \
 	printf "%*.*s: %s\n" $(max_width) $(max_width) "$@" "$$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1 && \
 	echo "  test: $(call test_O,$@)" >> $@ 2>&1; \
