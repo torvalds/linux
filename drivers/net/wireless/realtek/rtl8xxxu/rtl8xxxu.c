@@ -2043,6 +2043,24 @@ exit:
 	return ret;
 }
 
+static void rtl8xxxu_reset_8051(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+	u16 sys_func;
+
+	val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL + 1);
+	val8 &= ~BIT(3);
+	rtl8xxxu_write8(priv, REG_RSV_CTRL + 1, val8);
+	sys_func = rtl8xxxu_read16(priv, REG_SYS_FUNC);
+	sys_func &= ~SYS_FUNC_CPU_ENABLE;
+	rtl8xxxu_write16(priv, REG_SYS_FUNC, sys_func);
+	val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL + 1);
+	val8 |= BIT(3);
+	rtl8xxxu_write8(priv, REG_RSV_CTRL + 1, val8);
+	sys_func |= SYS_FUNC_CPU_ENABLE;
+	rtl8xxxu_write16(priv, REG_SYS_FUNC, sys_func);
+}
+
 static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 {
 	struct device *dev = &priv->udev->dev;
@@ -2067,6 +2085,12 @@ static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 	val32 &= ~MCU_WINT_INIT_READY;
 	rtl8xxxu_write32(priv, REG_MCU_FW_DL, val32);
 
+	/*
+	 * Reset the 8051 in order for the firmware to start running,
+	 * otherwise it won't come up on the 8192eu
+	 */
+	rtl8xxxu_reset_8051(priv);
+
 	/* Wait for firmware to become ready */
 	for (i = 0; i < RTL8XXXU_FIRMWARE_POLL_MAX; i++) {
 		val32 = rtl8xxxu_read32(priv, REG_MCU_FW_DL);
@@ -2089,7 +2113,7 @@ exit:
 static int rtl8xxxu_download_firmware(struct rtl8xxxu_priv *priv)
 {
 	int pages, remainder, i, ret;
-	u8 val8, sys_func;
+	u8 val8;
 	u16 val16;
 	u32 val32;
 	u8 *fwptr;
@@ -2107,17 +2131,7 @@ static int rtl8xxxu_download_firmware(struct rtl8xxxu_priv *priv)
 	if (val8 & MCU_FW_RAM_SEL) {
 		pr_info("do the RAM reset\n");
 		rtl8xxxu_write8(priv, REG_MCU_FW_DL, 0x00);
-		val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL + 1);
-		val8 &= ~BIT(3);
-		rtl8xxxu_write8(priv, REG_RSV_CTRL + 1, val8);
-		sys_func = rtl8xxxu_read8(priv, REG_SYS_FUNC + 1);
-		sys_func &= ~BIT(2);
-		rtl8xxxu_write8(priv, REG_SYS_FUNC + 1, sys_func);
-		val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL + 1);
-		val8 |= BIT(3);
-		rtl8xxxu_write8(priv, REG_RSV_CTRL + 1, val8);
-		sys_func |= BIT(2);
-		rtl8xxxu_write8(priv, REG_SYS_FUNC + 1, sys_func);
+		rtl8xxxu_reset_8051(priv);
 	}
 
 	/* MCU firmware download enable */
