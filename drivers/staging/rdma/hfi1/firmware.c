@@ -433,8 +433,8 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 
 	ret = request_firmware(&fdet->fw, name, &dd->pcidev->dev);
 	if (ret) {
-		dd_dev_err(dd, "cannot find firmware \"%s\", err %d\n",
-			   name, ret);
+		dd_dev_warn(dd, "cannot find firmware \"%s\", err %d\n",
+			    name, ret);
 		return ret;
 	}
 
@@ -572,7 +572,7 @@ retry:
 		 * We tried the original and it failed.  Move to the
 		 * alternate.
 		 */
-		dd_dev_info(dd, "using alternate firmware names\n");
+		dd_dev_warn(dd, "using alternate firmware names\n");
 		/*
 		 * Let others run.  Some systems, when missing firmware, does
 		 * something that holds for 30 seconds.  If we do that twice
@@ -626,6 +626,7 @@ done:
 			fw_state = FW_TRY;
 			goto retry;
 		}
+		dd_dev_err(dd, "unable to obtain working firmware\n");
 		fw_state = FW_ERR;
 		fw_err = -ENOENT;
 	} else {
@@ -896,16 +897,17 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 			MISC_ERR_STATUS_MISC_FW_AUTH_FAILED_ERR_SMASK
 			| MISC_ERR_STATUS_MISC_KEY_MISMATCH_ERR_SMASK);
 	/*
-	 * All that is left are the current errors.  Print failure details,
-	 * if any.
+	 * All that is left are the current errors.  Print warnings on
+	 * authorization failure details, if any.  Firmware authorization
+	 * can be retried, so these are only warnings.
 	 */
 	reg = read_csr(dd, MISC_ERR_STATUS);
 	if (ret) {
 		if (reg & MISC_ERR_STATUS_MISC_FW_AUTH_FAILED_ERR_SMASK)
-			dd_dev_err(dd, "%s firmware authorization failed\n",
-				who);
+			dd_dev_warn(dd, "%s firmware authorization failed\n",
+				    who);
 		if (reg & MISC_ERR_STATUS_MISC_KEY_MISMATCH_ERR_SMASK)
-			dd_dev_err(dd, "%s firmware key mismatch\n", who);
+			dd_dev_warn(dd, "%s firmware key mismatch\n", who);
 	}
 
 	return ret;
