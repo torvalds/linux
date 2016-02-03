@@ -182,7 +182,6 @@ struct sahara_sha_reqctx {
 	u8			buf[SAHARA_MAX_SHA_BLOCK_SIZE];
 	u8			rembuf[SAHARA_MAX_SHA_BLOCK_SIZE];
 	u8			context[SHA256_DIGEST_SIZE + 4];
-	struct mutex		mutex;
 	unsigned int		mode;
 	unsigned int		digest_size;
 	unsigned int		context_size;
@@ -1096,7 +1095,6 @@ static int sahara_sha_enqueue(struct ahash_request *req, int last)
 	if (!req->nbytes && !last)
 		return 0;
 
-	mutex_lock(&rctx->mutex);
 	rctx->last = last;
 
 	if (!rctx->active) {
@@ -1109,7 +1107,6 @@ static int sahara_sha_enqueue(struct ahash_request *req, int last)
 	mutex_unlock(&dev->queue_mutex);
 
 	wake_up_process(dev->kthread);
-	mutex_unlock(&rctx->mutex);
 
 	return ret;
 }
@@ -1136,8 +1133,6 @@ static int sahara_sha_init(struct ahash_request *req)
 
 	rctx->context_size = rctx->digest_size + 4;
 	rctx->active = 0;
-
-	mutex_init(&rctx->mutex);
 
 	return 0;
 }
