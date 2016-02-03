@@ -2116,6 +2116,13 @@ void per_cpu_trap_init(bool is_boot_cpu)
 	 *  o read IntCtl.IPFDC to determine the fast debug channel interrupt
 	 */
 	if (cpu_has_mips_r2_r6) {
+		/*
+		 * We shouldn't trust a secondary core has a sane EBASE register
+		 * so use the one calculated by the boot CPU.
+		 */
+		if (!is_boot_cpu)
+			write_c0_ebase(ebase);
+
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
 		cp0_perfcount_irq = (read_c0_intctl() >> INTCTLB_IPPCI) & 7;
