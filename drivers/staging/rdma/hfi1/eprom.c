@@ -106,10 +106,8 @@
 
 /*
  * Use the EP mutex to guard against other callers from within the driver.
- * Also covers usage of eprom_available.
  */
 static DEFINE_MUTEX(eprom_mutex);
-static int eprom_available;	/* default: not available */
 
 /*
  * Turn on external enable line that allows writing on the flash.
@@ -376,14 +374,12 @@ int handle_eprom_command(struct file *fp, const struct hfi1_cmd *cmd)
 		return -EINVAL;
 	}
 
+	/* some devices do not have an EPROM */
+	if (!dd->eprom_available)
+		return -EOPNOTSUPP;
+
 	/* lock against other callers touching the ASIC block */
 	mutex_lock(&eprom_mutex);
-
-	/* some platforms do not have an EPROM */
-	if (!eprom_available) {
-		ret = -ENOSYS;
-		goto done_asic;
-	}
 
 	/* lock against the other HFI on another OS */
 	ret = acquire_hw_mutex(dd);
@@ -458,8 +454,6 @@ int eprom_init(struct hfi1_devdata *dd)
 
 	/* lock against other callers */
 	mutex_lock(&eprom_mutex);
-	if (eprom_available)	/* already initialized */
-		goto done_asic;
 
 	/*
 	 * Lock against the other HFI on another OS - the mutex above
@@ -487,7 +481,7 @@ int eprom_init(struct hfi1_devdata *dd)
 	/* wake the device with command "release powerdown NoID" */
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_RELEASE_POWERDOWN_NOID);
 
-	eprom_available = 1;
+	dd->eprom_available = true;
 	release_hw_mutex(dd);
 done_asic:
 	mutex_unlock(&eprom_mutex);

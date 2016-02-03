@@ -1145,6 +1145,7 @@ struct hfi1_devdata {
 	__le64 *rcvhdrtail_dummy_kvaddr;
 	dma_addr_t rcvhdrtail_dummy_physaddr;
 
+	bool eprom_available;	/* true if EPROM is available for this device */
 	bool aspm_supported;	/* Does HW support ASPM */
 	bool aspm_enabled;	/* ASPM state: enabled/disabled */
 	/* Serialize ASPM enable/disable between multiple verbs contexts */
