@@ -89,6 +89,10 @@
 #define BE3_MAX_TX_QS		16
 #define BE3_MAX_EVT_QS		16
 #define BE3_SRIOV_MAX_EVT_QS	8
+#define SH_VF_MAX_NIC_EQS	3	/* Skyhawk VFs can have a max of 4 EQs
+					 * and at least 1 is granted to either
+					 * SURF/DPDK
+					 */
 
 #define MAX_RSS_IFACES		15
 #define MAX_RX_QS		32

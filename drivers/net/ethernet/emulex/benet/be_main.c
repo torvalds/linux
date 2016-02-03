@@ -3792,18 +3792,15 @@ static u16 be_calculate_vf_qs(struct be_adapter *adapter, u16 num_vfs)
 	struct be_resources res = adapter->pool_res;
 	u16 num_vf_qs = 1;
 
-	/* Distribute the queue resources equally among the PF and it's VFs
+	/* Distribute the queue resources among the PF and it's VFs
 	 * Do not distribute queue resources in multi-channel configuration.
 	 */
 	if (num_vfs && !be_is_mc(adapter)) {
-		/* If number of VFs requested is 8 less than max supported,
-		 * assign 8 queue pairs to the PF and divide the remaining
-		 * resources evenly among the VFs
-		 */
-		if (num_vfs < (be_max_vfs(adapter) - 8))
-			num_vf_qs = (res.max_rss_qs - 8) / num_vfs;
-		else
-			num_vf_qs = res.max_rss_qs / num_vfs;
+		 /* Divide the qpairs evenly among the VFs and the PF, capped
+		  * at VF-EQ-count. Any remainder qpairs belong to the PF.
+		  */
+		num_vf_qs = min(SH_VF_MAX_NIC_EQS,
+				res.max_rss_qs / (num_vfs + 1));
 
 		/* Skyhawk-R chip supports only MAX_RSS_IFACES RSS capable
 		 * interfaces per port. Provide RSS on VFs, only if number
