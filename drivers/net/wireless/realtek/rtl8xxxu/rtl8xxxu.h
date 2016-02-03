@@ -652,7 +652,6 @@ struct rtl8xxxu_priv {
 	u32 bb_recovery_backup[RTL8XXXU_BB_REGS];
 	u32 rtlchip;
 	u8 pi_enabled:1;
-	u8 iqk_initialized:1;
 	u8 int_buf[USB_INTR_CONTENT_LENGTH];
 };
 

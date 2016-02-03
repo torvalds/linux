@@ -4289,17 +4289,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	rtl8xxxu_write16(priv, REG_FAST_EDCA_CTRL, 0);
 
-	/*
-	 * Not sure if we should get into this at all
-	 */
-	if (priv->iqk_initialized) {
-		rtl8xxxu_restore_regs(priv, rtl8723au_iqk_phy_iq_bb_reg,
-				      priv->bb_recovery_backup,
-				      RTL8XXXU_BB_REGS);
-	} else {
-		rtl8723a_phy_iq_calibrate(priv);
-		priv->iqk_initialized = true;
-	}
+	rtl8723a_phy_iq_calibrate(priv);
 
 	/*
 	 * This should enable thermal meter
