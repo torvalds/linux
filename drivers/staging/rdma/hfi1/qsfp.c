@@ -330,48 +330,48 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 			/* all */
 			ret = qsfp_read(ppd, target, 384, cache + 256, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 			ret = qsfp_read(ppd, target, 640, cache + 384, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 			ret = qsfp_read(ppd, target, 896, cache + 512, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 		} else if ((cache[195] & 0x80) == 0x80) {
 			/* only page 2 and 3 */
 			ret = qsfp_read(ppd, target, 640, cache + 384, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 			ret = qsfp_read(ppd, target, 896, cache + 512, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 		} else if ((cache[195] & 0x40) == 0x40) {
 			/* only page 1 and 3 */
 			ret = qsfp_read(ppd, target, 384, cache + 256, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 			ret = qsfp_read(ppd, target, 896, cache + 512, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 		} else {
 			/* only page 3 */
 			ret = qsfp_read(ppd, target, 896, cache + 512, 128);
 			if (ret <= 0 || ret != 128) {
-				dd_dev_info(ppd->dd, "%s: failed\n", __func__);
+				dd_dev_info(ppd->dd, "%s failed\n", __func__);
 				goto bail;
 			}
 		}
