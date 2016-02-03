@@ -233,6 +233,8 @@ static const u8 all_pcie_serdes_broadcast = 0xe0;
 
 /* forwards */
 static void dispose_one_firmware(struct firmware_details *fdet);
+static int load_fabric_serdes_firmware(struct hfi1_devdata *dd,
+				       struct firmware_details *fdet);
 
 /*
  * Read a single 64-bit value from 8051 data memory.
@@ -1092,27 +1094,56 @@ static void turn_off_spicos(struct hfi1_devdata *dd, int flags)
 }
 
 /*
- *  Reset all of the fabric serdes for our HFI.
+ * Reset all of the fabric serdes for this HFI in preparation to take the
+ * link to Polling.
+ *
+ * To do a reset, we need to write to to the serdes registers.  Unfortunately,
+ * the fabric serdes download to the other HFI on the ASIC will have turned
+ * off the firmware validation on this HFI.  This means we can't write to the
+ * registers to reset the serdes.  Work around this by performing a complete
+ * re-download and validation of the fabric serdes firmware.  This, as a
+ * by-product, will reset the serdes.  NOTE: the re-download requires that
+ * the 8051 be in the Offline state.  I.e. not actively trying to use the
+ * serdes.  This routine is called at the point where the link is Offline and
+ * is getting ready to go to Polling.
  */
 void fabric_serdes_reset(struct hfi1_devdata *dd)
 {
-	u8 ra;
-
-	if (dd->icode != ICODE_RTL_SILICON) /* only for RTL */
+	if (!fw_fabric_serdes_load)
 		return;
 
-	ra = fabric_serdes_broadcast[dd->hfi1_id];
+	if (is_ax(dd)) {
+		/* A0 serdes do not work with a re-download */
+		u8 ra = fabric_serdes_broadcast[dd->hfi1_id];
+
+		acquire_hw_mutex(dd);
+		set_sbus_fast_mode(dd);
+		/* place SerDes in reset and disable SPICO */
+		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000011);
+		/* wait 100 refclk cycles @ 156.25MHz => 640ns */
+		udelay(1);
+		/* remove SerDes reset */
+		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000010);
+		/* turn SPICO enable on */
+		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000002);
+		clear_sbus_fast_mode(dd);
+		release_hw_mutex(dd);
+		return;
+	}
 
 	acquire_hw_mutex(dd);
 	set_sbus_fast_mode(dd);
-	/* place SerDes in reset and disable SPICO */
-	sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000011);
-	/* wait 100 refclk cycles @ 156.25MHz => 640ns */
-	udelay(1);
-	/* remove SerDes reset */
-	sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000010);
-	/* turn SPICO enable on */
-	sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000002);
+
+	turn_off_spicos(dd, SPICO_FABRIC);
+	/*
+	 * No need for firmware retry - what to download has already been
+	 * decided.
+	 * No need to pay attention to the load return - the only failure
+	 * is a validation failure, which has already been checked by the
+	 * initial download.
+	 */
+	(void)load_fabric_serdes_firmware(dd, &fw_fabric);
+
 	clear_sbus_fast_mode(dd);
 	release_hw_mutex(dd);
 }
