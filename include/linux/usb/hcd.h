@@ -632,7 +632,7 @@ extern void usb_set_device_state(struct usb_device *udev,
 /* exported only within usbcore */
 
 extern struct idr usb_bus_idr;
-extern struct mutex usb_bus_list_lock;
+extern struct mutex usb_bus_idr_lock;
 extern wait_queue_head_t usb_kill_urb_queue;
 
 
