@@ -328,6 +328,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct tcp_sock *tp;
 	__u32 seq, snd_una;
 	struct sock *sk;
+	bool fatal;
 	int err;
 
 	sk = __inet6_lookup_established(net, &tcp_hashinfo,
@@ -346,8 +347,9 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return;
 	}
 	seq = ntohl(th->seq);
+	fatal = icmpv6_err_convert(type, code, &err);
 	if (sk->sk_state == TCP_NEW_SYN_RECV)
-		return tcp_req_err(sk, seq);
+		return tcp_req_err(sk, seq, fatal);
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk) && type != ICMPV6_PKT_TOOBIG)
@@ -401,7 +403,6 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		goto out;
 	}
 
-	icmpv6_err_convert(type, code, &err);
 
 	/* Might be for an request_sock */
 	switch (sk->sk_state) {
