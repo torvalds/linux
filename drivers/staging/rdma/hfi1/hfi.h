@@ -314,6 +314,21 @@ struct hfi1_ctxtdata {
 	struct list_head sdma_queues;
 	spinlock_t sdma_qlock;
 
+	/* Is ASPM interrupt supported for this context */
+	bool aspm_intr_supported;
+	/* ASPM state (enabled/disabled) for this context */
+	bool aspm_enabled;
+	/* Timer for re-enabling ASPM if interrupt activity quietens down */
+	struct timer_list aspm_timer;
+	/* Lock to serialize between intr, timer intr and user threads */
+	spinlock_t aspm_lock;
+	/* Is ASPM processing enabled for this context (in intr context) */
+	bool aspm_intr_enable;
+	/* Last interrupt timestamp */
+	ktime_t aspm_ts_last_intr;
+	/* Last timestamp at which we scheduled a timer for this context */
+	ktime_t aspm_ts_timer_sched;
+
 	/*
 	 * The interrupt handler for a particular receive context can vary
 	 * throughout it's lifetime. This is not a lock protected data member so
@@ -893,6 +908,8 @@ struct hfi1_devdata {
 	 * number of ctxts available for PSM open
 	 */
 	u32 freectxts;
+	/* total number of available user/PSM contexts */
+	u32 num_user_contexts;
 	/* base receive interrupt timeout, in CSR units */
 	u32 rcv_intr_timeout_csr;
 
@@ -1121,6 +1138,13 @@ struct hfi1_devdata {
 	/* receive context tail dummy address */
 	__le64 *rcvhdrtail_dummy_kvaddr;
 	dma_addr_t rcvhdrtail_dummy_physaddr;
+
+	bool aspm_supported;	/* Does HW support ASPM */
+	bool aspm_enabled;	/* ASPM state: enabled/disabled */
+	/* Serialize ASPM enable/disable between multiple verbs contexts */
+	spinlock_t aspm_lock;
+	/* Number of verbs contexts which have disabled ASPM */
+	atomic_t aspm_disabled_cnt;
 };
 
 /* 8051 firmware version helper */

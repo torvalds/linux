@@ -57,6 +57,7 @@
 
 #include "hfi.h"
 #include "chip_registers.h"
+#include "aspm.h"
 
 /* link speed vector for Gen3 speed - not in Linux headers */
 #define GEN1_SPEED_VECTOR 0x1
@@ -462,6 +463,10 @@ void restore_pci_variables(struct hfi1_devdata *dd)
 static int hfi1_pcie_caps;
 module_param_named(pcie_caps, hfi1_pcie_caps, int, S_IRUGO);
 MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
+
+uint aspm_mode = ASPM_MODE_DISABLED;
+module_param_named(aspm, aspm_mode, uint, S_IRUGO);
+MODULE_PARM_DESC(aspm, "PCIe ASPM: 0: disable, 1: enable, 2: dynamic");
 
 static void tune_pcie_caps(struct hfi1_devdata *dd)
 {
@@ -957,7 +962,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	int do_retry, retry_count = 0;
 	uint default_pset;
 	u16 target_vector, target_speed;
-	u16 lnkctl, lnkctl2, vendor;
+	u16 lnkctl2, vendor;
 	u8 nsbr = 1;
 	u8 div;
 	const u8 (*eq)[3];
@@ -1147,11 +1152,12 @@ retry:
 	 */
 	write_xmt_margin(dd, __func__);
 
-	/* step 5e: disable active state power management (ASPM) */
+	/*
+	 * step 5e: disable active state power management (ASPM). It
+	 * will be enabled if required later
+	 */
 	dd_dev_info(dd, "%s: clearing ASPM\n", __func__);
-	pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKCTL, &lnkctl);
-	lnkctl &= ~PCI_EXP_LNKCTL_ASPMC;
-	pcie_capability_write_word(dd->pcidev, PCI_EXP_LNKCTL, lnkctl);
+	aspm_hw_disable_l1(dd);
 
 	/*
 	 * step 5f: clear DirectSpeedChange

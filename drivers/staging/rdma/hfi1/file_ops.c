@@ -60,6 +60,7 @@
 #include "user_sdma.h"
 #include "user_exp_rcv.h"
 #include "eprom.h"
+#include "aspm.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -798,7 +799,8 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_clear_ctxt_pkey(dd, uctxt->ctxt);
 
 	hfi1_stats.sps_ctxts--;
-	dd->freectxts++;
+	if (++dd->freectxts == dd->num_user_contexts)
+		aspm_enable_all(dd);
 	mutex_unlock(&hfi1_mutex);
 	hfi1_free_ctxtdata(dd, uctxt);
 done:
@@ -1040,7 +1042,12 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	INIT_LIST_HEAD(&uctxt->sdma_queues);
 	spin_lock_init(&uctxt->sdma_qlock);
 	hfi1_stats.sps_ctxts++;
-	dd->freectxts--;
+	/*
+	 * Disable ASPM when there are open user/PSM contexts to avoid
+	 * issues with ASPM L1 exit latency
+	 */
+	if (dd->freectxts-- == dd->num_user_contexts)
+		aspm_disable_all(dd);
 	fd->uctxt = uctxt;
 
 	return 0;

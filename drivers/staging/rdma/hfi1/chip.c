@@ -65,6 +65,7 @@
 #include "eprom.h"
 #include "efivar.h"
 #include "platform.h"
+#include "aspm.h"
 
 #define NUM_IB_PORTS 1
 
@@ -8069,6 +8070,7 @@ static irqreturn_t receive_context_interrupt(int irq, void *data)
 
 	trace_hfi1_receive_interrupt(dd, rcd->ctxt);
 	this_cpu_inc(*dd->int_counter);
+	aspm_ctx_disable(rcd);
 
 	/* receive interrupt remains blocked while processing packets */
 	disposition = rcd->do_interrupt(rcd, 0);
@@ -12792,6 +12794,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	dd->num_rcv_contexts = total_contexts;
 	dd->n_krcv_queues = num_kernel_contexts;
 	dd->first_user_ctxt = num_kernel_contexts;
+	dd->num_user_contexts = num_user_contexts;
 	dd->freectxts = num_user_contexts;
 	dd_dev_info(dd,
 		"rcv contexts: chip %d, used %d (kernel %d, user %d)\n",
@@ -13948,6 +13951,7 @@ done:
  */
 void hfi1_start_cleanup(struct hfi1_devdata *dd)
 {
+	aspm_exit(dd);
 	free_cntrs(dd);
 	free_rcverr(dd);
 	clean_up_interrupts(dd);
