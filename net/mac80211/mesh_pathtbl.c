@@ -834,6 +834,29 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	rcu_read_unlock();
 }
 
+static void mpp_flush_by_proxy(struct ieee80211_sub_if_data *sdata,
+			       const u8 *proxy)
+{
+	struct mesh_table *tbl;
+	struct mesh_path *mpp;
+	struct mpath_node *node;
+	int i;
+
+	rcu_read_lock();
+	read_lock_bh(&pathtbl_resize_lock);
+	tbl = resize_dereference_mpp_paths();
+	for_each_mesh_entry(tbl, node, i) {
+		mpp = node->mpath;
+		if (ether_addr_equal(mpp->mpp, proxy)) {
+			spin_lock(&tbl->hashwlock[i]);
+			__mesh_path_del(tbl, node);
+			spin_unlock(&tbl->hashwlock[i]);
+		}
+	}
+	read_unlock_bh(&pathtbl_resize_lock);
+	rcu_read_unlock();
+}
+
 static void table_flush_by_iface(struct mesh_table *tbl,
 				 struct ieee80211_sub_if_data *sdata)
 {
@@ -890,6 +913,9 @@ int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
 	struct hlist_head *bucket;
 	int hash_idx;
 	int err = 0;
+
+	/* flush relevant mpp entries first */
+	mpp_flush_by_proxy(sdata, addr);
 
 	read_lock_bh(&pathtbl_resize_lock);
 	tbl = resize_dereference_mesh_paths();
