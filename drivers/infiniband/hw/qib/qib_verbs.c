@@ -1656,7 +1656,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 	spin_lock_init(&dev->n_qps_lock);
-	spin_lock_init(&dev->n_srqs_lock);
 	init_timer(&dev->mem_timer);
 	dev->mem_timer.function = mem_timer;
 	dev->mem_timer.data = (unsigned long) dev;
@@ -1754,17 +1753,12 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->destroy_ah = NULL;
 	ibdev->modify_ah = NULL;
 	ibdev->query_ah = NULL;
-	ibdev->create_srq = qib_create_srq;
-	ibdev->modify_srq = qib_modify_srq;
-	ibdev->query_srq = qib_query_srq;
-	ibdev->destroy_srq = qib_destroy_srq;
 	ibdev->create_qp = NULL;
 	ibdev->modify_qp = qib_modify_qp;
 	ibdev->query_qp = NULL;
 	ibdev->destroy_qp = qib_destroy_qp;
 	ibdev->post_send = NULL;
 	ibdev->post_recv = NULL;
-	ibdev->post_srq_recv = qib_post_srq_receive;
 	ibdev->create_cq = NULL;
 	ibdev->destroy_cq = NULL;
 	ibdev->resize_cq = NULL;

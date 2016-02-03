@@ -270,8 +270,6 @@ struct qib_ibdev {
 
 	u32 n_qps_allocated;    /* number of QPs allocated for device */
 	spinlock_t n_qps_lock;
-	u32 n_srqs_allocated;   /* number of SRQs allocated for device */
-	spinlock_t n_srqs_lock;
 #ifdef CONFIG_DEBUG_FS
 	/* per HCA debugfs */
 	struct dentry *qib_ibdev_dbg;
@@ -427,21 +425,6 @@ int qib_post_ud_send(struct rvt_qp *qp, struct ib_send_wr *wr);
 
 void qib_ud_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
-
-int qib_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-			 struct ib_recv_wr **bad_wr);
-
-struct ib_srq *qib_create_srq(struct ib_pd *ibpd,
-			      struct ib_srq_init_attr *srq_init_attr,
-			      struct ib_udata *udata);
-
-int qib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
-		   enum ib_srq_attr_mask attr_mask,
-		   struct ib_udata *udata);
-
-int qib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
-
-int qib_destroy_srq(struct ib_srq *ibsrq);
 
 void mr_rcu_callback(struct rcu_head *list);
 
