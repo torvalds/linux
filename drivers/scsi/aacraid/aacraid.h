@@ -94,6 +94,13 @@ enum {
 #define aac_phys_to_logical(x)  ((x)+1)
 #define aac_logical_to_phys(x)  ((x)?(x)-1:0)
 
+/*
+ * These macros are for keeping track of
+ * character device state.
+ */
+#define AAC_CHARDEV_UNREGISTERED	(-1)
+#define AAC_CHARDEV_NEEDS_REINIT	(-2)
+
 /* #define AAC_DETAILED_STATUS_INFO */
 
 struct diskparm

@@ -80,7 +80,7 @@ MODULE_VERSION(AAC_DRIVER_FULL_VERSION);
 
 static DEFINE_MUTEX(aac_mutex);
 static LIST_HEAD(aac_devices);
-static int aac_cfg_major = -1;
+static int aac_cfg_major = AAC_CHARDEV_UNREGISTERED;
 char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
 
 /*
@@ -1118,6 +1118,13 @@ static void __aac_shutdown(struct aac_dev * aac)
 	else if (aac->max_msix > 1)
 		pci_disable_msix(aac->pdev);
 }
+static void aac_init_char(void)
+{
+	aac_cfg_major = register_chrdev(0, "aac", &aac_cfg_fops);
+	if (aac_cfg_major < 0) {
+		pr_err("aacraid: unable to register \"aac\" device.\n");
+	}
+}
 
 static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -1174,6 +1181,9 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->unique_id = unique_id;
 	shost->max_cmd_len = 16;
 	shost->use_cmd_list = 1;
+
+	if (aac_cfg_major == AAC_CHARDEV_NEEDS_REINIT)
+		aac_init_char();
 
 	aac = (struct aac_dev *)shost->hostdata;
 	aac->base_start = pci_resource_start(pdev, 0);
@@ -1514,7 +1524,7 @@ static void aac_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	if (list_empty(&aac_devices)) {
 		unregister_chrdev(aac_cfg_major, "aac");
-		aac_cfg_major = -1;
+		aac_cfg_major = AAC_CHARDEV_NEEDS_REINIT;
 	}
 }
 
@@ -1674,11 +1684,8 @@ static int __init aac_init(void)
 	if (error < 0)
 		return error;
 
-	aac_cfg_major = register_chrdev( 0, "aac", &aac_cfg_fops);
-	if (aac_cfg_major < 0) {
-		printk(KERN_WARNING
-			"aacraid: unable to register \"aac\" device.\n");
-	}
+	aac_init_char();
+
 
 	return 0;
 }
