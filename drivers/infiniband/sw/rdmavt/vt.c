@@ -210,17 +210,28 @@ static int rvt_query_pkey(struct ib_device *ibdev, u8 port_num, u16 index,
  * Returns 0 on success
  */
 static int rvt_query_gid(struct ib_device *ibdev, u8 port_num,
-			 int index, union ib_gid *gid)
+			 int guid_index, union ib_gid *gid)
 {
+	struct rvt_dev_info *rdi;
+	struct rvt_ibport *rvp;
+	int port_index;
+
 	/*
 	 * Driver is responsible for updating the guid table. Which will be used
 	 * to craft the return value. This will work similar to how query_pkey()
 	 * is being done.
 	 */
-	if (ibport_num_to_idx(ibdev, port_num) < 0)
+	port_index = ibport_num_to_idx(ibdev, port_num);
+	if (port_index < 0)
 		return -EINVAL;
 
-	return -EOPNOTSUPP;
+	rdi = ib_to_rvt(ibdev);
+	rvp = rdi->ports[port_index];
+
+	gid->global.subnet_prefix = rvp->gid_prefix;
+
+	return rdi->driver_f.get_guid_be(rdi, rvp, guid_index,
+					 &gid->global.interface_id);
 }
 
 struct rvt_ucontext {

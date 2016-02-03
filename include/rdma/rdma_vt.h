@@ -248,6 +248,8 @@ struct rvt_driver_provided {
 	u32 (*mtu_from_qp)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 			   u32 pmtu);
 	int (*mtu_to_path_mtu)(u32 mtu);
+	int (*get_guid_be)(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
+			   int guid_index, __be64 *guid);
 
 	/*--------------------*/
 	/* Optional functions */
