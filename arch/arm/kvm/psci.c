@@ -75,7 +75,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 	unsigned long context_id;
 	phys_addr_t target_pc;
 
-	cpu_id = *vcpu_reg(source_vcpu, 1) & MPIDR_HWID_BITMASK;
+	cpu_id = vcpu_get_reg(source_vcpu, 1) & MPIDR_HWID_BITMASK;
 	if (vcpu_mode_is_32bit(source_vcpu))
 		cpu_id &= ~((u32) 0);
 
@@ -94,8 +94,8 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 			return PSCI_RET_INVALID_PARAMS;
 	}
 
-	target_pc = *vcpu_reg(source_vcpu, 2);
-	context_id = *vcpu_reg(source_vcpu, 3);
+	target_pc = vcpu_get_reg(source_vcpu, 2);
+	context_id = vcpu_get_reg(source_vcpu, 3);
 
 	kvm_reset_vcpu(vcpu);
 
@@ -114,7 +114,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 	 * NOTE: We always update r0 (or x0) because for PSCI v0.1
 	 * the general puspose registers are undefined upon CPU_ON.
 	 */
-	*vcpu_reg(vcpu, 0) = context_id;
+	vcpu_set_reg(vcpu, 0, context_id);
 	vcpu->arch.power_off = false;
 	smp_mb();		/* Make sure the above is visible */
 
@@ -134,8 +134,8 @@ static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu *tmp;
 
-	target_affinity = *vcpu_reg(vcpu, 1);
-	lowest_affinity_level = *vcpu_reg(vcpu, 2);
+	target_affinity = vcpu_get_reg(vcpu, 1);
+	lowest_affinity_level = vcpu_get_reg(vcpu, 2);
 
 	/* Determine target affinity mask */
 	target_affinity_mask = psci_affinity_mask(lowest_affinity_level);
@@ -209,7 +209,7 @@ int kvm_psci_version(struct kvm_vcpu *vcpu)
 static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 {
 	int ret = 1;
-	unsigned long psci_fn = *vcpu_reg(vcpu, 0) & ~((u32) 0);
+	unsigned long psci_fn = vcpu_get_reg(vcpu, 0) & ~((u32) 0);
 	unsigned long val;
 
 	switch (psci_fn) {
@@ -273,13 +273,13 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 		break;
 	}
 
-	*vcpu_reg(vcpu, 0) = val;
+	vcpu_set_reg(vcpu, 0, val);
 	return ret;
 }
 
 static int kvm_psci_0_1_call(struct kvm_vcpu *vcpu)
 {
-	unsigned long psci_fn = *vcpu_reg(vcpu, 0) & ~((u32) 0);
+	unsigned long psci_fn = vcpu_get_reg(vcpu, 0) & ~((u32) 0);
 	unsigned long val;
 
 	switch (psci_fn) {
@@ -295,7 +295,7 @@ static int kvm_psci_0_1_call(struct kvm_vcpu *vcpu)
 		break;
 	}
 
-	*vcpu_reg(vcpu, 0) = val;
+	vcpu_set_reg(vcpu, 0, val);
 	return 1;
 }
 

@@ -575,8 +575,10 @@ struct vfio_iommu_spapr_tce_create {
 	__u32 flags;
 	/* in */
 	__u32 page_shift;
+	__u32 __resv1;
 	__u64 window_size;
 	__u32 levels;
+	__u32 __resv2;
 	/* out */
 	__u64 start_addr;
 };

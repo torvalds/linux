@@ -15,8 +15,11 @@ config H8300
 	select OF_IRQ
 	select OF_EARLY_FLATTREE
 	select HAVE_MEMBLOCK
-	select HAVE_DMA_ATTRS
 	select CLKSRC_OF
+	select H8300_TMR8
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZO
+	select HAVE_ARCH_KGDB
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y

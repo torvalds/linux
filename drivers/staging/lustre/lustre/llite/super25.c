@@ -106,7 +106,8 @@ static int __init init_lustre_lite(void)
 	rc = -ENOMEM;
 	ll_inode_cachep = kmem_cache_create("lustre_inode_cache",
 					    sizeof(struct ll_inode_info),
-					    0, SLAB_HWCACHE_ALIGN, NULL);
+					    0, SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
+					    NULL);
 	if (ll_inode_cachep == NULL)
 		goto out_cache;
 
@@ -205,7 +206,7 @@ static void __exit exit_lustre_lite(void)
 	kmem_cache_destroy(ll_file_data_slab);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Lite Client File System");
 MODULE_LICENSE("GPL");
 

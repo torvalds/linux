@@ -28,14 +28,14 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/audio.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/irda-pxaficp.h>
-#include <mach/udc.h>
+#include "udc.h"
 #include <linux/platform_data/asoc-palm27x.h>
-#include <mach/palm27x.h>
+#include "palm27x.h"
 
 #include "generic.h"
 #include "devices.h"
@@ -344,7 +344,7 @@ void __init palm27x_pwm_init(int bl, int lcd)
 {
 	palm_bl_power	= bl;
 	palm_lcd_power	= lcd;
-	pwm_add_lookup(palm27x_pwm_lookup, ARRAY_SIZE(palm27x_pwm_lookup));
+	pwm_add_table(palm27x_pwm_lookup, ARRAY_SIZE(palm27x_pwm_lookup));
 	platform_device_register(&palm27x_backlight);
 }
 #endif

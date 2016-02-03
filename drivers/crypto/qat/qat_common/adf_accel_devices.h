@@ -55,8 +55,20 @@
 
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCCVF_DEVICE_NAME "dh895xccvf"
+#define ADF_C62X_DEVICE_NAME "c62x"
+#define ADF_C62XVF_DEVICE_NAME "c62xvf"
+#define ADF_C3XXX_DEVICE_NAME "c3xxx"
+#define ADF_C3XXXVF_DEVICE_NAME "c3xxxvf"
 #define ADF_DH895XCC_PCI_DEVICE_ID 0x435
 #define ADF_DH895XCCIOV_PCI_DEVICE_ID 0x443
+#define ADF_C62X_PCI_DEVICE_ID 0x37c8
+#define ADF_C62XIOV_PCI_DEVICE_ID 0x37c9
+#define ADF_C3XXX_PCI_DEVICE_ID 0x19e2
+#define ADF_C3XXXIOV_PCI_DEVICE_ID 0x19e3
+#define ADF_ERRSOU3 (0x3A000 + 0x0C)
+#define ADF_ERRSOU5 (0x3A000 + 0xD8)
+#define ADF_DEVICE_FUSECTL_OFFSET 0x40
+#define ADF_DEVICE_LEGFUSE_OFFSET 0x4C
 #define ADF_PCI_MAX_BARS 3
 #define ADF_DEVICE_NAME_LENGTH 32
 #define ADF_ETR_MAX_RINGS_PER_BANK 16
@@ -168,11 +180,11 @@ struct adf_hw_device_data {
 	const char *fw_mmp_name;
 	uint32_t fuses;
 	uint32_t accel_capabilities_mask;
+	uint32_t instance_id;
 	uint16_t accel_mask;
 	uint16_t ae_mask;
 	uint16_t tx_rings_mask;
 	uint8_t tx_rx_gap;
-	uint8_t instance_id;
 	uint8_t num_banks;
 	uint8_t num_accel;
 	uint8_t num_logical_accel;
@@ -239,6 +251,6 @@ struct adf_accel_dev {
 		} vf;
 	};
 	bool is_vf;
-	uint8_t accel_id;
+	u32 accel_id;
 } __packed;
 #endif

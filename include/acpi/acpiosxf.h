@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -349,10 +349,26 @@ void acpi_os_redirect_output(void *destination);
 #endif
 
 /*
- * Debug input
+ * Debug IO
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_line
 acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_command_signals
+acpi_status acpi_os_initialize_command_signals(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_command_signals
+void acpi_os_terminate_command_signals(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_wait_command_ready
+acpi_status acpi_os_wait_command_ready(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_notify_command_complete
+acpi_status acpi_os_notify_command_complete(void);
 #endif
 
 /*

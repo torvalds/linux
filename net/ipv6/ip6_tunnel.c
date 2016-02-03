@@ -177,7 +177,7 @@ void ip6_tnl_dst_reset(struct ip6_tnl *t)
 	int i;
 
 	for_each_possible_cpu(i)
-		ip6_tnl_per_cpu_dst_set(raw_cpu_ptr(t->dst_cache), NULL);
+		ip6_tnl_per_cpu_dst_set(per_cpu_ptr(t->dst_cache, i), NULL);
 }
 EXPORT_SYMBOL_GPL(ip6_tnl_dst_reset);
 

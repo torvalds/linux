@@ -5,8 +5,6 @@
 config PINCTRL
 	bool
 
-if PINCTRL
-
 menu "Pin controllers"
 	depends on PINCTRL
 
@@ -246,7 +244,7 @@ config PINCTRL_ZYNQ
 	select PINMUX
 	select GENERIC_PINCONF
 	help
-	  This selectes the pinctrl driver for Xilinx Zynq.
+	  This selects the pinctrl driver for Xilinx Zynq.
 
 source "drivers/pinctrl/bcm/Kconfig"
 source "drivers/pinctrl/berlin/Kconfig"
@@ -254,6 +252,7 @@ source "drivers/pinctrl/freescale/Kconfig"
 source "drivers/pinctrl/intel/Kconfig"
 source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/nomadik/Kconfig"
+source "drivers/pinctrl/pxa/Kconfig"
 source "drivers/pinctrl/qcom/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
@@ -274,5 +273,3 @@ config PINCTRL_TB10X
 	select GPIOLIB
 
 endmenu
-
-endif

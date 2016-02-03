@@ -259,12 +259,6 @@ nvkm_device_pci_10de_0df4[] = {
 };
 
 static const struct nvkm_device_pci_vendor
-nvkm_device_pci_10de_0fcd[] = {
-	{ 0x17aa, 0x3801, NULL, { .War00C800_0 = true } }, /* Lenovo Y510P */
-	{}
-};
-
-static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_0fd2[] = {
 	{ 0x1028, 0x0595, "GeForce GT 640M LE" },
 	{ 0x1028, 0x05b2, "GeForce GT 640M LE" },
@@ -684,21 +678,12 @@ nvkm_device_pci_10de_1189[] = {
 static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_1199[] = {
 	{ 0x1458, 0xd001, "GeForce GTX 760" },
-	{ 0x1462, 0x1106, "GeForce GTX 780M", { .War00C800_0 = true } }, /* Medion Erazer X7827 */
 	{}
 };
 
 static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_11e3[] = {
 	{ 0x17aa, 0x3683, "GeForce GTX 760A" },
-	{}
-};
-
-static const struct nvkm_device_pci_vendor
-nvkm_device_pci_10de_11fc[] = {
-	{ 0x1179, 0x0001, NULL, { .War00C800_0 = true } }, /* Toshiba Tecra W50 */
-	{ 0x17aa, 0x2211, NULL, { .War00C800_0 = true } }, /* Lenovo W541 */
-	{ 0x17aa, 0x221e, NULL, { .War00C800_0 = true } }, /* Lenovo W541 */
 	{}
 };
 
@@ -1356,7 +1341,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x0fc6, "GeForce GTX 650" },
 	{ 0x0fc8, "GeForce GT 740" },
 	{ 0x0fc9, "GeForce GT 730" },
-	{ 0x0fcd, "GeForce GT 755M", nvkm_device_pci_10de_0fcd },
+	{ 0x0fcd, "GeForce GT 755M" },
 	{ 0x0fce, "GeForce GT 640M LE" },
 	{ 0x0fd1, "GeForce GT 650M" },
 	{ 0x0fd2, "GeForce GT 640M", nvkm_device_pci_10de_0fd2 },
@@ -1490,7 +1475,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x11e2, "GeForce GTX 765M" },
 	{ 0x11e3, "GeForce GTX 760M", nvkm_device_pci_10de_11e3 },
 	{ 0x11fa, "Quadro K4000" },
-	{ 0x11fc, "Quadro K2100M", nvkm_device_pci_10de_11fc },
+	{ 0x11fc, "Quadro K2100M" },
 	{ 0x1200, "GeForce GTX 560 Ti" },
 	{ 0x1201, "GeForce GTX 560" },
 	{ 0x1203, "GeForce GTX 460 SE v2" },

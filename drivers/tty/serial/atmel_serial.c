@@ -22,7 +22,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -155,7 +154,6 @@ struct atmel_uart_port {
 	struct circ_buf		rx_ring;
 
 	struct mctrl_gpios	*gpios;
-	int			gpio_irq[UART_GPIO_MAX];
 	unsigned int		tx_done_mask;
 	u32			fifo_size;
 	u32			rts_high;
@@ -190,8 +188,6 @@ static const struct of_device_id atmel_serial_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9260-usart" },
 	{ /* sentinel */ }
 };
-
-MODULE_DEVICE_TABLE(of, atmel_serial_dt_ids);
 #endif
 
 static inline struct atmel_uart_port *
@@ -550,27 +546,21 @@ static void atmel_enable_ms(struct uart_port *port)
 
 	atmel_port->ms_irq_enabled = true;
 
-	if (atmel_port->gpio_irq[UART_GPIO_CTS] >= 0)
-		enable_irq(atmel_port->gpio_irq[UART_GPIO_CTS]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_CTS))
 		ier |= ATMEL_US_CTSIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_DSR] >= 0)
-		enable_irq(atmel_port->gpio_irq[UART_GPIO_DSR]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_DSR))
 		ier |= ATMEL_US_DSRIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_RI] >= 0)
-		enable_irq(atmel_port->gpio_irq[UART_GPIO_RI]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_RI))
 		ier |= ATMEL_US_RIIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_DCD] >= 0)
-		enable_irq(atmel_port->gpio_irq[UART_GPIO_DCD]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_DCD))
 		ier |= ATMEL_US_DCDIC;
 
 	atmel_uart_writel(port, ATMEL_US_IER, ier);
+
+	mctrl_gpio_enable_ms(atmel_port->gpios);
 }
 
 /*
@@ -589,24 +579,18 @@ static void atmel_disable_ms(struct uart_port *port)
 
 	atmel_port->ms_irq_enabled = false;
 
-	if (atmel_port->gpio_irq[UART_GPIO_CTS] >= 0)
-		disable_irq(atmel_port->gpio_irq[UART_GPIO_CTS]);
-	else
+	mctrl_gpio_disable_ms(atmel_port->gpios);
+
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_CTS))
 		idr |= ATMEL_US_CTSIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_DSR] >= 0)
-		disable_irq(atmel_port->gpio_irq[UART_GPIO_DSR]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_DSR))
 		idr |= ATMEL_US_DSRIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_RI] >= 0)
-		disable_irq(atmel_port->gpio_irq[UART_GPIO_RI]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_RI))
 		idr |= ATMEL_US_RIIC;
 
-	if (atmel_port->gpio_irq[UART_GPIO_DCD] >= 0)
-		disable_irq(atmel_port->gpio_irq[UART_GPIO_DCD]);
-	else
+	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_DCD))
 		idr |= ATMEL_US_DCDIC;
 
 	atmel_uart_writel(port, ATMEL_US_IDR, idr);
@@ -1264,7 +1248,6 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned int status, pending, mask, pass_counter = 0;
-	bool gpio_handled = false;
 
 	spin_lock(&atmel_port->lock_suspended);
 
@@ -1272,24 +1255,6 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 		status = atmel_get_lines_status(port);
 		mask = atmel_uart_readl(port, ATMEL_US_IMR);
 		pending = status & mask;
-		if (!gpio_handled) {
-			/*
-			 * Dealing with GPIO interrupt
-			 */
-			if (irq == atmel_port->gpio_irq[UART_GPIO_CTS])
-				pending |= ATMEL_US_CTSIC;
-
-			if (irq == atmel_port->gpio_irq[UART_GPIO_DSR])
-				pending |= ATMEL_US_DSRIC;
-
-			if (irq == atmel_port->gpio_irq[UART_GPIO_RI])
-				pending |= ATMEL_US_RIIC;
-
-			if (irq == atmel_port->gpio_irq[UART_GPIO_DCD])
-				pending |= ATMEL_US_DCDIC;
-
-			gpio_handled = true;
-		}
 		if (!pending)
 			break;
 
@@ -1778,45 +1743,6 @@ static void atmel_get_ip_name(struct uart_port *port)
 	}
 }
 
-static void atmel_free_gpio_irq(struct uart_port *port)
-{
-	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	enum mctrl_gpio_idx i;
-
-	for (i = 0; i < UART_GPIO_MAX; i++)
-		if (atmel_port->gpio_irq[i] >= 0)
-			free_irq(atmel_port->gpio_irq[i], port);
-}
-
-static int atmel_request_gpio_irq(struct uart_port *port)
-{
-	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	int *irq = atmel_port->gpio_irq;
-	enum mctrl_gpio_idx i;
-	int err = 0;
-
-	for (i = 0; (i < UART_GPIO_MAX) && !err; i++) {
-		if (irq[i] < 0)
-			continue;
-
-		irq_set_status_flags(irq[i], IRQ_NOAUTOEN);
-		err = request_irq(irq[i], atmel_interrupt, IRQ_TYPE_EDGE_BOTH,
-				  "atmel_serial", port);
-		if (err)
-			dev_err(port->dev, "atmel_startup - Can't get %d irq\n",
-				irq[i]);
-	}
-
-	/*
-	 * If something went wrong, rollback.
-	 */
-	while (err && (--i >= 0))
-		if (irq[i] >= 0)
-			free_irq(irq[i], port);
-
-	return err;
-}
-
 /*
  * Perform initialization and enable port for reception
  */
@@ -1845,13 +1771,6 @@ static int atmel_startup(struct uart_port *port)
 		dev_err(port->dev, "atmel_startup - Can't get irq\n");
 		return retval;
 	}
-
-	/*
-	 * Get the GPIO lines IRQ
-	 */
-	retval = atmel_request_gpio_irq(port);
-	if (retval)
-		goto free_irq;
 
 	tasklet_enable(&atmel_port->tasklet);
 
@@ -1948,11 +1867,6 @@ static int atmel_startup(struct uart_port *port)
 	}
 
 	return 0;
-
-free_irq:
-	free_irq(port->irq, port);
-
-	return retval;
 }
 
 /*
@@ -2018,7 +1932,6 @@ static void atmel_shutdown(struct uart_port *port)
 	 * Free the interrupts
 	 */
 	free_irq(port->irq, port);
-	atmel_free_gpio_irq(port);
 
 	atmel_port->ms_irq_enabled = false;
 
@@ -2686,26 +2599,6 @@ static int atmel_serial_resume(struct platform_device *pdev)
 #define atmel_serial_resume NULL
 #endif
 
-static int atmel_init_gpios(struct atmel_uart_port *p, struct device *dev)
-{
-	enum mctrl_gpio_idx i;
-	struct gpio_desc *gpiod;
-
-	p->gpios = mctrl_gpio_init_noauto(dev, 0);
-	if (IS_ERR(p->gpios))
-		return PTR_ERR(p->gpios);
-
-	for (i = 0; i < UART_GPIO_MAX; i++) {
-		gpiod = mctrl_gpio_to_gpiod(p->gpios, i);
-		if (gpiod && (gpiod_get_direction(gpiod) == GPIOF_DIR_IN))
-			p->gpio_irq[i] = gpiod_to_irq(gpiod);
-		else
-			p->gpio_irq[i] = -EINVAL;
-	}
-
-	return 0;
-}
-
 static void atmel_serial_probe_fifos(struct atmel_uart_port *port,
 				     struct platform_device *pdev)
 {
@@ -2788,15 +2681,15 @@ static int atmel_serial_probe(struct platform_device *pdev)
 
 	spin_lock_init(&port->lock_suspended);
 
-	ret = atmel_init_gpios(port, &pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to initialize GPIOs.");
-		goto err_clear_bit;
-	}
-
 	ret = atmel_init_port(port, pdev);
 	if (ret)
 		goto err_clear_bit;
+
+	port->gpios = mctrl_gpio_init(&port->uart, 0);
+	if (IS_ERR(port->gpios)) {
+		ret = PTR_ERR(port->gpios);
+		goto err_clear_bit;
+	}
 
 	if (!atmel_use_pdc_rx(&port->uart)) {
 		ret = -ENOMEM;
@@ -2866,37 +2759,14 @@ err:
 	return ret;
 }
 
-static int atmel_serial_remove(struct platform_device *pdev)
-{
-	struct uart_port *port = platform_get_drvdata(pdev);
-	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	int ret = 0;
-
-	tasklet_kill(&atmel_port->tasklet);
-
-	device_init_wakeup(&pdev->dev, 0);
-
-	ret = uart_remove_one_port(&atmel_uart, port);
-
-	kfree(atmel_port->rx_ring.buf);
-
-	/* "port" is allocated statically, so we shouldn't free it */
-
-	clear_bit(port->line, atmel_ports_in_use);
-
-	clk_put(atmel_port->clk);
-
-	return ret;
-}
-
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
-	.remove		= atmel_serial_remove,
 	.suspend	= atmel_serial_suspend,
 	.resume		= atmel_serial_resume,
 	.driver		= {
-		.name	= "atmel_usart",
-		.of_match_table	= of_match_ptr(atmel_serial_dt_ids),
+		.name			= "atmel_usart",
+		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),
+		.suppress_bind_attrs    = true,
 	},
 };
 
@@ -2914,17 +2784,4 @@ static int __init atmel_serial_init(void)
 
 	return ret;
 }
-
-static void __exit atmel_serial_exit(void)
-{
-	platform_driver_unregister(&atmel_serial_driver);
-	uart_unregister_driver(&atmel_uart);
-}
-
-module_init(atmel_serial_init);
-module_exit(atmel_serial_exit);
-
-MODULE_AUTHOR("Rick Bronson");
-MODULE_DESCRIPTION("Atmel AT91 / AT32 serial port driver");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:atmel_usart");
+device_initcall(atmel_serial_init);

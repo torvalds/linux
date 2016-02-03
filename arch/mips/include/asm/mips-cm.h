@@ -243,6 +243,10 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define  CM_GCR_BASE_CMDEFTGT_IOCU0		2
 #define  CM_GCR_BASE_CMDEFTGT_IOCU1		3
 
+/* GCR_RESET_EXT_BASE register fields */
+#define CM_GCR_RESET_EXT_BASE_EVARESET		BIT(31)
+#define CM_GCR_RESET_EXT_BASE_UEB		BIT(30)
+
 /* GCR_ACCESS register fields */
 #define CM_GCR_ACCESS_ACCESSEN_SHF		0
 #define CM_GCR_ACCESS_ACCESSEN_MSK		(_ULCAST_(0xff) << 0)

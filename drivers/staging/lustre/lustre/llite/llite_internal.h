@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -631,8 +631,6 @@ struct ll_file_data {
 
 struct lov_stripe_md;
 
-extern spinlock_t inode_lock;
-
 extern struct dentry *llite_root;
 extern struct kset *llite_kset;
 
@@ -705,7 +703,7 @@ extern const struct address_space_operations ll_aops;
 extern struct file_operations ll_file_operations;
 extern struct file_operations ll_file_operations_flock;
 extern struct file_operations ll_file_operations_noflock;
-extern struct inode_operations ll_file_inode_operations;
+extern const struct inode_operations ll_file_inode_operations;
 int ll_have_md_lock(struct inode *inode, __u64 *bits,
 		    ldlm_mode_t l_req_mode);
 ldlm_mode_t ll_take_md_lock(struct inode *inode, __u64 bits,
@@ -805,7 +803,7 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 				      const struct lu_fid *fid);
 
 /* llite/symlink.c */
-extern struct inode_operations ll_fast_symlink_inode_operations;
+extern const struct inode_operations ll_fast_symlink_inode_operations;
 
 /* llite/llite_close.c */
 struct ll_close_queue {
@@ -1283,16 +1281,6 @@ static inline struct ll_file_data *cl_iattr2fd(struct inode *inode,
 {
 	LASSERT(attr->ia_valid & ATTR_FILE);
 	return LUSTRE_FPRIVATE(attr->ia_file);
-}
-
-static inline void cl_isize_lock(struct inode *inode)
-{
-	ll_inode_size_lock(inode);
-}
-
-static inline void cl_isize_unlock(struct inode *inode)
-{
-	ll_inode_size_unlock(inode);
 }
 
 static inline void cl_isize_write_nolock(struct inode *inode, loff_t kms)

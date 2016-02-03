@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -164,8 +164,8 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 	ACPI_FUNCTION_TRACE(ex_name_segment);
 
 	/*
-	 * If first character is a digit, then we know that we aren't looking at a
-	 * valid name segment
+	 * If first character is a digit, then we know that we aren't looking
+	 * at a valid name segment
 	 */
 	char_buf[0] = *aml_address;
 

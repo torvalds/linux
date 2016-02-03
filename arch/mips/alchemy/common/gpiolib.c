@@ -40,7 +40,7 @@
 
 static int gpio2_get(struct gpio_chip *chip, unsigned offset)
 {
-	return alchemy_gpio2_get_value(offset + ALCHEMY_GPIO2_BASE);
+	return !!alchemy_gpio2_get_value(offset + ALCHEMY_GPIO2_BASE);
 }
 
 static void gpio2_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -68,7 +68,7 @@ static int gpio2_to_irq(struct gpio_chip *chip, unsigned offset)
 
 static int gpio1_get(struct gpio_chip *chip, unsigned offset)
 {
-	return alchemy_gpio1_get_value(offset + ALCHEMY_GPIO1_BASE);
+	return !!alchemy_gpio1_get_value(offset + ALCHEMY_GPIO1_BASE);
 }
 
 static void gpio1_set(struct gpio_chip *chip,
@@ -119,7 +119,7 @@ struct gpio_chip alchemy_gpio_chip[] = {
 
 static int alchemy_gpic_get(struct gpio_chip *chip, unsigned int off)
 {
-	return au1300_gpio_get_value(off + AU1300_GPIO_BASE);
+	return !!au1300_gpio_get_value(off + AU1300_GPIO_BASE);
 }
 
 static void alchemy_gpic_set(struct gpio_chip *chip, unsigned int off, int v)

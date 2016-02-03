@@ -241,17 +241,16 @@ static void rcar_can_error(struct net_device *ndev)
 		u8 ecsr;
 
 		netdev_dbg(priv->ndev, "Bus error interrupt:\n");
-		if (skb) {
+		if (skb)
 			cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_PROT;
-			cf->data[2] = CAN_ERR_PROT_UNSPEC;
-		}
+
 		ecsr = readb(&priv->regs->ecsr);
 		if (ecsr & RCAR_CAN_ECSR_ADEF) {
 			netdev_dbg(priv->ndev, "ACK Delimiter Error\n");
 			tx_errors++;
 			writeb(~RCAR_CAN_ECSR_ADEF, &priv->regs->ecsr);
 			if (skb)
-				cf->data[3] |= CAN_ERR_PROT_LOC_ACK_DEL;
+				cf->data[3] = CAN_ERR_PROT_LOC_ACK_DEL;
 		}
 		if (ecsr & RCAR_CAN_ECSR_BE0F) {
 			netdev_dbg(priv->ndev, "Bit Error (dominant)\n");
@@ -272,7 +271,7 @@ static void rcar_can_error(struct net_device *ndev)
 			rx_errors++;
 			writeb(~RCAR_CAN_ECSR_CEF, &priv->regs->ecsr);
 			if (skb)
-				cf->data[3] |= CAN_ERR_PROT_LOC_CRC_SEQ;
+				cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
 		}
 		if (ecsr & RCAR_CAN_ECSR_AEF) {
 			netdev_dbg(priv->ndev, "ACK Error\n");
@@ -280,7 +279,7 @@ static void rcar_can_error(struct net_device *ndev)
 			writeb(~RCAR_CAN_ECSR_AEF, &priv->regs->ecsr);
 			if (skb) {
 				cf->can_id |= CAN_ERR_ACK;
-				cf->data[3] |= CAN_ERR_PROT_LOC_ACK;
+				cf->data[3] = CAN_ERR_PROT_LOC_ACK;
 			}
 		}
 		if (ecsr & RCAR_CAN_ECSR_FEF) {

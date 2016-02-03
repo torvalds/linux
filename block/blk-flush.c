@@ -422,7 +422,7 @@ void blk_insert_flush(struct request *rq)
 		if (q->mq_ops) {
 			blk_mq_insert_request(rq, false, false, true);
 		} else
-			q->elevator->type->ops.elevator_add_req_fn(q, rq);
+			list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
 	}
 

@@ -25,6 +25,7 @@
  *
  **************************************************************************/
 #include <linux/module.h>
+#include <linux/console.h>
 
 #include <drm/drmP.h>
 #include "vmwgfx_drv.h"
@@ -1233,6 +1234,7 @@ static void vmw_master_drop(struct drm_device *dev,
 
 	vmw_fp->locked_master = drm_master_get(file_priv->master);
 	ret = ttm_vt_lock(&vmaster->lock, false, vmw_fp->tfile);
+	vmw_kms_legacy_hotspot_clear(dev_priv);
 	if (unlikely((ret != 0))) {
 		DRM_ERROR("Unable to lock TTM at VT switch.\n");
 		drm_master_put(&vmw_fp->locked_master);
@@ -1537,6 +1539,12 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 static int __init vmwgfx_init(void)
 {
 	int ret;
+
+#ifdef CONFIG_VGA_CONSOLE
+	if (vgacon_text_force())
+		return -EINVAL;
+#endif
+
 	ret = drm_pci_init(&driver, &vmw_pci_driver);
 	if (ret)
 		DRM_ERROR("Failed initializing DRM.\n");

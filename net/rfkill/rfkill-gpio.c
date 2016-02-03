@@ -163,10 +163,6 @@ static int rfkill_gpio_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rfkill_acpi_match[] = {
-	{ "BCM2E1A", RFKILL_TYPE_BLUETOOTH },
-	{ "BCM2E3D", RFKILL_TYPE_BLUETOOTH },
-	{ "BCM2E40", RFKILL_TYPE_BLUETOOTH },
-	{ "BCM2E64", RFKILL_TYPE_BLUETOOTH },
 	{ "BCM4752", RFKILL_TYPE_GPS },
 	{ "LNV4752", RFKILL_TYPE_GPS },
 	{ },

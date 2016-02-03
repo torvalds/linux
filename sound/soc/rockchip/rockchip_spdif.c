@@ -152,8 +152,10 @@ static int rk_spdif_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ret = regmap_update_bits(spdif->regmap, SPDIF_DMACR,
-				   SPDIF_DMACR_TDE_ENABLE,
-				   SPDIF_DMACR_TDE_ENABLE);
+				   SPDIF_DMACR_TDE_ENABLE |
+				   SPDIF_DMACR_TDL_MASK,
+				   SPDIF_DMACR_TDE_ENABLE |
+				   SPDIF_DMACR_TDL(16));
 
 		if (ret != 0)
 			return ret;
@@ -280,7 +282,7 @@ static int rk_spdif_probe(struct platform_device *pdev)
 	int ret;
 
 	match = of_match_node(rk_spdif_match, np);
-	if ((int) match->data == RK_SPDIF_RK3288) {
+	if (match->data == (void *)RK_SPDIF_RK3288) {
 		struct regmap *grf;
 
 		grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");

@@ -43,7 +43,7 @@ static void init_c3(struct cpuinfo_x86 *c)
 		/* store Centaur Extended Feature Flags as
 		 * word 5 of the CPU capability bit array
 		 */
-		c->x86_capability[5] = cpuid_edx(0xC0000001);
+		c->x86_capability[CPUID_C000_0001_EDX] = cpuid_edx(0xC0000001);
 	}
 #ifdef CONFIG_X86_32
 	/* Cyrix III family needs CX8 & PGE explicitly enabled. */

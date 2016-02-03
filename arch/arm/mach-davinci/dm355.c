@@ -21,7 +21,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/cputype.h>
-#include <mach/psc.h>
+#include "psc.h"
 #include <mach/mux.h>
 #include <mach/irqs.h>
 #include <mach/time.h>

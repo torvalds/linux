@@ -44,7 +44,7 @@ static int ccp_get_msix_irqs(struct ccp_device *ccp)
 {
 	struct ccp_pci *ccp_pci = ccp->dev_specific;
 	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct msix_entry msix_entry[MSIX_VECTORS];
 	unsigned int name_len = sizeof(ccp_pci->msix[0].name) - 1;
 	int v, ret;
@@ -86,7 +86,7 @@ e_irq:
 static int ccp_get_msi_irq(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
 
 	ret = pci_enable_msi(pdev);
@@ -133,7 +133,7 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 {
 	struct ccp_pci *ccp_pci = ccp->dev_specific;
 	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (ccp_pci->msix_count) {
 		while (ccp_pci->msix_count--)
@@ -149,7 +149,7 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 static int ccp_find_mmio_area(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	resource_size_t io_len;
 	unsigned long io_flags;
 

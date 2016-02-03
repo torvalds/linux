@@ -4,7 +4,6 @@
  */
 #include <linux/list.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/sysctl.h>
@@ -372,8 +371,10 @@ retry_locked:
 		spin_unlock(&resv->lock);
 
 		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
-		if (!trg)
+		if (!trg) {
+			kfree(nrg);
 			return -ENOMEM;
+		}
 
 		spin_lock(&resv->lock);
 		list_add(&trg->link, &resv->region_cache);
@@ -483,8 +484,16 @@ static long region_del(struct resv_map *resv, long f, long t)
 retry:
 	spin_lock(&resv->lock);
 	list_for_each_entry_safe(rg, trg, head, link) {
-		if (rg->to <= f)
+		/*
+		 * Skip regions before the range to be deleted.  file_region
+		 * ranges are normally of the form [from, to).  However, there
+		 * may be a "placeholder" entry in the map which is of the form
+		 * (from, to) with from == to.  Check for placeholder entries
+		 * at the beginning of the range to be deleted.
+		 */
+		if (rg->to <= f && (rg->to != rg->from || rg->to != f))
 			continue;
+
 		if (rg->from >= t)
 			break;
 
@@ -1258,8 +1267,8 @@ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
 
 	/* we rely on prep_new_huge_page to set the destructor */
 	set_compound_order(page, order);
-	__SetPageHead(page);
 	__ClearPageReserved(page);
+	__SetPageHead(page);
 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
 		/*
 		 * For gigantic hugepages allocated through bootmem at
@@ -1886,7 +1895,10 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
 		page = __alloc_buddy_huge_page_with_mpol(h, vma, addr);
 		if (!page)
 			goto out_uncharge_cgroup;
-
+		if (!avoid_reserve && vma_has_reserves(vma, gbl_chg)) {
+			SetPagePrivate(page);
+			h->resv_huge_pages--;
+		}
 		spin_lock(&hugetlb_lock);
 		list_move(&page->lru, &h->hugepage_activelist);
 		/* Fall through */
@@ -2536,25 +2548,6 @@ static void hugetlb_unregister_node(struct node *node)
 	nhs->hugepages_kobj = NULL;
 }
 
-/*
- * hugetlb module exit:  unregister hstate attributes from node devices
- * that have them.
- */
-static void hugetlb_unregister_all_nodes(void)
-{
-	int nid;
-
-	/*
-	 * disable node device registrations.
-	 */
-	register_hugetlbfs_with_node(NULL, NULL);
-
-	/*
-	 * remove hstate attributes from any nodes that have them.
-	 */
-	for (nid = 0; nid < nr_node_ids; nid++)
-		hugetlb_unregister_node(node_devices[nid]);
-}
 
 /*
  * Register hstate attributes for a single node device.
@@ -2619,26 +2612,9 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
 	return NULL;
 }
 
-static void hugetlb_unregister_all_nodes(void) { }
-
 static void hugetlb_register_all_nodes(void) { }
 
 #endif
-
-static void __exit hugetlb_exit(void)
-{
-	struct hstate *h;
-
-	hugetlb_unregister_all_nodes();
-
-	for_each_hstate(h) {
-		kobject_put(hstate_kobjs[hstate_index(h)]);
-	}
-
-	kobject_put(hugepages_kobj);
-	kfree(hugetlb_fault_mutex_table);
-}
-module_exit(hugetlb_exit);
 
 static int __init hugetlb_init(void)
 {
@@ -2677,7 +2653,7 @@ static int __init hugetlb_init(void)
 		mutex_init(&hugetlb_fault_mutex_table[i]);
 	return 0;
 }
-module_init(hugetlb_init);
+subsys_initcall(hugetlb_init);
 
 /* Should be called on processing a hugepagesz=... option */
 void __init hugetlb_add_hstate(unsigned int order)
@@ -3126,7 +3102,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			entry = huge_ptep_get(src_pte);
 			ptepage = pte_page(entry);
 			get_page(ptepage);
-			page_dup_rmap(ptepage);
+			page_dup_rmap(ptepage, true);
 			set_huge_pte_at(dst, addr, dst_pte, entry);
 			hugetlb_count_add(pages_per_huge_page(h), dst);
 		}
@@ -3210,7 +3186,7 @@ again:
 			set_page_dirty(page);
 
 		hugetlb_count_sub(pages_per_huge_page(h), mm);
-		page_remove_rmap(page);
+		page_remove_rmap(page, true);
 		force_flush = !__tlb_remove_page(tlb, page);
 		if (force_flush) {
 			address += sz;
@@ -3439,7 +3415,7 @@ retry_avoidcopy:
 		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
 		set_huge_pte_at(mm, address, ptep,
 				make_huge_pte(vma, new_page, 1));
-		page_remove_rmap(old_page);
+		page_remove_rmap(old_page, true);
 		hugepage_add_new_anon_rmap(new_page, vma, address);
 		/* Make the old page be freed below */
 		new_page = old_page;
@@ -3609,7 +3585,7 @@ retry:
 		ClearPagePrivate(page);
 		hugepage_add_new_anon_rmap(page, vma, address);
 	} else
-		page_dup_rmap(page);
+		page_dup_rmap(page, true);
 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
 				&& (vma->vm_flags & VM_SHARED)));
 	set_huge_pte_at(mm, address, ptep, new_pte);
@@ -3693,11 +3669,11 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
 			return VM_FAULT_HWPOISON_LARGE |
 				VM_FAULT_SET_HINDEX(hstate_index(h));
+	} else {
+		ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+		if (!ptep)
+			return VM_FAULT_OOM;
 	}
-
-	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
-	if (!ptep)
-		return VM_FAULT_OOM;
 
 	mapping = vma->vm_file->f_mapping;
 	idx = vma_hugecache_offset(h, vma, address);
@@ -3889,7 +3865,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 same_page:
 		if (pages) {
 			pages[i] = mem_map_offset(page, pfn_offset);
-			get_page_foll(pages[i]);
+			get_page(pages[i]);
 		}
 
 		if (vmas)

@@ -375,22 +375,16 @@ static int
 ltq_etop_mdio_probe(struct net_device *dev)
 {
 	struct ltq_etop_priv *priv = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
-	int phy_addr;
+	struct phy_device *phydev;
 
-	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (priv->mii_bus->phy_map[phy_addr]) {
-			phydev = priv->mii_bus->phy_map[phy_addr];
-			break;
-		}
-	}
+	phydev = phy_find_first(priv->mii_bus);
 
 	if (!phydev) {
 		netdev_err(dev, "no PHY found\n");
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev),
+	phydev = phy_connect(dev, phydev_name(phydev),
 			     &ltq_etop_mdio_link, priv->pldata->mii_mode);
 
 	if (IS_ERR(phydev)) {
@@ -408,9 +402,7 @@ ltq_etop_mdio_probe(struct net_device *dev)
 
 	phydev->advertising = phydev->supported;
 	priv->phydev = phydev;
-	pr_info("%s: attached PHY [%s] (phy_addr=%s, irq=%d)\n",
-	       dev->name, phydev->drv->name,
-	       dev_name(&phydev->dev), phydev->irq);
+	phy_attached_info(phydev);
 
 	return 0;
 }
@@ -435,18 +427,9 @@ ltq_etop_mdio_init(struct net_device *dev)
 	priv->mii_bus->name = "ltq_mii";
 	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		priv->pdev->name, priv->pdev->id);
-	priv->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!priv->mii_bus->irq) {
-		err = -ENOMEM;
-		goto err_out_free_mdiobus;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		priv->mii_bus->irq[i] = PHY_POLL;
-
 	if (mdiobus_register(priv->mii_bus)) {
 		err = -ENXIO;
-		goto err_out_free_mdio_irq;
+		goto err_out_free_mdiobus;
 	}
 
 	if (ltq_etop_mdio_probe(dev)) {
@@ -457,8 +440,6 @@ ltq_etop_mdio_init(struct net_device *dev)
 
 err_out_unregister_bus:
 	mdiobus_unregister(priv->mii_bus);
-err_out_free_mdio_irq:
-	kfree(priv->mii_bus->irq);
 err_out_free_mdiobus:
 	mdiobus_free(priv->mii_bus);
 err_out:
@@ -472,7 +453,6 @@ ltq_etop_mdio_cleanup(struct net_device *dev)
 
 	phy_disconnect(priv->phydev);
 	mdiobus_unregister(priv->mii_bus);
-	kfree(priv->mii_bus->irq);
 	mdiobus_free(priv->mii_bus);
 }
 

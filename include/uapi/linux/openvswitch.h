@@ -628,7 +628,7 @@ struct ovs_action_hash {
  * @OVS_CT_ATTR_MARK: u32 value followed by u32 mask. For each bit set in the
  * mask, the corresponding bit in the value is copied to the connection
  * tracking mark field in the connection.
- * @OVS_CT_ATTR_LABEL: %OVS_CT_LABELS_LEN value followed by %OVS_CT_LABELS_LEN
+ * @OVS_CT_ATTR_LABELS: %OVS_CT_LABELS_LEN value followed by %OVS_CT_LABELS_LEN
  * mask. For each bit set in the mask, the corresponding bit in the value is
  * copied to the connection tracking label field in the connection.
  * @OVS_CT_ATTR_HELPER: variable length string defining conntrack ALG.

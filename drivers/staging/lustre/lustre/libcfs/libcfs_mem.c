@@ -134,7 +134,6 @@ cfs_percpt_current(void *vars)
 
 	return arr->va_ptrs[cpt];
 }
-EXPORT_SYMBOL(cfs_percpt_current);
 
 void *
 cfs_percpt_index(void *vars, int idx)
@@ -146,7 +145,6 @@ cfs_percpt_index(void *vars, int idx)
 	LASSERT(idx >= 0 && idx < arr->va_count);
 	return arr->va_ptrs[idx];
 }
-EXPORT_SYMBOL(cfs_percpt_index);
 
 /*
  * free variable array, see more detail in cfs_array_alloc

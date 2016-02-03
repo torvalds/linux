@@ -46,10 +46,6 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 scancode;
 	u8 device, subdevice, function;
 
-	if (!(dev->enabled_protocols &
-	      (RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20)))
-		return 0;
-
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
 			data->state = STATE_INACTIVE;

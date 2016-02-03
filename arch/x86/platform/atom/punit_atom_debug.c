@@ -25,8 +25,6 @@
 #include <asm/cpu_device_id.h>
 #include <asm/iosf_mbi.h>
 
-/* Side band Interface port */
-#define PUNIT_PORT		0x04
 /* Power gate status reg */
 #define PWRGT_STATUS		0x61
 /* Subsystem config/status Video processor */
@@ -85,9 +83,8 @@ static int punit_dev_state_show(struct seq_file *seq_file, void *unused)
 
 	seq_puts(seq_file, "\n\nPUNIT NORTH COMPLEX DEVICES :\n");
 	while (punit_devp->name) {
-		status = iosf_mbi_read(PUNIT_PORT, BT_MBI_PMC_READ,
-				       punit_devp->reg,
-				       &punit_pwr_status);
+		status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
+				       punit_devp->reg, &punit_pwr_status);
 		if (status) {
 			seq_printf(seq_file, "%9s : Read Failed\n",
 				   punit_devp->name);

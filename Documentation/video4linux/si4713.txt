@@ -157,7 +157,7 @@ int main (int argc, char *argv[])
 }
 
 The struct si4713_rnl and SI4713_IOC_MEASURE_RNL are defined under
-include/media/si4713.h.
+include/linux/platform_data/media/si4713.h.
 
 Stereo/Mono and RDS subchannels
 ===============================

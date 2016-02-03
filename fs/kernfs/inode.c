@@ -205,7 +205,7 @@ int kernfs_iop_removexattr(struct dentry *dentry, const char *name)
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_remove(&attrs->xattrs, name);
+	return simple_xattr_set(&attrs->xattrs, name, NULL, 0, XATTR_REPLACE);
 }
 
 ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
@@ -230,7 +230,7 @@ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_list(&attrs->xattrs, buf, size);
+	return simple_xattr_list(d_inode(dentry), &attrs->xattrs, buf, size);
 }
 
 static inline void set_default_inode_attr(struct inode *inode, umode_t mode)

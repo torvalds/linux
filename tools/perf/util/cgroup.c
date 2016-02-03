@@ -1,6 +1,6 @@
 #include "util.h"
 #include "../perf.h"
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 #include "evsel.h"
 #include "cgroup.h"
 #include "evlist.h"

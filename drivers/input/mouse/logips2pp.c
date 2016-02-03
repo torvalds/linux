@@ -325,7 +325,7 @@ static void ps2pp_set_model_properties(struct psmouse *psmouse,
  * that support it.
  */
 
-int ps2pp_init(struct psmouse *psmouse, bool set_properties)
+int ps2pp_detect(struct psmouse *psmouse, bool set_properties)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[4];

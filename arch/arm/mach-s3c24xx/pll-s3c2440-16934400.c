@@ -20,7 +20,7 @@
 #include <plat/cpu.h>
 #include <plat/cpu-freq-core.h>
 
-static struct cpufreq_frequency_table s3c2440_plls_169344[] __initdata = {
+static struct cpufreq_frequency_table s3c2440_plls_169344[] = {
 	{ .frequency = 78019200,	.driver_data = PLLVAL(121, 5, 3), 	}, 	/* FVco 624.153600 */
 	{ .frequency = 84067200,	.driver_data = PLLVAL(131, 5, 3), 	}, 	/* FVco 672.537600 */
 	{ .frequency = 90115200,	.driver_data = PLLVAL(141, 5, 3), 	}, 	/* FVco 720.921600 */

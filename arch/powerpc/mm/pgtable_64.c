@@ -359,7 +359,7 @@ struct page *pud_page(pud_t pud)
 struct page *pmd_page(pmd_t pmd)
 {
 	if (pmd_trans_huge(pmd) || pmd_huge(pmd))
-		return pfn_to_page(pmd_pfn(pmd));
+		return pte_page(pmd_pte(pmd));
 	return virt_to_page(pmd_page_vaddr(pmd));
 }
 
@@ -604,55 +604,6 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
 }
 
 /*
- * We mark the pmd splitting and invalidate all the hpte
- * entries for this hugepage.
- */
-void pmdp_splitting_flush(struct vm_area_struct *vma,
-			  unsigned long address, pmd_t *pmdp)
-{
-	unsigned long old, tmp;
-
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-
-#ifdef CONFIG_DEBUG_VM
-	WARN_ON(!pmd_trans_huge(*pmdp));
-	assert_spin_locked(&vma->vm_mm->page_table_lock);
-#endif
-
-#ifdef PTE_ATOMIC_UPDATES
-
-	__asm__ __volatile__(
-	"1:	ldarx	%0,0,%3\n\
-		andi.	%1,%0,%6\n\
-		bne-	1b \n\
-		ori	%1,%0,%4 \n\
-		stdcx.	%1,0,%3 \n\
-		bne-	1b"
-	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
-	: "r" (pmdp), "i" (_PAGE_SPLITTING), "m" (*pmdp), "i" (_PAGE_BUSY)
-	: "cc" );
-#else
-	old = pmd_val(*pmdp);
-	*pmdp = __pmd(old | _PAGE_SPLITTING);
-#endif
-	/*
-	 * If we didn't had the splitting flag set, go and flush the
-	 * HPTE entries.
-	 */
-	trace_hugepage_splitting(address, old);
-	if (!(old & _PAGE_SPLITTING)) {
-		/* We need to flush the hpte */
-		if (old & _PAGE_HASHPTE)
-			hpte_do_hugepage_flush(vma->vm_mm, address, pmdp, old);
-	}
-	/*
-	 * This ensures that generic code that rely on IRQ disabling
-	 * to prevent a parallel THP split work as expected.
-	 */
-	kick_all_cpus_sync();
-}
-
-/*
  * We want to put the pgtable in pmd and use pgtable for tracking
  * the base page size hptes
  */
@@ -759,22 +710,15 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 
 static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
 {
-	pmd_val(pmd) |= pgprot_val(pgprot);
-	return pmd;
+	return __pmd(pmd_val(pmd) | pgprot_val(pgprot));
 }
 
 pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 {
-	pmd_t pmd;
-	/*
-	 * For a valid pte, we would have _PAGE_PRESENT always
-	 * set. We use this to check THP page at pmd level.
-	 * leaf pte for huge page, bottom two bits != 00
-	 */
-	pmd_val(pmd) = pfn << PTE_RPN_SHIFT;
-	pmd_val(pmd) |= _PAGE_THP_HUGE;
-	pmd = pmd_set_protbits(pmd, pgprot);
-	return pmd;
+	unsigned long pmdv;
+
+	pmdv = pfn << PTE_RPN_SHIFT;
+	return pmd_set_protbits(__pmd(pmdv), pgprot);
 }
 
 pmd_t mk_pmd(struct page *page, pgprot_t pgprot)
@@ -784,10 +728,11 @@ pmd_t mk_pmd(struct page *page, pgprot_t pgprot)
 
 pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
+	unsigned long pmdv;
 
-	pmd_val(pmd) &= _HPAGE_CHG_MASK;
-	pmd = pmd_set_protbits(pmd, newprot);
-	return pmd;
+	pmdv = pmd_val(pmd);
+	pmdv &= _HPAGE_CHG_MASK;
+	return pmd_set_protbits(__pmd(pmdv), newprot);
 }
 
 /*

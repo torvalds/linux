@@ -20,7 +20,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-image-sizes.h>
-#include <media/ov7670.h>
+#include <media/i2c/ov7670.h>
 
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision ov7670 sensors");

@@ -27,9 +27,9 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/videodev2.h>
 #include <linux/sh_intc.h>
-#include <media/rj54n1cb0c.h>
+#include <media/i2c/rj54n1cb0c.h>
 #include <media/soc_camera.h>
-#include <media/sh_mobile_ceu.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/suspend.h>
 #include <asm/clock.h>

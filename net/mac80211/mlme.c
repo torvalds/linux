@@ -1379,20 +1379,25 @@ static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (has_80211h_pwr &&
 	    (!has_cisco_pwr || pwr_level_80211h <= pwr_level_cisco)) {
+		new_ap_level = pwr_level_80211h;
+
+		if (sdata->ap_power_level == new_ap_level)
+			return 0;
+
 		sdata_dbg(sdata,
 			  "Limiting TX power to %d (%d - %d) dBm as advertised by %pM\n",
 			  pwr_level_80211h, chan_pwr, pwr_reduction_80211h,
 			  sdata->u.mgd.bssid);
-		new_ap_level = pwr_level_80211h;
 	} else {  /* has_cisco_pwr is always true here. */
+		new_ap_level = pwr_level_cisco;
+
+		if (sdata->ap_power_level == new_ap_level)
+			return 0;
+
 		sdata_dbg(sdata,
 			  "Limiting TX power to %d dBm as advertised by %pM\n",
 			  pwr_level_cisco, sdata->u.mgd.bssid);
-		new_ap_level = pwr_level_cisco;
 	}
-
-	if (sdata->ap_power_level == new_ap_level)
-		return 0;
 
 	sdata->ap_power_level = new_ap_level;
 	if (__ieee80211_recalc_txpower(sdata))
@@ -1930,7 +1935,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	sdata->u.mgd.flags |= IEEE80211_STA_RESET_SIGNAL_AVE;
 
-	if (sdata->vif.p2p) {
+	if (sdata->vif.p2p ||
+	    sdata->vif.driver_flags & IEEE80211_VIF_GET_NOA_UPDATE) {
 		const struct cfg80211_bss_ies *ies;
 
 		rcu_read_lock();
@@ -3458,7 +3464,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (sdata->vif.p2p) {
+	if (sdata->vif.p2p ||
+	    sdata->vif.driver_flags & IEEE80211_VIF_GET_NOA_UPDATE) {
 		struct ieee80211_p2p_noa_attr noa = {};
 		int ret;
 
@@ -3575,7 +3582,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (sta && elems.opmode_notif)
 		ieee80211_vht_handle_opmode(sdata, sta, *elems.opmode_notif,
-					    rx_status->band, true);
+					    rx_status->band);
 	mutex_unlock(&local->sta_mtx);
 
 	changed |= ieee80211_handle_pwr_constr(sdata, chan, mgmt,
@@ -3998,8 +4005,6 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 		if (!ieee80211_hw_check(&sdata->local->hw, CONNECTION_MONITOR))
 			ieee80211_queue_work(&sdata->local->hw,
 					     &sdata->u.mgd.monitor_work);
-		/* and do all the other regular work too */
-		ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 	}
 }
 

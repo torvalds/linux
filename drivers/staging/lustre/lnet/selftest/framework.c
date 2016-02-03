@@ -111,7 +111,7 @@ static struct smoketest_framework {
 	spinlock_t        fw_lock;            /* serialise */
 	sfw_session_t     *fw_session;        /* _the_ session */
 	int               fw_shuttingdown;    /* shutdown in progress */
-	srpc_server_rpc_t *fw_active_srpc;    /* running RPC */
+	struct srpc_server_rpc *fw_active_srpc;/* running RPC */
 } sfw_data;
 
 /* forward ref's */
@@ -722,7 +722,7 @@ sfw_unpack_addtest_req(srpc_msg_t *msg)
 }
 
 static int
-sfw_add_test_instance(sfw_batch_t *tsb, srpc_server_rpc_t *rpc)
+sfw_add_test_instance(sfw_batch_t *tsb, struct srpc_server_rpc *rpc)
 {
 	srpc_msg_t *msg = &rpc->srpc_reqstbuf->buf_msg;
 	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
@@ -1091,7 +1091,7 @@ sfw_query_batch(sfw_batch_t *tsb, int testidx, srpc_batch_reply_t *reply)
 }
 
 void
-sfw_free_pages(srpc_server_rpc_t *rpc)
+sfw_free_pages(struct srpc_server_rpc *rpc)
 {
 	srpc_free_bulk(rpc->srpc_bulk);
 	rpc->srpc_bulk = NULL;
@@ -1112,7 +1112,7 @@ sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,
 }
 
 static int
-sfw_add_test(srpc_server_rpc_t *rpc)
+sfw_add_test(struct srpc_server_rpc *rpc)
 {
 	sfw_session_t *sn = sfw_data.fw_session;
 	srpc_test_reply_t *reply = &rpc->srpc_replymsg.msg_body.tes_reply;

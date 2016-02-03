@@ -53,7 +53,7 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
  * Returns a pointer to the interrupt parent node, or NULL if the interrupt
  * parent could not be determined.
  */
-static struct device_node *of_irq_find_parent(struct device_node *child)
+struct device_node *of_irq_find_parent(struct device_node *child)
 {
 	struct device_node *p;
 	const __be32 *parp;
@@ -77,6 +77,7 @@ static struct device_node *of_irq_find_parent(struct device_node *child)
 
 	return p;
 }
+EXPORT_SYMBOL_GPL(of_irq_find_parent);
 
 /**
  * of_irq_parse_raw - Low level interrupt tree parsing
@@ -472,6 +473,7 @@ EXPORT_SYMBOL_GPL(of_irq_to_resource_table);
 
 struct of_intc_desc {
 	struct list_head	list;
+	of_irq_init_cb_t	irq_init_cb;
 	struct device_node	*dev;
 	struct device_node	*interrupt_parent;
 };
@@ -485,6 +487,7 @@ struct of_intc_desc {
  */
 void __init of_irq_init(const struct of_device_id *matches)
 {
+	const struct of_device_id *match;
 	struct device_node *np, *parent = NULL;
 	struct of_intc_desc *desc, *temp_desc;
 	struct list_head intc_desc_list, intc_parent_list;
@@ -492,10 +495,15 @@ void __init of_irq_init(const struct of_device_id *matches)
 	INIT_LIST_HEAD(&intc_desc_list);
 	INIT_LIST_HEAD(&intc_parent_list);
 
-	for_each_matching_node(np, matches) {
+	for_each_matching_node_and_match(np, matches, &match) {
 		if (!of_find_property(np, "interrupt-controller", NULL) ||
 				!of_device_is_available(np))
 			continue;
+
+		if (WARN(!match->data, "of_irq_init: no init function for %s\n",
+			 match->compatible))
+			continue;
+
 		/*
 		 * Here, we allocate and populate an of_intc_desc with the node
 		 * pointer, interrupt-parent device_node etc.
@@ -506,6 +514,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 			goto err;
 		}
 
+		desc->irq_init_cb = match->data;
 		desc->dev = of_node_get(np);
 		desc->interrupt_parent = of_irq_find_parent(np);
 		if (desc->interrupt_parent == np)
@@ -525,27 +534,18 @@ void __init of_irq_init(const struct of_device_id *matches)
 		 * The assumption is that NULL parent means a root controller.
 		 */
 		list_for_each_entry_safe(desc, temp_desc, &intc_desc_list, list) {
-			const struct of_device_id *match;
 			int ret;
-			of_irq_init_cb_t irq_init_cb;
 
 			if (desc->interrupt_parent != parent)
 				continue;
 
 			list_del(&desc->list);
-			match = of_match_node(matches, desc->dev);
-			if (WARN(!match->data,
-			    "of_irq_init: no init function for %s\n",
-			    match->compatible)) {
-				kfree(desc);
-				continue;
-			}
 
-			pr_debug("of_irq_init: init %s @ %p, parent %p\n",
-				 match->compatible,
+			pr_debug("of_irq_init: init %s (%p), parent %p\n",
+				 desc->dev->full_name,
 				 desc->dev, desc->interrupt_parent);
-			irq_init_cb = (of_irq_init_cb_t)match->data;
-			ret = irq_init_cb(desc->dev, desc->interrupt_parent);
+			ret = desc->irq_init_cb(desc->dev,
+						desc->interrupt_parent);
 			if (ret) {
 				kfree(desc);
 				continue;
@@ -679,18 +679,6 @@ u32 of_msi_map_rid(struct device *dev, struct device_node *msi_np, u32 rid_in)
 	return __of_msi_map_rid(dev, &msi_np, rid_in);
 }
 
-static struct irq_domain *__of_get_msi_domain(struct device_node *np,
-					      enum irq_domain_bus_token token)
-{
-	struct irq_domain *d;
-
-	d = irq_find_matching_host(np, token);
-	if (!d)
-		d = irq_find_host(np);
-
-	return d;
-}
-
 /**
  * of_msi_map_get_device_domain - Use msi-map to find the relevant MSI domain
  * @dev: device for which the mapping is to be done.
@@ -706,7 +694,7 @@ struct irq_domain *of_msi_map_get_device_domain(struct device *dev, u32 rid)
 	struct device_node *np = NULL;
 
 	__of_msi_map_rid(dev, &np, rid);
-	return __of_get_msi_domain(np, DOMAIN_BUS_PCI_MSI);
+	return irq_find_matching_host(np, DOMAIN_BUS_PCI_MSI);
 }
 
 /**
@@ -730,7 +718,7 @@ struct irq_domain *of_msi_get_domain(struct device *dev,
 	/* Check for a single msi-parent property */
 	msi_np = of_parse_phandle(np, "msi-parent", 0);
 	if (msi_np && !of_property_read_bool(msi_np, "#msi-cells")) {
-		d = __of_get_msi_domain(msi_np, token);
+		d = irq_find_matching_host(msi_np, token);
 		if (!d)
 			of_node_put(msi_np);
 		return d;
@@ -744,7 +732,7 @@ struct irq_domain *of_msi_get_domain(struct device *dev,
 		while (!of_parse_phandle_with_args(np, "msi-parent",
 						   "#msi-cells",
 						   index, &args)) {
-			d = __of_get_msi_domain(args.np, token);
+			d = irq_find_matching_host(args.np, token);
 			if (d)
 				return d;
 

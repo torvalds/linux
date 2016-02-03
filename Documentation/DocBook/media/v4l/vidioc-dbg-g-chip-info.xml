@@ -99,7 +99,7 @@ if the driver supports writing registers to the device.</para>
     <para>We recommended the <application>v4l2-dbg</application>
 utility over calling this ioctl directly. It is available from the
 LinuxTV v4l-dvb repository; see <ulink
-url="http://linuxtv.org/repo/">http://linuxtv.org/repo/</ulink> for
+url="https://linuxtv.org/repo/">https://linuxtv.org/repo/</ulink> for
 access instructions.</para>
 
     <!-- Note for convenience vidioc-dbg-g-register.sgml

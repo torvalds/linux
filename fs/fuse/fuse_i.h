@@ -605,6 +605,9 @@ struct fuse_conn {
 	/** Does the filesystem support asynchronous direct-IO submission? */
 	unsigned async_dio:1;
 
+	/** Is lseek not implemented by fs? */
+	unsigned no_lseek:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 

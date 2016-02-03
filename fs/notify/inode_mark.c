@@ -199,8 +199,7 @@ void fsnotify_unmount_inodes(struct super_block *sb)
 				break;
 			}
 			spin_unlock(&next_i->i_lock);
-			next_i = list_entry(next_i->i_sb_list.next,
-						struct inode, i_sb_list);
+			next_i = list_next_entry(next_i, i_sb_list);
 		}
 
 		/*

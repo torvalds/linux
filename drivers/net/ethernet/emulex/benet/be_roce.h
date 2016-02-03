@@ -60,9 +60,7 @@ struct ocrdma_driver {
 	void (*state_change_handler) (struct ocrdma_dev *, u32 new_state);
 };
 
-enum {
-	BE_DEV_UP	= 0,
-	BE_DEV_DOWN	= 1,
+enum be_roce_event {
 	BE_DEV_SHUTDOWN = 2
 };
 

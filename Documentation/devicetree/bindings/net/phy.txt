@@ -17,8 +17,7 @@ Optional Properties:
   "ethernet-phy-ieee802.3-c22" or "ethernet-phy-ieee802.3-c45" for
   PHYs that implement IEEE802.3 clause 22 or IEEE802.3 clause 45
   specifications. If neither of these are specified, the default is to
-  assume clause 22. The compatible list may also contain other
-  elements.
+  assume clause 22.
 
   If the phy's identifier is known then the list may contain an entry
   of the form: "ethernet-phy-idAAAA.BBBB" where
@@ -27,6 +26,9 @@ Optional Properties:
      BBBB - The value of the 16 bit Phy Identifier 2 register as
             4 hex digits. This is the chip vendor OUI bits 19:24,
             followed by 10 bits of a vendor specific ID.
+
+  The compatible list should not contain other values than those
+  listed here.
 
 - max-speed: Maximum PHY supported speed (10, 100, 1000...)
 

@@ -2329,8 +2329,8 @@ static void tpacket_destruct_skb(struct sk_buff *skb)
 static bool ll_header_truncated(const struct net_device *dev, int len)
 {
 	/* net device doesn't like empty head */
-	if (unlikely(len <= dev->hard_header_len)) {
-		net_warn_ratelimited("%s: packet size is too short (%d <= %d)\n",
+	if (unlikely(len < dev->hard_header_len)) {
+		net_warn_ratelimited("%s: packet size is too short (%d < %d)\n",
 				     current->comm, len, dev->hard_header_len);
 		return true;
 	}

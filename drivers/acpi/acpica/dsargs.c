@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -194,8 +194,8 @@ acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc)
 	extra_desc = acpi_ns_get_secondary_object(obj_desc);
 	node = obj_desc->buffer_field.node;
 
-	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname(ACPI_TYPE_BUFFER_FIELD,
-						      node, NULL));
+	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
+			(ACPI_TYPE_BUFFER_FIELD, node, NULL));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "[%4.4s] BufferField Arg Init\n",
 			  acpi_ut_get_node_name(node)));
@@ -385,7 +385,8 @@ acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
 			(ACPI_TYPE_REGION, node, NULL));
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "[%4.4s] OpRegion Arg Init at AML %p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "[%4.4s] OpRegion Arg Init at AML %p\n",
 			  acpi_ut_get_node_name(node),
 			  extra_desc->extra.aml_start));
 

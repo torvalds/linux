@@ -2,10 +2,9 @@ Device-Tree bindings for drm hdmi driver
 
 Required properties:
 - compatible: value should be one among the following:
-	1) "samsung,exynos5-hdmi" <DEPRECATED>
-	2) "samsung,exynos4210-hdmi"
-	3) "samsung,exynos4212-hdmi"
-	4) "samsung,exynos5420-hdmi"
+	1) "samsung,exynos4210-hdmi"
+	2) "samsung,exynos4212-hdmi"
+	3) "samsung,exynos5420-hdmi"
 - reg: physical base address of the hdmi and length of memory mapped
 	region.
 - interrupts: interrupt number to the cpu.

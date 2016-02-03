@@ -87,7 +87,7 @@ MODULE_PARM_DESC(pcm_substreams, "PCM substreams # (1-128) for dummy driver.");
 module_param(fake_buffer, bool, 0444);
 MODULE_PARM_DESC(fake_buffer, "Fake buffer allocations.");
 #ifdef CONFIG_HIGH_RES_TIMERS
-module_param(hrtimer, bool, 0644);
+module_param(hrtimer, bool, 0444);
 MODULE_PARM_DESC(hrtimer, "Use hrtimer as the timer source.");
 #endif
 
@@ -351,7 +351,7 @@ static void dummy_systimer_free(struct snd_pcm_substream *substream)
 	kfree(substream->runtime->private_data);
 }
 
-static struct dummy_timer_ops dummy_systimer_ops = {
+static const struct dummy_timer_ops dummy_systimer_ops = {
 	.create =	dummy_systimer_create,
 	.free =		dummy_systimer_free,
 	.prepare =	dummy_systimer_prepare,
@@ -475,7 +475,7 @@ static void dummy_hrtimer_free(struct snd_pcm_substream *substream)
 	kfree(dpcm);
 }
 
-static struct dummy_timer_ops dummy_hrtimer_ops = {
+static const struct dummy_timer_ops dummy_hrtimer_ops = {
 	.create =	dummy_hrtimer_create,
 	.free =		dummy_hrtimer_free,
 	.prepare =	dummy_hrtimer_prepare,

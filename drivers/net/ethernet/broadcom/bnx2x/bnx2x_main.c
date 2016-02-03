@@ -10139,8 +10139,8 @@ static void __bnx2x_del_vxlan_port(struct bnx2x *bp, u16 port)
 		DP(BNX2X_MSG_SP, "Invalid vxlan port\n");
 		return;
 	}
-	bp->vxlan_dst_port--;
-	if (bp->vxlan_dst_port)
+	bp->vxlan_dst_port_count--;
+	if (bp->vxlan_dst_port_count)
 		return;
 
 	if (netif_running(bp->dev)) {
@@ -13004,9 +13004,6 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_fcoe_get_wwn	= bnx2x_fcoe_get_wwn,
 #endif
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= bnx2x_low_latency_recv,
-#endif
 	.ndo_get_phys_port_id	= bnx2x_get_phys_port_id,
 	.ndo_set_vf_link_state	= bnx2x_set_vf_link_state,
 	.ndo_features_check	= bnx2x_features_check,

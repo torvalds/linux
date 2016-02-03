@@ -13,7 +13,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/regs-apbc.h>
+#include "regs-apbc.h"
 #include "clock.h"
 
 static void apbc_clk_enable(struct clk *clk)

@@ -98,7 +98,7 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-	arch_local_irq_restore(4UL << (BITS_PER_LONG - 8));
+	__arch_local_irq_stosm(0x04);
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();

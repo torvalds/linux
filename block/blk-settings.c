@@ -91,7 +91,8 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	lim->virt_boundary_mask = 0;
 	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
-	lim->max_sectors = lim->max_hw_sectors = BLK_SAFE_MAX_SECTORS;
+	lim->max_sectors = lim->max_dev_sectors = lim->max_hw_sectors =
+		BLK_SAFE_MAX_SECTORS;
 	lim->chunk_sectors = 0;
 	lim->max_write_same_sectors = 0;
 	lim->max_discard_sectors = 0;
@@ -127,6 +128,7 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	lim->max_hw_sectors = UINT_MAX;
 	lim->max_segment_size = UINT_MAX;
 	lim->max_sectors = UINT_MAX;
+	lim->max_dev_sectors = UINT_MAX;
 	lim->max_write_same_sectors = UINT_MAX;
 }
 EXPORT_SYMBOL(blk_set_stacking_limits);
@@ -214,8 +216,8 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 max_addr)
 EXPORT_SYMBOL(blk_queue_bounce_limit);
 
 /**
- * blk_limits_max_hw_sectors - set hard and soft limit of max sectors for request
- * @limits: the queue limits
+ * blk_queue_max_hw_sectors - set max sectors for a request for this queue
+ * @q:  the request queue for the device
  * @max_hw_sectors:  max hardware sectors in the usual 512b unit
  *
  * Description:
@@ -224,13 +226,19 @@ EXPORT_SYMBOL(blk_queue_bounce_limit);
  *    the device driver based upon the capabilities of the I/O
  *    controller.
  *
+ *    max_dev_sectors is a hard limit imposed by the storage device for
+ *    READ/WRITE requests. It is set by the disk driver.
+ *
  *    max_sectors is a soft limit imposed by the block layer for
  *    filesystem type requests.  This value can be overridden on a
  *    per-device basis in /sys/block/<device>/queue/max_sectors_kb.
  *    The soft limit can not exceed max_hw_sectors.
  **/
-void blk_limits_max_hw_sectors(struct queue_limits *limits, unsigned int max_hw_sectors)
+void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_sectors)
 {
+	struct queue_limits *limits = &q->limits;
+	unsigned int max_sectors;
+
 	if ((max_hw_sectors << 9) < PAGE_CACHE_SIZE) {
 		max_hw_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
 		printk(KERN_INFO "%s: set to minimum %d\n",
@@ -238,22 +246,9 @@ void blk_limits_max_hw_sectors(struct queue_limits *limits, unsigned int max_hw_
 	}
 
 	limits->max_hw_sectors = max_hw_sectors;
-	limits->max_sectors = min_t(unsigned int, max_hw_sectors,
-				    BLK_DEF_MAX_SECTORS);
-}
-EXPORT_SYMBOL(blk_limits_max_hw_sectors);
-
-/**
- * blk_queue_max_hw_sectors - set max sectors for a request for this queue
- * @q:  the request queue for the device
- * @max_hw_sectors:  max hardware sectors in the usual 512b unit
- *
- * Description:
- *    See description for blk_limits_max_hw_sectors().
- **/
-void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_sectors)
-{
-	blk_limits_max_hw_sectors(&q->limits, max_hw_sectors);
+	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
+	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
+	limits->max_sectors = max_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
 
@@ -527,6 +522,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
+	t->max_dev_sectors = min_not_zero(t->max_dev_sectors, b->max_dev_sectors);
 	t->max_write_same_sectors = min(t->max_write_same_sectors,
 					b->max_write_same_sectors);
 	t->bounce_pfn = min_not_zero(t->bounce_pfn, b->bounce_pfn);

@@ -130,6 +130,9 @@ void core_tmr_abort_task(
 		if (tmr->ref_task_tag != ref_tag)
 			continue;
 
+		if (!kref_get_unless_zero(&se_cmd->cmd_kref))
+			continue;
+
 		printk("ABORT_TASK: Found referenced %s task_tag: %llu\n",
 			se_cmd->se_tfo->get_fabric_name(), ref_tag);
 
@@ -139,13 +142,15 @@ void core_tmr_abort_task(
 			       " skipping\n", ref_tag);
 			spin_unlock(&se_cmd->t_state_lock);
 			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+
+			target_put_sess_cmd(se_cmd);
+
 			goto out;
 		}
 		se_cmd->transport_state |= CMD_T_ABORTED;
 		spin_unlock(&se_cmd->t_state_lock);
 
 		list_del_init(&se_cmd->se_cmd_list);
-		kref_get(&se_cmd->cmd_kref);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
 		cancel_work_sync(&se_cmd->work);
@@ -196,7 +201,7 @@ static void core_tmr_drain_tmr_list(
 		/*
 		 * If this function was called with a valid pr_res_key
 		 * parameter (eg: for PROUT PREEMPT_AND_ABORT service action
-		 * skip non regisration key matching TMRs.
+		 * skip non registration key matching TMRs.
 		 */
 		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;

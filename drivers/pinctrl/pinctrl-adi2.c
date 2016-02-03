@@ -636,7 +636,7 @@ static int adi_pinmux_set(struct pinctrl_dev *pctldev, unsigned func_id,
 		if (range == NULL) /* should not happen */
 			return -ENODEV;
 
-		port = container_of(range->gc, struct gpio_port, chip);
+		port = gpiochip_get_data(range->gc);
 
 		spin_lock_irqsave(&port->lock, flags);
 
@@ -684,7 +684,7 @@ static int adi_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 	u8 offset;
 
-	port = container_of(range->gc, struct gpio_port, chip);
+	port = gpiochip_get_data(range->gc);
 	offset = pin_to_offset(range, pin);
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -718,7 +718,7 @@ static int adi_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	struct gpio_port *port;
 	unsigned long flags;
 
-	port = container_of(chip, struct gpio_port, chip);
+	port = gpiochip_get_data(chip);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -733,7 +733,7 @@ static int adi_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static void adi_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 	int value)
 {
-	struct gpio_port *port = container_of(chip, struct gpio_port, chip);
+	struct gpio_port *port = gpiochip_get_data(chip);
 	struct gpio_port_t *regs = port->regs;
 	unsigned long flags;
 
@@ -750,7 +750,7 @@ static void adi_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 static int adi_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	int value)
 {
-	struct gpio_port *port = container_of(chip, struct gpio_port, chip);
+	struct gpio_port *port = gpiochip_get_data(chip);
 	struct gpio_port_t *regs = port->regs;
 	unsigned long flags;
 
@@ -770,7 +770,7 @@ static int adi_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static int adi_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_port *port = container_of(chip, struct gpio_port, chip);
+	struct gpio_port *port = gpiochip_get_data(chip);
 	struct gpio_port_t *regs = port->regs;
 	unsigned long flags;
 	int ret;
@@ -786,7 +786,7 @@ static int adi_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 
 static int adi_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_port *port = container_of(chip, struct gpio_port, chip);
+	struct gpio_port *port = gpiochip_get_data(chip);
 
 	if (port->irq_base >= 0)
 		return irq_find_mapping(port->domain, offset);
@@ -994,7 +994,7 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	port->chip.ngpio		= port->width;
 	gpio = port->chip.base + port->width;
 
-	ret = gpiochip_add(&port->chip);
+	ret = gpiochip_add_data(&port->chip, port);
 	if (ret) {
 		dev_err(&pdev->dev, "Fail to add GPIO chip.\n");
 		goto out_remove_domain;
@@ -1102,32 +1102,24 @@ static struct platform_driver adi_gpio_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&adi_pinctrl_driver,
+	&adi_gpio_pint_driver,
+	&adi_gpio_driver,
+};
+
 static int __init adi_pinctrl_setup(void)
 {
 	int ret;
 
-	ret = platform_driver_register(&adi_pinctrl_driver);
+	ret = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (ret)
 		return ret;
-
-	ret = platform_driver_register(&adi_gpio_pint_driver);
-	if (ret)
-		goto pint_error;
-
-	ret = platform_driver_register(&adi_gpio_driver);
-	if (ret)
-		goto gpio_error;
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&gpio_pm_syscore_ops);
 #endif
-	return ret;
-gpio_error:
-	platform_driver_unregister(&adi_gpio_pint_driver);
-pint_error:
-	platform_driver_unregister(&adi_pinctrl_driver);
-
-	return ret;
+	return 0;
 }
 arch_initcall(adi_pinctrl_setup);
 

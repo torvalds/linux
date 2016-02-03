@@ -434,20 +434,15 @@ static void smd_copy_to_fifo(void __iomem *dst,
 /*
  * Copy count bytes of data using 32bit accesses, if that is required.
  */
-static void smd_copy_from_fifo(void *_dst,
-			       const void __iomem *_src,
+static void smd_copy_from_fifo(void *dst,
+			       const void __iomem *src,
 			       size_t count,
 			       bool word_aligned)
 {
-	u32 *dst = (u32 *)_dst;
-	u32 *src = (u32 *)_src;
-
 	if (word_aligned) {
-		count /= sizeof(u32);
-		while (count--)
-			*dst++ = __raw_readl(src++);
+		__ioread32_copy(dst, src, count / sizeof(u32));
 	} else {
-		memcpy_fromio(_dst, _src, count);
+		memcpy_fromio(dst, src, count);
 	}
 }
 

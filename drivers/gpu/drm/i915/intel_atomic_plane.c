@@ -84,6 +84,7 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 	state = &intel_state->base;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, state);
+	intel_state->wait_req = NULL;
 
 	return state;
 }
@@ -100,6 +101,7 @@ void
 intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
+	WARN_ON(state && to_intel_plane_state(state)->wait_req);
 	drm_atomic_helper_plane_destroy_state(plane, state);
 }
 

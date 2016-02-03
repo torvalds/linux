@@ -63,7 +63,7 @@ Required properties:
 - compatible : should be "arm,juno-sram-ns" for Non-secure SRAM on Juno
 
 The rest of the properties should follow the generic mmio-sram description
-found in ../../misc/sysram.txt
+found in ../../sram/sram.txt
 
 Each sub-node represents the reserved area for SCPI.
 

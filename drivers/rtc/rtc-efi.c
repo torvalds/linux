@@ -191,11 +191,69 @@ static int efi_set_time(struct device *dev, struct rtc_time *tm)
 	return status == EFI_SUCCESS ? 0 : -EINVAL;
 }
 
+static int efi_procfs(struct device *dev, struct seq_file *seq)
+{
+	efi_time_t      eft, alm;
+	efi_time_cap_t  cap;
+	efi_bool_t      enabled, pending;
+
+	memset(&eft, 0, sizeof(eft));
+	memset(&alm, 0, sizeof(alm));
+	memset(&cap, 0, sizeof(cap));
+
+	efi.get_time(&eft, &cap);
+	efi.get_wakeup_time(&enabled, &pending, &alm);
+
+	seq_printf(seq,
+		   "Time\t\t: %u:%u:%u.%09u\n"
+		   "Date\t\t: %u-%u-%u\n"
+		   "Daylight\t: %u\n",
+		   eft.hour, eft.minute, eft.second, eft.nanosecond,
+		   eft.year, eft.month, eft.day,
+		   eft.daylight);
+
+	if (eft.timezone == EFI_UNSPECIFIED_TIMEZONE)
+		seq_puts(seq, "Timezone\t: unspecified\n");
+	else
+		/* XXX fixme: convert to string? */
+		seq_printf(seq, "Timezone\t: %u\n", eft.timezone);
+
+	seq_printf(seq,
+		   "Alarm Time\t: %u:%u:%u.%09u\n"
+		   "Alarm Date\t: %u-%u-%u\n"
+		   "Alarm Daylight\t: %u\n"
+		   "Enabled\t\t: %s\n"
+		   "Pending\t\t: %s\n",
+		   alm.hour, alm.minute, alm.second, alm.nanosecond,
+		   alm.year, alm.month, alm.day,
+		   alm.daylight,
+		   enabled == 1 ? "yes" : "no",
+		   pending == 1 ? "yes" : "no");
+
+	if (eft.timezone == EFI_UNSPECIFIED_TIMEZONE)
+		seq_puts(seq, "Timezone\t: unspecified\n");
+	else
+		/* XXX fixme: convert to string? */
+		seq_printf(seq, "Timezone\t: %u\n", alm.timezone);
+
+	/*
+	 * now prints the capabilities
+	 */
+	seq_printf(seq,
+		   "Resolution\t: %u\n"
+		   "Accuracy\t: %u\n"
+		   "SetstoZero\t: %u\n",
+		   cap.resolution, cap.accuracy, cap.sets_to_zero);
+
+	return 0;
+}
+
 static const struct rtc_class_ops efi_rtc_ops = {
-	.read_time = efi_read_time,
-	.set_time = efi_set_time,
-	.read_alarm = efi_read_alarm,
-	.set_alarm = efi_set_alarm,
+	.read_time	= efi_read_time,
+	.set_time	= efi_set_time,
+	.read_alarm	= efi_read_alarm,
+	.set_alarm	= efi_set_alarm,
+	.proc		= efi_procfs,
 };
 
 static int __init efi_rtc_probe(struct platform_device *dev)

@@ -27,6 +27,8 @@
 #include <linux/kfifo.h>
 #include <linux/fence.h>
 
+#define AMD_SCHED_FENCE_SCHEDULED_BIT	FENCE_FLAG_USER_BITS
+
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
 
@@ -68,6 +70,7 @@ struct amd_sched_rq {
 struct amd_sched_fence {
 	struct fence                    base;
 	struct fence_cb                 cb;
+	struct list_head		scheduled_cb;
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
@@ -101,6 +104,12 @@ struct amd_sched_backend_ops {
 	struct fence *(*run_job)(struct amd_sched_job *sched_job);
 };
 
+enum amd_sched_priority {
+	AMD_SCHED_PRIORITY_KERNEL = 0,
+	AMD_SCHED_PRIORITY_NORMAL,
+	AMD_SCHED_MAX_PRIORITY
+};
+
 /**
  * One scheduler is implemented for each hardware ring
 */
@@ -109,8 +118,7 @@ struct amd_gpu_scheduler {
 	uint32_t			hw_submission_limit;
 	long				timeout;
 	const char			*name;
-	struct amd_sched_rq		sched_rq;
-	struct amd_sched_rq		kernel_rq;
+	struct amd_sched_rq		sched_rq[AMD_SCHED_MAX_PRIORITY];
 	wait_queue_head_t		wake_up_worker;
 	wait_queue_head_t		job_scheduled;
 	atomic_t			hw_rq_count;
@@ -134,7 +142,7 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
 
 struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity, void *owner);
+void amd_sched_fence_scheduled(struct amd_sched_fence *fence);
 void amd_sched_fence_signal(struct amd_sched_fence *fence);
-
 
 #endif

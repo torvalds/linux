@@ -55,7 +55,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long limit)
 	unsigned long entry;
 	int flush;
 
-	BUG_ON(limit > (1UL << 53));
+	BUG_ON(limit > TASK_MAX_SIZE);
 	flush = 0;
 repeat:
 	table = crst_table_alloc(mm);
@@ -133,7 +133,7 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 /**
  * gmap_alloc - allocate a guest address space
  * @mm: pointer to the parent mm_struct
- * @limit: maximum size of the gmap address space
+ * @limit: maximum address of the gmap address space
  *
  * Returns a guest address space structure.
  */
@@ -402,7 +402,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 	if ((from | to | len) & (PMD_SIZE - 1))
 		return -EINVAL;
 	if (len == 0 || from + len < from || to + len < to ||
-	    from + len > TASK_MAX_SIZE || to + len > gmap->asce_end)
+	    from + len - 1 > TASK_MAX_SIZE || to + len - 1 > gmap->asce_end)
 		return -EINVAL;
 
 	flush = 0;
@@ -578,17 +578,29 @@ int gmap_fault(struct gmap *gmap, unsigned long gaddr,
 {
 	unsigned long vmaddr;
 	int rc;
+	bool unlocked;
 
 	down_read(&gmap->mm->mmap_sem);
+
+retry:
+	unlocked = false;
 	vmaddr = __gmap_translate(gmap, gaddr);
 	if (IS_ERR_VALUE(vmaddr)) {
 		rc = vmaddr;
 		goto out_up;
 	}
-	if (fixup_user_fault(current, gmap->mm, vmaddr, fault_flags)) {
+	if (fixup_user_fault(current, gmap->mm, vmaddr, fault_flags,
+			     &unlocked)) {
 		rc = -EFAULT;
 		goto out_up;
 	}
+	/*
+	 * In the case that fixup_user_fault unlocked the mmap_sem during
+	 * faultin redo __gmap_translate to not race with a map/unmap_segment.
+	 */
+	if (unlocked)
+		goto retry;
+
 	rc = __gmap_link(gmap, gaddr, vmaddr);
 out_up:
 	up_read(&gmap->mm->mmap_sem);
@@ -603,10 +615,7 @@ static void gmap_zap_swap_entry(swp_entry_t entry, struct mm_struct *mm)
 	else if (is_migration_entry(entry)) {
 		struct page *page = migration_entry_to_page(entry);
 
-		if (PageAnon(page))
-			dec_mm_counter(mm, MM_ANONPAGES);
-		else
-			dec_mm_counter(mm, MM_FILEPAGES);
+		dec_mm_counter(mm, mm_counter(page));
 	}
 	free_swap_and_cache(entry);
 }
@@ -717,12 +726,14 @@ int gmap_ipte_notify(struct gmap *gmap, unsigned long gaddr, unsigned long len)
 	spinlock_t *ptl;
 	pte_t *ptep, entry;
 	pgste_t pgste;
+	bool unlocked;
 	int rc = 0;
 
 	if ((gaddr & ~PAGE_MASK) || (len & ~PAGE_MASK))
 		return -EINVAL;
 	down_read(&gmap->mm->mmap_sem);
 	while (len) {
+		unlocked = false;
 		/* Convert gmap address and connect the page tables */
 		addr = __gmap_translate(gmap, gaddr);
 		if (IS_ERR_VALUE(addr)) {
@@ -730,10 +741,14 @@ int gmap_ipte_notify(struct gmap *gmap, unsigned long gaddr, unsigned long len)
 			break;
 		}
 		/* Get the page mapped */
-		if (fixup_user_fault(current, gmap->mm, addr, FAULT_FLAG_WRITE)) {
+		if (fixup_user_fault(current, gmap->mm, addr, FAULT_FLAG_WRITE,
+				     &unlocked)) {
 			rc = -EFAULT;
 			break;
 		}
+		/* While trying to map mmap_sem got unlocked. Let us retry */
+		if (unlocked)
+			continue;
 		rc = __gmap_link(gmap, gaddr, addr);
 		if (rc)
 			break;
@@ -794,9 +809,11 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	spinlock_t *ptl;
 	pgste_t old, new;
 	pte_t *ptep;
+	bool unlocked;
 
 	down_read(&mm->mmap_sem);
 retry:
+	unlocked = false;
 	ptep = get_locked_pte(mm, addr, &ptl);
 	if (unlikely(!ptep)) {
 		up_read(&mm->mmap_sem);
@@ -805,7 +822,12 @@ retry:
 	if (!(pte_val(*ptep) & _PAGE_INVALID) &&
 	     (pte_val(*ptep) & _PAGE_PROTECT)) {
 		pte_unmap_unlock(ptep, ptl);
-		if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE)) {
+		/*
+		 * We do not really care about unlocked. We will retry either
+		 * way. But this allows fixup_user_fault to enable userfaultfd.
+		 */
+		if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE,
+				     &unlocked)) {
 			up_read(&mm->mmap_sem);
 			return -EFAULT;
 		}
@@ -1306,22 +1328,6 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
 	pmdp_invalidate(vma, address, pmdp);
 	set_pmd_at(vma->vm_mm, address, pmdp, entry);
 	return 1;
-}
-
-static void pmdp_splitting_flush_sync(void *arg)
-{
-	/* Simply deliver the interrupt */
-}
-
-void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
-			  pmd_t *pmdp)
-{
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-	if (!test_and_set_bit(_SEGMENT_ENTRY_SPLIT_BIT,
-			      (unsigned long *) pmdp)) {
-		/* need to serialize against gup-fast (IRQ disabled) */
-		smp_call_function(pmdp_splitting_flush_sync, NULL, 1);
-	}
 }
 
 void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,

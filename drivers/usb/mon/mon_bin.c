@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/time64.h>
 
 #include <asm/uaccess.h>
 
@@ -92,8 +93,8 @@ struct mon_bin_hdr {
 	unsigned short busnum;	/* Bus number */
 	char flag_setup;
 	char flag_data;
-	s64 ts_sec;		/* gettimeofday */
-	s32 ts_usec;		/* gettimeofday */
+	s64 ts_sec;		/* getnstimeofday64 */
+	s32 ts_usec;		/* getnstimeofday64 */
 	int status;
 	unsigned int len_urb;	/* Length of data (submitted or actual) */
 	unsigned int len_cap;	/* Delivered length */
@@ -483,7 +484,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
     char ev_type, int status)
 {
 	const struct usb_endpoint_descriptor *epd = &urb->ep->desc;
-	struct timeval ts;
+	struct timespec64 ts;
 	unsigned long flags;
 	unsigned int urb_length;
 	unsigned int offset;
@@ -494,7 +495,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	struct mon_bin_hdr *ep;
 	char data_tag = 0;
 
-	do_gettimeofday(&ts);
+	getnstimeofday64(&ts);
 
 	spin_lock_irqsave(&rp->b_lock, flags);
 
@@ -568,7 +569,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	ep->busnum = urb->dev->bus->busnum;
 	ep->id = (unsigned long) urb;
 	ep->ts_sec = ts.tv_sec;
-	ep->ts_usec = ts.tv_usec;
+	ep->ts_usec = ts.tv_nsec / NSEC_PER_USEC;
 	ep->status = status;
 	ep->len_urb = urb_length;
 	ep->len_cap = length + lendesc;
@@ -629,12 +630,12 @@ static void mon_bin_complete(void *data, struct urb *urb, int status)
 static void mon_bin_error(void *data, struct urb *urb, int error)
 {
 	struct mon_reader_bin *rp = data;
-	struct timeval ts;
+	struct timespec64 ts;
 	unsigned long flags;
 	unsigned int offset;
 	struct mon_bin_hdr *ep;
 
-	do_gettimeofday(&ts);
+	getnstimeofday64(&ts);
 
 	spin_lock_irqsave(&rp->b_lock, flags);
 
@@ -656,7 +657,7 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 	ep->busnum = urb->dev->bus->busnum;
 	ep->id = (unsigned long) urb;
 	ep->ts_sec = ts.tv_sec;
-	ep->ts_usec = ts.tv_usec;
+	ep->ts_usec = ts.tv_nsec / NSEC_PER_USEC;
 	ep->status = error;
 
 	ep->flag_setup = '-';

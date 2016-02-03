@@ -604,6 +604,13 @@ found:
 		}
 	}
 
+	/*
+	 * Clear b_error if this is a lookup from a caller that doesn't expect
+	 * valid data to be found in the buffer.
+	 */
+	if (!(flags & XBF_READ))
+		xfs_buf_ioerror(bp, 0);
+
 	XFS_STATS_INC(target->bt_mount, xb_get);
 	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	return bp;
@@ -1045,7 +1052,7 @@ xfs_buf_ioend_work(
 	xfs_buf_ioend(bp);
 }
 
-void
+static void
 xfs_buf_ioend_async(
 	struct xfs_buf	*bp)
 {
@@ -1520,6 +1527,16 @@ xfs_wait_buftarg(
 	LIST_HEAD(dispose);
 	int loop = 0;
 
+	/*
+	 * We need to flush the buffer workqueue to ensure that all IO
+	 * completion processing is 100% done. Just waiting on buffer locks is
+	 * not sufficient for async IO as the reference count held over IO is
+	 * not released until after the buffer lock is dropped. Hence we need to
+	 * ensure here that all reference counts have been dropped before we
+	 * start walking the LRU list.
+	 */
+	drain_workqueue(btp->bt_mount->m_buf_workqueue);
+
 	/* loop until there is nothing left on the lru list. */
 	while (list_lru_count(&btp->bt_lru)) {
 		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
@@ -1632,13 +1649,9 @@ xfs_setsize_buftarg(
 	btp->bt_meta_sectormask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
-		char name[BDEVNAME_SIZE];
-
-		bdevname(btp->bt_bdev, name);
-
 		xfs_warn(btp->bt_mount,
-			"Cannot set_blocksize to %u on device %s",
-			sectorsize, name);
+			"Cannot set_blocksize to %u on device %pg",
+			sectorsize, btp->bt_bdev);
 		return -EINVAL;
 	}
 

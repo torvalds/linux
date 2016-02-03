@@ -1,0 +1,5 @@
+config HI6220_ION
+        bool "Hi6220 ION Driver"
+        depends on ARCH_HISI && ION
+        help
+          Build the Hisilicon Hi6220 ion driver.

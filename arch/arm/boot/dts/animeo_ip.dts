@@ -155,21 +155,21 @@
 			label = "keyswitch_in";
 			gpios = <&pioB 1 GPIO_ACTIVE_HIGH>;
 			linux,code = <28>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		error_in {
 			label = "error_in";
 			gpios = <&pioB 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <29>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		btn {
 			label = "btn";
 			gpios = <&pioC 23 GPIO_ACTIVE_HIGH>;
 			linux,code = <31>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };

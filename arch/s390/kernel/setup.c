@@ -80,6 +80,8 @@ EXPORT_SYMBOL(console_irq);
 unsigned long elf_hwcap __read_mostly = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
+unsigned long int_hwcap = 0;
+
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;
 unsigned long __initdata max_physmem_end;
@@ -97,7 +99,7 @@ unsigned long MODULES_VADDR;
 unsigned long MODULES_END;
 
 /* An array with a pointer to the lowcore of every CPU. */
-struct _lowcore *lowcore_ptr[NR_CPUS];
+struct lowcore *lowcore_ptr[NR_CPUS];
 EXPORT_SYMBOL(lowcore_ptr);
 
 /*
@@ -291,33 +293,29 @@ void *restart_stack __attribute__((__section__(".data")));
 
 static void __init setup_lowcore(void)
 {
-	struct _lowcore *lc;
+	struct lowcore *lc;
 
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
+	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * 4096);
 	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
-	lc->restart_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
+	lc->restart_psw.addr = (unsigned long) restart_int_handler;
 	lc->external_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
-	lc->external_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) ext_int_handler;
+	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
 	lc->svc_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-	lc->svc_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) system_call;
+	lc->svc_new_psw.addr = (unsigned long) system_call;
 	lc->program_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
-	lc->program_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) pgm_check_handler;
+	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
-	lc->mcck_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) mcck_int_handler;
+	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
 	lc->io_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
-	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
+	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = -1ULL;
 	lc->kernel_stack = ((unsigned long) &init_thread_union)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
@@ -661,15 +659,6 @@ static void __init reserve_kernel(void)
 #endif
 }
 
-static void __init reserve_elfcorehdr(void)
-{
-#ifdef CONFIG_CRASH_DUMP
-	if (is_kdump_kernel())
-		memblock_reserve(elfcorehdr_addr - OLDMEM_BASE,
-				 PAGE_ALIGN(elfcorehdr_size));
-#endif
-}
-
 static void __init setup_memory(void)
 {
 	struct memblock_region *reg;
@@ -793,6 +782,13 @@ static int __init setup_hwcaps(void)
 		strcpy(elf_platform, "z13");
 		break;
 	}
+
+	/*
+	 * Virtualization support HWCAP_INT_SIE is bit 0.
+	 */
+	if (sclp.has_sief2)
+		int_hwcap |= HWCAP_INT_SIE;
+
 	return 0;
 }
 arch_initcall(setup_hwcaps);
@@ -841,6 +837,11 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.brk = (unsigned long) &_end;
 
 	parse_early_param();
+#ifdef CONFIG_CRASH_DUMP
+	/* Deactivate elfcorehdr= kernel parameter */
+	elfcorehdr_addr = ELFCORE_ADDR_MAX;
+#endif
+
 	os_info_init();
 	setup_ipl();
 
@@ -849,7 +850,6 @@ void __init setup_arch(char **cmdline_p)
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
-	reserve_elfcorehdr();
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */
@@ -870,11 +870,13 @@ void __init setup_arch(char **cmdline_p)
 
 	check_initrd();
 	reserve_crashkernel();
+#ifdef CONFIG_CRASH_DUMP
 	/*
 	 * Be aware that smp_save_dump_cpus() triggers a system reset.
 	 * Therefore CPU and device initialization should be done afterwards.
 	 */
 	smp_save_dump_cpus();
+#endif
 
 	setup_resources();
 	setup_vmcoreinfo();

@@ -146,17 +146,15 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 {
 	struct stackframe frame;
+	unsigned long irq_stack_ptr = IRQ_STACK_PTR(smp_processor_id());
+	int skip;
 
 	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
 
 	if (!tsk)
 		tsk = current;
 
-	if (regs) {
-		frame.fp = regs->regs[29];
-		frame.sp = regs->sp;
-		frame.pc = regs->pc;
-	} else if (tsk == current) {
+	if (tsk == current) {
 		frame.fp = (unsigned long)__builtin_frame_address(0);
 		frame.sp = current_stack_pointer;
 		frame.pc = (unsigned long)dump_backtrace;
@@ -168,21 +166,49 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		frame.sp = thread_saved_sp(tsk);
 		frame.pc = thread_saved_pc(tsk);
 	}
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	frame.graph = tsk->curr_ret_stack;
+#endif
 
-	pr_emerg("Call trace:\n");
+	skip = !!regs;
+	printk("Call trace:\n");
 	while (1) {
 		unsigned long where = frame.pc;
 		unsigned long stack;
 		int ret;
 
-		dump_backtrace_entry(where);
-		ret = unwind_frame(&frame);
+		/* skip until specified stack frame */
+		if (!skip) {
+			dump_backtrace_entry(where);
+		} else if (frame.fp == regs->regs[29]) {
+			skip = 0;
+			/*
+			 * Mostly, this is the case where this function is
+			 * called in panic/abort. As exception handler's
+			 * stack frame does not contain the corresponding pc
+			 * at which an exception has taken place, use regs->pc
+			 * instead.
+			 */
+			dump_backtrace_entry(regs->pc);
+		}
+		ret = unwind_frame(tsk, &frame);
 		if (ret < 0)
 			break;
 		stack = frame.sp;
-		if (in_exception_text(where))
+		if (in_exception_text(where)) {
+			/*
+			 * If we switched to the irq_stack before calling this
+			 * exception handler, then the pt_regs will be on the
+			 * task stack. The easiest way to tell is if the large
+			 * pt_regs would overlap with the end of the irq_stack.
+			 */
+			if (stack < irq_stack_ptr &&
+			    (stack + sizeof(struct pt_regs)) > irq_stack_ptr)
+				stack = IRQ_STACK_TO_TASK_STACK(irq_stack_ptr);
+
 			dump_mem("", "Exception stack", stack,
 				 stack + sizeof(struct pt_regs), false);
+		}
 	}
 }
 
@@ -456,22 +482,22 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 
 void __pte_error(const char *file, int line, unsigned long val)
 {
-	pr_crit("%s:%d: bad pte %016lx.\n", file, line, val);
+	pr_err("%s:%d: bad pte %016lx.\n", file, line, val);
 }
 
 void __pmd_error(const char *file, int line, unsigned long val)
 {
-	pr_crit("%s:%d: bad pmd %016lx.\n", file, line, val);
+	pr_err("%s:%d: bad pmd %016lx.\n", file, line, val);
 }
 
 void __pud_error(const char *file, int line, unsigned long val)
 {
-	pr_crit("%s:%d: bad pud %016lx.\n", file, line, val);
+	pr_err("%s:%d: bad pud %016lx.\n", file, line, val);
 }
 
 void __pgd_error(const char *file, int line, unsigned long val)
 {
-	pr_crit("%s:%d: bad pgd %016lx.\n", file, line, val);
+	pr_err("%s:%d: bad pgd %016lx.\n", file, line, val);
 }
 
 /* GENERIC_BUG traps */

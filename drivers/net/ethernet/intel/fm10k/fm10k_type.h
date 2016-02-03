@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -77,6 +77,7 @@ struct fm10k_hw;
 #define FM10K_PCIE_SRIOV_CTRL_VFARI		0x10
 
 #define FM10K_ERR_PARAM				-2
+#define FM10K_ERR_NO_RESOURCES			-3
 #define FM10K_ERR_REQUESTS_PENDING		-4
 #define FM10K_ERR_RESET_REQUESTED		-5
 #define FM10K_ERR_DMA_PENDING			-6
@@ -271,6 +272,20 @@ struct fm10k_hw;
 #define FM10K_TDBAL(_n)		((0x40 * (_n)) + 0x8000)
 #define FM10K_TDBAH(_n)		((0x40 * (_n)) + 0x8001)
 #define FM10K_TDLEN(_n)		((0x40 * (_n)) + 0x8002)
+/* When fist initialized, VFs need to know the Interrupt Throttle Rate (ITR)
+ * scale which is based on the PCIe speed but the speed information in the PCI
+ * configuration space may not be accurate. The PF already knows the ITR scale
+ * but there is no defined method to pass that information from the PF to the
+ * VF. This is accomplished during VF initialization by temporarily co-opting
+ * the yet-to-be-used TDLEN register to have the PF store the ITR shift for
+ * the VF to retrieve before the VF needs to use the TDLEN register for its
+ * intended purpose, i.e. before the Tx resources are allocated.
+ */
+#define FM10K_TDLEN_ITR_SCALE_SHIFT		9
+#define FM10K_TDLEN_ITR_SCALE_MASK		0x00000E00
+#define FM10K_TDLEN_ITR_SCALE_GEN1		2
+#define FM10K_TDLEN_ITR_SCALE_GEN2		1
+#define FM10K_TDLEN_ITR_SCALE_GEN3		0
 #define FM10K_TPH_TXCTRL(_n)	((0x40 * (_n)) + 0x8003)
 #define FM10K_TPH_TXCTRL_DESC_TPHEN		0x00000020
 #define FM10K_TPH_TXCTRL_DESC_RROEN		0x00000200
@@ -339,7 +354,7 @@ struct fm10k_hw;
 #define FM10K_VLAN_TABLE_VID_MAX		4096
 #define FM10K_VLAN_TABLE_VSI_MAX		64
 #define FM10K_VLAN_LENGTH_SHIFT			16
-#define FM10K_VLAN_CLEAR			(1 << 15)
+#define FM10K_VLAN_CLEAR			BIT(15)
 #define FM10K_VLAN_ALL \
 	((FM10K_VLAN_TABLE_VID_MAX - 1) << FM10K_VLAN_LENGTH_SHIFT)
 
@@ -373,13 +388,13 @@ struct fm10k_hw;
 #define FM10K_SW_SYSTIME_PULSE(_n)	((_n) + 0x02252)
 
 enum fm10k_int_source {
-	fm10k_int_Mailbox	= 0,
-	fm10k_int_PCIeFault	= 1,
-	fm10k_int_SwitchUpDown	= 2,
-	fm10k_int_SwitchEvent	= 3,
-	fm10k_int_SRAM		= 4,
-	fm10k_int_VFLR		= 5,
-	fm10k_int_MaxHoldTime	= 6,
+	fm10k_int_mailbox		= 0,
+	fm10k_int_pcie_fault		= 1,
+	fm10k_int_switch_up_down	= 2,
+	fm10k_int_switch_event		= 3,
+	fm10k_int_sram			= 4,
+	fm10k_int_vflr			= 5,
+	fm10k_int_max_hold_time		= 6,
 	fm10k_int_sources_max_pf
 };
 
@@ -535,7 +550,6 @@ struct fm10k_mac_ops {
 				    struct fm10k_dglort_cfg *);
 	void (*set_dma_mask)(struct fm10k_hw *, u64);
 	s32 (*get_fault)(struct fm10k_hw *, int, struct fm10k_fault *);
-	void (*request_lport_map)(struct fm10k_hw *);
 	s32 (*adjust_systime)(struct fm10k_hw *, s32 ppb);
 	u64 (*read_systime)(struct fm10k_hw *);
 };
@@ -559,6 +573,7 @@ struct fm10k_mac_info {
 	bool get_host_state;
 	bool tx_ready;
 	u32 dglort_map;
+	u8 itr_scale;
 };
 
 struct fm10k_swapi_table_info {
@@ -644,10 +659,10 @@ enum fm10k_devices {
 };
 
 struct fm10k_info {
-	enum fm10k_mac_type	mac;
-	s32			(*get_invariants)(struct fm10k_hw *);
-	struct fm10k_mac_ops	*mac_ops;
-	struct fm10k_iov_ops	*iov_ops;
+	enum fm10k_mac_type		mac;
+	s32				(*get_invariants)(struct fm10k_hw *);
+	const struct fm10k_mac_ops	*mac_ops;
+	const struct fm10k_iov_ops	*iov_ops;
 };
 
 struct fm10k_hw {

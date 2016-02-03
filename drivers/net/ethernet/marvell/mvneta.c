@@ -11,32 +11,32 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/kernel.h>
-#include <linux/netdevice.h>
+#include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/etherdevice.h>
-#include <linux/platform_device.h>
-#include <linux/skbuff.h>
+#include <linux/if_vlan.h>
 #include <linux/inetdevice.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/mbus.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/if_vlan.h>
-#include <net/ip.h>
-#include <net/ipv6.h>
-#include <linux/io.h>
-#include <net/tso.h>
+#include <linux/netdevice.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/of_address.h>
 #include <linux/phy.h>
-#include <linux/clk.h>
-#include <linux/cpu.h>
+#include <linux/platform_device.h>
+#include <linux/skbuff.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
+#include <net/tso.h>
 
 /* Registers */
 #define MVNETA_RXQ_CONFIG_REG(q)                (0x1400 + ((q) << 2))
-#define      MVNETA_RXQ_HW_BUF_ALLOC            BIT(1)
+#define      MVNETA_RXQ_HW_BUF_ALLOC            BIT(0)
 #define      MVNETA_RXQ_PKT_OFFSET_ALL_MASK     (0xf    << 8)
 #define      MVNETA_RXQ_PKT_OFFSET_MASK(offs)   ((offs) << 8)
 #define MVNETA_RXQ_THRESHOLD_REG(q)             (0x14c0 + ((q) << 2))
@@ -62,6 +62,7 @@
 #define MVNETA_WIN_SIZE(w)                      (0x2204 + ((w) << 3))
 #define MVNETA_WIN_REMAP(w)                     (0x2280 + ((w) << 2))
 #define MVNETA_BASE_ADDR_ENABLE                 0x2290
+#define MVNETA_ACCESS_PROTECT_ENABLE            0x2294
 #define MVNETA_PORT_CONFIG                      0x2400
 #define      MVNETA_UNI_PROMISC_MODE            BIT(0)
 #define      MVNETA_DEF_RXQ(q)                  ((q) << 1)
@@ -109,9 +110,17 @@
 #define MVNETA_CPU_MAP(cpu)                      (0x2540 + ((cpu) << 2))
 #define      MVNETA_CPU_RXQ_ACCESS_ALL_MASK      0x000000ff
 #define      MVNETA_CPU_TXQ_ACCESS_ALL_MASK      0x0000ff00
+#define      MVNETA_CPU_RXQ_ACCESS(rxq)		 BIT(rxq)
+#define      MVNETA_CPU_TXQ_ACCESS(txq)		 BIT(txq + 8)
 #define MVNETA_RXQ_TIME_COAL_REG(q)              (0x2580 + ((q) << 2))
 
-/* Exception Interrupt Port/Queue Cause register */
+/* Exception Interrupt Port/Queue Cause register
+ *
+ * Their behavior depend of the mapping done using the PCPX2Q
+ * registers. For a given CPU if the bit associated to a queue is not
+ * set, then for the register a read from this CPU will always return
+ * 0 and a write won't do anything
+ */
 
 #define MVNETA_INTR_NEW_CAUSE                    0x25a0
 #define MVNETA_INTR_NEW_MASK                     0x25a4
@@ -159,7 +168,7 @@
 
 #define MVNETA_INTR_ENABLE                       0x25b8
 #define      MVNETA_TXQ_INTR_ENABLE_ALL_MASK     0x0000ff00
-#define      MVNETA_RXQ_INTR_ENABLE_ALL_MASK     0xff000000  // note: neta says it's 0x000000FF
+#define      MVNETA_RXQ_INTR_ENABLE_ALL_MASK     0x000000ff
 
 #define MVNETA_RXQ_CMD                           0x2680
 #define      MVNETA_RXQ_DISABLE_SHIFT            8
@@ -242,6 +251,7 @@
 #define MVNETA_VLAN_TAG_LEN             4
 
 #define MVNETA_CPU_D_CACHE_LINE_SIZE    32
+#define MVNETA_TX_CSUM_DEF_SIZE		1600
 #define MVNETA_TX_CSUM_MAX_SIZE		9800
 #define MVNETA_ACC_MODE_EXT		1
 
@@ -251,6 +261,11 @@
 #define MVNETA_TX_FIFO_EMPTY_TIMEOUT	10000
 
 #define MVNETA_TX_MTU_MAX		0x3ffff
+
+/* The RSS lookup table actually has 256 entries but we do not use
+ * them yet
+ */
+#define MVNETA_RSS_LU_TABLE_SIZE	1
 
 /* TSO header size */
 #define TSO_HEADER_SIZE 128
@@ -354,9 +369,12 @@ struct mvneta_port {
 	struct mvneta_tx_queue *txqs;
 	struct net_device *dev;
 	struct notifier_block cpu_notifier;
+	int rxq_def;
 
 	/* Core clock */
 	struct clk *clk;
+	/* AXI clock */
+	struct clk *clk_bus;
 	u8 mcast_count[256];
 	u16 tx_ring_size;
 	u16 rx_ring_size;
@@ -369,9 +387,11 @@ struct mvneta_port {
 	unsigned int duplex;
 	unsigned int speed;
 	unsigned int tx_csum_limit;
-	int use_inband_status:1;
+	unsigned int use_inband_status:1;
 
 	u64 ethtool_stats[ARRAY_SIZE(mvneta_statistics)];
+
+	u32 indir[MVNETA_RSS_LU_TABLE_SIZE];
 };
 
 /* The mvneta_tx_desc and mvneta_rx_desc structures describe the
@@ -497,6 +517,9 @@ struct mvneta_tx_queue {
 
 	/* DMA address of TSO headers */
 	dma_addr_t tso_hdrs_phys;
+
+	/* Affinity mask for CPUs*/
+	cpumask_t affinity_mask;
 };
 
 struct mvneta_rx_queue {
@@ -817,7 +840,13 @@ static void mvneta_port_up(struct mvneta_port *pp)
 	mvreg_write(pp, MVNETA_TXQ_CMD, q_map);
 
 	/* Enable all initialized RXQs. */
-	mvreg_write(pp, MVNETA_RXQ_CMD, BIT(rxq_def));
+	for (queue = 0; queue < rxq_number; queue++) {
+		struct mvneta_rx_queue *rxq = &pp->rxqs[queue];
+
+		if (rxq->descs != NULL)
+			q_map |= (1 << queue);
+	}
+	mvreg_write(pp, MVNETA_RXQ_CMD, q_map);
 }
 
 /* Stop the Ethernet port activity */
@@ -971,6 +1000,44 @@ static void mvneta_set_other_mcast_table(struct mvneta_port *pp, int queue)
 		mvreg_write(pp, MVNETA_DA_FILT_OTH_MCAST + offset, val);
 }
 
+static void mvneta_set_autoneg(struct mvneta_port *pp, int enable)
+{
+	u32 val;
+
+	if (enable) {
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~(MVNETA_GMAC_FORCE_LINK_PASS |
+			 MVNETA_GMAC_FORCE_LINK_DOWN |
+			 MVNETA_GMAC_AN_FLOW_CTRL_EN);
+		val |= MVNETA_GMAC_INBAND_AN_ENABLE |
+		       MVNETA_GMAC_AN_SPEED_EN |
+		       MVNETA_GMAC_AN_DUPLEX_EN;
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+
+		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
+		val |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
+
+		val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+		val |= MVNETA_GMAC2_INBAND_AN_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
+	} else {
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~(MVNETA_GMAC_INBAND_AN_ENABLE |
+		       MVNETA_GMAC_AN_SPEED_EN |
+		       MVNETA_GMAC_AN_DUPLEX_EN);
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+
+		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
+		val &= ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
+
+		val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+		val &= ~MVNETA_GMAC2_INBAND_AN_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
+	}
+}
+
 /* This method sets defaults to the NETA port:
  *	Clears interrupt Cause and Mask registers.
  *	Clears all MAC tables.
@@ -985,6 +1052,7 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 	int cpu;
 	int queue;
 	u32 val;
+	int max_cpu = num_present_cpus();
 
 	/* Clear all Cause registers */
 	mvreg_write(pp, MVNETA_INTR_NEW_CAUSE, 0);
@@ -1000,13 +1068,33 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 	/* Enable MBUS Retry bit16 */
 	mvreg_write(pp, MVNETA_MBUS_RETRY, 0x20);
 
-	/* Set CPU queue access map - all CPUs have access to all RX
-	 * queues and to all TX queues
+	/* Set CPU queue access map. CPUs are assigned to the RX and
+	 * TX queues modulo their number. If there is only one TX
+	 * queue then it is assigned to the CPU associated to the
+	 * default RX queue.
 	 */
-	for_each_present_cpu(cpu)
-		mvreg_write(pp, MVNETA_CPU_MAP(cpu),
-			    (MVNETA_CPU_RXQ_ACCESS_ALL_MASK |
-			     MVNETA_CPU_TXQ_ACCESS_ALL_MASK));
+	for_each_present_cpu(cpu) {
+		int rxq_map = 0, txq_map = 0;
+		int rxq, txq;
+
+		for (rxq = 0; rxq < rxq_number; rxq++)
+			if ((rxq % max_cpu) == cpu)
+				rxq_map |= MVNETA_CPU_RXQ_ACCESS(rxq);
+
+		for (txq = 0; txq < txq_number; txq++)
+			if ((txq % max_cpu) == cpu)
+				txq_map |= MVNETA_CPU_TXQ_ACCESS(txq);
+
+		/* With only one TX queue we configure a special case
+		 * which will allow to get all the irq on a single
+		 * CPU
+		 */
+		if (txq_number == 1)
+			txq_map = (cpu == pp->rxq_def) ?
+				MVNETA_CPU_TXQ_ACCESS(1) : 0;
+
+		mvreg_write(pp, MVNETA_CPU_MAP(cpu), rxq_map | txq_map);
+	}
 
 	/* Reset RX and TX DMAs */
 	mvreg_write(pp, MVNETA_PORT_RX_RESET, MVNETA_PORT_RX_DMA_RESET);
@@ -1027,7 +1115,7 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 	mvreg_write(pp, MVNETA_ACC_MODE, val);
 
 	/* Update val of portCfg register accordingly with all RxQueue types */
-	val = MVNETA_PORT_CONFIG_DEFL_VALUE(rxq_def);
+	val = MVNETA_PORT_CONFIG_DEFL_VALUE(pp->rxq_def);
 	mvreg_write(pp, MVNETA_PORT_CONFIG, val);
 
 	val = 0;
@@ -1056,26 +1144,7 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 	val &= ~MVNETA_PHY_POLLING_ENABLE;
 	mvreg_write(pp, MVNETA_UNIT_CONTROL, val);
 
-	if (pp->use_inband_status) {
-		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-		val &= ~(MVNETA_GMAC_FORCE_LINK_PASS |
-			 MVNETA_GMAC_FORCE_LINK_DOWN |
-			 MVNETA_GMAC_AN_FLOW_CTRL_EN);
-		val |= MVNETA_GMAC_INBAND_AN_ENABLE |
-		       MVNETA_GMAC_AN_SPEED_EN |
-		       MVNETA_GMAC_AN_DUPLEX_EN;
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
-		val |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
-	} else {
-		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-		val &= ~(MVNETA_GMAC_INBAND_AN_ENABLE |
-		       MVNETA_GMAC_AN_SPEED_EN |
-		       MVNETA_GMAC_AN_DUPLEX_EN);
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-	}
-
+	mvneta_set_autoneg(pp, pp->use_inband_status);
 	mvneta_set_ucast_table(pp, -1);
 	mvneta_set_special_mcast_table(pp, -1);
 	mvneta_set_other_mcast_table(pp, -1);
@@ -1579,11 +1648,15 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 		}
 
 		skb = build_skb(data, pp->frag_size > PAGE_SIZE ? 0 : pp->frag_size);
-		if (!skb)
-			goto err_drop_frame;
 
+		/* After refill old buffer has to be unmapped regardless
+		 * the skb is successfully built or not.
+		 */
 		dma_unmap_single(dev->dev.parent, phys_addr,
 				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
+
+		if (!skb)
+			goto err_drop_frame;
 
 		rcvd_pkts++;
 		rcvd_bytes += rx_bytes;
@@ -2076,19 +2149,19 @@ static void mvneta_set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {
 		/* Accept all: Multicast + Unicast */
 		mvneta_rx_unicast_promisc_set(pp, 1);
-		mvneta_set_ucast_table(pp, rxq_def);
-		mvneta_set_special_mcast_table(pp, rxq_def);
-		mvneta_set_other_mcast_table(pp, rxq_def);
+		mvneta_set_ucast_table(pp, pp->rxq_def);
+		mvneta_set_special_mcast_table(pp, pp->rxq_def);
+		mvneta_set_other_mcast_table(pp, pp->rxq_def);
 	} else {
 		/* Accept single Unicast */
 		mvneta_rx_unicast_promisc_set(pp, 0);
 		mvneta_set_ucast_table(pp, -1);
-		mvneta_mac_addr_set(pp, dev->dev_addr, rxq_def);
+		mvneta_mac_addr_set(pp, dev->dev_addr, pp->rxq_def);
 
 		if (dev->flags & IFF_ALLMULTI) {
 			/* Accept all multicast */
-			mvneta_set_special_mcast_table(pp, rxq_def);
-			mvneta_set_other_mcast_table(pp, rxq_def);
+			mvneta_set_special_mcast_table(pp, pp->rxq_def);
+			mvneta_set_other_mcast_table(pp, pp->rxq_def);
 		} else {
 			/* Accept only initialized multicast */
 			mvneta_set_special_mcast_table(pp, -1);
@@ -2097,7 +2170,7 @@ static void mvneta_set_rx_mode(struct net_device *dev)
 			if (!netdev_mc_empty(dev)) {
 				netdev_for_each_mc_addr(ha, dev) {
 					mvneta_mcast_addr_set(pp, ha->addr,
-							      rxq_def);
+							      pp->rxq_def);
 				}
 			}
 		}
@@ -2148,6 +2221,7 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 {
 	int rx_done = 0;
 	u32 cause_rx_tx;
+	int rx_queue;
 	struct mvneta_port *pp = netdev_priv(napi->dev);
 	struct mvneta_pcpu_port *port = this_cpu_ptr(pp->ports);
 
@@ -2179,8 +2253,15 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 	/* For the case where the last mvneta_poll did not process all
 	 * RX packets
 	 */
+	rx_queue = fls(((cause_rx_tx >> 8) & 0xff));
+
 	cause_rx_tx |= port->cause_rx_tx;
-	rx_done = mvneta_rx(pp, budget, &pp->rxqs[rxq_def]);
+
+	if (rx_queue) {
+		rx_queue = rx_queue - 1;
+		rx_done = mvneta_rx(pp, budget, &pp->rxqs[rx_queue]);
+	}
+
 	budget -= rx_done;
 
 	if (budget > 0) {
@@ -2297,6 +2378,8 @@ static void mvneta_rxq_deinit(struct mvneta_port *pp,
 static int mvneta_txq_init(struct mvneta_port *pp,
 			   struct mvneta_tx_queue *txq)
 {
+	int cpu;
+
 	txq->size = pp->tx_ring_size;
 
 	/* A queue must always have room for at least one skb.
@@ -2349,6 +2432,14 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 	}
 	mvneta_tx_done_pkts_coal_set(pp, txq, txq->done_pkts_coal);
 
+	/* Setup XPS mapping */
+	if (txq_number > 1)
+		cpu = txq->id % num_present_cpus();
+	else
+		cpu = pp->rxq_def % num_present_cpus();
+	cpumask_set_cpu(cpu, &txq->affinity_mask);
+	netif_set_xps_queue(pp->dev, &txq->affinity_mask, txq->id);
+
 	return 0;
 }
 
@@ -2393,19 +2484,27 @@ static void mvneta_cleanup_txqs(struct mvneta_port *pp)
 /* Cleanup all Rx queues */
 static void mvneta_cleanup_rxqs(struct mvneta_port *pp)
 {
-	mvneta_rxq_deinit(pp, &pp->rxqs[rxq_def]);
+	int queue;
+
+	for (queue = 0; queue < txq_number; queue++)
+		mvneta_rxq_deinit(pp, &pp->rxqs[queue]);
 }
 
 
 /* Init all Rx queues */
 static int mvneta_setup_rxqs(struct mvneta_port *pp)
 {
-	int err = mvneta_rxq_init(pp, &pp->rxqs[rxq_def]);
-	if (err) {
-		netdev_err(pp->dev, "%s: can't create rxq=%d\n",
-			   __func__, rxq_def);
-		mvneta_cleanup_rxqs(pp);
-		return err;
+	int queue;
+
+	for (queue = 0; queue < rxq_number; queue++) {
+		int err = mvneta_rxq_init(pp, &pp->rxqs[queue]);
+
+		if (err) {
+			netdev_err(pp->dev, "%s: can't create rxq=%d\n",
+				   __func__, queue);
+			mvneta_cleanup_rxqs(pp);
+			return err;
+		}
 	}
 
 	return 0;
@@ -2429,6 +2528,31 @@ static int mvneta_setup_txqs(struct mvneta_port *pp)
 	return 0;
 }
 
+static void mvneta_percpu_unmask_interrupt(void *arg)
+{
+	struct mvneta_port *pp = arg;
+
+	/* All the queue are unmasked, but actually only the ones
+	 * maped to this CPU will be unmasked
+	 */
+	mvreg_write(pp, MVNETA_INTR_NEW_MASK,
+		    MVNETA_RX_INTR_MASK_ALL |
+		    MVNETA_TX_INTR_MASK_ALL |
+		    MVNETA_MISCINTR_INTR_MASK);
+}
+
+static void mvneta_percpu_mask_interrupt(void *arg)
+{
+	struct mvneta_port *pp = arg;
+
+	/* All the queue are masked, but actually only the ones
+	 * maped to this CPU will be masked
+	 */
+	mvreg_write(pp, MVNETA_INTR_NEW_MASK, 0);
+	mvreg_write(pp, MVNETA_INTR_OLD_MASK, 0);
+	mvreg_write(pp, MVNETA_INTR_MISC_MASK, 0);
+}
+
 static void mvneta_start_dev(struct mvneta_port *pp)
 {
 	unsigned int cpu;
@@ -2446,11 +2570,10 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 		napi_enable(&port->napi);
 	}
 
-	/* Unmask interrupts */
-	mvreg_write(pp, MVNETA_INTR_NEW_MASK,
-		    MVNETA_RX_INTR_MASK(rxq_number) |
-		    MVNETA_TX_INTR_MASK(txq_number) |
-		    MVNETA_MISCINTR_INTR_MASK);
+	/* Unmask interrupts. It has to be done from each CPU */
+	for_each_online_cpu(cpu)
+		smp_call_function_single(cpu, mvneta_percpu_unmask_interrupt,
+					 pp, true);
 	mvreg_write(pp, MVNETA_INTR_MISC_MASK,
 		    MVNETA_CAUSE_PHY_STATUS_CHANGE |
 		    MVNETA_CAUSE_LINK_CHANGE |
@@ -2609,7 +2732,7 @@ static int mvneta_set_mac_addr(struct net_device *dev, void *addr)
 	mvneta_mac_addr_set(pp, dev->dev_addr, -1);
 
 	/* Set new addr in hw */
-	mvneta_mac_addr_set(pp, sockaddr->sa_data, rxq_def);
+	mvneta_mac_addr_set(pp, sockaddr->sa_data, pp->rxq_def);
 
 	eth_commit_mac_addr_change(dev, addr);
 	return 0;
@@ -2726,22 +2849,45 @@ static void mvneta_percpu_disable(void *arg)
 
 static void mvneta_percpu_elect(struct mvneta_port *pp)
 {
-	int online_cpu_idx, cpu, i = 0;
+	int online_cpu_idx, max_cpu, cpu, i = 0;
 
-	online_cpu_idx = rxq_def % num_online_cpus();
+	online_cpu_idx = pp->rxq_def % num_online_cpus();
+	max_cpu = num_present_cpus();
 
 	for_each_online_cpu(cpu) {
+		int rxq_map = 0, txq_map = 0;
+		int rxq;
+
+		for (rxq = 0; rxq < rxq_number; rxq++)
+			if ((rxq % max_cpu) == cpu)
+				rxq_map |= MVNETA_CPU_RXQ_ACCESS(rxq);
+
 		if (i == online_cpu_idx)
-			/* Enable per-CPU interrupt on the one CPU we
-			 * just elected
+			/* Map the default receive queue queue to the
+			 * elected CPU
 			 */
-			smp_call_function_single(cpu, mvneta_percpu_enable,
-						pp, true);
+			rxq_map |= MVNETA_CPU_RXQ_ACCESS(pp->rxq_def);
+
+		/* We update the TX queue map only if we have one
+		 * queue. In this case we associate the TX queue to
+		 * the CPU bound to the default RX queue
+		 */
+		if (txq_number == 1)
+			txq_map = (i == online_cpu_idx) ?
+				MVNETA_CPU_TXQ_ACCESS(1) : 0;
 		else
-			/* Disable per-CPU interrupt on all the other CPU */
-			smp_call_function_single(cpu, mvneta_percpu_disable,
-						pp, true);
+			txq_map = mvreg_read(pp, MVNETA_CPU_MAP(cpu)) &
+				MVNETA_CPU_TXQ_ACCESS_ALL_MASK;
+
+		mvreg_write(pp, MVNETA_CPU_MAP(cpu), rxq_map | txq_map);
+
+		/* Update the interrupt mask on each CPU according the
+		 * new mapping
+		 */
+		smp_call_function_single(cpu, mvneta_percpu_unmask_interrupt,
+					 pp, true);
 		i++;
+
 	}
 };
 
@@ -2776,12 +2922,22 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 		mvreg_write(pp, MVNETA_INTR_MISC_MASK, 0);
 		napi_enable(&port->napi);
 
+
+		/* Enable per-CPU interrupts on the CPU that is
+		 * brought up.
+		 */
+		smp_call_function_single(cpu, mvneta_percpu_enable,
+					 pp, true);
+
 		/* Enable per-CPU interrupt on the one CPU we care
 		 * about.
 		 */
 		mvneta_percpu_elect(pp);
 
-		/* Unmask all ethernet port interrupts */
+		/* Unmask all ethernet port interrupts, as this
+		 * notifier is called for each CPU then the CPU to
+		 * Queue mapping is applied
+		 */
 		mvreg_write(pp, MVNETA_INTR_NEW_MASK,
 			MVNETA_RX_INTR_MASK(rxq_number) |
 			MVNETA_TX_INTR_MASK(txq_number) |
@@ -2832,7 +2988,7 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 static int mvneta_open(struct net_device *dev)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
-	int ret;
+	int ret, cpu;
 
 	pp->pkt_size = MVNETA_RX_PKT_SIZE(pp->dev->mtu);
 	pp->frag_size = SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(pp->pkt_size)) +
@@ -2862,8 +3018,13 @@ static int mvneta_open(struct net_device *dev)
 	 */
 	mvneta_percpu_disable(pp);
 
-	/* Elect a CPU to handle our RX queue interrupt */
-	mvneta_percpu_elect(pp);
+	/* Enable per-CPU interrupt on all the CPU to handle our RX
+	 * queue interrupts
+	 */
+	for_each_online_cpu(cpu)
+		smp_call_function_single(cpu, mvneta_percpu_enable,
+					 pp, true);
+
 
 	/* Register a CPU notifier to handle the case where our CPU
 	 * might be taken offline.
@@ -2937,9 +3098,42 @@ int mvneta_ethtool_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 int mvneta_ethtool_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
+	struct phy_device *phydev = pp->phy_dev;
 
-	if (!pp->phy_dev)
+	if (!phydev)
 		return -ENODEV;
+
+	if ((cmd->autoneg == AUTONEG_ENABLE) != pp->use_inband_status) {
+		u32 val;
+
+		mvneta_set_autoneg(pp, cmd->autoneg == AUTONEG_ENABLE);
+
+		if (cmd->autoneg == AUTONEG_DISABLE) {
+			val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+			val &= ~(MVNETA_GMAC_CONFIG_MII_SPEED |
+				 MVNETA_GMAC_CONFIG_GMII_SPEED |
+				 MVNETA_GMAC_CONFIG_FULL_DUPLEX);
+
+			if (phydev->duplex)
+				val |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+
+			if (phydev->speed == SPEED_1000)
+				val |= MVNETA_GMAC_CONFIG_GMII_SPEED;
+			else if (phydev->speed == SPEED_100)
+				val |= MVNETA_GMAC_CONFIG_MII_SPEED;
+
+			mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+		}
+
+		pp->use_inband_status = (cmd->autoneg == AUTONEG_ENABLE);
+		netdev_info(pp->dev, "autoneg status set to %i\n",
+			    pp->use_inband_status);
+
+		if (netif_running(dev)) {
+			mvneta_port_down(pp);
+			mvneta_port_up(pp);
+		}
+	}
 
 	return phy_ethtool_sset(pp->phy_dev, cmd);
 }
@@ -3050,26 +3244,25 @@ static void mvneta_ethtool_update_stats(struct mvneta_port *pp)
 	const struct mvneta_statistic *s;
 	void __iomem *base = pp->base;
 	u32 high, low, val;
+	u64 val64;
 	int i;
 
 	for (i = 0, s = mvneta_statistics;
 	     s < mvneta_statistics + ARRAY_SIZE(mvneta_statistics);
 	     s++, i++) {
-		val = 0;
-
 		switch (s->type) {
 		case T_REG_32:
 			val = readl_relaxed(base + s->offset);
+			pp->ethtool_stats[i] += val;
 			break;
 		case T_REG_64:
 			/* Docs say to read low 32-bit then high */
 			low = readl_relaxed(base + s->offset);
 			high = readl_relaxed(base + s->offset + 4);
-			val = (u64)high << 32 | low;
+			val64 = (u64)high << 32 | low;
+			pp->ethtool_stats[i] += val64;
 			break;
 		}
-
-		pp->ethtool_stats[i] += val;
 	}
 }
 
@@ -3090,6 +3283,106 @@ static int mvneta_ethtool_get_sset_count(struct net_device *dev, int sset)
 	if (sset == ETH_SS_STATS)
 		return ARRAY_SIZE(mvneta_statistics);
 	return -EOPNOTSUPP;
+}
+
+static u32 mvneta_ethtool_get_rxfh_indir_size(struct net_device *dev)
+{
+	return MVNETA_RSS_LU_TABLE_SIZE;
+}
+
+static int mvneta_ethtool_get_rxnfc(struct net_device *dev,
+				    struct ethtool_rxnfc *info,
+				    u32 *rules __always_unused)
+{
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data =  rxq_number;
+		return 0;
+	case ETHTOOL_GRXFH:
+		return -EOPNOTSUPP;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int  mvneta_config_rss(struct mvneta_port *pp)
+{
+	int cpu;
+	u32 val;
+
+	netif_tx_stop_all_queues(pp->dev);
+
+	for_each_online_cpu(cpu)
+		smp_call_function_single(cpu, mvneta_percpu_mask_interrupt,
+					 pp, true);
+
+	/* We have to synchronise on the napi of each CPU */
+	for_each_online_cpu(cpu) {
+		struct mvneta_pcpu_port *pcpu_port =
+			per_cpu_ptr(pp->ports, cpu);
+
+		napi_synchronize(&pcpu_port->napi);
+		napi_disable(&pcpu_port->napi);
+	}
+
+	pp->rxq_def = pp->indir[0];
+
+	/* Update unicast mapping */
+	mvneta_set_rx_mode(pp->dev);
+
+	/* Update val of portCfg register accordingly with all RxQueue types */
+	val = MVNETA_PORT_CONFIG_DEFL_VALUE(pp->rxq_def);
+	mvreg_write(pp, MVNETA_PORT_CONFIG, val);
+
+	/* Update the elected CPU matching the new rxq_def */
+	mvneta_percpu_elect(pp);
+
+	/* We have to synchronise on the napi of each CPU */
+	for_each_online_cpu(cpu) {
+		struct mvneta_pcpu_port *pcpu_port =
+			per_cpu_ptr(pp->ports, cpu);
+
+		napi_enable(&pcpu_port->napi);
+	}
+
+	netif_tx_start_all_queues(pp->dev);
+
+	return 0;
+}
+
+static int mvneta_ethtool_set_rxfh(struct net_device *dev, const u32 *indir,
+				   const u8 *key, const u8 hfunc)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+	/* We require at least one supported parameter to be changed
+	 * and no change in any of the unsupported parameters
+	 */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+
+	if (!indir)
+		return 0;
+
+	memcpy(pp->indir, indir, MVNETA_RSS_LU_TABLE_SIZE);
+
+	return mvneta_config_rss(pp);
+}
+
+static int mvneta_ethtool_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
+				   u8 *hfunc)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+
+	if (!indir)
+		return 0;
+
+	memcpy(indir, pp->indir, MVNETA_RSS_LU_TABLE_SIZE);
+
+	return 0;
 }
 
 static const struct net_device_ops mvneta_netdev_ops = {
@@ -3116,6 +3409,10 @@ const struct ethtool_ops mvneta_eth_tool_ops = {
 	.get_strings	= mvneta_ethtool_get_strings,
 	.get_ethtool_stats = mvneta_ethtool_get_stats,
 	.get_sset_count	= mvneta_ethtool_get_sset_count,
+	.get_rxfh_indir_size = mvneta_ethtool_get_rxfh_indir_size,
+	.get_rxnfc	= mvneta_ethtool_get_rxnfc,
+	.get_rxfh	= mvneta_ethtool_get_rxfh,
+	.set_rxfh	= mvneta_ethtool_set_rxfh,
 };
 
 /* Initialize hw */
@@ -3191,6 +3488,7 @@ static void mvneta_conf_mbus_windows(struct mvneta_port *pp,
 	}
 
 	mvreg_write(pp, MVNETA_BASE_ADDR_ENABLE, win_enable);
+	mvreg_write(pp, MVNETA_ACCESS_PROTECT_ENABLE, win_protect);
 }
 
 /* Power up the port */
@@ -3223,9 +3521,6 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 		return -EINVAL;
 	}
 
-	if (pp->use_inband_status)
-		ctrl |= MVNETA_GMAC2_INBAND_AN_ENABLE;
-
 	/* Cancel Port Reset */
 	ctrl &= ~MVNETA_GMAC2_PORT_RESET;
 	mvreg_write(pp, MVNETA_GMAC_CTRL_2, ctrl);
@@ -3250,6 +3545,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	char hw_mac_addr[ETH_ALEN];
 	const char *mac_from;
 	const char *managed;
+	int tx_csum_limit;
 	int phy_mode;
 	int err;
 	int cpu;
@@ -3306,13 +3602,23 @@ static int mvneta_probe(struct platform_device *pdev)
 				 strcmp(managed, "in-band-status") == 0);
 	pp->cpu_notifier.notifier_call = mvneta_percpu_notifier;
 
-	pp->clk = devm_clk_get(&pdev->dev, NULL);
+	pp->rxq_def = rxq_def;
+
+	pp->indir[0] = rxq_def;
+
+	pp->clk = devm_clk_get(&pdev->dev, "core");
+	if (IS_ERR(pp->clk))
+		pp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pp->clk)) {
 		err = PTR_ERR(pp->clk);
 		goto err_put_phy_node;
 	}
 
 	clk_prepare_enable(pp->clk);
+
+	pp->clk_bus = devm_clk_get(&pdev->dev, "bus");
+	if (!IS_ERR(pp->clk_bus))
+		clk_prepare_enable(pp->clk_bus);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pp->base = devm_ioremap_resource(&pdev->dev, res);
@@ -3350,8 +3656,21 @@ static int mvneta_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_device_is_compatible(dn, "marvell,armada-370-neta"))
-		pp->tx_csum_limit = 1600;
+	if (!of_property_read_u32(dn, "tx-csum-limit", &tx_csum_limit)) {
+		if (tx_csum_limit < 0 ||
+		    tx_csum_limit > MVNETA_TX_CSUM_MAX_SIZE) {
+			tx_csum_limit = MVNETA_TX_CSUM_DEF_SIZE;
+			dev_info(&pdev->dev,
+				 "Wrong TX csum limit in DT, set to %dB\n",
+				 MVNETA_TX_CSUM_DEF_SIZE);
+		}
+	} else if (of_device_is_compatible(dn, "marvell,armada-370-neta")) {
+		tx_csum_limit = MVNETA_TX_CSUM_DEF_SIZE;
+	} else {
+		tx_csum_limit = MVNETA_TX_CSUM_MAX_SIZE;
+	}
+
+	pp->tx_csum_limit = tx_csum_limit;
 
 	pp->tx_ring_size = MVNETA_MAX_TXD;
 	pp->rx_ring_size = MVNETA_MAX_RXD;
@@ -3402,7 +3721,7 @@ static int mvneta_probe(struct platform_device *pdev)
 
 		mvneta_fixed_link_update(pp, phy);
 
-		put_device(&phy->dev);
+		put_device(&phy->mdio.dev);
 	}
 
 	return 0;
@@ -3412,6 +3731,7 @@ err_free_stats:
 err_free_ports:
 	free_percpu(pp->ports);
 err_clk:
+	clk_disable_unprepare(pp->clk_bus);
 	clk_disable_unprepare(pp->clk);
 err_put_phy_node:
 	of_node_put(phy_node);
@@ -3429,6 +3749,7 @@ static int mvneta_remove(struct platform_device *pdev)
 	struct mvneta_port *pp = netdev_priv(dev);
 
 	unregister_netdev(dev);
+	clk_disable_unprepare(pp->clk_bus);
 	clk_disable_unprepare(pp->clk);
 	free_percpu(pp->ports);
 	free_percpu(pp->stats);

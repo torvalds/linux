@@ -501,8 +501,6 @@ static int bfin_can_err(struct net_device *dev, u16 isrc, u16 status)
 			cf->data[2] |= CAN_ERR_PROT_FORM;
 		else if (status & SER)
 			cf->data[2] |= CAN_ERR_PROT_STUFF;
-		else
-			cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 	}
 
 	priv->can.state = state;

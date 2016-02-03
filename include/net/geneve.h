@@ -62,6 +62,14 @@ struct genevehdr {
 	struct geneve_opt options[];
 };
 
+#if IS_ENABLED(CONFIG_GENEVE)
+void geneve_get_rx_port(struct net_device *netdev);
+#else
+static inline void geneve_get_rx_port(struct net_device *netdev)
+{
+}
+#endif
+
 #ifdef CONFIG_INET
 struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 					u8 name_assign_type, u16 dst_port);

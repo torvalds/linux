@@ -200,7 +200,8 @@ static int acpi_pss_perf_init(struct acpi_processor *pr,
 		goto err_remove_sysfs_thermal;
 	}
 
-	sysfs_remove_link(&pr->cdev->device.kobj, "device");
+	return 0;
+
  err_remove_sysfs_thermal:
 	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
  err_thermal_unregister:

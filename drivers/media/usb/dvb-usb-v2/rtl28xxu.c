@@ -181,11 +181,17 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			goto err_mutex_unlock;
 		} else if (msg[0].addr == 0x10) {
 			/* method 1 - integrated demod */
-			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
-			req.index = CMD_DEMOD_RD | dev->page;
-			req.size = msg[1].len;
-			req.data = &msg[1].buf[0];
-			ret = rtl28xxu_ctrl_msg(d, &req);
+			if (msg[0].buf[0] == 0x00) {
+				/* return demod page from driver cache */
+				msg[1].buf[0] = dev->page;
+				ret = 0;
+			} else {
+				req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
+				req.index = CMD_DEMOD_RD | dev->page;
+				req.size = msg[1].len;
+				req.data = &msg[1].buf[0];
+				ret = rtl28xxu_ctrl_msg(d, &req);
+			}
 		} else if (msg[0].len < 2) {
 			/* method 2 - old I2C */
 			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);

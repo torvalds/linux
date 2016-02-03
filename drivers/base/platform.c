@@ -26,6 +26,7 @@
 #include <linux/acpi.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/limits.h>
+#include <linux/property.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -115,6 +116,26 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 #endif
 }
 EXPORT_SYMBOL_GPL(platform_get_irq);
+
+/**
+ * platform_irq_count - Count the number of IRQs a platform device uses
+ * @dev: platform device
+ *
+ * Return: Number of IRQs a platform device uses or EPROBE_DEFER
+ */
+int platform_irq_count(struct platform_device *dev)
+{
+	int ret, nr = 0;
+
+	while ((ret = platform_get_irq(dev, nr)) >= 0)
+		nr++;
+
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
+	return nr;
+}
+EXPORT_SYMBOL_GPL(platform_irq_count);
 
 /**
  * platform_get_resource_byname - get a resource for a device by name
@@ -299,6 +320,22 @@ int platform_device_add_data(struct platform_device *pdev, const void *data,
 EXPORT_SYMBOL_GPL(platform_device_add_data);
 
 /**
+ * platform_device_add_properties - add built-in properties to a platform device
+ * @pdev: platform device to add properties to
+ * @pset: properties to add
+ *
+ * The function will take deep copy of the properties in @pset and attach
+ * the copy to the platform device. The memory associated with properties
+ * will be freed when the platform device is released.
+ */
+int platform_device_add_properties(struct platform_device *pdev,
+				   const struct property_set *pset)
+{
+	return device_add_property_set(&pdev->dev, pset);
+}
+EXPORT_SYMBOL_GPL(platform_device_add_properties);
+
+/**
  * platform_device_add - add a platform device to device hierarchy
  * @pdev: platform device we're adding
  *
@@ -409,6 +446,8 @@ void platform_device_del(struct platform_device *pdev)
 			if (r->parent)
 				release_resource(r);
 		}
+
+		device_remove_property_set(&pdev->dev);
 	}
 }
 EXPORT_SYMBOL_GPL(platform_device_del);
@@ -487,6 +526,12 @@ struct platform_device *platform_device_register_full(
 	if (ret)
 		goto err;
 
+	if (pdevinfo->pset) {
+		ret = platform_device_add_properties(pdev, pdevinfo->pset);
+		if (ret)
+			goto err;
+	}
+
 	ret = platform_device_add(pdev);
 	if (ret) {
 err:
@@ -513,10 +558,15 @@ static int platform_drv_probe(struct device *_dev)
 		return ret;
 
 	ret = dev_pm_domain_attach(_dev, true);
-	if (ret != -EPROBE_DEFER && drv->probe) {
-		ret = drv->probe(dev);
-		if (ret)
-			dev_pm_domain_detach(_dev, true);
+	if (ret != -EPROBE_DEFER) {
+		if (drv->probe) {
+			ret = drv->probe(dev);
+			if (ret)
+				dev_pm_domain_detach(_dev, true);
+		} else {
+			/* don't fail if just dev_pm_domain_attach failed */
+			ret = 0;
+		}
 	}
 
 	if (drv->prevent_deferred_probe && ret == -EPROBE_DEFER) {
@@ -552,7 +602,6 @@ static void platform_drv_shutdown(struct device *_dev)
 
 	if (drv->shutdown)
 		drv->shutdown(dev);
-	dev_pm_domain_detach(_dev, true);
 }
 
 /**

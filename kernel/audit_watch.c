@@ -364,7 +364,7 @@ static int audit_get_nd(struct audit_watch *watch, struct path *parent)
 	struct dentry *d = kern_path_locked(watch->path, parent);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
-	mutex_unlock(&d_backing_inode(parent->dentry)->i_mutex);
+	inode_unlock(d_backing_inode(parent->dentry));
 	if (d_is_positive(d)) {
 		/* update watch filter fields */
 		watch->dev = d_backing_inode(d)->i_sb->s_dev;

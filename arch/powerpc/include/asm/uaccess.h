@@ -274,21 +274,6 @@ do {								\
 	__gu_err;						\
 })
 
-#ifndef __powerpc64__
-#define __get_user64_nocheck(x, ptr, size)			\
-({								\
-	long __gu_err;						\
-	long long __gu_val;					\
-	__typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
-	__chk_user_ptr(ptr);					\
-	if (!is_kernel_addr((unsigned long)__gu_addr))		\
-		might_fault();					\
-	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
-	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
-	__gu_err;						\
-})
-#endif /* __powerpc64__ */
-
 #define __get_user_check(x, ptr, size)					\
 ({									\
 	long __gu_err = -EFAULT;					\
