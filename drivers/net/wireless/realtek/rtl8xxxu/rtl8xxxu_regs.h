@@ -456,6 +456,8 @@
 #define REG_NEED_CPU_HANDLE		0x04e0
 #define REG_PKT_LOSE_RPT		0x04e1
 #define REG_PTCL_ERR_STATUS		0x04e2
+#define REG_TX_REPORT_CTRL		0x04ec
+#define REG_TX_REPORT_TIME		0x04f0
 #define REG_DUMMY			0x04fc
 
 /* 0x0500 ~ 0x05FF	EDCA Configuration */
