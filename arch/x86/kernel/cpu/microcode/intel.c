@@ -839,12 +839,11 @@ static int apply_microcode_intel(int cpu)
 {
 	struct microcode_intel *mc;
 	struct ucode_cpu_info *uci;
+	struct cpuinfo_x86 *c;
 	unsigned int val[2];
-	int cpu_num = raw_smp_processor_id();
-	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
 
 	/* We should bind the task to the CPU */
-	if (WARN_ON(cpu_num != cpu))
+	if (WARN_ON(raw_smp_processor_id() != cpu))
 		return -1;
 
 	uci = ucode_cpu_info + cpu;
@@ -874,14 +873,17 @@ static int apply_microcode_intel(int cpu)
 
 	if (val[1] != mc->hdr.rev) {
 		pr_err("CPU%d update to revision 0x%x failed\n",
-		       cpu_num, mc->hdr.rev);
+		       cpu, mc->hdr.rev);
 		return -1;
 	}
+
 	pr_info("CPU%d updated to revision 0x%x, date = %04x-%02x-%02x\n",
-		cpu_num, val[1],
+		cpu, val[1],
 		mc->hdr.date & 0xffff,
 		mc->hdr.date >> 24,
 		(mc->hdr.date >> 16) & 0xff);
+
+	c = &cpu_data(cpu);
 
 	uci->cpu_sig.rev = val[1];
 	c->microcode = val[1];
