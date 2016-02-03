@@ -568,7 +568,7 @@ static int uvd_v5_0_ring_test_ib(struct amdgpu_ring *ring)
 		goto error;
 	}
 
-	r = amdgpu_uvd_get_destroy_msg(ring, 1, &fence);
+	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
 		goto error;

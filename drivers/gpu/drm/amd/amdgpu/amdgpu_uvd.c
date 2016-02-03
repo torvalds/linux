@@ -241,7 +241,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 
 			amdgpu_uvd_note_usage(adev);
 
-			r = amdgpu_uvd_get_destroy_msg(ring, handle, &fence);
+			r = amdgpu_uvd_get_destroy_msg(ring, handle, false, &fence);
 			if (r) {
 				DRM_ERROR("Error destroying UVD (%d)!\n", r);
 				continue;
@@ -295,7 +295,8 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 
 			amdgpu_uvd_note_usage(adev);
 
-			r = amdgpu_uvd_get_destroy_msg(ring, handle, &fence);
+			r = amdgpu_uvd_get_destroy_msg(ring, handle,
+						       false, &fence);
 			if (r) {
 				DRM_ERROR("Error destroying UVD (%d)!\n", r);
 				continue;
@@ -823,9 +824,8 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 	return 0;
 }
 
-static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
-			       struct amdgpu_bo *bo,
-			       struct fence **fence)
+static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
+			       bool direct, struct fence **fence)
 {
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
@@ -872,9 +872,19 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 		ib->ptr[i] = PACKET2(0);
 	ib->length_dw = 16;
 
-	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_UNDEFINED, &f);
-	if (r)
-		goto err_free;
+	if (direct) {
+		r = amdgpu_ib_schedule(ring, 1, ib,
+				       AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+		if (r)
+			goto err_free;
+
+		amdgpu_job_free(job);
+	} else {
+		r = amdgpu_job_submit(job, ring,
+				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+		if (r)
+			goto err_free;
+	}
 
 	ttm_eu_fence_buffer_objects(&ticket, &head, f);
 
@@ -942,11 +952,11 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	amdgpu_bo_kunmap(bo);
 	amdgpu_bo_unreserve(bo);
 
-	return amdgpu_uvd_send_msg(ring, bo, fence);
+	return amdgpu_uvd_send_msg(ring, bo, true, fence);
 }
 
 int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       struct fence **fence)
+			       bool direct, struct fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_bo *bo;
@@ -984,7 +994,7 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	amdgpu_bo_kunmap(bo);
 	amdgpu_bo_unreserve(bo);
 
-	return amdgpu_uvd_send_msg(ring, bo, fence);
+	return amdgpu_uvd_send_msg(ring, bo, direct, fence);
 }
 
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
