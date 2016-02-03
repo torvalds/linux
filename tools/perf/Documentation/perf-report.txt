@@ -351,7 +351,10 @@ OPTIONS
 
 --percent-limit::
 	Do not show entries which have an overhead under that percent.
-	(Default: 0).
+	(Default: 0).  Note that this option also sets the percent limit (threshold)
+	of callchains.  However the default value of callchain threshold is
+	different than the default value of hist entries.  Please see the
+	--call-graph option for details.
 
 --percentage::
 	Determine how to display the overhead percentage of filtered entries.
