@@ -486,8 +486,6 @@ static int sync_fill_fence_info(struct fence *fence, void *data, int size)
 	if (size < sizeof(*info))
 		return -ENOMEM;
 
-	info->len = sizeof(*info);
-
 	strlcpy(info->obj_name, fence->ops->get_timeline_name(fence),
 		sizeof(info->obj_name));
 	strlcpy(info->driver_name, fence->ops->get_driver_name(fence),
@@ -498,7 +496,7 @@ static int sync_fill_fence_info(struct fence *fence, void *data, int size)
 		info->status = 0;
 	info->timestamp_ns = ktime_to_ns(fence->timestamp);
 
-	return info->len;
+	return sizeof(*info);
 }
 
 static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
