@@ -2077,10 +2077,6 @@ static void udc_suspend_for_power_lost(struct ci_hdrc *ci)
 /* Power lost with device mode */
 static void udc_resume_from_power_lost(struct ci_hdrc *ci)
 {
-	/* Force disconnect if power lost with vbus on */
-	if (!ci_otg_is_fsm_mode(ci) && ci->vbus_active)
-		usb_gadget_vbus_disconnect(&ci->gadget);
-
 	if (ci->is_otg)
 		hw_write_otgsc(ci, OTGSC_BSVIS | OTGSC_BSVIE,
 					OTGSC_BSVIS | OTGSC_BSVIE);

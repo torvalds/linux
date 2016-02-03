@@ -835,11 +835,13 @@ static void ci_start_new_role(struct ci_hdrc *ci)
 {
 	enum ci_role role = ci_get_role(ci);
 
-	if (ci->role != role)
+	if (ci->role != role) {
 		ci_handle_id_switch(ci);
-
-	if (role == CI_ROLE_GADGET)
+	} else if (role == CI_ROLE_GADGET) {
+		if (ci->vbus_active)
+			usb_gadget_vbus_disconnect(&ci->gadget);
 		ci_handle_vbus_connected(ci);
+	}
 }
 
 static void ci_power_lost_work(struct work_struct *work)
