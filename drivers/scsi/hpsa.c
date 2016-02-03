@@ -4369,8 +4369,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 			ncurrent++;
 			break;
 		case TYPE_ENCLOSURE:
-			if (!this_device->external)
-				hpsa_get_enclosure_info(h, lunaddrbytes,
+			hpsa_get_enclosure_info(h, lunaddrbytes,
 						physdev_list, phys_dev_index,
 						this_device);
 			ncurrent++;
