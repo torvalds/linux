@@ -2536,8 +2536,6 @@ static int rtl8xxxu_init_rf_regs(struct rtl8xxxu_priv *priv,
 			continue;
 		}
 
-		reg &= 0x3f;
-
 		ret = rtl8xxxu_write_rfreg(priv, path, reg, val);
 		if (ret) {
 			dev_warn(&priv->udev->dev,
