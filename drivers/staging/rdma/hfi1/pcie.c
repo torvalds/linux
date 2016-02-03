@@ -1032,8 +1032,11 @@ retry:
 	/* step 4: download PCIe Gen3 SerDes firmware */
 	dd_dev_info(dd, "%s: downloading firmware\n", __func__);
 	ret = load_pcie_firmware(dd);
-	if (ret)
+	if (ret) {
+		/* do not proceed if the firmware cannot be downloaded */
+		return_error = 1;
 		goto done;
+	}
 
 	/* step 5: set up device parameter settings */
 	dd_dev_info(dd, "%s: setting PCIe registers\n", __func__);

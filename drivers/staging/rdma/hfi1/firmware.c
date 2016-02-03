@@ -593,19 +593,6 @@ retry:
 		fw_pcie_serdes_name = ALT_FW_PCIE_NAME;
 	}
 
-	if (fw_8051_load) {
-		err = obtain_one_firmware(dd, fw_8051_name, &fw_8051);
-		if (err)
-			goto done;
-	}
-
-	if (fw_fabric_serdes_load) {
-		err = obtain_one_firmware(dd, fw_fabric_serdes_name,
-			&fw_fabric);
-		if (err)
-			goto done;
-	}
-
 	if (fw_sbus_load) {
 		err = obtain_one_firmware(dd, fw_sbus_name, &fw_sbus);
 		if (err)
@@ -618,11 +605,24 @@ retry:
 			goto done;
 	}
 
+	if (fw_fabric_serdes_load) {
+		err = obtain_one_firmware(dd, fw_fabric_serdes_name,
+					  &fw_fabric);
+		if (err)
+			goto done;
+	}
+
+	if (fw_8051_load) {
+		err = obtain_one_firmware(dd, fw_8051_name, &fw_8051);
+		if (err)
+			goto done;
+	}
+
 done:
 	if (err) {
 		/* oops, had problems obtaining a firmware */
-		if (fw_state == FW_EMPTY) {
-			/* retry with alternate */
+		if (fw_state == FW_EMPTY && dd->icode == ICODE_RTL_SILICON) {
+			/* retry with alternate (RTL only) */
 			fw_state = FW_TRY;
 			goto retry;
 		}
