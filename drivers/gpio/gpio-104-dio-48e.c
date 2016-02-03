@@ -40,7 +40,6 @@ MODULE_PARM_DESC(dio_48e_irq, "ACCES 104-DIO-48E interrupt line number");
  * @control:	Control registers state
  * @lock:	synchronization lock to prevent I/O race conditions
  * @base:	base port address of the GPIO device
- * @extent:	extent of port address region of the GPIO device
  * @irq:	Interrupt line number
  * @irq_mask:	I/O bits affected by interrupts
  */
@@ -51,7 +50,6 @@ struct dio48e_gpio {
 	unsigned char control[2];
 	spinlock_t lock;
 	unsigned base;
-	unsigned extent;
 	unsigned irq;
 	unsigned char irq_mask;
 };
@@ -310,11 +308,10 @@ static int __init dio48e_probe(struct platform_device *pdev)
 	if (!dio48egpio)
 		return -ENOMEM;
 
-	if (!request_region(base, extent, name)) {
-		dev_err(dev, "Unable to lock %s port addresses (0x%X-0x%X)\n",
-			name, base, base + extent);
-		err = -EBUSY;
-		goto err_lock_io_port;
+	if (!devm_request_region(dev, base, extent, name)) {
+		dev_err(dev, "Unable to lock port addresses (0x%X-0x%X)\n",
+			base, base + extent);
+		return -EBUSY;
 	}
 
 	dio48egpio->chip.label = name;
@@ -328,7 +325,6 @@ static int __init dio48e_probe(struct platform_device *pdev)
 	dio48egpio->chip.get = dio48e_gpio_get;
 	dio48egpio->chip.set = dio48e_gpio_set;
 	dio48egpio->base = base;
-	dio48egpio->extent = extent;
 	dio48egpio->irq = irq;
 
 	spin_lock_init(&dio48egpio->lock);
@@ -338,7 +334,7 @@ static int __init dio48e_probe(struct platform_device *pdev)
 	err = gpiochip_add_data(&dio48egpio->chip, dio48egpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		goto err_gpio_register;
+		return err;
 	}
 
 	/* initialize all GPIO as output */
@@ -360,23 +356,19 @@ static int __init dio48e_probe(struct platform_device *pdev)
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(dev, "Could not add irqchip (%d)\n", err);
-		goto err_gpiochip_irqchip_add;
+		goto err_gpiochip_remove;
 	}
 
 	err = request_irq(irq, dio48e_irq_handler, 0, name, dio48egpio);
 	if (err) {
 		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
-		goto err_request_irq;
+		goto err_gpiochip_remove;
 	}
 
 	return 0;
 
-err_request_irq:
-err_gpiochip_irqchip_add:
+err_gpiochip_remove:
 	gpiochip_remove(&dio48egpio->chip);
-err_gpio_register:
-	release_region(base, extent);
-err_lock_io_port:
 	return err;
 }
 
@@ -386,7 +378,6 @@ static int dio48e_remove(struct platform_device *pdev)
 
 	free_irq(dio48egpio->irq, dio48egpio);
 	gpiochip_remove(&dio48egpio->chip);
-	release_region(dio48egpio->base, dio48egpio->extent);
 
 	return 0;
 }
