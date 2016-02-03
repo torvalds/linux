@@ -1463,6 +1463,9 @@ static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	if (lancer_chip(adapter) && vid == 0)
 		return 0;
 
+	if (!test_bit(vid, adapter->vids))
+		return 0;
+
 	clear_bit(vid, adapter->vids);
 	adapter->vlans_added--;
 
