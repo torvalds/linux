@@ -256,7 +256,7 @@ struct rvt_driver_provided {
 	void (*notify_new_ah)(struct ib_device *, struct ib_ah_attr *,
 			      struct rvt_ah *);
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-			 enum ib_qp_type type, u8 port, gfp_t gfp);
+			 enum ib_qp_type type, u8 port_num, gfp_t gfp);
 	/**
 	 * Return 0 if modification is valid, -errno otherwise
 	 */
@@ -408,7 +408,7 @@ int rvt_register_device(struct rvt_dev_info *rvd);
 void rvt_unregister_device(struct rvt_dev_info *rvd);
 int rvt_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 int rvt_init_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
-		  int portnum, u16 *pkey_table);
+		  int port_index, u16 *pkey_table);
 int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		u32 len, u64 vaddr, u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,

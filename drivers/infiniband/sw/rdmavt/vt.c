@@ -120,14 +120,17 @@ static int rvt_modify_device(struct ib_device *device,
 /**
  * rvt_query_port: Passes the query port call to the driver
  * @ibdev: Verbs IB dev
- * @port: port number
+ * @port_num: port number, 1 based from ib core
  * @props: structure to hold returned properties
  *
  * Returns 0 on success
  */
-static int rvt_query_port(struct ib_device *ibdev, u8 port,
+static int rvt_query_port(struct ib_device *ibdev, u8 port_num,
 			  struct ib_port_attr *props)
 {
+	if (ibport_num_to_idx(ibdev, port_num) < 0)
+		return -EINVAL;
+
 	/*
 	 * VT-DRIVER-API: query_port_state()
 	 * driver returns pretty much everything in ib_port_attr
@@ -138,13 +141,13 @@ static int rvt_query_port(struct ib_device *ibdev, u8 port,
 /**
  * rvt_modify_port
  * @ibdev: Verbs IB dev
- * @port: Port number
+ * @port_num: Port number, 1 based from ib core
  * @port_modify_mask: How to change the port
  * @props: Structure to fill in
  *
  * Returns 0 on success
  */
-static int rvt_modify_port(struct ib_device *ibdev, u8 port,
+static int rvt_modify_port(struct ib_device *ibdev, u8 port_num,
 			   int port_modify_mask, struct ib_port_modify *props)
 {
 	/*
@@ -160,18 +163,21 @@ static int rvt_modify_port(struct ib_device *ibdev, u8 port,
 	 * TBD: send_trap() and post_mad_send() need examined to see where they
 	 * fit in.
 	 */
+	if (ibport_num_to_idx(ibdev, port_num) < 0)
+		return -EINVAL;
+
 	return -EOPNOTSUPP;
 }
 
 /**
  * rvt_query_pkey - Return a pkey from the table at a given index
  * @ibdev: Verbs IB dev
- * @port: Port number
+ * @port_num: Port number, 1 based from ib core
  * @intex: Index into pkey table
  *
  * Returns 0 on failure pkey otherwise
  */
-static int rvt_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+static int rvt_query_pkey(struct ib_device *ibdev, u8 port_num, u16 index,
 			  u16 *pkey)
 {
 	/*
@@ -183,11 +189,11 @@ static int rvt_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
 	int port_index;
 
-	if (index >= rvt_get_npkeys(rdi))
+	port_index = ibport_num_to_idx(ibdev, port_num);
+	if (port_index < 0)
 		return -EINVAL;
 
-	port_index = port - 1; /* IB ports start at 1 our array at 0 */
-	if ((port_index < 0) || (port_index >= rdi->dparms.nports))
+	if (index >= rvt_get_npkeys(rdi))
 		return -EINVAL;
 
 	*pkey = rvt_get_pkey(rdi, port_index, index);
@@ -197,13 +203,13 @@ static int rvt_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 /**
  * rvt_query_gid - Return a gid from the table
  * @ibdev: Verbs IB dev
- * @port: Port number
+ * @port_num: Port number, 1 based from ib core
  * @index: = Index in table
  * @gid: Gid to return
  *
  * Returns 0 on success
  */
-static int rvt_query_gid(struct ib_device *ibdev, u8 port,
+static int rvt_query_gid(struct ib_device *ibdev, u8 port_num,
 			 int index, union ib_gid *gid)
 {
 	/*
@@ -211,6 +217,8 @@ static int rvt_query_gid(struct ib_device *ibdev, u8 port,
 	 * to craft the return value. This will work similar to how query_pkey()
 	 * is being done.
 	 */
+	if (ibport_num_to_idx(ibdev, port_num) < 0)
+		return -EINVAL;
 
 	return -EOPNOTSUPP;
 }
@@ -455,11 +463,11 @@ EXPORT_SYMBOL(rvt_unregister_device);
  * They persist until the driver goes away.
  */
 int rvt_init_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
-		  int portnum, u16 *pkey_table)
+		  int port_index, u16 *pkey_table)
 {
 
-	rdi->ports[portnum] = port;
-	rdi->ports[portnum]->pkey_table = pkey_table;
+	rdi->ports[port_index] = port;
+	rdi->ports[port_index]->pkey_table = pkey_table;
 
 	return 0;
 }

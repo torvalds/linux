@@ -47,12 +47,13 @@
 
 #include <rdma/ib_mad.h>
 #include "mad.h"
+#include "vt.h"
 
 /**
  * rvt_process_mad - process an incoming MAD packet
  * @ibdev: the infiniband device this packet came in on
  * @mad_flags: MAD flags
- * @port: the port number this packet came in on
+ * @port_num: the port number this packet came in on, 1 based from ib core
  * @in_wc: the work completion entry for this packet
  * @in_grh: the global route header for this packet
  * @in_mad: the incoming MAD
@@ -67,7 +68,7 @@
  *
  * This is called by the ib_mad module.
  */
-int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
+int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		    const struct ib_mad_hdr *in, size_t in_mad_size,
 		    struct ib_mad_hdr *out, size_t *out_mad_size,
@@ -82,6 +83,9 @@ int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 	 *VT-DRIVER-API: ????
 	 *
 	 */
+	if (ibport_num_to_idx(ibdev, port_num) < 0)
+		return -EINVAL;
+
 	return IB_MAD_RESULT_FAILURE;
 }
 

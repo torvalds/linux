@@ -286,26 +286,31 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
 }
 
-/*
- * Allocate the next available QPN or
- * zero/one for QP type IB_QPT_SMI/IB_QPT_GSI.
+/**
+ * alloc_qpn - Allocate the next available qpn or zero/one for QP type
+ *	       IB_QPT_SMI/IB_QPT_GSI
+ *@rdi:	rvt device info structure
+ *@qpt: queue pair number table pointer
+ *@port_num: IB port number, 1 based, comes from core
+ *
+ * Return: The queue pair number
  */
 static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-		     enum ib_qp_type type, u8 port, gfp_t gfp)
+		     enum ib_qp_type type, u8 port_num, gfp_t gfp)
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
 	u32 ret;
 
 	if (rdi->driver_f.alloc_qpn)
-		return rdi->driver_f.alloc_qpn(rdi, qpt, type, port,
+		return rdi->driver_f.alloc_qpn(rdi, qpt, type, port_num,
 					       GFP_KERNEL);
 
 	if (type == IB_QPT_SMI || type == IB_QPT_GSI) {
 		unsigned n;
 
 		ret = type == IB_QPT_GSI;
-		n = 1 << (ret + 2 * (port - 1));
+		n = 1 << (ret + 2 * (port_num - 1));
 		spin_lock(&qpt->lock);
 		if (qpt->flags & n)
 			ret = -EINVAL;
