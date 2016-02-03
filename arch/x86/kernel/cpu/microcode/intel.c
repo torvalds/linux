@@ -843,12 +843,12 @@ static int apply_microcode_intel(int cpu)
 	int cpu_num = raw_smp_processor_id();
 	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
 
+	/* We should bind the task to the CPU */
+	if (WARN_ON(cpu_num != cpu))
+		return -1;
+
 	uci = ucode_cpu_info + cpu;
 	mc = uci->mc;
-
-	/* We should bind the task to the CPU */
-	BUG_ON(cpu_num != cpu);
-
 	if (!mc)
 		return 0;
 
