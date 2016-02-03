@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Corporation.
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -102,12 +102,15 @@ static int set_rcvarray_entry(struct file *, unsigned long, u32,
 			      struct tid_group *, struct page **, unsigned);
 static inline int mmu_addr_cmp(struct mmu_rb_node *, unsigned long,
 			       unsigned long);
-static struct mmu_rb_node *mmu_rb_search_by_addr(struct rb_root *,
-						 unsigned long);
-static inline struct mmu_rb_node *mmu_rb_search_by_entry(struct rb_root *,
-							 u32);
-static int mmu_rb_insert_by_addr(struct rb_root *, struct mmu_rb_node *);
-static int mmu_rb_insert_by_entry(struct rb_root *, struct mmu_rb_node *);
+static struct mmu_rb_node *mmu_rb_search(struct rb_root *, unsigned long);
+static int mmu_rb_insert_by_addr(struct hfi1_filedata *, struct rb_root *,
+				 struct mmu_rb_node *);
+static int mmu_rb_insert_by_entry(struct hfi1_filedata *, struct rb_root *,
+				  struct mmu_rb_node *);
+static void mmu_rb_remove_by_addr(struct hfi1_filedata *, struct rb_root *,
+				  struct mmu_rb_node *);
+static void mmu_rb_remove_by_entry(struct hfi1_filedata *, struct rb_root *,
+				   struct mmu_rb_node *);
 static void mmu_notifier_mem_invalidate(struct mmu_notifier *,
 					unsigned long, unsigned long,
 					enum mmu_call_types);
@@ -219,6 +222,12 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 		}
 	}
 
+	fd->entry_to_rb = kcalloc(uctxt->expected_count,
+				     sizeof(struct rb_node *),
+				     GFP_KERNEL);
+	if (!fd->entry_to_rb)
+		return -ENOMEM;
+
 	if (!HFI1_CAP_IS_USET(TID_UNMAP)) {
 		fd->invalid_tid_idx = 0;
 		fd->invalid_tids = kzalloc(uctxt->expected_count *
@@ -226,27 +235,30 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 		if (!fd->invalid_tids) {
 			ret = -ENOMEM;
 			goto done;
-		} else {
-			/*
-			 * Register MMU notifier callbacks. If the registration
-			 * fails, continue but turn off the TID caching for
-			 * all user contexts.
-			 */
-			ret = mmu_notifier_register(&fd->mn, current->mm);
-			if (ret) {
-				dd_dev_info(dd,
-					    "Failed MMU notifier registration %d\n",
-					    ret);
-				HFI1_CAP_USET(TID_UNMAP);
-				ret = 0;
-			}
+		}
+
+		/*
+		 * Register MMU notifier callbacks. If the registration
+		 * fails, continue but turn off the TID caching for
+		 * all user contexts.
+		 */
+		ret = mmu_notifier_register(&fd->mn, current->mm);
+		if (ret) {
+			dd_dev_info(dd,
+				    "Failed MMU notifier registration %d\n",
+				    ret);
+			HFI1_CAP_USET(TID_UNMAP);
+			ret = 0;
 		}
 	}
 
-	if (HFI1_CAP_IS_USET(TID_UNMAP))
+	if (HFI1_CAP_IS_USET(TID_UNMAP)) {
 		fd->mmu_rb_insert = mmu_rb_insert_by_entry;
-	else
+		fd->mmu_rb_remove = mmu_rb_remove_by_entry;
+	} else {
 		fd->mmu_rb_insert = mmu_rb_insert_by_addr;
+		fd->mmu_rb_remove = mmu_rb_remove_by_addr;
+	}
 
 	/*
 	 * PSM does not have a good way to separate, count, and
@@ -318,6 +330,8 @@ int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 		spin_unlock(&fd->rb_lock);
 		hfi1_clear_tids(uctxt);
 	}
+
+	kfree(fd->entry_to_rb);
 	return 0;
 }
 
@@ -890,7 +904,7 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 	memcpy(node->pages, pages, sizeof(struct page *) * npages);
 
 	spin_lock(&fd->rb_lock);
-	ret = fd->mmu_rb_insert(root, node);
+	ret = fd->mmu_rb_insert(fd, root, node);
 	spin_unlock(&fd->rb_lock);
 
 	if (ret) {
@@ -915,8 +929,7 @@ static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
 	struct hfi1_devdata *dd = uctxt->dd;
 	struct mmu_rb_node *node;
 	u8 tidctrl = EXP_TID_GET(tidinfo, CTRL);
-	u32 tidbase = uctxt->expected_base,
-		tididx = EXP_TID_GET(tidinfo, IDX) << 1, rcventry;
+	u32 tididx = EXP_TID_GET(tidinfo, IDX) << 1, rcventry;
 
 	if (tididx >= uctxt->expected_count) {
 		dd_dev_err(dd, "Invalid RcvArray entry (%u) index for ctxt %u\n",
@@ -927,15 +940,15 @@ static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
 	if (tidctrl == 0x3)
 		return -EINVAL;
 
-	rcventry = tidbase + tididx + (tidctrl - 1);
+	rcventry = tididx + (tidctrl - 1);
 
 	spin_lock(&fd->rb_lock);
-	node = mmu_rb_search_by_entry(&fd->tid_rb_root, rcventry);
-	if (!node) {
+	node = fd->entry_to_rb[rcventry];
+	if (!node || node->rcventry != (uctxt->expected_base + rcventry)) {
 		spin_unlock(&fd->rb_lock);
 		return -EBADF;
 	}
-	rb_erase(&node->rbnode, &fd->tid_rb_root);
+	fd->mmu_rb_remove(fd, &fd->tid_rb_root, node);
 	spin_unlock(&fd->rb_lock);
 	if (grp)
 		*grp = node->grp;
@@ -993,10 +1006,11 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 				u16 rcventry = grp->base + i;
 				struct mmu_rb_node *node;
 
-				node = mmu_rb_search_by_entry(root, rcventry);
-				if (!node)
+				node = fd->entry_to_rb[rcventry -
+							  uctxt->expected_base];
+				if (!node || node->rcventry != rcventry)
 					continue;
-				rb_erase(&node->rbnode, root);
+				fd->mmu_rb_remove(fd, root, node);
 				clear_tid_node(fd, -1, node);
 			}
 		}
@@ -1034,7 +1048,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 
 	spin_lock(&fd->rb_lock);
 	while (addr < end) {
-		node = mmu_rb_search_by_addr(root, addr);
+		node = mmu_rb_search(root, addr);
 
 		if (!node) {
 			/*
@@ -1116,8 +1130,8 @@ static inline int mmu_entry_cmp(struct mmu_rb_node *node, u32 entry)
 		return 0;
 }
 
-static struct mmu_rb_node *mmu_rb_search_by_addr(struct rb_root *root,
-						 unsigned long addr)
+static struct mmu_rb_node *mmu_rb_search(struct rb_root *root,
+					 unsigned long addr)
 {
 	struct rb_node *node = root->rb_node;
 
@@ -1142,48 +1156,21 @@ static struct mmu_rb_node *mmu_rb_search_by_addr(struct rb_root *root,
 	return NULL;
 }
 
-static inline struct mmu_rb_node *mmu_rb_search_by_entry(struct rb_root *root,
-							 u32 index)
-{
-	struct mmu_rb_node *rbnode;
-	struct rb_node *node;
-
-	if (root && !RB_EMPTY_ROOT(root))
-		for (node = rb_first(root); node; node = rb_next(node)) {
-			rbnode = rb_entry(node, struct mmu_rb_node, rbnode);
-			if (rbnode->rcventry == index)
-				return rbnode;
-		}
-	return NULL;
-}
-
-static int mmu_rb_insert_by_entry(struct rb_root *root,
+static int mmu_rb_insert_by_entry(struct hfi1_filedata *fdata,
+				  struct rb_root *root,
 				  struct mmu_rb_node *node)
 {
-	struct rb_node **new = &root->rb_node, *parent = NULL;
+	u32 base = fdata->uctxt->expected_base;
 
-	while (*new) {
-		struct mmu_rb_node *this =
-			container_of(*new, struct mmu_rb_node, rbnode);
-		int result = mmu_entry_cmp(this, node->rcventry);
-
-		parent = *new;
-		if (result < 0)
-			new = &((*new)->rb_left);
-		else if (result > 0)
-			new = &((*new)->rb_right);
-		else
-			return 1;
-	}
-
-	rb_link_node(&node->rbnode, parent, new);
-	rb_insert_color(&node->rbnode, root);
+	fdata->entry_to_rb[node->rcventry - base] = node;
 	return 0;
 }
 
-static int mmu_rb_insert_by_addr(struct rb_root *root, struct mmu_rb_node *node)
+static int mmu_rb_insert_by_addr(struct hfi1_filedata *fdata,
+				 struct rb_root *root, struct mmu_rb_node *node)
 {
 	struct rb_node **new = &root->rb_node, *parent = NULL;
+	u32 base = fdata->uctxt->expected_base;
 
 	/* Figure out where to put new node */
 	while (*new) {
@@ -1204,5 +1191,25 @@ static int mmu_rb_insert_by_addr(struct rb_root *root, struct mmu_rb_node *node)
 	rb_link_node(&node->rbnode, parent, new);
 	rb_insert_color(&node->rbnode, root);
 
+	fdata->entry_to_rb[node->rcventry - base] = node;
 	return 0;
+}
+
+static void mmu_rb_remove_by_entry(struct hfi1_filedata *fdata,
+				   struct rb_root *root,
+				   struct mmu_rb_node *node)
+{
+	u32 base = fdata->uctxt->expected_base;
+
+	fdata->entry_to_rb[node->rcventry - base] = NULL;
+}
+
+static void mmu_rb_remove_by_addr(struct hfi1_filedata *fdata,
+				  struct rb_root *root,
+				  struct mmu_rb_node *node)
+{
+	u32 base = fdata->uctxt->expected_base;
+
+	fdata->entry_to_rb[node->rcventry - base] = NULL;
+	rb_erase(&node->rbnode, root);
 }
