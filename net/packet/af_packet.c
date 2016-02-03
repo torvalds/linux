@@ -2206,7 +2206,9 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		unsigned int maclen = skb_network_offset(skb);
 		netoff = TPACKET_ALIGN(po->tp_hdrlen +
 				       (maclen < 16 ? 16 : maclen)) +
-			po->tp_reserve;
+				       po->tp_reserve;
+		if (po->has_vnet_hdr)
+			netoff += sizeof(struct virtio_net_hdr);
 		macoff = netoff - maclen;
 	}
 	if (po->tp_version <= TPACKET_V2) {
@@ -2243,7 +2245,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	h.raw = packet_current_rx_frame(po, skb,
 					TP_STATUS_KERNEL, (macoff+snaplen));
 	if (!h.raw)
-		goto ring_is_full;
+		goto drop_n_account;
 	if (po->tp_version <= TPACKET_V2) {
 		packet_increment_rx_head(po, &po->rx_ring);
 	/*
@@ -2261,6 +2263,14 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		__skb_queue_tail(&sk->sk_receive_queue, copy_skb);
 	}
 	spin_unlock(&sk->sk_receive_queue.lock);
+
+	if (po->has_vnet_hdr) {
+		if (__packet_rcv_vnet(skb, h.raw + macoff -
+					   sizeof(struct virtio_net_hdr))) {
+			spin_lock(&sk->sk_receive_queue.lock);
+			goto drop_n_account;
+		}
+	}
 
 	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
 
@@ -2357,7 +2367,7 @@ drop:
 	kfree_skb(skb);
 	return 0;
 
-ring_is_full:
+drop_n_account:
 	po->stats.stats1.tp_drops++;
 	spin_unlock(&sk->sk_receive_queue.lock);
 
@@ -3587,7 +3597,8 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 		}
 		if (optlen < len)
 			return -EINVAL;
-		if (pkt_sk(sk)->has_vnet_hdr)
+		if (pkt_sk(sk)->has_vnet_hdr &&
+		    optname == PACKET_TX_RING)
 			return -EINVAL;
 		if (copy_from_user(&req_u.req, optval, len))
 			return -EFAULT;
