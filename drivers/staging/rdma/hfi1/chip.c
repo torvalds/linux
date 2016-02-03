@@ -6684,11 +6684,17 @@ static void rxe_freeze(struct hfi1_devdata *dd)
  */
 static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 {
+	u32 rcvmask;
 	int i;
 
 	/* enable all kernel contexts */
-	for (i = 0; i < dd->n_krcv_queues; i++)
-		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_ENB, i);
+	for (i = 0; i < dd->n_krcv_queues; i++) {
+		rcvmask = HFI1_RCVCTRL_CTXT_ENB;
+		/* HFI1_RCVCTRL_TAILUPD_[ENB|DIS] needs to be set explicitly */
+		rcvmask |= HFI1_CAP_KGET_MASK(dd->rcd[i]->flags, DMA_RTAIL) ?
+			HFI1_RCVCTRL_TAILUPD_ENB : HFI1_RCVCTRL_TAILUPD_DIS;
+		hfi1_rcvctrl(dd, rcvmask, i);
+	}
 
 	/* enable port */
 	add_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
@@ -11255,6 +11261,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		if (dd->rcvhdrtail_dummy_physaddr) {
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
 					dd->rcvhdrtail_dummy_physaddr);
+			/* Enabling RcvCtxtCtrl.TailUpd is intentional. */
 			rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 		}
 
@@ -11266,8 +11273,11 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		rcvctrl &= ~RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
 	if (op & HFI1_RCVCTRL_TAILUPD_ENB && rcd->rcvhdrqtailaddr_phys)
 		rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
-	if (op & HFI1_RCVCTRL_TAILUPD_DIS)
-		rcvctrl &= ~RCV_CTXT_CTRL_TAIL_UPD_SMASK;
+	if (op & HFI1_RCVCTRL_TAILUPD_DIS) {
+		/* See comment on RcvCtxtCtrl.TailUpd above */
+		if (!(op & HFI1_RCVCTRL_CTXT_DIS))
+			rcvctrl &= ~RCV_CTXT_CTRL_TAIL_UPD_SMASK;
+	}
 	if (op & HFI1_RCVCTRL_TIDFLOW_ENB)
 		rcvctrl |= RCV_CTXT_CTRL_TID_FLOW_ENABLE_SMASK;
 	if (op & HFI1_RCVCTRL_TIDFLOW_DIS)
