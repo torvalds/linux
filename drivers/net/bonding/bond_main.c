@@ -928,11 +928,10 @@ void bond_select_active_slave(struct bonding *bond)
 		if (!rv)
 			return;
 
-		if (netif_carrier_ok(bond->dev)) {
+		if (netif_carrier_ok(bond->dev))
 			netdev_info(bond->dev, "first active interface up!\n");
-		} else {
+		else
 			netdev_info(bond->dev, "now running without any active interface!\n");
-		}
 	}
 }
 
@@ -1178,9 +1177,8 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		}
 	}
 
-	if (bond_should_deliver_exact_match(skb, slave, bond)) {
+	if (bond_should_deliver_exact_match(skb, slave, bond))
 		return RX_HANDLER_EXACT;
-	}
 
 	skb->dev = bond->dev;
 
@@ -1241,7 +1239,7 @@ static struct slave *bond_alloc_slave(struct bonding *bond)
 {
 	struct slave *slave = NULL;
 
-	slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
+	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
 	if (!slave)
 		return NULL;
 
