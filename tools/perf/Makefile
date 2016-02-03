@@ -75,10 +75,17 @@ clean:
 	$(make)
 
 #
-# The build-test target is not really parallel, don't print the jobs info:
+# The build-test target is not really parallel, don't print the jobs info,
+# it also uses only the tests/make targets that don't pollute the source
+# repository, i.e. that uses O= or builds the tarpkg outside the source
+# repo directories.
+#
+# For a full test, use:
+#
+# make -C tools/perf -f tests/make
 #
 build-test:
-	@$(MAKE) SHUF=1 -f tests/make --no-print-directory
+	@$(MAKE) SHUF=1 -f tests/make REUSE_FEATURES_DUMP=1 MK=Makefile --no-print-directory tarpkg out
 
 #
 # All other targets get passed through:

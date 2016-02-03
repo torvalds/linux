@@ -61,50 +61,45 @@ endif
 
 ifeq ($(LIBUNWIND_LIBS),)
   NO_LIBUNWIND := 1
-else
-  #
-  # For linking with debug library, run like:
-  #
-  #   make DEBUG=1 LIBUNWIND_DIR=/opt/libunwind/
-  #
-  ifdef LIBUNWIND_DIR
-    LIBUNWIND_CFLAGS  = -I$(LIBUNWIND_DIR)/include
-    LIBUNWIND_LDFLAGS = -L$(LIBUNWIND_DIR)/lib
-  endif
-  LIBUNWIND_LDFLAGS += $(LIBUNWIND_LIBS)
-
-  # Set per-feature check compilation flags
-  FEATURE_CHECK_CFLAGS-libunwind = $(LIBUNWIND_CFLAGS)
-  FEATURE_CHECK_LDFLAGS-libunwind = $(LIBUNWIND_LDFLAGS)
-  FEATURE_CHECK_CFLAGS-libunwind-debug-frame = $(LIBUNWIND_CFLAGS)
-  FEATURE_CHECK_LDFLAGS-libunwind-debug-frame = $(LIBUNWIND_LDFLAGS)
 endif
+#
+# For linking with debug library, run like:
+#
+#   make DEBUG=1 LIBUNWIND_DIR=/opt/libunwind/
+#
+ifdef LIBUNWIND_DIR
+  LIBUNWIND_CFLAGS  = -I$(LIBUNWIND_DIR)/include
+  LIBUNWIND_LDFLAGS = -L$(LIBUNWIND_DIR)/lib
+endif
+LIBUNWIND_LDFLAGS += $(LIBUNWIND_LIBS)
+
+# Set per-feature check compilation flags
+FEATURE_CHECK_CFLAGS-libunwind = $(LIBUNWIND_CFLAGS)
+FEATURE_CHECK_LDFLAGS-libunwind = $(LIBUNWIND_LDFLAGS)
+FEATURE_CHECK_CFLAGS-libunwind-debug-frame = $(LIBUNWIND_CFLAGS)
+FEATURE_CHECK_LDFLAGS-libunwind-debug-frame = $(LIBUNWIND_LDFLAGS)
 
 ifeq ($(NO_PERF_REGS),0)
   CFLAGS += -DHAVE_PERF_REGS_SUPPORT
 endif
 
-ifndef NO_LIBELF
-  # for linking with debug library, run like:
-  # make DEBUG=1 LIBDW_DIR=/opt/libdw/
-  ifdef LIBDW_DIR
-    LIBDW_CFLAGS  := -I$(LIBDW_DIR)/include
-    LIBDW_LDFLAGS := -L$(LIBDW_DIR)/lib
-  endif
-  FEATURE_CHECK_CFLAGS-libdw-dwarf-unwind := $(LIBDW_CFLAGS)
-  FEATURE_CHECK_LDFLAGS-libdw-dwarf-unwind := $(LIBDW_LDFLAGS) -ldw
+# for linking with debug library, run like:
+# make DEBUG=1 LIBDW_DIR=/opt/libdw/
+ifdef LIBDW_DIR
+  LIBDW_CFLAGS  := -I$(LIBDW_DIR)/include
+  LIBDW_LDFLAGS := -L$(LIBDW_DIR)/lib
 endif
+FEATURE_CHECK_CFLAGS-libdw-dwarf-unwind := $(LIBDW_CFLAGS)
+FEATURE_CHECK_LDFLAGS-libdw-dwarf-unwind := $(LIBDW_LDFLAGS) -ldw
 
-ifdef LIBBABELTRACE
-  # for linking with debug library, run like:
-  # make DEBUG=1 LIBBABELTRACE_DIR=/opt/libbabeltrace/
-  ifdef LIBBABELTRACE_DIR
-    LIBBABELTRACE_CFLAGS  := -I$(LIBBABELTRACE_DIR)/include
-    LIBBABELTRACE_LDFLAGS := -L$(LIBBABELTRACE_DIR)/lib
-  endif
-  FEATURE_CHECK_CFLAGS-libbabeltrace := $(LIBBABELTRACE_CFLAGS)
-  FEATURE_CHECK_LDFLAGS-libbabeltrace := $(LIBBABELTRACE_LDFLAGS) -lbabeltrace-ctf
+# for linking with debug library, run like:
+# make DEBUG=1 LIBBABELTRACE_DIR=/opt/libbabeltrace/
+ifdef LIBBABELTRACE_DIR
+  LIBBABELTRACE_CFLAGS  := -I$(LIBBABELTRACE_DIR)/include
+  LIBBABELTRACE_LDFLAGS := -L$(LIBBABELTRACE_DIR)/lib
 endif
+FEATURE_CHECK_CFLAGS-libbabeltrace := $(LIBBABELTRACE_CFLAGS)
+FEATURE_CHECK_LDFLAGS-libbabeltrace := $(LIBBABELTRACE_LDFLAGS) -lbabeltrace-ctf
 
 FEATURE_CHECK_CFLAGS-bpf = -I. -I$(srctree)/tools/include -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/include/uapi
 # include ARCH specific config
@@ -145,28 +140,26 @@ ifdef PARSER_DEBUG
   $(call detected_var,PARSER_DEBUG_FLEX)
 endif
 
-ifndef NO_LIBPYTHON
-  # Try different combinations to accommodate systems that only have
-  # python[2][-config] in weird combinations but always preferring
-  # python2 and python2-config as per pep-0394. If we catch a
-  # python[-config] in version 3, the version check will kill it.
-  PYTHON2 := $(if $(call get-executable,python2),python2,python)
-  override PYTHON := $(call get-executable-or-default,PYTHON,$(PYTHON2))
-  PYTHON2_CONFIG := \
-    $(if $(call get-executable,$(PYTHON)-config),$(PYTHON)-config,python-config)
-  override PYTHON_CONFIG := \
-    $(call get-executable-or-default,PYTHON_CONFIG,$(PYTHON2_CONFIG))
+# Try different combinations to accommodate systems that only have
+# python[2][-config] in weird combinations but always preferring
+# python2 and python2-config as per pep-0394. If we catch a
+# python[-config] in version 3, the version check will kill it.
+PYTHON2 := $(if $(call get-executable,python2),python2,python)
+override PYTHON := $(call get-executable-or-default,PYTHON,$(PYTHON2))
+PYTHON2_CONFIG := \
+  $(if $(call get-executable,$(PYTHON)-config),$(PYTHON)-config,python-config)
+override PYTHON_CONFIG := \
+  $(call get-executable-or-default,PYTHON_CONFIG,$(PYTHON2_CONFIG))
 
-  PYTHON_CONFIG_SQ := $(call shell-sq,$(PYTHON_CONFIG))
+PYTHON_CONFIG_SQ := $(call shell-sq,$(PYTHON_CONFIG))
 
-  PYTHON_EMBED_LDOPTS := $(shell $(PYTHON_CONFIG_SQ) --ldflags 2>/dev/null)
-  PYTHON_EMBED_CCOPTS := $(shell $(PYTHON_CONFIG_SQ) --cflags 2>/dev/null)
+PYTHON_EMBED_LDOPTS := $(shell $(PYTHON_CONFIG_SQ) --ldflags 2>/dev/null)
+PYTHON_EMBED_CCOPTS := $(shell $(PYTHON_CONFIG_SQ) --cflags 2>/dev/null)
 
-  FEATURE_CHECK_CFLAGS-libpython := $(PYTHON_EMBED_CCOPTS)
-  FEATURE_CHECK_LDFLAGS-libpython := $(PYTHON_EMBED_LDOPTS)
-  FEATURE_CHECK_CFLAGS-libpython-version := $(PYTHON_EMBED_CCOPTS)
-  FEATURE_CHECK_LDFLAGS-libpython-version := $(PYTHON_EMBED_LDOPTS)
-endif
+FEATURE_CHECK_CFLAGS-libpython := $(PYTHON_EMBED_CCOPTS)
+FEATURE_CHECK_LDFLAGS-libpython := $(PYTHON_EMBED_LDOPTS)
+FEATURE_CHECK_CFLAGS-libpython-version := $(PYTHON_EMBED_CCOPTS)
+FEATURE_CHECK_LDFLAGS-libpython-version := $(PYTHON_EMBED_LDOPTS)
 
 CFLAGS += -fno-omit-frame-pointer
 CFLAGS += -ggdb3

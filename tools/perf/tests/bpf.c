@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>
+#include <linux/bpf.h>
+#include <linux/filter.h>
+#include <bpf/bpf.h>
 #include "tests.h"
 #include "llvm.h"
 #include "debug.h"
@@ -243,6 +247,36 @@ const char *test__bpf_subtest_get_desc(int i)
 	return bpf_testcase_table[i].desc;
 }
 
+static int check_env(void)
+{
+	int err;
+	unsigned int kver_int;
+	char license[] = "GPL";
+
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	};
+
+	err = fetch_kernel_version(&kver_int, NULL, 0);
+	if (err) {
+		pr_debug("Unable to get kernel version\n");
+		return err;
+	}
+
+	err = bpf_load_program(BPF_PROG_TYPE_KPROBE, insns,
+			       sizeof(insns) / sizeof(insns[0]),
+			       license, kver_int, NULL, 0);
+	if (err < 0) {
+		pr_err("Missing basic BPF support, skip this test: %s\n",
+		       strerror(errno));
+		return err;
+	}
+	close(err);
+
+	return 0;
+}
+
 int test__bpf(int i)
 {
 	int err;
@@ -254,6 +288,9 @@ int test__bpf(int i)
 		pr_debug("Only root can run BPF test\n");
 		return TEST_SKIP;
 	}
+
+	if (check_env())
+		return TEST_SKIP;
 
 	err = __test__bpf(i);
 	return err;
