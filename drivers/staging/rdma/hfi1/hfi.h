@@ -1536,6 +1536,11 @@ static inline struct hfi1_pportdata *ppd_from_ibp(struct hfi1_ibport *ibp)
 	return container_of(ibp, struct hfi1_pportdata, ibport_data);
 }
 
+static inline struct hfi1_ibdev *dev_from_rdi(struct rvt_dev_info *rdi)
+{
+	return container_of(rdi, struct hfi1_ibdev, rdi);
+}
+
 static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);

@@ -234,9 +234,12 @@ static void bad_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
 /*
  * Send a Port Capability Mask Changed trap (ch. 14.3.11).
  */
-void hfi1_cap_mask_chg(struct hfi1_ibport *ibp)
+void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
 {
 	struct opa_mad_notice_attr data;
+	struct hfi1_ibdev *verbs_dev = dev_from_rdi(rdi);
+	struct hfi1_devdata *dd = dd_from_dev(verbs_dev);
+	struct hfi1_ibport *ibp = &dd->pport[port_num - 1].ibport_data;
 	u32 lid = ppd_from_ibp(ibp)->lid;
 
 	memset(&data, 0, sizeof(data));
