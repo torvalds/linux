@@ -337,7 +337,7 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 
 		amdgpu_vce_note_usage(adev);
 
-		r = amdgpu_vce_get_destroy_msg(ring, handle, NULL);
+		r = amdgpu_vce_get_destroy_msg(ring, handle, false, NULL);
 		if (r)
 			DRM_ERROR("Error destroying VCE handle (%d)!\n", r);
 
@@ -411,9 +411,11 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+	r = amdgpu_ib_schedule(ring, 1, ib, AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 	if (r)
 		goto err;
+
+	amdgpu_job_free(job);
 	if (fence)
 		*fence = fence_get(f);
 	fence_put(f);
@@ -435,7 +437,7 @@ err:
  * Close up a stream for HW test or if userspace failed to do so
  */
 int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       struct fence **fence)
+			       bool direct, struct fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_job *job;
@@ -468,9 +470,21 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
-	r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_UNDEFINED, &f);
-	if (r)
-		goto err;
+
+	if (direct) {
+		r = amdgpu_ib_schedule(ring, 1, ib,
+				       AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+		if (r)
+			goto err;
+
+		amdgpu_job_free(job);
+	} else {
+		r = amdgpu_job_submit(job, ring,
+				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+		if (r)
+			goto err;
+	}
+
 	if (fence)
 		*fence = fence_get(f);
 	fence_put(f);
@@ -811,7 +825,7 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring)
 		goto error;
 	}
 
-	r = amdgpu_vce_get_destroy_msg(ring, 1, &fence);
+	r = amdgpu_vce_get_destroy_msg(ring, 1, true, &fence);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
 		goto error;
