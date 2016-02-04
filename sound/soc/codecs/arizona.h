@@ -68,6 +68,8 @@ struct wm_adsp;
 
 struct arizona_dai_priv {
 	int clk;
+
+	struct snd_pcm_hw_constraint_list constraint;
 };
 
 struct arizona_priv {
