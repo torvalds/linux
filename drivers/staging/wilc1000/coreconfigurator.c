@@ -336,7 +336,7 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 
 		tim_elm = get_tim_elm(msa, rx_len + FCS_LEN, index);
 		if (tim_elm)
-			network_info->u8DtimPeriod = tim_elm[3];
+			network_info->dtim_period = tim_elm[3];
 		ies = &msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN];
 		ies_len = rx_len - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
 

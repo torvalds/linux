@@ -374,7 +374,7 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	memcpy(last_scanned_shadow[ap_index].bssid,
 	       pstrNetworkInfo->bssid, ETH_ALEN);
 	last_scanned_shadow[ap_index].beacon_period = pstrNetworkInfo->beacon_period;
-	last_scanned_shadow[ap_index].u8DtimPeriod = pstrNetworkInfo->u8DtimPeriod;
+	last_scanned_shadow[ap_index].dtim_period = pstrNetworkInfo->dtim_period;
 	last_scanned_shadow[ap_index].u8channel = pstrNetworkInfo->u8channel;
 	last_scanned_shadow[ap_index].u16IEsLen = pstrNetworkInfo->u16IEsLen;
 	last_scanned_shadow[ap_index].u64Tsf = pstrNetworkInfo->u64Tsf;
