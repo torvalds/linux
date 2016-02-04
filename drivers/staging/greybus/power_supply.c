@@ -249,39 +249,53 @@ static int gb_power_supply_description_get(struct gb_power_supply *gbpsy)
 static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 {
 	struct gb_connection *connection = get_conn_from_psy(gbpsy);
-	struct gb_power_supply_get_property_descriptors_request req;
-	struct gb_power_supply_get_property_descriptors_response resp;
+	struct gb_power_supply_get_property_descriptors_request *req;
+	struct gb_power_supply_get_property_descriptors_response *resp;
+	struct gb_operation *op;
+	u8 props_count = gbpsy->properties_count;
 	int ret;
 	int i;
 
-	if (gbpsy->properties_count == 0)
+	if (props_count == 0)
 		return 0;
 
-	req.psy_id = gbpsy->id;
+	op = gb_operation_create(connection,
+				 GB_POWER_SUPPLY_TYPE_GET_PROP_DESCRIPTORS,
+				 sizeof(req), sizeof(*resp) + props_count *
+				 sizeof(struct gb_power_supply_props_desc),
+				 GFP_KERNEL);
+	if (!op)
+		return -ENOMEM;
 
-	ret = gb_operation_sync(connection,
-				GB_POWER_SUPPLY_TYPE_GET_PROP_DESCRIPTORS,
-				&req, sizeof(req), &resp,
-				sizeof(resp) + gbpsy->properties_count *
-				sizeof(struct gb_power_supply_props_desc));
+	req = op->request->payload;
+	req->psy_id = gbpsy->id;
+
+	ret = gb_operation_request_send_sync(op);
 	if (ret < 0)
-		return ret;
+		goto out_put_operation;
+
+	resp = op->response->payload;
 
 	gbpsy->props = kcalloc(gbpsy->properties_count, sizeof(*gbpsy->props),
 			      GFP_KERNEL);
-	if (!gbpsy->props)
-		return -ENOMEM;
+	if (!gbpsy->props) {
+		ret = -ENOMEM;
+		goto out_put_operation;
+	}
 
-	gbpsy->props_raw = kzalloc(gbpsy->properties_count *
-				  sizeof(*gbpsy->props_raw), GFP_KERNEL);
-	if (!gbpsy->props_raw)
-		return -ENOMEM;
+	gbpsy->props_raw = kcalloc(gbpsy->properties_count,
+				   sizeof(*gbpsy->props_raw), GFP_KERNEL);
+	if (!gbpsy->props_raw) {
+		ret = -ENOMEM;
+		goto out_put_operation;
+	}
+
 
 	/* Store available properties */
 	for (i = 0; i < gbpsy->properties_count; i++) {
-		gbpsy->props[i].prop = resp.props[i].property;
-		gbpsy->props_raw[i] = resp.props[i].property;
-		if (resp.props[i].is_writeable)
+		gbpsy->props[i].prop = resp->props[i].property;
+		gbpsy->props_raw[i] = resp->props[i].property;
+		if (resp->props[i].is_writeable)
 			gbpsy->props[i].is_writeable = true;
 	}
 
@@ -291,7 +305,10 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 	 */
 	_gb_power_supply_append_props(gbpsy);
 
-	return 0;
+out_put_operation:
+	gb_operation_put(op);
+
+	return ret;
 }
 
 static int __gb_power_supply_property_update(struct gb_power_supply *gbpsy,
