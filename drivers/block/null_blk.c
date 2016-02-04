@@ -478,7 +478,7 @@ static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 	id->ver_id = 0x1;
 	id->vmnt = 0;
 	id->cgrps = 1;
-	id->cap = 0x3;
+	id->cap = 0x2;
 	id->dom = 0x1;
 
 	id->ppaf.blk_offset = 0;
