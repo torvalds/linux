@@ -353,28 +353,6 @@ s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info)
 	return 0;
 }
 
-s32 wilc_dealloc_network_info(tstrNetworkInfo *network_info)
-{
-	s32 result = 0;
-
-	if (network_info) {
-		if (network_info->pu8IEs) {
-			kfree(network_info->pu8IEs);
-			network_info->pu8IEs = NULL;
-		} else {
-			result = -EFAULT;
-		}
-
-		kfree(network_info);
-		network_info = NULL;
-
-	} else {
-		result = -EFAULT;
-	}
-
-	return result;
-}
-
 s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 			       tstrConnectRespInfo **ret_connect_resp_info)
 {

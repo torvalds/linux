@@ -1410,8 +1410,8 @@ done:
 	pstrRcvdNetworkInfo->buffer = NULL;
 
 	if (pstrNetworkInfo) {
-		wilc_dealloc_network_info(pstrNetworkInfo);
-		pstrNetworkInfo = NULL;
+		kfree(pstrNetworkInfo->pu8IEs);
+		kfree(pstrNetworkInfo);
 	}
 
 	return result;
