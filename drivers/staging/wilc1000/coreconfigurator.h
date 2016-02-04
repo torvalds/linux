@@ -98,11 +98,11 @@ typedef struct {
 } tstrNetworkInfo;
 
 struct connect_resp_info {
-	u16 u16capability;
-	u16 u16ConnectStatus;
-	u16 u16AssocID;
-	u8 *pu8RespIEs;
-	u16 u16RespIEsLen;
+	u16 capability;
+	u16 status;
+	u16 assoc_id;
+	u8 *ies;
+	u16 ies_len;
 };
 
 typedef struct {

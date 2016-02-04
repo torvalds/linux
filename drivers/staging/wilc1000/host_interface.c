@@ -1489,19 +1489,19 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 					if (s32Err) {
 						PRINT_ER("wilc_parse_assoc_resp_info() returned error %d\n", s32Err);
 					} else {
-						strConnectInfo.u16ConnectStatus = pstrConnectRespInfo->u16ConnectStatus;
+						strConnectInfo.u16ConnectStatus = pstrConnectRespInfo->status;
 
 						if (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE) {
-							if (pstrConnectRespInfo->pu8RespIEs) {
-								strConnectInfo.u16RespIEsLen = pstrConnectRespInfo->u16RespIEsLen;
-								strConnectInfo.pu8RespIEs = kmalloc(pstrConnectRespInfo->u16RespIEsLen, GFP_KERNEL);
-								memcpy(strConnectInfo.pu8RespIEs, pstrConnectRespInfo->pu8RespIEs,
-									    pstrConnectRespInfo->u16RespIEsLen);
+							if (pstrConnectRespInfo->ies) {
+								strConnectInfo.u16RespIEsLen = pstrConnectRespInfo->ies_len;
+								strConnectInfo.pu8RespIEs = kmalloc(pstrConnectRespInfo->ies_len, GFP_KERNEL);
+								memcpy(strConnectInfo.pu8RespIEs, pstrConnectRespInfo->ies,
+								       pstrConnectRespInfo->ies_len);
 							}
 						}
 
 						if (pstrConnectRespInfo) {
-							kfree(pstrConnectRespInfo->pu8RespIEs);
+							kfree(pstrConnectRespInfo->ies);
 							kfree(pstrConnectRespInfo);
 						}
 					}

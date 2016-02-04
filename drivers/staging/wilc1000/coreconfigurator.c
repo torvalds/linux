@@ -367,19 +367,19 @@ s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 
 	assoc_resp_len = (u16)buffer_len;
 
-	connect_resp_info->u16ConnectStatus = get_asoc_status(buffer);
-	if (connect_resp_info->u16ConnectStatus == SUCCESSFUL_STATUSCODE) {
-		connect_resp_info->u16capability = get_assoc_resp_cap_info(buffer);
-		connect_resp_info->u16AssocID = get_asoc_id(buffer);
+	connect_resp_info->status = get_asoc_status(buffer);
+	if (connect_resp_info->status == SUCCESSFUL_STATUSCODE) {
+		connect_resp_info->capability = get_assoc_resp_cap_info(buffer);
+		connect_resp_info->assoc_id = get_asoc_id(buffer);
 
 		ies = &buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
 		ies_len = assoc_resp_len - (CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN);
 
-		connect_resp_info->pu8RespIEs = kmemdup(ies, ies_len, GFP_KERNEL);
-		if (!connect_resp_info->pu8RespIEs)
+		connect_resp_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
+		if (!connect_resp_info->ies)
 			return -ENOMEM;
 
-		connect_resp_info->u16RespIEsLen = ies_len;
+		connect_resp_info->ies_len = ies_len;
 	}
 
 	*ret_connect_resp_info = connect_resp_info;
