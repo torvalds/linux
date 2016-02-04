@@ -135,7 +135,7 @@ struct be_ctrl_info {
 
 	wait_queue_head_t mcc_wait[MAX_MCC_CMD + 1];
 	unsigned int mcc_tag[MAX_MCC_CMD];
-	unsigned int mcc_numtag[MAX_MCC_CMD + 1];
+	unsigned int mcc_tag_status[MAX_MCC_CMD + 1];
 	unsigned short mcc_alloc_index;
 	unsigned short mcc_free_index;
 	unsigned int mcc_tag_available;
@@ -144,6 +144,12 @@ struct be_ctrl_info {
 };
 
 #include "be_cmds.h"
+
+/* WRB index mask for MCC_Q_LEN queue entries */
+#define MCC_Q_WRB_IDX_MASK	CQE_STATUS_WRB_MASK
+#define MCC_Q_WRB_IDX_SHIFT	CQE_STATUS_WRB_SHIFT
+/* TAG is from 1...MAX_MCC_CMD, MASK includes MAX_MCC_CMD */
+#define MCC_Q_CMD_TAG_MASK	((MAX_MCC_CMD << 1) - 1)
 
 #define PAGE_SHIFT_4K 12
 #define PAGE_SIZE_4K (1 << PAGE_SHIFT_4K)

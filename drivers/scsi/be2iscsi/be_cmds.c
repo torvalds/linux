@@ -125,7 +125,7 @@ unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
 	if (phba->ctrl.mcc_tag_available) {
 		tag = phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index];
 		phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
-		phba->ctrl.mcc_numtag[tag] = 0;
+		phba->ctrl.mcc_tag_status[tag] = 0;
 		phba->ctrl.ptag_state[tag].tag_state = 0;
 	}
 	if (tag) {
@@ -157,7 +157,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 		struct be_dma_mem *mbx_cmd_mem)
 {
 	int rc = 0;
-	uint32_t mcc_tag_response;
+	uint32_t mcc_tag_status;
 	uint16_t status = 0, addl_status = 0, wrb_num = 0;
 	struct be_mcc_wrb *temp_wrb;
 	struct be_cmd_req_hdr *mbx_hdr;
@@ -172,7 +172,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 	/* wait for the mccq completion */
 	rc = wait_event_interruptible_timeout(
 				phba->ctrl.mcc_wait[tag],
-				phba->ctrl.mcc_numtag[tag],
+				phba->ctrl.mcc_tag_status[tag],
 				msecs_to_jiffies(
 				BEISCSI_HOST_MBX_TIMEOUT));
 	/**
@@ -209,15 +209,15 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 	}
 
 	rc = 0;
-	mcc_tag_response = phba->ctrl.mcc_numtag[tag];
-	status = (mcc_tag_response & CQE_STATUS_MASK);
-	addl_status = ((mcc_tag_response & CQE_STATUS_ADDL_MASK) >>
+	mcc_tag_status = phba->ctrl.mcc_tag_status[tag];
+	status = (mcc_tag_status & CQE_STATUS_MASK);
+	addl_status = ((mcc_tag_status & CQE_STATUS_ADDL_MASK) >>
 			CQE_STATUS_ADDL_SHIFT);
 
 	if (mbx_cmd_mem) {
 		mbx_hdr = (struct be_cmd_req_hdr *)mbx_cmd_mem->va;
 	} else {
-		wrb_num = (mcc_tag_response & CQE_STATUS_WRB_MASK) >>
+		wrb_num = (mcc_tag_status & CQE_STATUS_WRB_MASK) >>
 			   CQE_STATUS_WRB_SHIFT;
 		temp_wrb = (struct be_mcc_wrb *)queue_get_wrb(mccq, wrb_num);
 		mbx_hdr = embedded_payload(temp_wrb);
@@ -257,7 +257,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag)
 {
 	spin_lock(&ctrl->mcc_lock);
-	tag = tag & 0x000000FF;
+	tag = tag & MCC_Q_CMD_TAG_MASK;
 	ctrl->mcc_tag[ctrl->mcc_free_index] = tag;
 	if (ctrl->mcc_free_index == (MAX_MCC_CMD - 1))
 		ctrl->mcc_free_index = 0;
@@ -334,10 +334,11 @@ int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	u16 compl_status, extd_status;
 	struct be_dma_mem *tag_mem;
-	unsigned short tag;
+	unsigned int tag, wrb_idx;
 
 	be_dws_le_to_cpu(compl, 4);
-	tag = (compl->tag0 & 0x000000FF);
+	tag = (compl->tag0 & MCC_Q_CMD_TAG_MASK);
+	wrb_idx = (compl->tag0 & CQE_STATUS_WRB_MASK) >> CQE_STATUS_WRB_SHIFT;
 
 	if (!test_bit(MCC_TAG_STATE_RUNNING,
 		      &ctrl->ptag_state[tag].tag_state)) {
@@ -366,17 +367,18 @@ int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
 	}
 
 	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
-					CQE_STATUS_COMPL_MASK;
-	/* The ctrl.mcc_numtag[tag] is filled with
+		       CQE_STATUS_COMPL_MASK;
+	extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
+		      CQE_STATUS_EXTD_MASK;
+	/* The ctrl.mcc_tag_status[tag] is filled with
 	 * [31] = valid, [30:24] = Rsvd, [23:16] = wrb, [15:8] = extd_status,
 	 * [7:0] = compl_status
 	 */
-	extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
-					CQE_STATUS_EXTD_MASK;
-	ctrl->mcc_numtag[tag]  = 0x80000000;
-	ctrl->mcc_numtag[tag] |= (compl->tag0 & 0x00FF0000);
-	ctrl->mcc_numtag[tag] |= (extd_status & 0x000000FF) << 8;
-	ctrl->mcc_numtag[tag] |= (compl_status & 0x000000FF);
+	ctrl->mcc_tag_status[tag] = CQE_VALID_MASK;
+	ctrl->mcc_tag_status[tag] |= (wrb_idx << CQE_STATUS_WRB_SHIFT);
+	ctrl->mcc_tag_status[tag] |= (extd_status << CQE_STATUS_ADDL_SHIFT) &
+				     CQE_STATUS_ADDL_MASK;
+	ctrl->mcc_tag_status[tag] |= (compl_status & CQE_STATUS_MASK);
 
 	/* write ordering implied in wake_up_interruptible */
 	clear_bit(MCC_TAG_STATE_RUNNING, &ctrl->ptag_state[tag].tag_state);
@@ -844,7 +846,7 @@ struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba)
 	WARN_ON(atomic_read(&mccq->used) >= mccq->len);
 	wrb = queue_head_node(mccq);
 	memset(wrb, 0, sizeof(*wrb));
-	wrb->tag0 = (mccq->head & 0x000000FF) << 16;
+	wrb->tag0 = (mccq->head << MCC_Q_WRB_IDX_SHIFT) & MCC_Q_WRB_IDX_MASK;
 	queue_head_inc(mccq);
 	atomic_inc(&mccq->used);
 	return wrb;

@@ -5241,11 +5241,12 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 
 		rc = wait_event_interruptible_timeout(
 					phba->ctrl.mcc_wait[tag],
-					phba->ctrl.mcc_numtag[tag],
+					phba->ctrl.mcc_tag_status[tag],
 					msecs_to_jiffies(
 					BEISCSI_HOST_MBX_TIMEOUT));
-		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+		extd_status = (phba->ctrl.mcc_tag_status[tag] &
+			       CQE_STATUS_ADDL_MASK) >> CQE_STATUS_ADDL_SHIFT;
+		status = phba->ctrl.mcc_tag_status[tag] & CQE_STATUS_MASK;
 		free_mcc_tag(&phba->ctrl, tag);
 		resp = (struct be_cmd_resp_hdr *)nonemb_cmd.va;
 		sg_copy_from_buffer(job->reply_payload.sg_list,
@@ -5580,7 +5581,7 @@ static void beiscsi_eeh_resume(struct pci_dev *pdev)
 	for (i = 0; i < MAX_MCC_CMD; i++) {
 		init_waitqueue_head(&phba->ctrl.mcc_wait[i + 1]);
 		phba->ctrl.mcc_tag[i] = i + 1;
-		phba->ctrl.mcc_numtag[i + 1] = 0;
+		phba->ctrl.mcc_tag_status[i + 1] = 0;
 		phba->ctrl.mcc_tag_available++;
 	}
 
@@ -5739,7 +5740,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	for (i = 0; i < MAX_MCC_CMD; i++) {
 		init_waitqueue_head(&phba->ctrl.mcc_wait[i + 1]);
 		phba->ctrl.mcc_tag[i] = i + 1;
-		phba->ctrl.mcc_numtag[i + 1] = 0;
+		phba->ctrl.mcc_tag_status[i + 1] = 0;
 		phba->ctrl.mcc_tag_available++;
 		memset(&phba->ctrl.ptag_state[i].tag_mem_state, 0,
 		       sizeof(struct be_dma_mem));
