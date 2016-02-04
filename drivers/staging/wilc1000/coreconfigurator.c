@@ -356,30 +356,29 @@ s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info)
 
 s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo)
 {
-	s32 s32Error = 0;
+	s32 result = 0;
 
 	if (pstrNetworkInfo) {
 		if (pstrNetworkInfo->pu8IEs) {
 			kfree(pstrNetworkInfo->pu8IEs);
 			pstrNetworkInfo->pu8IEs = NULL;
 		} else {
-			s32Error = -EFAULT;
+			result = -EFAULT;
 		}
 
 		kfree(pstrNetworkInfo);
 		pstrNetworkInfo = NULL;
 
 	} else {
-		s32Error = -EFAULT;
+		result = -EFAULT;
 	}
 
-	return s32Error;
+	return result;
 }
 
 s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
 			       tstrConnectRespInfo **ppstrConnectRespInfo)
 {
-	s32 s32Error = 0;
 	tstrConnectRespInfo *pstrConnectRespInfo = NULL;
 	u16 u16AssocRespLen = 0;
 	u8 *pu8IEs = NULL;
@@ -408,27 +407,27 @@ s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
 
 	*ppstrConnectRespInfo = pstrConnectRespInfo;
 
-	return s32Error;
+	return 0;
 }
 
 s32 wilc_dealloc_assoc_resp_info(tstrConnectRespInfo *pstrConnectRespInfo)
 {
-	s32 s32Error = 0;
+	s32 result = 0;
 
 	if (pstrConnectRespInfo) {
 		if (pstrConnectRespInfo->pu8RespIEs) {
 			kfree(pstrConnectRespInfo->pu8RespIEs);
 			pstrConnectRespInfo->pu8RespIEs = NULL;
 		} else {
-			s32Error = -EFAULT;
+			result = -EFAULT;
 		}
 
 		kfree(pstrConnectRespInfo);
 		pstrConnectRespInfo = NULL;
 
 	} else {
-		s32Error = -EFAULT;
+		result = -EFAULT;
 	}
 
-	return s32Error;
+	return result;
 }
