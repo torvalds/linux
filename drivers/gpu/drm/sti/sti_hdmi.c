@@ -6,6 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/debugfs.h>
 #include <linux/hdmi.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
@@ -550,6 +551,172 @@ static void hdmi_swreset(struct sti_hdmi *hdmi)
 	clk_disable_unprepare(hdmi->clk_audio);
 }
 
+#define DBGFS_PRINT_STR(str1, str2) seq_printf(s, "%-24s %s\n", str1, str2)
+#define DBGFS_PRINT_INT(str1, int2) seq_printf(s, "%-24s %d\n", str1, int2)
+#define DBGFS_DUMP(str, reg) seq_printf(s, "%s  %-25s 0x%08X", str, #reg, \
+					hdmi_read(hdmi, reg))
+#define DBGFS_DUMP_DI(reg, slot) DBGFS_DUMP("\n", reg(slot))
+
+static void hdmi_dbg_cfg(struct seq_file *s, int val)
+{
+	int tmp;
+
+	seq_puts(s, "\t");
+	tmp = val & HDMI_CFG_HDMI_NOT_DVI;
+	DBGFS_PRINT_STR("mode:", tmp ? "HDMI" : "DVI");
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = val & HDMI_CFG_HDCP_EN;
+	DBGFS_PRINT_STR("HDCP:", tmp ? "enable" : "disable");
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = val & HDMI_CFG_ESS_NOT_OESS;
+	DBGFS_PRINT_STR("HDCP mode:", tmp ? "ESS enable" : "OESS enable");
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = val & HDMI_CFG_SINK_TERM_DET_EN;
+	DBGFS_PRINT_STR("Sink term detection:", tmp ? "enable" : "disable");
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = val & HDMI_CFG_H_SYNC_POL_NEG;
+	DBGFS_PRINT_STR("Hsync polarity:", tmp ? "inverted" : "normal");
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = val & HDMI_CFG_V_SYNC_POL_NEG;
+	DBGFS_PRINT_STR("Vsync polarity:", tmp ? "inverted" : "normal");
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = val & HDMI_CFG_422_EN;
+	DBGFS_PRINT_STR("YUV422 format:", tmp ? "enable" : "disable");
+}
+
+static void hdmi_dbg_sta(struct seq_file *s, int val)
+{
+	int tmp;
+
+	seq_puts(s, "\t");
+	tmp = (val & HDMI_STA_DLL_LCK);
+	DBGFS_PRINT_STR("pll:", tmp ? "locked" : "not locked");
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = (val & HDMI_STA_HOT_PLUG);
+	DBGFS_PRINT_STR("hdmi cable:", tmp ? "connected" : "not connected");
+}
+
+static void hdmi_dbg_sw_di_cfg(struct seq_file *s, int val)
+{
+	int tmp;
+	char *const en_di[] = {"no transmission",
+			       "single transmission",
+			       "once every field",
+			       "once every frame"};
+
+	seq_puts(s, "\t");
+	tmp = (val & HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, 1));
+	DBGFS_PRINT_STR("Data island 1:", en_di[tmp]);
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = (val & HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, 2)) >> 4;
+	DBGFS_PRINT_STR("Data island 2:", en_di[tmp]);
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = (val & HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, 3)) >> 8;
+	DBGFS_PRINT_STR("Data island 3:", en_di[tmp]);
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = (val & HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, 4)) >> 12;
+	DBGFS_PRINT_STR("Data island 4:", en_di[tmp]);
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = (val & HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, 5)) >> 16;
+	DBGFS_PRINT_STR("Data island 5:", en_di[tmp]);
+	seq_puts(s, "\t\t\t\t\t");
+	tmp = (val & HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, 6)) >> 20;
+	DBGFS_PRINT_STR("Data island 6:", en_di[tmp]);
+}
+
+static int hdmi_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_hdmi *hdmi = (struct sti_hdmi *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "HDMI: (vaddr = 0x%p)", hdmi->regs);
+	DBGFS_DUMP("\n", HDMI_CFG);
+	hdmi_dbg_cfg(s, hdmi_read(hdmi, HDMI_CFG));
+	DBGFS_DUMP("", HDMI_INT_EN);
+	DBGFS_DUMP("\n", HDMI_STA);
+	hdmi_dbg_sta(s, hdmi_read(hdmi, HDMI_STA));
+	DBGFS_DUMP("", HDMI_ACTIVE_VID_XMIN);
+	seq_puts(s, "\t");
+	DBGFS_PRINT_INT("Xmin:", hdmi_read(hdmi, HDMI_ACTIVE_VID_XMIN));
+	DBGFS_DUMP("", HDMI_ACTIVE_VID_XMAX);
+	seq_puts(s, "\t");
+	DBGFS_PRINT_INT("Xmax:", hdmi_read(hdmi, HDMI_ACTIVE_VID_XMAX));
+	DBGFS_DUMP("", HDMI_ACTIVE_VID_YMIN);
+	seq_puts(s, "\t");
+	DBGFS_PRINT_INT("Ymin:", hdmi_read(hdmi, HDMI_ACTIVE_VID_YMIN));
+	DBGFS_DUMP("", HDMI_ACTIVE_VID_YMAX);
+	seq_puts(s, "\t");
+	DBGFS_PRINT_INT("Ymax:", hdmi_read(hdmi, HDMI_ACTIVE_VID_YMAX));
+	DBGFS_DUMP("", HDMI_SW_DI_CFG);
+	hdmi_dbg_sw_di_cfg(s, hdmi_read(hdmi, HDMI_SW_DI_CFG));
+
+	seq_printf(s, "\n AVI Infoframe (Data Island slot N=%d):",
+		   HDMI_IFRAME_SLOT_AVI);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_HEAD_WORD, HDMI_IFRAME_SLOT_AVI);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD0, HDMI_IFRAME_SLOT_AVI);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD1, HDMI_IFRAME_SLOT_AVI);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD2, HDMI_IFRAME_SLOT_AVI);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD3, HDMI_IFRAME_SLOT_AVI);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD4, HDMI_IFRAME_SLOT_AVI);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD5, HDMI_IFRAME_SLOT_AVI);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD6, HDMI_IFRAME_SLOT_AVI);
+	seq_puts(s, "\n");
+	seq_printf(s, "\n AUDIO Infoframe (Data Island slot N=%d):",
+		   HDMI_IFRAME_SLOT_AUDIO);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_HEAD_WORD, HDMI_IFRAME_SLOT_AUDIO);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD0, HDMI_IFRAME_SLOT_AUDIO);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD1, HDMI_IFRAME_SLOT_AUDIO);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD2, HDMI_IFRAME_SLOT_AUDIO);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD3, HDMI_IFRAME_SLOT_AUDIO);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD4, HDMI_IFRAME_SLOT_AUDIO);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD5, HDMI_IFRAME_SLOT_AUDIO);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD6, HDMI_IFRAME_SLOT_AUDIO);
+	seq_puts(s, "\n");
+	seq_printf(s, "\n VENDOR SPECIFIC Infoframe (Data Island slot N=%d):",
+		   HDMI_IFRAME_SLOT_VENDOR);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_HEAD_WORD, HDMI_IFRAME_SLOT_VENDOR);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD0, HDMI_IFRAME_SLOT_VENDOR);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD1, HDMI_IFRAME_SLOT_VENDOR);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD2, HDMI_IFRAME_SLOT_VENDOR);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD3, HDMI_IFRAME_SLOT_VENDOR);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD4, HDMI_IFRAME_SLOT_VENDOR);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD5, HDMI_IFRAME_SLOT_VENDOR);
+	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD6, HDMI_IFRAME_SLOT_VENDOR);
+	seq_puts(s, "\n");
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list hdmi_debugfs_files[] = {
+	{ "hdmi", hdmi_dbg_show, 0, NULL },
+};
+
+static void hdmi_debugfs_exit(struct sti_hdmi *hdmi, struct drm_minor *minor)
+{
+	drm_debugfs_remove_files(hdmi_debugfs_files,
+				 ARRAY_SIZE(hdmi_debugfs_files),
+				 minor);
+}
+
+static int hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hdmi_debugfs_files); i++)
+		hdmi_debugfs_files[i].data = hdmi;
+
+	return drm_debugfs_create_files(hdmi_debugfs_files,
+					ARRAY_SIZE(hdmi_debugfs_files),
+					minor->debugfs_root, minor);
+}
+
 static void sti_hdmi_disable(struct drm_bridge *bridge)
 {
 	struct sti_hdmi *hdmi = bridge->driver_private;
@@ -941,6 +1108,9 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	/* Enable default interrupts */
 	hdmi_write(hdmi, HDMI_DEFAULT_INT, HDMI_INT_EN);
 
+	if (hdmi_debugfs_init(hdmi, drm_dev->primary))
+		DRM_ERROR("HDMI debugfs setup failed\n");
+
 	return 0;
 
 err_sysfs:
@@ -954,7 +1124,10 @@ err_connector:
 static void sti_hdmi_unbind(struct device *dev,
 		struct device *master, void *data)
 {
-	/* do nothing */
+	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = data;
+
+	hdmi_debugfs_exit(hdmi, drm_dev->primary);
 }
 
 static const struct component_ops sti_hdmi_ops = {

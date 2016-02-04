@@ -14,9 +14,7 @@
 
 #define HDMI_STA           0x0010
 #define HDMI_STA_DLL_LCK   BIT(5)
-
-#define HDMI_STA_HOT_PLUG_SHIFT 4
-#define HDMI_STA_HOT_PLUG	(1 << HDMI_STA_HOT_PLUG_SHIFT)
+#define HDMI_STA_HOT_PLUG  BIT(4)
 
 struct sti_hdmi;
 
