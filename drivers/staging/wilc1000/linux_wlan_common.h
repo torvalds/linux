@@ -2,14 +2,12 @@
 #define LINUX_WLAN_COMMON_H
 
 enum debug_region {
-	Generic_debug = 0,
-	Hostapd_debug,
+	Hostapd_debug = 0,
 	CFG80211_debug,
 	Init_debug,
 	COMP = 0xFFFFFFFF,
 };
 
-#define GENERIC_DBG             (1 << Generic_debug)
 #define HOSTAPD_DBG             (1 << Hostapd_debug)
 #define CFG80211_DBG            (1 << CFG80211_debug)
 #define INIT_DBG                (1 << Init_debug)

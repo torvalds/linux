@@ -253,8 +253,6 @@ void wilc_mac_indicate(struct wilc *wilc, int flag)
 		} else {
 			wilc->mac_status = status;
 		}
-	} else if (flag == WILC_MAC_INDICATE_SCAN) {
-		PRINT_D(GENERIC_DBG, "Scanning ...\n");
 	}
 }
 

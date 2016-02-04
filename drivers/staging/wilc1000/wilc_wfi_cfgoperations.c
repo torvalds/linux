@@ -317,7 +317,6 @@ static void remove_network_from_shadow(unsigned long arg)
 
 static void clear_duringIP(unsigned long arg)
 {
-	PRINT_D(GENERIC_DBG, "GO:IP Obtained , enable scan\n");
 	wilc_optaining_ip = false;
 }
 
@@ -1567,7 +1566,6 @@ static void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 	}
 	if (wlan_channel != INVALID_CHANNEL) {
 		if (channel_list_attr_index) {
-			PRINT_D(GENERIC_DBG, "Modify channel list attribute\n");
 			for (i = channel_list_attr_index + 3; i < ((channel_list_attr_index + 3) + buf[channel_list_attr_index + 1]); i++) {
 				if (buf[i] == 0x51) {
 					for (j = i + 2; j < ((i + 2) + buf[i + 1]); j++) {
@@ -1579,7 +1577,6 @@ static void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 		}
 
 		if (op_channel_attr_index) {
-			PRINT_D(GENERIC_DBG, "Modify operating channel attribute\n");
 			buf[op_channel_attr_index + 6] = 0x51;
 			buf[op_channel_attr_index + 7] = wlan_channel;
 		}
@@ -1609,7 +1606,6 @@ static void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftyp
 	}
 	if (wlan_channel != INVALID_CHANNEL && bOperChan) {
 		if (channel_list_attr_index) {
-			PRINT_D(GENERIC_DBG, "Modify channel list attribute\n");
 			for (i = channel_list_attr_index + 3; i < ((channel_list_attr_index + 3) + buf[channel_list_attr_index + 1]); i++) {
 				if (buf[i] == 0x51) {
 					for (j = i + 2; j < ((i + 2) + buf[i + 1]); j++) {
@@ -1621,7 +1617,6 @@ static void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftyp
 		}
 
 		if (op_channel_attr_index) {
-			PRINT_D(GENERIC_DBG, "Modify operating channel attribute\n");
 			buf[op_channel_attr_index + 6] = 0x51;
 			buf[op_channel_attr_index + 7] = wlan_channel;
 		}
@@ -1645,41 +1640,29 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 
 	if (pkt_offset & IS_MANAGMEMENT_CALLBACK) {
 		if (buff[FRAME_TYPE_ID] == IEEE80211_STYPE_PROBE_RESP) {
-			PRINT_D(GENERIC_DBG, "Probe response ACK\n");
 			cfg80211_mgmt_tx_status(priv->wdev, priv->u64tx_cookie, buff, size, true, GFP_KERNEL);
 			return;
 		} else {
-			if (pkt_offset & IS_MGMT_STATUS_SUCCES)	{
-				PRINT_D(GENERIC_DBG, "Success Ack - Action frame category: %x Action Subtype: %d Dialog T: %x OR %x\n", buff[ACTION_CAT_ID], buff[ACTION_SUBTYPE_ID],
-					buff[ACTION_SUBTYPE_ID + 1], buff[P2P_PUB_ACTION_SUBTYPE + 1]);
+			if (pkt_offset & IS_MGMT_STATUS_SUCCES)
 				cfg80211_mgmt_tx_status(priv->wdev, priv->u64tx_cookie, buff, size, true, GFP_KERNEL);
-			} else {
-				PRINT_D(GENERIC_DBG, "Fail Ack - Action frame category: %x Action Subtype: %d Dialog T: %x OR %x\n", buff[ACTION_CAT_ID], buff[ACTION_SUBTYPE_ID],
-					buff[ACTION_SUBTYPE_ID + 1], buff[P2P_PUB_ACTION_SUBTYPE + 1]);
+			else
 				cfg80211_mgmt_tx_status(priv->wdev, priv->u64tx_cookie, buff, size, false, GFP_KERNEL);
-			}
 			return;
 		}
 	} else {
-		PRINT_D(GENERIC_DBG, "Rx Frame Type:%x\n", buff[FRAME_TYPE_ID]);
-
 		s32Freq = ieee80211_channel_to_frequency(curr_channel, IEEE80211_BAND_2GHZ);
 
 		if (ieee80211_is_action(buff[FRAME_TYPE_ID])) {
-			PRINT_D(GENERIC_DBG, "Rx Action Frame Type: %x %x\n", buff[ACTION_SUBTYPE_ID], buff[P2P_PUB_ACTION_SUBTYPE]);
-
 			if (priv->bCfgScanning && time_after_eq(jiffies, (unsigned long)pstrWFIDrv->p2p_timeout)) {
-				PRINT_D(GENERIC_DBG, "Receiving action frames from wrong channels\n");
+				netdev_dbg(dev, "Receiving action wrong ch\n");
 				return;
 			}
 			if (buff[ACTION_CAT_ID] == PUB_ACTION_ATTR_ID) {
 				switch (buff[ACTION_SUBTYPE_ID]) {
 				case GAS_INTIAL_REQ:
-					PRINT_D(GENERIC_DBG, "GAS INITIAL REQ %x\n", buff[ACTION_SUBTYPE_ID]);
 					break;
 
 				case GAS_INTIAL_RSP:
-					PRINT_D(GENERIC_DBG, "GAS INITIAL RSP %x\n", buff[ACTION_SUBTYPE_ID]);
 					break;
 
 				case PUBLIC_ACT_VENDORSPEC:
@@ -1690,7 +1673,6 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 									if (!memcmp(p2p_vendor_spec, &buff[i], 6)) {
 										p2p_recv_random = buff[i + 6];
 										wilc_ie = true;
-										PRINT_D(GENERIC_DBG, "WILC Vendor specific IE:%02x\n", p2p_recv_random);
 										break;
 									}
 								}
@@ -1707,20 +1689,19 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 								}
 							}
 						} else {
-							PRINT_D(GENERIC_DBG, "PEER WILL BE GO LocaRand=%02x RecvRand %02x\n", p2p_local_random, p2p_recv_random);
+							netdev_dbg(dev, "PEER WILL BE GO LocaRand=%02x RecvRand %02x\n", p2p_local_random, p2p_recv_random);
 						}
 					}
 
 
 					if ((buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP) && (wilc_ie))	{
-						PRINT_D(GENERIC_DBG, "Sending P2P to host without extra elemnt\n");
 						cfg80211_rx_mgmt(priv->wdev, s32Freq, 0, buff, size - 7, 0);
 						return;
 					}
 					break;
 
 				default:
-					PRINT_D(GENERIC_DBG, "NOT HANDLED PUBLIC ACTION FRAME TYPE:%x\n", buff[ACTION_SUBTYPE_ID]);
+					netdev_dbg(dev, "NOT HANDLED PUBLIC ACTION FRAME TYPE:%x\n", buff[ACTION_SUBTYPE_ID]);
 					break;
 				}
 			}
@@ -1761,17 +1742,12 @@ static void WILC_WFI_RemainOnChannelExpired(void *pUserVoid, u32 u32SessionID)
 	priv = (struct wilc_priv *)pUserVoid;
 
 	if (u32SessionID == priv->strRemainOnChanParams.u32ListenSessionID) {
-		PRINT_D(GENERIC_DBG, "Remain on channel expired\n");
-
 		priv->bInP2PlistenState = false;
 
 		cfg80211_remain_on_channel_expired(priv->wdev,
 						   priv->strRemainOnChanParams.u64ListenCookie,
 						   priv->strRemainOnChanParams.pstrListenChan,
 						   GFP_KERNEL);
-	} else {
-		PRINT_D(GENERIC_DBG, "Received ID 0x%x Expected ID 0x%x (No match)\n", u32SessionID
-			, priv->strRemainOnChanParams.u32ListenSessionID);
 	}
 }
 
@@ -1787,11 +1763,8 @@ static int remain_on_channel(struct wiphy *wiphy,
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->dev);
 
-	PRINT_D(GENERIC_DBG, "Remaining on channel %d\n", chan->hw_value);
-
-
 	if (wdev->iftype == NL80211_IFTYPE_AP) {
-		PRINT_D(GENERIC_DBG, "Required remain-on-channel while in AP mode");
+		netdev_dbg(vif->ndev, "Required while in AP mode\n");
 		return s32Error;
 	}
 
@@ -1868,34 +1841,22 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 
 		if (ieee80211_is_probe_resp(mgmt->frame_control)) {
-			PRINT_D(GENERIC_DBG, "TX: Probe Response\n");
-			PRINT_D(GENERIC_DBG, "Setting channel: %d\n", chan->hw_value);
 			wilc_set_mac_chnl_num(vif, chan->hw_value);
 			curr_channel = chan->hw_value;
 		} else if (ieee80211_is_action(mgmt->frame_control))   {
-			PRINT_D(GENERIC_DBG, "ACTION FRAME:%x\n", (u16)mgmt->frame_control);
-
-
 			if (buf[ACTION_CAT_ID] == PUB_ACTION_ATTR_ID) {
 				if (buf[ACTION_SUBTYPE_ID] != PUBLIC_ACT_VENDORSPEC ||
 				    buf[P2P_PUB_ACTION_SUBTYPE] != GO_NEG_CONF)	{
-					PRINT_D(GENERIC_DBG, "Setting channel: %d\n", chan->hw_value);
 					wilc_set_mac_chnl_num(vif,
 							      chan->hw_value);
 					curr_channel = chan->hw_value;
 				}
 				switch (buf[ACTION_SUBTYPE_ID])	{
 				case GAS_INTIAL_REQ:
-				{
-					PRINT_D(GENERIC_DBG, "GAS INITIAL REQ %x\n", buf[ACTION_SUBTYPE_ID]);
 					break;
-				}
 
 				case GAS_INTIAL_RSP:
-				{
-					PRINT_D(GENERIC_DBG, "GAS INITIAL RSP %x\n", buf[ACTION_SUBTYPE_ID]);
 					break;
-				}
 
 				case PUBLIC_ACT_VENDORSPEC:
 				{
@@ -1910,8 +1871,6 @@ static int mgmt_tx(struct wiphy *wiphy,
 						if ((buf[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buf[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP
 						      || buf[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_REQ || buf[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_RSP)) {
 							if (p2p_local_random > p2p_recv_random)	{
-								PRINT_D(GENERIC_DBG, "LOCAL WILL BE GO LocaRand=%02x RecvRand %02x\n", p2p_local_random, p2p_recv_random);
-
 								for (i = P2P_PUB_ACTION_SUBTYPE + 2; i < len; i++) {
 									if (buf[i] == P2PELEM_ATTR_ID && !(memcmp(p2p_oui, &buf[i + 2], 4))) {
 										if (buf[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_REQ || buf[P2P_PUB_ACTION_SUBTYPE] == P2P_INV_RSP)
@@ -1927,13 +1886,11 @@ static int mgmt_tx(struct wiphy *wiphy,
 									mgmt_tx->buff[len + sizeof(p2p_vendor_spec)] = p2p_local_random;
 									mgmt_tx->size = buf_len;
 								}
-							} else {
-								PRINT_D(GENERIC_DBG, "PEER WILL BE GO LocaRand=%02x RecvRand %02x\n", p2p_local_random, p2p_recv_random);
 							}
 						}
 
 					} else {
-						PRINT_D(GENERIC_DBG, "Not a P2P public action frame\n");
+						netdev_dbg(vif->ndev, "Not a P2P public action frame\n");
 					}
 
 					break;
@@ -1941,24 +1898,18 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 				default:
 				{
-					PRINT_D(GENERIC_DBG, "NOT HANDLED PUBLIC ACTION FRAME TYPE:%x\n", buf[ACTION_SUBTYPE_ID]);
+					netdev_dbg(vif->ndev, "NOT HANDLED PUBLIC ACTION FRAME TYPE:%x\n", buf[ACTION_SUBTYPE_ID]);
 					break;
 				}
 				}
 			}
 
-			PRINT_D(GENERIC_DBG, "TX: ACTION FRAME Type:%x : Chan:%d\n", buf[ACTION_SUBTYPE_ID], chan->hw_value);
 			pstrWFIDrv->p2p_timeout = (jiffies + msecs_to_jiffies(wait));
-
-			PRINT_D(GENERIC_DBG, "Current Jiffies: %lu Timeout:%llu\n",
-				jiffies, pstrWFIDrv->p2p_timeout);
 		}
 
 		wilc_wlan_txq_add_mgmt_pkt(wdev->netdev, mgmt_tx,
 					   mgmt_tx->buff, mgmt_tx->size,
 					   WILC_WFI_mgmt_tx_complete);
-	} else {
-		PRINT_D(GENERIC_DBG, "This function transmits only management frames\n");
 	}
 	return 0;
 }
@@ -1972,9 +1923,6 @@ static int mgmt_tx_cancel_wait(struct wiphy *wiphy,
 
 	priv = wiphy_priv(wiphy);
 	pstrWFIDrv = (struct host_if_drv *)priv->hif_drv;
-
-
-	PRINT_D(GENERIC_DBG, "Tx Cancel wait :%lu\n", jiffies);
 	pstrWFIDrv->p2p_timeout = jiffies;
 
 	if (!priv->bInP2PlistenState) {
@@ -2001,7 +1949,6 @@ void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (!frame_type)
 		return;
 
-	PRINT_D(GENERIC_DBG, "Frame registering Frame Type: %x: Boolean: %d\n", frame_type, reg);
 	switch (frame_type) {
 	case PROBE_REQ:
 	{
@@ -2023,10 +1970,8 @@ void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 	}
 
-	if (!wl->initialized) {
-		PRINT_D(GENERIC_DBG, "Return since mac is closed\n");
+	if (!wl->initialized)
 		return;
-	}
 	wilc_frame_register(vif, frame_type, reg);
 }
 
@@ -2099,7 +2044,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	wilc_ie = false;
 	wilc_optaining_ip = false;
 	del_timer(&wilc_during_ip_timer);
-	PRINT_D(GENERIC_DBG, "Changing virtual interface, enable scan\n");
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
@@ -2148,8 +2092,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		break;
 
 	case NL80211_IFTYPE_P2P_GO:
-		PRINT_D(GENERIC_DBG, "start duringIP timer\n");
-
 		wilc_optaining_ip = true;
 		mod_timer(&wilc_during_ip_timer,
 			  jiffies + msecs_to_jiffies(during_ip_time));

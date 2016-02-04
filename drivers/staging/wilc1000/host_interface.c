@@ -445,7 +445,6 @@ static s32 handle_set_mac_address(struct wilc_vif *vif,
 	wid.type = WID_STR;
 	wid.val = mac_buf;
 	wid.size = ETH_ALEN;
-	PRINT_D(GENERIC_DBG, "mac addr = :%pM\n", wid.val);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -800,15 +799,12 @@ static s32 Handle_Scan(struct wilc_vif *vif,
 
 	if ((hif_drv->hif_state >= HOST_IF_SCANNING) &&
 	    (hif_drv->hif_state < HOST_IF_CONNECTED)) {
-		PRINT_D(GENERIC_DBG, "Don't scan already in [%d] state\n",
-			hif_drv->hif_state);
 		PRINT_ER("Already scan\n");
 		result = -EBUSY;
 		goto ERRORHANDLER;
 	}
 
 	if (wilc_optaining_ip || wilc_connecting) {
-		PRINT_D(GENERIC_DBG, "[handle_scan]: Don't do obss scan until IP adresss is obtained\n");
 		PRINT_ER("Don't do obss scan\n");
 		result = -EBUSY;
 		goto ERRORHANDLER;
@@ -915,7 +911,6 @@ static s32 Handle_ScanDone(struct wilc_vif *vif,
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (enuEvent == SCAN_EVENT_ABORTED) {
-		PRINT_D(GENERIC_DBG, "Abort running scan\n");
 		u8abort_running_scan = 1;
 		wid.id = (u16)WID_ABORT_RUNNING_SCAN;
 		wid.type = WID_CHAR;
@@ -955,8 +950,6 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 	u8 *pu8CurrByte = NULL;
 	struct join_bss_param *ptstrJoinBssParam;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	PRINT_D(GENERIC_DBG, "Handling connect request\n");
 
 	if (memcmp(pstrHostIFconnectAttr->bssid, wilc_connected_ssid, ETH_ALEN) == 0) {
 		result = 0;
@@ -1149,13 +1142,9 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 		join_req_vif = vif;
 	}
 
-	if (pstrHostIFconnectAttr->bssid) {
+	if (pstrHostIFconnectAttr->bssid)
 		memcpy(wilc_connected_ssid,
 		       pstrHostIFconnectAttr->bssid, ETH_ALEN);
-		PRINT_D(GENERIC_DBG, "save Bssid = %pM\n",
-			pstrHostIFconnectAttr->bssid);
-		PRINT_D(GENERIC_DBG, "save bssid = %pM\n", wilc_connected_ssid);
-	}
 
 	result = wilc_send_config_pkt(vif, SET_CFG, strWIDList,
 				      u32WidsCount,
@@ -1165,7 +1154,6 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 		result = -EFAULT;
 		goto ERRORHANDLER;
 	} else {
-		PRINT_D(GENERIC_DBG, "set HOST_IF_WAITING_CONN_RESP\n");
 		hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
 	}
 
@@ -1443,8 +1431,6 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 		PRINT_ER("Driver handler is NULL\n");
 		return -ENODEV;
 	}
-	PRINT_D(GENERIC_DBG, "Current State = %d,Received state = %d\n",
-		hif_drv->hif_state, pstrRcvdGnrlAsyncInfo->buffer[7]);
 
 	if ((hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) ||
 	    (hif_drv->hif_state == HOST_IF_CONNECTED) ||
@@ -1548,7 +1534,6 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 
 				hif_drv->hif_state = HOST_IF_CONNECTED;
 
-				PRINT_D(GENERIC_DBG, "Obtaining an IP, Disable Scan\n");
 				wilc_optaining_ip = true;
 				mod_timer(&wilc_during_ip_timer,
 					  jiffies + msecs_to_jiffies(10000));
@@ -2421,19 +2406,16 @@ static int Handle_RemainOnChan(struct wilc_vif *vif,
 	}
 
 	if (hif_drv->usr_scan_req.scan_result) {
-		PRINT_INFO(GENERIC_DBG, "Required to remain on chan while scanning return\n");
 		hif_drv->remain_on_ch_pending = 1;
 		result = -EBUSY;
 		goto ERRORHANDLER;
 	}
 	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
-		PRINT_INFO(GENERIC_DBG, "Required to remain on chan while connecting return\n");
 		result = -EBUSY;
 		goto ERRORHANDLER;
 	}
 
 	if (wilc_optaining_ip || wilc_connecting) {
-		PRINT_D(GENERIC_DBG, "[handle_scan]: Don't do obss scan until IP adresss is obtained\n");
 		result = -EBUSY;
 		goto ERRORHANDLER;
 	}
@@ -2541,7 +2523,7 @@ static u32 Handle_ListenStateExpired(struct wilc_vif *vif,
 		}
 		P2P_LISTEN_STATE = 0;
 	} else {
-		PRINT_D(GENERIC_DBG, "Not in listen state\n");
+		netdev_dbg(vif->ndev, "Not in listen state\n");
 		result = -EFAULT;
 	}
 
@@ -2635,12 +2617,6 @@ static s32 Handle_DelAllRxBASessions(struct wilc_vif *vif,
 	struct wid wid;
 	char *ptr = NULL;
 
-	PRINT_D(GENERIC_DBG, "Delete Block Ack session with\nBSSID = %.2x:%.2x:%.2x\nTID=%d\n",
-		strHostIfBASessionInfo->bssid[0],
-		strHostIfBASessionInfo->bssid[1],
-		strHostIfBASessionInfo->bssid[2],
-		strHostIfBASessionInfo->tid);
-
 	wid.id = (u16)WID_DEL_ALL_RX_BA;
 	wid.type = WID_STR;
 	wid.val = kmalloc(BLOCK_ACK_REQ_SIZE, GFP_KERNEL);
@@ -2711,13 +2687,10 @@ static int hostIFthread(void *pvArg)
 	while (1) {
 		wilc_mq_recv(&hif_msg_q, &msg, sizeof(struct host_if_msg), &u32Ret);
 		vif = msg.vif;
-		if (msg.id == HOST_IF_MSG_EXIT) {
-			PRINT_D(GENERIC_DBG, "THREAD: Exiting HostIfThread\n");
+		if (msg.id == HOST_IF_MSG_EXIT)
 			break;
-		}
 
 		if ((!wilc_initialized)) {
-			PRINT_D(GENERIC_DBG, "--WAIT--");
 			usleep_range(200 * 1000, 200 * 1000);
 			wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 			continue;
@@ -3318,9 +3291,6 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 	}
 	if (hif_drv->hif_state < HOST_IF_CONNECTING)
 		hif_drv->hif_state = HOST_IF_CONNECTING;
-	else
-		PRINT_D(GENERIC_DBG, "Don't set state to 'connecting' : %d\n",
-			hif_drv->hif_state);
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result) {
@@ -3870,8 +3840,6 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
 		return;
 	hif_drv = vif->hif_drv;
 
-	PRINT_D(GENERIC_DBG, "Scan notification received %p\n", hif_drv);
-
 	if (!hif_drv || hif_drv == terminated_handle)
 		return;
 
@@ -4340,10 +4308,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				} else {
 					pNewJoinBssParam->opp_enabled = 0;
 				}
-
-				PRINT_D(GENERIC_DBG, "P2P Dump\n");
-				for (i = 0; i < pu8IEs[index + 7]; i++)
-					PRINT_D(GENERIC_DBG, " %x\n", pu8IEs[index + 9 + i]);
 
 				pNewJoinBssParam->cnt = pu8IEs[index + 11];
 				u16P2P_count = index + 12;
