@@ -1390,7 +1390,7 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 
 					hif_drv->usr_scan_req.rcvd_ch_cnt++;
 
-					pstrNetworkInfo->bNewNetwork = true;
+					pstrNetworkInfo->new_network = true;
 					pJoinParams = host_int_ParseJoinBssParam(pstrNetworkInfo);
 
 					hif_drv->usr_scan_req.scan_result(SCAN_EVENT_NETWORK_FOUND, pstrNetworkInfo,
@@ -1399,7 +1399,7 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 				}
 			}
 		} else {
-			pstrNetworkInfo->bNewNetwork = false;
+			pstrNetworkInfo->new_network = false;
 			hif_drv->usr_scan_req.scan_result(SCAN_EVENT_NETWORK_FOUND, pstrNetworkInfo,
 							  hif_drv->usr_scan_req.arg, NULL);
 		}

@@ -434,7 +434,7 @@ static void CfgScanResult(enum scan_event scan_event,
 					   network_info->cap_info,
 					   network_info->beacon_period);
 
-				if (network_info->bNewNetwork) {
+				if (network_info->new_network) {
 					if (priv->u32RcvdChCount < MAX_NUM_SCANNED_NETWORKS) {
 						PRINT_D(CFG80211_DBG,
 							"Network %s found\n",
