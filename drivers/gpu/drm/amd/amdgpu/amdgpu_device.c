@@ -1795,15 +1795,20 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	/* post card */
-	amdgpu_atom_asic_init(adev->mode_info.atom_context);
+	if (!amdgpu_card_posted(adev))
+		amdgpu_atom_asic_init(adev->mode_info.atom_context);
 
 	r = amdgpu_resume(adev);
+	if (r)
+		DRM_ERROR("amdgpu_resume failed (%d).\n", r);
 
 	amdgpu_fence_driver_resume(adev);
 
-	r = amdgpu_ib_ring_tests(adev);
-	if (r)
-		DRM_ERROR("ib ring test failed (%d).\n", r);
+	if (resume) {
+		r = amdgpu_ib_ring_tests(adev);
+		if (r)
+			DRM_ERROR("ib ring test failed (%d).\n", r);
+	}
 
 	r = amdgpu_late_init(adev);
 	if (r)
