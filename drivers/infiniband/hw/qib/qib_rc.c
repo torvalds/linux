@@ -1008,10 +1008,18 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct qib_ib_header *hdr)
 		start_timer(qp);
 
 	while (qp->s_last != qp->s_acked) {
+		u32 s_last;
+
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		if (qib_cmp24(wqe->lpsn, qp->s_sending_psn) >= 0 &&
 		    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)
 			break;
+		s_last = qp->s_last;
+		if (++s_last >= qp->s_size)
+			s_last = 0;
+		qp->s_last = s_last;
+		/* see post_send() */
+		barrier();
 		for (i = 0; i < wqe->wr.num_sge; i++) {
 			struct rvt_sge *sge = &wqe->sg_list[i];
 
@@ -1028,8 +1036,6 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct qib_ib_header *hdr)
 			wc.qp = &qp->ibqp;
 			rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc, 0);
 		}
-		if (++qp->s_last >= qp->s_size)
-			qp->s_last = 0;
 	}
 	/*
 	 * If we were waiting for sends to complete before resending,
@@ -1068,11 +1074,19 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	 */
 	if (qib_cmp24(wqe->lpsn, qp->s_sending_psn) < 0 ||
 	    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
+		u32 s_last;
+
 		for (i = 0; i < wqe->wr.num_sge; i++) {
 			struct rvt_sge *sge = &wqe->sg_list[i];
 
 			rvt_put_mr(sge->mr);
 		}
+		s_last = qp->s_last;
+		if (++s_last >= qp->s_size)
+			s_last = 0;
+		qp->s_last = s_last;
+		/* see post_send() */
+		barrier();
 		/* Post a send completion queue entry if requested. */
 		if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
 		    (wqe->wr.send_flags & IB_SEND_SIGNALED)) {
@@ -1084,8 +1098,6 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 			wc.qp = &qp->ibqp;
 			rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc, 0);
 		}
-		if (++qp->s_last >= qp->s_size)
-			qp->s_last = 0;
 	} else
 		this_cpu_inc(*ibp->rvp.rc_delayed_comp);
 
