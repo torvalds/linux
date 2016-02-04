@@ -82,7 +82,7 @@ typedef struct {
 struct tx_complete_data {
 	int size;
 	void *buff;
-	u8 *pBssid;
+	u8 *bssid;
 	struct sk_buff *skb;
 };
 
