@@ -4280,8 +4280,8 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 		pNewJoinBssParam->cap_info = ptstrNetworkInfo->cap_info;
 		memcpy(pNewJoinBssParam->au8bssid, ptstrNetworkInfo->au8bssid, 6);
 		memcpy((u8 *)pNewJoinBssParam->ssid, ptstrNetworkInfo->ssid,
-		       ptstrNetworkInfo->u8SsidLen + 1);
-		pNewJoinBssParam->ssid_len = ptstrNetworkInfo->u8SsidLen;
+		       ptstrNetworkInfo->ssid_len + 1);
+		pNewJoinBssParam->ssid_len = ptstrNetworkInfo->ssid_len;
 		memset(pNewJoinBssParam->rsn_pcip_policy, 0xFF, 3);
 		memset(pNewJoinBssParam->rsn_auth_policy, 0xFF, 3);
 

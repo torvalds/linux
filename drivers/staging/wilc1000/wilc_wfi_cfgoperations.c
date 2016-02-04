@@ -368,9 +368,9 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	last_scanned_shadow[ap_index].strRssi.u8Index = rssi_index;
 	last_scanned_shadow[ap_index].rssi = pstrNetworkInfo->rssi;
 	last_scanned_shadow[ap_index].cap_info = pstrNetworkInfo->cap_info;
-	last_scanned_shadow[ap_index].u8SsidLen = pstrNetworkInfo->u8SsidLen;
+	last_scanned_shadow[ap_index].ssid_len = pstrNetworkInfo->ssid_len;
 	memcpy(last_scanned_shadow[ap_index].ssid,
-	       pstrNetworkInfo->ssid, pstrNetworkInfo->u8SsidLen);
+	       pstrNetworkInfo->ssid, pstrNetworkInfo->ssid_len);
 	memcpy(last_scanned_shadow[ap_index].au8bssid,
 	       pstrNetworkInfo->au8bssid, ETH_ALEN);
 	last_scanned_shadow[ap_index].u16BeaconPeriod = pstrNetworkInfo->u16BeaconPeriod;
@@ -738,7 +738,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	PRINT_INFO(CFG80211_DBG, "Required SSID = %s\n , AuthType = %d\n", sme->ssid, sme->auth_type);
 
 	for (i = 0; i < last_scanned_cnt; i++) {
-		if ((sme->ssid_len == last_scanned_shadow[i].u8SsidLen) &&
+		if ((sme->ssid_len == last_scanned_shadow[i].ssid_len) &&
 		    memcmp(last_scanned_shadow[i].ssid,
 			   sme->ssid,
 			   sme->ssid_len) == 0) {
