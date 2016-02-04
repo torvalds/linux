@@ -1683,7 +1683,7 @@ static int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
 	dev_dbg(&oct->pci_dev->dev, "Creating Droq: %d\n", q_no);
 	/* droq creation and local register settings. */
 	ret_val = octeon_create_droq(oct, q_no, num_descs, desc_size, app_ctx);
-	if (ret_val == -1)
+	if (ret_val < 0)
 		return ret_val;
 
 	if (ret_val == 1) {
