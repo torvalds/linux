@@ -277,7 +277,7 @@ static void update_scan_time(void)
 	int i;
 
 	for (i = 0; i < last_scanned_cnt; i++)
-		last_scanned_shadow[i].u32TimeRcvdInScan = jiffies;
+		last_scanned_shadow[i].time_scan = jiffies;
 }
 
 static void remove_network_from_shadow(unsigned long arg)
@@ -287,7 +287,8 @@ static void remove_network_from_shadow(unsigned long arg)
 
 
 	for (i = 0; i < last_scanned_cnt; i++) {
-		if (time_after(now, last_scanned_shadow[i].u32TimeRcvdInScan + (unsigned long)(SCAN_RESULT_EXPIRE))) {
+		if (time_after(now, last_scanned_shadow[i].time_scan +
+			       (unsigned long)(SCAN_RESULT_EXPIRE))) {
 			PRINT_D(CFG80211_DBG, "Network expired ScanShadow:%s\n",
 				last_scanned_shadow[i].ssid);
 
@@ -384,8 +385,8 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 		kmalloc(pstrNetworkInfo->u16IEsLen, GFP_KERNEL);
 	memcpy(last_scanned_shadow[ap_index].pu8IEs,
 	       pstrNetworkInfo->pu8IEs, pstrNetworkInfo->u16IEsLen);
-	last_scanned_shadow[ap_index].u32TimeRcvdInScan = jiffies;
-	last_scanned_shadow[ap_index].u32TimeRcvdInScanCached = jiffies;
+	last_scanned_shadow[ap_index].time_scan = jiffies;
+	last_scanned_shadow[ap_index].time_scan_cached = jiffies;
 	last_scanned_shadow[ap_index].u8Found = 1;
 	if (ap_found != -1)
 		kfree(last_scanned_shadow[ap_index].pJoinParams);
@@ -465,7 +466,7 @@ static void CfgScanResult(enum scan_event scan_event,
 							PRINT_D(CFG80211_DBG, "Update RSSI of %s\n", last_scanned_shadow[i].ssid);
 
 							last_scanned_shadow[i].rssi = network_info->rssi;
-							last_scanned_shadow[i].u32TimeRcvdInScan = jiffies;
+							last_scanned_shadow[i].time_scan = jiffies;
 							break;
 						}
 					}
@@ -566,9 +567,9 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 					unsigned long now = jiffies;
 
 					if (time_after(now,
-						       last_scanned_shadow[i].u32TimeRcvdInScanCached + (unsigned long)(nl80211_SCAN_RESULT_EXPIRE - (1 * HZ)))) {
+						       last_scanned_shadow[i].time_scan_cached +
+						       (unsigned long)(nl80211_SCAN_RESULT_EXPIRE - (1 * HZ))))
 						bNeedScanRefresh = true;
-					}
 
 					break;
 				}
