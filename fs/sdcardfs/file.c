@@ -209,7 +209,6 @@ static int sdcardfs_open(struct inode *inode, struct file *file)
 	struct dentry *parent = dget_parent(dentry);
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 	const struct cred *saved_cred = NULL;
-	int has_rw;
 
 	/* don't open unhashed/deleted files */
 	if (d_unhashed(dentry)) {
@@ -217,11 +216,7 @@ static int sdcardfs_open(struct inode *inode, struct file *file)
 		goto out_err;
 	}
 
-	has_rw = get_caller_has_rw_locked(sbi->pkgl_id, sbi->options.derive);
-
-	if(!check_caller_access_to_name(parent->d_inode, dentry->d_name.name,
-				sbi->options.derive,
-				open_flags_to_access_mode(file->f_flags), has_rw)) {
+	if(!check_caller_access_to_name(parent->d_inode, dentry->d_name.name)) {
 		printk(KERN_INFO "%s: need to check the caller's gid in packages.list\n"
                          "	dentry: %s, task:%s\n",
 						 __func__, dentry->d_name.name, current->comm);
@@ -257,8 +252,7 @@ static int sdcardfs_open(struct inode *inode, struct file *file)
 	if (err)
 		kfree(SDCARDFS_F(file));
 	else {
-		fsstack_copy_attr_all(inode, sdcardfs_lower_inode(inode));
-		fix_derived_permission(inode);
+		sdcardfs_copy_and_fix_attrs(inode, sdcardfs_lower_inode(inode));
 	}
 
 out_revert_cred:
