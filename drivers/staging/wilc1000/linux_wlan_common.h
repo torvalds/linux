@@ -5,29 +5,14 @@ enum debug_region {
 	Generic_debug = 0,
 	Hostapd_debug,
 	CFG80211_debug,
-	Interrupt_debug,
-	Lock_debug,
-	Tcp_enhance,
-	Spin_debug,
-
 	Init_debug,
-	Bus_debug,
-	Mem_debug,
-	Firmware_debug,
 	COMP = 0xFFFFFFFF,
 };
 
 #define GENERIC_DBG             (1 << Generic_debug)
 #define HOSTAPD_DBG             (1 << Hostapd_debug)
 #define CFG80211_DBG            (1 << CFG80211_debug)
-#define INT_DBG                 (1 << Interrupt_debug)
-#define LOCK_DBG                (1 << Lock_debug)
-#define TCP_ENH                 (1 << Tcp_enhance)
-#define SPIN_DEBUG              (1 << Spin_debug)
 #define INIT_DBG                (1 << Init_debug)
-#define BUS_DBG                 (1 << Bus_debug)
-#define MEM_DBG                 (1 << Mem_debug)
-#define FIRM_DBG                (1 << Firmware_debug)
 
 #if defined (WILC_DEBUGFS)
 extern atomic_t WILC_REGION;
