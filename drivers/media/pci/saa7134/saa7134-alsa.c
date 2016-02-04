@@ -1145,6 +1145,8 @@ static int alsa_device_init(struct saa7134_dev *dev)
 
 static int alsa_device_exit(struct saa7134_dev *dev)
 {
+	if (!snd_saa7134_cards[dev->nr])
+		return 1;
 
 	snd_card_free(snd_saa7134_cards[dev->nr]);
 	snd_saa7134_cards[dev->nr] = NULL;
@@ -1194,7 +1196,8 @@ static void saa7134_alsa_exit(void)
 	int idx;
 
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
-		snd_card_free(snd_saa7134_cards[idx]);
+		if (snd_saa7134_cards[idx])
+			snd_card_free(snd_saa7134_cards[idx]);
 	}
 
 	saa7134_dmasound_init = NULL;
