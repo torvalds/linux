@@ -31,6 +31,23 @@
 #define GDP_ARGB1555    0x06
 #define GDP_ARGB4444    0x07
 
+#define GDP2STR(fmt) { GDP_ ## fmt, #fmt }
+
+static struct gdp_format_to_str {
+	int format;
+	char name[20];
+} gdp_format_to_str[] = {
+		GDP2STR(RGB565),
+		GDP2STR(RGB888),
+		GDP2STR(RGB888_32),
+		GDP2STR(XBGR8888),
+		GDP2STR(ARGB8565),
+		GDP2STR(ARGB8888),
+		GDP2STR(ABGR8888),
+		GDP2STR(ARGB1555),
+		GDP2STR(ARGB4444)
+		};
+
 #define GAM_GDP_CTL_OFFSET      0x00
 #define GAM_GDP_AGC_OFFSET      0x04
 #define GAM_GDP_VPO_OFFSET      0x0C
@@ -118,6 +135,222 @@ static const uint32_t gdp_supported_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
 };
+
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(gdp->regs + reg ## _OFFSET))
+
+static void gdp_dbg_ctl(struct seq_file *s, int val)
+{
+	int i;
+
+	seq_puts(s, "\tColor:");
+	for (i = 0; i < ARRAY_SIZE(gdp_format_to_str); i++) {
+		if (gdp_format_to_str[i].format == (val & 0x1F)) {
+			seq_printf(s, gdp_format_to_str[i].name);
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(gdp_format_to_str))
+		seq_puts(s, "<UNKNOWN>");
+
+	seq_printf(s, "\tWaitNextVsync:%d", val & WAIT_NEXT_VSYNC ? 1 : 0);
+}
+
+static void gdp_dbg_vpo(struct seq_file *s, int val)
+{
+	seq_printf(s, "\txdo:%4d\tydo:%4d", val & 0xFFFF, (val >> 16) & 0xFFFF);
+}
+
+static void gdp_dbg_vps(struct seq_file *s, int val)
+{
+	seq_printf(s, "\txds:%4d\tyds:%4d", val & 0xFFFF, (val >> 16) & 0xFFFF);
+}
+
+static void gdp_dbg_size(struct seq_file *s, int val)
+{
+	seq_printf(s, "\t%d x %d", val & 0xFFFF, (val >> 16) & 0xFFFF);
+}
+
+static void gdp_dbg_nvn(struct seq_file *s, struct sti_gdp *gdp, int val)
+{
+	void *base = NULL;
+	unsigned int i;
+
+	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
+		if (gdp->node_list[i].top_field_paddr == val) {
+			base = gdp->node_list[i].top_field;
+			break;
+		}
+		if (gdp->node_list[i].btm_field_paddr == val) {
+			base = gdp->node_list[i].btm_field;
+			break;
+		}
+	}
+
+	if (base)
+		seq_printf(s, "\tVirt @: %p", base);
+}
+
+static void gdp_dbg_ppt(struct seq_file *s, int val)
+{
+	if (val & GAM_GDP_PPT_IGNORE)
+		seq_puts(s, "\tNot displayed on mixer!");
+}
+
+static void gdp_dbg_mst(struct seq_file *s, int val)
+{
+	if (val & 1)
+		seq_puts(s, "\tBUFFER UNDERFLOW!");
+}
+
+static int gdp_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
+	struct drm_crtc *crtc = drm_plane->crtc;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "%s: (vaddr = 0x%p)",
+		   sti_plane_to_str(&gdp->plane), gdp->regs);
+
+	DBGFS_DUMP(GAM_GDP_CTL);
+	gdp_dbg_ctl(s, readl(gdp->regs + GAM_GDP_CTL_OFFSET));
+	DBGFS_DUMP(GAM_GDP_AGC);
+	DBGFS_DUMP(GAM_GDP_VPO);
+	gdp_dbg_vpo(s, readl(gdp->regs + GAM_GDP_VPO_OFFSET));
+	DBGFS_DUMP(GAM_GDP_VPS);
+	gdp_dbg_vps(s, readl(gdp->regs + GAM_GDP_VPS_OFFSET));
+	DBGFS_DUMP(GAM_GDP_PML);
+	DBGFS_DUMP(GAM_GDP_PMP);
+	DBGFS_DUMP(GAM_GDP_SIZE);
+	gdp_dbg_size(s, readl(gdp->regs + GAM_GDP_SIZE_OFFSET));
+	DBGFS_DUMP(GAM_GDP_NVN);
+	gdp_dbg_nvn(s, gdp, readl(gdp->regs + GAM_GDP_NVN_OFFSET));
+	DBGFS_DUMP(GAM_GDP_KEY1);
+	DBGFS_DUMP(GAM_GDP_KEY2);
+	DBGFS_DUMP(GAM_GDP_PPT);
+	gdp_dbg_ppt(s, readl(gdp->regs + GAM_GDP_PPT_OFFSET));
+	DBGFS_DUMP(GAM_GDP_CML);
+	DBGFS_DUMP(GAM_GDP_MST);
+	gdp_dbg_mst(s, readl(gdp->regs + GAM_GDP_MST_OFFSET));
+
+	seq_puts(s, "\n\n");
+	if (!crtc)
+		seq_puts(s, "  Not connected to any DRM CRTC\n");
+	else
+		seq_printf(s, "  Connected to DRM CRTC #%d (%s)\n",
+			   crtc->base.id, sti_mixer_to_str(to_sti_mixer(crtc)));
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static void gdp_node_dump_node(struct seq_file *s, struct sti_gdp_node *node)
+{
+	seq_printf(s, "\t@:0x%p", node);
+	seq_printf(s, "\n\tCTL  0x%08X", node->gam_gdp_ctl);
+	gdp_dbg_ctl(s, node->gam_gdp_ctl);
+	seq_printf(s, "\n\tAGC  0x%08X", node->gam_gdp_agc);
+	seq_printf(s, "\n\tVPO  0x%08X", node->gam_gdp_vpo);
+	gdp_dbg_vpo(s, node->gam_gdp_vpo);
+	seq_printf(s, "\n\tVPS  0x%08X", node->gam_gdp_vps);
+	gdp_dbg_vps(s, node->gam_gdp_vps);
+	seq_printf(s, "\n\tPML  0x%08X", node->gam_gdp_pml);
+	seq_printf(s, "\n\tPMP  0x%08X", node->gam_gdp_pmp);
+	seq_printf(s, "\n\tSIZE 0x%08X", node->gam_gdp_size);
+	gdp_dbg_size(s, node->gam_gdp_size);
+	seq_printf(s, "\n\tNVN  0x%08X", node->gam_gdp_nvn);
+	seq_printf(s, "\n\tKEY1 0x%08X", node->gam_gdp_key1);
+	seq_printf(s, "\n\tKEY2 0x%08X", node->gam_gdp_key2);
+	seq_printf(s, "\n\tPPT  0x%08X", node->gam_gdp_ppt);
+	gdp_dbg_ppt(s, node->gam_gdp_ppt);
+	seq_printf(s, "\n\tCML  0x%08X", node->gam_gdp_cml);
+	seq_puts(s, "\n");
+}
+
+static int gdp_node_dbg_show(struct seq_file *s, void *arg)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	unsigned int b;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	for (b = 0; b < GDP_NODE_NB_BANK; b++) {
+		seq_printf(s, "\n%s[%d].top", sti_plane_to_str(&gdp->plane), b);
+		gdp_node_dump_node(s, gdp->node_list[b].top_field);
+		seq_printf(s, "\n%s[%d].btm", sti_plane_to_str(&gdp->plane), b);
+		gdp_node_dump_node(s, gdp->node_list[b].btm_field);
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list gdp0_debugfs_files[] = {
+	{ "gdp0", gdp_dbg_show, 0, NULL },
+	{ "gdp0_node", gdp_node_dbg_show, 0, NULL },
+};
+
+static struct drm_info_list gdp1_debugfs_files[] = {
+	{ "gdp1", gdp_dbg_show, 0, NULL },
+	{ "gdp1_node", gdp_node_dbg_show, 0, NULL },
+};
+
+static struct drm_info_list gdp2_debugfs_files[] = {
+	{ "gdp2", gdp_dbg_show, 0, NULL },
+	{ "gdp2_node", gdp_node_dbg_show, 0, NULL },
+};
+
+static struct drm_info_list gdp3_debugfs_files[] = {
+	{ "gdp3", gdp_dbg_show, 0, NULL },
+	{ "gdp3_node", gdp_node_dbg_show, 0, NULL },
+};
+
+static int gdp_debugfs_init(struct sti_gdp *gdp, struct drm_minor *minor)
+{
+	unsigned int i;
+	struct drm_info_list *gdp_debugfs_files;
+	int nb_files;
+
+	switch (gdp->plane.desc) {
+	case STI_GDP_0:
+		gdp_debugfs_files = gdp0_debugfs_files;
+		nb_files = ARRAY_SIZE(gdp0_debugfs_files);
+		break;
+	case STI_GDP_1:
+		gdp_debugfs_files = gdp1_debugfs_files;
+		nb_files = ARRAY_SIZE(gdp1_debugfs_files);
+		break;
+	case STI_GDP_2:
+		gdp_debugfs_files = gdp2_debugfs_files;
+		nb_files = ARRAY_SIZE(gdp2_debugfs_files);
+		break;
+	case STI_GDP_3:
+		gdp_debugfs_files = gdp3_debugfs_files;
+		nb_files = ARRAY_SIZE(gdp3_debugfs_files);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < nb_files; i++)
+		gdp_debugfs_files[i].data = gdp;
+
+	return drm_debugfs_create_files(gdp_debugfs_files,
+					nb_files,
+					minor->debugfs_root, minor);
+}
 
 static int sti_gdp_fourcc2format(int fourcc)
 {
@@ -683,6 +916,9 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 	drm_plane_helper_add(&gdp->plane.drm_plane, &sti_gdp_helpers_funcs);
 
 	sti_plane_init_property(&gdp->plane, type);
+
+	if (gdp_debugfs_init(gdp, drm_dev->primary))
+		DRM_ERROR("GDP debugfs setup failed\n");
 
 	return &gdp->plane.drm_plane;
 
