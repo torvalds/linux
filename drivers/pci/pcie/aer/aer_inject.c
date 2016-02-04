@@ -181,8 +181,8 @@ static u32 *find_pci_config_dword(struct aer_error *err, int where,
 	return target;
 }
 
-static int pci_read_aer(struct pci_bus *bus, unsigned int devfn, int where,
-			int size, u32 *val)
+static int aer_inj_read_config(struct pci_bus *bus, unsigned int devfn,
+			       int where, int size, u32 *val)
 {
 	u32 *sim;
 	struct aer_error *err;
@@ -212,8 +212,8 @@ out:
 	return ops->read(bus, devfn, where, size, val);
 }
 
-static int pci_write_aer(struct pci_bus *bus, unsigned int devfn, int where,
-			 int size, u32 val)
+static int aer_inj_write_config(struct pci_bus *bus, unsigned int devfn,
+				int where, int size, u32 val)
 {
 	u32 *sim;
 	struct aer_error *err;
@@ -247,9 +247,9 @@ out:
 	return ops->write(bus, devfn, where, size, val);
 }
 
-static struct pci_ops pci_ops_aer = {
-	.read = pci_read_aer,
-	.write = pci_write_aer,
+static struct pci_ops aer_inj_pci_ops = {
+	.read = aer_inj_read_config,
+	.write = aer_inj_write_config,
 };
 
 static void pci_bus_ops_init(struct pci_bus_ops *bus_ops,
@@ -270,9 +270,9 @@ static int pci_bus_set_aer_ops(struct pci_bus *bus)
 	bus_ops = kmalloc(sizeof(*bus_ops), GFP_KERNEL);
 	if (!bus_ops)
 		return -ENOMEM;
-	ops = pci_bus_set_ops(bus, &pci_ops_aer);
+	ops = pci_bus_set_ops(bus, &aer_inj_pci_ops);
 	spin_lock_irqsave(&inject_lock, flags);
-	if (ops == &pci_ops_aer)
+	if (ops == &aer_inj_pci_ops)
 		goto out;
 	pci_bus_ops_init(bus_ops, bus, ops);
 	list_add(&bus_ops->list, &pci_bus_ops_list);
