@@ -46,7 +46,9 @@
 #define HOST_IF_MSG_DEL_BA_SESSION              34
 #define HOST_IF_MSG_Q_IDLE                      35
 #define HOST_IF_MSG_DEL_ALL_STA                 36
-#define HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS      34
+#define HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS      37
+#define HOST_IF_MSG_SET_TX_POWER		38
+#define HOST_IF_MSG_GET_TX_POWER		39
 #define HOST_IF_MSG_EXIT                        100
 
 #define HOST_IF_SCAN_TIMEOUT                    4000
@@ -166,6 +168,10 @@ struct sta_inactive_t {
 	u8 mac[6];
 };
 
+struct tx_power {
+	u8 tx_pwr;
+};
+
 union message_body {
 	struct scan_attr scan_info;
 	struct connect_attr con_info;
@@ -191,6 +197,7 @@ union message_body {
 	struct reg_frame reg_frame;
 	char *data;
 	struct del_all_sta del_all_sta_info;
+	struct tx_power tx_power;
 };
 
 struct host_if_msg {
@@ -2783,6 +2790,40 @@ static s32 Handle_DelAllRxBASessions(struct wilc_vif *vif,
 	return result;
 }
 
+static void handle_set_tx_pwr(struct wilc_vif *vif, u8 tx_pwr)
+{
+	int ret;
+	struct wid wid;
+
+	wid.id = (u16)WID_TX_POWER;
+	wid.type = WID_CHAR;
+	wid.val = &tx_pwr;
+	wid.size = sizeof(char);
+
+	ret = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+			     wilc_get_vif_idx(vif));
+	if (ret)
+		netdev_err(vif->ndev, "Failed to set TX PWR\n");
+}
+
+static void handle_get_tx_pwr(struct wilc_vif *vif, u8 *tx_pwr)
+{
+	s32 ret = 0;
+	struct wid wid;
+
+	wid.id = (u16)WID_TX_POWER;
+	wid.type = WID_CHAR;
+	wid.val = (s8 *)tx_pwr;
+	wid.size = sizeof(char);
+
+	ret = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
+			     wilc_get_vif_idx(vif));
+	if (ret)
+		netdev_err(vif->ndev, "Failed to get TX PWR\n");
+
+	up(&hif_sema_wait_response);
+}
+
 static int hostIFthread(void *pvArg)
 {
 	u32 u32Ret;
@@ -2986,6 +3027,13 @@ static int hostIFthread(void *pvArg)
 			Handle_DelAllSta(msg.vif, &msg.body.del_all_sta_info);
 			break;
 
+		case HOST_IF_MSG_SET_TX_POWER:
+			handle_set_tx_pwr(msg.vif, msg.body.tx_power.tx_pwr);
+			break;
+
+		case HOST_IF_MSG_GET_TX_POWER:
+			handle_get_tx_pwr(msg.vif, &msg.body.tx_power.tx_pwr);
+			break;
 		default:
 			PRINT_ER("[Host Interface] undefined Received Msg ID\n");
 			break;
@@ -4595,4 +4643,42 @@ static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 		PRINT_ER("wilc_mq_send fail\n");
 
 	return result;
+}
+
+int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power)
+{
+	int ret = 0;
+	struct host_if_msg msg;
+
+	memset(&msg, 0, sizeof(struct host_if_msg));
+
+	msg.id = HOST_IF_MSG_SET_TX_POWER;
+	msg.body.tx_power.tx_pwr = tx_power;
+	msg.vif = vif;
+
+	ret = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
+	if (ret)
+		netdev_err(vif->ndev, "wilc_mq_send fail\n");
+
+	return ret;
+}
+
+int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
+{
+	int ret = 0;
+	struct host_if_msg msg;
+
+	memset(&msg, 0, sizeof(struct host_if_msg));
+
+	msg.id = HOST_IF_MSG_GET_TX_POWER;
+	msg.vif = vif;
+
+	ret = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
+	if (ret)
+		netdev_err(vif->ndev, "Failed to get TX PWR\n");
+
+	down(&hif_sema_wait_response);
+	*tx_power = msg.body.tx_power.tx_pwr;
+
+	return ret;
 }

@@ -2504,6 +2504,39 @@ static void wilc_set_wakeup(struct wiphy *wiphy, bool enabled)
 	netdev_info(vif->ndev, "cfg set wake up = %d\n", enabled);
 }
 
+static int set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
+			enum nl80211_tx_power_setting type, int mbm)
+{
+	int ret;
+	s32 tx_power = MBM_TO_DBM(mbm);
+	struct wilc_priv *priv = wiphy_priv(wiphy);
+	struct wilc_vif *vif = netdev_priv(priv->dev);
+
+	if (tx_power < 0)
+		tx_power = 0;
+	else if (tx_power > 18)
+		tx_power = 18;
+	ret = wilc_set_tx_power(vif, tx_power);
+	if (ret)
+		netdev_err(vif->ndev, "Failed to set tx power\n");
+
+	return ret;
+}
+
+static int get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
+			int *dbm)
+{
+	int ret;
+	struct wilc_priv *priv = wiphy_priv(wiphy);
+	struct wilc_vif *vif = netdev_priv(priv->dev);
+
+	ret = wilc_get_tx_power(vif, (u8 *)dbm);
+	if (ret)
+		netdev_err(vif->ndev, "Failed to get tx power\n");
+
+	return ret;
+}
+
 static struct cfg80211_ops wilc_cfg80211_ops = {
 	.set_monitor_channel = set_channel,
 	.scan = scan,
@@ -2542,6 +2575,8 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
 	.suspend = wilc_suspend,
 	.resume = wilc_resume,
 	.set_wakeup = wilc_set_wakeup,
+	.set_tx_power = set_tx_power,
+	.get_tx_power = get_tx_power,
 
 };
 
