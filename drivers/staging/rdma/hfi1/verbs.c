@@ -1455,9 +1455,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	/* Only need to initialize non-zero fields. */
 
-	init_timer(&dev->mem_timer);
-	dev->mem_timer.function = mem_timer;
-	dev->mem_timer.data = (unsigned long) dev;
+	setup_timer(&dev->mem_timer, mem_timer, (unsigned long)dev);
 
 	seqlock_init(&dev->iowait_lock);
 	INIT_LIST_HEAD(&dev->txwait);

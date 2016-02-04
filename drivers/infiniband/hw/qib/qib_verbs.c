@@ -1602,9 +1602,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 		init_ibport(ppd + i);
 
 	/* Only need to initialize non-zero fields. */
-	init_timer(&dev->mem_timer);
-	dev->mem_timer.function = mem_timer;
-	dev->mem_timer.data = (unsigned long) dev;
+	setup_timer(&dev->mem_timer, mem_timer, (unsigned long)dev);
 
 	qpt_mask = dd->qpn_mask;
 
