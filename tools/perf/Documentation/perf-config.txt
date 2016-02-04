@@ -426,6 +426,11 @@ pager.*::
 		When the subcommand is run on stdio, determine whether it uses
 		pager or not based on this value. Default is 'unspecified'.
 
+kmem.*::
+	kmem.default::
+		This option decides which allocator is to be analyzed if neither
+		'--slab' nor '--page' option is used. Default is 'slab'.
+
 SEE ALSO
 --------
 linkperf:perf[1]
