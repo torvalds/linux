@@ -1266,9 +1266,6 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 	int diff;
 	unsigned long to;
 
-	/* Remove QP from retry timer */
-	hfi1_stop_rc_timers(qp);
-
 	/*
 	 * Note that NAKs implicitly ACK outstanding SEND and RDMA write
 	 * requests and implicitly NAK RDMA read and atomic requests issued
@@ -1296,7 +1293,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		    opcode == OP(RDMA_READ_RESPONSE_ONLY) &&
 		    diff == 0) {
 			ret = 1;
-			goto bail;
+			goto bail_stop;
 		}
 		/*
 		 * If this request is a RDMA read or atomic, and the ACK is
@@ -1327,7 +1324,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			 * No need to process the ACK/NAK since we are
 			 * restarting an earlier request.
 			 */
-			goto bail;
+			goto bail_stop;
 		}
 		if (wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
 		    wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) {
@@ -1362,18 +1359,22 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		if (qp->s_acked != qp->s_tail) {
 			/*
 			 * We are expecting more ACKs so
-			 * reset the re-transmit timer.
+			 * mod the retry timer.
 			 */
-			hfi1_add_retry_timer(qp);
+			hfi1_mod_retry_timer(qp);
 			/*
 			 * We can stop re-sending the earlier packets and
 			 * continue with the next packet the receiver wants.
 			 */
 			if (cmp_psn(qp->s_psn, psn) <= 0)
 				reset_psn(qp, psn + 1);
-		} else if (cmp_psn(qp->s_psn, psn) <= 0) {
-			qp->s_state = OP(SEND_LAST);
-			qp->s_psn = psn + 1;
+		} else {
+			/* No more acks - kill all timers */
+			hfi1_stop_rc_timers(qp);
+			if (cmp_psn(qp->s_psn, psn) <= 0) {
+				qp->s_state = OP(SEND_LAST);
+				qp->s_psn = psn + 1;
+			}
 		}
 		if (qp->s_flags & RVT_S_WAIT_ACK) {
 			qp->s_flags &= ~RVT_S_WAIT_ACK;
@@ -1383,15 +1384,14 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		qp->s_rnr_retry = qp->s_rnr_retry_cnt;
 		qp->s_retry = qp->s_retry_cnt;
 		update_last_psn(qp, psn);
-		ret = 1;
-		goto bail;
+		return 1;
 
 	case 1:         /* RNR NAK */
 		ibp->rvp.n_rnr_naks++;
 		if (qp->s_acked == qp->s_tail)
-			goto bail;
+			goto bail_stop;
 		if (qp->s_flags & RVT_S_WAIT_RNR)
-			goto bail;
+			goto bail_stop;
 		if (qp->s_rnr_retry == 0) {
 			status = IB_WC_RNR_RETRY_EXC_ERR;
 			goto class_b;
@@ -1407,15 +1407,16 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		reset_psn(qp, psn);
 
 		qp->s_flags &= ~(RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_ACK);
+		hfi1_stop_rc_timers(qp);
 		to =
 			ib_hfi1_rnr_table[(aeth >> HFI1_AETH_CREDIT_SHIFT) &
 					   HFI1_AETH_CREDIT_MASK];
 		hfi1_add_rnr_timer(qp, to);
-		goto bail;
+		return 0;
 
 	case 3:         /* NAK */
 		if (qp->s_acked == qp->s_tail)
-			goto bail;
+			goto bail_stop;
 		/* The last valid PSN is the previous PSN. */
 		update_last_psn(qp, psn - 1);
 		switch ((aeth >> HFI1_AETH_CREDIT_SHIFT) &
@@ -1458,15 +1459,16 @@ class_b:
 		}
 		qp->s_retry = qp->s_retry_cnt;
 		qp->s_rnr_retry = qp->s_rnr_retry_cnt;
-		goto bail;
+		goto bail_stop;
 
 	default:                /* 2: reserved */
 reserved:
 		/* Ignore reserved NAK codes. */
-		goto bail;
+		goto bail_stop;
 	}
-
-bail:
+	return ret;
+bail_stop:
+	hfi1_stop_rc_timers(qp);
 	return ret;
 }
 
