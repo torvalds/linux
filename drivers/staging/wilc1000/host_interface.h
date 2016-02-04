@@ -217,6 +217,7 @@ struct user_conn_req {
 
 struct drv_handler {
 	u32 handler;
+	u8 mac_idx;
 };
 
 struct op_mode {
@@ -363,7 +364,7 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 			   void *user_arg);
 int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id);
 int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg);
-int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index);
+int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mac_idx);
 int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode);
 int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats);
 void wilc_resolve_disconnect_aberration(struct wilc_vif *vif);

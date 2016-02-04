@@ -1024,6 +1024,25 @@ int wilc_mac_open(struct net_device *ndev)
 	for (i = 0; i < wl->vif_num; i++) {
 		if (ndev == wl->vif[i]->ndev) {
 			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
+			if (vif->iftype == AP_MODE) {
+				wilc_set_wfi_drv_handler(vif,
+							 wilc_get_vif_idx(vif),
+							 0);
+			} else if (!wilc_wlan_get_num_conn_ifcs(wilc)) {
+				wilc_set_wfi_drv_handler(vif,
+							 wilc_get_vif_idx(vif),
+							 wilc->open_ifcs);
+			} else {
+				if (memcmp(wilc->vif[i ^ 1]->bssid,
+					   wilc->vif[i ^ 1]->src_addr, 6))
+					wilc_set_wfi_drv_handler(vif,
+							 wilc_get_vif_idx(vif),
+							 0);
+				else
+					wilc_set_wfi_drv_handler(vif,
+							 wilc_get_vif_idx(vif),
+							 1);
+			}
 			wilc_set_operation_mode(vif, vif->iftype);
 			break;
 		}

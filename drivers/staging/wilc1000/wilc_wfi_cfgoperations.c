@@ -633,7 +633,6 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 
 	priv->u32RcvdChCount = 0;
 
-	wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif));
 	reset_shadow_found();
 
 	priv->bCfgScanning = true;
@@ -713,8 +712,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->dev);
 	pstrWFIDrv = (struct host_if_drv *)(priv->hWILCWFIDrv);
-
-	wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif));
 
 	PRINT_D(CFG80211_DBG, "Connecting to SSID [%s] on netdev [%p] host if [%p]\n", sme->ssid, dev, priv->hWILCWFIDrv);
 	if (!(strncmp(sme->ssid, "DIRECT-", 7))) {
@@ -2152,7 +2149,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		vif->iftype = AP_MODE;
 
 		if (wl->initialized) {
-			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif));
+			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
+						 0);
 			wilc_set_operation_mode(vif, AP_MODE);
 			wilc_set_power_mgmt(vif, 0, 0);
 		}
