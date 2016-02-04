@@ -1795,15 +1795,6 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	/* initialize DCBNL interface */
 	fm10k_dcbnl_set_ops(netdev);
 
-	/* Initialize service timer and service task */
-	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
-	setup_timer(&interface->service_timer, &fm10k_service_timer,
-		    (unsigned long)interface);
-	INIT_WORK(&interface->service_task, fm10k_service_task);
-
-	/* kick off service timer now, even when interface is down */
-	mod_timer(&interface->service_timer, (HZ * 2) + jiffies);
-
 	/* Intitialize timestamp data */
 	fm10k_ts_init(interface);
 
@@ -1989,6 +1980,12 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_sw_init;
 
+	/* the mbx interrupt might attempt to schedule the service task, so we
+	 * must ensure it is disabled since we haven't yet requested the timer
+	 * or work item.
+	 */
+	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+
 	err = fm10k_mbx_request_irq(interface);
 	if (err)
 		goto err_mbx_interrupt;
@@ -2007,6 +2004,16 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* stop all the transmit queues from transmitting until link is up */
 	netif_tx_stop_all_queues(netdev);
+
+	/* Initialize service timer and service task late in order to avoid
+	 * cleanup issues.
+	 */
+	setup_timer(&interface->service_timer, &fm10k_service_timer,
+		    (unsigned long)interface);
+	INIT_WORK(&interface->service_task, fm10k_service_task);
+
+	/* kick off service timer now, even when interface is down */
+	mod_timer(&interface->service_timer, (HZ * 2) + jiffies);
 
 	/* Register PTP interface */
 	fm10k_ptp_register(interface);
