@@ -816,9 +816,9 @@ static int au8522_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return au8522_read_ucblocks(fe, ber);
 }
 
-static int au8522_get_frontend(struct dvb_frontend *fe)
+static int au8522_get_frontend(struct dvb_frontend *fe,
+			       struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct au8522_state *state = fe->demodulator_priv;
 
 	c->frequency = state->current_frequency;

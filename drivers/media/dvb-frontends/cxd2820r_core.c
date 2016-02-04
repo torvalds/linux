@@ -313,7 +313,8 @@ static int cxd2820r_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	return ret;
 }
 
-static int cxd2820r_get_frontend(struct dvb_frontend *fe)
+static int cxd2820r_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret;
@@ -326,13 +327,13 @@ static int cxd2820r_get_frontend(struct dvb_frontend *fe)
 
 	switch (fe->dtv_property_cache.delivery_system) {
 	case SYS_DVBT:
-		ret = cxd2820r_get_frontend_t(fe);
+		ret = cxd2820r_get_frontend_t(fe, p);
 		break;
 	case SYS_DVBT2:
-		ret = cxd2820r_get_frontend_t2(fe);
+		ret = cxd2820r_get_frontend_t2(fe, p);
 		break;
 	case SYS_DVBC_ANNEX_A:
-		ret = cxd2820r_get_frontend_c(fe);
+		ret = cxd2820r_get_frontend_c(fe, p);
 		break;
 	default:
 		ret = -EINVAL;

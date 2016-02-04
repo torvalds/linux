@@ -279,11 +279,11 @@ err:
 	return ret;
 }
 
-static int rtl2830_get_frontend(struct dvb_frontend *fe)
+static int rtl2830_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
 

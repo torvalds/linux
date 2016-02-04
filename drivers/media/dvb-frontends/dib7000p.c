@@ -1405,9 +1405,9 @@ static int dib7000p_identify(struct dib7000p_state *st)
 	return 0;
 }
 
-static int dib7000p_get_frontend(struct dvb_frontend *fe)
+static int dib7000p_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *fep)
 {
-	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 tps = dib7000p_read_word(state, 463);
 
@@ -1540,7 +1540,7 @@ static int dib7000p_set_frontend(struct dvb_frontend *fe)
 		if (found == 0 || found == 1)
 			return 0;
 
-		dib7000p_get_frontend(fe);
+		dib7000p_get_frontend(fe, fep);
 	}
 
 	ret = dib7000p_tune(fe);

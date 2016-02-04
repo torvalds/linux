@@ -691,10 +691,10 @@ err:
 	return ret;
 }
 
-static int af9033_get_frontend(struct dvb_frontend *fe)
+static int af9033_get_frontend(struct dvb_frontend *fe,
+			       struct dtv_frontend_properties *c)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[8];
 
