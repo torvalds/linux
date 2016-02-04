@@ -686,13 +686,6 @@ M:	Michael Hanselmann <linux-kernel@hansmi.ch>
 S:	Supported
 F:	drivers/macintosh/ams/
 
-AMSO1100 RNIC DRIVER
-M:	Tom Tucker <tom@opengridcomputing.com>
-M:	Steve Wise <swise@opengridcomputing.com>
-L:	linux-rdma@vger.kernel.org
-S:	Maintained
-F:	drivers/infiniband/hw/amso1100/
-
 ANALOG DEVICES INC AD9389B DRIVER
 M:	Hans Verkuil <hans.verkuil@cisco.com>
 L:	linux-media@vger.kernel.org
@@ -4198,13 +4191,6 @@ W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
 F:	fs/efs/
 
-EHCA (IBM GX bus InfiniBand adapter) DRIVER
-M:	Hoang-Nam Nguyen <hnguyen@de.ibm.com>
-M:	Christoph Raisch <raisch@de.ibm.com>
-L:	linux-rdma@vger.kernel.org
-S:	Supported
-F:	drivers/infiniband/hw/ehca/
-
 EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
 M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
@@ -5822,12 +5808,6 @@ IP MASQUERADING
 M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
 S:	Maintained
 F:	net/ipv4/netfilter/ipt_MASQUERADE.c
-
-IPATH DRIVER
-M:	Mike Marciniszyn <infinipath@intel.com>
-L:	linux-rdma@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/rdma/ipath/
 
 IPMI SUBSYSTEM
 M:	Corey Minyard <minyard@acm.org>
