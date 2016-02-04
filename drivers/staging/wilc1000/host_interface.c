@@ -272,7 +272,7 @@ static struct wilc_vif *join_req_vif;
 #define FLUSHED_JOIN_REQ 1
 #define FLUSHED_BYTE_POS 79
 
-static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo);
+static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo);
 static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
 
 /* The u8IfIdx starts from 0 to NUM_CONCURRENT_IFC -1, but 0 index used as
@@ -1348,7 +1348,7 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 	u32 i;
 	bool bNewNtwrkFound;
 	s32 result = 0;
-	tstrNetworkInfo *pstrNetworkInfo = NULL;
+	struct network_info *pstrNetworkInfo = NULL;
 	void *pJoinParams = NULL;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -4255,7 +4255,7 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
 	return result;
 }
 
-static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
+static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 {
 	struct join_bss_param *pNewJoinBssParam = NULL;
 	u8 *pu8IEs;

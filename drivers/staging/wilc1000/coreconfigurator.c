@@ -270,9 +270,10 @@ static u8 get_current_channel_802_11n(u8 *pu8msa, u16 rx_len)
 	return 0;
 }
 
-s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info)
+s32 wilc_parse_network_info(u8 *msg_buffer,
+			    struct network_info **ret_network_info)
 {
-	tstrNetworkInfo *network_info = NULL;
+	struct network_info *network_info = NULL;
 	u8 msg_type = 0;
 	u8 msg_id = 0;
 	u16 msg_len = 0;
@@ -304,7 +305,7 @@ s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info)
 		u32 tsf_lo;
 		u32 tsf_hi;
 
-		network_info = kzalloc(sizeof(tstrNetworkInfo), GFP_KERNEL);
+		network_info = kzalloc(sizeof(*network_info), GFP_KERNEL);
 		if (!network_info)
 			return -ENOMEM;
 

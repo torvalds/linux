@@ -93,7 +93,7 @@ static const struct wiphy_wowlan_support wowlan_support = {
 extern int wilc_mac_open(struct net_device *ndev);
 extern int wilc_mac_close(struct net_device *ndev);
 
-static tstrNetworkInfo last_scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
+static struct network_info last_scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 static u32 last_scanned_cnt;
 struct timer_list wilc_during_ip_timer;
 static struct timer_list hAgingTimer;
@@ -206,7 +206,7 @@ static void clear_shadow_scan(void)
 	}
 }
 
-static u32 get_rssi_avg(tstrNetworkInfo *network_info)
+static u32 get_rssi_avg(struct network_info *network_info)
 {
 	u8 i;
 	int rssi_v = 0;
@@ -231,7 +231,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 	wiphy = priv->dev->ieee80211_ptr->wiphy;
 
 	for (i = 0; i < last_scanned_cnt; i++) {
-		tstrNetworkInfo *network_info;
+		struct network_info *network_info;
 
 		network_info = &last_scanned_shadow[i];
 
@@ -310,7 +310,7 @@ static void clear_duringIP(unsigned long arg)
 	wilc_optaining_ip = false;
 }
 
-static int is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo,
+static int is_network_in_shadow(struct network_info *pstrNetworkInfo,
 				void *user_void)
 {
 	int state = -1;
@@ -333,7 +333,7 @@ static int is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo,
 	return state;
 }
 
-static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo,
+static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 				  void *user_void, void *pJoinParams)
 {
 	int ap_found = is_network_in_shadow(pstrNetworkInfo, user_void);
@@ -384,7 +384,7 @@ static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo,
 }
 
 static void CfgScanResult(enum scan_event scan_event,
-			  tstrNetworkInfo *network_info,
+			  struct network_info *network_info,
 			  void *user_void,
 			  void *join_params)
 {
@@ -693,7 +693,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	struct wilc_priv *priv;
 	struct host_if_drv *pstrWFIDrv;
-	tstrNetworkInfo *pstrNetworkInfo = NULL;
+	struct network_info *pstrNetworkInfo = NULL;
 	struct wilc_vif *vif;
 
 	wilc_connecting = 1;

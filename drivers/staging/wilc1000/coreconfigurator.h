@@ -76,7 +76,7 @@ typedef struct {
 	s8 as8RSSI[NUM_RSSI];
 } tstrRSSI;
 
-typedef struct {
+struct network_info {
 	s8 s8rssi;
 	u16 u16CapInfo;
 	u8 au8ssid[MAX_SSID_LEN];
@@ -95,7 +95,7 @@ typedef struct {
 	void *pJoinParams;
 	tstrRSSI strRssi;
 	u64 u64Tsf;
-} tstrNetworkInfo;
+};
 
 struct connect_resp_info {
 	u16 capability;
@@ -120,7 +120,8 @@ typedef struct {
 	size_t ie_len;
 } tstrDisconnectNotifInfo;
 
-s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info);
+s32 wilc_parse_network_info(u8 *msg_buffer,
+			    struct network_info **ret_network_info);
 s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 			       struct connect_resp_info **ret_connect_resp_info);
 void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,

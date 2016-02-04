@@ -168,8 +168,8 @@ enum KEY_TYPE {
 	PMKSA,
 };
 
-typedef void (*wilc_scan_result)(enum scan_event, tstrNetworkInfo *,
-				  void *, void *);
+typedef void (*wilc_scan_result)(enum scan_event, struct network_info *,
+				 void *, void *);
 
 typedef void (*wilc_connect_result)(enum conn_event,
 				     tstrConnectInfo *,
