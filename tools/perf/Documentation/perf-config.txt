@@ -412,6 +412,15 @@ top.*::
 		column by default.
 		The default is 'true'.
 
+man.*::
+	man.viewer::
+		This option can assign a tool to view manual pages when 'help'
+		subcommand was invoked. Supported tools are 'man', 'woman'
+		(with emacs client) and 'konqueror'. Default is 'man'.
+
+		New man viewer tool can be also added using 'man.<tool>.cmd'
+		or use different path using 'man.<tool>.path' config option.
+
 SEE ALSO
 --------
 linkperf:perf[1]
