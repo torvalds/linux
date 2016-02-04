@@ -84,7 +84,7 @@ struct network_info {
 	u8 bssid[6];
 	u16 beacon_period;
 	u8 dtim_period;
-	u8 u8channel;
+	u8 ch;
 	unsigned long u32TimeRcvdInScanCached;
 	unsigned long u32TimeRcvdInScan;
 	bool bNewNetwork;

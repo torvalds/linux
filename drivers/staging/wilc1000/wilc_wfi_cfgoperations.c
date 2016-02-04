@@ -240,7 +240,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 			struct ieee80211_channel *channel;
 
 			if (network_info) {
-				freq = ieee80211_channel_to_frequency((s32)network_info->u8channel, IEEE80211_BAND_2GHZ);
+				freq = ieee80211_channel_to_frequency((s32)network_info->ch, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, freq);
 
 				rssi = get_rssi_avg(network_info);
@@ -375,7 +375,7 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	       pstrNetworkInfo->bssid, ETH_ALEN);
 	last_scanned_shadow[ap_index].beacon_period = pstrNetworkInfo->beacon_period;
 	last_scanned_shadow[ap_index].dtim_period = pstrNetworkInfo->dtim_period;
-	last_scanned_shadow[ap_index].u8channel = pstrNetworkInfo->u8channel;
+	last_scanned_shadow[ap_index].ch = pstrNetworkInfo->ch;
 	last_scanned_shadow[ap_index].u16IEsLen = pstrNetworkInfo->u16IEsLen;
 	last_scanned_shadow[ap_index].u64Tsf = pstrNetworkInfo->u64Tsf;
 	if (ap_found != -1)
@@ -417,7 +417,7 @@ static void CfgScanResult(enum scan_event scan_event,
 				return;
 
 			if (network_info) {
-				s32Freq = ieee80211_channel_to_frequency((s32)network_info->u8channel, IEEE80211_BAND_2GHZ);
+				s32Freq = ieee80211_channel_to_frequency((s32)network_info->ch, IEEE80211_BAND_2GHZ);
 				channel = ieee80211_get_channel(wiphy, s32Freq);
 
 				if (!channel)
@@ -895,15 +895,15 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 
-	PRINT_INFO(CFG80211_DBG, "Required Channel = %d\n", pstrNetworkInfo->u8channel);
+	PRINT_INFO(CFG80211_DBG, "Required Ch = %d\n", pstrNetworkInfo->ch);
 
 	PRINT_INFO(CFG80211_DBG, "Group encryption value = %s\n Cipher Group = %s\n WPA version = %s\n",
 		   pcgroup_encrypt_val, pccipher_group, pcwpa_version);
 
-	curr_channel = pstrNetworkInfo->u8channel;
+	curr_channel = pstrNetworkInfo->ch;
 
 	if (!pstrWFIDrv->p2p_connect)
-		wlan_channel = pstrNetworkInfo->u8channel;
+		wlan_channel = pstrNetworkInfo->ch;
 
 	wilc_wlan_set_bssid(dev, pstrNetworkInfo->bssid, STATION_MODE);
 
@@ -911,7 +911,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 				     sme->ssid_len, sme->ie, sme->ie_len,
 				     CfgConnectResult, (void *)priv,
 				     u8security, tenuAuth_type,
-				     pstrNetworkInfo->u8channel,
+				     pstrNetworkInfo->ch,
 				     pstrNetworkInfo->pJoinParams);
 	if (s32Error != 0) {
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
