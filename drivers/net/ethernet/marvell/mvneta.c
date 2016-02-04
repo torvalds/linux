@@ -370,6 +370,10 @@ struct mvneta_port {
 	struct net_device *dev;
 	struct notifier_block cpu_notifier;
 	int rxq_def;
+	/* Protect the access to the percpu interrupt registers,
+	 * ensuring that the configuration remains coherent.
+	 */
+	spinlock_t lock;
 
 	/* Core clock */
 	struct clk *clk;
@@ -2855,6 +2859,12 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 {
 	int elected_cpu = 0, max_cpu, cpu, i = 0;
 
+	/* Electing a CPU must be done in an atomic way: it should be
+	 * done after or before the removal/insertion of a CPU and
+	 * this function is not reentrant.
+	 */
+	spin_lock(&pp->lock);
+
 	/* Use the cpu associated to the rxq when it is online, in all
 	 * the other cases, use the cpu 0 which can't be offline.
 	 */
@@ -2898,6 +2908,7 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 		i++;
 
 	}
+	spin_unlock(&pp->lock);
 };
 
 static int mvneta_percpu_notifier(struct notifier_block *nfb,
@@ -2952,8 +2963,13 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		netif_tx_stop_all_queues(pp->dev);
+		/* Thanks to this lock we are sure that any pending
+		 * cpu election is done
+		 */
+		spin_lock(&pp->lock);
 		/* Mask all ethernet port interrupts */
 		on_each_cpu(mvneta_percpu_mask_interrupt, pp, true);
+		spin_unlock(&pp->lock);
 
 		napi_synchronize(&port->napi);
 		napi_disable(&port->napi);
