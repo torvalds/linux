@@ -171,20 +171,6 @@ void vlv_ccu_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
 			SB_CRWRDA_NP, reg, &val);
 }
 
-u32 vlv_gps_core_read(struct drm_i915_private *dev_priv, u32 reg)
-{
-	u32 val = 0;
-	vlv_sideband_rw(dev_priv, PCI_DEVFN(0, 0), IOSF_PORT_GPS_CORE,
-			SB_CRRDDA_NP, reg, &val);
-	return val;
-}
-
-void vlv_gps_core_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
-{
-	vlv_sideband_rw(dev_priv, PCI_DEVFN(0, 0), IOSF_PORT_GPS_CORE,
-			SB_CRWRDA_NP, reg, &val);
-}
-
 u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum pipe pipe, int reg)
 {
 	u32 val = 0;
