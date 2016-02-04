@@ -1762,6 +1762,9 @@ static void cik_program_aspm(struct amdgpu_device *adev)
 	if (amdgpu_aspm == 0)
 		return;
 
+	if (pci_is_root_bus(adev->pdev->bus))
+		return;
+
 	/* XXX double check APUs */
 	if (adev->flags & AMD_IS_APU)
 		return;
