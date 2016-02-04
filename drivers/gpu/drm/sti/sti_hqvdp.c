@@ -414,6 +414,246 @@ static int sti_hqvdp_get_curr_cmd(struct sti_hqvdp *hqvdp)
 }
 
 /**
+ * sti_hqvdp_get_next_cmd
+ * @hqvdp: hqvdp structure
+ *
+ * Look for the next hqvdp_cmd that will be used by the FW.
+ *
+ * RETURNS:
+ *  the offset of the next command that will be used.
+ * -1 in error cases
+ */
+static int sti_hqvdp_get_next_cmd(struct sti_hqvdp *hqvdp)
+{
+	int next_cmd;
+	dma_addr_t cmd = hqvdp->hqvdp_cmd_paddr;
+	unsigned int i;
+
+	next_cmd = readl(hqvdp->regs + HQVDP_MBX_NEXT_CMD);
+
+	for (i = 0; i < NB_VDP_CMD; i++) {
+		if (cmd == next_cmd)
+			return i * sizeof(struct sti_hqvdp_cmd);
+
+		cmd += sizeof(struct sti_hqvdp_cmd);
+	}
+
+	return -1;
+}
+
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(hqvdp->regs + reg))
+
+static const char *hqvdp_dbg_get_lut(u32 *coef)
+{
+	if (!memcmp(coef, coef_lut_a_legacy, 16))
+		return "LUT A";
+	if (!memcmp(coef, coef_lut_b, 16))
+		return "LUT B";
+	if (!memcmp(coef, coef_lut_c_y_legacy, 16))
+		return "LUT C Y";
+	if (!memcmp(coef, coef_lut_c_c_legacy, 16))
+		return "LUT C C";
+	if (!memcmp(coef, coef_lut_d_y_legacy, 16))
+		return "LUT D Y";
+	if (!memcmp(coef, coef_lut_d_c_legacy, 16))
+		return "LUT D C";
+	if (!memcmp(coef, coef_lut_e_y_legacy, 16))
+		return "LUT E Y";
+	if (!memcmp(coef, coef_lut_e_c_legacy, 16))
+		return "LUT E C";
+	if (!memcmp(coef, coef_lut_f_y_legacy, 16))
+		return "LUT F Y";
+	if (!memcmp(coef, coef_lut_f_c_legacy, 16))
+		return "LUT F C";
+	return "<UNKNOWN>";
+}
+
+static void hqvdp_dbg_dump_cmd(struct seq_file *s, struct sti_hqvdp_cmd *c)
+{
+	int src_w, src_h, dst_w, dst_h;
+
+	seq_puts(s, "\n\tTOP:");
+	seq_printf(s, "\n\t %-20s 0x%08X", "Config", c->top.config);
+	switch (c->top.config) {
+	case TOP_CONFIG_PROGRESSIVE:
+		seq_puts(s, "\tProgressive");
+		break;
+	case TOP_CONFIG_INTER_TOP:
+		seq_puts(s, "\tInterlaced, top field");
+		break;
+	case TOP_CONFIG_INTER_BTM:
+		seq_puts(s, "\tInterlaced, bottom field");
+		break;
+	default:
+		seq_puts(s, "\t<UNKNOWN>");
+		break;
+	}
+
+	seq_printf(s, "\n\t %-20s 0x%08X", "MemFormat", c->top.mem_format);
+	seq_printf(s, "\n\t %-20s 0x%08X", "CurrentY", c->top.current_luma);
+	seq_printf(s, "\n\t %-20s 0x%08X", "CurrentC", c->top.current_chroma);
+	seq_printf(s, "\n\t %-20s 0x%08X", "YSrcPitch", c->top.luma_src_pitch);
+	seq_printf(s, "\n\t %-20s 0x%08X", "CSrcPitch",
+		   c->top.chroma_src_pitch);
+	seq_printf(s, "\n\t %-20s 0x%08X", "InputFrameSize",
+		   c->top.input_frame_size);
+	seq_printf(s, "\t%dx%d",
+		   c->top.input_frame_size & 0x0000FFFF,
+		   c->top.input_frame_size >> 16);
+	seq_printf(s, "\n\t %-20s 0x%08X", "InputViewportSize",
+		   c->top.input_viewport_size);
+	src_w = c->top.input_viewport_size & 0x0000FFFF;
+	src_h = c->top.input_viewport_size >> 16;
+	seq_printf(s, "\t%dx%d", src_w, src_h);
+
+	seq_puts(s, "\n\tHVSRC:");
+	seq_printf(s, "\n\t %-20s 0x%08X", "OutputPictureSize",
+		   c->hvsrc.output_picture_size);
+	dst_w = c->hvsrc.output_picture_size & 0x0000FFFF;
+	dst_h = c->hvsrc.output_picture_size >> 16;
+	seq_printf(s, "\t%dx%d", dst_w, dst_h);
+	seq_printf(s, "\n\t %-20s 0x%08X", "ParamCtrl", c->hvsrc.param_ctrl);
+
+	seq_printf(s, "\n\t %-20s %s", "yh_coef",
+		   hqvdp_dbg_get_lut(c->hvsrc.yh_coef));
+	seq_printf(s, "\n\t %-20s %s", "ch_coef",
+		   hqvdp_dbg_get_lut(c->hvsrc.ch_coef));
+	seq_printf(s, "\n\t %-20s %s", "yv_coef",
+		   hqvdp_dbg_get_lut(c->hvsrc.yv_coef));
+	seq_printf(s, "\n\t %-20s %s", "cv_coef",
+		   hqvdp_dbg_get_lut(c->hvsrc.cv_coef));
+
+	seq_printf(s, "\n\t %-20s", "ScaleH");
+	if (dst_w > src_w)
+		seq_printf(s, " %d/1", dst_w / src_w);
+	else
+		seq_printf(s, " 1/%d", src_w / dst_w);
+
+	seq_printf(s, "\n\t %-20s", "tScaleV");
+	if (dst_h > src_h)
+		seq_printf(s, " %d/1", dst_h / src_h);
+	else
+		seq_printf(s, " 1/%d", src_h / dst_h);
+
+	seq_puts(s, "\n\tCSDI:");
+	seq_printf(s, "\n\t %-20s 0x%08X\t", "Config", c->csdi.config);
+	switch (c->csdi.config) {
+	case CSDI_CONFIG_PROG:
+		seq_puts(s, "Bypass");
+		break;
+	case CSDI_CONFIG_INTER_DIR:
+		seq_puts(s, "Deinterlace, directional");
+		break;
+	default:
+		seq_puts(s, "<UNKNOWN>");
+		break;
+	}
+
+	seq_printf(s, "\n\t %-20s 0x%08X", "Config2", c->csdi.config2);
+	seq_printf(s, "\n\t %-20s 0x%08X", "DcdiConfig", c->csdi.dcdi_config);
+}
+
+static int hqvdp_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_hqvdp *hqvdp = (struct sti_hqvdp *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	int cmd, cmd_offset, infoxp70;
+	void *virt;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "%s: (vaddr = 0x%p)",
+		   sti_plane_to_str(&hqvdp->plane), hqvdp->regs);
+
+	DBGFS_DUMP(HQVDP_MBX_IRQ_TO_XP70);
+	DBGFS_DUMP(HQVDP_MBX_INFO_HOST);
+	DBGFS_DUMP(HQVDP_MBX_IRQ_TO_HOST);
+	DBGFS_DUMP(HQVDP_MBX_INFO_XP70);
+	infoxp70 = readl(hqvdp->regs + HQVDP_MBX_INFO_XP70);
+	seq_puts(s, "\tFirmware state: ");
+	if (infoxp70 & INFO_XP70_FW_READY)
+		seq_puts(s, "idle and ready");
+	else if (infoxp70 & INFO_XP70_FW_PROCESSING)
+		seq_puts(s, "processing a picture");
+	else if (infoxp70 & INFO_XP70_FW_INITQUEUES)
+		seq_puts(s, "programming queues");
+	else
+		seq_puts(s, "NOT READY");
+
+	DBGFS_DUMP(HQVDP_MBX_SW_RESET_CTRL);
+	DBGFS_DUMP(HQVDP_MBX_STARTUP_CTRL1);
+	if (readl(hqvdp->regs + HQVDP_MBX_STARTUP_CTRL1)
+					& STARTUP_CTRL1_RST_DONE)
+		seq_puts(s, "\tReset is done");
+	else
+		seq_puts(s, "\tReset is NOT done");
+	DBGFS_DUMP(HQVDP_MBX_STARTUP_CTRL2);
+	if (readl(hqvdp->regs + HQVDP_MBX_STARTUP_CTRL2)
+					& STARTUP_CTRL2_FETCH_EN)
+		seq_puts(s, "\tFetch is enabled");
+	else
+		seq_puts(s, "\tFetch is NOT enabled");
+	DBGFS_DUMP(HQVDP_MBX_GP_STATUS);
+	DBGFS_DUMP(HQVDP_MBX_NEXT_CMD);
+	DBGFS_DUMP(HQVDP_MBX_CURRENT_CMD);
+	DBGFS_DUMP(HQVDP_MBX_SOFT_VSYNC);
+	if (!(readl(hqvdp->regs + HQVDP_MBX_SOFT_VSYNC) & 3))
+		seq_puts(s, "\tHW Vsync");
+	else
+		seq_puts(s, "\tSW Vsync ?!?!");
+
+	/* Last command */
+	cmd = readl(hqvdp->regs + HQVDP_MBX_CURRENT_CMD);
+	cmd_offset = sti_hqvdp_get_curr_cmd(hqvdp);
+	if (cmd_offset == -1) {
+		seq_puts(s, "\n\n  Last command: unknown");
+	} else {
+		virt = hqvdp->hqvdp_cmd + cmd_offset;
+		seq_printf(s, "\n\n  Last command: address @ 0x%x (0x%p)",
+			   cmd, virt);
+		hqvdp_dbg_dump_cmd(s, (struct sti_hqvdp_cmd *)virt);
+	}
+
+	/* Next command */
+	cmd = readl(hqvdp->regs + HQVDP_MBX_NEXT_CMD);
+	cmd_offset = sti_hqvdp_get_next_cmd(hqvdp);
+	if (cmd_offset == -1) {
+		seq_puts(s, "\n\n  Next command: unknown");
+	} else {
+		virt = hqvdp->hqvdp_cmd + cmd_offset;
+		seq_printf(s, "\n\n  Next command address: @ 0x%x (0x%p)",
+			   cmd, virt);
+		hqvdp_dbg_dump_cmd(s, (struct sti_hqvdp_cmd *)virt);
+	}
+
+	seq_puts(s, "\n");
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list hqvdp_debugfs_files[] = {
+	{ "hqvdp", hqvdp_dbg_show, 0, NULL },
+};
+
+static int hqvdp_debugfs_init(struct sti_hqvdp *hqvdp, struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hqvdp_debugfs_files); i++)
+		hqvdp_debugfs_files[i].data = hqvdp;
+
+	return drm_debugfs_create_files(hqvdp_debugfs_files,
+					ARRAY_SIZE(hqvdp_debugfs_files),
+					minor->debugfs_root, minor);
+}
+
+/**
  * sti_hqvdp_update_hvsrc
  * @orient: horizontal or vertical
  * @scale:  scaling/zoom factor
@@ -1025,6 +1265,9 @@ static struct drm_plane *sti_hqvdp_create(struct drm_device *drm_dev,
 	drm_plane_helper_add(&hqvdp->plane.drm_plane, &sti_hqvdp_helpers_funcs);
 
 	sti_plane_init_property(&hqvdp->plane, DRM_PLANE_TYPE_OVERLAY);
+
+	if (hqvdp_debugfs_init(hqvdp, drm_dev->primary))
+		DRM_ERROR("HQVDP debugfs setup failed\n");
 
 	return &hqvdp->plane.drm_plane;
 }
