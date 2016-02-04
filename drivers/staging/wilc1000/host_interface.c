@@ -3342,25 +3342,6 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 	return result;
 }
 
-int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
-{
-	int result = 0;
-	struct host_if_msg msg;
-
-	PRINT_D(GENERIC_DBG, "mac addr = %x:%x:%x\n", mac_addr[0], mac_addr[1], mac_addr[2]);
-
-	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.id = HOST_IF_MSG_SET_MAC_ADDRESS;
-	memcpy(msg.body.set_mac_info.mac_addr, mac_addr, ETH_ALEN);
-	msg.vif = vif;
-
-	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-	if (result)
-		PRINT_ER("Failed to send message queue: Set mac address\n");
-
-	return result;
-}
-
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssid_len, const u8 *ies, size_t ies_len,
 		      wilc_connect_result connect_result, void *user_arg,
@@ -3427,32 +3408,6 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 	hif_drv->connect_timer.data = (unsigned long)vif;
 	mod_timer(&hif_drv->connect_timer,
 		  jiffies + msecs_to_jiffies(HOST_IF_CONNECT_TIMEOUT));
-
-	return result;
-}
-
-int wilc_flush_join_req(struct wilc_vif *vif)
-{
-	int result = 0;
-	struct host_if_msg msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (!join_req)
-		return -EFAULT;
-
-	if (!hif_drv) {
-		PRINT_ER("Driver is null\n");
-		return -EFAULT;
-	}
-
-	msg.id = HOST_IF_MSG_FLUSH_CONNECT;
-	msg.vif = vif;
-
-	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-	if (result) {
-		PRINT_ER("Failed to send message queue: Flush join request\n");
-		return -EFAULT;
-	}
 
 	return result;
 }
@@ -3537,24 +3492,6 @@ int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 	}
 
 	return 0;
-}
-
-int wilc_wait_msg_queue_idle(void)
-{
-	int result = 0;
-	struct host_if_msg msg;
-
-	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.id = HOST_IF_MSG_Q_IDLE;
-	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-	if (result) {
-		PRINT_ER("wilc mq send fail\n");
-		result = -EINVAL;
-	}
-
-	down(&hif_sema_wait_response);
-
-	return result;
 }
 
 int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mac_idx)
@@ -4604,35 +4541,6 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 	}
 
 	return (void *)pNewJoinBssParam;
-}
-
-int wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *bssid, char tid)
-{
-	int result = 0;
-	struct host_if_msg msg;
-	struct ba_session_info *ba_session_info = &msg.body.session_info;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (!hif_drv) {
-		PRINT_ER("driver is null\n");
-		return -EFAULT;
-	}
-
-	memset(&msg, 0, sizeof(struct host_if_msg));
-
-	msg.id = HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS;
-
-	memcpy(ba_session_info->bssid, bssid, ETH_ALEN);
-	ba_session_info->tid = tid;
-	msg.vif = vif;
-
-	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-	if (result)
-		PRINT_ER("wilc_mq_send fail\n");
-
-	down(&hif_sema_wait_response);
-
-	return result;
 }
 
 int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
