@@ -2047,7 +2047,6 @@ void beiscsi_process_mcc_cq(struct beiscsi_hba *phba)
 			beiscsi_process_async_event(phba, mcc_compl);
 		} else if (mcc_compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 			beiscsi_process_mcc_compl(&phba->ctrl, mcc_compl);
-			atomic_dec(&phba->ctrl.mcc_obj.q.used);
 		}
 
 		mcc_compl->flags = 0;
@@ -5245,7 +5244,7 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 		extd_status = (phba->ctrl.mcc_tag_status[tag] &
 			       CQE_STATUS_ADDL_MASK) >> CQE_STATUS_ADDL_SHIFT;
 		status = phba->ctrl.mcc_tag_status[tag] & CQE_STATUS_MASK;
-		free_mcc_tag(&phba->ctrl, tag);
+		free_mcc_wrb(&phba->ctrl, tag);
 		resp = (struct be_cmd_resp_hdr *)nonemb_cmd.va;
 		sg_copy_from_buffer(job->reply_payload.sg_list,
 				    job->reply_payload.sg_cnt,

@@ -161,20 +161,17 @@ int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_modify_eq_delay *req;
-	unsigned int tag = 0;
+	unsigned int tag;
 	int i;
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
 
-	wrb = wrb_from_mccq(phba);
 	req = embedded_payload(wrb);
-
-	wrb->tag0 |= tag;
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_MODIFY_EQ_DELAY, sizeof(*req));
@@ -209,22 +206,20 @@ unsigned int mgmt_reopen_session(struct beiscsi_hba *phba,
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_reopen_session_req *req;
-	unsigned int tag = 0;
+	unsigned int tag;
 
 	beiscsi_log(phba, KERN_INFO,
 		    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 		    "BG_%d : In bescsi_get_boot_target\n");
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
 
-	wrb = wrb_from_mccq(phba);
 	req = embedded_payload(wrb);
-	wrb->tag0 |= tag;
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
 			   OPCODE_ISCSI_INI_DRIVER_REOPEN_ALL_SESSIONS,
@@ -244,22 +239,20 @@ unsigned int mgmt_get_boot_target(struct beiscsi_hba *phba)
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_get_boot_target_req *req;
-	unsigned int tag = 0;
+	unsigned int tag;
 
 	beiscsi_log(phba, KERN_INFO,
 		    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 		    "BG_%d : In bescsi_get_boot_target\n");
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
 
-	wrb = wrb_from_mccq(phba);
 	req = embedded_payload(wrb);
-	wrb->tag0 |= tag;
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
 			   OPCODE_ISCSI_INI_BOOT_GET_BOOT_TARGET,
@@ -276,7 +269,7 @@ unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
-	unsigned int tag = 0;
+	unsigned int tag;
 	struct  be_cmd_get_session_req *req;
 	struct be_cmd_get_session_resp *resp;
 	struct be_sge *sge;
@@ -286,21 +279,16 @@ unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
 		    "BG_%d : In beiscsi_get_session_info\n");
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
 
 	nonemb_cmd->size = sizeof(*resp);
 	req = nonemb_cmd->va;
 	memset(req, 0, sizeof(*req));
-	wrb = wrb_from_mccq(phba);
 	sge = nonembedded_sgl(wrb);
-	wrb->tag0 |= tag;
-
-
-	wrb->tag0 |= tag;
 	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
 			   OPCODE_ISCSI_INI_SESSION_GET_A_SESSION,
@@ -624,20 +612,18 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 		return -ENOSYS;
 	}
 
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
 
-	wrb = wrb_from_mccq(phba);
 	mcc_sge = nonembedded_sgl(wrb);
 	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false,
 			   job->request_payload.sg_cnt);
 	mcc_sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	mcc_sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
 	mcc_sge->len = cpu_to_le32(nonemb_cmd->size);
-	wrb->tag0 |= tag;
 
 	be_mcc_notify(phba, tag);
 
@@ -657,22 +643,22 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short ulp_num)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	struct iscsi_cleanup_req *req = embedded_payload(wrb);
+	struct be_mcc_wrb *wrb;
+	struct iscsi_cleanup_req *req;
 	unsigned int tag;
 	int status;
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
 		return -EBUSY;
 	}
 
+	req = embedded_payload(wrb);
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_CLEANUP, sizeof(*req));
-	wrb->tag0 |= tag;
 
 	req->chute = (1 << ulp_num);
 	req->hdr_ring_id = cpu_to_le16(HWI_GET_DEF_HDRQ_ID(phba, ulp_num));
@@ -697,20 +683,18 @@ unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 	struct be_mcc_wrb *wrb;
 	struct be_sge *sge;
 	struct invalidate_commands_params_in *req;
-	unsigned int i, tag = 0;
+	unsigned int i, tag;
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
 
 	req = nonemb_cmd->va;
 	memset(req, 0, sizeof(*req));
-	wrb = wrb_from_mccq(phba);
 	sge = nonembedded_sgl(wrb);
-	wrb->tag0 |= tag;
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
@@ -745,15 +729,13 @@ unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
 	unsigned int tag = 0;
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
-	wrb = wrb_from_mccq(phba);
-	wrb->tag0 |= tag;
-	req = embedded_payload(wrb);
 
+	req = embedded_payload(wrb);
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
 			   OPCODE_ISCSI_INI_DRIVER_INVALIDATE_CONNECTION,
@@ -776,18 +758,16 @@ unsigned int mgmt_upload_connection(struct beiscsi_hba *phba,
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
 	struct tcp_upload_params_in *req;
-	unsigned int tag = 0;
+	unsigned int tag;
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
-	wrb = wrb_from_mccq(phba);
-	req = embedded_payload(wrb);
-	wrb->tag0 |= tag;
 
+	req = embedded_payload(wrb);
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_COMMON_TCP_UPLOAD,
 			   OPCODE_COMMON_TCP_UPLOAD, sizeof(*req));
@@ -848,17 +828,15 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	ISCSI_GET_PDU_TEMPLATE_ADDRESS(phba, ptemplate_address);
 	if (mutex_lock_interruptible(&ctrl->mbox_lock))
 		return 0;
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
-	wrb = wrb_from_mccq(phba);
-	sge = nonembedded_sgl(wrb);
 
+	sge = nonembedded_sgl(wrb);
 	req = nonemb_cmd->va;
 	memset(req, 0, sizeof(*req));
-	wrb->tag0 |= tag;
 
 	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
@@ -925,16 +903,13 @@ unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba)
 
 	if (mutex_lock_interruptible(&ctrl->mbox_lock))
 		return -EINTR;
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
 		return -ENOMEM;
 	}
 
-	wrb = wrb_from_mccq(phba);
 	req = embedded_payload(wrb);
-	wrb->tag0 |= tag;
-
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_NTWK_GET_ALL_IF_ID,
@@ -974,17 +949,14 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 	int rc = 0;
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
 		rc = -ENOMEM;
 		goto free_cmd;
 	}
 
-	wrb = wrb_from_mccq(phba);
-	wrb->tag0 |= tag;
 	sge = nonembedded_sgl(wrb);
-
 	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false, 1);
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	sge->pa_lo = cpu_to_le32(lower_32_bits(nonemb_cmd->dma));
@@ -1368,22 +1340,20 @@ int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 
 unsigned int be_cmd_get_initname(struct beiscsi_hba *phba)
 {
-	unsigned int tag = 0;
+	unsigned int tag;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_hba_name *req;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 
 	if (mutex_lock_interruptible(&ctrl->mbox_lock))
 		return 0;
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
 
-	wrb = wrb_from_mccq(phba);
 	req = embedded_payload(wrb);
-	wrb->tag0 |= tag;
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
 			OPCODE_ISCSI_INI_CFG_GET_HBA_NAME,
@@ -1847,8 +1817,8 @@ int beiscsi_logout_fw_sess(struct beiscsi_hba *phba,
 		    "BG_%d : In bescsi_logout_fwboot_sess\n");
 
 	mutex_lock(&ctrl->mbox_lock);
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
 		beiscsi_log(phba, KERN_INFO,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -1856,9 +1826,7 @@ int beiscsi_logout_fw_sess(struct beiscsi_hba *phba,
 		return -EINVAL;
 	}
 
-	wrb = wrb_from_mccq(phba);
 	req = embedded_payload(wrb);
-	wrb->tag0 |= tag;
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
 			   OPCODE_ISCSI_INI_SESSION_LOGOUT_TARGET,

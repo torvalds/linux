@@ -728,7 +728,7 @@ int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba);
 unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
 
-void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
+void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag);
 
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
 			    int num);
@@ -740,10 +740,10 @@ int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);
 
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
-struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba);
 int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag);
 void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag);
-unsigned int alloc_mcc_tag(struct beiscsi_hba *phba);
+struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
+				 unsigned int *ref_tag);
 void beiscsi_process_async_event(struct beiscsi_hba *phba,
 				struct be_mcc_compl *compl);
 int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,

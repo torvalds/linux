@@ -126,8 +126,62 @@ unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
 	return tag;
 }
 
-void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag)
+struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
+				 unsigned int *ref_tag)
 {
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	struct be_mcc_wrb *wrb = NULL;
+	unsigned int tag;
+
+	spin_lock_bh(&phba->ctrl.mcc_lock);
+	if (mccq->used == mccq->len) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT |
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : MCC queue full: WRB used %u tag avail %u\n",
+			    mccq->used, phba->ctrl.mcc_tag_available);
+		goto alloc_failed;
+	}
+
+	if (!phba->ctrl.mcc_tag_available)
+		goto alloc_failed;
+
+	tag = phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index];
+	if (!tag) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT |
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d : MCC tag 0 allocated: tag avail %u alloc index %u\n",
+			    phba->ctrl.mcc_tag_available,
+			    phba->ctrl.mcc_alloc_index);
+		goto alloc_failed;
+	}
+
+	/* return this tag for further reference */
+	*ref_tag = tag;
+	phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
+	phba->ctrl.mcc_tag_status[tag] = 0;
+	phba->ctrl.ptag_state[tag].tag_state = 0;
+	phba->ctrl.mcc_tag_available--;
+	if (phba->ctrl.mcc_alloc_index == (MAX_MCC_CMD - 1))
+		phba->ctrl.mcc_alloc_index = 0;
+	else
+		phba->ctrl.mcc_alloc_index++;
+
+	wrb = queue_head_node(mccq);
+	memset(wrb, 0, sizeof(*wrb));
+	wrb->tag0 = tag;
+	wrb->tag0 |= (mccq->head << MCC_Q_WRB_IDX_SHIFT) & MCC_Q_WRB_IDX_MASK;
+	queue_head_inc(mccq);
+	mccq->used++;
+
+alloc_failed:
+	spin_unlock_bh(&phba->ctrl.mcc_lock);
+	return wrb;
+}
+
+void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag)
+{
+	struct be_queue_info *mccq = &ctrl->mcc_obj.q;
+
 	spin_lock_bh(&ctrl->mcc_lock);
 	tag = tag & MCC_Q_CMD_TAG_MASK;
 	ctrl->mcc_tag[ctrl->mcc_free_index] = tag;
@@ -136,6 +190,7 @@ void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag)
 	else
 		ctrl->mcc_free_index++;
 	ctrl->mcc_tag_available++;
+	mccq->used--;
 	spin_unlock_bh(&ctrl->mcc_lock);
 }
 
@@ -173,10 +228,8 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 	struct be_cmd_resp_hdr *mbx_resp_hdr;
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
-	if (beiscsi_error(phba)) {
-		free_mcc_tag(&phba->ctrl, tag);
+	if (beiscsi_error(phba))
 		return -EPERM;
-	}
 
 	/* wait for the mccq completion */
 	rc = wait_event_interruptible_timeout(
@@ -259,7 +312,7 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 		}
 	}
 
-	free_mcc_tag(&phba->ctrl, tag);
+	free_mcc_wrb(&phba->ctrl, tag);
 	return rc;
 }
 
@@ -479,7 +532,7 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		if (tag_mem->size)
 			pci_free_consistent(ctrl->pdev, tag_mem->size,
 					tag_mem->va, tag_mem->dma);
-		free_mcc_tag(ctrl, tag);
+		free_mcc_wrb(ctrl, tag);
 		return 0;
 	}
 
@@ -519,15 +572,24 @@ int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	int i;
 
+	if (!test_bit(MCC_TAG_STATE_RUNNING,
+		      &ctrl->ptag_state[tag].tag_state)) {
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BC_%d: tag %u state not running\n", tag);
+		return 0;
+	}
 	for (i = 0; i < mcc_timeout; i++) {
 		if (beiscsi_error(phba))
 			return -EIO;
 
 		beiscsi_process_mcc_cq(phba);
-
+		/* after polling, wrb and tag need to be released */
 		if (!test_bit(MCC_TAG_STATE_RUNNING,
-			      &ctrl->ptag_state[tag].tag_state))
+			      &ctrl->ptag_state[tag].tag_state)) {
+			free_mcc_wrb(ctrl, tag);
 			break;
+		}
 		udelay(100);
 	}
 
@@ -716,21 +778,6 @@ struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem)
 {
 	return &((struct be_mcc_mailbox *)(mbox_mem->va))->wrb;
 }
-
-struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba)
-{
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
-	struct be_mcc_wrb *wrb;
-
-	WARN_ON(atomic_read(&mccq->used) >= mccq->len);
-	wrb = queue_head_node(mccq);
-	memset(wrb, 0, sizeof(*wrb));
-	wrb->tag0 = (mccq->head << MCC_Q_WRB_IDX_SHIFT) & MCC_Q_WRB_IDX_MASK;
-	queue_head_inc(mccq);
-	atomic_inc(&mccq->used);
-	return wrb;
-}
-
 
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *eq, int eq_delay)
@@ -1328,22 +1375,20 @@ int beiscsi_cmd_reset_function(struct beiscsi_hba  *phba)
 int be_cmd_set_vlan(struct beiscsi_hba *phba,
 		     uint16_t vlan_tag)
 {
-	unsigned int tag = 0;
+	unsigned int tag;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_set_vlan_req *req;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 
 	if (mutex_lock_interruptible(&ctrl->mbox_lock))
 		return 0;
-	tag = alloc_mcc_tag(phba);
-	if (!tag) {
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		return tag;
+		return 0;
 	}
 
-	wrb = wrb_from_mccq(phba);
 	req = embedded_payload(wrb);
-	wrb->tag0 |= tag;
 	be_wrb_hdr_prepare(wrb, sizeof(*wrb), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_NTWK_SET_VLAN,
