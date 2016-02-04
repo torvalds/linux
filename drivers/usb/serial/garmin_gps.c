@@ -860,7 +860,6 @@ static int process_resetdev_request(struct usb_serial_port *port)
 static int garmin_clear(struct garmin_data *garmin_data_p)
 {
 	unsigned long flags;
-	int status = 0;
 
 	/* flush all queued data */
 	pkt_clear(garmin_data_p);
@@ -870,7 +869,7 @@ static int garmin_clear(struct garmin_data *garmin_data_p)
 	garmin_data_p->outsize = 0;
 	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 
-	return status;
+	return 0;
 }
 
 
