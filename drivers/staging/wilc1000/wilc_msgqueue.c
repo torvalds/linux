@@ -60,15 +60,11 @@ int wilc_mq_send(struct message_queue *mq,
 	unsigned long flags;
 	struct message *new_msg = NULL;
 
-	if ((!mq) || (send_buf_size == 0) || (!send_buf)) {
-		PRINT_ER("mq or send_buf is null\n");
+	if (!mq || (send_buf_size == 0) || !send_buf)
 		return -EINVAL;
-	}
 
-	if (mq->exiting) {
-		PRINT_ER("mq fail\n");
+	if (mq->exiting)
 		return -EFAULT;
-	}
 
 	/* construct a new message */
 	new_msg = kmalloc(sizeof(*new_msg), GFP_ATOMIC);
@@ -107,15 +103,11 @@ int wilc_mq_recv(struct message_queue *mq,
 	struct message *msg;
 	unsigned long flags;
 
-	if ((!mq) || (recv_buf_size == 0) || (!recv_buf) || (!recv_len)) {
-		PRINT_ER("mq or recv_buf is null\n");
+	if (!mq || (recv_buf_size == 0) || !recv_buf || !recv_len)
 		return -EINVAL;
-	}
 
-	if (mq->exiting) {
-		PRINT_ER("mq fail\n");
+	if (mq->exiting)
 		return -EFAULT;
-	}
 
 	spin_lock_irqsave(&mq->lock, flags);
 	mq->recv_count++;
@@ -127,7 +119,6 @@ int wilc_mq_recv(struct message_queue *mq,
 	if (list_empty(&mq->msg_list)) {
 		spin_unlock_irqrestore(&mq->lock, flags);
 		up(&mq->sem);
-		PRINT_ER("msg is null\n");
 		return -EFAULT;
 	}
 	/* check buffer size */
@@ -135,7 +126,6 @@ int wilc_mq_recv(struct message_queue *mq,
 	if (recv_buf_size < msg->len) {
 		spin_unlock_irqrestore(&mq->lock, flags);
 		up(&mq->sem);
-		PRINT_ER("recv_buf_size overflow\n");
 		return -EOVERFLOW;
 	}
 
