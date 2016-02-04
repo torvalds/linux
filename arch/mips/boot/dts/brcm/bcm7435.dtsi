@@ -63,13 +63,14 @@
 
 		periph_intc: periph_intc@41b500 {
 			compatible = "brcm,bcm7038-l1-intc";
-			reg = <0x41b500 0x40>, <0x41b600 0x40>;
+			reg = <0x41b500 0x40>, <0x41b600 0x40>,
+				<0x41b700 0x40>, <0x41b800 0x40>;
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
 			interrupt-parent = <&cpu_intc>;
-			interrupts = <2>, <3>;
+			interrupts = <2>, <3>, <2>, <3>;
 		};
 
 		sun_l2_intc: sun_l2_intc@403000 {
