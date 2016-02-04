@@ -88,7 +88,7 @@ struct network_info {
 	unsigned long time_scan_cached;
 	unsigned long time_scan;
 	bool new_network;
-	u8 u8Found;
+	u8 found;
 	u32 u32Tsf;
 	u8 *pu8IEs;
 	u16 u16IEsLen;

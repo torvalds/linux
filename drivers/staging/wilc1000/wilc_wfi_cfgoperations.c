@@ -235,7 +235,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 
 		network_info = &last_scanned_shadow[i];
 
-		if (!network_info->u8Found || all) {
+		if (!network_info->found || all) {
 			s32 freq;
 			struct ieee80211_channel *channel;
 
@@ -269,7 +269,7 @@ static void reset_shadow_found(void)
 	int i;
 
 	for (i = 0; i < last_scanned_cnt; i++)
-		last_scanned_shadow[i].u8Found = 0;
+		last_scanned_shadow[i].found = 0;
 }
 
 static void update_scan_time(void)
@@ -387,7 +387,7 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	       pstrNetworkInfo->pu8IEs, pstrNetworkInfo->u16IEsLen);
 	last_scanned_shadow[ap_index].time_scan = jiffies;
 	last_scanned_shadow[ap_index].time_scan_cached = jiffies;
-	last_scanned_shadow[ap_index].u8Found = 1;
+	last_scanned_shadow[ap_index].found = 1;
 	if (ap_found != -1)
 		kfree(last_scanned_shadow[ap_index].pJoinParams);
 	last_scanned_shadow[ap_index].pJoinParams = pJoinParams;
