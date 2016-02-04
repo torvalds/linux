@@ -405,7 +405,6 @@ void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 		/* Stop the send queue and the retry timer */
 		rdi->driver_f.stop_send_queue(qp);
-		del_timer_sync(&qp->s_timer);
 
 		/* Wait for things to stop */
 		rdi->driver_f.quiesce_qp(qp);

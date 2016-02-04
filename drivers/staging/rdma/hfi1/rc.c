@@ -60,8 +60,6 @@
 /* cut down ridiculously long IB macro names */
 #define OP(x) IB_OPCODE_RC_##x
 
-static void rc_timeout(unsigned long arg);
-
 /**
  * hfi1_add_retry_timer - add/start a retry timer
  * @qp - the QP
@@ -71,7 +69,6 @@ static void rc_timeout(unsigned long arg);
 static inline void hfi1_add_retry_timer(struct rvt_qp *qp)
 {
 	qp->s_flags |= RVT_S_TIMER;
-	qp->s_timer.function = rc_timeout;
 	/* 4.096 usec. * (1 << qp->timeout) */
 	qp->s_timer.expires = jiffies + qp->timeout_jiffies;
 	add_timer(&qp->s_timer);
@@ -86,10 +83,11 @@ static inline void hfi1_add_retry_timer(struct rvt_qp *qp)
  */
 static inline void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
+
 	qp->s_flags |= RVT_S_WAIT_RNR;
-	qp->s_timer.function = hfi1_rc_rnr_retry;
 	qp->s_timer.expires = jiffies + usecs_to_jiffies(to);
-	add_timer(&qp->s_timer);
+	add_timer(&priv->s_rnr_timer);
 }
 
 /**
@@ -102,7 +100,6 @@ static inline void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to)
 static inline void hfi1_mod_retry_timer(struct rvt_qp *qp)
 {
 	qp->s_flags |= RVT_S_TIMER;
-	qp->s_timer.function = rc_timeout;
 	/* 4.096 usec. * (1 << qp->timeout) */
 	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies);
 }
@@ -132,12 +129,15 @@ static inline int hfi1_stop_retry_timer(struct rvt_qp *qp)
  *
  * stop any pending timers
  */
-static inline void hfi1_stop_rc_timers(struct rvt_qp *qp)
+void hfi1_stop_rc_timers(struct rvt_qp *qp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
+
 	/* Remove QP from all timers */
 	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
 		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
 		del_timer(&qp->s_timer);
+		del_timer(&priv->s_rnr_timer);
 	}
 }
 
@@ -151,11 +151,12 @@ static inline void hfi1_stop_rc_timers(struct rvt_qp *qp)
 static inline int hfi1_stop_rnr_timer(struct rvt_qp *qp)
 {
 	int rval = 0;
+	struct hfi1_qp_priv *priv = qp->priv;
 
 	/* Remove QP from rnr timer */
 	if (qp->s_flags & RVT_S_WAIT_RNR) {
 		qp->s_flags &= ~RVT_S_WAIT_RNR;
-		rval = del_timer(&qp->s_timer);
+		rval = del_timer(&priv->s_rnr_timer);
 	}
 	return rval;
 }
@@ -166,7 +167,10 @@ static inline int hfi1_stop_rnr_timer(struct rvt_qp *qp)
  */
 void hfi1_del_timers_sync(struct rvt_qp *qp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
+
 	del_timer_sync(&qp->s_timer);
+	del_timer_sync(&priv->s_rnr_timer);
 }
 
 static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
@@ -1015,7 +1019,7 @@ static void restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 /*
  * This is called from s_timer for missing responses.
  */
-static void rc_timeout(unsigned long arg)
+void hfi1_rc_timeout(unsigned long arg)
 {
 	struct rvt_qp *qp = (struct rvt_qp *)arg;
 	struct hfi1_ibport *ibp;
