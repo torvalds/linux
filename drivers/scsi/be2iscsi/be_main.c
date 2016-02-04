@@ -730,7 +730,6 @@ static int be_ctrl_init(struct beiscsi_hba *phba, struct pci_dev *pdev)
 	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
 	mutex_init(&ctrl->mbox_lock);
 	spin_lock_init(&phba->ctrl.mcc_lock);
-	spin_lock_init(&phba->ctrl.mcc_cq_lock);
 
 	return status;
 }

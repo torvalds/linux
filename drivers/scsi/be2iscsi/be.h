@@ -132,7 +132,6 @@ struct be_ctrl_info {
 	/* MCC Rings */
 	struct be_mcc_obj mcc_obj;
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
-	spinlock_t mcc_cq_lock;
 
 	wait_queue_head_t mcc_wait[MAX_MCC_CMD + 1];
 	unsigned int mcc_tag[MAX_MCC_CMD];
