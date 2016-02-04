@@ -641,7 +641,8 @@ void qlt_unreg_sess(struct qla_tgt_sess *sess)
 {
 	struct scsi_qla_host *vha = sess->vha;
 
-	vha->hw->tgt.tgt_ops->clear_nacl_from_fcport_map(sess);
+	if (sess->se_sess)
+		vha->hw->tgt.tgt_ops->clear_nacl_from_fcport_map(sess);
 
 	if (!list_empty(&sess->del_list_entry))
 		list_del_init(&sess->del_list_entry);
@@ -856,8 +857,12 @@ static void qlt_del_sess_work_fn(struct delayed_work *work)
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf004,
 			    "Timeout: sess %p about to be deleted\n",
 			    sess);
-			ha->tgt.tgt_ops->shutdown_sess(sess);
-			ha->tgt.tgt_ops->put_sess(sess);
+			if (sess->se_sess) {
+				ha->tgt.tgt_ops->shutdown_sess(sess);
+				ha->tgt.tgt_ops->put_sess(sess);
+			} else {
+				qlt_unreg_sess(sess);
+			}
 		} else {
 			schedule_delayed_work(&tgt->sess_del_work,
 			    sess->expires - elapsed);
@@ -904,6 +909,14 @@ static struct qla_tgt_sess *qlt_create_sess(
 			if (sess->deleted)
 				qlt_undelete_sess(sess);
 
+			if (!sess->se_sess) {
+				if (ha->tgt.tgt_ops->check_initiator_node_acl(vha,
+				    &sess->port_name[0], sess) < 0) {
+					spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+					return NULL;
+				}
+			}
+
 			kref_get(&sess->se_sess->sess_kref);
 			ha->tgt.tgt_ops->update_sess(sess, fcport->d_id, fcport->loop_id,
 						(fcport->flags & FCF_CONF_COMP_SUPPORTED));
@@ -947,23 +960,6 @@ static struct qla_tgt_sess *qlt_create_sess(
 	    "Adding sess %p to tgt %p via ->check_initiator_node_acl()\n",
 	    sess, vha->vha_tgt.qla_tgt);
 
-	/*
-	 * Determine if this fc_port->port_name is allowed to access
-	 * target mode using explict NodeACLs+MappedLUNs, or using
-	 * TPG demo mode.  If this is successful a target mode FC nexus
-	 * is created.
-	 */
-	if (ha->tgt.tgt_ops->check_initiator_node_acl(vha, &fcport->port_name[0],
-						      sess)) {
-		kfree(sess);
-		return NULL;
-	}
-	/*
-	 * Take an extra reference to ->sess_kref here to handle qla_tgt_sess
-	 * access across ->tgt.sess_lock reaquire.
-	 */
-	kref_get(&sess->se_sess->sess_kref);
-
 	sess->conf_compl_supported = (fcport->flags & FCF_CONF_COMP_SUPPORTED);
 	BUILD_BUG_ON(sizeof(sess->port_name) != sizeof(fcport->port_name));
 	memcpy(sess->port_name, fcport->port_name, sizeof(sess->port_name));
@@ -980,6 +976,23 @@ static struct qla_tgt_sess *qlt_create_sess(
 	    vha->vp_idx, local ?  "local " : "", fcport->port_name,
 	    fcport->loop_id, sess->s_id.b.domain, sess->s_id.b.area,
 	    sess->s_id.b.al_pa, sess->conf_compl_supported ?  "" : "not ");
+
+	/*
+	 * Determine if this fc_port->port_name is allowed to access
+	 * target mode using explict NodeACLs+MappedLUNs, or using
+	 * TPG demo mode.  If this is successful a target mode FC nexus
+	 * is created.
+	 */
+	if (ha->tgt.tgt_ops->check_initiator_node_acl(vha,
+	    &fcport->port_name[0], sess) < 0) {
+		return NULL;
+	} else {
+		/*
+		 * Take an extra reference to ->sess_kref here to handle qla_tgt_sess
+		 * access across ->tgt.sess_lock reaquire.
+		 */
+		kref_get(&sess->se_sess->sess_kref);
+	}
 
 	return sess;
 }
