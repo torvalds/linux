@@ -250,6 +250,7 @@ populate_shared_memory:
 			 * put error codes in downcall so that handle_io_error()
 			 * preserves it properly
 			 */
+			WARN_ON(!op_state_serviced(new_op));
 			new_op->downcall.status = ret;
 			handle_io_error();
 			goto out;

@@ -205,6 +205,7 @@ retry_servicing:
 
 		/* op uses shared memory */
 		if (orangefs_get_bufmap_init() == 0) {
+			WARN_ON(1);
 			/*
 			 * This operation uses the shared memory system AND
 			 * the system is not yet ready. This situation occurs
