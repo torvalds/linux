@@ -315,7 +315,7 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 
 		rx_len = wid_len - 1;
 		network_info->cap_info = get_cap_info(msa);
-		network_info->u32Tsf = get_beacon_timestamp_lo(msa);
+		network_info->tsf_lo = get_beacon_timestamp_lo(msa);
 
 		tsf_lo = get_beacon_timestamp_lo(msa);
 		tsf_hi = get_beacon_timestamp_hi(msa);

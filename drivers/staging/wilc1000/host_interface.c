@@ -4330,7 +4330,7 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				 (pu8IEs[index + 5] == 0x09) && (pu8IEs[index + 6] == 0x0c)) {
 				u16 u16P2P_count;
 
-				pNewJoinBssParam->tsf = ptstrNetworkInfo->u32Tsf;
+				pNewJoinBssParam->tsf = ptstrNetworkInfo->tsf_lo;
 				pNewJoinBssParam->noa_enabled = 1;
 				pNewJoinBssParam->idx = pu8IEs[index + 9];
 

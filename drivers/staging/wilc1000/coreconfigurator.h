@@ -89,7 +89,7 @@ struct network_info {
 	unsigned long time_scan;
 	bool new_network;
 	u8 found;
-	u32 u32Tsf;
+	u32 tsf_lo;
 	u8 *pu8IEs;
 	u16 u16IEsLen;
 	void *pJoinParams;
