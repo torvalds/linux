@@ -516,7 +516,7 @@ struct comedi_bufinfo {
 #define UNIT_mA			1
 #define UNIT_none		2
 
-#define COMEDI_MIN_SPEED	((unsigned int)0xffffffff)
+#define COMEDI_MIN_SPEED	0xffffffffu
 
 /**********************************************************/
 /* everything after this line is ALPHA */
