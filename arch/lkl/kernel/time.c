@@ -48,7 +48,7 @@ static int timer_irq;
 
 static void timer_fn(void *arg)
 {
-	lkl_trigger_irq(timer_irq, NULL);
+	lkl_trigger_irq(timer_irq);
 }
 
 static int clockevent_set_state_shutdown(struct clock_event_device *evt)

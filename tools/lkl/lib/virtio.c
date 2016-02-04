@@ -62,7 +62,7 @@ static inline void virtio_set_avail_event(struct virtio_queue *q, uint16_t val)
 static inline void virtio_deliver_irq(struct virtio_dev *dev)
 {
 	dev->int_status |= VIRTIO_MMIO_INT_VRING;
-	lkl_trigger_irq(dev->irq, NULL);
+	lkl_trigger_irq(dev->irq);
 }
 
 void virtio_req_complete(struct virtio_req *req, uint32_t len)

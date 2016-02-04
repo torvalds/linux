@@ -109,7 +109,7 @@ long lkl_syscall(long no, long *params)
 
 	lkl_ops->sem_down(data->mutex);
 	data->s = &s;
-	lkl_trigger_irq(syscall_irq, NULL);
+	lkl_trigger_irq(syscall_irq);
 	lkl_ops->sem_down(data->completion);
 	lkl_ops->sem_up(data->mutex);
 

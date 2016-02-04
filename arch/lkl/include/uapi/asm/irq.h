@@ -8,10 +8,8 @@
  * that some event happened.
  *
  * @irq - the irq number to signal
- * @data - data to be passed to the irq handler; available via
- * get_irq_regs()->irq_data
  */
-int lkl_trigger_irq(int irq, void *data);
+int lkl_trigger_irq(int irq);
 
 /**
  * lkl_get_free_irq - find and reserve a free IRQ number

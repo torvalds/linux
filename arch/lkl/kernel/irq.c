@@ -21,7 +21,7 @@ static struct irq_info {
  * DO NOT run any linux calls (e.g. printk) here as they may race with the
  * existing linux threads.
  */
-int lkl_trigger_irq(int irq, void *data)
+int lkl_trigger_irq(int irq)
 {
 	int ret = 0;
 
