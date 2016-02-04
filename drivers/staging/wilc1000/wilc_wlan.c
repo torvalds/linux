@@ -234,6 +234,7 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
+	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
 	eth_hdr_ptr = &buffer[0];
 	h_proto = ntohs(*((unsigned short *)&eth_hdr_ptr[12]));
