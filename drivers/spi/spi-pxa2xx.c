@@ -496,6 +496,7 @@ static void giveback(struct driver_data *drv_data)
 {
 	struct spi_transfer* last_transfer;
 	struct spi_message *msg;
+	unsigned long timeout;
 
 	msg = drv_data->cur_msg;
 	drv_data->cur_msg = NULL;
@@ -507,6 +508,12 @@ static void giveback(struct driver_data *drv_data)
 	/* Delay if requested before any change in chip select */
 	if (last_transfer->delay_usecs)
 		udelay(last_transfer->delay_usecs);
+
+	/* Wait until SSP becomes idle before deasserting the CS */
+	timeout = jiffies + msecs_to_jiffies(10);
+	while (pxa2xx_spi_read(drv_data, SSSR) & SSSR_BSY &&
+	       !time_after(jiffies, timeout))
+		cpu_relax();
 
 	/* Drop chip select UNLESS cs_change is true or we are returning
 	 * a message with an error, or next message is for another chip
