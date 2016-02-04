@@ -873,7 +873,6 @@
 				phys = <&usb2_phy>, <&usb3_phy>;
 				phy-names = "usb2-phy", "usb3-phy";
 				dr_mode = "peripheral";
-				tx-fifo-resize;
 			};
 		};
 

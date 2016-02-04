@@ -1324,7 +1324,6 @@
 						  "otg";
 				phys = <&usb2_phy1>, <&usb3_phy1>;
 				phy-names = "usb2-phy", "usb3-phy";
-				tx-fifo-resize;
 				maximum-speed = "super-speed";
 				dr_mode = "otg";
 				snps,dis_u3_susphy_quirk;
@@ -1352,7 +1351,6 @@
 						  "otg";
 				phys = <&usb2_phy2>;
 				phy-names = "usb2-phy";
-				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
 				snps,dis_u3_susphy_quirk;
@@ -1380,7 +1378,6 @@
 				interrupt-names = "peripheral",
 						  "host",
 						  "otg";
-				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
 				snps,dis_u3_susphy_quirk;
