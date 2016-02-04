@@ -302,6 +302,73 @@ ui.*::
 		in 'report' and 'top'. If this option is false, they are hidden.
 		This option is only applied to TUI.
 
+call-graph.*::
+	When sub-commands 'top' and 'report' work with -g/—-children
+	there're options in control of call-graph.
+
+	call-graph.record-mode::
+		The record-mode can be 'fp' (frame pointer), 'dwarf' and 'lbr'.
+		The value of 'dwarf' is effective only if perf detect needed library
+		(libunwind or a recent version of libdw).
+		'lbr' only work for cpus that support it.
+
+	call-graph.dump-size::
+		The size of stack to dump in order to do post-unwinding. Default is 8192 (byte).
+		When using dwarf into record-mode, the default size will be used if omitted.
+
+	call-graph.print-type::
+		The print-types can be graph (graph absolute), fractal (graph relative),
+		flat and folded. This option controls a way to show overhead for each callchain
+		entry. Suppose a following example.
+
+                Overhead  Symbols
+                ........  .......
+                  40.00%  foo
+                          |
+                          ---foo
+                             |
+                             |--50.00%--bar
+                             |          main
+                             |
+                              --50.00%--baz
+                                        main
+
+		This output is a 'fractal' format. The 'foo' came from 'bar' and 'baz' exactly
+		half and half so 'fractal' shows 50.00% for each
+		(meaning that it assumes 100% total overhead of 'foo').
+
+		The 'graph' uses absolute overhead value of 'foo' as total so each of
+		'bar' and 'baz' callchain will have 20.00% of overhead.
+		If 'flat' is used, single column and linear exposure of call chains.
+		'folded' mean call chains are displayed in a line, separated by semicolons.
+
+	call-graph.order::
+		This option controls print order of callchains. The default is
+		'callee' which means callee is printed at top and then followed by its
+		caller and so on. The 'caller' prints it in reverse order.
+
+		If this option is not set and report.children or top.children is
+		set to true (or the equivalent command line option is given),
+		the default value of this option is changed to 'caller' for the
+		execution of 'perf report' or 'perf top'. Other commands will
+		still default to 'callee'.
+
+	call-graph.sort-key::
+		The callchains are merged if they contain same information.
+		The sort-key option determines a way to compare the callchains.
+		A value of 'sort-key' can be 'function' or 'address'.
+		The default is 'function'.
+
+	call-graph.threshold::
+		When there're many callchains it'd print tons of lines. So perf omits
+		small callchains under a certain overhead (threshold) and this option
+		control the threshold. Default is 0.5 (%). The overhead is calculated
+		by value depends on call-graph.print-type.
+
+	call-graph.print-limit::
+		This is a maximum number of lines of callchain printed for a single
+		histogram entry. Default is 0 which means no limitation.
+
 SEE ALSO
 --------
 linkperf:perf[1]
