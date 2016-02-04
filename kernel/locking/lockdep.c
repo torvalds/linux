@@ -123,8 +123,6 @@ static inline int debug_locks_off_graph_unlock(void)
 	return ret;
 }
 
-static int lockdep_initialized;
-
 unsigned long nr_list_entries;
 static struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
 
@@ -434,19 +432,6 @@ unsigned int max_lockdep_depth;
 
 #ifdef CONFIG_DEBUG_LOCKDEP
 /*
- * We cannot printk in early bootup code. Not even early_printk()
- * might work. So we mark any initialization errors and printk
- * about it later on, in lockdep_info().
- */
-static int lockdep_init_error;
-static const char *lock_init_error;
-static unsigned long lockdep_init_trace_data[20];
-static struct stack_trace lockdep_init_trace = {
-	.max_entries = ARRAY_SIZE(lockdep_init_trace_data),
-	.entries = lockdep_init_trace_data,
-};
-
-/*
  * Various lockdep statistics:
  */
 DEFINE_PER_CPU(struct lockdep_stats, lockdep_stats);
@@ -668,20 +653,6 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
 	struct lockdep_subclass_key *key;
 	struct hlist_head *hash_head;
 	struct lock_class *class;
-
-#ifdef CONFIG_DEBUG_LOCKDEP
-	/*
-	 * If the architecture calls into lockdep before initializing
-	 * the hashes then we'll warn about it later. (we cannot printk
-	 * right now)
-	 */
-	if (unlikely(!lockdep_initialized)) {
-		lockdep_init();
-		lockdep_init_error = 1;
-		lock_init_error = lock->name;
-		save_stack_trace(&lockdep_init_trace);
-	}
-#endif
 
 	if (unlikely(subclass >= MAX_LOCKDEP_SUBCLASSES)) {
 		debug_locks_off();
@@ -4013,28 +3984,6 @@ out_restore:
 	raw_local_irq_restore(flags);
 }
 
-void lockdep_init(void)
-{
-	int i;
-
-	/*
-	 * Some architectures have their own start_kernel()
-	 * code which calls lockdep_init(), while we also
-	 * call lockdep_init() from the start_kernel() itself,
-	 * and we want to initialize the hashes only once:
-	 */
-	if (lockdep_initialized)
-		return;
-
-	for (i = 0; i < CLASSHASH_SIZE; i++)
-		INIT_HLIST_HEAD(classhash_table + i);
-
-	for (i = 0; i < CHAINHASH_SIZE; i++)
-		INIT_HLIST_HEAD(chainhash_table + i);
-
-	lockdep_initialized = 1;
-}
-
 void __init lockdep_info(void)
 {
 	printk("Lock dependency validator: Copyright (c) 2006 Red Hat, Inc., Ingo Molnar\n");
@@ -4061,14 +4010,6 @@ void __init lockdep_info(void)
 
 	printk(" per task-struct memory footprint: %lu bytes\n",
 		sizeof(struct held_lock) * MAX_LOCK_DEPTH);
-
-#ifdef CONFIG_DEBUG_LOCKDEP
-	if (lockdep_init_error) {
-		printk("WARNING: lockdep init error: lock '%s' was acquired before lockdep_init().\n", lock_init_error);
-		printk("Call stack leading to lockdep invocation was:\n");
-		print_stack_trace(&lockdep_init_trace, 0);
-	}
-#endif
 }
 
 static void
