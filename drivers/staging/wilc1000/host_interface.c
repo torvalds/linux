@@ -1365,9 +1365,9 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 
 		for (i = 0; i < hif_drv->usr_scan_req.rcvd_ch_cnt; i++) {
 			if ((hif_drv->usr_scan_req.net_info[i].au8bssid) &&
-			    (pstrNetworkInfo->au8bssid)) {
+			    (pstrNetworkInfo->bssid)) {
 				if (memcmp(hif_drv->usr_scan_req.net_info[i].au8bssid,
-					   pstrNetworkInfo->au8bssid, 6) == 0) {
+					   pstrNetworkInfo->bssid, 6) == 0) {
 					if (pstrNetworkInfo->rssi <= hif_drv->usr_scan_req.net_info[i].s8rssi) {
 						goto done;
 					} else {
@@ -1384,9 +1384,9 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 				hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].s8rssi = pstrNetworkInfo->rssi;
 
 				if (hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].au8bssid &&
-				    pstrNetworkInfo->au8bssid) {
+				    pstrNetworkInfo->bssid) {
 					memcpy(hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].au8bssid,
-					       pstrNetworkInfo->au8bssid, 6);
+					       pstrNetworkInfo->bssid, 6);
 
 					hif_drv->usr_scan_req.rcvd_ch_cnt++;
 
@@ -4278,7 +4278,7 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 		pNewJoinBssParam->dtim_period = ptstrNetworkInfo->u8DtimPeriod;
 		pNewJoinBssParam->beacon_period = ptstrNetworkInfo->u16BeaconPeriod;
 		pNewJoinBssParam->cap_info = ptstrNetworkInfo->cap_info;
-		memcpy(pNewJoinBssParam->au8bssid, ptstrNetworkInfo->au8bssid, 6);
+		memcpy(pNewJoinBssParam->au8bssid, ptstrNetworkInfo->bssid, 6);
 		memcpy((u8 *)pNewJoinBssParam->ssid, ptstrNetworkInfo->ssid,
 		       ptstrNetworkInfo->ssid_len + 1);
 		pNewJoinBssParam->ssid_len = ptstrNetworkInfo->ssid_len;

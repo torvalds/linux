@@ -249,7 +249,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 					bss = cfg80211_inform_bss(wiphy,
 								  channel,
 								  CFG80211_BSS_FTYPE_UNKNOWN,
-								  network_info->au8bssid,
+								  network_info->bssid,
 								  network_info->u64Tsf,
 								  network_info->cap_info,
 								  network_info->u16BeaconPeriod,
@@ -332,8 +332,8 @@ static int is_network_in_shadow(struct network_info *pstrNetworkInfo,
 		state = -1;
 	} else {
 		for (i = 0; i < last_scanned_cnt; i++) {
-			if (memcmp(last_scanned_shadow[i].au8bssid,
-				   pstrNetworkInfo->au8bssid, 6) == 0) {
+			if (memcmp(last_scanned_shadow[i].bssid,
+				   pstrNetworkInfo->bssid, 6) == 0) {
 				state = i;
 				break;
 			}
@@ -371,8 +371,8 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	last_scanned_shadow[ap_index].ssid_len = pstrNetworkInfo->ssid_len;
 	memcpy(last_scanned_shadow[ap_index].ssid,
 	       pstrNetworkInfo->ssid, pstrNetworkInfo->ssid_len);
-	memcpy(last_scanned_shadow[ap_index].au8bssid,
-	       pstrNetworkInfo->au8bssid, ETH_ALEN);
+	memcpy(last_scanned_shadow[ap_index].bssid,
+	       pstrNetworkInfo->bssid, ETH_ALEN);
 	last_scanned_shadow[ap_index].u16BeaconPeriod = pstrNetworkInfo->u16BeaconPeriod;
 	last_scanned_shadow[ap_index].u8DtimPeriod = pstrNetworkInfo->u8DtimPeriod;
 	last_scanned_shadow[ap_index].u8channel = pstrNetworkInfo->u8channel;
@@ -446,7 +446,7 @@ static void CfgScanResult(enum scan_event scan_event,
 							bss = cfg80211_inform_bss(wiphy,
 										  channel,
 										  CFG80211_BSS_FTYPE_UNKNOWN,
-										  network_info->au8bssid,
+										  network_info->bssid,
 										  network_info->u64Tsf,
 										  network_info->cap_info,
 										  network_info->u16BeaconPeriod,
@@ -461,7 +461,7 @@ static void CfgScanResult(enum scan_event scan_event,
 					u32 i;
 
 					for (i = 0; i < priv->u32RcvdChCount; i++) {
-						if (memcmp(last_scanned_shadow[i].au8bssid, network_info->au8bssid, 6) == 0) {
+						if (memcmp(last_scanned_shadow[i].bssid, network_info->bssid, 6) == 0) {
 							PRINT_D(CFG80211_DBG, "Update RSSI of %s\n", last_scanned_shadow[i].ssid);
 
 							last_scanned_shadow[i].rssi = network_info->rssi;
@@ -560,8 +560,9 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 
 
 			for (i = 0; i < last_scanned_cnt; i++) {
-				if (memcmp(last_scanned_shadow[i].au8bssid,
-					   pstrConnectInfo->au8bssid, ETH_ALEN) == 0) {
+				if (memcmp(last_scanned_shadow[i].bssid,
+					   pstrConnectInfo->au8bssid,
+					   ETH_ALEN) == 0) {
 					unsigned long now = jiffies;
 
 					if (time_after(now,
@@ -747,7 +748,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 				PRINT_INFO(CFG80211_DBG, "BSSID is not passed from the user\n");
 				break;
 			} else {
-				if (memcmp(last_scanned_shadow[i].au8bssid,
+				if (memcmp(last_scanned_shadow[i].bssid,
 					   sme->bssid,
 					   ETH_ALEN) == 0) {
 					PRINT_INFO(CFG80211_DBG, "BSSID is passed from the user and matched\n");
@@ -762,10 +763,11 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 		pstrNetworkInfo = &last_scanned_shadow[i];
 
-		PRINT_INFO(CFG80211_DBG, "network BSSID to be associated: %x%x%x%x%x%x\n",
-			   pstrNetworkInfo->au8bssid[0], pstrNetworkInfo->au8bssid[1],
-			   pstrNetworkInfo->au8bssid[2], pstrNetworkInfo->au8bssid[3],
-			   pstrNetworkInfo->au8bssid[4], pstrNetworkInfo->au8bssid[5]);
+		PRINT_INFO(CFG80211_DBG, "network BSSID to be associated:"
+			   "%x%x%x%x%x%x\n",
+			   pstrNetworkInfo->bssid[0], pstrNetworkInfo->bssid[1],
+			   pstrNetworkInfo->bssid[2], pstrNetworkInfo->bssid[3],
+			   pstrNetworkInfo->bssid[4], pstrNetworkInfo->bssid[5]);
 	} else {
 		s32Error = -ENOENT;
 		if (last_scanned_cnt == 0)
@@ -903,9 +905,9 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if (!pstrWFIDrv->p2p_connect)
 		wlan_channel = pstrNetworkInfo->u8channel;
 
-	wilc_wlan_set_bssid(dev, pstrNetworkInfo->au8bssid, STATION_MODE);
+	wilc_wlan_set_bssid(dev, pstrNetworkInfo->bssid, STATION_MODE);
 
-	s32Error = wilc_set_join_req(vif, pstrNetworkInfo->au8bssid, sme->ssid,
+	s32Error = wilc_set_join_req(vif, pstrNetworkInfo->bssid, sme->ssid,
 				     sme->ssid_len, sme->ie, sme->ie_len,
 				     CfgConnectResult, (void *)priv,
 				     u8security, tenuAuth_type,

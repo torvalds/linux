@@ -81,7 +81,7 @@ struct network_info {
 	u16 cap_info;
 	u8 ssid[MAX_SSID_LEN];
 	u8 ssid_len;
-	u8 au8bssid[6];
+	u8 bssid[6];
 	u16 u16BeaconPeriod;
 	u8 u8DtimPeriod;
 	u8 u8channel;
