@@ -263,21 +263,6 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 	return rc;
 }
 
-static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
-{
-	if (compl->flags != 0) {
-		compl->flags = le32_to_cpu(compl->flags);
-		WARN_ON((compl->flags & CQE_FLAGS_VALID_MASK) == 0);
-		return true;
-	} else
-		return false;
-}
-
-static inline void be_mcc_compl_use(struct be_mcc_compl *compl)
-{
-	compl->flags = 0;
-}
-
 /*
  * beiscsi_process_mbox_compl()- Check the MBX completion status
  * @ctrl: Function specific MBX data structure
@@ -298,30 +283,46 @@ static int beiscsi_process_mbox_compl(struct be_ctrl_info *ctrl,
 	struct be_cmd_req_hdr *hdr = embedded_payload(wrb);
 	struct be_cmd_resp_hdr *resp_hdr;
 
-	be_dws_le_to_cpu(compl, 4);
-
-	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
-					CQE_STATUS_COMPL_MASK;
-	if (compl_status != MCC_STATUS_SUCCESS) {
-		extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
-						CQE_STATUS_EXTD_MASK;
-
+	/**
+	 * To check if valid bit is set, check the entire word as we don't know
+	 * the endianness of the data (old entry is host endian while a new
+	 * entry is little endian)
+	 */
+	if (!compl->flags) {
 		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BC_%d : error in cmd completion: "
-			    "Subsystem : %d Opcode : %d "
-			    "status(compl/extd)=%d/%d\n",
-			    hdr->subsystem, hdr->opcode,
-			    compl_status, extd_status);
-
-		if (compl_status == MCC_STATUS_INSUFFICIENT_BUFFER) {
-			resp_hdr = (struct be_cmd_resp_hdr *) hdr;
-			if (resp_hdr->response_length)
-				return 0;
-		}
-		return -EINVAL;
+				BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+				"BC_%d : BMBX busy, no completion\n");
+		return -EBUSY;
 	}
-	return 0;
+	compl->flags = le32_to_cpu(compl->flags);
+	WARN_ON((compl->flags & CQE_FLAGS_VALID_MASK) == 0);
+
+	/**
+	 * Just swap the status to host endian;
+	 * mcc tag is opaquely copied from mcc_wrb.
+	 */
+	be_dws_le_to_cpu(compl, 4);
+	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
+		CQE_STATUS_COMPL_MASK;
+	extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
+		CQE_STATUS_EXTD_MASK;
+	/* Need to reset the entire word that houses the valid bit */
+	compl->flags = 0;
+
+	if (compl_status == MCC_STATUS_SUCCESS)
+		return 0;
+
+	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BC_%d : error in cmd completion: Subsystem : %d Opcode : %d status(compl/extd)=%d/%d\n",
+		    hdr->subsystem, hdr->opcode, compl_status, extd_status);
+
+	if (compl_status == MCC_STATUS_INSUFFICIENT_BUFFER) {
+		/* if status is insufficient buffer, check the length */
+		resp_hdr = (struct be_cmd_resp_hdr *) hdr;
+		if (resp_hdr->response_length)
+			return 0;
+	}
+	return -EINVAL;
 }
 
 static void beiscsi_process_async_link(struct beiscsi_hba *phba,
@@ -453,10 +454,6 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 	struct be_dma_mem *tag_mem;
 	unsigned int tag, wrb_idx;
 
-	/**
-	 * Just swap the status to host endian; mcc tag is opaquely copied
-	 * from mcc_wrb
-	 */
 	be_dws_le_to_cpu(compl, 4);
 	tag = (compl->tag0 & MCC_Q_CMD_TAG_MASK);
 	wrb_idx = (compl->tag0 & CQE_STATUS_WRB_MASK) >> CQE_STATUS_WRB_SHIFT;
