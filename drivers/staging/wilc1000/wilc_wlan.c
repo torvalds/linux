@@ -178,19 +178,21 @@ static inline int init_tcp_tracking(void)
 
 static inline int add_tcp_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
-	ack_session_info[tcp_session].seq_num = seq;
-	ack_session_info[tcp_session].bigger_ack_num = 0;
-	ack_session_info[tcp_session].src_port = src_prt;
-	ack_session_info[tcp_session].dst_port = dst_prt;
-	tcp_session++;
-
+	if (tcp_session < 2 * MAX_TCP_SESSION) {
+		ack_session_info[tcp_session].seq_num = seq;
+		ack_session_info[tcp_session].bigger_ack_num = 0;
+		ack_session_info[tcp_session].src_port = src_prt;
+		ack_session_info[tcp_session].dst_port = dst_prt;
+		tcp_session++;
+	}
 	PRINT_D(TCP_ENH, "TCP Session %d to Ack %d\n", tcp_session, seq);
 	return 0;
 }
 
 static inline int update_tcp_session(u32 index, u32 ack)
 {
-	if (ack > ack_session_info[index].bigger_ack_num)
+	if (index < 2 * MAX_TCP_SESSION &&
+	    ack > ack_session_info[index].bigger_ack_num)
 		ack_session_info[index].bigger_ack_num = ack;
 	return 0;
 }
@@ -198,7 +200,7 @@ static inline int update_tcp_session(u32 index, u32 ack)
 static inline int add_tcp_pending_ack(u32 ack, u32 session_index,
 				      struct txq_entry_t *txqe)
 {
-	if (pending_acks < MAX_PENDING_ACKS) {
+	if (pending_base + pending_acks < MAX_PENDING_ACKS) {
 		pending_acks_info[pending_base + pending_acks].ack_num = ack;
 		pending_acks_info[pending_base + pending_acks].txqe = txqe;
 		pending_acks_info[pending_base + pending_acks].session_index = session_index;
@@ -265,7 +267,8 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 					 (u32)tcp_hdr_ptr[11];
 
 				for (i = 0; i < tcp_session; i++) {
-					if (ack_session_info[i].seq_num == seq_no) {
+					if (i < 2 * MAX_TCP_SESSION &&
+					    ack_session_info[i].seq_num == seq_no) {
 						update_tcp_session(i, ack_no);
 						break;
 					}
@@ -298,6 +301,9 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 	spin_lock_irqsave(&wilc->txq_spinlock, wilc->txq_spinlock_flags);
 	for (i = pending_base; i < (pending_base + pending_acks); i++) {
+		if (i >= MAX_PENDING_ACKS ||
+		    pending_acks_info[i].session_index >= 2 * MAX_TCP_SESSION)
+			break;
 		if (pending_acks_info[i].ack_num < ack_session_info[pending_acks_info[i].session_index].bigger_ack_num) {
 			struct txq_entry_t *tqe;
 
@@ -815,7 +821,8 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				if (tqe->tx_complete_func)
 					tqe->tx_complete_func(tqe->priv,
 							      tqe->status);
-				if (tqe->tcp_pending_ack_idx != NOT_TCP_ACK)
+				if (tqe->tcp_pending_ack_idx != NOT_TCP_ACK &&
+				    tqe->tcp_pending_ack_idx < MAX_PENDING_ACKS)
 					pending_acks_info[tqe->tcp_pending_ack_idx].txqe = NULL;
 				kfree(tqe);
 			} else {

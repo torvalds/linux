@@ -57,6 +57,9 @@
 #define BLOCK_ACK_REQ_SIZE                      0x14
 #define FALSE_FRMWR_CHANNEL			100
 
+#define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
+#define DEFAULT_LINK_SPEED			72
+
 struct cfg_param_attr {
 	struct cfg_param_val cfg_attr_info;
 };
@@ -2187,7 +2190,14 @@ static s32 Handle_GetStatistics(struct wilc_vif *vif,
 	if (result)
 		PRINT_ER("Failed to send scan paramters config packet\n");
 
-	up(&hif_sema_wait_response);
+	if (pstrStatistics->link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH &&
+	    pstrStatistics->link_speed != DEFAULT_LINK_SPEED)
+		wilc_enable_tcp_ack_filter(true);
+	else if (pstrStatistics->link_speed != DEFAULT_LINK_SPEED)
+		wilc_enable_tcp_ack_filter(false);
+
+	if (pstrStatistics != &vif->wilc->dummy_statistics)
+		up(&hif_sema_wait_response);
 	return 0;
 }
 
@@ -3606,7 +3616,8 @@ int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 		return -EFAULT;
 	}
 
-	down(&hif_sema_wait_response);
+	if (stats != &vif->wilc->dummy_statistics)
+		down(&hif_sema_wait_response);
 	return result;
 }
 
@@ -3698,21 +3709,9 @@ static void GetPeriodicRSSI(unsigned long arg)
 		return;
 	}
 
-	if (vif->hif_drv->hif_state == HOST_IF_CONNECTED) {
-		s32 result = 0;
-		struct host_if_msg msg;
+	if (vif->hif_drv->hif_state == HOST_IF_CONNECTED)
+		wilc_get_statistics(vif, &vif->wilc->dummy_statistics);
 
-		memset(&msg, 0, sizeof(struct host_if_msg));
-
-		msg.id = HOST_IF_MSG_GET_RSSI;
-		msg.vif = vif;
-
-		result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
-		if (result) {
-			PRINT_ER("Failed to send get host channel param's message queue ");
-			return;
-		}
-	}
 	periodic_rssi.data = (unsigned long)vif;
 	mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
 }

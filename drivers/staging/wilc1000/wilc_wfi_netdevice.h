@@ -217,6 +217,8 @@ struct wilc {
 
 	struct device *dev;
 	bool suspend_event;
+
+	struct rf_info dummy_statistics;
 };
 
 struct WILC_WFI_mon_priv {
