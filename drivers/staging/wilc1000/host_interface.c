@@ -281,7 +281,7 @@ static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
  */
 int wilc_get_vif_idx(struct wilc_vif *vif)
 {
-	return vif->u8IfIdx + 1;
+	return vif->idx + 1;
 }
 
 /* We need to minus 1 from idx which is from wilc device to get real index

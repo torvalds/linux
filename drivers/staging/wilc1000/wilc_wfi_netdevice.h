@@ -148,7 +148,7 @@ typedef struct {
 } struct_frame_reg;
 
 struct wilc_vif {
-	u8 u8IfIdx;
+	u8 idx;
 	u8 iftype;
 	int monitor_flag;
 	int mac_opened;
