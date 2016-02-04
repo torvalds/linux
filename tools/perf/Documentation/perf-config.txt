@@ -421,6 +421,11 @@ man.*::
 		New man viewer tool can be also added using 'man.<tool>.cmd'
 		or use different path using 'man.<tool>.path' config option.
 
+pager.*::
+	pager.<subcommand>::
+		When the subcommand is run on stdio, determine whether it uses
+		pager or not based on this value. Default is 'unspecified'.
+
 SEE ALSO
 --------
 linkperf:perf[1]
