@@ -31,6 +31,11 @@
 
 #define DRIVER_DESC		"i.MX IPUv3 Graphics"
 
+enum ipu_flip_status {
+	IPU_FLIP_NONE,
+	IPU_FLIP_PENDING,
+};
+
 struct ipu_crtc {
 	struct device		*dev;
 	struct drm_crtc		base;
@@ -42,8 +47,8 @@ struct ipu_crtc {
 	struct ipu_dc		*dc;
 	struct ipu_di		*di;
 	int			enabled;
+	enum ipu_flip_status	flip_state;
 	struct drm_pending_vblank_event *page_flip_event;
-	struct drm_framebuffer	*newfb;
 	int			irq;
 	u32			bus_format;
 	int			di_hsync_pin;
@@ -110,7 +115,7 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	int ret;
 
-	if (ipu_crtc->newfb)
+	if (ipu_crtc->flip_state != IPU_FLIP_NONE)
 		return -EBUSY;
 
 	ret = imx_drm_crtc_vblank_get(ipu_crtc->imx_crtc);
@@ -121,8 +126,8 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	ipu_crtc->newfb = fb;
 	ipu_crtc->page_flip_event = event;
+	ipu_crtc->flip_state = IPU_FLIP_PENDING;
 
 	return 0;
 }
@@ -224,13 +229,13 @@ static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 
 	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
 
-	if (ipu_crtc->newfb) {
+	if (ipu_crtc->flip_state == IPU_FLIP_PENDING) {
 		struct ipu_plane *plane = ipu_crtc->plane[0];
 
-		ipu_crtc->newfb = NULL;
 		ipu_plane_set_base(plane, ipu_crtc->base.primary->fb,
 				   plane->x, plane->y);
 		ipu_crtc_handle_pageflip(ipu_crtc);
+		ipu_crtc->flip_state = IPU_FLIP_NONE;
 	}
 
 	return IRQ_HANDLED;
