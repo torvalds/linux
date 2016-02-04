@@ -54,7 +54,6 @@ struct arche_apb_ctrl_drvdata {
 static inline void deassert_reset(unsigned int gpio)
 {
 	gpio_set_value(gpio, 1);
-	msleep(500);
 }
 
 static inline void assert_reset(unsigned int gpio)
