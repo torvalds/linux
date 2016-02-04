@@ -1471,7 +1471,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 		u8MacStatusAdditionalInfo = pstrRcvdGnrlAsyncInfo->buffer[9];
 		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
 			u32 u32RcvdAssocRespInfoLen = 0;
-			tstrConnectRespInfo *pstrConnectRespInfo = NULL;
+			struct connect_resp_info *pstrConnectRespInfo = NULL;
 
 			memset(&strConnectInfo, 0, sizeof(tstrConnectInfo));
 
