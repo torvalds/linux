@@ -1410,7 +1410,7 @@ done:
 	pstrRcvdNetworkInfo->buffer = NULL;
 
 	if (pstrNetworkInfo) {
-		kfree(pstrNetworkInfo->pu8IEs);
+		kfree(pstrNetworkInfo->ies);
 		kfree(pstrNetworkInfo);
 	}
 
@@ -4270,8 +4270,8 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 	u8 authTotalCount = 0;
 	u8 i, j;
 
-	pu8IEs = ptstrNetworkInfo->pu8IEs;
-	u16IEsLen = ptstrNetworkInfo->u16IEsLen;
+	pu8IEs = ptstrNetworkInfo->ies;
+	u16IEsLen = ptstrNetworkInfo->ies_len;
 
 	pNewJoinBssParam = kzalloc(sizeof(struct join_bss_param), GFP_KERNEL);
 	if (pNewJoinBssParam) {

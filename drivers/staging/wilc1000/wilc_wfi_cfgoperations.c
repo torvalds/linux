@@ -194,9 +194,9 @@ static void clear_shadow_scan(void)
 		del_timer_sync(&hAgingTimer);
 
 		for (i = 0; i < last_scanned_cnt; i++) {
-			if (last_scanned_shadow[last_scanned_cnt].pu8IEs) {
-				kfree(last_scanned_shadow[i].pu8IEs);
-				last_scanned_shadow[last_scanned_cnt].pu8IEs = NULL;
+			if (last_scanned_shadow[last_scanned_cnt].ies) {
+				kfree(last_scanned_shadow[i].ies);
+				last_scanned_shadow[last_scanned_cnt].ies = NULL;
 			}
 
 			kfree(last_scanned_shadow[i].pJoinParams);
@@ -253,8 +253,8 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 								  network_info->u64Tsf,
 								  network_info->cap_info,
 								  network_info->beacon_period,
-								  (const u8 *)network_info->pu8IEs,
-								  (size_t)network_info->u16IEsLen,
+								  (const u8 *)network_info->ies,
+								  (size_t)network_info->ies_len,
 								  (s32)rssi * 100,
 								  GFP_KERNEL);
 					cfg80211_put_bss(wiphy, bss);
@@ -292,8 +292,8 @@ static void remove_network_from_shadow(unsigned long arg)
 			PRINT_D(CFG80211_DBG, "Network expired ScanShadow:%s\n",
 				last_scanned_shadow[i].ssid);
 
-			kfree(last_scanned_shadow[i].pu8IEs);
-			last_scanned_shadow[i].pu8IEs = NULL;
+			kfree(last_scanned_shadow[i].ies);
+			last_scanned_shadow[i].ies = NULL;
 
 			kfree(last_scanned_shadow[i].pJoinParams);
 
@@ -377,14 +377,14 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	last_scanned_shadow[ap_index].beacon_period = pstrNetworkInfo->beacon_period;
 	last_scanned_shadow[ap_index].dtim_period = pstrNetworkInfo->dtim_period;
 	last_scanned_shadow[ap_index].ch = pstrNetworkInfo->ch;
-	last_scanned_shadow[ap_index].u16IEsLen = pstrNetworkInfo->u16IEsLen;
+	last_scanned_shadow[ap_index].ies_len = pstrNetworkInfo->ies_len;
 	last_scanned_shadow[ap_index].u64Tsf = pstrNetworkInfo->u64Tsf;
 	if (ap_found != -1)
-		kfree(last_scanned_shadow[ap_index].pu8IEs);
-	last_scanned_shadow[ap_index].pu8IEs =
-		kmalloc(pstrNetworkInfo->u16IEsLen, GFP_KERNEL);
-	memcpy(last_scanned_shadow[ap_index].pu8IEs,
-	       pstrNetworkInfo->pu8IEs, pstrNetworkInfo->u16IEsLen);
+		kfree(last_scanned_shadow[ap_index].ies);
+	last_scanned_shadow[ap_index].ies = kmalloc(pstrNetworkInfo->ies_len,
+						    GFP_KERNEL);
+	memcpy(last_scanned_shadow[ap_index].ies,
+	       pstrNetworkInfo->ies, pstrNetworkInfo->ies_len);
 	last_scanned_shadow[ap_index].time_scan = jiffies;
 	last_scanned_shadow[ap_index].time_scan_cached = jiffies;
 	last_scanned_shadow[ap_index].found = 1;
@@ -451,8 +451,8 @@ static void CfgScanResult(enum scan_event scan_event,
 										  network_info->u64Tsf,
 										  network_info->cap_info,
 										  network_info->beacon_period,
-										  (const u8 *)network_info->pu8IEs,
-										  (size_t)network_info->u16IEsLen,
+										  (const u8 *)network_info->ies,
+										  (size_t)network_info->ies_len,
 										  (s32)network_info->rssi * 100,
 										  GFP_KERNEL);
 							cfg80211_put_bss(wiphy, bss);

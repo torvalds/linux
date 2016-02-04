@@ -90,8 +90,8 @@ struct network_info {
 	bool new_network;
 	u8 found;
 	u32 tsf_lo;
-	u8 *pu8IEs;
-	u16 u16IEsLen;
+	u8 *ies;
+	u16 ies_len;
 	void *pJoinParams;
 	tstrRSSI strRssi;
 	u64 u64Tsf;

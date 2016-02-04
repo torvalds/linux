@@ -341,12 +341,11 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 		ies_len = rx_len - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
 
 		if (ies_len > 0) {
-			network_info->pu8IEs = kmemdup(ies, ies_len,
-						       GFP_KERNEL);
-			if (!network_info->pu8IEs)
+			network_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
+			if (!network_info->ies)
 				return -ENOMEM;
 		}
-		network_info->u16IEsLen = ies_len;
+		network_info->ies_len = ies_len;
 	}
 
 	*ret_network_info = network_info;
