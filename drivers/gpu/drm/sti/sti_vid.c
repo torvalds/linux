@@ -54,6 +54,93 @@
 
 #define VID_MIN_HD_HEIGHT       720
 
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(vid->regs + reg))
+
+static void vid_dbg_ctl(struct seq_file *s, int val)
+{
+	val = val >> 30;
+	seq_puts(s, "\t");
+
+	if (!(val & 1))
+		seq_puts(s, "NOT ");
+	seq_puts(s, "ignored on main mixer - ");
+
+	if (!(val & 2))
+		seq_puts(s, "NOT ");
+	seq_puts(s, "ignored on aux mixer");
+}
+
+static void vid_dbg_vpo(struct seq_file *s, int val)
+{
+	seq_printf(s, "\txdo:%4d\tydo:%4d", val & 0x0FFF, (val >> 16) & 0x0FFF);
+}
+
+static void vid_dbg_vps(struct seq_file *s, int val)
+{
+	seq_printf(s, "\txds:%4d\tyds:%4d", val & 0x0FFF, (val >> 16) & 0x0FFF);
+}
+
+static void vid_dbg_mst(struct seq_file *s, int val)
+{
+	if (val & 1)
+		seq_puts(s, "\tBUFFER UNDERFLOW!");
+}
+
+static int vid_dbg_show(struct seq_file *s, void *arg)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_vid *vid = (struct sti_vid *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "VID: (vaddr= 0x%p)", vid->regs);
+
+	DBGFS_DUMP(VID_CTL);
+	vid_dbg_ctl(s, readl(vid->regs + VID_CTL));
+	DBGFS_DUMP(VID_ALP);
+	DBGFS_DUMP(VID_CLF);
+	DBGFS_DUMP(VID_VPO);
+	vid_dbg_vpo(s, readl(vid->regs + VID_VPO));
+	DBGFS_DUMP(VID_VPS);
+	vid_dbg_vps(s, readl(vid->regs + VID_VPS));
+	DBGFS_DUMP(VID_KEY1);
+	DBGFS_DUMP(VID_KEY2);
+	DBGFS_DUMP(VID_MPR0);
+	DBGFS_DUMP(VID_MPR1);
+	DBGFS_DUMP(VID_MPR2);
+	DBGFS_DUMP(VID_MPR3);
+	DBGFS_DUMP(VID_MST);
+	vid_dbg_mst(s, readl(vid->regs + VID_MST));
+	DBGFS_DUMP(VID_BC);
+	DBGFS_DUMP(VID_TINT);
+	DBGFS_DUMP(VID_CSAT);
+	seq_puts(s, "\n");
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list vid_debugfs_files[] = {
+	{ "vid", vid_dbg_show, 0, NULL },
+};
+
+static int vid_debugfs_init(struct sti_vid *vid, struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(vid_debugfs_files); i++)
+		vid_debugfs_files[i].data = vid;
+
+	return drm_debugfs_create_files(vid_debugfs_files,
+					ARRAY_SIZE(vid_debugfs_files),
+					minor->debugfs_root, minor);
+}
+
 void sti_vid_commit(struct sti_vid *vid,
 		    struct drm_plane_state *state)
 {
@@ -122,8 +209,8 @@ static void sti_vid_init(struct sti_vid *vid)
 	writel(VID_CSAT_DFLT, vid->regs + VID_CSAT);
 }
 
-struct sti_vid *sti_vid_create(struct device *dev, int id,
-			       void __iomem *baseaddr)
+struct sti_vid *sti_vid_create(struct device *dev, struct drm_device *drm_dev,
+			       int id, void __iomem *baseaddr)
 {
 	struct sti_vid *vid;
 
@@ -138,6 +225,9 @@ struct sti_vid *sti_vid_create(struct device *dev, int id,
 	vid->id = id;
 
 	sti_vid_init(vid);
+
+	if (vid_debugfs_init(vid, drm_dev->primary))
+		DRM_ERROR("VID debugfs setup failed\n");
 
 	return vid;
 }
