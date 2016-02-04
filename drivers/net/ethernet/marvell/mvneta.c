@@ -2849,9 +2849,14 @@ static void mvneta_percpu_disable(void *arg)
 
 static void mvneta_percpu_elect(struct mvneta_port *pp)
 {
-	int online_cpu_idx, max_cpu, cpu, i = 0;
+	int elected_cpu = 0, max_cpu, cpu, i = 0;
 
-	online_cpu_idx = pp->rxq_def % num_online_cpus();
+	/* Use the cpu associated to the rxq when it is online, in all
+	 * the other cases, use the cpu 0 which can't be offline.
+	 */
+	if (cpu_online(pp->rxq_def))
+		elected_cpu = pp->rxq_def;
+
 	max_cpu = num_present_cpus();
 
 	for_each_online_cpu(cpu) {
@@ -2862,7 +2867,7 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 			if ((rxq % max_cpu) == cpu)
 				rxq_map |= MVNETA_CPU_RXQ_ACCESS(rxq);
 
-		if (i == online_cpu_idx)
+		if (cpu == elected_cpu)
 			/* Map the default receive queue queue to the
 			 * elected CPU
 			 */
@@ -2873,7 +2878,7 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 		 * the CPU bound to the default RX queue
 		 */
 		if (txq_number == 1)
-			txq_map = (i == online_cpu_idx) ?
+			txq_map = (cpu == elected_cpu) ?
 				MVNETA_CPU_TXQ_ACCESS(1) : 0;
 		else
 			txq_map = mvreg_read(pp, MVNETA_CPU_MAP(cpu)) &
