@@ -741,13 +741,14 @@ int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);
 
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
 struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba);
-int be_mcc_notify_wait(struct beiscsi_hba *phba, unsigned int tag);
+int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag);
 void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag);
 unsigned int alloc_mcc_tag(struct beiscsi_hba *phba);
 void beiscsi_process_async_event(struct beiscsi_hba *phba,
 				struct be_mcc_compl *compl);
-int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
-				    struct be_mcc_compl *compl);
+int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
+			      struct be_mcc_compl *compl);
+
 
 int be_mbox_notify(struct be_ctrl_info *ctrl);
 

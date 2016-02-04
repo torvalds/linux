@@ -2028,7 +2028,7 @@ static void hwi_process_default_pdu_ring(struct beiscsi_conn *beiscsi_conn,
 			       phwi_ctrlr, cri_index));
 }
 
-static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
+void beiscsi_process_mcc_cq(struct beiscsi_hba *phba)
 {
 	struct be_queue_info *mcc_cq;
 	struct  be_mcc_compl *mcc_compl;
@@ -2038,7 +2038,6 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 	mcc_compl = queue_tail_node(mcc_cq);
 	mcc_compl->flags = le32_to_cpu(mcc_compl->flags);
 	while (mcc_compl->flags & CQE_FLAGS_VALID_MASK) {
-
 		if (num_processed >= 32) {
 			hwi_ring_cq_db(phba, mcc_cq->id,
 					num_processed, 0);
@@ -2047,7 +2046,7 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 		if (mcc_compl->flags & CQE_FLAGS_ASYNC_MASK) {
 			beiscsi_process_async_event(phba, mcc_compl);
 		} else if (mcc_compl->flags & CQE_FLAGS_COMPLETED_MASK) {
-			be_mcc_compl_process_isr(&phba->ctrl, mcc_compl);
+			beiscsi_process_mcc_compl(&phba->ctrl, mcc_compl);
 			atomic_dec(&phba->ctrl.mcc_obj.q.used);
 		}
 
@@ -2060,7 +2059,6 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 
 	if (num_processed > 0)
 		hwi_ring_cq_db(phba, mcc_cq->id, num_processed, 1);
-
 }
 
 /**
@@ -2269,7 +2267,7 @@ void beiscsi_process_all_cqs(struct work_struct *work)
 		spin_lock_irqsave(&phba->isr_lock, flags);
 		pbe_eq->todo_mcc_cq = false;
 		spin_unlock_irqrestore(&phba->isr_lock, flags);
-		beiscsi_process_mcc_isr(phba);
+		beiscsi_process_mcc_cq(phba);
 	}
 
 	if (pbe_eq->todo_cq) {

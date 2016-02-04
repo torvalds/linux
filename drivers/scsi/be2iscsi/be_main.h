@@ -853,6 +853,7 @@ void hwi_ring_cq_db(struct beiscsi_hba *phba,
 		     unsigned char rearm);
 
 unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget);
+void beiscsi_process_mcc_cq(struct beiscsi_hba *phba);
 
 static inline bool beiscsi_error(struct beiscsi_hba *phba)
 {
