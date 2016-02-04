@@ -1501,8 +1501,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 						}
 
 						if (pstrConnectRespInfo) {
-							wilc_dealloc_assoc_resp_info(pstrConnectRespInfo);
-							pstrConnectRespInfo = NULL;
+							kfree(pstrConnectRespInfo->pu8RespIEs);
+							kfree(pstrConnectRespInfo);
 						}
 					}
 				}

@@ -386,25 +386,3 @@ s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 
 	return 0;
 }
-
-s32 wilc_dealloc_assoc_resp_info(tstrConnectRespInfo *connect_resp_info)
-{
-	s32 result = 0;
-
-	if (connect_resp_info) {
-		if (connect_resp_info->pu8RespIEs) {
-			kfree(connect_resp_info->pu8RespIEs);
-			connect_resp_info->pu8RespIEs = NULL;
-		} else {
-			result = -EFAULT;
-		}
-
-		kfree(connect_resp_info);
-		connect_resp_info = NULL;
-
-	} else {
-		result = -EFAULT;
-	}
-
-	return result;
-}
