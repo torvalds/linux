@@ -96,21 +96,6 @@ struct mtd_oob_ops {
 
 #define MTD_MAX_OOBFREE_ENTRIES_LARGE	32
 #define MTD_MAX_ECCPOS_ENTRIES_LARGE	640
-/*
- * Internal ECC layout control structure. For historical reasons, there is a
- * similar, smaller struct nand_ecclayout_user (in mtd-abi.h) that is retained
- * for export to user-space via the ECCGETLAYOUT ioctl.
- * nand_ecclayout should be expandable in the future simply by the above macros.
- *
- * This structure is now deprecated, you should use struct nand_ecclayout_ops
- * to describe your OOB layout.
- */
-struct nand_ecclayout {
-	__u32 eccbytes;
-	__u32 eccpos[MTD_MAX_ECCPOS_ENTRIES_LARGE];
-	struct nand_oobfree oobfree[MTD_MAX_OOBFREE_ENTRIES_LARGE];
-};
-
 /**
  * struct mtd_oob_region - oob region definition
  * @offset: region offset
@@ -199,9 +184,6 @@ struct mtd_info {
 	// Kernel-only stuff starts here.
 	const char *name;
 	int index;
-
-	/* [Deprecated] ECC layout structure pointer - read only! */
-	struct nand_ecclayout *ecclayout;
 
 	/* OOB layout description */
 	const struct mtd_ooblayout_ops *ooblayout;
@@ -307,8 +289,6 @@ int mtd_ooblayout_set_databytes(struct mtd_info *mtd, const u8 *databuf,
 				u8 *oobbuf, int start, int nbytes);
 int mtd_ooblayout_count_freebytes(struct mtd_info *mtd);
 int mtd_ooblayout_count_eccbytes(struct mtd_info *mtd);
-
-void mtd_set_ecclayout(struct mtd_info *mtd, struct nand_ecclayout *ecclayout);
 
 static inline void mtd_set_ooblayout(struct mtd_info *mtd,
 				     const struct mtd_ooblayout_ops *ooblayout)
