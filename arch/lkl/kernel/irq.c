@@ -9,12 +9,15 @@
 #include <asm/irqflags.h>
 #include <asm/host_ops.h>
 
+static unsigned long irq_status;
 static bool irqs_enabled;
-static bool irqs_triggered;
+
+#define TEST_AND_CLEAR_IRQ_STATUS(x)	__sync_fetch_and_and(&irq_status, 0)
+#define IRQ_BIT(x)			BIT(x-1)
+#define SET_IRQ_STATUS(x)		__sync_fetch_and_or(&irq_status, BIT(x - 1))
 
 static struct irq_info {
 	const char *user;
-	bool triggered;
 } irqs[NR_IRQS];
 
 /**
@@ -23,29 +26,25 @@ static struct irq_info {
  */
 int lkl_trigger_irq(int irq)
 {
-	int ret = 0;
-
-	if (irq >= NR_IRQS)
+	if (!irq || irq > NR_IRQS)
 		return -EINVAL;
 
-	irqs[irq].triggered = true;
-	__sync_synchronize();
-	irqs_triggered = true;
+	SET_IRQ_STATUS(irq);
 
 	wakeup_cpu();
 
-	return ret;
+	return 0;
 }
 
 static void run_irqs(void)
 {
 	int i;
+	unsigned long status;
 
-	if (!__sync_fetch_and_and(&irqs_triggered, 0))
-		return;
+	status = TEST_AND_CLEAR_IRQ_STATUS(IRQS_MASK);
 
 	for (i = 1; i < NR_IRQS; i++) {
-		if (__sync_fetch_and_and(&irqs[i].triggered, 0)) {
+		if (status & IRQ_BIT(i)) {
 			irq_enter();
 			generic_handle_irq(i);
 			irq_exit();
