@@ -33,6 +33,8 @@
 
 #ifdef	CONFIG_PM
 
+static void unlink_empty_async_suspended(struct ehci_hcd *ehci);
+
 static int persist_enabled_on_companion(struct usb_device *udev, void *unused)
 {
 	return !udev->maxchild && udev->persist_enabled &&
