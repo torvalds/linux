@@ -351,13 +351,13 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 		ap_index = ap_found;
 	}
 	rssi_index = last_scanned_shadow[ap_index].strRssi.u8Index;
-	last_scanned_shadow[ap_index].strRssi.as8RSSI[rssi_index++] = pstrNetworkInfo->s8rssi;
+	last_scanned_shadow[ap_index].strRssi.as8RSSI[rssi_index++] = pstrNetworkInfo->rssi;
 	if (rssi_index == NUM_RSSI) {
 		rssi_index = 0;
 		last_scanned_shadow[ap_index].strRssi.u8Full = 1;
 	}
 	last_scanned_shadow[ap_index].strRssi.u8Index = rssi_index;
-	last_scanned_shadow[ap_index].s8rssi = pstrNetworkInfo->s8rssi;
+	last_scanned_shadow[ap_index].rssi = pstrNetworkInfo->rssi;
 	last_scanned_shadow[ap_index].u16CapInfo = pstrNetworkInfo->u16CapInfo;
 	last_scanned_shadow[ap_index].u8SsidLen = pstrNetworkInfo->u8SsidLen;
 	memcpy(last_scanned_shadow[ap_index].au8ssid,
@@ -403,8 +403,8 @@ static void CfgScanResult(enum scan_event scan_event,
 				return;
 
 			if (wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
-			    (((s32)network_info->s8rssi * 100) < 0 ||
-			    ((s32)network_info->s8rssi * 100) > 100))
+			    (((s32)network_info->rssi * 100) < 0 ||
+			    ((s32)network_info->rssi * 100) > 100))
 				return;
 
 			if (network_info) {
@@ -415,7 +415,7 @@ static void CfgScanResult(enum scan_event scan_event,
 					return;
 
 				PRINT_INFO(CFG80211_DBG, "Network Info:: CHANNEL Frequency: %d, RSSI: %d, CapabilityInfo: %d,"
-					   "BeaconPeriod: %d\n", channel->center_freq, (((s32)network_info->s8rssi) * 100),
+					   "BeaconPeriod: %d\n", channel->center_freq, (((s32)network_info->rssi) * 100),
 					   network_info->u16CapInfo, network_info->u16BeaconPeriod);
 
 				if (network_info->bNewNetwork) {
@@ -428,7 +428,7 @@ static void CfgScanResult(enum scan_event scan_event,
 						if (!(memcmp("DIRECT-", network_info->au8ssid, 7))) {
 							bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN,  network_info->au8bssid, network_info->u64Tsf, network_info->u16CapInfo,
 										  network_info->u16BeaconPeriod, (const u8 *)network_info->pu8IEs,
-										  (size_t)network_info->u16IEsLen, (((s32)network_info->s8rssi) * 100), GFP_KERNEL);
+										  (size_t)network_info->u16IEsLen, (((s32)network_info->rssi) * 100), GFP_KERNEL);
 							cfg80211_put_bss(wiphy, bss);
 						}
 					}
@@ -439,7 +439,7 @@ static void CfgScanResult(enum scan_event scan_event,
 						if (memcmp(last_scanned_shadow[i].au8bssid, network_info->au8bssid, 6) == 0) {
 							PRINT_D(CFG80211_DBG, "Update RSSI of %s\n", last_scanned_shadow[i].au8ssid);
 
-							last_scanned_shadow[i].s8rssi = network_info->s8rssi;
+							last_scanned_shadow[i].rssi = network_info->rssi;
 							last_scanned_shadow[i].u32TimeRcvdInScan = jiffies;
 							break;
 						}

@@ -309,7 +309,7 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 		if (!network_info)
 			return -ENOMEM;
 
-		network_info->s8rssi = wid_val[0];
+		network_info->rssi = wid_val[0];
 
 		msa = &wid_val[1];
 

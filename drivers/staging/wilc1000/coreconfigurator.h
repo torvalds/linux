@@ -77,7 +77,7 @@ typedef struct {
 } tstrRSSI;
 
 struct network_info {
-	s8 s8rssi;
+	s8 rssi;
 	u16 u16CapInfo;
 	u8 au8ssid[MAX_SSID_LEN];
 	u8 u8SsidLen;
