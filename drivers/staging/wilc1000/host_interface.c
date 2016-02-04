@@ -312,7 +312,7 @@ static s32 handle_set_channel(struct wilc_vif *vif,
 
 	PRINT_D(HOSTINF_DBG, "Setting channel\n");
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if (result) {
@@ -334,7 +334,7 @@ static s32 handle_set_wfi_drv_handler(struct wilc_vif *vif,
 	wid.val = (s8 *)hif_drv_handler;
 	wid.size = sizeof(*hif_drv_handler);
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      hif_drv_handler->handler);
 
 	if (!hif_drv_handler->handler)
@@ -359,7 +359,7 @@ static s32 handle_set_operation_mode(struct wilc_vif *vif,
 	wid.val = (s8 *)&hif_op_mode->mode;
 	wid.size = sizeof(u32);
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if ((hif_op_mode->mode) == IDLE_MODE)
@@ -392,7 +392,7 @@ static s32 handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 	wid.val = (u8 *)ip_addr;
 	wid.size = IP_ALEN;
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	host_int_get_ipaddress(vif, firmware_ip_addr, idx);
@@ -417,7 +417,7 @@ static s32 handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 	wid.val = kmalloc(IP_ALEN, GFP_KERNEL);
 	wid.size = IP_ALEN;
 
-	result = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	PRINT_INFO(HOSTINF_DBG, "%pI4\n", wid.val);
@@ -460,7 +460,7 @@ static s32 handle_set_mac_address(struct wilc_vif *vif,
 	wid.size = ETH_ALEN;
 	PRINT_D(GENERIC_DBG, "mac addr = :%pM\n", wid.val);
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result) {
 		PRINT_ER("Failed to set mac address\n");
@@ -482,7 +482,7 @@ static s32 handle_get_mac_address(struct wilc_vif *vif,
 	wid.val = get_mac_addr->mac_addr;
 	wid.size = ETH_ALEN;
 
-	result = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if (result) {
@@ -778,7 +778,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		wid_cnt++;
 	}
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, wid_list,
+	result = wilc_send_config_pkt(vif, SET_CFG, wid_list,
 				      wid_cnt, wilc_get_vif_idx(vif));
 
 	if (result)
@@ -902,7 +902,7 @@ static s32 Handle_Scan(struct wilc_vif *vif,
 	else if (hif_drv->hif_state == HOST_IF_IDLE)
 		scan_while_connected = false;
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, strWIDList,
+	result = wilc_send_config_pkt(vif, SET_CFG, strWIDList,
 				      u32WidsCount,
 				      wilc_get_vif_idx(vif));
 
@@ -948,7 +948,7 @@ static s32 Handle_ScanDone(struct wilc_vif *vif,
 		wid.val = (s8 *)&u8abort_running_scan;
 		wid.size = sizeof(char);
 
-		result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 					      wilc_get_vif_idx(vif));
 
 		if (result) {
@@ -1204,7 +1204,7 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 		PRINT_D(GENERIC_DBG, "save bssid = %pM\n", wilc_connected_ssid);
 	}
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, strWIDList,
+	result = wilc_send_config_pkt(vif, SET_CFG, strWIDList,
 				      u32WidsCount,
 				      wilc_get_vif_idx(vif));
 	if (result) {
@@ -1302,7 +1302,7 @@ static s32 Handle_FlushConnect(struct wilc_vif *vif)
 
 	u32WidsCount++;
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, strWIDList,
+	result = wilc_send_config_pkt(vif, SET_CFG, strWIDList,
 				      u32WidsCount,
 				      wilc_get_vif_idx(join_req_vif));
 	if (result) {
@@ -1365,7 +1365,7 @@ static s32 Handle_ConnectTimeout(struct wilc_vif *vif)
 
 	PRINT_D(HOSTINF_DBG, "Sending disconnect request\n");
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_ER("Failed to send dissconect config packet\n");
@@ -1758,7 +1758,7 @@ static int Handle_Key(struct wilc_vif *vif,
 			strWIDList[2].size = pstrHostIFkeyAttr->attr.wep.key_len + 2;
 			strWIDList[2].val = (s8 *)pu8keybuf;
 
-			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
+			result = wilc_send_config_pkt(vif, SET_CFG,
 						      strWIDList, 3,
 						      wilc_get_vif_idx(vif));
 			kfree(pu8keybuf);
@@ -1780,7 +1780,7 @@ static int Handle_Key(struct wilc_vif *vif,
 			wid.val = (s8 *)pu8keybuf;
 			wid.size = pstrHostIFkeyAttr->attr.wep.key_len + 2;
 
-			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
+			result = wilc_send_config_pkt(vif, SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 			kfree(pu8keybuf);
@@ -1793,7 +1793,7 @@ static int Handle_Key(struct wilc_vif *vif,
 			wid.val = s8idxarray;
 			wid.size = 1;
 
-			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
+			result = wilc_send_config_pkt(vif, SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 		} else if (pstrHostIFkeyAttr->action & DEFAULTKEY) {
@@ -1804,7 +1804,7 @@ static int Handle_Key(struct wilc_vif *vif,
 
 			PRINT_D(HOSTINF_DBG, "Setting default key index\n");
 
-			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
+			result = wilc_send_config_pkt(vif, SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 		}
@@ -1838,7 +1838,7 @@ static int Handle_Key(struct wilc_vif *vif,
 			strWIDList[1].val = (s8 *)pu8keybuf;
 			strWIDList[1].size = RX_MIC_KEY_MSG_LEN;
 
-			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
+			result = wilc_send_config_pkt(vif, SET_CFG,
 						      strWIDList, 2,
 						      wilc_get_vif_idx(vif));
 
@@ -1870,7 +1870,7 @@ static int Handle_Key(struct wilc_vif *vif,
 			wid.val = (s8 *)pu8keybuf;
 			wid.size = RX_MIC_KEY_MSG_LEN;
 
-			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
+			result = wilc_send_config_pkt(vif, SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 
@@ -1910,7 +1910,7 @@ _WPARxGtk_end_case_:
 			strWIDList[1].val = (s8 *)pu8keybuf;
 			strWIDList[1].size = PTK_KEY_MSG_LEN + 1;
 
-			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
+			result = wilc_send_config_pkt(vif, SET_CFG,
 						      strWIDList, 2,
 						      wilc_get_vif_idx(vif));
 			kfree(pu8keybuf);
@@ -1933,7 +1933,7 @@ _WPARxGtk_end_case_:
 			wid.val = (s8 *)pu8keybuf;
 			wid.size = PTK_KEY_MSG_LEN;
 
-			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
+			result = wilc_send_config_pkt(vif, SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 			kfree(pu8keybuf);
@@ -1969,7 +1969,7 @@ _WPAPtk_end_case_:
 		wid.val = (s8 *)pu8keybuf;
 		wid.size = (pstrHostIFkeyAttr->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1;
 
-		result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 					      wilc_get_vif_idx(vif));
 
 		kfree(pu8keybuf);
@@ -2002,7 +2002,7 @@ static void Handle_Disconnect(struct wilc_vif *vif)
 
 	eth_zero_addr(wilc_connected_ssid);
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if (result) {
@@ -2093,7 +2093,7 @@ static s32 Handle_GetChnl(struct wilc_vif *vif)
 
 	PRINT_D(HOSTINF_DBG, "Getting channel value\n");
 
-	result = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if (result) {
@@ -2118,7 +2118,7 @@ static void Handle_GetRssi(struct wilc_vif *vif)
 
 	PRINT_D(HOSTINF_DBG, "Getting RSSI value\n");
 
-	result = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result) {
 		PRINT_ER("Failed to get RSSI value\n");
@@ -2143,7 +2143,7 @@ static void Handle_GetLinkspeed(struct wilc_vif *vif)
 
 	PRINT_D(HOSTINF_DBG, "Getting LINKSPEED value\n");
 
-	result = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result) {
 		PRINT_ER("Failed to get LINKSPEED value\n");
@@ -2189,7 +2189,7 @@ static s32 Handle_GetStatistics(struct wilc_vif *vif,
 	strWIDList[u32WidsCount].val = (s8 *)&pstrStatistics->tx_fail_cnt;
 	u32WidsCount++;
 
-	result = wilc_send_config_pkt(vif->wilc, GET_CFG, strWIDList,
+	result = wilc_send_config_pkt(vif, GET_CFG, strWIDList,
 				      u32WidsCount,
 				      wilc_get_vif_idx(vif));
 
@@ -2225,7 +2225,7 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 
 	PRINT_D(CFG80211_DBG, "SETING STA inactive time\n");
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if (result) {
@@ -2238,7 +2238,7 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 	wid.val = (s8 *)&inactive_time;
 	wid.size = sizeof(u32);
 
-	result = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if (result) {
@@ -2297,8 +2297,8 @@ static void Handle_AddBeacon(struct wilc_vif *vif,
 		memcpy(pu8CurrByte, pstrSetBeaconParam->tail, pstrSetBeaconParam->tail_len);
 	pu8CurrByte += pstrSetBeaconParam->tail_len;
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
-				 wilc_get_vif_idx(vif));
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_ER("Failed to send add beacon config packet\n");
 
@@ -2326,7 +2326,7 @@ static void Handle_DelBeacon(struct wilc_vif *vif)
 
 	PRINT_D(HOSTINF_DBG, "Deleting BEACON\n");
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_ER("Failed to send delete beacon config packet\n");
@@ -2399,7 +2399,7 @@ static void Handle_AddStation(struct wilc_vif *vif,
 	pu8CurrByte = wid.val;
 	pu8CurrByte += WILC_HostIf_PackStaParam(pu8CurrByte, pstrStationParam);
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result != 0)
 		PRINT_ER("Failed to send add station config packet\n");
@@ -2441,7 +2441,7 @@ static void Handle_DelAllSta(struct wilc_vif *vif,
 		pu8CurrByte += ETH_ALEN;
 	}
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_ER("Failed to send add station config packet\n");
@@ -2473,7 +2473,7 @@ static void Handle_DelStation(struct wilc_vif *vif,
 
 	memcpy(pu8CurrByte, pstrDelStaParam->mac_addr, ETH_ALEN);
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_ER("Failed to send add station config packet\n");
@@ -2501,7 +2501,7 @@ static void Handle_EditStation(struct wilc_vif *vif,
 	pu8CurrByte = wid.val;
 	pu8CurrByte += WILC_HostIf_PackStaParam(pu8CurrByte, pstrStationParam);
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_ER("Failed to send edit station config packet\n");
@@ -2563,7 +2563,7 @@ static int Handle_RemainOnChan(struct wilc_vif *vif,
 	wid.val[0] = u8remain_on_chan_flag;
 	wid.val[1] = (s8)pstrHostIfRemainOnChan->ch;
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result != 0)
 		PRINT_ER("Failed to set remain on channel\n");
@@ -2611,7 +2611,7 @@ static int Handle_RegisterFrame(struct wilc_vif *vif,
 
 	wid.size = sizeof(u16) + 2;
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result) {
 		PRINT_ER("Failed to frame register config packet\n");
@@ -2646,7 +2646,7 @@ static u32 Handle_ListenStateExpired(struct wilc_vif *vif,
 		wid.val[0] = u8remain_on_chan_flag;
 		wid.val[1] = FALSE_FRMWR_CHANNEL;
 
-		result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 					      wilc_get_vif_idx(vif));
 		if (result != 0) {
 			PRINT_ER("Failed to set remain on channel\n");
@@ -2704,7 +2704,7 @@ static void Handle_PowerManagement(struct wilc_vif *vif,
 
 	PRINT_D(HOSTINF_DBG, "Handling Power Management\n");
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_ER("Failed to send power management config packet\n");
@@ -2741,7 +2741,7 @@ static void Handle_SetMulticastFilter(struct wilc_vif *vif,
 		memcpy(pu8CurrByte, wilc_multicast_mac_addr_list,
 		       ((strHostIfSetMulti->cnt) * ETH_ALEN));
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_ER("Failed to send setup multicast config packet\n");
@@ -2777,7 +2777,7 @@ static s32 Handle_DelAllRxBASessions(struct wilc_vif *vif,
 	*ptr++ = 0;
 	*ptr++ = 32;
 
-	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		PRINT_D(HOSTINF_DBG, "Couldn't delete BA Session\n");
@@ -2799,8 +2799,8 @@ static void handle_set_tx_pwr(struct wilc_vif *vif, u8 tx_pwr)
 	wid.val = &tx_pwr;
 	wid.size = sizeof(char);
 
-	ret = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
-			     wilc_get_vif_idx(vif));
+	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set TX PWR\n");
 }
@@ -2815,8 +2815,8 @@ static void handle_get_tx_pwr(struct wilc_vif *vif, u8 *tx_pwr)
 	wid.val = (s8 *)tx_pwr;
 	wid.size = sizeof(char);
 
-	ret = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
-			     wilc_get_vif_idx(vif));
+	ret = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
 	if (ret)
 		netdev_err(vif->ndev, "Failed to get TX PWR\n");
 
@@ -3513,7 +3513,7 @@ static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
 	wid.val = pu8AssocRespInfo;
 	wid.size = u32MaxAssocRespInfoLen;
 
-	result = wilc_send_config_pkt(vif->wilc, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result) {
 		*pu32RcvdAssocRespInfoLen = 0;

@@ -113,9 +113,11 @@ static void wilc_wlan_txq_add_to_tail(struct net_device *dev,
 	up(&wilc->txq_event);
 }
 
-static int wilc_wlan_txq_add_to_head(struct wilc *wilc, struct txq_entry_t *tqe)
+static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif, struct txq_entry_t *tqe)
 {
 	unsigned long flags;
+	struct wilc *wilc = vif->wilc;
+
 	if (wilc_lock_timeout(wilc, &wilc->txq_add_to_head_cs,
 				    CFG_PKTS_TIMEOUT))
 		return -1;
@@ -134,12 +136,12 @@ static int wilc_wlan_txq_add_to_head(struct wilc *wilc, struct txq_entry_t *tqe)
 		wilc->txq_head = tqe;
 	}
 	wilc->txq_entries += 1;
-	PRINT_D(TX_DBG, "Number of entries in TxQ = %d\n", wilc->txq_entries);
+	netdev_dbg(vif->ndev, "Number of entries in TxQ = %d\n", wilc->txq_entries);
 
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 	up(&wilc->txq_add_to_head_cs);
 	up(&wilc->txq_event);
-	PRINT_D(TX_DBG, "Wake up the txq_handler\n");
+	netdev_dbg(vif->ndev, "Wake up the txq_handler\n");
 
 	return 0;
 }
@@ -351,20 +353,22 @@ static bool is_tcp_ack_filter_enabled(void)
 	return enabled;
 }
 
-static int wilc_wlan_txq_add_cfg_pkt(struct wilc *wilc, u8 *buffer, u32 buffer_size)
+static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
+				     u32 buffer_size)
 {
 	struct txq_entry_t *tqe;
+	struct wilc *wilc = vif->wilc;
 
-	PRINT_D(TX_DBG, "Adding config packet ...\n");
+	netdev_dbg(vif->ndev, "Adding config packet ...\n");
 	if (wilc->quit) {
-		PRINT_D(TX_DBG, "Return due to clear function\n");
+		netdev_dbg(vif->ndev, "Return due to clear function\n");
 		up(&wilc->cfg_event);
 		return 0;
 	}
 
 	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
 	if (!tqe) {
-		PRINT_ER("Failed to allocate memory\n");
+		netdev_err(vif->ndev, "Failed to allocate memory\n");
 		return 0;
 	}
 
@@ -374,9 +378,9 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc *wilc, u8 *buffer, u32 buffer_s
 	tqe->tx_complete_func = NULL;
 	tqe->priv = NULL;
 	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
-	PRINT_D(TX_DBG, "Adding the config packet at the Queue tail\n");
+	netdev_dbg(vif->ndev, "Adding the config packet at the Queue tail\n");
 
-	if (wilc_wlan_txq_add_to_head(wilc, tqe))
+	if (wilc_wlan_txq_add_to_head(vif, tqe))
 		return 0;
 	return 1;
 }
@@ -1326,8 +1330,10 @@ void wilc_wlan_cleanup(struct net_device *dev)
 	wilc->hif_func->hif_deinit(NULL);
 }
 
-static int wilc_wlan_cfg_commit(struct wilc *wilc, int type, u32 drv_handler)
+static int wilc_wlan_cfg_commit(struct wilc_vif *vif, int type,
+				u32 drv_handler)
 {
+	struct wilc *wilc = vif->wilc;
 	struct wilc_cfg_frame *cfg = &wilc->cfg_frame;
 	int total_len = wilc->cfg_frame_offset + 4 + DRIVER_HANDLER_SIZE;
 	int seq_no = wilc->cfg_seq_no % 256;
@@ -1346,17 +1352,18 @@ static int wilc_wlan_cfg_commit(struct wilc *wilc, int type, u32 drv_handler)
 	cfg->wid_header[7] = (u8)(driver_handler >> 24);
 	wilc->cfg_seq_no = seq_no;
 
-	if (!wilc_wlan_txq_add_cfg_pkt(wilc, &cfg->wid_header[0], total_len))
+	if (!wilc_wlan_txq_add_cfg_pkt(vif, &cfg->wid_header[0], total_len))
 		return -1;
 
 	return 0;
 }
 
-int wilc_wlan_cfg_set(struct wilc *wilc, int start, u32 wid, u8 *buffer,
+int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u32 wid, u8 *buffer,
 		      u32 buffer_size, int commit, u32 drv_handler)
 {
 	u32 offset;
 	int ret_size;
+	struct wilc *wilc = vif->wilc;
 
 	if (wilc->cfg_frame_in_use)
 		return 0;
@@ -1371,17 +1378,18 @@ int wilc_wlan_cfg_set(struct wilc *wilc, int start, u32 wid, u8 *buffer,
 	wilc->cfg_frame_offset = offset;
 
 	if (commit) {
-		PRINT_D(TX_DBG, "[WILC]PACKET Commit with sequence number %d\n",
-			wilc->cfg_seq_no);
-		PRINT_D(RX_DBG, "Processing cfg_set()\n");
+		netdev_dbg(vif->ndev,
+			   "[WILC]PACKET Commit with sequence number %d\n",
+			   wilc->cfg_seq_no);
+		netdev_dbg(vif->ndev, "Processing cfg_set()\n");
 		wilc->cfg_frame_in_use = 1;
 
-		if (wilc_wlan_cfg_commit(wilc, WILC_CFG_SET, drv_handler))
+		if (wilc_wlan_cfg_commit(vif, WILC_CFG_SET, drv_handler))
 			ret_size = 0;
 
 		if (wilc_lock_timeout(wilc, &wilc->cfg_event,
 					    CFG_PKTS_TIMEOUT)) {
-			PRINT_D(TX_DBG, "Set Timed Out\n");
+			netdev_dbg(vif->ndev, "Set Timed Out\n");
 			ret_size = 0;
 		}
 		wilc->cfg_frame_in_use = 0;
@@ -1392,11 +1400,12 @@ int wilc_wlan_cfg_set(struct wilc *wilc, int start, u32 wid, u8 *buffer,
 	return ret_size;
 }
 
-int wilc_wlan_cfg_get(struct wilc *wilc, int start, u32 wid, int commit,
+int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u32 wid, int commit,
 		      u32 drv_handler)
 {
 	u32 offset;
 	int ret_size;
+	struct wilc *wilc = vif->wilc;
 
 	if (wilc->cfg_frame_in_use)
 		return 0;
@@ -1413,15 +1422,15 @@ int wilc_wlan_cfg_get(struct wilc *wilc, int start, u32 wid, int commit,
 	if (commit) {
 		wilc->cfg_frame_in_use = 1;
 
-		if (wilc_wlan_cfg_commit(wilc, WILC_CFG_QUERY, drv_handler))
+		if (wilc_wlan_cfg_commit(vif, WILC_CFG_QUERY, drv_handler))
 			ret_size = 0;
 
 		if (wilc_lock_timeout(wilc, &wilc->cfg_event,
 					    CFG_PKTS_TIMEOUT)) {
-			PRINT_D(TX_DBG, "Get Timed Out\n");
+			netdev_dbg(vif->ndev, "Get Timed Out\n");
 			ret_size = 0;
 		}
-		PRINT_D(GENERIC_DBG, "[WILC]Get Response received\n");
+		netdev_dbg(vif->ndev, "[WILC]Get Response received\n");
 		wilc->cfg_frame_in_use = 0;
 		wilc->cfg_frame_offset = 0;
 		wilc->cfg_seq_no += 1;
@@ -1439,14 +1448,14 @@ int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
 	return ret;
 }
 
-s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
+s32 wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count, u32 drv)
 {
 	s32 counter = 0, ret = 0;
 
 	if (mode == GET_CFG) {
 		for (counter = 0; counter < count; counter++) {
-			if (!wilc_wlan_cfg_get(wilc, !counter,
+			if (!wilc_wlan_cfg_get(vif, !counter,
 					       wids[counter].id,
 					       (counter == count - 1),
 					       drv)) {
@@ -1463,7 +1472,7 @@ s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
 		}
 	} else if (mode == SET_CFG) {
 		for (counter = 0; counter < count; counter++) {
-			if (!wilc_wlan_cfg_set(wilc, !counter,
+			if (!wilc_wlan_cfg_set(vif, !counter,
 					       wids[counter].id,
 					       wids[counter].val,
 					       wids[counter].size,

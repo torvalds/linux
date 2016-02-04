@@ -526,86 +526,86 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 
 	*(int *)c_val = 1;
 
-	if (!wilc_wlan_cfg_set(wilc, 1, WID_SET_DRV_HANDLER, c_val, 4, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 1, WID_SET_DRV_HANDLER, c_val, 4, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 0;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_PC_TEST_MODE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_PC_TEST_MODE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = INFRASTRUCTURE;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_BSS_TYPE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_BSS_TYPE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = RATE_AUTO;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_CURRENT_TX_RATE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_CURRENT_TX_RATE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = G_MIXED_11B_2_MODE;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11G_OPERATING_MODE, c_val, 1, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11G_OPERATING_MODE, c_val, 1, 0,
 			       0))
 		goto _fail_;
 
 	c_val[0] = 1;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_CURRENT_CHANNEL, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_CURRENT_CHANNEL, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = G_SHORT_PREAMBLE;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_PREAMBLE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_PREAMBLE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = AUTO_PROT;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_PROT_MECH, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_PROT_MECH, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = ACTIVE_SCAN;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_SCAN_TYPE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_SCAN_TYPE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = SITE_SURVEY_OFF;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_SITE_SURVEY, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_SITE_SURVEY, c_val, 1, 0, 0))
 		goto _fail_;
 
 	*((int *)c_val) = 0xffff;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_RTS_THRESHOLD, c_val, 2, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_RTS_THRESHOLD, c_val, 2, 0, 0))
 		goto _fail_;
 
 	*((int *)c_val) = 2346;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_FRAG_THRESHOLD, c_val, 2, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_FRAG_THRESHOLD, c_val, 2, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 0;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_BCAST_SSID, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_BCAST_SSID, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 1;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_QOS_ENABLE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_QOS_ENABLE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = NO_POWERSAVE;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_POWER_MANAGEMENT, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_POWER_MANAGEMENT, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = NO_SECURITY; /* NO_ENCRYPT, 0x79 */
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11I_MODE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11I_MODE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = OPEN_SYSTEM;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_AUTH_TYPE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_AUTH_TYPE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	strcpy(c_val, "123456790abcdef1234567890");
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_WEP_KEY_VALUE, c_val,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_WEP_KEY_VALUE, c_val,
 			       (strlen(c_val) + 1), 0, 0))
 		goto _fail_;
 
 	strcpy(c_val, "12345678");
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11I_PSK, c_val, (strlen(c_val)), 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11I_PSK, c_val, (strlen(c_val)), 0,
 			       0))
 		goto _fail_;
 
 	strcpy(c_val, "password");
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_1X_KEY, c_val, (strlen(c_val) + 1),
+	if (!wilc_wlan_cfg_set(vif, 0, WID_1X_KEY, c_val, (strlen(c_val) + 1),
 			       0, 0))
 		goto _fail_;
 
@@ -613,106 +613,106 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	c_val[1] = 168;
 	c_val[2] = 1;
 	c_val[3] = 112;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_1X_SERV_ADDR, c_val, 4, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_1X_SERV_ADDR, c_val, 4, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 3;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_LISTEN_INTERVAL, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_LISTEN_INTERVAL, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 3;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_DTIM_PERIOD, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_DTIM_PERIOD, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = NORMAL_ACK;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_ACK_POLICY, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_ACK_POLICY, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 0;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_USER_CONTROL_ON_TX_POWER, c_val, 1,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_USER_CONTROL_ON_TX_POWER, c_val, 1,
 			       0, 0))
 		goto _fail_;
 
 	c_val[0] = 48;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_TX_POWER_LEVEL_11A, c_val, 1, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_TX_POWER_LEVEL_11A, c_val, 1, 0,
 			       0))
 		goto _fail_;
 
 	c_val[0] = 28;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_TX_POWER_LEVEL_11B, c_val, 1, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_TX_POWER_LEVEL_11B, c_val, 1, 0,
 			       0))
 		goto _fail_;
 
 	*((int *)c_val) = 100;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_BEACON_INTERVAL, c_val, 2, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_BEACON_INTERVAL, c_val, 2, 0, 0))
 		goto _fail_;
 
 	c_val[0] = REKEY_DISABLE;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_REKEY_POLICY, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_REKEY_POLICY, c_val, 1, 0, 0))
 		goto _fail_;
 
 	*((int *)c_val) = 84600;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_REKEY_PERIOD, c_val, 4, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_REKEY_PERIOD, c_val, 4, 0, 0))
 		goto _fail_;
 
 	*((int *)c_val) = 500;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_REKEY_PACKET_COUNT, c_val, 4, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_REKEY_PACKET_COUNT, c_val, 4, 0,
 			       0))
 		goto _fail_;
 
 	c_val[0] = 1;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_SHORT_SLOT_ALLOWED, c_val, 1, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_SHORT_SLOT_ALLOWED, c_val, 1, 0,
 			       0))
 		goto _fail_;
 
 	c_val[0] = G_SELF_CTS_PROT;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_ERP_PROT_TYPE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_ERP_PROT_TYPE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 1;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_ENABLE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_ENABLE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = HT_MIXED_MODE;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_OPERATING_MODE, c_val, 1, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_OPERATING_MODE, c_val, 1, 0,
 			       0))
 		goto _fail_;
 
 	c_val[0] = 1;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_TXOP_PROT_DISABLE, c_val, 1, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_TXOP_PROT_DISABLE, c_val, 1, 0,
 			       0))
 		goto _fail_;
 
 	memcpy(c_val, mac_add, 6);
 
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_MAC_ADDR, c_val, 6, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_MAC_ADDR, c_val, 6, 0, 0))
 		goto _fail_;
 
 	c_val[0] = DETECT_PROTECT_REPORT;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_OBSS_NONHT_DETECTION, c_val, 1,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_OBSS_NONHT_DETECTION, c_val, 1,
 			       0, 0))
 		goto _fail_;
 
 	c_val[0] = RTS_CTS_NONHT_PROT;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_HT_PROT_TYPE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_HT_PROT_TYPE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 0;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_RIFS_PROT_ENABLE, c_val, 1, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_RIFS_PROT_ENABLE, c_val, 1, 0,
 			       0))
 		goto _fail_;
 
 	c_val[0] = MIMO_MODE;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_SMPS_MODE, c_val, 1, 0, 0))
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_SMPS_MODE, c_val, 1, 0, 0))
 		goto _fail_;
 
 	c_val[0] = 7;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_CURRENT_TX_MCS, c_val, 1, 0,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_CURRENT_TX_MCS, c_val, 1, 0,
 			       0))
 		goto _fail_;
 
 	c_val[0] = 1;
-	if (!wilc_wlan_cfg_set(wilc, 0, WID_11N_IMMEDIATE_BA_ENABLED, c_val, 1,
+	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_IMMEDIATE_BA_ENABLED, c_val, 1,
 			       1, 1))
 		goto _fail_;
 
@@ -927,7 +927,7 @@ int wilc1000_wlan_init(struct net_device *dev, struct wilc_vif *vif)
 			goto _fail_irq_enable_;
 		}
 
-		if (wilc_wlan_cfg_get(wl, 1, WID_FIRMWARE_VERSION, 1, 0)) {
+		if (wilc_wlan_cfg_get(vif, 1, WID_FIRMWARE_VERSION, 1, 0)) {
 			int size;
 			char Firmware_ver[20];
 
