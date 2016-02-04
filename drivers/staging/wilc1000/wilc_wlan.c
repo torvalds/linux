@@ -835,11 +835,8 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 			u32 pkt_len, pkt_offset, tp_len;
 			int is_cfg_packet;
 
-			PRINT_D(RX_DBG, "In the 2nd do-while\n");
 			memcpy(&header, &buffer[offset], 4);
 			header = cpu_to_le32(header);
-			PRINT_D(RX_DBG, "Header = %04x - Offset = %d\n",
-				header, offset);
 
 			is_cfg_packet = (header >> 31) & 0x1;
 			pkt_offset = (header >> 22) & 0x1ff;
@@ -890,7 +887,6 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 	} while (1);
 
 	wilc->rxq_exit = 1;
-	PRINT_D(RX_DBG, "THREAD: Exiting RX thread\n");
 }
 
 static void wilc_unknown_isr_ext(struct wilc *wilc)
@@ -958,7 +954,6 @@ _end_:
 			if (rqe) {
 				rqe->buffer = buffer;
 				rqe->buffer_size = size;
-				PRINT_D(RX_DBG, "rxq entery Size= %d - Address = %p\n", rqe->buffer_size, rqe->buffer);
 				wilc_wlan_rxq_add(wilc, rqe);
 			}
 		}

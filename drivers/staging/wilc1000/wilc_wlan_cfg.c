@@ -522,7 +522,6 @@ int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 		rsp->type = wilc_wlan_parse_info_frame(frame, size);
 		rsp->seq_no = msg_id;
 		/*call host interface info parse as well*/
-		PRINT_INFO(RX_DBG, "Info message received\n");
 		wilc_gnrl_async_info_received(wilc, frame - 4, size + 4);
 		break;
 
@@ -532,14 +531,10 @@ int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 		break;
 
 	case 'S':
-		PRINT_INFO(RX_DBG, "Scan Notification Received\n");
 		wilc_scan_complete_received(wilc, frame - 4, size + 4);
 		break;
 
 	default:
-		PRINT_INFO(RX_DBG, "Receive unknown message type[%d-%d-%d-%d-%d-%d-%d-%d]\n",
-			   frame[0], frame[1], frame[2], frame[3], frame[4],
-			   frame[5], frame[6], frame[7]);
 		rsp->type = 0;
 		rsp->seq_no = msg_id;
 		ret = 0;

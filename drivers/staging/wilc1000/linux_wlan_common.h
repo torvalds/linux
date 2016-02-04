@@ -6,7 +6,6 @@ enum debug_region {
 	Hostapd_debug,
 	CFG80211_debug,
 	Interrupt_debug,
-	RX_debug,
 	Lock_debug,
 	Tcp_enhance,
 	Spin_debug,
@@ -22,7 +21,6 @@ enum debug_region {
 #define HOSTAPD_DBG             (1 << Hostapd_debug)
 #define CFG80211_DBG            (1 << CFG80211_debug)
 #define INT_DBG                 (1 << Interrupt_debug)
-#define RX_DBG                  (1 << RX_debug)
 #define LOCK_DBG                (1 << Lock_debug)
 #define TCP_ENH                 (1 << Tcp_enhance)
 #define SPIN_DEBUG              (1 << Spin_debug)
