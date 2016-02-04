@@ -83,6 +83,14 @@ config SPI_AU1550
 	  If you say yes to this option, support will be included for the
 	  PSC SPI controller found on Au1550, Au1200 and Au1300 series.
 
+config SPI_AXI_SPI_ENGINE
+	tristate "Analog Devices AXI SPI Engine controller"
+	depends on HAS_IOMEM
+	help
+	  This enables support for the Analog Devices AXI SPI Engine SPI controller.
+	  It is part of the SPI Engine framework that is used in some Analog Devices
+	  reference designs for FPGAs.
+
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
 	depends on GPIOLIB
