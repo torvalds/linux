@@ -1143,13 +1143,15 @@ static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 
 void fm10k_mbx_free_irq(struct fm10k_intfc *interface)
 {
-	struct msix_entry *entry = &interface->msix_entries[FM10K_MBX_VECTOR];
 	struct fm10k_hw *hw = &interface->hw;
+	struct msix_entry *entry;
 	int itr_reg;
 
 	/* no mailbox IRQ to free if MSI-X is not enabled */
 	if (!interface->msix_entries)
 		return;
+
+	entry = &interface->msix_entries[FM10K_MBX_VECTOR];
 
 	/* disconnect the mailbox */
 	hw->mbx.ops.disconnect(hw, &hw->mbx);
