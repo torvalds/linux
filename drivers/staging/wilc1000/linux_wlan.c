@@ -397,9 +397,6 @@ int wilc_wlan_get_firmware(struct net_device *dev)
 
 	netdev_info(dev, "loading firmware %s\n", firmware);
 
-	if (!vif)
-		goto _fail_;
-
 	if (!(&vif->ndev->dev))
 		goto _fail_;
 
@@ -1016,9 +1013,6 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	vif = netdev_priv(dev);
 	hif_drv = (struct host_if_drv *)priv->hif_drv;
-
-	if (!dev)
-		return;
 
 	if (dev->flags & IFF_PROMISC)
 		return;
