@@ -128,7 +128,6 @@ struct client_debug_mask {
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
 
-#define ORANGEFS_CACHE_ALLOC_FLAGS (GFP_KERNEL)
 #define ORANGEFS_GFP_FLAGS (GFP_KERNEL)
 #define ORANGEFS_BUFMAP_GFP_FLAGS (GFP_KERNEL)
 
@@ -207,9 +206,6 @@ struct orangefs_kernel_op_s {
 
 	/* VFS aio fields */
 
-	/* used by the async I/O code to stash the orangefs_kiocb_s structure */
-	void *priv;
-
 	int attempts;
 
 	struct list_head list;
@@ -217,6 +213,7 @@ struct orangefs_kernel_op_s {
 
 #define set_op_state_waiting(op)     ((op)->op_state = OP_VFS_STATE_WAITING)
 #define set_op_state_inprogress(op)  ((op)->op_state = OP_VFS_STATE_INPROGR)
+#define set_op_state_given_up(op)  ((op)->op_state = OP_VFS_STATE_GIVEN_UP)
 static inline void set_op_state_serviced(struct orangefs_kernel_op_s *op)
 {
 	op->op_state = OP_VFS_STATE_SERVICED;
@@ -453,18 +450,8 @@ int op_cache_finalize(void);
 struct orangefs_kernel_op_s *op_alloc(__s32 type);
 char *get_opname_string(struct orangefs_kernel_op_s *new_op);
 
-int dev_req_cache_initialize(void);
-int dev_req_cache_finalize(void);
-void *dev_req_alloc(void);
-void dev_req_release(void *);
-
 int orangefs_inode_cache_initialize(void);
 int orangefs_inode_cache_finalize(void);
-
-int kiocb_cache_initialize(void);
-int kiocb_cache_finalize(void);
-struct orangefs_kiocb_s *kiocb_alloc(void);
-void kiocb_release(struct orangefs_kiocb_s *ptr);
 
 /*
  * defined in orangefs-mod.c

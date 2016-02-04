@@ -16,12 +16,6 @@ static DEFINE_SPINLOCK(next_tag_value_lock);
 /* a cache for orangefs upcall/downcall operations */
 static struct kmem_cache *op_cache;
 
-/* a cache for device (/dev/pvfs2-req) communication */
-static struct kmem_cache *dev_req_cache;
-
-/* a cache for orangefs_kiocb objects (i.e orangefs iocb structures ) */
-static struct kmem_cache *orangefs_kiocb_cache;
-
 int op_cache_initialize(void)
 {
 	op_cache = kmem_cache_create("orangefs_op_cache",
@@ -111,7 +105,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 {
 	struct orangefs_kernel_op_s *new_op = NULL;
 
-	new_op = kmem_cache_zalloc(op_cache, ORANGEFS_CACHE_ALLOC_FLAGS);
+	new_op = kmem_cache_zalloc(op_cache, GFP_KERNEL);
 	if (new_op) {
 		INIT_LIST_HEAD(&new_op->list);
 		spin_lock_init(&new_op->lock);
@@ -148,7 +142,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 		new_op->upcall.gid = from_kgid(current_user_ns(),
 					       current_fsgid());
 	} else {
-		gossip_err("op_alloc: kmem_cache_alloc failed!\n");
+		gossip_err("op_alloc: kmem_cache_zalloc failed!\n");
 	}
 	return new_op;
 }
@@ -164,86 +158,4 @@ void __op_release(struct orangefs_kernel_op_s *orangefs_op)
 	} else {
 		gossip_err("NULL pointer in op_release\n");
 	}
-}
-
-int dev_req_cache_initialize(void)
-{
-	dev_req_cache = kmem_cache_create("orangefs_devreqcache",
-					  MAX_DEV_REQ_DOWNSIZE,
-					  0,
-					  ORANGEFS_CACHE_CREATE_FLAGS,
-					  NULL);
-
-	if (!dev_req_cache) {
-		gossip_err("Cannot create orangefs_dev_req_cache\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-int dev_req_cache_finalize(void)
-{
-	kmem_cache_destroy(dev_req_cache);
-	return 0;
-}
-
-void *dev_req_alloc(void)
-{
-	void *buffer;
-
-	buffer = kmem_cache_alloc(dev_req_cache, ORANGEFS_CACHE_ALLOC_FLAGS);
-	if (buffer == NULL)
-		gossip_err("Failed to allocate from dev_req_cache\n");
-	else
-		memset(buffer, 0, sizeof(MAX_DEV_REQ_DOWNSIZE));
-	return buffer;
-}
-
-void dev_req_release(void *buffer)
-{
-	if (buffer)
-		kmem_cache_free(dev_req_cache, buffer);
-	else
-		gossip_err("NULL pointer passed to dev_req_release\n");
-}
-
-int kiocb_cache_initialize(void)
-{
-	orangefs_kiocb_cache = kmem_cache_create("orangefs_kiocbcache",
-					      sizeof(struct orangefs_kiocb_s),
-					      0,
-					      ORANGEFS_CACHE_CREATE_FLAGS,
-					      NULL);
-
-	if (!orangefs_kiocb_cache) {
-		gossip_err("Cannot create orangefs_kiocb_cache!\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-int kiocb_cache_finalize(void)
-{
-	kmem_cache_destroy(orangefs_kiocb_cache);
-	return 0;
-}
-
-struct orangefs_kiocb_s *kiocb_alloc(void)
-{
-	struct orangefs_kiocb_s *x = NULL;
-
-	x = kmem_cache_alloc(orangefs_kiocb_cache, ORANGEFS_CACHE_ALLOC_FLAGS);
-	if (x == NULL)
-		gossip_err("kiocb_alloc: kmem_cache_alloc failed!\n");
-	else
-		memset(x, 0, sizeof(struct orangefs_kiocb_s));
-	return x;
-}
-
-void kiocb_release(struct orangefs_kiocb_s *x)
-{
-	if (x)
-		kmem_cache_free(orangefs_kiocb_cache, x);
-	else
-		gossip_err("kiocb_release: kmem_cache_free NULL pointer!\n");
 }

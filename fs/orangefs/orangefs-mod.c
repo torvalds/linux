@@ -140,24 +140,16 @@ static int __init orangefs_init(void)
 	if (ret < 0)
 		goto err;
 
-	ret = dev_req_cache_initialize();
-	if (ret < 0)
-		goto cleanup_op;
-
 	ret = orangefs_inode_cache_initialize();
 	if (ret < 0)
-		goto cleanup_req;
-
-	ret = kiocb_cache_initialize();
-	if (ret  < 0)
-		goto cleanup_inode;
+		goto cleanup_op;
 
 	/* Initialize the orangefsdev subsystem. */
 	ret = orangefs_dev_init();
 	if (ret < 0) {
 		gossip_err("orangefs: could not initialize device subsystem %d!\n",
 			   ret);
-		goto cleanup_kiocb;
+		goto cleanup_inode;
 	}
 
 	htable_ops_in_progress =
@@ -214,14 +206,8 @@ cleanup_progress_table:
 cleanup_device:
 	orangefs_dev_cleanup();
 
-cleanup_kiocb:
-	kiocb_cache_finalize();
-
 cleanup_inode:
 	orangefs_inode_cache_finalize();
-
-cleanup_req:
-	dev_req_cache_finalize();
 
 cleanup_op:
 	op_cache_finalize();
@@ -247,9 +233,7 @@ static void __exit orangefs_exit(void)
 	for (i = 0; i < hash_table_size; i++)
 		BUG_ON(!list_empty(&htable_ops_in_progress[i]));
 
-	kiocb_cache_finalize();
 	orangefs_inode_cache_finalize();
-	dev_req_cache_finalize();
 	op_cache_finalize();
 
 	kfree(htable_ops_in_progress);

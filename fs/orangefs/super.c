@@ -92,8 +92,7 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 {
 	struct orangefs_inode_s *orangefs_inode;
 
-	orangefs_inode = kmem_cache_alloc(orangefs_inode_cache,
-				       ORANGEFS_CACHE_ALLOC_FLAGS);
+	orangefs_inode = kmem_cache_alloc(orangefs_inode_cache, GFP_KERNEL);
 	if (orangefs_inode == NULL) {
 		gossip_err("Failed to allocate orangefs_inode\n");
 		return NULL;
