@@ -36,8 +36,7 @@ static inline void release_bus(struct wilc *wilc, BUS_RELEASE_T release)
 	mutex_unlock(&wilc->hif_cs);
 }
 
-#ifdef TCP_ACK_FILTER
-static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
+static void wilc_wlan_txq_remove(struct wilc *wilc, struct txq_entry_t *tqe)
 {
 
 	if (tqe == wilc->txq_head) {
@@ -54,7 +53,6 @@ static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
 	}
 	wilc->txq_entries -= 1;
 }
-#endif
 
 static struct txq_entry_t *
 wilc_wlan_txq_remove_from_head(struct net_device *dev)
@@ -146,7 +144,6 @@ static int wilc_wlan_txq_add_to_head(struct wilc *wilc, struct txq_entry_t *tqe)
 	return 0;
 }
 
-#ifdef	TCP_ACK_FILTER
 struct ack_session_info;
 struct ack_session_info {
 	u32 seq_num;
@@ -308,7 +305,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 				pending_acks_info[i].ack_num);
 			tqe = pending_acks_info[i].txqe;
 			if (tqe) {
-				wilc_wlan_txq_remove(tqe);
+				wilc_wlan_txq_remove(wilc, tqe);
 				tqe->status = 1;
 				if (tqe->tx_complete_func)
 					tqe->tx_complete_func(tqe->priv,
@@ -335,7 +332,6 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 
 	return 1;
 }
-#endif
 
 static bool enabled = false;
 
@@ -344,12 +340,10 @@ void wilc_enable_tcp_ack_filter(bool value)
 	enabled = value;
 }
 
-#ifdef TCP_ACK_FILTER
 static bool is_tcp_ack_filter_enabled(void)
 {
 	return enabled;
 }
-#endif
 
 static int wilc_wlan_txq_add_cfg_pkt(struct wilc *wilc, u8 *buffer, u32 buffer_size)
 {
@@ -373,9 +367,7 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc *wilc, u8 *buffer, u32 buffer_s
 	tqe->buffer_size = buffer_size;
 	tqe->tx_complete_func = NULL;
 	tqe->priv = NULL;
-#ifdef TCP_ACK_FILTER
 	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
-#endif
 	PRINT_D(TX_DBG, "Adding the config packet at the Queue tail\n");
 
 	if (wilc_wlan_txq_add_to_head(wilc, tqe))
@@ -406,11 +398,9 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	tqe->priv = priv;
 
 	PRINT_D(TX_DBG, "Adding mgmt packet at the Queue tail\n");
-#ifdef TCP_ACK_FILTER
 	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
 	if (is_tcp_ack_filter_enabled())
 		tcp_process(dev, tqe);
-#endif
 	wilc_wlan_txq_add_to_tail(dev, tqe);
 	return wilc->txq_entries;
 }
@@ -436,9 +426,7 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	tqe->buffer_size = buffer_size;
 	tqe->tx_complete_func = func;
 	tqe->priv = priv;
-#ifdef TCP_ACK_FILTER
 	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
-#endif
 	PRINT_D(TX_DBG, "Adding Network packet at the Queue tail\n");
 	wilc_wlan_txq_add_to_tail(dev, tqe);
 	return 1;
@@ -643,9 +631,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 
 		wilc_lock_timeout(wilc, &wilc->txq_add_to_head_cs,
 					CFG_PKTS_TIMEOUT);
-#ifdef	TCP_ACK_FILTER
 		wilc_wlan_txq_filter_dup_tcp_ack(dev);
-#endif
 		PRINT_D(TX_DBG, "Getting the head of the TxQ\n");
 		tqe = wilc_wlan_txq_get_first(wilc);
 		i = 0;
@@ -829,10 +815,8 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				if (tqe->tx_complete_func)
 					tqe->tx_complete_func(tqe->priv,
 							      tqe->status);
-				#ifdef TCP_ACK_FILTER
 				if (tqe->tcp_pending_ack_idx != NOT_TCP_ACK)
 					pending_acks_info[tqe->tcp_pending_ack_idx].txqe = NULL;
-				#endif
 				kfree(tqe);
 			} else {
 				break;
@@ -1564,9 +1548,7 @@ int wilc_wlan_init(struct net_device *dev)
 		ret = -EIO;
 		goto _fail_;
 	}
-#ifdef	TCP_ACK_FILTER
 	init_tcp_tracking();
-#endif
 
 	return 1;
 
