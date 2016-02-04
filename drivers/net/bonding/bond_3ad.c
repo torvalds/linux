@@ -2176,8 +2176,12 @@ void bond_3ad_update_ad_actor_settings(struct bonding *bond)
 		    *((struct mac_addr *)bond->params.ad_actor_system);
 
 	spin_lock_bh(&bond->mode_lock);
-	bond_for_each_slave(bond, slave, iter)
-		__ad_actor_update_port(&(SLAVE_AD_INFO(slave)->port));
+	bond_for_each_slave(bond, slave, iter) {
+		struct port *port = &(SLAVE_AD_INFO(slave))->port;
+
+		__ad_actor_update_port(port);
+		port->ntt = true;
+	}
 	spin_unlock_bh(&bond->mode_lock);
 }
 
