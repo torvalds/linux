@@ -1737,14 +1737,7 @@ static int Handle_Key(struct wilc_vif *vif,
 			strWIDList[1].size = sizeof(char);
 			strWIDList[1].val = (s8 *)&pstrHostIFkeyAttr->attr.wep.auth_type;
 
-			strWIDList[2].id = (u16)WID_KEY_ID;
-			strWIDList[2].type = WID_CHAR;
-
-			strWIDList[2].val = (s8 *)&pstrHostIFkeyAttr->attr.wep.index;
-			strWIDList[2].size = sizeof(char);
-
-			pu8keybuf = kmemdup(pstrHostIFkeyAttr->attr.wep.key,
-					    pstrHostIFkeyAttr->attr.wep.key_len,
+			pu8keybuf = kmalloc(pstrHostIFkeyAttr->attr.wep.key_len + 2,
 					    GFP_KERNEL);
 
 			if (pu8keybuf == NULL) {
@@ -1752,15 +1745,21 @@ static int Handle_Key(struct wilc_vif *vif,
 				return -ENOMEM;
 			}
 
+			pu8keybuf[0] = pstrHostIFkeyAttr->attr.wep.index;
+			pu8keybuf[1] = pstrHostIFkeyAttr->attr.wep.key_len;
+
+			memcpy(&pu8keybuf[2], pstrHostIFkeyAttr->attr.wep.key,
+			       pstrHostIFkeyAttr->attr.wep.key_len);
+
 			kfree(pstrHostIFkeyAttr->attr.wep.key);
 
-			strWIDList[3].id = (u16)WID_WEP_KEY_VALUE;
-			strWIDList[3].type = WID_STR;
-			strWIDList[3].size = pstrHostIFkeyAttr->attr.wep.key_len;
-			strWIDList[3].val = (s8 *)pu8keybuf;
+			strWIDList[2].id = (u16)WID_WEP_KEY_VALUE;
+			strWIDList[2].type = WID_STR;
+			strWIDList[2].size = pstrHostIFkeyAttr->attr.wep.key_len + 2;
+			strWIDList[2].val = (s8 *)pu8keybuf;
 
 			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
-						      strWIDList, 4,
+						      strWIDList, 3,
 						      wilc_get_vif_idx(vif));
 			kfree(pu8keybuf);
 		} else if (pstrHostIFkeyAttr->action & ADDKEY) {
@@ -1797,7 +1796,7 @@ static int Handle_Key(struct wilc_vif *vif,
 			result = wilc_send_config_pkt(vif->wilc, SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
-		} else {
+		} else if (pstrHostIFkeyAttr->action & DEFAULTKEY) {
 			wid.id = (u16)WID_KEY_ID;
 			wid.type = WID_CHAR;
 			wid.val = (s8 *)&pstrHostIFkeyAttr->attr.wep.index;

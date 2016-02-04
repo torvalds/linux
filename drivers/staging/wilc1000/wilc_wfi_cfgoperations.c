@@ -761,7 +761,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		return s32Error;
 	}
 
-	priv->WILC_WFI_wep_default = 0;
 	memset(priv->WILC_WFI_wep_key, 0, sizeof(priv->WILC_WFI_wep_key));
 	memset(priv->WILC_WFI_wep_key_len, 0, sizeof(priv->WILC_WFI_wep_key_len));
 
@@ -788,7 +787,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 				for (i = 0; i < sme->key_len; i++)
 					PRINT_D(CORECONFIG_DBG, "WEP Key Value[%d] = %d\n", i, sme->key[i]);
 			}
-			priv->WILC_WFI_wep_default = sme->key_idx;
 			priv->WILC_WFI_wep_key_len[sme->key_idx] = sme->key_len;
 			memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
 
@@ -806,7 +804,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			pcgroup_encrypt_val = "WEP104";
 			pccipher_group = "WLAN_CIPHER_SUITE_WEP104";
 
-			priv->WILC_WFI_wep_default = sme->key_idx;
 			priv->WILC_WFI_wep_key_len[sme->key_idx] = sme->key_len;
 			memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
 
@@ -986,7 +983,6 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		if (priv->wdev->iftype == NL80211_IFTYPE_AP) {
-			priv->WILC_WFI_wep_default = key_index;
 			priv->WILC_WFI_wep_key_len[key_index] = params->key_len;
 			memcpy(priv->WILC_WFI_wep_key[key_index], params->key, params->key_len);
 
@@ -1009,7 +1005,6 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 			break;
 		}
 		if (memcmp(params->key, priv->WILC_WFI_wep_key[key_index], params->key_len)) {
-			priv->WILC_WFI_wep_default = key_index;
 			priv->WILC_WFI_wep_key_len[key_index] = params->key_len;
 			memcpy(priv->WILC_WFI_wep_key[key_index], params->key, params->key_len);
 
@@ -1336,9 +1331,7 @@ static int set_default_key(struct wiphy *wiphy, struct net_device *netdev, u8 ke
 
 	PRINT_D(CFG80211_DBG, "Setting default key with idx = %d\n", key_index);
 
-	if (key_index != priv->WILC_WFI_wep_default) {
-		wilc_set_wep_default_keyid(vif, key_index);
-	}
+	wilc_set_wep_default_keyid(vif, key_index);
 
 	return 0;
 }

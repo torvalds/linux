@@ -124,7 +124,6 @@ struct wilc_priv {
 	struct host_if_drv *hWILCWFIDrv;
 	struct host_if_pmkid_attr pmkid_list;
 	struct WILC_WFI_stats netstats;
-	u8 WILC_WFI_wep_default;
 	u8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];
 	u8 WILC_WFI_wep_key_len[4];
 	/* The real interface that the monitor is on */
