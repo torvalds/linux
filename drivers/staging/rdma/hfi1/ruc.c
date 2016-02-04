@@ -921,6 +921,13 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
 
+	last = qp->s_last;
+	old_last = last;
+	if (++last >= qp->s_size)
+		last = 0;
+	qp->s_last = last;
+	/* See post_send() */
+	barrier();
 	for (i = 0; i < wqe->wr.num_sge; i++) {
 		struct rvt_sge *sge = &wqe->sg_list[i];
 
@@ -948,11 +955,6 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			     status != IB_WC_SUCCESS);
 	}
 
-	last = qp->s_last;
-	old_last = last;
-	if (++last >= qp->s_size)
-		last = 0;
-	qp->s_last = last;
 	if (qp->s_acked == old_last)
 		qp->s_acked = last;
 	if (qp->s_cur == old_last)
