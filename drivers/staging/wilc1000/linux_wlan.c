@@ -1018,12 +1018,8 @@ int wilc_mac_open(struct net_device *ndev)
 		return ret;
 	}
 
-	wilc_get_mac_address(vif, mac_add);
-	PRINT_D(INIT_DBG, "Mac address: %pM\n", mac_add);
-
 	for (i = 0; i < wl->vif_num; i++) {
 		if (ndev == wl->vif[i]->ndev) {
-			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
 			if (vif->iftype == AP_MODE) {
 				wilc_set_wfi_drv_handler(vif,
 							 wilc_get_vif_idx(vif),
@@ -1044,6 +1040,11 @@ int wilc_mac_open(struct net_device *ndev)
 							 1);
 			}
 			wilc_set_operation_mode(vif, vif->iftype);
+
+			wilc_get_mac_address(vif, mac_add);
+			netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
+			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
+
 			break;
 		}
 	}
