@@ -829,6 +829,13 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	unsigned short cid = beiscsi_ep->ep_cid;
 	struct be_sge *sge;
 
+	if (dst_addr->sa_family != PF_INET && dst_addr->sa_family != PF_INET6) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
+			    "BG_%d : unknown addr family %d\n",
+			    dst_addr->sa_family);
+		return -EINVAL;
+	}
+
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
 
@@ -868,7 +875,8 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		beiscsi_ep->dst_addr = daddr_in->sin_addr.s_addr;
 		beiscsi_ep->dst_tcpport = ntohs(daddr_in->sin_port);
 		beiscsi_ep->ip_type = BE2_IPV4;
-	} else if (dst_addr->sa_family == PF_INET6) {
+	} else {
+		/* else its PF_INET6 family */
 		req->ip_address.ip_type = BE2_IPV6;
 		memcpy(&req->ip_address.addr,
 		       &daddr_in6->sin6_addr.in6_u.u6_addr8, 16);
@@ -877,14 +885,6 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		memcpy(&beiscsi_ep->dst6_addr,
 		       &daddr_in6->sin6_addr.in6_u.u6_addr8, 16);
 		beiscsi_ep->ip_type = BE2_IPV6;
-	} else{
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BG_%d : unknown addr family %d\n",
-			    dst_addr->sa_family);
-		mutex_unlock(&ctrl->mbox_lock);
-		free_mcc_tag(&phba->ctrl, tag);
-		return -EINVAL;
-
 	}
 	req->cid = cid;
 	i = phba->nxt_cqid++;
