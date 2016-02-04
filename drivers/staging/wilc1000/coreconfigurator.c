@@ -376,8 +376,8 @@ s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo)
 	return result;
 }
 
-s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
-			       tstrConnectRespInfo **ppstrConnectRespInfo)
+s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
+			       tstrConnectRespInfo **ret_connect_resp_info)
 {
 	tstrConnectRespInfo *pstrConnectRespInfo = NULL;
 	u16 u16AssocRespLen = 0;
@@ -388,14 +388,14 @@ s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
 	if (!pstrConnectRespInfo)
 		return -ENOMEM;
 
-	u16AssocRespLen = (u16)u32BufferLen;
+	u16AssocRespLen = (u16)buffer_len;
 
-	pstrConnectRespInfo->u16ConnectStatus = get_asoc_status(pu8Buffer);
+	pstrConnectRespInfo->u16ConnectStatus = get_asoc_status(buffer);
 	if (pstrConnectRespInfo->u16ConnectStatus == SUCCESSFUL_STATUSCODE) {
-		pstrConnectRespInfo->u16capability = get_assoc_resp_cap_info(pu8Buffer);
-		pstrConnectRespInfo->u16AssocID = get_asoc_id(pu8Buffer);
+		pstrConnectRespInfo->u16capability = get_assoc_resp_cap_info(buffer);
+		pstrConnectRespInfo->u16AssocID = get_asoc_id(buffer);
 
-		pu8IEs = &pu8Buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
+		pu8IEs = &buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
 		u16IEsLen = u16AssocRespLen - (CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN);
 
 		pstrConnectRespInfo->pu8RespIEs = kmemdup(pu8IEs, u16IEsLen, GFP_KERNEL);
@@ -405,7 +405,7 @@ s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
 		pstrConnectRespInfo->u16RespIEsLen = u16IEsLen;
 	}
 
-	*ppstrConnectRespInfo = pstrConnectRespInfo;
+	*ret_connect_resp_info = pstrConnectRespInfo;
 
 	return 0;
 }

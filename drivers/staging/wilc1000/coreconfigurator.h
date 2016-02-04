@@ -122,9 +122,8 @@ typedef struct {
 
 s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info);
 s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo);
-
-s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
-		       tstrConnectRespInfo **ppstrConnectRespInfo);
+s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
+			       tstrConnectRespInfo **ret_connect_resp_info);
 s32 wilc_dealloc_assoc_resp_info(tstrConnectRespInfo *pstrConnectRespInfo);
 void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
 				 u32 u32Length);
