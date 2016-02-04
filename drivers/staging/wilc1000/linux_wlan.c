@@ -853,6 +853,7 @@ static void wlan_deinitialize_threads(struct net_device *dev)
 {
 	struct wilc_vif *vif;
 	struct wilc *wl;
+
 	vif = netdev_priv(dev);
 	wl = vif->wilc;
 
@@ -1472,6 +1473,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 		{
 			struct wireless_dev *wdev;
+
 			wdev = wilc_create_wiphy(ndev, dev);
 
 			if (dev)
