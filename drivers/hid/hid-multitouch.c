@@ -1133,6 +1133,9 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 
 	ret = sysfs_create_group(&hdev->dev.kobj, &mt_attribute_group);
+	if (ret)
+		dev_warn(&hdev->dev, "Cannot allocate sysfs group for %s\n",
+				hdev->name);
 
 	mt_set_maxcontacts(hdev);
 	mt_set_input_mode(hdev);
