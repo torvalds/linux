@@ -72,6 +72,82 @@ static const uint32_t cursor_supported_formats[] = {
 
 #define to_sti_cursor(x) container_of(x, struct sti_cursor, plane)
 
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(cursor->regs + reg))
+
+static void cursor_dbg_vpo(struct seq_file *s, u32 val)
+{
+	seq_printf(s, "\txdo:%4d\tydo:%4d", val & 0x0FFF, (val >> 16) & 0x0FFF);
+}
+
+static void cursor_dbg_size(struct seq_file *s, u32 val)
+{
+	seq_printf(s, "\t%d x %d", val & 0x07FF, (val >> 16) & 0x07FF);
+}
+
+static void cursor_dbg_pml(struct seq_file *s,
+			   struct sti_cursor *cursor, u32 val)
+{
+	if (cursor->pixmap.paddr == val)
+		seq_printf(s, "\tVirt @: %p", cursor->pixmap.base);
+}
+
+static void cursor_dbg_cml(struct seq_file *s,
+			   struct sti_cursor *cursor, u32 val)
+{
+	if (cursor->clut_paddr == val)
+		seq_printf(s, "\tVirt @: %p", cursor->clut);
+}
+
+static int cursor_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_cursor *cursor = (struct sti_cursor *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "%s: (vaddr = 0x%p)",
+		   sti_plane_to_str(&cursor->plane), cursor->regs);
+
+	DBGFS_DUMP(CUR_CTL);
+	DBGFS_DUMP(CUR_VPO);
+	cursor_dbg_vpo(s, readl(cursor->regs + CUR_VPO));
+	DBGFS_DUMP(CUR_PML);
+	cursor_dbg_pml(s, cursor, readl(cursor->regs + CUR_PML));
+	DBGFS_DUMP(CUR_PMP);
+	DBGFS_DUMP(CUR_SIZE);
+	cursor_dbg_size(s, readl(cursor->regs + CUR_SIZE));
+	DBGFS_DUMP(CUR_CML);
+	cursor_dbg_cml(s, cursor, readl(cursor->regs + CUR_CML));
+	DBGFS_DUMP(CUR_AWS);
+	DBGFS_DUMP(CUR_AWE);
+	seq_puts(s, "\n");
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list cursor_debugfs_files[] = {
+	{ "cursor", cursor_dbg_show, 0, NULL },
+};
+
+static int cursor_debugfs_init(struct sti_cursor *cursor,
+			       struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(cursor_debugfs_files); i++)
+		cursor_debugfs_files[i].data = cursor;
+
+	return drm_debugfs_create_files(cursor_debugfs_files,
+					ARRAY_SIZE(cursor_debugfs_files),
+					minor->debugfs_root, minor);
+}
+
 static void sti_cursor_argb8888_to_clut8(struct sti_cursor *cursor, u32 *src)
 {
 	u8  *dst = cursor->pixmap.base;
@@ -305,6 +381,9 @@ struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 			     &sti_cursor_helpers_funcs);
 
 	sti_plane_init_property(&cursor->plane, DRM_PLANE_TYPE_CURSOR);
+
+	if (cursor_debugfs_init(cursor, drm_dev->primary))
+		DRM_ERROR("CURSOR debugfs setup failed\n");
 
 	return &cursor->plane.drm_plane;
 
