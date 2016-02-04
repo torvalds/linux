@@ -320,7 +320,7 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 		tsf_lo = get_beacon_timestamp_lo(msa);
 		tsf_hi = get_beacon_timestamp_hi(msa);
 
-		network_info->u64Tsf = tsf_lo | ((u64)tsf_hi << 32);
+		network_info->tsf_hi = tsf_lo | ((u64)tsf_hi << 32);
 
 		get_ssid(msa, network_info->ssid, &network_info->ssid_len);
 		get_BSSID(msa, network_info->bssid);

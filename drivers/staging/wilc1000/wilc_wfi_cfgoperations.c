@@ -251,7 +251,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 								  channel,
 								  CFG80211_BSS_FTYPE_UNKNOWN,
 								  network_info->bssid,
-								  network_info->u64Tsf,
+								  network_info->tsf_hi,
 								  network_info->cap_info,
 								  network_info->beacon_period,
 								  (const u8 *)network_info->ies,
@@ -379,7 +379,7 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	last_scanned_shadow[ap_index].dtim_period = pstrNetworkInfo->dtim_period;
 	last_scanned_shadow[ap_index].ch = pstrNetworkInfo->ch;
 	last_scanned_shadow[ap_index].ies_len = pstrNetworkInfo->ies_len;
-	last_scanned_shadow[ap_index].u64Tsf = pstrNetworkInfo->u64Tsf;
+	last_scanned_shadow[ap_index].tsf_hi = pstrNetworkInfo->tsf_hi;
 	if (ap_found != -1)
 		kfree(last_scanned_shadow[ap_index].ies);
 	last_scanned_shadow[ap_index].ies = kmalloc(pstrNetworkInfo->ies_len,
@@ -449,7 +449,7 @@ static void CfgScanResult(enum scan_event scan_event,
 										  channel,
 										  CFG80211_BSS_FTYPE_UNKNOWN,
 										  network_info->bssid,
-										  network_info->u64Tsf,
+										  network_info->tsf_hi,
 										  network_info->cap_info,
 										  network_info->beacon_period,
 										  (const u8 *)network_info->ies,
