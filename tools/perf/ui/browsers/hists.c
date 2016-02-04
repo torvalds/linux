@@ -1095,7 +1095,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 
 		hist_browser__gotorc(browser, row, 0);
 
-		perf_hpp__for_each_format(fmt) {
+		hists__for_each_format(browser->hists, fmt) {
 			if (perf_hpp__should_skip(fmt, entry->hists) ||
 			    column++ < browser->b.horiz_scroll)
 				continue;
@@ -1175,7 +1175,7 @@ static int hists_browser__scnprintf_headers(struct hist_browser *browser, char *
 			return ret;
 	}
 
-	perf_hpp__for_each_format(fmt) {
+	hists__for_each_format(browser->hists, fmt) {
 		if (perf_hpp__should_skip(fmt, hists)  || column++ < browser->b.horiz_scroll)
 			continue;
 
@@ -1441,7 +1441,7 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 	if (symbol_conf.use_callchain)
 		printed += fprintf(fp, "%c ", folded_sign);
 
-	perf_hpp__for_each_format(fmt) {
+	hists__for_each_format(browser->hists, fmt) {
 		if (perf_hpp__should_skip(fmt, he->hists))
 			continue;
 
@@ -2029,6 +2029,42 @@ static void hist_browser__update_nr_entries(struct hist_browser *hb)
 	hb->nr_non_filtered_entries = nr_entries;
 }
 
+static void hist_browser__update_percent_limit(struct hist_browser *hb,
+					       double percent)
+{
+	struct hist_entry *he;
+	struct rb_node *nd = rb_first(&hb->hists->entries);
+	u64 total = hists__total_period(hb->hists);
+	u64 min_callchain_hits = total * (percent / 100);
+
+	hb->min_pcnt = callchain_param.min_percent = percent;
+
+	if (!symbol_conf.use_callchain)
+		return;
+
+	while ((nd = hists__filter_entries(nd, hb->min_pcnt)) != NULL) {
+		he = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (callchain_param.mode == CHAIN_GRAPH_REL) {
+			total = he->stat.period;
+
+			if (symbol_conf.cumulate_callchain)
+				total = he->stat_acc->period;
+
+			min_callchain_hits = total * (percent / 100);
+		}
+
+		callchain_param.sort(&he->sorted_chain, he->callchain,
+				     min_callchain_hits, &callchain_param);
+
+		/* force to re-evaluate folding state of callchains */
+		he->init_have_children = false;
+		hist_entry__set_folding(he, false);
+
+		nd = rb_next(nd);
+	}
+}
+
 static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    const char *helpline,
 				    bool left_exits,
@@ -2064,6 +2100,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"E             Expand all callchains\n"				\
 	"F             Toggle percentage of filtered entries\n"		\
 	"H             Display column headers\n"			\
+	"L             Change percent limit\n"				\
 	"m             Display context menu\n"				\
 	"S             Zoom into current Processor Socket\n"		\
 
@@ -2104,7 +2141,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	memset(options, 0, sizeof(options));
 	memset(actions, 0, sizeof(actions));
 
-	perf_hpp__for_each_format(fmt) {
+	hists__for_each_format(browser->hists, fmt) {
 		perf_hpp__reset_width(fmt, hists);
 		/*
 		 * This is done just once, and activates the horizontal scrolling
@@ -2217,6 +2254,24 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				struct perf_top *top = hbt->arg;
 
 				top->zero = !top->zero;
+			}
+			continue;
+		case 'L':
+			if (ui_browser__input_window("Percent Limit",
+					"Please enter the value you want to hide entries under that percent.",
+					buf, "ENTER: OK, ESC: Cancel",
+					delay_secs * 2) == K_ENTER) {
+				char *end;
+				double new_percent = strtod(buf, &end);
+
+				if (new_percent < 0 || new_percent > 100) {
+					ui_browser__warning(&browser->b, delay_secs * 2,
+						"Invalid percent: %.2f", new_percent);
+					continue;
+				}
+
+				hist_browser__update_percent_limit(browser, new_percent);
+				hist_browser__reset(browser);
 			}
 			continue;
 		case K_F1:

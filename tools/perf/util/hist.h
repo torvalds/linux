@@ -75,6 +75,7 @@ struct hists {
 	u64			event_stream;
 	u16			col_len[HISTC_NR_COLS];
 	int			socket_filter;
+	struct perf_hpp_list	*hpp_list;
 };
 
 struct hist_entry_iter;
@@ -128,6 +129,7 @@ int hist_entry__sort_snprintf(struct hist_entry *he, char *bf, size_t size,
 			      struct hists *hists);
 void hist_entry__delete(struct hist_entry *he);
 
+void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog);
 void hists__output_resort(struct hists *hists, struct ui_progress *prog);
 void hists__collapse_resort(struct hists *hists, struct ui_progress *prog);
 
@@ -185,7 +187,7 @@ static inline struct hists *evsel__hists(struct perf_evsel *evsel)
 }
 
 int hists__init(void);
-int __hists__init(struct hists *hists);
+int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list);
 
 struct rb_root *hists__get_rotate_entries_in(struct hists *hists);
 bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
@@ -214,28 +216,56 @@ struct perf_hpp_fmt {
 			    struct hist_entry *a, struct hist_entry *b);
 	int64_t (*sort)(struct perf_hpp_fmt *fmt,
 			struct hist_entry *a, struct hist_entry *b);
+	bool (*equal)(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
+	void (*free)(struct perf_hpp_fmt *fmt);
 
 	struct list_head list;
 	struct list_head sort_list;
 	bool elide;
 	int len;
 	int user_len;
+	int idx;
 };
 
-extern struct list_head perf_hpp__list;
-extern struct list_head perf_hpp__sort_list;
+struct perf_hpp_list {
+	struct list_head fields;
+	struct list_head sorts;
+};
 
-#define perf_hpp__for_each_format(format) \
-	list_for_each_entry(format, &perf_hpp__list, list)
+extern struct perf_hpp_list perf_hpp_list;
 
-#define perf_hpp__for_each_format_safe(format, tmp)	\
-	list_for_each_entry_safe(format, tmp, &perf_hpp__list, list)
+void perf_hpp_list__column_register(struct perf_hpp_list *list,
+				    struct perf_hpp_fmt *format);
+void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
+					struct perf_hpp_fmt *format);
 
-#define perf_hpp__for_each_sort_list(format) \
-	list_for_each_entry(format, &perf_hpp__sort_list, sort_list)
+static inline void perf_hpp__column_register(struct perf_hpp_fmt *format)
+{
+	perf_hpp_list__column_register(&perf_hpp_list, format);
+}
 
-#define perf_hpp__for_each_sort_list_safe(format, tmp)	\
-	list_for_each_entry_safe(format, tmp, &perf_hpp__sort_list, sort_list)
+static inline void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
+{
+	perf_hpp_list__register_sort_field(&perf_hpp_list, format);
+}
+
+#define perf_hpp_list__for_each_format(_list, format) \
+	list_for_each_entry(format, &(_list)->fields, list)
+
+#define perf_hpp_list__for_each_format_safe(_list, format, tmp)	\
+	list_for_each_entry_safe(format, tmp, &(_list)->fields, list)
+
+#define perf_hpp_list__for_each_sort_list(_list, format) \
+	list_for_each_entry(format, &(_list)->sorts, sort_list)
+
+#define perf_hpp_list__for_each_sort_list_safe(_list, format, tmp)	\
+	list_for_each_entry_safe(format, tmp, &(_list)->sorts, sort_list)
+
+#define hists__for_each_format(hists, format) \
+	perf_hpp_list__for_each_format((hists)->hpp_list, fmt)
+
+#define hists__for_each_sort_list(hists, format) \
+	perf_hpp_list__for_each_sort_list((hists)->hpp_list, fmt)
 
 extern struct perf_hpp_fmt perf_hpp__format[];
 
@@ -254,19 +284,14 @@ enum {
 };
 
 void perf_hpp__init(void);
-void perf_hpp__column_register(struct perf_hpp_fmt *format);
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format);
-void perf_hpp__column_enable(unsigned col);
-void perf_hpp__column_disable(unsigned col);
 void perf_hpp__cancel_cumulate(void);
+void perf_hpp__setup_output_field(struct perf_hpp_list *list);
+void perf_hpp__reset_output_field(struct perf_hpp_list *list);
+void perf_hpp__append_sort_keys(struct perf_hpp_list *list);
 
-void perf_hpp__register_sort_field(struct perf_hpp_fmt *format);
-void perf_hpp__setup_output_field(void);
-void perf_hpp__reset_output_field(void);
-void perf_hpp__append_sort_keys(void);
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
-bool perf_hpp__same_sort_entry(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *hists);
 
@@ -380,5 +405,7 @@ struct option;
 int parse_filter_percentage(const struct option *opt __maybe_unused,
 			    const char *arg, int unset __maybe_unused);
 int perf_hist_config(const char *var, const char *value);
+
+void perf_hpp_list__init(struct perf_hpp_list *list);
 
 #endif	/* __PERF_HIST_H */

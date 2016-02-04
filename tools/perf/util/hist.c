@@ -958,10 +958,11 @@ out:
 int64_t
 hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	struct hists *hists = left->hists;
 	struct perf_hpp_fmt *fmt;
 	int64_t cmp = 0;
 
-	perf_hpp__for_each_sort_list(fmt) {
+	hists__for_each_sort_list(hists, fmt) {
 		cmp = fmt->cmp(fmt, left, right);
 		if (cmp)
 			break;
@@ -973,10 +974,11 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 int64_t
 hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 {
+	struct hists *hists = left->hists;
 	struct perf_hpp_fmt *fmt;
 	int64_t cmp = 0;
 
-	perf_hpp__for_each_sort_list(fmt) {
+	hists__for_each_sort_list(hists, fmt) {
 		cmp = fmt->collapse(fmt, left, right);
 		if (cmp)
 			break;
@@ -1117,10 +1119,11 @@ void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 
 static int hist_entry__sort(struct hist_entry *a, struct hist_entry *b)
 {
+	struct hists *hists = a->hists;
 	struct perf_hpp_fmt *fmt;
 	int64_t cmp = 0;
 
-	perf_hpp__for_each_sort_list(fmt) {
+	hists__for_each_sort_list(hists, fmt) {
 		if (perf_hpp__should_skip(fmt, a->hists))
 			continue;
 
@@ -1197,19 +1200,13 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	rb_insert_color(&he->rb_node, entries);
 }
 
-void hists__output_resort(struct hists *hists, struct ui_progress *prog)
+static void output_resort(struct hists *hists, struct ui_progress *prog,
+			  bool use_callchain)
 {
 	struct rb_root *root;
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
-	bool use_callchain;
-
-	if (evsel && symbol_conf.use_callchain && !symbol_conf.show_ref_callgraph)
-		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
-	else
-		use_callchain = symbol_conf.use_callchain;
 
 	min_callchain_hits = hists__total_period(hists) * (callchain_param.min_percent / 100);
 
@@ -1237,6 +1234,23 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 		if (prog)
 			ui_progress__update(prog, 1);
 	}
+}
+
+void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog)
+{
+	bool use_callchain;
+
+	if (evsel && symbol_conf.use_callchain && !symbol_conf.show_ref_callgraph)
+		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
+	else
+		use_callchain = symbol_conf.use_callchain;
+
+	output_resort(evsel__hists(evsel), prog, use_callchain);
+}
+
+void hists__output_resort(struct hists *hists, struct ui_progress *prog)
+{
+	output_resort(hists, prog, symbol_conf.use_callchain);
 }
 
 static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h,
@@ -1567,7 +1581,7 @@ int perf_hist_config(const char *var, const char *value)
 	return 0;
 }
 
-int __hists__init(struct hists *hists)
+int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list)
 {
 	memset(hists, 0, sizeof(*hists));
 	hists->entries_in_array[0] = hists->entries_in_array[1] = RB_ROOT;
@@ -1576,6 +1590,7 @@ int __hists__init(struct hists *hists)
 	hists->entries = RB_ROOT;
 	pthread_mutex_init(&hists->lock, NULL);
 	hists->socket_filter = -1;
+	hists->hpp_list = hpp_list;
 	return 0;
 }
 
@@ -1612,7 +1627,7 @@ static int hists_evsel__init(struct perf_evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 
-	__hists__init(hists);
+	__hists__init(hists, &perf_hpp_list);
 	return 0;
 }
 
@@ -1630,4 +1645,10 @@ int hists__init(void)
 		fputs("FATAL ERROR: Couldn't setup hists class\n", stderr);
 
 	return err;
+}
+
+void perf_hpp_list__init(struct perf_hpp_list *list)
+{
+	INIT_LIST_HEAD(&list->fields);
+	INIT_LIST_HEAD(&list->sorts);
 }
