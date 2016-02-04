@@ -246,9 +246,17 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 				rssi = get_rssi_avg(network_info);
 				if (memcmp("DIRECT-", network_info->au8ssid, 7) ||
 				    direct_scan) {
-					bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN, network_info->au8bssid, network_info->u64Tsf, network_info->u16CapInfo,
-								  network_info->u16BeaconPeriod, (const u8 *)network_info->pu8IEs,
-								  (size_t)network_info->u16IEsLen, (((s32)rssi) * 100), GFP_KERNEL);
+					bss = cfg80211_inform_bss(wiphy,
+								  channel,
+								  CFG80211_BSS_FTYPE_UNKNOWN,
+								  network_info->au8bssid,
+								  network_info->u64Tsf,
+								  network_info->cap_info,
+								  network_info->u16BeaconPeriod,
+								  (const u8 *)network_info->pu8IEs,
+								  (size_t)network_info->u16IEsLen,
+								  (s32)rssi * 100,
+								  GFP_KERNEL);
 					cfg80211_put_bss(wiphy, bss);
 				}
 			}
@@ -358,7 +366,7 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	}
 	last_scanned_shadow[ap_index].strRssi.u8Index = rssi_index;
 	last_scanned_shadow[ap_index].rssi = pstrNetworkInfo->rssi;
-	last_scanned_shadow[ap_index].u16CapInfo = pstrNetworkInfo->u16CapInfo;
+	last_scanned_shadow[ap_index].cap_info = pstrNetworkInfo->cap_info;
 	last_scanned_shadow[ap_index].u8SsidLen = pstrNetworkInfo->u8SsidLen;
 	memcpy(last_scanned_shadow[ap_index].au8ssid,
 	       pstrNetworkInfo->au8ssid, pstrNetworkInfo->u8SsidLen);
@@ -414,9 +422,15 @@ static void CfgScanResult(enum scan_event scan_event,
 				if (!channel)
 					return;
 
-				PRINT_INFO(CFG80211_DBG, "Network Info:: CHANNEL Frequency: %d, RSSI: %d, CapabilityInfo: %d,"
-					   "BeaconPeriod: %d\n", channel->center_freq, (((s32)network_info->rssi) * 100),
-					   network_info->u16CapInfo, network_info->u16BeaconPeriod);
+				PRINT_INFO(CFG80211_DBG, "Network Info::"
+					   "CHANNEL Frequency: %d,"
+					   "RSSI: %d,"
+					   "Capability Info: %d,"
+					   "Beacon Period: %d\n",
+					   channel->center_freq,
+					   (s32)network_info->rssi * 100,
+					   network_info->cap_info,
+					   network_info->u16BeaconPeriod);
 
 				if (network_info->bNewNetwork) {
 					if (priv->u32RcvdChCount < MAX_NUM_SCANNED_NETWORKS) {
@@ -426,9 +440,17 @@ static void CfgScanResult(enum scan_event scan_event,
 						add_network_to_shadow(network_info, priv, join_params);
 
 						if (!(memcmp("DIRECT-", network_info->au8ssid, 7))) {
-							bss = cfg80211_inform_bss(wiphy, channel, CFG80211_BSS_FTYPE_UNKNOWN,  network_info->au8bssid, network_info->u64Tsf, network_info->u16CapInfo,
-										  network_info->u16BeaconPeriod, (const u8 *)network_info->pu8IEs,
-										  (size_t)network_info->u16IEsLen, (((s32)network_info->rssi) * 100), GFP_KERNEL);
+							bss = cfg80211_inform_bss(wiphy,
+										  channel,
+										  CFG80211_BSS_FTYPE_UNKNOWN,
+										  network_info->au8bssid,
+										  network_info->u64Tsf,
+										  network_info->cap_info,
+										  network_info->u16BeaconPeriod,
+										  (const u8 *)network_info->pu8IEs,
+										  (size_t)network_info->u16IEsLen,
+										  (s32)network_info->rssi * 100,
+										  GFP_KERNEL);
 							cfg80211_put_bss(wiphy, bss);
 						}
 					}
