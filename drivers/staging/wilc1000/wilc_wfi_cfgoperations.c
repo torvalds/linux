@@ -757,8 +757,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			PRINT_D(CFG80211_DBG, "No Scan results yet\n");
 		else
 			PRINT_D(CFG80211_DBG, "Required bss not in scan results: Error(%d)\n", s32Error);
-
-		goto done;
+		wilc_connecting = 0;
+		return s32Error;
 	}
 
 	priv->WILC_WFI_wep_default = 0;
@@ -845,8 +845,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		} else {
 			s32Error = -ENOTSUPP;
 			PRINT_ER("Not supported cipher: Error(%d)\n", s32Error);
-
-			goto done;
+			wilc_connecting = 0;
+			return s32Error;
 		}
 	}
 
@@ -912,10 +912,9 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if (s32Error != 0) {
 		PRINT_ER("wilc_set_join_req(): Error(%d)\n", s32Error);
 		s32Error = -ENOENT;
-		goto done;
+		wilc_connecting = 0;
+		return s32Error;
 	}
-
-done:
 
 	return s32Error;
 }
