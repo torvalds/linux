@@ -68,6 +68,20 @@ all tags TAGS:
 	$(print_msg)
 	$(make)
 
+ifdef MAKECMDGOALS
+has_clean := 0
+ifneq ($(filter clean,$(MAKECMDGOALS)),)
+  has_clean := 1
+endif # clean
+
+ifeq ($(has_clean),1)
+  rest := $(filter-out clean,$(MAKECMDGOALS))
+  ifneq ($(rest),)
+$(rest): clean
+  endif # rest
+endif # has_clean
+endif # MAKECMDGOALS
+
 #
 # The clean target is not really parallel, don't print the jobs info:
 #
