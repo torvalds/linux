@@ -369,6 +369,42 @@ call-graph.*::
 		This is a maximum number of lines of callchain printed for a single
 		histogram entry. Default is 0 which means no limitation.
 
+report.*::
+	report.percent-limit::
+		This one is mostly the same as call-graph.threshold but works for
+		histogram entries. Entries having an overhead lower than this
+		percentage will not be printed. Default is '0'. If percent-limit
+		is '10', only entries which have more than 10% of overhead will be
+		printed.
+
+	report.queue-size::
+		This option sets up the maximum allocation size of the internal
+		event queue for ordering events. Default is 0, meaning no limit.
+
+	report.children::
+		'Children' means functions called from another function.
+		If this option is true, 'perf report' cumulates callchains of children
+		and show (accumulated) total overhead as well as 'Self' overhead.
+		Please refer to the 'perf report' manual. The default is 'true'.
+
+	report.group::
+		This option is to show event group information together.
+		Example output with this turned on, notice that there is one column
+		per event in the group, ref-cycles and cycles:
+
+		# group: {ref-cycles,cycles}
+		# ========
+		#
+		# Samples: 7K of event 'anon group { ref-cycles, cycles }'
+		# Event count (approx.): 6876107743
+		#
+		#         Overhead  Command      Shared Object               Symbol
+		# ................  .......  .................  ...................
+		#
+		    99.84%  99.76%  noploop  noploop            [.] main
+		     0.07%   0.00%  noploop  ld-2.15.so         [.] strcmp
+		     0.03%   0.00%  noploop  [kernel.kallsyms]  [k] timerqueue_del
+
 SEE ALSO
 --------
 linkperf:perf[1]
