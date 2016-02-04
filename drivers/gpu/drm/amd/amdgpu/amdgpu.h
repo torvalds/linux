@@ -87,6 +87,8 @@ extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
 extern int amdgpu_enable_semaphores;
 extern int amdgpu_powerplay;
+extern unsigned amdgpu_pcie_gen_cap;
+extern unsigned amdgpu_pcie_lane_cap;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
