@@ -93,7 +93,7 @@ struct network_info {
 	u8 *ies;
 	u16 ies_len;
 	void *join_params;
-	tstrRSSI strRssi;
+	tstrRSSI str_rssi;
 	u64 u64Tsf;
 };
 
