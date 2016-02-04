@@ -388,7 +388,7 @@ int wilc_wlan_get_firmware(struct net_device *dev)
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
-	chip_id = wilc_get_chipid(wilc, 0);
+	chip_id = wilc_get_chipid(wilc, false);
 
 	if (chip_id < 0x1003a0)
 		firmware = FIRMWARE_1002;
@@ -475,7 +475,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	wilc_get_mac_address(vif, mac_add);
 
 	netdev_dbg(dev, "MAC address is : %pM\n", mac_add);
-	wilc_get_chipid(wilc, 0);
+	wilc_get_chipid(wilc, false);
 
 	*(int *)c_val = 1;
 

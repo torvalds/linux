@@ -1441,36 +1441,31 @@ static u32 init_chip(struct net_device *dev)
 	return ret;
 }
 
-u32 wilc_get_chipid(struct wilc *wilc, u8 update)
+u32 wilc_get_chipid(struct wilc *wilc, bool update)
 {
 	static u32 chipid;
 	u32 tempchipid = 0;
-	u32 rfrevid;
+	u32 rfrevid = 0;
 
-	if (chipid == 0 || update != 0) {
+	if (chipid == 0 || update) {
 		wilc->hif_func->hif_read_reg(wilc, 0x1000, &tempchipid);
 		wilc->hif_func->hif_read_reg(wilc, 0x13f4, &rfrevid);
 		if (!ISWILC1000(tempchipid)) {
 			chipid = 0;
-			goto _fail_;
+			return chipid;
 		}
 		if (tempchipid == 0x1002a0) {
-			if (rfrevid == 0x1) {
-			} else {
+			if (rfrevid != 0x1)
 				tempchipid = 0x1002a1;
-			}
 		} else if (tempchipid == 0x1002b0) {
-			if (rfrevid == 3) {
-			} else if (rfrevid == 4) {
+			if (rfrevid == 0x4)
 				tempchipid = 0x1002b1;
-			} else {
+			else if (rfrevid != 0x3)
 				tempchipid = 0x1002b2;
-			}
 		}
 
 		chipid = tempchipid;
 	}
-_fail_:
 	return chipid;
 }
 
