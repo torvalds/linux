@@ -607,7 +607,7 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
 	}
-
+	setup_timer(&priv->s_rnr_timer, hfi1_rc_rnr_retry, (unsigned long)qp);
 	return priv;
 }
 

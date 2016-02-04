@@ -164,7 +164,7 @@ static inline int hfi1_stop_rnr_timer(struct rvt_qp *qp)
  * hfi1_del_timers_sync - wait for any timeout routines to exit
  * @qp - the QP
  */
-static inline void hfi1_del_timers_sync(struct rvt_qp *qp)
+void hfi1_del_timers_sync(struct rvt_qp *qp)
 {
 	del_timer_sync(&qp->s_timer);
 }

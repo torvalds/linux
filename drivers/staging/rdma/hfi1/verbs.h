@@ -210,6 +210,7 @@ struct hfi1_qp_priv {
 	u8 s_sc;		     /* SC[0..4] for next packet */
 	u8 r_adefered;               /* number of acks defered */
 	struct iowait s_iowait;
+	struct timer_list s_rnr_timer;
 	struct rvt_qp *owner;
 };
 
@@ -403,6 +404,7 @@ u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
 
 void hfi1_rc_rnr_retry(unsigned long arg);
+void hfi1_del_timers_sync(struct rvt_qp *qp);
 
 void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_ib_header *hdr);
 
