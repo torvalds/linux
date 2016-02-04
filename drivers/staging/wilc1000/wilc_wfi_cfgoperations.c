@@ -199,8 +199,8 @@ static void clear_shadow_scan(void)
 				last_scanned_shadow[last_scanned_cnt].ies = NULL;
 			}
 
-			kfree(last_scanned_shadow[i].pJoinParams);
-			last_scanned_shadow[i].pJoinParams = NULL;
+			kfree(last_scanned_shadow[i].join_params);
+			last_scanned_shadow[i].join_params = NULL;
 		}
 		last_scanned_cnt = 0;
 	}
@@ -295,7 +295,7 @@ static void remove_network_from_shadow(unsigned long arg)
 			kfree(last_scanned_shadow[i].ies);
 			last_scanned_shadow[i].ies = NULL;
 
-			kfree(last_scanned_shadow[i].pJoinParams);
+			kfree(last_scanned_shadow[i].join_params);
 
 			for (j = i; (j < last_scanned_cnt - 1); j++)
 				last_scanned_shadow[j] = last_scanned_shadow[j + 1];
@@ -389,8 +389,8 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	last_scanned_shadow[ap_index].time_scan_cached = jiffies;
 	last_scanned_shadow[ap_index].found = 1;
 	if (ap_found != -1)
-		kfree(last_scanned_shadow[ap_index].pJoinParams);
-	last_scanned_shadow[ap_index].pJoinParams = pJoinParams;
+		kfree(last_scanned_shadow[ap_index].join_params);
+	last_scanned_shadow[ap_index].join_params = pJoinParams;
 }
 
 static void CfgScanResult(enum scan_event scan_event,
@@ -913,7 +913,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 				     CfgConnectResult, (void *)priv,
 				     u8security, tenuAuth_type,
 				     pstrNetworkInfo->ch,
-				     pstrNetworkInfo->pJoinParams);
+				     pstrNetworkInfo->join_params);
 	if (s32Error != 0) {
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
 		s32Error = -ENOENT;
