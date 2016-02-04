@@ -104,19 +104,6 @@ int be_chk_reset_complete(struct beiscsi_hba *phba)
 	return 0;
 }
 
-void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag)
-{
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
-	u32 val = 0;
-
-	set_bit(MCC_TAG_STATE_RUNNING, &phba->ctrl.ptag_state[tag].tag_state);
-	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
-	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
-	/* ring doorbell after all of request and state is written */
-	wmb();
-	iowrite32(val, phba->db_va + DB_MCCQ_OFFSET);
-}
-
 unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
 {
 	unsigned int tag = 0;
@@ -137,6 +124,28 @@ unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
 	}
 	spin_unlock(&phba->ctrl.mcc_lock);
 	return tag;
+}
+
+void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag)
+{
+	spin_lock_bh(&ctrl->mcc_lock);
+	tag = tag & MCC_Q_CMD_TAG_MASK;
+	ctrl->mcc_tag[ctrl->mcc_free_index] = tag;
+	if (ctrl->mcc_free_index == (MAX_MCC_CMD - 1))
+		ctrl->mcc_free_index = 0;
+	else
+		ctrl->mcc_free_index++;
+	ctrl->mcc_tag_available++;
+	spin_unlock_bh(&ctrl->mcc_lock);
+}
+
+/**
+ * beiscsi_fail_session(): Closing session with appropriate error
+ * @cls_session: ptr to session
+ **/
+void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
+{
+	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
 }
 
 /*
@@ -254,19 +263,6 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 	return rc;
 }
 
-void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag)
-{
-	spin_lock(&ctrl->mcc_lock);
-	tag = tag & MCC_Q_CMD_TAG_MASK;
-	ctrl->mcc_tag[ctrl->mcc_free_index] = tag;
-	if (ctrl->mcc_free_index == (MAX_MCC_CMD - 1))
-		ctrl->mcc_free_index = 0;
-	else
-		ctrl->mcc_free_index++;
-	ctrl->mcc_tag_available++;
-	spin_unlock(&ctrl->mcc_lock);
-}
-
 static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
 {
 	if (compl->flags != 0) {
@@ -326,15 +322,6 @@ static int beiscsi_process_mbox_compl(struct be_ctrl_info *ctrl,
 		return -EINVAL;
 	}
 	return 0;
-}
-
-/**
- * beiscsi_fail_session(): Closing session with appropriate error
- * @cls_session: ptr to session
- **/
-void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
-{
-	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
 }
 
 static void beiscsi_process_async_link(struct beiscsi_hba *phba,
@@ -532,6 +519,7 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
  **/
 int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
 {
+	struct be_ctrl_info *ctrl = &phba->ctrl;
 	int i;
 
 	for (i = 0; i < mcc_timeout; i++) {
@@ -540,19 +528,33 @@ int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
 
 		beiscsi_process_mcc_cq(phba);
 
-		if (atomic_read(&phba->ctrl.mcc_obj.q.used) == 0)
+		if (!test_bit(MCC_TAG_STATE_RUNNING,
+			      &ctrl->ptag_state[tag].tag_state))
 			break;
 		udelay(100);
 	}
-	if (i == mcc_timeout) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BC_%d : FW Timed Out\n");
-		phba->fw_timeout = true;
-		beiscsi_ue_detect(phba);
-		return -EBUSY;
-	}
-	return 0;
+
+	if (i < mcc_timeout)
+		return 0;
+
+	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BC_%d : FW Timed Out\n");
+	phba->fw_timeout = true;
+	beiscsi_ue_detect(phba);
+	return -EBUSY;
+}
+
+void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag)
+{
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	u32 val = 0;
+
+	set_bit(MCC_TAG_STATE_RUNNING, &phba->ctrl.ptag_state[tag].tag_state);
+	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
+	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
+	/* make request available for DMA */
+	wmb();
+	iowrite32(val, phba->db_va + DB_MCCQ_OFFSET);
 }
 
 /*
