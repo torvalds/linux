@@ -1143,6 +1143,7 @@ int wilc_wlan_stop(struct wilc *wilc)
 	u32 reg = 0;
 	int ret;
 	u8 timeout = 10;
+
 	acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
 
 	ret = wilc->hif_func->hif_read_reg(wilc, WILC_GLB_RESET_0, &reg);
