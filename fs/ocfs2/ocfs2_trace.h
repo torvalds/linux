@@ -2035,6 +2035,8 @@ DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_release_dquot);
 
 DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_acquire_dquot);
 
+DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_get_next_id);
+
 DEFINE_OCFS2_UINT_INT_EVENT(ocfs2_mark_dquot_dirty);
 
 /* End of trace events for fs/ocfs2/quota_global.c. */
