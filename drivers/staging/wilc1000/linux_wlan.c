@@ -1047,8 +1047,6 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	}
 
 	wilc_setup_multicast_filter(vif, true, (dev->mc.count));
-
-	return;
 }
 
 static void linux_wlan_tx_complete(void *priv, int status)
