@@ -14,7 +14,6 @@ Optional properties:
    the second element is expected to be a handle to the USB3/SS PHY
  - phys: from the *Generic PHY* bindings
  - phy-names: from the *Generic PHY* bindings
- - tx-fifo-resize: determines if the FIFO *has* to be reallocated.
  - snps,usb3_lpm_capable: determines if platform is USB3 LPM capable
  - snps,disable_scramble_quirk: true when SW should disable data scrambling.
 	Only really useful for FPGA builds.
@@ -47,6 +46,8 @@ Optional properties:
 	register for post-silicon frame length adjustment when the
 	fladj_30mhz_sdbnd signal is invalid or incorrect.
 
+ - <DEPRECATED> tx-fifo-resize: determines if the FIFO *has* to be reallocated.
+
 This is usually a subnode to DWC3 glue to which it is connected.
 
 dwc3@4a030000 {
@@ -54,5 +55,4 @@ dwc3@4a030000 {
 	reg = <0x4a030000 0xcfff>;
 	interrupts = <0 92 4>
 	usb-phy = <&usb2_phy>, <&usb3,phy>;
-	tx-fifo-resize;
 };
