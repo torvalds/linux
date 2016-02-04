@@ -145,8 +145,11 @@ restart:
 			ret = fs_mount_pending(fsid);
 			if (ret == 1) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
-				    "orangefs: skipping op tag %llu %s\n",
-				    llu(op->tag), get_opname_string(op));
+				    "%s: mount pending, skipping op tag "
+				    "%llu %s\n",
+				    __func__,
+				    llu(op->tag),
+				    get_opname_string(op));
 				spin_unlock(&op->lock);
 				continue;
 			/*
