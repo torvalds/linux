@@ -3226,13 +3226,6 @@ static void gfx_v8_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
 	udelay(50);
 }
 
-static int gfx_v8_0_cp_compute_start(struct amdgpu_device *adev)
-{
-	gfx_v8_0_cp_compute_enable(adev, true);
-
-	return 0;
-}
-
 static int gfx_v8_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 {
 	const struct gfx_firmware_header_v1_0 *mec_hdr;
@@ -3802,9 +3795,7 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 		WREG32(mmCP_PQ_STATUS, tmp);
 	}
 
-	r = gfx_v8_0_cp_compute_start(adev);
-	if (r)
-		return r;
+	gfx_v8_0_cp_compute_enable(adev, true);
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];

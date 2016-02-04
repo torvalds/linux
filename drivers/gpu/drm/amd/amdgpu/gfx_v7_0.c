@@ -3096,21 +3096,6 @@ static int gfx_v7_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 }
 
 /**
- * gfx_v7_0_cp_compute_start - start the compute queues
- *
- * @adev: amdgpu_device pointer
- *
- * Enable the compute queues.
- * Returns 0 for success, error for failure.
- */
-static int gfx_v7_0_cp_compute_start(struct amdgpu_device *adev)
-{
-	gfx_v7_0_cp_compute_enable(adev, true);
-
-	return 0;
-}
-
-/**
  * gfx_v7_0_cp_compute_fini - stop the compute queues
  *
  * @adev: amdgpu_device pointer
@@ -3300,9 +3285,7 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 	u32 *buf;
 	struct bonaire_mqd *mqd;
 
-	r = gfx_v7_0_cp_compute_start(adev);
-	if (r)
-		return r;
+	gfx_v7_0_cp_compute_enable(adev, true);
 
 	/* fix up chicken bits */
 	tmp = RREG32(mmCP_CPF_DEBUG);
