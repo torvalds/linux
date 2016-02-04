@@ -270,7 +270,8 @@ struct wilc_cfg_rsp {
 struct wilc;
 struct wilc_vif;
 
-int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer, u32 buffer_size);
+int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
+				u32 buffer_size);
 int wilc_wlan_start(struct wilc *);
 int wilc_wlan_stop(struct wilc *);
 int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,

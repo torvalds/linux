@@ -113,7 +113,8 @@ static void wilc_wlan_txq_add_to_tail(struct net_device *dev,
 	up(&wilc->txq_event);
 }
 
-static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif, struct txq_entry_t *tqe)
+static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
+				     struct txq_entry_t *tqe)
 {
 	unsigned long flags;
 	struct wilc *wilc = vif->wilc;
@@ -695,8 +696,9 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 		acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
 		counter = 0;
 		do {
-			ret = wilc->hif_func->hif_read_reg(wilc, WILC_HOST_TX_CTRL,
-						       &reg);
+			ret = wilc->hif_func->hif_read_reg(wilc,
+							   WILC_HOST_TX_CTRL,
+							   &reg);
 			if (!ret) {
 				wilc_debug(N_ERR, "[wilc txq]: fail can't read reg vmm_tbl_entry..\n");
 				break;
@@ -728,8 +730,9 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				break;
 			}
 
-			ret = wilc->hif_func->hif_write_reg(wilc, WILC_HOST_VMM_CTL,
-							0x2);
+			ret = wilc->hif_func->hif_write_reg(wilc,
+							    WILC_HOST_VMM_CTL,
+							    0x2);
 			if (!ret) {
 				wilc_debug(N_ERR, "[wilc txq]: fail can't write reg host_vmm_ctl..\n");
 				break;
@@ -1063,7 +1066,8 @@ void wilc_handle_isr(struct wilc *wilc)
 }
 EXPORT_SYMBOL_GPL(wilc_handle_isr);
 
-int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer, u32 buffer_size)
+int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
+				u32 buffer_size)
 {
 	u32 offset;
 	u32 addr, size, size2, blksz;
@@ -1096,8 +1100,8 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer, u32 buffer_
 				size2 = blksz;
 
 			memcpy(dma_buffer, &buffer[offset], size2);
-			ret = wilc->hif_func->hif_block_tx(wilc, addr, dma_buffer,
-						       size2);
+			ret = wilc->hif_func->hif_block_tx(wilc, addr,
+							   dma_buffer, size2);
 			if (!ret)
 				break;
 
@@ -1233,7 +1237,8 @@ int wilc_wlan_stop(struct wilc *wilc)
 	}
 
 	do {
-		ret = wilc->hif_func->hif_read_reg(wilc, WILC_GLB_RESET_0, &reg);
+		ret = wilc->hif_func->hif_read_reg(wilc,
+						   WILC_GLB_RESET_0, &reg);
 		if (!ret) {
 			PRINT_ER("Error while reading reg\n");
 			release_bus(wilc, RELEASE_ALLOW_SLEEP);
@@ -1246,14 +1251,16 @@ int wilc_wlan_stop(struct wilc *wilc)
 			PRINT_D(GENERIC_DBG, "Bit 10 not reset : Retry %d\n",
 				timeout);
 			reg &= ~BIT(10);
-			ret = wilc->hif_func->hif_write_reg(wilc, WILC_GLB_RESET_0,
-							reg);
+			ret = wilc->hif_func->hif_write_reg(wilc,
+							    WILC_GLB_RESET_0,
+							    reg);
 			timeout--;
 		} else {
 			PRINT_D(GENERIC_DBG, "Bit 10 reset after : Retry %d\n",
 				timeout);
-			ret = wilc->hif_func->hif_read_reg(wilc, WILC_GLB_RESET_0,
-						       &reg);
+			ret = wilc->hif_func->hif_read_reg(wilc,
+							   WILC_GLB_RESET_0,
+							   &reg);
 			if (!ret) {
 				PRINT_ER("Error while reading reg\n");
 				release_bus(wilc, RELEASE_ALLOW_SLEEP);
