@@ -206,15 +206,6 @@ static inline int add_tcp_pending_ack(u32 ack, u32 session_index,
 	}
 	return 0;
 }
-static inline int remove_TCP_related(struct wilc *wilc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&wilc->txq_spinlock, flags);
-
-	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
-	return 0;
-}
 
 static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 {
