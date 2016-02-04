@@ -295,14 +295,14 @@ s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info)
 	wid_val = &msg_buffer[8];
 
 	{
-		u8  *pu8msa = NULL;
+		u8 *msa = NULL;
 		u16 rx_len = 0;
-		u8 *pu8TimElm = NULL;
-		u8 *pu8IEs = NULL;
-		u16 u16IEsLen = 0;
-		u8 u8index = 0;
-		u32 u32Tsf_Lo;
-		u32 u32Tsf_Hi;
+		u8 *tim_elm = NULL;
+		u8 *ies = NULL;
+		u16 ies_len = 0;
+		u8 index = 0;
+		u32 tsf_lo;
+		u32 tsf_hi;
 
 		network_info = kzalloc(sizeof(tstrNetworkInfo), GFP_KERNEL);
 		if (!network_info)
@@ -310,43 +310,43 @@ s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info)
 
 		network_info->s8rssi = wid_val[0];
 
-		pu8msa = &wid_val[1];
+		msa = &wid_val[1];
 
 		rx_len = wid_len - 1;
-		network_info->u16CapInfo = get_cap_info(pu8msa);
-		network_info->u32Tsf = get_beacon_timestamp_lo(pu8msa);
+		network_info->u16CapInfo = get_cap_info(msa);
+		network_info->u32Tsf = get_beacon_timestamp_lo(msa);
 		PRINT_D(CORECONFIG_DBG, "TSF :%x\n", network_info->u32Tsf);
 
-		u32Tsf_Lo = get_beacon_timestamp_lo(pu8msa);
-		u32Tsf_Hi = get_beacon_timestamp_hi(pu8msa);
+		tsf_lo = get_beacon_timestamp_lo(msa);
+		tsf_hi = get_beacon_timestamp_hi(msa);
 
-		network_info->u64Tsf = u32Tsf_Lo | ((u64)u32Tsf_Hi << 32);
+		network_info->u64Tsf = tsf_lo | ((u64)tsf_hi << 32);
 
-		get_ssid(pu8msa, network_info->au8ssid, &network_info->u8SsidLen);
-		get_BSSID(pu8msa, network_info->au8bssid);
+		get_ssid(msa, network_info->au8ssid, &network_info->u8SsidLen);
+		get_BSSID(msa, network_info->au8bssid);
 
-		network_info->u8channel = get_current_channel_802_11n(pu8msa,
+		network_info->u8channel = get_current_channel_802_11n(msa,
 							rx_len + FCS_LEN);
 
-		u8index = MAC_HDR_LEN + TIME_STAMP_LEN;
+		index = MAC_HDR_LEN + TIME_STAMP_LEN;
 
-		network_info->u16BeaconPeriod = get_beacon_period(pu8msa + u8index);
+		network_info->u16BeaconPeriod = get_beacon_period(msa + index);
 
-		u8index += BEACON_INTERVAL_LEN + CAP_INFO_LEN;
+		index += BEACON_INTERVAL_LEN + CAP_INFO_LEN;
 
-		pu8TimElm = get_tim_elm(pu8msa, rx_len + FCS_LEN, u8index);
-		if (pu8TimElm)
-			network_info->u8DtimPeriod = pu8TimElm[3];
-		pu8IEs = &pu8msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN];
-		u16IEsLen = rx_len - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
+		tim_elm = get_tim_elm(msa, rx_len + FCS_LEN, index);
+		if (tim_elm)
+			network_info->u8DtimPeriod = tim_elm[3];
+		ies = &msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN];
+		ies_len = rx_len - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
 
-		if (u16IEsLen > 0) {
-			network_info->pu8IEs = kmemdup(pu8IEs, u16IEsLen,
+		if (ies_len > 0) {
+			network_info->pu8IEs = kmemdup(ies, ies_len,
 						       GFP_KERNEL);
 			if (!network_info->pu8IEs)
 				return -ENOMEM;
 		}
-		network_info->u16IEsLen = u16IEsLen;
+		network_info->u16IEsLen = ies_len;
 	}
 
 	*ret_network_info = network_info;
