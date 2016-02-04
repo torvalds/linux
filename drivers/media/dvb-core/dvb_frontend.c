@@ -2087,6 +2087,8 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 			dev_dbg(fe->dvb->device, "%s: Property cache is full, tuning\n", __func__);
 
 	} else if (cmd == FE_GET_PROPERTY) {
+		struct dtv_frontend_properties getp = fe->dtv_property_cache;
+
 		dev_dbg(fe->dvb->device, "%s: properties.num = %d\n", __func__, tvps->num);
 		dev_dbg(fe->dvb->device, "%s: properties.props = %p\n", __func__, tvps->props);
 
@@ -2108,17 +2110,18 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 		}
 
 		/*
-		 * Fills the cache out struct with the cache contents, plus
-		 * the data retrieved from get_frontend, if the frontend
-		 * is not idle. Otherwise, returns the cached content
+		 * Let's use our own copy of property cache, in order to
+		 * avoid mangling with DTV zigzag logic, as drivers might
+		 * return crap, if they don't check if the data is available
+		 * before updating the properties cache.
 		 */
 		if (fepriv->state != FESTATE_IDLE) {
-			err = dtv_get_frontend(fe, c, NULL);
+			err = dtv_get_frontend(fe, &getp, NULL);
 			if (err < 0)
 				goto out;
 		}
 		for (i = 0; i < tvps->num; i++) {
-			err = dtv_property_process_get(fe, c, tvp + i, file);
+			err = dtv_property_process_get(fe, &getp, tvp + i, file);
 			if (err < 0)
 				goto out;
 			(tvp + i)->result = err;
@@ -2523,10 +2526,18 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		err = dvb_frontend_get_event (fe, parg, file->f_flags);
 		break;
 
-	case FE_GET_FRONTEND:
-		err = dtv_get_frontend(fe, c, parg);
-		break;
+	case FE_GET_FRONTEND: {
+		struct dtv_frontend_properties getp = fe->dtv_property_cache;
 
+		/*
+		 * Let's use our own copy of property cache, in order to
+		 * avoid mangling with DTV zigzag logic, as drivers might
+		 * return crap, if they don't check if the data is available
+		 * before updating the properties cache.
+		 */
+		err = dtv_get_frontend(fe, &getp, parg);
+		break;
+	}
 	case FE_SET_FRONTEND_TUNE_MODE:
 		fepriv->tune_mode_flags = (unsigned long) parg;
 		err = 0;
