@@ -4341,6 +4341,9 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 		return -EFAULT;
 	}
 
+	if (wilc_wlan_get_num_conn_ifcs(vif->wilc) == 2 && enabled)
+		return 0;
+
 	PRINT_D(HOSTINF_DBG, "Setting Power management message queue params\n");
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
