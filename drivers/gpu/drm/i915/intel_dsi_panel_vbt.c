@@ -207,7 +207,7 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	gpio = *data++;
 
 	/* pull up/down */
-	action = *data++;
+	action = *data++ & 1;
 
 	if (gpio >= ARRAY_SIZE(gtable)) {
 		DRM_DEBUG_KMS("unknown gpio %u\n", gpio);
