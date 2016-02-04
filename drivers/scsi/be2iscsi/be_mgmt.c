@@ -942,7 +942,7 @@ unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba)
 	be_mcc_notify(phba, tag);
 	mutex_unlock(&ctrl->mbox_lock);
 
-	status = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	status = beiscsi_mccq_compl_wait(phba, tag, &wrb, NULL);
 	if (status) {
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
 			    "BG_%d : Failed in mgmt_get_all_if_id\n");
@@ -993,7 +993,7 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 	be_mcc_notify(phba, tag);
 	mutex_unlock(&ctrl->mbox_lock);
 
-	rc = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd);
+	rc = beiscsi_mccq_compl_wait(phba, tag, NULL, nonemb_cmd);
 
 	if (resp_buf)
 		memcpy(resp_buf, nonemb_cmd->va, resp_buf_len);
@@ -1427,7 +1427,7 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 			return -EAGAIN;
 		}
 
-		rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+		rc = beiscsi_mccq_compl_wait(phba, tag, &wrb, NULL);
 		if (rc) {
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
@@ -1461,7 +1461,7 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 			return -EAGAIN;
 		}
 
-		rc = beiscsi_mccq_compl(phba, tag, NULL, NULL);
+		rc = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
 		if (rc) {
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
@@ -1503,7 +1503,7 @@ int mgmt_set_vlan(struct beiscsi_hba *phba,
 		return -EBUSY;
 	}
 
-	rc = beiscsi_mccq_compl(phba, tag, NULL, NULL);
+	rc = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
 	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
@@ -1869,7 +1869,7 @@ int beiscsi_logout_fw_sess(struct beiscsi_hba *phba,
 	be_mcc_notify(phba, tag);
 	mutex_unlock(&ctrl->mbox_lock);
 
-	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	rc = beiscsi_mccq_compl_wait(phba, tag, &wrb, NULL);
 	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,

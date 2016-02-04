@@ -735,7 +735,7 @@ static int beiscsi_get_initname(char *buf, struct beiscsi_hba *phba)
 		return -EBUSY;
 	}
 
-	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	rc = beiscsi_mccq_compl_wait(phba, tag, &wrb, NULL);
 	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -1143,7 +1143,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		return -EAGAIN;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, NULL, &nonemb_cmd);
+	ret = beiscsi_mccq_compl_wait(phba, tag, NULL, &nonemb_cmd);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -1302,7 +1302,7 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 		ret = -EAGAIN;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, NULL, NULL);
+	ret = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
 
 	/* Flush the CQ entries */
 	beiscsi_flush_cq(phba);
@@ -1377,7 +1377,7 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 			    beiscsi_ep->ep_cid);
 	}
 
-	beiscsi_mccq_compl(phba, tag, NULL, NULL);
+	beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
 	beiscsi_close_conn(beiscsi_ep, tcp_upload_flag);
 free_ep:
 	msleep(BEISCSI_LOGOUT_SYNC_DELAY);

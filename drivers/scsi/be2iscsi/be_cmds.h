@@ -732,9 +732,9 @@ void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
 
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
 			    int num);
-int beiscsi_mccq_compl(struct beiscsi_hba *phba,
-			uint32_t tag, struct be_mcc_wrb **wrb,
-			struct be_dma_mem *mbx_cmd_mem);
+int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
+			    uint32_t tag, struct be_mcc_wrb **wrb,
+			    struct be_dma_mem *mbx_cmd_mem);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);

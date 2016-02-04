@@ -140,7 +140,7 @@ unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
 }
 
 /*
- * beiscsi_mccq_compl()- Wait for completion of MBX
+ * beiscsi_mccq_compl_wait()- Process completion in MCC CQ
  * @phba: Driver private structure
  * @tag: Tag for the MBX Command
  * @wrb: the WRB used for the MBX Command
@@ -152,9 +152,9 @@ unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
  * Success: 0
  * Failure: Non-Zero
  **/
-int beiscsi_mccq_compl(struct beiscsi_hba *phba,
-		uint32_t tag, struct be_mcc_wrb **wrb,
-		struct be_dma_mem *mbx_cmd_mem)
+int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
+			    uint32_t tag, struct be_mcc_wrb **wrb,
+			    struct be_dma_mem *mbx_cmd_mem)
 {
 	int rc = 0;
 	uint32_t mcc_tag_status;
@@ -283,7 +283,7 @@ static inline void be_mcc_compl_use(struct be_mcc_compl *compl)
 }
 
 /*
- * be_mcc_compl_process()- Check the MBX comapletion status
+ * beiscsi_process_mbox_compl()- Check the MBX completion status
  * @ctrl: Function specific MBX data structure
  * @compl: Completion status of MBX Command
  *
@@ -293,8 +293,8 @@ static inline void be_mcc_compl_use(struct be_mcc_compl *compl)
  * Success: Zero
  * Failure: Non-Zero
  **/
-static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
-				struct be_mcc_compl *compl)
+static int beiscsi_process_mbox_compl(struct be_ctrl_info *ctrl,
+				      struct be_mcc_compl *compl)
 {
 	u16 compl_status, extd_status;
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
@@ -520,7 +520,7 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 }
 
 /*
- * be_mcc_wait_compl()- Wait for MBX completion
+ * be_mcc_compl_poll()- Wait for MBX completion
  * @phba: driver private structure
  *
  * Wait till no more pending mcc requests are present
@@ -556,7 +556,7 @@ int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
 }
 
 /*
- * be_mbox_db_ready_wait()- Check ready status
+ * be_mbox_db_ready_poll()- Check ready status
  * @ctrl: Function specific MBX data structure
  *
  * Check for the ready status of FW to send BMBX
@@ -566,7 +566,7 @@ int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
  * Success: 0
  * Failure: Non-Zero
  **/
-static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
+static int be_mbox_db_ready_poll(struct be_ctrl_info *ctrl)
 {
 	/* wait 30s for generic non-flash MBOX operation */
 #define BEISCSI_MBX_RDY_BIT_TIMEOUT	30000
@@ -628,7 +628,7 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 	struct be_mcc_compl *compl = &mbox->compl;
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 
-	status = be_mbox_db_ready_wait(ctrl);
+	status = be_mbox_db_ready_poll(ctrl);
 	if (status)
 		return status;
 
@@ -637,7 +637,7 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 	val |= (upper_32_bits(mbox_mem->dma) >> 2) << 2;
 	iowrite32(val, db);
 
-	status = be_mbox_db_ready_wait(ctrl);
+	status = be_mbox_db_ready_poll(ctrl);
 	if (status)
 		return status;
 
@@ -647,7 +647,7 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 	val |= (u32) (mbox_mem->dma >> 4) << 2;
 	iowrite32(val, db);
 
-	status = be_mbox_db_ready_wait(ctrl);
+	status = be_mbox_db_ready_poll(ctrl);
 	if (status)
 		return status;
 
@@ -655,12 +655,12 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 	udelay(1);
 
 	if (be_mcc_compl_is_new(compl)) {
-		status = be_mcc_compl_process(ctrl, &mbox->compl);
+		status = beiscsi_process_mbox_compl(ctrl, compl);
 		be_mcc_compl_use(compl);
 		if (status) {
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-				    "BC_%d : After be_mcc_compl_process\n");
+				    "BC_%d : After beiscsi_process_mbox_compl\n");
 
 			return status;
 		}
@@ -688,7 +688,7 @@ static int be_mbox_notify_wait(struct beiscsi_hba *phba)
 	struct be_mcc_compl *compl = &mbox->compl;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 
-	status = be_mbox_db_ready_wait(ctrl);
+	status = be_mbox_db_ready_poll(ctrl);
 	if (status)
 		return status;
 
@@ -698,7 +698,7 @@ static int be_mbox_notify_wait(struct beiscsi_hba *phba)
 	iowrite32(val, db);
 
 	/* wait for ready to be set */
-	status = be_mbox_db_ready_wait(ctrl);
+	status = be_mbox_db_ready_poll(ctrl);
 	if (status != 0)
 		return status;
 
@@ -707,13 +707,13 @@ static int be_mbox_notify_wait(struct beiscsi_hba *phba)
 	val |= (u32)(mbox_mem->dma >> 4) << 2;
 	iowrite32(val, db);
 
-	status = be_mbox_db_ready_wait(ctrl);
+	status = be_mbox_db_ready_poll(ctrl);
 	if (status != 0)
 		return status;
 
 	/* A cq entry has been made now */
 	if (be_mcc_compl_is_new(compl)) {
-		status = be_mcc_compl_process(ctrl, &mbox->compl);
+		status = beiscsi_process_mbox_compl(ctrl, &mbox->compl);
 		be_mcc_compl_use(compl);
 		if (status)
 			return status;
