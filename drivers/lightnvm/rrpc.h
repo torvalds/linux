@@ -184,6 +184,8 @@ static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
 	sector_t laddr_end = laddr + pages - 1;
 	struct rrpc_inflight_rq *rtmp;
 
+	WARN_ON(irqs_disabled());
+
 	spin_lock_irq(&rrpc->inflights.lock);
 	list_for_each_entry(rtmp, &rrpc->inflights.reqs, list) {
 		if (unlikely(request_intersects(rtmp, laddr, laddr_end))) {
