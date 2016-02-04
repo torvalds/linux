@@ -192,7 +192,6 @@ static void clear_shadow_scan(void)
 
 	if (op_ifcs == 0) {
 		del_timer_sync(&hAgingTimer);
-		PRINT_INFO(CORECONFIG_DBG, "destroy aging timer\n");
 
 		for (i = 0; i < last_scanned_cnt; i++) {
 			if (last_scanned_shadow[last_scanned_cnt].pu8IEs) {
@@ -424,8 +423,6 @@ static void CfgScanResult(enum scan_event scan_event,
 						PRINT_D(CFG80211_DBG, "Network %s found\n", network_info->au8ssid);
 						priv->u32RcvdChCount++;
 
-						if (!join_params)
-							PRINT_INFO(CORECONFIG_DBG, ">> Something really bad happened\n");
 						add_network_to_shadow(network_info, priv, join_params);
 
 						if (!(memcmp("DIRECT-", network_info->au8ssid, 7))) {
@@ -762,24 +759,14 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	PRINT_INFO(CFG80211_DBG, "sme->crypto.n_ciphers_pairwise=%d\n", sme->crypto.n_ciphers_pairwise);
 
-	if (INFO) {
-		for (i = 0; i < sme->crypto.n_ciphers_pairwise; i++)
-			PRINT_D(CORECONFIG_DBG, "sme->crypto.ciphers_pairwise[%d]=%x\n", i, sme->crypto.ciphers_pairwise[i]);
-	}
-
 	if (sme->crypto.cipher_group != NO_ENCRYPT) {
 		pcwpa_version = "Default";
-		PRINT_D(CORECONFIG_DBG, ">> sme->crypto.wpa_versions: %x\n", sme->crypto.wpa_versions);
 		if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_WEP40) {
 			u8security = ENCRYPT_ENABLED | WEP;
 			pcgroup_encrypt_val = "WEP40";
 			pccipher_group = "WLAN_CIPHER_SUITE_WEP40";
 			PRINT_INFO(CFG80211_DBG, "WEP Default Key Idx = %d\n", sme->key_idx);
 
-			if (INFO) {
-				for (i = 0; i < sme->key_len; i++)
-					PRINT_D(CORECONFIG_DBG, "WEP Key Value[%d] = %d\n", i, sme->key[i]);
-			}
 			priv->WILC_WFI_wep_key_len[sme->key_idx] = sme->key_len;
 			memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
 
@@ -1386,9 +1373,6 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 			wilc_enable_tcp_ack_filter(true);
 		else if (strStatistics.link_speed != DEFAULT_LINK_SPEED)
 			wilc_enable_tcp_ack_filter(false);
-
-		PRINT_D(CORECONFIG_DBG, "*** stats[%d][%d][%d][%d][%d]\n", sinfo->signal, sinfo->rx_packets, sinfo->tx_packets,
-			sinfo->tx_failed, sinfo->txrate.legacy);
 	}
 	return 0;
 }
@@ -2718,10 +2702,8 @@ int wilc_deinit_host_int(struct net_device *net)
 	s32Error = wilc_deinit(vif);
 
 	clear_shadow_scan();
-	if (op_ifcs == 0) {
-		PRINT_D(CORECONFIG_DBG, "destroy during ip\n");
+	if (op_ifcs == 0)
 		del_timer_sync(&wilc_during_ip_timer);
-	}
 
 	if (s32Error)
 		netdev_err(net, "Error while deintializing host interface\n");
