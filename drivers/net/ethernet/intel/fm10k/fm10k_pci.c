@@ -2274,10 +2274,10 @@ static pci_ers_result_t fm10k_io_error_detected(struct pci_dev *pdev,
 	if (netif_running(netdev))
 		fm10k_close(netdev);
 
+	fm10k_mbx_free_irq(interface);
+
 	/* free interrupts */
 	fm10k_clear_queueing_scheme(interface);
-
-	fm10k_mbx_free_irq(interface);
 
 	pci_disable_device(pdev);
 
