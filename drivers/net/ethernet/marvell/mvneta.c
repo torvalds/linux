@@ -374,6 +374,7 @@ struct mvneta_port {
 	 * ensuring that the configuration remains coherent.
 	 */
 	spinlock_t lock;
+	bool is_stopped;
 
 	/* Core clock */
 	struct clk *clk;
@@ -2855,15 +2856,13 @@ static void mvneta_percpu_disable(void *arg)
 	disable_percpu_irq(pp->dev->irq);
 }
 
+/* Electing a CPU must be done in an atomic way: it should be done
+ * after or before the removal/insertion of a CPU and this function is
+ * not reentrant.
+ */
 static void mvneta_percpu_elect(struct mvneta_port *pp)
 {
 	int elected_cpu = 0, max_cpu, cpu, i = 0;
-
-	/* Electing a CPU must be done in an atomic way: it should be
-	 * done after or before the removal/insertion of a CPU and
-	 * this function is not reentrant.
-	 */
-	spin_lock(&pp->lock);
 
 	/* Use the cpu associated to the rxq when it is online, in all
 	 * the other cases, use the cpu 0 which can't be offline.
@@ -2908,7 +2907,6 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 		i++;
 
 	}
-	spin_unlock(&pp->lock);
 };
 
 static int mvneta_percpu_notifier(struct notifier_block *nfb,
@@ -2922,6 +2920,14 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
+		spin_lock(&pp->lock);
+		/* Configuring the driver for a new CPU while the
+		 * driver is stopping is racy, so just avoid it.
+		 */
+		if (pp->is_stopped) {
+			spin_unlock(&pp->lock);
+			break;
+		}
 		netif_tx_stop_all_queues(pp->dev);
 
 		/* We have to synchronise on tha napi of each CPU
@@ -2959,6 +2965,7 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 			MVNETA_CAUSE_LINK_CHANGE |
 			MVNETA_CAUSE_PSC_SYNC_CHANGE);
 		netif_tx_start_all_queues(pp->dev);
+		spin_unlock(&pp->lock);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
@@ -2983,7 +2990,9 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		/* Check if a new CPU must be elected now this on is down */
+		spin_lock(&pp->lock);
 		mvneta_percpu_elect(pp);
+		spin_unlock(&pp->lock);
 		/* Unmask all ethernet port interrupts */
 		on_each_cpu(mvneta_percpu_unmask_interrupt, pp, true);
 		mvreg_write(pp, MVNETA_INTR_MISC_MASK,
@@ -3027,7 +3036,7 @@ static int mvneta_open(struct net_device *dev)
 	 */
 	on_each_cpu(mvneta_percpu_enable, pp, true);
 
-
+	pp->is_stopped = false;
 	/* Register a CPU notifier to handle the case where our CPU
 	 * might be taken offline.
 	 */
@@ -3060,9 +3069,18 @@ static int mvneta_stop(struct net_device *dev)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 
+	/* Inform that we are stopping so we don't want to setup the
+	 * driver for new CPUs in the notifiers
+	 */
+	spin_lock(&pp->lock);
+	pp->is_stopped = true;
 	mvneta_stop_dev(pp);
 	mvneta_mdio_remove(pp);
 	unregister_cpu_notifier(&pp->cpu_notifier);
+	/* Now that the notifier are unregistered, we can release le
+	 * lock
+	 */
+	spin_unlock(&pp->lock);
 	on_each_cpu(mvneta_percpu_disable, pp, true);
 	free_percpu_irq(dev->irq, pp->ports);
 	mvneta_cleanup_rxqs(pp);
@@ -3333,7 +3351,9 @@ static int  mvneta_config_rss(struct mvneta_port *pp)
 	mvreg_write(pp, MVNETA_PORT_CONFIG, val);
 
 	/* Update the elected CPU matching the new rxq_def */
+	spin_lock(&pp->lock);
 	mvneta_percpu_elect(pp);
+	spin_unlock(&pp->lock);
 
 	/* We have to synchronise on the napi of each CPU */
 	for_each_online_cpu(cpu) {
