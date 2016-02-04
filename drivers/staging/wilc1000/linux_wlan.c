@@ -1047,10 +1047,6 @@ static void linux_wlan_tx_complete(void *priv, int status)
 {
 	struct tx_complete_data *pv_data = (struct tx_complete_data *)priv;
 
-	if (status == 1)
-		PRINT_D(TX_DBG, "Packet sent successfully - Size = %d - Address = %p - SKB = %p\n", pv_data->size, pv_data->buff, pv_data->skb);
-	else
-		PRINT_D(TX_DBG, "Couldn't send packet - Size = %d - Address = %p - SKB = %p\n", pv_data->size, pv_data->buff, pv_data->skb);
 	dev_kfree_skb(pv_data->skb);
 	kfree(pv_data);
 }

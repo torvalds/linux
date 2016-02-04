@@ -652,13 +652,11 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 			}
 		} while (1);
 
-		if (i == 0) {
-			PRINT_D(TX_DBG, "Nothing in TX-Q\n");
+		if (i == 0)
 			break;
-		} else {
-			PRINT_D(TX_DBG, "Mark the last entry in VMM table - number of previous entries = %d\n", i);
+		else
 			vmm_table[i] = 0x0;
-		}
+
 		acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
 		counter = 0;
 		do {
@@ -807,7 +805,6 @@ _end_:
 	up(&wilc->txq_add_to_head_cs);
 
 	wilc->txq_exit = 1;
-	PRINT_D(TX_DBG, "THREAD: Exiting txq\n");
 	*txq_count = wilc->txq_entries;
 	return ret;
 }
