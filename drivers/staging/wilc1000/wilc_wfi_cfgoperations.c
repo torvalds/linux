@@ -1716,8 +1716,6 @@ static void WILC_WFI_RemainOnChannelReady(void *pUserVoid)
 
 	priv = (struct wilc_priv *)pUserVoid;
 
-	PRINT_D(HOSTINF_DBG, "Remain on channel ready\n");
-
 	priv->bInP2PlistenState = true;
 
 	cfg80211_ready_on_channel(priv->wdev,

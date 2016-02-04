@@ -4,7 +4,6 @@
 enum debug_region {
 	Generic_debug = 0,
 	Hostapd_debug,
-	Hostinf_debug,
 	CFG80211_debug,
 	Interrupt_debug,
 	TX_debug,
@@ -22,7 +21,6 @@ enum debug_region {
 
 #define GENERIC_DBG             (1 << Generic_debug)
 #define HOSTAPD_DBG             (1 << Hostapd_debug)
-#define HOSTINF_DBG             (1 << Hostinf_debug)
 #define CFG80211_DBG            (1 << CFG80211_debug)
 #define INT_DBG                 (1 << Interrupt_debug)
 #define TX_DBG                  (1 << TX_debug)
