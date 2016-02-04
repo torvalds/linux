@@ -984,15 +984,15 @@ void wilc_handle_isr(struct wilc *wilc)
 	if (int_status & PLL_INT_EXT)
 		wilc_pllupdate_isr_ext(wilc, int_status);
 
-	if (int_status & DATA_INT_EXT) {
+	if (int_status & DATA_INT_EXT)
 		wilc_wlan_handle_isr_ext(wilc, int_status);
-	}
+
 	if (int_status & SLEEP_INT_EXT)
 		wilc_sleeptimer_isr_ext(wilc, int_status);
 
-	if (!(int_status & (ALL_INT_EXT))) {
+	if (!(int_status & (ALL_INT_EXT)))
 		wilc_unknown_isr_ext(wilc);
-	}
+
 	release_bus(wilc, RELEASE_ALLOW_SLEEP);
 }
 EXPORT_SYMBOL_GPL(wilc_handle_isr);
