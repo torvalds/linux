@@ -811,7 +811,7 @@ _end_:
 
 static void wilc_wlan_handle_rxq(struct wilc *wilc)
 {
-	int offset = 0, size, has_packet = 0;
+	int offset = 0, size;
 	u8 *buffer;
 	struct rxq_entry_t *rqe;
 
@@ -866,7 +866,6 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 							      &buffer[offset],
 							      pkt_len,
 							      pkt_offset);
-						has_packet = 1;
 					}
 				} else {
 					struct wilc_cfg_rsp rsp;
@@ -888,10 +887,6 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 				break;
 		} while (1);
 		kfree(rqe);
-
-		if (has_packet)
-			wilc_rx_complete(wilc);
-
 	} while (1);
 
 	wilc->rxq_exit = 1;

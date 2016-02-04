@@ -372,11 +372,6 @@ static int linux_wlan_txq_task(void *vp)
 	return 0;
 }
 
-void wilc_rx_complete(struct wilc *nic)
-{
-	PRINT_D(RX_DBG, "RX completed\n");
-}
-
 int wilc_wlan_get_firmware(struct net_device *dev)
 {
 	struct wilc_vif *vif;
