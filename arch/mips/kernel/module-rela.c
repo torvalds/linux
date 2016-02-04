@@ -35,15 +35,13 @@ static int apply_r_mips_32_rela(struct module *me, u32 *location, Elf_Addr v)
 static int apply_r_mips_26_rela(struct module *me, u32 *location, Elf_Addr v)
 {
 	if (v % 4) {
-		pr_err("module %s: dangerous R_MIPS_26 RELArelocation\n",
+		pr_err("module %s: dangerous R_MIPS_26 RELA relocation\n",
 		       me->name);
 		return -ENOEXEC;
 	}
 
 	if ((v & 0xf0000000) != (((unsigned long)location + 4) & 0xf0000000)) {
-		printk(KERN_ERR
-		       "module %s: relocation overflow\n",
-		       me->name);
+		pr_err("module %s: relocation overflow\n", me->name);
 		return -ENOEXEC;
 	}
 
@@ -130,7 +128,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			/* Ignore unresolved weak symbol */
 			if (ELF_ST_BIND(sym->st_info) == STB_WEAK)
 				continue;
-			printk(KERN_WARNING "%s: Unknown symbol %s\n",
+			pr_warn("%s: Unknown symbol %s\n",
 			       me->name, strtab + sym->st_name);
 			return -ENOENT;
 		}
