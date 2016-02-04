@@ -1680,6 +1680,13 @@ drop_unicast_in_l2_multicast - BOOLEAN
 
 	By default this is turned off.
 
+drop_unsolicited_na - BOOLEAN
+	Drop all unsolicited neighbor advertisements, for example if there's
+	a known good NA proxy on the network and such frames need not be used
+	(or in the case of 802.11, must not be used to prevent attacks.)
+
+	By default this is turned off.
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
