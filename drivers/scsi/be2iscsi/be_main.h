@@ -304,6 +304,7 @@ struct invalidate_command_table {
 #define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
 	(phwi_ctrlr->wrb_context[cri].ulp_num)
 struct hwi_wrb_context {
+	spinlock_t wrb_lock;
 	struct list_head wrb_handle_list;
 	struct list_head wrb_handle_drvr_list;
 	struct wrb_handle **pwrb_handle_base;

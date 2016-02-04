@@ -1190,12 +1190,14 @@ beiscsi_get_wrb_handle(struct hwi_wrb_context *pwrb_context,
 {
 	struct wrb_handle *pwrb_handle;
 
+	spin_lock_bh(&pwrb_context->wrb_lock);
 	pwrb_handle = pwrb_context->pwrb_handle_base[pwrb_context->alloc_index];
 	pwrb_context->wrb_handles_available--;
 	if (pwrb_context->alloc_index == (wrbs_per_cxn - 1))
 		pwrb_context->alloc_index = 0;
 	else
 		pwrb_context->alloc_index++;
+	spin_unlock_bh(&pwrb_context->wrb_lock);
 
 	return pwrb_handle;
 }
@@ -1227,12 +1229,14 @@ beiscsi_put_wrb_handle(struct hwi_wrb_context *pwrb_context,
 		       struct wrb_handle *pwrb_handle,
 		       unsigned int wrbs_per_cxn)
 {
+	spin_lock_bh(&pwrb_context->wrb_lock);
 	pwrb_context->pwrb_handle_base[pwrb_context->free_index] = pwrb_handle;
 	pwrb_context->wrb_handles_available++;
 	if (pwrb_context->free_index == (wrbs_per_cxn - 1))
 		pwrb_context->free_index = 0;
 	else
 		pwrb_context->free_index++;
+	spin_unlock_bh(&pwrb_context->wrb_lock);
 }
 
 /**
@@ -2920,6 +2924,7 @@ static int beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 			}
 			num_cxn_wrbh--;
 		}
+		spin_lock_init(&pwrb_context->wrb_lock);
 	}
 	idx = 0;
 	for (index = 0; index < phba->params.cxns_per_ctrl; index++) {
