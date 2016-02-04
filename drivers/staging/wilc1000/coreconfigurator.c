@@ -322,7 +322,7 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 
 		network_info->u64Tsf = tsf_lo | ((u64)tsf_hi << 32);
 
-		get_ssid(msa, network_info->au8ssid, &network_info->u8SsidLen);
+		get_ssid(msa, network_info->ssid, &network_info->u8SsidLen);
 		get_BSSID(msa, network_info->au8bssid);
 
 		network_info->u8channel = get_current_channel_802_11n(msa,

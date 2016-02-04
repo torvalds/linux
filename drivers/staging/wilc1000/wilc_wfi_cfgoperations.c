@@ -244,7 +244,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 				channel = ieee80211_get_channel(wiphy, freq);
 
 				rssi = get_rssi_avg(network_info);
-				if (memcmp("DIRECT-", network_info->au8ssid, 7) ||
+				if (memcmp("DIRECT-", network_info->ssid, 7) ||
 				    direct_scan) {
 					bss = cfg80211_inform_bss(wiphy,
 								  channel,
@@ -288,7 +288,8 @@ static void remove_network_from_shadow(unsigned long arg)
 
 	for (i = 0; i < last_scanned_cnt; i++) {
 		if (time_after(now, last_scanned_shadow[i].u32TimeRcvdInScan + (unsigned long)(SCAN_RESULT_EXPIRE))) {
-			PRINT_D(CFG80211_DBG, "Network expired in ScanShadow: %s\n", last_scanned_shadow[i].au8ssid);
+			PRINT_D(CFG80211_DBG, "Network expired ScanShadow:%s\n",
+				last_scanned_shadow[i].ssid);
 
 			kfree(last_scanned_shadow[i].pu8IEs);
 			last_scanned_shadow[i].pu8IEs = NULL;
@@ -368,8 +369,8 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	last_scanned_shadow[ap_index].rssi = pstrNetworkInfo->rssi;
 	last_scanned_shadow[ap_index].cap_info = pstrNetworkInfo->cap_info;
 	last_scanned_shadow[ap_index].u8SsidLen = pstrNetworkInfo->u8SsidLen;
-	memcpy(last_scanned_shadow[ap_index].au8ssid,
-	       pstrNetworkInfo->au8ssid, pstrNetworkInfo->u8SsidLen);
+	memcpy(last_scanned_shadow[ap_index].ssid,
+	       pstrNetworkInfo->ssid, pstrNetworkInfo->u8SsidLen);
 	memcpy(last_scanned_shadow[ap_index].au8bssid,
 	       pstrNetworkInfo->au8bssid, ETH_ALEN);
 	last_scanned_shadow[ap_index].u16BeaconPeriod = pstrNetworkInfo->u16BeaconPeriod;
@@ -434,12 +435,14 @@ static void CfgScanResult(enum scan_event scan_event,
 
 				if (network_info->bNewNetwork) {
 					if (priv->u32RcvdChCount < MAX_NUM_SCANNED_NETWORKS) {
-						PRINT_D(CFG80211_DBG, "Network %s found\n", network_info->au8ssid);
+						PRINT_D(CFG80211_DBG,
+							"Network %s found\n",
+							network_info->ssid);
 						priv->u32RcvdChCount++;
 
 						add_network_to_shadow(network_info, priv, join_params);
 
-						if (!(memcmp("DIRECT-", network_info->au8ssid, 7))) {
+						if (!(memcmp("DIRECT-", network_info->ssid, 7))) {
 							bss = cfg80211_inform_bss(wiphy,
 										  channel,
 										  CFG80211_BSS_FTYPE_UNKNOWN,
@@ -459,7 +462,7 @@ static void CfgScanResult(enum scan_event scan_event,
 
 					for (i = 0; i < priv->u32RcvdChCount; i++) {
 						if (memcmp(last_scanned_shadow[i].au8bssid, network_info->au8bssid, 6) == 0) {
-							PRINT_D(CFG80211_DBG, "Update RSSI of %s\n", last_scanned_shadow[i].au8ssid);
+							PRINT_D(CFG80211_DBG, "Update RSSI of %s\n", last_scanned_shadow[i].ssid);
 
 							last_scanned_shadow[i].rssi = network_info->rssi;
 							last_scanned_shadow[i].u32TimeRcvdInScan = jiffies;
@@ -736,7 +739,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	for (i = 0; i < last_scanned_cnt; i++) {
 		if ((sme->ssid_len == last_scanned_shadow[i].u8SsidLen) &&
-		    memcmp(last_scanned_shadow[i].au8ssid,
+		    memcmp(last_scanned_shadow[i].ssid,
 			   sme->ssid,
 			   sme->ssid_len) == 0) {
 			PRINT_INFO(CFG80211_DBG, "Network with required SSID is found %s\n", sme->ssid);
