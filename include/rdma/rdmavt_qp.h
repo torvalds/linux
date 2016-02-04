@@ -251,7 +251,6 @@ struct rvt_qp {
 	u32 pmtu;		/* decoded from path_mtu */
 	u32 qkey;               /* QKEY for this QP (for UD or RD) */
 	u32 s_size;             /* send work queue size */
-	u32 s_rnr_timeout;      /* number of milliseconds for RNR timeout */
 	u32 s_ahgpsn;           /* set to the psn in the copy of the header */
 
 	u8 state;               /* QP state */
