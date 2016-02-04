@@ -330,7 +330,7 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 
 		index = MAC_HDR_LEN + TIME_STAMP_LEN;
 
-		network_info->u16BeaconPeriod = get_beacon_period(msa + index);
+		network_info->beacon_period = get_beacon_period(msa + index);
 
 		index += BEACON_INTERVAL_LEN + CAP_INFO_LEN;
 

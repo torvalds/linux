@@ -252,7 +252,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 								  network_info->bssid,
 								  network_info->u64Tsf,
 								  network_info->cap_info,
-								  network_info->u16BeaconPeriod,
+								  network_info->beacon_period,
 								  (const u8 *)network_info->pu8IEs,
 								  (size_t)network_info->u16IEsLen,
 								  (s32)rssi * 100,
@@ -373,7 +373,7 @@ static void add_network_to_shadow(struct network_info *pstrNetworkInfo,
 	       pstrNetworkInfo->ssid, pstrNetworkInfo->ssid_len);
 	memcpy(last_scanned_shadow[ap_index].bssid,
 	       pstrNetworkInfo->bssid, ETH_ALEN);
-	last_scanned_shadow[ap_index].u16BeaconPeriod = pstrNetworkInfo->u16BeaconPeriod;
+	last_scanned_shadow[ap_index].beacon_period = pstrNetworkInfo->beacon_period;
 	last_scanned_shadow[ap_index].u8DtimPeriod = pstrNetworkInfo->u8DtimPeriod;
 	last_scanned_shadow[ap_index].u8channel = pstrNetworkInfo->u8channel;
 	last_scanned_shadow[ap_index].u16IEsLen = pstrNetworkInfo->u16IEsLen;
@@ -431,7 +431,7 @@ static void CfgScanResult(enum scan_event scan_event,
 					   channel->center_freq,
 					   (s32)network_info->rssi * 100,
 					   network_info->cap_info,
-					   network_info->u16BeaconPeriod);
+					   network_info->beacon_period);
 
 				if (network_info->bNewNetwork) {
 					if (priv->u32RcvdChCount < MAX_NUM_SCANNED_NETWORKS) {
@@ -449,7 +449,7 @@ static void CfgScanResult(enum scan_event scan_event,
 										  network_info->bssid,
 										  network_info->u64Tsf,
 										  network_info->cap_info,
-										  network_info->u16BeaconPeriod,
+										  network_info->beacon_period,
 										  (const u8 *)network_info->pu8IEs,
 										  (size_t)network_info->u16IEsLen,
 										  (s32)network_info->rssi * 100,

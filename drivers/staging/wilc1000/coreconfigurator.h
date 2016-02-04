@@ -82,7 +82,7 @@ struct network_info {
 	u8 ssid[MAX_SSID_LEN];
 	u8 ssid_len;
 	u8 bssid[6];
-	u16 u16BeaconPeriod;
+	u16 beacon_period;
 	u8 u8DtimPeriod;
 	u8 u8channel;
 	unsigned long u32TimeRcvdInScanCached;
