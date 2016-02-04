@@ -296,6 +296,12 @@ hist.*::
 	       and 'baz' to 50.00% for each, while 'absolute' would show their
 	       current overhead (33.33%).
 
+ui.*::
+	ui.show-headers::
+		This option controls display of column headers (like 'Overhead' and 'Symbol')
+		in 'report' and 'top'. If this option is false, they are hidden.
+		This option is only applied to TUI.
+
 SEE ALSO
 --------
 linkperf:perf[1]
