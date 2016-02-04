@@ -221,14 +221,15 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	if (!gtable[gpio].init) {
 		/* program the function */
 		/* FIXME: remove constant below */
-		vlv_gpio_nc_write(dev_priv, function, 0x2000CC00);
+		vlv_iosf_sb_write(dev_priv, IOSF_PORT_GPIO_NC, function,
+				  0x2000CC00);
 		gtable[gpio].init = 1;
 	}
 
 	val = 0x4 | action;
 
 	/* pull up/down */
-	vlv_gpio_nc_write(dev_priv, pad, val);
+	vlv_iosf_sb_write(dev_priv, IOSF_PORT_GPIO_NC, pad, val);
 	mutex_unlock(&dev_priv->sb_lock);
 
 out:

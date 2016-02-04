@@ -618,6 +618,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   IOSF_PORT_CCK				0x14
 #define   IOSF_PORT_DPIO_2			0x1a
 #define   IOSF_PORT_FLISDSI			0x1b
+#define   IOSF_PORT_GPIO_SC			0x48
+#define   IOSF_PORT_GPIO_SUS			0xa8
 #define   IOSF_PORT_CCU				0xa9
 #define VLV_IOSF_DATA				_MMIO(VLV_DISPLAY_BASE + 0x2104)
 #define VLV_IOSF_ADDR				_MMIO(VLV_DISPLAY_BASE + 0x2108)
