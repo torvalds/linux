@@ -89,7 +89,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		PRINT_D(GENERIC_DBG, "No Wireless Priv\n");
 		return NOTIFY_DONE;
 	}
-	hif_drv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	hif_drv = (struct host_if_drv *)priv->hif_drv;
 	vif = netdev_priv(dev);
 	if (!vif || !hif_drv) {
 		PRINT_D(GENERIC_DBG, "No Wireless Priv\n");
@@ -515,7 +515,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 
 	PRINT_D(TX_DBG, "Start configuring Firmware\n");
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
-	hif_drv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	hif_drv = (struct host_if_drv *)priv->hif_drv;
 	PRINT_D(INIT_DBG, "Host = %p\n", hif_drv);
 	wilc_get_mac_address(vif, mac_add);
 
@@ -1089,7 +1089,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	vif = netdev_priv(dev);
-	hif_drv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	hif_drv = (struct host_if_drv *)priv->hif_drv;
 
 	if (!dev)
 		return;
@@ -1228,7 +1228,7 @@ int wilc_mac_close(struct net_device *ndev)
 		return 0;
 	}
 
-	hif_drv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	hif_drv = (struct host_if_drv *)priv->hif_drv;
 
 	PRINT_D(GENERIC_DBG, "Mac close\n");
 

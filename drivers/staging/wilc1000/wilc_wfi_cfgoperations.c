@@ -512,7 +512,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 	dev = priv->dev;
 	vif = netdev_priv(dev);
 	wl = vif->wilc;
-	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hif_drv;
 
 	if (enuConnDisconnEvent == CONN_DISCONN_EVENT_CONN_RESP) {
 		u16 u16ConnectStatus;
@@ -711,9 +711,11 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	wilc_connecting = 1;
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->dev);
-	pstrWFIDrv = (struct host_if_drv *)(priv->hWILCWFIDrv);
+	pstrWFIDrv = (struct host_if_drv *)priv->hif_drv;
 
-	PRINT_D(CFG80211_DBG, "Connecting to SSID [%s] on netdev [%p] host if [%p]\n", sme->ssid, dev, priv->hWILCWFIDrv);
+	PRINT_D(CFG80211_DBG,
+		"Connecting to SSID [%s] on netdev [%p] host if [%p]\n",
+		sme->ssid, dev, priv->hif_drv);
 	if (!(strncmp(sme->ssid, "DIRECT-", 7))) {
 		PRINT_D(CFG80211_DBG, "Connected to Direct network,OBSS disabled\n");
 		pstrWFIDrv->p2p_connect = 1;
@@ -928,7 +930,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->dev);
 
-	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hif_drv;
 	if (!pstrWFIDrv->p2p_connect)
 		wlan_channel = INVALID_CHANNEL;
 	wilc_wlan_set_bssid(priv->dev, NullBssid, STATION_MODE);
@@ -1276,7 +1278,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		wilc_remove_wep_key(vif, key_index);
 	} else {
 		PRINT_D(CFG80211_DBG, "Removing all installed keys\n");
-		wilc_remove_key(priv->hWILCWFIDrv, mac_addr);
+		wilc_remove_key(priv->hif_drv, mac_addr);
 	}
 
 	return 0;
@@ -1632,7 +1634,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 	s32 s32Freq;
 
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
-	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hif_drv;
 
 	memcpy(&header, (buff - HOST_HDR_OFFSET), HOST_HDR_OFFSET);
 
@@ -1844,7 +1846,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 	vif = netdev_priv(wdev->netdev);
 	priv = wiphy_priv(wiphy);
-	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hif_drv;
 
 	*cookie = (unsigned long)buf;
 	priv->u64tx_cookie = *cookie;
@@ -1970,7 +1972,7 @@ static int mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	struct host_if_drv *pstrWFIDrv;
 
 	priv = wiphy_priv(wiphy);
-	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hif_drv;
 
 
 	PRINT_D(GENERIC_DBG, "Tx Cancel wait :%lu\n", jiffies);
@@ -2070,7 +2072,7 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->dev);
-	if (!priv->hWILCWFIDrv) {
+	if (!priv->hif_drv) {
 		PRINT_ER("Driver is NULL\n");
 		return -EIO;
 	}
@@ -2715,7 +2717,7 @@ int wilc_init_host_int(struct net_device *net)
 	priv->bInP2PlistenState = false;
 
 	sema_init(&(priv->hSemScanReq), 1);
-	s32Error = wilc_init(net, &priv->hWILCWFIDrv);
+	s32Error = wilc_init(net, &priv->hif_drv);
 	if (s32Error)
 		PRINT_ER("Error while initializing hostinterface\n");
 

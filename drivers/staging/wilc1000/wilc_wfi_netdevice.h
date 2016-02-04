@@ -121,7 +121,7 @@ struct wilc_priv {
 	spinlock_t lock;
 	struct net_device *dev;
 	struct napi_struct napi;
-	struct host_if_drv *hWILCWFIDrv;
+	struct host_if_drv *hif_drv;
 	struct host_if_pmkid_attr pmkid_list;
 	struct WILC_WFI_stats netstats;
 	u8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];
