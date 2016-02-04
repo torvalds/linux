@@ -4926,7 +4926,6 @@ int beiscsi_iotask_v2(struct iscsi_task *task, struct scatterlist *sg,
 
 	pwrb = io_task->pwrb_handle->pwrb;
 
-	io_task->cmd_bhs->iscsi_hdr.exp_statsn = 0;
 	io_task->bhs_len = sizeof(struct be_cmd_bhs);
 
 	if (writedir) {
@@ -4987,7 +4986,6 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 	unsigned int doorbell = 0;
 
 	pwrb = io_task->pwrb_handle->pwrb;
-	io_task->cmd_bhs->iscsi_hdr.exp_statsn = 0;
 	io_task->bhs_len = sizeof(struct be_cmd_bhs);
 
 	if (writedir) {
@@ -5159,23 +5157,21 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 {
 	struct beiscsi_io_task *io_task = task->dd_data;
 	struct scsi_cmnd *sc = task->sc;
-	struct beiscsi_hba *phba = NULL;
+	struct beiscsi_hba *phba;
 	struct scatterlist *sg;
 	int num_sg;
 	unsigned int  writedir = 0, xferlen = 0;
 
-	phba = ((struct beiscsi_conn *)task->conn->dd_data)->phba;
+	if (!io_task->conn->login_in_progress)
+		task->hdr->exp_statsn = 0;
 
 	if (!sc)
 		return beiscsi_mtask(task);
 
 	io_task->scsi_cmnd = sc;
 	num_sg = scsi_dma_map(sc);
+	phba = io_task->conn->phba;
 	if (num_sg < 0) {
-		struct iscsi_conn *conn = task->conn;
-		struct beiscsi_hba *phba = NULL;
-
-		phba = ((struct beiscsi_conn *)conn->dd_data)->phba;
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_IO | BEISCSI_LOG_ISCSI,
 			    "BM_%d : scsi_dma_map Failed "
