@@ -547,7 +547,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 	sde = qp_to_sdma_engine(qp, priv->s_sc);
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	seq_printf(s,
-		   "N %d %s QP%u R %u %s %u %u %u f=%x %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u) QP%u LID %x SL %u MTU %u %u %u SDE %p,%u\n",
+		   "N %d %s QP%u R %u %s %u %u %u f=%x %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u) QP%u LID %x SL %u MTU %u %u %u %u SDE %p,%u\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -571,6 +571,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->remote_ah_attr.dlid,
 		   qp->remote_ah_attr.sl,
 		   qp->pmtu,
+		   qp->s_retry,
 		   qp->s_retry_cnt,
 		   qp->s_rnr_retry_cnt,
 		   sde,
