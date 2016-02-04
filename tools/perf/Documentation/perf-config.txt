@@ -405,6 +405,13 @@ report.*::
 		     0.07%   0.00%  noploop  ld-2.15.so         [.] strcmp
 		     0.03%   0.00%  noploop  [kernel.kallsyms]  [k] timerqueue_del
 
+top.*::
+	top.children::
+		Same as 'report.children'. So if it is enabled, the output of 'top'
+		command will have 'Children' overhead column as well as 'Self' overhead
+		column by default.
+		The default is 'true'.
+
 SEE ALSO
 --------
 linkperf:perf[1]
