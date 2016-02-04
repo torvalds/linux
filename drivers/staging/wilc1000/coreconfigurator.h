@@ -70,13 +70,6 @@ typedef enum {
 	CONNECT_STS_FORCE_16_BIT = 0xFFFF
 } tenuConnectSts;
 
-struct wid {
-	u16 id;
-	enum wid_type type;
-	s32 size;
-	s8 *val;
-};
-
 typedef struct {
 	u8 u8Full;
 	u8 u8Index;
@@ -127,8 +120,6 @@ typedef struct {
 	size_t ie_len;
 } tstrDisconnectNotifInfo;
 
-s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
-			 u32 count, u32 drv);
 s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
 s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo);
 

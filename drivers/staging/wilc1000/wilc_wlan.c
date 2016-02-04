@@ -1439,6 +1439,45 @@ int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
 	return ret;
 }
 
+s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
+			 u32 count, u32 drv)
+{
+	s32 counter = 0, ret = 0;
+
+	if (mode == GET_CFG) {
+		for (counter = 0; counter < count; counter++) {
+			if (!wilc_wlan_cfg_get(wilc, !counter,
+					       wids[counter].id,
+					       (counter == count - 1),
+					       drv)) {
+				ret = -ETIMEDOUT;
+				break;
+			}
+		}
+		counter = 0;
+		for (counter = 0; counter < count; counter++) {
+			wids[counter].size = wilc_wlan_cfg_get_val(
+					wids[counter].id,
+					wids[counter].val,
+					wids[counter].size);
+		}
+	} else if (mode == SET_CFG) {
+		for (counter = 0; counter < count; counter++) {
+			if (!wilc_wlan_cfg_set(wilc, !counter,
+					       wids[counter].id,
+					       wids[counter].val,
+					       wids[counter].size,
+					       (counter == count - 1),
+					       drv)) {
+				ret = -ETIMEDOUT;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
 static u32 init_chip(struct net_device *dev)
 {
 	u32 chipid;
