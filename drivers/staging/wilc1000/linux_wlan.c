@@ -25,7 +25,8 @@
 
 #include <linux/semaphore.h>
 
-static int dev_state_ev_handler(struct notifier_block *this, unsigned long event, void *ptr);
+static int dev_state_ev_handler(struct notifier_block *this,
+				unsigned long event, void *ptr);
 
 static struct notifier_block g_dev_notifier = {
 	.notifier_call = dev_state_ev_handler
@@ -57,7 +58,8 @@ static const struct net_device_ops wilc_netdev_ops = {
 
 };
 
-static int dev_state_ev_handler(struct notifier_block *this, unsigned long event, void *ptr)
+static int dev_state_ev_handler(struct notifier_block *this,
+				unsigned long event, void *ptr)
 {
 	struct in_ifaddr *dev_iface = (struct in_ifaddr *)ptr;
 	struct wilc_priv *priv;
