@@ -134,6 +134,16 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	    IPV6_ADDR_MC_SCOPE(&hdr->daddr) == 1)
 		goto err;
 
+	/* If enabled, drop unicast packets that were encapsulated in link-layer
+	 * multicast or broadcast to protected against the so-called "hole-196"
+	 * attack in 802.11 wireless.
+	 */
+	if (!ipv6_addr_is_multicast(&hdr->daddr) &&
+	    (skb->pkt_type == PACKET_BROADCAST ||
+	     skb->pkt_type == PACKET_MULTICAST) &&
+	    idev->cnf.drop_unicast_in_l2_multicast)
+		goto err;
+
 	/* RFC4291 2.7
 	 * Nodes must not originate a packet to a multicast address whose scope
 	 * field contains the reserved value 0; if such a packet is received, it
