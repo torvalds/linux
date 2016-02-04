@@ -270,7 +270,7 @@ static u8 get_current_channel_802_11n(u8 *pu8msa, u16 rx_len)
 	return 0;
 }
 
-s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
+s32 wilc_parse_network_info(u8 *msg_buffer, tstrNetworkInfo **ret_network_info)
 {
 	tstrNetworkInfo *pstrNetworkInfo = NULL;
 	u8 u8MsgType = 0;
@@ -281,18 +281,18 @@ s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo
 	u16 u16WidLen  = 0;
 	u8  *pu8WidVal = NULL;
 
-	u8MsgType = pu8MsgBuffer[0];
+	u8MsgType = msg_buffer[0];
 
 	if ('N' != u8MsgType) {
 		PRINT_ER("Received Message format incorrect.\n");
 		return -EFAULT;
 	}
 
-	u8MsgID = pu8MsgBuffer[1];
-	u16MsgLen = MAKE_WORD16(pu8MsgBuffer[2], pu8MsgBuffer[3]);
-	u16WidID = MAKE_WORD16(pu8MsgBuffer[4], pu8MsgBuffer[5]);
-	u16WidLen = MAKE_WORD16(pu8MsgBuffer[6], pu8MsgBuffer[7]);
-	pu8WidVal  = &pu8MsgBuffer[8];
+	u8MsgID = msg_buffer[1];
+	u16MsgLen = MAKE_WORD16(msg_buffer[2], msg_buffer[3]);
+	u16WidID = MAKE_WORD16(msg_buffer[4], msg_buffer[5]);
+	u16WidLen = MAKE_WORD16(msg_buffer[6], msg_buffer[7]);
+	pu8WidVal = &msg_buffer[8];
 
 	{
 		u8  *pu8msa = NULL;
@@ -350,7 +350,7 @@ s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo
 
 	}
 
-	*ppstrNetworkInfo = pstrNetworkInfo;
+	*ret_network_info = pstrNetworkInfo;
 
 	return 0;
 }
