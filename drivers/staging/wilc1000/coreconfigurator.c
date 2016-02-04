@@ -4,7 +4,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
-							BEACON_INTERVAL_LEN + CAP_INFO_LEN)
+				 BEACON_INTERVAL_LEN + CAP_INFO_LEN)
 
 enum basic_frame_type {
 	FRAME_TYPE_CONTROL     = 0x04,
@@ -337,8 +337,10 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 		tim_elm = get_tim_elm(msa, rx_len + FCS_LEN, index);
 		if (tim_elm)
 			network_info->dtim_period = tim_elm[3];
-		ies = &msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN];
-		ies_len = rx_len - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
+		ies = &msa[MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN +
+			   CAP_INFO_LEN];
+		ies_len = rx_len - (MAC_HDR_LEN + TIME_STAMP_LEN +
+				    BEACON_INTERVAL_LEN + CAP_INFO_LEN);
 
 		if (ies_len > 0) {
 			network_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
@@ -373,7 +375,8 @@ s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 		connect_resp_info->assoc_id = get_asoc_id(buffer);
 
 		ies = &buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
-		ies_len = assoc_resp_len - (CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN);
+		ies_len = assoc_resp_len - (CAP_INFO_LEN + STATUS_CODE_LEN +
+					    AID_LEN);
 
 		connect_resp_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
 		if (!connect_resp_info->ies)
