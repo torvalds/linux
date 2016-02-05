@@ -2726,8 +2726,7 @@ static int ocrdma_update_ud_rcqe(struct ib_wc *ibwc, struct ocrdma_cqe *cqe)
 		OCRDMA_CQE_UD_STATUS_MASK) >> OCRDMA_CQE_UD_STATUS_SHIFT;
 	ibwc->src_qp = le32_to_cpu(cqe->flags_status_srcqpn) &
 						OCRDMA_CQE_SRCQP_MASK;
-	ibwc->pkey_index = le32_to_cpu(cqe->ud.rxlen_pkey) &
-						OCRDMA_CQE_PKEY_MASK;
+	ibwc->pkey_index = 0;
 	ibwc->wc_flags = IB_WC_GRH;
 	ibwc->byte_len = (le32_to_cpu(cqe->ud.rxlen_pkey) >>
 					OCRDMA_CQE_UD_XFER_LEN_SHIFT);
