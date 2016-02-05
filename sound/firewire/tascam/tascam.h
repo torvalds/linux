@@ -39,7 +39,6 @@ struct snd_tscm_spec {
 	unsigned int pcm_playback_analog_channels;
 	unsigned int midi_capture_ports;
 	unsigned int midi_playback_ports;
-	bool is_controller;
 };
 
 #define TSCM_MIDI_IN_PORT_MAX	4
