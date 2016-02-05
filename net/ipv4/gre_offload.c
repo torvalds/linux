@@ -83,17 +83,6 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		if (csum) {
 			__be32 *pcsum;
 
-			if (skb_has_shared_frag(skb)) {
-				int err;
-
-				err = __skb_linearize(skb);
-				if (err) {
-					kfree_skb_list(segs);
-					segs = ERR_PTR(err);
-					goto out;
-				}
-			}
-
 			skb_reset_transport_header(skb);
 
 			greh = (struct gre_base_hdr *)
