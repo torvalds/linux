@@ -179,6 +179,11 @@ struct ctxt_eager_bufs {
 	} *rcvtids;
 };
 
+struct exp_tid_set {
+	struct list_head list;
+	u32 count;
+};
+
 struct hfi1_ctxtdata {
 	/* shadow the ctxt's RcvCtrl register */
 	u64 rcvctrl;
@@ -247,6 +252,11 @@ struct hfi1_ctxtdata {
 	struct page **tid_pg_list;
 	/* dma handles for exp tid pages */
 	dma_addr_t *physshadow;
+
+	struct exp_tid_set tid_group_list;
+	struct exp_tid_set tid_used_list;
+	struct exp_tid_set tid_full_list;
+
 	/* lock protecting all Expected TID data */
 	spinlock_t exp_lock;
 	/* number of pio bufs for this ctxt (all procs, if shared) */
@@ -1137,6 +1147,16 @@ struct hfi1_filedata {
 	struct hfi1_user_sdma_pkt_q *pq;
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
+	struct mmu_notifier mn;
+	struct rb_root tid_rb_root;
+	spinlock_t tid_lock; /* protect tid_[limit,used] counters */
+	u32 tid_limit;
+	u32 tid_used;
+	spinlock_t rb_lock; /* protect tid_rb_root RB tree */
+	u32 *invalid_tids;
+	u32 invalid_tid_idx;
+	spinlock_t invalid_lock; /* protect the invalid_tids array */
+	int (*mmu_rb_insert)(struct rb_root *, struct mmu_rb_node *);
 };
 
 extern struct list_head hfi1_dev_list;
