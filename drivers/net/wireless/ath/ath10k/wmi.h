@@ -2661,9 +2661,14 @@ struct wmi_resource_config_10_4 {
 	 */
 	__le32 iphdr_pad_config;
 
-	/* qwrap configuration
+	/* qwrap configuration (bits 15-0)
 	 * 1  - This is qwrap configuration
 	 * 0  - This is not qwrap
+	 *
+	 * Bits 31-16 is alloc_frag_desc_for_data_pkt (1 enables, 0 disables)
+	 * In order to get ack-RSSI reporting and to specify the tx-rate for
+	 * individual frames, this option must be enabled.  This uses an extra
+	 * 4 bytes per tx-msdu descriptor, so don't enable it unless you need it.
 	 */
 	__le32 qwrap_config;
 } __packed;
