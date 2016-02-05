@@ -608,6 +608,9 @@ static int vce_v2_0_set_powergating_state(void *handle,
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (!(adev->pg_flags & AMDGPU_PG_SUPPORT_VCE))
+		return 0;
+
 	if (state == AMD_PG_STATE_GATE)
 		/* XXX do we need a vce_v2_0_stop()? */
 		return 0;
