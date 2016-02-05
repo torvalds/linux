@@ -702,7 +702,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 {
 	CGS_FUNC_ADEV;
 
-	if (CGS_UCODE_ID_SMU != type) {
+	if ((CGS_UCODE_ID_SMU != type) && (CGS_UCODE_ID_SMU_SK != type)) {
 		uint64_t gpu_addr;
 		uint32_t data_size;
 		const struct gfx_firmware_header_v1_0 *header;
@@ -743,10 +743,16 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 			strcpy(fw_name, "amdgpu/fiji_smc.bin");
 			break;
 		case CHIP_BAFFIN:
-			strcpy(fw_name, "amdgpu/baffin_smc.bin");
+			if (type == CGS_UCODE_ID_SMU)
+				strcpy(fw_name, "amdgpu/baffin_smc.bin");
+			else if (type == CGS_UCODE_ID_SMU_SK)
+				strcpy(fw_name, "amdgpu/baffin_smc_sk.bin");
 			break;
 		case CHIP_ELLESMERE:
-			strcpy(fw_name, "amdgpu/ellesmere_smc.bin");
+			if (type == CGS_UCODE_ID_SMU)
+				strcpy(fw_name, "amdgpu/ellesmere_smc.bin");
+			else if (type == CGS_UCODE_ID_SMU_SK)
+				strcpy(fw_name, "amdgpu/ellesmere_smc_sk.bin");
 			break;
 		default:
 			DRM_ERROR("SMC firmware not supported\n");

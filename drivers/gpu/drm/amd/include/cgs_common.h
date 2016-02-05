@@ -94,6 +94,7 @@ enum cgs_voltage_planes {
  */
 enum cgs_ucode_id {
 	CGS_UCODE_ID_SMU = 0,
+	CGS_UCODE_ID_SMU_SK,
 	CGS_UCODE_ID_SDMA0,
 	CGS_UCODE_ID_SDMA1,
 	CGS_UCODE_ID_CP_CE,
