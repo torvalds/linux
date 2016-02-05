@@ -653,6 +653,10 @@ static void sti_tvout_destroy_encoders(struct sti_tvout *tvout)
 	if (tvout->hda)
 		drm_encoder_cleanup(tvout->hda);
 	tvout->hda = NULL;
+
+	if (tvout->dvo)
+		drm_encoder_cleanup(tvout->dvo);
+	tvout->dvo = NULL;
 }
 
 static int sti_tvout_bind(struct device *dev, struct device *master, void *data)
