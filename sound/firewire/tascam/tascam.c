@@ -33,7 +33,16 @@ static struct snd_tscm_spec model_specs[] = {
 		.midi_playback_ports = 2,
 		.is_controller = true,
 	},
-	/* FW-1804 may be supported. */
+	{
+		.name = "FW-1804",
+		.has_adat = true,
+		.has_spdif = true,
+		.pcm_capture_analog_channels = 8,
+		.pcm_playback_analog_channels = 2,
+		.midi_capture_ports = 2,
+		.midi_playback_ports = 4,
+		.is_controller = false,
+	},
 };
 
 static int identify_model(struct snd_tscm *tscm)
