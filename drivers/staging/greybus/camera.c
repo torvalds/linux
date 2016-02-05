@@ -150,7 +150,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	 * to the camera module, to assure unipro network speed is set
 	 * before CSI interfaces gets configured
 	 */
-	if (nstreams) {
+	if (nstreams && !(*flags & GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY)) {
 		ret = gb_svc_intf_set_power_mode(svc, intf->interface_id,
 						 GB_SVC_UNIPRO_HS_SERIES_A,
 						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
@@ -168,7 +168,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 						 GB_SVC_PWRM_TXTERMINATION, 0);
 		if (ret < 0)
 			goto done;
-	} else {
+	} else if (nstreams == 0) {
 		ret = gb_svc_intf_set_power_mode(svc, intf->interface_id,
 						 GB_SVC_UNIPRO_HS_SERIES_A,
 						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
@@ -228,8 +228,6 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto set_unipro_slow_mode;
 	}
 
-	*flags = resp->flags;
-
 	for (i = 0; i < nstreams; ++i) {
 		struct gb_camera_stream_config_response *cfg = &resp->config[i];
 
@@ -248,10 +246,16 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		}
 	}
 
+	if (nstreams && resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED) {
+		*flags = resp->flags;
+		*num_streams = resp->num_streams;
+		goto set_unipro_slow_mode;
+	}
+
 	memset(&csi_cfg, 0, sizeof(csi_cfg));
 
 	/* Configure the CSI transmitter. Hardcode the parameters for now. */
-	if (nstreams && !(resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED)) {
+	if (nstreams) {
 		csi_cfg.csi_id = 1;
 		csi_cfg.clock_mode = 0;
 		csi_cfg.num_lanes = 4;
@@ -259,7 +263,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
 				   sizeof(csi_cfg),
 				   GB_APB_REQUEST_CSI_TX_CONTROL, false);
-	} else if (nstreams == 0) {
+	} else {
 		csi_cfg.csi_id = 1;
 		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
 				   sizeof(csi_cfg),
@@ -270,6 +274,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		gcam_err(gcam, "failed to %s the CSI transmitter\n",
 			 nstreams ? "start" : "stop");
 
+	*flags = resp->flags;
 	*num_streams = resp->num_streams;
 	ret = 0;
 
