@@ -31,8 +31,9 @@
 #define ARM64_WORKAROUND_CAVIUM_23154		6
 #define ARM64_WORKAROUND_834220			7
 #define ARM64_HAS_NO_HW_PREFETCH		8
+#define ARM64_HAS_UAO				9
 
-#define ARM64_NCAPS				9
+#define ARM64_NCAPS				10
 
 #ifndef __ASSEMBLY__
 
