@@ -580,6 +580,10 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
+	if ((ops->flags & GENL_UNS_ADMIN_PERM) &&
+	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
 	if ((nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP) {
 		int rc;
 
