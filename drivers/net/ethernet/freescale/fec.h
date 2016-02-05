@@ -448,33 +448,34 @@ struct bufdesc_ex {
 /* Controller supports RACC register */
 #define FEC_QUIRK_HAS_RACC		(1 << 12)
 
+struct bufdesc_prop {
+	int qid;
+	/* Address of Rx and Tx buffers */
+	struct bufdesc	*base;
+	struct bufdesc	*last;
+	struct bufdesc	*cur;
+	dma_addr_t	dma;
+	unsigned short ring_size;
+	unsigned char dsize;
+	unsigned char dsize_log2;
+};
+
 struct fec_enet_priv_tx_q {
-	int index;
+	struct bufdesc_prop bd;
 	unsigned char *tx_bounce[TX_RING_SIZE];
 	struct  sk_buff *tx_skbuff[TX_RING_SIZE];
-
-	dma_addr_t	bd_dma;
-	struct bufdesc	*tx_bd_base;
-	uint tx_ring_size;
 
 	unsigned short tx_stop_threshold;
 	unsigned short tx_wake_threshold;
 
-	struct bufdesc	*cur_tx;
 	struct bufdesc	*dirty_tx;
 	char *tso_hdrs;
 	dma_addr_t tso_hdrs_dma;
 };
 
 struct fec_enet_priv_rx_q {
-	int index;
+	struct bufdesc_prop bd;
 	struct  sk_buff *rx_skbuff[RX_RING_SIZE];
-
-	dma_addr_t	bd_dma;
-	struct bufdesc	*rx_bd_base;
-	uint rx_ring_size;
-
-	struct bufdesc	*cur_rx;
 };
 
 /* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and
@@ -513,8 +514,6 @@ struct fec_enet_private {
 	unsigned long work_rx;
 	unsigned long work_ts;
 	unsigned long work_mdio;
-
-	unsigned short bufdesc_size;
 
 	struct	platform_device *pdev;
 
