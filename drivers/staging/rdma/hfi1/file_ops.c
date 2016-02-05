@@ -1611,14 +1611,14 @@ static int exp_tid_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 		 * reserved, we don't need the lock anymore since we
 		 * are guaranteed the groups.
 		 */
-		spin_lock(&uctxt->exp_lock);
+		mutex_lock(&uctxt->exp_lock);
 		if (uctxt->tidusemap[useidx] == -1ULL ||
 		    bitidx >= BITS_PER_LONG) {
 			/* no free groups in the set, use the next */
 			useidx = (useidx + 1) % uctxt->tidmapcnt;
 			idx++;
 			bitidx = 0;
-			spin_unlock(&uctxt->exp_lock);
+			mutex_unlock(&uctxt->exp_lock);
 			continue;
 		}
 		ngroups = ((npages - mapped) / dd->rcv_entries.group_size) +
@@ -1635,13 +1635,13 @@ static int exp_tid_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 			 * as 0 because we don't check the entire bitmap but
 			 * we start from bitidx.
 			 */
-			spin_unlock(&uctxt->exp_lock);
+			mutex_unlock(&uctxt->exp_lock);
 			continue;
 		}
 		bits_used = min(free, ngroups);
 		tidmap[useidx] |= ((1ULL << bits_used) - 1) << bitidx;
 		uctxt->tidusemap[useidx] |= tidmap[useidx];
-		spin_unlock(&uctxt->exp_lock);
+		mutex_unlock(&uctxt->exp_lock);
 
 		/*
 		 * At this point, we know where in the map we have free bits.
@@ -1677,10 +1677,10 @@ static int exp_tid_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 			 * Let go of the bits that we reserved since we are not
 			 * going to use them.
 			 */
-			spin_lock(&uctxt->exp_lock);
+			mutex_lock(&uctxt->exp_lock);
 			uctxt->tidusemap[useidx] &=
 				~(((1ULL << bits_used) - 1) << bitidx);
-			spin_unlock(&uctxt->exp_lock);
+			mutex_unlock(&uctxt->exp_lock);
 			goto done;
 		}
 		/*

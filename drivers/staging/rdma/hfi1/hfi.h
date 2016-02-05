@@ -258,7 +258,7 @@ struct hfi1_ctxtdata {
 	struct exp_tid_set tid_full_list;
 
 	/* lock protecting all Expected TID data */
-	spinlock_t exp_lock;
+	struct mutex exp_lock;
 	/* number of pio bufs for this ctxt (all procs, if shared) */
 	u32 piocnt;
 	/* first pio buffer for this ctxt */
