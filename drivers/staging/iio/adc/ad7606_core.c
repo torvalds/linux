@@ -250,7 +250,8 @@ static const struct attribute_group ad7606_attribute_group_range = {
 		},						\
 	}
 
-static const struct iio_chan_spec ad7606_8_channels[] = {
+static const struct iio_chan_spec ad7606_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(8),
 	AD7606_CHANNEL(0),
 	AD7606_CHANNEL(1),
 	AD7606_CHANNEL(2),
@@ -259,25 +260,6 @@ static const struct iio_chan_spec ad7606_8_channels[] = {
 	AD7606_CHANNEL(5),
 	AD7606_CHANNEL(6),
 	AD7606_CHANNEL(7),
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-};
-
-static const struct iio_chan_spec ad7606_6_channels[] = {
-	AD7606_CHANNEL(0),
-	AD7606_CHANNEL(1),
-	AD7606_CHANNEL(2),
-	AD7606_CHANNEL(3),
-	AD7606_CHANNEL(4),
-	AD7606_CHANNEL(5),
-	IIO_CHAN_SOFT_TIMESTAMP(6),
-};
-
-static const struct iio_chan_spec ad7606_4_channels[] = {
-	AD7606_CHANNEL(0),
-	AD7606_CHANNEL(1),
-	AD7606_CHANNEL(2),
-	AD7606_CHANNEL(3),
-	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
 static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
@@ -287,20 +269,20 @@ static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 	[ID_AD7606_8] = {
 		.name = "ad7606",
 		.int_vref_mv = 2500,
-		.channels = ad7606_8_channels,
-		.num_channels = 8,
+		.channels = ad7606_channels,
+		.num_channels = 9,
 	},
 	[ID_AD7606_6] = {
 		.name = "ad7606-6",
 		.int_vref_mv = 2500,
-		.channels = ad7606_6_channels,
-		.num_channels = 6,
+		.channels = ad7606_channels,
+		.num_channels = 7,
 	},
 	[ID_AD7606_4] = {
 		.name = "ad7606-4",
 		.int_vref_mv = 2500,
-		.channels = ad7606_4_channels,
-		.num_channels = 4,
+		.channels = ad7606_channels,
+		.num_channels = 5,
 	},
 };
 
