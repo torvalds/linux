@@ -345,5 +345,7 @@ int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
 int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
 			  u32 param_id, struct skl_module_cfg *mcfg);
 
+struct skl_module_cfg *skl_tplg_be_get_cpr_module(struct snd_soc_dai *dai,
+								int stream);
 enum skl_bitdepth skl_get_bit_depth(int params);
 #endif

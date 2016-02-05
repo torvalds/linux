@@ -1091,6 +1091,66 @@ skl_tplg_fe_get_cpr_module(struct snd_soc_dai *dai, int stream)
 	return NULL;
 }
 
+static struct skl_module_cfg *skl_get_mconfig_pb_cpr(
+		struct snd_soc_dai *dai, struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_path *p;
+	struct skl_module_cfg *mconfig = NULL;
+
+	snd_soc_dapm_widget_for_each_source_path(w, p) {
+		if (w->endpoints[SND_SOC_DAPM_DIR_OUT] > 0) {
+			if (p->connect &&
+				    (p->sink->id == snd_soc_dapm_aif_out) &&
+				    p->source->priv) {
+				mconfig = p->source->priv;
+				return mconfig;
+			}
+			mconfig = skl_get_mconfig_pb_cpr(dai, p->source);
+			if (mconfig)
+				return mconfig;
+		}
+	}
+	return mconfig;
+}
+
+static struct skl_module_cfg *skl_get_mconfig_cap_cpr(
+		struct snd_soc_dai *dai, struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_path *p;
+	struct skl_module_cfg *mconfig = NULL;
+
+	snd_soc_dapm_widget_for_each_sink_path(w, p) {
+		if (w->endpoints[SND_SOC_DAPM_DIR_IN] > 0) {
+			if (p->connect &&
+				    (p->source->id == snd_soc_dapm_aif_in) &&
+				    p->sink->priv) {
+				mconfig = p->sink->priv;
+				return mconfig;
+			}
+			mconfig = skl_get_mconfig_cap_cpr(dai, p->sink);
+			if (mconfig)
+				return mconfig;
+		}
+	}
+	return mconfig;
+}
+
+struct skl_module_cfg *
+skl_tplg_be_get_cpr_module(struct snd_soc_dai *dai, int stream)
+{
+	struct snd_soc_dapm_widget *w;
+	struct skl_module_cfg *mconfig;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		w = dai->playback_widget;
+		mconfig = skl_get_mconfig_pb_cpr(dai, w);
+	} else {
+		w = dai->capture_widget;
+		mconfig = skl_get_mconfig_cap_cpr(dai, w);
+	}
+	return mconfig;
+}
+
 static u8 skl_tplg_be_link_type(int dev_type)
 {
 	int ret;
