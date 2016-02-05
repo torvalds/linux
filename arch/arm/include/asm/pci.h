@@ -3,8 +3,6 @@
 
 #ifdef __KERNEL__
 #include <asm-generic/pci-dma-compat.h>
-#include <asm-generic/pci-bridge.h>
-
 #include <asm/mach/pci.h> /* for pci_sys_data */
 
 extern unsigned long pcibios_min_io;
@@ -41,5 +39,4 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 
 #endif /* __KERNEL__ */
- 
 #endif

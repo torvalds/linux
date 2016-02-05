@@ -25,7 +25,6 @@
 #include <linux/ioport.h>
 #include <linux/cache.h>
 #include <linux/slab.h>
-#include <asm-generic/pci-bridge.h>
 #include "pci.h"
 
 unsigned int pci_flags;
