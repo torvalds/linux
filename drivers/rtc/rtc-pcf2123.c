@@ -100,6 +100,7 @@
 /* PCF2123_REG_OFFSET BITS */
 #define OFFSET_SIGN_BIT		BIT(6)	/* 2's complement sign bit */
 #define OFFSET_COARSE		BIT(7)	/* Coarse mode offset */
+#define OFFSET_STEP		(2170)	/* Offset step in parts per billion */
 
 /* READ/WRITE ADDRESS BITS */
 #define PCF2123_WRITE		BIT(4)
@@ -204,6 +205,59 @@ static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return -EIO;
 	return count;
+}
+
+static int pcf2123_read_offset(struct device *dev, long *offset)
+{
+	int ret;
+	s8 reg;
+
+	ret = pcf2123_read(dev, PCF2123_REG_OFFSET, &reg, 1);
+	if (ret < 0)
+		return ret;
+
+	if (reg & OFFSET_COARSE)
+		reg <<= 1; /* multiply by 2 and sign extend */
+	else
+		reg |= (reg & OFFSET_SIGN_BIT) << 1; /* sign extend only */
+
+	*offset = ((long)reg) * OFFSET_STEP;
+
+	return 0;
+}
+
+/*
+ * The offset register is a 7 bit signed value with a coarse bit in bit 7.
+ * The main difference between the two is normal offset adjusts the first
+ * second of n minutes every other hour, with 61, 62 and 63 being shoved
+ * into the 60th minute.
+ * The coarse adjustment does the same, but every hour.
+ * the two overlap, with every even normal offset value corresponding
+ * to a coarse offset. Based on this algorithm, it seems that despite the
+ * name, coarse offset is a better fit for overlapping values.
+ */
+static int pcf2123_set_offset(struct device *dev, long offset)
+{
+	s8 reg;
+
+	if (offset > OFFSET_STEP * 127)
+		reg = 127;
+	else if (offset < OFFSET_STEP * -128)
+		reg = -128;
+	else
+		reg = (s8)((offset + (OFFSET_STEP >> 1)) / OFFSET_STEP);
+
+	/* choose fine offset only for odd values in the normal range */
+	if (reg & 1 && reg <= 63 && reg >= -64) {
+		/* Normal offset. Clear the coarse bit */
+		reg &= ~OFFSET_COARSE;
+	} else {
+		/* Coarse offset. Divide by 2 and set the coarse bit */
+		reg >>= 1;
+		reg |= OFFSET_COARSE;
+	}
+
+	return pcf2123_write_reg(dev, PCF2123_REG_OFFSET, reg);
 }
 
 static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -314,6 +368,9 @@ static int pcf2123_reset(struct device *dev)
 static const struct rtc_class_ops pcf2123_rtc_ops = {
 	.read_time	= pcf2123_rtc_read_time,
 	.set_time	= pcf2123_rtc_set_time,
+	.read_offset	= pcf2123_read_offset,
+	.set_offset	= pcf2123_set_offset,
+
 };
 
 static int pcf2123_probe(struct spi_device *spi)
