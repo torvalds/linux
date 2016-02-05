@@ -296,7 +296,7 @@ set_unipro_slow_mode:
 		goto done;
 	}
 
-	gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
+	ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
 				   GB_SVC_UNIPRO_HS_SERIES_A,
 				   GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 				   1, 2,
@@ -306,7 +306,6 @@ set_unipro_slow_mode:
 	if (ret < 0)
 		gcam_err(gcam, "can't take AP link to PWM-G1 auto: %d\n",
 			 ret);
-
 
 done:
 	kfree(req);
