@@ -71,8 +71,12 @@ struct SMU_SclkSetting {
 	uint16_t    Pcc_fcw_int;
 	uint8_t     PllRange;
 	uint8_t     SSc_En;
+	uint16_t    Sclk_slew_rate;
+	uint16_t    Pcc_up_slew_rate;
+	uint16_t    Pcc_down_slew_rate;
 	uint16_t    Fcw1_int;
 	uint16_t    Fcw1_frac;
+	uint16_t    Sclk_ss_slew_rate;
 };
 typedef struct SMU_SclkSetting SMU_SclkSetting;
 
@@ -120,7 +124,8 @@ struct SMU74_Discrete_Ulv {
 	uint16_t    VddcOffset;
 	uint8_t     VddcOffsetVid;
 	uint8_t     VddcPhase;
-	uint32_t    Reserved;
+	uint16_t    BifSclkDfs;
+	uint16_t    Reserved;
 };
 
 typedef struct SMU74_Discrete_Ulv SMU74_Discrete_Ulv;
@@ -155,7 +160,8 @@ struct SMU74_Discrete_LinkLevel {
 	uint8_t     SPC;
 	uint32_t    DownThreshold;
 	uint32_t    UpThreshold;
-	uint32_t    Reserved;
+	uint16_t    BifSclkDfs;
+	uint16_t    Reserved;
 };
 
 typedef struct SMU74_Discrete_LinkLevel SMU74_Discrete_LinkLevel;
