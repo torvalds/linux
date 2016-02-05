@@ -17,3 +17,13 @@ config QCOM_HIDMA_MGMT
 	  start managing the channels. In a virtualized environment,
 	  the guest OS would run QCOM_HIDMA channel driver and the
 	  host would run the QCOM_HIDMA_MGMT management driver.
+
+config QCOM_HIDMA
+	tristate "Qualcomm Technologies HIDMA Channel support"
+	select DMA_ENGINE
+	help
+	  Enable support for the Qualcomm Technologies HIDMA controller.
+	  The HIDMA controller supports optimized buffer copies
+	  (user to kernel, kernel to kernel, etc.).  It only supports
+	  memcpy interface. The core is not intended for general
+	  purpose slave DMA.
