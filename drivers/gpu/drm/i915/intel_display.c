@@ -2316,19 +2316,16 @@ void intel_add_fb_offsets(int *x, int *y,
 }
 
 /*
- * Adjust the tile offset by moving the difference into
- * the x/y offsets.
- *
  * Input tile dimensions and pitch must already be
  * rotated to match x and y, and in pixel units.
  */
-static u32 intel_adjust_tile_offset(int *x, int *y,
-				    unsigned int tile_width,
-				    unsigned int tile_height,
-				    unsigned int tile_size,
-				    unsigned int pitch_tiles,
-				    u32 old_offset,
-				    u32 new_offset)
+static u32 _intel_adjust_tile_offset(int *x, int *y,
+				     unsigned int tile_width,
+				     unsigned int tile_height,
+				     unsigned int tile_size,
+				     unsigned int pitch_tiles,
+				     u32 old_offset,
+				     u32 new_offset)
 {
 	unsigned int pitch_pixels = pitch_tiles * tile_width;
 	unsigned int tiles;
@@ -2345,6 +2342,50 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 	/* minimize x in case it got needlessly big */
 	*y += *x / pitch_pixels * tile_height;
 	*x %= pitch_pixels;
+
+	return new_offset;
+}
+
+/*
+ * Adjust the tile offset by moving the difference into
+ * the x/y offsets.
+ */
+static u32 intel_adjust_tile_offset(int *x, int *y,
+				    const struct intel_plane_state *state, int plane,
+				    u32 old_offset, u32 new_offset)
+{
+	const struct drm_i915_private *dev_priv = to_i915(state->base.plane->dev);
+	const struct drm_framebuffer *fb = state->base.fb;
+	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+	unsigned int rotation = state->base.rotation;
+	unsigned int pitch = intel_fb_pitch(fb, plane, rotation);
+
+	WARN_ON(new_offset > old_offset);
+
+	if (fb->modifier[plane] != DRM_FORMAT_MOD_NONE) {
+		unsigned int tile_size, tile_width, tile_height;
+		unsigned int pitch_tiles;
+
+		tile_size = intel_tile_size(dev_priv);
+		intel_tile_dims(dev_priv, &tile_width, &tile_height,
+				fb->modifier[plane], cpp);
+
+		if (intel_rotation_90_or_270(rotation)) {
+			pitch_tiles = pitch / tile_height;
+			swap(tile_width, tile_height);
+		} else {
+			pitch_tiles = pitch / (tile_width * cpp);
+		}
+
+		_intel_adjust_tile_offset(x, y, tile_width, tile_height,
+					  tile_size, pitch_tiles,
+					  old_offset, new_offset);
+	} else {
+		old_offset += *y * pitch + *x * cpp;
+
+		*y = (old_offset - new_offset) / pitch;
+		*x = ((old_offset - new_offset) - *y * pitch) / cpp;
+	}
 
 	return new_offset;
 }
@@ -2401,9 +2442,9 @@ static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
 		offset = (tile_rows * pitch_tiles + tiles) * tile_size;
 		offset_aligned = offset & ~alignment;
 
-		intel_adjust_tile_offset(x, y, tile_width, tile_height,
-					 tile_size, pitch_tiles,
-					 offset, offset_aligned);
+		_intel_adjust_tile_offset(x, y, tile_width, tile_height,
+					  tile_size, pitch_tiles,
+					  offset, offset_aligned);
 	} else {
 		offset = *y * pitch + *x * cpp;
 		offset_aligned = offset & ~alignment;
@@ -2550,9 +2591,9 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 			 * We only keep the x/y offsets, so push all of the
 			 * gtt offset into the x/y offsets.
 			 */
-			intel_adjust_tile_offset(&x, &y, tile_size,
-						 tile_width, tile_height, pitch_tiles,
-						 gtt_offset_rotated * tile_size, 0);
+			_intel_adjust_tile_offset(&x, &y, tile_size,
+						  tile_width, tile_height, pitch_tiles,
+						  gtt_offset_rotated * tile_size, 0);
 
 			gtt_offset_rotated += rot_info->plane[i].width * rot_info->plane[i].height;
 
