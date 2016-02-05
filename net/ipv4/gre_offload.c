@@ -20,7 +20,6 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 {
 	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	struct gre_base_hdr *greh;
 	u16 mac_offset = skb->mac_header;
 	__be16 protocol = skb->protocol;
 	u16 mac_len = skb->mac_len;
@@ -48,15 +47,13 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
 		goto out;
 
-	greh = (struct gre_base_hdr *)skb_transport_header(skb);
-
 	/* setup inner skb. */
-	skb->protocol = greh->protocol;
 	skb->encapsulation = 0;
 	__skb_pull(skb, tnl_hlen);
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
 	skb->mac_len = skb_inner_network_offset(skb);
+	skb->protocol = skb->inner_protocol;
 
 	need_csum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_GRE_CSUM);
 	skb->encap_hdr_csum = need_csum;
@@ -75,6 +72,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	gre_offset = outer_hlen - tnl_hlen;
 	skb = segs;
 	do {
+		struct gre_base_hdr *greh;
 		__be32 *pcsum;
 
 		skb_reset_inner_headers(skb);
