@@ -3687,9 +3687,9 @@ _fail_:
 	return result;
 }
 
-s32 wilc_deinit(struct wilc_vif *vif)
+int wilc_deinit(struct wilc_vif *vif)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 

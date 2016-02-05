@@ -340,7 +340,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_val *cfg_param);
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);
-s32 wilc_deinit(struct wilc_vif *vif);
+int wilc_deinit(struct wilc_vif *vif);
 int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,
 		    u32 head_len, u8 *head, u32 tail_len, u8 *tail);
 int wilc_del_beacon(struct wilc_vif *vif);
