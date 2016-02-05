@@ -384,7 +384,6 @@ struct saa7134_input {
 	unsigned int             vmux;
 	enum saa7134_audio_in    amux;
 	unsigned int             gpio;
-	unsigned int             tv:1;
 };
 
 enum saa7134_mpeg_type {

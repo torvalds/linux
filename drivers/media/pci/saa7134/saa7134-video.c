@@ -1384,10 +1384,16 @@ int saa7134_enum_input(struct file *file, void *priv, struct v4l2_input *i)
 	if (card_in(dev, i->index).type == SAA7134_NO_INPUT)
 		return -EINVAL;
 	i->index = n;
-	i->type  = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name, saa7134_input_name[card_in(dev, n).type]);
-	if (card_in(dev, n).tv)
+	switch (card_in(dev, n).type) {
+	case SAA7134_INPUT_TV:
+	case SAA7134_INPUT_TV_MONO:
 		i->type = V4L2_INPUT_TYPE_TUNER;
+		break;
+	default:
+		i->type  = V4L2_INPUT_TYPE_CAMERA;
+		break;
+	}
 	if (n == dev->ctl_input) {
 		int v1 = saa_readb(SAA7134_STATUS_VIDEO1);
 		int v2 = saa_readb(SAA7134_STATUS_VIDEO2);
@@ -1656,7 +1662,8 @@ int saa7134_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 	memset(t, 0, sizeof(*t));
 	for (n = 0; n < SAA7134_INPUT_MAX; n++) {
-		if (card_in(dev, n).tv)
+		if (card_in(dev, n).type == SAA7134_INPUT_TV ||
+		    card_in(dev, n).type == SAA7134_INPUT_TV_MONO)
 			break;
 	}
 	if (n == SAA7134_INPUT_MAX)
