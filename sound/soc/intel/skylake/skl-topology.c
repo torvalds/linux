@@ -260,6 +260,64 @@ static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 				multiplier;
 }
 
+static int skl_tplg_update_be_blob(struct snd_soc_dapm_widget *w,
+						struct skl_sst *ctx)
+{
+	struct skl_module_cfg *m_cfg = w->priv;
+	int link_type, dir;
+	u32 ch, s_freq, s_fmt;
+	struct nhlt_specific_cfg *cfg;
+	struct skl *skl = get_skl_ctx(ctx->dev);
+
+	/* check if we already have blob */
+	if (m_cfg->formats_config.caps_size > 0)
+		return 0;
+
+	switch (m_cfg->dev_type) {
+	case SKL_DEVICE_DMIC:
+		link_type = NHLT_LINK_DMIC;
+		dir = 1;
+		s_freq = m_cfg->in_fmt[0].s_freq;
+		s_fmt = m_cfg->in_fmt[0].bit_depth;
+		ch = m_cfg->in_fmt[0].channels;
+		break;
+
+	case SKL_DEVICE_I2S:
+		link_type = NHLT_LINK_SSP;
+		if (m_cfg->hw_conn_type == SKL_CONN_SOURCE) {
+			dir = 1;
+			s_freq = m_cfg->in_fmt[0].s_freq;
+			s_fmt = m_cfg->in_fmt[0].bit_depth;
+			ch = m_cfg->in_fmt[0].channels;
+		} else {
+			dir = 0;
+			s_freq = m_cfg->out_fmt[0].s_freq;
+			s_fmt = m_cfg->out_fmt[0].bit_depth;
+			ch = m_cfg->out_fmt[0].channels;
+		}
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	/* update the blob based on virtual bus_id and default params */
+	cfg = skl_get_ep_blob(skl, m_cfg->vbus_id, link_type,
+					s_fmt, ch, s_freq, dir);
+	if (cfg) {
+		m_cfg->formats_config.caps_size = cfg->size;
+		m_cfg->formats_config.caps = (u32 *) &cfg->caps;
+	} else {
+		dev_err(ctx->dev, "Blob NULL for id %x type %d dirn %d\n",
+					m_cfg->vbus_id, link_type, dir);
+		dev_err(ctx->dev, "PCM: ch %d, freq %d, fmt %d\n",
+					ch, s_freq, s_fmt);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static void skl_tplg_update_module_params(struct snd_soc_dapm_widget *w,
 							struct skl_sst *ctx)
 {
@@ -432,6 +490,9 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 			if (ret < 0)
 				return ret;
 		}
+
+		/* update blob if blob is null for be with default value */
+		skl_tplg_update_be_blob(w, ctx);
 
 		/*
 		 * apply fix/conversion to module params based on
