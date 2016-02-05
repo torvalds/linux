@@ -409,7 +409,8 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 
 static void video_mux(struct saa7134_dev *dev, int input)
 {
-	video_dbg("video input = %d [%s]\n", input, card_in(dev, input).name);
+	video_dbg("video input = %d [%s]\n",
+		  input, saa7134_input_name[card_in(dev, input).type]);
 	dev->ctl_input = input;
 	set_tvnorm(dev, dev->tvnorm);
 	saa7134_tvaudio_setinput(dev, &card_in(dev, input));
@@ -1381,11 +1382,11 @@ int saa7134_enum_input(struct file *file, void *priv, struct v4l2_input *i)
 	n = i->index;
 	if (n >= SAA7134_INPUT_MAX)
 		return -EINVAL;
-	if (NULL == card_in(dev, i->index).name)
+	if (card_in(dev, i->index).type == SAA7134_NO_INPUT)
 		return -EINVAL;
 	i->index = n;
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
-	strcpy(i->name, card_in(dev, n).name);
+	strcpy(i->name, saa7134_input_name[card_in(dev, n).type]);
 	if (card_in(dev, n).tv)
 		i->type = V4L2_INPUT_TYPE_TUNER;
 	if (n == dev->ctl_input) {
@@ -1419,7 +1420,7 @@ int saa7134_s_input(struct file *file, void *priv, unsigned int i)
 
 	if (i >= SAA7134_INPUT_MAX)
 		return -EINVAL;
-	if (NULL == card_in(dev, i).name)
+	if (card_in(dev, i).type == SAA7134_NO_INPUT)
 		return -EINVAL;
 	video_mux(dev, i);
 	return 0;
@@ -1661,7 +1662,7 @@ int saa7134_g_tuner(struct file *file, void *priv,
 	}
 	if (n == SAA7134_INPUT_MAX)
 		return -EINVAL;
-	if (NULL != card_in(dev, n).name) {
+	if (card_in(dev, n).type != SAA7134_NO_INPUT) {
 		strcpy(t->name, "Television");
 		t->type = V4L2_TUNER_ANALOG_TV;
 		saa_call_all(dev, tuner, g_tuner, t);

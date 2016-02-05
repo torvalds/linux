@@ -112,7 +112,7 @@ int (*saa7134_dmasound_exit)(struct saa7134_dev *dev);
 		printk(KERN_DEBUG pr_fmt("irq: " fmt), ## arg); \
 	} while (0)
 
-void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
+void saa7134_track_gpio(struct saa7134_dev *dev, const char *msg)
 {
 	unsigned long mode,status;
 
