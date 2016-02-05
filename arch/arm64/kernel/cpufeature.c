@@ -67,6 +67,10 @@ DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 		.width = 0,				\
 	}
 
+/* meta feature for alternatives */
+static bool __maybe_unused
+cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry);
+
 static struct arm64_ftr_bits ftr_id_aa64isar0[] = {
 	ARM64_FTR_BITS(FTR_STRICT, FTR_EXACT, 32, 32, 0),
 	ARM64_FTR_BITS(FTR_STRICT, FTR_EXACT, ID_AA64ISAR0_RDM_SHIFT, 4, 0),
@@ -688,6 +692,12 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.enable = cpu_enable_uao,
 	},
 #endif /* CONFIG_ARM64_UAO */
+#ifdef CONFIG_ARM64_PAN
+	{
+		.capability = ARM64_ALT_PAN_NOT_UAO,
+		.matches = cpufeature_pan_not_uao,
+	},
+#endif /* CONFIG_ARM64_PAN */
 	{},
 };
 
@@ -965,4 +975,10 @@ void __init setup_cpu_features(void)
 	if (L1_CACHE_BYTES < cls)
 		pr_warn("L1_CACHE_BYTES smaller than the Cache Writeback Granule (%d < %d)\n",
 			L1_CACHE_BYTES, cls);
+}
+
+static bool __maybe_unused
+cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry)
+{
+	return (cpus_have_cap(ARM64_HAS_PAN) && !cpus_have_cap(ARM64_HAS_UAO));
 }
