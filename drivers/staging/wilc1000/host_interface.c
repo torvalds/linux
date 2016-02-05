@@ -3558,10 +3558,10 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	return result;
 }
 
-s32 wilc_hif_set_cfg(struct wilc_vif *vif,
+int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_val *pstrCfgParamVal)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
