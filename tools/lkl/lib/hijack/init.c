@@ -30,6 +30,79 @@
 
 #include "xlate.h"
 
+
+int parse_mac_str(char *mac_str, __lkl__u8 mac[LKL_ETH_ALEN])
+{
+	char delim[] = ":";
+	char *saveptr = NULL, *token = NULL;
+	int i = 0;
+	if (!mac_str) {
+		return 0;
+	}
+
+	for (token = strtok_r(mac_str, delim, &saveptr); i < LKL_ETH_ALEN; i++) {
+		if (!token) {
+			/* The address is too short */
+			return -1;
+		} else {
+			mac[i] = (__lkl__u8) strtol(token, NULL, 16);
+		}
+
+		token = strtok_r(NULL, delim, &saveptr);
+	}
+
+	if (strtok_r(NULL, delim, &saveptr)) {
+		/* The address is too long */
+		return -1;
+	}
+
+	return 1;
+}
+
+int init_tap(char *tap, char *mac_str)
+{
+	struct ifreq ifr = {
+		.ifr_flags = IFF_TAP | IFF_NO_PI,
+	};
+	union lkl_netdev nd;
+	__lkl__u8 mac[LKL_ETH_ALEN] = {0};
+	int ret = -1;
+
+	strncpy(ifr.ifr_name, tap, IFNAMSIZ);
+
+	nd.fd = open("/dev/net/tun", O_RDWR|O_NONBLOCK);
+	if (nd.fd < 0) {
+		fprintf(stderr, "failed to open tap: %s\n", strerror(errno));
+		return -1;
+	}
+
+	ret = ioctl(nd.fd, TUNSETIFF, &ifr);
+	if (ret < 0) {
+		fprintf(stderr, "failed to attach to %s: %s\n",
+			ifr.ifr_name, strerror(errno));
+		return -1;
+	}
+
+	ret = parse_mac_str(mac_str, mac);
+
+	if (ret < 0) {
+		fprintf(stderr, "failed to parse mac\n");
+		return -1;
+	} else if (ret > 0) {
+		ret = lkl_netdev_add(nd, mac);
+	} else {
+		ret = lkl_netdev_add(nd, NULL);
+	}
+
+	if (ret < 0) {
+		fprintf(stderr, "failed to add netdev: %s\n",
+			lkl_strerror(ret));
+		return -1;
+	}
+
+	return ret;
+}
+
 void __attribute__((constructor(102)))
 hijack_init(void)
 {
@@ -37,42 +110,15 @@ hijack_init(void)
 	char *tap = getenv("LKL_HIJACK_NET_TAP");
 	char *mtu_str = getenv("LKL_HIJACK_NET_MTU");
 	char *ip = getenv("LKL_HIJACK_NET_IP");
+	char *mac_str = getenv("LKL_HIJACK_NET_MAC");
 	char *netmask_len = getenv("LKL_HIJACK_NET_NETMASK_LEN");
 	char *gateway = getenv("LKL_HIJACK_NET_GATEWAY");
 	char *debug = getenv("LKL_HIJACK_DEBUG");
 
 	if (tap) {
-		struct ifreq ifr = {
-			.ifr_flags = IFF_TAP | IFF_NO_PI,
-		};
-		union lkl_netdev nd;
-
-		strncpy(ifr.ifr_name, tap, IFNAMSIZ);
-
-		nd.fd = open("/dev/net/tun", O_RDWR|O_NONBLOCK);
-		if (nd.fd < 0) {
-			fprintf(stderr, "failed to open tap: %s\n", strerror(errno));
-			goto no_tap;
-		}
-
-		ret = ioctl(nd.fd, TUNSETIFF, &ifr);
-		if (ret < 0) {
-			fprintf(stderr, "failed to attach to %s: %s\n",
-				ifr.ifr_name, strerror(errno));
-			goto no_tap;
-		}
-
-		ret = lkl_netdev_add(nd, NULL);
-		if (ret < 0) {
-			fprintf(stderr, "failed to add netdev: %s\n",
-				lkl_strerror(ret));
-			goto no_tap;
-		}
-
-		nd_id = ret;
+		nd_id = init_tap(tap, mac_str);
 	}
 
-no_tap:
 	if (!debug)
 		lkl_host_ops.print = NULL;
 
