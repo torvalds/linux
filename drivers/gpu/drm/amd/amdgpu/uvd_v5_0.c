@@ -774,6 +774,11 @@ static int uvd_v5_0_process_interrupt(struct amdgpu_device *adev,
 static int uvd_v5_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!(adev->cg_flags & AMDGPU_CG_SUPPORT_UVD_MGCG))
+		return 0;
+
 	return 0;
 }
 

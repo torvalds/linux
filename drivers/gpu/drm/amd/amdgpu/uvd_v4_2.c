@@ -830,6 +830,9 @@ static int uvd_v4_2_set_clockgating_state(void *handle,
 	bool gate = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (!(adev->cg_flags & AMDGPU_CG_SUPPORT_UVD_MGCG))
+		return 0;
+
 	if (state == AMD_CG_STATE_GATE)
 		gate = true;
 
