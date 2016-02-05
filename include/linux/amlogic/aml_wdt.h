@@ -36,7 +36,6 @@ struct aml_wdt_dev {
 	unsigned int firmware_timeout,suspend_timeout,timeout;
 	unsigned int one_second;
 	struct device *dev;
-	struct mutex	lock;
 	unsigned int reset_watchdog_method;
 	struct delayed_work boot_queue;
 };
@@ -44,19 +43,19 @@ struct aml_wdt_dev {
 #define AML_WDT_ENABLED (aml_read_reg32(P_WATCHDOG_TC)&(1 << WATCHDOG_ENABLE_BIT))
 static inline void disable_watchdog(void)
 {
-	printk(KERN_INFO "** disable watchdog\n");
+	pr_info("** disable watchdog\n");
 	aml_write_reg32(P_WATCHDOG_RESET, 0);
 	aml_clr_reg32_mask(P_WATCHDOG_TC,(1 << WATCHDOG_ENABLE_BIT));
 }
 static inline void enable_watchdog(unsigned int timeout)
 {
-	printk(KERN_INFO "** enable watchdog\n");
+	pr_info("** enable watchdog\n");
 	aml_write_reg32(P_WATCHDOG_RESET, 0);
 	aml_write_reg32(P_WATCHDOG_TC, 1 << WATCHDOG_ENABLE_BIT |(timeout|WATCHDOG_COUNT_MASK));
 }
 static inline void reset_watchdog(void)
 {
-	printk(KERN_DEBUG"** reset watchdog\n");
+	pr_debug("** reset watchdog\n");
 	aml_write_reg32(P_WATCHDOG_RESET, 0);	
 }
 #ifdef CONFIG_AML_WDT

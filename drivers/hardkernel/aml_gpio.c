@@ -58,7 +58,7 @@ const char  aml_gpio_str[] = "aml_gpio";
 #define NUM_OF_IRQ          (8)     // AMLogic IRQ count
 #define NUM_OF_GPIO_DESC    (140)   // AMLogic GPIO count
 
-static struct   aml_gpio_desc    {
+struct   aml_gpio_desc    {
     bool                is_use;     // use flag
     struct  mutex       lock;       // sysfs lock
     int                 id;         // idr id
@@ -69,7 +69,7 @@ static struct   aml_gpio_desc    {
     int                 irq_num[2]; // irq number (high edge and low edge)
 };
 
-static struct   aml_gpio    {
+struct   aml_gpio    {
     struct platform_device  *pdev;
     struct mutex            lock;
     struct idr              idr;
@@ -470,7 +470,7 @@ static ssize_t store_export     (struct class *class, struct class_attribute *at
     if ((status = sysfs_create_group(&dev->kobj, &aml_gpio_sysfs_attr_group)))
         goto    unregister_device;
 
-    memset(&aml_gpio->desc[i], 0x00, sizeof(struct aml_gpio));
+    memset(&aml_gpio->desc[i], 0x00, sizeof(struct aml_gpio_desc));
 
     mutex_init(&aml_gpio->desc[i].lock);
 
@@ -530,7 +530,7 @@ static ssize_t store_unexport   (struct class *class, struct class_attribute *at
 	}
 
     amlogic_gpio_free(aml_gpio->desc[i].gpio, aml_gpio_str);
-    memset(&aml_gpio->desc[i], 0x00, sizeof(struct aml_gpio));
+    memset(&aml_gpio->desc[i], 0x00, sizeof(struct aml_gpio_desc));
 
     // mutex_unlock
     mutex_unlock(&aml_gpio->lock);

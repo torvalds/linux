@@ -3,6 +3,7 @@
 #include "hdmi_info_global.h"
 #include <plat/hdmi_config.h>
 #include <linux/wait.h>
+#include <linux/cdev.h>
 //#include <linux/amlogic/aml_gpio_consumer.h>
 
 /*****************************
@@ -343,6 +344,33 @@ typedef struct {
 #define DET         5, "%s[%d]", __FUNCTION__, __LINE__
 
 extern void hdmi_print(int level, const char *fmt, ...);
+
+#define VOUTMODE_HDMI		0x00
+#define VOUTMODE_DVI		0x01
+#define VOUTMODE_VGA		0x02
+#define VOUTMODE_NONHDMI	(VOUTMODE_DVI | VOUTMODE_VGA)
+
+extern int odroidc_voutmode(void);
+
+static inline int voutmode_hdmi(void)
+{
+	return odroidc_voutmode() == VOUTMODE_HDMI;
+}
+
+static inline int voutmode_dvi(void)
+{
+	return !!(odroidc_voutmode() & VOUTMODE_DVI);
+}
+
+static inline int voutmode_vga(void)
+{
+	return !!(odroidc_voutmode() & VOUTMODE_VGA);
+}
+
+static inline int voutmode_dvi_vga(void)
+{
+	return voutmode_dvi() || voutmode_vga();
+}
 
 #endif
 

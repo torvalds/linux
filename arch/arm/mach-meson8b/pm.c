@@ -56,9 +56,8 @@ static int early_suspend_flag = 0;
 #define ON  1
 #define OFF 0
 
-static unsigned int  cec_config;       // 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
+static unsigned int  cec_config = 0;       // 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
 static struct meson_pm_config *pdata;
-static struct device_node *cec_np = NULL;
 
 #define CLK(addr)  \
 { \
@@ -167,7 +166,6 @@ void analog_switch(int flag)
     unsigned reg_value = 0;
 
     if (flag) {
-        printk(KERN_INFO "analog on\n");
         aml_set_reg32_mask(P_AM_ANALOG_TOP_REG0, 1 << 1); // set 0x206e bit[1] 1 to power on top analog
         for (i = 0; i < ANALOG_COUNT; i++) {
             if (analog_regs[i].enable && (analog_regs[i].set_bits || analog_regs[i].clear_bits)) {
@@ -181,48 +179,35 @@ void analog_switch(int flag)
             }
         }
     } else {
-        printk(KERN_INFO "analog off\n");
         for (i = 0; i < ANALOG_COUNT; i++) {
             if (analog_regs[i].enable && (analog_regs[i].set_bits || analog_regs[i].clear_bits)) {
                 if (analog_regs[i].enable == 1) {
                     analog_regs[i].reg_value = aml_read_reg32(analog_regs[i].reg_addr);
-                    printk("%s(0x%x):0x%x", analog_regs[i].name, analog_regs[i].reg_addr, analog_regs[i].reg_value);
                     if (analog_regs[i].clear_bits) {
                         aml_clr_reg32_mask(analog_regs[i].reg_addr, analog_regs[i].clear_bits);
-                        printk(" & ~0x%x", analog_regs[i].clear_bits);
                     }
                     if (analog_regs[i].set_bits) {
                         aml_set_reg32_mask(analog_regs[i].reg_addr, analog_regs[i].set_bits);
-                        printk(" | 0x%x", analog_regs[i].set_bits);
                     }
                     reg_value = aml_read_reg32(analog_regs[i].reg_addr);
-                    printk(" = 0x%x\n", reg_value);
                 } else if (analog_regs[i].enable == 2) {
                     analog_regs[i].reg_value = aml_read_reg32(analog_regs[i].reg_addr);
-                    printk("%s(0x%x):0x%x", analog_regs[i].name, analog_regs[i].reg_addr, analog_regs[i].reg_value);
                     if (analog_regs[i].clear_bits) {
                     		aml_clr_reg32_mask(analog_regs[i].reg_addr, analog_regs[i].clear_bits);
-                        printk(" & ~0x%x", analog_regs[i].clear_bits);
                     }
                     if (analog_regs[i].set_bits) {
                     		aml_set_reg32_mask(analog_regs[i].reg_addr, analog_regs[i].set_bits);
-                        printk(" | 0x%x", analog_regs[i].set_bits);
                     }
                     reg_value = aml_read_reg32(analog_regs[i].reg_addr);
-                    printk(" = 0x%x\n", reg_value);
                 } else if (analog_regs[i].enable == 3) {
                     analog_regs[i].reg_value = aml_read_reg32(analog_regs[i].reg_addr);
-                    printk("%s(0x%x):0x%x", analog_regs[i].name, analog_regs[i].reg_addr, analog_regs[i].reg_value);
                     if (analog_regs[i].clear_bits) {
                         aml_clr_reg32_mask(analog_regs[i].reg_addr, analog_regs[i].clear_bits);
-                        printk(" & ~0x%x", analog_regs[i].clear_bits);
                     }
                     if (analog_regs[i].set_bits) {
                         aml_set_reg32_mask(analog_regs[i].reg_addr, analog_regs[i].set_bits);
-                        printk(" | 0x%x", analog_regs[i].set_bits);
                     }
                     reg_value = aml_read_reg32(analog_regs[i].reg_addr);
-                    printk(" = 0x%x\n", reg_value);
                 }
             }
         }
@@ -234,7 +219,6 @@ void analog_switch(int flag)
 static void meson_system_early_suspend(struct early_suspend *h)
 {
 	if (!early_suspend_flag) {
-	printk(KERN_INFO "%s\n",__func__);
 	if (pdata->set_exgpio_early_suspend) {
 		pdata->set_exgpio_early_suspend(OFF);
 	}
@@ -250,7 +234,6 @@ static void meson_system_late_resume(struct early_suspend *h)
 		//early_power_gate_switch(ON);
 		//early_clk_switch(ON);
 		early_suspend_flag = 0;
-		printk(KERN_INFO "%s\n",__func__);
 	}
 }
 #endif
@@ -262,7 +245,10 @@ int run_arc_program(void)
 	unsigned vaddr2,v;
 	unsigned* pbuffer;
 	vaddr2 = IO_SRAM_BASE;
-	
+
+	/* Get the cec_config from DEBUG register. */
+	cec_config = aml_read_reg32(P_AO_DEBUG_REG0);
+
 	if(cec_config & 0x1)// 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
     {
     	aml_write_reg32(P_AO_REMAP_REG0,0);
@@ -288,11 +274,9 @@ int run_arc_program(void)
     
     	udelay(20);
     	if(aml_read_reg32(P_AO_RTI_STATUS_REG1) == 0xeeeeaaaa){
-    		printk("AO cpu runs ok.\n");
     		return 0;
     	}
     	else{
-    		printk("AO cpu runs fail. 0x%x\n",aml_read_reg32(P_AO_RTI_STATUS_REG1));
     		return -1;
     	}
     }
@@ -306,11 +290,9 @@ int stop_ao_cpu(void)
     	aml_write_reg32(P_AO_RTI_STATUS_REG1, 0xddddeeee); //ask ao to halt.
 		udelay(40);
     	if(aml_read_reg32(P_AO_RTI_STATUS_REG1) == 0x0){
-    		printk("AO cpu stop ok.\n");
     		return 0;
     	}
     	else{
-    		printk("AO cpu stop fail.\n");
     		return -1;
     	}
     }
@@ -323,7 +305,6 @@ extern void clr_pwr_key(void);
 
 static void meson_pm_suspend(void)
 {
-	printk(KERN_INFO "enter meson_pm_suspend!\n");
 #ifdef CONFIG_SUSPEND_WATCHDOG
 	ENABLE_SUSPEND_WATCHDOG;
 #endif    
@@ -339,7 +320,6 @@ static void meson_pm_suspend(void)
 	clk_switch(OFF);
 	//power_gate_switch(OFF);	
 	//switch_mod_gate_by_type(MOD_MEDIA_CPU, 1);
-	printk(KERN_INFO "sleep ...\n");
 	//switch A9 clock to xtal 24MHz
 	aml_clr_reg32_mask(P_HHI_SYS_CPU_CLK_CNTL, 1 << 7);
 	aml_clr_reg32_mask(P_HHI_SYS_PLL_CNTL, 1 << 30);//disable sys pll
@@ -370,7 +350,6 @@ static void meson_pm_suspend(void)
 #endif
 	}
 	aml_set_reg32_mask(P_HHI_SYS_PLL_CNTL, (1 << 30)); //enable sys pll
-	printk(KERN_INFO "... wake up\n");
 #if 1
 	if (aml_read_reg32(P_AO_RTC_ADDR1) & (1<<12)) {
 	// Woke from alarm, not power button. Set flag to inform key_input driver.
@@ -378,13 +357,11 @@ static void meson_pm_suspend(void)
 	}
 	// clear RTC interrupt
 	aml_write_reg32((P_AO_RTC_ADDR1),aml_read_reg32(P_AO_RTC_ADDR1)|(0xf000));
-	printk(KERN_INFO "RTCADD3=0x%x\n",aml_read_reg32(P_AO_RTC_ADDR3));
 	if(aml_read_reg32(P_AO_RTC_ADDR3)|(1<<29))
 	{
 		aml_write_reg32((P_AO_RTC_ADDR3),aml_read_reg32(P_AO_RTC_ADDR3)&(~(1<<29)));
 		udelay(1000);
 	}
-	printk(KERN_INFO "RTCADD3=0x%x\n",aml_read_reg32(P_AO_RTC_ADDR3));
 #endif
 	if (pdata->set_vccx2) {
 		pdata->set_vccx2(ON);
@@ -403,7 +380,6 @@ static void meson_pm_suspend(void)
 
 static int meson_pm_prepare(void)
 {
-	  printk(KERN_INFO "enter meson_pm_prepare!\n");
 	  return 0;
 }
 
@@ -436,11 +412,9 @@ static struct platform_suspend_ops meson_pm_ops = {
 static void m6ref_set_vccx2(int power_on)
 {
     if(power_on == OFF) {
-        printk("m6ref_set_vccx2: OFF");
         CLEAR_AOBUS_REG_MASK(AO_GPIO_O_EN_N, 1<<15);
         SET_AOBUS_REG_MASK(AO_GPIO_O_EN_N, 1<<31);
     } else {
-        printk("m6ref_set_vccx2: ON");
         CLEAR_AOBUS_REG_MASK(AO_GPIO_O_EN_N, 1<<15);
         CLEAR_AOBUS_REG_MASK(AO_GPIO_O_EN_N, 1<<31);
     }
@@ -460,7 +434,6 @@ static struct meson_pm_config aml_pm_pdata = {
 
 static int __init meson_pm_probe(struct platform_device *pdev)
 {
-	printk(KERN_INFO "enter meson_pm_probe!\n");
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	early_suspend.suspend = meson_system_early_suspend;
@@ -478,19 +451,6 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 	clk81 = clk_get_sys("clk81", NULL);
 	clkxtal = clk_get_sys("xtal", NULL);
 	
-	cec_np = of_find_node_by_name(NULL, "vend_data");
-	if(cec_np){
-	    if(of_property_read_u32(cec_np, "cec_config", &cec_config))
-	        cec_config = 0x0;
-	}
-	else
-	{
-	    cec_config = 0x0;
-	}
-    printk("hdmi: cec_pm: cec config:0x%x\n", cec_config);
-    
-	printk(KERN_INFO "meson_pm_probe done !\n");
-
 #ifdef CONFIG_AO_TRIG_CLK
 	return run_arc_program();
 #else
@@ -525,7 +485,6 @@ static struct platform_driver meson_pm_driver = {
 
 static int __init meson_pm_init(void)
 {
-	printk("enter %s\n",__func__);
 	return platform_driver_probe(&meson_pm_driver, meson_pm_probe);
 }
 late_initcall(meson_pm_init);

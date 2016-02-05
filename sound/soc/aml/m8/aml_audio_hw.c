@@ -21,9 +21,6 @@
 
 
 unsigned ENABLE_IEC958 = 1;
-unsigned IEC958_MODE   = AIU_958_MODE_PCM16;
-unsigned I2S_MODE      = AIU_I2S_MODE_PCM16;
-
 
 int  audio_in_buf_ready = 0;
 int audio_out_buf_ready = 0;
@@ -416,7 +413,6 @@ void audio_set_i2s_mode(u32 mode)
         0x303,                 /* 8x24 */
         0x303,                  /* 2x32 */
     };
-    I2S_MODE = (unsigned) mode;
 
     if (mode < sizeof(mask)/ sizeof(unsigned short)) {
        /* four two channels stream */
@@ -781,34 +777,9 @@ void audio_enable_ouput(int flag)
         WRITE_MPEG_REG(AIU_RST_SOFT, 0x05);
         READ_MPEG_REG(AIU_I2S_SYNC);
         WRITE_MPEG_REG_BITS(AIU_MEM_I2S_CONTROL, 3, 1, 2);
-
-        if (0/*ENABLE_IEC958*/) {
-            if(IEC958_MODE == AIU_958_MODE_RAW)
-            {
-              //audio_hw_958_raw();
-            }
-            //else
-            {
-              WRITE_MPEG_REG(AIU_958_FORCE_LEFT, 0);
-              WRITE_MPEG_REG_BITS(AIU_958_DCU_FF_CTRL, 1, 0, 1);
-              //WRITE_MPEG_REG(AIU_958_DCU_FF_CTRL, 1);
-
-              WRITE_MPEG_REG_BITS(AIU_MEM_IEC958_CONTROL, 3, 1, 2);
-            }
-        }
-        // Maybe cause POP noise
-        // audio_i2s_unmute();
     } else {
         WRITE_MPEG_REG_BITS(AIU_MEM_I2S_CONTROL, 0, 1, 2);
-
-        if (0/*ENABLE_IEC958*/) {
-            WRITE_MPEG_REG(AIU_958_DCU_FF_CTRL, 0);
-            WRITE_MPEG_REG_BITS(AIU_MEM_IEC958_CONTROL, 0, 1, 2);
-        }
-        // Maybe cause POP noise
-        // audio_i2s_mute();
     }
-    //audio_out_enabled(flag);
 }
 
 int if_audio_out_enable(void)

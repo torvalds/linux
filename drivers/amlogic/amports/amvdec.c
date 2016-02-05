@@ -773,6 +773,27 @@ int amvdec_resume(struct platform_device *dev)
     
     return 0;
 }
+
+int amhevc_suspend(struct platform_device *dev, pm_message_t event)
+{
+#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8
+    if (HAS_HEVC_VDEC) {
+        amhevc_pg_enable(false);
+    }
+#endif
+    return 0;
+}
+
+int amhevc_resume(struct platform_device *dev)
+{
+#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8
+    if (HAS_HEVC_VDEC) {
+        amhevc_pg_enable(true);
+    }
+#endif
+
+    return 0;
+}
 #endif
 
 #ifdef CONFIG_WAKELOCK

@@ -1359,7 +1359,10 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 #endif
 {
 	int retval;
-
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	dwc_otg_core_if_t * core_if;
+	dwc_irqflags_t flags;
+#endif
 	DWC_DEBUGPL(DBG_PCD, "registering gadget driver '%s'\n",
 		    driver->driver.name);
 
@@ -1401,6 +1404,15 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	}
 	DWC_DEBUGPL(DBG_ANY, "registered gadget driver '%s'\n",
 		    driver->driver.name);
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	core_if = GET_CORE_IF(gadget_wrapper->pcd);
+
+	DWC_SPINLOCK_IRQSAVE(core_if->lock, &flags);
+	if(core_if->dev_if->vbus_on)
+		dwc_otg_device_soft_connect(core_if);
+	DWC_SPINUNLOCK_IRQRESTORE(core_if->lock, flags);
+#endif
 	return 0;
 }
 

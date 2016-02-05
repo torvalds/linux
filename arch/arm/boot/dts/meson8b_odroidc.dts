@@ -608,7 +608,6 @@
             vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
             product_desc = "ODROID-C1";        /* Max Chars: 16    */
             cec_osd_string = "ODROID-C1";        /* Max Chars: 14    */
-            cec_config = <0x00000f>;
             ao_cec = <0x000001>;
         };
 
@@ -989,5 +988,17 @@
 		reserve-memory = <0x00a00000>; // 1920 * 1088 * 4 = 8,355,840
 		reserve-iomap = "true";
 	};
+
+
+	amlogic-watchdog {
+		compatible = "amlogic,aml-wdt";
+        default_timeout=<10>;
+        reset_watchdog_method=<0>;//0:sysfs,1:kernel
+        reset_watchdog_time=<2>;
+        shutdown_timeout=<10>;
+        firmware_timeout=<6>;
+        suspend_timeout=<6>;
+    };
+
 
 }; /* end of / */

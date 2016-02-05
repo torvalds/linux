@@ -70,6 +70,8 @@ extern int amvdev_resume(void);
 #ifdef CONFIG_PM
 extern int amvdec_suspend(struct platform_device *dev, pm_message_t event);
 extern int amvdec_resume(struct platform_device *dec);
+extern int amhevc_suspend(struct platform_device *dev, pm_message_t event);
+extern int amhevc_resume(struct platform_device *dec);
 #endif
 
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6

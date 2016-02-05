@@ -441,6 +441,7 @@ typedef struct {
     cec_node_info_t cec_node_info[MAX_NUM_OF_DEV];
     cec_rx_msg_buf_t cec_rx_msg_buf;
     hdmitx_dev_t* hdmitx_device;
+    cec_power_status_e tv_power_status;
 } cec_global_info_t;
 
 typedef struct {
@@ -598,6 +599,8 @@ void cec_send_event(cec_rx_message_t* pcec_message);
 void cec_user_control_pressed(cec_rx_message_t* pcec_message);
 void cec_user_control_released(cec_rx_message_t* pcec_message);  
 void cec_standby(cec_rx_message_t* pcec_message);
+void cec_send_simplink_alive(cec_rx_message_t *pcec_message);
+void cec_send_simplink_ack(cec_rx_message_t *pcec_message);
 extern void cec_key_init(void);
 
 extern __u16 cec_key_map[];
