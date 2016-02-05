@@ -685,6 +685,9 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 		goto err_sysfs;
 	}
 
+	/* force to disable hd dacs at startup */
+	hda_enable_hd_dacs(hda, false);
+
 	return 0;
 
 err_sysfs:
