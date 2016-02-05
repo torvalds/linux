@@ -7221,10 +7221,8 @@ L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://palosaari.fi/linux/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
-T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
-F:	drivers/staging/media/mn88473/
-F:	drivers/media/dvb-frontends/mn88473.h
+F:	drivers/media/dvb-frontends/mn88473*
 
 MODULE SUPPORT
 M:	Rusty Russell <rusty@rustcorp.com.au>

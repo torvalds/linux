@@ -27,8 +27,6 @@ source "drivers/staging/media/davinci_vpfe/Kconfig"
 
 source "drivers/staging/media/mn88472/Kconfig"
 
-source "drivers/staging/media/mn88473/Kconfig"
-
 source "drivers/staging/media/mx2/Kconfig"
 
 source "drivers/staging/media/mx3/Kconfig"
