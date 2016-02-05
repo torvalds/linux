@@ -66,6 +66,7 @@
 #define FEC_R_FIFO_RSEM		0x194 /* Receive FIFO section empty threshold */
 #define FEC_R_FIFO_RAEM		0x198 /* Receive FIFO almost empty threshold */
 #define FEC_R_FIFO_RAFL		0x19c /* Receive FIFO almost full threshold */
+#define FEC_FTRL		0x1b0 /* Frame truncation receive length*/
 #define FEC_RACC		0x1c4 /* Receive Accelerator function */
 #define FEC_RCMR_1		0x1c8 /* Receive classification match ring 1 */
 #define FEC_RCMR_2		0x1cc /* Receive classification match ring 2 */
