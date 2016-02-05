@@ -1268,8 +1268,10 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	if (bus_cfg.bus_type == V4L2_MBUS_PARALLEL &&
 	    !(flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH &&
 	      flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH &&
-	      flags & V4L2_MBUS_FIELD_EVEN_LOW))
-		return -EINVAL;
+	      flags & V4L2_MBUS_FIELD_EVEN_LOW)) {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	decoder->mbus_type = bus_cfg.bus_type;
 
