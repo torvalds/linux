@@ -701,7 +701,6 @@ static void gb_uart_connection_exit(struct gb_connection *connection)
 
 	/* FIXME - free transmit / receive buffers */
 
-	tty_port_put(&gb_tty->port);
 	tty_port_destroy(&gb_tty->port);
 	kfree(gb_tty->buffer);
 	kfree(gb_tty);
