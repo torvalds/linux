@@ -959,6 +959,11 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 	return cpufreq_add_dev_symlink(policy);
 }
 
+__weak struct cpufreq_governor *cpufreq_default_governor(void)
+{
+	return NULL;
+}
+
 static int cpufreq_init_policy(struct cpufreq_policy *policy)
 {
 	struct cpufreq_governor *gov = NULL;
@@ -968,11 +973,14 @@ static int cpufreq_init_policy(struct cpufreq_policy *policy)
 
 	/* Update governor of new_policy to the governor used before hotplug */
 	gov = find_governor(policy->last_governor);
-	if (gov)
+	if (gov) {
 		pr_debug("Restoring governor %s for cpu %d\n",
 				policy->governor->name, policy->cpu);
-	else
-		gov = CPUFREQ_DEFAULT_GOVERNOR;
+	} else {
+		gov = cpufreq_default_governor();
+		if (!gov)
+			return -ENODATA;
+	}
 
 	new_policy.governor = gov;
 
@@ -1920,20 +1928,15 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
+__weak struct cpufreq_governor *cpufreq_fallback_governor(void)
+{
+	return NULL;
+}
+
 static int __cpufreq_governor(struct cpufreq_policy *policy,
 					unsigned int event)
 {
 	int ret;
-
-	/* Only must be defined when default governor is known to have latency
-	   restrictions, like e.g. conservative or ondemand.
-	   That this is the case is already ensured in Kconfig
-	*/
-#ifdef CONFIG_CPU_FREQ_GOV_PERFORMANCE
-	struct cpufreq_governor *gov = &cpufreq_gov_performance;
-#else
-	struct cpufreq_governor *gov = NULL;
-#endif
 
 	/* Don't start any governor operations if we are entering suspend */
 	if (cpufreq_suspended)
@@ -1948,12 +1951,14 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 	if (policy->governor->max_transition_latency &&
 	    policy->cpuinfo.transition_latency >
 	    policy->governor->max_transition_latency) {
-		if (!gov)
-			return -EINVAL;
-		else {
+		struct cpufreq_governor *gov = cpufreq_fallback_governor();
+
+		if (gov) {
 			pr_warn("%s governor failed, too long transition latency of HW, fallback to %s governor\n",
 				policy->governor->name, gov->name);
 			policy->governor = gov;
+		} else {
+			return -EINVAL;
 		}
 	}
 

@@ -31,9 +31,7 @@ static DEFINE_PER_CPU(struct od_cpu_dbs_info_s, od_cpu_dbs_info);
 
 static struct od_ops od_ops;
 
-#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND
 static struct cpufreq_governor cpufreq_gov_ondemand;
-#endif
 
 static unsigned int default_powersave_bias;
 
@@ -554,6 +552,19 @@ static struct common_dbs_data od_dbs_cdata = {
 	.mutex = __MUTEX_INITIALIZER(od_dbs_cdata.mutex),
 };
 
+static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
+		unsigned int event)
+{
+	return cpufreq_governor_dbs(policy, &od_dbs_cdata, event);
+}
+
+static struct cpufreq_governor cpufreq_gov_ondemand = {
+	.name			= "ondemand",
+	.governor		= od_cpufreq_governor_dbs,
+	.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
+	.owner			= THIS_MODULE,
+};
+
 static void od_set_powersave_bias(unsigned int powersave_bias)
 {
 	struct cpufreq_policy *policy;
@@ -605,22 +616,6 @@ void od_unregister_powersave_bias_handler(void)
 }
 EXPORT_SYMBOL_GPL(od_unregister_powersave_bias_handler);
 
-static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
-		unsigned int event)
-{
-	return cpufreq_governor_dbs(policy, &od_dbs_cdata, event);
-}
-
-#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND
-static
-#endif
-struct cpufreq_governor cpufreq_gov_ondemand = {
-	.name			= "ondemand",
-	.governor		= od_cpufreq_governor_dbs,
-	.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
-	.owner			= THIS_MODULE,
-};
-
 static int __init cpufreq_gov_dbs_init(void)
 {
 	return cpufreq_register_governor(&cpufreq_gov_ondemand);
@@ -638,6 +633,11 @@ MODULE_DESCRIPTION("'cpufreq_ondemand' - A dynamic cpufreq governor for "
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND
+struct cpufreq_governor *cpufreq_default_governor(void)
+{
+	return &cpufreq_gov_ondemand;
+}
+
 fs_initcall(cpufreq_gov_dbs_init);
 #else
 module_init(cpufreq_gov_dbs_init);
