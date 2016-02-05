@@ -123,6 +123,11 @@ static struct arm64_ftr_bits ftr_id_aa64mmfr1[] = {
 	ARM64_FTR_END,
 };
 
+static struct arm64_ftr_bits ftr_id_aa64mmfr2[] = {
+	ARM64_FTR_BITS(FTR_STRICT, FTR_EXACT, ID_AA64MMFR2_UAO_SHIFT, 4, 0),
+	ARM64_FTR_END,
+};
+
 static struct arm64_ftr_bits ftr_ctr[] = {
 	U_ARM64_FTR_BITS(FTR_STRICT, FTR_EXACT, 31, 1, 1),	/* RAO */
 	ARM64_FTR_BITS(FTR_STRICT, FTR_EXACT, 28, 3, 0),
@@ -284,6 +289,7 @@ static struct arm64_ftr_reg arm64_ftr_regs[] = {
 	/* Op1 = 0, CRn = 0, CRm = 7 */
 	ARM64_FTR_REG(SYS_ID_AA64MMFR0_EL1, ftr_id_aa64mmfr0),
 	ARM64_FTR_REG(SYS_ID_AA64MMFR1_EL1, ftr_id_aa64mmfr1),
+	ARM64_FTR_REG(SYS_ID_AA64MMFR2_EL1, ftr_id_aa64mmfr2),
 
 	/* Op1 = 3, CRn = 0, CRm = 0 */
 	ARM64_FTR_REG(SYS_CTR_EL0, ftr_ctr),
@@ -408,6 +414,7 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 	init_cpu_ftr_reg(SYS_ID_AA64ISAR1_EL1, info->reg_id_aa64isar1);
 	init_cpu_ftr_reg(SYS_ID_AA64MMFR0_EL1, info->reg_id_aa64mmfr0);
 	init_cpu_ftr_reg(SYS_ID_AA64MMFR1_EL1, info->reg_id_aa64mmfr1);
+	init_cpu_ftr_reg(SYS_ID_AA64MMFR2_EL1, info->reg_id_aa64mmfr2);
 	init_cpu_ftr_reg(SYS_ID_AA64PFR0_EL1, info->reg_id_aa64pfr0);
 	init_cpu_ftr_reg(SYS_ID_AA64PFR1_EL1, info->reg_id_aa64pfr1);
 	init_cpu_ftr_reg(SYS_ID_DFR0_EL1, info->reg_id_dfr0);
@@ -517,6 +524,8 @@ void update_cpu_features(int cpu,
 				      info->reg_id_aa64mmfr0, boot->reg_id_aa64mmfr0);
 	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR1_EL1, cpu,
 				      info->reg_id_aa64mmfr1, boot->reg_id_aa64mmfr1);
+	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR2_EL1, cpu,
+				      info->reg_id_aa64mmfr2, boot->reg_id_aa64mmfr2);
 
 	/*
 	 * EL3 is not our concern.
@@ -831,6 +840,7 @@ static u64 __raw_read_system_reg(u32 sys_id)
 	case SYS_ID_AA64DFR1_EL1:	return read_cpuid(SYS_ID_AA64DFR0_EL1);
 	case SYS_ID_AA64MMFR0_EL1:	return read_cpuid(SYS_ID_AA64MMFR0_EL1);
 	case SYS_ID_AA64MMFR1_EL1:	return read_cpuid(SYS_ID_AA64MMFR1_EL1);
+	case SYS_ID_AA64MMFR2_EL1:	return read_cpuid(SYS_ID_AA64MMFR2_EL1);
 	case SYS_ID_AA64ISAR0_EL1:	return read_cpuid(SYS_ID_AA64ISAR0_EL1);
 	case SYS_ID_AA64ISAR1_EL1:	return read_cpuid(SYS_ID_AA64ISAR1_EL1);
 
