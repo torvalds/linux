@@ -1448,37 +1448,31 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 			break;
 		pkt_received++;
 
-		/* Since we have allocated space to hold a complete frame,
-		 * the last indicator should be set.
-		 */
-		if ((status & BD_ENET_RX_LAST) == 0)
-			netdev_err(ndev, "rcv is not +last\n");
-
 		writel(FEC_ENET_RXF, fep->hwp + FEC_IEVENT);
 
 		/* Check for errors. */
+		status ^= BD_ENET_RX_LAST;
 		if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_NO |
-			   BD_ENET_RX_CR | BD_ENET_RX_OV)) {
+			   BD_ENET_RX_CR | BD_ENET_RX_OV | BD_ENET_RX_LAST |
+			   BD_ENET_RX_CL)) {
 			ndev->stats.rx_errors++;
-			if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH)) {
+			if (status & BD_ENET_RX_OV) {
+				/* FIFO overrun */
+				ndev->stats.rx_fifo_errors++;
+				goto rx_processing_done;
+			}
+			if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH
+						| BD_ENET_RX_LAST)) {
 				/* Frame too long or too short. */
 				ndev->stats.rx_length_errors++;
+				if (status & BD_ENET_RX_LAST)
+					netdev_err(ndev, "rcv is not +last\n");
 			}
-			if (status & BD_ENET_RX_NO)	/* Frame alignment */
-				ndev->stats.rx_frame_errors++;
 			if (status & BD_ENET_RX_CR)	/* CRC Error */
 				ndev->stats.rx_crc_errors++;
-			if (status & BD_ENET_RX_OV)	/* FIFO overrun */
-				ndev->stats.rx_fifo_errors++;
-		}
-
-		/* Report late collisions as a frame error.
-		 * On this error, the BD is closed, but we don't know what we
-		 * have in the buffer.  So, just drop this frame on the floor.
-		 */
-		if (status & BD_ENET_RX_CL) {
-			ndev->stats.rx_errors++;
-			ndev->stats.rx_frame_errors++;
+			/* Report late collisions as a frame error. */
+			if (status & (BD_ENET_RX_NO | BD_ENET_RX_CL))
+				ndev->stats.rx_frame_errors++;
 			goto rx_processing_done;
 		}
 
