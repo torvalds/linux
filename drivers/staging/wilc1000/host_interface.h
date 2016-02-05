@@ -338,7 +338,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
 	      struct hidden_network *hidden_network);
 int wilc_hif_set_cfg(struct wilc_vif *vif,
-		     struct cfg_param_val *pstrCfgParamVal);
+		     struct cfg_param_val *cfg_param);
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);
 s32 wilc_deinit(struct wilc_vif *vif);
 int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,

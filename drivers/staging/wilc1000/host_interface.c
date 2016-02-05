@@ -3559,7 +3559,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 }
 
 int wilc_hif_set_cfg(struct wilc_vif *vif,
-		     struct cfg_param_val *pstrCfgParamVal)
+		     struct cfg_param_val *cfg_param)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3572,7 +3572,7 @@ int wilc_hif_set_cfg(struct wilc_vif *vif,
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_CFG_PARAMS;
-	msg.body.cfg_info.cfg_attr_info = *pstrCfgParamVal;
+	msg.body.cfg_info.cfg_attr_info = *cfg_param;
 	msg.vif = vif;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
