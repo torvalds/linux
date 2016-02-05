@@ -428,17 +428,17 @@ static int compare_attributes_to_inode(struct inode *inode,
 
 	switch (attrs->objtype) {
 	case ORANGEFS_TYPE_METAFILE:
-		if (!(inode->i_mode & S_IFREG))
+		if (!S_ISREG(inode->i_mode))
 			return 0;
 		break;
 	case ORANGEFS_TYPE_DIRECTORY:
-		if (!(inode->i_mode & S_IFDIR))
+		if (!S_ISDIR(inode->i_mode))
 			return 0;
 		if (inode->i_nlink != 1)
 			return 0;
 		break;
 	case ORANGEFS_TYPE_SYMLINK:
-		if (!(inode->i_mode & S_IFLNK))
+		if (!S_ISLNK(inode->i_mode))
 			return 0;
 		if (orangefs_inode && symname &&
 		    mask & ORANGEFS_ATTR_SYS_LNK_TARGET)
