@@ -851,7 +851,7 @@ void ocrdma_rem_port_stats(struct ocrdma_dev *dev)
 {
 	if (!dev->dir)
 		return;
-	debugfs_remove(dev->dir);
+	debugfs_remove_recursive(dev->dir);
 }
 
 void ocrdma_init_debugfs(void)
