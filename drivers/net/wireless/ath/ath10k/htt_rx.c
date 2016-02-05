@@ -2145,11 +2145,7 @@ EXPORT_SYMBOL(ath10k_htt_t2h_msg_handler);
 void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 					     struct sk_buff *skb)
 {
-	struct ath10k_pktlog_10_4_hdr *hdr =
-		(struct ath10k_pktlog_10_4_hdr *)skb->data;
-
-	trace_ath10k_htt_pktlog(ar, hdr->payload,
-				sizeof(*hdr) + __le16_to_cpu(hdr->size));
+	trace_ath10k_htt_pktlog(ar, skb->data, skb->len);
 	dev_kfree_skb_any(skb);
 }
 EXPORT_SYMBOL(ath10k_htt_rx_pktlog_completion_handler);
