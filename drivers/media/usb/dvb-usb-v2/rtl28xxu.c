@@ -1571,19 +1571,19 @@ static int rtl28xxu_frontend_ctrl(struct dvb_frontend *fe, int onoff)
 	if (dev->chip_id == CHIP_ID_RTL2831U)
 		return 0;
 
-	/* control internal demod ADC */
-	if (fe->id == 0 && onoff)
-		val = 0x48; /* enable ADC */
-	else
-		val = 0x00; /* disable ADC */
+	if (fe->id == 0) {
+		/* control internal demod ADC */
+		if (onoff)
+			val = 0x48; /* enable ADC */
+		else
+			val = 0x00; /* disable ADC */
 
-	ret = rtl28xxu_wr_reg_mask(d, SYS_DEMOD_CTL, val, 0x48);
-	if (ret)
-		goto err;
-
-	/* bypass slave demod TS through master demod */
-	if (fe->id == 1 && onoff) {
-		ret = pdata->enable_slave_ts(dev->i2c_client_demod);
+		ret = rtl28xxu_wr_reg_mask(d, SYS_DEMOD_CTL, val, 0x48);
+		if (ret)
+			goto err;
+	} else if (fe->id == 1) {
+		/* bypass slave demod TS through master demod */
+		ret = pdata->slave_ts_ctrl(dev->i2c_client_demod, onoff);
 		if (ret)
 			goto err;
 	}
