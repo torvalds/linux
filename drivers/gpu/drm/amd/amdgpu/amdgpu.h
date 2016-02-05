@@ -134,15 +134,6 @@ extern unsigned amdgpu_pcie_lane_cap;
 #define AMDGPU_RESET_VCE			(1 << 13)
 #define AMDGPU_RESET_VCE1			(1 << 14)
 
-/* CG block flags */
-#define AMDGPU_CG_BLOCK_GFX			(1 << 0)
-#define AMDGPU_CG_BLOCK_MC			(1 << 1)
-#define AMDGPU_CG_BLOCK_SDMA			(1 << 2)
-#define AMDGPU_CG_BLOCK_UVD			(1 << 3)
-#define AMDGPU_CG_BLOCK_VCE			(1 << 4)
-#define AMDGPU_CG_BLOCK_HDP			(1 << 5)
-#define AMDGPU_CG_BLOCK_BIF			(1 << 6)
-
 /* CG flags */
 #define AMDGPU_CG_SUPPORT_GFX_MGCG		(1 << 0)
 #define AMDGPU_CG_SUPPORT_GFX_MGLS		(1 << 1)
