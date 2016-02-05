@@ -634,6 +634,31 @@ out_free:
 	return err;
 }
 
+static void skl_shutdown(struct pci_dev *pci)
+{
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_stream *s;
+	struct hdac_ext_stream *stream;
+	struct skl *skl;
+
+	if (ebus == NULL)
+		return;
+
+	skl = ebus_to_skl(ebus);
+
+	if (skl->init_failed)
+		return;
+
+	snd_hdac_ext_stop_streams(ebus);
+	list_for_each_entry(s, &bus->stream_list, list) {
+		stream = stream_to_hdac_ext_stream(s);
+		snd_hdac_ext_stream_decouple(ebus, stream, false);
+	}
+
+	snd_hdac_bus_stop_chip(bus);
+}
+
 static void skl_remove(struct pci_dev *pci)
 {
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
@@ -677,6 +702,7 @@ static struct pci_driver skl_driver = {
 	.id_table = skl_ids,
 	.probe = skl_probe,
 	.remove = skl_remove,
+	.shutdown = skl_shutdown,
 	.driver = {
 		.pm = &skl_pm,
 	},
