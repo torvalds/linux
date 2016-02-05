@@ -14,6 +14,8 @@
  * GNU General Public License for more details.
  */
 
+#include <media/media-device.h>
+
 /**
  * enum tuner_pad_index - tuner pad index for MEDIA_ENT_F_TUNER
  *
@@ -89,3 +91,26 @@ enum demod_pad_index {
 	DEMOD_PAD_VBI_OUT,
 	DEMOD_NUM_PADS
 };
+
+/**
+ * v4l2_mc_create_media_graph() - create Media Controller links at the graph.
+ *
+ * @mdev:	pointer to the &media_device struct.
+ *
+ * Add links between the entities commonly found on PC customer's hardware at
+ * the V4L2 side: camera sensors, audio and video PLL-IF decoders, tuners,
+ * analog TV decoder and I/O entities (video, VBI and Software Defined Radio).
+ * NOTE: webcams are modelled on a very simple way: the sensor is
+ * connected directly to the I/O entity. All dirty details, like
+ * scaler and crop HW are hidden. While such mapping is enough for v4l2
+ * interface centric PC-consumer's hardware, V4L2 subdev centric camera
+ * hardware should not use this routine, as it will not build the right graph.
+ */
+#ifdef CONFIG_MEDIA_CONTROLLER
+int v4l2_mc_create_media_graph(struct media_device *mdev);
+#else
+static inline int v4l2_mc_create_media_graph(struct media_device *mdev)
+{
+	return 0;
+}
+#endif
