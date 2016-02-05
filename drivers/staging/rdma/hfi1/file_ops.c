@@ -241,6 +241,7 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 		must_be_root = 1;	/* validate user */
 		copy = 0;
 		break;
+	case HFI1_CMD_TID_INVAL_READ:
 	default:
 		ret = -EINVAL;
 		goto bail;

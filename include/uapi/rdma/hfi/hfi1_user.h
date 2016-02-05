@@ -134,6 +134,7 @@
 #define HFI1_CMD_ACK_EVENT       10	/* ack & clear user status bits */
 #define HFI1_CMD_SET_PKEY        11     /* set context's pkey */
 #define HFI1_CMD_CTXT_RESET      12     /* reset context's HW send context */
+#define HFI1_CMD_TID_INVAL_READ  13     /* read TID cache invalidations */
 /* separate EPROM commands from normal PSM commands */
 #define HFI1_CMD_EP_INFO         64      /* read EPROM device ID */
 #define HFI1_CMD_EP_ERASE_CHIP   65      /* erase whole EPROM */
@@ -147,13 +148,15 @@
 #define _HFI1_EVENT_LID_CHANGE_BIT     2
 #define _HFI1_EVENT_LMC_CHANGE_BIT     3
 #define _HFI1_EVENT_SL2VL_CHANGE_BIT   4
-#define _HFI1_MAX_EVENT_BIT _HFI1_EVENT_SL2VL_CHANGE_BIT
+#define _HFI1_EVENT_TID_MMU_NOTIFY_BIT 5
+#define _HFI1_MAX_EVENT_BIT _HFI1_EVENT_TID_MMU_NOTIFY_BIT
 
 #define HFI1_EVENT_FROZEN            (1UL << _HFI1_EVENT_FROZEN_BIT)
 #define HFI1_EVENT_LINKDOWN          (1UL << _HFI1_EVENT_LINKDOWN_BIT)
 #define HFI1_EVENT_LID_CHANGE        (1UL << _HFI1_EVENT_LID_CHANGE_BIT)
 #define HFI1_EVENT_LMC_CHANGE        (1UL << _HFI1_EVENT_LMC_CHANGE_BIT)
 #define HFI1_EVENT_SL2VL_CHANGE      (1UL << _HFI1_EVENT_SL2VL_CHANGE_BIT)
+#define HFI1_EVENT_TID_MMU_NOTIFY    (1UL << _HFI1_EVENT_TID_MMU_NOTIFY_BIT)
 
 /*
  * These are the status bits readable (in ASCII form, 64bit value)
