@@ -6785,6 +6785,16 @@ enum skl_disp_power_wells {
 
 #define  VLV_PMWGICZ				_MMIO(0x1300a4)
 
+#define  RC6_LOCATION				_MMIO(0xD40)
+#define	   RC6_CTX_IN_DRAM			(1 << 0)
+#define  RC6_CTX_BASE				_MMIO(0xD48)
+#define    RC6_CTX_BASE_MASK			0xFFFFFFF0
+#define  PWRCTX_MAXCNT_RCSUNIT			_MMIO(0x2054)
+#define  PWRCTX_MAXCNT_VCSUNIT0			_MMIO(0x12054)
+#define  PWRCTX_MAXCNT_BCSUNIT			_MMIO(0x22054)
+#define  PWRCTX_MAXCNT_VECSUNIT			_MMIO(0x1A054)
+#define  PWRCTX_MAXCNT_VCSUNIT1			_MMIO(0x1C054)
+#define    IDLE_TIME_MASK			0xFFFFF
 #define  FORCEWAKE				_MMIO(0xA18C)
 #define  FORCEWAKE_VLV				_MMIO(0x1300b0)
 #define  FORCEWAKE_ACK_VLV			_MMIO(0x1300b4)
@@ -6923,6 +6933,7 @@ enum skl_disp_power_wells {
 #define GEN6_RPDEUC				_MMIO(0xA084)
 #define GEN6_RPDEUCSW				_MMIO(0xA088)
 #define GEN6_RC_STATE				_MMIO(0xA094)
+#define   RC6_STATE				(1 << 18)
 #define GEN6_RC1_WAKE_RATE_LIMIT		_MMIO(0xA098)
 #define GEN6_RC6_WAKE_RATE_LIMIT		_MMIO(0xA09C)
 #define GEN6_RC6pp_WAKE_RATE_LIMIT		_MMIO(0xA0A0)

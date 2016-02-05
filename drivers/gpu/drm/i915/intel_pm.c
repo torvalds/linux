@@ -4562,11 +4562,61 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE));
 }
 
-static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
+static bool bxt_check_bios_rc6_setup(const struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool enable_rc6 = true;
+	unsigned long rc6_ctx_base;
+
+	if (!(I915_READ(RC6_LOCATION) & RC6_CTX_IN_DRAM)) {
+		DRM_DEBUG_KMS("RC6 Base location not set properly.\n");
+		enable_rc6 = false;
+	}
+
+	/*
+	 * The exact context size is not known for BXT, so assume a page size
+	 * for this check.
+	 */
+	rc6_ctx_base = I915_READ(RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
+	if (!((rc6_ctx_base >= dev_priv->gtt.stolen_reserved_base) &&
+	      (rc6_ctx_base + PAGE_SIZE <= dev_priv->gtt.stolen_reserved_base +
+					dev_priv->gtt.stolen_reserved_size))) {
+		DRM_DEBUG_KMS("RC6 Base address not as expected.\n");
+		enable_rc6 = false;
+	}
+
+	if (!(((I915_READ(PWRCTX_MAXCNT_RCSUNIT) & IDLE_TIME_MASK) > 1) &&
+	      ((I915_READ(PWRCTX_MAXCNT_VCSUNIT0) & IDLE_TIME_MASK) > 1) &&
+	      ((I915_READ(PWRCTX_MAXCNT_BCSUNIT) & IDLE_TIME_MASK) > 1) &&
+	      ((I915_READ(PWRCTX_MAXCNT_VECSUNIT) & IDLE_TIME_MASK) > 1))) {
+		DRM_DEBUG_KMS("Engine Idle wait time not set properly.\n");
+		enable_rc6 = false;
+	}
+
+	if (!(I915_READ(GEN6_RC_CONTROL) & (GEN6_RC_CTL_RC6_ENABLE |
+					    GEN6_RC_CTL_HW_ENABLE)) &&
+	    ((I915_READ(GEN6_RC_CONTROL) & GEN6_RC_CTL_HW_ENABLE) ||
+	     !(I915_READ(GEN6_RC_STATE) & RC6_STATE))) {
+		DRM_DEBUG_KMS("HW/SW RC6 is not enabled by BIOS.\n");
+		enable_rc6 = false;
+	}
+
+	return enable_rc6;
+}
+
+int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 {
 	/* No RC6 before Ironlake and code is gone for ilk. */
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
+
+	if (!enable_rc6)
+		return 0;
+
+	if (IS_BROXTON(dev) && !bxt_check_bios_rc6_setup(dev)) {
+		DRM_INFO("RC6 disabled by BIOS\n");
+		return 0;
+	}
 
 	/* Respect the kernel parameter if it is set */
 	if (enable_rc6 >= 0) {
@@ -6057,7 +6107,6 @@ void intel_init_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	i915.enable_rc6 = sanitize_rc6_option(dev, i915.enable_rc6);
 	/*
 	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
 	 * requirement.
