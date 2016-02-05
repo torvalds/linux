@@ -1858,19 +1858,21 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 	return true;
 }
 
+static int __transport_check_aborted_status(struct se_cmd *, int);
+
 void target_execute_cmd(struct se_cmd *cmd)
 {
 	/*
-	 * If the received CDB has aleady been aborted stop processing it here.
-	 */
-	if (transport_check_aborted_status(cmd, 1))
-		return;
-
-	/*
 	 * Determine if frontend context caller is requesting the stopping of
 	 * this command for frontend exceptions.
+	 *
+	 * If the received CDB has aleady been aborted stop processing it here.
 	 */
 	spin_lock_irq(&cmd->t_state_lock);
+	if (__transport_check_aborted_status(cmd, 1)) {
+		spin_unlock_irq(&cmd->t_state_lock);
+		return;
+	}
 	if (cmd->transport_state & CMD_T_STOP) {
 		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
 			__func__, __LINE__, cmd->tag);
@@ -2911,27 +2913,48 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 }
 EXPORT_SYMBOL(transport_send_check_condition_and_sense);
 
-int transport_check_aborted_status(struct se_cmd *cmd, int send_status)
+static int __transport_check_aborted_status(struct se_cmd *cmd, int send_status)
+	__releases(&cmd->t_state_lock)
+	__acquires(&cmd->t_state_lock)
 {
+	assert_spin_locked(&cmd->t_state_lock);
+	WARN_ON_ONCE(!irqs_disabled());
+
 	if (!(cmd->transport_state & CMD_T_ABORTED))
 		return 0;
-
 	/*
 	 * If cmd has been aborted but either no status is to be sent or it has
 	 * already been sent, just return
 	 */
-	if (!send_status || !(cmd->se_cmd_flags & SCF_SEND_DELAYED_TAS))
+	if (!send_status || !(cmd->se_cmd_flags & SCF_SEND_DELAYED_TAS)) {
+		if (send_status)
+			cmd->se_cmd_flags |= SCF_SEND_DELAYED_TAS;
 		return 1;
+	}
 
-	pr_debug("Sending delayed SAM_STAT_TASK_ABORTED status for CDB: 0x%02x ITT: 0x%08llx\n",
-		 cmd->t_task_cdb[0], cmd->tag);
+	pr_debug("Sending delayed SAM_STAT_TASK_ABORTED status for CDB:"
+		" 0x%02x ITT: 0x%08llx\n", cmd->t_task_cdb[0], cmd->tag);
 
 	cmd->se_cmd_flags &= ~SCF_SEND_DELAYED_TAS;
 	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
 	trace_target_cmd_complete(cmd);
+
+	spin_unlock_irq(&cmd->t_state_lock);
 	cmd->se_tfo->queue_status(cmd);
+	spin_lock_irq(&cmd->t_state_lock);
 
 	return 1;
+}
+
+int transport_check_aborted_status(struct se_cmd *cmd, int send_status)
+{
+	int ret;
+
+	spin_lock_irq(&cmd->t_state_lock);
+	ret = __transport_check_aborted_status(cmd, send_status);
+	spin_unlock_irq(&cmd->t_state_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(transport_check_aborted_status);
 
@@ -2954,11 +2977,17 @@ void transport_send_task_abort(struct se_cmd *cmd)
 	 */
 	if (cmd->data_direction == DMA_TO_DEVICE) {
 		if (cmd->se_tfo->write_pending_status(cmd) != 0) {
-			cmd->transport_state |= CMD_T_ABORTED;
+			spin_lock_irqsave(&cmd->t_state_lock, flags);
+			if (cmd->se_cmd_flags & SCF_SEND_DELAYED_TAS) {
+				spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+				goto send_abort;
+			}
 			cmd->se_cmd_flags |= SCF_SEND_DELAYED_TAS;
+			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 			return;
 		}
 	}
+send_abort:
 	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
 
 	transport_lun_remove_cmd(cmd);
