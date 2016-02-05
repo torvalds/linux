@@ -6,3 +6,14 @@ config QCOM_BAM_DMA
 	---help---
 	  Enable support for the QCOM BAM DMA controller.  This controller
 	  provides DMA capabilities for a variety of on-chip devices.
+
+config QCOM_HIDMA_MGMT
+	tristate "Qualcomm Technologies HIDMA Management support"
+	select DMA_ENGINE
+	help
+	  Enable support for the Qualcomm Technologies HIDMA Management.
+	  Each DMA device requires one management interface driver
+	  for basic initialization before QCOM_HIDMA channel driver can
+	  start managing the channels. In a virtualized environment,
+	  the guest OS would run QCOM_HIDMA channel driver and the
+	  host would run the QCOM_HIDMA_MGMT management driver.
