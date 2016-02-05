@@ -70,6 +70,7 @@
 
 #define SYS_ID_AA64MMFR0_EL1		sys_reg(3, 0, 0, 7, 0)
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
+#define SYS_ID_AA64MMFR2_EL1		sys_reg(3, 0, 0, 7, 2)
 
 #define SYS_CNTFRQ_EL0			sys_reg(3, 3, 14, 0, 0)
 #define SYS_CTR_EL0			sys_reg(3, 3, 0, 0, 1)
@@ -134,6 +135,9 @@
 #define ID_AA64MMFR1_VHE_SHIFT		8
 #define ID_AA64MMFR1_VMIDBITS_SHIFT	4
 #define ID_AA64MMFR1_HADBS_SHIFT	0
+
+/* id_aa64mmfr2 */
+#define ID_AA64MMFR2_UAO_SHIFT		4
 
 /* id_aa64dfr0 */
 #define ID_AA64DFR0_CTX_CMPS_SHIFT	28
