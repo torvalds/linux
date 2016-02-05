@@ -76,5 +76,7 @@
 	pinctrl-0 = <&pinctrl_wifi>;
 	bus-width = <4>;
 	no-1-8-v;
+	non-removable;
+	cd-post;
 	wifi-host;
 };

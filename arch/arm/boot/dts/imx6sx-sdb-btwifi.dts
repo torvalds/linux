@@ -101,6 +101,8 @@
 	pinctrl-0 = <&pinctrl_wifi>;
 	bus-width = <4>;
 	no-1-8-v;	/* force 3.3V VIO */
+	non-removable;
+	cd-post;
 	wifi-host;	/* pull in card detect mechanism for BCMDHD driver */
 	status = "okay";
 };
