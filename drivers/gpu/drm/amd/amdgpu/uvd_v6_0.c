@@ -1030,6 +1030,9 @@ static int uvd_v6_0_set_powergating_state(void *handle,
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (!(adev->pg_flags & AMDGPU_PG_SUPPORT_UVD))
+		return 0;
+
 	if (state == AMD_PG_STATE_GATE) {
 		uvd_v6_0_stop(adev);
 		return 0;
