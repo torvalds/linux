@@ -97,7 +97,7 @@ static int pistachio_reset_deassert(struct reset_controller_dev *rcdev,
 				  mask, 0);
 }
 
-static struct reset_control_ops pistachio_reset_ops = {
+static const struct reset_control_ops pistachio_reset_ops = {
 	.assert		= pistachio_reset_assert,
 	.deassert	= pistachio_reset_deassert,
 };
