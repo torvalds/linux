@@ -1037,22 +1037,19 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 static int init_subctxts(struct hfi1_ctxtdata *uctxt,
 			 const struct hfi1_user_info *uinfo)
 {
-	int ret = 0;
 	unsigned num_subctxts;
 
 	num_subctxts = uinfo->subctxt_cnt;
-	if (num_subctxts > HFI1_MAX_SHARED_CTXTS) {
-		ret = -EINVAL;
-		goto bail;
-	}
+	if (num_subctxts > HFI1_MAX_SHARED_CTXTS)
+		return -EINVAL;
 
 	uctxt->subctxt_cnt = uinfo->subctxt_cnt;
 	uctxt->subctxt_id = uinfo->subctxt_id;
 	uctxt->active_slaves = 1;
 	uctxt->redirect_seq_cnt = 1;
 	set_bit(HFI1_CTXT_MASTER_UNINIT, &uctxt->event_flags);
-bail:
-	return ret;
+
+	return 0;
 }
 
 static int setup_subctxt(struct hfi1_ctxtdata *uctxt)
