@@ -37,7 +37,6 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	int mac_len = skb->mac_len;
 	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
 	__be16 protocol = skb->protocol;
-	netdev_features_t enc_features;
 	int udp_offset, outer_hlen;
 	unsigned int oldlen;
 	bool need_csum = !!(skb_shinfo(skb)->gso_type &
@@ -65,9 +64,10 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 			   (skb->dev->features & (is_ipv6 ?
 			    NETIF_F_IPV6_CSUM : NETIF_F_IP_CSUM))));
 
+	features &= skb->dev->hw_enc_features;
+
 	/* segment inner packet. */
-	enc_features = skb->dev->hw_enc_features & features;
-	segs = gso_inner_segment(skb, enc_features);
+	segs = gso_inner_segment(skb, features);
 	if (IS_ERR_OR_NULL(segs)) {
 		skb_gso_error_unwind(skb, protocol, tnl_hlen, mac_offset,
 				     mac_len);

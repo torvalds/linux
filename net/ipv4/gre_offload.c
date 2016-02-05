@@ -19,7 +19,6 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				       netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	netdev_features_t enc_features;
 	int ghl;
 	struct gre_base_hdr *greh;
 	u16 mac_offset = skb->mac_header;
@@ -68,9 +67,10 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
 	skb->mac_len = skb_inner_network_offset(skb);
 
+	features &= skb->dev->hw_enc_features;
+
 	/* segment inner packet. */
-	enc_features = skb->dev->hw_enc_features & features;
-	segs = skb_mac_gso_segment(skb, enc_features);
+	segs = skb_mac_gso_segment(skb, features);
 	if (IS_ERR_OR_NULL(segs)) {
 		skb_gso_error_unwind(skb, protocol, ghl, mac_offset, mac_len);
 		goto out;
