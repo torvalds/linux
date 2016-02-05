@@ -240,18 +240,6 @@ struct hfi1_ctxtdata {
 	u32 expected_count;
 	/* index of first expected TID entry. */
 	u32 expected_base;
-	/* cursor into the exp group sets */
-	atomic_t tidcursor;
-	/* number of exp TID groups assigned to the ctxt */
-	u16 numtidgroups;
-	/* size of exp TID group fields in tidusemap */
-	u16 tidmapcnt;
-	/* exp TID group usage bitfield array */
-	unsigned long *tidusemap;
-	/* pinned pages for exp sends, allocated at open */
-	struct page **tid_pg_list;
-	/* dma handles for exp tid pages */
-	dma_addr_t *physshadow;
 
 	struct exp_tid_set tid_group_list;
 	struct exp_tid_set tid_used_list;
@@ -1660,8 +1648,6 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 			enum platform_config_table_type_encoding table_type,
 			int table_index, int field_index, u32 *data, u32 len);
 
-dma_addr_t hfi1_map_page(struct pci_dev *, struct page *, unsigned long,
-			 size_t, int);
 const char *get_unit_name(int unit);
 
 /*

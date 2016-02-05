@@ -54,20 +54,6 @@
 
 #include "hfi.h"
 
-/**
- * hfi1_map_page - a safety wrapper around pci_map_page()
- *
- */
-dma_addr_t hfi1_map_page(struct pci_dev *hwdev, struct page *page,
-			 unsigned long offset, size_t size, int direction)
-{
-	dma_addr_t phys;
-
-	phys = pci_map_page(hwdev, page, offset, size, direction);
-
-	return phys;
-}
-
 int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
 			    struct page **pages)
 {

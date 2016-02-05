@@ -902,6 +902,8 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 		return -EFAULT;
 	}
 	hfi1_put_tid(dd, rcventry, PT_EXPECTED, phys, ilog2(npages) + 1);
+	trace_hfi1_exp_tid_reg(uctxt->ctxt, fd->subctxt, rcventry,
+			       npages, node->virt, node->phys, phys);
 	return 0;
 }
 
@@ -946,6 +948,10 @@ static void clear_tid_node(struct hfi1_filedata *fd, u16 subctxt,
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
+
+	trace_hfi1_exp_tid_unreg(uctxt->ctxt, fd->subctxt, node->rcventry,
+				 node->npages, node->virt, node->phys,
+				 node->dma_addr);
 
 	hfi1_put_tid(dd, node->rcventry, PT_INVALID, 0, 0);
 	/*
@@ -1023,6 +1029,9 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 	struct mmu_rb_node *node;
 	unsigned long addr = start;
 
+	trace_hfi1_mmu_invalidate(uctxt->ctxt, fd->subctxt, mmu_types[type],
+				  start, end);
+
 	spin_lock(&fd->rb_lock);
 	while (addr < end) {
 		node = mmu_rb_search_by_addr(root, addr);
@@ -1049,6 +1058,9 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 		if (node->freed)
 			continue;
 
+		trace_hfi1_exp_tid_inval(uctxt->ctxt, fd->subctxt, node->virt,
+					 node->rcventry, node->npages,
+					 node->dma_addr);
 		node->freed = true;
 
 		spin_lock(&fd->invalid_lock);

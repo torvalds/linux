@@ -66,7 +66,7 @@
  * The major version changes when data structures change in an incompatible
  * way. The driver must be the same for initialization to succeed.
  */
-#define HFI1_USER_SWMAJOR 4
+#define HFI1_USER_SWMAJOR 5
 
 /*
  * Minor version differences are always compatible
@@ -241,11 +241,6 @@ struct hfi1_tid_info {
 	__u32 tidcnt;
 	/* length of transfer buffer programmed by this request */
 	__u32 length;
-	/*
-	 * pointer to bitmap of TIDs used for this call;
-	 * checked for being large enough at open
-	 */
-	__u64 tidmap;
 };
 
 struct hfi1_cmd {

@@ -153,92 +153,130 @@ TRACE_EVENT(hfi1_receive_interrupt,
 	)
 );
 
-const char *print_u64_array(struct trace_seq *, u64 *, int);
-
-TRACE_EVENT(hfi1_exp_tid_map,
-	    TP_PROTO(unsigned ctxt, u16 subctxt, int dir,
-		     unsigned long *maps, u16 count),
-	    TP_ARGS(ctxt, subctxt, dir, maps, count),
+TRACE_EVENT(hfi1_exp_tid_reg,
+	    TP_PROTO(unsigned ctxt, u16 subctxt, u32 rarr,
+		     u32 npages, unsigned long va, unsigned long pa,
+		     dma_addr_t dma),
+	    TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma),
 	    TP_STRUCT__entry(
 		    __field(unsigned, ctxt)
 		    __field(u16, subctxt)
-		    __field(int, dir)
-		    __field(u16, count)
-		    __dynamic_array(unsigned long, maps, sizeof(*maps) * count)
+		    __field(u32, rarr)
+		    __field(u32, npages)
+		    __field(unsigned long, va)
+		    __field(unsigned long, pa)
+		    __field(dma_addr_t, dma)
 		    ),
 	    TP_fast_assign(
 		    __entry->ctxt = ctxt;
 		    __entry->subctxt = subctxt;
-		    __entry->dir = dir;
-		    __entry->count = count;
-		    memcpy(__get_dynamic_array(maps), maps,
-			   sizeof(*maps) * count);
+		    __entry->rarr = rarr;
+		    __entry->npages = npages;
+		    __entry->va = va;
+		    __entry->pa = pa;
+		    __entry->dma = dma;
 		    ),
-	    TP_printk("[%3u:%02u] %s tidmaps %s",
+	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx, va:0x%lx dma:0x%llx",
 		      __entry->ctxt,
 		      __entry->subctxt,
-		      (__entry->dir ? ">" : "<"),
-		      print_u64_array(p, __get_dynamic_array(maps),
-				      __entry->count)
+		      __entry->rarr,
+		      __entry->npages,
+		      __entry->pa,
+		      __entry->va,
+		      __entry->dma
 		    )
 	);
 
-TRACE_EVENT(hfi1_exp_rcv_set,
-	    TP_PROTO(unsigned ctxt, u16 subctxt, u32 tid,
-		     unsigned long vaddr, u64 phys_addr, void *page),
-	    TP_ARGS(ctxt, subctxt, tid, vaddr, phys_addr, page),
+TRACE_EVENT(hfi1_exp_tid_unreg,
+	    TP_PROTO(unsigned ctxt, u16 subctxt, u32 rarr, u32 npages,
+		     unsigned long va, unsigned long pa, dma_addr_t dma),
+	    TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma),
 	    TP_STRUCT__entry(
 		    __field(unsigned, ctxt)
 		    __field(u16, subctxt)
-		    __field(u32, tid)
-		    __field(unsigned long, vaddr)
-		    __field(u64, phys_addr)
-		    __field(void *, page)
+		    __field(u32, rarr)
+		    __field(u32, npages)
+		    __field(unsigned long, va)
+		    __field(unsigned long, pa)
+		    __field(dma_addr_t, dma)
 		    ),
 	    TP_fast_assign(
 		    __entry->ctxt = ctxt;
 		    __entry->subctxt = subctxt;
-		    __entry->tid = tid;
-		    __entry->vaddr = vaddr;
-		    __entry->phys_addr = phys_addr;
-		    __entry->page = page;
+		    __entry->rarr = rarr;
+		    __entry->npages = npages;
+		    __entry->va = va;
+		    __entry->pa = pa;
+		    __entry->dma = dma;
 		    ),
-	    TP_printk("[%u:%u] TID %u, vaddrs 0x%lx, physaddr 0x%llx, pgp %p",
+	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx, va:0x%lx dma:0x%llx",
 		      __entry->ctxt,
 		      __entry->subctxt,
-		      __entry->tid,
-		      __entry->vaddr,
-		      __entry->phys_addr,
-		      __entry->page
+		      __entry->rarr,
+		      __entry->npages,
+		      __entry->pa,
+		      __entry->va,
+		      __entry->dma
 		    )
 	);
 
-TRACE_EVENT(hfi1_exp_rcv_free,
-	    TP_PROTO(unsigned ctxt, u16 subctxt, u32 tid,
-		     unsigned long phys, void *page),
-	    TP_ARGS(ctxt, subctxt, tid, phys, page),
+TRACE_EVENT(hfi1_exp_tid_inval,
+	    TP_PROTO(unsigned ctxt, u16 subctxt, unsigned long va, u32 rarr,
+		     u32 npages, dma_addr_t dma),
+	    TP_ARGS(ctxt, subctxt, va, rarr, npages, dma),
 	    TP_STRUCT__entry(
 		    __field(unsigned, ctxt)
 		    __field(u16, subctxt)
-		    __field(u32, tid)
-		    __field(unsigned long, phys)
-		    __field(void *, page)
+		    __field(unsigned long, va)
+		    __field(u32, rarr)
+		    __field(u32, npages)
+		    __field(dma_addr_t, dma)
 		    ),
 	    TP_fast_assign(
 		    __entry->ctxt = ctxt;
 		    __entry->subctxt = subctxt;
-		    __entry->tid = tid;
-		    __entry->phys = phys;
-		    __entry->page = page;
+		    __entry->va = va;
+		    __entry->rarr = rarr;
+		    __entry->npages = npages;
+		    __entry->dma = dma;
 		    ),
-	    TP_printk("[%u:%u] freeing TID %u, 0x%lx, pgp %p",
+	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx dma: 0x%llx",
 		      __entry->ctxt,
 		      __entry->subctxt,
-		      __entry->tid,
-		      __entry->phys,
-		      __entry->page
+		      __entry->rarr,
+		      __entry->npages,
+		      __entry->va,
+		      __entry->dma
 		    )
 	);
+
+TRACE_EVENT(hfi1_mmu_invalidate,
+	    TP_PROTO(unsigned ctxt, u16 subctxt, const char *type,
+		     unsigned long start, unsigned long end),
+	    TP_ARGS(ctxt, subctxt, type, start, end),
+	    TP_STRUCT__entry(
+		    __field(unsigned, ctxt)
+		    __field(u16, subctxt)
+		    __string(type, type)
+		    __field(unsigned long, start)
+		    __field(unsigned long, end)
+		    ),
+	    TP_fast_assign(
+		    __entry->ctxt = ctxt;
+		    __entry->subctxt = subctxt;
+		    __assign_str(type, type);
+		    __entry->start = start;
+		    __entry->end = end;
+		    ),
+	    TP_printk("[%3u:%02u] MMU Invalidate (%s) 0x%lx - 0x%lx",
+		      __entry->ctxt,
+		      __entry->subctxt,
+		      __get_str(type),
+		      __entry->start,
+		      __entry->end
+		    )
+	);
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM hfi1_tx
 
