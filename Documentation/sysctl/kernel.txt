@@ -760,6 +760,14 @@ rtsig-nr shows the number of RT signals currently queued.
 
 ==============================================================
 
+sched_schedstats:
+
+Enables/disables scheduler statistics. Enabling this feature
+incurs a small amount of overhead in the scheduler but is
+useful for debugging and performance tuning.
+
+==============================================================
+
 sg-big-buff:
 
 This file shows the size of the generic SCSI (sg) buffer.

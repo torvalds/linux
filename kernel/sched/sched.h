@@ -1022,6 +1022,7 @@ extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
 #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
 
 extern struct static_key_false sched_numa_balancing;
+extern struct static_key_false sched_schedstats;
 
 static inline u64 global_rt_period(void)
 {

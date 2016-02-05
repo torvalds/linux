@@ -3528,6 +3528,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	sched_debug	[KNL] Enables verbose scheduler debug messages.
 
+	schedstats=	[KNL,X86] Enable or disable scheduled statistics.
+			Allowed values are enable and disable. This feature
+			incurs a small amount of overhead in the scheduler
+			but is useful for debugging and performance tuning.
+
 	skew_tick=	[KNL] Offset the periodic timer tick per cpu to mitigate
 			xtime_lock contention on larger systems, and/or RCU lock
 			contention on all systems with CONFIG_MAXSMP set.
