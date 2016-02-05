@@ -249,6 +249,9 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 		      PHM_PlatformCaps_UVDPowerGating);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+		      PHM_PlatformCaps_VCEPowerGating);
+
 	return 0;
 }
 
