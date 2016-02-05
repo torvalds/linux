@@ -345,5 +345,9 @@ enum Ellesmere_I2CLineID {
 
 int ellesemere_hwmgr_init(struct pp_hwmgr *hwmgr);
 
+int ellesmere_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
+int ellesmere_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
+int ellesmere_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
+
 #endif
 
