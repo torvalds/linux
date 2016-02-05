@@ -855,6 +855,9 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (!contexts_enabled(dev))
 		return -ENODEV;
 
+	if (args->pad != 0)
+		return -EINVAL;
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
@@ -877,6 +880,9 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct intel_context *ctx;
 	int ret;
+
+	if (args->pad != 0)
+		return -EINVAL;
 
 	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE)
 		return -ENOENT;
