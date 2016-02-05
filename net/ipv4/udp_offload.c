@@ -66,6 +66,16 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 
 	features &= skb->dev->hw_enc_features;
 
+	/* The only checksum offload we care about from here on out is the
+	 * outer one so strip the existing checksum feature flags and
+	 * instead set the flag based on our outer checksum offload value.
+	 */
+	if (remcsum) {
+		features &= ~NETIF_F_CSUM_MASK;
+		if (offload_csum)
+			features |= NETIF_F_HW_CSUM;
+	}
+
 	/* segment inner packet. */
 	segs = gso_inner_segment(skb, features);
 	if (IS_ERR_OR_NULL(segs)) {
@@ -116,18 +126,6 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 			skb->ip_summed = CHECKSUM_PARTIAL;
 			skb->csum_start = skb_transport_header(skb) - skb->head;
 			skb->csum_offset = offsetof(struct udphdr, check);
-		} else if (remcsum) {
-			/* Need to calculate checksum from scratch,
-			 * inner checksums are never when doing
-			 * remote_checksum_offload.
-			 */
-
-			skb->csum = skb_checksum(skb, udp_offset,
-						 skb->len - udp_offset,
-						 0);
-			uh->check = csum_fold(skb->csum);
-			if (uh->check == 0)
-				uh->check = CSUM_MANGLED_0;
 		} else {
 			uh->check = gso_make_checksum(skb, ~uh->check);
 
