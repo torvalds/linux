@@ -1064,7 +1064,6 @@ ENDPROC(vector_\name)
 	.endm
 
 	.section .stubs, "ax", %progbits
-__stubs_start:
 	@ This must be the first word
 	.word	vector_swi
 
@@ -1206,10 +1205,10 @@ vector_addrexcptn:
 	.equ	vector_fiq_offset, vector_fiq
 
 	.section .vectors, "ax", %progbits
-__vectors_start:
+.L__vectors_start:
 	W(b)	vector_rst
 	W(b)	vector_und
-	W(ldr)	pc, __vectors_start + 0x1000
+	W(ldr)	pc, .L__vectors_start + 0x1000
 	W(b)	vector_pabt
 	W(b)	vector_dabt
 	W(b)	vector_addrexcptn
