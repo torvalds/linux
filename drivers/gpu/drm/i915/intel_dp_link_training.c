@@ -222,19 +222,27 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 {
 	u32 training_pattern = DP_TRAINING_PATTERN_2;
+	bool source_tps3, sink_tps3;
 
 	/*
 	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
-	 * also mandatory for downstream devices that support HBR2.
+	 * also mandatory for downstream devices that support HBR2. However, not
+	 * all sinks follow the spec.
 	 *
 	 * Due to WaDisableHBR2 SKL < B0 is the only exception where TPS3 is
-	 * supported but still not enabled.
+	 * supported in source but still not enabled.
 	 */
-	if (intel_dp_source_supports_hbr2(intel_dp) &&
-	    drm_dp_tps3_supported(intel_dp->dpcd))
+	source_tps3 = intel_dp_source_supports_hbr2(intel_dp);
+	sink_tps3 = drm_dp_tps3_supported(intel_dp->dpcd);
+
+	if (source_tps3 && sink_tps3) {
 		training_pattern = DP_TRAINING_PATTERN_3;
-	else if (intel_dp->link_rate == 540000)
-		DRM_ERROR("5.4 Gbps link rate without HBR2/TPS3 support\n");
+	} else if (intel_dp->link_rate == 540000) {
+		if (!source_tps3)
+			DRM_DEBUG_KMS("5.4 Gbps link rate without source HBR2/TPS3 support\n");
+		if (!sink_tps3)
+			DRM_DEBUG_KMS("5.4 Gbps link rate without sink TPS3 support\n");
+	}
 
 	return training_pattern;
 }
