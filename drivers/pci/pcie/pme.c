@@ -412,8 +412,6 @@ static int pcie_pme_suspend(struct pcie_device *srv)
 		data->suspend_level = PME_SUSPEND_WAKEUP;
 	}
 	if (!wakeup || ret) {
-		struct pci_dev *port = srv->port;
-
 		pcie_pme_interrupt_enable(port, false);
 		pcie_clear_root_pme_status(port);
 		data->suspend_level = PME_SUSPEND_NOIRQ;
