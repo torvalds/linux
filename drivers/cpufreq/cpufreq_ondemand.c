@@ -31,8 +31,6 @@ static DEFINE_PER_CPU(struct od_cpu_dbs_info_s, od_cpu_dbs_info);
 
 static struct od_ops od_ops;
 
-static struct cpufreq_governor cpufreq_gov_ondemand;
-
 static unsigned int default_powersave_bias;
 
 static void ondemand_powersave_bias_init_cpu(int cpu)
@@ -541,7 +539,16 @@ static struct od_ops od_ops = {
 	.freq_increase = dbs_freq_increase,
 };
 
+static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
+				   unsigned int event);
+
 static struct common_dbs_data od_dbs_cdata = {
+	.gov = {
+		.name = "ondemand",
+		.governor = od_cpufreq_governor_dbs,
+		.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
+		.owner = THIS_MODULE,
+	},
 	.governor = GOV_ONDEMAND,
 	.attr_group_gov_sys = &od_attr_group_gov_sys,
 	.attr_group_gov_pol = &od_attr_group_gov_pol,
@@ -554,18 +561,13 @@ static struct common_dbs_data od_dbs_cdata = {
 	.exit = od_exit,
 };
 
+#define CPU_FREQ_GOV_ONDEMAND	(&od_dbs_cdata.gov)
+
 static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		unsigned int event)
 {
 	return cpufreq_governor_dbs(policy, &od_dbs_cdata, event);
 }
-
-static struct cpufreq_governor cpufreq_gov_ondemand = {
-	.name			= "ondemand",
-	.governor		= od_cpufreq_governor_dbs,
-	.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
-	.owner			= THIS_MODULE,
-};
 
 static void od_set_powersave_bias(unsigned int powersave_bias)
 {
@@ -592,7 +594,7 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 		policy = shared->policy;
 		cpumask_or(&done, &done, policy->cpus);
 
-		if (policy->governor != &cpufreq_gov_ondemand)
+		if (policy->governor != CPU_FREQ_GOV_ONDEMAND)
 			continue;
 
 		dbs_data = policy->governor_data;
@@ -620,12 +622,12 @@ EXPORT_SYMBOL_GPL(od_unregister_powersave_bias_handler);
 
 static int __init cpufreq_gov_dbs_init(void)
 {
-	return cpufreq_register_governor(&cpufreq_gov_ondemand);
+	return cpufreq_register_governor(CPU_FREQ_GOV_ONDEMAND);
 }
 
 static void __exit cpufreq_gov_dbs_exit(void)
 {
-	cpufreq_unregister_governor(&cpufreq_gov_ondemand);
+	cpufreq_unregister_governor(CPU_FREQ_GOV_ONDEMAND);
 }
 
 MODULE_AUTHOR("Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>");
@@ -637,7 +639,7 @@ MODULE_LICENSE("GPL");
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND
 struct cpufreq_governor *cpufreq_default_governor(void)
 {
-	return &cpufreq_gov_ondemand;
+	return CPU_FREQ_GOV_ONDEMAND;
 }
 
 fs_initcall(cpufreq_gov_dbs_init);

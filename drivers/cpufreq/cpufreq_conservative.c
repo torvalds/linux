@@ -23,16 +23,6 @@
 
 static DEFINE_PER_CPU(struct cs_cpu_dbs_info_s, cs_cpu_dbs_info);
 
-static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,
-				   unsigned int event);
-
-static struct cpufreq_governor cpufreq_gov_conservative = {
-	.name			= "conservative",
-	.governor		= cs_cpufreq_governor_dbs,
-	.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
-	.owner			= THIS_MODULE,
-};
-
 static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
 					   struct cpufreq_policy *policy)
 {
@@ -122,30 +112,7 @@ static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 }
 
 static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
-		void *data)
-{
-	struct cpufreq_freqs *freq = data;
-	struct cs_cpu_dbs_info_s *dbs_info =
-					&per_cpu(cs_cpu_dbs_info, freq->cpu);
-	struct cpufreq_policy *policy = cpufreq_cpu_get_raw(freq->cpu);
-
-	if (!policy)
-		return 0;
-
-	/* policy isn't governed by conservative governor */
-	if (policy->governor != &cpufreq_gov_conservative)
-		return 0;
-
-	/*
-	 * we only care if our internally tracked freq moves outside the 'valid'
-	 * ranges of frequency available to us otherwise we do not change it
-	*/
-	if (dbs_info->requested_freq > policy->max
-			|| dbs_info->requested_freq < policy->min)
-		dbs_info->requested_freq = freq->new;
-
-	return 0;
-}
+				void *data);
 
 static struct notifier_block cs_cpufreq_notifier_block = {
 	.notifier_call = dbs_cpufreq_notifier,
@@ -358,7 +325,16 @@ static void cs_exit(struct dbs_data *dbs_data, bool notify)
 
 define_get_cpu_dbs_routines(cs_cpu_dbs_info);
 
+static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,
+				   unsigned int event);
+
 static struct common_dbs_data cs_dbs_cdata = {
+	.gov = {
+		.name = "conservative",
+		.governor = cs_cpufreq_governor_dbs,
+		.max_transition_latency = TRANSITION_LATENCY_LIMIT,
+		.owner = THIS_MODULE,
+	},
 	.governor = GOV_CONSERVATIVE,
 	.attr_group_gov_sys = &cs_attr_group_gov_sys,
 	.attr_group_gov_pol = &cs_attr_group_gov_pol,
@@ -370,20 +346,48 @@ static struct common_dbs_data cs_dbs_cdata = {
 	.exit = cs_exit,
 };
 
+#define CPU_FREQ_GOV_CONSERVATIVE	(&cs_dbs_cdata.gov)
+
 static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				   unsigned int event)
 {
 	return cpufreq_governor_dbs(policy, &cs_dbs_cdata, event);
 }
 
+static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
+				void *data)
+{
+	struct cpufreq_freqs *freq = data;
+	struct cs_cpu_dbs_info_s *dbs_info =
+					&per_cpu(cs_cpu_dbs_info, freq->cpu);
+	struct cpufreq_policy *policy = cpufreq_cpu_get_raw(freq->cpu);
+
+	if (!policy)
+		return 0;
+
+	/* policy isn't governed by conservative governor */
+	if (policy->governor != CPU_FREQ_GOV_CONSERVATIVE)
+		return 0;
+
+	/*
+	 * we only care if our internally tracked freq moves outside the 'valid'
+	 * ranges of frequency available to us otherwise we do not change it
+	*/
+	if (dbs_info->requested_freq > policy->max
+			|| dbs_info->requested_freq < policy->min)
+		dbs_info->requested_freq = freq->new;
+
+	return 0;
+}
+
 static int __init cpufreq_gov_dbs_init(void)
 {
-	return cpufreq_register_governor(&cpufreq_gov_conservative);
+	return cpufreq_register_governor(CPU_FREQ_GOV_CONSERVATIVE);
 }
 
 static void __exit cpufreq_gov_dbs_exit(void)
 {
-	cpufreq_unregister_governor(&cpufreq_gov_conservative);
+	cpufreq_unregister_governor(CPU_FREQ_GOV_CONSERVATIVE);
 }
 
 MODULE_AUTHOR("Alexander Clouter <alex@digriz.org.uk>");
@@ -395,7 +399,7 @@ MODULE_LICENSE("GPL");
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_CONSERVATIVE
 struct cpufreq_governor *cpufreq_default_governor(void)
 {
-	return &cpufreq_gov_conservative;
+	return CPU_FREQ_GOV_CONSERVATIVE;
 }
 
 fs_initcall(cpufreq_gov_dbs_init);
