@@ -408,15 +408,6 @@ config PXA_DMA
 	  16 to 32 channels for peripheral to memory or memory to memory
 	  transfers.
 
-config QCOM_BAM_DMA
-	tristate "QCOM BAM DMA support"
-	depends on ARCH_QCOM || (COMPILE_TEST && OF && ARM)
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	---help---
-	  Enable support for the QCOM BAM DMA controller.  This controller
-	  provides DMA capabilities for a variety of on-chip devices.
-
 config SIRF_DMA
 	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
 	depends on ARCH_SIRF
@@ -538,6 +529,8 @@ config ZX_DMA
 
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
+
+source "drivers/dma/qcom/Kconfig"
 
 source "drivers/dma/dw/Kconfig"
 

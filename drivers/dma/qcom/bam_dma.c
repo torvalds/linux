@@ -49,8 +49,8 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 
-#include "dmaengine.h"
-#include "virt-dma.h"
+#include "../dmaengine.h"
+#include "../virt-dma.h"
 
 struct bam_desc_hw {
 	__le32 addr;		/* Buffer physical address */
