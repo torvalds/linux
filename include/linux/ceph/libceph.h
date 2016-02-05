@@ -21,6 +21,7 @@
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/osd_client.h>
 #include <linux/ceph/ceph_fs.h>
+#include <linux/ceph/string_table.h>
 
 /*
  * mount options
