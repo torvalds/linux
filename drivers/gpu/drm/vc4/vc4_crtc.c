@@ -544,6 +544,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	/* Make sure all other async modesetes have landed. */
 	ret = down_interruptible(&vc4->async_modeset);
 	if (ret) {
+		drm_framebuffer_unreference(fb);
 		kfree(flip_state);
 		return ret;
 	}
