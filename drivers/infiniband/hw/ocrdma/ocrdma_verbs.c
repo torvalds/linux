@@ -125,8 +125,8 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 					IB_DEVICE_SYS_IMAGE_GUID |
 					IB_DEVICE_LOCAL_DMA_LKEY |
 					IB_DEVICE_MEM_MGT_EXTENSIONS;
-	attr->max_sge = min(dev->attr.max_send_sge, dev->attr.max_srq_sge);
-	attr->max_sge_rd = 0;
+	attr->max_sge = dev->attr.max_send_sge;
+	attr->max_sge_rd = attr->max_sge;
 	attr->max_cq = dev->attr.max_cq;
 	attr->max_cqe = dev->attr.max_cqe;
 	attr->max_mr = dev->attr.max_mr;
