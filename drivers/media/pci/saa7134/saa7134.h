@@ -671,6 +671,19 @@ struct saa7134_dev {
 	/* I2C keyboard data */
 	struct IR_i2c_init_data    init_data;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *media_dev;
+
+	struct media_entity input_ent[SAA7134_INPUT_MAX + 1];
+	struct media_pad input_pad[SAA7134_INPUT_MAX + 1];
+
+	struct media_entity demod;
+	struct media_pad demod_pad[DEMOD_NUM_PADS];
+
+	struct media_pad video_pad, vbi_pad;
+	struct media_entity *decoder;
+#endif
+
 #if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
 	/* SAA7134_MPEG_DVB only */
 	struct vb2_dvb_frontends frontends;
