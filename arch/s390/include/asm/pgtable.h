@@ -680,15 +680,15 @@ static inline void pgste_set(pte_t *ptep, pgste_t pgste)
 #endif
 }
 
-static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste,
+static inline pgste_t pgste_update_all(pte_t pte, pgste_t pgste,
 				       struct mm_struct *mm)
 {
 #ifdef CONFIG_PGSTE
 	unsigned long address, bits, skey;
 
-	if (!mm_use_skey(mm) || pte_val(*ptep) & _PAGE_INVALID)
+	if (!mm_use_skey(mm) || pte_val(pte) & _PAGE_INVALID)
 		return pgste;
-	address = pte_val(*ptep) & PAGE_MASK;
+	address = pte_val(pte) & PAGE_MASK;
 	skey = (unsigned long) page_get_storage_key(address);
 	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
 	/* Transfer page changed & referenced bit to guest bits in pgste */
@@ -1067,7 +1067,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long addr, pte_t *ptep)
 {
 	pgste_t pgste;
-	pte_t pte, oldpte;
+	pte_t pte;
 	int young;
 
 	if (mm_has_pgste(vma->vm_mm)) {
@@ -1075,17 +1075,16 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 		pgste = pgste_ipte_notify(vma->vm_mm, addr, ptep, pgste);
 	}
 
-	oldpte = pte = *ptep;
+	pte = *ptep;
 	ptep_flush_direct(vma->vm_mm, addr, ptep);
 	young = pte_young(pte);
-	pte = pte_mkold(pte);
 
 	if (mm_has_pgste(vma->vm_mm)) {
-		pgste = pgste_update_all(&oldpte, pgste, vma->vm_mm);
-		pgste = pgste_set_pte(ptep, pgste, pte);
+		pgste = pgste_update_all(pte, pgste, vma->vm_mm);
+		pgste = pgste_set_pte(ptep, pgste, pte_mkold(pte));
 		pgste_set_unlock(ptep, pgste);
 	} else
-		*ptep = pte;
+		*ptep = pte_mkold(pte);
 
 	return young;
 }
@@ -1127,7 +1126,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	pte_val(*ptep) = _PAGE_INVALID;
 
 	if (mm_has_pgste(mm)) {
-		pgste = pgste_update_all(&pte, pgste, mm);
+		pgste = pgste_update_all(pte, pgste, mm);
 		pgste_set_unlock(ptep, pgste);
 	}
 	return pte;
@@ -1150,7 +1149,7 @@ static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
 	ptep_flush_lazy(mm, address, ptep);
 
 	if (mm_has_pgste(mm)) {
-		pgste = pgste_update_all(&pte, pgste, mm);
+		pgste = pgste_update_all(pte, pgste, mm);
 		pgste_set(ptep, pgste);
 	}
 	return pte;
@@ -1191,7 +1190,7 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 		if ((pgste_val(pgste) & _PGSTE_GPS_USAGE_MASK) ==
 		    _PGSTE_GPS_USAGE_UNUSED)
 			pte_val(pte) |= _PAGE_UNUSED;
-		pgste = pgste_update_all(&pte, pgste, vma->vm_mm);
+		pgste = pgste_update_all(pte, pgste, vma->vm_mm);
 		pgste_set_unlock(ptep, pgste);
 	}
 	return pte;
@@ -1223,7 +1222,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	pte_val(*ptep) = _PAGE_INVALID;
 
 	if (!full && mm_has_pgste(mm)) {
-		pgste = pgste_update_all(&pte, pgste, mm);
+		pgste = pgste_update_all(pte, pgste, mm);
 		pgste_set_unlock(ptep, pgste);
 	}
 	return pte;
