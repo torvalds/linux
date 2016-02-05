@@ -5,6 +5,7 @@
  * This code is placed under the terms of the GNU General Public License v2
  */
 
+#include <dt-bindings/media/tvp5150.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -13,7 +14,6 @@
 #include <linux/module.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
-#include <media/i2c/tvp5150.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-of.h>
 #include <media/v4l2-mc.h>

@@ -18,8 +18,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifndef _TVP5150_H_
-#define _TVP5150_H_
+#ifndef _DT_BINDINGS_MEDIA_TVP5150_H
+#define _DT_BINDINGS_MEDIA_TVP5150_H
 
 /* TVP5150 HW inputs */
 #define TVP5150_COMPOSITE0 0
@@ -31,4 +31,4 @@
 #define TVP5150_NORMAL       0
 #define TVP5150_BLACK_SCREEN 1
 
-#endif
+#endif /* _DT_BINDINGS_MEDIA_TVP5150_H */

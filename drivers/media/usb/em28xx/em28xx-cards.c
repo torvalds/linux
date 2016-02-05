@@ -32,7 +32,7 @@
 #include <media/tuner.h>
 #include <media/drv-intf/msp3400.h>
 #include <media/i2c/saa7115.h>
-#include <media/i2c/tvp5150.h>
+#include <dt-bindings/media/tvp5150.h>
 #include <media/i2c/tvaudio.h>
 #include <media/i2c-addr.h>
 #include <media/tveeprom.h>
