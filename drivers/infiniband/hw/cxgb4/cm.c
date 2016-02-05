@@ -2399,8 +2399,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 
 	if (state_read(&parent_ep->com) != LISTEN) {
-		printk(KERN_ERR "%s - listening ep not in LISTEN\n",
-		       __func__);
+		PDBG("%s - listening ep not in LISTEN\n", __func__);
 		goto reject;
 	}
 
