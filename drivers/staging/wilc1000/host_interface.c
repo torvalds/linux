@@ -3695,7 +3695,7 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	if (!hif_drv)	{
 		PRINT_ER("hif_drv = NULL\n");
-		return 0;
+		return -EFAULT;
 	}
 
 	down(&hif_sema_deinit);
