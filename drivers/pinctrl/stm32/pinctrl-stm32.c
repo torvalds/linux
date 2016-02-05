@@ -6,7 +6,7 @@
  * Heavily based on Mediatek's pinctrl driver
  */
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -45,9 +45,6 @@
 
 #define gpio_range_to_bank(chip) \
 		container_of(chip, struct stm32_gpio_bank, range)
-
-#define gpio_chip_to_bank(chip) \
-		container_of(chip, struct stm32_gpio_bank, gpio_chip)
 
 static const char * const stm32_gpio_functions[] = {
 	"gpio", "af0", "af1",
@@ -144,7 +141,7 @@ static void stm32_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static int stm32_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+	struct stm32_gpio_bank *bank = gpiochip_get_data(chip);
 	int ret;
 
 	clk_enable(bank->clk);
@@ -158,7 +155,7 @@ static int stm32_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void stm32_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+	struct stm32_gpio_bank *bank = gpiochip_get_data(chip);
 
 	__stm32_gpio_set(bank, offset, value);
 }
@@ -171,7 +168,7 @@ static int stm32_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int stm32_gpio_direction_output(struct gpio_chip *chip,
 	unsigned offset, int value)
 {
-	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+	struct stm32_gpio_bank *bank = gpiochip_get_data(chip);
 
 	__stm32_gpio_set(bank, offset, value);
 	pinctrl_gpio_direction_output(chip->base + offset);
@@ -689,7 +686,7 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	bank->gpio_chip.base = bank_nr * STM32_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.ngpio = npins;
 	bank->gpio_chip.of_node = np;
-	bank->gpio_chip.dev = dev;
+	bank->gpio_chip.parent = dev;
 	spin_lock_init(&bank->lock);
 
 	of_property_read_string(np, "st,bank-name", &range->name);
@@ -699,7 +696,7 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	range->pin_base = range->base = range->id * STM32_GPIO_PINS_PER_BANK;
 	range->npins = bank->gpio_chip.ngpio;
 	range->gc = &bank->gpio_chip;
-	err  = gpiochip_add(&bank->gpio_chip);
+	err = gpiochip_add_data(&bank->gpio_chip, bank);
 	if (err) {
 		dev_err(dev, "Failed to add gpiochip(%d)!\n", bank_nr);
 		return err;
