@@ -134,38 +134,6 @@ extern unsigned amdgpu_pcie_lane_cap;
 #define AMDGPU_RESET_VCE			(1 << 13)
 #define AMDGPU_RESET_VCE1			(1 << 14)
 
-/* CG flags */
-#define AMDGPU_CG_SUPPORT_GFX_MGCG		(1 << 0)
-#define AMDGPU_CG_SUPPORT_GFX_MGLS		(1 << 1)
-#define AMDGPU_CG_SUPPORT_GFX_CGCG		(1 << 2)
-#define AMDGPU_CG_SUPPORT_GFX_CGLS		(1 << 3)
-#define AMDGPU_CG_SUPPORT_GFX_CGTS		(1 << 4)
-#define AMDGPU_CG_SUPPORT_GFX_CGTS_LS		(1 << 5)
-#define AMDGPU_CG_SUPPORT_GFX_CP_LS		(1 << 6)
-#define AMDGPU_CG_SUPPORT_GFX_RLC_LS		(1 << 7)
-#define AMDGPU_CG_SUPPORT_MC_LS			(1 << 8)
-#define AMDGPU_CG_SUPPORT_MC_MGCG		(1 << 9)
-#define AMDGPU_CG_SUPPORT_SDMA_LS		(1 << 10)
-#define AMDGPU_CG_SUPPORT_SDMA_MGCG		(1 << 11)
-#define AMDGPU_CG_SUPPORT_BIF_LS		(1 << 12)
-#define AMDGPU_CG_SUPPORT_UVD_MGCG		(1 << 13)
-#define AMDGPU_CG_SUPPORT_VCE_MGCG		(1 << 14)
-#define AMDGPU_CG_SUPPORT_HDP_LS		(1 << 15)
-#define AMDGPU_CG_SUPPORT_HDP_MGCG		(1 << 16)
-
-/* PG flags */
-#define AMDGPU_PG_SUPPORT_GFX_PG		(1 << 0)
-#define AMDGPU_PG_SUPPORT_GFX_SMG		(1 << 1)
-#define AMDGPU_PG_SUPPORT_GFX_DMG		(1 << 2)
-#define AMDGPU_PG_SUPPORT_UVD			(1 << 3)
-#define AMDGPU_PG_SUPPORT_VCE			(1 << 4)
-#define AMDGPU_PG_SUPPORT_CP			(1 << 5)
-#define AMDGPU_PG_SUPPORT_GDS			(1 << 6)
-#define AMDGPU_PG_SUPPORT_RLC_SMU_HS		(1 << 7)
-#define AMDGPU_PG_SUPPORT_SDMA			(1 << 8)
-#define AMDGPU_PG_SUPPORT_ACP			(1 << 9)
-#define AMDGPU_PG_SUPPORT_SAMU			(1 << 10)
-
 /* GFX current status */
 #define AMDGPU_GFX_NORMAL_MODE			0x00000000L
 #define AMDGPU_GFX_SAFE_MODE			0x00000001L

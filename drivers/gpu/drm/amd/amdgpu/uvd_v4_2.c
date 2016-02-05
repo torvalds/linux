@@ -611,7 +611,7 @@ static void uvd_v4_2_enable_mgcg(struct amdgpu_device *adev,
 {
 	u32 orig, data;
 
-	if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_UVD_MGCG)) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG)) {
 		data = RREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL);
 		data = 0xfff;
 		WREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL, data);
@@ -830,7 +830,7 @@ static int uvd_v4_2_set_clockgating_state(void *handle,
 	bool gate = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!(adev->cg_flags & AMDGPU_CG_SUPPORT_UVD_MGCG))
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
 
 	if (state == AMD_CG_STATE_GATE)
@@ -853,7 +853,7 @@ static int uvd_v4_2_set_powergating_state(void *handle,
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!(adev->pg_flags & AMDGPU_PG_SUPPORT_UVD))
+	if (!(adev->pg_flags & AMD_PG_SUPPORT_UVD))
 		return 0;
 
 	if (state == AMD_PG_STATE_GATE) {
