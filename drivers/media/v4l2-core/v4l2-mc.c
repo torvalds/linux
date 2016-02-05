@@ -15,8 +15,43 @@
  */
 
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <media/media-entity.h>
 #include <media/v4l2-mc.h>
+
+
+struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
+						   char *name)
+{
+#ifdef CONFIG_PCI
+	struct media_device *mdev;
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return NULL;
+
+	mdev->dev = &pci_dev->dev;
+
+	if (name)
+		strlcpy(mdev->model, name, sizeof(mdev->model));
+	else
+		strlcpy(mdev->model, pci_name(pci_dev), sizeof(mdev->model));
+
+	sprintf(mdev->bus_info, "PCI:%s", pci_name(pci_dev));
+
+	mdev->hw_revision = pci_dev->subsystem_vendor << 16
+			    || pci_dev->subsystem_device;
+
+	mdev->driver_version = LINUX_VERSION_CODE;
+
+	media_device_init(mdev);
+
+	return mdev;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(v4l2_mc_pci_media_device_init);
 
 int v4l2_mc_create_media_graph(struct media_device *mdev)
 

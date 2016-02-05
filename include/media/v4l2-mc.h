@@ -92,6 +92,10 @@ enum demod_pad_index {
 	DEMOD_NUM_PADS
 };
 
+
+struct pci_dev;		/* We don't need to include pci.h here */
+
+#ifdef CONFIG_MEDIA_CONTROLLER
 /**
  * v4l2_mc_create_media_graph() - create Media Controller links at the graph.
  *
@@ -106,11 +110,29 @@ enum demod_pad_index {
  * interface centric PC-consumer's hardware, V4L2 subdev centric camera
  * hardware should not use this routine, as it will not build the right graph.
  */
-#ifdef CONFIG_MEDIA_CONTROLLER
 int v4l2_mc_create_media_graph(struct media_device *mdev);
+
+/**
+ * v4l2_mc_pci_media_device_init() - create and initialize a
+ *	struct &media_device from a PCI device.
+ *
+ * @pci_dev:	pointer to struct pci_dev
+ * @name:	media device name. If %NULL, the routine will use the default
+ *		name for the pci device, given by pci_name() macro.
+ */
+struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
+						   char *name);
+
+
 #else
 static inline int v4l2_mc_create_media_graph(struct media_device *mdev)
 {
 	return 0;
 }
+
+struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
+						   char *name) {
+	return NULL;
+}
+
 #endif
