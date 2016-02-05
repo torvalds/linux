@@ -34,7 +34,7 @@
  */
 
 	.macro ldrb1 ptr, regB, val
-	USER(9998f, ldrb  \ptr, [\regB], \val)
+	uao_user_alternative 9998f, ldrb, ldtrb, \ptr, \regB, \val
 	.endm
 
 	.macro strb1 ptr, regB, val
@@ -42,7 +42,7 @@
 	.endm
 
 	.macro ldrh1 ptr, regB, val
-	USER(9998f, ldrh  \ptr, [\regB], \val)
+	uao_user_alternative 9998f, ldrh, ldtrh, \ptr, \regB, \val
 	.endm
 
 	.macro strh1 ptr, regB, val
@@ -50,7 +50,7 @@
 	.endm
 
 	.macro ldr1 ptr, regB, val
-	USER(9998f, ldr \ptr, [\regB], \val)
+	uao_user_alternative 9998f, ldr, ldtr, \ptr, \regB, \val
 	.endm
 
 	.macro str1 ptr, regB, val
@@ -58,7 +58,7 @@
 	.endm
 
 	.macro ldp1 ptr, regB, regC, val
-	USER(9998f, ldp \ptr, \regB, [\regC], \val)
+	uao_ldp 9998f, \ptr, \regB, \regC, \val
 	.endm
 
 	.macro stp1 ptr, regB, regC, val

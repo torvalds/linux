@@ -85,6 +85,12 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)sp_el0;
 }
 
+/* Access struct thread_info of another thread */
+static inline struct thread_info *get_thread_info(unsigned long thread_stack)
+{
+	return (struct thread_info *)(thread_stack & ~(THREAD_SIZE - 1));
+}
+
 #define thread_saved_pc(tsk)	\
 	((unsigned long)(tsk->thread.cpu_context.pc))
 #define thread_saved_sp(tsk)	\

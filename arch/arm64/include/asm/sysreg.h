@@ -77,8 +77,11 @@
 #define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
 
 #define REG_PSTATE_PAN_IMM		sys_reg(0, 0, 4, 0, 4)
+#define REG_PSTATE_UAO_IMM		sys_reg(0, 0, 4, 0, 3)
 
 #define SET_PSTATE_PAN(x) __inst_arm(0xd5000000 | REG_PSTATE_PAN_IMM |\
+				     (!!x)<<8 | 0x1f)
+#define SET_PSTATE_UAO(x) __inst_arm(0xd5000000 | REG_PSTATE_UAO_IMM |\
 				     (!!x)<<8 | 0x1f)
 
 /* SCTLR_EL1 */
