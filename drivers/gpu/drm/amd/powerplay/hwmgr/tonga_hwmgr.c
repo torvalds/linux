@@ -4615,6 +4615,9 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	data->vddc_phase_shed_control = 0;
 
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+		      PHM_PlatformCaps_UVDPowerGating);
+
 	if (0 == result) {
 		struct cgs_system_info sys_info = {0};
 
