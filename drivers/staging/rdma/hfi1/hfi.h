@@ -65,6 +65,8 @@
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/mmu_notifier.h>
+#include <linux/rbtree.h>
 
 #include "chip_registers.h"
 #include "common.h"
@@ -1124,6 +1126,8 @@ struct hfi1_devdata {
 #define PT_EXPECTED 0
 #define PT_EAGER    1
 #define PT_INVALID  2
+
+struct mmu_rb_node;
 
 /* Private data for file operations */
 struct hfi1_filedata {

@@ -50,6 +50,8 @@
  *
  */
 
+#include "hfi.h"
+
 #define EXP_TID_TIDLEN_MASK   0x7FFULL
 #define EXP_TID_TIDLEN_SHIFT  0
 #define EXP_TID_TIDCTRL_MASK  0x3ULL
@@ -70,5 +72,11 @@
 		EXP_TID_CLEAR(tid, field);				\
 		(tid) |= EXP_TID_SET(field, (value));			\
 	} while (0)
+
+int hfi1_user_exp_rcv_init(struct file *);
+int hfi1_user_exp_rcv_free(struct hfi1_filedata *);
+int hfi1_user_exp_rcv_setup(struct file *, struct hfi1_tid_info *);
+int hfi1_user_exp_rcv_clear(struct file *, struct hfi1_tid_info *);
+int hfi1_user_exp_rcv_invalid(struct file *, struct hfi1_tid_info *);
 
 #endif /* _HFI1_USER_EXP_RCV_H */
