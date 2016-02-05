@@ -808,35 +808,35 @@ static inline void set_sys_caps_initialised(void)
 static u64 __raw_read_system_reg(u32 sys_id)
 {
 	switch (sys_id) {
-	case SYS_ID_PFR0_EL1:		return (u64)read_cpuid(ID_PFR0_EL1);
-	case SYS_ID_PFR1_EL1:		return (u64)read_cpuid(ID_PFR1_EL1);
-	case SYS_ID_DFR0_EL1:		return (u64)read_cpuid(ID_DFR0_EL1);
-	case SYS_ID_MMFR0_EL1:		return (u64)read_cpuid(ID_MMFR0_EL1);
-	case SYS_ID_MMFR1_EL1:		return (u64)read_cpuid(ID_MMFR1_EL1);
-	case SYS_ID_MMFR2_EL1:		return (u64)read_cpuid(ID_MMFR2_EL1);
-	case SYS_ID_MMFR3_EL1:		return (u64)read_cpuid(ID_MMFR3_EL1);
-	case SYS_ID_ISAR0_EL1:		return (u64)read_cpuid(ID_ISAR0_EL1);
-	case SYS_ID_ISAR1_EL1:		return (u64)read_cpuid(ID_ISAR1_EL1);
-	case SYS_ID_ISAR2_EL1:		return (u64)read_cpuid(ID_ISAR2_EL1);
-	case SYS_ID_ISAR3_EL1:		return (u64)read_cpuid(ID_ISAR3_EL1);
-	case SYS_ID_ISAR4_EL1:		return (u64)read_cpuid(ID_ISAR4_EL1);
-	case SYS_ID_ISAR5_EL1:		return (u64)read_cpuid(ID_ISAR4_EL1);
-	case SYS_MVFR0_EL1:		return (u64)read_cpuid(MVFR0_EL1);
-	case SYS_MVFR1_EL1:		return (u64)read_cpuid(MVFR1_EL1);
-	case SYS_MVFR2_EL1:		return (u64)read_cpuid(MVFR2_EL1);
+	case SYS_ID_PFR0_EL1:		return read_cpuid(SYS_ID_PFR0_EL1);
+	case SYS_ID_PFR1_EL1:		return read_cpuid(SYS_ID_PFR1_EL1);
+	case SYS_ID_DFR0_EL1:		return read_cpuid(SYS_ID_DFR0_EL1);
+	case SYS_ID_MMFR0_EL1:		return read_cpuid(SYS_ID_MMFR0_EL1);
+	case SYS_ID_MMFR1_EL1:		return read_cpuid(SYS_ID_MMFR1_EL1);
+	case SYS_ID_MMFR2_EL1:		return read_cpuid(SYS_ID_MMFR2_EL1);
+	case SYS_ID_MMFR3_EL1:		return read_cpuid(SYS_ID_MMFR3_EL1);
+	case SYS_ID_ISAR0_EL1:		return read_cpuid(SYS_ID_ISAR0_EL1);
+	case SYS_ID_ISAR1_EL1:		return read_cpuid(SYS_ID_ISAR1_EL1);
+	case SYS_ID_ISAR2_EL1:		return read_cpuid(SYS_ID_ISAR2_EL1);
+	case SYS_ID_ISAR3_EL1:		return read_cpuid(SYS_ID_ISAR3_EL1);
+	case SYS_ID_ISAR4_EL1:		return read_cpuid(SYS_ID_ISAR4_EL1);
+	case SYS_ID_ISAR5_EL1:		return read_cpuid(SYS_ID_ISAR4_EL1);
+	case SYS_MVFR0_EL1:		return read_cpuid(SYS_MVFR0_EL1);
+	case SYS_MVFR1_EL1:		return read_cpuid(SYS_MVFR1_EL1);
+	case SYS_MVFR2_EL1:		return read_cpuid(SYS_MVFR2_EL1);
 
-	case SYS_ID_AA64PFR0_EL1:	return (u64)read_cpuid(ID_AA64PFR0_EL1);
-	case SYS_ID_AA64PFR1_EL1:	return (u64)read_cpuid(ID_AA64PFR0_EL1);
-	case SYS_ID_AA64DFR0_EL1:	return (u64)read_cpuid(ID_AA64DFR0_EL1);
-	case SYS_ID_AA64DFR1_EL1:	return (u64)read_cpuid(ID_AA64DFR0_EL1);
-	case SYS_ID_AA64MMFR0_EL1:	return (u64)read_cpuid(ID_AA64MMFR0_EL1);
-	case SYS_ID_AA64MMFR1_EL1:	return (u64)read_cpuid(ID_AA64MMFR1_EL1);
-	case SYS_ID_AA64ISAR0_EL1:	return (u64)read_cpuid(ID_AA64ISAR0_EL1);
-	case SYS_ID_AA64ISAR1_EL1:	return (u64)read_cpuid(ID_AA64ISAR1_EL1);
+	case SYS_ID_AA64PFR0_EL1:	return read_cpuid(SYS_ID_AA64PFR0_EL1);
+	case SYS_ID_AA64PFR1_EL1:	return read_cpuid(SYS_ID_AA64PFR0_EL1);
+	case SYS_ID_AA64DFR0_EL1:	return read_cpuid(SYS_ID_AA64DFR0_EL1);
+	case SYS_ID_AA64DFR1_EL1:	return read_cpuid(SYS_ID_AA64DFR0_EL1);
+	case SYS_ID_AA64MMFR0_EL1:	return read_cpuid(SYS_ID_AA64MMFR0_EL1);
+	case SYS_ID_AA64MMFR1_EL1:	return read_cpuid(SYS_ID_AA64MMFR1_EL1);
+	case SYS_ID_AA64ISAR0_EL1:	return read_cpuid(SYS_ID_AA64ISAR0_EL1);
+	case SYS_ID_AA64ISAR1_EL1:	return read_cpuid(SYS_ID_AA64ISAR1_EL1);
 
-	case SYS_CNTFRQ_EL0:		return (u64)read_cpuid(CNTFRQ_EL0);
-	case SYS_CTR_EL0:		return (u64)read_cpuid(CTR_EL0);
-	case SYS_DCZID_EL0:		return (u64)read_cpuid(DCZID_EL0);
+	case SYS_CNTFRQ_EL0:		return read_cpuid(SYS_CNTFRQ_EL0);
+	case SYS_CTR_EL0:		return read_cpuid(SYS_CTR_EL0);
+	case SYS_DCZID_EL0:		return read_cpuid(SYS_DCZID_EL0);
 	default:
 		BUG();
 		return 0;
