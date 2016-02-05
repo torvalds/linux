@@ -152,10 +152,10 @@ int init_mmdc_lpddr2_settings(struct platform_device *busfreq_pdev)
 int update_lpddr2_freq_smp(int ddr_rate)
 {
 	unsigned long ttbr1;
+	int me = 0;
 	int mode = get_bus_freq_mode();
 #ifdef CONFIG_SMP
 	int cpu = 0;
-	int me = 0;
 	u32 reg;
 #endif
 
