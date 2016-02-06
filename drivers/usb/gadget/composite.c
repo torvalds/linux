@@ -148,6 +148,13 @@ int config_ep_by_speed(struct usb_gadget *g,
 
 	/* select desired speed */
 	switch (g->speed) {
+	case USB_SPEED_SUPER_PLUS:
+		if (gadget_is_superspeed_plus(g)) {
+			speed_desc = f->ssp_descriptors;
+			want_comp_desc = 1;
+			break;
+		}
+		/* else: Fall trough */
 	case USB_SPEED_SUPER:
 		if (gadget_is_superspeed(g)) {
 			speed_desc = f->ss_descriptors;
@@ -191,7 +198,7 @@ ep_found:
 	    (comp_desc->bDescriptorType != USB_DT_SS_ENDPOINT_COMP))
 		return -EIO;
 	_ep->comp_desc = comp_desc;
-	if (g->speed == USB_SPEED_SUPER) {
+	if (g->speed >= USB_SPEED_SUPER) {
 		switch (usb_endpoint_type(_ep->desc)) {
 		case USB_ENDPOINT_XFER_ISOC:
 			/* mult: bits 1:0 of bmAttributes */
