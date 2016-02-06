@@ -31,8 +31,9 @@ static struct attribute_group *get_sysfs_attr(struct dbs_governor *gov)
 		gov->attr_group_gov_pol : gov->attr_group_gov_sys;
 }
 
-void dbs_check_cpu(struct cpufreq_policy *policy, int cpu)
+void dbs_check_cpu(struct cpufreq_policy *policy)
 {
+	int cpu = policy->cpu;
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(cpu);
 	struct dbs_data *dbs_data = policy->governor_data;
@@ -517,8 +518,7 @@ static int cpufreq_governor_stop(struct cpufreq_policy *policy)
 static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 {
 	struct dbs_governor *gov = dbs_governor_of(policy);
-	unsigned int cpu = policy->cpu;
-	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(cpu);
+	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(policy->cpu);
 
 	/* State should be equivalent to START */
 	if (!cdbs->policy_dbs || !cdbs->policy_dbs->policy)
@@ -531,7 +531,7 @@ static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 	else if (policy->min > cdbs->policy_dbs->policy->cur)
 		__cpufreq_driver_target(cdbs->policy_dbs->policy, policy->min,
 					CPUFREQ_RELATION_L);
-	dbs_check_cpu(policy, cpu);
+	dbs_check_cpu(policy);
 	mutex_unlock(&cdbs->policy_dbs->timer_mutex);
 
 	return 0;

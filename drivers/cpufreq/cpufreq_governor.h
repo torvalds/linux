@@ -279,7 +279,7 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 
 extern struct mutex dbs_data_mutex;
 extern struct mutex cpufreq_governor_lock;
-void dbs_check_cpu(struct cpufreq_policy *policy, int cpu);
+void dbs_check_cpu(struct cpufreq_policy *policy);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int event);
 void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
