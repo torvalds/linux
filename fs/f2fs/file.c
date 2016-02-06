@@ -1252,7 +1252,7 @@ static int f2fs_release_file(struct inode *inode, struct file *filp)
 {
 	/* some remained atomic pages should discarded */
 	if (f2fs_is_atomic_file(inode))
-		commit_inmem_pages(inode, true);
+		drop_inmem_pages(inode);
 	if (f2fs_is_volatile_file(inode)) {
 		set_inode_flag(F2FS_I(inode), FI_DROP_CACHE);
 		filemap_fdatawrite(inode->i_mapping);
@@ -1376,7 +1376,7 @@ static int f2fs_ioc_commit_atomic_write(struct file *filp)
 
 	if (f2fs_is_atomic_file(inode)) {
 		clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
-		ret = commit_inmem_pages(inode, false);
+		ret = commit_inmem_pages(inode);
 		if (ret) {
 			set_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
 			goto err_out;
@@ -1439,7 +1439,7 @@ static int f2fs_ioc_abort_volatile_write(struct file *filp)
 
 	if (f2fs_is_atomic_file(inode)) {
 		clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
-		commit_inmem_pages(inode, true);
+		drop_inmem_pages(inode);
 	}
 	if (f2fs_is_volatile_file(inode)) {
 		clear_inode_flag(F2FS_I(inode), FI_VOLATILE_FILE);
