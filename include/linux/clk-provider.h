@@ -655,8 +655,14 @@ struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
 struct clk *clk_register(struct device *dev, struct clk_hw *hw);
 struct clk *devm_clk_register(struct device *dev, struct clk_hw *hw);
 
+int __must_check clk_hw_register(struct device *dev, struct clk_hw *hw);
+int __must_check devm_clk_hw_register(struct device *dev, struct clk_hw *hw);
+
 void clk_unregister(struct clk *clk);
 void devm_clk_unregister(struct device *dev, struct clk *clk);
+
+void clk_hw_unregister(struct clk_hw *hw);
+void devm_clk_hw_unregister(struct device *dev, struct clk_hw *hw);
 
 /* helper functions */
 const char *__clk_get_name(const struct clk *clk);

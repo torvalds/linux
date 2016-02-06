@@ -2536,6 +2536,22 @@ fail_out:
 }
 EXPORT_SYMBOL_GPL(clk_register);
 
+/**
+ * clk_hw_register - register a clk_hw and return an error code
+ * @dev: device that is registering this clock
+ * @hw: link to hardware-specific clock data
+ *
+ * clk_hw_register is the primary interface for populating the clock tree with
+ * new clock nodes. It returns an integer equal to zero indicating success or
+ * less than zero indicating failure. Drivers must test for an error code after
+ * calling clk_hw_register().
+ */
+int clk_hw_register(struct device *dev, struct clk_hw *hw)
+{
+	return PTR_ERR_OR_ZERO(clk_register(dev, hw));
+}
+EXPORT_SYMBOL_GPL(clk_hw_register);
+
 /* Free memory allocated for a clock. */
 static void __clk_release(struct kref *ref)
 {
@@ -2637,9 +2653,24 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(clk_unregister);
 
+/**
+ * clk_hw_unregister - unregister a currently registered clk_hw
+ * @hw: hardware-specific clock data to unregister
+ */
+void clk_hw_unregister(struct clk_hw *hw)
+{
+	clk_unregister(hw->clk);
+}
+EXPORT_SYMBOL_GPL(clk_hw_unregister);
+
 static void devm_clk_release(struct device *dev, void *res)
 {
 	clk_unregister(*(struct clk **)res);
+}
+
+static void devm_clk_hw_release(struct device *dev, void *res)
+{
+	clk_hw_unregister(*(struct clk_hw **)res);
 }
 
 /**
@@ -2672,12 +2703,51 @@ struct clk *devm_clk_register(struct device *dev, struct clk_hw *hw)
 }
 EXPORT_SYMBOL_GPL(devm_clk_register);
 
+/**
+ * devm_clk_hw_register - resource managed clk_hw_register()
+ * @dev: device that is registering this clock
+ * @hw: link to hardware-specific clock data
+ *
+ * Managed clk_hw_register(). Clocks returned from this function are
+ * automatically clk_hw_unregister()ed on driver detach. See clk_hw_register()
+ * for more information.
+ */
+int devm_clk_hw_register(struct device *dev, struct clk_hw *hw)
+{
+	struct clk_hw **hwp;
+	int ret;
+
+	hwp = devres_alloc(devm_clk_hw_release, sizeof(*hwp), GFP_KERNEL);
+	if (!hwp)
+		return -ENOMEM;
+
+	ret = clk_hw_register(dev, hw);
+	if (!ret) {
+		*hwp = hw;
+		devres_add(dev, hwp);
+	} else {
+		devres_free(hwp);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_clk_hw_register);
+
 static int devm_clk_match(struct device *dev, void *res, void *data)
 {
 	struct clk *c = res;
 	if (WARN_ON(!c))
 		return 0;
 	return c == data;
+}
+
+static int devm_clk_hw_match(struct device *dev, void *res, void *data)
+{
+	struct clk_hw *hw = res;
+
+	if (WARN_ON(!hw))
+		return 0;
+	return hw == data;
 }
 
 /**
@@ -2693,6 +2763,22 @@ void devm_clk_unregister(struct device *dev, struct clk *clk)
 	WARN_ON(devres_release(dev, devm_clk_release, devm_clk_match, clk));
 }
 EXPORT_SYMBOL_GPL(devm_clk_unregister);
+
+/**
+ * devm_clk_hw_unregister - resource managed clk_hw_unregister()
+ * @dev: device that is unregistering the hardware-specific clock data
+ * @hw: link to hardware-specific clock data
+ *
+ * Unregister a clk_hw registered with devm_clk_hw_register(). Normally
+ * this function will not need to be called and the resource management
+ * code will ensure that the resource is freed.
+ */
+void devm_clk_hw_unregister(struct device *dev, struct clk_hw *hw)
+{
+	WARN_ON(devres_release(dev, devm_clk_hw_release, devm_clk_hw_match,
+				hw));
+}
+EXPORT_SYMBOL_GPL(devm_clk_hw_unregister);
 
 /*
  * clkdev helpers
