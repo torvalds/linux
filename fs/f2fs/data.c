@@ -1592,7 +1592,7 @@ repeat:
 
 		/* avoid symlink page */
 		if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode)) {
-			err = f2fs_decrypt_one(inode, page);
+			err = f2fs_decrypt(page);
 			if (err)
 				goto fail;
 		}

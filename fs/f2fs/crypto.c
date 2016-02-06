@@ -156,7 +156,7 @@ static void completion_pages(struct work_struct *work)
 
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
-		int ret = f2fs_decrypt(ctx, page);
+		int ret = f2fs_decrypt(page);
 
 		if (ret) {
 			WARN_ON_ONCE(1);
@@ -320,8 +320,7 @@ typedef enum {
 	F2FS_ENCRYPT,
 } f2fs_direction_t;
 
-static int f2fs_page_crypto(struct f2fs_crypto_ctx *ctx,
-				struct inode *inode,
+static int f2fs_page_crypto(struct inode *inode,
 				f2fs_direction_t rw,
 				pgoff_t index,
 				struct page *src_page,
@@ -418,7 +417,7 @@ struct page *f2fs_encrypt(struct inode *inode,
 		goto err_out;
 
 	ctx->w.control_page = plaintext_page;
-	err = f2fs_page_crypto(ctx, inode, F2FS_ENCRYPT, plaintext_page->index,
+	err = f2fs_page_crypto(inode, F2FS_ENCRYPT, plaintext_page->index,
 					plaintext_page, ciphertext_page);
 	if (err) {
 		ciphertext_page = ERR_PTR(err);
@@ -446,28 +445,12 @@ err_out:
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int f2fs_decrypt(struct f2fs_crypto_ctx *ctx, struct page *page)
+int f2fs_decrypt(struct page *page)
 {
 	BUG_ON(!PageLocked(page));
 
-	return f2fs_page_crypto(ctx, page->mapping->host,
+	return f2fs_page_crypto(page->mapping->host,
 				F2FS_DECRYPT, page->index, page, page);
-}
-
-/*
- * Convenience function which takes care of allocating and
- * deallocating the encryption context
- */
-int f2fs_decrypt_one(struct inode *inode, struct page *page)
-{
-	struct f2fs_crypto_ctx *ctx = f2fs_get_crypto_ctx(inode);
-	int ret;
-
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-	ret = f2fs_decrypt(ctx, page);
-	f2fs_release_crypto_ctx(ctx);
-	return ret;
 }
 
 bool f2fs_valid_contents_enc_mode(uint32_t mode)
