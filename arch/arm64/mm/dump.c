@@ -90,6 +90,11 @@ struct prot_bits {
 
 static const struct prot_bits pte_bits[] = {
 	{
+		.mask	= PTE_VALID,
+		.val	= PTE_VALID,
+		.set	= " ",
+		.clear	= "F",
+	}, {
 		.mask	= PTE_USER,
 		.val	= PTE_USER,
 		.set	= "USR",
