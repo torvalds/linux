@@ -210,6 +210,7 @@ populate_shared_memory:
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
 		orangefs_bufmap_put(bufmap, buffer_index);
+		buffer_index = -1;
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s:going to repopulate_shared_memory.\n",
 			     __func__);
