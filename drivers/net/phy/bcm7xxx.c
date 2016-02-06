@@ -303,11 +303,6 @@ static int bcm7xxx_suspend(struct phy_device *phydev)
 	return 0;
 }
 
-static int bcm7xxx_dummy_config_init(struct phy_device *phydev)
-{
-	return 0;
-}
-
 #define BCM7XXX_28NM_GPHY(_oui, _name)					\
 {									\
 	.phy_id		= (_oui),					\
@@ -365,30 +360,6 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.read_status    = genphy_read_status,
 	.suspend        = bcm7xxx_suspend,
 	.resume         = bcm7xxx_config_init,
-}, {
-	.phy_id		= PHY_BCM_OUI_4,
-	.phy_id_mask	= 0xffff0000,
-	.name		= "Broadcom BCM7XXX 40nm",
-	.features	= PHY_GBIT_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_config_init,
-}, {
-	.phy_id		= PHY_BCM_OUI_5,
-	.phy_id_mask	= 0xffffff00,
-	.name		= "Broadcom BCM7XXX 65nm",
-	.features	= PHY_BASIC_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_dummy_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_config_init,
 } };
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
@@ -400,8 +371,6 @@ static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM7439, 0xfffffff0, },
 	{ PHY_ID_BCM7435, 0xfffffff0, },
 	{ PHY_ID_BCM7445, 0xfffffff0, },
-	{ PHY_BCM_OUI_4, 0xffff0000 },
-	{ PHY_BCM_OUI_5, 0xffffff00 },
 	{ }
 };
 
