@@ -24,7 +24,7 @@
 #define MII_BCM7XXX_100TX_FALSE_CAR	0x13
 #define MII_BCM7XXX_100TX_DISC		0x14
 #define MII_BCM7XXX_AUX_MODE		0x1d
-#define  MII_BCM7XX_64CLK_MDIO		BIT(12)
+#define  MII_BCM7XXX_64CLK_MDIO		BIT(12)
 #define MII_BCM7XXX_TEST		0x1f
 #define  MII_BCM7XXX_SHD_MODE_2		BIT(2)
 
@@ -247,7 +247,7 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 	int ret;
 
 	/* Enable 64 clock MDIO */
-	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XX_64CLK_MDIO);
+	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XXX_64CLK_MDIO);
 	phy_read(phydev, MII_BCM7XXX_AUX_MODE);
 
 	/* Workaround only required for 100Mbits/sec capable PHYs */
