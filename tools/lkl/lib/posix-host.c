@@ -172,18 +172,48 @@ static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
 	return 0;
 }
 
+static int do_rw(ssize_t (*fn)(), union lkl_disk disk, struct lkl_blk_req *req)
+{
+	off_t off = req->sector * 512;
+	void *addr;
+	int len;
+	int i;
+	int ret = 0;
+
+	for (i = 0; i < req->count; i++) {
+
+		addr = req->buf[i].addr;
+		len = req->buf[i].len;
+
+		do {
+			ret = fn(disk.fd, addr, len, off);
+
+			if (ret <= 0) {
+				ret = -1;
+				goto out;
+			}
+
+			addr += ret;
+			len -= ret;
+			off += ret;
+
+		} while (len);
+	}
+
+out:
+	return ret;
+}
+
 static int blk_request(union lkl_disk disk, struct lkl_blk_req *req)
 {
 	int err = 0;
-	struct iovec *iovec = (struct iovec *)req->buf;
 
-	/* TODO: handle short reads/writes */
 	switch (req->type) {
 	case LKL_DEV_BLK_TYPE_READ:
-		err = preadv(disk.fd, iovec, req->count, req->sector * 512);
+		err = do_rw(pread, disk, req);
 		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
-		err = pwritev(disk.fd, iovec, req->count, req->sector * 512);
+		err = do_rw(pwrite, disk, req);
 		break;
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
