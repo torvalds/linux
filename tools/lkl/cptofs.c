@@ -12,9 +12,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#undef st_atime
-#undef st_mtime
-#undef st_ctime
 #include <dirent.h>
 #include <lkl.h>
 #include <lkl_host.h>

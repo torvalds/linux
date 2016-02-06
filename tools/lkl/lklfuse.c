@@ -11,9 +11,6 @@
 #include <fuse.h>
 #include <fuse/fuse_opt.h>
 #include <fuse/fuse_lowlevel.h>
-#undef st_atime
-#undef st_mtime
-#undef st_ctime
 #include <lkl.h>
 #include <lkl_host.h>
 
@@ -112,11 +109,11 @@ static void lklfuse_xlat_stat(const struct lkl_stat *in, struct stat *st)
 	st->st_size = in->st_size;
 	st->st_blksize = in->st_blksize;
 	st->st_blocks = in->st_blocks;
-	st->st_atim.tv_sec = in->st_atime;
+	st->st_atim.tv_sec = in->lkl_st_atime;
 	st->st_atim.tv_nsec = in->st_atime_nsec;
-	st->st_mtim.tv_sec = in->st_mtime;
+	st->st_mtim.tv_sec = in->lkl_st_mtime;
 	st->st_mtim.tv_nsec = in->st_mtime_nsec;
-	st->st_ctim.tv_sec = in->st_ctime;
+	st->st_ctim.tv_sec = in->lkl_st_ctime;
 	st->st_ctim.tv_nsec = in->st_ctime_nsec;
 }
 

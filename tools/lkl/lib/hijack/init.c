@@ -21,10 +21,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-
-#undef st_atime
-#undef st_mtime
-#undef st_ctime
 #include <lkl.h>
 #include <lkl_host.h>
 

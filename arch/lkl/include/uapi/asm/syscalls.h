@@ -203,6 +203,13 @@ struct ustat {
 #define SOCK_DCCP		6
 #define SOCK_PACKET		10
 
+/* avoid colision with system headers defines */
+#define sa_handler sa_handler
+#define st_atime st_atime
+#define st_mtime st_mtime
+#define st_ctime st_ctime
+#define s_addr s_addr
+
 long lkl_syscall(long no, long *params);
 long lkl_sys_halt(void);
 

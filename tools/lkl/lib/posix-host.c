@@ -14,7 +14,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <poll.h>
-#undef sa_handler
 #include <lkl_host.h>
 #include "iomem.h"
 

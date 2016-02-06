@@ -13,9 +13,6 @@
 #include <fcntl.h>
 #include <archive.h>
 #include <archive_entry.h>
-#undef st_atime
-#undef st_mtime
-#undef st_ctime
 #include <lkl.h>
 #include <lkl_host.h>
 
@@ -151,11 +148,11 @@ static inline void fsimg_copy_stat(struct stat *st, struct lkl_stat *fst)
 	st->st_size = fst->st_size;
 	st->st_blksize = fst->st_blksize;
 	st->st_blocks = fst->st_blocks;
-	st->st_atim.tv_sec = fst->st_atime;
+	st->st_atim.tv_sec = fst->lkl_st_atime;
 	st->st_atim.tv_nsec = fst->st_atime_nsec;
-	st->st_mtim.tv_sec = fst->st_mtime;
+	st->st_mtim.tv_sec = fst->lkl_st_mtime;
 	st->st_mtim.tv_nsec = fst->st_mtime_nsec;
-	st->st_ctim.tv_sec = fst->st_ctime;
+	st->st_ctim.tv_sec = fst->lkl_st_ctime;
 	st->st_ctim.tv_nsec = fst->st_ctime_nsec;
 }
 
