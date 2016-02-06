@@ -206,6 +206,24 @@
 			brcm,nand-has-wp;
 		};
 
+		ccbtimer0: timer@34000 {
+			compatible = "arm,sp804";
+			reg = <0x34000 0x1000>;
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>;
+			clock-names = "apb_pclk";
+		};
+
+		ccbtimer1: timer@35000 {
+			compatible = "arm,sp804";
+			reg = <0x35000 0x1000>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>;
+			clock-names = "apb_pclk";
+		};
+
 		i2c0: i2c@38000 {
 			compatible = "brcm,iproc-i2c";
 			reg = <0x38000 0x50>;
