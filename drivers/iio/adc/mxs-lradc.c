@@ -443,7 +443,8 @@ static void mxs_lradc_setup_ts_channel(struct mxs_lradc *lradc, unsigned ch)
 			  LRADC_CH_NUM_SAMPLES(lradc->over_sample_cnt - 1),
 			  LRADC_CH(ch));
 
-	/* from the datasheet:
+	/*
+	 * from the datasheet:
 	 * "Software must clear this register in preparation for a
 	 * multi-cycle accumulation.
 	 */
@@ -504,7 +505,8 @@ static void mxs_lradc_setup_ts_pressure(struct mxs_lradc *lradc, unsigned ch1,
 	mxs_lradc_reg_wrt(lradc, reg, LRADC_CH(ch1));
 	mxs_lradc_reg_wrt(lradc, reg, LRADC_CH(ch2));
 
-	/* from the datasheet:
+	/*
+	 * from the datasheet:
 	 * "Software must clear this register in preparation for a
 	 * multi-cycle accumulation.
 	 */
@@ -914,7 +916,8 @@ static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
 
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_TEMP) {
-			/* From the datasheet, we have to multiply by 1.012 and
+			/*
+			 * From the datasheet, we have to multiply by 1.012 and
 			 * divide by 4
 			 */
 			*val = 0;
@@ -929,7 +932,8 @@ static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
 
 	case IIO_CHAN_INFO_OFFSET:
 		if (chan->type == IIO_TEMP) {
-			/* The calculated value from the ADC is in Kelvin, we
+			/*
+			 * The calculated value from the ADC is in Kelvin, we
 			 * want Celsius for hwmon so the offset is -273.15
 			 * The offset is applied before scaling so it is
 			 * actually -213.15 * 4 / 1.012 = -1079.644268
@@ -1750,6 +1754,7 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	iio_triggered_buffer_cleanup(iio);
 
 	clk_disable_unprepare(lradc->clk);
+
 	return 0;
 }
 

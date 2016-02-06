@@ -295,6 +295,20 @@ config MEN_Z188_ADC
 	  This driver can also be built as a module. If so, the module will be
 	  called men_z188_adc.
 
+config MXS_LRADC
+        tristate "Freescale i.MX23/i.MX28 LRADC"
+        depends on (ARCH_MXS || COMPILE_TEST) && HAS_IOMEM
+        depends on INPUT
+        select STMP_DEVICE
+        select IIO_BUFFER
+        select IIO_TRIGGERED_BUFFER
+        help
+          Say yes here to build support for i.MX23/i.MX28 LRADC convertor
+          built into these chips.
+
+          To compile this driver as a module, choose M here: the
+          module will be called mxs-lradc.
+
 config NAU7802
 	tristate "Nuvoton NAU7802 ADC driver"
 	depends on I2C
