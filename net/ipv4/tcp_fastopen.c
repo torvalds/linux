@@ -154,6 +154,9 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 	 * as we certainly are not changing upper 32bit value (0)
 	 */
 	tp->bytes_received = skb->len;
+
+	if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
+		tcp_fin(sk);
 }
 
 static struct sock *tcp_fastopen_create_child(struct sock *sk,
