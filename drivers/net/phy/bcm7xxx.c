@@ -250,10 +250,6 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XX_64CLK_MDIO);
 	phy_read(phydev, MII_BCM7XXX_AUX_MODE);
 
-	/* Workaround only required for 100Mbits/sec capable PHYs */
-	if (phydev->supported & PHY_GBIT_FEATURES)
-		return 0;
-
 	/* set shadow mode 2 */
 	ret = phy_set_clr_bits(phydev, MII_BCM7XXX_TEST,
 			MII_BCM7XXX_SHD_MODE_2, MII_BCM7XXX_SHD_MODE_2);
