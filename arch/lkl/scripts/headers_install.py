@@ -51,6 +51,20 @@ def find_ml_symbols(regexp, store):
                         store.add(j)
                     break
 
+def find_enums(block_regexp, symbol_regexp, store):
+    for h in headers:
+        for i in block_regexp.finditer(open(h).read()):
+            for j in reversed(i.groups()):
+                if j:
+                    # remove comments
+                    j = re.sub(re.compile("(/\*[^\*]*\*/)", re.S|re.M), " ", j)
+                    for k in symbol_regexp.finditer(j):
+                        for l in k.groups():
+                            if l:
+                                if not has_lkl_prefix(l):
+                                    store.add(l)
+                                break
+
 def lkl_prefix(w):
     r = ""
 
@@ -129,12 +143,14 @@ p = re.compile("typedef\s+(struct|union)\s+\w*\s*{[^\\{\}]*}\W*(\w+)\s*;", re.M|
 find_ml_symbols(p, defines)
 defines.add("siginfo_t")
 defines.add("sigevent_t")
-defines.add("IPPROTO_MAX")
 p = re.compile("struct\s+(\w+)\s*\{")
 find_symbols(p, structs)
 structs.add("iovec")
 p = re.compile("union\s+(\w+)\s*\{")
 find_symbols(p, unions)
+p = re.compile("enum\s+(\w\s)*{([^}]*)}", re.M|re.S)
+q = re.compile("(\w+)\s*(,|=[^,]*|$)", re.M|re.S)
+find_enums(p, q, defines)
 
 def process_header(h):
     print("  REPLACE\t%s" % (out_dir + "/" + os.path.basename(h)))
