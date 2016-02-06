@@ -337,7 +337,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.phy_id         = PHY_ID_BCM7425,
 	.phy_id_mask    = 0xfffffff0,
 	.name           = "Broadcom BCM7425",
-	.features       = PHY_GBIT_FEATURES |
+	.features       = PHY_BASIC_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
 	.flags          = PHY_IS_INTERNAL,
 	.config_init    = bcm7xxx_config_init,
@@ -349,7 +349,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.phy_id         = PHY_ID_BCM7429,
 	.phy_id_mask    = 0xfffffff0,
 	.name           = "Broadcom BCM7429",
-	.features       = PHY_GBIT_FEATURES |
+	.features       = PHY_BASIC_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
 	.flags          = PHY_IS_INTERNAL,
 	.config_init    = bcm7xxx_config_init,
@@ -361,7 +361,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.phy_id         = PHY_ID_BCM7435,
 	.phy_id_mask    = 0xfffffff0,
 	.name           = "Broadcom BCM7435",
-	.features       = PHY_GBIT_FEATURES |
+	.features       = PHY_BASIC_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
 	.flags          = PHY_IS_INTERNAL,
 	.config_init    = bcm7xxx_config_init,
