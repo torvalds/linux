@@ -183,6 +183,11 @@ int usb_assign_descriptors(struct usb_function *f,
 		if (!f->ss_descriptors)
 			goto err;
 	}
+	if (ssp && gadget_is_superspeed_plus(g)) {
+		f->ssp_descriptors = usb_copy_descriptors(ssp);
+		if (!f->ssp_descriptors)
+			goto err;
+	}
 	return 0;
 err:
 	usb_free_all_descriptors(f);
@@ -195,6 +200,7 @@ void usb_free_all_descriptors(struct usb_function *f)
 	usb_free_descriptors(f->fs_descriptors);
 	usb_free_descriptors(f->hs_descriptors);
 	usb_free_descriptors(f->ss_descriptors);
+	usb_free_descriptors(f->ssp_descriptors);
 }
 EXPORT_SYMBOL_GPL(usb_free_all_descriptors);
 
