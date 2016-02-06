@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016   Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016   Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -851,7 +853,8 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	wowlan_config_cmd->is_11n_connection =
 					ap_sta->ht_cap.ht_supported;
 	wowlan_config_cmd->flags = ENABLE_L3_FILTERING |
-		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING;
+		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING |
+		ENABLE_STORE_BEACON;
 
 	/* Query the last used seqno and set it */
 	ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);
@@ -1023,14 +1026,18 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 		      struct ieee80211_sta *ap_sta)
 {
 	int ret;
+	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
+					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
-	ret = iwl_mvm_switch_to_d3(mvm);
-	if (ret)
-		return ret;
+	if (!unified_image) {
+		ret = iwl_mvm_switch_to_d3(mvm);
+		if (ret)
+			return ret;
 
-	ret = iwl_mvm_d3_reprogram(mvm, vif, ap_sta);
-	if (ret)
-		return ret;
+		ret = iwl_mvm_d3_reprogram(mvm, vif, ap_sta);
+		if (ret)
+			return ret;
+	}
 
 	if (!iwlwifi_mod_params.sw_crypto) {
 		/*
@@ -1072,10 +1079,14 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 {
 	struct iwl_wowlan_config_cmd wowlan_config_cmd = {};
 	int ret;
+	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
+					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
-	ret = iwl_mvm_switch_to_d3(mvm);
-	if (ret)
-		return ret;
+	if (!unified_image) {
+		ret = iwl_mvm_switch_to_d3(mvm);
+		if (ret)
+			return ret;
+	}
 
 	/* rfkill release can be either for wowlan or netdetect */
 	if (wowlan->rfkill_release)
@@ -1151,6 +1162,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	};
 	int ret;
 	int len __maybe_unused;
+	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
+					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
 	if (!wowlan) {
 		/*
@@ -1236,7 +1249,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
-	iwl_trans_d3_suspend(mvm->trans, test);
+	iwl_trans_d3_suspend(mvm->trans, test, !unified_image);
  out:
 	if (ret < 0) {
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
@@ -1299,7 +1312,7 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
 		mutex_unlock(&mvm->d0i3_suspend_mutex);
 
-		iwl_trans_d3_suspend(trans, false);
+		iwl_trans_d3_suspend(trans, false, false);
 
 		return 0;
 	}
@@ -2041,9 +2054,14 @@ static void iwl_mvm_d3_disconnect_iter(void *data, u8 *mac,
 static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 {
 	struct ieee80211_vif *vif = NULL;
-	int ret;
+	int ret = 1;
 	enum iwl_d3_status d3_status;
 	bool keep = false;
+	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
+					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
+
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE |
+				    CMD_WAKE_UP_TRANS;
 
 	mutex_lock(&mvm->mutex);
 
@@ -2052,7 +2070,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	if (IS_ERR_OR_NULL(vif))
 		goto err;
 
-	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test);
+	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test, !unified_image);
 	if (ret)
 		goto err;
 
@@ -2095,17 +2113,28 @@ out_iterate:
 			iwl_mvm_d3_disconnect_iter, keep ? vif : NULL);
 
 out:
-	/* return 1 to reconfigure the device */
+	if (unified_image && !ret) {
+		ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, flags, 0, NULL);
+		if (!ret) /* D3 ended successfully - no need to reset device */
+			return 0;
+	}
+
+	/*
+	 * Reconfigure the device in one of the following cases:
+	 * 1. We are not using a unified image
+	 * 2. We are using a unified image but had an error while exiting D3
+	 */
 	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 	set_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status);
-
-	/* We always return 1, which causes mac80211 to do a reconfig
-	 * with IEEE80211_RECONFIG_TYPE_RESTART.  This type of
-	 * reconfig calls iwl_mvm_restart_complete(), where we unref
-	 * the IWL_MVM_REF_UCODE_DOWN, so we need to take the
-	 * reference here.
+	/*
+	 * When switching images we return 1, which causes mac80211
+	 * to do a reconfig with IEEE80211_RECONFIG_TYPE_RESTART.
+	 * This type of reconfig calls iwl_mvm_restart_complete(),
+	 * where we unref the IWL_MVM_REF_UCODE_DOWN, so we need
+	 * to take the reference here.
 	 */
 	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
+
 	return 1;
 }
 
@@ -2122,7 +2151,7 @@ static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
 	enum iwl_d3_status d3_status;
 	struct iwl_trans *trans = mvm->trans;
 
-	iwl_trans_d3_resume(trans, &d3_status, false);
+	iwl_trans_d3_resume(trans, &d3_status, false, false);
 
 	/*
 	 * make sure to clear D0I3_DEFER_WAKEUP before
