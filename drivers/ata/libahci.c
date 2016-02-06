@@ -113,8 +113,6 @@ static ssize_t ahci_store_em_buffer(struct device *dev,
 				    const char *buf, size_t size);
 static ssize_t ahci_show_em_supported(struct device *dev,
 				      struct device_attribute *attr, char *buf);
-static irqreturn_t ahci_single_edge_irq_intr(int irq, void *dev_instance);
-
 static irqreturn_t ahci_single_level_irq_intr(int irq, void *dev_instance);
 
 static DEVICE_ATTR(ahci_host_caps, S_IRUGO, ahci_show_host_caps, NULL);
@@ -517,9 +515,7 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 		hpriv->start_engine = ahci_start_engine;
 
 	if (!hpriv->irq_handler)
-		hpriv->irq_handler = (hpriv->flags & AHCI_HFLAG_EDGE_IRQ) ?
-				     ahci_single_edge_irq_intr :
-				     ahci_single_level_irq_intr;
+		hpriv->irq_handler = ahci_single_level_irq_intr;
 }
 EXPORT_SYMBOL_GPL(ahci_save_initial_config);
 
@@ -1881,43 +1877,6 @@ u32 ahci_handle_port_intr(struct ata_host *host, u32 irq_masked)
 	return handled;
 }
 EXPORT_SYMBOL_GPL(ahci_handle_port_intr);
-
-static irqreturn_t ahci_single_edge_irq_intr(int irq, void *dev_instance)
-{
-	struct ata_host *host = dev_instance;
-	struct ahci_host_priv *hpriv;
-	unsigned int rc = 0;
-	void __iomem *mmio;
-	u32 irq_stat, irq_masked;
-
-	VPRINTK("ENTER\n");
-
-	hpriv = host->private_data;
-	mmio = hpriv->mmio;
-
-	/* sigh.  0xffffffff is a valid return from h/w */
-	irq_stat = readl(mmio + HOST_IRQ_STAT);
-	if (!irq_stat)
-		return IRQ_NONE;
-
-	irq_masked = irq_stat & hpriv->port_map;
-
-	spin_lock(&host->lock);
-
-	/*
-	 * HOST_IRQ_STAT behaves as edge triggered latch meaning that
-	 * it should be cleared before all the port events are cleared.
-	 */
-	writel(irq_stat, mmio + HOST_IRQ_STAT);
-
-	rc = ahci_handle_port_intr(host, irq_masked);
-
-	spin_unlock(&host->lock);
-
-	VPRINTK("EXIT\n");
-
-	return IRQ_RETVAL(rc);
-}
 
 static irqreturn_t ahci_single_level_irq_intr(int irq, void *dev_instance)
 {

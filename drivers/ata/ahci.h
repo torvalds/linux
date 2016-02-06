@@ -240,8 +240,7 @@ enum {
 						        error-handling stage) */
 	AHCI_HFLAG_NO_DEVSLP		= (1 << 17), /* no device sleep */
 	AHCI_HFLAG_NO_FBS		= (1 << 18), /* no FBS */
-	AHCI_HFLAG_EDGE_IRQ		= (1 << 19), /* HOST_IRQ_STAT behaves as
-							Edge Triggered */
+
 #ifdef CONFIG_PCI_MSI
 	AHCI_HFLAG_MULTI_MSI		= (1 << 20), /* multiple PCI MSIs */
 	AHCI_HFLAG_MULTI_MSIX		= (1 << 21), /* per-port MSI-X */
