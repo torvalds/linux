@@ -502,12 +502,35 @@ static ssize_t lnet_debugfs_write(struct file *filp, const char __user *buf,
 	return error;
 }
 
-static const struct file_operations lnet_debugfs_file_operations = {
+static const struct file_operations lnet_debugfs_file_operations_rw = {
 	.open		= simple_open,
 	.read		= lnet_debugfs_read,
 	.write		= lnet_debugfs_write,
 	.llseek		= default_llseek,
 };
+
+static const struct file_operations lnet_debugfs_file_operations_ro = {
+	.open		= simple_open,
+	.read		= lnet_debugfs_read,
+	.llseek		= default_llseek,
+};
+
+static const struct file_operations lnet_debugfs_file_operations_wo = {
+	.open		= simple_open,
+	.write		= lnet_debugfs_write,
+	.llseek		= default_llseek,
+};
+
+static const struct file_operations *lnet_debugfs_fops_select(umode_t mode)
+{
+	if (!(mode & S_IWUGO))
+		return &lnet_debugfs_file_operations_ro;
+
+	if (!(mode & S_IRUGO))
+		return &lnet_debugfs_file_operations_wo;
+
+	return &lnet_debugfs_file_operations_rw;
+}
 
 void lustre_insert_debugfs(struct ctl_table *table,
 			   const struct lnet_debugfs_symlink_def *symlinks)
@@ -525,7 +548,7 @@ void lustre_insert_debugfs(struct ctl_table *table,
 	for (; table->procname; table++)
 		debugfs_create_file(table->procname, table->mode,
 				    lnet_debugfs_root, table,
-				    &lnet_debugfs_file_operations);
+				    lnet_debugfs_fops_select(table->mode));
 
 	for (; symlinks && symlinks->name; symlinks++)
 		debugfs_create_symlink(symlinks->name, lnet_debugfs_root,
