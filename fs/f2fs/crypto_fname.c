@@ -317,7 +317,10 @@ int f2fs_fname_disk_to_usr(struct inode *inode,
 		oname->len = iname->len;
 		return oname->len;
 	}
-
+	if (iname->len < F2FS_CRYPTO_BLOCK_SIZE) {
+		printk("encrypted inode too small");
+		return -EUCLEAN;
+	}
 	if (F2FS_I(inode)->i_crypt_info)
 		return f2fs_fname_decrypt(inode, iname, oname);
 
