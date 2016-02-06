@@ -434,8 +434,8 @@ static void osc_page_delete(const struct lu_env *env,
 	osc_lru_del(osc_cli(obj), opg, true);
 }
 
-void osc_page_clip(const struct lu_env *env, const struct cl_page_slice *slice,
-		   int from, int to)
+static void osc_page_clip(const struct lu_env *env,
+			  const struct cl_page_slice *slice, int from, int to)
 {
 	struct osc_page *opg = cl2osc_page(slice);
 	struct osc_async_page *oap = &opg->ops_oap;
