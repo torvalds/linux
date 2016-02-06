@@ -239,6 +239,7 @@ static int map_lookup_elem(union bpf_attr *attr)
 	int ufd = attr->map_fd;
 	struct bpf_map *map;
 	void *key, *value, *ptr;
+	u32 value_size;
 	struct fd f;
 	int err;
 
@@ -259,23 +260,35 @@ static int map_lookup_elem(union bpf_attr *attr)
 	if (copy_from_user(key, ukey, map->key_size) != 0)
 		goto free_key;
 
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
+	    map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
+		value_size = round_up(map->value_size, 8) * num_possible_cpus();
+	else
+		value_size = map->value_size;
+
 	err = -ENOMEM;
-	value = kmalloc(map->value_size, GFP_USER | __GFP_NOWARN);
+	value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
 	if (!value)
 		goto free_key;
 
-	rcu_read_lock();
-	ptr = map->ops->map_lookup_elem(map, key);
-	if (ptr)
-		memcpy(value, ptr, map->value_size);
-	rcu_read_unlock();
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH) {
+		err = bpf_percpu_hash_copy(map, key, value);
+	} else if (map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
+		err = bpf_percpu_array_copy(map, key, value);
+	} else {
+		rcu_read_lock();
+		ptr = map->ops->map_lookup_elem(map, key);
+		if (ptr)
+			memcpy(value, ptr, value_size);
+		rcu_read_unlock();
+		err = ptr ? 0 : -ENOENT;
+	}
 
-	err = -ENOENT;
-	if (!ptr)
+	if (err)
 		goto free_value;
 
 	err = -EFAULT;
-	if (copy_to_user(uvalue, value, map->value_size) != 0)
+	if (copy_to_user(uvalue, value, value_size) != 0)
 		goto free_value;
 
 	err = 0;
@@ -298,6 +311,7 @@ static int map_update_elem(union bpf_attr *attr)
 	int ufd = attr->map_fd;
 	struct bpf_map *map;
 	void *key, *value;
+	u32 value_size;
 	struct fd f;
 	int err;
 
@@ -318,21 +332,30 @@ static int map_update_elem(union bpf_attr *attr)
 	if (copy_from_user(key, ukey, map->key_size) != 0)
 		goto free_key;
 
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
+	    map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
+		value_size = round_up(map->value_size, 8) * num_possible_cpus();
+	else
+		value_size = map->value_size;
+
 	err = -ENOMEM;
-	value = kmalloc(map->value_size, GFP_USER | __GFP_NOWARN);
+	value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
 	if (!value)
 		goto free_key;
 
 	err = -EFAULT;
-	if (copy_from_user(value, uvalue, map->value_size) != 0)
+	if (copy_from_user(value, uvalue, value_size) != 0)
 		goto free_value;
 
-	/* eBPF program that use maps are running under rcu_read_lock(),
-	 * therefore all map accessors rely on this fact, so do the same here
-	 */
-	rcu_read_lock();
-	err = map->ops->map_update_elem(map, key, value, attr->flags);
-	rcu_read_unlock();
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_HASH) {
+		err = bpf_percpu_hash_update(map, key, value, attr->flags);
+	} else if (map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
+		err = bpf_percpu_array_update(map, key, value, attr->flags);
+	} else {
+		rcu_read_lock();
+		err = map->ops->map_update_elem(map, key, value, attr->flags);
+		rcu_read_unlock();
+	}
 
 free_value:
 	kfree(value);

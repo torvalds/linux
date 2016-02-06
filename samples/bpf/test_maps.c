@@ -89,6 +89,100 @@ static void test_hashmap_sanity(int i, void *data)
 	close(map_fd);
 }
 
+/* sanity tests for percpu map API */
+static void test_percpu_hashmap_sanity(int task, void *data)
+{
+	long long key, next_key;
+	int expected_key_mask = 0;
+	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	long long value[nr_cpus];
+	int map_fd, i;
+
+	map_fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_HASH, sizeof(key),
+				sizeof(value[0]), 2);
+	if (map_fd < 0) {
+		printf("failed to create hashmap '%s'\n", strerror(errno));
+		exit(1);
+	}
+
+	for (i = 0; i < nr_cpus; i++)
+		value[i] = i + 100;
+	key = 1;
+	/* insert key=1 element */
+	assert(!(expected_key_mask & key));
+	assert(bpf_update_elem(map_fd, &key, value, BPF_ANY) == 0);
+	expected_key_mask |= key;
+
+	/* BPF_NOEXIST means: add new element if it doesn't exist */
+	assert(bpf_update_elem(map_fd, &key, value, BPF_NOEXIST) == -1 &&
+	       /* key=1 already exists */
+	       errno == EEXIST);
+
+	/* -1 is an invalid flag */
+	assert(bpf_update_elem(map_fd, &key, value, -1) == -1 &&
+	       errno == EINVAL);
+
+	/* check that key=1 can be found. value could be 0 if the lookup
+	 * was run from a different cpu.
+	 */
+	value[0] = 1;
+	assert(bpf_lookup_elem(map_fd, &key, value) == 0 && value[0] == 100);
+
+	key = 2;
+	/* check that key=2 is not found */
+	assert(bpf_lookup_elem(map_fd, &key, value) == -1 && errno == ENOENT);
+
+	/* BPF_EXIST means: update existing element */
+	assert(bpf_update_elem(map_fd, &key, value, BPF_EXIST) == -1 &&
+	       /* key=2 is not there */
+	       errno == ENOENT);
+
+	/* insert key=2 element */
+	assert(!(expected_key_mask & key));
+	assert(bpf_update_elem(map_fd, &key, value, BPF_NOEXIST) == 0);
+	expected_key_mask |= key;
+
+	/* key=1 and key=2 were inserted, check that key=0 cannot be inserted
+	 * due to max_entries limit
+	 */
+	key = 0;
+	assert(bpf_update_elem(map_fd, &key, value, BPF_NOEXIST) == -1 &&
+	       errno == E2BIG);
+
+	/* check that key = 0 doesn't exist */
+	assert(bpf_delete_elem(map_fd, &key) == -1 && errno == ENOENT);
+
+	/* iterate over two elements */
+	while (!bpf_get_next_key(map_fd, &key, &next_key)) {
+		assert((expected_key_mask & next_key) == next_key);
+		expected_key_mask &= ~next_key;
+
+		assert(bpf_lookup_elem(map_fd, &next_key, value) == 0);
+		for (i = 0; i < nr_cpus; i++)
+			assert(value[i] == i + 100);
+
+		key = next_key;
+	}
+	assert(errno == ENOENT);
+
+	/* Update with BPF_EXIST */
+	key = 1;
+	assert(bpf_update_elem(map_fd, &key, value, BPF_EXIST) == 0);
+
+	/* delete both elements */
+	key = 1;
+	assert(bpf_delete_elem(map_fd, &key) == 0);
+	key = 2;
+	assert(bpf_delete_elem(map_fd, &key) == 0);
+	assert(bpf_delete_elem(map_fd, &key) == -1 && errno == ENOENT);
+
+	key = 0;
+	/* check that map is empty */
+	assert(bpf_get_next_key(map_fd, &key, &next_key) == -1 &&
+	       errno == ENOENT);
+	close(map_fd);
+}
+
 static void test_arraymap_sanity(int i, void *data)
 {
 	int key, next_key, map_fd;
@@ -126,6 +220,94 @@ static void test_arraymap_sanity(int i, void *data)
 
 	/* check that key = 2 doesn't exist */
 	assert(bpf_lookup_elem(map_fd, &key, &value) == -1 && errno == ENOENT);
+
+	/* iterate over two elements */
+	assert(bpf_get_next_key(map_fd, &key, &next_key) == 0 &&
+	       next_key == 0);
+	assert(bpf_get_next_key(map_fd, &next_key, &next_key) == 0 &&
+	       next_key == 1);
+	assert(bpf_get_next_key(map_fd, &next_key, &next_key) == -1 &&
+	       errno == ENOENT);
+
+	/* delete shouldn't succeed */
+	key = 1;
+	assert(bpf_delete_elem(map_fd, &key) == -1 && errno == EINVAL);
+
+	close(map_fd);
+}
+
+static void test_percpu_arraymap_many_keys(void)
+{
+	unsigned nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned nr_keys = 20000;
+	long values[nr_cpus];
+	int key, map_fd, i;
+
+	map_fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
+				sizeof(values[0]), nr_keys);
+	if (map_fd < 0) {
+		printf("failed to create per-cpu arraymap '%s'\n",
+		       strerror(errno));
+		exit(1);
+	}
+
+	for (i = 0; i < nr_cpus; i++)
+		values[i] = i + 10;
+
+	for (key = 0; key < nr_keys; key++)
+		assert(bpf_update_elem(map_fd, &key, values, BPF_ANY) == 0);
+
+	for (key = 0; key < nr_keys; key++) {
+		for (i = 0; i < nr_cpus; i++)
+			values[i] = 0;
+		assert(bpf_lookup_elem(map_fd, &key, values) == 0);
+		for (i = 0; i < nr_cpus; i++)
+			assert(values[i] == i + 10);
+	}
+
+	close(map_fd);
+}
+
+static void test_percpu_arraymap_sanity(int i, void *data)
+{
+	unsigned nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	long values[nr_cpus];
+	int key, next_key, map_fd;
+
+	map_fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
+				sizeof(values[0]), 2);
+	if (map_fd < 0) {
+		printf("failed to create arraymap '%s'\n", strerror(errno));
+		exit(1);
+	}
+
+	for (i = 0; i < nr_cpus; i++)
+		values[i] = i + 100;
+
+	key = 1;
+	/* insert key=1 element */
+	assert(bpf_update_elem(map_fd, &key, values, BPF_ANY) == 0);
+
+	values[0] = 0;
+	assert(bpf_update_elem(map_fd, &key, values, BPF_NOEXIST) == -1 &&
+	       errno == EEXIST);
+
+	/* check that key=1 can be found */
+	assert(bpf_lookup_elem(map_fd, &key, values) == 0 && values[0] == 100);
+
+	key = 0;
+	/* check that key=0 is also found and zero initialized */
+	assert(bpf_lookup_elem(map_fd, &key, values) == 0 &&
+	       values[0] == 0 && values[nr_cpus - 1] == 0);
+
+
+	/* check that key=2 cannot be inserted due to max_entries limit */
+	key = 2;
+	assert(bpf_update_elem(map_fd, &key, values, BPF_EXIST) == -1 &&
+	       errno == E2BIG);
+
+	/* check that key = 2 doesn't exist */
+	assert(bpf_lookup_elem(map_fd, &key, values) == -1 && errno == ENOENT);
 
 	/* iterate over two elements */
 	assert(bpf_get_next_key(map_fd, &key, &next_key) == 0 &&
@@ -209,7 +391,9 @@ static void run_parallel(int tasks, void (*fn)(int i, void *data), void *data)
 static void test_map_stress(void)
 {
 	run_parallel(100, test_hashmap_sanity, NULL);
+	run_parallel(100, test_percpu_hashmap_sanity, NULL);
 	run_parallel(100, test_arraymap_sanity, NULL);
+	run_parallel(100, test_percpu_arraymap_sanity, NULL);
 }
 
 #define TASKS 1024
@@ -282,7 +466,11 @@ static void test_map_parallel(void)
 int main(void)
 {
 	test_hashmap_sanity(0, NULL);
+	test_percpu_hashmap_sanity(0, NULL);
 	test_arraymap_sanity(0, NULL);
+	test_percpu_arraymap_sanity(0, NULL);
+	test_percpu_arraymap_many_keys();
+
 	test_map_large();
 	test_map_parallel();
 	test_map_stress();
