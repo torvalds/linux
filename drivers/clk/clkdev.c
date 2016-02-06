@@ -402,30 +402,3 @@ int clk_register_clkdev(struct clk *clk, const char *con_id,
 	return cl ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL(clk_register_clkdev);
-
-/**
- * clk_register_clkdevs - register a set of clk_lookup for a struct clk
- * @clk: struct clk to associate with all clk_lookups
- * @cl: array of clk_lookup structures with con_id and dev_id pre-initialized
- * @num: number of clk_lookup structures to register
- *
- * To make things easier for mass registration, we detect error clks
- * from a previous clk_register() call, and return the error code for
- * those.  This is to permit this function to be called immediately
- * after clk_register().
- */
-int clk_register_clkdevs(struct clk *clk, struct clk_lookup *cl, size_t num)
-{
-	unsigned i;
-
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	for (i = 0; i < num; i++, cl++) {
-		cl->clk_hw = __clk_get_hw(clk);
-		__clkdev_add(cl);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(clk_register_clkdevs);
