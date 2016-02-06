@@ -141,6 +141,7 @@ struct vc4_seqno_cb {
 };
 
 struct vc4_v3d {
+	struct vc4_dev *vc4;
 	struct platform_device *pdev;
 	void __iomem *regs;
 };

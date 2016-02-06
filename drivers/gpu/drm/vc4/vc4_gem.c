@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/device.h>
 #include <linux/io.h>
 
@@ -621,6 +622,7 @@ fail:
 static void
 vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned i;
 
 	/* Need the struct lock for drm_gem_object_unreference(). */
@@ -638,6 +640,8 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 		drm_gem_object_unreference(&bo->base.base);
 	}
 	mutex_unlock(&dev->struct_mutex);
+
+	pm_runtime_put(&vc4->v3d->pdev->dev);
 
 	kfree(exec);
 }
@@ -790,6 +794,12 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (!exec) {
 		DRM_ERROR("malloc failure on exec struct\n");
 		return -ENOMEM;
+	}
+
+	ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+	if (ret < 0) {
+		kfree(exec);
+		return ret;
 	}
 
 	exec->args = args;
