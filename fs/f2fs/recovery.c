@@ -465,7 +465,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 
 			/* write dummy data page */
 			f2fs_replace_block(sbi, &dn, src, dest,
-							ni.version, false);
+						ni.version, false, false);
 			recovered++;
 		}
 	}

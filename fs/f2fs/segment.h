@@ -191,6 +191,7 @@ struct segment_allocation {
 struct inmem_pages {
 	struct list_head list;
 	struct page *page;
+	block_t old_addr;		/* for revoking when fail to commit */
 };
 
 struct sit_info {

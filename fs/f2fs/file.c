@@ -883,7 +883,7 @@ static int __exchange_data_block(struct inode *inode, pgoff_t src,
 
 		get_node_info(sbi, dn.nid, &ni);
 		f2fs_replace_block(sbi, &dn, dn.data_blkaddr, new_addr,
-				ni.version, true);
+				ni.version, true, false);
 		f2fs_put_dnode(&dn);
 	} else {
 		struct page *psrc, *pdst;

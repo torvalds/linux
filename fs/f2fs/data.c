@@ -1072,6 +1072,7 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		return err;
 
 	fio->blk_addr = dn.data_blkaddr;
+	fio->old_blkaddr = dn.data_blkaddr;
 
 	/* This page is already truncated */
 	if (fio->blk_addr == NULL_ADDR) {
