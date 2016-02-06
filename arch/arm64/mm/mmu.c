@@ -116,7 +116,9 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 	pte_t *pte;
 
 	if (pmd_none(*pmd) || pmd_sect(*pmd)) {
-		phys_addr_t pte_phys = pgtable_alloc();
+		phys_addr_t pte_phys;
+		BUG_ON(!pgtable_alloc);
+		pte_phys = pgtable_alloc();
 		pte = pte_set_fixmap(pte_phys);
 		if (pmd_sect(*pmd))
 			split_pmd(pmd, pte);
@@ -158,7 +160,9 @@ static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 	 * Check for initial section mappings in the pgd/pud and remove them.
 	 */
 	if (pud_none(*pud) || pud_sect(*pud)) {
-		phys_addr_t pmd_phys = pgtable_alloc();
+		phys_addr_t pmd_phys;
+		BUG_ON(!pgtable_alloc);
+		pmd_phys = pgtable_alloc();
 		pmd = pmd_set_fixmap(pmd_phys);
 		if (pud_sect(*pud)) {
 			/*
@@ -223,7 +227,9 @@ static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 	unsigned long next;
 
 	if (pgd_none(*pgd)) {
-		phys_addr_t pud_phys = pgtable_alloc();
+		phys_addr_t pud_phys;
+		BUG_ON(!pgtable_alloc);
+		pud_phys = pgtable_alloc();
 		__pgd_populate(pgd, pud_phys, PUD_TYPE_TABLE);
 	}
 	BUG_ON(pgd_bad(*pgd));
@@ -312,7 +318,12 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 	init_pgd(pgd_offset_raw(pgdir, virt), phys, virt, size, prot, alloc);
 }
 
-static void __init create_mapping(phys_addr_t phys, unsigned long virt,
+/*
+ * This function can only be used to modify existing table entries,
+ * without allocating new levels of table. Note that this permits the
+ * creation of new section or page entries.
+ */
+static void __init create_mapping_noalloc(phys_addr_t phys, unsigned long virt,
 				  phys_addr_t size, pgprot_t prot)
 {
 	if (virt < VMALLOC_START) {
@@ -321,7 +332,7 @@ static void __init create_mapping(phys_addr_t phys, unsigned long virt,
 		return;
 	}
 	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot,
-			     early_pgtable_alloc);
+			     NULL);
 }
 
 void __init create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
@@ -678,7 +689,7 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 	/*
 	 * Make sure that the FDT region can be mapped without the need to
 	 * allocate additional translation table pages, so that it is safe
-	 * to call create_mapping() this early.
+	 * to call create_mapping_noalloc() this early.
 	 *
 	 * On 64k pages, the FDT will be mapped using PTEs, so we need to
 	 * be in the same PMD as the rest of the fixmap.
@@ -694,8 +705,8 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 	dt_virt = (void *)dt_virt_base + offset;
 
 	/* map the first chunk so we can read the size from the header */
-	create_mapping(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
-		       SWAPPER_BLOCK_SIZE, prot);
+	create_mapping_noalloc(round_down(dt_phys, SWAPPER_BLOCK_SIZE),
+			dt_virt_base, SWAPPER_BLOCK_SIZE, prot);
 
 	if (fdt_check_header(dt_virt) != 0)
 		return NULL;
@@ -705,7 +716,7 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 		return NULL;
 
 	if (offset + size > SWAPPER_BLOCK_SIZE)
-		create_mapping(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
+		create_mapping_noalloc(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
 			       round_up(offset + size, SWAPPER_BLOCK_SIZE), prot);
 
 	memblock_reserve(dt_phys, size);
