@@ -362,7 +362,6 @@ static int f2fs_page_crypto(struct f2fs_crypto_ctx *ctx,
 	else
 		res = crypto_ablkcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
-		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
