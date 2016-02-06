@@ -36,6 +36,7 @@ if [ -c /dev/net/tun ]; then
     LKL_HIJACK_NET_TAP=lkl_ptt0 LKL_HIJACK_NET_IP=192.168.13.2 LKL_HIJACK_NET_NETMASK_LEN=24 ${hijack_script} ./ping 192.168.13.1 -i 0.2 -c 65
     rm ./ping
     (sudo arp -d 192.168.13.2 && ping -i 0.2 -c 65 192.168.13.2 & LKL_HIJACK_NET_TAP=lkl_ptt0 LKL_HIJACK_NET_IP=192.168.13.2 LKL_HIJACK_NET_NETMASK_LEN=24 ${hijack_script} sleep 15)
+    LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" LKL_HIJACK_NET_TAP=lkl_ptt0 LKL_HIJACK_NET_IP=192.168.13.2 LKL_HIJACK_NET_NETMASK_LEN=24 ${hijack_script} ip addr | grep "aa:bb:cc:dd:ee:ff"
     sudo ip link set dev lkl_ptt0 down
     sudo ip tuntap del dev lkl_ptt0 mode tap
 fi;

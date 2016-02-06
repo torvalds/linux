@@ -3,6 +3,8 @@
 #include "virtio.h"
 #include "endian.h"
 
+#include <lkl/linux/virtio_net.h>
+
 #define BIT(x) (1ULL << x)
 
 struct virtio_net_poll {
@@ -106,7 +108,7 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	dev->nd = nd;
 
 	if (mac)
-		memcpy(dev->config.mac, mac, 6);
+		memcpy(dev->config.mac, mac, LKL_ETH_ALEN);
 
 	dev->rx_poll.event = LKL_DEV_NET_POLL_RX;
 	dev->rx_poll.sem = lkl_host_ops.sem_alloc(0);
