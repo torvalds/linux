@@ -4,9 +4,6 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdint.h>
-#ifndef __MINGW32__
-#include <argp.h>
-#endif
 #include <lkl.h>
 #include <lkl_host.h>
 #ifndef __MINGW32__
@@ -72,14 +69,6 @@ void printk(const char *str, int len)
 
 	if (cla.printk)
 		ret = write(STDOUT_FILENO, str, len);
-}
-
-void perror_msg(char *to_perror, char *str)
-{
-	/* No error handling here because we can't recover from it
-	 * anyway */
-	char *err_msg = strerror(errno);
-	snprintf(str, MAX_MSG_LEN, "%s: error %d (%s)", to_perror, errno, err_msg);
 }
 
 static int g_test_pass = 0;
@@ -404,6 +393,7 @@ out:
 		return TEST_SUCCESS;
 	return TEST_FAILURE;
 }
+#endif /* __MINGW32__ */
 
 static int test_pipe2(char *str, int len)
 {
@@ -412,21 +402,29 @@ static int test_pipe2(char *str, int len)
 	const char msg[] = "Hello world!";
 	int msg_len_bytes = strlen(msg) + 1;
 	int cmp_res = 0;
+	long ret;
 
-	if (lkl_sys_pipe2(pipe_fds, O_NONBLOCK)) {
-		perror_msg("pipe2", str);
+	ret = lkl_sys_pipe2(pipe_fds, LKL_O_NONBLOCK);
+	if (ret) {
+		snprintf(str, len, "pipe2: %s", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
-	if (lkl_sys_write(pipe_fds[WRITE_IDX], msg, msg_len_bytes) !=
-		msg_len_bytes) {
-		perror_msg("write", str);
+	ret = lkl_sys_write(pipe_fds[WRITE_IDX], msg, msg_len_bytes);
+	if (ret != msg_len_bytes) {
+		if (ret < 0)
+			snprintf(str, len, "write: %s", lkl_strerror(ret));
+		else
+			snprintf(str, len, "write: short write");
 		return TEST_FAILURE;
 	}
 
-	if (lkl_sys_read(pipe_fds[READ_IDX], str, msg_len_bytes) !=
-		msg_len_bytes) {
-		perror_msg("read", str);
+	ret = lkl_sys_read(pipe_fds[READ_IDX], str, msg_len_bytes);
+	if (ret != msg_len_bytes) {
+		if (ret < 0)
+			snprintf(str, len, "read: %s", lkl_strerror(ret));
+		else
+			snprintf(str, len, "read: short read\n");
 		return TEST_FAILURE;
 	}
 
@@ -435,8 +433,15 @@ static int test_pipe2(char *str, int len)
 		return TEST_FAILURE;
 	}
 
-	if (lkl_sys_close(pipe_fds[0]) || lkl_sys_close(pipe_fds[1])) {
-		perror_msg("close", str);
+	ret = lkl_sys_close(pipe_fds[0]);
+	if (ret) {
+		snprintf(str, len, "close: %s", lkl_strerror(ret));
+		return TEST_FAILURE;
+	}
+
+	ret = lkl_sys_close(pipe_fds[1]);
+	if (ret) {
+		snprintf(str, len, "close: %s", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
@@ -449,42 +454,56 @@ static int test_epoll(char *str, int len)
 	int READ_IDX = 0, WRITE_IDX = 1;
 	struct lkl_epoll_event wait_on, read_result;
 	const char msg[] = "Hello world!";
+	long ret;
 
 	memset(&wait_on, 0, sizeof(wait_on));
 	memset(&read_result, 0, sizeof(read_result));
 
-	if (lkl_sys_pipe2(pipe_fds, O_NONBLOCK)) {
-		perror_msg("pipe2", str);
+	ret = lkl_sys_pipe2(pipe_fds, LKL_O_NONBLOCK);
+	if (ret) {
+		snprintf(str, len, "pipe2: %s", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
-	if ((epoll_fd = lkl_sys_epoll_create(1)) == -1) {
-		perror_msg("lkl_sys_epoll_create", str);
+	epoll_fd = lkl_sys_epoll_create(1);
+	if (epoll_fd < 0) {
+		snprintf(str, len, "epoll_create: %s", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
-	wait_on.events = EPOLLIN | EPOLLOUT;
+	wait_on.events = LKL_POLLIN | LKL_POLLOUT;
 	wait_on.data = pipe_fds[READ_IDX];
 
-	if (lkl_sys_epoll_ctl(epoll_fd, LKL_EPOLL_CTL_ADD, pipe_fds[READ_IDX], &wait_on)) {
-		perror_msg("epoll_ctl", str);
+	ret = lkl_sys_epoll_ctl(epoll_fd, LKL_EPOLL_CTL_ADD, pipe_fds[READ_IDX],
+				&wait_on);
+	if (ret < 0) {
+		snprintf(str, len, "epoll_ctl: %s", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
 	/* Shouldn't be ready before we have written something */
-	if (lkl_sys_epoll_wait(epoll_fd, &read_result, 1, 0)) {
-		perror_msg("epoll_wait", str);
+	ret = lkl_sys_epoll_wait(epoll_fd, &read_result, 1, 0);
+	if (ret != 0) {
+		if (ret < 0)
+			snprintf(str, len, "epoll_wait: %s", lkl_strerror(ret));
+		else
+			snprintf(str, len, "epoll_wait: bad event");
 		return TEST_FAILURE;
 	}
 
-	if (lkl_sys_write(pipe_fds[WRITE_IDX], msg, strlen(msg) + 1) == -1) {
-		perror_msg("write", str);
+	ret = lkl_sys_write(pipe_fds[WRITE_IDX], msg, strlen(msg) + 1);
+	if (ret < 0) {
+		snprintf(str, len, "write: %s", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
 	/* We expect exactly 1 fd to be ready immediately */
-	if (lkl_sys_epoll_wait(epoll_fd, &read_result, 1, 0) != 1) {
-		perror_msg("epoll_wait", str);
+	ret = lkl_sys_epoll_wait(epoll_fd, &read_result, 1, 0);
+	if (ret != 1) {
+		if (ret < 0)
+			snprintf(str, len, "epoll_wait: %s", lkl_strerror(ret));
+		else
+			snprintf(str, len, "epoll_wait: bad ev no %ld\n", ret);
 		return TEST_FAILURE;
 	}
 
@@ -494,7 +513,6 @@ static int test_epoll(char *str, int len)
 
 	return TEST_SUCCESS;
 }
-#endif /* __MINGW32__ */
 
 static char mnt_point[32];
 
@@ -695,9 +713,9 @@ int main(int argc, char **argv)
 	TEST(nanosleep);
 	if (netdev_id >= 0)
 		TEST(netdev_ifup);
+#endif  /* __MINGW32__ */
 	TEST(pipe2);
 	TEST(epoll);
-#endif  /* __MINGW32__ */
 	TEST(mount);
 	TEST(chdir);
 	TEST(opendir);
