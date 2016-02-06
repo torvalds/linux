@@ -163,7 +163,8 @@ EXPORT_SYMBOL_GPL(usb_copy_descriptors);
 int usb_assign_descriptors(struct usb_function *f,
 		struct usb_descriptor_header **fs,
 		struct usb_descriptor_header **hs,
-		struct usb_descriptor_header **ss)
+		struct usb_descriptor_header **ss,
+		struct usb_descriptor_header **ssp)
 {
 	struct usb_gadget *g = f->config->cdev->gadget;
 

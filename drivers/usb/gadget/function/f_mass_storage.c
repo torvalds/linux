@@ -3093,7 +3093,7 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	fsg_ss_bulk_out_comp_desc.bMaxBurst = max_burst;
 
 	ret = usb_assign_descriptors(f, fsg_fs_function, fsg_hs_function,
-			fsg_ss_function);
+			fsg_ss_function, NULL);
 	if (ret)
 		goto autoconf_fail;
 

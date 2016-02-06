@@ -364,7 +364,8 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	obex_hs_ep_out_desc.bEndpointAddress =
 		obex_fs_ep_out_desc.bEndpointAddress;
 
-	status = usb_assign_descriptors(f, fs_function, hs_function, NULL);
+	status = usb_assign_descriptors(f, fs_function, hs_function, NULL,
+					NULL);
 	if (status)
 		goto fail;
 
