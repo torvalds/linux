@@ -537,6 +537,9 @@ config HOTPLUG_CPU
 source kernel/Kconfig.preempt
 source kernel/Kconfig.hz
 
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y
+
 config ARCH_HAS_HOLES_MEMORYMODEL
 	def_bool y if SPARSEMEM
 
