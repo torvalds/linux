@@ -51,6 +51,8 @@ struct ellesmere_smumgr {
 	uint32_t read_drm_straps_mc_address_low;
 	uint32_t acpi_optimization;
 	bool post_initial_boot;
+	uint8_t protected_mode;
+	uint8_t security_hard_key;
 	struct ellesmere_avfs  avfs;
 };
 

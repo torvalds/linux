@@ -222,6 +222,22 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 			" found a available voltage in VDDC DPM Table \n");
 }
 
+/**
+* Enable voltage control
+*
+* @param    pHwMgr  the address of the powerplay hardware manager.
+* @return   always PP_Result_OK
+*/
+int ellesmere_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
+{
+	PP_ASSERT_WITH_CODE(
+		(hwmgr->smumgr->smumgr_funcs->send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Voltage_Cntl_Enable) == 0),
+		"Failed to enable voltage DPM during DPM Start Function!",
+		return 1;
+	);
+
+	return 0;
+}
 
 /**
 * Checks if we want to support voltage control
@@ -586,6 +602,10 @@ static int ellesmere_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 							pcie_table->entries[i].lane_width));
 		}
 		data->dpm_table.pcie_speed_table.count = max_entry - 1;
+
+		/* Setup BIF_SCLK levels */
+		for (i = 0; i < max_entry; i++)
+			data->bif_sclk_table[i] = pcie_table->entries[i].pcie_sclk;
 	} else {
 		/* Hardcode Pcie Table */
 		phm_setup_pcie_table_entry(&data->dpm_table.pcie_speed_table, 0,
@@ -938,9 +958,13 @@ static int ellesmere_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 		sclk_setting->Fcw_frac = dividers.usSclk_fcw_frac;
 		sclk_setting->Pcc_fcw_int = dividers.usPcc_fcw_int;
 		sclk_setting->PllRange = dividers.ucSclkPllRange;
+		sclk_setting->Sclk_slew_rate = 0x400;
+		sclk_setting->Pcc_up_slew_rate = dividers.usPcc_fcw_slew_frac;
+		sclk_setting->Pcc_down_slew_rate = 0xffff;
 		sclk_setting->SSc_En = dividers.ucSscEnable;
 		sclk_setting->Fcw1_int = dividers.usSsc_fcw1_int;
 		sclk_setting->Fcw1_frac = dividers.usSsc_fcw1_frac;
+		sclk_setting->Sclk_ss_slew_rate = dividers.usSsc_fcw_slew_frac;
 		return result;
 	}
 
@@ -1174,8 +1198,12 @@ static int ellesmere_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Fcw_int);
 	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Fcw_frac);
 	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Pcc_fcw_int);
+	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Sclk_slew_rate);
+	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Pcc_up_slew_rate);
+	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Pcc_down_slew_rate);
 	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Fcw1_int);
 	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Fcw1_frac);
+	CONVERT_FROM_HOST_TO_SMC_US(level->SclkSetting.Sclk_ss_slew_rate);
 	return 0;
 }
 
@@ -1458,8 +1486,12 @@ static int ellesmere_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Fcw_int);
 	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Fcw_frac);
 	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Pcc_fcw_int);
+	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Sclk_slew_rate);
+	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Pcc_up_slew_rate);
+	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Pcc_down_slew_rate);
 	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Fcw1_int);
 	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Fcw1_frac);
+	CONVERT_FROM_HOST_TO_SMC_US(table->ACPILevel.SclkSetting.Sclk_ss_slew_rate);
 
 	if (!data->mclk_dpm_key_disabled) {
 		/* Get MinVoltage and Frequency from DPM0, already converted to SMC_UL */
@@ -1966,6 +1998,7 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 	const struct ellesmere_ulv_parm *ulv = &(data->ulv);
 	uint8_t i;
 	struct pp_atomctrl_gpio_pin_assignment gpio_pin;
+	pp_atomctrl_clock_dividers_vi dividers;
 
 	result = ellesmere_setup_default_dpm_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
@@ -2119,6 +2152,17 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 		table->ThermOutGpio = 17;
 		table->ThermOutPolarity = 1;
 		table->ThermOutMode = SMU7_THERM_OUT_MODE_DISABLE;
+	}
+
+	/* Populate BIF_SCLK levels into SMC DPM table */
+	for (i = 0; i <= data->dpm_table.pcie_speed_table.count; i++) {
+		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr, data->bif_sclk_table[i], &dividers);
+		PP_ASSERT_WITH_CODE((result == 0), "Can not find DFS divide id for Sclk", return result);
+
+		if (i == 0)
+			table->Ulv.BifSclkDfs = PP_HOST_TO_SMC_US((USHORT)(dividers.pll_post_divider));
+		else
+			table->LinkLevel[i-1].BifSclkDfs = PP_HOST_TO_SMC_US((USHORT)(dividers.pll_post_divider));
 	}
 
 	for (i = 0; i < SMU74_MAX_ENTRIES_SMIO; i++)
@@ -2284,12 +2328,13 @@ static int ellesmere_start_dpm(struct pp_hwmgr *hwmgr)
 					VoltageChangeTimeout), 0x1000);
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__PCIE,
 			SWRST_COMMAND_1, RESETLC, 0x0);
-
+/*
 	PP_ASSERT_WITH_CODE(
 			(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 					PPSMC_MSG_Voltage_Cntl_Enable)),
 			"Failed to enable voltage DPM during DPM Start Function!",
 			return -1);
+*/
 
 	if (ellesmere_enable_sclk_mclk_dpm(hwmgr)) {
 		printk(KERN_ERR "Failed to enable Sclk DPM and Mclk DPM!");
@@ -2449,6 +2494,10 @@ int ellesmere_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = ellesmere_enable_sclk_control(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable SCLK control!", result = tmp_result);
+
+	tmp_result = ellesmere_enable_smc_voltage_controller(hwmgr);
+	PP_ASSERT_WITH_CODE((0 == tmp_result),
+			"Failed to enable voltage control!", result = tmp_result);
 
 	tmp_result = ellesmere_enable_ulv(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),

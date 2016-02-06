@@ -274,6 +274,7 @@ struct ellesmere_hwmgr {
 
 	/* ---- DI/DT ---- */
 	struct ellesmere_display_timing        display_timing;
+	uint32_t                      bif_sclk_table[SMU74_MAX_LEVELS_LINK];
 
 	/* ---- Thermal Temperature Setting ---- */
 	struct ellesmere_dpmlevel_enable_mask     dpm_level_enable_mask;

@@ -345,7 +345,6 @@ static int ellesmere_upload_smc_firmware_data(struct pp_smumgr *smumgr, uint32_t
 	cgs_write_register(smumgr->device, mmSMC_IND_INDEX_11, 0x20000);
 	SMUM_WRITE_FIELD(smumgr->device, SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_11, 1);
 
-
 	for (; byte_count >= 4; byte_count -= 4)
 		cgs_write_register(smumgr->device, mmSMC_IND_DATA_11, *src++);
 
@@ -363,6 +362,9 @@ static enum cgs_ucode_id ellesmere_convert_fw_type_to_cgs(uint32_t fw_type)
 	switch (fw_type) {
 	case UCODE_ID_SMU:
 		result = CGS_UCODE_ID_SMU;
+		break;
+	case UCODE_ID_SMU_SK:
+		result = CGS_UCODE_ID_SMU_SK;
 		break;
 	case UCODE_ID_SDMA0:
 		result = CGS_UCODE_ID_SDMA0;
@@ -401,14 +403,18 @@ static enum cgs_ucode_id ellesmere_convert_fw_type_to_cgs(uint32_t fw_type)
 static int ellesmere_upload_smu_firmware_image(struct pp_smumgr *smumgr)
 {
 	int result = 0;
+	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
 
 	struct cgs_firmware_info info = {0};
 
-	cgs_get_firmware_info(smumgr->device,
+	if (smu_data->security_hard_key == 1)
+		cgs_get_firmware_info(smumgr->device,
 			ellesmere_convert_fw_type_to_cgs(UCODE_ID_SMU), &info);
+	else
+		cgs_get_firmware_info(smumgr->device,
+			ellesmere_convert_fw_type_to_cgs(UCODE_ID_SMU_SK), &info);
 
 	/* TO DO cgs_init_samu_load_smu(smumgr->device, (uint32_t *)info.kptr, info.image_size, smu_data->post_initial_boot);*/
-
 	result = ellesmere_upload_smc_firmware_data(smumgr, info.image_size, (uint32_t *)info.kptr, ELLESMERE_SMC_SIZE);
 
 	return result;
@@ -798,12 +804,10 @@ static int ellesmere_start_smu_in_protection_mode(struct pp_smumgr *smumgr)
 						SMU_STATUS, SMU_PASS))
 		PP_ASSERT_WITH_CODE(false, "SMU Firmware start failed!", return -1);
 
-
 	cgs_write_ind_register(smumgr->device, CGS_IND_REG__SMC, ixFIRMWARE_FLAGS, 0);
 
 	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL, rst_reg, 1);
-
 
 	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL, rst_reg, 0);
@@ -860,11 +864,21 @@ static int ellesmere_start_smu(struct pp_smumgr *smumgr)
 	/* Only start SMC if SMC RAM is not running */
 	if (!ellesmere_is_smc_ram_running(smumgr)) {
 		SMU_VFT_INTACT = false;
+		smu_data->protected_mode = (uint8_t) (SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
+		smu_data->security_hard_key = (uint8_t) (SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
+
 		/* Check if SMU is running in protected mode */
-		if (0 == SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE))
+		if (smu_data->protected_mode == 0) {
 			result = ellesmere_start_smu_in_non_protection_mode(smumgr);
-		else
+		} else {
 			result = ellesmere_start_smu_in_protection_mode(smumgr);
+
+			/* If failed, try with different security Key. */
+			if (result != 0) {
+				smu_data->security_hard_key ^= 1;
+				result = ellesmere_start_smu_in_protection_mode(smumgr);
+			}
+		}
 
 		if (result != 0)
 			PP_ASSERT_WITH_CODE(0, "Failed to load SMU ucode.", return result);
