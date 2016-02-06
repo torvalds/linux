@@ -1814,10 +1814,6 @@ static int ravb_probe(struct platform_device *pdev)
 			   CCC_OPC_CONFIG | CCC_GAC | CCC_CSEL_HPB, CCC);
 	}
 
-	/* Set CSEL value */
-	ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_CSEL) | CCC_CSEL_HPB,
-		   CCC);
-
 	/* Set GTI value */
 	error = ravb_set_gti(ndev);
 	if (error)
