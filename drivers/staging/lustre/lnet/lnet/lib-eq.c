@@ -79,7 +79,8 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 	 * overflow, they don't skip entries, so the queue has the same
 	 * apparent capacity at all times */
 
-	count = roundup_pow_of_two(count);
+	if (count)
+		count = roundup_pow_of_two(count);
 
 	if (callback != LNET_EQ_HANDLER_NONE && count != 0)
 		CWARN("EQ callback is guaranteed to get every event, do you still want to set eqcount %d for polling event which will have locking overhead? Please contact with developer to confirm\n", count);
