@@ -69,6 +69,8 @@ MODULE_DESCRIPTION("Intel(R) XL710 X710 Virtual Function Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+static struct workqueue_struct *i40evf_wq;
+
 /**
  * i40evf_allocate_dma_mem_d - OS specific memory alloc for shared code
  * @hw:   pointer to the HW structure
@@ -182,7 +184,7 @@ static void i40evf_tx_timeout(struct net_device *netdev)
 	if (!(adapter->flags & (I40EVF_FLAG_RESET_PENDING |
 				I40EVF_FLAG_RESET_NEEDED))) {
 		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
-		schedule_work(&adapter->reset_task);
+		queue_work(i40evf_wq, &adapter->reset_task);
 	}
 }
 
@@ -1032,7 +1034,7 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct i40evf_mac_filter *f;
 
-	if (adapter->state == __I40EVF_DOWN)
+	if (adapter->state <= __I40EVF_DOWN_PENDING)
 		return;
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
@@ -1122,7 +1124,9 @@ static void i40evf_free_queues(struct i40evf_adapter *adapter)
 	if (!adapter->vsi_res)
 		return;
 	kfree(adapter->tx_rings);
+	adapter->tx_rings = NULL;
 	kfree(adapter->rx_rings);
+	adapter->rx_rings = NULL;
 }
 
 /**
@@ -1454,7 +1458,11 @@ static int i40evf_init_rss(struct i40evf_adapter *adapter)
 	int ret;
 
 	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
-	hena = I40E_DEFAULT_RSS_HENA;
+	if (adapter->vf_res->vf_offload_flags &
+					I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+		hena = I40E_DEFAULT_RSS_HENA_EXPANDED;
+	else
+		hena = I40E_DEFAULT_RSS_HENA;
 	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
@@ -2142,7 +2150,8 @@ static int i40evf_open(struct net_device *netdev)
 		dev_err(&adapter->pdev->dev, "Unable to open device due to PF driver failure.\n");
 		return -EIO;
 	}
-	if (adapter->state != __I40EVF_DOWN || adapter->aq_required)
+
+	if (adapter->state != __I40EVF_DOWN)
 		return -EBUSY;
 
 	/* allocate transmit descriptors */
@@ -2197,14 +2206,14 @@ static int i40evf_close(struct net_device *netdev)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->state <= __I40EVF_DOWN)
+	if (adapter->state <= __I40EVF_DOWN_PENDING)
 		return 0;
 
 
 	set_bit(__I40E_DOWN, &adapter->vsi.state);
 
 	i40evf_down(adapter);
-	adapter->state = __I40EVF_DOWN;
+	adapter->state = __I40EVF_DOWN_PENDING;
 	i40evf_free_traffic_irqs(adapter);
 
 	return 0;
@@ -2504,8 +2513,11 @@ static void i40evf_init_task(struct work_struct *work)
 	if (adapter->vf_res->vf_offload_flags &
 		    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
 		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
-	if (!RSS_AQ(adapter))
-		i40evf_init_rss(adapter);
+
+	if (adapter->vf_res->vf_offload_flags &
+	    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
+		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
+
 	err = i40evf_request_misc_irq(adapter);
 	if (err)
 		goto err_sw_init;
@@ -2885,6 +2897,11 @@ static int __init i40evf_init_module(void)
 
 	pr_info("%s\n", i40evf_copyright);
 
+	i40evf_wq = create_singlethread_workqueue(i40evf_driver_name);
+	if (!i40evf_wq) {
+		pr_err("%s: Failed to create workqueue\n", i40evf_driver_name);
+		return -ENOMEM;
+	}
 	ret = pci_register_driver(&i40evf_driver);
 	return ret;
 }
@@ -2900,6 +2917,7 @@ module_init(i40evf_init_module);
 static void __exit i40evf_exit_module(void)
 {
 	pci_unregister_driver(&i40evf_driver);
+	destroy_workqueue(i40evf_wq);
 }
 
 module_exit(i40evf_exit_module);

@@ -51,7 +51,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 8
+#define DRV_VERSION_BUILD 10
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -90,6 +90,8 @@ static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T4), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_X722), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_1G_BASE_T_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T_X722), 0},
@@ -109,6 +111,8 @@ MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Ethernet Connection XL710 Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
+
+static struct workqueue_struct *i40e_wq;
 
 /**
  * i40e_allocate_dma_mem_d - OS specific memory alloc for shared code
@@ -295,7 +299,7 @@ static void i40e_service_event_schedule(struct i40e_pf *pf)
 	if (!test_bit(__I40E_DOWN, &pf->state) &&
 	    !test_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state) &&
 	    !test_and_set_bit(__I40E_SERVICE_SCHED, &pf->state))
-		schedule_work(&pf->service_task);
+		queue_work(i40e_wq, &pf->service_task);
 }
 
 /**
@@ -1368,7 +1372,7 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 		f->changed = true;
 
 		INIT_LIST_HEAD(&f->list);
-		list_add(&f->list, &vsi->mac_filter_list);
+		list_add_tail(&f->list, &vsi->mac_filter_list);
 	}
 
 	/* increment counter and add a new flag if needed */
@@ -6889,8 +6893,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 		wr32(hw, I40E_REG_MSS, val);
 	}
 
-	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
-	    (pf->hw.aq.fw_maj_ver < 4)) {
+	if (pf->flags & I40E_FLAG_RESTART_AUTONEG) {
 		msleep(75);
 		ret = i40e_aq_set_link_restart_an(&pf->hw, true, NULL);
 		if (ret)
@@ -7936,6 +7939,52 @@ static int i40e_vsi_config_rss(struct i40e_vsi *vsi)
 }
 
 /**
+ * i40e_get_rss_aq - Get RSS keys and lut by using AQ commands
+ * @vsi: Pointer to vsi structure
+ * @seed: Buffter to store the hash keys
+ * @lut: Buffer to store the lookup table entries
+ * @lut_size: Size of buffer to store the lookup table entries
+ *
+ * Return 0 on success, negative on failure
+ */
+static int i40e_get_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
+			   u8 *lut, u16 lut_size)
+{
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	int ret = 0;
+
+	if (seed) {
+		ret = i40e_aq_get_rss_key(hw, vsi->id,
+			(struct i40e_aqc_get_set_rss_key_data *)seed);
+		if (ret) {
+			dev_info(&pf->pdev->dev,
+				 "Cannot get RSS key, err %s aq_err %s\n",
+				 i40e_stat_str(&pf->hw, ret),
+				 i40e_aq_str(&pf->hw,
+					     pf->hw.aq.asq_last_status));
+			return ret;
+		}
+	}
+
+	if (lut) {
+		bool pf_lut = vsi->type == I40E_VSI_MAIN ? true : false;
+
+		ret = i40e_aq_get_rss_lut(hw, vsi->id, pf_lut, lut, lut_size);
+		if (ret) {
+			dev_info(&pf->pdev->dev,
+				 "Cannot get RSS lut, err %s aq_err %s\n",
+				 i40e_stat_str(&pf->hw, ret),
+				 i40e_aq_str(&pf->hw,
+					     pf->hw.aq.asq_last_status));
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+/**
  * i40e_config_rss_reg - Configure RSS keys and lut by writing registers
  * @vsi: Pointer to vsi structure
  * @seed: RSS hash seed
@@ -8037,7 +8086,12 @@ int i40e_config_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
  */
 int i40e_get_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 {
-	return i40e_get_rss_reg(vsi, seed, lut, lut_size);
+	struct i40e_pf *pf = vsi->back;
+
+	if (pf->flags & I40E_FLAG_RSS_AQ_CAPABLE)
+		return i40e_get_rss_aq(vsi, seed, lut, lut_size);
+	else
+		return i40e_get_rss_reg(vsi, seed, lut, lut_size);
 }
 
 /**
@@ -8367,6 +8421,12 @@ static int i40e_sw_init(struct i40e_pf *pf)
 				 pf->hw.func_caps.fd_filters_best_effort;
 	}
 
+	if (((pf->hw.mac.type == I40E_MAC_X710) ||
+	     (pf->hw.mac.type == I40E_MAC_XL710)) &&
+	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
+	    (pf->hw.aq.fw_maj_ver < 4)))
+		pf->flags |= I40E_FLAG_RESTART_AUTONEG;
+
 	if (pf->hw.func_caps.vmdq) {
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
 		pf->flags |= I40E_FLAG_VMDQ_ENABLED;
@@ -8393,6 +8453,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 			     I40E_FLAG_OUTER_UDP_CSUM_CAPABLE |
 			     I40E_FLAG_WB_ON_ITR_CAPABLE |
 			     I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE |
+			     I40E_FLAG_100M_SGMII_CAPABLE |
 			     I40E_FLAG_GENEVE_OFFLOAD_CAPABLE;
 	}
 	pf->eeprom_version = 0xDEAD;
@@ -8942,11 +9003,11 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	np = netdev_priv(netdev);
 	np->vsi = vsi;
 
-	netdev->hw_enc_features |= NETIF_F_IP_CSUM	 |
-				  NETIF_F_RXCSUM	 |
-				  NETIF_F_GSO_UDP_TUNNEL |
-				  NETIF_F_GSO_GRE	 |
-				  NETIF_F_TSO;
+	netdev->hw_enc_features |= NETIF_F_IP_CSUM	  |
+				   NETIF_F_GSO_UDP_TUNNEL |
+				   NETIF_F_GSO_GRE	  |
+				   NETIF_F_TSO		  |
+				   0;
 
 	netdev->features = NETIF_F_SG		       |
 			   NETIF_F_IP_CSUM	       |
@@ -10904,8 +10965,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		wr32(hw, I40E_REG_MSS, val);
 	}
 
-	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
-	    (pf->hw.aq.fw_maj_ver < 4)) {
+	if (pf->flags & I40E_FLAG_RESTART_AUTONEG) {
 		msleep(75);
 		err = i40e_aq_set_link_restart_an(&pf->hw, true, NULL);
 		if (err)
@@ -11413,6 +11473,16 @@ static int __init i40e_init_module(void)
 		i40e_driver_string, i40e_driver_version_str);
 	pr_info("%s: %s\n", i40e_driver_name, i40e_copyright);
 
+	/* we will see if single thread per module is enough for now,
+	 * it can't be any worse than using the system workqueue which
+	 * was already single threaded
+	 */
+	i40e_wq = create_singlethread_workqueue(i40e_driver_name);
+	if (!i40e_wq) {
+		pr_err("%s: Failed to create workqueue\n", i40e_driver_name);
+		return -ENOMEM;
+	}
+
 	i40e_dbg_init();
 	return pci_register_driver(&i40e_driver);
 }
@@ -11427,6 +11497,7 @@ module_init(i40e_init_module);
 static void __exit i40e_exit_module(void)
 {
 	pci_unregister_driver(&i40e_driver);
+	destroy_workqueue(i40e_wq);
 	i40e_dbg_exit();
 }
 module_exit(i40e_exit_module);

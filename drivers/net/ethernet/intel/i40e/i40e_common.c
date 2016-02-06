@@ -55,6 +55,8 @@ static i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_20G_KR2_A:
 			hw->mac.type = I40E_MAC_XL710;
 			break;
+		case I40E_DEV_ID_KX_X722:
+		case I40E_DEV_ID_QSFP_X722:
 		case I40E_DEV_ID_SFP_X722:
 		case I40E_DEV_ID_1G_BASE_T_X722:
 		case I40E_DEV_ID_10G_BASE_T_X722:
@@ -2765,35 +2767,6 @@ i40e_aq_erase_nvm_exit:
 	return status;
 }
 
-#define I40E_DEV_FUNC_CAP_SWITCH_MODE	0x01
-#define I40E_DEV_FUNC_CAP_MGMT_MODE	0x02
-#define I40E_DEV_FUNC_CAP_NPAR		0x03
-#define I40E_DEV_FUNC_CAP_OS2BMC	0x04
-#define I40E_DEV_FUNC_CAP_VALID_FUNC	0x05
-#define I40E_DEV_FUNC_CAP_SRIOV_1_1	0x12
-#define I40E_DEV_FUNC_CAP_VF		0x13
-#define I40E_DEV_FUNC_CAP_VMDQ		0x14
-#define I40E_DEV_FUNC_CAP_802_1_QBG	0x15
-#define I40E_DEV_FUNC_CAP_802_1_QBH	0x16
-#define I40E_DEV_FUNC_CAP_VSI		0x17
-#define I40E_DEV_FUNC_CAP_DCB		0x18
-#define I40E_DEV_FUNC_CAP_FCOE		0x21
-#define I40E_DEV_FUNC_CAP_ISCSI		0x22
-#define I40E_DEV_FUNC_CAP_RSS		0x40
-#define I40E_DEV_FUNC_CAP_RX_QUEUES	0x41
-#define I40E_DEV_FUNC_CAP_TX_QUEUES	0x42
-#define I40E_DEV_FUNC_CAP_MSIX		0x43
-#define I40E_DEV_FUNC_CAP_MSIX_VF	0x44
-#define I40E_DEV_FUNC_CAP_FLOW_DIRECTOR	0x45
-#define I40E_DEV_FUNC_CAP_IEEE_1588	0x46
-#define I40E_DEV_FUNC_CAP_FLEX10	0xF1
-#define I40E_DEV_FUNC_CAP_CEM		0xF2
-#define I40E_DEV_FUNC_CAP_IWARP		0x51
-#define I40E_DEV_FUNC_CAP_LED		0x61
-#define I40E_DEV_FUNC_CAP_SDP		0x62
-#define I40E_DEV_FUNC_CAP_MDIO		0x63
-#define I40E_DEV_FUNC_CAP_WR_CSR_PROT	0x64
-
 /**
  * i40e_parse_discover_capabilities
  * @hw: pointer to the hw struct
@@ -2832,79 +2805,79 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		major_rev = cap->major_rev;
 
 		switch (id) {
-		case I40E_DEV_FUNC_CAP_SWITCH_MODE:
+		case I40E_AQ_CAP_ID_SWITCH_MODE:
 			p->switch_mode = number;
 			break;
-		case I40E_DEV_FUNC_CAP_MGMT_MODE:
+		case I40E_AQ_CAP_ID_MNG_MODE:
 			p->management_mode = number;
 			break;
-		case I40E_DEV_FUNC_CAP_NPAR:
+		case I40E_AQ_CAP_ID_NPAR_ACTIVE:
 			p->npar_enable = number;
 			break;
-		case I40E_DEV_FUNC_CAP_OS2BMC:
+		case I40E_AQ_CAP_ID_OS2BMC_CAP:
 			p->os2bmc = number;
 			break;
-		case I40E_DEV_FUNC_CAP_VALID_FUNC:
+		case I40E_AQ_CAP_ID_FUNCTIONS_VALID:
 			p->valid_functions = number;
 			break;
-		case I40E_DEV_FUNC_CAP_SRIOV_1_1:
+		case I40E_AQ_CAP_ID_SRIOV:
 			if (number == 1)
 				p->sr_iov_1_1 = true;
 			break;
-		case I40E_DEV_FUNC_CAP_VF:
+		case I40E_AQ_CAP_ID_VF:
 			p->num_vfs = number;
 			p->vf_base_id = logical_id;
 			break;
-		case I40E_DEV_FUNC_CAP_VMDQ:
+		case I40E_AQ_CAP_ID_VMDQ:
 			if (number == 1)
 				p->vmdq = true;
 			break;
-		case I40E_DEV_FUNC_CAP_802_1_QBG:
+		case I40E_AQ_CAP_ID_8021QBG:
 			if (number == 1)
 				p->evb_802_1_qbg = true;
 			break;
-		case I40E_DEV_FUNC_CAP_802_1_QBH:
+		case I40E_AQ_CAP_ID_8021QBR:
 			if (number == 1)
 				p->evb_802_1_qbh = true;
 			break;
-		case I40E_DEV_FUNC_CAP_VSI:
+		case I40E_AQ_CAP_ID_VSI:
 			p->num_vsis = number;
 			break;
-		case I40E_DEV_FUNC_CAP_DCB:
+		case I40E_AQ_CAP_ID_DCB:
 			if (number == 1) {
 				p->dcb = true;
 				p->enabled_tcmap = logical_id;
 				p->maxtc = phys_id;
 			}
 			break;
-		case I40E_DEV_FUNC_CAP_FCOE:
+		case I40E_AQ_CAP_ID_FCOE:
 			if (number == 1)
 				p->fcoe = true;
 			break;
-		case I40E_DEV_FUNC_CAP_ISCSI:
+		case I40E_AQ_CAP_ID_ISCSI:
 			if (number == 1)
 				p->iscsi = true;
 			break;
-		case I40E_DEV_FUNC_CAP_RSS:
+		case I40E_AQ_CAP_ID_RSS:
 			p->rss = true;
 			p->rss_table_size = number;
 			p->rss_table_entry_width = logical_id;
 			break;
-		case I40E_DEV_FUNC_CAP_RX_QUEUES:
+		case I40E_AQ_CAP_ID_RXQ:
 			p->num_rx_qp = number;
 			p->base_queue = phys_id;
 			break;
-		case I40E_DEV_FUNC_CAP_TX_QUEUES:
+		case I40E_AQ_CAP_ID_TXQ:
 			p->num_tx_qp = number;
 			p->base_queue = phys_id;
 			break;
-		case I40E_DEV_FUNC_CAP_MSIX:
+		case I40E_AQ_CAP_ID_MSIX:
 			p->num_msix_vectors = number;
 			break;
-		case I40E_DEV_FUNC_CAP_MSIX_VF:
+		case I40E_AQ_CAP_ID_VF_MSIX:
 			p->num_msix_vectors_vf = number;
 			break;
-		case I40E_DEV_FUNC_CAP_FLEX10:
+		case I40E_AQ_CAP_ID_FLEX10:
 			if (major_rev == 1) {
 				if (number == 1) {
 					p->flex10_enable = true;
@@ -2920,38 +2893,38 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			p->flex10_mode = logical_id;
 			p->flex10_status = phys_id;
 			break;
-		case I40E_DEV_FUNC_CAP_CEM:
+		case I40E_AQ_CAP_ID_CEM:
 			if (number == 1)
 				p->mgmt_cem = true;
 			break;
-		case I40E_DEV_FUNC_CAP_IWARP:
+		case I40E_AQ_CAP_ID_IWARP:
 			if (number == 1)
 				p->iwarp = true;
 			break;
-		case I40E_DEV_FUNC_CAP_LED:
+		case I40E_AQ_CAP_ID_LED:
 			if (phys_id < I40E_HW_CAP_MAX_GPIO)
 				p->led[phys_id] = true;
 			break;
-		case I40E_DEV_FUNC_CAP_SDP:
+		case I40E_AQ_CAP_ID_SDP:
 			if (phys_id < I40E_HW_CAP_MAX_GPIO)
 				p->sdp[phys_id] = true;
 			break;
-		case I40E_DEV_FUNC_CAP_MDIO:
+		case I40E_AQ_CAP_ID_MDIO:
 			if (number == 1) {
 				p->mdio_port_num = phys_id;
 				p->mdio_port_mode = logical_id;
 			}
 			break;
-		case I40E_DEV_FUNC_CAP_IEEE_1588:
+		case I40E_AQ_CAP_ID_1588:
 			if (number == 1)
 				p->ieee_1588 = true;
 			break;
-		case I40E_DEV_FUNC_CAP_FLOW_DIRECTOR:
+		case I40E_AQ_CAP_ID_FLOW_DIRECTOR:
 			p->fd = true;
 			p->fd_filters_guaranteed = number;
 			p->fd_filters_best_effort = logical_id;
 			break;
-		case I40E_DEV_FUNC_CAP_WR_CSR_PROT:
+		case I40E_AQ_CAP_ID_WSR_PROT:
 			p->wr_csr_prot = (u64)number;
 			p->wr_csr_prot |= (u64)logical_id << 32;
 			break;

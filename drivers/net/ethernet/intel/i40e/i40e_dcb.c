@@ -814,13 +814,15 @@ i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 	struct i40e_aqc_get_cee_dcb_cfg_resp cee_cfg;
 	struct i40e_aqc_get_cee_dcb_cfg_v1_resp cee_v1_cfg;
 
-	/* If Firmware version < v4.33 IEEE only */
-	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
-	    (hw->aq.fw_maj_ver < 4))
+	/* If Firmware version < v4.33 on X710/XL710, IEEE only */
+	if ((hw->mac.type == I40E_MAC_XL710) &&
+	    (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
+	      (hw->aq.fw_maj_ver < 4)))
 		return i40e_get_ieee_dcb_config(hw);
 
-	/* If Firmware version == v4.33 use old CEE struct */
-	if ((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver == 33)) {
+	/* If Firmware version == v4.33 on X710/XL710, use old CEE struct */
+	if ((hw->mac.type == I40E_MAC_XL710) &&
+	    ((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver == 33))) {
 		ret = i40e_aq_get_cee_dcb_config(hw, &cee_v1_cfg,
 						 sizeof(cee_v1_cfg), NULL);
 		if (!ret) {

@@ -220,6 +220,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_get_phy_wol_caps		= 0x0621,
 	i40e_aqc_opc_set_phy_debug		= 0x0622,
 	i40e_aqc_opc_upload_ext_phy_fm		= 0x0625,
+	i40e_aqc_opc_run_phy_activity		= 0x0626,
 
 	/* NVM commands */
 	i40e_aqc_opc_nvm_read			= 0x0701,
@@ -402,6 +403,7 @@ struct i40e_aqc_list_capabilities_element_resp {
 #define I40E_AQ_CAP_ID_OS2BMC_CAP	0x0004
 #define I40E_AQ_CAP_ID_FUNCTIONS_VALID	0x0005
 #define I40E_AQ_CAP_ID_ALTERNATE_RAM	0x0006
+#define I40E_AQ_CAP_ID_WOL_AND_PROXY	0x0008
 #define I40E_AQ_CAP_ID_SRIOV		0x0012
 #define I40E_AQ_CAP_ID_VF		0x0013
 #define I40E_AQ_CAP_ID_VMDQ		0x0014
@@ -422,6 +424,7 @@ struct i40e_aqc_list_capabilities_element_resp {
 #define I40E_AQ_CAP_ID_LED		0x0061
 #define I40E_AQ_CAP_ID_SDP		0x0062
 #define I40E_AQ_CAP_ID_MDIO		0x0063
+#define I40E_AQ_CAP_ID_WSR_PROT		0x0064
 #define I40E_AQ_CAP_ID_FLEX10		0x00F1
 #define I40E_AQ_CAP_ID_CEM		0x00F2
 
@@ -1257,9 +1260,9 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_SHIFT		9
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK		0x1E00
-#define I40E_AQC_ADD_CLOUD_TNL_TYPE_XVLAN		0
+#define I40E_AQC_ADD_CLOUD_TNL_TYPE_VXLAN		0
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_NVGRE_OMAC		1
-#define I40E_AQC_ADD_CLOUD_TNL_TYPE_NGE			2
+#define I40E_AQC_ADD_CLOUD_TNL_TYPE_GENEVE		2
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_IP			3
 
 	__le32	tenant_id;
@@ -1755,7 +1758,12 @@ struct i40e_aqc_get_link_status {
 	u8	config;
 #define I40E_AQ_CONFIG_CRC_ENA		0x04
 #define I40E_AQ_CONFIG_PACING_MASK	0x78
-	u8	reserved[5];
+	u8	external_power_ability;
+#define I40E_AQ_LINK_POWER_CLASS_1	0x00
+#define I40E_AQ_LINK_POWER_CLASS_2	0x01
+#define I40E_AQ_LINK_POWER_CLASS_3	0x02
+#define I40E_AQ_LINK_POWER_CLASS_4	0x03
+	u8	reserved[4];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_get_link_status);
@@ -1822,6 +1830,18 @@ enum i40e_aq_phy_reg_type {
 	I40E_AQC_PHY_REG_EXERNAL_BASET	= 0x2,
 	I40E_AQC_PHY_REG_EXERNAL_MODULE	= 0x3
 };
+
+/* Run PHY Activity (0x0626) */
+struct i40e_aqc_run_phy_activity {
+	__le16  activity_id;
+	u8      flags;
+	u8      reserved1;
+	__le32  control;
+	__le32  data;
+	u8      reserved2[4];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_run_phy_activity);
 
 /* NVM Read command (indirect 0x0701)
  * NVM Erase commands (direct 0x0702)
