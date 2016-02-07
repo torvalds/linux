@@ -423,8 +423,10 @@ rcu_perf_writer(void *arg)
 					b_rcu_perf_writer_finished =
 						cur_ops->completed();
 				}
-				smp_mb(); /* Assign before wake. */
-				wake_up(&shutdown_wq);
+				if (shutdown) {
+					smp_mb(); /* Assign before wake. */
+					wake_up(&shutdown_wq);
+				}
 			}
 		}
 		if (done && !alldone &&
