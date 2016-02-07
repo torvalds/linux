@@ -1691,12 +1691,17 @@ out:
 
 		mutex_unlock(&dev->device_lock);
 		rets = wait_event_interruptible(cl->tx_wait,
-				cl->writing_state == MEI_WRITE_COMPLETE);
+				cl->writing_state == MEI_WRITE_COMPLETE ||
+				(!mei_cl_is_connected(cl)));
 		mutex_lock(&dev->device_lock);
 		/* wait_event_interruptible returns -ERESTARTSYS */
 		if (rets) {
 			if (signal_pending(current))
 				rets = -EINTR;
+			goto err;
+		}
+		if (cl->writing_state != MEI_WRITE_COMPLETE) {
+			rets = -EFAULT;
 			goto err;
 		}
 	}
