@@ -2239,7 +2239,7 @@ static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 		} else {
 			pos += scnprintf(buf + pos, bufsz - pos,
 					 "\tclosed_rb_num: Not Allocated\n");
-	}
+		}
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
