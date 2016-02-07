@@ -497,6 +497,28 @@ static void mei_wdt_event(struct mei_cl_device *cldev,
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 
+static ssize_t mei_dbgfs_read_activation(struct file *file, char __user *ubuf,
+					size_t cnt, loff_t *ppos)
+{
+	struct mei_wdt *wdt = file->private_data;
+	const size_t bufsz = 32;
+	char buf[32];
+	ssize_t pos;
+
+	mutex_lock(&wdt->reg_lock);
+	pos = scnprintf(buf, bufsz, "%s\n",
+		__mei_wdt_is_registered(wdt) ? "activated" : "deactivated");
+	mutex_unlock(&wdt->reg_lock);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, pos);
+}
+
+static const struct file_operations dbgfs_fops_activation = {
+	.open    = simple_open,
+	.read    = mei_dbgfs_read_activation,
+	.llseek  = generic_file_llseek,
+};
+
 static ssize_t mei_dbgfs_read_state(struct file *file, char __user *ubuf,
 				    size_t cnt, loff_t *ppos)
 {
@@ -533,6 +555,11 @@ static int dbgfs_register(struct mei_wdt *wdt)
 
 	wdt->dbgfs_dir = dir;
 	f = debugfs_create_file("state", S_IRUSR, dir, wdt, &dbgfs_fops_state);
+	if (!f)
+		goto err;
+
+	f = debugfs_create_file("activation",  S_IRUSR,
+				dir, wdt, &dbgfs_fops_activation);
 	if (!f)
 		goto err;
 
