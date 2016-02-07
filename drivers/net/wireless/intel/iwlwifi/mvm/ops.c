@@ -479,8 +479,11 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	if (iwl_mvm_has_new_rx_api(mvm)) {
 		op_mode->ops = &iwl_mvm_ops_mq;
+		trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_desc);
 	} else {
 		op_mode->ops = &iwl_mvm_ops;
+		trans->rx_mpdu_cmd_hdr_size =
+			sizeof(struct iwl_rx_mpdu_res_start);
 
 		if (WARN_ON(trans->num_rx_queues > 1))
 			goto out_free;
@@ -572,7 +575,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_trans_configure(mvm->trans, &trans_cfg);
 
 	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
-	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
 	trans->dbg_dest_tlv = mvm->fw->dbg_dest_tlv;
 	trans->dbg_dest_reg_num = mvm->fw->dbg_dest_reg_num;
 	memcpy(trans->dbg_conf_tlv, mvm->fw->dbg_conf_tlv,
