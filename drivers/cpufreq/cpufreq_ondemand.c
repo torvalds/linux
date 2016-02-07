@@ -249,7 +249,7 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 	/*
 	 * Lock governor so that governor start/stop can't execute in parallel.
 	 */
-	mutex_lock(&od_dbs_cdata.mutex);
+	mutex_lock(&dbs_data_mutex);
 
 	cpumask_copy(&cpumask, cpu_online_mask);
 
@@ -306,7 +306,7 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 		}
 	}
 
-	mutex_unlock(&od_dbs_cdata.mutex);
+	mutex_unlock(&dbs_data_mutex);
 }
 
 static ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
@@ -552,7 +552,6 @@ static struct common_dbs_data od_dbs_cdata = {
 	.gov_ops = &od_ops,
 	.init = od_init,
 	.exit = od_exit,
-	.mutex = __MUTEX_INITIALIZER(od_dbs_cdata.mutex),
 };
 
 static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,

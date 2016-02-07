@@ -368,7 +368,6 @@ static struct common_dbs_data cs_dbs_cdata = {
 	.gov_check_cpu = cs_check_cpu,
 	.init = cs_init,
 	.exit = cs_exit,
-	.mutex = __MUTEX_INITIALIZER(cs_dbs_cdata.mutex),
 };
 
 static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,

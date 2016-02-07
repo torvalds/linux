@@ -228,11 +228,6 @@ struct common_dbs_data {
 
 	/* Governor specific ops, see below */
 	void *gov_ops;
-
-	/*
-	 * Protects governor's data (struct dbs_data and struct common_dbs_data)
-	 */
-	struct mutex mutex;
 };
 
 /* Governor Per policy data */
@@ -277,6 +272,7 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 	return sprintf(buf, "%u\n", dbs_data->min_sampling_rate);	\
 }
 
+extern struct mutex dbs_data_mutex;
 extern struct mutex cpufreq_governor_lock;
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
