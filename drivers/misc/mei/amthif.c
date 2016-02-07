@@ -50,7 +50,6 @@ void mei_amthif_reset_params(struct mei_device *dev)
 	dev->iamthif_current_cb = NULL;
 	dev->iamthif_canceled = false;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
-	dev->iamthif_timer = 0;
 	dev->iamthif_stall_timer = 0;
 	dev->iamthif_open_count = 0;
 }
@@ -124,17 +123,9 @@ struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 int mei_amthif_read(struct mei_device *dev, struct file *file,
 	       char __user *ubuf, size_t length, loff_t *offset)
 {
-	struct mei_cl *cl = file->private_data;
 	struct mei_cl_cb *cb;
-	unsigned long timeout;
 	int rets;
 	int wait_ret;
-
-	/* Only possible if we are in timeout */
-	if (!cl) {
-		dev_err(dev->dev, "bad file ext.\n");
-		return -ETIME;
-	}
 
 	dev_dbg(dev->dev, "checking amthif data\n");
 	cb = mei_amthif_find_read_list_entry(dev, file);
@@ -168,20 +159,6 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	}
 
 	dev_dbg(dev->dev, "Got amthif data\n");
-	dev->iamthif_timer = 0;
-
-	timeout = cb->read_time +
-		mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
-	dev_dbg(dev->dev, "amthif timeout = %lud\n",
-			timeout);
-
-	if  (time_after(jiffies, timeout)) {
-		dev_dbg(dev->dev, "amthif Time out\n");
-		/* 15 sec for the message has expired */
-		list_del_init(&cb->list);
-		rets = -ETIME;
-		goto free;
-	}
 	/* if the whole message will fit remove it from the list */
 	if (cb->buf_idx >= *offset && length >= (cb->buf_idx - *offset))
 		list_del_init(&cb->list);
@@ -303,7 +280,6 @@ int mei_amthif_run_next_cmd(struct mei_device *dev)
 
 	dev->iamthif_canceled = false;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
-	dev->iamthif_timer = 0;
 	dev->iamthif_file_object = NULL;
 
 	dev_dbg(dev->dev, "complete amthif cmd_list cb.\n");
@@ -462,9 +438,6 @@ void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb)
 		dev->iamthif_stall_timer = 0;
 		list_add_tail(&cb->list, &dev->amthif_rd_complete_list.list);
 		dev_dbg(dev->dev, "amthif read completed\n");
-		dev->iamthif_timer = jiffies;
-		dev_dbg(dev->dev, "dev->iamthif_timer = %ld\n",
-			dev->iamthif_timer);
 	} else {
 		mei_amthif_run_next_cmd(dev);
 	}

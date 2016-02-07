@@ -29,7 +29,6 @@
 #define MEI_CLIENTS_INIT_TIMEOUT   15  /* HPS: Clients Enumeration Timeout */
 
 #define MEI_IAMTHIF_STALL_TIMER    12  /* HPS */
-#define MEI_IAMTHIF_READ_TIMER     10  /* HPS */
 
 #define MEI_PGI_TIMEOUT             1  /* PG Isolation time response 1 sec */
 #define MEI_D0I3_TIMEOUT            5  /* D0i3 set/unset max response time */

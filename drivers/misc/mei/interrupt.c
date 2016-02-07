@@ -156,7 +156,6 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	cb->buf_idx += mei_hdr->length;
 
 	if (mei_hdr->msg_complete) {
-		cb->read_time = jiffies;
 		cl_dbg(dev, cl, "completed read length = %lu\n", cb->buf_idx);
 		list_move_tail(&cb->list, &complete_list->list);
 	} else {
@@ -458,7 +457,6 @@ static void mei_connect_timeout(struct mei_cl *cl)
  */
 void mei_timer(struct work_struct *work)
 {
-	unsigned long timeout;
 	struct mei_cl *cl;
 
 	struct mei_device *dev = container_of(work,
@@ -504,7 +502,6 @@ void mei_timer(struct work_struct *work)
 			mei_reset(dev);
 			dev->iamthif_canceled = false;
 			dev->iamthif_state = MEI_IAMTHIF_IDLE;
-			dev->iamthif_timer = 0;
 
 			mei_io_cb_free(dev->iamthif_current_cb);
 			dev->iamthif_current_cb = NULL;
@@ -514,35 +511,6 @@ void mei_timer(struct work_struct *work)
 		}
 	}
 
-	if (dev->iamthif_timer) {
-
-		timeout = dev->iamthif_timer +
-			mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
-
-		dev_dbg(dev->dev, "dev->iamthif_timer = %ld\n",
-				dev->iamthif_timer);
-		dev_dbg(dev->dev, "timeout = %ld\n", timeout);
-		dev_dbg(dev->dev, "jiffies = %ld\n", jiffies);
-		if (time_after(jiffies, timeout)) {
-			/*
-			 * User didn't read the AMTHI data on time (15sec)
-			 * freeing AMTHI for other requests
-			 */
-
-			dev_dbg(dev->dev, "freeing AMTHI for other requests\n");
-
-			mei_io_list_flush(&dev->amthif_rd_complete_list,
-				&dev->iamthif_cl);
-			mei_io_cb_free(dev->iamthif_current_cb);
-			dev->iamthif_current_cb = NULL;
-
-			dev->iamthif_file_object->private_data = NULL;
-			dev->iamthif_file_object = NULL;
-			dev->iamthif_timer = 0;
-			mei_amthif_run_next_cmd(dev);
-
-		}
-	}
 out:
 	if (dev->dev_state != MEI_DEV_DISABLED)
 		schedule_delayed_work(&dev->timer_work, 2 * HZ);

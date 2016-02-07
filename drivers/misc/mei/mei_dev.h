@@ -179,7 +179,6 @@ struct mei_cl;
  * @fop_type: file operation type
  * @buf: buffer for data associated with the callback
  * @buf_idx: last read index
- * @read_time: last read operation time stamp (iamthif)
  * @file_object: pointer to file structure
  * @status: io status of the cb
  * @internal: communication between driver and FW flag
@@ -191,7 +190,6 @@ struct mei_cl_cb {
 	enum mei_cb_file_ops fop_type;
 	struct mei_msg_data buf;
 	size_t buf_idx;
-	unsigned long read_time;
 	struct file *file_object;
 	int status;
 	u32 internal:1;
@@ -413,7 +411,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @iamthif_cl  : amthif host client
  * @iamthif_current_cb : amthif current operation callback
  * @iamthif_open_count : number of opened amthif connections
- * @iamthif_timer : time stamp of current amthif command completion
  * @iamthif_stall_timer : timer to detect amthif hang
  * @iamthif_state : amthif processor state
  * @iamthif_canceled : current amthif command is canceled
@@ -504,7 +501,6 @@ struct mei_device {
 	struct mei_cl iamthif_cl;
 	struct mei_cl_cb *iamthif_current_cb;
 	long iamthif_open_count;
-	unsigned long iamthif_timer;
 	u32 iamthif_stall_timer;
 	enum iamthif_states iamthif_state;
 	bool iamthif_canceled;

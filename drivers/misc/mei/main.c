@@ -274,7 +274,6 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	struct mei_cl *cl = file->private_data;
 	struct mei_cl_cb *write_cb = NULL;
 	struct mei_device *dev;
-	unsigned long timeout = 0;
 	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -308,21 +307,6 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	if (length == 0) {
 		rets = 0;
 		goto out;
-	}
-
-	if (cl == &dev->iamthif_cl) {
-		write_cb = mei_amthif_find_read_list_entry(dev, file);
-
-		if (write_cb) {
-			timeout = write_cb->read_time +
-				mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
-
-			if (time_after(jiffies, timeout)) {
-				*offset = 0;
-				mei_io_cb_free(write_cb);
-				write_cb = NULL;
-			}
-		}
 	}
 
 	*offset = 0;
