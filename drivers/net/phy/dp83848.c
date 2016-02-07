@@ -37,6 +37,12 @@
 #define DP83848_MISR_ED_INT_EN		BIT(6) /* Energy detect */
 #define DP83848_MISR_LQM_INT_EN		BIT(7) /* Link Quality Monitor */
 
+#define DP83848_INT_EN_MASK		\
+	(DP83848_MISR_ANC_INT_EN |	\
+	 DP83848_MISR_DUP_INT_EN |	\
+	 DP83848_MISR_SPD_INT_EN |	\
+	 DP83848_MISR_LINK_INT_EN)
+
 static int dp83848_ack_interrupt(struct phy_device *phydev)
 {
 	int err = phy_read(phydev, DP83848_MISR);
@@ -46,23 +52,24 @@ static int dp83848_ack_interrupt(struct phy_device *phydev)
 
 static int dp83848_config_intr(struct phy_device *phydev)
 {
-	int err;
+	int control, ret;
+
+	control = phy_read(phydev, DP83848_MICR);
+	if (control < 0)
+		return control;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		err = phy_write(phydev, DP83848_MICR,
-				DP83848_MICR_INT_OE |
-				DP83848_MICR_INTEN);
-		if (err < 0)
-			return err;
+		control |= DP83848_MICR_INT_OE;
+		control |= DP83848_MICR_INTEN;
 
-		return phy_write(phydev, DP83848_MISR,
-				 DP83848_MISR_ANC_INT_EN |
-				 DP83848_MISR_DUP_INT_EN |
-				 DP83848_MISR_SPD_INT_EN |
-				 DP83848_MISR_LINK_INT_EN);
+		ret = phy_write(phydev, DP83848_MISR, DP83848_INT_EN_MASK);
+		if (ret < 0)
+			return ret;
+	} else {
+		control &= ~DP83848_MICR_INTEN;
 	}
 
-	return phy_write(phydev, DP83848_MICR, 0x0);
+	return phy_write(phydev, DP83848_MICR, control);
 }
 
 static struct mdio_device_id __maybe_unused dp83848_tbl[] = {
