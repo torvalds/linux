@@ -190,7 +190,7 @@ struct mei_cl_cb {
 	enum mei_cb_file_ops fop_type;
 	struct mei_msg_data buf;
 	size_t buf_idx;
-	struct file *file_object;
+	const struct file *file_object;
 	int status;
 	u32 internal:1;
 	u32 completed:1;
@@ -497,7 +497,7 @@ struct mei_device {
 	struct mei_cl_cb amthif_cmd_list;
 	/* driver managed amthif list for reading completed amthif cmd data */
 	struct mei_cl_cb amthif_rd_complete_list;
-	struct file *iamthif_file_object;
+	const struct file *iamthif_file_object;
 	struct mei_cl iamthif_cl;
 	struct mei_cl_cb *iamthif_current_cb;
 	long iamthif_open_count;
@@ -590,7 +590,7 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 int mei_amthif_release(struct mei_device *dev, struct file *file);
 
 struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
-						struct file *file);
+						  const struct file *file);
 
 int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_amthif_run_next_cmd(struct mei_device *dev);

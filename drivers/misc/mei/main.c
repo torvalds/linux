@@ -435,7 +435,7 @@ end:
  *
  * Return: 0 on success , <0 on error
  */
-static int mei_ioctl_client_notify_request(struct file *file, u32 request)
+static int mei_ioctl_client_notify_request(const struct file *file, u32 request)
 {
 	struct mei_cl *cl = file->private_data;
 
@@ -450,7 +450,7 @@ static int mei_ioctl_client_notify_request(struct file *file, u32 request)
  *
  * Return: 0 on success , <0 on error
  */
-static int mei_ioctl_client_notify_get(struct file *file, u32 *notify_get)
+static int mei_ioctl_client_notify_get(const struct file *file, u32 *notify_get)
 {
 	struct mei_cl *cl = file->private_data;
 	bool notify_ev;

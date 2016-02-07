@@ -93,7 +93,7 @@ int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
  * Return:   returned a list entry on success, NULL on failure.
  */
 struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
-						struct file *file)
+						  const struct file *file)
 {
 	struct mei_cl_cb *cb;
 
@@ -205,7 +205,7 @@ out:
  *
  * Return: 0 on success, <0 on failure.
  */
-static int mei_amthif_read_start(struct mei_cl *cl, struct file *file)
+static int mei_amthif_read_start(struct mei_cl *cl, const struct file *file)
 {
 	struct mei_device *dev = cl->dev;
 	struct mei_cl_cb *cb;
@@ -495,7 +495,7 @@ static bool mei_clear_list(struct mei_device *dev,
  *
  * Return: true if callback removed from the list, false otherwise
  */
-static bool mei_clear_lists(struct mei_device *dev, struct file *file)
+static bool mei_clear_lists(struct mei_device *dev, const struct file *file)
 {
 	bool removed = false;
 

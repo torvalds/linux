@@ -359,7 +359,7 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
  * Return: mei_cl_cb pointer or NULL;
  */
 struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, enum mei_cb_file_ops type,
-				 struct file *fp)
+				 const struct file *fp)
 {
 	struct mei_cl_cb *cb;
 
@@ -455,7 +455,8 @@ int mei_io_cb_alloc_buf(struct mei_cl_cb *cb, size_t length)
  * Return: cb on success and NULL on failure
  */
 struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
-				  enum mei_cb_file_ops type, struct file *fp)
+				  enum mei_cb_file_ops type,
+				  const struct file *fp)
 {
 	struct mei_cl_cb *cb;
 
@@ -1028,7 +1029,7 @@ int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
  * Return: 0 on success, <0 on failure.
  */
 int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
-		   struct file *file)
+		  const struct file *file)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
@@ -1277,7 +1278,8 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
  *
  * Return: 0 on such and error otherwise.
  */
-int mei_cl_notify_request(struct mei_cl *cl, struct file *file, u8 request)
+int mei_cl_notify_request(struct mei_cl *cl,
+			  const struct file *file, u8 request)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
@@ -1443,7 +1445,7 @@ static bool mei_cl_is_read_fc_cb(struct mei_cl *cl)
  *
  * Return: 0 on success, <0 on failure.
  */
-int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp)
+int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
