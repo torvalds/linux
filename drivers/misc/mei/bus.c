@@ -252,23 +252,28 @@ void mei_cl_bus_notify_event(struct mei_cl *cl)
 }
 
 /**
- * mei_cl_bus_rx_event  - schedule rx evenet
+ * mei_cl_bus_rx_event  - schedule rx event
  *
  * @cl: host client
+ *
+ * Return: true if event was scheduled
+ *         false if the client is not waiting for event
  */
-void mei_cl_bus_rx_event(struct mei_cl *cl)
+bool mei_cl_bus_rx_event(struct mei_cl *cl)
 {
 	struct mei_cl_device *cldev = cl->cldev;
 
 	if (!cldev || !cldev->event_cb)
-		return;
+		return false;
 
 	if (!(cldev->events_mask & BIT(MEI_CL_EVENT_RX)))
-		return;
+		return false;
 
 	set_bit(MEI_CL_EVENT_RX, &cldev->events);
 
 	schedule_work(&cldev->event_work);
+
+	return true;
 }
 
 /**

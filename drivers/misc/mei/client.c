@@ -1735,10 +1735,8 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	case MEI_FOP_READ:
 		list_add_tail(&cb->list, &cl->rd_completed);
-		if (waitqueue_active(&cl->rx_wait))
-			wake_up_interruptible_all(&cl->rx_wait);
-		else
-			mei_cl_bus_rx_event(cl);
+		if (!mei_cl_bus_rx_event(cl))
+			wake_up_interruptible(&cl->rx_wait);
 		break;
 
 	case MEI_FOP_CONNECT:
