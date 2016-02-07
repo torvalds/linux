@@ -1333,7 +1333,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct dentry *dentry;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
-	struct timespec cur_time = CURRENT_TIME;
+	struct timespec cur_time;
 	int ret = 0;
 	u64 to_reserve = 0;
 	u64 index = 0;
@@ -1380,6 +1380,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	parent_inode = pending->dir;
 	parent_root = BTRFS_I(parent_inode)->root;
 	record_root_in_trans(trans, parent_root);
+
+	cur_time = current_fs_time(parent_inode->i_sb);
 
 	/*
 	 * insert the directory item
@@ -1523,7 +1525,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	btrfs_i_size_write(parent_inode, parent_inode->i_size +
 					 dentry->d_name.len * 2);
-	parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
+	parent_inode->i_mtime = parent_inode->i_ctime =
+		current_fs_time(parent_inode->i_sb);
 	ret = btrfs_update_inode_fallback(trans, parent_root, parent_inode);
 	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);

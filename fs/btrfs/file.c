@@ -2544,7 +2544,7 @@ out_trans:
 		goto out_free;
 
 	inode_inc_iversion(inode);
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_ctime = current_fs_time(inode->i_sb);
 
 	trans->block_rsv = &root->fs_info->trans_block_rsv;
 	ret = btrfs_update_inode(trans, root, inode);
@@ -2794,7 +2794,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
 		} else {
-			inode->i_ctime = CURRENT_TIME;
+			inode->i_ctime = current_fs_time(inode->i_sb);
 			i_size_write(inode, actual_end);
 			btrfs_ordered_update_i_size(inode, actual_end, NULL);
 			ret = btrfs_update_inode(trans, root, inode);

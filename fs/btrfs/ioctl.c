@@ -347,7 +347,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
 	btrfs_update_iflags(inode);
 	inode_inc_iversion(inode);
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_fs_time(inode->i_sb);
 	ret = btrfs_update_inode(trans, root, inode);
 
 	btrfs_end_transaction(trans, root);
@@ -443,7 +443,7 @@ static noinline int create_subvol(struct inode *dir,
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_root *new_root;
 	struct btrfs_block_rsv block_rsv;
-	struct timespec cur_time = CURRENT_TIME;
+	struct timespec cur_time = current_fs_time(dir->i_sb);
 	struct inode *inode;
 	int ret;
 	int err;
@@ -3144,7 +3144,7 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 
 	inode_inc_iversion(inode);
 	if (!no_time_update)
-		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_mtime = inode->i_ctime = current_fs_time(inode->i_sb);
 	/*
 	 * We round up to the block size at eof when determining which
 	 * extents to clone above, but shouldn't round up the file size.
@@ -4952,7 +4952,7 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_root_item *root_item = &root->root_item;
 	struct btrfs_trans_handle *trans;
-	struct timespec ct = CURRENT_TIME;
+	struct timespec ct = current_fs_time(inode->i_sb);
 	int ret = 0;
 	int received_uuid_changed;
 
