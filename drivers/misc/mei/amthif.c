@@ -285,15 +285,7 @@ int mei_amthif_run_next_cmd(struct mei_device *dev)
 int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
 
-	struct mei_device *dev;
-
-	if (WARN_ON(!cl || !cl->dev))
-		return -ENODEV;
-
-	if (WARN_ON(!cb))
-		return -EINVAL;
-
-	dev = cl->dev;
+	struct mei_device *dev = cl->dev;
 
 	list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
 
