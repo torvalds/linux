@@ -91,7 +91,6 @@ EXPORT_SYMBOL_GPL(mei_fw_status2str);
  */
 void mei_cancel_work(struct mei_device *dev)
 {
-	cancel_work_sync(&dev->init_work);
 	cancel_work_sync(&dev->reset_work);
 	cancel_work_sync(&dev->bus_rescan_work);
 
@@ -393,7 +392,6 @@ void mei_device_init(struct mei_device *dev,
 	mei_io_list_init(&dev->ctrl_rd_list);
 
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
-	INIT_WORK(&dev->init_work, mei_host_client_init);
 	INIT_WORK(&dev->reset_work, mei_reset_work);
 	INIT_WORK(&dev->bus_rescan_work, mei_cl_bus_rescan_work);
 

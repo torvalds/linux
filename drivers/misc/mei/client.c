@@ -666,25 +666,12 @@ int mei_cl_unlink(struct mei_cl *cl)
 	return 0;
 }
 
-
-void mei_host_client_init(struct work_struct *work)
+void mei_host_client_init(struct mei_device *dev)
 {
-	struct mei_device *dev =
-		container_of(work, struct mei_device, init_work);
-	struct mei_me_client *me_cl;
-
-	mutex_lock(&dev->device_lock);
-
-	me_cl = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
-	if (me_cl)
-		mei_amthif_host_init(dev, me_cl);
-	mei_me_cl_put(me_cl);
-
 	dev->dev_state = MEI_DEV_ENABLED;
 	dev->reset_count = 0;
-	mutex_unlock(&dev->device_lock);
 
-	mei_cl_bus_rescan(dev);
+	schedule_work(&dev->bus_rescan_work);
 
 	pm_runtime_mark_last_busy(dev->dev);
 	dev_dbg(dev->dev, "rpm: autosuspend\n");

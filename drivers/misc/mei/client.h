@@ -226,7 +226,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 
-void mei_host_client_init(struct work_struct *work);
+void mei_host_client_init(struct mei_device *dev);
 
 u8 mei_cl_notify_fop2req(enum mei_cb_file_ops fop);
 enum mei_cb_file_ops mei_cl_notify_req2fop(u8 request);

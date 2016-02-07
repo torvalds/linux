@@ -67,6 +67,9 @@ int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 	struct mei_cl *cl = &dev->iamthif_cl;
 	int ret;
 
+	if (mei_cl_is_connected(cl))
+		return 0;
+
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 
 	mei_cl_init(cl, dev);
@@ -78,8 +81,6 @@ int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 	}
 
 	ret = mei_cl_connect(cl, me_cl, NULL);
-
-	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 
 	return ret;
 }

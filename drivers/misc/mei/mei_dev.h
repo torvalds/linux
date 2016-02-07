@@ -410,7 +410,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @iamthif_state : amthif processor state
  * @iamthif_canceled : current amthif command is canceled
  *
- * @init_work   : work item for the device init
  * @reset_work  : work item for the device reset
  * @bus_rescan_work : work item for the bus rescan
  *
@@ -503,7 +502,6 @@ struct mei_device {
 	enum iamthif_states iamthif_state;
 	bool iamthif_canceled;
 
-	struct work_struct init_work;
 	struct work_struct reset_work;
 	struct work_struct bus_rescan_work;
 
