@@ -121,8 +121,8 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		/* unlock the Mutex */
 		mutex_unlock(&dev->device_lock);
 
-		wait_ret = wait_event_interruptible(dev->iamthif_cl.wait,
-					    !list_empty(&cl->rd_completed));
+		wait_ret = wait_event_interruptible(cl->rx_wait,
+					!list_empty(&cl->rd_completed));
 
 		/* Locking again the Mutex */
 		mutex_lock(&dev->device_lock);
@@ -316,7 +316,7 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 {
 	unsigned int mask = 0;
 
-	poll_wait(file, &dev->iamthif_cl.wait, wait);
+	poll_wait(file, &dev->iamthif_cl.rx_wait, wait);
 
 	if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
 	    dev->iamthif_fp == file) {
@@ -411,7 +411,7 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 		 * so it can be propagated to the reader
 		 */
 		list_add_tail(&cb->list, &cl->rd_completed);
-		wake_up_interruptible(&dev->iamthif_cl.wait);
+		wake_up_interruptible(&cl->rx_wait);
 		return;
 	}
 
@@ -425,7 +425,7 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 	}
 
 	dev_dbg(dev->dev, "completing amthif call back.\n");
-	wake_up_interruptible(&dev->iamthif_cl.wait);
+	wake_up_interruptible(&cl->rx_wait);
 }
 
 /**
