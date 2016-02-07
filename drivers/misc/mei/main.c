@@ -369,12 +369,22 @@ static int mei_ioctl_connect_client(struct file *file,
 
 	/* find ME client we're trying to connect to */
 	me_cl = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
-	if (!me_cl ||
-	    (me_cl->props.fixed_address && !dev->allow_fixed_address)) {
+	if (!me_cl) {
 		dev_dbg(dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
 			&data->in_client_uuid);
-		mei_me_cl_put(me_cl);
-		return  -ENOTTY;
+		rets = -ENOTTY;
+		goto end;
+	}
+
+	if (me_cl->props.fixed_address) {
+		bool forbidden = dev->override_fixed_address ?
+			 !dev->allow_fixed_address : !dev->hbm_f_fa_supported;
+		if (forbidden) {
+			dev_dbg(dev->dev, "Connection forbidden to FW Client UUID = %pUl\n",
+				&data->in_client_uuid);
+			rets = -ENOTTY;
+			goto end;
+		}
 	}
 
 	dev_dbg(dev->dev, "Connect to FW Client ID = %d\n",

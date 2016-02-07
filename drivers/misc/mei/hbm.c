@@ -979,6 +979,10 @@ static void mei_hbm_config_features(struct mei_device *dev)
 	/* Notification Event Support */
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_EV)
 		dev->hbm_f_ev_supported = 1;
+
+	/* Fixed Address Client Support */
+	if (dev->version.major_version >= HBM_MAJOR_VERSION_FA)
+		dev->hbm_f_fa_supported = 1;
 }
 
 /**

@@ -396,6 +396,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @hbm_f_dc_supported  : hbm feature dynamic clients
  * @hbm_f_dot_supported : hbm feature disconnect on timeout
  * @hbm_f_ev_supported  : hbm feature event notification
+ * @hbm_f_fa_supported  : hbm feature fixed address client
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -404,6 +405,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @me_client_index : last FW client index in enumeration
  *
  * @allow_fixed_address: allow user space to connect a fixed client
+ * @override_fixed_address: force allow fixed address behavior
  *
  * @amthif_cmd_list : amthif list for cmd waiting
  * @iamthif_fp : file for current amthif operation
@@ -483,6 +485,7 @@ struct mei_device {
 	unsigned int hbm_f_dc_supported:1;
 	unsigned int hbm_f_dot_supported:1;
 	unsigned int hbm_f_ev_supported:1;
+	unsigned int hbm_f_fa_supported:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
@@ -491,6 +494,7 @@ struct mei_device {
 	unsigned long me_client_index;
 
 	bool allow_fixed_address;
+	bool override_fixed_address;
 
 	/* amthif list for cmd waiting */
 	struct mei_cl_cb amthif_cmd_list;

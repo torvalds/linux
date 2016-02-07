@@ -176,6 +176,8 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 				 dev->hbm_f_dot_supported);
 		pos += scnprintf(buf + pos, bufsz - pos, "\tEV: %01d\n",
 				 dev->hbm_f_ev_supported);
+		pos += scnprintf(buf + pos, bufsz - pos, "\tFA: %01d\n",
+				 dev->hbm_f_fa_supported);
 	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "pg:  %s, %s\n",
@@ -188,6 +190,30 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 static const struct file_operations mei_dbgfs_fops_devstate = {
 	.open = simple_open,
 	.read = mei_dbgfs_read_devstate,
+	.llseek = generic_file_llseek,
+};
+
+static ssize_t mei_dbgfs_write_allow_fa(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct mei_device *dev;
+	int ret;
+
+	dev = container_of(file->private_data,
+			   struct mei_device, allow_fixed_address);
+
+	ret = debugfs_write_file_bool(file, user_buf, count, ppos);
+	if (ret < 0)
+		return ret;
+	dev->override_fixed_address = true;
+	return ret;
+}
+
+static const struct file_operations mei_dbgfs_fops_allow_fa = {
+	.open = simple_open,
+	.read = debugfs_read_file_bool,
+	.write = mei_dbgfs_write_allow_fa,
 	.llseek = generic_file_llseek,
 };
 
@@ -240,8 +266,9 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 		dev_err(dev->dev, "devstate: registration failed\n");
 		goto err;
 	}
-	f = debugfs_create_bool("allow_fixed_address", S_IRUSR | S_IWUSR, dir,
-				&dev->allow_fixed_address);
+	f = debugfs_create_file("allow_fixed_address", S_IRUSR | S_IWUSR, dir,
+				&dev->allow_fixed_address,
+				&mei_dbgfs_fops_allow_fa);
 	if (!f) {
 		dev_err(dev->dev, "allow_fixed_address: registration failed\n");
 		goto err;
