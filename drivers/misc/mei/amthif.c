@@ -185,7 +185,7 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 	/* if the whole message will fit remove it from the list */
 	if (cb->buf_idx >= *offset && length >= (cb->buf_idx - *offset))
 		list_del_init(&cb->list);
-	else if (cb->buf_idx > 0 && cb->buf_idx <= *offset) {
+	else if (cb->buf_idx <= *offset) {
 		/* end of the message has been reached */
 		list_del_init(&cb->list);
 		rets = 0;
