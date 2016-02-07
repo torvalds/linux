@@ -148,12 +148,7 @@ int mei_reset(struct mei_device *dev)
 	    state != MEI_DEV_POWER_UP) {
 
 		/* remove all waiting requests */
-		mei_cl_all_write_clear(dev);
-
 		mei_cl_all_disconnect(dev);
-
-		/* wake up all readers and writers so they can be interrupted */
-		mei_cl_all_wakeup(dev);
 
 		/* remove entry if already in list */
 		dev_dbg(dev->dev, "remove iamthif from the file list.\n");

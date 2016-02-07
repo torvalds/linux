@@ -720,6 +720,33 @@ bool mei_hbuf_acquire(struct mei_device *dev)
 }
 
 /**
+ * mei_cl_wake_all - wake up readers, writers and event waiters so
+ *                 they can be interrupted
+ *
+ * @cl: host client
+ */
+static void mei_cl_wake_all(struct mei_cl *cl)
+{
+	struct mei_device *dev = cl->dev;
+
+	/* synchronized under device mutex */
+	if (waitqueue_active(&cl->rx_wait)) {
+		cl_dbg(dev, cl, "Waking up reading client!\n");
+		wake_up_interruptible(&cl->rx_wait);
+	}
+	/* synchronized under device mutex */
+	if (waitqueue_active(&cl->tx_wait)) {
+		cl_dbg(dev, cl, "Waking up writing client!\n");
+		wake_up_interruptible(&cl->tx_wait);
+	}
+	/* synchronized under device mutex */
+	if (waitqueue_active(&cl->ev_wait)) {
+		cl_dbg(dev, cl, "Waking up waiting for event clients!\n");
+		wake_up_interruptible(&cl->ev_wait);
+	}
+}
+
+/**
  * mei_cl_set_disconnected - set disconnected state and clear
  *   associated states and resources
  *
@@ -734,8 +761,11 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 		return;
 
 	cl->state = MEI_FILE_DISCONNECTED;
+	mei_io_list_free(&dev->write_list, cl);
+	mei_io_list_free(&dev->write_waiting_list, cl);
 	mei_io_list_flush(&dev->ctrl_rd_list, cl);
 	mei_io_list_flush(&dev->ctrl_wr_list, cl);
+	mei_cl_wake_all(cl);
 	cl->mei_flow_ctrl_creds = 0;
 	cl->timer_count = 0;
 
@@ -1770,44 +1800,3 @@ void mei_cl_all_disconnect(struct mei_device *dev)
 	list_for_each_entry(cl, &dev->file_list, link)
 		mei_cl_set_disconnected(cl);
 }
-
-
-/**
- * mei_cl_all_wakeup  - wake up all readers and writers they can be interrupted
- *
- * @dev: mei device
- */
-void mei_cl_all_wakeup(struct mei_device *dev)
-{
-	struct mei_cl *cl;
-
-	list_for_each_entry(cl, &dev->file_list, link) {
-		if (waitqueue_active(&cl->rx_wait)) {
-			cl_dbg(dev, cl, "Waking up reading client!\n");
-			wake_up_interruptible(&cl->rx_wait);
-		}
-		if (waitqueue_active(&cl->tx_wait)) {
-			cl_dbg(dev, cl, "Waking up writing client!\n");
-			wake_up_interruptible(&cl->tx_wait);
-		}
-
-		/* synchronized under device mutex */
-		if (waitqueue_active(&cl->ev_wait)) {
-			cl_dbg(dev, cl, "Waking up waiting for event clients!\n");
-			wake_up_interruptible(&cl->ev_wait);
-		}
-	}
-}
-
-/**
- * mei_cl_all_write_clear - clear all pending writes
- *
- * @dev: mei device
- */
-void mei_cl_all_write_clear(struct mei_device *dev)
-{
-	mei_io_list_free(&dev->write_list, NULL);
-	mei_io_list_free(&dev->write_waiting_list, NULL);
-}
-
-
