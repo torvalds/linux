@@ -527,6 +527,46 @@ static long radeon_fence_wait_seq_timeout(struct radeon_device *rdev,
 }
 
 /**
+ * radeon_fence_wait_timeout - wait for a fence to signal with timeout
+ *
+ * @fence: radeon fence object
+ * @intr: use interruptible sleep
+ *
+ * Wait for the requested fence to signal (all asics).
+ * @intr selects whether to use interruptable (true) or non-interruptable
+ * (false) sleep when waiting for the fence.
+ * @timeout: maximum time to wait, or MAX_SCHEDULE_TIMEOUT for infinite wait
+ * Returns remaining time if the sequence number has passed, 0 when
+ * the wait timeout, or an error for all other cases.
+ */
+long radeon_fence_wait_timeout(struct radeon_fence *fence, bool intr, long timeout)
+{
+	uint64_t seq[RADEON_NUM_RINGS] = {};
+	long r;
+	int r_sig;
+
+	/*
+	 * This function should not be called on !radeon fences.
+	 * If this is the case, it would mean this function can
+	 * also be called on radeon fences belonging to another card.
+	 * exclusive_lock is not held in that case.
+	 */
+	if (WARN_ON_ONCE(!to_radeon_fence(&fence->base)))
+		return fence_wait(&fence->base, intr);
+
+	seq[fence->ring] = fence->seq;
+	r = radeon_fence_wait_seq_timeout(fence->rdev, seq, intr, timeout);
+	if (r <= 0) {
+		return r;
+	}
+
+	r_sig = fence_signal(&fence->base);
+	if (!r_sig)
+		FENCE_TRACE(&fence->base, "signaled from fence_wait\n");
+	return r;
+}
+
+/**
  * radeon_fence_wait - wait for a fence to signal
  *
  * @fence: radeon fence object
@@ -539,28 +579,12 @@ static long radeon_fence_wait_seq_timeout(struct radeon_device *rdev,
  */
 int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 {
-	uint64_t seq[RADEON_NUM_RINGS] = {};
-	long r;
-
-	/*
-	 * This function should not be called on !radeon fences.
-	 * If this is the case, it would mean this function can
-	 * also be called on radeon fences belonging to another card.
-	 * exclusive_lock is not held in that case.
-	 */
-	if (WARN_ON_ONCE(!to_radeon_fence(&fence->base)))
-		return fence_wait(&fence->base, intr);
-
-	seq[fence->ring] = fence->seq;
-	r = radeon_fence_wait_seq_timeout(fence->rdev, seq, intr, MAX_SCHEDULE_TIMEOUT);
-	if (r < 0) {
+	long r = radeon_fence_wait_timeout(fence, intr, MAX_SCHEDULE_TIMEOUT);
+	if (r > 0) {
+		return 0;
+	} else {
 		return r;
 	}
-
-	r = fence_signal(&fence->base);
-	if (!r)
-		FENCE_TRACE(&fence->base, "signaled from fence_wait\n");
-	return 0;
 }
 
 /**
