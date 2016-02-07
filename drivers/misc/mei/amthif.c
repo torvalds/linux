@@ -315,6 +315,14 @@ int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	dev = cl->dev;
 
 	list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
+
+	/*
+	 * The previous request is still in processing, queue this one.
+	 */
+	if (dev->iamthif_state > MEI_IAMTHIF_IDLE &&
+	    dev->iamthif_state < MEI_IAMTHIF_READ_COMPLETE)
+		return 0;
+
 	return mei_amthif_run_next_cmd(dev);
 }
 
