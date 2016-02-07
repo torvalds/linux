@@ -122,13 +122,19 @@ int mei_amthif_read(struct mei_device *dev, struct file *file,
 		mutex_unlock(&dev->device_lock);
 
 		wait_ret = wait_event_interruptible(cl->rx_wait,
-					!list_empty(&cl->rd_completed));
+					!list_empty(&cl->rd_completed) ||
+					!mei_cl_is_connected(cl));
 
 		/* Locking again the Mutex */
 		mutex_lock(&dev->device_lock);
 
 		if (wait_ret)
 			return -ERESTARTSYS;
+
+		if (!mei_cl_is_connected(cl)) {
+			rets = -EBUSY;
+			goto out;
+		}
 
 		cb = mei_cl_read_cb(cl, file);
 	}
