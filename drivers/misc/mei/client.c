@@ -536,7 +536,6 @@ int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
 	mei_io_list_flush(&cl->dev->ctrl_wr_list, cl);
 	mei_io_list_flush(&cl->dev->ctrl_rd_list, cl);
 	mei_io_list_flush(&cl->dev->amthif_cmd_list, cl);
-	mei_io_list_flush(&cl->dev->amthif_rd_complete_list, cl);
 
 	mei_cl_read_cb_flush(cl, fp);
 

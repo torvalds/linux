@@ -48,7 +48,7 @@ void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *compl_list)
 
 		dev_dbg(dev->dev, "completing call back.\n");
 		if (cl == &dev->iamthif_cl)
-			mei_amthif_complete(dev, cb);
+			mei_amthif_complete(cl, cb);
 		else
 			mei_cl_complete(cl, cb);
 	}

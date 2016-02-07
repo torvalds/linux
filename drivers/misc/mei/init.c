@@ -402,7 +402,6 @@ void mei_device_init(struct mei_device *dev,
 
 	INIT_LIST_HEAD(&dev->iamthif_cl.link);
 	mei_io_list_init(&dev->amthif_cmd_list);
-	mei_io_list_init(&dev->amthif_rd_complete_list);
 
 	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
 	dev->open_handle_count = 0;

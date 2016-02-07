@@ -406,7 +406,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @allow_fixed_address: allow user space to connect a fixed client
  *
  * @amthif_cmd_list : amthif list for cmd waiting
- * @amthif_rd_complete_list : amthif list for reading completed cmd data
  * @iamthif_fp : file for current amthif operation
  * @iamthif_cl  : amthif host client
  * @iamthif_current_cb : amthif current operation callback
@@ -496,7 +495,6 @@ struct mei_device {
 	/* amthif list for cmd waiting */
 	struct mei_cl_cb amthif_cmd_list;
 	/* driver managed amthif list for reading completed amthif cmd data */
-	struct mei_cl_cb amthif_rd_complete_list;
 	const struct file *iamthif_fp;
 	struct mei_cl iamthif_cl;
 	struct mei_cl_cb *iamthif_current_cb;
@@ -589,15 +587,12 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 
 int mei_amthif_release(struct mei_device *dev, struct file *file);
 
-struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
-						  const struct file *file);
-
 int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_amthif_run_next_cmd(struct mei_device *dev);
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 			struct mei_cl_cb *cmpl_list);
 
-void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb);
+void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_msg_hdr *mei_hdr,
 			    struct mei_cl_cb *complete_list);
