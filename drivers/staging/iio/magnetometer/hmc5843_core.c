@@ -565,14 +565,14 @@ static const unsigned long hmc5843_scan_masks[] = {0x7, 0};
 int hmc5843_common_suspend(struct device *dev)
 {
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
-			HMC5843_MODE_CONVERSION_CONTINUOUS);
+				HMC5843_MODE_SLEEP);
 }
 EXPORT_SYMBOL(hmc5843_common_suspend);
 
 int hmc5843_common_resume(struct device *dev)
 {
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
-				HMC5843_MODE_SLEEP);
+		HMC5843_MODE_CONVERSION_CONTINUOUS);
 }
 EXPORT_SYMBOL(hmc5843_common_resume);
 
