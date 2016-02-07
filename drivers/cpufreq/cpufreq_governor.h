@@ -85,7 +85,8 @@ static ssize_t show_##file_name##_gov_sys				\
 static ssize_t show_##file_name##_gov_pol				\
 (struct cpufreq_policy *policy, char *buf)				\
 {									\
-	struct dbs_data *dbs_data = policy->governor_data;		\
+	struct policy_dbs_info *policy_dbs = policy->governor_data;	\
+	struct dbs_data *dbs_data = policy_dbs->dbs_data;		\
 	struct _gov##_dbs_tuners *tuners = dbs_data->tuners;		\
 	return sprintf(buf, "%u\n", tuners->file_name);			\
 }
@@ -101,8 +102,8 @@ static ssize_t store_##file_name##_gov_sys				\
 static ssize_t store_##file_name##_gov_pol				\
 (struct cpufreq_policy *policy, const char *buf, size_t count)		\
 {									\
-	struct dbs_data *dbs_data = policy->governor_data;		\
-	return store_##file_name(dbs_data, buf, count);			\
+	struct policy_dbs_info *policy_dbs = policy->governor_data;	\
+	return store_##file_name(policy_dbs->dbs_data, buf, count);			\
 }
 
 #define show_store_one(_gov, file_name)					\
@@ -130,6 +131,13 @@ static void *get_cpu_dbs_info_s(int cpu)				\
  * cs_*: Conservative governor
  */
 
+/* Governor demand based switching data (per-policy or global). */
+struct dbs_data {
+	unsigned int min_sampling_rate;
+	int usage_count;
+	void *tuners;
+};
+
 /* Common to all CPUs of a policy */
 struct policy_dbs_info {
 	struct cpufreq_policy *policy;
@@ -144,6 +152,8 @@ struct policy_dbs_info {
 	atomic_t skip_work;
 	struct irq_work irq_work;
 	struct work_struct work;
+	/* dbs_data may be shared between multiple policy objects */
+	struct dbs_data *dbs_data;
 };
 
 static inline void gov_update_sample_delay(struct policy_dbs_info *policy_dbs,
@@ -204,7 +214,6 @@ struct cs_dbs_tuners {
 };
 
 /* Common Governor data across policies */
-struct dbs_data;
 struct dbs_governor {
 	struct cpufreq_governor gov;
 
@@ -236,13 +245,6 @@ static inline struct dbs_governor *dbs_governor_of(struct cpufreq_policy *policy
 	return container_of(policy->governor, struct dbs_governor, gov);
 }
 
-/* Governor Per policy data */
-struct dbs_data {
-	unsigned int min_sampling_rate;
-	int usage_count;
-	void *tuners;
-};
-
 /* Governor specific ops, will be passed to dbs_data->gov_ops */
 struct od_ops {
 	void (*powersave_bias_init_cpu)(int cpu);
@@ -273,7 +275,8 @@ static ssize_t show_sampling_rate_min_gov_sys				\
 static ssize_t show_sampling_rate_min_gov_pol				\
 (struct cpufreq_policy *policy, char *buf)				\
 {									\
-	struct dbs_data *dbs_data = policy->governor_data;		\
+	struct policy_dbs_info *policy_dbs = policy->governor_data;	\
+	struct dbs_data *dbs_data = policy_dbs->dbs_data;		\
 	return sprintf(buf, "%u\n", dbs_data->min_sampling_rate);	\
 }
 

@@ -78,7 +78,8 @@ static unsigned int generic_powersave_bias_target(struct cpufreq_policy *policy,
 	unsigned int jiffies_total, jiffies_hi, jiffies_lo;
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info,
 						   policy->cpu);
-	struct dbs_data *dbs_data = policy->governor_data;
+	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
 	if (!dbs_info->freq_table) {
@@ -130,7 +131,8 @@ static void ondemand_powersave_bias_init(void)
 
 static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
 {
-	struct dbs_data *dbs_data = policy->governor_data;
+	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
 	if (od_tuners->powersave_bias)
@@ -151,8 +153,9 @@ static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
 static void od_check_cpu(int cpu, unsigned int load)
 {
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
-	struct cpufreq_policy *policy = dbs_info->cdbs.policy_dbs->policy;
-	struct dbs_data *dbs_data = policy->governor_data;
+	struct policy_dbs_info *policy_dbs = dbs_info->cdbs.policy_dbs;
+	struct cpufreq_policy *policy = policy_dbs->policy;
+	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
 	dbs_info->freq_lo = 0;
@@ -189,7 +192,8 @@ static void od_check_cpu(int cpu, unsigned int load)
 
 static unsigned int od_dbs_timer(struct cpufreq_policy *policy)
 {
-	struct dbs_data *dbs_data = policy->governor_data;
+	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	int delay = 0, sample_type = dbs_info->sample_type;
@@ -277,7 +281,7 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 		 * policy will be governed by dbs_data, otherwise there can be
 		 * multiple policies that are governed by the same dbs_data.
 		 */
-		if (dbs_data == policy->governor_data) {
+		if (dbs_data == policy_dbs->dbs_data) {
 			mutex_lock(&policy_dbs->timer_mutex);
 			/*
 			 * On 32-bit architectures this may race with the
@@ -586,7 +590,7 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 		if (policy->governor != CPU_FREQ_GOV_ONDEMAND)
 			continue;
 
-		dbs_data = policy->governor_data;
+		dbs_data = policy_dbs->dbs_data;
 		od_tuners = dbs_data->tuners;
 		od_tuners->powersave_bias = default_powersave_bias;
 	}
