@@ -71,7 +71,7 @@ int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 
 	mei_cl_init(cl, dev);
 
-	ret = mei_cl_link(cl, MEI_IAMTHIF_HOST_CLIENT_ID);
+	ret = mei_cl_link(cl);
 	if (ret < 0) {
 		dev_err(dev->dev, "amthif: failed cl_link %d\n", ret);
 		return ret;

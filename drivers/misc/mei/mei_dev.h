@@ -53,14 +53,6 @@ extern const uuid_le mei_amthif_guid;
  */
 #define  MEI_MAX_OPEN_HANDLE_COUNT (MEI_CLIENTS_MAX - 1)
 
-/*
- * Internal Clients Number
- */
-#define MEI_HOST_CLIENT_ID_ANY        (-1)
-#define MEI_HBM_HOST_CLIENT_ID         0 /* not used, just for documentation */
-#define MEI_IAMTHIF_HOST_CLIENT_ID     2
-
-
 /* File state */
 enum file_state {
 	MEI_FILE_INITIALIZING = 0,

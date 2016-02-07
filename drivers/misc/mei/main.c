@@ -65,7 +65,7 @@ static int mei_open(struct inode *inode, struct file *file)
 		goto err_unlock;
 	}
 
-	cl = mei_cl_alloc_linked(dev, MEI_HOST_CLIENT_ID_ANY);
+	cl = mei_cl_alloc_linked(dev);
 	if (IS_ERR(cl)) {
 		err = PTR_ERR(cl);
 		goto err_unlock;

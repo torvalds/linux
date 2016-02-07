@@ -239,7 +239,7 @@ static void mei_nfc(struct mei_cl_device *cldev)
 
 	mutex_lock(&bus->device_lock);
 	/* we need to connect to INFO GUID */
-	cl = mei_cl_alloc_linked(bus, MEI_HOST_CLIENT_ID_ANY);
+	cl = mei_cl_alloc_linked(bus);
 	if (IS_ERR(cl)) {
 		ret = PTR_ERR(cl);
 		cl = NULL;

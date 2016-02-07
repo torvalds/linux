@@ -417,7 +417,7 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 
 	if (!cl) {
 		mutex_lock(&bus->device_lock);
-		cl = mei_cl_alloc_linked(bus, MEI_HOST_CLIENT_ID_ANY);
+		cl = mei_cl_alloc_linked(bus);
 		mutex_unlock(&bus->device_lock);
 		if (IS_ERR(cl))
 			return PTR_ERR(cl);

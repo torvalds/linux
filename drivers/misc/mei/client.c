@@ -587,27 +587,23 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
  * mei_cl_link - allocate host id in the host map
  *
  * @cl: host client
- * @id: fixed host id or MEI_HOST_CLIENT_ID_ANY (-1) for generic one
  *
  * Return: 0 on success
  *	-EINVAL on incorrect values
  *	-EMFILE if open count exceeded.
  */
-int mei_cl_link(struct mei_cl *cl, int id)
+int mei_cl_link(struct mei_cl *cl)
 {
 	struct mei_device *dev;
 	long open_handle_count;
+	int id;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
 
 	dev = cl->dev;
 
-	/* If Id is not assigned get one*/
-	if (id == MEI_HOST_CLIENT_ID_ANY)
-		id = find_first_zero_bit(dev->host_clients_map,
-					MEI_CLIENTS_MAX);
-
+	id = find_first_zero_bit(dev->host_clients_map, MEI_CLIENTS_MAX);
 	if (id >= MEI_CLIENTS_MAX) {
 		dev_err(dev->dev, "id exceeded %d", MEI_CLIENTS_MAX);
 		return -EMFILE;
@@ -1143,11 +1139,10 @@ nortpm:
  * mei_cl_alloc_linked - allocate and link host client
  *
  * @dev: the device structure
- * @id: fixed host id or MEI_HOST_CLIENT_ID_ANY (-1) for generic one
  *
  * Return: cl on success ERR_PTR on failure
  */
-struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev, int id)
+struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev)
 {
 	struct mei_cl *cl;
 	int ret;
@@ -1158,7 +1153,7 @@ struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev, int id)
 		goto err;
 	}
 
-	ret = mei_cl_link(cl, id);
+	ret = mei_cl_link(cl);
 	if (ret)
 		goto err;
 
