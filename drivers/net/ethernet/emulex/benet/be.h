@@ -89,6 +89,10 @@
 #define BE3_MAX_TX_QS		16
 #define BE3_MAX_EVT_QS		16
 #define BE3_SRIOV_MAX_EVT_QS	8
+#define SH_VF_MAX_NIC_EQS	3	/* Skyhawk VFs can have a max of 4 EQs
+					 * and at least 1 is granted to either
+					 * SURF/DPDK
+					 */
 
 #define MAX_RSS_IFACES		15
 #define MAX_RX_QS		32
@@ -393,6 +397,10 @@ enum vf_state {
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
 
+#define MAX_ERR_RECOVERY_RETRY_COUNT		3
+#define ERR_DETECTION_DELAY			1000
+#define ERR_RECOVERY_RETRY_DELAY		30000
+
 /* Ethtool set_dump flags */
 #define LANCER_INITIATE_FW_DUMP			0x1
 #define LANCER_DELETE_FW_DUMP			0x2
@@ -530,6 +538,7 @@ struct be_adapter {
 	u16 work_counter;
 
 	struct delayed_work be_err_detection_work;
+	u8 recovery_retries;
 	u8 err_flags;
 	u32 flags;
 	u32 cmd_privileges;
