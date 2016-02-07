@@ -210,7 +210,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = mei_register(dev, &pdev->dev);
 	if (err)
-		goto release_irq;
+		goto stop;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -231,6 +231,8 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
+stop:
+	mei_stop(dev);
 release_irq:
 	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
