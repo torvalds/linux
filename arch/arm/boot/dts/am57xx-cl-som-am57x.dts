@@ -167,7 +167,7 @@
 			DRA7XX_CORE_IOPAD(0x35b8, PIN_INPUT_PULLDOWN | MUX_MODE3) /* vin2a_d20.rgmii1_rd3 */
 			DRA7XX_CORE_IOPAD(0x35bc, PIN_INPUT_PULLDOWN | MUX_MODE3) /* vin2a_d21.rgmii1_rd2 */
 			DRA7XX_CORE_IOPAD(0x35c0, PIN_INPUT_PULLDOWN | MUX_MODE3) /* vin2a_d22.rgmii1_rd1 */
-			DRA7XX_CORE_IOPAD(0x35c4, PIN_INPUT_PULLUP | MUX_MODE3)	/* vin2a_d23.rgmii1_rd0 */
+			DRA7XX_CORE_IOPAD(0x35c4, PIN_INPUT_PULLDOWN | MUX_MODE3) /* vin2a_d23.rgmii1_rd0 */
 		>;
 	};
 
@@ -492,14 +492,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&qspi1_pins>;
 
-	spi-max-frequency = <20000000>;
+	spi-max-frequency = <48000000>;
 
 	spi_flash: spi_flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "spansion,m25p80", "jedec,spi-nor";
 		reg = <0>;				/* CS0 */
-		spi-max-frequency = <20000000>;
+		spi-max-frequency = <48000000>;
 
 		partition@0 {
 			label = "uboot";
@@ -559,13 +559,13 @@
 
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <0>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <0>;
 };
 
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <1>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-txid";
 	dual_emac_res_vlan = <1>;
 };
 
@@ -588,7 +588,7 @@
 };
 
 &usb2 {
-	dr_mode = "peripheral";
+	dr_mode = "host";
 };
 
 &mcasp3 {
