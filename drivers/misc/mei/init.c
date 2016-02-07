@@ -93,6 +93,7 @@ void mei_cancel_work(struct mei_device *dev)
 {
 	cancel_work_sync(&dev->init_work);
 	cancel_work_sync(&dev->reset_work);
+	cancel_work_sync(&dev->bus_rescan_work);
 
 	cancel_delayed_work(&dev->timer_work);
 }
@@ -394,6 +395,7 @@ void mei_device_init(struct mei_device *dev,
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	INIT_WORK(&dev->init_work, mei_host_client_init);
 	INIT_WORK(&dev->reset_work, mei_reset_work);
+	INIT_WORK(&dev->bus_rescan_work, mei_cl_bus_rescan_work);
 
 	INIT_LIST_HEAD(&dev->iamthif_cl.link);
 	mei_io_list_init(&dev->amthif_cmd_list);

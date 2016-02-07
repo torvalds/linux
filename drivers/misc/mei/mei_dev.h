@@ -304,6 +304,7 @@ struct mei_hw_ops {
 
 /* MEI bus API*/
 void mei_cl_bus_rescan(struct mei_device *bus);
+void mei_cl_bus_rescan_work(struct work_struct *work);
 void mei_cl_bus_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking);
@@ -410,6 +411,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  *
  * @init_work   : work item for the device init
  * @reset_work  : work item for the device reset
+ * @bus_rescan_work : work item for the bus rescan
  *
  * @device_list : mei client bus list
  * @cl_bus_lock : client bus list lock
@@ -501,6 +503,7 @@ struct mei_device {
 
 	struct work_struct init_work;
 	struct work_struct reset_work;
+	struct work_struct bus_rescan_work;
 
 	/* List of bus devices */
 	struct list_head device_list;

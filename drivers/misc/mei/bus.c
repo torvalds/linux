@@ -977,6 +977,14 @@ void mei_cl_bus_rescan(struct mei_device *bus)
 	dev_dbg(bus->dev, "rescan end");
 }
 
+void mei_cl_bus_rescan_work(struct work_struct *work)
+{
+	struct mei_device *bus =
+		container_of(work, struct mei_device, bus_rescan_work);
+
+	mei_cl_bus_rescan(bus);
+}
+
 int __mei_cldev_driver_register(struct mei_cl_driver *cldrv,
 				struct module *owner)
 {

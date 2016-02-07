@@ -401,6 +401,9 @@ static int mei_hbm_fw_add_cl_req(struct mei_device *dev,
 	if (ret)
 		status = !MEI_HBMS_SUCCESS;
 
+	if (dev->dev_state == MEI_DEV_ENABLED)
+		schedule_work(&dev->bus_rescan_work);
+
 	return mei_hbm_add_cl_resp(dev, req->me_addr, status);
 }
 
@@ -789,8 +792,11 @@ static void mei_hbm_cl_connect_res(struct mei_device *dev, struct mei_cl *cl,
 		cl->state = MEI_FILE_CONNECTED;
 	else {
 		cl->state = MEI_FILE_DISCONNECT_REPLY;
-		if (rs->status == MEI_CL_CONN_NOT_FOUND)
+		if (rs->status == MEI_CL_CONN_NOT_FOUND) {
 			mei_me_cl_del(dev, cl->me_cl);
+			if (dev->dev_state == MEI_DEV_ENABLED)
+				schedule_work(&dev->bus_rescan_work);
+		}
 	}
 	cl->status = mei_cl_conn_status_to_errno(rs->status);
 }
