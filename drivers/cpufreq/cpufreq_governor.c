@@ -519,20 +519,19 @@ static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 {
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(policy->cpu);
+	struct policy_dbs_info *policy_dbs = cdbs->policy_dbs;
 
 	/* State should be equivalent to START */
-	if (!cdbs->policy_dbs || !cdbs->policy_dbs->policy)
+	if (!policy_dbs || !policy_dbs->policy)
 		return -EBUSY;
 
-	mutex_lock(&cdbs->policy_dbs->timer_mutex);
-	if (policy->max < cdbs->policy_dbs->policy->cur)
-		__cpufreq_driver_target(cdbs->policy_dbs->policy, policy->max,
-					CPUFREQ_RELATION_H);
-	else if (policy->min > cdbs->policy_dbs->policy->cur)
-		__cpufreq_driver_target(cdbs->policy_dbs->policy, policy->min,
-					CPUFREQ_RELATION_L);
+	mutex_lock(&policy_dbs->timer_mutex);
+	if (policy->max < policy->cur)
+		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
+	else if (policy->min > policy->cur)
+		__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
 	dbs_check_cpu(policy);
-	mutex_unlock(&cdbs->policy_dbs->timer_mutex);
+	mutex_unlock(&policy_dbs->timer_mutex);
 
 	return 0;
 }
