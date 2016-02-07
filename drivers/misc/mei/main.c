@@ -209,11 +209,6 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 	cb = mei_cl_read_cb(cl, file);
 	if (!cb) {
-		if (mei_cl_is_fixed_address(cl) && dev->allow_fixed_address) {
-			cb = mei_cl_read_cb(cl, NULL);
-			if (cb)
-				goto copy_buffer;
-		}
 		rets = 0;
 		goto out;
 	}
