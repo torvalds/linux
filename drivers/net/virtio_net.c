@@ -1386,11 +1386,13 @@ static bool virtnet_validate_ethtool_cmd(const struct ethtool_cmd *cmd)
 	struct ethtool_cmd diff1 = *cmd;
 	struct ethtool_cmd diff2 = {};
 
-	/* advertising and cmd are usually set, ignore port because we set it */
+	/* cmd is always set so we need to clear it, validate the port type
+	 * and also without autonegotiation we can ignore advertising
+	 */
 	ethtool_cmd_speed_set(&diff1, 0);
+	diff2.port = PORT_OTHER;
 	diff1.advertising = 0;
 	diff1.duplex = 0;
-	diff1.port = 0;
 	diff1.cmd = 0;
 
 	return !memcmp(&diff1, &diff2, sizeof(diff1));
