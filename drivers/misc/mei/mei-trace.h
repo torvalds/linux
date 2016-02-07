@@ -60,7 +60,7 @@ TRACE_EVENT(mei_reg_write,
 		__entry->offs = offs;
 		__entry->val = val;
 	),
-	TP_printk("[%s] write %s[%#x] = %#x)",
+	TP_printk("[%s] write %s[%#x] = %#x",
 		  __get_str(dev), __entry->reg,  __entry->offs, __entry->val)
 );
 
@@ -98,7 +98,7 @@ TRACE_EVENT(mei_pci_cfg_write,
 		__entry->offs = offs;
 		__entry->val = val;
 	),
-	TP_printk("[%s] pci cfg write %s[%#x] = %#x)",
+	TP_printk("[%s] pci cfg write %s[%#x] = %#x",
 		  __get_str(dev), __entry->reg,  __entry->offs, __entry->val)
 );
 
