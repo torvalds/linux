@@ -491,7 +491,7 @@
 		pinctrl-0 = <&pixcir_ts_pins>;
 		reg = <0x5c>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <17 0>;
+		interrupts = <17 IRQ_TYPE_EDGE_FALLING>;
 
 		attb-gpio = <&gpio1 17 GPIO_ACTIVE_HIGH>;
 
