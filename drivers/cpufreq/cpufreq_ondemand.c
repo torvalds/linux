@@ -539,13 +539,10 @@ static struct od_ops od_ops = {
 	.freq_increase = dbs_freq_increase,
 };
 
-static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
-				   unsigned int event);
-
 static struct dbs_governor od_dbs_gov = {
 	.gov = {
 		.name = "ondemand",
-		.governor = od_cpufreq_governor_dbs,
+		.governor = cpufreq_governor_dbs,
 		.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
 		.owner = THIS_MODULE,
 	},
@@ -562,12 +559,6 @@ static struct dbs_governor od_dbs_gov = {
 };
 
 #define CPU_FREQ_GOV_ONDEMAND	(&od_dbs_gov.gov)
-
-static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
-		unsigned int event)
-{
-	return cpufreq_governor_dbs(policy, &od_dbs_gov, event);
-}
 
 static void od_set_powersave_bias(unsigned int powersave_bias)
 {

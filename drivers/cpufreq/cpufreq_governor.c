@@ -328,9 +328,10 @@ static void free_common_dbs_info(struct cpufreq_policy *policy,
 	kfree(shared);
 }
 
-static int cpufreq_governor_init(struct cpufreq_policy *policy,
-				 struct dbs_governor *gov)
+static int cpufreq_governor_init(struct cpufreq_policy *policy)
 {
+	struct dbs_governor *gov = container_of(policy->governor,
+						struct dbs_governor, gov);
 	struct dbs_data *dbs_data = gov->gdbs_data;
 	unsigned int latency;
 	int ret;
@@ -539,8 +540,7 @@ static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 	return 0;
 }
 
-int cpufreq_governor_dbs(struct cpufreq_policy *policy,
-			 struct dbs_governor *gov, unsigned int event)
+int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int event)
 {
 	int ret = -EINVAL;
 
@@ -548,7 +548,7 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	mutex_lock(&dbs_data_mutex);
 
 	if (event == CPUFREQ_GOV_POLICY_INIT) {
-		ret = cpufreq_governor_init(policy, gov);
+		ret = cpufreq_governor_init(policy);
 	} else if (policy->governor_data) {
 		switch (event) {
 		case CPUFREQ_GOV_POLICY_EXIT:

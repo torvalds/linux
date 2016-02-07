@@ -325,13 +325,10 @@ static void cs_exit(struct dbs_data *dbs_data, bool notify)
 
 define_get_cpu_dbs_routines(cs_cpu_dbs_info);
 
-static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,
-				   unsigned int event);
-
 static struct dbs_governor cs_dbs_gov = {
 	.gov = {
 		.name = "conservative",
-		.governor = cs_cpufreq_governor_dbs,
+		.governor = cpufreq_governor_dbs,
 		.max_transition_latency = TRANSITION_LATENCY_LIMIT,
 		.owner = THIS_MODULE,
 	},
@@ -347,12 +344,6 @@ static struct dbs_governor cs_dbs_gov = {
 };
 
 #define CPU_FREQ_GOV_CONSERVATIVE	(&cs_dbs_gov.gov)
-
-static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,
-				   unsigned int event)
-{
-	return cpufreq_governor_dbs(policy, &cs_dbs_gov, event);
-}
 
 static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 				void *data)
