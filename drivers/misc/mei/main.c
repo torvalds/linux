@@ -226,7 +226,7 @@ copy_buffer:
 		goto free;
 	}
 
-	cl_dbg(dev, cl, "buf.size = %d buf.idx = %ld offset = %lld\n",
+	cl_dbg(dev, cl, "buf.size = %zd buf.idx = %zd offset = %lld\n",
 	       cb->buf.size, cb->buf_idx, *offset);
 	if (*offset >= cb->buf_idx) {
 		rets = 0;
@@ -245,7 +245,8 @@ copy_buffer:
 
 	rets = length;
 	*offset += length;
-	if ((unsigned long)*offset < cb->buf_idx)
+	/* not all data was read, keep the cb */
+	if (*offset < cb->buf_idx)
 		goto out;
 
 free:

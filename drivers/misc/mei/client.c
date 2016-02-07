@@ -1569,7 +1569,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return 0;
 	}
 
-	cl_dbg(dev, cl, "buf: size = %d idx = %lu\n",
+	cl_dbg(dev, cl, "buf: size = %zd idx = %zd\n",
 			cb->buf.size, cb->buf_idx);
 
 	rets = mei_write_message(dev, &mei_hdr, buf->data + cb->buf_idx);

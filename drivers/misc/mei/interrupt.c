@@ -104,6 +104,7 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	struct mei_device *dev = cl->dev;
 	struct mei_cl_cb *cb;
 	unsigned char *buffer = NULL;
+	size_t buf_sz;
 
 	cb = list_first_entry_or_null(&cl->rd_pending, struct mei_cl_cb, list);
 	if (!cb) {
@@ -124,11 +125,21 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 		goto out;
 	}
 
-	if (cb->buf.size < mei_hdr->length + cb->buf_idx) {
-		cl_dbg(dev, cl, "message overflow. size %d len %d idx %ld\n",
+	buf_sz = mei_hdr->length + cb->buf_idx;
+	/* catch for integer overflow */
+	if (buf_sz < cb->buf_idx) {
+		cl_err(dev, cl, "message is too big len %d idx %ld\n",
+		       mei_hdr->length, cb->buf_idx);
+
+		list_move_tail(&cb->list, &complete_list->list);
+		cb->status = -EMSGSIZE;
+		goto out;
+	}
+
+	if (cb->buf.size < buf_sz) {
+		cl_dbg(dev, cl, "message overflow. size %zd len %d idx %zd\n",
 			cb->buf.size, mei_hdr->length, cb->buf_idx);
-		buffer = krealloc(cb->buf.data, mei_hdr->length + cb->buf_idx,
-				  GFP_KERNEL);
+		buffer = krealloc(cb->buf.data, buf_sz, GFP_KERNEL);
 
 		if (!buffer) {
 			cb->status = -ENOMEM;
@@ -136,7 +147,7 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 			goto out;
 		}
 		cb->buf.data = buffer;
-		cb->buf.size = mei_hdr->length + cb->buf_idx;
+		cb->buf.size = buf_sz;
 	}
 
 	buffer = cb->buf.data + cb->buf_idx;
