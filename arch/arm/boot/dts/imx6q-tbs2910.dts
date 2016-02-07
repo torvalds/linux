@@ -257,6 +257,9 @@
 	bus-width = <4>;
 	cd-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	voltage-ranges = <3300 3300>;
+	no-1-8-v;
 	status = "okay";
 };
 
@@ -267,6 +270,9 @@
 	cd-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	voltage-ranges = <3300 3300>;
+	no-1-8-v;
 	status = "okay";
 };
 
@@ -274,6 +280,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	voltage-ranges = <3300 3300>;
 	non-removable;
 	no-1-8-v;
 	status = "okay";
