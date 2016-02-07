@@ -1,7 +1,7 @@
 /*
  * Driver for the Texas Instruments DP83848 PHY
  *
- * Copyright (C) 2015 Texas Instruments Inc.
+ * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,25 +70,28 @@ static struct mdio_device_id __maybe_unused dp83848_tbl[] = {
 };
 MODULE_DEVICE_TABLE(mdio, dp83848_tbl);
 
+#define DP83848_PHY_DRIVER(_id, _name)				\
+	{							\
+		.phy_id		= _id,				\
+		.phy_id_mask	= 0xfffffff0,			\
+		.name		= _name,			\
+		.features	= PHY_BASIC_FEATURES,		\
+		.flags		= PHY_HAS_INTERRUPT,		\
+								\
+		.soft_reset	= genphy_soft_reset,		\
+		.config_init	= genphy_config_init,		\
+		.suspend	= genphy_suspend,		\
+		.resume		= genphy_resume,		\
+		.config_aneg	= genphy_config_aneg,		\
+		.read_status	= genphy_read_status,		\
+								\
+		/* IRQ related */				\
+		.ack_interrupt	= dp83848_ack_interrupt,	\
+		.config_intr	= dp83848_config_intr,		\
+	}
+
 static struct phy_driver dp83848_driver[] = {
-	{
-		.phy_id		= DP83848_PHY_ID,
-		.phy_id_mask	= 0xfffffff0,
-		.name		= "TI DP83848",
-		.features	= PHY_BASIC_FEATURES,
-		.flags		= PHY_HAS_INTERRUPT,
-
-		.soft_reset	= genphy_soft_reset,
-		.config_init	= genphy_config_init,
-		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
-		.config_aneg	= genphy_config_aneg,
-		.read_status	= genphy_read_status,
-
-		/* IRQ related */
-		.ack_interrupt	= dp83848_ack_interrupt,
-		.config_intr	= dp83848_config_intr,
-	},
+	DP83848_PHY_DRIVER(DP83848_PHY_ID, "TI DP83848 10/100 Mbps PHY"),
 };
 module_phy_driver(dp83848_driver);
 
