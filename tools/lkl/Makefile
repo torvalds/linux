@@ -16,12 +16,15 @@ TEST_TARGETS=test valgrind gdb
 lib_source = $(filter-out %-host.c,$(wildcard lib/*.c))
 source = $(wildcard tests/*.c)
 lib = lib/liblkl.a
-ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd))
-source += $(wildcard *.c)
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd elf32-littlearm ))
 lib_source += lib/posix-host.c
 CFLAGS += -fPIC
-LDFLAGS += -lpthread -lrt
+LDFLAGS += -lpthread
+ifeq (,$(shell $(CROSS_COMPILE)gcc -E -dM - < /dev/null | grep __ANDROID__))
+LDFLAGS += -lrt
+source += $(wildcard *.c)
 execs =  cpfromfs
+endif
 lib += lib/liblkl.so
 else ifeq ($(OUTPUT_FORMAT),pe-i386)
 lib_source := $(filter-out virtio_net.c,$(lib_source))
