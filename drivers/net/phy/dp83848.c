@@ -21,8 +21,8 @@
 #define TLK10X_PHY_ID			0x2000a210
 
 /* Registers */
-#define DP83848_MICR			0x11
-#define DP83848_MISR			0x12
+#define DP83848_MICR			0x11 /* MII Interrupt Control Register */
+#define DP83848_MISR			0x12 /* MII Interrupt Status Register */
 
 /* MICR Register Fields */
 #define DP83848_MICR_INT_OE		BIT(0) /* Interrupt Output Enable */
