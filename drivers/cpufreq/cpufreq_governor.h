@@ -231,9 +231,13 @@ struct dbs_governor {
 	void *gov_ops;
 };
 
+static inline struct dbs_governor *dbs_governor_of(struct cpufreq_policy *policy)
+{
+	return container_of(policy->governor, struct dbs_governor, gov);
+}
+
 /* Governor Per policy data */
 struct dbs_data {
-	struct dbs_governor *gov;
 	unsigned int min_sampling_rate;
 	int usage_count;
 	void *tuners;
@@ -275,7 +279,7 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 
 extern struct mutex dbs_data_mutex;
 extern struct mutex cpufreq_governor_lock;
-void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
+void dbs_check_cpu(struct cpufreq_policy *policy, int cpu);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int event);
 void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
