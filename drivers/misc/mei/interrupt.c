@@ -239,6 +239,16 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 	return 0;
 }
 
+static inline bool hdr_is_hbm(struct mei_msg_hdr *mei_hdr)
+{
+	return mei_hdr->host_addr == 0 && mei_hdr->me_addr == 0;
+}
+
+static inline bool hdr_is_fixed(struct mei_msg_hdr *mei_hdr)
+{
+	return mei_hdr->host_addr == 0 && mei_hdr->me_addr != 0;
+}
+
 /**
  * mei_irq_read_handler - bottom half read routine after ISR to
  * handle the read processing.
@@ -280,7 +290,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 	}
 
 	/*  HBM message */
-	if (mei_hdr->host_addr == 0 && mei_hdr->me_addr == 0) {
+	if (hdr_is_hbm(mei_hdr)) {
 		ret = mei_hbm_dispatch(dev, mei_hdr);
 		if (ret) {
 			dev_dbg(dev->dev, "mei_hbm_dispatch failed ret = %d\n",
@@ -300,6 +310,14 @@ int mei_irq_read_handler(struct mei_device *dev,
 
 	/* if no recipient cl was found we assume corrupted header */
 	if (&cl->link == &dev->file_list) {
+		/* A message for not connected fixed address clients
+		 * should be silently discarded
+		 */
+		if (hdr_is_fixed(mei_hdr)) {
+			mei_irq_discard_msg(dev, mei_hdr);
+			ret = 0;
+			goto reset_slots;
+		}
 		dev_err(dev->dev, "no destination client found 0x%08X\n",
 				dev->rd_msg_hdr);
 		ret = -EBADMSG;
