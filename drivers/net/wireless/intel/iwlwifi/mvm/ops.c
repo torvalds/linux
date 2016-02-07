@@ -661,7 +661,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_mvm_tof_init(mvm);
 
 	/* init RSS hash key */
-	get_random_bytes(mvm->secret_key, ARRAY_SIZE(mvm->secret_key));
+	get_random_bytes(mvm->secret_key, sizeof(mvm->secret_key));
 
 	return op_mode;
 

@@ -121,7 +121,7 @@ static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
 
 	for (i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
 		cmd.indirection_table[i] = i % mvm->trans->num_rx_queues;
-	memcpy(cmd.secret_key, mvm->secret_key, ARRAY_SIZE(cmd.secret_key));
+	memcpy(cmd.secret_key, mvm->secret_key, sizeof(cmd.secret_key));
 
 	return iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
 }

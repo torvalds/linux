@@ -976,7 +976,7 @@ static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
 	memcpy(&cmd.indirection_table[i * nbytes], cmd.indirection_table,
 	       ARRAY_SIZE(cmd.indirection_table) % nbytes);
 
-	memcpy(cmd.secret_key, mvm->secret_key, ARRAY_SIZE(cmd.secret_key));
+	memcpy(cmd.secret_key, mvm->secret_key, sizeof(cmd.secret_key));
 
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
@@ -1497,7 +1497,8 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(cont_recording, 8);
-MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl, 16);
+MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
+			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
