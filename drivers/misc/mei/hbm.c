@@ -866,7 +866,7 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 
 	cl = mei_hbm_cl_find_by_cmd(dev, disconnect_req);
 	if (cl) {
-		cl_dbg(dev, cl, "fw disconnect request received\n");
+		cl_warn(dev, cl, "fw disconnect request received\n");
 		cl->state = MEI_FILE_DISCONNECTING;
 		cl->timer_count = 0;
 

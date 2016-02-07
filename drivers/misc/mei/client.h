@@ -245,6 +245,9 @@ void mei_cl_all_disconnect(struct mei_device *dev);
 #define cl_dbg(dev, cl, format, arg...) \
 	dev_dbg((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
+#define cl_warn(dev, cl, format, arg...) \
+	dev_warn((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
+
 #define cl_err(dev, cl, format, arg...) \
 	dev_err((dev)->dev, MEI_CL_FMT format, MEI_CL_PRM(cl), ##arg)
 
