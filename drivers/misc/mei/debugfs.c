@@ -50,6 +50,7 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, HDR);
+#undef HDR
 
 	/*  if the driver is not enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
@@ -90,23 +91,37 @@ static ssize_t mei_dbgfs_read_active(struct file *fp, char __user *ubuf,
 {
 	struct mei_device *dev = fp->private_data;
 	struct mei_cl *cl;
-	const size_t bufsz = 1024;
+	size_t bufsz = 1;
 	char *buf;
 	int i = 0;
 	int pos = 0;
 	int ret;
 
+#define HDR "   |me|host|state|rd|wr|\n"
+
 	if (!dev)
 		return -ENODEV;
 
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if  (!buf)
-		return -ENOMEM;
-
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"  |me|host|state|rd|wr|\n");
-
 	mutex_lock(&dev->device_lock);
+
+	/*
+	 * if the driver is not enabled the list won't be consistent,
+	 * we output empty table
+	 */
+	if (dev->dev_state == MEI_DEV_ENABLED)
+		list_for_each_entry(cl, &dev->file_list, link)
+			bufsz++;
+
+	bufsz *= sizeof(HDR) + 1;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if  (!buf) {
+		mutex_unlock(&dev->device_lock);
+		return -ENOMEM;
+	}
+
+	pos += scnprintf(buf + pos, bufsz - pos, HDR);
+#undef HDR
 
 	/*  if the driver is not enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
@@ -115,7 +130,7 @@ static ssize_t mei_dbgfs_read_active(struct file *fp, char __user *ubuf,
 	list_for_each_entry(cl, &dev->file_list, link) {
 
 		pos += scnprintf(buf + pos, bufsz - pos,
-			"%2d|%2d|%4d|%5d|%2d|%2d|\n",
+			"%3d|%2d|%4d|%5d|%2d|%2d|\n",
 			i, mei_cl_me_id(cl), cl->host_client_id, cl->state,
 			!list_empty(&cl->rd_completed), cl->writing_state);
 		i++;
