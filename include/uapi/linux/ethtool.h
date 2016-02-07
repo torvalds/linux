@@ -1377,24 +1377,7 @@ enum ethtool_sfeatures_retval_bits {
 
 static inline int ethtool_validate_speed(__u32 speed)
 {
-	switch (speed) {
-	case SPEED_10:
-	case SPEED_100:
-	case SPEED_1000:
-	case SPEED_2500:
-	case SPEED_5000:
-	case SPEED_10000:
-	case SPEED_20000:
-	case SPEED_25000:
-	case SPEED_40000:
-	case SPEED_50000:
-	case SPEED_56000:
-	case SPEED_100000:
-	case SPEED_UNKNOWN:
-		return 1;
-	}
-
-	return 0;
+	return speed <= INT_MAX || speed == SPEED_UNKNOWN;
 }
 
 /* Duplex, half or full. */
