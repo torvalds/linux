@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -47,7 +47,13 @@ static struct lock_class_key batadv_orig_hash_lock_class_key;
 
 static void batadv_purge_orig(struct work_struct *work);
 
-/* returns 1 if they are the same originator */
+/**
+ * batadv_compare_orig - comparing function used in the originator hash table
+ * @node: node in the local table
+ * @data2: second object to compare the node to
+ *
+ * Return: 1 if they are the same originator
+ */
 int batadv_compare_orig(const struct hlist_node *node, const void *data2)
 {
 	const void *data1 = container_of(node, struct batadv_orig_node,
@@ -61,7 +67,7 @@ int batadv_compare_orig(const struct hlist_node *node, const void *data2)
  * @orig_node: the originator serving the VLAN
  * @vid: the VLAN identifier
  *
- * Returns the vlan object identified by vid and belonging to orig_node or NULL
+ * Return: the vlan object identified by vid and belonging to orig_node or NULL
  * if it does not exist.
  */
 struct batadv_orig_node_vlan *
@@ -93,7 +99,7 @@ batadv_orig_node_vlan_get(struct batadv_orig_node *orig_node,
  * @orig_node: the originator serving the VLAN
  * @vid: the VLAN identifier
  *
- * Returns NULL in case of failure or the vlan object identified by vid and
+ * Return: NULL in case of failure or the vlan object identified by vid and
  * belonging to orig_node otherwise. The object is created and added to the list
  * if it does not exist.
  *
@@ -266,7 +272,7 @@ void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node)
  * @if_outgoing: the interface where the payload packet has been received or
  *  the OGM should be sent to
  *
- * Returns the neighbor which should be router for this orig_node/iface.
+ * Return: the neighbor which should be router for this orig_node/iface.
  *
  * The object is returned with refcounter increased by 1.
  */
@@ -298,7 +304,7 @@ batadv_orig_router_get(struct batadv_orig_node *orig_node,
  * @orig_node: the orig node to be queried
  * @if_outgoing: the interface for which the ifinfo should be acquired
  *
- * Returns the requested orig_ifinfo or NULL if not found.
+ * Return: the requested orig_ifinfo or NULL if not found.
  *
  * The object is returned with refcounter increased by 1.
  */
@@ -330,7 +336,7 @@ batadv_orig_ifinfo_get(struct batadv_orig_node *orig_node,
  * @orig_node: the orig node to be queried
  * @if_outgoing: the interface for which the ifinfo should be acquired
  *
- * Returns NULL in case of failure or the orig_ifinfo object for the if_outgoing
+ * Return: NULL in case of failure or the orig_ifinfo object for the if_outgoing
  * interface otherwise. The object is created and added to the list
  * if it does not exist.
  *
@@ -375,12 +381,12 @@ out:
 
 /**
  * batadv_neigh_ifinfo_get - find the ifinfo from an neigh_node
- * @neigh_node: the neigh node to be queried
+ * @neigh: the neigh node to be queried
  * @if_outgoing: the interface for which the ifinfo should be acquired
  *
  * The object is returned with refcounter increased by 1.
  *
- * Returns the requested neigh_ifinfo or NULL if not found
+ * Return: the requested neigh_ifinfo or NULL if not found
  */
 struct batadv_neigh_ifinfo *
 batadv_neigh_ifinfo_get(struct batadv_neigh_node *neigh,
@@ -408,10 +414,10 @@ batadv_neigh_ifinfo_get(struct batadv_neigh_node *neigh,
 
 /**
  * batadv_neigh_ifinfo_new - search and possibly create an neigh_ifinfo object
- * @neigh_node: the neigh node to be queried
+ * @neigh: the neigh node to be queried
  * @if_outgoing: the interface for which the ifinfo should be acquired
  *
- * Returns NULL in case of failure or the neigh_ifinfo object for the
+ * Return: NULL in case of failure or the neigh_ifinfo object for the
  * if_outgoing interface otherwise. The object is created and added to the list
  * if it does not exist.
  *
@@ -459,7 +465,8 @@ out:
  *
  * Looks for and possibly returns a neighbour belonging to this originator list
  * which is connected through the provided hard interface.
- * Returns NULL if the neighbour is not found.
+ *
+ * Return: neighbor when found. Othwerwise NULL
  */
 static struct batadv_neigh_node *
 batadv_neigh_node_get(const struct batadv_orig_node *orig_node,
@@ -492,7 +499,7 @@ batadv_neigh_node_get(const struct batadv_orig_node *orig_node,
  * @hard_iface: the interface this neighbour is connected to
  * @neigh_addr: the interface address of the neighbour to retrieve
  *
- * Returns the hardif neighbour node if found or created or NULL otherwise.
+ * Return: the hardif neighbour node if found or created or NULL otherwise.
  */
 static struct batadv_hardif_neigh_node *
 batadv_hardif_neigh_create(struct batadv_hard_iface *hard_iface,
@@ -540,7 +547,7 @@ out:
  * @hard_iface: the interface this neighbour is connected to
  * @neigh_addr: the interface address of the neighbour to retrieve
  *
- * Returns the hardif neighbour node if found or created or NULL otherwise.
+ * Return: the hardif neighbour node if found or created or NULL otherwise.
  */
 static struct batadv_hardif_neigh_node *
 batadv_hardif_neigh_get_or_create(struct batadv_hard_iface *hard_iface,
@@ -562,7 +569,8 @@ batadv_hardif_neigh_get_or_create(struct batadv_hard_iface *hard_iface,
  * @neigh_addr: the address of the neighbour
  *
  * Looks for and possibly returns a neighbour belonging to this hard interface.
- * Returns NULL if the neighbour is not found.
+ *
+ * Return: neighbor when found. Othwerwise NULL
  */
 struct batadv_hardif_neigh_node *
 batadv_hardif_neigh_get(const struct batadv_hard_iface *hard_iface,
@@ -594,7 +602,8 @@ batadv_hardif_neigh_get(const struct batadv_hard_iface *hard_iface,
  * @neigh_addr: the mac address of the neighbour interface
  *
  * Allocates a new neigh_node object and initialises all the generic fields.
- * Returns the new object or NULL on failure.
+ *
+ * Return: neighbor when found. Othwerwise NULL
  */
 struct batadv_neigh_node *
 batadv_neigh_node_new(struct batadv_orig_node *orig_node,
@@ -656,7 +665,7 @@ out:
  * @seq: neighbour table seq_file struct
  * @offset: not used
  *
- * Always returns 0.
+ * Return: always 0
  */
 int batadv_hardif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 {
@@ -820,7 +829,8 @@ void batadv_originator_free(struct batadv_priv *bat_priv)
  *
  * Creates a new originator object and initialise all the generic fields.
  * The new object is not added to the originator list.
- * Returns the newly created object or NULL on failure.
+ *
+ * Return: the newly created object or NULL on failure.
  */
 struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 					      const u8 *addr)
@@ -937,7 +947,7 @@ batadv_purge_neigh_ifinfo(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @orig_node: orig node which is to be checked
  *
- * Returns true if any ifinfo entry was purged, false otherwise.
+ * Return: true if any ifinfo entry was purged, false otherwise.
  */
 static bool
 batadv_purge_orig_ifinfo(struct batadv_priv *bat_priv,
@@ -989,7 +999,7 @@ batadv_purge_orig_ifinfo(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @orig_node: orig node which is to be checked
  *
- * Returns true if any neighbor was purged, false otherwise
+ * Return: true if any neighbor was purged, false otherwise
  */
 static bool
 batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
@@ -1048,7 +1058,7 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
  * @orig_node: orig node which is to be checked
  * @if_outgoing: the interface for which the metric should be compared
  *
- * Returns the current best neighbor, with refcount increased.
+ * Return: the current best neighbor, with refcount increased.
  */
 static struct batadv_neigh_node *
 batadv_find_best_neighbor(struct batadv_priv *bat_priv,
@@ -1085,7 +1095,7 @@ batadv_find_best_neighbor(struct batadv_priv *bat_priv,
  * This function checks if the orig_node or substructures of it have become
  * obsolete, and purges this information if that's the case.
  *
- * Returns true if the orig_node is to be removed, false otherwise.
+ * Return: true if the orig_node is to be removed, false otherwise.
  */
 static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 				   struct batadv_orig_node *orig_node)
@@ -1230,7 +1240,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
  * @seq: debugfs table seq_file struct
  * @offset: not used
  *
- * Returns 0
+ * Return: 0
  */
 int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset)
 {

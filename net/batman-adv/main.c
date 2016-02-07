@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -233,7 +233,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: the address to check
  *
- * Returns 'true' if the mac address was found, false otherwise.
+ * Return: 'true' if the mac address was found, false otherwise.
  */
 bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr)
 {
@@ -262,7 +262,7 @@ bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr)
  *  function that requires the primary interface
  * @seq: debugfs table seq_file struct
  *
- * Returns primary interface if found or NULL otherwise.
+ * Return: primary interface if found or NULL otherwise.
  */
 struct batadv_hard_iface *
 batadv_seq_print_text_primary_if_get(struct seq_file *seq)
@@ -297,7 +297,7 @@ out:
  * batadv_max_header_len - calculate maximum encapsulation overhead for a
  *  payload packet
  *
- * Return the maximum encapsulation overhead in bytes.
+ * Return: the maximum encapsulation overhead in bytes.
  */
 int batadv_max_header_len(void)
 {
@@ -599,6 +599,8 @@ int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
  *
  * payload_ptr must always point to an address in the skb head buffer and not to
  * a fragment.
+ *
+ * Return: big endian crc32c of the checksummed data
  */
 __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr)
 {
@@ -640,7 +642,7 @@ batadv_tvlv_handler_free_ref(struct batadv_tvlv_handler *tvlv_handler)
  * @type: tvlv handler type to look for
  * @version: tvlv handler version to look for
  *
- * Returns tvlv handler if found or NULL otherwise.
+ * Return: tvlv handler if found or NULL otherwise.
  */
 static struct batadv_tvlv_handler
 *batadv_tvlv_handler_get(struct batadv_priv *bat_priv, u8 type, u8 version)
@@ -688,7 +690,7 @@ static void batadv_tvlv_container_free_ref(struct batadv_tvlv_container *tvlv)
  * Has to be called with the appropriate locks being acquired
  * (tvlv.container_list_lock).
  *
- * Returns tvlv container if found or NULL otherwise.
+ * Return: tvlv container if found or NULL otherwise.
  */
 static struct batadv_tvlv_container
 *batadv_tvlv_container_get(struct batadv_priv *bat_priv, u8 type, u8 version)
@@ -720,7 +722,7 @@ static struct batadv_tvlv_container
  * Has to be called with the appropriate locks being acquired
  * (tvlv.container_list_lock).
  *
- * Returns size of all currently registered tvlv containers in bytes.
+ * Return: size of all currently registered tvlv containers in bytes.
  */
 static u16 batadv_tvlv_container_list_size(struct batadv_priv *bat_priv)
 {
@@ -826,7 +828,7 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
  * @additional_packet_len: requested additional packet size on top of minimum
  *  size
  *
- * Returns true of the packet buffer could be changed to the requested size,
+ * Return: true of the packet buffer could be changed to the requested size,
  * false otherwise.
  */
 static bool batadv_tvlv_realloc_packet_buff(unsigned char **packet_buff,
@@ -862,7 +864,7 @@ static bool batadv_tvlv_realloc_packet_buff(unsigned char **packet_buff,
  * The ogm packet might be enlarged or shrunk depending on the current size
  * and the size of the to-be-appended tvlv containers.
  *
- * Returns size of all appended tvlv containers in bytes.
+ * Return: size of all appended tvlv containers in bytes.
  */
 u16 batadv_tvlv_container_ogm_append(struct batadv_priv *bat_priv,
 				     unsigned char **packet_buff,
@@ -915,7 +917,7 @@ end:
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  *
- * Returns success if handler was not found or the return value of the handler
+ * Return: success if handler was not found or the return value of the handler
  * callback.
  */
 static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
@@ -968,7 +970,7 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  *
- * Returns success when processing an OGM or the return value of all called
+ * Return: success when processing an OGM or the return value of all called
  * handler callbacks.
  */
 int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
@@ -1190,8 +1192,8 @@ out:
  * @skb: the buffer containing the packet
  * @header_len: length of the batman header preceding the ethernet header
  *
- * If the packet embedded in the skb is vlan tagged this function returns the
- * VID with the BATADV_VLAN_HAS_TAG flag. Otherwise BATADV_NO_FLAGS is returned.
+ * Return: VID with the BATADV_VLAN_HAS_TAG flag when the packet embedded in the
+ * skb is vlan tagged. Otherwise BATADV_NO_FLAGS.
  */
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len)
 {
@@ -1218,7 +1220,7 @@ unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len)
  * @vid: the VLAN identifier for which the AP isolation attributed as to be
  *  looked up
  *
- * Returns true if AP isolation is on for the VLAN idenfied by vid, false
+ * Return: true if AP isolation is on for the VLAN idenfied by vid, false
  * otherwise
  */
 bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid)

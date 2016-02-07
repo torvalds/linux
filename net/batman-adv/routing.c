@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -140,9 +140,17 @@ out:
 		batadv_neigh_node_free_ref(router);
 }
 
-/* checks whether the host restarted and is in the protection time.
- * returns:
- *  0 if the packet is to be accepted
+/**
+ * batadv_window_protected - checks whether the host restarted and is in the
+ *  protection time.
+ * @bat_priv: the bat priv with all the soft interface information
+ * @seq_num_diff: difference between the current/received sequence number and
+ *  the last sequence number
+ * @last_reset: jiffies timestamp of the last reset, will be updated when reset
+ *  is detected
+ *
+ * Return:
+ *  0 if the packet is to be accepted.
  *  1 if the packet is to be ignored.
  */
 int batadv_window_protected(struct batadv_priv *bat_priv, s32 seq_num_diff,
@@ -198,7 +206,7 @@ bool batadv_check_management_packet(struct sk_buff *skb,
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: icmp packet to process
  *
- * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
+ * Return: NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
  * otherwise.
  */
 static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
@@ -398,10 +406,11 @@ out:
  * @skb: packet to check
  * @hdr_size: size of header to pull
  *
- * Check for short header and bad addresses in given packet. Returns negative
- * value when check fails and 0 otherwise. The negative value depends on the
- * reason: -ENODATA for bad header, -EBADR for broadcast destination or source,
- * and -EREMOTE for non-local (other host) destination.
+ * Check for short header and bad addresses in given packet.
+ *
+ * Return: negative value when check fails and 0 otherwise. The negative value
+ * depends on the reason: -ENODATA for bad header, -EBADR for broadcast
+ * destination or source, and -EREMOTE for non-local (other host) destination.
  */
 static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
 				       struct sk_buff *skb, int hdr_size)
@@ -435,7 +444,7 @@ static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
  * @orig_node: the destination node
  * @recv_if: pointer to interface this packet was received on
  *
- * Returns the router which should be used for this orig_node on
+ * Return: the router which should be used for this orig_node on
  * this interface, or NULL if not available.
  */
 struct batadv_neigh_node *
@@ -648,7 +657,7 @@ out:
  * the new corresponding information (originator address where the destination
  * client currently is and its known TTVN)
  *
- * Returns true if the packet header has been updated, false otherwise
+ * Return: true if the packet header has been updated, false otherwise
  */
 static bool
 batadv_reroute_unicast_packet(struct batadv_priv *bat_priv,
@@ -805,7 +814,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
  * @skb: unicast tvlv packet to process
  * @recv_if: pointer to interface this packet was received on
  *
- * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
+ * Return: NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
  * otherwise.
  */
 int batadv_recv_unhandled_unicast_packet(struct sk_buff *skb,
@@ -904,9 +913,8 @@ rx_success:
  * batadv_recv_unicast_tvlv - receive and process unicast tvlv packets
  * @skb: unicast tvlv packet to process
  * @recv_if: pointer to interface this packet was received on
- * @dst_addr: the payload destination
  *
- * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
+ * Return: NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
  * otherwise.
  */
 int batadv_recv_unicast_tvlv(struct sk_buff *skb,
@@ -960,7 +968,7 @@ int batadv_recv_unicast_tvlv(struct sk_buff *skb,
  * the assembled packet will exceed our MTU; 2) Buffer fragment, if we till
  * lack further fragments; 3) Merge fragments, if we have all needed parts.
  *
- * Return NET_RX_DROP if the skb is not consumed, NET_RX_SUCCESS otherwise.
+ * Return: NET_RX_DROP if the skb is not consumed, NET_RX_SUCCESS otherwise.
  */
 int batadv_recv_frag_packet(struct sk_buff *skb,
 			    struct batadv_hard_iface *recv_if)

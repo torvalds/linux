@@ -2147,7 +2147,7 @@ M:	Marek Lindner <mareklindner@neomailbox.ch>
 M:	Simon Wunderlich <sw@simonwunderlich.de>
 M:	Antonio Quartulli <a@unstable.cc>
 L:	b.a.t.m.a.n@lists.open-mesh.org
-W:	http://www.open-mesh.org/
+W:	https://www.open-mesh.org/
 S:	Maintained
 F:	net/batman-adv/
 
