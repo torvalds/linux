@@ -78,7 +78,7 @@ __ATTR(_name, 0644, show_##_name##_gov_pol, store_##_name##_gov_pol)
 static ssize_t show_##file_name##_gov_sys				\
 (struct kobject *kobj, struct attribute *attr, char *buf)		\
 {									\
-	struct _gov##_dbs_tuners *tuners = _gov##_dbs_cdata.gdbs_data->tuners; \
+	struct _gov##_dbs_tuners *tuners = _gov##_dbs_gov.gdbs_data->tuners; \
 	return sprintf(buf, "%u\n", tuners->file_name);			\
 }									\
 									\
@@ -94,7 +94,7 @@ static ssize_t show_##file_name##_gov_pol				\
 static ssize_t store_##file_name##_gov_sys				\
 (struct kobject *kobj, struct attribute *attr, const char *buf, size_t count) \
 {									\
-	struct dbs_data *dbs_data = _gov##_dbs_cdata.gdbs_data;		\
+	struct dbs_data *dbs_data = _gov##_dbs_gov.gdbs_data;		\
 	return store_##file_name(dbs_data, buf, count);			\
 }									\
 									\
@@ -205,7 +205,7 @@ struct cs_dbs_tuners {
 
 /* Common Governor data across policies */
 struct dbs_data;
-struct common_dbs_data {
+struct dbs_governor {
 	struct cpufreq_governor gov;
 
 	#define GOV_ONDEMAND		0
@@ -233,7 +233,7 @@ struct common_dbs_data {
 
 /* Governor Per policy data */
 struct dbs_data {
-	struct common_dbs_data *cdata;
+	struct dbs_governor *gov;
 	unsigned int min_sampling_rate;
 	int usage_count;
 	void *tuners;
@@ -262,7 +262,7 @@ static inline int delay_for_sampling_rate(unsigned int sampling_rate)
 static ssize_t show_sampling_rate_min_gov_sys				\
 (struct kobject *kobj, struct attribute *attr, char *buf)		\
 {									\
-	struct dbs_data *dbs_data = _gov##_dbs_cdata.gdbs_data;		\
+	struct dbs_data *dbs_data = _gov##_dbs_gov.gdbs_data;		\
 	return sprintf(buf, "%u\n", dbs_data->min_sampling_rate);	\
 }									\
 									\
@@ -277,7 +277,7 @@ extern struct mutex dbs_data_mutex;
 extern struct mutex cpufreq_governor_lock;
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
-		struct common_dbs_data *cdata, unsigned int event);
+		struct dbs_governor *gov, unsigned int event);
 void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
 		unsigned int powersave_bias);

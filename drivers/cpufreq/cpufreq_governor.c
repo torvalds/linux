@@ -28,14 +28,14 @@ EXPORT_SYMBOL_GPL(dbs_data_mutex);
 static struct attribute_group *get_sysfs_attr(struct dbs_data *dbs_data)
 {
 	if (have_governor_per_policy())
-		return dbs_data->cdata->attr_group_gov_pol;
+		return dbs_data->gov->attr_group_gov_pol;
 	else
-		return dbs_data->cdata->attr_group_gov_sys;
+		return dbs_data->gov->attr_group_gov_sys;
 }
 
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 {
-	struct cpu_dbs_info *cdbs = dbs_data->cdata->get_cpu_cdbs(cpu);
+	struct cpu_dbs_info *cdbs = dbs_data->gov->get_cpu_cdbs(cpu);
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	struct cpufreq_policy *policy = cdbs->shared->policy;
@@ -44,9 +44,9 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 	unsigned int ignore_nice;
 	unsigned int j;
 
-	if (dbs_data->cdata->governor == GOV_ONDEMAND) {
+	if (dbs_data->gov->governor == GOV_ONDEMAND) {
 		struct od_cpu_dbs_info_s *od_dbs_info =
-				dbs_data->cdata->get_cpu_dbs_info_s(cpu);
+				dbs_data->gov->get_cpu_dbs_info_s(cpu);
 
 		/*
 		 * Sometimes, the ondemand governor uses an additional
@@ -71,7 +71,7 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 		unsigned int load;
 		int io_busy = 0;
 
-		j_cdbs = dbs_data->cdata->get_cpu_cdbs(j);
+		j_cdbs = dbs_data->gov->get_cpu_cdbs(j);
 
 		/*
 		 * For the purpose of ondemand, waiting for disk IO is
@@ -79,7 +79,7 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 		 * not that the system is actually idle. So do not add
 		 * the iowait time to the cpu idle time.
 		 */
-		if (dbs_data->cdata->governor == GOV_ONDEMAND)
+		if (dbs_data->gov->governor == GOV_ONDEMAND)
 			io_busy = od_tuners->io_is_busy;
 		cur_idle_time = get_cpu_idle_time(j, &cur_wall_time, io_busy);
 
@@ -160,7 +160,7 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 			max_load = load;
 	}
 
-	dbs_data->cdata->gov_check_cpu(cpu, max_load);
+	dbs_data->gov->gov_check_cpu(cpu, max_load);
 }
 EXPORT_SYMBOL_GPL(dbs_check_cpu);
 
@@ -175,7 +175,7 @@ void gov_set_update_util(struct cpu_common_dbs_info *shared,
 	shared->last_sample_time = 0;
 
 	for_each_cpu(cpu, policy->cpus) {
-		struct cpu_dbs_info *cdbs = dbs_data->cdata->get_cpu_cdbs(cpu);
+		struct cpu_dbs_info *cdbs = dbs_data->gov->get_cpu_cdbs(cpu);
 
 		cpufreq_set_update_util_data(cpu, &cdbs->update_util);
 	}
@@ -223,7 +223,7 @@ static void dbs_work_handler(struct work_struct *work)
 	 * ondemand governor isn't updating the sampling rate in parallel.
 	 */
 	mutex_lock(&shared->timer_mutex);
-	delay = dbs_data->cdata->gov_dbs_timer(policy);
+	delay = dbs_data->gov->gov_dbs_timer(policy);
 	shared->sample_delay_ns = jiffies_to_nsecs(delay);
 	mutex_unlock(&shared->timer_mutex);
 
@@ -282,7 +282,7 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 static void set_sampling_rate(struct dbs_data *dbs_data,
 		unsigned int sampling_rate)
 {
-	if (dbs_data->cdata->governor == GOV_CONSERVATIVE) {
+	if (dbs_data->gov->governor == GOV_CONSERVATIVE) {
 		struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 		cs_tuners->sampling_rate = sampling_rate;
 	} else {
@@ -292,7 +292,7 @@ static void set_sampling_rate(struct dbs_data *dbs_data,
 }
 
 static int alloc_common_dbs_info(struct cpufreq_policy *policy,
-				 struct common_dbs_data *cdata)
+				 struct dbs_governor *gov)
 {
 	struct cpu_common_dbs_info *shared;
 	int j;
@@ -304,7 +304,7 @@ static int alloc_common_dbs_info(struct cpufreq_policy *policy,
 
 	/* Set shared for all CPUs, online+offline */
 	for_each_cpu(j, policy->related_cpus)
-		cdata->get_cpu_cdbs(j)->shared = shared;
+		gov->get_cpu_cdbs(j)->shared = shared;
 
 	mutex_init(&shared->timer_mutex);
 	atomic_set(&shared->skip_work, 0);
@@ -314,24 +314,24 @@ static int alloc_common_dbs_info(struct cpufreq_policy *policy,
 }
 
 static void free_common_dbs_info(struct cpufreq_policy *policy,
-				 struct common_dbs_data *cdata)
+				 struct dbs_governor *gov)
 {
-	struct cpu_dbs_info *cdbs = cdata->get_cpu_cdbs(policy->cpu);
+	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(policy->cpu);
 	struct cpu_common_dbs_info *shared = cdbs->shared;
 	int j;
 
 	mutex_destroy(&shared->timer_mutex);
 
 	for_each_cpu(j, policy->cpus)
-		cdata->get_cpu_cdbs(j)->shared = NULL;
+		gov->get_cpu_cdbs(j)->shared = NULL;
 
 	kfree(shared);
 }
 
 static int cpufreq_governor_init(struct cpufreq_policy *policy,
-				 struct common_dbs_data *cdata)
+				 struct dbs_governor *gov)
 {
-	struct dbs_data *dbs_data = cdata->gdbs_data;
+	struct dbs_data *dbs_data = gov->gdbs_data;
 	unsigned int latency;
 	int ret;
 
@@ -343,7 +343,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy,
 		if (WARN_ON(have_governor_per_policy()))
 			return -EINVAL;
 
-		ret = alloc_common_dbs_info(policy, cdata);
+		ret = alloc_common_dbs_info(policy, gov);
 		if (ret)
 			return ret;
 
@@ -356,14 +356,14 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy,
 	if (!dbs_data)
 		return -ENOMEM;
 
-	ret = alloc_common_dbs_info(policy, cdata);
+	ret = alloc_common_dbs_info(policy, gov);
 	if (ret)
 		goto free_dbs_data;
 
-	dbs_data->cdata = cdata;
+	dbs_data->gov = gov;
 	dbs_data->usage_count = 1;
 
-	ret = cdata->init(dbs_data, !policy->governor->initialized);
+	ret = gov->init(dbs_data, !policy->governor->initialized);
 	if (ret)
 		goto free_common_dbs_info;
 
@@ -379,7 +379,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy,
 					latency * LATENCY_MULTIPLIER));
 
 	if (!have_governor_per_policy())
-		cdata->gdbs_data = dbs_data;
+		gov->gdbs_data = dbs_data;
 
 	policy->governor_data = dbs_data;
 
@@ -394,10 +394,10 @@ reset_gdbs_data:
 	policy->governor_data = NULL;
 
 	if (!have_governor_per_policy())
-		cdata->gdbs_data = NULL;
-	cdata->exit(dbs_data, !policy->governor->initialized);
+		gov->gdbs_data = NULL;
+	gov->exit(dbs_data, !policy->governor->initialized);
 free_common_dbs_info:
-	free_common_dbs_info(policy, cdata);
+	free_common_dbs_info(policy, gov);
 free_dbs_data:
 	kfree(dbs_data);
 	return ret;
@@ -406,8 +406,8 @@ free_dbs_data:
 static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 {
 	struct dbs_data *dbs_data = policy->governor_data;
-	struct common_dbs_data *cdata = dbs_data->cdata;
-	struct cpu_dbs_info *cdbs = cdata->get_cpu_cdbs(policy->cpu);
+	struct dbs_governor *gov = dbs_data->gov;
+	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(policy->cpu);
 
 	/* State should be equivalent to INIT */
 	if (!cdbs->shared || cdbs->shared->policy)
@@ -420,24 +420,24 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 		policy->governor_data = NULL;
 
 		if (!have_governor_per_policy())
-			cdata->gdbs_data = NULL;
+			gov->gdbs_data = NULL;
 
-		cdata->exit(dbs_data, policy->governor->initialized == 1);
+		gov->exit(dbs_data, policy->governor->initialized == 1);
 		kfree(dbs_data);
 	} else {
 		policy->governor_data = NULL;
 	}
 
-	free_common_dbs_info(policy, cdata);
+	free_common_dbs_info(policy, gov);
 	return 0;
 }
 
 static int cpufreq_governor_start(struct cpufreq_policy *policy)
 {
 	struct dbs_data *dbs_data = policy->governor_data;
-	struct common_dbs_data *cdata = dbs_data->cdata;
+	struct dbs_governor *gov = dbs_data->gov;
 	unsigned int sampling_rate, ignore_nice, j, cpu = policy->cpu;
-	struct cpu_dbs_info *cdbs = cdata->get_cpu_cdbs(cpu);
+	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(cpu);
 	struct cpu_common_dbs_info *shared = cdbs->shared;
 	int io_busy = 0;
 
@@ -448,7 +448,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	if (!shared || shared->policy)
 		return -EBUSY;
 
-	if (cdata->governor == GOV_CONSERVATIVE) {
+	if (gov->governor == GOV_CONSERVATIVE) {
 		struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 
 		sampling_rate = cs_tuners->sampling_rate;
@@ -462,7 +462,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	}
 
 	for_each_cpu(j, policy->cpus) {
-		struct cpu_dbs_info *j_cdbs = cdata->get_cpu_cdbs(j);
+		struct cpu_dbs_info *j_cdbs = gov->get_cpu_cdbs(j);
 		unsigned int prev_load;
 
 		j_cdbs->prev_cpu_idle =
@@ -480,15 +480,15 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	}
 	shared->policy = policy;
 
-	if (cdata->governor == GOV_CONSERVATIVE) {
+	if (gov->governor == GOV_CONSERVATIVE) {
 		struct cs_cpu_dbs_info_s *cs_dbs_info =
-			cdata->get_cpu_dbs_info_s(cpu);
+			gov->get_cpu_dbs_info_s(cpu);
 
 		cs_dbs_info->down_skip = 0;
 		cs_dbs_info->requested_freq = policy->cur;
 	} else {
-		struct od_ops *od_ops = cdata->gov_ops;
-		struct od_cpu_dbs_info_s *od_dbs_info = cdata->get_cpu_dbs_info_s(cpu);
+		struct od_ops *od_ops = gov->gov_ops;
+		struct od_cpu_dbs_info_s *od_dbs_info = gov->get_cpu_dbs_info_s(cpu);
 
 		od_dbs_info->rate_mult = 1;
 		od_dbs_info->sample_type = OD_NORMAL_SAMPLE;
@@ -502,7 +502,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 static int cpufreq_governor_stop(struct cpufreq_policy *policy)
 {
 	struct dbs_data *dbs_data = policy->governor_data;
-	struct cpu_dbs_info *cdbs = dbs_data->cdata->get_cpu_cdbs(policy->cpu);
+	struct cpu_dbs_info *cdbs = dbs_data->gov->get_cpu_cdbs(policy->cpu);
 	struct cpu_common_dbs_info *shared = cdbs->shared;
 
 	/* State should be equivalent to START */
@@ -518,9 +518,9 @@ static int cpufreq_governor_stop(struct cpufreq_policy *policy)
 static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 {
 	struct dbs_data *dbs_data = policy->governor_data;
-	struct common_dbs_data *cdata = dbs_data->cdata;
+	struct dbs_governor *gov = dbs_data->gov;
 	unsigned int cpu = policy->cpu;
-	struct cpu_dbs_info *cdbs = cdata->get_cpu_cdbs(cpu);
+	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(cpu);
 
 	/* State should be equivalent to START */
 	if (!cdbs->shared || !cdbs->shared->policy)
@@ -540,7 +540,7 @@ static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 }
 
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
-			 struct common_dbs_data *cdata, unsigned int event)
+			 struct dbs_governor *gov, unsigned int event)
 {
 	int ret = -EINVAL;
 
@@ -548,7 +548,7 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	mutex_lock(&dbs_data_mutex);
 
 	if (event == CPUFREQ_GOV_POLICY_INIT) {
-		ret = cpufreq_governor_init(policy, cdata);
+		ret = cpufreq_governor_init(policy, gov);
 	} else if (policy->governor_data) {
 		switch (event) {
 		case CPUFREQ_GOV_POLICY_EXIT:

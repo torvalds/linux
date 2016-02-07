@@ -48,7 +48,7 @@ static unsigned int amd_powersave_bias_target(struct cpufreq_policy *policy,
 	struct dbs_data *od_data = policy->governor_data;
 	struct od_dbs_tuners *od_tuners = od_data->tuners;
 	struct od_cpu_dbs_info_s *od_info =
-		od_data->cdata->get_cpu_dbs_info_s(policy->cpu);
+		od_data->gov->get_cpu_dbs_info_s(policy->cpu);
 
 	if (!od_info->freq_table)
 		return freq_next;

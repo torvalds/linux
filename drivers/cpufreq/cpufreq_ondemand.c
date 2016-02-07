@@ -219,7 +219,7 @@ static unsigned int od_dbs_timer(struct cpufreq_policy *policy)
 }
 
 /************************** sysfs interface ************************/
-static struct common_dbs_data od_dbs_cdata;
+static struct dbs_governor od_dbs_gov;
 
 /**
  * update_sampling_rate - update sampling rate effective immediately if needed.
@@ -542,7 +542,7 @@ static struct od_ops od_ops = {
 static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				   unsigned int event);
 
-static struct common_dbs_data od_dbs_cdata = {
+static struct dbs_governor od_dbs_gov = {
 	.gov = {
 		.name = "ondemand",
 		.governor = od_cpufreq_governor_dbs,
@@ -561,12 +561,12 @@ static struct common_dbs_data od_dbs_cdata = {
 	.exit = od_exit,
 };
 
-#define CPU_FREQ_GOV_ONDEMAND	(&od_dbs_cdata.gov)
+#define CPU_FREQ_GOV_ONDEMAND	(&od_dbs_gov.gov)
 
 static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		unsigned int event)
 {
-	return cpufreq_governor_dbs(policy, &od_dbs_cdata, event);
+	return cpufreq_governor_dbs(policy, &od_dbs_gov, event);
 }
 
 static void od_set_powersave_bias(unsigned int powersave_bias)

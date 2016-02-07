@@ -119,7 +119,7 @@ static struct notifier_block cs_cpufreq_notifier_block = {
 };
 
 /************************** sysfs interface ************************/
-static struct common_dbs_data cs_dbs_cdata;
+static struct dbs_governor cs_dbs_gov;
 
 static ssize_t store_sampling_down_factor(struct dbs_data *dbs_data,
 		const char *buf, size_t count)
@@ -328,7 +328,7 @@ define_get_cpu_dbs_routines(cs_cpu_dbs_info);
 static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				   unsigned int event);
 
-static struct common_dbs_data cs_dbs_cdata = {
+static struct dbs_governor cs_dbs_gov = {
 	.gov = {
 		.name = "conservative",
 		.governor = cs_cpufreq_governor_dbs,
@@ -346,12 +346,12 @@ static struct common_dbs_data cs_dbs_cdata = {
 	.exit = cs_exit,
 };
 
-#define CPU_FREQ_GOV_CONSERVATIVE	(&cs_dbs_cdata.gov)
+#define CPU_FREQ_GOV_CONSERVATIVE	(&cs_dbs_gov.gov)
 
 static int cs_cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				   unsigned int event)
 {
-	return cpufreq_governor_dbs(policy, &cs_dbs_cdata, event);
+	return cpufreq_governor_dbs(policy, &cs_dbs_gov, event);
 }
 
 static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
