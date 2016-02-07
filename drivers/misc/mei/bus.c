@@ -230,25 +230,30 @@ static void mei_cl_bus_event_work(struct work_struct *work)
  * mei_cl_bus_notify_event - schedule notify cb on bus client
  *
  * @cl: host client
+ *
+ * Return: true if event was scheduled
+ *         false if the client is not waiting for event
  */
-void mei_cl_bus_notify_event(struct mei_cl *cl)
+bool mei_cl_bus_notify_event(struct mei_cl *cl)
 {
 	struct mei_cl_device *cldev = cl->cldev;
 
 	if (!cldev || !cldev->event_cb)
-		return;
+		return false;
 
 	if (!(cldev->events_mask & BIT(MEI_CL_EVENT_NOTIF)))
-		return;
+		return false;
 
 	if (!cl->notify_ev)
-		return;
+		return false;
 
 	set_bit(MEI_CL_EVENT_NOTIF, &cldev->events);
 
 	schedule_work(&cldev->event_work);
 
 	cl->notify_ev = false;
+
+	return true;
 }
 
 /**

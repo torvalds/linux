@@ -1363,12 +1363,12 @@ void mei_cl_notify(struct mei_cl *cl)
 
 	cl_dbg(dev, cl, "notify event");
 	cl->notify_ev = true;
-	wake_up_interruptible_all(&cl->ev_wait);
+	if (!mei_cl_bus_notify_event(cl))
+		wake_up_interruptible(&cl->ev_wait);
 
 	if (cl->ev_async)
 		kill_fasync(&cl->ev_async, SIGIO, POLL_PRI);
 
-	mei_cl_bus_notify_event(cl);
 }
 
 /**
