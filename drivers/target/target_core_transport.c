@@ -731,11 +731,20 @@ static unsigned char *transport_get_sense_buffer(struct se_cmd *cmd)
 void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 {
 	struct se_device *dev = cmd->se_dev;
-	int success = scsi_status == GOOD;
+	int success;
 	unsigned long flags;
 
 	cmd->scsi_status = scsi_status;
-
+	switch (cmd->scsi_status) {
+	case SAM_STAT_GOOD:
+	case SAM_STAT_BUSY:
+	case SAM_STAT_TASK_SET_FULL:
+		success = 1;
+		break;
+	default:
+		success = 0;
+		break;
+	}
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	cmd->transport_state &= ~CMD_T_BUSY;

@@ -282,11 +282,28 @@ static void iblock_complete_cmd(struct se_cmd *cmd)
 
 	if (!atomic_dec_and_test(&ibr->pending))
 		return;
-
-	if (atomic_read(&ibr->ib_bio_err_cnt))
-		status = SAM_STAT_CHECK_CONDITION;
-	else
+	/*
+	 * Propigate use these two bio completion values from raw block
+	 * drivers to signal up BUSY and TASK_SET_FULL status to the
+	 * host side initiator.  The latter for Linux/iSCSI initiators
+	 * means the Linux/SCSI LLD will begin to reduce it's internal
+	 * per session queue_depth.
+	 */
+	if (atomic_read(&ibr->ib_bio_err_cnt)) {
+		switch (ibr->ib_bio_retry) {
+		case -EAGAIN:
+			status = SAM_STAT_BUSY;
+			break;
+		case -ENOMEM:
+			status = SAM_STAT_TASK_SET_FULL;
+			break;
+		default:
+			status = SAM_STAT_CHECK_CONDITION;
+			break;
+		}
+	} else {
 		status = SAM_STAT_GOOD;
+	}
 
 	target_complete_cmd(cmd, status);
 	kfree(ibr);
@@ -298,7 +315,15 @@ static void iblock_bio_done(struct bio *bio)
 	struct iblock_req *ibr = cmd->priv;
 
 	if (bio->bi_error) {
-		pr_err("bio error: %p,  err: %d\n", bio, bio->bi_error);
+		pr_debug_ratelimited("test_bit(BIO_UPTODATE) failed for bio: %p,"
+			" err: %d\n", bio, bio->bi_error);
+		/*
+		 * Save the retryable status provided and translate into
+		 * SAM status in iblock_complete_cmd().
+		 */
+		if (bio->bi_error == -EAGAIN || bio->bi_error == -ENOMEM) {
+			ibr->ib_bio_retry = bio->bi_error;
+		}
 		/*
 		 * Bump the ib_bio_err_cnt and release bio.
 		 */
@@ -677,8 +702,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	struct scatterlist *sg;
 	u32 sg_num = sgl_nents;
 	unsigned bio_cnt;
-	int rw = 0;
-	int i;
+	int i, rw = 0;
 
 	if (data_direction == DMA_TO_DEVICE) {
 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
