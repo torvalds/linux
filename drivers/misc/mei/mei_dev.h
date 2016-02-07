@@ -390,6 +390,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @hbm_f_dot_supported : hbm feature disconnect on timeout
  * @hbm_f_ev_supported  : hbm feature event notification
  * @hbm_f_fa_supported  : hbm feature fixed address client
+ * @hbm_f_ie_supported  : hbm feature immediate reply to enum request
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -480,6 +481,7 @@ struct mei_device {
 	unsigned int hbm_f_dot_supported:1;
 	unsigned int hbm_f_ev_supported:1;
 	unsigned int hbm_f_fa_supported:1;
+	unsigned int hbm_f_ie_supported:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;

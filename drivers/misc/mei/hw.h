@@ -53,6 +53,12 @@
 #define HBM_MAJOR_VERSION_DC               2
 
 /*
+ * MEI version with immediate reply to enum request support
+ */
+#define HBM_MINOR_VERSION_IE               0
+#define HBM_MAJOR_VERSION_IE               2
+
+/*
  * MEI version with disconnect on connection timeout support
  */
 #define HBM_MINOR_VERSION_DOT              0
@@ -246,15 +252,26 @@ struct hbm_me_stop_request {
 } __packed;
 
 /**
- * struct hbm_host_enum_request -  enumeration request from host to fw
+ * enum hbm_host_enum_flags - enumeration request flags (HBM version >= 2.0)
  *
- * @hbm_cmd: bus message command header
- * @allow_add: allow dynamic clients add HBM version >= 2.0
+ * @MEI_HBM_ENUM_F_ALLOW_ADD: allow dynamic clients add
+ * @MEI_HBM_ENUM_F_IMMEDIATE_ENUM: allow FW to send answer immediately
+ */
+enum hbm_host_enum_flags {
+	MEI_HBM_ENUM_F_ALLOW_ADD = BIT(0),
+	MEI_HBM_ENUM_F_IMMEDIATE_ENUM = BIT(1),
+};
+
+/**
+ * struct hbm_host_enum_request - enumeration request from host to fw
+ *
+ * @hbm_cmd : bus message command header
+ * @flags   : request flags
  * @reserved: reserved
  */
 struct hbm_host_enum_request {
 	u8 hbm_cmd;
-	u8 allow_add;
+	u8 flags;
 	u8 reserved[2];
 } __packed;
 

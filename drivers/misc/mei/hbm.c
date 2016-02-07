@@ -301,7 +301,10 @@ static int mei_hbm_enum_clients_req(struct mei_device *dev)
 	enum_req = (struct hbm_host_enum_request *)dev->wr_msg.data;
 	memset(enum_req, 0, len);
 	enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
-	enum_req->allow_add = dev->hbm_f_dc_supported;
+	enum_req->flags |= dev->hbm_f_dc_supported ?
+			   MEI_HBM_ENUM_F_ALLOW_ADD : 0;
+	enum_req->flags |= dev->hbm_f_ie_supported ?
+			   MEI_HBM_ENUM_F_IMMEDIATE_ENUM : 0;
 
 	ret = mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 	if (ret) {
@@ -977,6 +980,9 @@ static void mei_hbm_config_features(struct mei_device *dev)
 
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_DC)
 		dev->hbm_f_dc_supported = 1;
+
+	if (dev->version.major_version >= HBM_MAJOR_VERSION_IE)
+		dev->hbm_f_ie_supported = 1;
 
 	/* disconnect on connect timeout instead of link reset */
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_DOT)
