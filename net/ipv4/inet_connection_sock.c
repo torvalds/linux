@@ -482,10 +482,6 @@ EXPORT_SYMBOL_GPL(inet_csk_route_child_sock);
 #define AF_INET_FAMILY(fam) true
 #endif
 
-/* Only thing we need from tcp.h */
-extern int sysctl_tcp_synack_retries;
-
-
 /* Decide when to expire the request and when to resend SYN-ACK */
 static inline void syn_ack_recalc(struct request_sock *req, const int thresh,
 				  const int max_retries,
@@ -557,6 +553,7 @@ static void reqsk_timer_handler(unsigned long data)
 {
 	struct request_sock *req = (struct request_sock *)data;
 	struct sock *sk_listener = req->rsk_listener;
+	struct net *net = sock_net(sk_listener);
 	struct inet_connection_sock *icsk = inet_csk(sk_listener);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
 	int qlen, expire = 0, resend = 0;
@@ -566,7 +563,7 @@ static void reqsk_timer_handler(unsigned long data)
 	if (sk_state_load(sk_listener) != TCP_LISTEN)
 		goto drop;
 
-	max_retries = icsk->icsk_syn_retries ? : sysctl_tcp_synack_retries;
+	max_retries = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_synack_retries;
 	thresh = max_retries;
 	/* Normally all the openreqs are young and become mature
 	 * (i.e. converted to established socket) for first timeout.
