@@ -368,7 +368,7 @@ struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, enum mei_cb_file_ops type,
 		return NULL;
 
 	INIT_LIST_HEAD(&cb->list);
-	cb->file_object = fp;
+	cb->fp = fp;
 	cb->cl = cl;
 	cb->buf_idx = 0;
 	cb->fop_type = type;
@@ -486,7 +486,7 @@ struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl, const struct file *fp)
 	struct mei_cl_cb *cb;
 
 	list_for_each_entry(cb, &cl->rd_completed, list)
-		if (!fp || fp == cb->file_object)
+		if (!fp || fp == cb->fp)
 			return cb;
 
 	return NULL;
@@ -504,12 +504,12 @@ void mei_cl_read_cb_flush(const struct mei_cl *cl, const struct file *fp)
 	struct mei_cl_cb *cb, *next;
 
 	list_for_each_entry_safe(cb, next, &cl->rd_completed, list)
-		if (!fp || fp == cb->file_object)
+		if (!fp || fp == cb->fp)
 			mei_io_cb_free(cb);
 
 
 	list_for_each_entry_safe(cb, next, &cl->rd_pending, list)
-		if (!fp || fp == cb->file_object)
+		if (!fp || fp == cb->fp)
 			mei_io_cb_free(cb);
 }
 

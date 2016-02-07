@@ -179,7 +179,7 @@ struct mei_cl;
  * @fop_type: file operation type
  * @buf: buffer for data associated with the callback
  * @buf_idx: last read index
- * @file_object: pointer to file structure
+ * @fp: pointer to file structure
  * @status: io status of the cb
  * @internal: communication between driver and FW flag
  * @completed: the transfer or reception has completed
@@ -190,7 +190,7 @@ struct mei_cl_cb {
 	enum mei_cb_file_ops fop_type;
 	struct mei_msg_data buf;
 	size_t buf_idx;
-	const struct file *file_object;
+	const struct file *fp;
 	int status;
 	u32 internal:1;
 	u32 completed:1;
@@ -407,7 +407,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  *
  * @amthif_cmd_list : amthif list for cmd waiting
  * @amthif_rd_complete_list : amthif list for reading completed cmd data
- * @iamthif_file_object : file for current amthif operation
+ * @iamthif_fp : file for current amthif operation
  * @iamthif_cl  : amthif host client
  * @iamthif_current_cb : amthif current operation callback
  * @iamthif_open_count : number of opened amthif connections
@@ -497,7 +497,7 @@ struct mei_device {
 	struct mei_cl_cb amthif_cmd_list;
 	/* driver managed amthif list for reading completed amthif cmd data */
 	struct mei_cl_cb amthif_rd_complete_list;
-	const struct file *iamthif_file_object;
+	const struct file *iamthif_fp;
 	struct mei_cl iamthif_cl;
 	struct mei_cl_cb *iamthif_current_cb;
 	long iamthif_open_count;
