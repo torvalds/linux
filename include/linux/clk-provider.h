@@ -667,6 +667,10 @@ extern const struct clk_ops clk_gpio_gate_ops;
 struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
 		const char *parent_name, unsigned gpio, bool active_low,
 		unsigned long flags);
+struct clk_hw *clk_hw_register_gpio_gate(struct device *dev, const char *name,
+		const char *parent_name, unsigned gpio, bool active_low,
+		unsigned long flags);
+void clk_hw_unregister_gpio_gate(struct clk_hw *hw);
 
 /**
  * struct clk_gpio_mux - gpio controlled clock multiplexer
@@ -682,6 +686,10 @@ extern const struct clk_ops clk_gpio_mux_ops;
 struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
 		const char * const *parent_names, u8 num_parents, unsigned gpio,
 		bool active_low, unsigned long flags);
+struct clk_hw *clk_hw_register_gpio_mux(struct device *dev, const char *name,
+		const char * const *parent_names, u8 num_parents, unsigned gpio,
+		bool active_low, unsigned long flags);
+void clk_hw_unregister_gpio_mux(struct clk_hw *hw);
 
 /**
  * clk_register - allocate a new clock, register it and return an opaque cookie
