@@ -64,8 +64,8 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 		return -EINVAL;
 
 	frame->sp = fp + 0x10;
-	frame->fp = *(unsigned long *)(fp);
-	frame->pc = *(unsigned long *)(fp + 8);
+	frame->fp = READ_ONCE_NOCHECK(*(unsigned long *)(fp));
+	frame->pc = READ_ONCE_NOCHECK(*(unsigned long *)(fp + 8));
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (tsk && tsk->ret_stack &&
