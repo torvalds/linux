@@ -2401,6 +2401,8 @@ static int __net_init tcp_sk_init(struct net *net)
 
 	net->ipv4.sysctl_igmp_max_memberships = 20;
 	net->ipv4.sysctl_igmp_max_msf = 10;
+	/* IGMP reports for link-local multicast groups are enabled by default */
+	net->ipv4.sysctl_igmp_llm_reports = 1;
 
 	return 0;
 fail:

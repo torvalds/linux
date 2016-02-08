@@ -852,7 +852,7 @@ static struct ctl_table ipv4_net_table[] = {
 	},
 	{
 		.procname	= "igmp_link_local_mcast_reports",
-		.data		= &sysctl_igmp_llm_reports,
+		.data		= &init_net.ipv4.sysctl_igmp_llm_reports,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec

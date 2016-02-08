@@ -110,6 +110,7 @@ struct netns_ipv4 {
 
 	int sysctl_igmp_max_memberships;
 	int sysctl_igmp_max_msf;
+	int sysctl_igmp_llm_reports;
 
 	struct ping_group_range ping_group_range;
 

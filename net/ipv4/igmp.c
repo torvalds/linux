@@ -107,9 +107,6 @@
 #include <linux/seq_file.h>
 #endif
 
-/* IGMP reports for link-local multicast groups are enabled by default */
-int sysctl_igmp_llm_reports __read_mostly = 1;
-
 #ifdef CONFIG_IP_MULTICAST
 /* Parameter names and values are taken from igmp-v2-06 draft */
 
@@ -430,6 +427,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 	int type, int gdeleted, int sdeleted)
 {
 	struct net_device *dev = pmc->interface->dev;
+	struct net *net = dev_net(dev);
 	struct igmpv3_report *pih;
 	struct igmpv3_grec *pgr = NULL;
 	struct ip_sf_list *psf, *psf_next, *psf_prev, **psf_list;
@@ -437,7 +435,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 
 	if (pmc->multiaddr == IGMP_ALL_HOSTS)
 		return skb;
-	if (ipv4_is_local_multicast(pmc->multiaddr) && !sysctl_igmp_llm_reports)
+	if (ipv4_is_local_multicast(pmc->multiaddr) && !net->ipv4.sysctl_igmp_llm_reports)
 		return skb;
 
 	isquery = type == IGMPV3_MODE_IS_INCLUDE ||
@@ -540,6 +538,7 @@ empty_source:
 static int igmpv3_send_report(struct in_device *in_dev, struct ip_mc_list *pmc)
 {
 	struct sk_buff *skb = NULL;
+	struct net *net = dev_net(in_dev->dev);
 	int type;
 
 	if (!pmc) {
@@ -548,7 +547,7 @@ static int igmpv3_send_report(struct in_device *in_dev, struct ip_mc_list *pmc)
 			if (pmc->multiaddr == IGMP_ALL_HOSTS)
 				continue;
 			if (ipv4_is_local_multicast(pmc->multiaddr) &&
-			     !sysctl_igmp_llm_reports)
+			     !net->ipv4.sysctl_igmp_llm_reports)
 				continue;
 			spin_lock_bh(&pmc->lock);
 			if (pmc->sfcount[MCAST_EXCLUDE])
@@ -684,7 +683,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	if (type == IGMPV3_HOST_MEMBERSHIP_REPORT)
 		return igmpv3_send_report(in_dev, pmc);
 
-	if (ipv4_is_local_multicast(group) && !sysctl_igmp_llm_reports)
+	if (ipv4_is_local_multicast(group) && !net->ipv4.sysctl_igmp_llm_reports)
 		return 0;
 
 	if (type == IGMP_HOST_LEAVE_MESSAGE)
@@ -855,12 +854,13 @@ static int igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __be32 *srcs)
 static bool igmp_heard_report(struct in_device *in_dev, __be32 group)
 {
 	struct ip_mc_list *im;
+	struct net *net = dev_net(in_dev->dev);
 
 	/* Timers are only set for non-local groups */
 
 	if (group == IGMP_ALL_HOSTS)
 		return false;
-	if (ipv4_is_local_multicast(group) && !sysctl_igmp_llm_reports)
+	if (ipv4_is_local_multicast(group) && !net->ipv4.sysctl_igmp_llm_reports)
 		return false;
 
 	rcu_read_lock();
@@ -884,6 +884,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 	__be32			group = ih->group;
 	int			max_delay;
 	int			mark = 0;
+	struct net		*net = dev_net(in_dev->dev);
 
 
 	if (len == 8) {
@@ -969,7 +970,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		if (im->multiaddr == IGMP_ALL_HOSTS)
 			continue;
 		if (ipv4_is_local_multicast(im->multiaddr) &&
-		    !sysctl_igmp_llm_reports)
+		    !net->ipv4.sysctl_igmp_llm_reports)
 			continue;
 		spin_lock_bh(&im->lock);
 		if (im->tm_running)
@@ -1184,6 +1185,7 @@ static void igmp_group_dropped(struct ip_mc_list *im)
 {
 	struct in_device *in_dev = im->interface;
 #ifdef CONFIG_IP_MULTICAST
+	struct net *net = dev_net(in_dev->dev);
 	int reporter;
 #endif
 
@@ -1195,7 +1197,7 @@ static void igmp_group_dropped(struct ip_mc_list *im)
 #ifdef CONFIG_IP_MULTICAST
 	if (im->multiaddr == IGMP_ALL_HOSTS)
 		return;
-	if (ipv4_is_local_multicast(im->multiaddr) && !sysctl_igmp_llm_reports)
+	if (ipv4_is_local_multicast(im->multiaddr) && !net->ipv4.sysctl_igmp_llm_reports)
 		return;
 
 	reporter = im->reporter;
@@ -1220,6 +1222,7 @@ static void igmp_group_dropped(struct ip_mc_list *im)
 static void igmp_group_added(struct ip_mc_list *im)
 {
 	struct in_device *in_dev = im->interface;
+	struct net *net = dev_net(in_dev->dev);
 
 	if (im->loaded == 0) {
 		im->loaded = 1;
@@ -1229,7 +1232,7 @@ static void igmp_group_added(struct ip_mc_list *im)
 #ifdef CONFIG_IP_MULTICAST
 	if (im->multiaddr == IGMP_ALL_HOSTS)
 		return;
-	if (ipv4_is_local_multicast(im->multiaddr) && !sysctl_igmp_llm_reports)
+	if (ipv4_is_local_multicast(im->multiaddr) && !net->ipv4.sysctl_igmp_llm_reports)
 		return;
 
 	if (in_dev->dead)
@@ -1530,6 +1533,7 @@ static void ip_mc_rejoin_groups(struct in_device *in_dev)
 #ifdef CONFIG_IP_MULTICAST
 	struct ip_mc_list *im;
 	int type;
+	struct net *net = dev_net(in_dev->dev);
 
 	ASSERT_RTNL();
 
@@ -1537,7 +1541,7 @@ static void ip_mc_rejoin_groups(struct in_device *in_dev)
 		if (im->multiaddr == IGMP_ALL_HOSTS)
 			continue;
 		if (ipv4_is_local_multicast(im->multiaddr) &&
-		    !sysctl_igmp_llm_reports)
+		    !net->ipv4.sysctl_igmp_llm_reports)
 			continue;
 
 		/* a failover is happening and switches
