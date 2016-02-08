@@ -942,7 +942,9 @@ struct amdgpu_vm_manager {
 	bool					enabled;
 	/* vm pte handling */
 	const struct amdgpu_vm_pte_funcs        *vm_pte_funcs;
-	struct amdgpu_ring                      *vm_pte_funcs_ring;
+	struct amdgpu_ring                      *vm_pte_rings[AMDGPU_MAX_RINGS];
+	unsigned				vm_pte_num_rings;
+	atomic_t				vm_pte_next_ring;
 };
 
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);

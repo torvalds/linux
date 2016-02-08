@@ -325,12 +325,14 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 			      struct amdgpu_vm *vm,
 			      struct amdgpu_bo *bo)
 {
-	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
+	struct amdgpu_ring *ring;
 	struct fence *fence = NULL;
 	struct amdgpu_job *job;
 	unsigned entries;
 	uint64_t addr;
 	int r;
+
+	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
 	r = reservation_object_reserve_shared(bo->tbo.resv);
 	if (r)
@@ -413,7 +415,7 @@ uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm)
 {
-	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
+	struct amdgpu_ring *ring;
 	struct amdgpu_bo *pd = vm->page_directory;
 	uint64_t pd_addr = amdgpu_bo_gpu_offset(pd);
 	uint32_t incr = AMDGPU_VM_PTE_COUNT * 8;
@@ -424,6 +426,8 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	struct fence *fence = NULL;
 
 	int r;
+
+	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
 	/* padding, etc. */
 	ndw = 64;
@@ -670,13 +674,15 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				       uint32_t flags, uint64_t addr,
 				       struct fence **fence)
 {
-	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
+	struct amdgpu_ring *ring;
 	void *owner = AMDGPU_FENCE_OWNER_VM;
 	unsigned nptes, ncmds, ndw;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
 	int r;
+
+	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
 	/* sync to everything on unmapping */
 	if (!(flags & AMDGPU_PTE_VALID))
@@ -1269,10 +1275,11 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
  */
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
-	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
 		AMDGPU_VM_PTE_COUNT * 8);
 	unsigned pd_size, pd_entries;
+	unsigned ring_instance;
+	struct amdgpu_ring *ring;
 	struct amd_sched_rq *rq;
 	int i, r;
 
@@ -1298,6 +1305,10 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	}
 
 	/* create scheduler entity for page table updates */
+
+	ring_instance = atomic_inc_return(&adev->vm_manager.vm_pte_next_ring);
+	ring_instance %= adev->vm_manager.vm_pte_num_rings;
+	ring = adev->vm_manager.vm_pte_rings[ring_instance];
 	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_KERNEL];
 	r = amd_sched_entity_init(&ring->sched, &vm->entity,
 				  rq, amdgpu_sched_jobs);
@@ -1345,11 +1356,10 @@ error_free_sched_entity:
  */
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
-	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
 	int i;
 
-	amd_sched_entity_fini(&ring->sched, &vm->entity);
+	amd_sched_entity_fini(vm->entity.sched, &vm->entity);
 
 	if (!RB_EMPTY_ROOT(&vm->va)) {
 		dev_err(adev->dev, "still active bo inside vm\n");
@@ -1397,6 +1407,8 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	for (i = 1; i < adev->vm_manager.num_ids; ++i)
 		list_add_tail(&adev->vm_manager.ids[i].list,
 			      &adev->vm_manager.ids_lru);
+
+	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
 }
 
 /**

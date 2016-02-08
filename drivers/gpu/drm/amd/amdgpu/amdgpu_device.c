@@ -1403,7 +1403,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->mman.buffer_funcs = NULL;
 	adev->mman.buffer_funcs_ring = NULL;
 	adev->vm_manager.vm_pte_funcs = NULL;
-	adev->vm_manager.vm_pte_funcs_ring = NULL;
+	adev->vm_manager.vm_pte_num_rings = 0;
 	adev->gart.gart_funcs = NULL;
 	adev->fence_context = fence_context_alloc(AMDGPU_MAX_RINGS);
 
