@@ -189,10 +189,19 @@ static const struct variable_validate variable_validate[] = {
 };
 
 bool
-efivar_validate(efi_char16_t *var_name, u8 *data, unsigned long len)
+efivar_validate(efi_char16_t *var_name, u8 *data, unsigned long data_size)
 {
 	int i;
-	u16 *unicode_name = var_name;
+	unsigned long utf8_size;
+	u8 *utf8_name;
+
+	utf8_size = ucs2_utf8size(var_name);
+	utf8_name = kmalloc(utf8_size + 1, GFP_KERNEL);
+	if (!utf8_name)
+		return false;
+
+	ucs2_as_utf8(utf8_name, var_name, utf8_size);
+	utf8_name[utf8_size] = '\0';
 
 	for (i = 0; variable_validate[i].validate != NULL; i++) {
 		const char *name = variable_validate[i].name;
@@ -200,28 +209,29 @@ efivar_validate(efi_char16_t *var_name, u8 *data, unsigned long len)
 
 		for (match = 0; ; match++) {
 			char c = name[match];
-			u16 u = unicode_name[match];
-
-			/* All special variables are plain ascii */
-			if (u > 127)
-				return true;
+			char u = utf8_name[match];
 
 			/* Wildcard in the matching name means we've matched */
-			if (c == '*')
+			if (c == '*') {
+				kfree(utf8_name);
 				return variable_validate[i].validate(var_name,
-							     match, data, len);
+							match, data, data_size);
+			}
 
 			/* Case sensitive match */
 			if (c != u)
 				break;
 
 			/* Reached the end of the string while matching */
-			if (!c)
+			if (!c) {
+				kfree(utf8_name);
 				return variable_validate[i].validate(var_name,
-							     match, data, len);
+							match, data, data_size);
+			}
 		}
 	}
 
+	kfree(utf8_name);
 	return true;
 }
 EXPORT_SYMBOL_GPL(efivar_validate);
