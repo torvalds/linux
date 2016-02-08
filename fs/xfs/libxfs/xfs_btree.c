@@ -294,6 +294,19 @@ xfs_btree_sblock_verify_crc(
 	return true;
 }
 
+static int
+xfs_btree_free_block(
+	struct xfs_btree_cur	*cur,
+	struct xfs_buf		*bp)
+{
+	int			error;
+
+	error = cur->bc_ops->free_block(cur, bp);
+	if (!error)
+		XFS_BTREE_STATS_INC(cur, free);
+	return error;
+}
+
 /*
  * Delete the btree cursor.
  */
@@ -3282,12 +3295,11 @@ xfs_btree_kill_iroot(
 #endif
 	xfs_btree_copy_ptrs(cur, pp, cpp, numrecs);
 
-	error = cur->bc_ops->free_block(cur, cbp);
+	error = xfs_btree_free_block(cur, cbp);
 	if (error) {
 		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 		return error;
 	}
-	XFS_BTREE_STATS_INC(cur, free);
 
 	cur->bc_bufs[level - 1] = NULL;
 	be16_add_cpu(&block->bb_level, -1);
@@ -3320,13 +3332,11 @@ xfs_btree_kill_root(
 	 */
 	cur->bc_ops->set_root(cur, newroot, -1);
 
-	error = cur->bc_ops->free_block(cur, bp);
+	error = xfs_btree_free_block(cur, bp);
 	if (error) {
 		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 		return error;
 	}
-
-	XFS_BTREE_STATS_INC(cur, free);
 
 	cur->bc_bufs[level] = NULL;
 	cur->bc_ra[level] = 0;
@@ -3833,10 +3843,9 @@ xfs_btree_delrec(
 	}
 
 	/* Free the deleted block. */
-	error = cur->bc_ops->free_block(cur, rbp);
+	error = xfs_btree_free_block(cur, rbp);
 	if (error)
 		goto error0;
-	XFS_BTREE_STATS_INC(cur, free);
 
 	/*
 	 * If we joined with the left neighbor, set the buffer in the
