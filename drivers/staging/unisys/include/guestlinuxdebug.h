@@ -17,9 +17,10 @@
 #define __GUESTLINUXDEBUG_H__
 
 /*
-* This file contains supporting interface for "vmcallinterface.h", particularly
-* regarding adding additional structure and functionality to linux
-* ISSUE_IO_VMCALL_POSTCODE_SEVERITY */
+ * This file contains supporting interface for "vmcallinterface.h", particularly
+ * regarding adding additional structure and functionality to linux
+ * ISSUE_IO_VMCALL_POSTCODE_SEVERITY
+ */
 
 /******* INFO ON ISSUE_POSTCODE_LINUX() BELOW *******/
 enum driver_pc {		/* POSTCODE driver identifier tuples */
@@ -133,9 +134,9 @@ enum event_pc {			/* POSTCODE event identifier tuples */
 
 #define POSTCODE_SEVERITY_ERR DIAG_SEVERITY_ERR
 #define POSTCODE_SEVERITY_WARNING DIAG_SEVERITY_WARNING
-#define POSTCODE_SEVERITY_INFO DIAG_SEVERITY_PRINT	/* TODO-> Info currently
-							 * doesn't show, so we
-							 * set info=warning */
+/* TODO-> Info currently doesn't show, so we set info=warning */
+#define POSTCODE_SEVERITY_INFO DIAG_SEVERITY_PRINT
+
 /* example call of POSTCODE_LINUX_2(VISOR_CHIPSET_PC, POSTCODE_SEVERITY_ERR);
  * Please also note that the resulting postcode is in hex, so if you are
  * searching for the __LINE__ number, convert it first to decimal.  The line
