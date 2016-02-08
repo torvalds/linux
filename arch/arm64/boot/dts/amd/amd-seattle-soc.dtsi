@@ -236,5 +236,16 @@
 			reg = <0x0 0xe8000000 0 0x1000000>;
 			interrupts = <0 380 4>;
 		};
+
+		ipmi_kcs: kcs@e0010000 {
+			status = "disabled";
+			compatible = "ipmi-kcs";
+			device_type = "ipmi";
+			reg = <0x0 0xe0010000 0 0x8>;
+			interrupts = <0 389 4>;
+			interrupt-names = "ipmi_kcs";
+			reg-size = <1>;
+			reg-spacing = <4>;
+		};
 	};
 };
