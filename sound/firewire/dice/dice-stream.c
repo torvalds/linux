@@ -24,23 +24,6 @@ const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT] = {
 	[6] = 192000,
 };
 
-int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
-				  unsigned int *mode)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(snd_dice_rates); i++) {
-		if (!(dice->clock_caps & BIT(i)))
-			continue;
-		if (snd_dice_rates[i] != rate)
-			continue;
-
-		*mode = (i - 1) / 2;
-		return 0;
-	}
-	return -EINVAL;
-}
-
 static void release_resources(struct snd_dice *dice,
 			      struct fw_iso_resources *resources)
 {
@@ -100,13 +83,10 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 {
 	struct fw_iso_resources *resources;
 	__be32 reg[2];
-	unsigned int i, mode, pcm_chs, midi_ports;
+	unsigned int i, pcm_chs, midi_ports;
 	bool double_pcm_frames;
 	int err;
 
-	err = snd_dice_stream_get_rate_mode(dice, rate, &mode);
-	if (err < 0)
-		goto end;
 	if (stream == &dice->tx_stream) {
 		resources = &dice->tx_resources;
 		err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
@@ -133,7 +113,7 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 	 * For this quirk, blocking mode is required and PCM buffer size should
 	 * be aligned to SYT_INTERVAL.
 	 */
-	double_pcm_frames = mode > 1;
+	double_pcm_frames = rate > 96000;
 	if (double_pcm_frames) {
 		rate /= 2;
 		pcm_chs *= 2;

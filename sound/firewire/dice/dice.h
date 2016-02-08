@@ -56,10 +56,6 @@ struct snd_dice {
 	unsigned int rsrv_offset;
 
 	unsigned int clock_caps;
-	unsigned int tx_channels[3];
-	unsigned int rx_channels[3];
-	unsigned int tx_midi_ports[3];
-	unsigned int rx_midi_ports[3];
 
 	struct fw_address_handler notification_handler;
 	int owner_generation;
@@ -168,9 +164,6 @@ void snd_dice_transaction_destroy(struct snd_dice *dice);
 
 #define SND_DICE_RATES_COUNT	7
 extern const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT];
-
-int snd_dice_stream_get_rate_mode(struct snd_dice *dice,
-				  unsigned int rate, unsigned int *mode);
 
 int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate);
 void snd_dice_stream_stop_duplex(struct snd_dice *dice);
