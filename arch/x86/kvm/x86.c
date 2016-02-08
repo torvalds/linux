@@ -1203,7 +1203,7 @@ static uint32_t div_frac(uint32_t dividend, uint32_t divisor)
 	return dividend;
 }
 
-static void kvm_get_time_scale(uint32_t scaled_khz, uint32_t base_khz,
+static void kvm_get_time_scale(uint64_t scaled_hz, uint64_t base_hz,
 			       s8 *pshift, u32 *pmultiplier)
 {
 	uint64_t scaled64;
@@ -1211,8 +1211,8 @@ static void kvm_get_time_scale(uint32_t scaled_khz, uint32_t base_khz,
 	uint64_t tps64;
 	uint32_t tps32;
 
-	tps64 = base_khz * 1000LL;
-	scaled64 = scaled_khz * 1000LL;
+	tps64 = base_hz;
+	scaled64 = scaled_hz;
 	while (tps64 > scaled64*2 || tps64 & 0xffffffff00000000ULL) {
 		tps64 >>= 1;
 		shift--;
@@ -1230,8 +1230,8 @@ static void kvm_get_time_scale(uint32_t scaled_khz, uint32_t base_khz,
 	*pshift = shift;
 	*pmultiplier = div_frac(scaled64, tps32);
 
-	pr_debug("%s: base_khz %u => %u, shift %d, mul %u\n",
-		 __func__, base_khz, scaled_khz, shift, *pmultiplier);
+	pr_debug("%s: base_hz %llu => %llu, shift %d, mul %u\n",
+		 __func__, base_hz, scaled_hz, shift, *pmultiplier);
 }
 
 #ifdef CONFIG_X86_64
@@ -1303,7 +1303,7 @@ static int kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
 	}
 
 	/* Compute a scale to convert nanoseconds in TSC cycles */
-	kvm_get_time_scale(user_tsc_khz, NSEC_PER_SEC / 1000,
+	kvm_get_time_scale(user_tsc_khz * 1000LL, NSEC_PER_SEC,
 			   &vcpu->arch.virtual_tsc_shift,
 			   &vcpu->arch.virtual_tsc_mult);
 	vcpu->arch.virtual_tsc_khz = user_tsc_khz;
@@ -1779,7 +1779,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		tgt_tsc_khz = kvm_scale_tsc(v, tgt_tsc_khz);
 
 	if (unlikely(vcpu->hw_tsc_khz != tgt_tsc_khz)) {
-		kvm_get_time_scale(NSEC_PER_SEC / 1000, tgt_tsc_khz,
+		kvm_get_time_scale(NSEC_PER_SEC, tgt_tsc_khz * 1000LL,
 				   &vcpu->hv_clock.tsc_shift,
 				   &vcpu->hv_clock.tsc_to_system_mul);
 		vcpu->hw_tsc_khz = tgt_tsc_khz;
