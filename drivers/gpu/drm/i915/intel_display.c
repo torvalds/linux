@@ -2330,6 +2330,7 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 				    u32 old_offset,
 				    u32 new_offset)
 {
+	unsigned int pitch_pixels = pitch_tiles * tile_width;
 	unsigned int tiles;
 
 	WARN_ON(old_offset & (tile_size - 1));
@@ -2340,6 +2341,10 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 
 	*y += tiles / pitch_tiles * tile_height;
 	*x += tiles % pitch_tiles * tile_width;
+
+	/* minimize x in case it got needlessly big */
+	*y += *x / pitch_pixels * tile_height;
+	*x %= pitch_pixels;
 
 	return new_offset;
 }
