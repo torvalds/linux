@@ -2315,14 +2315,14 @@ static void _rtl8821ae_clear_pci_pme_status(struct ieee80211_hw *hw)
 
 	pci_read_config_byte(rtlpci->pdev, 0x34, &cap_pointer);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "PCI configration 0x34 = 0x%2x\n", cap_pointer);
+		 "PCI configuration 0x34 = 0x%2x\n", cap_pointer);
 
 	do {
 		pci_read_config_word(rtlpci->pdev, cap_pointer, &cap_hdr);
 		cap_id = cap_hdr & 0xFF;
 
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-			 "in pci configration, cap_pointer%x = %x\n",
+			 "in pci configuration, cap_pointer%x = %x\n",
 			  cap_pointer, cap_id);
 
 		if (cap_id == 0x01) {

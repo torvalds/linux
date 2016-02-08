@@ -422,7 +422,7 @@ static void show_saved_mc(void)
 		data_size = get_datasize(mc_saved_header);
 		date = mc_saved_header->date;
 
-		pr_debug("mc_saved[%d]: sig=0x%x, pf=0x%x, rev=0x%x, toal size=0x%x, date = %04x-%02x-%02x\n",
+		pr_debug("mc_saved[%d]: sig=0x%x, pf=0x%x, rev=0x%x, total size=0x%x, date = %04x-%02x-%02x\n",
 			 i, sig, pf, rev, total_size,
 			 date & 0xffff,
 			 date >> 24,
