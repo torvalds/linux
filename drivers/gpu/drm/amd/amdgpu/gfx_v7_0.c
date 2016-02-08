@@ -1648,7 +1648,7 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev,
 			      u32 max_rb_num_per_se)
 {
 	int i, j;
-	u32 data, mask;
+	u32 data;
 	u32 disabled_rbs = 0;
 	u32 enabled_rbs = 0;
 
@@ -1666,12 +1666,7 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev,
 	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
-	mask = 1;
-	for (i = 0; i < max_rb_num_per_se * se_num; i++) {
-		if (!(disabled_rbs & mask))
-			enabled_rbs |= mask;
-		mask <<= 1;
-	}
+	enabled_rbs = (~disabled_rbs) & ((1UL<<(max_rb_num_per_se*se_num))-1);
 
 	adev->gfx.config.backend_enable_mask = enabled_rbs;
 
