@@ -302,8 +302,10 @@ xfs_btree_free_block(
 	int			error;
 
 	error = cur->bc_ops->free_block(cur, bp);
-	if (!error)
+	if (!error) {
+		xfs_trans_binval(cur->bc_tp, bp);
 		XFS_BTREE_STATS_INC(cur, free);
+	}
 	return error;
 }
 
