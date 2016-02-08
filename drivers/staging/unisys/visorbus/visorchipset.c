@@ -397,7 +397,7 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 			rc = NULL;
 			goto cleanup;
 		}
-		p = __va((unsigned long) (addr));
+		p = __va((unsigned long)(addr));
 		memcpy(ctx->data, p, bytes);
 	} else {
 		void *mapping;
@@ -525,7 +525,7 @@ parser_string_get(struct parser_context *ctx)
 		return NULL;
 	if (value_length > 0)
 		memcpy(value, pscan, value_length);
-	((u8 *) (value))[value_length] = '\0';
+	((u8 *)(value))[value_length] = '\0';
 	return value;
 }
 
@@ -815,7 +815,7 @@ controlvm_init_response(struct controlvm_message *msg,
 	msg->hdr.payload_max_bytes = 0;
 	if (response < 0) {
 		msg->hdr.flags.failed = 1;
-		msg->hdr.completion_status = (u32) (-response);
+		msg->hdr.completion_status = (u32)(-response);
 	}
 }
 
