@@ -99,6 +99,7 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 			unsigned int rate)
 {
 	struct fw_iso_resources *resources;
+	__be32 reg[2];
 	unsigned int i, mode, pcm_chs, midi_ports;
 	bool double_pcm_frames;
 	int err;
@@ -108,13 +109,19 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 		goto end;
 	if (stream == &dice->tx_stream) {
 		resources = &dice->tx_resources;
-		pcm_chs = dice->tx_channels[mode];
-		midi_ports = dice->tx_midi_ports[mode];
+		err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
+						   reg, sizeof(reg));
 	} else {
 		resources = &dice->rx_resources;
-		pcm_chs = dice->rx_channels[mode];
-		midi_ports = dice->rx_midi_ports[mode];
+		err = snd_dice_transaction_read_rx(dice, RX_NUMBER_AUDIO,
+						   reg, sizeof(reg));
 	}
+
+	if (err < 0)
+		goto end;
+
+	pcm_chs = be32_to_cpu(reg[0]);
+	midi_ports = be32_to_cpu(reg[1]);
 
 	/*
 	 * At 176.4/192.0 kHz, Dice has a quirk to transfer two PCM frames in
@@ -224,8 +231,10 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 	}
 	if (rate == 0)
 		rate = curr_rate;
-	if (rate != curr_rate)
-		stop_stream(dice, master);
+	if (rate != curr_rate) {
+		err = -EINVAL;
+		goto end;
+	}
 
 	if (!amdtp_stream_running(master)) {
 		stop_stream(dice, slave);
