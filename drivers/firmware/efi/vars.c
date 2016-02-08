@@ -42,7 +42,7 @@ DECLARE_WORK(efivar_work, NULL);
 EXPORT_SYMBOL_GPL(efivar_work);
 
 static bool
-validate_device_path(struct efi_variable *var, int match, u8 *buffer,
+validate_device_path(efi_char16_t *var_name, int match, u8 *buffer,
 		     unsigned long len)
 {
 	struct efi_generic_dev_path *node;
@@ -75,7 +75,7 @@ validate_device_path(struct efi_variable *var, int match, u8 *buffer,
 }
 
 static bool
-validate_boot_order(struct efi_variable *var, int match, u8 *buffer,
+validate_boot_order(efi_char16_t *var_name, int match, u8 *buffer,
 		    unsigned long len)
 {
 	/* An array of 16-bit integers */
@@ -86,18 +86,18 @@ validate_boot_order(struct efi_variable *var, int match, u8 *buffer,
 }
 
 static bool
-validate_load_option(struct efi_variable *var, int match, u8 *buffer,
+validate_load_option(efi_char16_t *var_name, int match, u8 *buffer,
 		     unsigned long len)
 {
 	u16 filepathlength;
 	int i, desclength = 0, namelen;
 
-	namelen = ucs2_strnlen(var->VariableName, sizeof(var->VariableName));
+	namelen = ucs2_strnlen(var_name, EFI_VAR_NAME_LEN);
 
 	/* Either "Boot" or "Driver" followed by four digits of hex */
 	for (i = match; i < match+4; i++) {
-		if (var->VariableName[i] > 127 ||
-		    hex_to_bin(var->VariableName[i] & 0xff) < 0)
+		if (var_name[i] > 127 ||
+		    hex_to_bin(var_name[i] & 0xff) < 0)
 			return true;
 	}
 
@@ -132,12 +132,12 @@ validate_load_option(struct efi_variable *var, int match, u8 *buffer,
 	/*
 	 * And, finally, check the filepath
 	 */
-	return validate_device_path(var, match, buffer + desclength + 6,
+	return validate_device_path(var_name, match, buffer + desclength + 6,
 				    filepathlength);
 }
 
 static bool
-validate_uint16(struct efi_variable *var, int match, u8 *buffer,
+validate_uint16(efi_char16_t *var_name, int match, u8 *buffer,
 		unsigned long len)
 {
 	/* A single 16-bit integer */
@@ -148,7 +148,7 @@ validate_uint16(struct efi_variable *var, int match, u8 *buffer,
 }
 
 static bool
-validate_ascii_string(struct efi_variable *var, int match, u8 *buffer,
+validate_ascii_string(efi_char16_t *var_name, int match, u8 *buffer,
 		      unsigned long len)
 {
 	int i;
@@ -166,7 +166,7 @@ validate_ascii_string(struct efi_variable *var, int match, u8 *buffer,
 
 struct variable_validate {
 	char *name;
-	bool (*validate)(struct efi_variable *var, int match, u8 *data,
+	bool (*validate)(efi_char16_t *var_name, int match, u8 *data,
 			 unsigned long len);
 };
 
@@ -189,10 +189,19 @@ static const struct variable_validate variable_validate[] = {
 };
 
 bool
-efivar_validate(struct efi_variable *var, u8 *data, unsigned long len)
+efivar_validate(efi_char16_t *var_name, u8 *data, unsigned long data_size)
 {
 	int i;
-	u16 *unicode_name = var->VariableName;
+	unsigned long utf8_size;
+	u8 *utf8_name;
+
+	utf8_size = ucs2_utf8size(var_name);
+	utf8_name = kmalloc(utf8_size + 1, GFP_KERNEL);
+	if (!utf8_name)
+		return false;
+
+	ucs2_as_utf8(utf8_name, var_name, utf8_size);
+	utf8_name[utf8_size] = '\0';
 
 	for (i = 0; variable_validate[i].validate != NULL; i++) {
 		const char *name = variable_validate[i].name;
@@ -200,28 +209,29 @@ efivar_validate(struct efi_variable *var, u8 *data, unsigned long len)
 
 		for (match = 0; ; match++) {
 			char c = name[match];
-			u16 u = unicode_name[match];
-
-			/* All special variables are plain ascii */
-			if (u > 127)
-				return true;
+			char u = utf8_name[match];
 
 			/* Wildcard in the matching name means we've matched */
-			if (c == '*')
-				return variable_validate[i].validate(var,
-							     match, data, len);
+			if (c == '*') {
+				kfree(utf8_name);
+				return variable_validate[i].validate(var_name,
+							match, data, data_size);
+			}
 
 			/* Case sensitive match */
 			if (c != u)
 				break;
 
 			/* Reached the end of the string while matching */
-			if (!c)
-				return variable_validate[i].validate(var,
-							     match, data, len);
+			if (!c) {
+				kfree(utf8_name);
+				return variable_validate[i].validate(var_name,
+							match, data, data_size);
+			}
 		}
 	}
 
+	kfree(utf8_name);
 	return true;
 }
 EXPORT_SYMBOL_GPL(efivar_validate);
@@ -797,7 +807,7 @@ int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 
 	*set = false;
 
-	if (efivar_validate(&entry->var, data, *size) == false)
+	if (efivar_validate(name, data, *size) == false)
 		return -EINVAL;
 
 	/*
