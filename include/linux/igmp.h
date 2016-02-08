@@ -38,7 +38,6 @@ static inline struct igmpv3_query *
 }
 
 extern int sysctl_igmp_llm_reports;
-extern int sysctl_igmp_max_memberships;
 extern int sysctl_igmp_max_msf;
 extern int sysctl_igmp_qrv;
 

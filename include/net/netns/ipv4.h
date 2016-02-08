@@ -108,6 +108,8 @@ struct netns_ipv4 {
 	int sysctl_tcp_fin_timeout;
 	unsigned int sysctl_tcp_notsent_lowat;
 
+	int sysctl_igmp_max_memberships;
+
 	struct ping_group_range ping_group_range;
 
 	atomic_t dev_addr_genid;

@@ -2399,6 +2399,8 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.sysctl_tcp_fin_timeout = TCP_FIN_TIMEOUT;
 	net->ipv4.sysctl_tcp_notsent_lowat = UINT_MAX;
 
+	net->ipv4.sysctl_igmp_max_memberships = 20;
+
 	return 0;
 fail:
 	tcp_sk_exit(net);

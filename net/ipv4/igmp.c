@@ -107,7 +107,6 @@
 #include <linux/seq_file.h>
 #endif
 
-#define IP_MAX_MEMBERSHIPS	20
 #define IP_MAX_MSF		10
 
 /* IGMP reports for link-local multicast groups are enabled by default */
@@ -1727,7 +1726,6 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 /*
  *	Join a socket to a group
  */
-int sysctl_igmp_max_memberships __read_mostly = IP_MAX_MEMBERSHIPS;
 int sysctl_igmp_max_msf __read_mostly = IP_MAX_MSF;
 #ifdef CONFIG_IP_MULTICAST
 int sysctl_igmp_qrv __read_mostly = IGMP_QUERY_ROBUSTNESS_VARIABLE;
@@ -2074,7 +2072,7 @@ int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
 		count++;
 	}
 	err = -ENOBUFS;
-	if (count >= sysctl_igmp_max_memberships)
+	if (count >= net->ipv4.sysctl_igmp_max_memberships)
 		goto done;
 	iml = sock_kmalloc(sk, sizeof(*iml), GFP_KERNEL);
 	if (!iml)
