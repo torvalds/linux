@@ -498,7 +498,7 @@ void osd_req_op_extent_init(struct ceph_osd_request *osd_req,
 	if (opcode == CEPH_OSD_OP_WRITE || opcode == CEPH_OSD_OP_WRITEFULL)
 		payload_len += length;
 
-	op->payload_len = payload_len;
+	op->indata_len = payload_len;
 }
 EXPORT_SYMBOL(osd_req_op_extent_init);
 
@@ -517,7 +517,7 @@ void osd_req_op_extent_update(struct ceph_osd_request *osd_req,
 	BUG_ON(length > previous);
 
 	op->extent.length = length;
-	op->payload_len -= previous - length;
+	op->indata_len -= previous - length;
 }
 EXPORT_SYMBOL(osd_req_op_extent_update);
 
@@ -554,7 +554,7 @@ void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 
 	op->cls.argc = 0;	/* currently unused */
 
-	op->payload_len = payload_len;
+	op->indata_len = payload_len;
 }
 EXPORT_SYMBOL(osd_req_op_cls_init);
 
@@ -587,7 +587,7 @@ int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,
 	op->xattr.cmp_mode = cmp_mode;
 
 	ceph_osd_data_pagelist_init(&op->xattr.osd_data, pagelist);
-	op->payload_len = payload_len;
+	op->indata_len = payload_len;
 	return 0;
 }
 EXPORT_SYMBOL(osd_req_op_xattr_init);
@@ -707,7 +707,7 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			BUG_ON(osd_data->type == CEPH_OSD_DATA_TYPE_NONE);
 			dst->cls.indata_len = cpu_to_le32(data_length);
 			ceph_osdc_msg_data_add(req->r_request, osd_data);
-			src->payload_len += data_length;
+			src->indata_len += data_length;
 			request_data_len += data_length;
 		}
 		osd_data = &src->cls.response_data;
@@ -750,7 +750,7 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 
 	dst->op = cpu_to_le16(src->op);
 	dst->flags = cpu_to_le32(src->flags);
-	dst->payload_len = cpu_to_le32(src->payload_len);
+	dst->payload_len = cpu_to_le32(src->indata_len);
 
 	return request_data_len;
 }
