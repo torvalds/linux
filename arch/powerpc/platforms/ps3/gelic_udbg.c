@@ -15,6 +15,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 
 #include <asm/io.h>
 #include <asm/udbg.h>
@@ -59,11 +60,6 @@ struct debug_block {
 	u8 pkt[1520];
 } __packed;
 
-struct vlantag {
-	u16 vlan;
-	u16 subtype;
-} __packed;
-
 struct iphdr {
 	u8 ver_len;
 	u8 dscp_ecn;
@@ -85,7 +81,7 @@ struct udphdr {
 } __packed;
 
 static __iomem struct ethhdr *h_eth;
-static __iomem struct vlantag *h_vlan;
+static __iomem struct vlan_hdr *h_vlan;
 static __iomem struct iphdr *h_ip;
 static __iomem struct udphdr *h_udp;
 
@@ -182,10 +178,10 @@ static void gelic_debug_init(void)
 	if (!result) {
 		h_eth->h_proto= ETH_P_8021Q;
 
-		header_size += sizeof(struct vlantag);
-		h_vlan = (struct vlantag *)(h_eth + 1);
-		h_vlan->vlan = vlan_id;
-		h_vlan->subtype = 0x0800;
+		header_size += sizeof(struct vlan_hdr);
+		h_vlan = (struct vlan_hdr *)(h_eth + 1);
+		h_vlan->h_vlan_TCI = vlan_id;
+		h_vlan->h_vlan_encapsulated_proto = ETH_P_IP;
 		h_ip = (struct iphdr *)(h_vlan + 1);
 	} else {
 		h_eth->h_proto= 0x0800;
