@@ -405,35 +405,27 @@ efivar_create_sysfs_entry(struct efivar_entry *new_var)
 {
 	int i, short_name_size;
 	char *short_name;
-	unsigned long variable_name_size;
-	efi_char16_t *variable_name;
-
-	variable_name = new_var->var.VariableName;
-	variable_name_size = ucs2_strlen(variable_name) * sizeof(efi_char16_t);
+	unsigned long utf8_name_size;
+	efi_char16_t *variable_name = new_var->var.VariableName;
 
 	/*
-	 * Length of the variable bytes in ASCII, plus the '-' separator,
+	 * Length of the variable bytes in UTF8, plus the '-' separator,
 	 * plus the GUID, plus trailing NUL
 	 */
-	short_name_size = variable_name_size / sizeof(efi_char16_t)
-				+ 1 + EFI_VARIABLE_GUID_LEN + 1;
+	utf8_name_size = ucs2_utf8size(variable_name);
+	short_name_size = utf8_name_size + 1 + EFI_VARIABLE_GUID_LEN + 1;
 
-	short_name = kzalloc(short_name_size, GFP_KERNEL);
-
+	short_name = kmalloc(short_name_size, GFP_KERNEL);
 	if (!short_name)
 		return 1;
 
-	/* Convert Unicode to normal chars (assume top bits are 0),
-	   ala UTF-8 */
-	for (i=0; i < (int)(variable_name_size / sizeof(efi_char16_t)); i++) {
-		short_name[i] = variable_name[i] & 0xFF;
-	}
+	ucs2_as_utf8(short_name, variable_name, short_name_size);
+
 	/* This is ugly, but necessary to separate one vendor's
 	   private variables from another's.         */
-
-	*(short_name + strlen(short_name)) = '-';
+	short_name[utf8_name_size] = '-';
 	efi_guid_unparse(&new_var->var.VendorGuid,
-			 short_name + strlen(short_name));
+			 short_name + utf8_name_size + 1);
 
 	new_var->kobj.kset = efivars_kset;
 
