@@ -116,7 +116,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 		tty_termios_encode_baud_rate(termios, baud, baud);
 }
 
-static int mtk8250_runtime_suspend(struct device *dev)
+static int __maybe_unused mtk8250_runtime_suspend(struct device *dev)
 {
 	struct mtk8250_data *data = dev_get_drvdata(dev);
 
@@ -126,7 +126,7 @@ static int mtk8250_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int mtk8250_runtime_resume(struct device *dev)
+static int __maybe_unused mtk8250_runtime_resume(struct device *dev)
 {
 	struct mtk8250_data *data = dev_get_drvdata(dev);
 	int err;
@@ -245,8 +245,7 @@ static int mtk8250_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mtk8250_suspend(struct device *dev)
+static int __maybe_unused mtk8250_suspend(struct device *dev)
 {
 	struct mtk8250_data *data = dev_get_drvdata(dev);
 
@@ -255,7 +254,7 @@ static int mtk8250_suspend(struct device *dev)
 	return 0;
 }
 
-static int mtk8250_resume(struct device *dev)
+static int __maybe_unused mtk8250_resume(struct device *dev)
 {
 	struct mtk8250_data *data = dev_get_drvdata(dev);
 
@@ -263,7 +262,6 @@ static int mtk8250_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops mtk8250_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mtk8250_suspend, mtk8250_resume)
