@@ -461,7 +461,8 @@ parser_param_start(struct parser_context *ctx,
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
 	if (!ctx)
-		goto Away;
+		return;
+
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	switch (which_string) {
 	case PARSERSTRING_INITIATOR:
@@ -483,9 +484,6 @@ parser_param_start(struct parser_context *ctx,
 	default:
 		break;
 	}
-
-Away:
-	return;
 }
 
 static void parser_done(struct parser_context *ctx)
