@@ -9,6 +9,14 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#define STM32_PIN_NO(x) ((x) << 8)
+#define STM32_GET_PIN_NO(x) ((x) >> 8)
+#define STM32_GET_PIN_FUNC(x) ((x) & 0xff)
+
+#define STM32_PIN_GPIO		0
+#define STM32_PIN_AF(x)		((x) + 1)
+#define STM32_PIN_ANALOG	(STM32_PIN_AF(15) + 1)
+
 struct stm32_desc_function {
 	const char *name;
 	const unsigned char num;

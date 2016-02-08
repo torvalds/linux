@@ -23,8 +23,6 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
-#include <dt-bindings/pinctrl/pinctrl-stm32.h>
-
 #include "../core.h"
 #include "../pinconf.h"
 #include "../pinctrl-utils.h"
