@@ -83,6 +83,7 @@ struct lpss_config {
 	/* Chip select control */
 	unsigned cs_sel_shift;
 	unsigned cs_sel_mask;
+	unsigned cs_num;
 };
 
 /* Keep these sorted with enum pxa_ssp_type */
@@ -106,6 +107,19 @@ static const struct lpss_config lpss_platforms[] = {
 		.rx_threshold = 64,
 		.tx_threshold_lo = 160,
 		.tx_threshold_hi = 224,
+	},
+	{	/* LPSS_BSW_SSP */
+		.offset = 0x400,
+		.reg_general = 0x08,
+		.reg_ssp = 0x0c,
+		.reg_cs_ctrl = 0x18,
+		.reg_capabilities = -1,
+		.rx_threshold = 64,
+		.tx_threshold_lo = 160,
+		.tx_threshold_hi = 224,
+		.cs_sel_shift = 2,
+		.cs_sel_mask = 1 << 2,
+		.cs_num = 2,
 	},
 	{	/* LPSS_SPT_SSP */
 		.offset = 0x200,
@@ -142,6 +156,7 @@ static bool is_lpss_ssp(const struct driver_data *drv_data)
 	switch (drv_data->ssp_type) {
 	case LPSS_LPT_SSP:
 	case LPSS_BYT_SSP:
+	case LPSS_BSW_SSP:
 	case LPSS_SPT_SSP:
 	case LPSS_BXT_SSP:
 		return true;
@@ -1189,6 +1204,7 @@ static int setup(struct spi_device *spi)
 		break;
 	case LPSS_LPT_SSP:
 	case LPSS_BYT_SSP:
+	case LPSS_BSW_SSP:
 	case LPSS_SPT_SSP:
 	case LPSS_BXT_SSP:
 		config = lpss_get_config(drv_data);
@@ -1336,7 +1352,7 @@ static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {
 	{ "INT3430", LPSS_LPT_SSP },
 	{ "INT3431", LPSS_LPT_SSP },
 	{ "80860F0E", LPSS_BYT_SSP },
-	{ "8086228E", LPSS_BYT_SSP },
+	{ "8086228E", LPSS_BSW_SSP },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pxa2xx_spi_acpi_match);
@@ -1473,6 +1489,7 @@ static int pxa2xx_spi_fw_translate_cs(struct spi_master *master, unsigned cs)
 		 * to match what Linux expects.
 		 */
 		case LPSS_BYT_SSP:
+		case LPSS_BSW_SSP:
 			return cs - 1;
 
 		default:
@@ -1622,6 +1639,8 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 			tmp &= LPSS_CAPS_CS_EN_MASK;
 			tmp >>= LPSS_CAPS_CS_EN_SHIFT;
 			platform_info->num_chipselect = ffz(tmp);
+		} else if (config->cs_num) {
+			platform_info->num_chipselect = config->cs_num;
 		}
 	}
 	master->num_chipselect = platform_info->num_chipselect;
