@@ -77,7 +77,15 @@
 			compatible = "snps,designware-i2c";
 			reg = <0 0xe1000000 0 0x1000>;
 			interrupts = <0 357 4>;
-			clocks = <&uartspiclk_100mhz>;
+			clocks = <&miscclk_250mhz>;
+		};
+
+		i2c1: i2c@e0050000 {
+			status = "disabled";
+			compatible = "snps,designware-i2c";
+			reg = <0 0xe0050000 0 0x1000>;
+			interrupts = <0 340 4>;
+			clocks = <&miscclk_250mhz>;
 		};
 
 		serial0: serial@e1010000 {
