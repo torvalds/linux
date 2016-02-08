@@ -3209,6 +3209,7 @@ xfs_btree_kill_iroot(
 	int			level;
 	int			index;
 	int			numrecs;
+	int			error;
 #ifdef DEBUG
 	union xfs_btree_ptr	ptr;
 	int			i;
@@ -3272,8 +3273,6 @@ xfs_btree_kill_iroot(
 	cpp = xfs_btree_ptr_addr(cur, 1, cblock);
 #ifdef DEBUG
 	for (i = 0; i < numrecs; i++) {
-		int		error;
-
 		error = xfs_btree_check_ptr(cur, cpp, i, level - 1);
 		if (error) {
 			XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
@@ -3283,7 +3282,11 @@ xfs_btree_kill_iroot(
 #endif
 	xfs_btree_copy_ptrs(cur, pp, cpp, numrecs);
 
-	cur->bc_ops->free_block(cur, cbp);
+	error = cur->bc_ops->free_block(cur, cbp);
+	if (error) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+		return error;
+	}
 	XFS_BTREE_STATS_INC(cur, free);
 
 	cur->bc_bufs[level - 1] = NULL;
