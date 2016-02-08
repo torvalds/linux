@@ -1,5 +1,6 @@
 menuconfig ARCH_REALVIEW
-	bool "ARM Ltd. RealView family" if ARCH_MULTI_V5 || ARCH_MULTI_V6 || ARCH_MULTI_V7
+	bool "ARM Ltd. RealView family"
+	depends on ARCH_MULTI_V5 || ARCH_MULTI_V6 || ARCH_MULTI_V7
 	select ARM_AMBA
 	select ARM_TIMER_SP804
 	select COMMON_CLK_VERSATILE

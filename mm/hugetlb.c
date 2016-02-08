@@ -1001,7 +1001,7 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
 		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
 		nr_nodes--)
 
-#if defined(CONFIG_CMA) && defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64) && ((defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA))
 static void destroy_compound_gigantic_page(struct page *page,
 					unsigned int order)
 {
@@ -1214,8 +1214,8 @@ void free_huge_page(struct page *page)
 
 	set_page_private(page, 0);
 	page->mapping = NULL;
-	BUG_ON(page_count(page));
-	BUG_ON(page_mapcount(page));
+	VM_BUG_ON_PAGE(page_count(page), page);
+	VM_BUG_ON_PAGE(page_mapcount(page), page);
 	restore_reserve = PagePrivate(page);
 	ClearPagePrivate(page);
 
@@ -1286,6 +1286,7 @@ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
 		set_page_count(p, 0);
 		set_compound_head(p, page);
 	}
+	atomic_set(compound_mapcount_ptr(page), -1);
 }
 
 /*
