@@ -891,7 +891,7 @@ static int __exchange_data_block(struct inode *inode, pgoff_t src,
 		psrc = get_lock_data_page(inode, src, true);
 		if (IS_ERR(psrc))
 			return PTR_ERR(psrc);
-		pdst = get_new_data_page(inode, NULL, dst, false);
+		pdst = get_new_data_page(inode, NULL, dst, true);
 		if (IS_ERR(pdst)) {
 			f2fs_put_page(psrc, 1);
 			return PTR_ERR(pdst);
