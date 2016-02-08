@@ -370,7 +370,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	int r, i;
 	unsigned fpfn, lpfn;
 
-	if (amdgpu_ttm_tt_has_userptr(bo->tbo.ttm))
+	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
 		return -EPERM;
 
 	if (WARN_ON_ONCE(min_offset > max_offset))

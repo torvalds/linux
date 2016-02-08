@@ -101,7 +101,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	p->uf.bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
 	p->uf.offset = fence_data->offset;
 
-	if (amdgpu_ttm_tt_has_userptr(p->uf.bo->tbo.ttm)) {
+	if (amdgpu_ttm_tt_get_usermm(p->uf.bo->tbo.ttm)) {
 		drm_gem_object_unreference_unlocked(gobj);
 		return -EINVAL;
 	}
@@ -296,7 +296,12 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 
 	list_for_each_entry(lobj, validated, tv.head) {
 		struct amdgpu_bo *bo = lobj->robj;
+		struct mm_struct *usermm;
 		uint32_t domain;
+
+		usermm = amdgpu_ttm_tt_get_usermm(bo->tbo.ttm);
+		if (usermm && usermm != current->mm)
+			return -EPERM;
 
 		if (bo->pin_count)
 			continue;

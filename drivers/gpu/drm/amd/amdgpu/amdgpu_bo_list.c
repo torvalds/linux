@@ -93,6 +93,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 
 	bool has_userptr = false;
 	unsigned i;
+	int r;
 
 	array = drm_malloc_ab(num_entries, sizeof(struct amdgpu_bo_list_entry));
 	if (!array)
@@ -102,17 +103,26 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	for (i = 0; i < num_entries; ++i) {
 		struct amdgpu_bo_list_entry *entry = &array[i];
 		struct drm_gem_object *gobj;
+		struct mm_struct *usermm;
 
 		gobj = drm_gem_object_lookup(adev->ddev, filp, info[i].bo_handle);
-		if (!gobj)
+		if (!gobj) {
+			r = -ENOENT;
 			goto error_free;
+		}
 
 		entry->robj = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
 		drm_gem_object_unreference_unlocked(gobj);
 		entry->priority = min(info[i].bo_priority,
 				      AMDGPU_BO_LIST_MAX_PRIORITY);
-		if (amdgpu_ttm_tt_has_userptr(entry->robj->tbo.ttm))
+		usermm = amdgpu_ttm_tt_get_usermm(entry->robj->tbo.ttm);
+		if (usermm) {
+			if (usermm != current->mm) {
+				r = -EPERM;
+				goto error_free;
+			}
 			has_userptr = true;
+		}
 		entry->tv.bo = &entry->robj->tbo;
 		entry->tv.shared = true;
 
@@ -142,7 +152,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 
 error_free:
 	drm_free_large(array);
-	return -ENOENT;
+	return r;
 }
 
 struct amdgpu_bo_list *

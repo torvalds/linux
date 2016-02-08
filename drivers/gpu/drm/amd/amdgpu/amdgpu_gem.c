@@ -310,7 +310,7 @@ int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 		return -ENOENT;
 	}
 	robj = gem_to_amdgpu_bo(gobj);
-	if (amdgpu_ttm_tt_has_userptr(robj->tbo.ttm) ||
+	if (amdgpu_ttm_tt_get_usermm(robj->tbo.ttm) ||
 	    (robj->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)) {
 		drm_gem_object_unreference_unlocked(gobj);
 		return -EPERM;
@@ -638,7 +638,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	case AMDGPU_GEM_OP_SET_PLACEMENT:
-		if (amdgpu_ttm_tt_has_userptr(robj->tbo.ttm)) {
+		if (amdgpu_ttm_tt_get_usermm(robj->tbo.ttm)) {
 			r = -EPERM;
 			amdgpu_bo_unreserve(robj);
 			break;
