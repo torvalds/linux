@@ -17,6 +17,16 @@
 #include <lkl_host.h>
 #include "iomem.h"
 
+/* Let's see if the host has semaphore.h */
+#include <unistd.h>
+
+#ifdef _POSIX_SEMAPHORES
+#include <semaphore.h>
+/* TODO(pscollins): We don't support fork() for now, but maybe one day
+ * we will? */
+#define SHARE_SEM 0
+#endif /* _POSIX_SEMAPHORES */
+
 static void print(const char *str, int len)
 {
 	int ret __attribute__((unused));
@@ -25,9 +35,13 @@ static void print(const char *str, int len)
 }
 
 struct pthread_sem {
+#ifdef _POSIX_SEMAPHORES
+	sem_t sem;
+#else
 	pthread_mutex_t lock;
 	int count;
 	pthread_cond_t cond;
+#endif /* _POSIX_SEMAPHORES */
 };
 
 static void *sem_alloc(int count)
@@ -38,9 +52,17 @@ static void *sem_alloc(int count)
 	if (!sem)
 		return NULL;
 
+#ifdef _POSIX_SEMAPHORES
+	if (sem_init(&sem->sem, SHARE_SEM, count) < 0) {
+		lkl_printf("sem_init: %s\n", strerror(errno));
+		free(sem);
+		return NULL;
+	}
+#else
 	pthread_mutex_init(&sem->lock, NULL);
 	sem->count = count;
 	pthread_cond_init(&sem->cond, NULL);
+#endif /* _POSIX_SEMAPHORES */
 
 	return sem;
 }
@@ -54,22 +76,37 @@ static void sem_up(void *_sem)
 {
 	struct pthread_sem *sem = (struct pthread_sem *)_sem;
 
+#ifdef _POSIX_SEMAPHORES
+	if (sem_post(&sem->sem) < 0)
+		lkl_printf("sem_post: %s\n", strerror(errno));
+#else
 	pthread_mutex_lock(&sem->lock);
 	sem->count++;
 	if (sem->count > 0)
 		pthread_cond_signal(&sem->cond);
 	pthread_mutex_unlock(&sem->lock);
+#endif /* _POSIX_SEMAPHORES */
+
 }
 
 static void sem_down(void *_sem)
 {
 	struct pthread_sem *sem = (struct pthread_sem *)_sem;
+#ifdef _POSIX_SEMAPHORES
+	int err;
 
+	do {
+		err = sem_wait(&sem->sem);
+	} while (err < 0 && errno == EINTR);
+	if (err < 0 && errno != EINTR)
+		lkl_printf("sem_wait: %s\n", strerror(errno));
+#else
 	pthread_mutex_lock(&sem->lock);
 	while (sem->count <= 0)
 		pthread_cond_wait(&sem->cond, &sem->lock);
 	sem->count--;
 	pthread_mutex_unlock(&sem->lock);
+#endif /* _POSIX_SEMAPHORES */
 }
 
 static int thread_create(void (*fn)(void *), void *arg)
