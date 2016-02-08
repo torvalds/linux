@@ -95,12 +95,11 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	if (!dev)
 		return -LKL_ENOMEM;
 
+	memset(dev, 0, sizeof(*dev));
+
 	dev->dev.device_id = LKL_VIRTIO_ID_NET;
-	dev->dev.vendor_id = 0;
-	dev->dev.device_features = 0;
 	if (mac)
 		dev->dev.device_features |= BIT(LKL_VIRTIO_NET_F_MAC);
-	dev->dev.config_gen = 0;
 	dev->dev.config_data = &dev->config;
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &net_ops;
