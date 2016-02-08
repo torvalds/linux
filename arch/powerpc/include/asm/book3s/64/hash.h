@@ -50,7 +50,9 @@
  * set of bits not changed in pmd_modify.
  */
 #define _HPAGE_CHG_MASK (PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
-			 _PAGE_ACCESSED | _PAGE_THP_HUGE)
+			 _PAGE_ACCESSED | _PAGE_THP_HUGE | _PAGE_PTE | \
+			 _PAGE_SOFT_DIRTY)
+
 
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/book3s/64/hash-64k.h>

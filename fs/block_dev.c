@@ -1730,43 +1730,25 @@ static int blkdev_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return __dax_fault(vma, vmf, blkdev_get_block, NULL);
 }
 
+static int blkdev_dax_pfn_mkwrite(struct vm_area_struct *vma,
+		struct vm_fault *vmf)
+{
+	return dax_pfn_mkwrite(vma, vmf);
+}
+
 static int blkdev_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 		pmd_t *pmd, unsigned int flags)
 {
 	return __dax_pmd_fault(vma, addr, pmd, flags, blkdev_get_block, NULL);
 }
 
-static void blkdev_vm_open(struct vm_area_struct *vma)
-{
-	struct inode *bd_inode = bdev_file_inode(vma->vm_file);
-	struct block_device *bdev = I_BDEV(bd_inode);
-
-	inode_lock(bd_inode);
-	bdev->bd_map_count++;
-	inode_unlock(bd_inode);
-}
-
-static void blkdev_vm_close(struct vm_area_struct *vma)
-{
-	struct inode *bd_inode = bdev_file_inode(vma->vm_file);
-	struct block_device *bdev = I_BDEV(bd_inode);
-
-	inode_lock(bd_inode);
-	bdev->bd_map_count--;
-	inode_unlock(bd_inode);
-}
-
 static const struct vm_operations_struct blkdev_dax_vm_ops = {
-	.open		= blkdev_vm_open,
-	.close		= blkdev_vm_close,
 	.fault		= blkdev_dax_fault,
 	.pmd_fault	= blkdev_dax_pmd_fault,
-	.pfn_mkwrite	= blkdev_dax_fault,
+	.pfn_mkwrite	= blkdev_dax_pfn_mkwrite,
 };
 
 static const struct vm_operations_struct blkdev_default_vm_ops = {
-	.open		= blkdev_vm_open,
-	.close		= blkdev_vm_close,
 	.fault		= filemap_fault,
 	.map_pages	= filemap_map_pages,
 };
@@ -1774,18 +1756,14 @@ static const struct vm_operations_struct blkdev_default_vm_ops = {
 static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *bd_inode = bdev_file_inode(file);
-	struct block_device *bdev = I_BDEV(bd_inode);
 
 	file_accessed(file);
-	inode_lock(bd_inode);
-	bdev->bd_map_count++;
 	if (IS_DAX(bd_inode)) {
 		vma->vm_ops = &blkdev_dax_vm_ops;
 		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
 	} else {
 		vma->vm_ops = &blkdev_default_vm_ops;
 	}
-	inode_unlock(bd_inode);
 
 	return 0;
 }

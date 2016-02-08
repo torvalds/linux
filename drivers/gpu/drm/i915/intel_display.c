@@ -2946,7 +2946,7 @@ u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
 	struct i915_vma *vma;
 	u64 offset;
 
-	intel_fill_fb_ggtt_view(&view, intel_plane->base.fb,
+	intel_fill_fb_ggtt_view(&view, intel_plane->base.state->fb,
 				intel_plane->base.state);
 
 	vma = i915_gem_obj_to_ggtt_view(obj, &view);
@@ -12075,11 +12075,21 @@ connected_sink_compute_bpp(struct intel_connector *connector,
 		pipe_config->pipe_bpp = connector->base.display_info.bpc*3;
 	}
 
-	/* Clamp bpp to 8 on screens without EDID 1.4 */
-	if (connector->base.display_info.bpc == 0 && bpp > 24) {
-		DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of 24\n",
-			      bpp);
-		pipe_config->pipe_bpp = 24;
+	/* Clamp bpp to default limit on screens without EDID 1.4 */
+	if (connector->base.display_info.bpc == 0) {
+		int type = connector->base.connector_type;
+		int clamp_bpp = 24;
+
+		/* Fall back to 18 bpp when DP sink capability is unknown. */
+		if (type == DRM_MODE_CONNECTOR_DisplayPort ||
+		    type == DRM_MODE_CONNECTOR_eDP)
+			clamp_bpp = 18;
+
+		if (bpp > clamp_bpp) {
+			DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of %d\n",
+				      bpp, clamp_bpp);
+			pipe_config->pipe_bpp = clamp_bpp;
+		}
 	}
 }
 
@@ -13883,11 +13893,12 @@ intel_check_primary_plane(struct drm_plane *plane,
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
 
-	/* use scaler when colorkey is not required */
-	if (INTEL_INFO(plane->dev)->gen >= 9 &&
-	    state->ckey.flags == I915_SET_COLORKEY_NONE) {
-		min_scale = 1;
-		max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
+	if (INTEL_INFO(plane->dev)->gen >= 9) {
+		/* use scaler when colorkey is not required */
+		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
+			min_scale = 1;
+			max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
+		}
 		can_position = true;
 	}
 

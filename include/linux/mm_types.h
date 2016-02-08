@@ -424,9 +424,9 @@ struct mm_struct {
 	unsigned long total_vm;		/* Total pages mapped */
 	unsigned long locked_vm;	/* Pages that have PG_mlocked set */
 	unsigned long pinned_vm;	/* Refcount permanently increased */
-	unsigned long data_vm;		/* VM_WRITE & ~VM_SHARED/GROWSDOWN */
-	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE */
-	unsigned long stack_vm;		/* VM_GROWSUP/DOWN */
+	unsigned long data_vm;		/* VM_WRITE & ~VM_SHARED & ~VM_STACK */
+	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE & ~VM_STACK */
+	unsigned long stack_vm;		/* VM_STACK */
 	unsigned long def_flags;
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long start_brk, brk, start_stack;
