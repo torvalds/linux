@@ -1371,9 +1371,9 @@ pause_state_change_complete(struct visor_device *dev, int status)
 		return;
 
 	/* Notify the chipset driver that the pause is complete, which
-	* will presumably want to send some sort of response to the
-	* initiator.
-	*/
+	 * will presumably want to send some sort of response to the
+	 * initiator.
+	 */
 	(*chipset_responders.device_pause) (dev, status);
 }
 
