@@ -66,8 +66,18 @@
 
 		sata0: sata@e0300000 {
 			compatible = "snps,dwc-ahci";
-			reg = <0 0xe0300000 0 0x800>;
+			reg = <0 0xe0300000 0 0xf0000>;
 			interrupts = <0 355 4>;
+			clocks = <&sataclk_333mhz>;
+			dma-coherent;
+		};
+
+		/* This is for Rev B only */
+		sata1: sata@e0d00000 {
+			status = "disabled";
+			compatible = "snps,dwc-ahci";
+			reg = <0 0xe0d00000 0 0xf0000>;
+			interrupts = <0 354 4>;
 			clocks = <&sataclk_333mhz>;
 			dma-coherent;
 		};
