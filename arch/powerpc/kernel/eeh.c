@@ -739,7 +739,7 @@ static void *eeh_restore_dev_state(void *data, void *userdata)
 }
 
 /**
- * pcibios_set_pcie_slot_reset - Set PCI-E reset state
+ * pcibios_set_pcie_reset_state - Set PCI-E reset state
  * @dev: pci device struct
  * @state: reset state to enter
  *
