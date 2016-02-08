@@ -702,6 +702,8 @@ struct kvm_hv {
 	/* Hyper-v based guest crash (NT kernel bugcheck) parameters */
 	u64 hv_crash_param[HV_X64_MSR_CRASH_PARAMS];
 	u64 hv_crash_ctl;
+
+	HV_REFERENCE_TSC_PAGE tsc_ref;
 };
 
 struct kvm_arch {
