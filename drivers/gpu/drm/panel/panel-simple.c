@@ -72,6 +72,7 @@ struct panel_desc {
 	} delay;
 
 	u32 bus_format;
+	u32 bus_flags;
 };
 
 struct panel_simple {
@@ -144,6 +145,7 @@ static int panel_simple_get_fixed_modes(struct panel_simple *panel)
 	if (panel->desc->bus_format)
 		drm_display_info_set_bus_formats(&connector->display_info,
 						 &panel->desc->bus_format, 1);
+	connector->display_info.bus_flags = panel->desc->bus_flags;
 
 	return num;
 }
