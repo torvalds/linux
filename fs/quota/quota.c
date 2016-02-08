@@ -625,6 +625,34 @@ static int quota_getxquota(struct super_block *sb, int type, qid_t id,
 	return ret;
 }
 
+/*
+ * Return quota for next active quota >= this id, if any exists,
+ * otherwise return -ESRCH via ->get_nextdqblk.
+ */
+static int quota_getnextxquota(struct super_block *sb, int type, qid_t id,
+			    void __user *addr)
+{
+	struct fs_disk_quota fdq;
+	struct qc_dqblk qdq;
+	struct kqid qid;
+	qid_t id_out;
+	int ret;
+
+	if (!sb->s_qcop->get_nextdqblk)
+		return -ENOSYS;
+	qid = make_kqid(current_user_ns(), type, id);
+	if (!qid_valid(qid))
+		return -EINVAL;
+	ret = sb->s_qcop->get_nextdqblk(sb, &qid, &qdq);
+	if (ret)
+		return ret;
+	id_out = from_kqid(current_user_ns(), qid);
+	copy_to_xfs_dqblk(&fdq, &qdq, type, id_out);
+	if (copy_to_user(addr, &fdq, sizeof(fdq)))
+		return -EFAULT;
+	return ret;
+}
+
 static int quota_rmxquota(struct super_block *sb, void __user *addr)
 {
 	__u32 flags;
@@ -690,6 +718,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 		return quota_setxquota(sb, type, id, addr);
 	case Q_XGETQUOTA:
 		return quota_getxquota(sb, type, id, addr);
+	case Q_XGETNEXTQUOTA:
+		return quota_getnextxquota(sb, type, id, addr);
 	case Q_XQUOTASYNC:
 		if (sb->s_flags & MS_RDONLY)
 			return -EROFS;
@@ -712,6 +742,7 @@ static int quotactl_cmd_write(int cmd)
 	case Q_XGETQSTAT:
 	case Q_XGETQSTATV:
 	case Q_XGETQUOTA:
+	case Q_XGETNEXTQUOTA:
 	case Q_XQUOTASYNC:
 		return 0;
 	}
