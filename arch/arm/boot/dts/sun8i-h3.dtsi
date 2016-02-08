@@ -359,7 +359,7 @@
 			gpio-controller;
 			#gpio-cells = <3>;
 			interrupt-controller;
-			#interrupt-cells = <2>;
+			#interrupt-cells = <3>;
 
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PA4", "PA5";
