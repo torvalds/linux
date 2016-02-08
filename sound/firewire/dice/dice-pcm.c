@@ -294,17 +294,30 @@ int snd_dice_create_pcm(struct snd_dice *dice)
 		.page      = snd_pcm_lib_get_vmalloc_page,
 		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
+	__be32 reg;
 	struct snd_pcm *pcm;
-	unsigned int i, capture, playback;
+	unsigned int capture, playback;
 	int err;
 
-	capture = playback = 0;
-	for (i = 0; i < 3; i++) {
-		if (dice->tx_channels[i] > 0)
-			capture = 1;
-		if (dice->rx_channels[i] > 0)
-			playback = 1;
-	}
+	/*
+	 * Check whether PCM substreams are required.
+	 *
+	 * TODO: in the case that any PCM substreams are not avail at a certain
+	 * sampling transfer frequency?
+	 */
+	err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
+					   &reg, sizeof(reg));
+	if (err < 0)
+		return err;
+	if (be32_to_cpu(reg) > 0)
+		capture = 1;
+
+	err = snd_dice_transaction_read_rx(dice, RX_NUMBER_AUDIO,
+					   &reg, sizeof(reg));
+	if (err < 0)
+		return err;
+	if (be32_to_cpu(reg) > 0)
+		playback = 1;
 
 	err = snd_pcm_new(dice->card, "DICE", 0, playback, capture, &pcm);
 	if (err < 0)
