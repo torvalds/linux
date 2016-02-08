@@ -491,8 +491,10 @@ static void __init numa_clear_kernel_node_hotplug(void)
 	 */
 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
 		struct numa_memblk *mb = numa_meminfo.blk + i;
+		int ret;
 
-		memblock_set_node(mb->start, mb->end - mb->start, &memblock.reserved, mb->nid);
+		ret = memblock_set_node(mb->start, mb->end - mb->start, &memblock.reserved, mb->nid);
+		WARN_ON_ONCE(ret);
 	}
 
 	/*
