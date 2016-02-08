@@ -229,8 +229,16 @@ vc4_reset(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	DRM_INFO("Resetting GPU.\n");
-	vc4_v3d_set_power(vc4, false);
-	vc4_v3d_set_power(vc4, true);
+
+	mutex_lock(&vc4->power_lock);
+	if (vc4->power_refcount) {
+		/* Power the device off and back on the by dropping the
+		 * reference on runtime PM.
+		 */
+		pm_runtime_put_sync_suspend(&vc4->v3d->pdev->dev);
+		pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+	}
+	mutex_unlock(&vc4->power_lock);
 
 	vc4_irq_reset(dev);
 
@@ -641,7 +649,10 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	pm_runtime_put(&vc4->v3d->pdev->dev);
+	mutex_lock(&vc4->power_lock);
+	if (--vc4->power_refcount == 0)
+		pm_runtime_put(&vc4->v3d->pdev->dev);
+	mutex_unlock(&vc4->power_lock);
 
 	kfree(exec);
 }
@@ -783,7 +794,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_submit_cl *args = data;
 	struct vc4_exec_info *exec;
-	int ret;
+	int ret = 0;
 
 	if ((args->flags & ~VC4_SUBMIT_CL_USE_CLEAR_COLOR) != 0) {
 		DRM_ERROR("Unknown flags: 0x%02x\n", args->flags);
@@ -796,7 +807,10 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 
-	ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+	mutex_lock(&vc4->power_lock);
+	if (vc4->power_refcount++ == 0)
+		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+	mutex_unlock(&vc4->power_lock);
 	if (ret < 0) {
 		kfree(exec);
 		return ret;
@@ -856,6 +870,8 @@ vc4_gem_init(struct drm_device *dev)
 		    (unsigned long)dev);
 
 	INIT_WORK(&vc4->job_done_work, vc4_job_done_work);
+
+	mutex_init(&vc4->power_lock);
 }
 
 void

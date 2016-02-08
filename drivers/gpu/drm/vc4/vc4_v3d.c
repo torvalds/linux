@@ -145,18 +145,6 @@ int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 }
 #endif /* CONFIG_DEBUG_FS */
 
-int
-vc4_v3d_set_power(struct vc4_dev *vc4, bool on)
-{
-	/* XXX: This interface is needed for GPU reset, and the way to
-	 * do it is to turn our power domain off and back on.  We
-	 * can't just reset from within the driver, because the reset
-	 * bits are in the power domain's register area, and get set
-	 * during the poweron process.
-	 */
-	return 0;
-}
-
 static void vc4_v3d_init_hw(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);

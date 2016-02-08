@@ -91,6 +91,11 @@ struct vc4_dev {
 	struct vc4_bo *overflow_mem;
 	struct work_struct overflow_mem_work;
 
+	int power_refcount;
+
+	/* Mutex controlling the power refcount. */
+	struct mutex power_lock;
+
 	struct {
 		struct timer_list timer;
 		struct work_struct reset_work;
@@ -439,7 +444,6 @@ void vc4_plane_async_set_fb(struct drm_plane *plane,
 extern struct platform_driver vc4_v3d_driver;
 int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused);
 int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused);
-int vc4_v3d_set_power(struct vc4_dev *vc4, bool on);
 
 /* vc4_validate.c */
 int
