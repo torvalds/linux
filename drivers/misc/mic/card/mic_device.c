@@ -34,7 +34,6 @@
 #include <linux/mic_common.h>
 #include "../common/mic_dev.h"
 #include "mic_device.h"
-#include "mic_virtio.h"
 
 static struct mic_driver *g_drv;
 
@@ -309,9 +308,6 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 		rc = -ENODEV;
 		goto irq_uninit;
 	}
-	rc = mic_devices_init(mdrv);
-	if (rc)
-		goto dma_free;
 	bootparam = mdrv->dp;
 	node_id = ioread8(&bootparam->node_id);
 	mdrv->scdev = scif_register_device(mdrv->dev, MIC_SCIF_DEV,
@@ -321,13 +317,11 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 					   mdrv->num_dma_ch, true);
 	if (IS_ERR(mdrv->scdev)) {
 		rc = PTR_ERR(mdrv->scdev);
-		goto device_uninit;
+		goto dma_free;
 	}
 	mic_create_card_debug_dir(mdrv);
 done:
 	return rc;
-device_uninit:
-	mic_devices_uninit(mdrv);
 dma_free:
 	mic_free_dma_chans(mdrv);
 irq_uninit:
@@ -348,7 +342,6 @@ void mic_driver_uninit(struct mic_driver *mdrv)
 {
 	mic_delete_card_debug_dir(mdrv);
 	scif_unregister_device(mdrv->scdev);
-	mic_devices_uninit(mdrv);
 	mic_free_dma_chans(mdrv);
 	mic_uninit_irq();
 	mic_dp_uninit();
