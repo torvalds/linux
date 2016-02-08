@@ -395,12 +395,11 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 
 	ret = sysfs_create_group(get_governor_parent_kobj(policy),
 				 get_sysfs_attr(gov));
-	if (ret)
-		goto reset_gdbs_data;
+	if (!ret)
+		return 0;
 
-	return 0;
+	/* Failure, so roll back. */
 
-reset_gdbs_data:
 	policy->governor_data = NULL;
 
 	if (!have_governor_per_policy())
