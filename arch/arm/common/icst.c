@@ -16,7 +16,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-
+#include <asm/div64.h>
 #include <asm/hardware/icst.h>
 
 /*
@@ -29,7 +29,11 @@ EXPORT_SYMBOL(icst525_s2div);
 
 unsigned long icst_hz(const struct icst_params *p, struct icst_vco vco)
 {
-	return p->ref * 2 * (vco.v + 8) / ((vco.r + 2) * p->s2div[vco.s]);
+	u64 dividend = p->ref * 2 * (u64)(vco.v + 8);
+	u32 divisor = (vco.r + 2) * p->s2div[vco.s];
+
+	do_div(dividend, divisor);
+	return (unsigned long)dividend;
 }
 
 EXPORT_SYMBOL(icst_hz);
