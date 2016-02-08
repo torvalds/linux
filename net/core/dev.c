@@ -5155,6 +5155,7 @@ static void net_rx_action(struct softirq_action *h)
 		}
 	}
 
+	__kfree_skb_flush();
 	local_irq_disable();
 
 	list_splice_tail_init(&sd->poll_list, &list);
