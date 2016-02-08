@@ -109,6 +109,7 @@ struct netns_ipv4 {
 	unsigned int sysctl_tcp_notsent_lowat;
 
 	int sysctl_igmp_max_memberships;
+	int sysctl_igmp_max_msf;
 
 	struct ping_group_range ping_group_range;
 

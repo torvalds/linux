@@ -107,8 +107,6 @@
 #include <linux/seq_file.h>
 #endif
 
-#define IP_MAX_MSF		10
-
 /* IGMP reports for link-local multicast groups are enabled by default */
 int sysctl_igmp_llm_reports __read_mostly = 1;
 
@@ -1726,7 +1724,6 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 /*
  *	Join a socket to a group
  */
-int sysctl_igmp_max_msf __read_mostly = IP_MAX_MSF;
 #ifdef CONFIG_IP_MULTICAST
 int sysctl_igmp_qrv __read_mostly = IGMP_QUERY_ROBUSTNESS_VARIABLE;
 #endif
@@ -2244,7 +2241,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	}
 	/* else, add a new source to the filter */
 
-	if (psl && psl->sl_count >= sysctl_igmp_max_msf) {
+	if (psl && psl->sl_count >= net->ipv4.sysctl_igmp_max_msf) {
 		err = -ENOBUFS;
 		goto done;
 	}
