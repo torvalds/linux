@@ -404,6 +404,7 @@ xfs_qm_scall_setqlim(
 	struct xfs_disk_dquot	*ddq;
 	struct xfs_dquot	*dqp;
 	struct xfs_trans	*tp;
+	struct xfs_def_quota	*defq;
 	int			error;
 	xfs_qcnt_t		hard, soft;
 
@@ -431,6 +432,8 @@ xfs_qm_scall_setqlim(
 		ASSERT(error != -ENOENT);
 		goto out_unlock;
 	}
+
+	defq = xfs_get_defquota(dqp, q);
 	xfs_dqunlock(dqp);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SETQLIM);
@@ -458,8 +461,8 @@ xfs_qm_scall_setqlim(
 		ddq->d_blk_softlimit = cpu_to_be64(soft);
 		xfs_dquot_set_prealloc_limits(dqp);
 		if (id == 0) {
-			q->qi_bhardlimit = hard;
-			q->qi_bsoftlimit = soft;
+			defq->bhardlimit = hard;
+			defq->bsoftlimit = soft;
 		}
 	} else {
 		xfs_debug(mp, "blkhard %Ld < blksoft %Ld", hard, soft);
@@ -474,8 +477,8 @@ xfs_qm_scall_setqlim(
 		ddq->d_rtb_hardlimit = cpu_to_be64(hard);
 		ddq->d_rtb_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
-			q->qi_rtbhardlimit = hard;
-			q->qi_rtbsoftlimit = soft;
+			defq->rtbhardlimit = hard;
+			defq->rtbsoftlimit = soft;
 		}
 	} else {
 		xfs_debug(mp, "rtbhard %Ld < rtbsoft %Ld", hard, soft);
@@ -491,8 +494,8 @@ xfs_qm_scall_setqlim(
 		ddq->d_ino_hardlimit = cpu_to_be64(hard);
 		ddq->d_ino_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
-			q->qi_ihardlimit = hard;
-			q->qi_isoftlimit = soft;
+			defq->ihardlimit = hard;
+			defq->isoftlimit = soft;
 		}
 	} else {
 		xfs_debug(mp, "ihard %Ld < isoft %Ld", hard, soft);

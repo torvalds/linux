@@ -92,26 +92,28 @@ xfs_qm_adjust_dqlimits(
 {
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_disk_dquot	*d = &dq->q_core;
+	struct xfs_def_quota	*defq;
 	int			prealloc = 0;
 
 	ASSERT(d->d_id);
+	defq = xfs_get_defquota(dq, q);
 
-	if (q->qi_bsoftlimit && !d->d_blk_softlimit) {
-		d->d_blk_softlimit = cpu_to_be64(q->qi_bsoftlimit);
+	if (defq->bsoftlimit && !d->d_blk_softlimit) {
+		d->d_blk_softlimit = cpu_to_be64(defq->bsoftlimit);
 		prealloc = 1;
 	}
-	if (q->qi_bhardlimit && !d->d_blk_hardlimit) {
-		d->d_blk_hardlimit = cpu_to_be64(q->qi_bhardlimit);
+	if (defq->bhardlimit && !d->d_blk_hardlimit) {
+		d->d_blk_hardlimit = cpu_to_be64(defq->bhardlimit);
 		prealloc = 1;
 	}
-	if (q->qi_isoftlimit && !d->d_ino_softlimit)
-		d->d_ino_softlimit = cpu_to_be64(q->qi_isoftlimit);
-	if (q->qi_ihardlimit && !d->d_ino_hardlimit)
-		d->d_ino_hardlimit = cpu_to_be64(q->qi_ihardlimit);
-	if (q->qi_rtbsoftlimit && !d->d_rtb_softlimit)
-		d->d_rtb_softlimit = cpu_to_be64(q->qi_rtbsoftlimit);
-	if (q->qi_rtbhardlimit && !d->d_rtb_hardlimit)
-		d->d_rtb_hardlimit = cpu_to_be64(q->qi_rtbhardlimit);
+	if (defq->isoftlimit && !d->d_ino_softlimit)
+		d->d_ino_softlimit = cpu_to_be64(defq->isoftlimit);
+	if (defq->ihardlimit && !d->d_ino_hardlimit)
+		d->d_ino_hardlimit = cpu_to_be64(defq->ihardlimit);
+	if (defq->rtbsoftlimit && !d->d_rtb_softlimit)
+		d->d_rtb_softlimit = cpu_to_be64(defq->rtbsoftlimit);
+	if (defq->rtbhardlimit && !d->d_rtb_hardlimit)
+		d->d_rtb_hardlimit = cpu_to_be64(defq->rtbhardlimit);
 
 	if (prealloc)
 		xfs_dquot_set_prealloc_limits(dq);
