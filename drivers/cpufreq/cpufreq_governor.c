@@ -196,16 +196,16 @@ static inline void gov_clear_update_util(struct cpufreq_policy *policy)
 static void gov_cancel_work(struct policy_dbs_info *policy_dbs)
 {
 	/* Tell dbs_update_util_handler() to skip queuing up work items. */
-	atomic_inc(&policy_dbs->skip_work);
+	atomic_inc(&policy_dbs->work_count);
 	/*
 	 * If dbs_update_util_handler() is already running, it may not notice
-	 * the incremented skip_work, so wait for it to complete to prevent its
+	 * the incremented work_count, so wait for it to complete to prevent its
 	 * work item from being queued up after the cancel_work_sync() below.
 	 */
 	gov_clear_update_util(policy_dbs->policy);
 	irq_work_sync(&policy_dbs->irq_work);
 	cancel_work_sync(&policy_dbs->work);
-	atomic_set(&policy_dbs->skip_work, 0);
+	atomic_set(&policy_dbs->work_count, 0);
 }
 
 static void dbs_work_handler(struct work_struct *work)
@@ -234,7 +234,7 @@ static void dbs_work_handler(struct work_struct *work)
 	 * up using a stale sample delay value.
 	 */
 	smp_mb__before_atomic();
-	atomic_dec(&policy_dbs->skip_work);
+	atomic_dec(&policy_dbs->work_count);
 }
 
 static void dbs_irq_work(struct irq_work *irq_work)
@@ -267,7 +267,7 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	 * - The governor is being stopped.
 	 * - It is too early (too little time from the previous sample).
 	 */
-	if (atomic_inc_return(&policy_dbs->skip_work) == 1) {
+	if (atomic_inc_return(&policy_dbs->work_count) == 1) {
 		u64 delta_ns;
 
 		delta_ns = time - policy_dbs->last_sample_time;
@@ -277,7 +277,7 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 			return;
 		}
 	}
-	atomic_dec(&policy_dbs->skip_work);
+	atomic_dec(&policy_dbs->work_count);
 }
 
 static void set_sampling_rate(struct dbs_data *dbs_data,
@@ -305,7 +305,7 @@ static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *poli
 		return NULL;
 
 	mutex_init(&policy_dbs->timer_mutex);
-	atomic_set(&policy_dbs->skip_work, 0);
+	atomic_set(&policy_dbs->work_count, 0);
 	init_irq_work(&policy_dbs->irq_work, dbs_irq_work);
 	INIT_WORK(&policy_dbs->work, dbs_work_handler);
 

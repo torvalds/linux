@@ -149,7 +149,7 @@ struct policy_dbs_info {
 
 	u64 last_sample_time;
 	s64 sample_delay_ns;
-	atomic_t skip_work;
+	atomic_t work_count;
 	struct irq_work irq_work;
 	struct work_struct work;
 	/* dbs_data may be shared between multiple policy objects */
