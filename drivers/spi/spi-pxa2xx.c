@@ -65,8 +65,6 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 #define LPSS_GENERAL_REG_RXTO_HOLDOFF_DISABLE	BIT(24)
 #define LPSS_CS_CONTROL_SW_MODE			BIT(0)
 #define LPSS_CS_CONTROL_CS_HIGH			BIT(1)
-#define LPSS_CS_CONTROL_CS_SEL_SHIFT		8
-#define LPSS_CS_CONTROL_CS_SEL_MASK		(3 << LPSS_CS_CONTROL_CS_SEL_SHIFT)
 #define LPSS_CAPS_CS_EN_SHIFT			9
 #define LPSS_CAPS_CS_EN_MASK			(0xf << LPSS_CAPS_CS_EN_SHIFT)
 
@@ -82,6 +80,9 @@ struct lpss_config {
 	u32 rx_threshold;
 	u32 tx_threshold_lo;
 	u32 tx_threshold_hi;
+	/* Chip select control */
+	unsigned cs_sel_shift;
+	unsigned cs_sel_mask;
 };
 
 /* Keep these sorted with enum pxa_ssp_type */
@@ -125,6 +126,8 @@ static const struct lpss_config lpss_platforms[] = {
 		.rx_threshold = 1,
 		.tx_threshold_lo = 16,
 		.tx_threshold_hi = 48,
+		.cs_sel_shift = 8,
+		.cs_sel_mask = 3 << 8,
 	},
 };
 
@@ -288,37 +291,50 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 	}
 }
 
+static void lpss_ssp_select_cs(struct driver_data *drv_data,
+			       const struct lpss_config *config)
+{
+	u32 value, cs;
+
+	if (!config->cs_sel_mask)
+		return;
+
+	value = __lpss_ssp_read_priv(drv_data, config->reg_cs_ctrl);
+
+	cs = drv_data->cur_msg->spi->chip_select;
+	cs <<= config->cs_sel_shift;
+	if (cs != (value & config->cs_sel_mask)) {
+		/*
+		 * When switching another chip select output active the
+		 * output must be selected first and wait 2 ssp_clk cycles
+		 * before changing state to active. Otherwise a short
+		 * glitch will occur on the previous chip select since
+		 * output select is latched but state control is not.
+		 */
+		value &= ~config->cs_sel_mask;
+		value |= cs;
+		__lpss_ssp_write_priv(drv_data,
+				      config->reg_cs_ctrl, value);
+		ndelay(1000000000 /
+		       (drv_data->master->max_speed_hz / 2));
+	}
+}
+
 static void lpss_ssp_cs_control(struct driver_data *drv_data, bool enable)
 {
 	const struct lpss_config *config;
-	u32 value, cs;
+	u32 value;
 
 	config = lpss_get_config(drv_data);
 
+	if (enable)
+		lpss_ssp_select_cs(drv_data, config);
+
 	value = __lpss_ssp_read_priv(drv_data, config->reg_cs_ctrl);
-	if (enable) {
-		cs = drv_data->cur_msg->spi->chip_select;
-		cs <<= LPSS_CS_CONTROL_CS_SEL_SHIFT;
-		if (cs != (value & LPSS_CS_CONTROL_CS_SEL_MASK)) {
-			/*
-			 * When switching another chip select output active
-			 * the output must be selected first and wait 2 ssp_clk
-			 * cycles before changing state to active. Otherwise
-			 * a short glitch will occur on the previous chip
-			 * select since output select is latched but state
-			 * control is not.
-			 */
-			value &= ~LPSS_CS_CONTROL_CS_SEL_MASK;
-			value |= cs;
-			__lpss_ssp_write_priv(drv_data,
-					      config->reg_cs_ctrl, value);
-			ndelay(1000000000 /
-			       (drv_data->master->max_speed_hz / 2));
-		}
+	if (enable)
 		value &= ~LPSS_CS_CONTROL_CS_HIGH;
-	} else {
+	else
 		value |= LPSS_CS_CONTROL_CS_HIGH;
-	}
 	__lpss_ssp_write_priv(drv_data, config->reg_cs_ctrl, value);
 }
 
