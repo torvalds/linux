@@ -294,8 +294,10 @@ static int nvmem_add_cells(struct nvmem_device *nvmem,
 
 	return 0;
 err:
-	while (--i)
+	while (i--)
 		nvmem_cell_drop(cells[i]);
+
+	kfree(cells);
 
 	return rval;
 }
