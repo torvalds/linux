@@ -129,7 +129,7 @@
 			#size-cells = <0>;
 		};
 
-		gpio0: gpio@e1040000 {
+		gpio0: gpio@e1040000 { /* Not available to OS for B0 */
 			status = "disabled";
 			compatible = "arm,pl061", "arm,primecell";
 			#gpio-cells = <2>;
@@ -138,18 +138,59 @@
 			interrupts = <0 359 4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			clocks = <&uartspiclk_100mhz>;
+			clocks = <&miscclk_250mhz>;
 			clock-names = "apb_pclk";
 		};
 
-		gpio1: gpio@e1050000 {
+		gpio1: gpio@e1050000 { /* [0:7] */
 			status = "disabled";
 			compatible = "arm,pl061", "arm,primecell";
 			#gpio-cells = <2>;
 			reg = <0 0xe1050000 0 0x1000>;
 			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <0 358 4>;
-			clocks = <&uartspiclk_100mhz>;
+			clocks = <&miscclk_250mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		gpio2: gpio@e0020000 { /* [8:15] */
+			status = "disabled";
+			compatible = "arm,pl061", "arm,primecell";
+			#gpio-cells = <2>;
+			reg = <0 0xe0020000 0 0x1000>;
+			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 366 4>;
+			clocks = <&miscclk_250mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		gpio3: gpio@e0030000 { /* [16:23] */
+			status = "disabled";
+			compatible = "arm,pl061", "arm,primecell";
+			#gpio-cells = <2>;
+			reg = <0 0xe0030000 0 0x1000>;
+			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 365 4>;
+			clocks = <&miscclk_250mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		gpio4: gpio@e0080000 { /* [24] */
+			status = "disabled";
+			compatible = "arm,pl061", "arm,primecell";
+			#gpio-cells = <2>;
+			reg = <0 0xe0080000 0 0x1000>;
+			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 361 4>;
+			clocks = <&miscclk_250mhz>;
 			clock-names = "apb_pclk";
 		};
 
