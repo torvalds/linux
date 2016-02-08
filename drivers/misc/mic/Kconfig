@@ -32,6 +32,23 @@ config SCIF_BUS
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
 
+comment "VOP Bus Driver"
+
+config VOP_BUS
+	tristate "VOP Bus Driver"
+	depends on 64BIT && PCI && X86 && X86_DEV_DMA_OPS
+	help
+	  This option is selected by any driver which registers a
+	  device or driver on the VOP Bus, such as CONFIG_INTEL_MIC_HOST
+	  and CONFIG_INTEL_MIC_CARD.
+
+	  If you are building a host/card kernel with an Intel MIC device
+	  then say M (recommended) or Y, else say N. If unsure say N.
+
+	  More information about the Intel MIC family as well as the Linux
+	  OS and tools for MIC to use with this driver are available from
+	  <http://software.intel.com/en-us/mic-developer>.
+
 comment "Intel MIC Host Driver"
 
 config INTEL_MIC_HOST
