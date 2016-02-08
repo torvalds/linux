@@ -16,6 +16,7 @@
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/ip.h>
 
 #include <asm/io.h>
 #include <asm/udbg.h>
@@ -58,19 +59,6 @@ struct gelic_descr {
 struct debug_block {
 	struct gelic_descr descr;
 	u8 pkt[1520];
-} __packed;
-
-struct iphdr {
-	u8 ver_len;
-	u8 dscp_ecn;
-	u16 total_length;
-	u16 ident;
-	u16 frag_off_flags;
-	u8 ttl;
-	u8 proto;
-	u16 checksum;
-	u32 src;
-	u32 dest;
 } __packed;
 
 struct udphdr {
@@ -189,11 +177,12 @@ static void gelic_debug_init(void)
 	}
 
 	header_size += sizeof(struct iphdr);
-	h_ip->ver_len = 0x45;
+	h_ip->version = 4;
+	h_ip->ihl = 5;
 	h_ip->ttl = 10;
-	h_ip->proto = 0x11;
-	h_ip->src = 0x00000000;
-	h_ip->dest = 0xffffffff;
+	h_ip->protocol = 0x11;
+	h_ip->saddr = 0x00000000;
+	h_ip->daddr = 0xffffffff;
 
 	header_size += sizeof(struct udphdr);
 	h_udp = (struct udphdr *)(h_ip + 1);
@@ -218,16 +207,16 @@ static void gelic_sendbuf(int msgsize)
 	int i;
 
 	dbg.descr.buf_size = header_size + msgsize;
-	h_ip->total_length = msgsize + sizeof(struct udphdr) +
+	h_ip->tot_len = msgsize + sizeof(struct udphdr) +
 			     sizeof(struct iphdr);
 	h_udp->len = msgsize + sizeof(struct udphdr);
 
-	h_ip->checksum = 0;
+	h_ip->check = 0;
 	sum = 0;
 	p = (u16 *)h_ip;
 	for (i = 0; i < 5; i++)
 		sum += *p++;
-	h_ip->checksum = ~(sum + (sum >> 16));
+	h_ip->check = ~(sum + (sum >> 16));
 
 	dbg.descr.dmac_cmd_status = GELIC_DESCR_DMA_CMD_NO_CHKSUM |
 				    GELIC_DESCR_TX_DMA_FRAME_TAIL;
