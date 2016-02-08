@@ -5,7 +5,7 @@
 #include <linux/slab.h>
 #include <asm/apicdef.h>
 
-#include "perf_event.h"
+#include "../../kernel/cpu/perf_event.h"
 
 static __initconst const u64 amd_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
