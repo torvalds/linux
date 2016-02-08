@@ -836,6 +836,8 @@ struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 
 bool efivar_validate(efi_guid_t vendor, efi_char16_t *var_name, u8 *data,
 		     unsigned long data_size);
+bool efivar_variable_is_removable(efi_guid_t vendor, const char *name,
+				  size_t len);
 
 extern struct work_struct efivar_work;
 void efivar_run_worker(void);
