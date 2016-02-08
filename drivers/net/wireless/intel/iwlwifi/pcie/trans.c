@@ -1646,9 +1646,6 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans->command_groups = trans_cfg->command_groups;
 	trans->command_groups_size = trans_cfg->command_groups_size;
 
-	/* init ref_count to 1 (should be cleared when ucode is loaded) */
-	trans_pcie->ref_count = 1;
-
 	/* Initialize NAPI here - it should be before registering to mac80211
 	 * in the opmode but after the HW struct is allocated.
 	 * As this function may be called again in some corner cases don't
@@ -1662,9 +1659,6 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
-
-	/* TODO: check if this is really needed */
-	pm_runtime_disable(trans->dev);
 
 	iwl_pcie_synchronize_irqs(trans);
 
