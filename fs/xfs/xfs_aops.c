@@ -1596,26 +1596,6 @@ xfs_end_io_direct_write(
 	return error;
 }
 
-static inline ssize_t
-xfs_vm_do_dio(
-	struct inode		*inode,
-	struct kiocb		*iocb,
-	struct iov_iter		*iter,
-	loff_t			offset,
-	dio_iodone_t		endio,
-	int			flags)
-{
-	struct block_device	*bdev;
-
-	if (IS_DAX(inode))
-		return dax_do_io(iocb, inode, iter, offset,
-				 xfs_get_blocks_direct, endio, 0);
-
-	bdev = xfs_find_bdev_for_inode(inode);
-	return  __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
-				     xfs_get_blocks_direct, endio, NULL, flags);
-}
-
 STATIC ssize_t
 xfs_vm_direct_IO(
 	struct kiocb		*iocb,
@@ -1623,11 +1603,23 @@ xfs_vm_direct_IO(
 	loff_t			offset)
 {
 	struct inode		*inode = iocb->ki_filp->f_mapping->host;
+	dio_iodone_t		*endio = NULL;
+	int			flags = 0;
+	struct block_device	*bdev;
 
-	if (iov_iter_rw(iter) == WRITE)
-		return xfs_vm_do_dio(inode, iocb, iter, offset,
-				     xfs_end_io_direct_write, DIO_ASYNC_EXTEND);
-	return xfs_vm_do_dio(inode, iocb, iter, offset, NULL, 0);
+	if (iov_iter_rw(iter) == WRITE) {
+		endio = xfs_end_io_direct_write;
+		flags = DIO_ASYNC_EXTEND;
+	}
+
+	if (IS_DAX(inode)) {
+		return dax_do_io(iocb, inode, iter, offset,
+				 xfs_get_blocks_direct, endio, 0);
+	}
+
+	bdev = xfs_find_bdev_for_inode(inode);
+	return  __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
+			xfs_get_blocks_direct, endio, NULL, flags);
 }
 
 /*
