@@ -13,6 +13,9 @@
  *
  */
 
+#include <linux/if_ether.h>
+#include <linux/etherdevice.h>
+
 #include <asm/io.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
@@ -54,12 +57,6 @@ struct gelic_descr {
 struct debug_block {
 	struct gelic_descr descr;
 	u8 pkt[1520];
-} __packed;
-
-struct ethhdr {
-	u8 dest[6];
-	u8 src[6];
-	u16 type;
 } __packed;
 
 struct vlantag {
@@ -173,8 +170,8 @@ static void gelic_debug_init(void)
 
 	h_eth = (struct ethhdr *)dbg.pkt;
 
-	memset(&h_eth->dest, 0xff, 6);
-	memcpy(&h_eth->src, &mac, 6);
+	eth_broadcast_addr(h_eth->h_dest);
+	memcpy(&h_eth->h_source, &mac, ETH_ALEN);
 
 	header_size = sizeof(struct ethhdr);
 
@@ -183,7 +180,7 @@ static void gelic_debug_init(void)
 				 GELIC_LV1_VLAN_TX_ETHERNET_0, 0, 0,
 				 &vlan_id, &v2);
 	if (!result) {
-		h_eth->type = 0x8100;
+		h_eth->h_proto= ETH_P_8021Q;
 
 		header_size += sizeof(struct vlantag);
 		h_vlan = (struct vlantag *)(h_eth + 1);
@@ -191,7 +188,7 @@ static void gelic_debug_init(void)
 		h_vlan->subtype = 0x0800;
 		h_ip = (struct iphdr *)(h_vlan + 1);
 	} else {
-		h_eth->type = 0x0800;
+		h_eth->h_proto= 0x0800;
 		h_ip = (struct iphdr *)(h_eth + 1);
 	}
 
