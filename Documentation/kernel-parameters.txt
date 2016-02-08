@@ -1496,6 +1496,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			could change it dynamically, usually by
 			/sys/module/printk/parameters/ignore_loglevel.
 
+	ignore_rlimit_data
+			Ignore RLIMIT_DATA setting for data mappings,
+			print warning at first misuse.  Can be changed via
+			/sys/module/kernel/parameters/ignore_rlimit_data.
+
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
 

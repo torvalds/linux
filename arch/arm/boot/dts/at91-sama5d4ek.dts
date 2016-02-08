@@ -160,8 +160,15 @@
 			};
 
 			macb0: ethernet@f8020000 {
+				pinctrl-0 = <&pinctrl_macb0_rmii &pinctrl_macb0_phy_irq>;
 				phy-mode = "rmii";
 				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+					interrupt-parent = <&pioE>;
+					interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+				};
 			};
 
 			mmc1: mmc@fc000000 {
@@ -193,6 +200,10 @@
 
 			pinctrl@fc06a000 {
 				board {
+					pinctrl_macb0_phy_irq: macb0_phy_irq {
+						atmel,pins =
+							<AT91_PIOE 1 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
 					pinctrl_mmc0_cd: mmc0_cd {
 						atmel,pins =
 							<AT91_PIOE 5 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;

@@ -145,7 +145,8 @@ config MENF21BMC_WATCHDOG
 config TANGOX_WATCHDOG
 	tristate "Sigma Designs SMP86xx/SMP87xx watchdog"
 	select WATCHDOG_CORE
-	depends on ARCH_TANGOX || COMPILE_TEST
+	depends on ARCH_TANGO || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Support for the watchdog in Sigma Designs SMP86xx (tango3)
 	  and SMP87xx (tango4) family chips.
@@ -618,6 +619,7 @@ config DIGICOLOR_WATCHDOG
 config LPC18XX_WATCHDOG
 	tristate "LPC18xx/43xx Watchdog"
 	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
 	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer
@@ -1374,6 +1376,7 @@ config BCM_KONA_WDT_DEBUG
 config BCM7038_WDT
 	tristate "BCM7038 Watchdog"
 	select WATCHDOG_CORE
+	depends on HAS_IOMEM
 	help
 	 Watchdog driver for the built-in hardware in Broadcom 7038 SoCs.
 
@@ -1383,6 +1386,7 @@ config IMGPDC_WDT
 	tristate "Imagination Technologies PDC Watchdog Timer"
 	depends on HAS_IOMEM
 	depends on METAG || MIPS || COMPILE_TEST
+	select WATCHDOG_CORE
 	help
 	  Driver for Imagination Technologies PowerDown Controller
 	  Watchdog Timer.
