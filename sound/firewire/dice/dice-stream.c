@@ -10,6 +10,7 @@
 #include "dice.h"
 
 #define	CALLBACK_TIMEOUT	200
+#define NOTIFICATION_TIMEOUT_MS	(2 * MSEC_PER_SEC)
 
 const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT] = {
 	/* mode 0 */
@@ -23,6 +24,35 @@ const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT] = {
 	[5] = 176400,
 	[6] = 192000,
 };
+
+/*
+ * This operation has an effect to synchronize GLOBAL_STATUS/GLOBAL_SAMPLE_RATE
+ * to GLOBAL_STATUS. Especially, just after powering on, these are different.
+ */
+static int ensure_phase_lock(struct snd_dice *dice)
+{
+	__be32 reg;
+	int err;
+
+	err = snd_dice_transaction_read_global(dice, GLOBAL_CLOCK_SELECT,
+					       &reg, sizeof(reg));
+	if (err < 0)
+		return err;
+
+	if (completion_done(&dice->clock_accepted))
+		reinit_completion(&dice->clock_accepted);
+
+	err = snd_dice_transaction_write_global(dice, GLOBAL_CLOCK_SELECT,
+						&reg, sizeof(reg));
+	if (err < 0)
+		return err;
+
+	if (wait_for_completion_timeout(&dice->clock_accepted,
+			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
 
 static void release_resources(struct snd_dice *dice,
 			      struct fw_iso_resources *resources)
@@ -222,10 +252,10 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 
 		amdtp_stream_set_sync(sync_mode, master, slave);
 
-		err = snd_dice_transaction_set_rate(dice, rate);
+		err = ensure_phase_lock(dice);
 		if (err < 0) {
 			dev_err(&dice->unit->device,
-				"fail to set sampling rate\n");
+				"fail to ensure phase lock\n");
 			goto end;
 		}
 

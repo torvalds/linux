@@ -154,7 +154,6 @@ static inline int snd_dice_transaction_read_sync(struct snd_dice *dice,
 
 int snd_dice_transaction_get_clock_source(struct snd_dice *dice,
 					  unsigned int *source);
-int snd_dice_transaction_set_rate(struct snd_dice *dice, unsigned int rate);
 int snd_dice_transaction_get_rate(struct snd_dice *dice, unsigned int *rate);
 int snd_dice_transaction_set_enable(struct snd_dice *dice);
 void snd_dice_transaction_clear_enable(struct snd_dice *dice);
