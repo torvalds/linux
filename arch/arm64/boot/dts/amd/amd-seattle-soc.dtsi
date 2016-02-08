@@ -91,7 +91,6 @@
 		spi0: ssp@e1020000 {
 			status = "disabled";
 			compatible = "arm,pl022", "arm,primecell";
-			#gpio-cells = <2>;
 			reg = <0 0xe1020000 0 0x1000>;
 			spi-controller;
 			interrupts = <0 330 4>;
@@ -102,7 +101,6 @@
 		spi1: ssp@e1030000 {
 			status = "disabled";
 			compatible = "arm,pl022", "arm,primecell";
-			#gpio-cells = <2>;
 			reg = <0 0xe1030000 0 0x1000>;
 			spi-controller;
 			interrupts = <0 329 4>;
