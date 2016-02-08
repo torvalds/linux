@@ -1032,7 +1032,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		return r;
 
 	if (resv) {
-		r = amdgpu_sync_resv(adev, &job->ibs[0].sync, resv,
+		r = amdgpu_sync_resv(adev, &job->sync, resv,
 				     AMDGPU_FENCE_OWNER_UNDEFINED);
 		if (r) {
 			DRM_ERROR("sync failed (%d).\n", r);

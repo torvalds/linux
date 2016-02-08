@@ -874,7 +874,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 
 	if (direct) {
 		r = amdgpu_ib_schedule(ring, 1, ib,
-				       AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+				       AMDGPU_FENCE_OWNER_UNDEFINED, NULL, &f);
 		if (r)
 			goto err_free;
 

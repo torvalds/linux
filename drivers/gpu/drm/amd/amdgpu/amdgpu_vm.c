@@ -473,7 +473,8 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 
 	if (ib->length_dw != 0) {
 		amdgpu_ring_pad_ib(ring, ib);
-		amdgpu_sync_resv(adev, &ib->sync, pd->tbo.resv, AMDGPU_FENCE_OWNER_VM);
+		amdgpu_sync_resv(adev, &job->sync, pd->tbo.resv,
+				 AMDGPU_FENCE_OWNER_VM);
 		WARN_ON(ib->length_dw > ndw);
 		r = amdgpu_job_submit(job, ring, AMDGPU_FENCE_OWNER_VM, &fence);
 		if (r)
@@ -714,7 +715,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	ib = &job->ibs[0];
 
-	r = amdgpu_sync_resv(adev, &ib->sync, vm->page_directory->tbo.resv,
+	r = amdgpu_sync_resv(adev, &job->sync, vm->page_directory->tbo.resv,
 			     owner);
 	if (r)
 		goto error_free;

@@ -411,7 +411,7 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
 
 	list_for_each_entry(e, &p->validated, tv.head) {
 		struct reservation_object *resv = e->robj->tbo.resv;
-		r = amdgpu_sync_resv(p->adev, &p->job->ibs[0].sync, resv, p->filp);
+		r = amdgpu_sync_resv(p->adev, &p->job->sync, resv, p->filp);
 
 		if (r)
 			return r;
@@ -491,7 +491,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 	if (r)
 		return r;
 
-	r = amdgpu_sync_fence(adev, &p->job->ibs[0].sync, vm->page_directory_fence);
+	r = amdgpu_sync_fence(adev, &p->job->sync, vm->page_directory_fence);
 	if (r)
 		return r;
 
@@ -517,14 +517,14 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 				return r;
 
 			f = bo_va->last_pt_update;
-			r = amdgpu_sync_fence(adev, &p->job->ibs[0].sync, f);
+			r = amdgpu_sync_fence(adev, &p->job->sync, f);
 			if (r)
 				return r;
 		}
 
 	}
 
-	r = amdgpu_vm_clear_invalids(adev, vm, &p->job->ibs[0].sync);
+	r = amdgpu_vm_clear_invalids(adev, vm, &p->job->sync);
 
 	if (amdgpu_vm_debug && p->bo_list) {
 		/* Invalidate all BOs to test for userspace bugs */
@@ -698,11 +698,8 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 				  struct amdgpu_cs_parser *p)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	struct amdgpu_ib *ib;
 	int i, j, r;
 
-	/* Add dependencies to first IB */
-	ib = &p->job->ibs[0];
 	for (i = 0; i < p->nchunks; ++i) {
 		struct drm_amdgpu_cs_chunk_dep *deps;
 		struct amdgpu_cs_chunk *chunk;
@@ -740,7 +737,8 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 				return r;
 
 			} else if (fence) {
-				r = amdgpu_sync_fence(adev, &ib->sync, fence);
+				r = amdgpu_sync_fence(adev, &p->job->sync,
+						      fence);
 				fence_put(fence);
 				amdgpu_ctx_put(ctx);
 				if (r)

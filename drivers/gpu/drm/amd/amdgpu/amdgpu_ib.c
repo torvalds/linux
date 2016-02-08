@@ -74,8 +74,6 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 	}
 
-	amdgpu_sync_create(&ib->sync);
-
 	ib->vm = vm;
 
 	return 0;
@@ -91,7 +89,6 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  */
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
 {
-	amdgpu_sync_free(&ib->sync);
 	amdgpu_sa_bo_free(adev, &ib->sa_bo, &ib->fence->base);
 	if (ib->fence)
 		fence_put(&ib->fence->base);
@@ -121,6 +118,7 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
  */
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct amdgpu_ib *ibs, void *owner,
+		       struct fence *last_vm_update,
 		       struct fence **f)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -152,16 +150,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return r;
 	}
 
-	r = amdgpu_sync_wait(&ibs->sync);
-	if (r) {
-		amdgpu_ring_undo(ring);
-		dev_err(adev->dev, "failed to sync wait (%d)\n", r);
-		return r;
-	}
-
 	if (vm) {
 		/* do context switch */
-		amdgpu_vm_flush(ring, vm, ib->sync.last_vm_update);
+		amdgpu_vm_flush(ring, vm, last_vm_update);
 
 		if (ring->funcs->emit_gds_switch)
 			amdgpu_ring_emit_gds_switch(ring, ib->vm->ids[ring->idx].id,

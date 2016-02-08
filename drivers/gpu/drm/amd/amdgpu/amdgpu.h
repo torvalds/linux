@@ -776,7 +776,6 @@ struct amdgpu_ib {
 	bool				grabbed_vmid;
 	struct amdgpu_vm		*vm;
 	struct amdgpu_ctx		*ctx;
-	struct amdgpu_sync		sync;
 	uint32_t			gds_base, gds_size;
 	uint32_t			gws_base, gws_size;
 	uint32_t			oa_base, oa_size;
@@ -1178,6 +1177,7 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib);
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct amdgpu_ib *ib, void *owner,
+		       struct fence *last_vm_update,
 		       struct fence **f);
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
@@ -1236,6 +1236,7 @@ struct amdgpu_job {
 	struct amd_sched_job    base;
 	struct amdgpu_device	*adev;
 	struct amdgpu_ring	*ring;
+	struct amdgpu_sync	sync;
 	struct amdgpu_ib	*ibs;
 	uint32_t		num_ibs;
 	void			*owner;
