@@ -2652,21 +2652,14 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 
 static u32 gfx_v7_0_ring_get_rptr_gfx(struct amdgpu_ring *ring)
 {
-	u32 rptr;
-
-	rptr = ring->adev->wb.wb[ring->rptr_offs];
-
-	return rptr;
+	return ring->adev->wb.wb[ring->rptr_offs];
 }
 
 static u32 gfx_v7_0_ring_get_wptr_gfx(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u32 wptr;
 
-	wptr = RREG32(mmCP_RB0_WPTR);
-
-	return wptr;
+	return RREG32(mmCP_RB0_WPTR);
 }
 
 static void gfx_v7_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
@@ -2679,21 +2672,13 @@ static void gfx_v7_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 
 static u32 gfx_v7_0_ring_get_rptr_compute(struct amdgpu_ring *ring)
 {
-	u32 rptr;
-
-	rptr = ring->adev->wb.wb[ring->rptr_offs];
-
-	return rptr;
+	return ring->adev->wb.wb[ring->rptr_offs];
 }
 
 static u32 gfx_v7_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
 {
-	u32 wptr;
-
 	/* XXX check if swapping is necessary on BE */
-	wptr = ring->adev->wb.wb[ring->wptr_offs];
-
-	return wptr;
+	return ring->adev->wb.wb[ring->wptr_offs];
 }
 
 static void gfx_v7_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
