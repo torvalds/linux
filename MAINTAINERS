@@ -685,6 +685,7 @@ M:	Tom Lendacky <thomas.lendacky@amd.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/amd/xgbe/
+F:	arch/arm64/boot/dts/amd/amd-seattle-xgbe*.dtsi
 
 AMS (Apple Motion Sensor) DRIVER
 M:	Michael Hanselmann <linux-kernel@hansmi.ch>
