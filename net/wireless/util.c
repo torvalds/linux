@@ -644,23 +644,93 @@ int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 }
 EXPORT_SYMBOL(ieee80211_data_from_8023);
 
+static void
+__frame_add_frag(struct sk_buff *skb, struct page *page,
+		 void *ptr, int len, int size)
+{
+	struct skb_shared_info *sh = skb_shinfo(skb);
+	int page_offset;
+
+	atomic_inc(&page->_count);
+	page_offset = ptr - page_address(page);
+	skb_add_rx_frag(skb, sh->nr_frags, page, page_offset, len, size);
+}
+
+static void
+__ieee80211_amsdu_copy_frag(struct sk_buff *skb, struct sk_buff *frame,
+			    int offset, int len)
+{
+	struct skb_shared_info *sh = skb_shinfo(skb);
+	const skb_frag_t *frag = &sh->frags[-1];
+	struct page *frag_page;
+	void *frag_ptr;
+	int frag_len, frag_size;
+	int head_size = skb->len - skb->data_len;
+	int cur_len;
+
+	frag_page = virt_to_head_page(skb->head);
+	frag_ptr = skb->data;
+	frag_size = head_size;
+
+	while (offset >= frag_size) {
+		offset -= frag_size;
+		frag++;
+		frag_page = skb_frag_page(frag);
+		frag_ptr = skb_frag_address(frag);
+		frag_size = skb_frag_size(frag);
+	}
+
+	frag_ptr += offset;
+	frag_len = frag_size - offset;
+
+	cur_len = min(len, frag_len);
+
+	__frame_add_frag(frame, frag_page, frag_ptr, cur_len, frag_size);
+	len -= cur_len;
+
+	while (len > 0) {
+		frag++;
+		frag_len = skb_frag_size(frag);
+		cur_len = min(len, frag_len);
+		__frame_add_frag(frame, skb_frag_page(frag),
+				 skb_frag_address(frag), cur_len, frag_len);
+		len -= cur_len;
+	}
+}
+
 static struct sk_buff *
 __ieee80211_amsdu_copy(struct sk_buff *skb, unsigned int hlen,
-		       int offset, int len)
+		       int offset, int len, bool reuse_frag)
 {
 	struct sk_buff *frame;
+	int cur_len = len;
 
 	if (skb->len - offset < len)
 		return NULL;
 
 	/*
+	 * When reusing framents, copy some data to the head to simplify
+	 * ethernet header handling and speed up protocol header processing
+	 * in the stack later.
+	 */
+	if (reuse_frag)
+		cur_len = min_t(int, len, 32);
+
+	/*
 	 * Allocate and reserve two bytes more for payload
 	 * alignment since sizeof(struct ethhdr) is 14.
 	 */
-	frame = dev_alloc_skb(hlen + sizeof(struct ethhdr) + 2 + len);
+	frame = dev_alloc_skb(hlen + sizeof(struct ethhdr) + 2 + cur_len);
 
 	skb_reserve(frame, hlen + sizeof(struct ethhdr) + 2);
-	skb_copy_bits(skb, offset, skb_put(frame, len), len);
+	skb_copy_bits(skb, offset, skb_put(frame, cur_len), cur_len);
+
+	len -= cur_len;
+	if (!len)
+		return frame;
+
+	offset += cur_len;
+	__ieee80211_amsdu_copy_frag(skb, frame, offset, len);
 
 	return frame;
 }
@@ -676,6 +746,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 	u8 *payload;
 	int offset = 0, remaining, err;
 	struct ethhdr eth;
+	bool reuse_frag = skb->head_frag && !skb_has_frag_list(skb);
 	bool reuse_skb = false;
 	bool last = false;
 
@@ -703,12 +774,13 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		offset += sizeof(struct ethhdr);
 		/* reuse skb for the last subframe */
 		last = remaining <= subframe_len + padding;
-		if (!skb_is_nonlinear(skb) && last) {
+		if (!skb_is_nonlinear(skb) && !reuse_frag && last) {
 			skb_pull(skb, offset);
 			frame = skb;
 			reuse_skb = true;
 		} else {
-			frame = __ieee80211_amsdu_copy(skb, hlen, offset, len);
+			frame = __ieee80211_amsdu_copy(skb, hlen, offset, len,
+						       reuse_frag);
 			if (!frame)
 				goto purge;
 
