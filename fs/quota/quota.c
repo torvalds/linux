@@ -79,7 +79,7 @@ unsigned int qtype_enforce_flag(int type)
 	return 0;
 }
 
-static int quota_quotaon(struct super_block *sb, int type, int cmd, qid_t id,
+static int quota_quotaon(struct super_block *sb, int type, qid_t id,
 		         struct path *path)
 {
 	if (!sb->s_qcop->quota_on && !sb->s_qcop->quota_enable)
@@ -659,7 +659,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 
 	switch (cmd) {
 	case Q_QUOTAON:
-		return quota_quotaon(sb, type, cmd, id, path);
+		return quota_quotaon(sb, type, id, path);
 	case Q_QUOTAOFF:
 		return quota_quotaoff(sb, type);
 	case Q_GETFMT:
