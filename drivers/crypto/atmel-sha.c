@@ -979,37 +979,17 @@ static int atmel_sha_update(struct ahash_request *req)
 static int atmel_sha_final(struct ahash_request *req)
 {
 	struct atmel_sha_reqctx *ctx = ahash_request_ctx(req);
-	struct atmel_sha_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
-	struct atmel_sha_dev *dd = tctx->dd;
-
-	int err = 0;
 
 	ctx->flags |= SHA_FLAGS_FINUP;
 
 	if (ctx->flags & SHA_FLAGS_ERROR)
 		return 0; /* uncompleted hash is not needed */
 
-	if (ctx->bufcnt) {
-		return atmel_sha_enqueue(req, SHA_OP_FINAL);
-	} else if (!(ctx->flags & SHA_FLAGS_PAD)) { /* add padding */
-		err = atmel_sha_hw_init(dd);
-		if (err)
-			goto err1;
-
-		dd->req = req;
-		dd->flags |= SHA_FLAGS_BUSY;
-		err = atmel_sha_final_req(dd);
-	} else {
+	if (ctx->flags & SHA_FLAGS_PAD)
 		/* copy ready hash (+ finalize hmac) */
 		return atmel_sha_finish(req);
-	}
 
-err1:
-	if (err != -EINPROGRESS)
-		/* done_task will not finish it, so do it here */
-		atmel_sha_finish_req(req, err);
-
-	return err;
+	return atmel_sha_enqueue(req, SHA_OP_FINAL);
 }
 
 static int atmel_sha_finup(struct ahash_request *req)
