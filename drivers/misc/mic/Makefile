@@ -8,3 +8,4 @@ obj-y += bus/
 obj-$(CONFIG_SCIF) += scif/
 obj-$(CONFIG_MIC_COSM) += cosm/
 obj-$(CONFIG_MIC_COSM) += cosm_client/
+obj-$(CONFIG_VOP) += vop/
