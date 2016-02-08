@@ -53,8 +53,8 @@ comment "Intel MIC Host Driver"
 
 config INTEL_MIC_HOST
 	tristate "Intel MIC Host Driver"
-	depends on 64BIT && PCI && X86 && INTEL_MIC_BUS && SCIF_BUS && MIC_COSM
-	select VHOST_RING
+	depends on 64BIT && PCI && X86
+	depends on INTEL_MIC_BUS && SCIF_BUS && MIC_COSM && VOP_BUS
 	help
 	  This enables Host Driver support for the Intel Many Integrated
 	  Core (MIC) family of PCIe form factor coprocessor devices that
@@ -73,7 +73,8 @@ comment "Intel MIC Card Driver"
 
 config INTEL_MIC_CARD
 	tristate "Intel MIC Card Driver"
-	depends on 64BIT && X86 && INTEL_MIC_BUS && SCIF_BUS && MIC_COSM
+	depends on 64BIT && X86
+	depends on INTEL_MIC_BUS && SCIF_BUS && MIC_COSM && VOP_BUS
 	select VIRTIO
 	help
 	  This enables card driver support for the Intel Many Integrated

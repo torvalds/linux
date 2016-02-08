@@ -29,6 +29,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mic_bus.h>
 #include "../bus/scif_bus.h"
+#include "../bus/vop_bus.h"
 #include "../bus/cosm_bus.h"
 #include "mic_intr.h"
 
@@ -68,6 +69,7 @@ extern struct cosm_hw_ops cosm_hw_ops;
  * @dma_ch - Array of DMA channels
  * @num_dma_ch - Number of DMA channels available
  * @scdev: SCIF device on the SCIF virtual bus.
+ * @vpdev: Virtio over PCIe device on the VOP virtual bus.
  * @cosm_dev: COSM device
  */
 struct mic_device {
@@ -92,6 +94,7 @@ struct mic_device {
 	struct dma_chan *dma_ch[MIC_MAX_DMA_CHAN];
 	int num_dma_ch;
 	struct scif_hw_dev *scdev;
+	struct vop_device *vpdev;
 	struct cosm_device *cosm_dev;
 };
 

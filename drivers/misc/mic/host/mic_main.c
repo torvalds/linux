@@ -317,6 +317,7 @@ static int __init mic_init(void)
 {
 	int ret;
 
+	request_module("mic_x100_dma");
 	mic_init_debugfs();
 	ida_init(&g_mic_ida);
 	ret = pci_register_driver(&mic_driver);

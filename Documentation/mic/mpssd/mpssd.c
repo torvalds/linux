@@ -926,7 +926,7 @@ add_virtio_device(struct mic_info *mic, struct mic_device_desc *dd)
 	char path[PATH_MAX];
 	int fd, err;
 
-	snprintf(path, PATH_MAX, "/dev/mic%d", mic->id);
+	snprintf(path, PATH_MAX, "/dev/vop_virtio%d", mic->id);
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
 		mpsslog("Could not open %s %s\n", path, strerror(errno));
