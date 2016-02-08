@@ -17,6 +17,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
+#include <linux/udp.h>
 
 #include <asm/io.h>
 #include <asm/udbg.h>
@@ -59,13 +60,6 @@ struct gelic_descr {
 struct debug_block {
 	struct gelic_descr descr;
 	u8 pkt[1520];
-} __packed;
-
-struct udphdr {
-	u16 src;
-	u16 dest;
-	u16 len;
-	u16 checksum;
 } __packed;
 
 static __iomem struct ethhdr *h_eth;
@@ -186,7 +180,7 @@ static void gelic_debug_init(void)
 
 	header_size += sizeof(struct udphdr);
 	h_udp = (struct udphdr *)(h_ip + 1);
-	h_udp->src = GELIC_DEBUG_PORT;
+	h_udp->source = GELIC_DEBUG_PORT;
 	h_udp->dest = GELIC_DEBUG_PORT;
 
 	pmsgc = pmsg = (char *)(h_udp + 1);
