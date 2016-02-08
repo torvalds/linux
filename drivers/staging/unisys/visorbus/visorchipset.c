@@ -86,8 +86,8 @@ visorchipset_release(struct inode *inode, struct file *file)
 */
 #define MIN_IDLE_SECONDS 10
 static unsigned long poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-static unsigned long most_recent_message_jiffies;	/* when we got our last
-						 * controlvm message */
+/* when we got our last controlvm message */
+static unsigned long most_recent_message_jiffies;
 static int visorbusregistered;
 
 #define MAX_CHIPSET_EVENTS 2
@@ -120,7 +120,8 @@ static struct visorchannel *controlvm_channel;
 struct visor_controlvm_payload_info {
 	u8 *ptr;		/* pointer to base address of payload pool */
 	u64 offset;		/* offset from beginning of controlvm
-				 * channel to beginning of payload * pool */
+				 * channel to beginning of payload * pool
+				 */
 	u32 bytes;		/* number of bytes in payload pool */
 };
 
@@ -184,7 +185,8 @@ struct putfile_request {
 	 * - this list is added to when controlvm messages come in that supply
 	 * file data
 	 * - this list is removed from via the hotplug program that is actually
-	 * consuming these buffers to write as file data */
+	 * consuming these buffers to write as file data
+	 */
 	struct list_head input_buffer_list;
 	spinlock_t req_list_lock;	/* lock for input_buffer_list */
 
@@ -788,13 +790,15 @@ chipset_init(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_2(CHIPSET_INIT_EXIT_PC, POSTCODE_SEVERITY_INFO);
 
 	/* Set features to indicate we support parahotplug (if Command
-	 * also supports it). */
+	 * also supports it).
+	 */
 	features =
 	    inmsg->cmd.init_chipset.
 	    features & ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG;
 
 	/* Set the "reply" bit so Command knows this is a
-	 * features-aware driver. */
+	 * features-aware driver.
+	 */
 	features |= ULTRA_CHIPSET_FEATURE_REPLY;
 
 cleanup:
