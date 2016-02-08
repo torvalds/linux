@@ -73,6 +73,7 @@ static int orangefs_revalidate_lookup(struct dentry *dentry)
 		}
 	}
 
+	dentry->d_time = jiffies + HZ;
 	ret = 1;
 out_release_op:
 	op_release(new_op);
@@ -93,6 +94,9 @@ out_drop:
 static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int ret;
+
+	if (dentry->d_time > jiffies)
+		return 1;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
