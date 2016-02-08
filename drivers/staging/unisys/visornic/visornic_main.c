@@ -377,8 +377,8 @@ visornic_serverdown(struct visornic_devdata *devdata,
 			__func__);
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		return -EINVAL;
-	} else
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
+	}
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 	return 0;
 }
 
