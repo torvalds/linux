@@ -1196,8 +1196,12 @@ cifs_parse_devname(const char *devname, struct smb_vol *vol)
 
 	convert_delimiter(vol->UNC, '\\');
 
-	/* If pos is NULL, or is a bogus trailing delimiter then no prepath */
-	if (!*pos++ || !*pos)
+	/* skip any delimiter */
+	if (*pos == '/' || *pos == '\\')
+		pos++;
+
+	/* If pos is NULL then no prepath */
+	if (!*pos)
 		return 0;
 
 	vol->prepath = kstrdup(pos, GFP_KERNEL);
