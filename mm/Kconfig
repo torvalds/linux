@@ -624,7 +624,7 @@ config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 	bool
 
 config DEFERRED_STRUCT_PAGE_INIT
-	bool "Defer initialisation of struct pages to kswapd"
+	bool "Defer initialisation of struct pages to kthreads"
 	default n
 	depends on ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 	depends on MEMORY_HOTPLUG
@@ -633,9 +633,10 @@ config DEFERRED_STRUCT_PAGE_INIT
 	  single thread. On very large machines this can take a considerable
 	  amount of time. If this option is set, large machines will bring up
 	  a subset of memmap at boot and then initialise the rest in parallel
-	  when kswapd starts. This has a potential performance impact on
-	  processes running early in the lifetime of the systemm until kswapd
-	  finishes the initialisation.
+	  by starting one-off "pgdatinitX" kernel thread for each node X. This
+	  has a potential performance impact on processes running early in the
+	  lifetime of the system until these kthreads finish the
+	  initialisation.
 
 config IDLE_PAGE_TRACKING
 	bool "Enable idle page tracking"

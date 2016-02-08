@@ -2823,7 +2823,7 @@ static int macb_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *phy_node;
 	const struct macb_config *macb_config = NULL;
-	struct clk *pclk, *hclk, *tx_clk;
+	struct clk *pclk, *hclk = NULL, *tx_clk = NULL;
 	unsigned int queue_mask, num_queues;
 	struct macb_platform_data *pdata;
 	bool native_io;

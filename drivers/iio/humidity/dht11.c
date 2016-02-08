@@ -133,7 +133,7 @@ static int dht11_decode(struct dht11 *dht11, int offset)
 	if (((hum_int + hum_dec + temp_int + temp_dec) & 0xff) != checksum)
 		return -EIO;
 
-	dht11->timestamp = ktime_get_real_ns();
+	dht11->timestamp = ktime_get_boot_ns();
 	if (hum_int < 20) {  /* DHT22 */
 		dht11->temperature = (((temp_int & 0x7f) << 8) + temp_dec) *
 					((temp_int & 0x80) ? -100 : 100);
@@ -161,7 +161,7 @@ static irqreturn_t dht11_handle_irq(int irq, void *data)
 
 	/* TODO: Consider making the handler safe for IRQ sharing */
 	if (dht11->num_edges < DHT11_EDGES_PER_READ && dht11->num_edges >= 0) {
-		dht11->edges[dht11->num_edges].ts = ktime_get_real_ns();
+		dht11->edges[dht11->num_edges].ts = ktime_get_boot_ns();
 		dht11->edges[dht11->num_edges++].value =
 						gpio_get_value(dht11->gpio);
 
@@ -180,7 +180,7 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 	int ret, timeres, offset;
 
 	mutex_lock(&dht11->lock);
-	if (dht11->timestamp + DHT11_DATA_VALID_TIME < ktime_get_real_ns()) {
+	if (dht11->timestamp + DHT11_DATA_VALID_TIME < ktime_get_boot_ns()) {
 		timeres = ktime_get_resolution_ns();
 		if (timeres > DHT11_MIN_TIMERES) {
 			dev_err(dht11->dev, "timeresolution %dns too low\n",
@@ -302,7 +302,7 @@ static int dht11_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dht11->timestamp = ktime_get_real_ns() - DHT11_DATA_VALID_TIME - 1;
+	dht11->timestamp = ktime_get_boot_ns() - DHT11_DATA_VALID_TIME - 1;
 	dht11->num_edges = -1;
 
 	platform_set_drvdata(pdev, iio);
