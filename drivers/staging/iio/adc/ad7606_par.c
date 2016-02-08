@@ -90,36 +90,6 @@ static int ad7606_par_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ad7606_par_suspend(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	ad7606_suspend(indio_dev);
-
-	return 0;
-}
-
-static int ad7606_par_resume(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	ad7606_resume(indio_dev);
-
-	return 0;
-}
-
-static const struct dev_pm_ops ad7606_pm_ops = {
-	.suspend = ad7606_par_suspend,
-	.resume  = ad7606_par_resume,
-};
-
-#define AD7606_PAR_PM_OPS (&ad7606_pm_ops)
-
-#else
-#define AD7606_PAR_PM_OPS NULL
-#endif  /* CONFIG_PM */
-
 static const struct platform_device_id ad7606_driver_ids[] = {
 	{
 		.name		= "ad7606-8",
@@ -142,7 +112,7 @@ static struct platform_driver ad7606_driver = {
 	.id_table = ad7606_driver_ids,
 	.driver = {
 		.name	 = "ad7606",
-		.pm    = AD7606_PAR_PM_OPS,
+		.pm	 = AD7606_PM_OPS,
 	},
 };
 

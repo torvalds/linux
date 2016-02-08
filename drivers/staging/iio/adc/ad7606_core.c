@@ -560,8 +560,11 @@ int ad7606_remove(struct iio_dev *indio_dev, int irq)
 }
 EXPORT_SYMBOL_GPL(ad7606_remove);
 
-void ad7606_suspend(struct iio_dev *indio_dev)
+#ifdef CONFIG_PM_SLEEP
+
+static int ad7606_suspend(struct device *dev)
 {
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	if (gpio_is_valid(st->pdata->gpio_stby)) {
@@ -569,11 +572,13 @@ void ad7606_suspend(struct iio_dev *indio_dev)
 			gpio_set_value(st->pdata->gpio_range, 1);
 		gpio_set_value(st->pdata->gpio_stby, 0);
 	}
-}
-EXPORT_SYMBOL_GPL(ad7606_suspend);
 
-void ad7606_resume(struct iio_dev *indio_dev)
+	return 0;
+}
+
+static int ad7606_resume(struct device *dev)
 {
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	if (gpio_is_valid(st->pdata->gpio_stby)) {
@@ -584,8 +589,14 @@ void ad7606_resume(struct iio_dev *indio_dev)
 		gpio_set_value(st->pdata->gpio_stby, 1);
 		ad7606_reset(st);
 	}
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(ad7606_resume);
+
+SIMPLE_DEV_PM_OPS(ad7606_pm_ops, ad7606_suspend, ad7606_resume);
+EXPORT_SYMBOL_GPL(ad7606_pm_ops);
+
+#endif
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7606 ADC");
