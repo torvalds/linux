@@ -850,6 +850,8 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	}
 
 end:
+	sti_plane_update_fps(plane, true, false);
+
 	plane->status = STI_PLANE_UPDATED;
 }
 

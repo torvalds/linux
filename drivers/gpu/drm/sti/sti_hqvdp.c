@@ -326,8 +326,6 @@ struct sti_hqvdp_cmd {
  * @reset:             reset control
  * @vtg_nb:            notifier to handle VTG Vsync
  * @btm_field_pending: is there any bottom field (interlaced frame) to display
- * @curr_field_count:  number of field updates
- * @last_field_count:  number of field updates since last fps measure
  * @hqvdp_cmd:         buffer of commands
  * @hqvdp_cmd_paddr:   physical address of hqvdp_cmd
  * @vtg:               vtg for main data path
@@ -343,8 +341,6 @@ struct sti_hqvdp {
 	struct reset_control *reset;
 	struct notifier_block vtg_nb;
 	bool btm_field_pending;
-	unsigned int curr_field_count;
-	unsigned int last_field_count;
 	void *hqvdp_cmd;
 	dma_addr_t hqvdp_cmd_paddr;
 	struct sti_vtg *vtg;
@@ -836,11 +832,12 @@ int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *data)
 		writel(hqvdp->hqvdp_cmd_paddr + btm_cmd_offset,
 				hqvdp->regs + HQVDP_MBX_NEXT_CMD);
 
-		hqvdp->curr_field_count++;
 		hqvdp->btm_field_pending = false;
 
 		dev_dbg(hqvdp->dev, "%s Posted command:0x%x\n",
 				__func__, hqvdp->hqvdp_cmd_paddr);
+
+		sti_plane_update_fps(&hqvdp->plane, false, true);
 	}
 
 	return 0;
@@ -1204,14 +1201,14 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	writel(hqvdp->hqvdp_cmd_paddr + cmd_offset,
 	       hqvdp->regs + HQVDP_MBX_NEXT_CMD);
 
-	hqvdp->curr_field_count++;
-
 	/* Interlaced : get ready to display the bottom field at next Vsync */
 	if (fb->flags & DRM_MODE_FB_INTERLACED)
 		hqvdp->btm_field_pending = true;
 
 	dev_dbg(hqvdp->dev, "%s Posted command:0x%x\n",
 		__func__, hqvdp->hqvdp_cmd_paddr + cmd_offset);
+
+	sti_plane_update_fps(plane, true, true);
 
 	plane->status = STI_PLANE_UPDATED;
 }

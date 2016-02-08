@@ -306,6 +306,8 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 	writel(cursor->clut_paddr, cursor->regs + CUR_CML);
 	writel(CUR_CTL_CLUT_UPDATE, cursor->regs + CUR_CTL);
 
+	sti_plane_update_fps(plane, true, false);
+
 	plane->status = STI_PLANE_UPDATED;
 }
 
