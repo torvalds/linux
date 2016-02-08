@@ -626,7 +626,7 @@
 			interrupts = <2 0>;
 			linux,code = <KEY_POWER>;
 			debounce-interval = <100>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		volume-down {
