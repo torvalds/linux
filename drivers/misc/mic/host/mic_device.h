@@ -64,9 +64,6 @@ extern struct cosm_hw_ops cosm_hw_ops;
  * @bootaddr: MIC boot address.
  * @dp: virtio device page
  * @dp_dma_addr: virtio device page DMA address.
- * @name: name for the misc char device
- * @miscdev: registered misc char device
- * @vdev_list: list of virtio devices.
  * @dma_mbdev: MIC BUS DMA device.
  * @dma_ch - Array of DMA channels
  * @num_dma_ch - Number of DMA channels available
@@ -91,9 +88,6 @@ struct mic_device {
 	u32 bootaddr;
 	void *dp;
 	dma_addr_t dp_dma_addr;
-	char name[16];
-	struct miscdevice miscdev;
-	struct list_head vdev_list;
 	struct mbus_device *dma_mbdev;
 	struct dma_chan *dma_ch[MIC_MAX_DMA_CHAN];
 	int num_dma_ch;

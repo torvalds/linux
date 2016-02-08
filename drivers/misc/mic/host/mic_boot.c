@@ -28,7 +28,6 @@
 #include "../common/mic_dev.h"
 #include "mic_device.h"
 #include "mic_smpt.h"
-#include "mic_virtio.h"
 
 static inline struct mic_device *scdev_to_mdev(struct scif_hw_dev *scdev)
 {
@@ -423,7 +422,6 @@ static void _mic_stop(struct cosm_device *cdev, bool force)
 	 * will be the first to be registered and the last to be
 	 * unregistered.
 	 */
-	mic_virtio_reset_devices(mdev);
 	scif_unregister_device(mdev->scdev);
 	mic_free_dma_chans(mdev);
 	mbus_unregister_device(mdev->dma_mbdev);
