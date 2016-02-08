@@ -438,7 +438,7 @@ parser_id_get(struct parser_context *ctx)
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (ctx == NULL)
+	if (!ctx)
 		return NULL_UUID_LE;
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	return phdr->id;
@@ -461,7 +461,7 @@ parser_param_start(struct parser_context *ctx,
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (ctx == NULL)
+	if (!ctx)
 		goto Away;
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	switch (which_string) {
@@ -522,7 +522,7 @@ parser_string_get(struct parser_context *ctx)
 	if (value_length < 0)	/* '\0' was not included in the length */
 		value_length = nscan;
 	value = kmalloc(value_length + 1, GFP_KERNEL | __GFP_NORETRY);
-	if (value == NULL)
+	if (!value)
 		return NULL;
 	if (value_length > 0)
 		memcpy(value, pscan, value_length);
@@ -875,7 +875,7 @@ bus_responder(enum controlvm_id cmd_id,
 	      struct controlvm_message_header *pending_msg_hdr,
 	      int response)
 {
-	if (pending_msg_hdr == NULL)
+	if (!pending_msg_hdr)
 		return;		/* no controlvm response needed */
 
 	if (pending_msg_hdr->id != (u32)cmd_id)
@@ -893,7 +893,7 @@ device_changestate_responder(enum controlvm_id cmd_id,
 	u32 bus_no = p->chipset_bus_no;
 	u32 dev_no = p->chipset_dev_no;
 
-	if (p->pending_msg_hdr == NULL)
+	if (!p->pending_msg_hdr)
 		return;		/* no controlvm response needed */
 	if (p->pending_msg_hdr->id != cmd_id)
 		return;
@@ -914,7 +914,7 @@ device_responder(enum controlvm_id cmd_id,
 		 struct controlvm_message_header *pending_msg_hdr,
 		 int response)
 {
-	if (pending_msg_hdr == NULL)
+	if (!pending_msg_hdr)
 		return;		/* no controlvm response needed */
 
 	if (pending_msg_hdr->id != (u32)cmd_id)
@@ -1180,7 +1180,7 @@ bus_configure(struct controlvm_message *inmsg,
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
-	} else if (bus_info->pending_msg_hdr != NULL) {
+	} else if (bus_info->pending_msg_hdr) {
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
