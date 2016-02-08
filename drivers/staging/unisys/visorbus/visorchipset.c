@@ -47,7 +47,6 @@
 
 #define VISORCHIPSET_MMAP_CONTROLCHANOFFSET	0x00000000
 
-
 #define UNISYS_SPAR_LEAF_ID 0x40000000
 
 /* The s-Par leaf ID returns "UnisysSpar64" encoded across ebx, ecx, edx */
@@ -379,7 +378,7 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 		rc = NULL;
 		goto cleanup;
 	}
-	ctx = kzalloc(allocbytes, GFP_KERNEL|__GFP_NORETRY);
+	ctx = kzalloc(allocbytes, GFP_KERNEL | __GFP_NORETRY);
 	if (!ctx) {
 		if (retry)
 			*retry = true;
@@ -522,7 +521,7 @@ parser_string_get(struct parser_context *ctx)
 		}
 	if (value_length < 0)	/* '\0' was not included in the length */
 		value_length = nscan;
-	value = kmalloc(value_length + 1, GFP_KERNEL|__GFP_NORETRY);
+	value = kmalloc(value_length + 1, GFP_KERNEL | __GFP_NORETRY);
 	if (value == NULL)
 		return NULL;
 	if (value_length > 0)
