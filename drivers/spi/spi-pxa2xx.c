@@ -1445,6 +1445,28 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 }
 #endif
 
+static int pxa2xx_spi_fw_translate_cs(struct spi_master *master, unsigned cs)
+{
+	struct driver_data *drv_data = spi_master_get_devdata(master);
+
+	if (has_acpi_companion(&drv_data->pdev->dev)) {
+		switch (drv_data->ssp_type) {
+		/*
+		 * For Atoms the ACPI DeviceSelection used by the Windows
+		 * driver starts from 1 instead of 0 so translate it here
+		 * to match what Linux expects.
+		 */
+		case LPSS_BYT_SSP:
+			return cs - 1;
+
+		default:
+			break;
+		}
+	}
+
+	return cs;
+}
+
 static int pxa2xx_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1497,6 +1519,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	master->setup = setup;
 	master->transfer_one_message = pxa2xx_spi_transfer_one_message;
 	master->unprepare_transfer_hardware = pxa2xx_spi_unprepare_transfer;
+	master->fw_translate_cs = pxa2xx_spi_fw_translate_cs;
 	master->auto_runtime_pm = true;
 
 	drv_data->ssp_type = ssp->type;
