@@ -381,6 +381,19 @@ config HW_RANDOM_STM32
 
 	  If unsure, say N.
 
+config HW_RANDOM_PIC32
+	tristate "Microchip PIC32 Random Number Generator support"
+	depends on HW_RANDOM && MACH_PIC32
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on a PIC32.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called pic32-rng.
+
+	  If unsure, say Y.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
