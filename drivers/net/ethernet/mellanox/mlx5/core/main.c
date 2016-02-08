@@ -78,6 +78,11 @@ struct mlx5_device_context {
 	void		       *context;
 };
 
+enum {
+	MLX5_ATOMIC_REQ_MODE_BE = 0x0,
+	MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS = 0x1,
+};
+
 static struct mlx5_profile profile[] = {
 	[0] = {
 		.mask           = 0,
@@ -387,7 +392,7 @@ query_ex:
 	return err;
 }
 
-static int set_caps(struct mlx5_core_dev *dev, void *in, int in_sz)
+static int set_caps(struct mlx5_core_dev *dev, void *in, int in_sz, int opmod)
 {
 	u32 out[MLX5_ST_SZ_DW(set_hca_cap_out)];
 	int err;
@@ -395,12 +400,53 @@ static int set_caps(struct mlx5_core_dev *dev, void *in, int in_sz)
 	memset(out, 0, sizeof(out));
 
 	MLX5_SET(set_hca_cap_in, in, opcode, MLX5_CMD_OP_SET_HCA_CAP);
+	MLX5_SET(set_hca_cap_in, in, op_mod, opmod << 1);
 	err = mlx5_cmd_exec(dev, in, in_sz, out, sizeof(out));
 	if (err)
 		return err;
 
 	err = mlx5_cmd_status_to_err_v2(out);
 
+	return err;
+}
+
+static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
+{
+	void *set_ctx;
+	void *set_hca_cap;
+	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	int req_endianness;
+	int err;
+
+	if (MLX5_CAP_GEN(dev, atomic)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+	} else {
+		return 0;
+	}
+
+	req_endianness =
+		MLX5_CAP_ATOMIC(dev,
+				supported_atomic_req_8B_endianess_mode_1);
+
+	if (req_endianness != MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS)
+		return 0;
+
+	set_ctx = kzalloc(set_sz, GFP_KERNEL);
+	if (!set_ctx)
+		return -ENOMEM;
+
+	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
+
+	/* Set requestor to host endianness */
+	MLX5_SET(atomic_caps, set_hca_cap, atomic_req_8B_endianess_mode,
+		 MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS);
+
+	err = set_caps(dev, set_ctx, set_sz, MLX5_SET_HCA_CAP_OP_MOD_ATOMIC);
+
+	kfree(set_ctx);
 	return err;
 }
 
@@ -445,7 +491,8 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 
 	MLX5_SET(cmd_hca_cap, set_hca_cap, log_uar_page_sz, PAGE_SHIFT - 12);
 
-	err = set_caps(dev, set_ctx, set_sz);
+	err = set_caps(dev, set_ctx, set_sz,
+		       MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
 
 query_ex:
 	kfree(set_ctx);
@@ -585,7 +632,8 @@ static void mlx5_irq_clear_affinity_hints(struct mlx5_core_dev *mdev)
 		mlx5_irq_clear_affinity_hint(mdev, i);
 }
 
-int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn, int *irqn)
+int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
+		    unsigned int *irqn)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
 	struct mlx5_eq *eq, *n;
@@ -666,7 +714,6 @@ clean:
 	return err;
 }
 
-#ifdef CONFIG_MLX5_CORE_EN
 static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 {
 	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)];
@@ -719,7 +766,6 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 
 	return -ENOTSUPP;
 }
-#endif
 
 static int map_bf_area(struct mlx5_core_dev *dev)
 {
@@ -965,13 +1011,11 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_pagealloc_cleanup;
 	}
 
-#ifdef CONFIG_MLX5_CORE_EN
 	err = mlx5_core_set_issi(dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to set issi\n");
 		goto err_disable_hca;
 	}
-#endif
 
 	err = mlx5_satisfy_startup_pages(dev, 1);
 	if (err) {
@@ -988,6 +1032,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	err = handle_hca_cap(dev);
 	if (err) {
 		dev_err(&pdev->dev, "handle_hca_cap failed\n");
+		goto reclaim_boot_pages;
+	}
+
+	err = handle_hca_cap_atomic(dev);
+	if (err) {
+		dev_err(&pdev->dev, "handle_hca_cap_atomic failed\n");
 		goto reclaim_boot_pages;
 	}
 

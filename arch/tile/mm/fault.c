@@ -35,7 +35,6 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
-#include <linux/context_tracking.h>
 
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
@@ -845,9 +844,7 @@ static inline void __do_page_fault(struct pt_regs *regs, int fault_num,
 void do_page_fault(struct pt_regs *regs, int fault_num,
 		   unsigned long address, unsigned long write)
 {
-	enum ctx_state prev_state = exception_enter();
 	__do_page_fault(regs, fault_num, address, write);
-	exception_exit(prev_state);
 }
 
 #if CHIP_HAS_TILE_DMA()

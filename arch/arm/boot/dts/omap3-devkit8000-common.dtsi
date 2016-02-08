@@ -64,7 +64,7 @@
 			label = "user";
 			gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
 			linux,code = <BTN_EXTRA>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

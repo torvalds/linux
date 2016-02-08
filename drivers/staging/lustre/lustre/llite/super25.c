@@ -106,7 +106,8 @@ static int __init init_lustre_lite(void)
 	rc = -ENOMEM;
 	ll_inode_cachep = kmem_cache_create("lustre_inode_cache",
 					    sizeof(struct ll_inode_info),
-					    0, SLAB_HWCACHE_ALIGN, NULL);
+					    0, SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
+					    NULL);
 	if (ll_inode_cachep == NULL)
 		goto out_cache;
 

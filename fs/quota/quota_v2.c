@@ -30,13 +30,13 @@ static void v2r1_mem2diskdqb(void *dp, struct dquot *dquot);
 static void v2r1_disk2memdqb(struct dquot *dquot, void *dp);
 static int v2r1_is_id(void *dp, struct dquot *dquot);
 
-static struct qtree_fmt_operations v2r0_qtree_ops = {
+static const struct qtree_fmt_operations v2r0_qtree_ops = {
 	.mem2disk_dqblk = v2r0_mem2diskdqb,
 	.disk2mem_dqblk = v2r0_disk2memdqb,
 	.is_id = v2r0_is_id,
 };
 
-static struct qtree_fmt_operations v2r1_qtree_ops = {
+static const struct qtree_fmt_operations v2r1_qtree_ops = {
 	.mem2disk_dqblk = v2r1_mem2diskdqb,
 	.disk2mem_dqblk = v2r1_disk2memdqb,
 	.is_id = v2r1_is_id,

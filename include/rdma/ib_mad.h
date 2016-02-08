@@ -438,6 +438,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
 /**
  * ib_mad_recv_handler - callback handler for a received MAD.
  * @mad_agent: MAD agent requesting the received MAD.
+ * @send_buf: Send buffer if found, else NULL
  * @mad_recv_wc: Received work completion information on the received MAD.
  *
  * MADs received in response to a send request operation will be handed to
@@ -447,6 +448,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
  * modify the data referenced by @mad_recv_wc.
  */
 typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
+				    struct ib_mad_send_buf *send_buf,
 				    struct ib_mad_recv_wc *mad_recv_wc);
 
 /**

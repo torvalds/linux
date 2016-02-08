@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include <subdev/ibus.h>
+#include "priv.h"
 
 static void
 gk104_ibus_intr_hub(struct nvkm_subdev *ibus, int i)
@@ -56,7 +56,7 @@ gk104_ibus_intr_gpc(struct nvkm_subdev *ibus, int i)
 	nvkm_mask(device, 0x128128 + (i * 0x0800), 0x00000200, 0x00000000);
 }
 
-static void
+void
 gk104_ibus_intr(struct nvkm_subdev *ibus)
 {
 	struct nvkm_device *device = ibus->device;

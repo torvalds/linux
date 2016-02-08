@@ -242,7 +242,7 @@ static void pca9532_input_work(struct work_struct *work)
 #ifdef CONFIG_LEDS_PCA9532_GPIO
 static int pca9532_gpio_request_pin(struct gpio_chip *gc, unsigned offset)
 {
-	struct pca9532_data *data = container_of(gc, struct pca9532_data, gpio);
+	struct pca9532_data *data = gpiochip_get_data(gc);
 	struct pca9532_led *led = &data->leds[offset];
 
 	if (led->type == PCA9532_TYPE_GPIO)
@@ -253,7 +253,7 @@ static int pca9532_gpio_request_pin(struct gpio_chip *gc, unsigned offset)
 
 static void pca9532_gpio_set_value(struct gpio_chip *gc, unsigned offset, int val)
 {
-	struct pca9532_data *data = container_of(gc, struct pca9532_data, gpio);
+	struct pca9532_data *data = gpiochip_get_data(gc);
 	struct pca9532_led *led = &data->leds[offset];
 
 	if (val)
@@ -266,7 +266,7 @@ static void pca9532_gpio_set_value(struct gpio_chip *gc, unsigned offset, int va
 
 static int pca9532_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 {
-	struct pca9532_data *data = container_of(gc, struct pca9532_data, gpio);
+	struct pca9532_data *data = gpiochip_get_data(gc);
 	unsigned char reg;
 
 	reg = i2c_smbus_read_byte_data(data->client, PCA9532_REG_INPUT(offset));
@@ -315,7 +315,7 @@ static int pca9532_destroy_devices(struct pca9532_data *data, int n_devs)
 	}
 
 #ifdef CONFIG_LEDS_PCA9532_GPIO
-	if (data->gpio.dev)
+	if (data->gpio.parent)
 		gpiochip_remove(&data->gpio);
 #endif
 
@@ -409,13 +409,13 @@ static int pca9532_configure(struct i2c_client *client,
 		data->gpio.can_sleep = 1;
 		data->gpio.base = pdata->gpio_base;
 		data->gpio.ngpio = data->chip_info->num_leds;
-		data->gpio.dev = &client->dev;
+		data->gpio.parent = &client->dev;
 		data->gpio.owner = THIS_MODULE;
 
-		err = gpiochip_add(&data->gpio);
+		err = gpiochip_add_data(&data->gpio, data);
 		if (err) {
 			/* Use data->gpio.dev as a flag for freeing gpiochip */
-			data->gpio.dev = NULL;
+			data->gpio.parent = NULL;
 			dev_warn(&client->dev, "could not add gpiochip\n");
 		} else {
 			dev_info(&client->dev, "gpios %i...%i\n",

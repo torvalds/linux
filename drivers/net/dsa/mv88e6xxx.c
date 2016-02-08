@@ -1532,7 +1532,7 @@ int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	/* no PVID with ranges, otherwise it's a bug */
 	if (pvid)
-		err = _mv88e6xxx_port_pvid_set(ds, port, vid);
+		err = _mv88e6xxx_port_pvid_set(ds, port, vlan->vid_end);
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
@@ -2163,7 +2163,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	 * database, and allow every port to egress frames on all other ports.
 	 */
 	reg = BIT(ps->num_ports) - 1; /* all ports */
-	ret = _mv88e6xxx_port_vlan_map_set(ds, port, reg & ~port);
+	reg &= ~BIT(port); /* except itself */
+	ret = _mv88e6xxx_port_vlan_map_set(ds, port, reg);
 	if (ret)
 		goto abort;
 

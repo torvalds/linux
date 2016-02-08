@@ -468,6 +468,127 @@ static int get_clk(struct platform_device *pdev, struct clk **clkp,
 	return 0;
 }
 
+static struct drm_encoder *get_encoder_from_crtc(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_encoder *encoder;
+
+	drm_for_each_encoder(encoder, dev)
+		if (encoder->crtc == crtc)
+			return encoder;
+
+	return NULL;
+}
+
+static int mdp5_get_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			       unsigned int flags, int *vpos, int *hpos,
+			       ktime_t *stime, ktime_t *etime,
+			       const struct drm_display_mode *mode)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	int line, vsw, vbp, vactive_start, vactive_end, vfp_end;
+	int ret = 0;
+
+	crtc = priv->crtcs[pipe];
+	if (!crtc) {
+		DRM_ERROR("Invalid crtc %d\n", pipe);
+		return 0;
+	}
+
+	encoder = get_encoder_from_crtc(crtc);
+	if (!encoder) {
+		DRM_ERROR("no encoder found for crtc %d\n", pipe);
+		return 0;
+	}
+
+	ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
+
+	vsw = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	vbp = mode->crtc_vtotal - mode->crtc_vsync_end;
+
+	/*
+	 * the line counter is 1 at the start of the VSYNC pulse and VTOTAL at
+	 * the end of VFP. Translate the porch values relative to the line
+	 * counter positions.
+	 */
+
+	vactive_start = vsw + vbp + 1;
+
+	vactive_end = vactive_start + mode->crtc_vdisplay;
+
+	/* last scan line before VSYNC */
+	vfp_end = mode->crtc_vtotal;
+
+	if (stime)
+		*stime = ktime_get();
+
+	line = mdp5_encoder_get_linecount(encoder);
+
+	if (line < vactive_start) {
+		line -= vactive_start;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
+	} else if (line > vactive_end) {
+		line = line - vfp_end - vactive_start;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
+	} else {
+		line -= vactive_start;
+	}
+
+	*vpos = line;
+	*hpos = 0;
+
+	if (etime)
+		*etime = ktime_get();
+
+	return ret;
+}
+
+static int mdp5_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
+				     int *max_error,
+				     struct timeval *vblank_time,
+				     unsigned flags)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc;
+
+	if (pipe < 0 || pipe >= priv->num_crtcs) {
+		DRM_ERROR("Invalid crtc %d\n", pipe);
+		return -EINVAL;
+	}
+
+	crtc = priv->crtcs[pipe];
+	if (!crtc) {
+		DRM_ERROR("Invalid crtc %d\n", pipe);
+		return -EINVAL;
+	}
+
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
+						     vblank_time, flags,
+						     &crtc->mode);
+}
+
+static u32 mdp5_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+
+	if (pipe < 0 || pipe >= priv->num_crtcs)
+		return 0;
+
+	crtc = priv->crtcs[pipe];
+	if (!crtc)
+		return 0;
+
+	encoder = get_encoder_from_crtc(crtc);
+	if (!encoder)
+		return 0;
+
+	return mdp5_encoder_get_framecount(encoder);
+}
+
 struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 {
 	struct platform_device *pdev = dev->platformdev;
@@ -590,6 +711,8 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 				!config->hw->intf.base[i])
 			continue;
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
+
+		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
 	}
 	mdp5_disable(mdp5_kms);
 	mdelay(16);
@@ -634,6 +757,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	dev->mode_config.min_height = 0;
 	dev->mode_config.max_width = config->hw->lm.max_width;
 	dev->mode_config.max_height = config->hw->lm.max_height;
+
+	dev->driver->get_vblank_timestamp = mdp5_get_vblank_timestamp;
+	dev->driver->get_scanout_position = mdp5_get_scanoutpos;
+	dev->driver->get_vblank_counter = mdp5_get_vblank_counter;
+	dev->max_vblank_count = 0xffffffff;
+	dev->vblank_disable_immediate = true;
 
 	return kms;
 

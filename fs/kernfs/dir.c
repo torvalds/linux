@@ -541,14 +541,7 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	if (!kn)
 		goto err_out1;
 
-	/*
-	 * If the ino of the sysfs entry created for a kmem cache gets
-	 * allocated from an ida layer, which is accounted to the memcg that
-	 * owns the cache, the memcg will get pinned forever. So do not account
-	 * ino ida allocations.
-	 */
-	ret = ida_simple_get(&root->ino_ida, 1, 0,
-			     GFP_KERNEL | __GFP_NOACCOUNT);
+	ret = ida_simple_get(&root->ino_ida, 1, 0, GFP_KERNEL);
 	if (ret < 0)
 		goto err_out2;
 	kn->ino = ret;
@@ -1518,9 +1511,9 @@ static loff_t kernfs_dir_fop_llseek(struct file *file, loff_t offset,
 	struct inode *inode = file_inode(file);
 	loff_t ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	ret = generic_file_llseek(file, offset, whence);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return ret;
 }

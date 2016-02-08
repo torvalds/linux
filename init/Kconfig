@@ -285,7 +285,7 @@ config FHANDLE
 
 config USELIB
 	bool "uselib syscall"
-	default y
+	def_bool ALPHA || M68K || SPARC || X86_32 || IA32_EMULATION
 	help
 	  This option enables the uselib syscall, a system call used in the
 	  dynamic linker from libc5 and earlier.  glibc does not use this
@@ -299,20 +299,15 @@ config AUDIT
 	help
 	  Enable auditing infrastructure that can be used with another
 	  kernel subsystem, such as SELinux (which requires this for
-	  logging of avc messages output).  Does not do system-call
-	  auditing without CONFIG_AUDITSYSCALL.
+	  logging of avc messages output).  System call auditing is included
+	  on architectures which support it.
 
 config HAVE_ARCH_AUDITSYSCALL
 	bool
 
 config AUDITSYSCALL
-	bool "Enable system-call auditing support"
+	def_bool y
 	depends on AUDIT && HAVE_ARCH_AUDITSYSCALL
-	default y if SECURITY_SELINUX
-	help
-	  Enable low-overhead system-call auditing infrastructure that
-	  can be used independently or with another kernel subsystem,
-	  such as SELinux.
 
 config AUDIT_WATCH
 	def_bool y
@@ -969,17 +964,6 @@ config MEMCG_SWAP_ENABLED
 	  For those who want to have the feature enabled by default should
 	  select this option (if, for some reason, they need to disable it
 	  then swapaccount=0 does the trick).
-config MEMCG_KMEM
-	bool "Memory Resource Controller Kernel Memory accounting"
-	depends on MEMCG
-	depends on SLUB || SLAB
-	help
-	  The Kernel Memory extension for Memory Resource Controller can limit
-	  the amount of memory used by kernel objects in the system. Those are
-	  fundamentally different from the entities handled by the standard
-	  Memory Controller, which are page-based, and can be swapped. Users of
-	  the kmem extension can use it to guarantee that no group of processes
-	  will ever exhaust kernel resources alone.
 
 config BLK_CGROUP
 	bool "IO controller"
@@ -1075,6 +1059,11 @@ config CGROUP_FREEZER
 	help
 	  Provides a way to freeze and unfreeze all tasks in a
 	  cgroup.
+
+	  This option affects the ORIGINAL cgroup interface. The cgroup2 memory
+	  controller includes important in-kernel memory consumers per default.
+
+	  If you're using cgroup2, say N.
 
 config CGROUP_HUGETLB
 	bool "HugeTLB controller"
@@ -1187,10 +1176,9 @@ config USER_NS
 	  to provide different user info for different servers.
 
 	  When user namespaces are enabled in the kernel it is
-	  recommended that the MEMCG and MEMCG_KMEM options also be
-	  enabled and that user-space use the memory control groups to
-	  limit the amount of memory a memory unprivileged users can
-	  use.
+	  recommended that the MEMCG option also be enabled and that
+	  user-space use the memory control groups to limit the amount
+	  of memory a memory unprivileged users can use.
 
 	  If unsure, say N.
 

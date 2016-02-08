@@ -24,6 +24,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/perf.h>
+#include <subdev/pci.h>
 
 u16
 nvbios_perf_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
@@ -145,6 +146,21 @@ nvbios_perfEp(struct nvkm_bios *bios, int idx,
 		break;
 	case 0x40:
 		info->voltage  = nvbios_rd08(bios, perf + 0x02);
+		switch (nvbios_rd08(bios, perf + 0xb) & 0x3) {
+		case 0:
+			info->pcie_speed = NVKM_PCIE_SPEED_5_0;
+			break;
+		case 3:
+		case 1:
+			info->pcie_speed = NVKM_PCIE_SPEED_2_5;
+			break;
+		case 2:
+			info->pcie_speed = NVKM_PCIE_SPEED_8_0;
+			break;
+		default:
+			break;
+		}
+		info->pcie_width = 0xff;
 		break;
 	default:
 		return 0x0000;

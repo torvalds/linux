@@ -516,7 +516,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 		return -EINVAL;
 
 	kbuf = memdup_user_nul(buf, count);
-	if (!IS_ERR(kbuf))
+	if (IS_ERR(kbuf))
 		return PTR_ERR(kbuf);
 
 	if (check_version(kbuf)) {

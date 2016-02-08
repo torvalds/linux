@@ -52,6 +52,7 @@
 
 #ifndef __KERNEL__
 #include <linux/types.h>
+#include <stdlib.h>
 
 struct agp_version {
 	__u16 major;

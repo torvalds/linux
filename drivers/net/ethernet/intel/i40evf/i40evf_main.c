@@ -1239,7 +1239,7 @@ static int i40evf_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot confiure RSS, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Cannot configure RSS, command %d pending\n",
 			adapter->current_op);
 		return -EBUSY;
 	}

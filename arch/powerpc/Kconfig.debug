@@ -64,17 +64,17 @@ config PPC_EMULATED_STATS
 	  emulated.
 
 config CODE_PATCHING_SELFTEST
-	bool "Run self-tests of the code-patching code."
+	bool "Run self-tests of the code-patching code"
 	depends on DEBUG_KERNEL
 	default n
 
 config FTR_FIXUP_SELFTEST
-	bool "Run self-tests of the feature-fixup code."
+	bool "Run self-tests of the feature-fixup code"
 	depends on DEBUG_KERNEL
 	default n
 
 config MSI_BITMAP_SELFTEST
-	bool "Run self-tests of the MSI bitmap code."
+	bool "Run self-tests of the MSI bitmap code"
 	depends on DEBUG_KERNEL
 	default n
 

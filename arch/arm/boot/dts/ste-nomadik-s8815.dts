@@ -163,7 +163,7 @@
 			label = "user_button";
 			gpios = <&gpio0 3 0x1>;
 			linux,code = <1>; /* KEY_ESC */
-			gpio-key,wakeup;
+			wakeup-source;
 			pinctrl-names = "default";
 			pinctrl-0 = <&user_button_default_mode>;
 		};

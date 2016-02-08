@@ -48,7 +48,7 @@
 			label = "button0";
 			linux,code = <BTN_0>;
 			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;		/* gpio_10 */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };

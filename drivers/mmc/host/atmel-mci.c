@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/types.h>
-#include <linux/platform_data/mmc-atmel-mci.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio.h>
@@ -2439,6 +2438,23 @@ static int atmci_configure_dma(struct atmel_mci *host)
 {
 	host->dma.chan = dma_request_slave_channel_reason(&host->pdev->dev,
 							"rxtx");
+
+	if (PTR_ERR(host->dma.chan) == -ENODEV) {
+		struct mci_platform_data *pdata = host->pdev->dev.platform_data;
+		dma_cap_mask_t mask;
+
+		if (!pdata->dma_filter)
+			return -ENODEV;
+
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_SLAVE, mask);
+
+		host->dma.chan = dma_request_channel(mask, pdata->dma_filter,
+						     pdata->dma_slave);
+		if (!host->dma.chan)
+			host->dma.chan = ERR_PTR(-ENODEV);
+	}
+
 	if (IS_ERR(host->dma.chan))
 		return PTR_ERR(host->dma.chan);
 

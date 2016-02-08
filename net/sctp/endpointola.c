@@ -333,7 +333,7 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 	if (!ep->base.bind_addr.port)
 		goto out;
 	t = sctp_epaddr_lookup_transport(ep, paddr);
-	if (!t || t->asoc->temp)
+	if (!t)
 		goto out;
 
 	*transport = t;

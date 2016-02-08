@@ -165,8 +165,6 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	list_for_each_entry_rcu(transport, &assoc->peer.transport_addr_list,
 			transports) {
 		addr = &transport->ipaddr;
-		if (transport->dead)
-			continue;
 
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (af->cmp_addr(addr, primary)) {
@@ -310,7 +308,7 @@ static struct sctp_transport *sctp_transport_get_next(struct seq_file *seq)
 static struct sctp_transport *sctp_transport_get_idx(struct seq_file *seq,
 						     loff_t pos)
 {
-	void *obj;
+	void *obj = SEQ_START_TOKEN;
 
 	while (pos && (obj = sctp_transport_get_next(seq)) && !IS_ERR(obj))
 		pos--;
@@ -347,7 +345,7 @@ static void *sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 	if (err)
 		return ERR_PTR(err);
 
-	return *pos ? sctp_transport_get_idx(seq, *pos) : SEQ_START_TOKEN;
+	return sctp_transport_get_idx(seq, *pos);
 }
 
 static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
@@ -380,6 +378,8 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	}
 
 	transport = (struct sctp_transport *)v;
+	if (!sctp_transport_hold(transport))
+		return 0;
 	assoc = transport->asoc;
 	epb = &assoc->base;
 	sk = epb->sk;
@@ -411,6 +411,8 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		sk->sk_sndbuf,
 		sk->sk_rcvbuf);
 	seq_printf(seq, "\n");
+
+	sctp_transport_put(transport);
 
 	return 0;
 }
@@ -462,7 +464,7 @@ static void *sctp_remaddr_seq_start(struct seq_file *seq, loff_t *pos)
 	if (err)
 		return ERR_PTR(err);
 
-	return *pos ? sctp_transport_get_idx(seq, *pos) : SEQ_START_TOKEN;
+	return sctp_transport_get_idx(seq, *pos);
 }
 
 static void *sctp_remaddr_seq_next(struct seq_file *seq, void *v, loff_t *pos)
@@ -489,12 +491,12 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 	}
 
 	tsp = (struct sctp_transport *)v;
+	if (!sctp_transport_hold(tsp))
+		return 0;
 	assoc = tsp->asoc;
 
 	list_for_each_entry_rcu(tsp, &assoc->peer.transport_addr_list,
 				transports) {
-		if (tsp->dead)
-			continue;
 		/*
 		 * The remote address (ADDR)
 		 */
@@ -543,6 +545,8 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "\n");
 	}
+
+	sctp_transport_put(tsp);
 
 	return 0;
 }

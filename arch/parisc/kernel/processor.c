@@ -44,6 +44,10 @@
 
 struct system_cpuinfo_parisc boot_cpu_data __read_mostly;
 EXPORT_SYMBOL(boot_cpu_data);
+#ifdef CONFIG_PA8X00
+int _parisc_requires_coherency __read_mostly;
+EXPORT_SYMBOL(_parisc_requires_coherency);
+#endif
 
 DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 
@@ -277,8 +281,12 @@ void __init collect_boot_cpu_data(void)
 	boot_cpu_data.cpu_type = parisc_get_cpu_type(boot_cpu_data.hversion);
 	boot_cpu_data.cpu_name = cpu_name_version[boot_cpu_data.cpu_type][0];
 	boot_cpu_data.family_name = cpu_name_version[boot_cpu_data.cpu_type][1];
-}
 
+#ifdef CONFIG_PA8X00
+	_parisc_requires_coherency = (boot_cpu_data.cpu_type == mako) ||
+				(boot_cpu_data.cpu_type == mako2);
+#endif
+}
 
 
 /**

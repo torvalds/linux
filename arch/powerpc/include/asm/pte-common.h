@@ -40,6 +40,11 @@
 #else
 #define _PAGE_RW 0
 #endif
+
+#ifndef _PAGE_PTE
+#define _PAGE_PTE 0
+#endif
+
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
 #endif

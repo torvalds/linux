@@ -2052,7 +2052,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->poll_cq = hfi1_poll_cq;
 	ibdev->req_notify_cq = hfi1_req_notify_cq;
 	ibdev->get_dma_mr = hfi1_get_dma_mr;
-	ibdev->reg_phys_mr = hfi1_reg_phys_mr;
 	ibdev->reg_user_mr = hfi1_reg_user_mr;
 	ibdev->dereg_mr = hfi1_dereg_mr;
 	ibdev->alloc_mr = hfi1_alloc_mr;

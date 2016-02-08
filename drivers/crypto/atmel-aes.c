@@ -280,6 +280,7 @@ static const char *atmel_aes_reg_name(u32 offset, char *tmp, size_t sz)
 	case AES_GCMHR(2):
 	case AES_GCMHR(3):
 		snprintf(tmp, sz, "GCMHR[%u]", (offset - AES_GCMHR(0)) >> 2);
+		break;
 
 	default:
 		snprintf(tmp, sz, "0x%02x", offset);
@@ -399,7 +400,7 @@ static int atmel_aes_hw_init(struct atmel_aes_dev *dd)
 {
 	int err;
 
-	err = clk_prepare_enable(dd->iclk);
+	err = clk_enable(dd->iclk);
 	if (err)
 		return err;
 
@@ -429,7 +430,7 @@ static int atmel_aes_hw_version_init(struct atmel_aes_dev *dd)
 
 	dev_info(dd->dev, "version: 0x%x\n", dd->hw_version);
 
-	clk_disable_unprepare(dd->iclk);
+	clk_disable(dd->iclk);
 	return 0;
 }
 
@@ -447,7 +448,7 @@ static inline bool atmel_aes_is_encrypt(const struct atmel_aes_dev *dd)
 
 static inline int atmel_aes_complete(struct atmel_aes_dev *dd, int err)
 {
-	clk_disable_unprepare(dd->iclk);
+	clk_disable(dd->iclk);
 	dd->flags &= ~AES_FLAGS_BUSY;
 
 	if (dd->is_async)
@@ -2090,9 +2091,13 @@ static int atmel_aes_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 
-	err = atmel_aes_hw_version_init(aes_dd);
+	err = clk_prepare(aes_dd->iclk);
 	if (err)
 		goto res_err;
+
+	err = atmel_aes_hw_version_init(aes_dd);
+	if (err)
+		goto iclk_unprepare;
 
 	atmel_aes_get_cap(aes_dd);
 
@@ -2126,6 +2131,8 @@ err_algs:
 err_aes_dma:
 	atmel_aes_buff_cleanup(aes_dd);
 err_aes_buff:
+iclk_unprepare:
+	clk_unprepare(aes_dd->iclk);
 res_err:
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
@@ -2153,6 +2160,8 @@ static int atmel_aes_remove(struct platform_device *pdev)
 
 	atmel_aes_dma_cleanup(aes_dd);
 	atmel_aes_buff_cleanup(aes_dd);
+
+	clk_unprepare(aes_dd->iclk);
 
 	return 0;
 }

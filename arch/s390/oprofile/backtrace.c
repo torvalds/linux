@@ -16,24 +16,23 @@ __show_trace(unsigned int *depth, unsigned long sp,
 	struct pt_regs *regs;
 
 	while (*depth) {
-		sp = sp & PSW_ADDR_INSN;
 		if (sp < low || sp > high - sizeof(*sf))
 			return sp;
 		sf = (struct stack_frame *) sp;
 		(*depth)--;
-		oprofile_add_trace(sf->gprs[8] & PSW_ADDR_INSN);
+		oprofile_add_trace(sf->gprs[8]);
 
 		/* Follow the backchain.  */
 		while (*depth) {
 			low = sp;
-			sp = sf->back_chain & PSW_ADDR_INSN;
+			sp = sf->back_chain;
 			if (!sp)
 				break;
 			if (sp <= low || sp > high - sizeof(*sf))
 				return sp;
 			sf = (struct stack_frame *) sp;
 			(*depth)--;
-			oprofile_add_trace(sf->gprs[8] & PSW_ADDR_INSN);
+			oprofile_add_trace(sf->gprs[8]);
 
 		}
 
@@ -46,7 +45,7 @@ __show_trace(unsigned int *depth, unsigned long sp,
 			return sp;
 		regs = (struct pt_regs *) sp;
 		(*depth)--;
-		oprofile_add_trace(sf->gprs[8] & PSW_ADDR_INSN);
+		oprofile_add_trace(sf->gprs[8]);
 		low = sp;
 		sp = regs->gprs[15];
 	}

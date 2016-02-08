@@ -3313,7 +3313,7 @@ static int __init omap_hwmod_setup_all(void)
 
 	return 0;
 }
-omap_core_initcall(omap_hwmod_setup_all);
+omap_postcore_initcall(omap_hwmod_setup_all);
 
 /**
  * omap_hwmod_enable - enable an omap_hwmod

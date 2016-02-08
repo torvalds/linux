@@ -48,7 +48,7 @@ struct channel_path {
 	/* Channel-measurement related stuff: */
 	int cmg;
 	int shared;
-	void *cmg_chars;
+	struct cmg_chars cmg_chars;
 };
 
 /* Return channel_path struct for given chpid. */

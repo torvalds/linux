@@ -387,7 +387,7 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 		vb2_dvb_alloc_frontend(
 			&ndev->frontends[num], 3) == NULL) {
 		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to to alllocate vb2_dvb_frontend\n",
+			"%s(): unable to allocate vb2_dvb_frontend\n",
 			__func__);
 		return -ENOMEM;
 	}

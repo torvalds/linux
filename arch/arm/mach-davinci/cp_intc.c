@@ -19,7 +19,7 @@
 #include <linux/of_irq.h>
 
 #include <mach/common.h>
-#include <mach/cp_intc.h>
+#include "cp_intc.h"
 
 static inline unsigned int cp_intc_read(unsigned offset)
 {

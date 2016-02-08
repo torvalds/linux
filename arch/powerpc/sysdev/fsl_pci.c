@@ -218,6 +218,19 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	 */
 	setup_inbound = !is_kdump();
 
+	if (of_device_is_compatible(hose->dn, "fsl,bsc9132-pcie")) {
+		/*
+		 * BSC9132 Rev1.0 has an issue where all the PEX inbound
+		 * windows have implemented the default target value as 0xf
+		 * for CCSR space.In all Freescale legacy devices the target
+		 * of 0xf is reserved for local memory space. 9132 Rev1.0
+		 * now has local mempry space mapped to target 0x0 instead of
+		 * 0xf. Hence adding a workaround to remove the target 0xf
+		 * defined for memory space from Inbound window attributes.
+		 */
+		piwar &= ~PIWAR_TGI_LOCAL;
+	}
+
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		if (in_be32(&pci->block_rev1) >= PCIE_IP_REV_2_2) {
 			win_idx = 2;

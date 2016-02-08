@@ -80,29 +80,13 @@ int ehca_destroy_ah(struct ib_ah *ah);
 
 struct ib_mr *ehca_get_dma_mr(struct ib_pd *pd, int mr_access_flags);
 
-struct ib_mr *ehca_reg_phys_mr(struct ib_pd *pd,
-			       struct ib_phys_buf *phys_buf_array,
-			       int num_phys_buf,
-			       int mr_access_flags, u64 *iova_start);
-
 struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			       u64 virt, int mr_access_flags,
 			       struct ib_udata *udata);
 
-int ehca_rereg_phys_mr(struct ib_mr *mr,
-		       int mr_rereg_mask,
-		       struct ib_pd *pd,
-		       struct ib_phys_buf *phys_buf_array,
-		       int num_phys_buf, int mr_access_flags, u64 *iova_start);
-
-int ehca_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr);
-
 int ehca_dereg_mr(struct ib_mr *mr);
 
 struct ib_mw *ehca_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
-
-int ehca_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
-		 struct ib_mw_bind *mw_bind);
 
 int ehca_dealloc_mw(struct ib_mw *mw);
 

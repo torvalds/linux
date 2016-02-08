@@ -5,6 +5,7 @@
 
 #include <subdev/mmu.h>
 
+struct gk104_fifo_chan;
 struct gk104_fifo_engn {
 	struct nvkm_memory *runlist[2];
 	int cur_runlist;
@@ -35,7 +36,9 @@ void gk104_fifo_fini(struct nvkm_fifo *);
 void gk104_fifo_intr(struct nvkm_fifo *);
 void gk104_fifo_uevent_init(struct nvkm_fifo *);
 void gk104_fifo_uevent_fini(struct nvkm_fifo *);
-void gk104_fifo_runlist_update(struct gk104_fifo *, u32 engine);
+void gk104_fifo_runlist_insert(struct gk104_fifo *, struct gk104_fifo_chan *);
+void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
+void gk104_fifo_runlist_commit(struct gk104_fifo *, u32 engine);
 
 static inline u64
 gk104_fifo_engine_subdev(int engine)

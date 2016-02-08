@@ -45,10 +45,10 @@ struct eventfd_ctx {
  *
  * This function is supposed to be called by the kernel in paths that do not
  * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
- * value, and we signal this as overflow condition by returining a POLLERR
+ * value, and we signal this as overflow condition by returning a POLLERR
  * to poll(2).
  *
- * Returns the amount by which the counter was incrememnted.  This will be less
+ * Returns the amount by which the counter was incremented.  This will be less
  * than @n if the counter has overflowed.
  */
 __u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n)
