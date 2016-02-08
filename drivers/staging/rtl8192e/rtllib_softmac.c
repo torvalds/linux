@@ -355,9 +355,9 @@ static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 	req->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_PROBE_REQ);
 	req->header.duration_id = 0;
 
-	memset(req->header.addr1, 0xff, ETH_ALEN);
+	eth_broadcast_addr(req->header.addr1);
 	ether_addr_copy(req->header.addr2, ieee->dev->dev_addr);
-	memset(req->header.addr3, 0xff, ETH_ALEN);
+	eth_broadcast_addr(req->header.addr3);
 
 	tag = (u8 *) skb_put(skb, len + 2 + rate_len);
 
