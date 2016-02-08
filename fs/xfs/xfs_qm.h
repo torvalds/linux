@@ -104,15 +104,15 @@ xfs_dquot_tree(
 }
 
 static inline struct xfs_inode *
-xfs_dq_to_quota_inode(struct xfs_dquot *dqp)
+xfs_quota_inode(xfs_mount_t *mp, uint dq_flags)
 {
-	switch (dqp->dq_flags & XFS_DQ_ALLTYPES) {
+	switch (dq_flags & XFS_DQ_ALLTYPES) {
 	case XFS_DQ_USER:
-		return dqp->q_mount->m_quotainfo->qi_uquotaip;
+		return mp->m_quotainfo->qi_uquotaip;
 	case XFS_DQ_GROUP:
-		return dqp->q_mount->m_quotainfo->qi_gquotaip;
+		return mp->m_quotainfo->qi_gquotaip;
 	case XFS_DQ_PROJ:
-		return dqp->q_mount->m_quotainfo->qi_pquotaip;
+		return mp->m_quotainfo->qi_pquotaip;
 	default:
 		ASSERT(0);
 	}

@@ -464,12 +464,13 @@ xfs_qm_dqtobp(
 	struct xfs_bmbt_irec	map;
 	int			nmaps = 1, error;
 	struct xfs_buf		*bp;
-	struct xfs_inode	*quotip = xfs_dq_to_quota_inode(dqp);
+	struct xfs_inode	*quotip;
 	struct xfs_mount	*mp = dqp->q_mount;
 	xfs_dqid_t		id = be32_to_cpu(dqp->q_core.d_id);
 	struct xfs_trans	*tp = (tpp ? *tpp : NULL);
 	uint			lock_mode;
 
+	quotip = xfs_quota_inode(dqp->q_mount, dqp->dq_flags);
 	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 
 	lock_mode = xfs_ilock_data_map_shared(quotip);
