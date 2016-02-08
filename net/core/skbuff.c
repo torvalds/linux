@@ -767,7 +767,7 @@ void __kfree_skb_flush(void)
 	}
 }
 
-static void __kfree_skb_defer(struct sk_buff *skb)
+static inline void _kfree_skb_defer(struct sk_buff *skb)
 {
 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
 
@@ -788,6 +788,10 @@ static void __kfree_skb_defer(struct sk_buff *skb)
 				     nc->skb_cache);
 		nc->skb_count = 0;
 	}
+}
+void __kfree_skb_defer(struct sk_buff *skb)
+{
+	_kfree_skb_defer(skb);
 }
 
 void napi_consume_skb(struct sk_buff *skb, int budget)
@@ -814,7 +818,7 @@ void napi_consume_skb(struct sk_buff *skb, int budget)
 		return;
 	}
 
-	__kfree_skb_defer(skb);
+	_kfree_skb_defer(skb);
 }
 EXPORT_SYMBOL(napi_consume_skb);
 
