@@ -92,7 +92,6 @@ struct vc4_dev {
 	struct work_struct overflow_mem_work;
 
 	struct {
-		uint32_t last_ct0ca, last_ct1ca;
 		struct timer_list timer;
 		struct work_struct reset_work;
 	} hangcheck;
@@ -191,6 +190,11 @@ to_vc4_encoder(struct drm_encoder *encoder)
 struct vc4_exec_info {
 	/* Sequence number for this bin/render job. */
 	uint64_t seqno;
+
+	/* Last current addresses the hardware was processing when the
+	 * hangcheck timer checked on us.
+	 */
+	uint32_t last_ct0ca, last_ct1ca;
 
 	/* Kernel-space copy of the ioctl arguments */
 	struct drm_vc4_submit_cl *args;

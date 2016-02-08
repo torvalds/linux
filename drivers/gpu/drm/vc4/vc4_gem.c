@@ -257,10 +257,17 @@ vc4_hangcheck_elapsed(unsigned long data)
 	struct drm_device *dev = (struct drm_device *)data;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t ct0ca, ct1ca;
+	unsigned long irqflags;
+	struct vc4_exec_info *exec;
+
+	spin_lock_irqsave(&vc4->job_lock, irqflags);
+	exec = vc4_first_job(vc4);
 
 	/* If idle, we can stop watching for hangs. */
-	if (list_empty(&vc4->job_list))
+	if (!exec) {
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 		return;
+	}
 
 	ct0ca = V3D_READ(V3D_CTNCA(0));
 	ct1ca = V3D_READ(V3D_CTNCA(1));
@@ -268,13 +275,15 @@ vc4_hangcheck_elapsed(unsigned long data)
 	/* If we've made any progress in execution, rearm the timer
 	 * and wait.
 	 */
-	if (ct0ca != vc4->hangcheck.last_ct0ca ||
-	    ct1ca != vc4->hangcheck.last_ct1ca) {
-		vc4->hangcheck.last_ct0ca = ct0ca;
-		vc4->hangcheck.last_ct1ca = ct1ca;
+	if (ct0ca != exec->last_ct0ca || ct1ca != exec->last_ct1ca) {
+		exec->last_ct0ca = ct0ca;
+		exec->last_ct1ca = ct1ca;
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 		vc4_queue_hangcheck(dev);
 		return;
 	}
+
+	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
 	/* We've gone too long with no progress, reset.  This has to
 	 * be done from a work struct, since resetting can sleep and
