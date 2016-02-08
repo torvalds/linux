@@ -124,7 +124,8 @@ vbuschannel_itoa(char *p, int remain, int num)
 	}
 	if (remain < digits) {
 		/* not enough room left at <p> to hold number, so fill with
-		 * '?' */
+		 * '?'
+		 */
 		for (i = 0; i < remain; i++, p++)
 			*p = '?';
 		return remain;
