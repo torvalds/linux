@@ -491,6 +491,8 @@ int component_add(struct device *dev, const struct component_ops *ops)
 
 	ret = try_to_bring_up_masters(component);
 	if (ret < 0) {
+		if (component->master)
+			remove_component(component->master, component);
 		list_del(&component->node);
 
 		kfree(component);
