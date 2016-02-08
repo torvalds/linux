@@ -1789,16 +1789,20 @@ static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value)
 {
-	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
+	/*
+	 * We treat the cursor plane as always-on for the purposes of watermark
+	 * calculation.  Until we have two-stage watermark programming merged,
+	 * this is necessary to avoid flickering.
+	 */
+	int cpp = 4;
+	int width = pstate->visible ? pstate->base.crtc_w : 64;
 
-	if (!cstate->base.active || !pstate->visible)
+	if (!cstate->base.active)
 		return 0;
 
 	return ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
 			      cstate->base.adjusted_mode.crtc_htotal,
-			      drm_rect_width(&pstate->dst),
-			      bpp,
-			      mem_value);
+			      width, cpp, mem_value);
 }
 
 /* Only for WM_LP. */
