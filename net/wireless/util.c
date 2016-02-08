@@ -676,7 +676,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 	u8 *payload;
 	int offset = 0, remaining, err;
 	struct ethhdr eth;
-	bool reuse_skb = true;
+	bool reuse_skb = false;
 	bool last = false;
 
 	if (has_80211_header) {
