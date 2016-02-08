@@ -10,6 +10,8 @@
 
 #include <linux/platform_device.h>
 
+#include "common.h"
+
 int __init shmobile_cpufreq_init(void)
 {
 	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
