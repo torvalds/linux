@@ -353,7 +353,6 @@ static void controlvm_respond_physdev_changestate(
 		struct controlvm_message_header *msg_hdr, int response,
 		struct spar_segment_state state);
 
-
 static void parser_done(struct parser_context *ctx);
 
 static struct parser_context *
@@ -529,7 +528,6 @@ parser_string_get(struct parser_context *ctx)
 	((u8 *) (value))[value_length] = '\0';
 	return value;
 }
-
 
 static ssize_t toolaction_show(struct device *dev,
 			       struct device_attribute *attr,
@@ -707,6 +705,7 @@ static int match_visorbus_dev_by_id(struct device *dev, void *data)
 
 	return 0;
 }
+
 struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 					       struct visor_device *from)
 {
