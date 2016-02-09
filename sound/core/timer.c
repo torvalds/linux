@@ -508,9 +508,13 @@ static int _snd_timer_stop(struct snd_timer_instance *timeri, int event)
 			spin_unlock_irqrestore(&slave_active_lock, flags);
 			return -EBUSY;
 		}
+		if (timeri->timer)
+			spin_lock(&timeri->timer->lock);
 		timeri->flags &= ~SNDRV_TIMER_IFLG_RUNNING;
 		list_del_init(&timeri->ack_list);
 		list_del_init(&timeri->active_list);
+		if (timeri->timer)
+			spin_unlock(&timeri->timer->lock);
 		spin_unlock_irqrestore(&slave_active_lock, flags);
 		goto __end;
 	}
