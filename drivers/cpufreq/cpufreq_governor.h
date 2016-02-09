@@ -110,6 +110,26 @@ static ssize_t store_##file_name##_gov_pol				\
 show_one(_gov, file_name);						\
 store_one(_gov, file_name)
 
+#define show_one_common(_gov, file_name)				\
+static ssize_t show_##file_name##_gov_sys				\
+(struct kobject *kobj, struct attribute *attr, char *buf)		\
+{									\
+	struct dbs_data *dbs_data = _gov##_dbs_gov.gdbs_data;		\
+	return sprintf(buf, "%u\n", dbs_data->file_name);		\
+}									\
+									\
+static ssize_t show_##file_name##_gov_pol				\
+(struct cpufreq_policy *policy, char *buf)				\
+{									\
+	struct policy_dbs_info *policy_dbs = policy->governor_data;	\
+	struct dbs_data *dbs_data = policy_dbs->dbs_data;		\
+	return sprintf(buf, "%u\n", dbs_data->file_name);		\
+}
+
+#define show_store_one_common(_gov, file_name)				\
+show_one_common(_gov, file_name);					\
+store_one(_gov, file_name)
+
 /* create helper routines */
 #define define_get_cpu_dbs_routines(_dbs_info)				\
 static struct cpu_dbs_info *get_cpu_cdbs(int cpu)			\
@@ -262,22 +282,6 @@ static inline int delay_for_sampling_rate(unsigned int sampling_rate)
 		delay -= jiffies % delay;
 
 	return delay;
-}
-
-#define declare_show_sampling_rate_min(_gov)				\
-static ssize_t show_sampling_rate_min_gov_sys				\
-(struct kobject *kobj, struct attribute *attr, char *buf)		\
-{									\
-	struct dbs_data *dbs_data = _gov##_dbs_gov.gdbs_data;		\
-	return sprintf(buf, "%u\n", dbs_data->min_sampling_rate);	\
-}									\
-									\
-static ssize_t show_sampling_rate_min_gov_pol				\
-(struct cpufreq_policy *policy, char *buf)				\
-{									\
-	struct policy_dbs_info *policy_dbs = policy->governor_data;	\
-	struct dbs_data *dbs_data = policy_dbs->dbs_data;		\
-	return sprintf(buf, "%u\n", dbs_data->min_sampling_rate);	\
 }
 
 extern struct mutex dbs_data_mutex;
