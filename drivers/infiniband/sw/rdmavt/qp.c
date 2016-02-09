@@ -685,6 +685,19 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	}
 
 	rdi->n_qps_allocated++;
+	/*
+	 * Maintain a busy_jiffies variable that will be added to the timeout
+	 * period in mod_retry_timer and add_retry_timer. This busy jiffies
+	 * is scaled by the number of rc qps created for the device to reduce
+	 * the number of timeouts occurring when there is a large number of
+	 * qps. busy_jiffies is incremented every rc qp scaling interval.
+	 * The scaling interval is selected based on extensive performance
+	 * evaluation of targeted workloads.
+	 */
+	if (init_attr->qp_type == IB_QPT_RC) {
+		rdi->n_rc_qps++;
+		rdi->busy_jiffies = rdi->n_rc_qps / RC_QP_SCALING_INTERVAL;
+	}
 	spin_unlock(&rdi->n_qps_lock);
 
 	if (qp->ip) {
@@ -1223,6 +1236,10 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 
 	spin_lock(&rdi->n_qps_lock);
 	rdi->n_qps_allocated--;
+	if (qp->ibqp.qp_type == IB_QPT_RC) {
+		rdi->n_rc_qps--;
+		rdi->busy_jiffies = rdi->n_rc_qps / RC_QP_SCALING_INTERVAL;
+	}
 	spin_unlock(&rdi->n_qps_lock);
 
 	if (qp->ip)

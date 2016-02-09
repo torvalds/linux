@@ -318,7 +318,9 @@ struct rvt_dev_info {
 	/* QP */
 	struct rvt_qp_ibdev *qp_dev;
 	u32 n_qps_allocated;    /* number of QPs allocated for device */
-	spinlock_t n_qps_lock; /* keep track of number of qps */
+	u32 n_rc_qps;		/* number of RC QPs allocated for device */
+	u32 busy_jiffies;	/* timeout scaling based on RC QP count */
+	spinlock_t n_qps_lock;	/* protect qps, rc qps and busy jiffy counts */
 
 	/* memory maps */
 	struct list_head pending_mmaps;

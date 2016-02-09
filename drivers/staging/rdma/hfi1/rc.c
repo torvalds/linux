@@ -68,9 +68,13 @@
  */
 static inline void hfi1_add_retry_timer(struct rvt_qp *qp)
 {
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
 	qp->s_flags |= RVT_S_TIMER;
 	/* 4.096 usec. * (1 << qp->timeout) */
-	qp->s_timer.expires = jiffies + qp->timeout_jiffies;
+	qp->s_timer.expires = jiffies + qp->timeout_jiffies +
+			      rdi->busy_jiffies;
 	add_timer(&qp->s_timer);
 }
 
@@ -99,9 +103,13 @@ void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to)
  */
 static inline void hfi1_mod_retry_timer(struct rvt_qp *qp)
 {
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
 	qp->s_flags |= RVT_S_TIMER;
 	/* 4.096 usec. * (1 << qp->timeout) */
-	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies);
+	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies +
+		  rdi->busy_jiffies);
 }
 
 /**

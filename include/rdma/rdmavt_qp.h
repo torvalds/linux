@@ -225,6 +225,8 @@ struct rvt_ack_entry {
 	};
 };
 
+#define	RC_QP_SCALING_INTERVAL	5
+
 /*
  * Variables prefixed with s_ are for the requester (sender).
  * Variables prefixed with r_ are for the responder (receiver).
