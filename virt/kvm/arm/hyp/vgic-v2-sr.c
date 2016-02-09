@@ -64,6 +64,25 @@ static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu,
 #endif
 }
 
+static void __hyp_text save_elrsr(struct kvm_vcpu *vcpu, void __iomem *base)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+	int nr_lr = vcpu->arch.vgic_cpu.nr_lr;
+	u32 elrsr0, elrsr1;
+
+	elrsr0 = readl_relaxed(base + GICH_ELRSR0);
+	if (unlikely(nr_lr > 32))
+		elrsr1 = readl_relaxed(base + GICH_ELRSR1);
+	else
+		elrsr1 = 0;
+
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	cpu_if->vgic_elrsr = ((u64)elrsr0 << 32) | elrsr1;
+#else
+	cpu_if->vgic_elrsr = ((u64)elrsr1 << 32) | elrsr0;
+#endif
+}
+
 /* vcpu is already in the HYP VA space */
 void __hyp_text __vgic_v2_save_state(struct kvm_vcpu *vcpu)
 {
@@ -71,7 +90,6 @@ void __hyp_text __vgic_v2_save_state(struct kvm_vcpu *vcpu)
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 	void __iomem *base = kern_hyp_va(vgic->vctrl_base);
-	u32 elrsr0, elrsr1;
 	int i, nr_lr;
 
 	if (!base)
@@ -81,22 +99,10 @@ void __hyp_text __vgic_v2_save_state(struct kvm_vcpu *vcpu)
 	cpu_if->vgic_vmcr = readl_relaxed(base + GICH_VMCR);
 
 	if (vcpu->arch.vgic_cpu.live_lrs) {
-		elrsr0 = readl_relaxed(base + GICH_ELRSR0);
-		cpu_if->vgic_apr    = readl_relaxed(base + GICH_APR);
-
-		if (unlikely(nr_lr > 32)) {
-			elrsr1 = readl_relaxed(base + GICH_ELRSR1);
-		} else {
-			elrsr1 = 0;
-		}
-
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		cpu_if->vgic_elrsr = ((u64)elrsr0 << 32) | elrsr1;
-#else
-		cpu_if->vgic_elrsr = ((u64)elrsr1 << 32) | elrsr0;
-#endif
+		cpu_if->vgic_apr = readl_relaxed(base + GICH_APR);
 
 		save_maint_int_state(vcpu, base);
+		save_elrsr(vcpu, base);
  
 		for (i = 0; i < nr_lr; i++)
 			if (vcpu->arch.vgic_cpu.live_lrs & (1UL << i))
