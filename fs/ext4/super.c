@@ -114,6 +114,10 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
  * transaction start -> page lock(s) -> i_data_sem (rw)
  */
 
+static bool userns_mounts = false;
+module_param(userns_mounts, bool, 0644);
+MODULE_PARM_DESC(userns_mounts, "Allow mounts from unprivileged user namespaces");
+
 #if !defined(CONFIG_EXT2_FS) && !defined(CONFIG_EXT2_FS_MODULE) && defined(CONFIG_EXT4_USE_FOR_EXT2)
 static struct file_system_type ext2_fs_type = {
 	.owner		= THIS_MODULE,
@@ -3442,6 +3446,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 
 	if ((data && !orig_data) || !sbi)
 		goto out_free_base;
+
+	if (!userns_mounts && !capable(CAP_SYS_ADMIN)) {
+		ret = -EPERM;
+		goto out_free_base;
+	}
 
 	sbi->s_daxdev = dax_dev;
 	sbi->s_blockgroup_lock =
