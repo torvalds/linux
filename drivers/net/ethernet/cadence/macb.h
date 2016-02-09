@@ -312,6 +312,8 @@
 #define MACB_PFR_SIZE		1
 #define MACB_PTZ_OFFSET		13 /* Enable pause time zero interrupt */
 #define MACB_PTZ_SIZE		1
+#define MACB_WOL_OFFSET		14 /* Enable wake-on-lan interrupt */
+#define MACB_WOL_SIZE		1
 
 /* Bitfields in MAN */
 #define MACB_DATA_OFFSET	0 /* data */
@@ -842,6 +844,8 @@ struct macb {
 
 	unsigned int		rx_frm_len_mask;
 	unsigned int		jumbo_max_len;
+
+	u32			wol;
 };
 
 static inline bool macb_is_gem(struct macb *bp)
