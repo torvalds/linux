@@ -370,7 +370,7 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 			goto out;
 		}
 
-		ret = regmap_read(info->max77686->regmap,
+		ret = regmap_read(info->max77686->rtc_regmap,
 				  map[REG_RTC_AE1], &val);
 		if (ret < 0) {
 			dev_err(info->dev,
@@ -426,7 +426,8 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 			goto out;
 		}
 
-		ret = regmap_write(info->max77686->regmap, map[REG_RTC_AE1], 0);
+		ret = regmap_write(info->max77686->rtc_regmap,
+				   map[REG_RTC_AE1], 0);
 	} else {
 		ret = regmap_bulk_read(info->max77686->rtc_regmap,
 				       map[REG_ALARM1_SEC], data,
@@ -471,7 +472,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 		goto out;
 
 	if (info->drv_data->alarm_enable_reg) {
-		ret = regmap_write(info->max77686->regmap, map[REG_RTC_AE1],
+		ret = regmap_write(info->max77686->rtc_regmap, map[REG_RTC_AE1],
 				   MAX77802_ALARM_ENABLE_VALUE);
 	} else {
 		ret = regmap_bulk_read(info->max77686->rtc_regmap,
