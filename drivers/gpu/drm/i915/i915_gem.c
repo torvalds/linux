@@ -489,7 +489,7 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 
 	*needs_clflush = 0;
 
-	if (!obj->base.filp)
+	if (WARN_ON((obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE) == 0))
 		return -EINVAL;
 
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)) {
