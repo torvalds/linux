@@ -325,12 +325,14 @@ xfs_inode_item_format_attr_fork(
 static void
 xfs_inode_to_log_dinode(
 	struct xfs_inode	*ip,
-	struct xfs_log_dinode	*to)
+	struct xfs_log_dinode	*to,
+	xfs_lsn_t		lsn)
 {
 	struct xfs_icdinode	*from = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 
-	to->di_magic = from->di_magic;
+	to->di_magic = XFS_DINODE_MAGIC;
+
 	to->di_mode = from->di_mode;
 	to->di_version = from->di_version;
 	to->di_format = from->di_format;
@@ -340,8 +342,8 @@ xfs_inode_to_log_dinode(
 	to->di_nlink = from->di_nlink;
 	to->di_projid_lo = from->di_projid_lo;
 	to->di_projid_hi = from->di_projid_hi;
-	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 
+	memset(to->di_pad, 0, sizeof(to->di_pad));
 	to->di_atime.t_sec = inode->i_atime.tv_sec;
 	to->di_atime.t_nsec = inode->i_atime.tv_nsec;
 	to->di_mtime.t_sec = inode->i_mtime.tv_sec;
@@ -366,10 +368,11 @@ xfs_inode_to_log_dinode(
 		to->di_crtime.t_sec = from->di_crtime.t_sec;
 		to->di_crtime.t_nsec = from->di_crtime.t_nsec;
 		to->di_flags2 = from->di_flags2;
-		to->di_ino = from->di_ino;
-		to->di_lsn = from->di_lsn;
-		memcpy(to->di_pad2, from->di_pad2, sizeof(to->di_pad2));
-		uuid_copy(&to->di_uuid, &from->di_uuid);
+
+		to->di_ino = ip->i_ino;
+		to->di_lsn = lsn;
+		memset(to->di_pad2, 0, sizeof(to->di_pad2));
+		uuid_copy(&to->di_uuid, &ip->i_mount->m_sb.sb_meta_uuid);
 		to->di_flushiter = 0;
 	} else {
 		to->di_flushiter = from->di_flushiter;
@@ -390,7 +393,7 @@ xfs_inode_item_format_core(
 	struct xfs_log_dinode	*dic;
 
 	dic = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_ICORE);
-	xfs_inode_to_log_dinode(ip, dic);
+	xfs_inode_to_log_dinode(ip, dic, ip->i_itemp->ili_item.li_lsn);
 	xlog_finish_iovec(lv, *vecp, xfs_log_dinode_size(ip->i_d.di_version));
 }
 

@@ -202,7 +202,6 @@ xfs_inode_from_disk(
 	struct xfs_icdinode	*to = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 
-	to->di_magic = be16_to_cpu(from->di_magic);
 	to->di_mode = be16_to_cpu(from->di_mode);
 	to->di_version = from ->di_version;
 	to->di_format = from->di_format;
@@ -212,7 +211,6 @@ xfs_inode_from_disk(
 	to->di_nlink = be32_to_cpu(from->di_nlink);
 	to->di_projid_lo = be16_to_cpu(from->di_projid_lo);
 	to->di_projid_hi = be16_to_cpu(from->di_projid_hi);
-	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 	to->di_flushiter = be16_to_cpu(from->di_flushiter);
 
 	/*
@@ -245,24 +243,22 @@ xfs_inode_from_disk(
 		to->di_crtime.t_sec = be32_to_cpu(from->di_crtime.t_sec);
 		to->di_crtime.t_nsec = be32_to_cpu(from->di_crtime.t_nsec);
 		to->di_flags2 = be64_to_cpu(from->di_flags2);
-		to->di_ino = be64_to_cpu(from->di_ino);
-		to->di_lsn = be64_to_cpu(from->di_lsn);
-		memcpy(to->di_pad2, from->di_pad2, sizeof(to->di_pad2));
-		uuid_copy(&to->di_uuid, &from->di_uuid);
 	}
 }
 
 void
 xfs_inode_to_disk(
 	struct xfs_inode	*ip,
-	struct xfs_dinode	*to)
+	struct xfs_dinode	*to,
+	xfs_lsn_t		lsn)
 {
 	struct xfs_icdinode	*from = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 
-	to->di_magic = cpu_to_be16(from->di_magic);
+	to->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
+
 	to->di_mode = cpu_to_be16(from->di_mode);
-	to->di_version = from ->di_version;
+	to->di_version = from->di_version;
 	to->di_format = from->di_format;
 	to->di_onlink = cpu_to_be16(from->di_onlink);
 	to->di_uid = cpu_to_be32(from->di_uid);
@@ -270,8 +266,8 @@ xfs_inode_to_disk(
 	to->di_nlink = cpu_to_be32(from->di_nlink);
 	to->di_projid_lo = cpu_to_be16(from->di_projid_lo);
 	to->di_projid_hi = cpu_to_be16(from->di_projid_hi);
-	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 
+	memset(to->di_pad, 0, sizeof(to->di_pad));
 	to->di_atime.t_sec = cpu_to_be32(inode->i_atime.tv_sec);
 	to->di_atime.t_nsec = cpu_to_be32(inode->i_atime.tv_nsec);
 	to->di_mtime.t_sec = cpu_to_be32(inode->i_mtime.tv_sec);
@@ -296,10 +292,11 @@ xfs_inode_to_disk(
 		to->di_crtime.t_sec = cpu_to_be32(from->di_crtime.t_sec);
 		to->di_crtime.t_nsec = cpu_to_be32(from->di_crtime.t_nsec);
 		to->di_flags2 = cpu_to_be64(from->di_flags2);
-		to->di_ino = cpu_to_be64(from->di_ino);
-		to->di_lsn = cpu_to_be64(from->di_lsn);
-		memcpy(to->di_pad2, from->di_pad2, sizeof(to->di_pad2));
-		uuid_copy(&to->di_uuid, &from->di_uuid);
+
+		to->di_ino = cpu_to_be64(ip->i_ino);
+		to->di_lsn = cpu_to_be64(lsn);
+		memset(to->di_pad2, 0, sizeof(to->di_pad2));
+		uuid_copy(&to->di_uuid, &ip->i_mount->m_sb.sb_meta_uuid);
 		to->di_flushiter = 0;
 	} else {
 		to->di_flushiter = cpu_to_be16(from->di_flushiter);
@@ -434,13 +431,10 @@ xfs_iread(
 	    !(mp->m_flags & XFS_MOUNT_IKEEP)) {
 		/* initialise the on-disk inode core */
 		memset(&ip->i_d, 0, sizeof(ip->i_d));
-		ip->i_d.di_magic = XFS_DINODE_MAGIC;
 		ip->i_d.di_gen = prandom_u32();
-		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (xfs_sb_version_hascrc(&mp->m_sb))
 			ip->i_d.di_version = 3;
-			ip->i_d.di_ino = ip->i_ino;
-			uuid_copy(&ip->i_d.di_uuid, &mp->m_sb.sb_meta_uuid);
-		} else
+		else
 			ip->i_d.di_version = 2;
 		return 0;
 	}
@@ -484,15 +478,9 @@ xfs_iread(
 		 * Partial initialisation of the in-core inode. Just the bits
 		 * that xfs_ialloc won't overwrite or relies on being correct.
 		 */
-		ip->i_d.di_magic = be16_to_cpu(dip->di_magic);
 		ip->i_d.di_version = dip->di_version;
 		ip->i_d.di_gen = be32_to_cpu(dip->di_gen);
 		ip->i_d.di_flushiter = be16_to_cpu(dip->di_flushiter);
-
-		if (dip->di_version == 3) {
-			ip->i_d.di_ino = be64_to_cpu(dip->di_ino);
-			uuid_copy(&ip->i_d.di_uuid, &dip->di_uuid);
-		}
 
 		/*
 		 * Make sure to pull in the mode here as well in
@@ -514,7 +502,6 @@ xfs_iread(
 	 */
 	if (ip->i_d.di_version == 1) {
 		ip->i_d.di_version = 2;
-		memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 		ip->i_d.di_nlink = ip->i_d.di_onlink;
 		ip->i_d.di_onlink = 0;
 		xfs_set_projid(ip, 0);
