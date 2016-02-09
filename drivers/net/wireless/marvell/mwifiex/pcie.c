@@ -2452,7 +2452,7 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 			for (i = 0; i < 4; i++) {
 				mwifiex_read_reg_byte(adapter, reg, &read_reg);
 				memory_size |= (read_reg << (i * 8));
-			reg++;
+				reg++;
 			}
 		} else {
 			memory_size = MWIFIEX_FW_DUMP_MAX_MEMSIZE;
