@@ -766,6 +766,7 @@ xfs_ialloc(
 	uint		flags;
 	int		error;
 	struct timespec	tv;
+	struct inode	*inode;
 
 	/*
 	 * Call the space management code to pick
@@ -791,6 +792,7 @@ xfs_ialloc(
 	if (error)
 		return error;
 	ASSERT(ip != NULL);
+	inode = VFS_I(ip);
 
 	/*
 	 * We always convert v1 inodes to v2 now - we only support filesystems
@@ -832,10 +834,9 @@ xfs_ialloc(
 	ASSERT(ip->i_d.di_nblocks == 0);
 
 	tv = current_fs_time(mp->m_super);
-	ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
-	ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
-	ip->i_d.di_atime = ip->i_d.di_mtime;
-	ip->i_d.di_ctime = ip->i_d.di_mtime;
+	inode->i_mtime = tv;
+	inode->i_atime = tv;
+	inode->i_ctime = tv;
 
 	/*
 	 * di_gen will have been taken care of in xfs_iread.
@@ -853,7 +854,8 @@ xfs_ialloc(
 		ip->i_d.di_lsn = 0;
 		ip->i_d.di_flags2 = 0;
 		memset(&(ip->i_d.di_pad2[0]), 0, sizeof(ip->i_d.di_pad2));
-		ip->i_d.di_crtime = ip->i_d.di_mtime;
+		ip->i_d.di_crtime.t_sec = (__int32_t)tv.tv_sec;
+		ip->i_d.di_crtime.t_nsec = (__int32_t)tv.tv_nsec;
 	}
 
 
@@ -3523,12 +3525,11 @@ xfs_iflush_int(
 		ip->i_d.di_flushiter++;
 
 	/*
-	 * Copy the dirty parts of the inode into the on-disk
-	 * inode.  We always copy out the core of the inode,
-	 * because if the inode is dirty at all the core must
-	 * be.
+	 * Copy the dirty parts of the inode into the on-disk inode.  We always
+	 * copy out the core of the inode, because if the inode is dirty at all
+	 * the core must be.
 	 */
-	xfs_dinode_to_disk(dip, &ip->i_d);
+	xfs_inode_to_disk(ip, dip);
 
 	/* Wrap, we never let the log put out DI_MAX_FLUSH */
 	if (ip->i_d.di_flushiter == DI_MAX_FLUSH)

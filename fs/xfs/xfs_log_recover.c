@@ -2793,7 +2793,7 @@ xfs_recover_inode_owner_change(
 		return -ENOMEM;
 
 	/* instantiate the inode */
-	xfs_dinode_from_disk(&ip->i_d, dip);
+	xfs_inode_from_disk(ip, dip);
 	ASSERT(ip->i_d.di_version >= 3);
 
 	error = xfs_iformat_fork(ip, dip);
@@ -2840,7 +2840,6 @@ xlog_recover_inode_pass2(
 	int			attr_index;
 	uint			fields;
 	struct xfs_log_dinode	*ldip;
-	struct xfs_icdinode	icic;
 	uint			isize;
 	int			need_free = 0;
 
@@ -3007,9 +3006,8 @@ xlog_recover_inode_pass2(
 		goto out_release;
 	}
 
-	/* The core is in in-core format */
-	xfs_log_dinode_to_icdinode(ldip, &icic);
-	xfs_dinode_to_disk(dip, &icic);
+	/* recover the log dinode inode into the on disk inode */
+	xfs_log_dinode_to_disk(ldip, dip);
 
 	/* the rest is in on-disk format */
 	if (item->ri_buf[1].i_len > isize) {

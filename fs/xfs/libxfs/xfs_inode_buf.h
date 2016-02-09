@@ -40,9 +40,6 @@ struct xfs_icdinode {
 	__uint16_t	di_projid_hi;	/* higher part of owner's project id */
 	__uint8_t	di_pad[6];	/* unused, zeroed space */
 	__uint16_t	di_flushiter;	/* incremented on flush */
-	xfs_ictimestamp_t di_atime;	/* time last accessed */
-	xfs_ictimestamp_t di_mtime;	/* time last modified */
-	xfs_ictimestamp_t di_ctime;	/* time created/inode modified */
 	xfs_fsize_t	di_size;	/* number of bytes in file */
 	xfs_rfsblock_t	di_nblocks;	/* # of direct & btree blocks used */
 	xfs_extlen_t	di_extsize;	/* basic/minimum extent size for file */
@@ -89,8 +86,10 @@ int	xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
 int	xfs_iread(struct xfs_mount *, struct xfs_trans *,
 		  struct xfs_inode *, uint);
 void	xfs_dinode_calc_crc(struct xfs_mount *, struct xfs_dinode *);
-void	xfs_dinode_to_disk(struct xfs_dinode *to, struct xfs_icdinode *from);
-void	xfs_dinode_from_disk(struct xfs_icdinode *to, struct xfs_dinode *from);
+void	xfs_inode_to_disk(struct xfs_inode *ip, struct xfs_dinode *to);
+void	xfs_inode_from_disk(struct xfs_inode *ip, struct xfs_dinode *from);
+void	xfs_log_dinode_to_disk(struct xfs_log_dinode *from,
+			       struct xfs_dinode *to);
 
 #if defined(DEBUG)
 void	xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
