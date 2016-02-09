@@ -36,6 +36,12 @@ enum ipu_flip_status {
 	IPU_FLIP_PENDING,
 };
 
+struct ipu_flip_work {
+	struct work_struct		unref_work;
+	struct drm_gem_object		*bo;
+	struct drm_pending_vblank_event *page_flip_event;
+};
+
 struct ipu_crtc {
 	struct device		*dev;
 	struct drm_crtc		base;
@@ -48,7 +54,8 @@ struct ipu_crtc {
 	struct ipu_di		*di;
 	int			enabled;
 	enum ipu_flip_status	flip_state;
-	struct drm_pending_vblank_event *page_flip_event;
+	struct workqueue_struct *flip_queue;
+	struct ipu_flip_work	*flip_work;
 	int			irq;
 	u32			bus_format;
 	int			di_hsync_pin;
@@ -107,12 +114,22 @@ static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
+static void ipu_flip_unref_work_func(struct work_struct *__work)
+{
+	struct ipu_flip_work *work =
+			container_of(__work, struct ipu_flip_work, unref_work);
+
+	drm_gem_object_unreference_unlocked(work->bo);
+	kfree(work);
+}
+
 static int ipu_page_flip(struct drm_crtc *crtc,
 		struct drm_framebuffer *fb,
 		struct drm_pending_vblank_event *event,
 		uint32_t page_flip_flags)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+	struct ipu_flip_work *flip_work;
 	int ret;
 
 	if (ipu_crtc->flip_state != IPU_FLIP_NONE)
@@ -126,10 +143,27 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	ipu_crtc->page_flip_event = event;
+	flip_work = kzalloc(sizeof *flip_work, GFP_KERNEL);
+	if (!flip_work) {
+		ret = -ENOMEM;
+		goto put_vblank;
+	}
+	INIT_WORK(&flip_work->unref_work, ipu_flip_unref_work_func);
+	flip_work->page_flip_event = event;
+
+	/* get BO backing the old framebuffer and take a reference */
+	flip_work->bo = &drm_fb_cma_get_gem_obj(crtc->primary->fb, 0)->base;
+	drm_gem_object_reference(flip_work->bo);
+
+	ipu_crtc->flip_work = flip_work;
 	ipu_crtc->flip_state = IPU_FLIP_PENDING;
 
 	return 0;
+
+put_vblank:
+	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
+
+	return ret;
 }
 
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
@@ -213,12 +247,12 @@ static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
 {
 	unsigned long flags;
 	struct drm_device *drm = ipu_crtc->base.dev;
+	struct ipu_flip_work *work = ipu_crtc->flip_work;
 
 	spin_lock_irqsave(&drm->event_lock, flags);
-	if (ipu_crtc->page_flip_event)
+	if (work->page_flip_event)
 		drm_crtc_send_vblank_event(&ipu_crtc->base,
-					   ipu_crtc->page_flip_event);
-	ipu_crtc->page_flip_event = NULL;
+					   work->page_flip_event);
 	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
@@ -235,6 +269,8 @@ static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 		ipu_plane_set_base(plane, ipu_crtc->base.primary->fb,
 				   plane->x, plane->y);
 		ipu_crtc_handle_pageflip(ipu_crtc);
+		queue_work(ipu_crtc->flip_queue,
+			   &ipu_crtc->flip_work->unref_work);
 		ipu_crtc->flip_state = IPU_FLIP_NONE;
 	}
 
@@ -400,6 +436,8 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		goto err_put_plane_res;
 	}
 
+	ipu_crtc->flip_queue = create_singlethread_workqueue("ipu-crtc-flip");
+
 	return 0;
 
 err_put_plane_res:
@@ -441,6 +479,7 @@ static void ipu_drm_unbind(struct device *dev, struct device *master,
 
 	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
 
+	destroy_workqueue(ipu_crtc->flip_queue);
 	ipu_plane_put_resources(ipu_crtc->plane[0]);
 	ipu_put_resources(ipu_crtc);
 }
