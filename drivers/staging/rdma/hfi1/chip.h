@@ -390,6 +390,10 @@
 #define LINK_QUALITY_INFO            0x14
 #define REMOTE_DEVICE_ID	     0x15
 
+/* 8051 lane specific register field IDs */
+#define TX_EQ_SETTINGS		0x00
+#define CHANNEL_LOSS_SETTINGS	0x05
+
 /* Lane ID for general configuration registers */
 #define GENERAL_CONFIG 4
 

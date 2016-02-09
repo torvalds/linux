@@ -703,8 +703,6 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 						&dd->pcidev->dev);
 		if (err) {
 			platform_config = NULL;
-			fw_state = FW_ERR;
-			fw_err = -ENOENT;
 			goto done;
 		}
 		dd->platform_config.data = platform_config->data;
@@ -1470,12 +1468,51 @@ int hfi1_firmware_init(struct hfi1_devdata *dd)
 	return obtain_firmware(dd);
 }
 
+/*
+ * This function is a helper function for parse_platform_config(...) and
+ * does not check for validity of the platform configuration cache
+ * (because we know it is invalid as we are building up the cache).
+ * As such, this should not be called from anywhere other than
+ * parse_platform_config
+ */
+static int check_meta_version(struct hfi1_devdata *dd, u32 *system_table)
+{
+	u32 meta_ver, meta_ver_meta, ver_start, ver_len, mask;
+	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
+
+	if (!system_table)
+		return -EINVAL;
+
+	meta_ver_meta =
+	*(pcfgcache->config_tables[PLATFORM_CONFIG_SYSTEM_TABLE].table_metadata
+	+ SYSTEM_TABLE_META_VERSION);
+
+	mask = ((1 << METADATA_TABLE_FIELD_START_LEN_BITS) - 1);
+	ver_start = meta_ver_meta & mask;
+
+	meta_ver_meta >>= METADATA_TABLE_FIELD_LEN_SHIFT;
+
+	mask = ((1 << METADATA_TABLE_FIELD_LEN_LEN_BITS) - 1);
+	ver_len = meta_ver_meta & mask;
+
+	ver_start /= 8;
+	meta_ver = *((u8 *)system_table + ver_start) & ((1 << ver_len) - 1);
+
+	if (meta_ver < 5) {
+		dd_dev_info(
+			dd, "%s:Please update platform config\n", __func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 int parse_platform_config(struct hfi1_devdata *dd)
 {
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
 	u32 *ptr = NULL;
 	u32 header1 = 0, header2 = 0, magic_num = 0, crc = 0, file_length = 0;
 	u32 record_idx = 0, table_type = 0, table_length_dwords = 0;
+	int ret = -EINVAL; /* assume failure */
 
 	if (!dd->platform_config.data) {
 		dd_dev_info(dd, "%s: Missing config file\n", __func__);
@@ -1499,7 +1536,8 @@ int parse_platform_config(struct hfi1_devdata *dd)
 			    __func__);
 		goto bail;
 	} else if (file_length < dd->platform_config.size) {
-		dd_dev_info(dd, "%s:File claims to be smaller than read size\n",
+		dd_dev_info(dd,
+			    "%s:File claims to be smaller than read size, continuing\n",
 			    __func__);
 	}
 	/* exactly equal, perfection */
@@ -1537,6 +1575,9 @@ int parse_platform_config(struct hfi1_devdata *dd)
 			case PLATFORM_CONFIG_SYSTEM_TABLE:
 				pcfgcache->config_tables[table_type].num_table =
 									1;
+				ret = check_meta_version(dd, ptr);
+				if (ret)
+					goto bail;
 				break;
 			case PLATFORM_CONFIG_PORT_TABLE:
 				pcfgcache->config_tables[table_type].num_table =
@@ -1609,7 +1650,7 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	return 0;
 bail:
 	memset(pcfgcache, 0, sizeof(struct platform_config_cache));
-	return -EINVAL;
+	return ret;
 }
 
 static int get_platform_fw_field_metadata(struct hfi1_devdata *dd, int table,

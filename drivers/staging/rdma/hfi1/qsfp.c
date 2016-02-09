@@ -344,7 +344,6 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 	ppd->qsfp_info.cache_valid = 0;
 	spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock, flags);
 
-	dd_dev_info(ppd->dd, "%s called\n", __func__);
 	if (!qsfp_mod_present(ppd)) {
 		ret = -ENODEV;
 		goto bail;
