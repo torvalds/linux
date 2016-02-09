@@ -72,6 +72,14 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 		*value = gpu->identity.minor_features3;
 		break;
 
+	case ETNAVIV_PARAM_GPU_FEATURES_5:
+		*value = gpu->identity.minor_features4;
+		break;
+
+	case ETNAVIV_PARAM_GPU_FEATURES_6:
+		*value = gpu->identity.minor_features5;
+		break;
+
 	case ETNAVIV_PARAM_GPU_STREAM_COUNT:
 		*value = gpu->identity.stream_count;
 		break;
@@ -112,6 +120,10 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 		*value = gpu->identity.num_constants;
 		break;
 
+	case ETNAVIV_PARAM_GPU_NUM_VARYINGS:
+		*value = gpu->identity.varyings_count;
+		break;
+
 	default:
 		DBG("%s: invalid param: %u", dev_name(gpu->dev), param);
 		return -EINVAL;
@@ -120,46 +132,56 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 	return 0;
 }
 
+
+#define etnaviv_is_model_rev(gpu, mod, rev) \
+	((gpu)->identity.model == chipModel_##mod && \
+	 (gpu)->identity.revision == rev)
+#define etnaviv_field(val, field) \
+	(((val) & field##__MASK) >> field##__SHIFT)
+
 static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 {
 	if (gpu->identity.minor_features0 &
 	    chipMinorFeatures0_MORE_MINOR_FEATURES) {
-		u32 specs[2];
+		u32 specs[4];
+		unsigned int streams;
 
 		specs[0] = gpu_read(gpu, VIVS_HI_CHIP_SPECS);
 		specs[1] = gpu_read(gpu, VIVS_HI_CHIP_SPECS_2);
+		specs[2] = gpu_read(gpu, VIVS_HI_CHIP_SPECS_3);
+		specs[3] = gpu_read(gpu, VIVS_HI_CHIP_SPECS_4);
 
-		gpu->identity.stream_count =
-			(specs[0] & VIVS_HI_CHIP_SPECS_STREAM_COUNT__MASK)
-				>> VIVS_HI_CHIP_SPECS_STREAM_COUNT__SHIFT;
-		gpu->identity.register_max =
-			(specs[0] & VIVS_HI_CHIP_SPECS_REGISTER_MAX__MASK)
-				>> VIVS_HI_CHIP_SPECS_REGISTER_MAX__SHIFT;
-		gpu->identity.thread_count =
-			(specs[0] & VIVS_HI_CHIP_SPECS_THREAD_COUNT__MASK)
-				>> VIVS_HI_CHIP_SPECS_THREAD_COUNT__SHIFT;
-		gpu->identity.vertex_cache_size =
-			(specs[0] & VIVS_HI_CHIP_SPECS_VERTEX_CACHE_SIZE__MASK)
-				>> VIVS_HI_CHIP_SPECS_VERTEX_CACHE_SIZE__SHIFT;
-		gpu->identity.shader_core_count =
-			(specs[0] & VIVS_HI_CHIP_SPECS_SHADER_CORE_COUNT__MASK)
-				>> VIVS_HI_CHIP_SPECS_SHADER_CORE_COUNT__SHIFT;
-		gpu->identity.pixel_pipes =
-			(specs[0] & VIVS_HI_CHIP_SPECS_PIXEL_PIPES__MASK)
-				>> VIVS_HI_CHIP_SPECS_PIXEL_PIPES__SHIFT;
+		gpu->identity.stream_count = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_STREAM_COUNT);
+		gpu->identity.register_max = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_REGISTER_MAX);
+		gpu->identity.thread_count = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_THREAD_COUNT);
+		gpu->identity.vertex_cache_size = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_VERTEX_CACHE_SIZE);
+		gpu->identity.shader_core_count = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_SHADER_CORE_COUNT);
+		gpu->identity.pixel_pipes = etnaviv_field(specs[0],
+					VIVS_HI_CHIP_SPECS_PIXEL_PIPES);
 		gpu->identity.vertex_output_buffer_size =
-			(specs[0] & VIVS_HI_CHIP_SPECS_VERTEX_OUTPUT_BUFFER_SIZE__MASK)
-				>> VIVS_HI_CHIP_SPECS_VERTEX_OUTPUT_BUFFER_SIZE__SHIFT;
+			etnaviv_field(specs[0],
+				VIVS_HI_CHIP_SPECS_VERTEX_OUTPUT_BUFFER_SIZE);
 
-		gpu->identity.buffer_size =
-			(specs[1] & VIVS_HI_CHIP_SPECS_2_BUFFER_SIZE__MASK)
-				>> VIVS_HI_CHIP_SPECS_2_BUFFER_SIZE__SHIFT;
-		gpu->identity.instruction_count =
-			(specs[1] & VIVS_HI_CHIP_SPECS_2_INSTRUCTION_COUNT__MASK)
-				>> VIVS_HI_CHIP_SPECS_2_INSTRUCTION_COUNT__SHIFT;
-		gpu->identity.num_constants =
-			(specs[1] & VIVS_HI_CHIP_SPECS_2_NUM_CONSTANTS__MASK)
-				>> VIVS_HI_CHIP_SPECS_2_NUM_CONSTANTS__SHIFT;
+		gpu->identity.buffer_size = etnaviv_field(specs[1],
+					VIVS_HI_CHIP_SPECS_2_BUFFER_SIZE);
+		gpu->identity.instruction_count = etnaviv_field(specs[1],
+					VIVS_HI_CHIP_SPECS_2_INSTRUCTION_COUNT);
+		gpu->identity.num_constants = etnaviv_field(specs[1],
+					VIVS_HI_CHIP_SPECS_2_NUM_CONSTANTS);
+
+		gpu->identity.varyings_count = etnaviv_field(specs[2],
+					VIVS_HI_CHIP_SPECS_3_VARYINGS_COUNT);
+
+		/* This overrides the value from older register if non-zero */
+		streams = etnaviv_field(specs[3],
+					VIVS_HI_CHIP_SPECS_4_STREAM_COUNT);
+		if (streams)
+			gpu->identity.stream_count = streams;
 	}
 
 	/* Fill in the stream count if not specified */
@@ -173,7 +195,7 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 	/* Convert the register max value */
 	if (gpu->identity.register_max)
 		gpu->identity.register_max = 1 << gpu->identity.register_max;
-	else if (gpu->identity.model == 0x0400)
+	else if (gpu->identity.model == chipModel_GC400)
 		gpu->identity.register_max = 32;
 	else
 		gpu->identity.register_max = 64;
@@ -181,10 +203,10 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 	/* Convert thread count */
 	if (gpu->identity.thread_count)
 		gpu->identity.thread_count = 1 << gpu->identity.thread_count;
-	else if (gpu->identity.model == 0x0400)
+	else if (gpu->identity.model == chipModel_GC400)
 		gpu->identity.thread_count = 64;
-	else if (gpu->identity.model == 0x0500 ||
-		 gpu->identity.model == 0x0530)
+	else if (gpu->identity.model == chipModel_GC500 ||
+		 gpu->identity.model == chipModel_GC530)
 		gpu->identity.thread_count = 128;
 	else
 		gpu->identity.thread_count = 256;
@@ -206,7 +228,7 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 	if (gpu->identity.vertex_output_buffer_size) {
 		gpu->identity.vertex_output_buffer_size =
 			1 << gpu->identity.vertex_output_buffer_size;
-	} else if (gpu->identity.model == 0x0400) {
+	} else if (gpu->identity.model == chipModel_GC400) {
 		if (gpu->identity.revision < 0x4000)
 			gpu->identity.vertex_output_buffer_size = 512;
 		else if (gpu->identity.revision < 0x4200)
@@ -219,9 +241,8 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 
 	switch (gpu->identity.instruction_count) {
 	case 0:
-		if ((gpu->identity.model == 0x2000 &&
-		     gpu->identity.revision == 0x5108) ||
-		    gpu->identity.model == 0x880)
+		if (etnaviv_is_model_rev(gpu, GC2000, 0x5108) ||
+		    gpu->identity.model == chipModel_GC880)
 			gpu->identity.instruction_count = 512;
 		else
 			gpu->identity.instruction_count = 256;
@@ -242,6 +263,30 @@ static void etnaviv_hw_specs(struct etnaviv_gpu *gpu)
 
 	if (gpu->identity.num_constants == 0)
 		gpu->identity.num_constants = 168;
+
+	if (gpu->identity.varyings_count == 0) {
+		if (gpu->identity.minor_features1 & chipMinorFeatures1_HALTI0)
+			gpu->identity.varyings_count = 12;
+		else
+			gpu->identity.varyings_count = 8;
+	}
+
+	/*
+	 * For some cores, two varyings are consumed for position, so the
+	 * maximum varying count needs to be reduced by one.
+	 */
+	if (etnaviv_is_model_rev(gpu, GC5000, 0x5434) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5222) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5245) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5208) ||
+	    etnaviv_is_model_rev(gpu, GC3000, 0x5435) ||
+	    etnaviv_is_model_rev(gpu, GC2200, 0x5244) ||
+	    etnaviv_is_model_rev(gpu, GC2100, 0x5108) ||
+	    etnaviv_is_model_rev(gpu, GC2000, 0x5108) ||
+	    etnaviv_is_model_rev(gpu, GC1500, 0x5246) ||
+	    etnaviv_is_model_rev(gpu, GC880, 0x5107) ||
+	    etnaviv_is_model_rev(gpu, GC880, 0x5106))
+		gpu->identity.varyings_count -= 1;
 }
 
 static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
@@ -251,12 +296,10 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	chipIdentity = gpu_read(gpu, VIVS_HI_CHIP_IDENTITY);
 
 	/* Special case for older graphic cores. */
-	if (((chipIdentity & VIVS_HI_CHIP_IDENTITY_FAMILY__MASK)
-	     >> VIVS_HI_CHIP_IDENTITY_FAMILY__SHIFT) ==  0x01) {
-		gpu->identity.model    = 0x500; /* gc500 */
-		gpu->identity.revision =
-			(chipIdentity & VIVS_HI_CHIP_IDENTITY_REVISION__MASK)
-			>> VIVS_HI_CHIP_IDENTITY_REVISION__SHIFT;
+	if (etnaviv_field(chipIdentity, VIVS_HI_CHIP_IDENTITY_FAMILY) == 0x01) {
+		gpu->identity.model    = chipModel_GC500;
+		gpu->identity.revision = etnaviv_field(chipIdentity,
+					 VIVS_HI_CHIP_IDENTITY_REVISION);
 	} else {
 
 		gpu->identity.model = gpu_read(gpu, VIVS_HI_CHIP_MODEL);
@@ -269,13 +312,12 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 		 * same.  Only for GC400 family.
 		 */
 		if ((gpu->identity.model & 0xff00) == 0x0400 &&
-		    gpu->identity.model != 0x0420) {
+		    gpu->identity.model != chipModel_GC420) {
 			gpu->identity.model = gpu->identity.model & 0x0400;
 		}
 
 		/* Another special case */
-		if (gpu->identity.model == 0x300 &&
-		    gpu->identity.revision == 0x2201) {
+		if (etnaviv_is_model_rev(gpu, GC300, 0x2201)) {
 			u32 chipDate = gpu_read(gpu, VIVS_HI_CHIP_DATE);
 			u32 chipTime = gpu_read(gpu, VIVS_HI_CHIP_TIME);
 
@@ -295,11 +337,13 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	gpu->identity.features = gpu_read(gpu, VIVS_HI_CHIP_FEATURE);
 
 	/* Disable fast clear on GC700. */
-	if (gpu->identity.model == 0x700)
+	if (gpu->identity.model == chipModel_GC700)
 		gpu->identity.features &= ~chipFeatures_FAST_CLEAR;
 
-	if ((gpu->identity.model == 0x500 && gpu->identity.revision < 2) ||
-	    (gpu->identity.model == 0x300 && gpu->identity.revision < 0x2000)) {
+	if ((gpu->identity.model == chipModel_GC500 &&
+	     gpu->identity.revision < 2) ||
+	    (gpu->identity.model == chipModel_GC300 &&
+	     gpu->identity.revision < 0x2000)) {
 
 		/*
 		 * GC500 rev 1.x and GC300 rev < 2.0 doesn't have these
@@ -309,6 +353,8 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 		gpu->identity.minor_features1 = 0;
 		gpu->identity.minor_features2 = 0;
 		gpu->identity.minor_features3 = 0;
+		gpu->identity.minor_features4 = 0;
+		gpu->identity.minor_features5 = 0;
 	} else
 		gpu->identity.minor_features0 =
 				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_0);
@@ -321,6 +367,10 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_2);
 		gpu->identity.minor_features3 =
 				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_3);
+		gpu->identity.minor_features4 =
+				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_4);
+		gpu->identity.minor_features5 =
+				gpu_read(gpu, VIVS_HI_CHIP_MINOR_FEATURE_5);
 	}
 
 	/* GC600 idle register reports zero bits where modules aren't present */
@@ -441,10 +491,9 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 {
 	u16 prefetch;
 
-	if (gpu->identity.model == chipModel_GC320 &&
-	    gpu_read(gpu, VIVS_HI_CHIP_TIME) != 0x2062400 &&
-	    (gpu->identity.revision == 0x5007 ||
-	     gpu->identity.revision == 0x5220)) {
+	if ((etnaviv_is_model_rev(gpu, GC320, 0x5007) ||
+	     etnaviv_is_model_rev(gpu, GC320, 0x5220)) &&
+	    gpu_read(gpu, VIVS_HI_CHIP_TIME) != 0x2062400) {
 		u32 mc_memory_debug;
 
 		mc_memory_debug = gpu_read(gpu, VIVS_MC_DEBUG_MEMORY) & ~0xff;
@@ -466,7 +515,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 		  VIVS_HI_AXI_CONFIG_ARCACHE(2));
 
 	/* GC2000 rev 5108 needs a special bus config */
-	if (gpu->identity.model == 0x2000 && gpu->identity.revision == 0x5108) {
+	if (etnaviv_is_model_rev(gpu, GC2000, 0x5108)) {
 		u32 bus_config = gpu_read(gpu, VIVS_MC_BUS_CONFIG);
 		bus_config &= ~(VIVS_MC_BUS_CONFIG_FE_BUS_CONFIG__MASK |
 				VIVS_MC_BUS_CONFIG_TX_BUS_CONFIG__MASK);
@@ -511,8 +560,16 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 
 	if (gpu->identity.model == 0) {
 		dev_err(gpu->dev, "Unknown GPU model\n");
-		pm_runtime_put_autosuspend(gpu->dev);
-		return -ENXIO;
+		ret = -ENXIO;
+		goto fail;
+	}
+
+	/* Exclude VG cores with FE2.0 */
+	if (gpu->identity.features & chipFeatures_PIPE_VG &&
+	    gpu->identity.features & chipFeatures_FE20) {
+		dev_info(gpu->dev, "Ignoring GPU with VG and FE2.0\n");
+		ret = -ENXIO;
+		goto fail;
 	}
 
 	ret = etnaviv_hw_reset(gpu);
@@ -539,10 +596,9 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
-	/* TODO: we will leak here memory - fix it! */
-
 	gpu->mmu = etnaviv_iommu_new(gpu, iommu, version);
 	if (!gpu->mmu) {
+		iommu_domain_free(iommu);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -552,7 +608,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	if (!gpu->buffer) {
 		ret = -ENOMEM;
 		dev_err(gpu->dev, "could not create command buffer\n");
-		goto fail;
+		goto destroy_iommu;
 	}
 	if (gpu->buffer->paddr - gpu->memory_base > 0x80000000) {
 		ret = -EINVAL;
@@ -582,6 +638,9 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 free_buffer:
 	etnaviv_gpu_cmdbuf_free(gpu->buffer);
 	gpu->buffer = NULL;
+destroy_iommu:
+	etnaviv_iommu_destroy(gpu->mmu);
+	gpu->mmu = NULL;
 fail:
 	pm_runtime_mark_last_busy(gpu->dev);
 	pm_runtime_put_autosuspend(gpu->dev);
@@ -642,6 +701,10 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 		   gpu->identity.minor_features2);
 	seq_printf(m, "\t minor_features3: 0x%08x\n",
 		   gpu->identity.minor_features3);
+	seq_printf(m, "\t minor_features4: 0x%08x\n",
+		   gpu->identity.minor_features4);
+	seq_printf(m, "\t minor_features5: 0x%08x\n",
+		   gpu->identity.minor_features5);
 
 	seq_puts(m, "\tspecs\n");
 	seq_printf(m, "\t stream_count:  %d\n",
@@ -664,6 +727,8 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 			gpu->identity.instruction_count);
 	seq_printf(m, "\t num_constants: %d\n",
 			gpu->identity.num_constants);
+	seq_printf(m, "\t varyings_count: %d\n",
+			gpu->identity.varyings_count);
 
 	seq_printf(m, "\taxi: 0x%08x\n", axi);
 	seq_printf(m, "\tidle: 0x%08x\n", idle);

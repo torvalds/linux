@@ -14,6 +14,17 @@ int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
 		dax_iodone_t);
 int __dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
 		dax_iodone_t);
+
+#ifdef CONFIG_FS_DAX
+struct page *read_dax_sector(struct block_device *bdev, sector_t n);
+#else
+static inline struct page *read_dax_sector(struct block_device *bdev,
+		sector_t n)
+{
+	return ERR_PTR(-ENXIO);
+}
+#endif
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 int dax_pmd_fault(struct vm_area_struct *, unsigned long addr, pmd_t *,
 				unsigned int flags, get_block_t, dax_iodone_t);
