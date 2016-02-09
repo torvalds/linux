@@ -273,11 +273,8 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 	shift = mmu_psize_defs[psize].shift;
 	step = 1 << shift;
 
-	if (!ppc_md.hpte_removebolted) {
-		printk(KERN_WARNING "Platform doesn't implement "
-				"hpte_removebolted\n");
-		return -EINVAL;
-	}
+	if (!ppc_md.hpte_removebolted)
+		return -ENODEV;
 
 	for (vaddr = vstart; vaddr < vend; vaddr += step)
 		ppc_md.hpte_removebolted(vaddr, psize, ssize);
@@ -641,8 +638,10 @@ int create_section_mapping(unsigned long start, unsigned long end)
 
 int remove_section_mapping(unsigned long start, unsigned long end)
 {
-	return htab_remove_mapping(start, end, mmu_linear_psize,
-			mmu_kernel_ssize);
+	int rc = htab_remove_mapping(start, end, mmu_linear_psize,
+				     mmu_kernel_ssize);
+	WARN_ON(rc < 0);
+	return rc;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
