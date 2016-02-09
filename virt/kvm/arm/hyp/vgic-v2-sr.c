@@ -99,6 +99,7 @@ static void __hyp_text save_lrs(struct kvm_vcpu *vcpu, void __iomem *base)
 		}
 
 		cpu_if->vgic_lr[i] = readl_relaxed(base + GICH_LR0 + (i * 4));
+		writel_relaxed(0, base + GICH_LR0 + (i * 4));
 	}
 }
 
@@ -156,12 +157,11 @@ void __hyp_text __vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 		writel_relaxed(cpu_if->vgic_hcr, base + GICH_HCR);
 		writel_relaxed(cpu_if->vgic_apr, base + GICH_APR);
 		for (i = 0; i < nr_lr; i++) {
-			u32 val = 0;
+			if (!(live_lrs & (1UL << i)))
+				continue;
 
-			if (live_lrs & (1UL << i))
-				val = cpu_if->vgic_lr[i];
-
-			writel_relaxed(val, base + GICH_LR0 + (i * 4));
+			writel_relaxed(cpu_if->vgic_lr[i],
+				       base + GICH_LR0 + (i * 4));
 		}
 	}
 
