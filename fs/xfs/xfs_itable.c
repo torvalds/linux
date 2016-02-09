@@ -100,11 +100,11 @@ xfs_bulkstat_one_int(
 	buf->bs_mtime.tv_nsec = inode->i_mtime.tv_nsec;
 	buf->bs_ctime.tv_sec = inode->i_ctime.tv_sec;
 	buf->bs_ctime.tv_nsec = inode->i_ctime.tv_nsec;
+	buf->bs_gen = inode->i_generation;
 
 	buf->bs_xflags = xfs_ip2xflags(ip);
 	buf->bs_extsize = dic->di_extsize << mp->m_sb.sb_blocklog;
 	buf->bs_extents = dic->di_nextents;
-	buf->bs_gen = dic->di_gen;
 	memset(buf->bs_pad, 0, sizeof(buf->bs_pad));
 	buf->bs_dmevmask = dic->di_dmevmask;
 	buf->bs_dmstate = dic->di_dmstate;

@@ -149,10 +149,12 @@ xfs_reinit_inode(
 {
 	int		error;
 	uint32_t	nlink = inode->i_nlink;
+	uint32_t	generation = inode->i_generation;
 
 	error = inode_init_always(mp->m_super, inode);
 
 	set_nlink(inode, nlink);
+	inode->i_generation = generation;
 	return error;
 }
 

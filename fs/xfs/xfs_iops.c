@@ -1231,7 +1231,6 @@ xfs_setup_inode(
 		break;
 	}
 
-	inode->i_generation = ip->i_d.di_gen;
 	i_size_write(inode, ip->i_d.di_size);
 	xfs_diflags_to_iflags(inode, ip);
 

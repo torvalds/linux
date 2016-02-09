@@ -835,9 +835,6 @@ xfs_ialloc(
 	inode->i_atime = tv;
 	inode->i_ctime = tv;
 
-	/*
-	 * di_gen will have been taken care of in xfs_iread.
-	 */
 	ip->i_d.di_extsize = 0;
 	ip->i_d.di_dmevmask = 0;
 	ip->i_d.di_dmstate = 0;
@@ -2424,7 +2421,7 @@ xfs_ifree(
 	 * Bump the generation count so no one will be confused
 	 * by reincarnations of this inode.
 	 */
-	ip->i_d.di_gen++;
+	VFS_I(ip)->i_generation++;
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	if (xic.deleted)

@@ -350,6 +350,7 @@ xfs_inode_to_log_dinode(
 	to->di_ctime.t_sec = inode->i_ctime.tv_sec;
 	to->di_ctime.t_nsec = inode->i_ctime.tv_nsec;
 	to->di_nlink = inode->i_nlink;
+	to->di_gen = inode->i_generation;
 
 	to->di_size = from->di_size;
 	to->di_nblocks = from->di_nblocks;
@@ -361,7 +362,6 @@ xfs_inode_to_log_dinode(
 	to->di_dmevmask = from->di_dmevmask;
 	to->di_dmstate = from->di_dmstate;
 	to->di_flags = from->di_flags;
-	to->di_gen = from->di_gen;
 
 	if (from->di_version == 3) {
 		to->di_changecount = from->di_changecount;
