@@ -1515,7 +1515,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 		return;
 	}
 
-	for (i = 0; i < LPC32XX_CLK_MAX; i++) {
+	for (i = 1; i < LPC32XX_CLK_MAX; i++) {
 		clk[i] = lpc32xx_clk_register(i);
 		if (IS_ERR(clk[i])) {
 			pr_err("failed to register %s clock: %ld\n",
@@ -1555,7 +1555,7 @@ static void __init lpc32xx_usb_clk_init(struct device_node *np)
 		return;
 	}
 
-	for (i = 0; i < LPC32XX_USB_CLK_MAX; i++) {
+	for (i = 1; i < LPC32XX_USB_CLK_MAX; i++) {
 		usb_clk[i] = lpc32xx_clk_register(i + LPC32XX_CLK_USB_OFFSET);
 		if (IS_ERR(usb_clk[i])) {
 			pr_err("failed to register %s clock: %ld\n",
