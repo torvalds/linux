@@ -274,12 +274,12 @@ static void XGI_SetCRT1Timing_H(struct vb_device_info *pVBInfo,
 
 	for (i = 0x01; i <= 0x04; i++) {
 		data = pVBInfo->TimingH.data[i];
-		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 1), data);
+		xgifb_reg_set(pVBInfo->P3d4, (unsigned short)(i + 1), data);
 	}
 
 	for (i = 0x05; i <= 0x06; i++) {
 		data = pVBInfo->TimingH.data[i];
-		xgifb_reg_set(pVBInfo->P3c4, (unsigned short) (i + 6), data);
+		xgifb_reg_set(pVBInfo->P3c4, (unsigned short)(i + 6), data);
 	}
 
 	j = xgifb_reg_get(pVBInfo->P3c4, 0x0e);
@@ -325,17 +325,17 @@ static void XGI_SetCRT1Timing_V(unsigned short ModeIdIndex,
 
 	for (i = 0x00; i <= 0x01; i++) {
 		data = pVBInfo->TimingV.data[i];
-		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 6), data);
+		xgifb_reg_set(pVBInfo->P3d4, (unsigned short)(i + 6), data);
 	}
 
 	for (i = 0x02; i <= 0x03; i++) {
 		data = pVBInfo->TimingV.data[i];
-		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 0x0e), data);
+		xgifb_reg_set(pVBInfo->P3d4, (unsigned short)(i + 0x0e), data);
 	}
 
 	for (i = 0x04; i <= 0x05; i++) {
 		data = pVBInfo->TimingV.data[i];
-		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 0x11), data);
+		xgifb_reg_set(pVBInfo->P3d4, (unsigned short)(i + 0x11), data);
 	}
 
 	j = xgifb_reg_get(pVBInfo->P3c4, 0x0a);
@@ -433,7 +433,7 @@ static void XGI_SetXG21CRTC(unsigned short RefreshRateTableIndex,
 		Temp2 |= 0x40; /* Temp2 + 0x40 */
 
 	Temp2 &= 0xFF;
-	Tempax = (unsigned char) Temp2; /* Tempax: HRE[7:0] */
+	Tempax = (unsigned char)Temp2; /* Tempax: HRE[7:0] */
 	Tempax <<= 2; /* Tempax[7:2]: HRE[5:0] */
 	Tempdx >>= 6; /* Tempdx[7:6]->[1:0] HRS[9:8] */
 	Tempax |= Tempdx; /* HRE[5:0]HRS[9:8] */
@@ -483,11 +483,11 @@ static void XGI_SetXG21CRTC(unsigned short RefreshRateTableIndex,
 		Temp2 |= 0x20; /* VRE + 0x20 */
 
 	Temp2 &= 0xFF;
-	Tempax = (unsigned char) Temp2; /* Tempax: VRE[7:0] */
+	Tempax = (unsigned char)Temp2; /* Tempax: VRE[7:0] */
 	Tempax <<= 2; /* Tempax[7:0]; VRE[5:0]00 */
 	Temp1 &= 0x600; /* Temp1[10:9]: VRS[10:9] */
 	Temp1 >>= 9; /* Temp1[1:0]: VRS[10:9] */
-	Tempbx = (unsigned char) Temp1;
+	Tempbx = (unsigned char)Temp1;
 	Tempax |= Tempbx; /* Tempax[7:0]: VRE[5:0]VRS[10:9] */
 	Tempax &= 0x7F;
 	/* SR3F D[7:2]->VRE D[1:0]->VRS */
@@ -716,10 +716,10 @@ static void XGI_SetCRT1DE(unsigned short ModeIdIndex,
 	data = xgifb_reg_get(pVBInfo->P3d4, 0x11);
 	data &= 0x7F;
 	xgifb_reg_set(pVBInfo->P3d4, 0x11, data); /* Unlock CRTC */
-	xgifb_reg_set(pVBInfo->P3d4, 0x01, (unsigned short) (tempcx & 0xff));
+	xgifb_reg_set(pVBInfo->P3d4, 0x01, (unsigned short)(tempcx & 0xff));
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x0b, ~0x0c,
-			(unsigned short) ((tempcx & 0x0ff00) >> 10));
-	xgifb_reg_set(pVBInfo->P3d4, 0x12, (unsigned short) (tempbx & 0xff));
+			(unsigned short)((tempcx & 0x0ff00) >> 10));
+	xgifb_reg_set(pVBInfo->P3d4, 0x12, (unsigned short)(tempbx & 0xff));
 	tempax = 0;
 	tempbx >>= 8;
 
