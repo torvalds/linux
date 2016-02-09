@@ -135,6 +135,26 @@ xfs_inode_free(
 }
 
 /*
+ * When we recycle a reclaimable inode, we need to re-initialise the VFS inode
+ * part of the structure. This is made more complex by the fact we store
+ * information about the on-disk values in the VFS inode and so we can't just
+ * overwrite it's values unconditionally. Hence we save the parameters we
+ * need to retain across reinitialisation, and rewrite them into the VFS inode
+ * after resetting it's state even if resetting fails.
+ */
+static int
+xfs_reinit_inode(
+	struct xfs_mount	*mp,
+	struct inode		*inode)
+{
+	int		error;
+
+	error = inode_init_always(mp->m_super, inode);
+
+	return error;
+}
+
+/*
  * Check the validity of the inode we just found it the cache
  */
 static int
@@ -208,7 +228,7 @@ xfs_iget_cache_hit(
 		spin_unlock(&ip->i_flags_lock);
 		rcu_read_unlock();
 
-		error = inode_init_always(mp->m_super, inode);
+		error = xfs_reinit_inode(mp, inode);
 		if (error) {
 			/*
 			 * Re-initializing the inode failed, and we are in deep
