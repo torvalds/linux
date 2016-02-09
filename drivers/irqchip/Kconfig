@@ -165,6 +165,7 @@ config TS4800_IRQ
 	tristate "TS-4800 IRQ controller"
 	select IRQ_DOMAIN
 	depends on HAS_IOMEM
+	depends on SOC_IMX51 || COMPILE_TEST
 	help
 	  Support for the TS-4800 FPGA IRQ controller
 
