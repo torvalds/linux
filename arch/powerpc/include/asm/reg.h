@@ -1219,9 +1219,11 @@ static inline void mtmsr_isync(unsigned long val)
 #define mfspr(rn)	({unsigned long rval; \
 			asm volatile("mfspr %0," __stringify(rn) \
 				: "=r" (rval)); rval;})
+#ifndef mtspr
 #define mtspr(rn, v)	asm volatile("mtspr " __stringify(rn) ",%0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+#endif
 
 extern void msr_check_and_set(unsigned long bits);
 extern bool strict_msr_control;
