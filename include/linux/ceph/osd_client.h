@@ -43,7 +43,8 @@ struct ceph_osd {
 };
 
 
-#define CEPH_OSD_MAX_OP	3
+#define CEPH_OSD_SLAB_OPS	2
+#define CEPH_OSD_MAX_OPS	16
 
 enum ceph_osd_data_type {
 	CEPH_OSD_DATA_TYPE_NONE = 0,
@@ -139,7 +140,6 @@ struct ceph_osd_request {
 
 	/* request osd ops array  */
 	unsigned int		r_num_ops;
-	struct ceph_osd_req_op	r_ops[CEPH_OSD_MAX_OP];
 
 	/* these are updated on each send */
 	__le32           *r_request_osdmap_epoch;
@@ -175,6 +175,8 @@ struct ceph_osd_request {
 	unsigned long     r_stamp;            /* send OR check time */
 
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
+
+	struct ceph_osd_req_op r_ops[];
 };
 
 struct ceph_request_redirect {
