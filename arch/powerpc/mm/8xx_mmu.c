@@ -98,3 +98,37 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x00800000));
 #endif
 }
+
+/*
+ * Set up to use a given MMU context.
+ * id is context number, pgd is PGD pointer.
+ *
+ * We place the physical address of the new task page directory loaded
+ * into the MMU base register, and set the ASID compare register with
+ * the new "context."
+ */
+void set_context(unsigned long id, pgd_t *pgd)
+{
+	s16 offset = (s16)(__pa(swapper_pg_dir));
+
+#ifdef CONFIG_BDI_SWITCH
+	pgd_t	**ptr = *(pgd_t ***)(KERNELBASE + 0xf0);
+
+	/* Context switch the PTE pointer for the Abatron BDI2000.
+	 * The PGDIR is passed as second argument.
+	 */
+	*(ptr + 1) = pgd;
+#endif
+
+	/* Register M_TW will contain base address of level 1 table minus the
+	 * lower part of the kernel PGDIR base address, so that all accesses to
+	 * level 1 table are done relative to lower part of kernel PGDIR base
+	 * address.
+	 */
+	mtspr(SPRN_M_TW, __pa(pgd) - offset);
+
+	/* Update context */
+	mtspr(SPRN_M_CASID, id);
+	/* sync */
+	mb();
+}

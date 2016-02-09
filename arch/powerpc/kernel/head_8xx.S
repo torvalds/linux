@@ -883,50 +883,6 @@ initial_mmu:
 
 
 /*
- * Set up to use a given MMU context.
- * r3 is context number, r4 is PGD pointer.
- *
- * We place the physical address of the new task page directory loaded
- * into the MMU base register, and set the ASID compare register with
- * the new "context."
- */
-_GLOBAL(set_context)
-
-#ifdef CONFIG_BDI_SWITCH
-	/* Context switch the PTE pointer for the Abatron BDI2000.
-	 * The PGDIR is passed as second argument.
-	 */
-	lis	r5, KERNELBASE@h
-	lwz	r5, 0xf0(r5)
-	stw	r4, 0x4(r5)
-#endif
-
-	/* Register M_TW will contain base address of level 1 table minus the
-	 * lower part of the kernel PGDIR base address, so that all accesses to
-	 * level 1 table are done relative to lower part of kernel PGDIR base
-	 * address.
-	 */
-	li	r5, (swapper_pg_dir-PAGE_OFFSET)@l
-	sub	r4, r4, r5
-	tophys	(r4, r4)
-#ifdef CONFIG_8xx_CPU6
-	lis	r6, cpu6_errata_word@h
-	ori	r6, r6, cpu6_errata_word@l
-	li	r7, 0x3f80
-	stw	r7, 12(r6)
-	lwz	r7, 12(r6)
-#endif
-	mtspr	SPRN_M_TW, r4		/* Update pointeur to level 1 table */
-#ifdef CONFIG_8xx_CPU6
-	li	r7, 0x3380
-	stw	r7, 12(r6)
-	lwz	r7, 12(r6)
-#endif
-	mtspr	SPRN_M_CASID, r3	/* Update context */
-	SYNC
-	blr
-
-/*
  * We put a few things here that have to be page-aligned.
  * This stuff goes at the beginning of the data segment,
  * which is page-aligned.
