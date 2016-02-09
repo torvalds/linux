@@ -212,6 +212,12 @@ static irqreturn_t bcm2835aux_spi_interrupt(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 	}
 
+	if (!bs->tx_len) {
+		/* disable tx fifo empty interrupt */
+		bcm2835aux_wr(bs, BCM2835_AUX_SPI_CNTL1, bs->cntl[1] |
+			BCM2835_AUX_SPI_CNTL1_IDLE);
+	}
+
 	/* and if rx_len is 0 then wake up completion and disable spi */
 	if (!bs->rx_len) {
 		bcm2835aux_spi_reset_hw(bs);
