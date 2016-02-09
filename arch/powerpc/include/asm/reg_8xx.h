@@ -4,6 +4,8 @@
 #ifndef _ASM_POWERPC_REG_8xx_H
 #define _ASM_POWERPC_REG_8xx_H
 
+#include <asm/mmu-8xx.h>
+
 /* Cache control on the MPC8xx is provided through some additional
  * special purpose registers.
  */
@@ -13,6 +15,15 @@
 #define SPRN_DC_CST	568	/* Data cache control/status */
 #define SPRN_DC_ADR	569	/* Address needed for some commands */
 #define SPRN_DC_DAT	570	/* Read-only data register */
+
+/* Misc Debug */
+#define SPRN_DPDR	630
+#define SPRN_MI_CAM	816
+#define SPRN_MI_RAM0	817
+#define SPRN_MI_RAM1	818
+#define SPRN_MD_CAM	824
+#define SPRN_MD_RAM0	825
+#define SPRN_MD_RAM1	826
 
 /* Commands.  Only the first few are available to the instruction cache.
 */
