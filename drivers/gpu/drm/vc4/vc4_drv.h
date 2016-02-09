@@ -376,7 +376,6 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
 extern struct platform_driver vc4_crtc_driver;
 int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id);
 void vc4_disable_vblank(struct drm_device *dev, unsigned int crtc_id);
-void vc4_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file);
 int vc4_crtc_debugfs_regs(struct seq_file *m, void *arg);
 
 /* vc4_debugfs.c */

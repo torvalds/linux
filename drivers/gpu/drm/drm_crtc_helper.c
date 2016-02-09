@@ -220,6 +220,15 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
  * disconnected connectors. Then it will disable all unused encoders and CRTCs
  * either by calling their disable callback if available or by calling their
  * dpms callback with DRM_MODE_DPMS_OFF.
+ *
+ * NOTE:
+ *
+ * This function is part of the legacy modeset helper library and will cause
+ * major confusion with atomic drivers. This is because atomic helpers guarantee
+ * to never call ->disable() hooks on a disabled function, or ->enable() hooks
+ * on an enabled functions. drm_helper_disable_unused_functions() on the other
+ * hand throws such guarantees into the wind and calls disable hooks
+ * unconditionally on unused functions.
  */
 void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
@@ -578,8 +587,6 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		if (set->crtc->primary->fb == NULL) {
 			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
 			mode_changed = true;
-		} else if (set->fb == NULL) {
-			mode_changed = true;
 		} else if (set->fb->pixel_format !=
 			   set->crtc->primary->fb->pixel_format) {
 			mode_changed = true;
@@ -590,7 +597,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	if (set->x != set->crtc->x || set->y != set->crtc->y)
 		fb_changed = true;
 
-	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
+	if (!drm_mode_equal(set->mode, &set->crtc->mode)) {
 		DRM_DEBUG_KMS("modes are different, full mode set\n");
 		drm_mode_debug_printmodeline(&set->crtc->mode);
 		drm_mode_debug_printmodeline(set->mode);

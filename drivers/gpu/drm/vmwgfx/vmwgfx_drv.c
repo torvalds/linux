@@ -972,15 +972,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 	return 0;
 }
 
-static void vmw_preclose(struct drm_device *dev,
-			 struct drm_file *file_priv)
-{
-	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
-	struct vmw_private *dev_priv = vmw_priv(dev);
-
-	vmw_event_fence_fpriv_gone(dev_priv->fman, &vmw_fp->fence_events);
-}
-
 static void vmw_postclose(struct drm_device *dev,
 			 struct drm_file *file_priv)
 {
@@ -1011,7 +1002,6 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 	if (unlikely(vmw_fp == NULL))
 		return ret;
 
-	INIT_LIST_HEAD(&vmw_fp->fence_events);
 	vmw_fp->tfile = ttm_object_file_init(dev_priv->tdev, 10);
 	if (unlikely(vmw_fp->tfile == NULL))
 		goto out_no_tfile;
@@ -1501,7 +1491,6 @@ static struct drm_driver driver = {
 	.master_set = vmw_master_set,
 	.master_drop = vmw_master_drop,
 	.open = vmw_driver_open,
-	.preclose = vmw_preclose,
 	.postclose = vmw_postclose,
 	.set_busid = drm_pci_set_busid,
 
