@@ -199,7 +199,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	struct dev_pm_opp *suspend_opp;
 	unsigned long min_uV = ~0, max_uV = 0;
 	unsigned int transition_latency;
-	bool need_update = false;
+	bool opp_v1 = false;
 	int ret;
 
 	ret = allocate_resources(policy->cpu, &cpu_dev, &cpu_reg, &cpu_clk);
@@ -223,7 +223,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		 * finding shared-OPPs for backward compatibility.
 		 */
 		if (ret == -ENOENT)
-			need_update = true;
+			opp_v1 = true;
 		else
 			goto out_node_put;
 	}
@@ -251,7 +251,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		goto out_free_opp;
 	}
 
-	if (need_update) {
+	if (opp_v1) {
 		struct cpufreq_dt_platform_data *pd = cpufreq_get_driver_data();
 
 		if (!pd || !pd->independent_clocks)
