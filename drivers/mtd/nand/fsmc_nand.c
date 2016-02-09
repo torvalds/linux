@@ -39,35 +39,6 @@
 #include <linux/amba/bus.h>
 #include <mtd/mtd-abi.h>
 
-/*
- * ECC placement definitions in oobfree type format.
- * There are 13 bytes of ecc for every 512 byte block and it has to be read
- * consecutively and immediately after the 512 byte data block for hardware to
- * generate the error bit offsets in 512 byte data.
- * Managing the ecc bytes in the following way makes it easier for software to
- * read ecc bytes consecutive to data bytes. This way is similar to
- * oobfree structure maintained already in generic nand driver
- */
-static struct fsmc_eccplace fsmc_ecc4_lp_place = {
-	.eccplace = {
-		{.offset = 2, .length = 13},
-		{.offset = 18, .length = 13},
-		{.offset = 34, .length = 13},
-		{.offset = 50, .length = 13},
-		{.offset = 66, .length = 13},
-		{.offset = 82, .length = 13},
-		{.offset = 98, .length = 13},
-		{.offset = 114, .length = 13}
-	}
-};
-
-static struct fsmc_eccplace fsmc_ecc4_sp_place = {
-	.eccplace = {
-		{.offset = 0, .length = 4},
-		{.offset = 6, .length = 9}
-	}
-};
-
 static int fsmc_ecc1_ooblayout_ecc(struct mtd_info *mtd, int section,
 				   struct mtd_oob_region *oobregion)
 {
@@ -105,6 +76,12 @@ static const struct mtd_ooblayout_ops fsmc_ecc1_ooblayout_ops = {
 	.free = fsmc_ecc1_ooblayout_free,
 };
 
+/*
+ * ECC placement definitions in oobfree type format.
+ * There are 13 bytes of ecc for every 512 byte block and it has to be read
+ * consecutively and immediately after the 512 byte data block for hardware to
+ * generate the error bit offsets in 512 byte data.
+ */
 static int fsmc_ecc4_ooblayout_ecc(struct mtd_info *mtd, int section,
 				   struct mtd_oob_region *oobregion)
 {
@@ -155,7 +132,6 @@ static const struct mtd_ooblayout_ops fsmc_ecc4_ooblayout_ops = {
  * @partitions:		Partition info for a NAND Flash.
  * @nr_partitions:	Total number of partition of a NAND flash.
  *
- * @ecc_place:		ECC placing locations in oobfree type format.
  * @bank:		Bank number for probed device.
  * @clk:		Clock structure for FSMC.
  *
@@ -175,7 +151,6 @@ struct fsmc_nand_data {
 	struct mtd_partition	*partitions;
 	unsigned int		nr_partitions;
 
-	struct fsmc_eccplace	*ecc_place;
 	unsigned int		bank;
 	struct device		*dev;
 	enum access_mode	mode;
@@ -582,8 +557,6 @@ static void fsmc_write_buf_dma(struct mtd_info *mtd, const uint8_t *buf,
 static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 				 uint8_t *buf, int oob_required, int page)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(mtd);
-	struct fsmc_eccplace *ecc_place = host->ecc_place;
 	int i, j, s, stat, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
@@ -606,9 +579,15 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		chip->read_buf(mtd, p, eccsize);
 
 		for (j = 0; j < eccbytes;) {
-			off = ecc_place->eccplace[group].offset;
-			len = ecc_place->eccplace[group].length;
-			group++;
+			struct mtd_oob_region oobregion;
+			int ret;
+
+			ret = mtd_ooblayout_ecc(mtd, group++, &oobregion);
+			if (ret)
+				return ret;
+
+			off = oobregion.offset;
+			len = oobregion.length;
 
 			/*
 			 * length is intentionally kept a higher multiple of 2
@@ -956,19 +935,10 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (AMBA_REV_BITS(host->pid) >= 8) {
 		switch (mtd->oobsize) {
 		case 16:
-			host->ecc_place = &fsmc_ecc4_sp_place;
-			break;
 		case 64:
-			host->ecc_place = &fsmc_ecc4_lp_place;
-			break;
 		case 128:
-			host->ecc_place = &fsmc_ecc4_lp_place;
-			break;
 		case 224:
-			host->ecc_place = &fsmc_ecc4_lp_place;
-			break;
 		case 256:
-			host->ecc_place = &fsmc_ecc4_lp_place;
 			break;
 		default:
 			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
