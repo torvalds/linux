@@ -223,24 +223,91 @@
 
 /* subdevice types */
 
+/**
+ * enum comedi_subdevice_type - COMEDI subdevice types
+ * @COMEDI_SUBD_UNUSED:		Unused subdevice.
+ * @COMEDI_SUBD_AI:		Analog input.
+ * @COMEDI_SUBD_AO:		Analog output.
+ * @COMEDI_SUBD_DI:		Digital input.
+ * @COMEDI_SUBD_DO:		Digital output.
+ * @COMEDI_SUBD_DIO:		Digital input/output.
+ * @COMEDI_SUBD_COUNTER:	Counter.
+ * @COMEDI_SUBD_TIMER:		Timer.
+ * @COMEDI_SUBD_MEMORY:		Memory, EEPROM, DPRAM.
+ * @COMEDI_SUBD_CALIB:		Calibration DACs.
+ * @COMEDI_SUBD_PROC:		Processor, DSP.
+ * @COMEDI_SUBD_SERIAL:		Serial I/O.
+ * @COMEDI_SUBD_PWM:		Pulse-Width Modulation output.
+ */
 enum comedi_subdevice_type {
-	COMEDI_SUBD_UNUSED,	/* unused by driver */
-	COMEDI_SUBD_AI,		/* analog input */
-	COMEDI_SUBD_AO,		/* analog output */
-	COMEDI_SUBD_DI,		/* digital input */
-	COMEDI_SUBD_DO,		/* digital output */
-	COMEDI_SUBD_DIO,	/* digital input/output */
-	COMEDI_SUBD_COUNTER,	/* counter */
-	COMEDI_SUBD_TIMER,	/* timer */
-	COMEDI_SUBD_MEMORY,	/* memory, EEPROM, DPRAM */
-	COMEDI_SUBD_CALIB,	/* calibration DACs */
-	COMEDI_SUBD_PROC,	/* processor, DSP */
-	COMEDI_SUBD_SERIAL,	/* serial IO */
-	COMEDI_SUBD_PWM		/* PWM */
+	COMEDI_SUBD_UNUSED,
+	COMEDI_SUBD_AI,
+	COMEDI_SUBD_AO,
+	COMEDI_SUBD_DI,
+	COMEDI_SUBD_DO,
+	COMEDI_SUBD_DIO,
+	COMEDI_SUBD_COUNTER,
+	COMEDI_SUBD_TIMER,
+	COMEDI_SUBD_MEMORY,
+	COMEDI_SUBD_CALIB,
+	COMEDI_SUBD_PROC,
+	COMEDI_SUBD_SERIAL,
+	COMEDI_SUBD_PWM
 };
 
 /* configuration instructions */
 
+/**
+ * enum configuration_ids - COMEDI configuration instruction codes
+ * @INSN_CONFIG_DIO_INPUT:	Configure digital I/O as input.
+ * @INSN_CONFIG_DIO_OUTPUT:	Configure digital I/O as output.
+ * @INSN_CONFIG_DIO_OPENDRAIN:	Configure digital I/O as open-drain (or open
+ *				collector) output.
+ * @INSN_CONFIG_ANALOG_TRIG:	Configure analog trigger.
+ * @INSN_CONFIG_ALT_SOURCE:	Configure alternate input source.
+ * @INSN_CONFIG_DIGITAL_TRIG:	Configure digital trigger.
+ * @INSN_CONFIG_BLOCK_SIZE:	Configure block size for DMA transfers.
+ * @INSN_CONFIG_TIMER_1:	Configure divisor for external clock.
+ * @INSN_CONFIG_FILTER:		Configure a filter.
+ * @INSN_CONFIG_CHANGE_NOTIFY:	Configure change notification for digital
+ *				inputs.  (New drivers should use
+ *				%INSN_CONFIG_DIGITAL_TRIG instead.)
+ * @INSN_CONFIG_SERIAL_CLOCK:	Configure clock for serial I/O.
+ * @INSN_CONFIG_BIDIRECTIONAL_DATA: Send and receive byte over serial I/O.
+ * @INSN_CONFIG_DIO_QUERY:	Query direction of digital I/O channel.
+ * @INSN_CONFIG_PWM_OUTPUT:	Configure pulse-width modulator output.
+ * @INSN_CONFIG_GET_PWM_OUTPUT:	Get pulse-width modulator output configuration.
+ * @INSN_CONFIG_ARM:		Arm a subdevice or channel.
+ * @INSN_CONFIG_DISARM:		Disarm a subdevice or channel.
+ * @INSN_CONFIG_GET_COUNTER_STATUS: Get counter status.
+ * @INSN_CONFIG_RESET:		Reset a subdevice or channel.
+ * @INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR: Configure counter/timer as
+ *				single pulse generator.
+ * @INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR: Configure counter/timer as
+ *				pulse train generator.
+ * @INSN_CONFIG_GPCT_QUADRATURE_ENCODER: Configure counter as a quadrature
+ *				encoder.
+ * @INSN_CONFIG_SET_GATE_SRC:	Set counter/timer gate source.
+ * @INSN_CONFIG_GET_GATE_SRC:	Get counter/timer gate source.
+ * @INSN_CONFIG_SET_CLOCK_SRC:	Set counter/timer master clock source.
+ * @INSN_CONFIG_GET_CLOCK_SRC:	Get counter/timer master clock source.
+ * @INSN_CONFIG_SET_OTHER_SRC:	Set counter/timer "other" source.
+ * @INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE: Get size (in bytes) of subdevice's
+ *				on-board FIFOs used during streaming
+ *				input/output.
+ * @INSN_CONFIG_SET_COUNTER_MODE: Set counter/timer mode.
+ * @INSN_CONFIG_8254_SET_MODE:	(Deprecated) Same as
+ *				%INSN_CONFIG_SET_COUNTER_MODE.
+ * @INSN_CONFIG_8254_READ_STATUS: Read status of 8254 counter channel.
+ * @INSN_CONFIG_SET_ROUTING:	Set routing for a channel.
+ * @INSN_CONFIG_GET_ROUTING:	Get routing for a channel.
+ * @INSN_CONFIG_PWM_SET_PERIOD: Set PWM period in nanoseconds.
+ * @INSN_CONFIG_PWM_GET_PERIOD: Get PWM period in nanoseconds.
+ * @INSN_CONFIG_GET_PWM_STATUS: Get PWM status.
+ * @INSN_CONFIG_PWM_SET_H_BRIDGE: Set PWM H bridge duty cycle and polarity for
+ *				a relay simultaneously.
+ * @INSN_CONFIG_PWM_GET_H_BRIDGE: Get PWM H bridge duty cycle and polarity.
+ */
 enum configuration_ids {
 	INSN_CONFIG_DIO_INPUT = 0,
 	INSN_CONFIG_DIO_OUTPUT = 1,
@@ -265,72 +332,76 @@ enum configuration_ids {
 	INSN_CONFIG_DISARM = 32,
 	INSN_CONFIG_GET_COUNTER_STATUS = 33,
 	INSN_CONFIG_RESET = 34,
-	/* Use CTR as single pulsegenerator */
 	INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001,
-	/* Use CTR as pulsetraingenerator */
 	INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002,
-	/* Use the counter as encoder */
 	INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003,
-	INSN_CONFIG_SET_GATE_SRC = 2001,	/* Set gate source */
-	INSN_CONFIG_GET_GATE_SRC = 2002,	/* Get gate source */
-	/* Set master clock source */
+	INSN_CONFIG_SET_GATE_SRC = 2001,
+	INSN_CONFIG_GET_GATE_SRC = 2002,
 	INSN_CONFIG_SET_CLOCK_SRC = 2003,
-	INSN_CONFIG_GET_CLOCK_SRC = 2004, /* Get master clock source */
-	INSN_CONFIG_SET_OTHER_SRC = 2005, /* Set other source */
-	/* INSN_CONFIG_GET_OTHER_SRC = 2006,*//* Get other source */
-	/* Get size in bytes of subdevice's on-board fifos used during
-	 * streaming input/output
-	 */
+	INSN_CONFIG_GET_CLOCK_SRC = 2004,
+	INSN_CONFIG_SET_OTHER_SRC = 2005,
 	INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE = 2006,
 	INSN_CONFIG_SET_COUNTER_MODE = 4097,
-	/* INSN_CONFIG_8254_SET_MODE is deprecated */
 	INSN_CONFIG_8254_SET_MODE = INSN_CONFIG_SET_COUNTER_MODE,
 	INSN_CONFIG_8254_READ_STATUS = 4098,
 	INSN_CONFIG_SET_ROUTING = 4099,
 	INSN_CONFIG_GET_ROUTING = 4109,
-	/* PWM */
-	INSN_CONFIG_PWM_SET_PERIOD = 5000,	/* sets frequency */
-	INSN_CONFIG_PWM_GET_PERIOD = 5001,	/* gets frequency */
-	INSN_CONFIG_GET_PWM_STATUS = 5002,	/* is it running? */
-	/* sets H bridge: duty cycle and sign bit for a relay at the
-	 * same time
-	 */
+	INSN_CONFIG_PWM_SET_PERIOD = 5000,
+	INSN_CONFIG_PWM_GET_PERIOD = 5001,
+	INSN_CONFIG_GET_PWM_STATUS = 5002,
 	INSN_CONFIG_PWM_SET_H_BRIDGE = 5003,
-	/* gets H bridge data: duty cycle and the sign bit */
 	INSN_CONFIG_PWM_GET_H_BRIDGE = 5004
 };
 
-/*
- * Settings for INSN_CONFIG_DIGITAL_TRIG:
- * data[0] = INSN_CONFIG_DIGITAL_TRIG
- * data[1] = trigger ID
- * data[2] = configuration operation
- * data[3] = configuration parameter 1
- * data[4] = configuration parameter 2
- * data[5] = configuration parameter 3
+/**
+ * enum comedi_digital_trig_op - operations for configuring a digital trigger
+ * @COMEDI_DIGITAL_TRIG_DISABLE:	Return digital trigger to its default,
+ *					inactive, unconfigured state.
+ * @COMEDI_DIGITAL_TRIG_ENABLE_EDGES:	Set rising and/or falling edge inputs
+ *					that each can fire the trigger.
+ * @COMEDI_DIGITAL_TRIG_ENABLE_LEVELS:	Set a combination of high and/or low
+ *					level inputs that can fire the trigger.
  *
- * operation                           parameter 1   parameter 2   parameter 3
- * ---------------------------------   -----------   -----------   -----------
- * COMEDI_DIGITAL_TRIG_DISABLE
- * COMEDI_DIGITAL_TRIG_ENABLE_EDGES    left-shift    rising-edges  falling-edges
- * COMEDI_DIGITAL_TRIG_ENABLE_LEVELS   left-shift    high-levels   low-levels
+ * These are used with the %INSN_CONFIG_DIGITAL_TRIG configuration instruction.
+ * The data for the configuration instruction is as follows...
  *
- * COMEDI_DIGITAL_TRIG_DISABLE returns the trigger to its default, inactive,
- * unconfigured state.
+ *   data[%0] = %INSN_CONFIG_DIGITAL_TRIG
  *
- * COMEDI_DIGITAL_TRIG_ENABLE_EDGES sets the rising and/or falling edge inputs
- * that each can fire the trigger.
+ *   data[%1] = trigger ID
  *
- * COMEDI_DIGITAL_TRIG_ENABLE_LEVELS sets a combination of high and/or low
- * level inputs that can fire the trigger.
+ *   data[%2] = configuration operation
  *
- * "left-shift" is useful if the trigger has more than 32 inputs to specify the
- * first input for this configuration.
+ *   data[%3] = configuration parameter 1
  *
- * Some sequences of INSN_CONFIG_DIGITAL_TRIG instructions may have a (partly)
+ *   data[%4] = configuration parameter 2
+ *
+ *   data[%5] = configuration parameter 3
+ *
+ * The trigger ID (data[%1]) is used to differentiate multiple digital triggers
+ * belonging to the same subdevice.  The configuration operation (data[%2]) is
+ * one of the enum comedi_digital_trig_op values.  The configuration
+ * parameters (data[%3], data[%4], and data[%5]) depend on the operation; they
+ * are not used with %COMEDI_DIGITAL_TRIG_DISABLE.
+ *
+ * For %COMEDI_DIGITAL_TRIG_ENABLE_EDGES and %COMEDI_DIGITAL_TRIG_ENABLE_LEVELS,
+ * configuration parameter 1 (data[%3]) contains a "left-shift" value that
+ * specifies the input corresponding to bit 0 of configuration parameters 2
+ * and 3.  This is useful if the trigger has more than 32 inputs.
+ *
+ * For %COMEDI_DIGITAL_TRIG_ENABLE_EDGES, configuration parameter 2 (data[%4])
+ * specifies which of up to 32 inputs have rising-edge sensitivity, and
+ * configuration parameter 3 (data[%5]) specifies which of up to 32 inputs
+ * have falling-edge sensitivity that can fire the trigger.
+ *
+ * For %COMEDI_DIGITAL_TRIG_ENABLE_LEVELS, configuration parameter 2 (data[%4])
+ * specifies which of up to 32 inputs must be at a high level, and
+ * configuration parameter 3 (data[%5]) specifies which of up to 32 inputs
+ * must be at a low level for the trigger to fire.
+ *
+ * Some sequences of %INSN_CONFIG_DIGITAL_TRIG instructions may have a (partly)
  * accumulative effect, depending on the low-level driver.  This is useful
- * when setting up a trigger that has more than 32 inputs or has a combination
- * of edge and level triggered inputs.
+ * when setting up a trigger that has more than 32 inputs, or has a combination
+ * of edge- and level-triggered inputs.
  */
 enum comedi_digital_trig_op {
 	COMEDI_DIGITAL_TRIG_DISABLE = 0,
@@ -338,16 +409,47 @@ enum comedi_digital_trig_op {
 	COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = 2
 };
 
+/**
+ * enum comedi_io_direction - COMEDI I/O directions
+ * @COMEDI_INPUT:	Input.
+ * @COMEDI_OUTPUT:	Output.
+ * @COMEDI_OPENDRAIN:	Open-drain (or open-collector) output.
+ *
+ * These are used by the %INSN_CONFIG_DIO_QUERY configuration instruction to
+ * report a direction.  They may also be used in other places where a direction
+ * needs to be specified.
+ */
 enum comedi_io_direction {
 	COMEDI_INPUT = 0,
 	COMEDI_OUTPUT = 1,
 	COMEDI_OPENDRAIN = 2
 };
 
+/**
+ * enum comedi_support_level - support level for a COMEDI feature
+ * @COMEDI_UNKNOWN_SUPPORT:	Unspecified support for feature.
+ * @COMEDI_SUPPORTED:		Feature is supported.
+ * @COMEDI_UNSUPPORTED:		Feature is unsupported.
+ */
 enum comedi_support_level {
 	COMEDI_UNKNOWN_SUPPORT = 0,
 	COMEDI_SUPPORTED,
 	COMEDI_UNSUPPORTED
+};
+
+/**
+ * enum comedi_counter_status_flags - counter status bits
+ * @COMEDI_COUNTER_ARMED:		Counter is armed.
+ * @COMEDI_COUNTER_COUNTING:		Counter is counting.
+ * @COMEDI_COUNTER_TERMINAL_COUNT:	Counter reached terminal count.
+ *
+ * These bitwise values are used by the %INSN_CONFIG_GET_COUNTER_STATUS
+ * configuration instruction to report the status of a counter.
+ */
+enum comedi_counter_status_flags {
+	COMEDI_COUNTER_ARMED = 0x1,
+	COMEDI_COUNTER_COUNTING = 0x2,
+	COMEDI_COUNTER_TERMINAL_COUNT = 0x4,
 };
 
 /* ioctls */
@@ -848,13 +950,6 @@ enum ni_660x_pfi_routing {
  */
 #define NI_EXT_PFI(x)			(NI_USUAL_PFI_SELECT(x) - 1)
 #define NI_EXT_RTSI(x)			(NI_USUAL_RTSI_SELECT(x) - 1)
-
-/* status bits for INSN_CONFIG_GET_COUNTER_STATUS */
-enum comedi_counter_status_flags {
-	COMEDI_COUNTER_ARMED = 0x1,
-	COMEDI_COUNTER_COUNTING = 0x2,
-	COMEDI_COUNTER_TERMINAL_COUNT = 0x4,
-};
 
 /*
  * Clock sources for CDIO subdevice on NI m-series boards.  Used as the
