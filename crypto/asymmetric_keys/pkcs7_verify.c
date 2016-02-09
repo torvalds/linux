@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/asn1.h>
 #include <crypto/hash.h>
-#include <crypto/public_key.h>
+#include "public_key.h"
 #include "pkcs7_parser.h"
 
 /*
