@@ -334,27 +334,6 @@ int au1100fb_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *fbi)
 	return 0;
 }
 
-/* fb_rotate
- * Rotate the display of this angle. This doesn't seems to be used by the core,
- * but as our hardware supports it, so why not implementing it...
- */
-void au1100fb_fb_rotate(struct fb_info *fbi, int angle)
-{
-	struct au1100fb_device *fbdev = to_au1100fb_device(fbi);
-
-	print_dbg("fb_rotate %p %d", fbi, angle);
-
-	if (fbdev && (angle > 0) && !(angle % 90)) {
-
-		fbdev->regs->lcd_control &= ~LCD_CONTROL_GO;
-
-		fbdev->regs->lcd_control &= ~(LCD_CONTROL_SM_MASK);
-		fbdev->regs->lcd_control |= ((angle/90) << LCD_CONTROL_SM_BIT);
-
-		fbdev->regs->lcd_control |= LCD_CONTROL_GO;
-	}
-}
-
 /* fb_mmap
  * Map video memory in user space. We don't use the generic fb_mmap method mainly
  * to allow the use of the TLB streaming flag (CCA=6)
@@ -380,7 +359,6 @@ static struct fb_ops au1100fb_ops =
 	.fb_fillrect		= cfb_fillrect,
 	.fb_copyarea		= cfb_copyarea,
 	.fb_imageblit		= cfb_imageblit,
-	.fb_rotate		= au1100fb_fb_rotate,
 	.fb_mmap		= au1100fb_fb_mmap,
 };
 
