@@ -4978,7 +4978,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 						break;
 					}
 				}
-				if (pevent->long_size == 8 && ls &&
+				if (pevent->long_size == 8 && ls == 1 &&
 				    sizeof(long) != 8) {
 					char *p;
 
