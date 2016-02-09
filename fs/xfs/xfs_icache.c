@@ -148,9 +148,11 @@ xfs_reinit_inode(
 	struct inode		*inode)
 {
 	int		error;
+	uint32_t	nlink = inode->i_nlink;
 
 	error = inode_init_always(mp->m_super, inode);
 
+	set_nlink(inode, nlink);
 	return error;
 }
 

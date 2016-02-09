@@ -57,9 +57,9 @@ kmem_zone_t *xfs_inode_zone;
  */
 #define	XFS_ITRUNC_MAX_EXTENTS	2
 
-STATIC int xfs_iflush_int(xfs_inode_t *, xfs_buf_t *);
-
-STATIC int xfs_iunlink_remove(xfs_trans_t *, xfs_inode_t *);
+STATIC int xfs_iflush_int(struct xfs_inode *, struct xfs_buf *);
+STATIC int xfs_iunlink(struct xfs_trans *, struct xfs_inode *);
+STATIC int xfs_iunlink_remove(struct xfs_trans *, struct xfs_inode *);
 
 /*
  * helper function to extract extent size hint from inode
@@ -803,7 +803,7 @@ xfs_ialloc(
 		ip->i_d.di_version = 2;
 
 	ip->i_d.di_mode = mode;
-	ip->i_d.di_nlink = nlink;
+	set_nlink(inode, nlink);
 	ip->i_d.di_uid = xfs_kuid_to_uid(current_fsuid());
 	ip->i_d.di_gid = xfs_kgid_to_gid(current_fsgid());
 	xfs_set_projid(ip, prid);
@@ -1086,35 +1086,24 @@ xfs_dir_ialloc(
 }
 
 /*
- * Decrement the link count on an inode & log the change.
- * If this causes the link count to go to zero, initiate the
- * logging activity required to truncate a file.
+ * Decrement the link count on an inode & log the change.  If this causes the
+ * link count to go to zero, move the inode to AGI unlinked list so that it can
+ * be freed when the last active reference goes away via xfs_inactive().
  */
 int				/* error */
 xfs_droplink(
 	xfs_trans_t *tp,
 	xfs_inode_t *ip)
 {
-	int	error;
-
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 
-	ASSERT (ip->i_d.di_nlink > 0);
-	ip->i_d.di_nlink--;
 	drop_nlink(VFS_I(ip));
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	error = 0;
-	if (ip->i_d.di_nlink == 0) {
-		/*
-		 * We're dropping the last link to this file.
-		 * Move the on-disk inode to the AGI unlinked list.
-		 * From xfs_inactive() we will pull the inode from
-		 * the list and free it.
-		 */
-		error = xfs_iunlink(tp, ip);
-	}
-	return error;
+	if (VFS_I(ip)->i_nlink)
+		return 0;
+
+	return xfs_iunlink(tp, ip);
 }
 
 /*
@@ -1128,8 +1117,6 @@ xfs_bumplink(
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 
 	ASSERT(ip->i_d.di_version > 1);
-	ASSERT(ip->i_d.di_nlink > 0 || (VFS_I(ip)->i_state & I_LINKABLE));
-	ip->i_d.di_nlink++;
 	inc_nlink(VFS_I(ip));
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	return 0;
@@ -1387,7 +1374,6 @@ xfs_create_tmpfile(
 	 */
 	xfs_qm_vop_create_dqattach(tp, ip, udqp, gdqp, pdqp);
 
-	ip->i_d.di_nlink--;
 	error = xfs_iunlink(tp, ip);
 	if (error)
 		goto out_trans_cancel;
@@ -1486,7 +1472,10 @@ xfs_link(
 
 	xfs_bmap_init(&free_list, &first_block);
 
-	if (sip->i_d.di_nlink == 0) {
+	/*
+	 * Handle initial link state of O_TMPFILE inode
+	 */
+	if (VFS_I(sip)->i_nlink == 0) {
 		error = xfs_iunlink_remove(tp, sip);
 		if (error)
 			goto error_return;
@@ -1673,7 +1662,7 @@ xfs_release(
 		}
 	}
 
-	if (ip->i_d.di_nlink == 0)
+	if (VFS_I(ip)->i_nlink == 0)
 		return 0;
 
 	if (xfs_can_free_eofblocks(ip, false)) {
@@ -1889,7 +1878,7 @@ xfs_inactive(
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return;
 
-	if (ip->i_d.di_nlink != 0) {
+	if (VFS_I(ip)->i_nlink != 0) {
 		/*
 		 * force is true because we are evicting an inode from the
 		 * cache. Post-eof blocks must be freed, lest we end up with
@@ -1946,16 +1935,21 @@ xfs_inactive(
 }
 
 /*
- * This is called when the inode's link count goes to 0.
- * We place the on-disk inode on a list in the AGI.  It
- * will be pulled from this list when the inode is freed.
+ * This is called when the inode's link count goes to 0 or we are creating a
+ * tmpfile via O_TMPFILE. In the case of a tmpfile, @ignore_linkcount will be
+ * set to true as the link count is dropped to zero by the VFS after we've
+ * created the file successfully, so we have to add it to the unlinked list
+ * while the link count is non-zero.
+ *
+ * We place the on-disk inode on a list in the AGI.  It will be pulled from this
+ * list when the inode is freed.
  */
-int
+STATIC int
 xfs_iunlink(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*ip)
+	struct xfs_trans *tp,
+	struct xfs_inode *ip)
 {
-	xfs_mount_t	*mp;
+	xfs_mount_t	*mp = tp->t_mountp;
 	xfs_agi_t	*agi;
 	xfs_dinode_t	*dip;
 	xfs_buf_t	*agibp;
@@ -1965,10 +1959,7 @@ xfs_iunlink(
 	int		offset;
 	int		error;
 
-	ASSERT(ip->i_d.di_nlink == 0);
 	ASSERT(ip->i_d.di_mode != 0);
-
-	mp = tp->t_mountp;
 
 	/*
 	 * Get the agi buffer first.  It ensures lock ordering
@@ -2406,7 +2397,7 @@ xfs_ifree(
 	struct xfs_icluster	xic = { 0 };
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(ip->i_d.di_nlink == 0);
+	ASSERT(VFS_I(ip)->i_nlink == 0);
 	ASSERT(ip->i_d.di_nextents == 0);
 	ASSERT(ip->i_d.di_anextents == 0);
 	ASSERT(ip->i_d.di_size == 0 || !S_ISREG(ip->i_d.di_mode));
@@ -2574,8 +2565,8 @@ xfs_remove(
 	 * If we're removing a directory perform some additional validation.
 	 */
 	if (is_dir) {
-		ASSERT(ip->i_d.di_nlink >= 2);
-		if (ip->i_d.di_nlink != 2) {
+		ASSERT(VFS_I(ip)->i_nlink >= 2);
+		if (VFS_I(ip)->i_nlink != 2) {
 			error = -ENOTEMPTY;
 			goto out_trans_cancel;
 		}
@@ -3031,7 +3022,7 @@ xfs_rename(
 			 * Make sure target dir is empty.
 			 */
 			if (!(xfs_dir_isempty(target_ip)) ||
-			    (target_ip->i_d.di_nlink > 2)) {
+			    (VFS_I(target_ip)->i_nlink > 2)) {
 				error = -EEXIST;
 				goto out_trans_cancel;
 			}
@@ -3138,7 +3129,7 @@ xfs_rename(
 	 * intermediate state on disk.
 	 */
 	if (wip) {
-		ASSERT(VFS_I(wip)->i_nlink == 0 && wip->i_d.di_nlink == 0);
+		ASSERT(VFS_I(wip)->i_nlink == 0);
 		error = xfs_bumplink(tp, wip);
 		if (error)
 			goto out_bmap_cancel;

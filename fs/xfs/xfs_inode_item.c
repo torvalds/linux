@@ -338,7 +338,6 @@ xfs_inode_to_log_dinode(
 	to->di_format = from->di_format;
 	to->di_uid = from->di_uid;
 	to->di_gid = from->di_gid;
-	to->di_nlink = from->di_nlink;
 	to->di_projid_lo = from->di_projid_lo;
 	to->di_projid_hi = from->di_projid_hi;
 
@@ -350,6 +349,7 @@ xfs_inode_to_log_dinode(
 	to->di_mtime.t_nsec = inode->i_mtime.tv_nsec;
 	to->di_ctime.t_sec = inode->i_ctime.tv_sec;
 	to->di_ctime.t_nsec = inode->i_ctime.tv_nsec;
+	to->di_nlink = inode->i_nlink;
 
 	to->di_size = from->di_size;
 	to->di_nblocks = from->di_nblocks;

@@ -4337,7 +4337,7 @@ xlog_recover_process_one_iunlink(
 	if (error)
 		goto fail_iput;
 
-	ASSERT(ip->i_d.di_nlink == 0);
+	ASSERT(VFS_I(ip)->i_nlink == 0);
 	ASSERT(ip->i_d.di_mode != 0);
 
 	/* setup for the next pass */

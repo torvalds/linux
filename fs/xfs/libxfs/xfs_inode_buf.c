@@ -210,12 +210,12 @@ xfs_inode_from_disk(
 	 * minimum inode version format we support in the rest of the code.
 	 */
 	if (to->di_version == 1) {
-		to->di_nlink = be16_to_cpu(from->di_onlink);
+		set_nlink(inode, be16_to_cpu(from->di_onlink));
 		to->di_projid_lo = 0;
 		to->di_projid_hi = 0;
 		to->di_version = 2;
 	} else {
-		to->di_nlink = be32_to_cpu(from->di_nlink);
+		set_nlink(inode, be32_to_cpu(from->di_nlink));
 		to->di_projid_lo = be16_to_cpu(from->di_projid_lo);
 		to->di_projid_hi = be16_to_cpu(from->di_projid_hi);
 	}
@@ -275,7 +275,6 @@ xfs_inode_to_disk(
 	to->di_format = from->di_format;
 	to->di_uid = cpu_to_be32(from->di_uid);
 	to->di_gid = cpu_to_be32(from->di_gid);
-	to->di_nlink = cpu_to_be32(from->di_nlink);
 	to->di_projid_lo = cpu_to_be16(from->di_projid_lo);
 	to->di_projid_hi = cpu_to_be16(from->di_projid_hi);
 
@@ -286,6 +285,7 @@ xfs_inode_to_disk(
 	to->di_mtime.t_nsec = cpu_to_be32(inode->i_mtime.tv_nsec);
 	to->di_ctime.t_sec = cpu_to_be32(inode->i_ctime.tv_sec);
 	to->di_ctime.t_nsec = cpu_to_be32(inode->i_ctime.tv_nsec);
+	to->di_nlink = cpu_to_be32(inode->i_nlink);
 
 	to->di_size = cpu_to_be64(from->di_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);

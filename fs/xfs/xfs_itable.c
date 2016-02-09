@@ -85,7 +85,6 @@ xfs_bulkstat_one_int(
 	/* xfs_iget returns the following without needing
 	 * further change.
 	 */
-	buf->bs_nlink = dic->di_nlink;
 	buf->bs_projid_lo = dic->di_projid_lo;
 	buf->bs_projid_hi = dic->di_projid_hi;
 	buf->bs_ino = ino;
@@ -94,6 +93,7 @@ xfs_bulkstat_one_int(
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
 
+	buf->bs_nlink = inode->i_nlink;
 	buf->bs_atime.tv_sec = inode->i_atime.tv_sec;
 	buf->bs_atime.tv_nsec = inode->i_atime.tv_nsec;
 	buf->bs_mtime.tv_sec = inode->i_mtime.tv_sec;
