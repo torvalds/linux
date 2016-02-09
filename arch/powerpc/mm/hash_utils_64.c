@@ -269,6 +269,8 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 {
 	unsigned long vaddr;
 	unsigned int step, shift;
+	int rc;
+	int ret = 0;
 
 	shift = mmu_psize_defs[psize].shift;
 	step = 1 << shift;
@@ -276,10 +278,17 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 	if (!ppc_md.hpte_removebolted)
 		return -ENODEV;
 
-	for (vaddr = vstart; vaddr < vend; vaddr += step)
-		ppc_md.hpte_removebolted(vaddr, psize, ssize);
+	for (vaddr = vstart; vaddr < vend; vaddr += step) {
+		rc = ppc_md.hpte_removebolted(vaddr, psize, ssize);
+		if (rc == -ENOENT) {
+			ret = -ENOENT;
+			continue;
+		}
+		if (rc < 0)
+			return rc;
+	}
 
-	return 0;
+	return ret;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 

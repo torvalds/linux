@@ -54,7 +54,7 @@ struct machdep_calls {
 				       int psize, int apsize,
 				       int ssize);
 	long		(*hpte_remove)(unsigned long hpte_group);
-	void            (*hpte_removebolted)(unsigned long ea,
+	int             (*hpte_removebolted)(unsigned long ea,
 					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
 	void		(*hugepage_invalidate)(unsigned long vsid,

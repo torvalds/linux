@@ -232,10 +232,11 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 static void vmemmap_remove_mapping(unsigned long start,
 				   unsigned long page_size)
 {
-	int mapped = htab_remove_mapping(start, start + page_size,
-					 mmu_vmemmap_psize,
-					 mmu_kernel_ssize);
-	BUG_ON(mapped < 0);
+	int rc = htab_remove_mapping(start, start + page_size,
+				     mmu_vmemmap_psize,
+				     mmu_kernel_ssize);
+	BUG_ON((rc < 0) && (rc != -ENOENT));
+	WARN_ON(rc == -ENOENT);
 }
 #endif
 
