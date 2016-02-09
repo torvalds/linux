@@ -101,7 +101,9 @@ int memcpy_real(void *dest, void *src, size_t count)
 	local_irq_save(flags);
 	__arch_local_irq_stnsm(0xfbUL);
 	rc = __memcpy_real(dest, src, count);
-	local_irq_restore(flags);
+	if (!arch_irqs_disabled_flags(flags))
+		trace_hardirqs_on();
+	__arch_local_irq_ssm(flags);
 	return rc;
 }
 
