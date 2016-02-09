@@ -536,7 +536,7 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_nb;
 
-		printk(KERN_INFO "perf: AMD NB counters detected\n");
+		pr_info("perf: AMD NB counters detected\n");
 		ret = 0;
 	}
 
@@ -550,7 +550,7 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_l2;
 
-		printk(KERN_INFO "perf: AMD L2I counters detected\n");
+		pr_info("perf: AMD L2I counters detected\n");
 		ret = 0;
 	}
 

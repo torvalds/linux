@@ -254,15 +254,16 @@ static bool check_hw_exists(void)
 	 * We still allow the PMU driver to operate:
 	 */
 	if (bios_fail) {
-		printk(KERN_CONT "Broken BIOS detected, complain to your hardware vendor.\n");
-		printk(KERN_ERR FW_BUG "the BIOS has corrupted hw-PMU resources (MSR %x is %Lx)\n", reg_fail, val_fail);
+		pr_cont("Broken BIOS detected, complain to your hardware vendor.\n");
+		pr_err(FW_BUG "the BIOS has corrupted hw-PMU resources (MSR %x is %Lx)\n",
+			      reg_fail, val_fail);
 	}
 
 	return true;
 
 msr_fail:
-	printk(KERN_CONT "Broken PMU hardware detected, using software events only.\n");
-	printk("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
+	pr_cont("Broken PMU hardware detected, using software events only.\n");
+	pr_info("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
 		boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR,
 		reg, val_new);
 

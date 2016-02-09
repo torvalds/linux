@@ -190,7 +190,7 @@ static int therm_throt_process(bool new_event, int event, int level)
 	/* if we just entered the thermal event */
 	if (new_event) {
 		if (event == THERMAL_THROTTLING_EVENT)
-			printk(KERN_CRIT "CPU%d: %s temperature above threshold, cpu clock throttled (total events = %lu)\n",
+			pr_crit("CPU%d: %s temperature above threshold, cpu clock throttled (total events = %lu)\n",
 				this_cpu,
 				level == CORE_LEVEL ? "Core" : "Package",
 				state->count);
@@ -198,8 +198,7 @@ static int therm_throt_process(bool new_event, int event, int level)
 	}
 	if (old_event) {
 		if (event == THERMAL_THROTTLING_EVENT)
-			printk(KERN_INFO "CPU%d: %s temperature/speed normal\n",
-				this_cpu,
+			pr_info("CPU%d: %s temperature/speed normal\n", this_cpu,
 				level == CORE_LEVEL ? "Core" : "Package");
 		return 1;
 	}
@@ -417,8 +416,8 @@ static void intel_thermal_interrupt(void)
 
 static void unexpected_thermal_interrupt(void)
 {
-	printk(KERN_ERR "CPU%d: Unexpected LVT thermal interrupt!\n",
-			smp_processor_id());
+	pr_err("CPU%d: Unexpected LVT thermal interrupt!\n",
+		smp_processor_id());
 }
 
 static void (*smp_thermal_vector)(void) = unexpected_thermal_interrupt;
@@ -499,7 +498,7 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 
 	if ((l & MSR_IA32_MISC_ENABLE_TM1) && (h & APIC_DM_SMI)) {
 		if (system_state == SYSTEM_BOOTING)
-			printk(KERN_DEBUG "CPU%d: Thermal monitoring handled by SMI\n", cpu);
+			pr_debug("CPU%d: Thermal monitoring handled by SMI\n", cpu);
 		return;
 	}
 
@@ -557,8 +556,8 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	l = apic_read(APIC_LVTTHMR);
 	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
 
-	printk_once(KERN_INFO "CPU0: Thermal monitoring enabled (%s)\n",
-		       tm2 ? "TM2" : "TM1");
+	pr_info_once("CPU0: Thermal monitoring enabled (%s)\n",
+		      tm2 ? "TM2" : "TM1");
 
 	/* enable thermal throttle processing */
 	atomic_set(&therm_throt_en, 1);
