@@ -771,7 +771,7 @@ static void tegra_pcie_setup_translations(struct tegra_pcie *pcie)
 	afi_writel(pcie, 0, AFI_FPCI_BAR5);
 
 	/* map all upstream transactions as uncached */
-	afi_writel(pcie, PHYS_OFFSET, AFI_CACHE_BAR0_ST);
+	afi_writel(pcie, 0, AFI_CACHE_BAR0_ST);
 	afi_writel(pcie, 0, AFI_CACHE_BAR0_SZ);
 	afi_writel(pcie, 0, AFI_CACHE_BAR1_ST);
 	afi_writel(pcie, 0, AFI_CACHE_BAR1_SZ);
