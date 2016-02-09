@@ -1029,7 +1029,7 @@ visornic_set_multi(struct net_device *netdev)
 			cmdrsp->net.type = NET_RCV_PROMISC;
 			cmdrsp->net.enbdis.context = netdev;
 			cmdrsp->net.enbdis.enable =
-				(netdev->flags & IFF_PROMISC);
+				netdev->flags & IFF_PROMISC;
 			visorchannel_signalinsert(devdata->dev->visorchannel,
 						  IOCHAN_TO_IOPART,
 						  cmdrsp);
@@ -1772,7 +1772,7 @@ static int visornic_probe(struct visor_device *dev)
 	}
 
 	netdev->netdev_ops = &visornic_dev_ops;
-	netdev->watchdog_timeo = (5 * HZ);
+	netdev->watchdog_timeo = 5 * HZ;
 	SET_NETDEV_DEV(netdev, &dev->device);
 
 	/* Get MAC adddress from channel and read it into the device. */

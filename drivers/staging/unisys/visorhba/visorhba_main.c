@@ -323,9 +323,9 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 		goto err_del_scsipending_ent;
 
 	if (tasktype == TASK_MGMT_ABORT_TASK)
-		scsicmd->result = (DID_ABORT << 16);
+		scsicmd->result = DID_ABORT << 16;
 	else
-		scsicmd->result = (DID_RESET << 16);
+		scsicmd->result = DID_RESET << 16;
 
 	scsicmd->scsi_done(scsicmd);
 

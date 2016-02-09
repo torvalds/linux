@@ -461,7 +461,7 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 	if (!sig_read_header(channel, queue, &sig_hdr))
 		return false;
 
-	sig_hdr.head = ((sig_hdr.head + 1) % sig_hdr.max_slots);
+	sig_hdr.head = (sig_hdr.head + 1) % sig_hdr.max_slots;
 	if (sig_hdr.head == sig_hdr.tail) {
 		sig_hdr.num_overflows++;
 		visorchannel_write(channel,
@@ -521,7 +521,7 @@ visorchannel_signalqueue_slots_avail(struct visorchannel *channel, u32 queue)
 	tail = sig_hdr.tail;
 	if (head < tail)
 		head = head + sig_hdr.max_slots;
-	slots_used = (head - tail);
+	slots_used = head - tail;
 	slots_avail = sig_hdr.max_signals - slots_used;
 	return (int)slots_avail;
 }
