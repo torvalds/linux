@@ -794,16 +794,21 @@ out:
 static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 {
 	struct iwl_host_cmd cmd = {
-		.id = SHARED_MEM_CFG,
 		.flags = CMD_WANT_SKB,
 		.data = { NULL, },
 		.len = { 0, },
 	};
-	struct iwl_rx_packet *pkt;
 	struct iwl_shared_mem_cfg *mem_cfg;
+	struct iwl_rx_packet *pkt;
 	u32 i;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
+		cmd.id = iwl_cmd_id(SHARED_MEM_CFG_CMD, SYSTEM_GROUP, 0);
+	else
+		cmd.id = SHARED_MEM_CFG;
 
 	if (WARN_ON(iwl_mvm_send_cmd(mvm, &cmd)))
 		return;
@@ -830,6 +835,25 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		le32_to_cpu(mem_cfg->page_buff_addr);
 	mvm->shared_mem_cfg.page_buff_size =
 		le32_to_cpu(mem_cfg->page_buff_size);
+
+	/* new API has more data */
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
+		mvm->shared_mem_cfg.rxfifo_addr =
+			le32_to_cpu(mem_cfg->rxfifo_addr);
+		mvm->shared_mem_cfg.internal_txfifo_addr =
+			le32_to_cpu(mem_cfg->internal_txfifo_addr);
+
+		BUILD_BUG_ON(sizeof(mvm->shared_mem_cfg.internal_txfifo_size) !=
+			     sizeof(mem_cfg->internal_txfifo_size));
+
+		for (i = 0;
+		     i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
+		     i++)
+			mvm->shared_mem_cfg.internal_txfifo_size[i] =
+				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
+	}
+
 	IWL_DEBUG_INFO(mvm, "SHARED MEM CFG: got memory offsets/sizes\n");
 
 	iwl_free_resp(&cmd);

@@ -602,6 +602,9 @@ struct iwl_mvm_shared_mem_cfg {
 	u32 rxfifo_size[RX_FIFO_MAX_NUM];
 	u32 page_buff_addr;
 	u32 page_buff_size;
+	u32 rxfifo_addr;
+	u32 internal_txfifo_addr;
+	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
 
 struct iwl_mvm {

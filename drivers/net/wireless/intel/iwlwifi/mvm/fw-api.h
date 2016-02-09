@@ -287,6 +287,10 @@ enum iwl_phy_ops_subcmd_ids {
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
 
+enum iwl_system_subcmd_ids {
+	SHARED_MEM_CFG_CMD = 0x0,
+};
+
 enum iwl_data_path_subcmd_ids {
 	UPDATE_MU_GROUPS_CMD = 0x1,
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
@@ -302,6 +306,7 @@ enum iwl_prot_offload_subcmd_ids {
 enum {
 	LEGACY_GROUP = 0x0,
 	LONG_GROUP = 0x1,
+	SYSTEM_GROUP = 0x2,
 	PHY_OPS_GROUP = 0x4,
 	DATA_PATH_GROUP = 0x5,
 	PROT_OFFLOAD_GROUP = 0xb,
@@ -1923,6 +1928,7 @@ struct iwl_tdls_config_res {
 
 #define TX_FIFO_MAX_NUM		8
 #define RX_FIFO_MAX_NUM		2
+#define TX_FIFO_INTERNAL_MAX_NUM	6
 
 /**
  * Shared memory configuration information from the FW
@@ -1940,6 +1946,12 @@ struct iwl_tdls_config_res {
  * @page_buff_addr: used by UMAC and performance debug (page miss analysis),
  *	when paging is not supported this should be 0
  * @page_buff_size: size of %page_buff_addr
+ * @rxfifo_addr: Start address of rxFifo
+ * @internal_txfifo_addr: start address of internalFifo
+ * @internal_txfifo_size: internal fifos' size
+ *
+ * NOTE: on firmware that don't have IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG
+ *	 set, the last 3 members don't exist.
  */
 struct iwl_shared_mem_cfg {
 	__le32 shared_mem_addr;
@@ -1951,7 +1963,10 @@ struct iwl_shared_mem_cfg {
 	__le32 rxfifo_size[RX_FIFO_MAX_NUM];
 	__le32 page_buff_addr;
 	__le32 page_buff_size;
-} __packed; /* SHARED_MEM_ALLOC_API_S_VER_1 */
+	__le32 rxfifo_addr;
+	__le32 internal_txfifo_addr;
+	__le32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
+} __packed; /* SHARED_MEM_ALLOC_API_S_VER_2 */
 
 /**
  * VHT MU-MIMO group configuration

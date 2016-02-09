@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -265,6 +265,65 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 		*dump_data = iwl_fw_error_next_data(*dump_data);
 	}
 
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
+		/* Pull UMAC internal TXF data from all TXFs */
+		for (i = 0;
+		     i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
+		     i++) {
+			/* Mark the number of TXF we're pulling now */
+			iwl_trans_write_prph(mvm->trans, TXF_CPU2_NUM, i);
+
+			fifo_hdr = (void *)(*dump_data)->data;
+			fifo_data = (void *)fifo_hdr->data;
+			fifo_len = mvm->shared_mem_cfg.internal_txfifo_size[i];
+
+			/* No need to try to read the data if the length is 0 */
+			if (fifo_len == 0)
+				continue;
+
+			/* Add a TLV for the internal FIFOs */
+			(*dump_data)->type =
+				cpu_to_le32(IWL_FW_ERROR_DUMP_INTERNAL_TXF);
+			(*dump_data)->len =
+				cpu_to_le32(fifo_len + sizeof(*fifo_hdr));
+
+			fifo_hdr->fifo_num = cpu_to_le32(i);
+			fifo_hdr->available_bytes =
+				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+								TXF_CPU2_FIFO_ITEM_CNT));
+			fifo_hdr->wr_ptr =
+				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+								TXF_CPU2_WR_PTR));
+			fifo_hdr->rd_ptr =
+				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+								TXF_CPU2_RD_PTR));
+			fifo_hdr->fence_ptr =
+				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+								TXF_CPU2_FENCE_PTR));
+			fifo_hdr->fence_mode =
+				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+								TXF_CPU2_LOCK_FENCE));
+
+			/* Set TXF_CPU2_READ_MODIFY_ADDR to TXF_CPU2_WR_PTR */
+			iwl_trans_write_prph(mvm->trans,
+					     TXF_CPU2_READ_MODIFY_ADDR,
+					     TXF_CPU2_WR_PTR);
+
+			/* Dummy-read to advance the read pointer to head */
+			iwl_trans_read_prph(mvm->trans,
+					    TXF_CPU2_READ_MODIFY_DATA);
+
+			/* Read FIFO */
+			fifo_len /= sizeof(u32); /* Size in DWORDS */
+			for (j = 0; j < fifo_len; j++)
+				fifo_data[j] =
+					iwl_trans_read_prph(mvm->trans,
+							    TXF_CPU2_READ_MODIFY_DATA);
+			*dump_data = iwl_fw_error_next_data(*dump_data);
+		}
+	}
+
 	iwl_trans_release_nic_access(mvm->trans, &flags);
 }
 
@@ -492,6 +551,22 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 			fifo_data_len += mem_cfg->txfifo_size[i] +
 					 sizeof(*dump_data) +
 					 sizeof(struct iwl_fw_error_dump_fifo);
+		}
+
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
+			for (i = 0;
+			     i < ARRAY_SIZE(mem_cfg->internal_txfifo_size);
+			     i++) {
+				if (!mem_cfg->internal_txfifo_size[i])
+					continue;
+
+				/* Add header info */
+				fifo_data_len +=
+					mem_cfg->internal_txfifo_size[i] +
+					sizeof(*dump_data) +
+					sizeof(struct iwl_fw_error_dump_fifo);
+			}
 		}
 
 		/* Make room for PRPH registers */
