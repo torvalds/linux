@@ -178,10 +178,6 @@ void __init MMU_init(void)
 	/* Initialize early top-down ioremap allocator */
 	ioremap_bot = IOREMAP_TOP;
 
-	/* Map in I/O resources */
-	if (ppc_md.progress)
-		ppc_md.progress("MMU:setio", 0x302);
-
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:exit", 0x211);
 
