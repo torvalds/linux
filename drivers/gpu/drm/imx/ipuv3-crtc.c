@@ -379,11 +379,18 @@ static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
 
 static int ipu_enable_vblank(struct drm_crtc *crtc)
 {
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
+	enable_irq(ipu_crtc->irq);
+
 	return 0;
 }
 
 static void ipu_disable_vblank(struct drm_crtc *crtc)
 {
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
+	disable_irq_nosync(ipu_crtc->irq);
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc,
@@ -494,6 +501,8 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
 		goto err_put_plane_res;
 	}
+	/* Only enable IRQ when we actually need it to trigger work. */
+	disable_irq(ipu_crtc->irq);
 
 	ipu_crtc->flip_queue = create_singlethread_workqueue("ipu-crtc-flip");
 
