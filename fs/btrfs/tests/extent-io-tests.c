@@ -94,7 +94,7 @@ static int test_find_delalloc(void)
 	 * test.
 	 */
 	for (index = 0; index < (total_dirty >> PAGE_CACHE_SHIFT); index++) {
-		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
+		page = find_or_create_page(inode->i_mapping, index, GFP_KERNEL);
 		if (!page) {
 			test_msg("Failed to allocate test page\n");
 			ret = -ENOMEM;
@@ -113,7 +113,7 @@ static int test_find_delalloc(void)
 	 * |--- delalloc ---|
 	 * |---  search  ---|
 	 */
-	set_extent_delalloc(&tmp, 0, 4095, NULL, GFP_NOFS);
+	set_extent_delalloc(&tmp, 0, 4095, NULL, GFP_KERNEL);
 	start = 0;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -144,7 +144,7 @@ static int test_find_delalloc(void)
 		test_msg("Couldn't find the locked page\n");
 		goto out_bits;
 	}
-	set_extent_delalloc(&tmp, 4096, max_bytes - 1, NULL, GFP_NOFS);
+	set_extent_delalloc(&tmp, 4096, max_bytes - 1, NULL, GFP_KERNEL);
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -199,7 +199,7 @@ static int test_find_delalloc(void)
 	 *
 	 * We are re-using our test_start from above since it works out well.
 	 */
-	set_extent_delalloc(&tmp, max_bytes, total_dirty - 1, NULL, GFP_NOFS);
+	set_extent_delalloc(&tmp, max_bytes, total_dirty - 1, NULL, GFP_KERNEL);
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -262,7 +262,7 @@ static int test_find_delalloc(void)
 	}
 	ret = 0;
 out_bits:
-	clear_extent_bits(&tmp, 0, total_dirty - 1, (unsigned)-1, GFP_NOFS);
+	clear_extent_bits(&tmp, 0, total_dirty - 1, (unsigned)-1, GFP_KERNEL);
 out:
 	if (locked_page)
 		page_cache_release(locked_page);
@@ -360,7 +360,7 @@ static int test_eb_bitmaps(void)
 
 	test_msg("Running extent buffer bitmap tests\n");
 
-	bitmap = kmalloc(len, GFP_NOFS);
+	bitmap = kmalloc(len, GFP_KERNEL);
 	if (!bitmap) {
 		test_msg("Couldn't allocate test bitmap\n");
 		return -ENOMEM;

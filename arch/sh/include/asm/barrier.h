@@ -33,7 +33,6 @@
 #endif
 
 #define __smp_store_mb(var, value) do { (void)xchg(&var, value); } while (0)
-#define smp_store_mb(var, value) __smp_store_mb(var, value)
 
 #include <asm-generic/barrier.h>
 
