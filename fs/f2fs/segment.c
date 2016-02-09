@@ -505,7 +505,7 @@ static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 
 bool discard_next_dnode(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
-	int err = -ENOTSUPP;
+	int err = -EOPNOTSUPP;
 
 	if (test_opt(sbi, DISCARD)) {
 		struct seg_entry *se = get_seg_entry(sbi,
