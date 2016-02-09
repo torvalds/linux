@@ -609,10 +609,28 @@ static int __init htab_dt_scan_pftsize(unsigned long node,
 	return 0;
 }
 
+unsigned htab_shift_for_mem_size(unsigned long mem_size)
+{
+	unsigned memshift = __ilog2(mem_size);
+	unsigned pshift = mmu_psize_defs[mmu_virtual_psize].shift;
+	unsigned pteg_shift;
+
+	/* round mem_size up to next power of 2 */
+	if ((1UL << memshift) < mem_size)
+		memshift += 1;
+
+	/* aim for 2 pages / pteg */
+	pteg_shift = memshift - (pshift + 1);
+
+	/*
+	 * 2^11 PTEGS of 128 bytes each, ie. 2^18 bytes is the minimum htab
+	 * size permitted by the architecture.
+	 */
+	return max(pteg_shift + 7, 18U);
+}
+
 static unsigned long __init htab_get_table_size(void)
 {
-	unsigned long mem_size, rnd_mem_size, pteg_count, psize;
-
 	/* If hash size isn't already provided by the platform, we try to
 	 * retrieve it from the device-tree. If it's not there neither, we
 	 * calculate it now based on the total RAM size
@@ -622,17 +640,7 @@ static unsigned long __init htab_get_table_size(void)
 	if (ppc64_pft_size)
 		return 1UL << ppc64_pft_size;
 
-	/* round mem_size up to next power of 2 */
-	mem_size = memblock_phys_mem_size();
-	rnd_mem_size = 1UL << __ilog2(mem_size);
-	if (rnd_mem_size < mem_size)
-		rnd_mem_size <<= 1;
-
-	/* # pages / 2 */
-	psize = mmu_psize_defs[mmu_virtual_psize].shift;
-	pteg_count = max(rnd_mem_size >> (psize + 1), 1UL << 11);
-
-	return pteg_count << 7;
+	return 1UL << htab_shift_for_mem_size(memblock_phys_mem_size());
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

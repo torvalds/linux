@@ -608,6 +608,9 @@ static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 	context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1;
 	return get_vsid(context, ea, ssize);
 }
+
+unsigned htab_shift_for_mem_size(unsigned long mem_size);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_MMU_HASH64_H_ */
