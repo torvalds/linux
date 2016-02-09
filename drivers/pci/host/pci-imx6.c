@@ -202,6 +202,23 @@ static int pcie_phy_write(void __iomem *dbi_base, int addr, int data)
 	return 0;
 }
 
+static void imx6_pcie_reset_phy(struct pcie_port *pp)
+{
+	u32 tmp;
+
+	pcie_phy_read(pp->dbi_base, PHY_RX_OVRD_IN_LO, &tmp);
+	tmp |= (PHY_RX_OVRD_IN_LO_RX_DATA_EN |
+		PHY_RX_OVRD_IN_LO_RX_PLL_EN);
+	pcie_phy_write(pp->dbi_base, PHY_RX_OVRD_IN_LO, tmp);
+
+	usleep_range(2000, 3000);
+
+	pcie_phy_read(pp->dbi_base, PHY_RX_OVRD_IN_LO, &tmp);
+	tmp &= ~(PHY_RX_OVRD_IN_LO_RX_DATA_EN |
+		  PHY_RX_OVRD_IN_LO_RX_PLL_EN);
+	pcie_phy_write(pp->dbi_base, PHY_RX_OVRD_IN_LO, tmp);
+}
+
 /*  Added for PCI abort handling */
 static int imx6q_pcie_abort_handler(unsigned long addr,
 		unsigned int fsr, struct pt_regs *regs)
@@ -332,16 +349,30 @@ static int imx6_pcie_wait_for_link(struct pcie_port *pp)
 {
 	unsigned int retries;
 
+	/*
+	 * Test if the PHY reports that the link is up and also that the LTSSM
+	 * training finished. There are three possible states of the link when
+	 * this code is called:
+	 * 1) The link is DOWN (unlikely)
+	 *    The link didn't come up yet for some reason. This usually means
+	 *    we have a real problem somewhere, if it happens with a peripheral
+	 *    connected. This state calls for inspection of the DEBUG registers.
+	 * 2) The link is UP, but still in LTSSM training
+	 *    Wait for the training to finish, which should take a very short
+	 *    time. If the training does not finish, we have a problem and we
+	 *    need to inspect the DEBUG registers. If the training does finish,
+	 *    the link is up and operating correctly.
+	 * 3) The link is UP and no longer in LTSSM training
+	 *    The link is up and operating correctly.
+	 */
 	for (retries = 0; retries < 200; retries++) {
-		if (dw_pcie_link_up(pp))
+		u32 reg = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1);
+		if ((reg & PCIE_PHY_DEBUG_R1_XMLH_LINK_UP) &&
+		    !(reg & PCIE_PHY_DEBUG_R1_XMLH_LINK_IN_TRAINING))
 			return 0;
-		usleep_range(100, 1000);
+		usleep_range(1000, 2000);
 	}
 
-	dev_err(pp->dev, "phy link never came up\n");
-	dev_dbg(pp->dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
-		readl(pp->dbi_base + PCIE_PHY_DEBUG_R0),
-		readl(pp->dbi_base + PCIE_PHY_DEBUG_R1));
 	return -EINVAL;
 }
 
@@ -390,8 +421,10 @@ static int imx6_pcie_establish_link(struct pcie_port *pp)
 			IMX6Q_GPR12_PCIE_CTL_2, 1 << 10);
 
 	ret = imx6_pcie_wait_for_link(pp);
-	if (ret)
-		return ret;
+	if (ret) {
+		dev_info(pp->dev, "Link never came up\n");
+		goto err_reset_phy;
+	}
 
 	/* Allow Gen2 mode after the link is up. */
 	tmp = readl(pp->dbi_base + PCIE_RC_LCR);
@@ -410,19 +443,28 @@ static int imx6_pcie_establish_link(struct pcie_port *pp)
 	ret = imx6_pcie_wait_for_speed_change(pp);
 	if (ret) {
 		dev_err(pp->dev, "Failed to bring link up!\n");
-		return ret;
+		goto err_reset_phy;
 	}
 
 	/* Make sure link training is finished as well! */
 	ret = imx6_pcie_wait_for_link(pp);
 	if (ret) {
 		dev_err(pp->dev, "Failed to bring link up!\n");
-		return ret;
+		goto err_reset_phy;
 	}
 
 	tmp = readl(pp->dbi_base + PCIE_RC_LCSR);
 	dev_dbg(pp->dev, "Link up, Gen=%i\n", (tmp >> 16) & 0xf);
+
 	return 0;
+
+err_reset_phy:
+	dev_dbg(pp->dev, "PHY DEBUG_R0=0x%08x DEBUG_R1=0x%08x\n",
+		readl(pp->dbi_base + PCIE_PHY_DEBUG_R0),
+		readl(pp->dbi_base + PCIE_PHY_DEBUG_R1));
+	imx6_pcie_reset_phy(pp);
+
+	return ret;
 }
 
 static void imx6_pcie_host_init(struct pcie_port *pp)
@@ -441,81 +483,10 @@ static void imx6_pcie_host_init(struct pcie_port *pp)
 		dw_pcie_msi_init(pp);
 }
 
-static void imx6_pcie_reset_phy(struct pcie_port *pp)
-{
-	u32 tmp;
-
-	pcie_phy_read(pp->dbi_base, PHY_RX_OVRD_IN_LO, &tmp);
-	tmp |= (PHY_RX_OVRD_IN_LO_RX_DATA_EN |
-		PHY_RX_OVRD_IN_LO_RX_PLL_EN);
-	pcie_phy_write(pp->dbi_base, PHY_RX_OVRD_IN_LO, tmp);
-
-	usleep_range(2000, 3000);
-
-	pcie_phy_read(pp->dbi_base, PHY_RX_OVRD_IN_LO, &tmp);
-	tmp &= ~(PHY_RX_OVRD_IN_LO_RX_DATA_EN |
-		  PHY_RX_OVRD_IN_LO_RX_PLL_EN);
-	pcie_phy_write(pp->dbi_base, PHY_RX_OVRD_IN_LO, tmp);
-}
-
 static int imx6_pcie_link_up(struct pcie_port *pp)
 {
-	u32 rc, debug_r0, rx_valid;
-	int count = 5;
-
-	/*
-	 * Test if the PHY reports that the link is up and also that the LTSSM
-	 * training finished. There are three possible states of the link when
-	 * this code is called:
-	 * 1) The link is DOWN (unlikely)
-	 *     The link didn't come up yet for some reason. This usually means
-	 *     we have a real problem somewhere. Reset the PHY and exit. This
-	 *     state calls for inspection of the DEBUG registers.
-	 * 2) The link is UP, but still in LTSSM training
-	 *     Wait for the training to finish, which should take a very short
-	 *     time. If the training does not finish, we have a problem and we
-	 *     need to inspect the DEBUG registers. If the training does finish,
-	 *     the link is up and operating correctly.
-	 * 3) The link is UP and no longer in LTSSM training
-	 *     The link is up and operating correctly.
-	 */
-	while (1) {
-		rc = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1);
-		if (!(rc & PCIE_PHY_DEBUG_R1_XMLH_LINK_UP))
-			break;
-		if (!(rc & PCIE_PHY_DEBUG_R1_XMLH_LINK_IN_TRAINING))
-			return 1;
-		if (!count--)
-			break;
-		dev_dbg(pp->dev, "Link is up, but still in training\n");
-		/*
-		 * Wait a little bit, then re-check if the link finished
-		 * the training.
-		 */
-		usleep_range(1000, 2000);
-	}
-	/*
-	 * From L0, initiate MAC entry to gen2 if EP/RC supports gen2.
-	 * Wait 2ms (LTSSM timeout is 24ms, PHY lock is ~5us in gen2).
-	 * If (MAC/LTSSM.state == Recovery.RcvrLock)
-	 * && (PHY/rx_valid==0) then pulse PHY/rx_reset. Transition
-	 * to gen2 is stuck
-	 */
-	pcie_phy_read(pp->dbi_base, PCIE_PHY_RX_ASIC_OUT, &rx_valid);
-	debug_r0 = readl(pp->dbi_base + PCIE_PHY_DEBUG_R0);
-
-	if (rx_valid & PCIE_PHY_RX_ASIC_OUT_VALID)
-		return 0;
-
-	if ((debug_r0 & 0x3f) != 0x0d)
-		return 0;
-
-	dev_err(pp->dev, "transition to gen2 is stuck, reset PHY!\n");
-	dev_dbg(pp->dev, "debug_r0=%08x debug_r1=%08x\n", debug_r0, rc);
-
-	imx6_pcie_reset_phy(pp);
-
-	return 0;
+	return readl(pp->dbi_base + PCIE_PHY_DEBUG_R1) &
+			PCIE_PHY_DEBUG_R1_XMLH_LINK_UP;
 }
 
 static struct pcie_host_ops imx6_pcie_host_ops = {
