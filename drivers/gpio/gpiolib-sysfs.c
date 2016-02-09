@@ -572,7 +572,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	mutex_lock(&sysfs_lock);
 
 	/* check if chip is being removed */
-	if (!chip || !chip->cdev) {
+	if (!chip || !gdev->mockdev) {
 		status = -ENODEV;
 		goto err_unlock;
 	}
@@ -718,9 +718,10 @@ err_unlock:
 }
 EXPORT_SYMBOL_GPL(gpiod_unexport);
 
-int gpiochip_sysfs_register(struct gpio_chip *chip)
+int gpiochip_sysfs_register(struct gpio_device *gdev)
 {
 	struct device	*dev;
+	struct gpio_chip *chip = gdev->chip;
 
 	/*
 	 * Many systems add gpio chips for SOC support very early,
@@ -732,7 +733,7 @@ int gpiochip_sysfs_register(struct gpio_chip *chip)
 		return 0;
 
 	/* use chip->base for the ID; it's already known to be unique */
-	dev = device_create_with_groups(&gpio_class, chip->parent,
+	dev = device_create_with_groups(&gpio_class, &gdev->dev,
 					MKDEV(0, 0),
 					chip, gpiochip_groups,
 					"gpiochip%d", chip->base);
@@ -740,25 +741,26 @@ int gpiochip_sysfs_register(struct gpio_chip *chip)
 		return PTR_ERR(dev);
 
 	mutex_lock(&sysfs_lock);
-	chip->cdev = dev;
+	gdev->mockdev = dev;
 	mutex_unlock(&sysfs_lock);
 
 	return 0;
 }
 
-void gpiochip_sysfs_unregister(struct gpio_chip *chip)
+void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 {
 	struct gpio_desc *desc;
+	struct gpio_chip *chip = gdev->chip;
 	unsigned int i;
 
-	if (!chip->cdev)
+	if (!gdev->mockdev)
 		return;
 
-	device_unregister(chip->cdev);
+	device_unregister(gdev->mockdev);
 
 	/* prevent further gpiod exports */
 	mutex_lock(&sysfs_lock);
-	chip->cdev = NULL;
+	gdev->mockdev = NULL;
 	mutex_unlock(&sysfs_lock);
 
 	/* unregister gpiod class devices owned by sysfs */
@@ -787,7 +789,7 @@ static int __init gpiolib_sysfs_init(void)
 	 */
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_for_each_entry(gdev, &gpio_devices, list) {
-		if (gdev->chip->cdev)
+		if (gdev->mockdev)
 			continue;
 
 		/*
@@ -800,11 +802,10 @@ static int __init gpiolib_sysfs_init(void)
 		 * gpio_lock prevents us from doing this.
 		 */
 		spin_unlock_irqrestore(&gpio_lock, flags);
-		status = gpiochip_sysfs_register(gdev->chip);
+		status = gpiochip_sysfs_register(gdev);
 		spin_lock_irqsave(&gpio_lock, flags);
 	}
 	spin_unlock_irqrestore(&gpio_lock, flags);
-
 
 	return status;
 }

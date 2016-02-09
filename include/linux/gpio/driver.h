@@ -24,7 +24,6 @@ struct gpio_device;
  * @label: for diagnostics
  * @gpiodev: the internal state holder, opaque struct
  * @parent: optional parent device providing the GPIOs
- * @cdev: class device used by sysfs interface (may be NULL)
  * @owner: helps prevent removal of modules exporting active GPIOs
  * @data: per-instance data assigned by the driver
  * @request: optional hook for chip-specific activation, such as
@@ -110,7 +109,6 @@ struct gpio_chip {
 	const char		*label;
 	struct gpio_device	*gpiodev;
 	struct device		*parent;
-	struct device		*cdev;
 	struct module		*owner;
 	void			*data;
 

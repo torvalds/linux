@@ -27,6 +27,8 @@ struct acpi_device;
  * @id: numerical ID number for the GPIO chip
  * @dev: the GPIO device struct
  * @chrdev: character device for the GPIO device
+ * @mockdev: class device used by the deprecated sysfs interface (may be
+ * NULL)
  * @owner: helps prevent removal of modules exporting active GPIOs
  * @chip: pointer to the corresponding gpiochip, holding static
  * data for this device
@@ -41,6 +43,7 @@ struct gpio_device {
 	int			id;
 	struct device		dev;
 	struct cdev		chrdev;
+	struct device		*mockdev;
 	struct module		*owner;
 	struct gpio_chip	*chip;
 	struct list_head        list;
@@ -190,17 +193,17 @@ static int __maybe_unused gpio_chip_hwgpio(const struct gpio_desc *desc)
 
 #ifdef CONFIG_GPIO_SYSFS
 
-int gpiochip_sysfs_register(struct gpio_chip *chip);
-void gpiochip_sysfs_unregister(struct gpio_chip *chip);
+int gpiochip_sysfs_register(struct gpio_device *gdev);
+void gpiochip_sysfs_unregister(struct gpio_device *gdev);
 
 #else
 
-static inline int gpiochip_sysfs_register(struct gpio_chip *chip)
+static inline int gpiochip_sysfs_register(struct gpio_device *gdev)
 {
 	return 0;
 }
 
-static inline void gpiochip_sysfs_unregister(struct gpio_chip *chip)
+static inline void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 {
 }
 

@@ -558,7 +558,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	if (status)
 		goto err_remove_chardev;
 
-	status = gpiochip_sysfs_register(chip);
+	status = gpiochip_sysfs_register(gdev);
 	if (status)
 		goto err_remove_device;
 
@@ -615,7 +615,7 @@ void gpiochip_remove(struct gpio_chip *chip)
 	gdev->chip = NULL;
 
 	/* FIXME: should the legacy sysfs handling be moved to gpio_device? */
-	gpiochip_sysfs_unregister(chip);
+	gpiochip_sysfs_unregister(gdev);
 	gpiochip_irqchip_remove(chip);
 	acpi_gpiochip_remove(chip);
 	gpiochip_remove_pin_ranges(chip);
