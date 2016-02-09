@@ -83,6 +83,25 @@ static void __hyp_text save_elrsr(struct kvm_vcpu *vcpu, void __iomem *base)
 #endif
 }
 
+static void __hyp_text save_lrs(struct kvm_vcpu *vcpu, void __iomem *base)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+	int nr_lr = vcpu->arch.vgic_cpu.nr_lr;
+	int i;
+
+	for (i = 0; i < nr_lr; i++) {
+		if (!(vcpu->arch.vgic_cpu.live_lrs & (1UL << i)))
+			continue;
+
+		if (cpu_if->vgic_elrsr & (1UL << i)) {
+			cpu_if->vgic_lr[i] &= ~GICH_LR_STATE;
+			continue;
+		}
+
+		cpu_if->vgic_lr[i] = readl_relaxed(base + GICH_LR0 + (i * 4));
+	}
+}
+
 /* vcpu is already in the HYP VA space */
 void __hyp_text __vgic_v2_save_state(struct kvm_vcpu *vcpu)
 {
@@ -90,12 +109,10 @@ void __hyp_text __vgic_v2_save_state(struct kvm_vcpu *vcpu)
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 	void __iomem *base = kern_hyp_va(vgic->vctrl_base);
-	int i, nr_lr;
 
 	if (!base)
 		return;
 
-	nr_lr = vcpu->arch.vgic_cpu.nr_lr;
 	cpu_if->vgic_vmcr = readl_relaxed(base + GICH_VMCR);
 
 	if (vcpu->arch.vgic_cpu.live_lrs) {
@@ -103,10 +120,7 @@ void __hyp_text __vgic_v2_save_state(struct kvm_vcpu *vcpu)
 
 		save_maint_int_state(vcpu, base);
 		save_elrsr(vcpu, base);
- 
-		for (i = 0; i < nr_lr; i++)
-			if (vcpu->arch.vgic_cpu.live_lrs & (1UL << i))
-				cpu_if->vgic_lr[i] = readl_relaxed(base + GICH_LR0 + (i * 4));
+		save_lrs(vcpu, base);
 
 		writel_relaxed(0, base + GICH_HCR);
 
