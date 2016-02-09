@@ -139,6 +139,8 @@ $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
 
+LD += $(EXTRA_LDFLAGS)
+
 PKG_CONFIG = $(CROSS_COMPILE)pkg-config
 
 RM      = rm -f
