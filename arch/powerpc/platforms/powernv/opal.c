@@ -724,6 +724,9 @@ static int __init opal_init(void)
 		of_node_put(leds);
 	}
 
+	/* Initialise OPAL message log interface */
+	opal_msglog_init();
+
 	/* Create "opal" kobject under /sys/firmware */
 	rc = opal_sysfs_init();
 	if (rc == 0) {
@@ -739,8 +742,8 @@ static int __init opal_init(void)
 		opal_platform_dump_init();
 		/* Setup system parameters interface */
 		opal_sys_param_init();
-		/* Setup message log interface. */
-		opal_msglog_init();
+		/* Setup message log sysfs interface. */
+		opal_msglog_sysfs_init();
 	}
 
 	/* Initialize platform devices: IPMI backend, PRD & flash interface */
