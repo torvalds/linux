@@ -104,7 +104,7 @@ enum pgtable_bits {
 enum pgtable_bits {
 	/* Used only by software (masked out before writing EntryLo*) */
 	_PAGE_PRESENT_SHIFT,
-#if !defined(CONFIG_CPU_MIPSR2) && !defined(CONFIG_CPU_MIPSR6)
+#if !defined(CONFIG_CPU_HAS_RIXI)
 	_PAGE_NO_READ_SHIFT,
 #endif
 	_PAGE_WRITE_SHIFT,
@@ -115,7 +115,7 @@ enum pgtable_bits {
 #endif
 
 	/* Used by TLB hardware (placed in EntryLo*) */
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
+#if defined(CONFIG_CPU_HAS_RIXI)
 	_PAGE_NO_EXEC_SHIFT,
 	_PAGE_NO_READ_SHIFT,
 #endif
@@ -139,7 +139,7 @@ enum pgtable_bits {
 /* Used by TLB hardware (placed in EntryLo*) */
 #if defined(CONFIG_XPA)
 # define _PAGE_NO_EXEC		(1 << _PAGE_NO_EXEC_SHIFT)
-#elif defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
+#elif defined(CONFIG_CPU_HAS_RIXI)
 # define _PAGE_NO_EXEC		(cpu_has_rixi ? (1 << _PAGE_NO_EXEC_SHIFT) : 0)
 #endif
 #define _PAGE_NO_READ		(1 << _PAGE_NO_READ_SHIFT)
@@ -180,7 +180,7 @@ enum pgtable_bits {
  */
 static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 {
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
+#ifdef CONFIG_CPU_HAS_RIXI
 	if (cpu_has_rixi) {
 		int sa;
 #ifdef CONFIG_32BIT
