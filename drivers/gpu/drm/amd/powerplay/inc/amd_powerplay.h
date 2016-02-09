@@ -289,6 +289,9 @@ struct pp_states_info {
 
 #define PP_BLOCK_GFX_CG         0x01
 #define PP_BLOCK_GFX_MG         0x02
+#define PP_BLOCK_GFX_3D         0x04
+#define PP_BLOCK_GFX_RLC        0x08
+#define PP_BLOCK_GFX_CP         0x10
 #define PP_BLOCK_SYS_BIF        0x01
 #define PP_BLOCK_SYS_MC         0x02
 #define PP_BLOCK_SYS_ROM        0x04
