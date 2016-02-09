@@ -468,6 +468,7 @@ config NUC900_WATCHDOG
 config TS4800_WATCHDOG
 	tristate "TS-4800 Watchdog"
 	depends on HAS_IOMEM && OF
+	depends on SOC_IMX51 || COMPILE_TEST
 	select WATCHDOG_CORE
 	select MFD_SYSCON
 	help
