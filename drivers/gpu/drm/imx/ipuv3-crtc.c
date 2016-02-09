@@ -22,6 +22,8 @@
 #include <linux/fb.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
+#include <linux/reservation.h>
+#include <linux/dma-buf.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
@@ -34,12 +36,18 @@
 enum ipu_flip_status {
 	IPU_FLIP_NONE,
 	IPU_FLIP_PENDING,
+	IPU_FLIP_SUBMITTED,
 };
 
 struct ipu_flip_work {
 	struct work_struct		unref_work;
 	struct drm_gem_object		*bo;
 	struct drm_pending_vblank_event *page_flip_event;
+	struct work_struct		fence_work;
+	struct ipu_crtc			*crtc;
+	struct fence			*excl;
+	unsigned			shared_count;
+	struct fence			**shared;
 };
 
 struct ipu_crtc {
@@ -123,11 +131,31 @@ static void ipu_flip_unref_work_func(struct work_struct *__work)
 	kfree(work);
 }
 
+static void ipu_flip_fence_work_func(struct work_struct *__work)
+{
+	struct ipu_flip_work *work =
+			container_of(__work, struct ipu_flip_work, fence_work);
+	int i;
+
+	/* wait for all fences attached to the FB obj to signal */
+	if (work->excl) {
+		fence_wait(work->excl, false);
+		fence_put(work->excl);
+	}
+	for (i = 0; i < work->shared_count; i++) {
+		fence_wait(work->shared[i], false);
+		fence_put(work->shared[i]);
+	}
+
+	work->crtc->flip_state = IPU_FLIP_SUBMITTED;
+}
+
 static int ipu_page_flip(struct drm_crtc *crtc,
 		struct drm_framebuffer *fb,
 		struct drm_pending_vblank_event *event,
 		uint32_t page_flip_flags)
 {
+	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_flip_work *flip_work;
 	int ret;
@@ -156,10 +184,41 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(flip_work->bo);
 
 	ipu_crtc->flip_work = flip_work;
-	ipu_crtc->flip_state = IPU_FLIP_PENDING;
+	/*
+	 * If the object has a DMABUF attached, we need to wait on its fences
+	 * if there are any.
+	 */
+	if (cma_obj->base.dma_buf) {
+		INIT_WORK(&flip_work->fence_work, ipu_flip_fence_work_func);
+		flip_work->crtc = ipu_crtc;
+
+		ret = reservation_object_get_fences_rcu(
+				cma_obj->base.dma_buf->resv, &flip_work->excl,
+				&flip_work->shared_count, &flip_work->shared);
+
+		if (unlikely(ret)) {
+			DRM_ERROR("failed to get fences for buffer\n");
+			goto free_flip_work;
+		}
+
+		/* No need to queue the worker if the are no fences */
+		if (!flip_work->excl && !flip_work->shared_count) {
+			ipu_crtc->flip_state = IPU_FLIP_SUBMITTED;
+		} else {
+			ipu_crtc->flip_state = IPU_FLIP_PENDING;
+			queue_work(ipu_crtc->flip_queue,
+				   &flip_work->fence_work);
+		}
+	} else {
+		ipu_crtc->flip_state = IPU_FLIP_SUBMITTED;
+	}
 
 	return 0;
 
+free_flip_work:
+	drm_gem_object_unreference_unlocked(flip_work->bo);
+	kfree(flip_work);
+	ipu_crtc->flip_work = NULL;
 put_vblank:
 	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
 
@@ -263,7 +322,7 @@ static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 
 	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
 
-	if (ipu_crtc->flip_state == IPU_FLIP_PENDING) {
+	if (ipu_crtc->flip_state == IPU_FLIP_SUBMITTED) {
 		struct ipu_plane *plane = ipu_crtc->plane[0];
 
 		ipu_plane_set_base(plane, ipu_crtc->base.primary->fb,
