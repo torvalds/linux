@@ -204,13 +204,25 @@ xfs_inode_from_disk(
 
 	to->di_mode = be16_to_cpu(from->di_mode);
 	to->di_version = from ->di_version;
+
+	/*
+	 * Convert v1 inodes immediately to v2 inode format as this is the
+	 * minimum inode version format we support in the rest of the code.
+	 */
+	if (to->di_version == 1) {
+		to->di_nlink = be16_to_cpu(from->di_onlink);
+		to->di_projid_lo = 0;
+		to->di_projid_hi = 0;
+		to->di_version = 2;
+	} else {
+		to->di_nlink = be32_to_cpu(from->di_nlink);
+		to->di_projid_lo = be16_to_cpu(from->di_projid_lo);
+		to->di_projid_hi = be16_to_cpu(from->di_projid_hi);
+	}
+
 	to->di_format = from->di_format;
-	to->di_onlink = be16_to_cpu(from->di_onlink);
 	to->di_uid = be32_to_cpu(from->di_uid);
 	to->di_gid = be32_to_cpu(from->di_gid);
-	to->di_nlink = be32_to_cpu(from->di_nlink);
-	to->di_projid_lo = be16_to_cpu(from->di_projid_lo);
-	to->di_projid_hi = be16_to_cpu(from->di_projid_hi);
 	to->di_flushiter = be16_to_cpu(from->di_flushiter);
 
 	/*
@@ -256,11 +268,11 @@ xfs_inode_to_disk(
 	struct inode		*inode = VFS_I(ip);
 
 	to->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
+	to->di_onlink = 0;
 
 	to->di_mode = cpu_to_be16(from->di_mode);
 	to->di_version = from->di_version;
 	to->di_format = from->di_format;
-	to->di_onlink = cpu_to_be16(from->di_onlink);
 	to->di_uid = cpu_to_be32(from->di_uid);
 	to->di_gid = cpu_to_be32(from->di_gid);
 	to->di_nlink = cpu_to_be32(from->di_nlink);
@@ -310,9 +322,9 @@ xfs_log_dinode_to_disk(
 {
 	to->di_magic = cpu_to_be16(from->di_magic);
 	to->di_mode = cpu_to_be16(from->di_mode);
-	to->di_version = from ->di_version;
+	to->di_version = from->di_version;
 	to->di_format = from->di_format;
-	to->di_onlink = cpu_to_be16(from->di_onlink);
+	to->di_onlink = 0;
 	to->di_uid = cpu_to_be32(from->di_uid);
 	to->di_gid = cpu_to_be32(from->di_gid);
 	to->di_nlink = cpu_to_be32(from->di_nlink);
@@ -492,21 +504,7 @@ xfs_iread(
 		ip->i_d.di_mode = 0;
 	}
 
-	/*
-	 * Automatically convert version 1 inode formats in memory to version 2
-	 * inode format. If the inode is modified, it will get logged and
-	 * rewritten as a version 2 inode. We can do this because we set the
-	 * superblock feature bit for v2 inodes unconditionally during mount
-	 * and it means the reast of the code can assume the inode version is 2
-	 * or higher.
-	 */
-	if (ip->i_d.di_version == 1) {
-		ip->i_d.di_version = 2;
-		ip->i_d.di_nlink = ip->i_d.di_onlink;
-		ip->i_d.di_onlink = 0;
-		xfs_set_projid(ip, 0);
-	}
-
+	ASSERT(ip->i_d.di_version >= 2);
 	ip->i_delayed_blks = 0;
 
 	/*

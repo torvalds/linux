@@ -336,7 +336,6 @@ xfs_inode_to_log_dinode(
 	to->di_mode = from->di_mode;
 	to->di_version = from->di_version;
 	to->di_format = from->di_format;
-	to->di_onlink = from->di_onlink;
 	to->di_uid = from->di_uid;
 	to->di_gid = from->di_gid;
 	to->di_nlink = from->di_nlink;
@@ -344,6 +343,7 @@ xfs_inode_to_log_dinode(
 	to->di_projid_hi = from->di_projid_hi;
 
 	memset(to->di_pad, 0, sizeof(to->di_pad));
+	memset(to->di_pad3, 0, sizeof(to->di_pad3));
 	to->di_atime.t_sec = inode->i_atime.tv_sec;
 	to->di_atime.t_nsec = inode->i_atime.tv_nsec;
 	to->di_mtime.t_sec = inode->i_mtime.tv_sec;

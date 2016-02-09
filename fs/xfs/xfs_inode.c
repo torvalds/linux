@@ -803,9 +803,7 @@ xfs_ialloc(
 		ip->i_d.di_version = 2;
 
 	ip->i_d.di_mode = mode;
-	ip->i_d.di_onlink = 0;
 	ip->i_d.di_nlink = nlink;
-	ASSERT(ip->i_d.di_nlink == nlink);
 	ip->i_d.di_uid = xfs_kuid_to_uid(current_fsuid());
 	ip->i_d.di_gid = xfs_kgid_to_gid(current_fsgid());
 	xfs_set_projid(ip, prid);
