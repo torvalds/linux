@@ -349,8 +349,6 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 					min_uV = opp_uV;
 				if (opp_uV > max_uV)
 					max_uV = opp_uV;
-			} else {
-				dev_pm_opp_disable(cpu_dev, opp_freq);
 			}
 
 			opp_freq++;
