@@ -111,6 +111,7 @@ static const struct bmips_quirk bmips_quirk_list[] = {
 
 void __init prom_init(void)
 {
+	bmips_cpu_setup();
 	register_bmips_smp_ops();
 }
 
