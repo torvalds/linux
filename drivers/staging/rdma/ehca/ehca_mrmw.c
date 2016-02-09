@@ -196,120 +196,6 @@ get_dma_mr_exit0:
 
 /*----------------------------------------------------------------------*/
 
-struct ib_mr *ehca_reg_phys_mr(struct ib_pd *pd,
-			       struct ib_phys_buf *phys_buf_array,
-			       int num_phys_buf,
-			       int mr_access_flags,
-			       u64 *iova_start)
-{
-	struct ib_mr *ib_mr;
-	int ret;
-	struct ehca_mr *e_mr;
-	struct ehca_shca *shca =
-		container_of(pd->device, struct ehca_shca, ib_device);
-	struct ehca_pd *e_pd = container_of(pd, struct ehca_pd, ib_pd);
-
-	u64 size;
-
-	if ((num_phys_buf <= 0) || !phys_buf_array) {
-		ehca_err(pd->device, "bad input values: num_phys_buf=%x "
-			 "phys_buf_array=%p", num_phys_buf, phys_buf_array);
-		ib_mr = ERR_PTR(-EINVAL);
-		goto reg_phys_mr_exit0;
-	}
-	if (((mr_access_flags & IB_ACCESS_REMOTE_WRITE) &&
-	     !(mr_access_flags & IB_ACCESS_LOCAL_WRITE)) ||
-	    ((mr_access_flags & IB_ACCESS_REMOTE_ATOMIC) &&
-	     !(mr_access_flags & IB_ACCESS_LOCAL_WRITE))) {
-		/*
-		 * Remote Write Access requires Local Write Access
-		 * Remote Atomic Access requires Local Write Access
-		 */
-		ehca_err(pd->device, "bad input values: mr_access_flags=%x",
-			 mr_access_flags);
-		ib_mr = ERR_PTR(-EINVAL);
-		goto reg_phys_mr_exit0;
-	}
-
-	/* check physical buffer list and calculate size */
-	ret = ehca_mr_chk_buf_and_calc_size(phys_buf_array, num_phys_buf,
-					    iova_start, &size);
-	if (ret) {
-		ib_mr = ERR_PTR(ret);
-		goto reg_phys_mr_exit0;
-	}
-	if ((size == 0) ||
-	    (((u64)iova_start + size) < (u64)iova_start)) {
-		ehca_err(pd->device, "bad input values: size=%llx iova_start=%p",
-			 size, iova_start);
-		ib_mr = ERR_PTR(-EINVAL);
-		goto reg_phys_mr_exit0;
-	}
-
-	e_mr = ehca_mr_new();
-	if (!e_mr) {
-		ehca_err(pd->device, "out of memory");
-		ib_mr = ERR_PTR(-ENOMEM);
-		goto reg_phys_mr_exit0;
-	}
-
-	/* register MR on HCA */
-	if (ehca_mr_is_maxmr(size, iova_start)) {
-		e_mr->flags |= EHCA_MR_FLAG_MAXMR;
-		ret = ehca_reg_maxmr(shca, e_mr, iova_start, mr_access_flags,
-				     e_pd, &e_mr->ib.ib_mr.lkey,
-				     &e_mr->ib.ib_mr.rkey);
-		if (ret) {
-			ib_mr = ERR_PTR(ret);
-			goto reg_phys_mr_exit1;
-		}
-	} else {
-		struct ehca_mr_pginfo pginfo;
-		u32 num_kpages;
-		u32 num_hwpages;
-		u64 hw_pgsize;
-
-		num_kpages = NUM_CHUNKS(((u64)iova_start % PAGE_SIZE) + size,
-					PAGE_SIZE);
-		/* for kernel space we try most possible pgsize */
-		hw_pgsize = ehca_get_max_hwpage_size(shca);
-		num_hwpages = NUM_CHUNKS(((u64)iova_start % hw_pgsize) + size,
-					 hw_pgsize);
-		memset(&pginfo, 0, sizeof(pginfo));
-		pginfo.type = EHCA_MR_PGI_PHYS;
-		pginfo.num_kpages = num_kpages;
-		pginfo.hwpage_size = hw_pgsize;
-		pginfo.num_hwpages = num_hwpages;
-		pginfo.u.phy.num_phys_buf = num_phys_buf;
-		pginfo.u.phy.phys_buf_array = phys_buf_array;
-		pginfo.next_hwpage =
-			((u64)iova_start & ~PAGE_MASK) / hw_pgsize;
-
-		ret = ehca_reg_mr(shca, e_mr, iova_start, size, mr_access_flags,
-				  e_pd, &pginfo, &e_mr->ib.ib_mr.lkey,
-				  &e_mr->ib.ib_mr.rkey, EHCA_REG_MR);
-		if (ret) {
-			ib_mr = ERR_PTR(ret);
-			goto reg_phys_mr_exit1;
-		}
-	}
-
-	/* successful registration of all pages */
-	return &e_mr->ib.ib_mr;
-
-reg_phys_mr_exit1:
-	ehca_mr_delete(e_mr);
-reg_phys_mr_exit0:
-	if (IS_ERR(ib_mr))
-		ehca_err(pd->device, "h_ret=%li pd=%p phys_buf_array=%p "
-			 "num_phys_buf=%x mr_access_flags=%x iova_start=%p",
-			 PTR_ERR(ib_mr), pd, phys_buf_array,
-			 num_phys_buf, mr_access_flags, iova_start);
-	return ib_mr;
-} /* end ehca_reg_phys_mr() */
-
-/*----------------------------------------------------------------------*/
-
 struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			       u64 virt, int mr_access_flags,
 			       struct ib_udata *udata)
@@ -437,207 +323,6 @@ reg_user_mr_exit0:
 
 /*----------------------------------------------------------------------*/
 
-int ehca_rereg_phys_mr(struct ib_mr *mr,
-		       int mr_rereg_mask,
-		       struct ib_pd *pd,
-		       struct ib_phys_buf *phys_buf_array,
-		       int num_phys_buf,
-		       int mr_access_flags,
-		       u64 *iova_start)
-{
-	int ret;
-
-	struct ehca_shca *shca =
-		container_of(mr->device, struct ehca_shca, ib_device);
-	struct ehca_mr *e_mr = container_of(mr, struct ehca_mr, ib.ib_mr);
-	u64 new_size;
-	u64 *new_start;
-	u32 new_acl;
-	struct ehca_pd *new_pd;
-	u32 tmp_lkey, tmp_rkey;
-	unsigned long sl_flags;
-	u32 num_kpages = 0;
-	u32 num_hwpages = 0;
-	struct ehca_mr_pginfo pginfo;
-
-	if (!(mr_rereg_mask & IB_MR_REREG_TRANS)) {
-		/* TODO not supported, because PHYP rereg hCall needs pages */
-		ehca_err(mr->device, "rereg without IB_MR_REREG_TRANS not "
-			 "supported yet, mr_rereg_mask=%x", mr_rereg_mask);
-		ret = -EINVAL;
-		goto rereg_phys_mr_exit0;
-	}
-
-	if (mr_rereg_mask & IB_MR_REREG_PD) {
-		if (!pd) {
-			ehca_err(mr->device, "rereg with bad pd, pd=%p "
-				 "mr_rereg_mask=%x", pd, mr_rereg_mask);
-			ret = -EINVAL;
-			goto rereg_phys_mr_exit0;
-		}
-	}
-
-	if ((mr_rereg_mask &
-	     ~(IB_MR_REREG_TRANS | IB_MR_REREG_PD | IB_MR_REREG_ACCESS)) ||
-	    (mr_rereg_mask == 0)) {
-		ret = -EINVAL;
-		goto rereg_phys_mr_exit0;
-	}
-
-	/* check other parameters */
-	if (e_mr == shca->maxmr) {
-		/* should be impossible, however reject to be sure */
-		ehca_err(mr->device, "rereg internal max-MR impossible, mr=%p "
-			 "shca->maxmr=%p mr->lkey=%x",
-			 mr, shca->maxmr, mr->lkey);
-		ret = -EINVAL;
-		goto rereg_phys_mr_exit0;
-	}
-	if (mr_rereg_mask & IB_MR_REREG_TRANS) { /* transl., i.e. addr/size */
-		if (e_mr->flags & EHCA_MR_FLAG_FMR) {
-			ehca_err(mr->device, "not supported for FMR, mr=%p "
-				 "flags=%x", mr, e_mr->flags);
-			ret = -EINVAL;
-			goto rereg_phys_mr_exit0;
-		}
-		if (!phys_buf_array || num_phys_buf <= 0) {
-			ehca_err(mr->device, "bad input values mr_rereg_mask=%x"
-				 " phys_buf_array=%p num_phys_buf=%x",
-				 mr_rereg_mask, phys_buf_array, num_phys_buf);
-			ret = -EINVAL;
-			goto rereg_phys_mr_exit0;
-		}
-	}
-	if ((mr_rereg_mask & IB_MR_REREG_ACCESS) &&	/* change ACL */
-	    (((mr_access_flags & IB_ACCESS_REMOTE_WRITE) &&
-	      !(mr_access_flags & IB_ACCESS_LOCAL_WRITE)) ||
-	     ((mr_access_flags & IB_ACCESS_REMOTE_ATOMIC) &&
-	      !(mr_access_flags & IB_ACCESS_LOCAL_WRITE)))) {
-		/*
-		 * Remote Write Access requires Local Write Access
-		 * Remote Atomic Access requires Local Write Access
-		 */
-		ehca_err(mr->device, "bad input values: mr_rereg_mask=%x "
-			 "mr_access_flags=%x", mr_rereg_mask, mr_access_flags);
-		ret = -EINVAL;
-		goto rereg_phys_mr_exit0;
-	}
-
-	/* set requested values dependent on rereg request */
-	spin_lock_irqsave(&e_mr->mrlock, sl_flags);
-	new_start = e_mr->start;
-	new_size = e_mr->size;
-	new_acl = e_mr->acl;
-	new_pd = container_of(mr->pd, struct ehca_pd, ib_pd);
-
-	if (mr_rereg_mask & IB_MR_REREG_TRANS) {
-		u64 hw_pgsize = ehca_get_max_hwpage_size(shca);
-
-		new_start = iova_start;	/* change address */
-		/* check physical buffer list and calculate size */
-		ret = ehca_mr_chk_buf_and_calc_size(phys_buf_array,
-						    num_phys_buf, iova_start,
-						    &new_size);
-		if (ret)
-			goto rereg_phys_mr_exit1;
-		if ((new_size == 0) ||
-		    (((u64)iova_start + new_size) < (u64)iova_start)) {
-			ehca_err(mr->device, "bad input values: new_size=%llx "
-				 "iova_start=%p", new_size, iova_start);
-			ret = -EINVAL;
-			goto rereg_phys_mr_exit1;
-		}
-		num_kpages = NUM_CHUNKS(((u64)new_start % PAGE_SIZE) +
-					new_size, PAGE_SIZE);
-		num_hwpages = NUM_CHUNKS(((u64)new_start % hw_pgsize) +
-					 new_size, hw_pgsize);
-		memset(&pginfo, 0, sizeof(pginfo));
-		pginfo.type = EHCA_MR_PGI_PHYS;
-		pginfo.num_kpages = num_kpages;
-		pginfo.hwpage_size = hw_pgsize;
-		pginfo.num_hwpages = num_hwpages;
-		pginfo.u.phy.num_phys_buf = num_phys_buf;
-		pginfo.u.phy.phys_buf_array = phys_buf_array;
-		pginfo.next_hwpage =
-			((u64)iova_start & ~PAGE_MASK) / hw_pgsize;
-	}
-	if (mr_rereg_mask & IB_MR_REREG_ACCESS)
-		new_acl = mr_access_flags;
-	if (mr_rereg_mask & IB_MR_REREG_PD)
-		new_pd = container_of(pd, struct ehca_pd, ib_pd);
-
-	ret = ehca_rereg_mr(shca, e_mr, new_start, new_size, new_acl,
-			    new_pd, &pginfo, &tmp_lkey, &tmp_rkey);
-	if (ret)
-		goto rereg_phys_mr_exit1;
-
-	/* successful reregistration */
-	if (mr_rereg_mask & IB_MR_REREG_PD)
-		mr->pd = pd;
-	mr->lkey = tmp_lkey;
-	mr->rkey = tmp_rkey;
-
-rereg_phys_mr_exit1:
-	spin_unlock_irqrestore(&e_mr->mrlock, sl_flags);
-rereg_phys_mr_exit0:
-	if (ret)
-		ehca_err(mr->device, "ret=%i mr=%p mr_rereg_mask=%x pd=%p "
-			 "phys_buf_array=%p num_phys_buf=%x mr_access_flags=%x "
-			 "iova_start=%p",
-			 ret, mr, mr_rereg_mask, pd, phys_buf_array,
-			 num_phys_buf, mr_access_flags, iova_start);
-	return ret;
-} /* end ehca_rereg_phys_mr() */
-
-/*----------------------------------------------------------------------*/
-
-int ehca_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr)
-{
-	int ret = 0;
-	u64 h_ret;
-	struct ehca_shca *shca =
-		container_of(mr->device, struct ehca_shca, ib_device);
-	struct ehca_mr *e_mr = container_of(mr, struct ehca_mr, ib.ib_mr);
-	unsigned long sl_flags;
-	struct ehca_mr_hipzout_parms hipzout;
-
-	if ((e_mr->flags & EHCA_MR_FLAG_FMR)) {
-		ehca_err(mr->device, "not supported for FMR, mr=%p e_mr=%p "
-			 "e_mr->flags=%x", mr, e_mr, e_mr->flags);
-		ret = -EINVAL;
-		goto query_mr_exit0;
-	}
-
-	memset(mr_attr, 0, sizeof(struct ib_mr_attr));
-	spin_lock_irqsave(&e_mr->mrlock, sl_flags);
-
-	h_ret = hipz_h_query_mr(shca->ipz_hca_handle, e_mr, &hipzout);
-	if (h_ret != H_SUCCESS) {
-		ehca_err(mr->device, "hipz_mr_query failed, h_ret=%lli mr=%p "
-			 "hca_hndl=%llx mr_hndl=%llx lkey=%x",
-			 h_ret, mr, shca->ipz_hca_handle.handle,
-			 e_mr->ipz_mr_handle.handle, mr->lkey);
-		ret = ehca2ib_return_code(h_ret);
-		goto query_mr_exit1;
-	}
-	mr_attr->pd = mr->pd;
-	mr_attr->device_virt_addr = hipzout.vaddr;
-	mr_attr->size = hipzout.len;
-	mr_attr->lkey = hipzout.lkey;
-	mr_attr->rkey = hipzout.rkey;
-	ehca_mrmw_reverse_map_acl(&hipzout.acl, &mr_attr->mr_access_flags);
-
-query_mr_exit1:
-	spin_unlock_irqrestore(&e_mr->mrlock, sl_flags);
-query_mr_exit0:
-	if (ret)
-		ehca_err(mr->device, "ret=%i mr=%p mr_attr=%p",
-			 ret, mr, mr_attr);
-	return ret;
-} /* end ehca_query_mr() */
-
-/*----------------------------------------------------------------------*/
-
 int ehca_dereg_mr(struct ib_mr *mr)
 {
 	int ret = 0;
@@ -725,18 +410,6 @@ alloc_mw_exit0:
 		ehca_err(pd->device, "h_ret=%li pd=%p", PTR_ERR(ib_mw), pd);
 	return ib_mw;
 } /* end ehca_alloc_mw() */
-
-/*----------------------------------------------------------------------*/
-
-int ehca_bind_mw(struct ib_qp *qp,
-		 struct ib_mw *mw,
-		 struct ib_mw_bind *mw_bind)
-{
-	/* TODO: not supported up to now */
-	ehca_gen_err("bind MW currently not supported by HCAD");
-
-	return -EPERM;
-} /* end ehca_bind_mw() */
 
 /*----------------------------------------------------------------------*/
 
@@ -1616,7 +1289,6 @@ int ehca_reg_internal_maxmr(
 	u64 *iova_start;
 	u64 size_maxmr;
 	struct ehca_mr_pginfo pginfo;
-	struct ib_phys_buf ib_pbuf;
 	u32 num_kpages;
 	u32 num_hwpages;
 	u64 hw_pgsize;
@@ -1637,8 +1309,6 @@ int ehca_reg_internal_maxmr(
 	/* register internal max-MR on HCA */
 	size_maxmr = ehca_mr_len;
 	iova_start = (u64 *)ehca_map_vaddr((void *)(KERNELBASE + PHYSICAL_START));
-	ib_pbuf.addr = 0;
-	ib_pbuf.size = size_maxmr;
 	num_kpages = NUM_CHUNKS(((u64)iova_start % PAGE_SIZE) + size_maxmr,
 				PAGE_SIZE);
 	hw_pgsize = ehca_get_max_hwpage_size(shca);
@@ -1650,8 +1320,8 @@ int ehca_reg_internal_maxmr(
 	pginfo.num_kpages = num_kpages;
 	pginfo.num_hwpages = num_hwpages;
 	pginfo.hwpage_size = hw_pgsize;
-	pginfo.u.phy.num_phys_buf = 1;
-	pginfo.u.phy.phys_buf_array = &ib_pbuf;
+	pginfo.u.phy.addr = 0;
+	pginfo.u.phy.size = size_maxmr;
 
 	ret = ehca_reg_mr(shca, e_mr, iova_start, size_maxmr, 0, e_pd,
 			  &pginfo, &e_mr->ib.ib_mr.lkey,
@@ -1669,7 +1339,6 @@ int ehca_reg_internal_maxmr(
 	e_mr->ib.ib_mr.pd = &e_pd->ib_pd;
 	e_mr->ib.ib_mr.uobject = NULL;
 	atomic_inc(&(e_pd->ib_pd.usecnt));
-	atomic_set(&(e_mr->ib.ib_mr.usecnt), 0);
 	*e_maxmr = e_mr;
 	return 0;
 
@@ -1759,61 +1428,6 @@ ehca_dereg_internal_maxmr_exit0:
 			 ret, shca, shca->maxmr);
 	return ret;
 } /* end ehca_dereg_internal_maxmr() */
-
-/*----------------------------------------------------------------------*/
-
-/*
- * check physical buffer array of MR verbs for validness and
- * calculates MR size
- */
-int ehca_mr_chk_buf_and_calc_size(struct ib_phys_buf *phys_buf_array,
-				  int num_phys_buf,
-				  u64 *iova_start,
-				  u64 *size)
-{
-	struct ib_phys_buf *pbuf = phys_buf_array;
-	u64 size_count = 0;
-	u32 i;
-
-	if (num_phys_buf == 0) {
-		ehca_gen_err("bad phys buf array len, num_phys_buf=0");
-		return -EINVAL;
-	}
-	/* check first buffer */
-	if (((u64)iova_start & ~PAGE_MASK) != (pbuf->addr & ~PAGE_MASK)) {
-		ehca_gen_err("iova_start/addr mismatch, iova_start=%p "
-			     "pbuf->addr=%llx pbuf->size=%llx",
-			     iova_start, pbuf->addr, pbuf->size);
-		return -EINVAL;
-	}
-	if (((pbuf->addr + pbuf->size) % PAGE_SIZE) &&
-	    (num_phys_buf > 1)) {
-		ehca_gen_err("addr/size mismatch in 1st buf, pbuf->addr=%llx "
-			     "pbuf->size=%llx", pbuf->addr, pbuf->size);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < num_phys_buf; i++) {
-		if ((i > 0) && (pbuf->addr % PAGE_SIZE)) {
-			ehca_gen_err("bad address, i=%x pbuf->addr=%llx "
-				     "pbuf->size=%llx",
-				     i, pbuf->addr, pbuf->size);
-			return -EINVAL;
-		}
-		if (((i > 0) &&	/* not 1st */
-		     (i < (num_phys_buf - 1)) &&	/* not last */
-		     (pbuf->size % PAGE_SIZE)) || (pbuf->size == 0)) {
-			ehca_gen_err("bad size, i=%x pbuf->size=%llx",
-				     i, pbuf->size);
-			return -EINVAL;
-		}
-		size_count += pbuf->size;
-		pbuf++;
-	}
-
-	*size = size_count;
-	return 0;
-} /* end ehca_mr_chk_buf_and_calc_size() */
 
 /*----------------------------------------------------------------------*/
 
@@ -2002,57 +1616,54 @@ static int ehca_set_pagebuf_phys(struct ehca_mr_pginfo *pginfo,
 				 u32 number, u64 *kpage)
 {
 	int ret = 0;
-	struct ib_phys_buf *pbuf;
+	u64 addr = pginfo->u.phy.addr;
+	u64 size = pginfo->u.phy.size;
 	u64 num_hw, offs_hw;
 	u32 i = 0;
 
-	/* loop over desired phys_buf_array entries */
-	while (i < number) {
-		pbuf   = pginfo->u.phy.phys_buf_array + pginfo->u.phy.next_buf;
-		num_hw  = NUM_CHUNKS((pbuf->addr % pginfo->hwpage_size) +
-				     pbuf->size, pginfo->hwpage_size);
-		offs_hw = (pbuf->addr & ~(pginfo->hwpage_size - 1)) /
-			pginfo->hwpage_size;
-		while (pginfo->next_hwpage < offs_hw + num_hw) {
-			/* sanity check */
-			if ((pginfo->kpage_cnt >= pginfo->num_kpages) ||
-			    (pginfo->hwpage_cnt >= pginfo->num_hwpages)) {
-				ehca_gen_err("kpage_cnt >= num_kpages, "
-					     "kpage_cnt=%llx num_kpages=%llx "
-					     "hwpage_cnt=%llx "
-					     "num_hwpages=%llx i=%x",
-					     pginfo->kpage_cnt,
-					     pginfo->num_kpages,
-					     pginfo->hwpage_cnt,
-					     pginfo->num_hwpages, i);
-				return -EFAULT;
-			}
-			*kpage = (pbuf->addr & ~(pginfo->hwpage_size - 1)) +
-				 (pginfo->next_hwpage * pginfo->hwpage_size);
-			if ( !(*kpage) && pbuf->addr ) {
-				ehca_gen_err("pbuf->addr=%llx pbuf->size=%llx "
-					     "next_hwpage=%llx", pbuf->addr,
-					     pbuf->size, pginfo->next_hwpage);
-				return -EFAULT;
-			}
-			(pginfo->hwpage_cnt)++;
-			(pginfo->next_hwpage)++;
-			if (PAGE_SIZE >= pginfo->hwpage_size) {
-				if (pginfo->next_hwpage %
-				    (PAGE_SIZE / pginfo->hwpage_size) == 0)
-					(pginfo->kpage_cnt)++;
-			} else
-				pginfo->kpage_cnt += pginfo->hwpage_size /
-					PAGE_SIZE;
-			kpage++;
-			i++;
-			if (i >= number) break;
+	num_hw  = NUM_CHUNKS((addr % pginfo->hwpage_size) + size,
+				pginfo->hwpage_size);
+	offs_hw = (addr & ~(pginfo->hwpage_size - 1)) / pginfo->hwpage_size;
+
+	while (pginfo->next_hwpage < offs_hw + num_hw) {
+		/* sanity check */
+		if ((pginfo->kpage_cnt >= pginfo->num_kpages) ||
+		    (pginfo->hwpage_cnt >= pginfo->num_hwpages)) {
+			ehca_gen_err("kpage_cnt >= num_kpages, "
+				     "kpage_cnt=%llx num_kpages=%llx "
+				     "hwpage_cnt=%llx "
+				     "num_hwpages=%llx i=%x",
+				     pginfo->kpage_cnt,
+				     pginfo->num_kpages,
+				     pginfo->hwpage_cnt,
+				     pginfo->num_hwpages, i);
+			return -EFAULT;
 		}
-		if (pginfo->next_hwpage >= offs_hw + num_hw) {
-			(pginfo->u.phy.next_buf)++;
-			pginfo->next_hwpage = 0;
+		*kpage = (addr & ~(pginfo->hwpage_size - 1)) +
+			 (pginfo->next_hwpage * pginfo->hwpage_size);
+		if ( !(*kpage) && addr ) {
+			ehca_gen_err("addr=%llx size=%llx "
+				     "next_hwpage=%llx", addr,
+				     size, pginfo->next_hwpage);
+			return -EFAULT;
 		}
+		(pginfo->hwpage_cnt)++;
+		(pginfo->next_hwpage)++;
+		if (PAGE_SIZE >= pginfo->hwpage_size) {
+			if (pginfo->next_hwpage %
+			    (PAGE_SIZE / pginfo->hwpage_size) == 0)
+				(pginfo->kpage_cnt)++;
+		} else
+			pginfo->kpage_cnt += pginfo->hwpage_size /
+				PAGE_SIZE;
+		kpage++;
+		i++;
+		if (i >= number) break;
 	}
+	if (pginfo->next_hwpage >= offs_hw + num_hw) {
+		pginfo->next_hwpage = 0;
+	}
+
 	return ret;
 }
 
@@ -2251,10 +1862,8 @@ int ehca_init_mrmw_cache(void)
 
 void ehca_cleanup_mrmw_cache(void)
 {
-	if (mr_cache)
-		kmem_cache_destroy(mr_cache);
-	if (mw_cache)
-		kmem_cache_destroy(mw_cache);
+	kmem_cache_destroy(mr_cache);
+	kmem_cache_destroy(mw_cache);
 }
 
 static inline int ehca_init_top_bmap(struct ehca_top_bmap *ehca_top_bmap,

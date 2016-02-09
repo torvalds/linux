@@ -104,7 +104,7 @@ static void acpi_expose_nondev_subnodes(struct kobject *kobj,
 
 		init_completion(&dn->kobj_done);
 		ret = kobject_init_and_add(&dn->kobj, &acpi_data_node_ktype,
-					   kobj, dn->name);
+					   kobj, "%s", dn->name);
 		if (ret)
 			acpi_handle_err(dn->handle, "Failed to expose (%d)\n", ret);
 		else

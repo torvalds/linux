@@ -129,13 +129,15 @@ MLXSW_ITEM64_INDEXED(pci, wqe, address, 0x08, 0, 64, 0x8, 0x0, false);
  */
 MLXSW_ITEM32(pci, cqe, lag, 0x00, 23, 1);
 
-/* pci_cqe_system_port
+/* pci_cqe_system_port/lag_id
  * When lag=0: System port on which the packet was received
  * When lag=1:
  * bits [15:4] LAG ID on which the packet was received
  * bits [3:0] sub_port on which the packet was received
  */
 MLXSW_ITEM32(pci, cqe, system_port, 0x00, 0, 16);
+MLXSW_ITEM32(pci, cqe, lag_id, 0x00, 4, 12);
+MLXSW_ITEM32(pci, cqe, lag_port_index, 0x00, 0, 4);
 
 /* pci_cqe_wqe_counter
  * WQE count of the WQEs completed on the associated dqn

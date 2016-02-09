@@ -68,6 +68,7 @@
 #include <linux/slab.h>
 #include "xhci.h"
 #include "xhci-trace.h"
+#include "xhci-mtk.h"
 
 /*
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
@@ -1583,7 +1584,8 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			 */
 			bogus_port_status = true;
 			goto cleanup;
-		} else {
+		} else if (!test_bit(faked_port_index,
+				     &bus_state->resuming_ports)) {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
 			bus_state->resume_done[faked_port_index] = jiffies +
 				msecs_to_jiffies(USB_RESUME_TIMEOUT);
@@ -3074,16 +3076,21 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 {
 	u32 maxp, total_packet_count;
 
-	if (xhci->hci_version < 0x100)
+	/* MTK xHCI is mostly 0.97 but contains some features from 1.0 */
+	if (xhci->hci_version < 0x100 && !(xhci->quirks & XHCI_MTK_HOST))
 		return ((td_total_len - transferred) >> 10);
-
-	maxp = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
-	total_packet_count = DIV_ROUND_UP(td_total_len, maxp);
 
 	/* One TRB with a zero-length data packet. */
 	if (num_trbs_left == 0 || (transferred == 0 && trb_buff_len == 0) ||
 	    trb_buff_len == td_total_len)
 		return 0;
+
+	/* for MTK xHCI, TD size doesn't include this TRB */
+	if (xhci->quirks & XHCI_MTK_HOST)
+		trb_buff_len = 0;
+
+	maxp = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
+	total_packet_count = DIV_ROUND_UP(td_total_len, maxp);
 
 	/* Queueing functions don't count the current TRB into transferred */
 	return (total_packet_count - ((transferred + trb_buff_len) / maxp));
@@ -3472,7 +3479,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		field |= 0x1;
 
 	/* xHCI 1.0/1.1 6.4.1.2.1: Transfer Type field */
-	if (xhci->hci_version >= 0x100) {
+	if ((xhci->hci_version >= 0x100) || (xhci->quirks & XHCI_MTK_HOST)) {
 		if (urb->transfer_buffer_length > 0) {
 			if (setup->bRequestType & USB_DIR_IN)
 				field |= TRB_TX_TYPE(TRB_DATA_IN);
@@ -3896,28 +3903,6 @@ cleanup:
 	return ret;
 }
 
-static int ep_ring_is_processing(struct xhci_hcd *xhci,
-		int slot_id, unsigned int ep_index)
-{
-	struct xhci_virt_device *xdev;
-	struct xhci_ring *ep_ring;
-	struct xhci_ep_ctx *ep_ctx;
-	struct xhci_virt_ep *xep;
-	dma_addr_t hw_deq;
-
-	xdev = xhci->devs[slot_id];
-	xep = &xhci->devs[slot_id]->eps[ep_index];
-	ep_ring = xep->ring;
-	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
-
-	if ((le32_to_cpu(ep_ctx->ep_info) & EP_STATE_MASK) != EP_STATE_RUNNING)
-		return 0;
-
-	hw_deq = le64_to_cpu(ep_ctx->deq) & ~EP_CTX_CYCLE_MASK;
-	return (hw_deq !=
-		xhci_trb_virt_to_dma(ep_ring->enq_seg, ep_ring->enqueue));
-}
-
 /*
  * Check transfer ring to guarantee there is enough room for the urb.
  * Update ISO URB start_frame and interval.
@@ -3983,10 +3968,12 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	}
 
 	/* Calculate the start frame and put it in urb->start_frame. */
-	if (HCC_CFC(xhci->hcc_params) &&
-			ep_ring_is_processing(xhci, slot_id, ep_index)) {
-		urb->start_frame = xep->next_frame_id;
-		goto skip_start_over;
+	if (HCC_CFC(xhci->hcc_params) && !list_empty(&ep_ring->td_list)) {
+		if ((le32_to_cpu(ep_ctx->ep_info) & EP_STATE_MASK) ==
+				EP_STATE_RUNNING) {
+			urb->start_frame = xep->next_frame_id;
+			goto skip_start_over;
+		}
 	}
 
 	start_frame = readl(&xhci->run_regs->microframe_index);

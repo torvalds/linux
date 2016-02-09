@@ -476,10 +476,7 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 		}
 		unlock_page(page);
 	}
-	if (PageDirty(page) || PageWriteback(page))
-		*uptodate = true;
-	else
-		*uptodate = PageUptodate(page);
+	*uptodate = PageUptodate(page);
 	dprintk("%s: index=0x%lx uptodate=%d\n", __func__, index, *uptodate);
 	return page;
 }

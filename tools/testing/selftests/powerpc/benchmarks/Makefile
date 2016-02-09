@@ -1,10 +1,13 @@
-TEST_PROGS := gettimeofday
+TEST_PROGS := gettimeofday context_switch
 
 CFLAGS += -O2
 
 all: $(TEST_PROGS)
 
 $(TEST_PROGS): ../harness.c
+
+context_switch: ../utils.c
+context_switch: LDLIBS += -lpthread
 
 include ../../lib.mk
 

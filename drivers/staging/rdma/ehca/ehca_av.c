@@ -105,6 +105,7 @@ struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 
 	if (ehca_static_rate < 0) {
 		u32 ipd;
+
 		if (ehca_calc_ipd(shca, ah_attr->port_num,
 				  ah_attr->static_rate, &ipd)) {
 			ret = -EINVAL;
@@ -128,6 +129,7 @@ struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 		int rc;
 		struct ib_port_attr port_attr;
 		union ib_gid gid;
+
 		memset(&port_attr, 0, sizeof(port_attr));
 		rc = ehca_query_port(pd->device, ah_attr->port_num,
 				     &port_attr);
@@ -192,6 +194,7 @@ int ehca_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 		int rc;
 		struct ib_port_attr port_attr;
 		union ib_gid gid;
+
 		memset(&port_attr, 0, sizeof(port_attr));
 		rc = ehca_query_port(ah->device, ah_attr->port_num,
 				     &port_attr);
@@ -272,6 +275,5 @@ int ehca_init_av_cache(void)
 
 void ehca_cleanup_av_cache(void)
 {
-	if (av_cache)
-		kmem_cache_destroy(av_cache);
+	kmem_cache_destroy(av_cache);
 }

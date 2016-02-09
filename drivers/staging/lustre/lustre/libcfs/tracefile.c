@@ -199,7 +199,6 @@ static void cfs_tcd_shrink(struct cfs_trace_cpu_data *tcd)
 		       pgcount + 1, tcd->tcd_cur_pages);
 
 	INIT_LIST_HEAD(&pc.pc_pages);
-	spin_lock_init(&pc.pc_lock);
 
 	list_for_each_entry_safe(tage, tmp, &tcd->tcd_pages, linkage) {
 		if (pgcount-- == 0)
@@ -451,7 +450,7 @@ console:
 		cfs_print_to_console(&header, mask,
 				     string_buf, needed, file, msgdata->msg_fn);
 
-		cfs_trace_put_console_buffer(string_buf);
+		put_cpu();
 	}
 
 	if (cdls != NULL && cdls->cdls_count != 0) {
@@ -465,7 +464,7 @@ console:
 		cfs_print_to_console(&header, mask,
 				     string_buf, needed, file, msgdata->msg_fn);
 
-		cfs_trace_put_console_buffer(string_buf);
+		put_cpu();
 		cdls->cdls_count = 0;
 	}
 
@@ -522,7 +521,6 @@ static void collect_pages_on_all_cpus(struct page_collection *pc)
 	struct cfs_trace_cpu_data *tcd;
 	int i, cpu;
 
-	spin_lock(&pc->pc_lock);
 	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			list_splice_init(&tcd->tcd_pages, &pc->pc_pages);
@@ -534,7 +532,6 @@ static void collect_pages_on_all_cpus(struct page_collection *pc)
 			}
 		}
 	}
-	spin_unlock(&pc->pc_lock);
 }
 
 static void collect_pages(struct page_collection *pc)
@@ -555,7 +552,6 @@ static void put_pages_back_on_all_cpus(struct page_collection *pc)
 	struct cfs_trace_page *tmp;
 	int i, cpu;
 
-	spin_lock(&pc->pc_lock);
 	for_each_possible_cpu(cpu) {
 		cfs_tcd_for_each_type_lock(tcd, i, cpu) {
 			cur_head = tcd->tcd_pages.next;
@@ -573,7 +569,6 @@ static void put_pages_back_on_all_cpus(struct page_collection *pc)
 			}
 		}
 	}
-	spin_unlock(&pc->pc_lock);
 }
 
 static void put_pages_back(struct page_collection *pc)
@@ -592,7 +587,6 @@ static void put_pages_on_tcd_daemon_list(struct page_collection *pc,
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
 
-	spin_lock(&pc->pc_lock);
 	list_for_each_entry_safe(tage, tmp, &pc->pc_pages, linkage) {
 
 		__LASSERT_TAGE_INVARIANT(tage);
@@ -616,7 +610,6 @@ static void put_pages_on_tcd_daemon_list(struct page_collection *pc,
 			tcd->tcd_cur_daemon_pages--;
 		}
 	}
-	spin_unlock(&pc->pc_lock);
 }
 
 static void put_pages_on_daemon_list(struct page_collection *pc)
@@ -635,8 +628,6 @@ void cfs_trace_debug_print(void)
 	struct page_collection pc;
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
-
-	spin_lock_init(&pc.pc_lock);
 
 	pc.pc_want_daemon_pages = 1;
 	collect_pages(&pc);
@@ -692,7 +683,6 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		goto out;
 	}
 
-	spin_lock_init(&pc.pc_lock);
 	pc.pc_want_daemon_pages = 1;
 	collect_pages(&pc);
 	if (list_empty(&pc.pc_pages)) {
@@ -738,8 +728,6 @@ void cfs_trace_flush_pages(void)
 	struct page_collection pc;
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
-
-	spin_lock_init(&pc.pc_lock);
 
 	pc.pc_want_daemon_pages = 1;
 	collect_pages(&pc);
@@ -817,11 +805,6 @@ int cfs_trace_allocate_string_buffer(char **str, int nob)
 	return 0;
 }
 
-void cfs_trace_free_string_buffer(char *str, int nob)
-{
-	kfree(str);
-}
-
 int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob)
 {
 	char	 *str;
@@ -842,7 +825,7 @@ int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob)
 	}
 	rc = cfs_tracefile_dump_all_pages(str);
 out:
-	cfs_trace_free_string_buffer(str, usr_str_nob + 1);
+	kfree(str);
 	return rc;
 }
 
@@ -898,7 +881,7 @@ int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob)
 	if (rc == 0)
 		rc = cfs_trace_daemon_command(str);
 
-	cfs_trace_free_string_buffer(str, usr_str_nob + 1);
+	kfree(str);
 	return rc;
 }
 
@@ -970,7 +953,6 @@ static int tracefiled(void *arg)
 	/* we're started late enough that we pick up init's fs context */
 	/* this is so broken in uml?  what on earth is going on? */
 
-	spin_lock_init(&pc.pc_lock);
 	complete(&tctl->tctl_start);
 
 	while (1) {
@@ -1170,7 +1152,6 @@ static void cfs_trace_cleanup(void)
 	struct page_collection pc;
 
 	INIT_LIST_HEAD(&pc.pc_pages);
-	spin_lock_init(&pc.pc_lock);
 
 	trace_cleanup_on_all_cpus();
 

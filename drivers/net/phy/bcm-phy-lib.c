@@ -184,25 +184,25 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 
 	/* Enable EEE at PHY level */
 	val = phy_read_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
-				    MDIO_MMD_AN, phydev->addr);
+				    MDIO_MMD_AN);
 	if (val < 0)
 		return val;
 
 	val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
 
 	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
-			       MDIO_MMD_AN,  phydev->addr, (u32)val);
+			       MDIO_MMD_AN, (u32)val);
 
 	/* Advertise EEE */
 	val = phy_read_mmd_indirect(phydev, BCM_CL45VEN_EEE_ADV,
-				    MDIO_MMD_AN, phydev->addr);
+				    MDIO_MMD_AN);
 	if (val < 0)
 		return val;
 
 	val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
 
 	phy_write_mmd_indirect(phydev, BCM_CL45VEN_EEE_ADV,
-			       MDIO_MMD_AN,  phydev->addr, (u32)val);
+			       MDIO_MMD_AN, (u32)val);
 
 	return 0;
 }

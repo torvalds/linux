@@ -298,6 +298,12 @@ static int fdp_nci_i2c_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
+	/* Checking if we have an irq */
+	if (client->irq <= 0) {
+		nfc_err(dev, "IRQ not present\n");
+		return -ENODEV;
+	}
+
 	phy = devm_kzalloc(dev, sizeof(struct fdp_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
@@ -306,12 +312,6 @@ static int fdp_nci_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	phy->next_read_size = FDP_NCI_I2C_MIN_PAYLOAD;
 	i2c_set_clientdata(client, phy);
-
-	/* Checking if we have an irq */
-	if (client->irq <= 0) {
-		dev_err(dev, "IRQ not present\n");
-		return -ENODEV;
-	}
 
 	r = request_threaded_irq(client->irq, NULL, fdp_nci_i2c_irq_thread_fn,
 				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,

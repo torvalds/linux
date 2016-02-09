@@ -983,8 +983,6 @@ const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 };
 
 const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
-	.save = gma_crtc_save,
-	.restore = gma_crtc_restore,
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,

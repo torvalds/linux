@@ -85,6 +85,7 @@ static void spe_begin(void)
 
 static void spe_end(void)
 {
+	disable_kernel_spe();
 	/* reenable preemption */
 	preempt_enable();
 }

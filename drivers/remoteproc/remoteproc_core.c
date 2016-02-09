@@ -1478,6 +1478,8 @@ module_init(remoteproc_init);
 
 static void __exit remoteproc_exit(void)
 {
+	ida_destroy(&rproc_dev_index);
+
 	rproc_exit_debugfs();
 }
 module_exit(remoteproc_exit);

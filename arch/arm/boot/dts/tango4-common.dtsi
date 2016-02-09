@@ -1,0 +1,130 @@
+/*
+ * Based on Mans Rullgard's Tango3 DT
+ * https://github.com/mansr/linux-tangox
+ */
+
+#define CPU_CLK 0
+#define SYS_CLK 1
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	periph_clk: periph_clk {
+		compatible = "fixed-factor-clock";
+		clocks = <&clkgen CPU_CLK>;
+		clock-mult = <1>;
+		clock-div  = <2>;
+		#clock-cells = <0>;
+	};
+
+	mpcore {
+		compatible = "simple-bus";
+		ranges = <0x00000000 0x20000000 0x2000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		scu@0 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0x0 0x100>;
+		};
+
+		twd@600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x600 0x10>;
+			interrupts = <GIC_PPI 13 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&periph_clk>;
+			always-on;
+		};
+
+		gic: interrupt-controller@1000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			reg = <0x1000 0x1000>, <0x100 0x100>;
+		};
+	};
+
+	l2cc: l2-cache-controller@20100000 {
+		compatible = "arm,pl310-cache";
+		reg = <0x20100000 0x1000>;
+		cache-level = <2>;
+		cache-unified;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		interrupt-parent = <&irq0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		xtal: xtal {
+			compatible = "fixed-clock";
+			clock-frequency = <27000000>;
+			#clock-cells = <0>;
+		};
+
+		clkgen: clkgen@10000 {
+			compatible = "sigma,tango4-clkgen";
+			reg = <0x10000 0x40>;
+			clocks = <&xtal>;
+			#clock-cells = <1>;
+		};
+
+		tick-counter@10048 {
+			compatible = "sigma,tick-counter";
+			reg = <0x10048 0x4>;
+			clocks = <&xtal>;
+		};
+
+		uart: serial@10700 {
+			compatible = "ralink,rt2880-uart";
+			reg = <0x10700 0x30>;
+			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <7372800>;
+			reg-shift = <2>;
+		};
+
+		eth0: ethernet@26000 {
+			compatible = "sigma,smp8734-ethernet";
+			reg = <0x26000 0x800>;
+			interrupts = <38 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkgen SYS_CLK>;
+		};
+
+		intc: interrupt-controller@6e000 {
+			compatible = "sigma,smp8642-intc";
+			reg = <0x6e000 0x400>;
+			ranges = <0 0x6e000 0x400>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			irq0: irq0@000 {
+				reg = <0x000 0x100>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			irq1: irq1@100 {
+				reg = <0x100 0x100>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			irq2: irq2@300 {
+				reg = <0x300 0x100>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+	};
+};

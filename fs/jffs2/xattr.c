@@ -967,7 +967,8 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct jffs2_xattr_ref *ref, **pref;
 	struct jffs2_xattr_datum *xd;
 	const struct xattr_handler *xhandle;
-	ssize_t len, rc;
+	const char *prefix;
+	ssize_t prefix_len, len, rc;
 	int retry = 0;
 
 	rc = check_xattr_ref_inode(c, ic);
@@ -998,18 +999,23 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			}
 		}
 		xhandle = xprefix_to_handler(xd->xprefix);
-		if (!xhandle)
+		if (!xhandle || (xhandle->list && !xhandle->list(dentry)))
 			continue;
+		prefix = xhandle->prefix ?: xhandle->name;
+		prefix_len = strlen(prefix);
+		rc = prefix_len + xd->name_len + 1;
+
 		if (buffer) {
-			rc = xhandle->list(xhandle, dentry, buffer + len,
-					   size - len, xd->xname,
-					   xd->name_len);
-		} else {
-			rc = xhandle->list(xhandle, dentry, NULL, 0,
-					   xd->xname, xd->name_len);
+			if (rc > size - len) {
+				rc = -ERANGE;
+				goto out;
+			}
+			memcpy(buffer, prefix, prefix_len);
+			buffer += prefix_len;
+			memcpy(buffer, xd->xname, xd->name_len);
+			buffer += xd->name_len;
+			*buffer++ = 0;
 		}
-		if (rc < 0)
-			goto out;
 		len += rc;
 	}
 	rc = len;

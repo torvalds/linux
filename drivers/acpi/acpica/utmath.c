@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,6 +111,7 @@ acpi_ut_short_divide(u64 dividend,
 	 */
 	ACPI_DIV_64_BY_32(0, dividend_ovl.part.hi, divisor,
 			  quotient.part.hi, remainder32);
+
 	ACPI_DIV_64_BY_32(remainder32, dividend_ovl.part.lo, divisor,
 			  quotient.part.lo, remainder32);
 
@@ -179,6 +180,7 @@ acpi_ut_divide(u64 in_dividend,
 		 */
 		ACPI_DIV_64_BY_32(0, dividend.part.hi, divisor.part.lo,
 				  quotient.part.hi, partial1);
+
 		ACPI_DIV_64_BY_32(partial1, dividend.part.lo, divisor.part.lo,
 				  quotient.part.lo, remainder.part.lo);
 	}
@@ -206,12 +208,12 @@ acpi_ut_divide(u64 in_dividend,
 
 		ACPI_DIV_64_BY_32(normalized_dividend.part.hi,
 				  normalized_dividend.part.lo,
-				  normalized_divisor.part.lo,
-				  quotient.part.lo, partial1);
+				  normalized_divisor.part.lo, quotient.part.lo,
+				  partial1);
 
 		/*
-		 * The quotient is always 32 bits, and simply requires adjustment.
-		 * The 64-bit remainder must be generated.
+		 * The quotient is always 32 bits, and simply requires
+		 * adjustment. The 64-bit remainder must be generated.
 		 */
 		partial1 = quotient.part.lo * divisor.part.hi;
 		partial2.full = (u64) quotient.part.lo * divisor.part.lo;

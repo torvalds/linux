@@ -295,6 +295,8 @@ do {									\
 #define R_PPC64_TLSLD		108
 #define R_PPC64_TOCSAVE		109
 
+#define R_PPC64_ENTRY		118
+
 #define R_PPC64_REL16		249
 #define R_PPC64_REL16_LO	250
 #define R_PPC64_REL16_HI	251

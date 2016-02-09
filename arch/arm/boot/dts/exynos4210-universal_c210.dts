@@ -560,16 +560,24 @@
 
 &serial_0 {
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };
 
 &serial_1 {
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };
 
 &serial_2 {
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };
 
 &serial_3 {
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };

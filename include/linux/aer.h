@@ -7,6 +7,7 @@
 #ifndef _AER_H_
 #define _AER_H_
 
+#include <linux/errno.h>
 #include <linux/types.h>
 
 #define AER_NONFATAL			0

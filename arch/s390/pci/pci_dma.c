@@ -33,7 +33,7 @@ unsigned long *dma_alloc_cpu_table(void)
 		return NULL;
 
 	for (entry = table; entry < table + ZPCI_TABLE_ENTRIES; entry++)
-		*entry = ZPCI_TABLE_INVALID | ZPCI_TABLE_PROTECTED;
+		*entry = ZPCI_TABLE_INVALID;
 	return table;
 }
 
@@ -51,7 +51,7 @@ static unsigned long *dma_alloc_page_table(void)
 		return NULL;
 
 	for (entry = table; entry < table + ZPCI_PT_ENTRIES; entry++)
-		*entry = ZPCI_PTE_INVALID | ZPCI_TABLE_PROTECTED;
+		*entry = ZPCI_PTE_INVALID;
 	return table;
 }
 
@@ -95,7 +95,7 @@ static unsigned long *dma_get_page_table_origin(unsigned long *entry)
 	return pto;
 }
 
-static unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr)
+unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr)
 {
 	unsigned long *sto, *pto;
 	unsigned int rtx, sx, px;
@@ -114,20 +114,10 @@ static unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr
 	return &pto[px];
 }
 
-void dma_update_cpu_trans(unsigned long *dma_table, void *page_addr,
-			  dma_addr_t dma_addr, int flags)
+void dma_update_cpu_trans(unsigned long *entry, void *page_addr, int flags)
 {
-	unsigned long *entry;
-
-	entry = dma_walk_cpu_trans(dma_table, dma_addr);
-	if (!entry) {
-		WARN_ON_ONCE(1);
-		return;
-	}
-
 	if (flags & ZPCI_PTE_INVALID) {
 		invalidate_pt_entry(entry);
-		return;
 	} else {
 		set_pt_pfaa(entry, page_addr);
 		validate_pt_entry(entry);
@@ -146,18 +136,25 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 	u8 *page_addr = (u8 *) (pa & PAGE_MASK);
 	dma_addr_t start_dma_addr = dma_addr;
 	unsigned long irq_flags;
+	unsigned long *entry;
 	int i, rc = 0;
 
 	if (!nr_pages)
 		return -EINVAL;
 
 	spin_lock_irqsave(&zdev->dma_table_lock, irq_flags);
-	if (!zdev->dma_table)
+	if (!zdev->dma_table) {
+		rc = -EINVAL;
 		goto no_refresh;
+	}
 
 	for (i = 0; i < nr_pages; i++) {
-		dma_update_cpu_trans(zdev->dma_table, page_addr, dma_addr,
-				     flags);
+		entry = dma_walk_cpu_trans(zdev->dma_table, dma_addr);
+		if (!entry) {
+			rc = -ENOMEM;
+			goto undo_cpu_trans;
+		}
+		dma_update_cpu_trans(entry, page_addr, flags);
 		page_addr += PAGE_SIZE;
 		dma_addr += PAGE_SIZE;
 	}
@@ -176,6 +173,18 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 
 	rc = zpci_refresh_trans((u64) zdev->fh << 32, start_dma_addr,
 				nr_pages * PAGE_SIZE);
+undo_cpu_trans:
+	if (rc && ((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID)) {
+		flags = ZPCI_PTE_INVALID;
+		while (i-- > 0) {
+			page_addr -= PAGE_SIZE;
+			dma_addr -= PAGE_SIZE;
+			entry = dma_walk_cpu_trans(zdev->dma_table, dma_addr);
+			if (!entry)
+				break;
+			dma_update_cpu_trans(entry, page_addr, flags);
+		}
+	}
 
 no_refresh:
 	spin_unlock_irqrestore(&zdev->dma_table_lock, irq_flags);
@@ -260,6 +269,16 @@ out:
 	spin_unlock_irqrestore(&zdev->iommu_bitmap_lock, flags);
 }
 
+static inline void zpci_err_dma(unsigned long rc, unsigned long addr)
+{
+	struct {
+		unsigned long rc;
+		unsigned long addr;
+	} __packed data = {rc, addr};
+
+	zpci_err_hex(&data, sizeof(data));
+}
+
 static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 				     unsigned long offset, size_t size,
 				     enum dma_data_direction direction,
@@ -270,33 +289,40 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 	unsigned long pa = page_to_phys(page) + offset;
 	int flags = ZPCI_PTE_VALID;
 	dma_addr_t dma_addr;
+	int ret;
 
 	/* This rounds up number of pages based on size and offset */
 	nr_pages = iommu_num_pages(pa, size, PAGE_SIZE);
 	iommu_page_index = dma_alloc_iommu(zdev, nr_pages);
-	if (iommu_page_index == -1)
+	if (iommu_page_index == -1) {
+		ret = -ENOSPC;
 		goto out_err;
+	}
 
 	/* Use rounded up size */
 	size = nr_pages * PAGE_SIZE;
 
 	dma_addr = zdev->start_dma + iommu_page_index * PAGE_SIZE;
-	if (dma_addr + size > zdev->end_dma)
+	if (dma_addr + size > zdev->end_dma) {
+		ret = -ERANGE;
 		goto out_free;
+	}
 
 	if (direction == DMA_NONE || direction == DMA_TO_DEVICE)
 		flags |= ZPCI_TABLE_PROTECTED;
 
-	if (!dma_update_trans(zdev, pa, dma_addr, size, flags)) {
-		atomic64_add(nr_pages, &zdev->mapped_pages);
-		return dma_addr + (offset & ~PAGE_MASK);
-	}
+	ret = dma_update_trans(zdev, pa, dma_addr, size, flags);
+	if (ret)
+		goto out_free;
+
+	atomic64_add(nr_pages, &zdev->mapped_pages);
+	return dma_addr + (offset & ~PAGE_MASK);
 
 out_free:
 	dma_free_iommu(zdev, iommu_page_index, nr_pages);
 out_err:
 	zpci_err("map error:\n");
-	zpci_err_hex(&pa, sizeof(pa));
+	zpci_err_dma(ret, pa);
 	return DMA_ERROR_CODE;
 }
 
@@ -306,14 +332,16 @@ static void s390_dma_unmap_pages(struct device *dev, dma_addr_t dma_addr,
 {
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 	unsigned long iommu_page_index;
-	int npages;
+	int npages, ret;
 
 	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 	dma_addr = dma_addr & PAGE_MASK;
-	if (dma_update_trans(zdev, 0, dma_addr, npages * PAGE_SIZE,
-			     ZPCI_TABLE_PROTECTED | ZPCI_PTE_INVALID)) {
+	ret = dma_update_trans(zdev, 0, dma_addr, npages * PAGE_SIZE,
+			       ZPCI_PTE_INVALID);
+	if (ret) {
 		zpci_err("unmap error:\n");
-		zpci_err_hex(&dma_addr, sizeof(dma_addr));
+		zpci_err_dma(ret, dma_addr);
+		return;
 	}
 
 	atomic64_add(npages, &zdev->unmapped_pages);
@@ -338,8 +366,7 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 	pa = page_to_phys(page);
 	memset((void *) pa, 0, size);
 
-	map = s390_dma_map_pages(dev, page, pa % PAGE_SIZE,
-				 size, DMA_BIDIRECTIONAL, NULL);
+	map = s390_dma_map_pages(dev, page, 0, size, DMA_BIDIRECTIONAL, NULL);
 	if (dma_mapping_error(dev, map)) {
 		free_pages(pa, get_order(size));
 		return NULL;
@@ -430,7 +457,19 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 		goto out_clean;
 	}
 
-	zdev->iommu_size = (unsigned long) high_memory - PAGE_OFFSET;
+	/*
+	 * Restrict the iommu bitmap size to the minimum of the following:
+	 * - main memory size
+	 * - 3-level pagetable address limit minus start_dma offset
+	 * - DMA address range allowed by the hardware (clp query pci fn)
+	 *
+	 * Also set zdev->end_dma to the actual end address of the usable
+	 * range, instead of the theoretical maximum as reported by hardware.
+	 */
+	zdev->iommu_size = min3((u64) high_memory,
+				ZPCI_TABLE_SIZE_RT - zdev->start_dma,
+				zdev->end_dma - zdev->start_dma + 1);
+	zdev->end_dma = zdev->start_dma + zdev->iommu_size - 1;
 	zdev->iommu_pages = zdev->iommu_size >> PAGE_SHIFT;
 	zdev->iommu_bitmap = vzalloc(zdev->iommu_pages / 8);
 	if (!zdev->iommu_bitmap) {
@@ -438,10 +477,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 		goto out_reg;
 	}
 
-	rc = zpci_register_ioat(zdev,
-				0,
-				zdev->start_dma + PAGE_OFFSET,
-				zdev->start_dma + zdev->iommu_size - 1,
+	rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
 				(u64) zdev->dma_table);
 	if (rc)
 		goto out_reg;

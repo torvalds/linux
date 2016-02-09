@@ -88,8 +88,6 @@ static struct phy_driver dp83848_driver[] = {
 		/* IRQ related */
 		.ack_interrupt	= dp83848_ack_interrupt,
 		.config_intr	= dp83848_config_intr,
-
-		.driver		= { .owner = THIS_MODULE, },
 	},
 };
 module_phy_driver(dp83848_driver);

@@ -1544,8 +1544,6 @@ void i40e_fcoe_vsi_setup(struct i40e_pf *pf)
 	if (!(pf->flags & I40E_FLAG_FCOE_ENABLED))
 		return;
 
-	BUG_ON(!pf->vsi[pf->lan_vsi]);
-
 	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		vsi = pf->vsi[i];
 		if (vsi && vsi->type == I40E_VSI_FCOE) {

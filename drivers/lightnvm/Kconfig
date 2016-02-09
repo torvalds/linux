@@ -18,6 +18,7 @@ if NVM
 
 config NVM_DEBUG
 	bool "Open-Channel SSD debugging support"
+	default n
 	---help---
 	Exposes a debug management interface to create/remove targets at:
 

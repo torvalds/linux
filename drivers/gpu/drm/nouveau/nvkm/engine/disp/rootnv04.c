@@ -27,6 +27,7 @@
 #include <core/client.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0046.h>
 #include <nvif/unpack.h>
 
 struct nv04_disp_root {
@@ -45,10 +46,10 @@ nv04_disp_scanoutpos(struct nv04_disp_root *root,
 		struct nv04_disp_scanoutpos_v0 v0;
 	} *args = data;
 	u32 line;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "disp scanoutpos size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "disp scanoutpos vers %d\n",
 			   args->v0.version);
 		args->v0.vblanks = nvkm_rd32(device, 0x680800 + hoff) & 0xffff;
@@ -85,10 +86,10 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	union {
 		struct nv04_disp_mthd_v0 v0;
 	} *args = data;
-	int head, ret;
+	int head, ret = -ENOSYS;
 
 	nvif_ioctl(object, "disp mthd size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		nvif_ioctl(object, "disp mthd vers %d mthd %02x head %d\n",
 			   args->v0.version, args->v0.method, args->v0.head);
 		mthd = args->v0.method;

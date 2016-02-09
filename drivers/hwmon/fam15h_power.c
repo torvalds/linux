@@ -47,6 +47,8 @@ MODULE_LICENSE("GPL");
 
 #define MSR_F15H_CU_MAX_PWR_ACCUMULATOR	0xc001007b
 
+#define PCI_DEVICE_ID_AMD_15H_M70H_NB_F4 0x15b4
+
 struct fam15h_power_data {
 	struct pci_dev *pdev;
 	unsigned int tdp_to_watts;
@@ -124,7 +126,7 @@ static int fam15h_power_init_attrs(struct pci_dev *pdev,
 
 	if (c->x86 == 0x15 &&
 	    (c->x86_model <= 0xf ||
-	     (c->x86_model >= 0x60 && c->x86_model <= 0x6f)))
+	     (c->x86_model >= 0x60 && c->x86_model <= 0x7f)))
 		n += 1;
 
 	fam15h_power_attrs = devm_kcalloc(&pdev->dev, n,
@@ -138,7 +140,7 @@ static int fam15h_power_init_attrs(struct pci_dev *pdev,
 	fam15h_power_attrs[n++] = &dev_attr_power1_crit.attr;
 	if (c->x86 == 0x15 &&
 	    (c->x86_model <= 0xf ||
-	     (c->x86_model >= 0x60 && c->x86_model <= 0x6f)))
+	     (c->x86_model >= 0x60 && c->x86_model <= 0x7f)))
 		fam15h_power_attrs[n++] = &dev_attr_power1_input.attr;
 
 	data->group.attrs = fam15h_power_attrs;
@@ -296,6 +298,7 @@ static const struct pci_device_id fam15h_power_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M30H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M60H_NB_F4) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M70H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F4) },
 	{}

@@ -165,12 +165,6 @@ struct lpc32xx_gpio_chip {
 	struct gpio_regs	*gpio_grp;
 };
 
-static inline struct lpc32xx_gpio_chip *to_lpc32xx_gpio(
-	struct gpio_chip *gpc)
-{
-	return container_of(gpc, struct lpc32xx_gpio_chip, chip);
-}
-
 static void __set_gpio_dir_p012(struct lpc32xx_gpio_chip *group,
 	unsigned pin, int input)
 {
@@ -261,7 +255,7 @@ static int __get_gpo_state_p3(struct lpc32xx_gpio_chip *group,
 static int lpc32xx_gpio_dir_input_p012(struct gpio_chip *chip,
 	unsigned pin)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
 	__set_gpio_dir_p012(group, pin, 1);
 
@@ -271,7 +265,7 @@ static int lpc32xx_gpio_dir_input_p012(struct gpio_chip *chip,
 static int lpc32xx_gpio_dir_input_p3(struct gpio_chip *chip,
 	unsigned pin)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
 	__set_gpio_dir_p3(group, pin, 1);
 
@@ -286,29 +280,29 @@ static int lpc32xx_gpio_dir_in_always(struct gpio_chip *chip,
 
 static int lpc32xx_gpio_get_value_p012(struct gpio_chip *chip, unsigned pin)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
-	return __get_gpio_state_p012(group, pin);
+	return !!__get_gpio_state_p012(group, pin);
 }
 
 static int lpc32xx_gpio_get_value_p3(struct gpio_chip *chip, unsigned pin)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
-	return __get_gpio_state_p3(group, pin);
+	return !!__get_gpio_state_p3(group, pin);
 }
 
 static int lpc32xx_gpi_get_value(struct gpio_chip *chip, unsigned pin)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
-	return __get_gpi_state_p3(group, pin);
+	return !!__get_gpi_state_p3(group, pin);
 }
 
 static int lpc32xx_gpio_dir_output_p012(struct gpio_chip *chip, unsigned pin,
 	int value)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
 	__set_gpio_level_p012(group, pin, value);
 	__set_gpio_dir_p012(group, pin, 0);
@@ -319,7 +313,7 @@ static int lpc32xx_gpio_dir_output_p012(struct gpio_chip *chip, unsigned pin,
 static int lpc32xx_gpio_dir_output_p3(struct gpio_chip *chip, unsigned pin,
 	int value)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
 	__set_gpio_level_p3(group, pin, value);
 	__set_gpio_dir_p3(group, pin, 0);
@@ -330,7 +324,7 @@ static int lpc32xx_gpio_dir_output_p3(struct gpio_chip *chip, unsigned pin,
 static int lpc32xx_gpio_dir_out_always(struct gpio_chip *chip, unsigned pin,
 	int value)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
 	__set_gpo_level_p3(group, pin, value);
 	return 0;
@@ -339,7 +333,7 @@ static int lpc32xx_gpio_dir_out_always(struct gpio_chip *chip, unsigned pin,
 static void lpc32xx_gpio_set_value_p012(struct gpio_chip *chip, unsigned pin,
 	int value)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
 	__set_gpio_level_p012(group, pin, value);
 }
@@ -347,7 +341,7 @@ static void lpc32xx_gpio_set_value_p012(struct gpio_chip *chip, unsigned pin,
 static void lpc32xx_gpio_set_value_p3(struct gpio_chip *chip, unsigned pin,
 	int value)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
 	__set_gpio_level_p3(group, pin, value);
 }
@@ -355,16 +349,16 @@ static void lpc32xx_gpio_set_value_p3(struct gpio_chip *chip, unsigned pin,
 static void lpc32xx_gpo_set_value(struct gpio_chip *chip, unsigned pin,
 	int value)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
 	__set_gpo_level_p3(group, pin, value);
 }
 
 static int lpc32xx_gpo_get_value(struct gpio_chip *chip, unsigned pin)
 {
-	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
+	struct lpc32xx_gpio_chip *group = gpiochip_get_data(chip);
 
-	return __get_gpo_state_p3(group, pin);
+	return !!__get_gpo_state_p3(group, pin);
 }
 
 static int lpc32xx_gpio_request(struct gpio_chip *chip, unsigned pin)
@@ -553,7 +547,8 @@ static int lpc32xx_gpio_probe(struct platform_device *pdev)
 			lpc32xx_gpiochip[i].chip.of_gpio_n_cells = 3;
 			lpc32xx_gpiochip[i].chip.of_node = pdev->dev.of_node;
 		}
-		gpiochip_add(&lpc32xx_gpiochip[i].chip);
+		gpiochip_add_data(&lpc32xx_gpiochip[i].chip,
+				  &lpc32xx_gpiochip[i]);
 	}
 
 	return 0;

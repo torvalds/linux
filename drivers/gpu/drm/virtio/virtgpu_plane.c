@@ -107,7 +107,7 @@ struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
 				       &virtio_gpu_plane_funcs,
 				       virtio_gpu_formats,
 				       ARRAY_SIZE(virtio_gpu_formats),
-				       DRM_PLANE_TYPE_PRIMARY);
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret)
 		goto err_plane_init;
 

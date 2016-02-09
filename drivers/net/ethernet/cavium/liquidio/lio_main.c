@@ -560,7 +560,7 @@ static int liquidio_resume(struct pci_dev *pdev)
 #endif
 
 /* For PCI-E Advanced Error Recovery (AER) Interface */
-static struct pci_error_handlers liquidio_err_handler = {
+static const struct pci_error_handlers liquidio_err_handler = {
 	.error_detected = liquidio_pcie_error_detected,
 	.mmio_enabled	= liquidio_pcie_mmio_enabled,
 	.slot_reset	= liquidio_pcie_slot_reset,

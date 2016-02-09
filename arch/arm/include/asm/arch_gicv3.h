@@ -21,6 +21,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/io.h>
+#include <asm/barrier.h>
 
 #define __ACCESS_CP15(CRn, Op1, CRm, Op2)	p15, Op1, %0, CRn, CRm, Op2
 #define __ACCESS_CP15_64(Op1, CRm)		p15, Op1, %Q0, %R0, CRm

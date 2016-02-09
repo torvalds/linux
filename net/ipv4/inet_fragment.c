@@ -285,14 +285,6 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frag_kill);
 
-static inline void frag_kfree_skb(struct netns_frags *nf, struct inet_frags *f,
-				  struct sk_buff *skb)
-{
-	if (f->skb_free)
-		f->skb_free(skb);
-	kfree_skb(skb);
-}
-
 void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 {
 	struct sk_buff *fp;
@@ -309,7 +301,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 		struct sk_buff *xp = fp->next;
 
 		sum_truesize += fp->truesize;
-		frag_kfree_skb(nf, f, fp);
+		kfree_skb(fp);
 		fp = xp;
 	}
 	sum = sum_truesize + f->qsize;

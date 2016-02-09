@@ -24,9 +24,6 @@
 
 int sysctl_tcp_syn_retries __read_mostly = TCP_SYN_RETRIES;
 int sysctl_tcp_synack_retries __read_mostly = TCP_SYNACK_RETRIES;
-int sysctl_tcp_keepalive_time __read_mostly = TCP_KEEPALIVE_TIME;
-int sysctl_tcp_keepalive_probes __read_mostly = TCP_KEEPALIVE_PROBES;
-int sysctl_tcp_keepalive_intvl __read_mostly = TCP_KEEPALIVE_INTVL;
 int sysctl_tcp_retries1 __read_mostly = TCP_RETR1;
 int sysctl_tcp_retries2 __read_mostly = TCP_RETR2;
 int sysctl_tcp_orphan_retries __read_mostly;
@@ -168,7 +165,7 @@ static int tcp_write_timeout(struct sock *sk)
 			dst_negative_advice(sk);
 			if (tp->syn_fastopen || tp->syn_data)
 				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
-			if (tp->syn_data)
+			if (tp->syn_data && icsk->icsk_retransmits == 1)
 				NET_INC_STATS_BH(sock_net(sk),
 						 LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 		}
@@ -176,6 +173,18 @@ static int tcp_write_timeout(struct sock *sk)
 		syn_set = true;
 	} else {
 		if (retransmits_timed_out(sk, sysctl_tcp_retries1, 0, 0)) {
+			/* Some middle-boxes may black-hole Fast Open _after_
+			 * the handshake. Therefore we conservatively disable
+			 * Fast Open on this path on recurring timeouts with
+			 * few or zero bytes acked after Fast Open.
+			 */
+			if (tp->syn_data_acked &&
+			    tp->bytes_acked <= tp->rx_opt.mss_clamp) {
+				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
+				if (icsk->icsk_retransmits == sysctl_tcp_retries1)
+					NET_INC_STATS_BH(sock_net(sk),
+							 LINUX_MIB_TCPFASTOPENACTIVEFAIL);
+			}
 			/* Black hole detection */
 			tcp_mtu_probing(icsk, sk);
 

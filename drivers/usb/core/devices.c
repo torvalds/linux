@@ -661,32 +661,8 @@ static unsigned int usb_device_poll(struct file *file,
 	return 0;
 }
 
-static loff_t usb_device_lseek(struct file *file, loff_t offset, int orig)
-{
-	loff_t ret;
-
-	mutex_lock(&file_inode(file)->i_mutex);
-
-	switch (orig) {
-	case 0:
-		file->f_pos = offset;
-		ret = file->f_pos;
-		break;
-	case 1:
-		file->f_pos += offset;
-		ret = file->f_pos;
-		break;
-	case 2:
-	default:
-		ret = -EINVAL;
-	}
-
-	mutex_unlock(&file_inode(file)->i_mutex);
-	return ret;
-}
-
 const struct file_operations usbfs_devices_fops = {
-	.llseek =	usb_device_lseek,
+	.llseek =	no_seek_end_llseek,
 	.read =		usb_device_read,
 	.poll =		usb_device_poll,
 };

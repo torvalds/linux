@@ -30,7 +30,7 @@
 #include <media/rc-core.h>
 
 #include "cx23885-reg.h"
-#include "media/cx2341x.h"
+#include "media/drv-intf/cx2341x.h"
 
 #include <linux/mutex.h>
 
@@ -101,6 +101,8 @@
 #define CX23885_BOARD_DVBSKY_T982              51
 #define CX23885_BOARD_HAUPPAUGE_HVR5525        52
 #define CX23885_BOARD_HAUPPAUGE_STARBURST      53
+#define CX23885_BOARD_VIEWCAST_260E            54
+#define CX23885_BOARD_VIEWCAST_460E            55
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -626,11 +628,6 @@ extern int cx23885_risc_databuffer(struct pci_dev *pci,
 
 /* ----------------------------------------------------------- */
 /* tv norms                                                    */
-
-static inline unsigned int norm_maxw(v4l2_std_id norm)
-{
-	return (norm & V4L2_STD_525_60) ? 720 : 768;
-}
 
 static inline unsigned int norm_maxh(v4l2_std_id norm)
 {

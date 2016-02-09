@@ -153,6 +153,8 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	if (!ir)
 		return -ENOMEM;
 
+	spin_lock_init(&ir->ir_lock);
+
 	if (of_device_is_compatible(dn, "allwinner,sun5i-a13-ir"))
 		ir->fifo_size = 64;
 	else

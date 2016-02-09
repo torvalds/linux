@@ -25,6 +25,12 @@
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
 
+enum qed_led_mode {
+	QED_LED_MODE_OFF,
+	QED_LED_MODE_ON,
+	QED_LED_MODE_RESTORE
+};
+
 #define DIRECT_REG_WR(reg_addr, val) writel((u32)val, \
 					    (void __iomem *)(reg_addr))
 
@@ -252,6 +258,17 @@ struct qed_common_ops {
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);
+
+/**
+ * @brief set_led - Configure LED mode
+ *
+ * @param cdev
+ * @param mode - LED mode
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*set_led)(struct qed_dev *cdev,
+		       enum qed_led_mode mode);
 };
 
 /**

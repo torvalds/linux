@@ -592,10 +592,7 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 			}
 			unlock_page(page);
 		}
-		if (PageDirty(page) || PageWriteback(page))
-			*uptodate = true;
-		else
-			*uptodate = PageUptodate(page);
+		*uptodate = PageUptodate(page);
 		EXOFS_DBGMSG2("index=0x%lx uptodate=%d\n", index, *uptodate);
 		return page;
 	} else {
@@ -1227,6 +1224,7 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 			inode->i_link = (char *)oi->i_data;
 		} else {
 			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &exofs_aops;
 		}
 	} else {

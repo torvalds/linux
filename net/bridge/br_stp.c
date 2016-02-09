@@ -40,6 +40,7 @@ void br_log_state(const struct net_bridge_port *p)
 void br_set_state(struct net_bridge_port *p, unsigned int state)
 {
 	struct switchdev_attr attr = {
+		.orig_dev = p->dev,
 		.id = SWITCHDEV_ATTR_ID_PORT_STP_STATE,
 		.flags = SWITCHDEV_F_DEFER,
 		.u.stp_state = state,
@@ -48,7 +49,7 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 
 	p->state = state;
 	err = switchdev_port_attr_set(p->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
 }
@@ -570,6 +571,7 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
 {
 	struct switchdev_attr attr = {
+		.orig_dev = br->dev,
 		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
 		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
 		.u.ageing_time = ageing_time,

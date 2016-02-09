@@ -489,7 +489,7 @@ static struct drm_encoder *cirrus_encoder_init(struct drm_device *dev)
 	encoder->possible_crtcs = 0x1;
 
 	drm_encoder_init(dev, encoder, &cirrus_encoder_encoder_funcs,
-			 DRM_MODE_ENCODER_DAC);
+			 DRM_MODE_ENCODER_DAC, NULL);
 	drm_encoder_helper_add(encoder, &cirrus_encoder_helper_funcs);
 
 	return encoder;
@@ -533,12 +533,12 @@ static void cirrus_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-struct drm_connector_helper_funcs cirrus_vga_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs cirrus_vga_connector_helper_funcs = {
 	.get_modes = cirrus_vga_get_modes,
 	.best_encoder = cirrus_connector_best_encoder,
 };
 
-struct drm_connector_funcs cirrus_vga_connector_funcs = {
+static const struct drm_connector_funcs cirrus_vga_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = cirrus_vga_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

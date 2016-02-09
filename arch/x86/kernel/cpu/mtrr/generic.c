@@ -349,7 +349,7 @@ static void get_fixed_ranges(mtrr_type *frs)
 
 void mtrr_save_fixed_ranges(void *info)
 {
-	if (cpu_has_mtrr)
+	if (boot_cpu_has(X86_FEATURE_MTRR))
 		get_fixed_ranges(mtrr_state.fixed_ranges);
 }
 

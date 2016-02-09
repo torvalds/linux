@@ -378,6 +378,7 @@ static void reset_qp(struct hfi1_qp *qp, enum ib_qp_type type)
 	}
 	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
 	qp->r_nak_state = 0;
+	qp->r_adefered = 0;
 	qp->r_aflags = 0;
 	qp->r_flags = 0;
 	qp->s_head = 0;
@@ -617,7 +618,7 @@ int hfi1_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int mig = 0;
 	int ret;
 	u32 pmtu = 0; /* for gcc warning only */
-	struct hfi1_devdata *dd;
+	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	spin_lock_irq(&qp->r_lock);
 	spin_lock(&qp->s_lock);
@@ -631,23 +632,35 @@ int hfi1_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto inval;
 
 	if (attr_mask & IB_QP_AV) {
+		u8 sc;
+
 		if (attr->ah_attr.dlid >= HFI1_MULTICAST_LID_BASE)
 			goto inval;
 		if (hfi1_check_ah(qp->ibqp.device, &attr->ah_attr))
 			goto inval;
+		sc = ah_to_sc(ibqp->device, &attr->ah_attr);
+		if (!qp_to_sdma_engine(qp, sc) &&
+		    dd->flags & HFI1_HAS_SEND_DMA)
+			goto inval;
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
+		u8 sc;
+
 		if (attr->alt_ah_attr.dlid >= HFI1_MULTICAST_LID_BASE)
 			goto inval;
 		if (hfi1_check_ah(qp->ibqp.device, &attr->alt_ah_attr))
 			goto inval;
-		if (attr->alt_pkey_index >= hfi1_get_npkeys(dd_from_dev(dev)))
+		if (attr->alt_pkey_index >= hfi1_get_npkeys(dd))
+			goto inval;
+		sc = ah_to_sc(ibqp->device, &attr->alt_ah_attr);
+		if (!qp_to_sdma_engine(qp, sc) &&
+		    dd->flags & HFI1_HAS_SEND_DMA)
 			goto inval;
 	}
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
-		if (attr->pkey_index >= hfi1_get_npkeys(dd_from_dev(dev)))
+		if (attr->pkey_index >= hfi1_get_npkeys(dd))
 			goto inval;
 
 	if (attr_mask & IB_QP_MIN_RNR_TIMER)
@@ -792,6 +805,8 @@ int hfi1_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp->remote_ah_attr = attr->ah_attr;
 		qp->s_srate = attr->ah_attr.static_rate;
 		qp->srate_mbps = ib_rate_to_mbps(qp->s_srate);
+		qp->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
+		qp->s_sde = qp_to_sdma_engine(qp, qp->s_sc);
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
@@ -806,6 +821,8 @@ int hfi1_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			qp->port_num = qp->alt_ah_attr.port_num;
 			qp->s_pkey_index = qp->s_alt_pkey_index;
 			qp->s_flags |= HFI1_S_AHG_CLEAR;
+			qp->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
+			qp->s_sde = qp_to_sdma_engine(qp, qp->s_sc);
 		}
 	}
 
@@ -1528,9 +1545,6 @@ struct sdma_engine *qp_to_sdma_engine(struct hfi1_qp *qp, u8 sc5)
 	if (!(dd->flags & HFI1_HAS_SEND_DMA))
 		return NULL;
 	switch (qp->ibqp.qp_type) {
-	case IB_QPT_UC:
-	case IB_QPT_RC:
-		break;
 	case IB_QPT_SMI:
 		return NULL;
 	default:
@@ -1684,4 +1698,26 @@ void qp_comm_est(struct hfi1_qp *qp)
 		ev.event = IB_EVENT_COMM_EST;
 		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
 	}
+}
+
+/*
+ * Switch to alternate path.
+ * The QP s_lock should be held and interrupts disabled.
+ */
+void hfi1_migrate_qp(struct hfi1_qp *qp)
+{
+	struct ib_event ev;
+
+	qp->s_mig_state = IB_MIG_MIGRATED;
+	qp->remote_ah_attr = qp->alt_ah_attr;
+	qp->port_num = qp->alt_ah_attr.port_num;
+	qp->s_pkey_index = qp->s_alt_pkey_index;
+	qp->s_flags |= HFI1_S_AHG_CLEAR;
+	qp->s_sc = ah_to_sc(qp->ibqp.device, &qp->remote_ah_attr);
+	qp->s_sde = qp_to_sdma_engine(qp, qp->s_sc);
+
+	ev.device = qp->ibqp.device;
+	ev.element.qp = &qp->ibqp;
+	ev.event = IB_EVENT_PATH_MIG;
+	qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
 }

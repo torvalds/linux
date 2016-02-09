@@ -155,11 +155,11 @@ struct xgene_enet_pdata {
 	enum xgene_enet_id enet_id;
 	struct xgene_enet_desc_ring *tx_ring;
 	struct xgene_enet_desc_ring *rx_ring;
+	u16 tx_level;
+	u16 txc_level;
 	char *dev_name;
 	u32 rx_buff_cnt;
 	u32 tx_qcnt_hi;
-	u32 cp_qcnt_hi;
-	u32 cp_qcnt_low;
 	u32 rx_irq;
 	u32 txc_irq;
 	u8 cq_cnt;
@@ -174,8 +174,8 @@ struct xgene_enet_pdata {
 	int phy_mode;
 	enum xgene_enet_rm rm;
 	struct rtnl_link_stats64 stats;
-	struct xgene_mac_ops *mac_ops;
-	struct xgene_port_ops *port_ops;
+	const struct xgene_mac_ops *mac_ops;
+	const struct xgene_port_ops *port_ops;
 	struct xgene_ring_ops *ring_ops;
 	struct delayed_work link_work;
 	u32 port_id;

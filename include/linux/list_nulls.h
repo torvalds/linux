@@ -57,7 +57,7 @@ static inline int hlist_nulls_unhashed(const struct hlist_nulls_node *h)
 
 static inline int hlist_nulls_empty(const struct hlist_nulls_head *h)
 {
-	return is_a_nulls(h->first);
+	return is_a_nulls(READ_ONCE(h->first));
 }
 
 static inline void hlist_nulls_add_head(struct hlist_nulls_node *n,

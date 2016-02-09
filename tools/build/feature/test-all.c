@@ -125,6 +125,10 @@
 # include "test-get_cpuid.c"
 #undef main
 
+#define main main_test_bpf
+# include "test-bpf.c"
+#undef main
+
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
@@ -153,6 +157,7 @@ int main(int argc, char *argv[])
 	main_test_pthread_attr_setaffinity_np();
 	main_test_lzma();
 	main_test_get_cpuid();
+	main_test_bpf();
 
 	return 0;
 }

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,6 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 	ACPI_FUNCTION_TRACE_PTR(ns_get_external_pathname, node);
 
 	name_buffer = acpi_ns_get_normalized_pathname(node, FALSE);
-
 	return_PTR(name_buffer);
 }
 
@@ -93,7 +92,6 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 	ACPI_FUNCTION_ENTRY();
 
 	size = acpi_ns_build_normalized_path(node, NULL, 0, FALSE);
-
 	return (size);
 }
 
@@ -217,6 +215,7 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 			ACPI_PATH_PUT8(full_path, path_size,
 				       AML_DUAL_NAME_PREFIX, length);
 		}
+
 		ACPI_MOVE_32_TO_32(name, &next_node->name);
 		do_no_trailing = no_trailing;
 		for (i = 0; i < 4; i++) {
@@ -228,8 +227,10 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 				ACPI_PATH_PUT8(full_path, path_size, c, length);
 			}
 		}
+
 		next_node = next_node->parent;
 	}
+
 	ACPI_PATH_PUT8(full_path, path_size, AML_ROOT_PREFIX, length);
 
 	/* Reverse the path string */
@@ -237,6 +238,7 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 	if (length <= path_size) {
 		left = full_path;
 		right = full_path + length - 1;
+
 		while (left < right) {
 			c = *left;
 			*left++ = *right;

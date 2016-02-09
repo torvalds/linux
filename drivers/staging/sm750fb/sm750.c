@@ -21,8 +21,6 @@
 #include "sm750_accel.h"
 #include "sm750_cursor.h"
 
-#include "modedb.h"
-
 /*
  * #ifdef __BIG_ENDIAN
  * ssize_t lynxfb_ops_write(struct fb_info *info, const char __user *buf,

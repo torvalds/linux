@@ -1,6 +1,18 @@
-if ARCH_ORION5X
+menuconfig ARCH_ORION5X
+	bool "Marvell Orion"
+	depends on MMU && ARCH_MULTI_V5
+	select ARCH_REQUIRE_GPIOLIB
+	select CPU_FEROCEON
+	select GENERIC_CLOCKEVENTS
+	select MVEBU_MBUS
+	select PCI
+	select PLAT_ORION_LEGACY
+	help
+	  Support for the following Marvell Orion 5x series SoCs:
+	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
+	  Orion-2 (5281), Orion-1-90 (6183).
 
-menu "Orion Implementations"
+if ARCH_ORION5X
 
 config ARCH_ORION5X_DT
 	bool "Marvell Orion5x Flattened Device Tree"
@@ -162,7 +174,5 @@ config MACH_RD88F6183AP_GE
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell Orion-1-90 (88F6183) AP GE RD.
-
-endmenu
 
 endif

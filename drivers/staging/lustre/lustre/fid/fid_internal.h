@@ -44,8 +44,6 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 /* Functions used internally in module. */
-int seq_client_alloc_super(struct lu_client_seq *seq,
-			   const struct lu_env *env);
 
 extern struct lprocfs_vars seq_client_debugfs_list[];
 

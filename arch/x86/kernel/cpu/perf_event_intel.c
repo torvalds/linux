@@ -185,6 +185,14 @@ struct event_constraint intel_skl_event_constraints[] = {
 	EVENT_CONSTRAINT_END
 };
 
+static struct extra_reg intel_knl_extra_regs[] __read_mostly = {
+	INTEL_UEVENT_EXTRA_REG(0x01b7,
+			       MSR_OFFCORE_RSP_0, 0x7f9ffbffffull, RSP_0),
+	INTEL_UEVENT_EXTRA_REG(0x02b7,
+			       MSR_OFFCORE_RSP_1, 0x3f9ffbffffull, RSP_1),
+	EVENT_EXTRA_END
+};
+
 static struct extra_reg intel_snb_extra_regs[] __read_mostly = {
 	/* must define OFFCORE_RSP_X first, see intel_fixup_er() */
 	INTEL_UEVENT_EXTRA_REG(0x01b7, MSR_OFFCORE_RSP_0, 0x3f807f8fffull, RSP_0),
@@ -232,7 +240,7 @@ static struct event_constraint intel_hsw_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0), /* INST_RETIRED.ANY */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1), /* CPU_CLK_UNHALTED.CORE */
 	FIXED_EVENT_CONSTRAINT(0x0300, 2), /* CPU_CLK_UNHALTED.REF */
-	INTEL_EVENT_CONSTRAINT(0x48, 0x4), /* L1D_PEND_MISS.* */
+	INTEL_UEVENT_CONSTRAINT(0x148, 0x4),	/* L1D_PEND_MISS.PENDING */
 	INTEL_UEVENT_CONSTRAINT(0x01c0, 0x2), /* INST_RETIRED.PREC_DIST */
 	INTEL_EVENT_CONSTRAINT(0xcd, 0x8), /* MEM_TRANS_RETIRED.LOAD_LATENCY */
 	/* CYCLE_ACTIVITY.CYCLES_L1D_PENDING */
@@ -255,7 +263,7 @@ struct event_constraint intel_bdw_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x003c, 1),	/* CPU_CLK_UNHALTED.CORE */
 	FIXED_EVENT_CONSTRAINT(0x0300, 2),	/* CPU_CLK_UNHALTED.REF */
 	INTEL_UEVENT_CONSTRAINT(0x148, 0x4),	/* L1D_PEND_MISS.PENDING */
-	INTEL_UEVENT_CONSTRAINT(0x8a3, 0x4),	/* CYCLE_ACTIVITY.CYCLES_L1D_MISS */
+	INTEL_UBIT_EVENT_CONSTRAINT(0x8a3, 0x4),	/* CYCLE_ACTIVITY.CYCLES_L1D_MISS */
 	EVENT_CONSTRAINT_END
 };
 
@@ -1457,6 +1465,42 @@ static __initconst const u64 slm_hw_cache_event_ids
  },
 };
 
+#define KNL_OT_L2_HITE		BIT_ULL(19) /* Other Tile L2 Hit */
+#define KNL_OT_L2_HITF		BIT_ULL(20) /* Other Tile L2 Hit */
+#define KNL_MCDRAM_LOCAL	BIT_ULL(21)
+#define KNL_MCDRAM_FAR		BIT_ULL(22)
+#define KNL_DDR_LOCAL		BIT_ULL(23)
+#define KNL_DDR_FAR		BIT_ULL(24)
+#define KNL_DRAM_ANY		(KNL_MCDRAM_LOCAL | KNL_MCDRAM_FAR | \
+				    KNL_DDR_LOCAL | KNL_DDR_FAR)
+#define KNL_L2_READ		SLM_DMND_READ
+#define KNL_L2_WRITE		SLM_DMND_WRITE
+#define KNL_L2_PREFETCH		SLM_DMND_PREFETCH
+#define KNL_L2_ACCESS		SLM_LLC_ACCESS
+#define KNL_L2_MISS		(KNL_OT_L2_HITE | KNL_OT_L2_HITF | \
+				   KNL_DRAM_ANY | SNB_SNP_ANY | \
+						  SNB_NON_DRAM)
+
+static __initconst const u64 knl_hw_cache_extra_regs
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = KNL_L2_READ | KNL_L2_ACCESS,
+			[C(RESULT_MISS)]   = 0,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = KNL_L2_WRITE | KNL_L2_ACCESS,
+			[C(RESULT_MISS)]   = KNL_L2_WRITE | KNL_L2_MISS,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = KNL_L2_PREFETCH | KNL_L2_ACCESS,
+			[C(RESULT_MISS)]   = KNL_L2_PREFETCH | KNL_L2_MISS,
+		},
+	},
+};
+
 /*
  * Use from PMIs where the LBRs are already disabled.
  */
@@ -2475,6 +2519,44 @@ static void intel_pebs_aliases_snb(struct perf_event *event)
 	}
 }
 
+static void intel_pebs_aliases_precdist(struct perf_event *event)
+{
+	if ((event->hw.config & X86_RAW_EVENT_MASK) == 0x003c) {
+		/*
+		 * Use an alternative encoding for CPU_CLK_UNHALTED.THREAD_P
+		 * (0x003c) so that we can use it with PEBS.
+		 *
+		 * The regular CPU_CLK_UNHALTED.THREAD_P event (0x003c) isn't
+		 * PEBS capable. However we can use INST_RETIRED.PREC_DIST
+		 * (0x01c0), which is a PEBS capable event, to get the same
+		 * count.
+		 *
+		 * The PREC_DIST event has special support to minimize sample
+		 * shadowing effects. One drawback is that it can be
+		 * only programmed on counter 1, but that seems like an
+		 * acceptable trade off.
+		 */
+		u64 alt_config = X86_CONFIG(.event=0xc0, .umask=0x01, .inv=1, .cmask=16);
+
+		alt_config |= (event->hw.config & ~X86_RAW_EVENT_MASK);
+		event->hw.config = alt_config;
+	}
+}
+
+static void intel_pebs_aliases_ivb(struct perf_event *event)
+{
+	if (event->attr.precise_ip < 3)
+		return intel_pebs_aliases_snb(event);
+	return intel_pebs_aliases_precdist(event);
+}
+
+static void intel_pebs_aliases_skl(struct perf_event *event)
+{
+	if (event->attr.precise_ip < 3)
+		return intel_pebs_aliases_core2(event);
+	return intel_pebs_aliases_precdist(event);
+}
+
 static unsigned long intel_pmu_free_running_flags(struct perf_event *event)
 {
 	unsigned long flags = x86_pmu.free_running_flags;
@@ -3332,6 +3414,7 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.event_constraints = intel_gen_event_constraints;
 		x86_pmu.pebs_constraints = intel_atom_pebs_event_constraints;
+		x86_pmu.pebs_aliases = intel_pebs_aliases_core2;
 		pr_cont("Atom events, ");
 		break;
 
@@ -3431,7 +3514,8 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.event_constraints = intel_ivb_event_constraints;
 		x86_pmu.pebs_constraints = intel_ivb_pebs_event_constraints;
-		x86_pmu.pebs_aliases = intel_pebs_aliases_snb;
+		x86_pmu.pebs_aliases = intel_pebs_aliases_ivb;
+		x86_pmu.pebs_prec_dist = true;
 		if (boot_cpu_data.x86_model == 62)
 			x86_pmu.extra_regs = intel_snbep_extra_regs;
 		else
@@ -3464,7 +3548,8 @@ __init int intel_pmu_init(void)
 		x86_pmu.event_constraints = intel_hsw_event_constraints;
 		x86_pmu.pebs_constraints = intel_hsw_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_snbep_extra_regs;
-		x86_pmu.pebs_aliases = intel_pebs_aliases_snb;
+		x86_pmu.pebs_aliases = intel_pebs_aliases_ivb;
+		x86_pmu.pebs_prec_dist = true;
 		/* all extra regs are per-cpu when HT is on */
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
@@ -3499,7 +3584,8 @@ __init int intel_pmu_init(void)
 		x86_pmu.event_constraints = intel_bdw_event_constraints;
 		x86_pmu.pebs_constraints = intel_hsw_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_snbep_extra_regs;
-		x86_pmu.pebs_aliases = intel_pebs_aliases_snb;
+		x86_pmu.pebs_aliases = intel_pebs_aliases_ivb;
+		x86_pmu.pebs_prec_dist = true;
 		/* all extra regs are per-cpu when HT is on */
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
@@ -3509,6 +3595,24 @@ __init int intel_pmu_init(void)
 		x86_pmu.cpu_events = hsw_events_attrs;
 		x86_pmu.limit_period = bdw_limit_period;
 		pr_cont("Broadwell events, ");
+		break;
+
+	case 87: /* Knights Landing Xeon Phi */
+		memcpy(hw_cache_event_ids,
+		       slm_hw_cache_event_ids, sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs,
+		       knl_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
+		intel_pmu_lbr_init_knl();
+
+		x86_pmu.event_constraints = intel_slm_event_constraints;
+		x86_pmu.pebs_constraints = intel_slm_pebs_event_constraints;
+		x86_pmu.extra_regs = intel_knl_extra_regs;
+
+		/* all extra regs are per-cpu when HT is on */
+		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
+		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
+
+		pr_cont("Knights Landing events, ");
 		break;
 
 	case 78: /* 14nm Skylake Mobile */
@@ -3521,7 +3625,8 @@ __init int intel_pmu_init(void)
 		x86_pmu.event_constraints = intel_skl_event_constraints;
 		x86_pmu.pebs_constraints = intel_skl_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_skl_extra_regs;
-		x86_pmu.pebs_aliases = intel_pebs_aliases_snb;
+		x86_pmu.pebs_aliases = intel_pebs_aliases_skl;
+		x86_pmu.pebs_prec_dist = true;
 		/* all extra regs are per-cpu when HT is on */
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;

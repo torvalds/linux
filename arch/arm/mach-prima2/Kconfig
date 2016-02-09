@@ -1,5 +1,6 @@
 menuconfig ARCH_SIRF
-	bool "CSR SiRF" if ARCH_MULTI_V7
+	bool "CSR SiRF"
+	depends on ARCH_MULTI_V7
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_IRQ_CHIP

@@ -35,6 +35,8 @@ struct gen_lun {
 };
 
 struct gen_nvm {
+	struct nvm_dev *dev;
+
 	int nr_luns;
 	struct gen_lun *luns;
 };

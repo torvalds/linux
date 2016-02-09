@@ -22,6 +22,12 @@
 
 #define ATH10K_FW_DIR			"ath10k"
 
+#define QCA988X_2_0_DEVICE_ID   (0x003c)
+#define QCA6164_2_1_DEVICE_ID   (0x0041)
+#define QCA6174_2_1_DEVICE_ID   (0x003e)
+#define QCA99X0_2_0_DEVICE_ID   (0x0040)
+#define QCA9377_1_0_DEVICE_ID   (0x0042)
+
 /* QCA988X 1.0 definitions (unsupported) */
 #define QCA988X_HW_1_0_CHIP_ID_REV	0x0
 
@@ -42,6 +48,10 @@
 #define QCA6174_HW_3_0_VERSION		0x05020000
 #define QCA6174_HW_3_2_VERSION		0x05030000
 
+/* QCA9377 target BMI version signatures */
+#define QCA9377_HW_1_0_DEV_VERSION	0x05020000
+#define QCA9377_HW_1_1_DEV_VERSION	0x05020001
+
 enum qca6174_pci_rev {
 	QCA6174_PCI_REV_1_1 = 0x11,
 	QCA6174_PCI_REV_1_3 = 0x13,
@@ -58,6 +68,11 @@ enum qca6174_chip_id_rev {
 	QCA6174_HW_3_0_CHIP_ID_REV = 8,
 	QCA6174_HW_3_1_CHIP_ID_REV = 9,
 	QCA6174_HW_3_2_CHIP_ID_REV = 10,
+};
+
+enum qca9377_chip_id_rev {
+	QCA9377_HW_1_0_CHIP_ID_REV = 0x0,
+	QCA9377_HW_1_1_CHIP_ID_REV = 0x1,
 };
 
 #define QCA6174_HW_2_1_FW_DIR		"ath10k/QCA6174/hw2.1"
@@ -85,8 +100,6 @@ enum qca6174_chip_id_rev {
 #define QCA99X0_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9377 1.0 definitions */
-#define QCA9377_HW_1_0_DEV_VERSION     0x05020001
-#define QCA9377_HW_1_0_CHIP_ID_REV     0x1
 #define QCA9377_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA9377/hw1.0"
 #define QCA9377_HW_1_0_FW_FILE         "firmware.bin"
 #define QCA9377_HW_1_0_OTP_FILE        "otp.bin"
@@ -273,6 +286,16 @@ struct ath10k_pktlog_hdr {
 	u8 payload[0];
 } __packed;
 
+struct ath10k_pktlog_10_4_hdr {
+	__le16 flags;
+	__le16 missed_cnt;
+	__le16 log_type;
+	__le16 size;
+	__le32 timestamp;
+	__le32 type_specific_data;
+	u8 payload[0];
+} __packed;
+
 enum ath10k_hw_rate_ofdm {
 	ATH10K_HW_RATE_OFDM_48M = 0,
 	ATH10K_HW_RATE_OFDM_24M,
@@ -292,6 +315,11 @@ enum ath10k_hw_rate_cck {
 	ATH10K_HW_RATE_CCK_SP_11M,
 	ATH10K_HW_RATE_CCK_SP_5_5M,
 	ATH10K_HW_RATE_CCK_SP_2M,
+};
+
+enum ath10k_hw_4addr_pad {
+	ATH10K_HW_4ADDR_PAD_AFTER,
+	ATH10K_HW_4ADDR_PAD_BEFORE,
 };
 
 /* Target specific defines for MAIN firmware */

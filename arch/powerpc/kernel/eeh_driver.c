@@ -400,7 +400,7 @@ static void *eeh_rmv_device(void *data, void *userdata)
 	 * support EEH. So we just care about PCI devices for
 	 * simplicity here.
 	 */
-	if (!dev || (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE))
+	if (!dev || (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE))
 		return NULL;
 
 	/*
@@ -590,16 +590,10 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	eeh_ops->configure_bridge(pe);
 	eeh_pe_restore_bars(pe);
 
-	/*
-	 * If it's PHB PE, the frozen state on all available PEs should have
-	 * been cleared by the PHB reset. Otherwise, we unfreeze the PE and its
-	 * child PEs because they might be in frozen state.
-	 */
-	if (!(pe->type & EEH_PE_PHB)) {
-		rc = eeh_clear_pe_frozen_state(pe, false);
-		if (rc)
-			return rc;
-	}
+	/* Clear frozen state */
+	rc = eeh_clear_pe_frozen_state(pe, false);
+	if (rc)
+		return rc;
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,

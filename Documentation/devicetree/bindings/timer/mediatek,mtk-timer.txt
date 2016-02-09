@@ -3,6 +3,7 @@ Mediatek MT6577, MT6572 and MT6589 Timers
 
 Required properties:
 - compatible should contain:
+	* "mediatek,mt2701-timer" for MT2701 compatible timers
 	* "mediatek,mt6580-timer" for MT6580 compatible timers
 	* "mediatek,mt6589-timer" for MT6589 compatible timers
 	* "mediatek,mt8127-timer" for MT8127 compatible timers

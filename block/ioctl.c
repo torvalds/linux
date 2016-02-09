@@ -4,6 +4,7 @@
 #include <linux/gfp.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>
+#include <linux/badblocks.h>
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/blktrace_api.h>
@@ -406,6 +407,71 @@ static inline int is_unrecognized_ioctl(int ret)
 		ret == -ENOIOCTLCMD;
 }
 
+#ifdef CONFIG_FS_DAX
+bool blkdev_dax_capable(struct block_device *bdev)
+{
+	struct gendisk *disk = bdev->bd_disk;
+
+	if (!disk->fops->direct_access)
+		return false;
+
+	/*
+	 * If the partition is not aligned on a page boundary, we can't
+	 * do dax I/O to it.
+	 */
+	if ((bdev->bd_part->start_sect % (PAGE_SIZE / 512))
+			|| (bdev->bd_part->nr_sects % (PAGE_SIZE / 512)))
+		return false;
+
+	/*
+	 * If the device has known bad blocks, force all I/O through the
+	 * driver / page cache.
+	 *
+	 * TODO: support finer grained dax error handling
+	 */
+	if (disk->bb && disk->bb->count)
+		return false;
+
+	return true;
+}
+
+static int blkdev_daxset(struct block_device *bdev, unsigned long argp)
+{
+	unsigned long arg;
+	int rc = 0;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (get_user(arg, (int __user *)(argp)))
+		return -EFAULT;
+	arg = !!arg;
+	if (arg == !!(bdev->bd_inode->i_flags & S_DAX))
+		return 0;
+
+	if (arg)
+		arg = S_DAX;
+
+	if (arg && !blkdev_dax_capable(bdev))
+		return -ENOTTY;
+
+	inode_lock(bdev->bd_inode);
+	if (bdev->bd_map_count == 0)
+		inode_set_flags(bdev->bd_inode, arg, S_DAX);
+	else
+		rc = -EBUSY;
+	inode_unlock(bdev->bd_inode);
+	return rc;
+}
+#else
+static int blkdev_daxset(struct block_device *bdev, int arg)
+{
+	if (arg)
+		return -ENOTTY;
+	return 0;
+}
+#endif
+
 static int blkdev_flushbuf(struct block_device *bdev, fmode_t mode,
 		unsigned cmd, unsigned long arg)
 {
@@ -568,6 +634,11 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKTRACESETUP:
 	case BLKTRACETEARDOWN:
 		return blk_trace_ioctl(bdev, cmd, argp);
+	case BLKDAXSET:
+		return blkdev_daxset(bdev, arg);
+	case BLKDAXGET:
+		return put_int(arg, !!(bdev->bd_inode->i_flags & S_DAX));
+		break;
 	case IOC_PR_REGISTER:
 		return blkdev_pr_register(bdev, argp);
 	case IOC_PR_RESERVE:

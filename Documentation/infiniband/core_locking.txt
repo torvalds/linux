@@ -15,7 +15,6 @@ Sleeping and interrupt context
     modify_ah
     query_ah
     destroy_ah
-    bind_mw
     post_send
     post_recv
     poll_cq
@@ -31,7 +30,6 @@ Sleeping and interrupt context
     ib_modify_ah
     ib_query_ah
     ib_destroy_ah
-    ib_bind_mw
     ib_post_send
     ib_post_recv
     ib_req_notify_cq

@@ -134,7 +134,7 @@ static int test1(struct perf_evsel *evsel, struct machine *machine)
 	field_order = NULL;
 	sort_order = NULL; /* equivalent to sort_order = "comm,dso,sym" */
 
-	setup_sorting();
+	setup_sorting(NULL);
 
 	/*
 	 * expected output:
@@ -236,7 +236,7 @@ static int test2(struct perf_evsel *evsel, struct machine *machine)
 	field_order = "overhead,cpu";
 	sort_order = "pid";
 
-	setup_sorting();
+	setup_sorting(NULL);
 
 	/*
 	 * expected output:
@@ -292,7 +292,7 @@ static int test3(struct perf_evsel *evsel, struct machine *machine)
 	field_order = "comm,overhead,dso";
 	sort_order = NULL;
 
-	setup_sorting();
+	setup_sorting(NULL);
 
 	/*
 	 * expected output:
@@ -366,7 +366,7 @@ static int test4(struct perf_evsel *evsel, struct machine *machine)
 	field_order = "dso,sym,comm,overhead,dso";
 	sort_order = "sym";
 
-	setup_sorting();
+	setup_sorting(NULL);
 
 	/*
 	 * expected output:
@@ -468,7 +468,7 @@ static int test5(struct perf_evsel *evsel, struct machine *machine)
 	field_order = "cpu,pid,comm,dso,sym";
 	sort_order = "dso,pid";
 
-	setup_sorting();
+	setup_sorting(NULL);
 
 	/*
 	 * expected output:
@@ -576,7 +576,7 @@ out:
 	return err;
 }
 
-int test__hists_output(void)
+int test__hists_output(int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct machines machines;
@@ -597,6 +597,7 @@ int test__hists_output(void)
 	err = parse_events(evlist, "cpu-clock", NULL);
 	if (err)
 		goto out;
+	err = TEST_FAIL;
 
 	machines__init(&machines);
 

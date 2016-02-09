@@ -93,10 +93,12 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	node->cpu = curr;
 
 	/*
-	 * ACQUIRE semantics, pairs with corresponding RELEASE
-	 * in unlock() uncontended, or fastpath.
+	 * We need both ACQUIRE (pairs with corresponding RELEASE in
+	 * unlock() uncontended, or fastpath) and RELEASE (to publish
+	 * the node fields we just initialised) semantics when updating
+	 * the lock tail.
 	 */
-	old = atomic_xchg_acquire(&lock->tail, curr);
+	old = atomic_xchg(&lock->tail, curr);
 	if (old == OSQ_UNLOCKED_VAL)
 		return true;
 

@@ -19,12 +19,8 @@
 
 #include "uvcvideo.h"
 
-/* ------------------------------------------------------------------------
- * Video subdevices registration and unregistration
- */
-
-static int uvc_mc_register_entity(struct uvc_video_chain *chain,
-	struct uvc_entity *entity)
+static int uvc_mc_create_links(struct uvc_video_chain *chain,
+				    struct uvc_entity *entity)
 {
 	const u32 flags = MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE;
 	struct media_entity *sink;
@@ -56,16 +52,13 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 			continue;
 
 		remote_pad = remote->num_pads - 1;
-		ret = media_entity_create_link(source, remote_pad,
+		ret = media_create_pad_link(source, remote_pad,
 					       sink, i, flags);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (UVC_ENTITY_TYPE(entity) == UVC_TT_STREAMING)
-		return 0;
-
-	return v4l2_device_register_subdev(&chain->dev->vdev, &entity->subdev);
+	return 0;
 }
 
 static struct v4l2_subdev_ops uvc_subdev_ops = {
@@ -79,7 +72,8 @@ void uvc_mc_cleanup_entity(struct uvc_entity *entity)
 		media_entity_cleanup(&entity->vdev->entity);
 }
 
-static int uvc_mc_init_entity(struct uvc_entity *entity)
+static int uvc_mc_init_entity(struct uvc_video_chain *chain,
+			      struct uvc_entity *entity)
 {
 	int ret;
 
@@ -88,11 +82,17 @@ static int uvc_mc_init_entity(struct uvc_entity *entity)
 		strlcpy(entity->subdev.name, entity->name,
 			sizeof(entity->subdev.name));
 
-		ret = media_entity_init(&entity->subdev.entity,
-					entity->num_pads, entity->pads, 0);
+		ret = media_entity_pads_init(&entity->subdev.entity,
+					entity->num_pads, entity->pads);
+
+		if (ret < 0)
+			return ret;
+
+		ret = v4l2_device_register_subdev(&chain->dev->vdev,
+						  &entity->subdev);
 	} else if (entity->vdev != NULL) {
-		ret = media_entity_init(&entity->vdev->entity,
-					entity->num_pads, entity->pads, 0);
+		ret = media_entity_pads_init(&entity->vdev->entity,
+					entity->num_pads, entity->pads);
 		if (entity->flags & UVC_ENTITY_FLAG_DEFAULT)
 			entity->vdev->entity.flags |= MEDIA_ENT_FL_DEFAULT;
 	} else
@@ -107,7 +107,7 @@ int uvc_mc_register_entities(struct uvc_video_chain *chain)
 	int ret;
 
 	list_for_each_entry(entity, &chain->entities, chain) {
-		ret = uvc_mc_init_entity(entity);
+		ret = uvc_mc_init_entity(chain, entity);
 		if (ret < 0) {
 			uvc_printk(KERN_INFO, "Failed to initialize entity for "
 				   "entity %u\n", entity->id);
@@ -116,9 +116,9 @@ int uvc_mc_register_entities(struct uvc_video_chain *chain)
 	}
 
 	list_for_each_entry(entity, &chain->entities, chain) {
-		ret = uvc_mc_register_entity(chain, entity);
+		ret = uvc_mc_create_links(chain, entity);
 		if (ret < 0) {
-			uvc_printk(KERN_INFO, "Failed to register entity for "
+			uvc_printk(KERN_INFO, "Failed to create links for "
 				   "entity %u\n", entity->id);
 			return ret;
 		}

@@ -75,11 +75,9 @@ struct amd_gpio {
 	u8			orig[32];
 };
 
-#define to_agp(chip)	container_of(chip, struct amd_gpio, chip)
-
 static int amd_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct amd_gpio *agp = to_agp(chip);
+	struct amd_gpio *agp = gpiochip_get_data(chip);
 
 	agp->orig[offset] = ioread8(agp->pm + AMD_REG_GPIO(offset)) &
 		(AMD_GPIO_DEBOUNCE | AMD_GPIO_MODE_MASK | AMD_GPIO_X_MASK);
@@ -91,7 +89,7 @@ static int amd_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void amd_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct amd_gpio *agp = to_agp(chip);
+	struct amd_gpio *agp = gpiochip_get_data(chip);
 
 	dev_dbg(&agp->pdev->dev, "Freed gpio %d, data %x\n", offset, agp->orig[offset]);
 
@@ -100,7 +98,7 @@ static void amd_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static void amd_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct amd_gpio *agp = to_agp(chip);
+	struct amd_gpio *agp = gpiochip_get_data(chip);
 	u8 temp;
 	unsigned long flags;
 
@@ -115,7 +113,7 @@ static void amd_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int amd_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct amd_gpio *agp = to_agp(chip);
+	struct amd_gpio *agp = gpiochip_get_data(chip);
 	u8 temp;
 
 	temp = ioread8(agp->pm + AMD_REG_GPIO(offset));
@@ -127,7 +125,7 @@ static int amd_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static int amd_gpio_dirout(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct amd_gpio *agp = to_agp(chip);
+	struct amd_gpio *agp = gpiochip_get_data(chip);
 	u8 temp;
 	unsigned long flags;
 
@@ -144,7 +142,7 @@ static int amd_gpio_dirout(struct gpio_chip *chip, unsigned offset, int value)
 
 static int amd_gpio_dirin(struct gpio_chip *chip, unsigned offset)
 {
-	struct amd_gpio *agp = to_agp(chip);
+	struct amd_gpio *agp = gpiochip_get_data(chip);
 	u8 temp;
 	unsigned long flags;
 
@@ -220,12 +218,12 @@ found:
 		goto out;
 	}
 	gp.pdev = pdev;
-	gp.chip.dev = &pdev->dev;
+	gp.chip.parent = &pdev->dev;
 
 	spin_lock_init(&gp.lock);
 
 	printk(KERN_INFO "AMD-8111 GPIO detected\n");
-	err = gpiochip_add(&gp.chip);
+	err = gpiochip_add_data(&gp.chip, &gp);
 	if (err) {
 		printk(KERN_ERR "GPIO registering failed (%d)\n",
 		       err);

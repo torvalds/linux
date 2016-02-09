@@ -31,7 +31,7 @@ static struct scpi_ops *scpi_ops;
 
 static struct scpi_dvfs_info *scpi_get_dvfs_info(struct device *cpu_dev)
 {
-	u8 domain = topology_physical_package_id(cpu_dev->id);
+	int domain = topology_physical_package_id(cpu_dev->id);
 
 	if (domain < 0)
 		return ERR_PTR(-EINVAL);
