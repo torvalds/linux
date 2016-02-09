@@ -517,22 +517,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 #endif /* CONFIG_BOOKE */
 
 /*
- * Clear pages using the dcbz instruction, which doesn't cause any
- * memory traffic (except to write out any cache lines which get
- * displaced).  This only works on cacheable memory.
- *
- * void clear_pages(void *page, int order) ;
- */
-_GLOBAL(clear_pages)
-	li	r0,PAGE_SIZE/L1_CACHE_BYTES
-	slw	r0,r0,r4
-	mtctr	r0
-1:	dcbz	0,r3
-	addi	r3,r3,L1_CACHE_BYTES
-	bdnz	1b
-	blr
-
-/*
  * Copy a whole page.  We use the dcbz instruction on the destination
  * to reduce memory traffic (it eliminates the unnecessary reads of
  * the destination into cache).  This requires that the destination
