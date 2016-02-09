@@ -102,7 +102,6 @@ static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
 #include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <asm/io.h>
-#include <asm-generic/pci-bridge.h>
 
 struct pci_dev;
 

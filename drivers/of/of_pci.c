@@ -5,7 +5,6 @@
 #include <linux/of_device.h>
 #include <linux/of_pci.h>
 #include <linux/slab.h>
-#include <asm-generic/pci-bridge.h>
 
 static inline int __of_pci_pci_compare(struct device_node *node,
 				       unsigned int data)

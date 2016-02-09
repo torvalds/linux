@@ -746,8 +746,25 @@ struct pci_driver {
 	.vendor = PCI_VENDOR_ID_##vend, .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, 0, 0
 
+enum {
+	PCI_REASSIGN_ALL_RSRC	= 0x00000001,	/* ignore firmware setup */
+	PCI_REASSIGN_ALL_BUS	= 0x00000002,	/* reassign all bus numbers */
+	PCI_PROBE_ONLY		= 0x00000004,	/* use existing setup */
+	PCI_CAN_SKIP_ISA_ALIGN	= 0x00000008,	/* don't do ISA alignment */
+	PCI_ENABLE_PROC_DOMAINS	= 0x00000010,	/* enable domains in /proc */
+	PCI_COMPAT_DOMAIN_0	= 0x00000020,	/* ... except domain 0 */
+	PCI_SCAN_ALL_PCIE_DEVS	= 0x00000040,	/* scan all, not just dev 0 */
+};
+
 /* these external functions are only available when PCI support is enabled */
 #ifdef CONFIG_PCI
+
+extern unsigned int pci_flags;
+
+static inline void pci_set_flags(int flags) { pci_flags = flags; }
+static inline void pci_add_flags(int flags) { pci_flags |= flags; }
+static inline void pci_clear_flags(int flags) { pci_flags &= ~flags; }
+static inline int pci_has_flag(int flag) { return pci_flags & flag; }
 
 void pcie_bus_configure_settings(struct pci_bus *bus);
 
@@ -1404,6 +1421,11 @@ typedef int (*arch_set_vga_state_t)(struct pci_dev *pdev, bool decode,
 void pci_register_set_vga_state(arch_set_vga_state_t func);
 
 #else /* CONFIG_PCI is not enabled */
+
+static inline void pci_set_flags(int flags) { }
+static inline void pci_add_flags(int flags) { }
+static inline void pci_clear_flags(int flags) { }
+static inline int pci_has_flag(int flag) { return 0; }
 
 /*
  *  If the system does not have PCI, clearly these return errors.  Define
