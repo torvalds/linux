@@ -301,7 +301,11 @@ static DEFINE_SPINLOCK(wq_mayday_lock);	/* protects wq->maydays list */
 static LIST_HEAD(workqueues);		/* PR: list of all workqueues */
 static bool workqueue_freezing;		/* PL: have wqs started freezing? */
 
-static cpumask_var_t wq_unbound_cpumask; /* PL: low level cpumask for all unbound wqs */
+/* PL: allowable cpus for unbound wqs and work items */
+static cpumask_var_t wq_unbound_cpumask;
+
+/* CPU where unbound work was last round robin scheduled from this CPU */
+static DEFINE_PER_CPU(int, wq_rr_cpu_last);
 
 /* the per-cpu worker pools */
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct worker_pool [NR_STD_WORKER_POOLS],
@@ -1298,6 +1302,32 @@ static bool is_chained_work(struct workqueue_struct *wq)
 	return worker && worker->current_pwq->wq == wq;
 }
 
+/*
+ * When queueing an unbound work item to a wq, prefer local CPU if allowed
+ * by wq_unbound_cpumask.  Otherwise, round robin among the allowed ones to
+ * avoid perturbing sensitive tasks.
+ */
+static int wq_select_unbound_cpu(int cpu)
+{
+	int new_cpu;
+
+	if (cpumask_test_cpu(cpu, wq_unbound_cpumask))
+		return cpu;
+	if (cpumask_empty(wq_unbound_cpumask))
+		return cpu;
+
+	new_cpu = __this_cpu_read(wq_rr_cpu_last);
+	new_cpu = cpumask_next_and(new_cpu, wq_unbound_cpumask, cpu_online_mask);
+	if (unlikely(new_cpu >= nr_cpu_ids)) {
+		new_cpu = cpumask_first_and(wq_unbound_cpumask, cpu_online_mask);
+		if (unlikely(new_cpu >= nr_cpu_ids))
+			return cpu;
+	}
+	__this_cpu_write(wq_rr_cpu_last, new_cpu);
+
+	return new_cpu;
+}
+
 static void __queue_work(int cpu, struct workqueue_struct *wq,
 			 struct work_struct *work)
 {
@@ -1323,7 +1353,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 		return;
 retry:
 	if (req_cpu == WORK_CPU_UNBOUND)
-		cpu = raw_smp_processor_id();
+		cpu = wq_select_unbound_cpu(raw_smp_processor_id());
 
 	/* pwq which will be used unless @work is executing elsewhere */
 	if (!(wq->flags & WQ_UNBOUND))
