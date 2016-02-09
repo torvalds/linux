@@ -19,6 +19,10 @@
 		serial2 = &uartb;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};

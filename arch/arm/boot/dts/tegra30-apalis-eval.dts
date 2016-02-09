@@ -17,6 +17,10 @@
 		serial3 = &uartd;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	pcie-controller@00003000 {
 		status = "okay";
 
