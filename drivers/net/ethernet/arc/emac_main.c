@@ -518,6 +518,64 @@ static void arc_emac_set_rx_mode(struct net_device *ndev)
 }
 
 /**
+ * arc_free_tx_queue - free skb from tx queue
+ * @ndev:	Pointer to the network device.
+ *
+ * This function must be called while EMAC disable
+ */
+static void arc_free_tx_queue(struct net_device *ndev)
+{
+	struct arc_emac_priv *priv = netdev_priv(ndev);
+	unsigned int i;
+
+	for (i = 0; i < TX_BD_NUM; i++) {
+		struct arc_emac_bd *txbd = &priv->txbd[i];
+		struct buffer_state *tx_buff = &priv->tx_buff[i];
+
+		if (tx_buff->skb) {
+			dma_unmap_single(&ndev->dev, dma_unmap_addr(tx_buff, addr),
+					 dma_unmap_len(tx_buff, len), DMA_TO_DEVICE);
+
+			/* return the sk_buff to system */
+			dev_kfree_skb_irq(tx_buff->skb);
+		}
+
+		txbd->info = 0;
+		txbd->data = 0;
+		tx_buff->skb = NULL;
+	}
+}
+
+/**
+ * arc_free_rx_queue - free skb from rx queue
+ * @ndev:	Pointer to the network device.
+ *
+ * This function must be called while EMAC disable
+ */
+static void arc_free_rx_queue(struct net_device *ndev)
+{
+	struct arc_emac_priv *priv = netdev_priv(ndev);
+	unsigned int i;
+
+	for (i = 0; i < RX_BD_NUM; i++) {
+		struct arc_emac_bd *rxbd = &priv->rxbd[i];
+		struct buffer_state *rx_buff = &priv->rx_buff[i];
+
+		if (rx_buff->skb) {
+			dma_unmap_single(&ndev->dev, dma_unmap_addr(rx_buff, addr),
+					dma_unmap_len(rx_buff, len), DMA_FROM_DEVICE);
+
+			/* return the sk_buff to system */
+			dev_kfree_skb_irq(rx_buff->skb);
+		}
+
+		rxbd->info = 0;
+		rxbd->data = 0;
+		rx_buff->skb = NULL;
+	}
+}
+
+/**
  * arc_emac_stop - Close the network device.
  * @ndev:	Pointer to the network device.
  *
@@ -537,6 +595,10 @@ static int arc_emac_stop(struct net_device *ndev)
 
 	/* Disable EMAC */
 	arc_reg_clr(priv, R_CTRL, EN_MASK);
+
+	/* Return the sk_buff to system */
+	arc_free_tx_queue(ndev);
+	arc_free_rx_queue(ndev);
 
 	return 0;
 }
