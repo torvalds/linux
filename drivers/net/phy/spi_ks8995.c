@@ -77,6 +77,7 @@
 
 #define KS8995_REGS_SIZE	0x80
 #define KSZ8864_REGS_SIZE	0x100
+#define KSZ8795_REGS_SIZE	0x100
 
 #define ID1_CHIPID_M		0xf
 #define ID1_CHIPID_S		4
@@ -85,9 +86,11 @@
 #define ID1_START_SW		1	/* start the switch */
 
 #define FAMILY_KS8995		0x95
+#define FAMILY_KSZ8795		0x87
 #define CHIPID_M		0
 #define KS8995_CHIP_ID		0x00
 #define KSZ8864_CHIP_ID		0x01
+#define KSZ8795_CHIP_ID		0x09
 
 #define KS8995_CMD_WRITE	0x02U
 #define KS8995_CMD_READ		0x03U
@@ -97,6 +100,7 @@
 enum ks8995_chip_variant {
 	ks8995,
 	ksz8864,
+	ksz8795,
 	max_variant
 };
 
@@ -126,6 +130,14 @@ static const struct ks8995_chip_params ks8995_chip[] = {
 		.addr_width = 8,
 		.addr_shift = 0,
 	},
+	[ksz8795] = {
+		.name = "KSZ8795CLX",
+		.family_id = FAMILY_KSZ8795,
+		.chip_id = KSZ8795_CHIP_ID,
+		.regs_size = KSZ8795_REGS_SIZE,
+		.addr_width = 12,
+		.addr_shift = 1,
+	},
 };
 
 struct ks8995_pdata {
@@ -145,6 +157,7 @@ struct ks8995_switch {
 static const struct spi_device_id ks8995_id[] = {
 	{"ks8995", ks8995},
 	{"ksz8864", ksz8864},
+	{"ksz8795", ksz8795},
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ks8995_id);
@@ -354,6 +367,22 @@ static int ks8995_get_revision(struct ks8995_switch *ks)
 
 		} else {
 			dev_err(&ks->spi->dev, "unsupported chip id for KS8995 family: 0x%02x\n",
+				id1);
+			err = -ENODEV;
+		}
+		break;
+	case FAMILY_KSZ8795:
+		/* try reading chip id at CHIP ID1 */
+		err = ks8995_read_reg(ks, KS8995_REG_ID1, &id1);
+		if (err) {
+			err = -EIO;
+			goto err_out;
+		}
+
+		if (get_chip_id(id1) == ks->chip->chip_id) {
+			ks->revision_id = get_chip_rev(id1);
+		} else {
+			dev_err(&ks->spi->dev, "unsupported chip id for KSZ8795 family: 0x%02x\n",
 				id1);
 			err = -ENODEV;
 		}
