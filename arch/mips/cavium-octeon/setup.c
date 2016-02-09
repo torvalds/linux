@@ -492,8 +492,6 @@ const char *get_system_type(void)
 void octeon_user_io_init(void)
 {
 	union octeon_cvmemctl cvmmemctl;
-	union cvmx_iob_fau_timeout fau_timeout;
-	union cvmx_pow_nw_tim nm_tim;
 
 	/* Get the current settings for CP0_CVMMEMCTL_REG */
 	cvmmemctl.u64 = read_c0_cvmmemctl();
@@ -595,17 +593,27 @@ void octeon_user_io_init(void)
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE * 128);
 
-	/* Set a default for the hardware timeouts */
-	fau_timeout.u64 = 0;
-	fau_timeout.s.tout_val = 0xfff;
-	/* Disable tagwait FAU timeout */
-	fau_timeout.s.tout_enb = 0;
-	cvmx_write_csr(CVMX_IOB_FAU_TIMEOUT, fau_timeout.u64);
+	if (octeon_has_feature(OCTEON_FEATURE_FAU)) {
+		union cvmx_iob_fau_timeout fau_timeout;
 
-	nm_tim.u64 = 0;
-	/* 4096 cycles */
-	nm_tim.s.nw_tim = 3;
-	cvmx_write_csr(CVMX_POW_NW_TIM, nm_tim.u64);
+		/* Set a default for the hardware timeouts */
+		fau_timeout.u64 = 0;
+		fau_timeout.s.tout_val = 0xfff;
+		/* Disable tagwait FAU timeout */
+		fau_timeout.s.tout_enb = 0;
+		cvmx_write_csr(CVMX_IOB_FAU_TIMEOUT, fau_timeout.u64);
+	}
+
+	if ((!OCTEON_IS_MODEL(OCTEON_CN68XX) &&
+	     !OCTEON_IS_MODEL(OCTEON_CN7XXX)) ||
+	    OCTEON_IS_MODEL(OCTEON_CN70XX)) {
+		union cvmx_pow_nw_tim nm_tim;
+
+		nm_tim.u64 = 0;
+		/* 4096 cycles */
+		nm_tim.s.nw_tim = 3;
+		cvmx_write_csr(CVMX_POW_NW_TIM, nm_tim.u64);
+	}
 
 	write_octeon_c0_icacheerr(0);
 	write_c0_derraddr1(0);
