@@ -62,6 +62,7 @@ config MIPS
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select GENERIC_TIME_VSYSCALL
 	select ARCH_CLOCKSOURCE_DATA
+	select HANDLE_DOMAIN_IRQ
 
 menu "Machine selection"
 
