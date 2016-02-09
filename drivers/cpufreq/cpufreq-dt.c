@@ -265,10 +265,6 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		if (ret)
 			dev_err(cpu_dev, "%s: failed to mark OPPs as shared: %d\n",
 				__func__, ret);
-
-		of_property_read_u32(np, "clock-latency", &transition_latency);
-	} else {
-		transition_latency = dev_pm_opp_get_max_clock_latency(cpu_dev);
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -279,6 +275,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 
 	of_property_read_u32(np, "voltage-tolerance", &priv->voltage_tolerance);
 
+	transition_latency = dev_pm_opp_get_max_clock_latency(cpu_dev);
 	if (!transition_latency)
 		transition_latency = CPUFREQ_ETERNAL;
 
