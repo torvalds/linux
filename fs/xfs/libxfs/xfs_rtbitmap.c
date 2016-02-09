@@ -71,6 +71,9 @@ xfs_rtbuf_get(
 				   mp->m_bsize, 0, &bp, NULL);
 	if (error)
 		return error;
+
+	xfs_trans_buf_set_type(tp, bp, issum ? XFS_BLFT_RTSUMMARY_BUF
+					     : XFS_BLFT_RTBITMAP_BUF);
 	*bpp = bp;
 	return 0;
 }
