@@ -1331,7 +1331,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	struct intel_engine_cs *ring;
 	u64 acthd[I915_NUM_RINGS];
 	u32 seqno[I915_NUM_RINGS];
-	int i;
+	u32 instdone[I915_NUM_INSTDONE_REG];
+	int i, j;
 
 	if (!i915.enable_hangcheck) {
 		seq_printf(m, "Hangcheck disabled\n");
@@ -1344,6 +1345,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seqno[i] = ring->get_seqno(ring, false);
 		acthd[i] = intel_ring_get_active_head(ring);
 	}
+
+	i915_get_extra_instdone(dev, instdone);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -1365,6 +1368,21 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			   (long long)ring->hangcheck.max_acthd);
 		seq_printf(m, "\tscore = %d\n", ring->hangcheck.score);
 		seq_printf(m, "\taction = %d\n", ring->hangcheck.action);
+
+		if (ring->id == RCS) {
+			seq_puts(m, "\tinstdone read =");
+
+			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
+				seq_printf(m, " 0x%08x", instdone[j]);
+
+			seq_puts(m, "\n\tinstdone accu =");
+
+			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
+				seq_printf(m, " 0x%08x",
+					   ring->hangcheck.instdone[j]);
+
+			seq_puts(m, "\n");
+		}
 	}
 
 	return 0;
@@ -1942,11 +1960,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 		seq_puts(m, "HW context ");
 		describe_ctx(m, ctx);
-		for_each_ring(ring, dev_priv, i) {
-			if (ring->default_context == ctx)
-				seq_printf(m, "(default context %s) ",
-					   ring->name);
-		}
+		if (ctx == dev_priv->kernel_context)
+			seq_printf(m, "(kernel context) ");
 
 		if (i915.enable_execlists) {
 			seq_putc(m, '\n');
@@ -1976,12 +1991,13 @@ static int i915_context_status(struct seq_file *m, void *unused)
 }
 
 static void i915_dump_lrc_obj(struct seq_file *m,
-			      struct intel_engine_cs *ring,
-			      struct drm_i915_gem_object *ctx_obj)
+			      struct intel_context *ctx,
+			      struct intel_engine_cs *ring)
 {
 	struct page *page;
 	uint32_t *reg_state;
 	int j;
+	struct drm_i915_gem_object *ctx_obj = ctx->engine[ring->id].state;
 	unsigned long ggtt_offset = 0;
 
 	if (ctx_obj == NULL) {
@@ -1991,7 +2007,7 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 	}
 
 	seq_printf(m, "CONTEXT: %s %u\n", ring->name,
-		   intel_execlists_ctx_id(ctx_obj));
+		   intel_execlists_ctx_id(ctx, ring));
 
 	if (!i915_gem_obj_ggtt_bound(ctx_obj))
 		seq_puts(m, "\tNot bound in GGTT\n");
@@ -2037,13 +2053,10 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(ctx, &dev_priv->context_list, link) {
-		for_each_ring(ring, dev_priv, i) {
-			if (ring->default_context != ctx)
-				i915_dump_lrc_obj(m, ring,
-						  ctx->engine[i].state);
-		}
-	}
+	list_for_each_entry(ctx, &dev_priv->context_list, link)
+		if (ctx != dev_priv->kernel_context)
+			for_each_ring(ring, dev_priv, i)
+				i915_dump_lrc_obj(m, ctx, ring);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -2092,13 +2105,13 @@ static int i915_execlists(struct seq_file *m, void *data)
 		seq_printf(m, "\tStatus pointer: 0x%08X\n", status_pointer);
 
 		read_pointer = ring->next_context_status_buffer;
-		write_pointer = status_pointer & 0x07;
+		write_pointer = GEN8_CSB_WRITE_PTR(status_pointer);
 		if (read_pointer > write_pointer)
-			write_pointer += 6;
+			write_pointer += GEN8_CSB_ENTRIES;
 		seq_printf(m, "\tRead pointer: 0x%08X, write pointer 0x%08X\n",
 			   read_pointer, write_pointer);
 
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < GEN8_CSB_ENTRIES; i++) {
 			status = I915_READ(RING_CONTEXT_STATUS_BUF_LO(ring, i));
 			ctx_id = I915_READ(RING_CONTEXT_STATUS_BUF_HI(ring, i));
 
@@ -2115,11 +2128,8 @@ static int i915_execlists(struct seq_file *m, void *data)
 
 		seq_printf(m, "\t%d requests in queue\n", count);
 		if (head_req) {
-			struct drm_i915_gem_object *ctx_obj;
-
-			ctx_obj = head_req->ctx->engine[ring_id].state;
 			seq_printf(m, "\tHead request id: %u\n",
-				   intel_execlists_ctx_id(ctx_obj));
+				   intel_execlists_ctx_id(head_req->ctx, ring));
 			seq_printf(m, "\tHead request tail: %u\n",
 				   head_req->tail);
 		}

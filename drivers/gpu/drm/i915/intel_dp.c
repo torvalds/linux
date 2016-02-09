@@ -157,14 +157,9 @@ intel_dp_max_link_bw(struct intel_dp  *intel_dp)
 static u8 intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
 	u8 source_max, sink_max;
 
-	source_max = 4;
-	if (HAS_DDI(dev) && intel_dig_port->port == PORT_A &&
-	    (intel_dig_port->saved_port_bits & DDI_A_4_LANES) == 0)
-		source_max = 2;
-
+	source_max = intel_dig_port->max_lanes;
 	sink_max = drm_dp_max_lane_count(intel_dp->dpcd);
 
 	return min(source_max, sink_max);
@@ -340,8 +335,12 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 		release_cl_override = IS_CHERRYVIEW(dev) &&
 			!chv_phy_powergate_ch(dev_priv, phy, ch, true);
 
-		vlv_force_pll_on(dev, pipe, IS_CHERRYVIEW(dev) ?
-				 &chv_dpll[0].dpll : &vlv_dpll[0].dpll);
+		if (vlv_force_pll_on(dev, pipe, IS_CHERRYVIEW(dev) ?
+				     &chv_dpll[0].dpll : &vlv_dpll[0].dpll)) {
+			DRM_ERROR("Failed to force on pll for pipe %c!\n",
+				  pipe_name(pipe));
+			return;
+		}
 	}
 
 	/*
@@ -2243,11 +2242,6 @@ static void intel_edp_backlight_power(struct intel_connector *connector,
 		_intel_edp_backlight_off(intel_dp);
 }
 
-static const char *state_string(bool enabled)
-{
-	return enabled ? "on" : "off";
-}
-
 static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -2257,7 +2251,7 @@ static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 	I915_STATE_WARN(cur_state != state,
 			"DP port %c state assertion failure (expected %s, current %s)\n",
 			port_name(dig_port->port),
-			state_string(state), state_string(cur_state));
+			onoff(state), onoff(cur_state));
 }
 #define assert_dp_port_disabled(d) assert_dp_port((d), false)
 
@@ -2267,7 +2261,7 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 
 	I915_STATE_WARN(cur_state != state,
 			"eDP PLL state assertion failure (expected %s, current %s)\n",
-			state_string(state), state_string(cur_state));
+			onoff(state), onoff(cur_state));
 }
 #define assert_edp_pll_enabled(d) assert_edp_pll((d), true)
 #define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
@@ -5839,6 +5833,11 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	enum port port = intel_dig_port->port;
 	int type, ret;
 
+	if (WARN(intel_dig_port->max_lanes < 1,
+		 "Not enough lanes (%d) for DP on port %c\n",
+		 intel_dig_port->max_lanes, port_name(port)))
+		return false;
+
 	intel_dp->pps_pipe = INVALID_PIPE;
 
 	/* intel_dp vfuncs */
@@ -6037,6 +6036,7 @@ intel_dp_init(struct drm_device *dev,
 	intel_dig_port->port = port;
 	dev_priv->dig_port_map[port] = intel_encoder;
 	intel_dig_port->dp.output_reg = output_reg;
+	intel_dig_port->max_lanes = 4;
 
 	intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 	if (IS_CHERRYVIEW(dev)) {

@@ -1050,7 +1050,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			if (request)
 				rbuf = request->ctx->engine[ring->id].ringbuf;
 			else
-				rbuf = ring->default_context->engine[ring->id].ringbuf;
+				rbuf = dev_priv->kernel_context->engine[ring->id].ringbuf;
 		} else
 			rbuf = ring->buffer;
 

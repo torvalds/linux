@@ -569,6 +569,9 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 	if (obj->pages == NULL)
 		goto cleanup;
 
+	obj->get_page.sg = obj->pages->sgl;
+	obj->get_page.last = 0;
+
 	i915_gem_object_pin_pages(obj);
 	obj->stolen = stolen;
 

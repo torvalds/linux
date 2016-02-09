@@ -32,6 +32,8 @@
 #include <linux/module.h>
 
 /**
+ * DOC: RC6
+ *
  * RC6 is a special power stage which allows the GPU to enter an very
  * low-voltage mode when idle, using down to 0V while at this stage.  This
  * stage is entered automatically when the GPU is idle when RC6 support is
@@ -1672,6 +1674,9 @@ uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
 		if (pipe_h < pfit_h)
 			pipe_h = pfit_h;
 
+		if (WARN_ON(!pfit_w || !pfit_h))
+			return pixel_rate;
+
 		pixel_rate = div_u64((uint64_t) pixel_rate * pipe_w * pipe_h,
 				     pfit_w * pfit_h);
 	}
@@ -1703,6 +1708,8 @@ static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 
 	if (WARN(latency == 0, "Latency value missing\n"))
 		return UINT_MAX;
+	if (WARN_ON(!pipe_htotal))
+		return UINT_MAX;
 
 	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
 	ret = (ret + 1) * horiz_pixels * bytes_per_pixel;
@@ -1713,6 +1720,17 @@ static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 static uint32_t ilk_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
 			   uint8_t bytes_per_pixel)
 {
+	/*
+	 * Neither of these should be possible since this function shouldn't be
+	 * called if the CRTC is off or the plane is invisible.  But let's be
+	 * extra paranoid to avoid a potential divide-by-zero if we screw up
+	 * elsewhere in the driver.
+	 */
+	if (WARN_ON(!bytes_per_pixel))
+		return 0;
+	if (WARN_ON(!horiz_pixels))
+		return 0;
+
 	return DIV_ROUND_UP(pri_val * 64, horiz_pixels * bytes_per_pixel) + 2;
 }
 
@@ -1998,14 +2016,19 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 }
 
 static uint32_t
-hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
+hsw_compute_linetime_wm(struct drm_device *dev,
+			struct intel_crtc_state *cstate)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode =
+		&cstate->base.adjusted_mode;
 	u32 linetime, ips_linetime;
 
-	if (!intel_crtc->active)
+	if (!cstate->base.active)
+		return 0;
+	if (WARN_ON(adjusted_mode->crtc_clock == 0))
+		return 0;
+	if (WARN_ON(dev_priv->cdclk_freq == 0))
 		return 0;
 
 	/* The WM are computed with base on how long it takes to fill a single
@@ -2277,6 +2300,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 		return PTR_ERR(cstate);
 
 	pipe_wm = &cstate->wm.optimal.ilk;
+	memset(pipe_wm, 0, sizeof(*pipe_wm));
 
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		ps = drm_atomic_get_plane_state(state,
@@ -2313,8 +2337,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		pipe_wm->linetime = hsw_compute_linetime_wm(dev,
-							    &intel_crtc->base);
+		pipe_wm->linetime = hsw_compute_linetime_wm(dev, cstate);
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
 	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
@@ -3597,23 +3620,45 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	dev_priv->wm.skl_hw = *results;
 }
 
-static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
+static void ilk_compute_wm_config(struct drm_device *dev,
+				  struct intel_wm_config *config)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct intel_crtc *crtc;
+
+	/* Compute the currently _active_ config */
+	for_each_intel_crtc(dev, crtc) {
+		const struct intel_pipe_wm *wm = &crtc->wm.active.ilk;
+
+		if (!wm->pipe_enabled)
+			continue;
+
+		config->sprites_enabled |= wm->sprites_enabled;
+		config->sprites_scaled |= wm->sprites_scaled;
+		config->num_pipes_active++;
+	}
+}
+
+static void ilk_program_watermarks(struct intel_crtc_state *cstate)
+{
+	struct drm_crtc *crtc = cstate->base.crtc;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 	struct ilk_wm_maximums max;
-	struct intel_wm_config *config = &dev_priv->wm.config;
+	struct intel_wm_config config = {};
 	struct ilk_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
 
-	ilk_compute_wm_maximums(dev, 1, config, INTEL_DDB_PART_1_2, &max);
-	ilk_wm_merge(dev, config, &max, &lp_wm_1_2);
+	ilk_compute_wm_config(dev, &config);
+
+	ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
+	ilk_wm_merge(dev, &config, &max, &lp_wm_1_2);
 
 	/* 5/6 split only in single pipe config on IVB+ */
 	if (INTEL_INFO(dev)->gen >= 7 &&
-	    config->num_pipes_active == 1 && config->sprites_enabled) {
-		ilk_compute_wm_maximums(dev, 1, config, INTEL_DDB_PART_5_6, &max);
-		ilk_wm_merge(dev, config, &max, &lp_wm_5_6);
+	    config.num_pipes_active == 1 && config.sprites_enabled) {
+		ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
+		ilk_wm_merge(dev, &config, &max, &lp_wm_5_6);
 
 		best_lp_wm = ilk_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
 	} else {
@@ -3630,7 +3675,6 @@ static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
 
 static void ilk_update_wm(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 
@@ -3650,7 +3694,7 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 
 	intel_crtc->wm.active.ilk = cstate->wm.optimal.ilk;
 
-	ilk_program_watermarks(dev_priv);
+	ilk_program_watermarks(cstate);
 }
 
 static void skl_pipe_wm_active_state(uint32_t val,
@@ -4036,7 +4080,7 @@ void intel_update_watermarks(struct drm_crtc *crtc)
 		dev_priv->display.update_wm(crtc);
 }
 
-/**
+/*
  * Lock protecting IPS related data structures
  */
 DEFINE_SPINLOCK(mchdev_lock);
@@ -4509,13 +4553,13 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 	}
 	if (HAS_RC6p(dev))
 		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s RC6p %s RC6pp %s\n",
-			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-			      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-			      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE),
+			      onoff(mode & GEN6_RC_CTL_RC6p_ENABLE),
+			      onoff(mode & GEN6_RC_CTL_RC6pp_ENABLE));
 
 	else
 		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s\n",
-			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off");
+			      onoff(mode & GEN6_RC_CTL_RC6_ENABLE));
 }
 
 static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
@@ -4693,8 +4737,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	/* 3a: Enable RC6 */
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
-	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
-			"on" : "off");
+	DRM_INFO("RC6 %s\n", onoff(rc6_mask & GEN6_RC_CTL_RC6_ENABLE));
 	/* WaRsUseTimeoutMode */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
 	    IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
@@ -4713,8 +4756,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
 	 * WaRsDisableCoarsePowerGating:skl,bxt - Render/Media PG need to be disabled with RC6.
 	 */
-	if ((IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
-	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && (INTEL_REVID(dev) <= SKL_REVID_F0)))
+	if (NEEDS_WaRsDisableCoarsePowerGating(dev))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
 	else
 		I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
@@ -6981,6 +7023,7 @@ void intel_init_pm(struct drm_device *dev)
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
 			dev_priv->display.update_wm = ilk_update_wm;
 			dev_priv->display.compute_pipe_wm = ilk_compute_pipe_wm;
+			dev_priv->display.program_watermarks = ilk_program_watermarks;
 		} else {
 			DRM_DEBUG_KMS("Failed to read display plane latency. "
 				      "Disable CxSR\n");

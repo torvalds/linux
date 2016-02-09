@@ -347,22 +347,20 @@ void i915_gem_context_reset(struct drm_device *dev)
 			i915_gem_context_unreference(lctx);
 			ring->last_context = NULL;
 		}
-
-		/* Force the GPU state to be reinitialised on enabling */
-		if (ring->default_context)
-			ring->default_context->legacy_hw_ctx.initialized = false;
 	}
+
+	/* Force the GPU state to be reinitialised on enabling */
+	dev_priv->kernel_context->legacy_hw_ctx.initialized = false;
 }
 
 int i915_gem_context_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_context *ctx;
-	int i;
 
 	/* Init should only be called once per module load. Eventually the
 	 * restriction on the context_disabled check can be loosened. */
-	if (WARN_ON(dev_priv->ring[RCS].default_context))
+	if (WARN_ON(dev_priv->kernel_context))
 		return 0;
 
 	if (intel_vgpu_active(dev) && HAS_LOGICAL_RING_CONTEXTS(dev)) {
@@ -392,12 +390,7 @@ int i915_gem_context_init(struct drm_device *dev)
 		return PTR_ERR(ctx);
 	}
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_engine_cs *ring = &dev_priv->ring[i];
-
-		/* NB: RCS will hold a ref for all rings */
-		ring->default_context = ctx;
-	}
+	dev_priv->kernel_context = ctx;
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
 			i915.enable_execlists ? "LR" :
@@ -408,7 +401,7 @@ int i915_gem_context_init(struct drm_device *dev)
 void i915_gem_context_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_context *dctx = dev_priv->ring[RCS].default_context;
+	struct intel_context *dctx = dev_priv->kernel_context;
 	int i;
 
 	if (dctx->legacy_hw_ctx.rcs_state) {
@@ -435,17 +428,17 @@ void i915_gem_context_fini(struct drm_device *dev)
 		i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
 	}
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
+	for (i = I915_NUM_RINGS; --i >= 0;) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
 
-		if (ring->last_context)
+		if (ring->last_context) {
 			i915_gem_context_unreference(ring->last_context);
-
-		ring->default_context = NULL;
-		ring->last_context = NULL;
+			ring->last_context = NULL;
+		}
 	}
 
 	i915_gem_context_unreference(dctx);
+	dev_priv->kernel_context = NULL;
 }
 
 int i915_gem_context_enable(struct drm_i915_gem_request *req)

@@ -1251,7 +1251,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	DEFINE_WAIT(wait);
 	unsigned long timeout_expire;
-	s64 before, now;
+	s64 before = 0; /* Only to silence a compiler warning. */
 	int ret;
 
 	WARN(!intel_irqs_enabled(dev_priv), "IRQs disabled");
@@ -1271,14 +1271,17 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			return -ETIME;
 
 		timeout_expire = jiffies + nsecs_to_jiffies_timeout(*timeout);
+
+		/*
+		 * Record current time in case interrupted by signal, or wedged.
+		 */
+		before = ktime_get_raw_ns();
 	}
 
 	if (INTEL_INFO(dev_priv)->gen >= 6)
 		gen6_rps_boost(dev_priv, rps, req->emitted_jiffies);
 
-	/* Record current time in case interrupted by signal, or wedged */
 	trace_i915_gem_request_wait_begin(req);
-	before = ktime_get_raw_ns();
 
 	/* Optimistic spin for the next jiffie before touching IRQs */
 	ret = __i915_spin_request(req, state);
@@ -1343,11 +1346,10 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	finish_wait(&ring->irq_queue, &wait);
 
 out:
-	now = ktime_get_raw_ns();
 	trace_i915_gem_request_wait_end(req);
 
 	if (timeout) {
-		s64 tres = *timeout - (now - before);
+		s64 tres = *timeout - (ktime_get_raw_ns() - before);
 
 		*timeout = tres < 0 ? 0 : tres;
 
@@ -2677,10 +2679,8 @@ void i915_gem_request_free(struct kref *req_ref)
 		i915_gem_request_remove_from_client(req);
 
 	if (ctx) {
-		if (i915.enable_execlists) {
-			if (ctx != req->ring->default_context)
-				intel_lr_context_unpin(req);
-		}
+		if (i915.enable_execlists && ctx != req->i915->kernel_context)
+			intel_lr_context_unpin(req);
 
 		i915_gem_context_unreference(ctx);
 	}
@@ -2688,9 +2688,10 @@ void i915_gem_request_free(struct kref *req_ref)
 	kmem_cache_free(req->i915->requests, req);
 }
 
-int i915_gem_request_alloc(struct intel_engine_cs *ring,
-			   struct intel_context *ctx,
-			   struct drm_i915_gem_request **req_out)
+static inline int
+__i915_gem_request_alloc(struct intel_engine_cs *ring,
+			 struct intel_context *ctx,
+			 struct drm_i915_gem_request **req_out)
 {
 	struct drm_i915_private *dev_priv = to_i915(ring->dev);
 	struct drm_i915_gem_request *req;
@@ -2751,6 +2752,31 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 err:
 	kmem_cache_free(dev_priv->requests, req);
 	return ret;
+}
+
+/**
+ * i915_gem_request_alloc - allocate a request structure
+ *
+ * @engine: engine that we wish to issue the request on.
+ * @ctx: context that the request will be associated with.
+ *       This can be NULL if the request is not directly related to
+ *       any specific user context, in which case this function will
+ *       choose an appropriate context to use.
+ *
+ * Returns a pointer to the allocated request if successful,
+ * or an error code if not.
+ */
+struct drm_i915_gem_request *
+i915_gem_request_alloc(struct intel_engine_cs *engine,
+		       struct intel_context *ctx)
+{
+	struct drm_i915_gem_request *req;
+	int err;
+
+	if (ctx == NULL)
+		ctx = to_i915(engine->dev)->kernel_context;
+	err = __i915_gem_request_alloc(engine, ctx, &req);
+	return err ? ERR_PTR(err) : req;
 }
 
 void i915_gem_request_cancel(struct drm_i915_gem_request *req)
@@ -3170,9 +3196,13 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			return 0;
 
 		if (*to_req == NULL) {
-			ret = i915_gem_request_alloc(to, to->default_context, to_req);
-			if (ret)
-				return ret;
+			struct drm_i915_gem_request *req;
+
+			req = i915_gem_request_alloc(to, NULL);
+			if (IS_ERR(req))
+				return PTR_ERR(req);
+
+			*to_req = req;
 		}
 
 		trace_i915_gem_ring_sync_to(*to_req, from, from_req);
@@ -3372,9 +3402,9 @@ int i915_gpu_idle(struct drm_device *dev)
 		if (!i915.enable_execlists) {
 			struct drm_i915_gem_request *req;
 
-			ret = i915_gem_request_alloc(ring, ring->default_context, &req);
-			if (ret)
-				return ret;
+			req = i915_gem_request_alloc(ring, NULL);
+			if (IS_ERR(req))
+				return PTR_ERR(req);
 
 			ret = i915_switch_context(req);
 			if (ret) {
@@ -4328,10 +4358,20 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto unref;
 
-	BUILD_BUG_ON(I915_NUM_RINGS > 16);
-	args->busy = obj->active << 16;
-	if (obj->last_write_req)
-		args->busy |= obj->last_write_req->ring->id;
+	args->busy = 0;
+	if (obj->active) {
+		int i;
+
+		for (i = 0; i < I915_NUM_RINGS; i++) {
+			struct drm_i915_gem_request *req;
+
+			req = obj->last_read_req[i];
+			if (req)
+				args->busy |= 1 << (16 + req->ring->exec_id);
+		}
+		if (obj->last_write_req)
+			args->busy |= obj->last_write_req->ring->exec_id;
+	}
 
 unref:
 	drm_gem_object_unreference(&obj->base);
@@ -4832,7 +4872,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	 */
 	init_unused_rings(dev);
 
-	BUG_ON(!dev_priv->ring[RCS].default_context);
+	BUG_ON(!dev_priv->kernel_context);
 
 	ret = i915_ppgtt_init_hw(dev);
 	if (ret) {
@@ -4869,10 +4909,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, i) {
 		struct drm_i915_gem_request *req;
 
-		WARN_ON(!ring->default_context);
-
-		ret = i915_gem_request_alloc(ring, ring->default_context, &req);
-		if (ret) {
+		req = i915_gem_request_alloc(ring, NULL);
+		if (IS_ERR(req)) {
+			ret = PTR_ERR(req);
 			i915_gem_cleanup_ringbuffer(dev);
 			goto out;
 		}
@@ -5111,6 +5150,8 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
+
+	file_priv->bsd_ring = -1;
 
 	ret = i915_gem_context_open(dev, file);
 	if (ret)
