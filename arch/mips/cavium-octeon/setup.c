@@ -43,8 +43,6 @@
 #include <asm/octeon/cvmx-mio-defs.h>
 #include <asm/octeon/cvmx-rst-defs.h>
 
-extern struct plat_smp_ops octeon_smp_ops;
-
 #ifdef CONFIG_PCI
 extern void pci_console_init(const char *arg);
 #endif
@@ -888,7 +886,7 @@ void __init prom_init(void)
 #endif
 
 	octeon_user_io_init();
-	register_smp_ops(&octeon_smp_ops);
+	octeon_setup_smp();
 }
 
 /* Exclude a single page from the regions obtained in plat_mem_setup. */

@@ -299,6 +299,12 @@ static inline void octeon_npi_write32(uint64_t address, uint32_t val)
 	cvmx_read64_uint32(address ^ 4);
 }
 
+#ifdef CONFIG_SMP
+void octeon_setup_smp(void);
+#else
+static inline void octeon_setup_smp(void) {}
+#endif
+
 struct irq_domain;
 struct device_node;
 struct irq_data;
