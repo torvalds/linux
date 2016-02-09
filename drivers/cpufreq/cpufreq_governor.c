@@ -38,10 +38,9 @@ void dbs_check_cpu(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
-	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
-	unsigned int sampling_rate;
+	unsigned int sampling_rate = dbs_data->sampling_rate;
+	unsigned int ignore_nice = dbs_data->ignore_nice_load;
 	unsigned int max_load = 0;
-	unsigned int ignore_nice;
 	unsigned int j;
 
 	if (gov->governor == GOV_ONDEMAND) {
@@ -54,13 +53,8 @@ void dbs_check_cpu(struct cpufreq_policy *policy)
 		 * the 'sampling_rate', so as to keep the wake-up-from-idle
 		 * detection logic a bit conservative.
 		 */
-		sampling_rate = od_tuners->sampling_rate;
 		sampling_rate *= od_dbs_info->rate_mult;
 
-		ignore_nice = od_tuners->ignore_nice_load;
-	} else {
-		sampling_rate = cs_tuners->sampling_rate;
-		ignore_nice = cs_tuners->ignore_nice_load;
 	}
 
 	/* Get Absolute Load */
@@ -280,19 +274,6 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	atomic_dec(&policy_dbs->work_count);
 }
 
-static void set_sampling_rate(struct dbs_data *dbs_data,
-			      struct dbs_governor *gov,
-			      unsigned int sampling_rate)
-{
-	if (gov->governor == GOV_CONSERVATIVE) {
-		struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
-		cs_tuners->sampling_rate = sampling_rate;
-	} else {
-		struct od_dbs_tuners *od_tuners = dbs_data->tuners;
-		od_tuners->sampling_rate = sampling_rate;
-	}
-}
-
 static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *policy,
 						     struct dbs_governor *gov)
 {
@@ -384,8 +365,8 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 	/* Bring kernel and HW constraints together */
 	dbs_data->min_sampling_rate = max(dbs_data->min_sampling_rate,
 					  MIN_LATENCY_MULTIPLIER * latency);
-	set_sampling_rate(dbs_data, gov, max(dbs_data->min_sampling_rate,
-					latency * LATENCY_MULTIPLIER));
+	dbs_data->sampling_rate = max(dbs_data->min_sampling_rate,
+				      LATENCY_MULTIPLIER * latency);
 
 	if (!have_governor_per_policy())
 		gov->gdbs_data = dbs_data;
@@ -456,16 +437,12 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	if (policy_dbs->policy)
 		return -EBUSY;
 
-	if (gov->governor == GOV_CONSERVATIVE) {
-		struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
+	sampling_rate = dbs_data->sampling_rate;
+	ignore_nice = dbs_data->ignore_nice_load;
 
-		sampling_rate = cs_tuners->sampling_rate;
-		ignore_nice = cs_tuners->ignore_nice_load;
-	} else {
+	if (gov->governor == GOV_ONDEMAND) {
 		struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
-		sampling_rate = od_tuners->sampling_rate;
-		ignore_nice = od_tuners->ignore_nice_load;
 		io_busy = od_tuners->io_is_busy;
 	}
 
