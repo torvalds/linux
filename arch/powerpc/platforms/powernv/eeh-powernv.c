@@ -167,42 +167,26 @@ static int pnv_eeh_dbgfs_get(void *data, int offset, u64 *val)
 	return 0;
 }
 
-static int pnv_eeh_outb_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xD10, val);
-}
+#define PNV_EEH_DBGFS_ENTRY(name, reg)				\
+static int pnv_eeh_dbgfs_set_##name(void *data, u64 val)	\
+{								\
+	return pnv_eeh_dbgfs_set(data, reg, val);		\
+}								\
+								\
+static int pnv_eeh_dbgfs_get_##name(void *data, u64 *val)	\
+{								\
+	return pnv_eeh_dbgfs_get(data, reg, val);		\
+}								\
+								\
+DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_dbgfs_ops_##name,		\
+			pnv_eeh_dbgfs_get_##name,		\
+                        pnv_eeh_dbgfs_set_##name,		\
+			"0x%llx\n")
 
-static int pnv_eeh_outb_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xD10, val);
-}
+PNV_EEH_DBGFS_ENTRY(outb, 0xD10);
+PNV_EEH_DBGFS_ENTRY(inbA, 0xD90);
+PNV_EEH_DBGFS_ENTRY(inbB, 0xE10);
 
-static int pnv_eeh_inbA_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xD90, val);
-}
-
-static int pnv_eeh_inbA_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xD90, val);
-}
-
-static int pnv_eeh_inbB_dbgfs_set(void *data, u64 val)
-{
-	return pnv_eeh_dbgfs_set(data, 0xE10, val);
-}
-
-static int pnv_eeh_inbB_dbgfs_get(void *data, u64 *val)
-{
-	return pnv_eeh_dbgfs_get(data, 0xE10, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_outb_dbgfs_ops, pnv_eeh_outb_dbgfs_get,
-			pnv_eeh_outb_dbgfs_set, "0x%llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbA_dbgfs_ops, pnv_eeh_inbA_dbgfs_get,
-			pnv_eeh_inbA_dbgfs_set, "0x%llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(pnv_eeh_inbB_dbgfs_ops, pnv_eeh_inbB_dbgfs_get,
-			pnv_eeh_inbB_dbgfs_set, "0x%llx\n");
 #endif /* CONFIG_DEBUG_FS */
 
 /**
@@ -268,13 +252,13 @@ static int pnv_eeh_post_init(void)
 
 		debugfs_create_file("err_injct_outbound", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_outb_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_outb);
 		debugfs_create_file("err_injct_inboundA", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_inbA_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_inbA);
 		debugfs_create_file("err_injct_inboundB", 0600,
 				    phb->dbgfs, hose,
-				    &pnv_eeh_inbB_dbgfs_ops);
+				    &pnv_eeh_dbgfs_ops_inbB);
 #endif /* CONFIG_DEBUG_FS */
 	}
 
