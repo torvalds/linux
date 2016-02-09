@@ -81,7 +81,7 @@ static inline void hfi1_add_retry_timer(struct rvt_qp *qp)
  *
  * add an rnr timer on the QP
  */
-static inline void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to)
+void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 

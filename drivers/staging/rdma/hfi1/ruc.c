@@ -371,6 +371,7 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	int release;
 	int ret;
 	int copy_last = 0;
+	u32 to;
 
 	rcu_read_lock();
 
@@ -600,11 +601,8 @@ rnr_nak:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
-	sqp->s_flags |= RVT_S_WAIT_RNR;
-	sqp->s_timer.function = hfi1_rc_rnr_retry;
-	sqp->s_timer.expires = jiffies +
-		usecs_to_jiffies(ib_hfi1_rnr_table[qp->r_min_rnr_timer]);
-	add_timer(&sqp->s_timer);
+	to = ib_hfi1_rnr_table[qp->r_min_rnr_timer];
+	hfi1_add_rnr_timer(sqp, to);
 	goto clr_busy;
 
 op_err:
