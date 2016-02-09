@@ -277,7 +277,6 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 				"Failed to allocate I2C device for RTC\n");
 			return -ENODEV;
 		}
-		i2c_set_clientdata(max77686->rtc, max77686);
 
 		max77686->rtc_regmap =
 			devm_regmap_init_i2c(max77686->rtc,
