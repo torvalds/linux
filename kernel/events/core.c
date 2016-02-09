@@ -6710,7 +6710,7 @@ static void swevent_hlist_release(struct swevent_htable *swhash)
 	kfree_rcu(hlist, rcu_head);
 }
 
-static void swevent_hlist_put_cpu(struct perf_event *event, int cpu)
+static void swevent_hlist_put_cpu(int cpu)
 {
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 
@@ -6722,15 +6722,15 @@ static void swevent_hlist_put_cpu(struct perf_event *event, int cpu)
 	mutex_unlock(&swhash->hlist_mutex);
 }
 
-static void swevent_hlist_put(struct perf_event *event)
+static void swevent_hlist_put(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		swevent_hlist_put_cpu(event, cpu);
+		swevent_hlist_put_cpu(cpu);
 }
 
-static int swevent_hlist_get_cpu(struct perf_event *event, int cpu)
+static int swevent_hlist_get_cpu(int cpu)
 {
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 	int err = 0;
@@ -6753,14 +6753,13 @@ exit:
 	return err;
 }
 
-static int swevent_hlist_get(struct perf_event *event)
+static int swevent_hlist_get(void)
 {
-	int err;
-	int cpu, failed_cpu;
+	int err, cpu, failed_cpu;
 
 	get_online_cpus();
 	for_each_possible_cpu(cpu) {
-		err = swevent_hlist_get_cpu(event, cpu);
+		err = swevent_hlist_get_cpu(cpu);
 		if (err) {
 			failed_cpu = cpu;
 			goto fail;
@@ -6773,7 +6772,7 @@ fail:
 	for_each_possible_cpu(cpu) {
 		if (cpu == failed_cpu)
 			break;
-		swevent_hlist_put_cpu(event, cpu);
+		swevent_hlist_put_cpu(cpu);
 	}
 
 	put_online_cpus();
@@ -6789,7 +6788,7 @@ static void sw_perf_event_destroy(struct perf_event *event)
 	WARN_ON(event->parent);
 
 	static_key_slow_dec(&perf_swevent_enabled[event_id]);
-	swevent_hlist_put(event);
+	swevent_hlist_put();
 }
 
 static int perf_swevent_init(struct perf_event *event)
@@ -6820,7 +6819,7 @@ static int perf_swevent_init(struct perf_event *event)
 	if (!event->parent) {
 		int err;
 
-		err = swevent_hlist_get(event);
+		err = swevent_hlist_get();
 		if (err)
 			return err;
 
