@@ -19,28 +19,28 @@
 #include <asm/ipl.h>
 
 /*
- * For show_trace we have tree different stack to consider:
+ * For dump_trace we have tree different stack to consider:
  *   - the panic stack which is used if the kernel stack has overflown
  *   - the asynchronous interrupt stack (cpu related)
  *   - the synchronous kernel stack (process related)
- * The stack trace can start at any of the three stack and can potentially
+ * The stack trace can start at any of the three stacks and can potentially
  * touch all of them. The order is: panic stack, async stack, sync stack.
  */
 static unsigned long
-__show_trace(unsigned long sp, unsigned long low, unsigned long high)
+__dump_trace(dump_trace_func_t func, void *data, unsigned long sp,
+	     unsigned long low, unsigned long high)
 {
 	struct stack_frame *sf;
 	struct pt_regs *regs;
-	unsigned long addr;
 
 	while (1) {
 		if (sp < low || sp > high - sizeof(*sf))
 			return sp;
 		sf = (struct stack_frame *) sp;
-		addr = sf->gprs[8];
-		printk("([<%016lx>] %pSR)\n", addr, (void *)addr);
 		/* Follow the backchain. */
 		while (1) {
+			if (func(data, sf->gprs[8]))
+				return sp;
 			low = sp;
 			sp = sf->back_chain;
 			if (!sp)
@@ -48,45 +48,58 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 			if (sp <= low || sp > high - sizeof(*sf))
 				return sp;
 			sf = (struct stack_frame *) sp;
-			addr = sf->gprs[8];
-			printk(" [<%016lx>] %pSR\n", addr, (void *)addr);
 		}
 		/* Zero backchain detected, check for interrupt frame. */
 		sp = (unsigned long) (sf + 1);
 		if (sp <= low || sp > high - sizeof(*regs))
 			return sp;
 		regs = (struct pt_regs *) sp;
-		addr = regs->psw.addr;
-		printk(" [<%016lx>] %pSR\n", addr, (void *)addr);
+		if (!user_mode(regs)) {
+			if (func(data, regs->psw.addr))
+				return sp;
+		}
 		low = sp;
 		sp = regs->gprs[15];
 	}
 }
 
-static void show_trace(struct task_struct *task, unsigned long *stack)
+void dump_trace(dump_trace_func_t func, void *data, struct task_struct *task,
+		unsigned long sp)
 {
-	const unsigned long frame_size =
-		STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
-	unsigned long sp;
+	unsigned long frame_size;
 
-	sp = (unsigned long) stack;
-	if (!sp)
-		sp = task ? task->thread.ksp : current_stack_pointer();
-	printk("Call Trace:\n");
+	frame_size = STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 #ifdef CONFIG_CHECK_STACK
-	sp = __show_trace(sp,
+	sp = __dump_trace(func, data, sp,
 			  S390_lowcore.panic_stack + frame_size - 4096,
 			  S390_lowcore.panic_stack + frame_size);
 #endif
-	sp = __show_trace(sp,
+	sp = __dump_trace(func, data, sp,
 			  S390_lowcore.async_stack + frame_size - ASYNC_SIZE,
 			  S390_lowcore.async_stack + frame_size);
 	if (task)
-		__show_trace(sp, (unsigned long) task_stack_page(task),
-			     (unsigned long) task_stack_page(task) + THREAD_SIZE);
+		__dump_trace(func, data, sp,
+			     (unsigned long)task_stack_page(task),
+			     (unsigned long)task_stack_page(task) + THREAD_SIZE);
 	else
-		__show_trace(sp, S390_lowcore.thread_info,
+		__dump_trace(func, data, sp,
+			     S390_lowcore.thread_info,
 			     S390_lowcore.thread_info + THREAD_SIZE);
+}
+EXPORT_SYMBOL_GPL(dump_trace);
+
+static int show_address(void *data, unsigned long address)
+{
+	printk("([<%016lx>] %pSR)\n", address, (void *)address);
+	return 0;
+}
+
+static void show_trace(struct task_struct *task, unsigned long sp)
+{
+	if (!sp)
+		sp = task ? task->thread.ksp : current_stack_pointer();
+	printk("Call Trace:\n");
+	dump_trace(show_address, NULL, task, sp);
 	if (!task)
 		task = current;
 	debug_show_held_locks(task);
@@ -112,7 +125,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		printk("%016lx ", *stack++);
 	}
 	printk("\n");
-	show_trace(task, sp);
+	show_trace(task, (unsigned long)sp);
 }
 
 static void show_last_breaking_event(struct pt_regs *regs)
@@ -152,7 +165,7 @@ void show_regs(struct pt_regs *regs)
 	show_registers(regs);
 	/* Show stack backtrace if pt_regs is from kernel mode */
 	if (!user_mode(regs))
-		show_trace(NULL, (unsigned long *) regs->gprs[15]);
+		show_trace(NULL, regs->gprs[15]);
 	show_last_breaking_event(regs);
 }
 

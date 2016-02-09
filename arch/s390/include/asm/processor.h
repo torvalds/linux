@@ -184,6 +184,10 @@ struct task_struct;
 struct mm_struct;
 struct seq_file;
 
+typedef int (*dump_trace_func_t)(void *data, unsigned long address);
+void dump_trace(dump_trace_func_t func, void *data,
+		struct task_struct *task, unsigned long sp);
+
 void show_cacheinfo(struct seq_file *m);
 
 /* Free all resources held by a thread. */

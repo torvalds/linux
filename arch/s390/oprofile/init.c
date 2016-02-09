@@ -20,8 +20,6 @@
 
 #include "../../../drivers/oprofile/oprof.h"
 
-extern void s390_backtrace(struct pt_regs * const regs, unsigned int depth);
-
 #include "hwsampler.h"
 #include "op_counter.h"
 
@@ -492,6 +490,24 @@ static int oprofile_hwsampler_init(struct oprofile_operations *ops)
 static void oprofile_hwsampler_exit(void)
 {
 	hwsampler_shutdown();
+}
+
+static int __s390_backtrace(void *data, unsigned long address)
+{
+	unsigned int *depth = data;
+
+	if (*depth == 0)
+		return 1;
+	(*depth)--;
+	oprofile_add_trace(address);
+	return 0;
+}
+
+static void s390_backtrace(struct pt_regs *regs, unsigned int depth)
+{
+	if (user_mode(regs))
+		return;
+	dump_trace(__s390_backtrace, &depth, NULL, regs->gprs[15]);
 }
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)
