@@ -59,12 +59,12 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	}
 
 	/* get the interrupt */
-	data->uart.port.irq = platform_get_irq(pdev, 0);
-	if (data->uart.port.irq < 0) {
-		dev_err(&pdev->dev, "irq not found - %i",
-			data->uart.port.irq);
-		return data->uart.port.irq;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "irq not found - %i", ret);
+		return ret;
 	}
+	data->uart.port.irq = ret;
 
 	/* map the main registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
