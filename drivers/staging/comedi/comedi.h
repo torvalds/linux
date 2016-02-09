@@ -183,11 +183,8 @@
 #define SDF_MAXDATA	0x0010	/* maxdata depends on channel */
 #define SDF_FLAGS	0x0020	/* flags depend on channel */
 #define SDF_RANGETYPE	0x0040	/* range type depends on channel */
-#define SDF_MODE0	0x0080	/* can do mode 0 */
-#define SDF_MODE1	0x0100	/* can do mode 1 */
-#define SDF_MODE2	0x0200	/* can do mode 2 */
-#define SDF_MODE3	0x0400	/* can do mode 3 */
-#define SDF_MODE4	0x0800	/* can do mode 4 */
+#define SDF_PWM_COUNTER 0x0080	/* PWM can automatically switch off */
+#define SDF_PWM_HBRIDGE 0x0100	/* PWM is signed (H-bridge) */
 #define SDF_CMD		0x1000	/* can do commands (deprecated) */
 #define SDF_SOFT_CALIBRATED	0x2000 /* subdevice uses software calibration */
 #define SDF_CMD_WRITE		0x4000 /* can do output commands */
@@ -210,9 +207,6 @@
 #define SDF_RUNNING	0x08000000	/* subdevice is acquiring data */
 #define SDF_LSAMPL	0x10000000	/* subdevice uses 32-bit samples */
 #define SDF_PACKED	0x20000000	/* subdevice can do packed DIO */
-/* re recycle these flags for PWM */
-#define SDF_PWM_COUNTER SDF_MODE0	/* PWM can automatically switch off */
-#define SDF_PWM_HBRIDGE SDF_MODE1	/* PWM is signed (H-bridge) */
 
 /* subdevice types */
 
@@ -730,17 +724,9 @@ struct comedi_krange {
  *
  * %SDF_RANGETYPE - range types are channel-specific.
  *
- * %SDF_MODE0 (aliased as %SDF_PWM_COUNTER) - the subdevice can do mode 0 (?)
- * or PWM can switch off automatically.
+ * %SDF_PWM_COUNTER - PWM can switch off automatically.
  *
- * %SDF_MODE1 (aliased as %SDF_PWM_HBRIDGE) - the subdevice can do mode 1 (?)
- * or PWM is signed (H-bridge).
- *
- * %SDF_MODE2 - the subdevice can do mode 2 (?).
- *
- * %SDF_MODE3 - the subdevice can do mode 3 (?).
- *
- * %SDF_MODE4 - the subdevice can do mode 4 (?).
+ * %SDF_PWM_HBRIDGE - or PWM is signed (H-bridge).
  *
  * %SDF_CMD - the subdevice supports asynchronous commands.
  *
