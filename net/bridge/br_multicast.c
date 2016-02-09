@@ -283,8 +283,7 @@ static void br_multicast_del_pg(struct net_bridge *br,
 		rcu_assign_pointer(*pp, p->next);
 		hlist_del_init(&p->mglist);
 		del_timer(&p->timer);
-		br_mdb_notify(br->dev, p->port, &pg->addr, RTM_DELMDB,
-			      p->state);
+		br_mdb_notify(br->dev, p, RTM_DELMDB);
 		call_rcu_bh(&p->rcu, br_multicast_free_pg);
 
 		if (!mp->ports && !mp->mglist &&
@@ -304,7 +303,7 @@ static void br_multicast_port_group_expired(unsigned long data)
 
 	spin_lock(&br->multicast_lock);
 	if (!netif_running(br->dev) || timer_pending(&pg->timer) ||
-	    hlist_unhashed(&pg->mglist) || pg->state & MDB_PERMANENT)
+	    hlist_unhashed(&pg->mglist) || pg->flags & MDB_PG_FLAGS_PERMANENT)
 		goto out;
 
 	br_multicast_del_pg(br, pg);
@@ -649,7 +648,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 			struct net_bridge_port *port,
 			struct br_ip *group,
 			struct net_bridge_port_group __rcu *next,
-			unsigned char state)
+			unsigned char flags)
 {
 	struct net_bridge_port_group *p;
 
@@ -659,7 +658,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 
 	p->addr = *group;
 	p->port = port;
-	p->state = state;
+	p->flags = flags;
 	rcu_assign_pointer(p->next, next);
 	hlist_add_head(&p->mglist, &port->mglist);
 	setup_timer(&p->timer, br_multicast_port_group_expired,
@@ -702,11 +701,11 @@ static int br_multicast_add_group(struct net_bridge *br,
 			break;
 	}
 
-	p = br_multicast_new_port_group(port, group, *pp, MDB_TEMPORARY);
+	p = br_multicast_new_port_group(port, group, *pp, 0);
 	if (unlikely(!p))
 		goto err;
 	rcu_assign_pointer(*pp, p);
-	br_mdb_notify(br->dev, port, group, RTM_NEWMDB, MDB_TEMPORARY);
+	br_mdb_notify(br->dev, p, RTM_NEWMDB);
 
 found:
 	mod_timer(&p->timer, now + br->multicast_membership_interval);
@@ -975,7 +974,7 @@ void br_multicast_disable_port(struct net_bridge_port *port)
 
 	spin_lock(&br->multicast_lock);
 	hlist_for_each_entry_safe(pg, n, &port->mglist, mglist)
-		if (pg->state == MDB_TEMPORARY)
+		if (!(pg->flags & MDB_PG_FLAGS_PERMANENT))
 			br_multicast_del_pg(br, pg);
 
 	if (!hlist_unhashed(&port->rlist)) {
@@ -1453,8 +1452,7 @@ br_multicast_leave_group(struct net_bridge *br,
 			hlist_del_init(&p->mglist);
 			del_timer(&p->timer);
 			call_rcu_bh(&p->rcu, br_multicast_free_pg);
-			br_mdb_notify(br->dev, port, group, RTM_DELMDB,
-				      p->state);
+			br_mdb_notify(br->dev, p, RTM_DELMDB);
 
 			if (!mp->ports && !mp->mglist &&
 			    netif_running(br->dev))

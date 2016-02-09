@@ -183,6 +183,8 @@ struct br_mdb_entry {
 #define MDB_TEMPORARY 0
 #define MDB_PERMANENT 1
 	__u8 state;
+#define MDB_FLAGS_OFFLOAD	(1 << 0)
+	__u8 flags;
 	__u16 vid;
 	struct {
 		union {
