@@ -52,7 +52,6 @@ struct gpio_device;
  *	get rid of the static GPIO number space in the long run.
  * @ngpio: the number of GPIOs handled by this controller; the last GPIO
  *	handled is (base + ngpio - 1).
- * @desc: array of ngpio descriptors. Private.
  * @names: if set, must be an array of strings to use as alternative
  *      names for the GPIOs in this chip. Any entry in the array
  *      may be NULL if there is no alias for the GPIO, however the
@@ -140,7 +139,6 @@ struct gpio_chip {
 						struct gpio_chip *chip);
 	int			base;
 	u16			ngpio;
-	struct gpio_desc	*desc;
 	const char		*const *names;
 	bool			can_sleep;
 	bool			irq_not_threaded;

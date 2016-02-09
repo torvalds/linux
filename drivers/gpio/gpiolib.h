@@ -32,6 +32,7 @@ struct acpi_device;
  * @owner: helps prevent removal of modules exporting active GPIOs
  * @chip: pointer to the corresponding gpiochip, holding static
  * data for this device
+ * @descs: array of ngpio descriptors.
  * @list: links gpio_device:s together for traversal
  *
  * This state container holds most of the runtime variable data
@@ -46,6 +47,7 @@ struct gpio_device {
 	struct device		*mockdev;
 	struct module		*owner;
 	struct gpio_chip	*chip;
+	struct gpio_desc	*descs;
 	struct list_head        list;
 };
 
@@ -152,7 +154,7 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
  */
 static int __maybe_unused gpio_chip_hwgpio(const struct gpio_desc *desc)
 {
-	return desc - &desc->chip->desc[0];
+	return desc - &desc->chip->gpiodev->descs[0];
 }
 
 /* With descriptor prefix */
