@@ -447,6 +447,9 @@ static int arc_emac_open(struct net_device *ndev)
 		*last_rx_bd = (*last_rx_bd + 1) % RX_BD_NUM;
 	}
 
+	priv->txbd_curr = 0;
+	priv->txbd_dirty = 0;
+
 	/* Clean Tx BD's */
 	memset(priv->txbd, 0, TX_RING_SZ);
 
