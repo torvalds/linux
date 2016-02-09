@@ -713,7 +713,7 @@ static int octeon_irq_ciu_gpio_set_type(struct irq_data *data, unsigned int t)
 	irqd_set_trigger_type(data, t);
 	octeon_irq_gpio_setup(data);
 
-	if (irqd_get_trigger_type(data) & IRQ_TYPE_EDGE_BOTH)
+	if (t & IRQ_TYPE_EDGE_BOTH)
 		irq_set_handler_locked(data, handle_edge_irq);
 	else
 		irq_set_handler_locked(data, handle_level_irq);
