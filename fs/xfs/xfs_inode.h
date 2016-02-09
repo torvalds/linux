@@ -63,7 +63,7 @@ typedef struct xfs_inode {
 	unsigned long		i_flags;	/* see defined flags below */
 	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
 
-	xfs_icdinode_t		i_d;		/* most of ondisk inode */
+	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */

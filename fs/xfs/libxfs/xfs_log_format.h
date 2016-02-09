@@ -290,6 +290,7 @@ typedef struct xfs_inode_log_format_64 {
 	__int32_t		ilf_boffset;	/* off of inode in buffer */
 } xfs_inode_log_format_64_t;
 
+
 /*
  * Flags for xfs_trans_log_inode flags field.
  */
@@ -360,10 +361,10 @@ typedef struct xfs_ictimestamp {
 } xfs_ictimestamp_t;
 
 /*
- * NOTE:  This structure must be kept identical to struct xfs_dinode
- *	  except for the endianness annotations.
+ * Define the format of the inode core that is logged. This structure must be
+ * kept identical to struct xfs_dinode except for the endianness annotations.
  */
-typedef struct xfs_icdinode {
+struct xfs_log_dinode {
 	__uint16_t	di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
 	__uint16_t	di_mode;	/* mode and type of file */
 	__int8_t	di_version;	/* inode version */
@@ -407,13 +408,13 @@ typedef struct xfs_icdinode {
 	uuid_t		di_uuid;	/* UUID of the filesystem */
 
 	/* structure must be padded to 64 bit alignment */
-} xfs_icdinode_t;
+};
 
-static inline uint xfs_icdinode_size(int version)
+static inline uint xfs_log_dinode_size(int version)
 {
 	if (version == 3)
-		return sizeof(struct xfs_icdinode);
-	return offsetof(struct xfs_icdinode, di_next_unlinked);
+		return sizeof(struct xfs_log_dinode);
+	return offsetof(struct xfs_log_dinode, di_next_unlinked);
 }
 
 /*

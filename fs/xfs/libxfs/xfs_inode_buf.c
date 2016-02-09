@@ -196,8 +196,8 @@ xfs_imap_to_bp(
 
 void
 xfs_dinode_from_disk(
-	xfs_icdinode_t		*to,
-	xfs_dinode_t		*from)
+	struct xfs_icdinode	*to,
+	struct xfs_dinode	*from)
 {
 	to->di_magic = be16_to_cpu(from->di_magic);
 	to->di_mode = be16_to_cpu(from->di_mode);
@@ -243,8 +243,8 @@ xfs_dinode_from_disk(
 
 void
 xfs_dinode_to_disk(
-	xfs_dinode_t		*to,
-	xfs_icdinode_t		*from)
+	struct xfs_dinode	*to,
+	struct xfs_icdinode	*from)
 {
 	to->di_magic = cpu_to_be16(from->di_magic);
 	to->di_mode = cpu_to_be16(from->di_mode);
