@@ -14096,6 +14096,9 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret)
 		goto bail_cleanup;
 
+	/* Needs to be called before hfi1_firmware_init */
+	get_platform_config(dd);
+
 	/* read in firmware */
 	ret = hfi1_firmware_init(dd);
 	if (ret)

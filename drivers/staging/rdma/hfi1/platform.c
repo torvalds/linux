@@ -47,7 +47,48 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+
 #include "hfi.h"
+#include "efivar.h"
+
+void get_platform_config(struct hfi1_devdata *dd)
+{
+	int ret = 0;
+	unsigned long size = 0;
+	u8 *temp_platform_config = NULL;
+
+	ret = read_hfi1_efi_var(dd, "configuration", &size,
+				(void **)&temp_platform_config);
+	if (ret) {
+		dd_dev_info(dd,
+			    "%s: Failed to get platform config from UEFI, falling back to request firmware\n",
+			    __func__);
+		/* fall back to request firmware */
+		platform_config_load = 1;
+		goto bail;
+	}
+
+	dd->platform_config.data = temp_platform_config;
+	dd->platform_config.size = size;
+
+bail:
+	/* exit */;
+}
+
+void free_platform_config(struct hfi1_devdata *dd)
+{
+	if (!platform_config_load) {
+		/*
+		 * was loaded from EFI, release memory
+		 * allocated by read_efi_var
+		 */
+		kfree(dd->platform_config.data);
+	}
+	/*
+	 * else do nothing, dispose_firmware will release
+	 * struct firmware platform_config on driver exit
+	 */
+}
 
 int set_qsfp_tx(struct hfi1_pportdata *ppd, int on)
 {
@@ -739,8 +780,7 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 
 	/* Skip the tuning for testing (loopback != none) and simulations */
 	if (loopback != LOOPBACK_NONE ||
-	    ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR ||
-	    !dd->pcfg_cache.cache_valid) {
+	    ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
 		ppd->driver_link_ready = 1;
 		return;
 	}
@@ -805,6 +845,12 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 						&rx_preset_index,
 						&tuning_method,
 						&total_atten);
+
+				/*
+				 * We may have modified the QSFP memory, so
+				 * update the cache to reflect the changes
+				 */
+				refresh_qsfp_cache(ppd, &ppd->qsfp_info);
 				if (ret)
 					goto bail;
 			} else {
@@ -820,7 +866,7 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 		break;
 	default:
 		dd_dev_info(ppd->dd, "%s: Unknown port type\n", __func__);
-		break;
+		goto bail;
 	}
 	if (ppd->offline_disabled_reason ==
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE))
@@ -828,10 +874,8 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 			      total_atten,
 			      ppd->qsfp_info.limiting_active);
 
-	if (ppd->port_type == PORT_TYPE_QSFP)
-		refresh_qsfp_cache(ppd, &ppd->qsfp_info);
-
-	ppd->driver_link_ready = 1;
+	if (!ret)
+		ppd->driver_link_ready = 1;
 
 	return;
 bail:

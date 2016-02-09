@@ -1028,6 +1028,7 @@ struct hfi1_devdata {
 	u16 irev;	/* implementation revision */
 	u16 dc8051_ver; /* 8051 firmware version */
 
+	struct platform_config platform_config;
 	struct platform_config_cache pcfg_cache;
 	/* control high-level access to qsfp */
 	struct mutex qsfp_i2c_mutex;

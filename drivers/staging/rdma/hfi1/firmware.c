@@ -77,7 +77,13 @@ static uint fw_8051_load = 1;
 static uint fw_fabric_serdes_load = 1;
 static uint fw_pcie_serdes_load = 1;
 static uint fw_sbus_load = 1;
-static uint platform_config_load = 1;
+
+/*
+ * Access required in platform.c
+ * Maintains state of whether the platform config was fetched via the
+ * fallback option
+ */
+uint platform_config_load;
 
 /* Firmware file names get set in hfi1_firmware_init() based on the above */
 static char *fw_8051_name;
@@ -677,10 +683,15 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 	}
 	/* not in FW_TRY state */
 
-	if (fw_state == FW_FINAL)
+	if (fw_state == FW_FINAL) {
+		if (platform_config) {
+			dd->platform_config.data = platform_config->data;
+			dd->platform_config.size = platform_config->size;
+		}
 		goto done;	/* already acquired */
-	else if (fw_state == FW_ERR)
+	} else if (fw_state == FW_ERR) {
 		goto done;	/* already tried and failed */
+	}
 	/* fw_state is FW_EMPTY */
 
 	/* set fw_state to FW_TRY, FW_FINAL, or FW_ERR, and fw_err */
@@ -690,8 +701,14 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 		platform_config = NULL;
 		err = request_firmware(&platform_config, platform_config_name,
 						&dd->pcidev->dev);
-		if (err)
+		if (err) {
 			platform_config = NULL;
+			fw_state = FW_ERR;
+			fw_err = -ENOENT;
+			goto done;
+		}
+		dd->platform_config.data = platform_config->data;
+		dd->platform_config.size = platform_config->size;
 	}
 
 done:
@@ -1457,14 +1474,14 @@ int parse_platform_config(struct hfi1_devdata *dd)
 {
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
 	u32 *ptr = NULL;
-	u32 header1 = 0, header2 = 0, magic_num = 0, crc = 0;
+	u32 header1 = 0, header2 = 0, magic_num = 0, crc = 0, file_length = 0;
 	u32 record_idx = 0, table_type = 0, table_length_dwords = 0;
 
-	if (platform_config == NULL) {
+	if (!dd->platform_config.data) {
 		dd_dev_info(dd, "%s: Missing config file\n", __func__);
 		goto bail;
 	}
-	ptr = (u32 *)platform_config->data;
+	ptr = (u32 *)dd->platform_config.data;
 
 	magic_num = *ptr;
 	ptr++;
@@ -1473,12 +1490,31 @@ int parse_platform_config(struct hfi1_devdata *dd)
 		goto bail;
 	}
 
-	while (ptr < (u32 *)(platform_config->data + platform_config->size)) {
+	/* Field is file size in DWORDs */
+	file_length = (*ptr) * 4;
+	ptr++;
+
+	if (file_length > dd->platform_config.size) {
+		dd_dev_info(dd, "%s:File claims to be larger than read size\n",
+			    __func__);
+		goto bail;
+	} else if (file_length < dd->platform_config.size) {
+		dd_dev_info(dd, "%s:File claims to be smaller than read size\n",
+			    __func__);
+	}
+	/* exactly equal, perfection */
+
+	/*
+	 * In both cases where we proceed, using the self-reported file length
+	 * is the safer option
+	 */
+	while (ptr < (u32 *)(dd->platform_config.data + file_length)) {
 		header1 = *ptr;
 		header2 = *(ptr + 1);
 		if (header1 != ~header2) {
 			dd_dev_info(dd, "%s: Failed validation at offset %ld\n",
-				__func__, (ptr - (u32 *)platform_config->data));
+				__func__, (ptr -
+					   (u32 *)dd->platform_config.data));
 			goto bail;
 		}
 
@@ -1520,7 +1556,7 @@ int parse_platform_config(struct hfi1_devdata *dd)
 				dd_dev_info(dd,
 				      "%s: Unknown data table %d, offset %ld\n",
 					__func__, table_type,
-				       (ptr - (u32 *)platform_config->data));
+				       (ptr - (u32 *)dd->platform_config.data));
 				goto bail; /* We don't trust this file now */
 			}
 			pcfgcache->config_tables[table_type].table = ptr;
@@ -1541,9 +1577,10 @@ int parse_platform_config(struct hfi1_devdata *dd)
 				break;
 			default:
 				dd_dev_info(dd,
-				  "%s: Unknown metadata table %d, offset %ld\n",
-				  __func__, table_type,
-				  (ptr - (u32 *)platform_config->data));
+					    "%s: Unknown meta table %d, offset %ld\n",
+					    __func__, table_type,
+					    (ptr -
+					     (u32 *)dd->platform_config.data));
 				goto bail; /* We don't trust this file now */
 			}
 			pcfgcache->config_tables[table_type].table_metadata =
@@ -1559,7 +1596,9 @@ int parse_platform_config(struct hfi1_devdata *dd)
 		ptr += table_length_dwords;
 		if (crc != *ptr) {
 			dd_dev_info(dd, "%s: Failed CRC check at offset %ld\n",
-				__func__, (ptr - (u32 *)platform_config->data));
+				    __func__, (ptr -
+					       (u32 *)
+					       dd->platform_config.data));
 			goto bail;
 		}
 		/* Jump the CRC DWORD */
@@ -1675,7 +1714,7 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 		}
 		break;
 	case PLATFORM_CONFIG_PORT_TABLE:
-		/* Port table is 4 DWORDS in META_VERSION 0 */
+		/* Port table is 4 DWORDS */
 		src_ptr = dd->hfi1_id ?
 			pcfgcache->config_tables[table_type].table + 4 :
 			pcfgcache->config_tables[table_type].table;

@@ -983,6 +983,7 @@ void hfi1_free_devdata(struct hfi1_devdata *dd)
 	idr_remove(&hfi1_unit_table, dd->unit);
 	list_del(&dd->list);
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	free_platform_config(dd);
 	hfi1_dbg_ibdev_exit(&dd->verbs_dev);
 	rcu_barrier(); /* wait for rcu callbacks to complete */
 	free_percpu(dd->int_counter);
