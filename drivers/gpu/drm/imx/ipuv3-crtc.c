@@ -123,7 +123,6 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 
 	ipu_crtc->newfb = fb;
 	ipu_crtc->page_flip_event = event;
-	crtc->primary->fb = fb;
 
 	return 0;
 }
