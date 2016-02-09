@@ -322,6 +322,14 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	int ret;
 
 	/*
+	 * Initialize amdkfd before starting radeon. If it was not loaded yet,
+	 * defer radeon probing
+	 */
+	ret = radeon_kfd_init();
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
+	/*
 	 * apple-gmux is needed on dual GPU MacBook Pro
 	 * to probe the panel if we're the inactive GPU.
 	 */
@@ -580,8 +588,6 @@ static int __init radeon_init(void)
 		DRM_ERROR("No UMS support in radeon module!\n");
 		return -EINVAL;
 	}
-
-	radeon_kfd_init();
 
 	/* let modprobe override vga console setting */
 	return drm_pci_init(driver, pdriver);
