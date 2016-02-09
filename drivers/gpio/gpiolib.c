@@ -405,6 +405,7 @@ static void gpiodevice_release(struct device *dev)
 	cdev_del(&gdev->chrdev);
 	list_del(&gdev->list);
 	ida_simple_remove(&gpio_ida, gdev->id);
+	kfree(gdev);
 }
 
 /**
