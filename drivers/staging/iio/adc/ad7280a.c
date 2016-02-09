@@ -214,8 +214,8 @@ static int __ad7280_read32(struct ad7280_state *st, unsigned *val)
 static int ad7280_write(struct ad7280_state *st, unsigned devaddr,
 			unsigned addr, bool all, unsigned val)
 {
-	unsigned reg = (devaddr << 27 | addr << 21 |
-			(val & 0xFF) << 13 | all << 12);
+	unsigned reg = devaddr << 27 | addr << 21 |
+			(val & 0xFF) << 13 | all << 12;
 
 	reg |= ad7280_calc_crc8(st->crc_tab, reg >> 11) << 3 | 0x2;
 	st->buf[0] = cpu_to_be32(reg);
