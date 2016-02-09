@@ -2758,8 +2758,6 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		sg_to_sec4_sg_last(req->dst, dst_nents,
 				   edesc->sec4_sg + sec4_sg_index, 0);
 	}
-	dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma, sec4_sg_bytes,
-				   DMA_TO_DEVICE);
 
 	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
 					    sec4_sg_bytes, DMA_TO_DEVICE);
@@ -2768,6 +2766,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma, sec4_sg_bytes,
+				   DMA_TO_DEVICE);
 	return edesc;
 }
 
