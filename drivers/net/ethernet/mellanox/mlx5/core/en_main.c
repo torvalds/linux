@@ -2137,9 +2137,6 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 
 	SET_NETDEV_DEV(netdev, &mdev->pdev->dev);
 
-	if (priv->params.num_tc > 1)
-		mlx5e_netdev_ops.ndo_select_queue = mlx5e_select_queue;
-
 	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
 		mlx5e_netdev_ops.ndo_set_vf_mac = mlx5e_set_vf_mac;
 		mlx5e_netdev_ops.ndo_set_vf_vlan = mlx5e_set_vf_vlan;
