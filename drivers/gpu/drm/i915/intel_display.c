@@ -13098,8 +13098,6 @@ static void intel_modeset_clear_plls(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll_config *shared_dpll = NULL;
-	struct intel_crtc *intel_crtc;
-	struct intel_crtc_state *intel_crtc_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int i;
@@ -13108,21 +13106,21 @@ static void intel_modeset_clear_plls(struct drm_atomic_state *state)
 		return;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		int dpll;
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		int old_dpll = to_intel_crtc_state(crtc->state)->shared_dpll;
 
-		intel_crtc = to_intel_crtc(crtc);
-		intel_crtc_state = to_intel_crtc_state(crtc_state);
-		dpll = intel_crtc_state->shared_dpll;
-
-		if (!needs_modeset(crtc_state) || dpll == DPLL_ID_PRIVATE)
+		if (!needs_modeset(crtc_state))
 			continue;
 
-		intel_crtc_state->shared_dpll = DPLL_ID_PRIVATE;
+		to_intel_crtc_state(crtc_state)->shared_dpll = DPLL_ID_PRIVATE;
+
+		if (old_dpll == DPLL_ID_PRIVATE)
+			continue;
 
 		if (!shared_dpll)
 			shared_dpll = intel_atomic_get_shared_dpll_state(state);
 
-		shared_dpll[dpll].crtc_mask &= ~(1 << intel_crtc->pipe);
+		shared_dpll[old_dpll].crtc_mask &= ~(1 << intel_crtc->pipe);
 	}
 }
 
@@ -15926,9 +15924,6 @@ void intel_display_resume(struct drm_device *dev)
 		return;
 
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
-
-	/* preserve complete old state, including dpll */
-	intel_atomic_get_shared_dpll_state(state);
 
 	for_each_crtc(dev, crtc) {
 		struct drm_crtc_state *crtc_state =
