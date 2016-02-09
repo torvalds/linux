@@ -178,7 +178,7 @@ struct ufshcd_lrb {
 };
 
 /**
- * struct ufs_query - holds relevent data structures for query request
+ * struct ufs_query - holds relevant data structures for query request
  * @request: request upiu and function
  * @descriptor: buffer for sending/receiving descriptor
  * @response: response upiu and response
