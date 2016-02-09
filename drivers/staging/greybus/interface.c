@@ -23,11 +23,32 @@ static DEVICE_ATTR_RO(field)
 gb_interface_attr(ddbl1_manufacturer_id, "0x%08x");
 gb_interface_attr(ddbl1_product_id, "0x%08x");
 gb_interface_attr(interface_id, "%u");
-gb_interface_attr(vendor_id, "0x%08x");
-gb_interface_attr(product_id, "0x%08x");
 gb_interface_attr(vendor_string, "%s");
 gb_interface_attr(product_string, "%s");
 gb_interface_attr(serial_number, "0x%016llx");
+
+static ssize_t vendor_id_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+
+	/* clear the upper 16-bits to keep userspace "simple" */
+	return scnprintf(buf, PAGE_SIZE, "0x%04x\n",
+			 (0x0000FFFF & intf->vendor_id));
+}
+static DEVICE_ATTR_RO(vendor_id);
+
+static ssize_t product_id_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+
+	/* clear the upper 16-bits to keep userspace "simple" */
+	return scnprintf(buf, PAGE_SIZE, "0x%04x\n",
+			 (0x0000FFFF & intf->product_id));
+}
+static DEVICE_ATTR_RO(product_id);
 
 static ssize_t version_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
