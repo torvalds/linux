@@ -295,7 +295,6 @@ struct tegra_pcie {
 	struct tegra_msi msi;
 
 	struct list_head ports;
-	unsigned int num_ports;
 	u32 xbar_config;
 
 	struct regulator_bulk_data *supplies;
