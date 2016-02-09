@@ -64,6 +64,7 @@ int dev_pm_opp_set_prop_name(struct device *dev, const char *name);
 void dev_pm_opp_put_prop_name(struct device *dev);
 int dev_pm_opp_set_regulator(struct device *dev, const char *name);
 void dev_pm_opp_put_regulator(struct device *dev);
+int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq);
 #else
 static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 {
@@ -171,6 +172,11 @@ static inline int dev_pm_opp_set_regulator(struct device *dev, const char *name)
 }
 
 static inline void dev_pm_opp_put_regulator(struct device *dev) {}
+
+static inline int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
+{
+	return -EINVAL;
+}
 
 #endif		/* CONFIG_PM_OPP */
 
