@@ -758,6 +758,12 @@ add_dev:
 
 	pcibios_add_bus(child);
 
+	if (child->ops->add_bus) {
+		ret = child->ops->add_bus(child);
+		if (WARN_ON(ret < 0))
+			dev_err(&child->dev, "failed to add bus: %d\n", ret);
+	}
+
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(child);
 
