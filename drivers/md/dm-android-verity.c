@@ -75,7 +75,7 @@ static int table_extract_mpi_array(struct public_key_signature *pks,
 }
 
 static struct public_key_signature *table_make_digest(
-						enum pkey_hash_algo hash,
+						enum hash_algo hash,
 						const void *table,
 						unsigned long table_len)
 {
@@ -88,7 +88,7 @@ static struct public_key_signature *table_make_digest(
 	/* Allocate the hashing algorithm we're going to need and find out how
 	 * big the hash operational data will be.
 	 */
-	tfm = crypto_alloc_shash(pkey_hash_algo[hash], 0, 0);
+	tfm = crypto_alloc_shash(hash_algo_name[hash], 0, 0);
 	if (IS_ERR(tfm))
 		return ERR_CAST(tfm);
 
@@ -143,7 +143,7 @@ static int read_block_dev(struct bio_read *payload, struct block_device *bdev,
 	}
 
 	bio->bi_bdev = bdev;
-	bio->bi_sector = offset;
+	bio->bi_iter.bi_sector = offset;
 
 	payload->page_io = kzalloc(sizeof(struct page *) *
 		payload->number_of_pages, GFP_KERNEL);
@@ -505,7 +505,7 @@ static int verify_verity_signature(char *key_id,
 
 	key = key_ref_to_ptr(key_ref);
 
-	pks = table_make_digest(PKEY_HASH_SHA256,
+	pks = table_make_digest(HASH_ALGO_SHA256,
 			(const void *)metadata->verity_table,
 			le32_to_cpu(metadata->header->table_length));
 
@@ -569,7 +569,7 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	u32 data_block_size;
 	unsigned int major, minor,
 	no_of_args = VERITY_TABLE_ARGS + 2 + VERITY_TABLE_OPT_FEC_ARGS;
-	struct fec_header fec;
+	struct fec_header uninitialized_var(fec);
 	struct fec_ecc_metadata uninitialized_var(ecc);
 	char buf[FEC_ARG_LENGTH], *buf_ptr;
 	unsigned long long tmpll;
