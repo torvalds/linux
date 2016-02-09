@@ -263,7 +263,6 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 	return ret < 0 ? ret : 0;
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG
 int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 		      int psize, int ssize)
 {
@@ -290,7 +289,6 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 
 	return ret;
 }
-#endif /* CONFIG_MEMORY_HOTPLUG */
 
 static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
@@ -640,9 +638,16 @@ static unsigned long __init htab_get_table_size(void)
 #ifdef CONFIG_MEMORY_HOTPLUG
 int create_section_mapping(unsigned long start, unsigned long end)
 {
-	return htab_bolt_mapping(start, end, __pa(start),
-				 pgprot_val(PAGE_KERNEL), mmu_linear_psize,
-				 mmu_kernel_ssize);
+	int rc = htab_bolt_mapping(start, end, __pa(start),
+				   pgprot_val(PAGE_KERNEL), mmu_linear_psize,
+				   mmu_kernel_ssize);
+
+	if (rc < 0) {
+		int rc2 = htab_remove_mapping(start, end, mmu_linear_psize,
+					      mmu_kernel_ssize);
+		BUG_ON(rc2 && (rc2 != -ENOENT));
+	}
+	return rc;
 }
 
 int remove_section_mapping(unsigned long start, unsigned long end)

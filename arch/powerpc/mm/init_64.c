@@ -188,9 +188,9 @@ static int __meminit vmemmap_populated(unsigned long start, int page_size)
  */
 
 #ifdef CONFIG_PPC_BOOK3E
-static void __meminit vmemmap_create_mapping(unsigned long start,
-					     unsigned long page_size,
-					     unsigned long phys)
+static int __meminit vmemmap_create_mapping(unsigned long start,
+					    unsigned long page_size,
+					    unsigned long phys)
 {
 	/* Create a PTE encoding without page size */
 	unsigned long i, flags = _PAGE_PRESENT | _PAGE_ACCESSED |
@@ -208,6 +208,8 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 	 */
 	for (i = 0; i < page_size; i += PAGE_SIZE)
 		BUG_ON(map_kernel_page(start + i, phys, flags));
+
+	return 0;
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -217,15 +219,20 @@ static void vmemmap_remove_mapping(unsigned long start,
 }
 #endif
 #else /* CONFIG_PPC_BOOK3E */
-static void __meminit vmemmap_create_mapping(unsigned long start,
-					     unsigned long page_size,
-					     unsigned long phys)
+static int __meminit vmemmap_create_mapping(unsigned long start,
+					    unsigned long page_size,
+					    unsigned long phys)
 {
-	int  mapped = htab_bolt_mapping(start, start + page_size, phys,
-					pgprot_val(PAGE_KERNEL),
-					mmu_vmemmap_psize,
-					mmu_kernel_ssize);
-	BUG_ON(mapped < 0);
+	int rc = htab_bolt_mapping(start, start + page_size, phys,
+				   pgprot_val(PAGE_KERNEL),
+				   mmu_vmemmap_psize, mmu_kernel_ssize);
+	if (rc < 0) {
+		int rc2 = htab_remove_mapping(start, start + page_size,
+					      mmu_vmemmap_psize,
+					      mmu_kernel_ssize);
+		BUG_ON(rc2 && (rc2 != -ENOENT));
+	}
+	return rc;
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -304,6 +311,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 	for (; start < end; start += page_size) {
 		void *p;
+		int rc;
 
 		if (vmemmap_populated(start, page_size))
 			continue;
@@ -317,7 +325,13 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 		pr_debug("      * %016lx..%016lx allocated at %p\n",
 			 start, start + page_size, p);
 
-		vmemmap_create_mapping(start, page_size, __pa(p));
+		rc = vmemmap_create_mapping(start, page_size, __pa(p));
+		if (rc < 0) {
+			pr_warning(
+				"vmemmap_populate: Unable to create vmemmap mapping: %d\n",
+				rc);
+			return -EFAULT;
+		}
 	}
 
 	return 0;
