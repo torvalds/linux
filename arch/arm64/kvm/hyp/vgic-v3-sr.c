@@ -196,6 +196,7 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 			}
 
 			cpu_if->vgic_lr[i] = __gic_v3_get_lr(i);
+			__gic_v3_set_lr(0, i);
 		}
 
 		switch (nr_pri_bits) {
@@ -293,12 +294,10 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 		}
 
 		for (i = 0; i <= max_lr_idx; i++) {
-			val = 0;
+			if (!(live_lrs & (1 << i)))
+				continue;
 
-			if (live_lrs & (1 << i))
-				val = cpu_if->vgic_lr[i];
-
-			__gic_v3_set_lr(val, i);
+			__gic_v3_set_lr(cpu_if->vgic_lr[i], i);
 		}
 	}
 
