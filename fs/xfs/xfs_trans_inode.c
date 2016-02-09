@@ -117,7 +117,7 @@ xfs_trans_log_inode(
 	 */
 	if (!(ip->i_itemp->ili_item.li_desc->lid_flags & XFS_LID_DIRTY) &&
 	    IS_I_VERSION(VFS_I(ip))) {
-		ip->i_d.di_changecount = ++VFS_I(ip)->i_version;
+		VFS_I(ip)->i_version++;
 		flags |= XFS_ILOG_CORE;
 	}
 

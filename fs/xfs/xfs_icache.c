@@ -138,9 +138,9 @@ xfs_inode_free(
  * When we recycle a reclaimable inode, we need to re-initialise the VFS inode
  * part of the structure. This is made more complex by the fact we store
  * information about the on-disk values in the VFS inode and so we can't just
- * overwrite it's values unconditionally. Hence we save the parameters we
+ * overwrite the values unconditionally. Hence we save the parameters we
  * need to retain across reinitialisation, and rewrite them into the VFS inode
- * after resetting it's state even if resetting fails.
+ * after reinitialisation even if it fails.
  */
 static int
 xfs_reinit_inode(
@@ -150,11 +150,13 @@ xfs_reinit_inode(
 	int		error;
 	uint32_t	nlink = inode->i_nlink;
 	uint32_t	generation = inode->i_generation;
+	uint64_t	version = inode->i_version;
 
 	error = inode_init_always(mp->m_super, inode);
 
 	set_nlink(inode, nlink);
 	inode->i_generation = generation;
+	inode->i_version = version;
 	return error;
 }
 

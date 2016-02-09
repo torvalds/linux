@@ -364,7 +364,7 @@ xfs_inode_to_log_dinode(
 	to->di_flags = from->di_flags;
 
 	if (from->di_version == 3) {
-		to->di_changecount = from->di_changecount;
+		to->di_changecount = inode->i_version;
 		to->di_crtime.t_sec = from->di_crtime.t_sec;
 		to->di_crtime.t_nsec = from->di_crtime.t_nsec;
 		to->di_flags2 = from->di_flags2;
