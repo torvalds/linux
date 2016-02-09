@@ -2476,8 +2476,8 @@ xlog_recover_validate_buf_type(
 #ifdef CONFIG_XFS_RT
 	case XFS_BLFT_RTBITMAP_BUF:
 	case XFS_BLFT_RTSUMMARY_BUF:
-		/* no verification of RT buffers is done */
-		bp->b_ops = NULL;
+		/* no magic numbers for verification of RT buffers */
+		bp->b_ops = &xfs_rtbuf_ops;
 		break;
 #endif /* CONFIG_XFS_RT */
 	default:
