@@ -2635,6 +2635,7 @@ process_hex(struct event_format *event, struct print_arg *arg, char **tok)
 
 free_field:
 	free_arg(arg->hex.field);
+	arg->hex.field = NULL;
 out:
 	*tok = NULL;
 	return EVENT_ERROR;
@@ -2659,8 +2660,10 @@ process_int_array(struct event_format *event, struct print_arg *arg, char **tok)
 
 free_size:
 	free_arg(arg->int_array.count);
+	arg->int_array.count = NULL;
 free_field:
 	free_arg(arg->int_array.field);
+	arg->int_array.field = NULL;
 out:
 	*tok = NULL;
 	return EVENT_ERROR;
