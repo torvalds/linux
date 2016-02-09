@@ -296,6 +296,149 @@ hist.*::
 	       and 'baz' to 50.00% for each, while 'absolute' would show their
 	       current overhead (33.33%).
 
+ui.*::
+	ui.show-headers::
+		This option controls display of column headers (like 'Overhead' and 'Symbol')
+		in 'report' and 'top'. If this option is false, they are hidden.
+		This option is only applied to TUI.
+
+call-graph.*::
+	When sub-commands 'top' and 'report' work with -g/—-children
+	there're options in control of call-graph.
+
+	call-graph.record-mode::
+		The record-mode can be 'fp' (frame pointer), 'dwarf' and 'lbr'.
+		The value of 'dwarf' is effective only if perf detect needed library
+		(libunwind or a recent version of libdw).
+		'lbr' only work for cpus that support it.
+
+	call-graph.dump-size::
+		The size of stack to dump in order to do post-unwinding. Default is 8192 (byte).
+		When using dwarf into record-mode, the default size will be used if omitted.
+
+	call-graph.print-type::
+		The print-types can be graph (graph absolute), fractal (graph relative),
+		flat and folded. This option controls a way to show overhead for each callchain
+		entry. Suppose a following example.
+
+                Overhead  Symbols
+                ........  .......
+                  40.00%  foo
+                          |
+                          ---foo
+                             |
+                             |--50.00%--bar
+                             |          main
+                             |
+                              --50.00%--baz
+                                        main
+
+		This output is a 'fractal' format. The 'foo' came from 'bar' and 'baz' exactly
+		half and half so 'fractal' shows 50.00% for each
+		(meaning that it assumes 100% total overhead of 'foo').
+
+		The 'graph' uses absolute overhead value of 'foo' as total so each of
+		'bar' and 'baz' callchain will have 20.00% of overhead.
+		If 'flat' is used, single column and linear exposure of call chains.
+		'folded' mean call chains are displayed in a line, separated by semicolons.
+
+	call-graph.order::
+		This option controls print order of callchains. The default is
+		'callee' which means callee is printed at top and then followed by its
+		caller and so on. The 'caller' prints it in reverse order.
+
+		If this option is not set and report.children or top.children is
+		set to true (or the equivalent command line option is given),
+		the default value of this option is changed to 'caller' for the
+		execution of 'perf report' or 'perf top'. Other commands will
+		still default to 'callee'.
+
+	call-graph.sort-key::
+		The callchains are merged if they contain same information.
+		The sort-key option determines a way to compare the callchains.
+		A value of 'sort-key' can be 'function' or 'address'.
+		The default is 'function'.
+
+	call-graph.threshold::
+		When there're many callchains it'd print tons of lines. So perf omits
+		small callchains under a certain overhead (threshold) and this option
+		control the threshold. Default is 0.5 (%). The overhead is calculated
+		by value depends on call-graph.print-type.
+
+	call-graph.print-limit::
+		This is a maximum number of lines of callchain printed for a single
+		histogram entry. Default is 0 which means no limitation.
+
+report.*::
+	report.percent-limit::
+		This one is mostly the same as call-graph.threshold but works for
+		histogram entries. Entries having an overhead lower than this
+		percentage will not be printed. Default is '0'. If percent-limit
+		is '10', only entries which have more than 10% of overhead will be
+		printed.
+
+	report.queue-size::
+		This option sets up the maximum allocation size of the internal
+		event queue for ordering events. Default is 0, meaning no limit.
+
+	report.children::
+		'Children' means functions called from another function.
+		If this option is true, 'perf report' cumulates callchains of children
+		and show (accumulated) total overhead as well as 'Self' overhead.
+		Please refer to the 'perf report' manual. The default is 'true'.
+
+	report.group::
+		This option is to show event group information together.
+		Example output with this turned on, notice that there is one column
+		per event in the group, ref-cycles and cycles:
+
+		# group: {ref-cycles,cycles}
+		# ========
+		#
+		# Samples: 7K of event 'anon group { ref-cycles, cycles }'
+		# Event count (approx.): 6876107743
+		#
+		#         Overhead  Command      Shared Object               Symbol
+		# ................  .......  .................  ...................
+		#
+		    99.84%  99.76%  noploop  noploop            [.] main
+		     0.07%   0.00%  noploop  ld-2.15.so         [.] strcmp
+		     0.03%   0.00%  noploop  [kernel.kallsyms]  [k] timerqueue_del
+
+top.*::
+	top.children::
+		Same as 'report.children'. So if it is enabled, the output of 'top'
+		command will have 'Children' overhead column as well as 'Self' overhead
+		column by default.
+		The default is 'true'.
+
+man.*::
+	man.viewer::
+		This option can assign a tool to view manual pages when 'help'
+		subcommand was invoked. Supported tools are 'man', 'woman'
+		(with emacs client) and 'konqueror'. Default is 'man'.
+
+		New man viewer tool can be also added using 'man.<tool>.cmd'
+		or use different path using 'man.<tool>.path' config option.
+
+pager.*::
+	pager.<subcommand>::
+		When the subcommand is run on stdio, determine whether it uses
+		pager or not based on this value. Default is 'unspecified'.
+
+kmem.*::
+	kmem.default::
+		This option decides which allocator is to be analyzed if neither
+		'--slab' nor '--page' option is used. Default is 'slab'.
+
+record.*::
+	record.build-id::
+		This option can be 'cache', 'no-cache' or 'skip'.
+		'cache' is to post-process data and save/update the binaries into
+		the build-id cache (in ~/.debug). This is the default.
+		But if this option is 'no-cache', it will not update the build-id cache.
+		'skip' skips post-processing and does not update the cache.
+
 SEE ALSO
 --------
 linkperf:perf[1]
