@@ -22,6 +22,7 @@
 #define PCF85063_REG_CTRL2		0x01
 
 #define PCF85063_REG_SC			0x04 /* datetime */
+#define PCF85063_REG_SC_OS		0x80
 #define PCF85063_REG_MN			0x05
 #define PCF85063_REG_HR			0x06
 #define PCF85063_REG_DM			0x07
@@ -60,6 +61,12 @@ static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	if (rc != sizeof(regs)) {
 		dev_err(&client->dev, "date/time register read error\n");
 		return -EIO;
+	}
+
+	/* if the clock has lost its power it makes no sense to use its time */
+	if (regs[0] & PCF85063_REG_SC_OS) {
+		dev_warn(&client->dev, "Power loss detected, invalid time\n");
+		return -EINVAL;
 	}
 
 	tm->tm_sec = bcd2bin(regs[0] & 0x7F);
