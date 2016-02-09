@@ -13,6 +13,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -583,6 +584,7 @@ static struct device_opp *_add_device_opp(struct device *dev)
 	struct device_opp *dev_opp;
 	struct device_list_opp *list_dev;
 	struct device_node *np;
+	int ret;
 
 	/* Check for existing list for 'dev' first */
 	dev_opp = _find_device_opp(dev);
@@ -618,6 +620,15 @@ static struct device_opp *_add_device_opp(struct device *dev)
 		of_property_read_u32(np, "voltage-tolerance",
 				     &dev_opp->voltage_tolerance_v1);
 		of_node_put(np);
+	}
+
+	/* Find clk for the device */
+	dev_opp->clk = clk_get(dev, NULL);
+	if (IS_ERR(dev_opp->clk)) {
+		ret = PTR_ERR(dev_opp->clk);
+		if (ret != -EPROBE_DEFER)
+			dev_dbg(dev, "%s: Couldn't find clock: %d\n", __func__,
+				ret);
 	}
 
 	srcu_init_notifier_head(&dev_opp->srcu_head);
@@ -660,6 +671,10 @@ static void _remove_device_opp(struct device_opp *dev_opp)
 
 	if (!IS_ERR_OR_NULL(dev_opp->regulator))
 		return;
+
+	/* Release clk */
+	if (!IS_ERR(dev_opp->clk))
+		clk_put(dev_opp->clk);
 
 	list_dev = list_first_entry(&dev_opp->dev_list, struct device_list_opp,
 				    node);
