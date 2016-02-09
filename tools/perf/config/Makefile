@@ -433,6 +433,24 @@ endif
 grep-libs  = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
 
+ifdef CSTRACE_PATH
+  ifeq (${IS_64_BIT}, 1)
+    CSTRACE_LNX = linux64
+  else
+    CSTRACE_LNX = linux
+  endif
+  ifdef DEBUG
+    LIBCSTRACE = -lcstraced_c_api -lcstraced
+    CSTRACE_LIB_PATH = $(CSTRACE_PATH)/lib/$(CSTRACE_LNX)/dbg
+  else
+    LIBCSTRACE = -lcstrace_c_api -lcstrace
+    CSTRACE_LIB_PATH = $(CSTRACE_PATH)/lib/$(CSTRACE_LNX)/rel
+  endif
+  $(call detected,CSTRACE)
+  $(call detected_var,CSTRACE_PATH)
+  EXTLIBS += -L$(CSTRACE_LIB_PATH) $(LIBCSTRACE) -lstdc++
+endif
+
 ifdef NO_LIBPERL
   CFLAGS += -DNO_LIBPERL
 else

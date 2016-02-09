@@ -49,6 +49,7 @@
 
 #include "intel-pt.h"
 #include "intel-bts.h"
+#include "cs-etm.h"
 
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 			struct auxtrace_mmap_params *mp,
@@ -893,6 +894,7 @@ int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,
 	case PERF_AUXTRACE_INTEL_BTS:
 		return intel_bts_process_auxtrace_info(event, session);
 	case PERF_AUXTRACE_CS_ETM:
+		return cs_etm__process_auxtrace_info(event, session);
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
 		return -EINVAL;
