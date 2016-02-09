@@ -4338,7 +4338,7 @@ xlog_recover_process_one_iunlink(
 		goto fail_iput;
 
 	ASSERT(VFS_I(ip)->i_nlink == 0);
-	ASSERT(ip->i_d.di_mode != 0);
+	ASSERT(VFS_I(ip)->i_mode != 0);
 
 	/* setup for the next pass */
 	agino = be32_to_cpu(dip->di_next_unlinked);

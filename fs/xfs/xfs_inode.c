@@ -802,7 +802,7 @@ xfs_ialloc(
 	if (ip->i_d.di_version == 1)
 		ip->i_d.di_version = 2;
 
-	ip->i_d.di_mode = mode;
+	inode->i_mode = mode;
 	set_nlink(inode, nlink);
 	ip->i_d.di_uid = xfs_kuid_to_uid(current_fsuid());
 	ip->i_d.di_gid = xfs_kgid_to_gid(current_fsgid());
@@ -810,9 +810,8 @@ xfs_ialloc(
 
 	if (pip && XFS_INHERIT_GID(pip)) {
 		ip->i_d.di_gid = pip->i_d.di_gid;
-		if ((pip->i_d.di_mode & S_ISGID) && S_ISDIR(mode)) {
-			ip->i_d.di_mode |= S_ISGID;
-		}
+		if ((VFS_I(pip)->i_mode & S_ISGID) && S_ISDIR(mode))
+			inode->i_mode |= S_ISGID;
 	}
 
 	/*
@@ -821,10 +820,9 @@ xfs_ialloc(
 	 * (and only if the irix_sgid_inherit compatibility variable is set).
 	 */
 	if ((irix_sgid_inherit) &&
-	    (ip->i_d.di_mode & S_ISGID) &&
-	    (!in_group_p(xfs_gid_to_kgid(ip->i_d.di_gid)))) {
-		ip->i_d.di_mode &= ~S_ISGID;
-	}
+	    (inode->i_mode & S_ISGID) &&
+	    (!in_group_p(xfs_gid_to_kgid(ip->i_d.di_gid))))
+		inode->i_mode &= ~S_ISGID;
 
 	ip->i_d.di_size = 0;
 	ip->i_d.di_nextents = 0;
@@ -1421,7 +1419,7 @@ xfs_link(
 
 	trace_xfs_link(tdp, target_name);
 
-	ASSERT(!S_ISDIR(sip->i_d.di_mode));
+	ASSERT(!S_ISDIR(VFS_I(sip)->i_mode));
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
@@ -1628,7 +1626,7 @@ xfs_release(
 	xfs_mount_t	*mp = ip->i_mount;
 	int		error;
 
-	if (!S_ISREG(ip->i_d.di_mode) || (ip->i_d.di_mode == 0))
+	if (!S_ISREG(VFS_I(ip)->i_mode) || (VFS_I(ip)->i_mode == 0))
 		return 0;
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
@@ -1863,7 +1861,7 @@ xfs_inactive(
 	 * If the inode is already free, then there can be nothing
 	 * to clean up here.
 	 */
-	if (ip->i_d.di_mode == 0) {
+	if (VFS_I(ip)->i_mode == 0) {
 		ASSERT(ip->i_df.if_real_bytes == 0);
 		ASSERT(ip->i_df.if_broot_bytes == 0);
 		return;
@@ -1887,7 +1885,7 @@ xfs_inactive(
 		return;
 	}
 
-	if (S_ISREG(ip->i_d.di_mode) &&
+	if (S_ISREG(VFS_I(ip)->i_mode) &&
 	    (ip->i_d.di_size != 0 || XFS_ISIZE(ip) != 0 ||
 	     ip->i_d.di_nextents > 0 || ip->i_delayed_blks > 0))
 		truncate = 1;
@@ -1896,7 +1894,7 @@ xfs_inactive(
 	if (error)
 		return;
 
-	if (S_ISLNK(ip->i_d.di_mode))
+	if (S_ISLNK(VFS_I(ip)->i_mode))
 		error = xfs_inactive_symlink(ip);
 	else if (truncate)
 		error = xfs_inactive_truncate(ip);
@@ -1956,7 +1954,7 @@ xfs_iunlink(
 	int		offset;
 	int		error;
 
-	ASSERT(ip->i_d.di_mode != 0);
+	ASSERT(VFS_I(ip)->i_mode != 0);
 
 	/*
 	 * Get the agi buffer first.  It ensures lock ordering
@@ -2397,7 +2395,7 @@ xfs_ifree(
 	ASSERT(VFS_I(ip)->i_nlink == 0);
 	ASSERT(ip->i_d.di_nextents == 0);
 	ASSERT(ip->i_d.di_anextents == 0);
-	ASSERT(ip->i_d.di_size == 0 || !S_ISREG(ip->i_d.di_mode));
+	ASSERT(ip->i_d.di_size == 0 || !S_ISREG(VFS_I(ip)->i_mode));
 	ASSERT(ip->i_d.di_nblocks == 0);
 
 	/*
@@ -2411,7 +2409,7 @@ xfs_ifree(
 	if (error)
 		return error;
 
-	ip->i_d.di_mode = 0;		/* mark incore inode as free */
+	VFS_I(ip)->i_mode = 0;		/* mark incore inode as free */
 	ip->i_d.di_flags = 0;
 	ip->i_d.di_dmevmask = 0;
 	ip->i_d.di_forkoff = 0;		/* mark the attr fork not in use */
@@ -2508,7 +2506,7 @@ xfs_remove(
 {
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_trans_t             *tp = NULL;
-	int			is_dir = S_ISDIR(ip->i_d.di_mode);
+	int			is_dir = S_ISDIR(VFS_I(ip)->i_mode);
 	int                     error = 0;
 	xfs_bmap_free_t         free_list;
 	xfs_fsblock_t           first_block;
@@ -2753,7 +2751,7 @@ xfs_cross_rename(
 	if (dp1 != dp2) {
 		dp2_flags = XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
 
-		if (S_ISDIR(ip2->i_d.di_mode)) {
+		if (S_ISDIR(VFS_I(ip2)->i_mode)) {
 			error = xfs_dir_replace(tp, ip2, &xfs_name_dotdot,
 						dp1->i_ino, first_block,
 						free_list, spaceres);
@@ -2761,7 +2759,7 @@ xfs_cross_rename(
 				goto out_trans_abort;
 
 			/* transfer ip2 ".." reference to dp1 */
-			if (!S_ISDIR(ip1->i_d.di_mode)) {
+			if (!S_ISDIR(VFS_I(ip1)->i_mode)) {
 				error = xfs_droplink(tp, dp2);
 				if (error)
 					goto out_trans_abort;
@@ -2780,7 +2778,7 @@ xfs_cross_rename(
 			ip2_flags |= XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
 		}
 
-		if (S_ISDIR(ip1->i_d.di_mode)) {
+		if (S_ISDIR(VFS_I(ip1)->i_mode)) {
 			error = xfs_dir_replace(tp, ip1, &xfs_name_dotdot,
 						dp2->i_ino, first_block,
 						free_list, spaceres);
@@ -2788,7 +2786,7 @@ xfs_cross_rename(
 				goto out_trans_abort;
 
 			/* transfer ip1 ".." reference to dp2 */
-			if (!S_ISDIR(ip2->i_d.di_mode)) {
+			if (!S_ISDIR(VFS_I(ip2)->i_mode)) {
 				error = xfs_droplink(tp, dp1);
 				if (error)
 					goto out_trans_abort;
@@ -2885,7 +2883,7 @@ xfs_rename(
 	struct xfs_inode	*inodes[__XFS_SORT_INODES];
 	int			num_inodes = __XFS_SORT_INODES;
 	bool			new_parent = (src_dp != target_dp);
-	bool			src_is_directory = S_ISDIR(src_ip->i_d.di_mode);
+	bool			src_is_directory = S_ISDIR(VFS_I(src_ip)->i_mode);
 	int			spaceres;
 	int			error;
 
@@ -3014,7 +3012,7 @@ xfs_rename(
 		 * target and source are directories and that target can be
 		 * destroyed, or that neither is a directory.
 		 */
-		if (S_ISDIR(target_ip->i_d.di_mode)) {
+		if (S_ISDIR(VFS_I(target_ip)->i_mode)) {
 			/*
 			 * Make sure target dir is empty.
 			 */
@@ -3444,7 +3442,7 @@ xfs_iflush_int(
 			__func__, ip->i_ino, be16_to_cpu(dip->di_magic), dip);
 		goto corrupt_out;
 	}
-	if (S_ISREG(ip->i_d.di_mode)) {
+	if (S_ISREG(VFS_I(ip)->i_mode)) {
 		if (XFS_TEST_ERROR(
 		    (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (ip->i_d.di_format != XFS_DINODE_FMT_BTREE),
@@ -3454,7 +3452,7 @@ xfs_iflush_int(
 				__func__, ip->i_ino, ip);
 			goto corrupt_out;
 		}
-	} else if (S_ISDIR(ip->i_d.di_mode)) {
+	} else if (S_ISDIR(VFS_I(ip)->i_mode)) {
 		if (XFS_TEST_ERROR(
 		    (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (ip->i_d.di_format != XFS_DINODE_FMT_BTREE) &&

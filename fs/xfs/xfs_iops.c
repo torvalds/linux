@@ -459,7 +459,7 @@ xfs_vn_getattr(
 
 	stat->size = XFS_ISIZE(ip);
 	stat->dev = inode->i_sb->s_dev;
-	stat->mode = ip->i_d.di_mode;
+	stat->mode = inode->i_mode;
 	stat->nlink = inode->i_nlink;
 	stat->uid = inode->i_uid;
 	stat->gid = inode->i_gid;
@@ -505,9 +505,6 @@ xfs_setattr_mode(
 	umode_t			mode = iattr->ia_mode;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	ip->i_d.di_mode &= S_IFMT;
-	ip->i_d.di_mode |= mode & ~S_IFMT;
 
 	inode->i_mode &= S_IFMT;
 	inode->i_mode |= mode & ~S_IFMT;
@@ -652,9 +649,9 @@ xfs_setattr_nonsize(
 		 * The set-user-ID and set-group-ID bits of a file will be
 		 * cleared upon successful return from chown()
 		 */
-		if ((ip->i_d.di_mode & (S_ISUID|S_ISGID)) &&
+		if ((inode->i_mode & (S_ISUID|S_ISGID)) &&
 		    !capable(CAP_FSETID))
-			ip->i_d.di_mode &= ~(S_ISUID|S_ISGID);
+			inode->i_mode &= ~(S_ISUID|S_ISGID);
 
 		/*
 		 * Change the ownerships and register quota modifications
@@ -764,7 +761,7 @@ xfs_setattr_size(
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
-	ASSERT(S_ISREG(ip->i_d.di_mode));
+	ASSERT(S_ISREG(inode->i_mode));
 	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
 
@@ -1215,7 +1212,6 @@ xfs_setup_inode(
 	/* make the inode look hashed for the writeback code */
 	hlist_add_fake(&inode->i_hash);
 
-	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_uid    = xfs_uid_to_kuid(ip->i_d.di_uid);
 	inode->i_gid    = xfs_gid_to_kgid(ip->i_d.di_gid);
 

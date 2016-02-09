@@ -88,7 +88,7 @@ static inline struct inode *VFS_I(struct xfs_inode *ip)
  */
 static inline xfs_fsize_t XFS_ISIZE(struct xfs_inode *ip)
 {
-	if (S_ISREG(ip->i_d.di_mode))
+	if (S_ISREG(VFS_I(ip)->i_mode))
 		return i_size_read(VFS_I(ip));
 	return ip->i_d.di_size;
 }
@@ -369,7 +369,7 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
  */
 #define XFS_INHERIT_GID(pip)	\
 	(((pip)->i_mount->m_flags & XFS_MOUNT_GRPID) || \
-	 ((pip)->i_d.di_mode & S_ISGID))
+	 (VFS_I(pip)->i_mode & S_ISGID))
 
 int		xfs_release(struct xfs_inode *ip);
 void		xfs_inactive(struct xfs_inode *ip);

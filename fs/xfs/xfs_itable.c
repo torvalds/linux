@@ -88,7 +88,6 @@ xfs_bulkstat_one_int(
 	buf->bs_projid_lo = dic->di_projid_lo;
 	buf->bs_projid_hi = dic->di_projid_hi;
 	buf->bs_ino = ino;
-	buf->bs_mode = dic->di_mode;
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
@@ -101,6 +100,7 @@ xfs_bulkstat_one_int(
 	buf->bs_ctime.tv_sec = inode->i_ctime.tv_sec;
 	buf->bs_ctime.tv_nsec = inode->i_ctime.tv_nsec;
 	buf->bs_gen = inode->i_generation;
+	buf->bs_mode = inode->i_mode;
 
 	buf->bs_xflags = xfs_ip2xflags(ip);
 	buf->bs_extsize = dic->di_extsize << mp->m_sb.sb_blocklog;

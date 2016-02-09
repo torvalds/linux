@@ -202,13 +202,12 @@ xfs_inode_from_disk(
 	struct xfs_icdinode	*to = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 
-	to->di_mode = be16_to_cpu(from->di_mode);
-	to->di_version = from ->di_version;
 
 	/*
 	 * Convert v1 inodes immediately to v2 inode format as this is the
 	 * minimum inode version format we support in the rest of the code.
 	 */
+	to->di_version = from->di_version;
 	if (to->di_version == 1) {
 		set_nlink(inode, be16_to_cpu(from->di_onlink));
 		to->di_projid_lo = 0;
@@ -238,6 +237,7 @@ xfs_inode_from_disk(
 	inode->i_ctime.tv_sec = (int)be32_to_cpu(from->di_ctime.t_sec);
 	inode->i_ctime.tv_nsec = (int)be32_to_cpu(from->di_ctime.t_nsec);
 	inode->i_generation = be32_to_cpu(from->di_gen);
+	inode->i_mode = be16_to_cpu(from->di_mode);
 
 	to->di_size = be64_to_cpu(from->di_size);
 	to->di_nblocks = be64_to_cpu(from->di_nblocks);
@@ -270,7 +270,6 @@ xfs_inode_to_disk(
 	to->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
 	to->di_onlink = 0;
 
-	to->di_mode = cpu_to_be16(from->di_mode);
 	to->di_version = from->di_version;
 	to->di_format = from->di_format;
 	to->di_uid = cpu_to_be32(from->di_uid);
@@ -287,6 +286,7 @@ xfs_inode_to_disk(
 	to->di_ctime.t_nsec = cpu_to_be32(inode->i_ctime.tv_nsec);
 	to->di_nlink = cpu_to_be32(inode->i_nlink);
 	to->di_gen = cpu_to_be32(inode->i_generation);
+	to->di_mode = cpu_to_be16(inode->i_mode);
 
 	to->di_size = cpu_to_be64(from->di_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
@@ -501,7 +501,7 @@ xfs_iread(
 		 * the inode is already free and not try to mess
 		 * with the uninitialized part of it.
 		 */
-		ip->i_d.di_mode = 0;
+		VFS_I(ip)->i_mode = 0;
 	}
 
 	ASSERT(ip->i_d.di_version >= 2);

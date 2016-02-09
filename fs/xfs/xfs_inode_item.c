@@ -333,7 +333,6 @@ xfs_inode_to_log_dinode(
 
 	to->di_magic = XFS_DINODE_MAGIC;
 
-	to->di_mode = from->di_mode;
 	to->di_version = from->di_version;
 	to->di_format = from->di_format;
 	to->di_uid = from->di_uid;
@@ -351,6 +350,7 @@ xfs_inode_to_log_dinode(
 	to->di_ctime.t_nsec = inode->i_ctime.tv_nsec;
 	to->di_nlink = inode->i_nlink;
 	to->di_gen = inode->i_generation;
+	to->di_mode = inode->i_mode;
 
 	to->di_size = from->di_size;
 	to->di_nblocks = from->di_nblocks;

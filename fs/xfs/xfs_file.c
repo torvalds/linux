@@ -156,9 +156,9 @@ xfs_update_prealloc_flags(
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
 	if (!(flags & XFS_PREALLOC_INVISIBLE)) {
-		ip->i_d.di_mode &= ~S_ISUID;
-		if (ip->i_d.di_mode & S_IXGRP)
-			ip->i_d.di_mode &= ~S_ISGID;
+		VFS_I(ip)->i_mode &= ~S_ISUID;
+		if (VFS_I(ip)->i_mode & S_IXGRP)
+			VFS_I(ip)->i_mode &= ~S_ISGID;
 		xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	}
 
