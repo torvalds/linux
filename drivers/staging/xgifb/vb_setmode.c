@@ -61,7 +61,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 		if (((temp & 0x88) == 0x80) || ((temp & 0x88) == 0x08))
 			pVBInfo->XGINew_CR97 = 0x80;
 	}
-
 }
 
 static void XGI_SetSeqRegs(struct vb_device_info *pVBInfo)
@@ -155,7 +154,6 @@ static void XGI_ClearExt1Regs(struct vb_device_info *pVBInfo)
 
 static unsigned char XGI_SetDefaultVCLK(struct vb_device_info *pVBInfo)
 {
-
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x31, ~0x30, 0x20);
 	xgifb_reg_set(pVBInfo->P3c4, 0x2B, XGI_VCLKData[0].SR2B);
 	xgifb_reg_set(pVBInfo->P3c4, 0x2C, XGI_VCLKData[0].SR2C);
@@ -592,7 +590,6 @@ static void XGI_SetXG27FPBits(struct vb_device_info *pVBInfo)
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x06, ~0xc0, temp & 0x80);
 	/* SR09[7] enable FP output, SR09[6] 1: sigle 18bits, 0: 24bits */
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x09, ~0xc0, temp | 0x80);
-
 }
 
 static void xgifb_set_lcd(int chip_id,
@@ -930,7 +927,6 @@ static void XGI_SetXG21FPBits(struct vb_device_info *pVBInfo)
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x06, ~0x40, temp);
 	/* SR09[7] enable FP output, SR09[6] 1: sigle 18bits, 0: dual 12bits */
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x09, ~0xc0, temp | 0x80);
-
 }
 
 static void XGI_SetCRT1FIFO(struct xgi_hw_device_info *HwDeviceExtension,
@@ -990,7 +986,6 @@ static void XGI_SetVCLKState(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x07, 0xFC, data2);
 	if (HwDeviceExtension->jChipType >= XG27)
 		xgifb_reg_and_or(pVBInfo->P3c4, 0x40, 0xFC, data2 & 0x03);
-
 }
 
 static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
@@ -1072,7 +1067,6 @@ static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
 			data = 0x6c;
 		xgifb_reg_set(pVBInfo->P3d4, 0x52, data);
 	}
-
 }
 
 static void XGI_WriteDAC(unsigned short dl,
