@@ -13418,8 +13418,8 @@ static void init_chip(struct hfi1_devdata *dd)
 	write_csr(dd, CCE_DC_CTRL, 0);
 
 	/* Set the LED off */
-	if (is_ax(dd))
-		setextled(dd, 0);
+	setextled(dd, 0);
+
 	/*
 	 * Clear the QSFP reset.
 	 * An FLR enforces a 0 on all out pins. The driver does not touch
