@@ -60,6 +60,8 @@ int dev_pm_opp_set_supported_hw(struct device *dev, const u32 *versions,
 void dev_pm_opp_put_supported_hw(struct device *dev);
 int dev_pm_opp_set_prop_name(struct device *dev, const char *name);
 void dev_pm_opp_put_prop_name(struct device *dev);
+int dev_pm_opp_set_regulator(struct device *dev, const char *name);
+void dev_pm_opp_put_regulator(struct device *dev);
 #else
 static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 {
@@ -150,6 +152,13 @@ static inline int dev_pm_opp_set_prop_name(struct device *dev, const char *name)
 }
 
 static inline void dev_pm_opp_put_prop_name(struct device *dev) {}
+
+static inline int dev_pm_opp_set_regulator(struct device *dev, const char *name)
+{
+	return -EINVAL;
+}
+
+static inline void dev_pm_opp_put_regulator(struct device *dev) {}
 
 #endif		/* CONFIG_PM_OPP */
 
