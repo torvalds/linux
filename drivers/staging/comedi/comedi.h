@@ -120,13 +120,6 @@
 #define INSN_WAIT		(5 | INSN_MASK_WRITE | INSN_MASK_SPECIAL)
 #define INSN_INTTRIG		(6 | INSN_MASK_WRITE | INSN_MASK_SPECIAL)
 
-/* trigger flags */
-/* These flags are used in comedi_trig structures */
-
-#define TRIG_DITHER	0x0002	/* enable dithering */
-#define TRIG_DEGLITCH	0x0004	/* enable deglitching */
-#define TRIG_CONFIG	0x0010	/* perform configuration, not triggering */
-
 /* command flags */
 /* These flags are used in comedi_cmd structures */
 
@@ -459,7 +452,7 @@ enum comedi_counter_status_flags {
 #define COMEDI_DEVINFO _IOR(CIO, 1, struct comedi_devinfo)
 #define COMEDI_SUBDINFO _IOR(CIO, 2, struct comedi_subdinfo)
 #define COMEDI_CHANINFO _IOR(CIO, 3, struct comedi_chaninfo)
-#define COMEDI_TRIG _IOWR(CIO, 4, comedi_trig)
+/* _IOWR(CIO, 4, ...) is reserved */
 #define COMEDI_LOCK _IO(CIO, 5)
 #define COMEDI_UNLOCK _IO(CIO, 6)
 #define COMEDI_CANCEL _IO(CIO, 7)
@@ -475,21 +468,6 @@ enum comedi_counter_status_flags {
 #define COMEDI_SETWSUBD _IO(CIO, 17)
 
 /* structures */
-
-struct comedi_trig {
-	unsigned int subdev;	/* subdevice */
-	unsigned int mode;	/* mode */
-	unsigned int flags;
-	unsigned int n_chan;	/* number of channels */
-	unsigned int *chanlist;	/* channel/range list */
-	short *data;		/* data list, size depends on subd flags */
-	unsigned int n;		/* number of scans */
-	unsigned int trigsrc;
-	unsigned int trigvar;
-	unsigned int trigvar1;
-	unsigned int data_len;
-	unsigned int unused[3];
-};
 
 /**
  * struct comedi_insn - COMEDI instruction
