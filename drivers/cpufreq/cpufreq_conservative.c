@@ -235,52 +235,31 @@ static ssize_t store_freq_step(struct dbs_data *dbs_data, const char *buf,
 	return count;
 }
 
-show_store_one(cs, down_threshold);
-show_store_one(cs, freq_step);
-show_store_one_common(cs, sampling_rate);
-show_store_one_common(cs, sampling_down_factor);
-show_store_one_common(cs, up_threshold);
-show_store_one_common(cs, ignore_nice_load);
-show_one_common(cs, min_sampling_rate);
+gov_show_one_common(sampling_rate);
+gov_show_one_common(sampling_down_factor);
+gov_show_one_common(up_threshold);
+gov_show_one_common(ignore_nice_load);
+gov_show_one_common(min_sampling_rate);
+gov_show_one(cs, down_threshold);
+gov_show_one(cs, freq_step);
 
-gov_sys_pol_attr_rw(sampling_rate);
-gov_sys_pol_attr_rw(sampling_down_factor);
-gov_sys_pol_attr_rw(up_threshold);
-gov_sys_pol_attr_rw(down_threshold);
-gov_sys_pol_attr_rw(ignore_nice_load);
-gov_sys_pol_attr_rw(freq_step);
-gov_sys_pol_attr_ro(min_sampling_rate);
+gov_attr_rw(sampling_rate);
+gov_attr_rw(sampling_down_factor);
+gov_attr_rw(up_threshold);
+gov_attr_rw(ignore_nice_load);
+gov_attr_ro(min_sampling_rate);
+gov_attr_rw(down_threshold);
+gov_attr_rw(freq_step);
 
-static struct attribute *dbs_attributes_gov_sys[] = {
-	&min_sampling_rate_gov_sys.attr,
-	&sampling_rate_gov_sys.attr,
-	&sampling_down_factor_gov_sys.attr,
-	&up_threshold_gov_sys.attr,
-	&down_threshold_gov_sys.attr,
-	&ignore_nice_load_gov_sys.attr,
-	&freq_step_gov_sys.attr,
+static struct attribute *cs_attributes[] = {
+	&min_sampling_rate.attr,
+	&sampling_rate.attr,
+	&sampling_down_factor.attr,
+	&up_threshold.attr,
+	&down_threshold.attr,
+	&ignore_nice_load.attr,
+	&freq_step.attr,
 	NULL
-};
-
-static struct attribute_group cs_attr_group_gov_sys = {
-	.attrs = dbs_attributes_gov_sys,
-	.name = "conservative",
-};
-
-static struct attribute *dbs_attributes_gov_pol[] = {
-	&min_sampling_rate_gov_pol.attr,
-	&sampling_rate_gov_pol.attr,
-	&sampling_down_factor_gov_pol.attr,
-	&up_threshold_gov_pol.attr,
-	&down_threshold_gov_pol.attr,
-	&ignore_nice_load_gov_pol.attr,
-	&freq_step_gov_pol.attr,
-	NULL
-};
-
-static struct attribute_group cs_attr_group_gov_pol = {
-	.attrs = dbs_attributes_gov_pol,
-	.name = "conservative",
 };
 
 /************************** sysfs end ************************/
@@ -331,8 +310,7 @@ static struct dbs_governor cs_dbs_gov = {
 		.owner = THIS_MODULE,
 	},
 	.governor = GOV_CONSERVATIVE,
-	.attr_group_gov_sys = &cs_attr_group_gov_sys,
-	.attr_group_gov_pol = &cs_attr_group_gov_pol,
+	.kobj_type = { .default_attrs = cs_attributes },
 	.get_cpu_cdbs = get_cpu_cdbs,
 	.get_cpu_dbs_info_s = get_cpu_dbs_info_s,
 	.gov_dbs_timer = cs_dbs_timer,

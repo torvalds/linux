@@ -25,11 +25,57 @@
 DEFINE_MUTEX(dbs_data_mutex);
 EXPORT_SYMBOL_GPL(dbs_data_mutex);
 
-static struct attribute_group *get_sysfs_attr(struct dbs_governor *gov)
+static inline struct dbs_data *to_dbs_data(struct kobject *kobj)
 {
-	return have_governor_per_policy() ?
-		gov->attr_group_gov_pol : gov->attr_group_gov_sys;
+	return container_of(kobj, struct dbs_data, kobj);
 }
+
+static inline struct governor_attr *to_gov_attr(struct attribute *attr)
+{
+	return container_of(attr, struct governor_attr, attr);
+}
+
+static ssize_t governor_show(struct kobject *kobj, struct attribute *attr,
+			     char *buf)
+{
+	struct dbs_data *dbs_data = to_dbs_data(kobj);
+	struct governor_attr *gattr = to_gov_attr(attr);
+	int ret = -EIO;
+
+	if (gattr->show)
+		ret = gattr->show(dbs_data, buf);
+
+	return ret;
+}
+
+static ssize_t governor_store(struct kobject *kobj, struct attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct dbs_data *dbs_data = to_dbs_data(kobj);
+	struct governor_attr *gattr = to_gov_attr(attr);
+	int ret = -EIO;
+
+	mutex_lock(&dbs_data->mutex);
+
+	if (gattr->store)
+		ret = gattr->store(dbs_data, buf, count);
+
+	mutex_unlock(&dbs_data->mutex);
+
+	return ret;
+}
+
+/*
+ * Sysfs Ops for accessing governor attributes.
+ *
+ * All show/store invocations for governor specific sysfs attributes, will first
+ * call the below show/store callbacks and the attribute specific callback will
+ * be called from within it.
+ */
+static const struct sysfs_ops governor_sysfs_ops = {
+	.show	= governor_show,
+	.store	= governor_store,
+};
 
 void dbs_check_cpu(struct cpufreq_policy *policy)
 {
@@ -352,6 +398,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 	}
 
 	dbs_data->usage_count = 1;
+	mutex_init(&dbs_data->mutex);
 
 	ret = gov->init(dbs_data, !policy->governor->initialized);
 	if (ret)
@@ -374,12 +421,15 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 	policy_dbs->dbs_data = dbs_data;
 	policy->governor_data = policy_dbs;
 
-	ret = sysfs_create_group(get_governor_parent_kobj(policy),
-				 get_sysfs_attr(gov));
+	gov->kobj_type.sysfs_ops = &governor_sysfs_ops;
+	ret = kobject_init_and_add(&dbs_data->kobj, &gov->kobj_type,
+				   get_governor_parent_kobj(policy),
+				   "%s", gov->gov.name);
 	if (!ret)
 		return 0;
 
 	/* Failure, so roll back. */
+	pr_err("cpufreq: Governor initialization failed (dbs_data kobject init error %d)\n", ret);
 
 	policy->governor_data = NULL;
 
@@ -404,8 +454,7 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 		return -EBUSY;
 
 	if (!--dbs_data->usage_count) {
-		sysfs_remove_group(get_governor_parent_kobj(policy),
-				   get_sysfs_attr(gov));
+		kobject_put(&dbs_data->kobj);
 
 		policy->governor_data = NULL;
 
@@ -413,6 +462,7 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 			gov->gdbs_data = NULL;
 
 		gov->exit(dbs_data, policy->governor->initialized == 1);
+		mutex_destroy(&dbs_data->mutex);
 		kfree(dbs_data);
 	} else {
 		policy->governor_data = NULL;

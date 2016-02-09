@@ -160,7 +160,43 @@ struct dbs_data {
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
+
+	struct kobject kobj;
+	/* Protect concurrent updates to governor tunables from sysfs */
+	struct mutex mutex;
 };
+
+/* Governor's specific attributes */
+struct dbs_data;
+struct governor_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct dbs_data *dbs_data, char *buf);
+	ssize_t (*store)(struct dbs_data *dbs_data, const char *buf,
+			 size_t count);
+};
+
+#define gov_show_one(_gov, file_name)					\
+static ssize_t show_##file_name						\
+(struct dbs_data *dbs_data, char *buf)					\
+{									\
+	struct _gov##_dbs_tuners *tuners = dbs_data->tuners;		\
+	return sprintf(buf, "%u\n", tuners->file_name);			\
+}
+
+#define gov_show_one_common(file_name)					\
+static ssize_t show_##file_name						\
+(struct dbs_data *dbs_data, char *buf)					\
+{									\
+	return sprintf(buf, "%u\n", dbs_data->file_name);		\
+}
+
+#define gov_attr_ro(_name)						\
+static struct governor_attr _name =					\
+__ATTR(_name, 0444, show_##_name, NULL)
+
+#define gov_attr_rw(_name)						\
+static struct governor_attr _name =					\
+__ATTR(_name, 0644, show_##_name, store_##_name)
 
 /* Common to all CPUs of a policy */
 struct policy_dbs_info {
@@ -236,8 +272,7 @@ struct dbs_governor {
 	#define GOV_ONDEMAND		0
 	#define GOV_CONSERVATIVE	1
 	int governor;
-	struct attribute_group *attr_group_gov_sys; /* one governor - system */
-	struct attribute_group *attr_group_gov_pol; /* one governor - policy */
+	struct kobj_type kobj_type;
 
 	/*
 	 * Common data for platforms that don't set
