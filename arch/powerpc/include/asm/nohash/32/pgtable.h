@@ -86,7 +86,7 @@ extern int icache_44x_need_flush;
  * We no longer map larger than phys RAM with the BATs so we don't have
  * to worry about the VMALLOC_OFFSET causing problems.  We do have to worry
  * about clashes between our early calls to ioremap() that start growing down
- * from ioremap_base being run into the VM area allocations (growing upwards
+ * from IOREMAP_TOP being run into the VM area allocations (growing upwards
  * from VMALLOC_START).  For this reason we have ioremap_bot to check when
  * we actually run into our mappings setup in the early boot with the VM
  * system.  This really does become a problem for machines with good amounts

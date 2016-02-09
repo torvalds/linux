@@ -37,7 +37,6 @@
 
 #include "mmu_decl.h"
 
-unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 
@@ -173,7 +172,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 	/*
 	 * Choose an address to map it to.
 	 * Once the vmalloc system is running, we use it.
-	 * Before then, we use space going down from ioremap_base
+	 * Before then, we use space going down from IOREMAP_TOP
 	 * (ioremap_bot records where we're up to).
 	 */
 	p = addr & PAGE_MASK;
