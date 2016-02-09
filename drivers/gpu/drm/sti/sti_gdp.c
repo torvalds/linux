@@ -471,10 +471,6 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	top_field->gam_gdp_pml += src_x * (bpp >> 3);
 	top_field->gam_gdp_pml += src_y * fb->pitches[0];
 
-	/* input parameters */
-	top_field->gam_gdp_pmp = fb->pitches[0];
-	top_field->gam_gdp_size = src_h << 16 | src_w;
-
 	/* output parameters (clamped / cropped) */
 	dst_w = sti_gdp_get_dst(gdp->dev, dst_w, src_w);
 	dst_h = sti_gdp_get_dst(gdp->dev, dst_h, src_h);
@@ -484,6 +480,11 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	xds = sti_vtg_get_pixel_number(*mode, dst_x + dst_w - 1);
 	top_field->gam_gdp_vpo = (ydo << 16) | xdo;
 	top_field->gam_gdp_vps = (yds << 16) | xds;
+
+	/* input parameters */
+	src_w = dst_w;
+	top_field->gam_gdp_pmp = fb->pitches[0];
+	top_field->gam_gdp_size = src_h << 16 | src_w;
 
 	/* Same content and chained together */
 	memcpy(btm_field, top_field, sizeof(*btm_field));
