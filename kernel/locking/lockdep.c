@@ -1822,7 +1822,7 @@ check_deadlock(struct task_struct *curr, struct held_lock *next,
  */
 static int
 check_prev_add(struct task_struct *curr, struct held_lock *prev,
-	       struct held_lock *next, int distance, int trylock_loop)
+	       struct held_lock *next, int distance, int *stack_saved)
 {
 	struct lock_list *entry;
 	int ret;
@@ -1883,8 +1883,11 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 		}
 	}
 
-	if (!trylock_loop && !save_trace(&trace))
-		return 0;
+	if (!*stack_saved) {
+		if (!save_trace(&trace))
+			return 0;
+		*stack_saved = 1;
+	}
 
 	/*
 	 * Ok, all validations passed, add the new lock
@@ -1907,6 +1910,8 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 * Debugging printouts:
 	 */
 	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
+		/* We drop graph lock, so another thread can overwrite trace. */
+		*stack_saved = 0;
 		graph_unlock();
 		printk("\n new dependency: ");
 		print_lock_name(hlock_class(prev));
@@ -1929,7 +1934,7 @@ static int
 check_prevs_add(struct task_struct *curr, struct held_lock *next)
 {
 	int depth = curr->lockdep_depth;
-	int trylock_loop = 0;
+	int stack_saved = 0;
 	struct held_lock *hlock;
 
 	/*
@@ -1956,7 +1961,7 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		 */
 		if (hlock->read != 2 && hlock->check) {
 			if (!check_prev_add(curr, hlock, next,
-						distance, trylock_loop))
+						distance, &stack_saved))
 				return 0;
 			/*
 			 * Stop after the first non-trylock entry,
@@ -1979,7 +1984,6 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		if (curr->held_locks[depth].irq_context !=
 				curr->held_locks[depth-1].irq_context)
 			break;
-		trylock_loop = 1;
 	}
 	return 1;
 out_bug:
