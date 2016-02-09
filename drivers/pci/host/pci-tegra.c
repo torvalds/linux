@@ -426,31 +426,38 @@ free:
 	return ERR_PTR(err);
 }
 
-/*
- * Look up a virtual address mapping for the specified bus number. If no such
- * mapping exists, try to create one.
- */
-static void __iomem *tegra_pcie_bus_map(struct tegra_pcie *pcie,
-					unsigned int busnr)
+static int tegra_pcie_add_bus(struct pci_bus *bus)
 {
-	struct tegra_pcie_bus *bus;
+	struct tegra_pcie *pcie = sys_to_pcie(bus->sysdata);
+	struct tegra_pcie_bus *b;
 
-	list_for_each_entry(bus, &pcie->buses, list)
-		if (bus->nr == busnr)
-			return (void __iomem *)bus->area->addr;
+	b = tegra_pcie_bus_alloc(pcie, bus->number);
+	if (IS_ERR(b))
+		return PTR_ERR(b);
 
-	bus = tegra_pcie_bus_alloc(pcie, busnr);
-	if (IS_ERR(bus))
-		return NULL;
+	list_add_tail(&b->list, &pcie->buses);
 
-	list_add_tail(&bus->list, &pcie->buses);
-
-	return (void __iomem *)bus->area->addr;
+	return 0;
 }
 
-static void __iomem *tegra_pcie_conf_address(struct pci_bus *bus,
-					     unsigned int devfn,
-					     int where)
+static void tegra_pcie_remove_bus(struct pci_bus *child)
+{
+	struct tegra_pcie *pcie = sys_to_pcie(child->sysdata);
+	struct tegra_pcie_bus *bus, *tmp;
+
+	list_for_each_entry_safe(bus, tmp, &pcie->buses, list) {
+		if (bus->nr == child->number) {
+			vunmap(bus->area->addr);
+			list_del(&bus->list);
+			kfree(bus);
+			break;
+		}
+	}
+}
+
+static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
+					unsigned int devfn,
+					int where)
 {
 	struct tegra_pcie *pcie = sys_to_pcie(bus->sysdata);
 	void __iomem *addr = NULL;
@@ -466,7 +473,12 @@ static void __iomem *tegra_pcie_conf_address(struct pci_bus *bus,
 			}
 		}
 	} else {
-		addr = tegra_pcie_bus_map(pcie, bus->number);
+		struct tegra_pcie_bus *b;
+
+		list_for_each_entry(b, &pcie->buses, list)
+			if (b->nr == bus->number)
+				addr = (void __iomem *)b->area->addr;
+
 		if (!addr) {
 			dev_err(pcie->dev,
 				"failed to map cfg. space for bus %u\n",
@@ -481,7 +493,9 @@ static void __iomem *tegra_pcie_conf_address(struct pci_bus *bus,
 }
 
 static struct pci_ops tegra_pcie_ops = {
-	.map_bus = tegra_pcie_conf_address,
+	.add_bus = tegra_pcie_add_bus,
+	.remove_bus = tegra_pcie_remove_bus,
+	.map_bus = tegra_pcie_map_bus,
 	.read = pci_generic_config_read32,
 	.write = pci_generic_config_write32,
 };
