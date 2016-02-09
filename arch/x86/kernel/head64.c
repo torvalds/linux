@@ -75,7 +75,7 @@ again:
 		}
 
 		pud_p = (pudval_t *)early_dynamic_pgts[next_early_pgt++];
-		memset(pud_p, 0, sizeof(pud_p) * PTRS_PER_PUD);
+		memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
 		*pgd_p = (pgdval_t)pud_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
 	}
 	pud_p += pud_index(address);
@@ -90,7 +90,7 @@ again:
 		}
 
 		pmd_p = (pmdval_t *)early_dynamic_pgts[next_early_pgt++];
-		memset(pmd_p, 0, sizeof(pmd_p) * PTRS_PER_PMD);
+		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
 		*pud_p = (pudval_t)pmd_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
 	}
 	pmd = (physaddr & PMD_MASK) + early_pmd_flags;
