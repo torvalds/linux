@@ -1422,7 +1422,7 @@ config MFD_ARIZONA_SPI
 	depends on SPI_MASTER
 	help
 	  Support for the Cirrus Logic/Wolfson Microelectronics Arizona platform
-	  audio SoC core functionality controlled via I2C.
+	  audio SoC core functionality controlled via SPI.
 
 config MFD_CS47L24
 	bool "Cirrus Logic CS47L24 and WM1831"
