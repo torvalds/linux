@@ -105,6 +105,8 @@ struct ks8995_chip_params {
 	int family_id;
 	int chip_id;
 	int regs_size;
+	int addr_width;
+	int addr_shift;
 };
 
 static const struct ks8995_chip_params ks8995_chip[] = {
@@ -113,12 +115,16 @@ static const struct ks8995_chip_params ks8995_chip[] = {
 		.family_id = FAMILY_KS8995,
 		.chip_id = KS8995_CHIP_ID,
 		.regs_size = KS8995_REGS_SIZE,
+		.addr_width = 8,
+		.addr_shift = 0,
 	},
 	[ksz8864] = {
 		.name = "KSZ8864RMN",
 		.family_id = FAMILY_KS8995,
 		.chip_id = KSZ8864_CHIP_ID,
 		.regs_size = KSZ8864_REGS_SIZE,
+		.addr_width = 8,
+		.addr_shift = 0,
 	},
 };
 
@@ -153,29 +159,50 @@ static inline u8 get_chip_rev(u8 val)
 	return (val >> ID1_REVISION_S) & ID1_REVISION_M;
 }
 
+/* create_spi_cmd - create a chip specific SPI command header
+ * @ks: pointer to switch instance
+ * @cmd: SPI command for switch
+ * @address: register address for command
+ *
+ * Different chip families use different bit pattern to address the switches
+ * registers:
+ *
+ * KS8995: 8bit command + 8bit address
+ * KSZ8795: 3bit command + 12bit address + 1bit TR (?)
+ */
+static inline __be16 create_spi_cmd(struct ks8995_switch *ks, int cmd,
+				    unsigned address)
+{
+	u16 result = cmd;
+
+	/* make room for address (incl. address shift) */
+	result <<= ks->chip->addr_width + ks->chip->addr_shift;
+	/* add address */
+	result |= address << ks->chip->addr_shift;
+	/* SPI protocol needs big endian */
+	return cpu_to_be16(result);
+}
 /* ------------------------------------------------------------------------ */
 static int ks8995_read(struct ks8995_switch *ks, char *buf,
 		 unsigned offset, size_t count)
 {
-	u8 cmd[2];
+	__be16 cmd;
 	struct spi_transfer t[2];
 	struct spi_message m;
 	int err;
 
+	cmd = create_spi_cmd(ks, KS8995_CMD_READ, offset);
 	spi_message_init(&m);
 
 	memset(&t, 0, sizeof(t));
 
-	t[0].tx_buf = cmd;
+	t[0].tx_buf = &cmd;
 	t[0].len = sizeof(cmd);
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].rx_buf = buf;
 	t[1].len = count;
 	spi_message_add_tail(&t[1], &m);
-
-	cmd[0] = KS8995_CMD_READ;
-	cmd[1] = offset;
 
 	mutex_lock(&ks->lock);
 	err = spi_sync(ks->spi, &m);
@@ -184,29 +211,26 @@ static int ks8995_read(struct ks8995_switch *ks, char *buf,
 	return err ? err : count;
 }
 
-
 static int ks8995_write(struct ks8995_switch *ks, char *buf,
 		 unsigned offset, size_t count)
 {
-	u8 cmd[2];
+	__be16 cmd;
 	struct spi_transfer t[2];
 	struct spi_message m;
 	int err;
 
+	cmd = create_spi_cmd(ks, KS8995_CMD_WRITE, offset);
 	spi_message_init(&m);
 
 	memset(&t, 0, sizeof(t));
 
-	t[0].tx_buf = cmd;
+	t[0].tx_buf = &cmd;
 	t[0].len = sizeof(cmd);
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].tx_buf = buf;
 	t[1].len = count;
 	spi_message_add_tail(&t[1], &m);
-
-	cmd[0] = KS8995_CMD_WRITE;
-	cmd[1] = offset;
 
 	mutex_lock(&ks->lock);
 	err = spi_sync(ks->spi, &m);
