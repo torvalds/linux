@@ -369,9 +369,20 @@ static inline void set_max_speed(struct net2280_ep *ep, u32 max)
 	static const u32 ep_enhanced[9] = { 0x10, 0x60, 0x30, 0x80,
 					  0x50, 0x20, 0x70, 0x40, 0x90 };
 
-	if (ep->dev->enhanced_mode)
+	if (ep->dev->enhanced_mode) {
 		reg = ep_enhanced[ep->num];
-	else{
+		switch (ep->dev->gadget.speed) {
+		case USB_SPEED_SUPER:
+			reg += 2;
+			break;
+		case USB_SPEED_FULL:
+			reg += 1;
+			break;
+		case USB_SPEED_HIGH:
+		default:
+			break;
+		}
+	} else {
 		reg = (ep->num + 1) * 0x10;
 		if (ep->dev->gadget.speed != USB_SPEED_HIGH)
 			reg += 1;
