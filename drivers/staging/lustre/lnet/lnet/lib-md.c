@@ -184,7 +184,7 @@ lnet_md_link(lnet_libmd_t *md, lnet_handle_eq_t eq_handle, int cpt)
 	if (!LNetHandleIsInvalid(eq_handle)) {
 		md->md_eq = lnet_handle2eq(&eq_handle);
 
-		if (md->md_eq == NULL)
+		if (!md->md_eq)
 			return -ENOENT;
 
 		(*md->md_eq->eq_refs[cpt])++;
@@ -221,7 +221,7 @@ lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd)
 static int
 lnet_md_validate(lnet_md_t *umd)
 {
-	if (umd->start == NULL && umd->length != 0) {
+	if (!umd->start && umd->length != 0) {
 		CERROR("MD start pointer can not be NULL with length %u\n",
 		       umd->length);
 		return -EINVAL;
@@ -285,7 +285,7 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 	}
 
 	md = lnet_md_alloc(&umd);
-	if (md == NULL)
+	if (!md)
 		return -ENOMEM;
 
 	rc = lnet_md_build(md, &umd, unlink);
@@ -296,7 +296,7 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 		goto failed;
 
 	me = lnet_handle2me(&meh);
-	if (me == NULL)
+	if (!me)
 		rc = -ENOENT;
 	else if (me->me_md != NULL)
 		rc = -EBUSY;
@@ -362,7 +362,7 @@ LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
 	}
 
 	md = lnet_md_alloc(&umd);
-	if (md == NULL)
+	if (!md)
 		return -ENOMEM;
 
 	rc = lnet_md_build(md, &umd, unlink);
@@ -432,7 +432,7 @@ LNetMDUnlink(lnet_handle_md_t mdh)
 	lnet_res_lock(cpt);
 
 	md = lnet_handle2md(&mdh);
-	if (md == NULL) {
+	if (!md) {
 		lnet_res_unlock(cpt);
 		return -ENOENT;
 	}
