@@ -281,6 +281,11 @@ struct tegra_pcie {
 	struct resource prefetch;
 	struct resource busn;
 
+	struct {
+		resource_size_t mem;
+		resource_size_t io;
+	} offset;
+
 	struct clk *pex_clk;
 	struct clk *afi_clk;
 	struct clk *pll_e;
@@ -611,6 +616,17 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	struct tegra_pcie *pcie = sys_to_pcie(sys);
 	int err;
 
+	sys->mem_offset = pcie->offset.mem;
+	sys->io_offset = pcie->offset.io;
+
+	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->io);
+	if (err < 0)
+		return err;
+
+	err = devm_request_resource(pcie->dev, &ioport_resource, &pcie->pio);
+	if (err < 0)
+		return err;
+
 	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->mem);
 	if (err < 0)
 		return err;
@@ -619,6 +635,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	if (err)
 		return err;
 
+	pci_add_resource_offset(&sys->resources, &pcie->pio, sys->io_offset);
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &pcie->prefetch,
 				sys->mem_offset);
@@ -1614,6 +1631,9 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 
 		switch (res.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
+			/* Track the bus -> CPU I/O mapping offset. */
+			pcie->offset.io = res.start - range.pci_addr;
+
 			memcpy(&pcie->pio, &res, sizeof(res));
 			pcie->pio.name = np->full_name;
 
@@ -1634,6 +1654,14 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 			break;
 
 		case IORESOURCE_MEM:
+			/*
+			 * Track the bus -> CPU memory mapping offset. This
+			 * assumes that the prefetchable and non-prefetchable
+			 * regions will be the last of type IORESOURCE_MEM in
+			 * the ranges property.
+			 * */
+			pcie->offset.mem = res.start - range.pci_addr;
+
 			if (res.flags & IORESOURCE_PREFETCH) {
 				memcpy(&pcie->prefetch, &res, sizeof(res));
 				pcie->prefetch.name = "prefetchable";
