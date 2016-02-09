@@ -818,14 +818,18 @@ static __u8 ps3remote_rdesc[] = {
 	 /* Use collection 1 for joypad buttons */
 	 0xA1, 0x02,         /* MCollection Logical (interrelated data) */
 
-	  /* Ignore the 1st byte, maybe it is used for a controller
-	   * number but it's not needed for correct operation */
+	  /*
+	   * Ignore the 1st byte, maybe it is used for a controller
+	   * number but it's not needed for correct operation
+	   */
 	  0x75, 0x08,        /* GReportSize 0x08 [8] */
 	  0x95, 0x01,        /* GReportCount 0x01 [1] */
 	  0x81, 0x01,        /* MInput 0x01 (Const[0] Arr[1] Abs[2]) */
 
-	  /* Bytes from 2nd to 4th are a bitmap for joypad buttons, for these
-	   * buttons multiple keypresses are allowed */
+	  /*
+	   * Bytes from 2nd to 4th are a bitmap for joypad buttons, for these
+	   * buttons multiple keypresses are allowed
+	   */
 	  0x05, 0x09,        /* GUsagePage Button */
 	  0x19, 0x01,        /* LUsageMinimum 0x01 [Button 1 (primary/trigger)] */
 	  0x29, 0x18,        /* LUsageMaximum 0x18 [Button 24] */
@@ -850,8 +854,10 @@ static __u8 ps3remote_rdesc[] = {
 	  0x95, 0x01,        /* GReportCount 0x01 [1] */
 	  0x80,              /* MInput  */
 
-	  /* Ignore bytes from 6th to 11th, 6th to 10th are always constant at
-	   * 0xff and 11th is for press indication */
+	  /*
+	   * Ignore bytes from 6th to 11th, 6th to 10th are always constant at
+	   * 0xff and 11th is for press indication
+	   */
 	  0x75, 0x08,        /* GReportSize 0x08 [8] */
 	  0x95, 0x06,        /* GReportCount 0x06 [6] */
 	  0x81, 0x01,        /* MInput 0x01 (Const[0] Arr[1] Abs[2]) */
@@ -1928,6 +1934,7 @@ static inline void sony_send_output_report(struct sony_sc *sc)
 static void sony_state_worker(struct work_struct *work)
 {
 	struct sony_sc *sc = container_of(work, struct sony_sc, state_worker);
+
 	sc->send_output_report(sc);
 }
 
@@ -2507,8 +2514,10 @@ static const struct hid_device_id sony_devices[] = {
 		.driver_data = VAIO_RDESC_CONSTANT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_VAIO_VGP_MOUSE),
 		.driver_data = VAIO_RDESC_CONSTANT },
-	/* Wired Buzz Controller. Reported as Sony Hub from its USB ID and as
-	 * Logitech joystick from the device descriptor. */
+	/*
+	 * Wired Buzz Controller. Reported as Sony Hub from its USB ID and as
+	 * Logitech joystick from the device descriptor.
+	 */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_BUZZ_CONTROLLER),
 		.driver_data = BUZZ_CONTROLLER },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_WIRELESS_BUZZ_CONTROLLER),
