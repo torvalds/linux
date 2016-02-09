@@ -9,6 +9,10 @@
 		serial0 = &uarta;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0xc0000000>;

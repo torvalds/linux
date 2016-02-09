@@ -10,9 +10,12 @@
 	aliases {
 		rtc0 = "/i2c@7000d000/as3722@40";
 		rtc1 = "/rtc@7000e000";
+		serial0 = &uarta;
 	};
 
-	chosen { };
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 
 	memory {
 		device_type = "memory";
