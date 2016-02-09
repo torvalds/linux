@@ -1323,6 +1323,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 
 	list_add_tail_rcu(&vlan->list, &port->vlans);
 	netif_stacked_transfer_operstate(lowerdev, dev);
+	linkwatch_fire_event(dev);
 
 	return 0;
 
@@ -1522,6 +1523,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 	port = macvlan_port_get_rtnl(dev);
 
 	switch (event) {
+	case NETDEV_UP:
 	case NETDEV_CHANGE:
 		list_for_each_entry(vlan, &port->vlans, list)
 			netif_stacked_transfer_operstate(vlan->lowerdev,

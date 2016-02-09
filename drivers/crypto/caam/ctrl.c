@@ -534,8 +534,8 @@ static int caam_probe(struct platform_device *pdev)
 	 * long pointers in master configuration register
 	 */
 	clrsetbits_32(&ctrl->mcr, MCFGR_AWCACHE_MASK, MCFGR_AWCACHE_CACH |
-		      MCFGR_WDENABLE | (sizeof(dma_addr_t) == sizeof(u64) ?
-					MCFGR_LONG_PTR : 0));
+		      MCFGR_AWCACHE_BUFF | MCFGR_WDENABLE |
+		      (sizeof(dma_addr_t) == sizeof(u64) ? MCFGR_LONG_PTR : 0));
 
 	/*
 	 *  Read the Compile Time paramters and SCFGR to determine

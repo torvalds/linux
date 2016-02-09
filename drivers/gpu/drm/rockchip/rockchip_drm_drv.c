@@ -55,14 +55,12 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 
 	return arm_iommu_attach_device(dev, mapping);
 }
-EXPORT_SYMBOL_GPL(rockchip_drm_dma_attach_device);
 
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev)
 {
 	arm_iommu_detach_device(dev);
 }
-EXPORT_SYMBOL_GPL(rockchip_drm_dma_detach_device);
 
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs)
@@ -77,7 +75,6 @@ int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rockchip_register_crtc_funcs);
 
 void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 {
@@ -89,7 +86,6 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 
 	priv->crtc_funcs[pipe] = NULL;
 }
-EXPORT_SYMBOL_GPL(rockchip_unregister_crtc_funcs);
 
 static struct drm_crtc *rockchip_crtc_from_pipe(struct drm_device *drm,
 						int pipe)

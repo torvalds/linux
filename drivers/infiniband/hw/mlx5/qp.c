@@ -1036,7 +1036,7 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	wq = MLX5_ADDR_OF(rqc, rqc, wq);
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_CYCLIC);
 	MLX5_SET(wq, wq, end_padding_mode,
-		 MLX5_GET64(qpc, qpc, end_padding_mode));
+		 MLX5_GET(qpc, qpc, end_padding_mode));
 	MLX5_SET(wq, wq, page_offset, MLX5_GET(qpc, qpc, page_offset));
 	MLX5_SET(wq, wq, pd, MLX5_GET(qpc, qpc, pd));
 	MLX5_SET64(wq, wq, dbr_addr, MLX5_GET64(qpc, qpc, dbr_addr));
@@ -1615,15 +1615,6 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 
 	if (pd) {
 		dev = to_mdev(pd->device);
-	} else {
-		/* being cautious here */
-		if (init_attr->qp_type != IB_QPT_XRC_TGT &&
-		    init_attr->qp_type != MLX5_IB_QPT_REG_UMR) {
-			pr_warn("%s: no PD for transport %s\n", __func__,
-				ib_qp_type_str(init_attr->qp_type));
-			return ERR_PTR(-EINVAL);
-		}
-		dev = to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
 
 		if (init_attr->qp_type == IB_QPT_RAW_PACKET) {
 			if (!pd->uobject) {
@@ -1634,6 +1625,15 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				return ERR_PTR(-EINVAL);
 			}
 		}
+	} else {
+		/* being cautious here */
+		if (init_attr->qp_type != IB_QPT_XRC_TGT &&
+		    init_attr->qp_type != MLX5_IB_QPT_REG_UMR) {
+			pr_warn("%s: no PD for transport %s\n", __func__,
+				ib_qp_type_str(init_attr->qp_type));
+			return ERR_PTR(-EINVAL);
+		}
+		dev = to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
 	}
 
 	switch (init_attr->qp_type) {

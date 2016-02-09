@@ -1493,6 +1493,8 @@ static void soc_camera_async_unbind(struct v4l2_async_notifier *notifier,
 					struct soc_camera_async_client, notifier);
 	struct soc_camera_device *icd = platform_get_drvdata(sasc->pdev);
 
+	icd->control = NULL;
+
 	if (icd->clk) {
 		v4l2_clk_unregister(icd->clk);
 		icd->clk = NULL;

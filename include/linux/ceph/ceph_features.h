@@ -63,6 +63,18 @@
 #define CEPH_FEATURE_OSD_MIN_SIZE_RECOVERY (1ULL<<49)
 // duplicated since it was introduced at the same time as MIN_SIZE_RECOVERY
 #define CEPH_FEATURE_OSD_PROXY_FEATURES (1ULL<<49)  /* overlap w/ above */
+#define CEPH_FEATURE_MON_METADATA (1ULL<<50)
+#define CEPH_FEATURE_OSD_BITWISE_HOBJ_SORT (1ULL<<51) /* can sort objs bitwise */
+#define CEPH_FEATURE_OSD_PROXY_WRITE_FEATURES (1ULL<<52)
+#define CEPH_FEATURE_ERASURE_CODE_PLUGINS_V3 (1ULL<<53)
+#define CEPH_FEATURE_OSD_HITSET_GMT (1ULL<<54)
+#define CEPH_FEATURE_HAMMER_0_94_4 (1ULL<<55)
+#define CEPH_FEATURE_NEW_OSDOP_ENCODING   (1ULL<<56) /* New, v7 encoding */
+#define CEPH_FEATURE_MON_STATEFUL_SUB (1ULL<<57) /* stateful mon subscription */
+#define CEPH_FEATURE_MON_ROUTE_OSDMAP (1ULL<<57) /* peon sends osdmaps */
+#define CEPH_FEATURE_CRUSH_TUNABLES5	(1ULL<<58) /* chooseleaf stable mode */
+// duplicated since it was introduced at the same time as CEPH_FEATURE_CRUSH_TUNABLES5
+#define CEPH_FEATURE_NEW_OSDOPREPLY_ENCODING   (1ULL<<58) /* New, v7 encoding */
 
 /*
  * The introduction of CEPH_FEATURE_OSD_SNAPMAPPER caused the feature
@@ -108,7 +120,9 @@ static inline u64 ceph_sanitize_features(u64 features)
 	 CEPH_FEATURE_CRUSH_TUNABLES3 |		\
 	 CEPH_FEATURE_OSD_PRIMARY_AFFINITY |	\
 	 CEPH_FEATURE_MSGR_KEEPALIVE2 |		\
-	 CEPH_FEATURE_CRUSH_V4)
+	 CEPH_FEATURE_CRUSH_V4 |		\
+	 CEPH_FEATURE_CRUSH_TUNABLES5 |		\
+	 CEPH_FEATURE_NEW_OSDOPREPLY_ENCODING)
 
 #define CEPH_FEATURES_REQUIRED_DEFAULT   \
 	(CEPH_FEATURE_NOSRCADDR |	 \

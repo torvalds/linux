@@ -85,7 +85,7 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 	struct dma_buf_attachment *attach, struct sg_table *sg);
 int etnaviv_gem_prime_pin(struct drm_gem_object *obj);
 void etnaviv_gem_prime_unpin(struct drm_gem_object *obj);
-void *etnaviv_gem_vaddr(struct drm_gem_object *obj);
+void *etnaviv_gem_vmap(struct drm_gem_object *obj);
 int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
 		struct timespec *timeout);
 int etnaviv_gem_cpu_fini(struct drm_gem_object *obj);
