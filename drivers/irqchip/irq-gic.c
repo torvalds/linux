@@ -437,7 +437,7 @@ static void gic_cpu_if_up(struct gic_chip_data *gic)
 	u32 bypass = 0;
 	u32 mode = 0;
 
-	if (static_key_true(&supports_deactivate))
+	if (gic == &gic_data[0] && static_key_true(&supports_deactivate))
 		mode = GIC_CPU_CTRL_EOImodeNS;
 
 	/*
