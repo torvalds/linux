@@ -94,7 +94,8 @@ struct rsnd_ssi {
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_ssi_mode_flags(p) ((p)->flags)
 #define rsnd_ssi_is_parent(ssi, io) ((ssi) == rsnd_io_to_mod_ssip(io))
-#define rsnd_ssi_is_multi_slave(ssi, io) ((mod) != rsnd_io_to_mod_ssi(io))
+#define rsnd_ssi_is_multi_slave(mod, io) \
+	(rsnd_ssi_multi_slaves(io) & (1 << rsnd_mod_id(mod)))
 
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 {
@@ -167,25 +168,12 @@ static int rsnd_ssi_irq(struct rsnd_mod *mod,
 u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod;
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	struct rsnd_priv *priv = rsnd_io_to_priv(io);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	enum rsnd_mod_type types[] = {
 		RSND_MOD_SSIM1,
 		RSND_MOD_SSIM2,
 		RSND_MOD_SSIM3,
 	};
 	int i, mask;
-
-	switch (runtime->channels) {
-	case 2: /* Multi channel is not needed for Stereo */
-		return 0;
-	case 6:
-		break;
-	default:
-		dev_err(dev, "unsupported channel\n");
-		return 0;
-	}
 
 	mask = 0;
 	for (i = 0; i < ARRAY_SIZE(types); i++) {
