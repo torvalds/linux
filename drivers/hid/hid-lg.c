@@ -61,7 +61,7 @@
  */
 static __u8 df_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -127,7 +127,7 @@ static __u8 df_rdesc_fixed[] = {
 
 static __u8 dfp_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -175,7 +175,7 @@ static __u8 dfp_rdesc_fixed[] = {
 
 static __u8 fv_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -242,7 +242,7 @@ static __u8 fv_rdesc_fixed[] = {
 
 static __u8 momo_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
-0x09, 0x04,         /*  Usage (Joystik),                    */
+0x09, 0x04,         /*  Usage (Joystick),                   */
 0xA1, 0x01,         /*  Collection (Application),           */
 0xA1, 0x02,         /*      Collection (Logical),           */
 0x95, 0x01,         /*          Report Count (1),           */
@@ -288,7 +288,7 @@ static __u8 momo_rdesc_fixed[] = {
 
 static __u8 momo2_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
-0x09, 0x04,         /*  Usage (Joystik),                    */
+0x09, 0x04,         /*  Usage (Joystick),                   */
 0xA1, 0x01,         /*  Collection (Application),           */
 0xA1, 0x02,         /*      Collection (Logical),           */
 0x95, 0x01,         /*          Report Count (1),           */
