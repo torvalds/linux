@@ -1662,7 +1662,7 @@ static struct clk_core *__clk_init_parent(struct clk_core *core)
 {
 	u8 index = 0;
 
-	if (core->ops->get_parent)
+	if (core->num_parents > 1 && core->ops->get_parent)
 		index = core->ops->get_parent(core->hw);
 
 	return clk_core_get_parent_by_index(core, index);
