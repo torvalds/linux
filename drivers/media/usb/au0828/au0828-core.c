@@ -419,8 +419,21 @@ static int au0828_usb_probe(struct usb_interface *interface,
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
 	/* Analog TV */
-	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED)
-		au0828_analog_register(dev, interface);
+	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED) {
+		retval = au0828_analog_register(dev, interface);
+		if (retval) {
+			pr_err("%s() au0282_dev_register failed to register on V4L2\n",
+			       __func__);
+			goto done;
+		}
+
+		retval = au0828_create_media_graph(dev);
+		if (retval) {
+			pr_err("%s() au0282_dev_register failed to create graph\n",
+			       __func__);
+			goto done;
+		}
+	}
 #endif
 
 	/* Digital TV */
@@ -442,13 +455,6 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		dev->board.name == NULL ? "Unset" : dev->board.name);
 
 	mutex_unlock(&dev->lock);
-
-	retval = au0828_create_media_graph(dev);
-	if (retval) {
-		pr_err("%s() au0282_dev_register failed to create graph\n",
-		       __func__);
-		goto done;
-	}
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 	retval = media_device_register(dev->media_dev);
