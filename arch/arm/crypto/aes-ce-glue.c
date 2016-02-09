@@ -152,6 +152,10 @@ static int xts_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	struct crypto_aes_xts_ctx *ctx = crypto_tfm_ctx(tfm);
 	int ret;
 
+	ret = xts_check_key(tfm, in_key, key_len);
+	if (ret)
+		return ret;
+
 	ret = ce_aes_expandkey(&ctx->key1, in_key, key_len / 2);
 	if (!ret)
 		ret = ce_aes_expandkey(&ctx->key2, &in_key[key_len / 2],

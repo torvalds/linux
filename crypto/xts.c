@@ -35,16 +35,11 @@ static int setkey(struct crypto_tfm *parent, const u8 *key,
 {
 	struct priv *ctx = crypto_tfm_ctx(parent);
 	struct crypto_cipher *child = ctx->tweak;
-	u32 *flags = &parent->crt_flags;
 	int err;
 
-	/* key consists of keys of equal size concatenated, therefore
-	 * the length must be even */
-	if (keylen % 2) {
-		/* tell the user why there was an error */
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
+	err = xts_check_key(parent, key, keylen);
+	if (err)
+		return err;
 
 	/* we need two cipher instances: one to compute the initial 'tweak'
 	 * by encrypting the IV (usually the 'plain' iv) and the other
