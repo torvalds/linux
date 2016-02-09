@@ -582,6 +582,7 @@ static struct device_opp *_add_device_opp(struct device *dev)
 {
 	struct device_opp *dev_opp;
 	struct device_list_opp *list_dev;
+	struct device_node *np;
 
 	/* Check for existing list for 'dev' first */
 	dev_opp = _find_device_opp(dev);
@@ -602,6 +603,21 @@ static struct device_opp *_add_device_opp(struct device *dev)
 	if (!list_dev) {
 		kfree(dev_opp);
 		return NULL;
+	}
+
+	/*
+	 * Only required for backward compatibility with v1 bindings, but isn't
+	 * harmful for other cases. And so we do it unconditionally.
+	 */
+	np = of_node_get(dev->of_node);
+	if (np) {
+		u32 val;
+
+		if (!of_property_read_u32(np, "clock-latency", &val))
+			dev_opp->clock_latency_ns_max = val;
+		of_property_read_u32(np, "voltage-tolerance",
+				     &dev_opp->voltage_tolerance_v1);
+		of_node_put(np);
 	}
 
 	srcu_init_notifier_head(&dev_opp->srcu_head);
@@ -861,6 +877,7 @@ static int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *new_opp;
+	unsigned long tol;
 	int ret;
 
 	/* Hold our list modification lock here */
@@ -874,7 +891,10 @@ static int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
 
 	/* populate the opp table */
 	new_opp->rate = freq;
+	tol = u_volt * dev_opp->voltage_tolerance_v1 / 100;
 	new_opp->u_volt = u_volt;
+	new_opp->u_volt_min = u_volt - tol;
+	new_opp->u_volt_max = u_volt + tol;
 	new_opp->available = true;
 	new_opp->dynamic = dynamic;
 
