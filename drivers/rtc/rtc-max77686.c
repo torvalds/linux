@@ -24,20 +24,20 @@
 
 /* RTC Control Register */
 #define BCD_EN_SHIFT			0
-#define BCD_EN_MASK			(1 << BCD_EN_SHIFT)
+#define BCD_EN_MASK			BIT(BCD_EN_SHIFT)
 #define MODEL24_SHIFT			1
-#define MODEL24_MASK			(1 << MODEL24_SHIFT)
+#define MODEL24_MASK			BIT(MODEL24_SHIFT)
 /* RTC Update Register1 */
 #define RTC_UDR_SHIFT			0
-#define RTC_UDR_MASK			(1 << RTC_UDR_SHIFT)
+#define RTC_UDR_MASK			BIT(RTC_UDR_SHIFT)
 #define RTC_RBUDR_SHIFT			4
-#define RTC_RBUDR_MASK			(1 << RTC_RBUDR_SHIFT)
+#define RTC_RBUDR_MASK			BIT(RTC_RBUDR_SHIFT)
 /* RTC Hour register */
 #define HOUR_PM_SHIFT			6
-#define HOUR_PM_MASK			(1 << HOUR_PM_SHIFT)
+#define HOUR_PM_MASK			BIT(HOUR_PM_SHIFT)
 /* RTC Alarm Enable */
 #define ALARM_ENABLE_SHIFT		7
-#define ALARM_ENABLE_MASK		(1 << ALARM_ENABLE_SHIFT)
+#define ALARM_ENABLE_MASK		BIT(ALARM_ENABLE_SHIFT)
 
 #define REG_RTC_NONE			0xdeadbeef
 
@@ -205,9 +205,9 @@ static void max77686_rtc_data_to_tm(u8 *data, struct rtc_time *tm,
 
 	tm->tm_sec = data[RTC_SEC] & mask;
 	tm->tm_min = data[RTC_MIN] & mask;
-	if (info->rtc_24hr_mode)
+	if (info->rtc_24hr_mode) {
 		tm->tm_hour = data[RTC_HOUR] & 0x1f;
-	else {
+	} else {
 		tm->tm_hour = data[RTC_HOUR] & 0x0f;
 		if (data[RTC_HOUR] & HOUR_PM_MASK)
 			tm->tm_hour += 12;
@@ -256,7 +256,7 @@ static int max77686_rtc_tm_to_data(struct rtc_time *tm, u8 *data,
 }
 
 static int max77686_rtc_update(struct max77686_rtc_info *info,
-	enum MAX77686_RTC_OP op)
+			       enum MAX77686_RTC_OP op)
 {
 	int ret;
 	unsigned int data;
@@ -547,7 +547,7 @@ out:
 }
 
 static int max77686_rtc_alarm_irq_enable(struct device *dev,
-					unsigned int enabled)
+					 unsigned int enabled)
 {
 	struct max77686_rtc_info *info = dev_get_drvdata(dev);
 	int ret;
@@ -612,7 +612,7 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 	int ret;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max77686_rtc_info),
-				GFP_KERNEL);
+			    GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -662,7 +662,8 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, info->virq, NULL,
-				max77686_rtc_alarm_irq, 0, "rtc-alarm1", info);
+					max77686_rtc_alarm_irq, 0,
+					"rtc-alarm1", info);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->virq, ret);
