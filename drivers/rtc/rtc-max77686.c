@@ -12,6 +12,7 @@
  *
  */
 
+#include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/rtc.h>
 #include <linux/delay.h>
@@ -21,6 +22,9 @@
 #include <linux/mfd/max77686-private.h>
 #include <linux/irqdomain.h>
 #include <linux/regmap.h>
+
+#define MAX77686_I2C_ADDR_RTC		(0x0C >> 1)
+#define MAX77686_INVALID_I2C_ADDR	(-1)
 
 /* RTC Control Register */
 #define BCD_EN_SHIFT			0
@@ -68,8 +72,10 @@ struct max77686_rtc_driver_data {
 	const unsigned int	*map;
 	/* Has a separate alarm enable register? */
 	bool			alarm_enable_reg;
-	/* Has a separate I2C regmap for the RTC? */
-	bool			separate_i2c_addr;
+	/* I2C address for RTC block */
+	int			rtc_i2c_addr;
+	/* RTC IRQ CHIP for regmap */
+	const struct regmap_irq_chip *rtc_irq_chip;
 };
 
 struct max77686_rtc_info {
@@ -82,7 +88,9 @@ struct max77686_rtc_info {
 	struct regmap		*rtc_regmap;
 
 	const struct max77686_rtc_driver_data *drv_data;
+	struct regmap_irq_chip_data *rtc_irq_data;
 
+	int rtc_irq;
 	int virq;
 	int rtc_24hr_mode;
 };
@@ -153,12 +161,32 @@ static const unsigned int max77686_map[REG_RTC_END] = {
 	[REG_RTC_AE1]	     = REG_RTC_NONE,
 };
 
+static const struct regmap_irq max77686_rtc_irqs[] = {
+	/* RTC interrupts */
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTC60S_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTCA1_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTCA2_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_SMPL_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTC1S_MSK, },
+	{ .reg_offset = 0, .mask = MAX77686_RTCINT_WTSR_MSK, },
+};
+
+static const struct regmap_irq_chip max77686_rtc_irq_chip = {
+	.name		= "max77686-rtc",
+	.status_base	= MAX77686_RTC_INT,
+	.mask_base	= MAX77686_RTC_INTM,
+	.num_regs	= 1,
+	.irqs		= max77686_rtc_irqs,
+	.num_irqs	= ARRAY_SIZE(max77686_rtc_irqs),
+};
+
 static const struct max77686_rtc_driver_data max77686_drv_data = {
 	.delay = 16000,
 	.mask  = 0x7f,
 	.map   = max77686_map,
 	.alarm_enable_reg  = false,
-	.separate_i2c_addr = true,
+	.rtc_i2c_addr = MAX77686_I2C_ADDR_RTC,
+	.rtc_irq_chip = &max77686_rtc_irq_chip,
 };
 
 static const unsigned int max77802_map[REG_RTC_END] = {
@@ -190,12 +218,22 @@ static const unsigned int max77802_map[REG_RTC_END] = {
 	[REG_RTC_AE1]	     = MAX77802_RTC_AE1,
 };
 
+static const struct regmap_irq_chip max77802_rtc_irq_chip = {
+	.name		= "max77802-rtc",
+	.status_base	= MAX77802_RTC_INT,
+	.mask_base	= MAX77802_RTC_INTM,
+	.num_regs	= 1,
+	.irqs		= max77686_rtc_irqs, /* same masks as 77686 */
+	.num_irqs	= ARRAY_SIZE(max77686_rtc_irqs),
+};
+
 static const struct max77686_rtc_driver_data max77802_drv_data = {
 	.delay = 200,
 	.mask  = 0xff,
 	.map   = max77802_map,
 	.alarm_enable_reg  = true,
-	.separate_i2c_addr = false,
+	.rtc_i2c_addr = MAX77686_INVALID_I2C_ADDR,
+	.rtc_irq_chip = &max77802_rtc_irq_chip,
 };
 
 static void max77686_rtc_data_to_tm(u8 *data, struct rtc_time *tm,
@@ -599,9 +637,65 @@ static int max77686_rtc_init_reg(struct max77686_rtc_info *info)
 	return ret;
 }
 
+static const struct regmap_config max77686_rtc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+};
+
+static int max77686_init_rtc_regmap(struct max77686_rtc_info *info)
+{
+	struct device *parent = info->dev->parent;
+	struct i2c_client *parent_i2c = to_i2c_client(parent);
+	int ret;
+
+	info->rtc_irq = parent_i2c->irq;
+
+	info->regmap = dev_get_regmap(parent, NULL);
+	if (!info->regmap) {
+		dev_err(info->dev, "Failed to get rtc regmap\n");
+		return -ENODEV;
+	}
+
+	if (info->drv_data->rtc_i2c_addr == MAX77686_INVALID_I2C_ADDR) {
+		info->rtc_regmap = info->regmap;
+		goto add_rtc_irq;
+	}
+
+	info->rtc = i2c_new_dummy(parent_i2c->adapter,
+				  info->drv_data->rtc_i2c_addr);
+	if (!info->rtc) {
+		dev_err(info->dev, "Failed to allocate I2C device for RTC\n");
+		return -ENODEV;
+	}
+
+	info->rtc_regmap = devm_regmap_init_i2c(info->rtc,
+						&max77686_rtc_regmap_config);
+	if (IS_ERR(info->rtc_regmap)) {
+		ret = PTR_ERR(info->rtc_regmap);
+		dev_err(info->dev, "Failed to allocate RTC regmap: %d\n", ret);
+		goto err_unregister_i2c;
+	}
+
+add_rtc_irq:
+	ret = regmap_add_irq_chip(info->rtc_regmap, info->rtc_irq,
+				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
+				  IRQF_SHARED, 0, info->drv_data->rtc_irq_chip,
+				  &info->rtc_irq_data);
+	if (ret < 0) {
+		dev_err(info->dev, "Failed to add RTC irq chip: %d\n", ret);
+		goto err_unregister_i2c;
+	}
+
+	return 0;
+
+err_unregister_i2c:
+	if (info->rtc)
+		i2c_unregister_device(info->rtc);
+	return ret;
+}
+
 static int max77686_rtc_probe(struct platform_device *pdev)
 {
-	struct max77686_dev *max77686 = dev_get_drvdata(pdev->dev.parent);
 	struct max77686_rtc_info *info;
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	int ret;
@@ -613,18 +707,16 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 
 	mutex_init(&info->lock);
 	info->dev = &pdev->dev;
-	info->rtc = max77686->rtc;
 	info->drv_data = (const struct max77686_rtc_driver_data *)
 		id->driver_data;
 
-	info->regmap = max77686->regmap;
-	info->rtc_regmap = (info->drv_data->separate_i2c_addr) ?
-			    max77686->rtc_regmap : info->regmap;
+	ret = max77686_init_rtc_regmap(info);
+	if (ret < 0)
+		return ret;
 
 	platform_set_drvdata(pdev, info);
 
 	ret = max77686_rtc_init_reg(info);
-
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to initialize RTC reg:%d\n", ret);
 		goto err_rtc;
@@ -643,28 +735,41 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 		goto err_rtc;
 	}
 
-	if (!max77686->rtc_irq_data) {
-		ret = -EINVAL;
-		dev_err(&pdev->dev, "No RTC regmap IRQ chip\n");
-		goto err_rtc;
-	}
-
-	info->virq = regmap_irq_get_virq(max77686->rtc_irq_data,
+	info->virq = regmap_irq_get_virq(info->rtc_irq_data,
 					 MAX77686_RTCIRQ_RTCA1);
 	if (info->virq <= 0) {
 		ret = -ENXIO;
 		goto err_rtc;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, info->virq, NULL,
-					max77686_rtc_alarm_irq, 0,
-					"rtc-alarm1", info);
-	if (ret < 0)
+	ret = request_threaded_irq(info->virq, NULL, max77686_rtc_alarm_irq, 0,
+				   "rtc-alarm1", info);
+	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->virq, ret);
+		goto err_rtc;
+	}
+
+	return 0;
 
 err_rtc:
+	regmap_del_irq_chip(info->rtc_irq, info->rtc_irq_data);
+	if (info->rtc)
+		i2c_unregister_device(info->rtc);
+
 	return ret;
+}
+
+static int max77686_rtc_remove(struct platform_device *pdev)
+{
+	struct max77686_rtc_info *info = platform_get_drvdata(pdev);
+
+	free_irq(info->virq, info);
+	regmap_del_irq_chip(info->rtc_irq, info->rtc_irq_data);
+	if (info->rtc)
+		i2c_unregister_device(info->rtc);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -707,6 +812,7 @@ static struct platform_driver max77686_rtc_driver = {
 		.pm	= &max77686_rtc_pm_ops,
 	},
 	.probe		= max77686_rtc_probe,
+	.remove		= max77686_rtc_remove,
 	.id_table	= rtc_id,
 };
 
