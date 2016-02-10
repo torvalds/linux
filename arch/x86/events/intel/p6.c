@@ -1,7 +1,7 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 
-#include "perf_event.h"
+#include "../../kernel/cpu/perf_event.h"
 
 /*
  * Not sure about some of these
