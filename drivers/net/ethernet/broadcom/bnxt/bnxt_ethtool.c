@@ -557,6 +557,7 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	u16 ethtool_speed;
 
 	cmd->supported = bnxt_fw_to_ethtool_support_spds(link_info);
+	cmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 
 	if (link_info->auto_link_speeds)
 		cmd->supported |= SUPPORTED_Autoneg;
@@ -570,27 +571,15 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->advertising = 0;
 	}
-	if (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) {
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) {
 		if ((link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) ==
 		    BNXT_LINK_PAUSE_BOTH) {
 			cmd->advertising |= ADVERTISED_Pause;
-			cmd->supported |= SUPPORTED_Pause;
 		} else {
 			cmd->advertising |= ADVERTISED_Asym_Pause;
-			cmd->supported |= SUPPORTED_Asym_Pause;
 			if (link_info->auto_pause_setting &
 			    BNXT_LINK_PAUSE_RX)
 				cmd->advertising |= ADVERTISED_Pause;
-		}
-	} else if (link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) {
-		if ((link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) ==
-		    BNXT_LINK_PAUSE_BOTH) {
-			cmd->supported |= SUPPORTED_Pause;
-		} else {
-			cmd->supported |= SUPPORTED_Asym_Pause;
-			if (link_info->force_pause_setting &
-			    BNXT_LINK_PAUSE_RX)
-				cmd->supported |= SUPPORTED_Pause;
 		}
 	}
 

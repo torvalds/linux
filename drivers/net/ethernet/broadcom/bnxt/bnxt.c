@@ -5670,22 +5670,16 @@ static int bnxt_probe_phy(struct bnxt *bp)
 	}
 
 	/*initialize the ethool setting copy with NVM settings */
-	if (BNXT_AUTO_MODE(link_info->auto_mode))
-		link_info->autoneg |= BNXT_AUTONEG_SPEED;
-
-	if (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) {
-		if (link_info->auto_pause_setting == BNXT_LINK_PAUSE_BOTH)
-			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
+		link_info->autoneg = BNXT_AUTONEG_SPEED |
+				     BNXT_AUTONEG_FLOW_CTRL;
+		link_info->advertising = link_info->auto_link_speeds;
 		link_info->req_flow_ctrl = link_info->auto_pause_setting;
-	} else if (link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) {
+	} else {
+		link_info->req_link_speed = link_info->force_link_speed;
+		link_info->req_duplex = link_info->duplex_setting;
 		link_info->req_flow_ctrl = link_info->force_pause_setting;
 	}
-	link_info->req_duplex = link_info->duplex_setting;
-	if (link_info->autoneg & BNXT_AUTONEG_SPEED)
-		link_info->req_link_speed = link_info->auto_link_speed;
-	else
-		link_info->req_link_speed = link_info->force_link_speed;
-	link_info->advertising = link_info->auto_link_speeds;
 	snprintf(phy_ver, PHY_VER_STR_LEN, " ph %d.%d.%d",
 		 link_info->phy_ver[0],
 		 link_info->phy_ver[1],
