@@ -298,15 +298,15 @@ static inline int is_module_addr(void *addr)
 
 /*
  * Segment table entry encoding (R = read-only, I = invalid, y = young bit):
- *				dy..R...I...wr
+ *				dy..R...I...rw
  * prot-none, clean, old	00..1...1...00
  * prot-none, clean, young	01..1...1...00
  * prot-none, dirty, old	10..1...1...00
  * prot-none, dirty, young	11..1...1...00
- * read-only, clean, old	00..1...1...01
- * read-only, clean, young	01..1...0...01
- * read-only, dirty, old	10..1...1...01
- * read-only, dirty, young	11..1...0...01
+ * read-only, clean, old	00..1...1...10
+ * read-only, clean, young	01..1...0...10
+ * read-only, dirty, old	10..1...1...10
+ * read-only, dirty, young	11..1...0...10
  * read-write, clean, old	00..1...1...11
  * read-write, clean, young	01..1...0...11
  * read-write, dirty, old	10..0...1...11
