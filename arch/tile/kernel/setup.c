@@ -1064,7 +1064,7 @@ static void __init load_hv_initrd(void)
 
 void __init free_initrd_mem(unsigned long begin, unsigned long end)
 {
-	free_bootmem(__pa(begin), end - begin);
+	free_bootmem_late(__pa(begin), end - begin);
 }
 
 #else
