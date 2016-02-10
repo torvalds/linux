@@ -411,8 +411,8 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_NUM_TESTS(bp)	0
 
-#define BNXT_DEFAULT_RX_RING_SIZE	1023
-#define BNXT_DEFAULT_TX_RING_SIZE	512
+#define BNXT_DEFAULT_RX_RING_SIZE	511
+#define BNXT_DEFAULT_TX_RING_SIZE	511
 
 #define MAX_TPA		64
 
