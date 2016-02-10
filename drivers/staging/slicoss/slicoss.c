@@ -58,9 +58,9 @@
 #define DEBUG_MICROCODE                 1
 #define DBG                             1
 #define SLIC_INTERRUPT_PROCESS_LIMIT	1
-#define SLIC_OFFLOAD_IP_CHECKSUM		1
-#define STATS_TIMER_INTERVAL			2
-#define PING_TIMER_INTERVAL			    1
+#define SLIC_OFFLOAD_IP_CHECKSUM	1
+#define STATS_TIMER_INTERVAL		2
+#define PING_TIMER_INTERVAL		1
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
