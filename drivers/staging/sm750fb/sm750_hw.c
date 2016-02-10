@@ -414,13 +414,13 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
-		pr_info("flag = FB_BLANK_UNBLANK\n");
+		pr_debug("flag = FB_BLANK_UNBLANK\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		pps = PANEL_DISPLAY_CTRL_DATA_ENABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_OFF;
 		break;
 	case FB_BLANK_NORMAL:
-		pr_info("flag = FB_BLANK_NORMAL\n");
+		pr_debug("flag = FB_BLANK_NORMAL\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
