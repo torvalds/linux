@@ -9,25 +9,25 @@
 static void setDisplayControl(int ctrl, int disp_state)
 {
 	/* state != 0 means turn on both timing & plane en_bit */
-	unsigned long ulDisplayCtrlReg, ulReservedBits;
+	unsigned long reg, reserved;
 	int cnt;
 
 	cnt = 0;
 
 	/* Set the primary display control */
 	if (!ctrl) {
-		ulDisplayCtrlReg = PEEK32(PANEL_DISPLAY_CTRL);
+		reg = PEEK32(PANEL_DISPLAY_CTRL);
 		/* Turn on/off the Panel display control */
 		if (disp_state) {
 			/* Timing should be enabled first before enabling the plane
 			 * because changing at the same time does not guarantee that
 			 * the plane will also enabled or disabled.
 			 */
-			ulDisplayCtrlReg = FIELD_SET(ulDisplayCtrlReg,
+			reg = FIELD_SET(reg,
 								PANEL_DISPLAY_CTRL, TIMING, ENABLE);
-			POKE32(PANEL_DISPLAY_CTRL, ulDisplayCtrlReg);
+			POKE32(PANEL_DISPLAY_CTRL, reg);
 
-			ulDisplayCtrlReg = FIELD_SET(ulDisplayCtrlReg,
+			reg = FIELD_SET(reg,
 								PANEL_DISPLAY_CTRL, PLANE, ENABLE);
 
 			/* Added some masks to mask out the reserved bits.
@@ -35,7 +35,7 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * writing to the PRIMARY_DISPLAY_CTRL, therefore, the register
 			 * reserved bits are needed to be masked out.
 			 */
-			ulReservedBits = FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_1_MASK, ENABLE) |
+			reserved = FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_1_MASK, ENABLE) |
 				FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_2_MASK, ENABLE) |
 				FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_3_MASK, ENABLE);
 
@@ -45,9 +45,9 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 */
 			do {
 				cnt++;
-				POKE32(PANEL_DISPLAY_CTRL, ulDisplayCtrlReg);
-			} while ((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) !=
-					(ulDisplayCtrlReg & ~ulReservedBits));
+				POKE32(PANEL_DISPLAY_CTRL, reg);
+			} while ((PEEK32(PANEL_DISPLAY_CTRL) & ~reserved) !=
+					(reg & ~reserved));
 			printk("Set Panel Plane enbit:after tried %d times\n", cnt);
 		} else {
 			/* When turning off, there is no rule on the programming
@@ -57,28 +57,28 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * next vertical sync. Need to find out if it is necessary to
 			 * wait for 1 vsync before modifying the timing enable bit.
 			 * */
-			ulDisplayCtrlReg = FIELD_SET(ulDisplayCtrlReg,
+			reg = FIELD_SET(reg,
 								PANEL_DISPLAY_CTRL, PLANE, DISABLE);
-			POKE32(PANEL_DISPLAY_CTRL, ulDisplayCtrlReg);
+			POKE32(PANEL_DISPLAY_CTRL, reg);
 
-			ulDisplayCtrlReg = FIELD_SET(ulDisplayCtrlReg,
+			reg = FIELD_SET(reg,
 								PANEL_DISPLAY_CTRL, TIMING, DISABLE);
-			POKE32(PANEL_DISPLAY_CTRL, ulDisplayCtrlReg);
+			POKE32(PANEL_DISPLAY_CTRL, reg);
 		}
 
 	} else {
 		/* Set the secondary display control */
-		ulDisplayCtrlReg = PEEK32(CRT_DISPLAY_CTRL);
+		reg = PEEK32(CRT_DISPLAY_CTRL);
 
 		if (disp_state) {
 			/* Timing should be enabled first before enabling the plane because changing at the
 			   same time does not guarantee that the plane will also enabled or disabled.
 			   */
-			ulDisplayCtrlReg = FIELD_SET(ulDisplayCtrlReg,
+			reg = FIELD_SET(reg,
 								CRT_DISPLAY_CTRL, TIMING, ENABLE);
-			POKE32(CRT_DISPLAY_CTRL, ulDisplayCtrlReg);
+			POKE32(CRT_DISPLAY_CTRL, reg);
 
-			ulDisplayCtrlReg = FIELD_SET(ulDisplayCtrlReg,
+			reg = FIELD_SET(reg,
 								CRT_DISPLAY_CTRL, PLANE, ENABLE);
 
 			/* Added some masks to mask out the reserved bits.
@@ -87,16 +87,16 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * reserved bits are needed to be masked out.
 			 */
 
-			ulReservedBits = FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_1_MASK, ENABLE) |
+			reserved = FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_1_MASK, ENABLE) |
 				FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_2_MASK, ENABLE) |
 				FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_3_MASK, ENABLE) |
 				FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_4_MASK, ENABLE);
 
 			do {
 				cnt++;
-				POKE32(CRT_DISPLAY_CTRL, ulDisplayCtrlReg);
-			} while ((PEEK32(CRT_DISPLAY_CTRL) & ~ulReservedBits) !=
-					(ulDisplayCtrlReg & ~ulReservedBits));
+				POKE32(CRT_DISPLAY_CTRL, reg);
+			} while ((PEEK32(CRT_DISPLAY_CTRL) & ~reserved) !=
+					(reg & ~reserved));
 				printk("Set Crt Plane enbit:after tried %d times\n", cnt);
 		} else {
 			/* When turning off, there is no rule on the programming
@@ -106,13 +106,13 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * vertical sync. Need to find out if it is necessary to
 			 * wait for 1 vsync before modifying the timing enable bit.
 			 */
-			ulDisplayCtrlReg = FIELD_SET(ulDisplayCtrlReg,
+			reg = FIELD_SET(reg,
 								CRT_DISPLAY_CTRL, PLANE, DISABLE);
-			POKE32(CRT_DISPLAY_CTRL, ulDisplayCtrlReg);
+			POKE32(CRT_DISPLAY_CTRL, reg);
 
-			ulDisplayCtrlReg = FIELD_SET(ulDisplayCtrlReg,
+			reg = FIELD_SET(reg,
 								CRT_DISPLAY_CTRL, TIMING, DISABLE);
-			POKE32(CRT_DISPLAY_CTRL, ulDisplayCtrlReg);
+			POKE32(CRT_DISPLAY_CTRL, reg);
 		}
 	}
 }
