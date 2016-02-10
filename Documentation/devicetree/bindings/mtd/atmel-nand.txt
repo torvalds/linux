@@ -21,8 +21,8 @@ Optional properties:
 - nand-ecc-mode : String, operation mode of the NAND ecc mode, soft by default.
   Supported values are: "none", "soft", "hw", "hw_syndrome", "hw_oob_first",
   "soft_bch".
-- atmel,has-pmecc : boolean to enable Programmable Multibit ECC hardware.
-  Only supported by at91sam9x5 or later sam9 product.
+- atmel,has-pmecc : boolean to enable Programmable Multibit ECC hardware,
+  capable of BCH encoding and decoding, on devices where it is present.
 - atmel,pmecc-cap : error correct capability for Programmable Multibit ECC
   Controller. Supported values are: 2, 4, 8, 12, 24.
 - atmel,pmecc-sector-size : sector size for ECC computation. Supported values
@@ -32,15 +32,16 @@ Optional properties:
   sector size 1024. If not specified, driver will build the table in runtime.
 - nand-bus-width : 8 or 16 bus width if not present 8
 - nand-on-flash-bbt: boolean to enable on flash bbt option if not present false
-- Nand Flash Controller(NFC) is a slave driver under Atmel nand flash
-  - Required properties:
-    - compatible : "atmel,sama5d3-nfc" or "atmel,sama5d4-nfc".
-    - reg : should specify the address and size used for NFC command registers,
-            NFC registers and NFC Sram. NFC Sram address and size can be absent
-            if don't want to use it.
-    - clocks: phandle to the peripheral clock
-  - Optional properties:
-    - atmel,write-by-sram: boolean to enable NFC write by sram.
+
+Nand Flash Controller(NFC) is an optional sub-node
+Required properties:
+- compatible : "atmel,sama5d3-nfc" or "atmel,sama5d4-nfc".
+- reg : should specify the address and size used for NFC command registers,
+        NFC registers and NFC SRAM. NFC SRAM address and size can be absent
+        if don't want to use it.
+- clocks: phandle to the peripheral clock
+Optional properties:
+- atmel,write-by-sram: boolean to enable NFC write by SRAM.
 
 Examples:
 nand0: nand@40000000,0 {
