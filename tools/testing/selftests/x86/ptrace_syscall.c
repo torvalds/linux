@@ -187,7 +187,7 @@ static void test_ptrace_syscall_restart(void)
 
 	printf("[RUN]\tSYSEMU\n");
 	if (ptrace(PTRACE_SYSEMU, chld, 0, 0) != 0)
-		err(1, "PTRACE_SYSCALL");
+		err(1, "PTRACE_SYSEMU");
 	wait_trap(chld);
 
 	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
@@ -218,7 +218,7 @@ static void test_ptrace_syscall_restart(void)
 		err(1, "PTRACE_SETREGS");
 
 	if (ptrace(PTRACE_SYSEMU, chld, 0, 0) != 0)
-		err(1, "PTRACE_SYSCALL");
+		err(1, "PTRACE_SYSEMU");
 	wait_trap(chld);
 
 	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
@@ -250,7 +250,7 @@ static void test_ptrace_syscall_restart(void)
 		err(1, "PTRACE_SETREGS");
 
 	if (ptrace(PTRACE_SYSEMU, chld, 0, 0) != 0)
-		err(1, "PTRACE_SYSCALL");
+		err(1, "PTRACE_SYSEMU");
 	wait_trap(chld);
 
 	if (ptrace(PTRACE_GETREGS, chld, 0, &regs) != 0)
