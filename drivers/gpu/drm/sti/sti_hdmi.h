@@ -25,6 +25,19 @@ struct hdmi_phy_ops {
 	void (*stop)(struct sti_hdmi *hdmi);
 };
 
+/* values for the framing mode property */
+enum sti_hdmi_modes {
+	HDMI_MODE_HDMI,
+	HDMI_MODE_DVI,
+};
+
+static const struct drm_prop_enum_list hdmi_mode_names[] = {
+	{ HDMI_MODE_HDMI, "hdmi" },
+	{ HDMI_MODE_DVI, "dvi" },
+};
+
+#define DEFAULT_HDMI_MODE HDMI_MODE_HDMI
+
 static const struct drm_prop_enum_list colorspace_mode_names[] = {
 	{ HDMI_COLORSPACE_RGB, "rgb" },
 	{ HDMI_COLORSPACE_YUV422, "yuv422" },
@@ -55,6 +68,7 @@ static const struct drm_prop_enum_list colorspace_mode_names[] = {
  * @reset: reset control of the hdmi phy
  * @ddc_adapt: i2c ddc adapter
  * @colorspace: current colorspace selected
+ * @hdmi_mode: select framing for HDMI or DVI
  */
 struct sti_hdmi {
 	struct device dev;
@@ -76,6 +90,7 @@ struct sti_hdmi {
 	struct reset_control *reset;
 	struct i2c_adapter *ddc_adapt;
 	enum hdmi_colorspace colorspace;
+	enum sti_hdmi_modes hdmi_mode;
 };
 
 u32 hdmi_read(struct sti_hdmi *hdmi, int offset);
