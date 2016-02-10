@@ -4927,7 +4927,7 @@ xlog_do_recover(
 	 */
 	bp = xfs_getsb(log->l_mp, 0);
 	bp->b_flags &= ~(XBF_DONE | XBF_ASYNC);
-	ASSERT(!(XFS_BUF_ISWRITE(bp)));
+	ASSERT(!(bp->b_flags & XBF_WRITE));
 	bp->b_flags |= XBF_READ;
 	bp->b_ops = &xfs_sb_buf_ops;
 

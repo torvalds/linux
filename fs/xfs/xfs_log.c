@@ -1865,7 +1865,7 @@ xlog_sync(
 	bp->b_io_length = BTOBB(count);
 	bp->b_fspriv = iclog;
 	XFS_BUF_ZEROFLAGS(bp);
-	bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO);
+	bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE);
 
 	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER) {
 		bp->b_flags |= XBF_FUA;
@@ -1892,12 +1892,11 @@ xlog_sync(
 
 	/* account for log which doesn't start at block #0 */
 	XFS_BUF_SET_ADDR(bp, XFS_BUF_ADDR(bp) + log->l_logBBstart);
+
 	/*
 	 * Don't call xfs_bwrite here. We do log-syncs even when the filesystem
 	 * is shutting down.
 	 */
-	XFS_BUF_WRITE(bp);
-
 	error = xlog_bdstrat(bp);
 	if (error) {
 		xfs_buf_ioerror_alert(bp, "xlog_sync");
@@ -1910,7 +1909,7 @@ xlog_sync(
 				(char *)&iclog->ic_header + count, split);
 		bp->b_fspriv = iclog;
 		XFS_BUF_ZEROFLAGS(bp);
-		bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO);
+		bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE);
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
 			bp->b_flags |= XBF_FUA;
 
@@ -1919,7 +1918,6 @@ xlog_sync(
 
 		/* account for internal log which doesn't start at block #0 */
 		XFS_BUF_SET_ADDR(bp, XFS_BUF_ADDR(bp) + log->l_logBBstart);
-		XFS_BUF_WRITE(bp);
 		error = xlog_bdstrat(bp);
 		if (error) {
 			xfs_buf_ioerror_alert(bp, "xlog_sync (split)");

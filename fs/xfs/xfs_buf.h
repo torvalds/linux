@@ -321,10 +321,6 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)
 #define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XBF_STALE)
 
-#define XFS_BUF_WRITE(bp)	((bp)->b_flags |= XBF_WRITE)
-#define XFS_BUF_UNWRITE(bp)	((bp)->b_flags &= ~XBF_WRITE)
-#define XFS_BUF_ISWRITE(bp)	((bp)->b_flags & XBF_WRITE)
-
 /*
  * These macros use the IO block map rather than b_bn. b_bn is now really
  * just for the buffer cache index for cached buffers. As IO does not use b_bn
