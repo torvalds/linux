@@ -52,7 +52,7 @@ static int nvme_char_major;
 module_param(nvme_char_major, int, 0);
 
 static LIST_HEAD(nvme_ctrl_list);
-DEFINE_SPINLOCK(dev_list_lock);
+static DEFINE_SPINLOCK(dev_list_lock);
 
 static struct class *nvme_class;
 
