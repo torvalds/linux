@@ -843,8 +843,9 @@
 #define PANEL_WINDOW_WIDTH_X_MASK                     0xfff
 
 #define PANEL_WINDOW_HEIGHT                           0x080018
-#define PANEL_WINDOW_HEIGHT_HEIGHT                    27:16
-#define PANEL_WINDOW_HEIGHT_Y                         11:0
+#define PANEL_WINDOW_HEIGHT_HEIGHT_SHIFT              16
+#define PANEL_WINDOW_HEIGHT_HEIGHT_MASK               (0xfff << 16)
+#define PANEL_WINDOW_HEIGHT_Y_MASK                    0xfff
 
 #define PANEL_PLANE_TL                                0x08001C
 #define PANEL_PLANE_TL_TOP                            26:16
