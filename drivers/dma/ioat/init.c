@@ -136,14 +136,6 @@ int ioat_pending_level = 4;
 module_param(ioat_pending_level, int, 0644);
 MODULE_PARM_DESC(ioat_pending_level,
 		 "high-water mark for pushing ioat descriptors (default: 4)");
-int ioat_ring_alloc_order = 8;
-module_param(ioat_ring_alloc_order, int, 0644);
-MODULE_PARM_DESC(ioat_ring_alloc_order,
-		 "ioat+: allocate 2^n descriptors per channel (default: 8 max: 16)");
-int ioat_ring_max_alloc_order = IOAT_MAX_ORDER;
-module_param(ioat_ring_max_alloc_order, int, 0644);
-MODULE_PARM_DESC(ioat_ring_max_alloc_order,
-		 "ioat+: upper limit for ring size (default: 16)");
 static char ioat_interrupt_style[32] = "msix";
 module_param_string(ioat_interrupt_style, ioat_interrupt_style,
 		    sizeof(ioat_interrupt_style), 0644);
@@ -712,7 +704,7 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	writel(((u64)ioat_chan->completion_dma) >> 32,
 	       ioat_chan->reg_base + IOAT_CHANCMP_OFFSET_HIGH);
 
-	order = ioat_get_alloc_order();
+	order = IOAT_MAX_ORDER;
 	ring = ioat_alloc_ring(c, order, GFP_KERNEL);
 	if (!ring)
 		return -ENOMEM;

@@ -332,9 +332,6 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 	int descs = 1 << order;
 	int i;
 
-	if (order > ioat_get_max_alloc_order())
-		return NULL;
-
 	/* allocate the array to hold the software ring */
 	ring = kcalloc(descs, sizeof(*ring), flags);
 	if (!ring)
@@ -362,114 +359,6 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 	return ring;
 }
 
-static bool reshape_ring(struct ioatdma_chan *ioat_chan, int order)
-{
-	/* reshape differs from normal ring allocation in that we want
-	 * to allocate a new software ring while only
-	 * extending/truncating the hardware ring
-	 */
-	struct dma_chan *c = &ioat_chan->dma_chan;
-	const u32 curr_size = ioat_ring_size(ioat_chan);
-	const u16 active = ioat_ring_active(ioat_chan);
-	const u32 new_size = 1 << order;
-	struct ioat_ring_ent **ring;
-	u32 i;
-
-	if (order > ioat_get_max_alloc_order())
-		return false;
-
-	/* double check that we have at least 1 free descriptor */
-	if (active == curr_size)
-		return false;
-
-	/* when shrinking, verify that we can hold the current active
-	 * set in the new ring
-	 */
-	if (active >= new_size)
-		return false;
-
-	/* allocate the array to hold the software ring */
-	ring = kcalloc(new_size, sizeof(*ring), GFP_NOWAIT);
-	if (!ring)
-		return false;
-
-	/* allocate/trim descriptors as needed */
-	if (new_size > curr_size) {
-		/* copy current descriptors to the new ring */
-		for (i = 0; i < curr_size; i++) {
-			u16 curr_idx = (ioat_chan->tail+i) & (curr_size-1);
-			u16 new_idx = (ioat_chan->tail+i) & (new_size-1);
-
-			ring[new_idx] = ioat_chan->ring[curr_idx];
-			set_desc_id(ring[new_idx], new_idx);
-		}
-
-		/* add new descriptors to the ring */
-		for (i = curr_size; i < new_size; i++) {
-			u16 new_idx = (ioat_chan->tail+i) & (new_size-1);
-
-			ring[new_idx] = ioat_alloc_ring_ent(c, GFP_NOWAIT);
-			if (!ring[new_idx]) {
-				while (i--) {
-					u16 new_idx = (ioat_chan->tail+i) &
-						       (new_size-1);
-
-					ioat_free_ring_ent(ring[new_idx], c);
-				}
-				kfree(ring);
-				return false;
-			}
-			set_desc_id(ring[new_idx], new_idx);
-		}
-
-		/* hw link new descriptors */
-		for (i = curr_size-1; i < new_size; i++) {
-			u16 new_idx = (ioat_chan->tail+i) & (new_size-1);
-			struct ioat_ring_ent *next =
-				ring[(new_idx+1) & (new_size-1)];
-			struct ioat_dma_descriptor *hw = ring[new_idx]->hw;
-
-			hw->next = next->txd.phys;
-		}
-	} else {
-		struct ioat_dma_descriptor *hw;
-		struct ioat_ring_ent *next;
-
-		/* copy current descriptors to the new ring, dropping the
-		 * removed descriptors
-		 */
-		for (i = 0; i < new_size; i++) {
-			u16 curr_idx = (ioat_chan->tail+i) & (curr_size-1);
-			u16 new_idx = (ioat_chan->tail+i) & (new_size-1);
-
-			ring[new_idx] = ioat_chan->ring[curr_idx];
-			set_desc_id(ring[new_idx], new_idx);
-		}
-
-		/* free deleted descriptors */
-		for (i = new_size; i < curr_size; i++) {
-			struct ioat_ring_ent *ent;
-
-			ent = ioat_get_ring_ent(ioat_chan, ioat_chan->tail+i);
-			ioat_free_ring_ent(ent, c);
-		}
-
-		/* fix up hardware ring */
-		hw = ring[(ioat_chan->tail+new_size-1) & (new_size-1)]->hw;
-		next = ring[(ioat_chan->tail+new_size) & (new_size-1)];
-		hw->next = next->txd.phys;
-	}
-
-	dev_dbg(to_dev(ioat_chan), "%s: allocated %d descriptors\n",
-		__func__, new_size);
-
-	kfree(ioat_chan->ring);
-	ioat_chan->ring = ring;
-	ioat_chan->alloc_order = order;
-
-	return true;
-}
-
 /**
  * ioat_check_space_lock - verify space and grab ring producer lock
  * @ioat: ioat,3 channel (ring) to operate on
@@ -478,9 +367,6 @@ static bool reshape_ring(struct ioatdma_chan *ioat_chan, int order)
 int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs)
 	__acquires(&ioat_chan->prep_lock)
 {
-	bool retry;
-
- retry:
 	spin_lock_bh(&ioat_chan->prep_lock);
 	/* never allow the last descriptor to be consumed, we need at
 	 * least one free at all times to allow for on-the-fly ring
@@ -493,23 +379,7 @@ int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs)
 		ioat_chan->produce = num_descs;
 		return 0;  /* with ioat->prep_lock held */
 	}
-	retry = test_and_set_bit(IOAT_RESHAPE_PENDING, &ioat_chan->state);
 	spin_unlock_bh(&ioat_chan->prep_lock);
-
-	/* is another cpu already trying to expand the ring? */
-	if (retry)
-		goto retry;
-
-	spin_lock_bh(&ioat_chan->cleanup_lock);
-	spin_lock_bh(&ioat_chan->prep_lock);
-	retry = reshape_ring(ioat_chan, ioat_chan->alloc_order + 1);
-	clear_bit(IOAT_RESHAPE_PENDING, &ioat_chan->state);
-	spin_unlock_bh(&ioat_chan->prep_lock);
-	spin_unlock_bh(&ioat_chan->cleanup_lock);
-
-	/* if we were able to expand the ring retry the allocation */
-	if (retry)
-		goto retry;
 
 	dev_dbg_ratelimited(to_dev(ioat_chan),
 			    "%s: ring full! num_descs: %d (%x:%x:%x)\n",
@@ -823,19 +693,6 @@ static void check_active(struct ioatdma_chan *ioat_chan)
 
 	if (test_and_clear_bit(IOAT_CHAN_ACTIVE, &ioat_chan->state))
 		mod_timer(&ioat_chan->timer, jiffies + IDLE_TIMEOUT);
-	else if (ioat_chan->alloc_order > ioat_get_alloc_order()) {
-		/* if the ring is idle, empty, and oversized try to step
-		 * down the size
-		 */
-		reshape_ring(ioat_chan, ioat_chan->alloc_order - 1);
-
-		/* keep shrinking until we get back to our minimum
-		 * default size
-		 */
-		if (ioat_chan->alloc_order > ioat_get_alloc_order())
-			mod_timer(&ioat_chan->timer, jiffies + IDLE_TIMEOUT);
-	}
-
 }
 
 void ioat_timer_event(unsigned long data)

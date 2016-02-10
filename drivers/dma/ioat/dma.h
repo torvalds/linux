@@ -100,7 +100,6 @@ struct ioatdma_chan {
 	#define IOAT_COMPLETION_ACK 1
 	#define IOAT_RESET_PENDING 2
 	#define IOAT_KOBJ_INIT_FAIL 3
-	#define IOAT_RESHAPE_PENDING 4
 	#define IOAT_RUN 5
 	#define IOAT_CHAN_ACTIVE 6
 	struct timer_list timer;
@@ -302,10 +301,6 @@ static inline bool is_ioat_bug(unsigned long err)
 }
 
 #define IOAT_MAX_ORDER 16
-#define ioat_get_alloc_order() \
-	(min(ioat_ring_alloc_order, IOAT_MAX_ORDER))
-#define ioat_get_max_alloc_order() \
-	(min(ioat_ring_max_alloc_order, IOAT_MAX_ORDER))
 
 static inline u32 ioat_ring_size(struct ioatdma_chan *ioat_chan)
 {
