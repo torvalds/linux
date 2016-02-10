@@ -211,8 +211,7 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 	if (getChipType() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
 		reg = PEEK32(VGA_CONFIGURATION);
-		reg = FIELD_SET(reg, VGA_CONFIGURATION, PLL, PANEL);
-		reg = FIELD_SET(reg, VGA_CONFIGURATION, MODE, GRAPHIC);
+		reg |= (VGA_CONFIGURATION_PLL | VGA_CONFIGURATION_MODE);
 		POKE32(VGA_CONFIGURATION, reg);
 	} else {
 #if defined(__i386__) || defined(__x86_64__)

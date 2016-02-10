@@ -548,12 +548,8 @@
 
 #define VGA_CONFIGURATION                             0x000088
 #define VGA_CONFIGURATION_USER_DEFINE                 5:4
-#define VGA_CONFIGURATION_PLL                         2:2
-#define VGA_CONFIGURATION_PLL_VGA                     0
-#define VGA_CONFIGURATION_PLL_PANEL                   1
-#define VGA_CONFIGURATION_MODE                        1:1
-#define VGA_CONFIGURATION_MODE_TEXT                   0
-#define VGA_CONFIGURATION_MODE_GRAPHIC                1
+#define VGA_CONFIGURATION_PLL                         BIT(2)
+#define VGA_CONFIGURATION_MODE                        BIT(1)
 
 #endif
 
