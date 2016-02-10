@@ -291,6 +291,24 @@
 			reg = <0x66220000 0x28>;
 		};
 
+		sdio0: sdhci@66420000 {
+			compatible = "brcm,sdhci-iproc-cygnus";
+			reg = <0x66420000 0x100>;
+			interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
+			bus-width = <8>;
+			clocks = <&genpll_sw BCM_NS2_GENPLL_SW_SDIO_CLK>;
+			status = "disabled";
+		};
+
+		sdio1: sdhci@66430000 {
+			compatible = "brcm,sdhci-iproc-cygnus";
+			reg = <0x66430000 0x100>;
+			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
+			bus-width = <8>;
+			clocks = <&genpll_sw BCM_NS2_GENPLL_SW_SDIO_CLK>;
+			status = "disabled";
+		};
+
 		nand: nand@66460000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x66460000 0x600>,
