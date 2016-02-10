@@ -287,6 +287,7 @@ config USB_FSL_QE
 	   dynamically linked module called "fsl_qe_udc".
 
 config USB_NET2272
+	depends on HAS_IOMEM
 	tristate "PLX NET2272"
 	help
 	  PLX NET2272 is a USB peripheral controller which supports
