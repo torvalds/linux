@@ -34,11 +34,12 @@ struct pgpath {
 	struct list_head list;
 
 	struct priority_group *pg;	/* Owning PG */
-	unsigned is_active;		/* Path status */
 	unsigned fail_count;		/* Cumulative failure count */
 
 	struct dm_path path;
 	struct delayed_work activate_path;
+
+	bool is_active:1;		/* Path status */
 };
 
 #define path_to_pgpath(__pgp) container_of((__pgp), struct pgpath, path)
@@ -54,10 +55,10 @@ struct priority_group {
 	struct path_selector ps;
 
 	unsigned pg_num;		/* Reference number */
-	unsigned bypassed;		/* Temporarily bypass this PG? */
-
 	unsigned nr_pgpaths;		/* Number of paths in PG */
 	struct list_head pgpaths;
+
+	bool bypassed:1;		/* Temporarily bypass this PG? */
 };
 
 /* Multipath context */
@@ -75,20 +76,20 @@ struct multipath {
 
 	wait_queue_head_t pg_init_wait;	/* Wait for pg_init completion */
 
-	unsigned pg_init_required;	/* pg_init needs calling? */
 	unsigned pg_init_in_progress;	/* Only one pg_init allowed at once */
-	unsigned pg_init_delay_retry;	/* Delay pg_init retry? */
 
 	unsigned nr_valid_paths;	/* Total number of usable paths */
 	struct pgpath *current_pgpath;
 	struct priority_group *current_pg;
 	struct priority_group *next_pg;	/* Switch to this PG if set */
 
-	unsigned queue_io:1;		/* Must we queue all I/O? */
-	unsigned queue_if_no_path:1;	/* Queue I/O if last path fails? */
-	unsigned saved_queue_if_no_path:1; /* Saved state during suspension */
-	unsigned retain_attached_hw_handler:1; /* If there's already a hw_handler present, don't change it. */
-	unsigned pg_init_disabled:1;	/* pg_init is not currently allowed */
+	bool queue_io:1;		/* Must we queue all I/O? */
+	bool queue_if_no_path:1;	/* Queue I/O if last path fails? */
+	bool saved_queue_if_no_path:1;	/* Saved state during suspension */
+	bool retain_attached_hw_handler:1; /* If there's already a hw_handler present, don't change it. */
+	bool pg_init_disabled:1;	/* pg_init is not currently allowed */
+	bool pg_init_required:1;	/* pg_init needs calling? */
+	bool pg_init_delay_retry:1;	/* Delay pg_init retry? */
 
 	unsigned pg_init_retries;	/* Number of times to retry pg_init */
 	unsigned pg_init_count;		/* Number of times pg_init called */
@@ -132,7 +133,7 @@ static struct pgpath *alloc_pgpath(void)
 	struct pgpath *pgpath = kzalloc(sizeof(*pgpath), GFP_KERNEL);
 
 	if (pgpath) {
-		pgpath->is_active = 1;
+		pgpath->is_active = true;
 		INIT_DELAYED_WORK(&pgpath->activate_path, activate_path);
 	}
 
@@ -189,7 +190,7 @@ static struct multipath *alloc_multipath(struct dm_target *ti, bool use_blk_mq)
 	if (m) {
 		INIT_LIST_HEAD(&m->priority_groups);
 		spin_lock_init(&m->lock);
-		m->queue_io = 1;
+		m->queue_io = true;
 		m->pg_init_delay_msecs = DM_PG_INIT_DELAY_DEFAULT;
 		INIT_WORK(&m->trigger_event, trigger_event);
 		init_waitqueue_head(&m->pg_init_wait);
@@ -278,7 +279,7 @@ static int __pg_init_all_paths(struct multipath *m)
 		return 0;
 
 	m->pg_init_count++;
-	m->pg_init_required = 0;
+	m->pg_init_required = false;
 
 	/* Check here to reset pg_init_required */
 	if (!m->current_pg)
@@ -304,11 +305,11 @@ static void __switch_pg(struct multipath *m, struct pgpath *pgpath)
 
 	/* Must we initialise the PG first, and queue I/O till it's ready? */
 	if (m->hw_handler_name) {
-		m->pg_init_required = 1;
-		m->queue_io = 1;
+		m->pg_init_required = true;
+		m->queue_io = true;
 	} else {
-		m->pg_init_required = 0;
-		m->queue_io = 0;
+		m->pg_init_required = false;
+		m->queue_io = false;
 	}
 
 	m->pg_init_count = 0;
@@ -334,10 +335,10 @@ static int __choose_path_in_pg(struct multipath *m, struct priority_group *pg,
 static void __choose_pgpath(struct multipath *m, size_t nr_bytes)
 {
 	struct priority_group *pg;
-	unsigned bypassed = 1;
+	bool bypassed = true;
 
 	if (!m->nr_valid_paths) {
-		m->queue_io = 0;
+		m->queue_io = false;
 		goto failed;
 	}
 
@@ -365,7 +366,7 @@ static void __choose_pgpath(struct multipath *m, size_t nr_bytes)
 				continue;
 			if (!__choose_path_in_pg(m, pg, nr_bytes)) {
 				if (!bypassed)
-					m->pg_init_delay_retry = 1;
+					m->pg_init_delay_retry = true;
 				return;
 			}
 		}
@@ -496,8 +497,8 @@ static void multipath_release_clone(struct request *clone)
 /*
  * If we run out of usable paths, should we queue I/O or error it?
  */
-static int queue_if_no_path(struct multipath *m, unsigned queue_if_no_path,
-			    unsigned save_old_value)
+static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
+			    bool save_old_value)
 {
 	unsigned long flags;
 
@@ -803,12 +804,12 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 		argc--;
 
 		if (!strcasecmp(arg_name, "queue_if_no_path")) {
-			r = queue_if_no_path(m, 1, 0);
+			r = queue_if_no_path(m, true, false);
 			continue;
 		}
 
 		if (!strcasecmp(arg_name, "retain_attached_hw_handler")) {
-			m->retain_attached_hw_handler = 1;
+			m->retain_attached_hw_handler = true;
 			continue;
 		}
 
@@ -947,7 +948,7 @@ static void flush_multipath_work(struct multipath *m)
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
-	m->pg_init_disabled = 1;
+	m->pg_init_disabled = true;
 	spin_unlock_irqrestore(&m->lock, flags);
 
 	flush_workqueue(kmpath_handlerd);
@@ -956,7 +957,7 @@ static void flush_multipath_work(struct multipath *m)
 	flush_work(&m->trigger_event);
 
 	spin_lock_irqsave(&m->lock, flags);
-	m->pg_init_disabled = 0;
+	m->pg_init_disabled = false;
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
@@ -984,7 +985,7 @@ static int fail_path(struct pgpath *pgpath)
 	DMWARN("Failing path %s.", pgpath->path.dev->name);
 
 	pgpath->pg->ps.type->fail_path(&pgpath->pg->ps, &pgpath->path);
-	pgpath->is_active = 0;
+	pgpath->is_active = false;
 	pgpath->fail_count++;
 
 	m->nr_valid_paths--;
@@ -1028,7 +1029,7 @@ static int reinstate_path(struct pgpath *pgpath)
 	if (r)
 		goto out;
 
-	pgpath->is_active = 1;
+	pgpath->is_active = true;
 
 	if (!m->nr_valid_paths++) {
 		m->current_pgpath = NULL;
@@ -1075,7 +1076,7 @@ static int action_dev(struct multipath *m, struct dm_dev *dev,
  * Temporarily try to avoid having to use the specified PG
  */
 static void bypass_pg(struct multipath *m, struct priority_group *pg,
-		      int bypassed)
+		      bool bypassed)
 {
 	unsigned long flags;
 
@@ -1108,7 +1109,7 @@ static int switch_pg_num(struct multipath *m, const char *pgstr)
 
 	spin_lock_irqsave(&m->lock, flags);
 	list_for_each_entry(pg, &m->priority_groups, list) {
-		pg->bypassed = 0;
+		pg->bypassed = false;
 		if (--pgnum)
 			continue;
 
@@ -1126,7 +1127,7 @@ static int switch_pg_num(struct multipath *m, const char *pgstr)
  * Set/clear bypassed status of a PG.
  * PGs are numbered upwards from 1 in the order they were declared.
  */
-static int bypass_pg_num(struct multipath *m, const char *pgstr, int bypassed)
+static int bypass_pg_num(struct multipath *m, const char *pgstr, bool bypassed)
 {
 	struct priority_group *pg;
 	unsigned pgnum;
@@ -1150,17 +1151,17 @@ static int bypass_pg_num(struct multipath *m, const char *pgstr, int bypassed)
 /*
  * Should we retry pg_init immediately?
  */
-static int pg_init_limit_reached(struct multipath *m, struct pgpath *pgpath)
+static bool pg_init_limit_reached(struct multipath *m, struct pgpath *pgpath)
 {
 	unsigned long flags;
-	int limit_reached = 0;
+	bool limit_reached = false;
 
 	spin_lock_irqsave(&m->lock, flags);
 
 	if (m->pg_init_count <= m->pg_init_retries && !m->pg_init_disabled)
-		m->pg_init_required = 1;
+		m->pg_init_required = true;
 	else
-		limit_reached = 1;
+		limit_reached = true;
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
@@ -1173,7 +1174,7 @@ static void pg_init_done(void *data, int errors)
 	struct priority_group *pg = pgpath->pg;
 	struct multipath *m = pg->m;
 	unsigned long flags;
-	unsigned delay_retry = 0;
+	bool delay_retry = false;
 
 	/* device or driver problems */
 	switch (errors) {
@@ -1196,7 +1197,7 @@ static void pg_init_done(void *data, int errors)
 		 * Probably doing something like FW upgrade on the
 		 * controller so try the other pg.
 		 */
-		bypass_pg(m, pg, 1);
+		bypass_pg(m, pg, true);
 		break;
 	case SCSI_DH_RETRY:
 		/* Wait before retrying. */
@@ -1224,7 +1225,7 @@ static void pg_init_done(void *data, int errors)
 			m->current_pg = NULL;
 		}
 	} else if (!m->pg_init_required)
-		pg->bypassed = 0;
+		pg->bypassed = false;
 
 	if (--m->pg_init_in_progress)
 		/* Activations of other paths are still on going */
@@ -1235,7 +1236,7 @@ static void pg_init_done(void *data, int errors)
 		if (__pg_init_all_paths(m))
 			goto out;
 	}
-	m->queue_io = 0;
+	m->queue_io = false;
 
 	/*
 	 * Wake up any thread waiting to suspend.
@@ -1350,7 +1351,7 @@ static void multipath_presuspend(struct dm_target *ti)
 {
 	struct multipath *m = ti->private;
 
-	queue_if_no_path(m, 0, 1);
+	queue_if_no_path(m, false, true);
 }
 
 static void multipath_postsuspend(struct dm_target *ti)
@@ -1516,10 +1517,10 @@ static int multipath_message(struct dm_target *ti, unsigned argc, char **argv)
 
 	if (argc == 1) {
 		if (!strcasecmp(argv[0], "queue_if_no_path")) {
-			r = queue_if_no_path(m, 1, 0);
+			r = queue_if_no_path(m, true, false);
 			goto out;
 		} else if (!strcasecmp(argv[0], "fail_if_no_path")) {
-			r = queue_if_no_path(m, 0, 0);
+			r = queue_if_no_path(m, false, false);
 			goto out;
 		}
 	}
@@ -1530,10 +1531,10 @@ static int multipath_message(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	if (!strcasecmp(argv[0], "disable_group")) {
-		r = bypass_pg_num(m, argv[1], 1);
+		r = bypass_pg_num(m, argv[1], true);
 		goto out;
 	} else if (!strcasecmp(argv[0], "enable_group")) {
-		r = bypass_pg_num(m, argv[1], 0);
+		r = bypass_pg_num(m, argv[1], false);
 		goto out;
 	} else if (!strcasecmp(argv[0], "switch_group")) {
 		r = switch_pg_num(m, argv[1]);
@@ -1651,7 +1652,7 @@ static int __pgpath_busy(struct pgpath *pgpath)
  */
 static int multipath_busy(struct dm_target *ti)
 {
-	int busy = 0, has_active = 0;
+	bool busy = false, has_active = false;
 	struct multipath *m = ti->private;
 	struct priority_group *pg;
 	struct pgpath *pgpath;
@@ -1662,7 +1663,7 @@ static int multipath_busy(struct dm_target *ti)
 	/* pg_init in progress or no paths available */
 	if (m->pg_init_in_progress ||
 	    (!m->nr_valid_paths && m->queue_if_no_path)) {
-		busy = 1;
+		busy = true;
 		goto out;
 	}
 	/* Guess which priority_group will be used at next mapping time */
@@ -1684,13 +1685,13 @@ static int multipath_busy(struct dm_target *ti)
 	 * If there is one non-busy active path at least, the path selector
 	 * will be able to select it. So we consider such a pg as not busy.
 	 */
-	busy = 1;
+	busy = true;
 	list_for_each_entry(pgpath, &pg->pgpaths, list)
 		if (pgpath->is_active) {
-			has_active = 1;
+			has_active = true;
 
 			if (!__pgpath_busy(pgpath)) {
-				busy = 0;
+				busy = false;
 				break;
 			}
 		}
@@ -1701,7 +1702,7 @@ static int multipath_busy(struct dm_target *ti)
 		 * the current_pg will be changed at next mapping time.
 		 * We need to try mapping to determine it.
 		 */
-		busy = 0;
+		busy = false;
 
 out:
 	spin_unlock_irqrestore(&m->lock, flags);
