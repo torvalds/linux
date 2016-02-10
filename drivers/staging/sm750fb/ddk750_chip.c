@@ -249,17 +249,17 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 
 		/* Disable Overlay, if a former application left it on */
 		reg = PEEK32(VIDEO_DISPLAY_CTRL);
-		reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, DISABLE);
+		reg &= ~DISPLAY_CTRL_PLANE;
 		POKE32(VIDEO_DISPLAY_CTRL, reg);
 
 		/* Disable video alpha, if a former application left it on */
 		reg = PEEK32(VIDEO_ALPHA_DISPLAY_CTRL);
-		reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, DISABLE);
+		reg &= ~DISPLAY_CTRL_PLANE;
 		POKE32(VIDEO_ALPHA_DISPLAY_CTRL, reg);
 
 		/* Disable alpha plane, if a former application left it on */
 		reg = PEEK32(ALPHA_DISPLAY_CTRL);
-		reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, DISABLE);
+		reg &= ~DISPLAY_CTRL_PLANE;
 		POKE32(ALPHA_DISPLAY_CTRL, reg);
 
 		/* Disable DMA Channel, if a former application left it on */

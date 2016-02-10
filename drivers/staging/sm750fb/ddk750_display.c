@@ -28,10 +28,10 @@ static void setDisplayControl(int ctrl, int disp_state)
 		 * guarantee that the plane will also enabled or
 		 * disabled.
 		 */
-		val = FIELD_SET(val, DISPLAY_CTRL, TIMING, ENABLE);
+		val |= DISPLAY_CTRL_TIMING;
 		POKE32(reg, val);
 
-		val = FIELD_SET(val, DISPLAY_CTRL, PLANE, ENABLE);
+		val |= DISPLAY_CTRL_PLANE;
 
 		/*
 		 * Somehow the register value on the plane is not set
@@ -53,10 +53,10 @@ static void setDisplayControl(int ctrl, int disp_state)
 		 * find out if it is necessary to wait for 1 vsync
 		 * before modifying the timing enable bit.
 		 */
-		val = FIELD_SET(val, DISPLAY_CTRL, PLANE, DISABLE);
+		val &= ~DISPLAY_CTRL_PLANE;
 		POKE32(reg, val);
 
-		val = FIELD_SET(val, DISPLAY_CTRL, TIMING, DISABLE);
+		val &= ~DISPLAY_CTRL_TIMING;
 		POKE32(reg, val);
 	}
 }
@@ -71,9 +71,7 @@ static void waitNextVerticalSync(int ctrl, int delay)
 		/* Do not wait when the Primary PLL is off or display control is already off.
 		   This will prevent the software to wait forever. */
 		if (!(PEEK32(PANEL_PLL_CTRL) & PLL_CTRL_POWER) ||
-			(FIELD_GET(PEEK32(PANEL_DISPLAY_CTRL),
-				DISPLAY_CTRL, TIMING) ==
-				DISPLAY_CTRL_TIMING_DISABLE)) {
+		    !(PEEK32(PANEL_DISPLAY_CTRL) & DISPLAY_CTRL_TIMING)) {
 			return;
 		}
 
@@ -94,9 +92,7 @@ static void waitNextVerticalSync(int ctrl, int delay)
 		/* Do not wait when the Primary PLL is off or display control is already off.
 			   This will prevent the software to wait forever. */
 		if (!(PEEK32(CRT_PLL_CTRL) & PLL_CTRL_POWER) ||
-			(FIELD_GET(PEEK32(CRT_DISPLAY_CTRL),
-				DISPLAY_CTRL, TIMING) ==
-				DISPLAY_CTRL_TIMING_DISABLE)) {
+		    !(PEEK32(CRT_DISPLAY_CTRL) & DISPLAY_CTRL_TIMING)) {
 			return;
 		}
 
@@ -120,22 +116,22 @@ static void swPanelPowerSequence(int disp, int delay)
 
 	/* disp should be 1 to open sequence */
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
-	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, FPEN, disp);
+	reg |= (disp ? PANEL_DISPLAY_CTRL_FPEN : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
-	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, DATA, disp);
+	reg |= (disp ? PANEL_DISPLAY_CTRL_DATA : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
-	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, VBIASEN, disp);
+	reg |= (disp ? PANEL_DISPLAY_CTRL_VBIASEN : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
-	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, FPEN, disp);
+	reg |= (disp ? PANEL_DISPLAY_CTRL_FPEN : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 

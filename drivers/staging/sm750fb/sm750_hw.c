@@ -416,28 +416,24 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 	case FB_BLANK_UNBLANK:
 		pr_debug("flag = FB_BLANK_UNBLANK\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
-		pps = PANEL_DISPLAY_CTRL_DATA_ENABLE;
+		pps = PANEL_DISPLAY_CTRL_DATA;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_OFF;
 		break;
 	case FB_BLANK_NORMAL:
 		pr_debug("flag = FB_BLANK_NORMAL\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
-		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		dpms = SYSTEM_CTRL_DPMS_VNHP;
-		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		dpms = SYSTEM_CTRL_DPMS_VPHN;
-		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
 	case FB_BLANK_POWERDOWN:
 		dpms = SYSTEM_CTRL_DPMS_VNHN;
-		pps = PANEL_DISPLAY_CTRL_DATA_DISABLE;
 		crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 		break;
 	}
@@ -449,8 +445,13 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, BLANK, crtdb));
 	}
 
-	if (output->paths & sm750_panel)
-		POKE32(PANEL_DISPLAY_CTRL, FIELD_VALUE(PEEK32(PANEL_DISPLAY_CTRL), PANEL_DISPLAY_CTRL, DATA, pps));
+	if (output->paths & sm750_panel) {
+		unsigned int val = PEEK32(PANEL_DISPLAY_CTRL);
+
+		val &= ~PANEL_DISPLAY_CTRL_DATA;
+		val |= pps;
+		POKE32(PANEL_DISPLAY_CTRL, val);
+	}
 
 	return 0;
 }
