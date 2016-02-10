@@ -32,7 +32,6 @@
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
-#include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/addrconf.h>
 #include <net/l3mdev.h>
