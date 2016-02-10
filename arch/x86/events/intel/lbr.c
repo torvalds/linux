@@ -5,7 +5,7 @@
 #include <asm/msr.h>
 #include <asm/insn.h>
 
-#include "perf_event.h"
+#include "../../kernel/cpu/perf_event.h"
 
 enum {
 	LBR_FORMAT_32		= 0x00,
