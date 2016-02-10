@@ -106,6 +106,8 @@ config DRM_TDFX
 	  Choose this option if you have a 3dfx Banshee or Voodoo3 (or later),
 	  graphics card.  If M is selected, the module will be called tdfx.
 
+source "drivers/gpu/drm/arm/Kconfig"
+
 config DRM_R128
 	tristate "ATI Rage 128"
 	depends on DRM && PCI
