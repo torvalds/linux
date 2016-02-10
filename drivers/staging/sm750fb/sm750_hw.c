@@ -336,11 +336,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 
 		/* set pixel format */
 		reg = PEEK32(PANEL_DISPLAY_CTRL);
-		POKE32(PANEL_DISPLAY_CTRL,
-			FIELD_VALUE(reg,
-			PANEL_DISPLAY_CTRL, FORMAT,
-			(var->bits_per_pixel >> 4)
-			));
+		POKE32(PANEL_DISPLAY_CTRL, reg | (var->bits_per_pixel >> 4));
 	} else {
 		/* not implemented now */
 		POKE32(CRT_FB_ADDRESS, crtc->oScreen);

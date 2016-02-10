@@ -144,7 +144,9 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 	if (output & PNL_2_USAGE) {
 		/* set panel path controller select */
 		reg = PEEK32(PANEL_DISPLAY_CTRL);
-		reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, SELECT, (output & PNL_2_MASK)>>PNL_2_OFFSET);
+		reg &= ~PANEL_DISPLAY_CTRL_SELECT_MASK;
+		reg |= (((output & PNL_2_MASK) >> PNL_2_OFFSET) <<
+			PANEL_DISPLAY_CTRL_SELECT_SHIFT);
 		POKE32(PANEL_DISPLAY_CTRL, reg);
 	}
 

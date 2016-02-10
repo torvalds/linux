@@ -783,21 +783,22 @@
 
 #define PANEL_DISPLAY_CTRL                            0x080000
 #define PANEL_DISPLAY_CTRL_RESERVED_MASK              0xc0f08000
-#define PANEL_DISPLAY_CTRL_SELECT                     29:28
-#define PANEL_DISPLAY_CTRL_SELECT_PANEL               0
-#define PANEL_DISPLAY_CTRL_SELECT_VGA                 1
-#define PANEL_DISPLAY_CTRL_SELECT_CRT                 2
+#define PANEL_DISPLAY_CTRL_SELECT_SHIFT               28
+#define PANEL_DISPLAY_CTRL_SELECT_MASK                (0x3 << 28)
+#define PANEL_DISPLAY_CTRL_SELECT_PANEL               (0x0 << 28)
+#define PANEL_DISPLAY_CTRL_SELECT_VGA                 (0x1 << 28)
+#define PANEL_DISPLAY_CTRL_SELECT_CRT                 (0x2 << 28)
 #define PANEL_DISPLAY_CTRL_FPEN                       BIT(27)
 #define PANEL_DISPLAY_CTRL_VBIASEN                    BIT(26)
 #define PANEL_DISPLAY_CTRL_DATA                       BIT(25)
 #define PANEL_DISPLAY_CTRL_FPVDDEN                    BIT(24)
 #define PANEL_DISPLAY_CTRL_DUAL_DISPLAY               BIT(19)
 #define PANEL_DISPLAY_CTRL_DOUBLE_PIXEL               BIT(18)
-#define PANEL_DISPLAY_CTRL_FIFO                       17:16
-#define PANEL_DISPLAY_CTRL_FIFO_1                     0
-#define PANEL_DISPLAY_CTRL_FIFO_3                     1
-#define PANEL_DISPLAY_CTRL_FIFO_7                     2
-#define PANEL_DISPLAY_CTRL_FIFO_11                    3
+#define PANEL_DISPLAY_CTRL_FIFO                       (0x3 << 16)
+#define PANEL_DISPLAY_CTRL_FIFO_1                     (0x0 << 16)
+#define PANEL_DISPLAY_CTRL_FIFO_3                     (0x1 << 16)
+#define PANEL_DISPLAY_CTRL_FIFO_7                     (0x2 << 16)
+#define PANEL_DISPLAY_CTRL_FIFO_11                    (0x3 << 16)
 #define DISPLAY_CTRL_CLOCK_PHASE                      BIT(14)
 #define DISPLAY_CTRL_VSYNC_PHASE                      BIT(13)
 #define DISPLAY_CTRL_HSYNC_PHASE                      BIT(12)
@@ -811,10 +812,10 @@
 #define PANEL_DISPLAY_CTRL_HORIZONTAL_PAN             BIT(4)
 #define DISPLAY_CTRL_GAMMA                            BIT(3)
 #define DISPLAY_CTRL_PLANE                            BIT(2)
-#define PANEL_DISPLAY_CTRL_FORMAT                     1:0
-#define PANEL_DISPLAY_CTRL_FORMAT_8                   0
-#define PANEL_DISPLAY_CTRL_FORMAT_16                  1
-#define PANEL_DISPLAY_CTRL_FORMAT_32                  2
+#define PANEL_DISPLAY_CTRL_FORMAT                     (0x3 << 0)
+#define PANEL_DISPLAY_CTRL_FORMAT_8                   (0x0 << 0)
+#define PANEL_DISPLAY_CTRL_FORMAT_16                  (0x1 << 0)
+#define PANEL_DISPLAY_CTRL_FORMAT_32                  (0x2 << 0)
 
 #define PANEL_PAN_CTRL                                0x080004
 #define PANEL_PAN_CTRL_VERTICAL_PAN                   31:24
