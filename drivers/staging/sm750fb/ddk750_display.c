@@ -126,8 +126,7 @@ static void waitNextVerticalSync(int ctrl, int delay)
 
 		/* Do not wait when the Primary PLL is off or display control is already off.
 		   This will prevent the software to wait forever. */
-		if ((FIELD_GET(PEEK32(PANEL_PLL_CTRL), PLL_CTRL, POWER) ==
-			 PLL_CTRL_POWER_OFF) ||
+		if (!(PEEK32(PANEL_PLL_CTRL) & PLL_CTRL_POWER) ||
 			(FIELD_GET(PEEK32(PANEL_DISPLAY_CTRL), PANEL_DISPLAY_CTRL, TIMING) ==
 			 PANEL_DISPLAY_CTRL_TIMING_DISABLE)) {
 			return;
@@ -149,8 +148,7 @@ static void waitNextVerticalSync(int ctrl, int delay)
 
 		/* Do not wait when the Primary PLL is off or display control is already off.
 			   This will prevent the software to wait forever. */
-		if ((FIELD_GET(PEEK32(CRT_PLL_CTRL), PLL_CTRL, POWER) ==
-			 PLL_CTRL_POWER_OFF) ||
+		if (!(PEEK32(CRT_PLL_CTRL) & PLL_CTRL_POWER) ||
 			(FIELD_GET(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, TIMING) ==
 			 CRT_DISPLAY_CTRL_TIMING_DISABLE)) {
 			return;

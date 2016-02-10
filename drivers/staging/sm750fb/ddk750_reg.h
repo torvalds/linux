@@ -517,15 +517,9 @@
 #define PLL_CLK_COUNT_COUNTER                         15:0
 
 #define PANEL_PLL_CTRL                                0x00005C
-#define PLL_CTRL_BYPASS                               18:18
-#define PLL_CTRL_BYPASS_OFF                           0
-#define PLL_CTRL_BYPASS_ON                            1
-#define PLL_CTRL_POWER                                17:17
-#define PLL_CTRL_POWER_OFF                            0
-#define PLL_CTRL_POWER_ON                             1
-#define PLL_CTRL_INPUT                                16:16
-#define PLL_CTRL_INPUT_OSC                            0
-#define PLL_CTRL_INPUT_TESTCLK                        1
+#define PLL_CTRL_BYPASS                               BIT(18)
+#define PLL_CTRL_POWER                                BIT(17)
+#define PLL_CTRL_INPUT                                BIT(16)
 #ifdef VALIDATION_CHIP
     #define PLL_CTRL_OD                               15:14
 #else

@@ -363,10 +363,7 @@ unsigned int formatPllReg(pll_value_t *pPLL)
 	 * register. On returning a 32 bit number, the value can be
 	 * applied to any PLL in the calling function.
 	 */
-	reg =
-	FIELD_SET(0, PLL_CTRL, BYPASS, OFF)
-	| FIELD_SET(0, PLL_CTRL, POWER,  ON)
-	| FIELD_SET(0, PLL_CTRL, INPUT,  OSC)
+	reg = PLL_CTRL_POWER
 #ifndef VALIDATION_CHIP
 	| FIELD_VALUE(0, PLL_CTRL, POD,    pPLL->POD)
 #endif
