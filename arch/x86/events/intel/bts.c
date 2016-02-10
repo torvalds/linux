@@ -26,7 +26,7 @@
 #include <asm-generic/sizes.h>
 #include <asm/perf_event.h>
 
-#include "perf_event.h"
+#include "../../kernel/cpu/perf_event.h"
 
 struct bts_ctx {
 	struct perf_output_handle	handle;
