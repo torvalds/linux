@@ -137,6 +137,80 @@
 		};
 	};
 
+	pcie0: pcie@20020000 {
+		compatible = "brcm,iproc-pcie";
+		reg = <0 0x20020000 0 0x1000>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 281 IRQ_TYPE_NONE>;
+
+		linux,pci-domain = <0>;
+
+		bus-range = <0x00 0xff>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x83000000 0 0x00000000 0 0x00000000 0 0x20000000>;
+
+		brcm,pcie-ob;
+		brcm,pcie-ob-oarr-size;
+		brcm,pcie-ob-axi-offset = <0x00000000>;
+		brcm,pcie-ob-window-size = <256>;
+
+		status = "disabled";
+
+		msi-parent = <&msi0>;
+		msi0: msi@20020000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 277 IRQ_TYPE_NONE>,
+				     <GIC_SPI 278 IRQ_TYPE_NONE>,
+				     <GIC_SPI 279 IRQ_TYPE_NONE>,
+				     <GIC_SPI 280 IRQ_TYPE_NONE>;
+			brcm,num-eq-region = <1>;
+			brcm,num-msi-msg-region = <1>;
+		};
+	};
+
+	pcie4: pcie@50020000 {
+		compatible = "brcm,iproc-pcie";
+		reg = <0 0x50020000 0 0x1000>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 305 IRQ_TYPE_NONE>;
+
+		linux,pci-domain = <4>;
+
+		bus-range = <0x00 0xff>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x83000000 0 0x00000000 0 0x30000000 0 0x20000000>;
+
+		brcm,pcie-ob;
+		brcm,pcie-ob-oarr-size;
+		brcm,pcie-ob-axi-offset = <0x30000000>;
+		brcm,pcie-ob-window-size = <256>;
+
+		status = "disabled";
+
+		msi-parent = <&msi4>;
+		msi4: msi@50020000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 301 IRQ_TYPE_NONE>,
+				     <GIC_SPI 302 IRQ_TYPE_NONE>,
+				     <GIC_SPI 303 IRQ_TYPE_NONE>,
+				     <GIC_SPI 304 IRQ_TYPE_NONE>;
+		};
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
