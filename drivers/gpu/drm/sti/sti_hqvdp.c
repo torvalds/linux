@@ -4,14 +4,11 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 
-#include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/firmware.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/reset.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
@@ -670,7 +667,7 @@ static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
 	DRM_DEBUG_DRIVER("\n");
 
 	if (hqvdp->xp70_initialized) {
-		DRM_INFO("HQVDP XP70 already initialized\n");
+		DRM_DEBUG_DRIVER("HQVDP XP70 already initialized\n");
 		return;
 	}
 
@@ -775,6 +772,94 @@ out:
 	release_firmware(firmware);
 }
 
+static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
+				  struct drm_plane_state *state)
+{
+	struct sti_plane *plane = to_sti_plane(drm_plane);
+	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
+	bool first_prepare = plane->status == STI_PLANE_DISABLED ? true : false;
+	struct drm_crtc_state *crtc_state;
+	struct drm_display_mode *mode;
+	int dst_x, dst_y, dst_w, dst_h;
+	int src_x, src_y, src_w, src_h;
+
+	/* no need for further checks if the plane is being disabled */
+	if (!crtc || !fb)
+		return 0;
+
+	crtc_state = drm_atomic_get_crtc_state(state->state, crtc);
+	mode = &crtc_state->mode;
+	dst_x = state->crtc_x;
+	dst_y = state->crtc_y;
+	dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
+	dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
+	/* src_x are in 16.16 format */
+	src_x = state->src_x >> 16;
+	src_y = state->src_y >> 16;
+	src_w = state->src_w >> 16;
+	src_h = state->src_h >> 16;
+
+	if (!sti_hqvdp_check_hw_scaling(hqvdp, mode,
+					src_w, src_h,
+					dst_w, dst_h)) {
+		DRM_ERROR("Scaling beyond HW capabilities\n");
+		return -EINVAL;
+	}
+
+	if (!drm_fb_cma_get_gem_obj(fb, 0)) {
+		DRM_ERROR("Can't get CMA GEM object for fb\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Input / output size
+	 * Align to upper even value
+	 */
+	dst_w = ALIGN(dst_w, 2);
+	dst_h = ALIGN(dst_h, 2);
+
+	if ((src_w > MAX_WIDTH) || (src_w < MIN_WIDTH) ||
+	    (src_h > MAX_HEIGHT) || (src_h < MIN_HEIGHT) ||
+	    (dst_w > MAX_WIDTH) || (dst_w < MIN_WIDTH) ||
+	    (dst_h > MAX_HEIGHT) || (dst_h < MIN_HEIGHT)) {
+		DRM_ERROR("Invalid in/out size %dx%d -> %dx%d\n",
+			  src_w, src_h,
+			  dst_w, dst_h);
+		return -EINVAL;
+	}
+
+	if (first_prepare) {
+		/* Start HQVDP XP70 coprocessor */
+		sti_hqvdp_start_xp70(hqvdp);
+
+		/* Prevent VTG shutdown */
+		if (clk_prepare_enable(hqvdp->clk_pix_main)) {
+			DRM_ERROR("Failed to prepare/enable pix main clk\n");
+			return -EINVAL;
+		}
+
+		/* Register VTG Vsync callback to handle bottom fields */
+		if (sti_vtg_register_client(hqvdp->vtg,
+					    &hqvdp->vtg_nb,
+					    crtc)) {
+			DRM_ERROR("Cannot register VTG notifier\n");
+			return -EINVAL;
+		}
+	}
+
+	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
+		      crtc->base.id, sti_mixer_to_str(to_sti_mixer(crtc)),
+		      drm_plane->base.id, sti_plane_to_str(plane));
+	DRM_DEBUG_KMS("%s dst=(%dx%d)@(%d,%d) - src=(%dx%d)@(%d,%d)\n",
+		      sti_plane_to_str(plane),
+		      dst_w, dst_h, dst_x, dst_y,
+		      src_w, src_h, src_x, src_y);
+
+	return 0;
+}
+
 static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 				    struct drm_plane_state *oldstate)
 {
@@ -782,31 +867,28 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
 	struct drm_crtc *crtc = state->crtc;
-	struct sti_mixer *mixer = to_sti_mixer(crtc);
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_display_mode *mode = &crtc->mode;
-	int dst_x = state->crtc_x;
-	int dst_y = state->crtc_y;
-	int dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
-	int dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
-	/* src_x are in 16.16 format */
-	int src_x = state->src_x >> 16;
-	int src_y = state->src_y >> 16;
-	int src_w = state->src_w >> 16;
-	int src_h = state->src_h >> 16;
-	bool first_prepare = plane->status == STI_PLANE_DISABLED ? true : false;
+	struct drm_display_mode *mode;
+	int dst_x, dst_y, dst_w, dst_h;
+	int src_x, src_y, src_w, src_h;
 	struct drm_gem_cma_object *cma_obj;
 	struct sti_hqvdp_cmd *cmd;
 	int scale_h, scale_v;
 	int cmd_offset;
 
-	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
-		      crtc->base.id, sti_mixer_to_str(mixer),
-		      drm_plane->base.id, sti_plane_to_str(plane));
-	DRM_DEBUG_KMS("%s dst=(%dx%d)@(%d,%d) - src=(%dx%d)@(%d,%d)\n",
-		      sti_plane_to_str(plane),
-		      dst_w, dst_h, dst_x, dst_y,
-		      src_w, src_h, src_x, src_y);
+	if (!crtc || !fb)
+		return;
+
+	mode = &crtc->mode;
+	dst_x = state->crtc_x;
+	dst_y = state->crtc_y;
+	dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
+	dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
+	/* src_x are in 16.16 format */
+	src_x = state->src_x >> 16;
+	src_y = state->src_y >> 16;
+	src_w = state->src_w >> 16;
+	src_h = state->src_h >> 16;
 
 	cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 	if (cmd_offset == -1) {
@@ -814,13 +896,6 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 		return;
 	}
 	cmd = hqvdp->hqvdp_cmd + cmd_offset;
-
-	if (!sti_hqvdp_check_hw_scaling(hqvdp, mode,
-					src_w, src_h,
-					dst_w, dst_h)) {
-		DRM_ERROR("Scaling beyond HW capabilities\n");
-		return;
-	}
 
 	/* Static parameters, defaulting to progressive mode */
 	cmd->top.config = TOP_CONFIG_PROGRESSIVE;
@@ -836,10 +911,6 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	cmd->iqi.pxf_conf = IQI_PXF_CONF_DFLT;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	if (!cma_obj) {
-		DRM_ERROR("Can't get CMA GEM object for fb\n");
-		return;
-	}
 
 	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
 			 (char *)&fb->pixel_format,
@@ -859,16 +930,6 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	 * Align to upper even value */
 	dst_w = ALIGN(dst_w, 2);
 	dst_h = ALIGN(dst_h, 2);
-
-	if ((src_w > MAX_WIDTH) || (src_w < MIN_WIDTH) ||
-	    (src_h > MAX_HEIGHT) || (src_h < MIN_HEIGHT) ||
-	    (dst_w > MAX_WIDTH) || (dst_w < MIN_WIDTH) ||
-	    (dst_h > MAX_HEIGHT) || (dst_h < MIN_HEIGHT)) {
-		DRM_ERROR("Invalid in/out size %dx%d -> %dx%d\n",
-			  src_w, src_h,
-			  dst_w, dst_h);
-		return;
-	}
 
 	cmd->top.input_viewport_size = src_h << 16 | src_w;
 	cmd->top.input_frame_size = src_h << 16 | src_w;
@@ -900,25 +961,6 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	scale_v = SCALE_FACTOR * dst_h / src_h;
 	sti_hqvdp_update_hvsrc(HVSRC_VERT, scale_v, &cmd->hvsrc);
 
-	if (first_prepare) {
-		/* Start HQVDP XP70 coprocessor */
-		sti_hqvdp_start_xp70(hqvdp);
-
-		/* Prevent VTG shutdown */
-		if (clk_prepare_enable(hqvdp->clk_pix_main)) {
-			DRM_ERROR("Failed to prepare/enable pix main clk\n");
-			return;
-		}
-
-		/* Register VTG Vsync callback to handle bottom fields */
-		if (sti_vtg_register_client(hqvdp->vtg,
-					    &hqvdp->vtg_nb,
-					    crtc)) {
-			DRM_ERROR("Cannot register VTG notifier\n");
-			return;
-		}
-	}
-
 	writel(hqvdp->hqvdp_cmd_paddr + cmd_offset,
 	       hqvdp->regs + HQVDP_MBX_NEXT_CMD);
 
@@ -938,7 +980,6 @@ static void sti_hqvdp_atomic_disable(struct drm_plane *drm_plane,
 				     struct drm_plane_state *oldstate)
 {
 	struct sti_plane *plane = to_sti_plane(drm_plane);
-	struct sti_mixer *mixer = to_sti_mixer(drm_plane->crtc);
 
 	if (!drm_plane->crtc) {
 		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
@@ -947,13 +988,15 @@ static void sti_hqvdp_atomic_disable(struct drm_plane *drm_plane,
 	}
 
 	DRM_DEBUG_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
-			 drm_plane->crtc->base.id, sti_mixer_to_str(mixer),
+			 drm_plane->crtc->base.id,
+			 sti_mixer_to_str(to_sti_mixer(drm_plane->crtc)),
 			 drm_plane->base.id, sti_plane_to_str(plane));
 
 	plane->status = STI_PLANE_DISABLING;
 }
 
 static const struct drm_plane_helper_funcs sti_hqvdp_helpers_funcs = {
+	.atomic_check = sti_hqvdp_atomic_check,
 	.atomic_update = sti_hqvdp_atomic_update,
 	.atomic_disable = sti_hqvdp_atomic_disable,
 };
