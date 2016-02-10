@@ -523,8 +523,14 @@ struct bnxt_ring_struct {
 
 struct tx_push_bd {
 	__le32			doorbell;
-	struct tx_bd		txbd1;
+	__le32			tx_bd_len_flags_type;
+	u32			tx_bd_opaque;
 	struct tx_bd_ext	txbd2;
+};
+
+struct tx_push_buffer {
+	struct tx_push_bd	push_bd;
+	u32			data[25];
 };
 
 struct bnxt_tx_ring_info {
@@ -538,8 +544,9 @@ struct bnxt_tx_ring_info {
 
 	dma_addr_t		tx_desc_mapping[MAX_TX_PAGES];
 
-	struct tx_push_bd	*tx_push;
+	struct tx_push_buffer	*tx_push;
 	dma_addr_t		tx_push_mapping;
+	__le64			data_mapping;
 
 #define BNXT_DEV_STATE_CLOSING	0x1
 	u32			dev_state;
