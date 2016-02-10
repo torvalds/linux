@@ -59,7 +59,7 @@ static int init_display(struct fbtft_par *par)
 
 	/* RGBSET */
 	write_reg(par, MIPI_DCS_WRITE_LUT,
-		 0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+		  0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
 		32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62,
 		 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
 		16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -122,11 +122,11 @@ static int set_var(struct fbtft_par *par)
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	write_reg(par, 0xE0,
-		curves[0], curves[1], curves[2], curves[3],
-		curves[4], curves[5], curves[6], curves[7],
-		curves[8], curves[9], curves[10], curves[11],
-		curves[12], curves[13], curves[14], curves[15],
-		curves[16], curves[17], curves[18]);
+		  curves[0], curves[1], curves[2], curves[3],
+		  curves[4], curves[5], curves[6], curves[7],
+		  curves[8], curves[9], curves[10], curves[11],
+		  curves[12], curves[13], curves[14], curves[15],
+		  curves[16], curves[17], curves[18]);
 
 	return 0;
 }

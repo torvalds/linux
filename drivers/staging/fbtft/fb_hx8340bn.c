@@ -179,25 +179,25 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 		return 0; /* only GC0 can be customized */
 
 	write_reg(par, 0xC2,
-		(CURVE(0, 8) << 4) | CURVE(0, 7),
-		(CURVE(0, 10) << 4) | CURVE(0, 9),
-		(CURVE(0, 12) << 4) | CURVE(0, 11),
-		CURVE(0, 2),
-		(CURVE(0, 4) << 4) | CURVE(0, 3),
-		CURVE(0, 5),
-		CURVE(0, 6),
-		(CURVE(0, 1) << 4) | CURVE(0, 0),
-		(CURVE(0, 14) << 2) | CURVE(0, 13));
+		  (CURVE(0, 8) << 4) | CURVE(0, 7),
+		  (CURVE(0, 10) << 4) | CURVE(0, 9),
+		  (CURVE(0, 12) << 4) | CURVE(0, 11),
+		  CURVE(0, 2),
+		  (CURVE(0, 4) << 4) | CURVE(0, 3),
+		  CURVE(0, 5),
+		  CURVE(0, 6),
+		  (CURVE(0, 1) << 4) | CURVE(0, 0),
+		  (CURVE(0, 14) << 2) | CURVE(0, 13));
 
 	write_reg(par, 0xC3,
-		(CURVE(1, 8) << 4) | CURVE(1, 7),
-		(CURVE(1, 10) << 4) | CURVE(1, 9),
-		(CURVE(1, 12) << 4) | CURVE(1, 11),
-		CURVE(1, 2),
-		(CURVE(1, 4) << 4) | CURVE(1, 3),
-		CURVE(1, 5),
-		CURVE(1, 6),
-		(CURVE(1, 1) << 4) | CURVE(1, 0));
+		  (CURVE(1, 8) << 4) | CURVE(1, 7),
+		  (CURVE(1, 10) << 4) | CURVE(1, 9),
+		  (CURVE(1, 12) << 4) | CURVE(1, 11),
+		  CURVE(1, 2),
+		  (CURVE(1, 4) << 4) | CURVE(1, 3),
+		  CURVE(1, 5),
+		  CURVE(1, 6),
+		  (CURVE(1, 1) << 4) | CURVE(1, 0));
 
 	mdelay(10);
 
