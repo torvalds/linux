@@ -65,6 +65,7 @@ module_param(on_flash_bbt, int, 0);
 
 struct atmel_nand_caps {
 	bool pmecc_correct_erase_page;
+	uint8_t pmecc_max_correction;
 };
 
 struct atmel_nand_nfc_caps {
@@ -145,6 +146,7 @@ struct atmel_nand_host {
 	int			pmecc_cw_len;	/* Length of codeword */
 
 	void __iomem		*pmerrloc_base;
+	void __iomem		*pmerrloc_el_base;
 	void __iomem		*pmecc_rom_base;
 
 	/* lookup table for alpha_to and index_of */
@@ -818,7 +820,7 @@ static void pmecc_correct_data(struct mtd_info *mtd, uint8_t *buf, uint8_t *ecc,
 	sector_size = host->pmecc_sector_size;
 
 	while (err_nbr) {
-		tmp = pmerrloc_readl_el_relaxed(host->pmerrloc_base, i) - 1;
+		tmp = pmerrloc_readl_el_relaxed(host->pmerrloc_el_base, i) - 1;
 		byte_pos = tmp / 8;
 		bit_pos  = tmp % 8;
 
@@ -1210,6 +1212,8 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		err_no = PTR_ERR(host->pmerrloc_base);
 		goto err;
 	}
+	host->pmerrloc_el_base = host->pmerrloc_base + ATMEL_PMERRLOC_SIGMAx +
+		(host->caps->pmecc_max_correction + 1) * 4;
 
 	if (!host->has_no_lookup_table) {
 		regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
@@ -2307,17 +2311,34 @@ static int atmel_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * AT91RM9200 does not have PMECC or PMECC Errloc peripherals for
+ * BCH ECC. Combined with the "atmel,has-pmecc", it is used to describe
+ * devices from the SAM9 family that have those.
+ */
 static const struct atmel_nand_caps at91rm9200_caps = {
 	.pmecc_correct_erase_page = false,
+	.pmecc_max_correction = 24,
 };
 
 static const struct atmel_nand_caps sama5d4_caps = {
 	.pmecc_correct_erase_page = true,
+	.pmecc_max_correction = 24,
+};
+
+/*
+ * The PMECC Errloc controller starting in SAMA5D2 is not compatible,
+ * as the increased correction strength requires more registers.
+ */
+static const struct atmel_nand_caps sama5d2_caps = {
+	.pmecc_correct_erase_page = true,
+	.pmecc_max_correction = 32,
 };
 
 static const struct of_device_id atmel_nand_dt_ids[] = {
 	{ .compatible = "atmel,at91rm9200-nand", .data = &at91rm9200_caps },
 	{ .compatible = "atmel,sama5d4-nand", .data = &sama5d4_caps },
+	{ .compatible = "atmel,sama5d2-nand", .data = &sama5d2_caps },
 	{ /* sentinel */ }
 };
 
