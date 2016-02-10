@@ -29,8 +29,8 @@
 #include <asm/io.h>
 #include <asm/intel_pt.h>
 
-#include "perf_event.h"
-#include "intel_pt.h"
+#include "../../kernel/cpu/perf_event.h"
+#include "pt.h"
 
 static DEFINE_PER_CPU(struct pt, pt_ctx);
 
