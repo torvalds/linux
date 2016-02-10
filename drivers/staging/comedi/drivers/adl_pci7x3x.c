@@ -119,10 +119,21 @@ static int adl_pci7x3x_do_insn_bits(struct comedi_device *dev,
 	unsigned int bits = data[1];
 
 	if (mask) {
+		unsigned int val;
+
 		s->state &= ~mask;
 		s->state |= (bits & mask);
-
-		outl(s->state, dev->iobase + reg);
+		val = s->state;
+		if (s->n_chan == 16) {
+			/*
+			 * It seems the PCI-7230 needs the 16-bit DO state
+			 * to be shifted left by 16 bits before being written
+			 * to the 32-bit register.  Set the value in both
+			 * halves of the register to be sure.
+			 */
+			val |= val << 16;
+		}
+		outl(val, dev->iobase + reg);
 	}
 
 	/*
