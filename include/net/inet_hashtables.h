@@ -207,7 +207,10 @@ void inet_hashinfo_init(struct inet_hashinfo *h);
 
 bool inet_ehash_insert(struct sock *sk, struct sock *osk);
 bool inet_ehash_nolisten(struct sock *sk, struct sock *osk);
-void __inet_hash(struct sock *sk, struct sock *osk);
+int __inet_hash(struct sock *sk, struct sock *osk,
+		int (*saddr_same)(const struct sock *sk1,
+				  const struct sock *sk2,
+				  bool match_wildcard));
 int inet_hash(struct sock *sk);
 void inet_unhash(struct sock *sk);
 

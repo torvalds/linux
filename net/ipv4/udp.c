@@ -356,8 +356,8 @@ EXPORT_SYMBOL(udp_lib_get_port);
  * match_wildcard == false: addresses must be exactly the same, i.e.
  *                          0.0.0.0 only equals to 0.0.0.0
  */
-static int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2,
-				bool match_wildcard)
+int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2,
+			 bool match_wildcard)
 {
 	struct inet_sock *inet1 = inet_sk(sk1), *inet2 = inet_sk(sk2);
 
