@@ -367,6 +367,7 @@ config USB_ISP1362_HCD
 config USB_FOTG210_HCD
 	tristate "FOTG210 HCD support"
 	depends on USB
+	depends on HAS_IOMEM
 	---help---
 	  Faraday FOTG210 is an OTG controller which can be configured as
 	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification
