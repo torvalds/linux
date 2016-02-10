@@ -18,7 +18,7 @@
 #include <asm/hardirq.h>
 #include <asm/apic.h>
 
-#include "perf_event.h"
+#include "../../kernel/cpu/perf_event.h"
 
 /*
  * Intel PerfMon, used on Core and later.
