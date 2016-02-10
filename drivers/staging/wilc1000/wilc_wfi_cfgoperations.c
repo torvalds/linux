@@ -1832,9 +1832,10 @@ static int mgmt_tx(struct wiphy *wiphy,
 			return -EFAULT;
 
 		mgmt_tx->buff = kmalloc(buf_len, GFP_KERNEL);
-		if (!mgmt_tx->buff)
+		if (!mgmt_tx->buff) {
 			kfree(mgmt_tx);
-			return -EFAULT;
+			return -ENOMEM;
+		}
 
 		memcpy(mgmt_tx->buff, buf, len);
 		mgmt_tx->size = len;
