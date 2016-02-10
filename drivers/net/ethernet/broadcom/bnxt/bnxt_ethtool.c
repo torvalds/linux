@@ -486,15 +486,8 @@ static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
 		speed_mask |= SUPPORTED_2500baseX_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
 		speed_mask |= SUPPORTED_10000baseT_Full;
-	/* TODO: support 25GB, 50GB with different cable type */
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_20GB)
-		speed_mask |= SUPPORTED_20000baseMLD2_Full |
-			SUPPORTED_20000baseKR2_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= SUPPORTED_40000baseKR4_Full |
-			SUPPORTED_40000baseCR4_Full |
-			SUPPORTED_40000baseSR4_Full |
-			SUPPORTED_40000baseLR4_Full;
+		speed_mask |= SUPPORTED_40000baseCR4_Full;
 
 	return speed_mask;
 }
@@ -514,15 +507,8 @@ static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
 		speed_mask |= ADVERTISED_2500baseX_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
 		speed_mask |= ADVERTISED_10000baseT_Full;
-	/* TODO: how to advertise 20, 25, 40, 50GB with different cable type ?*/
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_20GB)
-		speed_mask |= ADVERTISED_20000baseMLD2_Full |
-			      ADVERTISED_20000baseKR2_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= ADVERTISED_40000baseKR4_Full |
-			      ADVERTISED_40000baseCR4_Full |
-			      ADVERTISED_40000baseSR4_Full |
-			      ADVERTISED_40000baseLR4_Full;
+		speed_mask |= ADVERTISED_40000baseCR4_Full;
 	return speed_mask;
 }
 
@@ -658,6 +644,9 @@ static u16 bnxt_get_fw_auto_link_speeds(u32 advertising)
 	}
 	if (advertising & ADVERTISED_10000baseT_Full)
 		fw_speed_mask |= BNXT_LINK_SPEED_MSK_10GB;
+
+	if (advertising & ADVERTISED_40000baseCR4_Full)
+		fw_speed_mask |= BNXT_LINK_SPEED_MSK_40GB;
 
 	return fw_speed_mask;
 }
