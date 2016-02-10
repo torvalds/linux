@@ -83,7 +83,6 @@ struct multipath {
 	struct pgpath *current_pgpath;
 	struct priority_group *current_pg;
 	struct priority_group *next_pg;	/* Switch to this PG if set */
-	unsigned repeat_count;		/* I/Os left before calling PS again */
 
 	unsigned queue_io:1;		/* Must we queue all I/O? */
 	unsigned queue_if_no_path:1;	/* Queue I/O if last path fails? */
@@ -319,8 +318,9 @@ static int __choose_path_in_pg(struct multipath *m, struct priority_group *pg,
 			       size_t nr_bytes)
 {
 	struct dm_path *path;
+	unsigned repeat_count;
 
-	path = pg->ps.type->select_path(&pg->ps, &m->repeat_count, nr_bytes);
+	path = pg->ps.type->select_path(&pg->ps, &repeat_count, nr_bytes);
 	if (!path)
 		return -ENXIO;
 
@@ -412,8 +412,7 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 	spin_lock_irq(&m->lock);
 
 	/* Do we need to select a new pgpath? */
-	if (!m->current_pgpath ||
-	    (!m->queue_io && (m->repeat_count && --m->repeat_count == 0)))
+	if (!m->current_pgpath || !m->queue_io)
 		__choose_pgpath(m, nr_bytes);
 
 	pgpath = m->current_pgpath;

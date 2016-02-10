@@ -23,8 +23,8 @@
 #include <linux/atomic.h>
 
 #define DM_MSG_PREFIX	"multipath queue-length"
-#define QL_MIN_IO	128
-#define QL_VERSION	"0.1.0"
+#define QL_MIN_IO	1
+#define QL_VERSION	"0.2.0"
 
 struct selector {
 	struct list_head	valid_paths;
@@ -127,6 +127,11 @@ static int ql_add_path(struct path_selector *ps, struct dm_path *path,
 	if ((argc == 1) && (sscanf(argv[0], "%u%c", &repeat_count, &dummy) != 1)) {
 		*error = "queue-length ps: invalid repeat count";
 		return -EINVAL;
+	}
+
+	if (repeat_count > 1) {
+		DMWARN_LIMIT("repeat_count > 1 is deprecated, using 1 instead");
+		repeat_count = 1;
 	}
 
 	/* Allocate the path information structure */

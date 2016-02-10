@@ -17,6 +17,8 @@
 #include <linux/module.h>
 
 #define DM_MSG_PREFIX "multipath round-robin"
+#define RR_MIN_IO     1
+#define RR_VERSION    "1.1.0"
 
 /*-----------------------------------------------------------------
  * Path-handling code, paths are held in lists
@@ -40,8 +42,6 @@ static void free_paths(struct list_head *paths)
 /*-----------------------------------------------------------------
  * Round-robin selector
  *---------------------------------------------------------------*/
-
-#define RR_MIN_IO		1000
 
 struct selector {
 	struct list_head valid_paths;
@@ -127,6 +127,11 @@ static int rr_add_path(struct path_selector *ps, struct dm_path *path,
 		return -EINVAL;
 	}
 
+	if (repeat_count > 1) {
+		DMWARN_LIMIT("repeat_count > 1 is deprecated, using 1 instead");
+		repeat_count = 1;
+	}
+
 	/* allocate the path */
 	pi = kmalloc(sizeof(*pi), GFP_KERNEL);
 	if (!pi) {
@@ -198,7 +203,7 @@ static int __init dm_rr_init(void)
 	if (r < 0)
 		DMERR("register failed %d", r);
 
-	DMINFO("version 1.0.0 loaded");
+	DMINFO("version " RR_VERSION " loaded");
 
 	return r;
 }

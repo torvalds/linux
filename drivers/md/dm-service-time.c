@@ -19,7 +19,7 @@
 #define ST_MAX_RELATIVE_THROUGHPUT	100
 #define ST_MAX_RELATIVE_THROUGHPUT_SHIFT	7
 #define ST_MAX_INFLIGHT_SIZE	((size_t)-1 >> ST_MAX_RELATIVE_THROUGHPUT_SHIFT)
-#define ST_VERSION	"0.2.0"
+#define ST_VERSION	"0.3.0"
 
 struct selector {
 	struct list_head valid_paths;
@@ -132,6 +132,11 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 	if (argc && (sscanf(argv[0], "%u%c", &repeat_count, &dummy) != 1)) {
 		*error = "service-time ps: invalid repeat count";
 		return -EINVAL;
+	}
+
+	if (repeat_count > 1) {
+		DMWARN_LIMIT("repeat_count > 1 is deprecated, using 1 instead");
+		repeat_count = 1;
 	}
 
 	if ((argc == 2) &&
