@@ -131,7 +131,7 @@ static void *get_cpu_dbs_info_s(int cpu)				\
  */
 
 /* Common to all CPUs of a policy */
-struct cpu_common_dbs_info {
+struct policy_dbs_info {
 	struct cpufreq_policy *policy;
 	/*
 	 * Per policy mutex that serializes load evaluation from limit-change
@@ -146,10 +146,10 @@ struct cpu_common_dbs_info {
 	struct work_struct work;
 };
 
-static inline void gov_update_sample_delay(struct cpu_common_dbs_info *shared,
+static inline void gov_update_sample_delay(struct policy_dbs_info *policy_dbs,
 					   unsigned int delay_us)
 {
-	shared->sample_delay_ns = delay_us * NSEC_PER_USEC;
+	policy_dbs->sample_delay_ns = delay_us * NSEC_PER_USEC;
 }
 
 /* Per cpu structures */
@@ -165,7 +165,7 @@ struct cpu_dbs_info {
 	 */
 	unsigned int prev_load;
 	struct update_util_data update_util;
-	struct cpu_common_dbs_info *shared;
+	struct policy_dbs_info *policy_dbs;
 };
 
 struct od_cpu_dbs_info_s {
