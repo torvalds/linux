@@ -401,10 +401,10 @@ static void armada_370_xp_handle_msi_irq(struct pt_regs *regs, bool is_chained)
 
 		if (is_chained) {
 			irq = irq_find_mapping(armada_370_xp_msi_inner_domain,
-					       msinr - 16);
+					       msinr - PCI_MSI_DOORBELL_START);
 			generic_handle_irq(irq);
 		} else {
-			irq = msinr - 16;
+			irq = msinr - PCI_MSI_DOORBELL_START;
 			handle_domain_irq(armada_370_xp_msi_inner_domain,
 					  irq, regs);
 		}
