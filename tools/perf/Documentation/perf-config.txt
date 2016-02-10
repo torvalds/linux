@@ -8,7 +8,7 @@ perf-config - Get and set variables in a configuration file.
 SYNOPSIS
 --------
 [verse]
-'perf config' -l | --list
+'perf config' [<file-option>] -l | --list
 
 DESCRIPTION
 -----------
@@ -21,6 +21,14 @@ OPTIONS
 --list::
 	Show current config variables, name and value, for all sections.
 
+--user::
+	For writing and reading options: write to user
+	'$HOME/.perfconfig' file or read it.
+
+--system::
+	For writing and reading options: write to system-wide
+	'$(sysconfdir)/perfconfig' or read it.
+
 CONFIGURATION FILE
 ------------------
 
@@ -29,6 +37,10 @@ aspects of each of its tools, including output, disk usage, etc.
 The '$HOME/.perfconfig' file is used to store a per-user configuration.
 The file '$(sysconfdir)/perfconfig' can be used to
 store a system-wide default configuration.
+
+When reading or writing, the values are read from the system and user
+configuration files by default, and options '--system' and '--user'
+can be used to tell the command to read from or write to only that location.
 
 Syntax
 ~~~~~~
