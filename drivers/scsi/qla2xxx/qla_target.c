@@ -4004,7 +4004,8 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 
 	cmd->cmd_in_wq = 1;
 	cmd->cmd_flags |= BIT_0;
-	cmd->se_cmd.cpuid = -1;
+	cmd->se_cmd.cpuid = ha->msix_count ?
+		ha->tgt.rspq_vector_cpuid : WORK_CPU_UNBOUND;
 
 	spin_lock(&vha->cmd_list_lock);
 	list_add_tail(&cmd->cmd_list, &vha->qla_cmd_list);
@@ -4012,7 +4013,6 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 
 	INIT_WORK(&cmd->work, qlt_do_work);
 	if (ha->msix_count) {
-		cmd->se_cmd.cpuid = ha->tgt.rspq_vector_cpuid;
 		if (cmd->atio.u.isp24.fcp_cmnd.rddata)
 			queue_work_on(smp_processor_id(), qla_tgt_wq,
 			    &cmd->work);

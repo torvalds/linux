@@ -462,6 +462,9 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 	if (bidi)
 		flags |= TARGET_SCF_BIDI_OP;
 
+	if (se_cmd->cpuid != WORK_CPU_UNBOUND)
+		flags |= TARGET_SCF_USE_CPUID;
+
 	sess = cmd->sess;
 	if (!sess) {
 		pr_err("Unable to locate struct qla_tgt_sess from qla_tgt_cmd\n");
