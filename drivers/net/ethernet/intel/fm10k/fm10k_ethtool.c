@@ -937,7 +937,7 @@ static int fm10k_mbx_test(struct fm10k_intfc *interface, u64 *data)
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 attr_flag, test_msg[6];
 	unsigned long timeout;
-	int err;
+	int err = -EINVAL;
 
 	/* For now this is a VF only feature */
 	if (hw->mac.type != fm10k_mac_vf)
