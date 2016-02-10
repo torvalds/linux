@@ -71,11 +71,21 @@ static struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk)
 
 	spin_lock(&dev_list_lock);
 	ns = disk->private_data;
-	if (ns && !kref_get_unless_zero(&ns->kref))
-		ns = NULL;
+	if (ns) {
+		if (!kref_get_unless_zero(&ns->kref))
+			goto fail;
+		if (!try_module_get(ns->ctrl->ops->module))
+			goto fail_put_ns;
+	}
 	spin_unlock(&dev_list_lock);
 
 	return ns;
+
+fail_put_ns:
+	kref_put(&ns->kref, nvme_free_ns);
+fail:
+	spin_unlock(&dev_list_lock);
+	return NULL;
 }
 
 void nvme_requeue_req(struct request *req)
@@ -499,7 +509,10 @@ static int nvme_open(struct block_device *bdev, fmode_t mode)
 
 static void nvme_release(struct gendisk *disk, fmode_t mode)
 {
-	nvme_put_ns(disk->private_data);
+	struct nvme_ns *ns = disk->private_data;
+
+	module_put(ns->ctrl->ops->module);
+	nvme_put_ns(ns);
 }
 
 static int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
