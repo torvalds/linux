@@ -122,9 +122,12 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 
 		POKE32(PANEL_PLL_CTRL, formatPllReg(pll));
 
-		POKE32(PANEL_HORIZONTAL_TOTAL,
-		FIELD_VALUE(0, PANEL_HORIZONTAL_TOTAL, TOTAL, pModeParam->horizontal_total - 1)
-		| FIELD_VALUE(0, PANEL_HORIZONTAL_TOTAL, DISPLAY_END, pModeParam->horizontal_display_end - 1));
+		reg = ((pModeParam->horizontal_total - 1) <<
+			PANEL_HORIZONTAL_TOTAL_TOTAL_SHIFT) &
+			PANEL_HORIZONTAL_TOTAL_TOTAL_MASK;
+		reg |= ((pModeParam->horizontal_display_end - 1) &
+			PANEL_HORIZONTAL_TOTAL_DISPLAY_END_MASK);
+		POKE32(PANEL_HORIZONTAL_TOTAL, reg);
 
 		POKE32(PANEL_HORIZONTAL_SYNC,
 		FIELD_VALUE(0, PANEL_HORIZONTAL_SYNC, WIDTH, pModeParam->horizontal_sync_width)

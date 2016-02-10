@@ -858,8 +858,9 @@
 #define PANEL_PLANE_BR_RIGHT_MASK                     0xeff
 
 #define PANEL_HORIZONTAL_TOTAL                        0x080024
-#define PANEL_HORIZONTAL_TOTAL_TOTAL                  27:16
-#define PANEL_HORIZONTAL_TOTAL_DISPLAY_END            11:0
+#define PANEL_HORIZONTAL_TOTAL_TOTAL_SHIFT            16
+#define PANEL_HORIZONTAL_TOTAL_TOTAL_MASK             (0xfff << 16)
+#define PANEL_HORIZONTAL_TOTAL_DISPLAY_END_MASK       0xfff
 
 #define PANEL_HORIZONTAL_SYNC                         0x080028
 #define PANEL_HORIZONTAL_SYNC_WIDTH                   23:16
