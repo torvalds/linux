@@ -58,6 +58,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
+#include <linux/cpuset.h>
 #include <net/sock.h>
 
 /*
@@ -2739,6 +2740,7 @@ out_unlock_rcu:
 out_unlock_threadgroup:
 	percpu_up_write(&cgroup_threadgroup_rwsem);
 	cgroup_kn_unlock(of->kn);
+	cpuset_post_attach_flush();
 	return ret ?: nbytes;
 }
 
@@ -4655,14 +4657,15 @@ static void css_free_work_fn(struct work_struct *work)
 
 	if (ss) {
 		/* css free path */
+		struct cgroup_subsys_state *parent = css->parent;
 		int id = css->id;
-
-		if (css->parent)
-			css_put(css->parent);
 
 		ss->css_free(css);
 		cgroup_idr_remove(&ss->css_idr, id);
 		cgroup_put(cgrp);
+
+		if (parent)
+			css_put(parent);
 	} else {
 		/* cgroup free path */
 		atomic_dec(&cgrp->root->nr_cgrps);
@@ -4758,6 +4761,7 @@ static void init_and_link_css(struct cgroup_subsys_state *css,
 	INIT_LIST_HEAD(&css->sibling);
 	INIT_LIST_HEAD(&css->children);
 	css->serial_nr = css_serial_nr_next++;
+	atomic_set(&css->online_cnt, 0);
 
 	if (cgroup_parent(cgrp)) {
 		css->parent = cgroup_css(cgroup_parent(cgrp), ss);
@@ -4780,6 +4784,10 @@ static int online_css(struct cgroup_subsys_state *css)
 	if (!ret) {
 		css->flags |= CSS_ONLINE;
 		rcu_assign_pointer(css->cgroup->subsys[ss->id], css);
+
+		atomic_inc(&css->online_cnt);
+		if (css->parent)
+			atomic_inc(&css->parent->online_cnt);
 	}
 	return ret;
 }
@@ -5017,10 +5025,15 @@ static void css_killed_work_fn(struct work_struct *work)
 		container_of(work, struct cgroup_subsys_state, destroy_work);
 
 	mutex_lock(&cgroup_mutex);
-	offline_css(css);
-	mutex_unlock(&cgroup_mutex);
 
-	css_put(css);
+	do {
+		offline_css(css);
+		css_put(css);
+		/* @css can't go away while we're holding cgroup_mutex */
+		css = css->parent;
+	} while (css && atomic_dec_and_test(&css->online_cnt));
+
+	mutex_unlock(&cgroup_mutex);
 }
 
 /* css kill confirmation processing requires process context, bounce */
@@ -5029,8 +5042,10 @@ static void css_killed_ref_fn(struct percpu_ref *ref)
 	struct cgroup_subsys_state *css =
 		container_of(ref, struct cgroup_subsys_state, refcnt);
 
-	INIT_WORK(&css->destroy_work, css_killed_work_fn);
-	queue_work(cgroup_destroy_wq, &css->destroy_work);
+	if (atomic_dec_and_test(&css->online_cnt)) {
+		INIT_WORK(&css->destroy_work, css_killed_work_fn);
+		queue_work(cgroup_destroy_wq, &css->destroy_work);
+	}
 }
 
 /**
