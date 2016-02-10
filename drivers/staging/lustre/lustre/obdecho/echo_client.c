@@ -1222,10 +1222,8 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	}
 
 	/* setup object ID here */
-	if (oa->o_valid & OBD_MD_FLID) {
-		LASSERT(oa->o_valid & OBD_MD_FLGROUP);
-		lsm->lsm_oi = oa->o_oi;
-	}
+	LASSERT(oa->o_valid & OBD_MD_FLGROUP);
+	lsm->lsm_oi = oa->o_oi;
 
 	if (ostid_id(&lsm->lsm_oi) == 0)
 		ostid_set_id(&lsm->lsm_oi, ++last_object_id);
