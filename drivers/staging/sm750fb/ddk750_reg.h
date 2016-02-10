@@ -782,9 +782,7 @@
 
 
 #define PANEL_DISPLAY_CTRL                            0x080000
-#define PANEL_DISPLAY_CTRL_RESERVED_1_MASK            31:30
-#define PANEL_DISPLAY_CTRL_RESERVED_1_MASK_DISABLE    0
-#define PANEL_DISPLAY_CTRL_RESERVED_1_MASK_ENABLE     3
+#define PANEL_DISPLAY_CTRL_RESERVED_MASK              0xc0f08000
 #define PANEL_DISPLAY_CTRL_SELECT                     29:28
 #define PANEL_DISPLAY_CTRL_SELECT_PANEL               0
 #define PANEL_DISPLAY_CTRL_SELECT_VGA                 1
@@ -801,9 +799,6 @@
 #define PANEL_DISPLAY_CTRL_FPVDDEN                    24:24
 #define PANEL_DISPLAY_CTRL_FPVDDEN_LOW                0
 #define PANEL_DISPLAY_CTRL_FPVDDEN_HIGH               1
-#define PANEL_DISPLAY_CTRL_RESERVED_2_MASK            23:20
-#define PANEL_DISPLAY_CTRL_RESERVED_2_MASK_DISABLE    0
-#define PANEL_DISPLAY_CTRL_RESERVED_2_MASK_ENABLE     15
 
 #define PANEL_DISPLAY_CTRL_TFT_DISP 19:18
 #define PANEL_DISPLAY_CTRL_TFT_DISP_24 0
@@ -822,9 +817,6 @@
 #define PANEL_DISPLAY_CTRL_FIFO_3                     1
 #define PANEL_DISPLAY_CTRL_FIFO_7                     2
 #define PANEL_DISPLAY_CTRL_FIFO_11                    3
-#define PANEL_DISPLAY_CTRL_RESERVED_3_MASK            15:15
-#define PANEL_DISPLAY_CTRL_RESERVED_3_MASK_DISABLE    0
-#define PANEL_DISPLAY_CTRL_RESERVED_3_MASK_ENABLE     1
 #define DISPLAY_CTRL_CLOCK_PHASE                      14:14
 #define DISPLAY_CTRL_CLOCK_PHASE_ACTIVE_HIGH          0
 #define DISPLAY_CTRL_CLOCK_PHASE_ACTIVE_LOW           1
@@ -1365,9 +1357,7 @@
 /* CRT Graphics Control */
 
 #define CRT_DISPLAY_CTRL                              0x080200
-#define CRT_DISPLAY_CTRL_RESERVED_1_MASK	      31:27
-#define CRT_DISPLAY_CTRL_RESERVED_1_MASK_DISABLE      0
-#define CRT_DISPLAY_CTRL_RESERVED_1_MASK_ENABLE       0x1F
+#define CRT_DISPLAY_CTRL_RESERVED_MASK                0xfb008200
 
 /* SM750LE definition */
 #define CRT_DISPLAY_CTRL_DPMS                         31:30
@@ -1388,11 +1378,6 @@
 #define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC_DISABLE        1
 #define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC_ENABLE         0
 
-
-#define CRT_DISPLAY_CTRL_RESERVED_2_MASK	      25:24
-#define CRT_DISPLAY_CTRL_RESERVED_2_MASK_ENABLE	      3
-#define CRT_DISPLAY_CTRL_RESERVED_2_MASK_DISABLE      0
-
 /* SM750LE definition */
 #define CRT_DISPLAY_CTRL_CRTSELECT                    25:25
 #define CRT_DISPLAY_CTRL_CRTSELECT_VGA                0
@@ -1400,15 +1385,6 @@
 #define CRT_DISPLAY_CTRL_RGBBIT                       24:24
 #define CRT_DISPLAY_CTRL_RGBBIT_24BIT                 0
 #define CRT_DISPLAY_CTRL_RGBBIT_12BIT                 1
-
-
-#define CRT_DISPLAY_CTRL_RESERVED_3_MASK	      15:15
-#define CRT_DISPLAY_CTRL_RESERVED_3_MASK_DISABLE      0
-#define CRT_DISPLAY_CTRL_RESERVED_3_MASK_ENABLE       1
-
-#define CRT_DISPLAY_CTRL_RESERVED_4_MASK	      9:9
-#define CRT_DISPLAY_CTRL_RESERVED_4_MASK_DISABLE      0
-#define CRT_DISPLAY_CTRL_RESERVED_4_MASK_ENABLE       1
 
 #ifndef VALIDATION_CHIP
     #define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC            26:26
@@ -1447,7 +1423,6 @@
 #define CRT_DISPLAY_CTRL_FORMAT_8                     0
 #define CRT_DISPLAY_CTRL_FORMAT_16                    1
 #define CRT_DISPLAY_CTRL_FORMAT_32                    2
-#define CRT_DISPLAY_CTRL_RESERVED_BITS_MASK           0xFF000200
 
 #define CRT_FB_ADDRESS                                0x080204
 #define CRT_FB_ADDRESS_STATUS                         31:31

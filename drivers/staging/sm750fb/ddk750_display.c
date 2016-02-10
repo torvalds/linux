@@ -33,9 +33,7 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * writing to the PRIMARY_DISPLAY_CTRL, therefore, the register
 			 * reserved bits are needed to be masked out.
 			 */
-			reserved = FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_1_MASK, ENABLE) |
-				FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_2_MASK, ENABLE) |
-				FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_3_MASK, ENABLE);
+			reserved = PANEL_DISPLAY_CTRL_RESERVED_MASK;
 
 			/* Somehow the register value on the plane is not set
 			 * until a few delay. Need to write
@@ -80,12 +78,7 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * writing to the PRIMARY_DISPLAY_CTRL, therefore, the register
 			 * reserved bits are needed to be masked out.
 			 */
-
-			reserved = FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_1_MASK, ENABLE) |
-				FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_2_MASK, ENABLE) |
-				FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_3_MASK, ENABLE) |
-				FIELD_SET(0, CRT_DISPLAY_CTRL, RESERVED_4_MASK, ENABLE);
-
+			reserved = CRT_DISPLAY_CTRL_RESERVED_MASK;
 			do {
 				cnt++;
 				POKE32(CRT_DISPLAY_CTRL, reg);
