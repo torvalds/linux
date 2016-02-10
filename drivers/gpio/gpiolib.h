@@ -33,6 +33,10 @@ struct acpi_device;
  * @chip: pointer to the corresponding gpiochip, holding static
  * data for this device
  * @descs: array of ngpio descriptors.
+ * @ngpio: the number of GPIO lines on this GPIO device, equal to the size
+ * of the @descs array.
+ * @base: GPIO base in the DEPRECATED global Linux GPIO numberspace, assigned
+ * at device creation time.
  * @list: links gpio_device:s together for traversal
  *
  * This state container holds most of the runtime variable data
@@ -48,6 +52,8 @@ struct gpio_device {
 	struct module		*owner;
 	struct gpio_chip	*chip;
 	struct gpio_desc	*descs;
+	int			base;
+	u16			ngpio;
 	struct list_head        list;
 };
 
@@ -125,7 +131,7 @@ extern struct spinlock gpio_lock;
 extern struct list_head gpio_devices;
 
 struct gpio_desc {
-	struct gpio_chip	*chip;
+	struct gpio_device	*gdev;
 	unsigned long		flags;
 /* flag symbols are bit numbers */
 #define FLAG_REQUESTED	0
@@ -154,7 +160,7 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
  */
 static int __maybe_unused gpio_chip_hwgpio(const struct gpio_desc *desc)
 {
-	return desc - &desc->chip->gpiodev->descs[0];
+	return desc - &desc->gdev->descs[0];
 }
 
 /* With descriptor prefix */
