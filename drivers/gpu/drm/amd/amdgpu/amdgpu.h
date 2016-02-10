@@ -1669,6 +1669,7 @@ struct amdgpu_vce {
 	struct amdgpu_ring	ring[AMDGPU_MAX_VCE_RINGS];
 	struct amdgpu_irq_src	irq;
 	unsigned		harvest_config;
+	struct amd_sched_entity	entity;
 };
 
 /*
