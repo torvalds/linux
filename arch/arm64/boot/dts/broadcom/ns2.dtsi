@@ -306,6 +306,14 @@
 			status = "disabled";
 		};
 
+		wdt0: watchdog@66090000 {
+			compatible = "arm,sp805", "arm,primecell";
+			reg = <0x66090000 0x1000>;
+			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>, <&iprocslow>;
+			clock-names = "wdogclk", "apb_pclk";
+		};
+
 		i2c1: i2c@660b0000 {
 			compatible = "brcm,iproc-i2c";
 			reg = <0x660b0000 0x100>;
