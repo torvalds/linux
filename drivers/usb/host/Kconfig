@@ -5,6 +5,7 @@ comment "USB Host Controller Drivers"
 
 config USB_C67X00_HCD
 	tristate "Cypress C67x00 HCD support"
+	depends on HAS_IOMEM
 	help
 	  The Cypress C67x00 (EZ-Host/EZ-OTG) chips are dual-role
 	  host/peripheral/OTG USB controllers.
