@@ -1090,7 +1090,7 @@ xfs_buf_iodone_callbacks(
 	 * errors tend to affect the whole device and a failing log write
 	 * will make us give up.  But we really ought to do better here.
 	 */
-	if (XFS_BUF_ISASYNC(bp)) {
+	if (bp->b_flags & XBF_ASYNC) {
 		ASSERT(bp->b_iodone != NULL);
 
 		trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
