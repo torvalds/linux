@@ -384,43 +384,32 @@ static int dlpar_memory_remove_by_index(u32 drc_index, struct property *prop)
 
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
-static int dlpar_add_lmb(struct of_drconf_cell *lmb)
+static int dlpar_add_lmb_memory(struct of_drconf_cell *lmb)
 {
 	struct memory_block *mem_block;
 	unsigned long block_sz;
 	int nid, rc;
 
-	if (lmb->flags & DRCONF_MEM_ASSIGNED)
-		return -EINVAL;
-
 	block_sz = memory_block_size_bytes();
-
-	rc = dlpar_acquire_drc(lmb->drc_index);
-	if (rc)
-		return rc;
 
 	/* Find the node id for this address */
 	nid = memory_add_physaddr_to_nid(lmb->base_addr);
 
 	/* Add the memory */
 	rc = add_memory(nid, lmb->base_addr, block_sz);
-	if (rc) {
-		dlpar_release_drc(lmb->drc_index);
+	if (rc)
 		return rc;
-	}
 
 	/* Register this block of memory */
 	rc = memblock_add(lmb->base_addr, block_sz);
 	if (rc) {
 		remove_memory(nid, lmb->base_addr, block_sz);
-		dlpar_release_drc(lmb->drc_index);
 		return rc;
 	}
 
 	mem_block = lmb_to_memblock(lmb);
 	if (!mem_block) {
 		remove_memory(nid, lmb->base_addr, block_sz);
-		dlpar_release_drc(lmb->drc_index);
 		return -EINVAL;
 	}
 
@@ -428,12 +417,29 @@ static int dlpar_add_lmb(struct of_drconf_cell *lmb)
 	put_device(&mem_block->dev);
 	if (rc) {
 		remove_memory(nid, lmb->base_addr, block_sz);
-		dlpar_release_drc(lmb->drc_index);
 		return rc;
 	}
 
 	lmb->flags |= DRCONF_MEM_ASSIGNED;
 	return 0;
+}
+
+static int dlpar_add_lmb(struct of_drconf_cell *lmb)
+{
+	int rc;
+
+	if (lmb->flags & DRCONF_MEM_ASSIGNED)
+		return -EINVAL;
+
+	rc = dlpar_acquire_drc(lmb->drc_index);
+	if (rc)
+		return rc;
+
+	rc = dlpar_add_lmb_memory(lmb);
+	if (rc)
+		dlpar_release_drc(lmb->drc_index);
+
+	return rc;
 }
 
 static int dlpar_memory_add_by_count(u32 lmbs_to_add, struct property *prop)
