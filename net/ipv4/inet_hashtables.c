@@ -468,13 +468,15 @@ void __inet_hash(struct sock *sk, struct sock *osk)
 }
 EXPORT_SYMBOL(__inet_hash);
 
-void inet_hash(struct sock *sk)
+int inet_hash(struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
 		__inet_hash(sk, NULL);
 		local_bh_enable();
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(inet_hash);
 
