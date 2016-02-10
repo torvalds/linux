@@ -256,6 +256,46 @@
 			      <0x65260000 0x1000>;
 		};
 
+		timer0: timer@66030000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x66030000 0x1000>;
+			interrupts = <GIC_SPI 396 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>,
+				 <&iprocslow>,
+				 <&iprocslow>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		timer1: timer@66040000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x66040000 0x1000>;
+			interrupts = <GIC_SPI 397 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>,
+				 <&iprocslow>,
+				 <&iprocslow>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		timer2: timer@66050000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x66050000 0x1000>;
+			interrupts = <GIC_SPI 398 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>,
+				 <&iprocslow>,
+				 <&iprocslow>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		timer3: timer@66060000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x66060000 0x1000>;
+			interrupts = <GIC_SPI 399 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>,
+				 <&iprocslow>,
+				 <&iprocslow>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
 		i2c0: i2c@66080000 {
 			compatible = "brcm,iproc-i2c";
 			reg = <0x66080000 0x100>;
