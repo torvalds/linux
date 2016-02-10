@@ -7,6 +7,7 @@
 #ifndef _STI_HDMI_H_
 #define _STI_HDMI_H_
 
+#include <linux/hdmi.h>
 #include <linux/platform_device.h>
 
 #include <drm/drmP.h>
@@ -23,6 +24,14 @@ struct hdmi_phy_ops {
 	bool (*start)(struct sti_hdmi *hdmi);
 	void (*stop)(struct sti_hdmi *hdmi);
 };
+
+static const struct drm_prop_enum_list colorspace_mode_names[] = {
+	{ HDMI_COLORSPACE_RGB, "rgb" },
+	{ HDMI_COLORSPACE_YUV422, "yuv422" },
+	{ HDMI_COLORSPACE_YUV444, "yuv444" },
+};
+
+#define DEFAULT_COLORSPACE_MODE HDMI_COLORSPACE_RGB
 
 /**
  * STI hdmi structure
@@ -44,6 +53,8 @@ struct hdmi_phy_ops {
  * @wait_event: wait event
  * @event_received: wait event status
  * @reset: reset control of the hdmi phy
+ * @ddc_adapt: i2c ddc adapter
+ * @colorspace: current colorspace selected
  */
 struct sti_hdmi {
 	struct device dev;
@@ -64,6 +75,7 @@ struct sti_hdmi {
 	bool event_received;
 	struct reset_control *reset;
 	struct i2c_adapter *ddc_adapt;
+	enum hdmi_colorspace colorspace;
 };
 
 u32 hdmi_read(struct sti_hdmi *hdmi, int offset);

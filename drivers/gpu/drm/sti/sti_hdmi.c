@@ -128,6 +128,7 @@ struct sti_hdmi_connector {
 	struct drm_connector drm_connector;
 	struct drm_encoder *encoder;
 	struct sti_hdmi *hdmi;
+	struct drm_property *colorspace_property;
 };
 
 #define to_sti_hdmi_connector(x) \
@@ -408,7 +409,7 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 	}
 
 	/* fixed infoframe configuration not linked to the mode */
-	infoframe.colorspace = HDMI_COLORSPACE_RGB;
+	infoframe.colorspace = hdmi->colorspace;
 	infoframe.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
 	infoframe.colorimetry = HDMI_COLORIMETRY_NONE;
 
@@ -771,12 +772,74 @@ static void sti_hdmi_connector_destroy(struct drm_connector *connector)
 	kfree(hdmi_connector);
 }
 
+static void sti_hdmi_connector_init_property(struct drm_device *drm_dev,
+					     struct drm_connector *connector)
+{
+	struct sti_hdmi_connector *hdmi_connector
+		= to_sti_hdmi_connector(connector);
+	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
+	struct drm_property *prop;
+
+	/* colorspace property */
+	hdmi->colorspace = DEFAULT_COLORSPACE_MODE;
+	prop = drm_property_create_enum(drm_dev, 0, "colorspace",
+					colorspace_mode_names,
+					ARRAY_SIZE(colorspace_mode_names));
+	if (!prop) {
+		DRM_ERROR("fails to create colorspace property\n");
+		return;
+	}
+	hdmi_connector->colorspace_property = prop;
+	drm_object_attach_property(&connector->base, prop, hdmi->colorspace);
+}
+
+static int
+sti_hdmi_connector_set_property(struct drm_connector *connector,
+				struct drm_connector_state *state,
+				struct drm_property *property,
+				uint64_t val)
+{
+	struct sti_hdmi_connector *hdmi_connector
+		= to_sti_hdmi_connector(connector);
+	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
+
+	if (property == hdmi_connector->colorspace_property) {
+		hdmi->colorspace = val;
+		return 0;
+	}
+
+	DRM_ERROR("failed to set hdmi connector property\n");
+	return -EINVAL;
+}
+
+static int
+sti_hdmi_connector_get_property(struct drm_connector *connector,
+				const struct drm_connector_state *state,
+				struct drm_property *property,
+				uint64_t *val)
+{
+	struct sti_hdmi_connector *hdmi_connector
+		= to_sti_hdmi_connector(connector);
+	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
+
+	if (property == hdmi_connector->colorspace_property) {
+		*val = hdmi->colorspace;
+		return 0;
+	}
+
+	DRM_ERROR("failed to get hdmi connector property\n");
+	return -EINVAL;
+}
+
 static const struct drm_connector_funcs sti_hdmi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hdmi_connector_detect,
 	.destroy = sti_hdmi_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
+	.set_property = drm_atomic_helper_connector_set_property,
+	.atomic_set_property = sti_hdmi_connector_set_property,
+	.atomic_get_property = sti_hdmi_connector_get_property,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
@@ -835,6 +898,9 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 			&sti_hdmi_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(drm_connector,
 			&sti_hdmi_connector_helper_funcs);
+
+	/* initialise property */
+	sti_hdmi_connector_init_property(drm_dev, drm_connector);
 
 	err = drm_connector_register(drm_connector);
 	if (err)
