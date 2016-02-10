@@ -302,6 +302,7 @@ extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 
 /* Buffer Utility Routines */
 extern void *xfs_buf_offset(struct xfs_buf *, size_t);
+extern void xfs_buf_stale(struct xfs_buf *bp);
 
 /* Delayed Write Buffer Routines */
 extern bool xfs_buf_delwri_queue(struct xfs_buf *, struct list_head *);
@@ -317,9 +318,6 @@ extern void xfs_buf_terminate(void);
 			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH| \
 			    XBF_WRITE_FAIL))
 
-void xfs_buf_stale(struct xfs_buf *bp);
-#define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)
-#define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XBF_STALE)
 
 /*
  * These macros use the IO block map rather than b_bn. b_bn is now really
