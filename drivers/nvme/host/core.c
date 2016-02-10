@@ -557,8 +557,8 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	unsigned short bs;
 
 	if (nvme_identify_ns(ns->ctrl, ns->ns_id, &id)) {
-		dev_warn(ns->ctrl->dev, "%s: Identify failure nvme%dn%d\n",
-				__func__, ns->ctrl->instance, ns->ns_id);
+		dev_warn(disk_to_dev(ns->disk), "%s: Identify failure\n",
+				__func__);
 		return -ENODEV;
 	}
 	if (id->ncap == 0) {
@@ -568,7 +568,7 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 
 	if (nvme_nvm_ns_supported(ns, id) && ns->type != NVME_NS_LIGHTNVM) {
 		if (nvme_nvm_register(ns->queue, disk->disk_name)) {
-			dev_warn(ns->ctrl->dev,
+			dev_warn(disk_to_dev(ns->disk),
 				"%s: LightNVM init failure\n", __func__);
 			kfree(id);
 			return -ENODEV;
@@ -741,7 +741,7 @@ static int nvme_wait_ready(struct nvme_ctrl *ctrl, u64 cap, bool enabled)
 		if (fatal_signal_pending(current))
 			return -EINTR;
 		if (time_after(jiffies, timeout)) {
-			dev_err(ctrl->dev,
+			dev_err(ctrl->device,
 				"Device not ready; aborting %s\n", enabled ?
 						"initialisation" : "reset");
 			return -ENODEV;
@@ -781,7 +781,7 @@ int nvme_enable_ctrl(struct nvme_ctrl *ctrl, u64 cap)
 	int ret;
 
 	if (page_shift < dev_page_min) {
-		dev_err(ctrl->dev,
+		dev_err(ctrl->device,
 			"Minimum device page size %u too large for host (%u)\n",
 			1 << dev_page_min, 1 << page_shift);
 		return -ENODEV;
@@ -822,7 +822,7 @@ int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl)
 		if (fatal_signal_pending(current))
 			return -EINTR;
 		if (time_after(jiffies, timeout)) {
-			dev_err(ctrl->dev,
+			dev_err(ctrl->device,
 				"Device shutdown incomplete; abort shutdown\n");
 			return -ENODEV;
 		}
@@ -844,13 +844,13 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 
 	ret = ctrl->ops->reg_read32(ctrl, NVME_REG_VS, &ctrl->vs);
 	if (ret) {
-		dev_err(ctrl->dev, "Reading VS failed (%d)\n", ret);
+		dev_err(ctrl->device, "Reading VS failed (%d)\n", ret);
 		return ret;
 	}
 
 	ret = ctrl->ops->reg_read64(ctrl, NVME_REG_CAP, &cap);
 	if (ret) {
-		dev_err(ctrl->dev, "Reading CAP failed (%d)\n", ret);
+		dev_err(ctrl->device, "Reading CAP failed (%d)\n", ret);
 		return ret;
 	}
 	page_shift = NVME_CAP_MPSMIN(cap) + 12;
@@ -860,7 +860,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 
 	ret = nvme_identify_ctrl(ctrl, &id);
 	if (ret) {
-		dev_err(ctrl->dev, "Identify Controller failed (%d)\n", ret);
+		dev_err(ctrl->device, "Identify Controller failed (%d)\n", ret);
 		return -EIO;
 	}
 
@@ -937,13 +937,13 @@ static int nvme_dev_user_cmd(struct nvme_ctrl *ctrl, void __user *argp)
 
 	ns = list_first_entry(&ctrl->namespaces, struct nvme_ns, list);
 	if (ns != list_last_entry(&ctrl->namespaces, struct nvme_ns, list)) {
-		dev_warn(ctrl->dev,
+		dev_warn(ctrl->device,
 			"NVME_IOCTL_IO_CMD not supported when multiple namespaces present!\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	dev_warn(ctrl->dev,
+	dev_warn(ctrl->device,
 		"using deprecated NVME_IOCTL_IO_CMD ioctl on the char device!\n");
 	kref_get(&ns->kref);
 	mutex_unlock(&ctrl->namespaces_mutex);
@@ -969,7 +969,7 @@ static long nvme_dev_ioctl(struct file *file, unsigned int cmd,
 	case NVME_IOCTL_IO_CMD:
 		return nvme_dev_user_cmd(ctrl, argp);
 	case NVME_IOCTL_RESET:
-		dev_warn(ctrl->dev, "resetting controller\n");
+		dev_warn(ctrl->device, "resetting controller\n");
 		return ctrl->ops->reset_ctrl(ctrl);
 	case NVME_IOCTL_SUBSYS_RESET:
 		return nvme_reset_subsystem(ctrl);
