@@ -547,7 +547,7 @@
 #define MXCLK_PLL_CTRL                                0x000070
 
 #define VGA_CONFIGURATION                             0x000088
-#define VGA_CONFIGURATION_USER_DEFINE                 5:4
+#define VGA_CONFIGURATION_USER_DEFINE_MASK            (0x3 << 4)
 #define VGA_CONFIGURATION_PLL                         BIT(2)
 #define VGA_CONFIGURATION_MODE                        BIT(1)
 
