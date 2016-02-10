@@ -1644,6 +1644,7 @@ struct amdgpu_uvd {
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
 	bool			address_64_bit;
+	struct amd_sched_entity entity;
 };
 
 /*

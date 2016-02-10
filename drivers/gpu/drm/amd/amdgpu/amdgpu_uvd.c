@@ -91,6 +91,8 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 {
+	struct amdgpu_ring *ring;
+	struct amd_sched_rq *rq;
 	unsigned long bo_size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
@@ -191,6 +193,15 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 	amdgpu_bo_unreserve(adev->uvd.vcpu_bo);
 
+	ring = &adev->uvd.ring;
+	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
+	r = amd_sched_entity_init(&ring->sched, &adev->uvd.entity,
+				  rq, amdgpu_sched_jobs);
+	if (r != 0) {
+		DRM_ERROR("Failed setting up UVD run queue.\n");
+		return r;
+	}
+
 	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
 		atomic_set(&adev->uvd.handles[i], 0);
 		adev->uvd.filp[i] = NULL;
@@ -209,6 +220,8 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 
 	if (adev->uvd.vcpu_bo == NULL)
 		return 0;
+
+	amd_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
 
 	r = amdgpu_bo_reserve(adev->uvd.vcpu_bo, false);
 	if (!r) {
@@ -880,7 +893,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 
 		amdgpu_job_free(job);
 	} else {
-		r = amdgpu_job_submit(job, ring, NULL,
+		r = amdgpu_job_submit(job, ring, &adev->uvd.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 		if (r)
 			goto err_free;
