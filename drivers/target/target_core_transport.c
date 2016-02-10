@@ -711,10 +711,10 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 	cmd->transport_state |= (CMD_T_COMPLETE | CMD_T_ACTIVE);
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	if (cmd->cpuid == -1)
-		queue_work(target_completion_wq, &cmd->work);
-	else
+	if (cmd->se_cmd_flags & SCF_USE_CPUID)
 		queue_work_on(cmd->cpuid, target_completion_wq, &cmd->work);
+	else
+		queue_work(target_completion_wq, &cmd->work);
 }
 EXPORT_SYMBOL(target_complete_cmd);
 
@@ -1426,6 +1426,12 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 	 */
 	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
 				data_length, data_dir, task_attr, sense);
+
+	if (flags & TARGET_SCF_USE_CPUID)
+		se_cmd->se_cmd_flags |= SCF_USE_CPUID;
+	else
+		se_cmd->cpuid = WORK_CPU_UNBOUND;
+
 	if (flags & TARGET_SCF_UNKNOWN_SIZE)
 		se_cmd->unknown_data_length = 1;
 	/*
