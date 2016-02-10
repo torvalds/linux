@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -53,6 +54,15 @@ static u64 notrace lpc32xx_read_sched_clock(void)
 {
 	return readl(clocksource_timer_counter);
 }
+
+static unsigned long lpc32xx_delay_timer_read(void)
+{
+	return readl(clocksource_timer_counter);
+}
+
+static struct delay_timer lpc32xx_delay_timer = {
+	.read_current_timer = lpc32xx_delay_timer_read,
+};
 
 static int lpc32xx_clkevt_next_event(unsigned long delta,
 				     struct clock_event_device *evtdev)
@@ -192,6 +202,8 @@ static int __init lpc32xx_clocksource_init(struct device_node *np)
 	}
 
 	clocksource_timer_counter = base + LPC32XX_TIMER_TC;
+	lpc32xx_delay_timer.freq = rate;
+	register_current_timer_delay(&lpc32xx_delay_timer);
 	sched_clock_register(lpc32xx_read_sched_clock, 32, rate);
 
 	return 0;
