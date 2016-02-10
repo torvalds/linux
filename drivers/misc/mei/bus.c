@@ -44,7 +44,7 @@ ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking)
 {
 	struct mei_device *bus;
-	struct mei_cl_cb *cb = NULL;
+	struct mei_cl_cb *cb;
 	ssize_t rets;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -86,8 +86,6 @@ ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 
 out:
 	mutex_unlock(&bus->device_lock);
-	if (rets < 0)
-		mei_io_cb_free(cb);
 
 	return rets;
 }

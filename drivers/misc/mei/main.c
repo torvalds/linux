@@ -267,7 +267,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			 size_t length, loff_t *offset)
 {
 	struct mei_cl *cl = file->private_data;
-	struct mei_cl_cb *write_cb = NULL;
+	struct mei_cl_cb *cb;
 	struct mei_device *dev;
 	int rets;
 
@@ -305,36 +305,30 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	}
 
 	*offset = 0;
-	write_cb = mei_cl_alloc_cb(cl, length, MEI_FOP_WRITE, file);
-	if (!write_cb) {
+	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_WRITE, file);
+	if (!cb) {
 		rets = -ENOMEM;
 		goto out;
 	}
 
-	rets = copy_from_user(write_cb->buf.data, ubuf, length);
+	rets = copy_from_user(cb->buf.data, ubuf, length);
 	if (rets) {
 		dev_dbg(dev->dev, "failed to copy data from userland\n");
 		rets = -EFAULT;
+		mei_io_cb_free(cb);
 		goto out;
 	}
 
 	if (cl == &dev->iamthif_cl) {
-		rets = mei_amthif_write(cl, write_cb);
-
-		if (rets) {
-			dev_err(dev->dev,
-				"amthif write failed with status = %d\n", rets);
-			goto out;
-		}
-		mutex_unlock(&dev->device_lock);
-		return length;
+		rets = mei_amthif_write(cl, cb);
+		if (!rets)
+			rets = length;
+		goto out;
 	}
 
-	rets = mei_cl_write(cl, write_cb, false);
+	rets = mei_cl_write(cl, cb, false);
 out:
 	mutex_unlock(&dev->device_lock);
-	if (rets < 0)
-		mei_io_cb_free(write_cb);
 	return rets;
 }
 
