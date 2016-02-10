@@ -5366,32 +5366,6 @@ static void modeset_put_power_domains(struct drm_i915_private *dev_priv,
 		intel_display_power_put(dev_priv, domain);
 }
 
-static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
-{
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_device *dev = state->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long put_domains[I915_MAX_PIPES] = {};
-	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc;
-	int i;
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (needs_modeset(crtc->state))
-			put_domains[to_intel_crtc(crtc)->pipe] =
-				modeset_get_crtc_power_domains(crtc,
-					to_intel_crtc_state(crtc->state));
-	}
-
-	if (dev_priv->display.modeset_commit_cdclk &&
-	    intel_state->dev_cdclk != dev_priv->cdclk_freq)
-		dev_priv->display.modeset_commit_cdclk(state);
-
-	for (i = 0; i < I915_MAX_PIPES; i++)
-		if (put_domains[i])
-			modeset_put_power_domains(dev_priv, put_domains[i]);
-}
-
 static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 {
 	int max_cdclk_freq = dev_priv->max_cdclk_freq;
@@ -13462,6 +13436,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int ret = 0, i;
 	bool hw_check = intel_state->modeset;
+	unsigned long put_domains[I915_MAX_PIPES] = {};
 
 	ret = intel_atomic_prepare_commit(dev, state, async);
 	if (ret) {
@@ -13477,10 +13452,21 @@ static int intel_atomic_commit(struct drm_device *dev,
 		       sizeof(intel_state->min_pixclk));
 		dev_priv->active_crtcs = intel_state->active_crtcs;
 		dev_priv->atomic_cdclk_freq = intel_state->cdclk;
+
+		intel_display_power_get(dev_priv, POWER_DOMAIN_MODESET);
 	}
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+		if (needs_modeset(crtc->state) ||
+		    to_intel_crtc_state(crtc->state)->update_pipe) {
+			hw_check = true;
+
+			put_domains[to_intel_crtc(crtc)->pipe] =
+				modeset_get_crtc_power_domains(crtc,
+					to_intel_crtc_state(crtc->state));
+		}
 
 		if (!needs_modeset(crtc->state))
 			continue;
@@ -13514,7 +13500,10 @@ static int intel_atomic_commit(struct drm_device *dev,
 		intel_shared_dpll_commit(state);
 
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
-		modeset_update_crtc_power_domains(state);
+
+		if (dev_priv->display.modeset_commit_cdclk &&
+		    intel_state->dev_cdclk != dev_priv->cdclk_freq)
+			dev_priv->display.modeset_commit_cdclk(state);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -13523,22 +13512,10 @@ static int intel_atomic_commit(struct drm_device *dev,
 		bool modeset = needs_modeset(crtc->state);
 		bool update_pipe = !modeset &&
 			to_intel_crtc_state(crtc->state)->update_pipe;
-		unsigned long put_domains = 0;
-
-		if (modeset)
-			intel_display_power_get(dev_priv, POWER_DOMAIN_MODESET);
 
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
 			dev_priv->display.crtc_enable(crtc);
-		}
-
-		if (update_pipe) {
-			put_domains = modeset_get_crtc_power_domains(crtc,
-					      to_intel_crtc_state(crtc->state));
-
-			/* make sure intel_modeset_check_state runs */
-			hw_check = true;
 		}
 
 		if (!modeset)
@@ -13551,18 +13528,20 @@ static int intel_atomic_commit(struct drm_device *dev,
 		    (crtc->state->planes_changed || update_pipe))
 			drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 
-		if (put_domains)
-			modeset_put_power_domains(dev_priv, put_domains);
-
 		intel_post_plane_update(intel_crtc);
-
-		if (modeset)
-			intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 	}
 
 	/* FIXME: add subpixel order */
 
 	drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (put_domains[i])
+			modeset_put_power_domains(dev_priv, put_domains[i]);
+	}
+
+	if (intel_state->modeset)
+		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 
 	mutex_lock(&dev->struct_mutex);
 	drm_atomic_helper_cleanup_planes(dev, state);
