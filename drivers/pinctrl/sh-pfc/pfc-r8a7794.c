@@ -1491,6 +1491,98 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
 };
 
+/* - Audio Clock ------------------------------------------------------------ */
+static const unsigned int audio_clka_pins[] = {
+	/* CLKA */
+	RCAR_GP_PIN(5, 20),
+};
+static const unsigned int audio_clka_mux[] = {
+	AUDIO_CLKA_MARK,
+};
+static const unsigned int audio_clka_b_pins[] = {
+	/* CLKA */
+	RCAR_GP_PIN(3, 25),
+};
+static const unsigned int audio_clka_b_mux[] = {
+	AUDIO_CLKA_B_MARK,
+};
+static const unsigned int audio_clka_c_pins[] = {
+	/* CLKA */
+	RCAR_GP_PIN(4, 20),
+};
+static const unsigned int audio_clka_c_mux[] = {
+	AUDIO_CLKA_C_MARK,
+};
+static const unsigned int audio_clka_d_pins[] = {
+	/* CLKA */
+	RCAR_GP_PIN(5, 0),
+};
+static const unsigned int audio_clka_d_mux[] = {
+	AUDIO_CLKA_D_MARK,
+};
+static const unsigned int audio_clkb_pins[] = {
+	/* CLKB */
+	RCAR_GP_PIN(5, 21),
+};
+static const unsigned int audio_clkb_mux[] = {
+	AUDIO_CLKB_MARK,
+};
+static const unsigned int audio_clkb_b_pins[] = {
+	/* CLKB */
+	RCAR_GP_PIN(3, 26),
+};
+static const unsigned int audio_clkb_b_mux[] = {
+	AUDIO_CLKB_B_MARK,
+};
+static const unsigned int audio_clkb_c_pins[] = {
+	/* CLKB */
+	RCAR_GP_PIN(4, 21),
+};
+static const unsigned int audio_clkb_c_mux[] = {
+	AUDIO_CLKB_C_MARK,
+};
+static const unsigned int audio_clkc_pins[] = {
+	/* CLKC */
+	RCAR_GP_PIN(5, 22),
+};
+static const unsigned int audio_clkc_mux[] = {
+	AUDIO_CLKC_MARK,
+};
+static const unsigned int audio_clkc_b_pins[] = {
+	/* CLKC */
+	RCAR_GP_PIN(3, 29),
+};
+static const unsigned int audio_clkc_b_mux[] = {
+	AUDIO_CLKC_B_MARK,
+};
+static const unsigned int audio_clkc_c_pins[] = {
+	/* CLKC */
+	RCAR_GP_PIN(4, 22),
+};
+static const unsigned int audio_clkc_c_mux[] = {
+	AUDIO_CLKC_C_MARK,
+};
+static const unsigned int audio_clkout_pins[] = {
+	/* CLKOUT */
+	RCAR_GP_PIN(5, 23),
+};
+static const unsigned int audio_clkout_mux[] = {
+	AUDIO_CLKOUT_MARK,
+};
+static const unsigned int audio_clkout_b_pins[] = {
+	/* CLKOUT */
+	RCAR_GP_PIN(3, 12),
+};
+static const unsigned int audio_clkout_b_mux[] = {
+	AUDIO_CLKOUT_B_MARK,
+};
+static const unsigned int audio_clkout_c_pins[] = {
+	/* CLKOUT */
+	RCAR_GP_PIN(4, 23),
+};
+static const unsigned int audio_clkout_c_mux[] = {
+	AUDIO_CLKOUT_C_MARK,
+};
 /* - ETH -------------------------------------------------------------------- */
 static const unsigned int eth_link_pins[] = {
 	/* LINK */
@@ -3150,6 +3242,19 @@ static const unsigned int vin1_clk_mux[] = {
 };
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
+	SH_PFC_PIN_GROUP(audio_clka),
+	SH_PFC_PIN_GROUP(audio_clka_b),
+	SH_PFC_PIN_GROUP(audio_clka_c),
+	SH_PFC_PIN_GROUP(audio_clka_d),
+	SH_PFC_PIN_GROUP(audio_clkb),
+	SH_PFC_PIN_GROUP(audio_clkb_b),
+	SH_PFC_PIN_GROUP(audio_clkb_c),
+	SH_PFC_PIN_GROUP(audio_clkc),
+	SH_PFC_PIN_GROUP(audio_clkc_b),
+	SH_PFC_PIN_GROUP(audio_clkc_c),
+	SH_PFC_PIN_GROUP(audio_clkout),
+	SH_PFC_PIN_GROUP(audio_clkout_b),
+	SH_PFC_PIN_GROUP(audio_clkout_c),
 	SH_PFC_PIN_GROUP(eth_link),
 	SH_PFC_PIN_GROUP(eth_magic),
 	SH_PFC_PIN_GROUP(eth_mdio),
@@ -3377,6 +3482,22 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(vin1_field),
 	SH_PFC_PIN_GROUP(vin1_clkenb),
 	SH_PFC_PIN_GROUP(vin1_clk),
+};
+
+static const char * const audio_clk_groups[] = {
+	"audio_clka",
+	"audio_clka_b",
+	"audio_clka_c",
+	"audio_clka_d",
+	"audio_clkb",
+	"audio_clkb_b",
+	"audio_clkb_c",
+	"audio_clkc",
+	"audio_clkc_b",
+	"audio_clkc_c",
+	"audio_clkout",
+	"audio_clkout_b",
+	"audio_clkout_c",
 };
 
 static const char * const eth_groups[] = {
@@ -3724,6 +3845,7 @@ static const char * const vin1_groups[] = {
 };
 
 static const struct sh_pfc_function pinmux_functions[] = {
+	SH_PFC_FUNCTION(audio_clk),
 	SH_PFC_FUNCTION(eth),
 	SH_PFC_FUNCTION(hscif0),
 	SH_PFC_FUNCTION(hscif1),
