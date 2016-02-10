@@ -18,6 +18,7 @@
 #define _CPUFREQ_GOVERNOR_H
 
 #include <linux/atomic.h>
+#include <linux/irq_work.h>
 #include <linux/cpufreq.h>
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
@@ -138,10 +139,18 @@ struct cpu_common_dbs_info {
 	 */
 	struct mutex timer_mutex;
 
-	ktime_t time_stamp;
+	u64 last_sample_time;
+	s64 sample_delay_ns;
 	atomic_t skip_work;
+	struct irq_work irq_work;
 	struct work_struct work;
 };
+
+static inline void gov_update_sample_delay(struct cpu_common_dbs_info *shared,
+					   unsigned int delay_us)
+{
+	shared->sample_delay_ns = delay_us * NSEC_PER_USEC;
+}
 
 /* Per cpu structures */
 struct cpu_dbs_info {
@@ -155,7 +164,7 @@ struct cpu_dbs_info {
 	 * wake-up from idle.
 	 */
 	unsigned int prev_load;
-	struct timer_list timer;
+	struct update_util_data update_util;
 	struct cpu_common_dbs_info *shared;
 };
 
@@ -212,8 +221,7 @@ struct common_dbs_data {
 
 	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
 	void *(*get_cpu_dbs_info_s)(int cpu);
-	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy,
-				      bool modify_all);
+	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy);
 	void (*gov_check_cpu)(int cpu, unsigned int load);
 	int (*init)(struct dbs_data *dbs_data, bool notify);
 	void (*exit)(struct dbs_data *dbs_data, bool notify);
@@ -270,9 +278,6 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 }
 
 extern struct mutex cpufreq_governor_lock;
-
-void gov_add_timers(struct cpufreq_policy *policy, unsigned int delay);
-void gov_cancel_work(struct cpu_common_dbs_info *shared);
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		struct common_dbs_data *cdata, unsigned int event);
