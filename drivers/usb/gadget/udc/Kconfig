@@ -188,6 +188,7 @@ config USB_RENESAS_USB3
 
 config USB_PXA27X
 	tristate "PXA 27x"
+	depends on HAS_IOMEM
 	help
 	   Intel's PXA 27x series XScale ARM v5TE processors include
 	   an integrated full speed USB 1.1 device controller.
