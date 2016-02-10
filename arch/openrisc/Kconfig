@@ -17,6 +17,7 @@ config OPENRISC
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IOMAP
 	select GENERIC_CPU_DEVICES
+	select HAVE_UID16
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_STRNCPY_FROM_USER
@@ -27,9 +28,6 @@ config MMU
 	def_bool y
 
 config HAVE_DMA_ATTRS
-	def_bool y
-
-config UID16
 	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
