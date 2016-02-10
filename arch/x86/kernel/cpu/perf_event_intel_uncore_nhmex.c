@@ -1,5 +1,5 @@
 /* Nehalem-EX/Westmere-EX uncore support */
-#include "perf_event_intel_uncore.h"
+#include "../../events/intel/uncore.h"
 
 /* NHM-EX event control */
 #define NHMEX_PMON_CTL_EV_SEL_MASK	0x000000ff

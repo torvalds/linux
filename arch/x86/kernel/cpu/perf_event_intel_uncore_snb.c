@@ -1,5 +1,5 @@
 /* Nehalem/SandBridge/Haswell uncore support */
-#include "perf_event_intel_uncore.h"
+#include "../../events/intel/uncore.h"
 
 /* Uncore IMC PCI IDs */
 #define PCI_DEVICE_ID_INTEL_SNB_IMC	0x0100

@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/perf_event.h>
-#include "perf_event.h"
+#include "../../kernel/cpu/perf_event.h"
 
 #define UNCORE_PMU_NAME_LEN		32
 #define UNCORE_PMU_HRTIMER_INTERVAL	(60LL * NSEC_PER_SEC)

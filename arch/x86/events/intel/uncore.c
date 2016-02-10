@@ -1,4 +1,4 @@
-#include "perf_event_intel_uncore.h"
+#include "uncore.h"
 
 static struct intel_uncore_type *empty_uncore[] = { NULL, };
 struct intel_uncore_type **uncore_msr_uncores = empty_uncore;
