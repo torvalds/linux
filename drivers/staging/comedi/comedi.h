@@ -72,12 +72,12 @@
 #define CR_AREF(a)	(((a) >> 24) & 0x03)
 
 #define CR_FLAGS_MASK	0xfc000000
-#define CR_ALT_FILTER	(1 << 26)
+#define CR_ALT_FILTER	BIT(26)
 #define CR_DITHER	CR_ALT_FILTER
 #define CR_DEGLITCH	CR_ALT_FILTER
-#define CR_ALT_SOURCE	(1 << 27)
-#define CR_EDGE		(1 << 30)
-#define CR_INVERT	(1 << 31)
+#define CR_ALT_SOURCE	BIT(27)
+#define CR_EDGE		BIT(30)
+#define CR_INVERT	BIT(31)
 
 #define AREF_GROUND	0x00	/* analog ref = analog ground */
 #define AREF_COMMON	0x01	/* analog ref = analog common */
@@ -894,7 +894,7 @@ struct comedi_bufinfo {
 #define RANGE_LENGTH(b)		((b) & 0xffff)
 
 #define RF_UNIT(flags)		((flags) & 0xff)
-#define RF_EXTERNAL		(1 << 8)
+#define RF_EXTERNAL		BIT(8)
 
 #define UNIT_volt		0
 #define UNIT_mA			1
