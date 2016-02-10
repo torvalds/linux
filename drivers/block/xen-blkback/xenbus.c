@@ -618,6 +618,14 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
+	err = xenbus_printf(XBT_NIL, dev->nodename,
+			    "feature-max-indirect-segments", "%u",
+			    MAX_INDIRECT_SEGMENTS);
+	if (err)
+		dev_warn(&dev->dev,
+			 "writing %s/feature-max-indirect-segments (%d)",
+			 dev->nodename, err);
+
 	/* Multi-queue: advertise how many queues are supported by us.*/
 	err = xenbus_printf(XBT_NIL, dev->nodename,
 			    "multi-queue-max-queues", "%u", xenblk_max_queues);
@@ -849,11 +857,6 @@ again:
 				 dev->nodename);
 		goto abort;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "feature-max-indirect-segments", "%u",
-			    MAX_INDIRECT_SEGMENTS);
-	if (err)
-		dev_warn(&dev->dev, "writing %s/feature-max-indirect-segments (%d)",
-			 dev->nodename, err);
 
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));
