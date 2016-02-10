@@ -59,9 +59,7 @@ static long hw_i2c_wait_tx_done(void)
 
 	/* Wait until the transfer is completed. */
 	timeout = HWI2C_WAIT_TIMEOUT;
-	while ((FIELD_GET(PEEK32(I2C_STATUS),
-			  I2C_STATUS, TX) != I2C_STATUS_TX_COMPLETED) &&
-	       (timeout != 0))
+	while (!(PEEK32(I2C_STATUS) & I2C_STATUS_TX) && (timeout != 0))
 		timeout--;
 
 	if (timeout == 0)

@@ -1612,20 +1612,10 @@
 #define I2C_CTRL_EN                                     BIT(0)
 
 #define I2C_STATUS                                      0x010042
-#define I2C_STATUS_TX                                   3:3
-#define I2C_STATUS_TX_PROGRESS                          0
-#define I2C_STATUS_TX_COMPLETED                         1
-#define I2C_TX_DONE                                     0x08
-#define I2C_STATUS_ERR                                  2:2
-#define I2C_STATUS_ERR_NORMAL                           0
-#define I2C_STATUS_ERR_ERROR                            1
-#define I2C_STATUS_ERR_CLEAR                            0
-#define I2C_STATUS_ACK                                  1:1
-#define I2C_STATUS_ACK_RECEIVED                         0
-#define I2C_STATUS_ACK_NOT                              1
-#define I2C_STATUS_BSY                                  0:0
-#define I2C_STATUS_BSY_IDLE                             0
-#define I2C_STATUS_BSY_BUSY                             1
+#define I2C_STATUS_TX                                   BIT(3)
+#define I2C_STATUS_ERR                                  BIT(2)
+#define I2C_STATUS_ACK                                  BIT(1)
+#define I2C_STATUS_BSY                                  BIT(0)
 
 #define I2C_RESET                                       0x010042
 #define I2C_RESET_BUS_ERROR                             2:2
