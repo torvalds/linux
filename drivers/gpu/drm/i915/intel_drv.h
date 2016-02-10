@@ -549,7 +549,6 @@ struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;
 	bool post_enable_primary;
-	unsigned update_sprite_watermarks;
 
 	/* Sleepable operations to perform before and after commit */
 	bool update_fbc;

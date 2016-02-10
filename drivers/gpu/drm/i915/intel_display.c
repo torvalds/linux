@@ -11788,7 +11788,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	struct intel_plane_state *old_plane_state =
 		to_intel_plane_state(plane->state);
 	int idx = intel_crtc->base.base.id, ret;
-	int i = drm_plane_index(plane);
 	bool mode_changed = needs_modeset(crtc_state);
 	bool was_crtc_enabled = crtc->state->active;
 	bool is_crtc_enabled = crtc_state->active;
@@ -11867,9 +11866,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		    needs_scaling(to_intel_plane_state(plane_state)) &&
 		    !needs_scaling(old_plane_state))
 			pipe_config->disable_lp_wm = true;
-		else if (turn_off && !mode_changed)
-			intel_crtc->atomic.update_sprite_watermarks |=
-				1 << i;
 
 		break;
 	}
