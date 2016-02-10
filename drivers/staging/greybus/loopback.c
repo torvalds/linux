@@ -1121,7 +1121,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	gb->file = debugfs_create_file(name, S_IFREG | S_IRUGO, gb_dev.root, gb,
 				       &gb_loopback_debugfs_latency_ops);
 	gb->connection = connection;
-	connection->bundle->private = gb;
+	connection->private = gb;
 
 	gb->id = ida_simple_get(&loopback_ida, 0, 0, GFP_KERNEL);
 	if (gb->id < 0) {
@@ -1177,7 +1177,6 @@ out_dev:
 	ida_simple_remove(&loopback_ida, gb->id);
 out_ida:
 	debugfs_remove(gb->file);
-	connection->bundle->private = NULL;
 out_kzalloc:
 	kfree(gb);
 
@@ -1186,13 +1185,12 @@ out_kzalloc:
 
 static void gb_loopback_connection_exit(struct gb_connection *connection)
 {
-	struct gb_loopback *gb = connection->bundle->private;
+	struct gb_loopback *gb = connection->private;
 	unsigned long flags;
 
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
 
-	connection->bundle->private = NULL;
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
 	gb_connection_latency_tag_disable(connection);
