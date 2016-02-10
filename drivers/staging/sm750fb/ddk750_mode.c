@@ -79,7 +79,7 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 {
 	int ret = 0;
 	int cnt = 0;
-	unsigned int ulTmpValue, ulReg;
+	unsigned int tmp, reg;
 
 	if (pll->clockType == SECONDARY_PLL) {
 		/* programe secondary pixel clock */
@@ -101,26 +101,27 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 		| FIELD_VALUE(0, CRT_VERTICAL_SYNC, START, pModeParam->vertical_sync_start - 1));
 
 
-		ulTmpValue = FIELD_VALUE(0, CRT_DISPLAY_CTRL, VSYNC_PHASE, pModeParam->vertical_sync_polarity) |
+		tmp = FIELD_VALUE(0, CRT_DISPLAY_CTRL, VSYNC_PHASE,
+				  pModeParam->vertical_sync_polarity) |
 					  FIELD_VALUE(0, CRT_DISPLAY_CTRL, HSYNC_PHASE, pModeParam->horizontal_sync_polarity) |
 					  FIELD_SET(0, CRT_DISPLAY_CTRL, TIMING, ENABLE) |
 					  FIELD_SET(0, CRT_DISPLAY_CTRL, PLANE, ENABLE);
 
 
 		if (getChipType() == SM750LE) {
-			displayControlAdjust_SM750LE(pModeParam, ulTmpValue);
+			displayControlAdjust_SM750LE(pModeParam, tmp);
 		} else {
-			ulReg = PEEK32(CRT_DISPLAY_CTRL)
+			reg = PEEK32(CRT_DISPLAY_CTRL)
 					& FIELD_CLEAR(CRT_DISPLAY_CTRL, VSYNC_PHASE)
 					& FIELD_CLEAR(CRT_DISPLAY_CTRL, HSYNC_PHASE)
 					& FIELD_CLEAR(CRT_DISPLAY_CTRL, TIMING)
 					& FIELD_CLEAR(CRT_DISPLAY_CTRL, PLANE);
 
-			 POKE32(CRT_DISPLAY_CTRL, ulTmpValue | ulReg);
+			 POKE32(CRT_DISPLAY_CTRL, tmp | reg);
 		}
 
 	} else if (pll->clockType == PRIMARY_PLL) {
-		unsigned int ulReservedBits;
+		unsigned int reserved;
 
 		POKE32(PANEL_PLL_CTRL, formatPllReg(pll));
 
@@ -140,18 +141,20 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 		FIELD_VALUE(0, PANEL_VERTICAL_SYNC, HEIGHT, pModeParam->vertical_sync_height)
 		| FIELD_VALUE(0, PANEL_VERTICAL_SYNC, START, pModeParam->vertical_sync_start - 1));
 
-		ulTmpValue = FIELD_VALUE(0, PANEL_DISPLAY_CTRL, VSYNC_PHASE, pModeParam->vertical_sync_polarity) |
+		tmp = FIELD_VALUE(0, PANEL_DISPLAY_CTRL, VSYNC_PHASE,
+				  pModeParam->vertical_sync_polarity) |
 			     FIELD_VALUE(0, PANEL_DISPLAY_CTRL, HSYNC_PHASE, pModeParam->horizontal_sync_polarity) |
 			     FIELD_VALUE(0, PANEL_DISPLAY_CTRL, CLOCK_PHASE, pModeParam->clock_phase_polarity) |
 			     FIELD_SET(0, PANEL_DISPLAY_CTRL, TIMING, ENABLE) |
 			     FIELD_SET(0, PANEL_DISPLAY_CTRL, PLANE, ENABLE);
 
-		ulReservedBits = FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_1_MASK, ENABLE) |
+		reserved = FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_1_MASK,
+				     ENABLE) |
 				 FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_2_MASK, ENABLE) |
 				 FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_3_MASK, ENABLE) |
 				 FIELD_SET(0, PANEL_DISPLAY_CTRL, VSYNC, ACTIVE_LOW);
 
-		ulReg = (PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits)
+		reg = (PEEK32(PANEL_DISPLAY_CTRL) & ~reserved)
 			& FIELD_CLEAR(PANEL_DISPLAY_CTRL, CLOCK_PHASE)
 			& FIELD_CLEAR(PANEL_DISPLAY_CTRL, VSYNC_PHASE)
 			& FIELD_CLEAR(PANEL_DISPLAY_CTRL, HSYNC_PHASE)
@@ -167,13 +170,14 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 		*       next vertical sync to turn on/off the plane.
 		*/
 
-		POKE32(PANEL_DISPLAY_CTRL, ulTmpValue | ulReg);
+		POKE32(PANEL_DISPLAY_CTRL, tmp | reg);
 
-		while ((PEEK32(PANEL_DISPLAY_CTRL) & ~ulReservedBits) != (ulTmpValue | ulReg)) {
+		while ((PEEK32(PANEL_DISPLAY_CTRL) & ~reserved) !=
+			(tmp | reg)) {
 			cnt++;
 			if (cnt > 1000)
 				break;
-			POKE32(PANEL_DISPLAY_CTRL, ulTmpValue | ulReg);
+			POKE32(PANEL_DISPLAY_CTRL, tmp | reg);
 		}
 	} else {
 		ret = -1;
