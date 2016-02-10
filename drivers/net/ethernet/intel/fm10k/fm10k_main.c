@@ -1581,6 +1581,20 @@ static void fm10k_set_num_queues(struct fm10k_intfc *interface)
 }
 
 /**
+ * fm10k_reset_num_queues - Reset the number of queues to zero
+ * @interface: board private structure
+ *
+ * This function should be called whenever we need to reset the number of
+ * queues after an error condition.
+ */
+static void fm10k_reset_num_queues(struct fm10k_intfc *interface)
+{
+	interface->num_tx_queues = 0;
+	interface->num_rx_queues = 0;
+	interface->num_q_vectors = 0;
+}
+
+/**
  * fm10k_alloc_q_vector - Allocate memory for a single interrupt vector
  * @interface: board private structure to initialize
  * @v_count: q_vectors allocated on interface, used for ring interleaving
@@ -1763,9 +1777,7 @@ static int fm10k_alloc_q_vectors(struct fm10k_intfc *interface)
 	return 0;
 
 err_out:
-	interface->num_tx_queues = 0;
-	interface->num_rx_queues = 0;
-	interface->num_q_vectors = 0;
+	fm10k_reset_num_queues(interface);
 
 	while (v_idx--)
 		fm10k_free_q_vector(interface, v_idx);
@@ -1785,9 +1797,7 @@ static void fm10k_free_q_vectors(struct fm10k_intfc *interface)
 {
 	int v_idx = interface->num_q_vectors;
 
-	interface->num_tx_queues = 0;
-	interface->num_rx_queues = 0;
-	interface->num_q_vectors = 0;
+	fm10k_reset_num_queues(interface);
 
 	while (v_idx--)
 		fm10k_free_q_vector(interface, v_idx);
@@ -1995,14 +2005,15 @@ int fm10k_init_queueing_scheme(struct fm10k_intfc *interface)
 	if (err) {
 		dev_err(&interface->pdev->dev,
 			"Unable to initialize MSI-X capability\n");
-		return err;
+		goto err_init_msix;
 	}
 
 	/* Allocate memory for queues */
 	err = fm10k_alloc_q_vectors(interface);
 	if (err) {
-		fm10k_reset_msix_capability(interface);
-		return err;
+		dev_err(&interface->pdev->dev,
+			"Unable to allocate queue vectors\n");
+		goto err_alloc_q_vectors;
 	}
 
 	/* Map rings to devices, and map devices to physical queues */
@@ -2012,6 +2023,12 @@ int fm10k_init_queueing_scheme(struct fm10k_intfc *interface)
 	fm10k_init_reta(interface);
 
 	return 0;
+
+err_alloc_q_vectors:
+	fm10k_reset_msix_capability(interface);
+err_init_msix:
+	fm10k_reset_num_queues(interface);
+	return err;
 }
 
 /**
