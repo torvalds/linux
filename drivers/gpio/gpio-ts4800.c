@@ -48,8 +48,7 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 
 	retval = bgpio_init(chip, &pdev->dev, 2, base_addr + INPUT_REG_OFFSET,
 			    base_addr + OUTPUT_REG_OFFSET, NULL,
-			    base_addr + DIRECTION_REG_OFFSET, NULL,
-			    BGPIOF_BIG_ENDIAN & BGPIOF_BIG_ENDIAN_BYTE_ORDER);
+			    base_addr + DIRECTION_REG_OFFSET, NULL, 0);
 	if (retval) {
 		dev_err(&pdev->dev, "bgpio_init failed\n");
 		return retval;
