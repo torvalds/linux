@@ -60,6 +60,11 @@ config ARM_VIC_NR
 	  The maximum number of VICs available in the system, for
 	  power management.
 
+config ARMADA_370_XP_IRQ
+	bool
+	default y if ARCH_MVEBU
+	select GENERIC_IRQ_CHIP
+
 config ATMEL_AIC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
