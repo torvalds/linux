@@ -87,7 +87,7 @@ enum {
 
 enum {
 	/* Start from the last defined clock in dt bindings */
-	LPC32XX_CLK_ADC_DIV = LPC32XX_CLK_ADC + 1,
+	LPC32XX_CLK_ADC_DIV = LPC32XX_CLK_HCLK_PLL + 1,
 	LPC32XX_CLK_ADC_RTC,
 	LPC32XX_CLK_TEST1,
 	LPC32XX_CLK_TEST2,
@@ -96,7 +96,6 @@ enum {
 	LPC32XX_CLK_OSC,
 	LPC32XX_CLK_SYS,
 	LPC32XX_CLK_PLL397X,
-	LPC32XX_CLK_HCLK_PLL,
 	LPC32XX_CLK_HCLK_DIV_PERIPH,
 	LPC32XX_CLK_HCLK_DIV,
 	LPC32XX_CLK_HCLK,
@@ -1525,9 +1524,6 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 	}
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-
-	/* For 13MHz osc valid output range of PLL is from 156MHz to 266.5MHz */
-	clk_set_rate(clk[LPC32XX_CLK_HCLK_PLL], 208000000);
 
 	/* Set 48MHz rate of USB PLL clock */
 	clk_set_rate(clk[LPC32XX_CLK_USB_PLL], 48000000);
