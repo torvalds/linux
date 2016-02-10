@@ -10,7 +10,7 @@
 static inline void __invpcid(unsigned long pcid, unsigned long addr,
 			     unsigned long type)
 {
-	u64 desc[2] = { pcid, addr };
+	struct { u64 d[2]; } desc = { { pcid, addr } };
 
 	/*
 	 * The memory clobber is because the whole point is to invalidate
@@ -22,7 +22,7 @@ static inline void __invpcid(unsigned long pcid, unsigned long addr,
 	 * invpcid (%rcx), %rax in long mode.
 	 */
 	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
-		      : : "m" (desc), "a" (type), "c" (desc) : "memory");
+		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
 }
 
 #define INVPCID_TYPE_INDIV_ADDR		0
