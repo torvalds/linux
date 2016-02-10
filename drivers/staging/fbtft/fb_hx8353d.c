@@ -28,7 +28,6 @@
 
 static int init_display(struct fbtft_par *par)
 {
-
 	par->fbtftops.reset(par);
 	mdelay(150);
 
