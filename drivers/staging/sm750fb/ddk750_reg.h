@@ -833,8 +833,9 @@
 #define PANEL_FB_ADDRESS_ADDRESS_MASK                 0x1ffffff
 
 #define PANEL_FB_WIDTH                                0x080010
-#define PANEL_FB_WIDTH_WIDTH                          29:16
-#define PANEL_FB_WIDTH_OFFSET                         13:0
+#define PANEL_FB_WIDTH_WIDTH_SHIFT                    16
+#define PANEL_FB_WIDTH_WIDTH_MASK                     (0x3fff << 16)
+#define PANEL_FB_WIDTH_OFFSET_MASK                    0x3fff
 
 #define PANEL_WINDOW_WIDTH                            0x080014
 #define PANEL_WINDOW_WIDTH_WIDTH                      27:16
