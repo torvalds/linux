@@ -355,13 +355,13 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 
 unsigned int formatPllReg(pll_value_t *pPLL)
 {
-	unsigned int ulPllReg = 0;
+	unsigned int reg = 0;
 
     /* Note that all PLL's have the same format. Here, we just use Panel PLL parameter
        to work out the bit fields in the register.
        On returning a 32 bit number, the value can be applied to any PLL in the calling function.
     */
-	ulPllReg =
+	reg =
 	FIELD_SET(0, PANEL_PLL_CTRL, BYPASS, OFF)
 	| FIELD_SET(0, PANEL_PLL_CTRL, POWER,  ON)
 	| FIELD_SET(0, PANEL_PLL_CTRL, INPUT,  OSC)
@@ -372,7 +372,7 @@ unsigned int formatPllReg(pll_value_t *pPLL)
 	| FIELD_VALUE(0, PANEL_PLL_CTRL, N,      pPLL->N)
 	| FIELD_VALUE(0, PANEL_PLL_CTRL, M,      pPLL->M);
 
-	return ulPllReg;
+	return reg;
 }
 
 
