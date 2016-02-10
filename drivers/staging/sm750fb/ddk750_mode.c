@@ -61,8 +61,7 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL25);
 
 	/* Set bit 25:24 of display controller */
-	dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CRTSELECT, CRT);
-	dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, RGBBIT, 24BIT);
+	dispControl |= (CRT_DISPLAY_CTRL_CRTSELECT | CRT_DISPLAY_CTRL_RGBBIT);
 
 	/* Set bit 14 of display controller */
 	dispControl = DISPLAY_CTRL_CLOCK_PHASE;

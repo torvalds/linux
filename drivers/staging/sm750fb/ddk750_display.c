@@ -155,7 +155,7 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 		reg = PEEK32(CRT_DISPLAY_CTRL);
 		reg = FIELD_VALUE(reg, CRT_DISPLAY_CTRL, SELECT, (output & CRT_2_MASK)>>CRT_2_OFFSET);
 		/*se blank off */
-		reg = FIELD_SET(reg, CRT_DISPLAY_CTRL, BLANK, OFF);
+		reg &= ~CRT_DISPLAY_CTRL_BLANK;
 		POKE32(CRT_DISPLAY_CTRL, reg);
 
 	}

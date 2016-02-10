@@ -1331,38 +1331,19 @@
 #define CRT_DISPLAY_CTRL_CLK_PLL80                    5
 #define CRT_DISPLAY_CTRL_CLK_PLL108                   6
 #define CRT_DISPLAY_CTRL_CLK_RESERVED                 7
-#define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC                26:26
-#define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC_DISABLE        1
-#define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC_ENABLE         0
+#define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC                BIT(26)
 
 /* SM750LE definition */
-#define CRT_DISPLAY_CTRL_CRTSELECT                    25:25
-#define CRT_DISPLAY_CTRL_CRTSELECT_VGA                0
-#define CRT_DISPLAY_CTRL_CRTSELECT_CRT                1
-#define CRT_DISPLAY_CTRL_RGBBIT                       24:24
-#define CRT_DISPLAY_CTRL_RGBBIT_24BIT                 0
-#define CRT_DISPLAY_CTRL_RGBBIT_12BIT                 1
+#define CRT_DISPLAY_CTRL_CRTSELECT                    BIT(25)
+#define CRT_DISPLAY_CTRL_RGBBIT                       BIT(24)
 
 #ifndef VALIDATION_CHIP
-    #define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC            26:26
-    #define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC_DISABLE    1
-    #define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC_ENABLE     0
-    #define CRT_DISPLAY_CTRL_CENTERING                24:24
-    #define CRT_DISPLAY_CTRL_CENTERING_DISABLE        0
-    #define CRT_DISPLAY_CTRL_CENTERING_ENABLE         1
+    #define CRT_DISPLAY_CTRL_CENTERING                BIT(24)
 #endif
-#define CRT_DISPLAY_CTRL_LOCK_TIMING                  23:23
-#define CRT_DISPLAY_CTRL_LOCK_TIMING_DISABLE          0
-#define CRT_DISPLAY_CTRL_LOCK_TIMING_ENABLE           1
-#define CRT_DISPLAY_CTRL_EXPANSION                    22:22
-#define CRT_DISPLAY_CTRL_EXPANSION_DISABLE            0
-#define CRT_DISPLAY_CTRL_EXPANSION_ENABLE             1
-#define CRT_DISPLAY_CTRL_VERTICAL_MODE                21:21
-#define CRT_DISPLAY_CTRL_VERTICAL_MODE_REPLICATE      0
-#define CRT_DISPLAY_CTRL_VERTICAL_MODE_INTERPOLATE    1
-#define CRT_DISPLAY_CTRL_HORIZONTAL_MODE              20:20
-#define CRT_DISPLAY_CTRL_HORIZONTAL_MODE_REPLICATE    0
-#define CRT_DISPLAY_CTRL_HORIZONTAL_MODE_INTERPOLATE  1
+#define CRT_DISPLAY_CTRL_LOCK_TIMING                  BIT(23)
+#define CRT_DISPLAY_CTRL_EXPANSION                    BIT(22)
+#define CRT_DISPLAY_CTRL_VERTICAL_MODE                BIT(21)
+#define CRT_DISPLAY_CTRL_HORIZONTAL_MODE              BIT(20)
 #define CRT_DISPLAY_CTRL_SELECT                       19:18
 #define CRT_DISPLAY_CTRL_SELECT_PANEL                 0
 #define CRT_DISPLAY_CTRL_SELECT_VGA                   1
@@ -1372,9 +1353,7 @@
 #define CRT_DISPLAY_CTRL_FIFO_3                       1
 #define CRT_DISPLAY_CTRL_FIFO_7                       2
 #define CRT_DISPLAY_CTRL_FIFO_11                      3
-#define CRT_DISPLAY_CTRL_BLANK                        10:10
-#define CRT_DISPLAY_CTRL_BLANK_OFF                    0
-#define CRT_DISPLAY_CTRL_BLANK_ON                     1
+#define CRT_DISPLAY_CTRL_BLANK                        BIT(10)
 #define CRT_DISPLAY_CTRL_PIXEL                        7:4
 #define CRT_DISPLAY_CTRL_FORMAT                       1:0
 #define CRT_DISPLAY_CTRL_FORMAT_8                     0
