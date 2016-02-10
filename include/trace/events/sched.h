@@ -964,6 +964,27 @@ TRACE_EVENT(sched_boost_task,
 		__entry->margin)
 );
 
+/*
+ * Tracepoint for system overutilized flag
+*/
+TRACE_EVENT(sched_overutilized,
+
+	TP_PROTO(int overutilized),
+
+	TP_ARGS(overutilized),
+
+	TP_STRUCT__entry(
+		__field( int,  overutilized    )
+	),
+
+	TP_fast_assign(
+		__entry->overutilized   = overutilized;
+	),
+
+	TP_printk("overutilized=%d",
+		__entry->overutilized)
+);
+
 #endif /* CONFIG_SMP */
 #endif /* _TRACE_SCHED_H */
 
