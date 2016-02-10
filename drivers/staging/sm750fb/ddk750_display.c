@@ -9,96 +9,55 @@
 static void setDisplayControl(int ctrl, int disp_state)
 {
 	/* state != 0 means turn on both timing & plane en_bit */
-	unsigned long reg, reserved;
-	int cnt;
+	unsigned long reg, val, reserved;
+	int cnt = 0;
 
-	cnt = 0;
-
-	/* Set the primary display control */
 	if (!ctrl) {
-		reg = PEEK32(PANEL_DISPLAY_CTRL);
-		/* Turn on/off the Panel display control */
-		if (disp_state) {
-			/* Timing should be enabled first before enabling the plane
-			 * because changing at the same time does not guarantee that
-			 * the plane will also enabled or disabled.
-			 */
-			reg = FIELD_SET(reg, DISPLAY_CTRL, TIMING, ENABLE);
-			POKE32(PANEL_DISPLAY_CTRL, reg);
-
-			reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, ENABLE);
-
-			/* Added some masks to mask out the reserved bits.
-			 * Sometimes, the reserved bits are set/reset randomly when
-			 * writing to the PRIMARY_DISPLAY_CTRL, therefore, the register
-			 * reserved bits are needed to be masked out.
-			 */
-			reserved = PANEL_DISPLAY_CTRL_RESERVED_MASK;
-
-			/* Somehow the register value on the plane is not set
-			 * until a few delay. Need to write
-			 * and read it a couple times
-			 */
-			do {
-				cnt++;
-				POKE32(PANEL_DISPLAY_CTRL, reg);
-			} while ((PEEK32(PANEL_DISPLAY_CTRL) & ~reserved) !=
-					(reg & ~reserved));
-			printk("Set Panel Plane enbit:after tried %d times\n", cnt);
-		} else {
-			/* When turning off, there is no rule on the programming
-			 * sequence since whenever the clock is off, then it does not
-			 * matter whether the plane is enabled or disabled.
-			 * Note: Modifying the plane bit will take effect on the
-			 * next vertical sync. Need to find out if it is necessary to
-			 * wait for 1 vsync before modifying the timing enable bit.
-			 * */
-			reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, DISABLE);
-			POKE32(PANEL_DISPLAY_CTRL, reg);
-
-			reg = FIELD_SET(reg, DISPLAY_CTRL, TIMING, DISABLE);
-			POKE32(PANEL_DISPLAY_CTRL, reg);
-		}
-
+		reg = PANEL_DISPLAY_CTRL;
+		reserved = PANEL_DISPLAY_CTRL_RESERVED_MASK;
 	} else {
-		/* Set the secondary display control */
-		reg = PEEK32(CRT_DISPLAY_CTRL);
+		reg = CRT_DISPLAY_CTRL;
+		reserved = CRT_DISPLAY_CTRL_RESERVED_MASK;
+	}
 
-		if (disp_state) {
-			/* Timing should be enabled first before enabling the plane because changing at the
-			   same time does not guarantee that the plane will also enabled or disabled.
-			   */
-			reg = FIELD_SET(reg, DISPLAY_CTRL, TIMING, ENABLE);
-			POKE32(CRT_DISPLAY_CTRL, reg);
+	val = PEEK32(reg);
+	if (disp_state) {
+		/*
+		 * Timing should be enabled first before enabling the
+		 * plane because changing at the same time does not
+		 * guarantee that the plane will also enabled or
+		 * disabled.
+		 */
+		val = FIELD_SET(val, DISPLAY_CTRL, TIMING, ENABLE);
+		POKE32(reg, val);
 
-			reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, ENABLE);
+		val = FIELD_SET(val, DISPLAY_CTRL, PLANE, ENABLE);
 
-			/* Added some masks to mask out the reserved bits.
-			 * Sometimes, the reserved bits are set/reset randomly when
-			 * writing to the PRIMARY_DISPLAY_CTRL, therefore, the register
-			 * reserved bits are needed to be masked out.
-			 */
-			reserved = CRT_DISPLAY_CTRL_RESERVED_MASK;
-			do {
-				cnt++;
-				POKE32(CRT_DISPLAY_CTRL, reg);
-			} while ((PEEK32(CRT_DISPLAY_CTRL) & ~reserved) !=
-					(reg & ~reserved));
-				printk("Set Crt Plane enbit:after tried %d times\n", cnt);
-		} else {
-			/* When turning off, there is no rule on the programming
-			 * sequence since whenever the clock is off, then it does not
-			 * matter whether the plane is enabled or disabled.
-			 * Note: Modifying the plane bit will take effect on the next
-			 * vertical sync. Need to find out if it is necessary to
-			 * wait for 1 vsync before modifying the timing enable bit.
-			 */
-			reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, DISABLE);
-			POKE32(CRT_DISPLAY_CTRL, reg);
+		/*
+		 * Somehow the register value on the plane is not set
+		 * until a few delay. Need to write and read it a
+		 * couple times
+		 */
+		do {
+			cnt++;
+			POKE32(reg, val);
+		} while ((PEEK32(reg) & ~reserved) != (val & ~reserved));
+		pr_debug("Set Plane enbit:after tried %d times\n", cnt);
+	} else {
+		/*
+		 * When turning off, there is no rule on the
+		 * programming sequence since whenever the clock is
+		 * off, then it does not matter whether the plane is
+		 * enabled or disabled.  Note: Modifying the plane bit
+		 * will take effect on the next vertical sync. Need to
+		 * find out if it is necessary to wait for 1 vsync
+		 * before modifying the timing enable bit.
+		 */
+		val = FIELD_SET(val, DISPLAY_CTRL, PLANE, DISABLE);
+		POKE32(reg, val);
 
-			reg = FIELD_SET(reg, DISPLAY_CTRL, TIMING, DISABLE);
-			POKE32(CRT_DISPLAY_CTRL, reg);
-		}
+		val = FIELD_SET(val, DISPLAY_CTRL, TIMING, DISABLE);
+		POKE32(reg, val);
 	}
 }
 
