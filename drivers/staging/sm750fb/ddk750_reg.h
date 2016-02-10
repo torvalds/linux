@@ -535,80 +535,16 @@
 #define PLL_CTRL_M_MASK                               0xff
 
 #define CRT_PLL_CTRL                                  0x000060
-#define CRT_PLL_CTRL_BYPASS                           18:18
-#define CRT_PLL_CTRL_BYPASS_OFF                       0
-#define CRT_PLL_CTRL_BYPASS_ON                        1
-#define CRT_PLL_CTRL_POWER                            17:17
-#define CRT_PLL_CTRL_POWER_OFF                        0
-#define CRT_PLL_CTRL_POWER_ON                         1
-#define CRT_PLL_CTRL_INPUT                            16:16
-#define CRT_PLL_CTRL_INPUT_OSC                        0
-#define CRT_PLL_CTRL_INPUT_TESTCLK                    1
-#ifdef VALIDATION_CHIP
-    #define CRT_PLL_CTRL_OD                           15:14
-#else
-    #define CRT_PLL_CTRL_POD                          15:14
-    #define CRT_PLL_CTRL_OD                           13:12
-#endif
-#define CRT_PLL_CTRL_N                                11:8
-#define CRT_PLL_CTRL_M                                7:0
 
 #define VGA_PLL0_CTRL                                 0x000064
-#define VGA_PLL0_CTRL_BYPASS                          18:18
-#define VGA_PLL0_CTRL_BYPASS_OFF                      0
-#define VGA_PLL0_CTRL_BYPASS_ON                       1
-#define VGA_PLL0_CTRL_POWER                           17:17
-#define VGA_PLL0_CTRL_POWER_OFF                       0
-#define VGA_PLL0_CTRL_POWER_ON                        1
-#define VGA_PLL0_CTRL_INPUT                           16:16
-#define VGA_PLL0_CTRL_INPUT_OSC                       0
-#define VGA_PLL0_CTRL_INPUT_TESTCLK                   1
-#ifdef VALIDATION_CHIP
-    #define VGA_PLL0_CTRL_OD                          15:14
-#else
-    #define VGA_PLL0_CTRL_POD                         15:14
-    #define VGA_PLL0_CTRL_OD                          13:12
-#endif
-#define VGA_PLL0_CTRL_N                               11:8
-#define VGA_PLL0_CTRL_M                               7:0
 
 #define VGA_PLL1_CTRL                                 0x000068
-#define VGA_PLL1_CTRL_BYPASS                          18:18
-#define VGA_PLL1_CTRL_BYPASS_OFF                      0
-#define VGA_PLL1_CTRL_BYPASS_ON                       1
-#define VGA_PLL1_CTRL_POWER                           17:17
-#define VGA_PLL1_CTRL_POWER_OFF                       0
-#define VGA_PLL1_CTRL_POWER_ON                        1
-#define VGA_PLL1_CTRL_INPUT                           16:16
-#define VGA_PLL1_CTRL_INPUT_OSC                       0
-#define VGA_PLL1_CTRL_INPUT_TESTCLK                   1
-#ifdef VALIDATION_CHIP
-    #define VGA_PLL1_CTRL_OD                          15:14
-#else
-    #define VGA_PLL1_CTRL_POD                         15:14
-    #define VGA_PLL1_CTRL_OD                          13:12
-#endif
-#define VGA_PLL1_CTRL_N                               11:8
-#define VGA_PLL1_CTRL_M                               7:0
 
 #define SCRATCH_DATA                                  0x00006c
 
 #ifndef VALIDATION_CHIP
 
 #define MXCLK_PLL_CTRL                                0x000070
-#define MXCLK_PLL_CTRL_BYPASS                         18:18
-#define MXCLK_PLL_CTRL_BYPASS_OFF                     0
-#define MXCLK_PLL_CTRL_BYPASS_ON                      1
-#define MXCLK_PLL_CTRL_POWER                          17:17
-#define MXCLK_PLL_CTRL_POWER_OFF                      0
-#define MXCLK_PLL_CTRL_POWER_ON                       1
-#define MXCLK_PLL_CTRL_INPUT                          16:16
-#define MXCLK_PLL_CTRL_INPUT_OSC                      0
-#define MXCLK_PLL_CTRL_INPUT_TESTCLK                  1
-#define MXCLK_PLL_CTRL_POD                            15:14
-#define MXCLK_PLL_CTRL_OD                             13:12
-#define MXCLK_PLL_CTRL_N                              11:8
-#define MXCLK_PLL_CTRL_M                              7:0
 
 #define VGA_CONFIGURATION                             0x000088
 #define VGA_CONFIGURATION_USER_DEFINE                 5:4
