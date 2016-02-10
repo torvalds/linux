@@ -2143,7 +2143,7 @@ static void check_chain_key(struct task_struct *curr)
 {
 #ifdef CONFIG_DEBUG_LOCKDEP
 	struct held_lock *hlock, *prev_hlock = NULL;
-	unsigned int i, id;
+	unsigned int i;
 	u64 chain_key = 0;
 
 	for (i = 0; i < curr->lockdep_depth; i++) {
@@ -2160,17 +2160,16 @@ static void check_chain_key(struct task_struct *curr)
 				(unsigned long long)hlock->prev_chain_key);
 			return;
 		}
-		id = hlock->class_idx - 1;
 		/*
 		 * Whoops ran out of static storage again?
 		 */
-		if (DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
+		if (DEBUG_LOCKS_WARN_ON(hlock->class_idx > MAX_LOCKDEP_KEYS))
 			return;
 
 		if (prev_hlock && (prev_hlock->irq_context !=
 							hlock->irq_context))
 			chain_key = 0;
-		chain_key = iterate_chain_key(chain_key, id);
+		chain_key = iterate_chain_key(chain_key, hlock->class_idx);
 		prev_hlock = hlock;
 	}
 	if (chain_key != curr->curr_chain_key) {
@@ -3048,7 +3047,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	struct task_struct *curr = current;
 	struct lock_class *class = NULL;
 	struct held_lock *hlock;
-	unsigned int depth, id;
+	unsigned int depth;
 	int chain_head = 0;
 	int class_idx;
 	u64 chain_key;
@@ -3151,11 +3150,10 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	 * The 'key ID' is what is the most compact key value to drive
 	 * the hash, not class->key.
 	 */
-	id = class - lock_classes;
 	/*
 	 * Whoops, we did it again.. ran straight out of our static allocation.
 	 */
-	if (DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
+	if (DEBUG_LOCKS_WARN_ON(class_idx > MAX_LOCKDEP_KEYS))
 		return 0;
 
 	chain_key = curr->curr_chain_key;
@@ -3173,7 +3171,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		chain_key = 0;
 		chain_head = 1;
 	}
-	chain_key = iterate_chain_key(chain_key, id);
+	chain_key = iterate_chain_key(chain_key, class_idx);
 
 	if (nest_lock && !__lock_is_held(nest_lock))
 		return print_lock_nested_lock_not_held(curr, hlock, ip);
