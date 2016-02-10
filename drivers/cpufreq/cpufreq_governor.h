@@ -73,7 +73,11 @@ struct dbs_data {
 	unsigned int up_threshold;
 
 	struct kobject kobj;
-	/* Protect concurrent updates to governor tunables from sysfs */
+	struct list_head policy_dbs_list;
+	/*
+	 * Protect concurrent updates to governor tunables from sysfs,
+	 * policy_dbs_list and usage_count.
+	 */
 	struct mutex mutex;
 };
 
@@ -125,6 +129,7 @@ struct policy_dbs_info {
 	struct work_struct work;
 	/* dbs_data may be shared between multiple policy objects */
 	struct dbs_data *dbs_data;
+	struct list_head list;
 };
 
 static inline void gov_update_sample_delay(struct policy_dbs_info *policy_dbs,

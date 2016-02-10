@@ -385,9 +385,14 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 			ret = -EINVAL;
 			goto free_policy_dbs_info;
 		}
-		dbs_data->usage_count++;
 		policy_dbs->dbs_data = dbs_data;
 		policy->governor_data = policy_dbs;
+
+		mutex_lock(&dbs_data->mutex);
+		dbs_data->usage_count++;
+		list_add(&policy_dbs->list, &dbs_data->policy_dbs_list);
+		mutex_unlock(&dbs_data->mutex);
+
 		return 0;
 	}
 
@@ -397,7 +402,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 		goto free_policy_dbs_info;
 	}
 
-	dbs_data->usage_count = 1;
+	INIT_LIST_HEAD(&dbs_data->policy_dbs_list);
 	mutex_init(&dbs_data->mutex);
 
 	ret = gov->init(dbs_data, !policy->governor->initialized);
@@ -418,8 +423,11 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 	if (!have_governor_per_policy())
 		gov->gdbs_data = dbs_data;
 
-	policy_dbs->dbs_data = dbs_data;
 	policy->governor_data = policy_dbs;
+
+	policy_dbs->dbs_data = dbs_data;
+	dbs_data->usage_count = 1;
+	list_add(&policy_dbs->list, &dbs_data->policy_dbs_list);
 
 	gov->kobj_type.sysfs_ops = &governor_sysfs_ops;
 	ret = kobject_init_and_add(&dbs_data->kobj, &gov->kobj_type,
@@ -448,12 +456,18 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
+	int count;
 
 	/* State should be equivalent to INIT */
 	if (policy_dbs->policy)
 		return -EBUSY;
 
-	if (!--dbs_data->usage_count) {
+	mutex_lock(&dbs_data->mutex);
+	list_del(&policy_dbs->list);
+	count = --dbs_data->usage_count;
+	mutex_unlock(&dbs_data->mutex);
+
+	if (!count) {
 		kobject_put(&dbs_data->kobj);
 
 		policy->governor_data = NULL;

@@ -226,84 +226,55 @@ static struct dbs_governor od_dbs_gov;
  * @new_rate: new sampling rate
  *
  * If new rate is smaller than the old, simply updating
- * dbs_tuners_int.sampling_rate might not be appropriate. For example, if the
+ * dbs.sampling_rate might not be appropriate. For example, if the
  * original sampling_rate was 1 second and the requested new sampling rate is 10
  * ms because the user needs immediate reaction from ondemand governor, but not
  * sure if higher frequency will be required or not, then, the governor may
  * change the sampling rate too late; up to 1 second later. Thus, if we are
  * reducing the sampling rate, we need to make the new value effective
  * immediately.
+ *
+ * On the other hand, if new rate is larger than the old, then we may evaluate
+ * the load too soon, and it might we worth updating sample_delay_ns then as
+ * well.
+ *
+ * This must be called with dbs_data->mutex held, otherwise traversing
+ * policy_dbs_list isn't safe.
  */
 static void update_sampling_rate(struct dbs_data *dbs_data,
 		unsigned int new_rate)
 {
-	struct cpumask cpumask;
-	int cpu;
+	struct policy_dbs_info *policy_dbs;
 
 	dbs_data->sampling_rate = new_rate = max(new_rate,
 			dbs_data->min_sampling_rate);
 
 	/*
-	 * Lock governor so that governor start/stop can't execute in parallel.
+	 * We are operating under dbs_data->mutex and so the list and its
+	 * entries can't be freed concurrently.
 	 */
-	mutex_lock(&dbs_data_mutex);
-
-	cpumask_copy(&cpumask, cpu_online_mask);
-
-	for_each_cpu(cpu, &cpumask) {
-		struct cpufreq_policy *policy;
-		struct od_cpu_dbs_info_s *dbs_info;
-		struct cpu_dbs_info *cdbs;
-		struct policy_dbs_info *policy_dbs;
-
-		dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
-		cdbs = &dbs_info->cdbs;
-		policy_dbs = cdbs->policy_dbs;
-
+	list_for_each_entry(policy_dbs, &dbs_data->policy_dbs_list, list) {
+		mutex_lock(&policy_dbs->timer_mutex);
 		/*
-		 * A valid policy_dbs and policy_dbs->policy means governor
-		 * hasn't stopped or exited yet.
+		 * On 32-bit architectures this may race with the
+		 * sample_delay_ns read in dbs_update_util_handler(), but that
+		 * really doesn't matter.  If the read returns a value that's
+		 * too big, the sample will be skipped, but the next invocation
+		 * of dbs_update_util_handler() (when the update has been
+		 * completed) will take a sample.  If the returned value is too
+		 * small, the sample will be taken immediately, but that isn't a
+		 * problem, as we want the new rate to take effect immediately
+		 * anyway.
+		 *
+		 * If this runs in parallel with dbs_work_handler(), we may end
+		 * up overwriting the sample_delay_ns value that it has just
+		 * written, but the difference should not be too big and it will
+		 * be corrected next time a sample is taken, so it shouldn't be
+		 * significant.
 		 */
-		if (!policy_dbs || !policy_dbs->policy)
-			continue;
-
-		policy = policy_dbs->policy;
-
-		/* clear all CPUs of this policy */
-		cpumask_andnot(&cpumask, &cpumask, policy->cpus);
-
-		/*
-		 * Update sampling rate for CPUs whose policy is governed by
-		 * dbs_data. In case of governor_per_policy, only a single
-		 * policy will be governed by dbs_data, otherwise there can be
-		 * multiple policies that are governed by the same dbs_data.
-		 */
-		if (dbs_data == policy_dbs->dbs_data) {
-			mutex_lock(&policy_dbs->timer_mutex);
-			/*
-			 * On 32-bit architectures this may race with the
-			 * sample_delay_ns read in dbs_update_util_handler(),
-			 * but that really doesn't matter.  If the read returns
-			 * a value that's too big, the sample will be skipped,
-			 * but the next invocation of dbs_update_util_handler()
-			 * (when the update has been completed) will take a
-			 * sample.  If the returned value is too small, the
-			 * sample will be taken immediately, but that isn't a
-			 * problem, as we want the new rate to take effect
-			 * immediately anyway.
-			 *
-			 * If this runs in parallel with dbs_work_handler(), we
-			 * may end up overwriting the sample_delay_ns value that
-			 * it has just written, but the difference should not be
-			 * too big and it will be corrected next time a sample
-			 * is taken, so it shouldn't be significant.
-			 */
-			gov_update_sample_delay(policy_dbs, new_rate);
-			mutex_unlock(&policy_dbs->timer_mutex);
-		}
+		gov_update_sample_delay(policy_dbs, new_rate);
+		mutex_unlock(&policy_dbs->timer_mutex);
 	}
-
-	mutex_unlock(&dbs_data_mutex);
 }
 
 static ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
