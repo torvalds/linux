@@ -318,9 +318,10 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 		reg |= (fix->line_length & PANEL_FB_WIDTH_OFFSET_MASK);
 		POKE32(PANEL_FB_WIDTH, reg);
 
-		POKE32(PANEL_WINDOW_WIDTH,
-			FIELD_VALUE(0, PANEL_WINDOW_WIDTH, WIDTH, var->xres - 1)|
-			FIELD_VALUE(0, PANEL_WINDOW_WIDTH, X, var->xoffset));
+		reg = ((var->xres - 1) << PANEL_WINDOW_WIDTH_WIDTH_SHIFT) &
+		       PANEL_WINDOW_WIDTH_WIDTH_MASK;
+		reg |= (var->xoffset & PANEL_WINDOW_WIDTH_X_MASK);
+		POKE32(PANEL_WINDOW_WIDTH, reg);
 
 		POKE32(PANEL_WINDOW_HEIGHT,
 			FIELD_VALUE(0, PANEL_WINDOW_HEIGHT, HEIGHT, var->yres_virtual - 1)|

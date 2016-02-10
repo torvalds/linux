@@ -838,8 +838,9 @@
 #define PANEL_FB_WIDTH_OFFSET_MASK                    0x3fff
 
 #define PANEL_WINDOW_WIDTH                            0x080014
-#define PANEL_WINDOW_WIDTH_WIDTH                      27:16
-#define PANEL_WINDOW_WIDTH_X                          11:0
+#define PANEL_WINDOW_WIDTH_WIDTH_SHIFT                16
+#define PANEL_WINDOW_WIDTH_WIDTH_MASK                 (0xfff << 16)
+#define PANEL_WINDOW_WIDTH_X_MASK                     0xfff
 
 #define PANEL_WINDOW_HEIGHT                           0x080018
 #define PANEL_WINDOW_HEIGHT_HEIGHT                    27:16
