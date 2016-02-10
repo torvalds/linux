@@ -89,7 +89,7 @@
 #include <linux/slab.h>
 #include <linux/perf_event.h>
 #include <asm/cpu_device_id.h>
-#include "perf_event.h"
+#include "../../kernel/cpu/perf_event.h"
 
 #define DEFINE_CSTATE_FORMAT_ATTR(_var, _name, _format)		\
 static ssize_t __cstate_##_var##_show(struct kobject *kobj,	\
