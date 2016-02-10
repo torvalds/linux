@@ -1772,7 +1772,7 @@ int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 					    DMA_FROM_DEVICE);
 		ret = dma_mapping_error(ar->dev, resp_paddr);
 		if (ret) {
-			ret = EIO;
+			ret = -EIO;
 			goto err_req;
 		}
 
