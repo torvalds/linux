@@ -77,6 +77,8 @@ static void amdgpu_ttm_mem_global_release(struct drm_global_reference *ref)
 static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 {
 	struct drm_global_reference *global_ref;
+	struct amdgpu_ring *ring;
+	struct amd_sched_rq *rq;
 	int r;
 
 	adev->mman.mem_global_referenced = false;
@@ -106,13 +108,27 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	ring = adev->mman.buffer_funcs_ring;
+	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_KERNEL];
+	r = amd_sched_entity_init(&ring->sched, &adev->mman.entity,
+				  rq, amdgpu_sched_jobs);
+	if (r != 0) {
+		DRM_ERROR("Failed setting up TTM BO move run queue.\n");
+		drm_global_item_unref(&adev->mman.mem_global_ref);
+		drm_global_item_unref(&adev->mman.bo_global_ref.ref);
+		return r;
+	}
+
 	adev->mman.mem_global_referenced = true;
+
 	return 0;
 }
 
 static void amdgpu_ttm_global_fini(struct amdgpu_device *adev)
 {
 	if (adev->mman.mem_global_referenced) {
+		amd_sched_entity_fini(adev->mman.entity.sched,
+				      &adev->mman.entity);
 		drm_global_item_unref(&adev->mman.bo_global_ref.ref);
 		drm_global_item_unref(&adev->mman.mem_global_ref);
 		adev->mman.mem_global_referenced = false;
@@ -1053,7 +1069,8 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
-	r = amdgpu_job_submit(job, ring, NULL, AMDGPU_FENCE_OWNER_UNDEFINED, fence);
+	r = amdgpu_job_submit(job, ring, &adev->mman.entity,
+			      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
 	if (r)
 		goto error_free;
 
