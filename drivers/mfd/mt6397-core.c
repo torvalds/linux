@@ -326,6 +326,12 @@ static const struct of_device_id mt6397_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mt6397_of_match);
 
+static const struct platform_device_id mt6397_id[] = {
+	{ "mt6397", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, mt6397_id);
+
 static struct platform_driver mt6397_driver = {
 	.probe = mt6397_probe,
 	.remove = mt6397_remove,
@@ -334,6 +340,7 @@ static struct platform_driver mt6397_driver = {
 		.of_match_table = of_match_ptr(mt6397_of_match),
 		.pm = &mt6397_pm_ops,
 	},
+	.id_table = mt6397_id,
 };
 
 module_platform_driver(mt6397_driver);
@@ -341,4 +348,3 @@ module_platform_driver(mt6397_driver);
 MODULE_AUTHOR("Flora Fu, MediaTek");
 MODULE_DESCRIPTION("Driver for MediaTek MT6397 PMIC");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:mt6397");
