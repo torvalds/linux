@@ -60,14 +60,13 @@ static int lpc32xx_clkevt_next_event(unsigned long delta,
 		container_of(evtdev, struct lpc32xx_clock_event_ddata, evtdev);
 
 	/*
-	 * Place timer in reset and program the delta in the prescale
-	 * register (PR). When the prescale counter matches the value
-	 * in PR the counter register is incremented and the compare
-	 * match will trigger. After setup the timer is released from
-	 * reset and enabled.
+	 * Place timer in reset and program the delta in the match
+	 * channel 0 (MR0). When the timer counter matches the value
+	 * in MR0 register the match will trigger an interrupt.
+	 * After setup the timer is released from reset and enabled.
 	 */
 	writel_relaxed(LPC32XX_TIMER_TCR_CRST, ddata->base + LPC32XX_TIMER_TCR);
-	writel_relaxed(delta, ddata->base + LPC32XX_TIMER_PR);
+	writel_relaxed(delta, ddata->base + LPC32XX_TIMER_MR0);
 	writel_relaxed(LPC32XX_TIMER_TCR_CEN, ddata->base + LPC32XX_TIMER_TCR);
 
 	return 0;
@@ -210,13 +209,13 @@ static int __init lpc32xx_clockevent_init(struct device_node *np)
 
 	/*
 	 * Disable timer and clear any pending interrupt (IR) on match
-	 * channel 0 (MR0). Configure a compare match value of 1 on MR0
-	 * and enable interrupt, reset on match and stop on match (MCR).
+	 * channel 0 (MR0). Clear the prescaler as it's not used.
+	 * Enable interrupt, reset on match and stop on match (MCR).
 	 */
 	writel_relaxed(0, base + LPC32XX_TIMER_TCR);
+	writel_relaxed(0, base + LPC32XX_TIMER_PR);
 	writel_relaxed(0, base + LPC32XX_TIMER_CTCR);
 	writel_relaxed(LPC32XX_TIMER_IR_MR0INT, base + LPC32XX_TIMER_IR);
-	writel_relaxed(1, base + LPC32XX_TIMER_MR0);
 	writel_relaxed(LPC32XX_TIMER_MCR_MR0I | LPC32XX_TIMER_MCR_MR0R |
 		       LPC32XX_TIMER_MCR_MR0S, base + LPC32XX_TIMER_MCR);
 
