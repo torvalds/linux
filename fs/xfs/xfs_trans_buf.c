@@ -155,7 +155,7 @@ xfs_trans_get_buf_map(
 		ASSERT(xfs_buf_islocked(bp));
 		if (XFS_FORCED_SHUTDOWN(tp->t_mountp)) {
 			xfs_buf_stale(bp);
-			XFS_BUF_DONE(bp);
+			bp->b_flags |= XBF_DONE;
 		}
 
 		ASSERT(bp->b_transp == tp);
@@ -518,7 +518,7 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	 * inside the b_bdstrat callback so that this won't get written to
 	 * disk.
 	 */
-	XFS_BUF_DONE(bp);
+	bp->b_flags |= XBF_DONE;
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	bp->b_iodone = xfs_buf_iodone_callbacks;

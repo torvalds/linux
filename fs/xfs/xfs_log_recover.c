@@ -4926,7 +4926,7 @@ xlog_do_recover(
 	 * updates, re-read in the superblock and reverify it.
 	 */
 	bp = xfs_getsb(log->l_mp, 0);
-	XFS_BUF_UNDONE(bp);
+	bp->b_flags &= ~XBF_DONE;
 	ASSERT(!(XFS_BUF_ISWRITE(bp)));
 	XFS_BUF_READ(bp);
 	XFS_BUF_UNASYNC(bp);
