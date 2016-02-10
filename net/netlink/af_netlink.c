@@ -2831,7 +2831,8 @@ static int netlink_dump(struct sock *sk)
 	 * reasonable static buffer based on the expected largest dump of a
 	 * single netdev. The outcome is MSG_TRUNC error.
 	 */
-	skb_reserve(skb, skb_tailroom(skb) - alloc_size);
+	if (!netlink_rx_is_mmaped(sk))
+		skb_reserve(skb, skb_tailroom(skb) - alloc_size);
 	netlink_skb_set_owner_r(skb, sk);
 
 	len = cb->dump(skb, cb);

@@ -144,8 +144,7 @@ static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
 	mf = __s5k6a3_get_format(sensor, cfg, fmt->pad, fmt->which);
 	if (mf) {
 		mutex_lock(&sensor->lock);
-		if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-			*mf = fmt->format;
+		*mf = fmt->format;
 		mutex_unlock(&sensor->lock);
 	}
 	return 0;

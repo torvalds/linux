@@ -22,6 +22,9 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 
+struct clk;
+struct regulator;
+
 /* Lock to allow exclusive modification to the device and opp lists */
 extern struct mutex dev_opp_list_lock;
 
@@ -132,8 +135,12 @@ struct device_list_opp {
  * @supported_hw: Array of version number to support.
  * @supported_hw_count: Number of elements in supported_hw array.
  * @prop_name: A name to postfix to many DT properties, while parsing them.
+ * @clk: Device's clock handle
+ * @regulator: Supply regulator
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
+ *
+ * @voltage_tolerance_v1: In percentage, for v1 bindings only.
  *
  * This is an internal data structure maintaining the link to opps attached to
  * a device. This structure is not meant to be shared to users as it is
@@ -153,12 +160,18 @@ struct device_opp {
 
 	struct device_node *np;
 	unsigned long clock_latency_ns_max;
+
+	/* For backward compatibility with v1 bindings */
+	unsigned int voltage_tolerance_v1;
+
 	bool shared_opp;
 	struct dev_pm_opp *suspend_opp;
 
 	unsigned int *supported_hw;
 	unsigned int supported_hw_count;
 	const char *prop_name;
+	struct clk *clk;
+	struct regulator *regulator;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
