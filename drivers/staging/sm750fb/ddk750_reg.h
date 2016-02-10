@@ -521,13 +521,18 @@
 #define PLL_CTRL_POWER                                BIT(17)
 #define PLL_CTRL_INPUT                                BIT(16)
 #ifdef VALIDATION_CHIP
-    #define PLL_CTRL_OD                               15:14
+    #define PLL_CTRL_OD_SHIFT                         14
+    #define PLL_CTRL_OD_MASK                          (0x3 << 14)
 #else
-    #define PLL_CTRL_POD                              15:14
-    #define PLL_CTRL_OD                               13:12
+    #define PLL_CTRL_POD_SHIFT                        14
+    #define PLL_CTRL_POD_MASK                         (0x3 << 14)
+    #define PLL_CTRL_OD_SHIFT                         12
+    #define PLL_CTRL_OD_MASK                          (0x3 << 12)
 #endif
-#define PLL_CTRL_N                                    11:8
-#define PLL_CTRL_M                                    7:0
+#define PLL_CTRL_N_SHIFT                              8
+#define PLL_CTRL_N_MASK                               (0xf << 8)
+#define PLL_CTRL_M_SHIFT                              0
+#define PLL_CTRL_M_MASK                               0xff
 
 #define CRT_PLL_CTRL                                  0x000060
 #define CRT_PLL_CTRL_BYPASS                           18:18

@@ -36,10 +36,10 @@ static unsigned int get_mxclk_freq(void)
 		return MHz(130);
 
 	pll_reg = PEEK32(MXCLK_PLL_CTRL);
-	M = FIELD_GET(pll_reg, PLL_CTRL, M);
-	N = FIELD_GET(pll_reg, PLL_CTRL, N);
-	OD = FIELD_GET(pll_reg, PLL_CTRL, OD);
-	POD = FIELD_GET(pll_reg, PLL_CTRL, POD);
+	M = (pll_reg & PLL_CTRL_M_MASK) >> PLL_CTRL_M_SHIFT;
+	N = (pll_reg & PLL_CTRL_N_MASK) >> PLL_CTRL_M_SHIFT;
+	OD = (pll_reg & PLL_CTRL_OD_MASK) >> PLL_CTRL_OD_SHIFT;
+	POD = (pll_reg & PLL_CTRL_POD_MASK) >> PLL_CTRL_POD_SHIFT;
 
 	return DEFAULT_INPUT_CLOCK * M / N / (1 << OD) / (1 << POD);
 }
@@ -355,6 +355,12 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 
 unsigned int formatPllReg(pll_value_t *pPLL)
 {
+#ifndef VALIDATION_CHIP
+	unsigned int POD = pPLL->POD;
+#endif
+	unsigned int OD = pPLL->OD;
+	unsigned int M = pPLL->M;
+	unsigned int N = pPLL->N;
 	unsigned int reg = 0;
 
 	/*
@@ -363,13 +369,13 @@ unsigned int formatPllReg(pll_value_t *pPLL)
 	 * register. On returning a 32 bit number, the value can be
 	 * applied to any PLL in the calling function.
 	 */
-	reg = PLL_CTRL_POWER
+	reg = PLL_CTRL_POWER |
 #ifndef VALIDATION_CHIP
-	| FIELD_VALUE(0, PLL_CTRL, POD,    pPLL->POD)
+		((POD << PLL_CTRL_POD_SHIFT) & PLL_CTRL_POD_MASK) |
 #endif
-	| FIELD_VALUE(0, PLL_CTRL, OD,     pPLL->OD)
-	| FIELD_VALUE(0, PLL_CTRL, N,      pPLL->N)
-	| FIELD_VALUE(0, PLL_CTRL, M,      pPLL->M);
+		((OD << PLL_CTRL_OD_SHIFT) & PLL_CTRL_OD_MASK) |
+		((N << PLL_CTRL_N_SHIFT) & PLL_CTRL_N_MASK) |
+		((M << PLL_CTRL_M_SHIFT) & PLL_CTRL_M_MASK);
 
 	return reg;
 }
