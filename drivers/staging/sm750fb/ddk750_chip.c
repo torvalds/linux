@@ -357,10 +357,12 @@ unsigned int formatPllReg(pll_value_t *pPLL)
 {
 	unsigned int reg = 0;
 
-    /* Note that all PLL's have the same format. Here, we just use Panel PLL parameter
-       to work out the bit fields in the register.
-       On returning a 32 bit number, the value can be applied to any PLL in the calling function.
-    */
+	/*
+	 * Note that all PLL's have the same format. Here, we just use
+	 * Panel PLL parameter to work out the bit fields in the
+	 * register. On returning a 32 bit number, the value can be
+	 * applied to any PLL in the calling function.
+	 */
 	reg =
 	FIELD_SET(0, PANEL_PLL_CTRL, BYPASS, OFF)
 	| FIELD_SET(0, PANEL_PLL_CTRL, POWER,  ON)
