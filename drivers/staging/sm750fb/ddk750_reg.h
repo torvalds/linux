@@ -517,23 +517,23 @@
 #define PLL_CLK_COUNT_COUNTER                         15:0
 
 #define PANEL_PLL_CTRL                                0x00005C
-#define PANEL_PLL_CTRL_BYPASS                         18:18
-#define PANEL_PLL_CTRL_BYPASS_OFF                     0
-#define PANEL_PLL_CTRL_BYPASS_ON                      1
-#define PANEL_PLL_CTRL_POWER                          17:17
-#define PANEL_PLL_CTRL_POWER_OFF                      0
-#define PANEL_PLL_CTRL_POWER_ON                       1
-#define PANEL_PLL_CTRL_INPUT                          16:16
-#define PANEL_PLL_CTRL_INPUT_OSC                      0
-#define PANEL_PLL_CTRL_INPUT_TESTCLK                  1
+#define PLL_CTRL_BYPASS                               18:18
+#define PLL_CTRL_BYPASS_OFF                           0
+#define PLL_CTRL_BYPASS_ON                            1
+#define PLL_CTRL_POWER                                17:17
+#define PLL_CTRL_POWER_OFF                            0
+#define PLL_CTRL_POWER_ON                             1
+#define PLL_CTRL_INPUT                                16:16
+#define PLL_CTRL_INPUT_OSC                            0
+#define PLL_CTRL_INPUT_TESTCLK                        1
 #ifdef VALIDATION_CHIP
-    #define PANEL_PLL_CTRL_OD                         15:14
+    #define PLL_CTRL_OD                               15:14
 #else
-    #define PANEL_PLL_CTRL_POD                        15:14
-    #define PANEL_PLL_CTRL_OD                         13:12
+    #define PLL_CTRL_POD                              15:14
+    #define PLL_CTRL_OD                               13:12
 #endif
-#define PANEL_PLL_CTRL_N                              11:8
-#define PANEL_PLL_CTRL_M                              7:0
+#define PLL_CTRL_N                                    11:8
+#define PLL_CTRL_M                                    7:0
 
 #define CRT_PLL_CTRL                                  0x000060
 #define CRT_PLL_CTRL_BYPASS                           18:18

@@ -36,10 +36,10 @@ static unsigned int get_mxclk_freq(void)
 		return MHz(130);
 
 	pll_reg = PEEK32(MXCLK_PLL_CTRL);
-	M = FIELD_GET(pll_reg, PANEL_PLL_CTRL, M);
-	N = FIELD_GET(pll_reg, PANEL_PLL_CTRL, N);
-	OD = FIELD_GET(pll_reg, PANEL_PLL_CTRL, OD);
-	POD = FIELD_GET(pll_reg, PANEL_PLL_CTRL, POD);
+	M = FIELD_GET(pll_reg, PLL_CTRL, M);
+	N = FIELD_GET(pll_reg, PLL_CTRL, N);
+	OD = FIELD_GET(pll_reg, PLL_CTRL, OD);
+	POD = FIELD_GET(pll_reg, PLL_CTRL, POD);
 
 	return DEFAULT_INPUT_CLOCK * M / N / (1 << OD) / (1 << POD);
 }
@@ -364,15 +364,15 @@ unsigned int formatPllReg(pll_value_t *pPLL)
 	 * applied to any PLL in the calling function.
 	 */
 	reg =
-	FIELD_SET(0, PANEL_PLL_CTRL, BYPASS, OFF)
-	| FIELD_SET(0, PANEL_PLL_CTRL, POWER,  ON)
-	| FIELD_SET(0, PANEL_PLL_CTRL, INPUT,  OSC)
+	FIELD_SET(0, PLL_CTRL, BYPASS, OFF)
+	| FIELD_SET(0, PLL_CTRL, POWER,  ON)
+	| FIELD_SET(0, PLL_CTRL, INPUT,  OSC)
 #ifndef VALIDATION_CHIP
-	| FIELD_VALUE(0, PANEL_PLL_CTRL, POD,    pPLL->POD)
+	| FIELD_VALUE(0, PLL_CTRL, POD,    pPLL->POD)
 #endif
-	| FIELD_VALUE(0, PANEL_PLL_CTRL, OD,     pPLL->OD)
-	| FIELD_VALUE(0, PANEL_PLL_CTRL, N,      pPLL->N)
-	| FIELD_VALUE(0, PANEL_PLL_CTRL, M,      pPLL->M);
+	| FIELD_VALUE(0, PLL_CTRL, OD,     pPLL->OD)
+	| FIELD_VALUE(0, PLL_CTRL, N,      pPLL->N)
+	| FIELD_VALUE(0, PLL_CTRL, M,      pPLL->M);
 
 	return reg;
 }
