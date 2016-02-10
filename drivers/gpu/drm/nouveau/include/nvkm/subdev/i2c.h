@@ -89,7 +89,7 @@ int g94_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 int gf117_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 int gf119_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 int gk104_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
-int gm204_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int gm200_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 
 static inline int
 nvkm_rdi2cr(struct i2c_adapter *adap, u8 addr, u8 reg)

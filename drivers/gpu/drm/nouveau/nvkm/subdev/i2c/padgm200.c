@@ -26,7 +26,7 @@
 #include "bus.h"
 
 static void
-gm204_i2c_pad_mode(struct nvkm_i2c_pad *pad, enum nvkm_i2c_pad_mode mode)
+gm200_i2c_pad_mode(struct nvkm_i2c_pad *pad, enum nvkm_i2c_pad_mode mode)
 {
 	struct nvkm_subdev *subdev = &pad->i2c->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -51,26 +51,26 @@ gm204_i2c_pad_mode(struct nvkm_i2c_pad *pad, enum nvkm_i2c_pad_mode mode)
 }
 
 static const struct nvkm_i2c_pad_func
-gm204_i2c_pad_s_func = {
+gm200_i2c_pad_s_func = {
 	.bus_new_4 = gf119_i2c_bus_new,
-	.aux_new_6 = gm204_i2c_aux_new,
-	.mode = gm204_i2c_pad_mode,
+	.aux_new_6 = gm200_i2c_aux_new,
+	.mode = gm200_i2c_pad_mode,
 };
 
 int
-gm204_i2c_pad_s_new(struct nvkm_i2c *i2c, int id, struct nvkm_i2c_pad **ppad)
+gm200_i2c_pad_s_new(struct nvkm_i2c *i2c, int id, struct nvkm_i2c_pad **ppad)
 {
-	return nvkm_i2c_pad_new_(&gm204_i2c_pad_s_func, i2c, id, ppad);
+	return nvkm_i2c_pad_new_(&gm200_i2c_pad_s_func, i2c, id, ppad);
 }
 
 static const struct nvkm_i2c_pad_func
-gm204_i2c_pad_x_func = {
+gm200_i2c_pad_x_func = {
 	.bus_new_4 = gf119_i2c_bus_new,
-	.aux_new_6 = gm204_i2c_aux_new,
+	.aux_new_6 = gm200_i2c_aux_new,
 };
 
 int
-gm204_i2c_pad_x_new(struct nvkm_i2c *i2c, int id, struct nvkm_i2c_pad **ppad)
+gm200_i2c_pad_x_new(struct nvkm_i2c *i2c, int id, struct nvkm_i2c_pad **ppad)
 {
-	return nvkm_i2c_pad_new_(&gm204_i2c_pad_x_func, i2c, id, ppad);
+	return nvkm_i2c_pad_new_(&gm200_i2c_pad_x_func, i2c, id, ppad);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,33 +22,19 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include "pad.h"
 
-#include <nvif/class.h>
-
-static const struct nvkm_engine_func
-gm204_ce = {
-	.intr = gk104_ce_intr,
-	.sclass = {
-		{ -1, -1, MAXWELL_DMA_COPY_A },
-		{}
-	}
+static const struct nvkm_i2c_func
+gm200_i2c = {
+	.pad_x_new = gf119_i2c_pad_x_new,
+	.pad_s_new = gm200_i2c_pad_s_new,
+	.aux = 8,
+	.aux_stat = gk104_aux_stat,
+	.aux_mask = gk104_aux_mask,
 };
 
 int
-gm204_ce_new(struct nvkm_device *device, int index,
-	     struct nvkm_engine **pengine)
+gm200_i2c_new(struct nvkm_device *device, int index, struct nvkm_i2c **pi2c)
 {
-	if (index == NVKM_ENGINE_CE0) {
-		return nvkm_engine_new_(&gm204_ce, device, index,
-					0x00000040, true, pengine);
-	} else
-	if (index == NVKM_ENGINE_CE1) {
-		return nvkm_engine_new_(&gm204_ce, device, index,
-					0x00000080, true, pengine);
-	} else
-	if (index == NVKM_ENGINE_CE2) {
-		return nvkm_engine_new_(&gm204_ce, device, index,
-					0x00200000, true, pengine);
-	}
-	return -ENODEV;
+	return nvkm_i2c_new_(&gm200_i2c, device, index, pi2c);
 }

@@ -107,7 +107,7 @@ pmu_load(struct nv50_devinit *init, u8 type, bool post,
 }
 
 static int
-gm204_devinit_post(struct nvkm_devinit *base, bool post)
+gm200_devinit_post(struct nvkm_devinit *base, bool post)
 {
 	struct nv50_devinit *init = nv50_devinit(base);
 	struct nvkm_subdev *subdev = &init->base.subdev;
@@ -165,17 +165,17 @@ gm204_devinit_post(struct nvkm_devinit *base, bool post)
 }
 
 static const struct nvkm_devinit_func
-gm204_devinit = {
+gm200_devinit = {
 	.preinit = nv50_devinit_preinit,
 	.init = nv50_devinit_init,
-	.post = gm204_devinit_post,
+	.post = gm200_devinit_post,
 	.pll_set = gf100_devinit_pll_set,
 	.disable = gm107_devinit_disable,
 };
 
 int
-gm204_devinit_new(struct nvkm_device *device, int index,
+gm200_devinit_new(struct nvkm_device *device, int index,
 		struct nvkm_devinit **pinit)
 {
-	return nv50_devinit_new_(&gm204_devinit, device, index, pinit);
+	return nv50_devinit_new_(&gm200_devinit, device, index, pinit);
 }

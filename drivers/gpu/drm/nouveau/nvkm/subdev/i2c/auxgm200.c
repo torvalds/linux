@@ -21,23 +21,23 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#define gm204_i2c_aux(p) container_of((p), struct gm204_i2c_aux, base)
+#define gm200_i2c_aux(p) container_of((p), struct gm200_i2c_aux, base)
 #include "aux.h"
 
-struct gm204_i2c_aux {
+struct gm200_i2c_aux {
 	struct nvkm_i2c_aux base;
 	int ch;
 };
 
 static void
-gm204_i2c_aux_fini(struct gm204_i2c_aux *aux)
+gm200_i2c_aux_fini(struct gm200_i2c_aux *aux)
 {
 	struct nvkm_device *device = aux->base.pad->i2c->subdev.device;
 	nvkm_mask(device, 0x00d954 + (aux->ch * 0x50), 0x00310000, 0x00000000);
 }
 
 static int
-gm204_i2c_aux_init(struct gm204_i2c_aux *aux)
+gm200_i2c_aux_init(struct gm200_i2c_aux *aux)
 {
 	struct nvkm_device *device = aux->base.pad->i2c->subdev.device;
 	const u32 unksel = 1; /* nfi which to use, or if it matters.. */
@@ -64,7 +64,7 @@ gm204_i2c_aux_init(struct gm204_i2c_aux *aux)
 		udelay(1);
 		if (!timeout--) {
 			AUX_ERR(&aux->base, "magic wait %08x", ctrl);
-			gm204_i2c_aux_fini(aux);
+			gm200_i2c_aux_fini(aux);
 			return -EBUSY;
 		}
 	} while ((ctrl & 0x03000000) != urep);
@@ -73,10 +73,10 @@ gm204_i2c_aux_init(struct gm204_i2c_aux *aux)
 }
 
 static int
-gm204_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
+gm200_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 		   u8 type, u32 addr, u8 *data, u8 size)
 {
-	struct gm204_i2c_aux *aux = gm204_i2c_aux(obj);
+	struct gm200_i2c_aux *aux = gm200_i2c_aux(obj);
 	struct nvkm_device *device = aux->base.pad->i2c->subdev.device;
 	const u32 base = aux->ch * 0x50;
 	u32 ctrl, stat, timeout, retries;
@@ -85,7 +85,7 @@ gm204_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 
 	AUX_TRACE(&aux->base, "%d: %08x %d", type, addr, size);
 
-	ret = gm204_i2c_aux_init(aux);
+	ret = gm200_i2c_aux_init(aux);
 	if (ret < 0)
 		goto out;
 
@@ -155,26 +155,26 @@ gm204_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 	}
 
 out:
-	gm204_i2c_aux_fini(aux);
+	gm200_i2c_aux_fini(aux);
 	return ret < 0 ? ret : (stat & 0x000f0000) >> 16;
 }
 
 static const struct nvkm_i2c_aux_func
-gm204_i2c_aux_func = {
-	.xfer = gm204_i2c_aux_xfer,
+gm200_i2c_aux_func = {
+	.xfer = gm200_i2c_aux_xfer,
 };
 
 int
-gm204_i2c_aux_new(struct nvkm_i2c_pad *pad, int index, u8 drive,
+gm200_i2c_aux_new(struct nvkm_i2c_pad *pad, int index, u8 drive,
 		struct nvkm_i2c_aux **paux)
 {
-	struct gm204_i2c_aux *aux;
+	struct gm200_i2c_aux *aux;
 
 	if (!(aux = kzalloc(sizeof(*aux), GFP_KERNEL)))
 		return -ENOMEM;
 	*paux = &aux->base;
 
-	nvkm_i2c_aux_ctor(&gm204_i2c_aux_func, pad, index, &aux->base);
+	nvkm_i2c_aux_ctor(&gm200_i2c_aux_func, pad, index, &aux->base);
 	aux->ch = drive;
 	aux->base.intr = 1 << aux->ch;
 	return 0;

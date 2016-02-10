@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,26 +21,38 @@
  *
  * Authors: Ben Skeggs
  */
-#include "gk104.h"
-#include "changk104.h"
+#include "rootnv50.h"
+#include "dmacnv50.h"
 
-static const struct nvkm_fifo_func
-gm204_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
-	.init = gk104_fifo_init,
-	.fini = gk104_fifo_fini,
-	.intr = gk104_fifo_intr,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
-	.chan = {
-		&gm204_fifo_gpfifo_oclass,
-		NULL
+#include <nvif/class.h>
+
+static const struct nv50_disp_root_func
+gm200_disp_root = {
+	.init = gf119_disp_root_init,
+	.fini = gf119_disp_root_fini,
+	.dmac = {
+		&gm200_disp_core_oclass,
+		&gk110_disp_base_oclass,
+		&gk104_disp_ovly_oclass,
+	},
+	.pioc = {
+		&gk104_disp_oimm_oclass,
+		&gk104_disp_curs_oclass,
 	},
 };
 
-int
-gm204_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+static int
+gm200_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
 {
-	return gk104_fifo_new_(&gm204_fifo, device, index, 4096, pfifo);
+	return nv50_disp_root_new_(&gm200_disp_root, disp, oclass,
+				   data, size, pobject);
 }
+
+const struct nvkm_disp_oclass
+gm200_disp_root_oclass = {
+	.base.oclass = GM200_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = gm200_disp_root_new,
+};

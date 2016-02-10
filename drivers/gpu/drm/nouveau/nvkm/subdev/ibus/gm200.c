@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,22 +19,22 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "priv.h"
-#include "pad.h"
 
-static const struct nvkm_i2c_func
-gm204_i2c = {
-	.pad_x_new = gf119_i2c_pad_x_new,
-	.pad_s_new = gm204_i2c_pad_s_new,
-	.aux = 8,
-	.aux_stat = gk104_aux_stat,
-	.aux_mask = gk104_aux_mask,
+static const struct nvkm_subdev_func
+gm200_ibus = {
+	.intr = gk104_ibus_intr,
 };
 
 int
-gm204_i2c_new(struct nvkm_device *device, int index, struct nvkm_i2c **pi2c)
+gm200_ibus_new(struct nvkm_device *device, int index,
+	       struct nvkm_subdev **pibus)
 {
-	return nvkm_i2c_new_(&gm204_i2c, device, index, pi2c);
+	struct nvkm_subdev *ibus;
+	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&gm200_ibus, device, index, 0, ibus);
+	return 0;
 }

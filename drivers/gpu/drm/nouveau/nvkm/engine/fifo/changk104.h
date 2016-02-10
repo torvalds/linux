@@ -25,5 +25,5 @@ int gk104_fifo_gpfifo_new(struct nvkm_fifo *, const struct nvkm_oclass *,
 			  void *data, u32 size, struct nvkm_object **);
 
 extern const struct nvkm_fifo_chan_oclass gk104_fifo_gpfifo_oclass;
-extern const struct nvkm_fifo_chan_oclass gm204_fifo_gpfifo_oclass;
+extern const struct nvkm_fifo_chan_oclass gm200_fifo_gpfifo_oclass;
 #endif

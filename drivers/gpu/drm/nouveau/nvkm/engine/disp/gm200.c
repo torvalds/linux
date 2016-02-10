@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,45 +19,36 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
+ * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "nv50.h"
+#include "rootnv50.h"
 
-#include <subdev/fb.h>
-#include <subdev/timer.h>
-
-static int
-gm204_ltc_oneinit(struct nvkm_ltc *ltc)
-{
-	struct nvkm_device *device = ltc->subdev.device;
-
-	ltc->ltc_nr = nvkm_rd32(device, 0x12006c);
-	ltc->lts_nr = nvkm_rd32(device, 0x17e280) >> 28;
-
-	return gf100_ltc_oneinit_tag_ram(ltc);
-}
-static void
-gm204_ltc_init(struct nvkm_ltc *ltc)
-{
-	nvkm_wr32(ltc->subdev.device, 0x17e278, ltc->tag_base);
-}
-
-static const struct nvkm_ltc_func
-gm204_ltc = {
-	.oneinit = gm204_ltc_oneinit,
-	.init = gm204_ltc_init,
-	.intr = gm107_ltc_intr, /*XXX: not validated */
-	.cbc_clear = gm107_ltc_cbc_clear,
-	.cbc_wait = gm107_ltc_cbc_wait,
-	.zbc = 16,
-	.zbc_clear_color = gm107_ltc_zbc_clear_color,
-	.zbc_clear_depth = gm107_ltc_zbc_clear_depth,
-	.invalidate = gf100_ltc_invalidate,
-	.flush = gf100_ltc_flush,
+static const struct nv50_disp_func
+gm200_disp = {
+	.intr = gf119_disp_intr,
+	.uevent = &gf119_disp_chan_uevent,
+	.super = gf119_disp_intr_supervisor,
+	.root = &gm200_disp_root_oclass,
+	.head.vblank_init = gf119_disp_vblank_init,
+	.head.vblank_fini = gf119_disp_vblank_fini,
+	.head.scanoutpos = gf119_disp_root_scanoutpos,
+	.outp.internal.crt = nv50_dac_output_new,
+	.outp.internal.tmds = nv50_sor_output_new,
+	.outp.internal.lvds = nv50_sor_output_new,
+	.outp.internal.dp = gm200_sor_dp_new,
+	.dac.nr = 3,
+	.dac.power = nv50_dac_power,
+	.dac.sense = nv50_dac_sense,
+	.sor.nr = 4,
+	.sor.power = nv50_sor_power,
+	.sor.hda_eld = gf119_hda_eld,
+	.sor.hdmi = gk104_hdmi_ctrl,
+	.sor.magic = gm200_sor_magic,
 };
 
 int
-gm204_ltc_new(struct nvkm_device *device, int index, struct nvkm_ltc **pltc)
+gm200_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nvkm_ltc_new_(&gm204_ltc, device, index, pltc);
+	return gf119_disp_new_(&gm200_disp, device, index, pdisp);
 }

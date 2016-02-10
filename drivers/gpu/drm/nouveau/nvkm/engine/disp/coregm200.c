@@ -21,20 +21,18 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "priv.h"
+#include "dmacnv50.h"
+#include "rootnv50.h"
 
-static const struct nvkm_subdev_func
-gm204_ibus = {
-	.intr = gk104_ibus_intr,
+#include <nvif/class.h>
+
+const struct nv50_disp_dmac_oclass
+gm200_disp_core_oclass = {
+	.base.oclass = GM200_DISP_CORE_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_core_new,
+	.func = &gf119_disp_core_func,
+	.mthd = &gk104_disp_core_chan_mthd,
+	.chid = 0,
 };
-
-int
-gm204_ibus_new(struct nvkm_device *device, int index,
-	       struct nvkm_subdev **pibus)
-{
-	struct nvkm_subdev *ibus;
-	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
-		return -ENOMEM;
-	nvkm_subdev_ctor(&gm204_ibus, device, index, 0, ibus);
-	return 0;
-}
