@@ -22,6 +22,8 @@
 
 #define GMUX_ACPI_HID "APP000B"
 
+#if IS_ENABLED(CONFIG_APPLE_GMUX)
+
 /**
  * apple_gmux_present() - detect if gmux is built into the machine
  *
@@ -33,7 +35,16 @@
  */
 static inline bool apple_gmux_present(void)
 {
-	return IS_ENABLED(CONFIG_APPLE_GMUX) && acpi_dev_present(GMUX_ACPI_HID);
+	return acpi_dev_present(GMUX_ACPI_HID);
 }
+
+#else  /* !CONFIG_APPLE_GMUX */
+
+static inline bool apple_gmux_present(void)
+{
+	return false;
+}
+
+#endif /* !CONFIG_APPLE_GMUX */
 
 #endif /* LINUX_APPLE_GMUX_H */
