@@ -151,6 +151,5 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 		pr_err("netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
 		       group, type, len, ret);
 	}
-	ret = 0;
-	return ret;
+	return 0;
 }

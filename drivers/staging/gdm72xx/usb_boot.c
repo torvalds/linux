@@ -357,7 +357,5 @@ int usb_emergency(struct usb_device *usbdev)
 		return ret;
 	dev_info(&usbdev->dev, "GCT Emergency: Filesystem download success.\n");
 
-	ret = em_fw_reset(usbdev);
-
-	return ret;
+	return em_fw_reset(usbdev);
 }
