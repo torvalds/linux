@@ -28,6 +28,7 @@
 #include <linux/prefetch.h>
 #include <linux/dca.h>
 #include <linux/aer.h>
+#include <linux/sizes.h>
 #include "dma.h"
 #include "registers.h"
 #include "hw.h"
@@ -496,15 +497,6 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 	struct pci_dev *pdev = ioat_dma->pdev;
 	struct device *dev = &pdev->dev;
 
-	/* DMA coherent memory pool for DMA descriptor allocations */
-	ioat_dma->dma_pool = dma_pool_create("dma_desc_pool", dev,
-					     sizeof(struct ioat_dma_descriptor),
-					     64, 0);
-	if (!ioat_dma->dma_pool) {
-		err = -ENOMEM;
-		goto err_dma_pool;
-	}
-
 	ioat_dma->completion_pool = dma_pool_create("completion_pool", dev,
 						    sizeof(u64),
 						    SMP_CACHE_BYTES,
@@ -512,7 +504,7 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 
 	if (!ioat_dma->completion_pool) {
 		err = -ENOMEM;
-		goto err_completion_pool;
+		goto err_out;
 	}
 
 	ioat_enumerate_channels(ioat_dma);
@@ -539,9 +531,7 @@ err_self_test:
 	ioat_disable_interrupts(ioat_dma);
 err_setup_interrupts:
 	dma_pool_destroy(ioat_dma->completion_pool);
-err_completion_pool:
-	dma_pool_destroy(ioat_dma->dma_pool);
-err_dma_pool:
+err_out:
 	return err;
 }
 
@@ -552,7 +542,6 @@ static int ioat_register(struct ioatdma_device *ioat_dma)
 	if (err) {
 		ioat_disable_interrupts(ioat_dma);
 		dma_pool_destroy(ioat_dma->completion_pool);
-		dma_pool_destroy(ioat_dma->dma_pool);
 	}
 
 	return err;
@@ -568,7 +557,6 @@ static void ioat_dma_remove(struct ioatdma_device *ioat_dma)
 
 	dma_async_device_unregister(dma);
 
-	dma_pool_destroy(ioat_dma->dma_pool);
 	dma_pool_destroy(ioat_dma->completion_pool);
 
 	INIT_LIST_HEAD(&dma->channels);
@@ -657,6 +645,15 @@ static void ioat_free_chan_resources(struct dma_chan *c)
 		dump_desc_dbg(ioat_chan, desc);
 		ioat_free_ring_ent(desc, c);
 	}
+
+	for (i = 0; i < ioat_chan->desc_chunks; i++) {
+		dma_free_coherent(to_dev(ioat_chan), SZ_2M,
+				  ioat_chan->descs[i].virt,
+				  ioat_chan->descs[i].hw);
+		ioat_chan->descs[i].virt = NULL;
+		ioat_chan->descs[i].hw = 0;
+	}
+	ioat_chan->desc_chunks = 0;
 
 	kfree(ioat_chan->ring);
 	ioat_chan->ring = NULL;

@@ -31,6 +31,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/prefetch.h>
+#include <linux/sizes.h>
 #include "dma.h"
 #include "registers.h"
 #include "hw.h"
@@ -290,24 +291,30 @@ static dma_cookie_t ioat_tx_submit_unlock(struct dma_async_tx_descriptor *tx)
 }
 
 static struct ioat_ring_ent *
-ioat_alloc_ring_ent(struct dma_chan *chan, gfp_t flags)
+ioat_alloc_ring_ent(struct dma_chan *chan, int idx, gfp_t flags)
 {
 	struct ioat_dma_descriptor *hw;
 	struct ioat_ring_ent *desc;
 	struct ioatdma_device *ioat_dma;
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
+	int chunk;
 	dma_addr_t phys;
+	u8 *pos;
+	off_t offs;
 
 	ioat_dma = to_ioatdma_device(chan->device);
-	hw = dma_pool_alloc(ioat_dma->dma_pool, flags, &phys);
-	if (!hw)
-		return NULL;
+
+	chunk = idx / IOAT_DESCS_PER_2M;
+	idx &= (IOAT_DESCS_PER_2M - 1);
+	offs = idx * IOAT_DESC_SZ;
+	pos = (u8 *)ioat_chan->descs[chunk].virt + offs;
+	phys = ioat_chan->descs[chunk].hw + offs;
+	hw = (struct ioat_dma_descriptor *)pos;
 	memset(hw, 0, sizeof(*hw));
 
 	desc = kmem_cache_zalloc(ioat_cache, flags);
-	if (!desc) {
-		dma_pool_free(ioat_dma->dma_pool, hw, phys);
+	if (!desc)
 		return NULL;
-	}
 
 	dma_async_tx_descriptor_init(&desc->txd, chan);
 	desc->txd.tx_submit = ioat_tx_submit_unlock;
@@ -318,29 +325,63 @@ ioat_alloc_ring_ent(struct dma_chan *chan, gfp_t flags)
 
 void ioat_free_ring_ent(struct ioat_ring_ent *desc, struct dma_chan *chan)
 {
-	struct ioatdma_device *ioat_dma;
-
-	ioat_dma = to_ioatdma_device(chan->device);
-	dma_pool_free(ioat_dma->dma_pool, desc->hw, desc->txd.phys);
 	kmem_cache_free(ioat_cache, desc);
 }
 
 struct ioat_ring_ent **
 ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 {
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 	struct ioat_ring_ent **ring;
-	int descs = 1 << order;
-	int i;
+	int total_descs = 1 << order;
+	int i, chunks;
 
 	/* allocate the array to hold the software ring */
-	ring = kcalloc(descs, sizeof(*ring), flags);
+	ring = kcalloc(total_descs, sizeof(*ring), flags);
 	if (!ring)
 		return NULL;
-	for (i = 0; i < descs; i++) {
-		ring[i] = ioat_alloc_ring_ent(c, flags);
+
+	ioat_chan->desc_chunks = chunks = (total_descs * IOAT_DESC_SZ) / SZ_2M;
+
+	for (i = 0; i < chunks; i++) {
+		struct ioat_descs *descs = &ioat_chan->descs[i];
+
+		descs->virt = dma_alloc_coherent(to_dev(ioat_chan),
+						 SZ_2M, &descs->hw, flags);
+		if (!descs->virt && (i > 0)) {
+			int idx;
+
+			for (idx = 0; idx < i; idx++) {
+				dma_free_coherent(to_dev(ioat_chan), SZ_2M,
+						  descs->virt, descs->hw);
+				descs->virt = NULL;
+				descs->hw = 0;
+			}
+
+			ioat_chan->desc_chunks = 0;
+			kfree(ring);
+			return NULL;
+		}
+	}
+
+	for (i = 0; i < total_descs; i++) {
+		ring[i] = ioat_alloc_ring_ent(c, i, flags);
 		if (!ring[i]) {
+			int idx;
+
 			while (i--)
 				ioat_free_ring_ent(ring[i], c);
+
+			for (idx = 0; idx < ioat_chan->desc_chunks; idx++) {
+				dma_free_coherent(to_dev(ioat_chan),
+						  SZ_2M,
+						  ioat_chan->descs[idx].virt,
+						  ioat_chan->descs[idx].hw);
+				ioat_chan->descs[idx].virt = NULL;
+				ioat_chan->descs[idx].hw = 0;
+			}
+
+			ioat_chan->desc_chunks = 0;
 			kfree(ring);
 			return NULL;
 		}
@@ -348,7 +389,7 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 	}
 
 	/* link descs */
-	for (i = 0; i < descs-1; i++) {
+	for (i = 0; i < total_descs-1; i++) {
 		struct ioat_ring_ent *next = ring[i+1];
 		struct ioat_dma_descriptor *hw = ring[i]->hw;
 

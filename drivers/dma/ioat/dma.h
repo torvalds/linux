@@ -62,7 +62,6 @@ enum ioat_irq_mode {
  * struct ioatdma_device - internal representation of a IOAT device
  * @pdev: PCI-Express device
  * @reg_base: MMIO register space base address
- * @dma_pool: for allocating DMA descriptors
  * @completion_pool: DMA buffers for completion ops
  * @sed_hw_pool: DMA super descriptor pools
  * @dma_dev: embedded struct dma_device
@@ -76,7 +75,6 @@ enum ioat_irq_mode {
 struct ioatdma_device {
 	struct pci_dev *pdev;
 	void __iomem *reg_base;
-	struct dma_pool *dma_pool;
 	struct dma_pool *completion_pool;
 #define MAX_SED_POOLS	5
 	struct dma_pool *sed_hw_pool[MAX_SED_POOLS];
@@ -88,6 +86,11 @@ struct ioatdma_device {
 	struct dca_provider *dca;
 	enum ioat_irq_mode irq_mode;
 	u32 cap;
+};
+
+struct ioat_descs {
+	void *virt;
+	dma_addr_t hw;
 };
 
 struct ioatdma_chan {
@@ -132,6 +135,8 @@ struct ioatdma_chan {
 	u16 produce;
 	struct ioat_ring_ent **ring;
 	spinlock_t prep_lock;
+	struct ioat_descs descs[2];
+	int desc_chunks;
 };
 
 struct ioat_sysfs_entry {
@@ -301,6 +306,8 @@ static inline bool is_ioat_bug(unsigned long err)
 }
 
 #define IOAT_MAX_ORDER 16
+#define IOAT_MAX_DESCS 65536
+#define IOAT_DESCS_PER_2M 32768
 
 static inline u32 ioat_ring_size(struct ioatdma_chan *ioat_chan)
 {
