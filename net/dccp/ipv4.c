@@ -802,7 +802,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 	}
 
 lookup:
-	sk = __inet_lookup_skb(&dccp_hashinfo, skb,
+	sk = __inet_lookup_skb(&dccp_hashinfo, skb, __dccp_hdr_len(dh),
 			       dh->dccph_sport, dh->dccph_dport);
 	if (!sk) {
 		dccp_pr_debug("failed to look up flow ID in table and "
