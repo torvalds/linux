@@ -2736,6 +2736,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	kvm_make_request(KVM_REQ_STEAL_UPDATE, vcpu);
+	vcpu->arch.switch_db_regs |= KVM_DEBUGREG_RELOAD;
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
