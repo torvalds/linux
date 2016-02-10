@@ -1379,7 +1379,7 @@ static s32 fm10k_1588_msg_pf(struct fm10k_hw *hw, u32 **results,
 		return 0;
 	}
 
-	/* if there is no iov_data then there is no mailboxes to process */
+	/* if there is no iov_data then there is no mailbox to process */
 	if (!ACCESS_ONCE(interface->iov_data))
 		return FM10K_ERR_PARAM;
 
@@ -2394,7 +2394,7 @@ static struct pci_driver fm10k_driver = {
 /**
  * fm10k_register_pci_driver - register driver interface
  *
- * This funciton is called on module load in order to register the driver.
+ * This function is called on module load in order to register the driver.
  **/
 int fm10k_register_pci_driver(void)
 {
@@ -2404,7 +2404,7 @@ int fm10k_register_pci_driver(void)
 /**
  * fm10k_unregister_pci_driver - unregister driver interface
  *
- * This funciton is called on module unload in order to remove the driver.
+ * This function is called on module unload in order to remove the driver.
  **/
 void fm10k_unregister_pci_driver(void)
 {

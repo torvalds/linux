@@ -1604,7 +1604,7 @@ static s32 fm10k_request_lport_map_pf(struct fm10k_hw *hw)
  *  @hw: pointer to hardware structure
  *  @switch_ready: pointer to boolean value that will record switch state
  *
- *  This funciton will check the DMA_CTRL2 register and mailbox in order
+ *  This function will check the DMA_CTRL2 register and mailbox in order
  *  to determine if the switch is ready for the PF to begin requesting
  *  addresses and mapping traffic to the local interface.
  **/
