@@ -23,12 +23,10 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * because changing at the same time does not guarantee that
 			 * the plane will also enabled or disabled.
 			 */
-			reg = FIELD_SET(reg,
-								PANEL_DISPLAY_CTRL, TIMING, ENABLE);
+			reg = FIELD_SET(reg, DISPLAY_CTRL, TIMING, ENABLE);
 			POKE32(PANEL_DISPLAY_CTRL, reg);
 
-			reg = FIELD_SET(reg,
-								PANEL_DISPLAY_CTRL, PLANE, ENABLE);
+			reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, ENABLE);
 
 			/* Added some masks to mask out the reserved bits.
 			 * Sometimes, the reserved bits are set/reset randomly when
@@ -57,12 +55,10 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * next vertical sync. Need to find out if it is necessary to
 			 * wait for 1 vsync before modifying the timing enable bit.
 			 * */
-			reg = FIELD_SET(reg,
-								PANEL_DISPLAY_CTRL, PLANE, DISABLE);
+			reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, DISABLE);
 			POKE32(PANEL_DISPLAY_CTRL, reg);
 
-			reg = FIELD_SET(reg,
-								PANEL_DISPLAY_CTRL, TIMING, DISABLE);
+			reg = FIELD_SET(reg, DISPLAY_CTRL, TIMING, DISABLE);
 			POKE32(PANEL_DISPLAY_CTRL, reg);
 		}
 
@@ -74,12 +70,10 @@ static void setDisplayControl(int ctrl, int disp_state)
 			/* Timing should be enabled first before enabling the plane because changing at the
 			   same time does not guarantee that the plane will also enabled or disabled.
 			   */
-			reg = FIELD_SET(reg,
-								CRT_DISPLAY_CTRL, TIMING, ENABLE);
+			reg = FIELD_SET(reg, DISPLAY_CTRL, TIMING, ENABLE);
 			POKE32(CRT_DISPLAY_CTRL, reg);
 
-			reg = FIELD_SET(reg,
-								CRT_DISPLAY_CTRL, PLANE, ENABLE);
+			reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, ENABLE);
 
 			/* Added some masks to mask out the reserved bits.
 			 * Sometimes, the reserved bits are set/reset randomly when
@@ -106,12 +100,10 @@ static void setDisplayControl(int ctrl, int disp_state)
 			 * vertical sync. Need to find out if it is necessary to
 			 * wait for 1 vsync before modifying the timing enable bit.
 			 */
-			reg = FIELD_SET(reg,
-								CRT_DISPLAY_CTRL, PLANE, DISABLE);
+			reg = FIELD_SET(reg, DISPLAY_CTRL, PLANE, DISABLE);
 			POKE32(CRT_DISPLAY_CTRL, reg);
 
-			reg = FIELD_SET(reg,
-								CRT_DISPLAY_CTRL, TIMING, DISABLE);
+			reg = FIELD_SET(reg, DISPLAY_CTRL, TIMING, DISABLE);
 			POKE32(CRT_DISPLAY_CTRL, reg);
 		}
 	}
@@ -127,8 +119,9 @@ static void waitNextVerticalSync(int ctrl, int delay)
 		/* Do not wait when the Primary PLL is off or display control is already off.
 		   This will prevent the software to wait forever. */
 		if (!(PEEK32(PANEL_PLL_CTRL) & PLL_CTRL_POWER) ||
-			(FIELD_GET(PEEK32(PANEL_DISPLAY_CTRL), PANEL_DISPLAY_CTRL, TIMING) ==
-			 PANEL_DISPLAY_CTRL_TIMING_DISABLE)) {
+			(FIELD_GET(PEEK32(PANEL_DISPLAY_CTRL),
+				DISPLAY_CTRL, TIMING) ==
+				DISPLAY_CTRL_TIMING_DISABLE)) {
 			return;
 		}
 
@@ -149,8 +142,9 @@ static void waitNextVerticalSync(int ctrl, int delay)
 		/* Do not wait when the Primary PLL is off or display control is already off.
 			   This will prevent the software to wait forever. */
 		if (!(PEEK32(CRT_PLL_CTRL) & PLL_CTRL_POWER) ||
-			(FIELD_GET(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, TIMING) ==
-			 CRT_DISPLAY_CTRL_TIMING_DISABLE)) {
+			(FIELD_GET(PEEK32(CRT_DISPLAY_CTRL),
+				DISPLAY_CTRL, TIMING) ==
+				DISPLAY_CTRL_TIMING_DISABLE)) {
 			return;
 		}
 

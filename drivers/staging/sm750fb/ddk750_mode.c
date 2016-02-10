@@ -65,7 +65,8 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, RGBBIT, 24BIT);
 
 	/* Set bit 14 of display controller */
-	dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLOCK_PHASE, ACTIVE_LOW);
+	dispControl = FIELD_SET(dispControl, DISPLAY_CTRL, CLOCK_PHASE,
+				ACTIVE_LOW);
 
 	POKE32(CRT_DISPLAY_CTRL, dispControl);
 
@@ -101,21 +102,22 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 		| FIELD_VALUE(0, CRT_VERTICAL_SYNC, START, pModeParam->vertical_sync_start - 1));
 
 
-		tmp = FIELD_VALUE(0, CRT_DISPLAY_CTRL, VSYNC_PHASE,
+		tmp = FIELD_VALUE(0, DISPLAY_CTRL, VSYNC_PHASE,
 				  pModeParam->vertical_sync_polarity) |
-					  FIELD_VALUE(0, CRT_DISPLAY_CTRL, HSYNC_PHASE, pModeParam->horizontal_sync_polarity) |
-					  FIELD_SET(0, CRT_DISPLAY_CTRL, TIMING, ENABLE) |
-					  FIELD_SET(0, CRT_DISPLAY_CTRL, PLANE, ENABLE);
+			FIELD_VALUE(0, DISPLAY_CTRL, HSYNC_PHASE,
+				    pModeParam->horizontal_sync_polarity) |
+			FIELD_SET(0, DISPLAY_CTRL, TIMING, ENABLE) |
+			FIELD_SET(0, DISPLAY_CTRL, PLANE, ENABLE);
 
 
 		if (getChipType() == SM750LE) {
 			displayControlAdjust_SM750LE(pModeParam, tmp);
 		} else {
 			reg = PEEK32(CRT_DISPLAY_CTRL)
-					& FIELD_CLEAR(CRT_DISPLAY_CTRL, VSYNC_PHASE)
-					& FIELD_CLEAR(CRT_DISPLAY_CTRL, HSYNC_PHASE)
-					& FIELD_CLEAR(CRT_DISPLAY_CTRL, TIMING)
-					& FIELD_CLEAR(CRT_DISPLAY_CTRL, PLANE);
+				& FIELD_CLEAR(DISPLAY_CTRL, VSYNC_PHASE)
+				& FIELD_CLEAR(DISPLAY_CTRL, HSYNC_PHASE)
+				& FIELD_CLEAR(DISPLAY_CTRL, TIMING)
+				& FIELD_CLEAR(DISPLAY_CTRL, PLANE);
 
 			 POKE32(CRT_DISPLAY_CTRL, tmp | reg);
 		}
@@ -141,12 +143,14 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 		FIELD_VALUE(0, PANEL_VERTICAL_SYNC, HEIGHT, pModeParam->vertical_sync_height)
 		| FIELD_VALUE(0, PANEL_VERTICAL_SYNC, START, pModeParam->vertical_sync_start - 1));
 
-		tmp = FIELD_VALUE(0, PANEL_DISPLAY_CTRL, VSYNC_PHASE,
+		tmp = FIELD_VALUE(0, DISPLAY_CTRL, VSYNC_PHASE,
 				  pModeParam->vertical_sync_polarity) |
-			     FIELD_VALUE(0, PANEL_DISPLAY_CTRL, HSYNC_PHASE, pModeParam->horizontal_sync_polarity) |
-			     FIELD_VALUE(0, PANEL_DISPLAY_CTRL, CLOCK_PHASE, pModeParam->clock_phase_polarity) |
-			     FIELD_SET(0, PANEL_DISPLAY_CTRL, TIMING, ENABLE) |
-			     FIELD_SET(0, PANEL_DISPLAY_CTRL, PLANE, ENABLE);
+			FIELD_VALUE(0, DISPLAY_CTRL, HSYNC_PHASE,
+				    pModeParam->horizontal_sync_polarity) |
+			FIELD_VALUE(0, DISPLAY_CTRL, CLOCK_PHASE,
+                                     pModeParam->clock_phase_polarity) |
+			FIELD_SET(0, DISPLAY_CTRL, TIMING, ENABLE) |
+			FIELD_SET(0, DISPLAY_CTRL, PLANE, ENABLE);
 
 		reserved = FIELD_SET(0, PANEL_DISPLAY_CTRL, RESERVED_1_MASK,
 				     ENABLE) |
@@ -155,11 +159,11 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 				 FIELD_SET(0, PANEL_DISPLAY_CTRL, VSYNC, ACTIVE_LOW);
 
 		reg = (PEEK32(PANEL_DISPLAY_CTRL) & ~reserved)
-			& FIELD_CLEAR(PANEL_DISPLAY_CTRL, CLOCK_PHASE)
-			& FIELD_CLEAR(PANEL_DISPLAY_CTRL, VSYNC_PHASE)
-			& FIELD_CLEAR(PANEL_DISPLAY_CTRL, HSYNC_PHASE)
-			& FIELD_CLEAR(PANEL_DISPLAY_CTRL, TIMING)
-			& FIELD_CLEAR(PANEL_DISPLAY_CTRL, PLANE);
+			& FIELD_CLEAR(DISPLAY_CTRL, CLOCK_PHASE)
+			& FIELD_CLEAR(DISPLAY_CTRL, VSYNC_PHASE)
+			& FIELD_CLEAR(DISPLAY_CTRL, HSYNC_PHASE)
+			& FIELD_CLEAR(DISPLAY_CTRL, TIMING)
+			& FIELD_CLEAR(DISPLAY_CTRL, PLANE);
 
 
 		/* May a hardware bug or just my test chip (not confirmed).
