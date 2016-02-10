@@ -27,6 +27,15 @@
 #define ADDR_ERAL	0x20
 #define ADDR_EWEN	0x30
 
+struct eeprom_93xx46_devtype_data {
+	unsigned int quirks;
+};
+
+static const struct eeprom_93xx46_devtype_data atmel_at93c46d_data = {
+	.quirks = EEPROM_93XX46_QUIRK_SINGLE_WORD_READ |
+		  EEPROM_93XX46_QUIRK_INSTRUCTION_LENGTH,
+};
+
 struct eeprom_93xx46_dev {
 	struct spi_device *spi;
 	struct eeprom_93xx46_platform_data *pdata;
@@ -35,6 +44,16 @@ struct eeprom_93xx46_dev {
 	int addrlen;
 };
 
+static inline bool has_quirk_single_word_read(struct eeprom_93xx46_dev *edev)
+{
+	return edev->pdata->quirks & EEPROM_93XX46_QUIRK_SINGLE_WORD_READ;
+}
+
+static inline bool has_quirk_instruction_length(struct eeprom_93xx46_dev *edev)
+{
+	return edev->pdata->quirks & EEPROM_93XX46_QUIRK_INSTRUCTION_LENGTH;
+}
+
 static ssize_t
 eeprom_93xx46_bin_read(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
@@ -42,58 +61,73 @@ eeprom_93xx46_bin_read(struct file *filp, struct kobject *kobj,
 {
 	struct eeprom_93xx46_dev *edev;
 	struct device *dev;
-	struct spi_message m;
-	struct spi_transfer t[2];
-	int bits, ret;
-	u16 cmd_addr;
+	ssize_t ret = 0;
 
 	dev = kobj_to_dev(kobj);
 	edev = dev_get_drvdata(dev);
-
-	cmd_addr = OP_READ << edev->addrlen;
-
-	if (edev->addrlen == 7) {
-		cmd_addr |= off & 0x7f;
-		bits = 10;
-	} else {
-		cmd_addr |= (off >> 1) & 0x3f;
-		bits = 9;
-	}
-
-	dev_dbg(&edev->spi->dev, "read cmd 0x%x, %d Hz\n",
-		cmd_addr, edev->spi->max_speed_hz);
-
-	spi_message_init(&m);
-	memset(t, 0, sizeof(t));
-
-	t[0].tx_buf = (char *)&cmd_addr;
-	t[0].len = 2;
-	t[0].bits_per_word = bits;
-	spi_message_add_tail(&t[0], &m);
-
-	t[1].rx_buf = buf;
-	t[1].len = count;
-	t[1].bits_per_word = 8;
-	spi_message_add_tail(&t[1], &m);
 
 	mutex_lock(&edev->lock);
 
 	if (edev->pdata->prepare)
 		edev->pdata->prepare(edev);
 
-	ret = spi_sync(edev->spi, &m);
-	/* have to wait at least Tcsl ns */
-	ndelay(250);
-	if (ret) {
-		dev_err(&edev->spi->dev, "read %zu bytes at %d: err. %d\n",
-			count, (int)off, ret);
+	while (count) {
+		struct spi_message m;
+		struct spi_transfer t[2] = { { 0 } };
+		u16 cmd_addr = OP_READ << edev->addrlen;
+		size_t nbytes = count;
+		int bits;
+		int err;
+
+		if (edev->addrlen == 7) {
+			cmd_addr |= off & 0x7f;
+			bits = 10;
+			if (has_quirk_single_word_read(edev))
+				nbytes = 1;
+		} else {
+			cmd_addr |= (off >> 1) & 0x3f;
+			bits = 9;
+			if (has_quirk_single_word_read(edev))
+				nbytes = 2;
+		}
+
+		dev_dbg(&edev->spi->dev, "read cmd 0x%x, %d Hz\n",
+			cmd_addr, edev->spi->max_speed_hz);
+
+		spi_message_init(&m);
+
+		t[0].tx_buf = (char *)&cmd_addr;
+		t[0].len = 2;
+		t[0].bits_per_word = bits;
+		spi_message_add_tail(&t[0], &m);
+
+		t[1].rx_buf = buf;
+		t[1].len = count;
+		t[1].bits_per_word = 8;
+		spi_message_add_tail(&t[1], &m);
+
+		err = spi_sync(edev->spi, &m);
+		/* have to wait at least Tcsl ns */
+		ndelay(250);
+
+		if (err) {
+			dev_err(&edev->spi->dev, "read %zu bytes at %d: err. %d\n",
+				nbytes, (int)off, err);
+			ret = err;
+			break;
+		}
+
+		buf += nbytes;
+		off += nbytes;
+		count -= nbytes;
+		ret += nbytes;
 	}
 
 	if (edev->pdata->finish)
 		edev->pdata->finish(edev);
 
 	mutex_unlock(&edev->lock);
-	return ret ? : count;
+	return ret;
 }
 
 static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
@@ -112,7 +146,13 @@ static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 		bits = 9;
 	}
 
-	dev_dbg(&edev->spi->dev, "ew cmd 0x%04x\n", cmd_addr);
+	if (has_quirk_instruction_length(edev)) {
+		cmd_addr <<= 2;
+		bits += 2;
+	}
+
+	dev_dbg(&edev->spi->dev, "ew%s cmd 0x%04x, %d bits\n",
+			is_on ? "en" : "ds", cmd_addr, bits);
 
 	spi_message_init(&m);
 	memset(&t, 0, sizeof(t));
@@ -247,6 +287,13 @@ static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 		bits = 9;
 	}
 
+	if (has_quirk_instruction_length(edev)) {
+		cmd_addr <<= 2;
+		bits += 2;
+	}
+
+	dev_dbg(&edev->spi->dev, "eral cmd 0x%04x, %d bits\n", cmd_addr, bits);
+
 	spi_message_init(&m);
 	memset(&t, 0, sizeof(t));
 
@@ -298,12 +345,15 @@ static DEVICE_ATTR(erase, S_IWUSR, NULL, eeprom_93xx46_store_erase);
 
 static const struct of_device_id eeprom_93xx46_of_table[] = {
 	{ .compatible = "eeprom-93xx46", },
+	{ .compatible = "atmel,at93c46d", .data = &atmel_at93c46d_data, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, eeprom_93xx46_of_table);
 
 static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 {
+	const struct of_device_id *of_id =
+		of_match_device(eeprom_93xx46_of_table, &spi->dev);
 	struct device_node *np = spi->dev.of_node;
 	struct eeprom_93xx46_platform_data *pd;
 	u32 tmp;
@@ -330,6 +380,12 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 
 	if (of_property_read_bool(np, "read-only"))
 		pd->flags |= EE_READONLY;
+
+	if (of_id->data) {
+		const struct eeprom_93xx46_devtype_data *data = of_id->data;
+
+		pd->quirks = data->quirks;
+	}
 
 	spi->dev.platform_data = pd;
 
