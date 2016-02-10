@@ -409,6 +409,7 @@ enum {
 	ATA_HORKAGE_ATAPI_DMADIR = (1 << 18),	/* device requires dmadir */
 	ATA_HORKAGE_NOLPM	= (1 << 20),	/* don't use LPM */
 	ATA_HORKAGE_WD_BROKEN_LPM = (1 << 21),	/* some WDs have broken LPM */
+	ATA_HORKAGE_NOTRIM = (1 << 24),		/* don't use TRIM */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
