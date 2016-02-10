@@ -95,6 +95,8 @@
 
 #define ENCODER_CRTC_MASK                (BIT(0) | BIT(1))
 
+#define TVO_MIN_HD_HEIGHT                720
+
 /* enum listing the supported output data format */
 enum sti_tvout_video_out_type {
 	STI_TVOUT_VIDEO_OUT_RGB,
@@ -255,6 +257,31 @@ static void tvout_vip_set_in_vid_fmt(struct sti_tvout *tvout,
 	val &= ~TVO_IN_FMT_SIGNED;
 	val |= in_vid_fmt;
 	tvout_write(tvout, val, reg);
+}
+
+/**
+ * Set preformatter matrix
+ *
+ * @tvout: tvout structure
+ * @mode: display mode structure
+ */
+static void tvout_preformatter_set_matrix(struct sti_tvout *tvout,
+					  struct drm_display_mode *mode)
+{
+	unsigned int i;
+	const u32 *pf_matrix;
+
+	if (mode->vdisplay >= TVO_MIN_HD_HEIGHT)
+		pf_matrix = rgb_to_ycbcr_709;
+	else
+		pf_matrix = rgb_to_ycbcr_601;
+
+	for (i = 0; i < 8; i++) {
+		tvout_write(tvout, *(pf_matrix + i),
+			    TVO_CSC_MAIN_M0 + (i * 4));
+		tvout_write(tvout, *(pf_matrix + i),
+			    TVO_CSC_AUX_M0 + (i * 4));
+	}
 }
 
 /**
@@ -447,10 +474,6 @@ static void sti_tvout_encoder_mode_set(struct drm_encoder *encoder,
 {
 }
 
-static void sti_tvout_encoder_prepare(struct drm_encoder *encoder)
-{
-}
-
 static void sti_tvout_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct sti_tvout_encoder *sti_encoder = to_sti_tvout_encoder(encoder);
@@ -463,9 +486,11 @@ static const struct drm_encoder_funcs sti_tvout_encoder_funcs = {
 	.destroy = sti_tvout_encoder_destroy,
 };
 
-static void sti_dvo_encoder_commit(struct drm_encoder *encoder)
+static void sti_dvo_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
+
+	tvout_preformatter_set_matrix(tvout, &encoder->crtc->mode);
 
 	tvout_dvo_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
@@ -481,8 +506,7 @@ static void sti_dvo_encoder_disable(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs sti_dvo_encoder_helper_funcs = {
 	.dpms = sti_tvout_encoder_dpms,
 	.mode_set = sti_tvout_encoder_mode_set,
-	.prepare = sti_tvout_encoder_prepare,
-	.commit = sti_dvo_encoder_commit,
+	.enable = sti_dvo_encoder_enable,
 	.disable = sti_dvo_encoder_disable,
 };
 
@@ -513,9 +537,11 @@ sti_tvout_create_dvo_encoder(struct drm_device *dev,
 	return drm_encoder;
 }
 
-static void sti_hda_encoder_commit(struct drm_encoder *encoder)
+static void sti_hda_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
+
+	tvout_preformatter_set_matrix(tvout, &encoder->crtc->mode);
 
 	tvout_hda_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
@@ -534,8 +560,7 @@ static void sti_hda_encoder_disable(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs sti_hda_encoder_helper_funcs = {
 	.dpms = sti_tvout_encoder_dpms,
 	.mode_set = sti_tvout_encoder_mode_set,
-	.prepare = sti_tvout_encoder_prepare,
-	.commit = sti_hda_encoder_commit,
+	.commit = sti_hda_encoder_enable,
 	.disable = sti_hda_encoder_disable,
 };
 
@@ -564,9 +589,11 @@ static struct drm_encoder *sti_tvout_create_hda_encoder(struct drm_device *dev,
 	return drm_encoder;
 }
 
-static void sti_hdmi_encoder_commit(struct drm_encoder *encoder)
+static void sti_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
+
+	tvout_preformatter_set_matrix(tvout, &encoder->crtc->mode);
 
 	tvout_hdmi_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
@@ -582,8 +609,7 @@ static void sti_hdmi_encoder_disable(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs sti_hdmi_encoder_helper_funcs = {
 	.dpms = sti_tvout_encoder_dpms,
 	.mode_set = sti_tvout_encoder_mode_set,
-	.prepare = sti_tvout_encoder_prepare,
-	.commit = sti_hdmi_encoder_commit,
+	.commit = sti_hdmi_encoder_enable,
 	.disable = sti_hdmi_encoder_disable,
 };
 
@@ -635,17 +661,8 @@ static int sti_tvout_bind(struct device *dev, struct device *master, void *data)
 {
 	struct sti_tvout *tvout = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	unsigned int i;
 
 	tvout->drm_dev = drm_dev;
-
-	/* set preformatter matrix */
-	for (i = 0; i < 8; i++) {
-		tvout_write(tvout, rgb_to_ycbcr_601[i],
-			TVO_CSC_MAIN_M0 + (i * 4));
-		tvout_write(tvout, rgb_to_ycbcr_601[i],
-			TVO_CSC_AUX_M0 + (i * 4));
-	}
 
 	sti_tvout_create_encoders(drm_dev, tvout);
 

@@ -42,6 +42,17 @@
 #define VID_MPR1_BT709          0x0AC50000
 #define VID_MPR2_BT709          0x07150545
 #define VID_MPR3_BT709          0x00000AE8
+/* YCbCr to RGB BT709:
+ * R = Y+1.3711Cr
+ * G = Y-0.6992Cr-0.3359Cb
+ * B = Y+1.7344Cb
+ */
+#define VID_MPR0_BT601          0x0A800000
+#define VID_MPR1_BT601          0x0AAF0000
+#define VID_MPR2_BT601          0x094E0754
+#define VID_MPR3_BT601          0x00000ADD
+
+#define VID_MIN_HD_HEIGHT       720
 
 void sti_vid_commit(struct sti_vid *vid,
 		    struct drm_plane_state *state)
@@ -52,6 +63,7 @@ void sti_vid_commit(struct sti_vid *vid,
 	int dst_y = state->crtc_y;
 	int dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
 	int dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
+	int src_h = state->src_h >> 16;
 	u32 val, ydo, xdo, yds, xds;
 
 	/* Input / output size
@@ -71,6 +83,19 @@ void sti_vid_commit(struct sti_vid *vid,
 
 	writel((ydo << 16) | xdo, vid->regs + VID_VPO);
 	writel((yds << 16) | xds, vid->regs + VID_VPS);
+
+	/* Color conversion parameters */
+	if (src_h >= VID_MIN_HD_HEIGHT) {
+		writel(VID_MPR0_BT709, vid->regs + VID_MPR0);
+		writel(VID_MPR1_BT709, vid->regs + VID_MPR1);
+		writel(VID_MPR2_BT709, vid->regs + VID_MPR2);
+		writel(VID_MPR3_BT709, vid->regs + VID_MPR3);
+	} else {
+		writel(VID_MPR0_BT601, vid->regs + VID_MPR0);
+		writel(VID_MPR1_BT601, vid->regs + VID_MPR1);
+		writel(VID_MPR2_BT601, vid->regs + VID_MPR2);
+		writel(VID_MPR3_BT601, vid->regs + VID_MPR3);
+	}
 }
 
 void sti_vid_disable(struct sti_vid *vid)
@@ -90,12 +115,6 @@ static void sti_vid_init(struct sti_vid *vid)
 
 	/* Opaque */
 	writel(VID_ALP_OPAQUE, vid->regs + VID_ALP);
-
-	/* Color conversion parameters */
-	writel(VID_MPR0_BT709, vid->regs + VID_MPR0);
-	writel(VID_MPR1_BT709, vid->regs + VID_MPR1);
-	writel(VID_MPR2_BT709, vid->regs + VID_MPR2);
-	writel(VID_MPR3_BT709, vid->regs + VID_MPR3);
 
 	/* Brightness, contrast, tint, saturation */
 	writel(VID_BC_DFLT, vid->regs + VID_BC);
