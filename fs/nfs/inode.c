@@ -1503,7 +1503,11 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			nfsi->attrtimeo_timestamp = now;
 		}
 	}
-	invalid &= ~NFS_INO_INVALID_ATTR;
+
+	/* Don't declare attrcache up to date if there were no attrs! */
+	if (fattr->valid != 0)
+		invalid &= ~NFS_INO_INVALID_ATTR;
+
 	/* Don't invalidate the data if we were to blame */
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
 				|| S_ISLNK(inode->i_mode)))
