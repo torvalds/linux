@@ -11,7 +11,7 @@
 #include "pmu.h"
 
 /* x86_pmu.handle_irq definition */
-#include "../kernel/cpu/perf_event.h"
+#include "../events/perf_event.h"
 
 #define XENPMU_IRQ_PROCESSING    1
 struct xenpmu {

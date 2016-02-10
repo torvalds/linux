@@ -37,7 +37,7 @@
 #include <asm/desc.h>
 #include <asm/ldt.h>
 
-#include "../kernel/cpu/perf_event.h"
+#include "perf_event.h"
 
 struct x86_pmu x86_pmu __read_mostly;
 

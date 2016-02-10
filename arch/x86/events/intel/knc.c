@@ -5,7 +5,7 @@
 
 #include <asm/hardirq.h>
 
-#include "../../kernel/cpu/perf_event.h"
+#include "../perf_event.h"
 
 static const u64 knc_perfmon_event_map[] =
 {
