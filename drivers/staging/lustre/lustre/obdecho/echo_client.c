@@ -1210,8 +1210,10 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	int		     rc;
 	int		     created = 0;
 
-	if ((oa->o_valid & OBD_MD_FLID) == 0) { /* no obj id */
-		CERROR("No valid oid\n");
+	if (!(oa->o_valid & OBD_MD_FLID) ||
+	    !(oa->o_valid & OBD_MD_FLGROUP) ||
+	    !fid_seq_is_echo(ostid_seq(&oa->o_oi))) {
+		CERROR("invalid oid " DOSTID "\n", POSTID(&oa->o_oi));
 		return -EINVAL;
 	}
 
@@ -1222,15 +1224,10 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	}
 
 	/* setup object ID here */
-	LASSERT(oa->o_valid & OBD_MD_FLGROUP);
 	lsm->lsm_oi = oa->o_oi;
 
 	if (ostid_id(&lsm->lsm_oi) == 0)
 		ostid_set_id(&lsm->lsm_oi, ++last_object_id);
-
-	/* Only echo objects are allowed to be created */
-	LASSERT((oa->o_valid & OBD_MD_FLGROUP) &&
-		(ostid_seq(&oa->o_oi) == FID_SEQ_ECHO));
 
 	rc = obd_create(env, ec->ec_exp, oa, &lsm, oti);
 	if (rc != 0) {
