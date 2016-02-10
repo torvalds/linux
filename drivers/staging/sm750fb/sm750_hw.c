@@ -130,17 +130,20 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 			POKE32(SYSTEM_CTRL, val);
 		}
 
+		val = PEEK32(PANEL_DISPLAY_CTRL) &
+			~(PANEL_DISPLAY_CTRL_DUAL_DISPLAY |
+			  PANEL_DISPLAY_CTRL_DOUBLE_PIXEL);
 		switch (sm750_dev->pnltype) {
-		case sm750_doubleTFT:
 		case sm750_24TFT:
+			break;
+		case sm750_doubleTFT:
+			val |= PANEL_DISPLAY_CTRL_DOUBLE_PIXEL;
+			break;
 		case sm750_dualTFT:
-		POKE32(PANEL_DISPLAY_CTRL,
-			FIELD_VALUE(PEEK32(PANEL_DISPLAY_CTRL),
-						PANEL_DISPLAY_CTRL,
-						TFT_DISP,
-						sm750_dev->pnltype));
-		break;
+			val |= PANEL_DISPLAY_CTRL_DUAL_DISPLAY;
+			break;
 		}
+		POKE32(PANEL_DISPLAY_CTRL, val);
 	} else {
 		/* for 750LE ,no DVI chip initialization makes Monitor no signal */
 		/* Set up GPIO for software I2C to program DVI chip in the

@@ -791,12 +791,6 @@
 #define PANEL_DISPLAY_CTRL_VBIASEN                    BIT(26)
 #define PANEL_DISPLAY_CTRL_DATA                       BIT(25)
 #define PANEL_DISPLAY_CTRL_FPVDDEN                    BIT(24)
-
-#define PANEL_DISPLAY_CTRL_TFT_DISP 19:18
-#define PANEL_DISPLAY_CTRL_TFT_DISP_24 0
-#define PANEL_DISPLAY_CTRL_TFT_DISP_36 1
-#define PANEL_DISPLAY_CTRL_TFT_DISP_18 2
-
 #define PANEL_DISPLAY_CTRL_DUAL_DISPLAY               BIT(19)
 #define PANEL_DISPLAY_CTRL_DOUBLE_PIXEL               BIT(18)
 #define PANEL_DISPLAY_CTRL_FIFO                       17:16
