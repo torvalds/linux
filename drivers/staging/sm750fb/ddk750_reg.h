@@ -1605,21 +1605,11 @@
 #define I2C_BYTE_COUNT_COUNT                            3:0
 
 #define I2C_CTRL                                        0x010041
-#define I2C_CTRL_INT                                    4:4
-#define I2C_CTRL_INT_DISABLE                            0
-#define I2C_CTRL_INT_ENABLE                             1
-#define I2C_CTRL_DIR                                    3:3
-#define I2C_CTRL_DIR_WR                                 0
-#define I2C_CTRL_DIR_RD                                 1
-#define I2C_CTRL_CTRL                                   2:2
-#define I2C_CTRL_CTRL_STOP                              0
-#define I2C_CTRL_CTRL_START                             1
-#define I2C_CTRL_MODE                                   1:1
-#define I2C_CTRL_MODE_STANDARD                          0
-#define I2C_CTRL_MODE_FAST                              1
-#define I2C_CTRL_EN                                     0:0
-#define I2C_CTRL_EN_DISABLE                             0
-#define I2C_CTRL_EN_ENABLE                              1
+#define I2C_CTRL_INT                                    BIT(4)
+#define I2C_CTRL_DIR                                    BIT(3)
+#define I2C_CTRL_CTRL                                   BIT(2)
+#define I2C_CTRL_MODE                                   BIT(1)
+#define I2C_CTRL_EN                                     BIT(0)
 
 #define I2C_STATUS                                      0x010042
 #define I2C_STATUS_TX                                   3:3

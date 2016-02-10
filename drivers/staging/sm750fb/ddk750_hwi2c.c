@@ -26,12 +26,10 @@ unsigned char bus_speed_mode
 	enableI2C(1);
 
 	/* Enable the I2C Controller and set the bus speed mode */
-	value = PEEK32(I2C_CTRL);
-	if (bus_speed_mode == 0)
-		value = FIELD_SET(value, I2C_CTRL, MODE, STANDARD);
-	else
-		value = FIELD_SET(value, I2C_CTRL, MODE, FAST);
-	value = FIELD_SET(value, I2C_CTRL, EN, ENABLE);
+	value = PEEK32(I2C_CTRL) & ~(I2C_CTRL_MODE | I2C_CTRL_EN);
+	if (bus_speed_mode)
+		value |= I2C_CTRL_MODE;
+	value |= I2C_CTRL_EN;
 	POKE32(I2C_CTRL, value);
 
 	return 0;
@@ -42,8 +40,7 @@ void sm750_hw_i2c_close(void)
 	unsigned int value;
 
 	/* Disable I2C controller */
-	value = PEEK32(I2C_CTRL);
-	value = FIELD_SET(value, I2C_CTRL, EN, DISABLE);
+	value = PEEK32(I2C_CTRL) & ~I2C_CTRL_EN;
 	POKE32(I2C_CTRL, value);
 
 	/* Disable I2C Power */
@@ -120,8 +117,7 @@ static unsigned int hw_i2c_write_data(
 			POKE32(I2C_DATA0 + i, *buf++);
 
 		/* Start the I2C */
-		POKE32(I2C_CTRL,
-		       FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
+		POKE32(I2C_CTRL, PEEK32(I2C_CTRL) | I2C_CTRL_CTRL);
 
 		/* Wait until the transfer is completed. */
 		if (hw_i2c_wait_tx_done() != 0)
@@ -183,8 +179,7 @@ static unsigned int hw_i2c_read_data(
 		POKE32(I2C_BYTE_COUNT, count);
 
 		/* Start the I2C */
-		POKE32(I2C_CTRL,
-		       FIELD_SET(PEEK32(I2C_CTRL), I2C_CTRL, CTRL, START));
+		POKE32(I2C_CTRL, PEEK32(I2C_CTRL) | I2C_CTRL_CTRL);
 
 		/* Wait until transaction done. */
 		if (hw_i2c_wait_tx_done() != 0)
