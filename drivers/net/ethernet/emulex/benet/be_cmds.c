@@ -19,19 +19,25 @@
 #include "be.h"
 #include "be_cmds.h"
 
-static char *be_port_misconfig_evt_desc[] = {
-	"A valid SFP module detected",
-	"Optics faulted/ incorrectly installed/ not installed.",
-	"Optics of two types installed.",
-	"Incompatible optics.",
-	"Unknown port SFP status"
+char *be_misconfig_evt_port_state[] = {
+	"Physical Link is functional",
+	"Optics faulted/incorrectly installed/not installed - Reseat optics. If issue not resolved, replace.",
+	"Optics of two types installed – Remove one optic or install matching pair of optics.",
+	"Incompatible optics – Replace with compatible optics for card to function.",
+	"Unqualified optics – Replace with Avago optics for Warranty and Technical Support.",
+	"Uncertified optics – Replace with Avago-certified optics to enable link operation."
 };
 
-static char *be_port_misconfig_remedy_desc[] = {
-	"",
-	"Reseat optics. If issue not resolved, replace",
-	"Remove one optic or install matching pair of optics",
-	"Replace with compatible optics for card to function",
+static char *be_port_misconfig_evt_severity[] = {
+	"KERN_WARN",
+	"KERN_INFO",
+	"KERN_ERR",
+	"KERN_WARN"
+};
+
+static char *phy_state_oper_desc[] = {
+	"Link is non-operational",
+	"Link is operational",
 	""
 };
 
@@ -297,22 +303,56 @@ static void be_async_port_misconfig_event_process(struct be_adapter *adapter,
 {
 	struct be_async_event_misconfig_port *evt =
 			(struct be_async_event_misconfig_port *)compl;
-	u32 sfp_mismatch_evt = le32_to_cpu(evt->event_data_word1);
+	u32 sfp_misconfig_evt_word1 = le32_to_cpu(evt->event_data_word1);
+	u32 sfp_misconfig_evt_word2 = le32_to_cpu(evt->event_data_word2);
+	u8 phy_oper_state = PHY_STATE_OPER_MSG_NONE;
 	struct device *dev = &adapter->pdev->dev;
-	u8 port_misconfig_evt;
+	u8 msg_severity = DEFAULT_MSG_SEVERITY;
+	u8 phy_state_info;
+	u8 new_phy_state;
 
-	port_misconfig_evt =
-		((sfp_mismatch_evt >> (adapter->hba_port_num * 8)) & 0xff);
+	new_phy_state =
+		(sfp_misconfig_evt_word1 >> (adapter->hba_port_num * 8)) & 0xff;
 
+	if (new_phy_state == adapter->phy_state)
+		return;
+
+	adapter->phy_state = new_phy_state;
+
+	/* for older fw that doesn't populate link effect data */
+	if (!sfp_misconfig_evt_word2)
+		goto log_message;
+
+	phy_state_info =
+		(sfp_misconfig_evt_word2 >> (adapter->hba_port_num * 8)) & 0xff;
+
+	if (phy_state_info & PHY_STATE_INFO_VALID) {
+		msg_severity = (phy_state_info & PHY_STATE_MSG_SEVERITY) >> 1;
+
+		if (be_phy_unqualified(new_phy_state))
+			phy_oper_state = (phy_state_info & PHY_STATE_OPER);
+	}
+
+log_message:
 	/* Log an error message that would allow a user to determine
 	 * whether the SFPs have an issue
 	 */
-	dev_info(dev, "Port %c: %s %s", adapter->port_name,
-		 be_port_misconfig_evt_desc[port_misconfig_evt],
-		 be_port_misconfig_remedy_desc[port_misconfig_evt]);
+	if (be_phy_state_unknown(new_phy_state))
+		dev_printk(be_port_misconfig_evt_severity[msg_severity], dev,
+			   "Port %c: Unrecognized Optics state: 0x%x. %s",
+			   adapter->port_name,
+			   new_phy_state,
+			   phy_state_oper_desc[phy_oper_state]);
+	else
+		dev_printk(be_port_misconfig_evt_severity[msg_severity], dev,
+			   "Port %c: %s %s",
+			   adapter->port_name,
+			   be_misconfig_evt_port_state[new_phy_state],
+			   phy_state_oper_desc[phy_oper_state]);
 
-	if (port_misconfig_evt == INCOMPATIBLE_SFP)
-		adapter->flags |= BE_FLAGS_EVT_INCOMPATIBLE_SFP;
+	/* Log Vendor name and part no. if a misconfigured SFP is detected */
+	if (be_phy_misconfigured(new_phy_state))
+		adapter->flags |= BE_FLAGS_PHY_MISCONFIGURED;
 }
 
 /* Grp5 CoS Priority evt */

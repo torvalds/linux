@@ -4089,6 +4089,7 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->if_handle = -1;
 	adapter->be3_native = false;
 	adapter->if_flags = 0;
+	adapter->phy_state = BE_UNKNOWN_PHY_STATE;
 	if (be_physfn(adapter))
 		adapter->cmd_privileges = MAX_PRIVILEGES;
 	else
@@ -4961,11 +4962,13 @@ static void be_log_sfp_info(struct be_adapter *adapter)
 	status = be_cmd_query_sfp_info(adapter);
 	if (!status) {
 		dev_err(&adapter->pdev->dev,
-			"Unqualified SFP+ detected on %c from %s part no: %s",
-			adapter->port_name, adapter->phy.vendor_name,
+			"Port %c: %s Vendor: %s part no: %s",
+			adapter->port_name,
+			be_misconfig_evt_port_state[adapter->phy_state],
+			adapter->phy.vendor_name,
 			adapter->phy.vendor_pn);
 	}
-	adapter->flags &= ~BE_FLAGS_EVT_INCOMPATIBLE_SFP;
+	adapter->flags &= ~BE_FLAGS_PHY_MISCONFIGURED;
 }
 
 static void be_worker(struct work_struct *work)
@@ -5009,7 +5012,7 @@ static void be_worker(struct work_struct *work)
 	if (!skyhawk_chip(adapter))
 		be_eqd_update(adapter, false);
 
-	if (adapter->flags & BE_FLAGS_EVT_INCOMPATIBLE_SFP)
+	if (adapter->flags & BE_FLAGS_PHY_MISCONFIGURED)
 		be_log_sfp_info(adapter);
 
 reschedule:
