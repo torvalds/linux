@@ -313,12 +313,6 @@ extern int xfs_buf_delwri_submit_nowait(struct list_head *);
 extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
 
-#define XFS_BUF_ZEROFLAGS(bp) \
-	((bp)->b_flags &= ~(XBF_READ|XBF_WRITE|XBF_ASYNC| \
-			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH| \
-			    XBF_WRITE_FAIL))
-
-
 /*
  * These macros use the IO block map rather than b_bn. b_bn is now really
  * just for the buffer cache index for cached buffers. As IO does not use b_bn
