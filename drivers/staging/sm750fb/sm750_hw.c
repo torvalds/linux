@@ -331,9 +331,10 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 
 		POKE32(PANEL_PLANE_TL, 0);
 
-		POKE32(PANEL_PLANE_BR,
-			FIELD_VALUE(0, PANEL_PLANE_BR, BOTTOM, var->yres - 1)|
-			FIELD_VALUE(0, PANEL_PLANE_BR, RIGHT, var->xres - 1));
+		reg = ((var->yres - 1) << PANEL_PLANE_BR_BOTTOM_SHIFT) &
+		       PANEL_PLANE_BR_BOTTOM_MASK;
+		reg |= ((var->xres - 1) & PANEL_PLANE_BR_RIGHT_MASK);
+		POKE32(PANEL_PLANE_BR, reg);
 
 		/* set pixel format */
 		reg = PEEK32(PANEL_DISPLAY_CTRL);
