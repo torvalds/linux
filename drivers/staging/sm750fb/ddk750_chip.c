@@ -264,7 +264,7 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 
 		/* Disable DMA Channel, if a former application left it on */
 		reg = PEEK32(DMA_ABORT_INTERRUPT);
-		reg = FIELD_SET(reg, DMA_ABORT_INTERRUPT, ABORT_1, ABORT);
+		reg |= DMA_ABORT_INTERRUPT_ABORT_1;
 		POKE32(DMA_ABORT_INTERRUPT, reg);
 
 		/* Disable DMA Power, if a former application left it on */

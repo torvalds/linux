@@ -1973,22 +1973,10 @@
 #define DMA_1_SIZE_CONTROL_SIZE                         23:0
 
 #define DMA_ABORT_INTERRUPT                             0x0D0020
-#define DMA_ABORT_INTERRUPT_ABORT_1                     5:5
-#define DMA_ABORT_INTERRUPT_ABORT_1_ENABLE              0
-#define DMA_ABORT_INTERRUPT_ABORT_1_ABORT               1
-#define DMA_ABORT_INTERRUPT_ABORT_0                     4:4
-#define DMA_ABORT_INTERRUPT_ABORT_0_ENABLE              0
-#define DMA_ABORT_INTERRUPT_ABORT_0_ABORT               1
-#define DMA_ABORT_INTERRUPT_INT_1                       1:1
-#define DMA_ABORT_INTERRUPT_INT_1_CLEAR                 0
-#define DMA_ABORT_INTERRUPT_INT_1_FINISHED              1
-#define DMA_ABORT_INTERRUPT_INT_0                       0:0
-#define DMA_ABORT_INTERRUPT_INT_0_CLEAR                 0
-#define DMA_ABORT_INTERRUPT_INT_0_FINISHED              1
-
-
-
-
+#define DMA_ABORT_INTERRUPT_ABORT_1                     BIT(5)
+#define DMA_ABORT_INTERRUPT_ABORT_0                     BIT(4)
+#define DMA_ABORT_INTERRUPT_INT_1                       BIT(1)
+#define DMA_ABORT_INTERRUPT_INT_0                       BIT(0)
 
 /* Default i2c CLK and Data GPIO. These are the default i2c pins */
 #define DEFAULT_I2C_SCL                     30
