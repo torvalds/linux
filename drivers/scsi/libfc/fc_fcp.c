@@ -1039,11 +1039,26 @@ restart:
 		fc_fcp_pkt_hold(fsp);
 		spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 
-		if (!fc_fcp_lock_pkt(fsp)) {
+		spin_lock_bh(&fsp->scsi_pkt_lock);
+		if (!(fsp->state & FC_SRB_COMPL)) {
+			fsp->state |= FC_SRB_COMPL;
+			/*
+			 * TODO: dropping scsi_pkt_lock and then reacquiring
+			 * again around fc_fcp_cleanup_cmd() is required,
+			 * since fc_fcp_cleanup_cmd() calls into
+			 * fc_seq_set_resp() and that func preempts cpu using
+			 * schedule. May be schedule and related code should be
+			 * removed instead of unlocking here to avoid scheduling
+			 * while atomic bug.
+			 */
+			spin_unlock_bh(&fsp->scsi_pkt_lock);
+
 			fc_fcp_cleanup_cmd(fsp, error);
+
+			spin_lock_bh(&fsp->scsi_pkt_lock);
 			fc_io_compl(fsp);
-			fc_fcp_unlock_pkt(fsp);
 		}
+		spin_unlock_bh(&fsp->scsi_pkt_lock);
 
 		fc_fcp_pkt_release(fsp);
 		spin_lock_irqsave(&si->scsi_queue_lock, flags);
