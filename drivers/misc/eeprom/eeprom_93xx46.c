@@ -10,11 +10,13 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
@@ -343,6 +345,20 @@ static ssize_t eeprom_93xx46_store_erase(struct device *dev,
 }
 static DEVICE_ATTR(erase, S_IWUSR, NULL, eeprom_93xx46_store_erase);
 
+static void select_assert(void *context)
+{
+	struct eeprom_93xx46_dev *edev = context;
+
+	gpiod_set_value_cansleep(edev->pdata->select, 1);
+}
+
+static void select_deassert(void *context)
+{
+	struct eeprom_93xx46_dev *edev = context;
+
+	gpiod_set_value_cansleep(edev->pdata->select, 0);
+}
+
 static const struct of_device_id eeprom_93xx46_of_table[] = {
 	{ .compatible = "eeprom-93xx46", },
 	{ .compatible = "atmel,at93c46d", .data = &atmel_at93c46d_data, },
@@ -357,6 +373,8 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 	struct device_node *np = spi->dev.of_node;
 	struct eeprom_93xx46_platform_data *pd;
 	u32 tmp;
+	int gpio;
+	enum of_gpio_flags of_flags;
 	int ret;
 
 	pd = devm_kzalloc(&spi->dev, sizeof(*pd), GFP_KERNEL);
@@ -380,6 +398,23 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 
 	if (of_property_read_bool(np, "read-only"))
 		pd->flags |= EE_READONLY;
+
+	gpio = of_get_named_gpio_flags(np, "select-gpios", 0, &of_flags);
+	if (gpio_is_valid(gpio)) {
+		unsigned long flags =
+			of_flags == OF_GPIO_ACTIVE_LOW ? GPIOF_ACTIVE_LOW : 0;
+
+		ret = devm_gpio_request_one(&spi->dev, gpio, flags,
+					    "eeprom_93xx46_select");
+		if (ret)
+			return ret;
+
+		pd->select = gpio_to_desc(gpio);
+		pd->prepare = select_assert;
+		pd->finish = select_deassert;
+
+		gpiod_direction_output(pd->select, 0);
+	}
 
 	if (of_id->data) {
 		const struct eeprom_93xx46_devtype_data *data = of_id->data;
