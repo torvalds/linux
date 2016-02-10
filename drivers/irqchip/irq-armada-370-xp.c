@@ -117,7 +117,7 @@ static void armada_370_xp_irq_unmask(struct irq_data *d)
 #ifdef CONFIG_PCI_MSI
 
 static struct irq_chip armada_370_xp_msi_irq_chip = {
-	.name = "armada_370_xp_msi_irq",
+	.name = "MPIC MSI",
 	.irq_mask = pci_msi_mask_irq,
 	.irq_unmask = pci_msi_unmask_irq,
 };
@@ -141,7 +141,7 @@ static int armada_370_xp_msi_set_affinity(struct irq_data *irq_data,
 }
 
 static struct irq_chip armada_370_xp_msi_bottom_irq_chip = {
-	.name			= "armada_370_xp_msi_irq",
+	.name			= "MPIC MSI",
 	.irq_compose_msi_msg	= armada_370_xp_compose_msi_msg,
 	.irq_set_affinity	= armada_370_xp_msi_set_affinity,
 };
@@ -253,7 +253,7 @@ static int armada_xp_set_affinity(struct irq_data *d,
 #endif
 
 static struct irq_chip armada_370_xp_irq_chip = {
-	.name		= "armada_370_xp_irq",
+	.name		= "MPIC",
 	.irq_mask       = armada_370_xp_irq_mask,
 	.irq_mask_ack   = armada_370_xp_irq_mask,
 	.irq_unmask     = armada_370_xp_irq_unmask,
