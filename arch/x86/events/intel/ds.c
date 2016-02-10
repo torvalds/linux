@@ -5,7 +5,7 @@
 #include <asm/perf_event.h>
 #include <asm/insn.h>
 
-#include "perf_event.h"
+#include "../../kernel/cpu/perf_event.h"
 
 /* The size of a BTS record in bytes: */
 #define BTS_RECORD_SIZE		24
