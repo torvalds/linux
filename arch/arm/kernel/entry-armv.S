@@ -1201,8 +1201,7 @@ vector_addrexcptn:
 	.long	__fiq_svc			@  e
 	.long	__fiq_svc			@  f
 
-	.globl	vector_fiq_offset
-	.equ	vector_fiq_offset, vector_fiq
+	.globl	vector_fiq
 
 	.section .vectors, "ax", %progbits
 .L__vectors_start:
