@@ -39,26 +39,26 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	 */
 
 	/* Clear bit 29:27 of display control register */
-	dispControl &= FIELD_CLEAR(CRT_DISPLAY_CTRL, CLK);
+	dispControl &= ~CRT_DISPLAY_CTRL_CLK_MASK;
 
 	/* Set bit 29:27 of display control register for the right clock */
 	/* Note that SM750LE only need to supported 7 resolutions. */
 	if (x == 800 && y == 600)
-		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL41);
+		dispControl |= CRT_DISPLAY_CTRL_CLK_PLL41;
 	else if (x == 1024 && y == 768)
-		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL65);
+		dispControl |= CRT_DISPLAY_CTRL_CLK_PLL65;
 	else if (x == 1152 && y == 864)
-		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL80);
+		dispControl |= CRT_DISPLAY_CTRL_CLK_PLL80;
 	else if (x == 1280 && y == 768)
-		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL80);
+		dispControl |= CRT_DISPLAY_CTRL_CLK_PLL80;
 	else if (x == 1280 && y == 720)
-		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL74);
+		dispControl |= CRT_DISPLAY_CTRL_CLK_PLL74;
 	else if (x == 1280 && y == 960)
-		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL108);
+		dispControl |= CRT_DISPLAY_CTRL_CLK_PLL108;
 	else if (x == 1280 && y == 1024)
-		dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL108);
+		dispControl |= CRT_DISPLAY_CTRL_CLK_PLL108;
 	else /* default to VGA clock */
-	dispControl = FIELD_SET(dispControl, CRT_DISPLAY_CTRL, CLK, PLL25);
+		dispControl |= CRT_DISPLAY_CTRL_CLK_PLL25;
 
 	/* Set bit 25:24 of display controller */
 	dispControl |= (CRT_DISPLAY_CTRL_CRTSELECT | CRT_DISPLAY_CTRL_RGBBIT);

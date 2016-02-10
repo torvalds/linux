@@ -1317,20 +1317,21 @@
 #define CRT_DISPLAY_CTRL_RESERVED_MASK                0xfb008200
 
 /* SM750LE definition */
-#define CRT_DISPLAY_CTRL_DPMS                         31:30
-#define CRT_DISPLAY_CTRL_DPMS_0                       0
-#define CRT_DISPLAY_CTRL_DPMS_1                       1
-#define CRT_DISPLAY_CTRL_DPMS_2                       2
-#define CRT_DISPLAY_CTRL_DPMS_3                       3
-#define CRT_DISPLAY_CTRL_CLK                          29:27
-#define CRT_DISPLAY_CTRL_CLK_PLL25                    0
-#define CRT_DISPLAY_CTRL_CLK_PLL41                    1
-#define CRT_DISPLAY_CTRL_CLK_PLL62                    2
-#define CRT_DISPLAY_CTRL_CLK_PLL65                    3
-#define CRT_DISPLAY_CTRL_CLK_PLL74                    4
-#define CRT_DISPLAY_CTRL_CLK_PLL80                    5
-#define CRT_DISPLAY_CTRL_CLK_PLL108                   6
-#define CRT_DISPLAY_CTRL_CLK_RESERVED                 7
+#define CRT_DISPLAY_CTRL_DPMS_SHIFT                   30
+#define CRT_DISPLAY_CTRL_DPMS_MASK                    (0x3 << 30)
+#define CRT_DISPLAY_CTRL_DPMS_0                       (0x0 << 30)
+#define CRT_DISPLAY_CTRL_DPMS_1                       (0x1 << 30)
+#define CRT_DISPLAY_CTRL_DPMS_2                       (0x2 << 30)
+#define CRT_DISPLAY_CTRL_DPMS_3                       (0x3 << 30)
+#define CRT_DISPLAY_CTRL_CLK_MASK                     (0x7 << 27)
+#define CRT_DISPLAY_CTRL_CLK_PLL25                    (0x0 << 27)
+#define CRT_DISPLAY_CTRL_CLK_PLL41                    (0x1 << 27)
+#define CRT_DISPLAY_CTRL_CLK_PLL62                    (0x2 << 27)
+#define CRT_DISPLAY_CTRL_CLK_PLL65                    (0x3 << 27)
+#define CRT_DISPLAY_CTRL_CLK_PLL74                    (0x4 << 27)
+#define CRT_DISPLAY_CTRL_CLK_PLL80                    (0x5 << 27)
+#define CRT_DISPLAY_CTRL_CLK_PLL108                   (0x6 << 27)
+#define CRT_DISPLAY_CTRL_CLK_RESERVED                 (0x7 << 27)
 #define CRT_DISPLAY_CTRL_SHIFT_VGA_DAC                BIT(26)
 
 /* SM750LE definition */
@@ -1344,21 +1345,22 @@
 #define CRT_DISPLAY_CTRL_EXPANSION                    BIT(22)
 #define CRT_DISPLAY_CTRL_VERTICAL_MODE                BIT(21)
 #define CRT_DISPLAY_CTRL_HORIZONTAL_MODE              BIT(20)
-#define CRT_DISPLAY_CTRL_SELECT                       19:18
-#define CRT_DISPLAY_CTRL_SELECT_PANEL                 0
-#define CRT_DISPLAY_CTRL_SELECT_VGA                   1
-#define CRT_DISPLAY_CTRL_SELECT_CRT                   2
-#define CRT_DISPLAY_CTRL_FIFO                         17:16
-#define CRT_DISPLAY_CTRL_FIFO_1                       0
-#define CRT_DISPLAY_CTRL_FIFO_3                       1
-#define CRT_DISPLAY_CTRL_FIFO_7                       2
-#define CRT_DISPLAY_CTRL_FIFO_11                      3
+#define CRT_DISPLAY_CTRL_SELECT_SHIFT                 18
+#define CRT_DISPLAY_CTRL_SELECT_MASK                  (0x3 << 18)
+#define CRT_DISPLAY_CTRL_SELECT_PANEL                 (0x0 << 18)
+#define CRT_DISPLAY_CTRL_SELECT_VGA                   (0x1 << 18)
+#define CRT_DISPLAY_CTRL_SELECT_CRT                   (0x2 << 18)
+#define CRT_DISPLAY_CTRL_FIFO_MASK                    (0x3 << 16)
+#define CRT_DISPLAY_CTRL_FIFO_1                       (0x0 << 16)
+#define CRT_DISPLAY_CTRL_FIFO_3                       (0x1 << 16)
+#define CRT_DISPLAY_CTRL_FIFO_7                       (0x2 << 16)
+#define CRT_DISPLAY_CTRL_FIFO_11                      (0x3 << 16)
 #define CRT_DISPLAY_CTRL_BLANK                        BIT(10)
-#define CRT_DISPLAY_CTRL_PIXEL                        7:4
-#define CRT_DISPLAY_CTRL_FORMAT                       1:0
-#define CRT_DISPLAY_CTRL_FORMAT_8                     0
-#define CRT_DISPLAY_CTRL_FORMAT_16                    1
-#define CRT_DISPLAY_CTRL_FORMAT_32                    2
+#define CRT_DISPLAY_CTRL_PIXEL_MASK                   (0xf << 4)
+#define CRT_DISPLAY_CTRL_FORMAT_MASK                  (0x3 << 0)
+#define CRT_DISPLAY_CTRL_FORMAT_8                     (0x0 << 0)
+#define CRT_DISPLAY_CTRL_FORMAT_16                    (0x1 << 0)
+#define CRT_DISPLAY_CTRL_FORMAT_32                    (0x2 << 0)
 
 #define CRT_FB_ADDRESS                                0x080204
 #define CRT_FB_ADDRESS_STATUS                         31:31

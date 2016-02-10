@@ -153,7 +153,9 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 	if (output & CRT_2_USAGE) {
 		/* set crt path controller select */
 		reg = PEEK32(CRT_DISPLAY_CTRL);
-		reg = FIELD_VALUE(reg, CRT_DISPLAY_CTRL, SELECT, (output & CRT_2_MASK)>>CRT_2_OFFSET);
+		reg &= ~CRT_DISPLAY_CTRL_SELECT_MASK;
+		reg |= (((output & CRT_2_MASK) >> CRT_2_OFFSET) <<
+			CRT_DISPLAY_CTRL_SELECT_SHIFT);
 		/*se blank off */
 		reg &= ~CRT_DISPLAY_CTRL_BLANK;
 		POKE32(CRT_DISPLAY_CTRL, reg);

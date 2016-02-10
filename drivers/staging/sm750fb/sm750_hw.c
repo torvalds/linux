@@ -352,7 +352,8 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 
 		/* SET PIXEL FORMAT */
 		reg = PEEK32(CRT_DISPLAY_CTRL);
-		reg = FIELD_VALUE(reg, CRT_DISPLAY_CTRL, FORMAT, var->bits_per_pixel >> 4);
+		reg |= ((var->bits_per_pixel >> 4) &
+			CRT_DISPLAY_CTRL_FORMAT_MASK);
 		POKE32(CRT_DISPLAY_CTRL, reg);
 
 	}
@@ -403,7 +404,8 @@ int hw_sm750le_setBLANK(struct lynxfb_output *output, int blank)
 	if (output->paths & sm750_crt) {
 		unsigned int val;
 
-		POKE32(CRT_DISPLAY_CTRL, FIELD_VALUE(PEEK32(CRT_DISPLAY_CTRL), CRT_DISPLAY_CTRL, DPMS, dpms));
+		val = PEEK32(CRT_DISPLAY_CTRL) & ~CRT_DISPLAY_CTRL_DPMS_MASK;
+		POKE32(CRT_DISPLAY_CTRL, val | dpms);
 
 		val = PEEK32(CRT_DISPLAY_CTRL) & ~CRT_DISPLAY_CTRL_BLANK;
 		POKE32(CRT_DISPLAY_CTRL, val | crtdb);
