@@ -88,12 +88,14 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 #define mv BIT(5)
 static int set_var(struct fbtft_par *par)
 {
-	/* madctl - memory data access control
-	     rgb/bgr:
-	     1. mode selection pin srgb
-		rgb h/w pin for color filter setting: 0=rgb, 1=bgr
-	     2. madctl rgb bit
-		rgb-bgr order color filter panel: 0=rgb, 1=bgr */
+	/*
+	 * madctl - memory data access control
+	 *   rgb/bgr:
+	 *   1. mode selection pin srgb
+	 *	rgb h/w pin for color filter setting: 0=rgb, 1=bgr
+	 *   2. madctl rgb bit
+	 *	rgb-bgr order color filter panel: 0=rgb, 1=bgr
+	 */
 	switch (par->info->var.rotate) {
 	case 0:
 		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
@@ -116,9 +118,7 @@ static int set_var(struct fbtft_par *par)
 	return 0;
 }
 
-/*
-  gamma string format:
-*/
+/* gamma string format: */
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	write_reg(par, 0xE0,
