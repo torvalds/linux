@@ -642,21 +642,21 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		     "    target: %s\n"
 		     "    state: %s\n"
 		     "    instance: %u\n"
-		     "    connect_flags: [",
+		     "    connect_flags: [ ",
 		     obd->obd_name,
 		     obd2cli_tgt(obd),
 		     ptlrpc_import_state_name(imp->imp_state),
 		     imp->imp_connect_data.ocd_instance);
 	obd_connect_seq_flags2str(m, imp->imp_connect_data.ocd_connect_flags, ", ");
 	seq_printf(m,
-		      "]\n"
-		      "    import_flags: [");
+		      " ]\n"
+		      "    import_flags: [ ");
 	obd_import_flags2str(imp, m);
 
 	seq_printf(m,
-		      "]\n"
+		      " ]\n"
 		      "    connection:\n"
-		      "       failover_nids: [");
+		      "       failover_nids: [ ");
 	spin_lock(&imp->imp_lock);
 	j = 0;
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
@@ -671,7 +671,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	else
 		strncpy(nidstr, "<none>", sizeof(nidstr));
 	seq_printf(m,
-		      "]\n"
+		      " ]\n"
 		      "       current_connection: %s\n"
 		      "       connection_attempts: %u\n"
 		      "       generation: %u\n"
@@ -795,7 +795,7 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 			&imp->imp_state_hist[(k + j) % IMP_STATE_HIST_LEN];
 		if (ish->ish_state == 0)
 			continue;
-		seq_printf(m, " - [%lld, %s]\n", (s64)ish->ish_time,
+		seq_printf(m, " - [ %lld, %s ]\n", (s64)ish->ish_time,
 			   ptlrpc_import_state_name(ish->ish_state));
 	}
 
