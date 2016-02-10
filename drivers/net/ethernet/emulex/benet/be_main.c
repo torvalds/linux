@@ -3365,6 +3365,7 @@ done:
 
 static void be_rx_qs_destroy(struct be_adapter *adapter)
 {
+	struct rss_info *rss = &adapter->rss_info;
 	struct be_queue_info *q;
 	struct be_rx_obj *rxo;
 	int i;
@@ -3390,6 +3391,12 @@ static void be_rx_qs_destroy(struct be_adapter *adapter)
 			be_rxq_clean(rxo);
 		}
 		be_queue_free(adapter, q);
+	}
+
+	if (rss->rss_flags) {
+		rss->rss_flags = RSS_ENABLE_NONE;
+		be_cmd_rss_config(adapter, rss->rsstable, rss->rss_flags,
+				  128, rss->rss_hkey);
 	}
 }
 
@@ -3511,20 +3518,21 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 		if (!BEx_chip(adapter))
 			rss->rss_flags |= RSS_ENABLE_UDP_IPV4 |
 				RSS_ENABLE_UDP_IPV6;
+
+		netdev_rss_key_fill(rss_key, RSS_HASH_KEY_LEN);
+		rc = be_cmd_rss_config(adapter, rss->rsstable, rss->rss_flags,
+				       RSS_INDIR_TABLE_LEN, rss_key);
+		if (rc) {
+			rss->rss_flags = RSS_ENABLE_NONE;
+			return rc;
+		}
+
+		memcpy(rss->rss_hkey, rss_key, RSS_HASH_KEY_LEN);
 	} else {
 		/* Disable RSS, if only default RX Q is created */
 		rss->rss_flags = RSS_ENABLE_NONE;
 	}
 
-	netdev_rss_key_fill(rss_key, RSS_HASH_KEY_LEN);
-	rc = be_cmd_rss_config(adapter, rss->rsstable, rss->rss_flags,
-			       RSS_INDIR_TABLE_LEN, rss_key);
-	if (rc) {
-		rss->rss_flags = RSS_ENABLE_NONE;
-		return rc;
-	}
-
-	memcpy(rss->rss_hkey, rss_key, RSS_HASH_KEY_LEN);
 
 	/* Post 1 less than RXQ-len to avoid head being equal to tail,
 	 * which is a queue empty condition
@@ -4306,6 +4314,23 @@ err:
 	return status;
 }
 
+static int be_if_create(struct be_adapter *adapter)
+{
+	u32 en_flags = BE_IF_FLAGS_RSS | BE_IF_FLAGS_DEFQ_RSS;
+	u32 cap_flags = be_if_cap_flags(adapter);
+	int status;
+
+	if (adapter->cfg_num_qs == 1)
+		cap_flags &= ~(BE_IF_FLAGS_DEFQ_RSS | BE_IF_FLAGS_RSS);
+
+	en_flags &= cap_flags;
+	/* will enable all the needed filter flags in be_open() */
+	status = be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
+				  &adapter->if_handle, 0);
+
+	return status;
+}
+
 int be_update_queues(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -4323,12 +4348,19 @@ int be_update_queues(struct be_adapter *adapter)
 		be_msix_disable(adapter);
 
 	be_clear_queues(adapter);
+	status = be_cmd_if_destroy(adapter, adapter->if_handle,  0);
+	if (status)
+		return status;
 
 	if (!msix_enabled(adapter)) {
 		status = be_msix_enable(adapter);
 		if (status)
 			return status;
 	}
+
+	status = be_if_create(adapter);
+	if (status)
+		return status;
 
 	status = be_setup_queues(adapter);
 	if (status)
@@ -4394,7 +4426,6 @@ static int be_func_init(struct be_adapter *adapter)
 static int be_setup(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
-	u32 en_flags;
 	int status;
 
 	status = be_func_init(adapter);
@@ -4427,10 +4458,7 @@ static int be_setup(struct be_adapter *adapter)
 		goto err;
 
 	/* will enable all the needed filter flags in be_open() */
-	en_flags = BE_IF_FLAGS_RSS | BE_IF_FLAGS_DEFQ_RSS;
-	en_flags = en_flags & be_if_cap_flags(adapter);
-	status = be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
-				  &adapter->if_handle, 0);
+	status = be_if_create(adapter);
 	if (status)
 		goto err;
 
@@ -4803,7 +4831,7 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->hw_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
 		NETIF_F_HW_VLAN_CTAG_TX;
-	if (be_multi_rxq(adapter))
+	if ((be_if_cap_flags(adapter) & BE_IF_FLAGS_RSS))
 		netdev->hw_features |= NETIF_F_RXHASH;
 
 	netdev->features |= netdev->hw_features |
