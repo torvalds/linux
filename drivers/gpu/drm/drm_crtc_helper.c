@@ -337,10 +337,12 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		}
 
 		encoder_funcs = encoder->helper_private;
-		if (!(ret = encoder_funcs->mode_fixup(encoder, mode,
-						      adjusted_mode))) {
-			DRM_DEBUG_KMS("Encoder fixup failed\n");
-			goto done;
+		if (encoder_funcs->mode_fixup) {
+			if (!(ret = encoder_funcs->mode_fixup(encoder, mode,
+							      adjusted_mode))) {
+				DRM_DEBUG_KMS("Encoder fixup failed\n");
+				goto done;
+			}
 		}
 	}
 
