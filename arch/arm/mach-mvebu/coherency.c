@@ -137,6 +137,20 @@ static struct notifier_block mvebu_hwcc_platform_nb = {
 	.notifier_call = mvebu_hwcc_platform_notifier,
 };
 
+/*
+ * Keep track of whether we have IO hardware coherency enabled or not.
+ * On Armada 370's we will not be using it for example. We need to make
+ * that available [through coherency_available()] so the mbus controller
+ * doesn't enable the IO coherency bit in the attribute bits of the
+ * chip selects.
+ */
+static int coherency_enabled;
+
+int coherency_available(void)
+{
+	return coherency_enabled;
+}
+
 int __init coherency_init(void)
 {
 	struct device_node *np;
@@ -170,6 +184,7 @@ int __init coherency_init(void)
 		coherency_base = of_iomap(np, 0);
 		coherency_cpu_base = of_iomap(np, 1);
 		set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
+		coherency_enabled = 1;
 		bus_register_notifier(&platform_bus_type,
 					&mvebu_hwcc_platform_nb);
 	}
