@@ -298,14 +298,14 @@ ioat_alloc_ring_ent(struct dma_chan *chan, gfp_t flags)
 	dma_addr_t phys;
 
 	ioat_dma = to_ioatdma_device(chan->device);
-	hw = pci_pool_alloc(ioat_dma->dma_pool, flags, &phys);
+	hw = dma_pool_alloc(ioat_dma->dma_pool, flags, &phys);
 	if (!hw)
 		return NULL;
 	memset(hw, 0, sizeof(*hw));
 
 	desc = kmem_cache_zalloc(ioat_cache, flags);
 	if (!desc) {
-		pci_pool_free(ioat_dma->dma_pool, hw, phys);
+		dma_pool_free(ioat_dma->dma_pool, hw, phys);
 		return NULL;
 	}
 
@@ -321,7 +321,7 @@ void ioat_free_ring_ent(struct ioat_ring_ent *desc, struct dma_chan *chan)
 	struct ioatdma_device *ioat_dma;
 
 	ioat_dma = to_ioatdma_device(chan->device);
-	pci_pool_free(ioat_dma->dma_pool, desc->hw, desc->txd.phys);
+	dma_pool_free(ioat_dma->dma_pool, desc->hw, desc->txd.phys);
 	kmem_cache_free(ioat_cache, desc);
 }
 

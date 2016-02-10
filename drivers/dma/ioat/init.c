@@ -505,7 +505,7 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 	struct device *dev = &pdev->dev;
 
 	/* DMA coherent memory pool for DMA descriptor allocations */
-	ioat_dma->dma_pool = pci_pool_create("dma_desc_pool", pdev,
+	ioat_dma->dma_pool = dma_pool_create("dma_desc_pool", dev,
 					     sizeof(struct ioat_dma_descriptor),
 					     64, 0);
 	if (!ioat_dma->dma_pool) {
@@ -513,7 +513,7 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 		goto err_dma_pool;
 	}
 
-	ioat_dma->completion_pool = pci_pool_create("completion_pool", pdev,
+	ioat_dma->completion_pool = dma_pool_create("completion_pool", dev,
 						    sizeof(u64),
 						    SMP_CACHE_BYTES,
 						    SMP_CACHE_BYTES);
@@ -546,9 +546,9 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 err_self_test:
 	ioat_disable_interrupts(ioat_dma);
 err_setup_interrupts:
-	pci_pool_destroy(ioat_dma->completion_pool);
+	dma_pool_destroy(ioat_dma->completion_pool);
 err_completion_pool:
-	pci_pool_destroy(ioat_dma->dma_pool);
+	dma_pool_destroy(ioat_dma->dma_pool);
 err_dma_pool:
 	return err;
 }
@@ -559,8 +559,8 @@ static int ioat_register(struct ioatdma_device *ioat_dma)
 
 	if (err) {
 		ioat_disable_interrupts(ioat_dma);
-		pci_pool_destroy(ioat_dma->completion_pool);
-		pci_pool_destroy(ioat_dma->dma_pool);
+		dma_pool_destroy(ioat_dma->completion_pool);
+		dma_pool_destroy(ioat_dma->dma_pool);
 	}
 
 	return err;
@@ -576,8 +576,8 @@ static void ioat_dma_remove(struct ioatdma_device *ioat_dma)
 
 	dma_async_device_unregister(dma);
 
-	pci_pool_destroy(ioat_dma->dma_pool);
-	pci_pool_destroy(ioat_dma->completion_pool);
+	dma_pool_destroy(ioat_dma->dma_pool);
+	dma_pool_destroy(ioat_dma->completion_pool);
 
 	INIT_LIST_HEAD(&dma->channels);
 }
@@ -669,7 +669,7 @@ static void ioat_free_chan_resources(struct dma_chan *c)
 	kfree(ioat_chan->ring);
 	ioat_chan->ring = NULL;
 	ioat_chan->alloc_order = 0;
-	pci_pool_free(ioat_dma->completion_pool, ioat_chan->completion,
+	dma_pool_free(ioat_dma->completion_pool, ioat_chan->completion,
 		      ioat_chan->completion_dma);
 	spin_unlock_bh(&ioat_chan->prep_lock);
 	spin_unlock_bh(&ioat_chan->cleanup_lock);
@@ -701,7 +701,7 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	/* allocate a completion writeback area */
 	/* doing 2 32bit writes to mmio since 1 64b write doesn't work */
 	ioat_chan->completion =
-		pci_pool_alloc(ioat_chan->ioat_dma->completion_pool,
+		dma_pool_alloc(ioat_chan->ioat_dma->completion_pool,
 			       GFP_KERNEL, &ioat_chan->completion_dma);
 	if (!ioat_chan->completion)
 		return -ENOMEM;
