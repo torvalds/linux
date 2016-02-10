@@ -50,4 +50,4 @@ obj-$(CONFIG_PINCTRL_STM32)	+= stm32/
 obj-$(CONFIG_PINCTRL_SUNXI)	+= sunxi/
 obj-$(CONFIG_PINCTRL_UNIPHIER)	+= uniphier/
 obj-$(CONFIG_ARCH_VT8500)	+= vt8500/
-obj-$(CONFIG_ARCH_MEDIATEK)	+= mediatek/
+obj-$(CONFIG_PINCTRL_MTK)	+= mediatek/
