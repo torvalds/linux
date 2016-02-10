@@ -244,6 +244,7 @@ config USB_MV_U3D
 
 config USB_M66592
 	tristate "Renesas M66592 USB Peripheral Controller"
+	depends on HAS_IOMEM
 	help
 	   M66592 is a discrete USB peripheral controller chip that
 	   supports both full and high speed USB 2.0 data transfers.
