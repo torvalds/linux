@@ -828,13 +828,9 @@
 #define PANEL_COLOR_KEY_VALUE                         15:0
 
 #define PANEL_FB_ADDRESS                              0x08000C
-#define PANEL_FB_ADDRESS_STATUS                       31:31
-#define PANEL_FB_ADDRESS_STATUS_CURRENT               0
-#define PANEL_FB_ADDRESS_STATUS_PENDING               1
-#define PANEL_FB_ADDRESS_EXT                          27:27
-#define PANEL_FB_ADDRESS_EXT_LOCAL                    0
-#define PANEL_FB_ADDRESS_EXT_EXTERNAL                 1
-#define PANEL_FB_ADDRESS_ADDRESS                      25:0
+#define PANEL_FB_ADDRESS_STATUS                       BIT(31)
+#define PANEL_FB_ADDRESS_EXT                          BIT(27)
+#define PANEL_FB_ADDRESS_ADDRESS_MASK                 0x1ffffff
 
 #define PANEL_FB_WIDTH                                0x080010
 #define PANEL_FB_WIDTH_WIDTH                          29:16

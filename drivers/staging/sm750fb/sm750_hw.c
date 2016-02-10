@@ -308,9 +308,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 	if (crtc->channel != sm750_secondary) {
 		/* set pitch, offset ,width,start address ,etc... */
 		POKE32(PANEL_FB_ADDRESS,
-			FIELD_SET(0, PANEL_FB_ADDRESS, STATUS, CURRENT)|
-			FIELD_SET(0, PANEL_FB_ADDRESS, EXT, LOCAL)|
-			FIELD_VALUE(0, PANEL_FB_ADDRESS, ADDRESS, crtc->oScreen));
+		       crtc->oScreen & PANEL_FB_ADDRESS_ADDRESS_MASK);
 
 		reg = var->xres * (var->bits_per_pixel >> 3);
 		/* crtc->channel is not equal to par->index on numeric,be aware of that */
@@ -538,8 +536,8 @@ int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
 	total += crtc->oScreen;
 	if (crtc->channel == sm750_primary) {
 		POKE32(PANEL_FB_ADDRESS,
-			FIELD_VALUE(PEEK32(PANEL_FB_ADDRESS),
-				PANEL_FB_ADDRESS, ADDRESS, total));
+		       PEEK32(PANEL_FB_ADDRESS) |
+		       (total & PANEL_FB_ADDRESS_ADDRESS_MASK));
 	} else {
 		POKE32(CRT_FB_ADDRESS,
 			FIELD_VALUE(PEEK32(CRT_FB_ADDRESS),
