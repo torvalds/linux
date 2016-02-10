@@ -203,9 +203,9 @@ static void gb_raw_connection_exit(struct gb_connection *connection)
 	struct raw_data *temp;
 
 	// FIXME - handle removing a connection when the char device node is open.
+	device_destroy(raw_class, raw->dev);
 	cdev_del(&raw->cdev);
 	ida_simple_remove(&minors, MINOR(raw->dev));
-	device_del(raw->device);
 	mutex_lock(&raw->list_lock);
 	list_for_each_entry_safe(raw_data, temp, &raw->list, entry) {
 		list_del(&raw_data->entry);
