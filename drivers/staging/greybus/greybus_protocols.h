@@ -1053,8 +1053,14 @@ struct gb_uart_serial_state_request {
 #define GB_LOOPBACK_TYPE_TRANSFER		0x03
 #define GB_LOOPBACK_TYPE_SINK			0x04
 
+/*
+ * Loopback request/response header format should be identical
+ * to simplify bandwidth and data movement analysis.
+ */
 struct gb_loopback_transfer_request {
 	__le32	len;
+	__le32  reserved0;
+	__le32  reserved1;
 	__u8	data[0];
 } __packed;
 
