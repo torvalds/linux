@@ -40,7 +40,7 @@
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 
-extern char etext[], _stext[];
+extern char etext[], _stext[], _sinittext[], _einittext[];
 
 #define PGDIR_ORDER	(32 + PGD_T_LOG2 - PGDIR_SHIFT)
 
@@ -289,7 +289,8 @@ void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 	v = PAGE_OFFSET + s;
 	p = memstart_addr + s;
 	for (; s < top; s += PAGE_SIZE) {
-		ktext = ((char *) v >= _stext && (char *) v < etext);
+		ktext = ((char *)v >= _stext && (char *)v < etext) ||
+			((char *)v >= _sinittext && (char *)v < _einittext);
 		f = ktext ? pgprot_val(PAGE_KERNEL_TEXT) : pgprot_val(PAGE_KERNEL);
 		map_page(v, p, f);
 #ifdef CONFIG_PPC_STD_MMU_32
