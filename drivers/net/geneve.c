@@ -1039,6 +1039,17 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	return geneve_xmit_skb(skb, dev, info);
 }
 
+static int geneve_change_mtu(struct net_device *dev, int new_mtu)
+{
+	/* GENEVE overhead is not fixed, so we can't enforce a more
+	 * precise max MTU.
+	 */
+	if (new_mtu < 68 || new_mtu > IP_MAX_MTU)
+		return -EINVAL;
+	dev->mtu = new_mtu;
+	return 0;
+}
+
 static int geneve_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ip_tunnel_info *info = skb_tunnel_info(skb);
@@ -1083,7 +1094,7 @@ static const struct net_device_ops geneve_netdev_ops = {
 	.ndo_stop		= geneve_stop,
 	.ndo_start_xmit		= geneve_xmit,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
-	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_change_mtu		= geneve_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_fill_metadata_dst	= geneve_fill_metadata_dst,
