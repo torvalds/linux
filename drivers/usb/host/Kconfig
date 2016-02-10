@@ -340,6 +340,7 @@ config USB_OXU210HP_HCD
 
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
+	depends on HAS_IOMEM
 	---help---
 	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
 	  option if your board has this chip. If unsure, say N.
