@@ -1816,7 +1816,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="37" valign="top" >DRM</td>
+	<td rowspan="38" valign="top" >DRM</td>
 	<td valign="top" >Generic</td>
 	<td valign="top" >“rotation”</td>
 	<td valign="top" >BITMASK</td>
@@ -2068,7 +2068,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >property to suggest an Y offset for a connector</td>
 	</tr>
 	<tr>
-	<td rowspan="3" valign="top" >Optional</td>
+	<td rowspan="4" valign="top" >Optional</td>
 	<td valign="top" >“scaling mode”</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "None", "Full", "Center", "Full aspect" }</td>
@@ -2090,6 +2090,13 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >{ "Off", "On", "Annotate" }</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“background_color”</td>
+	<td valign="top" >RGBA</td>
+	<td valign="top" >&nbsp;</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >Background color of regions not covered by a plane (atomic)</td>
 	</tr>
 	<tr>
 	<td rowspan="20" valign="top" >i915</td>

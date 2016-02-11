@@ -312,6 +312,7 @@ struct drm_plane_helper_funcs;
  * 	update to ensure framebuffer cleanup isn't done too early
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
+ * @background_color: background/canvas color of regions not covered by planes
  * @event: optional pointer to a DRM event to signal upon completion of the
  * 	state update
  * @state: backpointer to global drm_atomic_state
@@ -354,6 +355,9 @@ struct drm_crtc_state {
 
 	/* blob property to expose current mode to atomic userspace */
 	struct drm_property_blob *mode_blob;
+
+	/* CRTC background color */
+	u64 background_color;
 
 	struct drm_pending_vblank_event *event;
 
@@ -2103,6 +2107,7 @@ struct drm_mode_config {
 	struct drm_property *prop_crtc_id;
 	struct drm_property *prop_active;
 	struct drm_property *prop_mode_id;
+	struct drm_property *prop_background_color;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
@@ -2377,6 +2382,8 @@ struct drm_property *drm_property_create_object(struct drm_device *dev,
 					 int flags, const char *name, uint32_t type);
 struct drm_property *drm_property_create_bool(struct drm_device *dev, int flags,
 					 const char *name);
+struct drm_property *drm_property_create_color(struct drm_device *dev,
+					       int flags, const char *name);
 struct drm_property_blob *drm_property_create_blob(struct drm_device *dev,
                                                    size_t length,
                                                    const void *data);
