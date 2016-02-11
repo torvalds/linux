@@ -1890,25 +1890,14 @@ static int srpt_shutdown_session(struct se_session *se_sess)
  * ib_destroy_cm_id(), which locks the cm_id spinlock and hence waits until
  * this function has finished).
  */
-static void srpt_drain_channel(struct ib_cm_id *cm_id)
+static void srpt_drain_channel(struct srpt_rdma_ch *ch)
 {
-	struct srpt_device *sdev;
-	struct srpt_rdma_ch *ch;
 	int ret;
 	bool do_reset = false;
 
 	WARN_ON_ONCE(irqs_disabled());
 
-	sdev = cm_id->context;
-	BUG_ON(!sdev);
-	spin_lock_irq(&sdev->spinlock);
-	list_for_each_entry(ch, &sdev->rch_list, list) {
-		if (ch->cm_id == cm_id) {
-			do_reset = srpt_set_ch_state(ch, CH_DRAINING);
-			break;
-		}
-	}
-	spin_unlock_irq(&sdev->spinlock);
+	do_reset = srpt_set_ch_state(ch, CH_DRAINING);
 
 	if (do_reset) {
 		if (ch->sess)
@@ -1919,34 +1908,6 @@ static void srpt_drain_channel(struct ib_cm_id *cm_id)
 			pr_err("Setting queue pair in error state"
 			       " failed: %d\n", ret);
 	}
-}
-
-/**
- * srpt_find_channel() - Look up an RDMA channel.
- * @cm_id: Pointer to the CM ID of the channel to be looked up.
- *
- * Return NULL if no matching RDMA channel has been found.
- */
-static struct srpt_rdma_ch *srpt_find_channel(struct srpt_device *sdev,
-					      struct ib_cm_id *cm_id)
-{
-	struct srpt_rdma_ch *ch;
-	bool found;
-
-	WARN_ON_ONCE(irqs_disabled());
-	BUG_ON(!sdev);
-
-	found = false;
-	spin_lock_irq(&sdev->spinlock);
-	list_for_each_entry(ch, &sdev->rch_list, list) {
-		if (ch->cm_id == cm_id) {
-			found = true;
-			break;
-		}
-	}
-	spin_unlock_irq(&sdev->spinlock);
-
-	return found ? ch : NULL;
 }
 
 /**
@@ -2132,6 +2093,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	memcpy(ch->t_port_id, req->target_port_id, 16);
 	ch->sport = &sdev->port[param->port - 1];
 	ch->cm_id = cm_id;
+	cm_id->context = ch;
 	/*
 	 * Avoid QUEUE_FULL conditions by limiting the number of buffers used
 	 * for the SRP protocol to the command queue size.
@@ -2285,10 +2247,14 @@ out:
 	return ret;
 }
 
-static void srpt_cm_rej_recv(struct ib_cm_id *cm_id)
+static void srpt_cm_rej_recv(struct srpt_rdma_ch *ch,
+			     enum ib_cm_rej_reason reason,
+			     const u8 *private_data,
+			     u8 private_data_len)
 {
-	pr_info("Received IB REJ for cm_id %p.\n", cm_id);
-	srpt_drain_channel(cm_id);
+	pr_info("Received CM REJ for ch %s-%d; reason %d.\n",
+		ch->sess_name, ch->qp->qp_num, reason);
+	srpt_drain_channel(ch);
 }
 
 /**
@@ -2297,13 +2263,9 @@ static void srpt_cm_rej_recv(struct ib_cm_id *cm_id)
  * An IB_CM_RTU_RECEIVED message indicates that the connection is established
  * and that the recipient may begin transmitting (RTU = ready to use).
  */
-static void srpt_cm_rtu_recv(struct ib_cm_id *cm_id)
+static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
 {
-	struct srpt_rdma_ch *ch;
 	int ret;
-
-	ch = srpt_find_channel(cm_id->context, cm_id);
-	BUG_ON(!ch);
 
 	if (srpt_set_ch_state(ch, CH_LIVE)) {
 		struct srpt_recv_ioctx *ioctx, *ioctx_tmp;
@@ -2323,16 +2285,13 @@ static void srpt_cm_rtu_recv(struct ib_cm_id *cm_id)
 /**
  * srpt_cm_dreq_recv() - Process reception of a DREQ message.
  */
-static void srpt_cm_dreq_recv(struct ib_cm_id *cm_id)
+static void srpt_cm_dreq_recv(struct srpt_rdma_ch *ch)
 {
-	struct srpt_rdma_ch *ch;
 	unsigned long flags;
 	bool send_drep = false;
 
-	ch = srpt_find_channel(cm_id->context, cm_id);
-	BUG_ON(!ch);
-
-	pr_debug("cm_id= %p ch->state= %d\n", cm_id, ch->state);
+	pr_debug("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
+		 ch->state);
 
 	spin_lock_irqsave(&ch->spinlock, flags);
 	switch (ch->state) {
@@ -2369,6 +2328,7 @@ static void srpt_cm_dreq_recv(struct ib_cm_id *cm_id)
  */
 static int srpt_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 {
+	struct srpt_rdma_ch *ch = cm_id->context;
 	int ret;
 
 	ret = 0;
@@ -2378,27 +2338,31 @@ static int srpt_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 				       event->private_data);
 		break;
 	case IB_CM_REJ_RECEIVED:
-		srpt_cm_rej_recv(cm_id);
+		srpt_cm_rej_recv(ch, event->param.rej_rcvd.reason,
+				 event->private_data,
+				 IB_CM_REJ_PRIVATE_DATA_SIZE);
 		break;
 	case IB_CM_RTU_RECEIVED:
 	case IB_CM_USER_ESTABLISHED:
-		srpt_cm_rtu_recv(cm_id);
+		srpt_cm_rtu_recv(ch);
 		break;
 	case IB_CM_DREQ_RECEIVED:
-		srpt_cm_dreq_recv(cm_id);
+		srpt_cm_dreq_recv(ch);
 		break;
 	case IB_CM_DREP_RECEIVED:
-		pr_info("Received CM DREP message for cm_id %p.\n",
-			cm_id);
-		srpt_drain_channel(cm_id);
+		pr_info("Received CM DREP message for ch %s-%d.\n",
+			ch->sess_name, ch->qp->qp_num);
+		srpt_drain_channel(ch);
 		break;
 	case IB_CM_TIMEWAIT_EXIT:
-		pr_info("Received CM TimeWait exit for cm_id %p.\n", cm_id);
-		srpt_drain_channel(cm_id);
+		pr_info("Received CM TimeWait exit for ch %s-%d.\n",
+			ch->sess_name, ch->qp->qp_num);
+		srpt_drain_channel(ch);
 		break;
 	case IB_CM_REP_ERROR:
-		pr_info("Received CM REP error for cm_id %p.\n", cm_id);
-		srpt_drain_channel(cm_id);
+		pr_info("Received CM REP error for ch %s-%d.\n", ch->sess_name,
+			ch->qp->qp_num);
+		srpt_drain_channel(ch);
 		break;
 	case IB_CM_DREQ_ERROR:
 		pr_info("Received CM DREQ ERROR event.\n");
