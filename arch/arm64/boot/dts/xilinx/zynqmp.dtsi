@@ -126,18 +126,6 @@
 			clock-frequency = <25000000>;
 		};
 
-		gpio: gpio@ff0a0000 {
-			compatible = "xlnx,zynqmp-gpio-1.0";
-			status = "disabled";
-			#gpio-cells = <0x2>;
-			clocks = <&misc_clk>;
-			interrupt-parent = <&gic>;
-			interrupts = <0 16 4>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			reg = <0x0 0xff0a0000 0x1000>;
-		};
-
 		gem0: ethernet@ff0b0000 {
 			compatible = "cdns,gem";
 			status = "disabled";
@@ -184,6 +172,18 @@
 			clocks = <&misc_clk>, <&misc_clk>, <&misc_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+
+		gpio: gpio@ff0a0000 {
+			compatible = "xlnx,zynqmp-gpio-1.0";
+			status = "disabled";
+			#gpio-cells = <0x2>;
+			clocks = <&misc_clk>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 16 4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x0 0xff0a0000 0x1000>;
 		};
 
 		i2c_clk: i2c_clk {
