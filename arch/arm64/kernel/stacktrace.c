@@ -44,14 +44,13 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	unsigned long irq_stack_ptr;
 
 	/*
-	 * Use raw_smp_processor_id() to avoid false-positives from
-	 * CONFIG_DEBUG_PREEMPT. get_wchan() calls unwind_frame() on sleeping
-	 * task stacks, we can be pre-empted in this case, so
-	 * {raw_,}smp_processor_id() may give us the wrong value. Sleeping
-	 * tasks can't ever be on an interrupt stack, so regardless of cpu,
-	 * the checks will always fail.
+	 * Switching between stacks is valid when tracing current and in
+	 * non-preemptible context.
 	 */
-	irq_stack_ptr = IRQ_STACK_PTR(raw_smp_processor_id());
+	if (tsk == current && !preemptible())
+		irq_stack_ptr = IRQ_STACK_PTR(smp_processor_id());
+	else
+		irq_stack_ptr = 0;
 
 	low  = frame->sp;
 	/* irq stacks are not THREAD_SIZE aligned */
