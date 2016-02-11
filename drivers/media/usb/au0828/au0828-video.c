@@ -682,8 +682,7 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 
 	if (tuner) {
 		ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
-					    decoder, AU8522_PAD_INPUT,
-					    MEDIA_LNK_FL_ENABLED);
+					    decoder, AU8522_PAD_INPUT, 0);
 		if (ret)
 			return ret;
 	}
