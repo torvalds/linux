@@ -179,7 +179,7 @@ static void tegra_pmc_writel(u32 value, unsigned long offset)
  * @id: partition ID
  * @new_state: new state of the partition
  */
-static int tegra_powergate_set(int id, bool new_state)
+static int tegra_powergate_set(unsigned int id, bool new_state)
 {
 	bool status;
 
@@ -203,9 +203,9 @@ static int tegra_powergate_set(int id, bool new_state)
  * tegra_powergate_power_on() - power on partition
  * @id: partition ID
  */
-int tegra_powergate_power_on(int id)
+int tegra_powergate_power_on(unsigned int id)
 {
-	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
+	if (!pmc->soc || id >= pmc->soc->num_powergates)
 		return -EINVAL;
 
 	return tegra_powergate_set(id, true);
@@ -215,9 +215,9 @@ int tegra_powergate_power_on(int id)
  * tegra_powergate_power_off() - power off partition
  * @id: partition ID
  */
-int tegra_powergate_power_off(int id)
+int tegra_powergate_power_off(unsigned int id)
 {
-	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
+	if (!pmc->soc || id >= pmc->soc->num_powergates)
 		return -EINVAL;
 
 	return tegra_powergate_set(id, false);
@@ -228,11 +228,11 @@ EXPORT_SYMBOL(tegra_powergate_power_off);
  * tegra_powergate_is_powered() - check if partition is powered
  * @id: partition ID
  */
-int tegra_powergate_is_powered(int id)
+int tegra_powergate_is_powered(unsigned int id)
 {
 	u32 status;
 
-	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
+	if (!pmc->soc || id >= pmc->soc->num_powergates)
 		return -EINVAL;
 
 	mutex_lock(&pmc->powergates_lock);
@@ -246,11 +246,11 @@ int tegra_powergate_is_powered(int id)
  * tegra_powergate_remove_clamping() - remove power clamps for partition
  * @id: partition ID
  */
-int tegra_powergate_remove_clamping(int id)
+int tegra_powergate_remove_clamping(unsigned int id)
 {
 	u32 mask;
 
-	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
+	if (!pmc->soc || id >= pmc->soc->num_powergates)
 		return -EINVAL;
 
 	mutex_lock(&pmc->powergates_lock);
@@ -294,7 +294,7 @@ EXPORT_SYMBOL(tegra_powergate_remove_clamping);
  *
  * Must be called with clk disabled, and returns with clk enabled.
  */
-int tegra_powergate_sequence_power_up(int id, struct clk *clk,
+int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 				      struct reset_control *rst)
 {
 	int ret;
@@ -337,9 +337,9 @@ EXPORT_SYMBOL(tegra_powergate_sequence_power_up);
  * Returns the partition ID corresponding to the CPU partition ID or a
  * negative error code on failure.
  */
-static int tegra_get_cpu_powergate_id(int cpuid)
+static int tegra_get_cpu_powergate_id(unsigned int cpuid)
 {
-	if (pmc->soc && cpuid > 0 && cpuid < pmc->soc->num_cpu_powergates)
+	if (pmc->soc && cpuid < pmc->soc->num_cpu_powergates)
 		return pmc->soc->cpu_powergates[cpuid];
 
 	return -EINVAL;
@@ -349,7 +349,7 @@ static int tegra_get_cpu_powergate_id(int cpuid)
  * tegra_pmc_cpu_is_powered() - check if CPU partition is powered
  * @cpuid: CPU partition ID
  */
-bool tegra_pmc_cpu_is_powered(int cpuid)
+bool tegra_pmc_cpu_is_powered(unsigned int cpuid)
 {
 	int id;
 
@@ -364,7 +364,7 @@ bool tegra_pmc_cpu_is_powered(int cpuid)
  * tegra_pmc_cpu_power_on() - power on CPU partition
  * @cpuid: CPU partition ID
  */
-int tegra_pmc_cpu_power_on(int cpuid)
+int tegra_pmc_cpu_power_on(unsigned int cpuid)
 {
 	int id;
 
@@ -379,7 +379,7 @@ int tegra_pmc_cpu_power_on(int cpuid)
  * tegra_pmc_cpu_remove_clamping() - remove power clamps for CPU partition
  * @cpuid: CPU partition ID
  */
-int tegra_pmc_cpu_remove_clamping(int cpuid)
+int tegra_pmc_cpu_remove_clamping(unsigned int cpuid)
 {
 	int id;
 
@@ -465,7 +465,7 @@ static int tegra_powergate_debugfs_init(void)
 	return 0;
 }
 
-static int tegra_io_rail_prepare(int id, unsigned long *request,
+static int tegra_io_rail_prepare(unsigned int id, unsigned long *request,
 				 unsigned long *status, unsigned int *bit)
 {
 	unsigned long rate, value;
@@ -522,7 +522,7 @@ static void tegra_io_rail_unprepare(void)
 	tegra_pmc_writel(DPD_SAMPLE_DISABLE, DPD_SAMPLE);
 }
 
-int tegra_io_rail_power_on(int id)
+int tegra_io_rail_power_on(unsigned int id)
 {
 	unsigned long request, status, value;
 	unsigned int bit, mask;
@@ -557,7 +557,7 @@ error:
 }
 EXPORT_SYMBOL(tegra_io_rail_power_on);
 
-int tegra_io_rail_power_off(int id)
+int tegra_io_rail_power_off(unsigned int id)
 {
 	unsigned long request, status, value;
 	unsigned int bit, mask;
