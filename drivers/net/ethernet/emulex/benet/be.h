@@ -115,6 +115,8 @@
 #define	RSS_INDIR_TABLE_LEN	128
 #define RSS_HASH_KEY_LEN	40
 
+#define BE_UNKNOWN_PHY_STATE	0xFF
+
 struct be_dma_mem {
 	void *va;
 	dma_addr_t dma;
@@ -390,7 +392,7 @@ enum vf_state {
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		BIT(7)
 #define BE_FLAGS_VXLAN_OFFLOADS			BIT(8)
 #define BE_FLAGS_SETUP_DONE			BIT(9)
-#define BE_FLAGS_EVT_INCOMPATIBLE_SFP		BIT(10)
+#define BE_FLAGS_PHY_MISCONFIGURED		BIT(10)
 #define BE_FLAGS_ERR_DETECTION_SCHEDULED	BIT(11)
 #define BE_FLAGS_OS2BMC				BIT(12)
 
@@ -603,6 +605,7 @@ struct be_adapter {
 	u32 bmc_filt_mask;
 	u32 fat_dump_len;
 	u16 serial_num[CNTL_SERIAL_NUM_WORDS];
+	u8 phy_state; /* state of sfp optics (functional, faulted, etc.,) */
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
