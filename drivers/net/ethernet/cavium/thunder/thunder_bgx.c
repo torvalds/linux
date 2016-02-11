@@ -886,7 +886,8 @@ static void bgx_get_qlm_mode(struct bgx *bgx)
 
 #ifdef CONFIG_ACPI
 
-static int acpi_get_mac_address(struct acpi_device *adev, u8 *dst)
+static int acpi_get_mac_address(struct device *dev, struct acpi_device *adev,
+				u8 *dst)
 {
 	u8 mac[ETH_ALEN];
 	int ret;
@@ -897,9 +898,12 @@ static int acpi_get_mac_address(struct acpi_device *adev, u8 *dst)
 		goto out;
 
 	if (!is_valid_ether_addr(mac)) {
+		dev_err(dev, "MAC address invalid: %pM\n", mac);
 		ret = -EINVAL;
 		goto out;
 	}
+
+	dev_info(dev, "MAC address set to: %pM\n", mac);
 
 	memcpy(dst, mac, ETH_ALEN);
 out:
@@ -911,14 +915,15 @@ static acpi_status bgx_acpi_register_phy(acpi_handle handle,
 					 u32 lvl, void *context, void **rv)
 {
 	struct bgx *bgx = context;
+	struct device *dev = &bgx->pdev->dev;
 	struct acpi_device *adev;
 
 	if (acpi_bus_get_device(handle, &adev))
 		goto out;
 
-	acpi_get_mac_address(adev, bgx->lmac[bgx->lmac_count].mac);
+	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->lmac_count].mac);
 
-	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, &bgx->pdev->dev);
+	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, dev);
 
 	bgx->lmac[bgx->lmac_count].lmacid = bgx->lmac_count;
 out:
@@ -968,26 +973,27 @@ static int bgx_init_acpi_phy(struct bgx *bgx)
 
 static int bgx_init_of_phy(struct bgx *bgx)
 {
-	struct device_node *np;
-	struct device_node *np_child;
+	struct fwnode_handle *fwn;
 	u8 lmac = 0;
-	char bgx_sel[5];
 	const char *mac;
 
-	/* Get BGX node from DT */
-	snprintf(bgx_sel, 5, "bgx%d", bgx->bgx_id);
-	np = of_find_node_by_name(NULL, bgx_sel);
-	if (!np)
-		return -ENODEV;
+	device_for_each_child_node(&bgx->pdev->dev, fwn) {
+		struct device_node *phy_np;
+		struct device_node *node = to_of_node(fwn);
 
-	for_each_child_of_node(np, np_child) {
-		struct device_node *phy_np = of_parse_phandle(np_child,
-							      "phy-handle", 0);
+		/* If it is not an OF node we cannot handle it yet, so
+		 * exit the loop.
+		 */
+		if (!node)
+			break;
+
+		phy_np = of_parse_phandle(node, "phy-handle", 0);
 		if (!phy_np)
 			continue;
+
 		bgx->lmac[lmac].phydev = of_phy_find_device(phy_np);
 
-		mac = of_get_mac_address(np_child);
+		mac = of_get_mac_address(node);
 		if (mac)
 			ether_addr_copy(bgx->lmac[lmac].mac, mac);
 
@@ -995,7 +1001,7 @@ static int bgx_init_of_phy(struct bgx *bgx)
 		bgx->lmac[lmac].lmacid = lmac;
 		lmac++;
 		if (lmac == MAX_LMAC_PER_BGX) {
-			of_node_put(np_child);
+			of_node_put(node);
 			break;
 		}
 	}

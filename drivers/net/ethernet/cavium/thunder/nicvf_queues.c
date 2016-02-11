@@ -78,7 +78,7 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 					 u32 buf_len, u64 **rbuf)
 {
-	int order = get_order(buf_len);
+	int order = (PAGE_SIZE <= 4096) ?  PAGE_ALLOC_COSTLY_ORDER : 0;
 
 	/* Check if request can be accomodated in previous allocated page */
 	if (nic->rb_page) {
@@ -96,8 +96,7 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 		nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
 					   order);
 		if (!nic->rb_page) {
-			netdev_err(nic->netdev,
-				   "Failed to allocate new rcv buffer\n");
+			nic->drv_stats.rcv_buffer_alloc_failures++;
 			return -ENOMEM;
 		}
 		nic->rb_page_offset = 0;
