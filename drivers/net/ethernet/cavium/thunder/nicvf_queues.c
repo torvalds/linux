@@ -78,7 +78,7 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 					 u32 buf_len, u64 **rbuf)
 {
-	int order = get_order(buf_len);
+	int order = (PAGE_SIZE <= 4096) ?  PAGE_ALLOC_COSTLY_ORDER : 0;
 
 	/* Check if request can be accomodated in previous allocated page */
 	if (nic->rb_page) {
