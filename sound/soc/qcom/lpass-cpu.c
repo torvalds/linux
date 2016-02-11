@@ -294,6 +294,17 @@ static bool lpass_cpu_regmap_writeable(struct device *dev, unsigned int reg)
 			return true;
 	}
 
+	for (i = 0; i < v->wrdma_channels; ++i) {
+		if (reg == LPAIF_WRDMACTL_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMABASE_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMABUFF_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMAPER_REG(v, i + v->wrdma_channel_start))
+			return true;
+	}
+
 	return false;
 }
 
@@ -327,6 +338,19 @@ static bool lpass_cpu_regmap_readable(struct device *dev, unsigned int reg)
 			return true;
 	}
 
+	for (i = 0; i < v->wrdma_channels; ++i) {
+		if (reg == LPAIF_WRDMACTL_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMABASE_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMABUFF_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMACURR_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMAPER_REG(v, i + v->wrdma_channel_start))
+			return true;
+	}
+
 	return false;
 }
 
@@ -342,6 +366,10 @@ static bool lpass_cpu_regmap_volatile(struct device *dev, unsigned int reg)
 
 	for (i = 0; i < v->rdma_channels; ++i)
 		if (reg == LPAIF_RDMACURR_REG(v, i))
+			return true;
+
+	for (i = 0; i < v->wrdma_channels; ++i)
+		if (reg == LPAIF_WRDMACURR_REG(v, i + v->wrdma_channel_start))
 			return true;
 
 	return false;
@@ -398,8 +426,9 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 		return PTR_ERR((void const __force *)drvdata->lpaif);
 	}
 
-	lpass_cpu_regmap_config.max_register = LPAIF_RDMAPER_REG(variant,
-						variant->rdma_channels);
+	lpass_cpu_regmap_config.max_register = LPAIF_WRDMAPER_REG(variant,
+						variant->wrdma_channels +
+						variant->wrdma_channel_start);
 
 	drvdata->lpaif_map = devm_regmap_init_mmio(&pdev->dev, drvdata->lpaif,
 			&lpass_cpu_regmap_config);
