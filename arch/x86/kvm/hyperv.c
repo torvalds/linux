@@ -1084,7 +1084,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	trace_kvm_hv_hypercall(code, fast, rep_cnt, rep_idx, ingpa, outgpa);
 
 	switch (code) {
-	case HV_X64_HV_NOTIFY_LONG_SPIN_WAIT:
+	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
 		kvm_vcpu_on_spin(vcpu);
 		break;
 	default:
