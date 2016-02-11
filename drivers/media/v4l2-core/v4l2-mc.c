@@ -16,12 +16,13 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/usb.h>
 #include <media/media-entity.h>
 #include <media/v4l2-mc.h>
 
 
 struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
-						   char *name)
+						   const char *name)
 {
 #ifdef CONFIG_PCI
 	struct media_device *mdev;
@@ -52,6 +53,44 @@ struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
 #endif
 }
 EXPORT_SYMBOL_GPL(v4l2_mc_pci_media_device_init);
+
+struct media_device *__v4l2_mc_usb_media_device_init(struct usb_device *udev,
+						     const char *board_name,
+						     const char *driver_name)
+{
+#ifdef CONFIG_USB
+	struct media_device *mdev;
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return NULL;
+
+	mdev->dev = &udev->dev;
+
+	if (driver_name)
+		strlcpy(mdev->driver_name, driver_name,
+			sizeof(mdev->driver_name));
+
+	if (board_name)
+		strlcpy(mdev->model, board_name, sizeof(mdev->model));
+	else if (udev->product)
+		strlcpy(mdev->model, udev->product, sizeof(mdev->model));
+	else
+		strlcpy(mdev->model, "unknown model", sizeof(mdev->model));
+	if (udev->serial)
+		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
+	usb_make_path(udev, mdev->bus_info, sizeof(mdev->bus_info));
+	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
+	mdev->driver_version = LINUX_VERSION_CODE;
+
+	media_device_init(mdev);
+
+	return mdev;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(__v4l2_mc_usb_media_device_init);
 
 int v4l2_mc_create_media_graph(struct media_device *mdev)
 
