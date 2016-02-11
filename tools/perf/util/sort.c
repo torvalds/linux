@@ -255,10 +255,8 @@ static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 			ret += repsep_snprintf(bf + ret, size - ret, "%s", sym->name);
 			ret += repsep_snprintf(bf + ret, size - ret, "+0x%llx",
 					ip - map->unmap_ip(map, sym->start));
-			ret += repsep_snprintf(bf + ret, size - ret, "%-*s",
-				       width - ret, "");
 		} else {
-			ret += repsep_snprintf(bf + ret, size - ret, "%-*s",
+			ret += repsep_snprintf(bf + ret, size - ret, "%.*s",
 					       width - ret,
 					       sym->name);
 		}
@@ -266,14 +264,9 @@ static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 		size_t len = BITS_PER_LONG / 4;
 		ret += repsep_snprintf(bf + ret, size - ret, "%-#.*llx",
 				       len, ip);
-		ret += repsep_snprintf(bf + ret, size - ret, "%-*s",
-				       width - ret, "");
 	}
 
-	if (ret > width)
-		bf[width] = '\0';
-
-	return width;
+	return ret;
 }
 
 static int hist_entry__sym_snprintf(struct hist_entry *he, char *bf,
@@ -819,7 +812,7 @@ static int hist_entry__locked_snprintf(struct hist_entry *he, char *bf,
 	else
 		out = "No";
 
-	return repsep_snprintf(bf, size, "%-*s", width, out);
+	return repsep_snprintf(bf, size, "%.*s", width, out);
 }
 
 static int64_t

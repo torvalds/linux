@@ -1015,6 +1015,27 @@ void hist_entry__delete(struct hist_entry *he)
 }
 
 /*
+ * If this is not the last column, then we need to pad it according to the
+ * pre-calculated max lenght for this column, otherwise don't bother adding
+ * spaces because that would break viewing this with, for instance, 'less',
+ * that would show tons of trailing spaces when a long C++ demangled method
+ * names is sampled.
+*/
+int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
+				   struct perf_hpp_fmt *fmt, int printed)
+{
+	if (!list_is_last(&fmt->list, &he->hists->hpp_list->fields)) {
+		const int width = fmt->width(fmt, hpp, hists_to_evsel(he->hists));
+		if (printed < width) {
+			advance_hpp(hpp, printed);
+			printed = scnprintf(hpp->buf, hpp->size, "%-*s", width - printed, " ");
+		}
+	}
+
+	return printed;
+}
+
+/*
  * collapse the histogram
  */
 
