@@ -96,9 +96,9 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 	/* Calculate IF registers ( (1<<24)*IF / Xtal ) */
 	tmp =  div_u64(if_frequency * (u64)(1<<24) + (dev->xtal / 2),
 				   dev->xtal);
-	if_val[0] = ((tmp >> 16) & 0xff);
-	if_val[1] = ((tmp >>  8) & 0xff);
-	if_val[2] = ((tmp >>  0) & 0xff);
+	if_val[0] = (tmp >> 16) & 0xff;
+	if_val[1] = (tmp >>  8) & 0xff;
+	if_val[2] = (tmp >>  0) & 0xff;
 
 	ret = regmap_write(dev->regmap[2], 0xfb, 0x13);
 	ret = regmap_write(dev->regmap[2], 0xef, 0x13);
