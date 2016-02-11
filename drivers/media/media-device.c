@@ -55,7 +55,11 @@ static int media_device_get_info(struct media_device *dev,
 
 	memset(&info, 0, sizeof(info));
 
-	strlcpy(info.driver, dev->dev->driver->name, sizeof(info.driver));
+	if (dev->driver_name[0])
+		strlcpy(info.driver, dev->driver_name, sizeof(info.driver));
+	else
+		strlcpy(info.driver, dev->dev->driver->name, sizeof(info.driver));
+
 	strlcpy(info.model, dev->model, sizeof(info.model));
 	strlcpy(info.serial, dev->serial, sizeof(info.serial));
 	strlcpy(info.bus_info, dev->bus_info, sizeof(info.bus_info));
