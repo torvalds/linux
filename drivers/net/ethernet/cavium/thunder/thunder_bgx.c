@@ -968,26 +968,27 @@ static int bgx_init_acpi_phy(struct bgx *bgx)
 
 static int bgx_init_of_phy(struct bgx *bgx)
 {
-	struct device_node *np;
-	struct device_node *np_child;
+	struct fwnode_handle *fwn;
 	u8 lmac = 0;
-	char bgx_sel[5];
 	const char *mac;
 
-	/* Get BGX node from DT */
-	snprintf(bgx_sel, 5, "bgx%d", bgx->bgx_id);
-	np = of_find_node_by_name(NULL, bgx_sel);
-	if (!np)
-		return -ENODEV;
+	device_for_each_child_node(&bgx->pdev->dev, fwn) {
+		struct device_node *phy_np;
+		struct device_node *node = to_of_node(fwn);
 
-	for_each_child_of_node(np, np_child) {
-		struct device_node *phy_np = of_parse_phandle(np_child,
-							      "phy-handle", 0);
+		/* If it is not an OF node we cannot handle it yet, so
+		 * exit the loop.
+		 */
+		if (!node)
+			break;
+
+		phy_np = of_parse_phandle(node, "phy-handle", 0);
 		if (!phy_np)
 			continue;
+
 		bgx->lmac[lmac].phydev = of_phy_find_device(phy_np);
 
-		mac = of_get_mac_address(np_child);
+		mac = of_get_mac_address(node);
 		if (mac)
 			ether_addr_copy(bgx->lmac[lmac].mac, mac);
 
@@ -995,7 +996,7 @@ static int bgx_init_of_phy(struct bgx *bgx)
 		bgx->lmac[lmac].lmacid = lmac;
 		lmac++;
 		if (lmac == MAX_LMAC_PER_BGX) {
-			of_node_put(np_child);
+			of_node_put(node);
 			break;
 		}
 	}
