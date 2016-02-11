@@ -52,6 +52,7 @@ static int gb_i2c_functionality_operation(struct gb_i2c_device *gb_i2c_dev)
 
 static int gb_i2c_timeout_operation(struct gb_i2c_device *gb_i2c_dev, u16 msec)
 {
+	struct device *dev = &gb_i2c_dev->connection->bundle->dev;
 	struct gb_i2c_timeout_request request;
 	int ret;
 
@@ -59,7 +60,7 @@ static int gb_i2c_timeout_operation(struct gb_i2c_device *gb_i2c_dev, u16 msec)
 	ret = gb_operation_sync(gb_i2c_dev->connection, GB_I2C_TYPE_TIMEOUT,
 				&request, sizeof(request), NULL, 0);
 	if (ret)
-		pr_err("timeout operation failed (%d)\n", ret);
+		dev_err(dev, "timeout operation failed (%d)\n", ret);
 	else
 		gb_i2c_dev->timeout_msec = msec;
 
@@ -69,6 +70,7 @@ static int gb_i2c_timeout_operation(struct gb_i2c_device *gb_i2c_dev, u16 msec)
 static int gb_i2c_retries_operation(struct gb_i2c_device *gb_i2c_dev,
 				u8 retries)
 {
+	struct device *dev = &gb_i2c_dev->connection->bundle->dev;
 	struct gb_i2c_retries_request request;
 	int ret;
 
@@ -76,7 +78,7 @@ static int gb_i2c_retries_operation(struct gb_i2c_device *gb_i2c_dev,
 	ret = gb_operation_sync(gb_i2c_dev->connection, GB_I2C_TYPE_RETRIES,
 				&request, sizeof(request), NULL, 0);
 	if (ret)
-		pr_err("retries operation failed (%d)\n", ret);
+		dev_err(dev, "retries operation failed (%d)\n", ret);
 	else
 		gb_i2c_dev->retries = retries;
 
@@ -201,6 +203,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 					struct i2c_msg *msgs, u32 msg_count)
 {
 	struct gb_connection *connection = gb_i2c_dev->connection;
+	struct device *dev = &connection->bundle->dev;
 	struct gb_operation *operation;
 	int ret;
 
@@ -216,7 +219,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 		gb_i2c_decode_response(msgs, msg_count, response);
 		ret = msg_count;
 	} else if (!gb_i2c_expected_transfer_error(ret)) {
-		pr_err("transfer operation failed (%d)\n", ret);
+		dev_err(dev, "transfer operation failed (%d)\n", ret);
 	}
 
 	gb_operation_put(operation);
