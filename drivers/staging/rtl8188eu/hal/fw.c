@@ -175,14 +175,17 @@ int rtl88eu_download_fw(struct adapter *adapt)
 	if (fw->size > FW_8188E_SIZE) {
 		dev_err(device, "Firmware size exceed 0x%X. Check it.\n",
 			FW_8188E_SIZE);
+		release_firmware(fw);
 		return -1;
 	}
 
 	trailing_zeros_length = (4 - fw->size % 4) % 4;
 
 	fw_data = kmalloc(fw->size + trailing_zeros_length, GFP_KERNEL);
-	if (!fw_data)
+	if (!fw_data) {
+		release_firmware(fw);
 		return -ENOMEM;
+	}
 
 	memcpy(fw_data, fw->data, fw->size);
 	memset(fw_data + fw->size, 0, trailing_zeros_length);
