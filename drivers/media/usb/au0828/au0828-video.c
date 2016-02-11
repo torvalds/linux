@@ -28,6 +28,7 @@
  */
 
 #include "au0828.h"
+#include "au8522.h"
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -681,16 +682,18 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 
 	if (tuner) {
 		ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
-					    decoder, 0,
+					    decoder, AU8522_PAD_INPUT,
 					    MEDIA_LNK_FL_ENABLED);
 		if (ret)
 			return ret;
 	}
-	ret = media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
+	ret = media_create_pad_link(decoder, AU8522_PAD_VID_OUT,
+				    &dev->vdev.entity, 0,
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret)
 		return ret;
-	ret = media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
+	ret = media_create_pad_link(decoder, AU8522_PAD_VBI_OUT,
+				    &dev->vbi_dev.entity, 0,
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret)
 		return ret;
@@ -716,7 +719,8 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 		case AU0828_VMUX_COMPOSITE:
 		case AU0828_VMUX_SVIDEO:
 			/* FIXME: fix the decoder PAD */
-			ret = media_create_pad_link(ent, 0, decoder, 0, 0);
+			ret = media_create_pad_link(ent, 0, decoder,
+						    AU8522_PAD_INPUT, 0);
 			if (ret)
 				return ret;
 			break;
