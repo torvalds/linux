@@ -128,6 +128,10 @@
 &clks {
 	clocks = <&sxosc>, <&fxosc>, <&enet_ext>, <&audio_ext>;
 	clock-names = "sxosc", "fxosc", "enet_ext", "audio_ext";
+	assigned-clocks = <&clks VF610_CLK_ENET_SEL>,
+			  <&clks VF610_CLK_ENET_TS_SEL>;
+	assigned-clock-parents = <&clks VF610_CLK_ENET_EXT>,
+				 <&clks VF610_CLK_ENET_EXT>;
 };
 
 &dspi0 {
