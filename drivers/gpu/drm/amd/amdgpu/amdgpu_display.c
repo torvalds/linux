@@ -39,11 +39,9 @@ static void amdgpu_flip_callback(struct fence *f, struct fence_cb *cb)
 {
 	struct amdgpu_flip_work *work =
 		container_of(cb, struct amdgpu_flip_work, cb);
-	struct amdgpu_device *adev = work->adev;
-	struct amdgpu_crtc *amdgpu_crtc = adev->mode_info.crtcs[work->crtc_id];
 
 	fence_put(f);
-	queue_work(amdgpu_crtc->pflip_queue, &work->flip_work);
+	schedule_work(&work->flip_work);
 }
 
 static bool amdgpu_flip_handle_fence(struct amdgpu_flip_work *work,
