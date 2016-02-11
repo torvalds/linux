@@ -657,7 +657,7 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev = dev->media_dev;
 	struct media_entity *entity;
-	struct media_entity *tuner = NULL, *decoder = NULL;
+	struct media_entity *tuner = NULL, *decoder = NULL, *demod = NULL;
 	int i, ret;
 
 	if (!mdev)
@@ -670,6 +670,9 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 			break;
 		case MEDIA_ENT_F_ATV_DECODER:
 			decoder = entity;
+			break;
+		case MEDIA_ENT_F_DTV_DEMOD:
+			demod = entity;
 			break;
 		}
 	}
@@ -723,6 +726,21 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 			if (ret)
 				return ret;
 			break;
+		}
+	}
+
+	/*
+	 * Disable tuner to demod link to avoid disable step
+	 * when tuner is requested by video or audio
+	*/
+	if (tuner && demod) {
+		struct media_link *link;
+
+		list_for_each_entry(link, &demod->links, list) {
+			if (link->sink->entity == demod &&
+			    link->source->entity == tuner) {
+				media_entity_setup_link(link, 0);
+			}
 		}
 	}
 #endif
