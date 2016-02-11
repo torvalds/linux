@@ -248,7 +248,6 @@ struct sh_mmcif_host {
 	int sg_idx;
 	int sg_blkidx;
 	bool power;
-	bool card_present;
 	bool ccs_enable;		/* Command Completion Signal support */
 	bool clk_ctrl2_enable;
 	struct mutex thread_lock;
@@ -1091,42 +1090,30 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	host->state = STATE_IOS;
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	if (ios->power_mode == MMC_POWER_UP) {
-		if (!host->card_present) {
-			/* See if we also get DMA */
-			sh_mmcif_request_dma(host);
-			host->card_present = true;
-		}
+	switch (ios->power_mode) {
+	case MMC_POWER_UP:
 		sh_mmcif_set_power(host, ios);
-	} else if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
-		/* clock stop */
-		sh_mmcif_clock_control(host, 0);
-		if (ios->power_mode == MMC_POWER_OFF) {
-			if (host->card_present) {
-				sh_mmcif_release_dma(host);
-				host->card_present = false;
-			}
-		}
-		if (host->power) {
-			pm_runtime_put_sync(dev);
-			clk_disable_unprepare(host->clk);
-			host->power = false;
-			if (ios->power_mode == MMC_POWER_OFF)
-				sh_mmcif_set_power(host, ios);
-		}
-		host->state = STATE_IDLE;
-		return;
-	}
-
-	if (ios->clock) {
 		if (!host->power) {
 			clk_prepare_enable(host->clk);
-
 			pm_runtime_get_sync(dev);
-			host->power = true;
 			sh_mmcif_sync_reset(host);
+			sh_mmcif_request_dma(host);
+			host->power = true;
 		}
+		break;
+	case MMC_POWER_OFF:
+		sh_mmcif_set_power(host, ios);
+		if (host->power) {
+			sh_mmcif_clock_control(host, 0);
+			sh_mmcif_release_dma(host);
+			pm_runtime_put(dev);
+			clk_disable_unprepare(host->clk);
+			host->power = false;
+		}
+		break;
+	case MMC_POWER_ON:
 		sh_mmcif_clock_control(host, ios->clock);
+		break;
 	}
 
 	host->timing = ios->timing;
