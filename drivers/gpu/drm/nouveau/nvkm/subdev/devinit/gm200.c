@@ -166,7 +166,7 @@ gm200_devinit_post(struct nvkm_devinit *base, bool post)
 
 static const struct nvkm_devinit_func
 gm200_devinit = {
-	.preinit = nv50_devinit_preinit,
+	.preinit = gf100_devinit_preinit,
 	.init = nv50_devinit_init,
 	.post = gm200_devinit_post,
 	.pll_set = gf100_devinit_pll_set,
