@@ -1181,7 +1181,7 @@ static int __reuseport_attach_prog(struct bpf_prog *prog, struct sock *sk)
 	if (bpf_prog_size(prog->len) > sysctl_optmem_max)
 		return -ENOMEM;
 
-	if (sk_unhashed(sk)) {
+	if (sk_unhashed(sk) && sk->sk_reuseport) {
 		err = reuseport_alloc(sk);
 		if (err)
 			return err;
