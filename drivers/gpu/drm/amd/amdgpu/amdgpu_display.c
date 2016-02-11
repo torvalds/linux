@@ -38,20 +38,12 @@
 static void amdgpu_flip_wait_fence(struct amdgpu_device *adev,
 				   struct fence **f)
 {
-	struct amdgpu_fence *fence;
 	long r;
 
 	if (*f == NULL)
 		return;
 
-	fence = to_amdgpu_fence(*f);
-	if (fence) {
-		r = fence_wait(&fence->base, false);
-		if (r == -EDEADLK)
-			r = amdgpu_gpu_reset(adev);
-	} else
-		r = fence_wait(*f, false);
-
+	r = fence_wait(*f, false);
 	if (r)
 		DRM_ERROR("failed to wait on page flip fence (%ld)!\n", r);
 
