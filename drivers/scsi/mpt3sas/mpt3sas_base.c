@@ -1855,7 +1855,6 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index, u32 vector)
 			kfree(reply_q);
 			return -ENOMEM;
 		}
-		cpumask_clear(reply_q->affinity_hint);
 	}
 
 	atomic_set(&reply_q->busy, 0);
@@ -1870,8 +1869,8 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index, u32 vector)
 	if (r) {
 		pr_err(MPT3SAS_FMT "unable to allocate interrupt %d!\n",
 		    reply_q->name, vector);
-		kfree(reply_q);
 		free_cpumask_var(reply_q->affinity_hint);
+		kfree(reply_q);
 		return -EBUSY;
 	}
 
