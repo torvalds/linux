@@ -260,19 +260,16 @@ static bool amdgpu_fence_seq_signaled(struct amdgpu_ring *ring, u64 seq)
 }
 
 /*
- * amdgpu_ring_wait_seq_timeout - wait for seq of the specific ring to signal
+ * amdgpu_ring_wait_seq - wait for seq of the specific ring to signal
  * @ring: ring to wait on for the seq number
  * @seq: seq number wait for
  *
  * return value:
  * 0: seq signaled, and gpu not hang
- * -EDEADL: GPU hang detected
  * -EINVAL: some paramter is not valid
  */
 static int amdgpu_fence_ring_wait_seq(struct amdgpu_ring *ring, uint64_t seq)
 {
-	bool signaled = false;
-
 	BUG_ON(!ring);
 	if (seq > ring->fence_drv.sync_seq)
 		return -EINVAL;
@@ -281,13 +278,10 @@ static int amdgpu_fence_ring_wait_seq(struct amdgpu_ring *ring, uint64_t seq)
 		return 0;
 
 	amdgpu_fence_schedule_fallback(ring);
-	wait_event(ring->fence_drv.fence_queue, (
-		   (signaled = amdgpu_fence_seq_signaled(ring, seq))));
+	wait_event(ring->fence_drv.fence_queue,
+		   amdgpu_fence_seq_signaled(ring, seq));
 
-	if (signaled)
-		return 0;
-	else
-		return -EDEADLK;
+	return 0;
 }
 
 /**
