@@ -434,16 +434,18 @@ static struct notifier_block tegra_pmc_restart_handler = {
 static int powergate_show(struct seq_file *s, void *data)
 {
 	unsigned int i;
+	int status;
 
 	seq_printf(s, " powergate powered\n");
 	seq_printf(s, "------------------\n");
 
 	for (i = 0; i < pmc->soc->num_powergates; i++) {
-		if (!pmc->soc->powergates[i])
+		status = tegra_powergate_is_powered(i);
+		if (status < 0)
 			continue;
 
 		seq_printf(s, " %9s %7s\n", pmc->soc->powergates[i],
-			   tegra_powergate_is_powered(i) ? "yes" : "no");
+			   status ? "yes" : "no");
 	}
 
 	return 0;
