@@ -166,20 +166,20 @@ struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
 		return skb;
 	}
 
-	/* If packet is not gso and we are resolving any partial checksum,
+	/* If packet is not gso and we are not offloading inner checksum,
 	 * clear encapsulation flag. This allows setting CHECKSUM_PARTIAL
 	 * on the outer header without confusing devices that implement
 	 * NETIF_F_IP_CSUM with encapsulation.
 	 */
-	if (csum_help)
-		skb->encapsulation = 0;
-
 	if (skb->ip_summed == CHECKSUM_PARTIAL && csum_help) {
+		skb->encapsulation = 0;
 		err = skb_checksum_help(skb);
 		if (unlikely(err))
 			goto error;
-	} else if (skb->ip_summed != CHECKSUM_PARTIAL)
+	} else if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		skb->ip_summed = CHECKSUM_NONE;
+		skb->encapsulation = 0;
+	}
 
 	return skb;
 error:

@@ -3702,5 +3702,29 @@ static inline unsigned int skb_gso_network_seglen(const struct sk_buff *skb)
 	return hdr_len + skb_gso_transport_seglen(skb);
 }
 
+/* Local Checksum Offload.
+ * Compute outer checksum based on the assumption that the
+ * inner checksum will be offloaded later.
+ * Fill in outer checksum adjustment (e.g. with sum of outer
+ * pseudo-header) before calling.
+ * Also ensure that inner checksum is in linear data area.
+ */
+static inline __wsum lco_csum(struct sk_buff *skb)
+{
+	char *inner_csum_field;
+	__wsum csum;
+
+	/* Start with complement of inner checksum adjustment */
+	inner_csum_field = skb->data + skb_checksum_start_offset(skb) +
+				skb->csum_offset;
+	csum = ~csum_unfold(*(__force __sum16 *)inner_csum_field);
+	/* Add in checksum of our headers (incl. outer checksum
+	 * adjustment filled in by caller)
+	 */
+	csum = skb_checksum(skb, 0, skb_checksum_start_offset(skb), csum);
+	/* The result is the checksum from skb->data to end of packet */
+	return csum;
+}
+
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */
