@@ -1352,7 +1352,7 @@ static void kiblnd_destroy_fmr_pool(kib_fmr_pool_t *pool)
 	if (pool->fpo_hdev != NULL)
 		kiblnd_hdev_decref(pool->fpo_hdev);
 
-	LIBCFS_FREE(pool, sizeof(kib_fmr_pool_t));
+	LIBCFS_FREE(pool, sizeof(*pool));
 }
 
 static void kiblnd_destroy_fmr_pool_list(struct list_head *head)
@@ -1410,7 +1410,7 @@ static int kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps,
 		CERROR("Failed to create FMR pool: %d\n", rc);
 
 		kiblnd_hdev_decref(fpo->fpo_hdev);
-		LIBCFS_FREE(fpo, sizeof(kib_fmr_pool_t));
+		LIBCFS_FREE(fpo, sizeof(*fpo));
 		return rc;
 	}
 
@@ -1458,7 +1458,7 @@ static int kiblnd_init_fmr_poolset(kib_fmr_poolset_t *fps, int cpt,
 	kib_fmr_pool_t *fpo;
 	int rc;
 
-	memset(fps, 0, sizeof(kib_fmr_poolset_t));
+	memset(fps, 0, sizeof(*fps));
 
 	fps->fps_net = net;
 	fps->fps_cpt = cpt;
@@ -1606,7 +1606,7 @@ static void kiblnd_init_pool(kib_poolset_t *ps, kib_pool_t *pool, int size)
 {
 	CDEBUG(D_NET, "Initialize %s pool\n", ps->ps_name);
 
-	memset(pool, 0, sizeof(kib_pool_t));
+	memset(pool, 0, sizeof(*pool));
 	INIT_LIST_HEAD(&pool->po_free_list);
 	pool->po_deadline = cfs_time_shift(IBLND_POOL_DEADLINE);
 	pool->po_owner    = ps;
@@ -1663,7 +1663,7 @@ static int kiblnd_init_poolset(kib_poolset_t *ps, int cpt,
 	kib_pool_t *pool;
 	int rc;
 
-	memset(ps, 0, sizeof(kib_poolset_t));
+	memset(ps, 0, sizeof(*ps));
 
 	ps->ps_cpt          = cpt;
 	ps->ps_net          = net;
@@ -1834,7 +1834,7 @@ static void kiblnd_destroy_tx_pool(kib_pool_t *pool)
 		    pool->po_size * sizeof(kib_tx_t));
 out:
 	kiblnd_fini_pool(pool);
-	LIBCFS_FREE(tpo, sizeof(kib_tx_pool_t));
+	LIBCFS_FREE(tpo, sizeof(*tpo));
 }
 
 static int kiblnd_tx_pool_size(int ncpts)
@@ -1866,7 +1866,7 @@ static int kiblnd_create_tx_pool(kib_poolset_t *ps, int size,
 	npg = (size * IBLND_MSG_SIZE + PAGE_SIZE - 1) / PAGE_SIZE;
 	if (kiblnd_alloc_pages(&tpo->tpo_tx_pages, ps->ps_cpt, npg) != 0) {
 		CERROR("Can't allocate tx pages: %d\n", npg);
-		LIBCFS_FREE(tpo, sizeof(kib_tx_pool_t));
+		LIBCFS_FREE(tpo, sizeof(*tpo));
 		return -ENOMEM;
 	}
 
