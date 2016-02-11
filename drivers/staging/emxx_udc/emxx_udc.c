@@ -271,21 +271,21 @@ static int _nbu2ss_ep_init(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 		data = EPn_EN | EPn_BCLR | EPn_DIR0;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = (EPn_ONAK | EPn_OSTL_EN | EPn_OSTL);
+		data = EPn_ONAK | EPn_OSTL_EN | EPn_OSTL;
 		_nbu2ss_bitclr(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = (EPn_OUT_EN | EPn_OUT_END_EN);
+		data = EPn_OUT_EN | EPn_OUT_END_EN;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_INT_ENA, data);
 	} else {
 		/*---------------------------------------------------------*/
 		/* IN */
-		data = (EPn_EN | EPn_BCLR | EPn_AUTO);
+		data = EPn_EN | EPn_BCLR | EPn_AUTO;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = (EPn_ISTL);
+		data = EPn_ISTL;
 		_nbu2ss_bitclr(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = (EPn_IN_EN | EPn_IN_END_EN);
+		data = EPn_IN_EN | EPn_IN_END_EN;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_INT_ENA, data);
 	}
 
@@ -460,7 +460,7 @@ static void _nbu2ss_ep_in_end(
 		if (length)
 			_nbu2ss_writel(&preg->EP_REGS[num].EP_WRITE, data32);
 
-		data = (((((u32)length) << 5) & EPn_DW) | EPn_DEND);
+		data = ((((u32)length) << 5) & EPn_DW) | EPn_DEND;
 		_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, data);
 
 		_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, EPn_AUTO);
@@ -844,7 +844,7 @@ static int _nbu2ss_out_dma(
 
 	/* Number of transfer packets */
 	mpkt = _nbu2ss_readl(&preg->EP_REGS[num].EP_PCKT_ADRS) & EPn_MPKT;
-	dmacnt = (length / mpkt);
+	dmacnt = length / mpkt;
 	lmpkt = (length % mpkt) & ~(u32)0x03;
 
 	if (dmacnt > DMA_MAX_COUNT) {
