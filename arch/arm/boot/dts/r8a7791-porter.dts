@@ -11,8 +11,8 @@
 /*
  * SSI-AK4642
  *
- * SW3: 1: AK4642
- *      3: ADV7511
+ * JP3: 2-1: AK4642
+ *      2-3: ADV7511
  *
  * This command is required before playback/capture:
  *
