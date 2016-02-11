@@ -5229,8 +5229,6 @@ static void cherryview_setup_pctx(struct drm_device *dev)
 	u32 pcbr;
 	int pctx_size = 32*1024;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
 	pcbr = I915_READ(VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
 		DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
@@ -5252,7 +5250,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	u32 pcbr;
 	int pctx_size = 24*1024;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	mutex_lock(&dev->struct_mutex);
 
 	pcbr = I915_READ(VLV_PCBR);
 	if (pcbr) {
@@ -5280,7 +5278,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	pctx = i915_gem_object_create_stolen(dev, pctx_size);
 	if (!pctx) {
 		DRM_DEBUG("not enough stolen space for PCTX, disabling\n");
-		return;
+		goto out;
 	}
 
 	pctx_paddr = dev_priv->mm.stolen_base + pctx->stolen->start;
@@ -5289,6 +5287,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 out:
 	DRM_DEBUG_DRIVER("PCBR: 0x%08x\n", I915_READ(VLV_PCBR));
 	dev_priv->vlv_pctx = pctx;
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static void valleyview_cleanup_pctx(struct drm_device *dev)
@@ -5298,7 +5297,7 @@ static void valleyview_cleanup_pctx(struct drm_device *dev)
 	if (WARN_ON(!dev_priv->vlv_pctx))
 		return;
 
-	drm_gem_object_unreference(&dev_priv->vlv_pctx->base);
+	drm_gem_object_unreference_unlocked(&dev_priv->vlv_pctx->base);
 	dev_priv->vlv_pctx = NULL;
 }
 
