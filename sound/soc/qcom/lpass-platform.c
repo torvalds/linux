@@ -90,6 +90,7 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_format_t format = params_format(params);
 	unsigned int channels = params_channels(params);
 	unsigned int regval;
+	int dir = substream->stream;
 	int bitwidth;
 	int ret, dma_port = pcm_data->i2s_port + v->dmactl_audif_start;
 
@@ -100,25 +101,25 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 		return bitwidth;
 	}
 
-	regval = LPAIF_RDMACTL_BURSTEN_INCR4 |
-			LPAIF_RDMACTL_AUDINTF(dma_port) |
-			LPAIF_RDMACTL_FIFOWM_8;
+	regval = LPAIF_DMACTL_BURSTEN_INCR4 |
+			LPAIF_DMACTL_AUDINTF(dma_port) |
+			LPAIF_DMACTL_FIFOWM_8;
 
 	switch (bitwidth) {
 	case 16:
 		switch (channels) {
 		case 1:
 		case 2:
-			regval |= LPAIF_RDMACTL_WPSCNT_ONE;
+			regval |= LPAIF_DMACTL_WPSCNT_ONE;
 			break;
 		case 4:
-			regval |= LPAIF_RDMACTL_WPSCNT_TWO;
+			regval |= LPAIF_DMACTL_WPSCNT_TWO;
 			break;
 		case 6:
-			regval |= LPAIF_RDMACTL_WPSCNT_THREE;
+			regval |= LPAIF_DMACTL_WPSCNT_THREE;
 			break;
 		case 8:
-			regval |= LPAIF_RDMACTL_WPSCNT_FOUR;
+			regval |= LPAIF_DMACTL_WPSCNT_FOUR;
 			break;
 		default:
 			dev_err(soc_runtime->dev, "%s() invalid PCM config given: bw=%d, ch=%u\n",
@@ -130,19 +131,19 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 	case 32:
 		switch (channels) {
 		case 1:
-			regval |= LPAIF_RDMACTL_WPSCNT_ONE;
+			regval |= LPAIF_DMACTL_WPSCNT_ONE;
 			break;
 		case 2:
-			regval |= LPAIF_RDMACTL_WPSCNT_TWO;
+			regval |= LPAIF_DMACTL_WPSCNT_TWO;
 			break;
 		case 4:
-			regval |= LPAIF_RDMACTL_WPSCNT_FOUR;
+			regval |= LPAIF_DMACTL_WPSCNT_FOUR;
 			break;
 		case 6:
-			regval |= LPAIF_RDMACTL_WPSCNT_SIX;
+			regval |= LPAIF_DMACTL_WPSCNT_SIX;
 			break;
 		case 8:
-			regval |= LPAIF_RDMACTL_WPSCNT_EIGHT;
+			regval |= LPAIF_DMACTL_WPSCNT_EIGHT;
 			break;
 		default:
 			dev_err(soc_runtime->dev, "%s() invalid PCM config given: bw=%d, ch=%u\n",
@@ -157,7 +158,7 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	ret = regmap_write(drvdata->lpaif_map,
-			LPAIF_RDMACTL_REG(v, pcm_data->rdma_ch), regval);
+			LPAIF_DMACTL_REG(v, pcm_data->rdma_ch, dir), regval);
 	if (ret) {
 		dev_err(soc_runtime->dev, "%s() error writing to rdmactl reg: %d\n",
 				__func__, ret);
@@ -194,6 +195,7 @@ static int lpass_platform_pcmops_prepare(struct snd_pcm_substream *substream)
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
 	struct lpass_variant *v = drvdata->variant;
 	int ret, ch = pcm_data->rdma_ch;
+	int dir = substream->stream;
 
 	ret = regmap_write(drvdata->lpaif_map,
 			LPAIF_RDMABASE_REG(v, ch),
@@ -205,7 +207,7 @@ static int lpass_platform_pcmops_prepare(struct snd_pcm_substream *substream)
 	}
 
 	ret = regmap_write(drvdata->lpaif_map,
-			LPAIF_RDMABUFF_REG(v, ch),
+			LPAIF_DMABUFF_REG(v, ch, dir),
 			(snd_pcm_lib_buffer_bytes(substream) >> 2) - 1);
 	if (ret) {
 		dev_err(soc_runtime->dev, "%s() error writing to rdmabuff reg: %d\n",
@@ -214,7 +216,7 @@ static int lpass_platform_pcmops_prepare(struct snd_pcm_substream *substream)
 	}
 
 	ret = regmap_write(drvdata->lpaif_map,
-			LPAIF_RDMAPER_REG(v, ch),
+			LPAIF_DMAPER_REG(v, ch, dir),
 			(snd_pcm_lib_period_bytes(substream) >> 2) - 1);
 	if (ret) {
 		dev_err(soc_runtime->dev, "%s() error writing to rdmaper reg: %d\n",
@@ -223,8 +225,8 @@ static int lpass_platform_pcmops_prepare(struct snd_pcm_substream *substream)
 	}
 
 	ret = regmap_update_bits(drvdata->lpaif_map,
-			LPAIF_RDMACTL_REG(v, ch),
-			LPAIF_RDMACTL_ENABLE_MASK, LPAIF_RDMACTL_ENABLE_ON);
+			LPAIF_DMACTL_REG(v, ch, dir),
+			LPAIF_DMACTL_ENABLE_MASK, LPAIF_DMACTL_ENABLE_ON);
 	if (ret) {
 		dev_err(soc_runtime->dev, "%s() error writing to rdmactl reg: %d\n",
 				__func__, ret);
@@ -243,6 +245,7 @@ static int lpass_platform_pcmops_trigger(struct snd_pcm_substream *substream,
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
 	struct lpass_variant *v = drvdata->variant;
 	int ret, ch = pcm_data->rdma_ch;
+	int dir = substream->stream;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -269,9 +272,9 @@ static int lpass_platform_pcmops_trigger(struct snd_pcm_substream *substream,
 		}
 
 		ret = regmap_update_bits(drvdata->lpaif_map,
-				LPAIF_RDMACTL_REG(v, ch),
-				LPAIF_RDMACTL_ENABLE_MASK,
-				LPAIF_RDMACTL_ENABLE_ON);
+				LPAIF_DMACTL_REG(v, ch, dir),
+				LPAIF_DMACTL_ENABLE_MASK,
+				LPAIF_DMACTL_ENABLE_ON);
 		if (ret) {
 			dev_err(soc_runtime->dev, "%s() error writing to rdmactl reg: %d\n",
 					__func__, ret);
@@ -282,9 +285,9 @@ static int lpass_platform_pcmops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = regmap_update_bits(drvdata->lpaif_map,
-				LPAIF_RDMACTL_REG(v, ch),
-				LPAIF_RDMACTL_ENABLE_MASK,
-				LPAIF_RDMACTL_ENABLE_OFF);
+				LPAIF_DMACTL_REG(v, ch, dir),
+				LPAIF_DMACTL_ENABLE_MASK,
+				LPAIF_DMACTL_ENABLE_OFF);
 		if (ret) {
 			dev_err(soc_runtime->dev, "%s() error writing to rdmactl reg: %d\n",
 					__func__, ret);
@@ -315,9 +318,10 @@ static snd_pcm_uframes_t lpass_platform_pcmops_pointer(
 	struct lpass_variant *v = drvdata->variant;
 	unsigned int base_addr, curr_addr;
 	int ret, ch = pcm_data->rdma_ch;
+	int dir = substream->stream;
 
 	ret = regmap_read(drvdata->lpaif_map,
-			LPAIF_RDMABASE_REG(v, ch), &base_addr);
+			LPAIF_DMABASE_REG(v, ch, dir), &base_addr);
 	if (ret) {
 		dev_err(soc_runtime->dev, "%s() error reading from rdmabase reg: %d\n",
 				__func__, ret);
@@ -325,7 +329,7 @@ static snd_pcm_uframes_t lpass_platform_pcmops_pointer(
 	}
 
 	ret = regmap_read(drvdata->lpaif_map,
-			LPAIF_RDMACURR_REG(v, ch), &curr_addr);
+			LPAIF_DMACURR_REG(v, ch, dir), &curr_addr);
 	if (ret) {
 		dev_err(soc_runtime->dev, "%s() error reading from rdmacurr reg: %d\n",
 				__func__, ret);
