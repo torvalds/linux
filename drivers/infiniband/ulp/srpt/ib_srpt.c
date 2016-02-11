@@ -96,19 +96,6 @@ static int srpt_queue_status(struct se_cmd *cmd);
 static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc);
 
-/**
- * opposite_dma_dir() - Swap DMA_TO_DEVICE and DMA_FROM_DEVICE.
- */
-static inline
-enum dma_data_direction opposite_dma_dir(enum dma_data_direction dir)
-{
-	switch (dir) {
-	case DMA_TO_DEVICE:	return DMA_FROM_DEVICE;
-	case DMA_FROM_DEVICE:	return DMA_TO_DEVICE;
-	default:		return dir;
-	}
-}
-
 static enum rdma_ch_state
 srpt_set_ch_state(struct srpt_rdma_ch *ch, enum rdma_ch_state new_state)
 {
@@ -1049,7 +1036,7 @@ static void srpt_unmap_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 		dir = ioctx->cmd.data_direction;
 		BUG_ON(dir == DMA_NONE);
 		ib_dma_unmap_sg(ch->sport->sdev->device, sg, ioctx->sg_cnt,
-				opposite_dma_dir(dir));
+				target_reverse_dma_direction(&ioctx->cmd));
 		ioctx->mapped_sg_count = 0;
 	}
 }
@@ -1086,7 +1073,7 @@ static int srpt_map_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 	ioctx->sg_cnt = sg_cnt = cmd->t_data_nents;
 
 	count = ib_dma_map_sg(ch->sport->sdev->device, sg, sg_cnt,
-			      opposite_dma_dir(dir));
+			      target_reverse_dma_direction(cmd));
 	if (unlikely(!count))
 		return -EAGAIN;
 
