@@ -62,7 +62,6 @@ static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
 	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_gem_object *drm_obj = fbdev->bo;
-	struct drm_device *dev = helper->dev;
 	int ret = 0;
 
 	ret = drm_gem_mmap_obj(drm_obj, drm_obj->size, vma);
