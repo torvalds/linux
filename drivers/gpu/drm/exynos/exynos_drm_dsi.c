@@ -209,12 +209,6 @@
 
 #define OLD_SCLK_MIPI_CLK_NAME "pll_clk"
 
-#define REG_ADDR(dsi, reg_idx)		((dsi)->reg_base + \
-					dsi->driver_data->reg_ofs[(reg_idx)])
-#define DSI_WRITE(dsi, reg_idx, val)	writel((val), \
-					REG_ADDR((dsi), (reg_idx)))
-#define DSI_READ(dsi, reg_idx)		readl(REG_ADDR((dsi), (reg_idx)))
-
 static char *clk_names[5] = { "bus_clk", "sclk_mipi",
 	"phyclk_mipidphy0_bitclkdiv8", "phyclk_mipidphy0_rxclkesc0",
 	"sclk_rgb_vclk_to_dsim0" };
@@ -324,6 +318,18 @@ enum reg_idx {
 	DSIM_PHYTIMING2_REG,
 	NUM_REGS
 };
+
+static inline void exynos_dsi_write(struct exynos_dsi *dsi, enum reg_idx idx,
+				    u32 val)
+{
+	writel(val, dsi->reg_base + dsi->driver_data->reg_ofs[idx]);
+}
+
+static inline u32 exynos_dsi_read(struct exynos_dsi *dsi, enum reg_idx idx)
+{
+	return readl(dsi->reg_base + dsi->driver_data->reg_ofs[idx]);
+}
+
 static unsigned int exynos_reg_ofs[] = {
 	[DSIM_STATUS_REG] =  0x00,
 	[DSIM_SWRST_REG] =  0x04,
@@ -546,10 +552,10 @@ static void exynos_dsi_wait_for_reset(struct exynos_dsi *dsi)
 
 static void exynos_dsi_reset(struct exynos_dsi *dsi)
 {
-	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
+	u32 reset_val = dsi->driver_data->reg_values[RESET_TYPE];
 
 	reinit_completion(&dsi->completed);
-	DSI_WRITE(dsi, DSIM_SWRST_REG, driver_data->reg_values[RESET_TYPE]);
+	exynos_dsi_write(dsi, DSIM_SWRST_REG, reset_val);
 }
 
 #ifndef MHZ
@@ -652,7 +658,7 @@ static unsigned long exynos_dsi_set_pll(struct exynos_dsi *dsi,
 		reg |= DSIM_FREQ_BAND(band);
 	}
 
-	DSI_WRITE(dsi, DSIM_PLLCTRL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_PLLCTRL_REG, reg);
 
 	timeout = 1000;
 	do {
@@ -660,7 +666,7 @@ static unsigned long exynos_dsi_set_pll(struct exynos_dsi *dsi,
 			dev_err(dsi->dev, "PLL failed to stabilize\n");
 			return 0;
 		}
-		reg = DSI_READ(dsi, DSIM_STATUS_REG);
+		reg = exynos_dsi_read(dsi, DSIM_STATUS_REG);
 	} while ((reg & DSIM_PLL_STABLE) == 0);
 
 	return fout;
@@ -690,7 +696,7 @@ static int exynos_dsi_enable_clock(struct exynos_dsi *dsi)
 	dev_dbg(dsi->dev, "hs_clk = %lu, byte_clk = %lu, esc_clk = %lu\n",
 		hs_clk, byte_clk, esc_clk);
 
-	reg = DSI_READ(dsi, DSIM_CLKCTRL_REG);
+	reg = exynos_dsi_read(dsi, DSIM_CLKCTRL_REG);
 	reg &= ~(DSIM_ESC_PRESCALER_MASK | DSIM_LANE_ESC_CLK_EN_CLK
 			| DSIM_LANE_ESC_CLK_EN_DATA_MASK | DSIM_PLL_BYPASS
 			| DSIM_BYTE_CLK_SRC_MASK);
@@ -700,7 +706,7 @@ static int exynos_dsi_enable_clock(struct exynos_dsi *dsi)
 			| DSIM_LANE_ESC_CLK_EN_DATA(BIT(dsi->lanes) - 1)
 			| DSIM_BYTE_CLK_SRC(0)
 			| DSIM_TX_REQUEST_HSCLK;
-	DSI_WRITE(dsi, DSIM_CLKCTRL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_CLKCTRL_REG, reg);
 
 	return 0;
 }
@@ -717,7 +723,7 @@ static void exynos_dsi_set_phy_ctrl(struct exynos_dsi *dsi)
 	/* B D-PHY: D-PHY Master & Slave Analog Block control */
 	reg = reg_values[PHYCTRL_ULPS_EXIT] | reg_values[PHYCTRL_VREG_LP] |
 		reg_values[PHYCTRL_SLEW_UP];
-	DSI_WRITE(dsi, DSIM_PHYCTRL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_PHYCTRL_REG, reg);
 
 	/*
 	 * T LPX: Transmitted length of any Low-Power state period
@@ -725,7 +731,7 @@ static void exynos_dsi_set_phy_ctrl(struct exynos_dsi *dsi)
 	 *	burst
 	 */
 	reg = reg_values[PHYTIMING_LPX] | reg_values[PHYTIMING_HS_EXIT];
-	DSI_WRITE(dsi, DSIM_PHYTIMING_REG, reg);
+	exynos_dsi_write(dsi, DSIM_PHYTIMING_REG, reg);
 
 	/*
 	 * T CLK-PREPARE: Time that the transmitter drives the Clock Lane LP-00
@@ -745,7 +751,7 @@ static void exynos_dsi_set_phy_ctrl(struct exynos_dsi *dsi)
 		reg_values[PHYTIMING_CLK_POST] |
 		reg_values[PHYTIMING_CLK_TRAIL];
 
-	DSI_WRITE(dsi, DSIM_PHYTIMING1_REG, reg);
+	exynos_dsi_write(dsi, DSIM_PHYTIMING1_REG, reg);
 
 	/*
 	 * T HS-PREPARE: Time that the transmitter drives the Data Lane LP-00
@@ -758,29 +764,29 @@ static void exynos_dsi_set_phy_ctrl(struct exynos_dsi *dsi)
 	 */
 	reg = reg_values[PHYTIMING_HS_PREPARE] | reg_values[PHYTIMING_HS_ZERO] |
 		reg_values[PHYTIMING_HS_TRAIL];
-	DSI_WRITE(dsi, DSIM_PHYTIMING2_REG, reg);
+	exynos_dsi_write(dsi, DSIM_PHYTIMING2_REG, reg);
 }
 
 static void exynos_dsi_disable_clock(struct exynos_dsi *dsi)
 {
 	u32 reg;
 
-	reg = DSI_READ(dsi, DSIM_CLKCTRL_REG);
+	reg = exynos_dsi_read(dsi, DSIM_CLKCTRL_REG);
 	reg &= ~(DSIM_LANE_ESC_CLK_EN_CLK | DSIM_LANE_ESC_CLK_EN_DATA_MASK
 			| DSIM_ESC_CLKEN | DSIM_BYTE_CLKEN);
-	DSI_WRITE(dsi, DSIM_CLKCTRL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_CLKCTRL_REG, reg);
 
-	reg = DSI_READ(dsi, DSIM_PLLCTRL_REG);
+	reg = exynos_dsi_read(dsi, DSIM_PLLCTRL_REG);
 	reg &= ~DSIM_PLL_EN;
-	DSI_WRITE(dsi, DSIM_PLLCTRL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_PLLCTRL_REG, reg);
 }
 
 static void exynos_dsi_enable_lane(struct exynos_dsi *dsi, u32 lane)
 {
-	u32 reg = DSI_READ(dsi, DSIM_CONFIG_REG);
+	u32 reg = exynos_dsi_read(dsi, DSIM_CONFIG_REG);
 	reg |= (DSIM_NUM_OF_DATA_LANE(dsi->lanes - 1) | DSIM_LANE_EN_CLK |
 			DSIM_LANE_EN(lane));
-	DSI_WRITE(dsi, DSIM_CONFIG_REG, reg);
+	exynos_dsi_write(dsi, DSIM_CONFIG_REG, reg);
 }
 
 static int exynos_dsi_init_link(struct exynos_dsi *dsi)
@@ -791,14 +797,14 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 	u32 lanes_mask;
 
 	/* Initialize FIFO pointers */
-	reg = DSI_READ(dsi, DSIM_FIFOCTRL_REG);
+	reg = exynos_dsi_read(dsi, DSIM_FIFOCTRL_REG);
 	reg &= ~0x1f;
-	DSI_WRITE(dsi, DSIM_FIFOCTRL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_FIFOCTRL_REG, reg);
 
 	usleep_range(9000, 11000);
 
 	reg |= 0x1f;
-	DSI_WRITE(dsi, DSIM_FIFOCTRL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_FIFOCTRL_REG, reg);
 	usleep_range(9000, 11000);
 
 	/* DSI configuration */
@@ -867,7 +873,7 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 			dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) {
 		reg |= DSIM_CLKLANE_STOP;
 	}
-	DSI_WRITE(dsi, DSIM_CONFIG_REG, reg);
+	exynos_dsi_write(dsi, DSIM_CONFIG_REG, reg);
 
 	lanes_mask = BIT(dsi->lanes) - 1;
 	exynos_dsi_enable_lane(dsi, lanes_mask);
@@ -880,19 +886,19 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 			return -EFAULT;
 		}
 
-		reg = DSI_READ(dsi, DSIM_STATUS_REG);
+		reg = exynos_dsi_read(dsi, DSIM_STATUS_REG);
 		if ((reg & DSIM_STOP_STATE_DAT(lanes_mask))
 		    != DSIM_STOP_STATE_DAT(lanes_mask))
 			continue;
 	} while (!(reg & (DSIM_STOP_STATE_CLK | DSIM_TX_READY_HS_CLK)));
 
-	reg = DSI_READ(dsi, DSIM_ESCMODE_REG);
+	reg = exynos_dsi_read(dsi, DSIM_ESCMODE_REG);
 	reg &= ~DSIM_STOP_STATE_CNT_MASK;
 	reg |= DSIM_STOP_STATE_CNT(driver_data->reg_values[STOP_STATE_CNT]);
-	DSI_WRITE(dsi, DSIM_ESCMODE_REG, reg);
+	exynos_dsi_write(dsi, DSIM_ESCMODE_REG, reg);
 
 	reg = DSIM_BTA_TIMEOUT(0xff) | DSIM_LPDR_TIMEOUT(0xffff);
-	DSI_WRITE(dsi, DSIM_TIMEOUT_REG, reg);
+	exynos_dsi_write(dsi, DSIM_TIMEOUT_REG, reg);
 
 	return 0;
 }
@@ -907,20 +913,20 @@ static void exynos_dsi_set_display_mode(struct exynos_dsi *dsi)
 		reg = DSIM_CMD_ALLOW(0xf)
 			| DSIM_STABLE_VFP(vm->vfront_porch)
 			| DSIM_MAIN_VBP(vm->vback_porch);
-		DSI_WRITE(dsi, DSIM_MVPORCH_REG, reg);
+		exynos_dsi_write(dsi, DSIM_MVPORCH_REG, reg);
 
 		reg = DSIM_MAIN_HFP(vm->hfront_porch)
 			| DSIM_MAIN_HBP(vm->hback_porch);
-		DSI_WRITE(dsi, DSIM_MHPORCH_REG, reg);
+		exynos_dsi_write(dsi, DSIM_MHPORCH_REG, reg);
 
 		reg = DSIM_MAIN_VSA(vm->vsync_len)
 			| DSIM_MAIN_HSA(vm->hsync_len);
-		DSI_WRITE(dsi, DSIM_MSYNC_REG, reg);
+		exynos_dsi_write(dsi, DSIM_MSYNC_REG, reg);
 	}
 	reg =  DSIM_MAIN_HRESOL(vm->hactive, num_bits_resol) |
 		DSIM_MAIN_VRESOL(vm->vactive, num_bits_resol);
 
-	DSI_WRITE(dsi, DSIM_MDRESOL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_MDRESOL_REG, reg);
 
 	dev_dbg(dsi->dev, "LCD size = %dx%d\n", vm->hactive, vm->vactive);
 }
@@ -929,12 +935,12 @@ static void exynos_dsi_set_display_enable(struct exynos_dsi *dsi, bool enable)
 {
 	u32 reg;
 
-	reg = DSI_READ(dsi, DSIM_MDRESOL_REG);
+	reg = exynos_dsi_read(dsi, DSIM_MDRESOL_REG);
 	if (enable)
 		reg |= DSIM_MAIN_STAND_BY;
 	else
 		reg &= ~DSIM_MAIN_STAND_BY;
-	DSI_WRITE(dsi, DSIM_MDRESOL_REG, reg);
+	exynos_dsi_write(dsi, DSIM_MDRESOL_REG, reg);
 }
 
 static int exynos_dsi_wait_for_hdr_fifo(struct exynos_dsi *dsi)
@@ -942,7 +948,7 @@ static int exynos_dsi_wait_for_hdr_fifo(struct exynos_dsi *dsi)
 	int timeout = 2000;
 
 	do {
-		u32 reg = DSI_READ(dsi, DSIM_FIFOCTRL_REG);
+		u32 reg = exynos_dsi_read(dsi, DSIM_FIFOCTRL_REG);
 
 		if (!(reg & DSIM_SFR_HEADER_FULL))
 			return 0;
@@ -956,21 +962,21 @@ static int exynos_dsi_wait_for_hdr_fifo(struct exynos_dsi *dsi)
 
 static void exynos_dsi_set_cmd_lpm(struct exynos_dsi *dsi, bool lpm)
 {
-	u32 v = DSI_READ(dsi, DSIM_ESCMODE_REG);
+	u32 v = exynos_dsi_read(dsi, DSIM_ESCMODE_REG);
 
 	if (lpm)
 		v |= DSIM_CMD_LPDT_LP;
 	else
 		v &= ~DSIM_CMD_LPDT_LP;
 
-	DSI_WRITE(dsi, DSIM_ESCMODE_REG, v);
+	exynos_dsi_write(dsi, DSIM_ESCMODE_REG, v);
 }
 
 static void exynos_dsi_force_bta(struct exynos_dsi *dsi)
 {
-	u32 v = DSI_READ(dsi, DSIM_ESCMODE_REG);
+	u32 v = exynos_dsi_read(dsi, DSIM_ESCMODE_REG);
 	v |= DSIM_FORCE_BTA;
-	DSI_WRITE(dsi, DSIM_ESCMODE_REG, v);
+	exynos_dsi_write(dsi, DSIM_ESCMODE_REG, v);
 }
 
 static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
@@ -994,7 +1000,7 @@ static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
 	while (length >= 4) {
 		reg = (payload[3] << 24) | (payload[2] << 16)
 					| (payload[1] << 8) | payload[0];
-		DSI_WRITE(dsi, DSIM_PAYLOAD_REG, reg);
+		exynos_dsi_write(dsi, DSIM_PAYLOAD_REG, reg);
 		payload += 4;
 		length -= 4;
 	}
@@ -1009,7 +1015,7 @@ static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
 		/* Fall through */
 	case 1:
 		reg |= payload[0];
-		DSI_WRITE(dsi, DSIM_PAYLOAD_REG, reg);
+		exynos_dsi_write(dsi, DSIM_PAYLOAD_REG, reg);
 		break;
 	case 0:
 		/* Do nothing */
@@ -1032,7 +1038,7 @@ static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
 		dsi->state ^= DSIM_STATE_CMD_LPM;
 	}
 
-	DSI_WRITE(dsi, DSIM_PKTHDR_REG, reg);
+	exynos_dsi_write(dsi, DSIM_PKTHDR_REG, reg);
 
 	if (xfer->flags & MIPI_DSI_MSG_REQ_ACK)
 		exynos_dsi_force_bta(dsi);
@@ -1048,7 +1054,7 @@ static void exynos_dsi_read_from_fifo(struct exynos_dsi *dsi,
 	u32 reg;
 
 	if (first) {
-		reg = DSI_READ(dsi, DSIM_RXFIFO_REG);
+		reg = exynos_dsi_read(dsi, DSIM_RXFIFO_REG);
 
 		switch (reg & 0x3f) {
 		case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE:
@@ -1087,7 +1093,7 @@ static void exynos_dsi_read_from_fifo(struct exynos_dsi *dsi,
 
 	/* Receive payload */
 	while (length >= 4) {
-		reg = DSI_READ(dsi, DSIM_RXFIFO_REG);
+		reg = exynos_dsi_read(dsi, DSIM_RXFIFO_REG);
 		payload[0] = (reg >>  0) & 0xff;
 		payload[1] = (reg >>  8) & 0xff;
 		payload[2] = (reg >> 16) & 0xff;
@@ -1097,7 +1103,7 @@ static void exynos_dsi_read_from_fifo(struct exynos_dsi *dsi,
 	}
 
 	if (length) {
-		reg = DSI_READ(dsi, DSIM_RXFIFO_REG);
+		reg = exynos_dsi_read(dsi, DSIM_RXFIFO_REG);
 		switch (length) {
 		case 3:
 			payload[2] = (reg >> 16) & 0xff;
@@ -1116,7 +1122,7 @@ static void exynos_dsi_read_from_fifo(struct exynos_dsi *dsi,
 clear_fifo:
 	length = DSI_RX_FIFO_SIZE / 4;
 	do {
-		reg = DSI_READ(dsi, DSIM_RXFIFO_REG);
+		reg = exynos_dsi_read(dsi, DSIM_RXFIFO_REG);
 		if (reg == DSI_RX_FIFO_EMPTY)
 			break;
 	} while (--length);
@@ -1272,20 +1278,20 @@ static irqreturn_t exynos_dsi_irq(int irq, void *dev_id)
 	struct exynos_dsi *dsi = dev_id;
 	u32 status;
 
-	status = DSI_READ(dsi, DSIM_INTSRC_REG);
+	status = exynos_dsi_read(dsi, DSIM_INTSRC_REG);
 	if (!status) {
 		static unsigned long int j;
 		if (printk_timed_ratelimit(&j, 500))
 			dev_warn(dsi->dev, "spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
-	DSI_WRITE(dsi, DSIM_INTSRC_REG, status);
+	exynos_dsi_write(dsi, DSIM_INTSRC_REG, status);
 
 	if (status & DSIM_INT_SW_RST_RELEASE) {
 		u32 mask = ~(DSIM_INT_RX_DONE | DSIM_INT_SFR_FIFO_EMPTY |
 			DSIM_INT_SFR_HDR_FIFO_EMPTY | DSIM_INT_FRAME_DONE |
 			DSIM_INT_RX_ECC_ERR | DSIM_INT_SW_RST_RELEASE);
-		DSI_WRITE(dsi, DSIM_INTMSK_REG, mask);
+		exynos_dsi_write(dsi, DSIM_INTMSK_REG, mask);
 		complete(&dsi->completed);
 		return IRQ_HANDLED;
 	}
