@@ -1048,7 +1048,7 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(
 	result.port_speed = usbc_hprt.s.prtspd;
 	result.connected = usbc_hprt.s.prtconnsts;
 	result.connect_change =
-		(result.connected != usb->port_status.connected);
+		result.connected != usb->port_status.connected;
 
 	return result;
 }
