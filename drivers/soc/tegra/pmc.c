@@ -174,6 +174,11 @@ static void tegra_pmc_writel(u32 value, unsigned long offset)
 	writel(value, pmc->base + offset);
 }
 
+static inline bool tegra_powergate_state(int id)
+{
+	return (tegra_pmc_readl(PWRGATE_STATUS) & BIT(id)) != 0;
+}
+
 /**
  * tegra_powergate_set() - set the state of a partition
  * @id: partition ID
@@ -181,13 +186,9 @@ static void tegra_pmc_writel(u32 value, unsigned long offset)
  */
 static int tegra_powergate_set(unsigned int id, bool new_state)
 {
-	bool status;
-
 	mutex_lock(&pmc->powergates_lock);
 
-	status = tegra_pmc_readl(PWRGATE_STATUS) & (1 << id);
-
-	if (status == new_state) {
+	if (tegra_powergate_state(id) == new_state) {
 		mutex_unlock(&pmc->powergates_lock);
 		return 0;
 	}
@@ -230,16 +231,16 @@ EXPORT_SYMBOL(tegra_powergate_power_off);
  */
 int tegra_powergate_is_powered(unsigned int id)
 {
-	u32 status;
+	int status;
 
 	if (!pmc->soc || id >= pmc->soc->num_powergates)
 		return -EINVAL;
 
 	mutex_lock(&pmc->powergates_lock);
-	status = tegra_pmc_readl(PWRGATE_STATUS) & (1 << id);
+	status = tegra_powergate_state(id);
 	mutex_unlock(&pmc->powergates_lock);
 
-	return !!status;
+	return status;
 }
 
 /**
