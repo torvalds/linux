@@ -761,6 +761,7 @@ struct amdgpu_flip_work {
 	struct fence			*excl;
 	unsigned			shared_count;
 	struct fence			**shared;
+	struct fence_cb			cb;
 };
 
 
