@@ -137,20 +137,20 @@ static int apq8016_lpass_alloc_dma_channel(struct lpass_data *drvdata,
 					   int direction)
 {
 	struct lpass_variant *v = drvdata->variant;
-	int chan = find_first_zero_bit(&drvdata->rdma_ch_bit_map,
+	int chan = find_first_zero_bit(&drvdata->dma_ch_bit_map,
 					v->rdma_channels);
 
 	if (chan >= v->rdma_channels)
 		return -EBUSY;
 
-	set_bit(chan, &drvdata->rdma_ch_bit_map);
+	set_bit(chan, &drvdata->dma_ch_bit_map);
 
 	return chan;
 }
 
 static int apq8016_lpass_free_dma_channel(struct lpass_data *drvdata, int chan)
 {
-	clear_bit(chan, &drvdata->rdma_ch_bit_map);
+	clear_bit(chan, &drvdata->dma_ch_bit_map);
 
 	return 0;
 }
