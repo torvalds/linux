@@ -30,6 +30,7 @@
 #include <linux/in.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
@@ -62,14 +63,27 @@ static void batadv_dat_start_timer(struct batadv_priv *bat_priv)
 }
 
 /**
+ * batadv_dat_entry_release - release dat_entry from lists and queue for free
+ *  after rcu grace period
+ * @ref: kref pointer of the dat_entry
+ */
+static void batadv_dat_entry_release(struct kref *ref)
+{
+	struct batadv_dat_entry *dat_entry;
+
+	dat_entry = container_of(ref, struct batadv_dat_entry, refcount);
+
+	kfree_rcu(dat_entry, rcu);
+}
+
+/**
  * batadv_dat_entry_free_ref - decrement the dat_entry refcounter and possibly
- * free it
- * @dat_entry: the entry to free
+ *  release it
+ * @dat_entry: dat_entry to be free'd
  */
 static void batadv_dat_entry_free_ref(struct batadv_dat_entry *dat_entry)
 {
-	if (atomic_dec_and_test(&dat_entry->refcount))
-		kfree_rcu(dat_entry, rcu);
+	kref_put(&dat_entry->refcount, batadv_dat_entry_release);
 }
 
 /**
@@ -281,7 +295,7 @@ batadv_dat_entry_hash_find(struct batadv_priv *bat_priv, __be32 ip,
 		if (dat_entry->ip != ip)
 			continue;
 
-		if (!atomic_inc_not_zero(&dat_entry->refcount))
+		if (!kref_get_unless_zero(&dat_entry->refcount))
 			continue;
 
 		dat_entry_tmp = dat_entry;
@@ -326,7 +340,8 @@ static void batadv_dat_entry_add(struct batadv_priv *bat_priv, __be32 ip,
 	dat_entry->vid = vid;
 	ether_addr_copy(dat_entry->mac_addr, mac_addr);
 	dat_entry->last_update = jiffies;
-	atomic_set(&dat_entry->refcount, 2);
+	kref_init(&dat_entry->refcount);
+	kref_get(&dat_entry->refcount);
 
 	hash_added = batadv_hash_add(bat_priv->dat.hash, batadv_compare_dat,
 				     batadv_hash_dat, dat_entry,
@@ -527,7 +542,7 @@ static void batadv_choose_next_candidate(struct batadv_priv *bat_priv,
 							  max_orig_node))
 				continue;
 
-			if (!atomic_inc_not_zero(&orig_node->refcount))
+			if (!kref_get_unless_zero(&orig_node->refcount))
 				continue;
 
 			max = tmp_max;

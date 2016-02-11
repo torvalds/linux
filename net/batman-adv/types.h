@@ -25,6 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/if_ether.h>
+#include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h> /* for linux/wait.h */
 #include <linux/spinlock.h>
@@ -110,7 +111,7 @@ struct batadv_hard_iface {
 	struct net_device *net_dev;
 	u8 num_bcasts;
 	struct kobject *hardif_obj;
-	atomic_t refcount;
+	struct kref refcount;
 	struct packet_type batman_adv_ptype;
 	struct net_device *soft_iface;
 	struct rcu_head rcu;
@@ -140,7 +141,7 @@ struct batadv_orig_ifinfo {
 	u32 last_real_seqno;
 	u8 last_ttl;
 	unsigned long batman_seqno_reset;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -196,7 +197,7 @@ struct batadv_orig_node_vlan {
 	unsigned short vid;
 	struct batadv_vlan_tt tt;
 	struct hlist_node list;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -298,7 +299,7 @@ struct batadv_orig_node {
 	struct batadv_priv *bat_priv;
 	/* bcast_seqno_lock protects: bcast_bits & last_bcast_seqno */
 	spinlock_t bcast_seqno_lock;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 #ifdef CONFIG_BATMAN_ADV_NC
 	struct list_head in_coding_list;
@@ -341,7 +342,7 @@ struct batadv_gw_node {
 	struct batadv_orig_node *orig_node;
 	u32 bandwidth_down;
 	u32 bandwidth_up;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -359,7 +360,7 @@ struct batadv_hardif_neigh_node {
 	u8 addr[ETH_ALEN];
 	struct batadv_hard_iface *if_incoming;
 	unsigned long last_seen;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -383,7 +384,7 @@ struct batadv_neigh_node {
 	spinlock_t ifinfo_lock;	/* protects ifinfo_list and its members */
 	struct batadv_hard_iface *if_incoming;
 	unsigned long last_seen;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -419,7 +420,7 @@ struct batadv_neigh_ifinfo {
 	struct batadv_hard_iface *if_outgoing;
 	struct batadv_neigh_ifinfo_bat_iv bat_iv;
 	u8 last_ttl;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -745,7 +746,7 @@ struct batadv_softif_vlan {
 	atomic_t ap_isolation;		/* boolean */
 	struct batadv_vlan_tt tt;
 	struct hlist_node list;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -929,7 +930,7 @@ struct batadv_bla_backbone_gw {
 	atomic_t request_sent;
 	u16 crc;
 	spinlock_t crc_lock; /* protects crc */
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -950,7 +951,7 @@ struct batadv_bla_claim {
 	unsigned long lasttime;
 	struct hlist_node hash_entry;
 	struct rcu_head rcu;
-	atomic_t refcount;
+	struct kref refcount;
 };
 #endif
 
@@ -971,7 +972,7 @@ struct batadv_tt_common_entry {
 	struct hlist_node hash_entry;
 	u16 flags;
 	unsigned long added_at;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -1013,7 +1014,7 @@ struct batadv_tt_orig_list_entry {
 	struct batadv_orig_node *orig_node;
 	u8 ttvn;
 	struct hlist_node list;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -1066,7 +1067,7 @@ struct batadv_tt_roam_node {
 struct batadv_nc_node {
 	struct list_head list;
 	u8 addr[ETH_ALEN];
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 	struct batadv_orig_node *orig_node;
 	unsigned long last_seen;
@@ -1086,7 +1087,7 @@ struct batadv_nc_node {
 struct batadv_nc_path {
 	struct hlist_node hash_entry;
 	struct rcu_head rcu;
-	atomic_t refcount;
+	struct kref refcount;
 	struct list_head packet_list;
 	spinlock_t packet_list_lock; /* Protects packet_list */
 	u8 next_hop[ETH_ALEN];
@@ -1229,7 +1230,7 @@ struct batadv_dat_entry {
 	unsigned short vid;
 	unsigned long last_update;
 	struct hlist_node hash_entry;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 
@@ -1265,7 +1266,7 @@ struct batadv_dat_candidate {
 struct batadv_tvlv_container {
 	struct hlist_node list;
 	struct batadv_tvlv_hdr tvlv_hdr;
-	atomic_t refcount;
+	struct kref refcount;
 };
 
 /**
@@ -1292,7 +1293,7 @@ struct batadv_tvlv_handler {
 	u8 type;
 	u8 version;
 	u8 flags;
-	atomic_t refcount;
+	struct kref refcount;
 	struct rcu_head rcu;
 };
 

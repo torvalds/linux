@@ -29,6 +29,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/module.h>
@@ -624,15 +625,27 @@ __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr)
 }
 
 /**
- * batadv_tvlv_handler_free_ref - decrement the tvlv handler refcounter and
- *  possibly free it
+ * batadv_tvlv_handler_release - release tvlv handler from lists and queue for
+ *  free after rcu grace period
+ * @ref: kref pointer of the tvlv
+ */
+static void batadv_tvlv_handler_release(struct kref *ref)
+{
+	struct batadv_tvlv_handler *tvlv_handler;
+
+	tvlv_handler = container_of(ref, struct batadv_tvlv_handler, refcount);
+	kfree_rcu(tvlv_handler, rcu);
+}
+
+/**
+ * batadv_tvlv_handler_free_ref - decrement the tvlv container refcounter and
+ *  possibly release it
  * @tvlv_handler: the tvlv handler to free
  */
 static void
 batadv_tvlv_handler_free_ref(struct batadv_tvlv_handler *tvlv_handler)
 {
-	if (atomic_dec_and_test(&tvlv_handler->refcount))
-		kfree_rcu(tvlv_handler, rcu);
+	kref_put(&tvlv_handler->refcount, batadv_tvlv_handler_release);
 }
 
 /**
@@ -658,7 +671,7 @@ static struct batadv_tvlv_handler
 		if (tvlv_handler_tmp->version != version)
 			continue;
 
-		if (!atomic_inc_not_zero(&tvlv_handler_tmp->refcount))
+		if (!kref_get_unless_zero(&tvlv_handler_tmp->refcount))
 			continue;
 
 		tvlv_handler = tvlv_handler_tmp;
@@ -670,14 +683,25 @@ static struct batadv_tvlv_handler
 }
 
 /**
+ * batadv_tvlv_container_release - release tvlv from lists and free
+ * @ref: kref pointer of the tvlv
+ */
+static void batadv_tvlv_container_release(struct kref *ref)
+{
+	struct batadv_tvlv_container *tvlv;
+
+	tvlv = container_of(ref, struct batadv_tvlv_container, refcount);
+	kfree(tvlv);
+}
+
+/**
  * batadv_tvlv_container_free_ref - decrement the tvlv container refcounter and
- *  possibly free it
+ *  possibly release it
  * @tvlv: the tvlv container to free
  */
 static void batadv_tvlv_container_free_ref(struct batadv_tvlv_container *tvlv)
 {
-	if (atomic_dec_and_test(&tvlv->refcount))
-		kfree(tvlv);
+	kref_put(&tvlv->refcount, batadv_tvlv_container_release);
 }
 
 /**
@@ -697,6 +721,8 @@ static struct batadv_tvlv_container
 {
 	struct batadv_tvlv_container *tvlv_tmp, *tvlv = NULL;
 
+	lockdep_assert_held(&bat_priv->tvlv.container_list_lock);
+
 	hlist_for_each_entry(tvlv_tmp, &bat_priv->tvlv.container_list, list) {
 		if (tvlv_tmp->tvlv_hdr.type != type)
 			continue;
@@ -704,7 +730,7 @@ static struct batadv_tvlv_container
 		if (tvlv_tmp->tvlv_hdr.version != version)
 			continue;
 
-		if (!atomic_inc_not_zero(&tvlv_tmp->refcount))
+		if (!kref_get_unless_zero(&tvlv_tmp->refcount))
 			continue;
 
 		tvlv = tvlv_tmp;
@@ -728,6 +754,8 @@ static u16 batadv_tvlv_container_list_size(struct batadv_priv *bat_priv)
 {
 	struct batadv_tvlv_container *tvlv;
 	u16 tvlv_len = 0;
+
+	lockdep_assert_held(&bat_priv->tvlv.container_list_lock);
 
 	hlist_for_each_entry(tvlv, &bat_priv->tvlv.container_list, list) {
 		tvlv_len += sizeof(struct batadv_tvlv_hdr);
@@ -810,7 +838,7 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
 
 	memcpy(tvlv_new + 1, tvlv_value, ntohs(tvlv_new->tvlv_hdr.len));
 	INIT_HLIST_NODE(&tvlv_new->list);
-	atomic_set(&tvlv_new->refcount, 1);
+	kref_init(&tvlv_new->refcount);
 
 	spin_lock_bh(&bat_priv->tvlv.container_list_lock);
 	tvlv_old = batadv_tvlv_container_get(bat_priv, type, version);
@@ -1096,7 +1124,7 @@ void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 	tvlv_handler->type = type;
 	tvlv_handler->version = version;
 	tvlv_handler->flags = flags;
-	atomic_set(&tvlv_handler->refcount, 1);
+	kref_init(&tvlv_handler->refcount);
 	INIT_HLIST_NODE(&tvlv_handler->list);
 
 	spin_lock_bh(&bat_priv->tvlv.handler_list_lock);

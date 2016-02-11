@@ -25,6 +25,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/jiffies.h>
+#include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
 #include <linux/rculist.h>
@@ -72,7 +73,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 
 	rcu_read_lock();
 	curr_router = rcu_dereference(orig_ifinfo->router);
-	if (curr_router && !atomic_inc_not_zero(&curr_router->refcount))
+	if (curr_router && !kref_get_unless_zero(&curr_router->refcount))
 		curr_router = NULL;
 	rcu_read_unlock();
 
@@ -100,7 +101,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 		batadv_neigh_node_free_ref(curr_router);
 
 	/* increase refcount of new best neighbor */
-	if (neigh_node && !atomic_inc_not_zero(&neigh_node->refcount))
+	if (neigh_node && !kref_get_unless_zero(&neigh_node->refcount))
 		neigh_node = NULL;
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
@@ -146,23 +147,29 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @seq_num_diff: difference between the current/received sequence number and
  *  the last sequence number
+ * @seq_old_max_diff: maximum age of sequence number not considered as restart
  * @last_reset: jiffies timestamp of the last reset, will be updated when reset
  *  is detected
+ * @protection_started: is set to true if the protection window was started,
+ *   doesn't change otherwise.
  *
  * Return:
  *  0 if the packet is to be accepted.
  *  1 if the packet is to be ignored.
  */
 int batadv_window_protected(struct batadv_priv *bat_priv, s32 seq_num_diff,
-			    unsigned long *last_reset)
+			    s32 seq_old_max_diff, unsigned long *last_reset,
+			    bool *protection_started)
 {
-	if (seq_num_diff <= -BATADV_TQ_LOCAL_WINDOW_SIZE ||
+	if (seq_num_diff <= -seq_old_max_diff ||
 	    seq_num_diff >= BATADV_EXPECTED_SEQNO_RANGE) {
 		if (!batadv_has_timed_out(*last_reset,
 					  BATADV_RESET_PROTECTION_MS))
 			return 1;
 
 		*last_reset = jiffies;
+		if (protection_started)
+			*protection_started = true;
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "old packet received, start protection\n");
 	}
@@ -491,14 +498,14 @@ batadv_find_router(struct batadv_priv *bat_priv,
 
 	hlist_for_each_entry_rcu(cand, &orig_node->ifinfo_list, list) {
 		/* acquire some structures and references ... */
-		if (!atomic_inc_not_zero(&cand->refcount))
+		if (!kref_get_unless_zero(&cand->refcount))
 			continue;
 
 		cand_router = rcu_dereference(cand->router);
 		if (!cand_router)
 			goto next;
 
-		if (!atomic_inc_not_zero(&cand_router->refcount)) {
+		if (!kref_get_unless_zero(&cand_router->refcount)) {
 			cand_router = NULL;
 			goto next;
 		}
@@ -517,8 +524,8 @@ batadv_find_router(struct batadv_priv *bat_priv,
 
 		/* mark the first possible candidate */
 		if (!first_candidate) {
-			atomic_inc(&cand_router->refcount);
-			atomic_inc(&cand->refcount);
+			kref_get(&cand_router->refcount);
+			kref_get(&cand->refcount);
 			first_candidate = cand;
 			first_candidate_router = cand_router;
 		}
@@ -1073,7 +1080,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 
 	/* check whether the packet is old and the host just restarted. */
 	if (batadv_window_protected(bat_priv, seq_diff,
-				    &orig_node->bcast_seqno_reset))
+				    BATADV_BCAST_MAX_AGE,
+				    &orig_node->bcast_seqno_reset, NULL))
 		goto spin_unlock;
 
 	/* mark broadcast in flood history, update window position

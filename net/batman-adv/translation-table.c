@@ -31,6 +31,7 @@
 #include <linux/jhash.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
@@ -141,7 +142,7 @@ batadv_tt_hash_find(struct batadv_hashtable *hash, const u8 *addr,
 		if (tt->vid != vid)
 			continue;
 
-		if (!atomic_inc_not_zero(&tt->refcount))
+		if (!kref_get_unless_zero(&tt->refcount))
 			continue;
 
 		tt_tmp = tt;
@@ -202,25 +203,59 @@ batadv_tt_global_hash_find(struct batadv_priv *bat_priv, const u8 *addr,
 	return tt_global_entry;
 }
 
-static void
-batadv_tt_local_entry_free_ref(struct batadv_tt_local_entry *tt_local_entry)
+/**
+ * batadv_tt_local_entry_release - release tt_local_entry from lists and queue
+ *  for free after rcu grace period
+ * @ref: kref pointer of the nc_node
+ */
+static void batadv_tt_local_entry_release(struct kref *ref)
 {
-	if (atomic_dec_and_test(&tt_local_entry->common.refcount))
-		kfree_rcu(tt_local_entry, common.rcu);
+	struct batadv_tt_local_entry *tt_local_entry;
+
+	tt_local_entry = container_of(ref, struct batadv_tt_local_entry,
+				      common.refcount);
+
+	kfree_rcu(tt_local_entry, common.rcu);
 }
 
 /**
- * batadv_tt_global_entry_free_ref - decrement the refcounter for a
- *  tt_global_entry and possibly free it
- * @tt_global_entry: the object to free
+ * batadv_tt_local_entry_free_ref - decrement the tt_local_entry refcounter and
+ *  possibly release it
+ * @tt_local_entry: tt_local_entry to be free'd
+ */
+static void
+batadv_tt_local_entry_free_ref(struct batadv_tt_local_entry *tt_local_entry)
+{
+	kref_put(&tt_local_entry->common.refcount,
+		 batadv_tt_local_entry_release);
+}
+
+/**
+ * batadv_tt_global_entry_release - release tt_global_entry from lists and queue
+ *  for free after rcu grace period
+ * @ref: kref pointer of the nc_node
+ */
+static void batadv_tt_global_entry_release(struct kref *ref)
+{
+	struct batadv_tt_global_entry *tt_global_entry;
+
+	tt_global_entry = container_of(ref, struct batadv_tt_global_entry,
+				       common.refcount);
+
+	batadv_tt_global_del_orig_list(tt_global_entry);
+	kfree_rcu(tt_global_entry, common.rcu);
+}
+
+/**
+ * batadv_tt_global_entry_free_ref - decrement the tt_global_entry refcounter
+ *  and possibly release it
+ * @tt_global_entry: tt_global_entry to be free'd
  */
 static void
 batadv_tt_global_entry_free_ref(struct batadv_tt_global_entry *tt_global_entry)
 {
-	if (atomic_dec_and_test(&tt_global_entry->common.refcount)) {
-		batadv_tt_global_del_orig_list(tt_global_entry);
-		kfree_rcu(tt_global_entry, common.rcu);
-	}
+	kref_put(&tt_global_entry->common.refcount,
+		 batadv_tt_global_entry_release);
 }
 
 /**
@@ -346,22 +381,28 @@ static void batadv_tt_global_size_dec(struct batadv_orig_node *orig_node,
 /**
  * batadv_tt_orig_list_entry_release - release tt orig entry from lists and
  *  queue for free after rcu grace period
- * @orig_entry: tt orig entry to be free'd
+ * @ref: kref pointer of the tt orig entry
  */
-static void
-batadv_tt_orig_list_entry_release(struct batadv_tt_orig_list_entry *orig_entry)
+static void batadv_tt_orig_list_entry_release(struct kref *ref)
 {
+	struct batadv_tt_orig_list_entry *orig_entry;
+
+	orig_entry = container_of(ref, struct batadv_tt_orig_list_entry,
+				  refcount);
+
 	batadv_orig_node_free_ref(orig_entry->orig_node);
 	kfree_rcu(orig_entry, rcu);
 }
 
+/**
+ * batadv_tt_orig_list_entry_free_ref - decrement the tt orig entry refcounter
+ *  and possibly release it
+ * @orig_entry: tt orig entry to be free'd
+ */
 static void
 batadv_tt_orig_list_entry_free_ref(struct batadv_tt_orig_list_entry *orig_entry)
 {
-	if (!atomic_dec_and_test(&orig_entry->refcount))
-		return;
-
-	batadv_tt_orig_list_entry_release(orig_entry);
+	kref_put(&orig_entry->refcount, batadv_tt_orig_list_entry_release);
 }
 
 /**
@@ -626,7 +667,8 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 	tt_local->common.vid = vid;
 	if (batadv_is_wifi_netdev(in_dev))
 		tt_local->common.flags |= BATADV_TT_CLIENT_WIFI;
-	atomic_set(&tt_local->common.refcount, 2);
+	kref_init(&tt_local->common.refcount);
+	kref_get(&tt_local->common.refcount);
 	tt_local->last_seen = jiffies;
 	tt_local->common.added_at = tt_local->last_seen;
 
@@ -1270,7 +1312,7 @@ batadv_tt_global_orig_entry_find(const struct batadv_tt_global_entry *entry,
 	hlist_for_each_entry_rcu(tmp_orig_entry, head, list) {
 		if (tmp_orig_entry->orig_node != orig_node)
 			continue;
-		if (!atomic_inc_not_zero(&tmp_orig_entry->refcount))
+		if (!kref_get_unless_zero(&tmp_orig_entry->refcount))
 			continue;
 
 		orig_entry = tmp_orig_entry;
@@ -1327,11 +1369,12 @@ batadv_tt_global_orig_entry_add(struct batadv_tt_global_entry *tt_global,
 		goto out;
 
 	INIT_HLIST_NODE(&orig_entry->list);
-	atomic_inc(&orig_node->refcount);
+	kref_get(&orig_node->refcount);
 	batadv_tt_global_size_inc(orig_node, tt_global->common.vid);
 	orig_entry->orig_node = orig_node;
 	orig_entry->ttvn = ttvn;
-	atomic_set(&orig_entry->refcount, 2);
+	kref_init(&orig_entry->refcount);
+	kref_get(&orig_entry->refcount);
 
 	spin_lock_bh(&tt_global->list_lock);
 	hlist_add_head_rcu(&orig_entry->list,
@@ -1407,7 +1450,8 @@ static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 		 */
 		if (flags & BATADV_TT_CLIENT_ROAM)
 			tt_global_entry->roam_at = jiffies;
-		atomic_set(&common->refcount, 2);
+		kref_init(&common->refcount);
+		kref_get(&common->refcount);
 		common->added_at = jiffies;
 
 		INIT_HLIST_HEAD(&tt_global_entry->orig_list);
@@ -2089,7 +2133,7 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 	/* found anything? */
 	if (best_entry)
 		orig_node = best_entry->orig_node;
-	if (orig_node && !atomic_inc_not_zero(&orig_node->refcount))
+	if (orig_node && !kref_get_unless_zero(&orig_node->refcount))
 		orig_node = NULL;
 	rcu_read_unlock();
 

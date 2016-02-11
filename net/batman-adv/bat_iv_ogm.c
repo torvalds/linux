@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
+#include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/pkt_sched.h>
 #include <linux/printk.h>
@@ -643,10 +644,10 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	unsigned char *skb_buff;
 	unsigned int skb_size;
 
-	if (!atomic_inc_not_zero(&if_incoming->refcount))
+	if (!kref_get_unless_zero(&if_incoming->refcount))
 		return;
 
-	if (!atomic_inc_not_zero(&if_outgoing->refcount))
+	if (!kref_get_unless_zero(&if_outgoing->refcount))
 		goto out_free_incoming;
 
 	/* own packet should always be scheduled */
@@ -1002,7 +1003,7 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		neigh_addr = tmp_neigh_node->addr;
 		if (batadv_compare_eth(neigh_addr, ethhdr->h_source) &&
 		    tmp_neigh_node->if_incoming == if_incoming &&
-		    atomic_inc_not_zero(&tmp_neigh_node->refcount)) {
+		    kref_get_unless_zero(&tmp_neigh_node->refcount)) {
 			if (WARN(neigh_node, "too many matching neigh_nodes"))
 				batadv_neigh_node_free_ref(neigh_node);
 			neigh_node = tmp_neigh_node;
@@ -1161,7 +1162,7 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 		if (tmp_neigh_node->if_incoming != if_incoming)
 			continue;
 
-		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
+		if (!kref_get_unless_zero(&tmp_neigh_node->refcount))
 			continue;
 
 		neigh_node = tmp_neigh_node;
@@ -1315,7 +1316,8 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	/* signalize caller that the packet is to be dropped. */
 	if (!hlist_empty(&orig_node->neigh_list) &&
 	    batadv_window_protected(bat_priv, seq_diff,
-				    &orig_ifinfo->batman_seqno_reset)) {
+				    BATADV_TQ_LOCAL_WINDOW_SIZE,
+				    &orig_ifinfo->batman_seqno_reset, NULL)) {
 		ret = BATADV_PROTECTED;
 		goto out;
 	}

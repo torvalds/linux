@@ -20,10 +20,10 @@
 
 #include "main.h"
 
-#include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/if_ether.h>
 #include <linux/jhash.h>
+#include <linux/kref.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/stddef.h>
@@ -115,7 +115,7 @@ batadv_orig_hash_find(struct batadv_priv *bat_priv, const void *data)
 		if (!batadv_compare_eth(orig_node, data))
 			continue;
 
-		if (!atomic_inc_not_zero(&orig_node->refcount))
+		if (!kref_get_unless_zero(&orig_node->refcount))
 			continue;
 
 		orig_node_tmp = orig_node;
