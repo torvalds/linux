@@ -5758,8 +5758,7 @@ static int handle_halt(struct kvm_vcpu *vcpu)
 
 static int handle_vmcall(struct kvm_vcpu *vcpu)
 {
-	kvm_emulate_hypercall(vcpu);
-	return 1;
+	return kvm_emulate_hypercall(vcpu);
 }
 
 static int handle_invd(struct kvm_vcpu *vcpu)

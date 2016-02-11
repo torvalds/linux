@@ -1055,7 +1055,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	 */
 	if (kvm_x86_ops->get_cpl(vcpu) != 0 || !is_protmode(vcpu)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
-		return 0;
+		return 1;
 	}
 
 	longmode = is_64_bit_mode(vcpu);
