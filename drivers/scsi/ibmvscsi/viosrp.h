@@ -99,7 +99,6 @@ enum viosrp_mad_types {
 	VIOSRP_EMPTY_IU_TYPE = 0x01,
 	VIOSRP_ERROR_LOG_TYPE = 0x02,
 	VIOSRP_ADAPTER_INFO_TYPE = 0x03,
-	VIOSRP_HOST_CONFIG_TYPE = 0x04,
 	VIOSRP_CAPABILITIES_TYPE = 0x05,
 	VIOSRP_ENABLE_FAST_FAIL = 0x08,
 };
@@ -165,11 +164,6 @@ struct viosrp_adapter_info {
 	__be64 buffer;
 };
 
-struct viosrp_host_config {
-	struct mad_common common;
-	__be64 buffer;
-};
-
 struct viosrp_fast_fail {
 	struct mad_common common;
 };
@@ -207,7 +201,6 @@ union mad_iu {
 	struct viosrp_empty_iu empty_iu;
 	struct viosrp_error_log error_log;
 	struct viosrp_adapter_info adapter_info;
-	struct viosrp_host_config host_config;
 	struct viosrp_fast_fail fast_fail;
 	struct viosrp_capabilities capabilities;
 };
