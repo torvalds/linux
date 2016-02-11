@@ -6,6 +6,9 @@
  *
  * Released under the GPLv2 only.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
