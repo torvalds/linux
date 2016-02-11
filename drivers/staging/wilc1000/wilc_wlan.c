@@ -1352,32 +1352,31 @@ int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count, u32 drv)
 {
-	int counter;
+	int i;
 	int ret = 0;
 
 	if (mode == GET_CFG) {
-		for (counter = 0; counter < count; counter++) {
-			if (!wilc_wlan_cfg_get(vif, !counter,
-					       wids[counter].id,
-					       (counter == count - 1),
+		for (i = 0; i < count; i++) {
+			if (!wilc_wlan_cfg_get(vif, !i,
+					       wids[i].id,
+					       (i == count - 1),
 					       drv)) {
 				ret = -ETIMEDOUT;
 				break;
 			}
 		}
-		for (counter = 0; counter < count; counter++) {
-			wids[counter].size = wilc_wlan_cfg_get_val(
-					wids[counter].id,
-					wids[counter].val,
-					wids[counter].size);
+		for (i = 0; i < count; i++) {
+			wids[i].size = wilc_wlan_cfg_get_val(wids[i].id,
+							     wids[i].val,
+							     wids[i].size);
 		}
 	} else if (mode == SET_CFG) {
-		for (counter = 0; counter < count; counter++) {
-			if (!wilc_wlan_cfg_set(vif, !counter,
-					       wids[counter].id,
-					       wids[counter].val,
-					       wids[counter].size,
-					       (counter == count - 1),
+		for (i = 0; i < count; i++) {
+			if (!wilc_wlan_cfg_set(vif, !i,
+					       wids[i].id,
+					       wids[i].val,
+					       wids[i].size,
+					       (i == count - 1),
 					       drv)) {
 				ret = -ETIMEDOUT;
 				break;
