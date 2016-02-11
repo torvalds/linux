@@ -1021,6 +1021,8 @@ struct cpl_l2t_write_req {
 #define L2T_W_NOREPLY_V(x) ((x) << L2T_W_NOREPLY_S)
 #define L2T_W_NOREPLY_F    L2T_W_NOREPLY_V(1U)
 
+#define CPL_L2T_VLAN_NONE 0xfff
+
 struct cpl_l2t_write_rpl {
 	union opcode_tid ot;
 	u8 status;
