@@ -372,16 +372,6 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	BUILD_BUG_ON(CEPH_OSD_MAX_OP > U16_MAX);
 	BUG_ON(num_ops > CEPH_OSD_MAX_OP);
 
-	msg_size = 4 + 4 + 8 + 8 + 4+8;
-	msg_size += 2 + 4 + 8 + 4 + 4; /* oloc */
-	msg_size += 1 + 8 + 4 + 4;     /* pg_t */
-	msg_size += 4 + CEPH_MAX_OID_NAME_LEN; /* oid */
-	msg_size += 2 + num_ops*sizeof(struct ceph_osd_op);
-	msg_size += 8;  /* snapid */
-	msg_size += 8;  /* snap_seq */
-	msg_size += 8 * (snapc ? snapc->num_snaps : 0);  /* snaps */
-	msg_size += 4;
-
 	if (use_mempool) {
 		req = mempool_alloc(osdc->req_mempool, gfp_flags);
 		memset(req, 0, sizeof(*req));
@@ -419,6 +409,17 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 		return NULL;
 	}
 	req->r_reply = msg;
+
+	msg_size = 4 + 4 + 4; /* client_inc, osdmap_epoch, flags */
+	msg_size += 4 + 4 + 4 + 8; /* mtime, reassert_version */
+	msg_size += 2 + 4 + 8 + 4 + 4; /* oloc */
+	msg_size += 1 + 8 + 4 + 4; /* pgid */
+	msg_size += 4 + CEPH_MAX_OID_NAME_LEN; /* oid */
+	msg_size += 2 + num_ops * sizeof(struct ceph_osd_op);
+	msg_size += 8; /* snapid */
+	msg_size += 8; /* snap_seq */
+	msg_size += 4 + 8 * (snapc ? snapc->num_snaps : 0); /* snaps */
+	msg_size += 4; /* retry_attempt */
 
 	/* create request message; allow space for oid */
 	if (use_mempool)
