@@ -122,11 +122,6 @@
 					    */
 #define CHANNEL_MAX_NUMBER_5G_80M	7
 #define CHANNEL_GROUP_MAX	(3 + 9)	/*  ch1~3, 4~9, 10~14 = three groups */
-#define CHANNEL_MAX_NUMBER_5G		54 /* Please refer to
-					    *"phy_GetChnlGroup8812A" and
-					    * "Hal_ReadTxPowerInfo8812A"
-					    */
-#define CHANNEL_MAX_NUMBER_5G_80M	7
 #define MAX_PG_GROUP			13
 #define	CHANNEL_GROUP_MAX_2G		3
 #define	CHANNEL_GROUP_IDX_5GL		3
@@ -2903,6 +2898,10 @@ value to host byte ordering.*/
 #define	STBC_VHT_ENABLE_TX			BIT(1)
 #define	STBC_VHT_TEST_TX_ENABLE			BIT(2)
 #define	STBC_VHT_CAP_TX				BIT(3)
+
+extern u8 channel5g[CHANNEL_MAX_NUMBER_5G];
+
+extern u8 channel5g_80m[CHANNEL_MAX_NUMBER_5G_80M];
 
 static inline u8 rtl_read_byte(struct rtl_priv *rtlpriv, u32 addr)
 {

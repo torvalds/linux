@@ -35,6 +35,22 @@
 #include <linux/export.h>
 #include <net/cfg80211.h>
 
+u8 channel5g[CHANNEL_MAX_NUMBER_5G] = {
+	36, 38, 40, 42, 44, 46, 48,		/* Band 1 */
+	52, 54, 56, 58, 60, 62, 64,		/* Band 2 */
+	100, 102, 104, 106, 108, 110, 112,	/* Band 3 */
+	116, 118, 120, 122, 124, 126, 128,	/* Band 3 */
+	132, 134, 136, 138, 140, 142, 144,	/* Band 3 */
+	149, 151, 153, 155, 157, 159, 161,	/* Band 4 */
+	165, 167, 169, 171, 173, 175, 177	/* Band 4 */
+};
+EXPORT_SYMBOL(channel5g);
+
+u8 channel5g_80m[CHANNEL_MAX_NUMBER_5G_80M] = {
+	42, 58, 106, 122, 138, 155, 171
+};
+EXPORT_SYMBOL(channel5g_80m);
+
 void rtl_addr_delay(u32 addr)
 {
 	if (addr == 0xfe)
