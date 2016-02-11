@@ -3019,23 +3019,16 @@ static int em28xx_media_device_init(struct em28xx *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (udev->product) {
+		mdev = v4l2_mc_usb_media_device_init(udev, udev->product);
+	} else if (udev->manufacturer) {
+		mdev = v4l2_mc_usb_media_device_init(udev, udev->manufacturer);
+	} else {
+		mdev = v4l2_mc_usb_media_device_init(udev, dev->name);
+	}
+
 	if (!mdev)
 		return -ENOMEM;
-
-	mdev->dev = &udev->dev;
-
-	if (!dev->name)
-		strlcpy(mdev->model, "unknown em28xx", sizeof(mdev->model));
-	else
-		strlcpy(mdev->model, dev->name, sizeof(mdev->model));
-	if (udev->serial)
-		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
-	strcpy(mdev->bus_info, udev->devpath);
-	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
-	mdev->driver_version = LINUX_VERSION_CODE;
-
-	media_device_init(mdev);
 
 	dev->media_dev = mdev;
 #endif
