@@ -70,6 +70,13 @@
 	status = "disabled";
 };
 
+&clks {
+	assigned-clocks = <&clks VF610_CLK_ENET_SEL>,
+			  <&clks VF610_CLK_ENET_TS_SEL>;
+	assigned-clock-parents = <&clks VF610_CLK_ENET_50M>,
+				 <&clks VF610_CLK_ENET_50M>;
+};
+
 &dspi1 {
 	bus-num = <1>;
 	pinctrl-names = "default";
