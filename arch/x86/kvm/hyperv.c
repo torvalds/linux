@@ -1083,6 +1083,12 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 
 	trace_kvm_hv_hypercall(code, fast, rep_cnt, rep_idx, ingpa, outgpa);
 
+	/* Hypercall continuation is not supported yet */
+	if (rep_cnt || rep_idx) {
+		res = HV_STATUS_INVALID_HYPERCALL_CODE;
+		goto set_result;
+	}
+
 	switch (code) {
 	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
 		kvm_vcpu_on_spin(vcpu);
@@ -1092,6 +1098,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		break;
 	}
 
+set_result:
 	ret = res | (((u64)rep_done & 0xfff) << 32);
 	if (longmode) {
 		kvm_register_write(vcpu, VCPU_REGS_RAX, ret);
