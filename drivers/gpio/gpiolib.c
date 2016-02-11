@@ -480,8 +480,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 		goto err_free_gdev;
 	}
 	gdev->ngpio = chip->ngpio;
-	/* FIXME: move driver data into gpio_device dev_set_drvdata() */
-	chip->data = data;
+	gdev->data = data;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
@@ -603,6 +602,15 @@ err_free_gdev:
 EXPORT_SYMBOL_GPL(gpiochip_add_data);
 
 /**
+ * gpiochip_get_data() - get per-subdriver data for the chip
+ */
+void *gpiochip_get_data(struct gpio_chip *chip)
+{
+	return chip->gpiodev->data;
+}
+EXPORT_SYMBOL_GPL(gpiochip_get_data);
+
+/**
  * gpiochip_remove() - unregister a gpio_chip
  * @chip: the chip to unregister
  *
@@ -626,6 +634,11 @@ void gpiochip_remove(struct gpio_chip *chip)
 	gpiochip_remove_pin_ranges(chip);
 	gpiochip_free_hogs(chip);
 	of_gpiochip_remove(chip);
+	/*
+	 * We accept no more calls into the driver from this point, so
+	 * NULL the driver data pointer
+	 */
+	gdev->data = NULL;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 	for (i = 0; i < gdev->ngpio; i++) {

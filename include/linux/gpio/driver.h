@@ -25,7 +25,6 @@ struct gpio_device;
  * @gpiodev: the internal state holder, opaque struct
  * @parent: optional parent device providing the GPIOs
  * @owner: helps prevent removal of modules exporting active GPIOs
- * @data: per-instance data assigned by the driver
  * @request: optional hook for chip-specific activation, such as
  *	enabling module power and clock; may sleep
  * @free: optional hook for chip-specific deactivation, such as
@@ -109,7 +108,6 @@ struct gpio_chip {
 	struct gpio_device	*gpiodev;
 	struct device		*parent;
 	struct module		*owner;
-	void			*data;
 
 	int			(*request)(struct gpio_chip *chip,
 						unsigned offset);
@@ -202,10 +200,7 @@ void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
 bool gpiochip_line_is_irq(struct gpio_chip *chip, unsigned int offset);
 
 /* get driver data */
-static inline void *gpiochip_get_data(struct gpio_chip *chip)
-{
-	return chip->data;
-}
+void *gpiochip_get_data(struct gpio_chip *chip);
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
