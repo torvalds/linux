@@ -1986,8 +1986,8 @@ static void srpt_release_channel_work(struct work_struct *w)
 	struct se_session *se_sess;
 
 	ch = container_of(w, struct srpt_rdma_ch, release_work);
-	pr_debug("ch = %p; ch->sess = %p; release_done = %p\n", ch, ch->sess,
-		 ch->release_done);
+	pr_debug("%s: %s-%d; release_done = %p\n", __func__, ch->sess_name,
+		 ch->qp->qp_num, ch->release_done);
 
 	sdev = ch->sport->sdev;
 	BUG_ON(!sdev);
@@ -2011,11 +2011,10 @@ static void srpt_release_channel_work(struct work_struct *w)
 			     ch->rsp_size, DMA_TO_DEVICE);
 
 	spin_lock_irq(&sdev->spinlock);
-	list_del(&ch->list);
-	spin_unlock_irq(&sdev->spinlock);
-
+	list_del_init(&ch->list);
 	if (ch->release_done)
 		complete(ch->release_done);
+	spin_unlock_irq(&sdev->spinlock);
 
 	wake_up(&sdev->ch_releaseQ);
 
@@ -3025,24 +3024,26 @@ static void srpt_release_cmd(struct se_cmd *se_cmd)
 static void srpt_close_session(struct se_session *se_sess)
 {
 	DECLARE_COMPLETION_ONSTACK(release_done);
-	struct srpt_rdma_ch *ch;
-	struct srpt_device *sdev;
-	unsigned long res;
+	struct srpt_rdma_ch *ch = se_sess->fabric_sess_ptr;
+	struct srpt_device *sdev = ch->sport->sdev;
+	bool wait;
 
-	ch = se_sess->fabric_sess_ptr;
-	WARN_ON(ch->sess != se_sess);
+	pr_debug("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
+		 ch->state);
 
-	pr_debug("ch %p state %d\n", ch, ch->state);
-
-	sdev = ch->sport->sdev;
 	spin_lock_irq(&sdev->spinlock);
 	BUG_ON(ch->release_done);
 	ch->release_done = &release_done;
+	wait = !list_empty(&ch->list);
 	__srpt_close_ch(ch);
 	spin_unlock_irq(&sdev->spinlock);
 
-	res = wait_for_completion_timeout(&release_done, 60 * HZ);
-	WARN_ON(res == 0);
+	if (!wait)
+		return;
+
+	while (wait_for_completion_timeout(&release_done, 180 * HZ) == 0)
+		pr_info("%s(%s-%d state %d): still waiting ...\n", __func__,
+			ch->sess_name, ch->qp->qp_num, ch->state);
 }
 
 /**
