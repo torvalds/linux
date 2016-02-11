@@ -227,8 +227,9 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 	/*
 	 * PCI_COMMAND_MEMORY must be enabled, otherwise we may not be able
 	 * to access the BARs where the MSI-X entries reside.
+	 * But VF devices are unique in which the PF needs to be checked.
 	 */
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	pci_read_config_word(pci_physfn(dev), PCI_COMMAND, &cmd);
 	if (dev->msi_enabled || !(cmd & PCI_COMMAND_MEMORY))
 		return -ENXIO;
 
