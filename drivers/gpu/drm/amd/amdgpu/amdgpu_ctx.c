@@ -34,15 +34,14 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 	ctx->adev = adev;
 	kref_init(&ctx->refcount);
 	spin_lock_init(&ctx->ring_lock);
-	ctx->fences = kzalloc(sizeof(struct fence *) * amdgpu_sched_jobs *
-			 AMDGPU_MAX_RINGS, GFP_KERNEL);
+	ctx->fences = kcalloc(amdgpu_sched_jobs * AMDGPU_MAX_RINGS,
+			      sizeof(struct fence*), GFP_KERNEL);
 	if (!ctx->fences)
 		return -ENOMEM;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		ctx->rings[i].sequence = 1;
-		ctx->rings[i].fences = (void *)ctx->fences + sizeof(struct fence *) *
-			amdgpu_sched_jobs * i;
+		ctx->rings[i].fences = &ctx->fences[amdgpu_sched_jobs * i];
 	}
 	/* create context entity for each ring */
 	for (i = 0; i < adev->num_rings; i++) {
@@ -192,18 +191,18 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 	id = args->in.ctx_id;
 
 	switch (args->in.op) {
-		case AMDGPU_CTX_OP_ALLOC_CTX:
-			r = amdgpu_ctx_alloc(adev, fpriv, &id);
-			args->out.alloc.ctx_id = id;
-			break;
-		case AMDGPU_CTX_OP_FREE_CTX:
-			r = amdgpu_ctx_free(fpriv, id);
-			break;
-		case AMDGPU_CTX_OP_QUERY_STATE:
-			r = amdgpu_ctx_query(adev, fpriv, id, &args->out);
-			break;
-		default:
-			return -EINVAL;
+	case AMDGPU_CTX_OP_ALLOC_CTX:
+		r = amdgpu_ctx_alloc(adev, fpriv, &id);
+		args->out.alloc.ctx_id = id;
+		break;
+	case AMDGPU_CTX_OP_FREE_CTX:
+		r = amdgpu_ctx_free(fpriv, id);
+		break;
+	case AMDGPU_CTX_OP_QUERY_STATE:
+		r = amdgpu_ctx_query(adev, fpriv, id, &args->out);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return r;
