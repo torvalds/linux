@@ -233,8 +233,10 @@ static inline void gov_clear_update_util(struct cpufreq_policy *policy)
 	synchronize_rcu();
 }
 
-static void gov_cancel_work(struct policy_dbs_info *policy_dbs)
+static void gov_cancel_work(struct cpufreq_policy *policy)
 {
+	struct policy_dbs_info *policy_dbs = policy->governor_data;
+
 	/* Tell dbs_update_util_handler() to skip queuing up work items. */
 	atomic_inc(&policy_dbs->work_count);
 	/*
@@ -331,6 +333,7 @@ static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *poli
 	if (!policy_dbs)
 		return NULL;
 
+	policy_dbs->policy = policy;
 	mutex_init(&policy_dbs->timer_mutex);
 	atomic_set(&policy_dbs->work_count, 0);
 	init_irq_work(&policy_dbs->irq_work, dbs_irq_work);
@@ -458,10 +461,6 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	int count;
 
-	/* State should be equivalent to INIT */
-	if (policy_dbs->policy)
-		return -EBUSY;
-
 	mutex_lock(&dbs_data->mutex);
 	list_del(&policy_dbs->list);
 	count = --dbs_data->usage_count;
@@ -497,10 +496,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	if (!policy->cur)
 		return -EINVAL;
 
-	/* State should be equivalent to INIT */
-	if (policy_dbs->policy)
-		return -EBUSY;
-
 	sampling_rate = dbs_data->sampling_rate;
 	ignore_nice = dbs_data->ignore_nice_load;
 
@@ -525,7 +520,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 		if (ignore_nice)
 			j_cdbs->prev_cpu_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 	}
-	policy_dbs->policy = policy;
 
 	if (gov->governor == GOV_CONSERVATIVE) {
 		struct cs_cpu_dbs_info_s *cs_dbs_info =
@@ -548,14 +542,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 
 static int cpufreq_governor_stop(struct cpufreq_policy *policy)
 {
-	struct policy_dbs_info *policy_dbs = policy->governor_data;
-
-	/* State should be equivalent to START */
-	if (!policy_dbs->policy)
-		return -EBUSY;
-
-	gov_cancel_work(policy_dbs);
-	policy_dbs->policy = NULL;
+	gov_cancel_work(policy);
 
 	return 0;
 }
@@ -563,10 +550,6 @@ static int cpufreq_governor_stop(struct cpufreq_policy *policy)
 static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
-
-	/* State should be equivalent to START */
-	if (!policy_dbs->policy)
-		return -EBUSY;
 
 	mutex_lock(&policy_dbs->timer_mutex);
 	if (policy->max < policy->cur)
