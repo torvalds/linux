@@ -179,6 +179,11 @@ static inline bool tegra_powergate_state(int id)
 	return (tegra_pmc_readl(PWRGATE_STATUS) & BIT(id)) != 0;
 }
 
+static inline bool tegra_powergate_is_valid(int id)
+{
+	return (pmc->soc && pmc->soc->powergates[id]);
+}
+
 /**
  * tegra_powergate_set() - set the state of a partition
  * @id: partition ID
@@ -206,7 +211,7 @@ static int tegra_powergate_set(unsigned int id, bool new_state)
  */
 int tegra_powergate_power_on(unsigned int id)
 {
-	if (!pmc->soc || id >= pmc->soc->num_powergates)
+	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
 
 	return tegra_powergate_set(id, true);
@@ -218,7 +223,7 @@ int tegra_powergate_power_on(unsigned int id)
  */
 int tegra_powergate_power_off(unsigned int id)
 {
-	if (!pmc->soc || id >= pmc->soc->num_powergates)
+	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
 
 	return tegra_powergate_set(id, false);
@@ -233,7 +238,7 @@ int tegra_powergate_is_powered(unsigned int id)
 {
 	int status;
 
-	if (!pmc->soc || id >= pmc->soc->num_powergates)
+	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
 
 	mutex_lock(&pmc->powergates_lock);
@@ -251,7 +256,7 @@ int tegra_powergate_remove_clamping(unsigned int id)
 {
 	u32 mask;
 
-	if (!pmc->soc || id >= pmc->soc->num_powergates)
+	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
 
 	mutex_lock(&pmc->powergates_lock);
