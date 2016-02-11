@@ -457,8 +457,8 @@ static int sunxi_pinctrl_gpio_get(struct gpio_chip *chip, unsigned offset)
 	struct sunxi_pinctrl *pctl = gpiochip_get_data(chip);
 	u32 reg = sunxi_data_reg(offset);
 	u8 index = sunxi_data_offset(offset);
-	u32 set_mux = pctl->desc->irq_read_needs_mux &&
-			test_bit(FLAG_USED_AS_IRQ, &chip->desc[offset].flags);
+	bool set_mux = pctl->desc->irq_read_needs_mux &&
+		gpiochip_line_is_irq(chip, offset);
 	u32 val;
 
 	if (set_mux)
