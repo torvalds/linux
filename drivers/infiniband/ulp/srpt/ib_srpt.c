@@ -2320,18 +2320,6 @@ static void srpt_cm_rtu_recv(struct ib_cm_id *cm_id)
 	}
 }
 
-static void srpt_cm_timewait_exit(struct ib_cm_id *cm_id)
-{
-	pr_info("Received IB TimeWait exit for cm_id %p.\n", cm_id);
-	srpt_drain_channel(cm_id);
-}
-
-static void srpt_cm_rep_error(struct ib_cm_id *cm_id)
-{
-	pr_info("Received IB REP error for cm_id %p.\n", cm_id);
-	srpt_drain_channel(cm_id);
-}
-
 /**
  * srpt_cm_dreq_recv() - Process reception of a DREQ message.
  */
@@ -2370,15 +2358,6 @@ static void srpt_cm_dreq_recv(struct ib_cm_id *cm_id)
 }
 
 /**
- * srpt_cm_drep_recv() - Process reception of a DREP message.
- */
-static void srpt_cm_drep_recv(struct ib_cm_id *cm_id)
-{
-	pr_info("Received InfiniBand DREP message for cm_id %p.\n", cm_id);
-	srpt_drain_channel(cm_id);
-}
-
-/**
  * srpt_cm_handler() - IB connection manager callback function.
  *
  * A non-zero return value will cause the caller destroy the CM ID.
@@ -2409,22 +2388,26 @@ static int srpt_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 		srpt_cm_dreq_recv(cm_id);
 		break;
 	case IB_CM_DREP_RECEIVED:
-		srpt_cm_drep_recv(cm_id);
+		pr_info("Received CM DREP message for cm_id %p.\n",
+			cm_id);
+		srpt_drain_channel(cm_id);
 		break;
 	case IB_CM_TIMEWAIT_EXIT:
-		srpt_cm_timewait_exit(cm_id);
+		pr_info("Received CM TimeWait exit for cm_id %p.\n", cm_id);
+		srpt_drain_channel(cm_id);
 		break;
 	case IB_CM_REP_ERROR:
-		srpt_cm_rep_error(cm_id);
+		pr_info("Received CM REP error for cm_id %p.\n", cm_id);
+		srpt_drain_channel(cm_id);
 		break;
 	case IB_CM_DREQ_ERROR:
-		pr_info("Received IB DREQ ERROR event.\n");
+		pr_info("Received CM DREQ ERROR event.\n");
 		break;
 	case IB_CM_MRA_RECEIVED:
-		pr_info("Received IB MRA event\n");
+		pr_info("Received CM MRA event\n");
 		break;
 	default:
-		pr_err("received unrecognized IB CM event %d\n", event->event);
+		pr_err("received unrecognized CM event %d\n", event->event);
 		break;
 	}
 
