@@ -306,6 +306,11 @@ struct media_entity_notify {
  * @entity_notify: List of registered entity_notify callbacks
  * @lock:	Entities list lock
  * @graph_mutex: Entities graph operation lock
+ *
+ * @source_priv: Driver Private data for enable/disable source handlers
+ * @enable_source: Enable Source Handler function pointer
+ * @disable_source: Disable Source Handler function pointer
+ *
  * @link_notify: Link state change notification callback
  *
  * This structure represents an abstract high-level media device. It allows easy
@@ -317,6 +322,26 @@ struct media_entity_notify {
  *
  * @model is a descriptive model name exported through sysfs. It doesn't have to
  * be unique.
+ *
+ * @enable_source is a handler to find source entity for the
+ * sink entity  and activate the link between them if source
+ * entity is free. Drivers should call this handler before
+ * accessing the source.
+ *
+ * @disable_source is a handler to find source entity for the
+ * sink entity  and deactivate the link between them. Drivers
+ * should call this handler to release the source.
+ *
+ * Note: Bridge driver is expected to implement and set the
+ * handler when media_device is registered or when
+ * bridge driver finds the media_device during probe.
+ * Bridge driver sets source_priv with information
+ * necessary to run enable/disable source handlers.
+ *
+ * Use-case: find tuner entity connected to the decoder
+ * entity and check if it is available, and activate the
+ * the link between them from enable_source and deactivate
+ * from disable_source.
  */
 struct media_device {
 	/* dev->driver_data points to this struct. */
@@ -348,6 +373,11 @@ struct media_device {
 	spinlock_t lock;
 	/* Serializes graph operations. */
 	struct mutex graph_mutex;
+
+	void *source_priv;
+	int (*enable_source)(struct media_entity *entity,
+			     struct media_pipeline *pipe);
+	void (*disable_source)(struct media_entity *entity);
 
 	int (*link_notify)(struct media_link *link, u32 flags,
 			   unsigned int notification);
