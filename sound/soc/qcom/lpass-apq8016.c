@@ -133,7 +133,8 @@ static struct snd_soc_dai_driver apq8016_lpass_cpu_dai_driver[] = {
 	},
 };
 
-static int apq8016_lpass_alloc_dma_channel(struct lpass_data *drvdata)
+static int apq8016_lpass_alloc_dma_channel(struct lpass_data *drvdata,
+					   int direction)
 {
 	struct lpass_variant *v = drvdata->variant;
 	int chan = find_first_zero_bit(&drvdata->rdma_ch_bit_map,

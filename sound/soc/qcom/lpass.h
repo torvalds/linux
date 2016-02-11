@@ -84,7 +84,7 @@ struct lpass_variant {
 	/* SOC specific intialization like clocks */
 	int (*init)(struct platform_device *pdev);
 	int (*exit)(struct platform_device *pdev);
-	int (*alloc_dma_channel)(struct lpass_data *data);
+	int (*alloc_dma_channel)(struct lpass_data *data, int direction);
 	int (*free_dma_channel)(struct lpass_data *data, int ch);
 
 	/* SOC specific dais */

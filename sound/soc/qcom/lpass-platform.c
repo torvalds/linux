@@ -457,7 +457,8 @@ static int lpass_platform_pcm_new(struct snd_soc_pcm_runtime *soc_runtime)
 		return -ENOMEM;
 
 	if (v->alloc_dma_channel)
-		data->rdma_ch = v->alloc_dma_channel(drvdata);
+		data->rdma_ch = v->alloc_dma_channel(drvdata,
+						SNDRV_PCM_STREAM_PLAYBACK);
 
 	if (IS_ERR_VALUE(data->rdma_ch))
 		return data->rdma_ch;
