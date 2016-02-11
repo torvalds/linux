@@ -237,13 +237,14 @@ ENDPROC(copy_user_enhanced_fast_string)
  * Note: Cached memory copy is used when destination or size is not
  * naturally aligned. That is:
  *  - Require 8-byte alignment when size is 8 bytes or larger.
+ *  - Require 4-byte alignment when size is 4 bytes.
  */
 ENTRY(__copy_user_nocache)
 	ASM_STAC
 
-	/* If size is less than 8 bytes, go to byte copy */
+	/* If size is less than 8 bytes, go to 4-byte copy */
 	cmpl $8,%edx
-	jb .L_1b_cache_copy_entry
+	jb .L_4b_nocache_copy_entry
 
 	/* If destination is not 8-byte aligned, "cache" copy to align it */
 	ALIGN_DESTINATION
@@ -282,7 +283,7 @@ ENTRY(__copy_user_nocache)
 	movl %edx,%ecx
 	andl $7,%edx
 	shrl $3,%ecx
-	jz .L_1b_cache_copy_entry	/* jump if count is 0 */
+	jz .L_4b_nocache_copy_entry	/* jump if count is 0 */
 
 	/* Perform 8-byte nocache loop-copy */
 .L_8b_nocache_copy_loop:
@@ -294,11 +295,33 @@ ENTRY(__copy_user_nocache)
 	jnz .L_8b_nocache_copy_loop
 
 	/* If no byte left, we're done */
-.L_1b_cache_copy_entry:
+.L_4b_nocache_copy_entry:
+	andl %edx,%edx
+	jz .L_finish_copy
+
+	/* If destination is not 4-byte aligned, go to byte copy: */
+	movl %edi,%ecx
+	andl $3,%ecx
+	jnz .L_1b_cache_copy_entry
+
+	/* Set 4-byte copy count (1 or 0) and remainder */
+	movl %edx,%ecx
+	andl $3,%edx
+	shrl $2,%ecx
+	jz .L_1b_cache_copy_entry	/* jump if count is 0 */
+
+	/* Perform 4-byte nocache copy: */
+30:	movl (%rsi),%r8d
+31:	movnti %r8d,(%rdi)
+	leaq 4(%rsi),%rsi
+	leaq 4(%rdi),%rdi
+
+	/* If no bytes left, we're done: */
 	andl %edx,%edx
 	jz .L_finish_copy
 
 	/* Perform byte "cache" loop-copy for the remainder */
+.L_1b_cache_copy_entry:
 	movl %edx,%ecx
 .L_1b_cache_copy_loop:
 40:	movb (%rsi),%al
@@ -322,6 +345,9 @@ ENTRY(__copy_user_nocache)
 	jmp .L_fixup_handle_tail
 .L_fixup_8b_copy:
 	lea (%rdx,%rcx,8),%rdx
+	jmp .L_fixup_handle_tail
+.L_fixup_4b_copy:
+	lea (%rdx,%rcx,4),%rdx
 	jmp .L_fixup_handle_tail
 .L_fixup_1b_copy:
 	movl %ecx,%edx
@@ -348,6 +374,8 @@ ENTRY(__copy_user_nocache)
 	_ASM_EXTABLE(16b,.L_fixup_4x8b_copy)
 	_ASM_EXTABLE(20b,.L_fixup_8b_copy)
 	_ASM_EXTABLE(21b,.L_fixup_8b_copy)
+	_ASM_EXTABLE(30b,.L_fixup_4b_copy)
+	_ASM_EXTABLE(31b,.L_fixup_4b_copy)
 	_ASM_EXTABLE(40b,.L_fixup_1b_copy)
 	_ASM_EXTABLE(41b,.L_fixup_1b_copy)
 ENDPROC(__copy_user_nocache)
