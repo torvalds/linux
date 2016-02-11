@@ -235,7 +235,10 @@ int tegra_powergate_is_powered(int id)
 	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
 		return -EINVAL;
 
+	mutex_lock(&pmc->powergates_lock);
 	status = tegra_pmc_readl(PWRGATE_STATUS) & (1 << id);
+	mutex_unlock(&pmc->powergates_lock);
+
 	return !!status;
 }
 
@@ -250,6 +253,8 @@ int tegra_powergate_remove_clamping(int id)
 	if (!pmc->soc || id < 0 || id >= pmc->soc->num_powergates)
 		return -EINVAL;
 
+	mutex_lock(&pmc->powergates_lock);
+
 	/*
 	 * On Tegra124 and later, the clamps for the GPU are controlled by a
 	 * separate register (with different semantics).
@@ -257,7 +262,7 @@ int tegra_powergate_remove_clamping(int id)
 	if (id == TEGRA_POWERGATE_3D) {
 		if (pmc->soc->has_gpu_clamps) {
 			tegra_pmc_writel(0, GPU_RG_CNTRL);
-			return 0;
+			goto out;
 		}
 	}
 
@@ -273,6 +278,9 @@ int tegra_powergate_remove_clamping(int id)
 		mask = (1 << id);
 
 	tegra_pmc_writel(mask, REMOVE_CLAMPING);
+
+out:
+	mutex_unlock(&pmc->powergates_lock);
 
 	return 0;
 }
@@ -520,9 +528,11 @@ int tegra_io_rail_power_on(int id)
 	unsigned int bit, mask;
 	int err;
 
+	mutex_lock(&pmc->powergates_lock);
+
 	err = tegra_io_rail_prepare(id, &request, &status, &bit);
-	if (err < 0)
-		return err;
+	if (err)
+		goto error;
 
 	mask = 1 << bit;
 
@@ -533,14 +543,17 @@ int tegra_io_rail_power_on(int id)
 	tegra_pmc_writel(value, request);
 
 	err = tegra_io_rail_poll(status, mask, 0, 250);
-	if (err < 0) {
+	if (err) {
 		pr_info("tegra_io_rail_poll() failed: %d\n", err);
-		return err;
+		goto error;
 	}
 
 	tegra_io_rail_unprepare();
 
-	return 0;
+error:
+	mutex_unlock(&pmc->powergates_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(tegra_io_rail_power_on);
 
@@ -550,10 +563,12 @@ int tegra_io_rail_power_off(int id)
 	unsigned int bit, mask;
 	int err;
 
+	mutex_lock(&pmc->powergates_lock);
+
 	err = tegra_io_rail_prepare(id, &request, &status, &bit);
-	if (err < 0) {
+	if (err) {
 		pr_info("tegra_io_rail_prepare() failed: %d\n", err);
-		return err;
+		goto error;
 	}
 
 	mask = 1 << bit;
@@ -565,12 +580,15 @@ int tegra_io_rail_power_off(int id)
 	tegra_pmc_writel(value, request);
 
 	err = tegra_io_rail_poll(status, mask, mask, 250);
-	if (err < 0)
-		return err;
+	if (err)
+		goto error;
 
 	tegra_io_rail_unprepare();
 
-	return 0;
+error:
+	mutex_unlock(&pmc->powergates_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(tegra_io_rail_power_off);
 
@@ -807,7 +825,7 @@ out:
 
 static int tegra_pmc_probe(struct platform_device *pdev)
 {
-	void __iomem *base, *tmp;
+	void __iomem *base;
 	struct resource *res;
 	int err;
 
@@ -848,9 +866,10 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tmp = pmc->base;
+	mutex_lock(&pmc->powergates_lock);
+	iounmap(pmc->base);
 	pmc->base = base;
-	iounmap(tmp);
+	mutex_unlock(&pmc->powergates_lock);
 
 	return 0;
 }
