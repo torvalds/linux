@@ -210,7 +210,7 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 	struct urb *urb;
 
 	urb = rcb->urb;
-	if (rcb->skb == NULL) {
+	if (!rcb->skb) {
 		dev_dbg(&priv->usb->dev, "rcb->skb is null\n");
 		return status;
 	}

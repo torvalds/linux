@@ -431,7 +431,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
 								GFP_KERNEL);
-		if (tx_context == NULL)
+		if (!tx_context)
 			goto free_tx;
 
 		priv->tx_context[ii] = tx_context;
@@ -462,13 +462,13 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 
 		/* allocate URBs */
 		rcb->urb = usb_alloc_urb(0, GFP_ATOMIC);
-		if (rcb->urb == NULL) {
+		if (!rcb->urb) {
 			dev_err(&priv->usb->dev, "Failed to alloc rx urb\n");
 			goto free_rx_tx;
 		}
 
 		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
-		if (rcb->skb == NULL)
+		if (!rcb->skb)
 			goto free_rx_tx;
 
 		rcb->in_use = false;
@@ -479,13 +479,13 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 	}
 
 	priv->interrupt_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (priv->interrupt_urb == NULL) {
+	if (!priv->interrupt_urb) {
 		dev_err(&priv->usb->dev, "Failed to alloc int urb\n");
 		goto free_rx_tx;
 	}
 
 	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
-	if (priv->int_buf.data_buf == NULL) {
+	if (!priv->int_buf.data_buf) {
 		usb_free_urb(priv->interrupt_urb);
 		goto free_rx_tx;
 	}
