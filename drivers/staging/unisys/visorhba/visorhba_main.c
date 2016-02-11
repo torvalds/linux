@@ -1062,7 +1062,7 @@ static int visorhba_resume(struct visor_device *dev,
 		return -EINVAL;
 
 	if (devdata->serverdown && !devdata->serverchangingstate)
-		devdata->serverchangingstate = 1;
+		devdata->serverchangingstate = true;
 
 	visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
 			   devdata, "vhba_incming");
