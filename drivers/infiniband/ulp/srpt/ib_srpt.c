@@ -109,16 +109,6 @@ enum dma_data_direction opposite_dma_dir(enum dma_data_direction dir)
 	}
 }
 
-/**
- * srpt_sdev_name() - Return the name associated with the HCA.
- *
- * Examples are ib0, ib1, ...
- */
-static inline const char *srpt_sdev_name(struct srpt_device *sdev)
-{
-	return sdev->device->name;
-}
-
 static enum rdma_ch_state srpt_get_ch_state(struct srpt_rdma_ch *ch)
 {
 	unsigned long flags;
@@ -182,7 +172,7 @@ static void srpt_event_handler(struct ib_event_handler *handler,
 		return;
 
 	pr_debug("ASYNC event= %d on device= %s\n", event->event,
-		 srpt_sdev_name(sdev));
+		 sdev->device->name);
 
 	switch (event->event) {
 	case IB_EVENT_PORT_ERR:
@@ -3025,7 +3015,7 @@ static void srpt_add_one(struct ib_device *device)
 
 		if (srpt_refresh_port(sport)) {
 			pr_err("MAD registration failed for %s-%d.\n",
-			       srpt_sdev_name(sdev), i);
+			       sdev->device->name, i);
 			goto err_ring;
 		}
 		snprintf(sport->port_guid, sizeof(sport->port_guid),
