@@ -1063,16 +1063,6 @@ static void sh_mmcif_clk_setup(struct sh_mmcif_host *host)
 		host->mmc->f_max, host->mmc->f_min);
 }
 
-static void sh_mmcif_set_power(struct sh_mmcif_host *host, struct mmc_ios *ios)
-{
-	struct mmc_host *mmc = host->mmc;
-
-	if (!IS_ERR(mmc->supply.vmmc))
-		/* Errors ignored... */
-		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc,
-				      ios->power_mode ? ios->vdd : 0);
-}
-
 static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sh_mmcif_host *host = mmc_priv(mmc);
@@ -1092,7 +1082,8 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
-		sh_mmcif_set_power(host, ios);
+		if (!IS_ERR(mmc->supply.vmmc))
+			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
 		if (!host->power) {
 			clk_prepare_enable(host->clk);
 			pm_runtime_get_sync(dev);
@@ -1102,7 +1093,8 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 		break;
 	case MMC_POWER_OFF:
-		sh_mmcif_set_power(host, ios);
+		if (!IS_ERR(mmc->supply.vmmc))
+			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
 		if (host->power) {
 			sh_mmcif_clock_control(host, 0);
 			sh_mmcif_release_dma(host);
