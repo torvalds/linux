@@ -60,6 +60,7 @@ enum rc_filter_type {
 /**
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
+ * @initialized: true if the device init has completed
  * @sysfs_groups: sysfs attribute groups
  * @input_name: name of the input child device
  * @input_phys: physical path to the input child device
@@ -121,6 +122,7 @@ enum rc_filter_type {
  */
 struct rc_dev {
 	struct device			dev;
+	bool				initialized;
 	const struct attribute_group	*sysfs_groups[5];
 	const char			*input_name;
 	const char			*input_phys;

@@ -723,12 +723,18 @@ int rc_open(struct rc_dev *rdev)
 		return -EINVAL;
 
 	mutex_lock(&rdev->lock);
+	if (!rdev->initialized) {
+		rval = -EINVAL;
+		goto unlock;
+	}
+
 	if (!rdev->users++ && rdev->open != NULL)
 		rval = rdev->open(rdev);
 
 	if (rval)
 		rdev->users--;
 
+unlock:
 	mutex_unlock(&rdev->lock);
 
 	return rval;
@@ -874,6 +880,10 @@ static ssize_t show_protocols(struct device *device,
 		return -EINVAL;
 
 	mutex_lock(&dev->lock);
+	if (!dev->initialized) {
+		mutex_unlock(&dev->lock);
+		return -EINVAL;
+	}
 
 	if (fattr->type == RC_FILTER_NORMAL) {
 		enabled = dev->enabled_protocols;
@@ -1074,6 +1084,10 @@ static ssize_t store_protocols(struct device *device,
 	}
 
 	mutex_lock(&dev->lock);
+	if (!dev->initialized) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	old_protocols = *current_protocols;
 	new_protocols = old_protocols;
@@ -1154,12 +1168,17 @@ static ssize_t show_filter(struct device *device,
 	if (!dev)
 		return -EINVAL;
 
+	mutex_lock(&dev->lock);
+	if (!dev->initialized) {
+		mutex_unlock(&dev->lock);
+		return -EINVAL;
+	}
+
 	if (fattr->type == RC_FILTER_NORMAL)
 		filter = &dev->scancode_filter;
 	else
 		filter = &dev->scancode_wakeup_filter;
 
-	mutex_lock(&dev->lock);
 	if (fattr->mask)
 		val = filter->mask;
 	else
@@ -1222,6 +1241,10 @@ static ssize_t store_filter(struct device *device,
 		return -EINVAL;
 
 	mutex_lock(&dev->lock);
+	if (!dev->initialized) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 
 	new_filter = *filter;
 	if (fattr->mask)
@@ -1419,14 +1442,6 @@ int rc_register_device(struct rc_dev *dev)
 		dev->sysfs_groups[attr++] = &rc_dev_wakeup_protocol_attr_grp;
 	dev->sysfs_groups[attr++] = NULL;
 
-	/*
-	 * Take the lock here, as the device sysfs node will appear
-	 * when device_add() is called, which may trigger an ir-keytable udev
-	 * rule, which will in turn call show_protocols and access
-	 * dev->enabled_protocols before it has been initialized.
-	 */
-	mutex_lock(&dev->lock);
-
 	rc = device_add(&dev->dev);
 	if (rc)
 		goto out_unlock;
@@ -1440,13 +1455,7 @@ int rc_register_device(struct rc_dev *dev)
 	dev->input_dev->phys = dev->input_phys;
 	dev->input_dev->name = dev->input_name;
 
-	/* input_register_device can call ir_open, so unlock mutex here */
-	mutex_unlock(&dev->lock);
-
 	rc = input_register_device(dev->input_dev);
-
-	mutex_lock(&dev->lock);
-
 	if (rc)
 		goto out_table;
 
@@ -1475,10 +1484,7 @@ int rc_register_device(struct rc_dev *dev)
 			request_module_nowait("ir-lirc-codec");
 			raw_init = true;
 		}
-		/* calls ir_register_device so unlock mutex here*/
-		mutex_unlock(&dev->lock);
 		rc = ir_raw_event_register(dev);
-		mutex_lock(&dev->lock);
 		if (rc < 0)
 			goto out_input;
 	}
@@ -1491,6 +1497,8 @@ int rc_register_device(struct rc_dev *dev)
 		dev->enabled_protocols = rc_type;
 	}
 
+	mutex_lock(&dev->lock);
+	dev->initialized = true;
 	mutex_unlock(&dev->lock);
 
 	IR_dprintk(1, "Registered rc%u (driver: %s, remote: %s, mode %s)\n",
@@ -1512,7 +1520,6 @@ out_table:
 out_dev:
 	device_del(&dev->dev);
 out_unlock:
-	mutex_unlock(&dev->lock);
 	ida_simple_remove(&rc_ida, minor);
 	return rc;
 }
