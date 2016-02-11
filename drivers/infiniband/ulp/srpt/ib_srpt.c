@@ -1730,6 +1730,28 @@ static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	}
 }
 
+/*
+ * This function must be called from the context in which RDMA completions are
+ * processed because it accesses the wait list without protection against
+ * access from other threads.
+ */
+static void srpt_process_wait_list(struct srpt_rdma_ch *ch)
+{
+	struct srpt_send_ioctx *ioctx;
+
+	while (!list_empty(&ch->cmd_wait_list) &&
+	       ch->state >= CH_LIVE &&
+	       (ioctx = srpt_get_send_ioctx(ch)) != NULL) {
+		struct srpt_recv_ioctx *recv_ioctx;
+
+		recv_ioctx = list_first_entry(&ch->cmd_wait_list,
+					      struct srpt_recv_ioctx,
+					      wait_list);
+		list_del(&recv_ioctx->wait_list);
+		srpt_handle_new_iu(ch, recv_ioctx, ioctx);
+	}
+}
+
 /**
  * Note: Although this has not yet been observed during tests, at least in
  * theory it is possible that the srpt_get_send_ioctx() call invoked by
@@ -1769,17 +1791,7 @@ static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc)
 		       " wr_id = %u.\n", ioctx->ioctx.index);
 	}
 
-	while (!list_empty(&ch->cmd_wait_list) &&
-	       ch->state == CH_LIVE &&
-	       (ioctx = srpt_get_send_ioctx(ch)) != NULL) {
-		struct srpt_recv_ioctx *recv_ioctx;
-
-		recv_ioctx = list_first_entry(&ch->cmd_wait_list,
-					      struct srpt_recv_ioctx,
-					      wait_list);
-		list_del(&recv_ioctx->wait_list);
-		srpt_handle_new_iu(ch, recv_ioctx, ioctx);
-	}
+	srpt_process_wait_list(ch);
 }
 
 /**
@@ -2310,15 +2322,9 @@ static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
 	int ret;
 
 	if (srpt_set_ch_state(ch, CH_LIVE)) {
-		struct srpt_recv_ioctx *ioctx, *ioctx_tmp;
-
 		ret = srpt_ch_qp_rts(ch, ch->qp);
 
-		list_for_each_entry_safe(ioctx, ioctx_tmp, &ch->cmd_wait_list,
-					 wait_list) {
-			list_del(&ioctx->wait_list);
-			srpt_handle_new_iu(ch, ioctx, NULL);
-		}
+		srpt_process_wait_list(ch);
 		if (ret)
 			srpt_close_ch(ch);
 	}
