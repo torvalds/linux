@@ -96,7 +96,7 @@ static void srpt_free_ch(struct kref *kref);
 static int srpt_queue_status(struct se_cmd *cmd);
 static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc);
-static void srpt_zerolength_write_done(struct ib_cq *cq, struct ib_wc *wc);
+static void srpt_process_wait_list(struct srpt_rdma_ch *ch);
 
 /*
  * The only allowed channel state changes are those that change the channel
@@ -833,12 +833,14 @@ static void srpt_zerolength_write_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct srpt_rdma_ch *ch = cq->cq_context;
 
-	WARN(wc->status == IB_WC_SUCCESS, "%s-%d: QP not in error state\n",
-	     ch->sess_name, ch->qp->qp_num);
-	if (srpt_set_ch_state(ch, CH_DISCONNECTED))
-		schedule_work(&ch->release_work);
-	else
-		WARN_ONCE("%s-%d\n", ch->sess_name, ch->qp->qp_num);
+	if (wc->status == IB_WC_SUCCESS) {
+		srpt_process_wait_list(ch);
+	} else {
+		if (srpt_set_ch_state(ch, CH_DISCONNECTED))
+			schedule_work(&ch->release_work);
+		else
+			WARN_ONCE("%s-%d\n", ch->sess_name, ch->qp->qp_num);
+	}
 }
 
 /**
@@ -2324,9 +2326,13 @@ static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
 	if (srpt_set_ch_state(ch, CH_LIVE)) {
 		ret = srpt_ch_qp_rts(ch, ch->qp);
 
-		srpt_process_wait_list(ch);
-		if (ret)
+		if (ret == 0) {
+			/* Trigger wait list processing. */
+			ret = srpt_zerolength_write(ch);
+			WARN_ONCE(ret < 0, "%d\n", ret);
+		} else {
 			srpt_close_ch(ch);
+		}
 	}
 }
 
