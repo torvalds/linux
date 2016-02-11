@@ -157,6 +157,7 @@ struct kvm_s390_skeys {
 
 struct kvm_hyperv_exit {
 #define KVM_EXIT_HYPERV_SYNIC          1
+#define KVM_EXIT_HYPERV_HCALL          2
 	__u32 type;
 	union {
 		struct {
@@ -165,6 +166,11 @@ struct kvm_hyperv_exit {
 			__u64 evt_page;
 			__u64 msg_page;
 		} synic;
+		struct {
+			__u64 input;
+			__u64 result;
+			__u64 params[2];
+		} hcall;
 	} u;
 };
 
