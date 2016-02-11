@@ -1472,18 +1472,13 @@ static char _rtl8812ae_phy_get_chnl_idx_of_txpwr_lmt(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	char channel_index = -1;
-	u8 channel_5g[CHANNEL_MAX_NUMBER_5G] = {
-		36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64,
-		100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122,
-		124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 149,
-		151, 153, 155, 157, 159, 161, 163, 165, 167, 168, 169, 171,
-		173, 175, 177};
 	u8  i = 0;
+
 	if (band == BAND_ON_2_4G)
 		channel_index = channel - 1;
 	else if (band == BAND_ON_5G) {
-		for (i = 0; i < sizeof(channel_5g)/sizeof(u8); ++i) {
-			if (channel_5g[i] == channel)
+		for (i = 0; i < sizeof(channel5g)/sizeof(u8); ++i) {
+			if (channel5g[i] == channel)
 				channel_index = i;
 		}
 	} else
@@ -2240,13 +2235,6 @@ void rtl8821ae_phy_get_txpower_level(struct ieee80211_hw *hw, long *powerlevel)
 
 static bool _rtl8821ae_phy_get_chnl_index(u8 channel, u8 *chnl_index)
 {
-	u8 channel_5g[CHANNEL_MAX_NUMBER_5G] = {
-		36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62,
-		64, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118,
-		120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140,
-		142, 144, 149, 151, 153, 155, 157, 159, 161, 163, 165,
-		167, 168, 169, 171, 173, 175, 177
-	};
 	u8 i = 0;
 	bool in_24g = true;
 
@@ -2257,7 +2245,7 @@ static bool _rtl8821ae_phy_get_chnl_index(u8 channel, u8 *chnl_index)
 		in_24g = false;
 
 		for (i = 0; i < CHANNEL_MAX_NUMBER_5G; ++i) {
-			if (channel_5g[i] == channel) {
+			if (channel5g[i] == channel) {
 				*chnl_index = i;
 				return in_24g;
 			}
@@ -2728,13 +2716,10 @@ static u8 _rtl8821ae_get_txpower_index(struct ieee80211_hw *hw, u8 path,
 			     rate <= DESC_RATEVHT2SS_MCS9))
 				txpower += rtlefuse->txpwr_5g_bw40diff[path][TX_2S];
 		} else if (bandwidth == HT_CHANNEL_WIDTH_80) {
-			u8 channel_5g_80m[CHANNEL_MAX_NUMBER_5G_80M] = {
-				42, 58, 106, 122, 138, 155, 171
-			};
 			u8 i;
 
-			for (i = 0; i < sizeof(channel_5g_80m) / sizeof(u8); ++i)
-				if (channel_5g_80m[i] == channel)
+			for (i = 0; i < sizeof(channel5g_80m) / sizeof(u8); ++i)
+				if (channel5g_80m[i] == channel)
 					index = i;
 
 			if ((DESC_RATEMCS0 <= rate && rate <= DESC_RATEMCS15) ||
