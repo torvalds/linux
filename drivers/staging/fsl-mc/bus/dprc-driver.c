@@ -129,7 +129,7 @@ static void check_plugged_state_change(struct fsl_mc_device *mc_dev,
 {
 	int error;
 	u32 plugged_flag_at_mc =
-			(obj_desc->state & DPRC_OBJ_STATE_PLUGGED);
+			obj_desc->state & DPRC_OBJ_STATE_PLUGGED;
 
 	if (plugged_flag_at_mc !=
 	    (mc_dev->obj_desc.state & DPRC_OBJ_STATE_PLUGGED)) {
