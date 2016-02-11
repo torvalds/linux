@@ -51,6 +51,18 @@ union srp_iu {
 	u8 reserved[SRP_MAX_IU_LEN];
 };
 
+enum viosrp_crq_headers {
+	VIOSRP_CRQ_FREE = 0x00,
+	VIOSRP_CRQ_CMD_RSP = 0x80,
+	VIOSRP_CRQ_INIT_RSP = 0xC0,
+	VIOSRP_CRQ_XPORT_EVENT = 0xFF
+};
+
+enum viosrp_crq_init_formats {
+	VIOSRP_CRQ_INIT = 0x01,
+	VIOSRP_CRQ_INIT_COMPLETE = 0x02
+};
+
 enum viosrp_crq_formats {
 	VIOSRP_SRP_FORMAT = 0x01,
 	VIOSRP_MAD_FORMAT = 0x02,
