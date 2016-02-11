@@ -232,6 +232,203 @@ static void au0828_media_graph_notify(struct media_entity *new,
 #endif
 }
 
+static int au0828_enable_source(struct media_entity *entity,
+				struct media_pipeline *pipe)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_entity  *source, *find_source;
+	struct media_entity *sink;
+	struct media_link *link, *found_link = NULL;
+	int ret = 0;
+	struct media_device *mdev = entity->graph_obj.mdev;
+	struct au0828_dev *dev;
+
+	if (!mdev)
+		return -ENODEV;
+
+	mutex_lock(&mdev->graph_mutex);
+
+	dev = mdev->source_priv;
+
+	/*
+	 * For Audio and V4L2 entity, find the link to which decoder
+	 * is the sink. Look for an active link between decoder and
+	 * source (tuner/s-video/Composite), if one exists, nothing
+	 * to do. If not, look for any  active links between source
+	 * and any other entity. If one exists, source is busy. If
+	 * source is free, setup link and start pipeline from source.
+	 * For DVB FE entity, the source for the link is the tuner.
+	 * Check if tuner is available and setup link and start
+	 * pipeline.
+	*/
+	if (entity->function == MEDIA_ENT_F_DTV_DEMOD) {
+		sink = entity;
+		find_source = dev->tuner;
+	} else {
+		/* Analog isn't configured or register failed */
+		if (!dev->decoder) {
+			ret = -ENODEV;
+			goto end;
+		}
+
+		sink = dev->decoder;
+
+		/*
+		 * Default input is tuner and default input_type
+		 * is AU0828_VMUX_TELEVISION.
+		 * FIXME:
+		 * There is a problem when s_input is called to
+		 * change the default input. s_input will try to
+		 * enable_source before attempting to change the
+		 * input on the device, and will end up enabling
+		 * default source which is tuner.
+		 *
+		 * Additional logic is necessary in au0828
+		 * to detect that the input has changed and
+		 * enable the right source.
+		*/
+
+		if (dev->input_type == AU0828_VMUX_TELEVISION)
+			find_source = dev->tuner;
+		else if (dev->input_type == AU0828_VMUX_SVIDEO ||
+			 dev->input_type == AU0828_VMUX_COMPOSITE)
+			find_source = &dev->input_ent[dev->input_type];
+		else {
+			/* unknown input - let user select input */
+			ret = 0;
+			goto end;
+		}
+	}
+
+	/* Is an active link between sink and source */
+	if (dev->active_link) {
+		/*
+		 * If DVB is using the tuner and calling entity is
+		 * audio/video, the following check will be false,
+		 * since sink is different. Result is Busy.
+		 */
+		if (dev->active_link->sink->entity == sink &&
+		    dev->active_link->source->entity == find_source) {
+			/*
+			 * Either ALSA or Video own tuner. sink is
+			 * the same for both. Prevent Video stepping
+			 * on ALSA when ALSA owns the source.
+			*/
+			if (dev->active_link_owner != entity &&
+			    dev->active_link_owner->function ==
+						MEDIA_ENT_F_AUDIO_CAPTURE) {
+				pr_debug("ALSA has the tuner\n");
+				ret = -EBUSY;
+				goto end;
+			}
+			ret = 0;
+			goto end;
+		} else {
+			ret = -EBUSY;
+			goto end;
+		}
+	}
+
+	list_for_each_entry(link, &sink->links, list) {
+		/* Check sink, and source */
+		if (link->sink->entity == sink &&
+		    link->source->entity == find_source) {
+			found_link = link;
+			break;
+		}
+	}
+
+	if (!found_link) {
+		ret = -ENODEV;
+		goto end;
+	}
+
+	/* activate link between source and sink and start pipeline */
+	source = found_link->source->entity;
+	ret = __media_entity_setup_link(found_link, MEDIA_LNK_FL_ENABLED);
+	if (ret) {
+		pr_err("Activate tuner link %s->%s. Error %d\n",
+			source->name, sink->name, ret);
+		goto end;
+	}
+
+	ret = __media_entity_pipeline_start(entity, pipe);
+	if (ret) {
+		pr_err("Start Pipeline: %s->%s Error %d\n",
+			source->name, entity->name, ret);
+		ret = __media_entity_setup_link(found_link, 0);
+		pr_err("Deactivate link Error %d\n", ret);
+		goto end;
+	}
+	/*
+	 * save active link and active link owner to avoid audio
+	 * deactivating video owned link from disable_source and
+	 * vice versa
+	*/
+	dev->active_link = found_link;
+	dev->active_link_owner = entity;
+	dev->active_source = source;
+	dev->active_sink = sink;
+
+	pr_debug("Enabled Source: %s->%s->%s Ret %d\n",
+		 dev->active_source->name, dev->active_sink->name,
+		 dev->active_link_owner->name, ret);
+end:
+	mutex_unlock(&mdev->graph_mutex);
+	pr_debug("au0828_enable_source() end %s %d %d\n",
+		 entity->name, entity->function, ret);
+	return ret;
+#endif
+	return 0;
+}
+
+static void au0828_disable_source(struct media_entity *entity)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	int ret = 0;
+	struct media_device *mdev = entity->graph_obj.mdev;
+	struct au0828_dev *dev;
+
+	if (!mdev)
+		return;
+
+	mutex_lock(&mdev->graph_mutex);
+	dev = mdev->source_priv;
+
+	if (!dev->active_link) {
+		ret = -ENODEV;
+		goto end;
+	}
+
+	/* link is active - stop pipeline from source (tuner) */
+	if (dev->active_link->sink->entity == dev->active_sink &&
+	    dev->active_link->source->entity == dev->active_source) {
+		/*
+		 * prevent video from deactivating link when audio
+		 * has active pipeline
+		*/
+		if (dev->active_link_owner != entity)
+			goto end;
+		__media_entity_pipeline_stop(entity);
+		ret = __media_entity_setup_link(dev->active_link, 0);
+		if (ret)
+			pr_err("Deactivate link Error %d\n", ret);
+
+		pr_debug("Disabled Source: %s->%s->%s Ret %d\n",
+			 dev->active_source->name, dev->active_sink->name,
+			 dev->active_link_owner->name, ret);
+
+		dev->active_link = NULL;
+		dev->active_link_owner = NULL;
+		dev->active_source = NULL;
+		dev->active_sink = NULL;
+	}
+
+end:
+	mutex_unlock(&mdev->graph_mutex);
+#endif
+}
+
 static int au0828_media_device_register(struct au0828_dev *dev,
 					struct usb_device *udev)
 {
@@ -262,6 +459,10 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 			ret);
 		return ret;
 	}
+	/* set enable_source */
+	dev->media_dev->source_priv = (void *) dev;
+	dev->media_dev->enable_source = au0828_enable_source;
+	dev->media_dev->disable_source = au0828_disable_source;
 #endif
 	return 0;
 }
