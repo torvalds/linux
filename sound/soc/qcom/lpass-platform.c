@@ -91,7 +91,7 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels = params_channels(params);
 	unsigned int regval;
 	int bitwidth;
-	int ret, rdma_port = pcm_data->i2s_port + v->rdmactl_audif_start;
+	int ret, dma_port = pcm_data->i2s_port + v->dmactl_audif_start;
 
 	bitwidth = snd_pcm_format_width(format);
 	if (bitwidth < 0) {
@@ -101,7 +101,7 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	regval = LPAIF_RDMACTL_BURSTEN_INCR4 |
-			LPAIF_RDMACTL_AUDINTF(rdma_port) |
+			LPAIF_RDMACTL_AUDINTF(dma_port) |
 			LPAIF_RDMACTL_FIFOWM_8;
 
 	switch (bitwidth) {
