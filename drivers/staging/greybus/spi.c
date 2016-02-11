@@ -218,7 +218,8 @@ static int gb_spi_transfer_one_message(struct spi_master *master,
 		if (response)
 			gb_spi_decode_response(msg, response);
 	} else {
-		pr_err("transfer operation failed (%d)\n", ret);
+		dev_err(&connection->bundle->dev,
+				"transfer operation failed: %d\n", ret);
 	}
 
 	gb_operation_put(operation);
