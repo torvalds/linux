@@ -72,21 +72,21 @@ struct media_device_info {
 #define MEDIA_ENT_F_DTV_NET_DECAP	(MEDIA_ENT_F_BASE + 4)
 
 /*
+ * I/O entities
+ */
+#define MEDIA_ENT_F_IO_DTV		(MEDIA_ENT_F_BASE + 1001)
+#define MEDIA_ENT_F_IO_VBI		(MEDIA_ENT_F_BASE + 1002)
+#define MEDIA_ENT_F_IO_SWRADIO		(MEDIA_ENT_F_BASE + 1003)
+
+/*
  * Connectors
  */
 /* It is a responsibility of the entity drivers to add connectors and links */
-#define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 21)
-#define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 22)
-#define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 23)
+#define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 10001)
+#define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 10002)
+#define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 10003)
 /* For internal test signal generators and other debug connectors */
-#define MEDIA_ENT_F_CONN_TEST		(MEDIA_ENT_F_BASE + 24)
-
-/*
- * I/O entities
- */
-#define MEDIA_ENT_F_IO_DTV  		(MEDIA_ENT_F_BASE + 31)
-#define MEDIA_ENT_F_IO_VBI  		(MEDIA_ENT_F_BASE + 32)
-#define MEDIA_ENT_F_IO_SWRADIO		(MEDIA_ENT_F_BASE + 33)
+#define MEDIA_ENT_F_CONN_TEST		(MEDIA_ENT_F_BASE + 10004)
 
 /*
  * Don't touch on those. The ranges MEDIA_ENT_F_OLD_BASE and
