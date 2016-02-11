@@ -2397,6 +2397,11 @@ static int __clk_core_init(struct clk_core *core)
 	if (core->ops->init)
 		core->ops->init(core->hw);
 
+	if (core->flags & CLK_IS_CRITICAL) {
+		clk_core_prepare(core);
+		clk_core_enable(core);
+	}
+
 	kref_init(&core->ref);
 out:
 	clk_prepare_unlock();
