@@ -25,6 +25,69 @@
 DEFINE_MUTEX(dbs_data_mutex);
 EXPORT_SYMBOL_GPL(dbs_data_mutex);
 
+/* Common sysfs tunables */
+/**
+ * store_sampling_rate - update sampling rate effective immediately if needed.
+ *
+ * If new rate is smaller than the old, simply updating
+ * dbs.sampling_rate might not be appropriate. For example, if the
+ * original sampling_rate was 1 second and the requested new sampling rate is 10
+ * ms because the user needs immediate reaction from ondemand governor, but not
+ * sure if higher frequency will be required or not, then, the governor may
+ * change the sampling rate too late; up to 1 second later. Thus, if we are
+ * reducing the sampling rate, we need to make the new value effective
+ * immediately.
+ *
+ * On the other hand, if new rate is larger than the old, then we may evaluate
+ * the load too soon, and it might we worth updating sample_delay_ns then as
+ * well.
+ *
+ * This must be called with dbs_data->mutex held, otherwise traversing
+ * policy_dbs_list isn't safe.
+ */
+ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
+			    size_t count)
+{
+	struct policy_dbs_info *policy_dbs;
+	unsigned int rate;
+	int ret;
+	ret = sscanf(buf, "%u", &rate);
+	if (ret != 1)
+		return -EINVAL;
+
+	dbs_data->sampling_rate = max(rate, dbs_data->min_sampling_rate);
+
+	/*
+	 * We are operating under dbs_data->mutex and so the list and its
+	 * entries can't be freed concurrently.
+	 */
+	list_for_each_entry(policy_dbs, &dbs_data->policy_dbs_list, list) {
+		mutex_lock(&policy_dbs->timer_mutex);
+		/*
+		 * On 32-bit architectures this may race with the
+		 * sample_delay_ns read in dbs_update_util_handler(), but that
+		 * really doesn't matter.  If the read returns a value that's
+		 * too big, the sample will be skipped, but the next invocation
+		 * of dbs_update_util_handler() (when the update has been
+		 * completed) will take a sample.  If the returned value is too
+		 * small, the sample will be taken immediately, but that isn't a
+		 * problem, as we want the new rate to take effect immediately
+		 * anyway.
+		 *
+		 * If this runs in parallel with dbs_work_handler(), we may end
+		 * up overwriting the sample_delay_ns value that it has just
+		 * written, but the difference should not be too big and it will
+		 * be corrected next time a sample is taken, so it shouldn't be
+		 * significant.
+		 */
+		gov_update_sample_delay(policy_dbs, dbs_data->sampling_rate);
+		mutex_unlock(&policy_dbs->timer_mutex);
+	}
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(store_sampling_rate);
+
 static inline struct dbs_data *to_dbs_data(struct kobject *kobj)
 {
 	return container_of(kobj, struct dbs_data, kobj);

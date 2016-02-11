@@ -136,20 +136,6 @@ static ssize_t store_sampling_down_factor(struct dbs_data *dbs_data,
 	return count;
 }
 
-static ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
-		size_t count)
-{
-	unsigned int input;
-	int ret;
-	ret = sscanf(buf, "%u", &input);
-
-	if (ret != 1)
-		return -EINVAL;
-
-	dbs_data->sampling_rate = max(input, dbs_data->min_sampling_rate);
-	return count;
-}
-
 static ssize_t store_up_threshold(struct dbs_data *dbs_data, const char *buf,
 		size_t count)
 {

@@ -238,4 +238,6 @@ void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
 		unsigned int powersave_bias);
 void od_unregister_powersave_bias_handler(void);
+ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
+			    size_t count);
 #endif /* _CPUFREQ_GOVERNOR_H */
