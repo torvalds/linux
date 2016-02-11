@@ -151,3 +151,250 @@ int ellesmere_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)
 	return 0;
 }
 
+int ellesmere_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
+					const uint32_t *msg_id)
+{
+	PPSMC_Msg msg;
+	uint32_t value;
+
+	switch ((*msg_id & PP_GROUP_MASK) >> PP_GROUP_SHIFT) {
+	case PP_GROUP_GFX:
+		switch ((*msg_id & PP_BLOCK_MASK) >> PP_BLOCK_SHIFT) {
+		case PP_BLOCK_GFX_CG:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = ((*msg_id & PP_STATE_MASK) & PP_STATE_CG) ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_GFX_CGCG_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			if (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS
+					? PPSMC_MSG_EnableClockGatingFeature
+					: PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_GFX_CGLS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_GFX_3D:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = ((*msg_id & PP_STATE_MASK) & PP_STATE_CG) ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_GFX_3DCG_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+
+			if  (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_GFX_3DLS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_GFX_RLC:
+			if (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_GFX_RLC_LS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_GFX_CP:
+			if (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_GFX_CP_LS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_GFX_MG:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = ((*msg_id & PP_STATE_MASK) & PP_STATE_CG)	?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = (CG_CPF_MGCG_MASK | CG_RLC_MGCG_MASK |
+						CG_GFX_OTHERS_MGCG_MASK);
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		default:
+			return -1;
+		}
+		break;
+
+	case PP_GROUP_SYS:
+		switch ((*msg_id & PP_BLOCK_MASK) >> PP_BLOCK_SHIFT) {
+		case PP_BLOCK_SYS_BIF:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_CG ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_BIF_MGCG_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			if  (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_BIF_MGLS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_SYS_MC:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = ((*msg_id & PP_STATE_MASK) & PP_STATE_CG)	?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_MC_MGCG_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+
+			if (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_MC_MGLS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_SYS_DRM:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_CG ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_DRM_MGCG_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			if (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_DRM_MGLS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_SYS_HDP:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = ((*msg_id & PP_STATE_MASK) & PP_STATE_CG) ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_HDP_MGCG_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+
+			if (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_HDP_MGLS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_SYS_SDMA:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = ((*msg_id & PP_STATE_MASK) & PP_STATE_CG)	?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_SDMA_MGCG_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+
+			if (PP_STATE_SUPPORT_LS & *msg_id) {
+				msg = (*msg_id & PP_STATE_MASK) & PP_STATE_LS ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_SDMA_MGLS_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		case PP_BLOCK_SYS_ROM:
+			if (PP_STATE_SUPPORT_CG & *msg_id) {
+				msg = ((*msg_id & PP_STATE_MASK) & PP_STATE_CG) ?
+						PPSMC_MSG_EnableClockGatingFeature :
+						PPSMC_MSG_DisableClockGatingFeature;
+				value = CG_SYS_ROM_MASK;
+
+				if (smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr, msg, value))
+					return -1;
+			}
+			break;
+
+		default:
+			return -1;
+
+		}
+		break;
+
+	default:
+		return -1;
+
+	}
+
+	return 0;
+}

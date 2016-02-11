@@ -33,5 +33,7 @@ int ellesmere_phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 int ellesmere_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate);
 int ellesmere_phm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate);
 int ellesmere_phm_disable_clock_power_gating(struct pp_hwmgr *hwmgr);
+int ellesmere_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
+					const uint32_t *msg_id);
 
 #endif /* _ELLESMERE_CLOCK_POWER_GATING_H_ */

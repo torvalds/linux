@@ -4670,6 +4670,7 @@ static const struct pp_hwmgr_func ellesmere_hwmgr_funcs = {
 	.powergate_uvd = ellesmere_phm_powergate_uvd,
 	.powergate_vce = ellesmere_phm_powergate_vce,
 	.disable_clock_power_gating = ellesmere_phm_disable_clock_power_gating,
+	.update_clock_gatings = ellesmere_phm_update_clock_gatings,
 	.notify_smc_display_config_after_ps_adjustment = ellesmere_notify_smc_display_config_after_ps_adjustment,
 	.display_config_changed = ellesmere_display_configuration_changed_task,
 	.set_max_fan_pwm_output = ellesmere_set_max_fan_pwm_output,
