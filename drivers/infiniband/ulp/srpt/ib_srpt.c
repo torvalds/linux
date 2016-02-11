@@ -2487,39 +2487,14 @@ static int srpt_write_pending_status(struct se_cmd *se_cmd)
  */
 static int srpt_write_pending(struct se_cmd *se_cmd)
 {
-	struct srpt_rdma_ch *ch;
-	struct srpt_send_ioctx *ioctx;
+	struct srpt_send_ioctx *ioctx =
+		container_of(se_cmd, struct srpt_send_ioctx, cmd);
+	struct srpt_rdma_ch *ch = ioctx->ch;
 	enum srpt_command_state new_state;
-	int ret;
-
-	ioctx = container_of(se_cmd, struct srpt_send_ioctx, cmd);
 
 	new_state = srpt_set_cmd_state(ioctx, SRPT_STATE_NEED_DATA);
 	WARN_ON(new_state == SRPT_STATE_DONE);
-
-	ch = ioctx->ch;
-	BUG_ON(!ch);
-
-	switch (ch->state) {
-	case CH_CONNECTING:
-		WARN(true, "unexpected channel state %d\n", ch->state);
-		ret = -EINVAL;
-		goto out;
-	case CH_LIVE:
-		break;
-	case CH_DISCONNECTING:
-	case CH_DRAINING:
-	case CH_DISCONNECTED:
-		pr_debug("cmd with tag %lld: channel disconnecting\n",
-			 ioctx->cmd.tag);
-		srpt_set_cmd_state(ioctx, SRPT_STATE_DATA_IN);
-		ret = -EINVAL;
-		goto out;
-	}
-	ret = srpt_xfer_data(ch, ioctx);
-
-out:
-	return ret;
+	return srpt_xfer_data(ch, ioctx);
 }
 
 static u8 tcm_to_srp_tsk_mgmt_status(const int tcm_mgmt_status)
