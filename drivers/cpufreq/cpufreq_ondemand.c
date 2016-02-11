@@ -194,7 +194,7 @@ static unsigned int od_dbs_timer(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
-	int delay = 0, sample_type = dbs_info->sample_type;
+	int delay, sample_type = dbs_info->sample_type;
 
 	/* Common NORMAL_SAMPLE setup */
 	dbs_info->sample_type = OD_NORMAL_SAMPLE;
@@ -208,12 +208,11 @@ static unsigned int od_dbs_timer(struct cpufreq_policy *policy)
 			/* Setup timer for SUB_SAMPLE */
 			dbs_info->sample_type = OD_SUB_SAMPLE;
 			delay = dbs_info->freq_hi_jiffies;
+		} else {
+			delay = delay_for_sampling_rate(dbs_data->sampling_rate
+							* dbs_info->rate_mult);
 		}
 	}
-
-	if (!delay)
-		delay = delay_for_sampling_rate(dbs_data->sampling_rate
-				* dbs_info->rate_mult);
 
 	return delay;
 }
