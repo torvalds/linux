@@ -180,6 +180,9 @@ EXPORT_SYMBOL_GPL(cgrp_dfl_root);
  */
 static bool cgrp_dfl_root_visible;
 
+/* Controllers blocked by the commandline in v1 */
+static unsigned long cgroup_no_v1_mask;
+
 /* some controllers are not supported in the default hierarchy */
 static unsigned long cgrp_dfl_root_inhibit_ss_mask;
 
@@ -239,6 +242,11 @@ static int cgroup_addrm_files(struct cgroup_subsys_state *css,
 static bool cgroup_ssid_enabled(int ssid)
 {
 	return static_key_enabled(cgroup_subsys_enabled_key[ssid]);
+}
+
+static bool cgroup_ssid_no_v1(int ssid)
+{
+	return cgroup_no_v1_mask & (1 << ssid);
 }
 
 /**
@@ -1678,6 +1686,8 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 				continue;
 			if (!cgroup_ssid_enabled(i))
 				continue;
+			if (cgroup_ssid_no_v1(i))
+				continue;
 
 			/* Mutually exclusive option 'all' + subsystem name */
 			if (all_ss)
@@ -1698,7 +1708,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	 */
 	if (all_ss || (!one_ss && !opts->none && !opts->name))
 		for_each_subsys(ss, i)
-			if (cgroup_ssid_enabled(i))
+			if (cgroup_ssid_enabled(i) && !cgroup_ssid_no_v1(i))
 				opts->subsys_mask |= (1 << i);
 
 	/*
@@ -5324,6 +5334,10 @@ int __init cgroup_init(void)
 			continue;
 		}
 
+		if (cgroup_ssid_no_v1(ssid))
+			printk(KERN_INFO "Disabling %s control group subsystem in v1 mounts\n",
+			       ss->name);
+
 		cgrp_dfl_root.subsys_mask |= 1 << ss->id;
 
 		if (!ss->dfl_cftypes)
@@ -5749,6 +5763,33 @@ static int __init cgroup_disable(char *str)
 	return 1;
 }
 __setup("cgroup_disable=", cgroup_disable);
+
+static int __init cgroup_no_v1(char *str)
+{
+	struct cgroup_subsys *ss;
+	char *token;
+	int i;
+
+	while ((token = strsep(&str, ",")) != NULL) {
+		if (!*token)
+			continue;
+
+		if (!strcmp(token, "all")) {
+			cgroup_no_v1_mask = ~0UL;
+			break;
+		}
+
+		for_each_subsys(ss, i) {
+			if (strcmp(token, ss->name) &&
+			    strcmp(token, ss->legacy_name))
+				continue;
+
+			cgroup_no_v1_mask |= 1 << i;
+		}
+	}
+	return 1;
+}
+__setup("cgroup_no_v1=", cgroup_no_v1);
 
 /**
  * css_tryget_online_from_dir - get corresponding css from a cgroup dentry
