@@ -25,8 +25,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 
-int amdgpu_ctx_init(struct amdgpu_device *adev, enum amd_sched_priority pri,
-		    struct amdgpu_ctx *ctx)
+static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 {
 	unsigned i, j;
 	int r;
@@ -47,14 +46,11 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, enum amd_sched_priority pri,
 	}
 	/* create context entity for each ring */
 	for (i = 0; i < adev->num_rings; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
 		struct amd_sched_rq *rq;
-		if (pri >= AMD_SCHED_MAX_PRIORITY) {
-			kfree(ctx->fences);
-			return -EINVAL;
-		}
-		rq = &adev->rings[i]->sched.sched_rq[pri];
-		r = amd_sched_entity_init(&adev->rings[i]->sched,
-					  &ctx->rings[i].entity,
+
+		rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
+		r = amd_sched_entity_init(&ring->sched, &ctx->rings[i].entity,
 					  rq, amdgpu_sched_jobs);
 		if (r)
 			break;
@@ -70,7 +66,7 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, enum amd_sched_priority pri,
 	return 0;
 }
 
-void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
+static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 {
 	struct amdgpu_device *adev = ctx->adev;
 	unsigned i, j;
@@ -108,7 +104,7 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 		return r;
 	}
 	*id = (uint32_t)r;
-	r = amdgpu_ctx_init(adev, AMD_SCHED_PRIORITY_NORMAL, ctx);
+	r = amdgpu_ctx_init(adev, ctx);
 	if (r) {
 		idr_remove(&mgr->ctx_handles, *id);
 		*id = 0;

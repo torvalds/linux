@@ -83,11 +83,6 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		      struct amd_sched_entity *entity, void *owner,
 		      struct fence **f)
 {
-	struct amdgpu_device *adev = job->adev;
-
-	if (!entity)
-		entity = &adev->kernel_ctx.rings[ring->idx].entity;
-
 	job->ring = ring;
 	job->base.sched = &ring->sched;
 	job->base.s_entity = entity;

@@ -1551,11 +1551,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 	}
 
-	r = amdgpu_ctx_init(adev, AMD_SCHED_PRIORITY_KERNEL, &adev->kernel_ctx);
-	if (r) {
-		dev_err(adev->dev, "failed to create kernel context (%d).\n", r);
-		return r;
-	}
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
@@ -1619,7 +1614,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->shutdown = true;
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
-	amdgpu_ctx_fini(&adev->kernel_ctx);
 	amdgpu_ib_pool_fini(adev);
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
