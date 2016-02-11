@@ -967,7 +967,6 @@ static const char * const tegra124_powergates[] = {
 	[TEGRA_POWERGATE_VENC] = "venc",
 	[TEGRA_POWERGATE_PCIE] = "pcie",
 	[TEGRA_POWERGATE_VDEC] = "vdec",
-	[TEGRA_POWERGATE_L2] = "l2",
 	[TEGRA_POWERGATE_MPE] = "mpe",
 	[TEGRA_POWERGATE_HEG] = "heg",
 	[TEGRA_POWERGATE_SATA] = "sata",
