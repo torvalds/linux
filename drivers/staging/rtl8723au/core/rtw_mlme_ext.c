@@ -2154,8 +2154,7 @@ OnAction23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	category = mgmt->u.action.category;
 
-	for (i = 0;
-	     i < sizeof(OnAction23a_tbl) / sizeof(struct action_handler); i++) {
+	for (i = 0; i < ARRAY_SIZE(OnAction23a_tbl); i++) {
 		ptable = &OnAction23a_tbl[i];
 
 		if (category == ptable->num)
