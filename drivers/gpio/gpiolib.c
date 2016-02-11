@@ -532,8 +532,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
 #ifdef CONFIG_PINCTRL
-	/* FIXME: move pin ranges to gpio_device */
-	INIT_LIST_HEAD(&chip->pin_ranges);
+	INIT_LIST_HEAD(&gdev->pin_ranges);
 #endif
 
 	status = gpiochip_set_desc_names(chip);
@@ -1036,7 +1035,7 @@ int gpiochip_add_pingroup_range(struct gpio_chip *chip,
 		 gpio_offset, gpio_offset + pin_range->range.npins - 1,
 		 pinctrl_dev_get_devname(pctldev), pin_group);
 
-	list_add_tail(&pin_range->node, &chip->pin_ranges);
+	list_add_tail(&pin_range->node, &gdev->pin_ranges);
 
 	return 0;
 }
@@ -1085,7 +1084,7 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 		 pinctl_name,
 		 pin_offset, pin_offset + npins - 1);
 
-	list_add_tail(&pin_range->node, &chip->pin_ranges);
+	list_add_tail(&pin_range->node, &gdev->pin_ranges);
 
 	return 0;
 }
@@ -1098,8 +1097,9 @@ EXPORT_SYMBOL_GPL(gpiochip_add_pin_range);
 void gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 {
 	struct gpio_pin_range *pin_range, *tmp;
+	struct gpio_device *gdev = chip->gpiodev;
 
-	list_for_each_entry_safe(pin_range, tmp, &chip->pin_ranges, node) {
+	list_for_each_entry_safe(pin_range, tmp, &gdev->pin_ranges, node) {
 		list_del(&pin_range->node);
 		pinctrl_remove_gpio_range(pin_range->pctldev,
 				&pin_range->range);
