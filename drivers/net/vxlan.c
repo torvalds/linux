@@ -1702,10 +1702,8 @@ static int vxlan_build_skb(struct sk_buff *skb, struct dst_entry *dst,
 		if (csum_start <= VXLAN_MAX_REMCSUM_START &&
 		    !(csum_start & VXLAN_RCO_SHIFT_MASK) &&
 		    (skb->csum_offset == offsetof(struct udphdr, check) ||
-		     skb->csum_offset == offsetof(struct tcphdr, check))) {
-			udp_sum = false;
+		     skb->csum_offset == offsetof(struct tcphdr, check)))
 			type |= SKB_GSO_TUNNEL_REMCSUM;
-		}
 	}
 
 	min_headroom = LL_RESERVED_SPACE(dst->dev) + dst->header_len
@@ -1723,7 +1721,7 @@ static int vxlan_build_skb(struct sk_buff *skb, struct dst_entry *dst,
 	if (WARN_ON(!skb))
 		return -ENOMEM;
 
-	skb = iptunnel_handle_offloads(skb, udp_sum, type);
+	skb = iptunnel_handle_offloads(skb, false, type);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
