@@ -218,20 +218,20 @@ struct srpt_send_ioctx {
 
 /**
  * enum rdma_ch_state - SRP channel state.
- * @CH_CONNECTING:	 QP is in RTR state; waiting for RTU.
- * @CH_LIVE:		 QP is in RTS state.
- * @CH_DISCONNECTING:    DREQ has been received; waiting for DREP
- *                       or DREQ has been send and waiting for DREP
- *                       or .
- * @CH_DRAINING:	 QP is in ERR state; waiting for last WQE event.
- * @CH_RELEASING:	 Last WQE event has been received; releasing resources.
+ * @CH_CONNECTING:    QP is in RTR state; waiting for RTU.
+ * @CH_LIVE:	      QP is in RTS state.
+ * @CH_DISCONNECTING: DREQ has been sent and waiting for DREP or DREQ has
+ *                    been received.
+ * @CH_DRAINING:      DREP has been received or waiting for DREP timed out
+ *                    and last work request has been queued.
+ * @CH_DISCONNECTED:  Last completion has been received.
  */
 enum rdma_ch_state {
 	CH_CONNECTING,
 	CH_LIVE,
 	CH_DISCONNECTING,
 	CH_DRAINING,
-	CH_RELEASING
+	CH_DISCONNECTED,
 };
 
 /**
@@ -267,6 +267,8 @@ struct srpt_rdma_ch {
 	struct ib_cm_id		*cm_id;
 	struct ib_qp		*qp;
 	struct ib_cq		*cq;
+	struct ib_cqe		zw_cqe;
+	struct kref		kref;
 	int			rq_size;
 	u32			rsp_size;
 	atomic_t		sq_wr_avail;
