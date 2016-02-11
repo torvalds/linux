@@ -380,7 +380,7 @@ static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 	}
 
 	/* Find the clock divider value that gets us closest to ideal_clk */
-	clkdiv = DIV_ROUND_UP(clk_get_rate(ctx->lcd_clk), ideal_clk);
+	clkdiv = DIV_ROUND_CLOSEST(clk_get_rate(ctx->lcd_clk), ideal_clk);
 
 	return (clkdiv < 0x100) ? clkdiv : 0xff;
 }
