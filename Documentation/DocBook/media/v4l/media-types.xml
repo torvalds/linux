@@ -109,6 +109,18 @@
 		   decoder.
 	    </entry>
 	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_AUDIO_CAPTURE</constant></entry>
+	    <entry>Audio Capture Function Entity.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_AUDIO_PLAYBACK</constant></entry>
+	    <entry>Audio Playback Function Entity.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_AUDIO_MIXER</constant></entry>
+	    <entry>Audio Mixer Function Entity.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
