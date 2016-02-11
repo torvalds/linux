@@ -807,7 +807,7 @@ out:
 
 static int tegra_pmc_probe(struct platform_device *pdev)
 {
-	void __iomem *base = pmc->base;
+	void __iomem *base, *tmp;
 	struct resource *res;
 	int err;
 
@@ -817,11 +817,9 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	/* take over the memory region from the early initialization */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmc->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pmc->base))
-		return PTR_ERR(pmc->base);
-
-	iounmap(base);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	pmc->clk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(pmc->clk)) {
@@ -849,6 +847,10 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 			err);
 		return err;
 	}
+
+	tmp = pmc->base;
+	pmc->base = base;
+	iounmap(tmp);
 
 	return 0;
 }
