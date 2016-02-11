@@ -1004,7 +1004,7 @@ static void nvme_cancel_queue_ios(struct request *req, void *data, bool reserved
 	if (!blk_mq_request_started(req))
 		return;
 
-	dev_warn(nvmeq->q_dmadev,
+	dev_dbg_ratelimited(nvmeq->q_dmadev,
 		 "Cancelling I/O %d QID %d\n", req->tag, nvmeq->qid);
 
 	status = NVME_SC_ABORT_REQ;
