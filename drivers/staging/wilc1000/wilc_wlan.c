@@ -921,11 +921,11 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 	int ret = 0;
 	struct rxq_entry_t *rqe;
 
-	size = ((int_status & 0x7fff) << 2);
+	size = (int_status & 0x7fff) << 2;
 
 	while (!size && retries < 10) {
 		wilc->hif_func->hif_read_size(wilc, &size);
-		size = ((size & 0x7fff) << 2);
+		size = (size & 0x7fff) << 2;
 		retries++;
 	}
 
