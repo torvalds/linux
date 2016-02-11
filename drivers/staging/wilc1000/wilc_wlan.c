@@ -1352,7 +1352,7 @@ int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count, u32 drv)
 {
-	s32 counter = 0;
+	int counter;
 	int ret = 0;
 
 	if (mode == GET_CFG) {
