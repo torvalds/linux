@@ -382,7 +382,7 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 		/* Check DHCPv4 */
 		if (ip->protocol == IPPROTO_UDP) {
 			struct udphdr *udp =
-					(network_data + sizeof(struct iphdr));
+					network_data + sizeof(struct iphdr);
 			if (ntohs(udp->dest) == 67 || ntohs(udp->dest) == 68)
 				nic_type |= NIC_TYPE_F_DHCP;
 		}
@@ -393,12 +393,12 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 
 		if (ipv6->nexthdr == IPPROTO_ICMPV6) /* Check NDP request */ {
 			struct icmp6hdr *icmp6 =
-					(network_data + sizeof(struct ipv6hdr));
+					network_data + sizeof(struct ipv6hdr);
 			if (icmp6->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION)
 				nic_type |= NIC_TYPE_ICMPV6;
 		} else if (ipv6->nexthdr == IPPROTO_UDP) /* Check DHCPv6 */ {
 			struct udphdr *udp =
-					(network_data + sizeof(struct ipv6hdr));
+					network_data + sizeof(struct ipv6hdr);
 			if (ntohs(udp->dest) == 546 || ntohs(udp->dest) == 547)
 				nic_type |= NIC_TYPE_F_DHCP;
 		}
