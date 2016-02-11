@@ -4116,10 +4116,12 @@ bool ironlake_set_drps(struct drm_device *dev, u8 val)
 static void ironlake_enable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rgvmodectl = I915_READ(MEMMODECTL);
+	u32 rgvmodectl;
 	u8 fmax, fmin, fstart, vstart;
 
 	spin_lock_irq(&mchdev_lock);
+
+	rgvmodectl = I915_READ(MEMMODECTL);
 
 	/* Enable temp reporting */
 	I915_WRITE16(PMMISC, I915_READ(PMMISC) | MCPPCE_EN);
@@ -6240,8 +6242,8 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		return;
 
 	if (IS_IRONLAKE_M(dev)) {
-		mutex_lock(&dev->struct_mutex);
 		ironlake_enable_drps(dev);
+		mutex_lock(&dev->struct_mutex);
 		intel_init_emon(dev);
 		mutex_unlock(&dev->struct_mutex);
 	} else if (INTEL_INFO(dev)->gen >= 6) {
