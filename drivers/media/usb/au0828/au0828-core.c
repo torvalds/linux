@@ -20,6 +20,7 @@
  */
 
 #include "au0828.h"
+#include "au8522.h"
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -204,14 +205,43 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 	return 0;
 }
 
+static void au0828_media_graph_notify(struct media_entity *new,
+				      void *notify_data)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct au0828_dev *dev = (struct au0828_dev *) notify_data;
+	int ret;
+
+	if (!dev->decoder)
+		return;
+
+	switch (new->function) {
+	case MEDIA_ENT_F_AUDIO_MIXER:
+		ret = media_create_pad_link(dev->decoder,
+					    AU8522_PAD_AUDIO_OUT,
+					    new, 0,
+					    MEDIA_LNK_FL_ENABLED);
+		if (ret)
+			dev_err(&dev->usbdev->dev,
+				"Mixer Pad Link Create Error: %d\n",
+				ret);
+		break;
+	default:
+		break;
+	}
+#endif
+}
+
 static int au0828_media_device_register(struct au0828_dev *dev,
 					struct usb_device *udev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	int ret;
 
-	if (dev->media_dev &&
-		!media_devnode_is_registered(&dev->media_dev->devnode)) {
+	if (!dev->media_dev)
+		return 0;
+
+	if (!media_devnode_is_registered(&dev->media_dev->devnode)) {
 
 		/* register media device */
 		ret = media_device_register(dev->media_dev);
@@ -220,6 +250,17 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 				"Media Device Register Error: %d\n", ret);
 			return ret;
 		}
+	}
+	/* register entity_notify callback */
+	dev->entity_notify.notify_data = (void *) dev;
+	dev->entity_notify.notify = (void *) au0828_media_graph_notify;
+	ret = media_device_register_entity_notify(dev->media_dev,
+						  &dev->entity_notify);
+	if (ret) {
+		dev_err(&udev->dev,
+			"Media Device register entity_notify Error: %d\n",
+			ret);
+		return ret;
 	}
 #endif
 	return 0;
