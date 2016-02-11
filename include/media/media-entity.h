@@ -832,6 +832,16 @@ media_entity_graph_walk_next(struct media_entity_graph *graph);
  */
 __must_check int media_entity_pipeline_start(struct media_entity *entity,
 					     struct media_pipeline *pipe);
+/**
+ * __media_entity_pipeline_start - Mark a pipeline as streaming
+ *
+ * @entity: Starting entity
+ * @pipe: Media pipeline to be assigned to all entities in the pipeline.
+ *
+ * Note: This is the non-locking version of media_entity_pipeline_start()
+ */
+__must_check int __media_entity_pipeline_start(struct media_entity *entity,
+					       struct media_pipeline *pipe);
 
 /**
  * media_entity_pipeline_stop - Mark a pipeline as not streaming
@@ -846,6 +856,15 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
  * streaming.
  */
 void media_entity_pipeline_stop(struct media_entity *entity);
+
+/**
+ * __media_entity_pipeline_stop - Mark a pipeline as not streaming
+ *
+ * @entity: Starting entity
+ *
+ * Note: This is the non-locking version of media_entity_pipeline_stop()
+ */
+void __media_entity_pipeline_stop(struct media_entity *entity);
 
 /**
  * media_devnode_create() - creates and initializes a device node interface
