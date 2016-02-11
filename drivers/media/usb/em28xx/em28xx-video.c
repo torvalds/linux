@@ -990,7 +990,8 @@ static void em28xx_v4l2_create_entities(struct em28xx *dev)
 			ent->function = MEDIA_ENT_F_CONN_SVIDEO;
 			break;
 		default: /* EM28XX_VMUX_TELEVISION or EM28XX_RADIO */
-			ent->function = MEDIA_ENT_F_CONN_RF;
+			if (dev->tuner_type != TUNER_ABSENT)
+				ent->function = MEDIA_ENT_F_CONN_RF;
 			break;
 		}
 

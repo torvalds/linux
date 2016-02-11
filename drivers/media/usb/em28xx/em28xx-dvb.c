@@ -905,6 +905,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 			       struct em28xx *dev, struct device *device)
 {
 	int result;
+	bool create_rf_connector = false;
 
 	mutex_init(&dvb->lock);
 
@@ -998,7 +999,11 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	/* register network adapter */
 	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
 
-	result = dvb_create_media_graph(&dvb->adapter, false);
+	/* If the analog part won't create RF connectors, DVB will do it */
+	if (!dev->has_video || (dev->tuner_type == TUNER_ABSENT))
+		create_rf_connector = true;
+
+	result = dvb_create_media_graph(&dvb->adapter, create_rf_connector);
 	if (result < 0)
 		goto fail_create_graph;
 
