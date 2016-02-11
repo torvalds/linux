@@ -221,7 +221,10 @@ struct mad_adapter_info_data {
 	char srp_version[8];
 	char partition_name[96];
 	__be32 partition_number;
+#define SRP_MAD_VERSION_1 1
 	__be32 mad_version;
+#define SRP_MAD_OS_LINUX 2
+#define SRP_MAD_OS_AIX 3
 	__be32 os_type;
 	__be32 port_max_txu[8];	/* per-port maximum transfer */
 };
