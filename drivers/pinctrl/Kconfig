@@ -79,7 +79,7 @@ config PINCTRL_AT91PIO4
 	  controller available on sama5d2 SoC.
 
 config PINCTRL_AMD
-	bool "AMD GPIO pin control"
+	tristate "AMD GPIO pin control"
 	depends on GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINCONF
