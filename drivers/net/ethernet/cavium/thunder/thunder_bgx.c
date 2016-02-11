@@ -886,7 +886,8 @@ static void bgx_get_qlm_mode(struct bgx *bgx)
 
 #ifdef CONFIG_ACPI
 
-static int acpi_get_mac_address(struct acpi_device *adev, u8 *dst)
+static int acpi_get_mac_address(struct device *dev, struct acpi_device *adev,
+				u8 *dst)
 {
 	u8 mac[ETH_ALEN];
 	int ret;
@@ -897,9 +898,12 @@ static int acpi_get_mac_address(struct acpi_device *adev, u8 *dst)
 		goto out;
 
 	if (!is_valid_ether_addr(mac)) {
+		dev_err(dev, "MAC address invalid: %pM\n", mac);
 		ret = -EINVAL;
 		goto out;
 	}
+
+	dev_info(dev, "MAC address set to: %pM\n", mac);
 
 	memcpy(dst, mac, ETH_ALEN);
 out:
@@ -911,14 +915,15 @@ static acpi_status bgx_acpi_register_phy(acpi_handle handle,
 					 u32 lvl, void *context, void **rv)
 {
 	struct bgx *bgx = context;
+	struct device *dev = &bgx->pdev->dev;
 	struct acpi_device *adev;
 
 	if (acpi_bus_get_device(handle, &adev))
 		goto out;
 
-	acpi_get_mac_address(adev, bgx->lmac[bgx->lmac_count].mac);
+	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->lmac_count].mac);
 
-	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, &bgx->pdev->dev);
+	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, dev);
 
 	bgx->lmac[bgx->lmac_count].lmacid = bgx->lmac_count;
 out:
