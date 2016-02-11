@@ -1267,10 +1267,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 
 	/*
 	 * If the command is in a state where the target core is waiting for
-	 * the ib_srpt driver, change the state to the next state. Changing
-	 * the state of the command from SRPT_STATE_NEED_DATA to
-	 * SRPT_STATE_DATA_IN ensures that srpt_xmit_response() will call this
-	 * function a second time.
+	 * the ib_srpt driver, change the state to the next state.
 	 */
 
 	spin_lock_irqsave(&ioctx->spinlock, flags);
@@ -1279,24 +1276,16 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	case SRPT_STATE_NEED_DATA:
 		ioctx->state = SRPT_STATE_DATA_IN;
 		break;
-	case SRPT_STATE_DATA_IN:
 	case SRPT_STATE_CMD_RSP_SENT:
 	case SRPT_STATE_MGMT_RSP_SENT:
 		ioctx->state = SRPT_STATE_DONE;
 		break;
 	default:
+		WARN_ONCE(true, "%s: unexpected I/O context state %d\n",
+			  __func__, state);
 		break;
 	}
 	spin_unlock_irqrestore(&ioctx->spinlock, flags);
-
-	if (state == SRPT_STATE_DONE) {
-		struct srpt_rdma_ch *ch = ioctx->ch;
-
-		BUG_ON(ch->sess == NULL);
-
-		target_put_sess_cmd(&ioctx->cmd);
-		goto out;
-	}
 
 	pr_debug("Aborting cmd with state %d and tag %lld\n", state,
 		 ioctx->cmd.tag);
@@ -1305,19 +1294,16 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	case SRPT_STATE_NEW:
 	case SRPT_STATE_DATA_IN:
 	case SRPT_STATE_MGMT:
+	case SRPT_STATE_DONE:
 		/*
 		 * Do nothing - defer abort processing until
 		 * srpt_queue_response() is invoked.
 		 */
-		WARN_ON(!transport_check_aborted_status(&ioctx->cmd, false));
 		break;
 	case SRPT_STATE_NEED_DATA:
-		/* DMA_TO_DEVICE (write) - RDMA read error. */
-
-		/* XXX(hch): this is a horrible layering violation.. */
-		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
-		ioctx->cmd.transport_state &= ~CMD_T_ACTIVE;
-		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
+		pr_debug("tag %#llx: RDMA read error\n", ioctx->cmd.tag);
+		transport_generic_request_failure(&ioctx->cmd,
+					TCM_CHECK_CONDITION_ABORT_CMD);
 		break;
 	case SRPT_STATE_CMD_RSP_SENT:
 		/*
@@ -1325,18 +1311,16 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		 * not been received in time.
 		 */
 		srpt_unmap_sg_to_ib_sge(ioctx->ch, ioctx);
-		target_put_sess_cmd(&ioctx->cmd);
+		transport_generic_free_cmd(&ioctx->cmd, 0);
 		break;
 	case SRPT_STATE_MGMT_RSP_SENT:
-		srpt_set_cmd_state(ioctx, SRPT_STATE_DONE);
-		target_put_sess_cmd(&ioctx->cmd);
+		transport_generic_free_cmd(&ioctx->cmd, 0);
 		break;
 	default:
 		WARN(1, "Unexpected command state (%d)", state);
 		break;
 	}
 
-out:
 	return state;
 }
 
@@ -1376,9 +1360,14 @@ static void srpt_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 		container_of(wc->wr_cqe, struct srpt_send_ioctx, rdma_cqe);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+		/*
+		 * Note: if an RDMA write error completion is received that
+		 * means that a SEND also has been posted. Defer further
+		 * processing of the associated command until the send error
+		 * completion has been received.
+		 */
 		pr_info("RDMA_WRITE for ioctx 0x%p failed with status %d\n",
 			ioctx, wc->status);
-		srpt_abort_cmd(ioctx);
 	}
 }
 
@@ -1721,14 +1710,9 @@ static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	atomic_inc(&ch->sq_wr_avail);
 
-	if (wc->status != IB_WC_SUCCESS) {
+	if (wc->status != IB_WC_SUCCESS)
 		pr_info("sending response for ioctx 0x%p failed"
 			" with status %d\n", ioctx, wc->status);
-
-		atomic_dec(&ch->req_lim);
-		srpt_abort_cmd(ioctx);
-		goto out;
-	}
 
 	if (state != SRPT_STATE_DONE) {
 		srpt_unmap_sg_to_ib_sge(ch, ioctx);
@@ -1738,7 +1722,6 @@ static void srpt_send_done(struct ib_cq *cq, struct ib_wc *wc)
 		       " wr_id = %u.\n", ioctx->ioctx.index);
 	}
 
-out:
 	while (!list_empty(&ch->cmd_wait_list) &&
 	       ch->state == CH_LIVE &&
 	       (ioctx = srpt_get_send_ioctx(ch)) != NULL) {
