@@ -676,7 +676,7 @@ static int sdio_init(struct wilc *wilc, bool resume)
 
 	if (!resume) {
 		memset(&g_sdio, 0, sizeof(wilc_sdio_t));
-		g_sdio.irq_gpio = (wilc->dev_irq_num);
+		g_sdio.irq_gpio = wilc->dev_irq_num;
 	}
 
 	/**
