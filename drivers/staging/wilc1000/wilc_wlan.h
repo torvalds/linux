@@ -301,6 +301,6 @@ void host_sleep_notify(struct wilc *wilc);
 extern bool wilc_enable_ps;
 void chip_allow_sleep(struct wilc *wilc);
 void chip_wakeup(struct wilc *wilc);
-s32 wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
+int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count, u32 drv);
 #endif
