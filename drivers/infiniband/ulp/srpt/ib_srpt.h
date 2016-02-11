@@ -363,12 +363,4 @@ struct srpt_device {
 	struct list_head	list;
 };
 
-/**
- * struct srpt_node_acl - Per-initiator ACL data (managed via configfs).
- * @nacl:      Target core node ACL information.
- */
-struct srpt_node_acl {
-	struct se_node_acl	nacl;
-};
-
 #endif				/* IB_SRPT_H */
