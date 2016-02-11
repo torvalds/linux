@@ -1899,8 +1899,8 @@ static void XGI_GetVBInfo(unsigned short ModeIdIndex,
 	push <<= 8;
 	tempax = temp << 8;
 	tempbx = tempbx | tempax;
-	temp = (SetCRT2ToDualEdge | SetCRT2ToYPbPr525750 | XGI_SetCRT2ToLCDA
-		| SetInSlaveMode | DisableCRT2Display);
+	temp = SetCRT2ToDualEdge | SetCRT2ToYPbPr525750 | XGI_SetCRT2ToLCDA
+		| SetInSlaveMode | DisableCRT2Display;
 	temp = 0xFFFF ^ temp;
 	tempbx &= temp;
 
@@ -2881,7 +2881,7 @@ static void XGI_SetGroup1(unsigned short ModeIdIndex,
 	xgifb_reg_set(pVBInfo->Part1Port, 0x0C, temp);
 	temp = tempcx & 0x00FF;
 	xgifb_reg_set(pVBInfo->Part1Port, 0x0D, temp);
-	tempcx = (pVBInfo->VGAVT - 1);
+	tempcx = pVBInfo->VGAVT - 1;
 	temp = tempcx & 0x00FF;
 
 	xgifb_reg_set(pVBInfo->Part1Port, 0x0E, temp);
@@ -2919,7 +2919,7 @@ static void XGI_SetGroup1(unsigned short ModeIdIndex,
 	temp = tempbx & 0x00FF;
 	xgifb_reg_set(pVBInfo->Part1Port, 0x10, temp);
 	temp = ((tempbx & 0xFF00) >> 8) << 4;
-	temp = ((tempcx & 0x000F) | (temp));
+	temp = (tempcx & 0x000F) | (temp);
 	xgifb_reg_set(pVBInfo->Part1Port, 0x11, temp);
 	tempax = 0;
 
@@ -4074,7 +4074,7 @@ static void XGI_SetGroup4(unsigned short ModeIdIndex,
 	tempcx |= 0x04000;
 
 	if (tempeax <= tempebx) {
-		tempcx = (tempcx & (~0x4000));
+		tempcx = tempcx & (~0x4000);
 		tempeax = pVBInfo->VGAVDE;
 	} else {
 		tempeax -= tempebx;
@@ -4124,7 +4124,7 @@ static void XGI_SetGroup4(unsigned short ModeIdIndex,
 		temp = (tempax & 0xFF00) >> 8;
 		temp = (temp & 0x0003) << 4;
 		xgifb_reg_set(pVBInfo->Part4Port, 0x1E, temp);
-		temp = (tempax & 0x00FF);
+		temp = tempax & 0x00FF;
 		xgifb_reg_set(pVBInfo->Part4Port, 0x1D, temp);
 
 		if (pVBInfo->VBInfo & (SetCRT2ToTV | SetCRT2ToHiVision)) {
@@ -4926,7 +4926,7 @@ static void XGI_SetCRT2ModeRegs(struct vb_device_info *pVBInfo)
 			tempcl -= ModeVGA;
 			if (tempcl >= 0) {
 				/* BT Color */
-				tempah = (0x008 >> tempcl);
+				tempah = 0x008 >> tempcl;
 				if (tempah == 0)
 					tempah = 1;
 				tempah |= 0x040;
