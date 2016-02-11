@@ -1519,23 +1519,23 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	pm_runtime_enable(dev);
-	host->power = false;
-
 	host->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
 		dev_err(dev, "cannot get clock: %d\n", ret);
-		goto err_pm;
+		goto err_host;
 	}
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret < 0)
-		goto err_pm;
+		goto err_host;
 
 	sh_mmcif_clk_setup(host);
 
-	ret = pm_runtime_resume(dev);
+	pm_runtime_enable(dev);
+	host->power = false;
+
+	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		goto err_clk;
 
@@ -1579,12 +1579,13 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 		 sh_mmcif_readl(host->addr, MMCIF_CE_VERSION) & 0xffff,
 		 clk_get_rate(host->clk) / 1000000UL);
 
+	pm_runtime_put(dev);
 	clk_disable_unprepare(host->clk);
 	return ret;
 
 err_clk:
 	clk_disable_unprepare(host->clk);
-err_pm:
+	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 err_host:
 	mmc_free_host(mmc);
