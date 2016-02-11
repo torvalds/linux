@@ -661,7 +661,7 @@ static int musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
 		csr &= ~(MUSB_TXCSR_AUTOSET | MUSB_TXCSR_DMAMODE);
 		csr |= MUSB_TXCSR_DMAENAB; /* against programmer's guide */
 	}
-	channel->desired_mode = mode;
+	channel->desired_mode = *mode;
 	musb_writew(epio, MUSB_TXCSR, csr);
 
 	return 0;
