@@ -267,7 +267,20 @@ static int pp_set_clockgating_state(void *handle,
 static int pp_set_powergating_state(void *handle,
 				    enum amd_powergating_state state)
 {
-	return 0;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+			hwmgr->hwmgr_func->enable_per_cu_power_gating == NULL)
+				return -EINVAL;
+
+	/* Enable/disable GFX per cu powergating through SMU */
+	return hwmgr->hwmgr_func->enable_per_cu_power_gating(hwmgr,
+			state == AMD_PG_STATE_GATE ? true : false);
 }
 
 static int pp_suspend(void *handle)
