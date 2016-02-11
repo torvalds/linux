@@ -601,8 +601,8 @@ static const struct net_device_ops cvm_oct_spi_netdev_ops = {
 #endif
 };
 static const struct net_device_ops cvm_oct_rgmii_netdev_ops = {
-	.ndo_init		= cvm_oct_rgmii_init,
-	.ndo_uninit		= cvm_oct_rgmii_uninit,
+	.ndo_init		= cvm_oct_common_init,
+	.ndo_uninit		= cvm_oct_common_uninit,
 	.ndo_open		= cvm_oct_rgmii_open,
 	.ndo_stop		= cvm_oct_common_stop,
 	.ndo_start_xmit		= cvm_oct_xmit,

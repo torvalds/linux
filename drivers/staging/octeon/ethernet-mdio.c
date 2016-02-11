@@ -118,13 +118,20 @@ void cvm_oct_adjust_link(struct net_device *dev)
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	cvmx_helper_link_info_t link_info;
 
+	link_info.u64		= 0;
+	link_info.s.link_up	= priv->phydev->link ? 1 : 0;
+	link_info.s.full_duplex = priv->phydev->duplex ? 1 : 0;
+	link_info.s.speed	= priv->phydev->speed;
+	priv->link_info		= link_info.u64;
+
+	/*
+	 * The polling task need to know about link status changes.
+	 */
+	if (priv->poll)
+		priv->poll(dev);
+
 	if (priv->last_link != priv->phydev->link) {
 		priv->last_link = priv->phydev->link;
-		link_info.u64 = 0;
-		link_info.s.link_up = priv->last_link ? 1 : 0;
-		link_info.s.full_duplex = priv->phydev->duplex ? 1 : 0;
-		link_info.s.speed = priv->phydev->speed;
-
 		cvmx_helper_link_set(priv->port, link_info);
 		cvm_oct_note_carrier(priv, link_info);
 	}

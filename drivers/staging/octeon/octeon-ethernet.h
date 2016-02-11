@@ -41,20 +41,18 @@ struct octeon_ethernet {
 	/* Device statistics */
 	struct net_device_stats stats;
 	struct phy_device *phydev;
+	unsigned int last_speed;
 	unsigned int last_link;
 	/* Last negotiated link state */
 	u64 link_info;
 	/* Called periodically to check link status */
 	void (*poll)(struct net_device *dev);
 	struct delayed_work	port_periodic_work;
-	struct work_struct	port_work;	/* may be unused. */
 	struct device_node	*of_node;
 };
 
 int cvm_oct_free_work(void *work_queue_entry);
 
-int cvm_oct_rgmii_init(struct net_device *dev);
-void cvm_oct_rgmii_uninit(struct net_device *dev);
 int cvm_oct_rgmii_open(struct net_device *dev);
 
 int cvm_oct_sgmii_init(struct net_device *dev);
