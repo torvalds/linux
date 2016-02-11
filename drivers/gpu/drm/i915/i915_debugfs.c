@@ -3104,6 +3104,16 @@ static int i915_display_info(struct seq_file *m, void *unused)
 				   crtc->cursor_addr, yesno(active));
 			intel_scaler_info(m, crtc);
 			intel_plane_info(m, crtc);
+
+			if (INTEL_INFO(dev)->gen >= 9) {
+				uint64_t background =
+					pipe_config->base.background_color;
+
+				seq_printf(m, "\tbackground color (10bpc): r=%x g=%x b=%x\n",
+					   (uint32_t) DRM_MODE_COLOR_RED(10, background),
+					   (uint32_t) DRM_MODE_COLOR_GREEN(10, background),
+					   (uint32_t) DRM_MODE_COLOR_BLUE(10, background));
+			}
 		}
 
 		seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s \n",
