@@ -2,6 +2,7 @@
  * Media Controller ancillary functions
  *
  * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+ * Copyright (C) 2016 Shuah Khan <shuahkh@osg.samsung.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,7 +17,10 @@
 
 #include <linux/module.h>
 #include <media/media-entity.h>
+#include <media/media-device.h>
+#include <media/v4l2-fh.h>
 #include <media/v4l2-mc.h>
+#include <media/videobuf2-core.h>
 
 int v4l2_mc_create_media_graph(struct media_device *mdev)
 
@@ -182,3 +186,34 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_mc_create_media_graph);
+
+int v4l_enable_media_source(struct video_device *vdev)
+{
+	struct media_device *mdev = vdev->entity.graph_obj.mdev;
+	int ret;
+
+	if (!mdev || !mdev->enable_source)
+		return 0;
+	ret = mdev->enable_source(&vdev->entity, &vdev->pipe);
+	if (ret)
+		return -EBUSY;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l_enable_media_source);
+
+void v4l_disable_media_source(struct video_device *vdev)
+{
+	struct media_device *mdev = vdev->entity.graph_obj.mdev;
+
+	if (mdev && mdev->disable_source)
+		mdev->disable_source(&vdev->entity);
+}
+EXPORT_SYMBOL_GPL(v4l_disable_media_source);
+
+int v4l_vb2q_enable_media_source(struct vb2_queue *q)
+{
+	struct v4l2_fh *fh = q->owner;
+
+	return v4l_enable_media_source(fh->vdev);
+}
+EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
