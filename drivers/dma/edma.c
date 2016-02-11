@@ -1369,36 +1369,36 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 static void edma_completion_handler(struct edma_chan *echan)
 {
 	struct device *dev = echan->vchan.chan.device->dev;
-	struct edma_desc *edesc = echan->edesc;
-
-	if (!edesc)
-		return;
+	struct edma_desc *edesc;
 
 	spin_lock(&echan->vchan.lock);
-	if (edesc->cyclic) {
-		vchan_cyclic_callback(&edesc->vdesc);
-		spin_unlock(&echan->vchan.lock);
-		return;
-	} else if (edesc->processed == edesc->pset_nr) {
-		edesc->residue = 0;
-		edma_stop(echan);
-		vchan_cookie_complete(&edesc->vdesc);
-		echan->edesc = NULL;
+	edesc = echan->edesc;
+	if (edesc) {
+		if (edesc->cyclic) {
+			vchan_cyclic_callback(&edesc->vdesc);
+			spin_unlock(&echan->vchan.lock);
+			return;
+		} else if (edesc->processed == edesc->pset_nr) {
+			edesc->residue = 0;
+			edma_stop(echan);
+			vchan_cookie_complete(&edesc->vdesc);
+			echan->edesc = NULL;
 
-		dev_dbg(dev, "Transfer completed on channel %d\n",
-			echan->ch_num);
-	} else {
-		dev_dbg(dev, "Sub transfer completed on channel %d\n",
-			echan->ch_num);
+			dev_dbg(dev, "Transfer completed on channel %d\n",
+				echan->ch_num);
+		} else {
+			dev_dbg(dev, "Sub transfer completed on channel %d\n",
+				echan->ch_num);
 
-		edma_pause(echan);
+			edma_pause(echan);
 
-		/* Update statistics for tx_status */
-		edesc->residue -= edesc->sg_len;
-		edesc->residue_stat = edesc->residue;
-		edesc->processed_stat = edesc->processed;
+			/* Update statistics for tx_status */
+			edesc->residue -= edesc->sg_len;
+			edesc->residue_stat = edesc->residue;
+			edesc->processed_stat = edesc->processed;
+		}
+		edma_execute(echan);
 	}
-	edma_execute(echan);
 
 	spin_unlock(&echan->vchan.lock);
 }
