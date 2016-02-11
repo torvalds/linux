@@ -753,7 +753,7 @@ static int mtk_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 				    struct pinctrl_gpio_range *range,
 				    unsigned offset)
 {
-	unsigned long muxval;
+	int muxval;
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 
 	muxval = mtk_pmx_find_gpio_mode(pctl, offset);
