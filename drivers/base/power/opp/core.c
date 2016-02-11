@@ -975,7 +975,7 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
 {
 	struct regulator *reg = dev_opp->regulator;
 
-	if (!IS_ERR(reg) &&
+	if (!IS_ERR_OR_NULL(reg) &&
 	    !regulator_is_supported_voltage(reg, opp->u_volt_min,
 					    opp->u_volt_max)) {
 		pr_warn("%s: OPP minuV: %lu maxuV: %lu, not supported by regulator\n",
