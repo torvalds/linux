@@ -3152,6 +3152,8 @@ static ssize_t srpt_tpg_enable_store(struct config_item *item,
 {
 	struct se_portal_group *se_tpg = to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
+	struct srpt_device *sdev = sport->sdev;
+	struct srpt_rdma_ch *ch;
 	unsigned long tmp;
         int ret;
 
@@ -3165,11 +3167,24 @@ static ssize_t srpt_tpg_enable_store(struct config_item *item,
 		pr_err("Illegal value for srpt_tpg_store_enable: %lu\n", tmp);
 		return -EINVAL;
 	}
-	if (tmp == 1)
-		sport->enabled = true;
-	else
-		sport->enabled = false;
+	if (sport->enabled == tmp)
+		goto out;
+	sport->enabled = tmp;
+	if (sport->enabled)
+		goto out;
 
+	mutex_lock(&sdev->mutex);
+	list_for_each_entry(ch, &sdev->rch_list, list) {
+		if (ch->sport == sport) {
+			pr_debug("%s: ch %p %s-%d\n", __func__, ch,
+				 ch->sess_name, ch->qp->qp_num);
+			srpt_disconnect_ch(ch);
+			srpt_close_ch(ch);
+		}
+	}
+	mutex_unlock(&sdev->mutex);
+
+out:
 	return count;
 }
 
