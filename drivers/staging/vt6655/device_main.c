@@ -742,6 +742,11 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 		dma_map_single(&priv->pcid->dev,
 			       skb_put(rd_info->skb, skb_tailroom(rd_info->skb)),
 			       priv->rx_buf_sz, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&priv->pcid->dev, rd_info->skb_dma)) {
+		dev_kfree_skb(rd_info->skb);
+		rd_info->skb = NULL;
+		return false;
+	}
 
 	*((unsigned int *)&rd->rd0) = 0; /* FIX cast */
 
