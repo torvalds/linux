@@ -2161,6 +2161,11 @@ static inline int skb_checksum_start_offset(const struct sk_buff *skb)
 	return skb->csum_start - skb_headroom(skb);
 }
 
+static inline unsigned char *skb_checksum_start(const struct sk_buff *skb)
+{
+	return skb->head + skb->csum_start;
+}
+
 static inline int skb_transport_offset(const struct sk_buff *skb)
 {
 	return skb_transport_header(skb) - skb->data;
@@ -3549,6 +3554,7 @@ static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
 struct skb_gso_cb {
 	int	mac_offset;
 	int	encap_level;
+	__wsum	csum;
 	__u16	csum_start;
 };
 #define SKB_SGO_CB_OFFSET	32
@@ -3575,6 +3581,16 @@ static inline int gso_pskb_expand_head(struct sk_buff *skb, int extra)
 	return 0;
 }
 
+static inline void gso_reset_checksum(struct sk_buff *skb, __wsum res)
+{
+	/* Do not update partial checksums if remote checksum is enabled. */
+	if (skb->remcsum_offload)
+		return;
+
+	SKB_GSO_CB(skb)->csum = res;
+	SKB_GSO_CB(skb)->csum_start = skb_checksum_start(skb) - skb->head;
+}
+
 /* Compute the checksum for a gso segment. First compute the checksum value
  * from the start of transport header to SKB_GSO_CB(skb)->csum_start, and
  * then add in skb->csum (checksum from csum_start to end of packet).
@@ -3585,15 +3601,14 @@ static inline int gso_pskb_expand_head(struct sk_buff *skb, int extra)
  */
 static inline __sum16 gso_make_checksum(struct sk_buff *skb, __wsum res)
 {
-	int plen = SKB_GSO_CB(skb)->csum_start - skb_headroom(skb) -
-		   skb_transport_offset(skb);
-	__wsum partial;
+	unsigned char *csum_start = skb_transport_header(skb);
+	int plen = (skb->head + SKB_GSO_CB(skb)->csum_start) - csum_start;
+	__wsum partial = SKB_GSO_CB(skb)->csum;
 
-	partial = csum_partial(skb_transport_header(skb), plen, skb->csum);
-	skb->csum = res;
-	SKB_GSO_CB(skb)->csum_start -= plen;
+	SKB_GSO_CB(skb)->csum = res;
+	SKB_GSO_CB(skb)->csum_start = csum_start - skb->head;
 
-	return csum_fold(partial);
+	return csum_fold(csum_partial(csum_start, plen, partial));
 }
 
 static inline bool skb_is_gso(const struct sk_buff *skb)

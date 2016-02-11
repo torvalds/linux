@@ -3004,8 +3004,7 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	if (unlikely(!proto))
 		return ERR_PTR(-EINVAL);
 
-	csum = !head_skb->encap_hdr_csum &&
-	    !!can_checksum_protocol(features, proto);
+	csum = !!can_checksum_protocol(features, proto);
 
 	headroom = skb_headroom(head_skb);
 	pos = skb_headlen(head_skb);
@@ -3098,13 +3097,15 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 		if (nskb->len == len + doffset)
 			goto perform_csum_check;
 
-		if (!sg && !nskb->remcsum_offload) {
-			nskb->ip_summed = CHECKSUM_NONE;
-			nskb->csum = skb_copy_and_csum_bits(head_skb, offset,
-							    skb_put(nskb, len),
-							    len, 0);
+		if (!sg) {
+			if (!nskb->remcsum_offload)
+				nskb->ip_summed = CHECKSUM_NONE;
+			SKB_GSO_CB(nskb)->csum =
+				skb_copy_and_csum_bits(head_skb, offset,
+						       skb_put(nskb, len),
+						       len, 0);
 			SKB_GSO_CB(nskb)->csum_start =
-			    skb_headroom(nskb) + doffset;
+				skb_headroom(nskb) + doffset;
 			continue;
 		}
 
@@ -3170,12 +3171,19 @@ skip_fraglist:
 		nskb->truesize += nskb->data_len;
 
 perform_csum_check:
-		if (!csum && !nskb->remcsum_offload) {
-			nskb->csum = skb_checksum(nskb, doffset,
-						  nskb->len - doffset, 0);
-			nskb->ip_summed = CHECKSUM_NONE;
+		if (!csum) {
+			if (skb_has_shared_frag(nskb)) {
+				err = __skb_linearize(nskb);
+				if (err)
+					goto err;
+			}
+			if (!nskb->remcsum_offload)
+				nskb->ip_summed = CHECKSUM_NONE;
+			SKB_GSO_CB(nskb)->csum =
+				skb_checksum(nskb, doffset,
+					     nskb->len - doffset, 0);
 			SKB_GSO_CB(nskb)->csum_start =
-			    skb_headroom(nskb) + doffset;
+				skb_headroom(nskb) + doffset;
 		}
 	} while ((offset += len) < head_skb->len);
 
