@@ -7,8 +7,6 @@
  * Released under the GPLv2 only.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
@@ -55,7 +53,7 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	 * so that we don't have to every time we make them.
 	 */
 	if ((!driver->message_send) || (!driver->message_cancel)) {
-		pr_err("Must implement all gb_hd_driver callbacks!\n");
+		dev_err(parent, "mandatory hd-callbacks missing\n");
 		return ERR_PTR(-EINVAL);
 	}
 

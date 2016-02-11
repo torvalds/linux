@@ -7,8 +7,6 @@
  * Released under the GPLv2 only.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/debugfs.h>
 
 #include "greybus.h"
