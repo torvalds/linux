@@ -543,7 +543,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 			wid_list[wid_cnt].size = sizeof(char);
 			hif_drv->cfg_values.power_mgmt_mode = (u8)cfg_param_attr->cfg_attr_info.power_mgmt_mode;
 		} else {
-			PRINT_ER("Invalide power mode\n");
+			PRINT_ER("Invalid power mode\n");
 			result = -EINVAL;
 			goto ERRORHANDLER;
 		}
@@ -881,7 +881,7 @@ static s32 Handle_Scan(struct wilc_vif *vif,
 				      wilc_get_vif_idx(vif));
 
 	if (result)
-		PRINT_ER("Failed to send scan paramters config packet\n");
+		PRINT_ER("Failed to send scan parameters config packet\n");
 
 ERRORHANDLER:
 	if (result) {
@@ -2081,7 +2081,7 @@ static s32 Handle_GetStatistics(struct wilc_vif *vif,
 				      wilc_get_vif_idx(vif));
 
 	if (result)
-		PRINT_ER("Failed to send scan paramters config packet\n");
+		PRINT_ER("Failed to send scan parameters config packet\n");
 
 	if (pstrStatistics->link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH &&
 	    pstrStatistics->link_speed != DEFAULT_LINK_SPEED)
