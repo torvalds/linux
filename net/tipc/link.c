@@ -903,8 +903,10 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 		if (unlikely(l->backlog[i].len >= l->backlog[i].limit))
 			return link_schedule_user(l, list);
 	}
-	if (unlikely(msg_size(hdr) > mtu))
+	if (unlikely(msg_size(hdr) > mtu)) {
+		skb_queue_purge(list);
 		return -EMSGSIZE;
+	}
 
 	/* Prepare each packet for sending, and add to relevant queue: */
 	while (skb_queue_len(list)) {
@@ -916,8 +918,10 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 
 		if (likely(skb_queue_len(transmq) < maxwin)) {
 			_skb = skb_clone(skb, GFP_ATOMIC);
-			if (!_skb)
+			if (!_skb) {
+				skb_queue_purge(list);
 				return -ENOBUFS;
+			}
 			__skb_dequeue(list);
 			__skb_queue_tail(transmq, skb);
 			__skb_queue_tail(xmitq, _skb);

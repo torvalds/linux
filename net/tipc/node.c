@@ -1166,7 +1166,7 @@ msg_full:
  * @dnode: address of destination node
  * @selector: a number used for deterministic link selection
  * Consumes the buffer chain, except when returning -ELINKCONG
- * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
+ * Returns 0 if success, otherwise: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE,-ENOBUF
  */
 int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 		   u32 dnode, int selector)
@@ -1174,33 +1174,43 @@ int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 	struct tipc_link_entry *le = NULL;
 	struct tipc_node *n;
 	struct sk_buff_head xmitq;
-	int bearer_id = -1;
-	int rc = -EHOSTUNREACH;
+	int bearer_id;
+	int rc;
 
-	__skb_queue_head_init(&xmitq);
-	n = tipc_node_find(net, dnode);
-	if (likely(n)) {
-		tipc_node_read_lock(n);
-		bearer_id = n->active_links[selector & 1];
-		if (bearer_id >= 0) {
-			le = &n->links[bearer_id];
-			spin_lock_bh(&le->lock);
-			rc = tipc_link_xmit(le->link, list, &xmitq);
-			spin_unlock_bh(&le->lock);
-		}
-		tipc_node_read_unlock(n);
-		if (likely(!rc))
-			tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr);
-		else if (rc == -ENOBUFS)
-			tipc_node_link_down(n, bearer_id, false);
-		tipc_node_put(n);
-		return rc;
-	}
-
-	if (likely(in_own_node(net, dnode))) {
+	if (in_own_node(net, dnode)) {
 		tipc_sk_rcv(net, list);
 		return 0;
 	}
+
+	n = tipc_node_find(net, dnode);
+	if (unlikely(!n)) {
+		skb_queue_purge(list);
+		return -EHOSTUNREACH;
+	}
+
+	tipc_node_read_lock(n);
+	bearer_id = n->active_links[selector & 1];
+	if (unlikely(bearer_id == INVALID_BEARER_ID)) {
+		tipc_node_read_unlock(n);
+		tipc_node_put(n);
+		skb_queue_purge(list);
+		return -EHOSTUNREACH;
+	}
+
+	__skb_queue_head_init(&xmitq);
+	le = &n->links[bearer_id];
+	spin_lock_bh(&le->lock);
+	rc = tipc_link_xmit(le->link, list, &xmitq);
+	spin_unlock_bh(&le->lock);
+	tipc_node_read_unlock(n);
+
+	if (likely(rc == 0))
+		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr);
+	else if (rc == -ENOBUFS)
+		tipc_node_link_down(n, bearer_id, false);
+
+	tipc_node_put(n);
+
 	return rc;
 }
 
