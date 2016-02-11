@@ -96,8 +96,7 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 		nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
 					   order);
 		if (!nic->rb_page) {
-			netdev_err(nic->netdev,
-				   "Failed to allocate new rcv buffer\n");
+			nic->drv_stats.rcv_buffer_alloc_failures++;
 			return -ENOMEM;
 		}
 		nic->rb_page_offset = 0;

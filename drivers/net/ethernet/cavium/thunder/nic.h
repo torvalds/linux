@@ -248,10 +248,13 @@ struct nicvf_drv_stats {
 	u64 rx_frames_jumbo;
 	u64 rx_drops;
 
+	u64 rcv_buffer_alloc_failures;
+
 	/* Tx */
 	u64 tx_frames_ok;
 	u64 tx_drops;
 	u64 tx_tso;
+	u64 tx_timeout;
 	u64 txq_stop;
 	u64 txq_wake;
 };
