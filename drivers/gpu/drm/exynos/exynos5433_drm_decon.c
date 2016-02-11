@@ -580,9 +580,9 @@ out:
 static int exynos5433_decon_suspend(struct device *dev)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
-	int i;
+	int i = ARRAY_SIZE(decon_clks_name);
 
-	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++)
+	while (--i >= 0)
 		clk_disable_unprepare(ctx->clks[i]);
 
 	return 0;
