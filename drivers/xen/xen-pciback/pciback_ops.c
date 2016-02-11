@@ -333,6 +333,9 @@ void xen_pcibk_do_op(struct work_struct *data)
 	struct xen_pcibk_dev_data *dev_data = NULL;
 	struct xen_pci_op *op = &pdev->op;
 	int test_intx = 0;
+#ifdef CONFIG_PCI_MSI
+	unsigned int nr = 0;
+#endif
 
 	*op = pdev->sh_info->op;
 	barrier();
@@ -361,6 +364,7 @@ void xen_pcibk_do_op(struct work_struct *data)
 			op->err = xen_pcibk_disable_msi(pdev, dev, op);
 			break;
 		case XEN_PCI_OP_enable_msix:
+			nr = op->value;
 			op->err = xen_pcibk_enable_msix(pdev, dev, op);
 			break;
 		case XEN_PCI_OP_disable_msix:
@@ -383,7 +387,7 @@ void xen_pcibk_do_op(struct work_struct *data)
 	if (op->cmd == XEN_PCI_OP_enable_msix && op->err == 0) {
 		unsigned int i;
 
-		for (i = 0; i < op->value; i++)
+		for (i = 0; i < nr; i++)
 			pdev->sh_info->op.msix_entries[i].vector =
 				op->msix_entries[i].vector;
 	}
