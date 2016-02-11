@@ -1721,7 +1721,7 @@ static int vxlan_build_skb(struct sk_buff *skb, struct dst_entry *dst,
 	if (WARN_ON(!skb))
 		return -ENOMEM;
 
-	skb = iptunnel_handle_offloads(skb, false, type);
+	skb = iptunnel_handle_offloads(skb, type);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 

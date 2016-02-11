@@ -787,7 +787,7 @@ int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 						       SKB_GSO_UDP_TUNNEL;
 	__be16 sport;
 
-	skb = iptunnel_handle_offloads(skb, false, type);
+	skb = iptunnel_handle_offloads(skb, type);
 
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -820,7 +820,7 @@ int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 
 	optlen += need_priv ? GUE_LEN_PRIV : 0;
 
-	skb = iptunnel_handle_offloads(skb, false, type);
+	skb = iptunnel_handle_offloads(skb, type);
 
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
