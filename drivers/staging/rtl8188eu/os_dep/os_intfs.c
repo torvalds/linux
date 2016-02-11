@@ -1155,7 +1155,6 @@ int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
 static int netdev_close(struct net_device *pnetdev)
 {
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
-	struct hal_data_8188e *rtlhal = GET_HAL_DATA(padapter);
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+88eu_drv - drv_close\n"));
 
@@ -1187,9 +1186,6 @@ static int netdev_close(struct net_device *pnetdev)
 		/*  Close LED */
 		rtw_led_control(padapter, LED_CTL_POWER_OFF);
 	}
-
-	kfree(rtlhal->pfirmware);
-	rtlhal->pfirmware = NULL;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-88eu_drv - drv_close\n"));
 	DBG_88E("-88eu_drv - drv_close, bup =%d\n", padapter->bup);

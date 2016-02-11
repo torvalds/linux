@@ -158,13 +158,12 @@ exit:
 
 int rtl88eu_download_fw(struct adapter *adapt)
 {
-	struct hal_data_8188e *rtlhal = GET_HAL_DATA(adapt);
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapt);
 	struct device *device = dvobj_to_dev(dvobj);
 	const struct firmware *fw;
 	const char fw_name[] = "rtlwifi/rtl8188eufw.bin";
 	struct rtl92c_firmware_header *pfwheader = NULL;
-	u8 *download_data;
+	u8 *download_data, *fw_data;
 	size_t download_size;
 	unsigned int trailing_zeros_length;
 
@@ -181,22 +180,20 @@ int rtl88eu_download_fw(struct adapter *adapt)
 
 	trailing_zeros_length = (4 - fw->size % 4) % 4;
 
-	rtlhal->fwsize = fw->size;
-	rtlhal->pfirmware = kmalloc(fw->size + trailing_zeros_length,
-				    GFP_KERNEL);
-	if (!rtlhal->pfirmware)
+	fw_data = kmalloc(fw->size + trailing_zeros_length, GFP_KERNEL);
+	if (!fw_data)
 		return -ENOMEM;
 
-	memcpy(rtlhal->pfirmware, fw->data, fw->size);
-	memset(rtlhal->pfirmware + fw->size, 0, trailing_zeros_length);
+	memcpy(fw_data, fw->data, fw->size);
+	memset(fw_data + fw->size, 0, trailing_zeros_length);
 
-	pfwheader = (struct rtl92c_firmware_header *)rtlhal->pfirmware;
+	pfwheader = (struct rtl92c_firmware_header *)fw_data;
 
 	if (IS_FW_HEADER_EXIST(pfwheader)) {
-		download_data = rtlhal->pfirmware + 32;
+		download_data = fw_data + 32;
 		download_size = fw->size + trailing_zeros_length - 32;
 	} else {
-		download_data = rtlhal->pfirmware;
+		download_data = fw_data;
 		download_size = fw->size + trailing_zeros_length;
 	}
 
@@ -211,5 +208,6 @@ int rtl88eu_download_fw(struct adapter *adapt)
 	_rtl88e_write_fw(adapt, download_data, download_size);
 	_rtl88e_enable_fw_download(adapt, false);
 
+	kfree(fw_data);
 	return _rtl88e_fw_free_to_go(adapt);
 }
