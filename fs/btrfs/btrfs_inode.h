@@ -192,6 +192,10 @@ struct btrfs_inode {
 	/* File creation time. */
 	struct timespec i_otime;
 
+	/* Hook into fs_info->delayed_iputs */
+	struct list_head delayed_iput;
+	long delayed_iput_count;
+
 	struct inode vfs_inode;
 };
 

@@ -1163,12 +1163,8 @@ done:
 
 static unsigned int vga_arb_fpoll(struct file *file, poll_table *wait)
 {
-	struct vga_arb_private *priv = file->private_data;
-
 	pr_debug("%s\n", __func__);
 
-	if (priv == NULL)
-		return -ENODEV;
 	poll_wait(file, &vga_wait_queue, wait);
 	return POLLIN;
 }
@@ -1208,9 +1204,6 @@ static int vga_arb_release(struct inode *inode, struct file *file)
 	int i;
 
 	pr_debug("%s\n", __func__);
-
-	if (priv == NULL)
-		return -ENODEV;
 
 	spin_lock_irqsave(&vga_user_lock, flags);
 	list_del(&priv->list);

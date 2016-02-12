@@ -268,6 +268,9 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	if (err < 0)
 		goto __error;
 
+	snprintf(card->irq_descr, sizeof(card->irq_descr), "%s:%s",
+		 dev_driver_string(card->dev), dev_name(&card->card_dev));
+
 	/* the control interface cannot be accessed from the user space until */
 	/* snd_cards_bitmask and snd_cards are set with snd_card_register */
 	err = snd_ctl_create(card);

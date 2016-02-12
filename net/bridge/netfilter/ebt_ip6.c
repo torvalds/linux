@@ -65,8 +65,8 @@ ebt_ip6_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			return false;
 		if (FWINV(info->protocol != nexthdr, EBT_IP6_PROTO))
 			return false;
-		if (!(info->bitmask & ( EBT_IP6_DPORT |
-					EBT_IP6_SPORT | EBT_IP6_ICMP6)))
+		if (!(info->bitmask & (EBT_IP6_DPORT |
+				       EBT_IP6_SPORT | EBT_IP6_ICMP6)))
 			return true;
 
 		/* min icmpv6 headersize is 4, so sizeof(_pkthdr) is ok. */

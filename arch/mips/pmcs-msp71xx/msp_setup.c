@@ -39,7 +39,6 @@ extern void msp_serial_setup(void);
 void msp7120_reset(void)
 {
 	void *start, *end, *iptr;
-	register int i;
 
 	/* Diasble all interrupts */
 	local_irq_disable();

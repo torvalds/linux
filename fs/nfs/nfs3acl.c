@@ -284,12 +284,12 @@ nfs3_listxattr(struct dentry *dentry, char *data, size_t size)
 	int error;
 
 	error = nfs3_list_one_acl(inode, ACL_TYPE_ACCESS,
-			POSIX_ACL_XATTR_ACCESS, data, size, &result);
+			XATTR_NAME_POSIX_ACL_ACCESS, data, size, &result);
 	if (error)
 		return error;
 
 	error = nfs3_list_one_acl(inode, ACL_TYPE_DEFAULT,
-			POSIX_ACL_XATTR_DEFAULT, data, size, &result);
+			XATTR_NAME_POSIX_ACL_DEFAULT, data, size, &result);
 	if (error)
 		return error;
 	return result;

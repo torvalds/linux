@@ -35,7 +35,7 @@
 #define MPA_IDLE_WITH_QMI_EMPTY		BIT(12)
 #define SG_RX_DV_GATE_REG_0_ADDR	0x0dfc
 
-extern struct xgene_mac_ops xgene_sgmac_ops;
-extern struct xgene_port_ops xgene_sgport_ops;
+extern const struct xgene_mac_ops xgene_sgmac_ops;
+extern const struct xgene_port_ops xgene_sgport_ops;
 
 #endif  /* __XGENE_ENET_SGMAC_H__ */

@@ -20,6 +20,10 @@ Optional properties:
   propoerty indicates the default frequency 100 kHz.
 - clocks: clock specifier.
 
+- i2c-scl-falling-time-ns: see i2c.txt
+- i2c-scl-internal-delay-ns: see i2c.txt
+- i2c-scl-rising-time-ns: see i2c.txt
+
 Examples :
 
 i2c0: i2c@e6508000 {

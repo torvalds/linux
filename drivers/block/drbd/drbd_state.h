@@ -122,9 +122,9 @@ extern enum drbd_state_rv
 _drbd_request_state_holding_state_mutex(struct drbd_device *, union drbd_state,
 					union drbd_state, enum chg_state_flags);
 
-extern enum drbd_state_rv __drbd_set_state(struct drbd_device *, union drbd_state,
-					   enum chg_state_flags,
-					   struct completion *done);
+extern enum drbd_state_rv _drbd_set_state(struct drbd_device *, union drbd_state,
+					  enum chg_state_flags,
+					  struct completion *done);
 extern void print_st_err(struct drbd_device *, union drbd_state,
 			union drbd_state, int);
 

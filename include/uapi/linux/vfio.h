@@ -39,6 +39,13 @@
 #define VFIO_SPAPR_TCE_v2_IOMMU		7
 
 /*
+ * The No-IOMMU IOMMU offers no translation or isolation for devices and
+ * supports no ioctls outside of VFIO_CHECK_EXTENSION.  Use of VFIO's No-IOMMU
+ * code will taint the host kernel and should be used with extreme caution.
+ */
+#define VFIO_NOIOMMU_IOMMU		8
+
+/*
  * The IOCTL interface is designed for extensibility by embedding the
  * structure length (argsz) and flags into structures passed between
  * kernel and userspace.  We therefore use the _IO() macro for these
@@ -568,8 +575,10 @@ struct vfio_iommu_spapr_tce_create {
 	__u32 flags;
 	/* in */
 	__u32 page_shift;
+	__u32 __resv1;
 	__u64 window_size;
 	__u32 levels;
+	__u32 __resv2;
 	/* out */
 	__u64 start_addr;
 };

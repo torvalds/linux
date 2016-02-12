@@ -637,6 +637,12 @@
 						atmel,clk-output-range = <0 83000000>;
 					};
 
+					pdmic_clk: pdmic_clk {
+						#clock-cells = <0>;
+						reg = <48>;
+						atmel,clk-output-range = <0 83000000>;
+					};
+
 					i2s0_clk: i2s0_clk {
 						#clock-cells = <0>;
 						reg = <54>;
@@ -763,6 +769,11 @@
 						atmel,clk-output-range = <0 83000000>;
 					};
 
+					pdmic_gclk: pdmic_gclk {
+						#clock-cells = <0>;
+						reg = <48>;
+					};
+
 					i2s0_gclk: i2s0_gclk {
 						#clock-cells = <0>;
 						reg = <54>;
@@ -852,6 +863,19 @@
 				clock-names = "t0_clk", "slow_clk";
 			};
 
+			pdmic: pdmic@f8018000 {
+				compatible = "atmel,sama5d2-pdmic";
+				reg = <0xf8018000 0x124>;
+				interrupts = <48 IRQ_TYPE_LEVEL_HIGH 7>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(50))>;
+				dma-names = "rx";
+				clocks = <&pdmic_clk>, <&pdmic_gclk>;
+				clock-names = "pclk", "gclk";
+				status = "disabled";
+			};
+
 			uart0: serial@f801c000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf801c000 0x100>;
@@ -927,6 +951,13 @@
 				reg = <0xf8048030 0x10>;
 				interrupts = <3 IRQ_TYPE_LEVEL_HIGH 5>;
 				clocks = <&h32ck>;
+			};
+
+			watchdog@f8048040 {
+				compatible = "atmel,sama5d4-wdt";
+				reg = <0xf8048040 0x10>;
+				interrupts = <4 IRQ_TYPE_LEVEL_HIGH 7>;
+				status = "disabled";
 			};
 
 			sckc@f8048050 {

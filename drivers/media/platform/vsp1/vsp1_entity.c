@@ -219,8 +219,8 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	entity->pads[num_pads - 1].flags = MEDIA_PAD_FL_SOURCE;
 
 	/* Initialize the media entity. */
-	return media_entity_init(&entity->subdev.entity, num_pads,
-				 entity->pads, 0);
+	return media_entity_pads_init(&entity->subdev.entity, num_pads,
+				 entity->pads);
 }
 
 void vsp1_entity_destroy(struct vsp1_entity *entity)

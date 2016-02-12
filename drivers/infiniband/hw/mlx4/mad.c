@@ -40,6 +40,7 @@
 #include <linux/gfp.h>
 #include <rdma/ib_pma.h>
 
+#include <linux/mlx4/driver.h>
 #include "mlx4_ib.h"
 
 enum {
@@ -606,8 +607,8 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 			struct ib_mad *mad)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
-	int err;
-	int slave;
+	int err, other_port;
+	int slave = -1;
 	u8 *slave_id;
 	int is_eth = 0;
 
@@ -625,7 +626,17 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 			mlx4_ib_warn(ibdev, "RoCE mgmt class is not CM\n");
 			return -EINVAL;
 		}
-		if (mlx4_get_slave_from_roce_gid(dev->dev, port, grh->dgid.raw, &slave)) {
+		err = mlx4_get_slave_from_roce_gid(dev->dev, port, grh->dgid.raw, &slave);
+		if (err && mlx4_is_mf_bonded(dev->dev)) {
+			other_port = (port == 1) ? 2 : 1;
+			err = mlx4_get_slave_from_roce_gid(dev->dev, other_port, grh->dgid.raw, &slave);
+			if (!err) {
+				port = other_port;
+				pr_debug("resolved slave %d from gid %pI6 wire port %d other %d\n",
+					 slave, grh->dgid.raw, port, other_port);
+			}
+		}
+		if (err) {
 			mlx4_ib_warn(ibdev, "failed matching grh\n");
 			return -ENOENT;
 		}

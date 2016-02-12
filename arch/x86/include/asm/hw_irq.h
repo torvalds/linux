@@ -130,6 +130,11 @@ struct irq_alloc_info {
 			char		*uv_name;
 		};
 #endif
+#if IS_ENABLED(CONFIG_VMD)
+		struct {
+			struct msi_desc *desc;
+		};
+#endif
 	};
 };
 

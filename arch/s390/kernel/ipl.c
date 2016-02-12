@@ -2039,20 +2039,14 @@ static void do_reset_calls(void)
 		reset->fn();
 }
 
-u32 dump_prefix_page;
-
-void s390_reset_system(void (*fn_pre)(void),
-		       void (*fn_post)(void *), void *data)
+void s390_reset_system(void)
 {
-	struct _lowcore *lc;
+	struct lowcore *lc;
 
-	lc = (struct _lowcore *)(unsigned long) store_prefix();
+	lc = (struct lowcore *)(unsigned long) store_prefix();
 
 	/* Stack for interrupt/machine check handler */
 	lc->panic_stack = S390_lowcore.panic_stack;
-
-	/* Save prefix page address for dump case */
-	dump_prefix_page = (u32)(unsigned long) lc;
 
 	/* Disable prefixing */
 	set_prefix(0);
@@ -2063,12 +2057,12 @@ void s390_reset_system(void (*fn_pre)(void),
 	/* Set new machine check handler */
 	S390_lowcore.mcck_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT;
 	S390_lowcore.mcck_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) s390_base_mcck_handler;
+		(unsigned long) s390_base_mcck_handler;
 
 	/* Set new program check handler */
 	S390_lowcore.program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT;
 	S390_lowcore.program_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
+		(unsigned long) s390_base_pgm_handler;
 
 	/*
 	 * Clear subchannel ID and number to signal new kernel that no CCW or
@@ -2077,14 +2071,5 @@ void s390_reset_system(void (*fn_pre)(void),
 	S390_lowcore.subchannel_id = 0;
 	S390_lowcore.subchannel_nr = 0;
 
-	/* Store status at absolute zero */
-	store_status();
-
-	/* Call function before reset */
-	if (fn_pre)
-		fn_pre();
 	do_reset_calls();
-	/* Call function after reset */
-	if (fn_post)
-		fn_post(data);
 }

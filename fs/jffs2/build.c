@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mm.h> /* kvfree() */
 #include "nodelist.h"
 
 static void jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *,
@@ -383,12 +384,7 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 	return 0;
 
  out_free:
-#ifndef __ECOS
-	if (jffs2_blocks_use_vmalloc(c))
-		vfree(c->blocks);
-	else
-#endif
-		kfree(c->blocks);
+	kvfree(c->blocks);
 
 	return ret;
 }

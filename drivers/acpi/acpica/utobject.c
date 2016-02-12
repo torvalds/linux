@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,9 +112,9 @@ union acpi_operand_object *acpi_ut_create_internal_object_dbg(const char
 
 		/* These types require a secondary object */
 
-		second_object = acpi_ut_allocate_object_desc_dbg(module_name,
-								 line_number,
-								 component_id);
+		second_object =
+		    acpi_ut_allocate_object_desc_dbg(module_name, line_number,
+						     component_id);
 		if (!second_object) {
 			acpi_ut_delete_object_desc(object);
 			return_PTR(NULL);
@@ -253,7 +253,8 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
 		buffer = ACPI_ALLOCATE_ZEROED(buffer_size);
 		if (!buffer) {
 			ACPI_ERROR((AE_INFO, "Could not allocate size %u",
-				    (u32) buffer_size));
+				    (u32)buffer_size));
+
 			acpi_ut_remove_reference(buffer_desc);
 			return_PTR(NULL);
 		}
@@ -305,7 +306,8 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size)
 	string = ACPI_ALLOCATE_ZEROED(string_size + 1);
 	if (!string) {
 		ACPI_ERROR((AE_INFO, "Could not allocate size %u",
-			    (u32) string_size));
+			    (u32)string_size));
+
 		acpi_ut_remove_reference(string_desc);
 		return_PTR(NULL);
 	}
@@ -649,8 +651,9 @@ acpi_ut_get_package_object_size(union acpi_operand_object *internal_object,
 	info.object_space = 0;
 	info.num_packages = 1;
 
-	status = acpi_ut_walk_package_tree(internal_object, NULL,
-					   acpi_ut_get_element_length, &info);
+	status =
+	    acpi_ut_walk_package_tree(internal_object, NULL,
+				      acpi_ut_get_element_length, &info);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -660,7 +663,8 @@ acpi_ut_get_package_object_size(union acpi_operand_object *internal_object,
 	 * just add the length of the package objects themselves.
 	 * Round up to the next machine word.
 	 */
-	info.length += ACPI_ROUND_UP_TO_NATIVE_WORD(sizeof(union acpi_object)) *
+	info.length +=
+	    ACPI_ROUND_UP_TO_NATIVE_WORD(sizeof(union acpi_object)) *
 	    (acpi_size) info.num_packages;
 
 	/* Return the total package length */
@@ -692,8 +696,8 @@ acpi_ut_get_object_size(union acpi_operand_object *internal_object,
 	ACPI_FUNCTION_ENTRY();
 
 	if ((ACPI_GET_DESCRIPTOR_TYPE(internal_object) ==
-	     ACPI_DESC_TYPE_OPERAND)
-	    && (internal_object->common.type == ACPI_TYPE_PACKAGE)) {
+	     ACPI_DESC_TYPE_OPERAND) &&
+	    (internal_object->common.type == ACPI_TYPE_PACKAGE)) {
 		status =
 		    acpi_ut_get_package_object_size(internal_object,
 						    obj_length);

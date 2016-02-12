@@ -49,15 +49,10 @@ static inline u32 mpc8xxx_gpio2mask(unsigned int gpio)
 	return 1u << (MPC8XXX_GPIO_PINS - 1 - gpio);
 }
 
-static inline struct mpc8xxx_gpio_chip *
-to_mpc8xxx_gpio_chip(struct of_mm_gpio_chip *mm)
-{
-	return container_of(mm, struct mpc8xxx_gpio_chip, mm_gc);
-}
-
 static void mpc8xxx_gpio_save_regs(struct of_mm_gpio_chip *mm)
 {
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = to_mpc8xxx_gpio_chip(mm);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc =
+		container_of(mm, struct mpc8xxx_gpio_chip, mm_gc);
 
 	mpc8xxx_gc->data = in_be32(mm->regs + GPIO_DAT);
 }
@@ -71,7 +66,7 @@ static int mpc8572_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	u32 val;
 	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = to_mpc8xxx_gpio_chip(mm);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = gpiochip_get_data(gc);
 	u32 out_mask, out_shadow;
 
 	out_mask = in_be32(mm->regs + GPIO_DIR);
@@ -79,7 +74,7 @@ static int mpc8572_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	val = in_be32(mm->regs + GPIO_DAT) & ~out_mask;
 	out_shadow = mpc8xxx_gc->data & out_mask;
 
-	return (val | out_shadow) & mpc8xxx_gpio2mask(gpio);
+	return !!((val | out_shadow) & mpc8xxx_gpio2mask(gpio));
 }
 
 static int mpc8xxx_gpio_get(struct gpio_chip *gc, unsigned int gpio)
@@ -92,7 +87,7 @@ static int mpc8xxx_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 static void mpc8xxx_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = to_mpc8xxx_gpio_chip(mm);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&mpc8xxx_gc->lock, flags);
@@ -111,7 +106,7 @@ static void mpc8xxx_gpio_set_multiple(struct gpio_chip *gc,
 				      unsigned long *mask, unsigned long *bits)
 {
 	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = to_mpc8xxx_gpio_chip(mm);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = gpiochip_get_data(gc);
 	unsigned long flags;
 	int i;
 
@@ -136,7 +131,7 @@ static void mpc8xxx_gpio_set_multiple(struct gpio_chip *gc,
 static int mpc8xxx_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = to_mpc8xxx_gpio_chip(mm);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&mpc8xxx_gc->lock, flags);
@@ -151,7 +146,7 @@ static int mpc8xxx_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 static int mpc8xxx_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = to_mpc8xxx_gpio_chip(mm);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	mpc8xxx_gpio_set(gc, gpio, val);
@@ -185,8 +180,7 @@ static int mpc5125_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val
 
 static int mpc8xxx_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
-	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = to_mpc8xxx_gpio_chip(mm);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = gpiochip_get_data(gc);
 
 	if (mpc8xxx_gc->irq && offset < MPC8XXX_GPIO_PINS)
 		return irq_create_mapping(mpc8xxx_gc->irq, offset);
@@ -417,7 +411,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	gc->set_multiple = mpc8xxx_gpio_set_multiple;
 	gc->to_irq = mpc8xxx_gpio_to_irq;
 
-	ret = of_mm_gpiochip_add(np, mm_gc);
+	ret = of_mm_gpiochip_add_data(np, mm_gc, mpc8xxx_gc);
 	if (ret)
 		return ret;
 

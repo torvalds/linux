@@ -89,7 +89,7 @@ struct devfreq_dev_profile {
 	int (*get_cur_freq)(struct device *dev, unsigned long *freq);
 	void (*exit)(struct device *dev);
 
-	unsigned int *freq_table;
+	unsigned long *freq_table;
 	unsigned int max_state;
 };
 

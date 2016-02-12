@@ -350,13 +350,6 @@ fail_free_priv:
 	return ret;
 }
 
-static void tilcdc_preclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-
-	tilcdc_crtc_cancel_page_flip(priv->crtc, file);
-}
-
 static void tilcdc_lastclose(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
@@ -557,7 +550,6 @@ static struct drm_driver tilcdc_driver = {
 	.driver_features    = DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET,
 	.load               = tilcdc_load,
 	.unload             = tilcdc_unload,
-	.preclose           = tilcdc_preclose,
 	.lastclose          = tilcdc_lastclose,
 	.set_busid          = drm_platform_set_busid,
 	.irq_handler        = tilcdc_irq,

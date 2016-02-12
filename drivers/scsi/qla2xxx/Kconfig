@@ -18,9 +18,6 @@ config SCSI_QLA_FC
 	2322, 6322        ql2322_fw.bin
 	24xx, 54xx        ql2400_fw.bin
 	25xx              ql2500_fw.bin
-	2031              ql2600_fw.bin
-	8031              ql8300_fw.bin
-	27xx              ql2700_fw.bin
 
 	Upon request, the driver caches the firmware image until
 	the driver is unloaded.

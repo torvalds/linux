@@ -83,6 +83,7 @@
 		reg = <0x5d>;
 		interrupt-parent = <&pio>;
 		interrupts = <0 3 IRQ_TYPE_LEVEL_HIGH>; /* PA3 */
+		touchscreen-swapped-x-y;
 	};
 };
 

@@ -82,7 +82,7 @@ out_default:
 }
 
 static int bcm47xxpart_parse(struct mtd_info *master,
-			     struct mtd_partition **pparts,
+			     const struct mtd_partition **pparts,
 			     struct mtd_part_parser_data *data)
 {
 	struct mtd_partition *parts;
@@ -313,24 +313,10 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 };
 
 static struct mtd_part_parser bcm47xxpart_mtd_parser = {
-	.owner = THIS_MODULE,
 	.parse_fn = bcm47xxpart_parse,
 	.name = "bcm47xxpart",
 };
-
-static int __init bcm47xxpart_init(void)
-{
-	register_mtd_parser(&bcm47xxpart_mtd_parser);
-	return 0;
-}
-
-static void __exit bcm47xxpart_exit(void)
-{
-	deregister_mtd_parser(&bcm47xxpart_mtd_parser);
-}
-
-module_init(bcm47xxpart_init);
-module_exit(bcm47xxpart_exit);
+module_mtd_part_parser(bcm47xxpart_mtd_parser);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MTD partitioning for BCM47XX flash memories");

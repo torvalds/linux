@@ -152,12 +152,9 @@ static int brb_peek(struct bop_ring_buffer *brb, struct block_op *result)
 
 static int brb_pop(struct bop_ring_buffer *brb)
 {
-	struct block_op *bop;
-
 	if (brb_empty(brb))
 		return -ENODATA;
 
-	bop = brb->bops + brb->begin;
 	brb->begin = brb_next(brb, brb->begin);
 
 	return 0;

@@ -252,6 +252,12 @@ struct l2cap_conn_rsp {
 #define L2CAP_PSM_3DSP		0x0021
 #define L2CAP_PSM_IPSP		0x0023 /* 6LoWPAN */
 
+#define L2CAP_PSM_DYN_START	0x1001
+#define L2CAP_PSM_DYN_END	0xffff
+#define L2CAP_PSM_AUTO_END	0x10ff
+#define L2CAP_PSM_LE_DYN_START  0x0080
+#define L2CAP_PSM_LE_DYN_END	0x00ff
+
 /* channel identifier */
 #define L2CAP_CID_SIGNALING	0x0001
 #define L2CAP_CID_CONN_LESS	0x0002

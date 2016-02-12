@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -463,10 +463,10 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 						  arg->common.node);
 			}
 		} else {
-			status = acpi_ds_build_internal_object(walk_state, arg,
-							       &obj_desc->
-							       package.
-							       elements[i]);
+			status =
+			    acpi_ds_build_internal_object(walk_state, arg,
+							  &obj_desc->package.
+							  elements[i]);
 		}
 
 		if (*obj_desc_ptr) {
@@ -525,7 +525,8 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		}
 
 		ACPI_INFO((AE_INFO,
-			   "Actual Package length (%u) is larger than NumElements field (%u), truncated",
+			   "Actual Package length (%u) is larger than "
+			   "NumElements field (%u), truncated",
 			   i, element_count));
 	} else if (i < element_count) {
 		/*
@@ -533,7 +534,8 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		 * Note: this is not an error, the package is padded out with NULLs.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Package List length (%u) smaller than NumElements count (%u), padded with null elements\n",
+				  "Package List length (%u) smaller than NumElements "
+				  "count (%u), padded with null elements\n",
 				  i, element_count));
 	}
 
@@ -584,8 +586,9 @@ acpi_ds_create_node(struct acpi_walk_state *walk_state,
 
 	/* Build an internal object for the argument(s) */
 
-	status = acpi_ds_build_internal_object(walk_state, op->common.value.arg,
-					       &obj_desc);
+	status =
+	    acpi_ds_build_internal_object(walk_state, op->common.value.arg,
+					  &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

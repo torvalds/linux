@@ -19,11 +19,9 @@ config CPU_IDLE_MULTIPLE_DRIVERS
 
 config CPU_IDLE_GOV_LADDER
 	bool "Ladder governor (for periodic timer tick)"
-	default y
 
 config CPU_IDLE_GOV_MENU
 	bool "Menu governor (for tickless system)"
-	default y
 
 config DT_IDLE_STATES
 	bool

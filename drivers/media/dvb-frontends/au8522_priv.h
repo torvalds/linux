@@ -39,6 +39,14 @@
 #define AU8522_DIGITAL_MODE 1
 #define AU8522_SUSPEND_MODE 2
 
+enum au8522_media_pads {
+	AU8522_PAD_INPUT,
+	AU8522_PAD_VID_OUT,
+	AU8522_PAD_VBI_OUT,
+
+	AU8522_NUM_PADS
+};
+
 struct au8522_state {
 	struct i2c_client *c;
 	struct i2c_adapter *i2c;
@@ -50,7 +58,7 @@ struct au8522_state {
 	struct list_head hybrid_tuner_instance_list;
 
 	/* configuration settings */
-	const struct au8522_config *config;
+	struct au8522_config config;
 
 	struct dvb_frontend frontend;
 
@@ -68,6 +76,10 @@ struct au8522_state {
 	u32 id;
 	u32 rev;
 	struct v4l2_ctrl_handler hdl;
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad pads[AU8522_NUM_PADS];
+#endif
 };
 
 /* These are routines shared by both the VSB/QAM demodulator and the analog

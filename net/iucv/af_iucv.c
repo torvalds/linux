@@ -303,7 +303,7 @@ static void iucv_sock_wake_msglim(struct sock *sk)
 
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
+	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_all(&wq->wait);
 	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	rcu_read_unlock();
@@ -708,6 +708,9 @@ static int iucv_sock_bind(struct socket *sock, struct sockaddr *addr,
 	if (!addr || addr->sa_family != AF_IUCV)
 		return -EINVAL;
 
+	if (addr_len < sizeof(struct sockaddr_iucv))
+		return -EINVAL;
+
 	lock_sock(sk);
 	if (sk->sk_state != IUCV_OPEN) {
 		err = -EBADFD;
@@ -1031,7 +1034,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	struct sock *sk = sock->sk;
 	struct iucv_sock *iucv = iucv_sk(sk);
 	struct sk_buff *skb;
-	struct iucv_message txmsg;
+	struct iucv_message txmsg = {0};
 	struct cmsghdr *cmsg;
 	int cmsg_done;
 	long timeo;
@@ -2084,11 +2087,7 @@ static int afiucv_hs_callback_rx(struct sock *sk, struct sk_buff *skb)
 		return NET_RX_SUCCESS;
 	}
 
-		/* write stuff from iucv_msg to skb cb */
-	if (skb->len < sizeof(struct af_iucv_trans_hdr)) {
-		kfree_skb(skb);
-		return NET_RX_SUCCESS;
-	}
+	/* write stuff from iucv_msg to skb cb */
 	skb_pull(skb, sizeof(struct af_iucv_trans_hdr));
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
@@ -2119,6 +2118,20 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	char nullstring[8];
 	int err = 0;
 
+	if (skb->len < (ETH_HLEN + sizeof(struct af_iucv_trans_hdr))) {
+		WARN_ONCE(1, "AF_IUCV too short skb, len=%d, min=%d",
+			  (int)skb->len,
+			  (int)(ETH_HLEN + sizeof(struct af_iucv_trans_hdr)));
+		kfree_skb(skb);
+		return NET_RX_SUCCESS;
+	}
+	if (skb_headlen(skb) < (ETH_HLEN + sizeof(struct af_iucv_trans_hdr)))
+		if (skb_linearize(skb)) {
+			WARN_ONCE(1, "AF_IUCV skb_linearize failed, len=%d",
+				  (int)skb->len);
+			kfree_skb(skb);
+			return NET_RX_SUCCESS;
+		}
 	skb_pull(skb, ETH_HLEN);
 	trans_hdr = (struct af_iucv_trans_hdr *)skb->data;
 	EBCASC(trans_hdr->destAppName, sizeof(trans_hdr->destAppName));

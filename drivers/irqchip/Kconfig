@@ -8,6 +8,11 @@ config ARM_GIC
 	select IRQ_DOMAIN_HIERARCHY
 	select MULTI_IRQ_HANDLER
 
+config ARM_GIC_MAX_NR
+	int
+	default 2 if ARCH_REALVIEW
+	default 1
+
 config ARM_GIC_V2M
 	bool
 	depends on ARM_GIC
@@ -26,6 +31,14 @@ config ARM_GIC_V3
 config ARM_GIC_V3_ITS
 	bool
 	select PCI_MSI_IRQ_DOMAIN
+
+config HISILICON_IRQ_MBIGEN
+	bool "Support mbigen interrupt controller"
+	default n
+	depends on ARM_GIC_V3 && ARM_GIC_V3_ITS && GENERIC_MSI_IRQ_DOMAIN
+	help
+	 Enable the mbigen interrupt controller used on
+	 Hisilicon platform.
 
 config ARM_NVIC
 	bool
@@ -117,6 +130,11 @@ config ORION_IRQCHIP
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
 
+config PIC32_EVIC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 config RENESAS_INTC_IRQPIN
 	bool
 	select IRQ_DOMAIN
@@ -137,6 +155,13 @@ config TB10X_IRQC
 	bool
 	select IRQ_DOMAIN
 	select GENERIC_IRQ_CHIP
+
+config TS4800_IRQ
+	tristate "TS-4800 IRQ controller"
+	select IRQ_DOMAIN
+	depends on HAS_IOMEM
+	help
+	  Support for the TS-4800 FPGA IRQ controller
 
 config VERSATILE_FPGA_IRQ
 	bool

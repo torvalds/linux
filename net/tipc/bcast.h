@@ -43,6 +43,7 @@ struct tipc_node;
 struct tipc_msg;
 struct tipc_nl_msg;
 struct tipc_node_map;
+extern const char tipc_bclink_name[];
 
 int tipc_bcast_init(struct net *net);
 void tipc_bcast_reinit(struct net *net);

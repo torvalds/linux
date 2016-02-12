@@ -371,6 +371,12 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - increment the device's usage counter, run pm_runtime_resume(dev) and
       return its result
 
+  int pm_runtime_get_if_in_use(struct device *dev);
+    - return -EINVAL if 'power.disable_depth' is nonzero; otherwise, if the
+      runtime PM status is RPM_ACTIVE and the runtime PM usage counter is
+      nonzero, increment the counter and return 1; otherwise return 0 without
+      changing the counter
+
   void pm_runtime_put_noidle(struct device *dev);
     - decrement the device's usage counter
 

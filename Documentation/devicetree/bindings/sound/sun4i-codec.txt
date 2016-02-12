@@ -14,6 +14,9 @@ Required properties:
    - "apb": the parent APB clock for this controller
    - "codec": the parent module clock
 
+Optional properties:
+- allwinner,pa-gpios: gpio to enable external amplifier
+
 Example:
 codec: codec@01c22c00 {
 	#sound-dai-cells = <0>;

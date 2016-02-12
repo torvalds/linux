@@ -346,7 +346,7 @@ void acpi_free_properties(struct acpi_device *adev)
  *
  * Return: %0 if property with @name has been found (success),
  *         %-EINVAL if the arguments are invalid,
- *         %-ENODATA if the property doesn't exist,
+ *         %-EINVAL if the property doesn't exist,
  *         %-EPROTO if the property value type doesn't match @type.
  */
 static int acpi_data_get_property(struct acpi_device_data *data,
@@ -360,7 +360,7 @@ static int acpi_data_get_property(struct acpi_device_data *data,
 		return -EINVAL;
 
 	if (!data->pointer || !data->properties)
-		return -ENODATA;
+		return -EINVAL;
 
 	properties = data->properties;
 	for (i = 0; i < properties->package.count; i++) {
@@ -375,13 +375,13 @@ static int acpi_data_get_property(struct acpi_device_data *data,
 		if (!strcmp(name, propname->string.pointer)) {
 			if (type != ACPI_TYPE_ANY && propvalue->type != type)
 				return -EPROTO;
-			else if (obj)
+			if (obj)
 				*obj = propvalue;
 
 			return 0;
 		}
 	}
-	return -ENODATA;
+	return -EINVAL;
 }
 
 /**
@@ -439,7 +439,7 @@ int acpi_node_prop_get(struct fwnode_handle *fwnode, const char *propname,
  *
  * Return: %0 if array property (package) with @name has been found (success),
  *         %-EINVAL if the arguments are invalid,
- *         %-ENODATA if the property doesn't exist,
+ *         %-EINVAL if the property doesn't exist,
  *         %-EPROTO if the property is not a package or the type of its elements
  *           doesn't match @type.
  */

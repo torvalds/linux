@@ -226,6 +226,12 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_AUXTRACE_INFO		= 70,
 	PERF_RECORD_AUXTRACE			= 71,
 	PERF_RECORD_AUXTRACE_ERROR		= 72,
+	PERF_RECORD_THREAD_MAP			= 73,
+	PERF_RECORD_CPU_MAP			= 74,
+	PERF_RECORD_STAT_CONFIG			= 75,
+	PERF_RECORD_STAT			= 76,
+	PERF_RECORD_STAT_ROUND			= 77,
+	PERF_RECORD_EVENT_UPDATE		= 78,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -270,10 +276,59 @@ struct events_stats {
 	u32 nr_proc_map_timeout;
 };
 
+enum {
+	PERF_CPU_MAP__CPUS = 0,
+	PERF_CPU_MAP__MASK = 1,
+};
+
+struct cpu_map_entries {
+	u16	nr;
+	u16	cpu[];
+};
+
+struct cpu_map_mask {
+	u16	nr;
+	u16	long_size;
+	unsigned long mask[];
+};
+
+struct cpu_map_data {
+	u16	type;
+	char	data[];
+};
+
+struct cpu_map_event {
+	struct perf_event_header	header;
+	struct cpu_map_data		data;
+};
+
 struct attr_event {
 	struct perf_event_header header;
 	struct perf_event_attr attr;
 	u64 id[];
+};
+
+enum {
+	PERF_EVENT_UPDATE__UNIT  = 0,
+	PERF_EVENT_UPDATE__SCALE = 1,
+	PERF_EVENT_UPDATE__NAME  = 2,
+	PERF_EVENT_UPDATE__CPUS  = 3,
+};
+
+struct event_update_event_cpus {
+	struct cpu_map_data cpus;
+};
+
+struct event_update_event_scale {
+	double scale;
+};
+
+struct event_update_event {
+	struct perf_event_header header;
+	u64 type;
+	u64 id;
+
+	char data[];
 };
 
 #define MAX_EVENT_NAME 64
@@ -356,6 +411,63 @@ struct context_switch_event {
 	u32 next_prev_tid;
 };
 
+struct thread_map_event_entry {
+	u64	pid;
+	char	comm[16];
+};
+
+struct thread_map_event {
+	struct perf_event_header	header;
+	u64				nr;
+	struct thread_map_event_entry	entries[];
+};
+
+enum {
+	PERF_STAT_CONFIG_TERM__AGGR_MODE	= 0,
+	PERF_STAT_CONFIG_TERM__INTERVAL		= 1,
+	PERF_STAT_CONFIG_TERM__SCALE		= 2,
+	PERF_STAT_CONFIG_TERM__MAX		= 3,
+};
+
+struct stat_config_event_entry {
+	u64	tag;
+	u64	val;
+};
+
+struct stat_config_event {
+	struct perf_event_header	header;
+	u64				nr;
+	struct stat_config_event_entry	data[];
+};
+
+struct stat_event {
+	struct perf_event_header	header;
+
+	u64	id;
+	u32	cpu;
+	u32	thread;
+
+	union {
+		struct {
+			u64 val;
+			u64 ena;
+			u64 run;
+		};
+		u64 values[3];
+	};
+};
+
+enum {
+	PERF_STAT_ROUND_TYPE__INTERVAL	= 0,
+	PERF_STAT_ROUND_TYPE__FINAL	= 1,
+};
+
+struct stat_round_event {
+	struct perf_event_header	header;
+	u64				type;
+	u64				time;
+};
+
 union perf_event {
 	struct perf_event_header	header;
 	struct mmap_event		mmap;
@@ -368,6 +480,7 @@ union perf_event {
 	struct throttle_event		throttle;
 	struct sample_event		sample;
 	struct attr_event		attr;
+	struct event_update_event	event_update;
 	struct event_type_event		event_type;
 	struct tracing_data_event	tracing_data;
 	struct build_id_event		build_id;
@@ -378,12 +491,20 @@ union perf_event {
 	struct aux_event		aux;
 	struct itrace_start_event	itrace_start;
 	struct context_switch_event	context_switch;
+	struct thread_map_event		thread_map;
+	struct cpu_map_event		cpu_map;
+	struct stat_config_event	stat_config;
+	struct stat_event		stat;
+	struct stat_round_event		stat_round;
 };
 
 void perf_event__print_totals(void);
 
 struct perf_tool;
 struct thread_map;
+struct cpu_map;
+struct perf_stat_config;
+struct perf_counts_values;
 
 typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 				     union perf_event *event,
@@ -395,6 +516,14 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      perf_event__handler_t process,
 				      struct machine *machine, bool mmap_data,
 				      unsigned int proc_map_timeout);
+int perf_event__synthesize_thread_map2(struct perf_tool *tool,
+				      struct thread_map *threads,
+				      perf_event__handler_t process,
+				      struct machine *machine);
+int perf_event__synthesize_cpu_map(struct perf_tool *tool,
+				   struct cpu_map *cpus,
+				   perf_event__handler_t process,
+				   struct machine *machine);
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine, bool mmap_data,
@@ -402,7 +531,21 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine);
-
+int perf_event__synthesize_stat_config(struct perf_tool *tool,
+				       struct perf_stat_config *config,
+				       perf_event__handler_t process,
+				       struct machine *machine);
+void perf_event__read_stat_config(struct perf_stat_config *config,
+				  struct stat_config_event *event);
+int perf_event__synthesize_stat(struct perf_tool *tool,
+				u32 cpu, u32 thread, u64 id,
+				struct perf_counts_values *count,
+				perf_event__handler_t process,
+				struct machine *machine);
+int perf_event__synthesize_stat_round(struct perf_tool *tool,
+				      u64 time, u64 type,
+				      perf_event__handler_t process,
+				      struct machine *machine);
 int perf_event__synthesize_modules(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine);
@@ -499,9 +642,14 @@ size_t perf_event__fprintf_task(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_aux(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf(union perf_event *event, FILE *fp);
 
 u64 kallsyms__get_function_start(const char *kallsyms_filename,
 				 const char *symbol_name);
 
+void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max);
+void  cpu_map_data__synthesize(struct cpu_map_data *data, struct cpu_map *map,
+			       u16 type, int max);
 #endif /* __PERF_RECORD_H */

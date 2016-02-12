@@ -13,13 +13,13 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <asm/mach-types.h>
 #include <asm/smp_scu.h>
 
-#include <mach/board-eb.h>
-#include <mach/board-pb11mp.h>
-#include <mach/board-pbx.h>
+#include "board-eb.h"
+#include "board-pb11mp.h"
+#include "board-pbx.h"
 
 #include <plat/platsmp.h>
 
@@ -75,7 +75,7 @@ static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 		     __io_address(REALVIEW_SYS_FLAGSSET));
 }
 
-struct smp_operations realview_smp_ops __initdata = {
+const struct smp_operations realview_smp_ops __initconst = {
 	.smp_init_cpus		= realview_smp_init_cpus,
 	.smp_prepare_cpus	= realview_smp_prepare_cpus,
 	.smp_secondary_init	= versatile_secondary_init,

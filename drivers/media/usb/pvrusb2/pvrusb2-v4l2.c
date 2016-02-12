@@ -628,6 +628,7 @@ static int pvr2_g_ext_ctrls(struct file *file, void *priv,
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
 	struct v4l2_ext_control *ctrl;
+	struct pvr2_ctrl *cptr;
 	unsigned int idx;
 	int val;
 	int ret;
@@ -635,8 +636,15 @@ static int pvr2_g_ext_ctrls(struct file *file, void *priv,
 	ret = 0;
 	for (idx = 0; idx < ctls->count; idx++) {
 		ctrl = ctls->controls + idx;
-		ret = pvr2_ctrl_get_value(
-				pvr2_hdw_get_ctrl_v4l(hdw, ctrl->id), &val);
+		cptr = pvr2_hdw_get_ctrl_v4l(hdw, ctrl->id);
+		if (cptr) {
+			if (ctls->which == V4L2_CTRL_WHICH_DEF_VAL)
+				pvr2_ctrl_get_def(cptr, &val);
+			else
+				ret = pvr2_ctrl_get_value(cptr, &val);
+		} else
+			ret = -EINVAL;
+
 		if (ret) {
 			ctls->error_idx = idx;
 			return ret;
@@ -657,6 +665,10 @@ static int pvr2_s_ext_ctrls(struct file *file, void *priv,
 	struct v4l2_ext_control *ctrl;
 	unsigned int idx;
 	int ret;
+
+	/* Default value cannot be changed */
+	if (ctls->which == V4L2_CTRL_WHICH_DEF_VAL)
+		return -EINVAL;
 
 	ret = 0;
 	for (idx = 0; idx < ctls->count; idx++) {

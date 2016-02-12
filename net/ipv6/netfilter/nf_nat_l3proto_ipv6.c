@@ -136,7 +136,8 @@ static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		if (!(rt->rt6i_flags & RTF_LOCAL) &&
-		    (!skb->dev || skb->dev->features & NETIF_F_V6_CSUM)) {
+		    (!skb->dev || skb->dev->features &
+		     (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))) {
 			skb->ip_summed = CHECKSUM_PARTIAL;
 			skb->csum_start = skb_headroom(skb) +
 					  skb_network_offset(skb) +

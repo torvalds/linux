@@ -23,9 +23,9 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <asm/byteorder.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <media/tuner.h>
-#include <media/uda1342.h>
+#include <media/i2c/uda1342.h>
 
 #include "go7007-priv.h"
 
@@ -1289,7 +1289,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 
 	/* Allocate the URBs and buffers for receiving the audio stream */
 	if ((board->flags & GO7007_USB_EZUSB) &&
-	    (board->flags & GO7007_BOARD_HAS_AUDIO)) {
+	    (board->main_info.flags & GO7007_BOARD_HAS_AUDIO)) {
 		for (i = 0; i < 8; ++i) {
 			usb->audio_urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
 			if (usb->audio_urbs[i] == NULL)

@@ -220,15 +220,6 @@ done:
 	return ret;
 }
 
-static void rcar_du_preclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct rcar_du_device *rcdu = dev->dev_private;
-	unsigned int i;
-
-	for (i = 0; i < rcdu->num_crtcs; ++i)
-		rcar_du_crtc_cancel_page_flip(&rcdu->crtcs[i], file);
-}
-
 static void rcar_du_lastclose(struct drm_device *dev)
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
@@ -271,7 +262,6 @@ static struct drm_driver rcar_du_driver = {
 				| DRIVER_ATOMIC,
 	.load			= rcar_du_load,
 	.unload			= rcar_du_unload,
-	.preclose		= rcar_du_preclose,
 	.lastclose		= rcar_du_lastclose,
 	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,

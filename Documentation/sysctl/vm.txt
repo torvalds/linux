@@ -42,6 +42,8 @@ Currently, these files are in /proc/sys/vm:
 - min_slab_ratio
 - min_unmapped_ratio
 - mmap_min_addr
+- mmap_rnd_bits
+- mmap_rnd_compat_bits
 - nr_hugepages
 - nr_overcommit_hugepages
 - nr_trim_pages         (only if CONFIG_MMU=n)
@@ -135,7 +137,7 @@ Contains, as a percentage of total available memory that contains free pages
 and reclaimable pages, the number of pages at which the background kernel
 flusher threads will start writing out dirty data.
 
-The total avaiable memory is not equal to total system memory.
+The total available memory is not equal to total system memory.
 
 ==============================================================
 
@@ -170,7 +172,7 @@ Contains, as a percentage of total available memory that contains free pages
 and reclaimable pages, the number of pages at which a process which is
 generating disk writes will itself start writing out dirty data.
 
-The total avaiable memory is not equal to total system memory.
+The total available memory is not equal to total system memory.
 
 ==============================================================
 
@@ -482,6 +484,33 @@ default this value is set to 0 and no protections will be enforced by the
 security module.  Setting this value to something like 64k will allow the
 vast majority of applications to work correctly and provide defense in depth
 against future potential kernel bugs.
+
+==============================================================
+
+mmap_rnd_bits:
+
+This value can be used to select the number of bits to use to
+determine the random offset to the base address of vma regions
+resulting from mmap allocations on architectures which support
+tuning address space randomization.  This value will be bounded
+by the architecture's minimum and maximum supported values.
+
+This value can be changed after boot using the
+/proc/sys/vm/mmap_rnd_bits tunable
+
+==============================================================
+
+mmap_rnd_compat_bits:
+
+This value can be used to select the number of bits to use to
+determine the random offset to the base address of vma regions
+resulting from mmap allocations for applications run in
+compatibility mode on architectures which support tuning address
+space randomization.  This value will be bounded by the
+architecture's minimum and maximum supported values.
+
+This value can be changed after boot using the
+/proc/sys/vm/mmap_rnd_compat_bits tunable
 
 ==============================================================
 

@@ -19,7 +19,7 @@
 
 #include <mach/cputype.h>
 #include <mach/irqs.h>
-#include <mach/psc.h>
+#include "psc.h"
 #include <mach/mux.h>
 #include <mach/time.h>
 #include <mach/serial.h>

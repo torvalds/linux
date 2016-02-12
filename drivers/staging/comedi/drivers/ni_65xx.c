@@ -68,25 +68,25 @@
 /* Non-recurring Registers (8-bit except where noted) */
 #define NI_65XX_ID_REG			0x00
 #define NI_65XX_CLR_REG			0x01
-#define NI_65XX_CLR_WDOG_INT		(1 << 6)
-#define NI_65XX_CLR_WDOG_PING		(1 << 5)
-#define NI_65XX_CLR_WDOG_EXP		(1 << 4)
-#define NI_65XX_CLR_EDGE_INT		(1 << 3)
-#define NI_65XX_CLR_OVERFLOW_INT	(1 << 2)
+#define NI_65XX_CLR_WDOG_INT		BIT(6)
+#define NI_65XX_CLR_WDOG_PING		BIT(5)
+#define NI_65XX_CLR_WDOG_EXP		BIT(4)
+#define NI_65XX_CLR_EDGE_INT		BIT(3)
+#define NI_65XX_CLR_OVERFLOW_INT	BIT(2)
 #define NI_65XX_STATUS_REG		0x02
-#define NI_65XX_STATUS_WDOG_INT		(1 << 5)
-#define NI_65XX_STATUS_FALL_EDGE	(1 << 4)
-#define NI_65XX_STATUS_RISE_EDGE	(1 << 3)
-#define NI_65XX_STATUS_INT		(1 << 2)
-#define NI_65XX_STATUS_OVERFLOW_INT	(1 << 1)
-#define NI_65XX_STATUS_EDGE_INT		(1 << 0)
+#define NI_65XX_STATUS_WDOG_INT		BIT(5)
+#define NI_65XX_STATUS_FALL_EDGE	BIT(4)
+#define NI_65XX_STATUS_RISE_EDGE	BIT(3)
+#define NI_65XX_STATUS_INT		BIT(2)
+#define NI_65XX_STATUS_OVERFLOW_INT	BIT(1)
+#define NI_65XX_STATUS_EDGE_INT		BIT(0)
 #define NI_65XX_CTRL_REG		0x03
-#define NI_65XX_CTRL_WDOG_ENA		(1 << 5)
-#define NI_65XX_CTRL_FALL_EDGE_ENA	(1 << 4)
-#define NI_65XX_CTRL_RISE_EDGE_ENA	(1 << 3)
-#define NI_65XX_CTRL_INT_ENA		(1 << 2)
-#define NI_65XX_CTRL_OVERFLOW_ENA	(1 << 1)
-#define NI_65XX_CTRL_EDGE_ENA		(1 << 0)
+#define NI_65XX_CTRL_WDOG_ENA		BIT(5)
+#define NI_65XX_CTRL_FALL_EDGE_ENA	BIT(4)
+#define NI_65XX_CTRL_RISE_EDGE_ENA	BIT(3)
+#define NI_65XX_CTRL_INT_ENA		BIT(2)
+#define NI_65XX_CTRL_OVERFLOW_ENA	BIT(1)
+#define NI_65XX_CTRL_EDGE_ENA		BIT(0)
 #define NI_65XX_REV_REG			0x04 /* 32-bit */
 #define NI_65XX_FILTER_REG		0x08 /* 32-bit */
 #define NI_65XX_RTSI_ROUTE_REG		0x0c /* 16-bit */
@@ -94,24 +94,24 @@
 #define NI_65XX_RTSI_WDOG_REG		0x10 /* 16-bit */
 #define NI_65XX_RTSI_TRIG_REG		0x12 /* 16-bit */
 #define NI_65XX_AUTO_CLK_SEL_REG	0x14 /* PXI-6528 only */
-#define NI_65XX_AUTO_CLK_SEL_STATUS	(1 << 1)
-#define NI_65XX_AUTO_CLK_SEL_DISABLE	(1 << 0)
+#define NI_65XX_AUTO_CLK_SEL_STATUS	BIT(1)
+#define NI_65XX_AUTO_CLK_SEL_DISABLE	BIT(0)
 #define NI_65XX_WDOG_CTRL_REG		0x15
-#define NI_65XX_WDOG_CTRL_ENA		(1 << 0)
+#define NI_65XX_WDOG_CTRL_ENA		BIT(0)
 #define NI_65XX_RTSI_CFG_REG		0x16
-#define NI_65XX_RTSI_CFG_RISE_SENSE	(1 << 2)
-#define NI_65XX_RTSI_CFG_FALL_SENSE	(1 << 1)
-#define NI_65XX_RTSI_CFG_SYNC_DETECT	(1 << 0)
+#define NI_65XX_RTSI_CFG_RISE_SENSE	BIT(2)
+#define NI_65XX_RTSI_CFG_FALL_SENSE	BIT(1)
+#define NI_65XX_RTSI_CFG_SYNC_DETECT	BIT(0)
 #define NI_65XX_WDOG_STATUS_REG		0x17
-#define NI_65XX_WDOG_STATUS_EXP		(1 << 0)
+#define NI_65XX_WDOG_STATUS_EXP		BIT(0)
 #define NI_65XX_WDOG_INTERVAL_REG	0x18 /* 32-bit */
 
 /* Recurring port registers (8-bit) */
 #define NI_65XX_PORT(x)			((x) * 0x10)
 #define NI_65XX_IO_DATA_REG(x)		(0x40 + NI_65XX_PORT(x))
 #define NI_65XX_IO_SEL_REG(x)		(0x41 + NI_65XX_PORT(x))
-#define NI_65XX_IO_SEL_OUTPUT		(0 << 0)
-#define NI_65XX_IO_SEL_INPUT		(1 << 0)
+#define NI_65XX_IO_SEL_OUTPUT		0
+#define NI_65XX_IO_SEL_INPUT		BIT(0)
 #define NI_65XX_RISE_EDGE_ENA_REG(x)	(0x42 + NI_65XX_PORT(x))
 #define NI_65XX_FALL_EDGE_ENA_REG(x)	(0x43 + NI_65XX_PORT(x))
 #define NI_65XX_FILTER_ENA(x)		(0x44 + NI_65XX_PORT(x))
@@ -613,7 +613,7 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 
 /* ripped from mite.h and mite_setup2() to avoid mite dependency */
 #define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
-#define WENAB		(1 << 7) /* window enable */
+#define WENAB			BIT(7) /* window enable */
 
 static int ni_65xx_mite_init(struct pci_dev *pcidev)
 {

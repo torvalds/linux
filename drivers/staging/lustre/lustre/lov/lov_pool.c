@@ -412,8 +412,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	if (!new_pool)
 		return -ENOMEM;
 
-	strncpy(new_pool->pool_name, poolname, LOV_MAXPOOLNAME);
-	new_pool->pool_name[LOV_MAXPOOLNAME] = '\0';
+	strlcpy(new_pool->pool_name, poolname, sizeof(new_pool->pool_name));
 	new_pool->pool_lobd = obd;
 	/* ref count init to 1 because when created a pool is always used
 	 * up to deletion

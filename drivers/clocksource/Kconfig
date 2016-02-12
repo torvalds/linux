@@ -28,10 +28,18 @@ config CLKSRC_MMIO
 	bool
 
 config DIGICOLOR_TIMER
-	bool
+	bool "Digicolor timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	depends on HAS_IOMEM
+	help
+	  Enables the support for the digicolor timer driver.
 
 config DW_APB_TIMER
-	bool
+	bool "DW APB timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	help
+	  Enables the support for the dw_apb timer.
 
 config DW_APB_TIMER_OF
 	bool
@@ -39,47 +47,81 @@ config DW_APB_TIMER_OF
 	select CLKSRC_OF
 
 config ROCKCHIP_TIMER
-	bool
+	bool "Rockchip timer driver" if COMPILE_TEST
+	depends on ARM || ARM64
 	select CLKSRC_OF
+	help
+	  Enables the support for the rockchip timer driver.
 
 config ARMADA_370_XP_TIMER
-	bool
+	bool "Armada 370 and XP timer driver" if COMPILE_TEST
+	depends on ARM
 	select CLKSRC_OF
+	select CLKSRC_MMIO
+	help
+	  Enables the support for the Armada 370 and XP timer driver.
 
 config MESON6_TIMER
-	bool
+	bool "Meson6 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
 	select CLKSRC_MMIO
+	help
+	  Enables the support for the Meson6 timer driver.
 
 config ORION_TIMER
+	bool "Orion timer driver" if COMPILE_TEST
+	depends on ARM
 	select CLKSRC_OF
 	select CLKSRC_MMIO
-	bool
+	help
+	  Enables the support for the Orion timer driver
 
 config SUN4I_TIMER
+	bool "Sun4i timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	select CLKSRC_MMIO
-	bool
+	help
+	  Enables support for the Sun4i timer.
 
 config SUN5I_HSTIMER
+	bool "Sun5i timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
-	bool
+	depends on COMMON_CLK
+	help
+	  Enables support the Sun5i timer.
 
 config TEGRA_TIMER
-	bool
+	bool "Tegra timer driver" if COMPILE_TEST
+	select CLKSRC_MMIO
+	depends on ARM
+	help
+	  Enables support for the Tegra driver.
 
 config VT8500_TIMER
-	bool
+	bool "VT8500 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	help
+	  Enables support for the VT8500 driver.
 
 config CADENCE_TTC_TIMER
-	bool
+	bool "Cadence TTC timer driver" if COMPILE_TEST
+	depends on COMMON_CLK
+	help
+	  Enables support for the cadence ttc driver.
 
 config ASM9260_TIMER
-	bool
+	bool "ASM9260 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
 	select CLKSRC_MMIO
 	select CLKSRC_OF
+	help
+	  Enables support for the ASM9260 timer.
 
 config CLKSRC_NOMADIK_MTU
-	bool
-	depends on (ARCH_NOMADIK || ARCH_U8500)
+	bool "Nomakdik clocksource driver" if COMPILE_TEST
+	depends on ARM
 	select CLKSRC_MMIO
 	help
 	  Support for Multi Timer Unit. MTU provides access
@@ -93,9 +135,9 @@ config CLKSRC_NOMADIK_MTU_SCHED_CLOCK
 	  Use the Multi Timer Unit as the sched_clock.
 
 config CLKSRC_DBX500_PRCMU
-	bool "Clocksource PRCMU Timer"
-	depends on UX500_SOC_DB8500
-	default y
+	bool "Clocksource PRCMU Timer" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	help
 	  Use the always on PRCMU Timer as clocksource
 
@@ -116,13 +158,19 @@ config CLKSRC_EFM32
 	  event device.
 
 config CLKSRC_LPC32XX
-	bool
+	bool "Clocksource for LPC32XX" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	select CLKSRC_MMIO
 	select CLKSRC_OF
+	help
+	  Support for the LPC32XX clocksource.
 
 config CLKSRC_PISTACHIO
-	bool
+	bool "Clocksource for Pistachio SoC" if COMPILE_TEST
+	depends on HAS_IOMEM
 	select CLKSRC_OF
+	help
+	  Enables the clocksource for the Pistachio SoC.
 
 config CLKSRC_TI_32K
 	bool "Texas Instruments 32.768 Hz Clocksource" if COMPILE_TEST
@@ -199,13 +247,15 @@ config CLKSRC_METAG_GENERIC
 	  This option enables support for the Meta per-thread timers.
 
 config CLKSRC_EXYNOS_MCT
-	def_bool y if ARCH_EXYNOS
-	depends on !ARM64
+	bool "Exynos multi core timer driver" if COMPILE_TEST
+	depends on ARM
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
 config CLKSRC_SAMSUNG_PWM
-	bool
+	bool "PWM timer drvier for Samsung S3C, S5P" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
 	help
 	  This is a new clocksource driver for the PWM timer found in
 	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
@@ -213,12 +263,16 @@ config CLKSRC_SAMSUNG_PWM
 	  needed only on systems that do not have the Exynos MCT available.
 
 config FSL_FTM_TIMER
-	bool
+	bool "Freescale FlexTimer Module driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	select CLKSRC_MMIO
 	help
 	  Support for Freescale FlexTimer Module (FTM) timer.
 
 config VF_PIT_TIMER
 	bool
+	select CLKSRC_MMIO
 	help
 	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.
 
@@ -226,9 +280,12 @@ config SYS_SUPPORTS_SH_CMT
         bool
 
 config MTK_TIMER
+	bool "Mediatek timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	select CLKSRC_OF
 	select CLKSRC_MMIO
-	bool
+	help
+	  Support for Mediatek timer driver.
 
 config SYS_SUPPORTS_SH_MTU2
         bool
@@ -279,7 +336,12 @@ config EM_TIMER_STI
 	  such as EMEV2 from former NEC Electronics.
 
 config CLKSRC_QCOM
-	bool
+	bool "Qualcomm MSM timer" if COMPILE_TEST
+	depends on ARM
+	select CLKSRC_OF
+	help
+	  This enables the clocksource and the per CPU clockevent driver for the
+	  Qualcomm SoCs.
 
 config CLKSRC_VERSATILE
 	bool "ARM Versatile (Express) reference platforms clock source"
@@ -298,21 +360,41 @@ config CLKSRC_MIPS_GIC
 	select CLKSRC_OF
 
 config CLKSRC_TANGO_XTAL
-	bool
+	bool "Clocksource for Tango SoC" if COMPILE_TEST
+	depends on ARM
 	select CLKSRC_OF
+	select CLKSRC_MMIO
+	help
+	  This enables the clocksource for Tango SoC
 
 config CLKSRC_PXA
-	def_bool y if ARCH_PXA || ARCH_SA1100
-	select CLKSRC_OF if OF
+	bool "Clocksource for PXA or SA-11x0 platform" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	select CLKSRC_MMIO
 	help
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
 
+config H8300_TMR8
+        bool "Clockevent timer for the H8300 platform" if COMPILE_TEST
+        depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
+	help
+	  This enables the 8 bits timer for the H8300 platform.
+
 config H8300_TMR16
-        bool
+        bool "Clockevent timer for the H83069 platform" if COMPILE_TEST
+        depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
+	help
+	  This enables the 16 bits timer for the H8300 platform with the
+	  H83069 cpu.
 
 config H8300_TPU
-        bool
+        bool "Clocksource for the H8300 platform" if COMPILE_TEST
+        depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
+	help
+	  This enables the clocksource for the H8300 platform with the
+	  H8S2678 cpu.
 
 config CLKSRC_IMX_GPT
 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
@@ -320,9 +402,10 @@ config CLKSRC_IMX_GPT
 	select CLKSRC_MMIO
 
 config CLKSRC_ST_LPC
-	bool
-	depends on ARCH_STI
+	bool "Low power clocksource found in the LPC" if COMPILE_TEST
 	select CLKSRC_OF if OF
+	depends on HAS_IOMEM
+	select CLKSRC_MMIO
 	help
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.

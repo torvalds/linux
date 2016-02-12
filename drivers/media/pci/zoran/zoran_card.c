@@ -50,7 +50,7 @@
 #include <linux/mutex.h>
 #include <linux/io.h>
 #include <media/v4l2-common.h>
-#include <media/bt819.h>
+#include <media/i2c/bt819.h>
 
 #include "videocodec.h"
 #include "zoran.h"

@@ -25,6 +25,7 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
+#include <asm/facility.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 
@@ -300,27 +301,27 @@ ENTRY(startup_kdump)
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
+	xc	0xf00(256),0xf00
 	lctlg	%c0,%c15,0x200(%r0)	# initialize control registers
 	stck	__LC_LAST_UPDATE_CLOCK
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
-	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
-	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
-	.insn	s,0xb2b10000,0		# store facilities @ __LC_STFL_FAC_LIST
-	tm	__LC_STFL_FAC_LIST,0x01	# stfle available ?
+	stfl	0(%r0)			# store facilities @ __LC_STFL_FAC_LIST
+	mvc	__LC_STFLE_FAC_LIST(4),__LC_STFL_FAC_LIST
+	tm	__LC_STFLE_FAC_LIST,0x01	# stfle available ?
 	jz	0f
-	la	%r0,1
-	.insn	s,0xb2b00000,__LC_STFL_FAC_LIST	# store facility list extended
+	lghi	%r0,FACILITIES_ALS_DWORDS-1
+	.insn	s,0xb2b00000,__LC_STFLE_FAC_LIST # store facility list extended
 	# verify if all required facilities are supported by the machine
-0:	la	%r1,__LC_STFL_FAC_LIST
+0:	la	%r1,__LC_STFLE_FAC_LIST
 	la	%r2,3f+8-.LPG0(%r13)
-	l	%r3,0(%r2)
-1:	l	%r0,0(%r1)
-	n	%r0,4(%r2)
-	cl	%r0,4(%r2)
+	lhi	%r3,FACILITIES_ALS_DWORDS
+1:	lg	%r0,0(%r1)
+	ng	%r0,0(%r2)
+	clg	%r0,0(%r2)
 	jne	2f
-	la	%r1,4(%r1)
-	la	%r2,4(%r2)
+	la	%r1,8(%r1)
+	la	%r2,8(%r2)
 	ahi	%r3,-1
 	jnz	1b
 	j	4f
@@ -340,24 +341,10 @@ ENTRY(startup_kdump)
 3:	.long	0x000a0000,0x8badcccc
 
 # List of facilities that are required. If not all facilities are present
-# the kernel will crash. Format is number of facility words with bits set,
-# followed by the facility words.
+# the kernel will crash.
 
-#if defined(CONFIG_MARCH_Z13)
-	.long 2, 0xc100eff2, 0xf46cc800
-#elif defined(CONFIG_MARCH_ZEC12)
-	.long 2, 0xc100eff2, 0xf46cc800
-#elif defined(CONFIG_MARCH_Z196)
-	.long 2, 0xc100eff2, 0xf46c0000
-#elif defined(CONFIG_MARCH_Z10)
-	.long 2, 0xc100eff2, 0xf0680000
-#elif defined(CONFIG_MARCH_Z9_109)
-	.long 1, 0xc100efc2
-#elif defined(CONFIG_MARCH_Z990)
-	.long 1, 0xc0002000
-#elif defined(CONFIG_MARCH_Z900)
-	.long 1, 0xc0000000
-#endif
+	.quad FACILITIES_ALS
+
 4:
 	/* Continue with startup code in head64.S */
 	jg	startup_continue

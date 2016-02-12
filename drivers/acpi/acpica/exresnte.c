@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,7 +112,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	/*
 	 * Several object types require no further processing:
-	 * 1) Device/Thermal objects don't have a "real" subobject, return the Node
+	 * 1) Device/Thermal objects don't have a "real" subobject, return Node
 	 * 2) Method locals and arguments have a pseudo-Node
 	 * 3) 10/2007: Added method type to assist with Package construction.
 	 */

@@ -10521,7 +10521,6 @@ retry:
 	}
 
 	connector_state->crtc = crtc;
-	connector_state->best_encoder = &intel_encoder->base;
 
 	crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
 	if (IS_ERR(crtc_state)) {
@@ -10617,7 +10616,6 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		if (IS_ERR(crtc_state))
 			goto fail;
 
-		connector_state->best_encoder = NULL;
 		connector_state->crtc = NULL;
 
 		crtc_state->base.enable = crtc_state->base.active = false;
@@ -15569,6 +15567,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
 		crtc->base.state->connector_mask = 0;
+		crtc->base.state->encoder_mask = 0;
 
 		/* Because we only establish the connector -> encoder ->
 		 * crtc links if something is active, this means the
@@ -15808,6 +15807,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 				 */
 				encoder->base.crtc->state->connector_mask |=
 					1 << drm_connector_index(&connector->base);
+				encoder->base.crtc->state->encoder_mask |=
+					1 << drm_encoder_index(&encoder->base);
 			}
 
 		} else {
@@ -16286,26 +16287,5 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 		err_printf(m, "  VTOTAL: %08x\n", error->transcoder[i].vtotal);
 		err_printf(m, "  VBLANK: %08x\n", error->transcoder[i].vblank);
 		err_printf(m, "  VSYNC: %08x\n", error->transcoder[i].vsync);
-	}
-}
-
-void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct intel_crtc *crtc;
-
-	for_each_intel_crtc(dev, crtc) {
-		struct intel_unpin_work *work;
-
-		spin_lock_irq(&dev->event_lock);
-
-		work = crtc->unpin_work;
-
-		if (work && work->event &&
-		    work->event->base.file_priv == file) {
-			kfree(work->event);
-			work->event = NULL;
-		}
-
-		spin_unlock_irq(&dev->event_lock);
 	}
 }

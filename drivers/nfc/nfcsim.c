@@ -32,6 +32,8 @@
 #define NFCSIM_POLL_TARGET	2
 #define NFCSIM_POLL_DUAL	(NFCSIM_POLL_INITIATOR | NFCSIM_POLL_TARGET)
 
+#define RX_DEFAULT_DELAY	5
+
 struct nfcsim {
 	struct nfc_dev *nfc_dev;
 
@@ -50,6 +52,8 @@ struct nfcsim {
 	u8 up;
 
 	u8 initiator;
+
+	u32 rx_delay;
 
 	data_exchange_cb_t cb;
 	void *cb_context;
@@ -320,10 +324,9 @@ static int nfcsim_tx(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	 * If packet transmission occurs immediately between them, we have a
 	 * non-stop flow of several tens of thousands SYMM packets per second
 	 * and a burning cpu.
-	 *
-	 * TODO: Add support for a sysfs entry to control this delay.
 	 */
-	queue_delayed_work(wq, &peer->recv_work, msecs_to_jiffies(5));
+	queue_delayed_work(wq, &peer->recv_work,
+			msecs_to_jiffies(dev->rx_delay));
 
 	mutex_unlock(&peer->lock);
 
@@ -461,6 +464,7 @@ static struct nfcsim *nfcsim_init_dev(void)
 	if (rc)
 		goto free_nfc_dev;
 
+	dev->rx_delay = RX_DEFAULT_DELAY;
 	return dev;
 
 free_nfc_dev:

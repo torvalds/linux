@@ -91,7 +91,7 @@ struct adf_etr_data {
 	struct dentry *debug;
 };
 
-void adf_response_handler(unsigned long bank_addr);
+void adf_response_handler(uintptr_t bank_addr);
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 int adf_bank_debugfs_add(struct adf_etr_bank_data *bank);

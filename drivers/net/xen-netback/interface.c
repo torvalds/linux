@@ -615,6 +615,7 @@ err_tx_unbind:
 	queue->tx_irq = 0;
 err_unmap:
 	xenvif_unmap_frontend_rings(queue);
+	netif_napi_del(&queue->napi);
 err:
 	module_put(THIS_MODULE);
 	return err;
@@ -684,22 +685,16 @@ void xenvif_deinit_queue(struct xenvif_queue *queue)
 
 void xenvif_free(struct xenvif *vif)
 {
-	struct xenvif_queue *queue = NULL;
+	struct xenvif_queue *queues = vif->queues;
 	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
 
 	unregister_netdev(vif->dev);
-
-	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
-		queue = &vif->queues[queue_index];
-		xenvif_deinit_queue(queue);
-	}
-
-	vfree(vif->queues);
-	vif->queues = NULL;
-	vif->num_queues = 0;
-
 	free_netdev(vif->dev);
+
+	for (queue_index = 0; queue_index < num_queues; ++queue_index)
+		xenvif_deinit_queue(&queues[queue_index]);
+	vfree(queues);
 
 	module_put(THIS_MODULE);
 }

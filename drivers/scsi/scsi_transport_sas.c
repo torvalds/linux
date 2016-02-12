@@ -341,6 +341,22 @@ static int do_sas_phy_delete(struct device *dev, void *data)
 }
 
 /**
+ * is_sas_attached - check if device is SAS attached
+ * @sdev: scsi device to check
+ *
+ * returns true if the device is SAS attached
+ */
+int is_sas_attached(struct scsi_device *sdev)
+{
+	struct Scsi_Host *shost = sdev->host;
+
+	return shost->transportt->host_attrs.ac.class ==
+		&sas_host_class.class;
+}
+EXPORT_SYMBOL(is_sas_attached);
+
+
+/**
  * sas_remove_children  -  tear down a devices SAS data structures
  * @dev:	device belonging to the sas object
  *
@@ -365,6 +381,20 @@ void sas_remove_host(struct Scsi_Host *shost)
 	sas_remove_children(&shost->shost_gendev);
 }
 EXPORT_SYMBOL(sas_remove_host);
+
+/**
+ * sas_get_address - return the SAS address of the device
+ * @sdev: scsi device
+ *
+ * Returns the SAS address of the scsi device
+ */
+u64 sas_get_address(struct scsi_device *sdev)
+{
+	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
+
+	return rdev->rphy.identify.sas_address;
+}
+EXPORT_SYMBOL(sas_get_address);
 
 /**
  * sas_tlr_supported - checking TLR bit in vpd 0x90

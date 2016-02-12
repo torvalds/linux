@@ -231,9 +231,6 @@ static int rhashtable_rehash_attach(struct rhashtable *ht,
 	 */
 	rcu_assign_pointer(old_tbl->future_tbl, new_tbl);
 
-	/* Ensure the new table is visible to readers. */
-	smp_wmb();
-
 	spin_unlock_bh(old_tbl->locks);
 
 	return 0;
@@ -519,7 +516,8 @@ int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter)
 		return -ENOMEM;
 
 	spin_lock(&ht->lock);
-	iter->walker->tbl = rht_dereference(ht->tbl, ht);
+	iter->walker->tbl =
+		rcu_dereference_protected(ht->tbl, lockdep_is_held(&ht->lock));
 	list_add(&iter->walker->list, &iter->walker->tbl->walkers);
 	spin_unlock(&ht->lock);
 

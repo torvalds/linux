@@ -21,7 +21,7 @@
 
 #include <mach/common.h>
 #include <mach/da8xx.h>
-#include <mach/sram.h>
+#include "sram.h"
 #include <mach/pm.h>
 
 #include "clock.h"

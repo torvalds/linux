@@ -460,13 +460,8 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		return -EIO;
 	}
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x, %02x %02x %02x, %02x %02x\n",
-			"alarm read",
-			ds1307->regs[0], ds1307->regs[1],
-			ds1307->regs[2], ds1307->regs[3],
-			ds1307->regs[4], ds1307->regs[5],
-			ds1307->regs[6], ds1307->regs[7],
-			ds1307->regs[8]);
+	dev_dbg(dev, "%s: %4ph, %3ph, %2ph\n", "alarm read",
+		&ds1307->regs[0], &ds1307->regs[4], &ds1307->regs[7]);
 
 	/*
 	 * report alarm time (ALARM1); assume 24 hour and day-of-month modes,
@@ -522,12 +517,8 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	control = ds1307->regs[7];
 	status = ds1307->regs[8];
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x, %02x %02x %02x, %02x %02x\n",
-			"alarm set (old status)",
-			ds1307->regs[0], ds1307->regs[1],
-			ds1307->regs[2], ds1307->regs[3],
-			ds1307->regs[4], ds1307->regs[5],
-			ds1307->regs[6], control, status);
+	dev_dbg(dev, "%s: %4ph, %3ph, %02x %02x\n", "alarm set (old status)",
+		&ds1307->regs[0], &ds1307->regs[4], control, status);
 
 	/* set ALARM1, using 24 hour and day-of-month modes */
 	buf[0] = bin2bcd(t->time.tm_sec);

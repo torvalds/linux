@@ -2095,7 +2095,7 @@ static void dwc2_hsotg_irq_enumdone(struct dwc2_hsotg *hsotg)
 	 */
 
 	/* catch both EnumSpd_FS and EnumSpd_FS48 */
-	switch (dsts & DSTS_ENUMSPD_MASK) {
+	switch ((dsts & DSTS_ENUMSPD_MASK) >> DSTS_ENUMSPD_SHIFT) {
 	case DSTS_ENUMSPD_FS:
 	case DSTS_ENUMSPD_FS48:
 		hsotg->gadget.speed = USB_SPEED_FULL;
@@ -2244,54 +2244,6 @@ static void dwc2_hsotg_irq_fifoempty(struct dwc2_hsotg *hsotg, bool periodic)
 			GINTSTS_RXFLVL)
 
 /**
- * dwc2_hsotg_corereset - issue softreset to the core
- * @hsotg: The device state
- *
- * Issue a soft reset to the core, and await the core finishing it.
- */
-static int dwc2_hsotg_corereset(struct dwc2_hsotg *hsotg)
-{
-	int timeout;
-	u32 grstctl;
-
-	dev_dbg(hsotg->dev, "resetting core\n");
-
-	/* issue soft reset */
-	dwc2_writel(GRSTCTL_CSFTRST, hsotg->regs + GRSTCTL);
-
-	timeout = 10000;
-	do {
-		grstctl = dwc2_readl(hsotg->regs + GRSTCTL);
-	} while ((grstctl & GRSTCTL_CSFTRST) && timeout-- > 0);
-
-	if (grstctl & GRSTCTL_CSFTRST) {
-		dev_err(hsotg->dev, "Failed to get CSftRst asserted\n");
-		return -EINVAL;
-	}
-
-	timeout = 10000;
-
-	while (1) {
-		u32 grstctl = dwc2_readl(hsotg->regs + GRSTCTL);
-
-		if (timeout-- < 0) {
-			dev_info(hsotg->dev,
-				 "%s: reset failed, GRSTCTL=%08x\n",
-				 __func__, grstctl);
-			return -ETIMEDOUT;
-		}
-
-		if (!(grstctl & GRSTCTL_AHBIDLE))
-			continue;
-
-		break;		/* reset done */
-	}
-
-	dev_dbg(hsotg->dev, "reset successful\n");
-	return 0;
-}
-
-/**
  * dwc2_hsotg_core_init - issue softreset to the core
  * @hsotg: The device state
  *
@@ -2307,7 +2259,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
 
 	if (!is_usb_reset)
-		if (dwc2_hsotg_corereset(hsotg))
+		if (dwc2_core_reset(hsotg))
 			return;
 
 	/*
@@ -2585,7 +2537,7 @@ irq_retry:
 	if (gintsts & GINTSTS_GOUTNAKEFF) {
 		dev_info(hsotg->dev, "GOUTNakEff triggered\n");
 
-		dwc2_writel(DCTL_CGOUTNAK, hsotg->regs + DCTL);
+		__orr32(hsotg->regs + DCTL, DCTL_CGOUTNAK);
 
 		dwc2_hsotg_dump(hsotg);
 	}
@@ -2593,7 +2545,7 @@ irq_retry:
 	if (gintsts & GINTSTS_GINNAKEFF) {
 		dev_info(hsotg->dev, "GINNakEff triggered\n");
 
-		dwc2_writel(DCTL_CGNPINNAK, hsotg->regs + DCTL);
+		__orr32(hsotg->regs + DCTL, DCTL_CGNPINNAK);
 
 		dwc2_hsotg_dump(hsotg);
 	}
@@ -2911,15 +2863,15 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 				"%s: timeout DIEPINT.NAKEFF\n", __func__);
 	} else {
 		/* Clear any pending nak effect interrupt */
-		dwc2_writel(GINTSTS_GINNAKEFF, hsotg->regs + GINTSTS);
+		dwc2_writel(GINTSTS_GOUTNAKEFF, hsotg->regs + GINTSTS);
 
-		__orr32(hsotg->regs + DCTL, DCTL_SGNPINNAK);
+		__orr32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
 
 		/* Wait for global nak to take effect */
 		if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
-						GINTSTS_GINNAKEFF, 100))
+						GINTSTS_GOUTNAKEFF, 100))
 			dev_warn(hsotg->dev,
-				"%s: timeout GINTSTS.GINNAKEFF\n", __func__);
+				"%s: timeout GINTSTS.GOUTNAKEFF\n", __func__);
 	}
 
 	/* Disable ep */
@@ -2944,7 +2896,7 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 		/* TODO: Flush shared tx fifo */
 	} else {
 		/* Remove global NAKs */
-		__bic32(hsotg->regs + DCTL, DCTL_SGNPINNAK);
+		__bic32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
 	}
 }
 
@@ -3403,8 +3355,8 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 
 	/* check hardware configuration */
 
-	cfg = dwc2_readl(hsotg->regs + GHWCFG2);
-	hsotg->num_of_eps = (cfg >> GHWCFG2_NUM_DEV_EP_SHIFT) & 0xF;
+	hsotg->num_of_eps = hsotg->hw_params.num_dev_ep;
+
 	/* Add ep0 */
 	hsotg->num_of_eps++;
 
@@ -3415,7 +3367,7 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 	/* Same dwc2_hsotg_ep is used in both directions for ep0 */
 	hsotg->eps_out[0] = hsotg->eps_in[0];
 
-	cfg = dwc2_readl(hsotg->regs + GHWCFG1);
+	cfg = hsotg->hw_params.dev_ep_dirs;
 	for (i = 1, cfg >>= 2; i < hsotg->num_of_eps; i++, cfg >>= 2) {
 		ep_type = cfg & 3;
 		/* Direction in or both */
@@ -3434,11 +3386,8 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 		}
 	}
 
-	cfg = dwc2_readl(hsotg->regs + GHWCFG3);
-	hsotg->fifo_mem = (cfg >> GHWCFG3_DFIFO_DEPTH_SHIFT);
-
-	cfg = dwc2_readl(hsotg->regs + GHWCFG4);
-	hsotg->dedicated_fifos = (cfg >> GHWCFG4_DED_FIFO_SHIFT) & 1;
+	hsotg->fifo_mem = hsotg->hw_params.total_fifo_size;
+	hsotg->dedicated_fifos = hsotg->hw_params.en_multiple_tx_fifo;
 
 	dev_info(hsotg->dev, "EPs: %d, %s fifos, %d entries in SPRAM\n",
 		 hsotg->num_of_eps,
@@ -3563,6 +3512,17 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	memcpy(&hsotg->g_tx_fifo_sz[1], p_tx_fifo, sizeof(p_tx_fifo));
 	/* Device tree specific probe */
 	dwc2_hsotg_of_probe(hsotg);
+
+	/* Check against largest possible value. */
+	if (hsotg->g_np_g_tx_fifo_sz >
+	    hsotg->hw_params.dev_nperio_tx_fifo_size) {
+		dev_warn(dev, "Specified GNPTXFDEP=%d > %d\n",
+			 hsotg->g_np_g_tx_fifo_sz,
+			 hsotg->hw_params.dev_nperio_tx_fifo_size);
+		hsotg->g_np_g_tx_fifo_sz =
+			hsotg->hw_params.dev_nperio_tx_fifo_size;
+	}
+
 	/* Dump fifo information */
 	dev_dbg(dev, "NonPeriodic TXFIFO size: %d\n",
 						hsotg->g_np_g_tx_fifo_sz);
@@ -3579,30 +3539,11 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 
-	/*
-	 * Force Device mode before initialization.
-	 * This allows correctly configuring fifo for device mode.
-	 */
-	__bic32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEHOSTMODE);
-	__orr32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEDEVMODE);
-
-	/*
-	 * According to Synopsys databook, this sleep is needed for the force
-	 * device mode to take effect.
-	 */
-	msleep(25);
-
-	dwc2_hsotg_corereset(hsotg);
 	ret = dwc2_hsotg_hw_cfg(hsotg);
 	if (ret) {
 		dev_err(hsotg->dev, "Hardware configuration failed: %d\n", ret);
 		return ret;
 	}
-
-	dwc2_hsotg_init(hsotg);
-
-	/* Switch back to default configuration */
-	__bic32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEDEVMODE);
 
 	hsotg->ctrl_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);

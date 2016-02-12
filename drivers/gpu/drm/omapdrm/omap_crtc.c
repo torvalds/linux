@@ -269,18 +269,7 @@ static void omap_crtc_complete_page_flip(struct drm_crtc *crtc)
 		return;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-
-	list_del(&event->base.link);
-
-	/*
-	 * Queue the event for delivery if it's still linked to a file
-	 * handle, otherwise just destroy it.
-	 */
-	if (event->base.file_priv)
-		drm_crtc_send_vblank_event(crtc, event);
-	else
-		event->base.destroy(&event->base);
-
+	drm_crtc_send_vblank_event(crtc, event);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 

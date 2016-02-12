@@ -32,7 +32,7 @@ and filtering several section and PES data streams at the same time.
 new standard Linux DVB API. As a commitment to the development of
 terminals based on open standards, Nokia and Convergence made it
 available to all Linux developers and published it on
-<ulink url="http://www.linuxtv.org/" /> in September 2000.
+<ulink url="https://linuxtv.org" /> in September 2000.
 Convergence is the maintainer of the Linux DVB API. Together with the
 LinuxTV community (i.e. you, the reader of this document), the Linux DVB
 API will be constantly reviewed and improved. With the Linux driver for

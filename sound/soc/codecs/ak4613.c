@@ -70,17 +70,10 @@
 #define FMT_MASK	(0xf8)
 
 /* CTRL2 */
+#define DFS_MASK		(3 << 2)
 #define DFS_NORMAL_SPEED	(0 << 2)
 #define DFS_DOUBLE_SPEED	(1 << 2)
 #define DFS_QUAD_SPEED		(2 << 2)
-
-struct ak4613_priv {
-	struct mutex lock;
-
-	unsigned int fmt;
-	u8 fmt_ctrl;
-	int cnt;
-};
 
 struct ak4613_formats {
 	unsigned int width;
@@ -90,6 +83,16 @@ struct ak4613_formats {
 struct ak4613_interface {
 	struct ak4613_formats capture;
 	struct ak4613_formats playback;
+};
+
+struct ak4613_priv {
+	struct mutex lock;
+	const struct ak4613_interface *iface;
+
+	unsigned int fmt;
+	u8 oc;
+	u8 ic;
+	int cnt;
 };
 
 /*
@@ -126,7 +129,7 @@ static const struct reg_default ak4613_reg[] = {
 	{ 0x14, 0x00 }, { 0x15, 0x00 }, { 0x16, 0x00 },
 };
 
-#define AUDIO_IFACE_IDX_TO_VAL(i) (i << 3)
+#define AUDIO_IFACE_TO_VAL(fmts) ((fmts - ak4613_iface) << 3)
 #define AUDIO_IFACE(b, fmt) { b, SND_SOC_DAIFMT_##fmt }
 static const struct ak4613_interface ak4613_iface[] = {
 	/* capture */				/* playback */
@@ -240,7 +243,7 @@ static void ak4613_dai_shutdown(struct snd_pcm_substream *substream,
 		priv->cnt = 0;
 	}
 	if (!priv->cnt)
-		priv->fmt_ctrl = NO_FMT;
+		priv->iface = NULL;
 	mutex_unlock(&priv->lock);
 }
 
@@ -265,13 +268,35 @@ static int ak4613_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static bool ak4613_dai_fmt_matching(const struct ak4613_interface *iface,
+				    int is_play,
+				    unsigned int fmt, unsigned int width)
+{
+	const struct ak4613_formats *fmts;
+
+	fmts = (is_play) ? &iface->playback : &iface->capture;
+
+	if (fmts->fmt != fmt)
+		return false;
+
+	if (fmt == SND_SOC_DAIFMT_RIGHT_J) {
+		if (fmts->width != width)
+			return false;
+	} else {
+		if (fmts->width < width)
+			return false;
+	}
+
+	return true;
+}
+
 static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct ak4613_priv *priv = snd_soc_codec_get_drvdata(codec);
-	const struct ak4613_formats *fmts;
+	const struct ak4613_interface *iface;
 	struct device *dev = codec->dev;
 	unsigned int width = params_width(params);
 	unsigned int fmt = priv->fmt;
@@ -305,33 +330,27 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	 * It doesn't support TDM at this point
 	 */
 	fmt_ctrl = NO_FMT;
-	for (i = 0; i < ARRAY_SIZE(ak4613_iface); i++) {
-		fmts = (is_play) ?	&ak4613_iface[i].playback :
-					&ak4613_iface[i].capture;
-
-		if (fmts->fmt != fmt)
-			continue;
-
-		if (fmt == SND_SOC_DAIFMT_RIGHT_J) {
-			if (fmts->width != width)
-				continue;
-		} else {
-			if (fmts->width < width)
-				continue;
-		}
-
-		fmt_ctrl = AUDIO_IFACE_IDX_TO_VAL(i);
-		break;
-	}
-
 	ret = -EINVAL;
-	if (fmt_ctrl == NO_FMT)
-		goto hw_params_end;
+	iface = NULL;
 
 	mutex_lock(&priv->lock);
-	if ((priv->fmt_ctrl == NO_FMT) ||
-	    (priv->fmt_ctrl == fmt_ctrl)) {
-		priv->fmt_ctrl = fmt_ctrl;
+	if (priv->iface) {
+		if (ak4613_dai_fmt_matching(priv->iface, is_play, fmt, width))
+			iface = priv->iface;
+	} else {
+		for (i = ARRAY_SIZE(ak4613_iface); i >= 0; i--) {
+			if (!ak4613_dai_fmt_matching(ak4613_iface + i,
+						     is_play,
+						     fmt, width))
+				continue;
+			iface = ak4613_iface + i;
+			break;
+		}
+	}
+
+	if ((priv->iface == NULL) ||
+	    (priv->iface == iface)) {
+		priv->iface = iface;
 		priv->cnt++;
 		ret = 0;
 	}
@@ -340,8 +359,13 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		goto hw_params_end;
 
+	fmt_ctrl = AUDIO_IFACE_TO_VAL(iface);
+
 	snd_soc_update_bits(codec, CTRL1, FMT_MASK, fmt_ctrl);
-	snd_soc_write(codec, CTRL2, ctrl2);
+	snd_soc_update_bits(codec, CTRL2, DFS_MASK, ctrl2);
+
+	snd_soc_write(codec, ICTRL, priv->ic);
+	snd_soc_write(codec, OCTRL, priv->oc);
 
 hw_params_end:
 	if (ret < 0)
@@ -431,6 +455,28 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4613 = {
 	.num_dapm_routes	= ARRAY_SIZE(ak4613_intercon),
 };
 
+static void ak4613_parse_of(struct ak4613_priv *priv,
+			    struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	char prop[32];
+	int i;
+
+	/* Input 1 - 2 */
+	for (i = 0; i < 2; i++) {
+		snprintf(prop, sizeof(prop), "asahi-kasei,in%d-single-end", i + 1);
+		if (!of_get_property(np, prop, NULL))
+			priv->ic |= 1 << i;
+	}
+
+	/* Output 1 - 6 */
+	for (i = 0; i < 6; i++) {
+		snprintf(prop, sizeof(prop), "asahi-kasei,out%d-single-end", i + 1);
+		if (!of_get_property(np, prop, NULL))
+			priv->oc |= 1 << i;
+	}
+}
+
 static int ak4613_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -458,7 +504,9 @@ static int ak4613_i2c_probe(struct i2c_client *i2c,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->fmt_ctrl		= NO_FMT;
+	ak4613_parse_of(priv, dev);
+
+	priv->iface		= NULL;
 	priv->cnt		= 0;
 
 	mutex_init(&priv->lock);

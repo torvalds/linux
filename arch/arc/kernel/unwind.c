@@ -293,13 +293,13 @@ static void init_unwind_hdr(struct unwind_table *table,
 		const u32 *cie = cie_for_fde(fde, table);
 		signed ptrType;
 
-		if (cie == &not_fde)	/* only process FDE here */
+		if (cie == &not_fde)
 			continue;
 		if (cie == NULL || cie == &bad_cie)
-			continue;	/* say FDE->CIE.version != 1 */
+			goto ret_err;
 		ptrType = fde_pointer_type(cie);
 		if (ptrType < 0)
-			continue;
+			goto ret_err;
 
 		ptr = (const u8 *)(fde + 2);
 		if (!read_pointer(&ptr, (const u8 *)(fde + 1) + *fde,
@@ -315,14 +315,14 @@ static void init_unwind_hdr(struct unwind_table *table,
 	}
 
 	if (tableSize || !n)
-		return;
+		goto ret_err;
 
 	hdrSize = 4 + sizeof(unsigned long) + sizeof(unsigned int)
 	    + 2 * n * sizeof(unsigned long);
 
 	header = alloc(hdrSize);
 	if (!header)
-		return;
+		goto ret_err;
 
 	header->version = 1;
 	header->eh_frame_ptr_enc = DW_EH_PE_abs | DW_EH_PE_native;
@@ -343,10 +343,6 @@ static void init_unwind_hdr(struct unwind_table *table,
 
 		if (fde[1] == 0xffffffff)
 			continue;	/* this is a CIE */
-
-		if (*(u8 *)(cie + 2) != 1)
-			continue;	/* FDE->CIE.version not supported */
-
 		ptr = (const u8 *)(fde + 2);
 		header->table[n].start = read_pointer(&ptr,
 						      (const u8 *)(fde + 1) +
@@ -365,6 +361,10 @@ static void init_unwind_hdr(struct unwind_table *table,
 	table->hdrsz = hdrSize;
 	smp_wmb();
 	table->header = (const void *)header;
+	return;
+
+ret_err:
+	panic("Attention !!! Dwarf FDE parsing errors\n");;
 }
 
 #ifdef CONFIG_MODULES
@@ -385,8 +385,8 @@ void *unwind_add_table(struct module *module, const void *table_start,
 		return NULL;
 
 	init_unwind_table(table, module->name,
-			  module->module_core, module->core_size,
-			  module->module_init, module->init_size,
+			  module->core_layout.base, module->core_layout.size,
+			  module->init_layout.base, module->init_layout.size,
 			  table_start, table_size,
 			  NULL, 0);
 
@@ -523,8 +523,7 @@ static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *table)
 
 	if (*cie <= sizeof(*cie) + 4 || *cie >= fde[1] - sizeof(*fde)
 	    || (*cie & (sizeof(*cie) - 1))
-	    || (cie[1] != 0xffffffff)
-	    || ( *(u8 *)(cie + 2) != 1))   /* version 1 supported */
+	    || (cie[1] != 0xffffffff))
 		return NULL;	/* this is not a (valid) CIE */
 	return cie;
 }
@@ -604,9 +603,6 @@ static signed fde_pointer_type(const u32 *cie)
 {
 	const u8 *ptr = (const u8 *)(cie + 2);
 	unsigned version = *ptr;
-
-	if (version != 1)
-		return -1;	/* unsupported */
 
 	if (*++ptr) {
 		const char *aug;
@@ -1019,9 +1015,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 		ptr = (const u8 *)(cie + 2);
 		end = (const u8 *)(cie + 1) + *cie;
 		frame->call_frame = 1;
-		if ((state.version = *ptr) != 1)
-			cie = NULL;	/* unsupported version */
-		else if (*++ptr) {
+		if (*++ptr) {
 			/* check if augmentation size is first (thus present) */
 			if (*ptr == 'z') {
 				while (++ptr < end && *ptr) {

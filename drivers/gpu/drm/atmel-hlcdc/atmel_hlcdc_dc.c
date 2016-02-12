@@ -619,15 +619,6 @@ static void atmel_hlcdc_dc_connector_unplug_all(struct drm_device *dev)
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
-static void atmel_hlcdc_dc_preclose(struct drm_device *dev,
-				    struct drm_file *file)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		atmel_hlcdc_crtc_cancel_page_flip(crtc, file);
-}
-
 static void atmel_hlcdc_dc_lastclose(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
@@ -698,7 +689,6 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
 			   DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.preclose = atmel_hlcdc_dc_preclose,
 	.lastclose = atmel_hlcdc_dc_lastclose,
 	.irq_handler = atmel_hlcdc_dc_irq_handler,
 	.irq_preinstall = atmel_hlcdc_dc_irq_uninstall,

@@ -721,12 +721,6 @@ uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc)
 	return mdp5_crtc->vblank.irqmask;
 }
 
-void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	DBG("cancel: %p", file);
-	complete_flip(crtc, file);
-}
-
 void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 		struct mdp5_interface *intf, struct mdp5_ctl *ctl)
 {

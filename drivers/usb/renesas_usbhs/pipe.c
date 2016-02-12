@@ -44,6 +44,15 @@ char *usbhs_pipe_name(struct usbhs_pipe *pipe)
 	return usbhsp_pipe_name[usbhs_pipe_type(pipe)];
 }
 
+static struct renesas_usbhs_driver_pipe_config
+*usbhsp_get_pipe_config(struct usbhs_priv *priv, int pipe_num)
+{
+	struct renesas_usbhs_driver_pipe_config *pipe_configs =
+					usbhs_get_dparam(priv, pipe_configs);
+
+	return &pipe_configs[pipe_num];
+}
+
 /*
  *		DCPCTR/PIPEnCTR functions
  */
@@ -384,18 +393,6 @@ void usbhs_pipe_set_trans_count_if_bulk(struct usbhs_pipe *pipe, int len)
 /*
  *		pipe setup
  */
-static int usbhsp_possible_double_buffer(struct usbhs_pipe *pipe)
-{
-	/*
-	 * only ISO / BULK pipe can use double buffer
-	 */
-	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK) ||
-	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC))
-		return 1;
-
-	return 0;
-}
-
 static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 				int is_host,
 				int dir_in)
@@ -412,7 +409,6 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 		[USB_ENDPOINT_XFER_INT]  = TYPE_INT,
 		[USB_ENDPOINT_XFER_ISOC] = TYPE_ISO,
 	};
-	int is_double = usbhsp_possible_double_buffer(pipe);
 
 	if (usbhs_pipe_is_dcp(pipe))
 		return -EINVAL;
@@ -434,10 +430,7 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
 		bfre = 0; /* FIXME */
 
-	/* DBLB */
-	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
-	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
-		dblb = (is_double) ? DBLB : 0;
+	/* DBLB: see usbhs_pipe_config_update() */
 
 	/* CNTMD */
 	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
@@ -473,13 +466,13 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int pipe_num = usbhs_pipe_number(pipe);
-	int is_double = usbhsp_possible_double_buffer(pipe);
 	u16 buff_size;
 	u16 bufnmb;
 	u16 bufnmb_cnt;
+	struct renesas_usbhs_driver_pipe_config *pipe_config =
+					usbhsp_get_pipe_config(priv, pipe_num);
 
 	/*
 	 * PIPEBUF
@@ -489,55 +482,12 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
 	 *  - "Features"  - "Pipe configuration"
 	 *  - "Operation" - "FIFO Buffer Memory"
 	 *  - "Operation" - "Pipe Control"
-	 *
-	 * ex) if pipe6 - pipe9 are USB_ENDPOINT_XFER_INT (SH7724)
-	 *
-	 * BUFNMB:	PIPE
-	 * 0:		pipe0 (DCP 256byte)
-	 * 1:		-
-	 * 2:		-
-	 * 3:		-
-	 * 4:		pipe6 (INT 64byte)
-	 * 5:		pipe7 (INT 64byte)
-	 * 6:		pipe8 (INT 64byte)
-	 * 7:		pipe9 (INT 64byte)
-	 * 8 - xx:	free (for BULK, ISOC)
 	 */
-
-	/*
-	 * FIXME
-	 *
-	 * it doesn't have good buffer allocator
-	 *
-	 * DCP : 256 byte
-	 * BULK: 512 byte
-	 * INT :  64 byte
-	 * ISOC: 512 byte
-	 */
-	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_CONTROL))
-		buff_size = 256;
-	else if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT))
-		buff_size = 64;
-	else
-		buff_size = 512;
+	buff_size = pipe_config->bufsize;
+	bufnmb = pipe_config->bufnum;
 
 	/* change buff_size to register value */
 	bufnmb_cnt = (buff_size / 64) - 1;
-
-	/* BUFNMB has been reserved for INT pipe
-	 * see above */
-	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT)) {
-		bufnmb = pipe_num - 2;
-	} else {
-		bufnmb = info->bufnmb_last;
-		info->bufnmb_last += bufnmb_cnt + 1;
-
-		/*
-		 * double buffer
-		 */
-		if (is_double)
-			info->bufnmb_last += bufnmb_cnt + 1;
-	}
 
 	dev_dbg(dev, "pipe : %d : buff_size 0x%x: bufnmb 0x%x\n",
 		pipe_num, buff_size, bufnmb);
@@ -549,8 +499,13 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
 void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
 			      u16 epnum, u16 maxp)
 {
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	int pipe_num = usbhs_pipe_number(pipe);
+	struct renesas_usbhs_driver_pipe_config *pipe_config =
+					usbhsp_get_pipe_config(priv, pipe_num);
+	u16 dblb = pipe_config->double_buf ? DBLB : 0;
+
 	if (devsel > 0xA) {
-		struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 		struct device *dev = usbhs_priv_to_dev(priv);
 
 		dev_err(dev, "devsel error %d\n", devsel);
@@ -568,7 +523,7 @@ void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
 			     maxp);
 
 	if (!usbhs_pipe_is_dcp(pipe))
-		usbhsp_pipe_cfg_set(pipe,  0x000F, epnum);
+		usbhsp_pipe_cfg_set(pipe,  0x000F | DBLB, epnum | dblb);
 }
 
 /*
@@ -708,23 +663,7 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 	struct usbhs_pipe *pipe;
 	int i;
 
-	/*
-	 * FIXME
-	 *
-	 * driver needs good allocator.
-	 *
-	 * find first free buffer area (BULK, ISOC)
-	 * (DCP, INT area is fixed)
-	 *
-	 * buffer number 0 - 3 have been reserved for DCP
-	 * see
-	 *	usbhsp_to_bufnmb
-	 */
-	info->bufnmb_last = 4;
 	usbhs_for_each_pipe_with_dcp(pipe, priv, i) {
-		if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT))
-			info->bufnmb_last++;
-
 		usbhsp_flags_init(pipe);
 		pipe->fifo = NULL;
 		pipe->mod_private = NULL;
@@ -851,12 +790,13 @@ int usbhs_pipe_probe(struct usbhs_priv *priv)
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	struct usbhs_pipe *pipe;
 	struct device *dev = usbhs_priv_to_dev(priv);
-	u32 *pipe_type = usbhs_get_dparam(priv, pipe_type);
+	struct renesas_usbhs_driver_pipe_config *pipe_configs =
+					usbhs_get_dparam(priv, pipe_configs);
 	int pipe_size = usbhs_get_dparam(priv, pipe_size);
 	int i;
 
 	/* This driver expects 1st pipe is DCP */
-	if (pipe_type[0] != USB_ENDPOINT_XFER_CONTROL) {
+	if (pipe_configs[0].type != USB_ENDPOINT_XFER_CONTROL) {
 		dev_err(dev, "1st PIPE is not DCP\n");
 		return -EINVAL;
 	}
@@ -876,10 +816,10 @@ int usbhs_pipe_probe(struct usbhs_priv *priv)
 		pipe->priv = priv;
 
 		usbhs_pipe_type(pipe) =
-			pipe_type[i] & USB_ENDPOINT_XFERTYPE_MASK;
+			pipe_configs[i].type & USB_ENDPOINT_XFERTYPE_MASK;
 
 		dev_dbg(dev, "pipe %x\t: %s\n",
-			i, usbhsp_pipe_name[pipe_type[i]]);
+			i, usbhsp_pipe_name[pipe_configs[i].type]);
 	}
 
 	return 0;

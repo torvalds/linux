@@ -37,7 +37,8 @@ Returns: -EFAULT if the given address is not accessible
 Allows userspace to query the actual limit and set a new limit for
 the maximum guest memory size. The limit will be rounded up to
 2048 MB, 4096 GB, 8192 TB respectively, as this limit is governed by
-the number of page table levels.
+the number of page table levels. In the case that there is no limit we will set
+the limit to KVM_S390_NO_MEM_LIMIT (U64_MAX).
 
 2. GROUP: KVM_S390_VM_CPU_MODEL
 Architectures: s390

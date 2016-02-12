@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -217,7 +217,8 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 					 * the package, can't dereference it
 					 */
 					ACPI_ERROR((AE_INFO,
-						    "Attempt to dereference an Index to NULL package element Idx=%p",
+						    "Attempt to dereference an Index to "
+						    "NULL package element Idx=%p",
 						    stack_desc));
 					status = AE_AML_UNINITIALIZED_ELEMENT;
 				}
@@ -361,10 +362,9 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 		if (type == ACPI_TYPE_LOCAL_ALIAS) {
 			type = ((struct acpi_namespace_node *)obj_desc)->type;
-			obj_desc =
-			    acpi_ns_get_attached_object((struct
-							 acpi_namespace_node *)
-							obj_desc);
+			obj_desc = acpi_ns_get_attached_object((struct
+								acpi_namespace_node
+								*)obj_desc);
 		}
 
 		if (!obj_desc) {

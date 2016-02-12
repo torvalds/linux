@@ -79,12 +79,8 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			    struct tcf_result *res)
 {
 	struct cls_bpf_head *head = rcu_dereference_bh(tp->root);
+	bool at_ingress = skb_at_tc_ingress(skb);
 	struct cls_bpf_prog *prog;
-#ifdef CONFIG_NET_CLS_ACT
-	bool at_ingress = G_TC_AT(skb->tc_verd) & AT_INGRESS;
-#else
-	bool at_ingress = false;
-#endif
 	int ret = -1;
 
 	if (unlikely(!skb_mac_header_was_set(skb)))
@@ -295,7 +291,7 @@ static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
 	prog->bpf_name = name;
 	prog->filter = fp;
 
-	if (fp->dst_needed)
+	if (fp->dst_needed && !(tp->q->flags & TCQ_F_INGRESS))
 		netif_keep_dst(qdisc_dev(tp->q));
 
 	return 0;

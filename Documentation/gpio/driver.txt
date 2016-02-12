@@ -113,8 +113,8 @@ GPIO irqchips usually fall in one of two categories:
   it will be threaded IRQ handler on -RT and hard IRQ handler on non-RT
   (for example, see [3]).
   Know W/A: The generic_handle_irq() is expected to be called with IRQ disabled,
-  so IRQ core will complain if it will be called from IRQ handler wich is forced
-  thread. The "fake?" raw lock can be used to W/A this problem:
+  so IRQ core will complain if it will be called from IRQ handler which is
+  forced thread. The "fake?" raw lock can be used to W/A this problem:
 
 	raw_spinlock_t wa_lock;
 	static irqreturn_t omap_gpio_irq_handler(int irq, void *gpiobank)
@@ -224,7 +224,7 @@ Real-Time compliance for GPIO IRQ chips
 ---------------------------------------
 
 Any provider of irqchips needs to be carefully tailored to support Real Time
-preemption. It is desireable that all irqchips in the GPIO subsystem keep this
+preemption. It is desirable that all irqchips in the GPIO subsystem keep this
 in mind and does the proper testing to assure they are real time-enabled.
 So, pay attention on above " RT_FULL:" notes, please.
 The following is a checklist to follow when preparing a driver for real

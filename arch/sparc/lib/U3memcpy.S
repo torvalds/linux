@@ -24,9 +24,15 @@
 #ifndef EX_LD
 #define EX_LD(x)	x
 #endif
+#ifndef EX_LD_FP
+#define EX_LD_FP(x)	x
+#endif
 
 #ifndef EX_ST
 #define EX_ST(x)	x
+#endif
+#ifndef EX_ST_FP
+#define EX_ST_FP(x)	x
 #endif
 
 #ifndef EX_RETVAL
@@ -120,8 +126,8 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 and		%g2, 0x38, %g2
 
 1:	subcc		%g1, 0x1, %g1
-	EX_LD(LOAD(ldub, %o1 + 0x00, %o3))
-	EX_ST(STORE(stb, %o3, %o1 + GLOBAL_SPARE))
+	EX_LD_FP(LOAD(ldub, %o1 + 0x00, %o3))
+	EX_ST_FP(STORE(stb, %o3, %o1 + GLOBAL_SPARE))
 	bgu,pt		%XCC, 1b
 	 add		%o1, 0x1, %o1
 
@@ -132,20 +138,20 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	be,pt		%icc, 3f
 	 alignaddr	%o1, %g0, %o1
 
-	EX_LD(LOAD(ldd, %o1, %f4))
-1:	EX_LD(LOAD(ldd, %o1 + 0x8, %f6))
+	EX_LD_FP(LOAD(ldd, %o1, %f4))
+1:	EX_LD_FP(LOAD(ldd, %o1 + 0x8, %f6))
 	add		%o1, 0x8, %o1
 	subcc		%g2, 0x8, %g2
 	faligndata	%f4, %f6, %f0
-	EX_ST(STORE(std, %f0, %o0))
+	EX_ST_FP(STORE(std, %f0, %o0))
 	be,pn		%icc, 3f
 	 add		%o0, 0x8, %o0
 
-	EX_LD(LOAD(ldd, %o1 + 0x8, %f4))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x8, %f4))
 	add		%o1, 0x8, %o1
 	subcc		%g2, 0x8, %g2
 	faligndata	%f6, %f4, %f2
-	EX_ST(STORE(std, %f2, %o0))
+	EX_ST_FP(STORE(std, %f2, %o0))
 	bne,pt		%icc, 1b
 	 add		%o0, 0x8, %o0
 
@@ -155,25 +161,25 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	LOAD(prefetch, %o1 + 0x080, #one_read)
 	LOAD(prefetch, %o1 + 0x0c0, #one_read)
 	LOAD(prefetch, %o1 + 0x100, #one_read)
-	EX_LD(LOAD(ldd, %o1 + 0x000, %f0))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x000, %f0))
 	LOAD(prefetch, %o1 + 0x140, #one_read)
-	EX_LD(LOAD(ldd, %o1 + 0x008, %f2))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x008, %f2))
 	LOAD(prefetch, %o1 + 0x180, #one_read)
-	EX_LD(LOAD(ldd, %o1 + 0x010, %f4))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x010, %f4))
 	LOAD(prefetch, %o1 + 0x1c0, #one_read)
 	faligndata	%f0, %f2, %f16
-	EX_LD(LOAD(ldd, %o1 + 0x018, %f6))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x018, %f6))
 	faligndata	%f2, %f4, %f18
-	EX_LD(LOAD(ldd, %o1 + 0x020, %f8))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x020, %f8))
 	faligndata	%f4, %f6, %f20
-	EX_LD(LOAD(ldd, %o1 + 0x028, %f10))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x028, %f10))
 	faligndata	%f6, %f8, %f22
 
-	EX_LD(LOAD(ldd, %o1 + 0x030, %f12))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x030, %f12))
 	faligndata	%f8, %f10, %f24
-	EX_LD(LOAD(ldd, %o1 + 0x038, %f14))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x038, %f14))
 	faligndata	%f10, %f12, %f26
-	EX_LD(LOAD(ldd, %o1 + 0x040, %f0))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x040, %f0))
 
 	subcc		GLOBAL_SPARE, 0x80, GLOBAL_SPARE
 	add		%o1, 0x40, %o1
@@ -184,26 +190,26 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 	.align		64
 1:
-	EX_LD(LOAD(ldd, %o1 + 0x008, %f2))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x008, %f2))
 	faligndata	%f12, %f14, %f28
-	EX_LD(LOAD(ldd, %o1 + 0x010, %f4))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x010, %f4))
 	faligndata	%f14, %f0, %f30
-	EX_ST(STORE_BLK(%f16, %o0))
-	EX_LD(LOAD(ldd, %o1 + 0x018, %f6))
+	EX_ST_FP(STORE_BLK(%f16, %o0))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x018, %f6))
 	faligndata	%f0, %f2, %f16
 	add		%o0, 0x40, %o0
 
-	EX_LD(LOAD(ldd, %o1 + 0x020, %f8))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x020, %f8))
 	faligndata	%f2, %f4, %f18
-	EX_LD(LOAD(ldd, %o1 + 0x028, %f10))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x028, %f10))
 	faligndata	%f4, %f6, %f20
-	EX_LD(LOAD(ldd, %o1 + 0x030, %f12))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x030, %f12))
 	subcc		%o3, 0x01, %o3
 	faligndata	%f6, %f8, %f22
-	EX_LD(LOAD(ldd, %o1 + 0x038, %f14))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x038, %f14))
 
 	faligndata	%f8, %f10, %f24
-	EX_LD(LOAD(ldd, %o1 + 0x040, %f0))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x040, %f0))
 	LOAD(prefetch, %o1 + 0x1c0, #one_read)
 	faligndata	%f10, %f12, %f26
 	bg,pt		%XCC, 1b
@@ -211,29 +217,29 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 	/* Finally we copy the last full 64-byte block. */
 2:
-	EX_LD(LOAD(ldd, %o1 + 0x008, %f2))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x008, %f2))
 	faligndata	%f12, %f14, %f28
-	EX_LD(LOAD(ldd, %o1 + 0x010, %f4))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x010, %f4))
 	faligndata	%f14, %f0, %f30
-	EX_ST(STORE_BLK(%f16, %o0))
-	EX_LD(LOAD(ldd, %o1 + 0x018, %f6))
+	EX_ST_FP(STORE_BLK(%f16, %o0))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x018, %f6))
 	faligndata	%f0, %f2, %f16
-	EX_LD(LOAD(ldd, %o1 + 0x020, %f8))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x020, %f8))
 	faligndata	%f2, %f4, %f18
-	EX_LD(LOAD(ldd, %o1 + 0x028, %f10))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x028, %f10))
 	faligndata	%f4, %f6, %f20
-	EX_LD(LOAD(ldd, %o1 + 0x030, %f12))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x030, %f12))
 	faligndata	%f6, %f8, %f22
-	EX_LD(LOAD(ldd, %o1 + 0x038, %f14))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x038, %f14))
 	faligndata	%f8, %f10, %f24
 	cmp		%g1, 0
 	be,pt		%XCC, 1f
 	 add		%o0, 0x40, %o0
-	EX_LD(LOAD(ldd, %o1 + 0x040, %f0))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x040, %f0))
 1:	faligndata	%f10, %f12, %f26
 	faligndata	%f12, %f14, %f28
 	faligndata	%f14, %f0, %f30
-	EX_ST(STORE_BLK(%f16, %o0))
+	EX_ST_FP(STORE_BLK(%f16, %o0))
 	add		%o0, 0x40, %o0
 	add		%o1, 0x40, %o1
 	membar		#Sync
@@ -253,20 +259,20 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 	sub		%o2, %g2, %o2
 	be,a,pt		%XCC, 1f
-	 EX_LD(LOAD(ldd, %o1 + 0x00, %f0))
+	 EX_LD_FP(LOAD(ldd, %o1 + 0x00, %f0))
 
-1:	EX_LD(LOAD(ldd, %o1 + 0x08, %f2))
+1:	EX_LD_FP(LOAD(ldd, %o1 + 0x08, %f2))
 	add		%o1, 0x8, %o1
 	subcc		%g2, 0x8, %g2
 	faligndata	%f0, %f2, %f8
-	EX_ST(STORE(std, %f8, %o0))
+	EX_ST_FP(STORE(std, %f8, %o0))
 	be,pn		%XCC, 2f
 	 add		%o0, 0x8, %o0
-	EX_LD(LOAD(ldd, %o1 + 0x08, %f0))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x08, %f0))
 	add		%o1, 0x8, %o1
 	subcc		%g2, 0x8, %g2
 	faligndata	%f2, %f0, %f8
-	EX_ST(STORE(std, %f8, %o0))
+	EX_ST_FP(STORE(std, %f8, %o0))
 	bne,pn		%XCC, 1b
 	 add		%o0, 0x8, %o0
 

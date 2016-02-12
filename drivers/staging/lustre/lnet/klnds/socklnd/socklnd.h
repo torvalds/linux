@@ -679,6 +679,9 @@ int ksocknal_lib_recv_kiov(ksock_conn_t *conn);
 int ksocknal_lib_get_conn_tunables(ksock_conn_t *conn, int *txmem,
 				   int *rxmem, int *nagle);
 
+void ksocknal_read_callback(ksock_conn_t *conn);
+void ksocknal_write_callback(ksock_conn_t *conn);
+
 int ksocknal_tunables_init(void);
 
 void ksocknal_lib_csum_tx(ksock_tx_t *tx);

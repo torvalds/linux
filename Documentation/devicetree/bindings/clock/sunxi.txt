@@ -27,7 +27,9 @@ Required properties:
 	"allwinner,sun5i-a10s-ahb-gates-clk" - for the AHB gates on A10s
 	"allwinner,sun7i-a20-ahb-gates-clk" - for the AHB gates on A20
 	"allwinner,sun6i-a31-ar100-clk" - for the AR100 on A31
+	"allwinner,sun9i-a80-cpus-clk" - for the CPUS on A80
 	"allwinner,sun6i-a31-ahb1-clk" - for the AHB1 clock on A31
+	"allwinner,sun8i-h3-ahb2-clk" - for the AHB2 clock on H3
 	"allwinner,sun6i-a31-ahb1-gates-clk" - for the AHB1 gates on A31
 	"allwinner,sun8i-a23-ahb1-gates-clk" - for the AHB1 gates on A23
 	"allwinner,sun9i-a80-ahb0-gates-clk" - for the AHB0 gates on A80
@@ -55,6 +57,9 @@ Required properties:
 	"allwinner,sun9i-a80-apb1-gates-clk" - for the APB1 gates on A80
 	"allwinner,sun6i-a31-apb2-gates-clk" - for the APB2 gates on A31
 	"allwinner,sun8i-a23-apb2-gates-clk" - for the APB2 gates on A23
+	"allwinner,sun8i-h3-bus-gates-clk" - for the bus gates on H3
+	"allwinner,sun9i-a80-apbs-gates-clk" - for the APBS gates on A80
+	"allwinner,sun4i-a10-dram-gates-clk" - for the DRAM gates on A10
 	"allwinner,sun5i-a13-mbus-clk" - for the MBUS clock on A13
 	"allwinner,sun4i-a10-mmc-clk" - for the MMC clock
 	"allwinner,sun9i-a80-mmc-clk" - for mmc module clocks on A80
@@ -68,8 +73,10 @@ Required properties:
 	"allwinner,sun5i-a13-usb-clk" - for usb gates + resets on A13
 	"allwinner,sun6i-a31-usb-clk" - for usb gates + resets on A31
 	"allwinner,sun8i-a23-usb-clk" - for usb gates + resets on A23
+	"allwinner,sun8i-h3-usb-clk" - for usb gates + resets on H3
 	"allwinner,sun9i-a80-usb-mod-clk" - for usb gates + resets on A80
 	"allwinner,sun9i-a80-usb-phy-clk" - for usb phy gates + resets on A80
+	"allwinner,sun4i-a10-ve-clk" - for the Video Engine clock
 
 Required properties for all clocks:
 - reg : shall be the control register address for the clock.
@@ -88,6 +95,9 @@ Required properties for all clocks:
 
 And "allwinner,*-usb-clk" clocks also require:
 - reset-cells : shall be set to 1
+
+The "allwinner,sun4i-a10-ve-clk" clock also requires:
+- reset-cells : shall be set to 0
 
 The "allwinner,sun9i-a80-mmc-config-clk" clock also requires:
 - #reset-cells : shall be set to 1

@@ -229,8 +229,8 @@ __blk_mq_alloc_request(struct blk_mq_alloc_data *data, int rw)
 	return NULL;
 }
 
-struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
-		bool reserved)
+struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
+		unsigned int flags)
 {
 	struct blk_mq_ctx *ctx;
 	struct blk_mq_hw_ctx *hctx;
@@ -238,24 +238,22 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
 	struct blk_mq_alloc_data alloc_data;
 	int ret;
 
-	ret = blk_queue_enter(q, gfp);
+	ret = blk_queue_enter(q, flags & BLK_MQ_REQ_NOWAIT);
 	if (ret)
 		return ERR_PTR(ret);
 
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
-	blk_mq_set_alloc_data(&alloc_data, q, gfp & ~__GFP_DIRECT_RECLAIM,
-			reserved, ctx, hctx);
+	blk_mq_set_alloc_data(&alloc_data, q, flags, ctx, hctx);
 
 	rq = __blk_mq_alloc_request(&alloc_data, rw);
-	if (!rq && (gfp & __GFP_DIRECT_RECLAIM)) {
+	if (!rq && !(flags & BLK_MQ_REQ_NOWAIT)) {
 		__blk_mq_run_hw_queue(hctx);
 		blk_mq_put_ctx(ctx);
 
 		ctx = blk_mq_get_ctx(q);
 		hctx = q->mq_ops->map_queue(q, ctx->cpu);
-		blk_mq_set_alloc_data(&alloc_data, q, gfp, reserved, ctx,
-				hctx);
+		blk_mq_set_alloc_data(&alloc_data, q, flags, ctx, hctx);
 		rq =  __blk_mq_alloc_request(&alloc_data, rw);
 		ctx = alloc_data.ctx;
 	}
@@ -605,8 +603,6 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 			blk_mq_complete_request(rq, -EIO);
 		return;
 	}
-	if (rq->cmd_flags & REQ_NO_TIMEOUT)
-		return;
 
 	if (time_after_eq(jiffies, rq->deadline)) {
 		if (!blk_mark_rq_complete(rq))
@@ -617,14 +613,18 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 	}
 }
 
-static void blk_mq_rq_timer(unsigned long priv)
+static void blk_mq_timeout_work(struct work_struct *work)
 {
-	struct request_queue *q = (struct request_queue *)priv;
+	struct request_queue *q =
+		container_of(work, struct request_queue, timeout_work);
 	struct blk_mq_timeout_data data = {
 		.next		= 0,
 		.next_set	= 0,
 	};
 	int i;
+
+	if (blk_queue_enter(q, true))
+		return;
 
 	blk_mq_queue_tag_busy_iter(q, blk_mq_check_expired, &data);
 
@@ -640,6 +640,7 @@ static void blk_mq_rq_timer(unsigned long priv)
 				blk_mq_tag_idle(hctx);
 		}
 	}
+	blk_queue_exit(q);
 }
 
 /*
@@ -1175,8 +1176,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 		rw |= REQ_SYNC;
 
 	trace_block_getrq(q, bio, rw);
-	blk_mq_set_alloc_data(&alloc_data, q, GFP_ATOMIC, false, ctx,
-			hctx);
+	blk_mq_set_alloc_data(&alloc_data, q, BLK_MQ_REQ_NOWAIT, ctx, hctx);
 	rq = __blk_mq_alloc_request(&alloc_data, rw);
 	if (unlikely(!rq)) {
 		__blk_mq_run_hw_queue(hctx);
@@ -1185,8 +1185,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 
 		ctx = blk_mq_get_ctx(q);
 		hctx = q->mq_ops->map_queue(q, ctx->cpu);
-		blk_mq_set_alloc_data(&alloc_data, q,
-				__GFP_RECLAIM|__GFP_HIGH, false, ctx, hctx);
+		blk_mq_set_alloc_data(&alloc_data, q, 0, ctx, hctx);
 		rq = __blk_mq_alloc_request(&alloc_data, rw);
 		ctx = alloc_data.ctx;
 		hctx = alloc_data.hctx;
@@ -1794,7 +1793,7 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		 * not, we remain on the home node of the device
 		 */
 		if (nr_hw_queues > 1 && hctx->numa_node == NUMA_NO_NODE)
-			hctx->numa_node = cpu_to_node(i);
+			hctx->numa_node = local_memory_node(cpu_to_node(i));
 	}
 }
 
@@ -1854,6 +1853,7 @@ static void blk_mq_map_swqueue(struct request_queue *q,
 		hctx->tags = set->tags[i];
 		WARN_ON(!hctx->tags);
 
+		cpumask_copy(hctx->tags->cpumask, hctx->cpumask);
 		/*
 		 * Set the map size to the number of mapped software queues.
 		 * This is more accurate and more efficient than looping
@@ -1866,14 +1866,6 @@ static void blk_mq_map_swqueue(struct request_queue *q,
 		 */
 		hctx->next_cpu = cpumask_first(hctx->cpumask);
 		hctx->next_cpu_batch = BLK_MQ_CPU_WORK_BATCH;
-	}
-
-	queue_for_each_ctx(q, ctx, i) {
-		if (!cpumask_test_cpu(i, online_mask))
-			continue;
-
-		hctx = q->mq_ops->map_queue(q, i);
-		cpumask_set_cpu(i, hctx->tags->cpumask);
 	}
 }
 
@@ -2019,7 +2011,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 		hctxs[i]->queue_num = i;
 	}
 
-	setup_timer(&q->timeout, blk_mq_rq_timer, (unsigned long) q);
+	INIT_WORK(&q->timeout_work, blk_mq_timeout_work);
 	blk_queue_rq_timeout(q, set->timeout ? set->timeout : 30 * HZ);
 
 	q->nr_queues = nr_cpu_ids;

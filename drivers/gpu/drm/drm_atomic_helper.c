@@ -125,6 +125,47 @@ get_current_crtc_for_encoder(struct drm_device *dev,
 	return NULL;
 }
 
+static void
+set_best_encoder(struct drm_atomic_state *state,
+		 struct drm_connector_state *conn_state,
+		 struct drm_encoder *encoder)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+
+	if (conn_state->best_encoder) {
+		/* Unset the encoder_mask in the old crtc state. */
+		crtc = conn_state->connector->state->crtc;
+
+		/* A NULL crtc is an error here because we should have
+		 *  duplicated a NULL best_encoder when crtc was NULL.
+		 * As an exception restoring duplicated atomic state
+		 * during resume is allowed, so don't warn when
+		 * best_encoder is equal to encoder we intend to set.
+		 */
+		WARN_ON(!crtc && encoder != conn_state->best_encoder);
+		if (crtc) {
+			crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
+
+			crtc_state->encoder_mask &=
+				~(1 << drm_encoder_index(conn_state->best_encoder));
+		}
+	}
+
+	if (encoder) {
+		crtc = conn_state->crtc;
+		WARN_ON(!crtc);
+		if (crtc) {
+			crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
+
+			crtc_state->encoder_mask |=
+				1 << drm_encoder_index(encoder);
+		}
+	}
+
+	conn_state->best_encoder = encoder;
+}
+
 static int
 steal_encoder(struct drm_atomic_state *state,
 	      struct drm_encoder *encoder,
@@ -134,7 +175,6 @@ steal_encoder(struct drm_atomic_state *state,
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
-	int ret;
 
 	/*
 	 * We can only steal an encoder coming from a connector, which means we
@@ -165,10 +205,10 @@ steal_encoder(struct drm_atomic_state *state,
 		if (IS_ERR(connector_state))
 			return PTR_ERR(connector_state);
 
-		ret = drm_atomic_set_crtc_for_connector(connector_state, NULL);
-		if (ret)
-			return ret;
-		connector_state->best_encoder = NULL;
+		if (connector_state->best_encoder != encoder)
+			continue;
+
+		set_best_encoder(state, connector_state, NULL);
 	}
 
 	return 0;
@@ -216,7 +256,7 @@ update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 				connector->base.id,
 				connector->name);
 
-		connector_state->best_encoder = NULL;
+		set_best_encoder(state, connector_state, NULL);
 
 		return 0;
 	}
@@ -245,6 +285,8 @@ update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 	}
 
 	if (new_encoder == connector_state->best_encoder) {
+		set_best_encoder(state, connector_state, new_encoder);
+
 		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] keeps [ENCODER:%d:%s], now on [CRTC:%d:%s]\n",
 				 connector->base.id,
 				 connector->name,
@@ -279,7 +321,8 @@ update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 	if (WARN_ON(!connector_state->crtc))
 		return -EINVAL;
 
-	connector_state->best_encoder = new_encoder;
+	set_best_encoder(state, connector_state, new_encoder);
+
 	idx = drm_crtc_index(connector_state->crtc);
 
 	crtc_state = state->crtc_states[idx];
@@ -617,7 +660,6 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
-		struct drm_crtc_state *old_crtc_state;
 
 		/* Shut down everything that's in the changeset and currently
 		 * still on. So need to check the old, saved state. */
@@ -946,9 +988,23 @@ static void wait_for_fences(struct drm_device *dev,
 	}
 }
 
-static bool framebuffer_changed(struct drm_device *dev,
-				struct drm_atomic_state *old_state,
-				struct drm_crtc *crtc)
+/**
+ * drm_atomic_helper_framebuffer_changed - check if framebuffer has changed
+ * @dev: DRM device
+ * @old_state: atomic state object with old state structures
+ * @crtc: DRM crtc
+ *
+ * Checks whether the framebuffer used for this CRTC changes as a result of
+ * the atomic update.  This is useful for drivers which cannot use
+ * drm_atomic_helper_wait_for_vblanks() and need to reimplement its
+ * functionality.
+ *
+ * Returns:
+ * true if the framebuffer changed.
+ */
+bool drm_atomic_helper_framebuffer_changed(struct drm_device *dev,
+					   struct drm_atomic_state *old_state,
+					   struct drm_crtc *crtc)
 {
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
@@ -965,6 +1021,7 @@ static bool framebuffer_changed(struct drm_device *dev,
 
 	return false;
 }
+EXPORT_SYMBOL(drm_atomic_helper_framebuffer_changed);
 
 /**
  * drm_atomic_helper_wait_for_vblanks - wait for vblank on crtcs
@@ -999,7 +1056,8 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		if (old_state->legacy_cursor_update)
 			continue;
 
-		if (!framebuffer_changed(dev, old_state, crtc))
+		if (!drm_atomic_helper_framebuffer_changed(dev,
+				old_state, crtc))
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);
@@ -2533,8 +2591,10 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 	kfree(plane->state);
 	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
 
-	if (plane->state)
+	if (plane->state) {
 		plane->state->plane = plane;
+		plane->state->rotation = BIT(DRM_ROTATE_0);
+	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
 

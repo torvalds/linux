@@ -116,6 +116,12 @@ config COMMON_CLK_CDCE925
 	  Given a target output frequency, the driver will set the PLL and
 	  divider to best approximate the desired output.
 
+config COMMON_CLK_CS2000_CP
+	tristate "Clock driver for CS2000 Fractional-N Clock Synthesizer & Clock Multiplier"
+	depends on I2C
+	help
+	  If you say yes here you get support for the CS2000 clock multiplier.
+
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
 	depends on MFD_SEC_CORE
@@ -160,6 +166,12 @@ config COMMON_CLK_KEYSTONE
 	---help---
           Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
+
+config COMMON_CLK_NXP
+	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
+	select REGMAP_MMIO if ARCH_LPC32XX
+	---help---
+	  Support for clock providers on NXP platforms.
 
 config COMMON_CLK_PALMAS
 	tristate "Clock driver for TI Palmas devices"

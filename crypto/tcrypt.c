@@ -1789,7 +1789,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 		test_aead_speed("rfc4106(gcm(aes))", ENCRYPT, sec,
 				NULL, 0, 16, 16, aead_speed_template_20);
 		test_aead_speed("gcm(aes)", ENCRYPT, sec,
-				NULL, 0, 16, 8, aead_speed_template_20);
+				NULL, 0, 16, 8, speed_template_16_24_32);
 		break;
 
 	case 212:

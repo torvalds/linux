@@ -204,12 +204,12 @@ long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (err)
 			return err;
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		oldflags = li->li_flags;
 		flags &= LOGFS_FL_USER_MODIFIABLE;
 		flags |= oldflags & ~LOGFS_FL_USER_MODIFIABLE;
 		li->li_flags = flags;
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 		inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty_sync(inode);
@@ -230,11 +230,11 @@ int logfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		return ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	logfs_get_wblocks(sb, NULL, WF_LOCK);
 	logfs_write_anchor(sb);
 	logfs_put_wblocks(sb, NULL, WF_LOCK);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return 0;
 }

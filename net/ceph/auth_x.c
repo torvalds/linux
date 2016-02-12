@@ -152,7 +152,6 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	void *ticket_buf = NULL;
 	void *tp, *tpend;
 	void **ptp;
-	struct ceph_timespec new_validity;
 	struct ceph_crypto_key new_session_key;
 	struct ceph_buffer *new_ticket_blob;
 	unsigned long new_expires, new_renew_after;
@@ -193,8 +192,8 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	if (ret)
 		goto out;
 
-	ceph_decode_copy(&dp, &new_validity, sizeof(new_validity));
-	ceph_decode_timespec(&validity, &new_validity);
+	ceph_decode_timespec(&validity, dp);
+	dp += sizeof(struct ceph_timespec);
 	new_expires = get_seconds() + validity.tv_sec;
 	new_renew_after = new_expires - (validity.tv_sec / 4);
 	dout(" expires=%lu renew_after=%lu\n", new_expires,
@@ -233,10 +232,10 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 		ceph_buffer_put(th->ticket_blob);
 	th->session_key = new_session_key;
 	th->ticket_blob = new_ticket_blob;
-	th->validity = new_validity;
 	th->secret_id = new_secret_id;
 	th->expires = new_expires;
 	th->renew_after = new_renew_after;
+	th->have_key = true;
 	dout(" got ticket service %d (%s) secret_id %lld len %d\n",
 	     type, ceph_entity_type_name(type), th->secret_id,
 	     (int)th->ticket_blob->vec.iov_len);
@@ -384,6 +383,24 @@ bad:
 	return -ERANGE;
 }
 
+static bool need_key(struct ceph_x_ticket_handler *th)
+{
+	if (!th->have_key)
+		return true;
+
+	return get_seconds() >= th->renew_after;
+}
+
+static bool have_key(struct ceph_x_ticket_handler *th)
+{
+	if (th->have_key) {
+		if (get_seconds() >= th->expires)
+			th->have_key = false;
+	}
+
+	return th->have_key;
+}
+
 static void ceph_x_validate_tickets(struct ceph_auth_client *ac, int *pneed)
 {
 	int want = ac->want_keys;
@@ -402,19 +419,17 @@ static void ceph_x_validate_tickets(struct ceph_auth_client *ac, int *pneed)
 			continue;
 
 		th = get_ticket_handler(ac, service);
-
 		if (IS_ERR(th)) {
 			*pneed |= service;
 			continue;
 		}
 
-		if (get_seconds() >= th->renew_after)
+		if (need_key(th))
 			*pneed |= service;
-		if (get_seconds() >= th->expires)
+		if (!have_key(th))
 			xi->have_keys &= ~service;
 	}
 }
-
 
 static int ceph_x_build_request(struct ceph_auth_client *ac,
 				void *buf, void *end)
@@ -667,14 +682,26 @@ static void ceph_x_destroy(struct ceph_auth_client *ac)
 	ac->private = NULL;
 }
 
-static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
-				   int peer_type)
+static void invalidate_ticket(struct ceph_auth_client *ac, int peer_type)
 {
 	struct ceph_x_ticket_handler *th;
 
 	th = get_ticket_handler(ac, peer_type);
 	if (!IS_ERR(th))
-		memset(&th->validity, 0, sizeof(th->validity));
+		th->have_key = false;
+}
+
+static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
+					 int peer_type)
+{
+	/*
+	 * We are to invalidate a service ticket in the hopes of
+	 * getting a new, hopefully more valid, one.  But, we won't get
+	 * it unless our AUTH ticket is good, so invalidate AUTH ticket
+	 * as well, just in case.
+	 */
+	invalidate_ticket(ac, peer_type);
+	invalidate_ticket(ac, CEPH_ENTITY_TYPE_AUTH);
 }
 
 static int calcu_signature(struct ceph_x_authorizer *au,

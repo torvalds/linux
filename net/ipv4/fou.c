@@ -498,7 +498,7 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 	sk->sk_allocation = GFP_ATOMIC;
 
 	if (cfg->udp_config.family == AF_INET) {
-		err = udp_add_offload(&fou->udp_offloads);
+		err = udp_add_offload(net, &fou->udp_offloads);
 		if (err)
 			goto error;
 	}

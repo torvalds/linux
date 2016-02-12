@@ -345,8 +345,6 @@ struct tty_file_private {
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
 #define TTY_LDISC_HALTED	22	/* Line discipline is halted */
 
-#define TTY_WRITE_FLUSH(tty) tty_write_flush((tty))
-
 /* Values for tty->flow_change */
 #define TTY_THROTTLE_SAFE 1
 #define TTY_UNTHROTTLE_SAFE 2
@@ -395,8 +393,6 @@ static inline int __init tty_init(void)
 { return 0; }
 #endif
 
-extern void tty_write_flush(struct tty_struct *);
-
 extern struct ktermios tty_std_termios;
 
 extern int vcs_init(void);
@@ -419,9 +415,8 @@ static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 	return tty;
 }
 
-extern int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
-			      const char *routine);
 extern const char *tty_name(const struct tty_struct *tty);
+extern const char *tty_driver_name(const struct tty_struct *tty);
 extern void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 extern int __tty_check_change(struct tty_struct *tty, int sig);
 extern int tty_check_change(struct tty_struct *tty);
@@ -654,6 +649,7 @@ extern long vt_compat_ioctl(struct tty_struct *tty,
 /* tty_mutex.c */
 /* functions for preparation of BKL removal */
 extern void __lockfunc tty_lock(struct tty_struct *tty);
+extern int  tty_lock_interruptible(struct tty_struct *tty);
 extern void __lockfunc tty_unlock(struct tty_struct *tty);
 extern void __lockfunc tty_lock_slave(struct tty_struct *tty);
 extern void __lockfunc tty_unlock_slave(struct tty_struct *tty);
@@ -667,10 +663,16 @@ static inline void proc_tty_register_driver(struct tty_driver *d) {}
 static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
 #endif
 
-#define tty_debug(tty, f, args...)					\
-	do {								\
-		printk(KERN_DEBUG "%s: %s: " f, __func__,		\
-		       tty_name(tty), ##args);				\
-	} while (0)
+#define tty_msg(fn, tty, f, ...) \
+	fn("%s %s: " f, tty_driver_name(tty), tty_name(tty), ##__VA_ARGS__)
+
+#define tty_debug(tty, f, ...)	tty_msg(pr_debug, tty, f, ##__VA_ARGS__)
+#define tty_info(tty, f, ...)	tty_msg(pr_info, tty, f, ##__VA_ARGS__)
+#define tty_notice(tty, f, ...)	tty_msg(pr_notice, tty, f, ##__VA_ARGS__)
+#define tty_warn(tty, f, ...)	tty_msg(pr_warn, tty, f, ##__VA_ARGS__)
+#define tty_err(tty, f, ...)	tty_msg(pr_err, tty, f, ##__VA_ARGS__)
+
+#define tty_info_ratelimited(tty, f, ...) \
+		tty_msg(pr_info_ratelimited, tty, f, ##__VA_ARGS__)
 
 #endif

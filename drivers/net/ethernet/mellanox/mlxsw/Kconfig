@@ -10,6 +10,14 @@ config MLXSW_CORE
 	  To compile this driver as a module, choose M here: the
 	  module will be called mlxsw_core.
 
+config MLXSW_CORE_HWMON
+	bool "HWMON support for Mellanox Technologies Switch ASICs"
+	depends on MLXSW_CORE && HWMON
+	depends on !(MLXSW_CORE=y && HWMON=m)
+	default y
+	---help---
+	  Say Y here if you want to expose HWMON interface on mlxsw devices.
+
 config MLXSW_PCI
 	tristate "PCI bus implementation for Mellanox Technologies Switch ASICs"
 	depends on PCI && HAS_DMA && HAS_IOMEM && MLXSW_CORE
@@ -33,7 +41,7 @@ config MLXSW_SWITCHX2
 
 config MLXSW_SPECTRUM
 	tristate "Mellanox Technologies Spectrum support"
-	depends on MLXSW_CORE && NET_SWITCHDEV
+	depends on MLXSW_CORE && NET_SWITCHDEV && VLAN_8021Q
 	default m
 	---help---
 	  This driver supports Mellanox Technologies Spectrum Ethernet

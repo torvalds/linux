@@ -14,6 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
@@ -176,11 +177,6 @@ static const char *const pmic_mpp_groups[] = {
 
 static const char *const pmic_mpp_functions[] = {
 	"digital", "analog", "sink"
-};
-
-static inline struct pmic_mpp_state *to_mpp_state(struct gpio_chip *chip)
-{
-	return container_of(chip, struct pmic_mpp_state, chip);
 };
 
 static int pmic_mpp_read(struct pmic_mpp_state *state,
@@ -556,7 +552,7 @@ static const struct pinconf_ops pmic_mpp_pinconf_ops = {
 
 static int pmic_mpp_direction_input(struct gpio_chip *chip, unsigned pin)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	unsigned long config;
 
 	config = pinconf_to_config_packed(PIN_CONFIG_INPUT_ENABLE, 1);
@@ -567,7 +563,7 @@ static int pmic_mpp_direction_input(struct gpio_chip *chip, unsigned pin)
 static int pmic_mpp_direction_output(struct gpio_chip *chip,
 				     unsigned pin, int val)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	unsigned long config;
 
 	config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT, val);
@@ -577,7 +573,7 @@ static int pmic_mpp_direction_output(struct gpio_chip *chip,
 
 static int pmic_mpp_get(struct gpio_chip *chip, unsigned pin)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	struct pmic_mpp_pad *pad;
 	int ret;
 
@@ -591,12 +587,12 @@ static int pmic_mpp_get(struct gpio_chip *chip, unsigned pin)
 		pad->out_value = ret & PMIC_MPP_REG_RT_STS_VAL_MASK;
 	}
 
-	return pad->out_value;
+	return !!pad->out_value;
 }
 
 static void pmic_mpp_set(struct gpio_chip *chip, unsigned pin, int value)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	unsigned long config;
 
 	config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT, value);
@@ -619,7 +615,7 @@ static int pmic_mpp_of_xlate(struct gpio_chip *chip,
 
 static int pmic_mpp_to_irq(struct gpio_chip *chip, unsigned pin)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	struct pmic_mpp_pad *pad;
 
 	pad = state->ctrl->desc->pins[pin].drv_data;
@@ -629,7 +625,7 @@ static int pmic_mpp_to_irq(struct gpio_chip *chip, unsigned pin)
 
 static void pmic_mpp_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	unsigned i;
 
 	for (i = 0; i < chip->ngpio; i++) {
@@ -795,17 +791,19 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	struct pmic_mpp_pad *pad, *pads;
 	struct pmic_mpp_state *state;
 	int ret, npins, i;
-	u32 res[2];
+	u32 reg;
 
-	ret = of_property_read_u32_array(dev->of_node, "reg", res, 2);
+	ret = of_property_read_u32(dev->of_node, "reg", &reg);
 	if (ret < 0) {
-		dev_err(dev, "missing base address and/or range");
+		dev_err(dev, "missing base address");
 		return ret;
 	}
 
-	npins = res[1] / PMIC_MPP_ADDRESS_RANGE;
+	npins = platform_irq_count(pdev);
 	if (!npins)
 		return -EINVAL;
+	if (npins < 0)
+		return npins;
 
 	BUG_ON(npins > ARRAY_SIZE(pmic_mpp_groups));
 
@@ -854,7 +852,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 		if (pad->irq < 0)
 			return pad->irq;
 
-		pad->base = res[0] + i * PMIC_MPP_ADDRESS_RANGE;
+		pad->base = reg + i * PMIC_MPP_ADDRESS_RANGE;
 
 		ret = pmic_mpp_populate(state, pad);
 		if (ret < 0)
@@ -862,7 +860,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	}
 
 	state->chip = pmic_mpp_gpio_template;
-	state->chip.dev = dev;
+	state->chip.parent = dev;
 	state->chip.base = -1;
 	state->chip.ngpio = npins;
 	state->chip.label = dev_name(dev);
@@ -873,7 +871,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	if (IS_ERR(state->ctrl))
 		return PTR_ERR(state->ctrl);
 
-	ret = gpiochip_add(&state->chip);
+	ret = gpiochip_add_data(&state->chip, state);
 	if (ret) {
 		dev_err(state->dev, "can't add gpio chip\n");
 		goto err_chip;
@@ -907,6 +905,7 @@ static const struct of_device_id pmic_mpp_of_match[] = {
 	{ .compatible = "qcom,pm8841-mpp" },	/* 4 MPP's */
 	{ .compatible = "qcom,pm8916-mpp" },	/* 4 MPP's */
 	{ .compatible = "qcom,pm8941-mpp" },	/* 8 MPP's */
+	{ .compatible = "qcom,pm8994-mpp" },	/* 8 MPP's */
 	{ .compatible = "qcom,pma8084-mpp" },	/* 8 MPP's */
 	{ },
 };

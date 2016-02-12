@@ -8,7 +8,8 @@ menuconfig ARCH_AT91
 
 if ARCH_AT91
 config SOC_SAMA5D2
-	bool "SAMA5D2 family" if ARCH_MULTI_V7
+	bool "SAMA5D2 family"
+	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select CACHE_L2X0
 	select HAVE_FB_ATMEL
@@ -21,7 +22,8 @@ config SOC_SAMA5D2
 	  Select this if ou are using one of Atmel's SAMA5D2 family SoC.
 
 config SOC_SAMA5D3
-	bool "SAMA5D3 family" if ARCH_MULTI_V7
+	bool "SAMA5D3 family"
+	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
@@ -33,7 +35,8 @@ config SOC_SAMA5D3
 	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35, SAMA5D36.
 
 config SOC_SAMA5D4
-	bool "SAMA5D4 family" if ARCH_MULTI_V7
+	bool "SAMA5D4 family"
+	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select CACHE_L2X0
 	select HAVE_FB_ATMEL
@@ -46,7 +49,8 @@ config SOC_SAMA5D4
 	  Select this if you are using one of Atmel's SAMA5D4 family SoC.
 
 config SOC_AT91RM9200
-	bool "AT91RM9200" if ARCH_MULTI_V4T
+	bool "AT91RM9200"
+	depends on ARCH_MULTI_V4T
 	select ATMEL_AIC_IRQ
 	select ATMEL_ST
 	select CPU_ARM920T
@@ -59,7 +63,8 @@ config SOC_AT91RM9200
 	  Select this if you are using Atmel's AT91RM9200 SoC.
 
 config SOC_AT91SAM9
-	bool "AT91SAM9" if ARCH_MULTI_V5
+	bool "AT91SAM9"
+	depends on ARCH_MULTI_V5
 	select ATMEL_AIC_IRQ
 	select ATMEL_SDRAMC
 	select CPU_ARM926T

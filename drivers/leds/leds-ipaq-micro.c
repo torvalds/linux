@@ -20,7 +20,7 @@
 #define LED_AUTOSTOP (1 << 5) /* LED ON/OFF auto stop set 0:disable, 1:enable */
 #define LED_ALWAYS   (1 << 6) /* LED Interrupt Mask 0:No mask, 1:mask         */
 
-static void micro_leds_brightness_set(struct led_classdev *led_cdev,
+static int micro_leds_brightness_set(struct led_classdev *led_cdev,
 				      enum led_brightness value)
 {
 	struct ipaq_micro *micro = dev_get_drvdata(led_cdev->dev->parent->parent);
@@ -50,7 +50,7 @@ static void micro_leds_brightness_set(struct led_classdev *led_cdev,
 		msg.tx_data[2] = 1;
 		msg.tx_data[3] = 0; /* Duty cycle 256 */
 	}
-	ipaq_micro_tx_msg_sync(micro, &msg);
+	return ipaq_micro_tx_msg_sync(micro, &msg);
 }
 
 /* Maximum duty cycle in ms 256/10 sec = 25600 ms */
@@ -102,7 +102,7 @@ static int micro_leds_blink_set(struct led_classdev *led_cdev,
 
 static struct led_classdev micro_led = {
 	.name			= "led-ipaq-micro",
-	.brightness_set		= micro_leds_brightness_set,
+	.brightness_set_blocking = micro_leds_brightness_set,
 	.blink_set		= micro_leds_blink_set,
 	.flags			= LED_CORE_SUSPENDRESUME,
 };

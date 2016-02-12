@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,8 +81,9 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 
 	/* Get the required length for the converted resource */
 
-	status = acpi_rs_get_list_length(aml_buffer, aml_buffer_length,
-					 &list_size_needed);
+	status =
+	    acpi_rs_get_list_length(aml_buffer, aml_buffer_length,
+				    &list_size_needed);
 	if (status == AE_AML_NO_RESOURCE_END_TAG) {
 		status = AE_OK;
 	}
@@ -232,8 +233,9 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 	/* Get the required buffer length */
 
-	status = acpi_rs_get_pci_routing_table_length(package_object,
-						      &buffer_size_needed);
+	status =
+	    acpi_rs_get_pci_routing_table_length(package_object,
+						 &buffer_size_needed);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -270,9 +272,9 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		user_prt = ACPI_CAST_PTR(struct acpi_pci_routing_table, buffer);
 
 		/*
-		 * Fill in the Length field with the information we have at this point.
-		 * The minus four is to subtract the size of the u8 Source[4] member
-		 * because it is added below.
+		 * Fill in the Length field with the information we have at this
+		 * point. The minus four is to subtract the size of the u8
+		 * Source[4] member because it is added below.
 		 */
 		user_prt->length = (sizeof(struct acpi_pci_routing_table) - 4);
 
@@ -345,11 +347,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 					   (u8 *) output_buffer->pointer);
 				path_buffer.pointer = user_prt->source;
 
-				status =
-				    acpi_ns_handle_to_pathname((acpi_handle)
-							       node,
-							       &path_buffer,
-							       FALSE);
+				status = acpi_ns_handle_to_pathname((acpi_handle) node, &path_buffer, FALSE);
 
 				/* +1 to include null terminator */
 
@@ -371,8 +369,8 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 			case ACPI_TYPE_INTEGER:
 				/*
-				 * If this is a number, then the Source Name is NULL, since the
-				 * entire buffer was zeroed out, we can leave this alone.
+				 * If this is a number, then the Source Name is NULL, since
+				 * the entire buffer was zeroed out, we can leave this alone.
 				 *
 				 * Add to the Length field the length of the u32 NULL
 				 */
@@ -451,9 +449,9 @@ acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 
 	/* Get the buffer size needed for the AML byte stream */
 
-	status = acpi_rs_get_aml_length(resource_list->pointer,
-					resource_list->length,
-					&aml_size_needed);
+	status =
+	    acpi_rs_get_aml_length(resource_list->pointer,
+				   resource_list->length, &aml_size_needed);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "AmlSizeNeeded=%X, %s\n",
 			  (u32)aml_size_needed, acpi_format_exception(status)));

@@ -10,10 +10,9 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 
 #define MMIO_74XX_DIR_IN	(0 << 8)
@@ -21,7 +20,7 @@
 #define MMIO_74XX_BIT_CNT(x)	((x) & 0xff)
 
 struct mmio_74xx_gpio_priv {
-	struct bgpio_chip	bgc;
+	struct gpio_chip	gc;
 	unsigned		flags;
 };
 
@@ -78,30 +77,23 @@ static const struct of_device_id mmio_74xx_gpio_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mmio_74xx_gpio_ids);
 
-static inline struct mmio_74xx_gpio_priv *to_74xx_gpio(struct gpio_chip *gc)
-{
-	struct bgpio_chip *bgc = to_bgpio_chip(gc);
-
-	return container_of(bgc, struct mmio_74xx_gpio_priv, bgc);
-}
-
 static int mmio_74xx_get_direction(struct gpio_chip *gc, unsigned offset)
 {
-	struct mmio_74xx_gpio_priv *priv = to_74xx_gpio(gc);
+	struct mmio_74xx_gpio_priv *priv = gpiochip_get_data(gc);
 
-	return (priv->flags & MMIO_74XX_DIR_OUT) ? GPIOF_DIR_OUT : GPIOF_DIR_IN;
+	return !(priv->flags & MMIO_74XX_DIR_OUT);
 }
 
 static int mmio_74xx_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
-	struct mmio_74xx_gpio_priv *priv = to_74xx_gpio(gc);
+	struct mmio_74xx_gpio_priv *priv = gpiochip_get_data(gc);
 
 	return (priv->flags & MMIO_74XX_DIR_OUT) ? -ENOTSUPP : 0;
 }
 
 static int mmio_74xx_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	struct mmio_74xx_gpio_priv *priv = to_74xx_gpio(gc);
+	struct mmio_74xx_gpio_priv *priv = gpiochip_get_data(gc);
 
 	if (priv->flags & MMIO_74XX_DIR_OUT) {
 		gc->set(gc, gpio, val);
@@ -134,28 +126,29 @@ static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 
 	priv->flags = (uintptr_t) of_id->data;
 
-	err = bgpio_init(&priv->bgc, &pdev->dev,
+	err = bgpio_init(&priv->gc, &pdev->dev,
 			 DIV_ROUND_UP(MMIO_74XX_BIT_CNT(priv->flags), 8),
 			 dat, NULL, NULL, NULL, NULL, 0);
 	if (err)
 		return err;
 
-	priv->bgc.gc.direction_input = mmio_74xx_dir_in;
-	priv->bgc.gc.direction_output = mmio_74xx_dir_out;
-	priv->bgc.gc.get_direction = mmio_74xx_get_direction;
-	priv->bgc.gc.ngpio = MMIO_74XX_BIT_CNT(priv->flags);
-	priv->bgc.gc.owner = THIS_MODULE;
+	priv->gc.direction_input = mmio_74xx_dir_in;
+	priv->gc.direction_output = mmio_74xx_dir_out;
+	priv->gc.get_direction = mmio_74xx_get_direction;
+	priv->gc.ngpio = MMIO_74XX_BIT_CNT(priv->flags);
+	priv->gc.owner = THIS_MODULE;
 
 	platform_set_drvdata(pdev, priv);
 
-	return gpiochip_add(&priv->bgc.gc);
+	return gpiochip_add_data(&priv->gc, priv);
 }
 
 static int mmio_74xx_gpio_remove(struct platform_device *pdev)
 {
 	struct mmio_74xx_gpio_priv *priv = platform_get_drvdata(pdev);
 
-	return bgpio_remove(&priv->bgc);
+	gpiochip_remove(&priv->gc);
+	return 0;
 }
 
 static struct platform_driver mmio_74xx_gpio_driver = {

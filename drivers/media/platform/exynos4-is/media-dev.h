@@ -19,7 +19,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/exynos-fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 #include "fimc-core.h"
 #include "fimc-lite.h"
@@ -154,6 +154,7 @@ struct fimc_md {
 	bool user_subdev_api;
 	spinlock_t slock;
 	struct list_head pipelines;
+	struct media_entity_graph link_setup_graph;
 };
 
 static inline
@@ -164,8 +165,8 @@ struct fimc_sensor_info *source_to_sensor_info(struct fimc_source_info *si)
 
 static inline struct fimc_md *entity_to_fimc_mdev(struct media_entity *me)
 {
-	return me->parent == NULL ? NULL :
-		container_of(me->parent, struct fimc_md, media_dev);
+	return me->graph_obj.mdev == NULL ? NULL :
+		container_of(me->graph_obj.mdev, struct fimc_md, media_dev);
 }
 
 static inline struct fimc_md *notifier_to_fimc_md(struct v4l2_async_notifier *n)
@@ -175,12 +176,12 @@ static inline struct fimc_md *notifier_to_fimc_md(struct v4l2_async_notifier *n)
 
 static inline void fimc_md_graph_lock(struct exynos_video_entity *ve)
 {
-	mutex_lock(&ve->vdev.entity.parent->graph_mutex);
+	mutex_lock(&ve->vdev.entity.graph_obj.mdev->graph_mutex);
 }
 
 static inline void fimc_md_graph_unlock(struct exynos_video_entity *ve)
 {
-	mutex_unlock(&ve->vdev.entity.parent->graph_mutex);
+	mutex_unlock(&ve->vdev.entity.graph_obj.mdev->graph_mutex);
 }
 
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on);

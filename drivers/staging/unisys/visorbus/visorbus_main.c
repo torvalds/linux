@@ -1078,7 +1078,8 @@ away:
 }
 
 /* Write the contents of <info> to the struct
- * spar_vbus_channel_protocol.chp_info. */
+ * spar_vbus_channel_protocol.chp_info.
+ */
 
 static int
 write_vbus_chp_info(struct visorchannel *chan,
@@ -1096,7 +1097,8 @@ write_vbus_chp_info(struct visorchannel *chan,
 }
 
 /* Write the contents of <info> to the struct
- * spar_vbus_channel_protocol.bus_info. */
+ * spar_vbus_channel_protocol.bus_info.
+ */
 
 static int
 write_vbus_bus_info(struct visorchannel *chan,
@@ -1370,7 +1372,8 @@ pause_state_change_complete(struct visor_device *dev, int status)
 
 	/* Notify the chipset driver that the pause is complete, which
 	* will presumably want to send some sort of response to the
-	* initiator. */
+	* initiator.
+	*/
 	(*chipset_responders.device_pause) (dev, status);
 }
 
@@ -1390,7 +1393,8 @@ resume_state_change_complete(struct visor_device *dev, int status)
 
 	/* Notify the chipset driver that the resume is complete,
 	 * which will presumably want to send some sort of response to
-	 * the initiator. */
+	 * the initiator.
+	 */
 	(*chipset_responders.device_resume) (dev, status);
 }
 
@@ -1437,7 +1441,8 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 		 * existing problem prevents us from ever getting a bus
 		 * resume...  This hack would fail to work should we
 		 * ever have a bus that contains NO devices, since we
-		 * would never even get here in that case. */
+		 * would never even get here in that case.
+		 */
 		fix_vbus_dev_info(dev);
 		if (!drv->resume)
 			goto away;

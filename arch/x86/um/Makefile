@@ -17,7 +17,7 @@ obj-y = bug.o bugs_$(BITS).o delay.o fault.o ksyms.o ldt.o \
 ifeq ($(CONFIG_X86_32),y)
 
 obj-y += checksum_32.o
-obj-$(CONFIG_BINFMT_ELF) += elfcore.o
+obj-$(CONFIG_ELF_CORE) += elfcore.o
 
 subarch-y = ../lib/string_32.o ../lib/atomic64_32.o ../lib/atomic64_cx8_32.o
 subarch-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += ../lib/rwsem.o

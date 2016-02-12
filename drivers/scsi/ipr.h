@@ -32,7 +32,7 @@
 #include <linux/libata.h>
 #include <linux/list.h>
 #include <linux/kref.h>
-#include <linux/blk-iopoll.h>
+#include <linux/irq_poll.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
@@ -517,7 +517,7 @@ struct ipr_hrr_queue {
 	u8 allow_cmds:1;
 	u8 removing_ioa:1;
 
-	struct blk_iopoll iopoll;
+	struct irq_poll iopoll;
 };
 
 /* Command packet structure */

@@ -158,7 +158,7 @@ static inline void men_z135_reg_set(struct men_z135_port *uart,
  * @addr: Register address
  * @val: value to clear
  */
-static inline void men_z135_reg_clr(struct men_z135_port *uart,
+static void men_z135_reg_clr(struct men_z135_port *uart,
 				u32 addr, u32 val)
 {
 	struct uart_port *port = &uart->port;

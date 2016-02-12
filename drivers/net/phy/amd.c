@@ -72,7 +72,6 @@ static struct phy_driver am79c_driver[] = { {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= am79c_ack_interrupt,
 	.config_intr	= am79c_config_intr,
-	.driver		= { .owner = THIS_MODULE,},
 } };
 
 module_phy_driver(am79c_driver);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -125,11 +125,37 @@ static int wil_if_pcie_disable(struct wil6210_priv *wil)
 	return 0;
 }
 
+static int wil_platform_rop_ramdump(void *wil_handle, void *buf, uint32_t size)
+{
+	struct wil6210_priv *wil = wil_handle;
+
+	if (!wil)
+		return -EINVAL;
+
+	return wil_fw_copy_crash_dump(wil, buf, size);
+}
+
+static int wil_platform_rop_fw_recovery(void *wil_handle)
+{
+	struct wil6210_priv *wil = wil_handle;
+
+	if (!wil)
+		return -EINVAL;
+
+	wil_fw_error_recovery(wil);
+
+	return 0;
+}
+
 static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct wil6210_priv *wil;
 	struct device *dev = &pdev->dev;
 	int rc;
+	const struct wil_platform_rops rops = {
+		.ramdump = wil_platform_rop_ramdump,
+		.fw_recovery = wil_platform_rop_fw_recovery,
+	};
 
 	/* check HW */
 	dev_info(&pdev->dev, WIL_NAME
@@ -154,7 +180,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* rollback to if_free */
 
 	wil->platform_handle =
-			wil_platform_init(&pdev->dev, &wil->platform_ops);
+		wil_platform_init(&pdev->dev, &wil->platform_ops, &rops, wil);
 	if (!wil->platform_handle) {
 		rc = -ENODEV;
 		wil_err(wil, "wil_platform_init failed\n");

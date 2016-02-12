@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 
-#include <media/saa7146.h>
+#include <media/drv-intf/saa7146.h>
 
 extern int budget_debug;
 

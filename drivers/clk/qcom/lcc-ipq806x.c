@@ -419,6 +419,7 @@ static const struct regmap_config lcc_ipq806x_regmap_config = {
 	.val_bits	= 32,
 	.max_register	= 0xfc,
 	.fast_io	= true,
+	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static const struct qcom_cc_desc lcc_ipq806x_desc = {

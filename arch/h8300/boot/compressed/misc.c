@@ -32,7 +32,13 @@ extern char output[];
 
 #define HEAP_SIZE             0x10000
 
+#ifdef CONFIG_KERNEL_GZIP
 #include "../../../../lib/decompress_inflate.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZO
+#include "../../../../lib/decompress_unlzo.c"
+#endif
 
 void *memset(void *s, int c, size_t n)
 {

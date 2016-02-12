@@ -50,15 +50,15 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/tvaudio.h>
-#include <media/msp3400.h>
+#include <media/i2c/tvaudio.h>
+#include <media/drv-intf/msp3400.h>
 
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
-#include <media/saa6588.h>
+#include <media/i2c/saa6588.h>
 
 #define BTTV_VERSION "0.9.19"
 

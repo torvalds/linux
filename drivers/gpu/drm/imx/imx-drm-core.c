@@ -171,18 +171,6 @@ static void imx_drm_disable_vblank(struct drm_device *drm, unsigned int pipe)
 	imx_drm_crtc->imx_drm_helper_funcs.disable_vblank(imx_drm_crtc->crtc);
 }
 
-static void imx_drm_driver_preclose(struct drm_device *drm,
-		struct drm_file *file)
-{
-	int i;
-
-	if (!file->is_master)
-		return;
-
-	for (i = 0; i < MAX_CRTC; i++)
-		imx_drm_disable_vblank(drm, i);
-}
-
 static const struct file_operations imx_drm_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -463,7 +451,6 @@ static struct drm_driver imx_drm_driver = {
 	.load			= imx_drm_driver_load,
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
-	.preclose		= imx_drm_driver_preclose,
 	.set_busid		= drm_platform_set_busid,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,

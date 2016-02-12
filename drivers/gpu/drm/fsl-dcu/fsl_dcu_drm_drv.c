@@ -112,10 +112,6 @@ static int fsl_dcu_unload(struct drm_device *dev)
 	return 0;
 }
 
-static void fsl_dcu_drm_preclose(struct drm_device *dev, struct drm_file *file)
-{
-}
-
 static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -191,7 +187,6 @@ static struct drm_driver fsl_dcu_drm_driver = {
 				| DRIVER_PRIME | DRIVER_ATOMIC,
 	.load			= fsl_dcu_load,
 	.unload			= fsl_dcu_unload,
-	.preclose		= fsl_dcu_drm_preclose,
 	.irq_handler		= fsl_dcu_drm_irq,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= fsl_dcu_drm_enable_vblank,

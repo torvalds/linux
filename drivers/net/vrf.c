@@ -46,17 +46,7 @@
 #define vrf_master_get_rcu(dev) \
 	((struct net_device *)rcu_dereference(dev->rx_handler_data))
 
-struct slave {
-	struct list_head        list;
-	struct net_device       *dev;
-};
-
-struct slave_queue {
-	struct list_head        all_slaves;
-};
-
 struct net_vrf {
-	struct slave_queue      queue;
 	struct rtable           *rth;
 	struct rt6_info		*rt6;
 	u32                     tb_id;
@@ -621,42 +611,9 @@ static void cycle_netdev(struct net_device *dev)
 	}
 }
 
-static struct slave *__vrf_find_slave_dev(struct slave_queue *queue,
-					  struct net_device *dev)
-{
-	struct list_head *head = &queue->all_slaves;
-	struct slave *slave;
-
-	list_for_each_entry(slave, head, list) {
-		if (slave->dev == dev)
-			return slave;
-	}
-
-	return NULL;
-}
-
-/* inverse of __vrf_insert_slave */
-static void __vrf_remove_slave(struct slave_queue *queue, struct slave *slave)
-{
-	list_del(&slave->list);
-}
-
-static void __vrf_insert_slave(struct slave_queue *queue, struct slave *slave)
-{
-	list_add(&slave->list, &queue->all_slaves);
-}
-
 static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	struct slave *slave = kzalloc(sizeof(*slave), GFP_KERNEL);
-	struct net_vrf *vrf = netdev_priv(dev);
-	struct slave_queue *queue = &vrf->queue;
-	int ret = -ENOMEM;
-
-	if (!slave)
-		goto out_fail;
-
-	slave->dev = port_dev;
+	int ret;
 
 	/* register the packet handler for slave ports */
 	ret = netdev_rx_handler_register(port_dev, vrf_handle_frame, dev);
@@ -667,12 +624,11 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 		goto out_fail;
 	}
 
-	ret = netdev_master_upper_dev_link(port_dev, dev);
+	ret = netdev_master_upper_dev_link(port_dev, dev, NULL, NULL);
 	if (ret < 0)
 		goto out_unregister;
 
 	port_dev->priv_flags |= IFF_L3MDEV_SLAVE;
-	__vrf_insert_slave(queue, slave);
 	cycle_netdev(port_dev);
 
 	return 0;
@@ -680,7 +636,6 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 out_unregister:
 	netdev_rx_handler_unregister(port_dev);
 out_fail:
-	kfree(slave);
 	return ret;
 }
 
@@ -695,22 +650,12 @@ static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 /* inverse of do_vrf_add_slave */
 static int do_vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	struct net_vrf *vrf = netdev_priv(dev);
-	struct slave_queue *queue = &vrf->queue;
-	struct slave *slave;
-
 	netdev_upper_dev_unlink(port_dev, dev);
 	port_dev->priv_flags &= ~IFF_L3MDEV_SLAVE;
 
 	netdev_rx_handler_unregister(port_dev);
 
 	cycle_netdev(port_dev);
-
-	slave = __vrf_find_slave_dev(queue, port_dev);
-	if (slave)
-		__vrf_remove_slave(queue, slave);
-
-	kfree(slave);
 
 	return 0;
 }
@@ -723,15 +668,14 @@ static int vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 static void vrf_dev_uninit(struct net_device *dev)
 {
 	struct net_vrf *vrf = netdev_priv(dev);
-	struct slave_queue *queue = &vrf->queue;
-	struct list_head *head = &queue->all_slaves;
-	struct slave *slave, *next;
+	struct net_device *port_dev;
+	struct list_head *iter;
 
 	vrf_rtable_destroy(vrf);
 	vrf_rt6_destroy(vrf);
 
-	list_for_each_entry_safe(slave, next, head, list)
-		vrf_del_slave(dev, slave->dev);
+	netdev_for_each_lower_dev(dev, port_dev, iter)
+		vrf_del_slave(dev, port_dev);
 
 	free_percpu(dev->dstats);
 	dev->dstats = NULL;
@@ -740,8 +684,6 @@ static void vrf_dev_uninit(struct net_device *dev)
 static int vrf_dev_init(struct net_device *dev)
 {
 	struct net_vrf *vrf = netdev_priv(dev);
-
-	INIT_LIST_HEAD(&vrf->queue.all_slaves);
 
 	dev->dstats = netdev_alloc_pcpu_stats(struct pcpu_dstats);
 	if (!dev->dstats)
@@ -800,7 +742,7 @@ static struct rtable *vrf_get_rtable(const struct net_device *dev,
 }
 
 /* called under rcu_read_lock */
-static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
+static int vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 {
 	struct fib_result res = { .tclassid = 0 };
 	struct net *net = dev_net(dev);
@@ -808,9 +750,10 @@ static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 	u8 flags = fl4->flowi4_flags;
 	u8 scope = fl4->flowi4_scope;
 	u8 tos = RT_FL_TOS(fl4);
+	int rc;
 
 	if (unlikely(!fl4->daddr))
-		return;
+		return 0;
 
 	fl4->flowi4_flags |= FLOWI_FLAG_SKIP_NH_OIF;
 	fl4->flowi4_iif = LOOPBACK_IFINDEX;
@@ -818,7 +761,8 @@ static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 	fl4->flowi4_scope = ((tos & RTO_ONLINK) ?
 			     RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
 
-	if (!fib_lookup(net, fl4, &res, 0)) {
+	rc = fib_lookup(net, fl4, &res, 0);
+	if (!rc) {
 		if (res.type == RTN_LOCAL)
 			fl4->saddr = res.fi->fib_prefsrc ? : fl4->daddr;
 		else
@@ -828,6 +772,8 @@ static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
 	fl4->flowi4_flags = flags;
 	fl4->flowi4_tos = orig_tos;
 	fl4->flowi4_scope = scope;
+
+	return rc;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)

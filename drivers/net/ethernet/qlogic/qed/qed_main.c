@@ -1115,6 +1115,23 @@ static int qed_drain(struct qed_dev *cdev)
 	return 0;
 }
 
+static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_set_led(hwfn, ptt, mode);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return status;
+}
+
 const struct qed_common_ops qed_common_ops_pass = {
 	.probe = &qed_probe,
 	.remove = &qed_remove,
@@ -1135,6 +1152,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.update_msglvl = &qed_init_dp,
 	.chain_alloc = &qed_chain_alloc,
 	.chain_free = &qed_chain_free,
+	.set_led = &qed_set_led,
 };
 
 u32 qed_get_protocol_version(enum qed_protocol protocol)

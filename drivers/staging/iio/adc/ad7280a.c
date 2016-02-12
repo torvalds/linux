@@ -833,7 +833,7 @@ static const struct ad7280_platform_data ad7793_default_pdata = {
 
 static int ad7280_probe(struct spi_device *spi)
 {
-	const struct ad7280_platform_data *pdata = spi->dev.platform_data;
+	const struct ad7280_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad7280_state *st;
 	int ret;
 	const unsigned short tACQ_ns[4] = {465, 1010, 1460, 1890};

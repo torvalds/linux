@@ -859,16 +859,6 @@ config SENSORS_MAX31790
 	  This driver can also be built as a module.  If so, the module
 	  will be called max31790.
 
-config SENSORS_HTU21
-	tristate "Measurement Specialties HTU21D humidity/temperature sensors"
-	depends on I2C
-	help
-	  If you say yes here you get support for the Measurement Specialties
-	  HTU21D humidity and temperature sensors.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called htu21.
-
 config SENSORS_MCP3021
 	tristate "Microchip MCP3021 and compatibles"
 	depends on I2C

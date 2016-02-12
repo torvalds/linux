@@ -44,3 +44,5 @@ usb_f_hid-y			:= f_hid.o
 obj-$(CONFIG_USB_F_HID)		+= usb_f_hid.o
 usb_f_printer-y			:= f_printer.o
 obj-$(CONFIG_USB_F_PRINTER)	+= usb_f_printer.o
+usb_f_tcm-y			:= f_tcm.o
+obj-$(CONFIG_USB_F_TCM)		+= usb_f_tcm.o

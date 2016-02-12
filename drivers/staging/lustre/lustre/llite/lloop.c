@@ -257,9 +257,9 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	 *    be asked to write less pages once, this purely depends on
 	 *    implementation. Anyway, we should be careful to avoid deadlocking.
 	 */
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	bytes = ll_direct_rw_pages(env, io, rw, inode, pvec);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	cl_io_fini(env, io);
 	return (bytes == pvec->ldp_size) ? 0 : (int)bytes;
 }
@@ -877,6 +877,6 @@ module_exit(lloop_exit);
 
 module_param(max_loop, int, 0444);
 MODULE_PARM_DESC(max_loop, "maximum of lloop_device");
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre virtual block device");
 MODULE_LICENSE("GPL");

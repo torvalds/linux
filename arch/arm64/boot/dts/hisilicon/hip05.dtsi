@@ -246,6 +246,11 @@
 			clock-frequency = <200000000>;
 		};
 
+		peri_c_subctrl: syscon@80000000 {
+			compatible = "hisilicon,hip05-perisubc", "syscon";
+			reg = < 0x0 0x80000000 0x0 0x10000>;
+		};
+
 		uart0: uart@80300000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x80300000 0x0 0x10000>;

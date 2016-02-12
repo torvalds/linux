@@ -769,10 +769,6 @@
 #define TSIZ_XFERSIZE_SHIFT		0
 
 #define HCDMA(_ch)			HSOTG_REG(0x0514 + 0x20 * (_ch))
-#define HCDMA_DMA_ADDR_MASK		(0x1fffff << 11)
-#define HCDMA_DMA_ADDR_SHIFT		11
-#define HCDMA_CTD_MASK			(0xff << 3)
-#define HCDMA_CTD_SHIFT			3
 
 #define HCDMAB(_ch)			HSOTG_REG(0x051c + 0x20 * (_ch))
 

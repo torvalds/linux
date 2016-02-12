@@ -56,6 +56,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 	case AFS_FTYPE_SYMLINK:
 		inode->i_mode	= S_IFLNK | vnode->status.mode;
 		inode->i_op	= &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		break;
 	default:
 		printk("kAFS: AFS vnode with undefined type\n");

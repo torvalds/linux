@@ -156,7 +156,7 @@ static void __init sti_smp_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
-struct smp_operations __initdata sti_smp_ops = {
+const struct smp_operations sti_smp_ops __initconst = {
 	.smp_prepare_cpus	= sti_smp_prepare_cpus,
 	.smp_secondary_init	= sti_secondary_init,
 	.smp_boot_secondary	= sti_boot_secondary,

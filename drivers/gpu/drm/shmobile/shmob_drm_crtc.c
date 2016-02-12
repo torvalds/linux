@@ -438,26 +438,6 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_set_base = shmob_drm_crtc_mode_set_base,
 };
 
-void shmob_drm_crtc_cancel_page_flip(struct shmob_drm_crtc *scrtc,
-				     struct drm_file *file)
-{
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = scrtc->crtc.dev;
-	unsigned long flags;
-
-	/* Destroy the pending vertical blanking event associated with the
-	 * pending page flip, if any, and disable vertical blanking interrupts.
-	 */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	event = scrtc->event;
-	if (event && event->base.file_priv == file) {
-		scrtc->event = NULL;
-		event->base.destroy(&event->base);
-		drm_vblank_put(dev, 0);
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
 void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc)
 {
 	struct drm_pending_vblank_event *event;

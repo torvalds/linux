@@ -2556,8 +2556,12 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 		return;
 	}
 
-	/* if device ist stopped do not fetch new requests */
-	if (basedev->stopped)
+	/*
+	 * if device is stopped do not fetch new requests
+	 * except failfast is active which will let requests fail
+	 * immediately in __dasd_block_start_head()
+	 */
+	if (basedev->stopped && !(basedev->features & DASD_FEATURE_FAILFAST))
 		return;
 
 	/* Now we try to fetch requests from the request queue */

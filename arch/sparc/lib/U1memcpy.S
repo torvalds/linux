@@ -25,9 +25,15 @@
 #ifndef EX_LD
 #define EX_LD(x)	x
 #endif
+#ifndef EX_LD_FP
+#define EX_LD_FP(x)	x
+#endif
 
 #ifndef EX_ST
 #define EX_ST(x)	x
+#endif
+#ifndef EX_ST_FP
+#define EX_ST_FP(x)	x
 #endif
 
 #ifndef EX_RETVAL
@@ -73,8 +79,8 @@
 	faligndata		%f8, %f9, %f62;
 
 #define MAIN_LOOP_CHUNK(src, dest, fdest, fsrc, len, jmptgt)	\
-	EX_LD(LOAD_BLK(%src, %fdest));				\
-	EX_ST(STORE_BLK(%fsrc, %dest));				\
+	EX_LD_FP(LOAD_BLK(%src, %fdest));				\
+	EX_ST_FP(STORE_BLK(%fsrc, %dest));				\
 	add			%src, 0x40, %src;		\
 	subcc			%len, 0x40, %len;		\
 	be,pn			%xcc, jmptgt;			\
@@ -89,12 +95,12 @@
 
 #define DO_SYNC			membar	#Sync;
 #define STORE_SYNC(dest, fsrc)				\
-	EX_ST(STORE_BLK(%fsrc, %dest));			\
+	EX_ST_FP(STORE_BLK(%fsrc, %dest));			\
 	add			%dest, 0x40, %dest;	\
 	DO_SYNC
 
 #define STORE_JUMP(dest, fsrc, target)			\
-	EX_ST(STORE_BLK(%fsrc, %dest));			\
+	EX_ST_FP(STORE_BLK(%fsrc, %dest));			\
 	add			%dest, 0x40, %dest;	\
 	ba,pt			%xcc, target;		\
 	 nop;
@@ -103,7 +109,7 @@
 	subcc			%left, 8, %left;\
 	bl,pn			%xcc, 95f;	\
 	 faligndata		%f0, %f1, %f48;	\
-	EX_ST(STORE(std, %f48, %dest));		\
+	EX_ST_FP(STORE(std, %f48, %dest));		\
 	add			%dest, 8, %dest;
 
 #define UNEVEN_VISCHUNK_LAST(dest, f0, f1, left)	\
@@ -160,8 +166,8 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 	 and		%g2, 0x38, %g2
 
 1:	subcc		%g1, 0x1, %g1
-	EX_LD(LOAD(ldub, %o1 + 0x00, %o3))
-	EX_ST(STORE(stb, %o3, %o1 + %GLOBAL_SPARE))
+	EX_LD_FP(LOAD(ldub, %o1 + 0x00, %o3))
+	EX_ST_FP(STORE(stb, %o3, %o1 + %GLOBAL_SPARE))
 	bgu,pt		%XCC, 1b
 	 add		%o1, 0x1, %o1
 
@@ -172,20 +178,20 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 	be,pt		%icc, 3f
 	 alignaddr	%o1, %g0, %o1
 
-	EX_LD(LOAD(ldd, %o1, %f4))
-1:	EX_LD(LOAD(ldd, %o1 + 0x8, %f6))
+	EX_LD_FP(LOAD(ldd, %o1, %f4))
+1:	EX_LD_FP(LOAD(ldd, %o1 + 0x8, %f6))
 	add		%o1, 0x8, %o1
 	subcc		%g2, 0x8, %g2
 	faligndata	%f4, %f6, %f0
-	EX_ST(STORE(std, %f0, %o0))
+	EX_ST_FP(STORE(std, %f0, %o0))
 	be,pn		%icc, 3f
 	 add		%o0, 0x8, %o0
 
-	EX_LD(LOAD(ldd, %o1 + 0x8, %f4))
+	EX_LD_FP(LOAD(ldd, %o1 + 0x8, %f4))
 	add		%o1, 0x8, %o1
 	subcc		%g2, 0x8, %g2
 	faligndata	%f6, %f4, %f0
-	EX_ST(STORE(std, %f0, %o0))
+	EX_ST_FP(STORE(std, %f0, %o0))
 	bne,pt		%icc, 1b
 	 add		%o0, 0x8, %o0
 
@@ -208,13 +214,13 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 	add		%g1, %GLOBAL_SPARE, %g1
 	subcc		%o2, %g3, %o2
 
-	EX_LD(LOAD_BLK(%o1, %f0))
+	EX_LD_FP(LOAD_BLK(%o1, %f0))
 	add		%o1, 0x40, %o1
 	add		%g1, %g3, %g1
-	EX_LD(LOAD_BLK(%o1, %f16))
+	EX_LD_FP(LOAD_BLK(%o1, %f16))
 	add		%o1, 0x40, %o1
 	sub		%GLOBAL_SPARE, 0x80, %GLOBAL_SPARE
-	EX_LD(LOAD_BLK(%o1, %f32))
+	EX_LD_FP(LOAD_BLK(%o1, %f32))
 	add		%o1, 0x40, %o1
 
 	/* There are 8 instances of the unrolled loop,
@@ -426,28 +432,28 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 62:	FINISH_VISCHUNK(o0, f44, f46, g3)
 63:	UNEVEN_VISCHUNK_LAST(o0, f46, f0,  g3)
 
-93:	EX_LD(LOAD(ldd, %o1, %f2))
+93:	EX_LD_FP(LOAD(ldd, %o1, %f2))
 	add		%o1, 8, %o1
 	subcc		%g3, 8, %g3
 	faligndata	%f0, %f2, %f8
-	EX_ST(STORE(std, %f8, %o0))
+	EX_ST_FP(STORE(std, %f8, %o0))
 	bl,pn		%xcc, 95f
 	 add		%o0, 8, %o0
-	EX_LD(LOAD(ldd, %o1, %f0))
+	EX_LD_FP(LOAD(ldd, %o1, %f0))
 	add		%o1, 8, %o1
 	subcc		%g3, 8, %g3
 	faligndata	%f2, %f0, %f8
-	EX_ST(STORE(std, %f8, %o0))
+	EX_ST_FP(STORE(std, %f8, %o0))
 	bge,pt		%xcc, 93b
 	 add		%o0, 8, %o0
 
 95:	brz,pt		%o2, 2f
 	 mov		%g1, %o1
 
-1:	EX_LD(LOAD(ldub, %o1, %o3))
+1:	EX_LD_FP(LOAD(ldub, %o1, %o3))
 	add		%o1, 1, %o1
 	subcc		%o2, 1, %o2
-	EX_ST(STORE(stb, %o3, %o0))
+	EX_ST_FP(STORE(stb, %o3, %o0))
 	bne,pt		%xcc, 1b
 	 add		%o0, 1, %o0
 

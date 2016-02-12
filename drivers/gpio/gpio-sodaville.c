@@ -10,7 +10,6 @@
  */
 
 #include <linux/errno.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -20,7 +19,7 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/of_irq.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 
 #define DRV_NAME		"sdv_gpio"
 #define SDV_NUM_PUB_GPIOS	12
@@ -43,7 +42,7 @@ struct sdv_gpio_chip_data {
 	void __iomem *gpio_pub_base;
 	struct irq_domain *id;
 	struct irq_chip_generic *gc;
-	struct bgpio_chip bgpio;
+	struct gpio_chip chip;
 };
 
 static int sdv_gpio_pub_set_type(struct irq_data *d, unsigned int type)
@@ -226,14 +225,14 @@ static int sdv_gpio_probe(struct pci_dev *pdev,
 		writel(mux_val, sd->gpio_pub_base + GPMUXCTL);
 	}
 
-	ret = bgpio_init(&sd->bgpio, &pdev->dev, 4,
+	ret = bgpio_init(&sd->chip, &pdev->dev, 4,
 			sd->gpio_pub_base + GPINR, sd->gpio_pub_base + GPOUTR,
 			NULL, sd->gpio_pub_base + GPOER, NULL, 0);
 	if (ret)
 		goto unmap;
-	sd->bgpio.gc.ngpio = SDV_NUM_PUB_GPIOS;
+	sd->chip.ngpio = SDV_NUM_PUB_GPIOS;
 
-	ret = gpiochip_add(&sd->bgpio.gc);
+	ret = gpiochip_add_data(&sd->chip, sd);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "gpiochip_add() failed.\n");
 		goto unmap;
@@ -265,7 +264,7 @@ static void sdv_gpio_remove(struct pci_dev *pdev)
 	free_irq(pdev->irq, sd);
 	irq_free_descs(sd->irq_base, SDV_NUM_PUB_GPIOS);
 
-	gpiochip_remove(&sd->bgpio.gc);
+	gpiochip_remove(&sd->chip);
 	pci_release_region(pdev, GPIO_BAR);
 	iounmap(sd->gpio_pub_base);
 	pci_disable_device(pdev);

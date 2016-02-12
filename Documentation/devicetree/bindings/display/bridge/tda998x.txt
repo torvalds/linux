@@ -5,6 +5,10 @@ Required properties;
 
   - reg: I2C address
 
+Required node:
+  - port: Input port node with endpoint definition, as described
+        in Documentation/devicetree/bindings/graph.txt
+
 Optional properties:
   - interrupts: interrupt number and trigger type
 	default: polling

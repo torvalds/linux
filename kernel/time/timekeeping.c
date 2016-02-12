@@ -305,8 +305,7 @@ static inline s64 timekeeping_get_ns(struct tk_read_base *tkr)
 
 	delta = timekeeping_get_delta(tkr);
 
-	nsec = delta * tkr->mult + tkr->xtime_nsec;
-	nsec >>= tkr->shift;
+	nsec = (delta * tkr->mult + tkr->xtime_nsec) >> tkr->shift;
 
 	/* If arch requires, add in get_arch_timeoffset() */
 	return nsec + arch_gettimeoffset();
@@ -846,6 +845,19 @@ time64_t ktime_get_real_seconds(void)
 }
 EXPORT_SYMBOL_GPL(ktime_get_real_seconds);
 
+/**
+ * __ktime_get_real_seconds - The same as ktime_get_real_seconds
+ * but without the sequence counter protect. This internal function
+ * is called just when timekeeping lock is already held.
+ */
+time64_t __ktime_get_real_seconds(void)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+
+	return tk->xtime_sec;
+}
+
+
 #ifdef CONFIG_NTP_PPS
 
 /**
@@ -959,7 +971,7 @@ int timekeeping_inject_offset(struct timespec *ts)
 	struct timespec64 ts64, tmp;
 	int ret = 0;
 
-	if ((unsigned long)ts->tv_nsec >= NSEC_PER_SEC)
+	if (!timespec_inject_offset_valid(ts))
 		return -EINVAL;
 
 	ts64 = timespec_to_timespec64(*ts);
@@ -1592,9 +1604,12 @@ static __always_inline void timekeeping_freqadjust(struct timekeeper *tk,
 {
 	s64 interval = tk->cycle_interval;
 	s64 xinterval = tk->xtime_interval;
+	u32 base = tk->tkr_mono.clock->mult;
+	u32 max = tk->tkr_mono.clock->maxadj;
+	u32 cur_adj = tk->tkr_mono.mult;
 	s64 tick_error;
 	bool negative;
-	u32 adj;
+	u32 adj_scale;
 
 	/* Remove any current error adj from freq calculation */
 	if (tk->ntp_err_mult)
@@ -1613,13 +1628,33 @@ static __always_inline void timekeeping_freqadjust(struct timekeeper *tk,
 	/* preserve the direction of correction */
 	negative = (tick_error < 0);
 
-	/* Sort out the magnitude of the correction */
+	/* If any adjustment would pass the max, just return */
+	if (negative && (cur_adj - 1) <= (base - max))
+		return;
+	if (!negative && (cur_adj + 1) >= (base + max))
+		return;
+	/*
+	 * Sort out the magnitude of the correction, but
+	 * avoid making so large a correction that we go
+	 * over the max adjustment.
+	 */
+	adj_scale = 0;
 	tick_error = abs(tick_error);
-	for (adj = 0; tick_error > interval; adj++)
+	while (tick_error > interval) {
+		u32 adj = 1 << (adj_scale + 1);
+
+		/* Check if adjustment gets us within 1 unit from the max */
+		if (negative && (cur_adj - adj) <= (base - max))
+			break;
+		if (!negative && (cur_adj + adj) >= (base + max))
+			break;
+
+		adj_scale++;
 		tick_error >>= 1;
+	}
 
 	/* scale the corrections */
-	timekeeping_apply_adjustment(tk, offset, negative, adj);
+	timekeeping_apply_adjustment(tk, offset, negative, adj_scale);
 }
 
 /*

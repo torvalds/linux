@@ -274,6 +274,15 @@ config REGULATOR_ISL6271A
 	help
 	  This driver supports ISL6271A voltage regulator chip.
 
+config REGULATOR_LM363X
+	tristate "TI LM363X voltage regulators"
+	depends on MFD_TI_LMU
+	help
+	  This driver supports LM3631 and LM3632 voltage regulators for
+	  the LCD bias.
+	  One boost output voltage is configurable and always on.
+	  Other LDOs are used for the display module.
+
 config REGULATOR_LP3971
 	tristate "National Semiconductors LP3971 PMIC regulator driver"
 	depends on I2C
@@ -446,6 +455,7 @@ config REGULATOR_MC13892
 config REGULATOR_MT6311
 	tristate "MediaTek MT6311 PMIC"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say y here to select this option to enable the power regulator of
 	  MediaTek MT6311 PMIC.
@@ -503,6 +513,22 @@ config REGULATOR_PFUZE100
 	help
 	  Say y here to support the regulators found on the Freescale
 	  PFUZE100/PFUZE200 PMIC.
+
+config REGULATOR_PV88060
+	tristate "Powerventure Semiconductor PV88060 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the voltage regulators and convertors
+	  PV88060
+
+config REGULATOR_PV88090
+	tristate "Powerventure Semiconductor PV88090 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the voltage regulators and convertors
+	  on PV88090
 
 config REGULATOR_PWM
 	tristate "PWM voltage regulator"
@@ -588,10 +614,10 @@ config REGULATOR_S2MPA01
 	 via I2C bus. S2MPA01 has 10 Bucks and 26 LDO outputs.
 
 config REGULATOR_S2MPS11
-	tristate "Samsung S2MPS11/S2MPS13/S2MPS14/S2MPU02 voltage regulator"
+	tristate "Samsung S2MPS11/13/14/15/S2MPU02 voltage regulator"
 	depends on MFD_SEC_CORE
 	help
-	 This driver supports a Samsung S2MPS11/S2MPS13/S2MPS14/S2MPU02 voltage
+	 This driver supports a Samsung S2MPS11/13/14/15/S2MPU02 voltage
 	 output regulator via I2C bus. The chip is comprised of high efficient
 	 Buck converters including Dual-Phase Buck converter, Buck-Boost
 	 converter, various LDOs.
@@ -679,6 +705,13 @@ config REGULATOR_TPS6507X
 	  This driver supports TPS6507X voltage regulator chips. TPS6507X provides
 	  three step-down converters and two general-purpose LDO voltage regulators.
 	  It supports TI's software based Class-2 SmartReflex implementation.
+
+config REGULATOR_TPS65086
+	tristate "TI TPS65086 Power regulators"
+	depends on MFD_TPS65086
+	help
+	  This driver provides support for the voltage regulators on
+	  TI TPS65086 PMICs.
 
 config REGULATOR_TPS65090
 	tristate "TI TPS65090 Power regulator"

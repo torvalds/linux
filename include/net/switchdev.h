@@ -47,9 +47,11 @@ enum switchdev_attr_id {
 	SWITCHDEV_ATTR_ID_PORT_STP_STATE,
 	SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS,
 	SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
+	SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING,
 };
 
 struct switchdev_attr {
+	struct net_device *orig_dev;
 	enum switchdev_attr_id id;
 	u32 flags;
 	union {
@@ -57,6 +59,7 @@ struct switchdev_attr {
 		u8 stp_state;				/* PORT_STP_STATE */
 		unsigned long brport_flags;		/* PORT_BRIDGE_FLAGS */
 		u32 ageing_time;			/* BRIDGE_AGEING_TIME */
+		bool vlan_filtering;			/* BRIDGE_VLAN_FILTERING */
 	} u;
 };
 
@@ -65,9 +68,11 @@ enum switchdev_obj_id {
 	SWITCHDEV_OBJ_ID_PORT_VLAN,
 	SWITCHDEV_OBJ_ID_IPV4_FIB,
 	SWITCHDEV_OBJ_ID_PORT_FDB,
+	SWITCHDEV_OBJ_ID_PORT_MDB,
 };
 
 struct switchdev_obj {
+	struct net_device *orig_dev;
 	enum switchdev_obj_id id;
 	u32 flags;
 };
@@ -108,6 +113,16 @@ struct switchdev_obj_port_fdb {
 
 #define SWITCHDEV_OBJ_PORT_FDB(obj) \
 	container_of(obj, struct switchdev_obj_port_fdb, obj)
+
+/* SWITCHDEV_OBJ_ID_PORT_MDB */
+struct switchdev_obj_port_mdb {
+	struct switchdev_obj obj;
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+};
+
+#define SWITCHDEV_OBJ_PORT_MDB(obj) \
+	container_of(obj, struct switchdev_obj_port_mdb, obj)
 
 void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
 				  void *data, void (*destructor)(void const *),

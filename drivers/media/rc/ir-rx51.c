@@ -31,7 +31,7 @@
 
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
-#include <media/ir-rx51.h>
+#include <linux/platform_data/media/ir-rx51.h>
 
 #define LIRC_RX51_DRIVER_FEATURES (LIRC_CAN_SET_SEND_DUTY_CYCLE |	\
 				   LIRC_CAN_SET_SEND_CARRIER |		\

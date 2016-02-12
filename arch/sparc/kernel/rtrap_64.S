@@ -73,7 +73,13 @@ rtrap_nmi:	ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 		andn			%l1, %l4, %l1
 		srl			%l4, 20, %l4
 		ba,pt			%xcc, rtrap_no_irq_enable
-		 wrpr			%l4, %pil
+		nop
+		/* Do not actually set the %pil here.  We will do that
+		 * below after we clear PSTATE_IE in the %pstate register.
+		 * If we re-enable interrupts here, we can recurse down
+		 * the hardirq stack potentially endlessly, causing a
+		 * stack overflow.
+		 */
 
 		.align			64
 		.globl			rtrap_irq, rtrap, irqsz_patchme, rtrap_xcall

@@ -1243,6 +1243,8 @@ struct dso *__dsos__addnew(struct dsos *dsos, const char *name)
 	if (dso != NULL) {
 		__dsos__add(dsos, dso);
 		dso__set_basename(dso);
+		/* Put dso here because __dsos_add already got it */
+		dso__put(dso);
 	}
 	return dso;
 }

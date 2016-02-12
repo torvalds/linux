@@ -67,8 +67,8 @@ int v9fs_get_acl(struct inode *inode, struct p9_fid *fid)
 		return 0;
 	}
 	/* get the default/access acl values and cache them */
-	dacl = __v9fs_get_acl(fid, POSIX_ACL_XATTR_DEFAULT);
-	pacl = __v9fs_get_acl(fid, POSIX_ACL_XATTR_ACCESS);
+	dacl = __v9fs_get_acl(fid, XATTR_NAME_POSIX_ACL_DEFAULT);
+	pacl = __v9fs_get_acl(fid, XATTR_NAME_POSIX_ACL_ACCESS);
 
 	if (!IS_ERR(dacl) && !IS_ERR(pacl)) {
 		set_cached_acl(inode, ACL_TYPE_DEFAULT, dacl);
@@ -133,10 +133,10 @@ static int v9fs_set_acl(struct p9_fid *fid, int type, struct posix_acl *acl)
 		goto err_free_out;
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		name = POSIX_ACL_XATTR_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		BUG();
@@ -220,15 +220,12 @@ static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
 	struct posix_acl *acl;
 	int error;
 
-	if (strcmp(name, "") != 0)
-		return -EINVAL;
-
 	v9ses = v9fs_dentry2v9ses(dentry);
 	/*
 	 * We allow set/get/list of acl when access=client is not specified
 	 */
 	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT)
-		return v9fs_xattr_get(dentry, handler->prefix, buffer, size);
+		return v9fs_xattr_get(dentry, handler->name, buffer, size);
 
 	acl = v9fs_get_cached_acl(d_inode(dentry), handler->flags);
 	if (IS_ERR(acl))
@@ -250,16 +247,13 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 	struct v9fs_session_info *v9ses;
 	struct inode *inode = d_inode(dentry);
 
-	if (strcmp(name, "") != 0)
-		return -EINVAL;
-
 	v9ses = v9fs_dentry2v9ses(dentry);
 	/*
 	 * set the attribute on the remote. Without even looking at the
 	 * xattr value. We leave it to the server to validate
 	 */
 	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT)
-		return v9fs_xattr_set(dentry, handler->prefix, value, size,
+		return v9fs_xattr_set(dentry, handler->name, value, size,
 				      flags);
 
 	if (S_ISLNK(inode->i_mode))
@@ -319,7 +313,7 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 	default:
 		BUG();
 	}
-	retval = v9fs_xattr_set(dentry, handler->prefix, value, size, flags);
+	retval = v9fs_xattr_set(dentry, handler->name, value, size, flags);
 	if (!retval)
 		set_cached_acl(inode, handler->flags, acl);
 err_out:
@@ -328,14 +322,14 @@ err_out:
 }
 
 const struct xattr_handler v9fs_xattr_acl_access_handler = {
-	.prefix	= POSIX_ACL_XATTR_ACCESS,
+	.name	= XATTR_NAME_POSIX_ACL_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.get	= v9fs_xattr_get_acl,
 	.set	= v9fs_xattr_set_acl,
 };
 
 const struct xattr_handler v9fs_xattr_acl_default_handler = {
-	.prefix	= POSIX_ACL_XATTR_DEFAULT,
+	.name	= XATTR_NAME_POSIX_ACL_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.get	= v9fs_xattr_get_acl,
 	.set	= v9fs_xattr_set_acl,

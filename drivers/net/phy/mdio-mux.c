@@ -34,7 +34,6 @@ struct mdio_mux_child_bus {
 	struct mdio_mux_parent_bus *parent;
 	struct mdio_mux_child_bus *next;
 	int bus_number;
-	int phy_irq[PHY_MAX_ADDR];
 };
 
 /*
@@ -157,7 +156,7 @@ int mdio_mux_init(struct device *dev,
 			break;
 		}
 		cb->mii_bus->priv = cb;
-		cb->mii_bus->irq = cb->phy_irq;
+
 		cb->mii_bus->name = "mdio_mux";
 		snprintf(cb->mii_bus->id, MII_BUS_ID_SIZE, "%x.%x",
 			 pb->parent_id, v);

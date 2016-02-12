@@ -37,7 +37,7 @@
 			label = "aux";
 			linux,code = <169>;
 			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

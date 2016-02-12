@@ -62,6 +62,7 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 
 static int signals_enabled;
 static unsigned int signals_pending;
+static unsigned int signals_active = 0;
 
 void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 {
@@ -101,7 +102,12 @@ void timer_alarm_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)
 
 	block_signals();
 
+	signals_active |= SIGALRM_MASK;
+
 	timer_real_alarm_handler(mc);
+
+	signals_active &= ~SIGALRM_MASK;
+
 	set_signals(enabled);
 }
 
@@ -286,8 +292,16 @@ void unblock_signals(void)
 		if (save_pending & SIGIO_MASK)
 			sig_handler_common(SIGIO, NULL, NULL);
 
-		if (save_pending & SIGALRM_MASK)
+		/* Do not reenter the handler */
+
+		if ((save_pending & SIGALRM_MASK) && (!(signals_active & SIGALRM_MASK)))
 			timer_real_alarm_handler(NULL);
+
+		/* Rerun the loop only if there is still pending SIGIO and not in TIMER handler */
+
+		if (!(signals_pending & SIGIO_MASK) && (signals_active & SIGALRM_MASK))
+			return;
+
 	}
 }
 

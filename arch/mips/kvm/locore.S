@@ -335,7 +335,7 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 
 	/* Now restore the host state just enough to run the handlers */
 
-	/* Swtich EBASE to the one used by Linux */
+	/* Switch EBASE to the one used by Linux */
 	/* load up the host EBASE */
 	mfc0	v0, CP0_STATUS
 
@@ -490,11 +490,11 @@ __kvm_mips_return_to_guest:
 	REG_ADDU t3, t1, t2
 	LONG_L	k0, (t3)
 	andi	k0, k0, 0xff
-	mtc0	k0,CP0_ENTRYHI
+	mtc0	k0, CP0_ENTRYHI
 	ehb
 
 	/* Disable RDHWR access */
-	mtc0    zero,  CP0_HWRENA
+	mtc0	zero, CP0_HWRENA
 
 	/* load the guest context from VCPU and return */
 	LONG_L	$0, VCPU_R0(k1)
@@ -606,11 +606,11 @@ __kvm_mips_return_to_host:
 
 	/* Restore RDHWR access */
 	PTR_LI	k0, 0x2000000F
-	mtc0	k0,  CP0_HWRENA
+	mtc0	k0, CP0_HWRENA
 
 	/* Restore RA, which is the address we will return to */
-	LONG_L  ra, PT_R31(k1)
-	j       ra
+	LONG_L	ra, PT_R31(k1)
+	j	ra
 	 nop
 
 VECTOR_END(MIPSX(GuestExceptionEnd))

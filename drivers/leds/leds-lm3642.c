@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/fs.h>
 #include <linux/regmap.h>
-#include <linux/workqueue.h>
 #include <linux/platform_data/leds-lm3642.h>
 
 #define	REG_FILT_TIME			(0x0)
@@ -72,10 +71,6 @@ struct lm3642_chip_data {
 	struct led_classdev cdev_flash;
 	struct led_classdev cdev_torch;
 	struct led_classdev cdev_indicator;
-
-	struct work_struct work_flash;
-	struct work_struct work_torch;
-	struct work_struct work_indicator;
 
 	u8 br_flash;
 	u8 br_torch;
@@ -209,24 +204,18 @@ out_strtoint:
 
 static DEVICE_ATTR(torch_pin, S_IWUSR, NULL, lm3642_torch_pin_store);
 
-static void lm3642_deferred_torch_brightness_set(struct work_struct *work)
-{
-	struct lm3642_chip_data *chip =
-	    container_of(work, struct lm3642_chip_data, work_torch);
-
-	mutex_lock(&chip->lock);
-	lm3642_control(chip, chip->br_torch, MODES_TORCH);
-	mutex_unlock(&chip->lock);
-}
-
-static void lm3642_torch_brightness_set(struct led_classdev *cdev,
+static int lm3642_torch_brightness_set(struct led_classdev *cdev,
 					enum led_brightness brightness)
 {
 	struct lm3642_chip_data *chip =
 	    container_of(cdev, struct lm3642_chip_data, cdev_torch);
+	int ret;
 
+	mutex_lock(&chip->lock);
 	chip->br_torch = brightness;
-	schedule_work(&chip->work_torch);
+	ret = lm3642_control(chip, chip->br_torch, MODES_TORCH);
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 /* flash */
@@ -266,45 +255,33 @@ out_strtoint:
 
 static DEVICE_ATTR(strobe_pin, S_IWUSR, NULL, lm3642_strobe_pin_store);
 
-static void lm3642_deferred_strobe_brightness_set(struct work_struct *work)
-{
-	struct lm3642_chip_data *chip =
-	    container_of(work, struct lm3642_chip_data, work_flash);
-
-	mutex_lock(&chip->lock);
-	lm3642_control(chip, chip->br_flash, MODES_FLASH);
-	mutex_unlock(&chip->lock);
-}
-
-static void lm3642_strobe_brightness_set(struct led_classdev *cdev,
+static int lm3642_strobe_brightness_set(struct led_classdev *cdev,
 					 enum led_brightness brightness)
 {
 	struct lm3642_chip_data *chip =
 	    container_of(cdev, struct lm3642_chip_data, cdev_flash);
+	int ret;
 
+	mutex_lock(&chip->lock);
 	chip->br_flash = brightness;
-	schedule_work(&chip->work_flash);
+	ret = lm3642_control(chip, chip->br_flash, MODES_FLASH);
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 /* indicator */
-static void lm3642_deferred_indicator_brightness_set(struct work_struct *work)
-{
-	struct lm3642_chip_data *chip =
-	    container_of(work, struct lm3642_chip_data, work_indicator);
-
-	mutex_lock(&chip->lock);
-	lm3642_control(chip, chip->br_indicator, MODES_INDIC);
-	mutex_unlock(&chip->lock);
-}
-
-static void lm3642_indicator_brightness_set(struct led_classdev *cdev,
+static int lm3642_indicator_brightness_set(struct led_classdev *cdev,
 					    enum led_brightness brightness)
 {
 	struct lm3642_chip_data *chip =
 	    container_of(cdev, struct lm3642_chip_data, cdev_indicator);
+	int ret;
 
+	mutex_lock(&chip->lock);
 	chip->br_indicator = brightness;
-	schedule_work(&chip->work_indicator);
+	ret = lm3642_control(chip, chip->br_indicator, MODES_INDIC);
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 static const struct regmap_config lm3642_regmap = {
@@ -371,10 +348,9 @@ static int lm3642_probe(struct i2c_client *client,
 		goto err_out;
 
 	/* flash */
-	INIT_WORK(&chip->work_flash, lm3642_deferred_strobe_brightness_set);
 	chip->cdev_flash.name = "flash";
 	chip->cdev_flash.max_brightness = 16;
-	chip->cdev_flash.brightness_set = lm3642_strobe_brightness_set;
+	chip->cdev_flash.brightness_set_blocking = lm3642_strobe_brightness_set;
 	chip->cdev_flash.default_trigger = "flash";
 	chip->cdev_flash.groups = lm3642_flash_groups,
 	err = led_classdev_register((struct device *)
@@ -385,10 +361,9 @@ static int lm3642_probe(struct i2c_client *client,
 	}
 
 	/* torch */
-	INIT_WORK(&chip->work_torch, lm3642_deferred_torch_brightness_set);
 	chip->cdev_torch.name = "torch";
 	chip->cdev_torch.max_brightness = 8;
-	chip->cdev_torch.brightness_set = lm3642_torch_brightness_set;
+	chip->cdev_torch.brightness_set_blocking = lm3642_torch_brightness_set;
 	chip->cdev_torch.default_trigger = "torch";
 	chip->cdev_torch.groups = lm3642_torch_groups,
 	err = led_classdev_register((struct device *)
@@ -399,11 +374,10 @@ static int lm3642_probe(struct i2c_client *client,
 	}
 
 	/* indicator */
-	INIT_WORK(&chip->work_indicator,
-		  lm3642_deferred_indicator_brightness_set);
 	chip->cdev_indicator.name = "indicator";
 	chip->cdev_indicator.max_brightness = 8;
-	chip->cdev_indicator.brightness_set = lm3642_indicator_brightness_set;
+	chip->cdev_indicator.brightness_set_blocking =
+						lm3642_indicator_brightness_set;
 	err = led_classdev_register((struct device *)
 				    &client->dev, &chip->cdev_indicator);
 	if (err < 0) {
@@ -427,11 +401,8 @@ static int lm3642_remove(struct i2c_client *client)
 	struct lm3642_chip_data *chip = i2c_get_clientdata(client);
 
 	led_classdev_unregister(&chip->cdev_indicator);
-	flush_work(&chip->work_indicator);
 	led_classdev_unregister(&chip->cdev_torch);
-	flush_work(&chip->work_torch);
 	led_classdev_unregister(&chip->cdev_flash);
-	flush_work(&chip->work_flash);
 	regmap_write(chip->regmap, REG_ENABLE, 0);
 	return 0;
 }

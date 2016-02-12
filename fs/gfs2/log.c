@@ -716,6 +716,9 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
 	}
 	trace_gfs2_log_flush(sdp, 1);
 
+	if (type == SHUTDOWN_FLUSH)
+		clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
+
 	sdp->sd_log_flush_head = sdp->sd_log_head;
 	sdp->sd_log_flush_wrapped = 0;
 	tr = sdp->sd_log_tr;

@@ -4,8 +4,8 @@
 
 &spmi_bus {
 
-	usid0: pm8941@0 {
-		compatible ="qcom,spmi-pmic";
+	pm8941_0: pm8941@0 {
+		compatible = "qcom,pm8941", "qcom,spmi-pmic";
 		reg = <0x0 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -48,7 +48,7 @@
 		};
 
 		pm8941_gpios: gpios@c000 {
-			compatible = "qcom,pm8941-gpio";
+			compatible = "qcom,pm8941-gpio", "qcom,spmi-gpio";
 			reg = <0xc000 0x2400>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -91,7 +91,7 @@
 		};
 
 		pm8941_mpps: mpps@a000 {
-			compatible = "qcom,pm8941-mpp";
+			compatible = "qcom,pm8941-mpp", "qcom,spmi-mpp";
 			reg = <0xa000 0x800>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -153,23 +153,18 @@
 		};
 	};
 
-	usid1: pm8941@1 {
-		compatible = "qcom,spmi-pmic";
+	pm8941_1: pm8941@1 {
+		compatible = "qcom,pm8941", "qcom,spmi-pmic";
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		wled@d800 {
+		pm8941_wled: wled@d800 {
 			compatible = "qcom,pm8941-wled";
 			reg = <0xd800 0x100>;
 			label = "backlight";
 
-			qcom,cs-out;
-			qcom,current-limit = <20>;
-			qcom,current-boost-limit = <805>;
-			qcom,switching-freq = <1600>;
-			qcom,ovp = <29>;
-			qcom,num-strings = <2>;
+			status = "disabled";
 		};
 	};
 };

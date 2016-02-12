@@ -13,6 +13,7 @@ Required properties :
 			"qcom,gcc-msm8974"
 			"qcom,gcc-msm8974pro"
 			"qcom,gcc-msm8974pro-ac"
+			"qcom,gcc-msm8996"
 
 - reg : shall contain base register location and length
 - #clock-cells : shall contain 1

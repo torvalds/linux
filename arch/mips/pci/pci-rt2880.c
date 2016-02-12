@@ -221,7 +221,6 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 static int rt288x_pci_probe(struct platform_device *pdev)
 {
 	void __iomem *io_map_base;
-	int i;
 
 	rt2880_pci_base = ioremap_nocache(RT2880_PCI_BASE, PAGE_SIZE);
 

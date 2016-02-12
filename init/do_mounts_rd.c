@@ -216,13 +216,6 @@ int __init rd_load_image(char *from)
 	/*
 	 * NOTE NOTE: nblocks is not actually blocks but
 	 * the number of kibibytes of data to load into a ramdisk.
-	 * So any ramdisk block size that is a multiple of 1KiB should
-	 * work when the appropriate ramdisk_blocksize is specified
-	 * on the command line.
-	 *
-	 * The default ramdisk_blocksize is 1KiB and it is generally
-	 * silly to use anything else, so make sure to use 1KiB
-	 * blocksize while generating ext2fs ramdisk-images.
 	 */
 	if (sys_ioctl(out_fd, BLKGETSIZE, (unsigned long)&rd_blocks) < 0)
 		rd_blocks = 0;

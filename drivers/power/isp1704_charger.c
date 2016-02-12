@@ -76,7 +76,7 @@ static inline int isp1704_read(struct isp1704_charger *isp, u32 reg)
 	return usb_phy_io_read(isp->phy, reg);
 }
 
-static inline int isp1704_write(struct isp1704_charger *isp, u32 val, u32 reg)
+static inline int isp1704_write(struct isp1704_charger *isp, u32 reg, u32 val)
 {
 	return usb_phy_io_write(isp->phy, val, reg);
 }

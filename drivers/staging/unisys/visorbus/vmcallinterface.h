@@ -43,20 +43,15 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 	     * - the 0x01 identifies it as the 1st instance of a VMCALL_VIRTPART
 	     *   type of VMCALL
 	     */
-
-	VMCALL_IO_CONTROLVM_ADDR = 0x0501,	/* used by all Guests, not just
-						 * IO */
-	VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET = 0x0708, /* Allow caller to
-							  * query virtual time
-							  * offset */
-	VMCALL_POST_CODE_LOGEVENT = 0x070B,	/* LOGEVENT Post Code (RDX) with
-						 * specified subsystem mask (RCX
-						 * - monitor_subsystems.h) and
-						 * severity (RDX) */
-	VMCALL_UPDATE_PHYSICAL_TIME = 0x0a02	/* Allow
-						 * ULTRA_SERVICE_CAPABILITY_TIME
-						 * capable guest to make
-						 * VMCALL */
+	/* used by all Guests, not just IO */
+	VMCALL_IO_CONTROLVM_ADDR = 0x0501,
+	/* Allow caller to query virtual time offset */
+	VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET = 0x0708,
+	/* LOGEVENT Post Code (RDX) with specified subsystem mask */
+	/* (RCX - monitor_subsystems.h) and severity (RDX) */
+	VMCALL_POST_CODE_LOGEVENT = 0x070B,
+	/* Allow ULTRA_SERVICE_CAPABILITY_TIME capable guest to make VMCALL */
+	VMCALL_UPDATE_PHYSICAL_TIME = 0x0a02
 };
 
 #define VMCALL_SUCCESS 0
@@ -74,7 +69,8 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 	unisys_extended_vmcall(method, param1, param2, param3)
 
     /* The following uses VMCALL_POST_CODE_LOGEVENT interface but is currently
-     * not used much */
+     * not used much
+     */
 #define ISSUE_IO_VMCALL_POSTCODE_SEVERITY(postcode, severity)		\
 	ISSUE_IO_EXTENDED_VMCALL(VMCALL_POST_CODE_LOGEVENT, severity,	\
 				 MDS_APPOS, postcode)
@@ -84,11 +80,11 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 
 /* Parameters to VMCALL_IO_CONTROLVM_ADDR interface */
 struct vmcall_io_controlvm_addr_params {
-	    /* The Guest-relative physical address of the ControlVm channel.
-	    * This VMCall fills this in with the appropriate address. */
+	/* The Guest-relative physical address of the ControlVm channel. */
+	/* This VMCall fills this in with the appropriate address. */
 	u64 address;	/* contents provided by this VMCALL (OUT) */
-	    /* the size of the ControlVm channel in bytes This VMCall fills this
-	    * in with the appropriate address. */
+	/* the size of the ControlVm channel in bytes This VMCall fills this */
+	/* in with the appropriate address. */
 	u32 channel_bytes;	/* contents provided by this VMCALL (OUT) */
 	u8 unused[4];		/* Unused Bytes in the 64-Bit Aligned Struct */
 } __packed;

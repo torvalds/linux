@@ -33,22 +33,25 @@ static void stmmac_config_hw_tstamping(void __iomem *ioaddr, u32 data)
 	writel(data, ioaddr + PTP_TCR);
 }
 
-static void stmmac_config_sub_second_increment(void __iomem *ioaddr)
+static u32 stmmac_config_sub_second_increment(void __iomem *ioaddr,
+					      u32 ptp_clock)
 {
 	u32 value = readl(ioaddr + PTP_TCR);
 	unsigned long data;
 
 	/* Convert the ptp_clock to nano second
-	 * formula = (1/ptp_clock) * 1000000000
+	 * formula = (2/ptp_clock) * 1000000000
 	 * where, ptp_clock = 50MHz.
 	 */
-	data = (1000000000ULL / 50000000);
+	data = (2000000000ULL / ptp_clock);
 
 	/* 0.465ns accuracy */
 	if (!(value & PTP_TCR_TSCTRLSSR))
 		data = (data * 1000) / 465;
 
 	writel(data, ioaddr + PTP_SSIR);
+
+	return data;
 }
 
 static int stmmac_init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)

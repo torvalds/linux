@@ -662,26 +662,6 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	return IRQ_HANDLED;
 }
 
-void tilcdc_crtc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
-
-	/* Destroy the pending vertical blanking event associated with the
-	 * pending page flip, if any, and disable vertical blanking interrupts.
-	 */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	event = tilcdc_crtc->event;
-	if (event && event->base.file_priv == file) {
-		tilcdc_crtc->event = NULL;
-		event->base.destroy(&event->base);
-		drm_vblank_put(dev, 0);
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
 struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 {
 	struct tilcdc_crtc *tilcdc_crtc;

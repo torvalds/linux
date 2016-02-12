@@ -10,9 +10,6 @@ config LOCKDEP_SUPPORT
 config STACKTRACE_SUPPORT
 	def_bool y
 
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
@@ -66,6 +63,7 @@ config S390
 	def_bool y
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_SG_CHAIN
@@ -166,8 +164,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config PGTABLE_LEVELS
 	int
-	default 4 if 64BIT
-	default 2
+	default 4
 
 source "init/Kconfig"
 
@@ -390,9 +387,6 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-config SCHED_SMT
-	def_bool n
-
 # Some NUMA nodes have memory ranges that span
 # other nodes.	Even though a pfn is valid and
 # between a node's start and end pfns, it may not
@@ -403,7 +397,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA
 	bool "NUMA support"
-	depends on SMP && 64BIT && SCHED_TOPOLOGY
+	depends on SMP && SCHED_TOPOLOGY
 	default n
 	help
 	  Enable NUMA support
@@ -462,6 +456,9 @@ config EMU_SIZE
 	  supported.
 
 endmenu
+
+config SCHED_SMT
+	def_bool n
 
 config SCHED_MC
 	def_bool n
@@ -582,7 +579,6 @@ config QDIO
 
 menuconfig PCI
 	bool "PCI support"
-	select HAVE_DMA_ATTRS
 	select PCI_MSI
 	select IOMMU_SUPPORT
 	help

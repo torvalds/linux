@@ -875,7 +875,7 @@ struct action_ops {
  *  Note: the stream state might be changed also on failure
  *  Note2: call with calling stream lock + link lock
  */
-static int snd_pcm_action_group(struct action_ops *ops,
+static int snd_pcm_action_group(const struct action_ops *ops,
 				struct snd_pcm_substream *substream,
 				int state, int do_lock)
 {
@@ -932,7 +932,7 @@ static int snd_pcm_action_group(struct action_ops *ops,
 /*
  *  Note: call with stream lock
  */
-static int snd_pcm_action_single(struct action_ops *ops,
+static int snd_pcm_action_single(const struct action_ops *ops,
 				 struct snd_pcm_substream *substream,
 				 int state)
 {
@@ -952,7 +952,7 @@ static int snd_pcm_action_single(struct action_ops *ops,
 /*
  *  Note: call with stream lock
  */
-static int snd_pcm_action(struct action_ops *ops,
+static int snd_pcm_action(const struct action_ops *ops,
 			  struct snd_pcm_substream *substream,
 			  int state)
 {
@@ -984,7 +984,7 @@ static int snd_pcm_action(struct action_ops *ops,
 /*
  *  Note: don't use any locks before
  */
-static int snd_pcm_action_lock_irq(struct action_ops *ops,
+static int snd_pcm_action_lock_irq(const struct action_ops *ops,
 				   struct snd_pcm_substream *substream,
 				   int state)
 {
@@ -998,7 +998,7 @@ static int snd_pcm_action_lock_irq(struct action_ops *ops,
 
 /*
  */
-static int snd_pcm_action_nonatomic(struct action_ops *ops,
+static int snd_pcm_action_nonatomic(const struct action_ops *ops,
 				    struct snd_pcm_substream *substream,
 				    int state)
 {
@@ -1056,7 +1056,7 @@ static void snd_pcm_post_start(struct snd_pcm_substream *substream, int state)
 	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MSTART);
 }
 
-static struct action_ops snd_pcm_action_start = {
+static const struct action_ops snd_pcm_action_start = {
 	.pre_action = snd_pcm_pre_start,
 	.do_action = snd_pcm_do_start,
 	.undo_action = snd_pcm_undo_start,
@@ -1107,7 +1107,7 @@ static void snd_pcm_post_stop(struct snd_pcm_substream *substream, int state)
 	wake_up(&runtime->tsleep);
 }
 
-static struct action_ops snd_pcm_action_stop = {
+static const struct action_ops snd_pcm_action_stop = {
 	.pre_action = snd_pcm_pre_stop,
 	.do_action = snd_pcm_do_stop,
 	.post_action = snd_pcm_post_stop
@@ -1224,7 +1224,7 @@ static void snd_pcm_post_pause(struct snd_pcm_substream *substream, int push)
 	}
 }
 
-static struct action_ops snd_pcm_action_pause = {
+static const struct action_ops snd_pcm_action_pause = {
 	.pre_action = snd_pcm_pre_pause,
 	.do_action = snd_pcm_do_pause,
 	.undo_action = snd_pcm_undo_pause,
@@ -1273,7 +1273,7 @@ static void snd_pcm_post_suspend(struct snd_pcm_substream *substream, int state)
 	wake_up(&runtime->tsleep);
 }
 
-static struct action_ops snd_pcm_action_suspend = {
+static const struct action_ops snd_pcm_action_suspend = {
 	.pre_action = snd_pcm_pre_suspend,
 	.do_action = snd_pcm_do_suspend,
 	.post_action = snd_pcm_post_suspend
@@ -1375,7 +1375,7 @@ static void snd_pcm_post_resume(struct snd_pcm_substream *substream, int state)
 	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MRESUME);
 }
 
-static struct action_ops snd_pcm_action_resume = {
+static const struct action_ops snd_pcm_action_resume = {
 	.pre_action = snd_pcm_pre_resume,
 	.do_action = snd_pcm_do_resume,
 	.undo_action = snd_pcm_undo_resume,
@@ -1478,7 +1478,7 @@ static void snd_pcm_post_reset(struct snd_pcm_substream *substream, int state)
 		snd_pcm_playback_silence(substream, ULONG_MAX);
 }
 
-static struct action_ops snd_pcm_action_reset = {
+static const struct action_ops snd_pcm_action_reset = {
 	.pre_action = snd_pcm_pre_reset,
 	.do_action = snd_pcm_do_reset,
 	.post_action = snd_pcm_post_reset
@@ -1522,7 +1522,7 @@ static void snd_pcm_post_prepare(struct snd_pcm_substream *substream, int state)
 	snd_pcm_set_state(substream, SNDRV_PCM_STATE_PREPARED);
 }
 
-static struct action_ops snd_pcm_action_prepare = {
+static const struct action_ops snd_pcm_action_prepare = {
 	.pre_action = snd_pcm_pre_prepare,
 	.do_action = snd_pcm_do_prepare,
 	.post_action = snd_pcm_post_prepare
@@ -1618,7 +1618,7 @@ static void snd_pcm_post_drain_init(struct snd_pcm_substream *substream, int sta
 {
 }
 
-static struct action_ops snd_pcm_action_drain_init = {
+static const struct action_ops snd_pcm_action_drain_init = {
 	.pre_action = snd_pcm_pre_drain_init,
 	.do_action = snd_pcm_do_drain_init,
 	.post_action = snd_pcm_post_drain_init

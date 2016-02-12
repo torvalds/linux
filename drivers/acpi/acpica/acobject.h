@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,9 +93,10 @@
 #define AOPOBJ_AML_CONSTANT         0x01	/* Integer is an AML constant */
 #define AOPOBJ_STATIC_POINTER       0x02	/* Data is part of an ACPI table, don't delete */
 #define AOPOBJ_DATA_VALID           0x04	/* Object is initialized and data is valid */
-#define AOPOBJ_OBJECT_INITIALIZED   0x08	/* Region is initialized, _REG was run */
-#define AOPOBJ_SETUP_COMPLETE       0x10	/* Region setup is complete */
-#define AOPOBJ_INVALID              0x20	/* Host OS won't allow a Region address */
+#define AOPOBJ_OBJECT_INITIALIZED   0x08	/* Region is initialized */
+#define AOPOBJ_REG_CONNECTED        0x10	/* _REG was run */
+#define AOPOBJ_SETUP_COMPLETE       0x20	/* Region setup is complete */
+#define AOPOBJ_INVALID              0x40	/* Host OS won't allow a Region address */
 
 /******************************************************************************
  *

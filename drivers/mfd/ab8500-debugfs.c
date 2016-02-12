@@ -242,8 +242,10 @@ static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 				.first = 0x40,
 				.last = 0x44,
 			},
-			/* 0x80-0x8B is SIM registers and should
-			 * not be accessed from here */
+			/*
+			 * 0x80-0x8B are SIM registers and should
+			 * not be accessed from here
+			 */
 		},
 	},
 	[AB8500_USB] = {
@@ -587,8 +589,10 @@ static struct ab8500_prcmu_ranges ab8505_debug_ranges[AB8500_NUM_BANKS] = {
 				.first = 0x40,
 				.last = 0x48,
 			},
-			/* 0x80-0x8B is SIM registers and should
-			 * not be accessed from here */
+			/*
+			 * 0x80-0x8B are SIM registers and should
+			 * not be accessed from here
+			 */
 		},
 	},
 	[AB8500_USB] = {
@@ -1306,8 +1310,10 @@ static int ab8500_registers_print(struct device *dev, u32 bank,
 			if (s) {
 				seq_printf(s, "  [0x%02X/0x%02X]: 0x%02X\n",
 					   bank, reg, value);
-				/* Error is not returned here since
-				 * the output is wanted in any case */
+				/*
+				 * Error is not returned here since
+				 * the output is wanted in any case
+				 */
 				if (seq_has_overflowed(s))
 					return 0;
 			} else {
@@ -2740,10 +2746,9 @@ static ssize_t hwreg_common_write(char *b, struct hwreg_cfg *cfg,
 	*cfg = loc;
 
 #ifdef ABB_HWREG_DEBUG
-	pr_warn("HWREG request: %s, %s,\n"
-		"  addr=0x%08X, mask=0x%X, shift=%d" "value=0x%X\n",
-		(write) ? "write" : "read",
-		REG_FMT_DEC(cfg) ? "decimal" : "hexa",
+	pr_warn("HWREG request: %s, %s,\n", (write) ? "write" : "read",
+		REG_FMT_DEC(cfg) ? "decimal" : "hexa");
+	pr_warn("  addr=0x%08X, mask=0x%X, shift=%d" "value=0x%X\n",
 		cfg->addr, cfg->mask, cfg->shift, val);
 #endif
 

@@ -32,7 +32,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/include/ "t1023si-post.dtsi"
+#include "t1023si-post.dtsi"
 
 / {
 	aliases {

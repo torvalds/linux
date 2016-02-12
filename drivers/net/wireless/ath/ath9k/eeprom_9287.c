@@ -177,59 +177,24 @@ static u32 ath9k_hw_ar9287_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 
 static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
 {
-	u32 sum = 0, el, integer;
-	u16 temp, word, magic, magic2, *eepdata;
-	int i, addr;
-	bool need_swap = false;
+	u32 el, integer;
+	u16 word;
+	int i, err;
+	bool need_swap;
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
-	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (!ath9k_hw_use_flash(ah)) {
-		if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET,
-					 &magic)) {
-			ath_err(common, "Reading Magic # failed\n");
-			return false;
-		}
-
-		ath_dbg(common, EEPROM, "Read Magic = 0x%04X\n", magic);
-
-		if (magic != AR5416_EEPROM_MAGIC) {
-			magic2 = swab16(magic);
-
-			if (magic2 == AR5416_EEPROM_MAGIC) {
-				need_swap = true;
-				eepdata = (u16 *)(&ah->eeprom);
-
-				for (addr = 0; addr < SIZE_EEPROM_AR9287; addr++) {
-					temp = swab16(*eepdata);
-					*eepdata = temp;
-					eepdata++;
-				}
-			} else {
-				ath_err(common,
-					"Invalid EEPROM Magic. Endianness mismatch.\n");
-				return -EINVAL;
-			}
-		}
-	}
-
-	ath_dbg(common, EEPROM, "need_swap = %s\n",
-		need_swap ? "True" : "False");
+	err = ath9k_hw_nvram_swap_data(ah, &need_swap, SIZE_EEPROM_AR9287);
+	if (err)
+		return err;
 
 	if (need_swap)
-		el = swab16(ah->eeprom.map9287.baseEepHeader.length);
+		el = swab16(eep->baseEepHeader.length);
 	else
-		el = ah->eeprom.map9287.baseEepHeader.length;
+		el = eep->baseEepHeader.length;
 
-	if (el > sizeof(struct ar9287_eeprom))
-		el = sizeof(struct ar9287_eeprom) / sizeof(u16);
-	else
-		el = el / sizeof(u16);
-
-	eepdata = (u16 *)(&ah->eeprom);
-
-	for (i = 0; i < el; i++)
-		sum ^= *eepdata++;
+	el = min(el / sizeof(u16), SIZE_EEPROM_AR9287);
+	if (!ath9k_hw_nvram_validate_checksum(ah, el))
+		return -EINVAL;
 
 	if (need_swap) {
 		word = swab16(eep->baseEepHeader.length);
@@ -270,15 +235,14 @@ static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
 		}
 	}
 
-	if (sum != 0xffff || ah->eep_ops->get_eeprom_ver(ah) != AR9287_EEP_VER
-	    || ah->eep_ops->get_eeprom_rev(ah) < AR5416_EEP_NO_BACK_VER) {
-		ath_err(common, "Bad EEPROM checksum 0x%x or revision 0x%04x\n",
-			sum, ah->eep_ops->get_eeprom_ver(ah));
+	if (!ath9k_hw_nvram_check_version(ah, AR9287_EEP_VER,
+	    AR5416_EEP_NO_BACK_VER))
 		return -EINVAL;
-	}
 
 	return 0;
 }
+
+#undef SIZE_EEPROM_AR9287
 
 static u32 ath9k_hw_ar9287_get_eeprom(struct ath_hw *ah,
 				      enum eeprom_param param)

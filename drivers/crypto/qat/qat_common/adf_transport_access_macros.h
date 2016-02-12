@@ -50,12 +50,14 @@
 #include "adf_accel_devices.h"
 #define ADF_BANK_INT_SRC_SEL_MASK_0 0x4444444CUL
 #define ADF_BANK_INT_SRC_SEL_MASK_X 0x44444444UL
+#define ADF_BANK_INT_FLAG_CLEAR_MASK 0xFFFF
 #define ADF_RING_CSR_RING_CONFIG 0x000
 #define ADF_RING_CSR_RING_LBASE 0x040
 #define ADF_RING_CSR_RING_UBASE 0x080
 #define ADF_RING_CSR_RING_HEAD 0x0C0
 #define ADF_RING_CSR_RING_TAIL 0x100
 #define ADF_RING_CSR_E_STAT 0x14C
+#define ADF_RING_CSR_INT_FLAG	0x170
 #define ADF_RING_CSR_INT_SRCSEL 0x174
 #define ADF_RING_CSR_INT_SRCSEL_2 0x178
 #define ADF_RING_CSR_INT_COL_EN 0x17C
@@ -144,6 +146,9 @@ do { \
 #define WRITE_CSR_RING_TAIL(csr_base_addr, bank, ring, value) \
 	ADF_CSR_WR(csr_base_addr, (ADF_RING_BUNDLE_SIZE * bank) + \
 		ADF_RING_CSR_RING_TAIL + (ring << 2), value)
+#define WRITE_CSR_INT_FLAG(csr_base_addr, bank, value) \
+	ADF_CSR_WR(csr_base_addr, (ADF_RING_BUNDLE_SIZE * (bank)) + \
+			ADF_RING_CSR_INT_FLAG, value)
 #define WRITE_CSR_INT_SRCSEL(csr_base_addr, bank) \
 do { \
 	ADF_CSR_WR(csr_base_addr, (ADF_RING_BUNDLE_SIZE * bank) + \

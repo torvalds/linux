@@ -68,7 +68,7 @@ int lan88xx_suspend(struct phy_device *phydev)
 
 static int lan88xx_probe(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct lan88xx_priv *priv;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -78,10 +78,9 @@ static int lan88xx_probe(struct phy_device *phydev)
 	priv->wolopts = 0;
 
 	/* these values can be used to identify internal PHY */
-	priv->chip_id = phy_read_mmd_indirect(phydev, LAN88XX_MMD3_CHIP_ID,
-					      3, phydev->addr);
+	priv->chip_id = phy_read_mmd_indirect(phydev, LAN88XX_MMD3_CHIP_ID, 3);
 	priv->chip_rev = phy_read_mmd_indirect(phydev, LAN88XX_MMD3_CHIP_REV,
-					       3, phydev->addr);
+					       3);
 
 	phydev->priv = priv;
 
@@ -90,7 +89,7 @@ static int lan88xx_probe(struct phy_device *phydev)
 
 static void lan88xx_remove(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct lan88xx_priv *priv = phydev->priv;
 
 	if (priv)
@@ -130,8 +129,6 @@ static struct phy_driver microchip_phy_driver[] = {
 	.suspend	= lan88xx_suspend,
 	.resume		= genphy_resume,
 	.set_wol	= lan88xx_set_wol,
-
-	.driver		= { .owner = THIS_MODULE, }
 } };
 
 module_phy_driver(microchip_phy_driver);

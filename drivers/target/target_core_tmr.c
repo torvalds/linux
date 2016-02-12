@@ -201,7 +201,7 @@ static void core_tmr_drain_tmr_list(
 		/*
 		 * If this function was called with a valid pr_res_key
 		 * parameter (eg: for PROUT PREEMPT_AND_ABORT service action
-		 * skip non regisration key matching TMRs.
+		 * skip non registration key matching TMRs.
 		 */
 		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;

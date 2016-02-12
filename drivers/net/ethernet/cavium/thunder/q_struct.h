@@ -545,25 +545,28 @@ struct sq_hdr_subdesc {
 	u64    subdesc_cnt:8;
 	u64    csum_l4:2;
 	u64    csum_l3:1;
-	u64    rsvd0:5;
+	u64    csum_inner_l4:2;
+	u64    csum_inner_l3:1;
+	u64    rsvd0:2;
 	u64    l4_offset:8;
 	u64    l3_offset:8;
 	u64    rsvd1:4;
 	u64    tot_len:20; /* W0 */
 
-	u64    tso_sdc_cont:8;
-	u64    tso_sdc_first:8;
-	u64    tso_l4_offset:8;
-	u64    tso_flags_last:12;
-	u64    tso_flags_first:12;
-	u64    rsvd2:2;
+	u64    rsvd2:24;
+	u64    inner_l4_offset:8;
+	u64    inner_l3_offset:8;
+	u64    tso_start:8;
+	u64    rsvd3:2;
 	u64    tso_max_paysize:14; /* W1 */
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
 	u64    tot_len:20;
 	u64    rsvd1:4;
 	u64    l3_offset:8;
 	u64    l4_offset:8;
-	u64    rsvd0:5;
+	u64    rsvd0:2;
+	u64    csum_inner_l3:1;
+	u64    csum_inner_l4:2;
 	u64    csum_l3:1;
 	u64    csum_l4:2;
 	u64    subdesc_cnt:8;
@@ -574,12 +577,11 @@ struct sq_hdr_subdesc {
 	u64    subdesc_type:4; /* W0 */
 
 	u64    tso_max_paysize:14;
-	u64    rsvd2:2;
-	u64    tso_flags_first:12;
-	u64    tso_flags_last:12;
-	u64    tso_l4_offset:8;
-	u64    tso_sdc_first:8;
-	u64    tso_sdc_cont:8; /* W1 */
+	u64    rsvd3:2;
+	u64    tso_start:8;
+	u64    inner_l3_offset:8;
+	u64    inner_l4_offset:8;
+	u64    rsvd2:24; /* W1 */
 #endif
 };
 

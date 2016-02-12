@@ -104,10 +104,15 @@
 		compatible = "fsl,imx-display-subsystem";
 		ports = <&ipu1_di0>, <&ipu1_di1>;
 	};
+
+	gpu-subsystem {
+		compatible = "fsl,imx-gpu-subsystem";
+		cores = <&gpu_2d>, <&gpu_3d>;
+	};
 };
 
 &gpt {
-	compatible = "fsl,imx6dl-gpt", "fsl,imx6q-gpt";
+	compatible = "fsl,imx6dl-gpt";
 };
 
 &hdmi {

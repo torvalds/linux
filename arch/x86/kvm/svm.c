@@ -86,6 +86,7 @@ static const u32 host_save_user_msrs[] = {
 	MSR_FS_BASE,
 #endif
 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
+	MSR_TSC_AUX,
 };
 
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
@@ -135,6 +136,7 @@ struct vcpu_svm {
 	uint64_t asid_generation;
 	uint64_t sysenter_esp;
 	uint64_t sysenter_eip;
+	uint64_t tsc_aux;
 
 	u64 next_rip;
 
@@ -1238,6 +1240,9 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			wrmsrl(MSR_AMD64_TSC_RATIO, tsc_ratio);
 		}
 	}
+	/* This assumes that the kernel never uses MSR_TSC_AUX */
+	if (static_cpu_has(X86_FEATURE_RDTSCP))
+		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
@@ -3024,6 +3029,11 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_SYSENTER_ESP:
 		msr_info->data = svm->sysenter_esp;
 		break;
+	case MSR_TSC_AUX:
+		if (!boot_cpu_has(X86_FEATURE_RDTSCP))
+			return 1;
+		msr_info->data = svm->tsc_aux;
+		break;
 	/*
 	 * Nobody will change the following 5 values in the VMCB so we can
 	 * safely return them on rdmsr. They will always be 0 until LBRV is
@@ -3052,6 +3062,23 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_UCODE_REV:
 		msr_info->data = 0x01000065;
+		break;
+	case MSR_F15H_IC_CFG: {
+
+		int family, model;
+
+		family = guest_cpuid_family(vcpu);
+		model  = guest_cpuid_model(vcpu);
+
+		if (family < 0 || model < 0)
+			return kvm_get_msr_common(vcpu, msr_info);
+
+		msr_info->data = 0;
+
+		if (family == 0x15 &&
+		    (model >= 0x2 && model < 0x20))
+			msr_info->data = 0x1E;
+		}
 		break;
 	default:
 		return kvm_get_msr_common(vcpu, msr_info);
@@ -3144,6 +3171,18 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	case MSR_IA32_SYSENTER_ESP:
 		svm->sysenter_esp = data;
 		svm->vmcb->save.sysenter_esp = data;
+		break;
+	case MSR_TSC_AUX:
+		if (!boot_cpu_has(X86_FEATURE_RDTSCP))
+			return 1;
+
+		/*
+		 * This is rare, so we update the MSR here instead of using
+		 * direct_access_msrs.  Doing that would require a rdmsr in
+		 * svm_vcpu_put.
+		 */
+		svm->tsc_aux = data;
+		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
 		if (!boot_cpu_has(X86_FEATURE_LBRV)) {
@@ -3561,12 +3600,16 @@ static void svm_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 	return;
 }
 
-static int svm_cpu_uses_apicv(struct kvm_vcpu *vcpu)
+static bool svm_get_enable_apicv(void)
 {
-	return 0;
+	return false;
 }
 
-static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu)
+static void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
+{
+}
+
+static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
 {
 	return;
 }
@@ -4037,7 +4080,7 @@ static int svm_get_lpage_level(void)
 
 static bool svm_rdtscp_supported(void)
 {
-	return false;
+	return boot_cpu_has(X86_FEATURE_RDTSCP);
 }
 
 static bool svm_invpcid_supported(void)
@@ -4328,7 +4371,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_x2apic_mode = svm_set_virtual_x2apic_mode,
-	.cpu_uses_apicv = svm_cpu_uses_apicv,
+	.get_enable_apicv = svm_get_enable_apicv,
+	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.sync_pir_to_irr = svm_sync_pir_to_irr,
 

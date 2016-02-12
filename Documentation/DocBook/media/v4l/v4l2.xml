@@ -152,6 +152,16 @@ structs, ioctls) must be noted in more detail in the history chapter
 (compat.xml), along with the possible impact on existing drivers and
 applications. -->
       <revision>
+	<revnumber>4.5</revnumber>
+	<date>2015-10-29</date>
+	<authorinitials>rr</authorinitials>
+	<revremark>Extend vidioc-g-ext-ctrls;. Replace ctrl_class with a new
+union with ctrl_class and which. Which is used to select the current value of
+the control or the default value.
+	</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>4.4</revnumber>
 	<date>2015-05-26</date>
 	<authorinitials>ap</authorinitials>

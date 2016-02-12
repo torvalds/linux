@@ -83,8 +83,7 @@ static ssize_t mode_store(struct device *dev,
 
 		if (strncmp(buf, "pmem\n", n) == 0
 				|| strncmp(buf, "pmem", n) == 0) {
-			/* TODO: allocate from PMEM support */
-			rc = -ENOTTY;
+			nd_pfn->mode = PFN_MODE_PMEM;
 		} else if (strncmp(buf, "ram\n", n) == 0
 				|| strncmp(buf, "ram", n) == 0)
 			nd_pfn->mode = PFN_MODE_RAM;
@@ -102,6 +101,52 @@ static ssize_t mode_store(struct device *dev,
 	return rc ? rc : len;
 }
 static DEVICE_ATTR_RW(mode);
+
+static ssize_t align_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+
+	return sprintf(buf, "%lx\n", nd_pfn->align);
+}
+
+static ssize_t __align_store(struct nd_pfn *nd_pfn, const char *buf)
+{
+	unsigned long val;
+	int rc;
+
+	rc = kstrtoul(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	if (!is_power_of_2(val) || val < PAGE_SIZE || val > SZ_1G)
+		return -EINVAL;
+
+	if (nd_pfn->dev.driver)
+		return -EBUSY;
+	else
+		nd_pfn->align = val;
+
+	return 0;
+}
+
+static ssize_t align_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+	ssize_t rc;
+
+	device_lock(dev);
+	nvdimm_bus_lock(dev);
+	rc = __align_store(nd_pfn, buf);
+	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
+			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
+	nvdimm_bus_unlock(dev);
+	device_unlock(dev);
+
+	return rc ? rc : len;
+}
+static DEVICE_ATTR_RW(align);
 
 static ssize_t uuid_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -164,6 +209,7 @@ static struct attribute *nd_pfn_attributes[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_namespace.attr,
 	&dev_attr_uuid.attr,
+	&dev_attr_align.attr,
 	NULL,
 };
 
@@ -179,7 +225,6 @@ static const struct attribute_group *nd_pfn_attribute_groups[] = {
 };
 
 static struct device *__nd_pfn_create(struct nd_region *nd_region,
-		u8 *uuid, enum nd_pfn_mode mode,
 		struct nd_namespace_common *ndns)
 {
 	struct nd_pfn *nd_pfn;
@@ -199,10 +244,8 @@ static struct device *__nd_pfn_create(struct nd_region *nd_region,
 		return NULL;
 	}
 
-	nd_pfn->mode = mode;
-	if (uuid)
-		uuid = kmemdup(uuid, 16, GFP_KERNEL);
-	nd_pfn->uuid = uuid;
+	nd_pfn->mode = PFN_MODE_NONE;
+	nd_pfn->align = HPAGE_SIZE;
 	dev = &nd_pfn->dev;
 	dev_set_name(dev, "pfn%d.%d", nd_region->id, nd_pfn->id);
 	dev->parent = &nd_region->dev;
@@ -220,8 +263,7 @@ static struct device *__nd_pfn_create(struct nd_region *nd_region,
 
 struct device *nd_pfn_create(struct nd_region *nd_region)
 {
-	struct device *dev = __nd_pfn_create(nd_region, NULL, PFN_MODE_NONE,
-			NULL);
+	struct device *dev = __nd_pfn_create(nd_region, NULL);
 
 	if (dev)
 		__nd_device_register(dev);
@@ -230,19 +272,16 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 
 int nd_pfn_validate(struct nd_pfn *nd_pfn)
 {
-	struct nd_namespace_common *ndns = nd_pfn->ndns;
-	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
-	struct nd_namespace_io *nsio;
 	u64 checksum, offset;
+	struct nd_namespace_io *nsio;
+	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+	struct nd_namespace_common *ndns = nd_pfn->ndns;
+	const u8 *parent_uuid = nd_dev_to_uuid(&ndns->dev);
 
 	if (!pfn_sb || !ndns)
 		return -ENODEV;
 
 	if (!is_nd_pmem(nd_pfn->dev.parent))
-		return -ENODEV;
-
-	/* section alignment for simple hotplug */
-	if (nvdimm_namespace_capacity(ndns) < ND_PFN_ALIGN)
 		return -ENODEV;
 
 	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb)))
@@ -257,12 +296,13 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 		return -ENODEV;
 	pfn_sb->checksum = cpu_to_le64(checksum);
 
+	if (memcmp(pfn_sb->parent_uuid, parent_uuid, 16) != 0)
+		return -ENODEV;
+
 	switch (le32_to_cpu(pfn_sb->mode)) {
 	case PFN_MODE_RAM:
-		break;
 	case PFN_MODE_PMEM:
-		/* TODO: allocate from PMEM support */
-		return -ENOTTY;
+		break;
 	default:
 		return -ENXIO;
 	}
@@ -278,6 +318,12 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 			return -EINVAL;
 	}
 
+	if (nd_pfn->align > nvdimm_namespace_capacity(ndns)) {
+		dev_err(&nd_pfn->dev, "alignment: %lx exceeds capacity %llx\n",
+				nd_pfn->align, nvdimm_namespace_capacity(ndns));
+		return -EINVAL;
+	}
+
 	/*
 	 * These warnings are verbose because they can only trigger in
 	 * the case where the physical address alignment of the
@@ -286,15 +332,17 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 	 */
 	offset = le64_to_cpu(pfn_sb->dataoff);
 	nsio = to_nd_namespace_io(&ndns->dev);
-	if (nsio->res.start & ND_PFN_MASK) {
-		dev_err(&nd_pfn->dev,
-				"init failed: %s not section aligned\n",
-				dev_name(&ndns->dev));
-		return -EBUSY;
-	} else if (offset >= resource_size(&nsio->res)) {
+	if (offset >= resource_size(&nsio->res)) {
 		dev_err(&nd_pfn->dev, "pfn array size exceeds capacity of %s\n",
 				dev_name(&ndns->dev));
 		return -EBUSY;
+	}
+
+	nd_pfn->align = 1UL << ilog2(offset);
+	if (!is_power_of_2(offset) || offset < PAGE_SIZE) {
+		dev_err(&nd_pfn->dev, "bad offset: %#llx dax disabled\n",
+				offset);
+		return -ENXIO;
 	}
 
 	return 0;
@@ -313,7 +361,7 @@ int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
 		return -ENODEV;
 
 	nvdimm_bus_lock(&ndns->dev);
-	dev = __nd_pfn_create(nd_region, NULL, PFN_MODE_NONE, ndns);
+	dev = __nd_pfn_create(nd_region, ndns);
 	nvdimm_bus_unlock(&ndns->dev);
 	if (!dev)
 		return -ENOMEM;

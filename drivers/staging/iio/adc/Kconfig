@@ -6,6 +6,7 @@ menu "Analog to digital converters"
 config AD7606
 	tristate "Analog Devices AD7606 ADC driver"
 	depends on GPIOLIB || COMPILE_TEST
+	depends on HAS_IOMEM
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -23,7 +24,7 @@ config AD7606_IFACE_PARALLEL
 	  ADC driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ad7606_iface_parallel.
+	  module will be called ad7606_parallel.
 
 config AD7606_IFACE_SPI
 	tristate "spi interface support"
@@ -34,7 +35,7 @@ config AD7606_IFACE_SPI
 	  ADC driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ad7606_iface_spi.
+	  module will be called ad7606_spi.
 
 config AD7780
 	tristate "Analog Devices AD7780 and similar ADCs driver"

@@ -754,12 +754,19 @@ static int btree_insert_raw(struct shadow_spine *s, dm_block_t root,
 	return 0;
 }
 
+static bool need_insert(struct btree_node *node, uint64_t *keys,
+			unsigned level, unsigned index)
+{
+        return ((index >= le32_to_cpu(node->header.nr_entries)) ||
+		(le64_to_cpu(node->keys[index]) != keys[level]));
+}
+
 static int insert(struct dm_btree_info *info, dm_block_t root,
 		  uint64_t *keys, void *value, dm_block_t *new_root,
 		  int *inserted)
 		  __dm_written_to_disk(value)
 {
-	int r, need_insert;
+	int r;
 	unsigned level, index = -1, last_level = info->levels - 1;
 	dm_block_t block = root;
 	struct shadow_spine spine;
@@ -775,10 +782,8 @@ static int insert(struct dm_btree_info *info, dm_block_t root,
 			goto bad;
 
 		n = dm_block_data(shadow_current(&spine));
-		need_insert = ((index >= le32_to_cpu(n->header.nr_entries)) ||
-			       (le64_to_cpu(n->keys[index]) != keys[level]));
 
-		if (need_insert) {
+		if (need_insert(n, keys, level, index)) {
 			dm_block_t new_tree;
 			__le64 new_le;
 
@@ -805,10 +810,8 @@ static int insert(struct dm_btree_info *info, dm_block_t root,
 		goto bad;
 
 	n = dm_block_data(shadow_current(&spine));
-	need_insert = ((index >= le32_to_cpu(n->header.nr_entries)) ||
-		       (le64_to_cpu(n->keys[index]) != keys[level]));
 
-	if (need_insert) {
+	if (need_insert(n, keys, level, index)) {
 		if (inserted)
 			*inserted = 1;
 

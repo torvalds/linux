@@ -593,26 +593,6 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.atomic_flush = vc4_crtc_atomic_flush,
 };
 
-/* Frees the page flip event when the DRM device is closed with the
- * event still outstanding.
- */
-void vc4_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-
-	if (vc4_crtc->event && vc4_crtc->event->base.file_priv == file) {
-		vc4_crtc->event->base.destroy(&vc4_crtc->event->base);
-		drm_crtc_vblank_put(crtc);
-		vc4_crtc->event = NULL;
-	}
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
 static const struct vc4_crtc_data pv0_data = {
 	.hvs_channel = 0,
 	.encoder0_type = VC4_ENCODER_TYPE_DSI0,

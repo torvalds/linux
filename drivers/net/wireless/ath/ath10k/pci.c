@@ -108,6 +108,7 @@ static void ath10k_pci_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_pci_htt_tx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_pci_htt_rx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_pci_htt_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
+static void ath10k_pci_pktlog_rx_cb(struct ath10k_ce_pipe *ce_state);
 
 static struct ce_attr host_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
@@ -186,6 +187,7 @@ static struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 0,
 		.src_sz_max = 2048,
 		.dest_nentries = 128,
+		.recv_cb = ath10k_pci_pktlog_rx_cb,
 	},
 
 	/* CE9 target autonomous qcache memcpy */
@@ -484,6 +486,9 @@ static int ath10k_pci_force_wake(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	unsigned long flags;
 	int ret = 0;
+
+	if (ar_pci->pci_ps)
+		return ret;
 
 	spin_lock_irqsave(&ar_pci->ps_lock, flags);
 
@@ -1213,6 +1218,15 @@ static void ath10k_pci_htt_htc_rx_cb(struct ath10k_ce_pipe *ce_state)
 	ath10k_ce_per_engine_service(ce_state->ar, 4);
 
 	ath10k_pci_process_rx_cb(ce_state, ath10k_htc_rx_completion_handler);
+}
+
+/* Called by lower (CE) layer when data is received from the Target.
+ * Only 10.4 firmware uses separate CE to transfer pktlog data.
+ */
+static void ath10k_pci_pktlog_rx_cb(struct ath10k_ce_pipe *ce_state)
+{
+	ath10k_pci_process_rx_cb(ce_state,
+				 ath10k_htt_rx_pktlog_completion_handler);
 }
 
 /* Called by lower (CE) layer when a send to HTT Target completes. */
@@ -2469,12 +2483,10 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 	u32 val;
 	int ret = 0;
 
-	if (ar_pci->pci_ps == 0) {
-		ret = ath10k_pci_force_wake(ar);
-		if (ret) {
-			ath10k_err(ar, "failed to wake up target: %d\n", ret);
-			return ret;
-		}
+	ret = ath10k_pci_force_wake(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to wake up target: %d\n", ret);
+		return ret;
 	}
 
 	/* Suspend/Resume resets the PCI configuration space, so we have to
@@ -2581,13 +2593,10 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
 
-	if (ar_pci->pci_ps == 0) {
-		ret = ath10k_pci_force_wake(ar);
-		if (ret) {
-			ath10k_warn(ar, "failed to wake device up on irq: %d\n",
-				    ret);
-			return IRQ_NONE;
-		}
+	ret = ath10k_pci_force_wake(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to wake device up on irq: %d\n", ret);
+		return IRQ_NONE;
 	}
 
 	if (ar_pci->num_msi_intrs == 0) {
@@ -3060,16 +3069,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_sleep;
 	}
 
+	ret = ath10k_pci_force_wake(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to wake up device : %d\n", ret);
+		goto err_free_pipes;
+	}
+
 	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_irq_disable(ar);
-
-	if (ar_pci->pci_ps == 0) {
-		ret = ath10k_pci_force_wake(ar);
-		if (ret) {
-			ath10k_warn(ar, "failed to wake up device : %d\n", ret);
-			goto err_free_pipes;
-		}
-	}
 
 	ret = ath10k_pci_init_irq(ar);
 	if (ret) {

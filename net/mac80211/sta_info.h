@@ -367,6 +367,7 @@ DECLARE_EWMA(signal, 1024, 8)
  * @mesh: mesh STA information
  * @debugfs: debug filesystem info
  * @dead: set to true when sta is unlinked
+ * @removed: set to true when sta is being removed from sta_list
  * @uploaded: set to true when sta is uploaded to the driver
  * @sta: station information we share with the driver
  * @sta_state: duplicates information about station state (for debug)
@@ -412,6 +413,7 @@ struct sta_info {
 	u16 listen_interval;
 
 	bool dead;
+	bool removed;
 
 	bool uploaded;
 

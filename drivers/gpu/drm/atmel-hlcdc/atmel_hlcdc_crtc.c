@@ -280,24 +280,6 @@ static void atmel_hlcdc_crtc_destroy(struct drm_crtc *c)
 	kfree(crtc);
 }
 
-void atmel_hlcdc_crtc_cancel_page_flip(struct drm_crtc *c,
-				       struct drm_file *file)
-{
-	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = c->dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	event = crtc->event;
-	if (event && event->base.file_priv == file) {
-		event->base.destroy(&event->base);
-		drm_vblank_put(dev, crtc->id);
-		crtc->event = NULL;
-	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
 static void atmel_hlcdc_crtc_finish_page_flip(struct atmel_hlcdc_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;

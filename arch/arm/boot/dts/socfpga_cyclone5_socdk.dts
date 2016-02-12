@@ -84,6 +84,7 @@
 	cd-gpios = <&portb 18 0>;
 	vmmc-supply = <&regulator_3_3v>;
 	vqmmc-supply = <&regulator_3_3v>;
+	status = "okay";
 };
 
 &usb1 {

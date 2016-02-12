@@ -22,7 +22,8 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, Intel Corporation.
+ *
+ * Copyright (c) 2012, 2015 Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -77,23 +78,6 @@ struct cfs_cpt_data {
 };
 
 static struct cfs_cpt_data	cpt_data;
-
-static void cfs_cpu_core_siblings(int cpu, cpumask_t *mask)
-{
-	/* return cpumask of cores in the same socket */
-	cpumask_copy(mask, topology_core_cpumask(cpu));
-}
-
-/* return cpumask of HTs in the same core */
-static void cfs_cpu_ht_siblings(int cpu, cpumask_t *mask)
-{
-	cpumask_copy(mask, topology_sibling_cpumask(cpu));
-}
-
-static void cfs_node_to_cpumask(int node, cpumask_t *mask)
-{
-	cpumask_copy(mask, cpumask_of_node(node));
-}
 
 void
 cfs_cpt_table_free(struct cfs_cpt_table *cptab)
@@ -426,7 +410,7 @@ cfs_cpt_set_node(struct cfs_cpt_table *cptab, int cpt, int node)
 	mutex_lock(&cpt_data.cpt_mutex);
 
 	mask = cpt_data.cpt_cpumask;
-	cfs_node_to_cpumask(node, mask);
+	cpumask_copy(mask, cpumask_of_node(node));
 
 	rc = cfs_cpt_set_cpumask(cptab, cpt, mask);
 
@@ -450,7 +434,7 @@ cfs_cpt_unset_node(struct cfs_cpt_table *cptab, int cpt, int node)
 	mutex_lock(&cpt_data.cpt_mutex);
 
 	mask = cpt_data.cpt_cpumask;
-	cfs_node_to_cpumask(node, mask);
+	cpumask_copy(mask, cpumask_of_node(node));
 
 	cfs_cpt_unset_cpumask(cptab, cpt, mask);
 
@@ -643,7 +627,7 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 		cpu = cpumask_first(node);
 
 		/* get cpumask for cores in the same socket */
-		cfs_cpu_core_siblings(cpu, socket);
+		cpumask_copy(socket, topology_core_cpumask(cpu));
 		cpumask_and(socket, socket, node);
 
 		LASSERT(!cpumask_empty(socket));
@@ -652,7 +636,7 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 			int     i;
 
 			/* get cpumask for hts in the same core */
-			cfs_cpu_ht_siblings(cpu, core);
+			cpumask_copy(core, topology_sibling_cpumask(cpu));
 			cpumask_and(core, core, node);
 
 			LASSERT(!cpumask_empty(core));
@@ -769,7 +753,7 @@ cfs_cpt_table_create(int ncpt)
 	}
 
 	for_each_online_node(i) {
-		cfs_node_to_cpumask(i, mask);
+		cpumask_copy(mask, cpumask_of_node(i));
 
 		while (!cpumask_empty(mask)) {
 			struct cfs_cpu_partition *part;
@@ -968,7 +952,8 @@ cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 
 		mutex_lock(&cpt_data.cpt_mutex);
 		/* if all HTs in a core are offline, it may break affinity */
-		cfs_cpu_ht_siblings(cpu, cpt_data.cpt_cpumask);
+		cpumask_copy(cpt_data.cpt_cpumask,
+			     topology_sibling_cpumask(cpu));
 		warn = cpumask_any_and(cpt_data.cpt_cpumask,
 				       cpu_online_mask) >= nr_cpu_ids;
 		mutex_unlock(&cpt_data.cpt_mutex);

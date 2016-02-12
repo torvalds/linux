@@ -117,16 +117,6 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 		return mdp5_encoder_set_split_display(encoder, slave_encoder);
 }
 
-static void mdp5_preclose(struct msm_kms *kms, struct drm_file *file)
-{
-	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct msm_drm_private *priv = mdp5_kms->dev->dev_private;
-	unsigned i;
-
-	for (i = 0; i < priv->num_crtcs; i++)
-		mdp5_crtc_cancel_pending_flip(priv->crtcs[i], file);
-}
-
 static void mdp5_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
@@ -164,7 +154,6 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
-		.preclose        = mdp5_preclose,
 		.destroy         = mdp5_destroy,
 	},
 	.set_irqmask         = mdp5_set_irqmask,

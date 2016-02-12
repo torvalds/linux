@@ -8,7 +8,7 @@ SLUB can enable debugging only for selected slabs in order to avoid
 an impact on overall system performance which may make a bug more
 difficult to find.
 
-In order to switch debugging on one can add a option "slub_debug"
+In order to switch debugging on one can add an option "slub_debug"
 to the kernel command line. That will enable full debugging for
 all slabs.
 

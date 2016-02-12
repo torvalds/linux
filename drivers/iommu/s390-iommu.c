@@ -49,7 +49,7 @@ static bool s390_iommu_capable(enum iommu_cap cap)
 	}
 }
 
-struct iommu_domain *s390_domain_alloc(unsigned domain_type)
+static struct iommu_domain *s390_domain_alloc(unsigned domain_type)
 {
 	struct s390_domain *s390_domain;
 
@@ -73,7 +73,7 @@ struct iommu_domain *s390_domain_alloc(unsigned domain_type)
 	return &s390_domain->domain;
 }
 
-void s390_domain_free(struct iommu_domain *domain)
+static void s390_domain_free(struct iommu_domain *domain)
 {
 	struct s390_domain *s390_domain = to_s390_domain(domain);
 

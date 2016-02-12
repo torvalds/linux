@@ -31,27 +31,22 @@ struct lpc18xx_gpio_chip {
 	spinlock_t lock;
 };
 
-static inline struct lpc18xx_gpio_chip *to_lpc18xx_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct lpc18xx_gpio_chip, gpio);
-}
-
 static void lpc18xx_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct lpc18xx_gpio_chip *gc = to_lpc18xx_gpio(chip);
+	struct lpc18xx_gpio_chip *gc = gpiochip_get_data(chip);
 	writeb(value ? 1 : 0, gc->base + offset);
 }
 
 static int lpc18xx_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct lpc18xx_gpio_chip *gc = to_lpc18xx_gpio(chip);
+	struct lpc18xx_gpio_chip *gc = gpiochip_get_data(chip);
 	return !!readb(gc->base + offset);
 }
 
 static int lpc18xx_gpio_direction(struct gpio_chip *chip, unsigned offset,
 				  bool out)
 {
-	struct lpc18xx_gpio_chip *gc = to_lpc18xx_gpio(chip);
+	struct lpc18xx_gpio_chip *gc = gpiochip_get_data(chip);
 	unsigned long flags;
 	u32 port, pin, dir;
 
@@ -127,9 +122,9 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&gc->lock);
 
-	gc->gpio.dev = &pdev->dev;
+	gc->gpio.parent = &pdev->dev;
 
-	ret = gpiochip_add(&gc->gpio);
+	ret = gpiochip_add_data(&gc->gpio, gc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add gpio chip\n");
 		clk_disable_unprepare(gc->clk);

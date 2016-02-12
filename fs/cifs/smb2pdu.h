@@ -86,6 +86,7 @@
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
 #define SMB2_PROTO_NUMBER cpu_to_le32(0x424d53fe)
+#define SMB2_TRANSFORM_PROTO_NUM cpu_to_le32(0x424d53fd)
 
 /*
  * SMB2 Header Definition
@@ -102,7 +103,7 @@ struct smb2_hdr {
 	__be32 smb2_buf_length;	/* big endian on wire */
 				/* length is only two or three bytes - with
 				 one or two byte type preceding it that MBZ */
-	__u8   ProtocolId[4];	/* 0xFE 'S' 'M' 'B' */
+	__le32 ProtocolId;	/* 0xFE 'S' 'M' 'B' */
 	__le16 StructureSize;	/* 64 */
 	__le16 CreditCharge;	/* MBZ */
 	__le32 Status;		/* Error from server */
@@ -128,11 +129,10 @@ struct smb2_transform_hdr {
 				 one or two byte type preceding it that MBZ */
 	__u8   ProtocolId[4];	/* 0xFD 'S' 'M' 'B' */
 	__u8   Signature[16];
-	__u8   Nonce[11];
-	__u8   Reserved[5];
+	__u8   Nonce[16];
 	__le32 OriginalMessageSize;
 	__u16  Reserved1;
-	__le16 EncryptionAlgorithm;
+	__le16 Flags; /* EncryptionAlgorithm */
 	__u64  SessionId;
 } __packed;
 

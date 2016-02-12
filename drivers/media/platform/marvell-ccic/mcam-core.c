@@ -25,7 +25,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/ov7670.h>
+#include <media/i2c/ov7670.h>
 #include <media/videobuf2-vmalloc.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
@@ -226,7 +226,7 @@ static void mcam_buffer_done(struct mcam_camera *cam, int frame,
 	vbuf->vb2_buf.planes[0].bytesused = cam->pix_format.sizeimage;
 	vbuf->sequence = cam->buf_seq[frame];
 	vbuf->field = V4L2_FIELD_NONE;
-	v4l2_get_timestamp(&vbuf->timestamp);
+	vbuf->vb2_buf.timestamp = ktime_get_ns();
 	vb2_set_plane_payload(&vbuf->vb2_buf, 0, cam->pix_format.sizeimage);
 	vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_DONE);
 }
@@ -1049,24 +1049,25 @@ static int mcam_read_setup(struct mcam_camera *cam)
  */
 
 static int mcam_vb_queue_setup(struct vb2_queue *vq,
-		const void *parg, unsigned int *nbufs,
+		unsigned int *nbufs,
 		unsigned int *num_planes, unsigned int sizes[],
 		void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
 	int minbufs = (cam->buffer_mode == B_DMA_contig) ? 3 : 2;
+	unsigned size = cam->pix_format.sizeimage;
 
-	if (fmt && fmt->fmt.pix.sizeimage < cam->pix_format.sizeimage)
-		return -EINVAL;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : cam->pix_format.sizeimage;
-	*num_planes = 1; /* Someday we have to support planar formats... */
 	if (*nbufs < minbufs)
 		*nbufs = minbufs;
 	if (cam->buffer_mode == B_DMA_contig)
 		alloc_ctxs[0] = cam->vb_alloc_ctx;
 	else if (cam->buffer_mode == B_DMA_sg)
 		alloc_ctxs[0] = cam->vb_alloc_ctx_sg;
+
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
+	sizes[0] = size;
+	*num_planes = 1; /* Someday we have to support planar formats... */
 	return 0;
 }
 

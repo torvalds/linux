@@ -413,7 +413,8 @@ pcxl_dma_init(void)
 
 __initcall(pcxl_dma_init);
 
-static void * pa11_dma_alloc_consistent (struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag)
+static void *pa11_dma_alloc(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t flag, struct dma_attrs *attrs)
 {
 	unsigned long vaddr;
 	unsigned long paddr;
@@ -439,7 +440,8 @@ static void * pa11_dma_alloc_consistent (struct device *dev, size_t size, dma_ad
 	return (void *)vaddr;
 }
 
-static void pa11_dma_free_consistent (struct device *dev, size_t size, void *vaddr, dma_addr_t dma_handle)
+static void pa11_dma_free(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_handle, struct dma_attrs *attrs)
 {
 	int order;
 
@@ -450,15 +452,20 @@ static void pa11_dma_free_consistent (struct device *dev, size_t size, void *vad
 	free_pages((unsigned long)__va(dma_handle), order);
 }
 
-static dma_addr_t pa11_dma_map_single(struct device *dev, void *addr, size_t size, enum dma_data_direction direction)
+static dma_addr_t pa11_dma_map_page(struct device *dev, struct page *page,
+		unsigned long offset, size_t size,
+		enum dma_data_direction direction, struct dma_attrs *attrs)
 {
+	void *addr = page_address(page) + offset;
 	BUG_ON(direction == DMA_NONE);
 
 	flush_kernel_dcache_range((unsigned long) addr, size);
 	return virt_to_phys(addr);
 }
 
-static void pa11_dma_unmap_single(struct device *dev, dma_addr_t dma_handle, size_t size, enum dma_data_direction direction)
+static void pa11_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
+		size_t size, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	BUG_ON(direction == DMA_NONE);
 
@@ -475,7 +482,9 @@ static void pa11_dma_unmap_single(struct device *dev, dma_addr_t dma_handle, siz
 	return;
 }
 
-static int pa11_dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents, enum dma_data_direction direction)
+static int pa11_dma_map_sg(struct device *dev, struct scatterlist *sglist,
+		int nents, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	int i;
 	struct scatterlist *sg;
@@ -492,7 +501,9 @@ static int pa11_dma_map_sg(struct device *dev, struct scatterlist *sglist, int n
 	return nents;
 }
 
-static void pa11_dma_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents, enum dma_data_direction direction)
+static void pa11_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
+		int nents, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
 {
 	int i;
 	struct scatterlist *sg;
@@ -509,18 +520,24 @@ static void pa11_dma_unmap_sg(struct device *dev, struct scatterlist *sglist, in
 	return;
 }
 
-static void pa11_dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, unsigned long offset, size_t size, enum dma_data_direction direction)
+static void pa11_dma_sync_single_for_cpu(struct device *dev,
+		dma_addr_t dma_handle, size_t size,
+		enum dma_data_direction direction)
 {
 	BUG_ON(direction == DMA_NONE);
 
-	flush_kernel_dcache_range((unsigned long) phys_to_virt(dma_handle) + offset, size);
+	flush_kernel_dcache_range((unsigned long) phys_to_virt(dma_handle),
+			size);
 }
 
-static void pa11_dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, unsigned long offset, size_t size, enum dma_data_direction direction)
+static void pa11_dma_sync_single_for_device(struct device *dev,
+		dma_addr_t dma_handle, size_t size,
+		enum dma_data_direction direction)
 {
 	BUG_ON(direction == DMA_NONE);
 
-	flush_kernel_dcache_range((unsigned long) phys_to_virt(dma_handle) + offset, size);
+	flush_kernel_dcache_range((unsigned long) phys_to_virt(dma_handle),
+			size);
 }
 
 static void pa11_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sglist, int nents, enum dma_data_direction direction)
@@ -545,31 +562,27 @@ static void pa11_dma_sync_sg_for_device(struct device *dev, struct scatterlist *
 		flush_kernel_vmap_range(sg_virt(sg), sg->length);
 }
 
-struct hppa_dma_ops pcxl_dma_ops = {
+struct dma_map_ops pcxl_dma_ops = {
 	.dma_supported =	pa11_dma_supported,
-	.alloc_consistent =	pa11_dma_alloc_consistent,
-	.alloc_noncoherent =	pa11_dma_alloc_consistent,
-	.free_consistent =	pa11_dma_free_consistent,
-	.map_single =		pa11_dma_map_single,
-	.unmap_single =		pa11_dma_unmap_single,
+	.alloc =		pa11_dma_alloc,
+	.free =			pa11_dma_free,
+	.map_page =		pa11_dma_map_page,
+	.unmap_page =		pa11_dma_unmap_page,
 	.map_sg =		pa11_dma_map_sg,
 	.unmap_sg =		pa11_dma_unmap_sg,
-	.dma_sync_single_for_cpu = pa11_dma_sync_single_for_cpu,
-	.dma_sync_single_for_device = pa11_dma_sync_single_for_device,
-	.dma_sync_sg_for_cpu = pa11_dma_sync_sg_for_cpu,
-	.dma_sync_sg_for_device = pa11_dma_sync_sg_for_device,
+	.sync_single_for_cpu =	pa11_dma_sync_single_for_cpu,
+	.sync_single_for_device = pa11_dma_sync_single_for_device,
+	.sync_sg_for_cpu =	pa11_dma_sync_sg_for_cpu,
+	.sync_sg_for_device =	pa11_dma_sync_sg_for_device,
 };
 
-static void *fail_alloc_consistent(struct device *dev, size_t size,
-				   dma_addr_t *dma_handle, gfp_t flag)
-{
-	return NULL;
-}
-
-static void *pa11_dma_alloc_noncoherent(struct device *dev, size_t size,
-					  dma_addr_t *dma_handle, gfp_t flag)
+static void *pcx_dma_alloc(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t flag, struct dma_attrs *attrs)
 {
 	void *addr;
+
+	if (!dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs))
+		return NULL;
 
 	addr = (void *)__get_free_pages(flag, get_order(size));
 	if (addr)
@@ -578,24 +591,23 @@ static void *pa11_dma_alloc_noncoherent(struct device *dev, size_t size,
 	return addr;
 }
 
-static void pa11_dma_free_noncoherent(struct device *dev, size_t size,
-					void *vaddr, dma_addr_t iova)
+static void pcx_dma_free(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t iova, struct dma_attrs *attrs)
 {
 	free_pages((unsigned long)vaddr, get_order(size));
 	return;
 }
 
-struct hppa_dma_ops pcx_dma_ops = {
+struct dma_map_ops pcx_dma_ops = {
 	.dma_supported =	pa11_dma_supported,
-	.alloc_consistent =	fail_alloc_consistent,
-	.alloc_noncoherent =	pa11_dma_alloc_noncoherent,
-	.free_consistent =	pa11_dma_free_noncoherent,
-	.map_single =		pa11_dma_map_single,
-	.unmap_single =		pa11_dma_unmap_single,
+	.alloc =		pcx_dma_alloc,
+	.free =			pcx_dma_free,
+	.map_page =		pa11_dma_map_page,
+	.unmap_page =		pa11_dma_unmap_page,
 	.map_sg =		pa11_dma_map_sg,
 	.unmap_sg =		pa11_dma_unmap_sg,
-	.dma_sync_single_for_cpu =	pa11_dma_sync_single_for_cpu,
-	.dma_sync_single_for_device =	pa11_dma_sync_single_for_device,
-	.dma_sync_sg_for_cpu =		pa11_dma_sync_sg_for_cpu,
-	.dma_sync_sg_for_device =	pa11_dma_sync_sg_for_device,
+	.sync_single_for_cpu =	pa11_dma_sync_single_for_cpu,
+	.sync_single_for_device = pa11_dma_sync_single_for_device,
+	.sync_sg_for_cpu =	pa11_dma_sync_sg_for_cpu,
+	.sync_sg_for_device =	pa11_dma_sync_sg_for_device,
 };

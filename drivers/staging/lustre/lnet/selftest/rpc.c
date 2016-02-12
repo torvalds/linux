@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -445,15 +445,6 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 }
 
 static int
-srpc_post_active_rqtbuf(lnet_process_id_t peer, int service, void *buf,
-			int len, lnet_handle_md_t *mdh, srpc_event_t *ev)
-{
-	return srpc_post_active_rdma(srpc_serv_portal(service), service,
-				     buf, len, LNET_MD_OP_PUT, peer,
-				     LNET_NID_ANY, mdh, ev);
-}
-
-static int
 srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 			 lnet_handle_md_t *mdh, srpc_event_t *ev)
 {
@@ -798,9 +789,11 @@ srpc_send_request(srpc_client_rpc_t *rpc)
 	ev->ev_data  = rpc;
 	ev->ev_type  = SRPC_REQUEST_SENT;
 
-	rc = srpc_post_active_rqtbuf(rpc->crpc_dest, rpc->crpc_service,
-				     &rpc->crpc_reqstmsg, sizeof(srpc_msg_t),
-				     &rpc->crpc_reqstmdh, ev);
+	 rc = srpc_post_active_rdma(srpc_serv_portal(rpc->crpc_service),
+				    rpc->crpc_service, &rpc->crpc_reqstmsg,
+				    sizeof(srpc_msg_t), LNET_MD_OP_PUT,
+				    rpc->crpc_dest, LNET_NID_ANY,
+				    &rpc->crpc_reqstmdh, ev);
 	if (rc != 0) {
 		LASSERT(rc == -ENOMEM);
 		ev->ev_fired = 1;  /* no more event expected */
@@ -866,7 +859,7 @@ srpc_prepare_bulk(srpc_client_rpc_t *rpc)
 }
 
 static int
-srpc_do_bulk(srpc_server_rpc_t *rpc)
+srpc_do_bulk(struct srpc_server_rpc *rpc)
 {
 	srpc_event_t *ev = &rpc->srpc_ev;
 	srpc_bulk_t *bk = rpc->srpc_bulk;
@@ -894,7 +887,7 @@ srpc_do_bulk(srpc_server_rpc_t *rpc)
 
 /* only called from srpc_handle_rpc */
 static void
-srpc_server_rpc_done(srpc_server_rpc_t *rpc, int status)
+srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 {
 	struct srpc_service_cd *scd = rpc->srpc_scd;
 	struct srpc_service *sv  = scd->scd_svc;
@@ -1404,7 +1397,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 	struct srpc_service_cd *scd;
 	srpc_event_t *rpcev = ev->md.user_ptr;
 	srpc_client_rpc_t *crpc;
-	srpc_server_rpc_t *srpc;
+	struct srpc_server_rpc *srpc;
 	srpc_buffer_t *buffer;
 	srpc_service_t *sv;
 	srpc_msg_t *msg;

@@ -86,10 +86,8 @@ int kvm_mips_trans_mfc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
 	} else {
 		mfc0_inst = LW_TEMPLATE;
 		mfc0_inst |= ((rt & 0x1f) << 16);
-		mfc0_inst |=
-		    offsetof(struct mips_coproc,
-			     reg[rd][sel]) + offsetof(struct kvm_mips_commpage,
-						      cop0);
+		mfc0_inst |= offsetof(struct kvm_mips_commpage,
+				      cop0.reg[rd][sel]);
 	}
 
 	if (KVM_GUEST_KSEGX(opc) == KVM_GUEST_KSEG0) {
@@ -123,9 +121,7 @@ int kvm_mips_trans_mtc0(uint32_t inst, uint32_t *opc, struct kvm_vcpu *vcpu)
 	sel = inst & 0x7;
 
 	mtc0_inst |= ((rt & 0x1f) << 16);
-	mtc0_inst |=
-	    offsetof(struct mips_coproc,
-		     reg[rd][sel]) + offsetof(struct kvm_mips_commpage, cop0);
+	mtc0_inst |= offsetof(struct kvm_mips_commpage, cop0.reg[rd][sel]);
 
 	if (KVM_GUEST_KSEGX(opc) == KVM_GUEST_KSEG0) {
 		kseg0_opc =

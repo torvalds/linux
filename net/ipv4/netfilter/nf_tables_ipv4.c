@@ -78,7 +78,7 @@ err:
 
 static void nf_tables_ipv4_exit_net(struct net *net)
 {
-	nft_unregister_afinfo(net->nft.ipv4);
+	nft_unregister_afinfo(net, net->nft.ipv4);
 	kfree(net->nft.ipv4);
 }
 

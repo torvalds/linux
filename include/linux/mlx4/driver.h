@@ -75,6 +75,11 @@ static inline int mlx4_is_bonded(struct mlx4_dev *dev)
 	return !!(dev->flags & MLX4_FLAG_BONDED);
 }
 
+static inline int mlx4_is_mf_bonded(struct mlx4_dev *dev)
+{
+	return (mlx4_is_bonded(dev) && mlx4_is_mfunc(dev));
+}
+
 struct mlx4_port_map {
 	u8	port1;
 	u8	port2;

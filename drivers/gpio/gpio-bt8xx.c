@@ -80,7 +80,7 @@ MODULE_PARM_DESC(gpiobase, "The GPIO number base. -1 means dynamic, which is the
 
 static int bt8xxgpio_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
-	struct bt8xxgpio *bg = container_of(gpio, struct bt8xxgpio, gpio);
+	struct bt8xxgpio *bg = gpiochip_get_data(gpio);
 	unsigned long flags;
 	u32 outen, data;
 
@@ -101,7 +101,7 @@ static int bt8xxgpio_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 
 static int bt8xxgpio_gpio_get(struct gpio_chip *gpio, unsigned nr)
 {
-	struct bt8xxgpio *bg = container_of(gpio, struct bt8xxgpio, gpio);
+	struct bt8xxgpio *bg = gpiochip_get_data(gpio);
 	unsigned long flags;
 	u32 val;
 
@@ -115,7 +115,7 @@ static int bt8xxgpio_gpio_get(struct gpio_chip *gpio, unsigned nr)
 static int bt8xxgpio_gpio_direction_output(struct gpio_chip *gpio,
 					unsigned nr, int val)
 {
-	struct bt8xxgpio *bg = container_of(gpio, struct bt8xxgpio, gpio);
+	struct bt8xxgpio *bg = gpiochip_get_data(gpio);
 	unsigned long flags;
 	u32 outen, data;
 
@@ -140,7 +140,7 @@ static int bt8xxgpio_gpio_direction_output(struct gpio_chip *gpio,
 static void bt8xxgpio_gpio_set(struct gpio_chip *gpio,
 			    unsigned nr, int val)
 {
-	struct bt8xxgpio *bg = container_of(gpio, struct bt8xxgpio, gpio);
+	struct bt8xxgpio *bg = gpiochip_get_data(gpio);
 	unsigned long flags;
 	u32 data;
 
@@ -217,7 +217,7 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 	bgwrite(0, BT848_GPIO_OUT_EN);
 
 	bt8xxgpio_gpio_setup(bg);
-	err = gpiochip_add(&bg->gpio);
+	err = gpiochip_add_data(&bg->gpio, bg);
 	if (err) {
 		printk(KERN_ERR "bt8xxgpio: Failed to register GPIOs\n");
 		goto err_disable;

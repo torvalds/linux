@@ -3,6 +3,8 @@
 #include <linux/in6.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
+#include <scsi/iser.h>
+
 
 #define DRV_NAME	"isert"
 #define PFX		DRV_NAME ": "
@@ -31,6 +33,38 @@
 #define isert_err(fmt, arg...) \
 	pr_err(PFX "%s: " fmt, __func__ , ## arg)
 
+/* Constant PDU lengths calculations */
+#define ISER_HEADERS_LEN	(sizeof(struct iser_ctrl) + \
+				 sizeof(struct iscsi_hdr))
+#define ISER_RECV_DATA_SEG_LEN	8192
+#define ISER_RX_PAYLOAD_SIZE	(ISER_HEADERS_LEN + ISER_RECV_DATA_SEG_LEN)
+#define ISER_RX_LOGIN_SIZE	(ISER_HEADERS_LEN + ISCSI_DEF_MAX_RECV_SEG_LEN)
+
+/* QP settings */
+/* Maximal bounds on received asynchronous PDUs */
+#define ISERT_MAX_TX_MISC_PDUS	4 /* NOOP_IN(2) , ASYNC_EVENT(2)   */
+
+#define ISERT_MAX_RX_MISC_PDUS	6 /*
+				   * NOOP_OUT(2), TEXT(1),
+				   * SCSI_TMFUNC(2), LOGOUT(1)
+				   */
+
+#define ISCSI_DEF_XMIT_CMDS_MAX 128 /* from libiscsi.h, must be power of 2 */
+
+#define ISERT_QP_MAX_RECV_DTOS	(ISCSI_DEF_XMIT_CMDS_MAX)
+
+#define ISERT_MIN_POSTED_RX	(ISCSI_DEF_XMIT_CMDS_MAX >> 2)
+
+#define ISERT_INFLIGHT_DATAOUTS	8
+
+#define ISERT_QP_MAX_REQ_DTOS	(ISCSI_DEF_XMIT_CMDS_MAX *    \
+				(1 + ISERT_INFLIGHT_DATAOUTS) + \
+				ISERT_MAX_TX_MISC_PDUS	+ \
+				ISERT_MAX_RX_MISC_PDUS)
+
+#define ISER_RX_PAD_SIZE	(ISER_RECV_DATA_SEG_LEN + 4096 - \
+		(ISER_RX_PAYLOAD_SIZE + sizeof(u64) + sizeof(struct ib_sge)))
+
 #define ISCSI_ISER_SG_TABLESIZE		256
 #define ISER_FASTREG_LI_WRID		0xffffffffffffffffULL
 #define ISER_BEACON_WRID               0xfffffffffffffffeULL
@@ -56,7 +90,7 @@ enum iser_conn_state {
 };
 
 struct iser_rx_desc {
-	struct iser_hdr iser_header;
+	struct iser_ctrl iser_header;
 	struct iscsi_hdr iscsi_header;
 	char		data[ISER_RECV_DATA_SEG_LEN];
 	u64		dma_addr;
@@ -65,7 +99,7 @@ struct iser_rx_desc {
 } __packed;
 
 struct iser_tx_desc {
-	struct iser_hdr iser_header;
+	struct iser_ctrl iser_header;
 	struct iscsi_hdr iscsi_header;
 	enum isert_desc_type type;
 	u64		dma_addr;
@@ -129,6 +163,7 @@ struct isert_cmd {
 	uint32_t		write_stag;
 	uint64_t		read_va;
 	uint64_t		write_va;
+	uint32_t		inv_rkey;
 	u64			pdu_buf_dma;
 	u32			pdu_buf_len;
 	struct isert_conn	*conn;
@@ -176,6 +211,7 @@ struct isert_conn {
 	struct work_struct	release_work;
 	struct ib_recv_wr       beacon;
 	bool                    logout_posted;
+	bool                    snd_w_inv;
 };
 
 #define ISERT_MAX_CQ 64
@@ -207,7 +243,6 @@ struct isert_device {
 	struct isert_comp	*comps;
 	int                     comps_used;
 	struct list_head	dev_node;
-	struct ib_device_attr	dev_attr;
 	int			(*reg_rdma_mem)(struct iscsi_conn *conn,
 						    struct iscsi_cmd *cmd,
 						    struct isert_rdma_wr *wr);

@@ -104,8 +104,8 @@
  * The default .clkctrl_offs field is offset from CM_DEFAULT, that's
  * TRM 18.7.6 CM_DEFAULT device register values minus 0x500
  */
-#define DM816X_CM_DEFAULT_OFFSET	0x500
-#define DM816X_CM_DEFAULT_USB_CLKCTRL	(0x558 - DM816X_CM_DEFAULT_OFFSET)
+#define DM81XX_CM_DEFAULT_OFFSET	0x500
+#define DM81XX_CM_DEFAULT_USB_CLKCTRL	(0x558 - DM81XX_CM_DEFAULT_OFFSET)
 
 /* L3 Interconnect entries clocked at 125, 250 and 500MHz */
 static struct omap_hwmod dm81xx_alwon_l3_slow_hwmod = {
@@ -557,22 +557,42 @@ static struct omap_hwmod_class dm81xx_usbotg_class = {
 	.sysc = &dm81xx_usbhsotg_sysc,
 };
 
-static struct omap_hwmod dm81xx_usbss_hwmod = {
+static struct omap_hwmod dm814x_usbss_hwmod = {
 	.name		= "usb_otg_hs",
 	.clkdm_name	= "default_l3_slow_clkdm",
-	.main_clk	= "sysclk6_ck",
+	.main_clk	= "pll260dcoclkldo",	/* 481c5260.adpll.dcoclkldo */
 	.prcm		= {
 		.omap4 = {
-			.clkctrl_offs = DM816X_CM_DEFAULT_USB_CLKCTRL,
+			.clkctrl_offs = DM81XX_CM_DEFAULT_USB_CLKCTRL,
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
 	.class		= &dm81xx_usbotg_class,
 };
 
-static struct omap_hwmod_ocp_if dm81xx_default_l3_slow__usbss = {
+static struct omap_hwmod_ocp_if dm814x_default_l3_slow__usbss = {
 	.master		= &dm81xx_default_l3_slow_hwmod,
-	.slave		= &dm81xx_usbss_hwmod,
+	.slave		= &dm814x_usbss_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod dm816x_usbss_hwmod = {
+	.name		= "usb_otg_hs",
+	.clkdm_name	= "default_l3_slow_clkdm",
+	.main_clk	= "sysclk6_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM81XX_CM_DEFAULT_USB_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.class		= &dm81xx_usbotg_class,
+};
+
+static struct omap_hwmod_ocp_if dm816x_default_l3_slow__usbss = {
+	.master		= &dm81xx_default_l3_slow_hwmod,
+	.slave		= &dm816x_usbss_hwmod,
 	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
@@ -599,7 +619,7 @@ static struct omap_timer_capability_dev_attr capability_alwon_dev_attr = {
 static struct omap_hwmod dm814x_timer1_hwmod = {
 	.name		= "timer1",
 	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "timer_sys_ck",
+	.main_clk	= "timer1_fck",
 	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 	.flags		= HWMOD_NO_IDLEST,
@@ -608,7 +628,7 @@ static struct omap_hwmod dm814x_timer1_hwmod = {
 static struct omap_hwmod_ocp_if dm814x_l4_ls__timer1 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm814x_timer1_hwmod,
-	.clk		= "timer_sys_ck",
+	.clk		= "timer1_fck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -636,7 +656,7 @@ static struct omap_hwmod_ocp_if dm816x_l4_ls__timer1 = {
 static struct omap_hwmod dm814x_timer2_hwmod = {
 	.name		= "timer2",
 	.clkdm_name	= "alwon_l3s_clkdm",
-	.main_clk	= "timer_sys_ck",
+	.main_clk	= "timer2_fck",
 	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 	.flags		= HWMOD_NO_IDLEST,
@@ -645,7 +665,7 @@ static struct omap_hwmod dm814x_timer2_hwmod = {
 static struct omap_hwmod_ocp_if dm814x_l4_ls__timer2 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm814x_timer2_hwmod,
-	.clk		= "timer_sys_ck",
+	.clk		= "timer2_fck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -912,7 +932,7 @@ static struct omap_hwmod_ocp_if dm816x_l4_hs__emac1 = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_class_sysconfig dm816x_mmc_sysc = {
+static struct omap_hwmod_class_sysconfig dm81xx_mmc_sysc = {
 	.rev_offs	= 0x0,
 	.sysc_offs	= 0x110,
 	.syss_offs	= 0x114,
@@ -923,24 +943,94 @@ static struct omap_hwmod_class_sysconfig dm816x_mmc_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-static struct omap_hwmod_class dm816x_mmc_class = {
+static struct omap_hwmod_class dm81xx_mmc_class = {
 	.name = "mmc",
-	.sysc = &dm816x_mmc_sysc,
+	.sysc = &dm81xx_mmc_sysc,
 };
 
-static struct omap_hwmod_opt_clk dm816x_mmc1_opt_clks[] = {
+static struct omap_hwmod_opt_clk dm81xx_mmc_opt_clks[] = {
 	{ .role = "dbck", .clk = "sysclk18_ck", },
 };
 
-static struct omap_hsmmc_dev_attr mmc1_dev_attr = {
-	.flags = OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
+static struct omap_hsmmc_dev_attr mmc_dev_attr = {
+};
+
+static struct omap_hwmod dm814x_mmc1_hwmod = {
+	.name		= "mmc1",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.opt_clks	= dm81xx_mmc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dm81xx_mmc_opt_clks),
+	.main_clk	= "sysclk8_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM814X_CM_ALWON_MMCHS_0_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.dev_attr	= &mmc_dev_attr,
+	.class		= &dm81xx_mmc_class,
+};
+
+static struct omap_hwmod_ocp_if dm814x_l4_ls__mmc1 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm814x_mmc1_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+	.flags		= OMAP_FIREWALL_L4
+};
+
+static struct omap_hwmod dm814x_mmc2_hwmod = {
+	.name		= "mmc2",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.opt_clks	= dm81xx_mmc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dm81xx_mmc_opt_clks),
+	.main_clk	= "sysclk8_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM814X_CM_ALWON_MMCHS_1_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.dev_attr	= &mmc_dev_attr,
+	.class		= &dm81xx_mmc_class,
+};
+
+static struct omap_hwmod_ocp_if dm814x_l4_ls__mmc2 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm814x_mmc2_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+	.flags		= OMAP_FIREWALL_L4
+};
+
+static struct omap_hwmod dm814x_mmc3_hwmod = {
+	.name		= "mmc3",
+	.clkdm_name	= "alwon_l3_med_clkdm",
+	.opt_clks	= dm81xx_mmc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dm81xx_mmc_opt_clks),
+	.main_clk	= "sysclk8_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM814X_CM_ALWON_MMCHS_2_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.dev_attr	= &mmc_dev_attr,
+	.class		= &dm81xx_mmc_class,
+};
+
+static struct omap_hwmod_ocp_if dm814x_alwon_l3_med__mmc3 = {
+	.master		= &dm81xx_alwon_l3_med_hwmod,
+	.slave		= &dm814x_mmc3_hwmod,
+	.clk		= "sysclk4_ck",
+	.user		= OCP_USER_MPU,
 };
 
 static struct omap_hwmod dm816x_mmc1_hwmod = {
 	.name		= "mmc1",
 	.clkdm_name	= "alwon_l3s_clkdm",
-	.opt_clks	= dm816x_mmc1_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(dm816x_mmc1_opt_clks),
+	.opt_clks	= dm81xx_mmc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dm81xx_mmc_opt_clks),
 	.main_clk	= "sysclk10_ck",
 	.prcm		= {
 		.omap4 = {
@@ -948,8 +1038,8 @@ static struct omap_hwmod dm816x_mmc1_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mmc1_dev_attr,
-	.class		= &dm816x_mmc_class,
+	.dev_attr	= &mmc_dev_attr,
+	.class		= &dm81xx_mmc_class,
 };
 
 static struct omap_hwmod_ocp_if dm816x_l4_ls__mmc1 = {
@@ -1033,6 +1123,40 @@ static struct omap_hwmod dm81xx_mailbox_hwmod = {
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__mailbox = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm81xx_mailbox_hwmod,
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_class_sysconfig dm81xx_spinbox_sysc = {
+	.rev_offs	= 0x000,
+	.sysc_offs	= 0x010,
+	.syss_offs	= 0x014,
+	.sysc_flags	= SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
+				SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE,
+	.idlemodes	= SIDLE_FORCE | SIDLE_NO | SIDLE_SMART,
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class dm81xx_spinbox_hwmod_class = {
+	.name = "spinbox",
+	.sysc = &dm81xx_spinbox_sysc,
+};
+
+static struct omap_hwmod dm81xx_spinbox_hwmod = {
+	.name		= "spinbox",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.class		= &dm81xx_spinbox_hwmod_class,
+	.main_clk	= "sysclk6_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM81XX_CM_ALWON_SPINBOX_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+static struct omap_hwmod_ocp_if dm81xx_l4_ls__spinbox = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm81xx_spinbox_hwmod,
 	.user		= OCP_USER_MPU,
 };
 
@@ -1230,11 +1354,7 @@ static struct omap_hwmod_ocp_if dm81xx_tptc3__alwon_l3_fast = {
 
 /*
  * REVISIT: Test and enable the following once clocks work:
- * dm81xx_l4_ls__gpio1
- * dm81xx_l4_ls__gpio2
  * dm81xx_l4_ls__mailbox
- * dm81xx_alwon_l3_slow__gpmc
- * dm81xx_default_l3_slow__usbss
  *
  * Also note that some devices share a single clkctrl_offs..
  * For example, i2c1 and 3 share one, and i2c2 and 4 share one.
@@ -1250,8 +1370,12 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_l4_ls__wd_timer1,
 	&dm81xx_l4_ls__i2c1,
 	&dm81xx_l4_ls__i2c2,
+	&dm81xx_l4_ls__gpio1,
+	&dm81xx_l4_ls__gpio2,
 	&dm81xx_l4_ls__elm,
 	&dm81xx_l4_ls__mcspi1,
+	&dm814x_l4_ls__mmc1,
+	&dm814x_l4_ls__mmc2,
 	&dm81xx_alwon_l3_fast__tpcc,
 	&dm81xx_alwon_l3_fast__tptc0,
 	&dm81xx_alwon_l3_fast__tptc1,
@@ -1265,6 +1389,9 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm814x_l4_ls__timer2,
 	&dm814x_l4_hs__cpgmac0,
 	&dm814x_cpgmac0__mdio,
+	&dm81xx_alwon_l3_slow__gpmc,
+	&dm814x_default_l3_slow__usbss,
+	&dm814x_alwon_l3_med__mmc3,
 	NULL,
 };
 
@@ -1298,6 +1425,7 @@ static struct omap_hwmod_ocp_if *dm816x_hwmod_ocp_ifs[] __initdata = {
 	&dm816x_l4_ls__timer7,
 	&dm81xx_l4_ls__mcspi1,
 	&dm81xx_l4_ls__mailbox,
+	&dm81xx_l4_ls__spinbox,
 	&dm81xx_l4_hs__emac0,
 	&dm81xx_emac0__mdio,
 	&dm816x_l4_hs__emac1,
@@ -1311,7 +1439,7 @@ static struct omap_hwmod_ocp_if *dm816x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_tptc2__alwon_l3_fast,
 	&dm81xx_tptc3__alwon_l3_fast,
 	&dm81xx_alwon_l3_slow__gpmc,
-	&dm81xx_default_l3_slow__usbss,
+	&dm816x_default_l3_slow__usbss,
 	NULL,
 };
 
