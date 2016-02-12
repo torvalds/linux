@@ -22,8 +22,8 @@
  * Shamelessly ripped off from ChromeOS's gk20a/clk_pllg.c
  *
  */
-#define gk20a_clk(p) container_of((p), struct gk20a_clk, base)
 #include "priv.h"
+#include "gk20a.h"
 
 #include <core/tegra.h>
 #include <subdev/timer.h>
@@ -32,9 +32,6 @@
 #define MHZ (KHZ * 1000)
 
 #define MASK(w)	((1 << w) - 1)
-
-#define SYS_GPCPLL_CFG_BASE			0x00137000
-#define GPC_BCASE_GPCPLL_CFG_BASE		0x00132800
 
 #define GPCPLL_CFG		(SYS_GPCPLL_CFG_BASE + 0)
 #define GPCPLL_CFG_ENABLE	BIT(0)
@@ -57,6 +54,7 @@
 #define GPCPLL_CFG3			(SYS_GPCPLL_CFG_BASE + 0x18)
 #define GPCPLL_CFG3_PLL_STEPB_SHIFT	16
 
+#define GPC_BCASE_GPCPLL_CFG_BASE		0x00132800
 #define GPCPLL_NDIV_SLOWDOWN			(SYS_GPCPLL_CFG_BASE + 0x1c)
 #define GPCPLL_NDIV_SLOWDOWN_NDIV_LO_SHIFT	0
 #define GPCPLL_NDIV_SLOWDOWN_NDIV_MID_SHIFT	8
@@ -76,7 +74,7 @@
 #define GPC2CLK_OUT_VCODIV1		0
 #define GPC2CLK_OUT_VCODIV_MASK		(MASK(GPC2CLK_OUT_VCODIV_WIDTH) << \
 					GPC2CLK_OUT_VCODIV_SHIFT)
-#define	GPC2CLK_OUT_BYPDIV_WIDTH	6
+#define GPC2CLK_OUT_BYPDIV_WIDTH	6
 #define GPC2CLK_OUT_BYPDIV_SHIFT	0
 #define GPC2CLK_OUT_BYPDIV31		0x3c
 #define GPC2CLK_OUT_INIT_MASK	((MASK(GPC2CLK_OUT_SDIV14_INDIV4_WIDTH) << \
@@ -98,14 +96,6 @@ static const u8 _pl_to_div[] = {
 /* p: */ 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 12, 16, 20, 24, 32,
 };
 
-/* All frequencies in Khz */
-struct gk20a_clk_pllg_params {
-	u32 min_vco, max_vco;
-	u32 min_u, max_u;
-	u32 min_m, max_m;
-	u32 min_n, max_n;
-	u32 min_pl, max_pl;
-};
 static u32 pl_to_div(u32 pl)
 {
 	if (pl >= ARRAY_SIZE(_pl_to_div))
@@ -132,22 +122,6 @@ static const struct gk20a_clk_pllg_params gk20a_pllg_params = {
 	.min_m = 1, .max_m = 255,
 	.min_n = 8, .max_n = 255,
 	.min_pl = 1, .max_pl = 32,
-};
-
-struct gk20a_pll {
-	u32 m;
-	u32 n;
-	u32 pl;
-};
-
-struct gk20a_clk {
-	struct nvkm_clk base;
-	const struct gk20a_clk_pllg_params *params;
-	struct gk20a_pll pll;
-	u32 parent_rate;
-
-	u32 (*div_to_pl)(u32);
-	u32 (*pl_to_div)(u32);
 };
 
 static void
@@ -472,8 +446,6 @@ gk20a_pllg_program_mnp(struct gk20a_clk *clk)
 	return err;
 }
 
-#define GK20A_CLK_GPC_MDIV 1000
-
 static struct nvkm_pstate
 gk20a_pstates[] = {
 	{
@@ -568,7 +540,7 @@ gk20a_pstates[] = {
 	},
 };
 
-static int
+int
 gk20a_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 {
 	struct gk20a_clk *clk = gk20a_clk(base);
@@ -587,7 +559,7 @@ gk20a_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 	}
 }
 
-static int
+int
 gk20a_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 {
 	struct gk20a_clk *clk = gk20a_clk(base);
@@ -596,7 +568,7 @@ gk20a_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 					 GK20A_CLK_GPC_MDIV);
 }
 
-static int
+int
 gk20a_clk_prog(struct nvkm_clk *base)
 {
 	struct gk20a_clk *clk = gk20a_clk(base);
@@ -604,12 +576,12 @@ gk20a_clk_prog(struct nvkm_clk *base)
 	return gk20a_pllg_program_mnp(clk);
 }
 
-static void
+void
 gk20a_clk_tidy(struct nvkm_clk *base)
 {
 }
 
-static void
+void
 gk20a_clk_fini(struct nvkm_clk *base)
 {
 	struct nvkm_device *device = base->subdev.device;
