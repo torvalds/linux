@@ -136,6 +136,10 @@ static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdat
 
 static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pdata)
 {
+	/* Send disconnect/detach event to SVC */
+	gpio_set_value(arche_pdata->wake_detect_gpio, 0);
+	usleep_range(100, 200);
+
 	clk_disable_unprepare(arche_pdata->svc_ref_clk);
 	/* As part of exit, put APB back in reset state */
 	svc_reset_onoff(arche_pdata->svc_reset_gpio,
