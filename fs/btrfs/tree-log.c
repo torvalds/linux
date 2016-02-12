@@ -4772,6 +4772,42 @@ out_unlock:
 }
 
 /*
+ * Check if we must fallback to a transaction commit when logging an inode.
+ * This must be called after logging the inode and is used only in the context
+ * when fsyncing an inode requires the need to log some other inode - in which
+ * case we can't lock the i_mutex of each other inode we need to log as that
+ * can lead to deadlocks with concurrent fsync against other inodes (as we can
+ * log inodes up or down in the hierarchy) or rename operations for example. So
+ * we take the log_mutex of the inode after we have logged it and then check for
+ * its last_unlink_trans value - this is safe because any task setting
+ * last_unlink_trans must take the log_mutex and it must do this before it does
+ * the actual unlink operation, so if we do this check before a concurrent task
+ * sets last_unlink_trans it means we've logged a consistent version/state of
+ * all the inode items, otherwise we are not sure and must do a transaction
+ * commit (the concurrent task migth have only updated last_unlink_trans before
+ * we logged the inode or it might have also done the unlink).
+ */
+static bool btrfs_must_commit_transaction(struct btrfs_trans_handle *trans,
+					  struct inode *inode)
+{
+	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+	bool ret = false;
+
+	mutex_lock(&BTRFS_I(inode)->log_mutex);
+	if (BTRFS_I(inode)->last_unlink_trans > fs_info->last_trans_committed) {
+		/*
+		 * Make sure any commits to the log are forced to be full
+		 * commits.
+		 */
+		btrfs_set_log_full_commit(fs_info, trans);
+		ret = true;
+	}
+	mutex_unlock(&BTRFS_I(inode)->log_mutex);
+
+	return ret;
+}
+
+/*
  * follow the dentry parent pointers up the chain and see if any
  * of the directories in it require a full commit before they can
  * be logged.  Returns zero if nothing special needs to be done or 1 if
@@ -4784,7 +4820,6 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 					       u64 last_committed)
 {
 	int ret = 0;
-	struct btrfs_root *root;
 	struct dentry *old_parent = NULL;
 	struct inode *orig_inode = inode;
 
@@ -4816,14 +4851,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 			BTRFS_I(inode)->logged_trans = trans->transid;
 		smp_mb();
 
-		if (BTRFS_I(inode)->last_unlink_trans > last_committed) {
-			root = BTRFS_I(inode)->root;
-
-			/*
-			 * make sure any commits to the log are forced
-			 * to be full commits
-			 */
-			btrfs_set_log_full_commit(root->fs_info, trans);
+		if (btrfs_must_commit_transaction(trans, inode)) {
 			ret = 1;
 			break;
 		}
@@ -4982,6 +5010,9 @@ process_leaf:
 			btrfs_release_path(path);
 			ret = btrfs_log_inode(trans, root, di_inode,
 					      log_mode, 0, LLONG_MAX, ctx);
+			if (!ret &&
+			    btrfs_must_commit_transaction(trans, di_inode))
+				ret = 1;
 			iput(di_inode);
 			if (ret)
 				goto next_dir_inode;
@@ -5096,6 +5127,9 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 
 			ret = btrfs_log_inode(trans, root, dir_inode,
 					      LOG_INODE_ALL, 0, LLONG_MAX, ctx);
+			if (!ret &&
+			    btrfs_must_commit_transaction(trans, dir_inode))
+				ret = 1;
 			iput(dir_inode);
 			if (ret)
 				goto out;
@@ -5447,6 +5481,9 @@ error:
  * They revolve around files there were unlinked from the directory, and
  * this function updates the parent directory so that a full commit is
  * properly done if it is fsync'd later after the unlinks are done.
+ *
+ * Must be called before the unlink operations (updates to the subvolume tree,
+ * inodes, etc) are done.
  */
 void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 			     struct inode *dir, struct inode *inode,
@@ -5462,8 +5499,11 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	 * into the file.  When the file is logged we check it and
 	 * don't log the parents if the file is fully on disk.
 	 */
-	if (S_ISREG(inode->i_mode))
+	if (S_ISREG(inode->i_mode)) {
+		mutex_lock(&BTRFS_I(inode)->log_mutex);
 		BTRFS_I(inode)->last_unlink_trans = trans->transid;
+		mutex_unlock(&BTRFS_I(inode)->log_mutex);
+	}
 
 	/*
 	 * if this directory was already logged any new
@@ -5494,7 +5534,9 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	return;
 
 record:
+	mutex_lock(&BTRFS_I(dir)->log_mutex);
 	BTRFS_I(dir)->last_unlink_trans = trans->transid;
+	mutex_unlock(&BTRFS_I(dir)->log_mutex);
 }
 
 /*
@@ -5505,11 +5547,16 @@ record:
  * corresponding to the deleted snapshot's root, which could lead to replaying
  * it after replaying the log tree of the parent directory (which would replay
  * the snapshot delete operation).
+ *
+ * Must be called before the actual snapshot destroy operation (updates to the
+ * parent root and tree of tree roots trees, etc) are done.
  */
 void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 				   struct inode *dir)
 {
+	mutex_lock(&BTRFS_I(dir)->log_mutex);
 	BTRFS_I(dir)->last_unlink_trans = trans->transid;
+	mutex_unlock(&BTRFS_I(dir)->log_mutex);
 }
 
 /*
