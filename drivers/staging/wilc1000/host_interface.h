@@ -205,7 +205,7 @@ struct user_scan_req {
 struct user_conn_req {
 	u8 *bssid;
 	u8 *ssid;
-	u8 u8security;
+	u8 security;
 	enum AUTHTYPE auth_type;
 	size_t ssid_len;
 	u8 *ies;

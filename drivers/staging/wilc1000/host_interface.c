@@ -986,7 +986,7 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 		       pstrHostIFconnectAttr->ies_len);
 	}
 
-	hif_drv->usr_conn_req.u8security = pstrHostIFconnectAttr->security;
+	hif_drv->usr_conn_req.security = pstrHostIFconnectAttr->security;
 	hif_drv->usr_conn_req.auth_type = pstrHostIFconnectAttr->auth_type;
 	hif_drv->usr_conn_req.conn_result = pstrHostIFconnectAttr->result;
 	hif_drv->usr_conn_req.arg = pstrHostIFconnectAttr->arg;
@@ -1026,11 +1026,11 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 	strWIDList[u32WidsCount].id = (u16)WID_11I_MODE;
 	strWIDList[u32WidsCount].type = WID_CHAR;
 	strWIDList[u32WidsCount].size = sizeof(char);
-	strWIDList[u32WidsCount].val = (s8 *)&hif_drv->usr_conn_req.u8security;
+	strWIDList[u32WidsCount].val = (s8 *)&hif_drv->usr_conn_req.security;
 	u32WidsCount++;
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7))
-		mode_11i = hif_drv->usr_conn_req.u8security;
+		mode_11i = hif_drv->usr_conn_req.security;
 
 	strWIDList[u32WidsCount].id = (u16)WID_AUTH_TYPE;
 	strWIDList[u32WidsCount].type = WID_CHAR;
