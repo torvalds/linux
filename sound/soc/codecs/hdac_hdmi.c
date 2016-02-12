@@ -34,6 +34,9 @@
 
 #define HDA_MAX_CONNECTIONS     32
 
+#define ELD_MAX_SIZE    256
+#define ELD_FIXED_BYTES	20
+
 struct hdac_hdmi_cvt_params {
 	unsigned int channels_min;
 	unsigned int channels_max;
@@ -48,11 +51,22 @@ struct hdac_hdmi_cvt {
 	struct hdac_hdmi_cvt_params params;
 };
 
+struct hdac_hdmi_eld {
+	bool	monitor_present;
+	bool	eld_valid;
+	int	eld_size;
+	char    eld_buffer[ELD_MAX_SIZE];
+};
+
 struct hdac_hdmi_pin {
 	struct list_head head;
 	hda_nid_t nid;
 	int num_mux_nids;
 	hda_nid_t mux_nids[HDA_MAX_CONNECTIONS];
+	struct hdac_hdmi_eld eld;
+	struct hdac_ext_device *edev;
+	int repoll_count;
+	struct delayed_work work;
 };
 
 struct hdac_hdmi_dai_pin_map {
@@ -74,6 +88,80 @@ static inline struct hdac_ext_device *to_hda_ext_device(struct device *dev)
 	struct hdac_device *hdac = dev_to_hdac_dev(dev);
 
 	return to_ehdac_device(hdac);
+}
+
+ /* HDMI ELD routines */
+static unsigned int hdac_hdmi_get_eld_data(struct hdac_device *codec,
+				hda_nid_t nid, int byte_index)
+{
+	unsigned int val;
+
+	val = snd_hdac_codec_read(codec, nid, 0, AC_VERB_GET_HDMI_ELDD,
+							byte_index);
+
+	dev_dbg(&codec->dev, "HDMI: ELD data byte %d: 0x%x\n",
+					byte_index, val);
+
+	return val;
+}
+
+static int hdac_hdmi_get_eld_size(struct hdac_device *codec, hda_nid_t nid)
+{
+	return snd_hdac_codec_read(codec, nid, 0, AC_VERB_GET_HDMI_DIP_SIZE,
+						 AC_DIPSIZE_ELD_BUF);
+}
+
+/*
+ * This function queries the ELD size and ELD data and fills in the buffer
+ * passed by user
+ */
+static int hdac_hdmi_get_eld(struct hdac_device *codec, hda_nid_t nid,
+			     unsigned char *buf, int *eld_size)
+{
+	int i, size, ret = 0;
+
+	/*
+	 * ELD size is initialized to zero in caller function. If no errors and
+	 * ELD is valid, actual eld_size is assigned.
+	 */
+
+	size = hdac_hdmi_get_eld_size(codec, nid);
+	if (size < ELD_FIXED_BYTES || size > ELD_MAX_SIZE) {
+		dev_err(&codec->dev, "HDMI: invalid ELD buf size %d\n", size);
+		return -ERANGE;
+	}
+
+	/* set ELD buffer */
+	for (i = 0; i < size; i++) {
+		unsigned int val = hdac_hdmi_get_eld_data(codec, nid, i);
+		/*
+		 * Graphics driver might be writing to ELD buffer right now.
+		 * Just abort. The caller will repoll after a while.
+		 */
+		if (!(val & AC_ELDD_ELD_VALID)) {
+			dev_err(&codec->dev,
+				"HDMI: invalid ELD data byte %d\n", i);
+			ret = -EINVAL;
+			goto error;
+		}
+		val &= AC_ELDD_ELD_DATA;
+		/*
+		 * The first byte cannot be zero. This can happen on some DVI
+		 * connections. Some Intel chips may also need some 250ms delay
+		 * to return non-zero ELD data, even when the graphics driver
+		 * correctly writes ELD content before setting ELD_valid bit.
+		 */
+		if (!val && !i) {
+			dev_err(&codec->dev, "HDMI: 0 ELD data\n");
+			ret = -EINVAL;
+			goto error;
+		}
+		buf[i] = val;
+	}
+
+	*eld_size = size;
+error:
+	return ret;
 }
 
 static int hdac_hdmi_setup_stream(struct hdac_ext_device *hdac,
@@ -246,7 +334,6 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 	struct hdac_ext_device *hdac = snd_soc_dai_get_drvdata(dai);
 	struct hdac_hdmi_priv *hdmi = hdac->private_data;
 	struct hdac_hdmi_dai_pin_map *dai_map;
-	int val;
 
 	if (dai->id > 0) {
 		dev_err(&hdac->hdac.dev, "Only one dai supported as of now\n");
@@ -255,12 +342,14 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 
 	dai_map = &hdmi->dai_map[dai->id];
 
-	val = snd_hdac_codec_read(&hdac->hdac, dai_map->pin->nid, 0,
-					AC_VERB_GET_PIN_SENSE, 0);
-	dev_info(&hdac->hdac.dev, "Val for AC_VERB_GET_PIN_SENSE: %x\n", val);
+	if ((!dai_map->pin->eld.monitor_present) ||
+			(!dai_map->pin->eld.eld_valid)) {
 
-	if ((!(val & AC_PINSENSE_PRESENCE)) || (!(val & AC_PINSENSE_ELDV))) {
-		dev_err(&hdac->hdac.dev, "Monitor presence invalid with val: %x\n", val);
+		dev_err(&hdac->hdac.dev,
+				"Failed: montior present? %d ELD valid?: %d\n",
+				dai_map->pin->eld.monitor_present,
+				dai_map->pin->eld.eld_valid);
+
 		return -ENODEV;
 	}
 
@@ -410,6 +499,71 @@ static int hdac_hdmi_add_cvt(struct hdac_ext_device *edev, hda_nid_t nid)
 	return hdac_hdmi_query_cvt_params(&edev->hdac, cvt);
 }
 
+static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin, int repoll)
+{
+	struct hdac_ext_device *edev = pin->edev;
+	int val;
+
+	if (!edev)
+		return;
+
+	pin->repoll_count = repoll;
+
+	pm_runtime_get_sync(&edev->hdac.dev);
+	val = snd_hdac_codec_read(&edev->hdac, pin->nid, 0,
+					AC_VERB_GET_PIN_SENSE, 0);
+
+	dev_dbg(&edev->hdac.dev, "Pin sense val %x for pin: %d\n",
+						val, pin->nid);
+
+	pin->eld.monitor_present = !!(val & AC_PINSENSE_PRESENCE);
+	pin->eld.eld_valid = !!(val & AC_PINSENSE_ELDV);
+
+	if (!pin->eld.monitor_present || !pin->eld.eld_valid) {
+
+		dev_dbg(&edev->hdac.dev, "%s: disconnect for pin %d\n",
+						__func__, pin->nid);
+		goto put_hdac_device;
+	}
+
+	if (pin->eld.monitor_present && pin->eld.eld_valid) {
+		/* TODO: use i915 component for reading ELD later */
+		if (hdac_hdmi_get_eld(&edev->hdac, pin->nid,
+				pin->eld.eld_buffer,
+				&pin->eld.eld_size) == 0) {
+
+			print_hex_dump_bytes("ELD: ", DUMP_PREFIX_OFFSET,
+					pin->eld.eld_buffer, pin->eld.eld_size);
+		} else {
+			pin->eld.monitor_present = false;
+			pin->eld.eld_valid = false;
+		}
+	}
+
+	/*
+	 * Sometimes the pin_sense may present invalid monitor
+	 * present and eld_valid. If ELD data is not valid, loop few
+	 * more times to get correct pin sense and valid ELD.
+	 */
+	if ((!pin->eld.monitor_present || !pin->eld.eld_valid) && repoll)
+		schedule_delayed_work(&pin->work, msecs_to_jiffies(300));
+
+put_hdac_device:
+	pm_runtime_put_sync(&edev->hdac.dev);
+}
+
+static void hdac_hdmi_repoll_eld(struct work_struct *work)
+{
+	struct hdac_hdmi_pin *pin =
+		container_of(to_delayed_work(work), struct hdac_hdmi_pin, work);
+
+	/* picked from legacy HDA driver */
+	if (pin->repoll_count++ > 6)
+		pin->repoll_count = 0;
+
+	hdac_hdmi_present_sense(pin, pin->repoll_count);
+}
+
 static int hdac_hdmi_add_pin(struct hdac_ext_device *edev, hda_nid_t nid)
 {
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
@@ -423,6 +577,9 @@ static int hdac_hdmi_add_pin(struct hdac_ext_device *edev, hda_nid_t nid)
 
 	list_add_tail(&pin->head, &hdmi->pin_list);
 	hdmi->num_pin++;
+
+	pin->edev = edev;
+	INIT_DELAYED_WORK(&pin->work, hdac_hdmi_repoll_eld);
 
 	return 0;
 }
@@ -482,16 +639,64 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev)
 	return hdac_hdmi_init_dai_map(edev);
 }
 
+static void hdac_hdmi_eld_notify_cb(void *aptr, int port)
+{
+	struct hdac_ext_device *edev = aptr;
+	struct hdac_hdmi_priv *hdmi = edev->private_data;
+	struct hdac_hdmi_pin *pin;
+	struct snd_soc_codec *codec = edev->scodec;
+
+	/* Don't know how this mapping is derived */
+	hda_nid_t pin_nid = port + 0x04;
+
+	dev_dbg(&edev->hdac.dev, "%s: for pin: %d\n", __func__, pin_nid);
+
+	/*
+	 * skip notification during system suspend (but not in runtime PM);
+	 * the state will be updated at resume. Also since the ELD and
+	 * connection states are updated in anyway at the end of the resume,
+	 * we can skip it when received during PM process.
+	 */
+	if (snd_power_get_state(codec->component.card->snd_card) !=
+			SNDRV_CTL_POWER_D0)
+		return;
+
+	if (atomic_read(&edev->hdac.in_pm))
+		return;
+
+	list_for_each_entry(pin, &hdmi->pin_list, head) {
+		if (pin->nid == pin_nid)
+			hdac_hdmi_present_sense(pin, 1);
+	}
+}
+
+static struct i915_audio_component_audio_ops aops = {
+	.pin_eld_notify	= hdac_hdmi_eld_notify_cb,
+};
+
 static int hdmi_codec_probe(struct snd_soc_codec *codec)
 {
 	struct hdac_ext_device *edev = snd_soc_codec_get_drvdata(codec);
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_component_get_dapm(&codec->component);
+	struct hdac_hdmi_pin *pin;
+	int ret;
 
 	edev->scodec = codec;
 
 	create_fill_widget_route_map(dapm, &hdmi->dai_map[0]);
+
+	aops.audio_ptr = edev;
+	ret = snd_hdac_i915_register_notifier(&aops);
+	if (ret < 0) {
+		dev_err(&edev->hdac.dev, "notifier register failed: err: %d\n",
+				ret);
+		return ret;
+	}
+
+	list_for_each_entry(pin, &hdmi->pin_list, head)
+		hdac_hdmi_present_sense(pin, 1);
 
 	/* Imp: Store the card pointer in hda_codec */
 	edev->card = dapm->card->snd_card;
