@@ -204,6 +204,7 @@ static const struct of_device_id max77686_pmic_dt_match[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(of, max77686_pmic_dt_match);
 
 static int max77686_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
