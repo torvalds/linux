@@ -104,6 +104,32 @@ static void unexport_gpios(struct arche_platform_drvdata *arche_pdata)
 	gpio_unexport(arche_pdata->svc_sysboot_gpio);
 }
 
+static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
+{
+	int ret;
+
+	dev_info(arche_pdata->dev, "Booting from cold boot state\n");
+
+	svc_reset_onoff(arche_pdata->svc_reset_gpio,
+			arche_pdata->is_reset_act_hi);
+
+	gpio_set_value(arche_pdata->svc_sysboot_gpio, 0);
+	usleep_range(100, 200);
+
+	ret = clk_prepare_enable(arche_pdata->svc_ref_clk);
+	if (ret) {
+		dev_err(arche_pdata->dev, "failed to enable svc_ref_clk: %d\n",
+				ret);
+		return ret;
+	}
+
+	/* bring SVC out of reset */
+	svc_reset_onoff(arche_pdata->svc_reset_gpio,
+			!arche_pdata->is_reset_act_hi);
+
+	return 0;
+}
+
 static void arche_platform_cleanup(struct arche_platform_drvdata *arche_pdata)
 {
 	clk_disable_unprepare(arche_pdata->svc_ref_clk);
@@ -185,11 +211,6 @@ static int arche_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get svc_ref_clk: %d\n", ret);
 		return ret;
 	}
-	ret = clk_prepare_enable(arche_pdata->svc_ref_clk);
-	if (ret) {
-		dev_err(dev, "failed to enable svc_ref_clk: %d\n", ret);
-		return ret;
-	}
 
 	platform_set_drvdata(pdev, arche_pdata);
 
@@ -200,34 +221,32 @@ static int arche_platform_probe(struct platform_device *pdev)
 	if (arche_pdata->wake_detect_gpio < 0) {
 		dev_err(dev, "failed to get wake detect gpio\n");
 		ret = arche_pdata->wake_detect_gpio;
-		goto exit;
+		return ret;
 	}
 
 	ret = devm_gpio_request(dev, arche_pdata->wake_detect_gpio, "wake detect");
 	if (ret) {
 		dev_err(dev, "Failed requesting wake_detect gpio %d\n",
 				arche_pdata->wake_detect_gpio);
-		goto exit;
+		return ret;
 	}
 	/* deassert wake detect */
 	gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
-
-	/* bring SVC out of reset */
-	svc_reset_onoff(arche_pdata->svc_reset_gpio,
-			!arche_pdata->is_reset_act_hi);
 
 	arche_pdata->dev = &pdev->dev;
 	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
 	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 
+	ret = arche_platform_coldboot_seq(arche_pdata);
+	if (ret) {
+		dev_err(dev, "Failed to cold boot svc %d\n", ret);
+		return ret;
+	}
+
 	export_gpios(arche_pdata);
 
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
-
-exit:
-	arche_platform_cleanup(arche_pdata);
-	return ret;
 }
 
 static int arche_remove_child(struct device *dev, void *unused)
