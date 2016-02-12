@@ -38,7 +38,7 @@ struct i915_params i915 __read_mostly = {
 	.enable_execlists = -1,
 	.enable_hangcheck = true,
 	.enable_ppgtt = -1,
-	.enable_psr = 0,
+	.enable_psr = -1,
 	.preliminary_hw_support = IS_ENABLED(CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT),
 	.disable_power_well = -1,
 	.enable_ips = 1,
@@ -128,7 +128,8 @@ MODULE_PARM_DESC(enable_execlists,
 
 module_param_named_unsafe(enable_psr, i915.enable_psr, int, 0600);
 MODULE_PARM_DESC(enable_psr, "Enable PSR "
-		 "(0=disabled [default], 1=enabled - link mode chosen per-platform, 2=force link-standby mode, 3=force link-off mode)");
+		 "(0=disabled, 1=enabled - link mode chosen per-platform, 2=force link-standby mode, 3=force link-off mode) "
+		 "Default: -1 (use per-chip default)");
 
 module_param_named_unsafe(preliminary_hw_support, i915.preliminary_hw_support, int, 0600);
 MODULE_PARM_DESC(preliminary_hw_support,
