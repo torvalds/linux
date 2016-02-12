@@ -94,11 +94,11 @@ struct sfw_test_instance;
 #define SRPC_RDMA_PORTAL              52
 
 static inline srpc_msg_type_t
-srpc_service2request (int service)
+srpc_service2request(int service)
 {
 	switch (service) {
 	default:
-		LBUG ();
+		LBUG();
 	case SRPC_SERVICE_DEBUG:
 		return SRPC_MSG_DEBUG_REQST;
 
@@ -129,7 +129,7 @@ srpc_service2request (int service)
 }
 
 static inline srpc_msg_type_t
-srpc_service2reply (int service)
+srpc_service2reply(int service)
 {
 	return srpc_service2request(service) + 1;
 }
@@ -427,7 +427,7 @@ void sfw_free_pages(struct srpc_server_rpc *rpc);
 void sfw_add_bulk_page(srpc_bulk_t *bk, struct page *pg, int i);
 int sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,
 		    int sink);
-int sfw_make_session (srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply);
+int sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply);
 
 srpc_client_rpc_t *
 srpc_create_client_rpc(lnet_process_id_t peer, int service,
@@ -502,7 +502,7 @@ void sfw_shutdown(void);
 void srpc_shutdown(void);
 
 static inline void
-srpc_destroy_client_rpc (srpc_client_rpc_t *rpc)
+srpc_destroy_client_rpc(srpc_client_rpc_t *rpc)
 {
 	LASSERT(rpc != NULL);
 	LASSERT(!srpc_event_pending(rpc));
@@ -518,10 +518,10 @@ srpc_destroy_client_rpc (srpc_client_rpc_t *rpc)
 }
 
 static inline void
-srpc_init_client_rpc (srpc_client_rpc_t *rpc, lnet_process_id_t peer,
-		      int service, int nbulkiov, int bulklen,
-		      void (*rpc_done)(srpc_client_rpc_t *),
-		      void (*rpc_fini)(srpc_client_rpc_t *), void *priv)
+srpc_init_client_rpc(srpc_client_rpc_t *rpc, lnet_process_id_t peer,
+		     int service, int nbulkiov, int bulklen,
+		     void (*rpc_done)(srpc_client_rpc_t *),
+		     void (*rpc_fini)(srpc_client_rpc_t *), void *priv)
 {
 	LASSERT(nbulkiov <= LNET_MAX_IOV);
 
@@ -557,7 +557,7 @@ srpc_init_client_rpc (srpc_client_rpc_t *rpc, lnet_process_id_t peer,
 }
 
 static inline const char *
-swi_state2str (int state)
+swi_state2str(int state)
 {
 #define STATE2STR(x) case x: return #x
 	switch (state) {
@@ -604,9 +604,9 @@ srpc_wait_service_shutdown(srpc_service_t *sv)
 
 	while (srpc_finish_service(sv) == 0) {
 		i++;
-		CDEBUG (((i & -i) == i) ? D_WARNING : D_NET,
-			"Waiting for %s service to shutdown...\n",
-			sv->sv_name);
+		CDEBUG(((i & -i) == i) ? D_WARNING : D_NET,
+		       "Waiting for %s service to shutdown...\n",
+		       sv->sv_name);
 		selftest_wait_events();
 	}
 }

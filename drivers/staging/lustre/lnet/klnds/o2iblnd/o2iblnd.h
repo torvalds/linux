@@ -967,7 +967,7 @@ void kiblnd_queue_tx(kib_tx_t *tx, kib_conn_t *conn);
 void kiblnd_init_tx_msg(lnet_ni_t *ni, kib_tx_t *tx, int type, int body_nob);
 void kiblnd_txlist_done(lnet_ni_t *ni, struct list_head *txlist,
 			int status);
-void kiblnd_check_sends (kib_conn_t *conn);
+void kiblnd_check_sends(kib_conn_t *conn);
 
 void kiblnd_qp_event(struct ib_event *event, void *arg);
 void kiblnd_cq_event(struct ib_event *event, void *arg);

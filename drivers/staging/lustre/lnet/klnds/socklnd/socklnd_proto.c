@@ -472,9 +472,9 @@ ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	 * Re-organize V2.x message header to V1.x (lnet_hdr_t)
 	 * header and send out
 	 */
-	hmv->magic         = cpu_to_le32 (LNET_PROTO_TCP_MAGIC);
-	hmv->version_major = cpu_to_le16 (KSOCK_PROTO_V1_MAJOR);
-	hmv->version_minor = cpu_to_le16 (KSOCK_PROTO_V1_MINOR);
+	hmv->magic         = cpu_to_le32(LNET_PROTO_TCP_MAGIC);
+	hmv->version_major = cpu_to_le16(KSOCK_PROTO_V1_MAJOR);
+	hmv->version_minor = cpu_to_le16(KSOCK_PROTO_V1_MINOR);
 
 	if (the_lnet.ln_testprotocompat != 0) {
 		/* single-shot proto check */
@@ -490,12 +490,12 @@ ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 		LNET_UNLOCK();
 	}
 
-	hdr->src_nid = cpu_to_le64 (hello->kshm_src_nid);
-	hdr->src_pid = cpu_to_le32 (hello->kshm_src_pid);
-	hdr->type = cpu_to_le32 (LNET_MSG_HELLO);
-	hdr->payload_length = cpu_to_le32 (hello->kshm_nips * sizeof(__u32));
-	hdr->msg.hello.type = cpu_to_le32 (hello->kshm_ctype);
-	hdr->msg.hello.incarnation = cpu_to_le64 (hello->kshm_src_incarnation);
+	hdr->src_nid = cpu_to_le64(hello->kshm_src_nid);
+	hdr->src_pid = cpu_to_le32(hello->kshm_src_pid);
+	hdr->type = cpu_to_le32(LNET_MSG_HELLO);
+	hdr->payload_length = cpu_to_le32(hello->kshm_nips * sizeof(__u32));
+	hdr->msg.hello.type = cpu_to_le32(hello->kshm_ctype);
+	hdr->msg.hello.incarnation = cpu_to_le64(hello->kshm_src_incarnation);
 
 	rc = lnet_sock_write(sock, hdr, sizeof(*hdr), lnet_acceptor_timeout());
 	if (rc != 0) {
@@ -508,7 +508,7 @@ ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 		goto out;
 
 	for (i = 0; i < (int) hello->kshm_nips; i++) {
-		hello->kshm_ips[i] = __cpu_to_le32 (hello->kshm_ips[i]);
+		hello->kshm_ips[i] = __cpu_to_le32(hello->kshm_ips[i]);
 	}
 
 	rc = lnet_sock_write(sock, hello->kshm_ips,
@@ -593,7 +593,7 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 	}
 
 	/* ...and check we got what we expected */
-	if (hdr->type != cpu_to_le32 (LNET_MSG_HELLO)) {
+	if (hdr->type != cpu_to_le32(LNET_MSG_HELLO)) {
 		CERROR("Expecting a HELLO hdr, but got type %d from %pI4h\n",
 		       le32_to_cpu(hdr->type),
 		       &conn->ksnc_ipaddr);
