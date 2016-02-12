@@ -43,9 +43,6 @@
 #include "gca/gfx_8_0_sh_mask.h"
 #include "gca/gfx_8_0_enum.h"
 
-#include "uvd/uvd_5_0_d.h"
-#include "uvd/uvd_5_0_sh_mask.h"
-
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
 
@@ -2695,9 +2692,6 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	WREG32(mmGB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmHDP_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmDMIF_ADDR_CALC, adev->gfx.config.gb_addr_config);
-	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
-	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
-	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 
 	gfx_v8_0_tiling_mode_table_init(adev);
 
@@ -3955,12 +3949,6 @@ static void gfx_v8_0_print_status(void *handle)
 		 RREG32(mmHDP_ADDR_CONFIG));
 	dev_info(adev->dev, "  DMIF_ADDR_CALC=0x%08X\n",
 		 RREG32(mmDMIF_ADDR_CALC));
-	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DB_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DBW_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DBW_ADDR_CONFIG));
 
 	dev_info(adev->dev, "  CP_MEQ_THRESHOLDS=0x%08X\n",
 		 RREG32(mmCP_MEQ_THRESHOLDS));

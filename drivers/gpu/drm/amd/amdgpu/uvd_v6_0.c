@@ -277,6 +277,10 @@ static void uvd_v6_0_mc_resume(struct amdgpu_device *adev)
 	size = AMDGPU_UVD_HEAP_SIZE;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET2, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE2, size);
+
+	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 }
 
 static void cz_set_uvd_clock_gating_branches(struct amdgpu_device *adev,
@@ -947,6 +951,12 @@ static void uvd_v6_0_print_status(void *handle)
 		 RREG32(mmUVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL));
 	dev_info(adev->dev, "  UVD_CONTEXT_ID=0x%08X\n",
 		 RREG32(mmUVD_CONTEXT_ID));
+	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
+	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_DB_ADDR_CONFIG));
+	dev_info(adev->dev, "  UVD_UDEC_DBW_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_DBW_ADDR_CONFIG));
 }
 
 static int uvd_v6_0_set_interrupt_state(struct amdgpu_device *adev,
