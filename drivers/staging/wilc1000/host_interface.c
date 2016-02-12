@@ -971,11 +971,11 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 
 	hif_drv->usr_conn_req.ssid_len = pstrHostIFconnectAttr->ssid_len;
 	if (pstrHostIFconnectAttr->ssid) {
-		hif_drv->usr_conn_req.pu8ssid = kmalloc(pstrHostIFconnectAttr->ssid_len + 1, GFP_KERNEL);
-		memcpy(hif_drv->usr_conn_req.pu8ssid,
+		hif_drv->usr_conn_req.ssid = kmalloc(pstrHostIFconnectAttr->ssid_len + 1, GFP_KERNEL);
+		memcpy(hif_drv->usr_conn_req.ssid,
 		       pstrHostIFconnectAttr->ssid,
 		       pstrHostIFconnectAttr->ssid_len);
-		hif_drv->usr_conn_req.pu8ssid[pstrHostIFconnectAttr->ssid_len] = '\0';
+		hif_drv->usr_conn_req.ssid[pstrHostIFconnectAttr->ssid_len] = '\0';
 	}
 
 	hif_drv->usr_conn_req.ies_len = pstrHostIFconnectAttr->ies_len;
@@ -1307,8 +1307,8 @@ static s32 Handle_ConnectTimeout(struct wilc_vif *vif)
 		PRINT_ER("Failed to send dissconect config packet\n");
 
 	hif_drv->usr_conn_req.ssid_len = 0;
-	kfree(hif_drv->usr_conn_req.pu8ssid);
-	hif_drv->usr_conn_req.pu8ssid = NULL;
+	kfree(hif_drv->usr_conn_req.ssid);
+	hif_drv->usr_conn_req.ssid = NULL;
 	kfree(hif_drv->usr_conn_req.bssid);
 	hif_drv->usr_conn_req.bssid = NULL;
 	hif_drv->usr_conn_req.ies_len = 0;
@@ -1548,8 +1548,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 			kfree(strConnectInfo.pu8ReqIEs);
 			strConnectInfo.pu8ReqIEs = NULL;
 			hif_drv->usr_conn_req.ssid_len = 0;
-			kfree(hif_drv->usr_conn_req.pu8ssid);
-			hif_drv->usr_conn_req.pu8ssid = NULL;
+			kfree(hif_drv->usr_conn_req.ssid);
+			hif_drv->usr_conn_req.ssid = NULL;
 			kfree(hif_drv->usr_conn_req.bssid);
 			hif_drv->usr_conn_req.bssid = NULL;
 			hif_drv->usr_conn_req.ies_len = 0;
@@ -1584,8 +1584,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 			eth_zero_addr(hif_drv->assoc_bssid);
 
 			hif_drv->usr_conn_req.ssid_len = 0;
-			kfree(hif_drv->usr_conn_req.pu8ssid);
-			hif_drv->usr_conn_req.pu8ssid = NULL;
+			kfree(hif_drv->usr_conn_req.ssid);
+			hif_drv->usr_conn_req.ssid = NULL;
 			kfree(hif_drv->usr_conn_req.bssid);
 			hif_drv->usr_conn_req.bssid = NULL;
 			hif_drv->usr_conn_req.ies_len = 0;
@@ -1942,8 +1942,8 @@ static void Handle_Disconnect(struct wilc_vif *vif)
 		eth_zero_addr(hif_drv->assoc_bssid);
 
 		hif_drv->usr_conn_req.ssid_len = 0;
-		kfree(hif_drv->usr_conn_req.pu8ssid);
-		hif_drv->usr_conn_req.pu8ssid = NULL;
+		kfree(hif_drv->usr_conn_req.ssid);
+		hif_drv->usr_conn_req.ssid = NULL;
 		kfree(hif_drv->usr_conn_req.bssid);
 		hif_drv->usr_conn_req.bssid = NULL;
 		hif_drv->usr_conn_req.ies_len = 0;
