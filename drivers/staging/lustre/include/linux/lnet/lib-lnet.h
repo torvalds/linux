@@ -681,7 +681,8 @@ void lnet_debug_peer(lnet_nid_t nid);
 static inline void
 lnet_peer_set_alive(lnet_peer_t *lp)
 {
-	lp->lp_last_alive = lp->lp_last_query = jiffies;
+	lp->lp_last_query = jiffies;
+	lp->lp_last_alive = jiffies;
 	if (!lp->lp_alive)
 		lnet_notify_locked(lp, 0, 1, lp->lp_last_alive);
 }

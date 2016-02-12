@@ -1151,7 +1151,8 @@ lnet_find_route_locked(lnet_ni_t *ni, lnet_nid_t target, lnet_nid_t rtr_nid)
 		return NULL;
 
 	lp_best = NULL;
-	rtr_best = rtr_last = NULL;
+	rtr_best = NULL;
+	rtr_last = NULL;
 	list_for_each_entry(rtr, &rnet->lrn_routes, lr_list) {
 		lp = rtr->lr_gateway;
 
@@ -1167,7 +1168,8 @@ lnet_find_route_locked(lnet_ni_t *ni, lnet_nid_t target, lnet_nid_t rtr_nid)
 			return lp;
 
 		if (lp_best == NULL) {
-			rtr_best = rtr_last = rtr;
+			rtr_best = rtr;
+			rtr_last = rtr;
 			lp_best = lp;
 			continue;
 		}
@@ -1868,7 +1870,8 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 	msg->msg_type = type;
 	msg->msg_private = private;
 	msg->msg_receiving = 1;
-	msg->msg_len = msg->msg_wanted = payload_length;
+	msg->msg_wanted = payload_length;
+	msg->msg_len = payload_length;
 	msg->msg_offset = 0;
 	msg->msg_hdr = *hdr;
 	/* for building message event */

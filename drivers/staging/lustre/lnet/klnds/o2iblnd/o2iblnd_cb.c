@@ -1061,16 +1061,14 @@ kiblnd_init_rdma(kib_conn_t *conn, kib_tx_t *tx, int type,
 	struct ib_sge *sge = &tx->tx_sge[0];
 	struct ib_rdma_wr *wrq = &tx->tx_wrq[0], *next;
 	int rc  = resid;
-	int srcidx;
-	int dstidx;
+	int srcidx = 0;
+	int dstidx = 0;
 	int wrknob;
 
 	LASSERT(!in_interrupt());
 	LASSERT(tx->tx_nwrq == 0);
 	LASSERT(type == IBLND_MSG_GET_DONE ||
 		type == IBLND_MSG_PUT_DONE);
-
-	srcidx = dstidx = 0;
 
 	while (resid > 0) {
 		if (srcidx >= srcrd->rd_nfrags) {

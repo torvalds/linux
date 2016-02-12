@@ -953,7 +953,8 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 		CNETERR("Framework features %x from %s is different with features on this transaction: %x\n",
 			reply->msg_ses_feats, libcfs_nid2str(nd->nd_id.nid),
 			trans->tas_features);
-		status = mksn_rep->mksn_status = EPROTO;
+		mksn_rep->mksn_status = EPROTO;
+		status = EPROTO;
 	}
 
 	if (status == 0) {

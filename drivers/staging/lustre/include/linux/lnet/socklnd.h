@@ -85,7 +85,8 @@ socklnd_init_msg(ksock_msg_t *msg, int type)
 {
 	msg->ksm_csum = 0;
 	msg->ksm_type = type;
-	msg->ksm_zc_cookies[0] = msg->ksm_zc_cookies[1]  = 0;
+	msg->ksm_zc_cookies[0] = 0;
+	msg->ksm_zc_cookies[1] = 0;
 }
 
 #define KSOCK_MSG_NOOP	0xC0	/* ksm_u empty */

@@ -582,9 +582,10 @@ ksocknal_del_peer(lnet_ni_t *ni, lnet_process_id_t id, __u32 ip)
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 
-	if (id.nid != LNET_NID_ANY)
-		lo = hi = (int)(ksocknal_nid2peerlist(id.nid) - ksocknal_data.ksnd_peers);
-	else {
+	if (id.nid != LNET_NID_ANY) {
+		lo = (int)(ksocknal_nid2peerlist(id.nid) - ksocknal_data.ksnd_peers);
+		hi = (int)(ksocknal_nid2peerlist(id.nid) - ksocknal_data.ksnd_peers);
+	} else {
 		lo = 0;
 		hi = ksocknal_data.ksnd_peer_hash_size - 1;
 	}
@@ -1774,9 +1775,10 @@ ksocknal_close_matching_conns(lnet_process_id_t id, __u32 ipaddr)
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 
-	if (id.nid != LNET_NID_ANY)
-		lo = hi = (int)(ksocknal_nid2peerlist(id.nid) - ksocknal_data.ksnd_peers);
-	else {
+	if (id.nid != LNET_NID_ANY) {
+		lo = (int)(ksocknal_nid2peerlist(id.nid) - ksocknal_data.ksnd_peers);
+		hi = (int)(ksocknal_nid2peerlist(id.nid) - ksocknal_data.ksnd_peers);
+	} else {
 		lo = 0;
 		hi = ksocknal_data.ksnd_peer_hash_size - 1;
 	}
@@ -1938,7 +1940,8 @@ static int ksocknal_push(lnet_ni_t *ni, lnet_process_id_t id)
 		start = &ksocknal_data.ksnd_peers[0];
 		end = &ksocknal_data.ksnd_peers[hsize - 1];
 	} else {
-		start = end = ksocknal_nid2peerlist(id.nid);
+		start = ksocknal_nid2peerlist(id.nid);
+		end = ksocknal_nid2peerlist(id.nid);
 	}
 
 	for (tmp = start; tmp <= end; tmp++) {

@@ -1307,7 +1307,8 @@ lnet_rtrpool_free_bufs(lnet_rtrbufpool_t *rbp)
 	LASSERT(rbp->rbp_nbuffers == nbuffers);
 	LASSERT(rbp->rbp_credits == nbuffers);
 
-	rbp->rbp_nbuffers = rbp->rbp_credits = 0;
+	rbp->rbp_nbuffers = 0;
+	rbp->rbp_credits = 0;
 }
 
 static int

@@ -109,7 +109,8 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 		if ((umd->options & LNET_MD_KIOV) != 0) /* Can't specify both */
 			return -EINVAL;
 
-		lmd->md_niov = niov = umd->length;
+		niov = umd->length;
+		lmd->md_niov = umd->length;
 		memcpy(lmd->md_iov.iov, umd->start,
 		       niov * sizeof(lmd->md_iov.iov[0]));
 
@@ -130,7 +131,8 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 			return -EINVAL;
 
 	} else if ((umd->options & LNET_MD_KIOV) != 0) {
-		lmd->md_niov = niov = umd->length;
+		niov = umd->length;
+		lmd->md_niov = umd->length;
 		memcpy(lmd->md_iov.kiov, umd->start,
 		       niov * sizeof(lmd->md_iov.kiov[0]));
 
@@ -151,7 +153,8 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 			return -EINVAL;
 	} else {   /* contiguous */
 		lmd->md_length = umd->length;
-		lmd->md_niov = niov = 1;
+		niov = 1;
+		lmd->md_niov = 1;
 		lmd->md_iov.iov[0].iov_base = umd->start;
 		lmd->md_iov.iov[0].iov_len = umd->length;
 

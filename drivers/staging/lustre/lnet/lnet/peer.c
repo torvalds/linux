@@ -287,9 +287,9 @@ lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 		goto out;
 	}
 
-	lp->lp_txcredits     =
-	lp->lp_mintxcredits  = lp->lp_ni->ni_peertxcredits;
-	lp->lp_rtrcredits    =
+	lp->lp_txcredits = lp->lp_ni->ni_peertxcredits;
+	lp->lp_mintxcredits = lp->lp_ni->ni_peertxcredits;
+	lp->lp_rtrcredits = lnet_peer_buffer_credits(lp->lp_ni);
 	lp->lp_minrtrcredits = lnet_peer_buffer_credits(lp->lp_ni);
 
 	list_add_tail(&lp->lp_hashlist,

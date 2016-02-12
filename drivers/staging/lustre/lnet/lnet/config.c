@@ -202,7 +202,8 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 	the_lnet.ln_network_tokens = tokens;
 	the_lnet.ln_network_tokens_nob = tokensize;
 	memcpy(tokens, networks, tokensize);
-	str = tmp = tokens;
+	tmp = tokens;
+	str = tokens;
 
 	/* Add in the loopback network */
 	ni = lnet_ni_alloc(LNET_MKNET(LOLND, 0), NULL, nilist);

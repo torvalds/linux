@@ -719,7 +719,8 @@ ksocknal_pack_msg_v1(ksock_tx_t *tx)
 	tx->tx_iov[0].iov_base = &tx->tx_lnetmsg->msg_hdr;
 	tx->tx_iov[0].iov_len  = sizeof(lnet_hdr_t);
 
-	tx->tx_resid = tx->tx_nob = tx->tx_lnetmsg->msg_len + sizeof(lnet_hdr_t);
+	tx->tx_nob = tx->tx_lnetmsg->msg_len + sizeof(lnet_hdr_t);
+	tx->tx_resid = tx->tx_lnetmsg->msg_len + sizeof(lnet_hdr_t);
 }
 
 static void
@@ -732,12 +733,14 @@ ksocknal_pack_msg_v2(ksock_tx_t *tx)
 
 		tx->tx_msg.ksm_u.lnetmsg.ksnm_hdr = tx->tx_lnetmsg->msg_hdr;
 		tx->tx_iov[0].iov_len = sizeof(ksock_msg_t);
-		tx->tx_resid = tx->tx_nob = sizeof(ksock_msg_t) + tx->tx_lnetmsg->msg_len;
+		tx->tx_nob = sizeof(ksock_msg_t) + tx->tx_lnetmsg->msg_len;
+		tx->tx_resid = sizeof(ksock_msg_t) + tx->tx_lnetmsg->msg_len;
 	} else {
 		LASSERT(tx->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 		tx->tx_iov[0].iov_len = offsetof(ksock_msg_t, ksm_u.lnetmsg.ksnm_hdr);
-		tx->tx_resid = tx->tx_nob = offsetof(ksock_msg_t,  ksm_u.lnetmsg.ksnm_hdr);
+		tx->tx_nob = offsetof(ksock_msg_t,  ksm_u.lnetmsg.ksnm_hdr);
+		tx->tx_resid = offsetof(ksock_msg_t,  ksm_u.lnetmsg.ksnm_hdr);
 	}
 	/* Don't checksum before start sending, because packet can be piggybacked with ACK */
 }
@@ -747,7 +750,8 @@ ksocknal_unpack_msg_v1(ksock_msg_t *msg)
 {
 	msg->ksm_csum = 0;
 	msg->ksm_type = KSOCK_MSG_LNET;
-	msg->ksm_zc_cookies[0] = msg->ksm_zc_cookies[1]  = 0;
+	msg->ksm_zc_cookies[0] = 0;
+	msg->ksm_zc_cookies[1] = 0;
 }
 
 static void

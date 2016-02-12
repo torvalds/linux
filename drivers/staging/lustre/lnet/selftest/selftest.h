@@ -546,8 +546,8 @@ srpc_init_client_rpc (srpc_client_rpc_t *rpc, lnet_process_id_t peer,
 	LNetInvalidateHandle(&rpc->crpc_bulk.bk_mdh);
 
 	/* no event is expected at this point */
-	rpc->crpc_bulkev.ev_fired  =
-	rpc->crpc_reqstev.ev_fired =
+	rpc->crpc_bulkev.ev_fired = 1;
+	rpc->crpc_reqstev.ev_fired = 1;
 	rpc->crpc_replyev.ev_fired = 1;
 
 	rpc->crpc_reqstmsg.msg_magic   = SRPC_MSG_MAGIC;

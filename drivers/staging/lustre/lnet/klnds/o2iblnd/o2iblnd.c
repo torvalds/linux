@@ -500,7 +500,8 @@ static int kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
 	write_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
 
 	if (nid != LNET_NID_ANY) {
-		lo = hi = kiblnd_nid2peerlist(nid) - kiblnd_data.kib_peers;
+		lo = kiblnd_nid2peerlist(nid) - kiblnd_data.kib_peers;
+		hi = kiblnd_nid2peerlist(nid) - kiblnd_data.kib_peers;
 	} else {
 		lo = 0;
 		hi = kiblnd_data.kib_peer_hash_size - 1;
@@ -979,9 +980,10 @@ static int kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
 
 	write_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
 
-	if (nid != LNET_NID_ANY)
-		lo = hi = kiblnd_nid2peerlist(nid) - kiblnd_data.kib_peers;
-	else {
+	if (nid != LNET_NID_ANY) {
+		lo = kiblnd_nid2peerlist(nid) - kiblnd_data.kib_peers;
+		hi = kiblnd_nid2peerlist(nid) - kiblnd_data.kib_peers;
+	} else {
 		lo = 0;
 		hi = kiblnd_data.kib_peer_hash_size - 1;
 	}
