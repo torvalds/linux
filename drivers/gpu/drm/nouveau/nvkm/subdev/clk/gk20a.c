@@ -642,9 +642,12 @@ gk20a_clk_init(struct nvkm_clk *base)
 	struct nvkm_device *device = subdev->device;
 	int ret;
 
-	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_INIT_MASK, GPC2CLK_OUT_INIT_VAL);
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_INIT_MASK,
+		  GPC2CLK_OUT_INIT_VAL);
 
-	ret = gk20a_clk_prog(&clk->base);
+	/* Start with lowest frequency */
+	base->func->calc(base, &base->func->pstates[0].base);
+	ret = base->func->prog(&clk->base);
 	if (ret) {
 		nvkm_error(subdev, "cannot initialize clock\n");
 		return ret;
