@@ -160,6 +160,14 @@
 			clocks = <&clocks BCM2835_CLOCK_VPU>;
 		};
 
+		uart1: serial@7e215040 {
+			compatible = "brcm,bcm2835-aux-uart";
+			reg = <0x7e215040 0x40>;
+			interrupts = <1 29>;
+			clocks = <&aux BCM2835_AUX_CLOCK_UART>;
+			status = "disabled";
+		};
+
 		spi1: spi@7e215080 {
 			compatible = "brcm,bcm2835-aux-spi";
 			reg = <0x7e215080 0x40>;
