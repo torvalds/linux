@@ -3770,11 +3770,14 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		 * Prevent HW from getting the TRBs by keeping the cycle state
 		 * inverted in the first TDs isoc TRB.
 		 */
-		field = TRB_TBC(burst_count) |
-			TRB_TYPE(TRB_ISOC) |
+		field = TRB_TYPE(TRB_ISOC) |
 			TRB_TLBPC(last_burst_pkt_count) |
 			sia_frame_id |
 			(i ? ep_ring->cycle_state : !start_cycle);
+
+		/* xhci 1.1 with ETE uses TD_Size field for TBC, old is Rsvdz */
+		if (!xep->use_extended_tbc)
+			field |= TRB_TBC(burst_count);
 
 		/* fill the rest of the TRB fields, and remaining normal TRBs */
 		for (j = 0; j < trbs_per_td; j++) {
@@ -3784,7 +3787,6 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			if (!first_trb)
 				field = TRB_TYPE(TRB_NORMAL) |
 					ep_ring->cycle_state;
-			first_trb = false;
 
 			/* Only set interrupt on short packet for IN EPs */
 			if (usb_urb_dir_in(urb))
@@ -3816,8 +3818,14 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 						   urb, trbs_per_td - j - 1);
 
 			length_field = TRB_LEN(trb_buff_len) |
-				TRB_TD_SIZE(remainder) |
 				TRB_INTR_TARGET(0);
+
+			/* xhci 1.1 with ETE uses TD Size field for TBC */
+			if (first_trb && xep->use_extended_tbc)
+				length_field |= TRB_TD_SIZE_TBC(burst_count);
+			else
+				length_field |= TRB_TD_SIZE(remainder);
+			first_trb = false;
 
 			queue_trb(xhci, ep_ring, more_trbs_coming,
 				lower_32_bits(addr),

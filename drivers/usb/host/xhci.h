@@ -232,7 +232,9 @@ struct xhci_op_regs {
  * disabled, or powered-off state.
  */
 #define CMD_PM_INDEX	(1 << 11)
-/* bits 12:31 are reserved (and should be preserved on writes). */
+/* bit 14 Extended TBC Enable, changes Isoc TRB fields to support larger TBC */
+#define CMD_ETE		(1 << 14)
+/* bits 15:31 are reserved (and should be preserved on writes). */
 
 /* IMAN - Interrupt Management Register */
 #define IMAN_IE		(1 << 1)
@@ -943,6 +945,8 @@ struct xhci_virt_ep {
 	struct list_head	bw_endpoint_list;
 	/* Isoch Frame ID checking storage */
 	int			next_frame_id;
+	/* Use new Isoch TRB layout needed for extended TBC support */
+	bool			use_extended_tbc;
 };
 
 enum xhci_overhead_type {
@@ -1184,9 +1188,12 @@ enum xhci_setup_dev {
 #define	TRB_LEN(p)		((p) & 0x1ffff)
 /* TD Size, packets remaining in this TD, bits 21:17 (5 bits, so max 31) */
 #define TRB_TD_SIZE(p)          (min((p), (u32)31) << 17)
+/* xhci 1.1 uses the TD_SIZE field for TBC if Extended TBC is enabled (ETE) */
+#define TRB_TD_SIZE_TBC(p)      (min((p), (u32)31) << 17)
 /* Interrupter Target - which MSI-X vector to target the completion event at */
 #define TRB_INTR_TARGET(p)	(((p) & 0x3ff) << 22)
 #define GET_INTR_TARGET(p)	(((p) >> 22) & 0x3ff)
+/* Total burst count field, Rsvdz on xhci 1.1 with Extended TBC enabled (ETE) */
 #define TRB_TBC(p)		(((p) & 0x3) << 7)
 #define TRB_TLBPC(p)		(((p) & 0xf) << 16)
 
