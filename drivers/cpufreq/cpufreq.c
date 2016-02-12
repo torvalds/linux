@@ -818,12 +818,7 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 	ssize_t ret;
 
 	down_read(&policy->rwsem);
-
-	if (fattr->show)
-		ret = fattr->show(policy, buf);
-	else
-		ret = -EIO;
-
+	ret = fattr->show(policy, buf);
 	up_read(&policy->rwsem);
 
 	return ret;
@@ -838,18 +833,12 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 
 	get_online_cpus();
 
-	if (!cpu_online(policy->cpu))
-		goto unlock;
-
-	down_write(&policy->rwsem);
-
-	if (fattr->store)
+	if (cpu_online(policy->cpu)) {
+		down_write(&policy->rwsem);
 		ret = fattr->store(policy, buf, count);
-	else
-		ret = -EIO;
+		up_write(&policy->rwsem);
+	}
 
-	up_write(&policy->rwsem);
-unlock:
 	put_online_cpus();
 
 	return ret;
