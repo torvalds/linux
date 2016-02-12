@@ -808,7 +808,7 @@ libcfs_ip_str2addr(const char *str, int nob, __u32 *addr)
 	    n == nob &&
 	    (a & ~0xff) == 0 && (b & ~0xff) == 0 &&
 	    (c & ~0xff) == 0 && (d & ~0xff) == 0) {
-		*addr = ((a<<24)|(b<<16)|(c<<8)|d);
+		*addr = ((a << 24) | (b << 16) | (c << 8) | d);
 		return 1;
 	}
 

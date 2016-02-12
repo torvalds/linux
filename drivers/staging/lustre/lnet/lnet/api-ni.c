@@ -1394,7 +1394,7 @@ LNetCtl(unsigned int cmd, void *arg)
 		id.pid = data->ioc_u32[0];
 		rc = lnet_ping(id, data->ioc_u32[1], /* timeout */
 			       data->ioc_pbuf1,
-			       data->ioc_plen1/sizeof(lnet_process_id_t));
+			       data->ioc_plen1 / sizeof(lnet_process_id_t));
 		if (rc < 0)
 			return rc;
 		data->ioc_count = rc;

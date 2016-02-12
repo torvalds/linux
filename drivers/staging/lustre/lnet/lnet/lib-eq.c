@@ -332,7 +332,6 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 
 	if (tms < 0) {
 		schedule();
-
 	} else {
 		now = jiffies;
 		schedule_timeout(msecs_to_jiffies(tms));

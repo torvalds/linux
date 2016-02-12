@@ -1400,7 +1400,7 @@ static int kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps,
 	kib_dev_t *dev = fps->fps_net->ibn_dev;
 	kib_fmr_pool_t *fpo;
 	struct ib_fmr_pool_param param = {
-		.max_pages_per_fmr = LNET_MAX_PAYLOAD/PAGE_SIZE,
+		.max_pages_per_fmr = LNET_MAX_PAYLOAD / PAGE_SIZE,
 		.page_shift        = PAGE_SHIFT,
 		.access            = (IB_ACCESS_LOCAL_WRITE |
 				      IB_ACCESS_REMOTE_WRITE),

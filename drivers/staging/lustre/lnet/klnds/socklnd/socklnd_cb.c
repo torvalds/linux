@@ -1960,7 +1960,7 @@ ksocknal_connect (ksock_route_t *route)
 			 * so min_reconnectms should be good heuristic
 			 */
 			route->ksnr_retry_interval =
-				cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms)/1000;
+				cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms) / 1000;
 			route->ksnr_timeout = cfs_time_add(cfs_time_current(),
 							   route->ksnr_retry_interval);
 		}
@@ -1981,10 +1981,10 @@ ksocknal_connect (ksock_route_t *route)
 	route->ksnr_retry_interval *= 2;
 	route->ksnr_retry_interval =
 		max(route->ksnr_retry_interval,
-		    cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms)/1000);
+		    cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms) / 1000);
 	route->ksnr_retry_interval =
 		min(route->ksnr_retry_interval,
-		    cfs_time_seconds(*ksocknal_tunables.ksnd_max_reconnectms)/1000);
+		    cfs_time_seconds(*ksocknal_tunables.ksnd_max_reconnectms) / 1000);
 
 	LASSERT (route->ksnr_retry_interval != 0);
 	route->ksnr_timeout = cfs_time_add(cfs_time_current(),

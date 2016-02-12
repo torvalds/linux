@@ -44,8 +44,8 @@ struct lnet_text_buf {	    /* tmp struct for parsing routes */
 };
 
 static int lnet_tbnob;			/* track text buf allocation */
-#define LNET_MAX_TEXTBUF_NOB     (64<<10)	/* bound allocation */
-#define LNET_SINGLE_TEXTBUF_NOB  (4<<10)
+#define LNET_MAX_TEXTBUF_NOB     (64 << 10)	/* bound allocation */
+#define LNET_SINGLE_TEXTBUF_NOB  (4 << 10)
 
 static void
 lnet_syntax(char *name, char *str, int offset, int width)
@@ -54,9 +54,9 @@ lnet_syntax(char *name, char *str, int offset, int width)
 	static char dashes[LNET_SINGLE_TEXTBUF_NOB];
 
 	memset(dots, '.', sizeof(dots));
-	dots[sizeof(dots)-1] = 0;
+	dots[sizeof(dots) - 1] = 0;
 	memset(dashes, '-', sizeof(dashes));
-	dashes[sizeof(dashes)-1] = 0;
+	dashes[sizeof(dashes) - 1] = 0;
 
 	LCONSOLE_ERROR_MSG(0x10f, "Error parsing '%s=\"%s\"'\n", name, str);
 	LCONSOLE_ERROR_MSG(0x110, "here...........%.*s..%.*s|%.*s|\n",
@@ -492,7 +492,7 @@ lnet_expand1tb(struct list_head *list,
 
 	memcpy(ltb->ltb_text, str, len1);
 	memcpy(&ltb->ltb_text[len1], item, itemlen);
-	memcpy(&ltb->ltb_text[len1+itemlen], sep2 + 1, len2);
+	memcpy(&ltb->ltb_text[len1 + itemlen], sep2 + 1, len2);
 	ltb->ltb_text[len1 + itemlen + len2] = 0;
 
 	list_add_tail(&ltb->ltb_list, list);
@@ -542,7 +542,6 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 						   (int)(enditem - parsed)) != 0) {
 					goto failed;
 				}
-
 				continue;
 			}
 
@@ -605,7 +604,7 @@ lnet_parse_priority(char *str, unsigned int *priority, char **token)
 	}
 	len = strlen(sep + 1);
 
-	if ((sscanf((sep+1), "%u%n", priority, &nob) < 1) || (len != nob)) {
+	if ((sscanf((sep + 1), "%u%n", priority, &nob) < 1) || (len != nob)) {
 		/*
 		 * Update the caller's token pointer so it treats the found
 		 * priority as the token to report in the error message.
@@ -1020,7 +1019,7 @@ lnet_match_networks(char **networksp, char *ip2nets, __u32 *ipaddrs, int nip)
 		tb = list_entry(raw_entries.next, struct lnet_text_buf,
 				ltb_list);
 		strncpy(source, tb->ltb_text, sizeof(source));
-		source[sizeof(source)-1] = '\0';
+		source[sizeof(source) - 1] = '\0';
 
 		/* replace ltb_text with the network(s) add on match */
 		rc = lnet_match_network_tokens(tb->ltb_text, ipaddrs, nip);

@@ -1217,7 +1217,7 @@ static int kiblnd_resolve_addr(struct rdma_cm_id *cmid,
 	}
 
 	/* look for a free privileged port */
-	for (port = PROT_SOCK-1; port > 0; port--) {
+	for (port = PROT_SOCK - 1; port > 0; port--) {
 		srcaddr->sin_port = htons(port);
 		rc = rdma_resolve_addr(cmid,
 				       (struct sockaddr *)srcaddr,

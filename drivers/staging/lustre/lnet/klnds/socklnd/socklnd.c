@@ -357,7 +357,7 @@ ksocknal_associate_route_conn_locked(ksock_route_t *route, ksock_conn_t *conn)
 			iface->ksni_nroutes++;
 	}
 
-	route->ksnr_connected |= (1<<type);
+	route->ksnr_connected |= (1 << type);
 	route->ksnr_conn_count++;
 
 	/*
@@ -839,7 +839,7 @@ ksocknal_select_ips(ksock_peer_t *peer, __u32 *peerips, int n_peerips)
 			best_iface->ksni_npeers++;
 			ip = best_iface->ksni_ipaddr;
 			peer->ksnp_passive_ips[i] = ip;
-			peer->ksnp_n_passive_ips = i+1;
+			peer->ksnp_n_passive_ips = i + 1;
 		}
 
 		/* mark the best matching peer IP used */
@@ -2047,8 +2047,8 @@ ksocknal_peer_del_interface_locked(ksock_peer_t *peer, __u32 ipaddr)
 
 	for (i = 0; i < peer->ksnp_n_passive_ips; i++)
 		if (peer->ksnp_passive_ips[i] == ipaddr) {
-			for (j = i+1; j < peer->ksnp_n_passive_ips; j++)
-				peer->ksnp_passive_ips[j-1] =
+			for (j = i + 1; j < peer->ksnp_n_passive_ips; j++)
+				peer->ksnp_passive_ips[j - 1] =
 					peer->ksnp_passive_ips[j];
 			peer->ksnp_n_passive_ips--;
 			break;
@@ -2099,8 +2099,8 @@ ksocknal_del_interface(lnet_ni_t *ni, __u32 ipaddress)
 
 		rc = 0;
 
-		for (j = i+1; j < net->ksnn_ninterfaces; j++)
-			net->ksnn_interfaces[j-1] =
+		for (j = i + 1; j < net->ksnn_ninterfaces; j++)
+			net->ksnn_interfaces[j - 1] =
 				net->ksnn_interfaces[j];
 
 		net->ksnn_ninterfaces--;

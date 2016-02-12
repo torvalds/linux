@@ -146,7 +146,7 @@ kiblnd_concurrent_sends_v1(void)
 #define IBLND_OOB_CAPABLE(v)       ((v) != IBLND_MSG_VERSION_1)
 #define IBLND_OOB_MSGS(v)	   (IBLND_OOB_CAPABLE(v) ? 2 : 0)
 
-#define IBLND_MSG_SIZE	      (4<<10)		 /* max size of queued messages (inc hdr) */
+#define IBLND_MSG_SIZE		(4 << 10)	 /* max size of queued messages (inc hdr) */
 #define IBLND_MAX_RDMA_FRAGS	 LNET_MAX_IOV	   /* max # of fragments supported */
 #define IBLND_CFG_RDMA_FRAGS       (*kiblnd_tunables.kib_map_on_demand != 0 ? \
 				    *kiblnd_tunables.kib_map_on_demand :      \
@@ -691,7 +691,7 @@ kiblnd_send_keepalive(kib_conn_t *conn)
 {
 	return (*kiblnd_tunables.kib_keepalive > 0) &&
 		cfs_time_after(jiffies, conn->ibc_last_send +
-			       *kiblnd_tunables.kib_keepalive*HZ);
+			       *kiblnd_tunables.kib_keepalive * HZ);
 }
 
 static inline int

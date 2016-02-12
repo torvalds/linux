@@ -112,7 +112,7 @@ typedef struct lnet_libhandle {
 } lnet_libhandle_t;
 
 #define lh_entry(ptr, type, member) \
-	((type *)((char *)(ptr)-(char *)(&((type *)0)->member)))
+	((type *)((char *)(ptr) - (char *)(&((type *)0)->member)))
 
 typedef struct lnet_eq {
 	struct list_head	  eq_list;
