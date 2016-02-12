@@ -174,21 +174,21 @@ static int gb_raw_connection_init(struct gb_connection *connection)
 	cdev_init(&raw->cdev, &raw_fops);
 	retval = cdev_add(&raw->cdev, raw->dev, 1);
 	if (retval)
-		goto error_cdev;
+		goto error_remove_ida;
 
 	raw->device = device_create(raw_class, &connection->bundle->dev,
 				    raw->dev, raw, "gb!raw%d", minor);
 	if (IS_ERR(raw->device)) {
 		retval = PTR_ERR(raw->device);
-		goto error_device;
+		goto error_del_cdev;
 	}
 
 	return 0;
 
-error_device:
+error_del_cdev:
 	cdev_del(&raw->cdev);
 
-error_cdev:
+error_remove_ida:
 	ida_simple_remove(&minors, minor);
 
 error_free:
