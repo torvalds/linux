@@ -129,7 +129,7 @@ static int inv_mpu6050_select_bypass(struct i2c_adapter *adap, void *mux_priv,
 	if (!ret) {
 		st->powerup_count++;
 		ret = inv_mpu6050_write_reg_unlocked(st, st->reg->int_pin_cfg,
-						     st->client->irq |
+						     INV_MPU6050_INT_PIN_CFG |
 						     INV_MPU6050_BIT_BYPASS_EN);
 	}
 write_error:
@@ -147,7 +147,7 @@ static int inv_mpu6050_deselect_bypass(struct i2c_adapter *adap,
 	mutex_lock(&indio_dev->mlock);
 	/* It doesn't really mattter, if any of the calls fails */
 	inv_mpu6050_write_reg_unlocked(st, st->reg->int_pin_cfg,
-				       st->client->irq);
+				       INV_MPU6050_INT_PIN_CFG);
 	st->powerup_count--;
 	if (!st->powerup_count)
 		inv_mpu6050_write_reg_unlocked(st, st->reg->pwr_mgmt_1,
