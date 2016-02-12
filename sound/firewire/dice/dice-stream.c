@@ -31,7 +31,7 @@ const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT] = {
  */
 static int ensure_phase_lock(struct snd_dice *dice)
 {
-	__be32 reg;
+	__be32 reg, nominal;
 	int err;
 
 	err = snd_dice_transaction_read_global(dice, GLOBAL_CLOCK_SELECT,
@@ -48,8 +48,19 @@ static int ensure_phase_lock(struct snd_dice *dice)
 		return err;
 
 	if (wait_for_completion_timeout(&dice->clock_accepted,
-			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0)
-		return -ETIMEDOUT;
+			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0) {
+		/*
+		 * Old versions of Dice firmware transfer no notification when
+		 * the same clock status as current one is set. In this case,
+		 * just check current clock status.
+		 */
+		err = snd_dice_transaction_read_global(dice, GLOBAL_STATUS,
+						&nominal, sizeof(nominal));
+		if (err < 0)
+			return err;
+		if (!(be32_to_cpu(nominal) & STATUS_SOURCE_LOCKED))
+			return -ETIMEDOUT;
+	}
 
 	return 0;
 }
