@@ -629,6 +629,46 @@ static int hdac_hdmi_add_pin(struct hdac_ext_device *edev, hda_nid_t nid)
 	return 0;
 }
 
+#define INTEL_VENDOR_NID 0x08
+#define INTEL_GET_VENDOR_VERB 0xf81
+#define INTEL_SET_VENDOR_VERB 0x781
+#define INTEL_EN_DP12			0x02 /* enable DP 1.2 features */
+#define INTEL_EN_ALL_PIN_CVTS	0x01 /* enable 2nd & 3rd pins and convertors */
+
+static void hdac_hdmi_skl_enable_all_pins(struct hdac_device *hdac)
+{
+	unsigned int vendor_param;
+
+	vendor_param = snd_hdac_codec_read(hdac, INTEL_VENDOR_NID, 0,
+				INTEL_GET_VENDOR_VERB, 0);
+	if (vendor_param == -1 || vendor_param & INTEL_EN_ALL_PIN_CVTS)
+		return;
+
+	vendor_param |= INTEL_EN_ALL_PIN_CVTS;
+	vendor_param = snd_hdac_codec_read(hdac, INTEL_VENDOR_NID, 0,
+				INTEL_SET_VENDOR_VERB, vendor_param);
+	if (vendor_param == -1)
+		return;
+}
+
+static void hdac_hdmi_skl_enable_dp12(struct hdac_device *hdac)
+{
+	unsigned int vendor_param;
+
+	vendor_param = snd_hdac_codec_read(hdac, INTEL_VENDOR_NID, 0,
+				INTEL_GET_VENDOR_VERB, 0);
+	if (vendor_param == -1 || vendor_param & INTEL_EN_DP12)
+		return;
+
+	/* enable DP1.2 mode */
+	vendor_param |= INTEL_EN_DP12;
+	vendor_param = snd_hdac_codec_read(hdac, INTEL_VENDOR_NID, 0,
+				INTEL_SET_VENDOR_VERB, vendor_param);
+	if (vendor_param == -1)
+		return;
+
+}
+
 /*
  * Parse all nodes and store the cvt/pin nids in array
  * Add one time initialization for pin and cvt widgets
@@ -640,6 +680,9 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev)
 	struct hdac_device *hdac = &edev->hdac;
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	int ret;
+
+	hdac_hdmi_skl_enable_all_pins(hdac);
+	hdac_hdmi_skl_enable_dp12(hdac);
 
 	num_nodes = snd_hdac_get_sub_nodes(hdac, hdac->afg, &nid);
 	if (!nid || num_nodes <= 0) {
