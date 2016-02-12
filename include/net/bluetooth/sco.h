@@ -37,7 +37,6 @@
 struct sockaddr_sco {
 	sa_family_t	sco_family;
 	bdaddr_t	sco_bdaddr;
-	__u16		sco_pkt_type;
 };
 
 /* SCO socket options */
@@ -73,8 +72,7 @@ struct sco_conn {
 
 struct sco_pinfo {
 	struct bt_sock	bt;
-	__u16		pkt_type;
-
+	__u32		flags;
 	struct sco_conn	*conn;
 };
 
