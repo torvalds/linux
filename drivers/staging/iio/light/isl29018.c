@@ -614,15 +614,15 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 static const struct iio_info isl29018_info = {
 	.attrs = &isl29018_group,
 	.driver_module = THIS_MODULE,
-	.read_raw = &isl29018_read_raw,
-	.write_raw = &isl29018_write_raw,
+	.read_raw = isl29018_read_raw,
+	.write_raw = isl29018_write_raw,
 };
 
 static const struct iio_info isl29023_info = {
 	.attrs = &isl29023_group,
 	.driver_module = THIS_MODULE,
-	.read_raw = &isl29018_read_raw,
-	.write_raw = &isl29018_write_raw,
+	.read_raw = isl29018_read_raw,
+	.write_raw = isl29018_write_raw,
 };
 
 static bool is_volatile_reg(struct device *dev, unsigned int reg)
