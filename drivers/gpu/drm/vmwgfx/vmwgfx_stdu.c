@@ -510,6 +510,7 @@ out_srf_unref:
 static int vmw_stdu_crtc_set_config(struct drm_mode_set *set)
 {
 	struct vmw_private *dev_priv;
+	struct vmw_framebuffer *vfb;
 	struct vmw_screen_target_display_unit *stdu;
 	struct drm_display_mode *mode;
 	struct drm_framebuffer  *new_fb;
@@ -529,6 +530,7 @@ static int vmw_stdu_crtc_set_config(struct drm_mode_set *set)
 	new_fb   = set->fb;
 	dev_priv = vmw_priv(crtc->dev);
 	turning_off = set->num_connectors == 0 || !mode || !new_fb;
+	vfb = (new_fb) ? vmw_framebuffer_to_vfb(new_fb) : NULL;
 
 	if (set->num_connectors > 1) {
 		DRM_ERROR("Too many connectors\n");
@@ -548,6 +550,14 @@ static int vmw_stdu_crtc_set_config(struct drm_mode_set *set)
 		return -EINVAL;
 	}
 
+	/* Only one active implicit frame-buffer at a time. */
+	if (!turning_off && stdu->base.is_implicit && dev_priv->implicit_fb &&
+	    !(dev_priv->num_implicit == 1 && stdu->base.active_implicit)
+	    && dev_priv->implicit_fb != vfb) {
+		DRM_ERROR("Multiple implicit framebuffers not supported.\n");
+		return -EINVAL;
+	}
+
 	/* Since they always map one to one these are safe */
 	connector = &stdu->base.connector;
 	encoder   = &stdu->base.encoder;
@@ -559,6 +569,7 @@ static int vmw_stdu_crtc_set_config(struct drm_mode_set *set)
 
 		vmw_stdu_unpin_display(stdu);
 		(void) vmw_stdu_update_st(dev_priv, stdu);
+		vmw_kms_del_active(dev_priv, &stdu->base);
 
 		ret = vmw_stdu_destroy_st(dev_priv, stdu);
 		if (ret)
@@ -603,6 +614,7 @@ static int vmw_stdu_crtc_set_config(struct drm_mode_set *set)
 	if (ret)
 		return ret;
 
+	vmw_kms_add_active(dev_priv, &stdu->base, vfb);
 	crtc->enabled = true;
 	connector->encoder = encoder;
 	encoder->crtc      = crtc;
@@ -644,12 +656,15 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 	dev_priv          = vmw_priv(crtc->dev);
 	stdu              = vmw_crtc_to_stdu(crtc);
 
-	if (!stdu->defined)
+	if (!stdu->defined || !vmw_kms_crtc_flippable(dev_priv, crtc))
 		return -EINVAL;
 
 	ret = vmw_stdu_bind_fb(dev_priv, crtc, &crtc->mode, new_fb);
 	if (ret)
 		return ret;
+
+	if (stdu->base.is_implicit)
+		vmw_kms_update_implicit_fb(dev_priv, crtc);
 
 	vclips.x = crtc->x;
 	vclips.y = crtc->y;
