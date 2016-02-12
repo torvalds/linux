@@ -106,7 +106,6 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 	lmd->md_flags = (unlink == LNET_UNLINK) ? LNET_MD_FLAG_AUTO_UNLINK : 0;
 
 	if ((umd->options & LNET_MD_IOVEC) != 0) {
-
 		if ((umd->options & LNET_MD_KIOV) != 0) /* Can't specify both */
 			return -EINVAL;
 

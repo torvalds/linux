@@ -74,7 +74,6 @@ lnet_build_msg_event(lnet_msg_t *msg, lnet_event_kind_t ev_type)
 		ev->initiator.nid = LNET_NID_ANY;
 		ev->initiator.pid = the_lnet.ln_pid;
 		ev->sender        = LNET_NID_ANY;
-
 	} else {
 		/* event for passive message */
 		ev->target.pid    = hdr->dest_pid;

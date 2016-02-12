@@ -399,7 +399,6 @@ kib_peer_t *kiblnd_find_peer_locked(lnet_nid_t nid)
 	kib_peer_t *peer;
 
 	list_for_each(tmp, peer_list) {
-
 		peer = list_entry(tmp, kib_peer_t, ibp_list);
 
 		LASSERT(peer->ibp_connecting > 0 || /* creating conns */
@@ -439,9 +438,7 @@ static int kiblnd_get_peer_info(lnet_ni_t *ni, int index,
 	read_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
 
 	for (i = 0; i < kiblnd_data.kib_peer_hash_size; i++) {
-
 		list_for_each(ptmp, &kiblnd_data.kib_peers[i]) {
-
 			peer = list_entry(ptmp, kib_peer_t, ibp_list);
 			LASSERT(peer->ibp_connecting > 0 ||
 				peer->ibp_accepting > 0 ||
@@ -554,7 +551,6 @@ static kib_conn_t *kiblnd_get_conn_by_idx(lnet_ni_t *ni, int index)
 
 	for (i = 0; i < kiblnd_data.kib_peer_hash_size; i++) {
 		list_for_each(ptmp, &kiblnd_data.kib_peers[i]) {
-
 			peer = list_entry(ptmp, kib_peer_t, ibp_list);
 			LASSERT(peer->ibp_connecting > 0 ||
 				peer->ibp_accepting > 0 ||
@@ -992,7 +988,6 @@ static int kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
 
 	for (i = lo; i <= hi; i++) {
 		list_for_each_safe(ptmp, pnxt, &kiblnd_data.kib_peers[i]) {
-
 			peer = list_entry(ptmp, kib_peer_t, ibp_list);
 			LASSERT(peer->ibp_connecting > 0 ||
 				peer->ibp_accepting > 0 ||
@@ -1584,7 +1579,6 @@ int kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
 		CDEBUG(D_NET, "Another thread is allocating new FMR pool, waiting for her to complete\n");
 		schedule();
 		goto again;
-
 	}
 
 	if (time_before(cfs_time_current(), fps->fps_next_retry)) {

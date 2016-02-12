@@ -2287,7 +2287,6 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 			rej.ibr_why = IBLND_REJECT_RDMA_FRAGS;
 
 		goto failed;
-
 	}
 
 	if (reqmsg->ibm_u.connparams.ibcp_max_msg_size > IBLND_MSG_SIZE) {
@@ -3128,7 +3127,6 @@ kiblnd_connd(void *arg)
 	spin_lock_irqsave(&kiblnd_data.kib_connd_lock, flags);
 
 	while (!kiblnd_data.kib_shutdown) {
-
 		dropped_lock = 0;
 
 		if (!list_empty(&kiblnd_data.kib_connd_zombies)) {

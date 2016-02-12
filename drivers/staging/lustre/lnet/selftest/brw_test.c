@@ -505,7 +505,6 @@ void brw_init_test_client(void)
 srpc_service_t brw_test_service;
 void brw_init_test_service(void)
 {
-
 	brw_test_service.sv_id         = SRPC_SERVICE_BRW;
 	brw_test_service.sv_name       = "brw_test";
 	brw_test_service.sv_handler    = brw_server_handle;

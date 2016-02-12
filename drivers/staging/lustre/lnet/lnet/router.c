@@ -353,7 +353,6 @@ lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 		CERROR("Error %d creating route %s %d %s\n", rc,
 		       libcfs_net2str(net), hops,
 		       libcfs_nid2str(gateway));
-
 		return rc;
 	}
 

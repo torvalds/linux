@@ -182,7 +182,6 @@ ksocknal_find_peer_locked(lnet_ni_t *ni, lnet_process_id_t id)
 	ksock_peer_t *peer;
 
 	list_for_each(tmp, peer_list) {
-
 		peer = list_entry(tmp, ksock_peer_t, ksnp_list);
 
 		LASSERT(!peer->ksnp_closing);
@@ -264,7 +263,6 @@ ksocknal_get_peer_info(lnet_ni_t *ni, int index,
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
 	for (i = 0; i < ksocknal_data.ksnd_peer_hash_size; i++) {
-
 		list_for_each(ptmp, &ksocknal_data.ksnd_peers[i]) {
 			peer = list_entry(ptmp, ksock_peer_t, ksnp_list);
 
@@ -1015,7 +1013,6 @@ ksocknal_connecting(ksock_peer_t *peer, __u32 ipaddr)
 	ksock_route_t *route;
 
 	list_for_each_entry(route, &peer->ksnp_routes, ksnr_list) {
-
 		if (route->ksnr_ipaddr == ipaddr)
 			return route->ksnr_connecting;
 	}
@@ -1787,7 +1784,6 @@ ksocknal_close_matching_conns(lnet_process_id_t id, __u32 ipaddr)
 	for (i = lo; i <= hi; i++) {
 		list_for_each_safe(ptmp, pnxt,
 				   &ksocknal_data.ksnd_peers[i]) {
-
 			peer = list_entry(ptmp, ksock_peer_t, ksnp_list);
 
 			if (!((id.nid == LNET_NID_ANY || id.nid == peer->ksnp_id.nid) &&
@@ -2330,7 +2326,6 @@ ksocknal_base_shutdown(void)
 					continue;
 
 				for (j = 0; j < info->ksi_nthreads_max; j++) {
-
 					sched = &info->ksi_scheds[j];
 					LASSERT(list_empty(
 						&sched->kss_tx_conns));
@@ -2387,7 +2382,6 @@ ksocknal_base_shutdown(void)
 static __u64
 ksocknal_new_incarnation(void)
 {
-
 	/* The incarnation number is the time this module loaded and it
 	 * identifies this particular instance of the socknal.
 	 */

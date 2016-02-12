@@ -1726,7 +1726,6 @@ lnet_print_hdr(lnet_hdr_t *hdr)
 		      hdr->msg.reply.dst_wmd.wh_object_cookie,
 		      hdr->payload_length);
 	}
-
 }
 
 int
@@ -1866,7 +1865,6 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 	/* msg zeroed in lnet_msg_alloc;
 	 * i.e. flags all clear, pointers NULL etc
 	 */
-
 	msg->msg_type = type;
 	msg->msg_private = private;
 	msg->msg_receiving = 1;

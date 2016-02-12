@@ -589,7 +589,6 @@ ksocknal_process_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 static void
 ksocknal_launch_connection_locked (ksock_route_t *route)
 {
-
 	/* called holding write lock on ksnd_global_lock */
 
 	LASSERT(!route->ksnr_scheduled);
@@ -2147,7 +2146,6 @@ ksocknal_connd_get_route_locked(signed long *timeout_p)
 	/* connd_routes can contain both pending and ordinary routes */
 	list_for_each_entry(route, &ksocknal_data.ksnd_connd_routes,
 			    ksnr_connd_list) {
-
 		if (route->ksnr_retry_interval == 0 ||
 		    cfs_time_aftereq(now, route->ksnr_timeout))
 			return route;
@@ -2495,7 +2493,6 @@ ksocknal_check_peer_timeouts (int idx)
 
 			if (cfs_time_aftereq(cfs_time_current(),
 					     tx->tx_deadline)) {
-
 				ksocknal_peer_addref(peer);
 				read_unlock(&ksocknal_data.ksnd_global_lock);
 
@@ -2569,7 +2566,6 @@ ksocknal_reaper (void *arg)
 	spin_lock_bh(&ksocknal_data.ksnd_reaper_lock);
 
 	while (!ksocknal_data.ksnd_shuttingdown) {
-
 		if (!list_empty (&ksocknal_data.ksnd_deathrow_conns)) {
 			conn = list_entry (ksocknal_data. \
 					       ksnd_deathrow_conns.next,

@@ -221,7 +221,6 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		 * NB we don't check interface conflicts here; it's the LNDs
 		 * responsibility (if it cares at all)
 		 */
-
 		if (square != NULL && (comma == NULL || square < comma)) {
 			/*
 			 * i.e: o2ib0(ib0)[1,2], number between square
@@ -251,7 +250,6 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 
 		if (bracket == NULL ||
 		    (comma != NULL && comma < bracket)) {
-
 			/* no interface list specified */
 
 			if (comma != NULL)
@@ -528,7 +526,6 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 		goto failed;
 
 	for (parsed = sep; parsed < sep2; parsed = enditem) {
-
 		enditem = ++parsed;
 		while (enditem < sep2 && *enditem != ',')
 			enditem++;
@@ -538,9 +535,7 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 
 		if (sscanf(parsed, "%d-%d/%d%n", &lo, &hi,
 			   &stride, &scanned) < 3) {
-
 			if (sscanf(parsed, "%d-%d%n", &lo, &hi, &scanned) < 2) {
-
 				/* simple string enumeration */
 				if (lnet_expand1tb(&pending, str, sep, sep2,
 						   parsed,
@@ -564,7 +559,6 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 			goto failed;
 
 		for (i = lo; i <= hi; i += stride) {
-
 			snprintf(num, sizeof(num), "%d", i);
 			nob = strlen(num);
 			if (nob + 1 == sizeof(num))

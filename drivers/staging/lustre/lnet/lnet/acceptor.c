@@ -223,7 +223,6 @@ lnet_accept(struct socket *sock, __u32 magic)
 	LASSERT(rc == 0);		      /* we succeeded before */
 
 	if (!lnet_accept_magic(magic, LNET_PROTO_ACCEPTOR_MAGIC)) {
-
 		if (lnet_accept_magic(magic, LNET_PROTO_MAGIC)) {
 			/*
 			 * future version compatibility!
@@ -363,7 +362,6 @@ lnet_acceptor(void *arg)
 		return rc;
 
 	while (!lnet_acceptor_state.pta_shutdown) {
-
 		rc = lnet_sock_accept(&newsock, lnet_acceptor_state.pta_sock);
 		if (rc != 0) {
 			if (rc != -EAGAIN) {

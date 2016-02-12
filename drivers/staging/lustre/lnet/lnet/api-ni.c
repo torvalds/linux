@@ -340,7 +340,6 @@ lnet_counters_get(lnet_counters_t *counters)
 		counters->recv_length  += ctr->recv_length;
 		counters->route_length += ctr->route_length;
 		counters->drop_length  += ctr->drop_length;
-
 	}
 	lnet_net_unlock(LNET_LOCK_EX);
 }
