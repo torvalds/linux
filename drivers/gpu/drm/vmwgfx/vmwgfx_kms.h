@@ -287,6 +287,7 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				struct vmw_framebuffer *framebuffer,
 				struct drm_clip_rect *clips,
+				struct drm_vmw_rect *vclips,
 				unsigned num_clips, int increment,
 				bool interruptible,
 				struct vmw_fence_obj **out_fence);

@@ -470,7 +470,7 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
 	struct vmw_fence_obj *fence = NULL;
-	struct drm_clip_rect clips;
+	struct drm_vmw_rect vclips;
 	int ret;
 
 	/* require ScreenObject support for page flipping */
@@ -483,17 +483,18 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	crtc->primary->fb = fb;
 
 	/* do a full screen dirty update */
-	clips.x1 = clips.y1 = 0;
-	clips.x2 = fb->width;
-	clips.y2 = fb->height;
+	vclips.x = crtc->x;
+	vclips.y = crtc->y;
+	vclips.w = crtc->mode.hdisplay;
+	vclips.h = crtc->mode.vdisplay;
 
 	if (vfb->dmabuf)
 		ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, vfb,
-						  &clips, 1, 1,
+						  NULL, &vclips, 1, 1,
 						  true, &fence);
 	else
 		ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb,
-						   &clips, NULL, NULL,
+						   NULL, &vclips, NULL,
 						   0, 0, 1, 1, &fence);
 
 
@@ -919,6 +920,8 @@ static void vmw_sou_dmabuf_clip(struct vmw_kms_dirty *dirty)
  * @dev_priv: Pointer to the device private structure.
  * @framebuffer: Pointer to the dma-buffer backed framebuffer.
  * @clips: Array of clip rects.
+ * @vclips: Alternate array of clip rects. Either @clips or @vclips must
+ * be NULL.
  * @num_clips: Number of clip rects in @clips.
  * @increment: Increment to use when looping over @clips.
  * @interruptible: Whether to perform waits interruptible if possible.
@@ -932,6 +935,7 @@ static void vmw_sou_dmabuf_clip(struct vmw_kms_dirty *dirty)
 int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				struct vmw_framebuffer *framebuffer,
 				struct drm_clip_rect *clips,
+				struct drm_vmw_rect *vclips,
 				unsigned num_clips, int increment,
 				bool interruptible,
 				struct vmw_fence_obj **out_fence)
@@ -955,7 +959,7 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 	dirty.clip = vmw_sou_dmabuf_clip;
 	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_dmabuf_blit) *
 		num_clips;
-	ret = vmw_kms_helper_dirty(dev_priv, framebuffer, clips, NULL,
+	ret = vmw_kms_helper_dirty(dev_priv, framebuffer, clips, vclips,
 				   0, 0, num_clips, increment, &dirty);
 	vmw_kms_helper_buffer_finish(dev_priv, NULL, buf, out_fence, NULL);
 
