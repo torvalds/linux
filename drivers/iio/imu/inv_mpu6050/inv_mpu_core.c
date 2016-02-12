@@ -27,6 +27,11 @@
 #include <linux/acpi.h>
 #include "inv_mpu_iio.h"
 
+static const struct regmap_config inv_mpu_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+};
+
 /*
  * this is the gyro scale translated from dynamic range plus/minus
  * {250, 500, 1000, 2000} to rad/s
@@ -74,11 +79,6 @@ static const struct inv_mpu6050_hw hw_info[INV_NUM_PARTS] = {
 		.config = &chip_config_6050,
 	},
 };
-
-int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 d)
-{
-	return i2c_smbus_write_i2c_block_data(st->client, reg, 1, &d);
-}
 
 /*
  * The i2c read/write needs to happen in unlocked mode. As the parent
@@ -159,16 +159,15 @@ static int inv_mpu6050_deselect_bypass(struct i2c_adapter *adap,
 
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 {
-	u8 d, mgmt_1;
+	unsigned int d, mgmt_1;
 	int result;
 
 	/* switch clock needs to be careful. Only when gyro is on, can
 	   clock source be switched to gyro. Otherwise, it must be set to
 	   internal clock */
 	if (INV_MPU6050_BIT_PWR_GYRO_STBY == mask) {
-		result = i2c_smbus_read_i2c_block_data(st->client,
-				       st->reg->pwr_mgmt_1, 1, &mgmt_1);
-		if (result != 1)
+		result = regmap_read(st->map, st->reg->pwr_mgmt_1, &mgmt_1);
+		if (result)
 			return result;
 
 		mgmt_1 &= ~INV_MPU6050_BIT_CLK_MASK;
@@ -178,20 +177,19 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 		/* turning off gyro requires switch to internal clock first.
 		   Then turn off gyro engine */
 		mgmt_1 |= INV_CLK_INTERNAL;
-		result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_1, mgmt_1);
+		result = regmap_write(st->map, st->reg->pwr_mgmt_1, mgmt_1);
 		if (result)
 			return result;
 	}
 
-	result = i2c_smbus_read_i2c_block_data(st->client,
-				       st->reg->pwr_mgmt_2, 1, &d);
-	if (result != 1)
+	result = regmap_read(st->map, st->reg->pwr_mgmt_2, &d);
+	if (result)
 		return result;
 	if (en)
 		d &= ~mask;
 	else
 		d |= mask;
-	result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_2, d);
+	result = regmap_write(st->map, st->reg->pwr_mgmt_2, d);
 	if (result)
 		return result;
 
@@ -201,7 +199,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 		if (INV_MPU6050_BIT_PWR_GYRO_STBY == mask) {
 			/* switch internal clock to PLL */
 			mgmt_1 |= INV_CLK_PLL;
-			result = inv_mpu6050_write_reg(st,
+			result = regmap_write(st->map,
 					st->reg->pwr_mgmt_1, mgmt_1);
 			if (result)
 				return result;
@@ -218,15 +216,14 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 	if (power_on) {
 		/* Already under indio-dev->mlock mutex */
 		if (!st->powerup_count)
-			result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_1,
-						       0);
+			result = regmap_write(st->map, st->reg->pwr_mgmt_1, 0);
 		if (!result)
 			st->powerup_count++;
 	} else {
 		st->powerup_count--;
 		if (!st->powerup_count)
-			result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_1,
-						       INV_MPU6050_BIT_SLEEP);
+			result = regmap_write(st->map, st->reg->pwr_mgmt_1,
+					      INV_MPU6050_BIT_SLEEP);
 	}
 
 	if (result)
@@ -257,22 +254,22 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	if (result)
 		return result;
 	d = (INV_MPU6050_FSR_2000DPS << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
-	result = inv_mpu6050_write_reg(st, st->reg->gyro_config, d);
+	result = regmap_write(st->map, st->reg->gyro_config, d);
 	if (result)
 		return result;
 
 	d = INV_MPU6050_FILTER_20HZ;
-	result = inv_mpu6050_write_reg(st, st->reg->lpf, d);
+	result = regmap_write(st->map, st->reg->lpf, d);
 	if (result)
 		return result;
 
 	d = INV_MPU6050_ONE_K_HZ / INV_MPU6050_INIT_FIFO_RATE - 1;
-	result = inv_mpu6050_write_reg(st, st->reg->sample_rate_div, d);
+	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
 		return result;
 
 	d = (INV_MPU6050_FS_02G << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
-	result = inv_mpu6050_write_reg(st, st->reg->accl_config, d);
+	result = regmap_write(st->map, st->reg->accl_config, d);
 	if (result)
 		return result;
 
@@ -290,9 +287,8 @@ static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
 	__be16 d;
 
 	ind = (axis - IIO_MOD_X) * 2;
-	result = i2c_smbus_read_i2c_block_data(st->client, reg + ind,  2,
-						(u8 *)&d);
-	if (result != 2)
+	result = regmap_bulk_read(st->map, reg + ind, (u8 *)&d, 2);
+	if (result)
 		return -EINVAL;
 	*val = (short)be16_to_cpup(&d);
 
@@ -418,8 +414,7 @@ static int inv_mpu6050_write_gyro_scale(struct inv_mpu6050_state *st, int val)
 	for (i = 0; i < ARRAY_SIZE(gyro_scale_6050); ++i) {
 		if (gyro_scale_6050[i] == val) {
 			d = (i << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
-			result = inv_mpu6050_write_reg(st,
-					st->reg->gyro_config, d);
+			result = regmap_write(st->map, st->reg->gyro_config, d);
 			if (result)
 				return result;
 
@@ -456,8 +451,7 @@ static int inv_mpu6050_write_accel_scale(struct inv_mpu6050_state *st, int val)
 	for (i = 0; i < ARRAY_SIZE(accel_scale); ++i) {
 		if (accel_scale[i] == val) {
 			d = (i << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
-			result = inv_mpu6050_write_reg(st,
-					st->reg->accl_config, d);
+			result = regmap_write(st->map, st->reg->accl_config, d);
 			if (result)
 				return result;
 
@@ -537,7 +531,7 @@ static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 	while ((h < hz[i]) && (i < ARRAY_SIZE(d) - 1))
 		i++;
 	data = d[i];
-	result = inv_mpu6050_write_reg(st, st->reg->lpf, data);
+	result = regmap_write(st->map, st->reg->lpf, data);
 	if (result)
 		return result;
 	st->chip_config.lpf = data;
@@ -575,7 +569,7 @@ static ssize_t inv_mpu6050_fifo_rate_store(struct device *dev,
 		goto fifo_rate_fail;
 
 	d = INV_MPU6050_ONE_K_HZ / fifo_rate - 1;
-	result = inv_mpu6050_write_reg(st, st->reg->sample_rate_div, d);
+	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
 		goto fifo_rate_fail;
 	st->chip_config.fifo_rate = fifo_rate;
@@ -736,8 +730,8 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	st->reg = hw_info[st->chip_type].reg;
 
 	/* reset to make sure previous state are not there */
-	result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_1,
-					INV_MPU6050_BIT_H_RESET);
+	result = regmap_write(st->map, st->reg->pwr_mgmt_1,
+			      INV_MPU6050_BIT_H_RESET);
 	if (result)
 		return result;
 	msleep(INV_MPU6050_POWER_UP_TIME);
@@ -778,10 +772,18 @@ static int inv_mpu_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	struct inv_mpu6050_platform_data *pdata;
 	int result;
+	struct regmap *regmap;
 
 	if (!i2c_check_functionality(client->adapter,
 		I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -ENOSYS;
+
+	regmap = devm_regmap_init_i2c(client, &inv_mpu_regmap_config);
+	if (IS_ERR(regmap)) {
+		dev_err(&client->dev, "Failed to register i2c regmap %d\n",
+			(int)PTR_ERR(regmap));
+		return PTR_ERR(regmap);
+	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (!indio_dev)
@@ -790,6 +792,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 	st = iio_priv(indio_dev);
 	st->client = client;
 	st->powerup_count = 0;
+	st->map = regmap;
 	pdata = dev_get_platdata(&client->dev);
 	if (pdata)
 		st->plat_data = *pdata;

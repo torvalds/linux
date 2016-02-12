@@ -65,15 +65,15 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (result)
 			return result;
 	} else {
-		result = inv_mpu6050_write_reg(st, st->reg->fifo_en, 0);
+		result = regmap_write(st->map, st->reg->fifo_en, 0);
 		if (result)
 			return result;
 
-		result = inv_mpu6050_write_reg(st, st->reg->int_enable, 0);
+		result = regmap_write(st->map, st->reg->int_enable, 0);
 		if (result)
 			return result;
 
-		result = inv_mpu6050_write_reg(st, st->reg->user_ctrl, 0);
+		result = regmap_write(st->map, st->reg->user_ctrl, 0);
 		if (result)
 			return result;
 

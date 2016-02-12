@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/regmap.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
@@ -125,6 +126,7 @@ struct inv_mpu6050_state {
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
+	struct regmap *map;
 };
 
 /*register and associated bit definition*/
