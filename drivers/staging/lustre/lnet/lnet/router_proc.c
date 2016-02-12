@@ -78,9 +78,10 @@
 #define LNET_PROC_VERSION(v)	((unsigned int)((v) & LNET_PROC_VER_MASK))
 
 static int proc_call_handler(void *data, int write, loff_t *ppos,
-		void __user *buffer, size_t *lenp,
-		int (*handler)(void *data, int write,
-		loff_t pos, void __user *buffer, int len))
+			     void __user *buffer, size_t *lenp,
+			     int (*handler)(void *data, int write,
+					    loff_t pos, void __user *buffer,
+					    int len))
 {
 	int rc = handler(data, write, *ppos, buffer, *lenp);
 
@@ -216,14 +217,14 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 
 			while (n != rn_list && route == NULL) {
 				rnet = list_entry(n, lnet_remotenet_t,
-						      lrn_list);
+						  lrn_list);
 
 				r = rnet->lrn_routes.next;
 
 				while (r != &rnet->lrn_routes) {
 					lnet_route_t *re =
 						list_entry(r, lnet_route_t,
-							       lr_list);
+							   lr_list);
 					if (skip == 0) {
 						route = re;
 						break;
@@ -332,7 +333,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 
 		while (r != &the_lnet.ln_routers) {
 			lnet_peer_t *lp = list_entry(r, lnet_peer_t,
-							 lp_rtr_list);
+						     lp_rtr_list);
 
 			if (skip == 0) {
 				peer = lp;
@@ -479,7 +480,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 
 			while (p != &ptable->pt_hash[hash]) {
 				lnet_peer_t *lp = list_entry(p, lnet_peer_t,
-								 lp_hashlist);
+							     lp_hashlist);
 				if (skip == 0) {
 					peer = lp;
 
@@ -734,13 +735,14 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 					lnet_net_lock(i);
 
 				s += snprintf(s, tmpstr + tmpsiz - s,
-				      "%-24s %6s %5d %4d %4d %4d %5d %5d %5d\n",
-				      libcfs_nid2str(ni->ni_nid), stat,
-				      last_alive, *ni->ni_refs[i],
-				      ni->ni_peertxcredits,
-				      ni->ni_peerrtrcredits,
-				      tq->tq_credits_max,
-				      tq->tq_credits, tq->tq_credits_min);
+					      "%-24s %6s %5d %4d %4d %4d %5d %5d %5d\n",
+					      libcfs_nid2str(ni->ni_nid), stat,
+					      last_alive, *ni->ni_refs[i],
+					      ni->ni_peertxcredits,
+					      ni->ni_peerrtrcredits,
+					      tq->tq_credits_max,
+					      tq->tq_credits,
+					      tq->tq_credits_min);
 				if (i != 0)
 					lnet_net_unlock(i);
 			}
@@ -839,7 +841,7 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 			rc = 0;
 		} else {
 			rc = cfs_trace_copyout_string(buffer, nob,
-					buf + pos, "\n");
+						      buf + pos, "\n");
 		}
 		goto out;
 	}

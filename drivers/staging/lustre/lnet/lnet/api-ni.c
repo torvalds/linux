@@ -857,7 +857,7 @@ lnet_shutdown_lndnis(void)
 	/* Unlink NIs from the global table */
 	while (!list_empty(&the_lnet.ln_nis)) {
 		ni = list_entry(the_lnet.ln_nis.next,
-				    lnet_ni_t, ni_list);
+				lnet_ni_t, ni_list);
 		/* move it to zombie list and nobody can find it anymore */
 		list_move(&ni->ni_list, &the_lnet.ln_nis_zombie);
 		lnet_ni_decref_locked(ni, 0);	/* drop ln_nis' ref */
@@ -906,7 +906,7 @@ lnet_shutdown_lndnis(void)
 		int j;
 
 		ni = list_entry(the_lnet.ln_nis_zombie.next,
-				    lnet_ni_t, ni_list);
+				lnet_ni_t, ni_list);
 		list_del_init(&ni->ni_list);
 		cfs_percpt_for_each(ref, j, ni->ni_refs) {
 			if (*ref == 0)
@@ -1004,7 +1004,7 @@ lnet_startup_lndnis(void)
 		if (lnd == NULL) {
 			mutex_unlock(&the_lnet.ln_lnd_mutex);
 			rc = request_module("%s",
-						libcfs_lnd2modname(lnd_type));
+					    libcfs_lnd2modname(lnd_type));
 			mutex_lock(&the_lnet.ln_lnd_mutex);
 
 			lnd = lnet_find_lnd_by_type(lnd_type);
@@ -1046,7 +1046,7 @@ lnet_startup_lndnis(void)
 		list_add_tail(&ni->ni_list, &the_lnet.ln_nis);
 		if (ni->ni_cpts != NULL) {
 			list_add_tail(&ni->ni_cptlist,
-					  &the_lnet.ln_nis_cpt);
+				      &the_lnet.ln_nis_cpt);
 			lnet_ni_addref_locked(ni, 0);
 		}
 
@@ -1189,7 +1189,7 @@ lnet_fini(void)
 
 	while (!list_empty(&the_lnet.ln_lnds))
 		lnet_unregister_lnd(list_entry(the_lnet.ln_lnds.next,
-						   lnd_t, lnd_list));
+					       lnd_t, lnd_list));
 	lnet_destroy_locks();
 
 	the_lnet.ln_init = 0;

@@ -380,7 +380,7 @@ int cfs_match_nid(lnet_nid_t nid, struct list_head *nidlist)
 			return 1;
 		list_for_each_entry(ar, &nr->nr_addrranges, ar_link)
 			if (nr->nr_netstrfns->nf_match_addr(LNET_NIDADDR(nid),
-						       &ar->ar_numaddr_ranges))
+							    &ar->ar_numaddr_ranges))
 				return 1;
 	}
 	return 0;

@@ -125,7 +125,7 @@ lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 
 	if (!list_empty(&console_session.ses_rpc_freelist)) {
 		crpc = list_entry(console_session.ses_rpc_freelist.next,
-				      lstcon_rpc_t, crp_link);
+				  lstcon_rpc_t, crp_link);
 		list_del_init(&crpc->crp_link);
 	}
 
@@ -174,7 +174,7 @@ lstcon_rpc_put(lstcon_rpc_t *crpc)
 		spin_lock(&console_session.ses_rpc_lock);
 
 		list_add(&crpc->crp_link,
-			     &console_session.ses_rpc_freelist);
+			 &console_session.ses_rpc_freelist);
 
 		spin_unlock(&console_session.ses_rpc_lock);
 	}
@@ -490,7 +490,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 
 	list_for_each_entry(crpc, &trans->tas_rpcs_list, crp_link) {
 		if (copy_from_user(&tmp, next,
-				       sizeof(struct list_head)))
+				   sizeof(struct list_head)))
 			return -EFAULT;
 
 		if (tmp.next == head_up)
@@ -510,13 +510,13 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 		      (unsigned long)console_session.ses_id.ses_stamp);
 		jiffies_to_timeval(dur, &tv);
 
-		if (copy_to_user(&ent->rpe_peer,
-				     &nd->nd_id, sizeof(lnet_process_id_t)) ||
+		if (copy_to_user(&ent->rpe_peer, &nd->nd_id,
+				 sizeof(lnet_process_id_t)) ||
 		    copy_to_user(&ent->rpe_stamp, &tv, sizeof(tv)) ||
-		    copy_to_user(&ent->rpe_state,
-				     &nd->nd_state, sizeof(nd->nd_state)) ||
+		    copy_to_user(&ent->rpe_state, &nd->nd_state,
+				 sizeof(nd->nd_state)) ||
 		    copy_to_user(&ent->rpe_rpc_errno, &error,
-				     sizeof(error)))
+				 sizeof(error)))
 			return -EFAULT;
 
 		if (error != 0)
@@ -525,10 +525,9 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 		/* RPC is done */
 		rep = (srpc_generic_reply_t *)&msg->msg_body.reply;
 
-		if (copy_to_user(&ent->rpe_sid,
-				     &rep->sid, sizeof(lst_sid_t)) ||
-		    copy_to_user(&ent->rpe_fwk_errno,
-				     &rep->status, sizeof(rep->status)))
+		if (copy_to_user(&ent->rpe_sid, &rep->sid, sizeof(lst_sid_t)) ||
+		    copy_to_user(&ent->rpe_fwk_errno, &rep->status,
+				 sizeof(rep->status)))
 			return -EFAULT;
 
 		if (readent == NULL)
@@ -952,8 +951,8 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 
 	if (reply->msg_ses_feats != trans->tas_features) {
 		CNETERR("Framework features %x from %s is different with features on this transaction: %x\n",
-			 reply->msg_ses_feats, libcfs_nid2str(nd->nd_id.nid),
-			 trans->tas_features);
+			reply->msg_ses_feats, libcfs_nid2str(nd->nd_id.nid),
+			trans->tas_features);
 		status = mksn_rep->mksn_status = EPROTO;
 	}
 
@@ -1116,7 +1115,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 
 		if (rc < 0) {
 			CDEBUG(D_NET, "Condition error while creating RPC for transaction %d: %d\n",
-					transop, rc);
+			       transop, rc);
 			break;
 		}
 
@@ -1342,7 +1341,7 @@ lstcon_rpc_cleanup_wait(void)
 	while (!list_empty(&console_session.ses_trans_list)) {
 		list_for_each(pacer, &console_session.ses_trans_list) {
 			trans = list_entry(pacer, lstcon_rpc_trans_t,
-					       tas_link);
+					   tas_link);
 
 			CDEBUG(D_NET, "Session closed, wakeup transaction %s\n",
 			       lstcon_rpc_trans_name(trans->tas_opc));

@@ -141,7 +141,7 @@ sfw_register_test(srpc_service_t *service, sfw_test_client_ops_t *cliops)
 
 	if (sfw_find_test_case(service->sv_id) != NULL) {
 		CERROR("Failed to register test %s (%d)\n",
-			service->sv_name, service->sv_id);
+		       service->sv_name, service->sv_id);
 		return -EEXIST;
 	}
 
@@ -248,8 +248,8 @@ sfw_session_expired(void *data)
 	LASSERT(sn == sfw_data.fw_session);
 
 	CWARN("Session expired! sid: %s-%llu, name: %s\n",
-	       libcfs_nid2str(sn->sn_id.ses_nid),
-	       sn->sn_id.ses_stamp, &sn->sn_name[0]);
+	      libcfs_nid2str(sn->sn_id.ses_nid),
+	      sn->sn_id.ses_stamp, &sn->sn_name[0]);
 
 	sn->sn_timer_active = 0;
 	sfw_deactivate_session();
@@ -289,11 +289,10 @@ sfw_server_rpc_done(struct srpc_server_rpc *rpc)
 	struct srpc_service *sv	= rpc->srpc_scd->scd_svc;
 	int status = rpc->srpc_status;
 
-	CDEBUG(D_NET,
-		"Incoming framework RPC done: service %s, peer %s, status %s:%d\n",
-		sv->sv_name, libcfs_id2str(rpc->srpc_peer),
-		swi_state2str(rpc->srpc_wi.swi_state),
-		status);
+	CDEBUG(D_NET, "Incoming framework RPC done: service %s, peer %s, status %s:%d\n",
+	       sv->sv_name, libcfs_id2str(rpc->srpc_peer),
+	       swi_state2str(rpc->srpc_wi.swi_state),
+	       status);
 
 	if (rpc->srpc_bulk != NULL)
 		sfw_free_pages(rpc);
@@ -307,11 +306,10 @@ sfw_client_rpc_fini(srpc_client_rpc_t *rpc)
 	LASSERT(list_empty(&rpc->crpc_list));
 	LASSERT(atomic_read(&rpc->crpc_refcount) == 0);
 
-	CDEBUG(D_NET,
-		"Outgoing framework RPC done: service %d, peer %s, status %s:%d:%d\n",
-		rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
-		swi_state2str(rpc->crpc_wi.swi_state),
-		rpc->crpc_aborted, rpc->crpc_status);
+	CDEBUG(D_NET, "Outgoing framework RPC done: service %d, peer %s, status %s:%d:%d\n",
+	       rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
+	       swi_state2str(rpc->crpc_wi.swi_state),
+	       rpc->crpc_aborted, rpc->crpc_status);
 
 	spin_lock(&sfw_data.fw_lock);
 
@@ -627,14 +625,14 @@ sfw_destroy_test_instance(sfw_test_instance_t *tsi)
 
 	while (!list_empty(&tsi->tsi_units)) {
 		tsu = list_entry(tsi->tsi_units.next,
-				     sfw_test_unit_t, tsu_list);
+				 sfw_test_unit_t, tsu_list);
 		list_del(&tsu->tsu_list);
 		LIBCFS_FREE(tsu, sizeof(*tsu));
 	}
 
 	while (!list_empty(&tsi->tsi_free_rpcs)) {
 		rpc = list_entry(tsi->tsi_free_rpcs.next,
-				     srpc_client_rpc_t, crpc_list);
+				 srpc_client_rpc_t, crpc_list);
 		list_del(&rpc->crpc_list);
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
 	}
@@ -655,7 +653,7 @@ sfw_destroy_batch(sfw_batch_t *tsb)
 
 	while (!list_empty(&tsb->bat_tests)) {
 		tsi = list_entry(tsb->bat_tests.next,
-				     sfw_test_instance_t, tsi_list);
+				 sfw_test_instance_t, tsi_list);
 		list_del_init(&tsi->tsi_list);
 		sfw_destroy_test_instance(tsi);
 	}
@@ -674,7 +672,7 @@ sfw_destroy_session(sfw_session_t *sn)
 
 	while (!list_empty(&sn->sn_batches)) {
 		batch = list_entry(sn->sn_batches.next,
-				       sfw_batch_t, bat_list);
+				   sfw_batch_t, bat_list);
 		list_del_init(&batch->bat_list);
 		sfw_destroy_batch(batch);
 	}
@@ -744,7 +742,7 @@ sfw_add_test_instance(sfw_batch_t *tsb, struct srpc_server_rpc *rpc)
 	LIBCFS_ALLOC(tsi, sizeof(*tsi));
 	if (tsi == NULL) {
 		CERROR("Can't allocate test instance for batch: %llu\n",
-			tsb->bat_id.bat_id);
+		       tsb->bat_id.bat_id);
 		return -ENOMEM;
 	}
 
@@ -800,7 +798,7 @@ sfw_add_test_instance(sfw_batch_t *tsb, struct srpc_server_rpc *rpc)
 			if (tsu == NULL) {
 				rc = -ENOMEM;
 				CERROR("Can't allocate tsu for %d\n",
-					tsi->tsi_service);
+				       tsi->tsi_service);
 				goto error;
 			}
 
@@ -918,7 +916,7 @@ sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
 	if (!list_empty(&tsi->tsi_free_rpcs)) {
 		/* pick request from buffer */
 		rpc = list_entry(tsi->tsi_free_rpcs.next,
-				     srpc_client_rpc_t, crpc_list);
+				 srpc_client_rpc_t, crpc_list);
 		LASSERT(nblk == rpc->crpc_bulk.bk_niov);
 		list_del_init(&rpc->crpc_list);
 	}
@@ -1152,8 +1150,8 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 	bat = sfw_bid2batch(request->tsr_bid);
 	if (bat == NULL) {
 		CERROR("Dropping RPC (%s) from %s under memory pressure.\n",
-			rpc->srpc_scd->scd_svc->sv_name,
-			libcfs_id2str(rpc->srpc_peer));
+		       rpc->srpc_scd->scd_svc->sv_name,
+		       libcfs_id2str(rpc->srpc_peer));
 		return -ENOMEM;
 	}
 
@@ -1180,10 +1178,10 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 
 	rc = sfw_add_test_instance(bat, rpc);
 	CDEBUG(rc == 0 ? D_NET : D_WARNING,
-		"%s test: sv %d %s, loop %d, concur %d, ndest %d\n",
-		rc == 0 ? "Added" : "Failed to add", request->tsr_service,
-		request->tsr_is_client ? "client" : "server",
-		request->tsr_loop, request->tsr_concur, request->tsr_ndest);
+	       "%s test: sv %d %s, loop %d, concur %d, ndest %d\n",
+	       rc == 0 ? "Added" : "Failed to add", request->tsr_service,
+	       request->tsr_is_client ? "client" : "server",
+	       request->tsr_loop, request->tsr_concur, request->tsr_ndest);
 
 	reply->tsr_status = (rc < 0) ? -rc : rc;
 	return 0;
@@ -1398,7 +1396,7 @@ sfw_create_rpc(lnet_process_id_t peer, int service,
 
 	if (nbulkiov == 0 && !list_empty(&sfw_data.fw_zombie_rpcs)) {
 		rpc = list_entry(sfw_data.fw_zombie_rpcs.next,
-				     srpc_client_rpc_t, crpc_list);
+				 srpc_client_rpc_t, crpc_list);
 		list_del(&rpc->crpc_list);
 
 		srpc_init_client_rpc(rpc, peer, service, 0, 0,
@@ -1653,13 +1651,13 @@ sfw_startup(void)
 
 	if (session_timeout < 0) {
 		CERROR("Session timeout must be non-negative: %d\n",
-			session_timeout);
+		       session_timeout);
 		return -EINVAL;
 	}
 
 	if (rpc_timeout < 0) {
 		CERROR("RPC timeout must be non-negative: %d\n",
-			rpc_timeout);
+		       rpc_timeout);
 		return -EINVAL;
 	}
 
@@ -1697,7 +1695,7 @@ sfw_startup(void)
 		LASSERT(rc != -EBUSY);
 		if (rc != 0) {
 			CWARN("Failed to add %s service: %d\n",
-			       sv->sv_name, rc);
+			      sv->sv_name, rc);
 			error = rc;
 		}
 	}
@@ -1717,7 +1715,7 @@ sfw_startup(void)
 		LASSERT(rc != -EBUSY);
 		if (rc != 0) {
 			CWARN("Failed to add %s service: %d\n",
-			       sv->sv_name, rc);
+			      sv->sv_name, rc);
 			error = rc;
 		}
 
@@ -1782,7 +1780,7 @@ sfw_shutdown(void)
 		srpc_client_rpc_t *rpc;
 
 		rpc = list_entry(sfw_data.fw_zombie_rpcs.next,
-				     srpc_client_rpc_t, crpc_list);
+				 srpc_client_rpc_t, crpc_list);
 		list_del(&rpc->crpc_list);
 
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
@@ -1798,7 +1796,7 @@ sfw_shutdown(void)
 
 	while (!list_empty(&sfw_data.fw_tests)) {
 		tsc = list_entry(sfw_data.fw_tests.next,
-				     sfw_test_case_t, tsc_list);
+				 sfw_test_case_t, tsc_list);
 
 		srpc_wait_service_shutdown(tsc->tsc_srv_service);
 

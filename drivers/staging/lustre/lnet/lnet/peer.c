@@ -155,7 +155,7 @@ lnet_peer_tables_cleanup(void)
 
 		while (!list_empty(&deathrow)) {
 			lp = list_entry(deathrow.next,
-					    lnet_peer_t, lp_hashlist);
+					lnet_peer_t, lp_hashlist);
 			list_del(&lp->lp_hashlist);
 			LIBCFS_FREE(lp, sizeof(*lp));
 		}
@@ -227,7 +227,7 @@ lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 
 	if (!list_empty(&ptable->pt_deathrow)) {
 		lp = list_entry(ptable->pt_deathrow.next,
-				    lnet_peer_t, lp_hashlist);
+				lnet_peer_t, lp_hashlist);
 		list_del(&lp->lp_hashlist);
 	}
 
@@ -293,7 +293,7 @@ lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 	lp->lp_minrtrcredits = lnet_peer_buffer_credits(lp->lp_ni);
 
 	list_add_tail(&lp->lp_hashlist,
-			  &ptable->pt_hash[lnet_nid2peerhash(nid)]);
+		      &ptable->pt_hash[lnet_nid2peerhash(nid)]);
 	ptable->pt_version++;
 	*lpp = lp;
 

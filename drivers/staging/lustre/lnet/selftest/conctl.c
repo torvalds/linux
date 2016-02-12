@@ -62,9 +62,8 @@ lst_session_new_ioctl(lstio_session_new_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_ses_namep,
-			       args->lstio_ses_nmlen)) {
+	if (copy_from_user(name, args->lstio_ses_namep,
+			   args->lstio_ses_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_ses_nmlen + 1);
 		return -EFAULT;
 	}
@@ -137,7 +136,7 @@ lst_debug_ioctl(lstio_debug_args_t *args)
 			return -ENOMEM;
 
 		if (copy_from_user(name, args->lstio_dbg_namep,
-				       args->lstio_dbg_nmlen)) {
+				   args->lstio_dbg_nmlen)) {
 			LIBCFS_FREE(name, args->lstio_dbg_nmlen + 1);
 
 			return -EFAULT;
@@ -212,9 +211,8 @@ lst_group_add_ioctl(lstio_group_add_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_grp_namep,
-			       args->lstio_grp_nmlen)) {
+	if (copy_from_user(name, args->lstio_grp_namep,
+			   args->lstio_grp_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_grp_nmlen);
 		return -EFAULT;
 	}
@@ -246,9 +244,8 @@ lst_group_del_ioctl(lstio_group_del_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_grp_namep,
-			       args->lstio_grp_nmlen)) {
+	if (copy_from_user(name, args->lstio_grp_namep,
+			   args->lstio_grp_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_grp_nmlen + 1);
 		return -EFAULT;
 	}
@@ -344,7 +341,7 @@ lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 		return -ENOMEM;
 
 	if (copy_from_user(name, args->lstio_grp_namep,
-			       args->lstio_grp_nmlen)) {
+			   args->lstio_grp_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_grp_nmlen + 1);
 
 		return -EFAULT;
@@ -408,9 +405,9 @@ lst_group_info_ioctl(lstio_group_info_args_t *args)
 			return -EINVAL;
 
 		if (copy_from_user(&ndent, args->lstio_grp_ndentp,
-				       sizeof(ndent)) ||
+				   sizeof(ndent)) ||
 		    copy_from_user(&index, args->lstio_grp_idxp,
-				       sizeof(index)))
+				   sizeof(index)))
 			return -EFAULT;
 
 		if (ndent <= 0 || index < 0)
@@ -421,9 +418,8 @@ lst_group_info_ioctl(lstio_group_info_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_grp_namep,
-			       args->lstio_grp_nmlen)) {
+	if (copy_from_user(name, args->lstio_grp_namep,
+			   args->lstio_grp_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_grp_nmlen + 1);
 		return -EFAULT;
 	}
@@ -464,9 +460,8 @@ lst_batch_add_ioctl(lstio_batch_add_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_bat_namep,
-			       args->lstio_bat_nmlen)) {
+	if (copy_from_user(name, args->lstio_bat_namep,
+			   args->lstio_bat_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_bat_nmlen + 1);
 		return -EFAULT;
 	}
@@ -498,9 +493,8 @@ lst_batch_run_ioctl(lstio_batch_run_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_bat_namep,
-			       args->lstio_bat_nmlen)) {
+	if (copy_from_user(name, args->lstio_bat_namep,
+			   args->lstio_bat_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_bat_nmlen + 1);
 		return -EFAULT;
 	}
@@ -534,9 +528,8 @@ lst_batch_stop_ioctl(lstio_batch_stop_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_bat_namep,
-			       args->lstio_bat_nmlen)) {
+	if (copy_from_user(name, args->lstio_bat_namep,
+			   args->lstio_bat_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_bat_nmlen + 1);
 		return -EFAULT;
 	}
@@ -573,9 +566,8 @@ lst_batch_query_ioctl(lstio_batch_query_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_bat_namep,
-			       args->lstio_bat_nmlen)) {
+	if (copy_from_user(name, args->lstio_bat_namep,
+			   args->lstio_bat_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_bat_nmlen + 1);
 		return -EFAULT;
 	}
@@ -636,9 +628,9 @@ lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 			return -EINVAL;
 
 		if (copy_from_user(&index, args->lstio_bat_idxp,
-				       sizeof(index)) ||
+				   sizeof(index)) ||
 		    copy_from_user(&ndent, args->lstio_bat_ndentp,
-				       sizeof(ndent)))
+				   sizeof(ndent)))
 			return -EFAULT;
 
 		if (ndent <= 0 || index < 0)
@@ -649,18 +641,17 @@ lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 	if (name == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			       args->lstio_bat_namep, args->lstio_bat_nmlen)) {
+	if (copy_from_user(name, args->lstio_bat_namep,
+			   args->lstio_bat_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_bat_nmlen + 1);
 		return -EFAULT;
 	}
 
 	name[args->lstio_bat_nmlen] = 0;
 
-	rc = lstcon_batch_info(name,
-			    args->lstio_bat_entp, args->lstio_bat_server,
-			    args->lstio_bat_testidx, &index, &ndent,
-			    args->lstio_bat_dentsp);
+	rc = lstcon_batch_info(name, args->lstio_bat_entp,
+			       args->lstio_bat_server, args->lstio_bat_testidx,
+			       &index, &ndent, args->lstio_bat_dentsp);
 
 	LIBCFS_FREE(name, args->lstio_bat_nmlen + 1);
 
@@ -701,7 +692,7 @@ lst_stat_query_ioctl(lstio_stat_args_t *args)
 		return -ENOMEM;
 
 	if (copy_from_user(name, args->lstio_sta_namep,
-			       args->lstio_sta_nmlen)) {
+			   args->lstio_sta_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_sta_nmlen + 1);
 		return -EFAULT;
 	}
@@ -781,21 +772,19 @@ static int lst_test_add_ioctl(lstio_test_args_t *args)
 	    copy_from_user(dst_name, args->lstio_tes_dgrp_name,
 			   args->lstio_tes_dgrp_nmlen) ||
 	    copy_from_user(param, args->lstio_tes_param,
-			      args->lstio_tes_param_len))
+			   args->lstio_tes_param_len))
 		goto out;
 
-	rc = lstcon_test_add(batch_name,
-			    args->lstio_tes_type,
-			    args->lstio_tes_loop,
-			    args->lstio_tes_concur,
-			    args->lstio_tes_dist, args->lstio_tes_span,
-			    src_name, dst_name, param,
-			    args->lstio_tes_param_len,
-			    &ret, args->lstio_tes_resultp);
+	rc = lstcon_test_add(batch_name, args->lstio_tes_type,
+			     args->lstio_tes_loop, args->lstio_tes_concur,
+			     args->lstio_tes_dist, args->lstio_tes_span,
+			     src_name, dst_name, param,
+			     args->lstio_tes_param_len,
+			     &ret, args->lstio_tes_resultp);
 
 	if (ret != 0)
 		rc = (copy_to_user(args->lstio_tes_retp, &ret,
-				       sizeof(ret))) ? -EFAULT : 0;
+				   sizeof(ret))) ? -EFAULT : 0;
 out:
 	if (batch_name != NULL)
 		LIBCFS_FREE(batch_name, args->lstio_tes_bat_nmlen + 1);
@@ -916,7 +905,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data)
 	}
 
 	if (copy_to_user(data->ioc_pbuf2, &console_session.ses_trans_stat,
-			     sizeof(lstcon_trans_stat_t)))
+			 sizeof(lstcon_trans_stat_t)))
 		rc = -EFAULT;
 out:
 	mutex_unlock(&console_session.ses_mutex);

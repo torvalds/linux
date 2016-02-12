@@ -180,7 +180,7 @@ lnet_rtr_addref_locked(lnet_peer_t *lp)
 		/* a simple insertion sort */
 		list_for_each_prev(pos, &the_lnet.ln_routers) {
 			lnet_peer_t *rtr = list_entry(pos, lnet_peer_t,
-							  lp_rtr_list);
+						      lp_rtr_list);
 
 			if (rtr->lp_nid < lp->lp_nid)
 				break;
@@ -206,7 +206,7 @@ lnet_rtr_decref_locked(lnet_peer_t *lp)
 
 		if (lp->lp_rcd != NULL) {
 			list_add(&lp->lp_rcd->rcd_list,
-				     &the_lnet.ln_rcd_deathrow);
+				 &the_lnet.ln_rcd_deathrow);
 			lp->lp_rcd = NULL;
 		}
 
@@ -432,8 +432,7 @@ lnet_check_routes(void)
 				lnet_nid_t nid2;
 				int net;
 
-				route = list_entry(e2, lnet_route_t,
-						       lr_list);
+				route = list_entry(e2, lnet_route_t, lr_list);
 
 				if (route2 == NULL) {
 					route2 = route;
@@ -493,7 +492,7 @@ lnet_del_route(__u32 net, lnet_nid_t gw_nid)
 		rnet = list_entry(e1, lnet_remotenet_t, lrn_list);
 
 		if (!(net == LNET_NIDNET(LNET_NID_ANY) ||
-			net == rnet->lrn_net))
+		      net == rnet->lrn_net))
 			continue;
 
 		list_for_each(e2, &rnet->lrn_routes) {
@@ -565,8 +564,7 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 			rnet = list_entry(e1, lnet_remotenet_t, lrn_list);
 
 			list_for_each(e2, &rnet->lrn_routes) {
-				route = list_entry(e2, lnet_route_t,
-						       lr_list);
+				route = list_entry(e2, lnet_route_t, lr_list);
 
 				if (idx-- == 0) {
 					*net      = rnet->lrn_net;
@@ -1111,13 +1109,13 @@ lnet_prune_rc_data(int wait_unlink)
 	if (the_lnet.ln_rc_state != LNET_RC_STATE_RUNNING) {
 		/* router checker is stopping, prune all */
 		list_for_each_entry(lp, &the_lnet.ln_routers,
-					lp_rtr_list) {
+				    lp_rtr_list) {
 			if (lp->lp_rcd == NULL)
 				continue;
 
 			LASSERT(list_empty(&lp->lp_rcd->rcd_list));
 			list_add(&lp->lp_rcd->rcd_list,
-				     &the_lnet.ln_rcd_deathrow);
+				 &the_lnet.ln_rcd_deathrow);
 			lp->lp_rcd = NULL;
 		}
 	}
@@ -1139,7 +1137,7 @@ lnet_prune_rc_data(int wait_unlink)
 	/* release all zombie RCDs */
 	while (!list_empty(&the_lnet.ln_rcd_zombie)) {
 		list_for_each_entry_safe(rcd, tmp, &the_lnet.ln_rcd_zombie,
-					     rcd_list) {
+					 rcd_list) {
 			if (LNetHandleIsInvalid(rcd->rcd_mdh))
 				list_move(&rcd->rcd_list, &head);
 		}
@@ -1151,7 +1149,7 @@ lnet_prune_rc_data(int wait_unlink)
 
 		while (!list_empty(&head)) {
 			rcd = list_entry(head.next,
-					     lnet_rc_data_t, rcd_list);
+					 lnet_rc_data_t, rcd_list);
 			list_del_init(&rcd->rcd_list);
 			lnet_destroy_rc_data(rcd);
 		}
@@ -1301,7 +1299,7 @@ lnet_rtrpool_free_bufs(lnet_rtrbufpool_t *rbp)
 		LASSERT(rbp->rbp_credits > 0);
 
 		rb = list_entry(rbp->rbp_bufs.next,
-				    lnet_rtrbuf_t, rb_list);
+				lnet_rtrbuf_t, rb_list);
 		list_del(&rb->rb_list);
 		lnet_destroy_rtrbuf(rb, npages);
 		nbuffers++;
@@ -1521,15 +1519,15 @@ lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 	LASSERT(!in_interrupt());
 
 	CDEBUG(D_NET, "%s notifying %s: %s\n",
-		(ni == NULL) ? "userspace" : libcfs_nid2str(ni->ni_nid),
-		libcfs_nid2str(nid),
-		alive ? "up" : "down");
+	       (ni == NULL) ? "userspace" : libcfs_nid2str(ni->ni_nid),
+	       libcfs_nid2str(nid),
+	       alive ? "up" : "down");
 
 	if (ni != NULL &&
 	    LNET_NIDNET(ni->ni_nid) != LNET_NIDNET(nid)) {
 		CWARN("Ignoring notification of %s %s by %s (different net)\n",
-			libcfs_nid2str(nid), alive ? "birth" : "death",
-			libcfs_nid2str(ni->ni_nid));
+		      libcfs_nid2str(nid), alive ? "birth" : "death",
+		      libcfs_nid2str(ni->ni_nid));
 		return -EINVAL;
 	}
 

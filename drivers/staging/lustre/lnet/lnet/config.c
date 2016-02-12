@@ -542,10 +542,9 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 			if (sscanf(parsed, "%d-%d%n", &lo, &hi, &scanned) < 2) {
 
 				/* simple string enumeration */
-				if (lnet_expand1tb(
-				     &pending, str, sep, sep2,
-				     parsed,
-				     (int)(enditem - parsed)) != 0) {
+				if (lnet_expand1tb(&pending, str, sep, sep2,
+						   parsed,
+						   (int)(enditem - parsed)) != 0) {
 					goto failed;
 				}
 

@@ -523,7 +523,7 @@ lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
 
 	while (!list_empty(&container->msc_finalizing)) {
 		msg = list_entry(container->msc_finalizing.next,
-				     lnet_msg_t, msg_list);
+				 lnet_msg_t, msg_list);
 
 		list_del(&msg->msg_list);
 
@@ -554,7 +554,7 @@ lnet_msg_container_cleanup(struct lnet_msg_container *container)
 
 	while (!list_empty(&container->msc_active)) {
 		lnet_msg_t *msg = list_entry(container->msc_active.next,
-						 lnet_msg_t, msg_activelist);
+					     lnet_msg_t, msg_activelist);
 
 		LASSERT(msg->msg_onactivelist);
 		msg->msg_onactivelist = 0;

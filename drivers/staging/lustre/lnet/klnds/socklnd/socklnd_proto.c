@@ -76,7 +76,7 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 	ksock_tx_t *tx = conn->ksnc_tx_carrier;
 
 	LASSERT(tx_ack == NULL ||
-		 tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
+		tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	/*
 	 * Enqueue or piggyback tx_ack / cookie
@@ -88,7 +88,7 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 	if (tx == NULL) {
 		if (tx_ack != NULL) {
 			list_add_tail(&tx_ack->tx_list,
-					  &conn->ksnc_tx_queue);
+				      &conn->ksnc_tx_queue);
 			conn->ksnc_tx_carrier = tx_ack;
 		}
 		return 0;
@@ -98,7 +98,7 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 		/* tx is noop zc-ack, can't piggyback zc-ack cookie */
 		if (tx_ack != NULL)
 			list_add_tail(&tx_ack->tx_list,
-					  &conn->ksnc_tx_queue);
+				      &conn->ksnc_tx_queue);
 		return 0;
 	}
 
@@ -163,13 +163,13 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 
 	/* non-blocking ZC-ACK (to router) */
 	LASSERT(tx_ack == NULL ||
-		 tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
+		tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	tx = conn->ksnc_tx_carrier;
 	if (tx == NULL) {
 		if (tx_ack != NULL) {
 			list_add_tail(&tx_ack->tx_list,
-					  &conn->ksnc_tx_queue);
+				      &conn->ksnc_tx_queue);
 			conn->ksnc_tx_carrier = tx_ack;
 		}
 		return 0;
@@ -424,8 +424,8 @@ ksocknal_handle_zcack(ksock_conn_t *conn, __u64 cookie1, __u64 cookie2)
 
 	spin_lock(&peer->ksnp_lock);
 
-	list_for_each_entry_safe(tx, tmp,
-				     &peer->ksnp_zc_req_list, tx_zc_list) {
+	list_for_each_entry_safe(tx, tmp, &peer->ksnp_zc_req_list,
+				 tx_zc_list) {
 		__u64 c = tx->tx_msg.ksm_zc_cookies[0];
 
 		if (c == cookie1 || c == cookie2 || (cookie1 < c && c < cookie2)) {
@@ -587,7 +587,7 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 			    timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading rest of HELLO hdr from %pI4h\n",
-			rc, &conn->ksnc_ipaddr);
+		       rc, &conn->ksnc_ipaddr);
 		LASSERT(rc < 0 && rc != -EALREADY);
 		goto out;
 	}
@@ -622,7 +622,7 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 			    hello->kshm_nips * sizeof(__u32), timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading IPs from ip %pI4h\n",
-			rc, &conn->ksnc_ipaddr);
+		       rc, &conn->ksnc_ipaddr);
 		LASSERT(rc < 0 && rc != -EALREADY);
 		goto out;
 	}
@@ -661,7 +661,7 @@ ksocknal_recv_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout
 			    timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading HELLO from %pI4h\n",
-			rc, &conn->ksnc_ipaddr);
+		       rc, &conn->ksnc_ipaddr);
 		LASSERT(rc < 0 && rc != -EALREADY);
 		return rc;
 	}
@@ -690,7 +690,7 @@ ksocknal_recv_hello_v2(ksock_conn_t *conn, ksock_hello_msg_t *hello, int timeout
 			    hello->kshm_nips * sizeof(__u32), timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading IPs from ip %pI4h\n",
-			rc, &conn->ksnc_ipaddr);
+		       rc, &conn->ksnc_ipaddr);
 		LASSERT(rc < 0 && rc != -EALREADY);
 		return rc;
 	}

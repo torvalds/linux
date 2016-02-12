@@ -458,7 +458,7 @@ lnet_ptl_match_early(struct lnet_portal *ptl, struct lnet_msg *msg)
 		if (msg->msg_rx_ready_delay) {
 			msg->msg_rx_delayed = 1;
 			list_add_tail(&msg->msg_list,
-					  &ptl->ptl_msg_delayed);
+				      &ptl->ptl_msg_delayed);
 		}
 		rc = LNET_MATCHMD_NONE;
 	} else {
@@ -498,7 +498,7 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 
 		if (i == 0) { /* the first try, attach on stealing list */
 			list_add_tail(&msg->msg_list,
-					  &ptl->ptl_msg_stealing);
+				      &ptl->ptl_msg_stealing);
 		}
 
 		if (!list_empty(&msg->msg_list)) { /* on stealing list */
@@ -531,7 +531,7 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 			if (lnet_ptl_is_lazy(ptl)) {
 				msg->msg_rx_delayed = 1;
 				list_add_tail(&msg->msg_list,
-						  &ptl->ptl_msg_delayed);
+					      &ptl->ptl_msg_delayed);
 				rc = LNET_MATCHMD_NONE;
 			} else {
 				rc = LNET_MATCHMD_DROP;
@@ -751,7 +751,7 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 		for (j = 0; j < LNET_MT_HASH_SIZE + 1; j++) {
 			while (!list_empty(&mhash[j])) {
 				me = list_entry(mhash[j].next,
-						    lnet_me_t, me_list);
+						lnet_me_t, me_list);
 				CERROR("Active ME %p on exit\n", me);
 				list_del(&me->me_list);
 				lnet_me_free(me);

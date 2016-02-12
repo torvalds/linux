@@ -440,7 +440,7 @@ lnet_sock_setbuf(struct socket *sock, int txbufsize, int rxbufsize)
 	if (rxbufsize != 0) {
 		option = rxbufsize;
 		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
-				      (char *)&option, sizeof(option));
+				       (char *)&option, sizeof(option));
 		if (rc != 0) {
 			CERROR("Can't set receive buffer %d: %d\n",
 			       option, rc);

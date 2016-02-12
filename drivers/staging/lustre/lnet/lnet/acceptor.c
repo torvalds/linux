@@ -142,7 +142,7 @@ EXPORT_SYMBOL(lnet_connect_console_error);
 
 int
 lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
-	    __u32 local_ip, __u32 peer_ip, int peer_port)
+	     __u32 local_ip, __u32 peer_ip, int peer_port)
 {
 	lnet_acceptor_connreq_t cr;
 	struct socket *sock;
@@ -259,7 +259,7 @@ lnet_accept(struct socket *sock, __u32 magic)
 			    accept_timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading connection request version from %pI4h\n",
-			rc, &peer_ip);
+		       rc, &peer_ip);
 		return -EIO;
 	}
 
@@ -292,7 +292,7 @@ lnet_accept(struct socket *sock, __u32 magic)
 			    accept_timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading connection request from %pI4h\n",
-			rc, &peer_ip);
+		       rc, &peer_ip);
 		return -EIO;
 	}
 
@@ -313,7 +313,7 @@ lnet_accept(struct socket *sock, __u32 magic)
 		/* This catches a request for the loopback LND */
 		lnet_ni_decref(ni);
 		LCONSOLE_ERROR_MSG(0x121, "Refusing connection from %pI4h for %s: NI doesn not accept IP connections\n",
-				  &peer_ip, libcfs_nid2str(cr.acr_nid));
+				   &peer_ip, libcfs_nid2str(cr.acr_nid));
 		return -EPERM;
 	}
 
@@ -396,7 +396,7 @@ lnet_acceptor(void *arg)
 				    accept_timeout);
 		if (rc != 0) {
 			CERROR("Error %d reading connection request from %pI4h\n",
-				rc, &peer_ip);
+			       rc, &peer_ip);
 			goto failed;
 		}
 

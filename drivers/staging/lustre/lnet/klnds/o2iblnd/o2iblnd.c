@@ -145,7 +145,7 @@ static int kiblnd_unpack_rd(kib_msg_t *msg, int flip)
 	int i;
 
 	LASSERT(msg->ibm_type == IBLND_MSG_GET_REQ ||
-		 msg->ibm_type == IBLND_MSG_PUT_ACK);
+		msg->ibm_type == IBLND_MSG_PUT_ACK);
 
 	rd = msg->ibm_type == IBLND_MSG_GET_REQ ?
 			      &msg->ibm_u.get.ibgm_rd :
@@ -444,8 +444,8 @@ static int kiblnd_get_peer_info(lnet_ni_t *ni, int index,
 
 			peer = list_entry(ptmp, kib_peer_t, ibp_list);
 			LASSERT(peer->ibp_connecting > 0 ||
-				 peer->ibp_accepting > 0 ||
-				 !list_empty(&peer->ibp_conns));
+				peer->ibp_accepting > 0 ||
+				!list_empty(&peer->ibp_conns));
 
 			if (peer->ibp_ni != ni)
 				continue;
@@ -513,8 +513,8 @@ static int kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
 		list_for_each_safe(ptmp, pnxt, &kiblnd_data.kib_peers[i]) {
 			peer = list_entry(ptmp, kib_peer_t, ibp_list);
 			LASSERT(peer->ibp_connecting > 0 ||
-				 peer->ibp_accepting > 0 ||
-				 !list_empty(&peer->ibp_conns));
+				peer->ibp_accepting > 0 ||
+				!list_empty(&peer->ibp_conns));
 
 			if (peer->ibp_ni != ni)
 				continue;
@@ -526,7 +526,7 @@ static int kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
 				LASSERT(list_empty(&peer->ibp_conns));
 
 				list_splice_init(&peer->ibp_tx_queue,
-						     &zombies);
+						 &zombies);
 			}
 
 			kiblnd_del_peer_locked(peer);
@@ -557,8 +557,8 @@ static kib_conn_t *kiblnd_get_conn_by_idx(lnet_ni_t *ni, int index)
 
 			peer = list_entry(ptmp, kib_peer_t, ibp_list);
 			LASSERT(peer->ibp_connecting > 0 ||
-				 peer->ibp_accepting > 0 ||
-				 !list_empty(&peer->ibp_conns));
+				peer->ibp_accepting > 0 ||
+				!list_empty(&peer->ibp_conns));
 
 			if (peer->ibp_ni != ni)
 				continue;
@@ -568,7 +568,7 @@ static kib_conn_t *kiblnd_get_conn_by_idx(lnet_ni_t *ni, int index)
 					continue;
 
 				conn = list_entry(ctmp, kib_conn_t,
-						      ibc_list);
+						  ibc_list);
 				kiblnd_conn_addref(conn);
 				read_unlock_irqrestore(
 					&kiblnd_data.kib_global_lock,
@@ -644,7 +644,7 @@ static int kiblnd_get_completion_vector(kib_conn_t *conn, int cpt)
 }
 
 kib_conn_t *kiblnd_create_conn(kib_peer_t *peer, struct rdma_cm_id *cmid,
-				int state, int version)
+			       int state, int version)
 {
 	/*
 	 * CAVEAT EMPTOR:
@@ -838,7 +838,7 @@ kib_conn_t *kiblnd_create_conn(kib_peer_t *peer, struct rdma_cm_id *cmid,
 
 	/* Init successful! */
 	LASSERT(state == IBLND_CONN_ACTIVE_CONNECT ||
-		 state == IBLND_CONN_PASSIVE_WAIT);
+		state == IBLND_CONN_PASSIVE_WAIT);
 	conn->ibc_state = state;
 
 	/* 1 more conn */
@@ -943,7 +943,7 @@ int kiblnd_close_peer_conns_locked(kib_peer_t *peer, int why)
 }
 
 int kiblnd_close_stale_conns_locked(kib_peer_t *peer,
-				     int version, __u64 incarnation)
+				    int version, __u64 incarnation)
 {
 	kib_conn_t *conn;
 	struct list_head *ctmp;
@@ -995,8 +995,8 @@ static int kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
 
 			peer = list_entry(ptmp, kib_peer_t, ibp_list);
 			LASSERT(peer->ibp_connecting > 0 ||
-				 peer->ibp_accepting > 0 ||
-				 !list_empty(&peer->ibp_conns));
+				peer->ibp_accepting > 0 ||
+				!list_empty(&peer->ibp_conns));
 
 			if (peer->ibp_ni != ni)
 				continue;
@@ -1192,7 +1192,7 @@ void kiblnd_map_rx_descs(kib_conn_t *conn)
 						       IBLND_MSG_SIZE,
 						       DMA_FROM_DEVICE);
 		LASSERT(!kiblnd_dma_mapping_error(conn->ibc_hdev->ibh_ibdev,
-						   rx->rx_msgaddr));
+						  rx->rx_msgaddr));
 		KIBLND_UNMAP_ADDR_SET(rx, rx_msgunmap, rx->rx_msgaddr);
 
 		CDEBUG(D_NET, "rx %d: %p %#llx(%#llx)\n",
@@ -1293,7 +1293,7 @@ static void kiblnd_map_tx_pool(kib_tx_pool_t *tpo)
 			tpo->tpo_hdev->ibh_ibdev, tx->tx_msg,
 			IBLND_MSG_SIZE, DMA_TO_DEVICE);
 		LASSERT(!kiblnd_dma_mapping_error(tpo->tpo_hdev->ibh_ibdev,
-						   tx->tx_msgaddr));
+						  tx->tx_msgaddr));
 		KIBLND_UNMAP_ADDR_SET(tx, tx_msgunmap, tx->tx_msgaddr);
 
 		list_add(&tx->tx_list, &pool->po_free_list);
@@ -1581,8 +1581,7 @@ int kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
 
 	if (fps->fps_increasing) {
 		spin_unlock(&fps->fps_lock);
-		CDEBUG(D_NET,
-			"Another thread is allocating new FMR pool, waiting for her to complete\n");
+		CDEBUG(D_NET, "Another thread is allocating new FMR pool, waiting for her to complete\n");
 		schedule();
 		goto again;
 
@@ -2252,8 +2251,7 @@ int kiblnd_dev_failover(kib_dev_t *dev)
 	int i;
 
 	LASSERT(*kiblnd_tunables.kib_dev_failover > 1 ||
-		 dev->ibd_can_failover ||
-		 dev->ibd_hdev == NULL);
+		dev->ibd_can_failover || dev->ibd_hdev == NULL);
 
 	rc = kiblnd_dev_need_failover(dev);
 	if (rc <= 0)
@@ -2432,8 +2430,7 @@ static kib_dev_t *kiblnd_create_dev(char *ifname)
 		return NULL;
 	}
 
-	list_add_tail(&dev->ibd_list,
-			  &kiblnd_data.kib_devs);
+	list_add_tail(&dev->ibd_list, &kiblnd_data.kib_devs);
 	return dev;
 }
 
@@ -2861,11 +2858,11 @@ static int __init kiblnd_module_init(void)
 
 	CLASSERT(sizeof(kib_msg_t) <= IBLND_MSG_SIZE);
 	CLASSERT(offsetof(kib_msg_t,
-		ibm_u.get.ibgm_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
-		<= IBLND_MSG_SIZE);
+			  ibm_u.get.ibgm_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
+			  <= IBLND_MSG_SIZE);
 	CLASSERT(offsetof(kib_msg_t,
-		ibm_u.putack.ibpam_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
-		<= IBLND_MSG_SIZE);
+			  ibm_u.putack.ibpam_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
+			  <= IBLND_MSG_SIZE);
 
 	rc = kiblnd_tunables_init();
 	if (rc != 0)

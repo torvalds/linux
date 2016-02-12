@@ -329,7 +329,7 @@ lstcon_group_move(lstcon_group_t *old, lstcon_group_t *new)
 
 	while (!list_empty(&old->grp_ndl_list)) {
 		ndl = list_entry(old->grp_ndl_list.next,
-				     lstcon_ndlink_t, ndl_link);
+				 lstcon_ndlink_t, ndl_link);
 		lstcon_group_ndlink_move(old, new, ndl);
 	}
 }
@@ -378,9 +378,9 @@ lstcon_sesrpc_readent(int transop, srpc_msg_t *msg,
 		rep = &msg->msg_body.dbg_reply;
 
 		if (copy_to_user(&ent_up->rpe_priv[0],
-				     &rep->dbg_timeout, sizeof(int)) ||
+				 &rep->dbg_timeout, sizeof(int)) ||
 		    copy_to_user(&ent_up->rpe_payload[0],
-				     &rep->dbg_name, LST_NAME_SIZE))
+				 &rep->dbg_name, LST_NAME_SIZE))
 			return -EFAULT;
 
 		return 0;
@@ -757,9 +757,9 @@ lstcon_nodes_getent(struct list_head *head, int *index_p,
 
 		nd = ndl->ndl_node;
 		if (copy_to_user(&dents_up[count].nde_id,
-				     &nd->nd_id, sizeof(nd->nd_id)) ||
+				 &nd->nd_id, sizeof(nd->nd_id)) ||
 		    copy_to_user(&dents_up[count].nde_state,
-				     &nd->nd_state, sizeof(nd->nd_state)))
+				 &nd->nd_state, sizeof(nd->nd_state)))
 			return -EFAULT;
 
 		count++;
@@ -812,7 +812,7 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gents_p,
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, gentp);
 
 	rc = copy_to_user(gents_p, gentp,
-			      sizeof(lstcon_ndlist_ent_t)) ? -EFAULT : 0;
+			  sizeof(lstcon_ndlist_ent_t)) ? -EFAULT : 0;
 
 	LIBCFS_FREE(gentp, sizeof(lstcon_ndlist_ent_t));
 
@@ -980,7 +980,7 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, &entp->tbe_srv_nle);
 
 	rc = copy_to_user(ent_up, entp,
-			      sizeof(lstcon_test_batch_ent_t)) ? -EFAULT : 0;
+			  sizeof(lstcon_test_batch_ent_t)) ? -EFAULT : 0;
 
 	LIBCFS_FREE(entp, sizeof(lstcon_test_batch_ent_t));
 
@@ -1088,7 +1088,7 @@ lstcon_batch_destroy(lstcon_batch_t *bat)
 
 	while (!list_empty(&bat->bat_test_list)) {
 		test = list_entry(bat->bat_test_list.next,
-				      lstcon_test_t, tes_link);
+				  lstcon_test_t, tes_link);
 		LASSERT(list_empty(&test->tes_trans_list));
 
 		list_del(&test->tes_link);
@@ -1104,7 +1104,7 @@ lstcon_batch_destroy(lstcon_batch_t *bat)
 
 	while (!list_empty(&bat->bat_cli_list)) {
 		ndl = list_entry(bat->bat_cli_list.next,
-				     lstcon_ndlink_t, ndl_link);
+				 lstcon_ndlink_t, ndl_link);
 		list_del_init(&ndl->ndl_link);
 
 		lstcon_ndlink_release(ndl);
@@ -1112,7 +1112,7 @@ lstcon_batch_destroy(lstcon_batch_t *bat)
 
 	while (!list_empty(&bat->bat_srv_list)) {
 		ndl = list_entry(bat->bat_srv_list.next,
-				     lstcon_ndlink_t, ndl_link);
+				 lstcon_ndlink_t, ndl_link);
 		list_del_init(&ndl->ndl_link);
 
 		lstcon_ndlink_release(ndl);
@@ -1379,11 +1379,11 @@ lstcon_tsbrpc_readent(int transop, srpc_msg_t *msg,
 	srpc_batch_reply_t *rep = &msg->msg_body.bat_reply;
 
 	LASSERT(transop == LST_TRANS_TSBCLIQRY ||
-		 transop == LST_TRANS_TSBSRVQRY);
+		transop == LST_TRANS_TSBSRVQRY);
 
 	/* positive errno, framework error code */
-	if (copy_to_user(&ent_up->rpe_priv[0],
-			     &rep->bar_active, sizeof(rep->bar_active)))
+	if (copy_to_user(&ent_up->rpe_priv[0], &rep->bar_active,
+			 sizeof(rep->bar_active)))
 		return -EFAULT;
 
 	return 0;
@@ -1757,7 +1757,7 @@ lstcon_session_new(char *name, int key, unsigned feats,
 	}
 
 	if (copy_to_user(sid_up, &console_session.ses_id,
-			     sizeof(lst_sid_t)) == 0)
+			 sizeof(lst_sid_t)) == 0)
 		return rc;
 
 	lstcon_session_end();
@@ -1786,11 +1786,11 @@ lstcon_session_info(lst_sid_t __user *sid_up, int __user *key_up,
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, entp);
 
 	if (copy_to_user(sid_up, &console_session.ses_id,
-			     sizeof(lst_sid_t)) ||
+			 sizeof(lst_sid_t)) ||
 	    copy_to_user(key_up, &console_session.ses_key,
-			     sizeof(*key_up)) ||
+			 sizeof(*key_up)) ||
 	    copy_to_user(featp, &console_session.ses_features,
-			     sizeof(*featp)) ||
+			 sizeof(*featp)) ||
 	    copy_to_user(ndinfo_up, entp, sizeof(*entp)) ||
 	    copy_to_user(name_up, console_session.ses_name, len))
 		rc = -EFAULT;
@@ -1839,7 +1839,7 @@ lstcon_session_end(void)
 	/* destroy all batches */
 	while (!list_empty(&console_session.ses_bat_list)) {
 		bat = list_entry(console_session.ses_bat_list.next,
-				     lstcon_batch_t, bat_link);
+				 lstcon_batch_t, bat_link);
 
 		lstcon_batch_destroy(bat);
 	}
@@ -1847,7 +1847,7 @@ lstcon_session_end(void)
 	/* destroy all groups */
 	while (!list_empty(&console_session.ses_grp_list)) {
 		grp = list_entry(console_session.ses_grp_list.next,
-				     lstcon_group_t, grp_link);
+				 lstcon_group_t, grp_link);
 		LASSERT(grp->grp_ref == 1);
 
 		lstcon_group_decref(grp);
@@ -1921,7 +1921,7 @@ lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 	}
 
 	if (jreq->join_sid.ses_nid != LNET_NID_ANY &&
-	     !lstcon_session_match(jreq->join_sid)) {
+	    !lstcon_session_match(jreq->join_sid)) {
 		jrep->join_status = EBUSY;
 		goto out;
 	}
@@ -1934,7 +1934,7 @@ lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 		}
 
 		list_add_tail(&grp->grp_link,
-				  &console_session.ses_grp_list);
+			      &console_session.ses_grp_list);
 		lstcon_group_addref(grp);
 	}
 

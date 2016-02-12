@@ -212,9 +212,8 @@ srpc_service_fini(struct srpc_service *svc)
 				break;
 
 			while (!list_empty(q)) {
-				buf = list_entry(q->next,
-						     struct srpc_buffer,
-						     buf_list);
+				buf = list_entry(q->next, struct srpc_buffer,
+						 buf_list);
 				list_del(&buf->buf_list);
 				LIBCFS_FREE(buf, sizeof(*buf));
 			}
@@ -224,8 +223,8 @@ srpc_service_fini(struct srpc_service *svc)
 
 		while (!list_empty(&scd->scd_rpc_free)) {
 			rpc = list_entry(scd->scd_rpc_free.next,
-					     struct srpc_server_rpc,
-					     srpc_list);
+					 struct srpc_server_rpc,
+					 srpc_list);
 			list_del(&rpc->srpc_list);
 			LIBCFS_FREE(rpc, sizeof(*rpc));
 		}
@@ -390,9 +389,8 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 		return -ENOMEM;
 	}
 
-	CDEBUG(D_NET,
-		"Posted passive RDMA: peer %s, portal %d, matchbits %#llx\n",
-		libcfs_id2str(peer), portal, matchbits);
+	CDEBUG(D_NET, "Posted passive RDMA: peer %s, portal %d, matchbits %#llx\n",
+	       libcfs_id2str(peer), portal, matchbits);
 	return 0;
 }
 
@@ -434,8 +432,8 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 
 	if (rc != 0) {
 		CERROR("LNet%s(%s, %d, %lld) failed: %d\n",
-			((options & LNET_MD_OP_PUT) != 0) ? "Put" : "Get",
-			libcfs_id2str(peer), portal, matchbits, rc);
+		       ((options & LNET_MD_OP_PUT) != 0) ? "Put" : "Get",
+		       libcfs_id2str(peer), portal, matchbits, rc);
 
 		/*
 		 * The forthcoming unlink event will complete this operation
@@ -444,9 +442,8 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 		rc = LNetMDUnlink(*mdh);
 		LASSERT(rc == 0);
 	} else {
-		CDEBUG(D_NET,
-			"Posted active RDMA: peer %s, portal %u, matchbits %#llx\n",
-			libcfs_id2str(peer), portal, matchbits);
+		CDEBUG(D_NET, "Posted active RDMA: peer %s, portal %u, matchbits %#llx\n",
+		       libcfs_id2str(peer), portal, matchbits);
 	}
 	return 0;
 }
@@ -682,7 +679,7 @@ srpc_finish_service(struct srpc_service *sv)
 		}
 
 		rpc = list_entry(scd->scd_rpc_active.next,
-				     struct srpc_server_rpc, srpc_list);
+				 struct srpc_server_rpc, srpc_list);
 		CNETERR("Active RPC %p on shutdown: sv %s, peer %s, wi %s scheduled %d running %d, ev fired %d type %d status %d lnet %d\n",
 			rpc, sv->sv_name, libcfs_id2str(rpc->srpc_peer),
 			swi_state2str(rpc->srpc_wi.swi_state),
@@ -914,9 +911,9 @@ srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 	rpc->srpc_status = status;
 
 	CDEBUG_LIMIT(status == 0 ? D_NET : D_NETERROR,
-		"Server RPC %p done: service %s, peer %s, status %s:%d\n",
-		rpc, sv->sv_name, libcfs_id2str(rpc->srpc_peer),
-		swi_state2str(rpc->srpc_wi.swi_state), status);
+		     "Server RPC %p done: service %s, peer %s, status %s:%d\n",
+		     rpc, sv->sv_name, libcfs_id2str(rpc->srpc_peer),
+		     swi_state2str(rpc->srpc_wi.swi_state), status);
 
 	if (status != 0) {
 		spin_lock(&srpc_data.rpc_glock);
@@ -952,7 +949,7 @@ srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 
 	if (!sv->sv_shuttingdown && !list_empty(&scd->scd_buf_blocked)) {
 		buffer = list_entry(scd->scd_buf_blocked.next,
-					srpc_buffer_t, buf_list);
+				    srpc_buffer_t, buf_list);
 		list_del(&buffer->buf_list);
 
 		srpc_init_server_rpc(rpc, scd, buffer);
@@ -1085,8 +1082,8 @@ srpc_client_rpc_expired(void *data)
 	srpc_client_rpc_t *rpc = data;
 
 	CWARN("Client RPC expired: service %d, peer %s, timeout %d.\n",
-	       rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
-	       rpc->crpc_timeout);
+	      rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
+	      rpc->crpc_timeout);
 
 	spin_lock(&rpc->crpc_lock);
 
@@ -1159,9 +1156,9 @@ srpc_client_rpc_done(srpc_client_rpc_t *rpc, int status)
 	srpc_del_client_rpc_timer(rpc);
 
 	CDEBUG_LIMIT((status == 0) ? D_NET : D_NETERROR,
-		"Client RPC done: service %d, peer %s, status %s:%d:%d\n",
-		rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
-		swi_state2str(wi->swi_state), rpc->crpc_aborted, status);
+		     "Client RPC done: service %d, peer %s, status %s:%d:%d\n",
+		     rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
+		     swi_state2str(wi->swi_state), rpc->crpc_aborted, status);
 
 	/*
 	 * No one can schedule me now since:
@@ -1317,9 +1314,9 @@ abort:
 
 srpc_client_rpc_t *
 srpc_create_client_rpc(lnet_process_id_t peer, int service,
-			int nbulkiov, int bulklen,
-			void (*rpc_done)(srpc_client_rpc_t *),
-			void (*rpc_fini)(srpc_client_rpc_t *), void *priv)
+		       int nbulkiov, int bulklen,
+		       void (*rpc_done)(srpc_client_rpc_t *),
+		       void (*rpc_fini)(srpc_client_rpc_t *), void *priv)
 {
 	srpc_client_rpc_t *rpc;
 
@@ -1343,10 +1340,9 @@ srpc_abort_rpc(srpc_client_rpc_t *rpc, int why)
 	    rpc->crpc_closed)    /* callback imminent */
 		return;
 
-	CDEBUG(D_NET,
-		"Aborting RPC: service %d, peer %s, state %s, why %d\n",
-		rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
-		swi_state2str(rpc->crpc_wi.swi_state), why);
+	CDEBUG(D_NET, "Aborting RPC: service %d, peer %s, state %s, why %d\n",
+	       rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
+	       swi_state2str(rpc->crpc_wi.swi_state), why);
 
 	rpc->crpc_aborted = 1;
 	rpc->crpc_status  = why;
@@ -1362,8 +1358,8 @@ srpc_post_rpc(srpc_client_rpc_t *rpc)
 	LASSERT(srpc_data.rpc_state == SRPC_STATE_RUNNING);
 
 	CDEBUG(D_NET, "Posting RPC: peer %s, service %d, timeout %d\n",
-		libcfs_id2str(rpc->crpc_dest), rpc->crpc_service,
-		rpc->crpc_timeout);
+	       libcfs_id2str(rpc->crpc_dest), rpc->crpc_service,
+	       rpc->crpc_timeout);
 
 	srpc_add_client_rpc_timer(rpc);
 	swi_schedule_workitem(&rpc->crpc_wi);
@@ -1485,9 +1481,9 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 
 		LASSERT(ev->unlinked);
 		LASSERT(ev->type == LNET_EVENT_PUT ||
-			 ev->type == LNET_EVENT_UNLINK);
+			ev->type == LNET_EVENT_UNLINK);
 		LASSERT(ev->type != LNET_EVENT_UNLINK ||
-			 sv->sv_shuttingdown);
+			sv->sv_shuttingdown);
 
 		buffer = container_of(ev->md.start, srpc_buffer_t, buf_msg);
 		buffer->buf_peer = ev->initiator;
@@ -1544,17 +1540,17 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 
 		if (!list_empty(&scd->scd_rpc_free)) {
 			srpc = list_entry(scd->scd_rpc_free.next,
-					      struct srpc_server_rpc,
-					      srpc_list);
+					  struct srpc_server_rpc,
+					  srpc_list);
 			list_del(&srpc->srpc_list);
 
 			srpc_init_server_rpc(srpc, scd, buffer);
 			list_add_tail(&srpc->srpc_list,
-					  &scd->scd_rpc_active);
+				      &scd->scd_rpc_active);
 			swi_schedule_workitem(&srpc->srpc_wi);
 		} else {
 			list_add_tail(&buffer->buf_list,
-					  &scd->scd_buf_blocked);
+				      &scd->scd_buf_blocked);
 		}
 
 		spin_unlock(&scd->scd_lock);
@@ -1566,8 +1562,8 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 
 	case SRPC_BULK_GET_RPLD:
 		LASSERT(ev->type == LNET_EVENT_SEND ||
-			 ev->type == LNET_EVENT_REPLY ||
-			 ev->type == LNET_EVENT_UNLINK);
+			ev->type == LNET_EVENT_REPLY ||
+			ev->type == LNET_EVENT_UNLINK);
 
 		if (!ev->unlinked)
 			break; /* wait for final event */
@@ -1669,8 +1665,8 @@ srpc_shutdown(void)
 			srpc_service_t *sv = srpc_data.rpc_services[i];
 
 			LASSERTF(sv == NULL,
-				  "service not empty: id %d, name %s\n",
-				  i, sv->sv_name);
+				 "service not empty: id %d, name %s\n",
+				 i, sv->sv_name);
 		}
 
 		spin_unlock(&srpc_data.rpc_glock);
