@@ -97,6 +97,13 @@ static int prepare_cpuflags(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 
 	/* intervention requests will be set later */
 	newflags = CPUSTAT_ZARCH;
+	if (cpuflags & CPUSTAT_GED && test_kvm_facility(vcpu->kvm, 8))
+		newflags |= CPUSTAT_GED;
+	if (cpuflags & CPUSTAT_GED2 && test_kvm_facility(vcpu->kvm, 78)) {
+		if (cpuflags & CPUSTAT_GED)
+			return set_validity_icpt(scb_s, 0x0001U);
+		newflags |= CPUSTAT_GED2;
+	}
 
 	atomic_set(&scb_s->cpuflags, newflags);
 	return 0;
