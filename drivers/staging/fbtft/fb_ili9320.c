@@ -216,10 +216,10 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-  Gamma string format:
-    VRP0 VRP1 RP0 RP1 KP0 KP1 KP2 KP3 KP4 KP5
-    VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
-*/
+ * Gamma string format:
+ *  VRP0 VRP1 RP0 RP1 KP0 KP1 KP2 KP3 KP4 KP5
+ *  VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
+ */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {

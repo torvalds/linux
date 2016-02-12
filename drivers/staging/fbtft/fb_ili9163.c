@@ -39,11 +39,11 @@
 #endif
 
 /* ILI9163C commands */
-#define CMD_FRMCTR1	0xB1 /* Frame Rate Control
-				(In normal mode/Full colors) */
+#define CMD_FRMCTR1	0xB1 /* Frame Rate Control */
+			     /*	(In normal mode/Full colors) */
 #define CMD_FRMCTR2	0xB2 /* Frame Rate Control (In Idle mode/8-colors) */
-#define CMD_FRMCTR3	0xB3 /* Frame Rate Control
-				(In Partial mode/full colors) */
+#define CMD_FRMCTR3	0xB3 /* Frame Rate Control */
+			     /*	(In Partial mode/full colors) */
 #define CMD_DINVCTR	0xB4 /* Display Inversion Control */
 #define CMD_RGBBLK	0xB5 /* RGB Interface Blanking Porch setting */
 #define CMD_DFUNCTR	0xB6 /* Display Function set 5 */
@@ -63,17 +63,18 @@
 #define CMD_GAMRSEL	0xF2 /* GAM_R_SEL */
 
 /*
-This display:
-http://www.ebay.com/itm/Replace-Nokia-5110-LCD-1-44-Red-Serial-128X128-SPI-Color-TFT-LCD-Display-Module-/271422122271
-This particular display has a design error! The controller has 3 pins to
-configure to constrain the memory and resolution to a fixed dimension (in
-that case 128x128) but they leaved those pins configured for 128x160 so
-there was several pixel memory addressing problems.
-I solved by setup several parameters that dinamically fix the resolution as
-needit so below the parameters for this display. If you have a strain or a
-correct display (can happen with chinese) you can copy those parameters and
-create setup for different displays.
-*/
+ * This display:
+ * http://www.ebay.com/itm/Replace-Nokia-5110-LCD-1-44-Red-Serial-128X128-SPI-
+ * Color-TFT-LCD-Display-Module-/271422122271
+ * This particular display has a design error! The controller has 3 pins to
+ * configure to constrain the memory and resolution to a fixed dimension (in
+ * that case 128x128) but they leaved those pins configured for 128x160 so
+ * there was several pixel memory addressing problems.
+ * I solved by setup several parameters that dinamically fix the resolution as
+ * needit so below the parameters for this display. If you have a strain or a
+ * correct display (can happen with chinese) you can copy those parameters and
+ * create setup for different displays.
+ */
 
 #ifdef RED
 #define __OFFSET		32 /*see note 2 - this is the red version */
@@ -153,25 +154,25 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys,
 }
 
 /*
-7) MY:  1(bottom to top),	0(top to bottom)    Row Address Order
-6) MX:  1(R to L),		0(L to R)	    Column Address Order
-5) MV:  1(Exchanged),		0(normal)	    Row/Column exchange
-4) ML:  1(bottom to top),	0(top to bottom)    Vertical Refresh Order
-3) RGB: 1(BGR),			0(RGB)		    Color Space
-2) MH:  1(R to L),		0(L to R)	    Horizontal Refresh Order
-1)
-0)
-
-	MY, MX, MV, ML,RGB, MH, D1, D0
-	0 | 0 | 0 | 0 | 1 | 0 | 0 | 0	//normal
-	1 | 0 | 0 | 0 | 1 | 0 | 0 | 0	//Y-Mirror
-	0 | 1 | 0 | 0 | 1 | 0 | 0 | 0	//X-Mirror
-	1 | 1 | 0 | 0 | 1 | 0 | 0 | 0	//X-Y-Mirror
-	0 | 0 | 1 | 0 | 1 | 0 | 0 | 0	//X-Y Exchange
-	1 | 0 | 1 | 0 | 1 | 0 | 0 | 0	//X-Y Exchange, Y-Mirror
-	0 | 1 | 1 | 0 | 1 | 0 | 0 | 0	//XY exchange
-	1 | 1 | 1 | 0 | 1 | 0 | 0 | 0
-*/
+ * 7) MY:  1(bottom to top),	0(top to bottom)    Row Address Order
+ * 6) MX:  1(R to L),		0(L to R)	    Column Address Order
+ * 5) MV:  1(Exchanged),	0(normal)	    Row/Column exchange
+ * 4) ML:  1(bottom to top),	0(top to bottom)    Vertical Refresh Order
+ * 3) RGB: 1(BGR),		0(RGB)		    Color Space
+ * 2) MH:  1(R to L),		0(L to R)	    Horizontal Refresh Order
+ * 1)
+ * 0)
+ *
+ *	MY, MX, MV, ML,RGB, MH, D1, D0
+ *	0 | 0 | 0 | 0 | 1 | 0 | 0 | 0	//normal
+ *	1 | 0 | 0 | 0 | 1 | 0 | 0 | 0	//Y-Mirror
+ *	0 | 1 | 0 | 0 | 1 | 0 | 0 | 0	//X-Mirror
+ *	1 | 1 | 0 | 0 | 1 | 0 | 0 | 0	//X-Y-Mirror
+ *	0 | 0 | 1 | 0 | 1 | 0 | 0 | 0	//X-Y Exchange
+ *	1 | 0 | 1 | 0 | 1 | 0 | 0 | 0	//X-Y Exchange, Y-Mirror
+ *	0 | 1 | 1 | 0 | 1 | 0 | 0 | 0	//XY exchange
+ *	1 | 1 | 1 | 0 | 1 | 0 | 0 | 0
+ */
 static int set_var(struct fbtft_par *par)
 {
 	u8 mactrl_data = 0; /* Avoid compiler warning */
