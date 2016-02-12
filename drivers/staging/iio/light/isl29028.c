@@ -406,8 +406,8 @@ static const struct iio_chan_spec isl29028_channels[] = {
 static const struct iio_info isl29028_info = {
 	.attrs = &isl29108_group,
 	.driver_module = THIS_MODULE,
-	.read_raw = &isl29028_read_raw,
-	.write_raw = &isl29028_write_raw,
+	.read_raw = isl29028_read_raw,
+	.write_raw = isl29028_write_raw,
 };
 
 static int isl29028_chip_init(struct isl29028_chip *chip)
