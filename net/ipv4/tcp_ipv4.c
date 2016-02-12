@@ -1600,8 +1600,10 @@ process:
 		struct sock *nsk = NULL;
 
 		sk = req->rsk_listener;
-		if (tcp_v4_inbound_md5_hash(sk, skb))
-			goto discard_and_relse;
+		if (unlikely(tcp_v4_inbound_md5_hash(sk, skb))) {
+			reqsk_put(req);
+			goto discard_it;
+		}
 		if (likely(sk->sk_state == TCP_LISTEN)) {
 			nsk = tcp_check_req(sk, skb, req, false);
 		} else {
