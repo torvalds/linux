@@ -75,6 +75,24 @@ static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
 }
 
 /*
+ * 'pteval' can come from a pte, pmd or pud.  We only check
+ * _PAGE_PRESENT, _PAGE_USER, and _PAGE_RW in here which are the
+ * same value on all 3 types.
+ */
+static inline int pte_allows_gup(unsigned long pteval, int write)
+{
+	unsigned long need_pte_bits = _PAGE_PRESENT|_PAGE_USER;
+
+	if (write)
+		need_pte_bits |= _PAGE_RW;
+
+	if ((pteval & need_pte_bits) != need_pte_bits)
+		return 0;
+
+	return 1;
+}
+
+/*
  * The performance critical leaf functions are made noinline otherwise gcc
  * inlines everything into a single function which results in too much
  * register pressure.
@@ -83,13 +101,8 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
 	struct dev_pagemap *pgmap = NULL;
-	unsigned long mask;
 	int nr_start = *nr;
 	pte_t *ptep;
-
-	mask = _PAGE_PRESENT|_PAGE_USER;
-	if (write)
-		mask |= _PAGE_RW;
 
 	ptep = pte_offset_map(&pmd, addr);
 	do {
@@ -110,7 +123,8 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 				pte_unmap(ptep);
 				return 0;
 			}
-		} else if ((pte_flags(pte) & (mask | _PAGE_SPECIAL)) != mask) {
+		} else if (!pte_allows_gup(pte_val(pte), write) ||
+			   pte_special(pte)) {
 			pte_unmap(ptep);
 			return 0;
 		}
@@ -164,14 +178,10 @@ static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
 static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
-	unsigned long mask;
 	struct page *head, *page;
 	int refs;
 
-	mask = _PAGE_PRESENT|_PAGE_USER;
-	if (write)
-		mask |= _PAGE_RW;
-	if ((pmd_flags(pmd) & mask) != mask)
+	if (!pte_allows_gup(pmd_val(pmd), write))
 		return 0;
 
 	VM_BUG_ON(!pfn_valid(pmd_pfn(pmd)));
@@ -231,14 +241,10 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
 static noinline int gup_huge_pud(pud_t pud, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
-	unsigned long mask;
 	struct page *head, *page;
 	int refs;
 
-	mask = _PAGE_PRESENT|_PAGE_USER;
-	if (write)
-		mask |= _PAGE_RW;
-	if ((pud_flags(pud) & mask) != mask)
+	if (!pte_allows_gup(pud_val(pud), write))
 		return 0;
 	/* hugepages are never "special" */
 	VM_BUG_ON(pud_flags(pud) & _PAGE_SPECIAL);
