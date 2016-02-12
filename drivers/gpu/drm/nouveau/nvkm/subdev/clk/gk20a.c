@@ -671,28 +671,47 @@ gk20a_clk = {
 };
 
 int
-gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
+_gk20a_clk_ctor(struct nvkm_device *device, int index,
+		const struct nvkm_clk_func *func,
+		const struct gk20a_clk_pllg_params *params,
+		struct gk20a_clk *clk)
 {
 	struct nvkm_device_tegra *tdev = device->func->tegra(device);
-	struct gk20a_clk *clk;
-	int ret, i;
+	int ret;
+	int i;
 
-	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
+	/* Finish initializing the pstates */
+	for (i = 0; i < func->nr_pstates; i++) {
+		INIT_LIST_HEAD(&func->pstates[i].list);
+		func->pstates[i].pstate = i + 1;
+	}
+
+	clk->params = params;
+	clk->parent_rate = clk_get_rate(tdev->clk);
+
+	ret = nvkm_clk_ctor(func, device, index, true, &clk->base);
+	if (ret)
+		return ret;
+
+	nvkm_debug(&clk->base.subdev, "parent clock rate: %d Khz\n",
+		   clk->parent_rate / KHZ);
+
+	return 0;
+}
+
+int
+gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
+{
+	struct gk20a_clk *clk;
+	int ret;
+
+	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	if (!clk)
 		return -ENOMEM;
 	*pclk = &clk->base;
 
-	/* Finish initializing the pstates */
-	for (i = 0; i < ARRAY_SIZE(gk20a_pstates); i++) {
-		INIT_LIST_HEAD(&gk20a_pstates[i].list);
-		gk20a_pstates[i].pstate = i + 1;
-	}
-
-	clk->params = &gk20a_pllg_params;
-	clk->parent_rate = clk_get_rate(tdev->clk);
-
-	ret = nvkm_clk_ctor(&gk20a_clk, device, index, true, &clk->base);
-	nvkm_debug(&clk->base.subdev, "parent clock rate: %d Khz\n",
-		   clk->parent_rate / KHZ);
+	ret = _gk20a_clk_ctor(device, index, &gk20a_clk, &gk20a_pllg_params,
+			      clk);
 
 	clk->pl_to_div = pl_to_div;
 	clk->div_to_pl = div_to_pl;
