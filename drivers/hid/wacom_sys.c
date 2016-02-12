@@ -1853,6 +1853,11 @@ fail_parse:
 static void wacom_remove(struct hid_device *hdev)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom_features *features = &wacom_wac->features;
+
+	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR)
+		hid_hw_close(hdev);
 
 	hid_hw_stop(hdev);
 
