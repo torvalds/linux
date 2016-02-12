@@ -47,10 +47,24 @@ struct iommu_gather_ops {
  *                 page table walker.
  */
 struct io_pgtable_cfg {
-	#define IO_PGTABLE_QUIRK_ARM_NS		BIT(0) /* Set NS bit in PTEs */
-	#define IO_PGTABLE_QUIRK_NO_PERMS	BIT(1) /* No AP/XN bits */
-	#define IO_PGTABLE_QUIRK_TLBI_ON_MAP	BIT(2) /* TLB Inv. on map */
-	int				quirks;
+	/*
+	 * IO_PGTABLE_QUIRK_ARM_NS: (ARM formats) Set NS and NSTABLE bits in
+	 *	stage 1 PTEs, for hardware which insists on validating them
+	 *	even in	non-secure state where they should normally be ignored.
+	 *
+	 * IO_PGTABLE_QUIRK_NO_PERMS: Ignore the IOMMU_READ, IOMMU_WRITE and
+	 *	IOMMU_NOEXEC flags and map everything with full access, for
+	 *	hardware which does not implement the permissions of a given
+	 *	format, and/or requires some format-specific default value.
+	 *
+	 * IO_PGTABLE_QUIRK_TLBI_ON_MAP: If the format forbids caching invalid
+	 *	(unmapped) entries but the hardware might do so anyway, perform
+	 *	TLB maintenance when mapping as well as when unmapping.
+	 */
+	#define IO_PGTABLE_QUIRK_ARM_NS		BIT(0)
+	#define IO_PGTABLE_QUIRK_NO_PERMS	BIT(1)
+	#define IO_PGTABLE_QUIRK_TLBI_ON_MAP	BIT(2)
+	unsigned long			quirks;
 	unsigned long			pgsize_bitmap;
 	unsigned int			ias;
 	unsigned int			oas;
