@@ -606,7 +606,7 @@ static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
 }
 
 static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
-			struct ib_reg_wr *wr, u8 *len16, u8 t5dev)
+			struct ib_reg_wr *wr, u8 *len16, bool dsgl_supported)
 {
 	struct c4iw_mr *mhp = to_c4iw_mr(wr->mr);
 	struct fw_ri_immd *imdp;
@@ -615,7 +615,7 @@ static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
 	int pbllen = roundup(mhp->mpl_len * sizeof(u64), 32);
 	int rem;
 
-	if (mhp->mpl_len > t4_max_fr_depth(use_dsgl))
+	if (mhp->mpl_len > t4_max_fr_depth(dsgl_supported && use_dsgl))
 		return -EINVAL;
 
 	wqe->fr.qpbinde_to_dcacpu = 0;
@@ -629,7 +629,7 @@ static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
 	wqe->fr.va_lo_fbo = cpu_to_be32(mhp->ibmr.iova &
 					0xffffffff);
 
-	if (t5dev && use_dsgl && (pbllen > max_fr_immd)) {
+	if (dsgl_supported && use_dsgl && (pbllen > max_fr_immd)) {
 		struct fw_ri_dsgl *sglp;
 
 		for (i = 0; i < mhp->mpl_len; i++)
@@ -808,9 +808,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			fw_opcode = FW_RI_FR_NSMR_WR;
 			swsqe->opcode = FW_RI_FAST_REGISTER;
 			err = build_memreg(&qhp->wq.sq, wqe, reg_wr(wr), &len16,
-					   is_t5(
-					   qhp->rhp->rdev.lldi.adapter_type) ?
-					   1 : 0);
+				qhp->rhp->rdev.lldi.ulptx_memwrite_dsgl);
 			break;
 		case IB_WR_LOCAL_INV:
 			if (wr->send_flags & IB_SEND_FENCE)
