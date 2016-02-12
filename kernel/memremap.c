@@ -150,7 +150,7 @@ void devm_memunmap(struct device *dev, void *addr)
 }
 EXPORT_SYMBOL(devm_memunmap);
 
-pfn_t phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
+pfn_t phys_to_pfn_t(phys_addr_t addr, u64 flags)
 {
 	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
 }
