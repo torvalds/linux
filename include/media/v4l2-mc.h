@@ -14,6 +14,9 @@
  * GNU General Public License for more details.
  */
 
+#ifndef _V4L2_MC_H
+#define _V4L2_MC_H
+
 #include <media/media-device.h>
 
 /**
@@ -134,5 +137,7 @@ struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
 						   char *name) {
 	return NULL;
 }
+
+#endif
 
 #endif
