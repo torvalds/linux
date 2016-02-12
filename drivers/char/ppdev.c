@@ -313,7 +313,7 @@ static int register_device(int minor, struct pp_struct *pp)
 	}
 
 	pp->pdev = pdev;
-	pr_debug("%s: registered pardevice\n", name);
+	dev_dbg(&pdev->dev, "registered pardevice\n");
 	return 0;
 }
 
@@ -359,7 +359,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		int ret;
 
 		if (pp->flags & PP_CLAIMED) {
-			pr_debug(CHRDEV "%x: you've already got it!\n", minor);
+			dev_dbg(&pp->pdev->dev, "you've already got it!\n");
 			return -EINVAL;
 		}
 
@@ -394,8 +394,8 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	    }
 	case PPEXCL:
 		if (pp->pdev) {
-			pr_debug(CHRDEV "%x: too late for PPEXCL; "
-				"already registered\n", minor);
+			dev_dbg(&pp->pdev->dev,
+				"too late for PPEXCL; already registered\n");
 			if (pp->flags & PP_EXCL)
 				/* But it's not really an error. */
 				return 0;
@@ -647,7 +647,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	default:
-		pr_debug(CHRDEV "%x: What? (cmd=0x%x)\n", minor, cmd);
+		dev_dbg(&pp->pdev->dev, "What? (cmd=0x%x)\n", cmd);
 		return -EINVAL;
 	}
 
@@ -728,8 +728,8 @@ static int pp_release(struct inode *inode, struct file *file)
 	}
 	if (compat_negot) {
 		parport_negotiate(pp->pdev->port, IEEE1284_MODE_COMPAT);
-		pr_debug(CHRDEV "%x: negotiated back to compatibility "
-			"mode because user-space forgot\n", minor);
+		dev_dbg(&pp->pdev->dev,
+			"negotiated back to compatibility mode because user-space forgot\n");
 	}
 
 	if (pp->flags & PP_CLAIMED) {
