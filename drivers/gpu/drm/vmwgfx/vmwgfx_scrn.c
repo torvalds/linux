@@ -516,7 +516,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	sou->base.pref_width = dev_priv->initial_width;
 	sou->base.pref_height = dev_priv->initial_height;
 	sou->base.pref_mode = NULL;
-	sou->base.is_implicit = true;
+	sou->base.is_implicit = false;
 
 	drm_connector_init(dev, connector, &vmw_sou_connector_funcs,
 			   DRM_MODE_CONNECTOR_VIRTUAL);

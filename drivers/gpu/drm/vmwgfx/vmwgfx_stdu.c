@@ -1109,7 +1109,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	stdu->base.pref_active = (unit == 0);
 	stdu->base.pref_width  = dev_priv->initial_width;
 	stdu->base.pref_height = dev_priv->initial_height;
-	stdu->base.is_implicit = true;
+	stdu->base.is_implicit = false;
 
 	drm_connector_init(dev, connector, &vmw_stdu_connector_funcs,
 			   DRM_MODE_CONNECTOR_VIRTUAL);
