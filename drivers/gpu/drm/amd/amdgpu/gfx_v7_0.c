@@ -1721,8 +1721,6 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	WREG32(mmGB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmHDP_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmDMIF_ADDR_CALC, adev->gfx.config.gb_addr_config);
-	WREG32(mmSDMA0_TILING_CONFIG + SDMA0_REGISTER_OFFSET, adev->gfx.config.gb_addr_config & 0x70);
-	WREG32(mmSDMA0_TILING_CONFIG + SDMA1_REGISTER_OFFSET, adev->gfx.config.gb_addr_config & 0x70);
 	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
@@ -4602,10 +4600,6 @@ static void gfx_v7_0_print_status(void *handle)
 		 RREG32(mmHDP_ADDR_CONFIG));
 	dev_info(adev->dev, "  DMIF_ADDR_CALC=0x%08X\n",
 		 RREG32(mmDMIF_ADDR_CALC));
-	dev_info(adev->dev, "  SDMA0_TILING_CONFIG=0x%08X\n",
-		 RREG32(mmSDMA0_TILING_CONFIG + SDMA0_REGISTER_OFFSET));
-	dev_info(adev->dev, "  SDMA1_TILING_CONFIG=0x%08X\n",
-		 RREG32(mmSDMA0_TILING_CONFIG + SDMA1_REGISTER_OFFSET));
 	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
 		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
 	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
