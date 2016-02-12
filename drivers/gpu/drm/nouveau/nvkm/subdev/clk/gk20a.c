@@ -429,9 +429,16 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 
 	/* restore out divider 1:1 */
 	val = nvkm_rd32(device, GPC2CLK_OUT);
-	val &= ~GPC2CLK_OUT_VCODIV_MASK;
-	udelay(2);
-	nvkm_wr32(device, GPC2CLK_OUT, val);
+	if ((val & GPC2CLK_OUT_VCODIV_MASK) !=
+	    (GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT)) {
+		val &= ~GPC2CLK_OUT_VCODIV_MASK;
+		val |= GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT;
+		udelay(2);
+		nvkm_wr32(device, GPC2CLK_OUT, val);
+		/* Intentional 2nd write to assure linear divider operation */
+		nvkm_wr32(device, GPC2CLK_OUT, val);
+		nvkm_rd32(device, GPC2CLK_OUT);
+	}
 
 	/* slide up to new NDIV */
 	return allow_slide ? gk20a_pllg_slide(clk, clk->n) : 0;
