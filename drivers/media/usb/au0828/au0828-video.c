@@ -1417,8 +1417,10 @@ static void au0828_s_input(struct au0828_dev *dev, int index)
 	default:
 		dprintk(1, "unknown input type set [%d]\n",
 			AUVI_INPUT(index).type);
-		break;
+		return;
 	}
+
+	dev->ctrl_input = index;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
 			AUVI_INPUT(index).vmux, 0, 0);
@@ -1458,7 +1460,10 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		return -EINVAL;
 	if (AUVI_INPUT(index).type == 0)
 		return -EINVAL;
-	dev->ctrl_input = index;
+
+	if (dev->ctrl_input == index)
+		return 0;
+
 	au0828_s_input(dev, index);
 	return 0;
 }
@@ -1974,6 +1979,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->ctrl_ainput = 0;
 	dev->ctrl_freq = 960;
 	dev->std = V4L2_STD_NTSC_M;
+	/* Default input is TV Tuner */
 	au0828_s_input(dev, 0);
 
 	mutex_init(&dev->vb_queue_lock);
