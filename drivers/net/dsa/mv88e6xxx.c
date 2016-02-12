@@ -1889,13 +1889,22 @@ unlock:
 	return err;
 }
 
-int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port, u32 members)
+int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
+			       struct net_device *bridge)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	ps->ports[port].bridge_dev = bridge;
+
 	return 0;
 }
 
-int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port, u32 members)
+int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	ps->ports[port].bridge_dev = NULL;
+
 	return 0;
 }
 

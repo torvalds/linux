@@ -297,9 +297,8 @@ struct dsa_switch_driver {
 	 * Bridge integration
 	 */
 	int	(*port_join_bridge)(struct dsa_switch *ds, int port,
-				    u32 br_port_mask);
-	int	(*port_leave_bridge)(struct dsa_switch *ds, int port,
-				     u32 br_port_mask);
+				    struct net_device *bridge);
+	int	(*port_leave_bridge)(struct dsa_switch *ds, int port);
 	int	(*port_stp_update)(struct dsa_switch *ds, int port,
 				   u8 state);
 
