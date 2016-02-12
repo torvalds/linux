@@ -179,6 +179,8 @@ struct vmw_display_unit {
 	int gui_y;
 	bool is_implicit;
 	bool active_implicit;
+	int set_gui_x;
+	int set_gui_y;
 };
 
 #define vmw_crtc_to_du(x) \

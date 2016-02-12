@@ -144,6 +144,8 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 		cmd->obj.root.x = sou->base.gui_x;
 		cmd->obj.root.y = sou->base.gui_y;
 	}
+	sou->base.set_gui_x = cmd->obj.root.x;
+	sou->base.set_gui_y = cmd->obj.root.y;
 
 	/* Ok to assume that buffer is pinned in vram */
 	vmw_bo_get_guest_ptr(&sou->buffer->base, &cmd->obj.backingStore.ptr);

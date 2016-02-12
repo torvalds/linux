@@ -288,6 +288,8 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 	crtc->y = set->y;
 	crtc->mode = *mode;
 	crtc->enabled = true;
+	ldu->base.set_gui_x = set->x;
+	ldu->base.set_gui_y = set->y;
 
 	vmw_ldu_add_active(dev_priv, ldu, vfb);
 

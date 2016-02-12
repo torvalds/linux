@@ -236,8 +236,8 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 	bool shown = du->cursor_surface || du->cursor_dmabuf ? true : false;
 
-	du->cursor_x = x + crtc->x;
-	du->cursor_y = y + crtc->y;
+	du->cursor_x = x + du->set_gui_x;
+	du->cursor_y = y + du->set_gui_y;
 
 	/*
 	 * FIXME: Unclear whether there's any global state touched by the

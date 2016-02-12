@@ -202,6 +202,8 @@ static int vmw_stdu_define_st(struct vmw_private *dev_priv,
 		cmd->body.xRoot  = stdu->base.gui_x;
 		cmd->body.yRoot  = stdu->base.gui_y;
 	}
+	stdu->base.set_gui_x = cmd->body.xRoot;
+	stdu->base.set_gui_y = cmd->body.yRoot;
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
