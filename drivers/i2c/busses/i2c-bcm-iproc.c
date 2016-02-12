@@ -119,6 +119,48 @@ static irqreturn_t bcm_iproc_i2c_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int bcm_iproc_i2c_init(struct bcm_iproc_i2c_dev *iproc_i2c)
+{
+	u32 val;
+
+	/* put controller in reset */
+	val = readl(iproc_i2c->base + CFG_OFFSET);
+	val |= 1 << CFG_RESET_SHIFT;
+	val &= ~(1 << CFG_EN_SHIFT);
+	writel(val, iproc_i2c->base + CFG_OFFSET);
+
+	/* wait 100 usec per spec */
+	udelay(100);
+
+	/* bring controller out of reset */
+	val &= ~(1 << CFG_RESET_SHIFT);
+	writel(val, iproc_i2c->base + CFG_OFFSET);
+
+	/* flush TX/RX FIFOs and set RX FIFO threshold to zero */
+	val = (1 << M_FIFO_RX_FLUSH_SHIFT) | (1 << M_FIFO_TX_FLUSH_SHIFT);
+	writel(val, iproc_i2c->base + M_FIFO_CTRL_OFFSET);
+	/* disable all interrupts */
+	writel(0, iproc_i2c->base + IE_OFFSET);
+
+	/* clear all pending interrupts */
+	writel(0xffffffff, iproc_i2c->base + IS_OFFSET);
+
+	return 0;
+}
+
+static void bcm_iproc_i2c_enable_disable(struct bcm_iproc_i2c_dev *iproc_i2c,
+					 bool enable)
+{
+	u32 val;
+
+	val = readl(iproc_i2c->base + CFG_OFFSET);
+	if (enable)
+		val |= BIT(CFG_EN_SHIFT);
+	else
+		val &= ~BIT(CFG_EN_SHIFT);
+	writel(val, iproc_i2c->base + CFG_OFFSET);
+}
+
 static int bcm_iproc_i2c_check_status(struct bcm_iproc_i2c_dev *iproc_i2c,
 				      struct i2c_msg *msg)
 {
@@ -149,6 +191,12 @@ static int bcm_iproc_i2c_check_status(struct bcm_iproc_i2c_dev *iproc_i2c,
 
 	default:
 		dev_dbg(iproc_i2c->device, "unknown error code=%d\n", val);
+
+		/* re-initialize i2c for recovery */
+		bcm_iproc_i2c_enable_disable(iproc_i2c, false);
+		bcm_iproc_i2c_init(iproc_i2c);
+		bcm_iproc_i2c_enable_disable(iproc_i2c, true);
+
 		return -EIO;
 	}
 }
@@ -319,49 +367,6 @@ static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
 	dev_info(iproc_i2c->device, "bus set to %u Hz\n", bus_speed);
 
 	return 0;
-}
-
-static int bcm_iproc_i2c_init(struct bcm_iproc_i2c_dev *iproc_i2c)
-{
-	u32 val;
-
-	/* put controller in reset */
-	val = readl(iproc_i2c->base + CFG_OFFSET);
-	val |= 1 << CFG_RESET_SHIFT;
-	val &= ~(1 << CFG_EN_SHIFT);
-	writel(val, iproc_i2c->base + CFG_OFFSET);
-
-	/* wait 100 usec per spec */
-	udelay(100);
-
-	/* bring controller out of reset */
-	val &= ~(1 << CFG_RESET_SHIFT);
-	writel(val, iproc_i2c->base + CFG_OFFSET);
-
-	/* flush TX/RX FIFOs and set RX FIFO threshold to zero */
-	val = (1 << M_FIFO_RX_FLUSH_SHIFT) | (1 << M_FIFO_TX_FLUSH_SHIFT);
-	writel(val, iproc_i2c->base + M_FIFO_CTRL_OFFSET);
-
-	/* disable all interrupts */
-	writel(0, iproc_i2c->base + IE_OFFSET);
-
-	/* clear all pending interrupts */
-	writel(0xffffffff, iproc_i2c->base + IS_OFFSET);
-
-	return 0;
-}
-
-static void bcm_iproc_i2c_enable_disable(struct bcm_iproc_i2c_dev *iproc_i2c,
-					 bool enable)
-{
-	u32 val;
-
-	val = readl(iproc_i2c->base + CFG_OFFSET);
-	if (enable)
-		val |= BIT(CFG_EN_SHIFT);
-	else
-		val &= ~BIT(CFG_EN_SHIFT);
-	writel(val, iproc_i2c->base + CFG_OFFSET);
 }
 
 static int bcm_iproc_i2c_probe(struct platform_device *pdev)
