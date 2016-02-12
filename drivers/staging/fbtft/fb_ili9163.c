@@ -122,7 +122,7 @@ static int init_display(struct fbtft_par *par)
 }
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys,
-				int xe, int ye)
+			 int xe, int ye)
 {
 	switch (par->info->var.rotate) {
 	case 0:
@@ -215,22 +215,21 @@ static int gamma_adj(struct fbtft_par *par, unsigned long *curves)
 			CURVE(i, j) &= mask[i * par->gamma.num_values + j];
 
 	write_reg(par, CMD_PGAMMAC,
-				CURVE(0, 0),
-				CURVE(0, 1),
-				CURVE(0, 2),
-				CURVE(0, 3),
-				CURVE(0, 4),
-				CURVE(0, 5),
-				CURVE(0, 6),
-				(CURVE(0, 7) << 4) | CURVE(0, 8),
-				CURVE(0, 9),
-				CURVE(0, 10),
-				CURVE(0, 11),
-				CURVE(0, 12),
-				CURVE(0, 13),
-				CURVE(0, 14),
-				CURVE(0, 15)
-				);
+		  CURVE(0, 0),
+		  CURVE(0, 1),
+		  CURVE(0, 2),
+		  CURVE(0, 3),
+		  CURVE(0, 4),
+		  CURVE(0, 5),
+		  CURVE(0, 6),
+		  (CURVE(0, 7) << 4) | CURVE(0, 8),
+		  CURVE(0, 9),
+		  CURVE(0, 10),
+		  CURVE(0, 11),
+		  CURVE(0, 12),
+		  CURVE(0, 13),
+		  CURVE(0, 14),
+		  CURVE(0, 15));
 
 	/* Write Data to GRAM mode */
 	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);

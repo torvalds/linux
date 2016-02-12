@@ -47,10 +47,10 @@ static int init_display(struct fbtft_par *par)
 
 	devcode = read_devicecode(par);
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "Device code: 0x%04X\n",
-		devcode);
+		      devcode);
 	if ((devcode != 0x0000) && (devcode != 0x9320))
 		dev_warn(par->info->device,
-			"Unrecognized Device code: 0x%04X (expected 0x9320)\n",
+			 "Unrecognized Device code: 0x%04X (expected 0x9320)\n",
 			devcode);
 
 	/* Initialization sequence from ILI9320 Application Notes */
