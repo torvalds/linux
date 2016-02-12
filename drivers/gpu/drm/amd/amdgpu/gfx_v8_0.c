@@ -4393,6 +4393,9 @@ static int gfx_v8_0_hw_fini(void *handle)
 	gfx_v8_0_rlc_stop(adev);
 	gfx_v8_0_cp_compute_fini(adev);
 
+	amdgpu_set_powergating_state(adev,
+			AMD_IP_BLOCK_TYPE_GFX, AMD_PG_STATE_UNGATE);
+
 	return 0;
 }
 
@@ -4821,12 +4824,104 @@ static int gfx_v8_0_late_init(void *handle)
 	if (r)
 		return r;
 
+	amdgpu_set_powergating_state(adev,
+			AMD_IP_BLOCK_TYPE_GFX, AMD_PG_STATE_GATE);
+
 	return 0;
+}
+
+static void baffin_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t data, temp;
+
+	/* Send msg to SMU via Powerplay */
+	amdgpu_set_powergating_state(adev,
+			AMD_IP_BLOCK_TYPE_SMC,
+			enable ? AMD_PG_STATE_GATE : AMD_PG_STATE_UNGATE);
+
+	if (enable) {
+		/* Enable static MGPG */
+		temp = data = RREG32(mmRLC_PG_CNTL);
+		data |= RLC_PG_CNTL__STATIC_PER_CU_PG_ENABLE_MASK;
+
+		if (temp != data)
+			WREG32(mmRLC_PG_CNTL, data);
+	} else {
+		temp = data = RREG32(mmRLC_PG_CNTL);
+		data &= ~RLC_PG_CNTL__STATIC_PER_CU_PG_ENABLE_MASK;
+
+		if (temp != data)
+			WREG32(mmRLC_PG_CNTL, data);
+	}
+}
+
+static void baffin_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t data, temp;
+
+	if (enable) {
+		/* Enable dynamic MGPG */
+		temp = data = RREG32(mmRLC_PG_CNTL);
+		data |= RLC_PG_CNTL__DYN_PER_CU_PG_ENABLE_MASK;
+
+		if (temp != data)
+			WREG32(mmRLC_PG_CNTL, data);
+	} else {
+		temp = data = RREG32(mmRLC_PG_CNTL);
+		data &= ~RLC_PG_CNTL__DYN_PER_CU_PG_ENABLE_MASK;
+
+		if (temp != data)
+			WREG32(mmRLC_PG_CNTL, data);
+	}
+}
+
+static void baffin_enable_gfx_quick_mg_power_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t data, temp;
+
+	if (enable) {
+		/* Enable quick PG */
+		temp = data = RREG32(mmRLC_PG_CNTL);
+		data |= 0x100000;
+
+		if (temp != data)
+			WREG32(mmRLC_PG_CNTL, data);
+	} else {
+		temp = data = RREG32(mmRLC_PG_CNTL);
+		data &= ~0x100000;
+
+		if (temp != data)
+			WREG32(mmRLC_PG_CNTL, data);
+	}
 }
 
 static int gfx_v8_0_set_powergating_state(void *handle,
 					  enum amd_powergating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!(adev->pg_flags & AMD_PG_SUPPORT_GFX_PG))
+		return 0;
+
+	switch (adev->asic_type) {
+	case CHIP_BAFFIN:
+		if (adev->pg_flags & AMDGPU_PG_SUPPORT_GFX_SMG)
+			baffin_enable_gfx_static_mg_power_gating(adev,
+					state == AMD_PG_STATE_GATE ? true : false);
+		else if (adev->pg_flags & AMDGPU_PG_SUPPORT_GFX_DMG)
+			baffin_enable_gfx_dynamic_mg_power_gating(adev,
+					state == AMD_PG_STATE_GATE ? true : false);
+		else
+			baffin_enable_gfx_quick_mg_power_gating(adev,
+					state == AMD_PG_STATE_GATE ? true : false);
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
