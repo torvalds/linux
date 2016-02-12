@@ -3019,6 +3019,7 @@ struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
 {
 	return __of_clk_get_from_provider(clkspec, NULL, __func__);
 }
+EXPORT_SYMBOL_GPL(of_clk_get_from_provider);
 
 int of_clk_get_parent_count(struct device_node *np)
 {
