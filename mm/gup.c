@@ -936,8 +936,10 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 EXPORT_SYMBOL(get_user_pages_remote);
 
 /*
- * This is the same as get_user_pages_remote() for the time
- * being.
+ * This is the same as get_user_pages_remote(), just with a
+ * less-flexible calling convention where we assume that the task
+ * and mm being operated on are the current task's.  We also
+ * obviously don't pass FOLL_REMOTE in here.
  */
 long get_user_pages6(unsigned long start, unsigned long nr_pages,
 		int write, int force, struct page **pages,
