@@ -18,27 +18,12 @@
 #include <video/videomode.h>
 
 /**
- * A structure for lcd panel information.
- *
- * @timing: default video mode for initializing
- * @width_mm: physical size of lcd width.
- * @height_mm: physical size of lcd height.
- */
-struct exynos_drm_panel_info {
-	struct videomode vm;
-	u32 width_mm;
-	u32 height_mm;
-};
-
-/**
  * Platform Specific Structure for DRM based FIMD.
  *
- * @panel: default panel info for initializing
  * @default_win: default window layer number to be used for UI.
  * @bpp: default bit per pixel.
  */
 struct exynos_drm_fimd_pdata {
-	struct exynos_drm_panel_info panel;
 	u32				vidcon0;
 	u32				vidcon1;
 	unsigned int			default_win;

@@ -182,7 +182,6 @@ struct fimd_context {
 	atomic_t			win_updated;
 	atomic_t			triggering;
 
-	struct exynos_drm_panel_info panel;
 	struct fimd_driver_data *driver_data;
 	struct drm_encoder *encoder;
 };
