@@ -439,7 +439,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 		tx_context->pkt_no = ii;
 
 		/* allocate URBs */
-		tx_context->urb = usb_alloc_urb(0, GFP_ATOMIC);
+		tx_context->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!tx_context->urb) {
 			dev_err(&priv->usb->dev, "alloc tx urb failed\n");
 			goto free_tx;
@@ -461,7 +461,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 		rcb->priv = priv;
 
 		/* allocate URBs */
-		rcb->urb = usb_alloc_urb(0, GFP_ATOMIC);
+		rcb->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!rcb->urb) {
 			dev_err(&priv->usb->dev, "Failed to alloc rx urb\n");
 			goto free_rx_tx;
@@ -478,7 +478,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 			goto free_rx_tx;
 	}
 
-	priv->interrupt_urb = usb_alloc_urb(0, GFP_ATOMIC);
+	priv->interrupt_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->interrupt_urb) {
 		dev_err(&priv->usb->dev, "Failed to alloc int urb\n");
 		goto free_rx_tx;
