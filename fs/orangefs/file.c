@@ -83,46 +83,6 @@ static int postcopy_buffers(struct orangefs_bufmap *bufmap,
 }
 
 /*
- * handles two possible error cases, depending on context.
- *
- * by design, our vfs i/o errors need to be handled in one of two ways,
- * depending on where the error occured.
- *
- * if the error happens in the waitqueue code because we either timed
- * out or a signal was raised while waiting, we need to cancel the
- * userspace i/o operation and free the op manually.  this is done to
- * avoid having the device start writing application data to our shared
- * bufmap pages without us expecting it.
- *
- * FIXME: POSSIBLE OPTIMIZATION:
- * However, if we timed out or if we got a signal AND our upcall was never
- * picked off the queue (i.e. we were in OP_VFS_STATE_WAITING), then we don't
- * need to send a cancellation upcall. The way we can handle this is
- * set error_exit to 2 in such cases and 1 whenever cancellation has to be
- * sent and have handle_error
- * take care of this situation as well..
- *
- * if a orangefs sysint level error occured and i/o has been completed,
- * there is no need to cancel the operation, as the user has finished
- * using the bufmap page and so there is no danger in this case.  in
- * this case, we wake up the device normally so that it may free the
- * op, as normal.
- *
- * note the only reason this is a macro is because both read and write
- * cases need the exact same handling code.
- */
-#define handle_io_error()					\
-do {								\
-	if (!op_state_serviced(new_op)) {			\
-		orangefs_cancel_op_in_progress(new_op->tag);	\
-	} else {						\
-		complete(&new_op->done);			\
-	}							\
-	orangefs_bufmap_put(bufmap, buffer_index);		\
-	buffer_index = -1;					\
-} while (0)
-
-/*
  * Post and wait for the I/O upcall to finish
  */
 static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
@@ -221,7 +181,17 @@ populate_shared_memory:
 	}
 
 	if (ret < 0) {
-		handle_io_error();
+		/*
+		 * XXX: needs to be optimized - we only need to cancel if it
+		 * had been seen by daemon and not completed
+		 */
+		if (!op_state_serviced(new_op)) {
+			orangefs_cancel_op_in_progress(new_op->tag);
+		} else {
+			complete(&new_op->done);
+		}
+		orangefs_bufmap_put(bufmap, buffer_index);
+		buffer_index = -1;
 		/*
 		 * don't write an error to syslog on signaled operation
 		 * termination unless we've got debugging turned on, as
@@ -249,16 +219,8 @@ populate_shared_memory:
 				       buffer_index,
 				       iter,
 				       new_op->downcall.resp.io.amt_complete);
-		if (ret < 0) {
-			/*
-			 * put error codes in downcall so that handle_io_error()
-			 * preserves it properly
-			 */
-			WARN_ON(!op_state_serviced(new_op));
-			new_op->downcall.status = ret;
-			handle_io_error();
-			goto out;
-		}
+		if (ret < 0)
+			goto done_copying;
 	}
 	gossip_debug(GOSSIP_FILE_DEBUG,
 	    "%s(%pU): Amount written as returned by the sys-io call:%d\n",
@@ -268,6 +230,7 @@ populate_shared_memory:
 
 	ret = new_op->downcall.resp.io.amt_complete;
 
+done_copying:
 	/*
 	 * tell the device file owner waiting on I/O that this read has
 	 * completed and it can return now.
