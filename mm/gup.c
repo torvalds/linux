@@ -15,6 +15,7 @@
 #include <linux/rwsem.h>
 #include <linux/hugetlb.h>
 
+#include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
@@ -444,6 +445,8 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
 		if (!(vm_flags & VM_MAYREAD))
 			return -EFAULT;
 	}
+	if (!arch_vma_access_permitted(vma, (gup_flags & FOLL_WRITE)))
+		return -EFAULT;
 	return 0;
 }
 
@@ -612,11 +615,17 @@ EXPORT_SYMBOL(__get_user_pages);
 
 bool vma_permits_fault(struct vm_area_struct *vma, unsigned int fault_flags)
 {
-	vm_flags_t vm_flags;
-
-	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
+	bool write = !!(fault_flags & FAULT_FLAG_WRITE);
+	vm_flags_t vm_flags = write ? VM_WRITE : VM_READ;
 
 	if (!(vm_flags & vma->vm_flags))
+		return false;
+
+	/*
+	 * The architecture might have a hardware protection
+	 * mechanism other than read/write that can deny access
+	 */
+	if (!arch_vma_access_permitted(vma, write))
 		return false;
 
 	return true;
@@ -1170,6 +1179,9 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 		 */
 		if (!pte_present(pte) || pte_special(pte) ||
 			pte_protnone(pte) || (write && !pte_write(pte)))
+			goto pte_unmap;
+
+		if (!arch_pte_access_permitted(pte, write))
 			goto pte_unmap;
 
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));

@@ -11,6 +11,7 @@
 #include <linux/swap.h>
 #include <linux/memremap.h>
 
+#include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 
 static inline pte_t gup_get_pte(pte_t *ptep)
@@ -87,6 +88,10 @@ static inline int pte_allows_gup(unsigned long pteval, int write)
 		need_pte_bits |= _PAGE_RW;
 
 	if ((pteval & need_pte_bits) != need_pte_bits)
+		return 0;
+
+	/* Check memory protection keys permissions. */
+	if (!__pkru_allows_pkey(pte_flags_pkey(pteval), write))
 		return 0;
 
 	return 1;
