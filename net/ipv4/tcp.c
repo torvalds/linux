@@ -2642,6 +2642,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	u32 now = tcp_time_stamp;
 	unsigned int start;
+	int notsent_bytes;
 	u64 rate64;
 	u32 rate;
 
@@ -2722,6 +2723,11 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	} while (u64_stats_fetch_retry_irq(&tp->syncp, start));
 	info->tcpi_segs_out = tp->segs_out;
 	info->tcpi_segs_in = tp->segs_in;
+
+	notsent_bytes = READ_ONCE(tp->write_seq) - READ_ONCE(tp->snd_nxt);
+	info->tcpi_notsent_bytes = max(0, notsent_bytes);
+
+	info->tcpi_min_rtt = tcp_min_rtt(tp);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
