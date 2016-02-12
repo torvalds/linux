@@ -708,7 +708,7 @@ static int gb_power_supplies_register(struct gb_power_supplies *supplies)
 	return ret;
 }
 
-static int gb_power_supply_event_recv(u8 type, struct gb_operation *op)
+static int gb_supplies_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_power_supplies *supplies = connection->private;
@@ -719,9 +719,9 @@ static int gb_power_supply_event_recv(u8 type, struct gb_operation *op)
 	u8 event;
 	int ret = 0;
 
-	if (type != GB_POWER_SUPPLY_TYPE_EVENT) {
+	if (op->type != GB_POWER_SUPPLY_TYPE_EVENT) {
 		dev_err(&connection->bundle->dev,
-			"Unsupported unsolicited event: %u\n", type);
+			"Unsupported unsolicited event: %u\n", op->type);
 		return -EINVAL;
 	}
 
@@ -765,52 +765,90 @@ out_unlock:
 	return ret;
 }
 
-static int gb_power_supply_connection_init(struct gb_connection *connection)
+static int gb_power_supply_probe(struct gb_bundle *bundle,
+				 const struct greybus_bundle_id *id)
 {
+	struct greybus_descriptor_cport *cport_desc;
+	struct gb_connection *connection;
 	struct gb_power_supplies *supplies;
 	int ret;
+
+	if (bundle->num_cports != 1)
+		return -ENODEV;
+
+	cport_desc = &bundle->cport_desc[0];
+	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_POWER_SUPPLY)
+		return -ENODEV;
 
 	supplies = kzalloc(sizeof(*supplies), GFP_KERNEL);
 	if (!supplies)
 		return -ENOMEM;
+
+	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
+					  gb_supplies_request_handler);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
+		goto out;
+	}
 
 	supplies->connection = connection;
 	connection->private = supplies;
 
 	mutex_init(&supplies->supplies_lock);
 
+	greybus_set_drvdata(bundle, supplies);
+
+	/* We aren't ready to receive an incoming request yet */
+	ret = gb_connection_enable_tx(connection);
+	if (ret)
+		goto error_connection_destroy;
+
 	ret = gb_power_supplies_setup(supplies);
 	if (ret < 0)
-		goto out;
+		goto error_connection_disable;
+
+	/* We are ready to receive an incoming request now, enable RX as well */
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto error_connection_disable;
 
 	ret = gb_power_supplies_register(supplies);
 	if (ret < 0)
-		goto out;
+		goto error_connection_disable;
 
 	return 0;
 
+error_connection_disable:
+	gb_connection_disable(connection);
+error_connection_destroy:
+	gb_connection_destroy(connection);
 out:
 	_gb_power_supplies_release(supplies);
 	return ret;
 }
 
-static void gb_power_supply_connection_exit(struct gb_connection *connection)
+static void gb_power_supply_disconnect(struct gb_bundle *bundle)
 {
-	struct gb_power_supplies *supplies = connection->private;
+	struct gb_power_supplies *supplies = greybus_get_drvdata(bundle);
+
+	gb_connection_disable(supplies->connection);
+	gb_connection_destroy(supplies->connection);
 
 	_gb_power_supplies_release(supplies);
 }
 
-static struct gb_protocol power_supply_protocol = {
-	.name			= "power_supply",
-	.id			= GREYBUS_PROTOCOL_POWER_SUPPLY,
-	.major			= GB_POWER_SUPPLY_VERSION_MAJOR,
-	.minor			= GB_POWER_SUPPLY_VERSION_MINOR,
-	.connection_init	= gb_power_supply_connection_init,
-	.connection_exit	= gb_power_supply_connection_exit,
-	.request_recv		= gb_power_supply_event_recv,
+static const struct greybus_bundle_id gb_power_supply_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_POWER_SUPPLY) },
+	{ }
 };
+MODULE_DEVICE_TABLE(greybus, gb_power_supply_id_table);
 
-gb_protocol_driver(&power_supply_protocol);
+static struct greybus_driver gb_power_supply_driver = {
+	.name		= "power_supply",
+	.probe		= gb_power_supply_probe,
+	.disconnect	= gb_power_supply_disconnect,
+	.id_table	= gb_power_supply_id_table,
+};
+module_greybus_driver(gb_power_supply_driver);
 
 MODULE_LICENSE("GPL v2");
