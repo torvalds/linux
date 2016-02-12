@@ -91,14 +91,18 @@ config MFD_BCM590XX
 	  Support for the BCM590xx PMUs from Broadcom
 
 config MFD_AXP20X
-	bool "X-Powers AXP20X"
+	tristate
 	select MFD_CORE
-	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C=y
+
+config MFD_AXP20X_I2C
+	tristate "X-Powers AXP series PMICs with I2C"
+	select MFD_AXP20X
+	select REGMAP_I2C
+	depends on I2C
 	help
-	  If you say Y here you get support for the X-Powers AXP202, AXP209 and
-	  AXP288 power management IC (PMIC).
+	  If you say Y here you get support for the X-Powers AXP series power
+	  management ICs (PMICs) controlled with I2C.
 	  This driver include only the core APIs. You have to select individual
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
