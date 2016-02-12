@@ -19,6 +19,8 @@
 #include <linux/pm.h>
 #include "arche_platform.h"
 
+#include <linux/usb/usb3613.h>
+
 struct arche_platform_drvdata {
 	/* Control GPIO signals to and from AP <=> SVC */
 	int svc_reset_gpio;
@@ -121,6 +123,10 @@ static void svc_delayed_work(struct work_struct *work)
 
 	/* re-assert wake_detect to confirm SVC WAKE_OUT */
 	gpio_direction_output(arche_pdata->wake_detect_gpio, 1);
+
+	/* Enable HUB3613 into HUB mode. */
+	if (usb3613_hub_mode_ctrl(true))
+		dev_warn(arche_pdata->dev, "failed to control hub device\n");
 }
 
 static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
@@ -197,6 +203,11 @@ static ssize_t state_store(struct device *dev,
 		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
 
 		arche_platform_poweroff_seq(arche_pdata);
+
+		ret = usb3613_hub_mode_ctrl(false);
+		if (ret)
+			dev_warn(arche_pdata->dev, "failed to control hub device\n");
+			/* TODO: Should we do anything more here ?? */
 	} else if (sysfs_streq(buf, "active")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_ACTIVE)
 			return count;
@@ -218,6 +229,11 @@ static ssize_t state_store(struct device *dev,
 		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
 
 		arche_platform_poweroff_seq(arche_pdata);
+
+		ret = usb3613_hub_mode_ctrl(false);
+		if (ret)
+			dev_warn(arche_pdata->dev, "failed to control hub device\n");
+			/* TODO: Should we do anything more here ?? */
 
 		arche_platform_fw_flashing_seq(arche_pdata);
 
@@ -393,6 +409,9 @@ static int arche_platform_remove(struct platform_device *pdev)
 	arche_platform_poweroff_seq(arche_pdata);
 	platform_set_drvdata(pdev, NULL);
 
+	if (usb3613_hub_mode_ctrl(false))
+		dev_warn(arche_pdata->dev, "failed to control hub device\n");
+		/* TODO: Should we do anything more here ?? */
 	return 0;
 }
 
