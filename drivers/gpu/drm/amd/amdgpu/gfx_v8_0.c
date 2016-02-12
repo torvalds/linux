@@ -2572,11 +2572,6 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 	}
 }
 
-static u32 gfx_v8_0_create_bitmask(u32 bit_width)
-{
-	return (u32)((1ULL << bit_width) - 1);
-}
-
 void gfx_v8_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num)
 {
 	u32 data = REG_SET_FIELD(0, GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES, 1);
@@ -2597,89 +2592,50 @@ void gfx_v8_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num)
 	WREG32(mmGRBM_GFX_INDEX, data);
 }
 
-static u32 gfx_v8_0_get_rb_disabled(struct amdgpu_device *adev,
-				    u32 max_rb_num_per_se,
-				    u32 sh_per_se)
+static u32 gfx_v8_0_create_bitmask(u32 bit_width)
+{
+	return (u32)((1ULL << bit_width) - 1);
+}
+
+static u32 gfx_v8_0_get_rb_active_bitmap(struct amdgpu_device *adev)
 {
 	u32 data, mask;
 
 	data = RREG32(mmCC_RB_BACKEND_DISABLE);
-	data &= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
-
 	data |= RREG32(mmGC_USER_RB_BACKEND_DISABLE);
 
+	data &= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
 	data >>= GC_USER_RB_BACKEND_DISABLE__BACKEND_DISABLE__SHIFT;
 
-	mask = gfx_v8_0_create_bitmask(max_rb_num_per_se / sh_per_se);
+	mask = gfx_v8_0_create_bitmask(adev->gfx.config.max_backends_per_se /
+				       adev->gfx.config.max_sh_per_se);
 
-	return data & mask;
+	return (~data) & mask;
 }
 
-static void gfx_v8_0_setup_rb(struct amdgpu_device *adev,
-			      u32 se_num, u32 sh_per_se,
-			      u32 max_rb_num_per_se)
+static void gfx_v8_0_setup_rb(struct amdgpu_device *adev)
 {
 	int i, j;
-	u32 data, mask;
-	u32 disabled_rbs = 0;
-	u32 enabled_rbs = 0;
+	u32 data, tmp, num_rbs = 0;
+	u32 active_rbs = 0;
 
 	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < se_num; i++) {
-		for (j = 0; j < sh_per_se; j++) {
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			gfx_v8_0_select_se_sh(adev, i, j);
-			data = gfx_v8_0_get_rb_disabled(adev,
-					      max_rb_num_per_se, sh_per_se);
-			disabled_rbs |= data << ((i * sh_per_se + j) *
-						 RB_BITMAP_WIDTH_PER_SH);
+			data = gfx_v8_0_get_rb_active_bitmap(adev);
+			active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
+					       RB_BITMAP_WIDTH_PER_SH);
 		}
 	}
 	gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
-	mask = 1;
-	for (i = 0; i < max_rb_num_per_se * se_num; i++) {
-		if (!(disabled_rbs & mask))
-			enabled_rbs |= mask;
-		mask <<= 1;
-	}
-
-	adev->gfx.config.backend_enable_mask = enabled_rbs;
-
-	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < se_num; i++) {
-		gfx_v8_0_select_se_sh(adev, i, 0xffffffff);
-		data = RREG32(mmPA_SC_RASTER_CONFIG);
-		for (j = 0; j < sh_per_se; j++) {
-			switch (enabled_rbs & 3) {
-			case 0:
-				if (j == 0)
-					data |= (RASTER_CONFIG_RB_MAP_3 <<
-						 PA_SC_RASTER_CONFIG__PKR_MAP__SHIFT);
-				else
-					data |= (RASTER_CONFIG_RB_MAP_0 <<
-						 PA_SC_RASTER_CONFIG__PKR_MAP__SHIFT);
-				break;
-			case 1:
-				data |= (RASTER_CONFIG_RB_MAP_0 <<
-					 (i * sh_per_se + j) * 2);
-				break;
-			case 2:
-				data |= (RASTER_CONFIG_RB_MAP_3 <<
-					 (i * sh_per_se + j) * 2);
-				break;
-			case 3:
-			default:
-				data |= (RASTER_CONFIG_RB_MAP_2 <<
-					 (i * sh_per_se + j) * 2);
-				break;
-			}
-			enabled_rbs >>= 2;
-		}
-		WREG32(mmPA_SC_RASTER_CONFIG, data);
-	}
-	gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
-	mutex_unlock(&adev->grbm_idx_mutex);
+	adev->gfx.config.backend_enable_mask = active_rbs;
+	tmp = active_rbs;
+	while (tmp >>= 1)
+		num_rbs++;
+	adev->gfx.config.num_rbs = num_rbs;
 }
 
 /**
@@ -2749,9 +2705,7 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 
 	gfx_v8_0_tiling_mode_table_init(adev);
 
-	gfx_v8_0_setup_rb(adev, adev->gfx.config.max_shader_engines,
-				 adev->gfx.config.max_sh_per_se,
-				 adev->gfx.config.max_backends_per_se);
+	gfx_v8_0_setup_rb(adev);
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
@@ -5187,32 +5141,24 @@ static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev)
 	}
 }
 
-static u32 gfx_v8_0_get_cu_active_bitmap(struct amdgpu_device *adev,
-		u32 se, u32 sh)
+static u32 gfx_v8_0_get_cu_active_bitmap(struct amdgpu_device *adev)
 {
-	u32 mask = 0, tmp, tmp1;
-	int i;
+	u32 data, mask;
 
-	gfx_v8_0_select_se_sh(adev, se, sh);
-	tmp = RREG32(mmCC_GC_SHADER_ARRAY_CONFIG);
-	tmp1 = RREG32(mmGC_USER_SHADER_ARRAY_CONFIG);
-	gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+	data = RREG32(mmCC_GC_SHADER_ARRAY_CONFIG);
+	data |= RREG32(mmGC_USER_SHADER_ARRAY_CONFIG);
 
-	tmp &= 0xffff0000;
+	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
+	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
 
-	tmp |= tmp1;
-	tmp >>= 16;
+	mask = gfx_v8_0_create_bitmask(adev->gfx.config.max_backends_per_se /
+				       adev->gfx.config.max_sh_per_se);
 
-	for (i = 0; i < adev->gfx.config.max_cu_per_sh; i ++) {
-		mask <<= 1;
-		mask |= 1;
-	}
-
-	return (~tmp) & mask;
+	return (~data) & mask;
 }
 
 int gfx_v8_0_get_cu_info(struct amdgpu_device *adev,
-						 struct amdgpu_cu_info *cu_info)
+			 struct amdgpu_cu_info *cu_info)
 {
 	int i, j, k, counter, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
@@ -5226,10 +5172,11 @@ int gfx_v8_0_get_cu_info(struct amdgpu_device *adev,
 			mask = 1;
 			ao_bitmap = 0;
 			counter = 0;
-			bitmap = gfx_v8_0_get_cu_active_bitmap(adev, i, j);
+			gfx_v8_0_select_se_sh(adev, i, j);
+			bitmap = gfx_v8_0_get_cu_active_bitmap(adev);
 			cu_info->bitmap[i][j] = bitmap;
 
-			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
+			for (k = 0; k < 16; k ++) {
 				if (bitmap & mask) {
 					if (counter < 2)
 						ao_bitmap |= mask;
@@ -5241,9 +5188,11 @@ int gfx_v8_0_get_cu_info(struct amdgpu_device *adev,
 			ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
 		}
 	}
+	gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
-	mutex_unlock(&adev->grbm_idx_mutex);
+
 	return 0;
 }

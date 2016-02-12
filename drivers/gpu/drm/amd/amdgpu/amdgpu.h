@@ -1133,6 +1133,7 @@ struct amdgpu_gca_config {
 	unsigned multi_gpu_tile_size;
 	unsigned mc_arb_ramcfg;
 	unsigned gb_addr_config;
+	unsigned num_rbs;
 
 	uint32_t tile_mode_array[32];
 	uint32_t macrotile_mode_array[16];
