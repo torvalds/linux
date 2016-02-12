@@ -71,10 +71,10 @@ static void unexport_gpios(struct arche_apb_ctrl_drvdata *apb)
 /*
  * Note: Please do not modify the below sequence, as it is as per the spec
  */
-static int apb_ctrl_coldboot_seq(struct platform_device *pdev,
-		struct arche_apb_ctrl_drvdata *apb)
+static int apb_ctrl_coldboot_seq(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 	int ret;
 
 	/* Hold APB in reset state */
@@ -113,8 +113,10 @@ static int apb_ctrl_coldboot_seq(struct platform_device *pdev,
 	return 0;
 }
 
-static void apb_ctrl_poweroff_seq(struct arche_apb_ctrl_drvdata *apb)
+static void apb_ctrl_poweroff_seq(struct platform_device *pdev)
 {
+	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
+
 	/* disable the clock */
 	if (gpio_is_valid(apb->clk_en_gpio))
 		gpio_set_value(apb->clk_en_gpio, 0);
@@ -239,14 +241,15 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 	/* Initially set APB to OFF state */
 	apb->state = ARCHE_PLATFORM_STATE_OFF;
 
-	ret = apb_ctrl_coldboot_seq(pdev, apb);
+	platform_set_drvdata(pdev, apb);
+
+	ret = apb_ctrl_coldboot_seq(pdev);
 	if (ret) {
 		dev_err(dev, "failed to set init state of control signal %d\n",
 				ret);
+		platform_set_drvdata(pdev, NULL);
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, apb);
 
 	export_gpios(apb);
 
@@ -258,7 +261,7 @@ int arche_apb_ctrl_remove(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
-	apb_ctrl_poweroff_seq(apb);
+	apb_ctrl_poweroff_seq(pdev);
 	platform_set_drvdata(pdev, NULL);
 	unexport_gpios(apb);
 
