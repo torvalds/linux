@@ -14,6 +14,7 @@ enum arche_platform_state {
 	ARCHE_PLATFORM_STATE_OFF,
 	ARCHE_PLATFORM_STATE_ACTIVE,
 	ARCHE_PLATFORM_STATE_STANDBY,
+	ARCHE_PLATFORM_STATE_FW_FLASHING,
 };
 
 int arche_apb_ctrl_probe(struct platform_device *pdev);

@@ -134,6 +134,23 @@ static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdat
 	return 0;
 }
 
+static void arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
+{
+	dev_info(arche_pdata->dev, "Switching to FW flashing state\n");
+
+	svc_reset_onoff(arche_pdata->svc_reset_gpio,
+			arche_pdata->is_reset_act_hi);
+
+	gpio_set_value(arche_pdata->svc_sysboot_gpio, 1);
+
+	usleep_range(100, 200);
+	svc_reset_onoff(arche_pdata->svc_reset_gpio,
+			!arche_pdata->is_reset_act_hi);
+
+	arche_pdata->state = ARCHE_PLATFORM_STATE_FW_FLASHING;
+
+}
+
 static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pdata)
 {
 	/* Send disconnect/detach event to SVC */
@@ -170,6 +187,14 @@ static ssize_t state_store(struct device *dev,
 			return count;
 
 		dev_warn(arche_pdata->dev, "standby state not supported\n");
+	} else if (sysfs_streq(buf, "fw_flashing")) {
+		if (arche_pdata->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
+			return count;
+
+		/* First we want to make sure we power off everything
+		 * and then enter FW flashing state */
+		arche_platform_poweroff_seq(arche_pdata);
+		arche_platform_fw_flashing_seq(arche_pdata);
 	} else {
 		dev_err(arche_pdata->dev, "unknown state\n");
 		ret = -EINVAL;
@@ -190,6 +215,8 @@ static ssize_t state_show(struct device *dev,
 		return sprintf(buf, "active\n");
 	case ARCHE_PLATFORM_STATE_STANDBY:
 		return sprintf(buf, "standby\n");
+	case ARCHE_PLATFORM_STATE_FW_FLASHING:
+		return sprintf(buf, "fw_flashing\n");
 	default:
 		return sprintf(buf, "unknown state\n");
 	}
