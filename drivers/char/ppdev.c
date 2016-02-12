@@ -75,7 +75,7 @@
 #define CHRDEV "ppdev"
 
 struct pp_struct {
-	struct pardevice * pdev;
+	struct pardevice *pdev;
 	wait_queue_head_t irq_wait;
 	atomic_t irqc;
 	unsigned int flags;
@@ -112,12 +112,12 @@ static inline void pp_enable_irq(struct pp_struct *pp)
 	port->ops->enable_irq(port);
 }
 
-static ssize_t pp_read(struct file * file, char __user * buf, size_t count,
-			loff_t * ppos)
+static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
+			loff_t *ppos)
 {
 	unsigned int minor = iminor(file_inode(file));
 	struct pp_struct *pp = file->private_data;
-	char * kbuffer;
+	char *kbuffer;
 	ssize_t bytes_read = 0;
 	struct parport *pport;
 	int mode;
@@ -194,12 +194,12 @@ static ssize_t pp_read(struct file * file, char __user * buf, size_t count,
 	return bytes_read;
 }
 
-static ssize_t pp_write(struct file * file, const char __user * buf,
-			 size_t count, loff_t * ppos)
+static ssize_t pp_write(struct file *file, const char __user *buf,
+			 size_t count, loff_t *ppos)
 {
 	unsigned int minor = iminor(file_inode(file));
 	struct pp_struct *pp = file->private_data;
-	char * kbuffer;
+	char *kbuffer;
 	ssize_t bytes_written = 0;
 	ssize_t wrote;
 	int mode;
@@ -288,7 +288,7 @@ static void pp_irq(void *private)
 static int register_device(int minor, struct pp_struct *pp)
 {
 	struct parport *port;
-	struct pardevice * pdev = NULL;
+	struct pardevice *pdev = NULL;
 	char *name;
 	int fl;
 
@@ -350,7 +350,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned int minor = iminor(file_inode(file));
 	struct pp_struct *pp = file->private_data;
-	struct parport * port;
+	struct parport *port;
 	void __user *argp = (void __user *)arg;
 
 	/* First handle the cases that don't take arguments. */
@@ -679,7 +679,7 @@ static long pp_compat_ioctl(struct file *file, unsigned int cmd,
 }
 #endif
 
-static int pp_open(struct inode * inode, struct file * file)
+static int pp_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 	struct pp_struct *pp;
@@ -708,7 +708,7 @@ static int pp_open(struct inode * inode, struct file * file)
 	return 0;
 }
 
-static int pp_release(struct inode * inode, struct file * file)
+static int pp_release(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 	struct pp_struct *pp = file->private_data;
@@ -767,7 +767,7 @@ static int pp_release(struct inode * inode, struct file * file)
 }
 
 /* No kernel lock held - fine */
-static unsigned int pp_poll(struct file * file, poll_table * wait)
+static unsigned int pp_poll(struct file *file, poll_table *wait)
 {
 	struct pp_struct *pp = file->private_data;
 	unsigned int mask = 0;
