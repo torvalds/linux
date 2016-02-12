@@ -113,6 +113,52 @@ static int apb_ctrl_coldboot_seq(struct platform_device *pdev)
 	return 0;
 }
 
+static int apb_ctrl_fw_flashing_seq(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
+	int ret;
+
+	ret = regulator_enable(apb->vcore);
+	if (ret) {
+		dev_err(dev, "failed to enable core regulator\n");
+		return ret;
+	}
+
+	ret = regulator_enable(apb->vio);
+	if (ret) {
+		dev_err(dev, "failed to enable IO regulator\n");
+		return ret;
+	}
+
+	/* for flashing device should be in reset state */
+	assert_reset(apb->resetn_gpio);
+	apb->state = ARCHE_PLATFORM_STATE_FW_FLASHING;
+
+	return 0;
+}
+
+static int apb_ctrl_standby_boot_seq(struct platform_device *pdev)
+{
+	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
+
+	/* If it is in OFF state, then we do not want to change the state */
+	if (apb->state == ARCHE_PLATFORM_STATE_OFF)
+		return 0;
+
+	/*
+	 * As per WDM spec, do nothing
+	 *
+	 * Pasted from WDM spec,
+	 *  - A falling edge on POWEROFF_L is detected (a)
+	 *  - WDM enters standby mode, but no output signals are changed
+	 * */
+
+	/* TODO: POWEROFF_L is input to WDM module  */
+	apb->state = ARCHE_PLATFORM_STATE_STANDBY;
+	return 0;
+}
+
 static void apb_ctrl_poweroff_seq(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
@@ -133,6 +179,66 @@ static void apb_ctrl_poweroff_seq(struct platform_device *pdev)
 
 	/* TODO: May have to send an event to SVC about this exit */
 }
+
+static ssize_t state_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
+	int ret = 0;
+
+	if (sysfs_streq(buf, "off")) {
+		if (apb->state == ARCHE_PLATFORM_STATE_OFF)
+			return count;
+
+		apb_ctrl_poweroff_seq(pdev);
+	} else if (sysfs_streq(buf, "active")) {
+		if (apb->state == ARCHE_PLATFORM_STATE_ACTIVE)
+			return count;
+
+		apb_ctrl_poweroff_seq(pdev);
+		ret = apb_ctrl_coldboot_seq(pdev);
+	} else if (sysfs_streq(buf, "standby")) {
+		if (apb->state == ARCHE_PLATFORM_STATE_STANDBY)
+			return count;
+
+		ret = apb_ctrl_standby_boot_seq(pdev);
+	} else if (sysfs_streq(buf, "fw_flashing")) {
+		if (apb->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
+			return count;
+
+		/* First we want to make sure we power off everything
+		 * and then enter FW flashing state */
+		apb_ctrl_poweroff_seq(pdev);
+		ret = apb_ctrl_fw_flashing_seq(pdev);
+	} else {
+		dev_err(dev, "unknown state\n");
+		ret = -EINVAL;
+	}
+
+	return ret ? ret : count;
+}
+
+static ssize_t state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct arche_apb_ctrl_drvdata *apb = dev_get_drvdata(dev);
+
+	switch (apb->state) {
+	case ARCHE_PLATFORM_STATE_OFF:
+		return sprintf(buf, "off\n");
+	case ARCHE_PLATFORM_STATE_ACTIVE:
+		return sprintf(buf, "active\n");
+	case ARCHE_PLATFORM_STATE_STANDBY:
+		return sprintf(buf, "standby\n");
+	case ARCHE_PLATFORM_STATE_FW_FLASHING:
+		return sprintf(buf, "fw_flashing\n");
+	default:
+		return sprintf(buf, "unknown state\n");
+	}
+}
+
+static DEVICE_ATTR_RW(state);
 
 static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 		struct arche_apb_ctrl_drvdata *apb)
@@ -243,10 +349,18 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, apb);
 
+	/* Create sysfs interface to allow user to change state dynamically */
+	ret = device_create_file(dev, &dev_attr_state);
+	if (ret) {
+		dev_err(dev, "failed to create state file in sysfs\n");
+		return ret;
+	}
+
 	ret = apb_ctrl_coldboot_seq(pdev);
 	if (ret) {
 		dev_err(dev, "failed to set init state of control signal %d\n",
 				ret);
+		device_remove_file(dev, &dev_attr_state);
 		platform_set_drvdata(pdev, NULL);
 		return ret;
 	}
@@ -261,6 +375,7 @@ int arche_apb_ctrl_remove(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
+	device_remove_file(&pdev->dev, &dev_attr_state);
 	apb_ctrl_poweroff_seq(pdev);
 	platform_set_drvdata(pdev, NULL);
 	unexport_gpios(apb);
