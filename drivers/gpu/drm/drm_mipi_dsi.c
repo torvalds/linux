@@ -47,7 +47,17 @@
 
 static int mipi_dsi_device_match(struct device *dev, struct device_driver *drv)
 {
-	return of_driver_match_device(dev, drv);
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+
+	/* attempt OF style match */
+	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	/* compare DSI device and driver names */
+	if (!strcmp(dsi->name, drv->name))
+		return 1;
+
+	return 0;
 }
 
 static const struct dev_pm_ops mipi_dsi_device_pm_ops = {
@@ -138,6 +148,11 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 	int ret;
 	u32 reg;
 
+	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
+		dev_err(dev, "modalias failure on %s\n", node->full_name);
+		return ERR_PTR(-EINVAL);
+	}
+
 	ret = of_property_read_u32(node, "reg", &reg);
 	if (ret) {
 		dev_err(dev, "device node %s has no valid reg property: %d\n",
@@ -197,6 +212,7 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 
 	dsi->dev.of_node = info->node;
 	dsi->channel = info->channel;
+	strlcpy(dsi->name, info->type, sizeof(dsi->name));
 
 	ret = mipi_dsi_device_add(dsi);
 	if (ret) {
