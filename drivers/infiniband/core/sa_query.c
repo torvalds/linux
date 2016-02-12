@@ -1221,7 +1221,7 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 		rec.net = NULL;
 		rec.ifindex = 0;
 		rec.gid_type = IB_GID_TYPE_IB;
-		memset(rec.dmac, 0, ETH_ALEN);
+		eth_zero_addr(rec.dmac);
 		query->callback(status, &rec, query->context);
 	} else
 		query->callback(status, NULL, query->context);
