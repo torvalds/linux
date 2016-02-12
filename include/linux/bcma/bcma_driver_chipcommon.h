@@ -576,10 +576,11 @@ struct bcma_chipcommon_pmu {
 	u32 crystalfreq;	/* The active crystal frequency (in kHz) */
 };
 
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BCMA_PFLASH
 struct bcma_pflash {
 	bool present;
 };
+#endif
 
 #ifdef CONFIG_BCMA_SFLASH
 struct mtd_info;
@@ -603,6 +604,7 @@ struct bcma_nflash {
 };
 #endif
 
+#ifdef CONFIG_BCMA_DRIVER_MIPS
 struct bcma_serial_port {
 	void *regs;
 	unsigned long clockspeed;
@@ -622,8 +624,9 @@ struct bcma_drv_cc {
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
 	struct bcma_chipcommon_pmu pmu;
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BCMA_PFLASH
 	struct bcma_pflash pflash;
+#endif
 #ifdef CONFIG_BCMA_SFLASH
 	struct bcma_sflash sflash;
 #endif
@@ -631,6 +634,7 @@ struct bcma_drv_cc {
 	struct bcma_nflash nflash;
 #endif
 
+#ifdef CONFIG_BCMA_DRIVER_MIPS
 	int nr_serial_ports;
 	struct bcma_serial_port serial_ports[4];
 #endif /* CONFIG_BCMA_DRIVER_MIPS */

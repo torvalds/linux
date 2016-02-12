@@ -14,8 +14,6 @@
 
 #include <linux/bcma/bcma.h>
 
-#include <linux/mtd/physmap.h>
-#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
@@ -30,26 +28,6 @@ enum bcma_boot_dev {
 	BCMA_BOOT_DEV_PARALLEL,
 	BCMA_BOOT_DEV_SERIAL,
 	BCMA_BOOT_DEV_NAND,
-};
-
-static const char * const part_probes[] = { "bcm47xxpart", NULL };
-
-static struct physmap_flash_data bcma_pflash_data = {
-	.part_probe_types	= part_probes,
-};
-
-static struct resource bcma_pflash_resource = {
-	.name	= "bcma_pflash",
-	.flags  = IORESOURCE_MEM,
-};
-
-struct platform_device bcma_pflash_dev = {
-	.name		= "physmap-flash",
-	.dev		= {
-		.platform_data  = &bcma_pflash_data,
-	},
-	.resource	= &bcma_pflash_resource,
-	.num_resources	= 1,
 };
 
 /* The 47162a0 hangs when reading MIPS DMP registers registers */
@@ -276,7 +254,6 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 {
 	struct bcma_bus *bus = mcore->core->bus;
 	struct bcma_drv_cc *cc = &bus->drv_cc;
-	struct bcma_pflash *pflash = &cc->pflash;
 	enum bcma_boot_dev boot_dev;
 
 	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {
@@ -287,17 +264,7 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 		break;
 	case BCMA_CC_FLASHT_PARA:
 		bcma_debug(bus, "Found parallel flash\n");
-		pflash->present = true;
-
-		if ((bcma_read32(cc->core, BCMA_CC_FLASH_CFG) &
-		     BCMA_CC_FLASH_CFG_DS) == 0)
-			bcma_pflash_data.width = 1;
-		else
-			bcma_pflash_data.width = 2;
-
-		bcma_pflash_resource.start = BCMA_SOC_FLASH2;
-		bcma_pflash_resource.end = BCMA_SOC_FLASH2 + BCMA_SOC_FLASH2_SZ;
-
+		bcma_pflash_init(cc);
 		break;
 	default:
 		bcma_err(bus, "Flash type not supported\n");
