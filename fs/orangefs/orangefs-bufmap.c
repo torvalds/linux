@@ -458,9 +458,10 @@ int orangefs_bufmap_get(struct orangefs_bufmap **mapp, int *buffer_index)
  *
  * no return value
  */
-void orangefs_bufmap_put(struct orangefs_bufmap *bufmap, int buffer_index)
+void orangefs_bufmap_put(int buffer_index)
 {
 	struct slot_args slargs;
+	struct orangefs_bufmap *bufmap = __orangefs_bufmap;
 
 	slargs.slot_count = bufmap->desc_count;
 	slargs.slot_array = bufmap->buffer_index_array;

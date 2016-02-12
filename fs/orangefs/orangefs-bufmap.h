@@ -21,7 +21,7 @@ void orangefs_bufmap_finalize(void);
 
 int orangefs_bufmap_get(struct orangefs_bufmap **mapp, int *buffer_index);
 
-void orangefs_bufmap_put(struct orangefs_bufmap *bufmap, int buffer_index);
+void orangefs_bufmap_put(int buffer_index);
 
 int orangefs_readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index);
 

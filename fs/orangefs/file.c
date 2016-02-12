@@ -170,7 +170,7 @@ populate_shared_memory:
 	 * a new shared memory location.
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
-		orangefs_bufmap_put(bufmap, buffer_index);
+		orangefs_bufmap_put(buffer_index);
 		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
 			*iter = saved;
@@ -190,7 +190,7 @@ populate_shared_memory:
 		} else {
 			complete(&new_op->done);
 		}
-		orangefs_bufmap_put(bufmap, buffer_index);
+		orangefs_bufmap_put(buffer_index);
 		buffer_index = -1;
 		/*
 		 * don't write an error to syslog on signaled operation
@@ -239,7 +239,7 @@ done_copying:
 
 out:
 	if (buffer_index >= 0) {
-		orangefs_bufmap_put(bufmap, buffer_index);
+		orangefs_bufmap_put(buffer_index);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): PUT buffer_index %d\n",
 			     __func__, handle, buffer_index);
