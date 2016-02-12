@@ -195,7 +195,7 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_MASTER | DRM_AUTH),
 	VMW_IOCTL_DEF(VMW_UPDATE_LAYOUT,
 		      vmw_kms_update_layout_ioctl,
-		      DRM_MASTER),
+		      DRM_MASTER | DRM_CONTROL_ALLOW),
 	VMW_IOCTL_DEF(VMW_CREATE_SHADER,
 		      vmw_shader_define_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
