@@ -709,7 +709,7 @@ static int pp_release(struct inode *inode, struct file *file)
 	compat_negot = 0;
 	if (!(pp->flags & PP_CLAIMED) && pp->pdev &&
 	    (pp->state.mode != IEEE1284_MODE_COMPAT)) {
-	    	struct ieee1284_info *info;
+		struct ieee1284_info *info;
 
 		/* parport released, but not in compatibility mode */
 		parport_claim_or_block(pp->pdev);
