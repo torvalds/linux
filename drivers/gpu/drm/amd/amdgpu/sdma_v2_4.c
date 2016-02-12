@@ -434,6 +434,9 @@ static int sdma_v2_4_gfx_resume(struct amdgpu_device *adev)
 		vi_srbm_select(adev, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 
+		WREG32(mmSDMA0_TILING_CONFIG + sdma_offsets[i],
+		       adev->gfx.config.gb_addr_config & 0x70);
+
 		WREG32(mmSDMA0_SEM_WAIT_FAIL_TIMER_CNTL + sdma_offsets[i], 0);
 
 		/* Set ring buffer size in dwords */
@@ -1078,6 +1081,8 @@ static void sdma_v2_4_print_status(void *handle)
 			 i, RREG32(mmSDMA0_GFX_RB_BASE + sdma_offsets[i]));
 		dev_info(adev->dev, "  SDMA%d_GFX_RB_BASE_HI=0x%08X\n",
 			 i, RREG32(mmSDMA0_GFX_RB_BASE_HI + sdma_offsets[i]));
+		dev_info(adev->dev, "  SDMA%d_TILING_CONFIG=0x%08X\n",
+			 i, RREG32(mmSDMA0_TILING_CONFIG + sdma_offsets[i]));
 		mutex_lock(&adev->srbm_mutex);
 		for (j = 0; j < 16; j++) {
 			vi_srbm_select(adev, 0, 0, 0, j);
