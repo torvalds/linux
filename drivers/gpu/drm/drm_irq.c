@@ -225,6 +225,21 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	}
 
 	/*
+	 * Within a drm_vblank_pre_modeset - drm_vblank_post_modeset
+	 * interval? If so then vblank irqs keep running and it will likely
+	 * happen that the hardware vblank counter is not trustworthy as it
+	 * might reset at some point in that interval and vblank timestamps
+	 * are not trustworthy either in that interval. Iow. this can result
+	 * in a bogus diff >> 1 which must be avoided as it would cause
+	 * random large forward jumps of the software vblank counter.
+	 */
+	if (diff > 1 && (vblank->inmodeset & 0x2)) {
+		DRM_DEBUG_VBL("clamping vblank bump to 1 on crtc %u: diffr=%u"
+			      " due to pre-modeset.\n", pipe, diff);
+		diff = 1;
+	}
+
+	/*
 	 * FIMXE: Need to replace this hack with proper seqlocks.
 	 *
 	 * Restrict the bump of the software vblank counter to a safe maximum
@@ -1578,6 +1593,7 @@ void drm_vblank_post_modeset(struct drm_device *dev, unsigned int pipe)
 	if (vblank->inmodeset) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		dev->vblank_disable_allowed = true;
+		drm_reset_vblank_timestamp(dev, pipe);
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 
 		if (vblank->inmodeset & 0x2)
