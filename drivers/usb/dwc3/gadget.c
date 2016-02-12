@@ -287,12 +287,39 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 	do {
 		reg = dwc3_readl(dwc->regs, DWC3_DEPCMD(ep));
 		if (!(reg & DWC3_DEPCMD_CMDACT)) {
+			int cmd_status = DWC3_DEPCMD_STATUS(reg);
+
 			dwc3_trace(trace_dwc3_gadget,
 					"Command Complete --> %d",
-					DWC3_DEPCMD_STATUS(reg));
-			if (DWC3_DEPCMD_STATUS(reg))
+					cmd_status);
+
+			switch (cmd_status) {
+			case 0:
+				ret = 0;
 				break;
-			ret = 0;
+			case DEPEVT_TRANSFER_NO_RESOURCE:
+				dwc3_trace(trace_dwc3_gadget, "%s: no resource available");
+				ret = -EINVAL;
+				break;
+			case DEPEVT_TRANSFER_BUS_EXPIRY:
+				/*
+				 * SW issues START TRANSFER command to
+				 * isochronous ep with future frame interval. If
+				 * future interval time has already passed when
+				 * core receives the command, it will respond
+				 * with an error status of 'Bus Expiry'.
+				 *
+				 * Instead of always returning -EINVAL, let's
+				 * give a hint to the gadget driver that this is
+				 * the case by returning -EAGAIN.
+				 */
+				dwc3_trace(trace_dwc3_gadget, "%s: bus expiry");
+				ret = -EAGAIN;
+				break;
+			default:
+				dev_WARN(dwc->dev, "UNKNOWN cmd status\n");
+			}
+
 			break;
 		}
 
