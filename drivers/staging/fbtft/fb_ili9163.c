@@ -236,6 +236,7 @@ static int gamma_adj(struct fbtft_par *par, unsigned long *curves)
 
 	return 0;
 }
+
 #undef CURVE
 #endif
 
