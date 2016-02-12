@@ -1795,7 +1795,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	if (use_dma) {
+	if (!np && use_dma) {
 		r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 		if (r == NULL) {
 			dev_err(&pdev->dev,
