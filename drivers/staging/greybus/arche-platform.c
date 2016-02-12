@@ -262,6 +262,7 @@ static int arche_platform_remove(struct platform_device *pdev)
 {
 	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
 
+	cancel_delayed_work_sync(&arche_pdata->delayed_work);
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 	arche_platform_cleanup(arche_pdata);
 	platform_set_drvdata(pdev, NULL);
