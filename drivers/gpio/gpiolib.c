@@ -331,14 +331,15 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct gpio_device *gdev = filp->private_data;
 	struct gpio_chip *chip = gdev->chip;
 	int __user *ip = (int __user *)arg;
-	struct gpiochip_info chipinfo;
 
 	/* We fail any subsequent ioctl():s when the chip is gone */
 	if (!chip)
 		return -ENODEV;
 
+	/* Fill in the struct and pass to userspace */
 	if (cmd == GPIO_GET_CHIPINFO_IOCTL) {
-		/* Fill in the struct and pass to userspace */
+		struct gpiochip_info chipinfo;
+
 		strncpy(chipinfo.name, dev_name(&gdev->dev),
 			sizeof(chipinfo.name));
 		chipinfo.name[sizeof(chipinfo.name)-1] = '\0';
@@ -347,6 +348,52 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		chipinfo.label[sizeof(chipinfo.label)-1] = '\0';
 		chipinfo.lines = gdev->ngpio;
 		if (copy_to_user(ip, &chipinfo, sizeof(chipinfo)))
+			return -EFAULT;
+		return 0;
+	} else if (cmd == GPIO_GET_LINEINFO_IOCTL) {
+		struct gpioline_info lineinfo;
+		struct gpio_desc *desc;
+
+		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
+			return -EFAULT;
+		if (lineinfo.line_offset > gdev->ngpio)
+			return -EINVAL;
+
+		desc = &gdev->descs[lineinfo.line_offset];
+		if (desc->name) {
+			strncpy(lineinfo.name, desc->name,
+				sizeof(lineinfo.name));
+			lineinfo.name[sizeof(lineinfo.name)-1] = '\0';
+		} else {
+			lineinfo.name[0] = '\0';
+		}
+		if (desc->label) {
+			strncpy(lineinfo.label, desc->label,
+				sizeof(lineinfo.label));
+			lineinfo.label[sizeof(lineinfo.label)-1] = '\0';
+		} else {
+			lineinfo.label[0] = '\0';
+		}
+
+		/*
+		 * Userspace only need to know that the kernel is using
+		 * this GPIO so it can't use it.
+		 */
+		lineinfo.flags = 0;
+		if (desc->flags & (FLAG_REQUESTED | FLAG_IS_HOGGED |
+				   FLAG_USED_AS_IRQ | FLAG_EXPORT |
+				   FLAG_SYSFS))
+			lineinfo.flags |= GPIOLINE_FLAG_KERNEL;
+		if (desc->flags & FLAG_IS_OUT)
+			lineinfo.flags |= GPIOLINE_FLAG_IS_OUT;
+		if (desc->flags & FLAG_ACTIVE_LOW)
+			lineinfo.flags |= GPIOLINE_FLAG_ACTIVE_LOW;
+		if (desc->flags & FLAG_OPEN_DRAIN)
+			lineinfo.flags |= GPIOLINE_FLAG_OPEN_DRAIN;
+		if (desc->flags & FLAG_OPEN_SOURCE)
+			lineinfo.flags |= GPIOLINE_FLAG_OPEN_SOURCE;
+
+		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
 			return -EFAULT;
 		return 0;
 	}

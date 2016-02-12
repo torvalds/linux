@@ -26,12 +26,56 @@
 
 #include "gpio-utils.h"
 
+struct gpio_flag {
+	char *name;
+	unsigned long mask;
+};
+
+struct gpio_flag flagnames[] = {
+	{
+		.name = "kernel",
+		.mask = GPIOLINE_FLAG_KERNEL,
+	},
+	{
+		.name = "output",
+		.mask = GPIOLINE_FLAG_IS_OUT,
+	},
+	{
+		.name = "active-low",
+		.mask = GPIOLINE_FLAG_ACTIVE_LOW,
+	},
+	{
+		.name = "open-drain",
+		.mask = GPIOLINE_FLAG_OPEN_DRAIN,
+	},
+	{
+		.name = "open-source",
+		.mask = GPIOLINE_FLAG_OPEN_SOURCE,
+	},
+};
+
+void print_flags(unsigned long flags)
+{
+	int i;
+	int printed = 0;
+
+	for (i = 0; i < ARRAY_SIZE(flagnames); i++) {
+		if (flags & flagnames[i].mask) {
+			if (printed)
+				fprintf(stdout, " ");
+			fprintf(stdout, "%s", flagnames[i].name);
+			printed++;
+		}
+	}
+}
+
 int list_device(const char *device_name)
 {
 	struct gpiochip_info cinfo;
 	char *chrdev_name;
 	int fd;
 	int ret;
+	int i;
 
 	ret = asprintf(&chrdev_name, "/dev/%s", device_name);
 	if (ret < 0)
@@ -41,32 +85,55 @@ int list_device(const char *device_name)
 	if (fd == -1) {
 		ret = -errno;
 		fprintf(stderr, "Failed to open %s\n", chrdev_name);
-		goto free_chrdev_name;
+		goto exit_close_error;
 	}
 
 	/* Inspect this GPIO chip */
 	ret = ioctl(fd, GPIO_GET_CHIPINFO_IOCTL, &cinfo);
 	if (ret == -1) {
 		ret = -errno;
-		fprintf(stderr, "Failed to retrieve GPIO fd\n");
-		if (close(fd) == -1)
-			perror("Failed to close GPIO character device file");
-
-		goto free_chrdev_name;
+		perror("Failed to issue CHIPINFO IOCTL\n");
+		goto exit_close_error;
 	}
 	fprintf(stdout, "GPIO chip: %s, \"%s\", %u GPIO lines\n",
 		cinfo.name, cinfo.label, cinfo.lines);
 
-	if (close(fd) == -1)  {
-		ret = -errno;
-		goto free_chrdev_name;
+	/* Loop over the lines and print info */
+	for (i = 0; i < cinfo.lines; i++) {
+		struct gpioline_info linfo;
+
+		memset(&linfo, 0, sizeof(linfo));
+		linfo.line_offset = i;
+
+		ret = ioctl(fd, GPIO_GET_LINEINFO_IOCTL, &linfo);
+		if (ret == -1) {
+			ret = -errno;
+			perror("Failed to issue LINEINFO IOCTL\n");
+			goto exit_close_error;
+		}
+		fprintf(stdout, "\tline %d:", linfo.line_offset);
+		if (linfo.name[0])
+			fprintf(stdout, " %s", linfo.name);
+		else
+			fprintf(stdout, " unnamed");
+		if (linfo.label[0])
+			fprintf(stdout, " \"%s\"", linfo.label);
+		else
+			fprintf(stdout, " unlabeled");
+		if (linfo.flags) {
+			fprintf(stdout, " [");
+			print_flags(linfo.flags);
+			fprintf(stdout, "]");
+		}
+		fprintf(stdout, "\n");
+
 	}
 
-free_chrdev_name:
+exit_close_error:
+	if (close(fd) == -1)
+		perror("Failed to close GPIO character device file");
 	free(chrdev_name);
-
 	return ret;
-
 }
 
 void print_usage(void)
