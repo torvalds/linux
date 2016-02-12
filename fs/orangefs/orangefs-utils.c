@@ -688,38 +688,6 @@ int orangefs_unmount_sb(struct super_block *sb)
 	return ret;
 }
 
-/*
- * NOTE: on successful cancellation, be sure to return -EINTR, as
- * that's the return value the caller expects
- */
-int orangefs_cancel_op_in_progress(__u64 tag)
-{
-	int ret = -EINVAL;
-	struct orangefs_kernel_op_s *new_op = NULL;
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_cancel_op_in_progress called on tag %llu\n",
-		     llu(tag));
-
-	new_op = op_alloc(ORANGEFS_VFS_OP_CANCEL);
-	if (!new_op)
-		return -ENOMEM;
-	new_op->upcall.req.cancel.op_tag = tag;
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Attempting ORANGEFS operation cancellation of tag %llu\n",
-		     llu(new_op->upcall.req.cancel.op_tag));
-
-	ret = service_operation(new_op, "orangefs_cancel", ORANGEFS_OP_CANCELLATION);
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_cancel_op_in_progress: got return value of %d\n",
-		     ret);
-
-	op_release(new_op);
-	return ret;
-}
-
 void orangefs_make_bad_inode(struct inode *inode)
 {
 	if (is_root_handle(inode)) {

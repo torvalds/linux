@@ -101,6 +101,15 @@ char *get_opname_string(struct orangefs_kernel_op_s *new_op)
 	return "OP_UNKNOWN?";
 }
 
+void orangefs_new_tag(struct orangefs_kernel_op_s *op)
+{
+	spin_lock(&next_tag_value_lock);
+	op->tag = next_tag_value++;
+	if (next_tag_value == 0)
+		next_tag_value = 100;
+	spin_unlock(&next_tag_value_lock);
+}
+
 struct orangefs_kernel_op_s *op_alloc(__s32 type)
 {
 	struct orangefs_kernel_op_s *new_op = NULL;
@@ -120,14 +129,9 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 		new_op->downcall.status = -1;
 
 		new_op->op_state = OP_VFS_STATE_UNKNOWN;
-		new_op->tag = 0;
 
 		/* initialize the op specific tag and upcall credentials */
-		spin_lock(&next_tag_value_lock);
-		new_op->tag = next_tag_value++;
-		if (next_tag_value == 0)
-			next_tag_value = 100;
-		spin_unlock(&next_tag_value_lock);
+		orangefs_new_tag(new_op);
 		new_op->upcall.type = type;
 		new_op->attempts = 0;
 		gossip_debug(GOSSIP_CACHE_DEBUG,

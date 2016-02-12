@@ -190,9 +190,14 @@ struct orangefs_kernel_op_s {
 	/*
 	 * Set uses_shared_memory to 1 if this operation uses shared memory.
 	 * If true, then a retry on the op must also get a new shared memory
-	 * buffer and re-populate it.
+	 * buffer and re-populate it.  Cancels don't care - it only matters
+	 * for service_operation() retry logics and cancels don't go through
+	 * it anymore.
 	 */
-	int uses_shared_memory;
+	union {
+		int uses_shared_memory;
+		int slot_to_free;
+	};
 
 	struct orangefs_upcall_s upcall;
 	struct orangefs_downcall_s downcall;
@@ -219,17 +224,13 @@ static inline void set_op_state_serviced(struct orangefs_kernel_op_s *op)
 	op->op_state = OP_VFS_STATE_SERVICED;
 	wake_up_interruptible(&op->waitq);
 }
-static inline void set_op_state_purged(struct orangefs_kernel_op_s *op)
-{
-	op->op_state |= OP_VFS_STATE_PURGED;
-	wake_up_interruptible(&op->waitq);
-}
 
 #define op_state_waiting(op)     ((op)->op_state & OP_VFS_STATE_WAITING)
 #define op_state_in_progress(op) ((op)->op_state & OP_VFS_STATE_INPROGR)
 #define op_state_serviced(op)    ((op)->op_state & OP_VFS_STATE_SERVICED)
 #define op_state_purged(op)      ((op)->op_state & OP_VFS_STATE_PURGED)
 #define op_state_given_up(op)    ((op)->op_state & OP_VFS_STATE_GIVEN_UP)
+#define op_is_cancel(op)         ((op)->upcall.type == ORANGEFS_VFS_OP_CANCEL)
 
 static inline void get_op(struct orangefs_kernel_op_s *op)
 {
@@ -246,6 +247,27 @@ static inline void op_release(struct orangefs_kernel_op_s *op)
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			"(put) Releasing OP (%p:%llu)\n", op, llu((op)->tag));
 		__op_release(op);
+	}
+}
+
+extern void orangefs_bufmap_put(int);
+static inline void put_cancel(struct orangefs_kernel_op_s *op)
+{
+	orangefs_bufmap_put(op->slot_to_free);
+	op_release(op);
+}
+
+static inline void set_op_state_purged(struct orangefs_kernel_op_s *op)
+{
+	spin_lock(&op->lock);
+	if (unlikely(op_is_cancel(op))) {
+		list_del(&op->list);
+		spin_unlock(&op->lock);
+		put_cancel(op);
+	} else {
+		op->op_state |= OP_VFS_STATE_PURGED;
+		wake_up_interruptible(&op->waitq);
+		spin_unlock(&op->lock);
 	}
 }
 
@@ -448,6 +470,7 @@ static inline int match_handle(struct orangefs_khandle resp_handle,
 int op_cache_initialize(void);
 int op_cache_finalize(void);
 struct orangefs_kernel_op_s *op_alloc(__s32 type);
+void orangefs_new_tag(struct orangefs_kernel_op_s *op);
 char *get_opname_string(struct orangefs_kernel_op_s *new_op);
 
 int orangefs_inode_cache_initialize(void);
@@ -528,6 +551,7 @@ ssize_t orangefs_inode_read(struct inode *inode,
 int orangefs_dev_init(void);
 void orangefs_dev_cleanup(void);
 int is_daemon_in_service(void);
+bool __is_daemon_in_service(void);
 int fs_mount_pending(__s32 fsid);
 
 /*
@@ -562,7 +586,7 @@ void orangefs_set_signals(sigset_t *);
 
 int orangefs_unmount_sb(struct super_block *sb);
 
-int orangefs_cancel_op_in_progress(__u64 tag);
+bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 
 static inline __u64 orangefs_convert_time_field(const struct timespec *ts)
 {

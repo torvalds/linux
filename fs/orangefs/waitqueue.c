@@ -16,7 +16,6 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-static int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *);
 static int wait_for_matching_downcall(struct orangefs_kernel_op_s *);
 
 /*
@@ -36,23 +35,27 @@ void purge_waiting_ops(void)
 			     "pvfs2-client-core: purging op tag %llu %s\n",
 			     llu(op->tag),
 			     get_opname_string(op));
-		spin_lock(&op->lock);
 		set_op_state_purged(op);
-		spin_unlock(&op->lock);
 	}
 	spin_unlock(&orangefs_request_list_lock);
+}
+
+static inline void
+__add_op_to_request_list(struct orangefs_kernel_op_s *op)
+{
+	spin_lock(&op->lock);
+	set_op_state_waiting(op);
+	list_add_tail(&op->list, &orangefs_request_list);
+	spin_unlock(&op->lock);
+	wake_up_interruptible(&orangefs_request_list_waitq);
 }
 
 static inline void
 add_op_to_request_list(struct orangefs_kernel_op_s *op)
 {
 	spin_lock(&orangefs_request_list_lock);
-	spin_lock(&op->lock);
-	set_op_state_waiting(op);
-	list_add_tail(&op->list, &orangefs_request_list);
+	__add_op_to_request_list(op);
 	spin_unlock(&orangefs_request_list_lock);
-	spin_unlock(&op->lock);
-	wake_up_interruptible(&orangefs_request_list_waitq);
 }
 
 static inline
@@ -159,15 +162,7 @@ retry_servicing:
 	if (flags & ORANGEFS_OP_ASYNC)
 		return 0;
 
-	if (flags & ORANGEFS_OP_CANCELLATION) {
-		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "%s:"
-			     "About to call wait_for_cancellation_downcall.\n",
-			     __func__);
-		ret = wait_for_cancellation_downcall(op);
-	} else {
-		ret = wait_for_matching_downcall(op);
-	}
+	ret = wait_for_matching_downcall(op);
 
 	if (ret < 0) {
 		/* failed to get matching downcall */
@@ -271,6 +266,36 @@ retry_servicing:
 		     ret,
 		     op);
 	return ret;
+}
+
+bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
+{
+	u64 tag = op->tag;
+	if (!op_state_in_progress(op))
+		return false;
+
+	op->slot_to_free = op->upcall.req.io.buf_index;
+	memset(&op->upcall, 0, sizeof(op->upcall));
+	memset(&op->downcall, 0, sizeof(op->downcall));
+	op->upcall.type = ORANGEFS_VFS_OP_CANCEL;
+	op->upcall.req.cancel.op_tag = tag;
+	op->downcall.type = ORANGEFS_VFS_OP_INVALID;
+	op->downcall.status = -1;
+	orangefs_new_tag(op);
+
+	spin_lock(&orangefs_request_list_lock);
+	/* orangefs_request_list_lock is enough of a barrier here */
+	if (!__is_daemon_in_service()) {
+		spin_unlock(&orangefs_request_list_lock);
+		return false;
+	}
+	__add_op_to_request_list(op);
+	spin_unlock(&orangefs_request_list_lock);
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+		     "Attempting ORANGEFS operation cancellation of tag %llu\n",
+		     llu(tag));
+	return true;
 }
 
 static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
@@ -423,84 +448,6 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 	spin_lock(&op->lock);
 	finish_wait(&op->waitq, &wait_entry);
 	spin_unlock(&op->lock);
-
-	return ret;
-}
-
-/*
- * similar to wait_for_matching_downcall(), but used in the special case
- * of I/O cancellations.
- *
- * Note we need a special wait function because if this is called we already
- *      know that a signal is pending in current and need to service the
- *      cancellation upcall anyway.  the only way to exit this is to either
- *      timeout or have the cancellation be serviced properly.
- */
-static int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
-{
-	int ret = -EINVAL;
-	DEFINE_WAIT(wait_entry);
-
-	while (1) {
-		spin_lock(&op->lock);
-		prepare_to_wait(&op->waitq, &wait_entry, TASK_INTERRUPTIBLE);
-		if (op_state_serviced(op)) {
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "%s:op-state is SERVICED.\n",
-				     __func__);
-			spin_unlock(&op->lock);
-			ret = 0;
-			break;
-		}
-
-		if (signal_pending(current)) {
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "%s:operation interrupted by a signal (tag"
-				     " %llu, op %p)\n",
-				     __func__,
-				     llu(op->tag),
-				     op);
-			orangefs_clean_up_interrupted_operation(op);
-			ret = -EINTR;
-			break;
-		}
-
-		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "%s:About to call schedule_timeout.\n",
-			     __func__);
-		spin_unlock(&op->lock);
-		ret = schedule_timeout(op_timeout_secs * HZ);
-
-		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "%s:Value returned from schedule_timeout(%d).\n",
-			     __func__,
-			     ret);
-		if (!ret) {
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "%s:*** operation timed out: %p\n",
-				     __func__,
-				     op);
-			spin_lock(&op->lock);
-			orangefs_clean_up_interrupted_operation(op);
-			ret = -ETIMEDOUT;
-			break;
-		}
-
-		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "%s:Breaking out of loop, regardless of value returned by schedule_timeout.\n",
-			     __func__);
-		ret = -ETIMEDOUT;
-		break;
-	}
-
-	spin_lock(&op->lock);
-	finish_wait(&op->waitq, &wait_entry);
-	spin_unlock(&op->lock);
-
-	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "%s:returning ret(%d)\n",
-		     __func__,
-		     ret);
 
 	return ret;
 }

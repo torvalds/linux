@@ -438,6 +438,8 @@ wakeup:
 		}
 	}
 out:
+	if (unlikely(op_is_cancel(op)))
+		put_cancel(op);
 	op_release(op);
 	return ret;
 
@@ -544,6 +546,11 @@ int is_daemon_in_service(void)
 	in_service = open_access_count == 1 ? 0 : -EIO;
 	mutex_unlock(&devreq_mutex);
 	return in_service;
+}
+
+bool __is_daemon_in_service(void)
+{
+	return open_access_count == 1;
 }
 
 static inline long check_ioctl_command(unsigned int command)

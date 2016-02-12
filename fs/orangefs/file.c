@@ -182,17 +182,6 @@ populate_shared_memory:
 
 	if (ret < 0) {
 		/*
-		 * XXX: needs to be optimized - we only need to cancel if it
-		 * had been seen by daemon and not completed
-		 */
-		if (!op_state_serviced(new_op)) {
-			orangefs_cancel_op_in_progress(new_op->tag);
-		} else {
-			complete(&new_op->done);
-		}
-		orangefs_bufmap_put(buffer_index);
-		buffer_index = -1;
-		/*
 		 * don't write an error to syslog on signaled operation
 		 * termination unless we've got debugging turned on, as
 		 * this can happen regularly (i.e. ctrl-c)
@@ -207,7 +196,10 @@ populate_shared_memory:
 				type == ORANGEFS_IO_READ ?
 					"read from" : "write to",
 				handle, ret);
-		goto out;
+		if (orangefs_cancel_op_in_progress(new_op))
+			return ret;
+
+		goto done_copying;
 	}
 
 	/*
