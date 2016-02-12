@@ -129,6 +129,7 @@ static int mipi_dsi_device_add(struct mipi_dsi_device *dsi)
 	return device_add(&dsi->dev);
 }
 
+#if IS_ENABLED(CONFIG_OF)
 static struct mipi_dsi_device *
 of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 {
@@ -170,6 +171,13 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 
 	return dsi;
 }
+#else
+static struct mipi_dsi_device *
+of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
