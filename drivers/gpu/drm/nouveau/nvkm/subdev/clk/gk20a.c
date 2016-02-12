@@ -675,7 +675,7 @@ gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 	clk->parent_rate = clk_get_rate(tdev->clk);
 
 	ret = nvkm_clk_ctor(&gk20a_clk, device, index, true, &clk->base);
-	nvkm_info(&clk->base.subdev, "parent clock rate: %d Khz\n",
-		  clk->parent_rate / KHZ);
+	nvkm_debug(&clk->base.subdev, "parent clock rate: %d Khz\n",
+		   clk->parent_rate / KHZ);
 	return ret;
 }
