@@ -139,15 +139,19 @@ enum mipi_dsi_pixel_format {
 	MIPI_DSI_FMT_RGB565,
 };
 
- /**
+#define DSI_DEV_NAME_SIZE		20
+
+/**
  * struct mipi_dsi_device_info - template for creating a mipi_dsi_device
+ * @type: DSI peripheral chip type
  * @channel: DSI virtual channel assigned to peripheral
- * @node: pointer to OF device node
+ * @node: pointer to OF device node or NULL
  *
  * This is populated and passed to mipi_dsi_device_new to create a new
  * DSI device
  */
 struct mipi_dsi_device_info {
+	char type[DSI_DEV_NAME_SIZE];
 	u32 channel;
 	struct device_node *node;
 };
@@ -156,6 +160,7 @@ struct mipi_dsi_device_info {
  * struct mipi_dsi_device - DSI peripheral device
  * @host: DSI host for this peripheral
  * @dev: driver model device node for this peripheral
+ * @name: DSI peripheral chip type
  * @channel: virtual channel assigned to the peripheral
  * @format: pixel format for video mode
  * @lanes: number of active data lanes
@@ -165,6 +170,7 @@ struct mipi_dsi_device {
 	struct mipi_dsi_host *host;
 	struct device dev;
 
+	char name[DSI_DEV_NAME_SIZE];
 	unsigned int channel;
 	unsigned int lanes;
 	enum mipi_dsi_pixel_format format;
