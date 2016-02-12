@@ -52,8 +52,10 @@ static int timeout = 50;
 module_param(timeout, int, 0644);
 MODULE_PARM_DESC(timeout, "timeout (seconds)");
 
-/* Number of threads in each scheduler pool which is percpt,
- * we will estimate reasonable value based on CPUs if it's set to zero. */
+/*
+ * Number of threads in each scheduler pool which is percpt,
+ * we will estimate reasonable value based on CPUs if it's set to zero.
+ */
 static int nscheds;
 module_param(nscheds, int, 0444);
 MODULE_PARM_DESC(nscheds, "number of threads in each scheduler pool");

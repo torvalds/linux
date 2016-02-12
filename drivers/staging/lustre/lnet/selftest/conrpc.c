@@ -60,8 +60,10 @@ lstcon_rpc_done(srpc_client_rpc_t *rpc)
 	spin_lock(&rpc->crpc_lock);
 
 	if (crpc->crp_trans == NULL) {
-		/* Orphan RPC is not in any transaction,
-		 * I'm just a poor body and nobody loves me */
+		/*
+		 * Orphan RPC is not in any transaction,
+		 * I'm just a poor body and nobody loves me
+		 */
 		spin_unlock(&rpc->crpc_lock);
 
 		/* release it */
@@ -241,8 +243,10 @@ lstcon_rpc_trans_prep(struct list_head *translist,
 
 	if (translist != NULL) {
 		list_for_each_entry(trans, translist, tas_link) {
-			/* Can't enqueue two private transaction on
-			 * the same object */
+			/*
+			 * Can't enqueue two private transaction on
+			 * the same object
+			 */
 			if ((trans->tas_opc & transop) == LST_TRANS_PRIVATE)
 				return -EPERM;
 		}
@@ -563,11 +567,12 @@ lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 			continue;
 		}
 
-		/* rpcs can be still not callbacked (even LNetMDUnlink is called)
+		/*
+		 * rpcs can be still not callbacked (even LNetMDUnlink is called)
 		 * because huge timeout for inaccessible network, don't make
 		 * user wait for them, just abandon them, they will be recycled
-		 * in callback */
-
+		 * in callback
+		 */
 		LASSERT(crpc->crp_status != 0);
 
 		crpc->crp_node  = NULL;

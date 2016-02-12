@@ -79,7 +79,8 @@ static inline int lnet_md_exhausted(lnet_libmd_t *md)
 
 static inline int lnet_md_unlinkable(lnet_libmd_t *md)
 {
-	/* Should unlink md when its refcount is 0 and either:
+	/*
+	 * Should unlink md when its refcount is 0 and either:
 	 *  - md has been flagged for deletion (by auto unlink or
 	 *    LNetM[DE]Unlink, in the latter case md may not be exhausted).
 	 *  - auto unlink is on and md is exhausted.
@@ -102,8 +103,10 @@ lnet_cpt_of_cookie(__u64 cookie)
 {
 	unsigned int cpt = (cookie >> LNET_COOKIE_TYPE_BITS) & LNET_CPT_MASK;
 
-	/* LNET_CPT_NUMBER doesn't have to be power2, which means we can
-	 * get illegal cpt from it's invalid cookie */
+	/*
+	 * LNET_CPT_NUMBER doesn't have to be power2, which means we can
+	 * get illegal cpt from it's invalid cookie
+	 */
 	return cpt < LNET_CPT_NUMBER ? cpt : cpt % LNET_CPT_NUMBER;
 }
 

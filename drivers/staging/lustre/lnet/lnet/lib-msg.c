@@ -203,8 +203,10 @@ lnet_msg_decommit_tx(lnet_msg_t *msg, int status)
 
 	case LNET_EVENT_GET:
 		LASSERT(msg->msg_rx_committed);
-		/* overwritten while sending reply, we should never be
-		 * here for optimized GET */
+		/*
+		 * overwritten while sending reply, we should never be
+		 * here for optimized GET
+		 */
 		LASSERT(msg->msg_type == LNET_MSG_REPLY);
 		msg->msg_type = LNET_MSG_GET; /* fix type */
 		break;
@@ -240,10 +242,12 @@ lnet_msg_decommit_rx(lnet_msg_t *msg, int status)
 		break;
 
 	case LNET_EVENT_GET:
-		/* type is "REPLY" if it's an optimized GET on passive side,
+		/*
+		 * type is "REPLY" if it's an optimized GET on passive side,
 		 * because optimized GET will never be committed for sending,
 		 * so message type wouldn't be changed back to "GET" by
-		 * lnet_msg_decommit_tx(), see details in lnet_parse_get() */
+		 * lnet_msg_decommit_tx(), see details in lnet_parse_get()
+		 */
 		LASSERT(msg->msg_type == LNET_MSG_REPLY ||
 			msg->msg_type == LNET_MSG_GET);
 		counters->send_length += msg->msg_wanted;
@@ -254,8 +258,10 @@ lnet_msg_decommit_rx(lnet_msg_t *msg, int status)
 		break;
 
 	case LNET_EVENT_REPLY:
-		/* type is "GET" if it's an optimized GET on active side,
-		 * see details in lnet_create_reply_msg() */
+		/*
+		 * type is "GET" if it's an optimized GET on active side,
+		 * see details in lnet_create_reply_msg()
+		 */
 		LASSERT(msg->msg_type == LNET_MSG_GET ||
 			msg->msg_type == LNET_MSG_REPLY);
 		break;
@@ -309,10 +315,12 @@ lnet_msg_attach_md(lnet_msg_t *msg, lnet_libmd_t *md,
 		   unsigned int offset, unsigned int mlen)
 {
 	/* NB: @offset and @len are only useful for receiving */
-	/* Here, we attach the MD on lnet_msg and mark it busy and
+	/*
+	 * Here, we attach the MD on lnet_msg and mark it busy and
 	 * decrementing its threshold. Come what may, the lnet_msg "owns"
 	 * the MD until a call to lnet_msg_detach_md or lnet_finalize()
-	 * signals completion. */
+	 * signals completion.
+	 */
 	LASSERT(!msg->msg_routing);
 
 	msg->msg_md = md;
@@ -383,8 +391,10 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 		msg->msg_hdr.msg.ack.match_bits = msg->msg_ev.match_bits;
 		msg->msg_hdr.msg.ack.mlength = cpu_to_le32(msg->msg_ev.mlength);
 
-		/* NB: we probably want to use NID of msg::msg_from as 3rd
-		 * parameter (router NID) if it's routed message */
+		/*
+		 * NB: we probably want to use NID of msg::msg_from as 3rd
+		 * parameter (router NID) if it's routed message
+		 */
 		rc = lnet_send(msg->msg_ev.target.nid, msg, LNET_NID_ANY);
 
 		lnet_net_lock(cpt);
@@ -491,9 +501,10 @@ lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
 	container = the_lnet.ln_msg_containers[cpt];
 	list_add_tail(&msg->msg_list, &container->msc_finalizing);
 
-	/* Recursion breaker.  Don't complete the message here if I am (or
-	 * enough other threads are) already completing messages */
-
+	/*
+	 * Recursion breaker.  Don't complete the message here if I am (or
+	 * enough other threads are) already completing messages
+	 */
 	my_slot = -1;
 	for (i = 0; i < container->msc_nfinalizers; i++) {
 		if (container->msc_finalizers[i] == current)
@@ -516,8 +527,10 @@ lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
 
 		list_del(&msg->msg_list);
 
-		/* NB drops and regains the lnet lock if it actually does
-		 * anything, so my finalizing friends can chomp along too */
+		/*
+		 * NB drops and regains the lnet lock if it actually does
+		 * anything, so my finalizing friends can chomp along too
+		 */
 		rc = lnet_complete_msg_locked(msg, cpt);
 		if (rc != 0)
 			break;

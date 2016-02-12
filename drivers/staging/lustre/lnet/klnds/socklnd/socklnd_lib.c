@@ -67,8 +67,10 @@ ksocknal_lib_zc_capable(ksock_conn_t *conn)
 	if (conn->ksnc_proto == &ksocknal_protocol_v1x)
 		return 0;
 
-	/* ZC if the socket supports scatter/gather and doesn't need software
-	 * checksums */
+	/*
+	 * ZC if the socket supports scatter/gather and doesn't need software
+	 * checksums
+	 */
 	return ((caps & NETIF_F_SG) != 0 && (caps & NETIF_F_CSUM_MASK) != 0);
 }
 
@@ -85,9 +87,10 @@ ksocknal_lib_send_iov(ksock_conn_t *conn, ksock_tx_t *tx)
 	    tx->tx_msg.ksm_csum == 0)		     /* not checksummed  */
 		ksocknal_lib_csum_tx(tx);
 
-	/* NB we can't trust socket ops to either consume our iovs
-	 * or leave them alone. */
-
+	/*
+	 * NB we can't trust socket ops to either consume our iovs
+	 * or leave them alone.
+	 */
 	{
 #if SOCKNAL_SINGLE_FRAG_TX
 		struct kvec scratch;
@@ -125,8 +128,10 @@ ksocknal_lib_send_kiov(ksock_conn_t *conn, ksock_tx_t *tx)
 	/* Not NOOP message */
 	LASSERT(tx->tx_lnetmsg != NULL);
 
-	/* NB we can't trust socket ops to either consume our iovs
-	 * or leave them alone. */
+	/*
+	 * NB we can't trust socket ops to either consume our iovs
+	 * or leave them alone.
+	 */
 	if (tx->tx_msg.ksm_zc_cookies[0] != 0) {
 		/* Zero copy is enabled */
 		struct sock *sk = sock->sk;
@@ -187,11 +192,12 @@ ksocknal_lib_eager_ack(ksock_conn_t *conn)
 	int opt = 1;
 	struct socket *sock = conn->ksnc_sock;
 
-	/* Remind the socket to ACK eagerly.  If I don't, the socket might
+	/*
+	 * Remind the socket to ACK eagerly.  If I don't, the socket might
 	 * think I'm about to send something it could piggy-back the ACK
 	 * on, introducing delay in completing zero-copy sends in my
-	 * peer. */
-
+	 * peer.
+	 */
 	kernel_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
 			       (char *)&opt, sizeof(opt));
 }
@@ -218,8 +224,10 @@ ksocknal_lib_recv_iov(ksock_conn_t *conn)
 	int sum;
 	__u32 saved_csum;
 
-	/* NB we can't trust socket ops to either consume our iovs
-	 * or leave them alone. */
+	/*
+	 * NB we can't trust socket ops to either consume our iovs
+	 * or leave them alone.
+	 */
 	LASSERT(niov > 0);
 
 	for (nob = i = 0; i < niov; i++) {
@@ -329,8 +337,10 @@ ksocknal_lib_recv_kiov(ksock_conn_t *conn)
 	int fragnob;
 	int n;
 
-	/* NB we can't trust socket ops to either consume our iovs
-	 * or leave them alone. */
+	/*
+	 * NB we can't trust socket ops to either consume our iovs
+	 * or leave them alone.
+	 */
 	addr = ksocknal_lib_kiov_vmap(kiov, niov, scratchiov, pages);
 	if (addr != NULL) {
 		nob = scratchiov[0].iov_len;
@@ -354,10 +364,12 @@ ksocknal_lib_recv_kiov(ksock_conn_t *conn)
 		for (i = 0, sum = rc; sum > 0; i++, sum -= fragnob) {
 			LASSERT(i < niov);
 
-			/* Dang! have to kmap again because I have nowhere to
+			/*
+			 * Dang! have to kmap again because I have nowhere to
 			 * stash the mapped address.  But by doing it while the
 			 * page is still mapped, the kernel just bumps the map
-			 * count and returns me the address it stashed. */
+			 * count and returns me the address it stashed.
+			 */
 			base = kmap(kiov[i].kiov_page) + kiov[i].kiov_offset;
 			fragnob = kiov[i].kiov_len;
 			if (fragnob > sum)
@@ -463,9 +475,10 @@ ksocknal_lib_setup_sock(struct socket *sock)
 
 	sock->sk->sk_allocation = GFP_NOFS;
 
-	/* Ensure this socket aborts active sends immediately when we close
-	 * it. */
-
+	/*
+	 * Ensure this socket aborts active sends immediately when we close
+	 * it.
+	 */
 	linger.l_onoff = 0;
 	linger.l_linger = 0;
 
@@ -637,10 +650,11 @@ ksocknal_write_space(struct sock *sk)
 	if (wspace >= min_wpace) {	      /* got enough space */
 		ksocknal_write_callback(conn);
 
-		/* Clear SOCK_NOSPACE _after_ ksocknal_write_callback so the
+		/*
+		 * Clear SOCK_NOSPACE _after_ ksocknal_write_callback so the
 		 * ENOMEM check in ksocknal_transmit is race-free (think about
-		 * it). */
-
+		 * it).
+		 */
 		clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 	}
 
@@ -666,15 +680,19 @@ ksocknal_lib_set_callback(struct socket *sock,  ksock_conn_t *conn)
 void
 ksocknal_lib_reset_callback(struct socket *sock, ksock_conn_t *conn)
 {
-	/* Remove conn's network callbacks.
+	/*
+	 * Remove conn's network callbacks.
 	 * NB I _have_ to restore the callback, rather than storing a noop,
-	 * since the socket could survive past this module being unloaded!! */
+	 * since the socket could survive past this module being unloaded!!
+	 */
 	sock->sk->sk_data_ready = conn->ksnc_saved_data_ready;
 	sock->sk->sk_write_space = conn->ksnc_saved_write_space;
 
-	/* A callback could be in progress already; they hold a read lock
+	/*
+	 * A callback could be in progress already; they hold a read lock
 	 * on ksnd_global_lock (to serialise with me) and NOOP if
-	 * sk_user_data is NULL. */
+	 * sk_user_data is NULL.
+	 */
 	sock->sk->sk_user_data = NULL;
 
 	return ;
@@ -691,14 +709,16 @@ ksocknal_lib_memory_pressure(ksock_conn_t *conn)
 
 	if (!test_bit(SOCK_NOSPACE, &conn->ksnc_sock->flags) &&
 	    !conn->ksnc_tx_ready) {
-		/* SOCK_NOSPACE is set when the socket fills
+		/*
+		 * SOCK_NOSPACE is set when the socket fills
 		 * and cleared in the write_space callback
 		 * (which also sets ksnc_tx_ready).  If
 		 * SOCK_NOSPACE and ksnc_tx_ready are BOTH
 		 * zero, I didn't fill the socket and
 		 * write_space won't reschedule me, so I
 		 * return -ENOMEM to get my caller to retry
-		 * after a timeout */
+		 * after a timeout
+		 */
 		rc = -ENOMEM;
 	}
 

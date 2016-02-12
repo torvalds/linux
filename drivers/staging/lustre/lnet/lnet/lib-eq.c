@@ -75,18 +75,21 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
-	/* We need count to be a power of 2 so that when eq_{enq,deq}_seq
+	/*
+	 * We need count to be a power of 2 so that when eq_{enq,deq}_seq
 	 * overflow, they don't skip entries, so the queue has the same
-	 * apparent capacity at all times */
-
+	 * apparent capacity at all times
+	 */
 	if (count)
 		count = roundup_pow_of_two(count);
 
 	if (callback != LNET_EQ_HANDLER_NONE && count != 0)
 		CWARN("EQ callback is guaranteed to get every event, do you still want to set eqcount %d for polling event which will have locking overhead? Please contact with developer to confirm\n", count);
 
-	/* count can be 0 if only need callback, we can eliminate
-	 * overhead of enqueue event */
+	/*
+	 * count can be 0 if only need callback, we can eliminate
+	 * overhead of enqueue event
+	 */
 	if (count == 0 && callback == LNET_EQ_HANDLER_NONE)
 		return -EINVAL;
 
@@ -98,8 +101,10 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 		LIBCFS_ALLOC(eq->eq_events, count * sizeof(lnet_event_t));
 		if (eq->eq_events == NULL)
 			goto failed;
-		/* NB allocator has set all event sequence numbers to 0,
-		 * so all them should be earlier than eq_deq_seq */
+		/*
+		 * NB allocator has set all event sequence numbers to 0,
+		 * so all them should be earlier than eq_deq_seq
+		 */
 	}
 
 	eq->eq_deq_seq = 1;
@@ -114,8 +119,10 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 
 	/* MUST hold both exclusive lnet_res_lock */
 	lnet_res_lock(LNET_LOCK_EX);
-	/* NB: hold lnet_eq_wait_lock for EQ link/unlink, so we can do
-	 * both EQ lookup and poll event with only lnet_eq_wait_lock */
+	/*
+	 * NB: hold lnet_eq_wait_lock for EQ link/unlink, so we can do
+	 * both EQ lookup and poll event with only lnet_eq_wait_lock
+	 */
 	lnet_eq_wait_lock();
 
 	lnet_res_lh_initialize(&the_lnet.ln_eq_container, &eq->eq_lh);
@@ -164,8 +171,10 @@ LNetEQFree(lnet_handle_eq_t eqh)
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	lnet_res_lock(LNET_LOCK_EX);
-	/* NB: hold lnet_eq_wait_lock for EQ link/unlink, so we can do
-	 * both EQ lookup and poll event with only lnet_eq_wait_lock */
+	/*
+	 * NB: hold lnet_eq_wait_lock for EQ link/unlink, so we can do
+	 * both EQ lookup and poll event with only lnet_eq_wait_lock
+	 */
 	lnet_eq_wait_lock();
 
 	eq = lnet_handle2eq(&eqh);
@@ -256,8 +265,10 @@ lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
 	if (eq->eq_deq_seq == new_event->sequence) {
 		rc = 1;
 	} else {
-		/* don't complain with CERROR: some EQs are sized small
-		 * anyway; if it's important, the caller should complain */
+		/*
+		 * don't complain with CERROR: some EQs are sized small
+		 * anyway; if it's important, the caller should complain
+		 */
 		CDEBUG(D_NET, "Event Queue Overflow: eq seq %lu ev seq %lu\n",
 		       eq->eq_deq_seq, new_event->sequence);
 		rc = -EOVERFLOW;

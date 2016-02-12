@@ -25,8 +25,10 @@
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/linux/lnet/lib-lnet.h"
 
-/* This is really lnet_proc.c. You might need to update sanity test 215
- * if any file format is changed. */
+/*
+ * This is really lnet_proc.c. You might need to update sanity test 215
+ * if any file format is changed.
+ */
 
 #define LNET_LOFFT_BITS		(sizeof(loff_t) * 8)
 /*
@@ -358,9 +360,11 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 			if ((peer->lp_ping_feats &
 			     LNET_PING_FEAT_NI_STATUS) != 0) {
 				list_for_each_entry(rtr, &peer->lp_routes,
-							lr_gwlist) {
-					/* downis on any route should be the
-					 * number of downis on the gateway */
+						    lr_gwlist) {
+					/*
+					 * downis on any route should be the
+					 * number of downis on the gateway
+					 */
 					if (rtr->lr_downis != 0) {
 						down_ni = rtr->lr_downis;
 						break;
@@ -479,9 +483,11 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 				if (skip == 0) {
 					peer = lp;
 
-					/* minor optimization: start from idx+1
+					/*
+					 * minor optimization: start from idx+1
 					 * on next iteration if we've just
-					 * drained lp_hashlist */
+					 * drained lp_hashlist
+					 */
 					if (lp->lp_hashlist.next ==
 					    &ptable->pt_hash[hash]) {
 						hoff = 1;
@@ -710,8 +716,10 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 				LNET_NI_STATUS_UP) ? "up" : "down";
 			lnet_ni_unlock(ni);
 
-			/* we actually output credits information for
-			 * TX queue of each partition */
+			/*
+			 * we actually output credits information for
+			 * TX queue of each partition
+			 */
 			cfs_percpt_for_each(tq, i, ni->ni_tx_queues) {
 				for (j = 0; ni->ni_cpts != NULL &&
 				     j < ni->ni_ncpts; j++) {

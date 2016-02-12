@@ -119,9 +119,11 @@ fail_peer(lnet_nid_t nid, int outgoing)
 		if (tp->tp_threshold == 0) {
 			/* zombie entry */
 			if (outgoing) {
-				/* only cull zombies on outgoing tests,
+				/*
+				 * only cull zombies on outgoing tests,
 				 * since we may be at interrupt priority on
-				 * incoming messages. */
+				 * incoming messages.
+				 */
 				list_del(&tp->tp_list);
 				list_add(&tp->tp_list, &cull);
 			}
@@ -233,9 +235,11 @@ lnet_extract_iov(int dst_niov, struct kvec *dst,
 		  int src_niov, struct kvec *src,
 		  unsigned int offset, unsigned int len)
 {
-	/* Initialise 'dst' to the subset of 'src' starting at 'offset',
+	/*
+	 * Initialise 'dst' to the subset of 'src' starting at 'offset',
 	 * for exactly 'len' bytes, and return the number of entries.
-	 * NB not destructive to 'src' */
+	 * NB not destructive to 'src'
+	 */
 	unsigned int frag_len;
 	unsigned int niov;
 
@@ -332,10 +336,11 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 			saddr = ((char *)kmap(siov->kiov_page)) +
 				siov->kiov_offset + soffset;
 
-		/* Vanishing risk of kmap deadlock when mapping 2 pages.
+		/*
+		 * Vanishing risk of kmap deadlock when mapping 2 pages.
 		 * However in practice at least one of the kiovs will be mapped
-		 * kernel pages and the map/unmap will be NOOPs */
-
+		 * kernel pages and the map/unmap will be NOOPs
+		 */
 		memcpy(daddr, saddr, this_nob);
 		nob -= this_nob;
 
@@ -514,9 +519,11 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 		   int src_niov, lnet_kiov_t *src,
 		   unsigned int offset, unsigned int len)
 {
-	/* Initialise 'dst' to the subset of 'src' starting at 'offset',
+	/*
+	 * Initialise 'dst' to the subset of 'src' starting at 'offset',
 	 * for exactly 'len' bytes, and return the number of entries.
-	 * NB not destructive to 'src' */
+	 * NB not destructive to 'src'
+	 */
 	unsigned int frag_len;
 	unsigned int niov;
 
@@ -726,8 +733,10 @@ lnet_peer_is_alive(lnet_peer_t *lp, unsigned long now)
 	return alive;
 }
 
-/* NB: returns 1 when alive, 0 when dead, negative when error;
- *     may drop the lnet_net_lock */
+/*
+ * NB: returns 1 when alive, 0 when dead, negative when error;
+ *     may drop the lnet_net_lock
+ */
 static int
 lnet_peer_alive_locked(lnet_peer_t *lp)
 {
@@ -739,8 +748,10 @@ lnet_peer_alive_locked(lnet_peer_t *lp)
 	if (lnet_peer_is_alive(lp, now))
 		return 1;
 
-	/* Peer appears dead, but we should avoid frequent NI queries (at
-	 * most once per lnet_queryinterval seconds). */
+	/*
+	 * Peer appears dead, but we should avoid frequent NI queries (at
+	 * most once per lnet_queryinterval seconds).
+	 */
 	if (lp->lp_last_query != 0) {
 		static const int lnet_queryinterval = 1;
 
@@ -888,9 +899,11 @@ lnet_msg2bufpool(lnet_msg_t *msg)
 static int
 lnet_post_routed_recv_locked(lnet_msg_t *msg, int do_recv)
 {
-	/* lnet_parse is going to lnet_net_unlock immediately after this, so it
+	/*
+	 * lnet_parse is going to lnet_net_unlock immediately after this, so it
 	 * sets do_recv FALSE and I don't do the unlock/send/lock bit.  I
-	 * return EAGAIN if msg blocked and 0 if received or OK to receive */
+	 * return EAGAIN if msg blocked and 0 if received or OK to receive
+	 */
 	lnet_peer_t *lp = msg->msg_rxpeer;
 	lnet_rtrbufpool_t *rbp;
 	lnet_rtrbuf_t *rb;
@@ -1030,9 +1043,11 @@ lnet_return_rx_credits_locked(lnet_msg_t *msg)
 		lnet_rtrbuf_t *rb;
 		lnet_rtrbufpool_t *rbp;
 
-		/* NB If a msg ever blocks for a buffer in rbp_msgs, it stays
+		/*
+		 * NB If a msg ever blocks for a buffer in rbp_msgs, it stays
 		 * there until it gets one allocated, or aborts the wait
-		 * itself */
+		 * itself
+		 */
 		LASSERT(msg->msg_kiov != NULL);
 
 		rb = list_entry(msg->msg_kiov, lnet_rtrbuf_t, rb_kiov[0]);
@@ -1127,9 +1142,10 @@ lnet_find_route_locked(lnet_ni_t *ni, lnet_nid_t target, lnet_nid_t rtr_nid)
 	struct lnet_peer *lp;
 	int rc;
 
-	/* If @rtr_nid is not LNET_NID_ANY, return the gateway with
-	 * rtr_nid nid, otherwise find the best gateway I can use */
-
+	/*
+	 * If @rtr_nid is not LNET_NID_ANY, return the gateway with
+	 * rtr_nid nid, otherwise find the best gateway I can use
+	 */
 	rnet = lnet_find_net_locked(LNET_NIDNET(target));
 	if (rnet == NULL)
 		return NULL;
@@ -1168,9 +1184,11 @@ lnet_find_route_locked(lnet_ni_t *ni, lnet_nid_t target, lnet_nid_t rtr_nid)
 		lp_best = lp;
 	}
 
-	/* set sequence number on the best router to the latest sequence + 1
+	/*
+	 * set sequence number on the best router to the latest sequence + 1
 	 * so we can round-robin all routers, it's race and inaccurate but
-	 * harmless and functional  */
+	 * harmless and functional
+	 */
 	if (rtr_best != NULL)
 		rtr_best->lr_seq = rtr_last->lr_seq + 1;
 	return lp_best;
@@ -1187,9 +1205,11 @@ lnet_send(lnet_nid_t src_nid, lnet_msg_t *msg, lnet_nid_t rtr_nid)
 	int cpt2;
 	int rc;
 
-	/* NB: rtr_nid is set to LNET_NID_ANY for all current use-cases,
+	/*
+	 * NB: rtr_nid is set to LNET_NID_ANY for all current use-cases,
 	 * but we might want to use pre-determined router for ACK/REPLY
-	 * in the future */
+	 * in the future
+	 */
 	/* NB: ni != NULL == interface pre-determined (ACK/REPLY) */
 	LASSERT(msg->msg_txpeer == NULL);
 	LASSERT(!msg->msg_sending);
@@ -1283,10 +1303,12 @@ lnet_send(lnet_nid_t src_nid, lnet_msg_t *msg, lnet_nid_t rtr_nid)
 			return -EHOSTUNREACH;
 		}
 
-		/* rtr_nid is LNET_NID_ANY or NID of pre-determined router,
+		/*
+		 * rtr_nid is LNET_NID_ANY or NID of pre-determined router,
 		 * it's possible that rtr_nid isn't LNET_NID_ANY and lp isn't
 		 * pre-determined router, this can happen if router table
-		 * was changed when we release the lock */
+		 * was changed when we release the lock
+		 */
 		if (rtr_nid != lp->lp_nid) {
 			cpt2 = lnet_cpt_of_nid_locked(lp->lp_nid);
 			if (cpt2 != cpt) {
@@ -1368,8 +1390,10 @@ lnet_recv_put(lnet_ni_t *ni, lnet_msg_t *msg)
 
 	lnet_build_msg_event(msg, LNET_EVENT_PUT);
 
-	/* Must I ACK?  If so I'll grab the ack_wmd out of the header and put
-	 * it back into the ACK during lnet_finalize() */
+	/*
+	 * Must I ACK?  If so I'll grab the ack_wmd out of the header and put
+	 * it back into the ACK during lnet_finalize()
+	 */
 	msg->msg_ack = (!lnet_is_wire_handle_none(&hdr->msg.put.ack_wmd) &&
 			(msg->msg_md->md_options & LNET_MD_ACK_DISABLE) == 0);
 
@@ -1775,10 +1799,11 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 		lnet_ni_unlock(ni);
 	}
 
-	/* Regard a bad destination NID as a protocol error.  Senders should
+	/*
+	 * Regard a bad destination NID as a protocol error.  Senders should
 	 * know what they're doing; if they don't they're misconfigured, buggy
-	 * or malicious so we chop them off at the knees :) */
-
+	 * or malicious so we chop them off at the knees :)
+	 */
 	if (!for_me) {
 		if (LNET_NIDNET(dest_nid) == LNET_NIDNET(ni->ni_nid)) {
 			/* should have gone direct */
@@ -1790,8 +1815,10 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 		}
 
 		if (lnet_islocalnid(dest_nid)) {
-			/* dest is another local NI; sender should have used
-			 * this node's NID on its own network */
+			/*
+			 * dest is another local NI; sender should have used
+			 * this node's NID on its own network
+			 */
 			CERROR("%s, src %s: Bad dest nid %s (it's my nid but on a different network)\n",
 			       libcfs_nid2str(from_nid),
 			       libcfs_nid2str(src_nid),
@@ -1816,9 +1843,10 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 		}
 	}
 
-	/* Message looks OK; we're not going to return an error, so we MUST
-	 * call back lnd_recv() come what may... */
-
+	/*
+	 * Message looks OK; we're not going to return an error, so we MUST
+	 * call back lnd_recv() come what may...
+	 */
 	if (!list_empty(&the_lnet.ln_test_peers) && /* normally we don't */
 	    fail_peer(src_nid, 0)) {	     /* shall we now? */
 		CERROR("%s, src %s: Dropping %s to simulate failure\n",
@@ -1962,10 +1990,11 @@ lnet_drop_delayed_msg_list(struct list_head *head, char *reason)
 		      msg->msg_hdr.msg.put.offset,
 		      msg->msg_hdr.payload_length, reason);
 
-		/* NB I can't drop msg's ref on msg_rxpeer until after I've
+		/*
+		 * NB I can't drop msg's ref on msg_rxpeer until after I've
 		 * called lnet_drop_message(), so I just hang onto msg as well
-		 * until that's done */
-
+		 * until that's done
+		 */
 		lnet_drop_message(msg->msg_rxpeer->lp_ni,
 				  msg->msg_rxpeer->lp_cpt,
 				  msg->msg_private, msg->msg_len);
@@ -1988,9 +2017,10 @@ lnet_recv_delayed_msg_list(struct list_head *head)
 		msg = list_entry(head->next, lnet_msg_t, msg_list);
 		list_del(&msg->msg_list);
 
-		/* md won't disappear under me, since each msg
-		 * holds a ref on it */
-
+		/*
+		 * md won't disappear under me, since each msg
+		 * holds a ref on it
+		 */
 		id.nid = msg->msg_hdr.src_nid;
 		id.pid = msg->msg_hdr.src_pid;
 
@@ -2142,13 +2172,14 @@ EXPORT_SYMBOL(LNetPut);
 lnet_msg_t *
 lnet_create_reply_msg(lnet_ni_t *ni, lnet_msg_t *getmsg)
 {
-	/* The LND can DMA direct to the GET md (i.e. no REPLY msg).  This
+	/*
+	 * The LND can DMA direct to the GET md (i.e. no REPLY msg).  This
 	 * returns a msg for the LND to pass to lnet_finalize() when the sink
 	 * data has been received.
 	 *
 	 * CAVEAT EMPTOR: 'getmsg' is the original GET, which is freed when
-	 * lnet_finalize() is called on it, so the LND must call this first */
-
+	 * lnet_finalize() is called on it, so the LND must call this first
+	 */
 	struct lnet_msg *msg = lnet_msg_alloc();
 	struct lnet_libmd *getmd = getmsg->msg_md;
 	lnet_process_id_t peer_id = getmsg->msg_target;
@@ -2219,14 +2250,18 @@ EXPORT_SYMBOL(lnet_create_reply_msg);
 void
 lnet_set_reply_msg_len(lnet_ni_t *ni, lnet_msg_t *reply, unsigned int len)
 {
-	/* Set the REPLY length, now the RDMA that elides the REPLY message has
-	 * completed and I know it. */
+	/*
+	 * Set the REPLY length, now the RDMA that elides the REPLY message has
+	 * completed and I know it.
+	 */
 	LASSERT(reply != NULL);
 	LASSERT(reply->msg_type == LNET_MSG_GET);
 	LASSERT(reply->msg_ev.type == LNET_EVENT_REPLY);
 
-	/* NB I trusted my peer to RDMA.  If she tells me she's written beyond
-	 * the end of my buffer, I might as well be dead. */
+	/*
+	 * NB I trusted my peer to RDMA.  If she tells me she's written beyond
+	 * the end of my buffer, I might as well be dead.
+	 */
 	LASSERT(len <= reply->msg_ev.mlength);
 
 	reply->msg_ev.mlength = len;
@@ -2358,11 +2393,12 @@ LNetDist(lnet_nid_t dstnid, lnet_nid_t *srcnidp, __u32 *orderp)
 	__u32 order = 2;
 	struct list_head *rn_list;
 
-	/* if !local_nid_dist_zero, I don't return a distance of 0 ever
+	/*
+	 * if !local_nid_dist_zero, I don't return a distance of 0 ever
 	 * (when lustre sees a distance of 0, it substitutes 0@lo), so I
 	 * keep order 0 free for 0@lo and order 1 free for a local NID
-	 * match */
-
+	 * match
+	 */
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 

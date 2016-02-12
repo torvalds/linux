@@ -468,8 +468,10 @@ ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 
 	hmv = (lnet_magicversion_t *)&hdr->dest_nid;
 
-	/* Re-organize V2.x message header to V1.x (lnet_hdr_t)
-	 * header and send out */
+	/*
+	 * Re-organize V2.x message header to V1.x (lnet_hdr_t)
+	 * header and send out
+	 */
 	hmv->magic         = cpu_to_le32 (LNET_PROTO_TCP_MAGIC);
 	hmv->version_major = cpu_to_le16 (KSOCK_PROTO_V1_MAJOR);
 	hmv->version_minor = cpu_to_le16 (KSOCK_PROTO_V1_MINOR);

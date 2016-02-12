@@ -409,10 +409,11 @@ kiblnd_handle_rx(kib_rx_t *rx)
 		}
 
 		LASSERT(tx->tx_waiting);
-		/* CAVEAT EMPTOR: I could be racing with tx_complete, but...
+		/*
+		 * CAVEAT EMPTOR: I could be racing with tx_complete, but...
 		 * (a) I can overwrite tx_msg since my peer has received it!
-		 * (b) tx_waiting set tells tx_complete() it's not done. */
-
+		 * (b) tx_waiting set tells tx_complete() it's not done.
+		 */
 		tx->tx_nwrq = 0;		/* overwrite PUT_REQ */
 
 		rc2 = kiblnd_init_rdma(conn, tx, IBLND_MSG_PUT_DONE,
@@ -587,8 +588,10 @@ kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, int nob)
 		return rc;
 	}
 
-	/* If rd is not tx_rd, it's going to get sent to a peer, who will need
-	 * the rkey */
+	/*
+	 * If rd is not tx_rd, it's going to get sent to a peer, who will need
+	 * the rkey
+	 */
 	rd->rd_key = (rd != tx->tx_rd) ? tx->fmr.fmr_pfmr->fmr->rkey :
 					 tx->fmr.fmr_pfmr->fmr->lkey;
 	rd->rd_frags[0].rf_addr &= ~hdev->ibh_page_mask;
@@ -625,8 +628,10 @@ static int kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
 	__u32 nob;
 	int i;
 
-	/* If rd is not tx_rd, it's going to get sent to a peer and I'm the
-	 * RDMA sink */
+	/*
+	 * If rd is not tx_rd, it's going to get sent to a peer and I'm the
+	 * RDMA sink
+	 */
 	tx->tx_dmadir = (rd != tx->tx_rd) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	tx->tx_nfrags = nfrags;
 
@@ -799,9 +804,11 @@ kiblnd_post_tx_locked(kib_conn_t *conn, kib_tx_t *tx, int credit)
 	    (!kiblnd_need_noop(conn) ||     /* redundant NOOP */
 	     (IBLND_OOB_CAPABLE(ver) && /* posted enough NOOP */
 	      conn->ibc_noops_posted == IBLND_OOB_MSGS(ver)))) {
-		/* OK to drop when posted enough NOOPs, since
+		/*
+		 * OK to drop when posted enough NOOPs, since
 		 * kiblnd_check_sends will queue NOOP again when
-		 * posted NOOPs complete */
+		 * posted NOOPs complete
+		 */
 		spin_unlock(&conn->ibc_lock);
 		kiblnd_tx_done(peer->ibp_ni, tx);
 		spin_lock(&conn->ibc_lock);
@@ -820,12 +827,14 @@ kiblnd_post_tx_locked(kib_conn_t *conn, kib_tx_t *tx, int credit)
 	if (msg->ibm_type == IBLND_MSG_NOOP)
 		conn->ibc_noops_posted++;
 
-	/* CAVEAT EMPTOR!  This tx could be the PUT_DONE of an RDMA
+	/*
+	 * CAVEAT EMPTOR!  This tx could be the PUT_DONE of an RDMA
 	 * PUT.  If so, it was first queued here as a PUT_REQ, sent and
 	 * stashed on ibc_active_txs, matched by an incoming PUT_ACK,
 	 * and then re-queued here.  It's (just) possible that
 	 * tx_sending is non-zero if we've not done the tx_complete()
-	 * from the first send; hence the ++ rather than = below. */
+	 * from the first send; hence the ++ rather than = below.
+	 */
 	tx->tx_sending++;
 	list_add(&tx->tx_list, &conn->ibc_active_txs);
 
@@ -845,8 +854,10 @@ kiblnd_post_tx_locked(kib_conn_t *conn, kib_tx_t *tx, int credit)
 	if (rc == 0)
 		return 0;
 
-	/* NB credits are transferred in the actual
-	 * message, which can only be the last work item */
+	/*
+	 * NB credits are transferred in the actual
+	 * message, which can only be the last work item
+	 */
 	conn->ibc_credits += credit;
 	conn->ibc_outstanding_credits += msg->ibm_credits;
 	conn->ibc_nsends_posted--;
@@ -975,9 +986,10 @@ kiblnd_tx_complete(kib_tx_t *tx, int status)
 
 	spin_lock(&conn->ibc_lock);
 
-	/* I could be racing with rdma completion.  Whoever makes 'tx' idle
-	 * gets to free it, which also drops its ref on 'conn'. */
-
+	/*
+	 * I could be racing with rdma completion.  Whoever makes 'tx' idle
+	 * gets to free it, which also drops its ref on 'conn'.
+	 */
 	tx->tx_sending--;
 	conn->ibc_nsends_posted--;
 	if (tx->tx_msg->ibm_type == IBLND_MSG_NOOP)
@@ -1301,14 +1313,17 @@ kiblnd_launch_tx(lnet_ni_t *ni, kib_tx_t *tx, lnet_nid_t nid)
 	unsigned long flags;
 	int rc;
 
-	/* If I get here, I've committed to send, so I complete the tx with
-	 * failure on any problems */
-
+	/*
+	 * If I get here, I've committed to send, so I complete the tx with
+	 * failure on any problems
+	 */
 	LASSERT(tx == NULL || tx->tx_conn == NULL); /* only set when assigned a conn */
 	LASSERT(tx == NULL || tx->tx_nwrq > 0);     /* work items have been set up */
 
-	/* First time, just use a read lock since I expect to find my peer
-	 * connected */
+	/*
+	 * First time, just use a read lock since I expect to find my peer
+	 * connected
+	 */
 	read_lock_irqsave(g_lock, flags);
 
 	peer = kiblnd_find_peer_locked(nid);
@@ -1630,8 +1645,7 @@ kiblnd_reply(lnet_ni_t *ni, kib_rx_t *rx, lnet_msg_t *lntmsg)
 		/* No RDMA: local completion may happen now! */
 		lnet_finalize(ni, lntmsg, 0);
 	} else {
-		/* RDMA: lnet_finalize(lntmsg) when it
-		 * completes */
+		/* RDMA: lnet_finalize(lntmsg) when it completes */
 		tx->tx_lntmsg[0] = lntmsg;
 	}
 
@@ -1814,12 +1828,14 @@ kiblnd_peer_notify(kib_peer_t *peer)
 void
 kiblnd_close_conn_locked(kib_conn_t *conn, int error)
 {
-	/* This just does the immediate housekeeping.  'error' is zero for a
+	/*
+	 * This just does the immediate housekeeping. 'error' is zero for a
 	 * normal shutdown which can happen only after the connection has been
 	 * established.  If the connection is established, schedule the
-	 * connection to be finished off by the connd.  Otherwise the connd is
+	 * connection to be finished off by the connd. Otherwise the connd is
 	 * already dealing with it (either to set it up or tear it down).
-	 * Caller holds kib_global_lock exclusively in irq context */
+	 * Caller holds kib_global_lock exclusively in irq context
+	 */
 	kib_peer_t *peer = conn->ibc_peer;
 	kib_dev_t *dev;
 	unsigned long flags;
@@ -1957,14 +1973,17 @@ kiblnd_finalise_conn(kib_conn_t *conn)
 
 	kiblnd_set_conn_state(conn, IBLND_CONN_DISCONNECTED);
 
-	/* abort_receives moves QP state to IB_QPS_ERR.  This is only required
+	/*
+	 * abort_receives moves QP state to IB_QPS_ERR.  This is only required
 	 * for connections that didn't get as far as being connected, because
-	 * rdma_disconnect() does this for free. */
+	 * rdma_disconnect() does this for free.
+	 */
 	kiblnd_abort_receives(conn);
 
-	/* Complete all tx descs not waiting for sends to complete.
-	 * NB we should be safe from RDMA now that the QP has changed state */
-
+	/*
+	 * Complete all tx descs not waiting for sends to complete.
+	 * NB we should be safe from RDMA now that the QP has changed state
+	 */
 	kiblnd_abort_txs(conn, &conn->ibc_tx_noops);
 	kiblnd_abort_txs(conn, &conn->ibc_tx_queue);
 	kiblnd_abort_txs(conn, &conn->ibc_tx_queue_rsrvd);
@@ -2067,8 +2086,10 @@ kiblnd_connreq_done(kib_conn_t *conn, int status)
 	kiblnd_set_conn_state(conn, IBLND_CONN_ESTABLISHED);
 	kiblnd_peer_alive(peer);
 
-	/* Add conn to peer's list and nuke any dangling conns from a different
-	 * peer instance... */
+	/*
+	 * Add conn to peer's list and nuke any dangling conns from a different
+	 * peer instance...
+	 */
 	kiblnd_conn_addref(conn);	       /* +1 ref for ibc_list */
 	list_add(&conn->ibc_list, &peer->ibp_conns);
 	if (active)
@@ -2180,12 +2201,14 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 		goto failed;
 	}
 
-	/* Future protocol version compatibility support!  If the
+	/*
+	 * Future protocol version compatibility support!  If the
 	 * o2iblnd-specific protocol changes, or when LNET unifies
 	 * protocols over all LNDs, the initial connection will
 	 * negotiate a protocol version.  I trap this here to avoid
 	 * console errors; the reject tells the peer which protocol I
-	 * speak. */
+	 * speak.
+	 */
 	if (reqmsg->ibm_magic == LNET_PROTO_MAGIC ||
 	    reqmsg->ibm_magic == __swab32(LNET_PROTO_MAGIC))
 		goto failed;
@@ -2352,9 +2375,10 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 		goto failed;
 	}
 
-	/* conn now "owns" cmid, so I return success from here on to ensure the
-	 * CM callback doesn't destroy cmid. */
-
+	/*
+	 * conn now "owns" cmid, so I return success from here on to ensure the
+	 * CM callback doesn't destroy cmid.
+	 */
 	conn->ibc_incarnation      = reqmsg->ibm_srcstamp;
 	conn->ibc_credits          = IBLND_MSG_QUEUE_SIZE(version);
 	conn->ibc_reserved_credits = IBLND_MSG_QUEUE_SIZE(version);
@@ -2423,11 +2447,13 @@ kiblnd_reconnect(kib_conn_t *conn, int version,
 
 	write_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
 
-	/* retry connection if it's still needed and no other connection
+	/*
+	 * retry connection if it's still needed and no other connection
 	 * attempts (active or passive) are in progress
 	 * NB: reconnect is still needed even when ibp_tx_queue is
 	 * empty if ibp_version != version because reconnect may be
-	 * initiated by kiblnd_query() */
+	 * initiated by kiblnd_query()
+	 */
 	if ((!list_empty(&peer->ibp_tx_queue) ||
 	     peer->ibp_version != version) &&
 	    peer->ibp_connecting == 1 &&
@@ -2520,9 +2546,11 @@ kiblnd_rejected(kib_conn_t *conn, int reason, void *priv, int priv_nob)
 
 			if (priv_nob >= sizeof(kib_rej_t) &&
 			    rej->ibr_version > IBLND_MSG_VERSION_1) {
-				/* priv_nob is always 148 in current version
+				/*
+				 * priv_nob is always 148 in current version
 				 * of OFED, so we still need to check version.
-				 * (define of IB_CM_REJ_PRIVATE_DATA_SIZE) */
+				 * (define of IB_CM_REJ_PRIVATE_DATA_SIZE)
+				 */
 				cp = &rej->ibr_cp;
 
 				if (flip) {
@@ -2698,11 +2726,12 @@ kiblnd_check_connreply(kib_conn_t *conn, void *priv, int priv_nob)
 	return;
 
  failed:
-	/* NB My QP has already established itself, so I handle anything going
+	/*
+	 * NB My QP has already established itself, so I handle anything going
 	 * wrong here by setting ibc_comms_error.
 	 * kiblnd_connreq_done(0) moves the conn state to ESTABLISHED, but then
-	 * immediately tears it down. */
-
+	 * immediately tears it down.
+	 */
 	LASSERT(rc != 0);
 	conn->ibc_comms_error = rc;
 	kiblnd_connreq_done(conn, 0);
@@ -2735,10 +2764,11 @@ kiblnd_active_connect(struct rdma_cm_id *cmid)
 		return -ENOMEM;
 	}
 
-	/* conn "owns" cmid now, so I return success from here on to ensure the
+	/*
+	 * conn "owns" cmid now, so I return success from here on to ensure the
 	 * CM callback doesn't destroy cmid. conn also takes over cmid's ref
-	 * on peer */
-
+	 * on peer
+	 */
 	msg = &conn->ibc_connvars->cv_msg;
 
 	memset(msg, 0, sizeof(*msg));
@@ -2932,8 +2962,10 @@ kiblnd_cm_callback(struct rdma_cm_id *cmid, struct rdma_cm_event *event)
 		LCONSOLE_ERROR_MSG(0x131,
 				   "Received notification of device removal\n"
 				   "Please shutdown LNET to allow this to proceed\n");
-		/* Can't remove network from underneath LNET for now, so I have
-		 * to ignore this */
+		/*
+		 * Can't remove network from underneath LNET for now, so I have
+		 * to ignore this
+		 */
 		return 0;
 
 	case RDMA_CM_EVENT_ADDR_CHANGE:
@@ -2992,9 +3024,11 @@ kiblnd_check_conns(int idx)
 	struct list_head *ctmp;
 	unsigned long flags;
 
-	/* NB. We expect to have a look at all the peers and not find any
+	/*
+	 * NB. We expect to have a look at all the peers and not find any
 	 * RDMAs to time out, so we just use a shared lock while we
-	 * take a look... */
+	 * take a look...
+	 */
 	read_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
 
 	list_for_each(ptmp, peers) {
@@ -3039,18 +3073,22 @@ kiblnd_check_conns(int idx)
 
 	read_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 
-	/* Handle timeout by closing the whole
+	/*
+	 * Handle timeout by closing the whole
 	 * connection. We can only be sure RDMA activity
-	 * has ceased once the QP has been modified. */
+	 * has ceased once the QP has been modified.
+	 */
 	list_for_each_entry_safe(conn, tmp, &closes, ibc_connd_list) {
 		list_del(&conn->ibc_connd_list);
 		kiblnd_close_conn(conn, -ETIMEDOUT);
 		kiblnd_conn_decref(conn);
 	}
 
-	/* In case we have enough credits to return via a
+	/*
+	 * In case we have enough credits to return via a
 	 * NOOP, but there were no non-blocking tx descs
-	 * free to do it last time... */
+	 * free to do it last time...
+	 */
 	while (!list_empty(&checksends)) {
 		conn = list_entry(checksends.next,
 				      kib_conn_t, ibc_connd_list);
@@ -3135,14 +3173,15 @@ kiblnd_connd(void *arg)
 			spin_unlock_irqrestore(&kiblnd_data.kib_connd_lock, flags);
 			dropped_lock = 1;
 
-			/* Time to check for RDMA timeouts on a few more
+			/*
+			 * Time to check for RDMA timeouts on a few more
 			 * peers: I do checks every 'p' seconds on a
 			 * proportion of the peer table and I need to check
 			 * every connection 'n' times within a timeout
 			 * interval, to ensure I detect a timeout on any
 			 * connection within (n+1)/n times the timeout
-			 * interval. */
-
+			 * interval.
+			 */
 			if (*kiblnd_tunables.kib_timeout > n * p)
 				chunk = (chunk * n * p) /
 					*kiblnd_tunables.kib_timeout;
@@ -3205,12 +3244,14 @@ kiblnd_complete(struct ib_wc *wc)
 		LBUG();
 
 	case IBLND_WID_RDMA:
-		/* We only get RDMA completion notification if it fails.  All
+		/*
+		 * We only get RDMA completion notification if it fails.  All
 		 * subsequent work items, including the final SEND will fail
 		 * too.  However we can't print out any more info about the
 		 * failing RDMA because 'tx' might be back on the idle list or
 		 * even reused already if we didn't manage to post all our work
-		 * items */
+		 * items
+		 */
 		CNETERR("RDMA (tx: %p) failed: %d\n",
 			kiblnd_wreqid2ptr(wc->wr_id), wc->status);
 		return;
@@ -3229,11 +3270,13 @@ kiblnd_complete(struct ib_wc *wc)
 void
 kiblnd_cq_completion(struct ib_cq *cq, void *arg)
 {
-	/* NB I'm not allowed to schedule this conn once its refcount has
+	/*
+	 * NB I'm not allowed to schedule this conn once its refcount has
 	 * reached 0.  Since fundamentally I'm racing with scheduler threads
 	 * consuming my CQ I could be called after all completions have
 	 * occurred.  But in this case, ibc_nrx == 0 && ibc_nsends_posted == 0
-	 * and this CQ is about to be destroyed so I NOOP. */
+	 * and this CQ is about to be destroyed so I NOOP.
+	 */
 	kib_conn_t *conn = arg;
 	struct kib_sched_info *sched = conn->ibc_sched;
 	unsigned long flags;
@@ -3346,9 +3389,11 @@ kiblnd_scheduler(void *arg)
 			spin_lock_irqsave(&sched->ibs_lock, flags);
 
 			if (rc != 0 || conn->ibc_ready) {
-				/* There may be another completion waiting; get
+				/*
+				 * There may be another completion waiting; get
 				 * another scheduler to check while I handle
-				 * this one... */
+				 * this one...
+				 */
 				/* +1 ref for sched_conns */
 				kiblnd_conn_addref(conn);
 				list_add_tail(&conn->ibc_sched_list,
@@ -3461,10 +3506,12 @@ kiblnd_failover_thread(void *arg)
 		if (!long_sleep || rc != 0)
 			continue;
 
-		/* have a long sleep, routine check all active devices,
+		/*
+		 * have a long sleep, routine check all active devices,
 		 * we need checking like this because if there is not active
 		 * connection on the dev and no SEND from local, we may listen
-		 * on wrong HCA for ever while there is a bonding failover */
+		 * on wrong HCA for ever while there is a bonding failover
+		 */
 		list_for_each_entry(dev, &kiblnd_data.kib_devs, ibd_list) {
 			if (kiblnd_dev_can_failover(dev)) {
 				list_add_tail(&dev->ibd_fail_list,

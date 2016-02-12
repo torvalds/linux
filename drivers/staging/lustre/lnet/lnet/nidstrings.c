@@ -210,9 +210,11 @@ add_nidrange(const struct cfs_lstr *src,
 		/* network name only, e.g. "elan" or "tcp" */
 		netnum = 0;
 	else {
-		/* e.g. "elan25" or "tcp23", refuse to parse if
+		/*
+		 * e.g. "elan25" or "tcp23", refuse to parse if
 		 * network name is not appended with decimal or
-		 * hexadecimal number */
+		 * hexadecimal number
+		 */
 		if (!cfs_str2num_check(src->ls_str + strlen(nf->nf_name),
 				       endlen, &netnum, 0, MAX_NUMERIC_VALUE))
 			return NULL;
@@ -784,12 +786,14 @@ libcfs_ip_addr2str(__u32 addr, char *str, size_t size)
 		 (addr >> 8) & 0xff, addr & 0xff);
 }
 
-/* CAVEAT EMPTOR XscanfX
+/*
+ * CAVEAT EMPTOR XscanfX
  * I use "%n" at the end of a sscanf format to detect trailing junk.  However
  * sscanf may return immediately if it sees the terminating '0' in a string, so
  * I initialise the %n variable to the expected length.  If sscanf sets it;
  * fine, if it doesn't, then the scan ended at the end of the string, which is
- * fine too :) */
+ * fine too :)
+ */
 static int
 libcfs_ip_str2addr(const char *str, int nob, __u32 *addr)
 {

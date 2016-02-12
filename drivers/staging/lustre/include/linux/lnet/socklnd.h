@@ -91,8 +91,10 @@ socklnd_init_msg(ksock_msg_t *msg, int type)
 #define KSOCK_MSG_NOOP	0xC0	/* ksm_u empty */
 #define KSOCK_MSG_LNET	0xC1	/* lnet msg */
 
-/* We need to know this number to parse hello msg from ksocklnd in
- * other LND (usocklnd, for example) */
+/*
+ * We need to know this number to parse hello msg from ksocklnd in
+ * other LND (usocklnd, for example)
+ */
 #define KSOCK_PROTO_V2	2
 #define KSOCK_PROTO_V3	3
 

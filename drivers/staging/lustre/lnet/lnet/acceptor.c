@@ -78,9 +78,11 @@ static char *accept_type;
 static int
 lnet_acceptor_get_tunables(void)
 {
-	/* Userland acceptor uses 'accept_type' instead of 'accept', due to
+	/*
+	 * Userland acceptor uses 'accept_type' instead of 'accept', due to
 	 * conflict with 'accept(2)', but kernel acceptor still uses 'accept'
-	 * for compatibility. Hence the trick. */
+	 * for compatibility. Hence the trick.
+	 */
 	accept_type = accept;
 	return 0;
 }
@@ -223,11 +225,12 @@ lnet_accept(struct socket *sock, __u32 magic)
 	if (!lnet_accept_magic(magic, LNET_PROTO_ACCEPTOR_MAGIC)) {
 
 		if (lnet_accept_magic(magic, LNET_PROTO_MAGIC)) {
-			/* future version compatibility!
+			/*
+			 * future version compatibility!
 			 * When LNET unifies protocols over all LNDs, the first
-			 * thing sent will be a version query.  I send back
-			 * LNET_PROTO_ACCEPTOR_MAGIC to tell her I'm "old" */
-
+			 * thing sent will be a version query. I send back
+			 * LNET_PROTO_ACCEPTOR_MAGIC to tell her I'm "old"
+			 */
 			memset(&cr, 0, sizeof(cr));
 			cr.acr_magic = LNET_PROTO_ACCEPTOR_MAGIC;
 			cr.acr_version = LNET_PROTO_ACCEPTOR_VERSION;
@@ -264,10 +267,12 @@ lnet_accept(struct socket *sock, __u32 magic)
 		__swab32s(&cr.acr_version);
 
 	if (cr.acr_version != LNET_PROTO_ACCEPTOR_VERSION) {
-		/* future version compatibility!
+		/*
+		 * future version compatibility!
 		 * An acceptor-specific protocol rev will first send a version
 		 * query.  I send back my current version to tell her I'm
-		 * "old". */
+		 * "old".
+		 */
 		int peer_version = cr.acr_version;
 
 		memset(&cr, 0, sizeof(cr));

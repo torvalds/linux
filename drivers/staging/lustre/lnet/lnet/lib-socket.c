@@ -258,9 +258,10 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 	struct timeval tv;
 
 	LASSERT(nob > 0);
-	/* Caller may pass a zero timeout if she thinks the socket buffer is
-	 * empty enough to take the whole message immediately */
-
+	/*
+	 * Caller may pass a zero timeout if she thinks the socket buffer is
+	 * empty enough to take the whole message immediately
+	 */
 	for (;;) {
 		struct kvec  iov = {
 			.iov_base = buffer,
@@ -524,8 +525,10 @@ lnet_sock_accept(struct socket **newsockp, struct socket *sock)
 
 	init_waitqueue_entry(&wait, current);
 
-	/* XXX this should add a ref to sock->ops->owner, if
-	 * TCP could be a module */
+	/*
+	 * XXX this should add a ref to sock->ops->owner, if
+	 * TCP could be a module
+	 */
 	rc = sock_create_lite(PF_PACKET, sock->type, IPPROTO_TCP, &newsock);
 	if (rc) {
 		CERROR("Can't allocate socket\n");
@@ -578,10 +581,12 @@ lnet_sock_connect(struct socket **sockp, int *fatal, __u32 local_ip,
 	if (rc == 0)
 		return 0;
 
-	/* EADDRNOTAVAIL probably means we're already connected to the same
+	/*
+	 * EADDRNOTAVAIL probably means we're already connected to the same
 	 * peer/port on the same local port on a differently typed
 	 * connection.  Let our caller retry with a different local
-	 * port... */
+	 * port...
+	 */
 	*fatal = !(rc == -EADDRNOTAVAIL);
 
 	CDEBUG_LIMIT(*fatal ? D_NETERROR : D_NET,

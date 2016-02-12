@@ -34,8 +34,10 @@
  *  Lustre Network Driver types.
  */
 enum {
-	/* Only add to these values (i.e. don't ever change or redefine them):
-	 * network addresses depend on them... */
+	/*
+	 * Only add to these values (i.e. don't ever change or redefine them):
+	 * network addresses depend on them...
+	 */
 	QSWLND		= 1,
 	SOCKLND		= 2,
 	GMLND		= 3,

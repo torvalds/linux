@@ -386,8 +386,10 @@ sfw_get_stats(srpc_stat_reqst_t *request, srpc_stat_reply_t *reply)
 	lnet_counters_get(&reply->str_lnet);
 	srpc_get_counters(&reply->str_rpc);
 
-	/* send over the msecs since the session was started
-	 - with 32 bits to send, this is ~49 days */
+	/*
+	 * send over the msecs since the session was started
+	 * with 32 bits to send, this is ~49 days
+	 */
 	cnt->running_ms	     = jiffies_to_msecs(jiffies - sn->sn_started);
 	cnt->brw_errors      = atomic_read(&sn->sn_brw_errors);
 	cnt->ping_errors     = atomic_read(&sn->sn_ping_errors);
@@ -437,12 +439,14 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 		}
 	}
 
-	/* reject the request if it requires unknown features
+	/*
+	 * reject the request if it requires unknown features
 	 * NB: old version will always accept all features because it's not
 	 * aware of srpc_msg_t::msg_ses_feats, it's a defect but it's also
 	 * harmless because it will return zero feature to console, and it's
 	 * console's responsibility to make sure all nodes in a session have
-	 * same feature mask. */
+	 * same feature mask.
+	 */
 	if ((msg->msg_ses_feats & ~LST_FEATS_MASK) != 0) {
 		reply->mksn_status = EPROTO;
 		return 0;
@@ -570,10 +574,12 @@ sfw_load_test(struct sfw_test_instance *tsi)
 	if (rc != 0) {
 		CWARN("Failed to reserve enough buffers: service %s, %d needed: %d\n",
 		      svc->sv_name, nbuf, rc);
-		/* NB: this error handler is not strictly correct, because
+		/*
+		 * NB: this error handler is not strictly correct, because
 		 * it may release more buffers than already allocated,
 		 * but it doesn't matter because request portal should
-		 * be lazy portal and will grow buffers if necessary. */
+		 * be lazy portal and will grow buffers if necessary.
+		 */
 		srpc_service_remove_buffers(svc, nbuf);
 		return -ENOMEM;
 	}
@@ -594,9 +600,11 @@ sfw_unload_test(struct sfw_test_instance *tsi)
 	if (tsi->tsi_is_client)
 		return;
 
-	/* shrink buffers, because request portal is lazy portal
+	/*
+	 * shrink buffers, because request portal is lazy portal
 	 * which can grow buffers at runtime so we may leave
-	 * some buffers behind, but never mind... */
+	 * some buffers behind, but never mind...
+	 */
 	srpc_service_remove_buffers(tsc->tsc_srv_service,
 				    sfw_test_buffers(tsi));
 	return;
@@ -1272,9 +1280,11 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 		}
 
 	} else if ((request->msg_ses_feats & ~LST_FEATS_MASK) != 0) {
-		/* NB: at this point, old version will ignore features and
+		/*
+		 * NB: at this point, old version will ignore features and
 		 * create new session anyway, so console should be able
-		 * to handle this */
+		 * to handle this
+		 */
 		reply->msg_body.reply.status = EPROTO;
 		goto out;
 	}

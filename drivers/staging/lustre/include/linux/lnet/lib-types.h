@@ -85,8 +85,7 @@ typedef struct lnet_msg {
 	unsigned int	msg_receiving:1;	/* being received */
 	unsigned int	msg_txcredit:1;		/* taken an NI send credit */
 	unsigned int	msg_peertxcredit:1;	/* taken a peer send credit */
-	unsigned int	msg_rtrcredit:1;	/* taken a global
-						   router credit */
+	unsigned int	msg_rtrcredit:1;	/* taken a global router credit */
 	unsigned int	msg_peerrtrcredit:1;	/* taken a peer router credit */
 	unsigned int	msg_onactivelist:1;	/* on the activelist */
 
@@ -190,7 +189,8 @@ typedef struct lnet_lnd {
 	void (*lnd_shutdown)(struct lnet_ni *ni);
 	int  (*lnd_ctl)(struct lnet_ni *ni, unsigned int cmd, void *arg);
 
-	/* In data movement APIs below, payload buffers are described as a set
+	/*
+	 * In data movement APIs below, payload buffers are described as a set
 	 * of 'niov' fragments which are...
 	 * EITHER
 	 *    in virtual memory (struct iovec *iov != NULL)
@@ -201,30 +201,36 @@ typedef struct lnet_lnd {
 	 * fragments to start from
 	 */
 
-	/* Start sending a preformatted message.  'private' is NULL for PUT and
+	/*
+	 * Start sending a preformatted message.  'private' is NULL for PUT and
 	 * GET messages; otherwise this is a response to an incoming message
 	 * and 'private' is the 'private' passed to lnet_parse().  Return
 	 * non-zero for immediate failure, otherwise complete later with
-	 * lnet_finalize() */
+	 * lnet_finalize()
+	 */
 	int (*lnd_send)(struct lnet_ni *ni, void *private, lnet_msg_t *msg);
 
-	/* Start receiving 'mlen' bytes of payload data, skipping the following
+	/*
+	 * Start receiving 'mlen' bytes of payload data, skipping the following
 	 * 'rlen' - 'mlen' bytes. 'private' is the 'private' passed to
 	 * lnet_parse().  Return non-zero for immediate failure, otherwise
 	 * complete later with lnet_finalize().  This also gives back a receive
-	 * credit if the LND does flow control. */
+	 * credit if the LND does flow control.
+	 */
 	int (*lnd_recv)(struct lnet_ni *ni, void *private, lnet_msg_t *msg,
 			int delayed, unsigned int niov,
 			struct kvec *iov, lnet_kiov_t *kiov,
 			unsigned int offset, unsigned int mlen,
 			unsigned int rlen);
 
-	/* lnet_parse() has had to delay processing of this message
+	/*
+	 * lnet_parse() has had to delay processing of this message
 	 * (e.g. waiting for a forwarding buffer or send credits).  Give the
 	 * LND a chance to free urgently needed resources.  If called, return 0
 	 * for success and do NOT give back a receive credit; that has to wait
 	 * until lnd_recv() gets called.  On failure return < 0 and
-	 * release resources; lnd_recv() will not be called. */
+	 * release resources; lnd_recv() will not be called.
+	 */
 	int (*lnd_eager_recv)(struct lnet_ni *ni, void *private,
 			      lnet_msg_t *msg, void **new_privatep);
 
@@ -272,8 +278,10 @@ typedef struct lnet_ni {
 
 #define LNET_PROTO_PING_MATCHBITS	0x8000000000000000LL
 
-/* NB: value of these features equal to LNET_PROTO_PING_VERSION_x
- * of old LNet, so there shouldn't be any compatibility issue */
+/*
+ * NB: value of these features equal to LNET_PROTO_PING_VERSION_x
+ * of old LNet, so there shouldn't be any compatibility issue
+ */
 #define LNET_PING_FEAT_INVAL		(0)		/* no feature */
 #define LNET_PING_FEAT_BASE		(1 << 0)	/* just a ping */
 #define LNET_PING_FEAT_NI_STATUS	(1 << 1)	/* return NI status */
@@ -347,8 +355,10 @@ struct lnet_peer_table {
 	struct list_head	*pt_hash;	/* NID->peer hash */
 };
 
-/* peer aliveness is enabled only on routers for peers in a network where the
- * lnet_ni_t::ni_peertimeout has been set to a positive value */
+/*
+ * peer aliveness is enabled only on routers for peers in a network where the
+ * lnet_ni_t::ni_peertimeout has been set to a positive value
+ */
 #define lnet_peer_aliveness_enabled(lp) (the_lnet.ln_routing != 0 && \
 					 (lp)->lp_ni->ni_peertimeout > 0)
 
@@ -433,12 +443,16 @@ struct lnet_match_info {
 #define LNET_MT_HASH_BITS		8
 #define LNET_MT_HASH_SIZE		(1 << LNET_MT_HASH_BITS)
 #define LNET_MT_HASH_MASK		(LNET_MT_HASH_SIZE - 1)
-/* we allocate (LNET_MT_HASH_SIZE + 1) entries for lnet_match_table::mt_hash,
- * the last entry is reserved for MEs with ignore-bits */
+/*
+ * we allocate (LNET_MT_HASH_SIZE + 1) entries for lnet_match_table::mt_hash,
+ * the last entry is reserved for MEs with ignore-bits
+ */
 #define LNET_MT_HASH_IGNORE		LNET_MT_HASH_SIZE
-/* __u64 has 2^6 bits, so need 2^(LNET_MT_HASH_BITS - LNET_MT_BITS_U64) which
+/*
+ * __u64 has 2^6 bits, so need 2^(LNET_MT_HASH_BITS - LNET_MT_BITS_U64) which
  * is 4 __u64s as bit-map, and add an extra __u64 (only use one bit) for the
- * ME-list with ignore-bits, which is mtable::mt_hash[LNET_MT_HASH_IGNORE] */
+ * ME-list with ignore-bits, which is mtable::mt_hash[LNET_MT_HASH_IGNORE]
+ */
 #define LNET_MT_BITS_U64		6	/* 2^6 bits */
 #define LNET_MT_EXHAUSTED_BITS		(LNET_MT_HASH_BITS - LNET_MT_BITS_U64)
 #define LNET_MT_EXHAUSTED_BMAP		((1 << LNET_MT_EXHAUSTED_BITS) + 1)
@@ -448,8 +462,10 @@ struct lnet_match_table {
 	/* reserved for upcoming patches, CPU partition ID */
 	unsigned int		 mt_cpt;
 	unsigned int		 mt_portal;	/* portal index */
-	/* match table is set as "enabled" if there's non-exhausted MD
-	 * attached on mt_mhash, it's only valid for wildcard portal */
+	/*
+	 * match table is set as "enabled" if there's non-exhausted MD
+	 * attached on mt_mhash, it's only valid for wildcard portal
+	 */
 	unsigned int		 mt_enabled;
 	/* bitmap to flag whether MEs on mt_hash are exhausted or not */
 	__u64			 mt_exhausted[LNET_MT_EXHAUSTED_BMAP];

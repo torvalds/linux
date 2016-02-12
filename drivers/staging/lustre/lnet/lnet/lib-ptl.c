@@ -139,8 +139,10 @@ static int
 lnet_try_match_md(lnet_libmd_t *md,
 		  struct lnet_match_info *info, struct lnet_msg *msg)
 {
-	/* ALWAYS called holding the lnet_res_lock, and can't lnet_res_unlock;
-	 * lnet_match_blocked_msg() relies on this to avoid races */
+	/*
+	 * ALWAYS called holding the lnet_res_lock, and can't lnet_res_unlock;
+	 * lnet_match_blocked_msg() relies on this to avoid races
+	 */
 	unsigned int offset;
 	unsigned int mlength;
 	lnet_me_t *me = md->md_me;
@@ -203,9 +205,11 @@ lnet_try_match_md(lnet_libmd_t *md,
 	if (!lnet_md_exhausted(md))
 		return LNET_MATCHMD_OK;
 
-	/* Auto-unlink NOW, so the ME gets unlinked if required.
+	/*
+	 * Auto-unlink NOW, so the ME gets unlinked if required.
 	 * We bumped md->md_refcount above so the MD just gets flagged
-	 * for unlink when it is finalized. */
+	 * for unlink when it is finalized.
+	 */
 	if ((md->md_flags & LNET_MD_FLAG_AUTO_UNLINK) != 0)
 		lnet_md_unlink(md);
 
@@ -248,8 +252,10 @@ lnet_mt_of_attach(unsigned int index, lnet_process_id_t id,
 		return NULL;
 	case LNET_INS_BEFORE:
 	case LNET_INS_AFTER:
-		/* posted by no affinity thread, always hash to specific
-		 * match-table to avoid buffer stealing which is heavy */
+		/*
+		 * posted by no affinity thread, always hash to specific
+		 * match-table to avoid buffer stealing which is heavy
+		 */
 		return ptl->ptl_mtables[ptl->ptl_index % LNET_CPT_NUMBER];
 	case LNET_INS_LOCAL:
 		/* posted by cpu-affinity thread */
@@ -299,9 +305,11 @@ lnet_mt_of_match(struct lnet_match_info *info, struct lnet_msg *msg)
 		nmaps = ptl->ptl_mt_nmaps;
 		/* map to an active mtable to avoid heavy "stealing" */
 		if (nmaps != 0) {
-			/* NB: there is possibility that ptl_mt_maps is being
+			/*
+			 * NB: there is possibility that ptl_mt_maps is being
 			 * changed because we are not under protection of
-			 * lnet_ptl_lock, but it shouldn't hurt anything */
+			 * lnet_ptl_lock, but it shouldn't hurt anything
+			 */
 			cpt = ptl->ptl_mt_maps[rotor % nmaps];
 		}
 	}
@@ -401,8 +409,10 @@ lnet_mt_match_md(struct lnet_match_table *mtable,
 			exhausted = 0; /* mlist is not empty */
 
 		if ((rc & LNET_MATCHMD_FINISH) != 0) {
-			/* don't return EXHAUSTED bit because we don't know
-			 * whether the mlist is empty or not */
+			/*
+			 * don't return EXHAUSTED bit because we don't know
+			 * whether the mlist is empty or not
+			 */
 			return rc & ~LNET_MATCHMD_EXHAUSTED;
 		}
 	}
@@ -430,8 +440,10 @@ lnet_ptl_match_early(struct lnet_portal *ptl, struct lnet_msg *msg)
 {
 	int rc;
 
-	/* message arrived before any buffer posting on this portal,
-	 * simply delay or drop this message */
+	/*
+	 * message arrived before any buffer posting on this portal,
+	 * simply delay or drop this message
+	 */
 	if (likely(lnet_ptl_is_wildcard(ptl) || lnet_ptl_is_unique(ptl)))
 		return 0;
 
@@ -465,9 +477,11 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 	int rc = 0;
 	int i;
 
-	/* steal buffer from other CPTs, and delay it if nothing to steal,
+	/*
+	 * steal buffer from other CPTs, and delay it if nothing to steal,
 	 * this function is more expensive than a regular match, but we
-	 * don't expect it can happen a lot */
+	 * don't expect it can happen a lot
+	 */
 	LASSERT(lnet_ptl_is_wildcard(ptl));
 
 	for (i = 0; i < LNET_CPT_NUMBER; i++) {
@@ -498,8 +512,10 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 				list_del_init(&msg->msg_list);
 
 		} else {
-			/* could be matched by lnet_ptl_attach_md()
-			 * which is called by another thread */
+			/*
+			 * could be matched by lnet_ptl_attach_md()
+			 * which is called by another thread
+			 */
 			rc = msg->msg_md == NULL ?
 			     LNET_MATCHMD_DROP : LNET_MATCHMD_OK;
 		}

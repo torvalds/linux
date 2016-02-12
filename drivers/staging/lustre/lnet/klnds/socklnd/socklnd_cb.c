@@ -216,8 +216,10 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 			conn->ksnc_tx_bufnob += rc; /* account it */
 
 		if (bufnob < conn->ksnc_tx_bufnob) {
-			/* allocated send buffer bytes < computed; infer
-			 * something got ACKed */
+			/*
+			 * allocated send buffer bytes < computed; infer
+			 * something got ACKed
+			 */
 			conn->ksnc_tx_deadline =
 				cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
 			conn->ksnc_peer->ksnp_last_alive = cfs_time_current();
@@ -256,8 +258,10 @@ ksocknal_recv_iov (ksock_conn_t *conn)
 
 	LASSERT(conn->ksnc_rx_niov > 0);
 
-	/* Never touch conn->ksnc_rx_iov or change connection
-	 * status inside ksocknal_lib_recv_iov */
+	/*
+	 * Never touch conn->ksnc_rx_iov or change connection
+	 * status inside ksocknal_lib_recv_iov
+	 */
 	rc = ksocknal_lib_recv_iov(conn);
 
 	if (rc <= 0)
@@ -301,8 +305,10 @@ ksocknal_recv_kiov (ksock_conn_t *conn)
 
 	LASSERT(conn->ksnc_rx_nkiov > 0);
 
-	/* Never touch conn->ksnc_rx_kiov or change connection
-	 * status inside ksocknal_lib_recv_iov */
+	/*
+	 * Never touch conn->ksnc_rx_kiov or change connection
+	 * status inside ksocknal_lib_recv_iov
+	 */
 	rc = ksocknal_lib_recv_kiov(conn);
 
 	if (rc <= 0)
@@ -340,9 +346,11 @@ ksocknal_recv_kiov (ksock_conn_t *conn)
 static int
 ksocknal_receive (ksock_conn_t *conn)
 {
-	/* Return 1 on success, 0 on EOF, < 0 on error.
+	/*
+	 * Return 1 on success, 0 on EOF, < 0 on error.
 	 * Caller checks ksnc_rx_nob_wanted to determine
-	 * progress/completion. */
+	 * progress/completion.
+	 */
 	int rc;
 
 	if (ksocknal_data.ksnd_stall_rx != 0) {
@@ -435,12 +443,14 @@ ksocknal_check_zc_req(ksock_tx_t *tx)
 	ksock_conn_t *conn = tx->tx_conn;
 	ksock_peer_t *peer = conn->ksnc_peer;
 
-	/* Set tx_msg.ksm_zc_cookies[0] to a unique non-zero cookie and add tx
+	/*
+	 * Set tx_msg.ksm_zc_cookies[0] to a unique non-zero cookie and add tx
 	 * to ksnp_zc_req_list if some fragment of this message should be sent
 	 * zero-copy.  Our peer will send an ACK containing this cookie when
 	 * she has received this message to tell us we can signal completion.
 	 * tx_msg.ksm_zc_cookies[0] remains non-zero while tx is on
-	 * ksnp_zc_req_list. */
+	 * ksnp_zc_req_list.
+	 */
 	LASSERT(tx->tx_msg.ksm_type != KSOCK_MSG_NOOP);
 	LASSERT(tx->tx_zc_capable);
 
@@ -450,9 +460,10 @@ ksocknal_check_zc_req(ksock_tx_t *tx)
 	    !conn->ksnc_zc_capable)
 		return;
 
-	/* assign cookie and queue tx to pending list, it will be released when
-	 * a matching ack is received. See ksocknal_handle_zcack() */
-
+	/*
+	 * assign cookie and queue tx to pending list, it will be released when
+	 * a matching ack is received. See ksocknal_handle_zcack()
+	 */
 	ksocknal_tx_addref(tx);
 
 	spin_lock(&peer->ksnp_lock);
@@ -688,10 +699,12 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 	ksock_tx_t *ztx = NULL;
 	int bufnob = 0;
 
-	/* called holding global lock (read or irq-write) and caller may
+	/*
+	 * called holding global lock (read or irq-write) and caller may
 	 * not have dropped this lock between finding conn and calling me,
 	 * so we don't need the {get,put}connsock dance to deref
-	 * ksnc_sock... */
+	 * ksnc_sock...
+	 */
 	LASSERT(!conn->ksnc_closing);
 
 	CDEBUG(D_NET, "Sending to %s ip %pI4h:%d\n",
@@ -701,12 +714,14 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 
 	ksocknal_tx_prep(conn, tx);
 
-	/* Ensure the frags we've been given EXACTLY match the number of
+	/*
+	 * Ensure the frags we've been given EXACTLY match the number of
 	 * bytes we want to send.  Many TCP/IP stacks disregard any total
 	 * size parameters passed to them and just look at the frags.
 	 *
 	 * We always expect at least 1 mapped fragment containing the
-	 * complete ksocknal message header. */
+	 * complete ksocknal message header.
+	 */
 	LASSERT(lnet_iov_nob (tx->tx_niov, tx->tx_iov) +
 		lnet_kiov_nob(tx->tx_nkiov, tx->tx_kiov) ==
 		(unsigned int)tx->tx_nob);
@@ -736,8 +751,10 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 	}
 
 	if (msg->ksm_type == KSOCK_MSG_NOOP) {
-		/* The packet is noop ZC ACK, try to piggyback the ack_cookie
-		 * on a normal packet so I don't need to send it */
+		/*
+		 * The packet is noop ZC ACK, try to piggyback the ack_cookie
+		 * on a normal packet so I don't need to send it
+		 */
 		LASSERT(msg->ksm_zc_cookies[1] != 0);
 		LASSERT(conn->ksnc_proto->pro_queue_tx_zcack != NULL);
 
@@ -745,8 +762,10 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 			ztx = tx; /* ZC ACK piggybacked on ztx release tx later */
 
 	} else {
-		/* It's a normal packet - can it piggback a noop zc-ack that
-		 * has been queued already? */
+		/*
+		 * It's a normal packet - can it piggback a noop zc-ack that
+		 * has been queued already?
+		 */
 		LASSERT(msg->ksm_zc_cookies[1] == 0);
 		LASSERT(conn->ksnc_proto->pro_queue_tx_msg != NULL);
 
@@ -846,9 +865,11 @@ ksocknal_launch_packet (lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
 			if (ksocknal_find_connectable_route_locked(peer) == NULL) {
 				conn = ksocknal_find_conn_locked(peer, tx, tx->tx_nonblk);
 				if (conn != NULL) {
-					/* I've got no routes that need to be
+					/*
+					 * I've got no routes that need to be
 					 * connecting and I do have an actual
-					 * connection... */
+					 * connection...
+					 */
 					ksocknal_queue_tx_locked (tx, conn);
 					read_unlock(g_lock);
 					return 0;
@@ -932,9 +953,10 @@ ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	int desc_size;
 	int rc;
 
-	/* NB 'private' is different depending on what we're sending.
-	 * Just ignore it... */
-
+	/*
+	 * NB 'private' is different depending on what we're sending.
+	 * Just ignore it...
+	 */
 	CDEBUG(D_NET, "sending %u bytes in %d frags to %s\n",
 	       payload_nob, payload_niov, libcfs_id2str(target));
 
@@ -1075,9 +1097,10 @@ ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
 		return 1;
 	}
 
-	/* Set up to skip as much as possible now.  If there's more left
-	 * (ran out of iov entries) we'll get called again */
-
+	/*
+	 * Set up to skip as much as possible now.  If there's more left
+	 * (ran out of iov entries) we'll get called again
+	 */
 	conn->ksnc_rx_state = SOCKNAL_RX_SLOP;
 	conn->ksnc_rx_nob_left = nob_to_skip;
 	conn->ksnc_rx_iov = (struct kvec *)&conn->ksnc_rx_iov_space;
@@ -1416,10 +1439,12 @@ int ksocknal_scheduler(void *arg)
 			LASSERT(conn->ksnc_rx_scheduled);
 			LASSERT(conn->ksnc_rx_ready);
 
-			/* clear rx_ready in case receive isn't complete.
+			/*
+			 * clear rx_ready in case receive isn't complete.
 			 * Do it BEFORE we call process_recv, since
 			 * data_ready can set it any time after we release
-			 * kss_lock. */
+			 * kss_lock.
+			 */
 			conn->ksnc_rx_ready = 0;
 			spin_unlock_bh(&sched->kss_lock);
 
@@ -1435,9 +1460,11 @@ int ksocknal_scheduler(void *arg)
 				conn->ksnc_rx_ready = 1;
 
 			if (conn->ksnc_rx_state == SOCKNAL_RX_PARSE) {
-				/* Conn blocked waiting for ksocknal_recv()
+				/*
+				 * Conn blocked waiting for ksocknal_recv()
 				 * I change its state (under lock) to signal
-				 * it can be rescheduled */
+				 * it can be rescheduled
+				 */
 				conn->ksnc_rx_state = SOCKNAL_RX_PARSE_WAIT;
 			} else if (conn->ksnc_rx_ready) {
 				/* reschedule for rx */
@@ -1478,16 +1505,20 @@ int ksocknal_scheduler(void *arg)
 			/* dequeue now so empty list => more to send */
 			list_del(&tx->tx_list);
 
-			/* Clear tx_ready in case send isn't complete.  Do
+			/*
+			 * Clear tx_ready in case send isn't complete.  Do
 			 * it BEFORE we call process_transmit, since
 			 * write_space can set it any time after we release
-			 * kss_lock. */
+			 * kss_lock.
+			 */
 			conn->ksnc_tx_ready = 0;
 			spin_unlock_bh(&sched->kss_lock);
 
 			if (!list_empty(&zlist)) {
-				/* free zombie noop txs, it's fast because
-				 * noop txs are just put in freelist */
+				/*
+				 * free zombie noop txs, it's fast because
+				 * noop txs are just put in freelist
+				 */
 				ksocknal_txlist_done(NULL, &zlist, 0);
 			}
 
@@ -1508,8 +1539,10 @@ int ksocknal_scheduler(void *arg)
 			}
 
 			if (rc == -ENOMEM) {
-				/* Do nothing; after a short timeout, this
-				 * conn will be reposted on kss_tx_conns. */
+				/*
+				 * Do nothing; after a short timeout, this
+				 * conn will be reposted on kss_tx_conns.
+				 */
 			} else if (conn->ksnc_tx_ready &&
 				   !list_empty(&conn->ksnc_tx_queue)) {
 				/* reschedule for tx */
@@ -1850,8 +1883,10 @@ ksocknal_connect (ksock_route_t *route)
 	for (;;) {
 		wanted = ksocknal_route_mask() & ~route->ksnr_connected;
 
-		/* stop connecting if peer/route got closed under me, or
-		 * route got connected while queued */
+		/*
+		 * stop connecting if peer/route got closed under me, or
+		 * route got connected while queued
+		 */
 		if (peer->ksnp_closing || route->ksnr_deleted ||
 		    wanted == 0) {
 			retry_later = 0;
@@ -1904,8 +1939,10 @@ ksocknal_connect (ksock_route_t *route)
 			goto failed;
 		}
 
-		/* A +ve RC means I have to retry because I lost the connection
-		 * race or I have to renegotiate protocol version */
+		/*
+		 * A +ve RC means I have to retry because I lost the connection
+		 * race or I have to renegotiate protocol version
+		 */
 		retry_later = (rc != 0);
 		if (retry_later)
 			CDEBUG(D_NET, "peer %s: conn race, retry later.\n",
@@ -1918,15 +1955,18 @@ ksocknal_connect (ksock_route_t *route)
 	route->ksnr_connecting = 0;
 
 	if (retry_later) {
-		/* re-queue for attention; this frees me up to handle
-		 * the peer's incoming connection request */
-
+		/*
+		 * re-queue for attention; this frees me up to handle
+		 * the peer's incoming connection request
+		 */
 		if (rc == EALREADY ||
 		    (rc == 0 && peer->ksnp_accepting > 0)) {
-			/* We want to introduce a delay before next
+			/*
+			 * We want to introduce a delay before next
 			 * attempt to connect if we lost conn race,
 			 * but the race is resolved quickly usually,
-			 * so min_reconnectms should be good heuristic */
+			 * so min_reconnectms should be good heuristic
+			 */
 			route->ksnr_retry_interval =
 				cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms)/1000;
 			route->ksnr_timeout = cfs_time_add(cfs_time_current(),
@@ -1963,16 +2003,20 @@ ksocknal_connect (ksock_route_t *route)
 	    ksocknal_find_connecting_route_locked(peer) == NULL) {
 		ksock_conn_t *conn;
 
-		/* ksnp_tx_queue is queued on a conn on successful
-		 * connection for V1.x and V2.x */
+		/*
+		 * ksnp_tx_queue is queued on a conn on successful
+		 * connection for V1.x and V2.x
+		 */
 		if (!list_empty (&peer->ksnp_conns)) {
 			conn = list_entry(peer->ksnp_conns.next,
 					      ksock_conn_t, ksnc_list);
 			LASSERT (conn->ksnc_proto == &ksocknal_protocol_v3x);
 		}
 
-		/* take all the blocked packets while I've got the lock and
-		 * complete below... */
+		/*
+		 * take all the blocked packets while I've got the lock and
+		 * complete below...
+		 */
 		list_splice_init(&peer->ksnp_tx_queue, &zombies);
 	}
 
@@ -2011,8 +2055,10 @@ ksocknal_connd_check_start(time64_t sec, long *timeout)
 
 	if (total >= *ksocknal_tunables.ksnd_nconnds_max ||
 	    total > ksocknal_data.ksnd_connd_connecting + SOCKNAL_CONND_RESV) {
-		/* can't create more connd, or still have enough
-		 * threads to handle more connecting */
+		/*
+		 * can't create more connd, or still have enough
+		 * threads to handle more connecting
+		 */
 		return 0;
 	}
 
@@ -2093,8 +2139,10 @@ ksocknal_connd_check_stop(time64_t sec, long *timeout)
 	       ksocknal_data.ksnd_connd_connecting + SOCKNAL_CONND_RESV;
 }
 
-/* Go through connd_routes queue looking for a route that we can process
- * right now, @timeout_p can be updated if we need to come back later */
+/*
+ * Go through connd_routes queue looking for a route that we can process
+ * right now, @timeout_p can be updated if we need to come back later
+ */
 static ksock_route_t *
 ksocknal_connd_get_route_locked(signed long *timeout_p)
 {
@@ -2172,9 +2220,11 @@ ksocknal_connd (void *arg)
 			spin_lock_bh(connd_lock);
 		}
 
-		/* Only handle an outgoing connection request if there
+		/*
+		 * Only handle an outgoing connection request if there
 		 * is a thread left to handle incoming connections and
-		 * create new connd */
+		 * create new connd
+		 */
 		if (ksocknal_data.ksnd_connd_connecting + SOCKNAL_CONND_RESV <
 		    ksocknal_data.ksnd_connd_running) {
 			route = ksocknal_connd_get_route_locked(&timeout);
@@ -2245,8 +2295,10 @@ ksocknal_find_timed_out_conn (ksock_peer_t *peer)
 		/* Don't need the {get,put}connsock dance to deref ksnc_sock */
 		LASSERT(!conn->ksnc_closing);
 
-		/* SOCK_ERROR will reset error code of socket in
-		 * some platform (like Darwin8.x) */
+		/*
+		 * SOCK_ERROR will reset error code of socket in
+		 * some platform (like Darwin8.x)
+		 */
 		error = conn->ksnc_sock->sk->sk_err;
 		if (error != 0) {
 			ksocknal_conn_addref(conn);
@@ -2295,8 +2347,10 @@ ksocknal_find_timed_out_conn (ksock_peer_t *peer)
 		     conn->ksnc_sock->sk->sk_wmem_queued != 0) &&
 		    cfs_time_aftereq(cfs_time_current(),
 				     conn->ksnc_tx_deadline)) {
-			/* Timed out messages queued for sending or
-			 * buffered in the socket's send buffer */
+			/*
+			 * Timed out messages queued for sending or
+			 * buffered in the socket's send buffer
+			 */
 			ksocknal_conn_addref(conn);
 			CNETERR("Timeout sending data to %s (%pI4h:%d) the network or that node may be down.\n",
 				libcfs_id2str(peer->ksnp_id),
@@ -2357,8 +2411,10 @@ ksocknal_send_keepalive_locked(ksock_peer_t *peer)
 	if (time_before(cfs_time_current(), peer->ksnp_send_keepalive))
 		return 0;
 
-	/* retry 10 secs later, so we wouldn't put pressure
-	 * on this peer if we failed to send keepalive this time */
+	/*
+	 * retry 10 secs later, so we wouldn't put pressure
+	 * on this peer if we failed to send keepalive this time
+	 */
 	peer->ksnp_send_keepalive = cfs_time_shift(10);
 
 	conn = ksocknal_find_conn_locked(peer, NULL, 1);
@@ -2404,9 +2460,11 @@ ksocknal_check_peer_timeouts (int idx)
 	ksock_tx_t *tx;
 
  again:
-	/* NB. We expect to have a look at all the peers and not find any
+	/*
+	 * NB. We expect to have a look at all the peers and not find any
 	 * connections to time out, so we just use a shared lock while we
-	 * take a look... */
+	 * take a look...
+	 */
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
 	list_for_each_entry(peer, peers, ksnp_list) {
@@ -2426,15 +2484,19 @@ ksocknal_check_peer_timeouts (int idx)
 
 			ksocknal_close_conn_and_siblings (conn, -ETIMEDOUT);
 
-			/* NB we won't find this one again, but we can't
+			/*
+			 * NB we won't find this one again, but we can't
 			 * just proceed with the next peer, since we dropped
-			 * ksnd_global_lock and it might be dead already! */
+			 * ksnd_global_lock and it might be dead already!
+			 */
 			ksocknal_conn_decref(conn);
 			goto again;
 		}
 
-		/* we can't process stale txs right here because we're
-		 * holding only shared lock */
+		/*
+		 * we can't process stale txs right here because we're
+		 * holding only shared lock
+		 */
 		if (!list_empty (&peer->ksnp_tx_queue)) {
 			ksock_tx_t *tx =
 				list_entry (peer->ksnp_tx_queue.next,
@@ -2581,13 +2643,14 @@ ksocknal_reaper (void *arg)
 			const int p = 1;
 			int chunk = ksocknal_data.ksnd_peer_hash_size;
 
-			/* Time to check for timeouts on a few more peers: I do
+			/*
+			 * Time to check for timeouts on a few more peers: I do
 			 * checks every 'p' seconds on a proportion of the peer
 			 * table and I need to check every connection 'n' times
 			 * within a timeout interval, to ensure I detect a
 			 * timeout on any connection within (n+1)/n times the
-			 * timeout interval. */
-
+			 * timeout interval.
+			 */
 			if (*ksocknal_tunables.ksnd_timeout > n * p)
 				chunk = (chunk * n * p) /
 					*ksocknal_tunables.ksnd_timeout;
@@ -2604,9 +2667,11 @@ ksocknal_reaper (void *arg)
 		}
 
 		if (nenomem_conns != 0) {
-			/* Reduce my timeout if I rescheduled ENOMEM conns.
+			/*
+			 * Reduce my timeout if I rescheduled ENOMEM conns.
 			 * This also prevents me getting woken immediately
-			 * if any go back on my enomem list. */
+			 * if any go back on my enomem list.
+			 */
 			timeout = SOCKNAL_ENOMEM_RETRY;
 		}
 		ksocknal_data.ksnd_reaper_waketime =

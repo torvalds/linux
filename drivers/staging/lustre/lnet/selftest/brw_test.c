@@ -86,15 +86,19 @@ brw_client_init(sfw_test_instance_t *tsi)
 		opc   = breq->blk_opc;
 		flags = breq->blk_flags;
 		npg   = breq->blk_npg;
-		/* NB: this is not going to work for variable page size,
-		 * but we have to keep it for compatibility */
+		/*
+		 * NB: this is not going to work for variable page size,
+		 * but we have to keep it for compatibility
+		 */
 		len   = npg * PAGE_CACHE_SIZE;
 
 	} else {
 		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
 
-		/* I should never get this step if it's unknown feature
-		 * because make_session will reject unknown feature */
+		/*
+		 * I should never get this step if it's unknown feature
+		 * because make_session will reject unknown feature
+		 */
 		LASSERT((sn->sn_features & ~LST_FEATS_MASK) == 0);
 
 		opc   = breq->blk_opc;
@@ -279,8 +283,10 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 	} else {
 		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
 
-		/* I should never get this step if it's unknown feature
-		 * because make_session will reject unknown feature */
+		/*
+		 * I should never get this step if it's unknown feature
+		 * because make_session will reject unknown feature
+		 */
 		LASSERT((sn->sn_features & ~LST_FEATS_MASK) == 0);
 
 		opc   = breq->blk_opc;

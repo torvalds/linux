@@ -52,9 +52,11 @@ lnet_md_unlink(lnet_libmd_t *md)
 
 		md->md_flags |= LNET_MD_FLAG_ZOMBIE;
 
-		/* Disassociate from ME (if any),
+		/*
+		 * Disassociate from ME (if any),
 		 * and unlink it if it was created
-		 * with LNET_UNLINK */
+		 * with LNET_UNLINK
+		 */
 		if (me != NULL) {
 			/* detach MD from portal */
 			lnet_ptl_detach_md(me, md);
@@ -169,14 +171,18 @@ lnet_md_link(lnet_libmd_t *md, lnet_handle_eq_t eq_handle, int cpt)
 {
 	struct lnet_res_container *container = the_lnet.ln_md_containers[cpt];
 
-	/* NB we are passed an allocated, but inactive md.
+	/*
+	 * NB we are passed an allocated, but inactive md.
 	 * if we return success, caller may lnet_md_unlink() it.
 	 * otherwise caller may only lnet_md_free() it.
 	 */
-	/* This implementation doesn't know how to create START events or
+	/*
+	 * This implementation doesn't know how to create START events or
 	 * disable END events.  Best to LASSERT our caller is compliant so
-	 * we find out quickly...  */
-	/*  TODO - reevaluate what should be here in light of
+	 * we find out quickly...
+	 */
+	/*
+	 * TODO - reevaluate what should be here in light of
 	 * the removal of the start and end events
 	 * maybe there we shouldn't even allow LNET_EQ_NONE!)
 	 * LASSERT (eq == NULL);
@@ -306,8 +312,10 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 	if (rc != 0)
 		goto failed;
 
-	/* attach this MD to portal of ME and check if it matches any
-	 * blocked msgs on this portal */
+	/*
+	 * attach this MD to portal of ME and check if it matches any
+	 * blocked msgs on this portal
+	 */
 	lnet_ptl_attach_md(me, md, &matches, &drops);
 
 	lnet_md2handle(handle, md);
@@ -438,9 +446,11 @@ LNetMDUnlink(lnet_handle_md_t mdh)
 	}
 
 	md->md_flags |= LNET_MD_FLAG_ABORTED;
-	/* If the MD is busy, lnet_md_unlink just marks it for deletion, and
+	/*
+	 * If the MD is busy, lnet_md_unlink just marks it for deletion, and
 	 * when the LND is done, the completion event flags that the MD was
-	 * unlinked.  Otherwise, we enqueue an event now... */
+	 * unlinked.  Otherwise, we enqueue an event now...
+	 */
 	if (md->md_eq != NULL && md->md_refcount == 0) {
 		lnet_build_unlink_event(md, &ev);
 		lnet_eq_enqueue_event(md->md_eq, &ev);

@@ -61,8 +61,10 @@ lnet_peer_buffer_credits(lnet_ni_t *ni)
 	if (peer_buffer_credits > 0)
 		return peer_buffer_credits;
 
-	/* As an approximation, allow this peer the same number of router
-	 * buffers as it is allowed outstanding sends */
+	/*
+	 * As an approximation, allow this peer the same number of router
+	 * buffers as it is allowed outstanding sends
+	 */
 	return ni->ni_peertxcredits;
 }
 
@@ -131,10 +133,11 @@ lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 	int alive;
 	int notifylnd;
 
-	/* Notify only in 1 thread at any time to ensure ordered notification.
+	/*
+	 * Notify only in 1 thread at any time to ensure ordered notification.
 	 * NB individual events can be missed; the only guarantee is that you
-	 * always get the most recent news */
-
+	 * always get the most recent news
+	 */
 	if (lp->lp_notifying || ni == NULL)
 		return;
 
@@ -150,9 +153,10 @@ lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 		if (notifylnd && ni->ni_lnd->lnd_notify != NULL) {
 			lnet_net_unlock(lp->lp_cpt);
 
-			/* A new notification could happen now; I'll handle it
-			 * when control returns to me */
-
+			/*
+			 * A new notification could happen now; I'll handle it
+			 * when control returns to me
+			 */
 			(ni->ni_lnd->lnd_notify)(ni, lp->lp_nid, alive);
 
 			lnet_net_lock(lp->lp_cpt);
@@ -245,8 +249,10 @@ static void lnet_shuffle_seed(void)
 
 	cfs_get_random_bytes(seed, sizeof(seed));
 
-	/* Nodes with small feet have little entropy
-	 * the NID for this node gives the most entropy in the low bits */
+	/*
+	 * Nodes with small feet have little entropy
+	 * the NID for this node gives the most entropy in the low bits
+	 */
 	list_for_each(tmp, &the_lnet.ln_nis) {
 		ni = list_entry(tmp, lnet_ni_t, ni_list);
 		lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
@@ -472,9 +478,10 @@ lnet_del_route(__u32 net, lnet_nid_t gw_nid)
 	CDEBUG(D_NET, "Del route: net %s : gw %s\n",
 	       libcfs_net2str(net), libcfs_nid2str(gw_nid));
 
-	/* NB Caller may specify either all routes via the given gateway
-	 * or a specific route entry actual NIDs) */
-
+	/*
+	 * NB Caller may specify either all routes via the given gateway
+	 * or a specific route entry actual NIDs)
+	 */
 	lnet_net_lock(LNET_LOCK_EX);
 	if (net == LNET_NIDNET(LNET_NID_ANY))
 		rn_list = &the_lnet.ln_remote_nets_hash[0];
@@ -663,8 +670,10 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 					up = 1;
 					break;
 				}
-				/* ptl NIs are considered down only when
-				 * they're all down */
+				/*
+				 * ptl NIs are considered down only when
+				 * they're all down
+				 */
 				if (LNET_NETTYP(LNET_NIDNET(nid)) == PTLLND)
 					ptl_status = LNET_NI_STATUS_UP;
 				continue;
@@ -703,9 +712,11 @@ lnet_router_checker_event(lnet_event_t *event)
 	lp = rcd->rcd_gateway;
 	LASSERT(lp != NULL);
 
-	 /* NB: it's called with holding lnet_res_lock, we have a few
-	  * places need to hold both locks at the same time, please take
-	  * care of lock ordering */
+	/*
+	 * NB: it's called with holding lnet_res_lock, we have a few
+	 * places need to hold both locks at the same time, please take
+	 * care of lock ordering
+	 */
 	lnet_net_lock(lp->lp_cpt);
 	if (!lnet_isrouter(lp) || lp->lp_rcd != rcd) {
 		/* ignore if no longer a router or rcd is replaced */
@@ -719,17 +730,20 @@ lnet_router_checker_event(lnet_event_t *event)
 	}
 
 	/* LNET_EVENT_REPLY */
-	/* A successful REPLY means the router is up.  If _any_ comms
+	/*
+	 * A successful REPLY means the router is up.  If _any_ comms
 	 * to the router fail I assume it's down (this will happen if
 	 * we ping alive routers to try to detect router death before
-	 * apps get burned). */
-
+	 * apps get burned).
+	 */
 	lnet_notify_locked(lp, 1, (event->status == 0), cfs_time_current());
-	/* The router checker will wake up very shortly and do the
+
+	/*
+	 * The router checker will wake up very shortly and do the
 	 * actual notification.
 	 * XXX If 'lp' stops being a router before then, it will still
-	 * have the notification pending!!! */
-
+	 * have the notification pending!!!
+	 */
 	if (avoid_asym_router_failure && event->status == 0)
 		lnet_parse_rc_info(rcd);
 
@@ -816,8 +830,10 @@ lnet_update_ni_status_locked(void)
 		if (ni->ni_status->ns_status != LNET_NI_STATUS_DOWN) {
 			CDEBUG(D_NET, "NI(%s:%d) status changed to down\n",
 			       libcfs_nid2str(ni->ni_nid), timeout);
-			/* NB: so far, this is the only place to set
-			 * NI status to "down" */
+			/*
+			 * NB: so far, this is the only place to set
+			 * NI status to "down"
+			 */
 			ni->ni_status->ns_status = LNET_NI_STATUS_DOWN;
 		}
 		lnet_ni_unlock(ni);
@@ -1018,8 +1034,10 @@ lnet_router_checker_start(void)
 		return 0;
 
 	sema_init(&the_lnet.ln_rc_signal, 0);
-	/* EQ size doesn't matter; the callback is guaranteed to get every
-	 * event */
+	/*
+	 * EQ size doesn't matter; the callback is guaranteed to get every
+	 * event
+	 */
 	eqsz = 0;
 	rc = LNetEQAlloc(eqsz, lnet_router_checker_event,
 			 &the_lnet.ln_rc_eqh);
@@ -1042,9 +1060,11 @@ lnet_router_checker_start(void)
 	}
 
 	if (check_routers_before_use) {
-		/* Note that a helpful side-effect of pinging all known routers
+		/*
+		 * Note that a helpful side-effect of pinging all known routers
 		 * at startup is that it makes them drop stale connections they
-		 * may have to a previous instance of me. */
+		 * may have to a previous instance of me.
+		 */
 		lnet_wait_known_routerstate();
 	}
 
@@ -1199,9 +1219,11 @@ rescan:
 
 		lnet_prune_rc_data(0); /* don't wait for UNLINK */
 
-		/* Call schedule_timeout() here always adds 1 to load average
+		/*
+		 * Call schedule_timeout() here always adds 1 to load average
 		 * because kernel counts # active tasks as nr_running
-		 * + nr_uninterruptible. */
+		 * + nr_uninterruptible.
+		 */
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(1));
 	}
@@ -1541,10 +1563,12 @@ lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 		return 0;
 	}
 
-	/* We can't fully trust LND on reporting exact peer last_alive
+	/*
+	 * We can't fully trust LND on reporting exact peer last_alive
 	 * if he notifies us about dead peer. For example ksocklnd can
 	 * call us with when == _time_when_the_node_was_booted_ if
-	 * no connections were successfully established */
+	 * no connections were successfully established
+	 */
 	if (ni != NULL && !alive && when < lp->lp_last_alive)
 		when = lp->lp_last_alive;
 

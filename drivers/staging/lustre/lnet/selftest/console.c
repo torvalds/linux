@@ -104,9 +104,11 @@ lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 	ndl->ndl_node->nd_timeout = 0;
 	memset(&ndl->ndl_node->nd_ping, 0, sizeof(lstcon_rpc_t));
 
-	/* queued in global hash & list, no refcount is taken by
+	/*
+	 * queued in global hash & list, no refcount is taken by
 	 * global hash & list, if caller release his refcount,
-	 * node will be released */
+	 * node will be released
+	 */
 	list_add_tail(&ndl->ndl_hlink, &console_session.ses_ndl_hash[idx]);
 	list_add_tail(&ndl->ndl_link, &console_session.ses_ndl_list);
 
@@ -601,8 +603,10 @@ lstcon_group_del(char *name)
 	lstcon_rpc_trans_destroy(trans);
 
 	lstcon_group_decref(grp);
-	/* -ref for session, it's destroyed,
-	 * status can't be rolled back, destroy group anyway */
+	/*
+	 * -ref for session, it's destroyed,
+	 * status can't be rolled back, destroy group anyway
+	 */
 	lstcon_group_decref(grp);
 
 	return rc;

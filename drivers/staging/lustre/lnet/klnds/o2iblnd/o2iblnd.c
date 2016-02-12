@@ -189,8 +189,10 @@ void kiblnd_pack_msg(lnet_ni_t *ni, kib_msg_t *msg, int version,
 {
 	kib_net_t *net = ni->ni_data;
 
-	/* CAVEAT EMPTOR! all message fields not set here should have been
-	 * initialised previously. */
+	/*
+	 * CAVEAT EMPTOR! all message fields not set here should have been
+	 * initialised previously.
+	 */
 	msg->ibm_magic    = IBLND_MSG_MAGIC;
 	msg->ibm_version  = version;
 	/*   ibm_type */
@@ -249,8 +251,10 @@ int kiblnd_unpack_msg(kib_msg_t *msg, int nob)
 		return -EPROTO;
 	}
 
-	/* checksum must be computed with ibm_cksum zero and BEFORE anything
-	 * gets flipped */
+	/*
+	 * checksum must be computed with ibm_cksum zero and BEFORE anything
+	 * gets flipped
+	 */
 	msg_cksum = flip ? __swab32(msg->ibm_cksum) : msg->ibm_cksum;
 	msg->ibm_cksum = 0;
 	if (msg_cksum != 0 &&
@@ -375,17 +379,21 @@ void kiblnd_destroy_peer(kib_peer_t *peer)
 
 	LIBCFS_FREE(peer, sizeof(*peer));
 
-	/* NB a peer's connections keep a reference on their peer until
+	/*
+	 * NB a peer's connections keep a reference on their peer until
 	 * they are destroyed, so we can be assured that _all_ state to do
 	 * with this peer has been cleaned up when its refcount drops to
-	 * zero. */
+	 * zero.
+	 */
 	atomic_dec(&net->ibn_npeers);
 }
 
 kib_peer_t *kiblnd_find_peer_locked(lnet_nid_t nid)
 {
-	/* the caller is responsible for accounting the additional reference
-	 * that this creates */
+	/*
+	 * the caller is responsible for accounting the additional reference
+	 * that this creates
+	 */
 	struct list_head *peer_list = kiblnd_nid2peerlist(nid);
 	struct list_head *tmp;
 	kib_peer_t *peer;
@@ -474,8 +482,10 @@ static void kiblnd_del_peer_locked(kib_peer_t *peer)
 		}
 		/* NB closing peer's last conn unlinked it. */
 	}
-	/* NB peer now unlinked; might even be freed if the peer table had the
-	 * last ref on it. */
+	/*
+	 * NB peer now unlinked; might even be freed if the peer table had the
+	 * last ref on it.
+	 */
 }
 
 static int kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
@@ -636,13 +646,15 @@ static int kiblnd_get_completion_vector(kib_conn_t *conn, int cpt)
 kib_conn_t *kiblnd_create_conn(kib_peer_t *peer, struct rdma_cm_id *cmid,
 				int state, int version)
 {
-	/* CAVEAT EMPTOR:
+	/*
+	 * CAVEAT EMPTOR:
 	 * If the new conn is created successfully it takes over the caller's
 	 * ref on 'peer'.  It also "owns" 'cmid' and destroys it when it itself
 	 * is destroyed.  On failure, the caller's ref on 'peer' remains and
 	 * she must dispose of 'cmid'.  (Actually I'd block forever if I tried
 	 * to destroy 'cmid' here since I'm called from the CM which still has
-	 * its ref on 'cmid'). */
+	 * its ref on 'cmid').
+	 */
 	rwlock_t *glock = &kiblnd_data.kib_global_lock;
 	kib_net_t *net = peer->ibp_ni->ni_data;
 	kib_dev_t *dev;
@@ -800,15 +812,19 @@ kib_conn_t *kiblnd_create_conn(kib_peer_t *peer, struct rdma_cm_id *cmid,
 			/* Make posted receives complete */
 			kiblnd_abort_receives(conn);
 
-			/* correct # of posted buffers
-			 * NB locking needed now I'm racing with completion */
+			/*
+			 * correct # of posted buffers
+			 * NB locking needed now I'm racing with completion
+			 */
 			spin_lock_irqsave(&sched->ibs_lock, flags);
 			conn->ibc_nrx -= IBLND_RX_MSGS(version) - i;
 			spin_unlock_irqrestore(&sched->ibs_lock, flags);
 
-			/* cmid will be destroyed by CM(ofed) after cm_callback
+			/*
+			 * cmid will be destroyed by CM(ofed) after cm_callback
 			 * returned, so we can't refer it anymore
-			 * (by kiblnd_connd()->kiblnd_destroy_conn) */
+			 * (by kiblnd_connd()->kiblnd_destroy_conn)
+			 */
 			rdma_destroy_qp(conn->ibc_cmid);
 			conn->ibc_cmid = NULL;
 
@@ -1077,8 +1093,10 @@ void kiblnd_query(lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
 	if (last_alive != 0)
 		*when = last_alive;
 
-	/* peer is not persistent in hash, trigger peer creation
-	 * and connection establishment with a NULL tx */
+	/*
+	 * peer is not persistent in hash, trigger peer creation
+	 * and connection establishment with a NULL tx
+	 */
 	if (peer == NULL)
 		kiblnd_launch_tx(ni, NULL, nid);
 
@@ -2070,8 +2088,10 @@ static int kiblnd_net_init_pools(kib_net_t *net, __u32 *cpts, int ncpts)
 
 static int kiblnd_hdev_get_attr(kib_hca_dev_t *hdev)
 {
-	/* It's safe to assume a HCA can handle a page size
-	 * matching that of the native system */
+	/*
+	 * It's safe to assume a HCA can handle a page size
+	 * matching that of the native system
+	 */
 	hdev->ibh_page_shift = PAGE_SHIFT;
 	hdev->ibh_page_size  = 1 << PAGE_SHIFT;
 	hdev->ibh_page_mask  = ~((__u64)hdev->ibh_page_size - 1);
@@ -2175,7 +2195,8 @@ static int kiblnd_dev_need_failover(kib_dev_t *dev)
 	    *kiblnd_tunables.kib_dev_failover > 1) /* debugging */
 		return 1;
 
-	/* XXX: it's UGLY, but I don't have better way to find
+	/*
+	 * XXX: it's UGLY, but I don't have better way to find
 	 * ib-bonding HCA failover because:
 	 *
 	 * a. no reliable CM event for HCA failover...
@@ -2184,7 +2205,8 @@ static int kiblnd_dev_need_failover(kib_dev_t *dev)
 	 * We have only two choices at this point:
 	 *
 	 * a. rdma_bind_addr(), it will conflict with listener cmid
-	 * b. rdma_resolve_addr() to zero addr */
+	 * b. rdma_resolve_addr() to zero addr
+	 */
 	cmid = kiblnd_rdma_create_id(kiblnd_dummy_callback, dev, RDMA_PS_TCP,
 				     IB_QPT_RC);
 	if (IS_ERR(cmid)) {
@@ -2239,15 +2261,19 @@ int kiblnd_dev_failover(kib_dev_t *dev)
 
 	if (dev->ibd_hdev != NULL &&
 	    dev->ibd_hdev->ibh_cmid != NULL) {
-		/* XXX it's not good to close old listener at here,
+		/*
+		 * XXX it's not good to close old listener at here,
 		 * because we can fail to create new listener.
 		 * But we have to close it now, otherwise rdma_bind_addr
-		 * will return EADDRINUSE... How crap! */
+		 * will return EADDRINUSE... How crap!
+		 */
 		write_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
 
 		cmid = dev->ibd_hdev->ibh_cmid;
-		/* make next schedule of kiblnd_dev_need_failover()
-		 * return 1 for me */
+		/*
+		 * make next schedule of kiblnd_dev_need_failover()
+		 * return 1 for me
+		 */
 		dev->ibd_hdev->ibh_cmid  = NULL;
 		write_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 
@@ -2433,9 +2459,11 @@ static void kiblnd_base_shutdown(void)
 		/* flag threads to terminate; wake and wait for them to die */
 		kiblnd_data.kib_shutdown = 1;
 
-		/* NB: we really want to stop scheduler threads net by net
+		/*
+		 * NB: we really want to stop scheduler threads net by net
 		 * instead of the whole module, this should be improved
-		 * with dynamic configuration LNet */
+		 * with dynamic configuration LNet
+		 */
 		cfs_percpt_for_each(sched, i, kiblnd_data.kib_scheds)
 			wake_up_all(&sched->ibs_waitq);
 
@@ -2585,8 +2613,10 @@ static int kiblnd_base_startup(void)
 		if (*kiblnd_tunables.kib_nscheds > 0) {
 			nthrs = min(nthrs, *kiblnd_tunables.kib_nscheds);
 		} else {
-			/* max to half of CPUs, another half is reserved for
-			 * upper layer modules */
+			/*
+			 * max to half of CPUs, another half is reserved for
+			 * upper layer modules
+			 */
 			nthrs = min(max(IBLND_N_SCHED, nthrs >> 1), nthrs);
 		}
 
