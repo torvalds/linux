@@ -362,7 +362,8 @@ void cache_stats_init(struct cache_stats *cs, const char *name)
 		atomic_set(&cs->cs_stats[i], 0);
 }
 
-int cache_stats_print(const struct cache_stats *cs, struct seq_file *m, int h)
+static int cache_stats_print(const struct cache_stats *cs,
+			     struct seq_file *m, int h)
 {
 	int i;
 	/*
