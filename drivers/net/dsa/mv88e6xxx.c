@@ -1471,13 +1471,77 @@ static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
 	return 0;
 }
 
+static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
+					u16 vid_begin, u16 vid_end)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_vtu_stu_entry vlan;
+	int i, err;
+
+	if (!vid_begin)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&ps->smi_mutex);
+
+	err = _mv88e6xxx_vtu_vid_write(ds, vid_begin - 1);
+	if (err)
+		goto unlock;
+
+	do {
+		err = _mv88e6xxx_vtu_getnext(ds, &vlan);
+		if (err)
+			goto unlock;
+
+		if (!vlan.valid)
+			break;
+
+		if (vlan.vid > vid_end)
+			break;
+
+		for (i = 0; i < ps->num_ports; ++i) {
+			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
+				continue;
+
+			if (vlan.data[i] ==
+			    GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+				continue;
+
+			if (ps->ports[i].bridge_dev ==
+			    ps->ports[port].bridge_dev)
+				break; /* same bridge, check next VLAN */
+
+			netdev_warn(ds->ports[port],
+				    "hardware VLAN %d already used by %s\n",
+				    vlan.vid,
+				    netdev_name(ps->ports[i].bridge_dev));
+			err = -EOPNOTSUPP;
+			goto unlock;
+		}
+	} while (vlan.vid < vid_end);
+
+unlock:
+	mutex_unlock(&ps->smi_mutex);
+
+	return err;
+}
+
 int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_vlan *vlan,
 				struct switchdev_trans *trans)
 {
+	int err;
+
 	/* We reserve a few VLANs to isolate unbridged ports */
 	if (vlan->vid_end >= 4000)
 		return -EOPNOTSUPP;
+
+	/* If the requested port doesn't belong to the same bridge as the VLAN
+	 * members, do not support it (yet) and fallback to software VLAN.
+	 */
+	err = mv88e6xxx_port_check_hw_vlan(ds, port, vlan->vid_begin,
+					   vlan->vid_end);
+	if (err)
+		return err;
 
 	/* We don't need any dynamic resource from the kernel (yet),
 	 * so skip the prepare phase.
