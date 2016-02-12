@@ -299,8 +299,8 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 	return wilc->vif[index];
 }
 
-static s32 handle_set_channel(struct wilc_vif *vif,
-			      struct channel_attr *hif_set_ch)
+static void handle_set_channel(struct wilc_vif *vif,
+			       struct channel_attr *hif_set_ch)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -313,12 +313,8 @@ static s32 handle_set_channel(struct wilc_vif *vif,
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
-	if (result) {
+	if (result)
 		PRINT_ER("Failed to set channel\n");
-		return -EINVAL;
-	}
-
-	return result;
 }
 
 static s32 handle_set_wfi_drv_handler(struct wilc_vif *vif,
