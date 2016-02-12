@@ -37,6 +37,8 @@ struct acpi_device;
  * of the @descs array.
  * @base: GPIO base in the DEPRECATED global Linux GPIO numberspace, assigned
  * at device creation time.
+ * @label: a descriptive name for the GPIO device, such as the part number
+ * or name of the IP component in a System on Chip.
  * @data: per-instance data assigned by the driver
  * @list: links gpio_device:s together for traversal
  *
@@ -55,6 +57,7 @@ struct gpio_device {
 	struct gpio_desc	*descs;
 	int			base;
 	u16			ngpio;
+	char			*label;
 	void			*data;
 	struct list_head        list;
 

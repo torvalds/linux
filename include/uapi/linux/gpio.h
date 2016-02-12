@@ -16,10 +16,12 @@
 /**
  * struct gpiochip_info - Information about a certain GPIO chip
  * @name: the name of this GPIO chip
+ * @label: a functional name for this GPIO chip
  * @lines: number of GPIO lines on this chip
  */
 struct gpiochip_info {
 	char name[32];
+	char label[32];
 	__u32 lines;
 };
 

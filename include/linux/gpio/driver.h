@@ -21,7 +21,8 @@ struct gpio_device;
 
 /**
  * struct gpio_chip - abstract a GPIO controller
- * @label: for diagnostics
+ * @label: a functional name for the GPIO device, such as a part
+ *	number or the name of the SoC IP-block implementing it.
  * @gpiodev: the internal state holder, opaque struct
  * @parent: optional parent device providing the GPIOs
  * @owner: helps prevent removal of modules exporting active GPIOs

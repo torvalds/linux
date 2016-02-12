@@ -342,6 +342,9 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		strncpy(chipinfo.name, dev_name(&gdev->dev),
 			sizeof(chipinfo.name));
 		chipinfo.name[sizeof(chipinfo.name)-1] = '\0';
+		strncpy(chipinfo.label, gdev->label,
+			sizeof(chipinfo.label));
+		chipinfo.label[sizeof(chipinfo.label)-1] = '\0';
 		chipinfo.lines = gdev->ngpio;
 		if (copy_to_user(ip, &chipinfo, sizeof(chipinfo)))
 			return -EFAULT;
@@ -479,6 +482,16 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 		status = -EINVAL;
 		goto err_free_gdev;
 	}
+
+	if (chip->label)
+		gdev->label = devm_kstrdup(&gdev->dev, chip->label, GFP_KERNEL);
+	else
+		gdev->label = devm_kstrdup(&gdev->dev, "unknown", GFP_KERNEL);
+	if (!gdev->label) {
+		status = -ENOMEM;
+		goto err_free_gdev;
+	}
+
 	gdev->ngpio = chip->ngpio;
 	gdev->data = data;
 

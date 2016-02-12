@@ -54,8 +54,8 @@ int list_device(const char *device_name)
 
 		goto free_chrdev_name;
 	}
-	fprintf(stdout, "GPIO chip: %s, %u GPIO lines\n",
-		cinfo.name, cinfo.lines);
+	fprintf(stdout, "GPIO chip: %s, \"%s\", %u GPIO lines\n",
+		cinfo.name, cinfo.label, cinfo.lines);
 
 	if (close(fd) == -1)  {
 		ret = -errno;
