@@ -233,7 +233,7 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			priv->channel_vref_mv[reg] =
 				regulator_get_voltage(priv->vref[refp]);
 			/* Conversion from uV to mV */
-			do_div(priv->channel_vref_mv[reg], 1000);
+			priv->channel_vref_mv[reg] /= 1000;
 			break;
 		case MX25_ADC_REFP_INT:
 			priv->channel_vref_mv[reg] = 2500;
