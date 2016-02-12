@@ -236,6 +236,9 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Initially set APB to OFF state */
+	apb->state = ARCHE_PLATFORM_STATE_OFF;
+
 	ret = apb_ctrl_coldboot_seq(pdev, apb);
 	if (ret) {
 		dev_err(dev, "failed to set init state of control signal %d\n",
