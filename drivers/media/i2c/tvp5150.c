@@ -1,5 +1,5 @@
 /*
- * tvp5150 - Texas Instruments TVP5150A/AM1 video decoder driver
+ * tvp5150 - Texas Instruments TVP5150A/AM1 and TVP5151 video decoder driver
  *
  * Copyright (c) 2005,2006 Mauro Carvalho Chehab (mchehab@infradead.org)
  * This code is placed under the terms of the GNU General Public License v2
@@ -27,7 +27,7 @@
 #define TVP5150_MAX_CROP_TOP	127
 #define TVP5150_CROP_SHIFT	2
 
-MODULE_DESCRIPTION("Texas Instruments TVP5150A video decoder driver");
+MODULE_DESCRIPTION("Texas Instruments TVP5150A/TVP5150AM1/TVP5151 video decoder driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
 
@@ -259,8 +259,12 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 	int input = 0;
 	int val;
 
-	if ((decoder->output & TVP5150_BLACK_SCREEN) || !decoder->enable)
-		input = 8;
+	/* Only tvp5150am1 and tvp5151 have signal generator support */
+	if ((decoder->dev_id == 0x5150 && decoder->rom_ver == 0x0400) ||
+	    (decoder->dev_id == 0x5151 && decoder->rom_ver == 0x0100)) {
+		if (!decoder->enable)
+			input = 8;
+	}
 
 	switch (decoder->input) {
 	case TVP5150_COMPOSITE1:
@@ -795,6 +799,7 @@ static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 static int tvp5150_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
+	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -808,6 +813,9 @@ static int tvp5150_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 	case V4L2_CID_HUE:
 		tvp5150_write(sd, TVP5150_HUE_CTL, ctrl->val);
+	case V4L2_CID_TEST_PATTERN:
+		decoder->enable = ctrl->val ? false : true;
+		tvp5150_selmux(sd);
 		return 0;
 	}
 	return -EINVAL;
@@ -1022,15 +1030,6 @@ static int tvp5150_link_setup(struct media_entity *entity,
 
 	decoder->input = i;
 
-	/* Only tvp5150am1 and tvp5151 have signal generator support */
-	if ((decoder->dev_id == 0x5150 && decoder->rom_ver == 0x0400) ||
-	    (decoder->dev_id == 0x5151 && decoder->rom_ver == 0x0100)) {
-		decoder->output = (i == TVP5150_GENERATOR ?
-				   TVP5150_BLACK_SCREEN : TVP5150_NORMAL);
-	} else {
-		decoder->output = TVP5150_NORMAL;
-	}
-
 	tvp5150_selmux(sd);
 #endif
 
@@ -1074,6 +1073,12 @@ static int tvp5150_s_routing(struct v4l2_subdev *sd,
 
 	decoder->input = input;
 	decoder->output = output;
+
+	if (output == TVP5150_BLACK_SCREEN)
+		decoder->enable = false;
+	else
+		decoder->enable = true;
+
 	tvp5150_selmux(sd);
 	return 0;
 }
@@ -1405,9 +1410,6 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 		case TVP5150_SVIDEO:
 			input->function = MEDIA_ENT_F_CONN_SVIDEO;
 			break;
-		case TVP5150_GENERATOR:
-			input->function = MEDIA_ENT_F_CONN_TEST;
-			break;
 		}
 
 		input->flags = MEDIA_ENT_FL_CONNECTOR;
@@ -1430,6 +1432,11 @@ err:
 	of_node_put(ep);
 	return ret;
 }
+
+static const char * const tvp5150_test_patterns[2] = {
+	"Disabled",
+	"Black screen"
+};
 
 static int tvp5150_probe(struct i2c_client *c,
 			 const struct i2c_device_id *id)
@@ -1488,7 +1495,7 @@ static int tvp5150_probe(struct i2c_client *c,
 
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
 	core->input = TVP5150_COMPOSITE1;
-	core->enable = 1;
+	core->enable = true;
 
 	v4l2_ctrl_handler_init(&core->hdl, 5);
 	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
@@ -1502,6 +1509,10 @@ static int tvp5150_probe(struct i2c_client *c,
 	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
 			V4L2_CID_PIXEL_RATE, 27000000,
 			27000000, 1, 27000000);
+	v4l2_ctrl_new_std_menu_items(&core->hdl, &tvp5150_ctrl_ops,
+				     V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(tvp5150_test_patterns),
+				     0, 0, tvp5150_test_patterns);
 	sd->ctrl_handler = &core->hdl;
 	if (core->hdl.error) {
 		res = core->hdl.error;
