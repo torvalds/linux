@@ -94,12 +94,14 @@ struct fimd_driver_data {
 	unsigned int lcdblk_offset;
 	unsigned int lcdblk_vt_shift;
 	unsigned int lcdblk_bypass_shift;
+	unsigned int lcdblk_mic_bypass_shift;
 
 	unsigned int has_shadowcon:1;
 	unsigned int has_clksel:1;
 	unsigned int has_limited_fmt:1;
 	unsigned int has_vidoutcon:1;
 	unsigned int has_vtsel:1;
+	unsigned int has_mic_bypass:1;
 };
 
 static struct fimd_driver_data s3c64xx_fimd_driver_data = {
@@ -145,6 +147,18 @@ static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.has_vtsel = 1,
 };
 
+static struct fimd_driver_data exynos5420_fimd_driver_data = {
+	.timing_base = 0x20000,
+	.lcdblk_offset = 0x214,
+	.lcdblk_vt_shift = 24,
+	.lcdblk_bypass_shift = 15,
+	.lcdblk_mic_bypass_shift = 11,
+	.has_shadowcon = 1,
+	.has_vidoutcon = 1,
+	.has_vtsel = 1,
+	.has_mic_bypass = 1,
+};
+
 struct fimd_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
@@ -184,6 +198,8 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	  .data = &exynos4415_fimd_driver_data },
 	{ .compatible = "samsung,exynos5250-fimd",
 	  .data = &exynos5_fimd_driver_data },
+	{ .compatible = "samsung,exynos5420-fimd",
+	  .data = &exynos5420_fimd_driver_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
@@ -458,6 +474,18 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 				0x1 << driver_data->lcdblk_bypass_shift,
 				0x1 << driver_data->lcdblk_bypass_shift)) {
 		DRM_ERROR("Failed to update sysreg for bypass setting.\n");
+		return;
+	}
+
+	/* TODO: When MIC is enabled for display path, the lcdblk_mic_bypass
+	 * bit should be cleared.
+	 */
+	if (driver_data->has_mic_bypass && ctx->sysreg &&
+	    regmap_update_bits(ctx->sysreg,
+				driver_data->lcdblk_offset,
+				0x1 << driver_data->lcdblk_mic_bypass_shift,
+				0x1 << driver_data->lcdblk_mic_bypass_shift)) {
+		DRM_ERROR("Failed to update sysreg for bypass mic.\n");
 		return;
 	}
 
@@ -861,7 +889,8 @@ static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
 	 * clock. On these SoCs the bootloader may enable it but any
 	 * power domain off/on will reset it to disable state.
 	 */
-	if (ctx->driver_data != &exynos5_fimd_driver_data)
+	if (ctx->driver_data != &exynos5_fimd_driver_data ||
+	    ctx->driver_data != &exynos5420_fimd_driver_data)
 		return;
 
 	val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
