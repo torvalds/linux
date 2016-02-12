@@ -1356,10 +1356,10 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 			    (pstrNetworkInfo->bssid)) {
 				if (memcmp(hif_drv->usr_scan_req.net_info[i].bssid,
 					   pstrNetworkInfo->bssid, 6) == 0) {
-					if (pstrNetworkInfo->rssi <= hif_drv->usr_scan_req.net_info[i].s8rssi) {
+					if (pstrNetworkInfo->rssi <= hif_drv->usr_scan_req.net_info[i].rssi) {
 						goto done;
 					} else {
-						hif_drv->usr_scan_req.net_info[i].s8rssi = pstrNetworkInfo->rssi;
+						hif_drv->usr_scan_req.net_info[i].rssi = pstrNetworkInfo->rssi;
 						bNewNtwrkFound = false;
 						break;
 					}
@@ -1369,7 +1369,7 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 
 		if (bNewNtwrkFound) {
 			if (hif_drv->usr_scan_req.rcvd_ch_cnt < MAX_NUM_SCANNED_NETWORKS) {
-				hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].s8rssi = pstrNetworkInfo->rssi;
+				hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].rssi = pstrNetworkInfo->rssi;
 
 				if (hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].bssid &&
 				    pstrNetworkInfo->bssid) {

@@ -145,7 +145,7 @@ enum cfg_param {
 
 struct found_net_info {
 	u8 bssid[6];
-	s8 s8rssi;
+	s8 rssi;
 };
 
 enum scan_event {
