@@ -192,11 +192,10 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 			 valid, name, pv, size, 0, flags,
 			 ll_i2suppgid(inode), &req);
 #ifdef CONFIG_FS_POSIX_ACL
-	if (new_value != NULL)
-		/*
-		 * Release the posix ACL space.
-		 */
-		kfree(new_value);
+	/*
+	 * Release the posix ACL space.
+	 */
+	kfree(new_value);
 	if (acl != NULL)
 		lustre_ext_acl_xattr_free(acl);
 #endif
