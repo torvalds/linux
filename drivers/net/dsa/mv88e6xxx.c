@@ -1131,7 +1131,7 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 	/* mv88e6xxx_port_stp_update may be called with softirqs disabled,
 	 * so we can not update the port state directly but need to schedule it.
 	 */
-	ps->port_state[port] = stp_state;
+	ps->ports[port].state = stp_state;
 	set_bit(port, &ps->port_state_update_mask);
 	schedule_work(&ps->bridge_work);
 
@@ -1925,7 +1925,7 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 	while (ps->port_state_update_mask) {
 		port = __ffs(ps->port_state_update_mask);
 		clear_bit(port, &ps->port_state_update_mask);
-		mv88e6xxx_set_port_state(ds, port, ps->port_state[port]);
+		mv88e6xxx_set_port_state(ds, port, ps->ports[port].state);
 	}
 }
 

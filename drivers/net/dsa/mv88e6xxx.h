@@ -379,6 +379,10 @@ struct mv88e6xxx_vtu_stu_entry {
 	u8	data[DSA_MAX_PORTS];
 };
 
+struct mv88e6xxx_priv_port {
+	u8 state;
+};
+
 struct mv88e6xxx_priv_state {
 	/* When using multi-chip addressing, this mutex protects
 	 * access to the indirect access registers.  (In single-chip
@@ -415,8 +419,9 @@ struct mv88e6xxx_priv_state {
 	int		id; /* switch product id */
 	int		num_ports;	/* number of switch ports */
 
+	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
+
 	unsigned long port_state_update_mask;
-	u8 port_state[DSA_MAX_PORTS];
 
 	struct work_struct bridge_work;
 };
