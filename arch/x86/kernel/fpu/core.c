@@ -354,6 +354,69 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
 }
 
 /*
+ * This function must be called before we write the current
+ * task's fpstate.
+ *
+ * This call gets the current FPU register state and moves
+ * it in to the 'fpstate'.  Preemption is disabled so that
+ * no writes to the 'fpstate' can occur from context
+ * swiches.
+ *
+ * Must be followed by a fpu__current_fpstate_write_end().
+ */
+void fpu__current_fpstate_write_begin(void)
+{
+	struct fpu *fpu = &current->thread.fpu;
+
+	/*
+	 * Ensure that the context-switching code does not write
+	 * over the fpstate while we are doing our update.
+	 */
+	preempt_disable();
+
+	/*
+	 * Move the fpregs in to the fpu's 'fpstate'.
+	 */
+	fpu__activate_fpstate_read(fpu);
+
+	/*
+	 * The caller is about to write to 'fpu'.  Ensure that no
+	 * CPU thinks that its fpregs match the fpstate.  This
+	 * ensures we will not be lazy and skip a XRSTOR in the
+	 * future.
+	 */
+	fpu->last_cpu = -1;
+}
+
+/*
+ * This function must be paired with fpu__current_fpstate_write_begin()
+ *
+ * This will ensure that the modified fpstate gets placed back in
+ * the fpregs if necessary.
+ *
+ * Note: This function may be called whether or not an _actual_
+ * write to the fpstate occurred.
+ */
+void fpu__current_fpstate_write_end(void)
+{
+	struct fpu *fpu = &current->thread.fpu;
+
+	/*
+	 * 'fpu' now has an updated copy of the state, but the
+	 * registers may still be out of date.  Update them with
+	 * an XRSTOR if they are active.
+	 */
+	if (fpregs_active())
+		copy_kernel_to_fpregs(&fpu->state);
+
+	/*
+	 * Our update is done and the fpregs/fpstate are in sync
+	 * if necessary.  Context switches can happen again.
+	 */
+	preempt_enable();
+}
+
+/*
  * 'fpu__restore()' is called to copy FPU registers from
  * the FPU fpstate to the live hw registers and to activate
  * access to the hardware registers, so that FPU instructions
