@@ -114,7 +114,7 @@ static inline void pp_enable_irq(struct pp_struct *pp)
 }
 
 static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
-			loff_t *ppos)
+		       loff_t *ppos)
 {
 	unsigned int minor = iminor(file_inode(file));
 	struct pp_struct *pp = file->private_data;
@@ -140,9 +140,9 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 	mode = pport->ieee1284.mode & ~(IEEE1284_DEVICEID | IEEE1284_ADDR);
 
 	parport_set_timeout(pp->pdev,
-			     (file->f_flags & O_NONBLOCK) ?
-			     PARPORT_INACTIVITY_O_NONBLOCK :
-			     pp->default_inactivity);
+			    (file->f_flags & O_NONBLOCK) ?
+			    PARPORT_INACTIVITY_O_NONBLOCK :
+			    pp->default_inactivity);
 
 	while (bytes_read == 0) {
 		ssize_t need = min_t(unsigned long, count, PP_BUFFER_SIZE);
@@ -192,7 +192,7 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 }
 
 static ssize_t pp_write(struct file *file, const char __user *buf,
-			 size_t count, loff_t *ppos)
+			size_t count, loff_t *ppos)
 {
 	unsigned int minor = iminor(file_inode(file));
 	struct pp_struct *pp = file->private_data;
@@ -216,9 +216,9 @@ static ssize_t pp_write(struct file *file, const char __user *buf,
 	mode = pport->ieee1284.mode & ~(IEEE1284_DEVICEID | IEEE1284_ADDR);
 
 	parport_set_timeout(pp->pdev,
-			     (file->f_flags & O_NONBLOCK) ?
-			     PARPORT_INACTIVITY_O_NONBLOCK :
-			     pp->default_inactivity);
+			    (file->f_flags & O_NONBLOCK) ?
+			    PARPORT_INACTIVITY_O_NONBLOCK :
+			    pp->default_inactivity);
 
 	while (bytes_written < count) {
 		ssize_t n = min_t(unsigned long, count - bytes_written, PP_BUFFER_SIZE);
@@ -301,7 +301,7 @@ static int register_device(int minor, struct pp_struct *pp)
 
 	fl = (pp->flags & PP_EXCL) ? PARPORT_FLAG_EXCL : 0;
 	pdev = parport_register_device(port, name, NULL,
-					NULL, pp_irq, fl, pp);
+				       NULL, pp_irq, fl, pp);
 	parport_put_port(port);
 
 	if (!pdev) {
@@ -559,10 +559,10 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case PPFCONTROL:
 		if (copy_from_user(&mask, argp,
-				    sizeof(mask)))
+				   sizeof(mask)))
 			return -EFAULT;
 		if (copy_from_user(&reg, 1 + (unsigned char __user *) arg,
-				    sizeof(reg)))
+				   sizeof(reg)))
 			return -EFAULT;
 		parport_frob_control(port, mask, reg);
 		return 0;
@@ -665,7 +665,7 @@ static long pp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 #ifdef CONFIG_COMPAT
 static long pp_compat_ioctl(struct file *file, unsigned int cmd,
-		unsigned long arg)
+			    unsigned long arg)
 {
 	return pp_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -811,7 +811,7 @@ static int __init ppdev_init(void)
 
 	if (register_chrdev(PP_MAJOR, CHRDEV, &pp_fops)) {
 		printk(KERN_WARNING CHRDEV ": unable to get major %d\n",
-			PP_MAJOR);
+		       PP_MAJOR);
 		return -EIO;
 	}
 	ppdev_class = class_create(THIS_MODULE, CHRDEV);
