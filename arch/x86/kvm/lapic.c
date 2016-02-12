@@ -685,6 +685,15 @@ int kvm_vector_to_index(u32 vector, u32 dest_vcpus,
 	return idx;
 }
 
+static void kvm_apic_disabled_lapic_found(struct kvm *kvm)
+{
+	if (!kvm->arch.disabled_lapic_found) {
+		kvm->arch.disabled_lapic_found = true;
+		printk(KERN_INFO
+		       "Disabled LAPIC found during irq injection\n");
+	}
+}
+
 bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, int *r, unsigned long *dest_map)
 {
@@ -763,15 +772,8 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 			idx = kvm_vector_to_index(irq->vector,
 				dest_vcpus, &bitmap, 16);
 
-			/*
-			 * We may find a hardware disabled LAPIC here, if that
-			 * is the case, print out a error message once for each
-			 * guest and return.
-			 */
-			if (!dst[idx] && !kvm->arch.disabled_lapic_found) {
-				kvm->arch.disabled_lapic_found = true;
-				printk(KERN_INFO
-					"Disabled LAPIC found during irq injection\n");
+			if (!dst[idx]) {
+				kvm_apic_disabled_lapic_found(kvm);
 				goto out;
 			}
 
@@ -859,16 +861,9 @@ bool kvm_intr_is_single_vcpu_fast(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			idx = kvm_vector_to_index(irq->vector, dest_vcpus,
 						  &bitmap, 16);
 
-			/*
-			 * We may find a hardware disabled LAPIC here, if that
-			 * is the case, print out a error message once for each
-			 * guest and return
-			 */
 			dst = map->logical_map[cid][idx];
-			if (!dst && !kvm->arch.disabled_lapic_found) {
-				kvm->arch.disabled_lapic_found = true;
-				printk(KERN_INFO
-					"Disabled LAPIC found during irq injection\n");
+			if (!dst) {
+				kvm_apic_disabled_lapic_found(kvm);
 				goto out;
 			}
 
