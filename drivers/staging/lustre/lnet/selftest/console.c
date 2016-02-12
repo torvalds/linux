@@ -90,7 +90,7 @@ lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 		return -ENOENT;
 
 	LIBCFS_ALLOC(*ndpp, sizeof(lstcon_node_t) + sizeof(lstcon_ndlink_t));
-	if (*ndpp == NULL)
+	if (!*ndpp)
 		return -ENOMEM;
 
 	ndl = (lstcon_ndlink_t *)(*ndpp + 1);
@@ -168,7 +168,7 @@ lstcon_ndlink_find(struct list_head *hash,
 		return rc;
 
 	LIBCFS_ALLOC(ndl, sizeof(lstcon_ndlink_t));
-	if (ndl == NULL) {
+	if (!ndl) {
 		lstcon_node_put(nd);
 		return -ENOMEM;
 	}
@@ -202,11 +202,11 @@ lstcon_group_alloc(char *name, lstcon_group_t **grpp)
 
 	LIBCFS_ALLOC(grp, offsetof(lstcon_group_t,
 				   grp_ndl_hash[LST_NODE_HASHSIZE]));
-	if (grp == NULL)
+	if (!grp)
 		return -ENOMEM;
 
 	grp->grp_ref = 1;
-	if (name != NULL)
+	if (name)
 		strcpy(grp->grp_name, name);
 
 	INIT_LIST_HEAD(&grp->grp_link);
@@ -348,7 +348,7 @@ lstcon_sesrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 		if (nd->nd_state != LST_NODE_ACTIVE)
 			return 0;
 
-		if (grp != NULL && nd->nd_ref > 1)
+		if (grp && nd->nd_ref > 1)
 			return 0;
 		break;
 
@@ -545,7 +545,7 @@ lstcon_nodes_add(char *name, int count, lnet_process_id_t __user *ids_up,
 	int rc;
 
 	LASSERT(count > 0);
-	LASSERT(ids_up != NULL);
+	LASSERT(ids_up);
 
 	rc = lstcon_group_find(name, &grp);
 	if (rc != 0) {
@@ -721,7 +721,7 @@ lstcon_group_list(int index, int len, char __user *name_up)
 	lstcon_group_t *grp;
 
 	LASSERT(index >= 0);
-	LASSERT(name_up != NULL);
+	LASSERT(name_up);
 
 	list_for_each_entry(grp, &console_session.ses_grp_list, grp_link) {
 		if (index-- == 0) {
@@ -742,8 +742,8 @@ lstcon_nodes_getent(struct list_head *head, int *index_p,
 	int count = 0;
 	int index = 0;
 
-	LASSERT(index_p != NULL && count_p != NULL);
-	LASSERT(dents_up != NULL);
+	LASSERT(index_p && count_p);
+	LASSERT(dents_up);
 	LASSERT(*index_p >= 0);
 	LASSERT(*count_p > 0);
 
@@ -800,7 +800,7 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gents_p,
 
 	/* non-verbose query */
 	LIBCFS_ALLOC(gentp, sizeof(lstcon_ndlist_ent_t));
-	if (gentp == NULL) {
+	if (!gentp) {
 		CERROR("Can't allocate ndlist_ent\n");
 		lstcon_group_decref(grp);
 
@@ -849,14 +849,14 @@ lstcon_batch_add(char *name)
 	}
 
 	LIBCFS_ALLOC(bat, sizeof(lstcon_batch_t));
-	if (bat == NULL) {
+	if (!bat) {
 		CERROR("Can't allocate descriptor for batch %s\n", name);
 		return -ENOMEM;
 	}
 
 	LIBCFS_ALLOC(bat->bat_cli_hash,
 		     sizeof(struct list_head) * LST_NODE_HASHSIZE);
-	if (bat->bat_cli_hash == NULL) {
+	if (!bat->bat_cli_hash) {
 		CERROR("Can't allocate hash for batch %s\n", name);
 		LIBCFS_FREE(bat, sizeof(lstcon_batch_t));
 
@@ -865,7 +865,7 @@ lstcon_batch_add(char *name)
 
 	LIBCFS_ALLOC(bat->bat_srv_hash,
 		     sizeof(struct list_head) * LST_NODE_HASHSIZE);
-	if (bat->bat_srv_hash == NULL) {
+	if (!bat->bat_srv_hash) {
 		CERROR("Can't allocate hash for batch %s\n", name);
 		LIBCFS_FREE(bat->bat_cli_hash, LST_NODE_HASHSIZE);
 		LIBCFS_FREE(bat, sizeof(lstcon_batch_t));
@@ -900,7 +900,7 @@ lstcon_batch_list(int index, int len, char __user *name_up)
 {
 	lstcon_batch_t *bat;
 
-	LASSERT(name_up != NULL);
+	LASSERT(name_up);
 	LASSERT(index >= 0);
 
 	list_for_each_entry(bat, &console_session.ses_bat_list, bat_link) {
@@ -945,12 +945,12 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 		}
 	}
 
-	clilst = (test == NULL) ? &bat->bat_cli_list :
-				  &test->tes_src_grp->grp_ndl_list;
-	srvlst = (test == NULL) ? &bat->bat_srv_list :
-				  &test->tes_dst_grp->grp_ndl_list;
+	clilst = !test ? &bat->bat_cli_list :
+			 &test->tes_src_grp->grp_ndl_list;
+	srvlst = !test ? &bat->bat_srv_list :
+			 &test->tes_dst_grp->grp_ndl_list;
 
-	if (dents_up != NULL) {
+	if (dents_up) {
 		rc = lstcon_nodes_getent((server ? srvlst : clilst),
 					 index_p, ndent_p, dents_up);
 		return rc;
@@ -958,10 +958,10 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 
 	/* non-verbose query */
 	LIBCFS_ALLOC(entp, sizeof(lstcon_test_batch_ent_t));
-	if (entp == NULL)
+	if (!entp)
 		return -ENOMEM;
 
-	if (test == NULL) {
+	if (!test) {
 		entp->u.tbe_batch.bae_ntest = bat->bat_ntest;
 		entp->u.tbe_batch.bae_state = bat->bat_state;
 
@@ -1138,10 +1138,10 @@ lstcon_testrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 	struct list_head *head;
 
 	test = (lstcon_test_t *)arg;
-	LASSERT(test != NULL);
+	LASSERT(test);
 
 	batch = test->tes_batch;
-	LASSERT(batch != NULL);
+	LASSERT(batch);
 
 	if (test->tes_oneside &&
 	    transop == LST_TRANS_TSBSRVADD)
@@ -1180,8 +1180,8 @@ lstcon_test_nodes_add(lstcon_test_t *test, struct list_head __user *result_up)
 	int transop;
 	int rc;
 
-	LASSERT(test->tes_src_grp != NULL);
-	LASSERT(test->tes_dst_grp != NULL);
+	LASSERT(test->tes_src_grp);
+	LASSERT(test->tes_dst_grp);
 
 	transop = LST_TRANS_TSBSRVADD;
 	grp  = test->tes_dst_grp;
@@ -1319,7 +1319,7 @@ lstcon_test_add(char *batch_name, int type, int loop,
 	test->tes_dst_grp	= dst_grp;
 	INIT_LIST_HEAD(&test->tes_trans_list);
 
-	if (param != NULL) {
+	if (param) {
 		test->tes_paramlen = paramlen;
 		memcpy(&test->tes_param[0], param, paramlen);
 	}
@@ -1343,13 +1343,13 @@ lstcon_test_add(char *batch_name, int type, int loop,
 	/*  hold groups so nobody can change them */
 	return rc;
 out:
-	if (test != NULL)
+	if (test)
 		LIBCFS_FREE(test, offsetof(lstcon_test_t, tes_param[paramlen]));
 
-	if (dst_grp != NULL)
+	if (dst_grp)
 		lstcon_group_decref(dst_grp);
 
-	if (src_grp != NULL)
+	if (src_grp)
 		lstcon_group_decref(src_grp);
 
 	return rc;
@@ -1777,7 +1777,7 @@ lstcon_session_info(lst_sid_t __user *sid_up, int __user *key_up,
 		return -ESRCH;
 
 	LIBCFS_ALLOC(entp, sizeof(*entp));
-	if (entp == NULL)
+	if (!entp)
 		return -ENOMEM;
 
 	list_for_each_entry(ndl, &console_session.ses_ndl_list, ndl_link)
@@ -1967,7 +1967,7 @@ lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 
 out:
 	rep->msg_ses_feats = console_session.ses_features;
-	if (grp != NULL)
+	if (grp)
 		lstcon_group_decref(grp);
 
 	mutex_unlock(&console_session.ses_mutex);
@@ -2016,7 +2016,7 @@ lstcon_console_init(void)
 
 	LIBCFS_ALLOC(console_session.ses_ndl_hash,
 		     sizeof(struct list_head) * LST_GLOBAL_HASHSIZE);
-	if (console_session.ses_ndl_hash == NULL)
+	if (!console_session.ses_ndl_hash)
 		return -ENOMEM;
 
 	for (i = 0; i < LST_GLOBAL_HASHSIZE; i++)

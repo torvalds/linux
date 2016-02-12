@@ -243,7 +243,7 @@ lnet_mt_of_attach(unsigned int index, lnet_process_id_t id,
 	ptl = the_lnet.ln_portals[index];
 
 	mtable = lnet_match2mt(ptl, id, mbits);
-	if (mtable != NULL) /* unique portal or only one match-table */
+	if (mtable) /* unique portal or only one match-table */
 		return mtable;
 
 	/* it's a wildcard portal */
@@ -280,7 +280,7 @@ lnet_mt_of_match(struct lnet_match_info *info, struct lnet_msg *msg)
 	LASSERT(lnet_ptl_is_wildcard(ptl) || lnet_ptl_is_unique(ptl));
 
 	mtable = lnet_match2mt(ptl, info->mi_id, info->mi_mbits);
-	if (mtable != NULL)
+	if (mtable)
 		return mtable;
 
 	/* it's a wildcard portal */
@@ -399,7 +399,7 @@ lnet_mt_match_md(struct lnet_match_table *mtable,
 
 	list_for_each_entry_safe(me, tmp, head, me_list) {
 		/* ME attached but MD not attached yet */
-		if (me->me_md == NULL)
+		if (!me->me_md)
 			continue;
 
 		LASSERT(me == me->me_md->md_me);
@@ -516,7 +516,7 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 			 * could be matched by lnet_ptl_attach_md()
 			 * which is called by another thread
 			 */
-			rc = msg->msg_md == NULL ?
+			rc = !msg->msg_md ?
 			     LNET_MATCHMD_DROP : LNET_MATCHMD_OK;
 		}
 
@@ -733,7 +733,7 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 	struct lnet_match_table	*mtable;
 	int i;
 
-	if (ptl->ptl_mtables == NULL) /* uninitialized portal */
+	if (!ptl->ptl_mtables) /* uninitialized portal */
 		return;
 
 	LASSERT(list_empty(&ptl->ptl_msg_delayed));
@@ -743,7 +743,7 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 		lnet_me_t *me;
 		int j;
 
-		if (mtable->mt_mhash == NULL) /* uninitialized match-table */
+		if (!mtable->mt_mhash) /* uninitialized match-table */
 			continue;
 
 		mhash = mtable->mt_mhash;
@@ -775,7 +775,7 @@ lnet_ptl_setup(struct lnet_portal *ptl, int index)
 
 	ptl->ptl_mtables = cfs_percpt_alloc(lnet_cpt_table(),
 					    sizeof(struct lnet_match_table));
-	if (ptl->ptl_mtables == NULL) {
+	if (!ptl->ptl_mtables) {
 		CERROR("Failed to create match table for portal %d\n", index);
 		return -ENOMEM;
 	}
@@ -788,7 +788,7 @@ lnet_ptl_setup(struct lnet_portal *ptl, int index)
 		/* the extra entry is for MEs with ignore bits */
 		LIBCFS_CPT_ALLOC(mhash, lnet_cpt_table(), i,
 				 sizeof(*mhash) * (LNET_MT_HASH_SIZE + 1));
-		if (mhash == NULL) {
+		if (!mhash) {
 			CERROR("Failed to create match hash for portal %d\n",
 			       index);
 			goto failed;
@@ -816,7 +816,7 @@ lnet_portals_destroy(void)
 {
 	int i;
 
-	if (the_lnet.ln_portals == NULL)
+	if (!the_lnet.ln_portals)
 		return;
 
 	for (i = 0; i < the_lnet.ln_nportals; i++)
@@ -836,7 +836,7 @@ lnet_portals_create(void)
 
 	the_lnet.ln_nportals = MAX_PORTALS;
 	the_lnet.ln_portals = cfs_array_alloc(the_lnet.ln_nportals, size);
-	if (the_lnet.ln_portals == NULL) {
+	if (!the_lnet.ln_portals) {
 		CERROR("Failed to allocate portals table\n");
 		return -ENOMEM;
 	}

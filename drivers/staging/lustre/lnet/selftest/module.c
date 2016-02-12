@@ -70,7 +70,7 @@ lnet_selftest_fini(void)
 	case LST_INIT_WI_TEST:
 		for (i = 0;
 		     i < cfs_cpt_number(lnet_cpt_table()); i++) {
-			if (lst_sched_test[i] == NULL)
+			if (!lst_sched_test[i])
 				continue;
 			cfs_wi_sched_destroy(lst_sched_test[i]);
 		}
@@ -106,7 +106,7 @@ lnet_selftest_init(void)
 
 	nscheds = cfs_cpt_number(lnet_cpt_table());
 	LIBCFS_ALLOC(lst_sched_test, sizeof(lst_sched_test[0]) * nscheds);
-	if (lst_sched_test == NULL)
+	if (!lst_sched_test)
 		goto error;
 
 	lst_init_step = LST_INIT_WI_TEST;

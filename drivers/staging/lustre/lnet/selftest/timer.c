@@ -75,7 +75,7 @@ stt_add_timer(stt_timer_t *timer)
 
 	LASSERT(stt_data.stt_nthreads > 0);
 	LASSERT(!stt_data.stt_shuttingdown);
-	LASSERT(timer->stt_func != NULL);
+	LASSERT(timer->stt_func);
 	LASSERT(list_empty(&timer->stt_list));
 	LASSERT(timer->stt_expires > ktime_get_real_seconds());
 

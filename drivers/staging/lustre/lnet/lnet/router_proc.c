@@ -114,11 +114,11 @@ static int __proc_lnet_stats(void *data, int write,
 	/* read */
 
 	LIBCFS_ALLOC(ctrs, sizeof(*ctrs));
-	if (ctrs == NULL)
+	if (!ctrs)
 		return -ENOMEM;
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
-	if (tmpstr == NULL) {
+	if (!tmpstr) {
 		LIBCFS_FREE(ctrs, sizeof(*ctrs));
 		return -ENOMEM;
 	}
@@ -174,7 +174,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 		return 0;
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
-	if (tmpstr == NULL)
+	if (!tmpstr)
 		return -ENOMEM;
 
 	s = tmpstr; /* points to current position in tmpstr[] */
@@ -209,13 +209,12 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 			return -ESTALE;
 		}
 
-		for (i = 0; i < LNET_REMOTE_NETS_HASH_SIZE && route == NULL;
-		     i++) {
+		for (i = 0; i < LNET_REMOTE_NETS_HASH_SIZE && !route; i++) {
 			rn_list = &the_lnet.ln_remote_nets_hash[i];
 
 			n = rn_list->next;
 
-			while (n != rn_list && route == NULL) {
+			while (n != rn_list && !route) {
 				rnet = list_entry(n, lnet_remotenet_t,
 						  lrn_list);
 
@@ -238,7 +237,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 			}
 		}
 
-		if (route != NULL) {
+		if (route) {
 			__u32 net = rnet->lrn_net;
 			unsigned int hops = route->lr_hops;
 			unsigned int priority = route->lr_priority;
@@ -298,7 +297,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 		return 0;
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
-	if (tmpstr == NULL)
+	if (!tmpstr)
 		return -ENOMEM;
 
 	s = tmpstr; /* points to current position in tmpstr[] */
@@ -344,7 +343,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 			r = r->next;
 		}
 
-		if (peer != NULL) {
+		if (peer) {
 			lnet_nid_t nid = peer->lp_nid;
 			unsigned long now = cfs_time_current();
 			unsigned long deadline = peer->lp_ping_deadline;
@@ -441,7 +440,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 	}
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
-	if (tmpstr == NULL)
+	if (!tmpstr)
 		return -ENOMEM;
 
 	s = tmpstr; /* points to current position in tmpstr[] */
@@ -475,7 +474,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 		}
 
 		while (hash < LNET_PEER_HASH_SIZE) {
-			if (p == NULL)
+			if (!p)
 				p = ptable->pt_hash[hash].next;
 
 			while (p != &ptable->pt_hash[hash]) {
@@ -504,7 +503,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 				p = lp->lp_hashlist.next;
 			}
 
-			if (peer != NULL)
+			if (peer)
 				break;
 
 			p = NULL;
@@ -512,7 +511,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 			hash++;
 		}
 
-		if (peer != NULL) {
+		if (peer) {
 			lnet_nid_t nid = peer->lp_nid;
 			int nrefs = peer->lp_refcount;
 			int lastalive = -1;
@@ -560,7 +559,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 			cpt++;
 			hash = 0;
 			hoff = 1;
-			if (peer == NULL && cpt < LNET_CPT_NUMBER)
+			if (!peer && cpt < LNET_CPT_NUMBER)
 				goto again;
 		}
 	}
@@ -600,7 +599,7 @@ static int __proc_lnet_buffers(void *data, int write,
 	/* (4 %d) * 4 * LNET_CPT_NUMBER */
 	tmpsiz = 64 * (LNET_NRBPOOLS + 1) * LNET_CPT_NUMBER;
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
-	if (tmpstr == NULL)
+	if (!tmpstr)
 		return -ENOMEM;
 
 	s = tmpstr; /* points to current position in tmpstr[] */
@@ -610,7 +609,7 @@ static int __proc_lnet_buffers(void *data, int write,
 		      "pages", "count", "credits", "min");
 	LASSERT(tmpstr + tmpsiz - s > 0);
 
-	if (the_lnet.ln_rtrpools == NULL)
+	if (!the_lnet.ln_rtrpools)
 		goto out; /* I'm not a router */
 
 	for (idx = 0; idx < LNET_NRBPOOLS; idx++) {
@@ -664,7 +663,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 		return 0;
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
-	if (tmpstr == NULL)
+	if (!tmpstr)
 		return -ENOMEM;
 
 	s = tmpstr; /* points to current position in tmpstr[] */
@@ -696,7 +695,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 			n = n->next;
 		}
 
-		if (ni != NULL) {
+		if (ni) {
 			struct lnet_tx_queue *tq;
 			char *stat;
 			time64_t now = ktime_get_real_seconds();
@@ -712,7 +711,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 				last_alive = 0;
 
 			lnet_ni_lock(ni);
-			LASSERT(ni->ni_status != NULL);
+			LASSERT(ni->ni_status);
 			stat = (ni->ni_status->ns_status ==
 				LNET_NI_STATUS_UP) ? "up" : "down";
 			lnet_ni_unlock(ni);
@@ -722,7 +721,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 			 * TX queue of each partition
 			 */
 			cfs_percpt_for_each(tq, i, ni->ni_tx_queues) {
-				for (j = 0; ni->ni_cpts != NULL &&
+				for (j = 0; ni->ni_cpts &&
 				     j < ni->ni_ncpts; j++) {
 					if (i == ni->ni_cpts[j])
 						break;
@@ -817,7 +816,7 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 	int i;
 
 	LIBCFS_ALLOC(buf, buf_len);
-	if (buf == NULL)
+	if (!buf)
 		return -ENOMEM;
 
 	if (!write) {
@@ -854,7 +853,7 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 
 	rc = -EINVAL;
 	lnet_res_lock(0);
-	for (i = 0; portal_rotors[i].pr_name != NULL; i++) {
+	for (i = 0; portal_rotors[i].pr_name; i++) {
 		if (strncasecmp(portal_rotors[i].pr_name, tmp,
 				strlen(portal_rotors[i].pr_name)) == 0) {
 			portal_rotor = portal_rotors[i].pr_value;

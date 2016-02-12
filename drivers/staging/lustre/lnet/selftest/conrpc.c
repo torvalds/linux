@@ -54,12 +54,12 @@ lstcon_rpc_done(srpc_client_rpc_t *rpc)
 {
 	lstcon_rpc_t *crpc = (lstcon_rpc_t *)rpc->crpc_priv;
 
-	LASSERT(crpc != NULL && rpc == crpc->crp_rpc);
+	LASSERT(crpc && rpc == crpc->crp_rpc);
 	LASSERT(crpc->crp_posted && !crpc->crp_finished);
 
 	spin_lock(&rpc->crpc_lock);
 
-	if (crpc->crp_trans == NULL) {
+	if (!crpc->crp_trans) {
 		/*
 		 * Orphan RPC is not in any transaction,
 		 * I'm just a poor body and nobody loves me
@@ -96,7 +96,7 @@ lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
 	crpc->crp_rpc = sfw_create_rpc(nd->nd_id, service,
 				       feats, bulk_npg, bulk_len,
 				       lstcon_rpc_done, (void *)crpc);
-	if (crpc->crp_rpc == NULL)
+	if (!crpc->crp_rpc)
 		return -ENOMEM;
 
 	crpc->crp_trans    = NULL;
@@ -131,9 +131,9 @@ lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 
 	spin_unlock(&console_session.ses_rpc_lock);
 
-	if (crpc == NULL) {
+	if (!crpc) {
 		LIBCFS_ALLOC(crpc, sizeof(*crpc));
-		if (crpc == NULL)
+		if (!crpc)
 			return -ENOMEM;
 	}
 
@@ -157,7 +157,7 @@ lstcon_rpc_put(lstcon_rpc_t *crpc)
 	LASSERT(list_empty(&crpc->crp_link));
 
 	for (i = 0; i < bulk->bk_niov; i++) {
-		if (bulk->bk_iovs[i].kiov_page == NULL)
+		if (!bulk->bk_iovs[i].kiov_page)
 			continue;
 
 		__free_page(bulk->bk_iovs[i].kiov_page);
@@ -188,7 +188,7 @@ lstcon_rpc_post(lstcon_rpc_t *crpc)
 {
 	lstcon_rpc_trans_t *trans = crpc->crp_trans;
 
-	LASSERT(trans != NULL);
+	LASSERT(trans);
 
 	atomic_inc(&trans->tas_remaining);
 	crpc->crp_posted = 1;
@@ -241,7 +241,7 @@ lstcon_rpc_trans_prep(struct list_head *translist,
 {
 	lstcon_rpc_trans_t *trans;
 
-	if (translist != NULL) {
+	if (translist) {
 		list_for_each_entry(trans, translist, tas_link) {
 			/*
 			 * Can't enqueue two private transaction on
@@ -254,12 +254,12 @@ lstcon_rpc_trans_prep(struct list_head *translist,
 
 	/* create a trans group */
 	LIBCFS_ALLOC(trans, sizeof(*trans));
-	if (trans == NULL)
+	if (!trans)
 		return -ENOMEM;
 
 	trans->tas_opc = transop;
 
-	if (translist == NULL)
+	if (!translist)
 		INIT_LIST_HEAD(&trans->tas_olink);
 	else
 		list_add_tail(&trans->tas_olink, translist);
@@ -393,7 +393,7 @@ lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 	srpc_client_rpc_t *rpc = crpc->crp_rpc;
 	srpc_generic_reply_t *rep;
 
-	LASSERT(nd != NULL && rpc != NULL);
+	LASSERT(nd && rpc);
 	LASSERT(crpc->crp_stamp != 0);
 
 	if (crpc->crp_status != 0) {
@@ -430,7 +430,7 @@ lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 	srpc_msg_t *rep;
 	int error;
 
-	LASSERT(stat != NULL);
+	LASSERT(stat);
 
 	memset(stat, 0, sizeof(*stat));
 
@@ -484,7 +484,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 	struct timeval tv;
 	int error;
 
-	LASSERT(head_up != NULL);
+	LASSERT(head_up);
 
 	next = head_up;
 
@@ -530,7 +530,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 				 sizeof(rep->status)))
 			return -EFAULT;
 
-		if (readent == NULL)
+		if (!readent)
 			continue;
 
 		error = readent(trans->tas_opc, msg, ent);
@@ -866,7 +866,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 			bulk->bk_iovs[i].kiov_page   =
 				alloc_page(GFP_KERNEL);
 
-			if (bulk->bk_iovs[i].kiov_page == NULL) {
+			if (!bulk->bk_iovs[i].kiov_page) {
 				lstcon_rpc_put(*crpc);
 				return -ENOMEM;
 			}
@@ -1108,7 +1108,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 
 	feats = trans->tas_features;
 	list_for_each_entry(ndl, ndlist, ndl_link) {
-		rc = condition == NULL ? 1 :
+		rc = !condition ? 1 :
 		     condition(transop, ndl->ndl_node, arg);
 
 		if (rc == 0)
@@ -1201,7 +1201,7 @@ lstcon_rpc_pinger(void *arg)
 
 	trans = console_session.ses_ping;
 
-	LASSERT(trans != NULL);
+	LASSERT(trans);
 
 	list_for_each_entry(ndl, &console_session.ses_ndl_list, ndl_link) {
 		nd = ndl->ndl_node;
@@ -1226,7 +1226,7 @@ lstcon_rpc_pinger(void *arg)
 
 		crpc = &nd->nd_ping;
 
-		if (crpc->crp_rpc != NULL) {
+		if (crpc->crp_rpc) {
 			LASSERT(crpc->crp_trans == trans);
 			LASSERT(!list_empty(&crpc->crp_link));
 

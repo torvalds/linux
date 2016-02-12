@@ -96,13 +96,13 @@ lnet_net_unique(__u32 net, struct list_head *nilist)
 void
 lnet_ni_free(struct lnet_ni *ni)
 {
-	if (ni->ni_refs != NULL)
+	if (ni->ni_refs)
 		cfs_percpt_free(ni->ni_refs);
 
-	if (ni->ni_tx_queues != NULL)
+	if (ni->ni_tx_queues)
 		cfs_percpt_free(ni->ni_tx_queues);
 
-	if (ni->ni_cpts != NULL)
+	if (ni->ni_cpts)
 		cfs_expr_list_values_free(ni->ni_cpts, ni->ni_ncpts);
 
 	LIBCFS_FREE(ni, sizeof(*ni));
@@ -123,7 +123,7 @@ lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 	}
 
 	LIBCFS_ALLOC(ni, sizeof(*ni));
-	if (ni == NULL) {
+	if (!ni) {
 		CERROR("Out of memory creating network %s\n",
 		       libcfs_net2str(net));
 		return NULL;
@@ -133,18 +133,18 @@ lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 	INIT_LIST_HEAD(&ni->ni_cptlist);
 	ni->ni_refs = cfs_percpt_alloc(lnet_cpt_table(),
 				       sizeof(*ni->ni_refs[0]));
-	if (ni->ni_refs == NULL)
+	if (!ni->ni_refs)
 		goto failed;
 
 	ni->ni_tx_queues = cfs_percpt_alloc(lnet_cpt_table(),
 					    sizeof(*ni->ni_tx_queues[0]));
-	if (ni->ni_tx_queues == NULL)
+	if (!ni->ni_tx_queues)
 		goto failed;
 
 	cfs_percpt_for_each(tq, i, ni->ni_tx_queues)
 		INIT_LIST_HEAD(&tq->tq_delayed);
 
-	if (el == NULL) {
+	if (!el) {
 		ni->ni_cpts  = NULL;
 		ni->ni_ncpts = LNET_CPT_NUMBER;
 	} else {
@@ -194,7 +194,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 	}
 
 	LIBCFS_ALLOC(tokens, tokensize);
-	if (tokens == NULL) {
+	if (!tokens) {
 		CERROR("Can't allocate net tokens\n");
 		return -ENOMEM;
 	}
@@ -207,10 +207,10 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 
 	/* Add in the loopback network */
 	ni = lnet_ni_alloc(LNET_MKNET(LOLND, 0), NULL, nilist);
-	if (ni == NULL)
+	if (!ni)
 		goto failed;
 
-	while (str != NULL && *str != 0) {
+	while (str && *str != 0) {
 		char *comma = strchr(str, ',');
 		char *bracket = strchr(str, '(');
 		char *square = strchr(str, '[');
@@ -222,18 +222,18 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		 * NB we don't check interface conflicts here; it's the LNDs
 		 * responsibility (if it cares at all)
 		 */
-		if (square != NULL && (comma == NULL || square < comma)) {
+		if (square && (!comma || square < comma)) {
 			/*
 			 * i.e: o2ib0(ib0)[1,2], number between square
 			 * brackets are CPTs this NI needs to be bond
 			 */
-			if (bracket != NULL && bracket > square) {
+			if (bracket && bracket > square) {
 				tmp = square;
 				goto failed_syntax;
 			}
 
 			tmp = strchr(square, ']');
-			if (tmp == NULL) {
+			if (!tmp) {
 				tmp = square;
 				goto failed_syntax;
 			}
@@ -249,11 +249,10 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 				*square++ = ' ';
 		}
 
-		if (bracket == NULL ||
-		    (comma != NULL && comma < bracket)) {
+		if (!bracket || (comma && comma < bracket)) {
 			/* no interface list specified */
 
-			if (comma != NULL)
+			if (comma)
 				*comma++ = 0;
 			net = libcfs_str2net(cfs_trimwhite(str));
 
@@ -265,10 +264,10 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 			}
 
 			if (LNET_NETTYP(net) != LOLND && /* LO is implicit */
-			    lnet_ni_alloc(net, el, nilist) == NULL)
+			    !lnet_ni_alloc(net, el, nilist))
 				goto failed;
 
-			if (el != NULL) {
+			if (el) {
 				cfs_expr_list_free(el);
 				el = NULL;
 			}
@@ -286,10 +285,10 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 
 		nnets++;
 		ni = lnet_ni_alloc(net, el, nilist);
-		if (ni == NULL)
+		if (!ni)
 			goto failed;
 
-		if (el != NULL) {
+		if (el) {
 			cfs_expr_list_free(el);
 			el = NULL;
 		}
@@ -298,7 +297,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		iface = bracket + 1;
 
 		bracket = strchr(iface, ')');
-		if (bracket == NULL) {
+		if (!bracket) {
 			tmp = iface;
 			goto failed_syntax;
 		}
@@ -306,7 +305,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		*bracket = 0;
 		do {
 			comma = strchr(iface, ',');
-			if (comma != NULL)
+			if (comma)
 				*comma++ = 0;
 
 			iface = cfs_trimwhite(iface);
@@ -324,11 +323,11 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 
 			ni->ni_interfaces[niface++] = iface;
 			iface = comma;
-		} while (iface != NULL);
+		} while (iface);
 
 		str = bracket + 1;
 		comma = strchr(bracket + 1, ',');
-		if (comma != NULL) {
+		if (comma) {
 			*comma = 0;
 			str = cfs_trimwhite(str);
 			if (*str != 0) {
@@ -359,7 +358,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		lnet_ni_free(ni);
 	}
 
-	if (el != NULL)
+	if (el)
 		cfs_expr_list_free(el);
 
 	LIBCFS_FREE(tokens, tokensize);
@@ -388,7 +387,7 @@ lnet_new_text_buf(int str_len)
 	}
 
 	LIBCFS_ALLOC(ltb, nob);
-	if (ltb == NULL)
+	if (!ltb)
 		return NULL;
 
 	ltb->ltb_size = nob;
@@ -442,7 +441,7 @@ lnet_str2tbs_sep(struct list_head *tbs, char *str)
 		nob = (int)(sep - str);
 		if (nob > 0) {
 			ltb = lnet_new_text_buf(nob);
-			if (ltb == NULL) {
+			if (!ltb) {
 				lnet_free_text_bufs(&pending);
 				return -1;
 			}
@@ -488,7 +487,7 @@ lnet_expand1tb(struct list_head *list,
 	LASSERT(*sep2 == ']');
 
 	ltb = lnet_new_text_buf(len1 + itemlen + len2);
-	if (ltb == NULL)
+	if (!ltb)
 		return -ENOMEM;
 
 	memcpy(ltb->ltb_text, str, len1);
@@ -519,11 +518,11 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 	INIT_LIST_HEAD(&pending);
 
 	sep = strchr(str, '[');
-	if (sep == NULL)			/* nothing to expand */
+	if (!sep)			/* nothing to expand */
 		return 0;
 
 	sep2 = strchr(sep, ']');
-	if (sep2 == NULL)
+	if (!sep2)
 		goto failed;
 
 	for (parsed = sep; parsed < sep2; parsed = enditem) {
@@ -599,7 +598,7 @@ lnet_parse_priority(char *str, unsigned int *priority, char **token)
 	int len;
 
 	sep = strchr(str, LNET_PRIORITY_SEPARATOR);
-	if (sep == NULL) {
+	if (!sep) {
 		*priority = 0;
 		return 0;
 	}
@@ -683,7 +682,7 @@ lnet_parse_route(char *str, int *im_a_router)
 		}
 
 		ltb = lnet_new_text_buf(strlen(token));
-		if (ltb == NULL)
+		if (!ltb)
 			goto out;
 
 		strcpy(ltb->ltb_text, token);
@@ -889,12 +888,12 @@ lnet_netspec2net(char *netspec)
 	char *bracket = strchr(netspec, '(');
 	__u32 net;
 
-	if (bracket != NULL)
+	if (bracket)
 		*bracket = 0;
 
 	net = libcfs_str2net(netspec);
 
-	if (bracket != NULL)
+	if (bracket)
 		*bracket = '(';
 
 	return net;
@@ -922,9 +921,7 @@ lnet_splitnets(char *source, struct list_head *nets)
 		sep = strchr(tb->ltb_text, ',');
 		bracket = strchr(tb->ltb_text, '(');
 
-		if (sep != NULL &&
-		    bracket != NULL &&
-		    bracket < sep) {
+		if (sep && bracket && bracket < sep) {
 			/* netspec lists interfaces... */
 
 			offset2 = offset + (int)(bracket - tb->ltb_text);
@@ -932,7 +929,7 @@ lnet_splitnets(char *source, struct list_head *nets)
 
 			bracket = strchr(bracket + 1, ')');
 
-			if (bracket == NULL ||
+			if (!bracket ||
 			    !(bracket[1] == ',' || bracket[1] == 0)) {
 				lnet_syntax("ip2nets", source, offset2, len);
 				return -EINVAL;
@@ -941,7 +938,7 @@ lnet_splitnets(char *source, struct list_head *nets)
 			sep = (bracket[1] == 0) ? NULL : bracket + 1;
 		}
 
-		if (sep != NULL)
+		if (sep)
 			*sep++ = 0;
 
 		net = lnet_netspec2net(tb->ltb_text);
@@ -965,13 +962,13 @@ lnet_splitnets(char *source, struct list_head *nets)
 			}
 		}
 
-		if (sep == NULL)
+		if (!sep)
 			return 0;
 
 		offset += (int)(sep - tb->ltb_text);
 		len = strlen(sep);
 		tb2 = lnet_new_text_buf(len);
-		if (tb2 == NULL)
+		if (!tb2)
 			return -ENOMEM;
 
 		strncpy(tb2->ltb_text, sep, len);
@@ -1118,7 +1115,7 @@ lnet_ipaddr_enumerate(__u32 **ipaddrsp)
 		return nif;
 
 	LIBCFS_ALLOC(ipaddrs, nif * sizeof(*ipaddrs));
-	if (ipaddrs == NULL) {
+	if (!ipaddrs) {
 		CERROR("Can't allocate ipaddrs[%d]\n", nif);
 		lnet_ipif_free_enumeration(ifnames, nif);
 		return -ENOMEM;
@@ -1151,7 +1148,7 @@ lnet_ipaddr_enumerate(__u32 **ipaddrsp)
 	} else {
 		if (nip > 0) {
 			LIBCFS_ALLOC(ipaddrs2, nip * sizeof(*ipaddrs2));
-			if (ipaddrs2 == NULL) {
+			if (!ipaddrs2) {
 				CERROR("Can't allocate ipaddrs[%d]\n", nip);
 				nip = -ENOMEM;
 			} else {

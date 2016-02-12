@@ -50,7 +50,7 @@ lnet_peer_tables_create(void)
 
 	the_lnet.ln_peer_tables = cfs_percpt_alloc(lnet_cpt_table(),
 						   sizeof(*ptable));
-	if (the_lnet.ln_peer_tables == NULL) {
+	if (!the_lnet.ln_peer_tables) {
 		CERROR("Failed to allocate cpu-partition peer tables\n");
 		return -ENOMEM;
 	}
@@ -60,7 +60,7 @@ lnet_peer_tables_create(void)
 
 		LIBCFS_CPT_ALLOC(hash, lnet_cpt_table(), i,
 				 LNET_PEER_HASH_SIZE * sizeof(*hash));
-		if (hash == NULL) {
+		if (!hash) {
 			CERROR("Failed to create peer hash table\n");
 			lnet_peer_tables_destroy();
 			return -ENOMEM;
@@ -82,12 +82,12 @@ lnet_peer_tables_destroy(void)
 	int i;
 	int j;
 
-	if (the_lnet.ln_peer_tables == NULL)
+	if (!the_lnet.ln_peer_tables)
 		return;
 
 	cfs_percpt_for_each(ptable, i, the_lnet.ln_peer_tables) {
 		hash = ptable->pt_hash;
-		if (hash == NULL) /* not initialized */
+		if (!hash) /* not initialized */
 			break;
 
 		LASSERT(list_empty(&ptable->pt_deathrow));
@@ -220,7 +220,7 @@ lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 
 	ptable = the_lnet.ln_peer_tables[cpt2];
 	lp = lnet_find_peer_locked(ptable, nid);
-	if (lp != NULL) {
+	if (lp) {
 		*lpp = lp;
 		return 0;
 	}
@@ -238,12 +238,12 @@ lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 	ptable->pt_number++;
 	lnet_net_unlock(cpt);
 
-	if (lp != NULL)
+	if (lp)
 		memset(lp, 0, sizeof(*lp));
 	else
 		LIBCFS_CPT_ALLOC(lp, lnet_cpt_table(), cpt2, sizeof(*lp));
 
-	if (lp == NULL) {
+	if (!lp) {
 		rc = -ENOMEM;
 		lnet_net_lock(cpt);
 		goto out;
@@ -276,13 +276,13 @@ lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 	}
 
 	lp2 = lnet_find_peer_locked(ptable, nid);
-	if (lp2 != NULL) {
+	if (lp2) {
 		*lpp = lp2;
 		goto out;
 	}
 
 	lp->lp_ni = lnet_net2ni_locked(LNET_NIDNET(nid), cpt2);
-	if (lp->lp_ni == NULL) {
+	if (!lp->lp_ni) {
 		rc = -EHOSTUNREACH;
 		goto out;
 	}
@@ -299,7 +299,7 @@ lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 
 	return 0;
 out:
-	if (lp != NULL)
+	if (lp)
 		list_add(&lp->lp_hashlist, &ptable->pt_deathrow);
 	ptable->pt_number--;
 	return rc;

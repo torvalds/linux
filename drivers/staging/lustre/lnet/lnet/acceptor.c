@@ -299,16 +299,16 @@ lnet_accept(struct socket *sock, __u32 magic)
 		__swab64s(&cr.acr_nid);
 
 	ni = lnet_net2ni(LNET_NIDNET(cr.acr_nid));
-	if (ni == NULL ||	       /* no matching net */
+	if (!ni ||	       /* no matching net */
 	    ni->ni_nid != cr.acr_nid) { /* right NET, wrong NID! */
-		if (ni != NULL)
+		if (ni)
 			lnet_ni_decref(ni);
 		LCONSOLE_ERROR_MSG(0x120, "Refusing connection from %pI4h for %s: No matching NI\n",
 				   &peer_ip, libcfs_nid2str(cr.acr_nid));
 		return -EPERM;
 	}
 
-	if (ni->ni_lnd->lnd_accept == NULL) {
+	if (!ni->ni_lnd->lnd_accept) {
 		/* This catches a request for the loopback LND */
 		lnet_ni_decref(ni);
 		LCONSOLE_ERROR_MSG(0x121, "Refusing connection from %pI4h for %s: NI doesn not accept IP connections\n",
@@ -335,7 +335,7 @@ lnet_acceptor(void *arg)
 	int peer_port;
 	int secure = (int)((long_ptr_t)arg);
 
-	LASSERT(lnet_acceptor_state.pta_sock == NULL);
+	LASSERT(!lnet_acceptor_state.pta_sock);
 
 	cfs_block_allsigs();
 
@@ -443,7 +443,7 @@ lnet_acceptor_start(void)
 	long rc2;
 	long secure;
 
-	LASSERT(lnet_acceptor_state.pta_sock == NULL);
+	LASSERT(!lnet_acceptor_state.pta_sock);
 
 	rc = lnet_acceptor_get_tunables();
 	if (rc != 0)
@@ -471,11 +471,11 @@ lnet_acceptor_start(void)
 
 	if (!lnet_acceptor_state.pta_shutdown) {
 		/* started OK */
-		LASSERT(lnet_acceptor_state.pta_sock != NULL);
+		LASSERT(lnet_acceptor_state.pta_sock);
 		return 0;
 	}
 
-	LASSERT(lnet_acceptor_state.pta_sock == NULL);
+	LASSERT(!lnet_acceptor_state.pta_sock);
 
 	return -ENETDOWN;
 }
@@ -483,7 +483,7 @@ lnet_acceptor_start(void)
 void
 lnet_acceptor_stop(void)
 {
-	if (lnet_acceptor_state.pta_sock == NULL) /* not running */
+	if (!lnet_acceptor_state.pta_sock) /* not running */
 		return;
 
 	lnet_acceptor_state.pta_shutdown = 1;

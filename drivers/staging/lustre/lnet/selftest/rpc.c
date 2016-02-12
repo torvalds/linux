@@ -107,11 +107,11 @@ srpc_free_bulk(srpc_bulk_t *bk)
 	int i;
 	struct page *pg;
 
-	LASSERT(bk != NULL);
+	LASSERT(bk);
 
 	for (i = 0; i < bk->bk_niov; i++) {
 		pg = bk->bk_iovs[i].kiov_page;
-		if (pg == NULL)
+		if (!pg)
 			break;
 
 		__free_page(pg);
@@ -131,7 +131,7 @@ srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 
 	LIBCFS_CPT_ALLOC(bk, lnet_cpt_table(), cpt,
 			 offsetof(srpc_bulk_t, bk_iovs[bulk_npg]));
-	if (bk == NULL) {
+	if (!bk) {
 		CERROR("Can't allocate descriptor for %d pages\n", bulk_npg);
 		return NULL;
 	}
@@ -147,7 +147,7 @@ srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 
 		pg = alloc_pages_node(cfs_cpt_spread_node(lnet_cpt_table(), cpt),
 				      GFP_KERNEL, 0);
-		if (pg == NULL) {
+		if (!pg) {
 			CERROR("Can't allocate page %d of %d\n", i, bulk_npg);
 			srpc_free_bulk(bk);
 			return NULL;
@@ -199,7 +199,7 @@ srpc_service_fini(struct srpc_service *svc)
 	struct list_head *q;
 	int i;
 
-	if (svc->sv_cpt_data == NULL)
+	if (!svc->sv_cpt_data)
 		return;
 
 	cfs_percpt_for_each(scd, i, svc->sv_cpt_data) {
@@ -258,7 +258,7 @@ srpc_service_init(struct srpc_service *svc)
 
 	svc->sv_cpt_data = cfs_percpt_alloc(lnet_cpt_table(),
 					    sizeof(struct srpc_service_cd));
-	if (svc->sv_cpt_data == NULL)
+	if (!svc->sv_cpt_data)
 		return -ENOMEM;
 
 	svc->sv_ncpts = srpc_serv_is_framework(svc) ?
@@ -297,7 +297,7 @@ srpc_service_init(struct srpc_service *svc)
 		for (j = 0; j < nrpcs; j++) {
 			LIBCFS_CPT_ALLOC(rpc, lnet_cpt_table(),
 					 i, sizeof(*rpc));
-			if (rpc == NULL) {
+			if (!rpc) {
 				srpc_service_fini(svc);
 				return -ENOMEM;
 			}
@@ -322,7 +322,7 @@ srpc_add_service(struct srpc_service *sv)
 
 	LASSERT(srpc_data.rpc_state == SRPC_STATE_RUNNING);
 
-	if (srpc_data.rpc_services[id] != NULL) {
+	if (srpc_data.rpc_services[id]) {
 		spin_unlock(&srpc_data.rpc_glock);
 		goto failed;
 	}
@@ -536,7 +536,7 @@ srpc_add_buffer(struct swi_workitem *wi)
 		spin_unlock(&scd->scd_lock);
 
 		LIBCFS_ALLOC(buf, sizeof(*buf));
-		if (buf == NULL) {
+		if (!buf) {
 			CERROR("Failed to add new buf to service: %s\n",
 			       scd->scd_svc->sv_name);
 			spin_lock(&scd->scd_lock);
@@ -880,7 +880,7 @@ srpc_do_bulk(struct srpc_server_rpc *rpc)
 	int rc;
 	int opt;
 
-	LASSERT(bk != NULL);
+	LASSERT(bk);
 
 	opt = bk->bk_sink ? LNET_MD_OP_GET : LNET_MD_OP_PUT;
 	opt |= LNET_MD_KIOV;
@@ -921,13 +921,13 @@ srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 		spin_unlock(&srpc_data.rpc_glock);
 	}
 
-	if (rpc->srpc_done != NULL)
+	if (rpc->srpc_done)
 		(*rpc->srpc_done) (rpc);
-	LASSERT(rpc->srpc_bulk == NULL);
+	LASSERT(!rpc->srpc_bulk);
 
 	spin_lock(&scd->scd_lock);
 
-	if (rpc->srpc_reqstbuf != NULL) {
+	if (rpc->srpc_reqstbuf) {
 		/*
 		 * NB might drop sv_lock in srpc_service_recycle_buffer, but
 		 * sv won't go away for scd_rpc_active must not be empty
@@ -980,7 +980,7 @@ srpc_handle_rpc(swi_workitem_t *wi)
 	if (sv->sv_shuttingdown || rpc->srpc_aborted) {
 		spin_unlock(&scd->scd_lock);
 
-		if (rpc->srpc_bulk != NULL)
+		if (rpc->srpc_bulk)
 			LNetMDUnlink(rpc->srpc_bulk->bk_mdh);
 		LNetMDUnlink(rpc->srpc_replymdh);
 
@@ -1028,7 +1028,7 @@ srpc_handle_rpc(swi_workitem_t *wi)
 
 		wi->swi_state = SWI_STATE_BULK_STARTED;
 
-		if (rpc->srpc_bulk != NULL) {
+		if (rpc->srpc_bulk) {
 			rc = srpc_do_bulk(rpc);
 			if (rc == 0)
 				return 0; /* wait for bulk */
@@ -1038,12 +1038,12 @@ srpc_handle_rpc(swi_workitem_t *wi)
 		}
 	}
 	case SWI_STATE_BULK_STARTED:
-		LASSERT(rpc->srpc_bulk == NULL || ev->ev_fired);
+		LASSERT(!rpc->srpc_bulk || ev->ev_fired);
 
-		if (rpc->srpc_bulk != NULL) {
+		if (rpc->srpc_bulk) {
 			rc = ev->ev_status;
 
-			if (sv->sv_bulk_ready != NULL)
+			if (sv->sv_bulk_ready)
 				rc = (*sv->sv_bulk_ready) (rpc, rc);
 
 			if (rc != 0) {
@@ -1186,11 +1186,11 @@ srpc_send_rpc(swi_workitem_t *wi)
 	srpc_msg_t *reply;
 	int do_bulk;
 
-	LASSERT(wi != NULL);
+	LASSERT(wi);
 
 	rpc = wi->swi_workitem.wi_data;
 
-	LASSERT(rpc != NULL);
+	LASSERT(rpc);
 	LASSERT(wi == &rpc->crpc_wi);
 
 	reply = &rpc->crpc_replymsg;
@@ -1322,7 +1322,7 @@ srpc_create_client_rpc(lnet_process_id_t peer, int service,
 
 	LIBCFS_ALLOC(rpc, offsetof(srpc_client_rpc_t,
 				   crpc_bulk.bk_iovs[nbulkiov]));
-	if (rpc == NULL)
+	if (!rpc)
 		return NULL;
 
 	srpc_init_client_rpc(rpc, peer, service, nbulkiov,
@@ -1377,7 +1377,7 @@ srpc_send_reply(struct srpc_server_rpc *rpc)
 	__u64 rpyid;
 	int rc;
 
-	LASSERT(buffer != NULL);
+	LASSERT(buffer);
 	rpyid = buffer->buf_msg.msg_body.reqst.rpyid;
 
 	spin_lock(&scd->scd_lock);
@@ -1664,8 +1664,7 @@ srpc_shutdown(void)
 		for (i = 0; i <= SRPC_SERVICE_MAX_ID; i++) {
 			srpc_service_t *sv = srpc_data.rpc_services[i];
 
-			LASSERTF(sv == NULL,
-				 "service not empty: id %d, name %s\n",
+			LASSERTF(!sv, "service not empty: id %d, name %s\n",
 				 i, sv->sv_name);
 		}
 

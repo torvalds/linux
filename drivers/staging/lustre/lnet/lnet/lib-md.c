@@ -57,7 +57,7 @@ lnet_md_unlink(lnet_libmd_t *md)
 		 * and unlink it if it was created
 		 * with LNET_UNLINK
 		 */
-		if (me != NULL) {
+		if (me) {
 			/* detach MD from portal */
 			lnet_ptl_detach_md(me, md);
 			if (me->me_unlink == LNET_UNLINK)
@@ -75,7 +75,7 @@ lnet_md_unlink(lnet_libmd_t *md)
 
 	CDEBUG(D_NET, "Unlinking md %p\n", md);
 
-	if (md->md_eq != NULL) {
+	if (md->md_eq) {
 		int cpt = lnet_cpt_of_cookie(md->md_lh.lh_cookie);
 
 		LASSERT(*md->md_eq->eq_refs[cpt] > 0);
@@ -187,7 +187,7 @@ lnet_md_link(lnet_libmd_t *md, lnet_handle_eq_t eq_handle, int cpt)
 	 * TODO - reevaluate what should be here in light of
 	 * the removal of the start and end events
 	 * maybe there we shouldn't even allow LNET_EQ_NONE!)
-	 * LASSERT (eq == NULL);
+	 * LASSERT(!eq);
 	 */
 	if (!LNetHandleIsInvalid(eq_handle)) {
 		md->md_eq = lnet_handle2eq(&eq_handle);
@@ -306,7 +306,7 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 	me = lnet_handle2me(&meh);
 	if (!me)
 		rc = -ENOENT;
-	else if (me->me_md != NULL)
+	else if (me->me_md)
 		rc = -EBUSY;
 	else
 		rc = lnet_md_link(md, umd.eq_handle, cpt);
@@ -453,7 +453,7 @@ LNetMDUnlink(lnet_handle_md_t mdh)
 	 * when the LND is done, the completion event flags that the MD was
 	 * unlinked.  Otherwise, we enqueue an event now...
 	 */
-	if (md->md_eq != NULL && md->md_refcount == 0) {
+	if (md->md_eq && md->md_refcount == 0) {
 		lnet_build_unlink_event(md, &ev);
 		lnet_eq_enqueue_event(md->md_eq, &ev);
 	}

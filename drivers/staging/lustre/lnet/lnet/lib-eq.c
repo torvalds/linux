@@ -94,12 +94,12 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 		return -EINVAL;
 
 	eq = lnet_eq_alloc();
-	if (eq == NULL)
+	if (!eq)
 		return -ENOMEM;
 
 	if (count != 0) {
 		LIBCFS_ALLOC(eq->eq_events, count * sizeof(lnet_event_t));
-		if (eq->eq_events == NULL)
+		if (!eq->eq_events)
 			goto failed;
 		/*
 		 * NB allocator has set all event sequence numbers to 0,
@@ -114,7 +114,7 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 
 	eq->eq_refs = cfs_percpt_alloc(lnet_cpt_table(),
 				       sizeof(*eq->eq_refs[0]));
-	if (eq->eq_refs == NULL)
+	if (!eq->eq_refs)
 		goto failed;
 
 	/* MUST hold both exclusive lnet_res_lock */
@@ -135,10 +135,10 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 	return 0;
 
 failed:
-	if (eq->eq_events != NULL)
+	if (eq->eq_events)
 		LIBCFS_FREE(eq->eq_events, count * sizeof(lnet_event_t));
 
-	if (eq->eq_refs != NULL)
+	if (eq->eq_refs)
 		cfs_percpt_free(eq->eq_refs);
 
 	lnet_eq_free(eq);
@@ -178,7 +178,7 @@ LNetEQFree(lnet_handle_eq_t eqh)
 	lnet_eq_wait_lock();
 
 	eq = lnet_handle2eq(&eqh);
-	if (eq == NULL) {
+	if (!eq) {
 		rc = -ENOENT;
 		goto out;
 	}
@@ -206,9 +206,9 @@ LNetEQFree(lnet_handle_eq_t eqh)
 	lnet_eq_wait_unlock();
 	lnet_res_unlock(LNET_LOCK_EX);
 
-	if (events != NULL)
+	if (events)
 		LIBCFS_FREE(events, size * sizeof(lnet_event_t));
-	if (refs != NULL)
+	if (refs)
 		cfs_percpt_free(refs);
 
 	return rc;
@@ -395,7 +395,7 @@ LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
 		for (i = 0; i < neq; i++) {
 			lnet_eq_t *eq = lnet_handle2eq(&eventqs[i]);
 
-			if (eq == NULL) {
+			if (!eq) {
 				lnet_eq_wait_unlock();
 				return -ENOENT;
 			}

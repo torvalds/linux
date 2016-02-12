@@ -56,7 +56,7 @@ ksocknal_next_tx_carrier(ksock_conn_t *conn)
 
 	/* Called holding BH lock: conn->ksnc_scheduler->kss_lock */
 	LASSERT(!list_empty(&conn->ksnc_tx_queue));
-	LASSERT(tx != NULL);
+	LASSERT(tx);
 
 	/* Next TX that can carry ZC-ACK or LNet message */
 	if (tx->tx_list.next == &conn->ksnc_tx_queue) {
@@ -75,7 +75,7 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 {
 	ksock_tx_t *tx = conn->ksnc_tx_carrier;
 
-	LASSERT(tx_ack == NULL ||
+	LASSERT(!tx_ack ||
 		tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	/*
@@ -85,8 +85,8 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 	 * . There is tx can piggyback cookie of tx_ack (or cookie),
 	 *   piggyback the cookie and return the tx.
 	 */
-	if (tx == NULL) {
-		if (tx_ack != NULL) {
+	if (!tx) {
+		if (tx_ack) {
 			list_add_tail(&tx_ack->tx_list,
 				      &conn->ksnc_tx_queue);
 			conn->ksnc_tx_carrier = tx_ack;
@@ -96,7 +96,7 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 
 	if (tx->tx_msg.ksm_type == KSOCK_MSG_NOOP) {
 		/* tx is noop zc-ack, can't piggyback zc-ack cookie */
-		if (tx_ack != NULL)
+		if (tx_ack)
 			list_add_tail(&tx_ack->tx_list,
 				      &conn->ksnc_tx_queue);
 		return 0;
@@ -105,7 +105,7 @@ ksocknal_queue_tx_zcack_v2(ksock_conn_t *conn,
 	LASSERT(tx->tx_msg.ksm_type == KSOCK_MSG_LNET);
 	LASSERT(tx->tx_msg.ksm_zc_cookies[1] == 0);
 
-	if (tx_ack != NULL)
+	if (tx_ack)
 		cookie = tx_ack->tx_msg.ksm_zc_cookies[1];
 
 	/* piggyback the zc-ack cookie */
@@ -128,7 +128,7 @@ ksocknal_queue_tx_msg_v2(ksock_conn_t *conn, ksock_tx_t *tx_msg)
 	 * . If there is NOOP on the connection, piggyback the cookie
 	 *   and replace the NOOP tx, and return the NOOP tx.
 	 */
-	if (tx == NULL) { /* nothing on queue */
+	if (!tx) { /* nothing on queue */
 		list_add_tail(&tx_msg->tx_list, &conn->ksnc_tx_queue);
 		conn->ksnc_tx_carrier = tx_msg;
 		return NULL;
@@ -162,12 +162,12 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		return ksocknal_queue_tx_zcack_v2(conn, tx_ack, cookie);
 
 	/* non-blocking ZC-ACK (to router) */
-	LASSERT(tx_ack == NULL ||
+	LASSERT(!tx_ack ||
 		tx_ack->tx_msg.ksm_type == KSOCK_MSG_NOOP);
 
 	tx = conn->ksnc_tx_carrier;
-	if (tx == NULL) {
-		if (tx_ack != NULL) {
+	if (!tx) {
+		if (tx_ack) {
 			list_add_tail(&tx_ack->tx_list,
 				      &conn->ksnc_tx_queue);
 			conn->ksnc_tx_carrier = tx_ack;
@@ -175,9 +175,9 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 		return 0;
 	}
 
-	/* conn->ksnc_tx_carrier != NULL */
+	/* conn->ksnc_tx_carrier */
 
-	if (tx_ack != NULL)
+	if (tx_ack)
 		cookie = tx_ack->tx_msg.ksm_zc_cookies[1];
 
 	if (cookie == SOCKNAL_KEEPALIVE_PING) /* ignore keepalive PING */
@@ -261,7 +261,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 	}
 
 	/* failed to piggyback ZC-ACK */
-	if (tx_ack != NULL) {
+	if (tx_ack) {
 		list_add_tail(&tx_ack->tx_list, &conn->ksnc_tx_queue);
 		/* the next tx can piggyback at least 1 ACK */
 		ksocknal_next_tx_carrier(conn);
@@ -280,7 +280,7 @@ ksocknal_match_tx(ksock_conn_t *conn, ksock_tx_t *tx, int nonblk)
 		return SOCKNAL_MATCH_YES;
 #endif
 
-	if (tx == NULL || tx->tx_lnetmsg == NULL) {
+	if (!tx || !tx->tx_lnetmsg) {
 		/* noop packet */
 		nob = offsetof(ksock_msg_t, ksm_u);
 	} else {
@@ -319,7 +319,7 @@ ksocknal_match_tx_v3(ksock_conn_t *conn, ksock_tx_t *tx, int nonblk)
 {
 	int nob;
 
-	if (tx == NULL || tx->tx_lnetmsg == NULL)
+	if (!tx || !tx->tx_lnetmsg)
 		nob = offsetof(ksock_msg_t, ksm_u);
 	else
 		nob = tx->tx_lnetmsg->msg_len + sizeof(ksock_msg_t);
@@ -334,7 +334,7 @@ ksocknal_match_tx_v3(ksock_conn_t *conn, ksock_tx_t *tx, int nonblk)
 	case SOCKLND_CONN_ACK:
 		if (nonblk)
 			return SOCKNAL_MATCH_YES;
-		else if (tx == NULL || tx->tx_lnetmsg == NULL)
+		else if (!tx || !tx->tx_lnetmsg)
 			return SOCKNAL_MATCH_MAY;
 		else
 			return SOCKNAL_MATCH_NO;
@@ -369,10 +369,10 @@ ksocknal_handle_zcreq(ksock_conn_t *c, __u64 cookie, int remote)
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
 	conn = ksocknal_find_conn_locked(peer, NULL, !!remote);
-	if (conn != NULL) {
+	if (conn) {
 		ksock_sched_t *sched = conn->ksnc_scheduler;
 
-		LASSERT(conn->ksnc_proto->pro_queue_tx_zcack != NULL);
+		LASSERT(conn->ksnc_proto->pro_queue_tx_zcack);
 
 		spin_lock_bh(&sched->kss_lock);
 
@@ -390,7 +390,7 @@ ksocknal_handle_zcreq(ksock_conn_t *c, __u64 cookie, int remote)
 
 	/* ACK connection is not ready, or can't piggyback the ACK */
 	tx = ksocknal_alloc_tx_noop(cookie, !!remote);
-	if (tx == NULL)
+	if (!tx)
 		return -ENOMEM;
 
 	rc = ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id);
@@ -461,7 +461,7 @@ ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	CLASSERT(sizeof(lnet_magicversion_t) == offsetof(lnet_hdr_t, src_nid));
 
 	LIBCFS_ALLOC(hdr, sizeof(*hdr));
-	if (hdr == NULL) {
+	if (!hdr) {
 		CERROR("Can't allocate lnet_hdr_t\n");
 		return -ENOMEM;
 	}
@@ -576,7 +576,7 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 	int i;
 
 	LIBCFS_ALLOC(hdr, sizeof(*hdr));
-	if (hdr == NULL) {
+	if (!hdr) {
 		CERROR("Can't allocate lnet_hdr_t\n");
 		return -ENOMEM;
 	}
@@ -713,7 +713,7 @@ ksocknal_pack_msg_v1(ksock_tx_t *tx)
 {
 	/* V1.x has no KSOCK_MSG_NOOP */
 	LASSERT(tx->tx_msg.ksm_type != KSOCK_MSG_NOOP);
-	LASSERT(tx->tx_lnetmsg != NULL);
+	LASSERT(tx->tx_lnetmsg);
 
 	tx->tx_iov[0].iov_base = &tx->tx_lnetmsg->msg_hdr;
 	tx->tx_iov[0].iov_len  = sizeof(lnet_hdr_t);
@@ -727,7 +727,7 @@ ksocknal_pack_msg_v2(ksock_tx_t *tx)
 {
 	tx->tx_iov[0].iov_base = &tx->tx_msg;
 
-	if (tx->tx_lnetmsg != NULL) {
+	if (tx->tx_lnetmsg) {
 		LASSERT(tx->tx_msg.ksm_type != KSOCK_MSG_NOOP);
 
 		tx->tx_msg.ksm_u.lnetmsg.ksnm_hdr = tx->tx_lnetmsg->msg_hdr;

@@ -197,7 +197,7 @@ lnet_md_alloc(lnet_md_t *umd)
 
 	LIBCFS_ALLOC(md, size);
 
-	if (md != NULL) {
+	if (md) {
 		/* Set here in case of early free */
 		md->md_options = umd->options;
 		md->md_niov = niov;
@@ -267,7 +267,7 @@ lnet_res_lh_invalidate(lnet_libhandle_t *lh)
 static inline void
 lnet_eq2handle(lnet_handle_eq_t *handle, lnet_eq_t *eq)
 {
-	if (eq == NULL) {
+	if (!eq) {
 		LNetInvalidateHandle(handle);
 		return;
 	}
@@ -281,7 +281,7 @@ lnet_handle2eq(lnet_handle_eq_t *handle)
 	lnet_libhandle_t *lh;
 
 	lh = lnet_res_lh_lookup(&the_lnet.ln_eq_container, handle->cookie);
-	if (lh == NULL)
+	if (!lh)
 		return NULL;
 
 	return lh_entry(lh, lnet_eq_t, eq_lh);
@@ -303,7 +303,7 @@ lnet_handle2md(lnet_handle_md_t *handle)
 	cpt = lnet_cpt_of_cookie(handle->cookie);
 	lh = lnet_res_lh_lookup(the_lnet.ln_md_containers[cpt],
 				handle->cookie);
-	if (lh == NULL)
+	if (!lh)
 		return NULL;
 
 	return lh_entry(lh, lnet_libmd_t, md_lh);
@@ -322,7 +322,7 @@ lnet_wire_handle2md(lnet_handle_wire_t *wh)
 	cpt = lnet_cpt_of_cookie(wh->wh_object_cookie);
 	lh = lnet_res_lh_lookup(the_lnet.ln_md_containers[cpt],
 				wh->wh_object_cookie);
-	if (lh == NULL)
+	if (!lh)
 		return NULL;
 
 	return lh_entry(lh, lnet_libmd_t, md_lh);
@@ -344,7 +344,7 @@ lnet_handle2me(lnet_handle_me_t *handle)
 	cpt = lnet_cpt_of_cookie(handle->cookie);
 	lh = lnet_res_lh_lookup(the_lnet.ln_me_containers[cpt],
 				handle->cookie);
-	if (lh == NULL)
+	if (!lh)
 		return NULL;
 
 	return lh_entry(lh, lnet_me_t, me_lh);

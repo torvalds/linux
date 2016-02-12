@@ -91,11 +91,11 @@ LNetMEAttach(unsigned int portal,
 
 	mtable = lnet_mt_of_attach(portal, match_id,
 				   match_bits, ignore_bits, pos);
-	if (mtable == NULL) /* can't match portal type */
+	if (!mtable) /* can't match portal type */
 		return -EPERM;
 
 	me = lnet_me_alloc();
-	if (me == NULL)
+	if (!me)
 		return -ENOMEM;
 
 	lnet_res_lock(mtable->mt_cpt);
@@ -163,7 +163,7 @@ LNetMEInsert(lnet_handle_me_t current_meh,
 		return -EPERM;
 
 	new_me = lnet_me_alloc();
-	if (new_me == NULL)
+	if (!new_me)
 		return -ENOMEM;
 
 	cpt = lnet_cpt_of_cookie(current_meh.cookie);
@@ -171,7 +171,7 @@ LNetMEInsert(lnet_handle_me_t current_meh,
 	lnet_res_lock(cpt);
 
 	current_me = lnet_handle2me(&current_meh);
-	if (current_me == NULL) {
+	if (!current_me) {
 		lnet_me_free(new_me);
 
 		lnet_res_unlock(cpt);
@@ -240,15 +240,15 @@ LNetMEUnlink(lnet_handle_me_t meh)
 	lnet_res_lock(cpt);
 
 	me = lnet_handle2me(&meh);
-	if (me == NULL) {
+	if (!me) {
 		lnet_res_unlock(cpt);
 		return -ENOENT;
 	}
 
 	md = me->me_md;
-	if (md != NULL) {
+	if (md) {
 		md->md_flags |= LNET_MD_FLAG_ABORTED;
-		if (md->md_eq != NULL && md->md_refcount == 0) {
+		if (md->md_eq && md->md_refcount == 0) {
 			lnet_build_unlink_event(md, &ev);
 			lnet_eq_enqueue_event(md->md_eq, &ev);
 		}
@@ -267,7 +267,7 @@ lnet_me_unlink(lnet_me_t *me)
 {
 	list_del(&me->me_list);
 
-	if (me->me_md != NULL) {
+	if (me->me_md) {
 		lnet_libmd_t *md = me->me_md;
 
 		/* detach MD from portal of this ME */

@@ -126,7 +126,7 @@ ksocknal_lib_send_kiov(ksock_conn_t *conn, ksock_tx_t *tx)
 	int nob;
 
 	/* Not NOOP message */
-	LASSERT(tx->tx_lnetmsg != NULL);
+	LASSERT(tx->tx_lnetmsg);
 
 	/*
 	 * NB we can't trust socket ops to either consume our iovs
@@ -147,7 +147,7 @@ ksocknal_lib_send_kiov(ksock_conn_t *conn, ksock_tx_t *tx)
 		    fragsize < tx->tx_resid)
 			msgflg |= MSG_MORE;
 
-		if (sk->sk_prot->sendpage != NULL) {
+		if (sk->sk_prot->sendpage) {
 			rc = sk->sk_prot->sendpage(sk, page,
 						   offset, fragsize, msgflg);
 		} else {
@@ -266,7 +266,7 @@ ksocknal_lib_recv_iov(ksock_conn_t *conn)
 static void
 ksocknal_lib_kiov_vunmap(void *addr)
 {
-	if (addr == NULL)
+	if (!addr)
 		return;
 
 	vunmap(addr);
@@ -280,7 +280,7 @@ ksocknal_lib_kiov_vmap(lnet_kiov_t *kiov, int niov,
 	int nob;
 	int i;
 
-	if (!*ksocknal_tunables.ksnd_zc_recv || pages == NULL)
+	if (!*ksocknal_tunables.ksnd_zc_recv || !pages)
 		return NULL;
 
 	LASSERT(niov <= LNET_MAX_IOV);
@@ -299,7 +299,7 @@ ksocknal_lib_kiov_vmap(lnet_kiov_t *kiov, int niov,
 	}
 
 	addr = vmap(pages, niov, VM_MAP, PAGE_KERNEL);
-	if (addr == NULL)
+	if (!addr)
 		return NULL;
 
 	iov->iov_base = addr + kiov[0].kiov_offset;
@@ -342,7 +342,7 @@ ksocknal_lib_recv_kiov(ksock_conn_t *conn)
 	 * or leave them alone.
 	 */
 	addr = ksocknal_lib_kiov_vmap(kiov, niov, scratchiov, pages);
-	if (addr != NULL) {
+	if (addr) {
 		nob = scratchiov[0].iov_len;
 		n = 1;
 
@@ -382,7 +382,7 @@ ksocknal_lib_recv_kiov(ksock_conn_t *conn)
 		}
 	}
 
-	if (addr != NULL) {
+	if (addr) {
 		ksocknal_lib_kiov_vunmap(addr);
 	} else {
 		for (i = 0; i < niov; i++)
@@ -400,7 +400,7 @@ ksocknal_lib_csum_tx(ksock_tx_t *tx)
 	void *base;
 
 	LASSERT(tx->tx_iov[0].iov_base == &tx->tx_msg);
-	LASSERT(tx->tx_conn != NULL);
+	LASSERT(tx->tx_conn);
 	LASSERT(tx->tx_conn->ksnc_proto == &ksocknal_protocol_v2x);
 
 	tx->tx_msg.ksm_csum = 0;
@@ -408,7 +408,7 @@ ksocknal_lib_csum_tx(ksock_tx_t *tx)
 	csum = ksocknal_csum(~0, tx->tx_iov[0].iov_base,
 			     tx->tx_iov[0].iov_len);
 
-	if (tx->tx_kiov != NULL) {
+	if (tx->tx_kiov) {
 		for (i = 0; i < tx->tx_nkiov; i++) {
 			base = kmap(tx->tx_kiov[i].kiov_page) +
 			       tx->tx_kiov[i].kiov_offset;
@@ -606,7 +606,7 @@ ksocknal_data_ready(struct sock *sk)
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
 	conn = sk->sk_user_data;
-	if (conn == NULL) {	     /* raced with ksocknal_terminate_conn */
+	if (!conn) {	     /* raced with ksocknal_terminate_conn */
 		LASSERT(sk->sk_data_ready != &ksocknal_data_ready);
 		sk->sk_data_ready(sk);
 	} else {
@@ -633,14 +633,14 @@ ksocknal_write_space(struct sock *sk)
 
 	CDEBUG(D_NET, "sk %p wspace %d low water %d conn %p%s%s%s\n",
 	       sk, wspace, min_wpace, conn,
-	       (conn == NULL) ? "" : (conn->ksnc_tx_ready ?
+	       !conn ? "" : (conn->ksnc_tx_ready ?
 				      " ready" : " blocked"),
-	       (conn == NULL) ? "" : (conn->ksnc_tx_scheduled ?
+	       !conn ? "" : (conn->ksnc_tx_scheduled ?
 				      " scheduled" : " idle"),
-	       (conn == NULL) ? "" : (list_empty(&conn->ksnc_tx_queue) ?
+	       !conn ? "" : (list_empty(&conn->ksnc_tx_queue) ?
 				      " empty" : " queued"));
 
-	if (conn == NULL) {	     /* raced with ksocknal_terminate_conn */
+	if (!conn) {	     /* raced with ksocknal_terminate_conn */
 		LASSERT(sk->sk_write_space != &ksocknal_write_space);
 		sk->sk_write_space(sk);
 

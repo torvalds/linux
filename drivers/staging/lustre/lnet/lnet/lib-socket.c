@@ -165,7 +165,7 @@ lnet_ipif_enumerate(char ***namesp)
 		}
 
 		LIBCFS_ALLOC(ifr, nalloc * sizeof(*ifr));
-		if (ifr == NULL) {
+		if (!ifr) {
 			CERROR("ENOMEM enumerating up to %d interfaces\n",
 			       nalloc);
 			rc = -ENOMEM;
@@ -197,7 +197,7 @@ lnet_ipif_enumerate(char ***namesp)
 		goto out1;
 
 	LIBCFS_ALLOC(names, nfound * sizeof(*names));
-	if (names == NULL) {
+	if (!names) {
 		rc = -ENOMEM;
 		goto out1;
 	}
@@ -213,7 +213,7 @@ lnet_ipif_enumerate(char ***namesp)
 		}
 
 		LIBCFS_ALLOC(names[i], IFNAMSIZ);
-		if (names[i] == NULL) {
+		if (!names[i]) {
 			rc = -ENOMEM;
 			goto out2;
 		}
@@ -242,7 +242,7 @@ lnet_ipif_free_enumeration(char **names, int n)
 
 	LASSERT(n > 0);
 
-	for (i = 0; i < n && names[i] != NULL; i++)
+	for (i = 0; i < n && names[i]; i++)
 		LIBCFS_FREE(names[i], IFNAMSIZ);
 
 	LIBCFS_FREE(names, n * sizeof(*names));
@@ -468,10 +468,10 @@ lnet_sock_getaddr(struct socket *sock, bool remote, __u32 *ip, int *port)
 		return rc;
 	}
 
-	if (ip != NULL)
+	if (ip)
 		*ip = ntohl(sin.sin_addr.s_addr);
 
-	if (port != NULL)
+	if (port)
 		*port = ntohs(sin.sin_port);
 
 	return 0;
@@ -481,10 +481,10 @@ EXPORT_SYMBOL(lnet_sock_getaddr);
 int
 lnet_sock_getbuf(struct socket *sock, int *txbufsize, int *rxbufsize)
 {
-	if (txbufsize != NULL)
+	if (txbufsize)
 		*txbufsize = sock->sk->sk_sndbuf;
 
-	if (rxbufsize != NULL)
+	if (rxbufsize)
 		*rxbufsize = sock->sk->sk_rcvbuf;
 
 	return 0;
