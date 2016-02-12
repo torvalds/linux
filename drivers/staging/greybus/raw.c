@@ -57,17 +57,17 @@ static DEFINE_IDA(minors);
 static int receive_data(struct gb_raw *raw, u32 len, u8 *data)
 {
 	struct raw_data *raw_data;
+	struct device *dev = &raw->connection->bundle->dev;
 	int retval = 0;
 
 	if (len > MAX_PACKET_SIZE) {
-		dev_err(raw->device, "Too big of a data packet, rejected\n");
+		dev_err(dev, "Too big of a data packet, rejected\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&raw->list_lock);
 	if ((raw->list_data + len) > MAX_DATA_SIZE) {
-		dev_err(raw->device,
-			"Too much data in receive buffer, now dropping packets\n");
+		dev_err(dev, "Too much data in receive buffer, now dropping packets\n");
 		retval = -EINVAL;
 		goto exit;
 	}
@@ -91,32 +91,31 @@ exit:
 static int gb_raw_receive(u8 type, struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
+	struct device *dev = &connection->bundle->dev;
 	struct gb_raw *raw = connection->private;
 	struct gb_raw_send_request *receive;
 	u32 len;
 
 	if (type != GB_RAW_TYPE_SEND) {
-		dev_err(raw->device, "unknown request type %d\n", type);
+		dev_err(dev, "unknown request type %d\n", type);
 		return -EINVAL;
 	}
 
 	/* Verify size of payload */
 	if (op->request->payload_size < sizeof(*receive)) {
-		dev_err(raw->device, "raw receive request too small (%zu < %zu)\n",
+		dev_err(dev, "raw receive request too small (%zu < %zu)\n",
 			op->request->payload_size, sizeof(*receive));
 		return -EINVAL;
 	}
 	receive = op->request->payload;
 	len = le32_to_cpu(receive->len);
 	if (len != (int)(op->request->payload_size - sizeof(__le32))) {
-		dev_err(raw->device,
-			"raw receive request wrong size %d vs %d\n",
-			len,
+		dev_err(dev, "raw receive request wrong size %d vs %d\n", len,
 			(int)(op->request->payload_size - sizeof(__le32)));
 		return -EINVAL;
 	}
 	if (len == 0) {
-		dev_err(raw->device, "raw receive request of 0 bytes?\n");
+		dev_err(dev, "raw receive request of 0 bytes?\n");
 		return -EINVAL;
 	}
 
