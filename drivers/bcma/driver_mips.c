@@ -250,33 +250,10 @@ static enum bcma_boot_dev bcma_boot_dev(struct bcma_bus *bus)
 	return BCMA_BOOT_DEV_SERIAL;
 }
 
-static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
+static void bcma_core_mips_nvram_init(struct bcma_drv_mips *mcore)
 {
 	struct bcma_bus *bus = mcore->core->bus;
-	struct bcma_drv_cc *cc = &bus->drv_cc;
 	enum bcma_boot_dev boot_dev;
-
-	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {
-	case BCMA_CC_FLASHT_STSER:
-	case BCMA_CC_FLASHT_ATSER:
-		bcma_debug(bus, "Found serial flash\n");
-		bcma_sflash_init(cc);
-		break;
-	case BCMA_CC_FLASHT_PARA:
-		bcma_debug(bus, "Found parallel flash\n");
-		bcma_pflash_init(cc);
-		break;
-	default:
-		bcma_err(bus, "Flash type not supported\n");
-	}
-
-	if (cc->core->id.rev == 38 ||
-	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
-		if (cc->capabilities & BCMA_CC_CAP_NFLASH) {
-			bcma_debug(bus, "Found NAND flash\n");
-			bcma_nflash_init(cc);
-		}
-	}
 
 	/* Determine flash type this SoC boots from */
 	boot_dev = bcma_boot_dev(bus);
@@ -304,7 +281,7 @@ void bcma_core_mips_early_init(struct bcma_drv_mips *mcore)
 	if (mcore->early_setup_done)
 		return;
 
-	bcma_core_mips_flash_detect(mcore);
+	bcma_core_mips_nvram_init(mcore);
 
 	mcore->early_setup_done = true;
 }
