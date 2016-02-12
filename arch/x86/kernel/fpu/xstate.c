@@ -877,8 +877,6 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 	int pkey_shift = (pkey * PKRU_BITS_PER_PKEY);
 	u32 new_pkru_bits = 0;
 
-	if (!validate_pkey(pkey))
-		return -EINVAL;
 	/*
 	 * This check implies XSAVE support.  OSPKE only gets
 	 * set if we enable XSAVE and we enable PKU in XCR0.

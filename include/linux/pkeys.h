@@ -13,6 +13,9 @@
 #include <asm/pkeys.h>
 #else /* ! CONFIG_ARCH_HAS_PKEYS */
 #define arch_max_pkey() (1)
+#define execute_only_pkey(mm) (0)
+#define arch_override_mprotect_pkey(vma, prot, pkey) (0)
+#define PKEY_DEDICATED_EXECUTE_ONLY 0
 #endif /* ! CONFIG_ARCH_HAS_PKEYS */
 
 /*
