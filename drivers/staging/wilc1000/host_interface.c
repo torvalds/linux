@@ -314,7 +314,7 @@ static void handle_set_channel(struct wilc_vif *vif,
 				   wilc_get_vif_idx(vif));
 
 	if (ret)
-		PRINT_ER("Failed to set channel\n");
+		netdev_err(vif->ndev, "Failed to set channel\n");
 }
 
 static s32 handle_set_wfi_drv_handler(struct wilc_vif *vif,
