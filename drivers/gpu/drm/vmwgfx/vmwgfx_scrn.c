@@ -74,19 +74,6 @@ struct vmw_kms_sou_dirty_cmd {
 	SVGA3dCmdBlitSurfaceToScreen body;
 };
 
-
-/*
- * Other structs.
- */
-
-struct vmw_screen_object_display {
-	unsigned num_implicit;
-
-	struct vmw_framebuffer *implicit_fb;
-	SVGAFifoCmdDefineGMRFB cur;
-	struct vmw_dma_buffer *pinned_gmrfb;
-};
-
 /**
  * Display unit using screen objects.
  */
@@ -97,7 +84,6 @@ struct vmw_screen_object_unit {
 	struct vmw_dma_buffer *buffer; /**< Backing store buffer */
 
 	bool defined;
-	bool active_implicit;
 };
 
 static void vmw_sou_destroy(struct vmw_screen_object_unit *sou)
@@ -114,33 +100,6 @@ static void vmw_sou_destroy(struct vmw_screen_object_unit *sou)
 static void vmw_sou_crtc_destroy(struct drm_crtc *crtc)
 {
 	vmw_sou_destroy(vmw_crtc_to_sou(crtc));
-}
-
-static void vmw_sou_del_active(struct vmw_private *vmw_priv,
-			       struct vmw_screen_object_unit *sou)
-{
-	struct vmw_screen_object_display *ld = vmw_priv->sou_priv;
-
-	if (sou->active_implicit) {
-		if (--(ld->num_implicit) == 0)
-			ld->implicit_fb = NULL;
-		sou->active_implicit = false;
-	}
-}
-
-static void vmw_sou_add_active(struct vmw_private *vmw_priv,
-			       struct vmw_screen_object_unit *sou,
-			       struct vmw_framebuffer *vfb)
-{
-	struct vmw_screen_object_display *ld = vmw_priv->sou_priv;
-
-	BUG_ON(!ld->num_implicit && ld->implicit_fb);
-
-	if (!sou->active_implicit && sou->base.is_implicit) {
-		ld->implicit_fb = vfb;
-		sou->active_implicit = true;
-		ld->num_implicit++;
-	}
 }
 
 /**
@@ -323,13 +282,13 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 		return -EINVAL;
 	}
 
-	/* sou only supports one fb active at the time */
+	/* Only one active implicit frame-buffer at a time. */
 	if (sou->base.is_implicit &&
-	    dev_priv->sou_priv->implicit_fb && vfb &&
-	    !(dev_priv->sou_priv->num_implicit == 1 &&
-	      sou->active_implicit) &&
-	    dev_priv->sou_priv->implicit_fb != vfb) {
-		DRM_ERROR("Multiple framebuffers not supported\n");
+	    dev_priv->implicit_fb && vfb &&
+	    !(dev_priv->num_implicit == 1 &&
+	      sou->base.active_implicit) &&
+	    dev_priv->implicit_fb != vfb) {
+		DRM_ERROR("Multiple implicit framebuffers not supported.\n");
 		return -EINVAL;
 	}
 
@@ -351,7 +310,7 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 		crtc->y = 0;
 		crtc->enabled = false;
 
-		vmw_sou_del_active(dev_priv, sou);
+		vmw_kms_del_active(dev_priv, &sou->base);
 
 		vmw_sou_backing_free(dev_priv, sou);
 
@@ -415,7 +374,7 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 		return ret;
 	}
 
-	vmw_sou_add_active(dev_priv, sou, vfb);
+	vmw_kms_add_active(dev_priv, &sou->base, vfb);
 
 	connector->encoder = encoder;
 	encoder->crtc = crtc;
@@ -426,39 +385,6 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 	crtc->enabled = true;
 
 	return 0;
-}
-
-/**
- * Returns if this unit can be page flipped.
- * Must be called with the mode_config mutex held.
- */
-static bool vmw_sou_screen_object_flippable(struct vmw_private *dev_priv,
-					    struct drm_crtc *crtc)
-{
-	struct vmw_screen_object_unit *sou = vmw_crtc_to_sou(crtc);
-
-	if (!sou->base.is_implicit)
-		return true;
-
-	if (dev_priv->sou_priv->num_implicit != 1)
-		return false;
-
-	return true;
-}
-
-/**
- * Update the implicit fb to the current fb of this crtc.
- * Must be called with the mode_config mutex held.
- */
-static void vmw_sou_update_implicit_fb(struct vmw_private *dev_priv,
-				       struct drm_crtc *crtc)
-{
-	struct vmw_screen_object_unit *sou = vmw_crtc_to_sou(crtc);
-
-	BUG_ON(!sou->base.is_implicit);
-
-	dev_priv->sou_priv->implicit_fb =
-		vmw_framebuffer_to_vfb(sou->base.crtc.primary->fb);
 }
 
 static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
@@ -473,11 +399,7 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_vmw_rect vclips;
 	int ret;
 
-	/* require ScreenObject support for page flipping */
-	if (!dev_priv->sou_priv)
-		return -ENOSYS;
-
-	if (!vmw_sou_screen_object_flippable(dev_priv, crtc))
+	if (!vmw_kms_crtc_flippable(dev_priv, crtc))
 		return -EINVAL;
 
 	crtc->primary->fb = fb;
@@ -522,7 +444,7 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	vmw_fence_obj_unreference(&fence);
 
 	if (vmw_crtc_to_du(crtc)->is_implicit)
-		vmw_sou_update_implicit_fb(dev_priv, crtc);
+		vmw_kms_update_implicit_fb(dev_priv, crtc);
 
 	return ret;
 
@@ -587,8 +509,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	encoder = &sou->base.encoder;
 	connector = &sou->base.connector;
 
-	sou->active_implicit = false;
-
+	sou->base.active_implicit = false;
 	sou->base.pref_active = (unit == 0);
 	sou->base.pref_width = dev_priv->initial_width;
 	sou->base.pref_height = dev_priv->initial_height;
@@ -623,11 +544,6 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	int i, ret;
 
-	if (dev_priv->sou_priv) {
-		DRM_INFO("sou system already on\n");
-		return -EINVAL;
-	}
-
 	if (!(dev_priv->capabilities & SVGA_CAP_SCREEN_OBJECT_2)) {
 		DRM_INFO("Not using screen objects,"
 			 " missing cap SCREEN_OBJECT_2\n");
@@ -635,16 +551,12 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	}
 
 	ret = -ENOMEM;
-	dev_priv->sou_priv = kmalloc(sizeof(*dev_priv->sou_priv), GFP_KERNEL);
-	if (unlikely(!dev_priv->sou_priv))
-		goto err_no_mem;
-
-	dev_priv->sou_priv->num_implicit = 0;
-	dev_priv->sou_priv->implicit_fb = NULL;
+	dev_priv->num_implicit = 0;
+	dev_priv->implicit_fb = NULL;
 
 	ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
 	if (unlikely(ret != 0))
-		goto err_free;
+		return ret;
 
 	ret = drm_mode_create_dirty_info_property(dev);
 	if (unlikely(ret != 0))
@@ -661,10 +573,6 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 
 err_vblank_cleanup:
 	drm_vblank_cleanup(dev);
-err_free:
-	kfree(dev_priv->sou_priv);
-	dev_priv->sou_priv = NULL;
-err_no_mem:
 	return ret;
 }
 
@@ -672,12 +580,7 @@ int vmw_kms_sou_close_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	if (!dev_priv->sou_priv)
-		return -ENOSYS;
-
 	drm_vblank_cleanup(dev);
-
-	kfree(dev_priv->sou_priv);
 
 	return 0;
 }

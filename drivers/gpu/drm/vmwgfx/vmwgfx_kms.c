@@ -2095,3 +2095,95 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 
 	return 0;
 }
+
+/**
+ * vmw_kms_del_active - unregister a crtc binding to the implicit framebuffer
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @du: The display unit of the crtc.
+ */
+void vmw_kms_del_active(struct vmw_private *dev_priv,
+			struct vmw_display_unit *du)
+{
+	lockdep_assert_held_once(&dev_priv->dev->mode_config.mutex);
+
+	if (du->active_implicit) {
+		if (--(dev_priv->num_implicit) == 0)
+			dev_priv->implicit_fb = NULL;
+		du->active_implicit = false;
+	}
+}
+
+/**
+ * vmw_kms_add_active - register a crtc binding to an implicit framebuffer
+ *
+ * @vmw_priv: Pointer to a device private struct.
+ * @du: The display unit of the crtc.
+ * @vfb: The implicit framebuffer
+ *
+ * Registers a binding to an implicit framebuffer.
+ */
+void vmw_kms_add_active(struct vmw_private *dev_priv,
+			struct vmw_display_unit *du,
+			struct vmw_framebuffer *vfb)
+{
+	lockdep_assert_held_once(&dev_priv->dev->mode_config.mutex);
+
+	WARN_ON_ONCE(!dev_priv->num_implicit && dev_priv->implicit_fb);
+
+	if (!du->active_implicit && du->is_implicit) {
+		dev_priv->implicit_fb = vfb;
+		du->active_implicit = true;
+		dev_priv->num_implicit++;
+	}
+}
+
+/**
+ * vmw_kms_screen_object_flippable - Check whether we can page-flip a crtc.
+ *
+ * @dev_priv: Pointer to device-private struct.
+ * @crtc: The crtc we want to flip.
+ *
+ * Returns true or false depending whether it's OK to flip this crtc
+ * based on the criterion that we must not have more than one implicit
+ * frame-buffer at any one time.
+ */
+bool vmw_kms_crtc_flippable(struct vmw_private *dev_priv,
+			    struct drm_crtc *crtc)
+{
+	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+
+	lockdep_assert_held_once(&dev_priv->dev->mode_config.mutex);
+
+	if (!du->is_implicit)
+		return true;
+
+	if (dev_priv->num_implicit != 1)
+		return false;
+
+	return true;
+}
+
+/**
+ * vmw_kms_update_implicit_fb - Update the implicit fb.
+ *
+ * @dev_priv: Pointer to device-private struct.
+ * @crtc: The crtc the new implicit frame-buffer is bound to.
+ */
+void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
+				struct drm_crtc *crtc)
+{
+	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+	struct vmw_framebuffer *vfb;
+
+	lockdep_assert_held_once(&dev_priv->dev->mode_config.mutex);
+
+	if (!du->is_implicit)
+		return;
+
+	vfb = vmw_framebuffer_to_vfb(crtc->primary->fb);
+	WARN_ON_ONCE(dev_priv->num_implicit != 1 &&
+		     dev_priv->implicit_fb != vfb);
+
+	dev_priv->implicit_fb = vfb;
+}
