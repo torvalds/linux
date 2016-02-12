@@ -2010,6 +2010,9 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 						  struct request_queue *q)
 {
+	/* mark the queue as mq asap */
+	q->mq_ops = set->ops;
+
 	q->queue_ctx = alloc_percpu(struct blk_mq_ctx);
 	if (!q->queue_ctx)
 		return ERR_PTR(-ENOMEM);
@@ -2032,7 +2035,6 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 
 	q->nr_queues = nr_cpu_ids;
 
-	q->mq_ops = set->ops;
 	q->queue_flags |= QUEUE_FLAG_MQ_DEFAULT;
 
 	if (!(set->flags & BLK_MQ_F_SG_MERGE))
