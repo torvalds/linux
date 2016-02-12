@@ -1149,7 +1149,7 @@ static int gb_lights_register_all(struct gb_lights *glights)
 	return ret;
 }
 
-static int gb_lights_event_recv(u8 type, struct gb_operation *op)
+static int gb_lights_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct device *dev = &connection->bundle->dev;
@@ -1161,8 +1161,8 @@ static int gb_lights_event_recv(u8 type, struct gb_operation *op)
 	u8 light_id;
 	u8 event;
 
-	if (type != GB_LIGHTS_TYPE_EVENT) {
-		dev_err(dev, "Unsupported unsolicited event: %u\n", type);
+	if (op->type != GB_LIGHTS_TYPE_EVENT) {
+		dev_err(dev, "Unsupported unsolicited event: %u\n", op->type);
 		return -EINVAL;
 	}
 
@@ -1201,19 +1201,43 @@ static int gb_lights_event_recv(u8 type, struct gb_operation *op)
 	return ret;
 }
 
-static int gb_lights_connection_init(struct gb_connection *connection)
+static int gb_lights_probe(struct gb_bundle *bundle,
+			   const struct greybus_bundle_id *id)
 {
+	struct greybus_descriptor_cport *cport_desc;
+	struct gb_connection *connection;
 	struct gb_lights *glights;
 	int ret;
+
+	if (bundle->num_cports != 1)
+		return -ENODEV;
+
+	cport_desc = &bundle->cport_desc[0];
+	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LIGHTS)
+		return -ENODEV;
 
 	glights = kzalloc(sizeof(*glights), GFP_KERNEL);
 	if (!glights)
 		return -ENOMEM;
 
+	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
+					  gb_lights_request_handler);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
+		goto out;
+	}
+
 	glights->connection = connection;
 	connection->private = glights;
 
 	mutex_init(&glights->lights_lock);
+
+	greybus_set_drvdata(bundle, glights);
+
+	/* We aren't ready to receive an incoming request yet */
+	ret = gb_connection_enable_tx(connection);
+	if (ret)
+		goto error_connection_destroy;
 
 	/*
 	 * Setup all the lights devices over this connection, if anything goes
@@ -1221,37 +1245,51 @@ static int gb_lights_connection_init(struct gb_connection *connection)
 	 */
 	ret = gb_lights_create_all(glights);
 	if (ret < 0)
-		goto out;
+		goto error_connection_disable;
+
+	/* We are ready to receive an incoming request now, enable RX as well */
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto error_connection_disable;
 
 	/* Enable & register lights */
 	ret = gb_lights_register_all(glights);
 	if (ret < 0)
-		goto out;
+		goto error_connection_disable;
 
 	return 0;
 
+error_connection_disable:
+	gb_connection_disable(connection);
+error_connection_destroy:
+	gb_connection_destroy(connection);
 out:
 	gb_lights_release(glights);
 	return ret;
 }
 
-static void gb_lights_connection_exit(struct gb_connection *connection)
+static void gb_lights_disconnect(struct gb_bundle *bundle)
 {
-	struct gb_lights *glights = connection->private;
+	struct gb_lights *glights = greybus_get_drvdata(bundle);
+
+	gb_connection_disable(glights->connection);
+	gb_connection_destroy(glights->connection);
 
 	gb_lights_release(glights);
 }
 
-static struct gb_protocol lights_protocol = {
-	.name			= "lights",
-	.id			= GREYBUS_PROTOCOL_LIGHTS,
-	.major			= GB_LIGHTS_VERSION_MAJOR,
-	.minor			= GB_LIGHTS_VERSION_MINOR,
-	.connection_init	= gb_lights_connection_init,
-	.connection_exit	= gb_lights_connection_exit,
-	.request_recv		= gb_lights_event_recv,
+static const struct greybus_bundle_id gb_lights_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_LIGHTS) },
+	{ }
 };
+MODULE_DEVICE_TABLE(greybus, gb_lights_id_table);
 
-gb_protocol_driver(&lights_protocol);
+static struct greybus_driver gb_lights_driver = {
+	.name		= "lights",
+	.probe		= gb_lights_probe,
+	.disconnect	= gb_lights_disconnect,
+	.id_table	= gb_lights_id_table,
+};
+module_greybus_driver(gb_lights_driver);
 
 MODULE_LICENSE("GPL v2");
