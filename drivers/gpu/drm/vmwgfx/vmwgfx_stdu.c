@@ -1128,6 +1128,12 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.dirty_info_property,
 				   1);
+	drm_object_attach_property(&connector->base,
+				   dev_priv->hotplug_mode_update_property, 1);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.suggested_x_property, 0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.suggested_y_property, 0);
 
 	return 0;
 }
