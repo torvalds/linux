@@ -134,9 +134,8 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 		return 0;
 
 	kbuffer = kmalloc(min_t(size_t, count, PP_BUFFER_SIZE), GFP_KERNEL);
-	if (!kbuffer) {
+	if (!kbuffer)
 		return -ENOMEM;
-	}
 	pport = pp->pdev->port;
 	mode = pport->ieee1284.mode & ~(IEEE1284_DEVICEID | IEEE1284_ADDR);
 
@@ -153,17 +152,14 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 			int flags = 0;
 			size_t (*fn)(struct parport *, void *, size_t, int);
 
-			if (pp->flags & PP_W91284PIC) {
+			if (pp->flags & PP_W91284PIC)
 				flags |= PARPORT_W91284PIC;
-			}
-			if (pp->flags & PP_FASTREAD) {
+			if (pp->flags & PP_FASTREAD)
 				flags |= PARPORT_EPP_FAST;
-			}
-			if (pport->ieee1284.mode & IEEE1284_ADDR) {
+			if (pport->ieee1284.mode & IEEE1284_ADDR)
 				fn = pport->ops->epp_read_addr;
-			} else {
+			else
 				fn = pport->ops->epp_read_data;
-			}
 			bytes_read = (*fn)(pport, kbuffer, need, flags);
 		} else {
 			bytes_read = parport_read(pport, kbuffer, need);
@@ -213,9 +209,9 @@ static ssize_t pp_write(struct file *file, const char __user *buf,
 	}
 
 	kbuffer = kmalloc(min_t(size_t, count, PP_BUFFER_SIZE), GFP_KERNEL);
-	if (!kbuffer) {
+	if (!kbuffer)
 		return -ENOMEM;
-	}
+
 	pport = pp->pdev->port;
 	mode = pport->ieee1284.mode & ~(IEEE1284_DEVICEID | IEEE1284_ADDR);
 
@@ -246,9 +242,8 @@ static ssize_t pp_write(struct file *file, const char __user *buf,
 		}
 
 		if (wrote <= 0) {
-			if (!bytes_written) {
+			if (!bytes_written)
 				bytes_written = wrote;
-			}
 			break;
 		}
 
@@ -370,9 +365,8 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!pp->pdev) {
 			int err = register_device(minor, pp);
 
-			if (err) {
+			if (err)
 				return err;
-			}
 		}
 
 		ret = parport_claim_or_block(pp->pdev);
@@ -432,29 +426,27 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	    {
 		int mode;
 
-		if (pp->flags & PP_CLAIMED) {
+		if (pp->flags & PP_CLAIMED)
 			mode = pp->pdev->port->ieee1284.mode;
-		} else {
+		else
 			mode = pp->state.mode;
-		}
-		if (copy_to_user(argp, &mode, sizeof(mode))) {
+
+		if (copy_to_user(argp, &mode, sizeof(mode)))
 			return -EFAULT;
-		}
 		return 0;
 	    }
 	case PPSETPHASE:
 	    {
 		int phase;
 
-		if (copy_from_user(&phase, argp, sizeof(phase))) {
+		if (copy_from_user(&phase, argp, sizeof(phase)))
 			return -EFAULT;
-		}
+
 		/* FIXME: validate phase */
 		pp->state.phase = phase;
 
-		if (pp->flags & PP_CLAIMED) {
+		if (pp->flags & PP_CLAIMED)
 			pp->pdev->port->ieee1284.phase = phase;
-		}
 
 		return 0;
 	    }
@@ -462,14 +454,12 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	    {
 		int phase;
 
-		if (pp->flags & PP_CLAIMED) {
+		if (pp->flags & PP_CLAIMED)
 			phase = pp->pdev->port->ieee1284.phase;
-		} else {
+		else
 			phase = pp->state.phase;
-		}
-		if (copy_to_user(argp, &phase, sizeof(phase))) {
+		if (copy_to_user(argp, &phase, sizeof(phase)))
 			return -EFAULT;
-		}
 		return 0;
 	    }
 	case PPGETMODES:
@@ -482,18 +472,16 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		modes = port->modes;
 		parport_put_port(port);
-		if (copy_to_user(argp, &modes, sizeof(modes))) {
+		if (copy_to_user(argp, &modes, sizeof(modes)))
 			return -EFAULT;
-		}
 		return 0;
 	    }
 	case PPSETFLAGS:
 	    {
 		int uflags;
 
-		if (copy_from_user(&uflags, argp, sizeof(uflags))) {
+		if (copy_from_user(&uflags, argp, sizeof(uflags)))
 			return -EFAULT;
-		}
 		pp->flags &= ~PP_FLAGMASK;
 		pp->flags |= (uflags & PP_FLAGMASK);
 		return 0;
@@ -503,9 +491,8 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		int uflags;
 
 		uflags = pp->flags & PP_FLAGMASK;
-		if (copy_to_user(argp, &uflags, sizeof(uflags))) {
+		if (copy_to_user(argp, &uflags, sizeof(uflags)))
 			return -EFAULT;
-		}
 		return 0;
 	    }
 	}	/* end switch() */
