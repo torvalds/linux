@@ -1713,181 +1713,19 @@ static void gmc_v7_0_init_compute_vmid(struct amdgpu_device *adev)
  */
 static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 {
-	u32 gb_addr_config;
-	u32 mc_shared_chmap, mc_arb_ramcfg;
-	u32 dimm00_addr_map, dimm01_addr_map, dimm10_addr_map, dimm11_addr_map;
-	u32 sh_mem_cfg;
-	u32 tmp;
+	u32 tmp, sh_mem_cfg;
 	int i;
-
-	switch (adev->asic_type) {
-	case CHIP_BONAIRE:
-		adev->gfx.config.max_shader_engines = 2;
-		adev->gfx.config.max_tile_pipes = 4;
-		adev->gfx.config.max_cu_per_sh = 7;
-		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 2;
-		adev->gfx.config.max_texture_channel_caches = 4;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 32;
-		adev->gfx.config.max_hw_contexts = 8;
-
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
-		break;
-	case CHIP_HAWAII:
-		adev->gfx.config.max_shader_engines = 4;
-		adev->gfx.config.max_tile_pipes = 16;
-		adev->gfx.config.max_cu_per_sh = 11;
-		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 4;
-		adev->gfx.config.max_texture_channel_caches = 16;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 32;
-		adev->gfx.config.max_hw_contexts = 8;
-
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = HAWAII_GB_ADDR_CONFIG_GOLDEN;
-		break;
-	case CHIP_KAVERI:
-		adev->gfx.config.max_shader_engines = 1;
-		adev->gfx.config.max_tile_pipes = 4;
-		if ((adev->pdev->device == 0x1304) ||
-		    (adev->pdev->device == 0x1305) ||
-		    (adev->pdev->device == 0x130C) ||
-		    (adev->pdev->device == 0x130F) ||
-		    (adev->pdev->device == 0x1310) ||
-		    (adev->pdev->device == 0x1311) ||
-		    (adev->pdev->device == 0x131C)) {
-			adev->gfx.config.max_cu_per_sh = 8;
-			adev->gfx.config.max_backends_per_se = 2;
-		} else if ((adev->pdev->device == 0x1309) ||
-			   (adev->pdev->device == 0x130A) ||
-			   (adev->pdev->device == 0x130D) ||
-			   (adev->pdev->device == 0x1313) ||
-			   (adev->pdev->device == 0x131D)) {
-			adev->gfx.config.max_cu_per_sh = 6;
-			adev->gfx.config.max_backends_per_se = 2;
-		} else if ((adev->pdev->device == 0x1306) ||
-			   (adev->pdev->device == 0x1307) ||
-			   (adev->pdev->device == 0x130B) ||
-			   (adev->pdev->device == 0x130E) ||
-			   (adev->pdev->device == 0x1315) ||
-			   (adev->pdev->device == 0x131B)) {
-			adev->gfx.config.max_cu_per_sh = 4;
-			adev->gfx.config.max_backends_per_se = 1;
-		} else {
-			adev->gfx.config.max_cu_per_sh = 3;
-			adev->gfx.config.max_backends_per_se = 1;
-		}
-		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_texture_channel_caches = 4;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 16;
-		adev->gfx.config.max_hw_contexts = 8;
-
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
-		break;
-	case CHIP_KABINI:
-	case CHIP_MULLINS:
-	default:
-		adev->gfx.config.max_shader_engines = 1;
-		adev->gfx.config.max_tile_pipes = 2;
-		adev->gfx.config.max_cu_per_sh = 2;
-		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 1;
-		adev->gfx.config.max_texture_channel_caches = 2;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 16;
-		adev->gfx.config.max_hw_contexts = 8;
-
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
-		break;
-	}
 
 	WREG32(mmGRBM_CNTL, (0xff << GRBM_CNTL__READ_TIMEOUT__SHIFT));
 
-	mc_shared_chmap = RREG32(mmMC_SHARED_CHMAP);
-	adev->gfx.config.mc_arb_ramcfg = RREG32(mmMC_ARB_RAMCFG);
-	mc_arb_ramcfg = adev->gfx.config.mc_arb_ramcfg;
-
-	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
-	adev->gfx.config.mem_max_burst_length_bytes = 256;
-	if (adev->flags & AMD_IS_APU) {
-		/* Get memory bank mapping mode. */
-		tmp = RREG32(mmMC_FUS_DRAM0_BANK_ADDR_MAPPING);
-		dimm00_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
-		dimm01_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM1ADDRMAP);
-
-		tmp = RREG32(mmMC_FUS_DRAM1_BANK_ADDR_MAPPING);
-		dimm10_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM1_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
-		dimm11_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM1_BANK_ADDR_MAPPING, DIMM1ADDRMAP);
-
-		/* Validate settings in case only one DIMM installed. */
-		if ((dimm00_addr_map == 0) || (dimm00_addr_map == 3) || (dimm00_addr_map == 4) || (dimm00_addr_map > 12))
-			dimm00_addr_map = 0;
-		if ((dimm01_addr_map == 0) || (dimm01_addr_map == 3) || (dimm01_addr_map == 4) || (dimm01_addr_map > 12))
-			dimm01_addr_map = 0;
-		if ((dimm10_addr_map == 0) || (dimm10_addr_map == 3) || (dimm10_addr_map == 4) || (dimm10_addr_map > 12))
-			dimm10_addr_map = 0;
-		if ((dimm11_addr_map == 0) || (dimm11_addr_map == 3) || (dimm11_addr_map == 4) || (dimm11_addr_map > 12))
-			dimm11_addr_map = 0;
-
-		/* If DIMM Addr map is 8GB, ROW size should be 2KB. Otherwise 1KB. */
-		/* If ROW size(DIMM1) != ROW size(DMIMM0), ROW size should be larger one. */
-		if ((dimm00_addr_map == 11) || (dimm01_addr_map == 11) || (dimm10_addr_map == 11) || (dimm11_addr_map == 11))
-			adev->gfx.config.mem_row_size_in_kb = 2;
-		else
-			adev->gfx.config.mem_row_size_in_kb = 1;
-	} else {
-		tmp = (mc_arb_ramcfg & MC_ARB_RAMCFG__NOOFCOLS_MASK) >> MC_ARB_RAMCFG__NOOFCOLS__SHIFT;
-		adev->gfx.config.mem_row_size_in_kb = (4 * (1 << (8 + tmp))) / 1024;
-		if (adev->gfx.config.mem_row_size_in_kb > 4)
-			adev->gfx.config.mem_row_size_in_kb = 4;
-	}
-	/* XXX use MC settings? */
-	adev->gfx.config.shader_engine_tile_size = 32;
-	adev->gfx.config.num_gpus = 1;
-	adev->gfx.config.multi_gpu_tile_size = 64;
-
-	/* fix up row size */
-	gb_addr_config &= ~GB_ADDR_CONFIG__ROW_SIZE_MASK;
-	switch (adev->gfx.config.mem_row_size_in_kb) {
-	case 1:
-	default:
-		gb_addr_config |= (0 << GB_ADDR_CONFIG__ROW_SIZE__SHIFT);
-		break;
-	case 2:
-		gb_addr_config |= (1 << GB_ADDR_CONFIG__ROW_SIZE__SHIFT);
-		break;
-	case 4:
-		gb_addr_config |= (2 << GB_ADDR_CONFIG__ROW_SIZE__SHIFT);
-		break;
-	}
-	adev->gfx.config.gb_addr_config = gb_addr_config;
-
-	WREG32(mmGB_ADDR_CONFIG, gb_addr_config);
-	WREG32(mmHDP_ADDR_CONFIG, gb_addr_config);
-	WREG32(mmDMIF_ADDR_CALC, gb_addr_config);
-	WREG32(mmSDMA0_TILING_CONFIG + SDMA0_REGISTER_OFFSET, gb_addr_config & 0x70);
-	WREG32(mmSDMA0_TILING_CONFIG + SDMA1_REGISTER_OFFSET, gb_addr_config & 0x70);
-	WREG32(mmUVD_UDEC_ADDR_CONFIG, gb_addr_config);
-	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, gb_addr_config);
-	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, gb_addr_config);
+	WREG32(mmGB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmHDP_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmDMIF_ADDR_CALC, adev->gfx.config.gb_addr_config);
+	WREG32(mmSDMA0_TILING_CONFIG + SDMA0_REGISTER_OFFSET, adev->gfx.config.gb_addr_config & 0x70);
+	WREG32(mmSDMA0_TILING_CONFIG + SDMA1_REGISTER_OFFSET, adev->gfx.config.gb_addr_config & 0x70);
+	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 
 	gfx_v7_0_tiling_mode_table_init(adev);
 
@@ -1895,8 +1733,8 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 
 	/* set HW defaults for 3D engine */
 	WREG32(mmCP_MEQ_THRESHOLDS,
-			(0x30 << CP_MEQ_THRESHOLDS__MEQ1_START__SHIFT) |
-			(0x60 << CP_MEQ_THRESHOLDS__MEQ2_START__SHIFT));
+	       (0x30 << CP_MEQ_THRESHOLDS__MEQ1_START__SHIFT) |
+	       (0x60 << CP_MEQ_THRESHOLDS__MEQ2_START__SHIFT));
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	/*
@@ -1907,7 +1745,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
-	sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE, 
+	sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
 				   SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 
 	mutex_lock(&adev->srbm_mutex);
@@ -4335,6 +4173,172 @@ static int gfx_v7_0_late_init(void *handle)
 	return 0;
 }
 
+static void gfx_v7_0_gpu_early_init(struct amdgpu_device *adev)
+{
+	u32 gb_addr_config;
+	u32 mc_shared_chmap, mc_arb_ramcfg;
+	u32 dimm00_addr_map, dimm01_addr_map, dimm10_addr_map, dimm11_addr_map;
+	u32 tmp;
+
+	switch (adev->asic_type) {
+	case CHIP_BONAIRE:
+		adev->gfx.config.max_shader_engines = 2;
+		adev->gfx.config.max_tile_pipes = 4;
+		adev->gfx.config.max_cu_per_sh = 7;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 2;
+		adev->gfx.config.max_texture_channel_caches = 4;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 32;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_HAWAII:
+		adev->gfx.config.max_shader_engines = 4;
+		adev->gfx.config.max_tile_pipes = 16;
+		adev->gfx.config.max_cu_per_sh = 11;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 4;
+		adev->gfx.config.max_texture_channel_caches = 16;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 32;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = HAWAII_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_KAVERI:
+		adev->gfx.config.max_shader_engines = 1;
+		adev->gfx.config.max_tile_pipes = 4;
+		if ((adev->pdev->device == 0x1304) ||
+		    (adev->pdev->device == 0x1305) ||
+		    (adev->pdev->device == 0x130C) ||
+		    (adev->pdev->device == 0x130F) ||
+		    (adev->pdev->device == 0x1310) ||
+		    (adev->pdev->device == 0x1311) ||
+		    (adev->pdev->device == 0x131C)) {
+			adev->gfx.config.max_cu_per_sh = 8;
+			adev->gfx.config.max_backends_per_se = 2;
+		} else if ((adev->pdev->device == 0x1309) ||
+			   (adev->pdev->device == 0x130A) ||
+			   (adev->pdev->device == 0x130D) ||
+			   (adev->pdev->device == 0x1313) ||
+			   (adev->pdev->device == 0x131D)) {
+			adev->gfx.config.max_cu_per_sh = 6;
+			adev->gfx.config.max_backends_per_se = 2;
+		} else if ((adev->pdev->device == 0x1306) ||
+			   (adev->pdev->device == 0x1307) ||
+			   (adev->pdev->device == 0x130B) ||
+			   (adev->pdev->device == 0x130E) ||
+			   (adev->pdev->device == 0x1315) ||
+			   (adev->pdev->device == 0x131B)) {
+			adev->gfx.config.max_cu_per_sh = 4;
+			adev->gfx.config.max_backends_per_se = 1;
+		} else {
+			adev->gfx.config.max_cu_per_sh = 3;
+			adev->gfx.config.max_backends_per_se = 1;
+		}
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_texture_channel_caches = 4;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 16;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+	default:
+		adev->gfx.config.max_shader_engines = 1;
+		adev->gfx.config.max_tile_pipes = 2;
+		adev->gfx.config.max_cu_per_sh = 2;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 1;
+		adev->gfx.config.max_texture_channel_caches = 2;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 16;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	}
+
+	mc_shared_chmap = RREG32(mmMC_SHARED_CHMAP);
+	adev->gfx.config.mc_arb_ramcfg = RREG32(mmMC_ARB_RAMCFG);
+	mc_arb_ramcfg = adev->gfx.config.mc_arb_ramcfg;
+
+	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
+	adev->gfx.config.mem_max_burst_length_bytes = 256;
+	if (adev->flags & AMD_IS_APU) {
+		/* Get memory bank mapping mode. */
+		tmp = RREG32(mmMC_FUS_DRAM0_BANK_ADDR_MAPPING);
+		dimm00_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
+		dimm01_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM1ADDRMAP);
+
+		tmp = RREG32(mmMC_FUS_DRAM1_BANK_ADDR_MAPPING);
+		dimm10_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM1_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
+		dimm11_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM1_BANK_ADDR_MAPPING, DIMM1ADDRMAP);
+
+		/* Validate settings in case only one DIMM installed. */
+		if ((dimm00_addr_map == 0) || (dimm00_addr_map == 3) || (dimm00_addr_map == 4) || (dimm00_addr_map > 12))
+			dimm00_addr_map = 0;
+		if ((dimm01_addr_map == 0) || (dimm01_addr_map == 3) || (dimm01_addr_map == 4) || (dimm01_addr_map > 12))
+			dimm01_addr_map = 0;
+		if ((dimm10_addr_map == 0) || (dimm10_addr_map == 3) || (dimm10_addr_map == 4) || (dimm10_addr_map > 12))
+			dimm10_addr_map = 0;
+		if ((dimm11_addr_map == 0) || (dimm11_addr_map == 3) || (dimm11_addr_map == 4) || (dimm11_addr_map > 12))
+			dimm11_addr_map = 0;
+
+		/* If DIMM Addr map is 8GB, ROW size should be 2KB. Otherwise 1KB. */
+		/* If ROW size(DIMM1) != ROW size(DMIMM0), ROW size should be larger one. */
+		if ((dimm00_addr_map == 11) || (dimm01_addr_map == 11) || (dimm10_addr_map == 11) || (dimm11_addr_map == 11))
+			adev->gfx.config.mem_row_size_in_kb = 2;
+		else
+			adev->gfx.config.mem_row_size_in_kb = 1;
+	} else {
+		tmp = (mc_arb_ramcfg & MC_ARB_RAMCFG__NOOFCOLS_MASK) >> MC_ARB_RAMCFG__NOOFCOLS__SHIFT;
+		adev->gfx.config.mem_row_size_in_kb = (4 * (1 << (8 + tmp))) / 1024;
+		if (adev->gfx.config.mem_row_size_in_kb > 4)
+			adev->gfx.config.mem_row_size_in_kb = 4;
+	}
+	/* XXX use MC settings? */
+	adev->gfx.config.shader_engine_tile_size = 32;
+	adev->gfx.config.num_gpus = 1;
+	adev->gfx.config.multi_gpu_tile_size = 64;
+
+	/* fix up row size */
+	gb_addr_config &= ~GB_ADDR_CONFIG__ROW_SIZE_MASK;
+	switch (adev->gfx.config.mem_row_size_in_kb) {
+	case 1:
+	default:
+		gb_addr_config |= (0 << GB_ADDR_CONFIG__ROW_SIZE__SHIFT);
+		break;
+	case 2:
+		gb_addr_config |= (1 << GB_ADDR_CONFIG__ROW_SIZE__SHIFT);
+		break;
+	case 4:
+		gb_addr_config |= (2 << GB_ADDR_CONFIG__ROW_SIZE__SHIFT);
+		break;
+	}
+	adev->gfx.config.gb_addr_config = gb_addr_config;
+}
+
 static int gfx_v7_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
@@ -4438,6 +4442,10 @@ static int gfx_v7_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	adev->gfx.ce_ram_size = 0x8000;
+
+	gfx_v7_0_gpu_early_init(adev);
+
 	return r;
 }
 
@@ -4477,8 +4485,6 @@ static int gfx_v7_0_hw_init(void *handle)
 	r = gfx_v7_0_cp_resume(adev);
 	if (r)
 		return r;
-
-	adev->gfx.ce_ram_size = 0x8000;
 
 	return r;
 }
