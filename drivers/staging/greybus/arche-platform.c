@@ -130,7 +130,7 @@ static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdat
 	return 0;
 }
 
-static void arche_platform_cleanup(struct arche_platform_drvdata *arche_pdata)
+static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pdata)
 {
 	clk_disable_unprepare(arche_pdata->svc_ref_clk);
 	/* As part of exit, put APB back in reset state */
@@ -264,7 +264,7 @@ static int arche_platform_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&arche_pdata->delayed_work);
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
-	arche_platform_cleanup(arche_pdata);
+	arche_platform_poweroff_seq(arche_pdata);
 	platform_set_drvdata(pdev, NULL);
 	unexport_gpios(arche_pdata);
 
