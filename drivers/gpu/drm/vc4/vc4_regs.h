@@ -456,6 +456,8 @@
 #define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
 
 #define VC4_HD_M_CTL				0x00c
+# define VC4_HD_M_REGISTER_FILE_STANDBY		(3 << 6)
+# define VC4_HD_M_RAM_STANDBY			(3 << 4)
 # define VC4_HD_M_SW_RST			BIT(2)
 # define VC4_HD_M_ENABLE			BIT(0)
 
