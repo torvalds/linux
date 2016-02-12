@@ -148,7 +148,7 @@ kiblnd_concurrent_sends_v1(void)
 
 #define IBLND_MSG_SIZE		(4 << 10)	 /* max size of queued messages (inc hdr) */
 #define IBLND_MAX_RDMA_FRAGS	 LNET_MAX_IOV	   /* max # of fragments supported */
-#define IBLND_CFG_RDMA_FRAGS       (*kiblnd_tunables.kib_map_on_demand != 0 ? \
+#define IBLND_CFG_RDMA_FRAGS       (*kiblnd_tunables.kib_map_on_demand ? \
 				    *kiblnd_tunables.kib_map_on_demand :      \
 				     IBLND_MAX_RDMA_FRAGS)  /* max # of fragments configured by user */
 #define IBLND_RDMA_FRAGS(v)	((v) == IBLND_MSG_VERSION_1 ? \
@@ -611,7 +611,7 @@ kiblnd_dev_can_failover(kib_dev_t *dev)
 	if (!list_empty(&dev->ibd_fail_list)) /* already scheduled */
 		return 0;
 
-	if (*kiblnd_tunables.kib_dev_failover == 0) /* disabled */
+	if (!*kiblnd_tunables.kib_dev_failover) /* disabled */
 		return 0;
 
 	if (*kiblnd_tunables.kib_dev_failover > 1) /* force failover */
@@ -710,16 +710,16 @@ kiblnd_need_noop(kib_conn_t *conn)
 
 		/* No tx to piggyback NOOP onto or no credit to send a tx */
 		return (list_empty(&conn->ibc_tx_queue) ||
-			conn->ibc_credits == 0);
+			!conn->ibc_credits);
 	}
 
 	if (!list_empty(&conn->ibc_tx_noops) || /* NOOP already queued */
 	    !list_empty(&conn->ibc_tx_queue_nocred) || /* piggyback NOOP */
-	    conn->ibc_credits == 0)		    /* no credit */
+	    !conn->ibc_credits)		    /* no credit */
 		return 0;
 
 	if (conn->ibc_credits == 1 &&      /* last credit reserved for */
-	    conn->ibc_outstanding_credits == 0) /* giving back credits */
+	    !conn->ibc_outstanding_credits) /* giving back credits */
 		return 0;
 
 	/* No tx to piggyback NOOP onto or no credit to send a tx */
@@ -765,8 +765,8 @@ kiblnd_ptr2wreqid(void *ptr, int type)
 {
 	unsigned long lptr = (unsigned long)ptr;
 
-	LASSERT((lptr & IBLND_WID_MASK) == 0);
-	LASSERT((type & ~IBLND_WID_MASK) == 0);
+	LASSERT(!(lptr & IBLND_WID_MASK));
+	LASSERT(!(type & ~IBLND_WID_MASK));
 	return (__u64)(lptr | type);
 }
 

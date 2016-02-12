@@ -52,7 +52,7 @@ lst_session_new_ioctl(lstio_session_new_args_t *args)
 	int rc;
 
 	if (!args->lstio_ses_idp || /* address for output sid */
-	    args->lstio_ses_key   == 0 ||    /* no key is specified */
+	    !args->lstio_ses_key ||    /* no key is specified */
 	    !args->lstio_ses_namep || /* session name */
 	    args->lstio_ses_nmlen <= 0 ||
 	    args->lstio_ses_nmlen > LST_NAME_SIZE)
@@ -354,7 +354,7 @@ lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 			      args->lstio_grp_resultp);
 
 	LIBCFS_FREE(name, args->lstio_grp_nmlen + 1);
-	if (rc == 0 &&
+	if (!rc &&
 	    copy_to_user(args->lstio_grp_featp, &feats, sizeof(feats))) {
 		return -EINVAL;
 	}
@@ -431,7 +431,7 @@ lst_group_info_ioctl(lstio_group_info_args_t *args)
 
 	LIBCFS_FREE(name, args->lstio_grp_nmlen + 1);
 
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	if (args->lstio_grp_dentsp &&
@@ -655,7 +655,7 @@ lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 
 	LIBCFS_FREE(name, args->lstio_bat_nmlen + 1);
 
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	if (args->lstio_bat_dentsp &&
@@ -733,7 +733,7 @@ static int lst_test_add_ioctl(lstio_test_args_t *args)
 	    args->lstio_tes_dgrp_nmlen > LST_NAME_SIZE)
 		return -EINVAL;
 
-	if (args->lstio_tes_loop == 0 || /* negative is infinite */
+	if (!args->lstio_tes_loop || /* negative is infinite */
 	    args->lstio_tes_concur <= 0 ||
 	    args->lstio_tes_dist <= 0 ||
 	    args->lstio_tes_span <= 0)
@@ -781,7 +781,7 @@ static int lst_test_add_ioctl(lstio_test_args_t *args)
 			     args->lstio_tes_param_len,
 			     &ret, args->lstio_tes_resultp);
 
-	if (ret != 0)
+	if (ret)
 		rc = (copy_to_user(args->lstio_tes_retp, &ret,
 				   sizeof(ret))) ? -EFAULT : 0;
 out:

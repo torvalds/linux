@@ -359,7 +359,7 @@ struct lnet_peer_table {
  * peer aliveness is enabled only on routers for peers in a network where the
  * lnet_ni_t::ni_peertimeout has been set to a positive value
  */
-#define lnet_peer_aliveness_enabled(lp) (the_lnet.ln_routing != 0 && \
+#define lnet_peer_aliveness_enabled(lp) (the_lnet.ln_routing && \
 					 (lp)->lp_ni->ni_peertimeout > 0)
 
 typedef struct {

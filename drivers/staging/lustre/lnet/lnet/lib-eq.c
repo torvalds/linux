@@ -83,21 +83,21 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 	if (count)
 		count = roundup_pow_of_two(count);
 
-	if (callback != LNET_EQ_HANDLER_NONE && count != 0)
+	if (callback != LNET_EQ_HANDLER_NONE && count)
 		CWARN("EQ callback is guaranteed to get every event, do you still want to set eqcount %d for polling event which will have locking overhead? Please contact with developer to confirm\n", count);
 
 	/*
 	 * count can be 0 if only need callback, we can eliminate
 	 * overhead of enqueue event
 	 */
-	if (count == 0 && callback == LNET_EQ_HANDLER_NONE)
+	if (!count && callback == LNET_EQ_HANDLER_NONE)
 		return -EINVAL;
 
 	eq = lnet_eq_alloc();
 	if (!eq)
 		return -ENOMEM;
 
-	if (count != 0) {
+	if (count) {
 		LIBCFS_ALLOC(eq->eq_events, count * sizeof(lnet_event_t));
 		if (!eq->eq_events)
 			goto failed;
@@ -185,7 +185,7 @@ LNetEQFree(lnet_handle_eq_t eqh)
 
 	cfs_percpt_for_each(ref, i, eq->eq_refs) {
 		LASSERT(*ref >= 0);
-		if (*ref == 0)
+		if (!*ref)
 			continue;
 
 		CDEBUG(D_NET, "Event equeue (%d: %d) busy on destroy.\n",
@@ -221,7 +221,7 @@ lnet_eq_enqueue_event(lnet_eq_t *eq, lnet_event_t *ev)
 	/* MUST called with resource lock hold but w/o lnet_eq_wait_lock */
 	int index;
 
-	if (eq->eq_size == 0) {
+	if (!eq->eq_size) {
 		LASSERT(eq->eq_callback != LNET_EQ_HANDLER_NONE);
 		eq->eq_callback(ev);
 		return;
@@ -321,7 +321,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 	wait_queue_t wl;
 	unsigned long now;
 
-	if (tms == 0)
+	if (!tms)
 		return -1; /* don't want to wait and no new event */
 
 	init_waitqueue_entry(&wl, current);
@@ -340,7 +340,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 			tms = 0;
 	}
 
-	wait = tms != 0; /* might need to call here again */
+	wait = tms; /* might need to call here again */
 	*timeout_ms = tms;
 
 	lnet_eq_wait_lock();
@@ -401,14 +401,14 @@ LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
 			}
 
 			rc = lnet_eq_dequeue_event(eq, event);
-			if (rc != 0) {
+			if (rc) {
 				lnet_eq_wait_unlock();
 				*which = i;
 				return rc;
 			}
 		}
 
-		if (wait == 0)
+		if (!wait)
 			break;
 
 		/*

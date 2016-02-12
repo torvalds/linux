@@ -72,8 +72,8 @@ static inline int lnet_is_wire_handle_none(lnet_handle_wire_t *wh)
 
 static inline int lnet_md_exhausted(lnet_libmd_t *md)
 {
-	return (md->md_threshold == 0 ||
-		((md->md_options & LNET_MD_MAX_SIZE) != 0 &&
+	return (!md->md_threshold ||
+		((md->md_options & LNET_MD_MAX_SIZE) &&
 		 md->md_offset + md->md_max_size > md->md_length));
 }
 
@@ -85,13 +85,13 @@ static inline int lnet_md_unlinkable(lnet_libmd_t *md)
 	 *    LNetM[DE]Unlink, in the latter case md may not be exhausted).
 	 *  - auto unlink is on and md is exhausted.
 	 */
-	if (md->md_refcount != 0)
+	if (md->md_refcount)
 		return 0;
 
-	if ((md->md_flags & LNET_MD_FLAG_ZOMBIE) != 0)
+	if (md->md_flags & LNET_MD_FLAG_ZOMBIE)
 		return 1;
 
-	return ((md->md_flags & LNET_MD_FLAG_AUTO_UNLINK) != 0 &&
+	return ((md->md_flags & LNET_MD_FLAG_AUTO_UNLINK) &&
 		lnet_md_exhausted(md));
 }
 
@@ -186,12 +186,11 @@ lnet_md_alloc(lnet_md_t *umd)
 	unsigned int size;
 	unsigned int niov;
 
-	if ((umd->options & LNET_MD_KIOV) != 0) {
+	if (umd->options & LNET_MD_KIOV) {
 		niov = umd->length;
 		size = offsetof(lnet_libmd_t, md_iov.kiov[niov]);
 	} else {
-		niov = ((umd->options & LNET_MD_IOVEC) != 0) ?
-		       umd->length : 1;
+		niov = umd->options & LNET_MD_IOVEC ? umd->length : 1;
 		size = offsetof(lnet_libmd_t, md_iov.iov[niov]);
 	}
 
@@ -212,7 +211,7 @@ lnet_md_free(lnet_libmd_t *md)
 {
 	unsigned int size;
 
-	if ((md->md_options & LNET_MD_KIOV) != 0)
+	if (md->md_options & LNET_MD_KIOV)
 		size = offsetof(lnet_libmd_t, md_iov.kiov[md->md_niov]);
 	else
 		size = offsetof(lnet_libmd_t, md_iov.iov[md->md_niov]);
@@ -364,14 +363,14 @@ lnet_peer_decref_locked(lnet_peer_t *lp)
 {
 	LASSERT(lp->lp_refcount > 0);
 	lp->lp_refcount--;
-	if (lp->lp_refcount == 0)
+	if (!lp->lp_refcount)
 		lnet_destroy_peer_locked(lp);
 }
 
 static inline int
 lnet_isrouter(lnet_peer_t *lp)
 {
-	return lp->lp_rtr_refcount != 0;
+	return lp->lp_rtr_refcount ? 1 : 0;
 }
 
 static inline void

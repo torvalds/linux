@@ -98,7 +98,7 @@ lnet_selftest_init(void)
 
 	rc = cfs_wi_sched_create("lst_s", lnet_cpt_table(), CFS_CPT_ANY,
 				 1, &lst_sched_serial);
-	if (rc != 0) {
+	if (rc) {
 		CERROR("Failed to create serial WI scheduler for LST\n");
 		return rc;
 	}
@@ -117,7 +117,7 @@ lnet_selftest_init(void)
 		nthrs = max(nthrs - 1, 1);
 		rc = cfs_wi_sched_create("lst_t", lnet_cpt_table(), i,
 					 nthrs, &lst_sched_test[i]);
-		if (rc != 0) {
+		if (rc) {
 			CERROR("Failed to create CPT affinity WI scheduler %d for LST\n",
 			       i);
 			goto error;
@@ -125,21 +125,21 @@ lnet_selftest_init(void)
 	}
 
 	rc = srpc_startup();
-	if (rc != 0) {
+	if (rc) {
 		CERROR("LST can't startup rpc\n");
 		goto error;
 	}
 	lst_init_step = LST_INIT_RPC;
 
 	rc = sfw_startup();
-	if (rc != 0) {
+	if (rc) {
 		CERROR("LST can't startup framework\n");
 		goto error;
 	}
 	lst_init_step = LST_INIT_FW;
 
 	rc = lstcon_console_init();
-	if (rc != 0) {
+	if (rc) {
 		CERROR("LST can't startup console\n");
 		goto error;
 	}

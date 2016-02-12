@@ -202,7 +202,7 @@ kiblnd_tunables_init(void)
 	if (*kiblnd_tunables.kib_map_on_demand == 1)
 		*kiblnd_tunables.kib_map_on_demand = 2; /* don't make sense to create map if only one fragment */
 
-	if (*kiblnd_tunables.kib_concurrent_sends == 0) {
+	if (!*kiblnd_tunables.kib_concurrent_sends) {
 		if (*kiblnd_tunables.kib_map_on_demand > 0 &&
 		    *kiblnd_tunables.kib_map_on_demand <= IBLND_MAX_RDMA_FRAGS / 8)
 			*kiblnd_tunables.kib_concurrent_sends = (*kiblnd_tunables.kib_peertxcredits) * 2;

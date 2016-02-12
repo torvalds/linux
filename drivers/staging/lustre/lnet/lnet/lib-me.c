@@ -109,7 +109,7 @@ LNetMEAttach(unsigned int portal,
 
 	lnet_res_lh_initialize(the_lnet.ln_me_containers[mtable->mt_cpt],
 			       &me->me_lh);
-	if (ignore_bits != 0)
+	if (ignore_bits)
 		head = &mtable->mt_mhash[LNET_MT_HASH_IGNORE];
 	else
 		head = lnet_mt_match_head(mtable, match_id, match_bits);
@@ -248,7 +248,7 @@ LNetMEUnlink(lnet_handle_me_t meh)
 	md = me->me_md;
 	if (md) {
 		md->md_flags |= LNET_MD_FLAG_ABORTED;
-		if (md->md_eq && md->md_refcount == 0) {
+		if (md->md_eq && !md->md_refcount) {
 			lnet_build_unlink_event(md, &ev);
 			lnet_eq_enqueue_event(md->md_eq, &ev);
 		}

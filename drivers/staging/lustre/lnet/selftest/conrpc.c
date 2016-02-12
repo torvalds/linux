@@ -74,9 +74,9 @@ lstcon_rpc_done(srpc_client_rpc_t *rpc)
 	/* not an orphan RPC */
 	crpc->crp_finished = 1;
 
-	if (crpc->crp_stamp == 0) {
+	if (!crpc->crp_stamp) {
 		/* not aborted */
-		LASSERT(crpc->crp_status == 0);
+		LASSERT(!crpc->crp_status);
 
 		crpc->crp_stamp  = cfs_time_current();
 		crpc->crp_status = rpc->crpc_status;
@@ -138,7 +138,7 @@ lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 	}
 
 	rc = lstcon_rpc_init(nd, service, feats, bulk_npg, bulk_len, 0, crpc);
-	if (rc == 0) {
+	if (!rc) {
 		*crpcpp = crpc;
 		return 0;
 	}
@@ -298,8 +298,8 @@ lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error)
 		spin_lock(&rpc->crpc_lock);
 
 		if (!crpc->crp_posted || /* not posted */
-		    crpc->crp_stamp != 0) { /* rpc done or aborted already */
-			if (crpc->crp_stamp == 0) {
+		    crpc->crp_stamp) { /* rpc done or aborted already */
+			if (!crpc->crp_stamp) {
 				crpc->crp_stamp = cfs_time_current();
 				crpc->crp_status = -EINTR;
 			}
@@ -333,7 +333,7 @@ lstcon_rpc_trans_check(lstcon_rpc_trans_t *trans)
 	    !list_empty(&trans->tas_olink)) /* Not an end session RPC */
 		return 1;
 
-	return (atomic_read(&trans->tas_remaining) == 0) ? 1 : 0;
+	return !atomic_read(&trans->tas_remaining) ? 1 : 0;
 }
 
 int
@@ -370,7 +370,7 @@ lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
 	if (console_session.ses_shutdown)
 		rc = -ESHUTDOWN;
 
-	if (rc != 0 || atomic_read(&trans->tas_remaining) != 0) {
+	if (rc || atomic_read(&trans->tas_remaining)) {
 		/* treat short timeout as canceled */
 		if (rc == -ETIMEDOUT && timeout < LST_TRANS_MIN_TIMEOUT * 2)
 			rc = -EINTR;
@@ -394,9 +394,9 @@ lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 	srpc_generic_reply_t *rep;
 
 	LASSERT(nd && rpc);
-	LASSERT(crpc->crp_stamp != 0);
+	LASSERT(crpc->crp_stamp);
 
-	if (crpc->crp_status != 0) {
+	if (crpc->crp_status) {
 		*msgpp = NULL;
 		return crpc->crp_status;
 	}
@@ -437,12 +437,12 @@ lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 	list_for_each_entry(crpc, &trans->tas_rpcs_list, crp_link) {
 		lstcon_rpc_stat_total(stat, 1);
 
-		LASSERT(crpc->crp_stamp != 0);
+		LASSERT(crpc->crp_stamp);
 
 		error = lstcon_rpc_get_reply(crpc, &rep);
-		if (error != 0) {
+		if (error) {
 			lstcon_rpc_stat_failure(stat, 1);
-			if (stat->trs_rpc_errno == 0)
+			if (!stat->trs_rpc_errno)
 				stat->trs_rpc_errno = -error;
 
 			continue;
@@ -453,7 +453,7 @@ lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 		lstcon_rpc_stat_reply(trans, rep, crpc->crp_node, stat);
 	}
 
-	if (trans->tas_opc == LST_TRANS_SESNEW && stat->trs_fwk_errno == 0) {
+	if (trans->tas_opc == LST_TRANS_SESNEW && !stat->trs_fwk_errno) {
 		stat->trs_fwk_errno =
 		      lstcon_session_feats_check(trans->tas_features);
 	}
@@ -500,7 +500,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 
 		ent = list_entry(next, lstcon_rpc_ent_t, rpe_link);
 
-		LASSERT(crpc->crp_stamp != 0);
+		LASSERT(crpc->crp_stamp);
 
 		error = lstcon_rpc_get_reply(crpc, &msg);
 
@@ -519,7 +519,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 				 sizeof(error)))
 			return -EFAULT;
 
-		if (error != 0)
+		if (error)
 			continue;
 
 		/* RPC is done */
@@ -535,7 +535,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 
 		error = readent(trans->tas_opc, msg, ent);
 
-		if (error != 0)
+		if (error)
 			return error;
 	}
 
@@ -572,7 +572,7 @@ lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 		 * user wait for them, just abandon them, they will be recycled
 		 * in callback
 		 */
-		LASSERT(crpc->crp_status != 0);
+		LASSERT(crpc->crp_status);
 
 		crpc->crp_node  = NULL;
 		crpc->crp_trans = NULL;
@@ -584,7 +584,7 @@ lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 		atomic_dec(&trans->tas_remaining);
 	}
 
-	LASSERT(atomic_read(&trans->tas_remaining) == 0);
+	LASSERT(!atomic_read(&trans->tas_remaining));
 
 	list_del(&trans->tas_link);
 	if (!list_empty(&trans->tas_olink))
@@ -610,7 +610,7 @@ lstcon_sesrpc_prep(lstcon_node_t *nd, int transop,
 	case LST_TRANS_SESNEW:
 		rc = lstcon_rpc_prep(nd, SRPC_SERVICE_MAKE_SESSION,
 				     feats, 0, 0, crpc);
-		if (rc != 0)
+		if (rc)
 			return rc;
 
 		msrq = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.mksn_reqst;
@@ -623,7 +623,7 @@ lstcon_sesrpc_prep(lstcon_node_t *nd, int transop,
 	case LST_TRANS_SESEND:
 		rc = lstcon_rpc_prep(nd, SRPC_SERVICE_REMOVE_SESSION,
 				     feats, 0, 0, crpc);
-		if (rc != 0)
+		if (rc)
 			return rc;
 
 		rsrq = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.rmsn_reqst;
@@ -644,7 +644,7 @@ lstcon_dbgrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
 	int rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_DEBUG, feats, 0, 0, crpc);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	drq = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.dbg_reqst;
@@ -664,7 +664,7 @@ lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	int		    rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_BATCH, feats, 0, 0, crpc);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	brq = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.bat_reqst;
@@ -680,7 +680,7 @@ lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	    transop != LST_TRANS_TSBSTOP)
 		return 0;
 
-	LASSERT(tsb->tsb_index == 0);
+	LASSERT(!tsb->tsb_index);
 
 	batch = (lstcon_batch_t *)tsb;
 	brq->bar_arg = batch->bat_arg;
@@ -695,7 +695,7 @@ lstcon_statrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
 	int		   rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_QUERY_STAT, feats, 0, 0, crpc);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	srq = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.stat_reqst;
@@ -827,13 +827,13 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 
 	if (transop == LST_TRANS_TSBCLIADD) {
 		npg = sfw_id_pages(test->tes_span);
-		nob = (feats & LST_FEAT_BULK_LEN) == 0 ?
+		nob = !(feats & LST_FEAT_BULK_LEN) ?
 		      npg * PAGE_CACHE_SIZE :
 		      sizeof(lnet_process_id_packed_t) * test->tes_span;
 	}
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_TEST, feats, npg, nob, crpc);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	trq  = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.tes_reqst;
@@ -856,7 +856,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 
 			LASSERT(nob > 0);
 
-			len = (feats & LST_FEAT_BULK_LEN) == 0 ?
+			len = !(feats & LST_FEAT_BULK_LEN) ?
 			      PAGE_CACHE_SIZE :
 			      min_t(int, nob, PAGE_CACHE_SIZE);
 			nob -= len;
@@ -881,7 +881,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 					  test->tes_dist,
 					  test->tes_span,
 					  npg, &bulk->bk_iovs[0]);
-		if (rc != 0) {
+		if (rc) {
 			lstcon_rpc_put(*crpc);
 			return rc;
 		}
@@ -905,7 +905,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 
 	case LST_TEST_BULK:
 		trq->tsr_service = SRPC_SERVICE_BRW;
-		if ((feats & LST_FEAT_BULK_LEN) == 0) {
+		if (!(feats & LST_FEAT_BULK_LEN)) {
 			rc = lstcon_bulkrpc_v0_prep((lst_test_bulk_param_t *)
 						    &test->tes_param[0], trq);
 		} else {
@@ -929,8 +929,8 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 	srpc_mksn_reply_t *mksn_rep = &reply->msg_body.mksn_reply;
 	int		   status   = mksn_rep->mksn_status;
 
-	if (status == 0 &&
-	    (reply->msg_ses_feats & ~LST_FEATS_MASK) != 0) {
+	if (!status &&
+	    (reply->msg_ses_feats & ~LST_FEATS_MASK)) {
 		mksn_rep->mksn_status = EPROTO;
 		status = EPROTO;
 	}
@@ -941,7 +941,7 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 			reply->msg_ses_feats);
 	}
 
-	if (status != 0)
+	if (status)
 		return status;
 
 	if (!trans->tas_feats_updated) {
@@ -957,7 +957,7 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 		status = EPROTO;
 	}
 
-	if (status == 0) {
+	if (!status) {
 		/* session timeout on remote node */
 		nd->nd_timeout = mksn_rep->mksn_timeout;
 	}
@@ -979,7 +979,7 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 	switch (trans->tas_opc) {
 	case LST_TRANS_SESNEW:
 		rc = lstcon_sesnew_stat_reply(trans, nd, msg);
-		if (rc == 0) {
+		if (!rc) {
 			lstcon_sesop_stat_success(stat, 1);
 			return;
 		}
@@ -990,7 +990,7 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 	case LST_TRANS_SESEND:
 		rmsn_rep = &msg->msg_body.rmsn_reply;
 		/* ESRCH is not an error for end session */
-		if (rmsn_rep->rmsn_status == 0 ||
+		if (!rmsn_rep->rmsn_status ||
 		    rmsn_rep->rmsn_status == ESRCH) {
 			lstcon_sesop_stat_success(stat, 1);
 			return;
@@ -1019,7 +1019,7 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 	case LST_TRANS_TSBSTOP:
 		bat_rep = &msg->msg_body.bat_reply;
 
-		if (bat_rep->bar_status == 0) {
+		if (!bat_rep->bar_status) {
 			lstcon_tsbop_stat_success(stat, 1);
 			return;
 		}
@@ -1038,12 +1038,12 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 	case LST_TRANS_TSBSRVQRY:
 		bat_rep = &msg->msg_body.bat_reply;
 
-		if (bat_rep->bar_active != 0)
+		if (bat_rep->bar_active)
 			lstcon_tsbqry_stat_run(stat, 1);
 		else
 			lstcon_tsbqry_stat_idle(stat, 1);
 
-		if (bat_rep->bar_status == 0)
+		if (!bat_rep->bar_status)
 			return;
 
 		lstcon_tsbqry_stat_failure(stat, 1);
@@ -1054,7 +1054,7 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 	case LST_TRANS_TSBSRVADD:
 		test_rep = &msg->msg_body.tes_reply;
 
-		if (test_rep->tsr_status == 0) {
+		if (!test_rep->tsr_status) {
 			lstcon_tsbop_stat_success(stat, 1);
 			return;
 		}
@@ -1066,7 +1066,7 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 	case LST_TRANS_STATQRY:
 		stat_rep = &msg->msg_body.stat_reply;
 
-		if (stat_rep->str_status == 0) {
+		if (!stat_rep->str_status) {
 			lstcon_statqry_stat_success(stat, 1);
 			return;
 		}
@@ -1079,7 +1079,7 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 		LBUG();
 	}
 
-	if (stat->trs_fwk_errno == 0)
+	if (!stat->trs_fwk_errno)
 		stat->trs_fwk_errno = rc;
 
 	return;
@@ -1101,7 +1101,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 	/* Creating session RPG for list of nodes */
 
 	rc = lstcon_rpc_trans_prep(translist, transop, &trans);
-	if (rc != 0) {
+	if (rc) {
 		CERROR("Can't create transaction %d: %d\n", transop, rc);
 		return rc;
 	}
@@ -1111,7 +1111,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 		rc = !condition ? 1 :
 		     condition(transop, ndl->ndl_node, arg);
 
-		if (rc == 0)
+		if (!rc)
 			continue;
 
 		if (rc < 0) {
@@ -1151,7 +1151,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 			break;
 		}
 
-		if (rc != 0) {
+		if (rc) {
 			CERROR("Failed to create RPC for transaction %s: %d\n",
 			       lstcon_rpc_trans_name(transop), rc);
 			break;
@@ -1160,7 +1160,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 		lstcon_rpc_trans_addreq(trans, rpc);
 	}
 
-	if (rc == 0) {
+	if (!rc) {
 		*transpp = trans;
 		return 0;
 	}
@@ -1213,7 +1213,7 @@ lstcon_rpc_pinger(void *arg)
 
 			rc = lstcon_sesrpc_prep(nd, LST_TRANS_SESEND,
 						trans->tas_features, &crpc);
-			if (rc != 0) {
+			if (rc) {
 				CERROR("Out of memory\n");
 				break;
 			}
@@ -1258,7 +1258,7 @@ lstcon_rpc_pinger(void *arg)
 
 		rc = lstcon_rpc_init(nd, SRPC_SERVICE_DEBUG,
 				     trans->tas_features, 0, 0, 1, crpc);
-		if (rc != 0) {
+		if (rc) {
 			CERROR("Out of memory\n");
 			break;
 		}
@@ -1294,11 +1294,11 @@ lstcon_rpc_pinger_start(void)
 	int rc;
 
 	LASSERT(list_empty(&console_session.ses_rpc_freelist));
-	LASSERT(atomic_read(&console_session.ses_rpc_counter) == 0);
+	LASSERT(!atomic_read(&console_session.ses_rpc_counter));
 
 	rc = lstcon_rpc_trans_prep(NULL, LST_TRANS_SESPING,
 				   &console_session.ses_ping);
-	if (rc != 0) {
+	if (rc) {
 		CERROR("Failed to create console pinger\n");
 		return rc;
 	}
@@ -1361,7 +1361,7 @@ lstcon_rpc_cleanup_wait(void)
 
 	spin_lock(&console_session.ses_rpc_lock);
 
-	lst_wait_until((atomic_read(&console_session.ses_rpc_counter) == 0),
+	lst_wait_until(!atomic_read(&console_session.ses_rpc_counter),
 		       console_session.ses_rpc_lock,
 		       "Network is not accessible or target is down, waiting for %d console RPCs to being recycled\n",
 		       atomic_read(&console_session.ses_rpc_counter));
@@ -1399,5 +1399,5 @@ void
 lstcon_rpc_module_fini(void)
 {
 	LASSERT(list_empty(&console_session.ses_rpc_freelist));
-	LASSERT(atomic_read(&console_session.ses_rpc_counter) == 0);
+	LASSERT(!atomic_read(&console_session.ses_rpc_counter));
 }

@@ -46,7 +46,7 @@
 void
 lnet_md_unlink(lnet_libmd_t *md)
 {
-	if ((md->md_flags & LNET_MD_FLAG_ZOMBIE) == 0) {
+	if (!(md->md_flags & LNET_MD_FLAG_ZOMBIE)) {
 		/* first unlink attempt... */
 		lnet_me_t *me = md->md_me;
 
@@ -68,7 +68,7 @@ lnet_md_unlink(lnet_libmd_t *md)
 		lnet_res_lh_invalidate(&md->md_lh);
 	}
 
-	if (md->md_refcount != 0) {
+	if (md->md_refcount) {
 		CDEBUG(D_NET, "Queueing unlink of md %p\n", md);
 		return;
 	}
@@ -105,8 +105,8 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 	lmd->md_refcount = 0;
 	lmd->md_flags = (unlink == LNET_UNLINK) ? LNET_MD_FLAG_AUTO_UNLINK : 0;
 
-	if ((umd->options & LNET_MD_IOVEC) != 0) {
-		if ((umd->options & LNET_MD_KIOV) != 0) /* Can't specify both */
+	if (umd->options & LNET_MD_IOVEC) {
+		if (umd->options & LNET_MD_KIOV) /* Can't specify both */
 			return -EINVAL;
 
 		niov = umd->length;
@@ -125,12 +125,12 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 
 		lmd->md_length = total_length;
 
-		if ((umd->options & LNET_MD_MAX_SIZE) != 0 && /* use max size */
+		if ((umd->options & LNET_MD_MAX_SIZE) && /* use max size */
 		    (umd->max_size < 0 ||
 		     umd->max_size > total_length)) /* illegal max_size */
 			return -EINVAL;
 
-	} else if ((umd->options & LNET_MD_KIOV) != 0) {
+	} else if (umd->options & LNET_MD_KIOV) {
 		niov = umd->length;
 		lmd->md_niov = umd->length;
 		memcpy(lmd->md_iov.kiov, umd->start,
@@ -147,7 +147,7 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 
 		lmd->md_length = total_length;
 
-		if ((umd->options & LNET_MD_MAX_SIZE) != 0 && /* max size used */
+		if ((umd->options & LNET_MD_MAX_SIZE) && /* max size used */
 		    (umd->max_size < 0 ||
 		     umd->max_size > total_length)) /* illegal max_size */
 			return -EINVAL;
@@ -158,7 +158,7 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 		lmd->md_iov.iov[0].iov_base = umd->start;
 		lmd->md_iov.iov[0].iov_len = umd->length;
 
-		if ((umd->options & LNET_MD_MAX_SIZE) != 0 && /* max size used */
+		if ((umd->options & LNET_MD_MAX_SIZE) && /* max size used */
 		    (umd->max_size < 0 ||
 		     umd->max_size > (int)umd->length)) /* illegal max_size */
 			return -EINVAL;
@@ -216,8 +216,8 @@ lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd)
 	 * and that's all.
 	 */
 	umd->start = lmd->md_start;
-	umd->length = ((lmd->md_options &
-			(LNET_MD_IOVEC | LNET_MD_KIOV)) == 0) ?
+	umd->length = !(lmd->md_options &
+		      (LNET_MD_IOVEC | LNET_MD_KIOV)) ?
 		      lmd->md_length : lmd->md_niov;
 	umd->threshold = lmd->md_threshold;
 	umd->max_size = lmd->md_max_size;
@@ -229,13 +229,13 @@ lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd)
 static int
 lnet_md_validate(lnet_md_t *umd)
 {
-	if (!umd->start && umd->length != 0) {
+	if (!umd->start && umd->length) {
 		CERROR("MD start pointer can not be NULL with length %u\n",
 		       umd->length);
 		return -EINVAL;
 	}
 
-	if ((umd->options & (LNET_MD_KIOV | LNET_MD_IOVEC)) != 0 &&
+	if ((umd->options & (LNET_MD_KIOV | LNET_MD_IOVEC)) &&
 	    umd->length > LNET_MAX_IOV) {
 		CERROR("Invalid option: too many fragments %u, %d max\n",
 		       umd->length, LNET_MAX_IOV);
@@ -284,10 +284,10 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
-	if (lnet_md_validate(&umd) != 0)
+	if (lnet_md_validate(&umd))
 		return -EINVAL;
 
-	if ((umd.options & (LNET_MD_OP_GET | LNET_MD_OP_PUT)) == 0) {
+	if (!(umd.options & (LNET_MD_OP_GET | LNET_MD_OP_PUT))) {
 		CERROR("Invalid option: no MD_OP set\n");
 		return -EINVAL;
 	}
@@ -300,7 +300,7 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 	cpt = lnet_cpt_of_cookie(meh.cookie);
 
 	lnet_res_lock(cpt);
-	if (rc != 0)
+	if (rc)
 		goto failed;
 
 	me = lnet_handle2me(&meh);
@@ -311,7 +311,7 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 	else
 		rc = lnet_md_link(md, umd.eq_handle, cpt);
 
-	if (rc != 0)
+	if (rc)
 		goto failed;
 
 	/*
@@ -363,10 +363,10 @@ LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
-	if (lnet_md_validate(&umd) != 0)
+	if (lnet_md_validate(&umd))
 		return -EINVAL;
 
-	if ((umd.options & (LNET_MD_OP_GET | LNET_MD_OP_PUT)) != 0) {
+	if ((umd.options & (LNET_MD_OP_GET | LNET_MD_OP_PUT))) {
 		CERROR("Invalid option: GET|PUT illegal on active MDs\n");
 		return -EINVAL;
 	}
@@ -378,11 +378,11 @@ LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
 	rc = lnet_md_build(md, &umd, unlink);
 
 	cpt = lnet_res_lock_current();
-	if (rc != 0)
+	if (rc)
 		goto failed;
 
 	rc = lnet_md_link(md, umd.eq_handle, cpt);
-	if (rc != 0)
+	if (rc)
 		goto failed;
 
 	lnet_md2handle(handle, md);
@@ -453,7 +453,7 @@ LNetMDUnlink(lnet_handle_md_t mdh)
 	 * when the LND is done, the completion event flags that the MD was
 	 * unlinked.  Otherwise, we enqueue an event now...
 	 */
-	if (md->md_eq && md->md_refcount == 0) {
+	if (md->md_eq && !md->md_refcount) {
 		lnet_build_unlink_event(md, &ev);
 		lnet_eq_enqueue_event(md->md_eq, &ev);
 	}

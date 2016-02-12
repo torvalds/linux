@@ -255,9 +255,9 @@ do {                                                                     \
 		srpc_destroy_client_rpc(rpc);                            \
 } while (0)
 
-#define srpc_event_pending(rpc)   ((rpc)->crpc_bulkev.ev_fired == 0 ||   \
-				   (rpc)->crpc_reqstev.ev_fired == 0 ||  \
-				   (rpc)->crpc_replyev.ev_fired == 0)
+#define srpc_event_pending(rpc)   (!(rpc)->crpc_bulkev.ev_fired ||	\
+				   !(rpc)->crpc_reqstev.ev_fired ||	\
+				   !(rpc)->crpc_replyev.ev_fired)
 
 /* CPU partition data of srpc service */
 struct srpc_service_cd {
@@ -506,7 +506,7 @@ srpc_destroy_client_rpc(srpc_client_rpc_t *rpc)
 {
 	LASSERT(rpc);
 	LASSERT(!srpc_event_pending(rpc));
-	LASSERT(atomic_read(&rpc->crpc_refcount) == 0);
+	LASSERT(!atomic_read(&rpc->crpc_refcount));
 
 	if (!rpc->crpc_fini)
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
@@ -601,7 +601,7 @@ srpc_wait_service_shutdown(srpc_service_t *sv)
 
 	LASSERT(sv->sv_shuttingdown);
 
-	while (srpc_finish_service(sv) == 0) {
+	while (!srpc_finish_service(sv)) {
 		i++;
 		CDEBUG(((i & -i) == i) ? D_WARNING : D_NET,
 		       "Waiting for %s service to shutdown...\n",

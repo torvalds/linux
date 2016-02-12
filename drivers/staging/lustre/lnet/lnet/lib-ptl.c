@@ -50,7 +50,7 @@ lnet_ptl_match_type(unsigned int index, lnet_process_id_t match_id,
 	struct lnet_portal *ptl = the_lnet.ln_portals[index];
 	int unique;
 
-	unique = ignore_bits == 0 &&
+	unique = !ignore_bits &&
 		 match_id.nid != LNET_NID_ANY &&
 		 match_id.pid != LNET_PID_ANY;
 
@@ -152,7 +152,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 		return LNET_MATCHMD_NONE | LNET_MATCHMD_EXHAUSTED;
 
 	/* mismatched MD op */
-	if ((md->md_options & info->mi_opc) == 0)
+	if (!(md->md_options & info->mi_opc))
 		return LNET_MATCHMD_NONE;
 
 	/* mismatched ME nid/pid? */
@@ -165,17 +165,17 @@ lnet_try_match_md(lnet_libmd_t *md,
 		return LNET_MATCHMD_NONE;
 
 	/* mismatched ME matchbits? */
-	if (((me->me_match_bits ^ info->mi_mbits) & ~me->me_ignore_bits) != 0)
+	if ((me->me_match_bits ^ info->mi_mbits) & ~me->me_ignore_bits)
 		return LNET_MATCHMD_NONE;
 
 	/* Hurrah! This _is_ a match; check it out... */
 
-	if ((md->md_options & LNET_MD_MANAGE_REMOTE) == 0)
+	if (!(md->md_options & LNET_MD_MANAGE_REMOTE))
 		offset = md->md_offset;
 	else
 		offset = info->mi_roffset;
 
-	if ((md->md_options & LNET_MD_MAX_SIZE) != 0) {
+	if (md->md_options & LNET_MD_MAX_SIZE) {
 		mlength = md->md_max_size;
 		LASSERT(md->md_offset + mlength <= md->md_length);
 	} else {
@@ -184,7 +184,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 
 	if (info->mi_rlength <= mlength) {	/* fits in allowed space */
 		mlength = info->mi_rlength;
-	} else if ((md->md_options & LNET_MD_TRUNCATE) == 0) {
+	} else if (!(md->md_options & LNET_MD_TRUNCATE)) {
 		/* this packet _really_ is too big */
 		CERROR("Matching packet from %s, match %llu length %d too big: %d left, %d allowed\n",
 		       libcfs_id2str(info->mi_id), info->mi_mbits,
@@ -210,7 +210,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 	 * We bumped md->md_refcount above so the MD just gets flagged
 	 * for unlink when it is finalized.
 	 */
-	if ((md->md_flags & LNET_MD_FLAG_AUTO_UNLINK) != 0)
+	if (md->md_flags & LNET_MD_FLAG_AUTO_UNLINK)
 		lnet_md_unlink(md);
 
 	return LNET_MATCHMD_OK | LNET_MATCHMD_EXHAUSTED;
@@ -304,7 +304,7 @@ lnet_mt_of_match(struct lnet_match_info *info, struct lnet_msg *msg)
 		/* is there any active entry for this portal? */
 		nmaps = ptl->ptl_mt_nmaps;
 		/* map to an active mtable to avoid heavy "stealing" */
-		if (nmaps != 0) {
+		if (nmaps) {
 			/*
 			 * NB: there is possibility that ptl_mt_maps is being
 			 * changed because we are not under protection of
@@ -339,7 +339,7 @@ lnet_mt_test_exhausted(struct lnet_match_table *mtable, int pos)
 	bmap = &mtable->mt_exhausted[pos >> LNET_MT_BITS_U64];
 	pos &= (1 << LNET_MT_BITS_U64) - 1;
 
-	return ((*bmap) & (1ULL << pos)) != 0;
+	return (*bmap & (1ULL << pos));
 }
 
 static void
@@ -405,10 +405,10 @@ lnet_mt_match_md(struct lnet_match_table *mtable,
 		LASSERT(me == me->me_md->md_me);
 
 		rc = lnet_try_match_md(me->me_md, info, msg);
-		if ((rc & LNET_MATCHMD_EXHAUSTED) == 0)
+		if (!(rc & LNET_MATCHMD_EXHAUSTED))
 			exhausted = 0; /* mlist is not empty */
 
-		if ((rc & LNET_MATCHMD_FINISH) != 0) {
+		if (rc & LNET_MATCHMD_FINISH) {
 			/*
 			 * don't return EXHAUSTED bit because we don't know
 			 * whether the mlist is empty or not
@@ -423,7 +423,7 @@ lnet_mt_match_md(struct lnet_match_table *mtable,
 			exhausted = 0;
 	}
 
-	if (exhausted == 0 && head == &mtable->mt_mhash[LNET_MT_HASH_IGNORE]) {
+	if (!exhausted && head == &mtable->mt_mhash[LNET_MT_HASH_IGNORE]) {
 		head = lnet_mt_match_head(mtable, info->mi_id, info->mi_mbits);
 		goto again; /* re-check MEs w/o ignore-bits */
 	}
@@ -490,13 +490,13 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 
 		cpt = (first + i) % LNET_CPT_NUMBER;
 		mtable = ptl->ptl_mtables[cpt];
-		if (i != 0 && i != LNET_CPT_NUMBER - 1 && !mtable->mt_enabled)
+		if (i && i != LNET_CPT_NUMBER - 1 && !mtable->mt_enabled)
 			continue;
 
 		lnet_res_lock(cpt);
 		lnet_ptl_lock(ptl);
 
-		if (i == 0) { /* the first try, attach on stealing list */
+		if (!i) { /* the first try, attach on stealing list */
 			list_add_tail(&msg->msg_list,
 				      &ptl->ptl_msg_stealing);
 		}
@@ -504,11 +504,11 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 		if (!list_empty(&msg->msg_list)) { /* on stealing list */
 			rc = lnet_mt_match_md(mtable, info, msg);
 
-			if ((rc & LNET_MATCHMD_EXHAUSTED) != 0 &&
+			if ((rc & LNET_MATCHMD_EXHAUSTED) &&
 			    mtable->mt_enabled)
 				lnet_ptl_disable_mt(ptl, cpt);
 
-			if ((rc & LNET_MATCHMD_FINISH) != 0)
+			if (rc & LNET_MATCHMD_FINISH)
 				list_del_init(&msg->msg_list);
 
 		} else {
@@ -522,7 +522,7 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 
 		if (!list_empty(&msg->msg_list) && /* not matched yet */
 		    (i == LNET_CPT_NUMBER - 1 || /* the last CPT */
-		     ptl->ptl_mt_nmaps == 0 ||   /* no active CPT */
+		     !ptl->ptl_mt_nmaps ||   /* no active CPT */
 		     (ptl->ptl_mt_nmaps == 1 &&  /* the only active CPT */
 		      ptl->ptl_mt_maps[0] == cpt))) {
 			/* nothing to steal, delay or drop */
@@ -541,7 +541,7 @@ lnet_ptl_match_delay(struct lnet_portal *ptl,
 		lnet_ptl_unlock(ptl);
 		lnet_res_unlock(cpt);
 
-		if ((rc & LNET_MATCHMD_FINISH) != 0 || msg->msg_rx_delayed)
+		if ((rc & LNET_MATCHMD_FINISH) || msg->msg_rx_delayed)
 			break;
 	}
 
@@ -567,7 +567,7 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 
 	ptl = the_lnet.ln_portals[info->mi_portal];
 	rc = lnet_ptl_match_early(ptl, msg);
-	if (rc != 0) /* matched or delayed early message */
+	if (rc) /* matched or delayed early message */
 		return rc;
 
 	mtable = lnet_mt_of_match(info, msg);
@@ -579,13 +579,13 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 	}
 
 	rc = lnet_mt_match_md(mtable, info, msg);
-	if ((rc & LNET_MATCHMD_EXHAUSTED) != 0 && mtable->mt_enabled) {
+	if ((rc & LNET_MATCHMD_EXHAUSTED) && mtable->mt_enabled) {
 		lnet_ptl_lock(ptl);
 		lnet_ptl_disable_mt(ptl, mtable->mt_cpt);
 		lnet_ptl_unlock(ptl);
 	}
 
-	if ((rc & LNET_MATCHMD_FINISH) != 0)	/* matched or dropping */
+	if (rc & LNET_MATCHMD_FINISH)	/* matched or dropping */
 		goto out1;
 
 	if (!msg->msg_rx_ready_delay)
@@ -646,7 +646,7 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 	int exhausted = 0;
 	int cpt;
 
-	LASSERT(md->md_refcount == 0); /* a brand new MD */
+	LASSERT(!md->md_refcount); /* a brand new MD */
 
 	me->me_md = md;
 	md->md_me = me;
@@ -680,15 +680,15 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 
 		rc = lnet_try_match_md(md, &info, msg);
 
-		exhausted = (rc & LNET_MATCHMD_EXHAUSTED) != 0;
-		if ((rc & LNET_MATCHMD_NONE) != 0) {
+		exhausted = (rc & LNET_MATCHMD_EXHAUSTED);
+		if (rc & LNET_MATCHMD_NONE) {
 			if (exhausted)
 				break;
 			continue;
 		}
 
 		/* Hurrah! This _is_ a match */
-		LASSERT((rc & LNET_MATCHMD_FINISH) != 0);
+		LASSERT(rc & LNET_MATCHMD_FINISH);
 		list_del_init(&msg->msg_list);
 
 		if (head == &ptl->ptl_msg_stealing) {
@@ -698,7 +698,7 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 			continue;
 		}
 
-		if ((rc & LNET_MATCHMD_OK) != 0) {
+		if (rc & LNET_MATCHMD_OK) {
 			list_add_tail(&msg->msg_list, matches);
 
 			CDEBUG(D_NET, "Resuming delayed PUT from %s portal %d match %llu offset %d length %d.\n",

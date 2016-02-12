@@ -137,10 +137,10 @@ lnet_peer_tables_cleanup(void)
 
 		lnet_net_lock(i);
 
-		for (j = 3; ptable->pt_number != 0; j++) {
+		for (j = 3; ptable->pt_number; j++) {
 			lnet_net_unlock(i);
 
-			if ((j & (j - 1)) == 0) {
+			if (!(j & (j - 1))) {
 				CDEBUG(D_WARNING,
 				       "Waiting for %d peers on peer table\n",
 				       ptable->pt_number);
@@ -167,11 +167,11 @@ lnet_destroy_peer_locked(lnet_peer_t *lp)
 {
 	struct lnet_peer_table *ptable;
 
-	LASSERT(lp->lp_refcount == 0);
-	LASSERT(lp->lp_rtr_refcount == 0);
+	LASSERT(!lp->lp_refcount);
+	LASSERT(!lp->lp_rtr_refcount);
 	LASSERT(list_empty(&lp->lp_txq));
 	LASSERT(list_empty(&lp->lp_hashlist));
-	LASSERT(lp->lp_txqnob == 0);
+	LASSERT(!lp->lp_txqnob);
 
 	ptable = the_lnet.ln_peer_tables[lp->lp_cpt];
 	LASSERT(ptable->pt_number > 0);
@@ -317,7 +317,7 @@ lnet_debug_peer(lnet_nid_t nid)
 	lnet_net_lock(cpt);
 
 	rc = lnet_nid2peer_locked(&lp, nid, cpt);
-	if (rc != 0) {
+	if (rc) {
 		lnet_net_unlock(cpt);
 		CDEBUG(D_WARNING, "No peer %s\n", libcfs_nid2str(nid));
 		return;

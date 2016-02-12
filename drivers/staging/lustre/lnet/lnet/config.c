@@ -210,7 +210,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 	if (!ni)
 		goto failed;
 
-	while (str && *str != 0) {
+	while (str && *str) {
 		char *comma = strchr(str, ',');
 		char *bracket = strchr(str, '(');
 		char *square = strchr(str, '[');
@@ -240,7 +240,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 
 			rc = cfs_expr_list_parse(square, tmp - square + 1,
 						 0, LNET_CPT_NUMBER - 1, &el);
-			if (rc != 0) {
+			if (rc) {
 				tmp = square;
 				goto failed_syntax;
 			}
@@ -309,7 +309,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 				*comma++ = 0;
 
 			iface = cfs_trimwhite(iface);
-			if (*iface == 0) {
+			if (!*iface) {
 				tmp = iface;
 				goto failed_syntax;
 			}
@@ -330,7 +330,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		if (comma) {
 			*comma = 0;
 			str = cfs_trimwhite(str);
-			if (*str != 0) {
+			if (*str) {
 				tmp = str;
 				goto failed_syntax;
 			}
@@ -339,7 +339,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		}
 
 		str = cfs_trimwhite(str);
-		if (*str != 0) {
+		if (*str) {
 			tmp = str;
 			goto failed_syntax;
 		}
@@ -434,7 +434,7 @@ lnet_str2tbs_sep(struct list_head *tbs, char *str)
 			str++;
 
 		/* scan for separator or comment */
-		for (sep = str; *sep != 0; sep++)
+		for (sep = str; *sep; sep++)
 			if (lnet_issep(*sep) || *sep == '#')
 				break;
 
@@ -461,10 +461,10 @@ lnet_str2tbs_sep(struct list_head *tbs, char *str)
 			/* scan for separator */
 			do {
 				sep++;
-			} while (*sep != 0 && !lnet_issep(*sep));
+			} while (*sep && !lnet_issep(*sep));
 		}
 
-		if (*sep == 0)
+		if (!*sep)
 			break;
 
 		str = sep + 1;
@@ -539,7 +539,7 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 				/* simple string enumeration */
 				if (lnet_expand1tb(&pending, str, sep, sep2,
 						   parsed,
-						   (int)(enditem - parsed)) != 0) {
+						   (int)(enditem - parsed))) {
 					goto failed;
 				}
 				continue;
@@ -554,7 +554,7 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 			goto failed;
 
 		if (hi < 0 || lo < 0 || stride < 0 || hi < lo ||
-		    (hi - lo) % stride != 0)
+		    (hi - lo) % stride)
 			goto failed;
 
 		for (i = lo; i <= hi; i += stride) {
@@ -564,7 +564,7 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 				goto failed;
 
 			if (lnet_expand1tb(&pending, str, sep, sep2,
-					   num, nob) != 0)
+					   num, nob))
 				goto failed;
 		}
 	}
@@ -656,7 +656,7 @@ lnet_parse_route(char *str, int *im_a_router)
 		/* scan for token start */
 		while (isspace(*sep))
 			sep++;
-		if (*sep == 0) {
+		if (!*sep) {
 			if (ntokens < (got_hops ? 3 : 2))
 				goto token_error;
 			break;
@@ -666,9 +666,9 @@ lnet_parse_route(char *str, int *im_a_router)
 		token = sep++;
 
 		/* scan for token end */
-		while (*sep != 0 && !isspace(*sep))
+		while (*sep && !isspace(*sep))
 			sep++;
-		if (*sep != 0)
+		if (*sep)
 			*sep++ = 0;
 
 		if (ntokens == 1) {
@@ -745,7 +745,7 @@ lnet_parse_route(char *str, int *im_a_router)
 			}
 
 			rc = lnet_add_route(net, hops, nid, priority);
-			if (rc != 0) {
+			if (rc) {
 				CERROR("Can't create route to %s via %s\n",
 				       libcfs_net2str(net),
 				       libcfs_nid2str(nid));
@@ -802,7 +802,7 @@ lnet_parse_routes(char *routes, int *im_a_router)
 		rc = lnet_parse_route_tbs(&tbs, im_a_router);
 	}
 
-	LASSERT(lnet_tbnob == 0);
+	LASSERT(!lnet_tbnob);
 	return rc;
 }
 
@@ -814,7 +814,7 @@ lnet_match_network_token(char *token, int len, __u32 *ipaddrs, int nip)
 	int i;
 
 	rc = cfs_ip_addr_parse(token, len, &list);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	for (rc = i = 0; !rc && i < nip; i++)
@@ -847,18 +847,18 @@ lnet_match_network_tokens(char *net_entry, __u32 *ipaddrs, int nip)
 		/* scan for token start */
 		while (isspace(*sep))
 			sep++;
-		if (*sep == 0)
+		if (!*sep)
 			break;
 
 		token = sep++;
 
 		/* scan for token end */
-		while (*sep != 0 && !isspace(*sep))
+		while (*sep && !isspace(*sep))
 			sep++;
-		if (*sep != 0)
+		if (*sep)
 			*sep++ = 0;
 
-		if (ntokens++ == 0) {
+		if (!ntokens++) {
 			net = token;
 			continue;
 		}
@@ -872,7 +872,8 @@ lnet_match_network_tokens(char *net_entry, __u32 *ipaddrs, int nip)
 			return rc;
 		}
 
-		matched |= (rc != 0);
+		if (rc)
+			matched |= 1;
 	}
 
 	if (!matched)
@@ -930,12 +931,12 @@ lnet_splitnets(char *source, struct list_head *nets)
 			bracket = strchr(bracket + 1, ')');
 
 			if (!bracket ||
-			    !(bracket[1] == ',' || bracket[1] == 0)) {
+			    !(bracket[1] == ',' || !bracket[1])) {
 				lnet_syntax("ip2nets", source, offset2, len);
 				return -EINVAL;
 			}
 
-			sep = (bracket[1] == 0) ? NULL : bracket + 1;
+			sep = !bracket[1] ? NULL : bracket + 1;
 		}
 
 		if (sep)
@@ -1002,7 +1003,7 @@ lnet_match_networks(char **networksp, char *ip2nets, __u32 *ipaddrs, int nip)
 	INIT_LIST_HEAD(&raw_entries);
 	if (lnet_str2tbs_sep(&raw_entries, ip2nets) < 0) {
 		CERROR("Error parsing ip2nets\n");
-		LASSERT(lnet_tbnob == 0);
+		LASSERT(!lnet_tbnob);
 		return -EINVAL;
 	}
 
@@ -1026,7 +1027,7 @@ lnet_match_networks(char **networksp, char *ip2nets, __u32 *ipaddrs, int nip)
 
 		list_del(&tb->ltb_list);
 
-		if (rc == 0) {		  /* no match */
+		if (!rc) {		  /* no match */
 			lnet_free_text_buf(tb);
 			continue;
 		}
@@ -1072,7 +1073,7 @@ lnet_match_networks(char **networksp, char *ip2nets, __u32 *ipaddrs, int nip)
 			list_add_tail(&tb->ltb_list, &matched_nets);
 
 			len += snprintf(networks + len, sizeof(networks) - len,
-					"%s%s", (len == 0) ? "" : ",",
+					"%s%s", !len ? "" : ",",
 					tb->ltb_text);
 
 			if (len >= sizeof(networks)) {
@@ -1089,7 +1090,7 @@ lnet_match_networks(char **networksp, char *ip2nets, __u32 *ipaddrs, int nip)
 	lnet_free_text_bufs(&raw_entries);
 	lnet_free_text_bufs(&matched_nets);
 	lnet_free_text_bufs(&current_nets);
-	LASSERT(lnet_tbnob == 0);
+	LASSERT(!lnet_tbnob);
 
 	if (rc < 0)
 		return rc;
@@ -1126,7 +1127,7 @@ lnet_ipaddr_enumerate(__u32 **ipaddrsp)
 			continue;
 
 		rc = lnet_ipif_query(ifnames[i], &up, &ipaddrs[nip], &netmask);
-		if (rc != 0) {
+		if (rc) {
 			CWARN("Can't query interface %s: %d\n",
 			      ifnames[i], rc);
 			continue;
@@ -1177,7 +1178,7 @@ lnet_parse_ip2nets(char **networksp, char *ip2nets)
 		return nip;
 	}
 
-	if (nip == 0) {
+	if (!nip) {
 		LCONSOLE_ERROR_MSG(0x118,
 				   "No local IP interfaces for ip2nets to match\n");
 		return -ENOENT;
@@ -1191,7 +1192,7 @@ lnet_parse_ip2nets(char **networksp, char *ip2nets)
 		return rc;
 	}
 
-	if (rc == 0) {
+	if (!rc) {
 		LCONSOLE_ERROR_MSG(0x11a,
 				   "ip2nets does not match any local IP interfaces\n");
 		return -ENOENT;

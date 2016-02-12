@@ -170,7 +170,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 
 	LASSERT(!write);
 
-	if (*lenp == 0)
+	if (!*lenp)
 		return 0;
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
@@ -179,7 +179,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 
 	s = tmpstr; /* points to current position in tmpstr[] */
 
-	if (*ppos == 0) {
+	if (!*ppos) {
 		s += snprintf(s, tmpstr + tmpsiz - s, "Routing %s\n",
 			      the_lnet.ln_routing ? "enabled" : "disabled");
 		LASSERT(tmpstr + tmpsiz - s > 0);
@@ -224,7 +224,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 					lnet_route_t *re =
 						list_entry(r, lnet_route_t,
 							   lr_list);
-					if (skip == 0) {
+					if (!skip) {
 						route = re;
 						break;
 					}
@@ -271,7 +271,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 
 	LIBCFS_FREE(tmpstr, tmpsiz);
 
-	if (rc == 0)
+	if (!rc)
 		*lenp = len;
 
 	return rc;
@@ -293,7 +293,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 
 	LASSERT(!write);
 
-	if (*lenp == 0)
+	if (!*lenp)
 		return 0;
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
@@ -302,7 +302,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 
 	s = tmpstr; /* points to current position in tmpstr[] */
 
-	if (*ppos == 0) {
+	if (!*ppos) {
 		s += snprintf(s, tmpstr + tmpsiz - s,
 			      "%-4s %7s %9s %6s %12s %9s %8s %7s %s\n",
 			      "ref", "rtr_ref", "alive_cnt", "state",
@@ -334,7 +334,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 			lnet_peer_t *lp = list_entry(r, lnet_peer_t,
 						     lp_rtr_list);
 
-			if (skip == 0) {
+			if (!skip) {
 				peer = lp;
 				break;
 			}
@@ -358,21 +358,21 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 			lnet_route_t *rtr;
 
 			if ((peer->lp_ping_feats &
-			     LNET_PING_FEAT_NI_STATUS) != 0) {
+			     LNET_PING_FEAT_NI_STATUS)) {
 				list_for_each_entry(rtr, &peer->lp_routes,
 						    lr_gwlist) {
 					/*
 					 * downis on any route should be the
 					 * number of downis on the gateway
 					 */
-					if (rtr->lr_downis != 0) {
+					if (rtr->lr_downis) {
 						down_ni = rtr->lr_downis;
 						break;
 					}
 				}
 			}
 
-			if (deadline == 0)
+			if (!deadline)
 				s += snprintf(s, tmpstr + tmpsiz - s,
 					      "%-4d %7d %9d %6s %12d %9d %8s %7d %s\n",
 					      nrefs, nrtrrefs, alive_cnt,
@@ -408,7 +408,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 
 	LIBCFS_FREE(tmpstr, tmpsiz);
 
-	if (rc == 0)
+	if (!rc)
 		*lenp = len;
 
 	return rc;
@@ -431,7 +431,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 	CLASSERT(LNET_PROC_HASH_BITS >= LNET_PEER_HASH_BITS);
 	LASSERT(!write);
 
-	if (*lenp == 0)
+	if (!*lenp)
 		return 0;
 
 	if (cpt >= LNET_CPT_NUMBER) {
@@ -445,7 +445,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 
 	s = tmpstr; /* points to current position in tmpstr[] */
 
-	if (*ppos == 0) {
+	if (!*ppos) {
 		s += snprintf(s, tmpstr + tmpsiz - s,
 			      "%-24s %4s %5s %5s %5s %5s %5s %5s %5s %s\n",
 			      "nid", "refs", "state", "last", "max",
@@ -480,7 +480,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 			while (p != &ptable->pt_hash[hash]) {
 				lnet_peer_t *lp = list_entry(p, lnet_peer_t,
 							     lp_hashlist);
-				if (skip == 0) {
+				if (!skip) {
 					peer = lp;
 
 					/*
@@ -577,7 +577,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 
 	LIBCFS_FREE(tmpstr, tmpsiz);
 
-	if (rc == 0)
+	if (!rc)
 		*lenp = len;
 
 	return rc;
@@ -659,7 +659,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 
 	LASSERT(!write);
 
-	if (*lenp == 0)
+	if (!*lenp)
 		return 0;
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
@@ -668,7 +668,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 
 	s = tmpstr; /* points to current position in tmpstr[] */
 
-	if (*ppos == 0) {
+	if (!*ppos) {
 		s += snprintf(s, tmpstr + tmpsiz - s,
 			      "%-24s %6s %5s %4s %4s %4s %5s %5s %5s\n",
 			      "nid", "status", "alive", "refs", "peer",
@@ -686,7 +686,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 		while (n != &the_lnet.ln_nis) {
 			lnet_ni_t *a_ni = list_entry(n, lnet_ni_t, ni_list);
 
-			if (skip == 0) {
+			if (!skip) {
 				ni = a_ni;
 				break;
 			}
@@ -730,7 +730,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 				if (j == ni->ni_ncpts)
 					continue;
 
-				if (i != 0)
+				if (i)
 					lnet_net_lock(i);
 
 				s += snprintf(s, tmpstr + tmpsiz - s,
@@ -742,7 +742,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 					      tq->tq_credits_max,
 					      tq->tq_credits,
 					      tq->tq_credits_min);
-				if (i != 0)
+				if (i)
 					lnet_net_unlock(i);
 			}
 			LASSERT(tmpstr + tmpsiz - s > 0);
@@ -764,7 +764,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 
 	LIBCFS_FREE(tmpstr, tmpsiz);
 
-	if (rc == 0)
+	if (!rc)
 		*lenp = len;
 
 	return rc;
@@ -854,8 +854,8 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 	rc = -EINVAL;
 	lnet_res_lock(0);
 	for (i = 0; portal_rotors[i].pr_name; i++) {
-		if (strncasecmp(portal_rotors[i].pr_name, tmp,
-				strlen(portal_rotors[i].pr_name)) == 0) {
+		if (!strncasecmp(portal_rotors[i].pr_name, tmp,
+				 strlen(portal_rotors[i].pr_name))) {
 			portal_rotor = portal_rotors[i].pr_value;
 			rc = 0;
 			break;

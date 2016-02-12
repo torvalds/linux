@@ -80,7 +80,7 @@ brw_client_init(sfw_test_instance_t *tsi)
 	LASSERT(sn);
 	LASSERT(tsi->tsi_is_client);
 
-	if ((sn->sn_features & LST_FEAT_BULK_LEN) == 0) {
+	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
 		test_bulk_req_t  *breq = &tsi->tsi_u.bulk_v0;
 
 		opc   = breq->blk_opc;
@@ -99,7 +99,7 @@ brw_client_init(sfw_test_instance_t *tsi)
 		 * I should never get this step if it's unknown feature
 		 * because make_session will reject unknown feature
 		 */
-		LASSERT((sn->sn_features & ~LST_FEATS_MASK) == 0);
+		LASSERT(!(sn->sn_features & ~LST_FEATS_MASK));
 
 		opc   = breq->blk_opc;
 		flags = breq->blk_flags;
@@ -145,7 +145,7 @@ brw_inject_one_error(void)
 
 	ktime_get_ts64(&ts);
 
-	if (((ts.tv_nsec / NSEC_PER_USEC) & 1) == 0)
+	if (!((ts.tv_nsec / NSEC_PER_USEC) & 1))
 		return 0;
 
 	return brw_inject_errors--;
@@ -244,7 +244,7 @@ brw_check_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 
 	for (i = 0; i < bk->bk_niov; i++) {
 		pg = bk->bk_iovs[i].kiov_page;
-		if (brw_check_page(pg, pattern, magic) != 0) {
+		if (brw_check_page(pg, pattern, magic)) {
 			CERROR("Bulk page %p (%d/%d) is corrupted!\n",
 			       pg, i, bk->bk_niov);
 			return 1;
@@ -272,7 +272,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 	LASSERT(sn);
 	LASSERT(bulk);
 
-	if ((sn->sn_features & LST_FEAT_BULK_LEN) == 0) {
+	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
 		test_bulk_req_t *breq = &tsi->tsi_u.bulk_v0;
 
 		opc   = breq->blk_opc;
@@ -287,7 +287,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 		 * I should never get this step if it's unknown feature
 		 * because make_session will reject unknown feature
 		 */
-		LASSERT((sn->sn_features & ~LST_FEATS_MASK) == 0);
+		LASSERT(!(sn->sn_features & ~LST_FEATS_MASK));
 
 		opc   = breq->blk_opc;
 		flags = breq->blk_flags;
@@ -296,7 +296,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 	}
 
 	rc = sfw_create_test_rpc(tsu, dest, sn->sn_features, npg, len, &rpc);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	memcpy(&rpc->crpc_bulk, bulk, offsetof(srpc_bulk_t, bk_iovs[npg]));
@@ -326,7 +326,7 @@ brw_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 
 	LASSERT(sn);
 
-	if (rpc->crpc_status != 0) {
+	if (rpc->crpc_status) {
 		CERROR("BRW RPC to %s failed with %d\n",
 		       libcfs_id2str(rpc->crpc_dest), rpc->crpc_status);
 		if (!tsi->tsi_stopping) /* rpc could have been aborted */
@@ -343,7 +343,7 @@ brw_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 	       "BRW RPC to %s finished with brw_status: %d\n",
 	       libcfs_id2str(rpc->crpc_dest), reply->brw_status);
 
-	if (reply->brw_status != 0) {
+	if (reply->brw_status) {
 		atomic_inc(&sn->sn_brw_errors);
 		rpc->crpc_status = -(int)reply->brw_status;
 		goto out;
@@ -352,7 +352,7 @@ brw_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 	if (reqst->brw_rw == LST_BRW_WRITE)
 		goto out;
 
-	if (brw_check_bulk(&rpc->crpc_bulk, reqst->brw_flags, magic) != 0) {
+	if (brw_check_bulk(&rpc->crpc_bulk, reqst->brw_flags, magic)) {
 		CERROR("Bulk data from %s is corrupted!\n",
 		       libcfs_id2str(rpc->crpc_dest));
 		atomic_inc(&sn->sn_brw_errors);
@@ -371,7 +371,7 @@ brw_server_rpc_done(struct srpc_server_rpc *rpc)
 	if (!blk)
 		return;
 
-	if (rpc->srpc_status != 0)
+	if (rpc->srpc_status)
 		CERROR("Bulk transfer %s %s has failed: %d\n",
 		       blk->bk_sink ? "from" : "to",
 		       libcfs_id2str(rpc->srpc_peer), rpc->srpc_status);
@@ -397,7 +397,7 @@ brw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 	reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
 	reqst = &reqstmsg->msg_body.brw_reqst;
 
-	if (status != 0) {
+	if (status) {
 		CERROR("BRW bulk %s failed for RPC from %s: %d\n",
 		       reqst->brw_rw == LST_BRW_READ ? "READ" : "WRITE",
 		       libcfs_id2str(rpc->srpc_peer), status);
@@ -410,7 +410,7 @@ brw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 	if (reqstmsg->msg_magic != SRPC_MSG_MAGIC)
 		__swab64s(&magic);
 
-	if (brw_check_bulk(rpc->srpc_bulk, reqst->brw_flags, magic) != 0) {
+	if (brw_check_bulk(rpc->srpc_bulk, reqst->brw_flags, magic)) {
 		CERROR("Bulk data from %s is corrupted!\n",
 		       libcfs_id2str(rpc->srpc_peer));
 		reply->brw_status = EBADMSG;
@@ -454,15 +454,15 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 		return 0;
 	}
 
-	if ((reqstmsg->msg_ses_feats & ~LST_FEATS_MASK) != 0) {
+	if (reqstmsg->msg_ses_feats & ~LST_FEATS_MASK) {
 		replymsg->msg_ses_feats = LST_FEATS_MASK;
 		reply->brw_status = EPROTO;
 		return 0;
 	}
 
-	if ((reqstmsg->msg_ses_feats & LST_FEAT_BULK_LEN) == 0) {
+	if (!(reqstmsg->msg_ses_feats & LST_FEAT_BULK_LEN)) {
 		/* compat with old version */
-		if ((reqst->brw_len & ~CFS_PAGE_MASK) != 0) {
+		if (reqst->brw_len & ~CFS_PAGE_MASK) {
 			reply->brw_status = EINVAL;
 			return 0;
 		}
@@ -474,7 +474,7 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 
 	replymsg->msg_ses_feats = reqstmsg->msg_ses_feats;
 
-	if (reqst->brw_len == 0 || npg > LNET_MAX_IOV) {
+	if (!reqst->brw_len || npg > LNET_MAX_IOV) {
 		reply->brw_status = EINVAL;
 		return 0;
 	}
@@ -482,7 +482,7 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 	rc = sfw_alloc_pages(rpc, rpc->srpc_scd->scd_cpt, npg,
 			     reqst->brw_len,
 			     reqst->brw_rw == LST_BRW_WRITE);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	if (reqst->brw_rw == LST_BRW_READ)
