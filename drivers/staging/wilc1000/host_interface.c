@@ -211,7 +211,7 @@ struct join_bss_param {
 	u8 dtim_period;
 	u16 beacon_period;
 	u16 cap_info;
-	u8 au8bssid[6];
+	u8 bssid[6];
 	char ssid[MAX_SSID_LEN];
 	u8 ssid_len;
 	u8 supp_rates[MAX_RATES_SUPPORTED + 1];
@@ -4246,7 +4246,7 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 		pNewJoinBssParam->dtim_period = ptstrNetworkInfo->dtim_period;
 		pNewJoinBssParam->beacon_period = ptstrNetworkInfo->beacon_period;
 		pNewJoinBssParam->cap_info = ptstrNetworkInfo->cap_info;
-		memcpy(pNewJoinBssParam->au8bssid, ptstrNetworkInfo->bssid, 6);
+		memcpy(pNewJoinBssParam->bssid, ptstrNetworkInfo->bssid, 6);
 		memcpy((u8 *)pNewJoinBssParam->ssid, ptstrNetworkInfo->ssid,
 		       ptstrNetworkInfo->ssid_len + 1);
 		pNewJoinBssParam->ssid_len = ptstrNetworkInfo->ssid_len;
