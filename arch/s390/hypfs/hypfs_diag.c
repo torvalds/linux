@@ -360,20 +360,6 @@ out:
 
 /* Diagnose 224 functions */
 
-static int diag224(void *ptr)
-{
-	int rc = -EOPNOTSUPP;
-
-	diag_stat_inc(DIAG_STAT_X224);
-	asm volatile(
-		"	diag	%1,%2,0x224\n"
-		"0:	lhi	%0,0x0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "+d" (rc) :"d" (0), "d" (ptr) : "memory");
-	return rc;
-}
-
 static int diag224_get_name_table(void)
 {
 	/* memory must be below 2GB */

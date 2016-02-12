@@ -218,3 +218,18 @@ int diag210(struct diag210 *addr)
 	return ccode;
 }
 EXPORT_SYMBOL(diag210);
+
+int diag224(void *ptr)
+{
+	int rc = -EOPNOTSUPP;
+
+	diag_stat_inc(DIAG_STAT_X224);
+	asm volatile(
+		"	diag	%1,%2,0x224\n"
+		"0:	lhi	%0,0x0\n"
+		"1:\n"
+		EX_TABLE(0b,1b)
+		: "+d" (rc) :"d" (0), "d" (ptr) : "memory");
+	return rc;
+}
+EXPORT_SYMBOL(diag224);

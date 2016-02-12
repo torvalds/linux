@@ -205,4 +205,5 @@ struct diag204_x_phys_cpu {
 } __packed;
 
 int diag204(unsigned long subcode, unsigned long size, void *addr);
+int diag224(void *ptr);
 #endif /* _ASM_S390_DIAG_H */
