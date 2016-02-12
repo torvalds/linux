@@ -290,9 +290,9 @@ static int vop_virtio_add_device(struct vop_vdev *vdev,
 
 	ret = vop_copy_dp_entry(vdev, argp, &type, &dd);
 	if (ret) {
-		kfree(vdev);
 		dev_err(vop_dev(vdev), "%s %d err %d\n",
 			__func__, __LINE__, ret);
+		kfree(vdev);
 		return ret;
 	}
 
