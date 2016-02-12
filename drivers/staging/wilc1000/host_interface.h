@@ -144,7 +144,7 @@ enum cfg_param {
 };
 
 struct found_net_info {
-	u8 au8bssid[6];
+	u8 bssid[6];
 	s8 s8rssi;
 };
 

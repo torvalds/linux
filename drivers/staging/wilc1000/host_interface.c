@@ -1352,9 +1352,9 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 		}
 
 		for (i = 0; i < hif_drv->usr_scan_req.rcvd_ch_cnt; i++) {
-			if ((hif_drv->usr_scan_req.net_info[i].au8bssid) &&
+			if ((hif_drv->usr_scan_req.net_info[i].bssid) &&
 			    (pstrNetworkInfo->bssid)) {
-				if (memcmp(hif_drv->usr_scan_req.net_info[i].au8bssid,
+				if (memcmp(hif_drv->usr_scan_req.net_info[i].bssid,
 					   pstrNetworkInfo->bssid, 6) == 0) {
 					if (pstrNetworkInfo->rssi <= hif_drv->usr_scan_req.net_info[i].s8rssi) {
 						goto done;
@@ -1371,9 +1371,9 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 			if (hif_drv->usr_scan_req.rcvd_ch_cnt < MAX_NUM_SCANNED_NETWORKS) {
 				hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].s8rssi = pstrNetworkInfo->rssi;
 
-				if (hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].au8bssid &&
+				if (hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].bssid &&
 				    pstrNetworkInfo->bssid) {
-					memcpy(hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].au8bssid,
+					memcpy(hif_drv->usr_scan_req.net_info[hif_drv->usr_scan_req.rcvd_ch_cnt].bssid,
 					       pstrNetworkInfo->bssid, 6);
 
 					hif_drv->usr_scan_req.rcvd_ch_cnt++;
