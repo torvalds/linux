@@ -225,6 +225,16 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 }
 EXPORT_SYMBOL(mipi_dsi_device_register_full);
 
+/**
+ * mipi_dsi_device_unregister - unregister MIPI DSI device
+ * @dsi: DSI peripheral device
+ */
+void mipi_dsi_device_unregister(struct mipi_dsi_device *dsi)
+{
+	device_unregister(&dsi->dev);
+}
+EXPORT_SYMBOL(mipi_dsi_device_unregister);
+
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
 	struct device_node *node;
@@ -244,7 +254,7 @@ static int mipi_dsi_remove_device_fn(struct device *dev, void *priv)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 
-	device_unregister(&dsi->dev);
+	mipi_dsi_device_unregister(dsi);
 
 	return 0;
 }
