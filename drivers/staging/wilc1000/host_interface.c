@@ -965,8 +965,8 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 	}
 
 	if (pstrHostIFconnectAttr->bssid) {
-		hif_drv->usr_conn_req.pu8bssid = kmalloc(6, GFP_KERNEL);
-		memcpy(hif_drv->usr_conn_req.pu8bssid, pstrHostIFconnectAttr->bssid, 6);
+		hif_drv->usr_conn_req.bssid = kmalloc(6, GFP_KERNEL);
+		memcpy(hif_drv->usr_conn_req.bssid, pstrHostIFconnectAttr->bssid, 6);
 	}
 
 	hif_drv->usr_conn_req.ssid_len = pstrHostIFconnectAttr->ssid_len;
@@ -1271,9 +1271,9 @@ static s32 Handle_ConnectTimeout(struct wilc_vif *vif)
 	memset(&strConnectInfo, 0, sizeof(tstrConnectInfo));
 
 	if (hif_drv->usr_conn_req.conn_result) {
-		if (hif_drv->usr_conn_req.pu8bssid) {
+		if (hif_drv->usr_conn_req.bssid) {
 			memcpy(strConnectInfo.au8bssid,
-			       hif_drv->usr_conn_req.pu8bssid, 6);
+			       hif_drv->usr_conn_req.bssid, 6);
 		}
 
 		if (hif_drv->usr_conn_req.ies) {
@@ -1309,8 +1309,8 @@ static s32 Handle_ConnectTimeout(struct wilc_vif *vif)
 	hif_drv->usr_conn_req.ssid_len = 0;
 	kfree(hif_drv->usr_conn_req.pu8ssid);
 	hif_drv->usr_conn_req.pu8ssid = NULL;
-	kfree(hif_drv->usr_conn_req.pu8bssid);
-	hif_drv->usr_conn_req.pu8bssid = NULL;
+	kfree(hif_drv->usr_conn_req.bssid);
+	hif_drv->usr_conn_req.bssid = NULL;
 	hif_drv->usr_conn_req.ies_len = 0;
 	kfree(hif_drv->usr_conn_req.ies);
 	hif_drv->usr_conn_req.ies = NULL;
@@ -1503,13 +1503,13 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 				eth_zero_addr(wilc_connected_ssid);
 			}
 
-			if (hif_drv->usr_conn_req.pu8bssid) {
-				memcpy(strConnectInfo.au8bssid, hif_drv->usr_conn_req.pu8bssid, 6);
+			if (hif_drv->usr_conn_req.bssid) {
+				memcpy(strConnectInfo.au8bssid, hif_drv->usr_conn_req.bssid, 6);
 
 				if ((u8MacStatus == MAC_CONNECTED) &&
 				    (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE))	{
 					memcpy(hif_drv->assoc_bssid,
-					       hif_drv->usr_conn_req.pu8bssid, ETH_ALEN);
+					       hif_drv->usr_conn_req.bssid, ETH_ALEN);
 				}
 			}
 
@@ -1550,8 +1550,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 			hif_drv->usr_conn_req.ssid_len = 0;
 			kfree(hif_drv->usr_conn_req.pu8ssid);
 			hif_drv->usr_conn_req.pu8ssid = NULL;
-			kfree(hif_drv->usr_conn_req.pu8bssid);
-			hif_drv->usr_conn_req.pu8bssid = NULL;
+			kfree(hif_drv->usr_conn_req.bssid);
+			hif_drv->usr_conn_req.bssid = NULL;
 			hif_drv->usr_conn_req.ies_len = 0;
 			kfree(hif_drv->usr_conn_req.ies);
 			hif_drv->usr_conn_req.ies = NULL;
@@ -1586,8 +1586,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 			hif_drv->usr_conn_req.ssid_len = 0;
 			kfree(hif_drv->usr_conn_req.pu8ssid);
 			hif_drv->usr_conn_req.pu8ssid = NULL;
-			kfree(hif_drv->usr_conn_req.pu8bssid);
-			hif_drv->usr_conn_req.pu8bssid = NULL;
+			kfree(hif_drv->usr_conn_req.bssid);
+			hif_drv->usr_conn_req.bssid = NULL;
 			hif_drv->usr_conn_req.ies_len = 0;
 			kfree(hif_drv->usr_conn_req.ies);
 			hif_drv->usr_conn_req.ies = NULL;
@@ -1944,8 +1944,8 @@ static void Handle_Disconnect(struct wilc_vif *vif)
 		hif_drv->usr_conn_req.ssid_len = 0;
 		kfree(hif_drv->usr_conn_req.pu8ssid);
 		hif_drv->usr_conn_req.pu8ssid = NULL;
-		kfree(hif_drv->usr_conn_req.pu8bssid);
-		hif_drv->usr_conn_req.pu8bssid = NULL;
+		kfree(hif_drv->usr_conn_req.bssid);
+		hif_drv->usr_conn_req.bssid = NULL;
 		hif_drv->usr_conn_req.ies_len = 0;
 		kfree(hif_drv->usr_conn_req.ies);
 		hif_drv->usr_conn_req.ies = NULL;

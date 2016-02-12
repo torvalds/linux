@@ -203,7 +203,7 @@ struct user_scan_req {
 };
 
 struct user_conn_req {
-	u8 *pu8bssid;
+	u8 *bssid;
 	u8 *pu8ssid;
 	u8 u8security;
 	enum AUTHTYPE auth_type;
