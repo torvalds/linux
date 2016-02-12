@@ -32,6 +32,7 @@ struct arche_apb_ctrl_drvdata {
 	int pwrdn_gpio;
 
 	enum arche_platform_state state;
+	bool init_disabled;
 
 	struct regulator *vcore;
 	struct regulator *vio;
@@ -77,6 +78,9 @@ static int apb_ctrl_coldboot_seq(struct platform_device *pdev)
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 	int ret;
 
+	if (apb->init_disabled)
+		return 0;
+
 	/* Hold APB in reset state */
 	assert_reset(apb->resetn_gpio);
 
@@ -119,6 +123,9 @@ static int apb_ctrl_fw_flashing_seq(struct platform_device *pdev)
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 	int ret;
 
+	if (apb->init_disabled)
+		return 0;
+
 	ret = regulator_enable(apb->vcore);
 	if (ret) {
 		dev_err(dev, "failed to enable core regulator\n");
@@ -142,6 +149,9 @@ static int apb_ctrl_standby_boot_seq(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
+	if (apb->init_disabled)
+		return 0;
+
 	/* If it is in OFF state, then we do not want to change the state */
 	if (apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return 0;
@@ -162,6 +172,9 @@ static int apb_ctrl_standby_boot_seq(struct platform_device *pdev)
 static void apb_ctrl_poweroff_seq(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
+
+	if (apb->init_disabled)
+		return;
 
 	/* disable the clock */
 	if (gpio_is_valid(apb->clk_en_gpio))
@@ -186,6 +199,7 @@ static ssize_t state_store(struct device *dev,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 	int ret = 0;
+	bool is_disabled;
 
 	if (sysfs_streq(buf, "off")) {
 		if (apb->state == ARCHE_PLATFORM_STATE_OFF)
@@ -197,7 +211,11 @@ static ssize_t state_store(struct device *dev,
 			return count;
 
 		apb_ctrl_poweroff_seq(pdev);
+		is_disabled = apb->init_disabled;
+		apb->init_disabled = false;
 		ret = apb_ctrl_coldboot_seq(pdev);
+		if (ret)
+			apb->init_disabled = is_disabled;
 	} else if (sysfs_streq(buf, "standby")) {
 		if (apb->state == ARCHE_PLATFORM_STATE_STANDBY)
 			return count;
@@ -226,7 +244,8 @@ static ssize_t state_show(struct device *dev,
 
 	switch (apb->state) {
 	case ARCHE_PLATFORM_STATE_OFF:
-		return sprintf(buf, "off\n");
+		return sprintf(buf, "off%s\n",
+				apb->init_disabled ? ",disabled" : "");
 	case ARCHE_PLATFORM_STATE_ACTIVE:
 		return sprintf(buf, "active\n");
 	case ARCHE_PLATFORM_STATE_STANDBY:
@@ -346,6 +365,9 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 
 	/* Initially set APB to OFF state */
 	apb->state = ARCHE_PLATFORM_STATE_OFF;
+	/* Check whether device needs to be enabled on boot */
+	if (of_property_read_bool(pdev->dev.of_node, "ara,init-disable"))
+		apb->init_disabled = true;
 
 	platform_set_drvdata(pdev, apb);
 
