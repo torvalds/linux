@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/atomic.h>
+#include <linux/clockchips.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
@@ -141,11 +142,6 @@ int __cpu_disable(void)
 	migrate_irqs();
 
 	/*
-	 * Stop the local timer for this CPU.
-	 */
-	local_timer_stop(cpu);
-
-	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
 	 * from the vm mask set of all processes.
 	 */
@@ -198,8 +194,6 @@ asmlinkage void start_secondary(void)
 
 	local_irq_enable();
 
-	/* Enable local timers */
-	local_timer_setup(cpu);
 	calibrate_delay();
 
 	smp_store_cpu_info(cpu);
@@ -289,7 +283,8 @@ void arch_send_call_function_single_ipi(int cpu)
 	mp_ops->send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
 }
 
-void smp_timer_broadcast(const struct cpumask *mask)
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+void tick_broadcast(const struct cpumask *mask)
 {
 	int cpu;
 
@@ -300,9 +295,10 @@ void smp_timer_broadcast(const struct cpumask *mask)
 static void ipi_timer(void)
 {
 	irq_enter();
-	local_timer_interrupt();
+	tick_receive_broadcast();
 	irq_exit();
 }
+#endif
 
 void smp_message_recv(unsigned int msg)
 {
@@ -316,9 +312,11 @@ void smp_message_recv(unsigned int msg)
 	case SMP_MSG_FUNCTION_SINGLE:
 		generic_smp_call_function_single_interrupt();
 		break;
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	case SMP_MSG_TIMER:
 		ipi_timer();
 		break;
+#endif
 	default:
 		printk(KERN_WARNING "SMP %d: %s(): unknown IPI %d\n",
 		       smp_processor_id(), __func__, msg);
