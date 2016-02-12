@@ -2262,8 +2262,8 @@ int __spi_split_transfer_maxsize(struct spi_master *master,
 
 	/* create replacement */
 	srt = spi_replace_transfers(msg, xfer, 1, count, NULL, 0, gfp);
-	if (!srt)
-		return -ENOMEM;
+	if (IS_ERR(srt))
+		return PTR_ERR(srt);
 	xfers = srt->inserted_transfers;
 
 	/* now handle each of those newly inserted spi_transfers
