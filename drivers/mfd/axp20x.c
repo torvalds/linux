@@ -606,8 +606,9 @@ static void axp20x_power_off(void)
 		     AXP20X_OFF);
 }
 
-static int axp20x_match_device(struct axp20x_dev *axp20x, struct device *dev)
+static int axp20x_match_device(struct axp20x_dev *axp20x)
 {
+	struct device *dev = axp20x->dev;
 	const struct acpi_device_id *acpi_id;
 	const struct of_device_id *of_id;
 
@@ -673,13 +674,13 @@ static int axp20x_i2c_probe(struct i2c_client *i2c,
 	if (!axp20x)
 		return -ENOMEM;
 
-	ret = axp20x_match_device(axp20x, &i2c->dev);
-	if (ret)
-		return ret;
-
 	axp20x->i2c_client = i2c;
 	axp20x->dev = &i2c->dev;
 	dev_set_drvdata(axp20x->dev, axp20x);
+
+	ret = axp20x_match_device(axp20x);
+	if (ret)
+		return ret;
 
 	axp20x->regmap = devm_regmap_init_i2c(i2c, axp20x->regmap_cfg);
 	if (IS_ERR(axp20x->regmap)) {
