@@ -78,8 +78,6 @@ struct media_device_info {
 #define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 21)
 #define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 22)
 #define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 23)
-/* For internal test signal generators and other debug connectors */
-#define MEDIA_ENT_F_CONN_TEST		(MEDIA_ENT_F_BASE + 24)
 
 /*
  * I/O entities

@@ -241,7 +241,6 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 			break;
 		case MEDIA_ENT_F_CONN_SVIDEO:
 		case MEDIA_ENT_F_CONN_COMPOSITE:
-		case MEDIA_ENT_F_CONN_TEST:
 			ret = media_create_pad_link(entity, 0, decoder,
 						    DEMOD_PAD_IF_INPUT,
 						    flags);
