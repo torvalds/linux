@@ -780,7 +780,8 @@ void intel_psr_init(struct drm_device *dev)
 
 	/* Per platform default */
 	if (i915.enable_psr == -1) {
-		if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev) ||
+		    IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 			i915.enable_psr = 1;
 		else
 			i915.enable_psr = 0;
