@@ -777,7 +777,7 @@ static int gb_loopback_async_ping(struct gb_loopback *gb)
 					   NULL, 0, 0, NULL);
 }
 
-static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
+static int gb_loopback_request_handler(struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
 	struct gb_loopback_transfer_request *request;
@@ -786,7 +786,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 	size_t len;
 
 	/* By convention, the AP initiates the version operation */
-	switch (type) {
+	switch (operation->type) {
 	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
 		dev_err(dev, "module-initiated version operation\n");
 		return -EINVAL;
@@ -820,7 +820,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 
 		return 0;
 	default:
-		dev_err(dev, "unsupported request: %u\n", type);
+		dev_err(dev, "unsupported request: %u\n", operation->type);
 		return -EINVAL;
 	}
 }
@@ -1083,17 +1083,37 @@ static void gb_loopback_insert_id(struct gb_loopback *gb)
 
 #define DEBUGFS_NAMELEN 32
 
-static int gb_loopback_connection_init(struct gb_connection *connection)
+static int gb_loopback_probe(struct gb_bundle *bundle,
+			     const struct greybus_bundle_id *id)
 {
+	struct greybus_descriptor_cport *cport_desc;
+	struct gb_connection *connection;
 	struct gb_loopback *gb;
 	struct device *dev;
 	int retval;
 	char name[DEBUGFS_NAMELEN];
 	unsigned long flags;
 
+	if (bundle->num_cports != 1)
+		return -ENODEV;
+
+	cport_desc = &bundle->cport_desc[0];
+	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LOOPBACK)
+		return -ENODEV;
+
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
 	if (!gb)
 		return -ENOMEM;
+
+	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
+					  gb_loopback_request_handler);
+	if (IS_ERR(connection)) {
+		retval = PTR_ERR(connection);
+		goto out_kzalloc;
+	}
+
+	gb->connection = connection;
+	greybus_set_drvdata(bundle, gb);
 
 	init_waitqueue_head(&gb->wq);
 	init_waitqueue_head(&gb->wq_completion);
@@ -1110,7 +1130,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		if (gb_dev.size_max <=
 			sizeof(struct gb_loopback_transfer_request)) {
 			retval = -EINVAL;
-			goto out_kzalloc;
+			goto out_connection_destroy;
 		}
 		gb_dev.size_max -= sizeof(struct gb_loopback_transfer_request);
 	}
@@ -1120,14 +1140,16 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		 dev_name(&connection->bundle->dev));
 	gb->file = debugfs_create_file(name, S_IFREG | S_IRUGO, gb_dev.root, gb,
 				       &gb_loopback_debugfs_latency_ops);
-	gb->connection = connection;
-	connection->private = gb;
 
 	gb->id = ida_simple_get(&loopback_ida, 0, 0, GFP_KERNEL);
 	if (gb->id < 0) {
 		retval = gb->id;
-		goto out_ida;
+		goto out_debugfs_remove;
 	}
+
+	retval = gb_connection_enable(connection);
+	if (retval)
+		goto out_ida_remove;
 
 	dev = device_create_with_groups(&loopback_class,
 					&connection->bundle->dev,
@@ -1135,7 +1157,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 					"gb_loopback%d", gb->id);
 	if (IS_ERR(dev)) {
 		retval = PTR_ERR(dev);
-		goto out_dev;
+		goto out_connection_disable;
 	}
 	gb->dev = dev;
 
@@ -1173,28 +1195,40 @@ out_kfifo0:
 	kfifo_free(&gb->kfifo_lat);
 out_conn:
 	device_unregister(dev);
-out_dev:
+out_connection_disable:
+	gb_connection_disable(connection);
+out_ida_remove:
 	ida_simple_remove(&loopback_ida, gb->id);
-out_ida:
+out_debugfs_remove:
 	debugfs_remove(gb->file);
+out_connection_destroy:
+	gb_connection_destroy(connection);
 out_kzalloc:
 	kfree(gb);
 
 	return retval;
 }
 
-static void gb_loopback_connection_exit(struct gb_connection *connection)
+static void gb_loopback_disconnect(struct gb_bundle *bundle)
 {
-	struct gb_loopback *gb = connection->private;
+	struct gb_loopback *gb = greybus_get_drvdata(bundle);
 	unsigned long flags;
+
+	gb_connection_disable(gb->connection);
 
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
 
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
-	gb_connection_latency_tag_disable(connection);
+	gb_connection_latency_tag_disable(gb->connection);
 	debugfs_remove(gb->file);
+
+	/*
+	 * FIXME: gb_loopback_async_wait_all() is redundant now, as connection
+	 * is disabled at the beginning and so we can't have any more
+	 * incoming/outgoing requests.
+	 */
 	gb_loopback_async_wait_all(gb);
 
 	spin_lock_irqsave(&gb_dev.lock, flags);
@@ -1205,17 +1239,21 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 	device_unregister(gb->dev);
 	ida_simple_remove(&loopback_ida, gb->id);
 
+	gb_connection_destroy(gb->connection);
 	kfree(gb);
 }
 
-static struct gb_protocol loopback_protocol = {
-	.name			= "loopback",
-	.id			= GREYBUS_PROTOCOL_LOOPBACK,
-	.major			= GB_LOOPBACK_VERSION_MAJOR,
-	.minor			= GB_LOOPBACK_VERSION_MINOR,
-	.connection_init	= gb_loopback_connection_init,
-	.connection_exit	= gb_loopback_connection_exit,
-	.request_recv		= gb_loopback_request_recv,
+static const struct greybus_bundle_id gb_loopback_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_LOOPBACK) },
+	{ }
+};
+MODULE_DEVICE_TABLE(greybus, gb_loopback_id_table);
+
+static struct greybus_driver gb_loopback_driver = {
+	.name		= "loopback",
+	.probe		= gb_loopback_probe,
+	.disconnect	= gb_loopback_disconnect,
+	.id_table	= gb_loopback_id_table,
 };
 
 static int loopback_init(void)
@@ -1231,7 +1269,7 @@ static int loopback_init(void)
 	if (retval)
 		goto err;
 
-	retval = gb_protocol_register(&loopback_protocol);
+	retval = greybus_register(&gb_loopback_driver);
 	if (retval)
 		goto err_unregister;
 
@@ -1248,7 +1286,7 @@ module_init(loopback_init);
 static void __exit loopback_exit(void)
 {
 	debugfs_remove_recursive(gb_dev.root);
-	gb_protocol_deregister(&loopback_protocol);
+	greybus_deregister(&gb_loopback_driver);
 	class_unregister(&loopback_class);
 	ida_destroy(&loopback_ida);
 }

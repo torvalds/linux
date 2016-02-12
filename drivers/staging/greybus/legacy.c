@@ -246,7 +246,6 @@ static const struct greybus_bundle_id legacy_id_table[] = {
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_SPI) },
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_CAMERA) },
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_LIGHTS) },
-	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_LOOPBACK) },
 	{ }
 };
 MODULE_DEVICE_TABLE(greybus, legacy_id_table);
