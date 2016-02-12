@@ -602,8 +602,10 @@ static int _od_runtime_resume(struct device *dev)
 	int ret;
 
 	ret = omap_device_enable(pdev);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "use pm_runtime_put_sync_suspend() in driver?\n");
 		return ret;
+	}
 
 	return pm_generic_runtime_resume(dev);
 }
