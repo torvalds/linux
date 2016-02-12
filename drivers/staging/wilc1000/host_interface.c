@@ -302,7 +302,7 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 static void handle_set_channel(struct wilc_vif *vif,
 			       struct channel_attr *hif_set_ch)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_CURRENT_CHANNEL;
