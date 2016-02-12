@@ -1357,6 +1357,9 @@ static void wacom_clean_inputs(struct wacom *wacom)
 	wacom->wacom_wac.pen_input = NULL;
 	wacom->wacom_wac.touch_input = NULL;
 	wacom->wacom_wac.pad_input = NULL;
+	wacom->wacom_wac.pen_registered = false;
+	wacom->wacom_wac.touch_registered = false;
+	wacom->wacom_wac.pad_registered = false;
 	wacom_destroy_leds(wacom);
 }
 
