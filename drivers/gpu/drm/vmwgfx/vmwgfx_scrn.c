@@ -738,6 +738,11 @@ static void vmw_sou_surface_fifo_commit(struct vmw_kms_dirty *dirty)
 	SVGASignedRect *blit = (SVGASignedRect *) &cmd[1];
 	int i;
 
+	if (!dirty->num_hits) {
+		vmw_fifo_commit(dirty->dev_priv, 0);
+		return;
+	}
+
 	cmd->header.id = SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN;
 	cmd->header.size = sizeof(cmd->body) + region_size;
 
@@ -875,6 +880,11 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
  */
 static void vmw_sou_dmabuf_fifo_commit(struct vmw_kms_dirty *dirty)
 {
+	if (!dirty->num_hits) {
+		vmw_fifo_commit(dirty->dev_priv, 0);
+		return;
+	}
+
 	vmw_fifo_commit(dirty->dev_priv,
 			sizeof(struct vmw_kms_sou_dmabuf_blit) *
 			dirty->num_hits);
@@ -967,6 +977,11 @@ out_revert:
  */
 static void vmw_sou_readback_fifo_commit(struct vmw_kms_dirty *dirty)
 {
+	if (!dirty->num_hits) {
+		vmw_fifo_commit(dirty->dev_priv, 0);
+		return;
+	}
+
 	vmw_fifo_commit(dirty->dev_priv,
 			sizeof(struct vmw_kms_sou_readback_blit) *
 			dirty->num_hits);
