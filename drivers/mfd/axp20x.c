@@ -5,6 +5,8 @@
  * converters, LDOs, multiple 12-bit ADCs of voltage, current and temperature
  * as well as configurable GPIOs.
  *
+ * Copyright (C) 2014 Carlo Caione
+ *
  * Author: Carlo Caione <carlo@caione.org>
  *
  * This program is free software; you can redistribute it and/or modify
