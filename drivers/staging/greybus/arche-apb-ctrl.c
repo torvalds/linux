@@ -21,11 +21,6 @@
 #include <linux/spinlock.h>
 #include "arche_platform.h"
 
-enum apb_state {
-	APB_STATE_OFF,
-	APB_STATE_ACTIVE,
-	APB_STATE_STANDBY,
-};
 
 struct arche_apb_ctrl_drvdata {
 	/* Control GPIO signals to and from AP <=> AP Bridges */
@@ -36,7 +31,7 @@ struct arche_apb_ctrl_drvdata {
 	int wake_out_gpio;
 	int pwrdn_gpio;
 
-	enum apb_state state;
+	enum arche_platform_state state;
 
 	struct regulator *vcore;
 	struct regulator *vio;
@@ -232,7 +227,7 @@ static void apb_ctrl_cleanup(struct arche_apb_ctrl_drvdata *apb)
 
 	/* As part of exit, put APB back in reset state */
 	assert_reset(apb->resetn_gpio);
-	apb->state = APB_STATE_OFF;
+	apb->state = ARCHE_PLATFORM_STATE_OFF;
 
 	/* TODO: May have to send an event to SVC about this exit */
 }
@@ -262,7 +257,7 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 
 	/* deassert reset to APB : Active-low signal */
 	deassert_reset(apb->resetn_gpio);
-	apb->state = APB_STATE_ACTIVE;
+	apb->state = ARCHE_PLATFORM_STATE_ACTIVE;
 
 	platform_set_drvdata(pdev, apb);
 
