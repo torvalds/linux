@@ -263,7 +263,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 				goto exit;
 			}
 		}
-		list_move(&desc->links, &list);
+		list_move_tail(&desc->links, &list);
 		count++;
 	}
 
