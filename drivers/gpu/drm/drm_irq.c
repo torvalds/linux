@@ -224,6 +224,49 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 		diff = (flags & DRM_CALLED_FROM_VBLIRQ) != 0;
 	}
 
+	/*
+	 * FIMXE: Need to replace this hack with proper seqlocks.
+	 *
+	 * Restrict the bump of the software vblank counter to a safe maximum
+	 * value of +1 whenever there is the possibility that concurrent readers
+	 * of vblank timestamps could be active at the moment, as the current
+	 * implementation of the timestamp caching and updating is not safe
+	 * against concurrent readers for calls to store_vblank() with a bump
+	 * of anything but +1. A bump != 1 would very likely return corrupted
+	 * timestamps to userspace, because the same slot in the cache could
+	 * be concurrently written by store_vblank() and read by one of those
+	 * readers without the read-retry logic detecting the collision.
+	 *
+	 * Concurrent readers can exist when we are called from the
+	 * drm_vblank_off() or drm_vblank_on() functions and other non-vblank-
+	 * irq callers. However, all those calls to us are happening with the
+	 * vbl_lock locked to prevent drm_vblank_get(), so the vblank refcount
+	 * can't increase while we are executing. Therefore a zero refcount at
+	 * this point is safe for arbitrary counter bumps if we are called
+	 * outside vblank irq, a non-zero count is not 100% safe. Unfortunately
+	 * we must also accept a refcount of 1, as whenever we are called from
+	 * drm_vblank_get() -> drm_vblank_enable() the refcount will be 1 and
+	 * we must let that one pass through in order to not lose vblank counts
+	 * during vblank irq off - which would completely defeat the whole
+	 * point of this routine.
+	 *
+	 * Whenever we are called from vblank irq, we have to assume concurrent
+	 * readers exist or can show up any time during our execution, even if
+	 * the refcount is currently zero, as vblank irqs are usually only
+	 * enabled due to the presence of readers, and because when we are called
+	 * from vblank irq we can't hold the vbl_lock to protect us from sudden
+	 * bumps in vblank refcount. Therefore also restrict bumps to +1 when
+	 * called from vblank irq.
+	 */
+	if ((diff > 1) && (atomic_read(&vblank->refcount) > 1 ||
+	    (flags & DRM_CALLED_FROM_VBLIRQ))) {
+		DRM_DEBUG_VBL("clamping vblank bump to 1 on crtc %u: diffr=%u "
+			      "refcount %u, vblirq %u\n", pipe, diff,
+			      atomic_read(&vblank->refcount),
+			      (flags & DRM_CALLED_FROM_VBLIRQ) != 0);
+		diff = 1;
+	}
+
 	DRM_DEBUG_VBL("updating vblank count on crtc %u:"
 		      " current=%u, diff=%u, hw=%u hw_last=%u\n",
 		      pipe, vblank->count, diff, cur_vblank, vblank->last);
