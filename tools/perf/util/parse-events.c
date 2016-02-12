@@ -2072,8 +2072,10 @@ void parse_events__free_terms(struct list_head *terms)
 {
 	struct parse_events_term *term, *h;
 
-	list_for_each_entry_safe(term, h, terms, list)
+	list_for_each_entry_safe(term, h, terms, list) {
+		list_del_init(&term->list);
 		free(term);
+	}
 }
 
 void parse_events_evlist_error(struct parse_events_evlist *data,
