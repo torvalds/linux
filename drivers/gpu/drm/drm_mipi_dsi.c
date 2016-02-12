@@ -235,6 +235,37 @@ void mipi_dsi_device_unregister(struct mipi_dsi_device *dsi)
 }
 EXPORT_SYMBOL(mipi_dsi_device_unregister);
 
+static DEFINE_MUTEX(host_lock);
+static LIST_HEAD(host_list);
+
+/**
+ * of_find_mipi_dsi_host_by_node() - find the MIPI DSI host matching a
+ *				     device tree node
+ * @node: device tree node
+ *
+ * Returns:
+ * A pointer to the MIPI DSI host corresponding to @node or NULL if no
+ * such device exists (or has not been registered yet).
+ */
+struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node)
+{
+	struct mipi_dsi_host *host;
+
+	mutex_lock(&host_lock);
+
+	list_for_each_entry(host, &host_list, list) {
+		if (host->dev->of_node == node) {
+			mutex_unlock(&host_lock);
+			return host;
+		}
+	}
+
+	mutex_unlock(&host_lock);
+
+	return NULL;
+}
+EXPORT_SYMBOL(of_find_mipi_dsi_host_by_node);
+
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
 	struct device_node *node;
@@ -245,6 +276,10 @@ int mipi_dsi_host_register(struct mipi_dsi_host *host)
 			continue;
 		of_mipi_dsi_device_add(host, node);
 	}
+
+	mutex_lock(&host_lock);
+	list_add_tail(&host->list, &host_list);
+	mutex_unlock(&host_lock);
 
 	return 0;
 }
@@ -262,6 +297,10 @@ static int mipi_dsi_remove_device_fn(struct device *dev, void *priv)
 void mipi_dsi_host_unregister(struct mipi_dsi_host *host)
 {
 	device_for_each_child(host->dev, NULL, mipi_dsi_remove_device_fn);
+
+	mutex_lock(&host_lock);
+	list_del_init(&host->list);
+	mutex_unlock(&host_lock);
 }
 EXPORT_SYMBOL(mipi_dsi_host_unregister);
 
