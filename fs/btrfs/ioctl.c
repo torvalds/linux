@@ -3065,6 +3065,9 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 		ret = extent_same_check_offsets(src, loff, &len, olen);
 		if (ret)
 			goto out_unlock;
+		ret = extent_same_check_offsets(src, dst_loff, &len, olen);
+		if (ret)
+			goto out_unlock;
 
 		/*
 		 * Single inode case wants the same checks, except we
