@@ -422,7 +422,8 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 		return -ETIMEDOUT;
 
 	/* switch to VCO mode */
-	nvkm_mask(device, SEL_VCO, 0, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));
+	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT),
+		  BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));
 
 	/* restore out divider 1:1 */
 	val = nvkm_rd32(device, GPC2CLK_OUT);
