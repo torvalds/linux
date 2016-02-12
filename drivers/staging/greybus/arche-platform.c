@@ -26,6 +26,8 @@ struct arche_platform_drvdata {
 	int svc_sysboot_gpio;
 	int wake_detect_gpio; /* bi-dir,maps to WAKE_MOD & WAKE_FRAME signals */
 
+	enum arche_platform_state state;
+
 	unsigned int svc_refclk_req;
 	struct clk *svc_ref_clk;
 
@@ -127,6 +129,8 @@ static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdat
 	svc_reset_onoff(arche_pdata->svc_reset_gpio,
 			!arche_pdata->is_reset_act_hi);
 
+	arche_pdata->state = ARCHE_PLATFORM_STATE_ACTIVE;
+
 	return 0;
 }
 
@@ -136,6 +140,8 @@ static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pda
 	/* As part of exit, put APB back in reset state */
 	svc_reset_onoff(arche_pdata->svc_reset_gpio,
 			arche_pdata->is_reset_act_hi);
+
+	arche_pdata->state = ARCHE_PLATFORM_STATE_OFF;
 }
 
 static int arche_platform_probe(struct platform_device *pdev)
@@ -168,6 +174,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to set svc-reset gpio dir:%d\n", ret);
 		return ret;
 	}
+	arche_pdata->state = ARCHE_PLATFORM_STATE_OFF;
 
 	arche_pdata->svc_sysboot_gpio = of_get_named_gpio(np,
 					"svc,sysboot-gpio", 0);
