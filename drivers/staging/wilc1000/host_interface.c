@@ -302,7 +302,7 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 static void handle_set_channel(struct wilc_vif *vif,
 			       struct channel_attr *hif_set_ch)
 {
-	int result = 0;
+	int ret = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_CURRENT_CHANNEL;
@@ -310,10 +310,10 @@ static void handle_set_channel(struct wilc_vif *vif,
 	wid.val = (char *)&hif_set_ch->set_ch;
 	wid.size = sizeof(char);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
+	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
 
-	if (result)
+	if (ret)
 		PRINT_ER("Failed to set channel\n");
 }
 
