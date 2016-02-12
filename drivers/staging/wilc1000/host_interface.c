@@ -3511,6 +3511,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct scan_attr *scan_info = &msg.body.scan_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv || !scan_result) {
@@ -3523,26 +3524,26 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	msg.id = HOST_IF_MSG_SCAN;
 
 	if (hidden_network) {
-		msg.body.scan_info.hidden_network.net_info = hidden_network->net_info;
-		msg.body.scan_info.hidden_network.n_ssids = hidden_network->n_ssids;
+		scan_info->hidden_network.net_info = hidden_network->net_info;
+		scan_info->hidden_network.n_ssids = hidden_network->n_ssids;
 	}
 
 	msg.vif = vif;
-	msg.body.scan_info.src = scan_source;
-	msg.body.scan_info.type = scan_type;
-	msg.body.scan_info.result = scan_result;
-	msg.body.scan_info.arg = user_arg;
+	scan_info->src = scan_source;
+	scan_info->type = scan_type;
+	scan_info->result = scan_result;
+	scan_info->arg = user_arg;
 
-	msg.body.scan_info.ch_list_len = ch_list_len;
-	msg.body.scan_info.ch_freq_list = kmemdup(ch_freq_list,
-						  ch_list_len,
-						  GFP_KERNEL);
-	if (!msg.body.scan_info.ch_freq_list)
+	scan_info->ch_list_len = ch_list_len;
+	scan_info->ch_freq_list = kmemdup(ch_freq_list,
+					  ch_list_len,
+					  GFP_KERNEL);
+	if (!scan_info->ch_freq_list)
 		return -ENOMEM;
 
-	msg.body.scan_info.ies_len = ies_len;
-	msg.body.scan_info.ies = kmemdup(ies, ies_len, GFP_KERNEL);
-	if (!msg.body.scan_info.ies)
+	scan_info->ies_len = ies_len;
+	scan_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
+	if (!scan_info->ies)
 		return -ENOMEM;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
