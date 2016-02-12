@@ -109,6 +109,7 @@ static DEFINE_MUTEX(pp_do_mutex);
 static inline void pp_enable_irq(struct pp_struct *pp)
 {
 	struct parport *port = pp->pdev->port;
+
 	port->ops->enable_irq(port);
 }
 
@@ -368,6 +369,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		/* Deferred device registration. */
 		if (!pp->pdev) {
 			int err = register_device(minor, pp);
+
 			if (err) {
 				return err;
 			}
@@ -412,6 +414,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case PPSETMODE:
 	    {
 		int mode;
+
 		if (copy_from_user(&mode, argp, sizeof(mode)))
 			return -EFAULT;
 		/* FIXME: validate mode */
@@ -442,6 +445,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case PPSETPHASE:
 	    {
 		int phase;
+
 		if (copy_from_user(&phase, argp, sizeof(phase))) {
 			return -EFAULT;
 		}
@@ -665,6 +669,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static long pp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
+
 	mutex_lock(&pp_do_mutex);
 	ret = pp_do_ioctl(file, cmd, arg);
 	mutex_unlock(&pp_do_mutex);
@@ -755,6 +760,7 @@ static int pp_release(struct inode *inode, struct file *file)
 
 	if (pp->pdev) {
 		const char *name = pp->pdev->name;
+
 		parport_unregister_device(pp->pdev);
 		kfree(name);
 		pp->pdev = NULL;
