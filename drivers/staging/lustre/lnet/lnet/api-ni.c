@@ -935,7 +935,7 @@ lnet_shutdown_lndnis(void)
 		islo = ni->ni_lnd->lnd_type == LOLND;
 
 		LASSERT(!in_interrupt());
-		(ni->ni_lnd->lnd_shutdown)(ni);
+		ni->ni_lnd->lnd_shutdown(ni);
 
 		/*
 		 * can't deref lnd anymore now; it might have unregistered
@@ -1023,7 +1023,7 @@ lnet_startup_lndnis(void)
 
 		ni->ni_lnd = lnd;
 
-		rc = (lnd->lnd_startup)(ni);
+		rc = lnd->lnd_startup(ni);
 
 		mutex_unlock(&the_lnet.ln_lnd_mutex);
 

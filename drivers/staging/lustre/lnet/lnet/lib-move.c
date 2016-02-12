@@ -599,8 +599,8 @@ lnet_ni_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 		}
 	}
 
-	rc = (ni->ni_lnd->lnd_recv)(ni, private, msg, delayed,
-				    niov, iov, kiov, offset, mlen, rlen);
+	rc = ni->ni_lnd->lnd_recv(ni, private, msg, delayed,
+				  niov, iov, kiov, offset, mlen, rlen);
 	if (rc < 0)
 		lnet_finalize(ni, msg, rc);
 }
@@ -655,7 +655,7 @@ lnet_ni_send(lnet_ni_t *ni, lnet_msg_t *msg)
 	LASSERT(LNET_NETTYP(LNET_NIDNET(ni->ni_nid)) == LOLND ||
 		(msg->msg_txcredit && msg->msg_peertxcredit));
 
-	rc = (ni->ni_lnd->lnd_send)(ni, priv, msg);
+	rc = ni->ni_lnd->lnd_send(ni, priv, msg);
 	if (rc < 0)
 		lnet_finalize(ni, msg, rc);
 }
@@ -671,8 +671,8 @@ lnet_ni_eager_recv(lnet_ni_t *ni, lnet_msg_t *msg)
 	LASSERT(ni->ni_lnd->lnd_eager_recv != NULL);
 
 	msg->msg_rx_ready_delay = 1;
-	rc = (ni->ni_lnd->lnd_eager_recv)(ni, msg->msg_private, msg,
-					  &msg->msg_private);
+	rc = ni->ni_lnd->lnd_eager_recv(ni, msg->msg_private, msg,
+					&msg->msg_private);
 	if (rc != 0) {
 		CERROR("recv from %s / send to %s aborted: eager_recv failed %d\n",
 		       libcfs_nid2str(msg->msg_rxpeer->lp_nid),
@@ -693,7 +693,7 @@ lnet_ni_query_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 	LASSERT(ni->ni_lnd->lnd_query != NULL);
 
 	lnet_net_unlock(lp->lp_cpt);
-	(ni->ni_lnd->lnd_query)(ni, lp->lp_nid, &last_alive);
+	ni->ni_lnd->lnd_query(ni, lp->lp_nid, &last_alive);
 	lnet_net_lock(lp->lp_cpt);
 
 	lp->lp_last_query = cfs_time_current();

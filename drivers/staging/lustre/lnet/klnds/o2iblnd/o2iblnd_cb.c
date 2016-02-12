@@ -2185,7 +2185,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	rej.ibr_why = IBLND_REJECT_FATAL;
 	rej.ibr_cp.ibcp_max_msg_size = IBLND_MSG_SIZE;
 
-	peer_addr = (struct sockaddr_in *)&(cmid->route.addr.dst_addr);
+	peer_addr = (struct sockaddr_in *)&cmid->route.addr.dst_addr;
 	if (*kiblnd_tunables.kib_require_priv_port &&
 	    ntohs(peer_addr->sin_port) >= PROT_SOCK) {
 		__u32 ip = ntohl(peer_addr->sin_addr.s_addr);

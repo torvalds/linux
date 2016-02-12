@@ -157,7 +157,7 @@ lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 			 * A new notification could happen now; I'll handle it
 			 * when control returns to me
 			 */
-			(ni->ni_lnd->lnd_notify)(ni, lp->lp_nid, alive);
+			ni->ni_lnd->lnd_notify(ni, lp->lp_nid, alive);
 
 			lnet_net_lock(lp->lp_cpt);
 		}
@@ -389,7 +389,7 @@ lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 
 		/* XXX Assume alive */
 		if (ni->ni_lnd->lnd_notify != NULL)
-			(ni->ni_lnd->lnd_notify)(ni, gateway, 1);
+			ni->ni_lnd->lnd_notify(ni, gateway, 1);
 
 		lnet_net_lock(LNET_LOCK_EX);
 	}
