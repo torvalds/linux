@@ -480,6 +480,8 @@ static int vxlan_fdb_replace(struct vxlan_fdb *f,
 	rd = list_first_entry_or_null(&f->remotes, struct vxlan_rdst, list);
 	if (!rd)
 		return 0;
+
+	dst_cache_reset(&rd->dst_cache);
 	rd->remote_ip = *ip;
 	rd->remote_port = port;
 	rd->remote_vni = vni;
@@ -501,6 +503,12 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 	rd = kmalloc(sizeof(*rd), GFP_ATOMIC);
 	if (rd == NULL)
 		return -ENOBUFS;
+
+	if (dst_cache_init(&rd->dst_cache, GFP_ATOMIC)) {
+		kfree(rd);
+		return -ENOBUFS;
+	}
+
 	rd->remote_ip = *ip;
 	rd->remote_port = port;
 	rd->remote_vni = vni;
@@ -749,8 +757,10 @@ static void vxlan_fdb_free(struct rcu_head *head)
 	struct vxlan_fdb *f = container_of(head, struct vxlan_fdb, rcu);
 	struct vxlan_rdst *rd, *nd;
 
-	list_for_each_entry_safe(rd, nd, &f->remotes, list)
+	list_for_each_entry_safe(rd, nd, &f->remotes, list) {
+		dst_cache_destroy(&rd->dst_cache);
 		kfree(rd);
+	}
 	kfree(f);
 }
 
@@ -1754,10 +1764,23 @@ static int vxlan_build_skb(struct sk_buff *skb, struct dst_entry *dst,
 
 static struct rtable *vxlan_get_route(struct vxlan_dev *vxlan,
 				      struct sk_buff *skb, int oif, u8 tos,
-				      __be32 daddr, __be32 *saddr)
+				      __be32 daddr, __be32 *saddr,
+				      struct dst_cache *dst_cache,
+				      struct ip_tunnel_info *info)
 {
 	struct rtable *rt = NULL;
+	bool use_cache = false;
 	struct flowi4 fl4;
+
+	/* when the ip_tunnel_info is availble, the tos used for lookup is
+	 * packet independent, so we can use the cache
+	 */
+	if (dst_cache && !skb->mark && (!tos || info)) {
+		use_cache = true;
+		rt = dst_cache_get_ip4(dst_cache, saddr);
+		if (rt)
+			return rt;
+	}
 
 	memset(&fl4, 0, sizeof(fl4));
 	fl4.flowi4_oif = oif;
@@ -1768,8 +1791,11 @@ static struct rtable *vxlan_get_route(struct vxlan_dev *vxlan,
 	fl4.saddr = vxlan->cfg.saddr.sin.sin_addr.s_addr;
 
 	rt = ip_route_output_key(vxlan->net, &fl4);
-	if (!IS_ERR(rt))
+	if (!IS_ERR(rt)) {
 		*saddr = fl4.saddr;
+		if (use_cache)
+			dst_cache_set_ip4(dst_cache, &rt->dst, fl4.saddr);
+	}
 	return rt;
 }
 
@@ -1777,11 +1803,20 @@ static struct rtable *vxlan_get_route(struct vxlan_dev *vxlan,
 static struct dst_entry *vxlan6_get_route(struct vxlan_dev *vxlan,
 					  struct sk_buff *skb, int oif,
 					  const struct in6_addr *daddr,
-					  struct in6_addr *saddr)
+					  struct in6_addr *saddr,
+					  struct dst_cache *dst_cache)
 {
+	bool use_cache = false;
 	struct dst_entry *ndst;
 	struct flowi6 fl6;
 	int err;
+
+	if (dst_cache && !skb->mark) {
+		use_cache = true;
+		ndst = dst_cache_get_ip6(dst_cache, saddr);
+		if (ndst)
+			return ndst;
+	}
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_oif = oif;
@@ -1797,6 +1832,8 @@ static struct dst_entry *vxlan6_get_route(struct vxlan_dev *vxlan,
 		return ERR_PTR(err);
 
 	*saddr = fl6.saddr;
+	if (use_cache)
+		dst_cache_set_ip6(dst_cache, ndst, saddr);
 	return ndst;
 }
 #endif
@@ -1938,7 +1975,8 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 		rt = vxlan_get_route(vxlan, skb,
 				     rdst ? rdst->remote_ifindex : 0, tos,
-				     dst->sin.sin_addr.s_addr, &saddr);
+				     dst->sin.sin_addr.s_addr, &saddr,
+				     rdst ? &rdst->dst_cache : NULL, info);
 		if (IS_ERR(rt)) {
 			netdev_dbg(dev, "no route to %pI4\n",
 				   &dst->sin.sin_addr.s_addr);
@@ -1990,7 +2028,8 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 		ndst = vxlan6_get_route(vxlan, skb,
 					rdst ? rdst->remote_ifindex : 0,
-					&dst->sin6.sin6_addr, &saddr);
+					&dst->sin6.sin6_addr, &saddr,
+					rdst ? &rdst->dst_cache : NULL);
 		if (IS_ERR(ndst)) {
 			netdev_dbg(dev, "no route to %pI6\n",
 				   &dst->sin6.sin6_addr);
@@ -2331,7 +2370,7 @@ static int vxlan_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 			return -EINVAL;
 		rt = vxlan_get_route(vxlan, skb, 0, info->key.tos,
 				     info->key.u.ipv4.dst,
-				     &info->key.u.ipv4.src);
+				     &info->key.u.ipv4.src, NULL, info);
 		if (IS_ERR(rt))
 			return PTR_ERR(rt);
 		ip_rt_put(rt);
@@ -2343,7 +2382,7 @@ static int vxlan_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 			return -EINVAL;
 		ndst = vxlan6_get_route(vxlan, skb, 0,
 					&info->key.u.ipv6.dst,
-					&info->key.u.ipv6.src);
+					&info->key.u.ipv6.src, NULL);
 		if (IS_ERR(ndst))
 			return PTR_ERR(ndst);
 		dst_release(ndst);
