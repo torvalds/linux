@@ -624,31 +624,33 @@ static int gb_power_supply_config(struct gb_power_supplies *supplies, int id)
 
 	ret = gb_power_supply_description_get(gbpsy);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	ret = gb_power_supply_prop_descriptors_get(gbpsy);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	/* guarantee that we have an unique name, before register */
-	ret = __gb_power_supply_set_name(gbpsy->model_name, gbpsy->name,
-					 sizeof(gbpsy->name));
-	if (ret < 0)
-		goto out;
+	return __gb_power_supply_set_name(gbpsy->model_name, gbpsy->name,
+					  sizeof(gbpsy->name));
+}
+
+static int gb_power_supply_enable(struct gb_power_supply *gbpsy)
+{
+	int ret;
 
 	ret = gb_power_supply_register(gbpsy);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	gbpsy->update_interval = update_interval_init;
 	INIT_DELAYED_WORK(&gbpsy->work, gb_power_supply_work);
 	schedule_delayed_work(&gbpsy->work, 0);
 
-out:
-	/* if everything went fine just mark it for release code to know */
-	if (ret == 0)
-		gbpsy->registered = true;
-	return ret;
+	/* everything went fine, mark it for release code to know */
+	gbpsy->registered = true;
+
+	return 0;
 }
 
 static int gb_power_supplies_setup(struct gb_power_supplies *supplies)
@@ -681,6 +683,27 @@ static int gb_power_supplies_setup(struct gb_power_supplies *supplies)
 		}
 	}
 out:
+	mutex_unlock(&supplies->supplies_lock);
+	return ret;
+}
+
+static int gb_power_supplies_register(struct gb_power_supplies *supplies)
+{
+	struct gb_connection *connection = supplies->connection;
+	int ret = 0;
+	int i;
+
+	mutex_lock(&supplies->supplies_lock);
+
+	for (i = 0; i < supplies->supplies_count; i++) {
+		ret = gb_power_supply_enable(&supplies->supply[i]);
+		if (ret < 0) {
+			dev_err(&connection->bundle->dev,
+				"Fail to enable supplies devices\n");
+			break;
+		}
+	}
+
 	mutex_unlock(&supplies->supplies_lock);
 	return ret;
 }
@@ -758,8 +781,16 @@ static int gb_power_supply_connection_init(struct gb_connection *connection)
 
 	ret = gb_power_supplies_setup(supplies);
 	if (ret < 0)
-		_gb_power_supplies_release(supplies);
+		goto out;
 
+	ret = gb_power_supplies_register(supplies);
+	if (ret < 0)
+		goto out;
+
+	return 0;
+
+out:
+	_gb_power_supplies_release(supplies);
 	return ret;
 }
 
