@@ -13659,13 +13659,15 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	uint32_t val;
 
-	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
 		return false;
 
 	val = I915_READ(PCH_DPLL(pll->id));
 	hw_state->dpll = val;
 	hw_state->fp0 = I915_READ(PCH_FP0(pll->id));
 	hw_state->fp1 = I915_READ(PCH_FP1(pll->id));
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
 
 	return val & DPLL_VCO_ENABLE;
 }
