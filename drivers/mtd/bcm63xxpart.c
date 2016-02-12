@@ -157,7 +157,7 @@ static int bcm63xx_parse_cfe_nor_partitions(struct mtd_info *master,
 		if (kstrtouint(buf->flash_image_start, 10, &rootfsaddr) ||
 				rootfsaddr < BCM963XX_EXTENDED_SIZE) {
 			pr_err("invalid rootfs address: %*ph\n",
-				sizeof(buf->flash_image_start),
+				(int)sizeof(buf->flash_image_start),
 				buf->flash_image_start);
 			goto invalid_tag;
 		}
@@ -166,7 +166,7 @@ static int bcm63xx_parse_cfe_nor_partitions(struct mtd_info *master,
 		if (kstrtouint(buf->kernel_address, 10, &kerneladdr) ||
 				kerneladdr < BCM963XX_EXTENDED_SIZE) {
 			pr_err("invalid kernel address: %*ph\n",
-				sizeof(buf->kernel_address),
+				(int)sizeof(buf->kernel_address),
 				buf->kernel_address);
 			goto invalid_tag;
 		}
@@ -174,7 +174,7 @@ static int bcm63xx_parse_cfe_nor_partitions(struct mtd_info *master,
 		STR_NULL_TERMINATE(buf->kernel_length);
 		if (kstrtouint(buf->kernel_length, 10, &kernellen)) {
 			pr_err("invalid kernel length: %*ph\n",
-				sizeof(buf->kernel_length),
+				(int)sizeof(buf->kernel_length),
 				buf->kernel_length);
 			goto invalid_tag;
 		}
@@ -182,7 +182,7 @@ static int bcm63xx_parse_cfe_nor_partitions(struct mtd_info *master,
 		STR_NULL_TERMINATE(buf->total_length);
 		if (kstrtouint(buf->total_length, 10, &totallen)) {
 			pr_err("invalid total length: %*ph\n",
-				sizeof(buf->total_length),
+				(int)sizeof(buf->total_length),
 				buf->total_length);
 			goto invalid_tag;
 		}
