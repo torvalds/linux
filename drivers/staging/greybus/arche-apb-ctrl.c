@@ -72,7 +72,7 @@ static void unexport_gpios(struct arche_apb_ctrl_drvdata *apb)
 /*
  * Note: Please do not modify the below sequence, as it is as per the spec
  */
-static int apb_ctrl_coldboot_seq(struct platform_device *pdev)
+static int coldboot_seq(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
@@ -117,7 +117,7 @@ static int apb_ctrl_coldboot_seq(struct platform_device *pdev)
 	return 0;
 }
 
-static int apb_ctrl_fw_flashing_seq(struct platform_device *pdev)
+static int fw_flashing_seq(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
@@ -145,7 +145,7 @@ static int apb_ctrl_fw_flashing_seq(struct platform_device *pdev)
 	return 0;
 }
 
-static int apb_ctrl_standby_boot_seq(struct platform_device *pdev)
+static int standby_boot_seq(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
@@ -169,7 +169,7 @@ static int apb_ctrl_standby_boot_seq(struct platform_device *pdev)
 	return 0;
 }
 
-static void apb_ctrl_poweroff_seq(struct platform_device *pdev)
+static void poweroff_seq(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
@@ -205,30 +205,30 @@ static ssize_t state_store(struct device *dev,
 		if (apb->state == ARCHE_PLATFORM_STATE_OFF)
 			return count;
 
-		apb_ctrl_poweroff_seq(pdev);
+		poweroff_seq(pdev);
 	} else if (sysfs_streq(buf, "active")) {
 		if (apb->state == ARCHE_PLATFORM_STATE_ACTIVE)
 			return count;
 
-		apb_ctrl_poweroff_seq(pdev);
+		poweroff_seq(pdev);
 		is_disabled = apb->init_disabled;
 		apb->init_disabled = false;
-		ret = apb_ctrl_coldboot_seq(pdev);
+		ret = coldboot_seq(pdev);
 		if (ret)
 			apb->init_disabled = is_disabled;
 	} else if (sysfs_streq(buf, "standby")) {
 		if (apb->state == ARCHE_PLATFORM_STATE_STANDBY)
 			return count;
 
-		ret = apb_ctrl_standby_boot_seq(pdev);
+		ret = standby_boot_seq(pdev);
 	} else if (sysfs_streq(buf, "fw_flashing")) {
 		if (apb->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
 			return count;
 
 		/* First we want to make sure we power off everything
 		 * and then enter FW flashing state */
-		apb_ctrl_poweroff_seq(pdev);
-		ret = apb_ctrl_fw_flashing_seq(pdev);
+		poweroff_seq(pdev);
+		ret = fw_flashing_seq(pdev);
 	} else {
 		dev_err(dev, "unknown state\n");
 		ret = -EINVAL;
@@ -378,7 +378,7 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = apb_ctrl_coldboot_seq(pdev);
+	ret = coldboot_seq(pdev);
 	if (ret) {
 		dev_err(dev, "failed to set init state of control signal %d\n",
 				ret);
@@ -398,7 +398,7 @@ int arche_apb_ctrl_remove(struct platform_device *pdev)
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
 	device_remove_file(&pdev->dev, &dev_attr_state);
-	apb_ctrl_poweroff_seq(pdev);
+	poweroff_seq(pdev);
 	platform_set_drvdata(pdev, NULL);
 	unexport_gpios(apb);
 
