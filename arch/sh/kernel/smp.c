@@ -150,7 +150,9 @@ int __cpu_disable(void)
 	 * from the vm mask set of all processes.
 	 */
 	flush_cache_all();
+#ifdef CONFIG_MMU
 	local_flush_tlb_all();
+#endif
 
 	clear_tasks_mm_cpumask(cpu);
 
@@ -183,8 +185,10 @@ asmlinkage void start_secondary(void)
 	atomic_inc(&mm->mm_count);
 	atomic_inc(&mm->mm_users);
 	current->active_mm = mm;
+#ifdef CONFIG_MMU
 	enter_lazy_tlb(mm, current);
 	local_flush_tlb_all();
+#endif
 
 	per_cpu_trap_init();
 
@@ -328,6 +332,8 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
+#ifdef CONFIG_MMU
+
 static void flush_tlb_all_ipi(void *info)
 {
 	local_flush_tlb_all();
@@ -467,3 +473,5 @@ void flush_tlb_one(unsigned long asid, unsigned long vaddr)
 	smp_call_function(flush_tlb_one_ipi, (void *)&fd, 1);
 	local_flush_tlb_one(asid, vaddr);
 }
+
+#endif
