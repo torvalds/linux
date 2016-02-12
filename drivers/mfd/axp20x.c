@@ -613,7 +613,7 @@ static int axp20x_match_device(struct axp20x_dev *axp20x)
 	const struct of_device_id *of_id;
 
 	if (dev->of_node) {
-		of_id = of_match_device(axp20x_of_match, dev);
+		of_id = of_match_device(dev->driver->of_match_table, dev);
 		if (!of_id) {
 			dev_err(dev, "Unable to match OF ID\n");
 			return -ENODEV;
