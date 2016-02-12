@@ -1199,6 +1199,7 @@
 };
 
 &fimd {
+	compatible = "samsung,exynos5420-fimd";
 	clocks = <&clock CLK_SCLK_FIMD1>, <&clock CLK_FIMD1>;
 	clock-names = "sclk_fimd", "fimd";
 	power-domains = <&disp_pd>;
