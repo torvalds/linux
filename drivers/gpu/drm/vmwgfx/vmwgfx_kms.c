@@ -1622,6 +1622,12 @@ int vmw_du_connector_set_property(struct drm_connector *connector,
 				  struct drm_property *property,
 				  uint64_t val)
 {
+	struct vmw_display_unit *du = vmw_connector_to_du(connector);
+	struct vmw_private *dev_priv = vmw_priv(connector->dev);
+
+	if (property == dev_priv->implicit_placement_property)
+		du->is_implicit = val;
+
 	return 0;
 }
 
@@ -2218,4 +2224,28 @@ void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
 		     dev_priv->implicit_fb != vfb);
 
 	dev_priv->implicit_fb = vfb;
+}
+
+/**
+ * vmw_kms_create_implicit_placement_proparty - Set up the implicit placement
+ * property.
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @immutable: Whether the property is immutable.
+ *
+ * Sets up the implicit placement property unless it's already set up.
+ */
+void
+vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv,
+					   bool immutable)
+{
+	if (dev_priv->implicit_placement_property)
+		return;
+
+	dev_priv->implicit_placement_property =
+		drm_property_create_range(dev_priv->dev,
+					  immutable ?
+					  DRM_MODE_PROP_IMMUTABLE : 0,
+					  "implicit_placement", 0, 1);
+
 }

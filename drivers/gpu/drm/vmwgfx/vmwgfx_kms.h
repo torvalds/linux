@@ -264,7 +264,8 @@ bool vmw_kms_crtc_flippable(struct vmw_private *dev_priv,
 			    struct drm_crtc *crtc);
 void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
 				struct drm_crtc *crtc);
-
+void vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv,
+						bool immutable);
 
 
 /*

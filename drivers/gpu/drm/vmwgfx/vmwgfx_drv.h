@@ -409,6 +409,7 @@ struct vmw_private {
 	struct vmw_legacy_display *ldu_priv;
 	struct vmw_overlay *overlay_priv;
 	struct drm_property *hotplug_mode_update_property;
+	struct drm_property *implicit_placement_property;
 	unsigned num_implicit;
 	struct vmw_framebuffer *implicit_fb;
 

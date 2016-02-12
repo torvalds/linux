@@ -383,6 +383,11 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 				   dev->mode_config.suggested_x_property, 0);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_y_property, 0);
+	if (dev_priv->implicit_placement_property)
+		drm_object_attach_property
+			(&connector->base,
+			 dev_priv->implicit_placement_property,
+			 1);
 
 	return 0;
 }
@@ -417,6 +422,8 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 	ret = drm_mode_create_dirty_info_property(dev);
 	if (ret != 0)
 		goto err_vblank_cleanup;
+
+	vmw_kms_create_implicit_placement_property(dev_priv, true);
 
 	if (dev_priv->capabilities & SVGA_CAP_MULTIMON)
 		for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i)
