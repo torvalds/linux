@@ -123,7 +123,7 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev)
 	if (!st->trig)
 		return -ENOMEM;
 
-	ret = devm_request_irq(&indio_dev->dev, st->client->irq,
+	ret = devm_request_irq(&indio_dev->dev, st->irq,
 			       &iio_trigger_generic_data_rdy_poll,
 			       IRQF_TRIGGER_RISING,
 			       "inv_mpu",
@@ -131,7 +131,7 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	st->trig->dev.parent = &st->client->dev;
+	st->trig->dev.parent = regmap_get_device(st->map);
 	st->trig->ops = &inv_mpu_trigger_ops;
 	iio_trigger_set_drvdata(st->trig, indio_dev);
 

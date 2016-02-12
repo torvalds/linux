@@ -108,9 +108,10 @@ struct inv_mpu6050_hw {
  *  @hw:		Other hardware-specific information.
  *  @chip_type:		chip type.
  *  @time_stamp_lock:	spin lock to time stamp.
- *  @client:		i2c client handle.
  *  @plat_data:		platform data.
  *  @timestamps:        kfifo queue to store time stamp.
+ *  @map		regmap pointer.
+ *  @irq		interrupt number.
  */
 struct inv_mpu6050_state {
 #define TIMESTAMP_FIFO_SIZE 16
@@ -120,13 +121,13 @@ struct inv_mpu6050_state {
 	const struct inv_mpu6050_hw *hw;
 	enum   inv_devices chip_type;
 	spinlock_t time_stamp_lock;
-	struct i2c_client *client;
 	struct i2c_adapter *mux_adapter;
 	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
 	struct regmap *map;
+	int irq;
 };
 
 /*register and associated bit definition*/
@@ -255,5 +256,8 @@ int inv_reset_fifo(struct iio_dev *indio_dev);
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask);
 int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 val);
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
-int inv_mpu_acpi_create_mux_client(struct inv_mpu6050_state *st);
-void inv_mpu_acpi_delete_mux_client(struct inv_mpu6050_state *st);
+int inv_mpu_acpi_create_mux_client(struct i2c_client *client);
+void inv_mpu_acpi_delete_mux_client(struct i2c_client *client);
+int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name);
+int inv_mpu_core_remove(struct device *dev);
+extern const struct dev_pm_ops inv_mpu_pmops;
