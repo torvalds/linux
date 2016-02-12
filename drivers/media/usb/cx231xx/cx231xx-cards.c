@@ -1685,6 +1685,9 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	request_modules(dev);
 
 #ifdef CONFIG_MEDIA_CONTROLLER
+	/* Init entities at the Media Controller */
+	cx231xx_v4l2_create_entities(dev);
+
 	retval = v4l2_mc_create_media_graph(dev->media_dev);
 	if (!retval)
 		retval = media_device_register(dev->media_dev);

@@ -25,6 +25,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/videobuf-vmalloc.h>
+#include <media/tuner.h>
 
 #include "xc5000.h"
 #include "s5h1432.h"
@@ -551,7 +552,8 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 
 	/* register network adapter */
 	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
-	result = dvb_create_media_graph(&dvb->adapter, false);
+	result = dvb_create_media_graph(&dvb->adapter,
+					dev->tuner_type == TUNER_ABSENT);
 	if (result < 0)
 		goto fail_create_graph;
 
