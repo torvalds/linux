@@ -89,7 +89,7 @@ static int intel_pt_parse_terms_with_default(struct list_head *formats,
 
 	*config = attr.config;
 out_free:
-	parse_events__free_terms(terms);
+	parse_events_terms__delete(terms);
 	return err;
 }
 
