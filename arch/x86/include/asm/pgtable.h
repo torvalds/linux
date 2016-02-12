@@ -921,16 +921,17 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
 
 #define PKRU_AD_BIT 0x1
 #define PKRU_WD_BIT 0x2
+#define PKRU_BITS_PER_PKEY 2
 
 static inline bool __pkru_allows_read(u32 pkru, u16 pkey)
 {
-	int pkru_pkey_bits = pkey * 2;
+	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
 	return !(pkru & (PKRU_AD_BIT << pkru_pkey_bits));
 }
 
 static inline bool __pkru_allows_write(u32 pkru, u16 pkey)
 {
-	int pkru_pkey_bits = pkey * 2;
+	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
 	/*
 	 * Access-disable disables writes too so we need to check
 	 * both bits here.

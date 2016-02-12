@@ -5,6 +5,7 @@
  */
 #include <linux/compat.h>
 #include <linux/cpu.h>
+#include <linux/pkeys.h>
 
 #include <asm/fpu/api.h>
 #include <asm/fpu/internal.h>
@@ -854,4 +855,77 @@ out:
 	 * and (possibly) move the fpstate back in to the fpregs.
 	 */
 	fpu__current_fpstate_write_end();
+}
+
+#define NR_VALID_PKRU_BITS (CONFIG_NR_PROTECTION_KEYS * 2)
+#define PKRU_VALID_MASK (NR_VALID_PKRU_BITS - 1)
+
+/*
+ * This will go out and modify the XSAVE buffer so that PKRU is
+ * set to a particular state for access to 'pkey'.
+ *
+ * PKRU state does affect kernel access to user memory.  We do
+ * not modfiy PKRU *itself* here, only the XSAVE state that will
+ * be restored in to PKRU when we return back to userspace.
+ */
+int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+		unsigned long init_val)
+{
+	struct xregs_state *xsave = &tsk->thread.fpu.state.xsave;
+	struct pkru_state *old_pkru_state;
+	struct pkru_state new_pkru_state;
+	int pkey_shift = (pkey * PKRU_BITS_PER_PKEY);
+	u32 new_pkru_bits = 0;
+
+	if (!validate_pkey(pkey))
+		return -EINVAL;
+	/*
+	 * This check implies XSAVE support.  OSPKE only gets
+	 * set if we enable XSAVE and we enable PKU in XCR0.
+	 */
+	if (!boot_cpu_has(X86_FEATURE_OSPKE))
+		return -EINVAL;
+
+	/* Set the bits we need in PKRU  */
+	if (init_val & PKEY_DISABLE_ACCESS)
+		new_pkru_bits |= PKRU_AD_BIT;
+	if (init_val & PKEY_DISABLE_WRITE)
+		new_pkru_bits |= PKRU_WD_BIT;
+
+	/* Shift the bits in to the correct place in PKRU for pkey. */
+	new_pkru_bits <<= pkey_shift;
+
+	/* Locate old copy of the state in the xsave buffer */
+	old_pkru_state = get_xsave_addr(xsave, XFEATURE_MASK_PKRU);
+
+	/*
+	 * When state is not in the buffer, it is in the init
+	 * state, set it manually.  Otherwise, copy out the old
+	 * state.
+	 */
+	if (!old_pkru_state)
+		new_pkru_state.pkru = 0;
+	else
+		new_pkru_state.pkru = old_pkru_state->pkru;
+
+	/* mask off any old bits in place */
+	new_pkru_state.pkru &= ~((PKRU_AD_BIT|PKRU_WD_BIT) << pkey_shift);
+	/* Set the newly-requested bits */
+	new_pkru_state.pkru |= new_pkru_bits;
+
+	/*
+	 * We could theoretically live without zeroing pkru.pad.
+	 * The current XSAVE feature state definition says that
+	 * only bytes 0->3 are used.  But we do not want to
+	 * chance leaking kernel stack out to userspace in case a
+	 * memcpy() of the whole xsave buffer was done.
+	 *
+	 * They're in the same cacheline anyway.
+	 */
+	new_pkru_state.pad = 0;
+
+	fpu__xfeature_set_state(XFEATURE_MASK_PKRU, &new_pkru_state,
+			sizeof(new_pkru_state));
+
+	return 0;
 }
