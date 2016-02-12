@@ -153,11 +153,9 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 	u32 target_clk_f, ref_clk_f, target_freq;
 	u32 min_vco_f, max_vco_f;
 	u32 low_pl, high_pl, best_pl;
-	u32 target_vco_f, vco_f;
+	u32 target_vco_f;
 	u32 best_m, best_n;
-	u32 u_f;
-	u32 m, n, n2;
-	u32 delta, lwv, best_delta = ~0;
+	u32 best_delta = ~0;
 	u32 pl;
 
 	target_clk_f = rate * 2 / KHZ;
@@ -202,8 +200,12 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 
 	/* Select lowest possible VCO */
 	for (pl = low_pl; pl <= high_pl; pl++) {
+		u32 m, n, n2;
+
 		target_vco_f = target_clk_f * pl_to_div[pl];
 		for (m = clk->params->min_m; m <= clk->params->max_m; m++) {
+			u32 u_f, vco_f;
+
 			u_f = ref_clk_f / m;
 
 			if (u_f < clk->params->min_u)
@@ -226,6 +228,8 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 				vco_f = ref_clk_f * n / m;
 
 				if (vco_f >= min_vco_f && vco_f <= max_vco_f) {
+					u32 delta, lwv;
+
 					lwv = (vco_f + (pl_to_div[pl] / 2))
 						/ pl_to_div[pl];
 					delta = abs(lwv - target_clk_f);
