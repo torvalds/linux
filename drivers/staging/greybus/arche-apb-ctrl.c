@@ -71,7 +71,7 @@ static void unexport_gpios(struct arche_apb_ctrl_drvdata *apb)
 /*
  * Note: Please do not modify the below sequence, as it is as per the spec
  */
-static int apb_ctrl_init_seq(struct platform_device *pdev,
+static int apb_ctrl_coldboot_seq(struct platform_device *pdev,
 		struct arche_apb_ctrl_drvdata *apb)
 {
 	struct device *dev = &pdev->dev;
@@ -111,6 +111,25 @@ static int apb_ctrl_init_seq(struct platform_device *pdev,
 	apb->state = ARCHE_PLATFORM_STATE_ACTIVE;
 
 	return 0;
+}
+
+static void apb_ctrl_poweroff_seq(struct arche_apb_ctrl_drvdata *apb)
+{
+	/* disable the clock */
+	if (gpio_is_valid(apb->clk_en_gpio))
+		gpio_set_value(apb->clk_en_gpio, 0);
+
+	if (!IS_ERR(apb->vcore) && regulator_is_enabled(apb->vcore) > 0)
+		regulator_disable(apb->vcore);
+
+	if (!IS_ERR(apb->vio) && regulator_is_enabled(apb->vio) > 0)
+		regulator_disable(apb->vio);
+
+	/* As part of exit, put APB back in reset state */
+	assert_reset(apb->resetn_gpio);
+	apb->state = ARCHE_PLATFORM_STATE_OFF;
+
+	/* TODO: May have to send an event to SVC about this exit */
 }
 
 static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
@@ -201,25 +220,6 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 	return 0;
 }
 
-static void apb_ctrl_cleanup(struct arche_apb_ctrl_drvdata *apb)
-{
-	/* disable the clock */
-	if (gpio_is_valid(apb->clk_en_gpio))
-		gpio_set_value(apb->clk_en_gpio, 0);
-
-	if (!IS_ERR(apb->vcore) && regulator_is_enabled(apb->vcore) > 0)
-		regulator_disable(apb->vcore);
-
-	if (!IS_ERR(apb->vio) && regulator_is_enabled(apb->vio) > 0)
-		regulator_disable(apb->vio);
-
-	/* As part of exit, put APB back in reset state */
-	assert_reset(apb->resetn_gpio);
-	apb->state = ARCHE_PLATFORM_STATE_OFF;
-
-	/* TODO: May have to send an event to SVC about this exit */
-}
-
 int arche_apb_ctrl_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -236,7 +236,7 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = apb_ctrl_init_seq(pdev, apb);
+	ret = apb_ctrl_coldboot_seq(pdev, apb);
 	if (ret) {
 		dev_err(dev, "failed to set init state of control signal %d\n",
 				ret);
@@ -255,7 +255,7 @@ int arche_apb_ctrl_remove(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
-	apb_ctrl_cleanup(apb);
+	apb_ctrl_poweroff_seq(apb);
 	platform_set_drvdata(pdev, NULL);
 	unexport_gpios(apb);
 
