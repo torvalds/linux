@@ -254,9 +254,8 @@ lstcon_group_decref(lstcon_group_t *grp)
 
 	lstcon_group_drain(grp, 0);
 
-	for (i = 0; i < LST_NODE_HASHSIZE; i++) {
+	for (i = 0; i < LST_NODE_HASHSIZE; i++)
 		LASSERT(list_empty(&grp->grp_ndl_hash[i]));
-	}
 
 	LIBCFS_FREE(grp, offsetof(lstcon_group_t,
 				  grp_ndl_hash[LST_NODE_HASHSIZE]));
@@ -2084,9 +2083,8 @@ lstcon_console_fini(void)
 	LASSERT(list_empty(&console_session.ses_bat_list));
 	LASSERT(list_empty(&console_session.ses_trans_list));
 
-	for (i = 0; i < LST_NODE_HASHSIZE; i++) {
+	for (i = 0; i < LST_NODE_HASHSIZE; i++)
 		LASSERT(list_empty(&console_session.ses_ndl_hash[i]));
-	}
 
 	LIBCFS_FREE(console_session.ses_ndl_hash,
 		    sizeof(struct list_head) * LST_GLOBAL_HASHSIZE);

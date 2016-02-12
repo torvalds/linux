@@ -507,9 +507,8 @@ ksocknal_send_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello)
 	if (hello->kshm_nips == 0)
 		goto out;
 
-	for (i = 0; i < (int) hello->kshm_nips; i++) {
+	for (i = 0; i < (int) hello->kshm_nips; i++)
 		hello->kshm_ips[i] = __cpu_to_le32(hello->kshm_ips[i]);
-	}
 
 	rc = lnet_sock_write(sock, hello->kshm_ips,
 			     hello->kshm_nips * sizeof(__u32),

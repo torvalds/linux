@@ -951,8 +951,9 @@ kiblnd_check_sends(kib_conn_t *conn)
 			credit = 1;
 			tx = list_entry(conn->ibc_tx_queue.next,
 					kib_tx_t, tx_list);
-		} else
+		} else {
 			break;
+		}
 
 		if (kiblnd_post_tx_locked(conn, tx, credit) != 0)
 			break;

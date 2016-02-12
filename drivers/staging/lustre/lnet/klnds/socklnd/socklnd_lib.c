@@ -609,8 +609,9 @@ ksocknal_data_ready(struct sock *sk)
 	if (conn == NULL) {	     /* raced with ksocknal_terminate_conn */
 		LASSERT(sk->sk_data_ready != &ksocknal_data_ready);
 		sk->sk_data_ready(sk);
-	} else
+	} else {
 		ksocknal_read_callback(conn);
+	}
 
 	read_unlock(&ksocknal_data.ksnd_global_lock);
 }

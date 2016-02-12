@@ -508,11 +508,10 @@ srpc_destroy_client_rpc(srpc_client_rpc_t *rpc)
 	LASSERT(!srpc_event_pending(rpc));
 	LASSERT(atomic_read(&rpc->crpc_refcount) == 0);
 
-	if (rpc->crpc_fini == NULL) {
+	if (rpc->crpc_fini == NULL)
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
-	} else {
+	else
 		(*rpc->crpc_fini) (rpc);
-	}
 
 	return;
 }

@@ -1139,9 +1139,9 @@ libcfs_nid2str_r(lnet_nid_t nid, char *buf, size_t buf_size)
 	}
 
 	nf = libcfs_lnd2netstrfns(lnd);
-	if (nf == NULL)
+	if (nf == NULL) {
 		snprintf(buf, buf_size, "%x@<%u:%u>", addr, lnd, nnum);
-	else {
+	} else {
 		size_t addr_len;
 
 		nf->nf_addr2str(addr, buf, buf_size);

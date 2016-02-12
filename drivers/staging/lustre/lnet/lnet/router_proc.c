@@ -262,9 +262,9 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 	if (len > *lenp) {    /* linux-supplied buffer is too small */
 		rc = -EINVAL;
 	} else if (len > 0) { /* wrote something */
-		if (copy_to_user(buffer, tmpstr, len))
+		if (copy_to_user(buffer, tmpstr, len)) {
 			rc = -EFAULT;
-		else {
+		} else {
 			off += 1;
 			*ppos = LNET_PROC_POS_MAKE(0, ver, 0, off);
 		}
@@ -399,9 +399,9 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 	if (len > *lenp) {    /* linux-supplied buffer is too small */
 		rc = -EINVAL;
 	} else if (len > 0) { /* wrote something */
-		if (copy_to_user(buffer, tmpstr, len))
+		if (copy_to_user(buffer, tmpstr, len)) {
 			rc = -EFAULT;
-		else {
+		} else {
 			off += 1;
 			*ppos = LNET_PROC_POS_MAKE(0, ver, 0, off);
 		}
