@@ -123,19 +123,6 @@ static void svc_delayed_work(struct work_struct *work)
 	gpio_direction_output(arche_pdata->wake_detect_gpio, 1);
 }
 
-/* Export gpio's to user space */
-static void export_gpios(struct arche_platform_drvdata *arche_pdata)
-{
-	gpio_export(arche_pdata->svc_reset_gpio, false);
-	gpio_export(arche_pdata->svc_sysboot_gpio, false);
-}
-
-static void unexport_gpios(struct arche_platform_drvdata *arche_pdata)
-{
-	gpio_unexport(arche_pdata->svc_reset_gpio);
-	gpio_unexport(arche_pdata->svc_sysboot_gpio);
-}
-
 static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
 {
 	int ret;
@@ -383,8 +370,6 @@ static int arche_platform_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
 	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 
-	export_gpios(arche_pdata);
-
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
 }
@@ -407,7 +392,6 @@ static int arche_platform_remove(struct platform_device *pdev)
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 	arche_platform_poweroff_seq(arche_pdata);
 	platform_set_drvdata(pdev, NULL);
-	unexport_gpios(arche_pdata);
 
 	return 0;
 }
