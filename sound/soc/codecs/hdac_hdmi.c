@@ -22,10 +22,12 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/hdmi.h>
+#include <drm/drm_edid.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_i915.h>
+#include <sound/pcm_drm_eld.h>
 #include "../../hda/local.h"
 
 #define AMP_OUT_MUTE		0xb080
@@ -88,6 +90,45 @@ static inline struct hdac_ext_device *to_hda_ext_device(struct device *dev)
 	struct hdac_device *hdac = dev_to_hdac_dev(dev);
 
 	return to_ehdac_device(hdac);
+}
+
+static unsigned int sad_format(const u8 *sad)
+{
+	return ((sad[0] >> 0x3) & 0x1f);
+}
+
+static unsigned int sad_sample_bits_lpcm(const u8 *sad)
+{
+	return (sad[2] & 7);
+}
+
+static int hdac_hdmi_eld_limit_formats(struct snd_pcm_runtime *runtime,
+						void *eld)
+{
+	u64 formats = SNDRV_PCM_FMTBIT_S16;
+	int i;
+	const u8 *sad, *eld_buf = eld;
+
+	sad = drm_eld_sad(eld_buf);
+	if (!sad)
+		goto format_constraint;
+
+	for (i = drm_eld_sad_count(eld_buf); i > 0; i--, sad += 3) {
+		if (sad_format(sad) == 1) { /* AUDIO_CODING_TYPE_LPCM */
+
+			/*
+			 * the controller support 20 and 24 bits in 32 bit
+			 * container so we set S32
+			 */
+			if (sad_sample_bits_lpcm(sad) & 0x6)
+				formats |= SNDRV_PCM_FMTBIT_S32;
+		}
+	}
+
+format_constraint:
+	return snd_pcm_hw_constraint_mask64(runtime, SNDRV_PCM_HW_PARAM_FORMAT,
+				formats);
+
 }
 
  /* HDMI ELD routines */
@@ -334,6 +375,7 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 	struct hdac_ext_device *hdac = snd_soc_dai_get_drvdata(dai);
 	struct hdac_hdmi_priv *hdmi = hdac->private_data;
 	struct hdac_hdmi_dai_pin_map *dai_map;
+	int ret;
 
 	if (dai->id > 0) {
 		dev_err(&hdac->hdac.dev, "Only one dai supported as of now\n");
@@ -358,10 +400,13 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 	snd_hdac_codec_write(&hdac->hdac, dai_map->pin->nid, 0,
 			AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
 
-	snd_pcm_hw_constraint_step(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_CHANNELS, 2);
+	ret = hdac_hdmi_eld_limit_formats(substream->runtime,
+				dai_map->pin->eld.eld_buffer);
+	if (ret < 0)
+		return ret;
 
-	return 0;
+	return snd_pcm_hw_constraint_eld(substream->runtime,
+				dai_map->pin->eld.eld_buffer);
 }
 
 static void hdac_hdmi_pcm_close(struct snd_pcm_substream *substream,
