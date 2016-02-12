@@ -281,7 +281,6 @@ enum cx231xx_itype {
 	CX231XX_VMUX_CABLE,
 	CX231XX_RADIO,
 	CX231XX_VMUX_DVB,
-	CX231XX_VMUX_DEBUG
 };
 
 enum cx231xx_v_input {
