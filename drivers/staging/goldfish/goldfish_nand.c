@@ -290,7 +290,7 @@ static int nand_setup_cmd_params(struct platform_device *pdev,
 	nand->cmd_params = devm_kzalloc(&pdev->dev,
 					sizeof(struct cmd_params), GFP_KERNEL);
 	if (!nand->cmd_params)
-		return -1;
+		return -ENOMEM;
 
 	paddr = __pa(nand->cmd_params);
 	writel((u32)(paddr >> 32), base + NAND_CMD_PARAMS_ADDR_HIGH);
