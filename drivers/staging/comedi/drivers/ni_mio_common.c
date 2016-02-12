@@ -1166,8 +1166,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 			comedi_buf_write_samples(s, &data, 1);
 		}
 	} else {
-		if (n > sizeof(devpriv->ai_fifo_buffer) /
-		    sizeof(devpriv->ai_fifo_buffer[0])) {
+		if (n > ARRAY_SIZE(devpriv->ai_fifo_buffer)) {
 			dev_err(dev->class_dev,
 				"bug! ai_fifo_buffer too small\n");
 			async->events |= COMEDI_CB_ERROR;
@@ -1242,9 +1241,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 			     NISTC_AI_STATUS1_FIFO_E;
 		while (fifo_empty == 0) {
 			for (i = 0;
-			     i <
-			     sizeof(devpriv->ai_fifo_buffer) /
-			     sizeof(devpriv->ai_fifo_buffer[0]); i++) {
+			     i < ARRAY_SIZE(devpriv->ai_fifo_buffer); i++) {
 				fifo_empty = ni_stc_readw(dev,
 							  NISTC_AI_STATUS1_REG) &
 						NISTC_AI_STATUS1_FIFO_E;
