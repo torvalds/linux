@@ -85,8 +85,6 @@ struct media_device_info {
 #define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 10001)
 #define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 10002)
 #define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 10003)
-/* For internal test signal generators and other debug connectors */
-#define MEDIA_ENT_F_CONN_TEST		(MEDIA_ENT_F_BASE + 10004)
 
 /*
  * Don't touch on those. The ranges MEDIA_ENT_F_OLD_BASE and
