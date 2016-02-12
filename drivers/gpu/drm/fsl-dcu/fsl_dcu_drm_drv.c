@@ -232,8 +232,7 @@ static int fsl_dcu_drm_pm_suspend(struct device *dev)
 	drm_kms_helper_poll_disable(fsl_dev->drm);
 	regcache_cache_only(fsl_dev->regmap, true);
 	regcache_mark_dirty(fsl_dev->regmap);
-	clk_disable(fsl_dev->clk);
-	clk_unprepare(fsl_dev->clk);
+	clk_disable_unprepare(fsl_dev->clk);
 
 	return 0;
 }
@@ -246,15 +245,9 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 	if (!fsl_dev)
 		return 0;
 
-	ret = clk_enable(fsl_dev->clk);
+	ret = clk_prepare_enable(fsl_dev->clk);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable dcu clk\n");
-		clk_unprepare(fsl_dev->clk);
-		return ret;
-	}
-	ret = clk_prepare(fsl_dev->clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to prepare dcu clk\n");
 		return ret;
 	}
 
