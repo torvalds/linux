@@ -148,6 +148,55 @@ static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pda
 	arche_pdata->state = ARCHE_PLATFORM_STATE_OFF;
 }
 
+static ssize_t state_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
+	int ret = 0;
+
+	if (sysfs_streq(buf, "off")) {
+		if (arche_pdata->state == ARCHE_PLATFORM_STATE_OFF)
+			return count;
+
+		arche_platform_poweroff_seq(arche_pdata);
+	} else if (sysfs_streq(buf, "active")) {
+		if (arche_pdata->state == ARCHE_PLATFORM_STATE_ACTIVE)
+			return count;
+
+		ret = arche_platform_coldboot_seq(arche_pdata);
+	} else if (sysfs_streq(buf, "standby")) {
+		if (arche_pdata->state == ARCHE_PLATFORM_STATE_STANDBY)
+			return count;
+
+		dev_warn(arche_pdata->dev, "standby state not supported\n");
+	} else {
+		dev_err(arche_pdata->dev, "unknown state\n");
+		ret = -EINVAL;
+	}
+
+	return ret ? ret : count;
+}
+
+static ssize_t state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct arche_platform_drvdata *arche_pdata = dev_get_drvdata(dev);
+
+	switch (arche_pdata->state) {
+	case ARCHE_PLATFORM_STATE_OFF:
+		return sprintf(buf, "off\n");
+	case ARCHE_PLATFORM_STATE_ACTIVE:
+		return sprintf(buf, "active\n");
+	case ARCHE_PLATFORM_STATE_STANDBY:
+		return sprintf(buf, "standby\n");
+	default:
+		return sprintf(buf, "unknown state\n");
+	}
+}
+
+static DEVICE_ATTR_RW(state);
+
 static int arche_platform_probe(struct platform_device *pdev)
 {
 	struct arche_platform_drvdata *arche_pdata;
@@ -248,6 +297,12 @@ static int arche_platform_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
 	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 
+	ret = device_create_file(dev, &dev_attr_state);
+	if (ret) {
+		dev_err(dev, "failed to create state file in sysfs\n");
+		return ret;
+	}
+
 	ret = arche_platform_coldboot_seq(arche_pdata);
 	if (ret) {
 		dev_err(dev, "Failed to cold boot svc %d\n", ret);
@@ -273,6 +328,7 @@ static int arche_platform_remove(struct platform_device *pdev)
 {
 	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
 
+	device_remove_file(&pdev->dev, &dev_attr_state);
 	cancel_delayed_work_sync(&arche_pdata->delayed_work);
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 	arche_platform_poweroff_seq(arche_pdata);
