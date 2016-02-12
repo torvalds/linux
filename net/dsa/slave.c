@@ -201,47 +201,6 @@ out:
 	return 0;
 }
 
-static int dsa_bridge_check_vlan_range(struct dsa_switch *ds,
-				       const struct net_device *bridge,
-				       u16 vid_begin, u16 vid_end)
-{
-	struct dsa_slave_priv *p;
-	struct net_device *dev, *vlan_br;
-	DECLARE_BITMAP(members, DSA_MAX_PORTS);
-	DECLARE_BITMAP(untagged, DSA_MAX_PORTS);
-	u16 vid;
-	int member, err;
-
-	if (!ds->drv->vlan_getnext || !vid_begin)
-		return -EOPNOTSUPP;
-
-	vid = vid_begin - 1;
-
-	do {
-		err = ds->drv->vlan_getnext(ds, &vid, members, untagged);
-		if (err)
-			break;
-
-		if (vid > vid_end)
-			break;
-
-		member = find_first_bit(members, DSA_MAX_PORTS);
-		if (member == DSA_MAX_PORTS)
-			continue;
-
-		dev = ds->ports[member];
-		p = netdev_priv(dev);
-		vlan_br = p->bridge_dev;
-		if (vlan_br == bridge)
-			continue;
-
-		netdev_dbg(vlan_br, "hardware VLAN %d already in use\n", vid);
-		return -EOPNOTSUPP;
-	} while (vid < vid_end);
-
-	return err == -ENOENT ? 0 : err;
-}
-
 static int dsa_slave_port_vlan_add(struct net_device *dev,
 				   const struct switchdev_obj_port_vlan *vlan,
 				   struct switchdev_trans *trans)
@@ -253,15 +212,6 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 	if (switchdev_trans_ph_prepare(trans)) {
 		if (!ds->drv->port_vlan_prepare || !ds->drv->port_vlan_add)
 			return -EOPNOTSUPP;
-
-		/* If the requested port doesn't belong to the same bridge as
-		 * the VLAN members, fallback to software VLAN (hopefully).
-		 */
-		err = dsa_bridge_check_vlan_range(ds, p->bridge_dev,
-						  vlan->vid_begin,
-						  vlan->vid_end);
-		if (err)
-			return err;
 
 		err = ds->drv->port_vlan_prepare(ds, p->port, vlan, trans);
 		if (err)
