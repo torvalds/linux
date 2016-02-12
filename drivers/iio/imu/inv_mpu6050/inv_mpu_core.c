@@ -152,6 +152,7 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(inv_mpu6050_set_power_itg);
 
 /**
  *  inv_mpu6050_init_config() - Initialize hardware, disable FIFO.
@@ -676,7 +677,8 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	return 0;
 }
 
-int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name)
+int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
+		       int (*inv_mpu_bus_setup)(struct iio_dev *))
 {
 	struct inv_mpu6050_state *st;
 	struct iio_dev *indio_dev;
@@ -699,6 +701,9 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name)
 	result = inv_check_and_setup_chip(st);
 	if (result)
 		return result;
+
+	if (inv_mpu_bus_setup)
+		inv_mpu_bus_setup(indio_dev);
 
 	result = inv_mpu6050_init_config(indio_dev);
 	if (result) {

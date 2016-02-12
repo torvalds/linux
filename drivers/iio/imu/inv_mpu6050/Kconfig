@@ -20,3 +20,14 @@ config INV_MPU6050_I2C
 	  It is a gyroscope/accelerometer combo device.
 	  This driver can be built as a module. The module will be called
 	  inv-mpu6050-i2c.
+
+config INV_MPU6050_SPI
+	tristate "Invensense MPU6050 devices (SPI)"
+	depends on SPI_MASTER
+	select INV_MPU6050_IIO
+	select REGMAP_SPI
+	help
+	  This driver supports the Invensense MPU6050 devices.
+	  It is a gyroscope/accelerometer combo device.
+	  This driver can be built as a module. The module will be called
+	  inv-mpu6050-spi.

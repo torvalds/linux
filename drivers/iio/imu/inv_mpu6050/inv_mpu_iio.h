@@ -62,6 +62,7 @@ struct inv_mpu6050_reg_map {
 enum inv_devices {
 	INV_MPU6050,
 	INV_MPU6500,
+	INV_MPU6000,
 	INV_NUM_PARTS
 };
 
@@ -154,6 +155,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BIT_I2C_MST_EN          0x20
 #define INV_MPU6050_BIT_FIFO_EN             0x40
 #define INV_MPU6050_BIT_DMP_EN              0x80
+#define INV_MPU6050_BIT_I2C_IF_DIS          0x10
 
 #define INV_MPU6050_REG_PWR_MGMT_1          0x6B
 #define INV_MPU6050_BIT_H_RESET             0x80
@@ -258,6 +260,8 @@ int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 val);
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
 int inv_mpu_acpi_create_mux_client(struct i2c_client *client);
 void inv_mpu_acpi_delete_mux_client(struct i2c_client *client);
-int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name);
+int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
+		      int (*inv_mpu_bus_setup)(struct iio_dev *));
 int inv_mpu_core_remove(struct device *dev);
+int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
 extern const struct dev_pm_ops inv_mpu_pmops;

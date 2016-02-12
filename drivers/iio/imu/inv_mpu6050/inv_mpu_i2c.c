@@ -129,7 +129,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
-	result = inv_mpu_core_probe(regmap, client->irq, name);
+	result = inv_mpu_core_probe(regmap, client->irq, name, NULL);
 	if (result < 0)
 		return result;
 
