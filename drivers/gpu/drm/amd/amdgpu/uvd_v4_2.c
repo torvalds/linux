@@ -576,6 +576,10 @@ static void uvd_v4_2_mc_resume(struct amdgpu_device *adev)
 	addr = (adev->uvd.gpu_addr >> 32) & 0xFF;
 	WREG32(mmUVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
 
+	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+
 	uvd_v4_2_init_cg(adev);
 }
 
@@ -777,6 +781,13 @@ static void uvd_v4_2_print_status(void *handle)
 		 RREG32(mmUVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL));
 	dev_info(adev->dev, "  UVD_CONTEXT_ID=0x%08X\n",
 		 RREG32(mmUVD_CONTEXT_ID));
+	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
+	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_DB_ADDR_CONFIG));
+	dev_info(adev->dev, "  UVD_UDEC_DBW_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_DBW_ADDR_CONFIG));
+
 }
 
 static int uvd_v4_2_set_interrupt_state(struct amdgpu_device *adev,
