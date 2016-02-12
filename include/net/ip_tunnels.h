@@ -58,6 +58,9 @@ struct ip_tunnel_key {
 
 struct ip_tunnel_info {
 	struct ip_tunnel_key	key;
+#ifdef CONFIG_DST_CACHE
+	struct dst_cache	dst_cache;
+#endif
 	u8			options_len;
 	u8			mode;
 };
