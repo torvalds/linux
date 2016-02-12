@@ -4538,7 +4538,7 @@ F:	include/linux/platform_data/video-imxfb.h
 F:	drivers/video/fbdev/imxfb.c
 
 FREESCALE QUAD SPI DRIVER
-M:	Han Xu <han.xu@freescale.com>
+M:	Han Xu <han.xu@nxp.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/spi-nor/fsl-quadspi.c
