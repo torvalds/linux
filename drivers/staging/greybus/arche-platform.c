@@ -45,6 +45,37 @@ static inline void svc_reset_onoff(unsigned int gpio, bool onoff)
 	gpio_set_value(gpio, onoff);
 }
 
+static int apb_cold_boot(struct device *dev, void *data)
+{
+	int ret;
+
+	ret = apb_ctrl_coldboot(dev);
+	if (ret)
+		dev_warn(dev, "failed to coldboot\n");
+
+	/*Child nodes are independent, so do not exit coldboot operation */
+	return 0;
+}
+
+static int apb_fw_flashing_state(struct device *dev, void *data)
+{
+	int ret;
+
+	ret = apb_ctrl_fw_flashing(dev);
+	if (ret)
+		dev_warn(dev, "failed to switch to fw flashing state\n");
+
+	/*Child nodes are independent, so do not exit coldboot operation */
+	return 0;
+}
+
+static int apb_poweroff(struct device *dev, void *data)
+{
+	apb_ctrl_poweroff(dev);
+
+	return 0;
+}
+
 /**
  * svc_delayed_work - Time to give SVC to boot.
  */
@@ -52,10 +83,7 @@ static void svc_delayed_work(struct work_struct *work)
 {
 	struct arche_platform_drvdata *arche_pdata =
 		container_of(work, struct arche_platform_drvdata, delayed_work.work);
-	struct device *dev = arche_pdata->dev;
-	struct device_node *np = dev->of_node;
 	int timeout = 50;
-	int ret;
 
 	/*
 	 * 1.   SVC and AP boot independently, with AP<-->SVC wake/detect pin
@@ -79,18 +107,20 @@ static void svc_delayed_work(struct work_struct *work)
 		msleep(100);
 	} while(timeout--);
 
-	if (timeout >= 0) {
-		ret = of_platform_populate(np, NULL, NULL, dev);
-		if (!ret) {
-			/* re-assert wake_detect to confirm SVC WAKE_OUT */
-			gpio_direction_output(arche_pdata->wake_detect_gpio, 1);
-			return;
-		}
+	if (timeout < 0) {
+		/* FIXME: We may want to limit retries here */
+		dev_warn(arche_pdata->dev,
+			"Timed out on wake/detect, rescheduling handshake\n");
+		gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
+		schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
+		return;
 	}
 
-	/* FIXME: We may want to limit retries here */
-	gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
-	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
+	/* Bring APB out of reset: cold boot sequence */
+	device_for_each_child(arche_pdata->dev, NULL, apb_cold_boot);
+
+	/* re-assert wake_detect to confirm SVC WAKE_OUT */
+	gpio_direction_output(arche_pdata->wake_detect_gpio, 1);
 }
 
 /* Export gpio's to user space */
@@ -176,12 +206,17 @@ static ssize_t state_store(struct device *dev,
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_OFF)
 			return count;
 
+		/*  If SVC goes down, bring down APB's as well */
+		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
+
 		arche_platform_poweroff_seq(arche_pdata);
 	} else if (sysfs_streq(buf, "active")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_ACTIVE)
 			return count;
 
 		ret = arche_platform_coldboot_seq(arche_pdata);
+		/* Give enough time for SVC to boot and then handshake with SVC */
+		schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 	} else if (sysfs_streq(buf, "standby")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_STANDBY)
 			return count;
@@ -193,8 +228,13 @@ static ssize_t state_store(struct device *dev,
 
 		/* First we want to make sure we power off everything
 		 * and then enter FW flashing state */
+		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
+
 		arche_platform_poweroff_seq(arche_pdata);
+
 		arche_platform_fw_flashing_seq(arche_pdata);
+
+		device_for_each_child(arche_pdata->dev, NULL, apb_fw_flashing_state);
 	} else {
 		dev_err(arche_pdata->dev, "unknown state\n");
 		ret = -EINVAL;
@@ -321,8 +361,6 @@ static int arche_platform_probe(struct platform_device *pdev)
 	gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
 
 	arche_pdata->dev = &pdev->dev;
-	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
-	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 
 	ret = device_create_file(dev, &dev_attr_state);
 	if (ret) {
@@ -335,6 +373,15 @@ static int arche_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to cold boot svc %d\n", ret);
 		return ret;
 	}
+
+	ret = of_platform_populate(np, NULL, NULL, dev);
+	if (ret) {
+		dev_err(dev, "failed to populate child nodes %d\n", ret);
+		return ret;
+	}
+
+	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
+	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 
 	export_gpios(arche_pdata);
 
