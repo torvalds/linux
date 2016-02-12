@@ -900,9 +900,15 @@ bad_area(struct pt_regs *regs, unsigned long error_code, unsigned long address)
 static inline bool bad_area_access_from_pkeys(unsigned long error_code,
 		struct vm_area_struct *vma)
 {
+	/* This code is always called on the current mm */
+	bool foreign = false;
+
 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
 		return false;
 	if (error_code & PF_PK)
+		return true;
+	/* this checks permission keys on the VMA: */
+	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE), foreign))
 		return true;
 	return false;
 }
@@ -1091,6 +1097,8 @@ int show_unhandled_signals = 1;
 static inline int
 access_error(unsigned long error_code, struct vm_area_struct *vma)
 {
+	/* This is only called for the current mm, so: */
+	bool foreign = false;
 	/*
 	 * Access or read was blocked by protection keys. We do
 	 * this check before any others because we do not want
@@ -1098,6 +1106,13 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 	 * write with one for which we should do a COW.
 	 */
 	if (error_code & PF_PK)
+		return 1;
+	/*
+	 * Make sure to check the VMA so that we do not perform
+	 * faults just to hit a PF_PK as soon as we fill in a
+	 * page.
+	 */
+	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE), foreign))
 		return 1;
 
 	if (error_code & PF_WRITE) {
