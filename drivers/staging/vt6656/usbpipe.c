@@ -101,9 +101,9 @@ void vnt_control_in_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 *data)
 static void vnt_start_interrupt_urb_complete(struct urb *urb)
 {
 	struct vnt_private *priv = urb->context;
-	int status;
+	int status = urb->status;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 	case -ETIMEDOUT:
 		break;
@@ -115,8 +115,6 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 	default:
 		break;
 	}
-
-	status = urb->status;
 
 	if (status != STATUS_SUCCESS) {
 		priv->int_buf.in_use = false;
@@ -207,9 +205,8 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 {
 	int status = 0;
-	struct urb *urb;
+	struct urb *urb = rcb->urb;
 
-	urb = rcb->urb;
 	if (!rcb->skb) {
 		dev_dbg(&priv->usb->dev, "rcb->skb is null\n");
 		return status;
@@ -269,14 +266,12 @@ int vnt_tx_context(struct vnt_private *priv,
 		   struct vnt_usb_send_context *context)
 {
 	int status;
-	struct urb *urb;
+	struct urb *urb = context->urb;
 
 	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags)) {
 		context->in_use = false;
 		return STATUS_RESOURCES;
 	}
-
-	urb = context->urb;
 
 	usb_fill_bulk_urb(urb,
 			  priv->usb,
