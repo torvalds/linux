@@ -912,6 +912,16 @@ struct usb_ssp_cap_descriptor {
 #define USB_SSP_SUBLINK_SPEED_LSM	(0xff << 16)	/* Lanespeed mantissa */
 } __attribute__((packed));
 
+/*
+ * Precision time measurement capability descriptor: advertised by devices and
+ * hubs that support PTM
+ */
+#define	USB_PTM_CAP_TYPE	0xb
+struct usb_ptm_cap_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
