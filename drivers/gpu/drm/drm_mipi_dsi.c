@@ -133,8 +133,8 @@ static int mipi_dsi_device_add(struct mipi_dsi_device *dsi)
 static struct mipi_dsi_device *
 of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 {
-	struct mipi_dsi_device *dsi;
 	struct device *dev = host->dev;
+	struct mipi_dsi_device_info info = { };
 	int ret;
 	u32 reg;
 
@@ -145,31 +145,10 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (reg > 3) {
-		dev_err(dev, "device node %s has invalid reg property: %u\n",
-			node->full_name, reg);
-		return ERR_PTR(-EINVAL);
-	}
+	info.channel = reg;
+	info.node = of_node_get(node);
 
-	dsi = mipi_dsi_device_alloc(host);
-	if (IS_ERR(dsi)) {
-		dev_err(dev, "failed to allocate DSI device %s: %ld\n",
-			node->full_name, PTR_ERR(dsi));
-		return dsi;
-	}
-
-	dsi->dev.of_node = of_node_get(node);
-	dsi->channel = reg;
-
-	ret = mipi_dsi_device_add(dsi);
-	if (ret) {
-		dev_err(dev, "failed to add DSI device %s: %d\n",
-			node->full_name, ret);
-		kfree(dsi);
-		return ERR_PTR(ret);
-	}
-
-	return dsi;
+	return mipi_dsi_device_register_full(host, &info);
 }
 #else
 static struct mipi_dsi_device *
@@ -178,6 +157,57 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 	return ERR_PTR(-ENODEV);
 }
 #endif
+
+/**
+ * mipi_dsi_device_register_full - create a MIPI DSI device
+ * @host: DSI host to which this device is connected
+ * @info: pointer to template containing DSI device information
+ *
+ * Create a MIPI DSI device by using the device information provided by
+ * mipi_dsi_device_info template
+ *
+ * Returns:
+ * A pointer to the newly created MIPI DSI device, or, a pointer encoded
+ * with an error
+ */
+struct mipi_dsi_device *
+mipi_dsi_device_register_full(struct mipi_dsi_host *host,
+			      const struct mipi_dsi_device_info *info)
+{
+	struct mipi_dsi_device *dsi;
+	struct device *dev = host->dev;
+	int ret;
+
+	if (!info) {
+		dev_err(dev, "invalid mipi_dsi_device_info pointer\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (info->channel > 3) {
+		dev_err(dev, "invalid virtual channel: %u\n", info->channel);
+		return ERR_PTR(-EINVAL);
+	}
+
+	dsi = mipi_dsi_device_alloc(host);
+	if (IS_ERR(dsi)) {
+		dev_err(dev, "failed to allocate DSI device %ld\n",
+			PTR_ERR(dsi));
+		return dsi;
+	}
+
+	dsi->dev.of_node = info->node;
+	dsi->channel = info->channel;
+
+	ret = mipi_dsi_device_add(dsi);
+	if (ret) {
+		dev_err(dev, "failed to add DSI device %d\n", ret);
+		kfree(dsi);
+		return ERR_PTR(ret);
+	}
+
+	return dsi;
+}
+EXPORT_SYMBOL(mipi_dsi_device_register_full);
 
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
