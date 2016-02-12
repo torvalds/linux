@@ -983,6 +983,14 @@ static int gb_lights_light_config(struct gb_lights *glights, u8 id)
 			return ret;
 	}
 
+	return 0;
+}
+
+static int gb_lights_light_register(struct gb_light *light)
+{
+	int ret;
+	int i;
+
 	/*
 	 * Then, if everything went ok in getting configurations, we register
 	 * the classdev, flash classdev and v4l2 subsystem, if a flash device is
@@ -1089,7 +1097,7 @@ static int gb_lights_get_count(struct gb_lights *glights)
 	return 0;
 }
 
-static int gb_lights_setup(struct gb_lights *glights)
+static int gb_lights_create_all(struct gb_lights *glights)
 {
 	struct gb_connection *connection = glights->connection;
 	int ret;
@@ -1121,11 +1129,32 @@ out:
 	return ret;
 }
 
+static int gb_lights_register_all(struct gb_lights *glights)
+{
+	struct gb_connection *connection = glights->connection;
+	int ret = 0;
+	int i;
+
+	mutex_lock(&glights->lights_lock);
+	for (i = 0; i < glights->lights_count; i++) {
+		ret = gb_lights_light_register(&glights->lights[i]);
+		if (ret < 0) {
+			dev_err(&connection->bundle->dev,
+				"Fail to enable lights device\n");
+			break;
+		}
+	}
+
+	mutex_unlock(&glights->lights_lock);
+	return ret;
+}
+
 static int gb_lights_event_recv(u8 type, struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct device *dev = &connection->bundle->dev;
 	struct gb_lights *glights = connection->private;
+	struct gb_light *light;
 	struct gb_message *request;
 	struct gb_lights_event_request *payload;
 	int ret =  0;
@@ -1157,11 +1186,15 @@ static int gb_lights_event_recv(u8 type, struct gb_operation *op)
 	event = payload->event;
 
 	if (event & GB_LIGHTS_LIGHT_CONFIG) {
+		light = &glights->lights[light_id];
+
 		mutex_lock(&glights->lights_lock);
-		gb_lights_light_release(&glights->lights[light_id]);
+		gb_lights_light_release(light);
 		ret = gb_lights_light_config(glights, light_id);
+		if (!ret)
+			ret = gb_lights_light_register(light);
 		if (ret < 0)
-			gb_lights_light_release(&glights->lights[light_id]);
+			gb_lights_light_release(light);
 		mutex_unlock(&glights->lights_lock);
 	}
 
@@ -1186,7 +1219,12 @@ static int gb_lights_connection_init(struct gb_connection *connection)
 	 * Setup all the lights devices over this connection, if anything goes
 	 * wrong tear down all lights
 	 */
-	ret = gb_lights_setup(glights);
+	ret = gb_lights_create_all(glights);
+	if (ret < 0)
+		goto out;
+
+	/* Enable & register lights */
+	ret = gb_lights_register_all(glights);
 	if (ret < 0)
 		goto out;
 
