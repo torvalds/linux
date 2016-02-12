@@ -528,8 +528,8 @@ config MFD_MAX14577
 	  of the device.
 
 config MFD_MAX77686
-	bool "Maxim Semiconductor MAX77686/802 PMIC Support"
-	depends on I2C=y
+	tristate "Maxim Semiconductor MAX77686/802 PMIC Support"
+	depends on I2C
 	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
