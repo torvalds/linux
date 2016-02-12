@@ -848,12 +848,13 @@ static int vop_virtio_copy_desc(struct vop_vdev *vdev,
 				struct mic_copy_desc *copy)
 {
 	int err;
-	struct vop_vringh *vvr = &vdev->vvr[copy->vr_idx];
+	struct vop_vringh *vvr;
 
 	err = vop_verify_copy_args(vdev, copy);
 	if (err)
 		return err;
 
+	vvr = &vdev->vvr[copy->vr_idx];
 	mutex_lock(&vvr->vr_mutex);
 	if (!vop_vdevup(vdev)) {
 		err = -ENODEV;
