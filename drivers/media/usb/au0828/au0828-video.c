@@ -698,10 +698,9 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 	for (i = 0; i < AU0828_MAX_INPUT; i++) {
 		struct media_entity *ent = &dev->input_ent[i];
 
-		if (AUVI_INPUT(i).type == AU0828_VMUX_UNDEFINED)
-			break;
-
 		switch (AUVI_INPUT(i).type) {
+		case AU0828_VMUX_UNDEFINED:
+			break;
 		case AU0828_VMUX_CABLE:
 		case AU0828_VMUX_TELEVISION:
 		case AU0828_VMUX_DVB:
@@ -716,7 +715,6 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 			break;
 		case AU0828_VMUX_COMPOSITE:
 		case AU0828_VMUX_SVIDEO:
-		default: /* AU0828_VMUX_DEBUG */
 			/* FIXME: fix the decoder PAD */
 			ret = media_create_pad_link(ent, 0, decoder, 0, 0);
 			if (ret)
@@ -1460,7 +1458,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		[AU0828_VMUX_CABLE] = "Cable TV",
 		[AU0828_VMUX_TELEVISION] = "Television",
 		[AU0828_VMUX_DVB] = "DVB",
-		[AU0828_VMUX_DEBUG] = "tv debug"
 	};
 
 	dprintk(1, "%s called std_set %d dev_state %d\n", __func__,
@@ -1952,7 +1949,6 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 		[AU0828_VMUX_CABLE] = "Cable TV",
 		[AU0828_VMUX_TELEVISION] = "Television",
 		[AU0828_VMUX_DVB] = "DVB",
-		[AU0828_VMUX_DEBUG] = "tv debug"
 	};
 	int ret, i;
 
@@ -1988,10 +1984,8 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 		case AU0828_VMUX_CABLE:
 		case AU0828_VMUX_TELEVISION:
 		case AU0828_VMUX_DVB:
+		default: /* Just to shut up a warning */
 			ent->function = MEDIA_ENT_F_CONN_RF;
-			break;
-		default: /* AU0828_VMUX_DEBUG */
-			ent->function = MEDIA_ENT_F_CONN_TEST;
 			break;
 		}
 
