@@ -274,12 +274,14 @@ static const struct fsl_dcu_soc_data fsl_dcu_ls1021a_data = {
 	.name = "ls1021a",
 	.total_layer = 16,
 	.max_layer = 4,
+	.layer_regs = LS1021A_LAYER_REG_NUM,
 };
 
 static const struct fsl_dcu_soc_data fsl_dcu_vf610_data = {
 	.name = "vf610",
 	.total_layer = 64,
 	.max_layer = 6,
+	.layer_regs = VF610_LAYER_REG_NUM,
 };
 
 static const struct of_device_id fsl_dcu_of_match[] = {
