@@ -469,7 +469,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		if (ieee->state >= IEEE80211_LINKED && ieee->sync_scan_hurryup)
 			goto out;
 
-		msleep_interruptible_rsl(IEEE80211_SOFTMAC_SCAN_TIME);
+		msleep_interruptible(IEEE80211_SOFTMAC_SCAN_TIME);
 
 	}
 out:
