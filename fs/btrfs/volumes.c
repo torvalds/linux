@@ -1752,13 +1752,11 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 {
 	struct btrfs_device *device;
 	struct btrfs_device *next_device;
-	struct block_device *bdev = NULL;
-	struct buffer_head *bh = NULL;
-	struct btrfs_super_block *disk_super = NULL;
 	struct btrfs_fs_devices *cur_devices;
 	u64 num_devices;
 	int ret = 0;
 	bool clear_super = false;
+	char *dev_name = NULL;
 
 	mutex_lock(&uuid_mutex);
 
@@ -1786,6 +1784,11 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		list_del_init(&device->dev_alloc_list);
 		device->fs_devices->rw_devices--;
 		unlock_chunks(root);
+		dev_name = kstrdup(device->name->str, GFP_KERNEL);
+		if (!dev_name) {
+			ret = -ENOMEM;
+			goto error_undo;
+		}
 		clear_super = true;
 	}
 
@@ -1869,73 +1872,19 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	 * remove it from the devices list and zero out the old super
 	 */
 	if (clear_super) {
-		u64 bytenr;
-		int i;
+		struct block_device *bdev;
 
-		if (!disk_super) {
-			ret = btrfs_get_bdev_and_sb(device_path,
-					FMODE_WRITE | FMODE_EXCL,
-					root->fs_info->bdev_holder, 0,
-					&bdev, &bh);
-			if (ret) {
-				/*
-				 * It could be a failed device ok for clear_super
-				 * to fail. So return success
-				 */
-				ret = 0;
-				goto out;
-			}
-
-			disk_super = (struct btrfs_super_block *)bh->b_data;
-		}
-		/* make sure this device isn't detected as part of
-		 * the FS anymore
-		 */
-		memset(&disk_super->magic, 0, sizeof(disk_super->magic));
-		set_buffer_dirty(bh);
-		sync_dirty_buffer(bh);
-		brelse(bh);
-
-		/* clear the mirror copies of super block on the disk
-		 * being removed, 0th copy is been taken care above and
-		 * the below would take of the rest
-		 */
-		for (i = 1; i < BTRFS_SUPER_MIRROR_MAX; i++) {
-			bytenr = btrfs_sb_offset(i);
-			if (bytenr + BTRFS_SUPER_INFO_SIZE >=
-					i_size_read(bdev->bd_inode))
-				break;
-
-			bh = __bread(bdev, bytenr / 4096,
-					BTRFS_SUPER_INFO_SIZE);
-			if (!bh)
-				continue;
-
-			disk_super = (struct btrfs_super_block *)bh->b_data;
-
-			if (btrfs_super_bytenr(disk_super) != bytenr ||
-				btrfs_super_magic(disk_super) != BTRFS_MAGIC) {
-				brelse(bh);
-				continue;
-			}
-			memset(&disk_super->magic, 0,
-						sizeof(disk_super->magic));
-			set_buffer_dirty(bh);
-			sync_dirty_buffer(bh);
-			brelse(bh);
-		}
-
-		if (bdev) {
-			/* Notify udev that device has changed */
-			btrfs_kobject_uevent(bdev, KOBJ_CHANGE);
-
-			/* Update ctime/mtime for device path for libblkid */
-			update_dev_time(device_path);
+		bdev = blkdev_get_by_path(dev_name, FMODE_READ | FMODE_EXCL,
+						root->fs_info->bdev_holder);
+		if (!IS_ERR(bdev)) {
+			btrfs_scratch_superblocks(bdev, dev_name);
 			blkdev_put(bdev, FMODE_READ | FMODE_EXCL);
 		}
 	}
 
 out:
+	kfree(dev_name);
+
 	mutex_unlock(&uuid_mutex);
 	return ret;
 
