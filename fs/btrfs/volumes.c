@@ -1705,52 +1705,47 @@ out:
 	return ret;
 }
 
-static int __check_raid_min_devices(struct btrfs_root *root)
+static int __check_raid_min_devices(struct btrfs_fs_info *fs_info)
 {
 	u64 all_avail;
 	u64 num_devices;
 	unsigned seq;
-	int ret = 0;
 
-	num_devices = root->fs_info->fs_devices->num_devices;
-	btrfs_dev_replace_lock(&root->fs_info->dev_replace, 0);
-	if (btrfs_dev_replace_is_ongoing(&root->fs_info->dev_replace)) {
+	num_devices = fs_info->fs_devices->num_devices;
+	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
+	if (btrfs_dev_replace_is_ongoing(&fs_info->dev_replace)) {
 		WARN_ON(num_devices < 1);
 		num_devices--;
 	}
-	btrfs_dev_replace_unlock(&root->fs_info->dev_replace, 0);
+	btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
 
 	do {
-		seq = read_seqbegin(&root->fs_info->profiles_lock);
+		seq = read_seqbegin(&fs_info->profiles_lock);
 
-		all_avail = root->fs_info->avail_data_alloc_bits |
-			    root->fs_info->avail_system_alloc_bits |
-			    root->fs_info->avail_metadata_alloc_bits;
-	} while (read_seqretry(&root->fs_info->profiles_lock, seq));
+		all_avail = fs_info->avail_data_alloc_bits |
+			    fs_info->avail_system_alloc_bits |
+			    fs_info->avail_metadata_alloc_bits;
+	} while (read_seqretry(&fs_info->profiles_lock, seq));
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) && num_devices <= 4) {
-		ret = BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET;
-		goto out;
+		return BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET;
 	}
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID1) && num_devices <= 2) {
-		ret = BTRFS_ERROR_DEV_RAID1_MIN_NOT_MET;
-		goto out;
+		return BTRFS_ERROR_DEV_RAID1_MIN_NOT_MET;
 	}
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID5) &&
-	    root->fs_info->fs_devices->rw_devices <= 2) {
-		ret = BTRFS_ERROR_DEV_RAID5_MIN_NOT_MET;
-		goto out;
-	}
-	if ((all_avail & BTRFS_BLOCK_GROUP_RAID6) &&
-	    root->fs_info->fs_devices->rw_devices <= 3) {
-		ret = BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET;
-		goto out;
+	    fs_info->fs_devices->rw_devices <= 2) {
+		return BTRFS_ERROR_DEV_RAID5_MIN_NOT_MET;
 	}
 
-out:
-	return ret;
+	if ((all_avail & BTRFS_BLOCK_GROUP_RAID6) &&
+	    fs_info->fs_devices->rw_devices <= 3) {
+		return BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET;
+	}
+
+	return 0;
 }
 
 int btrfs_rm_device(struct btrfs_root *root, char *device_path)
@@ -1769,7 +1764,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 
 	mutex_lock(&uuid_mutex);
 
-	ret = __check_raid_min_devices(root);
+	ret = __check_raid_min_devices(root->fs_info);
 	if (ret)
 		goto out;
 
