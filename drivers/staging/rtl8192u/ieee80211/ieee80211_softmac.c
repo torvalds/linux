@@ -103,12 +103,12 @@ static void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
 
-	*tag++ = MFIE_TYPE_GENERIC; //0
+	*tag++ = MFIE_TYPE_GENERIC; /* 0 */
 	*tag++ = 7;
 	*tag++ = 0x00;
 	*tag++ = 0x50;
 	*tag++ = 0xf2;
-	*tag++ = 0x02;//5
+	*tag++ = 0x02;	/* 5 */
 	*tag++ = 0x00;
 	*tag++ = 0x01;
 #ifdef SUPPORT_USPD
@@ -128,12 +128,12 @@ static void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
 
-	*tag++ = MFIE_TYPE_GENERIC; //0
+	*tag++ = MFIE_TYPE_GENERIC; /* 0 */
 	*tag++ = 7;
 	*tag++ = 0x00;
 	*tag++ = 0xe0;
 	*tag++ = 0x4c;
-	*tag++ = 0x01;//5
+	*tag++ = 0x01;	/* 5 */
 	*tag++ = 0x02;
 	*tag++ = 0x11;
 	*tag++ = 0x00;
@@ -186,14 +186,14 @@ static u8 MgntQuery_MgntFrameTxRate(struct ieee80211_device *ieee)
 	PRT_HIGH_THROUGHPUT      pHTInfo = ieee->pHTInfo;
 	u8 rate;
 
-	// 2008/01/25 MH For broadcom, MGNT frame set as OFDM 6M.
+	/* 2008/01/25 MH For broadcom, MGNT frame set as OFDM 6M. */
 	if(pHTInfo->IOTAction & HT_IOT_ACT_MGNT_USE_CCK_6M)
 		rate = 0x0c;
 	else
 		rate = ieee->basic_rate & 0x7f;
 
 	if (rate == 0) {
-		// 2005.01.26, by rcnjko.
+		/* 2005.01.26, by rcnjko. */
 		if(ieee->mode == IEEE_A||
 		   ieee->mode== IEEE_N_5G||
 		   (ieee->mode== IEEE_N_24G&&!pHTInfo->bCurSuppCCK))
@@ -340,7 +340,7 @@ inline struct sk_buff *ieee80211_probe_req(struct ieee80211_device *ieee)
 
 	req = (struct ieee80211_probe_request *) skb_put(skb,sizeof(struct ieee80211_probe_request));
 	req->header.frame_ctl = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-	req->header.duration_id = 0; //FIXME: is this OK ?
+	req->header.duration_id = 0; /* FIXME: is this OK? */
 
 	memset(req->header.addr1, 0xff, ETH_ALEN);
 	memcpy(req->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -673,7 +673,7 @@ inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *be
 	else if(ieee->auth_mode == 1)
 		auth->algorithm = cpu_to_le16(WLAN_AUTH_SHARED_KEY);
 	else if(ieee->auth_mode == 2)
-		auth->algorithm = WLAN_AUTH_OPEN;//0x80;
+		auth->algorithm = WLAN_AUTH_OPEN; /* 0x80; */
 	printk("=================>%s():auth->algorithm is %d\n",__func__,auth->algorithm);
 	auth->transaction = cpu_to_le16(ieee->associate_seq);
 	ieee->associate_seq++;
@@ -728,7 +728,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 
 	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
 		((0 == strcmp(crypt->ops->name, "WEP") || wpa_ie_len));
-	//HT ralated element
+	/* HT ralated element */
 	tmp_ht_cap_buf =(u8 *) &(ieee->pHTInfo->SelfHTCap);
 	tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
 	tmp_ht_info_buf =(u8 *) &(ieee->pHTInfo->SelfHTInfo);
@@ -766,13 +766,13 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	memcpy (beacon_buf->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy (beacon_buf->header.addr3, ieee->current_network.bssid, ETH_ALEN);
 
-	beacon_buf->header.duration_id = 0; //FIXME
+	beacon_buf->header.duration_id = 0; /* FIXME */
 	beacon_buf->beacon_interval =
 		cpu_to_le16(ieee->current_network.beacon_interval);
 	beacon_buf->capability =
 		cpu_to_le16(ieee->current_network.capability & WLAN_CAPABILITY_IBSS);
 	beacon_buf->capability |=
-		cpu_to_le16(ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE); //add short preamble here
+		cpu_to_le16(ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE); /* add short preamble here */
 
 	if(ieee->short_slot && (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_SLOT))
 		beacon_buf->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT);
@@ -1013,7 +1013,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	crypt = ieee->crypt[ieee->tx_keyidx];
 	encrypt = ieee->host_encrypt && crypt && crypt->ops && ((0 == strcmp(crypt->ops->name,"WEP") || wpa_ie_len));
 
-	//Include High Throuput capability && Realtek proprietary
+	/* Include High Throuput capability && Realtek proprietary */
 	if (ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT)
 	{
 		ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
@@ -1045,8 +1045,8 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 
 #ifdef THOMAS_TURBO
 	len = sizeof(struct ieee80211_assoc_request_frame)+ 2
-		+ beacon->ssid_len//essid tagged val
-		+ rate_len//rates tagged val
+		+ beacon->ssid_len	/* essid tagged val */
+		+ rate_len	/* rates tagged val */
 		+ wpa_ie_len
 		+ wmm_info_len
 		+ turbo_info_len
@@ -1058,8 +1058,8 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 		+ ieee->tx_headroom;
 #else
 	len = sizeof(struct ieee80211_assoc_request_frame)+ 2
-		+ beacon->ssid_len//essid tagged val
-		+ rate_len//rates tagged val
+		+ beacon->ssid_len	/* essid tagged val */
+		+ rate_len	/* rates tagged val */
 		+ wpa_ie_len
 		+ wmm_info_len
 		+ ht_cap_len
