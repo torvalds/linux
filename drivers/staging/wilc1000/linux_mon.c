@@ -137,7 +137,7 @@ struct tx_complete_mon_data {
 
 static void mgmt_tx_complete(void *priv, int status)
 {
-	struct tx_complete_mon_data *pv_data = (struct tx_complete_mon_data *)priv;
+	struct tx_complete_mon_data *pv_data = priv;
 	u8 *buf =  pv_data->buff;
 
 	if (status == 1) {
