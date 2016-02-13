@@ -86,4 +86,13 @@ config MAILBOX_TEST
 	  Test client to help with testing new Controller driver
 	  implementations.
 
+config XGENE_SLIMPRO_MBOX
+	tristate "APM SoC X-Gene SLIMpro Mailbox Controller"
+	depends on ARCH_XGENE
+	help
+	  An implementation of the APM X-Gene Interprocessor Communication
+	  Mailbox (IPCM) between the ARM 64-bit cores and SLIMpro controller.
+	  It is used to send short messages between ARM64-bit cores and
+	  the SLIMpro Management Engine, primarily for PM. Say Y here if you
+	  want to use the APM X-Gene SLIMpro IPCM support.
 endif

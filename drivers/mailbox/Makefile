@@ -17,3 +17,5 @@ obj-$(CONFIG_ALTERA_MBOX)	+= mailbox-altera.o
 obj-$(CONFIG_BCM2835_MBOX)	+= bcm2835-mailbox.o
 
 obj-$(CONFIG_STI_MBOX)		+= mailbox-sti.o
+
+obj-$(CONFIG_XGENE_SLIMPRO_MBOX) += mailbox-xgene-slimpro.o
