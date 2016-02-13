@@ -1705,31 +1705,12 @@ out:
 	return ret;
 }
 
-int btrfs_rm_device(struct btrfs_root *root, char *device_path)
+static int __check_raid_min_devices(struct btrfs_root *root)
 {
-	struct btrfs_device *device;
-	struct btrfs_device *next_device;
-	struct block_device *bdev;
-	struct buffer_head *bh = NULL;
-	struct btrfs_super_block *disk_super;
-	struct btrfs_fs_devices *cur_devices;
 	u64 all_avail;
-	u64 devid;
 	u64 num_devices;
-	u8 *dev_uuid;
 	unsigned seq;
 	int ret = 0;
-	bool clear_super = false;
-
-	mutex_lock(&uuid_mutex);
-
-	do {
-		seq = read_seqbegin(&root->fs_info->profiles_lock);
-
-		all_avail = root->fs_info->avail_data_alloc_bits |
-			    root->fs_info->avail_system_alloc_bits |
-			    root->fs_info->avail_metadata_alloc_bits;
-	} while (read_seqretry(&root->fs_info->profiles_lock, seq));
 
 	num_devices = root->fs_info->fs_devices->num_devices;
 	btrfs_dev_replace_lock(&root->fs_info->dev_replace, 0);
@@ -1738,6 +1719,14 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		num_devices--;
 	}
 	btrfs_dev_replace_unlock(&root->fs_info->dev_replace, 0);
+
+	do {
+		seq = read_seqbegin(&root->fs_info->profiles_lock);
+
+		all_avail = root->fs_info->avail_data_alloc_bits |
+			    root->fs_info->avail_system_alloc_bits |
+			    root->fs_info->avail_metadata_alloc_bits;
+	} while (read_seqretry(&root->fs_info->profiles_lock, seq));
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) && num_devices <= 4) {
 		ret = BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET;
@@ -1759,6 +1748,30 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		ret = BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET;
 		goto out;
 	}
+
+out:
+	return ret;
+}
+
+int btrfs_rm_device(struct btrfs_root *root, char *device_path)
+{
+	struct btrfs_device *device;
+	struct btrfs_device *next_device;
+	struct block_device *bdev;
+	struct buffer_head *bh = NULL;
+	struct btrfs_super_block *disk_super;
+	struct btrfs_fs_devices *cur_devices;
+	u64 devid;
+	u64 num_devices;
+	u8 *dev_uuid;
+	int ret = 0;
+	bool clear_super = false;
+
+	mutex_lock(&uuid_mutex);
+
+	ret = __check_raid_min_devices(root);
+	if (ret)
+		goto out;
 
 	if (strcmp(device_path, "missing") == 0) {
 		struct list_head *devices;
