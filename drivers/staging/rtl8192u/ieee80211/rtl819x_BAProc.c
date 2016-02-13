@@ -19,7 +19,7 @@ static void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 T
 {
 	pBA->bValid = true;
 	if(Time != 0)
-		mod_timer(&pBA->Timer, jiffies + MSECS(Time));
+		mod_timer(&pBA->Timer, jiffies + msecs_to_jiffies(Time));
 }
 
 /********************************************************************************************************************
