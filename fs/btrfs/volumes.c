@@ -2113,6 +2113,9 @@ int btrfs_find_device_by_user_input(struct btrfs_root *root, u64 srcdevid,
 		if (!*device)
 			ret = -ENOENT;
 	} else {
+		if (!srcdev_name || !srcdev_name[0])
+			return -EINVAL;
+
 		ret = btrfs_find_device_missing_or_by_path(root, srcdev_name,
 							   device);
 	}
