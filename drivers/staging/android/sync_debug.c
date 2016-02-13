@@ -15,7 +15,6 @@
  */
 
 #include <linux/debugfs.h>
-#include <linux/module.h>
 #include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -334,13 +333,6 @@ static __init int sync_debugfs_init(void)
 	return 0;
 }
 late_initcall(sync_debugfs_init);
-
-static __exit void sync_debugfs_exit(void)
-{
-	if (dbgfs)
-		debugfs_remove_recursive(dbgfs);
-}
-module_exit(sync_debugfs_exit);
 
 #define DUMP_CHUNK 256
 static char sync_dump_buf[64 * 1024];
