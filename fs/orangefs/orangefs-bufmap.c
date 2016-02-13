@@ -91,11 +91,11 @@ int orangefs_bufmap_size_query(void)
 {
 	struct orangefs_bufmap *bufmap;
 	int size = 0;
-	bufmap = orangefs_bufmap_ref();
-	if (bufmap) {
+	spin_lock(&orangefs_bufmap_lock);
+	bufmap = __orangefs_bufmap;
+	if (bufmap)
 		size = bufmap->desc_size;
-		orangefs_bufmap_unref(bufmap);
-	}
+	spin_unlock(&orangefs_bufmap_lock);
 	return size;
 }
 
@@ -103,11 +103,11 @@ int orangefs_bufmap_shift_query(void)
 {
 	struct orangefs_bufmap *bufmap;
 	int shift = 0;
-	bufmap = orangefs_bufmap_ref();
-	if (bufmap) {
+	spin_lock(&orangefs_bufmap_lock);
+	bufmap = __orangefs_bufmap;
+	if (bufmap)
 		shift = bufmap->desc_shift;
-		orangefs_bufmap_unref(bufmap);
-	}
+	spin_unlock(&orangefs_bufmap_lock);
 	return shift;
 }
 
