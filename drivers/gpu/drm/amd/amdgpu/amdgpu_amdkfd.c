@@ -70,7 +70,7 @@ bool amdgpu_amdkfd_load_interface(struct amdgpu_device *rdev)
 		return false;
 	}
 
-	if (!kgd2kfd_init_p(KFD_INTERFACE_VERSION, &kgd2kfd)) {
+	if (kgd2kfd_init_p(KFD_INTERFACE_VERSION, &kgd2kfd)) {
 		symbol_put(kgd2kfd_init);
 		kfd2kgd = NULL;
 		kgd2kfd = NULL;
@@ -80,7 +80,7 @@ bool amdgpu_amdkfd_load_interface(struct amdgpu_device *rdev)
 
 	return true;
 #elif defined(CONFIG_HSA_AMD)
-	if (!kgd2kfd_init(KFD_INTERFACE_VERSION, &kgd2kfd)) {
+	if (kgd2kfd_init(KFD_INTERFACE_VERSION, &kgd2kfd)) {
 		kfd2kgd = NULL;
 		kgd2kfd = NULL;
 		return false;
