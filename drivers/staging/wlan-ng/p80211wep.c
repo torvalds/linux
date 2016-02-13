@@ -188,7 +188,8 @@ int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
 
 	/* Apply the RC4 to the data, update the CRC32 */
 	crc = ~0;
-	i = j = 0;
+	i = 0;
+	j = 0;
 	for (k = 0; k < len; k++) {
 		i = (i + 1) & 0xff;
 		j = (j + s[i]) & 0xff;
@@ -260,7 +261,8 @@ int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
 
 	/* Update CRC32 then apply RC4 to the data */
 	crc = ~0;
-	i = j = 0;
+	i = 0;
+	j = 0;
 	for (k = 0; k < len; k++) {
 		crc = wep_crc32_table[(crc ^ buf[k]) & 0xff] ^ (crc >> 8);
 		i = (i + 1) & 0xff;
