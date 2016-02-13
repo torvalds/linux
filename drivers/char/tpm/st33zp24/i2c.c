@@ -1,6 +1,6 @@
 /*
  * STMicroelectronics TPM I2C Linux driver for TPM ST33ZP24
- * Copyright (C) 2009 - 2016 STMicroelectronics
+ * Copyright (C) 2009 - 2015 STMicroelectronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,8 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
-#include <linux/acpi.h>
 #include <linux/tpm.h>
 #include <linux/platform_data/st33zp24.h>
 
@@ -110,47 +108,10 @@ static const struct st33zp24_phy_ops i2c_phy_ops = {
 	.recv = st33zp24_i2c_recv,
 };
 
-static int st33zp24_i2c_acpi_request_resources(struct i2c_client *client)
+static int st33zp24_i2c_of_request_resources(struct st33zp24_i2c_phy *phy)
 {
-	struct st33zp24_i2c_phy *phy = i2c_get_clientdata(client);
-	const struct acpi_device_id *id;
-	struct gpio_desc *gpiod_lpcpd;
-	struct device *dev;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
-
-	/* Get LPCPD GPIO from ACPI */
-	gpiod_lpcpd = devm_gpiod_get_index(dev, "TPM IO LPCPD", 1,
-					   GPIOD_OUT_HIGH);
-	if (IS_ERR(gpiod_lpcpd)) {
-		dev_err(&client->dev,
-			"Failed to retrieve lpcpd-gpios from acpi.\n");
-		phy->io_lpcpd = -1;
-		/*
-		 * lpcpd pin is not specified. This is not an issue as
-		 * power management can be also managed by TPM specific
-		 * commands. So leave with a success status code.
-		 */
-		return 0;
-	}
-
-	phy->io_lpcpd = desc_to_gpio(gpiod_lpcpd);
-
-	return 0;
-}
-
-static int st33zp24_i2c_of_request_resources(struct i2c_client *client)
-{
-	struct st33zp24_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device_node *pp;
+	struct i2c_client *client = phy->client;
 	int gpio;
 	int ret;
 
@@ -185,10 +146,10 @@ static int st33zp24_i2c_of_request_resources(struct i2c_client *client)
 	return 0;
 }
 
-static int st33zp24_i2c_request_resources(struct i2c_client *client)
+static int st33zp24_i2c_request_resources(struct i2c_client *client,
+					  struct st33zp24_i2c_phy *phy)
 {
 	struct st33zp24_platform_data *pdata;
-	struct st33zp24_i2c_phy *phy = i2c_get_clientdata(client);
 	int ret;
 
 	pdata = client->dev.platform_data;
@@ -244,20 +205,13 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	phy->client = client;
-
-	i2c_set_clientdata(client, phy);
-
 	pdata = client->dev.platform_data;
 	if (!pdata && client->dev.of_node) {
-		ret = st33zp24_i2c_of_request_resources(client);
+		ret = st33zp24_i2c_of_request_resources(phy);
 		if (ret)
 			return ret;
 	} else if (pdata) {
-		ret = st33zp24_i2c_request_resources(client);
-		if (ret)
-			return ret;
-	} else if (ACPI_HANDLE(&client->dev)) {
-		ret = st33zp24_i2c_acpi_request_resources(client);
+		ret = st33zp24_i2c_request_resources(client, phy);
 		if (ret)
 			return ret;
 	}
@@ -290,12 +244,6 @@ static const struct of_device_id of_st33zp24_i2c_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_st33zp24_i2c_match);
 
-static const struct acpi_device_id st33zp24_i2c_acpi_match[] = {
-	{"SMO3324"},
-	{}
-};
-MODULE_DEVICE_TABLE(acpi, st33zp24_i2c_acpi_match);
-
 static SIMPLE_DEV_PM_OPS(st33zp24_i2c_ops, st33zp24_pm_suspend,
 			 st33zp24_pm_resume);
 
@@ -304,7 +252,6 @@ static struct i2c_driver st33zp24_i2c_driver = {
 		.name = TPM_ST33_I2C,
 		.pm = &st33zp24_i2c_ops,
 		.of_match_table = of_match_ptr(of_st33zp24_i2c_match),
-		.acpi_match_table = ACPI_PTR(st33zp24_i2c_acpi_match),
 	},
 	.probe = st33zp24_i2c_probe,
 	.remove = st33zp24_i2c_remove,
