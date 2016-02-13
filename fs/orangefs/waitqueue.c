@@ -16,7 +16,7 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-static int wait_for_matching_downcall(struct orangefs_kernel_op_s *, bool);
+static int wait_for_matching_downcall(struct orangefs_kernel_op_s *, long, bool);
 static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *);
 
 /*
@@ -55,6 +55,7 @@ int service_operation(struct orangefs_kernel_op_s *op,
 		      const char *op_name,
 		      int flags)
 {
+	long timeout = MAX_SCHEDULE_TIMEOUT;
 	/* flags to modify behavior */
 	int ret = 0;
 
@@ -102,15 +103,10 @@ retry_servicing:
 	spin_unlock(&op->lock);
 	wake_up_interruptible(&orangefs_request_list_waitq);
 	if (!__is_daemon_in_service()) {
-		/*
-		 * By incrementing the per-operation attempt counter, we
-		 * directly go into the timeout logic while waiting for
-		 * the matching downcall to be read
-		 */
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "%s:client core is NOT in service.\n",
 			     __func__);
-		op->attempts++;
+		timeout = op_timeout_secs * HZ;
 	}
 	spin_unlock(&orangefs_request_list_lock);
 
@@ -124,33 +120,34 @@ retry_servicing:
 	if (flags & ORANGEFS_OP_ASYNC)
 		return 0;
 
-	ret = wait_for_matching_downcall(op, flags & ORANGEFS_OP_INTERRUPTIBLE);
-
-	if (ret < 0) {
-		/* failed to get matching downcall */
-		if (ret == -ETIMEDOUT) {
-			gossip_err("orangefs: %s -- wait timed out; aborting attempt.\n",
-				   op_name);
-		}
-		orangefs_clean_up_interrupted_operation(op);
-		op->downcall.status = ret;
-	} else {
+	ret = wait_for_matching_downcall(op, timeout,
+					 flags & ORANGEFS_OP_INTERRUPTIBLE);
+	if (!ret) {
 		spin_unlock(&op->lock);
 		/* got matching downcall; make sure status is in errno format */
 		op->downcall.status =
 		    orangefs_normalize_to_errno(op->downcall.status);
 		ret = op->downcall.status;
+		goto out;
 	}
 
-	BUG_ON(ret != op->downcall.status);
+	/* failed to get matching downcall */
+	if (ret == -ETIMEDOUT) {
+		gossip_err("orangefs: %s -- wait timed out; aborting attempt.\n",
+			   op_name);
+	}
+	orangefs_clean_up_interrupted_operation(op);
+	op->downcall.status = ret;
 	/* retry if operation has not been serviced and if requested */
-	if (!op_state_serviced(op) && op->downcall.status == -EAGAIN) {
+	if (ret == -EAGAIN) {
+		op->attempts++;
+		timeout = op_timeout_secs * HZ;
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "orangefs: tag %llu (%s)"
 			     " -- operation to be retried (%d attempt)\n",
 			     llu(op->tag),
 			     op_name,
-			     op->attempts + 1);
+			     op->attempts);
 
 		if (!op->uses_shared_memory)
 			/*
@@ -221,6 +218,7 @@ retry_servicing:
 		}
 	}
 
+out:
 	gossip_debug(GOSSIP_WAIT_DEBUG,
 		     "orangefs: service_operation %s returning: %d for %p.\n",
 		     op_name,
@@ -328,11 +326,10 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
  * Returns with op->lock taken.
  */
 static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
+				      long timeout,
 				      bool interruptible)
 {
-	long timeout, n;
-
-	timeout = op->attempts ? op_timeout_secs * HZ : MAX_SCHEDULE_TIMEOUT;
+	long n;
 
 	if (interruptible)
 		n = wait_for_completion_interruptible_timeout(&op->waitq, timeout);
@@ -354,7 +351,6 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 			     op);
 		return -EINTR;
 	}
-	op->attempts++;
 	if (op_state_purged(op)) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "*** %s:"
