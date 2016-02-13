@@ -110,7 +110,6 @@ static int st33zp24_status_to_errno(u8 code)
 static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 			     int tpm_size)
 {
-	u8 data = 0;
 	int total_length = 0, ret = 0;
 	struct st33zp24_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_device;
@@ -118,12 +117,8 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	u8 *rx_buf = phy->spi_xfer.rx_buf;
 
 	/* Pre-Header */
-	data = TPM_WRITE_DIRECTION | LOCALITY0;
-	memcpy(tx_buf + total_length, &data, sizeof(data));
-	total_length++;
-	data = tpm_register;
-	memcpy(tx_buf + total_length, &data, sizeof(data));
-	total_length++;
+	tx_buf[total_length++] = TPM_WRITE_DIRECTION | LOCALITY0;
+	tx_buf[total_length++] = tpm_register;
 
 	if (tpm_size > 0 && tpm_register == TPM_DATA_FIFO) {
 		tx_buf[total_length++] = tpm_size >> 8;
@@ -156,7 +151,6 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 static int st33zp24_spi_read8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data,
 				  int tpm_size)
 {
-	u8 data = 0;
 	int total_length = 0, ret;
 	struct st33zp24_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_device;
@@ -164,12 +158,8 @@ static int st33zp24_spi_read8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	u8 *rx_buf = phy->spi_xfer.rx_buf;
 
 	/* Pre-Header */
-	data = LOCALITY0;
-	memcpy(tx_buf + total_length, &data, sizeof(data));
-	total_length++;
-	data = tpm_register;
-	memcpy(tx_buf + total_length, &data, sizeof(data));
-	total_length++;
+	tx_buf[total_length++] = LOCALITY0;
+	tx_buf[total_length++] = tpm_register;
 
 	memset(&tx_buf[total_length], TPM_DUMMY_BYTE,
 	       phy->latency + tpm_size);
