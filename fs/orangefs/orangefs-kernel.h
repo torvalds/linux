@@ -580,10 +580,6 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr);
 
 void orangefs_make_bad_inode(struct inode *inode);
 
-void orangefs_block_signals(sigset_t *);
-
-void orangefs_set_signals(sigset_t *);
-
 int orangefs_unmount_sb(struct super_block *sb);
 
 bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);

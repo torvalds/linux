@@ -707,27 +707,6 @@ void orangefs_make_bad_inode(struct inode *inode)
 	}
 }
 
-/* Block all blockable signals... */
-void orangefs_block_signals(sigset_t *orig_sigset)
-{
-	sigset_t mask;
-
-	/*
-	 * Initialize all entries in the signal set to the
-	 * inverse of the given mask.
-	 */
-	siginitsetinv(&mask, sigmask(SIGKILL));
-
-	/* Block 'em Danno... */
-	sigprocmask(SIG_BLOCK, &mask, orig_sigset);
-}
-
-/* set the signal mask to the given template... */
-void orangefs_set_signals(sigset_t *sigset)
-{
-	sigprocmask(SIG_SETMASK, sigset, NULL);
-}
-
 /*
  * The following is a very dirty hack that is now a permanent part of the
  * ORANGEFS protocol. See protocol.h for more error definitions.

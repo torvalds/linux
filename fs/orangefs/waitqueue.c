@@ -16,7 +16,7 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-static int wait_for_matching_downcall(struct orangefs_kernel_op_s *);
+static int wait_for_matching_downcall(struct orangefs_kernel_op_s *, bool);
 static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *);
 
 /*
@@ -56,7 +56,6 @@ int service_operation(struct orangefs_kernel_op_s *op,
 		      int flags)
 {
 	/* flags to modify behavior */
-	sigset_t orig_sigset;
 	int ret = 0;
 
 	DEFINE_WAIT(wait_entry);
@@ -75,19 +74,16 @@ retry_servicing:
 		     current->comm,
 		     current->pid);
 
-	/* mask out signals if this operation is not to be interrupted */
-	if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
-		orangefs_block_signals(&orig_sigset);
-
 	if (!(flags & ORANGEFS_OP_NO_SEMAPHORE)) {
-		ret = mutex_lock_interruptible(&request_mutex);
+		if (flags & ORANGEFS_OP_INTERRUPTIBLE)
+			ret = mutex_lock_interruptible(&request_mutex);
+		else
+			ret = mutex_lock_killable(&request_mutex);
 		/*
 		 * check to see if we were interrupted while waiting for
 		 * semaphore
 		 */
 		if (ret < 0) {
-			if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
-				orangefs_set_signals(&orig_sigset);
 			op->downcall.status = ret;
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "orangefs: service_operation interrupted.\n");
@@ -128,7 +124,7 @@ retry_servicing:
 	if (flags & ORANGEFS_OP_ASYNC)
 		return 0;
 
-	ret = wait_for_matching_downcall(op);
+	ret = wait_for_matching_downcall(op, flags & ORANGEFS_OP_INTERRUPTIBLE);
 
 	if (ret < 0) {
 		/* failed to get matching downcall */
@@ -145,9 +141,6 @@ retry_servicing:
 		    orangefs_normalize_to_errno(op->downcall.status);
 		ret = op->downcall.status;
 	}
-
-	if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
-		orangefs_set_signals(&orig_sigset);
 
 	BUG_ON(ret != op->downcall.status);
 	/* retry if operation has not been serviced and if requested */
@@ -334,12 +327,18 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
  *
  * Returns with op->lock taken.
  */
-static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
+static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
+				      bool interruptible)
 {
 	long timeout, n;
 
 	timeout = op->attempts ? op_timeout_secs * HZ : MAX_SCHEDULE_TIMEOUT;
-	n = wait_for_completion_interruptible_timeout(&op->waitq, timeout);
+
+	if (interruptible)
+		n = wait_for_completion_interruptible_timeout(&op->waitq, timeout);
+	else
+		n = wait_for_completion_killable_timeout(&op->waitq, timeout);
+
 	spin_lock(&op->lock);
 
 	if (op_state_serviced(op))
