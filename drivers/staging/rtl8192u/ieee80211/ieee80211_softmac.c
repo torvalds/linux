@@ -380,7 +380,8 @@ static void ieee80211_send_beacon(struct ieee80211_device *ieee)
 	if (ieee->beacon_txing && ieee->ieee_up) {
 //		if(!timer_pending(&ieee->beacon_timer))
 //			add_timer(&ieee->beacon_timer);
-		mod_timer(&ieee->beacon_timer,jiffies+(MSECS(ieee->current_network.beacon_interval-5)));
+		mod_timer(&ieee->beacon_timer,
+			  jiffies + msecs_to_jiffies(ieee->current_network.beacon_interval-5));
 	}
 	//spin_unlock_irqrestore(&ieee->beacon_lock,flags);
 }
@@ -1735,10 +1736,12 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 	if(dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST)& ieee->ps))
 		return 2;
 
-	if(!time_after(jiffies, ieee->dev->trans_start + MSECS(timeout)))
+	if(!time_after(jiffies,
+		       ieee->dev->trans_start + msecs_to_jiffies(timeout)))
 		return 0;
 
-	if(!time_after(jiffies, ieee->last_rx_ps_time + MSECS(timeout)))
+	if(!time_after(jiffies,
+		       ieee->last_rx_ps_time + msecs_to_jiffies(timeout)))
 		return 0;
 
 	if((ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE ) &&
