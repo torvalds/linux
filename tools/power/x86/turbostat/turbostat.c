@@ -38,12 +38,13 @@
 #include <string.h>
 #include <ctype.h>
 #include <sched.h>
+#include <time.h>
 #include <cpuid.h>
 #include <linux/capability.h>
 #include <errno.h>
 
 char *proc_stat = "/proc/stat";
-unsigned int interval_sec = 5;
+struct timespec interval_ts = {5, 0};
 unsigned int debug;
 unsigned int rapl_joules;
 unsigned int summary_only;
@@ -1728,7 +1729,7 @@ restart:
 			re_initialize();
 			goto restart;
 		}
-		sleep(interval_sec);
+		nanosleep(&interval_ts, NULL);
 		retval = for_all_cpus(get_counters, ODD_COUNTERS);
 		if (retval < -1) {
 			exit(retval);
@@ -1742,7 +1743,7 @@ restart:
 		compute_average(EVEN_COUNTERS);
 		format_all_counters(EVEN_COUNTERS);
 		flush_stdout();
-		sleep(interval_sec);
+		nanosleep(&interval_ts, NULL);
 		retval = for_all_cpus(get_counters, EVEN_COUNTERS);
 		if (retval < -1) {
 			exit(retval);
@@ -3347,7 +3348,18 @@ void cmdline(int argc, char **argv)
 			help();
 			exit(1);
 		case 'i':
-			interval_sec = atoi(optarg);
+			{
+				double interval = strtod(optarg, NULL);
+
+				if (interval < 0.001) {
+					fprintf(stderr, "interval %f seconds is too small\n",
+						interval);
+					exit(2);
+				}
+
+				interval_ts.tv_sec = interval;
+				interval_ts.tv_nsec = (interval - interval_ts.tv_sec) * 1000000000;
+			}
 			break;
 		case 'J':
 			rapl_joules++;
