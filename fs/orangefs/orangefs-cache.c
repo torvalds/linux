@@ -118,7 +118,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 	if (new_op) {
 		INIT_LIST_HEAD(&new_op->list);
 		spin_lock_init(&new_op->lock);
-		init_waitqueue_head(&new_op->waitq);
+		init_completion(&new_op->waitq);
 
 		atomic_set(&new_op->ref_count, 1);
 

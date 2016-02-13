@@ -17,6 +17,7 @@
 #include "orangefs-bufmap.h"
 
 static int wait_for_matching_downcall(struct orangefs_kernel_op_s *);
+static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *);
 
 /*
  * What we do in this function is to walk the list of operations that are
@@ -170,8 +171,10 @@ retry_servicing:
 			gossip_err("orangefs: %s -- wait timed out; aborting attempt.\n",
 				   op_name);
 		}
+		orangefs_clean_up_interrupted_operation(op);
 		op->downcall.status = ret;
 	} else {
+		spin_unlock(&op->lock);
 		/* got matching downcall; make sure status is in errno format */
 		op->downcall.status =
 		    orangefs_normalize_to_errno(op->downcall.status);
@@ -343,6 +346,7 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
 		gossip_err("%s: can't get here.\n", __func__);
 		spin_unlock(&op->lock);
 	}
+	reinit_completion(&op->waitq);
 }
 
 /*
@@ -359,95 +363,52 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
  * EINTR/EIO/ETIMEDOUT indicating we are done trying to service this
  * operation since client-core seems to be exiting too often
  * or if we were interrupted.
+ *
+ * Returns with op->lock taken.
  */
 static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 {
-	int ret = -EINVAL;
-	DEFINE_WAIT(wait_entry);
+	long timeout, n;
 
-	while (1) {
-		spin_lock(&op->lock);
-		prepare_to_wait(&op->waitq, &wait_entry, TASK_INTERRUPTIBLE);
-		if (op_state_serviced(op)) {
-			spin_unlock(&op->lock);
-			ret = 0;
-			break;
-		}
-
-		if (unlikely(signal_pending(current))) {
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "*** %s:"
-				     " operation interrupted by a signal (tag "
-				     "%llu, op %p)\n",
-				     __func__,
-				     llu(op->tag),
-				     op);
-			orangefs_clean_up_interrupted_operation(op);
-			ret = -EINTR;
-			break;
-		}
-
-		/*
-		 * if this was our first attempt and client-core
-		 * has not purged our operation, we are happy to
-		 * simply wait
-		 */
-		if (op->attempts == 0 && !op_state_purged(op)) {
-			spin_unlock(&op->lock);
-			schedule();
-		} else {
-			spin_unlock(&op->lock);
-			/*
-			 * subsequent attempts, we retry exactly once
-			 * with timeouts
-			 */
-			if (!schedule_timeout(op_timeout_secs * HZ)) {
-				gossip_debug(GOSSIP_WAIT_DEBUG,
-					     "*** %s:"
-					     " operation timed out (tag"
-					     " %llu, %p, att %d)\n",
-					     __func__,
-					     llu(op->tag),
-					     op,
-					     op->attempts);
-				ret = -ETIMEDOUT;
-				spin_lock(&op->lock);
-				orangefs_clean_up_interrupted_operation(op);
-				break;
-			}
-		}
-		spin_lock(&op->lock);
-		op->attempts++;
-		/*
-		 * if the operation was purged in the meantime, it
-		 * is better to requeue it afresh but ensure that
-		 * we have not been purged repeatedly. This could
-		 * happen if client-core crashes when an op
-		 * is being serviced, so we requeue the op, client
-		 * core crashes again so we requeue the op, client
-		 * core starts, and so on...
-		 */
-		if (op_state_purged(op)) {
-			ret = (op->attempts < ORANGEFS_PURGE_RETRY_COUNT) ?
-				 -EAGAIN :
-				 -EIO;
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "*** %s:"
-				     " operation purged (tag "
-				     "%llu, %p, att %d)\n",
-				     __func__,
-				     llu(op->tag),
-				     op,
-				     op->attempts);
-			orangefs_clean_up_interrupted_operation(op);
-			break;
-		}
-		spin_unlock(&op->lock);
-	}
-
+	timeout = op->attempts ? op_timeout_secs * HZ : MAX_SCHEDULE_TIMEOUT;
+	n = wait_for_completion_interruptible_timeout(&op->waitq, timeout);
 	spin_lock(&op->lock);
-	finish_wait(&op->waitq, &wait_entry);
-	spin_unlock(&op->lock);
 
-	return ret;
+	if (op_state_serviced(op))
+		return 0;
+
+	if (unlikely(n < 0)) {
+		gossip_debug(GOSSIP_WAIT_DEBUG,
+			     "*** %s:"
+			     " operation interrupted by a signal (tag "
+			     "%llu, op %p)\n",
+			     __func__,
+			     llu(op->tag),
+			     op);
+		return -EINTR;
+	}
+	op->attempts++;
+	if (op_state_purged(op)) {
+		gossip_debug(GOSSIP_WAIT_DEBUG,
+			     "*** %s:"
+			     " operation purged (tag "
+			     "%llu, %p, att %d)\n",
+			     __func__,
+			     llu(op->tag),
+			     op,
+			     op->attempts);
+		return (op->attempts < ORANGEFS_PURGE_RETRY_COUNT) ?
+			 -EAGAIN :
+			 -EIO;
+	}
+	/* must have timed out, then... */
+	gossip_debug(GOSSIP_WAIT_DEBUG,
+		     "*** %s:"
+		     " operation timed out (tag"
+		     " %llu, %p, att %d)\n",
+		     __func__,
+		     llu(op->tag),
+		     op,
+		     op->attempts);
+	return -ETIMEDOUT;
 }

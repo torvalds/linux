@@ -202,7 +202,7 @@ struct orangefs_kernel_op_s {
 	struct orangefs_upcall_s upcall;
 	struct orangefs_downcall_s downcall;
 
-	wait_queue_head_t waitq;
+	struct completion waitq;
 	spinlock_t lock;
 
 	struct completion done;
@@ -222,7 +222,7 @@ struct orangefs_kernel_op_s {
 static inline void set_op_state_serviced(struct orangefs_kernel_op_s *op)
 {
 	op->op_state = OP_VFS_STATE_SERVICED;
-	wake_up_interruptible(&op->waitq);
+	complete(&op->waitq);
 }
 
 #define op_state_waiting(op)     ((op)->op_state & OP_VFS_STATE_WAITING)
@@ -266,7 +266,7 @@ static inline void set_op_state_purged(struct orangefs_kernel_op_s *op)
 		put_cancel(op);
 	} else {
 		op->op_state |= OP_VFS_STATE_PURGED;
-		wake_up_interruptible(&op->waitq);
+		complete(&op->waitq);
 		spin_unlock(&op->lock);
 	}
 }
