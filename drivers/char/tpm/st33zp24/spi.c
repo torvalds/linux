@@ -222,7 +222,6 @@ static const struct st33zp24_phy_ops spi_phy_ops = {
 	.recv = st33zp24_spi_recv,
 };
 
-#ifdef CONFIG_OF
 static int st33zp24_spi_of_request_resources(struct st33zp24_spi_phy *phy)
 {
 	struct device_node *pp;
@@ -260,12 +259,6 @@ static int st33zp24_spi_of_request_resources(struct st33zp24_spi_phy *phy)
 
 	return 0;
 }
-#else
-static int st33zp24_spi_of_request_resources(struct st33zp24_spi_phy *phy)
-{
-	return -ENODEV;
-}
-#endif
 
 static int st33zp24_spi_request_resources(struct spi_device *dev,
 					  struct st33zp24_spi_phy *phy)
@@ -358,13 +351,11 @@ static const struct spi_device_id st33zp24_spi_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, st33zp24_spi_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id of_st33zp24_spi_match[] = {
 	{ .compatible = "st,st33zp24-spi", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, of_st33zp24_spi_match);
-#endif
 
 static SIMPLE_DEV_PM_OPS(st33zp24_spi_ops, st33zp24_pm_suspend,
 			 st33zp24_pm_resume);

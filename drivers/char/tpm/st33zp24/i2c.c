@@ -108,7 +108,6 @@ static const struct st33zp24_phy_ops i2c_phy_ops = {
 	.recv = st33zp24_i2c_recv,
 };
 
-#ifdef CONFIG_OF
 static int st33zp24_i2c_of_request_resources(struct st33zp24_i2c_phy *phy)
 {
 	struct device_node *pp;
@@ -146,12 +145,6 @@ static int st33zp24_i2c_of_request_resources(struct st33zp24_i2c_phy *phy)
 
 	return 0;
 }
-#else
-static int st33zp24_i2c_of_request_resources(struct st33zp24_i2c_phy *phy)
-{
-	return -ENODEV;
-}
-#endif
 
 static int st33zp24_i2c_request_resources(struct i2c_client *client,
 					  struct st33zp24_i2c_phy *phy)
@@ -245,13 +238,11 @@ static const struct i2c_device_id st33zp24_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, st33zp24_i2c_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id of_st33zp24_i2c_match[] = {
 	{ .compatible = "st,st33zp24-i2c", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, of_st33zp24_i2c_match);
-#endif
 
 static SIMPLE_DEV_PM_OPS(st33zp24_i2c_ops, st33zp24_pm_suspend,
 			 st33zp24_pm_resume);
