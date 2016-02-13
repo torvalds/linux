@@ -111,7 +111,7 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 			     int tpm_size)
 {
 	u8 data = 0;
-	int total_length = 0, nbr_dummy_bytes = 0, ret = 0;
+	int total_length = 0, ret = 0;
 	struct st33zp24_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_device;
 	u8 *tx_buf = (u8 *)phy->spi_xfer.tx_buf;
@@ -133,14 +133,13 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	memcpy(&tx_buf[total_length], tpm_data, tpm_size);
 	total_length += tpm_size;
 
-	nbr_dummy_bytes = phy->latency;
-	memset(&tx_buf[total_length], TPM_DUMMY_BYTE, nbr_dummy_bytes);
+	memset(&tx_buf[total_length], TPM_DUMMY_BYTE, phy->latency);
 
-	phy->spi_xfer.len = total_length + nbr_dummy_bytes;
+	phy->spi_xfer.len = total_length + phy->latency;
 
 	ret = spi_sync_transfer(dev, &phy->spi_xfer, 1);
 	if (ret == 0)
-		ret = rx_buf[total_length + nbr_dummy_bytes - 1];
+		ret = rx_buf[total_length + phy->latency - 1];
 
 	return st33zp24_status_to_errno(ret);
 } /* st33zp24_spi_send() */
@@ -157,7 +156,7 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 static int read8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size)
 {
 	u8 data = 0;
-	int total_length = 0, nbr_dummy_bytes, ret;
+	int total_length = 0, ret;
 	struct st33zp24_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_device;
 	u8 *tx_buf = (u8 *)phy->spi_xfer.tx_buf;
@@ -171,18 +170,17 @@ static int read8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size)
 	memcpy(tx_buf + total_length, &data, sizeof(data));
 	total_length++;
 
-	nbr_dummy_bytes = phy->latency;
 	memset(&tx_buf[total_length], TPM_DUMMY_BYTE,
-	       nbr_dummy_bytes + tpm_size);
+	       phy->latency + tpm_size);
 
-	phy->spi_xfer.len = total_length + nbr_dummy_bytes + tpm_size;
+	phy->spi_xfer.len = total_length + phy->latency + tpm_size;
 
 	/* header + status byte + size of the data + status byte */
 	ret = spi_sync_transfer(dev, &phy->spi_xfer, 1);
 	if (tpm_size > 0 && ret == 0) {
-		ret = rx_buf[total_length + nbr_dummy_bytes - 1];
+		ret = rx_buf[total_length + phy->latency - 1];
 
-		memcpy(tpm_data, rx_buf + total_length + nbr_dummy_bytes,
+		memcpy(tpm_data, rx_buf + total_length + phy->latency,
 		       tpm_size);
 	}
 
