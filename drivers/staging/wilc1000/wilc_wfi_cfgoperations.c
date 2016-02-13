@@ -228,7 +228,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 	int i;
 	int rssi = 0;
 
-	priv = (struct wilc_priv *)user_void;
+	priv = user_void;
 	wiphy = priv->dev->ieee80211_ptr->wiphy;
 
 	for (i = 0; i < last_scanned_cnt; i++) {
@@ -404,7 +404,7 @@ static void CfgScanResult(enum scan_event scan_event,
 	struct ieee80211_channel *channel;
 	struct cfg80211_bss *bss = NULL;
 
-	priv = (struct wilc_priv *)user_void;
+	priv = user_void;
 	if (priv->bCfgScanning) {
 		if (scan_event == SCAN_EVENT_NETWORK_FOUND) {
 			wiphy = priv->dev->ieee80211_ptr->wiphy;
@@ -525,7 +525,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 
 	wilc_connecting = 0;
 
-	priv = (struct wilc_priv *)pUserVoid;
+	priv = pUserVoid;
 	dev = priv->dev;
 	vif = netdev_priv(dev);
 	wl = vif->wilc;
@@ -1713,7 +1713,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 
 static void WILC_WFI_mgmt_tx_complete(void *priv, int status)
 {
-	struct p2p_mgmt_data *pv_data = (struct p2p_mgmt_data *)priv;
+	struct p2p_mgmt_data *pv_data = priv;
 
 
 	kfree(pv_data->buff);
@@ -1724,7 +1724,7 @@ static void WILC_WFI_RemainOnChannelReady(void *pUserVoid)
 {
 	struct wilc_priv *priv;
 
-	priv = (struct wilc_priv *)pUserVoid;
+	priv = pUserVoid;
 
 	priv->bInP2PlistenState = true;
 
@@ -1739,7 +1739,7 @@ static void WILC_WFI_RemainOnChannelExpired(void *pUserVoid, u32 u32SessionID)
 {
 	struct wilc_priv *priv;
 
-	priv = (struct wilc_priv *)pUserVoid;
+	priv = pUserVoid;
 
 	if (u32SessionID == priv->strRemainOnChanParams.u32ListenSessionID) {
 		priv->bInP2PlistenState = false;
