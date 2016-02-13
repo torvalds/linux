@@ -388,7 +388,7 @@ static int prism2mib_bytearea2pstr(struct mibrec *mib,
 		prism2mgmt_bytearea2pstr(bytebuf, pstr, mib->parm2);
 	} else {
 		memset(bytebuf, 0, mib->parm2);
-		prism2mgmt_pstr2bytearea(bytebuf, pstr);
+		memcpy(bytebuf, pstr->data, pstr->len);
 		result =
 		    hfa384x_drvr_setconfig(hw, mib->parm1, bytebuf, mib->parm2);
 	}
@@ -543,7 +543,7 @@ static int prism2mib_wepdefaultkey(struct mibrec *mib,
 		len = (pstr->len > 5) ? HFA384x_RID_CNFWEP128DEFAULTKEY_LEN :
 		    HFA384x_RID_CNFWEPDEFAULTKEY_LEN;
 		memset(bytebuf, 0, len);
-		prism2mgmt_pstr2bytearea(bytebuf, pstr);
+		memcpy(bytebuf, pstr->data, pstr->len);
 		result = hfa384x_drvr_setconfig(hw, mib->parm1, bytebuf, len);
 	}
 
@@ -756,26 +756,6 @@ void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
 {
 	bytestr->len = cpu_to_le16((u16) (pstr->len));
 	memcpy(bytestr->data, pstr->data, pstr->len);
-}
-
-/*----------------------------------------------------------------
-* prism2mgmt_pstr2bytearea
-*
-* Convert the pstr data in the WLAN message structure into an hfa384x
-* byte area format.
-*
-* Arguments:
-*	bytearea	hfa384x byte area data type
-*	pstr		wlan message data
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-
-void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
-{
-	memcpy(bytearea, pstr->data, pstr->len);
 }
 
 /*----------------------------------------------------------------
