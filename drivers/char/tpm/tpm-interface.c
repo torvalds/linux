@@ -700,7 +700,7 @@ int tpm_is_tpm2(u32 chip_num)
 
 	rc = (chip->flags & TPM_CHIP_FLAG_TPM2) != 0;
 
-	tpm_chip_put(chip);
+	tpm_put_ops(chip);
 
 	return rc;
 }
@@ -729,7 +729,7 @@ int tpm_pcr_read(u32 chip_num, int pcr_idx, u8 *res_buf)
 		rc = tpm2_pcr_read(chip, pcr_idx, res_buf);
 	else
 		rc = tpm_pcr_read_dev(chip, pcr_idx, res_buf);
-	tpm_chip_put(chip);
+	tpm_put_ops(chip);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_pcr_read);
@@ -764,7 +764,7 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		rc = tpm2_pcr_extend(chip, pcr_idx, hash);
-		tpm_chip_put(chip);
+		tpm_put_ops(chip);
 		return rc;
 	}
 
@@ -774,7 +774,7 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 	rc = tpm_transmit_cmd(chip, &cmd, EXTEND_PCR_RESULT_SIZE,
 			      "attempting extend a PCR value");
 
-	tpm_chip_put(chip);
+	tpm_put_ops(chip);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_pcr_extend);
@@ -855,7 +855,7 @@ int tpm_send(u32 chip_num, void *cmd, size_t buflen)
 
 	rc = tpm_transmit_cmd(chip, cmd, buflen, "attempting tpm_cmd");
 
-	tpm_chip_put(chip);
+	tpm_put_ops(chip);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_send);
@@ -1037,7 +1037,7 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		err = tpm2_get_random(chip, out, max);
-		tpm_chip_put(chip);
+		tpm_put_ops(chip);
 		return err;
 	}
 
@@ -1059,7 +1059,7 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 		num_bytes -= recd;
 	} while (retries-- && total < max);
 
-	tpm_chip_put(chip);
+	tpm_put_ops(chip);
 	return total ? total : -EIO;
 }
 EXPORT_SYMBOL_GPL(tpm_get_random);
@@ -1085,7 +1085,7 @@ int tpm_seal_trusted(u32 chip_num, struct trusted_key_payload *payload,
 
 	rc = tpm2_seal_trusted(chip, payload, options);
 
-	tpm_chip_put(chip);
+	tpm_put_ops(chip);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_seal_trusted);
@@ -1111,7 +1111,8 @@ int tpm_unseal_trusted(u32 chip_num, struct trusted_key_payload *payload,
 
 	rc = tpm2_unseal_trusted(chip, payload, options);
 
-	tpm_chip_put(chip);
+	tpm_put_ops(chip);
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_unseal_trusted);

@@ -295,5 +295,10 @@ int tpm_sysfs_add_device(struct tpm_chip *chip)
 
 void tpm_sysfs_del_device(struct tpm_chip *chip)
 {
+	/* The sysfs routines rely on an implicit tpm_try_get_ops, this
+	 * function is called before ops is null'd and the sysfs core
+	 * synchronizes this removal so that no callbacks are running or can
+	 * run again
+	 */
 	sysfs_remove_group(&chip->dev.parent->kobj, &tpm_dev_group);
 }
