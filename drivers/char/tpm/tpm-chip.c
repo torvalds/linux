@@ -36,10 +36,60 @@ static DEFINE_SPINLOCK(driver_lock);
 struct class *tpm_class;
 dev_t tpm_devt;
 
-/*
- * tpm_chip_find_get - return tpm_chip for a given chip number
- * @chip_num the device number for the chip
+/**
+ * tpm_try_get_ops() - Get a ref to the tpm_chip
+ * @chip: Chip to ref
+ *
+ * The caller must already have some kind of locking to ensure that chip is
+ * valid. This function will lock the chip so that the ops member can be
+ * accessed safely. The locking prevents tpm_chip_unregister from
+ * completing, so it should not be held for long periods.
+ *
+ * Returns -ERRNO if the chip could not be got.
  */
+int tpm_try_get_ops(struct tpm_chip *chip)
+{
+	int rc = -EIO;
+
+	get_device(&chip->dev);
+
+	down_read(&chip->ops_sem);
+	if (!chip->ops)
+		goto out_lock;
+
+	if (!try_module_get(chip->dev.parent->driver->owner))
+		goto out_lock;
+
+	return 0;
+out_lock:
+	up_read(&chip->ops_sem);
+	put_device(&chip->dev);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_try_get_ops);
+
+/**
+ * tpm_put_ops() - Release a ref to the tpm_chip
+ * @chip: Chip to put
+ *
+ * This is the opposite pair to tpm_try_get_ops(). After this returns chip may
+ * be kfree'd.
+ */
+void tpm_put_ops(struct tpm_chip *chip)
+{
+	module_put(chip->dev.parent->driver->owner);
+	up_read(&chip->ops_sem);
+	put_device(&chip->dev);
+}
+EXPORT_SYMBOL_GPL(tpm_put_ops);
+
+/**
+ * tpm_chip_find_get() - return tpm_chip for a given chip number
+ * @chip_num: id to find
+ *
+ * The return'd chip has been tpm_try_get_ops'd and must be released via
+ * tpm_put_ops
+  */
 struct tpm_chip *tpm_chip_find_get(int chip_num)
 {
 	struct tpm_chip *pos, *chip = NULL;
@@ -49,10 +99,10 @@ struct tpm_chip *tpm_chip_find_get(int chip_num)
 		if (chip_num != TPM_ANY_NUM && chip_num != pos->dev_num)
 			continue;
 
-		if (try_module_get(pos->dev.parent->driver->owner)) {
+		/* rcu prevents chip from being free'd */
+		if (!tpm_try_get_ops(pos))
 			chip = pos;
-			break;
-		}
+		break;
 	}
 	rcu_read_unlock();
 	return chip;
@@ -94,6 +144,7 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&chip->tpm_mutex);
+	init_rwsem(&chip->ops_sem);
 	INIT_LIST_HEAD(&chip->list);
 
 	chip->ops = ops;
@@ -171,6 +222,12 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 static void tpm_del_char_device(struct tpm_chip *chip)
 {
 	cdev_del(&chip->cdev);
+
+	/* Make the driver uncallable. */
+	down_write(&chip->ops_sem);
+	chip->ops = NULL;
+	up_write(&chip->ops_sem);
+
 	device_del(&chip->dev);
 }
 
@@ -255,6 +312,9 @@ EXPORT_SYMBOL_GPL(tpm_chip_register);
  *
  * Takes the chip first away from the list of available TPM chips and then
  * cleans up all the resources reserved by tpm_chip_register().
+ *
+ * Once this function returns the driver call backs in 'op's will not be
+ * running and will no longer start.
  *
  * NOTE: This function should be only called before deinitializing chip
  * resources.
