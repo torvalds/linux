@@ -1748,7 +1748,7 @@ static int __check_raid_min_devices(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-int btrfs_rm_device(struct btrfs_root *root, char *device_path)
+int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 {
 	struct btrfs_device *device;
 	struct btrfs_device *next_device;
@@ -1764,7 +1764,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (ret)
 		goto out;
 
-	ret = btrfs_find_device_by_user_input(root, 0, device_path,
+	ret = btrfs_find_device_by_user_input(root, devid, device_path,
 				&device);
 	if (ret)
 		goto out;
