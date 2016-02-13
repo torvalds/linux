@@ -953,7 +953,7 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 		return result;
 	}
 
-	ptstrJoinBssParam = (struct join_bss_param *)pstrHostIFconnectAttr->params;
+	ptstrJoinBssParam = pstrHostIFconnectAttr->params;
 	if (!ptstrJoinBssParam) {
 		PRINT_ER("Required BSSID not found\n");
 		result = -ENOENT;
@@ -2675,7 +2675,7 @@ static int hostIFthread(void *pvArg)
 {
 	u32 u32Ret;
 	struct host_if_msg msg;
-	struct wilc *wilc = (struct wilc*)pvArg;
+	struct wilc *wilc = pvArg;
 	struct wilc_vif *vif;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
