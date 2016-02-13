@@ -59,7 +59,7 @@ int libcfs_kkuc_msg_put(struct file *filp, void *payload)
 	mm_segment_t fs;
 	int rc = -ENXIO;
 
-	if (!filp || IS_ERR(filp))
+	if (IS_ERR_OR_NULL(filp))
 		return -EBADF;
 
 	if (kuch->kuc_magic != KUC_MAGIC) {
