@@ -41,37 +41,6 @@ void purge_waiting_ops(void)
 	spin_unlock(&orangefs_request_list_lock);
 }
 
-static inline void
-__add_op_to_request_list(struct orangefs_kernel_op_s *op)
-{
-	spin_lock(&op->lock);
-	set_op_state_waiting(op);
-	list_add_tail(&op->list, &orangefs_request_list);
-	spin_unlock(&op->lock);
-	wake_up_interruptible(&orangefs_request_list_waitq);
-}
-
-static inline void
-add_op_to_request_list(struct orangefs_kernel_op_s *op)
-{
-	spin_lock(&orangefs_request_list_lock);
-	__add_op_to_request_list(op);
-	spin_unlock(&orangefs_request_list_lock);
-}
-
-static inline
-void add_priority_op_to_request_list(struct orangefs_kernel_op_s *op)
-{
-	spin_lock(&orangefs_request_list_lock);
-	spin_lock(&op->lock);
-	set_op_state_waiting(op);
-
-	list_add(&op->list, &orangefs_request_list);
-	spin_unlock(&orangefs_request_list_lock);
-	spin_unlock(&op->lock);
-	wake_up_interruptible(&orangefs_request_list_waitq);
-}
-
 /*
  * submits a ORANGEFS operation and waits for it to complete
  *
@@ -126,32 +95,28 @@ retry_servicing:
 		}
 	}
 
-	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "%s:About to call is_daemon_in_service().\n",
-		     __func__);
-
-	if (is_daemon_in_service() < 0) {
+	/* queue up the operation */
+	spin_lock(&orangefs_request_list_lock);
+	spin_lock(&op->lock);
+	set_op_state_waiting(op);
+	if (flags & ORANGEFS_OP_PRIORITY)
+		list_add(&op->list, &orangefs_request_list);
+	else
+		list_add_tail(&op->list, &orangefs_request_list);
+	spin_unlock(&op->lock);
+	wake_up_interruptible(&orangefs_request_list_waitq);
+	if (!__is_daemon_in_service()) {
 		/*
 		 * By incrementing the per-operation attempt counter, we
 		 * directly go into the timeout logic while waiting for
 		 * the matching downcall to be read
 		 */
 		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "%s:client core is NOT in service(%d).\n",
-			     __func__,
-			     is_daemon_in_service());
+			     "%s:client core is NOT in service.\n",
+			     __func__);
 		op->attempts++;
 	}
-
-	/* queue up the operation */
-	if (flags & ORANGEFS_OP_PRIORITY) {
-		add_priority_op_to_request_list(op);
-	} else {
-		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "%s:About to call add_op_to_request_list().\n",
-			     __func__);
-		add_op_to_request_list(op);
-	}
+	spin_unlock(&orangefs_request_list_lock);
 
 	if (!(flags & ORANGEFS_OP_NO_SEMAPHORE))
 		mutex_unlock(&request_mutex);
@@ -292,7 +257,10 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
 		spin_unlock(&orangefs_request_list_lock);
 		return false;
 	}
-	__add_op_to_request_list(op);
+	spin_lock(&op->lock);
+	set_op_state_waiting(op);
+	list_add(&op->list, &orangefs_request_list);
+	spin_unlock(&op->lock);
 	spin_unlock(&orangefs_request_list_lock);
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
