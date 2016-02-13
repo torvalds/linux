@@ -1,6 +1,6 @@
 /*
  * STMicroelectronics TPM SPI Linux driver for TPM ST33ZP24
- * Copyright (C) 2009 - 2016 STMicroelectronics
+ * Copyright (C) 2009 - 2015  STMicroelectronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,8 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
-#include <linux/acpi.h>
 #include <linux/tpm.h>
 #include <linux/platform_data/st33zp24.h>
 
@@ -68,7 +66,7 @@
 
 struct st33zp24_spi_phy {
 	struct spi_device *spi_device;
-
+	struct spi_transfer spi_xfer;
 	u8 tx_buf[ST33ZP24_SPI_BUFFER_SIZE];
 	u8 rx_buf[ST33ZP24_SPI_BUFFER_SIZE];
 
@@ -112,39 +110,42 @@ static int st33zp24_status_to_errno(u8 code)
 static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 			     int tpm_size)
 {
+	u8 data = 0;
 	int total_length = 0, ret = 0;
 	struct st33zp24_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_device;
-	struct spi_transfer spi_xfer = {
-		.tx_buf = phy->tx_buf,
-		.rx_buf = phy->rx_buf,
-	};
+	u8 *tx_buf = (u8 *)phy->spi_xfer.tx_buf;
+	u8 *rx_buf = phy->spi_xfer.rx_buf;
 
 	/* Pre-Header */
-	phy->tx_buf[total_length++] = TPM_WRITE_DIRECTION | LOCALITY0;
-	phy->tx_buf[total_length++] = tpm_register;
+	data = TPM_WRITE_DIRECTION | LOCALITY0;
+	memcpy(tx_buf + total_length, &data, sizeof(data));
+	total_length++;
+	data = tpm_register;
+	memcpy(tx_buf + total_length, &data, sizeof(data));
+	total_length++;
 
 	if (tpm_size > 0 && tpm_register == TPM_DATA_FIFO) {
-		phy->tx_buf[total_length++] = tpm_size >> 8;
-		phy->tx_buf[total_length++] = tpm_size;
+		tx_buf[total_length++] = tpm_size >> 8;
+		tx_buf[total_length++] = tpm_size;
 	}
 
-	memcpy(&phy->tx_buf[total_length], tpm_data, tpm_size);
+	memcpy(&tx_buf[total_length], tpm_data, tpm_size);
 	total_length += tpm_size;
 
-	memset(&phy->tx_buf[total_length], TPM_DUMMY_BYTE, phy->latency);
+	memset(&tx_buf[total_length], TPM_DUMMY_BYTE, phy->latency);
 
-	spi_xfer.len = total_length + phy->latency;
+	phy->spi_xfer.len = total_length + phy->latency;
 
-	ret = spi_sync_transfer(dev, &spi_xfer, 1);
+	ret = spi_sync_transfer(dev, &phy->spi_xfer, 1);
 	if (ret == 0)
-		ret = phy->rx_buf[total_length + phy->latency - 1];
+		ret = rx_buf[total_length + phy->latency - 1];
 
 	return st33zp24_status_to_errno(ret);
 } /* st33zp24_spi_send() */
 
 /*
- * st33zp24_spi_read8_recv
+ * read8_recv
  * Recv byte from the TIS register according to the ST33ZP24 SPI protocol.
  * @param: phy_id, the phy description
  * @param: tpm_register, the tpm tis register where the data should be read
@@ -152,37 +153,39 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
  * @param: tpm_size, tpm TPM response size to read.
  * @return: should be zero if success else a negative error code.
  */
-static int st33zp24_spi_read8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data,
-				  int tpm_size)
+static int read8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size)
 {
+	u8 data = 0;
 	int total_length = 0, ret;
 	struct st33zp24_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_device;
-	struct spi_transfer spi_xfer = {
-		.tx_buf = phy->tx_buf,
-		.rx_buf = phy->rx_buf,
-	};
+	u8 *tx_buf = (u8 *)phy->spi_xfer.tx_buf;
+	u8 *rx_buf = phy->spi_xfer.rx_buf;
 
 	/* Pre-Header */
-	phy->tx_buf[total_length++] = LOCALITY0;
-	phy->tx_buf[total_length++] = tpm_register;
+	data = LOCALITY0;
+	memcpy(tx_buf + total_length, &data, sizeof(data));
+	total_length++;
+	data = tpm_register;
+	memcpy(tx_buf + total_length, &data, sizeof(data));
+	total_length++;
 
-	memset(&phy->tx_buf[total_length], TPM_DUMMY_BYTE,
+	memset(&tx_buf[total_length], TPM_DUMMY_BYTE,
 	       phy->latency + tpm_size);
 
-	spi_xfer.len = total_length + phy->latency + tpm_size;
+	phy->spi_xfer.len = total_length + phy->latency + tpm_size;
 
 	/* header + status byte + size of the data + status byte */
-	ret = spi_sync_transfer(dev, &spi_xfer, 1);
+	ret = spi_sync_transfer(dev, &phy->spi_xfer, 1);
 	if (tpm_size > 0 && ret == 0) {
-		ret = phy->rx_buf[total_length + phy->latency - 1];
+		ret = rx_buf[total_length + phy->latency - 1];
 
-		memcpy(tpm_data, phy->rx_buf + total_length + phy->latency,
+		memcpy(tpm_data, rx_buf + total_length + phy->latency,
 		       tpm_size);
 	}
 
 	return ret;
-} /* st33zp24_spi_read8_reg() */
+} /* read8_reg() */
 
 /*
  * st33zp24_spi_recv
@@ -198,13 +201,13 @@ static int st33zp24_spi_recv(void *phy_id, u8 tpm_register, u8 *tpm_data,
 {
 	int ret;
 
-	ret = st33zp24_spi_read8_reg(phy_id, tpm_register, tpm_data, tpm_size);
+	ret = read8_reg(phy_id, tpm_register, tpm_data, tpm_size);
 	if (!st33zp24_status_to_errno(ret))
 		return tpm_size;
 	return ret;
 } /* st33zp24_spi_recv() */
 
-static int st33zp24_spi_evaluate_latency(void *phy_id)
+static int evaluate_latency(void *phy_id)
 {
 	struct st33zp24_spi_phy *phy = phy_id;
 	int latency = 1, status = 0;
@@ -212,15 +215,9 @@ static int st33zp24_spi_evaluate_latency(void *phy_id)
 
 	while (!status && latency < MAX_SPI_LATENCY) {
 		phy->latency = latency;
-		status = st33zp24_spi_read8_reg(phy_id, TPM_INTF_CAPABILITY,
-						&data, 1);
+		status = read8_reg(phy_id, TPM_INTF_CAPABILITY, &data, 1);
 		latency++;
 	}
-	if (status < 0)
-		return status;
-	if (latency == MAX_SPI_LATENCY)
-		return -ENODEV;
-
 	return latency - 1;
 } /* evaluate_latency() */
 
@@ -229,59 +226,24 @@ static const struct st33zp24_phy_ops spi_phy_ops = {
 	.recv = st33zp24_spi_recv,
 };
 
-static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
+#ifdef CONFIG_OF
+static int tpm_stm_spi_of_request_resources(struct st33zp24_spi_phy *phy)
 {
-	struct st33zp24_spi_phy *phy = spi_get_drvdata(spi_dev);
-	const struct acpi_device_id *id;
-	struct gpio_desc *gpiod_lpcpd;
-	struct device *dev;
-
-	if (!spi_dev)
-		return -EINVAL;
-
-	dev = &spi_dev->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
-
-	/* Get LPCPD GPIO from ACPI */
-	gpiod_lpcpd = devm_gpiod_get_index(dev, "TPM IO LPCPD", 1,
-					   GPIOD_OUT_HIGH);
-	if (IS_ERR(gpiod_lpcpd)) {
-		dev_err(dev, "Failed to retrieve lpcpd-gpios from acpi.\n");
-		phy->io_lpcpd = -1;
-		/*
-		 * lpcpd pin is not specified. This is not an issue as
-		 * power management can be also managed by TPM specific
-		 * commands. So leave with a success status code.
-		 */
-		return 0;
-	}
-
-	phy->io_lpcpd = desc_to_gpio(gpiod_lpcpd);
-
-	return 0;
-}
-
-static int st33zp24_spi_of_request_resources(struct spi_device *spi_dev)
-{
-	struct st33zp24_spi_phy *phy = spi_get_drvdata(spi_dev);
 	struct device_node *pp;
+	struct spi_device *dev = phy->spi_device;
 	int gpio;
 	int ret;
 
-	pp = spi_dev->dev.of_node;
+	pp = dev->dev.of_node;
 	if (!pp) {
-		dev_err(&spi_dev->dev, "No platform data\n");
+		dev_err(&dev->dev, "No platform data\n");
 		return -ENODEV;
 	}
 
 	/* Get GPIO from device tree */
 	gpio = of_get_named_gpio(pp, "lpcpd-gpios", 0);
 	if (gpio < 0) {
-		dev_err(&spi_dev->dev,
+		dev_err(&dev->dev,
 			"Failed to retrieve lpcpd-gpios from dts.\n");
 		phy->io_lpcpd = -1;
 		/*
@@ -292,20 +254,26 @@ static int st33zp24_spi_of_request_resources(struct spi_device *spi_dev)
 		return 0;
 	}
 	/* GPIO request and configuration */
-	ret = devm_gpio_request_one(&spi_dev->dev, gpio,
+	ret = devm_gpio_request_one(&dev->dev, gpio,
 			GPIOF_OUT_INIT_HIGH, "TPM IO LPCPD");
 	if (ret) {
-		dev_err(&spi_dev->dev, "Failed to request lpcpd pin\n");
+		dev_err(&dev->dev, "Failed to request lpcpd pin\n");
 		return -ENODEV;
 	}
 	phy->io_lpcpd = gpio;
 
 	return 0;
 }
-
-static int st33zp24_spi_request_resources(struct spi_device *dev)
+#else
+static int tpm_stm_spi_of_request_resources(struct st33zp24_spi_phy *phy)
 {
-	struct st33zp24_spi_phy *phy = spi_get_drvdata(dev);
+	return -ENODEV;
+}
+#endif
+
+static int tpm_stm_spi_request_resources(struct spi_device *dev,
+					 struct st33zp24_spi_phy *phy)
+{
 	struct st33zp24_platform_data *pdata;
 	int ret;
 
@@ -333,12 +301,13 @@ static int st33zp24_spi_request_resources(struct spi_device *dev)
 }
 
 /*
- * st33zp24_spi_probe initialize the TPM device
+ * tpm_st33_spi_probe initialize the TPM device
  * @param: dev, the spi_device drescription (TPM SPI description).
  * @return: 0 in case of success.
  *	 or a negative value describing the error.
  */
-static int st33zp24_spi_probe(struct spi_device *dev)
+static int
+tpm_st33_spi_probe(struct spi_device *dev)
 {
 	int ret;
 	struct st33zp24_platform_data *pdata;
@@ -357,25 +326,21 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 		return -ENOMEM;
 
 	phy->spi_device = dev;
-
-	spi_set_drvdata(dev, phy);
-
 	pdata = dev->dev.platform_data;
 	if (!pdata && dev->dev.of_node) {
-		ret = st33zp24_spi_of_request_resources(dev);
+		ret = tpm_stm_spi_of_request_resources(phy);
 		if (ret)
 			return ret;
 	} else if (pdata) {
-		ret = st33zp24_spi_request_resources(dev);
-		if (ret)
-			return ret;
-	} else if (ACPI_HANDLE(&dev->dev)) {
-		ret = st33zp24_spi_acpi_request_resources(dev);
+		ret = tpm_stm_spi_request_resources(dev, phy);
 		if (ret)
 			return ret;
 	}
 
-	phy->latency = st33zp24_spi_evaluate_latency(phy);
+	phy->spi_xfer.tx_buf = phy->tx_buf;
+	phy->spi_xfer.rx_buf = phy->rx_buf;
+
+	phy->latency = evaluate_latency(phy);
 	if (phy->latency <= 0)
 		return -ENODEV;
 
@@ -384,11 +349,11 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 }
 
 /*
- * st33zp24_spi_remove remove the TPM device
+ * tpm_st33_spi_remove remove the TPM device
  * @param: client, the spi_device drescription (TPM SPI description).
  * @return: 0 in case of success.
  */
-static int st33zp24_spi_remove(struct spi_device *dev)
+static int tpm_st33_spi_remove(struct spi_device *dev)
 {
 	struct tpm_chip *chip = spi_get_drvdata(dev);
 
@@ -401,34 +366,29 @@ static const struct spi_device_id st33zp24_spi_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, st33zp24_spi_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id of_st33zp24_spi_match[] = {
 	{ .compatible = "st,st33zp24-spi", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, of_st33zp24_spi_match);
-
-static const struct acpi_device_id st33zp24_spi_acpi_match[] = {
-	{"SMO3324"},
-	{}
-};
-MODULE_DEVICE_TABLE(acpi, st33zp24_spi_acpi_match);
+#endif
 
 static SIMPLE_DEV_PM_OPS(st33zp24_spi_ops, st33zp24_pm_suspend,
 			 st33zp24_pm_resume);
 
-static struct spi_driver st33zp24_spi_driver = {
+static struct spi_driver tpm_st33_spi_driver = {
 	.driver = {
 		.name = TPM_ST33_SPI,
 		.pm = &st33zp24_spi_ops,
 		.of_match_table = of_match_ptr(of_st33zp24_spi_match),
-		.acpi_match_table = ACPI_PTR(st33zp24_spi_acpi_match),
 	},
-	.probe = st33zp24_spi_probe,
-	.remove = st33zp24_spi_remove,
+	.probe = tpm_st33_spi_probe,
+	.remove = tpm_st33_spi_remove,
 	.id_table = st33zp24_spi_id,
 };
 
-module_spi_driver(st33zp24_spi_driver);
+module_spi_driver(tpm_st33_spi_driver);
 
 MODULE_AUTHOR("TPM support (TPMsupport@list.st.com)");
 MODULE_DESCRIPTION("STM TPM 1.2 SPI ST33 Driver");
