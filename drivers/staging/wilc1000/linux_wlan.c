@@ -61,7 +61,7 @@ static const struct net_device_ops wilc_netdev_ops = {
 static int dev_state_ev_handler(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
-	struct in_ifaddr *dev_iface = (struct in_ifaddr *)ptr;
+	struct in_ifaddr *dev_iface = ptr;
 	struct wilc_priv *priv;
 	struct host_if_drv *hif_drv;
 	struct net_device *dev;
@@ -144,7 +144,7 @@ static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
 	struct wilc_vif *vif;
 	struct wilc *wilc;
-	struct net_device *dev = (struct net_device *)user_data;
+	struct net_device *dev = user_data;
 
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
@@ -160,7 +160,7 @@ static irqreturn_t isr_bh_routine(int irq, void *userdata)
 {
 	struct wilc_vif *vif;
 	struct wilc *wilc;
-	struct net_device *dev = (struct net_device *)userdata;
+	struct net_device *dev = userdata;
 
 	vif = netdev_priv(userdata);
 	wilc = vif->wilc;
@@ -235,7 +235,7 @@ int wilc_lock_timeout(struct wilc *nic, void *vp, u32 timeout)
 	int error = -1;
 
 	if (vp)
-		error = down_timeout((struct semaphore *)vp,
+		error = down_timeout(vp,
 				     msecs_to_jiffies(timeout));
 	return error;
 }
@@ -1038,7 +1038,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 
 static void linux_wlan_tx_complete(void *priv, int status)
 {
-	struct tx_complete_data *pv_data = (struct tx_complete_data *)priv;
+	struct tx_complete_data *pv_data = priv;
 
 	dev_kfree_skb(pv_data->skb);
 	kfree(pv_data);
