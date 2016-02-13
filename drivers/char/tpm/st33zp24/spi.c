@@ -214,6 +214,11 @@ static int st33zp24_spi_evaluate_latency(void *phy_id)
 						&data, 1);
 		latency++;
 	}
+	if (status < 0)
+		return status;
+	if (latency == MAX_SPI_LATENCY)
+		return -ENODEV;
+
 	return latency - 1;
 } /* evaluate_latency() */
 
