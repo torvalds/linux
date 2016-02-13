@@ -72,9 +72,80 @@ static struct acpi_device *to_acpi_dev(struct acpi_nfit_desc *acpi_desc)
 	return to_acpi_device(acpi_desc->dev);
 }
 
+static int xlat_status(void *buf, unsigned int cmd)
+{
+	struct nd_cmd_ars_status *ars_status;
+	struct nd_cmd_ars_start *ars_start;
+	struct nd_cmd_ars_cap *ars_cap;
+	u16 flags;
+
+	switch (cmd) {
+	case ND_CMD_ARS_CAP:
+		ars_cap = buf;
+		if ((ars_cap->status & 0xffff) == NFIT_ARS_CAP_NONE)
+			return -ENOTTY;
+
+		/* Command failed */
+		if (ars_cap->status & 0xffff)
+			return -EIO;
+
+		/* No supported scan types for this range */
+		flags = ND_ARS_PERSISTENT | ND_ARS_VOLATILE;
+		if ((ars_cap->status >> 16 & flags) == 0)
+			return -ENOTTY;
+		break;
+	case ND_CMD_ARS_START:
+		ars_start = buf;
+		/* ARS is in progress */
+		if ((ars_start->status & 0xffff) == NFIT_ARS_START_BUSY)
+			return -EBUSY;
+
+		/* Command failed */
+		if (ars_start->status & 0xffff)
+			return -EIO;
+		break;
+	case ND_CMD_ARS_STATUS:
+		ars_status = buf;
+		/* Command failed */
+		if (ars_status->status & 0xffff)
+			return -EIO;
+		/* Check extended status (Upper two bytes) */
+		if (ars_status->status == NFIT_ARS_STATUS_DONE)
+			return 0;
+
+		/* ARS is in progress */
+		if (ars_status->status == NFIT_ARS_STATUS_BUSY)
+			return -EBUSY;
+
+		/* No ARS performed for the current boot */
+		if (ars_status->status == NFIT_ARS_STATUS_NONE)
+			return -EAGAIN;
+
+		/*
+		 * ARS interrupted, either we overflowed or some other
+		 * agent wants the scan to stop.  If we didn't overflow
+		 * then just continue with the returned results.
+		 */
+		if (ars_status->status == NFIT_ARS_STATUS_INTR) {
+			if (ars_status->flags & NFIT_ARS_F_OVERFLOW)
+				return -ENOSPC;
+			return 0;
+		}
+
+		/* Unknown status */
+		if (ars_status->status >> 16)
+			return -EIO;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
-		unsigned int buf_len)
+		unsigned int buf_len, int *cmd_rc)
 {
 	struct acpi_nfit_desc *acpi_desc = to_acpi_nfit_desc(nd_desc);
 	const struct nd_cmd_desc *desc = NULL;
@@ -185,6 +256,8 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			 * unfilled in the output buffer
 			 */
 			rc = buf_len - offset - in_buf.buffer.length;
+			if (cmd_rc)
+				*cmd_rc = xlat_status(buf, cmd);
 		} else {
 			dev_err(dev, "%s:%s underrun cmd: %s buf_len: %d out_len: %d\n",
 					__func__, dimm_name, cmd_name, buf_len,
@@ -1105,7 +1178,7 @@ static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
 	writeq(cmd, mmio->addr.base + offset);
 	wmb_blk(nfit_blk);
 
-	if (nfit_blk->dimm_flags & ND_BLK_DCR_LATCH)
+	if (nfit_blk->dimm_flags & NFIT_BLK_DCR_LATCH)
 		readq(mmio->addr.base + offset);
 }
 
@@ -1141,7 +1214,7 @@ static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
 			memcpy_to_pmem(mmio->addr.aperture + offset,
 					iobuf + copied, c);
 		else {
-			if (nfit_blk->dimm_flags & ND_BLK_READ_FLUSH)
+			if (nfit_blk->dimm_flags & NFIT_BLK_READ_FLUSH)
 				mmio_flush_range((void __force *)
 					mmio->addr.aperture + offset, c);
 
@@ -1328,13 +1401,13 @@ static int acpi_nfit_blk_get_flags(struct nvdimm_bus_descriptor *nd_desc,
 
 	memset(&flags, 0, sizeof(flags));
 	rc = nd_desc->ndctl(nd_desc, nvdimm, ND_CMD_DIMM_FLAGS, &flags,
-			sizeof(flags));
+			sizeof(flags), NULL);
 
 	if (rc >= 0 && flags.status == 0)
 		nfit_blk->dimm_flags = flags.flags;
 	else if (rc == -ENOTTY) {
 		/* fall back to a conservative default */
-		nfit_blk->dimm_flags = ND_BLK_DCR_LATCH | ND_BLK_READ_FLUSH;
+		nfit_blk->dimm_flags = NFIT_BLK_DCR_LATCH | NFIT_BLK_READ_FLUSH;
 		rc = 0;
 	} else
 		rc = -ENXIO;
@@ -1473,19 +1546,27 @@ static void acpi_nfit_blk_region_disable(struct nvdimm_bus *nvdimm_bus,
 	/* devm will free nfit_blk */
 }
 
-static int ars_get_cap(struct nvdimm_bus_descriptor *nd_desc,
+static int ars_get_cap(struct acpi_nfit_desc *acpi_desc,
 		struct nd_cmd_ars_cap *cmd, u64 addr, u64 length)
 {
+	struct nvdimm_bus_descriptor *nd_desc = &acpi_desc->nd_desc;
+	int cmd_rc, rc;
+
 	cmd->address = addr;
 	cmd->length = length;
-
-	return nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_CAP, cmd,
-			sizeof(*cmd));
+	rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_CAP, cmd,
+			sizeof(*cmd), &cmd_rc);
+	if (rc < 0)
+		return rc;
+	if (cmd_rc < 0)
+		return cmd_rc;
+	return 0;
 }
 
 static int ars_do_start(struct nvdimm_bus_descriptor *nd_desc,
 		struct nd_cmd_ars_start *cmd, u64 addr, u64 length)
 {
+	int cmd_rc;
 	int rc;
 
 	cmd->address = addr;
@@ -1494,52 +1575,49 @@ static int ars_do_start(struct nvdimm_bus_descriptor *nd_desc,
 
 	while (1) {
 		rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_START, cmd,
-				sizeof(*cmd));
-		if (rc)
+				sizeof(*cmd), &cmd_rc);
+
+		if (rc < 0)
 			return rc;
-		switch (cmd->status) {
-		case 0:
-			return 0;
-		case 1:
-			/* ARS unsupported, but we should never get here */
-			return 0;
-		case 6:
+
+		if (cmd_rc == -EBUSY) {
 			/* ARS is in progress */
 			msleep(1000);
-			break;
-		default:
-			return -ENXIO;
+			continue;
 		}
+
+		if (cmd_rc < 0)
+			return cmd_rc;
+
+		return 0;
 	}
 }
 
 static int ars_get_status(struct nvdimm_bus_descriptor *nd_desc,
 		struct nd_cmd_ars_status *cmd, u32 size)
 {
-	int rc;
+	int rc, cmd_rc;
 
 	while (1) {
 		rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_STATUS, cmd,
-			size);
-		if (rc || cmd->status & 0xffff)
+			size, &cmd_rc);
+		if (rc < 0)
+			return rc;
+
+		/* FIXME make async and have a timeout */
+		if (cmd_rc == -EBUSY) {
+			msleep(1000);
+			continue;
+		}
+
+		if (cmd_rc == -EAGAIN || cmd_rc == 0)
+			return 0;
+
+		/* TODO: error list overflow support */
+		if (cmd_rc == -ENOSPC)
 			return -ENXIO;
 
-		/* Check extended status (Upper two bytes) */
-		switch (cmd->status >> 16) {
-		case 0:
-			return 0;
-		case 1:
-			/* ARS is in progress */
-			msleep(1000);
-			break;
-		case 2:
-			/* No ARS performed for the current boot */
-			return 0;
-		case 3:
-			/* TODO: error list overflow support */
-		default:
-			return -ENXIO;
-		}
+		return cmd_rc;
 	}
 }
 
@@ -1590,26 +1668,9 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
 	start = ndr_desc->res->start;
 	len = ndr_desc->res->end - ndr_desc->res->start + 1;
 
-	/*
-	 * If ARS is unimplemented, unsupported, or if the 'Persistent Memory
-	 * Scrub' flag in extended status is not set, skip this but continue
-	 * initialization
-	 */
-	rc = ars_get_cap(nd_desc, ars_cap, start, len);
+	rc = ars_get_cap(acpi_desc, ars_cap, start, len);
 	if (rc == -ENOTTY) {
-		dev_dbg(acpi_desc->dev,
-			"Address Range Scrub is not implemented, won't create an error list\n");
 		rc = 0;
-		goto out;
-	}
-	if (rc)
-		goto out;
-
-	if ((ars_cap->status & 0xffff) ||
-		!(ars_cap->status >> 16 & ND_ARS_PERSISTENT)) {
-		dev_warn(acpi_desc->dev,
-			"ARS unsupported (status: 0x%x), won't create an error list\n",
-			ars_cap->status);
 		goto out;
 	}
 
@@ -1651,15 +1712,15 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
 		u64 done, end;
 
 		rc = ars_do_start(nd_desc, ars_start, cur, remaining);
-		if (rc)
+		if (rc < 0)
 			goto out;
 
 		rc = ars_get_status(nd_desc, ars_status, ars_status_size);
-		if (rc)
+		if (rc < 0)
 			goto out;
 
 		rc = ars_status_process_records(nvdimm_bus, ars_status, cur);
-		if (rc)
+		if (rc < 0)
 			goto out;
 
 		end = min(cur + remaining,

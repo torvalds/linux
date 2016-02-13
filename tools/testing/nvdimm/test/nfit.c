@@ -261,7 +261,7 @@ static int nfit_test_cmd_ars_status(struct nd_cmd_ars_status *nd_cmd,
 
 static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
-		unsigned int buf_len)
+		unsigned int buf_len, int *cmd_rc)
 {
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 	struct nfit_test *t = container_of(acpi_desc, typeof(*t), acpi_desc);
@@ -315,6 +315,9 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		}
 	}
 
+	/* TODO: error status tests */
+	if (cmd_rc)
+		*cmd_rc = 0;
 	return rc;
 }
 
