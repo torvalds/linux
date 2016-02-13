@@ -66,7 +66,7 @@
 
 struct st33zp24_spi_phy {
 	struct spi_device *spi_device;
-	struct spi_transfer spi_xfer;
+
 	u8 tx_buf[ST33ZP24_SPI_BUFFER_SIZE];
 	u8 rx_buf[ST33ZP24_SPI_BUFFER_SIZE];
 
@@ -113,28 +113,30 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	int total_length = 0, ret = 0;
 	struct st33zp24_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_device;
-	u8 *tx_buf = (u8 *)phy->spi_xfer.tx_buf;
-	u8 *rx_buf = phy->spi_xfer.rx_buf;
+	struct spi_transfer spi_xfer = {
+		.tx_buf = phy->tx_buf,
+		.rx_buf = phy->rx_buf,
+	};
 
 	/* Pre-Header */
-	tx_buf[total_length++] = TPM_WRITE_DIRECTION | LOCALITY0;
-	tx_buf[total_length++] = tpm_register;
+	phy->tx_buf[total_length++] = TPM_WRITE_DIRECTION | LOCALITY0;
+	phy->tx_buf[total_length++] = tpm_register;
 
 	if (tpm_size > 0 && tpm_register == TPM_DATA_FIFO) {
-		tx_buf[total_length++] = tpm_size >> 8;
-		tx_buf[total_length++] = tpm_size;
+		phy->tx_buf[total_length++] = tpm_size >> 8;
+		phy->tx_buf[total_length++] = tpm_size;
 	}
 
-	memcpy(&tx_buf[total_length], tpm_data, tpm_size);
+	memcpy(&phy->tx_buf[total_length], tpm_data, tpm_size);
 	total_length += tpm_size;
 
-	memset(&tx_buf[total_length], TPM_DUMMY_BYTE, phy->latency);
+	memset(&phy->tx_buf[total_length], TPM_DUMMY_BYTE, phy->latency);
 
-	phy->spi_xfer.len = total_length + phy->latency;
+	spi_xfer.len = total_length + phy->latency;
 
-	ret = spi_sync_transfer(dev, &phy->spi_xfer, 1);
+	ret = spi_sync_transfer(dev, &spi_xfer, 1);
 	if (ret == 0)
-		ret = rx_buf[total_length + phy->latency - 1];
+		ret = phy->rx_buf[total_length + phy->latency - 1];
 
 	return st33zp24_status_to_errno(ret);
 } /* st33zp24_spi_send() */
@@ -154,24 +156,26 @@ static int st33zp24_spi_read8_reg(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	int total_length = 0, ret;
 	struct st33zp24_spi_phy *phy = phy_id;
 	struct spi_device *dev = phy->spi_device;
-	u8 *tx_buf = (u8 *)phy->spi_xfer.tx_buf;
-	u8 *rx_buf = phy->spi_xfer.rx_buf;
+	struct spi_transfer spi_xfer = {
+		.tx_buf = phy->tx_buf,
+		.rx_buf = phy->rx_buf,
+	};
 
 	/* Pre-Header */
-	tx_buf[total_length++] = LOCALITY0;
-	tx_buf[total_length++] = tpm_register;
+	phy->tx_buf[total_length++] = LOCALITY0;
+	phy->tx_buf[total_length++] = tpm_register;
 
-	memset(&tx_buf[total_length], TPM_DUMMY_BYTE,
+	memset(&phy->tx_buf[total_length], TPM_DUMMY_BYTE,
 	       phy->latency + tpm_size);
 
-	phy->spi_xfer.len = total_length + phy->latency + tpm_size;
+	spi_xfer.len = total_length + phy->latency + tpm_size;
 
 	/* header + status byte + size of the data + status byte */
-	ret = spi_sync_transfer(dev, &phy->spi_xfer, 1);
+	ret = spi_sync_transfer(dev, &spi_xfer, 1);
 	if (tpm_size > 0 && ret == 0) {
-		ret = rx_buf[total_length + phy->latency - 1];
+		ret = phy->rx_buf[total_length + phy->latency - 1];
 
-		memcpy(tpm_data, rx_buf + total_length + phy->latency,
+		memcpy(tpm_data, phy->rx_buf + total_length + phy->latency,
 		       tpm_size);
 	}
 
@@ -327,9 +331,6 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 		if (ret)
 			return ret;
 	}
-
-	phy->spi_xfer.tx_buf = phy->tx_buf;
-	phy->spi_xfer.rx_buf = phy->rx_buf;
 
 	phy->latency = st33zp24_spi_evaluate_latency(phy);
 	if (phy->latency <= 0)
