@@ -4260,10 +4260,10 @@ int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		return TRANSPORT_FAILED;
 	}
 
-	if ((0x53 != srb->cmnd[2]) || (0x44 != srb->cmnd[3]) ||
-		(0x20 != srb->cmnd[4]) || (0x43 != srb->cmnd[5]) ||
-		(0x61 != srb->cmnd[6]) || (0x72 != srb->cmnd[7]) ||
-		(0x64 != srb->cmnd[8])) {
+	if ((srb->cmnd[2] != 0x53) || (srb->cmnd[3] != 0x44) ||
+		(srb->cmnd[4] != 0x20) || (srb->cmnd[5] != 0x43) ||
+		(srb->cmnd[6] != 0x61) || (srb->cmnd[7] != 0x72) ||
+		(srb->cmnd[8] != 0x64)) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_INVALID_CMD_FIELD);
 		rtsx_trace(chip);
 		return TRANSPORT_FAILED;
@@ -4284,7 +4284,7 @@ int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		return TRANSPORT_FAILED;
 	}
 
-	buf[5] = (1 == CHK_SD(sd_card)) ?  0x01 : 0x02;
+	buf[5] = (CHK_SD(sd_card) == 1) ? 0x01 : 0x02;
 	if (chip->card_wp & SD_CARD)
 		buf[5] |= 0x80;
 
@@ -5176,10 +5176,10 @@ int sd_hw_rst(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		return TRANSPORT_FAILED;
 	}
 
-	if ((0x53 != srb->cmnd[2]) || (0x44 != srb->cmnd[3]) ||
-		(0x20 != srb->cmnd[4]) || (0x43 != srb->cmnd[5]) ||
-		(0x61 != srb->cmnd[6]) || (0x72 != srb->cmnd[7]) ||
-		(0x64 != srb->cmnd[8])) {
+	if ((srb->cmnd[2] != 0x53) || (srb->cmnd[3] != 0x44) ||
+		(srb->cmnd[4] != 0x20) || (srb->cmnd[5] != 0x43) ||
+		(srb->cmnd[6] != 0x61) || (srb->cmnd[7] != 0x72) ||
+		(srb->cmnd[8] != 0x64)) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_INVALID_CMD_FIELD);
 		rtsx_trace(chip);
 		return TRANSPORT_FAILED;
@@ -5188,7 +5188,7 @@ int sd_hw_rst(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	switch (srb->cmnd[1] & 0x0F) {
 	case 0:
 #ifdef SUPPORT_SD_LOCK
-		if (0x64 == srb->cmnd[9])
+		if (srb->cmnd[9] == 0x64)
 			sd_card->sd_lock_status |= SD_SDR_RST;
 #endif
 		retval = reset_sd_card(chip);
