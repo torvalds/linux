@@ -1069,7 +1069,7 @@ EXPORT_SYMBOL_GPL(macvlan_common_setup);
 static void macvlan_setup(struct net_device *dev)
 {
 	macvlan_common_setup(dev);
-	dev->tx_queue_len	= 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 }
 
 static int macvlan_port_create(struct net_device *dev)
