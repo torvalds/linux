@@ -500,8 +500,6 @@ static void sh_eth_set_rate_gether(struct net_device *ndev)
 	case 1000: /* 1000BASE */
 		sh_eth_write(ndev, GECMR_1000, GECMR);
 		break;
-	default:
-		break;
 	}
 }
 
@@ -592,8 +590,6 @@ static void sh_eth_set_rate_r8a777x(struct net_device *ndev)
 	case 100:/* 100BASE */
 		sh_eth_modify(ndev, ECMR, ECMR_ELB, ECMR_ELB);
 		break;
-	default:
-		break;
 	}
 }
 
@@ -658,8 +654,6 @@ static void sh_eth_set_rate_sh7724(struct net_device *ndev)
 	case 100:/* 100BASE */
 		sh_eth_modify(ndev, ECMR, ECMR_RTM, ECMR_RTM);
 		break;
-	default:
-		break;
 	}
 }
 
@@ -697,8 +691,6 @@ static void sh_eth_set_rate_sh7757(struct net_device *ndev)
 		break;
 	case 100:/* 100BASE */
 		sh_eth_write(ndev, 1, RTRATE);
-		break;
-	default:
 		break;
 	}
 }
@@ -766,8 +758,6 @@ static void sh_eth_set_rate_giga(struct net_device *ndev)
 		break;
 	case 1000: /* 1000BASE */
 		sh_eth_write(ndev, 0x00000020, GECMR);
-		break;
-	default:
 		break;
 	}
 }
@@ -2916,8 +2906,6 @@ static const u16 *sh_eth_get_register_offset(int register_type)
 		break;
 	case SH_ETH_REG_FAST_SH3_SH2:
 		reg_offset = sh_eth_offset_fast_sh3_sh2;
-		break;
-	default:
 		break;
 	}
 
