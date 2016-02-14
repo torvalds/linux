@@ -53,8 +53,8 @@
 
 #include "hfi.h"
 #include "mad.h"
-#include "qp.h"
 #include "verbs_txreq.h"
+#include "qp.h"
 
 /**
  * ud_loopback - handle send on loopback QPs
@@ -394,7 +394,9 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		priv->s_sc = sc5;
 	}
 	priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
+	ps->s_txreq->sde = priv->s_sde;
 	priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
+	ps->s_txreq->psc = priv->s_sendcontext;
 	ps->s_txreq->phdr.hdr.lrh[0] = cpu_to_be16(lrh0);
 	ps->s_txreq->phdr.hdr.lrh[1] = cpu_to_be16(ah_attr->dlid);
 	ps->s_txreq->phdr.hdr.lrh[2] =
@@ -432,6 +434,8 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	priv->s_hdr->ahgidx = 0;
 	priv->s_hdr->tx_flags = 0;
 	priv->s_hdr->sde = NULL;
+	/* pbc */
+	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 
 	return 1;
 

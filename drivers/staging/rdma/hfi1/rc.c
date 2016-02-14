@@ -348,6 +348,8 @@ normal:
 	}
 	qp->s_rdma_ack_cnt++;
 	qp->s_hdrwords = hwords;
+	/* pbc */
+	ps->s_txreq->hdr_dwords = hwords + 2;
 	qp->s_cur_size = len;
 	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle, ps);
 	return 1;
@@ -750,6 +752,8 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	}
 	qp->s_len -= len;
 	qp->s_hdrwords = hwords;
+	/* pbc */
+	ps->s_txreq->hdr_dwords = hwords + 2;
 	qp->s_cur_sge = ss;
 	qp->s_cur_size = len;
 	hfi1_make_ruc_header(

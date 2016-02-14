@@ -54,6 +54,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 
+#include "sdma_txreq.h"
 /*
  * typedef (*restart_t)() - restart callback
  * @work: pointer to work structure
@@ -183,6 +184,25 @@ static inline void iowait_sdma_drain(struct iowait *wait)
 static inline void iowait_drain_wakeup(struct iowait *wait)
 {
 	wake_up(&wait->wait_dma);
+}
+
+/**
+ * iowait_get_txhead() - get packet off of iowait list
+ *
+ * @wait wait struture
+ */
+static inline struct sdma_txreq *iowait_get_txhead(struct iowait *wait)
+{
+	struct sdma_txreq *tx = NULL;
+
+	if (!list_empty(&wait->tx_head)) {
+		tx = list_first_entry(
+			&wait->tx_head,
+			struct sdma_txreq,
+			list);
+		list_del_init(&tx->list);
+	}
+	return tx;
 }
 
 #endif

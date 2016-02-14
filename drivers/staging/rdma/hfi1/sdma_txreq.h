@@ -127,4 +127,9 @@ struct sdma_txreq {
 	struct sdma_desc descs[NUM_DESC];
 };
 
+static inline int sdma_txreq_built(struct sdma_txreq *tx)
+{
+	return tx->num_desc;
+}
+
 #endif                          /* HFI1_SDMA_TXREQ_H */

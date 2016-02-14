@@ -63,6 +63,7 @@ struct verbs_txreq {
 	struct rvt_mregion	*mr;
 	struct rvt_sge_state    *ss;
 	struct sdma_engine     *sde;
+	struct send_context     *psc;
 	u16                     hdr_dwords;
 };
 
@@ -74,6 +75,7 @@ static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
 					    struct rvt_qp *qp)
 {
 	struct verbs_txreq *tx;
+	struct hfi1_qp_priv *priv = qp->priv;
 
 	tx = kmem_cache_alloc(dev->verbs_txreq_cache, GFP_ATOMIC);
 	if (unlikely(!tx)) {
@@ -84,7 +86,22 @@ static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
 	}
 	tx->qp = qp;
 	tx->mr = NULL;
+	tx->sde = priv->s_sde;
+	tx->psc = priv->s_sendcontext;
+	/* so that we can test if the sdma decriptors are there */
+	tx->txreq.num_desc = 0;
 	return tx;
+}
+
+static inline struct verbs_txreq *get_waiting_verbs_txreq(struct rvt_qp *qp)
+{
+	struct sdma_txreq *stx;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	stx = iowait_get_txhead(&priv->s_iowait);
+	if (stx)
+		return container_of(stx, struct verbs_txreq, txreq);
+	return NULL;
 }
 
 void hfi1_put_txreq(struct verbs_txreq *tx);

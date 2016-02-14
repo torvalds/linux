@@ -547,7 +547,9 @@ static void verbs_sdma_complete(
 	hfi1_put_txreq(tx);
 }
 
-static int wait_kmem(struct hfi1_ibdev *dev, struct rvt_qp *qp)
+static int wait_kmem(struct hfi1_ibdev *dev,
+		     struct rvt_qp *qp,
+		     struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	unsigned long flags;
@@ -556,6 +558,8 @@ static int wait_kmem(struct hfi1_ibdev *dev, struct rvt_qp *qp)
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		write_seqlock(&dev->iowait_lock);
+		list_add_tail(&ps->s_txreq->txreq.list,
+			      &priv->s_iowait.tx_head);
 		if (list_empty(&priv->s_iowait.list)) {
 			if (list_empty(&dev->memwait))
 				mod_timer(&dev->mem_timer, jiffies + 1);
@@ -578,7 +582,7 @@ static int wait_kmem(struct hfi1_ibdev *dev, struct rvt_qp *qp)
  *
  * Add failures will revert the sge cursor
  */
-static int build_verbs_ulp_payload(
+static noinline int build_verbs_ulp_payload(
 	struct sdma_engine *sde,
 	struct rvt_sge_state *ss,
 	u32 length,
@@ -690,48 +694,30 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_ibdev *dev = ps->dev;
 	struct hfi1_pportdata *ppd = ps->ppd;
 	struct verbs_txreq *tx;
-	struct sdma_txreq *stx;
 	u64 pbc_flags = 0;
 	u8 sc5 = priv->s_sc;
 
 	int ret;
-	struct hfi1_ibdev *tdev;
-
-	if (!list_empty(&priv->s_iowait.tx_head)) {
-		stx = list_first_entry(
-			&priv->s_iowait.tx_head,
-			struct sdma_txreq,
-			list);
-		list_del_init(&stx->list);
-		tx = container_of(stx, struct verbs_txreq, txreq);
-		ret = sdma_send_txreq(tx->sde, &priv->s_iowait, stx);
-		if (unlikely(ret == -ECOMM))
-			goto bail_ecomm;
-		return ret;
-	}
 
 	tx = ps->s_txreq;
+	if (!sdma_txreq_built(&tx->txreq)) {
+		if (likely(pbc == 0)) {
+			u32 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
+			/* No vl15 here */
+			/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
+			pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
 
-	tdev = to_idev(qp->ibqp.device);
-
-	if (IS_ERR(tx))
-		goto bail_tx;
-
-	tx->sde = priv->s_sde;
-
-	if (likely(pbc == 0)) {
-		u32 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
-		/* No vl15 here */
-		/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-		pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
-
-		pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
+			pbc = create_pbc(ppd,
+					 pbc_flags,
+					 qp->srate_mbps,
+					 vl,
+					 plen);
+		}
+		tx->wqe = qp->s_wqe;
+		ret = build_verbs_tx_desc(tx->sde, ss, len, tx, ahdr, pbc);
+		if (unlikely(ret))
+			goto bail_build;
 	}
-	tx->wqe = qp->s_wqe;
-	tx->hdr_dwords = hdrwords + 2;
-	ret = build_verbs_tx_desc(tx->sde, ss, len, tx, ahdr, pbc);
-	if (unlikely(ret))
-		goto bail_build;
 	trace_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
 			   &ps->s_txreq->phdr.hdr);
 	ret =  sdma_send_txreq(tx->sde, &priv->s_iowait, &tx->txreq);
@@ -743,18 +729,22 @@ bail_ecomm:
 	/* The current one got "sent" */
 	return 0;
 bail_build:
-	/* kmalloc or mapping fail */
-	hfi1_put_txreq(tx);
-	return wait_kmem(dev, qp);
-bail_tx:
-	return PTR_ERR(tx);
+	ret = wait_kmem(dev, qp, ps);
+	if (!ret) {
+		/* free txreq - bad state */
+		hfi1_put_txreq(ps->s_txreq);
+		ps->s_txreq = NULL;
+	}
+	return ret;
 }
 
 /*
  * If we are now in the error state, return zero to flush the
  * send work request.
  */
-static int no_bufs_available(struct rvt_qp *qp, struct send_context *sc)
+static int no_bufs_available(struct rvt_qp *qp,
+			     struct send_context *sc,
+			     struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_devdata *dd = sc->dd;
@@ -771,6 +761,8 @@ static int no_bufs_available(struct rvt_qp *qp, struct send_context *sc)
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		write_seqlock(&dev->iowait_lock);
+		list_add_tail(&ps->s_txreq->txreq.list,
+			      &priv->s_iowait.tx_head);
 		if (list_empty(&priv->s_iowait.list)) {
 			struct hfi1_ibdev *dev = &dd->verbs_dev;
 			int was_empty;
@@ -859,8 +851,11 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			 * so lets continue to queue the request.
 			 */
 			hfi1_cdbg(PIO, "alloc failed. state active, queuing");
-			ret = no_bufs_available(qp, sc);
-			goto bail;
+			ret = no_bufs_available(qp, sc, ps);
+			if (!ret)
+				goto bail;
+			/* tx consumed in wait */
+			return ret;
 		}
 	}
 

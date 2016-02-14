@@ -879,6 +879,8 @@ void hfi1_do_send(struct rvt_qp *qp)
 	timeout = jiffies + (timeout_int) / 8;
 	cpu = priv->s_sde ? priv->s_sde->cpu :
 			cpumask_first(cpumask_of_node(ps.ppd->dd->node));
+	/* insure a pre-built packet is handled  */
+	ps.s_txreq = get_waiting_verbs_txreq(qp);
 	do {
 		/* Check for a constructed packet to be sent. */
 		if (qp->s_hdrwords != 0) {
