@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <api/debug.h>
 
 #include "cache.h"
 #include "color.h"
@@ -186,4 +187,24 @@ int perf_debug_option(const char *str)
 	*var->ptr = v;
 	free(s);
 	return 0;
+}
+
+#define DEBUG_WRAPPER(__n, __l)				\
+static int pr_ ## __n ## _wrapper(const char *fmt, ...)	\
+{							\
+	va_list args;					\
+	int ret;					\
+							\
+	va_start(args, fmt);				\
+	ret = veprintf(__l, verbose, fmt, args);	\
+	va_end(args);					\
+	return ret;					\
+}
+
+DEBUG_WRAPPER(warning, 0);
+DEBUG_WRAPPER(debug, 1);
+
+void perf_debug_setup(void)
+{
+	libapi_set_print(pr_warning_wrapper, pr_warning_wrapper, pr_debug_wrapper);
 }
