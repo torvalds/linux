@@ -266,9 +266,9 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 				goto bail;
 			}
 			/* Copy SGE state in case we need to resend */
-			qp->s_rdma_mr = e->rdma_sge.mr;
-			if (qp->s_rdma_mr)
-				rvt_get_mr(qp->s_rdma_mr);
+			ps->s_txreq->mr = e->rdma_sge.mr;
+			if (ps->s_txreq->mr)
+				rvt_get_mr(ps->s_txreq->mr);
 			qp->s_ack_rdma_sge.sge = e->rdma_sge;
 			qp->s_ack_rdma_sge.num_sge = 1;
 			qp->s_cur_sge = &qp->s_ack_rdma_sge;
@@ -305,9 +305,9 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 		/* FALLTHROUGH */
 	case OP(RDMA_READ_RESPONSE_MIDDLE):
 		qp->s_cur_sge = &qp->s_ack_rdma_sge;
-		qp->s_rdma_mr = qp->s_ack_rdma_sge.sge.mr;
-		if (qp->s_rdma_mr)
-			rvt_get_mr(qp->s_rdma_mr);
+		ps->s_txreq->mr = qp->s_ack_rdma_sge.sge.mr;
+		if (ps->s_txreq->mr)
+			rvt_get_mr(ps->s_txreq->mr);
 		len = qp->s_ack_rdma_sge.sge.sge_length;
 		if (len > pmtu) {
 			len = pmtu;

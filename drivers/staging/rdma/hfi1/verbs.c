@@ -728,9 +728,6 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
 	}
 	tx->wqe = qp->s_wqe;
-	tx->mr = qp->s_rdma_mr;
-	if (qp->s_rdma_mr)
-		qp->s_rdma_mr = NULL;
 	tx->hdr_dwords = hdrwords + 2;
 	ret = build_verbs_tx_desc(tx->sde, ss, len, tx, ahdr, pbc);
 	if (unlikely(ret))
@@ -888,11 +885,6 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 	trace_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
 			   &ps->s_txreq->phdr.hdr);
-
-	if (qp->s_rdma_mr) {
-		rvt_put_mr(qp->s_rdma_mr);
-		qp->s_rdma_mr = NULL;
-	}
 
 pio_bail:
 	if (qp->s_wqe) {
