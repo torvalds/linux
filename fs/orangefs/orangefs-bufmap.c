@@ -502,7 +502,7 @@ int orangefs_readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index)
 	return ret;
 }
 
-void orangefs_readdir_index_put(struct orangefs_bufmap *bufmap, int buffer_index)
+void orangefs_readdir_index_put(int buffer_index)
 {
 	put(&readdir_map, buffer_index);
 }

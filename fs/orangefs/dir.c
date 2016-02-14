@@ -170,8 +170,7 @@ static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
 	return ret;
 }
 
-static void readdir_handle_dtor(struct orangefs_bufmap *bufmap,
-		struct readdir_handle_s *rhandle)
+static void readdir_handle_dtor(struct readdir_handle_s *rhandle)
 {
 	if (rhandle == NULL)
 		return;
@@ -181,7 +180,7 @@ static void readdir_handle_dtor(struct orangefs_bufmap *bufmap,
 	rhandle->readdir_response.dirent_array = NULL;
 
 	if (rhandle->buffer_index >= 0) {
-		orangefs_readdir_index_put(bufmap, rhandle->buffer_index);
+		orangefs_readdir_index_put(rhandle->buffer_index);
 		rhandle->buffer_index = -1;
 	}
 	if (rhandle->dents_buf) {
@@ -284,14 +283,14 @@ get_new_buffer_index:
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			"%s: Getting new buffer_index for retry of readdir..\n",
 			 __func__);
-		orangefs_readdir_index_put(bufmap, buffer_index);
+		orangefs_readdir_index_put(buffer_index);
 		goto get_new_buffer_index;
 	}
 
 	if (ret == -EIO && op_state_purged(new_op)) {
 		gossip_err("%s: Client is down. Aborting readdir call.\n",
 			__func__);
-		orangefs_readdir_index_put(bufmap, buffer_index);
+		orangefs_readdir_index_put(buffer_index);
 		goto out_free_op;
 	}
 
@@ -299,7 +298,7 @@ get_new_buffer_index:
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			     "Readdir request failed.  Status:%d\n",
 			     new_op->downcall.status);
-		orangefs_readdir_index_put(bufmap, buffer_index);
+		orangefs_readdir_index_put(buffer_index);
 		if (ret >= 0)
 			ret = new_op->downcall.status;
 		goto out_free_op;
@@ -314,7 +313,7 @@ get_new_buffer_index:
 		gossip_err("orangefs_readdir: Could not decode trailer buffer into a readdir response %d\n",
 			ret);
 		ret = bytes_decoded;
-		orangefs_readdir_index_put(bufmap, buffer_index);
+		orangefs_readdir_index_put(buffer_index);
 		goto out_free_op;
 	}
 
@@ -410,7 +409,7 @@ get_new_buffer_index:
 	}
 
 out_destroy_handle:
-	readdir_handle_dtor(bufmap, &rhandle);
+	readdir_handle_dtor(&rhandle);
 out_free_op:
 	op_release(new_op);
 	gossip_debug(GOSSIP_DIR_DEBUG, "orangefs_readdir returning %d\n", ret);
