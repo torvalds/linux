@@ -158,4 +158,5 @@ void stop_send_queue(struct rvt_qp *qp);
 void quiesce_qp(struct rvt_qp *qp);
 u32 mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu);
 int mtu_to_path_mtu(u32 mtu);
+void hfi1_error_port_qps(struct hfi1_ibport *ibp, u8 sl);
 #endif /* _QP_H */

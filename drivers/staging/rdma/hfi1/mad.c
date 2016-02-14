@@ -55,6 +55,7 @@
 #include "hfi.h"
 #include "mad.h"
 #include "trace.h"
+#include "qp.h"
 
 /* the reset value from the FM is supposed to be 0xffff, handle both */
 #define OPA_LINK_WIDTH_RESET_OLD 0x0fff
@@ -1517,14 +1518,22 @@ static int __subn_set_opa_sl_to_sc(struct opa_smp *smp, u32 am, u8 *data,
 	struct hfi1_ibport *ibp = to_iport(ibdev, port);
 	u8 *p = data;
 	int i;
+	u8 sc;
 
 	if (am) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	for (i = 0; i <  ARRAY_SIZE(ibp->sl_to_sc); i++)
-		ibp->sl_to_sc[i] = *p++;
+	for (i = 0; i <  ARRAY_SIZE(ibp->sl_to_sc); i++) {
+		sc = *p++;
+		if (ibp->sl_to_sc[i] != sc) {
+			ibp->sl_to_sc[i] = sc;
+
+			/* Put all stale qps into error state */
+			hfi1_error_port_qps(ibp, i);
+		}
+	}
 
 	return __subn_get_opa_sl_to_sc(smp, am, data, ibdev, port, resp_len);
 }
