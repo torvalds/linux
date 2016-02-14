@@ -59,6 +59,7 @@
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/completion.h>
+#include <linux/slab.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_mad.h>
@@ -194,13 +195,6 @@ struct hfi1_pio_header {
 } __packed;
 
 /*
- * used for force cacheline alignment for AHG
- */
-struct tx_pio_header {
-	struct hfi1_pio_header phdr;
-} ____cacheline_aligned;
-
-/*
  * hfi1 specific data structures that will be hidden from rvt after the queue
  * pair is made common
  */
@@ -222,6 +216,7 @@ struct hfi1_pkt_state {
 	struct hfi1_ibdev *dev;
 	struct hfi1_ibport *ibp;
 	struct hfi1_pportdata *ppd;
+	struct verbs_txreq *s_txreq;
 };
 
 #define HFI1_PSN_CREDIT  16
@@ -436,7 +431,8 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		  struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
-			  u32 bth0, u32 bth2, int middle);
+			  u32 bth0, u32 bth2, int middle,
+			  struct hfi1_pkt_state *ps);
 
 void _hfi1_do_send(struct work_struct *work);
 
@@ -447,11 +443,11 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 
 void hfi1_send_rc_ack(struct hfi1_ctxtdata *, struct rvt_qp *qp, int is_fecn);
 
-int hfi1_make_rc_req(struct rvt_qp *qp);
+int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
-int hfi1_make_uc_req(struct rvt_qp *qp);
+int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
-int hfi1_make_ud_req(struct rvt_qp *qp);
+int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
 int hfi1_register_ib_device(struct hfi1_devdata *);
 

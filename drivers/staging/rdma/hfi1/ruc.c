@@ -54,6 +54,7 @@
 #include "mad.h"
 #include "qp.h"
 #include "verbs_txreq.h"
+#include "trace.h"
 
 /*
  * Convert the AETH RNR timeout code into the number of microseconds.
@@ -698,6 +699,7 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
+
 	if (unlikely(qp->s_flags & RVT_S_AHG_CLEAR))
 		clear_ahg(qp);
 	if (!(qp->s_flags & RVT_S_AHG_VALID)) {
@@ -740,10 +742,11 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 }
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
-			  u32 bth0, u32 bth2, int middle)
+			  u32 bth0, u32 bth2, int middle,
+			  struct hfi1_pkt_state *ps)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct hfi1_qp_priv *priv = qp->priv;
+	struct hfi1_ibport *ibp = ps->ibp;
 	u16 lrh0;
 	u32 nwords;
 	u32 extra_bytes;
@@ -754,7 +757,8 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
 	nwords = (qp->s_cur_size + extra_bytes) >> 2;
 	lrh0 = HFI1_LRH_BTH;
 	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		qp->s_hdrwords += hfi1_make_grh(ibp, &priv->s_hdr->ibh.u.l.grh,
+		qp->s_hdrwords += hfi1_make_grh(ibp,
+						&ps->s_txreq->phdr.hdr.u.l.grh,
 						&qp->remote_ah_attr.grh,
 						qp->s_hdrwords, nwords);
 		lrh0 = HFI1_LRH_GRH;
@@ -784,11 +788,11 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
 		build_ahg(qp, bth2);
 	else
 		qp->s_flags &= ~RVT_S_AHG_VALID;
-	priv->s_hdr->ibh.lrh[0] = cpu_to_be16(lrh0);
-	priv->s_hdr->ibh.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
-	priv->s_hdr->ibh.lrh[2] =
+	ps->s_txreq->phdr.hdr.lrh[0] = cpu_to_be16(lrh0);
+	ps->s_txreq->phdr.hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
+	ps->s_txreq->phdr.hdr.lrh[2] =
 		cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	priv->s_hdr->ibh.lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
+	ps->s_txreq->phdr.hdr.lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
 				       qp->remote_ah_attr.src_path_bits);
 	bth0 |= hfi1_get_pkey(ibp, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
@@ -826,7 +830,7 @@ void hfi1_do_send(struct rvt_qp *qp)
 {
 	struct hfi1_pkt_state ps;
 	struct hfi1_qp_priv *priv = qp->priv;
-	int (*make_req)(struct rvt_qp *qp);
+	int (*make_req)(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 	unsigned long flags;
 	unsigned long timeout;
 	unsigned long timeout_int;
@@ -906,7 +910,7 @@ void hfi1_do_send(struct rvt_qp *qp)
 			}
 			spin_lock_irqsave(&qp->s_lock, flags);
 		}
-	} while (make_req(qp));
+	} while (make_req(qp, &ps));
 
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 }

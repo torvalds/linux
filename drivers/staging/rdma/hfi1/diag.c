@@ -70,6 +70,7 @@
 #include "hfi.h"
 #include "device.h"
 #include "common.h"
+#include "verbs_txreq.h"
 #include "trace.h"
 
 #undef pr_fmt
@@ -1682,8 +1683,6 @@ int snoop_send_dma_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			   u64 pbc)
 {
-	struct hfi1_qp_priv *priv = qp->priv;
-	struct ahg_ib_header *ahdr = priv->s_hdr;
 	u32 hdrwords = qp->s_hdrwords;
 	struct rvt_sge_state *ss = qp->s_cur_sge;
 	u32 len = qp->s_cur_size;
@@ -1691,7 +1690,7 @@ int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	u32 plen = hdrwords + dwords + 2; /* includes pbc */
 	struct hfi1_pportdata *ppd = ps->ppd;
 	struct snoop_packet *s_packet = NULL;
-	u32 *hdr = (u32 *)&ahdr->ibh;
+	u32 *hdr = (u32 *)&ps->s_txreq->phdr.hdr;
 	u32 length = 0;
 	struct rvt_sge_state temp_ss;
 	void *data = NULL;
@@ -1702,7 +1701,7 @@ int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct capture_md md;
 	u32 vl;
 	u32 hdr_len = hdrwords << 2;
-	u32 tlen = HFI1_GET_PKT_LEN(&ahdr->ibh);
+	u32 tlen = HFI1_GET_PKT_LEN(&ps->s_txreq->phdr.hdr);
 
 	md.u.pbc = 0;
 
@@ -1729,7 +1728,7 @@ int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		md.port = 1;
 		md.dir = PKT_DIR_EGRESS;
 		if (likely(pbc == 0)) {
-			vl = be16_to_cpu(ahdr->ibh.lrh[0]) >> 12;
+			vl = be16_to_cpu(ps->s_txreq->phdr.hdr.lrh[0]) >> 12;
 			md.u.pbc = create_pbc(ppd, 0, qp->s_srate, vl, plen);
 		} else {
 			md.u.pbc = 0;
@@ -1791,7 +1790,7 @@ int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		ret = HFI1_FILTER_HIT;
 	} else {
 		ret = ppd->dd->hfi1_snoop.filter_callback(
-					&ahdr->ibh,
+					&ps->s_txreq->phdr.hdr,
 					NULL,
 					ppd->dd->hfi1_snoop.filter_value);
 	}
@@ -1823,9 +1822,16 @@ int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 				spin_unlock_irqrestore(&qp->s_lock, flags);
 			} else if (qp->ibqp.qp_type == IB_QPT_RC) {
 				spin_lock_irqsave(&qp->s_lock, flags);
-				hfi1_rc_send_complete(qp, &ahdr->ibh);
+				hfi1_rc_send_complete(qp,
+						      &ps->s_txreq->phdr.hdr);
 				spin_unlock_irqrestore(&qp->s_lock, flags);
 			}
+
+			/*
+			 * If snoop is dropping the packet we need to put the
+			 * txreq back because no one else will.
+			 */
+			hfi1_put_txreq(ps->s_txreq);
 			return 0;
 		}
 		break;

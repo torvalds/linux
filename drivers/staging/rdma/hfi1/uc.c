@@ -49,7 +49,7 @@
  */
 
 #include "hfi.h"
-#include "sdma.h"
+#include "verbs_txreq.h"
 #include "qp.h"
 
 /* cut down ridiculously long IB macro names */
@@ -63,7 +63,7 @@
  *
  * Return 1 if constructed; otherwise, return 0.
  */
-int hfi1_make_uc_req(struct rvt_qp *qp)
+int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_other_headers *ohdr;
@@ -72,8 +72,11 @@ int hfi1_make_uc_req(struct rvt_qp *qp)
 	u32 bth0 = 0;
 	u32 len;
 	u32 pmtu = qp->pmtu;
-	int ret = 0;
 	int middle = 0;
+
+	ps->s_txreq = get_txreq(ps->dev, qp);
+	if (IS_ERR(ps->s_txreq))
+		goto bail_no_tx;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
@@ -90,12 +93,12 @@ int hfi1_make_uc_req(struct rvt_qp *qp)
 		clear_ahg(qp);
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		hfi1_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
-		goto done;
+		goto done_free_tx;
 	}
 
-	ohdr = &priv->s_hdr->ibh.u.oth;
+	ohdr = &ps->s_txreq->phdr.hdr.u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &priv->s_hdr->ibh.u.l.oth;
+		ohdr = &ps->s_txreq->phdr.hdr.u.l.oth;
 
 	/* Get the next send request. */
 	wqe = rvt_get_swqe_ptr(qp, qp->s_cur);
@@ -235,13 +238,22 @@ int hfi1_make_uc_req(struct rvt_qp *qp)
 	qp->s_cur_sge = &qp->s_sge;
 	qp->s_cur_size = len;
 	hfi1_make_ruc_header(qp, ohdr, bth0 | (qp->s_state << 24),
-			     mask_psn(qp->s_psn++), middle);
-done:
+			     mask_psn(qp->s_psn++), middle, ps);
+	return 1;
+
+done_free_tx:
+	hfi1_put_txreq(ps->s_txreq);
+	ps->s_txreq = NULL;
 	return 1;
 
 bail:
+	hfi1_put_txreq(ps->s_txreq);
+
+bail_no_tx:
+	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
-	return ret;
+	qp->s_hdrwords = 0;
+	return 0;
 }
 
 /**

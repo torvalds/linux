@@ -54,7 +54,7 @@
 
 #include "hfi.h"
 #include "qp.h"
-#include "sdma.h"
+#include "verbs_txreq.h"
 #include "trace.h"
 
 /* cut down ridiculously long IB macro names */
@@ -201,13 +201,15 @@ static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
  * @qp: a pointer to the QP
  * @ohdr: a pointer to the IB header being constructed
  * @pmtu: the path MTU
+ * @ps: the xmit packet state
  *
  * Return 1 if constructed; otherwise, return 0.
  * Note that we are in the responder's side of the QP context.
  * Note the QP s_lock must be held.
  */
 static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
-		       struct hfi1_other_headers *ohdr, u32 pmtu)
+		       struct hfi1_other_headers *ohdr, u32 pmtu,
+		       struct hfi1_pkt_state *ps)
 {
 	struct rvt_ack_entry *e;
 	u32 hwords;
@@ -347,7 +349,7 @@ normal:
 	qp->s_rdma_ack_cnt++;
 	qp->s_hdrwords = hwords;
 	qp->s_cur_size = len;
-	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle);
+	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle, ps);
 	return 1;
 
 bail:
@@ -371,7 +373,7 @@ bail:
  *
  * Return 1 if constructed; otherwise, return 0.
  */
-int hfi1_make_rc_req(struct rvt_qp *qp)
+int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
@@ -385,18 +387,21 @@ int hfi1_make_rc_req(struct rvt_qp *qp)
 	u32 bth2;
 	u32 pmtu = qp->pmtu;
 	char newreq;
-	int ret = 0;
 	int middle = 0;
 	int delta;
 
-	ohdr = &priv->s_hdr->ibh.u.oth;
+	ps->s_txreq = get_txreq(ps->dev, qp);
+	if (IS_ERR(ps->s_txreq))
+		goto bail_no_tx;
+
+	ohdr = &ps->s_txreq->phdr.hdr.u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &priv->s_hdr->ibh.u.l.oth;
+		ohdr = &ps->s_txreq->phdr.hdr.u.l.oth;
 
 	/* Sending responses has higher priority over sending requests. */
 	if ((qp->s_flags & RVT_S_RESP_PENDING) &&
-	    make_rc_ack(dev, qp, ohdr, pmtu))
-		goto done;
+	    make_rc_ack(dev, qp, ohdr, pmtu, ps))
+		return 1;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
@@ -415,7 +420,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp)
 		hfi1_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
 			IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR);
 		/* will get called again */
-		goto done;
+		goto done_free_tx;
 	}
 
 	if (qp->s_flags & (RVT_S_WAIT_RNR | RVT_S_WAIT_ACK))
@@ -752,12 +757,23 @@ int hfi1_make_rc_req(struct rvt_qp *qp)
 		ohdr,
 		bth0 | (qp->s_state << 24),
 		bth2,
-		middle);
-done:
+		middle,
+		ps);
 	return 1;
+
+done_free_tx:
+	hfi1_put_txreq(ps->s_txreq);
+	ps->s_txreq = NULL;
+	return 1;
+
 bail:
+	hfi1_put_txreq(ps->s_txreq);
+
+bail_no_tx:
+	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
-	return ret;
+	qp->s_hdrwords = 0;
+	return 0;
 }
 
 /**
