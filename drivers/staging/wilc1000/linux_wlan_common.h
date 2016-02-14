@@ -12,7 +12,7 @@ enum debug_region {
 #define CFG80211_DBG            (1 << CFG80211_debug)
 #define INIT_DBG                (1 << Init_debug)
 
-#if defined (WILC_DEBUGFS)
+#if defined(WILC_DEBUGFS)
 extern atomic_t WILC_REGION;
 extern atomic_t WILC_DEBUG_LEVEL;
 
@@ -105,7 +105,7 @@ extern atomic_t WILC_DEBUG_LEVEL;
 
 #define WILC_MULTICAST_TABLE_SIZE	8
 
-#if defined (BEAGLE_BOARD)
+#if defined(BEAGLE_BOARD)
 	#define SPI_CHANNEL	4
 
 	#if SPI_CHANNEL == 4
@@ -118,7 +118,7 @@ extern atomic_t WILC_DEBUG_LEVEL;
 #elif defined(PLAT_WMS8304)             /* rachel */
 	#define MODALIAS	"wilc_spi"
 	#define GPIO_NUM	139
-#elif defined (PLAT_RKXXXX)
+#elif defined(PLAT_RKXXXX)
  #define MODALIAS	"WILC_IRQ"
  #define GPIO_NUM	RK30_PIN3_PD2 /* RK30_PIN3_PA1 */
 /* RK30_PIN3_PD2 */
