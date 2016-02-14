@@ -47,7 +47,6 @@ Example :
 
 			phy11: ethernet-phy@1 {
 				reg = <1>;
-				compatible = "marvell,88e1149r";
 				marvell,reg-init = <3 0x10 0 0x5777>,
 					<3 0x11 0 0x00aa>,
 					<3 0x12 0 0x4105>,
@@ -57,7 +56,6 @@ Example :
 			};
 			phy12: ethernet-phy@2 {
 				reg = <2>;
-				compatible = "marvell,88e1149r";
 				marvell,reg-init = <3 0x10 0 0x5777>,
 					<3 0x11 0 0x00aa>,
 					<3 0x12 0 0x4105>,
@@ -67,7 +65,6 @@ Example :
 			};
 			phy13: ethernet-phy@3 {
 				reg = <3>;
-				compatible = "marvell,88e1149r";
 				marvell,reg-init = <3 0x10 0 0x5777>,
 					<3 0x11 0 0x00aa>,
 					<3 0x12 0 0x4105>,
@@ -77,7 +74,6 @@ Example :
 			};
 			phy14: ethernet-phy@4 {
 				reg = <4>;
-				compatible = "marvell,88e1149r";
 				marvell,reg-init = <3 0x10 0 0x5777>,
 					<3 0x11 0 0x00aa>,
 					<3 0x12 0 0x4105>,
@@ -94,7 +90,6 @@ Example :
 
 			phy21: ethernet-phy@1 {
 				reg = <1>;
-				compatible = "marvell,88e1149r";
 				marvell,reg-init = <3 0x10 0 0x5777>,
 					<3 0x11 0 0x00aa>,
 					<3 0x12 0 0x4105>,
@@ -104,7 +99,6 @@ Example :
 			};
 			phy22: ethernet-phy@2 {
 				reg = <2>;
-				compatible = "marvell,88e1149r";
 				marvell,reg-init = <3 0x10 0 0x5777>,
 					<3 0x11 0 0x00aa>,
 					<3 0x12 0 0x4105>,
@@ -114,7 +108,6 @@ Example :
 			};
 			phy23: ethernet-phy@3 {
 				reg = <3>;
-				compatible = "marvell,88e1149r";
 				marvell,reg-init = <3 0x10 0 0x5777>,
 					<3 0x11 0 0x00aa>,
 					<3 0x12 0 0x4105>,
@@ -124,7 +117,6 @@ Example :
 			};
 			phy24: ethernet-phy@4 {
 				reg = <4>;
-				compatible = "marvell,88e1149r";
 				marvell,reg-init = <3 0x10 0 0x5777>,
 					<3 0x11 0 0x00aa>,
 					<3 0x12 0 0x4105>,

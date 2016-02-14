@@ -1490,7 +1490,8 @@ void rt2800_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_FCSFAIL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_PHY_ERROR,
 			   !(filter_flags & FIF_PLCPFAIL));
-	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_NOT_TO_ME, 1);
+	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_NOT_TO_ME,
+			   !test_bit(CONFIG_MONITORING, &rt2x00dev->flags));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_NOT_MY_BSSD, 0);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_VER_ERROR, 1);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_MULTICAST,

@@ -18,6 +18,7 @@ struct hns_mac_cb;
 
 #define DSAF_DRV_NAME "hns_dsaf"
 #define DSAF_MOD_VERSION "v1.0"
+#define DSAF_DEVICE_NAME "dsaf"
 
 #define HNS_DSAF_DEBUG_NW_REG_OFFSET 0x100000
 

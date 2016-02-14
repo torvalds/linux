@@ -879,10 +879,23 @@ int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 	return 0;
 }
 
-static void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev)
+void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev)
 {
+	struct sdio_func *func;
+	struct mmc_host *host;
+	uint max_blocks;
 	uint nents;
 	int err;
+
+	func = sdiodev->func[2];
+	host = func->card->host;
+	sdiodev->sg_support = host->max_segs > 1;
+	max_blocks = min_t(uint, host->max_blk_count, 511u);
+	sdiodev->max_request_size = min_t(uint, host->max_req_size,
+					  max_blocks * func->cur_blksize);
+	sdiodev->max_segment_count = min_t(uint, host->max_segs,
+					   SG_MAX_SINGLE_ALLOC);
+	sdiodev->max_segment_size = host->max_seg_size;
 
 	if (!sdiodev->sg_support)
 		return;
@@ -1021,9 +1034,6 @@ static void brcmf_sdiod_host_fixup(struct mmc_host *host)
 
 static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 {
-	struct sdio_func *func;
-	struct mmc_host *host;
-	uint max_blocks;
 	int ret = 0;
 
 	sdiodev->num_funcs = 2;
@@ -1054,26 +1064,6 @@ static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 		goto out;
 	}
 
-	/*
-	 * determine host related variables after brcmf_sdiod_probe()
-	 * as func->cur_blksize is properly set and F2 init has been
-	 * completed successfully.
-	 */
-	func = sdiodev->func[2];
-	host = func->card->host;
-	sdiodev->sg_support = host->max_segs > 1;
-	max_blocks = min_t(uint, host->max_blk_count, 511u);
-	sdiodev->max_request_size = min_t(uint, host->max_req_size,
-					  max_blocks * func->cur_blksize);
-	sdiodev->max_segment_count = min_t(uint, host->max_segs,
-					   SG_MAX_SINGLE_ALLOC);
-	sdiodev->max_segment_size = host->max_seg_size;
-
-	/* allocate scatter-gather table. sg support
-	 * will be disabled upon allocation failure.
-	 */
-	brcmf_sdiod_sgtable_alloc(sdiodev);
-
 	ret = brcmf_sdiod_freezer_attach(sdiodev);
 	if (ret)
 		goto out;
@@ -1084,7 +1074,7 @@ static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 		ret = -ENODEV;
 		goto out;
 	}
-	brcmf_sdiod_host_fixup(host);
+	brcmf_sdiod_host_fixup(sdiodev->func[2]->card->host);
 out:
 	if (ret)
 		brcmf_sdiod_remove(sdiodev);

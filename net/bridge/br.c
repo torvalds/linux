@@ -121,6 +121,7 @@ static struct notifier_block br_device_notifier = {
 	.notifier_call = br_device_event
 };
 
+/* called with RTNL */
 static int br_switchdev_event(struct notifier_block *unused,
 			      unsigned long event, void *ptr)
 {
@@ -130,7 +131,6 @@ static int br_switchdev_event(struct notifier_block *unused,
 	struct switchdev_notifier_fdb_info *fdb_info;
 	int err = NOTIFY_DONE;
 
-	rtnl_lock();
 	p = br_port_get_rtnl(dev);
 	if (!p)
 		goto out;
@@ -155,7 +155,6 @@ static int br_switchdev_event(struct notifier_block *unused,
 	}
 
 out:
-	rtnl_unlock();
 	return err;
 }
 

@@ -112,14 +112,6 @@
 	clock-frequency = <400000>;
 };
 
-&i2c2 {
-	clock-frequency = <400000>;
-};
-
-&i2c3 {
-	clock-frequency = <400000>;
-};
-
 /*
  * Only found on the wireless SOM. For the SOM without wireless, the pins for
  * MMC3 can be routed with jumpers to the second MMC slot on the devkit and
@@ -143,6 +135,7 @@
 		interrupt-parent = <&gpio5>;
 		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>; /* gpio 152 */
 		ref-clock-frequency = <26000000>;
+		tcxo-clock-frequency = <26000000>;
 	};
 };
 

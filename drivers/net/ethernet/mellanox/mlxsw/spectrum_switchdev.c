@@ -45,6 +45,7 @@
 #include <linux/if_bridge.h>
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>
+#include <linux/rtnetlink.h>
 #include <net/switchdev.h>
 
 #include "spectrum.h"
@@ -124,14 +125,14 @@ static int mlxsw_sp_port_stp_state_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 
 	switch (state) {
-	case BR_STATE_DISABLED: /* fall-through */
 	case BR_STATE_FORWARDING:
 		spms_state = MLXSW_REG_SPMS_STATE_FORWARDING;
 		break;
-	case BR_STATE_LISTENING: /* fall-through */
 	case BR_STATE_LEARNING:
 		spms_state = MLXSW_REG_SPMS_STATE_LEARNING;
 		break;
+	case BR_STATE_LISTENING: /* fall-through */
+	case BR_STATE_DISABLED: /* fall-through */
 	case BR_STATE_BLOCKING:
 		spms_state = MLXSW_REG_SPMS_STATE_DISCARDING;
 		break;
@@ -936,6 +937,14 @@ static int mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 					 vlan->vid_begin, vlan->vid_end, false);
 }
 
+void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	u16 vid;
+
+	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID)
+		__mlxsw_sp_port_vlans_del(mlxsw_sp_port, vid, vid, false);
+}
+
 static int
 mlxsw_sp_port_fdb_static_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			     const struct switchdev_obj_port_fdb *fdb)
@@ -1040,10 +1049,12 @@ static struct mlxsw_sp_port *mlxsw_sp_lag_rep_port(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct switchdev_obj_port_fdb *fdb,
-				  switchdev_obj_dump_cb_t *cb)
+				  switchdev_obj_dump_cb_t *cb,
+				  struct net_device *orig_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u16 vport_vid = 0, vport_fid = 0;
+	struct mlxsw_sp_port *tmp;
+	u16 vport_fid = 0;
 	char *sfd_pl;
 	char mac[ETH_ALEN];
 	u16 fid;
@@ -1058,13 +1069,11 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!sfd_pl)
 		return -ENOMEM;
 
-	mutex_lock(&mlxsw_sp_port->mlxsw_sp->fdb_lock);
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
 		u16 tmp;
 
 		tmp = mlxsw_sp_vport_vfid_get(mlxsw_sp_port);
 		vport_fid = mlxsw_sp_vfid_to_fid(tmp);
-		vport_vid = mlxsw_sp_vport_vid_get(mlxsw_sp_port);
 	}
 
 	mlxsw_reg_sfd_pack(sfd_pl, MLXSW_REG_SFD_OP_QUERY_DUMP, 0);
@@ -1088,12 +1097,13 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 				mlxsw_reg_sfd_uc_unpack(sfd_pl, i, mac, &fid,
 							&local_port);
 				if (local_port == mlxsw_sp_port->local_port) {
-					if (vport_fid && vport_fid != fid)
-						continue;
-					else if (vport_fid)
-						fdb->vid = vport_vid;
-					else
+					if (vport_fid && vport_fid == fid)
+						fdb->vid = 0;
+					else if (!vport_fid &&
+						 !mlxsw_sp_fid_is_vfid(fid))
 						fdb->vid = fid;
+					else
+						continue;
 					ether_addr_copy(fdb->addr, mac);
 					fdb->ndm_state = NUD_REACHABLE;
 					err = cb(&fdb->obj);
@@ -1104,14 +1114,22 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 			case MLXSW_REG_SFD_REC_TYPE_UNICAST_LAG:
 				mlxsw_reg_sfd_uc_lag_unpack(sfd_pl, i,
 							    mac, &fid, &lag_id);
-				if (mlxsw_sp_port ==
-				    mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id)) {
-					if (vport_fid && vport_fid != fid)
+				tmp = mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id);
+				if (tmp && tmp->local_port ==
+				    mlxsw_sp_port->local_port) {
+					/* LAG records can only point to LAG
+					 * devices or VLAN devices on top.
+					 */
+					if (!netif_is_lag_master(orig_dev) &&
+					    !is_vlan_dev(orig_dev))
 						continue;
-					else if (vport_fid)
-						fdb->vid = vport_vid;
-					else
+					if (vport_fid && vport_fid == fid)
+						fdb->vid = 0;
+					else if (!vport_fid &&
+						 !mlxsw_sp_fid_is_vfid(fid))
 						fdb->vid = fid;
+					else
+						continue;
 					ether_addr_copy(fdb->addr, mac);
 					fdb->ndm_state = NUD_REACHABLE;
 					err = cb(&fdb->obj);
@@ -1124,7 +1142,6 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 	} while (num_rec == MLXSW_REG_SFD_REC_MAX_COUNT);
 
 out:
-	mutex_unlock(&mlxsw_sp_port->mlxsw_sp->fdb_lock);
 	kfree(sfd_pl);
 	return stored_err ? stored_err : err;
 }
@@ -1176,7 +1193,8 @@ static int mlxsw_sp_port_obj_dump(struct net_device *dev,
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = mlxsw_sp_port_fdb_dump(mlxsw_sp_port,
-					     SWITCHDEV_OBJ_PORT_FDB(obj), cb);
+					     SWITCHDEV_OBJ_PORT_FDB(obj), cb,
+					     obj->orig_dev);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -1194,14 +1212,14 @@ static const struct switchdev_ops mlxsw_sp_port_switchdev_ops = {
 	.switchdev_port_obj_dump	= mlxsw_sp_port_obj_dump,
 };
 
-static void mlxsw_sp_fdb_call_notifiers(bool learning, bool learning_sync,
-					bool adding, char *mac, u16 vid,
+static void mlxsw_sp_fdb_call_notifiers(bool learning_sync, bool adding,
+					char *mac, u16 vid,
 					struct net_device *dev)
 {
 	struct switchdev_notifier_fdb_info info;
 	unsigned long notifier_type;
 
-	if (learning && learning_sync) {
+	if (learning_sync) {
 		info.addr = mac;
 		info.vid = vid;
 		notifier_type = adding ? SWITCHDEV_FDB_ADD : SWITCHDEV_FDB_DEL;
@@ -1237,7 +1255,7 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 			netdev_err(mlxsw_sp_port->dev, "Failed to find a matching vPort following FDB notification\n");
 			goto just_remove;
 		}
-		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+		vid = 0;
 		/* Override the physical port with the vPort. */
 		mlxsw_sp_port = mlxsw_sp_vport;
 	} else {
@@ -1257,8 +1275,7 @@ do_fdb_op:
 
 	if (!do_notification)
 		return;
-	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning,
-				    mlxsw_sp_port->learning_sync,
+	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning_sync,
 				    adding, mac, vid, mlxsw_sp_port->dev);
 	return;
 
@@ -1273,6 +1290,7 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 						bool adding)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct net_device *dev;
 	char mac[ETH_ALEN];
 	u16 lag_vid = 0;
 	u16 lag_id;
@@ -1298,11 +1316,13 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 			goto just_remove;
 		}
 
-		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
-		lag_vid = vid;
+		lag_vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+		dev = mlxsw_sp_vport->dev;
+		vid = 0;
 		/* Override the physical port with the vPort. */
 		mlxsw_sp_port = mlxsw_sp_vport;
 	} else {
+		dev = mlxsw_sp_lag_get(mlxsw_sp, lag_id)->dev;
 		vid = fid;
 	}
 
@@ -1319,10 +1339,8 @@ do_fdb_op:
 
 	if (!do_notification)
 		return;
-	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning,
-				    mlxsw_sp_port->learning_sync,
-				    adding, mac, vid,
-				    mlxsw_sp_lag_get(mlxsw_sp, lag_id)->dev);
+	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning_sync, adding, mac,
+				    vid, dev);
 	return;
 
 just_remove:
@@ -1374,7 +1392,7 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 
 	mlxsw_sp = container_of(work, struct mlxsw_sp, fdb_notify.dw.work);
 
-	mutex_lock(&mlxsw_sp->fdb_lock);
+	rtnl_lock();
 	do {
 		mlxsw_reg_sfn_pack(sfn_pl);
 		err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(sfn), sfn_pl);
@@ -1387,7 +1405,7 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 			mlxsw_sp_fdb_notify_rec_process(mlxsw_sp, sfn_pl, i);
 
 	} while (num_rec);
-	mutex_unlock(&mlxsw_sp->fdb_lock);
+	rtnl_unlock();
 
 	kfree(sfn_pl);
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
@@ -1402,7 +1420,6 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to set default ageing time\n");
 		return err;
 	}
-	mutex_init(&mlxsw_sp->fdb_lock);
 	INIT_DELAYED_WORK(&mlxsw_sp->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
 	mlxsw_sp->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);

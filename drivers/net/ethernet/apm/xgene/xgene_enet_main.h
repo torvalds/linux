@@ -25,6 +25,7 @@
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/efi.h>
+#include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
