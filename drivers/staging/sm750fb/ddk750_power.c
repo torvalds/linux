@@ -106,11 +106,10 @@ void enable2DEngine(unsigned int enable)
 	u32 gate;
 
 	gate = PEEK32(CURRENT_GATE);
-	if (enable) {
+	if (enable) 
 		gate |= (CURRENT_GATE_DE | CURRENT_GATE_CSC);
-	} else {
+	 else 
 		gate &= ~(CURRENT_GATE_DE | CURRENT_GATE_CSC);
-	}
 
 	setCurrentGate(gate);
 }
