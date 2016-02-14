@@ -293,7 +293,7 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 /*
  * Example Format w/ field column widths:
  *
- *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     SMI   %Busy CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
+ *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     SMI   Busy% CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
  * 123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678
  */
 
@@ -308,7 +308,7 @@ void print_header(void)
 	if (has_aperf)
 		outp += sprintf(outp, " Avg_MHz");
 	if (has_aperf)
-		outp += sprintf(outp, "   %%Busy");
+		outp += sprintf(outp, "   Busy%%");
 	if (has_aperf)
 		outp += sprintf(outp, " Bzy_MHz");
 	outp += sprintf(outp, " TSC_MHz");
@@ -511,7 +511,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "%8.0f",
 			1.0 / units * t->aperf / interval_float);
 
-	/* %Busy */
+	/* Busy% */
 	if (has_aperf) {
 		if (!skip_c0)
 			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc/tsc_tweak);
