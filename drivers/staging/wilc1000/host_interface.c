@@ -3351,10 +3351,9 @@ static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
 		*pu32RcvdAssocRespInfoLen = 0;
 		PRINT_ER("Failed to send association response config packet\n");
 		return -EINVAL;
-	} else {
-		*pu32RcvdAssocRespInfoLen = wid.size;
 	}
-
+	
+	*pu32RcvdAssocRespInfoLen = wid.size;
 	return result;
 }
 
