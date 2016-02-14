@@ -194,7 +194,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 
 	kfree(p);
 
-	kfree((void *)work);
+	kfree(work);
 }
 
 static void kfd_process_destroy_delayed(struct rcu_head *rcu)

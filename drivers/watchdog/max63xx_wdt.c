@@ -292,4 +292,4 @@ MODULE_PARM_DESC(nodelay,
 		 "Force selection of a timeout setting without initial delay "
 		 "(max6373/74 only, default=0)");
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

@@ -300,7 +300,7 @@ struct moxart_mac_priv_t {
 
 	dma_addr_t rx_base;
 	dma_addr_t rx_mapping[RX_DESC_NUM];
-	void __iomem *rx_desc_base;
+	void *rx_desc_base;
 	unsigned char *rx_buf_base;
 	unsigned char *rx_buf[RX_DESC_NUM];
 	unsigned int rx_head;
@@ -308,7 +308,7 @@ struct moxart_mac_priv_t {
 
 	dma_addr_t tx_base;
 	dma_addr_t tx_mapping[TX_DESC_NUM];
-	void __iomem *tx_desc_base;
+	void *tx_desc_base;
 	unsigned char *tx_buf_base;
 	unsigned char *tx_buf[RX_DESC_NUM];
 	unsigned int tx_head;

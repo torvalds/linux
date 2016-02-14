@@ -259,12 +259,6 @@ void sctp_generate_t3_rtx_event(unsigned long peer)
 		goto out_unlock;
 	}
 
-	/* Is this transport really dead and just waiting around for
-	 * the timer to let go of the reference?
-	 */
-	if (transport->dead)
-		goto out_unlock;
-
 	/* Run through the state machine.  */
 	error = sctp_do_sm(net, SCTP_EVENT_T_TIMEOUT,
 			   SCTP_ST_TIMEOUT(SCTP_EVENT_TIMEOUT_T3_RTX),
@@ -379,12 +373,6 @@ void sctp_generate_heartbeat_event(unsigned long data)
 			sctp_transport_hold(transport);
 		goto out_unlock;
 	}
-
-	/* Is this structure just waiting around for us to actually
-	 * get destroyed?
-	 */
-	if (transport->dead)
-		goto out_unlock;
 
 	error = sctp_do_sm(net, SCTP_EVENT_T_TIMEOUT,
 			   SCTP_ST_TIMEOUT(SCTP_EVENT_TIMEOUT_HEARTBEAT),

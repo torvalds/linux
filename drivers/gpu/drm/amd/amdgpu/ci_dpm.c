@@ -31,6 +31,7 @@
 #include "ci_dpm.h"
 #include "gfx_v7_0.h"
 #include "atom.h"
+#include "amd_pcie.h"
 #include <linux/seq_file.h>
 
 #include "smu/smu_7_0_1_d.h"
@@ -5835,18 +5836,16 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	u8 frev, crev;
 	struct ci_power_info *pi;
 	int ret;
-	u32 mask;
 
 	pi = kzalloc(sizeof(struct ci_power_info), GFP_KERNEL);
 	if (pi == NULL)
 		return -ENOMEM;
 	adev->pm.dpm.priv = pi;
 
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (ret)
-		pi->sys_pcie_mask = 0;
-	else
-		pi->sys_pcie_mask = mask;
+	pi->sys_pcie_mask =
+		(adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) >>
+		CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT;
+
 	pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
 
 	pi->pcie_gen_performance.max = AMDGPU_PCIE_GEN1;

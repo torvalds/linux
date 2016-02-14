@@ -795,7 +795,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 			xlate->host_fmt	= &isi_camera_formats[i];
 			xlate->code	= code.code;
 			dev_dbg(icd->parent, "Providing format %s using code %d\n",
-				isi_camera_formats[0].name, code.code);
+				xlate->host_fmt->name, xlate->code);
 		}
 		break;
 	default:
