@@ -75,7 +75,8 @@ static void mlx5_ib_srq_event(struct mlx5_core_srq *srq, enum mlx5_event type)
 
 static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 			   struct mlx5_create_srq_mbox_in **in,
-			   struct ib_udata *udata, int buf_size, int *inlen)
+			   struct ib_udata *udata, int buf_size, int *inlen,
+			   int is_xrc)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_create_srq ucmd = {};
@@ -108,10 +109,12 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 				 drv_data - sizeof(ucmd)))
 		return -EINVAL;
 
-	err = get_srq_user_index(to_mucontext(pd->uobject->context),
-				 &ucmd, udata->inlen, &uidx);
-	if (err)
-		return err;
+	if (is_xrc) {
+		err = get_srq_user_index(to_mucontext(pd->uobject->context),
+					 &ucmd, udata->inlen, &uidx);
+		if (err)
+			return err;
+	}
 
 	srq->wq_sig = !!(ucmd.flags & MLX5_SRQ_FLAG_SIGNATURE);
 
@@ -151,7 +154,8 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 	(*in)->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	(*in)->ctx.pgoff_cqn = cpu_to_be32(offset << 26);
 
-	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1) {
+	if ((MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1) &&
+	     is_xrc){
 		xsrqc = MLX5_ADDR_OF(create_xrc_srq_in, *in,
 				     xrc_srq_context_entry);
 		MLX5_SET(xrc_srqc, xsrqc, user_index, uidx);
@@ -170,7 +174,7 @@ err_umem:
 
 static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 			     struct mlx5_create_srq_mbox_in **in, int buf_size,
-			     int *inlen)
+			     int *inlen, int is_xrc)
 {
 	int err;
 	int i;
@@ -224,7 +228,8 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 
 	(*in)->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 
-	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1) {
+	if ((MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1) &&
+	     is_xrc){
 		xsrqc = MLX5_ADDR_OF(create_xrc_srq_in, *in,
 				     xrc_srq_context_entry);
 		/* 0xffffff means we ask to work with cqe version 0 */
@@ -302,10 +307,14 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 		    desc_size, init_attr->attr.max_wr, srq->msrq.max, srq->msrq.max_gs,
 		    srq->msrq.max_avail_gather);
 
+	is_xrc = (init_attr->srq_type == IB_SRQT_XRC);
+
 	if (pd->uobject)
-		err = create_srq_user(pd, srq, &in, udata, buf_size, &inlen);
+		err = create_srq_user(pd, srq, &in, udata, buf_size, &inlen,
+				      is_xrc);
 	else
-		err = create_srq_kernel(dev, srq, &in, buf_size, &inlen);
+		err = create_srq_kernel(dev, srq, &in, buf_size, &inlen,
+					is_xrc);
 
 	if (err) {
 		mlx5_ib_warn(dev, "create srq %s failed, err %d\n",
@@ -313,7 +322,6 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 		goto err_srq;
 	}
 
-	is_xrc = (init_attr->srq_type == IB_SRQT_XRC);
 	in->ctx.state_log_sz = ilog2(srq->msrq.max);
 	flgs = ((srq->msrq.wqe_shift - 4) | (is_xrc << 5) | (srq->wq_sig << 7)) << 24;
 	xrcdn = 0;
