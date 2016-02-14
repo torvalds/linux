@@ -107,6 +107,54 @@ static const struct gb_camera_fmt_map mbus_to_gbus_format[] = {
  * Camera Protocol Operations
  */
 
+static int gb_camera_set_intf_power_mode(struct gb_camera *gcam, u8 intf_id,
+					 bool hs)
+{
+	struct gb_svc *svc = gcam->connection->hd->svc;
+	int ret;
+
+	if (hs)
+		ret = gb_svc_intf_set_power_mode(svc, intf_id,
+						 GB_SVC_UNIPRO_HS_SERIES_A,
+						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
+						 GB_SVC_PWRM_RXTERMINATION |
+						 GB_SVC_PWRM_TXTERMINATION, 0);
+	else
+		ret = gb_svc_intf_set_power_mode(svc, intf_id,
+						 GB_SVC_UNIPRO_HS_SERIES_A,
+						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+						 1, 2,
+						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+						 1, 2,
+						 0, 0);
+
+	return ret;
+}
+
+static int gb_camera_set_power_mode(struct gb_camera *gcam, bool hs)
+{
+	struct gb_interface *intf = gcam->connection->intf;
+	struct gb_svc *svc = gcam->connection->hd->svc;
+	int ret;
+
+	ret = gb_camera_set_intf_power_mode(gcam, intf->interface_id, hs);
+	if (ret < 0) {
+		gcam_err(gcam, "failed to set module interface to %s (%d)\n",
+			 hs ? "HS" : "PWM", ret);
+		return ret;
+	}
+
+	ret = gb_camera_set_intf_power_mode(gcam, svc->ap_intf_id, hs);
+	if (ret < 0) {
+		gcam_err(gcam, "failed to set AP interface to %s (%d)\n",
+			 hs ? "HS" : "PWM", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 struct ap_csi_config_request {
 	__u8 csi_id;
 	__u8 clock_mode;
@@ -120,8 +168,6 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 				       unsigned int *flags,
 				       struct gb_camera_stream_config *streams)
 {
-	struct gb_interface *intf = gcam->connection->intf;
-	struct gb_svc *svc = gcam->connection->hd->svc;
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
 	struct ap_csi_config_request csi_cfg;
@@ -151,49 +197,13 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	 * before CSI interfaces gets configured
 	 */
 	if (nstreams && !(*flags & GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY)) {
-		ret = gb_svc_intf_set_power_mode(svc, intf->interface_id,
-						 GB_SVC_UNIPRO_HS_SERIES_A,
-						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-						 GB_SVC_PWRM_RXTERMINATION |
-						 GB_SVC_PWRM_TXTERMINATION, 0);
-		if (ret < 0)
-			goto done;
-
-		ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
-						 GB_SVC_UNIPRO_HS_SERIES_A,
-						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-						 GB_SVC_PWRM_RXTERMINATION |
-						 GB_SVC_PWRM_TXTERMINATION, 0);
+		ret = gb_camera_set_power_mode(gcam, true);
 		if (ret < 0)
 			goto done;
 	} else if (nstreams == 0) {
-		ret = gb_svc_intf_set_power_mode(svc, intf->interface_id,
-						 GB_SVC_UNIPRO_HS_SERIES_A,
-						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-						 1, 2,
-						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-						 1, 2,
-						 0, 0);
-		if (ret < 0) {
-			gcam_err(gcam, "can't take camera link to PWM-G1 auto: %d\n",
-				 ret);
+		ret = gb_camera_set_power_mode(gcam, false);
+		if (ret < 0)
 			goto done;
-		}
-
-		ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
-						 GB_SVC_UNIPRO_HS_SERIES_A,
-						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-						 1, 2,
-						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-						 1, 2,
-						 0, 0);
-		if (ret < 0) {
-			gcam_err(gcam, "can't take AP link to PWM-G1 auto: %d\n",
-				 ret);
-			goto done;
-		}
 	}
 
 	req->num_streams = nstreams;
@@ -283,29 +293,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	return ret;
 
 set_unipro_slow_mode:
-	ret = gb_svc_intf_set_power_mode(svc, intf->interface_id,
-					 GB_SVC_UNIPRO_HS_SERIES_A,
-					 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-					 1, 2,
-					 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-					 1, 2,
-					 0, 0);
-	if (ret < 0) {
-		gcam_err(gcam, "can't take camera link to PWM-G1 auto: %d\n",
-			 ret);
-		goto done;
-	}
-
-	ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
-				   GB_SVC_UNIPRO_HS_SERIES_A,
-				   GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-				   1, 2,
-				   GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-				   1, 2,
-				   0, 0);
-	if (ret < 0)
-		gcam_err(gcam, "can't take AP link to PWM-G1 auto: %d\n",
-			 ret);
+	ret = gb_camera_set_power_mode(gcam, false);
 
 done:
 	kfree(req);
