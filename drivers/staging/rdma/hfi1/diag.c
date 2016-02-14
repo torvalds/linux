@@ -1017,7 +1017,7 @@ static long hfi1_assign_snoop_link_credits(struct hfi1_pportdata *ppd,
 		t.vl[i].dedicated = be_per_vl_credits;
 
 	t.vl[15].dedicated  = cpu_to_be16(vl15_credits);
-	return set_buffer_control(ppd->dd, &t);
+	return set_buffer_control(ppd, &t);
 
 err_exit:
 	snoop_dbg("port_state = 0x%x, total_credits = %d, vl15_credits = %d",

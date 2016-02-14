@@ -10305,12 +10305,6 @@ int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val)
 			ppd->vls_operational = val;
 			if (!ppd->port)
 				ret = -EINVAL;
-			else
-				ret = sdma_map_init(
-					ppd->dd,
-					ppd->port - 1,
-					val,
-					NULL);
 		}
 		break;
 	/*
@@ -10721,12 +10715,15 @@ static void wait_for_vl_status_clear(struct hfi1_devdata *dd, u64 mask,
  * raise = if the new limit is higher than the current value (may be changed
  *	earlier in the algorithm), set the new limit to the new value
  */
-int set_buffer_control(struct hfi1_devdata *dd, struct buffer_control *new_bc)
+int set_buffer_control(struct hfi1_pportdata *ppd,
+		       struct buffer_control *new_bc)
 {
+	struct hfi1_devdata *dd = ppd->dd;
 	u64 changing_mask, ld_mask, stat_mask;
 	int change_count;
 	int i, use_all_mask;
 	int this_shared_changing;
+	int vl_count = 0, ret;
 	/*
 	 * A0: add the variable any_shared_limit_changing below and in the
 	 * algorithm above.  If removing A0 support, it can be removed.
@@ -10878,6 +10875,28 @@ int set_buffer_control(struct hfi1_devdata *dd, struct buffer_control *new_bc)
 	/* bracket the credit change with a total adjustment */
 	if (new_total < cur_total)
 		set_global_limit(dd, new_total);
+
+	/*
+	 * Determine the actual number of operational VLS using the number of
+	 * dedicated and shared credits for each VL.
+	 */
+	if (change_count > 0) {
+		for (i = 0; i < TXE_NUM_DATA_VL; i++)
+			if (be16_to_cpu(new_bc->vl[i].dedicated) > 0 ||
+			    be16_to_cpu(new_bc->vl[i].shared) > 0)
+				vl_count++;
+		ppd->actual_vls_operational = vl_count;
+		ret = sdma_map_init(dd, ppd->port - 1, vl_count ?
+				    ppd->actual_vls_operational :
+				    ppd->vls_operational,
+				    NULL);
+		if (ret == 0)
+			ret = pio_map_init(dd, ppd->port - 1, vl_count ?
+					   ppd->actual_vls_operational :
+					   ppd->vls_operational, NULL);
+		if (ret)
+			return ret;
+	}
 	return 0;
 }
 
@@ -10969,7 +10988,7 @@ int fm_set_table(struct hfi1_pportdata *ppd, int which, void *t)
 				     VL_ARB_LOW_PRIO_TABLE_SIZE, t);
 		break;
 	case FM_TBL_BUFFER_CONTROL:
-		ret = set_buffer_control(ppd->dd, t);
+		ret = set_buffer_control(ppd, t);
 		break;
 	case FM_TBL_SC2VLNT:
 		set_sc2vlnt(ppd->dd, t);
@@ -13990,6 +14009,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		}
 		ppd->vls_supported = num_vls;
 		ppd->vls_operational = ppd->vls_supported;
+		ppd->actual_vls_operational = ppd->vls_supported;
 		/* Set the default MTU. */
 		for (vl = 0; vl < num_vls; vl++)
 			dd->vld[vl].mtu = hfi1_max_mtu;
@@ -14074,6 +14094,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 			   num_vls, dd->chip_sdma_engines);
 		num_vls = dd->chip_sdma_engines;
 		ppd->vls_supported = dd->chip_sdma_engines;
+		ppd->vls_operational = ppd->vls_supported;
 	}
 
 	/*

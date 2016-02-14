@@ -644,6 +644,7 @@ struct hfi1_pportdata {
 	u16 link_speed_active;
 	u8 vls_supported;
 	u8 vls_operational;
+	u8 actual_vls_operational;
 	/* LID mask control */
 	u8 lmc;
 	/* Rx Polarity inversion (compensate for ~tx on partner) */
@@ -1522,7 +1523,7 @@ int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			   u64 pbc);
 void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 			   u64 pbc, const void *from, size_t count);
-int set_buffer_control(struct hfi1_devdata *dd, struct buffer_control *bc);
+int set_buffer_control(struct hfi1_pportdata *ppd, struct buffer_control *bc);
 
 static inline struct hfi1_devdata *dd_from_ppd(struct hfi1_pportdata *ppd)
 {
