@@ -36,6 +36,9 @@ more than once may also enable internal turbostat debug information.
 .PP
 \fB--interval seconds\fP overrides the default 5.0 second measurement interval.
 .PP
+\fB--out output_file\fP turbostat output is written to the specified output_file.
+The file is truncated if it already exists, and it is created if it does not exist.
+.PP
 \fB--help\fP displays usage for the most common parameters.
 .PP
 \fB--Joules\fP displays energy in Joules, rather than dividing Joules by time to print power in Watts.
@@ -83,10 +86,11 @@ Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading T
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .fi
 .PP
-.SH EXAMPLE
+.SH PERIODIC EXAMPLE
 Without any parameters, turbostat displays statistics ever 5 seconds.
-(override interval with "-i sec" option, or specify a command
-for turbostat to fork).
+Periodic output goes to stdout, by default, unless --out is used to specify an output file.
+The 5-second interval can be changed with th "-i sec" option.
+Or a command may be specified as in "FORK EXAMPLE" below.
 .nf
 [root@hsw]# ./turbostat
      CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
@@ -171,7 +175,9 @@ The --debug option adds additional columns to the measurement ouput, including C
 See the field definitions above.
 .SH FORK EXAMPLE
 If turbostat is invoked with a command, it will fork that command
-and output the statistics gathered when the command exits.
+and output the statistics gathered after the command exits.
+In this case, turbostat output goes to stderr, by default.
+Output can instead be saved to a file using the --out option.
 eg. Here a cycle soaker is run on 1 CPU (see %c0) for a few seconds
 until ^C while the other CPUs are mostly idle:
 
