@@ -286,28 +286,30 @@ EXPORT_SYMBOL(nvec_write_async);
  * @nvec: An &struct nvec_chip
  * @data: The data to write
  * @size: The size of @data
+ * @msg:  The response message received
  *
  * This is similar to nvec_write_async(), but waits for the
  * request to be answered before returning. This function
  * uses a mutex and can thus not be called from e.g.
  * interrupt handlers.
  *
- * Returns: A pointer to the response message on success,
- * %NULL on failure. Free with nvec_msg_free() once no longer
- * used.
+ * Returns: 0 on success, a negative error code on failure.
+ * The response message is returned in @msg. Shall be freed with
+ * with nvec_msg_free() once no longer used.
+ *
  */
-struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
-		const unsigned char *data, short size)
+int nvec_write_sync(struct nvec_chip *nvec,
+		    const unsigned char *data, short size,
+		    struct nvec_msg **msg)
 {
-	struct nvec_msg *msg;
-
 	mutex_lock(&nvec->sync_write_mutex);
 
+	*msg = NULL;
 	nvec->sync_write_pending = (data[1] << 8) + data[0];
 
 	if (nvec_write_async(nvec, data, size) < 0) {
 		mutex_unlock(&nvec->sync_write_mutex);
-		return NULL;
+		return -ENOMEM;
 	}
 
 	dev_dbg(nvec->dev, "nvec_sync_write: 0x%04x\n",
@@ -316,16 +318,16 @@ struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 				msecs_to_jiffies(2000)))) {
 		dev_warn(nvec->dev, "timeout waiting for sync write to complete\n");
 		mutex_unlock(&nvec->sync_write_mutex);
-		return NULL;
+		return -ETIMEDOUT;
 	}
 
 	dev_dbg(nvec->dev, "nvec_sync_write: pong!\n");
 
-	msg = nvec->last_sync_msg;
+	*msg = nvec->last_sync_msg;
 
 	mutex_unlock(&nvec->sync_write_mutex);
 
-	return msg;
+	return 0;
 }
 EXPORT_SYMBOL(nvec_write_sync);
 
@@ -878,9 +880,9 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	pm_power_off = nvec_power_off;
 
 	/* Get Firmware Version */
-	msg = nvec_write_sync(nvec, get_firmware_version, 2);
+	err = nvec_write_sync(nvec, get_firmware_version, 2, &msg);
 
-	if (msg) {
+	if (!err) {
 		dev_warn(nvec->dev, "ec firmware version %02x.%02x.%02x / %02x\n",
 			msg->data[4], msg->data[5], msg->data[6], msg->data[7]);
 
@@ -924,6 +926,7 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int nvec_suspend(struct device *dev)
 {
+	int err;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 	struct nvec_msg *msg;
@@ -934,8 +937,9 @@ static int nvec_suspend(struct device *dev)
 	/* keep these sync or you'll break suspend */
 	nvec_toggle_global_events(nvec, false);
 
-	msg = nvec_write_sync(nvec, ap_suspend, sizeof(ap_suspend));
-	nvec_msg_free(nvec, msg);
+	err = nvec_write_sync(nvec, ap_suspend, sizeof(ap_suspend), &msg);
+	if (!err)
+		nvec_msg_free(nvec, msg);
 
 	nvec_disable_i2c_slave(nvec);
 
