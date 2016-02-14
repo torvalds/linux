@@ -109,6 +109,7 @@ void hfi1_get_credit(struct rvt_qp *qp, u32 aeth);
 void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag);
 
 struct sdma_engine *qp_to_sdma_engine(struct rvt_qp *qp, u8 sc5);
+struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5);
 
 struct qp_iter;
 

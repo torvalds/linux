@@ -1050,6 +1050,7 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	mutex_init(&dd->qsfp_i2c_mutex);
 	seqlock_init(&dd->sc2vl_lock);
 	spin_lock_init(&dd->sde_map_lock);
+	spin_lock_init(&dd->pio_map_lock);
 	init_waitqueue_head(&dd->event_queue);
 
 	dd->int_counter = alloc_percpu(u64);
@@ -1317,6 +1318,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 		}
 	}
 	kfree(tmp);
+	free_pio_map(dd);
 	/* must follow rcv context free - need to remove rcv's hooks */
 	for (ctxt = 0; ctxt < dd->num_send_contexts; ctxt++)
 		sc_free(dd->send_contexts[ctxt].sc);

@@ -552,6 +552,30 @@ struct sdma_engine *qp_to_sdma_engine(struct rvt_qp *qp, u8 sc5)
 	return sde;
 }
 
+/*
+ * qp_to_send_context - map a qp to a send context
+ * @qp: the QP
+ * @sc5: the 5 bit sc
+ *
+ * Return:
+ * A send context for the qp
+ */
+struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5)
+{
+	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+
+	switch (qp->ibqp.qp_type) {
+	case IB_QPT_SMI:
+		/* SMA packets to VL15 */
+		return dd->vld[15].sc;
+	default:
+		break;
+	}
+
+	return pio_select_send_context_sc(dd, qp->ibqp.qp_num >> dd->qos_shift,
+					  sc5);
+}
+
 struct qp_iter {
 	struct hfi1_ibdev *dev;
 	struct rvt_qp *qp;

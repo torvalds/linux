@@ -841,6 +841,12 @@ struct hfi1_devdata {
 	spinlock_t sc_lock;
 	/* Per VL data. Enough for all VLs but not all elements are set/used. */
 	struct per_vl_data vld[PER_VL_SEND_CONTEXTS];
+	/* lock for pio_map */
+	spinlock_t pio_map_lock;
+	/* array of kernel send contexts */
+	struct send_context **kernel_send_context;
+	/* array of vl maps */
+	struct pio_vl_map __rcu *pio_map;
 	/* seqlock for sc2vl */
 	seqlock_t sc2vl_lock;
 	u64 sc2vl[4];

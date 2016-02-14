@@ -783,18 +783,6 @@ static int pio_wait(struct rvt_qp *qp,
 	return ret;
 }
 
-struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5)
-{
-	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
-	struct hfi1_pportdata *ppd = dd->pport + (qp->port_num - 1);
-	u8 vl;
-
-	vl = sc_to_vlt(dd, sc5);
-	if (vl >= ppd->vls_supported && vl != 15)
-		return NULL;
-	return dd->vld[vl].sc;
-}
-
 static void verbs_pio_complete(void *arg, int code)
 {
 	struct rvt_qp *qp = (struct rvt_qp *)arg;

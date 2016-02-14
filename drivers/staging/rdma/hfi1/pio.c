@@ -312,7 +312,7 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 		if (i == SC_ACK) {
 			count = dd->n_krcv_queues;
 		} else if (i == SC_KERNEL) {
-			count = num_vls + 1 /* VL15 */;
+			count = (INIT_SC_PER_VL * num_vls) + 1 /* VL15 */;
 		} else if (count == SCC_PER_CPU) {
 			count = dd->num_rcv_contexts - dd->n_krcv_queues;
 		} else if (count < 0) {
@@ -1687,11 +1687,217 @@ done:
 	spin_unlock(&dd->sc_lock);
 }
 
+/*
+ * pio_select_send_context_vl() - select send context
+ * @dd: devdata
+ * @selector: a spreading factor
+ * @vl: this vl
+ *
+ * This function returns a send context based on the selector and a vl.
+ * The mapping fields are protected by RCU
+ */
+struct send_context *pio_select_send_context_vl(struct hfi1_devdata *dd,
+						u32 selector, u8 vl)
+{
+	struct pio_vl_map *m;
+	struct pio_map_elem *e;
+	struct send_context *rval;
+
+	/*
+	 * NOTE This should only happen if SC->VL changed after the initial
+	 * checks on the QP/AH
+	 * Default will return VL0's send context below
+	 */
+	if (unlikely(vl >= num_vls)) {
+		rval = NULL;
+		goto done;
+	}
+
+	rcu_read_lock();
+	m = rcu_dereference(dd->pio_map);
+	if (unlikely(!m)) {
+		rcu_read_unlock();
+		return dd->vld[0].sc;
+	}
+	e = m->map[vl & m->mask];
+	rval = e->ksc[selector & e->mask];
+	rcu_read_unlock();
+
+done:
+	rval = !rval ? dd->vld[0].sc : rval;
+	return rval;
+}
+
+/*
+ * pio_select_send_context_sc() - select send context
+ * @dd: devdata
+ * @selector: a spreading factor
+ * @sc5: the 5 bit sc
+ *
+ * This function returns an send context based on the selector and an sc
+ */
+struct send_context *pio_select_send_context_sc(struct hfi1_devdata *dd,
+						u32 selector, u8 sc5)
+{
+	u8 vl = sc_to_vlt(dd, sc5);
+
+	return pio_select_send_context_vl(dd, selector, vl);
+}
+
+/*
+ * Free the indicated map struct
+ */
+static void pio_map_free(struct pio_vl_map *m)
+{
+	int i;
+
+	for (i = 0; m && i < m->actual_vls; i++)
+		kfree(m->map[i]);
+	kfree(m);
+}
+
+/*
+ * Handle RCU callback
+ */
+static void pio_map_rcu_callback(struct rcu_head *list)
+{
+	struct pio_vl_map *m = container_of(list, struct pio_vl_map, list);
+
+	pio_map_free(m);
+}
+
+/*
+ * pio_map_init - called when #vls change
+ * @dd: hfi1_devdata
+ * @port: port number
+ * @num_vls: number of vls
+ * @vl_scontexts: per vl send context mapping (optional)
+ *
+ * This routine changes the mapping based on the number of vls.
+ *
+ * vl_scontexts is used to specify a non-uniform vl/send context
+ * loading. NULL implies auto computing the loading and giving each
+ * VL an uniform distribution of send contexts per VL.
+ *
+ * The auto algorithm computers the sc_per_vl and the number of extra
+ * send contexts. Any extra send contexts are added from the last VL
+ * on down
+ *
+ * rcu locking is used here to control access to the mapping fields.
+ *
+ * If either the num_vls or num_send_contexts are non-power of 2, the
+ * array sizes in the struct pio_vl_map and the struct pio_map_elem are
+ * rounded up to the next highest power of 2 and the first entry is
+ * reused in a round robin fashion.
+ *
+ * If an error occurs the map change is not done and the mapping is not
+ * chaged.
+ *
+ */
+int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
+{
+	int i, j;
+	int extra, sc_per_vl;
+	int scontext = 1;
+	int num_kernel_send_contexts = 0;
+	u8 lvl_scontexts[OPA_MAX_VLS];
+	struct pio_vl_map *oldmap, *newmap;
+
+	if (!vl_scontexts) {
+		/* send context 0 reserved for VL15 */
+		for (i = 1; i < dd->num_send_contexts; i++)
+			if (dd->send_contexts[i].type == SC_KERNEL)
+				num_kernel_send_contexts++;
+		/* truncate divide */
+		sc_per_vl = num_kernel_send_contexts / num_vls;
+		/* extras */
+		extra = num_kernel_send_contexts % num_vls;
+		vl_scontexts = lvl_scontexts;
+		/* add extras from last vl down */
+		for (i = num_vls - 1; i >= 0; i--, extra--)
+			vl_scontexts[i] = sc_per_vl + (extra > 0 ? 1 : 0);
+	}
+	/* build new map */
+	newmap = kzalloc(sizeof(*newmap) +
+			 roundup_pow_of_two(num_vls) *
+			 sizeof(struct pio_map_elem *),
+			 GFP_KERNEL);
+	if (!newmap)
+		goto bail;
+	newmap->actual_vls = num_vls;
+	newmap->vls = roundup_pow_of_two(num_vls);
+	newmap->mask = (1 << ilog2(newmap->vls)) - 1;
+	for (i = 0; i < newmap->vls; i++) {
+		/* save for wrap around */
+		int first_scontext = scontext;
+
+		if (i < newmap->actual_vls) {
+			int sz = roundup_pow_of_two(vl_scontexts[i]);
+
+			/* only allocate once */
+			newmap->map[i] = kzalloc(sizeof(*newmap->map[i]) +
+						 sz * sizeof(struct
+							     send_context *),
+						 GFP_KERNEL);
+			if (!newmap->map[i])
+				goto bail;
+			newmap->map[i]->mask = (1 << ilog2(sz)) - 1;
+			/* assign send contexts */
+			for (j = 0; j < sz; j++) {
+				if (dd->kernel_send_context[scontext])
+					newmap->map[i]->ksc[j] =
+					dd->kernel_send_context[scontext];
+				if (++scontext >= first_scontext +
+						  vl_scontexts[i])
+					/* wrap back to first send context */
+					scontext = first_scontext;
+			}
+		} else {
+			/* just re-use entry without allocating */
+			newmap->map[i] = newmap->map[i % num_vls];
+		}
+		scontext = first_scontext + vl_scontexts[i];
+	}
+	/* newmap in hand, save old map */
+	spin_lock_irq(&dd->pio_map_lock);
+	oldmap = rcu_dereference_protected(dd->pio_map,
+					   lockdep_is_held(&dd->pio_map_lock));
+
+	/* publish newmap */
+	rcu_assign_pointer(dd->pio_map, newmap);
+
+	spin_unlock_irq(&dd->pio_map_lock);
+	/* success, free any old map after grace period */
+	if (oldmap)
+		call_rcu(&oldmap->list, pio_map_rcu_callback);
+	return 0;
+bail:
+	/* free any partial allocation */
+	pio_map_free(newmap);
+	return -ENOMEM;
+}
+
+void free_pio_map(struct hfi1_devdata *dd)
+{
+	/* Free PIO map if allocated */
+	if (rcu_access_pointer(dd->pio_map)) {
+		spin_lock_irq(&dd->pio_map_lock);
+		kfree(rcu_access_pointer(dd->pio_map));
+		RCU_INIT_POINTER(dd->pio_map, NULL);
+		spin_unlock_irq(&dd->pio_map_lock);
+		synchronize_rcu();
+	}
+	kfree(dd->kernel_send_context);
+	dd->kernel_send_context = NULL;
+}
+
 int init_pervl_scs(struct hfi1_devdata *dd)
 {
 	int i;
-	u64 mask, all_vl_mask = (u64) 0x80ff; /* VLs 0-7, 15 */
+	u64 mask, all_vl_mask = (u64)0x80ff; /* VLs 0-7, 15 */
+	u64 data_vls_mask = (u64)0x00ff; /* VLs 0-7 */
 	u32 ctxt;
+	struct hfi1_pportdata *ppd = dd->pport;
 
 	dd->vld[15].sc = sc_alloc(dd, SC_KERNEL,
 				  dd->rcd[0]->rcvhdrqentsize, dd->node);
@@ -1699,6 +1905,12 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 		goto nomem;
 	hfi1_init_ctxt(dd->vld[15].sc);
 	dd->vld[15].mtu = enum_to_mtu(OPA_MTU_2048);
+
+	dd->kernel_send_context = kmalloc_node(dd->num_send_contexts *
+					sizeof(struct send_context *),
+					GFP_KERNEL, dd->node);
+	dd->kernel_send_context[0] = dd->vld[15].sc;
+
 	for (i = 0; i < num_vls; i++) {
 		/*
 		 * Since this function does not deal with a specific
@@ -1711,12 +1923,19 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 					 dd->rcd[0]->rcvhdrqentsize, dd->node);
 		if (!dd->vld[i].sc)
 			goto nomem;
-
+		dd->kernel_send_context[i + 1] = dd->vld[i].sc;
 		hfi1_init_ctxt(dd->vld[i].sc);
-
 		/* non VL15 start with the max MTU */
 		dd->vld[i].mtu = hfi1_max_mtu;
 	}
+	for (i = num_vls; i < INIT_SC_PER_VL * num_vls; i++) {
+		dd->kernel_send_context[i + 1] =
+		sc_alloc(dd, SC_KERNEL, dd->rcd[0]->rcvhdrqentsize, dd->node);
+		if (!dd->kernel_send_context[i + 1])
+			goto nomem;
+		hfi1_init_ctxt(dd->kernel_send_context[i + 1]);
+	}
+
 	sc_enable(dd->vld[15].sc);
 	ctxt = dd->vld[15].sc->hw_context;
 	mask = all_vl_mask & ~(1LL << 15);
@@ -1724,17 +1943,29 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	dd_dev_info(dd,
 		    "Using send context %u(%u) for VL15\n",
 		    dd->vld[15].sc->sw_index, ctxt);
+
 	for (i = 0; i < num_vls; i++) {
 		sc_enable(dd->vld[i].sc);
 		ctxt = dd->vld[i].sc->hw_context;
-		mask = all_vl_mask & ~(1LL << i);
+		mask = all_vl_mask & ~(data_vls_mask);
 		write_kctxt_csr(dd, ctxt, SC(CHECK_VL), mask);
 	}
+	for (i = num_vls; i < INIT_SC_PER_VL * num_vls; i++) {
+		sc_enable(dd->kernel_send_context[i + 1]);
+		ctxt = dd->kernel_send_context[i + 1]->hw_context;
+		mask = all_vl_mask & ~(data_vls_mask);
+		write_kctxt_csr(dd, ctxt, SC(CHECK_VL), mask);
+	}
+
+	if (pio_map_init(dd, ppd->port - 1, num_vls, NULL))
+		goto nomem;
 	return 0;
 nomem:
 	sc_free(dd->vld[15].sc);
 	for (i = 0; i < num_vls; i++)
 		sc_free(dd->vld[i].sc);
+	for (i = num_vls; i < INIT_SC_PER_VL * num_vls; i++)
+		sc_free(dd->kernel_send_context[i + 1]);
 	return -ENOMEM;
 }
 
