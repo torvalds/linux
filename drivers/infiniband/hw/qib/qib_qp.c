@@ -127,8 +127,8 @@ static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map,
  * Allocate the next available QPN or
  * zero/one for QP type IB_QPT_SMI/IB_QPT_GSI.
  */
-int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-	      enum ib_qp_type type, u8 port, gfp_t gfp)
+int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
+		  enum ib_qp_type type, u8 port, gfp_t gfp)
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
@@ -232,14 +232,14 @@ unsigned qib_free_all_qps(struct rvt_dev_info *rdi)
 	return qp_inuse;
 }
 
-void notify_qp_reset(struct rvt_qp *qp)
+void qib_notify_qp_reset(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 
 	atomic_set(&priv->s_dma_busy, 0);
 }
 
-void notify_error_qp(struct rvt_qp *qp)
+void qib_notify_error_qp(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);
@@ -290,8 +290,8 @@ static int mtu_to_enum(u32 mtu)
 	return enum_mtu;
 }
 
-int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		       struct ib_qp_attr *attr)
+int qib_get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+			   struct ib_qp_attr *attr)
 {
 	int mtu, pmtu, pidx = qp->port_num - 1;
 	struct qib_ibdev *verbs_dev = container_of(rdi, struct qib_ibdev, rdi);
@@ -308,12 +308,12 @@ int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	return pmtu;
 }
 
-int mtu_to_path_mtu(u32 mtu)
+int qib_mtu_to_path_mtu(u32 mtu)
 {
 	return mtu_to_enum(mtu);
 }
 
-u32 mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu)
+u32 qib_mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu)
 {
 	return ib_mtu_enum_to_int(pmtu);
 }
@@ -378,7 +378,7 @@ __be32 qib_compute_aeth(struct rvt_qp *qp)
 	return cpu_to_be32(aeth);
 }
 
-void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp)
+void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp)
 {
 	struct qib_qp_priv *priv;
 
@@ -399,7 +399,7 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp)
 	return priv;
 }
 
-void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
+void qib_qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 
@@ -407,7 +407,7 @@ void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 	kfree(priv);
 }
 
-void stop_send_queue(struct rvt_qp *qp)
+void qib_stop_send_queue(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 
@@ -415,7 +415,7 @@ void stop_send_queue(struct rvt_qp *qp)
 	del_timer_sync(&qp->s_timer);
 }
 
-void quiesce_qp(struct rvt_qp *qp)
+void qib_quiesce_qp(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 
@@ -426,7 +426,7 @@ void quiesce_qp(struct rvt_qp *qp)
 	}
 }
 
-void flush_qp_waiters(struct rvt_qp *qp)
+void qib_flush_qp_waiters(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);

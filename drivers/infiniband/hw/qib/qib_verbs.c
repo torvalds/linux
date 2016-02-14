@@ -1394,7 +1394,7 @@ bail:
 	return ret;
 }
 
-static int shut_down_port(struct rvt_dev_info *rdi, u8 port_num)
+static int qib_shut_down_port(struct rvt_dev_info *rdi, u8 port_num)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = dd_from_dev(ibdev);
@@ -1663,22 +1663,22 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = qib_get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = qib_check_ah;
 	dd->verbs_dev.rdi.driver_f.notify_new_ah = qib_notify_new_ah;
-	dd->verbs_dev.rdi.driver_f.alloc_qpn = alloc_qpn;
-	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qp_priv_alloc;
-	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
+	dd->verbs_dev.rdi.driver_f.alloc_qpn = qib_alloc_qpn;
+	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qib_qp_priv_alloc;
+	dd->verbs_dev.rdi.driver_f.qp_priv_free = qib_qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = qib_free_all_qps;
-	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
+	dd->verbs_dev.rdi.driver_f.notify_qp_reset = qib_notify_qp_reset;
 	dd->verbs_dev.rdi.driver_f.do_send = qib_do_send;
 	dd->verbs_dev.rdi.driver_f.schedule_send = qib_schedule_send;
-	dd->verbs_dev.rdi.driver_f.quiesce_qp = quiesce_qp;
-	dd->verbs_dev.rdi.driver_f.stop_send_queue = stop_send_queue;
-	dd->verbs_dev.rdi.driver_f.flush_qp_waiters = flush_qp_waiters;
-	dd->verbs_dev.rdi.driver_f.notify_error_qp = notify_error_qp;
-	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = mtu_to_path_mtu;
-	dd->verbs_dev.rdi.driver_f.mtu_from_qp = mtu_from_qp;
-	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = get_pmtu_from_attr;
+	dd->verbs_dev.rdi.driver_f.quiesce_qp = qib_quiesce_qp;
+	dd->verbs_dev.rdi.driver_f.stop_send_queue = qib_stop_send_queue;
+	dd->verbs_dev.rdi.driver_f.flush_qp_waiters = qib_flush_qp_waiters;
+	dd->verbs_dev.rdi.driver_f.notify_error_qp = qib_notify_error_qp;
+	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = qib_mtu_to_path_mtu;
+	dd->verbs_dev.rdi.driver_f.mtu_from_qp = qib_mtu_from_qp;
+	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = qib_get_pmtu_from_attr;
 	dd->verbs_dev.rdi.driver_f.query_port_state = qib_query_port;
-	dd->verbs_dev.rdi.driver_f.shut_down_port = shut_down_port;
+	dd->verbs_dev.rdi.driver_f.shut_down_port = qib_shut_down_port;
 	dd->verbs_dev.rdi.driver_f.cap_mask_chg = qib_cap_mask_chg;
 
 	dd->verbs_dev.rdi.dparms.max_rdma_atomic = QIB_MAX_RDMA_ATOMIC;
