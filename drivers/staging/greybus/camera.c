@@ -192,21 +192,6 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto done;
 	}
 
-	/*
-	 * Setup unipro link speed before actually issuing configuration
-	 * to the camera module, to assure unipro network speed is set
-	 * before CSI interfaces gets configured
-	 */
-	if (nstreams && !(*flags & GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY)) {
-		ret = gb_camera_set_power_mode(gcam, true);
-		if (ret < 0)
-			goto done;
-	} else if (nstreams == 0) {
-		ret = gb_camera_set_power_mode(gcam, false);
-		if (ret < 0)
-			goto done;
-	}
-
 	req->num_streams = nstreams;
 	req->flags = *flags;
 	req->padding = 0;
@@ -224,19 +209,19 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 				GB_CAMERA_TYPE_CONFIGURE_STREAMS,
 				req, req_size, resp, resp_size);
 	if (ret < 0)
-		goto set_unipro_slow_mode;
+		goto done;
 
 	if (resp->num_streams > nstreams) {
 		gcam_dbg(gcam, "got #streams %u > request %u\n",
 			 resp->num_streams, nstreams);
 		ret = -EIO;
-		goto set_unipro_slow_mode;
+		goto done;
 	}
 
 	if (resp->padding != 0) {
 		gcam_dbg(gcam, "response padding != 0");
 		ret = -EIO;
-		goto set_unipro_slow_mode;
+		goto done;
 	}
 
 	for (i = 0; i < nstreams; ++i) {
@@ -253,14 +238,25 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		if (cfg->padding[0] || cfg->padding[1] || cfg->padding[2]) {
 			gcam_dbg(gcam, "stream #%u padding != 0", i);
 			ret = -EIO;
-			goto set_unipro_slow_mode;
+			goto done;
 		}
 	}
 
 	if (nstreams && resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED) {
 		*flags = resp->flags;
 		*num_streams = resp->num_streams;
-		goto set_unipro_slow_mode;
+		goto done;
+	}
+
+	/* Setup unipro link speed. */
+	if (nstreams && !(*flags & GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY)) {
+		ret = gb_camera_set_power_mode(gcam, true);
+		if (ret < 0)
+			goto done;
+	} else if (nstreams == 0) {
+		ret = gb_camera_set_power_mode(gcam, false);
+		if (ret < 0)
+			goto done;
 	}
 
 	memset(&csi_cfg, 0, sizeof(csi_cfg));
@@ -288,13 +284,6 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	*flags = resp->flags;
 	*num_streams = resp->num_streams;
 	ret = 0;
-
-	kfree(req);
-	kfree(resp);
-	return ret;
-
-set_unipro_slow_mode:
-	ret = gb_camera_set_power_mode(gcam, false);
 
 done:
 	kfree(req);
