@@ -1040,6 +1040,15 @@ struct cpl_rx_data_ack {
 #define RX_FORCE_ACK_V(x) ((x) << RX_FORCE_ACK_S)
 #define RX_FORCE_ACK_F    RX_FORCE_ACK_V(1U)
 
+#define RX_DACK_MODE_S    29
+#define RX_DACK_MODE_M    0x3
+#define RX_DACK_MODE_V(x) ((x) << RX_DACK_MODE_S)
+#define RX_DACK_MODE_G(x) (((x) >> RX_DACK_MODE_S) & RX_DACK_MODE_M)
+
+#define RX_DACK_CHANGE_S    31
+#define RX_DACK_CHANGE_V(x) ((x) << RX_DACK_CHANGE_S)
+#define RX_DACK_CHANGE_F    RX_DACK_CHANGE_V(1U)
+
 struct cpl_rx_pkt {
 	struct rss_header rsshdr;
 	u8 opcode;

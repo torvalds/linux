@@ -753,13 +753,4 @@ struct fw_ri_wr {
 #define FW_RI_WR_P2PTYPE_G(x)	\
 	(((x) >> FW_RI_WR_P2PTYPE_S) & FW_RI_WR_P2PTYPE_M)
 
-#define RX_DACK_MODE_S    29
-#define RX_DACK_MODE_M    0x3
-#define RX_DACK_MODE_V(x) ((x) << RX_DACK_MODE_S)
-#define RX_DACK_MODE_G(x) (((x) >> RX_DACK_MODE_S) & RX_DACK_MODE_M)
-
-#define RX_DACK_CHANGE_S    31
-#define RX_DACK_CHANGE_V(x) ((x) << RX_DACK_CHANGE_S)
-#define RX_DACK_CHANGE_F    RX_DACK_CHANGE_V(1U)
-
 #endif /* _T4FW_RI_API_H_ */
