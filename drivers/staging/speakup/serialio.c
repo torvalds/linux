@@ -8,7 +8,8 @@
 
 #include <linux/serial_core.h>
 /* WARNING:  Do not change this to <linux/serial.h> without testing that
- * SERIAL_PORT_DFNS does get defined to the appropriate value. */
+ * SERIAL_PORT_DFNS does get defined to the appropriate value.
+ */
 #include <asm/serial.h>
 
 #ifndef SERIAL_PORT_DFNS
