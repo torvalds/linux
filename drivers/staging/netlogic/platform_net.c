@@ -209,7 +209,6 @@ static void xlr_gmac_init(void)
 		.gpio_addr	= NULL,
 	};
 
-
 	static struct platform_device xlr_net_dev0 = {
 		.name		= "xlr-net",
 		.id		= 0,
