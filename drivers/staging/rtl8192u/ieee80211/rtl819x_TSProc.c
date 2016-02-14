@@ -35,9 +35,7 @@ static void RxPktPendingTimeout(unsigned long data)
 	u8 index = 0;
 	bool bPktInBuf = false;
 
-
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
-	//PlatformAcquireSpinLock(Adapter, RT_RX_SPINLOCK);
 	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"==================>%s()\n",__func__);
 	if(pRxTs->RxTimeoutIndicateSeq != 0xffff)
 	{
@@ -91,7 +89,6 @@ static void RxPktPendingTimeout(unsigned long data)
 			  jiffies + msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime));
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
-	//PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
 }
 
 /********************************************************************************************************************
@@ -471,7 +468,6 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
 
 		while(!list_empty(&pRxTS->RxPendingPktList))
 		{
-		//      PlatformAcquireSpinLock(Adapter, RT_RX_SPINLOCK);
 			spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 			//pRxReorderEntry = list_entry(&pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
 			pRxReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
@@ -491,7 +487,6 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
 				prxb = NULL;
 			}
 			list_add_tail(&pRxReorderEntry->List,&ieee->RxReorder_Unused_List);
-			//PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 		}
 
