@@ -92,8 +92,6 @@ static void ravb_set_rate(struct net_device *ndev)
 	case 1000:		/* 1000BASE */
 		ravb_write(ndev, GECMR_SPEED_1000, GECMR);
 		break;
-	default:
-		break;
 	}
 }
 
