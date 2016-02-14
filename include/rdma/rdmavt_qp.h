@@ -283,12 +283,12 @@ struct rvt_qp {
 	struct rvt_sge_state s_rdma_read_sge;
 
 	spinlock_t r_lock ____cacheline_aligned_in_smp;      /* used for APM */
+	u32 r_psn;              /* expected rcv packet sequence number */
 	unsigned long r_aflags;
 	u64 r_wr_id;            /* ID for current receive WQE */
 	u32 r_ack_psn;          /* PSN for next ACK or atomic ACK */
 	u32 r_len;              /* total length of r_sge */
 	u32 r_rcv_len;          /* receive data len processed */
-	u32 r_psn;              /* expected rcv packet sequence number */
 	u32 r_msn;              /* message sequence number */
 
 	u8 r_state;             /* opcode of last packet received */
@@ -308,8 +308,8 @@ struct rvt_qp {
 	u32 s_ssn;              /* SSN of tail entry */
 
 	spinlock_t s_lock ____cacheline_aligned_in_smp;
-	struct rvt_sge_state *s_cur_sge;
 	u32 s_flags;
+	struct rvt_sge_state *s_cur_sge;
 	struct rvt_swqe *s_wqe;
 	struct rvt_sge_state s_sge;     /* current send request data */
 	struct rvt_mregion *s_rdma_mr;
