@@ -940,7 +940,7 @@ new_segment:
 
 		i = skb_shinfo(skb)->nr_frags;
 		can_coalesce = skb_can_coalesce(skb, i, page, offset);
-		if (!can_coalesce && i >= MAX_SKB_FRAGS) {
+		if (!can_coalesce && i >= sysctl_max_skb_frags) {
 			tcp_mark_push(tp, skb);
 			goto new_segment;
 		}
@@ -1213,7 +1213,7 @@ new_segment:
 
 			if (!skb_can_coalesce(skb, i, pfrag->page,
 					      pfrag->offset)) {
-				if (i == MAX_SKB_FRAGS || !sg) {
+				if (i == sysctl_max_skb_frags || !sg) {
 					tcp_mark_push(tp, skb);
 					goto new_segment;
 				}

@@ -259,7 +259,7 @@ snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
 		if (!callback)
 			return ERR_PTR(-ENOMEM);
 		callback->func = func;
-		callback->tbl = jack;
+		callback->nid = jack->nid;
 		callback->next = jack->callback;
 		jack->callback = callback;
 	}

@@ -761,7 +761,7 @@ static int sd_setup_discard_cmnd(struct scsi_cmnd *cmd)
 		break;
 
 	default:
-		ret = BLKPREP_KILL;
+		ret = BLKPREP_INVALID;
 		goto out;
 	}
 
@@ -839,7 +839,7 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	int ret;
 
 	if (sdkp->device->no_write_same)
-		return BLKPREP_KILL;
+		return BLKPREP_INVALID;
 
 	BUG_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
 

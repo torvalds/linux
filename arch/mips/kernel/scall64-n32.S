@@ -423,4 +423,5 @@ EXPORT(sysn32_call_table)
 	PTR	sys_userfaultfd
 	PTR	sys_membarrier
 	PTR	sys_mlock2
+	PTR	sys_copy_file_range
 	.size	sysn32_call_table,.-sysn32_call_table
