@@ -149,22 +149,21 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		/* Set up GPIO for software I2C to program DVI chip in the
 		   Xilinx SP605 board, in order to have video signal.
 		 */
-	sm750_sw_i2c_init(0, 1);
+		sm750_sw_i2c_init(0, 1);
 
-
-	/* Customer may NOT use CH7301 DVI chip, which has to be
-	   initialized differently.
-	*/
-	if (sm750_sw_i2c_read_reg(0xec, 0x4a) == 0x95) {
+		/* Customer may NOT use CH7301 DVI chip, which has to be
+		initialized differently.
+		*/
+		if (sm750_sw_i2c_read_reg(0xec, 0x4a) == 0x95) {
 		/* The following register values for CH7301 are from
 		   Chrontel app note and our experiment.
 		*/
 			pr_info("yes,CH7301 DVI chip found\n");
-		sm750_sw_i2c_write_reg(0xec, 0x1d, 0x16);
-		sm750_sw_i2c_write_reg(0xec, 0x21, 0x9);
-		sm750_sw_i2c_write_reg(0xec, 0x49, 0xC0);
+			sm750_sw_i2c_write_reg(0xec, 0x1d, 0x16);
+			sm750_sw_i2c_write_reg(0xec, 0x21, 0x9);
+			sm750_sw_i2c_write_reg(0xec, 0x49, 0xC0);
 			pr_info("okay,CH7301 DVI chip setup done\n");
-	}
+		}
 	}
 
 	/* init 2d engine */
