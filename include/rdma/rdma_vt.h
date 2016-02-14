@@ -138,24 +138,6 @@ struct rvt_driver_params {
 	struct ib_device_attr props;
 
 	/*
-	 * Drivers will need to support a number of notifications to rvt in
-	 * accordance with certain events. This structure should contain a mask
-	 * of the supported events. Such events that the rvt may need to know
-	 * about include:
-	 * port errors
-	 * port active
-	 * lid change
-	 * sm change
-	 * client reregister
-	 * pkey change
-	 *
-	 * There may also be other events that the rvt layers needs to know
-	 * about this is not an exhaustive list. Some events though rvt does not
-	 * need to rely on the driver for such as completion queue error.
-	 */
-	 int rvt_signal_supported;
-
-	/*
 	 * Anything driver specific that is not covered by props
 	 * For instance special module parameters. Goes here.
 	 */
