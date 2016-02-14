@@ -69,9 +69,9 @@ static ssize_t wilc_debug_level_write(struct file *filp, const char __user *buf,
 	atomic_set(&WILC_DEBUG_LEVEL, (int)flag);
 
 	if (flag == 0)
-		printk("Debug-level disabled\n");
+		printk(KERN_INFO "Debug-level disabled\n");
 	else
-		printk("Debug-level enabled\n");
+		printk(KERN_INFO "Debug-level enabled\n");
 
 	return count;
 }
