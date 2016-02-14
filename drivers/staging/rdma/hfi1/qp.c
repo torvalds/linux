@@ -681,7 +681,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	send_context = qp_to_send_context(qp, priv->s_sc);
 	seq_printf(s,
-		   "N %d %s QP%x R %u %s %u %u %u f=%x %u %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u %u) QP%x LID %x SL %u MTU %u %u %u %u SDE %p,%u SC %p,%u\n",
+		   "N %d %s QP%x R %u %s %u %u %u f=%x %u %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u %u) QP%x LID %x SL %u MTU %u %u %u %u SDE %p,%u SC %p,%u CQ %u %u\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -713,7 +713,9 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   sde,
 		   sde ? sde->this_idx : 0,
 		   send_context,
-		   send_context ? send_context->sw_index : 0);
+		   send_context ? send_context->sw_index : 0,
+		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->head,
+		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->tail);
 }
 
 void qp_comm_est(struct rvt_qp *qp)
