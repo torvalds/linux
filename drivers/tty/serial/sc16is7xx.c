@@ -761,12 +761,20 @@ static void sc16is7xx_reg_proc(struct kthread_work *ws)
 	memset(&one->config, 0, sizeof(one->config));
 	spin_unlock_irqrestore(&one->port.lock, irqflags);
 
-	if (config.flags & SC16IS7XX_RECONF_MD)
+	if (config.flags & SC16IS7XX_RECONF_MD) {
 		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
 				      SC16IS7XX_MCR_LOOP_BIT,
 				      (one->port.mctrl & TIOCM_LOOP) ?
 				      SC16IS7XX_MCR_LOOP_BIT : 0);
-
+		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
+				      SC16IS7XX_MCR_RTS_BIT,
+				      (one->port.mctrl & TIOCM_RTS) ?
+				      SC16IS7XX_MCR_RTS_BIT : 0);
+		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
+				      SC16IS7XX_MCR_DTR_BIT,
+				      (one->port.mctrl & TIOCM_DTR) ?
+				      SC16IS7XX_MCR_DTR_BIT : 0);
+	}
 	if (config.flags & SC16IS7XX_RECONF_IER)
 		sc16is7xx_port_update(&one->port, SC16IS7XX_IER_REG,
 				      config.ier_clear, 0);
