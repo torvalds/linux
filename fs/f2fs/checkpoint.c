@@ -143,7 +143,6 @@ bool is_valid_blkaddr(struct f2fs_sb_info *sbi, block_t blkaddr, int type)
 int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 							int type, bool sync)
 {
-	block_t prev_blk_addr = 0;
 	struct page *page;
 	block_t blkno = start;
 	struct f2fs_io_info fio = {
@@ -152,10 +151,12 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 		.rw = sync ? (READ_SYNC | REQ_META | REQ_PRIO) : READA,
 		.encrypted_page = NULL,
 	};
+	struct blk_plug plug;
 
 	if (unlikely(type == META_POR))
 		fio.rw &= ~REQ_META;
 
+	blk_start_plug(&plug);
 	for (; nrpages-- > 0; blkno++) {
 
 		if (!is_valid_blkaddr(sbi, blkno, type))
@@ -174,9 +175,6 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 			/* get sit block addr */
 			fio.blk_addr = current_sit_addr(sbi,
 					blkno * SIT_ENTRY_PER_BLOCK);
-			if (blkno != start && prev_blk_addr + 1 != fio.blk_addr)
-				goto out;
-			prev_blk_addr = fio.blk_addr;
 			break;
 		case META_SSA:
 		case META_CP:
@@ -201,6 +199,7 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 	}
 out:
 	f2fs_submit_merged_bio(sbi, META, READ);
+	blk_finish_plug(&plug);
 	return blkno - start;
 }
 
@@ -287,8 +286,11 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 	struct writeback_control wbc = {
 		.for_reclaim = 0,
 	};
+	struct blk_plug plug;
 
 	pagevec_init(&pvec, 0);
+
+	blk_start_plug(&plug);
 
 	while (index <= end) {
 		int i, nr_pages;
@@ -341,6 +343,8 @@ continue_unlock:
 stop:
 	if (nwritten)
 		f2fs_submit_merged_bio(sbi, type, WRITE);
+
+	blk_finish_plug(&plug);
 
 	return nwritten;
 }
