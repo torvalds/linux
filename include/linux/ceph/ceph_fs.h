@@ -53,6 +53,7 @@ struct ceph_file_layout_legacy {
 	__le32 fl_pg_pool;      /* namespace, crush ruleset, rep level */
 } __attribute__ ((packed));
 
+struct ceph_string;
 /*
  * ceph_file_layout - describe data layout for a file/inode
  */
@@ -62,6 +63,7 @@ struct ceph_file_layout {
 	u32 stripe_count;  /* over this many objects */
 	u32 object_size;   /* until objects are this big */
 	s64 pool_id;        /* rados pool id */
+	struct ceph_string __rcu *pool_ns; /* rados pool namespace */
 };
 
 extern int ceph_file_layout_is_valid(const struct ceph_file_layout *layout);

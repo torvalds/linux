@@ -3999,6 +3999,7 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	rbd_dev->layout.stripe_count = 1;
 	rbd_dev->layout.object_size = 1 << RBD_MAX_OBJ_ORDER;
 	rbd_dev->layout.pool_id = spec->pool_id;
+	RCU_INIT_POINTER(rbd_dev->layout.pool_ns, NULL);
 
 	/*
 	 * If this is a mapping rbd_dev (as opposed to a parent one),

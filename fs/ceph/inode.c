@@ -446,6 +446,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_symlink = NULL;
 
 	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
+	RCU_INIT_POINTER(ci->i_layout.pool_ns, NULL);
 	ci->i_pool_ns_len = 0;
 
 	ci->i_fragtree = RB_ROOT;
@@ -569,6 +570,8 @@ void ceph_destroy_inode(struct inode *inode)
 		ceph_buffer_put(ci->i_xattrs.blob);
 	if (ci->i_xattrs.prealloc_blob)
 		ceph_buffer_put(ci->i_xattrs.prealloc_blob);
+
+	ceph_put_string(ci->i_layout.pool_ns);
 
 	call_rcu(&inode->i_rcu, ceph_i_callback);
 }
