@@ -1462,10 +1462,8 @@ lstcon_statrpc_readent(int transop, srpc_msg_t *msg,
 		return 0;
 
 	sfwk_stat = (sfw_counters_t __user *)&ent_up->rpe_payload[0];
-	srpc_stat = (srpc_counters_t __user *)
-				      ((char *)sfwk_stat + sizeof(*sfwk_stat));
-	lnet_stat = (lnet_counters_t __user *)
-				      ((char *)srpc_stat + sizeof(*srpc_stat));
+	srpc_stat = (srpc_counters_t __user *)(sfwk_stat + 1);
+	lnet_stat = (lnet_counters_t __user *)(srpc_stat + 1);
 
 	if (copy_to_user(sfwk_stat, &rep->str_fw, sizeof(*sfwk_stat)) ||
 	    copy_to_user(srpc_stat, &rep->str_rpc, sizeof(*srpc_stat)) ||
