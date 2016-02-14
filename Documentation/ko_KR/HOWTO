@@ -1,6 +1,6 @@
 NOTE:
 This is a version of Documentation/HOWTO translated into korean
-This document is maintained by minchan Kim <minchan.kim@gmail.com>
+This document is maintained by Minchan Kim <minchan@kernel.org>
 If you find any difference between this document and the original file or
 a problem with the translation, please contact the maintainer of this file.
 
@@ -14,7 +14,7 @@ try to update the original English file first.
 Documentation/HOWTO
 의 한글 번역입니다.
 
-역자： 김민찬 <minchan.kim@gmail.com>
+역자： 김민찬 <minchan@kernel.org>
 감수： 이제이미 <jamee.lee@samsung.com>
 ==================================
 
