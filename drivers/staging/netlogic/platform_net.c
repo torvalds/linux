@@ -86,7 +86,8 @@ static void xlr_resource_init(struct resource *res, int offset, int irq)
 
 	res++;
 	res->name = "gmac";
-	res->start = res->end = irq;
+	res->start = irq;
+	res->end = irq;
 	res->flags = IORESOURCE_IRQ;
 }
 
