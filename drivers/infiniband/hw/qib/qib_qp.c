@@ -484,12 +484,13 @@ void qib_get_credit(struct rvt_qp *qp, u32 aeth)
  * the ring but after the wqe has been
  * setup.
  *
- * Returns 0 on success, -EINVAL on failure
+ * Returns 1 to force direct progress, 0 otherwise, -EINVAL on failure
  */
 int qib_check_send_wqe(struct rvt_qp *qp,
 		       struct rvt_swqe *wqe)
 {
 	struct rvt_ah *ah;
+	int ret = 0;
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
@@ -503,11 +504,13 @@ int qib_check_send_wqe(struct rvt_qp *qp,
 		ah = ibah_to_rvtah(wqe->ud_wr.ah);
 		if (wqe->length > (1 << ah->log_pmtu))
 			return -EINVAL;
+		/* progress hint */
+		ret = 1;
 		break;
 	default:
 		break;
 	}
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_DEBUG_FS

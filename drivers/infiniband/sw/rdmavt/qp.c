@@ -1430,7 +1430,9 @@ static inline u32 qp_get_savail(struct rvt_qp *qp)
  * @qp: the QP to post on
  * @wr: the work request to send
  */
-static int rvt_post_one_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
+static int rvt_post_one_wr(struct rvt_qp *qp,
+			   struct ib_send_wr *wr,
+			   int *call_send)
 {
 	struct rvt_swqe *wqe;
 	u32 next;
@@ -1532,8 +1534,10 @@ static int rvt_post_one_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
 	/* general part of wqe valid - allow for driver checks */
 	if (rdi->driver_f.check_send_wqe) {
 		ret = rdi->driver_f.check_send_wqe(qp, wqe);
-		if (ret)
+		if (ret < 0)
 			goto bail_inval_free;
+		if (ret)
+			*call_send = ret;
 	}
 
 	log_pmtu = qp->log_pmtu;
@@ -1606,7 +1610,7 @@ int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	call_send = qp->s_head == ACCESS_ONCE(qp->s_last) && !wr->next;
 
 	for (; wr; wr = wr->next) {
-		err = rvt_post_one_wr(qp, wr);
+		err = rvt_post_one_wr(qp, wr, &call_send);
 		if (unlikely(err)) {
 			*bad_wr = wr;
 			goto bail;

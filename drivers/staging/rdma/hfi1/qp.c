@@ -73,6 +73,7 @@ static int iowait_sleep(
 	struct sdma_txreq *stx,
 	unsigned seq);
 static void iowait_wakeup(struct iowait *wait, int reason);
+static void qp_pio_drain(struct rvt_qp *qp);
 
 static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 			      struct rvt_qpn_map *map, unsigned off)
@@ -272,7 +273,7 @@ int hfi1_check_send_wqe(struct rvt_qp *qp,
 	default:
 		break;
 	}
-	return 0;
+	return wqe->length <= piothreshold;
 }
 
 /**
