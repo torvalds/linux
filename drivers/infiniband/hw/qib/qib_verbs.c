@@ -1682,6 +1682,10 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.query_port_state = qib_query_port;
 	dd->verbs_dev.rdi.driver_f.shut_down_port = qib_shut_down_port;
 	dd->verbs_dev.rdi.driver_f.cap_mask_chg = qib_cap_mask_chg;
+	dd->verbs_dev.rdi.driver_f.notify_create_mad_agent =
+						qib_notify_create_mad_agent;
+	dd->verbs_dev.rdi.driver_f.notify_free_mad_agent =
+						qib_notify_free_mad_agent;
 
 	dd->verbs_dev.rdi.dparms.max_rdma_atomic = QIB_MAX_RDMA_ATOMIC;
 	dd->verbs_dev.rdi.driver_f.get_guid_be = qib_get_guid_be;
