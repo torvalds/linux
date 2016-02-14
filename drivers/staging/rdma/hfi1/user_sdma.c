@@ -273,7 +273,7 @@ struct user_sdma_txreq {
 
 static int user_sdma_send_pkts(struct user_sdma_request *, unsigned);
 static int num_user_pages(const struct iovec *);
-static void user_sdma_txreq_cb(struct sdma_txreq *, int, int);
+static void user_sdma_txreq_cb(struct sdma_txreq *, int);
 static inline void pq_update(struct hfi1_user_sdma_pkt_q *);
 static void user_sdma_free_request(struct user_sdma_request *, bool);
 static int pin_vector_pages(struct user_sdma_request *,
@@ -388,7 +388,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	init_waitqueue_head(&pq->wait);
 
 	iowait_init(&pq->busy, 0, NULL, defer_packet_queue,
-		    activate_packet_queue);
+		    activate_packet_queue, NULL);
 	pq->reqidx = 0;
 	snprintf(buf, 64, "txreq-kmem-cache-%u-%u-%u", dd->unit, uctxt->ctxt,
 		 fd->subctxt);
@@ -1341,8 +1341,7 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
  * tx request have been processed by the DMA engine. Called in
  * interrupt context.
  */
-static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status,
-			       int drain)
+static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status)
 {
 	struct user_sdma_txreq *tx =
 		container_of(txreq, struct user_sdma_txreq, txreq);

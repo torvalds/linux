@@ -69,7 +69,8 @@ struct sdma_engine;
  * @list: used to add/insert into QP/PQ wait lists
  * @tx_head: overflow list of sdma_txreq's
  * @sleep: no space callback
- * @wakeup: space callback
+ * @wakeup: space callback wakeup
+ * @sdma_drained: sdma count drained
  * @iowork: workqueue overhead
  * @wait_dma: wait for sdma_busy == 0
  * @wait_pio: wait for pio_busy == 0
@@ -104,6 +105,7 @@ struct iowait {
 		struct sdma_txreq *tx,
 		unsigned seq);
 	void (*wakeup)(struct iowait *wait, int reason);
+	void (*sdma_drained)(struct iowait *wait);
 	struct work_struct iowork;
 	wait_queue_head_t wait_dma;
 	wait_queue_head_t wait_pio;
@@ -122,7 +124,7 @@ struct iowait {
  * @tx_limit: limit for overflow queuing
  * @func: restart function for workqueue
  * @sleep: sleep function for no space
- * @wakeup: wakeup function for no space
+ * @resume: wakeup function for no space
  *
  * This function initializes the iowait
  * structure embedded in the QP or PQ.
@@ -138,7 +140,8 @@ static inline void iowait_init(
 		struct iowait *wait,
 		struct sdma_txreq *tx,
 		unsigned seq),
-	void (*wakeup)(struct iowait *wait, int reason))
+	void (*wakeup)(struct iowait *wait, int reason),
+	void (*sdma_drained)(struct iowait *wait))
 {
 	wait->count = 0;
 	INIT_LIST_HEAD(&wait->list);
@@ -151,6 +154,7 @@ static inline void iowait_init(
 	wait->tx_limit = tx_limit;
 	wait->sleep = sleep;
 	wait->wakeup = wakeup;
+	wait->sdma_drained = sdma_drained;
 }
 
 /**
@@ -273,6 +277,8 @@ static inline void iowait_drain_wakeup(struct iowait *wait)
 {
 	wake_up(&wait->wait_dma);
 	wake_up(&wait->wait_pio);
+	if (wait->sdma_drained)
+		wait->sdma_drained(wait);
 }
 
 /**

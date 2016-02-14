@@ -130,8 +130,7 @@ MODULE_PARM_DESC(piothreshold, "size used to determine sdma vs. pio");
 
 static void verbs_sdma_complete(
 	struct sdma_txreq *cookie,
-	int status,
-	int drained);
+	int status);
 
 static int pio_wait(struct rvt_qp *qp,
 		    struct send_context *sc,
@@ -523,8 +522,7 @@ void update_sge(struct rvt_sge_state *ss, u32 length)
 /* New API */
 static void verbs_sdma_complete(
 	struct sdma_txreq *cookie,
-	int status,
-	int drained)
+	int status)
 {
 	struct verbs_txreq *tx =
 		container_of(cookie, struct verbs_txreq, txreq);
@@ -538,18 +536,6 @@ static void verbs_sdma_complete(
 
 		hdr = &tx->phdr.hdr;
 		hfi1_rc_send_complete(qp, hdr);
-	}
-	if (drained) {
-		/*
-		 * This happens when the send engine notes
-		 * a QP in the error state and cannot
-		 * do the flush work until that QP's
-		 * sdma work has finished.
-		 */
-		if (qp->s_flags & RVT_S_WAIT_DMA) {
-			qp->s_flags &= ~RVT_S_WAIT_DMA;
-			hfi1_schedule_send(qp);
-		}
 	}
 	spin_unlock(&qp->s_lock);
 

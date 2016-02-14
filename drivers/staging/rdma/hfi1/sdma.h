@@ -555,7 +555,7 @@ static inline int sdma_txinit_ahg(
 	u8 num_ahg,
 	u32 *ahg,
 	u8 ahg_hlen,
-	void (*cb)(struct sdma_txreq *, int, int))
+	void (*cb)(struct sdma_txreq *, int))
 {
 	if (tlen == 0)
 		return -ENODATA;
@@ -618,7 +618,7 @@ static inline int sdma_txinit(
 	struct sdma_txreq *tx,
 	u16 flags,
 	u16 tlen,
-	void (*cb)(struct sdma_txreq *, int, int))
+	void (*cb)(struct sdma_txreq *, int))
 {
 	return sdma_txinit_ahg(tx, flags, tlen, 0, 0, NULL, 0, cb);
 }

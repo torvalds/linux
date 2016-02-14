@@ -73,6 +73,7 @@ static int iowait_sleep(
 	struct sdma_txreq *stx,
 	unsigned seq);
 static void iowait_wakeup(struct iowait *wait, int reason);
+static void iowait_sdma_drained(struct iowait *wait);
 static void qp_pio_drain(struct rvt_qp *qp);
 
 static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
@@ -509,6 +510,22 @@ static void iowait_wakeup(struct iowait *wait, int reason)
 	hfi1_qp_wakeup(qp, RVT_S_WAIT_DMA_DESC);
 }
 
+static void iowait_sdma_drained(struct iowait *wait)
+{
+	struct rvt_qp *qp = iowait_to_qp(wait);
+
+	/*
+	 * This happens when the send engine notes
+	 * a QP in the error state and cannot
+	 * do the flush work until that QP's
+	 * sdma work has finished.
+	 */
+	if (qp->s_flags & RVT_S_WAIT_DMA) {
+		qp->s_flags &= ~RVT_S_WAIT_DMA;
+		hfi1_schedule_send(qp);
+	}
+}
+
 /**
  *
  * qp_to_sdma_engine - map a qp to a send engine
@@ -773,7 +790,8 @@ void notify_qp_reset(struct rvt_qp *qp)
 		1,
 		_hfi1_do_send,
 		iowait_sleep,
-		iowait_wakeup);
+		iowait_wakeup,
+		iowait_sdma_drained);
 	priv->r_adefered = 0;
 	clear_ahg(qp);
 }

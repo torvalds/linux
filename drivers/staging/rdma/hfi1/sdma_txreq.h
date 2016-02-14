@@ -93,7 +93,7 @@ struct sdma_desc {
 #define SDMA_TXREQ_F_USE_AHG      0x0004
 
 struct sdma_txreq;
-typedef void (*callback_t)(struct sdma_txreq *, int, int);
+typedef void (*callback_t)(struct sdma_txreq *, int);
 
 struct iowait;
 struct sdma_txreq {
