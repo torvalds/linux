@@ -2241,11 +2241,11 @@ struct spi_replaced_transfers *spi_replace_transfers(
 }
 EXPORT_SYMBOL_GPL(spi_replace_transfers);
 
-int __spi_split_transfer_maxsize(struct spi_master *master,
-				 struct spi_message *msg,
-				 struct spi_transfer **xferp,
-				 size_t maxsize,
-				 gfp_t gfp)
+static int __spi_split_transfer_maxsize(struct spi_master *master,
+					struct spi_message *msg,
+					struct spi_transfer **xferp,
+					size_t maxsize,
+					gfp_t gfp)
 {
 	struct spi_transfer *xfer = *xferp, *xfers;
 	struct spi_replaced_transfers *srt;
