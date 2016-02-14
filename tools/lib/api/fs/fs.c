@@ -377,6 +377,19 @@ int sysfs__read_int(const char *entry, int *value)
 	return filename__read_int(path, value);
 }
 
+int sysfs__read_str(const char *entry, char **buf, size_t *sizep)
+{
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
+
+	return filename__read_str(path, buf, sizep);
+}
+
 int sysctl__read_int(const char *sysctl, int *value)
 {
 	char path[PATH_MAX];
