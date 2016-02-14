@@ -3850,8 +3850,6 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
 		if (result)
 			PRINT_ER("Error in sending message queue scan complete parameters: Error(%d)\n", result);
 	}
-
-	return;
 }
 
 int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
