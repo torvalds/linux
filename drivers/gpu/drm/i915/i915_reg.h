@@ -7514,7 +7514,7 @@ enum skl_disp_power_wells {
 #define  DPLL_CFGCR2_PDIV_7 (4<<2)
 #define  DPLL_CFGCR2_CENTRAL_FREQ_MASK	(3)
 
-#define DPLL_CFGCR1(id)	_MMIO_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR1, _DPLL2_CFGCR2)
+#define DPLL_CFGCR1(id)	_MMIO_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR1, _DPLL2_CFGCR1)
 #define DPLL_CFGCR2(id)	_MMIO_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR2, _DPLL2_CFGCR2)
 
 /* BXT display engine PLL */
