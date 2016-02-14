@@ -511,6 +511,15 @@ struct pkt_gl {
 
 typedef int (*rspq_handler_t)(struct sge_rspq *q, const __be64 *rsp,
 			      const struct pkt_gl *gl);
+typedef void (*rspq_flush_handler_t)(struct sge_rspq *q);
+/* LRO related declarations for ULD */
+struct t4_lro_mgr {
+#define MAX_LRO_SESSIONS		64
+	u8 lro_session_cnt;         /* # of sessions to aggregate */
+	unsigned long lro_pkts;     /* # of LRO super packets */
+	unsigned long lro_merged;   /* # of wire packets merged by LRO */
+	struct sk_buff_head lroq;   /* list of aggregated sessions */
+};
 
 struct sge_rspq {                   /* state for an SGE response queue */
 	struct napi_struct napi;
@@ -535,6 +544,8 @@ struct sge_rspq {                   /* state for an SGE response queue */
 	struct adapter *adap;
 	struct net_device *netdev;  /* associated net device */
 	rspq_handler_t handler;
+	rspq_flush_handler_t flush_handler;
+	struct t4_lro_mgr lro_mgr;
 #ifdef CONFIG_NET_RX_BUSY_POLL
 #define CXGB_POLL_STATE_IDLE		0
 #define CXGB_POLL_STATE_NAPI		BIT(0) /* NAPI owns this poll */
@@ -1114,7 +1125,8 @@ int t4_mgmt_tx(struct adapter *adap, struct sk_buff *skb);
 int t4_ofld_send(struct adapter *adap, struct sk_buff *skb);
 int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		     struct net_device *dev, int intr_idx,
-		     struct sge_fl *fl, rspq_handler_t hnd, int cong);
+		     struct sge_fl *fl, rspq_handler_t hnd,
+		     rspq_flush_handler_t flush_handler, int cong);
 int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 			 struct net_device *dev, struct netdev_queue *netdevq,
 			 unsigned int iqid);

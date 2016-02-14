@@ -640,6 +640,13 @@ out:
 	return 0;
 }
 
+/* Flush the aggregated lro sessions */
+static void uldrx_flush_handler(struct sge_rspq *q)
+{
+	if (ulds[q->uld].lro_flush)
+		ulds[q->uld].lro_flush(&q->lro_mgr);
+}
+
 /**
  *	uldrx_handler - response queue handler for ULD queues
  *	@q: the response queue that received the packet
@@ -653,6 +660,7 @@ static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
 			 const struct pkt_gl *gl)
 {
 	struct sge_ofld_rxq *rxq = container_of(q, struct sge_ofld_rxq, rspq);
+	int ret;
 
 	/* FW can send CPLs encapsulated in a CPL_FW4_MSG.
 	 */
@@ -660,10 +668,19 @@ static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	    ((const struct cpl_fw4_msg *)(rsp + 1))->type == FW_TYPE_RSSCPL)
 		rsp += 2;
 
-	if (ulds[q->uld].rx_handler(q->adap->uld_handle[q->uld], rsp, gl)) {
+	if (q->flush_handler)
+		ret = ulds[q->uld].lro_rx_handler(q->adap->uld_handle[q->uld],
+						  rsp, gl, &q->lro_mgr,
+						  &q->napi);
+	else
+		ret = ulds[q->uld].rx_handler(q->adap->uld_handle[q->uld],
+					      rsp, gl);
+
+	if (ret) {
 		rxq->stats.nomem++;
 		return -1;
 	}
+
 	if (gl == NULL)
 		rxq->stats.imm++;
 	else if (gl == CXGB4_MSG_AN)
@@ -980,7 +997,7 @@ static void enable_rx(struct adapter *adap)
 
 static int alloc_ofld_rxqs(struct adapter *adap, struct sge_ofld_rxq *q,
 			   unsigned int nq, unsigned int per_chan, int msi_idx,
-			   u16 *ids)
+			   u16 *ids, bool lro)
 {
 	int i, err;
 
@@ -990,7 +1007,9 @@ static int alloc_ofld_rxqs(struct adapter *adap, struct sge_ofld_rxq *q,
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false,
 				       adap->port[i / per_chan],
 				       msi_idx, q->fl.size ? &q->fl : NULL,
-				       uldrx_handler, 0);
+				       uldrx_handler,
+				       lro ? uldrx_flush_handler : NULL,
+				       0);
 		if (err)
 			return err;
 		memset(&q->stats, 0, sizeof(q->stats));
@@ -1020,7 +1039,7 @@ static int setup_sge_queues(struct adapter *adap)
 		msi_idx = 1;         /* vector 0 is for non-queue interrupts */
 	else {
 		err = t4_sge_alloc_rxq(adap, &s->intrq, false, adap->port[0], 0,
-				       NULL, NULL, -1);
+				       NULL, NULL, NULL, -1);
 		if (err)
 			return err;
 		msi_idx = -((int)s->intrq.abs_id + 1);
@@ -1040,7 +1059,7 @@ static int setup_sge_queues(struct adapter *adap)
 	 *    new/deleted queues.
 	 */
 	err = t4_sge_alloc_rxq(adap, &s->fw_evtq, true, adap->port[0],
-			       msi_idx, NULL, fwevtq_handler, -1);
+			       msi_idx, NULL, fwevtq_handler, NULL, -1);
 	if (err) {
 freeout:	t4_free_sge_resources(adap);
 		return err;
@@ -1058,6 +1077,7 @@ freeout:	t4_free_sge_resources(adap);
 			err = t4_sge_alloc_rxq(adap, &q->rspq, false, dev,
 					       msi_idx, &q->fl,
 					       t4_ethrx_handler,
+					       NULL,
 					       t4_get_mps_bg_map(adap,
 								 pi->tx_chan));
 			if (err)
@@ -1083,19 +1103,19 @@ freeout:	t4_free_sge_resources(adap);
 			goto freeout;
 	}
 
-#define ALLOC_OFLD_RXQS(firstq, nq, per_chan, ids) do { \
-	err = alloc_ofld_rxqs(adap, firstq, nq, per_chan, msi_idx, ids); \
+#define ALLOC_OFLD_RXQS(firstq, nq, per_chan, ids, lro) do { \
+	err = alloc_ofld_rxqs(adap, firstq, nq, per_chan, msi_idx, ids, lro); \
 	if (err) \
 		goto freeout; \
 	if (msi_idx > 0) \
 		msi_idx += nq; \
 } while (0)
 
-	ALLOC_OFLD_RXQS(s->iscsirxq, s->iscsiqsets, j, s->iscsi_rxq);
-	ALLOC_OFLD_RXQS(s->iscsitrxq, s->niscsitq, j, s->iscsit_rxq);
-	ALLOC_OFLD_RXQS(s->rdmarxq, s->rdmaqs, 1, s->rdma_rxq);
+	ALLOC_OFLD_RXQS(s->iscsirxq, s->iscsiqsets, j, s->iscsi_rxq, false);
+	ALLOC_OFLD_RXQS(s->iscsitrxq, s->niscsitq, j, s->iscsit_rxq, true);
+	ALLOC_OFLD_RXQS(s->rdmarxq, s->rdmaqs, 1, s->rdma_rxq, false);
 	j = s->rdmaciqs / adap->params.nports; /* rdmaq queues per channel */
-	ALLOC_OFLD_RXQS(s->rdmaciq, s->rdmaciqs, j, s->rdma_ciq);
+	ALLOC_OFLD_RXQS(s->rdmaciq, s->rdmaciqs, j, s->rdma_ciq, false);
 
 #undef ALLOC_OFLD_RXQS
 
