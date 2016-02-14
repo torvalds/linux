@@ -424,19 +424,6 @@ wakeup:
 	 * application reading/writing this device to return until
 	 * the buffers are done being used.
 	 */
-	if (op->downcall.type == ORANGEFS_VFS_OP_FILE_IO) {
-		long n = wait_for_completion_interruptible_timeout(&op->done,
-							op_timeout_secs * HZ);
-		if (unlikely(n < 0)) {
-			gossip_debug(GOSSIP_DEV_DEBUG,
-				"%s: signal on I/O wait, aborting\n",
-				__func__);
-		} else if (unlikely(n == 0)) {
-			gossip_debug(GOSSIP_DEV_DEBUG,
-				"%s: timed out.\n",
-				__func__);
-		}
-	}
 out:
 	if (unlikely(op_is_cancel(op)))
 		put_cancel(op);

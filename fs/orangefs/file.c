@@ -199,7 +199,7 @@ populate_shared_memory:
 		if (orangefs_cancel_op_in_progress(new_op))
 			return ret;
 
-		goto done_copying;
+		goto out;
 	}
 
 	/*
@@ -212,7 +212,7 @@ populate_shared_memory:
 				       iter,
 				       new_op->downcall.resp.io.amt_complete);
 		if (ret < 0)
-			goto done_copying;
+			goto out;
 	}
 	gossip_debug(GOSSIP_FILE_DEBUG,
 	    "%s(%pU): Amount written as returned by the sys-io call:%d\n",
@@ -222,12 +222,10 @@ populate_shared_memory:
 
 	ret = new_op->downcall.resp.io.amt_complete;
 
-done_copying:
 	/*
 	 * tell the device file owner waiting on I/O that this read has
 	 * completed and it can return now.
 	 */
-	complete(&new_op->done);
 
 out:
 	if (buffer_index >= 0) {

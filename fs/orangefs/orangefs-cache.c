@@ -122,8 +122,6 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 
 		atomic_set(&new_op->ref_count, 1);
 
-		init_completion(&new_op->done);
-
 		new_op->upcall.type = ORANGEFS_VFS_OP_INVALID;
 		new_op->downcall.type = ORANGEFS_VFS_OP_INVALID;
 		new_op->downcall.status = -1;

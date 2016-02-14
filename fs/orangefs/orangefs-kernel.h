@@ -205,8 +205,6 @@ struct orangefs_kernel_op_s {
 	struct completion waitq;
 	spinlock_t lock;
 
-	struct completion done;
-
 	atomic_t ref_count;
 
 	/* VFS aio fields */
