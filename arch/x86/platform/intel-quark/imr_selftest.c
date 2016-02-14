@@ -1,5 +1,5 @@
 /**
- * imr_selftest.c
+ * imr_selftest.c -- Intel Isolated Memory Region self-test driver
  *
  * Copyright(c) 2013 Intel Corporation.
  * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
@@ -15,7 +15,6 @@
 #include <asm/imr.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/types.h>
 
 #define SELFTEST KBUILD_MODNAME ": "
@@ -106,7 +105,6 @@ static const struct x86_cpu_id imr_ids[] __initconst = {
 	{ X86_VENDOR_INTEL, 5, 9 },	/* Intel Quark SoC X1000. */
 	{}
 };
-MODULE_DEVICE_TABLE(x86cpu, imr_ids);
 
 /**
  * imr_self_test_init - entry point for IMR driver.
@@ -125,13 +123,4 @@ static int __init imr_self_test_init(void)
  *
  * return:
  */
-static void __exit imr_self_test_exit(void)
-{
-}
-
-module_init(imr_self_test_init);
-module_exit(imr_self_test_exit);
-
-MODULE_AUTHOR("Bryan O'Donoghue <pure.logic@nexus-software.ie>");
-MODULE_DESCRIPTION("Intel Isolated Memory Region self-test driver");
-MODULE_LICENSE("Dual BSD/GPL");
+device_initcall(imr_self_test_init);
