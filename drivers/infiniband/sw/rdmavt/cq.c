@@ -508,11 +508,6 @@ int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 	int cpu;
 	struct task_struct *task;
 
-	if (rdi->flags & RVT_FLAG_CQ_INIT_DRIVER) {
-		rvt_pr_info(rdi, "Driver is doing CQ init.\n");
-		return 0;
-	}
-
 	if (rdi->worker)
 		return 0;
 	rdi->worker = kzalloc(sizeof(*rdi->worker), GFP_KERNEL);

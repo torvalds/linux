@@ -66,11 +66,6 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 	unsigned lk_tab_size;
 	int i;
 
-	if (rdi->flags & RVT_FLAG_MR_INIT_DRIVER) {
-		rvt_pr_info(rdi, "Driver is doing MR init.\n");
-		return 0;
-	}
-
 	/*
 	 * The top hfi1_lkey_table_size bits are used to index the
 	 * table.  The lower 8 bits can be owned by the user (copied from

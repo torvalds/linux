@@ -60,16 +60,6 @@
 #include <rdma/rdmavt_mr.h>
 #include <rdma/rdmavt_qp.h>
 
-/*
- * For some of the IBTA objects there will likely be some
- * initializations required. We need flags to determine whether it is OK
- * for rdmavt to do this or not. This does not imply any functions of a
- * partiuclar IBTA object are overridden.
- */
-#define RVT_FLAG_MR_INIT_DRIVER BIT(1)
-#define RVT_FLAG_QP_INIT_DRIVER BIT(2)
-#define RVT_FLAG_CQ_INIT_DRIVER BIT(3)
-
 #define RVT_MAX_PKEY_VALUES 16
 
 struct rvt_ibport {

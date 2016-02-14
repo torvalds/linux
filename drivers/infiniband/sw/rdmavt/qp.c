@@ -173,11 +173,6 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 	int i;
 	int ret = -ENOMEM;
 
-	if (rdi->flags & RVT_FLAG_QP_INIT_DRIVER) {
-		rvt_pr_info(rdi, "Driver is doing QP init.\n");
-		return 0;
-	}
-
 	if (!rdi->dparms.qp_table_size)
 		return -EINVAL;
 
@@ -283,9 +278,6 @@ void rvt_qp_exit(struct rvt_dev_info *rdi)
 			   qps_inuse);
 	if (!rdi->qp_dev)
 		return;
-
-	if (rdi->flags & RVT_FLAG_QP_INIT_DRIVER)
-		return; /* driver did the qp init so nothing else to do */
 
 	kfree(rdi->qp_dev->qp_table);
 	free_qpn_table(&rdi->qp_dev->qpn_table);
