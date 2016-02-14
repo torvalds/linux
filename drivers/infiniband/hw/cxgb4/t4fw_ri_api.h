@@ -753,15 +753,6 @@ struct fw_ri_wr {
 #define FW_RI_WR_P2PTYPE_G(x)	\
 	(((x) >> FW_RI_WR_P2PTYPE_S) & FW_RI_WR_P2PTYPE_M)
 
-struct ulptx_idata {
-	__be32 cmd_more;
-	__be32 len;
-};
-
-#define ULPTX_NSGE_S    0
-#define ULPTX_NSGE_M    0xFFFF
-#define ULPTX_NSGE_V(x) ((x) << ULPTX_NSGE_S)
-
 #define RX_DACK_MODE_S    29
 #define RX_DACK_MODE_M    0x3
 #define RX_DACK_MODE_V(x) ((x) << RX_DACK_MODE_S)

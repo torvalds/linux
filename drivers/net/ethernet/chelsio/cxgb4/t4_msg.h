@@ -1222,6 +1222,11 @@ struct ulptx_sgl {
 	struct ulptx_sge_pair sge[0];
 };
 
+struct ulptx_idata {
+	__be32 cmd_more;
+	__be32 len;
+};
+
 #define ULPTX_NSGE_S    0
 #define ULPTX_NSGE_V(x) ((x) << ULPTX_NSGE_S)
 
