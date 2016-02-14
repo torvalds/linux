@@ -1,5 +1,5 @@
 /**
- * imr.c
+ * imr.c -- Intel Isolated Memory Region driver
  *
  * Copyright(c) 2013 Intel Corporation.
  * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
@@ -31,7 +31,6 @@
 #include <linux/debugfs.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/types.h>
 
 struct imr_device {
@@ -267,17 +266,6 @@ static int imr_debugfs_register(struct imr_device *idev)
 	idev->file = debugfs_create_file("imr_state", S_IFREG | S_IRUGO, NULL,
 					 idev, &imr_state_ops);
 	return PTR_ERR_OR_ZERO(idev->file);
-}
-
-/**
- * imr_debugfs_unregister - unregister debugfs hooks.
- *
- * @idev:	pointer to imr_device structure.
- * @return:
- */
-static void imr_debugfs_unregister(struct imr_device *idev)
-{
-	debugfs_remove(idev->file);
 }
 
 /**
@@ -614,7 +602,6 @@ static const struct x86_cpu_id imr_ids[] __initconst = {
 	{ X86_VENDOR_INTEL, 5, 9 },	/* Intel Quark SoC X1000. */
 	{}
 };
-MODULE_DEVICE_TABLE(x86cpu, imr_ids);
 
 /**
  * imr_init - entry point for IMR driver.
@@ -640,22 +627,4 @@ static int __init imr_init(void)
 	imr_fixup_memmap(idev);
 	return 0;
 }
-
-/**
- * imr_exit - exit point for IMR code.
- *
- * Deregisters debugfs, leave IMR state as-is.
- *
- * return:
- */
-static void __exit imr_exit(void)
-{
-	imr_debugfs_unregister(&imr_dev);
-}
-
-module_init(imr_init);
-module_exit(imr_exit);
-
-MODULE_AUTHOR("Bryan O'Donoghue <pure.logic@nexus-software.ie>");
-MODULE_DESCRIPTION("Intel Isolated Memory Region driver");
-MODULE_LICENSE("Dual BSD/GPL");
+device_initcall(imr_init);
