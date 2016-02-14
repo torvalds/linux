@@ -468,8 +468,7 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 		fd->pq = NULL;
 	}
 	if (fd->cq) {
-		if (fd->cq->comps)
-			vfree(fd->cq->comps);
+		vfree(fd->cq->comps);
 		kfree(fd->cq);
 		fd->cq = NULL;
 	}
