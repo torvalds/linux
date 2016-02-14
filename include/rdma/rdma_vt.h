@@ -208,62 +208,157 @@ struct rvt_dev_info;
 struct rvt_swqe;
 struct rvt_driver_provided {
 	/*
-	 * The work to create port files in /sys/class Infiniband is different
-	 * depending on the driver. This should not be extracted away and
-	 * instead drivers are responsible for setting the correct callback for
-	 * this.
+	 * Which functions are required depends on which verbs rdmavt is
+	 * providing and which verbs the driver is overriding. See
+	 * check_support() for details.
 	 */
 
-	/* -------------------*/
-	/* Required functions */
-	/* -------------------*/
+	/* Passed to ib core registration. Callback to create syfs files */
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
+
+	/*
+	 * Returns a string to represent the device for which is being
+	 * registered. This is primarily used for error and debug messages on
+	 * the console.
+	 */
 	const char * (*get_card_name)(struct rvt_dev_info *rdi);
+
+	/*
+	 * Returns a pointer to the undelying hardware's PCI device. This is
+	 * used to display information as to what hardware is being referenced
+	 * in an output message
+	 */
 	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
-	unsigned (*free_all_qps)(struct rvt_dev_info *rdi);
+
+	/*
+	 * Allocate a private queue pair data structure for driver specific
+	 * information which is opaque to rdmavt.
+	 */
 	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 				gfp_t gfp);
+
+	/*
+	 * Free the driver's private qp structure.
+	 */
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+
+	/*
+	 * Inform the driver the particular qp in quesiton has been reset so
+	 * that it can clean up anything it needs to.
+	 */
 	void (*notify_qp_reset)(struct rvt_qp *qp);
+
+	/*
+	 * Give the driver a notice that there is send work to do. It is up to
+	 * the driver to generally push the packets out, this just queues the
+	 * work with the driver. There are two variants here. The no_lock
+	 * version requires the s_lock not to be held. The other assumes the
+	 * s_lock is held.
+	 */
 	void (*schedule_send)(struct rvt_qp *qp);
 	void (*schedule_send_no_lock)(struct rvt_qp *qp);
+
+	/*
+	 * Sometimes rdmavt needs to kick the driver's send progress. That is
+	 * done by this call back.
+	 */
 	void (*do_send)(struct rvt_qp *qp);
+
+	/*
+	 * Get a path mtu from the driver based on qp attributes.
+	 */
 	int (*get_pmtu_from_attr)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 				  struct ib_qp_attr *attr);
+
+	/*
+	 * Notify driver that it needs to flush any outstanding IO requests that
+	 * are waiting on a qp.
+	 */
 	void (*flush_qp_waiters)(struct rvt_qp *qp);
+
+	/*
+	 * Notify driver to stop its queue of sending packets. Nothing else
+	 * should be posted to the queue pair after this has been called.
+	 */
 	void (*stop_send_queue)(struct rvt_qp *qp);
+
+	/*
+	 * Have the drivr drain any in progress operations
+	 */
 	void (*quiesce_qp)(struct rvt_qp *qp);
+
+	/*
+	 * Inform the driver a qp has went to error state.
+	 */
 	void (*notify_error_qp)(struct rvt_qp *qp);
+
+	/*
+	 * Get an MTU for a qp.
+	 */
 	u32 (*mtu_from_qp)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 			   u32 pmtu);
+	/*
+	 * Convert an mtu to a path mtu
+	 */
 	int (*mtu_to_path_mtu)(u32 mtu);
+
+	/*
+	 * Get the guid of a port in big endian byte order
+	 */
 	int (*get_guid_be)(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
 			   int guid_index, __be64 *guid);
+
+	/*
+	 * Query driver for the state of the port.
+	 */
 	int (*query_port_state)(struct rvt_dev_info *rdi, u8 port_num,
 				struct ib_port_attr *props);
+
+	/*
+	 * Tell driver to shutdown a port
+	 */
 	int (*shut_down_port)(struct rvt_dev_info *rdi, u8 port_num);
+
+	/* Tell driver to send a trap for changed  port capabilities */
 	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u8 port_num);
 
-	/*--------------------*/
-	/* Optional functions */
-	/*--------------------*/
+	/*
+	 * The following functions can be safely ignored completely. Any use of
+	 * these is checked for NULL before blindly calling. Rdmavt should also
+	 * be functional if drivers omit these.
+	 */
+
+	/* Called to inform the driver that all qps should now be freed. */
+	unsigned (*free_all_qps)(struct rvt_dev_info *rdi);
+
+	/* Driver specific AH validation */
 	int (*check_ah)(struct ib_device *, struct ib_ah_attr *);
+
+	/* Inform the driver a new AH has been created */
 	void (*notify_new_ah)(struct ib_device *, struct ib_ah_attr *,
 			      struct rvt_ah *);
+
+	/* Let the driver pick the next queue pair number*/
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 			 enum ib_qp_type type, u8 port_num, gfp_t gfp);
-	/**
-	 * Return 0 if modification is valid, -errno otherwise
-	 */
+
+	/* Determine if its safe or allowed to modify the qp */
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			       int attr_mask, struct ib_udata *udata);
+
+	/* Driver specific QP modification/notification-of */
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
 
+	/* Driver specific work request checking */
 	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
+	/* Notify driver a mad agent has been created */
 	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
+
+	/* Notify driver a mad agent has been removed */
 	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
+
 };
 
 struct rvt_dev_info {
