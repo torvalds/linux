@@ -1441,7 +1441,12 @@ static int rvt_post_one_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
 	/* check for avail */
 	if (unlikely(!qp->s_avail)) {
 		qp->s_avail = qp_get_savail(qp);
-		WARN_ON(qp->s_avail > (qp->s_size - 1));
+		if (WARN_ON(qp->s_avail > (qp->s_size - 1)))
+			rvt_pr_err(rdi,
+				   "More avail entries than QP RB size.\nQP: %u, size: %u, avail: %u\nhead: %u, tail: %u, cur: %u, acked: %u, last: %u",
+				   qp->ibqp.qp_num, qp->s_size, qp->s_avail,
+				   qp->s_head, qp->s_tail, qp->s_cur,
+				   qp->s_acked, qp->s_last);
 		if (!qp->s_avail)
 			return -ENOMEM;
 	}
@@ -1510,6 +1515,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
 	wqe->lpsn = wqe->psn +
 			(wqe->length ? ((wqe->length - 1) >> log_pmtu) : 0);
 	qp->s_next_psn = wqe->lpsn + 1;
+	trace_rvt_post_one_wr(qp, wqe);
 	smp_wmb(); /* see request builders */
 	qp->s_avail--;
 	qp->s_head = next;
