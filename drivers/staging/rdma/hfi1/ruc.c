@@ -53,7 +53,7 @@
 #include "hfi.h"
 #include "mad.h"
 #include "qp.h"
-#include "sdma.h"
+#include "verbs_txreq.h"
 
 /*
  * Convert the AETH RNR timeout code into the number of microseconds.

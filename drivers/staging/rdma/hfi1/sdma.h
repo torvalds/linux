@@ -58,9 +58,8 @@
 
 #include "hfi.h"
 #include "verbs.h"
+#include "sdma_txreq.h"
 
-/* increased for AHG */
-#define NUM_DESC 6
 /* Hardware limit */
 #define MAX_DESC 64
 /* Hardware limit for SDMA packet size */
@@ -309,83 +308,6 @@ struct sdma_state {
 struct hw_sdma_desc {
 	/* private:  don't use directly */
 	__le64 qw[2];
-};
-
-/*
- * struct sdma_desc - canonical fragment descriptor
- *
- * This is the descriptor carried in the tx request
- * corresponding to each fragment.
- *
- */
-struct sdma_desc {
-	/* private:  don't use directly */
-	u64 qw[2];
-};
-
-struct sdma_txreq;
-typedef void (*callback_t)(struct sdma_txreq *, int, int);
-
-/**
- * struct sdma_txreq - the sdma_txreq structure (one per packet)
- * @list: for use by user and by queuing for wait
- *
- * This is the representation of a packet which consists of some
- * number of fragments.   Storage is provided to within the structure.
- * for all fragments.
- *
- * The storage for the descriptors are automatically extended as needed
- * when the currently allocation is exceeded.
- *
- * The user (Verbs or PSM) may overload this structure with fields
- * specific to their use by putting this struct first in their struct.
- * The method of allocation of the overloaded structure is user dependent
- *
- * The list is the only public field in the structure.
- *
- */
-
-struct sdma_txreq {
-	struct list_head list;
-	/* private: */
-	struct sdma_desc *descp;
-	/* private: */
-	void *coalesce_buf;
-	/* private: */
-	u16 coalesce_idx;
-	/* private: */
-	struct iowait *wait;
-	/* private: */
-	callback_t                  complete;
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
-	u64 sn;
-#endif
-	/* private: - used in coalesce/pad processing */
-	u16                         packet_len;
-	/* private: - down-counted to trigger last */
-	u16                         tlen;
-	/* private: flags */
-	u16                         flags;
-	/* private: */
-	u16                         num_desc;
-	/* private: */
-	u16                         desc_limit;
-	/* private: */
-	u16                         next_descq_idx;
-	/* private: */
-	struct sdma_desc descs[NUM_DESC];
-};
-
-struct verbs_txreq {
-	struct hfi1_pio_header	phdr;
-	struct sdma_txreq       txreq;
-	struct rvt_qp           *qp;
-	struct rvt_swqe         *wqe;
-	struct rvt_mregion	*mr;
-	struct rvt_sge_state    *ss;
-	struct sdma_engine     *sde;
-	u16                     hdr_dwords;
-	u16                     hdr_inx;
 };
 
 /**

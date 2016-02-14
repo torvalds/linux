@@ -60,7 +60,7 @@
 #include "hfi.h"
 #include "qp.h"
 #include "trace.h"
-#include "sdma.h"
+#include "verbs_txreq.h"
 
 unsigned int hfi1_qp_table_size = 256;
 module_param_named(qp_table_size, hfi1_qp_table_size, uint, S_IRUGO);

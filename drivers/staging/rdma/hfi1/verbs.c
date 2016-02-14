@@ -63,7 +63,7 @@
 #include "device.h"
 #include "trace.h"
 #include "qp.h"
-#include "sdma.h"
+#include "verbs_txreq.h"
 
 static unsigned int hfi1_lkey_table_size = 16;
 module_param_named(lkey_table_size, hfi1_lkey_table_size, uint,
@@ -506,89 +506,6 @@ void update_sge(struct rvt_sge_state *ss, u32 length)
 		sge->vaddr = sge->mr->map[sge->m]->segs[sge->n].vaddr;
 		sge->length = sge->mr->map[sge->m]->segs[sge->n].length;
 	}
-}
-
-static noinline struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
-						struct rvt_qp *qp)
-{
-	struct hfi1_qp_priv *priv = qp->priv;
-	struct verbs_txreq *tx;
-	unsigned long flags;
-
-	tx = kmem_cache_alloc(dev->verbs_txreq_cache, GFP_ATOMIC);
-	if (!tx) {
-		spin_lock_irqsave(&qp->s_lock, flags);
-		write_seqlock(&dev->iowait_lock);
-		if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK &&
-		    list_empty(&priv->s_iowait.list)) {
-			dev->n_txwait++;
-			qp->s_flags |= RVT_S_WAIT_TX;
-			list_add_tail(&priv->s_iowait.list, &dev->txwait);
-			trace_hfi1_qpsleep(qp, RVT_S_WAIT_TX);
-			atomic_inc(&qp->refcount);
-		}
-		qp->s_flags &= ~RVT_S_BUSY;
-		write_sequnlock(&dev->iowait_lock);
-		spin_unlock_irqrestore(&qp->s_lock, flags);
-		tx = ERR_PTR(-EBUSY);
-	}
-	return tx;
-}
-
-static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
-					    struct rvt_qp *qp)
-{
-	struct verbs_txreq *tx;
-
-	tx = kmem_cache_alloc(dev->verbs_txreq_cache, GFP_ATOMIC);
-	if (!tx) {
-		/* call slow path to get the lock */
-		tx =  __get_txreq(dev, qp);
-		if (IS_ERR(tx))
-			return tx;
-	}
-	tx->qp = qp;
-	return tx;
-}
-
-void hfi1_put_txreq(struct verbs_txreq *tx)
-{
-	struct hfi1_ibdev *dev;
-	struct rvt_qp *qp;
-	unsigned long flags;
-	unsigned int seq;
-	struct hfi1_qp_priv *priv;
-
-	qp = tx->qp;
-	dev = to_idev(qp->ibqp.device);
-
-	if (tx->mr) {
-		rvt_put_mr(tx->mr);
-		tx->mr = NULL;
-	}
-	sdma_txclean(dd_from_dev(dev), &tx->txreq);
-
-	/* Free verbs_txreq and return to slab cache */
-	kmem_cache_free(dev->verbs_txreq_cache, tx);
-
-	do {
-		seq = read_seqbegin(&dev->iowait_lock);
-		if (!list_empty(&dev->txwait)) {
-			struct iowait *wait;
-
-			write_seqlock_irqsave(&dev->iowait_lock, flags);
-			/* Wake up first QP wanting a free struct */
-			wait = list_first_entry(&dev->txwait, struct iowait,
-						list);
-			qp = iowait_to_qp(wait);
-			priv = qp->priv;
-			list_del_init(&priv->s_iowait.list);
-			/* refcount held until actual wake up */
-			write_sequnlock_irqrestore(&dev->iowait_lock, flags);
-			hfi1_qp_wakeup(qp, RVT_S_WAIT_TX);
-			break;
-		}
-	} while (read_seqretry(&dev->iowait_lock, seq));
 }
 
 /*
@@ -1427,13 +1344,6 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 	RCU_INIT_POINTER(ibp->rvp.qp[1], NULL);
 }
 
-static void verbs_txreq_kmem_cache_ctor(void *obj)
-{
-	struct verbs_txreq *tx = obj;
-
-	memset(tx, 0, sizeof(*tx));
-}
-
 /**
  * hfi1_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
@@ -1447,8 +1357,6 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	unsigned i;
 	int ret;
 	size_t lcpysz = IB_DEVICE_NAME_MAX;
-	u16 descq_cnt;
-	char buf[TXREQ_NAME_LEN];
 
 	for (i = 0; i < dd->num_pports; i++)
 		init_ibport(ppd + i);
@@ -1461,18 +1369,9 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	INIT_LIST_HEAD(&dev->txwait);
 	INIT_LIST_HEAD(&dev->memwait);
 
-	descq_cnt = sdma_get_descq_cnt();
-
-	snprintf(buf, sizeof(buf), "hfi1_%u_vtxreq_cache", dd->unit);
-	/* SLAB_HWCACHE_ALIGN for AHG */
-	dev->verbs_txreq_cache = kmem_cache_create(buf,
-						   sizeof(struct verbs_txreq),
-						   0, SLAB_HWCACHE_ALIGN,
-						   verbs_txreq_kmem_cache_ctor);
-	if (!dev->verbs_txreq_cache) {
-		ret = -ENOMEM;
+	ret = verbs_txreq_init(dev);
+	if (ret)
 		goto err_verbs_txreq;
-	}
 
 	/*
 	 * The system image GUID is supposed to be the same for all
@@ -1578,7 +1477,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 err_class:
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 err_verbs_txreq:
-	kmem_cache_destroy(dev->verbs_txreq_cache);
+	verbs_txreq_exit(dev);
 	dd_dev_err(dd, "cannot register verbs: %d!\n", -ret);
 	return ret;
 }
@@ -1597,7 +1496,7 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 		dd_dev_err(dd, "memwait list not empty!\n");
 
 	del_timer_sync(&dev->mem_timer);
-	kmem_cache_destroy(dev->verbs_txreq_cache);
+	verbs_txreq_exit(dev);
 }
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet)
