@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/regmap.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
@@ -61,6 +62,7 @@ struct inv_mpu6050_reg_map {
 enum inv_devices {
 	INV_MPU6050,
 	INV_MPU6500,
+	INV_MPU6000,
 	INV_NUM_PARTS
 };
 
@@ -107,9 +109,10 @@ struct inv_mpu6050_hw {
  *  @hw:		Other hardware-specific information.
  *  @chip_type:		chip type.
  *  @time_stamp_lock:	spin lock to time stamp.
- *  @client:		i2c client handle.
  *  @plat_data:		platform data.
  *  @timestamps:        kfifo queue to store time stamp.
+ *  @map		regmap pointer.
+ *  @irq		interrupt number.
  */
 struct inv_mpu6050_state {
 #define TIMESTAMP_FIFO_SIZE 16
@@ -119,12 +122,13 @@ struct inv_mpu6050_state {
 	const struct inv_mpu6050_hw *hw;
 	enum   inv_devices chip_type;
 	spinlock_t time_stamp_lock;
-	struct i2c_client *client;
 	struct i2c_adapter *mux_adapter;
 	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
+	struct regmap *map;
+	int irq;
 };
 
 /*register and associated bit definition*/
@@ -151,6 +155,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BIT_I2C_MST_EN          0x20
 #define INV_MPU6050_BIT_FIFO_EN             0x40
 #define INV_MPU6050_BIT_DMP_EN              0x80
+#define INV_MPU6050_BIT_I2C_IF_DIS          0x10
 
 #define INV_MPU6050_REG_PWR_MGMT_1          0x6B
 #define INV_MPU6050_BIT_H_RESET             0x80
@@ -185,6 +190,7 @@ struct inv_mpu6050_state {
 
 #define INV_MPU6050_REG_INT_PIN_CFG	0x37
 #define INV_MPU6050_BIT_BYPASS_EN	0x2
+#define INV_MPU6050_INT_PIN_CFG		0
 
 /* init parameters */
 #define INV_MPU6050_INIT_FIFO_RATE           50
@@ -252,5 +258,10 @@ int inv_reset_fifo(struct iio_dev *indio_dev);
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask);
 int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 val);
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
-int inv_mpu_acpi_create_mux_client(struct inv_mpu6050_state *st);
-void inv_mpu_acpi_delete_mux_client(struct inv_mpu6050_state *st);
+int inv_mpu_acpi_create_mux_client(struct i2c_client *client);
+void inv_mpu_acpi_delete_mux_client(struct i2c_client *client);
+int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
+		      int (*inv_mpu_bus_setup)(struct iio_dev *));
+int inv_mpu_core_remove(struct device *dev);
+int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
+extern const struct dev_pm_ops inv_mpu_pmops;

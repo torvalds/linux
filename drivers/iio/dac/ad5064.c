@@ -1,6 +1,9 @@
 /*
- * AD5024, AD5025, AD5044, AD5045, AD5064, AD5064-1, AD5065, AD5628, AD5629R,
- * AD5648, AD5666, AD5668, AD5669R Digital to analog converters driver
+ * AD5024, AD5025, AD5044, AD5045, AD5064, AD5064-1, AD5065, AD5625, AD5625R,
+ * AD5627, AD5627R, AD5628, AD5629R, AD5645R, AD5647R, AD5648, AD5665, AD5665R,
+ * AD5666, AD5667, AD5667R, AD5668, AD5669R, LTC2606, LTC2607, LTC2609, LTC2616,
+ * LTC2617, LTC2619, LTC2626, LTC2627, LTC2629 Digital to analog converters
+ * driver
  *
  * Copyright 2011 Analog Devices Inc.
  *
@@ -39,6 +42,9 @@
 #define AD5064_CMD_RESET			0x7
 #define AD5064_CMD_CONFIG			0x8
 
+#define AD5064_CMD_RESET_V2			0x5
+#define AD5064_CMD_CONFIG_V2			0x7
+
 #define AD5064_CONFIG_DAISY_CHAIN_ENABLE	BIT(1)
 #define AD5064_CONFIG_INT_VREF_ENABLE		BIT(0)
 
@@ -48,12 +54,25 @@
 #define AD5064_LDAC_PWRDN_3STATE		0x3
 
 /**
+ * enum ad5064_regmap_type - Register layout variant
+ * @AD5064_REGMAP_ADI: Old Analog Devices register map layout
+ * @AD5064_REGMAP_ADI2: New Analog Devices register map layout
+ * @AD5064_REGMAP_LTC: LTC register map layout
+ */
+enum ad5064_regmap_type {
+	AD5064_REGMAP_ADI,
+	AD5064_REGMAP_ADI2,
+	AD5064_REGMAP_LTC,
+};
+
+/**
  * struct ad5064_chip_info - chip specific information
  * @shared_vref:	whether the vref supply is shared between channels
- * @internal_vref:	internal reference voltage. 0 if the chip has no internal
- *			vref.
+ * @internal_vref:	internal reference voltage. 0 if the chip has no
+			internal vref.
  * @channel:		channel specification
  * @num_channels:	number of channels
+ * @regmap_type:	register map layout variant
  */
 
 struct ad5064_chip_info {
@@ -61,6 +80,7 @@ struct ad5064_chip_info {
 	unsigned long internal_vref;
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
+	enum ad5064_regmap_type regmap_type;
 };
 
 struct ad5064_state;
@@ -111,18 +131,43 @@ enum ad5064_type {
 	ID_AD5064,
 	ID_AD5064_1,
 	ID_AD5065,
+	ID_AD5625,
+	ID_AD5625R_1V25,
+	ID_AD5625R_2V5,
+	ID_AD5627,
+	ID_AD5627R_1V25,
+	ID_AD5627R_2V5,
 	ID_AD5628_1,
 	ID_AD5628_2,
 	ID_AD5629_1,
 	ID_AD5629_2,
+	ID_AD5645R_1V25,
+	ID_AD5645R_2V5,
+	ID_AD5647R_1V25,
+	ID_AD5647R_2V5,
 	ID_AD5648_1,
 	ID_AD5648_2,
+	ID_AD5665,
+	ID_AD5665R_1V25,
+	ID_AD5665R_2V5,
 	ID_AD5666_1,
 	ID_AD5666_2,
+	ID_AD5667,
+	ID_AD5667R_1V25,
+	ID_AD5667R_2V5,
 	ID_AD5668_1,
 	ID_AD5668_2,
 	ID_AD5669_1,
 	ID_AD5669_2,
+	ID_LTC2606,
+	ID_LTC2607,
+	ID_LTC2609,
+	ID_LTC2616,
+	ID_LTC2617,
+	ID_LTC2619,
+	ID_LTC2626,
+	ID_LTC2627,
+	ID_LTC2629,
 };
 
 static int ad5064_write(struct ad5064_state *st, unsigned int cmd,
@@ -136,15 +181,27 @@ static int ad5064_write(struct ad5064_state *st, unsigned int cmd,
 static int ad5064_sync_powerdown_mode(struct ad5064_state *st,
 	const struct iio_chan_spec *chan)
 {
-	unsigned int val;
+	unsigned int val, address;
+	unsigned int shift;
 	int ret;
 
-	val = (0x1 << chan->address);
+	if (st->chip_info->regmap_type == AD5064_REGMAP_LTC) {
+		val = 0;
+		address = chan->address;
+	} else {
+		if (st->chip_info->regmap_type == AD5064_REGMAP_ADI2)
+			shift = 4;
+		else
+			shift = 8;
 
-	if (st->pwr_down[chan->channel])
-		val |= st->pwr_down_mode[chan->channel] << 8;
+		val = (0x1 << chan->address);
+		address = 0;
 
-	ret = ad5064_write(st, AD5064_CMD_POWERDOWN_DAC, 0, val, 0);
+		if (st->pwr_down[chan->channel])
+			val |= st->pwr_down_mode[chan->channel] << shift;
+	}
+
+	ret = ad5064_write(st, AD5064_CMD_POWERDOWN_DAC, address, val, 0);
 
 	return ret;
 }
@@ -153,6 +210,10 @@ static const char * const ad5064_powerdown_modes[] = {
 	"1kohm_to_gnd",
 	"100kohm_to_gnd",
 	"three_state",
+};
+
+static const char * const ltc2617_powerdown_modes[] = {
+	"90kohm_to_gnd",
 };
 
 static int ad5064_get_powerdown_mode(struct iio_dev *indio_dev,
@@ -181,6 +242,13 @@ static int ad5064_set_powerdown_mode(struct iio_dev *indio_dev,
 static const struct iio_enum ad5064_powerdown_mode_enum = {
 	.items = ad5064_powerdown_modes,
 	.num_items = ARRAY_SIZE(ad5064_powerdown_modes),
+	.get = ad5064_get_powerdown_mode,
+	.set = ad5064_set_powerdown_mode,
+};
+
+static const struct iio_enum ltc2617_powerdown_mode_enum = {
+	.items = ltc2617_powerdown_modes,
+	.num_items = ARRAY_SIZE(ltc2617_powerdown_modes),
 	.get = ad5064_get_powerdown_mode,
 	.set = ad5064_set_powerdown_mode,
 };
@@ -295,7 +363,19 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	{ },
 };
 
-#define AD5064_CHANNEL(chan, addr, bits, _shift) {		\
+static const struct iio_chan_spec_ext_info ltc2617_ext_info[] = {
+	{
+		.name = "powerdown",
+		.read = ad5064_read_dac_powerdown,
+		.write = ad5064_write_dac_powerdown,
+		.shared = IIO_SEPARATE,
+	},
+	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ltc2617_powerdown_mode_enum),
+	IIO_ENUM_AVAILABLE("powerdown_mode", &ltc2617_powerdown_mode_enum),
+	{ },
+};
+
+#define AD5064_CHANNEL(chan, addr, bits, _shift, _ext_info) {		\
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
@@ -309,145 +389,340 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 		.storagebits = 16,				\
 		.shift = (_shift),				\
 	},							\
-	.ext_info = ad5064_ext_info,				\
+	.ext_info = (_ext_info),				\
 }
 
-#define DECLARE_AD5064_CHANNELS(name, bits, shift) \
+#define DECLARE_AD5064_CHANNELS(name, bits, shift, ext_info) \
 const struct iio_chan_spec name[] = { \
-	AD5064_CHANNEL(0, 0, bits, shift), \
-	AD5064_CHANNEL(1, 1, bits, shift), \
-	AD5064_CHANNEL(2, 2, bits, shift), \
-	AD5064_CHANNEL(3, 3, bits, shift), \
-	AD5064_CHANNEL(4, 4, bits, shift), \
-	AD5064_CHANNEL(5, 5, bits, shift), \
-	AD5064_CHANNEL(6, 6, bits, shift), \
-	AD5064_CHANNEL(7, 7, bits, shift), \
+	AD5064_CHANNEL(0, 0, bits, shift, ext_info), \
+	AD5064_CHANNEL(1, 1, bits, shift, ext_info), \
+	AD5064_CHANNEL(2, 2, bits, shift, ext_info), \
+	AD5064_CHANNEL(3, 3, bits, shift, ext_info), \
+	AD5064_CHANNEL(4, 4, bits, shift, ext_info), \
+	AD5064_CHANNEL(5, 5, bits, shift, ext_info), \
+	AD5064_CHANNEL(6, 6, bits, shift, ext_info), \
+	AD5064_CHANNEL(7, 7, bits, shift, ext_info), \
 }
 
-#define DECLARE_AD5065_CHANNELS(name, bits, shift) \
+#define DECLARE_AD5065_CHANNELS(name, bits, shift, ext_info) \
 const struct iio_chan_spec name[] = { \
-	AD5064_CHANNEL(0, 0, bits, shift), \
-	AD5064_CHANNEL(1, 3, bits, shift), \
+	AD5064_CHANNEL(0, 0, bits, shift, ext_info), \
+	AD5064_CHANNEL(1, 3, bits, shift, ext_info), \
 }
 
-static DECLARE_AD5064_CHANNELS(ad5024_channels, 12, 8);
-static DECLARE_AD5064_CHANNELS(ad5044_channels, 14, 6);
-static DECLARE_AD5064_CHANNELS(ad5064_channels, 16, 4);
+static DECLARE_AD5064_CHANNELS(ad5024_channels, 12, 8, ad5064_ext_info);
+static DECLARE_AD5064_CHANNELS(ad5044_channels, 14, 6, ad5064_ext_info);
+static DECLARE_AD5064_CHANNELS(ad5064_channels, 16, 4, ad5064_ext_info);
 
-static DECLARE_AD5065_CHANNELS(ad5025_channels, 12, 8);
-static DECLARE_AD5065_CHANNELS(ad5045_channels, 14, 6);
-static DECLARE_AD5065_CHANNELS(ad5065_channels, 16, 4);
+static DECLARE_AD5065_CHANNELS(ad5025_channels, 12, 8, ad5064_ext_info);
+static DECLARE_AD5065_CHANNELS(ad5045_channels, 14, 6, ad5064_ext_info);
+static DECLARE_AD5065_CHANNELS(ad5065_channels, 16, 4, ad5064_ext_info);
 
-static DECLARE_AD5064_CHANNELS(ad5629_channels, 12, 4);
-static DECLARE_AD5064_CHANNELS(ad5669_channels, 16, 0);
+static DECLARE_AD5064_CHANNELS(ad5629_channels, 12, 4, ad5064_ext_info);
+static DECLARE_AD5064_CHANNELS(ad5645_channels, 14, 2, ad5064_ext_info);
+static DECLARE_AD5064_CHANNELS(ad5669_channels, 16, 0, ad5064_ext_info);
+
+static DECLARE_AD5064_CHANNELS(ltc2607_channels, 16, 0, ltc2617_ext_info);
+static DECLARE_AD5064_CHANNELS(ltc2617_channels, 14, 2, ltc2617_ext_info);
+static DECLARE_AD5064_CHANNELS(ltc2627_channels, 12, 4, ltc2617_ext_info);
 
 static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 	[ID_AD5024] = {
 		.shared_vref = false,
 		.channels = ad5024_channels,
 		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5025] = {
 		.shared_vref = false,
 		.channels = ad5025_channels,
 		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5044] = {
 		.shared_vref = false,
 		.channels = ad5044_channels,
 		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5045] = {
 		.shared_vref = false,
 		.channels = ad5045_channels,
 		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5064] = {
 		.shared_vref = false,
 		.channels = ad5064_channels,
 		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5064_1] = {
 		.shared_vref = true,
 		.channels = ad5064_channels,
 		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5065] = {
 		.shared_vref = false,
 		.channels = ad5065_channels,
 		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI,
+	},
+	[ID_AD5625] = {
+		.shared_vref = true,
+		.channels = ad5629_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5625R_1V25] = {
+		.shared_vref = true,
+		.internal_vref = 1250000,
+		.channels = ad5629_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5625R_2V5] = {
+		.shared_vref = true,
+		.internal_vref = 2500000,
+		.channels = ad5629_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5627] = {
+		.shared_vref = true,
+		.channels = ad5629_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5627R_1V25] = {
+		.shared_vref = true,
+		.internal_vref = 1250000,
+		.channels = ad5629_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5627R_2V5] = {
+		.shared_vref = true,
+		.internal_vref = 2500000,
+		.channels = ad5629_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI2
 	},
 	[ID_AD5628_1] = {
 		.shared_vref = true,
 		.internal_vref = 2500000,
 		.channels = ad5024_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5628_2] = {
 		.shared_vref = true,
 		.internal_vref = 5000000,
 		.channels = ad5024_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5629_1] = {
 		.shared_vref = true,
 		.internal_vref = 2500000,
 		.channels = ad5629_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5629_2] = {
 		.shared_vref = true,
 		.internal_vref = 5000000,
 		.channels = ad5629_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
+	},
+	[ID_AD5645R_1V25] = {
+		.shared_vref = true,
+		.internal_vref = 1250000,
+		.channels = ad5645_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5645R_2V5] = {
+		.shared_vref = true,
+		.internal_vref = 2500000,
+		.channels = ad5645_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5647R_1V25] = {
+		.shared_vref = true,
+		.internal_vref = 1250000,
+		.channels = ad5645_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5647R_2V5] = {
+		.shared_vref = true,
+		.internal_vref = 2500000,
+		.channels = ad5645_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI2
 	},
 	[ID_AD5648_1] = {
 		.shared_vref = true,
 		.internal_vref = 2500000,
 		.channels = ad5044_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5648_2] = {
 		.shared_vref = true,
 		.internal_vref = 5000000,
 		.channels = ad5044_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
+	},
+	[ID_AD5665] = {
+		.shared_vref = true,
+		.channels = ad5669_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5665R_1V25] = {
+		.shared_vref = true,
+		.internal_vref = 1250000,
+		.channels = ad5669_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5665R_2V5] = {
+		.shared_vref = true,
+		.internal_vref = 2500000,
+		.channels = ad5669_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI2
 	},
 	[ID_AD5666_1] = {
 		.shared_vref = true,
 		.internal_vref = 2500000,
 		.channels = ad5064_channels,
 		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5666_2] = {
 		.shared_vref = true,
 		.internal_vref = 5000000,
 		.channels = ad5064_channels,
 		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_ADI,
+	},
+	[ID_AD5667] = {
+		.shared_vref = true,
+		.channels = ad5669_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5667R_1V25] = {
+		.shared_vref = true,
+		.internal_vref = 1250000,
+		.channels = ad5669_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI2
+	},
+	[ID_AD5667R_2V5] = {
+		.shared_vref = true,
+		.internal_vref = 2500000,
+		.channels = ad5669_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_ADI2
 	},
 	[ID_AD5668_1] = {
 		.shared_vref = true,
 		.internal_vref = 2500000,
 		.channels = ad5064_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5668_2] = {
 		.shared_vref = true,
 		.internal_vref = 5000000,
 		.channels = ad5064_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5669_1] = {
 		.shared_vref = true,
 		.internal_vref = 2500000,
 		.channels = ad5669_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
 	},
 	[ID_AD5669_2] = {
 		.shared_vref = true,
 		.internal_vref = 5000000,
 		.channels = ad5669_channels,
 		.num_channels = 8,
+		.regmap_type = AD5064_REGMAP_ADI,
+	},
+	[ID_LTC2606] = {
+		.shared_vref = true,
+		.internal_vref = 0,
+		.channels = ltc2607_channels,
+		.num_channels = 1,
+		.regmap_type = AD5064_REGMAP_LTC,
+	},
+	[ID_LTC2607] = {
+		.shared_vref = true,
+		.internal_vref = 0,
+		.channels = ltc2607_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_LTC,
+	},
+	[ID_LTC2609] = {
+		.shared_vref = false,
+		.internal_vref = 0,
+		.channels = ltc2607_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_LTC,
+	},
+	[ID_LTC2616] = {
+		.shared_vref = true,
+		.internal_vref = 0,
+		.channels = ltc2617_channels,
+		.num_channels = 1,
+		.regmap_type = AD5064_REGMAP_LTC,
+	},
+	[ID_LTC2617] = {
+		.shared_vref = true,
+		.internal_vref = 0,
+		.channels = ltc2617_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_LTC,
+	},
+	[ID_LTC2619] = {
+		.shared_vref = false,
+		.internal_vref = 0,
+		.channels = ltc2617_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_LTC,
+	},
+	[ID_LTC2626] = {
+		.shared_vref = true,
+		.internal_vref = 0,
+		.channels = ltc2627_channels,
+		.num_channels = 1,
+		.regmap_type = AD5064_REGMAP_LTC,
+	},
+	[ID_LTC2627] = {
+		.shared_vref = true,
+		.internal_vref = 0,
+		.channels = ltc2627_channels,
+		.num_channels = 2,
+		.regmap_type = AD5064_REGMAP_LTC,
+	},
+	[ID_LTC2629] = {
+		.shared_vref = false,
+		.internal_vref = 0,
+		.channels = ltc2627_channels,
+		.num_channels = 4,
+		.regmap_type = AD5064_REGMAP_LTC,
 	},
 };
 
@@ -467,6 +742,22 @@ static const char * const ad5064_vref_name(struct ad5064_state *st,
 	unsigned int vref)
 {
 	return st->chip_info->shared_vref ? "vref" : ad5064_vref_names[vref];
+}
+
+static int ad5064_set_config(struct ad5064_state *st, unsigned int val)
+{
+	unsigned int cmd;
+
+	switch (st->chip_info->regmap_type) {
+	case AD5064_REGMAP_ADI2:
+		cmd = AD5064_CMD_CONFIG_V2;
+		break;
+	default:
+		cmd = AD5064_CMD_CONFIG;
+		break;
+	}
+
+	return ad5064_write(st, cmd, 0, val, 0);
 }
 
 static int ad5064_probe(struct device *dev, enum ad5064_type type,
@@ -498,8 +789,7 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 		if (!st->chip_info->internal_vref)
 			return ret;
 		st->use_internal_vref = true;
-		ret = ad5064_write(st, AD5064_CMD_CONFIG, 0,
-			AD5064_CONFIG_INT_VREF_ENABLE, 0);
+		ret = ad5064_set_config(st, AD5064_CONFIG_INT_VREF_ENABLE);
 		if (ret) {
 			dev_err(dev, "Failed to enable internal vref: %d\n",
 				ret);
@@ -628,9 +918,19 @@ static int ad5064_i2c_write(struct ad5064_state *st, unsigned int cmd,
 	unsigned int addr, unsigned int val)
 {
 	struct i2c_client *i2c = to_i2c_client(st->dev);
+	unsigned int cmd_shift;
 	int ret;
 
-	st->data.i2c[0] = (cmd << 4) | addr;
+	switch (st->chip_info->regmap_type) {
+	case AD5064_REGMAP_ADI2:
+		cmd_shift = 3;
+		break;
+	default:
+		cmd_shift = 4;
+		break;
+	}
+
+	st->data.i2c[0] = (cmd << cmd_shift) | addr;
 	put_unaligned_be16(val, &st->data.i2c[1]);
 
 	ret = i2c_master_send(i2c, st->data.i2c, 3);
@@ -653,12 +953,35 @@ static int ad5064_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ad5064_i2c_ids[] = {
+	{"ad5625", ID_AD5625 },
+	{"ad5625r-1v25", ID_AD5625R_1V25 },
+	{"ad5625r-2v5", ID_AD5625R_2V5 },
+	{"ad5627", ID_AD5627 },
+	{"ad5627r-1v25", ID_AD5627R_1V25 },
+	{"ad5627r-2v5", ID_AD5627R_2V5 },
 	{"ad5629-1", ID_AD5629_1},
 	{"ad5629-2", ID_AD5629_2},
 	{"ad5629-3", ID_AD5629_2}, /* similar enough to ad5629-2 */
+	{"ad5645r-1v25", ID_AD5645R_1V25 },
+	{"ad5645r-2v5", ID_AD5645R_2V5 },
+	{"ad5665", ID_AD5665 },
+	{"ad5665r-1v25", ID_AD5665R_1V25 },
+	{"ad5665r-2v5", ID_AD5665R_2V5 },
+	{"ad5667", ID_AD5667 },
+	{"ad5667r-1v25", ID_AD5667R_1V25 },
+	{"ad5667r-2v5", ID_AD5667R_2V5 },
 	{"ad5669-1", ID_AD5669_1},
 	{"ad5669-2", ID_AD5669_2},
 	{"ad5669-3", ID_AD5669_2}, /* similar enough to ad5669-2 */
+	{"ltc2606", ID_LTC2606},
+	{"ltc2607", ID_LTC2607},
+	{"ltc2609", ID_LTC2609},
+	{"ltc2616", ID_LTC2616},
+	{"ltc2617", ID_LTC2617},
+	{"ltc2619", ID_LTC2619},
+	{"ltc2626", ID_LTC2626},
+	{"ltc2627", ID_LTC2627},
+	{"ltc2629", ID_LTC2629},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ad5064_i2c_ids);

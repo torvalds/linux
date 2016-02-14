@@ -10,6 +10,7 @@ config ATLAS_PH_SENSOR
 	select REGMAP_I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	select IRQ_WORK
 	help
 	 Say Y here to build I2C interface support for the Atlas
 	 Scientific OEM pH-SM sensor.

@@ -1,0 +1,30 @@
+Texas Instruments AFE4404 Heart rate and Pulse Oximeter
+
+Required properties:
+ - compatible		: Should be "ti,afe4404".
+ - reg			: I2C address of the device.
+ - tx-supply		: Regulator supply to transmitting LEDs.
+ - interrupt-parent	: Phandle to he parent interrupt controller.
+ - interrupts		: The interrupt line the device ADC_RDY pin is
+			  connected to. For details refer to,
+			  ../interrupt-controller/interrupts.txt.
+
+Optional properties:
+ - reset-gpios		: GPIO used to reset the device.
+			  For details refer to, ../gpio/gpio.txt.
+
+Example:
+
+&i2c2 {
+	heart_mon@58 {
+		compatible = "ti,afe4404";
+		reg = <0x58>;
+
+		tx-supply = <&vbat>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <28 IRQ_TYPE_EDGE_RISING>;
+
+		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
+	};
+};

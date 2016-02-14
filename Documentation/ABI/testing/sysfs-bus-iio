@@ -496,6 +496,7 @@ Description:
 		1kohm_to_gnd: connected to ground via an 1kOhm resistor,
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
+		90kohm_to_gnd: connected to ground via a 90kOhm resistor,
 		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
 		125kohm_to_gnd: connected to ground via an 125kOhm resistor,
 		500kohm_to_gnd: connected to ground via a 500kOhm resistor,
