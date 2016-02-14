@@ -410,7 +410,7 @@ static void sdma_flush(struct sdma_engine *sde)
 #endif
 		sdma_txclean(sde->dd, txp);
 		if (wait)
-			drained = atomic_dec_and_test(&wait->sdma_busy);
+			drained = iowait_sdma_dec(wait);
 		if (txp->complete)
 			(*txp->complete)(txp, SDMA_TXREQ_S_ABORTED, drained);
 		if (wait && drained)
@@ -584,7 +584,7 @@ static void sdma_flush_descq(struct sdma_engine *sde)
 			/* remove from list */
 			sde->tx_ring[sde->tx_head++ & sde->sdma_mask] = NULL;
 			if (wait)
-				drained = atomic_dec_and_test(&wait->sdma_busy);
+				drained = iowait_sdma_dec(wait);
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
 			trace_hfi1_sdma_out_sn(sde, txp->sn);
 			if (WARN_ON_ONCE(sde->head_sn != txp->sn))
@@ -1498,7 +1498,7 @@ retry:
 			/* remove from list */
 			sde->tx_ring[sde->tx_head++ & sde->sdma_mask] = NULL;
 			if (wait)
-				drained = atomic_dec_and_test(&wait->sdma_busy);
+				drained = iowait_sdma_dec(wait);
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
 			trace_hfi1_sdma_out_sn(sde, txp->sn);
 			if (WARN_ON_ONCE(sde->head_sn != txp->sn))
@@ -2092,14 +2092,14 @@ retry:
 		goto nodesc;
 	tail = submit_tx(sde, tx);
 	if (wait)
-		atomic_inc(&wait->sdma_busy);
+		iowait_sdma_inc(wait);
 	sdma_update_tail(sde, tail);
 unlock:
 	spin_unlock_irqrestore(&sde->tail_lock, flags);
 	return ret;
 unlock_noconn:
 	if (wait)
-		atomic_inc(&wait->sdma_busy);
+		iowait_sdma_inc(wait);
 	tx->next_descq_idx = 0;
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
 	tx->sn = sde->tail_sn++;
@@ -2181,7 +2181,7 @@ retry:
 	}
 update_tail:
 	if (wait)
-		atomic_add(count, &wait->sdma_busy);
+		iowait_sdma_add(wait, count);
 	if (tail != INVALID_TAIL)
 		sdma_update_tail(sde, tail);
 	spin_unlock_irqrestore(&sde->tail_lock, flags);
@@ -2192,7 +2192,7 @@ unlock_noconn:
 		tx->wait = wait;
 		list_del_init(&tx->list);
 		if (wait)
-			atomic_inc(&wait->sdma_busy);
+			iowait_sdma_inc(wait);
 		tx->next_descq_idx = 0;
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
 		tx->sn = sde->tail_sn++;

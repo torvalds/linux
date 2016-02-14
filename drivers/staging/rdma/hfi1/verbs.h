@@ -265,6 +265,7 @@ struct hfi1_ibdev {
 	struct timer_list mem_timer;
 
 	u64 n_piowait;
+	u64 n_piodrain;
 	u64 n_txwait;
 	u64 n_kmem_wait;
 
@@ -425,6 +426,19 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 
 int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
+extern const u32 rc_only_opcode;
+extern const u32 uc_only_opcode;
+
+static inline u8 get_opcode(struct hfi1_ib_header *h)
+{
+	u16 lnh = be16_to_cpu(h->lrh[0]) & 3;
+
+	if (lnh == IB_LNH_IBA_LOCAL)
+		return be32_to_cpu(h->u.oth.bth[0]) >> 24;
+	else
+		return be32_to_cpu(h->u.l.oth.bth[0]) >> 24;
+}
+
 int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
 		       int has_grh, struct rvt_qp *qp, u32 bth0);
 
@@ -493,6 +507,8 @@ extern unsigned int hfi1_max_srqs;
 extern unsigned int hfi1_max_srq_sges;
 
 extern unsigned int hfi1_max_srq_wrs;
+
+extern unsigned short piothreshold;
 
 extern const u32 ib_hfi1_rnr_table[];
 

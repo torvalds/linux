@@ -93,6 +93,11 @@ static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
 	return tx;
 }
 
+static inline struct sdma_txreq *get_sdma_txreq(struct verbs_txreq *tx)
+{
+	return &tx->txreq;
+}
+
 static inline struct verbs_txreq *get_waiting_verbs_txreq(struct rvt_qp *qp)
 {
 	struct sdma_txreq *stx;

@@ -124,10 +124,19 @@ unsigned int hfi1_max_srq_wrs = 0x1FFFF;
 module_param_named(max_srq_wrs, hfi1_max_srq_wrs, uint, S_IRUGO);
 MODULE_PARM_DESC(max_srq_wrs, "Maximum number of SRQ WRs support");
 
+unsigned short piothreshold;
+module_param(piothreshold, ushort, S_IRUGO);
+MODULE_PARM_DESC(piothreshold, "size used to determine sdma vs. pio");
+
 static void verbs_sdma_complete(
 	struct sdma_txreq *cookie,
 	int status,
 	int drained);
+
+static int pio_wait(struct rvt_qp *qp,
+		    struct send_context *sc,
+		    struct hfi1_pkt_state *ps,
+		    u32 flag);
 
 /* Length of buffer to create verbs txreq cache name */
 #define TXREQ_NAME_LEN 24
@@ -742,9 +751,10 @@ bail_build:
  * If we are now in the error state, return zero to flush the
  * send work request.
  */
-static int no_bufs_available(struct rvt_qp *qp,
-			     struct send_context *sc,
-			     struct hfi1_pkt_state *ps)
+static int pio_wait(struct rvt_qp *qp,
+		    struct send_context *sc,
+		    struct hfi1_pkt_state *ps,
+		    u32 flag)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_devdata *dd = sc->dd;
@@ -767,8 +777,10 @@ static int no_bufs_available(struct rvt_qp *qp,
 			struct hfi1_ibdev *dev = &dd->verbs_dev;
 			int was_empty;
 
+			dev->n_piowait += !!(flag & RVT_S_WAIT_PIO);
+			dev->n_piodrain += !!(flag & RVT_S_WAIT_PIO_DRAIN);
 			dev->n_piowait++;
-			qp->s_flags |= RVT_S_WAIT_PIO;
+			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
 			list_add_tail(&priv->s_iowait.list, &sc->piowait);
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_PIO);
@@ -797,6 +809,15 @@ struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5)
 	return dd->vld[vl].sc;
 }
 
+static void verbs_pio_complete(void *arg, int code)
+{
+	struct rvt_qp *qp = (struct rvt_qp *)arg;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (iowait_pio_dec(&priv->s_iowait))
+		iowait_drain_wakeup(&priv->s_iowait);
+}
+
 int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc)
 {
@@ -815,6 +836,17 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct pio_buf *pbuf;
 	int wc_status = IB_WC_SUCCESS;
 	int ret = 0;
+	pio_release_cb cb = NULL;
+
+	/* only RC/UC use complete */
+	switch (qp->ibqp.qp_type) {
+	case IB_QPT_RC:
+	case IB_QPT_UC:
+		cb = verbs_pio_complete;
+		break;
+	default:
+		break;
+	}
 
 	/* vl15 special case taken care of in ud.c */
 	sc5 = priv->s_sc;
@@ -830,8 +862,12 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
 		pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
 	}
-	pbuf = sc_buffer_alloc(sc, plen, NULL, NULL);
+	if (cb)
+		iowait_pio_inc(&priv->s_iowait);
+	pbuf = sc_buffer_alloc(sc, plen, cb, qp);
 	if (unlikely(pbuf == NULL)) {
+		if (cb)
+			verbs_pio_complete(qp, 0);
 		if (ppd->host_link_state != HLS_UP_ACTIVE) {
 			/*
 			 * If we have filled the PIO buffers to capacity and are
@@ -851,8 +887,9 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			 * so lets continue to queue the request.
 			 */
 			hfi1_cdbg(PIO, "alloc failed. state active, queuing");
-			ret = no_bufs_available(qp, sc, ps);
+			ret = pio_wait(qp, sc, ps, RVT_S_WAIT_PIO);
 			if (!ret)
+				/* txreq not queued - free */
 				goto bail;
 			/* tx consumed in wait */
 			return ret;
@@ -985,6 +1022,48 @@ bad:
 }
 
 /**
+ * get_send_routine - choose an egress routine
+ *
+ * Choose an egress routine based on QP type
+ * and size
+ */
+static inline send_routine get_send_routine(struct rvt_qp *qp,
+					    struct hfi1_ib_header *h)
+{
+	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (unlikely(!(dd->flags & HFI1_HAS_SEND_DMA)))
+		return dd->process_pio_send;
+	switch (qp->ibqp.qp_type) {
+	case IB_QPT_SMI:
+		return dd->process_pio_send;
+	case IB_QPT_GSI:
+	case IB_QPT_UD:
+		if (piothreshold && qp->s_cur_size <= piothreshold)
+			return dd->process_pio_send;
+		break;
+	case IB_QPT_RC:
+		if (piothreshold &&
+		    qp->s_cur_size <= min(piothreshold, qp->pmtu) &&
+		    (BIT(get_opcode(h) & 0x1f) & rc_only_opcode) &&
+		    iowait_sdma_pending(&priv->s_iowait) == 0)
+			return dd->process_pio_send;
+		break;
+	case IB_QPT_UC:
+		if (piothreshold &&
+		    qp->s_cur_size <= min(piothreshold, qp->pmtu) &&
+		    (BIT(get_opcode(h) & 0x1f) & uc_only_opcode) &&
+		    iowait_sdma_pending(&priv->s_iowait) == 0)
+			return dd->process_pio_send;
+		break;
+	default:
+		break;
+	}
+	return dd->process_dma_send;
+}
+
+/**
  * hfi1_verbs_send - send a packet
  * @qp: the QP to send on
  * @ps: the state of the packet to send
@@ -995,19 +1074,10 @@ bad:
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+	send_routine sr;
 	int ret;
-	int pio = 0;
-	unsigned long flags = 0;
 
-	/*
-	 * VL15 packets (IB_QPT_SMI) will always use PIO, so we
-	 * can defer SDMA restart until link goes ACTIVE without
-	 * worrying about just how we got there.
-	 */
-	if ((qp->ibqp.qp_type == IB_QPT_SMI) ||
-	    !(dd->flags & HFI1_HAS_SEND_DMA))
-		pio = 1;
-
+	sr = get_send_routine(qp, &ps->s_txreq->phdr.hdr);
 	ret = egress_pkey_check(dd->pport, &ps->s_txreq->phdr.hdr, qp);
 	if (unlikely(ret)) {
 		/*
@@ -1018,7 +1088,9 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		 * mechanism for handling the errors. So for SDMA we can just
 		 * return.
 		 */
-		if (pio) {
+		if (sr == dd->process_pio_send) {
+			unsigned long flags;
+
 			hfi1_cdbg(PIO, "%s() Failed. Completing with err",
 				  __func__);
 			spin_lock_irqsave(&qp->s_lock, flags);
@@ -1027,20 +1099,7 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		}
 		return -EINVAL;
 	}
-
-	if (pio) {
-		ret = dd->process_pio_send(qp, ps, 0);
-	} else {
-#ifdef CONFIG_SDMA_VERBOSITY
-		dd_dev_err(dd, "CONFIG SDMA %s:%d %s()\n",
-			   slashstrip(__FILE__), __LINE__, __func__);
-		dd_dev_err(dd, "SDMA hdrwords = %u, len = %u\n", qp->s_hdrwords,
-			   qp->s_cur_size);
-#endif
-		ret = dd->process_dma_send(qp, ps, 0);
-	}
-
-	return ret;
+	return sr(qp, ps, 0);
 }
 
 /**

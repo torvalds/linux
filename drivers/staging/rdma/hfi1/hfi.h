@@ -811,6 +811,7 @@ struct sdma_vl_map;
 #define BOARD_VERS_MAX 96 /* how long the version string can be */
 #define SERIAL_MAX 16 /* length of the serial number */
 
+typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
 	struct list_head list;
@@ -1121,10 +1122,8 @@ struct hfi1_devdata {
 	 * Handlers for outgoing data so that snoop/capture does not
 	 * have to have its hooks in the send path
 	 */
-	int (*process_pio_send)(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
-				u64 pbc);
-	int (*process_dma_send)(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
-				u64 pbc);
+	send_routine process_pio_send;
+	send_routine process_dma_send;
 	void (*pio_inline_send)(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 				u64 pbc, const void *from, size_t count);
 

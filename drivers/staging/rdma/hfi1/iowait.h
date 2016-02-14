@@ -55,6 +55,7 @@
 #include <linux/sched.h>
 
 #include "sdma_txreq.h"
+
 /*
  * typedef (*restart_t)() - restart callback
  * @work: pointer to work structure
@@ -71,6 +72,7 @@ struct sdma_engine;
  * @wakeup: space callback
  * @iowork: workqueue overhead
  * @wait_dma: wait for sdma_busy == 0
+ * @wait_pio: wait for pio_busy == 0
  * @sdma_busy: # of packets in flight
  * @count: total number of descriptors in tx_head'ed list
  * @tx_limit: limit for overflow queuing
@@ -104,7 +106,9 @@ struct iowait {
 	void (*wakeup)(struct iowait *wait, int reason);
 	struct work_struct iowork;
 	wait_queue_head_t wait_dma;
+	wait_queue_head_t wait_pio;
 	atomic_t sdma_busy;
+	atomic_t pio_busy;
 	u32 count;
 	u32 tx_limit;
 	u32 tx_count;
@@ -141,7 +145,9 @@ static inline void iowait_init(
 	INIT_LIST_HEAD(&wait->tx_head);
 	INIT_WORK(&wait->iowork, func);
 	init_waitqueue_head(&wait->wait_dma);
+	init_waitqueue_head(&wait->wait_pio);
 	atomic_set(&wait->sdma_busy, 0);
+	atomic_set(&wait->pio_busy, 0);
 	wait->tx_limit = tx_limit;
 	wait->sleep = sleep;
 	wait->wakeup = wakeup;
@@ -175,6 +181,88 @@ static inline void iowait_sdma_drain(struct iowait *wait)
 }
 
 /**
+ * iowait_sdma_pending() - return sdma pending count
+ *
+ * @wait: iowait structure
+ *
+ */
+static inline int iowait_sdma_pending(struct iowait *wait)
+{
+	return atomic_read(&wait->sdma_busy);
+}
+
+/**
+ * iowait_sdma_inc - note sdma io pending
+ * @wait: iowait structure
+ */
+static inline void iowait_sdma_inc(struct iowait *wait)
+{
+	atomic_inc(&wait->sdma_busy);
+}
+
+/**
+ * iowait_sdma_add - add count to pending
+ * @wait: iowait structure
+ */
+static inline void iowait_sdma_add(struct iowait *wait, int count)
+{
+	atomic_add(count, &wait->sdma_busy);
+}
+
+/**
+ * iowait_sdma_dec - note sdma complete
+ * @wait: iowait structure
+ */
+static inline int iowait_sdma_dec(struct iowait *wait)
+{
+	return atomic_dec_and_test(&wait->sdma_busy);
+}
+
+/**
+ * iowait_pio_drain() - wait for pios to drain
+ *
+ * @wait: iowait structure
+ *
+ * This will delay until the iowait pios have
+ * completed.
+ */
+static inline void iowait_pio_drain(struct iowait *wait)
+{
+	wait_event_timeout(wait->wait_pio,
+			   !atomic_read(&wait->pio_busy),
+			   HZ);
+}
+
+/**
+ * iowait_pio_pending() - return pio pending count
+ *
+ * @wait: iowait structure
+ *
+ */
+static inline int iowait_pio_pending(struct iowait *wait)
+{
+	return atomic_read(&wait->pio_busy);
+}
+
+/**
+ * iowait_pio_inc - note pio pending
+ * @wait: iowait structure
+ */
+static inline void iowait_pio_inc(struct iowait *wait)
+{
+	atomic_inc(&wait->pio_busy);
+}
+
+/**
+ * iowait_sdma_dec - note pio complete
+ * @wait: iowait structure
+ */
+static inline int iowait_pio_dec(struct iowait *wait)
+{
+	return atomic_dec_and_test(&wait->pio_busy);
+}
+
+/**
  * iowait_drain_wakeup() - trigger iowait_drain() waiter
  *
  * @wait: iowait structure
@@ -184,6 +272,7 @@ static inline void iowait_sdma_drain(struct iowait *wait)
 static inline void iowait_drain_wakeup(struct iowait *wait)
 {
 	wake_up(&wait->wait_dma);
+	wake_up(&wait->wait_pio);
 }
 
 /**

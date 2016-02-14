@@ -82,6 +82,7 @@
  * RVT_S_WAIT_DMA - waiting for send DMA queue to drain before generating
  *                  next send completion entry not via send DMA
  * RVT_S_WAIT_PIO - waiting for a send buffer to be available
+ * RVT_S_WAIT_PIO_DRAIN - waiting for a qp to drain pio packets
  * RVT_S_WAIT_TX - waiting for a struct verbs_txreq to be available
  * RVT_S_WAIT_DMA_DESC - waiting for DMA descriptors to be available
  * RVT_S_WAIT_KMEM - waiting for kernel memory to be available
@@ -101,16 +102,17 @@
 #define RVT_S_WAIT_SSN_CREDIT	0x0100
 #define RVT_S_WAIT_DMA		0x0200
 #define RVT_S_WAIT_PIO		0x0400
-#define RVT_S_WAIT_TX		0x0800
-#define RVT_S_WAIT_DMA_DESC	0x1000
-#define RVT_S_WAIT_KMEM		0x2000
-#define RVT_S_WAIT_PSN		0x4000
-#define RVT_S_WAIT_ACK		0x8000
-#define RVT_S_SEND_ONE		0x10000
-#define RVT_S_UNLIMITED_CREDIT	0x20000
-#define RVT_S_AHG_VALID		0x40000
-#define RVT_S_AHG_CLEAR		0x80000
-#define RVT_S_ECN		0x100000
+#define RVT_S_WAIT_PIO_DRAIN    0x0800
+#define RVT_S_WAIT_TX		0x1000
+#define RVT_S_WAIT_DMA_DESC	0x2000
+#define RVT_S_WAIT_KMEM		0x4000
+#define RVT_S_WAIT_PSN		0x8000
+#define RVT_S_WAIT_ACK		0x10000
+#define RVT_S_SEND_ONE		0x20000
+#define RVT_S_UNLIMITED_CREDIT	0x40000
+#define RVT_S_AHG_VALID		0x80000
+#define RVT_S_AHG_CLEAR		0x100000
+#define RVT_S_ECN		0x200000
 
 /*
  * Wait flags that would prevent any packet type from being sent.

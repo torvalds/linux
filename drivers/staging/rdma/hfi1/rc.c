@@ -181,6 +181,18 @@ void hfi1_del_timers_sync(struct rvt_qp *qp)
 	del_timer_sync(&priv->s_rnr_timer);
 }
 
+/* only opcode mask for adaptive pio */
+const u32 rc_only_opcode =
+	BIT(OP(SEND_ONLY) & 0x1f) |
+	BIT(OP(SEND_ONLY_WITH_IMMEDIATE & 0x1f)) |
+	BIT(OP(RDMA_WRITE_ONLY & 0x1f)) |
+	BIT(OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE & 0x1f)) |
+	BIT(OP(RDMA_READ_REQUEST & 0x1f)) |
+	BIT(OP(ACKNOWLEDGE & 0x1f)) |
+	BIT(OP(ATOMIC_ACKNOWLEDGE & 0x1f)) |
+	BIT(OP(COMPARE_SWAP & 0x1f)) |
+	BIT(OP(FETCH_ADD & 0x1f));
+
 static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
 		       u32 psn, u32 pmtu)
 {
@@ -217,6 +229,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 	u32 bth2;
 	int middle = 0;
 	u32 pmtu = qp->pmtu;
+	struct hfi1_qp_priv *priv = qp->priv;
 
 	/* Don't send an ACK if we aren't supposed to. */
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
@@ -350,6 +363,7 @@ normal:
 	qp->s_hdrwords = hwords;
 	/* pbc */
 	ps->s_txreq->hdr_dwords = hwords + 2;
+	ps->s_txreq->sde = priv->s_sde;
 	qp->s_cur_size = len;
 	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle, ps);
 	return 1;
@@ -413,7 +427,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		if (qp->s_last == ACCESS_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
-		if (atomic_read(&priv->s_iowait.sdma_busy)) {
+		if (iowait_sdma_pending(&priv->s_iowait)) {
 			qp->s_flags |= RVT_S_WAIT_DMA;
 			goto bail;
 		}
@@ -754,6 +768,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	qp->s_hdrwords = hwords;
 	/* pbc */
 	ps->s_txreq->hdr_dwords = hwords + 2;
+	ps->s_txreq->sde = priv->s_sde;
 	qp->s_cur_sge = ss;
 	qp->s_cur_size = len;
 	hfi1_make_ruc_header(

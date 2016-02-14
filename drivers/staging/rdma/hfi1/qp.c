@@ -359,6 +359,25 @@ void _hfi1_schedule_send(struct rvt_qp *qp)
 			cpumask_first(cpumask_of_node(dd->node)));
 }
 
+static void qp_pio_drain(struct rvt_qp *qp)
+{
+	struct hfi1_ibdev *dev;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (!priv->s_sendcontext)
+		return;
+	dev = to_idev(qp->ibqp.device);
+	while (iowait_pio_pending(&priv->s_iowait)) {
+		write_seqlock_irq(&dev->iowait_lock);
+		hfi1_sc_wantpiobuf_intr(priv->s_sendcontext, 1);
+		write_sequnlock_irq(&dev->iowait_lock);
+		iowait_pio_drain(&priv->s_iowait);
+		write_seqlock_irq(&dev->iowait_lock);
+		hfi1_sc_wantpiobuf_intr(priv->s_sendcontext, 0);
+		write_sequnlock_irq(&dev->iowait_lock);
+	}
+}
+
 /**
  * hfi1_schedule_send - schedule progress
  * @qp: the QP
@@ -620,7 +639,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	send_context = qp_to_send_context(qp, priv->s_sc);
 	seq_printf(s,
-		   "N %d %s QP%u R %u %s %u %u %u f=%x %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u %u) QP%u LID %x SL %u MTU %u %u %u %u SDE %p,%u SC %p\n",
+		   "N %d %s QP%x R %u %s %u %u %u f=%x %u %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u %u) QP%x LID %x SL %u MTU %u %u %u %u SDE %p,%u SC %p\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -630,7 +649,8 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   wqe ? wqe->wr.opcode : 0,
 		   qp->s_hdrwords,
 		   qp->s_flags,
-		   atomic_read(&priv->s_iowait.sdma_busy),
+		   iowait_sdma_pending(&priv->s_iowait),
+		   iowait_pio_pending(&priv->s_iowait),
 		   !list_empty(&priv->s_iowait.list),
 		   qp->timeout,
 		   wqe ? wqe->ssn : 0,
@@ -739,6 +759,7 @@ void quiesce_qp(struct rvt_qp *qp)
 	struct hfi1_qp_priv *priv = qp->priv;
 
 	iowait_sdma_drain(&priv->s_iowait);
+	qp_pio_drain(qp);
 	flush_tx_list(qp);
 }
 
