@@ -227,7 +227,7 @@ static DEFINE_MUTEX(uld_mutex);
 static LIST_HEAD(adap_rcu_list);
 static DEFINE_SPINLOCK(adap_rcu_lock);
 static struct cxgb4_uld_info ulds[CXGB4_ULD_MAX];
-static const char *uld_str[] = { "RDMA", "iSCSI" };
+static const char *const uld_str[] = { "RDMA", "iSCSI", "iSCSIT" };
 
 static void link_report(struct net_device *dev)
 {
@@ -730,6 +730,10 @@ static void name_msix_vecs(struct adapter *adap)
 		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-iscsi%d",
 			 adap->port[0]->name, i);
 
+	for_each_iscsitrxq(&adap->sge, i)
+		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-iSCSIT%d",
+			 adap->port[0]->name, i);
+
 	for_each_rdmarxq(&adap->sge, i)
 		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma%d",
 			 adap->port[0]->name, i);
@@ -743,6 +747,7 @@ static int request_msix_queue_irqs(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
 	int err, ethqidx, iscsiqidx = 0, rdmaqidx = 0, rdmaciqqidx = 0;
+	int iscsitqidx = 0;
 	int msi_index = 2;
 
 	err = request_irq(adap->msix_info[1].vec, t4_sge_intr_msix, 0,
@@ -764,6 +769,15 @@ static int request_msix_queue_irqs(struct adapter *adap)
 				  t4_sge_intr_msix, 0,
 				  adap->msix_info[msi_index].desc,
 				  &s->iscsirxq[iscsiqidx].rspq);
+		if (err)
+			goto unwind;
+		msi_index++;
+	}
+	for_each_iscsitrxq(s, iscsitqidx) {
+		err = request_irq(adap->msix_info[msi_index].vec,
+				  t4_sge_intr_msix, 0,
+				  adap->msix_info[msi_index].desc,
+				  &s->iscsitrxq[iscsitqidx].rspq);
 		if (err)
 			goto unwind;
 		msi_index++;
@@ -795,6 +809,9 @@ unwind:
 	while (--rdmaqidx >= 0)
 		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->rdmarxq[rdmaqidx].rspq);
+	while (--iscsitqidx >= 0)
+		free_irq(adap->msix_info[--msi_index].vec,
+			 &s->iscsitrxq[iscsitqidx].rspq);
 	while (--iscsiqidx >= 0)
 		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->iscsirxq[iscsiqidx].rspq);
@@ -816,6 +833,9 @@ static void free_msix_queue_irqs(struct adapter *adap)
 	for_each_iscsirxq(s, i)
 		free_irq(adap->msix_info[msi_index++].vec,
 			 &s->iscsirxq[i].rspq);
+	for_each_iscsitrxq(s, i)
+		free_irq(adap->msix_info[msi_index++].vec,
+			 &s->iscsitrxq[i].rspq);
 	for_each_rdmarxq(s, i)
 		free_irq(adap->msix_info[msi_index++].vec, &s->rdmarxq[i].rspq);
 	for_each_rdmaciq(s, i)
@@ -1072,6 +1092,7 @@ freeout:	t4_free_sge_resources(adap);
 } while (0)
 
 	ALLOC_OFLD_RXQS(s->iscsirxq, s->iscsiqsets, j, s->iscsi_rxq);
+	ALLOC_OFLD_RXQS(s->iscsitrxq, s->niscsitq, j, s->iscsit_rxq);
 	ALLOC_OFLD_RXQS(s->rdmarxq, s->rdmaqs, 1, s->rdma_rxq);
 	j = s->rdmaciqs / adap->params.nports; /* rdmaq queues per channel */
 	ALLOC_OFLD_RXQS(s->rdmaciq, s->rdmaciqs, j, s->rdma_ciq);
@@ -2406,6 +2427,9 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	} else if (uld == CXGB4_ULD_ISCSI) {
 		lli.rxq_ids = adap->sge.iscsi_rxq;
 		lli.nrxq = adap->sge.iscsiqsets;
+	} else if (uld == CXGB4_ULD_ISCSIT) {
+		lli.rxq_ids = adap->sge.iscsit_rxq;
+		lli.nrxq = adap->sge.niscsitq;
 	}
 	lli.ntxq = adap->sge.iscsiqsets;
 	lli.nchan = adap->params.nports;
@@ -4310,6 +4334,9 @@ static void cfg_queues(struct adapter *adap)
 		s->rdmaciqs = (s->rdmaciqs / adap->params.nports) *
 				adap->params.nports;
 		s->rdmaciqs = max_t(int, s->rdmaciqs, adap->params.nports);
+
+		if (!is_t4(adap->params.chip))
+			s->niscsitq = s->iscsiqsets;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
@@ -4334,6 +4361,16 @@ static void cfg_queues(struct adapter *adap)
 		init_rspq(adap, &r->rspq, 5, 1, 1024, 64);
 		r->rspq.uld = CXGB4_ULD_ISCSI;
 		r->fl.size = 72;
+	}
+
+	if (!is_t4(adap->params.chip)) {
+		for (i = 0; i < ARRAY_SIZE(s->iscsitrxq); i++) {
+			struct sge_ofld_rxq *r = &s->iscsitrxq[i];
+
+			init_rspq(adap, &r->rspq, 5, 1, 1024, 64);
+			r->rspq.uld = CXGB4_ULD_ISCSIT;
+			r->fl.size = 72;
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(s->rdmarxq); i++) {
@@ -4410,9 +4447,13 @@ static int enable_msix(struct adapter *adap)
 
 	want = s->max_ethqsets + EXTRA_VECS;
 	if (is_offload(adap)) {
-		want += s->rdmaqs + s->rdmaciqs + s->iscsiqsets;
+		want += s->rdmaqs + s->rdmaciqs + s->iscsiqsets	+
+			s->niscsitq;
 		/* need nchan for each possible ULD */
-		ofld_need = 3 * nchan;
+		if (is_t4(adap->params.chip))
+			ofld_need = 3 * nchan;
+		else
+			ofld_need = 4 * nchan;
 	}
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging we need 8 Ethernet TX Priority Queues for
@@ -4444,12 +4485,16 @@ static int enable_msix(struct adapter *adap)
 		if (allocated < want) {
 			s->rdmaqs = nchan;
 			s->rdmaciqs = nchan;
+
+			if (!is_t4(adap->params.chip))
+				s->niscsitq = nchan;
 		}
 
 		/* leftovers go to OFLD */
 		i = allocated - EXTRA_VECS - s->max_ethqsets -
-		    s->rdmaqs - s->rdmaciqs;
+		    s->rdmaqs - s->rdmaciqs - s->niscsitq;
 		s->iscsiqsets = (i / nchan) * nchan;  /* round down */
+
 	}
 	for (i = 0; i < allocated; ++i)
 		adap->msix_info[i].vec = entries[i].vector;

@@ -404,6 +404,9 @@ enum {
 	MAX_CTRL_QUEUES = NCHAN,      /* # of control Tx queues */
 	MAX_RDMA_QUEUES = NCHAN,      /* # of streaming RDMA Rx queues */
 	MAX_RDMA_CIQS = 32,        /* # of  RDMA concentrator IQs */
+
+	/* # of streaming iSCSIT Rx queues */
+	MAX_ISCSIT_QUEUES = MAX_OFLD_QSETS,
 };
 
 enum {
@@ -420,8 +423,8 @@ enum {
 enum {
 	INGQ_EXTRAS = 2,        /* firmware event queue and */
 				/*   forwarded interrupts */
-	MAX_INGQ = MAX_ETH_QSETS + MAX_OFLD_QSETS + MAX_RDMA_QUEUES
-		   + MAX_RDMA_CIQS + INGQ_EXTRAS,
+	MAX_INGQ = MAX_ETH_QSETS + MAX_OFLD_QSETS + MAX_RDMA_QUEUES +
+		   MAX_RDMA_CIQS + MAX_ISCSIT_QUEUES + INGQ_EXTRAS,
 };
 
 struct adapter;
@@ -641,6 +644,7 @@ struct sge {
 
 	struct sge_eth_rxq ethrxq[MAX_ETH_QSETS];
 	struct sge_ofld_rxq iscsirxq[MAX_OFLD_QSETS];
+	struct sge_ofld_rxq iscsitrxq[MAX_ISCSIT_QUEUES];
 	struct sge_ofld_rxq rdmarxq[MAX_RDMA_QUEUES];
 	struct sge_ofld_rxq rdmaciq[MAX_RDMA_CIQS];
 	struct sge_rspq fw_evtq ____cacheline_aligned_in_smp;
@@ -652,9 +656,11 @@ struct sge {
 	u16 ethqsets;               /* # of active Ethernet queue sets */
 	u16 ethtxq_rover;           /* Tx queue to clean up next */
 	u16 iscsiqsets;              /* # of active iSCSI queue sets */
+	u16 niscsitq;               /* # of available iSCST Rx queues */
 	u16 rdmaqs;                 /* # of available RDMA Rx queues */
 	u16 rdmaciqs;               /* # of available RDMA concentrator IQs */
 	u16 iscsi_rxq[MAX_OFLD_QSETS];
+	u16 iscsit_rxq[MAX_ISCSIT_QUEUES];
 	u16 rdma_rxq[MAX_RDMA_QUEUES];
 	u16 rdma_ciq[MAX_RDMA_CIQS];
 	u16 timer_val[SGE_NTIMERS];
@@ -681,6 +687,7 @@ struct sge {
 
 #define for_each_ethrxq(sge, i) for (i = 0; i < (sge)->ethqsets; i++)
 #define for_each_iscsirxq(sge, i) for (i = 0; i < (sge)->iscsiqsets; i++)
+#define for_each_iscsitrxq(sge, i) for (i = 0; i < (sge)->niscsitq; i++)
 #define for_each_rdmarxq(sge, i) for (i = 0; i < (sge)->rdmaqs; i++)
 #define for_each_rdmaciq(sge, i) for (i = 0; i < (sge)->rdmaciqs; i++)
 
