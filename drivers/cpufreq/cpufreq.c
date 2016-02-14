@@ -48,11 +48,11 @@ static struct cpufreq_policy *next_policy(struct cpufreq_policy *policy,
 					  bool active)
 {
 	do {
-		policy = list_next_entry(policy, policy_list);
-
 		/* No more policies in the list */
-		if (&policy->policy_list == &cpufreq_policy_list)
+		if (list_is_last(&policy->policy_list, &cpufreq_policy_list))
 			return NULL;
+
+		policy = list_next_entry(policy, policy_list);
 	} while (!suitable_policy(policy, active));
 
 	return policy;

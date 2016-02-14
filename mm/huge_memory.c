@@ -138,9 +138,6 @@ static struct khugepaged_scan khugepaged_scan = {
 	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
 };
 
-static DEFINE_SPINLOCK(split_queue_lock);
-static LIST_HEAD(split_queue);
-static unsigned long split_queue_len;
 static struct shrinker deferred_split_shrinker;
 
 static void set_recommended_min_free_kbytes(void)
@@ -861,7 +858,8 @@ static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
 		return false;
 	entry = mk_pmd(zero_page, vma->vm_page_prot);
 	entry = pmd_mkhuge(entry);
-	pgtable_trans_huge_deposit(mm, pmd, pgtable);
+	if (pgtable)
+		pgtable_trans_huge_deposit(mm, pmd, pgtable);
 	set_pmd_at(mm, haddr, pmd, entry);
 	atomic_long_inc(&mm->nr_ptes);
 	return true;
@@ -1039,13 +1037,15 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	spinlock_t *dst_ptl, *src_ptl;
 	struct page *src_page;
 	pmd_t pmd;
-	pgtable_t pgtable;
+	pgtable_t pgtable = NULL;
 	int ret;
 
-	ret = -ENOMEM;
-	pgtable = pte_alloc_one(dst_mm, addr);
-	if (unlikely(!pgtable))
-		goto out;
+	if (!vma_is_dax(vma)) {
+		ret = -ENOMEM;
+		pgtable = pte_alloc_one(dst_mm, addr);
+		if (unlikely(!pgtable))
+			goto out;
+	}
 
 	dst_ptl = pmd_lock(dst_mm, dst_pmd);
 	src_ptl = pmd_lockptr(src_mm, src_pmd);
@@ -1076,7 +1076,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		goto out_unlock;
 	}
 
-	if (pmd_trans_huge(pmd)) {
+	if (!vma_is_dax(vma)) {
 		/* thp accounting separate from pmd_devmap accounting */
 		src_page = pmd_page(pmd);
 		VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
@@ -3358,6 +3358,7 @@ int total_mapcount(struct page *page)
 int split_huge_page_to_list(struct page *page, struct list_head *list)
 {
 	struct page *head = compound_head(page);
+	struct pglist_data *pgdata = NODE_DATA(page_to_nid(head));
 	struct anon_vma *anon_vma;
 	int count, mapcount, ret;
 	bool mlocked;
@@ -3401,19 +3402,19 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		lru_add_drain();
 
 	/* Prevent deferred_split_scan() touching ->_count */
-	spin_lock_irqsave(&split_queue_lock, flags);
+	spin_lock_irqsave(&pgdata->split_queue_lock, flags);
 	count = page_count(head);
 	mapcount = total_mapcount(head);
 	if (!mapcount && count == 1) {
 		if (!list_empty(page_deferred_list(head))) {
-			split_queue_len--;
+			pgdata->split_queue_len--;
 			list_del(page_deferred_list(head));
 		}
-		spin_unlock_irqrestore(&split_queue_lock, flags);
+		spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
 		__split_huge_page(page, list);
 		ret = 0;
 	} else if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount) {
-		spin_unlock_irqrestore(&split_queue_lock, flags);
+		spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
 		pr_alert("total_mapcount: %u, page_count(): %u\n",
 				mapcount, count);
 		if (PageTail(page))
@@ -3421,7 +3422,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		dump_page(page, "total_mapcount(head) > 0");
 		BUG();
 	} else {
-		spin_unlock_irqrestore(&split_queue_lock, flags);
+		spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
 		unfreeze_page(anon_vma, head);
 		ret = -EBUSY;
 	}
@@ -3436,64 +3437,65 @@ out:
 
 void free_transhuge_page(struct page *page)
 {
+	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
 	unsigned long flags;
 
-	spin_lock_irqsave(&split_queue_lock, flags);
+	spin_lock_irqsave(&pgdata->split_queue_lock, flags);
 	if (!list_empty(page_deferred_list(page))) {
-		split_queue_len--;
+		pgdata->split_queue_len--;
 		list_del(page_deferred_list(page));
 	}
-	spin_unlock_irqrestore(&split_queue_lock, flags);
+	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
 	free_compound_page(page);
 }
 
 void deferred_split_huge_page(struct page *page)
 {
+	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
 	unsigned long flags;
 
 	VM_BUG_ON_PAGE(!PageTransHuge(page), page);
 
-	spin_lock_irqsave(&split_queue_lock, flags);
+	spin_lock_irqsave(&pgdata->split_queue_lock, flags);
 	if (list_empty(page_deferred_list(page))) {
-		list_add_tail(page_deferred_list(page), &split_queue);
-		split_queue_len++;
+		list_add_tail(page_deferred_list(page), &pgdata->split_queue);
+		pgdata->split_queue_len++;
 	}
-	spin_unlock_irqrestore(&split_queue_lock, flags);
+	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
 }
 
 static unsigned long deferred_split_count(struct shrinker *shrink,
 		struct shrink_control *sc)
 {
-	/*
-	 * Split a page from split_queue will free up at least one page,
-	 * at most HPAGE_PMD_NR - 1. We don't track exact number.
-	 * Let's use HPAGE_PMD_NR / 2 as ballpark.
-	 */
-	return ACCESS_ONCE(split_queue_len) * HPAGE_PMD_NR / 2;
+	struct pglist_data *pgdata = NODE_DATA(sc->nid);
+	return ACCESS_ONCE(pgdata->split_queue_len);
 }
 
 static unsigned long deferred_split_scan(struct shrinker *shrink,
 		struct shrink_control *sc)
 {
+	struct pglist_data *pgdata = NODE_DATA(sc->nid);
 	unsigned long flags;
 	LIST_HEAD(list), *pos, *next;
 	struct page *page;
 	int split = 0;
 
-	spin_lock_irqsave(&split_queue_lock, flags);
-	list_splice_init(&split_queue, &list);
-
+	spin_lock_irqsave(&pgdata->split_queue_lock, flags);
 	/* Take pin on all head pages to avoid freeing them under us */
-	list_for_each_safe(pos, next, &list) {
+	list_for_each_safe(pos, next, &pgdata->split_queue) {
 		page = list_entry((void *)pos, struct page, mapping);
 		page = compound_head(page);
-		/* race with put_compound_page() */
-		if (!get_page_unless_zero(page)) {
+		if (get_page_unless_zero(page)) {
+			list_move(page_deferred_list(page), &list);
+		} else {
+			/* We lost race with put_compound_page() */
 			list_del_init(page_deferred_list(page));
-			split_queue_len--;
+			pgdata->split_queue_len--;
 		}
+		if (!--sc->nr_to_scan)
+			break;
 	}
-	spin_unlock_irqrestore(&split_queue_lock, flags);
+	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
 
 	list_for_each_safe(pos, next, &list) {
 		page = list_entry((void *)pos, struct page, mapping);
@@ -3505,17 +3507,24 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
 		put_page(page);
 	}
 
-	spin_lock_irqsave(&split_queue_lock, flags);
-	list_splice_tail(&list, &split_queue);
-	spin_unlock_irqrestore(&split_queue_lock, flags);
+	spin_lock_irqsave(&pgdata->split_queue_lock, flags);
+	list_splice_tail(&list, &pgdata->split_queue);
+	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
 
-	return split * HPAGE_PMD_NR / 2;
+	/*
+	 * Stop shrinker if we didn't split any page, but the queue is empty.
+	 * This can happen if pages were freed under us.
+	 */
+	if (!split && list_empty(&pgdata->split_queue))
+		return SHRINK_STOP;
+	return split;
 }
 
 static struct shrinker deferred_split_shrinker = {
 	.count_objects = deferred_split_count,
 	.scan_objects = deferred_split_scan,
 	.seeks = DEFAULT_SEEKS,
+	.flags = SHRINKER_NUMA_AWARE,
 };
 
 #ifdef CONFIG_DEBUG_FS

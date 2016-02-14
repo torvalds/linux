@@ -54,12 +54,9 @@ static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w)
 
 /*
  * Each pipelines needs memory to be allocated. Check if we have free memory
- * from available pool. Then only add this to pool
- * This is freed when pipe is deleted
- * Note: DSP does actual memory management we only keep track for complete
- * pool
+ * from available pool.
  */
-static bool skl_tplg_alloc_pipe_mem(struct skl *skl,
+static bool skl_is_pipe_mem_avail(struct skl *skl,
 				struct skl_module_cfg *mconfig)
 {
 	struct skl_sst *ctx = skl->skl_sst;
@@ -74,10 +71,20 @@ static bool skl_tplg_alloc_pipe_mem(struct skl *skl,
 				"exceeds ppl memory available %d mem %d\n",
 				skl->resource.max_mem, skl->resource.mem);
 		return false;
+	} else {
+		return true;
 	}
+}
 
+/*
+ * Add the mem to the mem pool. This is freed when pipe is deleted.
+ * Note: DSP does actual memory management we only keep track for complete
+ * pool
+ */
+static void skl_tplg_alloc_pipe_mem(struct skl *skl,
+				struct skl_module_cfg *mconfig)
+{
 	skl->resource.mem += mconfig->pipe->memory_pages;
-	return true;
 }
 
 /*
@@ -85,10 +92,10 @@ static bool skl_tplg_alloc_pipe_mem(struct skl *skl,
  * quantified in MCPS (Million Clocks Per Second) required for module/pipe
  *
  * Each pipelines needs mcps to be allocated. Check if we have mcps for this
- * pipe. This adds the mcps to driver counter
- * This is removed on pipeline delete
+ * pipe.
  */
-static bool skl_tplg_alloc_pipe_mcps(struct skl *skl,
+
+static bool skl_is_pipe_mcps_avail(struct skl *skl,
 				struct skl_module_cfg *mconfig)
 {
 	struct skl_sst *ctx = skl->skl_sst;
@@ -98,13 +105,18 @@ static bool skl_tplg_alloc_pipe_mcps(struct skl *skl,
 			"%s: module_id %d instance %d\n", __func__,
 			mconfig->id.module_id, mconfig->id.instance_id);
 		dev_err(ctx->dev,
-			"exceeds ppl memory available %d > mem %d\n",
+			"exceeds ppl mcps available %d > mem %d\n",
 			skl->resource.max_mcps, skl->resource.mcps);
 		return false;
+	} else {
+		return true;
 	}
+}
 
+static void skl_tplg_alloc_pipe_mcps(struct skl *skl,
+				struct skl_module_cfg *mconfig)
+{
 	skl->resource.mcps += mconfig->mcps;
-	return true;
 }
 
 /*
@@ -411,7 +423,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		mconfig = w->priv;
 
 		/* check resource available */
-		if (!skl_tplg_alloc_pipe_mcps(skl, mconfig))
+		if (!skl_is_pipe_mcps_avail(skl, mconfig))
 			return -ENOMEM;
 
 		if (mconfig->is_loadable && ctx->dsp->fw_ops.load_mod) {
@@ -435,6 +447,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
 			return ret;
+		skl_tplg_alloc_pipe_mcps(skl, mconfig);
 	}
 
 	return 0;
@@ -477,10 +490,10 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	struct skl_sst *ctx = skl->skl_sst;
 
 	/* check resource available */
-	if (!skl_tplg_alloc_pipe_mcps(skl, mconfig))
+	if (!skl_is_pipe_mcps_avail(skl, mconfig))
 		return -EBUSY;
 
-	if (!skl_tplg_alloc_pipe_mem(skl, mconfig))
+	if (!skl_is_pipe_mem_avail(skl, mconfig))
 		return -ENOMEM;
 
 	/*
@@ -526,11 +539,15 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 		src_module = dst_module;
 	}
 
+	skl_tplg_alloc_pipe_mem(skl, mconfig);
+	skl_tplg_alloc_pipe_mcps(skl, mconfig);
+
 	return 0;
 }
 
 static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 				struct skl *skl,
+				struct snd_soc_dapm_widget *src_w,
 				struct skl_module_cfg *src_mconfig)
 {
 	struct snd_soc_dapm_path *p;
@@ -547,6 +564,10 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 		dev_dbg(ctx->dev, "%s: sink widget=%s\n", __func__, p->sink->name);
 
 		next_sink = p->sink;
+
+		if (!is_skl_dsp_widget_type(p->sink))
+			return skl_tplg_bind_sinks(p->sink, skl, src_w, src_mconfig);
+
 		/*
 		 * here we will check widgets in sink pipelines, so that
 		 * can be any widgets type and we are only interested if
@@ -576,7 +597,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 	}
 
 	if (!sink)
-		return skl_tplg_bind_sinks(next_sink, skl, src_mconfig);
+		return skl_tplg_bind_sinks(next_sink, skl, src_w, src_mconfig);
 
 	return 0;
 }
@@ -605,7 +626,7 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	 * if sink is not started, start sink pipe first, then start
 	 * this pipe
 	 */
-	ret = skl_tplg_bind_sinks(w, skl, src_mconfig);
+	ret = skl_tplg_bind_sinks(w, skl, w, src_mconfig);
 	if (ret)
 		return ret;
 
@@ -773,10 +794,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 			continue;
 		}
 
-		ret = skl_unbind_modules(ctx, src_module, dst_module);
-		if (ret < 0)
-			return ret;
-
+		skl_unbind_modules(ctx, src_module, dst_module);
 		src_module = dst_module;
 	}
 
@@ -814,9 +832,6 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 			 * This is a connecter and if path is found that means
 			 * unbind between source and sink has not happened yet
 			 */
-			ret = skl_stop_pipe(ctx, sink_mconfig->pipe);
-			if (ret < 0)
-				return ret;
 			ret = skl_unbind_modules(ctx, src_mconfig,
 							sink_mconfig);
 		}
@@ -841,6 +856,12 @@ static int skl_tplg_vmixer_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		return skl_tplg_mixer_dapm_pre_pmu_event(w, skl);
+
+	case SND_SOC_DAPM_POST_PMU:
+		return skl_tplg_mixer_dapm_post_pmu_event(w, skl);
+
+	case SND_SOC_DAPM_PRE_PMD:
+		return skl_tplg_mixer_dapm_pre_pmd_event(w, skl);
 
 	case SND_SOC_DAPM_POST_PMD:
 		return skl_tplg_mixer_dapm_post_pmd_event(w, skl);
@@ -915,6 +936,13 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 	if (w->power)
 		skl_get_module_params(skl->skl_sst, (u32 *)bc->params,
 				      bc->max, bc->param_id, mconfig);
+
+	/* decrement size for TLV header */
+	size -= 2 * sizeof(u32);
+
+	/* check size as we don't want to send kernel data */
+	if (size > bc->max)
+		size = bc->max;
 
 	if (bc->params) {
 		if (copy_to_user(data, &bc->param_id, sizeof(u32)))
@@ -1510,6 +1538,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 					&skl_tplg_ops, fw, 0);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
+		release_firmware(fw);
 		return -EINVAL;
 	}
 

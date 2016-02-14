@@ -83,6 +83,8 @@ int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_enable_semaphores = 0;
 int amdgpu_powerplay = -1;
+unsigned amdgpu_pcie_gen_cap = 0;
+unsigned amdgpu_pcie_lane_cap = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -170,6 +172,12 @@ MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = 
 module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 #endif
 
+MODULE_PARM_DESC(pcie_gen_cap, "PCIE Gen Caps (0: autodetect (default))");
+module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);
+
+MODULE_PARM_DESC(pcie_lane_cap, "PCIE Lane Caps (0: autodetect (default))");
+module_param_named(pcie_lane_cap, amdgpu_pcie_lane_cap, uint, 0444);
+
 static struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	/* Kaveri */
@@ -256,11 +264,11 @@ static struct pci_device_id pciidlist[] = {
 	{0x1002, 0x985F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MULLINS|AMD_IS_MOBILITY|AMD_IS_APU},
 #endif
 	/* topaz */
-	{0x1002, 0x6900, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6901, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6902, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6903, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6907, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6900, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
+	{0x1002, 0x6901, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
+	{0x1002, 0x6902, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
+	{0x1002, 0x6903, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
+	{0x1002, 0x6907, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TOPAZ},
 	/* tonga */
 	{0x1002, 0x6920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TONGA},
 	{0x1002, 0x6921, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TONGA},

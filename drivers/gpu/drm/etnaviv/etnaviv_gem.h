@@ -78,6 +78,7 @@ struct etnaviv_gem_object *to_etnaviv_bo(struct drm_gem_object *obj)
 struct etnaviv_gem_ops {
 	int (*get_pages)(struct etnaviv_gem_object *);
 	void (*release)(struct etnaviv_gem_object *);
+	void *(*vmap)(struct etnaviv_gem_object *);
 };
 
 static inline bool is_active(struct etnaviv_gem_object *etnaviv_obj)

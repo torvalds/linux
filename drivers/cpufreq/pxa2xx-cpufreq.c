@@ -202,7 +202,7 @@ static void __init pxa_cpufreq_init_voltages(void)
 	}
 }
 #else
-static int pxa_cpufreq_change_voltage(struct pxa_freqs *pxa_freq)
+static int pxa_cpufreq_change_voltage(const struct pxa_freqs *pxa_freq)
 {
 	return 0;
 }

@@ -1007,10 +1007,9 @@ static int emulate_cp(struct kvm_vcpu *vcpu,
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
 			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+			/* Handled */
+			return 0;
 		}
-
-		/* Handled */
-		return 0;
 	}
 
 	/* Not handled */
@@ -1043,7 +1042,7 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
 }
 
 /**
- * kvm_handle_cp_64 -- handles a mrrc/mcrr trap on a guest CP15 access
+ * kvm_handle_cp_64 -- handles a mrrc/mcrr trap on a guest CP14/CP15 access
  * @vcpu: The VCPU pointer
  * @run:  The kvm_run struct
  */
@@ -1095,7 +1094,7 @@ out:
 }
 
 /**
- * kvm_handle_cp15_32 -- handles a mrc/mcr trap on a guest CP15 access
+ * kvm_handle_cp_32 -- handles a mrc/mcr trap on a guest CP14/CP15 access
  * @vcpu: The VCPU pointer
  * @run:  The kvm_run struct
  */

@@ -475,6 +475,7 @@ config X86_UV
 	depends on X86_64
 	depends on X86_EXTENDED_PLATFORM
 	depends on NUMA
+	depends on EFI
 	depends on X86_X2APIC
 	depends on PCI
 	---help---
@@ -509,11 +510,10 @@ config X86_INTEL_CE
 
 config X86_INTEL_MID
 	bool "Intel MID platform support"
-	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
 	depends on X86_PLATFORM_DEVICES
 	depends on PCI
-	depends on PCI_GOANY
+	depends on X86_64 || (PCI_GOANY && X86_32)
 	depends on X86_IO_APIC
 	select SFI
 	select I2C

@@ -68,7 +68,7 @@ ethernet@f0b60000 {
 		phy1: ethernet-phy@1 {
 			max-speed = <1000>;
 			reg = <0x1>;
-			compatible = "brcm,28nm-gphy", "ethernet-phy-ieee802.3-c22";
+			compatible = "ethernet-phy-ieee802.3-c22";
 		};
 	};
 };
@@ -115,7 +115,7 @@ ethernet@f0ba0000 {
 		phy0: ethernet-phy@0 {
 			max-speed = <1000>;
 			reg = <0x0>;
-			compatible = "brcm,bcm53125", "ethernet-phy-ieee802.3-c22";
+			compatible = "ethernet-phy-ieee802.3-c22";
 		};
 	};
 };
