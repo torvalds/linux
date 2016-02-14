@@ -394,6 +394,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		priv->s_sc = sc5;
 	}
 	priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
+	priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
 	ps->s_txreq->phdr.hdr.lrh[0] = cpu_to_be16(lrh0);
 	ps->s_txreq->phdr.hdr.lrh[1] = cpu_to_be16(ah_attr->dlid);
 	ps->s_txreq->phdr.hdr.lrh[2] =

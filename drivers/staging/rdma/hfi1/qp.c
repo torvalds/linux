@@ -191,6 +191,9 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		if (!qp_to_sdma_engine(qp, sc) &&
 		    dd->flags & HFI1_HAS_SEND_DMA)
 			return -EINVAL;
+
+		if (!qp_to_send_context(qp, sc))
+			return -EINVAL;
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
@@ -200,6 +203,9 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 
 		if (!qp_to_sdma_engine(qp, sc) &&
 		    dd->flags & HFI1_HAS_SEND_DMA)
+			return -EINVAL;
+
+		if (!qp_to_send_context(qp, sc))
 			return -EINVAL;
 	}
 
@@ -608,11 +614,13 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 	struct rvt_qp *qp = iter->qp;
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct sdma_engine *sde;
+	struct send_context *send_context;
 
 	sde = qp_to_sdma_engine(qp, priv->s_sc);
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
+	send_context = qp_to_send_context(qp, priv->s_sc);
 	seq_printf(s,
-		   "N %d %s QP%u R %u %s %u %u %u f=%x %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u %u) QP%u LID %x SL %u MTU %u %u %u %u SDE %p,%u\n",
+		   "N %d %s QP%u R %u %s %u %u %u f=%x %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u %u) QP%u LID %x SL %u MTU %u %u %u %u SDE %p,%u SC %p\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -641,7 +649,8 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->s_retry_cnt,
 		   qp->s_rnr_retry_cnt,
 		   sde,
-		   sde ? sde->this_idx : 0);
+		   sde ? sde->this_idx : 0,
+		   send_context);
 }
 
 void qp_comm_est(struct rvt_qp *qp)

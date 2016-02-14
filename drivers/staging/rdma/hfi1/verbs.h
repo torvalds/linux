@@ -199,10 +199,11 @@ struct hfi1_pio_header {
  * pair is made common
  */
 struct hfi1_qp_priv {
-	struct ahg_ib_header *s_hdr; /* next packet header to send */
-	struct sdma_engine *s_sde;   /* current sde */
-	u8 s_sc;		     /* SC[0..4] for next packet */
-	u8 r_adefered;               /* number of acks defered */
+	struct ahg_ib_header *s_hdr;              /* next header to send */
+	struct sdma_engine *s_sde;                /* current sde */
+	struct send_context *s_sendcontext;       /* current sendcontext */
+	u8 s_sc;		                  /* SC[0..4] for next packet */
+	u8 r_adefered;                            /* number of acks defered */
 	struct iowait s_iowait;
 	struct timer_list s_rnr_timer;
 	struct rvt_qp *owner;
