@@ -759,6 +759,8 @@ struct adapter {
 	struct list_head list_node;
 	struct list_head rcu_node;
 
+	void *iscsi_ppm;
+
 	struct tid_info tids;
 	void **tid_release_head;
 	spinlock_t tid_release_lock;
