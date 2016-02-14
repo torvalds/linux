@@ -510,11 +510,35 @@ static const struct iwl_tt_params iwl_mvm_default_tt_params = {
 	.support_tx_backoff = true,
 };
 
-int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget)
+/* budget in mWatt */
+static const u32 iwl_mvm_cdev_budgets[] = {
+	2000,	/* cooling state 0 */
+	1800,	/* cooling state 1 */
+	1600,	/* cooling state 2 */
+	1400,	/* cooling state 3 */
+	1200,	/* cooling state 4 */
+	1000,	/* cooling state 5 */
+	900,	/* cooling state 6 */
+	800,	/* cooling state 7 */
+	700,	/* cooling state 8 */
+	650,	/* cooling state 9 */
+	600,	/* cooling state 10 */
+	550,	/* cooling state 11 */
+	500,	/* cooling state 12 */
+	450,	/* cooling state 13 */
+	400,	/* cooling state 14 */
+	350,	/* cooling state 15 */
+	300,	/* cooling state 16 */
+	250,	/* cooling state 17 */
+	200,	/* cooling state 18 */
+	150,	/* cooling state 19 */
+};
+
+int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 state)
 {
 	struct iwl_mvm_ctdp_cmd cmd = {
 		.operation = cpu_to_le32(op),
-		.budget = cpu_to_le32(budget),
+		.budget = cpu_to_le32(iwl_mvm_cdev_budgets[state]),
 		.window_size = 0,
 	};
 	int ret;
@@ -534,7 +558,7 @@ int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget)
 	switch (op) {
 	case CTDP_CMD_OPERATION_START:
 #ifdef CONFIG_THERMAL
-		mvm->cooling_dev.cur_state = budget;
+		mvm->cooling_dev.cur_state = state;
 #endif /* CONFIG_THERMAL */
 		break;
 	case CTDP_CMD_OPERATION_REPORT:
@@ -759,29 +783,6 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 		mvm->tz_device.temp_trips[i] = S16_MIN;
 }
 
-static const u32 iwl_mvm_cdev_budgets[] = {
-	2000,	/* cooling state 0 */
-	1800,	/* cooling state 1 */
-	1600,	/* cooling state 2 */
-	1400,	/* cooling state 3 */
-	1200,	/* cooling state 4 */
-	1000,	/* cooling state 5 */
-	900,	/* cooling state 6 */
-	800,	/* cooling state 7 */
-	700,	/* cooling state 8 */
-	650,	/* cooling state 9 */
-	600,	/* cooling state 10 */
-	550,	/* cooling state 11 */
-	500,	/* cooling state 12 */
-	450,	/* cooling state 13 */
-	400,	/* cooling state 14 */
-	350,	/* cooling state 15 */
-	300,	/* cooling state 16 */
-	250,	/* cooling state 17 */
-	200,	/* cooling state 18 */
-	150,	/* cooling state 19 */
-};
-
 static int iwl_mvm_tcool_get_max_state(struct thermal_cooling_device *cdev,
 				       unsigned long *state)
 {
@@ -799,6 +800,7 @@ static int iwl_mvm_tcool_get_cur_state(struct thermal_cooling_device *cdev,
 		return -EBUSY;
 
 	*state = mvm->cooling_dev.cur_state;
+
 	return 0;
 }
 
@@ -822,7 +824,7 @@ static int iwl_mvm_tcool_set_cur_state(struct thermal_cooling_device *cdev,
 	}
 
 	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START,
-				   iwl_mvm_cdev_budgets[new_state]);
+				   new_state);
 
 unlock:
 	mutex_unlock(&mvm->mutex);

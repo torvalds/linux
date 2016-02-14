@@ -543,8 +543,8 @@ struct iwl_mvm_thermal_device {
 };
 
 /*
- * iwl_mvm_cooling_device
- * @cur_state: current state in milliwatts
+ * struct iwl_mvm_cooling_device
+ * @cur_state: current state
  * @cdev: struct thermal cooling device
  */
 struct iwl_mvm_cooling_device {
