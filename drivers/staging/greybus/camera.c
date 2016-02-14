@@ -147,6 +147,7 @@ static int gb_camera_set_power_mode(struct gb_camera *gcam, bool hs)
 
 	ret = gb_camera_set_intf_power_mode(gcam, svc->ap_intf_id, hs);
 	if (ret < 0) {
+		gb_camera_set_intf_power_mode(gcam, intf->interface_id, !hs);
 		gcam_err(gcam, "failed to set AP interface to %s (%d)\n",
 			 hs ? "HS" : "PWM", ret);
 		return ret;
