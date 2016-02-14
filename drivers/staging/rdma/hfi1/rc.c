@@ -200,7 +200,6 @@ static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
  * @dev: the device for this QP
  * @qp: a pointer to the QP
  * @ohdr: a pointer to the IB header being constructed
- * @pmtu: the path MTU
  * @ps: the xmit packet state
  *
  * Return 1 if constructed; otherwise, return 0.
@@ -208,7 +207,7 @@ static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
  * Note the QP s_lock must be held.
  */
 static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
-		       struct hfi1_other_headers *ohdr, u32 pmtu,
+		       struct hfi1_other_headers *ohdr,
 		       struct hfi1_pkt_state *ps)
 {
 	struct rvt_ack_entry *e;
@@ -217,6 +216,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 	u32 bth0;
 	u32 bth2;
 	int middle = 0;
+	u32 pmtu = qp->pmtu;
 
 	/* Don't send an ACK if we aren't supposed to. */
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
@@ -400,7 +400,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	/* Sending responses has higher priority over sending requests. */
 	if ((qp->s_flags & RVT_S_RESP_PENDING) &&
-	    make_rc_ack(dev, qp, ohdr, pmtu, ps))
+	    make_rc_ack(dev, qp, ohdr, ps))
 		return 1;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
