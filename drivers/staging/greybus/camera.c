@@ -242,26 +242,21 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		}
 	}
 
-	if (nstreams && resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED) {
+	if ((resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED) ||
+	    (*flags & GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY)) {
 		*flags = resp->flags;
 		*num_streams = resp->num_streams;
 		goto done;
 	}
 
 	/* Setup unipro link speed. */
-	if (nstreams && !(*flags & GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY)) {
-		ret = gb_camera_set_power_mode(gcam, true);
-		if (ret < 0)
-			goto done;
-	} else if (nstreams == 0) {
-		ret = gb_camera_set_power_mode(gcam, false);
-		if (ret < 0)
-			goto done;
-	}
-
-	memset(&csi_cfg, 0, sizeof(csi_cfg));
+	ret = gb_camera_set_power_mode(gcam, nstreams != 0);
+	if (ret < 0)
+		goto done;
 
 	/* Configure the CSI transmitter. Hardcode the parameters for now. */
+	memset(&csi_cfg, 0, sizeof(csi_cfg));
+
 	if (nstreams) {
 		csi_cfg.csi_id = 1;
 		csi_cfg.clock_mode = 0;
