@@ -88,13 +88,8 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 	int ncont;
 	u32 offset;
 	u32 uidx = MLX5_IB_DEFAULT_UIDX;
-	int drv_data = udata->inlen - sizeof(struct ib_uverbs_cmd_hdr);
 
-	if (drv_data < 0)
-		return -EINVAL;
-
-	ucmdlen = (drv_data < sizeof(ucmd)) ?
-		  drv_data : sizeof(ucmd);
+	ucmdlen = min(udata->inlen, sizeof(ucmd));
 
 	if (ib_copy_from_udata(&ucmd, udata, ucmdlen)) {
 		mlx5_ib_dbg(dev, "failed copy udata\n");
@@ -104,9 +99,9 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 	if (ucmd.reserved0 || ucmd.reserved1)
 		return -EINVAL;
 
-	if (drv_data > sizeof(ucmd) &&
+	if (udata->inlen > sizeof(ucmd) &&
 	    !ib_is_udata_cleared(udata, sizeof(ucmd),
-				 drv_data - sizeof(ucmd)))
+				 udata->inlen - sizeof(ucmd)))
 		return -EINVAL;
 
 	if (is_xrc) {
