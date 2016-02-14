@@ -80,8 +80,6 @@ if ((BTCoexDbgLevel == _bt_dbg_on_)) {\
 #define PlatformProcessHCICommands(...)
 #define PlatformTxBTQueuedPackets(...)
 #define PlatformIndicateBTACLData(...)	(RT_STATUS_SUCCESS)
-#define PlatformAcquireSpinLock(padapter, type)
-#define PlatformReleaseSpinLock(padapter, type)
 
 #define GET_UNDECORATED_AVERAGE_RSSI(padapter)	\
 			(GET_HAL_DATA(padapter)->dmpriv.EntryMinUndecoratedSmoothedPWDB)
