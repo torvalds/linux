@@ -146,21 +146,6 @@ struct rvt_ibport {
  * Things that are driver specific, module parameters in hfi1 and qib
  */
 struct rvt_driver_params {
-	/*
-	 * driver required fields:
-	 *	node_guid
-	 *	phys_port_cnt
-	 *	dma_device
-	 *	owner
-	 * driver optional fields (rvt will provide generic value if blank):
-	 *	name
-	 *	node_desc
-	 * rvt fields, driver value ignored:
-	 *	uverbs_abi_ver
-	 *	node_type
-	 *	num_comp_vectors
-	 *	uverbs_cmd_mask
-	 */
 	struct ib_device_attr props;
 
 	/*

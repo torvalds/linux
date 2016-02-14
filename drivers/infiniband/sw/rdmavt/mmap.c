@@ -51,6 +51,10 @@
 #include <asm/pgtable.h>
 #include "mmap.h"
 
+/**
+ * rvt_mmap_init - init link list and lock for mem map
+ * @rdi: rvt dev struct
+ */
 void rvt_mmap_init(struct rvt_dev_info *rdi)
 {
 	INIT_LIST_HEAD(&rdi->pending_mmaps);
@@ -78,10 +82,6 @@ void rvt_release_mmap_info(struct kref *ref)
 }
 EXPORT_SYMBOL(rvt_release_mmap_info);
 
-/*
- * open and close keep track of how many times the CQ is mapped,
- * to avoid releasing it.
- */
 static void rvt_vma_open(struct vm_area_struct *vma)
 {
 	struct rvt_mmap_info *ip = vma->vm_private_data;
@@ -105,7 +105,8 @@ static const struct vm_operations_struct rvt_vm_ops = {
  * rvt_mmap - create a new mmap region
  * @context: the IB user context of the process making the mmap() call
  * @vma: the VMA to be initialized
- * Return zero if the mmap is OK. Otherwise, return an errno.
+ *
+ * Return: zero if the mmap is OK. Otherwise, return an errno.
  */
 int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
@@ -147,8 +148,14 @@ done:
 }
 EXPORT_SYMBOL(rvt_mmap);
 
-/*
- * Allocate information for hfi1_mmap
+/**
+ * rvt_create_mmap_info - allocate information for hfi1_mmap
+ * @rdi: rvt dev struct
+ * @size: size in bytes to map
+ * @context: user context
+ * @obj: opaque pointer to a cq, wq etc
+ *
+ * Return: rvt_mmap struct on success
  */
 struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
 					   u32 size,
@@ -180,6 +187,13 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
 }
 EXPORT_SYMBOL(rvt_create_mmap_info);
 
+/**
+ * rvt_update_mmap_info - update a mem map
+ * @rdi: rvt dev struct
+ * @ip: mmap info pointer
+ * @size: size to grow by
+ * @obj: opaque pointer to cq, wq, etc.
+ */
 void rvt_update_mmap_info(struct rvt_dev_info *rdi, struct rvt_mmap_info *ip,
 			  u32 size, void *obj)
 {

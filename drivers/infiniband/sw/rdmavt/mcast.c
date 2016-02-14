@@ -53,6 +53,12 @@
 
 #include "mcast.h"
 
+/**
+ * rvt_driver_mcast - init resources for multicast
+ * @rdi: rvt dev struct
+ *
+ * This is per device that registers with rdmavt
+ */
 void rvt_driver_mcast_init(struct rvt_dev_info *rdi)
 {
 	/*
@@ -130,9 +136,9 @@ static void rvt_mcast_free(struct rvt_mcast *mcast)
  * @ibp: the IB port structure
  * @mgid: the multicast GID to search for
  *
- * Returns NULL if not found.
- *
  * The caller is responsible for decrementing the reference count if found.
+ *
+ * Return: NULL if not found.
  */
 struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid)
 {
@@ -170,7 +176,7 @@ EXPORT_SYMBOL(rvt_mcast_find);
  * @mcast: the mcast GID table
  * @mqp: the QP to attach
  *
- * Return zero if both were added.  Return EEXIST if the GID was already in
+ * Return: zero if both were added.  Return EEXIST if the GID was already in
  * the table but the QP was added.  Return ESRCH if the QP was already
  * attached and neither structure was added.
  */
@@ -247,6 +253,14 @@ bail:
 	return ret;
 }
 
+/**
+ * rvt_attach_mcast - attach a qp to a multicast group
+ * @ibqp: Infiniband qp
+ * @igd: multicast guid
+ * @lid: multicast lid
+ *
+ * Return: 0 on success
+ */
 int rvt_attach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
@@ -298,6 +312,14 @@ bail_mcast:
 	return ret;
 }
 
+/**
+ * rvt_detach_mcast - remove a qp from a multicast group
+ * @ibqp: Infiniband qp
+ * @igd: multicast guid
+ * @lid: multicast lid
+ *
+ * Return: 0 on success
+ */
 int rvt_detach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
@@ -377,6 +399,12 @@ int rvt_detach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	return 0;
 }
 
+/**
+ *rvt_mast_tree_empty - determine if any qps are attached to any mcast group
+ *@rdi: rvt dev struct
+ *
+ * Return: in use count
+ */
 int rvt_mcast_tree_empty(struct rvt_dev_info *rdi)
 {
 	int i;

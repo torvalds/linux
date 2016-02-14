@@ -59,14 +59,13 @@
  * @in_mad: the incoming MAD
  * @out_mad: any outgoing MAD reply
  *
- * Returns IB_MAD_RESULT_SUCCESS if this is a MAD that we are not
- * interested in processing.
- *
  * Note that the verbs framework has already done the MAD sanity checks,
  * and hop count/pointer updating for IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE
  * MADs.
  *
  * This is called by the ib_mad module.
+ *
+ * Return: IB_MAD_RESULT_SUCCESS or error
  */
 int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
@@ -75,13 +74,10 @@ int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		    u16 *out_mad_pkey_index)
 {
 	/*
-	 * Drivers will need to provide a number of things. For exmaple counters
-	 * will need to be maintained by the driver but shoud live in the rvt
-	 * structure. More study will be needed to finalize the interface
-	 * between drivers and rvt for mad packets.
-	 *
-	 *VT-DRIVER-API: ????
-	 *
+	 * MAD processing is quite different between hfi1 and qib. Therfore this
+	 * is expected to be provided by the driver. Other drivers in the future
+	 * may chose to implement this but it should not be made into a
+	 * requirement.
 	 */
 	if (ibport_num_to_idx(ibdev, port_num) < 0)
 		return -EINVAL;
@@ -95,6 +91,14 @@ static void rvt_send_mad_handler(struct ib_mad_agent *agent,
 	ib_free_send_mad(mad_send_wc->send_buf);
 }
 
+/**
+ * rvt_create_mad_agents - create mad agents
+ * @rdi: rvt dev struct
+ *
+ * If driver needs to be notified of mad agent creation then call back
+ *
+ * Return 0 on success
+ */
 int rvt_create_mad_agents(struct rvt_dev_info *rdi)
 {
 	struct ib_mad_agent *agent;
@@ -136,6 +140,12 @@ err:
 	return ret;
 }
 
+/**
+ * rvt_free_mad_agents - free up mad agents
+ * @rdi: rvt dev struct
+ *
+ * If driver needs notification of mad agent removal make the call back
+ */
 void rvt_free_mad_agents(struct rvt_dev_info *rdi)
 {
 	struct ib_mad_agent *agent;

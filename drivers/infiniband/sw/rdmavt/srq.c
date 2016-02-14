@@ -51,7 +51,10 @@
 
 #include "srq.h"
 
-/*
+/**
+ * rvt_driver_srq_init - init srq resources on a per driver basis
+ * @rdi: rvt dev structure
+ *
  * Do any initialization needed when a driver registers with rdmavt.
  */
 void rvt_driver_srq_init(struct rvt_dev_info *rdi)
@@ -65,6 +68,8 @@ void rvt_driver_srq_init(struct rvt_dev_info *rdi)
  * @ibpd: the protection domain of the SRQ to create
  * @srq_init_attr: the attributes of the SRQ
  * @udata: data from libibverbs when creating a user SRQ
+ *
+ * Return: Allocated srq object
  */
 struct ib_srq *rvt_create_srq(struct ib_pd *ibpd,
 			      struct ib_srq_init_attr *srq_init_attr,
@@ -168,6 +173,8 @@ bail_srq:
  * @attr: the new attributes of the SRQ
  * @attr_mask: indicates which attributes to modify
  * @udata: user data for libibverbs.so
+ *
+ * Return: 0 on success
  */
 int rvt_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		   enum ib_srq_attr_mask attr_mask,
@@ -305,6 +312,12 @@ bail_free:
 	return ret;
 }
 
+/** rvt_query_srq - query srq data
+ * @ibsrq: srq to query
+ * @attr: return info in attr
+ *
+ * Return: always 0
+ */
 int rvt_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 {
 	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
@@ -315,6 +328,12 @@ int rvt_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 	return 0;
 }
 
+/**
+ * rvt_destroy_srq - destory an srq
+ * @ibsrq: srq object to destroy
+ *
+ * Return always 0
+ */
 int rvt_destroy_srq(struct ib_srq *ibsrq)
 {
 	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);

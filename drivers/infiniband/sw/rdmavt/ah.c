@@ -53,6 +53,11 @@
  * rvt_check_ah - validate the attributes of AH
  * @ibdev: the ib device
  * @ah_attr: the attributes of the AH
+ *
+ * If driver supports a more detailed check_ah function call back to it
+ * otherwise just check the basics.
+ *
+ * Return: 0 on success
  */
 int rvt_check_ah(struct ib_device *ibdev,
 		 struct ib_ah_attr *ah_attr)
@@ -95,6 +100,8 @@ EXPORT_SYMBOL(rvt_check_ah);
  * @ah_attr: the attributes of the AH
  *
  * This may be called from interrupt context.
+ *
+ * Return: newly allocated ah
  */
 struct ib_ah *rvt_create_ah(struct ib_pd *pd,
 			    struct ib_ah_attr *ah_attr)
@@ -129,6 +136,12 @@ struct ib_ah *rvt_create_ah(struct ib_pd *pd,
 	return &ah->ibah;
 }
 
+/**
+ * rvt_destory_ah - Destory an address handle
+ * @ibah: address handle
+ *
+ * Return: 0 on success
+ */
 int rvt_destroy_ah(struct ib_ah *ibah)
 {
 	struct rvt_dev_info *dev = ib_to_rvt(ibah->device);
@@ -147,6 +160,13 @@ int rvt_destroy_ah(struct ib_ah *ibah)
 	return 0;
 }
 
+/**
+ * rvt_modify_ah - modify an ah with given attrs
+ * @ibah: address handle to modify
+ * @ah_attr: attrs to apply
+ *
+ * Return: 0 on success
+ */
 int rvt_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 {
 	struct rvt_ah *ah = ibah_to_rvtah(ibah);
@@ -159,6 +179,13 @@ int rvt_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 	return 0;
 }
 
+/**
+ * rvt_query_ah - return attrs for ah
+ * @ibah: address handle to query
+ * @ah_attr: return info in this
+ *
+ * Return: always 0
+ */
 int rvt_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 {
 	struct rvt_ah *ah = ibah_to_rvtah(ibah);

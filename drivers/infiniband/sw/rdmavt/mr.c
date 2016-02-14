@@ -52,8 +52,13 @@
 #include "vt.h"
 #include "mr.h"
 
-/*
+/**
+ * rvt_driver_mr_init - Init MR resources per driver
+ * @rdi: rvt dev struct
+ *
  * Do any intilization needed when a driver registers with rdmavt.
+ *
+ * Return: 0 on success or errno on failure
  */
 int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 {
@@ -98,7 +103,10 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 	return 0;
 }
 
-/*
+/**
+ *rvt_mr_exit: clean up MR
+ *@rdi: rvt dev structure
+ *
  * called when drivers have unregistered or perhaps failed to register with us
  */
 void rvt_mr_exit(struct rvt_dev_info *rdi)
@@ -297,7 +305,7 @@ static void __rvt_free_mr(struct rvt_mr *mr)
  * @pd: protection domain for this memory region
  * @acc: access flags
  *
- * Returns the memory region on success, otherwise returns an errno.
+ * Return: the memory region on success, otherwise returns an errno.
  * Note that all DMA addresses should be created via the
  * struct ib_dma_mapping_ops functions (see dma.c).
  */
@@ -348,7 +356,7 @@ bail:
  * @mr_access_flags: access flags for this memory region
  * @udata: unused by the driver
  *
- * Returns the memory region on success, otherwise returns an errno.
+ * Return: the memory region on success, otherwise returns an errno.
  */
 struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			      u64 virt_addr, int mr_access_flags,
@@ -418,10 +426,11 @@ bail_umem:
  * rvt_dereg_mr - unregister and free a memory region
  * @ibmr: the memory region to free
  *
- * Returns 0 on success.
  *
  * Note that this is called to free MRs created by rvt_get_dma_mr()
  * or rvt_reg_user_mr().
+ *
+ * Returns 0 on success.
  */
 int rvt_dereg_mr(struct ib_mr *ibmr)
 {
@@ -456,7 +465,7 @@ out:
  * @mr_type: mem region type
  * @max_num_sg: Max number of segments allowed
  *
- * Return the memory region on success, otherwise return an errno.
+ * Return: the memory region on success, otherwise return an errno.
  */
 struct ib_mr *rvt_alloc_mr(struct ib_pd *pd,
 			   enum ib_mr_type mr_type,
@@ -480,7 +489,7 @@ struct ib_mr *rvt_alloc_mr(struct ib_pd *pd,
  * @mr_access_flags: access flags for this memory region
  * @fmr_attr: fast memory region attributes
  *
- * Returns the memory region on success, otherwise returns an errno.
+ * Return: the memory region on success, otherwise returns an errno.
  */
 struct ib_fmr *rvt_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 			     struct ib_fmr_attr *fmr_attr)
@@ -537,6 +546,8 @@ bail:
  * @iova: the virtual address of the start of the fast memory region
  *
  * This may be called from interrupt context.
+ *
+ * Return: 0 on success
  */
 
 int rvt_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
@@ -580,7 +591,7 @@ int rvt_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
  * rvt_unmap_fmr - unmap fast memory regions
  * @fmr_list: the list of fast memory regions to unmap
  *
- * Returns 0 on success.
+ * Return: 0 on success.
  */
 int rvt_unmap_fmr(struct list_head *fmr_list)
 {
@@ -605,7 +616,7 @@ int rvt_unmap_fmr(struct list_head *fmr_list)
  * rvt_dealloc_fmr - deallocate a fast memory region
  * @ibfmr: the fast memory region to deallocate
  *
- * Returns 0 on success.
+ * Return: 0 on success.
  */
 int rvt_dealloc_fmr(struct ib_fmr *ibfmr)
 {
@@ -635,12 +646,13 @@ out:
  * @sge: SGE to check
  * @acc: access flags
  *
- * Return 1 if valid and successful, otherwise returns 0.
+ * Check the IB SGE for validity and initialize our internal version
+ * of it.
+ *
+ * Return: 1 if valid and successful, otherwise returns 0.
  *
  * increments the reference count upon success
  *
- * Check the IB SGE for validity and initialize our internal version
- * of it.
  */
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		struct rvt_sge *isge, struct ib_sge *sge, int acc)
@@ -733,7 +745,7 @@ EXPORT_SYMBOL(rvt_lkey_ok);
  * @rkey: rkey to check
  * @acc: access flags
  *
- * Return 1 if successful, otherwise 0.
+ * Return: 1 if successful, otherwise 0.
  *
  * increments the reference count upon success
  */

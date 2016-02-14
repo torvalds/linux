@@ -173,10 +173,10 @@ static void send_complete(struct kthread_work *work)
  * @context: unused by the QLogic_IB driver
  * @udata: user data for libibverbs.so
  *
- * Returns a pointer to the completion queue or negative errno values
- * for failure.
- *
  * Called by ib_create_cq() in the generic verbs code.
+ *
+ * Return: pointer to the completion queue or negative errno values
+ * for failure.
  */
 struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 			    const struct ib_cq_init_attr *attr,
@@ -286,9 +286,9 @@ done:
  * rvt_destroy_cq - destroy a completion queue
  * @ibcq: the completion queue to destroy.
  *
- * Returns 0 for success.
- *
  * Called by ib_destroy_cq() in the generic verbs code.
+ *
+ * Return: always 0
  */
 int rvt_destroy_cq(struct ib_cq *ibcq)
 {
@@ -313,10 +313,10 @@ int rvt_destroy_cq(struct ib_cq *ibcq)
  * @ibcq: the completion queue
  * @notify_flags: the type of notification to request
  *
- * Returns 0 for success.
- *
  * This may be called from interrupt context.  Also called by
  * ib_req_notify_cq() in the generic verbs code.
+ *
+ * Return: 0 for success.
  */
 int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 {
@@ -345,7 +345,7 @@ int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
  * rvt_resize_cq - change the size of the CQ
  * @ibcq: the completion queue
  *
- * Returns 0 for success.
+ * Return: 0 for success.
  */
 int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 {
@@ -456,10 +456,10 @@ bail_free:
  * @num_entries: the maximum number of entries to return
  * @entry: pointer to array where work completions are placed
  *
- * Returns the number of completion entries polled.
- *
  * This may be called from interrupt context.  Also called by ib_poll_cq()
  * in the generic verbs code.
+ *
+ * Return: the number of completion entries polled.
  */
 int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 {
@@ -496,6 +496,12 @@ int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	return npolled;
 }
 
+/**
+ * rvt_driver_cq_init - Init cq resources on behalf of driver
+ * @rdi: rvt dev structure
+ *
+ * Return: 0 on success
+ */
 int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 {
 	int ret = 0;
@@ -530,6 +536,10 @@ int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 	return ret;
 }
 
+/**
+ * rvt_cq_exit - tear down cq reources
+ * @rdi: rvt dev structure
+ */
 void rvt_cq_exit(struct rvt_dev_info *rdi)
 {
 	struct kthread_worker *worker;

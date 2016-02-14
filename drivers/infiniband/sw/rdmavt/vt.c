@@ -57,16 +57,37 @@ MODULE_DESCRIPTION("RDMA Verbs Transport Library");
 
 static int rvt_init(void)
 {
-	/* Do any work needed prior to drivers calling for registration*/
+	/*
+	 * rdmavt does not need to do anything special when it starts up. All it
+	 * needs to do is sit and wait until a driver attempts registration.
+	 */
 	return 0;
 }
 module_init(rvt_init);
 
 static void rvt_cleanup(void)
 {
+	/*
+	 * Nothing to do at exit time either. The module won't be able to be
+	 * removed until all drivers are gone which means all the dev structs
+	 * are gone so there is really nothing to do.
+	 */
 }
 module_exit(rvt_cleanup);
 
+/**
+ * rvt_alloc_device - allocate rdi
+ * @size: how big of a structure to allocate
+ * @nports: number of ports to allocate array slots for
+ *
+ * Use IB core device alloc to allocate space for the rdi which is assumed to be
+ * inside of the ib_device. Any extra space that drivers require should be
+ * included in size.
+ *
+ * We also allocate a port array based on the number of ports.
+ *
+ * Return: pointer to allocated rdi
+ */
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports)
 {
 	struct rvt_dev_info *rdi = ERR_PTR(-ENOMEM);
@@ -105,15 +126,10 @@ static int rvt_modify_device(struct ib_device *device,
 			     struct ib_device_modify *device_modify)
 {
 	/*
-	 * Change dev props. Planned support is for node desc change and sys
-	 * guid change only. This matches hfi1 and qib behavior. Other drivers
-	 * that support existing modifications will need to add their support.
+	 * There is currently no need to supply this based on qib and hfi1.
+	 * Future drivers may need to implement this though.
 	 */
 
-	/*
-	 * VT-DRIVER-API: node_desc_change()
-	 * VT-DRIVER-API: sys_guid_change()
-	 */
 	return -EOPNOTSUPP;
 }
 
@@ -123,7 +139,7 @@ static int rvt_modify_device(struct ib_device *device,
  * @port_num: port number, 1 based from ib core
  * @props: structure to hold returned properties
  *
- * Returns 0 on success
+ * Return: 0 on success
  */
 static int rvt_query_port(struct ib_device *ibdev, u8 port_num,
 			  struct ib_port_attr *props)
@@ -158,7 +174,7 @@ static int rvt_query_port(struct ib_device *ibdev, u8 port_num,
  * @port_modify_mask: How to change the port
  * @props: Structure to fill in
  *
- * Returns 0 on success
+ * Return: 0 on success
  */
 static int rvt_modify_port(struct ib_device *ibdev, u8 port_num,
 			   int port_modify_mask, struct ib_port_modify *props)
@@ -191,7 +207,7 @@ static int rvt_modify_port(struct ib_device *ibdev, u8 port_num,
  * @port_num: Port number, 1 based from ib core
  * @intex: Index into pkey table
  *
- * Returns 0 on failure pkey otherwise
+ * Return: 0 on failure pkey otherwise
  */
 static int rvt_query_pkey(struct ib_device *ibdev, u8 port_num, u16 index,
 			  u16 *pkey)
@@ -223,7 +239,7 @@ static int rvt_query_pkey(struct ib_device *ibdev, u8 port_num, u16 index,
  * @index: = Index in table
  * @gid: Gid to return
  *
- * Returns 0 on success
+ * Return: 0 on success
  */
 static int rvt_query_gid(struct ib_device *ibdev, u8 port_num,
 			 int guid_index, union ib_gid *gid)
@@ -316,6 +332,15 @@ static int rvt_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 #define CHECK_DRIVER_OVERRIDE(rdi, x) \
 	rdi->ibdev.x = rdi->ibdev.x ? : rvt_ ##x
 
+/**
+ * rvt_register_device - register a driver
+ * @rdi: main dev structure for all of rdmavt operations
+ *
+ * It is up to drivers to allocate the rdi and fill in the appropriate
+ * information.
+ *
+ * Return: 0 on success otherwise an errno.
+ */
 int rvt_register_device(struct rvt_dev_info *rdi)
 {
 	/* Validate that drivers have provided the right information */
@@ -487,6 +512,10 @@ bail_no_mr:
 }
 EXPORT_SYMBOL(rvt_register_device);
 
+/**
+ * rvt_unregister_device - remove a driver
+ * @rdi: rvt dev struct
+ */
 void rvt_unregister_device(struct rvt_dev_info *rdi)
 {
 	trace_rvt_dbg(rdi, "Driver is unregistering.");
@@ -502,9 +531,16 @@ void rvt_unregister_device(struct rvt_dev_info *rdi)
 }
 EXPORT_SYMBOL(rvt_unregister_device);
 
-/*
+/**
+ * rvt_init_port - init internal data for driver port
+ * @rdi: rvt dev strut
+ * @port: rvt port
+ * @port_index: 0 based index of ports, different from IB core port num
+ *
  * Keep track of a list of ports. No need to have a detach port.
  * They persist until the driver goes away.
+ *
+ * Return: always 0
  */
 int rvt_init_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
 		  int port_index, u16 *pkey_table)

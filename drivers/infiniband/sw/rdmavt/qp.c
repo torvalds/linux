@@ -162,6 +162,12 @@ static void free_qpn_table(struct rvt_qpn_table *qpt)
 		free_page((unsigned long)qpt->map[i].page);
 }
 
+/**
+ * rvt_driver_qp_init - Init driver qp resources
+ * @rdi: rvt dev strucutre
+ *
+ * Return: 0 on success
+ */
 int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 {
 	int i;
@@ -262,6 +268,12 @@ static unsigned rvt_free_all_qps(struct rvt_dev_info *rdi)
 	return qp_inuse;
 }
 
+/**
+ * rvt_qp_exit - clean up qps on device exit
+ * @rdi: rvt dev structure
+ *
+ * Check for qp leaks and free resources.
+ */
 void rvt_qp_exit(struct rvt_dev_info *rdi)
 {
 	u32 qps_inuse = rvt_free_all_qps(rdi);
@@ -483,7 +495,7 @@ EXPORT_SYMBOL(rvt_reset_qp);
  * unique idea of what queue pair numbers mean. For instance there is a reserved
  * range for PSM.
  *
- * Returns the queue pair on success, otherwise returns an errno.
+ * Return: the queue pair on success, otherwise returns an errno.
  *
  * Called by the ib_create_qp() core verbs function.
  */
@@ -757,6 +769,11 @@ bail_swq:
 	return ret;
 }
 
+/**
+ * rvt_clear_mr_refs - Drop help mr refs
+ * @qp: rvt qp data structure
+ * @clr_sends: If shoudl clear send side or not
+ */
 void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 {
 	unsigned n;
@@ -812,7 +829,8 @@ EXPORT_SYMBOL(rvt_clear_mr_refs);
  * @err: the receive completion error to signal if a RWQE is active
  *
  * Flushes both send and receive work queues.
- * Returns true if last WQE event should be generated.
+ *
+ * Return: true if last WQE event should be generated.
  * The QP r_lock and s_lock should be held and interrupts disabled.
  * If we are already in error state, just return.
  */
@@ -912,7 +930,11 @@ static void rvt_insert_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 	spin_unlock_irqrestore(&rdi->qp_dev->qpt_lock, flags);
 }
 
-/*
+/**
+ * rvt_remove_qp - remove qp form table
+ * @rdi: rvt dev struct
+ * @qp: qp to remove
+ *
  * Remove the QP from the table so it can't be found asynchronously by
  * the receive routine.
  */
@@ -967,7 +989,7 @@ EXPORT_SYMBOL(rvt_remove_qp);
  * @attr_mask: the mask of attributes to modify
  * @udata: user data for libibverbs.so
  *
- * Returns 0 on success, otherwise returns an errno.
+ * Return: 0 on success, otherwise returns an errno.
  */
 int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		  int attr_mask, struct ib_udata *udata)
@@ -1224,10 +1246,10 @@ inval:
  * rvt_destroy_qp - destroy a queue pair
  * @ibqp: the queue pair to destroy
  *
- * Returns 0 on success.
- *
  * Note that this can be called while the QP is actively sending or
  * receiving!
+ *
+ * Return: 0 on success.
  */
 int rvt_destroy_qp(struct ib_qp *ibqp)
 {
@@ -1263,6 +1285,15 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 	return 0;
 }
 
+/**
+ * rvt_query_qp - query an ipbq
+ * @ibqp: IB qp to query
+ * @attr: attr struct to fill in
+ * @attr_mask: attr mask ignored
+ * @init_attr: struct to fill in
+ *
+ * Return: always 0
+ */
 int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		 int attr_mask, struct ib_qp_init_attr *init_attr)
 {
@@ -1321,6 +1352,8 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  * @bad_wr: the first bad WR is put here
  *
  * This may be called from interrupt context.
+ *
+ * Return: 0 on success otherwise errno
  */
 int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		  struct ib_recv_wr **bad_wr)
@@ -1539,6 +1572,8 @@ bail_inval_free:
  * @bad_wr: the first bad WR is put here
  *
  * This may be called from interrupt context.
+ *
+ * Return: 0 on success else errno
  */
 int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		  struct ib_send_wr **bad_wr)
@@ -1594,6 +1629,8 @@ bail:
  * @bad_wr: A pointer to the first WR to cause a problem is put here
  *
  * This may be called from interrupt context.
+ *
+ * Return: 0 on success else errno
  */
 int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		      struct ib_recv_wr **bad_wr)
@@ -1636,6 +1673,10 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	return 0;
 }
 
+/** rvt_free_qpn - Free a qpn from the bit map
+ * @qpt: QP table
+ * @qpn: queue pair number to free
+ */
 void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
 {
 	struct rvt_qpn_map *map;
@@ -1646,6 +1687,10 @@ void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
 }
 EXPORT_SYMBOL(rvt_free_qpn);
 
+/**
+ * rvt_dec_qp_cnt - decrement qp count
+ * rdi: rvt dev struct
+ */
 void rvt_dec_qp_cnt(struct rvt_dev_info *rdi)
 {
 	spin_lock(&rdi->n_qps_lock);

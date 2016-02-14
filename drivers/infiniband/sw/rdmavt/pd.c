@@ -48,6 +48,16 @@
 #include <linux/slab.h>
 #include "pd.h"
 
+/**
+ * rvt_alloc_pd - allocate a protection domain
+ * @ibdev: ib device
+ * @context: optional user context
+ * @udata: optional user data
+ *
+ * Allocate and keep track of a PD.
+ *
+ * Return: 0 on success
+ */
 struct ib_pd *rvt_alloc_pd(struct ib_device *ibdev,
 			   struct ib_ucontext *context,
 			   struct ib_udata *udata)
@@ -88,6 +98,12 @@ bail:
 	return ret;
 }
 
+/**
+ * rvt_dealloc_pd - Free PD
+ * @ibpd: Free up PD
+ *
+ * Return: always 0
+ */
 int rvt_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct rvt_pd *pd = ibpd_to_rvtpd(ibpd);
