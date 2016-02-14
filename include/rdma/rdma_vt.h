@@ -476,19 +476,6 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		u32 len, u64 vaddr, u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		struct rvt_sge *isge, struct ib_sge *sge, int acc);
-int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
-void rvt_release_mmap_info(struct kref *ref);
-struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
-					   u32 size,
-					   struct ib_ucontext *context,
-					   void *obj);
-void rvt_update_mmap_info(struct rvt_dev_info *rdi, struct rvt_mmap_info *ip,
-			  u32 size, void *obj);
-int rvt_reg_mr(struct rvt_qp *qp, struct ib_reg_wr *wr);
 struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid);
-
-/* Temporary export */
-void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		  enum ib_qp_type type);
 
 #endif          /* DEF_RDMA_VT_H */

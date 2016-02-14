@@ -80,7 +80,6 @@ void rvt_release_mmap_info(struct kref *ref)
 	vfree(ip->obj);
 	kfree(ip);
 }
-EXPORT_SYMBOL(rvt_release_mmap_info);
 
 static void rvt_vma_open(struct vm_area_struct *vma)
 {
@@ -146,7 +145,6 @@ int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 done:
 	return ret;
 }
-EXPORT_SYMBOL(rvt_mmap);
 
 /**
  * rvt_create_mmap_info - allocate information for hfi1_mmap
@@ -185,7 +183,6 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
 
 	return ip;
 }
-EXPORT_SYMBOL(rvt_create_mmap_info);
 
 /**
  * rvt_update_mmap_info - update a mem map
@@ -209,4 +206,3 @@ void rvt_update_mmap_info(struct rvt_dev_info *rdi, struct rvt_mmap_info *ip,
 	ip->size = size;
 	ip->obj = obj;
 }
-EXPORT_SYMBOL(rvt_update_mmap_info);

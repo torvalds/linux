@@ -390,12 +390,116 @@ static void free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
 }
 
 /**
+ * rvt_clear_mr_refs - Drop help mr refs
+ * @qp: rvt qp data structure
+ * @clr_sends: If shoudl clear send side or not
+ */
+static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
+{
+	unsigned n;
+
+	if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
+		rvt_put_ss(&qp->s_rdma_read_sge);
+
+	rvt_put_ss(&qp->r_sge);
+
+	if (clr_sends) {
+		while (qp->s_last != qp->s_head) {
+			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
+			unsigned i;
+
+			for (i = 0; i < wqe->wr.num_sge; i++) {
+				struct rvt_sge *sge = &wqe->sg_list[i];
+
+				rvt_put_mr(sge->mr);
+			}
+			if (qp->ibqp.qp_type == IB_QPT_UD ||
+			    qp->ibqp.qp_type == IB_QPT_SMI ||
+			    qp->ibqp.qp_type == IB_QPT_GSI)
+				atomic_dec(&ibah_to_rvtah(
+						wqe->ud_wr.ah)->refcount);
+			if (++qp->s_last >= qp->s_size)
+				qp->s_last = 0;
+			smp_wmb(); /* see qp_set_savail */
+		}
+		if (qp->s_rdma_mr) {
+			rvt_put_mr(qp->s_rdma_mr);
+			qp->s_rdma_mr = NULL;
+		}
+	}
+
+	if (qp->ibqp.qp_type != IB_QPT_RC)
+		return;
+
+	for (n = 0; n < ARRAY_SIZE(qp->s_ack_queue); n++) {
+		struct rvt_ack_entry *e = &qp->s_ack_queue[n];
+
+		if (e->opcode == IB_OPCODE_RC_RDMA_READ_REQUEST &&
+		    e->rdma_sge.mr) {
+			rvt_put_mr(e->rdma_sge.mr);
+			e->rdma_sge.mr = NULL;
+		}
+	}
+}
+
+/**
+ * rvt_remove_qp - remove qp form table
+ * @rdi: rvt dev struct
+ * @qp: qp to remove
+ *
+ * Remove the QP from the table so it can't be found asynchronously by
+ * the receive routine.
+ */
+static void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
+{
+	struct rvt_ibport *rvp = rdi->ports[qp->port_num - 1];
+	u32 n = hash_32(qp->ibqp.qp_num, rdi->qp_dev->qp_table_bits);
+	unsigned long flags;
+	int removed = 1;
+
+	spin_lock_irqsave(&rdi->qp_dev->qpt_lock, flags);
+
+	if (rcu_dereference_protected(rvp->qp[0],
+			lockdep_is_held(&rdi->qp_dev->qpt_lock)) == qp) {
+		RCU_INIT_POINTER(rvp->qp[0], NULL);
+	} else if (rcu_dereference_protected(rvp->qp[1],
+			lockdep_is_held(&rdi->qp_dev->qpt_lock)) == qp) {
+		RCU_INIT_POINTER(rvp->qp[1], NULL);
+	} else {
+		struct rvt_qp *q;
+		struct rvt_qp __rcu **qpp;
+
+		removed = 0;
+		qpp = &rdi->qp_dev->qp_table[n];
+		for (; (q = rcu_dereference_protected(*qpp,
+			lockdep_is_held(&rdi->qp_dev->qpt_lock))) != NULL;
+			qpp = &q->next) {
+			if (q == qp) {
+				RCU_INIT_POINTER(*qpp,
+				     rcu_dereference_protected(qp->next,
+				     lockdep_is_held(&rdi->qp_dev->qpt_lock)));
+				removed = 1;
+				trace_rvt_qpremove(qp, n);
+				break;
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(&rdi->qp_dev->qpt_lock, flags);
+	if (removed) {
+		synchronize_rcu();
+		if (atomic_dec_and_test(&qp->refcount))
+			wake_up(&qp->wait);
+	}
+}
+
+/**
  * reset_qp - initialize the QP state to the reset state
  * @qp: the QP to reset
  * @type: the QP type
  * r and s lock are required to be held by the caller
  */
-void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		  enum ib_qp_type type)
 {
 	if (qp->state != IB_QPS_RESET) {
@@ -475,7 +579,6 @@ void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	}
 	qp->r_sge.num_sge = 0;
 }
-EXPORT_SYMBOL(rvt_reset_qp);
 
 /**
  * rvt_create_qp - create a queue pair for a device
@@ -762,60 +865,6 @@ bail_swq:
 }
 
 /**
- * rvt_clear_mr_refs - Drop help mr refs
- * @qp: rvt qp data structure
- * @clr_sends: If shoudl clear send side or not
- */
-void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
-{
-	unsigned n;
-
-	if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
-		rvt_put_ss(&qp->s_rdma_read_sge);
-
-	rvt_put_ss(&qp->r_sge);
-
-	if (clr_sends) {
-		while (qp->s_last != qp->s_head) {
-			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-			unsigned i;
-
-			for (i = 0; i < wqe->wr.num_sge; i++) {
-				struct rvt_sge *sge = &wqe->sg_list[i];
-
-				rvt_put_mr(sge->mr);
-			}
-			if (qp->ibqp.qp_type == IB_QPT_UD ||
-			    qp->ibqp.qp_type == IB_QPT_SMI ||
-			    qp->ibqp.qp_type == IB_QPT_GSI)
-				atomic_dec(&ibah_to_rvtah(
-						wqe->ud_wr.ah)->refcount);
-			if (++qp->s_last >= qp->s_size)
-				qp->s_last = 0;
-			smp_wmb(); /* see qp_set_savail */
-		}
-		if (qp->s_rdma_mr) {
-			rvt_put_mr(qp->s_rdma_mr);
-			qp->s_rdma_mr = NULL;
-		}
-	}
-
-	if (qp->ibqp.qp_type != IB_QPT_RC)
-		return;
-
-	for (n = 0; n < ARRAY_SIZE(qp->s_ack_queue); n++) {
-		struct rvt_ack_entry *e = &qp->s_ack_queue[n];
-
-		if (e->opcode == IB_OPCODE_RC_RDMA_READ_REQUEST &&
-		    e->rdma_sge.mr) {
-			rvt_put_mr(e->rdma_sge.mr);
-			e->rdma_sge.mr = NULL;
-		}
-	}
-}
-EXPORT_SYMBOL(rvt_clear_mr_refs);
-
-/**
  * rvt_error_qp - put a QP into the error state
  * @qp: the QP to put into the error state
  * @err: the receive completion error to signal if a RWQE is active
@@ -921,58 +970,6 @@ static void rvt_insert_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 
 	spin_unlock_irqrestore(&rdi->qp_dev->qpt_lock, flags);
 }
-
-/**
- * rvt_remove_qp - remove qp form table
- * @rdi: rvt dev struct
- * @qp: qp to remove
- *
- * Remove the QP from the table so it can't be found asynchronously by
- * the receive routine.
- */
-void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
-{
-	struct rvt_ibport *rvp = rdi->ports[qp->port_num - 1];
-	u32 n = hash_32(qp->ibqp.qp_num, rdi->qp_dev->qp_table_bits);
-	unsigned long flags;
-	int removed = 1;
-
-	spin_lock_irqsave(&rdi->qp_dev->qpt_lock, flags);
-
-	if (rcu_dereference_protected(rvp->qp[0],
-			lockdep_is_held(&rdi->qp_dev->qpt_lock)) == qp) {
-		RCU_INIT_POINTER(rvp->qp[0], NULL);
-	} else if (rcu_dereference_protected(rvp->qp[1],
-			lockdep_is_held(&rdi->qp_dev->qpt_lock)) == qp) {
-		RCU_INIT_POINTER(rvp->qp[1], NULL);
-	} else {
-		struct rvt_qp *q;
-		struct rvt_qp __rcu **qpp;
-
-		removed = 0;
-		qpp = &rdi->qp_dev->qp_table[n];
-		for (; (q = rcu_dereference_protected(*qpp,
-			lockdep_is_held(&rdi->qp_dev->qpt_lock))) != NULL;
-			qpp = &q->next) {
-			if (q == qp) {
-				RCU_INIT_POINTER(*qpp,
-				     rcu_dereference_protected(qp->next,
-				     lockdep_is_held(&rdi->qp_dev->qpt_lock)));
-				removed = 1;
-				trace_rvt_qpremove(qp, n);
-				break;
-			}
-		}
-	}
-
-	spin_unlock_irqrestore(&rdi->qp_dev->qpt_lock, flags);
-	if (removed) {
-		synchronize_rcu();
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
-	}
-}
-EXPORT_SYMBOL(rvt_remove_qp);
 
 /**
  * qib_modify_qp - modify the attributes of a queue pair
@@ -1232,6 +1229,19 @@ inval:
 	spin_unlock(&qp->s_hlock);
 	spin_unlock_irq(&qp->r_lock);
 	return -EINVAL;
+}
+
+/** rvt_free_qpn - Free a qpn from the bit map
+ * @qpt: QP table
+ * @qpn: queue pair number to free
+ */
+static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
+{
+	struct rvt_qpn_map *map;
+
+	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
+	if (map->page)
+		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
 }
 
 /**
@@ -1664,29 +1674,3 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	}
 	return 0;
 }
-
-/** rvt_free_qpn - Free a qpn from the bit map
- * @qpt: QP table
- * @qpn: queue pair number to free
- */
-void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
-{
-	struct rvt_qpn_map *map;
-
-	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
-	if (map->page)
-		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
-}
-EXPORT_SYMBOL(rvt_free_qpn);
-
-/**
- * rvt_dec_qp_cnt - decrement qp count
- * rdi: rvt dev struct
- */
-void rvt_dec_qp_cnt(struct rvt_dev_info *rdi)
-{
-	spin_lock(&rdi->n_qps_lock);
-	rdi->n_qps_allocated--;
-	spin_unlock(&rdi->n_qps_lock);
-}
-EXPORT_SYMBOL(rvt_dec_qp_cnt);

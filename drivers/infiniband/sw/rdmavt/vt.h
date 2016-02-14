@@ -60,6 +60,7 @@
 #include "mmap.h"
 #include "cq.h"
 #include "mad.h"
+#include "mmap.h"
 
 #define rvt_pr_info(rdi, fmt, ...) \
 	__rvt_pr_info(rdi->driver_f.get_pci_dev(rdi), \

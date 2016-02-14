@@ -50,6 +50,7 @@
 #include <linux/vmalloc.h>
 
 #include "srq.h"
+#include "vt.h"
 
 /**
  * rvt_driver_srq_init - init srq resources on a per driver basis

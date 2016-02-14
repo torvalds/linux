@@ -438,10 +438,6 @@ static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;
-void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp);
-void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends);
 int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
-void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn);
-void rvt_dec_qp_cnt(struct rvt_dev_info *rdi);
 
 #endif          /* DEF_RDMAVT_INCQP_H */
