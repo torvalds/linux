@@ -339,8 +339,9 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		iv32 = key->u.tkip.tx.iv32;
-		iv16 = key->u.tkip.tx.iv16;
+		pn64 = atomic64_read(&key->conf.tx_pn);
+		iv32 = TKIP_PN_TO_IV32(pn64);
+		iv16 = TKIP_PN_TO_IV16(pn64);
 
 		if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
 		    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {

@@ -1521,9 +1521,8 @@ enum ieee80211_key_flags {
  *	wants to be given when a frame is transmitted and needs to be
  *	encrypted in hardware.
  * @cipher: The key's cipher suite selector.
- * @tx_pn: PN used for TX on non-TKIP keys, may be used by the driver
- *	as well if it needs to do software PN assignment by itself
- *	(e.g. due to TSO)
+ * @tx_pn: PN used for TX keys, may be used by the driver as well if it
+ *	needs to do software PN assignment by itself (e.g. due to TSO)
  * @flags: key flags, see &enum ieee80211_key_flags.
  * @keyidx: the key index (0-3)
  * @keylen: key material length
@@ -1548,6 +1547,9 @@ struct ieee80211_key_conf {
 };
 
 #define IEEE80211_MAX_PN_LEN	16
+
+#define TKIP_PN_TO_IV16(pn) ((u16)(pn & 0xffff))
+#define TKIP_PN_TO_IV32(pn) ((u32)((pn >> 16) & 0xffffffff))
 
 /**
  * struct ieee80211_key_seq - key sequence counter
@@ -4445,6 +4447,21 @@ void ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
  */
 void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
 			    struct sk_buff *skb, u8 *p2k);
+
+/**
+ * ieee80211_tkip_add_iv - write TKIP IV and Ext. IV to pos
+ *
+ * @pos: start of crypto header
+ * @keyconf: the parameter passed with the set key
+ * @pn: PN to add
+ *
+ * Returns: pointer to the octet following IVs (i.e. beginning of
+ * the packet payload)
+ *
+ * This function writes the tkip IV value to pos (which should
+ * point to the crypto header)
+ */
+u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key_conf *keyconf, u64 pn);
 
 /**
  * ieee80211_get_key_tx_seq - get key TX sequence counter

@@ -945,8 +945,9 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
 
 	switch (key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		seq->tkip.iv32 = key->u.tkip.tx.iv32;
-		seq->tkip.iv16 = key->u.tkip.tx.iv16;
+		pn64 = atomic64_read(&key->conf.tx_pn);
+		seq->tkip.iv32 = TKIP_PN_TO_IV32(pn64);
+		seq->tkip.iv16 = TKIP_PN_TO_IV16(pn64);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
@@ -1039,8 +1040,8 @@ void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
 
 	switch (key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		key->u.tkip.tx.iv32 = seq->tkip.iv32;
-		key->u.tkip.tx.iv16 = seq->tkip.iv16;
+		pn64 = (u64)seq->tkip.iv16 | ((u64)seq->tkip.iv32 << 16);
+		atomic64_set(&key->conf.tx_pn, pn64);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
