@@ -192,7 +192,8 @@ int f2fs_inherit_context(struct inode *parent, struct inode *child,
 		return res;
 
 	ci = F2FS_I(parent)->i_crypt_info;
-	BUG_ON(ci == NULL);
+	if (ci == NULL)
+		return -ENOKEY;
 
 	ctx.format = F2FS_ENCRYPTION_CONTEXT_FORMAT_V1;
 

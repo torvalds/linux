@@ -424,6 +424,8 @@ static int f2fs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		err = f2fs_get_encryption_info(inode);
 		if (err)
 			return 0;
+		if (!f2fs_encrypted_inode(inode))
+			return -ENOKEY;
 	}
 
 	/* we don't need to use inline_data strictly */
@@ -443,7 +445,9 @@ static int f2fs_file_open(struct inode *inode, struct file *filp)
 	if (!ret && f2fs_encrypted_inode(inode)) {
 		ret = f2fs_get_encryption_info(inode);
 		if (ret)
-			ret = -EACCES;
+			return -EACCES;
+		if (!f2fs_encrypted_inode(inode))
+			return -ENOKEY;
 	}
 	return ret;
 }
