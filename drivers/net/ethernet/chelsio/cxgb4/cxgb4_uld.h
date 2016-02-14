@@ -191,6 +191,7 @@ static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 enum cxgb4_uld {
 	CXGB4_ULD_RDMA,
 	CXGB4_ULD_ISCSI,
+	CXGB4_ULD_ISCSIT,
 	CXGB4_ULD_MAX
 };
 
