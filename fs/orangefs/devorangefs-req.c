@@ -508,8 +508,7 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 		     __func__);
 
 	mutex_lock(&devreq_mutex);
-	if (orangefs_get_bufmap_init())
-		orangefs_bufmap_finalize();
+	orangefs_bufmap_finalize();
 
 	open_access_count = -1;
 
@@ -527,6 +526,9 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 	 * them as purged and wake them up
 	 */
 	purge_inprogress_ops();
+
+	orangefs_bufmap_run_down();
+
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "pvfs2-client-core: device close complete\n");
 	open_access_count = 0;
@@ -607,13 +609,8 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				     (struct ORANGEFS_dev_map_desc __user *)
 				     arg,
 				     sizeof(struct ORANGEFS_dev_map_desc));
-		if (orangefs_get_bufmap_init()) {
-			return -EINVAL;
-		} else {
-			return ret ?
-			       -EIO :
-			       orangefs_bufmap_initialize(&user_desc);
-		}
+		/* WTF -EIO and not -EFAULT? */
+		return ret ? -EIO : orangefs_bufmap_initialize(&user_desc);
 	case ORANGEFS_DEV_REMOUNT_ALL:
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "%s: got ORANGEFS_DEV_REMOUNT_ALL\n",

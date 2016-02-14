@@ -15,9 +15,9 @@ int orangefs_bufmap_shift_query(void);
 
 int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc);
 
-int orangefs_get_bufmap_init(void);
-
 void orangefs_bufmap_finalize(void);
+
+void orangefs_bufmap_run_down(void);
 
 int orangefs_bufmap_get(struct orangefs_bufmap **mapp, int *buffer_index);
 

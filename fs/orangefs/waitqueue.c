@@ -155,67 +155,6 @@ retry_servicing:
 			 * system
 			 */
 			goto retry_servicing;
-
-		/* op uses shared memory */
-		if (orangefs_get_bufmap_init() == 0) {
-			WARN_ON(1);
-			/*
-			 * This operation uses the shared memory system AND
-			 * the system is not yet ready. This situation occurs
-			 * when the client-core is restarted AND there were
-			 * operations waiting to be processed or were already
-			 * in process.
-			 */
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "uses_shared_memory is true.\n");
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "Client core in-service status(%d).\n",
-				     is_daemon_in_service());
-			gossip_debug(GOSSIP_WAIT_DEBUG, "bufmap_init:%d.\n",
-				     orangefs_get_bufmap_init());
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "operation's status is 0x%0x.\n",
-				     op->op_state);
-
-			/*
-			 * let process sleep for a few seconds so shared
-			 * memory system can be initialized.
-			 */
-			prepare_to_wait(&orangefs_bufmap_init_waitq,
-					&wait_entry,
-					TASK_INTERRUPTIBLE);
-
-			/*
-			 * Wait for orangefs_bufmap_initialize() to wake me up
-			 * within the allotted time.
-			 */
-			ret = schedule_timeout(
-				ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS * HZ);
-
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "Value returned from schedule_timeout:"
-				     "%d.\n",
-				     ret);
-			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "Is shared memory available? (%d).\n",
-				     orangefs_get_bufmap_init());
-
-			finish_wait(&orangefs_bufmap_init_waitq, &wait_entry);
-
-			if (orangefs_get_bufmap_init() == 0) {
-				gossip_err("%s:The shared memory system has not started in %d seconds after the client core restarted.  Aborting user's request(%s).\n",
-					   __func__,
-					   ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS,
-					   get_opname_string(op));
-				return -EIO;
-			}
-
-			/*
-			 * Return to the calling function and re-populate a
-			 * shared memory buffer.
-			 */
-			return -EAGAIN;
-		}
 	}
 
 out:
