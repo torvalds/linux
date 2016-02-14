@@ -122,8 +122,8 @@ static struct platform_device *gmac_controller2_init(void *gmac0_addr)
 		ndata1.phy_addr[mac] = mac + 4 + 0x10;
 
 		xlr_resource_init(&xlr_net1_res[mac * 2],
-				xlr_gmac_offsets[mac + 4],
-				xlr_gmac_irqs[mac + 4]);
+				  xlr_gmac_offsets[mac + 4],
+				  xlr_gmac_irqs[mac + 4]);
 	}
 	xlr_net_dev1.num_resources = 8;
 
