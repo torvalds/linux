@@ -319,6 +319,16 @@ config MFD_HI6421_PMIC
 	  menus in order to enable them.
 	  We communicate with the Hi6421 via memory-mapped I/O.
 
+config MFD_HI655X_PMIC
+	tristate "HiSilicon Hi655X series PMU/Codec IC"
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on OF
+	select MFD_CORE
+	select REGMAP_MMIO
+	select REGMAP_IRQ
+	help
+	  Select this option to enable Hisilicon hi655x series pmic driver.
+
 config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GPIOLIB && ARM
