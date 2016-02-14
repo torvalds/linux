@@ -3594,9 +3594,12 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	usbn_node = dev->of_node->parent;
 
 	i = of_property_read_u32(usbn_node,
-				 "refclk-frequency", &clock_rate);
+				 "clock-frequency", &clock_rate);
+	if (i)
+		i = of_property_read_u32(usbn_node,
+					 "refclk-frequency", &clock_rate);
 	if (i) {
-		dev_err(dev, "No USBN \"refclk-frequency\"\n");
+		dev_err(dev, "No USBN \"clock-frequency\"\n");
 		return -ENXIO;
 	}
 	switch (clock_rate) {
@@ -3610,14 +3613,17 @@ static int octeon_usb_probe(struct platform_device *pdev)
 		initialize_flags = CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ;
 		break;
 	default:
-		dev_err(dev, "Illebal USBN \"refclk-frequency\" %u\n",
+		dev_err(dev, "Illegal USBN \"clock-frequency\" %u\n",
 				clock_rate);
 		return -ENXIO;
 
 	}
 
 	i = of_property_read_string(usbn_node,
-				    "refclk-type", &clock_type);
+				    "cavium,refclk-type", &clock_type);
+	if (i)
+		i = of_property_read_string(usbn_node,
+					    "refclk-type", &clock_type);
 
 	if (!i && strcmp("crystal", clock_type) == 0)
 		is_crystal_clock = true;
