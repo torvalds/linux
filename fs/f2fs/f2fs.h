@@ -183,37 +183,37 @@ struct fsync_inode_entry {
 	block_t last_inode;	/* block address locating the last inode */
 };
 
-#define nats_in_cursum(sum)		(le16_to_cpu(sum->n_nats))
-#define sits_in_cursum(sum)		(le16_to_cpu(sum->n_sits))
+#define nats_in_cursum(jnl)		(le16_to_cpu(jnl->n_nats))
+#define sits_in_cursum(jnl)		(le16_to_cpu(jnl->n_sits))
 
-#define nat_in_journal(sum, i)		(sum->nat_j.entries[i].ne)
-#define nid_in_journal(sum, i)		(sum->nat_j.entries[i].nid)
-#define sit_in_journal(sum, i)		(sum->sit_j.entries[i].se)
-#define segno_in_journal(sum, i)	(sum->sit_j.entries[i].segno)
+#define nat_in_journal(jnl, i)		(jnl->nat_j.entries[i].ne)
+#define nid_in_journal(jnl, i)		(jnl->nat_j.entries[i].nid)
+#define sit_in_journal(jnl, i)		(jnl->sit_j.entries[i].se)
+#define segno_in_journal(jnl, i)	(jnl->sit_j.entries[i].segno)
 
-#define MAX_NAT_JENTRIES(sum)	(NAT_JOURNAL_ENTRIES - nats_in_cursum(sum))
-#define MAX_SIT_JENTRIES(sum)	(SIT_JOURNAL_ENTRIES - sits_in_cursum(sum))
+#define MAX_NAT_JENTRIES(jnl)	(NAT_JOURNAL_ENTRIES - nats_in_cursum(jnl))
+#define MAX_SIT_JENTRIES(jnl)	(SIT_JOURNAL_ENTRIES - sits_in_cursum(jnl))
 
-static inline int update_nats_in_cursum(struct f2fs_summary_block *rs, int i)
+static inline int update_nats_in_cursum(struct f2fs_journal *journal, int i)
 {
-	int before = nats_in_cursum(rs);
-	rs->n_nats = cpu_to_le16(before + i);
+	int before = nats_in_cursum(journal);
+	journal->n_nats = cpu_to_le16(before + i);
 	return before;
 }
 
-static inline int update_sits_in_cursum(struct f2fs_summary_block *rs, int i)
+static inline int update_sits_in_cursum(struct f2fs_journal *journal, int i)
 {
-	int before = sits_in_cursum(rs);
-	rs->n_sits = cpu_to_le16(before + i);
+	int before = sits_in_cursum(journal);
+	journal->n_sits = cpu_to_le16(before + i);
 	return before;
 }
 
-static inline bool __has_cursum_space(struct f2fs_summary_block *sum, int size,
-								int type)
+static inline bool __has_cursum_space(struct f2fs_journal *journal,
+							int size, int type)
 {
 	if (type == NAT_JOURNAL)
-		return size <= MAX_NAT_JENTRIES(sum);
-	return size <= MAX_SIT_JENTRIES(sum);
+		return size <= MAX_NAT_JENTRIES(journal);
+	return size <= MAX_SIT_JENTRIES(journal);
 }
 
 /*
@@ -1862,8 +1862,7 @@ void f2fs_wait_on_page_writeback(struct page *, enum page_type, bool);
 void f2fs_wait_on_encrypted_page_writeback(struct f2fs_sb_info *, block_t);
 void write_data_summaries(struct f2fs_sb_info *, block_t);
 void write_node_summaries(struct f2fs_sb_info *, block_t);
-int lookup_journal_in_cursum(struct f2fs_summary_block *,
-					int, unsigned int, int);
+int lookup_journal_in_cursum(struct f2fs_journal *, int, unsigned int, int);
 void flush_sit_entries(struct f2fs_sb_info *, struct cp_control *);
 int build_segment_manager(struct f2fs_sb_info *);
 void destroy_segment_manager(struct f2fs_sb_info *);

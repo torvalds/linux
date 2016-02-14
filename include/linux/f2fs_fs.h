@@ -398,9 +398,7 @@ struct f2fs_extra_info {
 	__u8 reserved[EXTRA_INFO_RESERVED];
 } __packed;
 
-/* 4KB-sized summary block structure */
-struct f2fs_summary_block {
-	struct f2fs_summary entries[ENTRIES_IN_SUM];
+struct f2fs_journal {
 	union {
 		__le16 n_nats;
 		__le16 n_sits;
@@ -411,6 +409,12 @@ struct f2fs_summary_block {
 		struct sit_journal sit_j;
 		struct f2fs_extra_info info;
 	};
+} __packed;
+
+/* 4KB-sized summary block structure */
+struct f2fs_summary_block {
+	struct f2fs_summary entries[ENTRIES_IN_SUM];
+	struct f2fs_journal journal;
 	struct summary_footer footer;
 } __packed;
 

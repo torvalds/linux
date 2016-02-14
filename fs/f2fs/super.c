@@ -1414,7 +1414,7 @@ try_onemore:
 	seg_i = CURSEG_I(sbi, CURSEG_HOT_NODE);
 	if (__exist_node_summaries(sbi))
 		sbi->kbytes_written =
-			le64_to_cpu(seg_i->sum_blk->info.kbytes_written);
+			le64_to_cpu(seg_i->sum_blk->journal.info.kbytes_written);
 
 	build_gc_manager(sbi);
 
