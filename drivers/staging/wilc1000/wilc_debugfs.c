@@ -98,9 +98,8 @@ static ssize_t wilc_debug_region_write(struct file *filp, const char __user *buf
 	if (count > sizeof(buffer))
 		return -EINVAL;
 
-	if (copy_from_user(buffer, buf, count)) {
+	if (copy_from_user(buffer, buf, count))
 		return -EFAULT;
-	}
 
 	flag = buffer[0] - '0';
 
