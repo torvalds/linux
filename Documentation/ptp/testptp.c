@@ -160,7 +160,8 @@ int main(int argc, char *argv[])
 
 
 	char *progname;
-	int i, c, cnt, fd;
+	unsigned int i;
+	int c, cnt, fd;
 
 	char *device = DEVICE;
 	clockid_t clkid;
