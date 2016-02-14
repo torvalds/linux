@@ -226,16 +226,45 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 	}
 }
 
-int hfi1_check_send_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
+/**
+ * hfi1_check_send_wqe - validate wqe
+ * @qp - The qp
+ * @wqe - The built wqe
+ *
+ * validate wqe.  This is called
+ * prior to inserting the wqe into
+ * the ring but after the wqe has been
+ * setup.
+ *
+ * Returns 0 on success, -EINVAL on failure
+ *
+ */
+int hfi1_check_send_wqe(struct rvt_qp *qp,
+			struct rvt_swqe *wqe)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct rvt_ah *ah = ibah_to_rvtah(ud_wr(wr)->ah);
+	struct rvt_ah *ah;
 
-	if (qp->ibqp.qp_type != IB_QPT_RC &&
-	    qp->ibqp.qp_type != IB_QPT_UC &&
-	    qp->ibqp.qp_type != IB_QPT_SMI &&
-	    ibp->sl_to_sc[ah->attr.sl] == 0xf) {
-		return -EINVAL;
+	switch (qp->ibqp.qp_type) {
+	case IB_QPT_RC:
+	case IB_QPT_UC:
+		if (wqe->length > 0x80000000U)
+			return -EINVAL;
+		break;
+	case IB_QPT_SMI:
+		ah = ibah_to_rvtah(wqe->ud_wr.ah);
+		if (wqe->length > (1 << ah->log_pmtu))
+			return -EINVAL;
+		break;
+	case IB_QPT_GSI:
+	case IB_QPT_UD:
+		ah = ibah_to_rvtah(wqe->ud_wr.ah);
+		if (wqe->length > (1 << ah->log_pmtu))
+			return -EINVAL;
+		if (ibp->sl_to_sc[ah->attr.sl] == 0xf)
+			return -EINVAL;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -299,6 +328,42 @@ __be32 hfi1_compute_aeth(struct rvt_qp *qp)
 		aeth |= x << HFI1_AETH_CREDIT_SHIFT;
 	}
 	return cpu_to_be32(aeth);
+}
+
+/**
+ * _hfi1_schedule_send - schedule progress
+ * @qp: the QP
+ *
+ * This schedules qp progress w/o regard to the s_flags.
+ *
+ * It is only used in the post send, which doesn't hold
+ * the s_lock.
+ */
+void _hfi1_schedule_send(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct hfi1_ibport *ibp =
+		to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+
+	iowait_schedule(&priv->s_iowait, ppd->hfi1_wq,
+			priv->s_sde ?
+			priv->s_sde->cpu :
+			cpumask_first(cpumask_of_node(dd->node)));
+}
+
+/**
+ * hfi1_schedule_send - schedule progress
+ * @qp: the QP
+ *
+ * This schedules qp progress and caller should hold
+ * the s_lock.
+ */
+void hfi1_schedule_send(struct rvt_qp *qp)
+{
+	if (hfi1_send_ok(qp))
+		_hfi1_schedule_send(qp);
 }
 
 /**

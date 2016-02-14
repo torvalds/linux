@@ -1662,6 +1662,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.get_card_name = qib_get_card_name;
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = qib_get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = qib_check_ah;
+	dd->verbs_dev.rdi.driver_f.check_send_wqe = qib_check_send_wqe;
 	dd->verbs_dev.rdi.driver_f.notify_new_ah = qib_notify_new_ah;
 	dd->verbs_dev.rdi.driver_f.alloc_qpn = qib_alloc_qpn;
 	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qib_qp_priv_alloc;
@@ -1677,6 +1678,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = qib_mtu_to_path_mtu;
 	dd->verbs_dev.rdi.driver_f.mtu_from_qp = qib_mtu_from_qp;
 	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = qib_get_pmtu_from_attr;
+	dd->verbs_dev.rdi.driver_f.schedule_send_no_lock = _qib_schedule_send;
 	dd->verbs_dev.rdi.driver_f.query_port_state = qib_query_port;
 	dd->verbs_dev.rdi.driver_f.shut_down_port = qib_shut_down_port;
 	dd->verbs_dev.rdi.driver_f.cap_mask_chg = qib_cap_mask_chg;
@@ -1778,17 +1780,34 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
 }
 
-/*
- * This must be called with s_lock held.
+/**
+ * _qib_schedule_send - schedule progress
+ * @qp - the qp
+ *
+ * This schedules progress w/o regard to the s_flags.
+ *
+ * It is only used in post send, which doesn't hold
+ * the s_lock.
+ */
+void _qib_schedule_send(struct rvt_qp *qp)
+{
+	struct qib_ibport *ibp =
+		to_iport(qp->ibqp.device, qp->port_num);
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	struct qib_qp_priv *priv = qp->priv;
+
+	queue_work(ppd->qib_wq, &priv->s_work);
+}
+
+/**
+ * qib_schedule_send - schedule progress
+ * @qp - the qp
+ *
+ * This schedules qp progress.  The s_lock
+ * should be held.
  */
 void qib_schedule_send(struct rvt_qp *qp)
 {
-	struct qib_qp_priv *priv = qp->priv;
-	if (qib_send_ok(qp)) {
-		struct qib_ibport *ibp =
-			to_iport(qp->ibqp.device, qp->port_num);
-		struct qib_pportdata *ppd = ppd_from_ibp(ibp);
-
-		queue_work(ppd->qib_wq, &priv->s_work);
-	}
+	if (qib_send_ok(qp))
+		_qib_schedule_send(qp);
 }

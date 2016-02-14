@@ -1533,6 +1533,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
 	dd->verbs_dev.rdi.driver_f.do_send = hfi1_do_send;
 	dd->verbs_dev.rdi.driver_f.schedule_send = hfi1_schedule_send;
+	dd->verbs_dev.rdi.driver_f.schedule_send_no_lock = _hfi1_schedule_send;
 	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = get_pmtu_from_attr;
 	dd->verbs_dev.rdi.driver_f.notify_error_qp = notify_error_qp;
 	dd->verbs_dev.rdi.driver_f.flush_qp_waiters = flush_qp_waiters;
@@ -1543,7 +1544,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = mtu_to_path_mtu;
 	dd->verbs_dev.rdi.driver_f.check_modify_qp = hfi1_check_modify_qp;
 	dd->verbs_dev.rdi.driver_f.modify_qp = hfi1_modify_qp;
-	dd->verbs_dev.rdi.driver_f.check_send_wr = hfi1_check_send_wr;
+	dd->verbs_dev.rdi.driver_f.check_send_wqe = hfi1_check_send_wqe;
 
 	/* completeion queue */
 	snprintf(dd->verbs_dev.rdi.dparms.cq_name,

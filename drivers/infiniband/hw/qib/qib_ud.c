@@ -234,6 +234,8 @@ drop:
  * qib_make_ud_req - construct a UD request packet
  * @qp: the QP
  *
+ * Assumes the s_lock is held.
+ *
  * Return 1 if constructed; otherwise, return 0.
  */
 int qib_make_ud_req(struct rvt_qp *qp)
@@ -244,7 +246,6 @@ int qib_make_ud_req(struct rvt_qp *qp)
 	struct qib_pportdata *ppd;
 	struct qib_ibport *ibp;
 	struct rvt_swqe *wqe;
-	unsigned long flags;
 	u32 nwords;
 	u32 extra_bytes;
 	u32 bth0;
@@ -253,13 +254,12 @@ int qib_make_ud_req(struct rvt_qp *qp)
 	int ret = 0;
 	int next_cur;
 
-	spin_lock_irqsave(&qp->s_lock, flags);
-
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_NEXT_SEND_OK)) {
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
-		if (qp->s_last == qp->s_head)
+		smp_read_barrier_depends(); /* see post_one_send */
+		if (qp->s_last == ACCESS_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
 		if (atomic_read(&priv->s_dma_busy)) {
@@ -271,7 +271,9 @@ int qib_make_ud_req(struct rvt_qp *qp)
 		goto done;
 	}
 
-	if (qp->s_cur == qp->s_head)
+	/* see post_one_send() */
+	smp_read_barrier_depends();
+	if (qp->s_cur == ACCESS_ONCE(qp->s_head))
 		goto bail;
 
 	wqe = rvt_get_swqe_ptr(qp, qp->s_cur);
@@ -292,6 +294,7 @@ int qib_make_ud_req(struct rvt_qp *qp)
 		this_cpu_inc(ibp->pmastats->n_unicast_xmit);
 		lid = ah_attr->dlid & ~((1 << ppd->lmc) - 1);
 		if (unlikely(lid == ppd->lid)) {
+			unsigned long flags;
 			/*
 			 * If DMAs are in progress, we can't generate
 			 * a completion for the loopback packet since
@@ -304,6 +307,7 @@ int qib_make_ud_req(struct rvt_qp *qp)
 				goto bail;
 			}
 			qp->s_cur = next_cur;
+			local_irq_save(flags);
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 			qib_ud_loopback(qp, wqe);
 			spin_lock_irqsave(&qp->s_lock, flags);
@@ -378,7 +382,7 @@ int qib_make_ud_req(struct rvt_qp *qp)
 		ah_attr->dlid != be16_to_cpu(IB_LID_PERMISSIVE) ?
 		cpu_to_be32(QIB_MULTICAST_QPN) :
 		cpu_to_be32(wqe->ud_wr.remote_qpn);
-	ohdr->bth[2] = cpu_to_be32(qp->s_next_psn++ & QIB_PSN_MASK);
+	ohdr->bth[2] = cpu_to_be32(wqe->psn & QIB_PSN_MASK);
 	/*
 	 * Qkeys with the high order bit set mean use the
 	 * qkey from the QP context instead of the WR (see 10.2.5).
@@ -388,13 +392,9 @@ int qib_make_ud_req(struct rvt_qp *qp)
 	ohdr->u.ud.deth[1] = cpu_to_be32(qp->ibqp.qp_num);
 
 done:
-	ret = 1;
-	goto unlock;
-
+	return 1;
 bail:
 	qp->s_flags &= ~RVT_S_BUSY;
-unlock:
-	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return ret;
 }
 

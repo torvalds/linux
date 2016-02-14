@@ -474,6 +474,42 @@ void qib_get_credit(struct rvt_qp *qp, u32 aeth)
 	}
 }
 
+/**
+ * qib_check_send_wqe - validate wr/wqe
+ * @qp - The qp
+ * @wqe - The built wqe
+ *
+ * validate wr/wqe.  This is called
+ * prior to inserting the wqe into
+ * the ring but after the wqe has been
+ * setup.
+ *
+ * Returns 0 on success, -EINVAL on failure
+ */
+int qib_check_send_wqe(struct rvt_qp *qp,
+		       struct rvt_swqe *wqe)
+{
+	struct rvt_ah *ah;
+
+	switch (qp->ibqp.qp_type) {
+	case IB_QPT_RC:
+	case IB_QPT_UC:
+		if (wqe->length > 0x80000000U)
+			return -EINVAL;
+		break;
+	case IB_QPT_SMI:
+	case IB_QPT_GSI:
+	case IB_QPT_UD:
+		ah = ibah_to_rvtah(wqe->ud_wr.ah);
+		if (wqe->length > (1 << ah->log_pmtu))
+			return -EINVAL;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 #ifdef CONFIG_DEBUG_FS
 
 struct qib_qp_iter {

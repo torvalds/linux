@@ -298,9 +298,7 @@ static inline int qib_send_ok(struct rvt_qp *qp)
 		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
 }
 
-/*
- * This must be called with s_lock held.
- */
+void _qib_schedule_send(struct rvt_qp *qp);
 void qib_schedule_send(struct rvt_qp *qp);
 
 static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)
@@ -391,6 +389,8 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
 int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+
+int qib_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
 struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid);
 

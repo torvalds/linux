@@ -220,6 +220,7 @@ struct rvt_ah {
 };
 
 struct rvt_dev_info;
+struct rvt_swqe;
 struct rvt_driver_provided {
 	/*
 	 * The work to create port files in /sys/class Infiniband is different
@@ -240,6 +241,7 @@ struct rvt_driver_provided {
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 	void (*notify_qp_reset)(struct rvt_qp *qp);
 	void (*schedule_send)(struct rvt_qp *qp);
+	void (*schedule_send_no_lock)(struct rvt_qp *qp);
 	void (*do_send)(struct rvt_qp *qp);
 	int (*get_pmtu_from_attr)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 				  struct ib_qp_attr *attr);
@@ -273,7 +275,7 @@ struct rvt_driver_provided {
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
 
-	int (*check_send_wr)(struct rvt_qp *qp, struct ib_send_wr *wr);
+	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
 	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);

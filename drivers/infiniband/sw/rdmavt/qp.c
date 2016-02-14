@@ -401,6 +401,7 @@ void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		rdi->driver_f.flush_qp_waiters(qp);
 		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_ANY_WAIT);
 		spin_unlock(&qp->s_lock);
+		spin_unlock(&qp->s_hlock);
 		spin_unlock_irq(&qp->r_lock);
 
 		/* Stop the send queue and the retry timer */
@@ -415,6 +416,7 @@ void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 		/* grab the lock b/c it was locked at call time */
 		spin_lock_irq(&qp->r_lock);
+		spin_lock(&qp->s_hlock);
 		spin_lock(&qp->s_lock);
 
 		rvt_clear_mr_refs(qp, 1);
@@ -610,6 +612,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		 * except for qp->ibqp.qp_num.
 		 */
 		spin_lock_init(&qp->r_lock);
+		spin_lock_init(&qp->s_hlock);
 		spin_lock_init(&qp->s_lock);
 		spin_lock_init(&qp->r_rq.lock);
 		atomic_set(&qp->refcount, 0);
@@ -620,6 +623,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		qp->state = IB_QPS_RESET;
 		qp->s_wq = swq;
 		qp->s_size = init_attr->cap.max_send_wr + 1;
+		qp->s_avail = init_attr->cap.max_send_wr;
 		qp->s_max_sge = init_attr->cap.max_send_sge;
 		if (init_attr->sq_sig_type == IB_SIGNAL_REQ_WR)
 			qp->s_flags = RVT_S_SIGNAL_REQ_WR;
@@ -779,6 +783,7 @@ void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 						wqe->ud_wr.ah)->refcount);
 			if (++qp->s_last >= qp->s_size)
 				qp->s_last = 0;
+			smp_wmb(); /* see qp_set_savail */
 		}
 		if (qp->s_rdma_mr) {
 			rvt_put_mr(qp->s_rdma_mr);
@@ -833,7 +838,7 @@ int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	rdi->driver_f.notify_error_qp(qp);
 
 	/* Schedule the sending tasklet to drain the send work queue. */
-	if (qp->s_last != qp->s_head)
+	if (ACCESS_ONCE(qp->s_last) != qp->s_head)
 		rdi->driver_f.schedule_send(qp);
 
 	rvt_clear_mr_refs(qp, 0);
@@ -979,6 +984,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	link = rdma_port_get_link_layer(ibqp->device, qp->port_num);
 
 	spin_lock_irq(&qp->r_lock);
+	spin_lock(&qp->s_hlock);
 	spin_lock(&qp->s_lock);
 
 	cur_state = attr_mask & IB_QP_CUR_STATE ?
@@ -1151,6 +1157,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_PATH_MTU) {
 		qp->pmtu = rdi->driver_f.mtu_from_qp(rdi, qp, pmtu);
 		qp->path_mtu = rdi->driver_f.mtu_to_path_mtu(qp->pmtu);
+		qp->log_pmtu = ilog2(qp->pmtu);
 	}
 
 	if (attr_mask & IB_QP_RETRY_CNT) {
@@ -1186,6 +1193,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		rdi->driver_f.modify_qp(qp, attr, attr_mask, udata);
 
 	spin_unlock(&qp->s_lock);
+	spin_unlock(&qp->s_hlock);
 	spin_unlock_irq(&qp->r_lock);
 
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
@@ -1207,6 +1215,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 inval:
 	spin_unlock(&qp->s_lock);
+	spin_unlock(&qp->s_hlock);
 	spin_unlock_irq(&qp->r_lock);
 	return -EINVAL;
 }
@@ -1226,9 +1235,11 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
 
 	spin_lock_irq(&qp->r_lock);
+	spin_lock(&qp->s_hlock);
 	spin_lock(&qp->s_lock);
 	rvt_reset_qp(rdi, qp, ibqp->qp_type);
 	spin_unlock(&qp->s_lock);
+	spin_unlock(&qp->s_hlock);
 	spin_unlock_irq(&qp->r_lock);
 
 	/* qpn is now available for use again */
@@ -1358,6 +1369,28 @@ int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 }
 
 /**
+ * qp_get_savail - return number of avail send entries
+ *
+ * @qp - the qp
+ *
+ * This assumes the s_hlock is held but the s_last
+ * qp variable is uncontrolled.
+ */
+static inline u32 qp_get_savail(struct rvt_qp *qp)
+{
+	u32 slast;
+	u32 ret;
+
+	smp_read_barrier_depends(); /* see rc.c */
+	slast = ACCESS_ONCE(qp->s_last);
+	if (qp->s_head >= slast)
+		ret = qp->s_size - (qp->s_head - slast);
+	else
+		ret = slast - qp->s_head;
+	return ret - 1;
+}
+
+/**
  * rvt_post_one_wr - post one RC, UC, or UD send work request
  * @qp: the QP to post on
  * @wr: the work request to send
@@ -1372,6 +1405,8 @@ static int rvt_post_one_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
 	struct rvt_lkey_table *rkt;
 	struct rvt_pd *pd;
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	u8 log_pmtu;
+	int ret;
 
 	/* IB spec says that num_sge == 0 is OK. */
 	if (unlikely(wr->num_sge > qp->s_max_sge))
@@ -1403,16 +1438,16 @@ static int rvt_post_one_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
 	} else if (wr->opcode >= IB_WR_RDMA_READ && !qp->s_max_rd_atomic) {
 		return -EINVAL;
 	}
-
+	/* check for avail */
+	if (unlikely(!qp->s_avail)) {
+		qp->s_avail = qp_get_savail(qp);
+		WARN_ON(qp->s_avail > (qp->s_size - 1));
+		if (!qp->s_avail)
+			return -ENOMEM;
+	}
 	next = qp->s_head + 1;
 	if (next >= qp->s_size)
 		next = 0;
-	if (next == qp->s_last)
-		return -ENOMEM;
-
-	if (rdi->driver_f.check_send_wr &&
-	    rdi->driver_f.check_send_wr(qp, wr))
-		return -EINVAL;
 
 	rkt = &rdi->lkey_table;
 	pd = ibpd_to_rvtpd(qp->ibqp.pd);
@@ -1444,21 +1479,39 @@ static int rvt_post_one_wr(struct rvt_qp *qp, struct ib_send_wr *wr)
 				continue;
 			ok = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j],
 					 &wr->sg_list[i], acc);
-			if (!ok)
+			if (!ok) {
+				ret = -EINVAL;
 				goto bail_inval_free;
+			}
 			wqe->length += length;
 			j++;
 		}
 		wqe->wr.num_sge = j;
 	}
-	if (qp->ibqp.qp_type == IB_QPT_UC ||
-	    qp->ibqp.qp_type == IB_QPT_RC) {
-		if (wqe->length > 0x80000000U)
+
+	/* general part of wqe valid - allow for driver checks */
+	if (rdi->driver_f.check_send_wqe) {
+		ret = rdi->driver_f.check_send_wqe(qp, wqe);
+		if (ret)
 			goto bail_inval_free;
-	} else {
+	}
+
+	log_pmtu = qp->log_pmtu;
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC) {
+		struct rvt_ah *ah = ibah_to_rvtah(wqe->ud_wr.ah);
+
+		log_pmtu = ah->log_pmtu;
 		atomic_inc(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
 	}
+
 	wqe->ssn = qp->s_ssn++;
+	wqe->psn = qp->s_next_psn;
+	wqe->lpsn = wqe->psn +
+			(wqe->length ? ((wqe->length - 1) >> log_pmtu) : 0);
+	qp->s_next_psn = wqe->lpsn + 1;
+	smp_wmb(); /* see request builders */
+	qp->s_avail--;
 	qp->s_head = next;
 
 	return 0;
@@ -1470,7 +1523,7 @@ bail_inval_free:
 
 		rvt_put_mr(sge->mr);
 	}
-	return -EINVAL;
+	return ret;
 }
 
 /**
@@ -1491,14 +1544,14 @@ int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	unsigned nreq = 0;
 	int err = 0;
 
-	spin_lock_irqsave(&qp->s_lock, flags);
+	spin_lock_irqsave(&qp->s_hlock, flags);
 
 	/*
 	 * Ensure QP state is such that we can send. If not bail out early,
 	 * there is no need to do this every time we post a send.
 	 */
 	if (unlikely(!(ib_rvt_state_ops[qp->state] & RVT_POST_SEND_OK))) {
-		spin_unlock_irqrestore(&qp->s_lock, flags);
+		spin_unlock_irqrestore(&qp->s_hlock, flags);
 		return -EINVAL;
 	}
 
@@ -1518,11 +1571,13 @@ int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		nreq++;
 	}
 bail:
-	if (nreq && !call_send)
-		rdi->driver_f.schedule_send(qp);
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-	if (nreq && call_send)
-		rdi->driver_f.do_send(qp);
+	spin_unlock_irqrestore(&qp->s_hlock, flags);
+	if (nreq) {
+		if (call_send)
+			rdi->driver_f.schedule_send_no_lock(qp);
+		else
+			rdi->driver_f.do_send(qp);
+	}
 	return err;
 }
 

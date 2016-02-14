@@ -392,7 +392,8 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	sqp->s_flags |= RVT_S_BUSY;
 
 again:
-	if (sqp->s_last == sqp->s_head)
+	smp_read_barrier_depends(); /* see post_one_send() */
+	if (sqp->s_last == ACCESS_ONCE(sqp->s_head))
 		goto clr_busy;
 	wqe = rvt_get_swqe_ptr(sqp, sqp->s_last);
 
@@ -871,40 +872,43 @@ void hfi1_do_send(struct rvt_qp *qp)
 
 	qp->s_flags |= RVT_S_BUSY;
 
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-
 	timeout = jiffies + (timeout_int) / 8;
 	cpu = priv->s_sde ? priv->s_sde->cpu :
 			cpumask_first(cpumask_of_node(ps.ppd->dd->node));
 	do {
 		/* Check for a constructed packet to be sent. */
 		if (qp->s_hdrwords != 0) {
+			spin_unlock_irqrestore(&qp->s_lock, flags);
 			/*
 			 * If the packet cannot be sent now, return and
 			 * the send tasklet will be woken up later.
 			 */
 			if (hfi1_verbs_send(qp, &ps))
-				break;
+				return;
 			/* Record that s_hdr is empty. */
 			qp->s_hdrwords = 0;
-		}
-
-		/* allow other tasks to run */
-		if (unlikely(time_after(jiffies, timeout))) {
-			if (workqueue_congested(cpu, ps.ppd->hfi1_wq)) {
-				spin_lock_irqsave(&qp->s_lock, flags);
-				qp->s_flags &= ~RVT_S_BUSY;
-				hfi1_schedule_send(qp);
-				spin_unlock_irqrestore(&qp->s_lock,
-						       flags);
+			/* allow other tasks to run */
+			if (unlikely(time_after(jiffies, timeout))) {
+				if (workqueue_congested(cpu,
+							ps.ppd->hfi1_wq)) {
+					spin_lock_irqsave(&qp->s_lock, flags);
+					qp->s_flags &= ~RVT_S_BUSY;
+					hfi1_schedule_send(qp);
+					spin_unlock_irqrestore(&qp->s_lock,
+							       flags);
+					this_cpu_inc(
+						*ps.ppd->dd->send_schedule);
+					return;
+				}
+				cond_resched();
 				this_cpu_inc(*ps.ppd->dd->send_schedule);
-				return;
+				timeout = jiffies + (timeout_int) / 8;
 			}
-			cond_resched();
-			this_cpu_inc(*ps.ppd->dd->send_schedule);
-			timeout = jiffies + (timeout_int) / 8;
+			spin_lock_irqsave(&qp->s_lock, flags);
 		}
 	} while (make_req(qp));
+
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
 /*

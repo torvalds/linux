@@ -250,11 +250,12 @@ struct rvt_qp {
 	enum ib_mtu path_mtu;
 	int srate_mbps;		/* s_srate (below) converted to Mbit/s */
 	u32 remote_qpn;
-	u32 pmtu;		/* decoded from path_mtu */
 	u32 qkey;               /* QKEY for this QP (for UD or RD) */
 	u32 s_size;             /* send work queue size */
 	u32 s_ahgpsn;           /* set to the psn in the copy of the header */
 
+	u16 pmtu;		/* decoded from path_mtu */
+	u8 log_pmtu;		/* shift for pmtu */
 	u8 state;               /* QP state */
 	u8 allowed_ops;		/* high order bits of allowed opcodes */
 	u8 qp_access_flags;
@@ -299,6 +300,13 @@ struct rvt_qp {
 	struct rvt_sge_state r_sge;     /* current receive data */
 	struct rvt_rq r_rq;             /* receive work queue */
 
+	/* post send line */
+	spinlock_t s_hlock ____cacheline_aligned_in_smp;
+	u32 s_head;             /* new entries added here */
+	u32 s_next_psn;         /* PSN for next request */
+	u32 s_avail;            /* number of entries avail */
+	u32 s_ssn;              /* SSN of tail entry */
+
 	spinlock_t s_lock ____cacheline_aligned_in_smp;
 	struct rvt_sge_state *s_cur_sge;
 	u32 s_flags;
@@ -308,19 +316,16 @@ struct rvt_qp {
 	u32 s_cur_size;         /* size of send packet in bytes */
 	u32 s_len;              /* total length of s_sge */
 	u32 s_rdma_read_len;    /* total length of s_rdma_read_sge */
-	u32 s_next_psn;         /* PSN for next request */
 	u32 s_last_psn;         /* last response PSN processed */
 	u32 s_sending_psn;      /* lowest PSN that is being sent */
 	u32 s_sending_hpsn;     /* highest PSN that is being sent */
 	u32 s_psn;              /* current packet sequence number */
 	u32 s_ack_rdma_psn;     /* PSN for sending RDMA read responses */
 	u32 s_ack_psn;          /* PSN for acking sends and RDMA writes */
-	u32 s_head;             /* new entries added here */
 	u32 s_tail;             /* next entry to process */
 	u32 s_cur;              /* current work queue entry */
 	u32 s_acked;            /* last un-ACK'ed entry */
 	u32 s_last;             /* last completed entry */
-	u32 s_ssn;              /* SSN of tail entry */
 	u32 s_lsn;              /* limit sequence number (credit) */
 	u16 s_hdrwords;         /* size of s_hdr in 32 bit words */
 	u16 s_rdma_ack_cnt;

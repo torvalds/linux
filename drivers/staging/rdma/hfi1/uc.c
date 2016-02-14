@@ -59,6 +59,8 @@
  * hfi1_make_uc_req - construct a request packet (SEND, RDMA write)
  * @qp: a pointer to the QP
  *
+ * Assume s_lock is held.
+ *
  * Return 1 if constructed; otherwise, return 0.
  */
 int hfi1_make_uc_req(struct rvt_qp *qp)
@@ -66,7 +68,6 @@ int hfi1_make_uc_req(struct rvt_qp *qp)
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_other_headers *ohdr;
 	struct rvt_swqe *wqe;
-	unsigned long flags;
 	u32 hwords = 5;
 	u32 bth0 = 0;
 	u32 len;
@@ -74,13 +75,12 @@ int hfi1_make_uc_req(struct rvt_qp *qp)
 	int ret = 0;
 	int middle = 0;
 
-	spin_lock_irqsave(&qp->s_lock, flags);
-
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
-		if (qp->s_last == qp->s_head)
+		smp_read_barrier_depends(); /* see post_one_send() */
+		if (qp->s_last == ACCESS_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
 		if (atomic_read(&priv->s_iowait.sdma_busy)) {
@@ -106,15 +106,15 @@ int hfi1_make_uc_req(struct rvt_qp *qp)
 		    RVT_PROCESS_NEXT_SEND_OK))
 			goto bail;
 		/* Check if send work queue is empty. */
-		if (qp->s_cur == qp->s_head) {
+		smp_read_barrier_depends(); /* see post_one_send() */
+		if (qp->s_cur == ACCESS_ONCE(qp->s_head)) {
 			clear_ahg(qp);
 			goto bail;
 		}
 		/*
 		 * Start a new request.
 		 */
-		wqe->psn = qp->s_next_psn;
-		qp->s_psn = qp->s_next_psn;
+		qp->s_psn = wqe->psn;
 		qp->s_sge.sge = wqe->sg_list[0];
 		qp->s_sge.sg_list = wqe->sg_list + 1;
 		qp->s_sge.num_sge = wqe->wr.num_sge;
@@ -235,15 +235,12 @@ int hfi1_make_uc_req(struct rvt_qp *qp)
 	qp->s_cur_sge = &qp->s_sge;
 	qp->s_cur_size = len;
 	hfi1_make_ruc_header(qp, ohdr, bth0 | (qp->s_state << 24),
-			     mask_psn(qp->s_next_psn++), middle);
+			     mask_psn(qp->s_psn++), middle);
 done:
-	ret = 1;
-	goto unlock;
+	return 1;
 
 bail:
 	qp->s_flags &= ~RVT_S_BUSY;
-unlock:
-	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return ret;
 }
 

@@ -226,6 +226,8 @@ bail:
  * qib_make_rc_req - construct a request packet (SEND, RDMA r/w, ATOMIC)
  * @qp: a pointer to the QP
  *
+ * Assumes the s_lock is held.
+ *
  * Return 1 if constructed; otherwise, return 0.
  */
 int qib_make_rc_req(struct rvt_qp *qp)
@@ -241,19 +243,12 @@ int qib_make_rc_req(struct rvt_qp *qp)
 	u32 bth2;
 	u32 pmtu = qp->pmtu;
 	char newreq;
-	unsigned long flags;
 	int ret = 0;
 	int delta;
 
 	ohdr = &priv->s_hdr->u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
 		ohdr = &priv->s_hdr->u.l.oth;
-
-	/*
-	 * The lock is needed to synchronize between the sending tasklet,
-	 * the receive interrupt handler, and timeout resends.
-	 */
-	spin_lock_irqsave(&qp->s_lock, flags);
 
 	/* Sending responses has higher priority over sending requests. */
 	if ((qp->s_flags & RVT_S_RESP_PENDING) &&
@@ -264,7 +259,8 @@ int qib_make_rc_req(struct rvt_qp *qp)
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
-		if (qp->s_last == qp->s_head)
+		smp_read_barrier_depends(); /* see post_one_send() */
+		if (qp->s_last == ACCESS_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
 		if (atomic_read(&priv->s_dma_busy)) {
@@ -321,8 +317,8 @@ int qib_make_rc_req(struct rvt_qp *qp)
 				qp->s_flags |= RVT_S_WAIT_FENCE;
 				goto bail;
 			}
-			wqe->psn = qp->s_next_psn;
 			newreq = 1;
+			qp->s_psn = wqe->psn;
 		}
 		/*
 		 * Note that we have to be careful not to modify the
@@ -341,9 +337,7 @@ int qib_make_rc_req(struct rvt_qp *qp)
 				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
 				goto bail;
 			}
-			wqe->lpsn = wqe->psn;
 			if (len > pmtu) {
-				wqe->lpsn += (len - 1) / pmtu;
 				qp->s_state = OP(SEND_FIRST);
 				len = pmtu;
 				break;
@@ -381,9 +375,7 @@ int qib_make_rc_req(struct rvt_qp *qp)
 				cpu_to_be32(wqe->rdma_wr.rkey);
 			ohdr->u.rc.reth.length = cpu_to_be32(len);
 			hwords += sizeof(struct ib_reth) / sizeof(u32);
-			wqe->lpsn = wqe->psn;
 			if (len > pmtu) {
-				wqe->lpsn += (len - 1) / pmtu;
 				qp->s_state = OP(RDMA_WRITE_FIRST);
 				len = pmtu;
 				break;
@@ -418,13 +410,6 @@ int qib_make_rc_req(struct rvt_qp *qp)
 				qp->s_num_rd_atomic++;
 				if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT))
 					qp->s_lsn++;
-				/*
-				 * Adjust s_next_psn to count the
-				 * expected number of responses.
-				 */
-				if (len > pmtu)
-					qp->s_next_psn += (len - 1) / pmtu;
-				wqe->lpsn = qp->s_next_psn++;
 			}
 
 			ohdr->u.rc.reth.vaddr =
@@ -456,7 +441,6 @@ int qib_make_rc_req(struct rvt_qp *qp)
 				qp->s_num_rd_atomic++;
 				if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT))
 					qp->s_lsn++;
-				wqe->lpsn = wqe->psn;
 			}
 			if (wqe->atomic_wr.wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
 				qp->s_state = OP(COMPARE_SWAP);
@@ -499,11 +483,8 @@ int qib_make_rc_req(struct rvt_qp *qp)
 		}
 		if (wqe->wr.opcode == IB_WR_RDMA_READ)
 			qp->s_psn = wqe->lpsn + 1;
-		else {
+		else
 			qp->s_psn++;
-			if (qib_cmp24(qp->s_psn, qp->s_next_psn) > 0)
-				qp->s_next_psn = qp->s_psn;
-		}
 		break;
 
 	case OP(RDMA_READ_RESPONSE_FIRST):
@@ -523,8 +504,6 @@ int qib_make_rc_req(struct rvt_qp *qp)
 		/* FALLTHROUGH */
 	case OP(SEND_MIDDLE):
 		bth2 = qp->s_psn++ & QIB_PSN_MASK;
-		if (qib_cmp24(qp->s_psn, qp->s_next_psn) > 0)
-			qp->s_next_psn = qp->s_psn;
 		ss = &qp->s_sge;
 		len = qp->s_len;
 		if (len > pmtu) {
@@ -564,8 +543,6 @@ int qib_make_rc_req(struct rvt_qp *qp)
 		/* FALLTHROUGH */
 	case OP(RDMA_WRITE_MIDDLE):
 		bth2 = qp->s_psn++ & QIB_PSN_MASK;
-		if (qib_cmp24(qp->s_psn, qp->s_next_psn) > 0)
-			qp->s_next_psn = qp->s_psn;
 		ss = &qp->s_sge;
 		len = qp->s_len;
 		if (len > pmtu) {
@@ -630,13 +607,9 @@ int qib_make_rc_req(struct rvt_qp *qp)
 	qp->s_cur_size = len;
 	qib_make_ruc_header(qp, ohdr, bth0 | (qp->s_state << 24), bth2);
 done:
-	ret = 1;
-	goto unlock;
-
+	return 1;
 bail:
 	qp->s_flags &= ~RVT_S_BUSY;
-unlock:
-	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return ret;
 }
 
@@ -1454,7 +1427,8 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 		goto ack_done;
 
 	/* Ignore invalid responses. */
-	if (qib_cmp24(psn, qp->s_next_psn) >= 0)
+	smp_read_barrier_depends(); /* see post_one_send */
+	if (qib_cmp24(psn, ACCESS_ONCE(qp->s_next_psn)) >= 0)
 		goto ack_done;
 
 	/* Ignore duplicate responses. */

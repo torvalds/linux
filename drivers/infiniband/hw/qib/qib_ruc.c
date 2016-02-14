@@ -391,7 +391,8 @@ static void qib_ruc_loopback(struct rvt_qp *sqp)
 	sqp->s_flags |= RVT_S_BUSY;
 
 again:
-	if (sqp->s_last == sqp->s_head)
+	smp_read_barrier_depends(); /* see post_one_send() */
+	if (sqp->s_last == ACCESS_ONCE(sqp->s_head))
 		goto clr_busy;
 	wqe = rvt_get_swqe_ptr(sqp, sqp->s_last);
 
@@ -765,22 +766,24 @@ void qib_do_send(struct rvt_qp *qp)
 
 	qp->s_flags |= RVT_S_BUSY;
 
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-
 	do {
 		/* Check for a constructed packet to be sent. */
 		if (qp->s_hdrwords != 0) {
+			spin_unlock_irqrestore(&qp->s_lock, flags);
 			/*
 			 * If the packet cannot be sent now, return and
 			 * the send tasklet will be woken up later.
 			 */
 			if (qib_verbs_send(qp, priv->s_hdr, qp->s_hdrwords,
 					   qp->s_cur_sge, qp->s_cur_size))
-				break;
+				return;
 			/* Record that s_hdr is empty. */
 			qp->s_hdrwords = 0;
+			spin_lock_irqsave(&qp->s_lock, flags);
 		}
 	} while (make_req(qp));
+
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
 /*
