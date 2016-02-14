@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/string.h>
-#include <linux/module.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -146,9 +145,4 @@ static int __init net5501_init(void)
 
 	return 0;
 }
-
-module_init(net5501_init);
-
-MODULE_AUTHOR("Philip Prindeville <philipp@redfish-solutions.com>");
-MODULE_DESCRIPTION("Soekris net5501 System Setup");
-MODULE_LICENSE("GPL");
+device_initcall(net5501_init);
