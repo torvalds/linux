@@ -115,15 +115,6 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 	pstart = cursor->vstart;
 	pbuffer = pstart;
 
-/*
-	if(odd &1){
-		hw_cursor_setData2(cursor,rop,pcol,pmsk);
-	}
-	odd++;
-	if(odd > 0xfffffff0)
-		odd=0;
-*/
-
 	for (i = 0; i < count; i++) {
 		color = *pcol++;
 		mask = *pmsk++;
