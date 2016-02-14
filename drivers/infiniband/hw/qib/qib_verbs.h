@@ -219,6 +219,7 @@ struct qib_pma_counters {
 
 struct qib_ibport {
 	struct rvt_ibport rvp;
+	struct rvt_ah *smi_ah;
 	__be64 guids[QIB_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
 	struct qib_pma_counters __percpu *pmastats;
 	u64 z_unicast_xmit;     /* starting count for PMA */

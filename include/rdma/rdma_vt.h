@@ -137,7 +137,6 @@ struct rvt_ibport {
 	u16 *pkey_table;
 
 	struct rvt_ah *sm_ah;
-	struct rvt_ah *smi_ah;
 };
 
 #define RVT_CQN_MAX 16 /* maximum length of cq name */
