@@ -154,6 +154,7 @@ struct analogix_dp_device {
 	struct phy		*phy;
 	int			dpms_mode;
 	int			hpd_gpio;
+	bool                    force_hpd;
 
 	struct analogix_dp_plat_data *plat_data;
 };
@@ -174,6 +175,7 @@ void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 				       bool enable);
 void analogix_dp_init_analog_func(struct analogix_dp_device *dp);
 void analogix_dp_init_hpd(struct analogix_dp_device *dp);
+void analogix_dp_force_hpd(struct analogix_dp_device *dp);
 enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp);
 void analogix_dp_clear_hotplug_interrupts(struct analogix_dp_device *dp);
 void analogix_dp_reset_aux(struct analogix_dp_device *dp);

@@ -365,6 +365,15 @@ void analogix_dp_init_hpd(struct analogix_dp_device *dp)
 	writel(reg, dp->reg_base + ANALOGIX_DP_SYS_CTL_3);
 }
 
+void analogix_dp_force_hpd(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	reg = readl(dp->reg_base + ANALOGIX_DP_SYS_CTL_3);
+	reg = (F_HPD | HPD_CTRL);
+	writel(reg, dp->reg_base + ANALOGIX_DP_SYS_CTL_3);
+}
+
 enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp)
 {
 	u32 reg;
