@@ -188,9 +188,11 @@ static int pp_set_clockgating_state(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-			hwmgr->hwmgr_func->update_clock_gatings == NULL)
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL)
 			return -EINVAL;
+
+	if (hwmgr->hwmgr_func->update_clock_gatings == NULL)
+		return 0;
 
 	if (state == AMD_CG_STATE_UNGATE)
 		pp_state = 0;
