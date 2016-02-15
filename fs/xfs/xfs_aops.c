@@ -283,8 +283,7 @@ xfs_map_blocks(
 	struct inode		*inode,
 	loff_t			offset,
 	struct xfs_bmbt_irec	*imap,
-	int			type,
-	int			nonblocking)
+	int			type)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -300,12 +299,7 @@ xfs_map_blocks(
 	if (type == XFS_IO_UNWRITTEN)
 		bmapi_flags |= XFS_BMAPI_IGSTATE;
 
-	if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED)) {
-		if (nonblocking)
-			return -EAGAIN;
-		xfs_ilock(ip, XFS_ILOCK_SHARED);
-	}
-
+	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
 	ASSERT(offset <= mp->m_super->s_maxbytes);
@@ -955,7 +949,6 @@ xfs_vm_writepage(
 	ssize_t			len;
 	int			err, imap_valid = 0, uptodate = 1;
 	int			count = 0;
-	int			nonblocking = 0;
 
 	trace_xfs_writepage(inode, page, 0, 0);
 
@@ -1055,9 +1048,6 @@ xfs_vm_writepage(
 	offset = page_offset(page);
 	type = XFS_IO_OVERWRITE;
 
-	if (wbc->sync_mode == WB_SYNC_NONE)
-		nonblocking = 1;
-
 	do {
 		int new_ioend = 0;
 
@@ -1117,8 +1107,7 @@ xfs_vm_writepage(
 			 * time.
 			 */
 			new_ioend = 1;
-			err = xfs_map_blocks(inode, offset, &imap, type,
-					     nonblocking);
+			err = xfs_map_blocks(inode, offset, &imap, type);
 			if (err)
 				goto error;
 			imap_valid = xfs_imap_valid(inode, &imap, offset);
@@ -1187,9 +1176,6 @@ xfs_vm_writepage(
 error:
 	if (iohead)
 		xfs_cancel_ioend(iohead);
-
-	if (err == -EAGAIN)
-		goto redirty;
 
 	xfs_aops_discard_page(page);
 	ClearPageUptodate(page);
