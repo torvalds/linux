@@ -1112,12 +1112,11 @@ static ssize_t intel_th_msc_read(struct file *file, char __user *buf,
 		size = msc->nr_pages << PAGE_SHIFT;
 
 	if (!size)
-		return 0;
-
-	if (off >= size) {
-		len = 0;
 		goto put_count;
-	}
+
+	if (off >= size)
+		goto put_count;
+
 	if (off + len >= size)
 		len = size - off;
 
