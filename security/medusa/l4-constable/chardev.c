@@ -43,6 +43,8 @@
 #include <linux/semaphore.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
+#include <linux/jiffies.h>
+
 #define MEDUSA_MAJOR 111
 #define MODULENAME "chardev/linux"
 #define wakeup(p) wake_up(p)
@@ -54,6 +56,7 @@
 
 #include "teleport.h"
 
+static int user_release(struct inode *inode, struct file *file);
 
 static teleport_t teleport = {
 	cycle: tpc_HALT,
@@ -210,7 +213,9 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 	barrier();
 	wakeup(&userspace);
 	barrier();
-	wait_for_completion(&userspace_answer);
+	if (wait_for_completion_timeout(&userspace_answer, 5*HZ) == 0){
+        user_release(NULL, NULL);    
+    }
 	barrier();
 	if (atomic_read(&question_ready)) {
 		atomic_set(&question_ready, 0);
@@ -579,10 +584,18 @@ out:
  */
 static int user_release(struct inode *inode, struct file *file)
 {
+	if (!atomic_read(&constable_present))
+		return 0;
+    
 	DECLARE_WAITQUEUE(wait,current);
 
-	if (constable != CURRENTPTR)
-		return 0; /* ;) */
+    /* this function is invoked also from context of process which requires decision 
+       after 5s of inactivity of our brave user space authorization server constable;
+       so we comment next two lines ;) */
+	/* 
+    if (constable != CURRENTPTR)
+		return 0; // ;) 
+    */
 	MED_LOCK_W(registration_lock);
 	if (evtypes_registered) {
 		struct medusa_evtype_s * p1, * p2;
@@ -632,7 +645,10 @@ static int user_release(struct inode *inode, struct file *file)
 	atomic_set(&question_ready, 0);
 	atomic_set(&announce_ready, 0);
 	MED_UNLOCK_W(constable_openclose);
-	schedule();
+    if (constable == CURRENTPTR)
+	    schedule();
+    else
+        MED_PRINTF("Authorization server is not responding.\n");
 	remove_wait_queue(&close_wait, &wait);
 	//MOD_DEC_USE_COUNT; Not needed anymore? JK
 	return 0;
