@@ -282,7 +282,8 @@ isif_config_format(struct vpfe_device *vpfe_dev, unsigned int pad)
  * @fmt: pointer to v4l2 subdev format structure
  */
 static void
-isif_try_format(struct vpfe_isif_device *isif, struct v4l2_subdev_pad_config *cfg,
+isif_try_format(struct vpfe_isif_device *isif,
+		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *fmt)
 {
 	unsigned int width = fmt->format.width;
@@ -1399,8 +1400,9 @@ static int isif_set_stream(struct v4l2_subdev *sd, int enable)
  * @which: wanted subdev format.
  */
 static struct v4l2_mbus_framefmt *
-__isif_get_format(struct vpfe_isif_device *isif, struct v4l2_subdev_pad_config *cfg,
-		  unsigned int pad, enum v4l2_subdev_format_whence which)
+__isif_get_format(struct vpfe_isif_device *isif,
+		  struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_subdev_format fmt;

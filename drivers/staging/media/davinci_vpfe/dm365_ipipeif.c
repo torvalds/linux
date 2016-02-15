@@ -641,8 +641,9 @@ ipipeif_try_format(struct vpfe_ipipeif_device *ipipeif,
 }
 
 static int
-ipipeif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-		     struct v4l2_subdev_frame_size_enum *fse)
+ipipeif_enum_frame_size(struct v4l2_subdev *sd,
+			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
