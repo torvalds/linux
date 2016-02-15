@@ -148,7 +148,7 @@ struct analogix_dp_device {
 	unsigned int		irq;
 	void __iomem		*reg_base;
 
-	struct video_info	*video_info;
+	struct video_info	video_info;
 	struct link_train	link_train;
 	struct work_struct	hotplug_work;
 	struct phy		*phy;

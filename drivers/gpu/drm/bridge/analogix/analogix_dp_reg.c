@@ -1084,15 +1084,15 @@ void analogix_dp_set_video_color_format(struct analogix_dp_device *dp)
 	u32 reg;
 
 	/* Configure the input color depth, color space, dynamic range */
-	reg = (dp->video_info->dynamic_range << IN_D_RANGE_SHIFT) |
-		(dp->video_info->color_depth << IN_BPC_SHIFT) |
-		(dp->video_info->color_space << IN_COLOR_F_SHIFT);
+	reg = (dp->video_info.dynamic_range << IN_D_RANGE_SHIFT) |
+		(dp->video_info.color_depth << IN_BPC_SHIFT) |
+		(dp->video_info.color_space << IN_COLOR_F_SHIFT);
 	writel(reg, dp->reg_base + ANALOGIX_DP_VIDEO_CTL_2);
 
 	/* Set Input Color YCbCr Coefficients to ITU601 or ITU709 */
 	reg = readl(dp->reg_base + ANALOGIX_DP_VIDEO_CTL_3);
 	reg &= ~IN_YC_COEFFI_MASK;
-	if (dp->video_info->ycbcr_coeff)
+	if (dp->video_info.ycbcr_coeff)
 		reg |= IN_YC_COEFFI_ITU709;
 	else
 		reg |= IN_YC_COEFFI_ITU601;
@@ -1229,17 +1229,17 @@ void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp)
 
 	reg = readl(dp->reg_base + ANALOGIX_DP_VIDEO_CTL_10);
 	reg &= ~INTERACE_SCAN_CFG;
-	reg |= (dp->video_info->interlaced << 2);
+	reg |= (dp->video_info.interlaced << 2);
 	writel(reg, dp->reg_base + ANALOGIX_DP_VIDEO_CTL_10);
 
 	reg = readl(dp->reg_base + ANALOGIX_DP_VIDEO_CTL_10);
 	reg &= ~VSYNC_POLARITY_CFG;
-	reg |= (dp->video_info->v_sync_polarity << 1);
+	reg |= (dp->video_info.v_sync_polarity << 1);
 	writel(reg, dp->reg_base + ANALOGIX_DP_VIDEO_CTL_10);
 
 	reg = readl(dp->reg_base + ANALOGIX_DP_VIDEO_CTL_10);
 	reg &= ~HSYNC_POLARITY_CFG;
-	reg |= (dp->video_info->h_sync_polarity << 0);
+	reg |= (dp->video_info.h_sync_polarity << 0);
 	writel(reg, dp->reg_base + ANALOGIX_DP_VIDEO_CTL_10);
 
 	reg = AUDIO_MODE_SPDIF_MODE | VIDEO_MODE_SLAVE_MODE;
