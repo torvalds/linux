@@ -2464,6 +2464,35 @@ static void intel_unpin_fb_obj(struct drm_framebuffer *fb,
 }
 
 /*
+ * Adjust the tile offset by moving the difference into
+ * the x/y offsets.
+ *
+ * Input tile dimensions and pitch must already be
+ * rotated to match x and y, and in pixel units.
+ */
+static u32 intel_adjust_tile_offset(int *x, int *y,
+				    unsigned int tile_width,
+				    unsigned int tile_height,
+				    unsigned int tile_size,
+				    unsigned int pitch_tiles,
+				    u32 old_offset,
+				    u32 new_offset)
+{
+	unsigned int tiles;
+
+	WARN_ON(old_offset & (tile_size - 1));
+	WARN_ON(new_offset & (tile_size - 1));
+	WARN_ON(new_offset > old_offset);
+
+	tiles = (old_offset - new_offset) / tile_size;
+
+	*y += tiles / pitch_tiles * tile_height;
+	*x += tiles % pitch_tiles * tile_width;
+
+	return new_offset;
+}
+
+/*
  * Computes the linear offset to the base tile and adjusts
  * x, y. bytes per pixel is assumed to be a power-of-two.
  *
@@ -2478,6 +2507,12 @@ u32 intel_compute_tile_offset(struct drm_i915_private *dev_priv,
 			      unsigned int pitch,
 			      unsigned int rotation)
 {
+	u32 offset, offset_aligned, alignment;
+
+	alignment = intel_surf_alignment(dev_priv, fb_modifier);
+	if (alignment)
+		alignment--;
+
 	if (fb_modifier != DRM_FORMAT_MOD_NONE) {
 		unsigned int tile_size, tile_width, tile_height;
 		unsigned int tile_rows, tiles, pitch_tiles;
@@ -2499,16 +2534,21 @@ u32 intel_compute_tile_offset(struct drm_i915_private *dev_priv,
 		tiles = *x / tile_width;
 		*x %= tile_width;
 
-		return (tile_rows * pitch_tiles + tiles) * tile_size;
-	} else {
-		unsigned int alignment = intel_linear_alignment(dev_priv) - 1;
-		unsigned int offset;
+		offset = (tile_rows * pitch_tiles + tiles) * tile_size;
+		offset_aligned = offset & ~alignment;
 
+		intel_adjust_tile_offset(x, y, tile_width, tile_height,
+					 tile_size, pitch_tiles,
+					 offset, offset_aligned);
+	} else {
 		offset = *y * pitch + *x * cpp;
+		offset_aligned = offset & ~alignment;
+
 		*y = (offset & alignment) / pitch;
 		*x = ((offset & alignment) - *y * pitch) / cpp;
-		return offset & ~alignment;
 	}
+
+	return offset_aligned;
 }
 
 static int i9xx_format_to_fourcc(int format)
