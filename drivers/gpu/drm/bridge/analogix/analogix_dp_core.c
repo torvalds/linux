@@ -851,47 +851,40 @@ static void analogix_dp_enable_scramble(struct analogix_dp_device *dp,
 	}
 }
 
-static irqreturn_t analogix_dp_irq_handler(int irq, void *arg)
+static irqreturn_t analogix_dp_hardirq(int irq, void *arg)
 {
 	struct analogix_dp_device *dp = arg;
-
+	irqreturn_t ret = IRQ_NONE;
 	enum dp_irq_type irq_type;
 
 	irq_type = analogix_dp_get_irq_type(dp);
-	switch (irq_type) {
-	case DP_IRQ_TYPE_HP_CABLE_IN:
-		dev_dbg(dp->dev, "Received irq - cable in\n");
-		schedule_work(&dp->hotplug_work);
-		analogix_dp_clear_hotplug_interrupts(dp);
-		break;
-	case DP_IRQ_TYPE_HP_CABLE_OUT:
-		dev_dbg(dp->dev, "Received irq - cable out\n");
-		analogix_dp_clear_hotplug_interrupts(dp);
-		break;
-	case DP_IRQ_TYPE_HP_CHANGE:
-		/*
-		 * We get these change notifications once in a while, but there
-		 * is nothing we can do with them. Just ignore it for now and
-		 * only handle cable changes.
-		 */
-		dev_dbg(dp->dev, "Received irq - hotplug change; ignoring.\n");
-		analogix_dp_clear_hotplug_interrupts(dp);
-		break;
-	default:
-		dev_err(dp->dev, "Received irq - unknown type!\n");
-		break;
+	if (irq_type != DP_IRQ_TYPE_UNKNOWN) {
+		analogix_dp_mute_hpd_interrupt(dp);
+		ret = IRQ_WAKE_THREAD;
 	}
-	return IRQ_HANDLED;
+
+	return ret;
 }
 
-static void analogix_dp_hotplug(struct work_struct *work)
+static irqreturn_t analogix_dp_irq_thread(int irq, void *arg)
 {
-	struct analogix_dp_device *dp;
+	struct analogix_dp_device *dp = arg;
+	enum dp_irq_type irq_type;
 
-	dp = container_of(work, struct analogix_dp_device, hotplug_work);
+	irq_type = analogix_dp_get_irq_type(dp);
+	if (irq_type & DP_IRQ_TYPE_HP_CABLE_IN ||
+	    irq_type & DP_IRQ_TYPE_HP_CABLE_OUT) {
+		dev_dbg(dp->dev, "Detected cable status changed!\n");
+		if (dp->drm_dev)
+			drm_helper_hpd_irq_event(dp->drm_dev);
+	}
 
-	if (dp->drm_dev)
-		drm_helper_hpd_irq_event(dp->drm_dev);
+	if (irq_type != DP_IRQ_TYPE_UNKNOWN) {
+		analogix_dp_clear_hotplug_interrupts(dp);
+		analogix_dp_unmute_hpd_interrupt(dp);
+	}
+
+	return IRQ_HANDLED;
 }
 
 static void analogix_dp_commit(struct analogix_dp_device *dp)
@@ -1077,7 +1070,6 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 	}
 
 	disable_irq(dp->irq);
-	flush_work(&dp->hotplug_work);
 	phy_power_off(dp->phy);
 
 	if (dp->plat_data->power_off)
@@ -1336,8 +1328,6 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		return -ENODEV;
 	}
 
-	INIT_WORK(&dp->hotplug_work, analogix_dp_hotplug);
-
 	pm_runtime_enable(dev);
 
 	phy_power_on(dp->phy);
@@ -1351,8 +1341,10 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	analogix_dp_init_dp(dp);
 
-	ret = devm_request_irq(&pdev->dev, dp->irq, analogix_dp_irq_handler,
-			       irq_flags, "analogix-dp", dp);
+	ret = devm_request_threaded_irq(&pdev->dev, dp->irq,
+					analogix_dp_hardirq,
+					analogix_dp_irq_thread,
+					irq_flags, "analogix-dp", dp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		goto err_disable_pm_runtime;
