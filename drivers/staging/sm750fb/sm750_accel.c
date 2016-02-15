@@ -100,8 +100,9 @@ int hw_fillrect(struct lynx_accel *accel,
 
 	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, base); /* dpr40 */
 	write_dpr(accel, DE_PITCH,
-			FIELD_VALUE(0, DE_PITCH, DESTINATION, pitch/Bpp)|
-			FIELD_VALUE(0, DE_PITCH, SOURCE, pitch/Bpp)); /* dpr10 */
+		  ((pitch / Bpp << DE_PITCH_DESTINATION_SHIFT) &
+		   DE_PITCH_DESTINATION_MASK) |
+		  (pitch / Bpp & DE_PITCH_SOURCE_MASK)); /* dpr10 */
 
 	write_dpr(accel, DE_WINDOW_WIDTH,
 			FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, pitch/Bpp)|
@@ -227,11 +228,10 @@ unsigned int rop2)   /* ROP value */
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	{
-		write_dpr(accel, DE_PITCH,
-				FIELD_VALUE(0, DE_PITCH, DESTINATION, (dPitch/Bpp)) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      (sPitch/Bpp))); /* dpr10 */
-	}
+	write_dpr(accel, DE_PITCH,
+		  ((dPitch / Bpp << DE_PITCH_DESTINATION_SHIFT) &
+		   DE_PITCH_DESTINATION_MASK) |
+		  (sPitch / Bpp & DE_PITCH_SOURCE_MASK)); /* dpr10 */
 
     /* Screen Window width in Pixels.
        2D engine uses this value to calculate the linear address in frame buffer for a given point.
@@ -320,11 +320,10 @@ int hw_imageblit(struct lynx_accel *accel,
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	{
-		write_dpr(accel, DE_PITCH,
-				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch/bytePerPixel) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch/bytePerPixel)); /* dpr10 */
-	}
+	write_dpr(accel, DE_PITCH,
+		  ((dPitch / bytePerPixel << DE_PITCH_DESTINATION_SHIFT) &
+		   DE_PITCH_DESTINATION_MASK) |
+		  (dPitch / bytePerPixel & DE_PITCH_SOURCE_MASK)); /* dpr10 */
 
 	/* Screen Window width in Pixels.
 	 2D engine uses this value to calculate the linear address in frame buffer for a given point.

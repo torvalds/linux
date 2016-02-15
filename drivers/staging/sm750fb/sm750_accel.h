@@ -98,8 +98,9 @@
 #define DE_CONTROL_ROTATION_180                         3
 
 #define DE_PITCH                                        0x000010
-#define DE_PITCH_DESTINATION                            28:16
-#define DE_PITCH_SOURCE                                 12:0
+#define DE_PITCH_DESTINATION_SHIFT                      16
+#define DE_PITCH_DESTINATION_MASK                       (0x1fff << 16)
+#define DE_PITCH_SOURCE_MASK                            0x1fff
 
 #define DE_FOREGROUND                                   0x000014
 #define DE_FOREGROUND_COLOR                             31:0
