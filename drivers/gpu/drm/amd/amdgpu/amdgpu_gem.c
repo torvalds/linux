@@ -721,8 +721,9 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 			placement = " CPU";
 			break;
 		}
-		seq_printf(m, "bo[0x%08x] %12ld %s pid %8d",
-			   i, amdgpu_bo_size(rbo), placement, rbo->pid);
+		seq_printf(m, "bo[0x%08x] %12ld %s @ 0x%010Lx pid %8d",
+			   i, amdgpu_bo_size(rbo), placement,
+			   amdgpu_bo_gpu_offset(rbo), rbo->pid);
 
 		pin_count = ACCESS_ONCE(rbo->pin_count);
 		if (pin_count)
