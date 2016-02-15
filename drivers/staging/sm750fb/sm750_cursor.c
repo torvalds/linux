@@ -34,14 +34,11 @@ writel((data), cursor->mmio + (addr))
 #define HWC_ADDRESS_ADDRESS_MASK            0x3ffffff
 
 #define HWC_LOCATION                        0x4
-#define HWC_LOCATION_TOP                    27:27
-#define HWC_LOCATION_TOP_INSIDE             0
-#define HWC_LOCATION_TOP_OUTSIDE            1
-#define HWC_LOCATION_Y                      26:16
-#define HWC_LOCATION_LEFT                   11:11
-#define HWC_LOCATION_LEFT_INSIDE            0
-#define HWC_LOCATION_LEFT_OUTSIDE           1
-#define HWC_LOCATION_X                      10:0
+#define HWC_LOCATION_TOP                    BIT(27)
+#define HWC_LOCATION_Y_SHIFT                16
+#define HWC_LOCATION_Y_MASK                 (0x7ff << 16)
+#define HWC_LOCATION_LEFT                   BIT(11)
+#define HWC_LOCATION_X_MASK                 0x7ff
 
 #define HWC_COLOR_12                        0x8
 #define HWC_COLOR_12_2_RGB565               31:16
@@ -75,8 +72,8 @@ void hw_cursor_setPos(struct lynx_cursor *cursor,
 {
 	u32 reg;
 
-	reg = FIELD_VALUE(0, HWC_LOCATION, Y, y)|
-			FIELD_VALUE(0, HWC_LOCATION, X, x);
+	reg = (((y << HWC_LOCATION_Y_SHIFT) & HWC_LOCATION_Y_MASK) |
+		(x & HWC_LOCATION_X_MASK));
 	POKE32(HWC_LOCATION, reg);
 }
 void hw_cursor_setColor(struct lynx_cursor *cursor,
