@@ -168,6 +168,12 @@ static inline u64 cl_address(u64 address)
 	return (address & ~(cacheline_size - 1));
 }
 
+static inline u64 cl_offset(u64 address)
+{
+	/* return the cacheline of the address */
+	return (address & (cacheline_size - 1));
+}
+
 enum sort_mode {
 	SORT_MODE__NORMAL,
 	SORT_MODE__BRANCH,
