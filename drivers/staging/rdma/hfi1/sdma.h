@@ -412,6 +412,7 @@ struct sdma_engine {
 	u32                   progress_check_head;
 	/* private: */
 	struct work_struct flush_worker;
+	/* protect flush list */
 	spinlock_t flushlist_lock;
 	/* private: */
 	struct list_head flushlist;

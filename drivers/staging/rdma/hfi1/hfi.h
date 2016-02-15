@@ -313,6 +313,7 @@ struct hfi1_ctxtdata {
 	 */
 	struct task_struct *progress;
 	struct list_head sdma_queues;
+	/* protect sdma queues */
 	spinlock_t sdma_qlock;
 
 	/* Is ASPM interrupt supported for this context */
@@ -380,6 +381,7 @@ struct hfi1_snoop_data {
 	int mode_flag;
 	struct cdev cdev;
 	struct device *class_dev;
+	/* protect snoop data */
 	spinlock_t snoop_lock;
 	struct list_head queue;
 	wait_queue_head_t waitq;
@@ -561,6 +563,7 @@ enum {
 };
 
 struct vl_arb_cache {
+	/* protect vl arb cache */
 	spinlock_t lock;
 	struct ib_vl_weight_elem table[VL_ARB_TABLE_SIZE];
 };
