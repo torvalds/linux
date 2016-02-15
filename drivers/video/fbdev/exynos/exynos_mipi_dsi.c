@@ -402,12 +402,12 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	dsim->irq = platform_get_irq(pdev, 0);
-	if (IS_ERR_VALUE(dsim->irq)) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request dsim irq resource\n");
-		ret = -EINVAL;
 		goto error;
 	}
+	dsim->irq = ret;
 
 	init_completion(&dsim_wr_comp);
 	init_completion(&dsim_rd_comp);
