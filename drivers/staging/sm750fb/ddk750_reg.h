@@ -1387,8 +1387,9 @@
 #define CRT_HORIZONTAL_SYNC_START_MASK                0xfff
 
 #define CRT_VERTICAL_TOTAL                            0x080214
-#define CRT_VERTICAL_TOTAL_TOTAL                      26:16
-#define CRT_VERTICAL_TOTAL_DISPLAY_END                10:0
+#define CRT_VERTICAL_TOTAL_TOTAL_SHIFT                16
+#define CRT_VERTICAL_TOTAL_TOTAL_MASK                 (0x7ff << 16)
+#define CRT_VERTICAL_TOTAL_DISPLAY_END_MASK           (0x7ff)
 
 #define CRT_VERTICAL_SYNC                             0x080218
 #define CRT_VERTICAL_SYNC_HEIGHT                      21:16
