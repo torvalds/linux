@@ -198,22 +198,10 @@ void dbs_check_cpu(struct cpufreq_policy *policy)
 		j_cdbs->prev_cpu_idle = cur_idle_time;
 
 		if (ignore_nice) {
-			struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(cpu);
-			u64 cur_nice;
-			unsigned long cur_nice_jiffies;
+			u64 cur_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 
-			cur_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE] -
-					 cdbs->prev_cpu_nice;
-			/*
-			 * Assumption: nice time between sampling periods will
-			 * be less than 2^32 jiffies for 32 bit sys
-			 */
-			cur_nice_jiffies = (unsigned long)
-					cputime64_to_jiffies64(cur_nice);
-
-			cdbs->prev_cpu_nice =
-				kcpustat_cpu(j).cpustat[CPUTIME_NICE];
-			idle_time += jiffies_to_usecs(cur_nice_jiffies);
+			idle_time += cputime_to_usecs(cur_nice - j_cdbs->prev_cpu_nice);
+			j_cdbs->prev_cpu_nice = cur_nice;
 		}
 
 		if (unlikely(!wall_time || wall_time < idle_time))
