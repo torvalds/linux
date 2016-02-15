@@ -789,10 +789,6 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 		table[1].extra2 = &net->ipv4.frags.high_thresh;
 		table[2].data = &net->ipv4.frags.timeout;
 		table[3].data = &net->ipv4.frags.max_dist;
-
-		/* Don't export sysctls to unprivileged users */
-		if (net->user_ns != &init_user_ns)
-			table[0].procname = NULL;
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv4", table);
