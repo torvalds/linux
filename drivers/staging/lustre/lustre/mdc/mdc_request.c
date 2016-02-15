@@ -1554,6 +1554,7 @@ static int mdc_ioc_changelog_send(struct obd_device *obd,
 				  struct ioc_changelog *icc)
 {
 	struct changelog_show *cs;
+	struct task_struct *task;
 	int rc;
 
 	/* Freed in mdc_changelog_send_thread */
@@ -1571,15 +1572,20 @@ static int mdc_ioc_changelog_send(struct obd_device *obd,
 	 * New thread because we should return to user app before
 	 * writing into our pipe
 	 */
-	rc = PTR_ERR(kthread_run(mdc_changelog_send_thread, cs,
-				 "mdc_clg_send_thread"));
-	if (!IS_ERR_VALUE(rc)) {
-		CDEBUG(D_CHANGELOG, "start changelog thread\n");
-		return 0;
+	task = kthread_run(mdc_changelog_send_thread, cs,
+			   "mdc_clg_send_thread");
+	if (IS_ERR(task)) {
+		rc = PTR_ERR(task);
+		CERROR("%s: can't start changelog thread: rc = %d\n",
+		       obd->obd_name, rc);
+		kfree(cs);
+	} else {
+		rc = 0;
+		CDEBUG(D_CHANGELOG, "%s: started changelog thread\n",
+		       obd->obd_name);
 	}
 
 	CERROR("Failed to start changelog thread: %d\n", rc);
-	kfree(cs);
 	return rc;
 }
 

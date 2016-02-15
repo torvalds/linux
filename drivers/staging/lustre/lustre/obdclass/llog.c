@@ -376,17 +376,19 @@ int llog_process_or_fork(const struct lu_env *env,
 	lpi->lpi_catdata   = catdata;
 
 	if (fork) {
+		struct task_struct *task;
+
 		/* The new thread can't use parent env,
 		 * init the new one in llog_process_thread_daemonize. */
 		lpi->lpi_env = NULL;
 		init_completion(&lpi->lpi_completion);
-		rc = PTR_ERR(kthread_run(llog_process_thread_daemonize, lpi,
-					     "llog_process_thread"));
-		if (IS_ERR_VALUE(rc)) {
+		task = kthread_run(llog_process_thread_daemonize, lpi,
+				   "llog_process_thread");
+		if (IS_ERR(task)) {
+			rc = PTR_ERR(task);
 			CERROR("%s: cannot start thread: rc = %d\n",
 			       loghandle->lgh_ctxt->loc_obd->obd_name, rc);
-			kfree(lpi);
-			return rc;
+			goto out_lpi;
 		}
 		wait_for_completion(&lpi->lpi_completion);
 	} else {
@@ -394,6 +396,7 @@ int llog_process_or_fork(const struct lu_env *env,
 		llog_process_thread(lpi);
 	}
 	rc = lpi->lpi_rc;
+out_lpi:
 	kfree(lpi);
 	return rc;
 }

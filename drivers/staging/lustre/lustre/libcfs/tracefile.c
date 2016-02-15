@@ -1056,6 +1056,7 @@ end_loop:
 int cfs_trace_start_thread(void)
 {
 	struct tracefiled_ctl *tctl = &trace_tctl;
+	struct task_struct *task;
 	int rc = 0;
 
 	mutex_lock(&cfs_trace_thread_mutex);
@@ -1067,8 +1068,9 @@ int cfs_trace_start_thread(void)
 	init_waitqueue_head(&tctl->tctl_waitq);
 	atomic_set(&tctl->tctl_shutdown, 0);
 
-	if (IS_ERR(kthread_run(tracefiled, tctl, "ktracefiled"))) {
-		rc = -ECHILD;
+	task = kthread_run(tracefiled, tctl, "ktracefiled");
+	if (IS_ERR(task)) {
+		rc = PTR_ERR(task);
 		goto out;
 	}
 

@@ -293,6 +293,7 @@ static struct ptlrpc_thread pinger_thread;
 int ptlrpc_start_pinger(void)
 {
 	struct l_wait_info lwi = { 0 };
+	struct task_struct *task;
 	int rc;
 
 	if (!thread_is_init(&pinger_thread) &&
@@ -303,10 +304,11 @@ int ptlrpc_start_pinger(void)
 
 	strcpy(pinger_thread.t_name, "ll_ping");
 
-	rc = PTR_ERR(kthread_run(ptlrpc_pinger_main, &pinger_thread,
-				 "%s", pinger_thread.t_name));
-	if (IS_ERR_VALUE(rc)) {
-		CERROR("cannot start thread: %d\n", rc);
+	task = kthread_run(ptlrpc_pinger_main, &pinger_thread,
+			   pinger_thread.t_name);
+	if (IS_ERR(task)) {
+		rc = PTR_ERR(task);
+		CERROR("cannot start pinger thread: rc = %d\n", rc);
 		return rc;
 	}
 	l_wait_event(pinger_thread.t_ctl_waitq,

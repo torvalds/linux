@@ -439,6 +439,7 @@ accept2secure(const char *acc, long *sec)
 int
 lnet_acceptor_start(void)
 {
+	struct task_struct *task;
 	int rc;
 	long rc2;
 	long secure;
@@ -457,10 +458,10 @@ lnet_acceptor_start(void)
 	if (!lnet_count_acceptor_nis())  /* not required */
 		return 0;
 
-	rc2 = PTR_ERR(kthread_run(lnet_acceptor,
-				  (void *)(ulong_ptr_t)secure,
-				  "acceptor_%03ld", secure));
-	if (IS_ERR_VALUE(rc2)) {
+	task = kthread_run(lnet_acceptor, (void *)(ulong_ptr_t)secure,
+			   "acceptor_%03ld", secure);
+	if (IS_ERR(task)) {
+		rc2 = PTR_ERR(task);
 		CERROR("Can't start acceptor thread: %ld\n", rc2);
 
 		return -ESRCH;

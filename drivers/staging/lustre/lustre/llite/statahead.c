@@ -1498,6 +1498,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	struct ll_sa_entry       *entry;
 	struct ptlrpc_thread     *thread;
 	struct l_wait_info	lwi   = { 0 };
+	struct task_struct *task;
 	int		       rc    = 0;
 	struct ll_inode_info     *plli;
 
@@ -1656,10 +1657,11 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	lli->lli_sai = sai;
 
 	plli = ll_i2info(d_inode(parent));
-	rc = PTR_ERR(kthread_run(ll_statahead_thread, parent,
-				 "ll_sa_%u", plli->lli_opendir_pid));
+	task = kthread_run(ll_statahead_thread, parent, "ll_sa_%u",
+			   plli->lli_opendir_pid);
 	thread = &sai->sai_thread;
-	if (IS_ERR_VALUE(rc)) {
+	if (IS_ERR(task)) {
+		rc = PTR_ERR(task);
 		CERROR("can't start ll_sa thread, rc: %d\n", rc);
 		dput(parent);
 		lli->lli_opendir_key = NULL;
