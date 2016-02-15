@@ -158,6 +158,8 @@ static int kvm_clock_sync(struct notifier_block *notifier, unsigned long val,
 		kvm->arch.epoch -= *delta;
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			vcpu->arch.sie_block->epoch -= *delta;
+			if (vcpu->arch.cputm_enabled)
+				vcpu->arch.cputm_start += *delta;
 		}
 	}
 	return NOTIFY_OK;
@@ -1429,16 +1431,78 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+/* needs disabled preemption to protect from TOD sync and vcpu_load/put */
+static void __start_cpu_timer_accounting(struct kvm_vcpu *vcpu)
+{
+	WARN_ON_ONCE(vcpu->arch.cputm_start != 0);
+	vcpu->arch.cputm_start = get_tod_clock_fast();
+}
+
+/* needs disabled preemption to protect from TOD sync and vcpu_load/put */
+static void __stop_cpu_timer_accounting(struct kvm_vcpu *vcpu)
+{
+	WARN_ON_ONCE(vcpu->arch.cputm_start == 0);
+	vcpu->arch.sie_block->cputm -= get_tod_clock_fast() - vcpu->arch.cputm_start;
+	vcpu->arch.cputm_start = 0;
+}
+
+/* needs disabled preemption to protect from TOD sync and vcpu_load/put */
+static void __enable_cpu_timer_accounting(struct kvm_vcpu *vcpu)
+{
+	WARN_ON_ONCE(vcpu->arch.cputm_enabled);
+	vcpu->arch.cputm_enabled = true;
+	__start_cpu_timer_accounting(vcpu);
+}
+
+/* needs disabled preemption to protect from TOD sync and vcpu_load/put */
+static void __disable_cpu_timer_accounting(struct kvm_vcpu *vcpu)
+{
+	WARN_ON_ONCE(!vcpu->arch.cputm_enabled);
+	__stop_cpu_timer_accounting(vcpu);
+	vcpu->arch.cputm_enabled = false;
+}
+
+static void enable_cpu_timer_accounting(struct kvm_vcpu *vcpu)
+{
+	preempt_disable(); /* protect from TOD sync and vcpu_load/put */
+	__enable_cpu_timer_accounting(vcpu);
+	preempt_enable();
+}
+
+static void disable_cpu_timer_accounting(struct kvm_vcpu *vcpu)
+{
+	preempt_disable(); /* protect from TOD sync and vcpu_load/put */
+	__disable_cpu_timer_accounting(vcpu);
+	preempt_enable();
+}
+
 /* set the cpu timer - may only be called from the VCPU thread itself */
 void kvm_s390_set_cpu_timer(struct kvm_vcpu *vcpu, __u64 cputm)
 {
+	preempt_disable(); /* protect from TOD sync and vcpu_load/put */
+	if (vcpu->arch.cputm_enabled)
+		vcpu->arch.cputm_start = get_tod_clock_fast();
 	vcpu->arch.sie_block->cputm = cputm;
+	preempt_enable();
 }
 
-/* get the cpu timer - can also be called from other VCPU threads */
+/* update and get the cpu timer - can also be called from other VCPU threads */
 __u64 kvm_s390_get_cpu_timer(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.sie_block->cputm;
+	__u64 value;
+	int me;
+
+	if (unlikely(!vcpu->arch.cputm_enabled))
+		return vcpu->arch.sie_block->cputm;
+
+	me = get_cpu(); /* also protects from TOD sync and vcpu_load/put */
+	value = vcpu->arch.sie_block->cputm;
+	if (likely(me == vcpu->cpu)) {
+		/* the VCPU itself will always read consistent values */
+		value -= get_tod_clock_fast() - vcpu->arch.cputm_start;
+	}
+	put_cpu();
+	return value;
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -1461,12 +1525,16 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	restore_access_regs(vcpu->run->s.regs.acrs);
 	gmap_enable(vcpu->arch.gmap);
 	atomic_or(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
+	if (vcpu->arch.cputm_enabled)
+		__start_cpu_timer_accounting(vcpu);
 	vcpu->cpu = cpu;
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	vcpu->cpu = -1;
+	if (vcpu->arch.cputm_enabled)
+		__stop_cpu_timer_accounting(vcpu);
 	atomic_andnot(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	gmap_disable(vcpu->arch.gmap);
 
@@ -2277,10 +2345,12 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		 */
 		local_irq_disable();
 		__kvm_guest_enter();
+		__disable_cpu_timer_accounting(vcpu);
 		local_irq_enable();
 		exit_reason = sie64a(vcpu->arch.sie_block,
 				     vcpu->run->s.regs.gprs);
 		local_irq_disable();
+		__enable_cpu_timer_accounting(vcpu);
 		__kvm_guest_exit();
 		local_irq_enable();
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
@@ -2358,6 +2428,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	sync_regs(vcpu, kvm_run);
+	enable_cpu_timer_accounting(vcpu);
 
 	might_fault();
 	rc = __vcpu_run(vcpu);
@@ -2377,6 +2448,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		rc = 0;
 	}
 
+	disable_cpu_timer_accounting(vcpu);
 	store_regs(vcpu, kvm_run);
 
 	if (vcpu->sigset_active)

@@ -552,6 +552,8 @@ struct kvm_vcpu_arch {
 	unsigned long pfault_token;
 	unsigned long pfault_select;
 	unsigned long pfault_compare;
+	bool cputm_enabled;
+	__u64 cputm_start;
 };
 
 struct kvm_vm_stat {
