@@ -42,6 +42,8 @@ static inline void cacheop_on_each_cpu(void (*func) (void *info), void *info,
 {
 	preempt_disable();
 
+	/* Needing IPI for cross-core flush is SHX3-specific. */
+#ifdef CONFIG_CPU_SHX3
 	/*
 	 * It's possible that this gets called early on when IRQs are
 	 * still disabled due to ioremapping by the boot CPU, so don't
@@ -49,6 +51,7 @@ static inline void cacheop_on_each_cpu(void (*func) (void *info), void *info,
 	 */
 	if (num_online_cpus() > 1)
 		smp_call_function(func, info, wait);
+#endif
 
 	func(info);
 
