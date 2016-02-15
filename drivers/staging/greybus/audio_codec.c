@@ -430,65 +430,6 @@ static unsigned int gbcodec_read(struct snd_soc_codec *codec,
 	return val;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_gbcodec = {
-	.probe = gbcodec_probe,
-	.remove = gbcodec_remove,
-
-	.read = gbcodec_read,
-	.write = gbcodec_write,
-
-	.reg_cache_size = GBCODEC_REG_COUNT,
-	.reg_cache_default = gbcodec_reg_defaults,
-	.reg_word_size = 1,
-
-	.idle_bias_off = true,
-	.ignore_pmdown_time = 1,
-};
-
-/*
- * GB codec DAI link related
- */
-static struct snd_soc_dai_link gbaudio_dailink = {
-	.name = "PRI_MI2S_RX",
-	.stream_name = "Primary MI2S Playback",
-	.platform_name = "msm-pcm-routing",
-	.cpu_dai_name = "msm-dai-q6-mi2s.0",
-	.no_pcm = 1,
-	.be_id = 34,
-};
-
-static int gbaudio_add_dailinks(struct gbaudio_codec_info *gbcodec)
-{
-	int ret, i;
-	char *dai_link_name;
-	struct snd_soc_dai_link *dailink;
-	struct device *dev = gbcodec->dev;
-
-	dailink = &gbaudio_dailink;
-	dailink->codec_name = gbcodec->name;
-
-	/* FIXME
-	 * allocate memory for DAI links based on count.
-	 * currently num_dai_links=1, so using static struct
-	 */
-	gbcodec->num_dai_links = 1;
-
-	for (i = 0; i < gbcodec->num_dai_links; i++) {
-		gbcodec->dailink_name[i] = dai_link_name =
-			devm_kzalloc(dev, NAME_SIZE, GFP_KERNEL);
-		snprintf(dai_link_name, NAME_SIZE, "GB %d.%d PRI_MI2S_RX",
-			 gbcodec->dev_id, i);
-		dailink->name = dai_link_name;
-		dailink->codec_dai_name = gbcodec->dais[i].name;
-	}
-
-	ret = msm8994_add_dailink("msm8994-tomtom-mtp-snd-card", dailink, 1);
-	if (ret)
-		dev_err(dev, "%d:Error while adding DAI link\n", ret);
-
-	return ret;
-}
-
 /*
  * gb_snd management functions
  */
@@ -542,11 +483,20 @@ static int gbaudio_register_codec(struct gbaudio_codec_info *gbcodec)
 	int ret, i;
 	struct device *dev = gbcodec->dev;
 	struct gb_connection *connection = gbcodec->mgmt_connection;
+	struct snd_soc_codec_driver *soc_codec_dev_gbcodec;
 	/*
 	 * FIXME: malloc for topology happens via audio_gb driver
 	 * should be done within codec driver itself
 	 */
 	struct gb_audio_topology *topology;
+
+	soc_codec_dev_gbcodec = devm_kzalloc(gbcodec->dev,
+					     sizeof(*soc_codec_dev_gbcodec),
+					     GFP_KERNEL);
+	if (!soc_codec_dev_gbcodec) {
+		dev_err(gbcodec->dev, "Malloc failed for codec_driver\n");
+		return -ENOMEM;
+	}
 
 	ret = gb_connection_enable(connection);
 	if (ret) {
@@ -572,19 +522,32 @@ static int gbaudio_register_codec(struct gbaudio_codec_info *gbcodec)
 	gbcodec->topology = topology;
 
 	/* update codec info */
-	soc_codec_dev_gbcodec.controls = gbcodec->kctls;
-	soc_codec_dev_gbcodec.num_controls = gbcodec->num_kcontrols;
-	soc_codec_dev_gbcodec.dapm_widgets = gbcodec->widgets;
-	soc_codec_dev_gbcodec.num_dapm_widgets = gbcodec->num_dapm_widgets;
-	soc_codec_dev_gbcodec.dapm_routes = gbcodec->routes;
-	soc_codec_dev_gbcodec.num_dapm_routes = gbcodec->num_dapm_routes;
+	soc_codec_dev_gbcodec->probe = gbcodec_probe,
+	soc_codec_dev_gbcodec->remove = gbcodec_remove,
+
+	soc_codec_dev_gbcodec->read = gbcodec_read,
+	soc_codec_dev_gbcodec->write = gbcodec_write,
+
+	soc_codec_dev_gbcodec->reg_cache_size = GBCODEC_REG_COUNT,
+	soc_codec_dev_gbcodec->reg_cache_default = gbcodec_reg_defaults,
+	soc_codec_dev_gbcodec->reg_word_size = 1,
+
+	soc_codec_dev_gbcodec->idle_bias_off = true,
+	soc_codec_dev_gbcodec->ignore_pmdown_time = 1,
+
+	soc_codec_dev_gbcodec->controls = gbcodec->kctls;
+	soc_codec_dev_gbcodec->num_controls = gbcodec->num_kcontrols;
+	soc_codec_dev_gbcodec->dapm_widgets = gbcodec->widgets;
+	soc_codec_dev_gbcodec->num_dapm_widgets = gbcodec->num_dapm_widgets;
+	soc_codec_dev_gbcodec->dapm_routes = gbcodec->routes;
+	soc_codec_dev_gbcodec->num_dapm_routes = gbcodec->num_dapm_routes;
 
 	/* update DAI info */
 	for (i = 0; i < gbcodec->num_dais; i++)
 		gbcodec->dais[i].ops = &gbcodec_dai_ops;
 
 	/* register codec */
-	ret = snd_soc_register_codec(dev, &soc_codec_dev_gbcodec,
+	ret = snd_soc_register_codec(dev, soc_codec_dev_gbcodec,
 				     gbcodec->dais, 1);
 	if (ret) {
 		dev_err(dev, "%d:Failed to register codec\n", ret);
@@ -592,11 +555,13 @@ static int gbaudio_register_codec(struct gbaudio_codec_info *gbcodec)
 	}
 
 	/* update DAI links in response to this codec */
-	ret = gbaudio_add_dailinks(gbcodec);
+	ret = msm8994_add_dailink("msm8994-tomtom-mtp-snd-card", gbcodec->name,
+				  gbcodec->dais[0].name, 1);
 	if (ret) {
 		dev_err(dev, "%d: Failed to add DAI links\n", ret);
 		goto add_dailink_err;
 	}
+	gbcodec->num_dai_links = 1;
 
 	return 0;
 
@@ -615,8 +580,8 @@ tplg_fetch_err:
 static void gbaudio_unregister_codec(struct gbaudio_codec_info *gbcodec)
 {
 	gb_audio_cleanup(gbcodec);
-	msm8994_remove_dailink("msm8994-tomtom-mtp-snd-card", &gbaudio_dailink,
-			       1);
+	msm8994_remove_dailink("msm8994-tomtom-mtp-snd-card", gbcodec->name,
+			       gbcodec->dais[0].name, 1);
 	snd_soc_unregister_codec(gbcodec->dev);
 	gbaudio_tplg_release(gbcodec);
 	kfree(gbcodec->topology);
@@ -792,7 +757,7 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	gbcodec->manager_id = gb_audio_manager_add(&desc);
 
 	atomic_set(&gbcodec->is_connected, 1);
-	list_add(&gbcodec->list, &gb_codec_list);
+	list_add_tail(&gbcodec->list, &gb_codec_list);
 	dev_dbg(dev, "Add GB Audio device:%s\n", gbcodec->name);
 	mutex_unlock(&gb_codec_list_lock);
 
@@ -826,7 +791,6 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 
 	mutex_lock(&gb_codec_list_lock);
 	atomic_set(&gbcodec->is_connected, 0);
-	list_del(&gbcodec->list);
 	/* inform uevent to above layers */
 	gb_audio_manager_remove(gbcodec->manager_id);
 
@@ -842,6 +806,7 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 	}
 	gb_connection_destroy(gbcodec->mgmt_connection);
 	gbcodec->mgmt_connection = NULL;
+	list_del(&gbcodec->list);
 	mutex_unlock(&gbcodec->lock);
 
 	devm_kfree(&bundle->dev, gbcodec);
