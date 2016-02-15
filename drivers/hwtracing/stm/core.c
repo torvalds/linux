@@ -233,7 +233,7 @@ static int find_free_channels(unsigned long *bitmap, unsigned int start,
 	return -1;
 }
 
-static unsigned int
+static int
 stm_find_master_chan(struct stm_device *stm, unsigned int width,
 		     unsigned int *mstart, unsigned int mend,
 		     unsigned int *cstart, unsigned int cend)
@@ -293,7 +293,7 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 		goto unlock;
 
 	ret = stm_find_master_chan(stm, width, &midx, mend, &cidx, cend);
-	if (ret)
+	if (ret < 0)
 		goto unlock;
 
 	output->master = midx;
