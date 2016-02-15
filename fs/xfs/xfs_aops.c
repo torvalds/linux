@@ -522,38 +522,6 @@ xfs_submit_ioend(
 }
 
 /*
- * Cancel submission of all buffer_heads so far in this endio.
- * Toss the endio too.  Only ever called for the initial page
- * in a writepage request, so only ever one page.
- */
-STATIC void
-xfs_cancel_ioend(
-	xfs_ioend_t		*ioend)
-{
-	xfs_ioend_t		*next;
-	struct buffer_head	*bh, *next_bh;
-
-	do {
-		next = ioend->io_list;
-		bh = ioend->io_buffer_head;
-		do {
-			next_bh = bh->b_private;
-			clear_buffer_async_write(bh);
-			/*
-			 * The unwritten flag is cleared when added to the
-			 * ioend. We're not submitting for I/O so mark the
-			 * buffer unwritten again for next time around.
-			 */
-			if (ioend->io_type == XFS_IO_UNWRITTEN)
-				set_buffer_unwritten(bh);
-			unlock_buffer(bh);
-		} while ((bh = next_bh) != NULL);
-
-		mempool_free(ioend, xfs_ioend_pool);
-	} while ((ioend = next) != NULL);
-}
-
-/*
  * Test to see if we've been building up a completion structure for
  * earlier buffers -- if so, we try to append to this ioend if we
  * can, otherwise we finish off any current ioend and start another.
@@ -925,6 +893,28 @@ out_invalidate:
 	return;
 }
 
+static int
+xfs_writepage_submit(
+	struct xfs_ioend	*ioend,
+	struct xfs_ioend	*iohead,
+	struct writeback_control *wbc,
+	int			status)
+{
+	struct blk_plug		plug;
+
+	/* Reserve log space if we might write beyond the on-disk inode size. */
+	if (!status && ioend && ioend->io_type != XFS_IO_UNWRITTEN &&
+	    xfs_ioend_is_append(ioend))
+		status = xfs_setfilesize_trans_alloc(ioend);
+
+	if (iohead) {
+		blk_start_plug(&plug);
+		xfs_submit_ioend(wbc, iohead, status);
+		blk_finish_plug(&plug);
+	}
+	return status;
+}
+
 /*
  * Write out a dirty page.
  *
@@ -1136,6 +1126,7 @@ xfs_vm_writepage(
 		return 0;
 
 	ASSERT(iohead);
+	ASSERT(err == 0);
 
 	/*
 	 * Any errors from this point onwards need tobe reported through the IO
@@ -1161,25 +1152,33 @@ xfs_vm_writepage(
 				  wbc, end_index);
 	}
 
-
-	/*
-	 * Reserve log space if we might write beyond the on-disk inode size.
-	 */
-	err = 0;
-	if (ioend->io_type != XFS_IO_UNWRITTEN && xfs_ioend_is_append(ioend))
-		err = xfs_setfilesize_trans_alloc(ioend);
-
-	xfs_submit_ioend(wbc, iohead, err);
-
-	return 0;
+	return xfs_writepage_submit(ioend, iohead, wbc, 0);
 
 error:
-	if (iohead)
-		xfs_cancel_ioend(iohead);
+	/*
+	 * On error, we have to fail the iohead here because we buffers locked
+	 * in the ioend chain. If we don't do this, we'll deadlock invalidating
+	 * the page as that tries to lock the buffers on the page. Also, because
+	 * we may have set pages under writeback, we have to run IO completion to
+	 * mark the error state of the IO appropriately, so we can't cancel the
+	 * ioend directly here. That means we have to mark this page as under
+	 * writeback if we included any buffers from it in the ioend chain.
+	 */
+	if (count)
+		xfs_start_page_writeback(page, 0, count);
+	xfs_writepage_submit(ioend, iohead, wbc, err);
 
-	xfs_aops_discard_page(page);
-	ClearPageUptodate(page);
-	unlock_page(page);
+	/*
+	 * We can only discard the page we had the IO error on if we haven't
+	 * included it in the ioend above. If it has already been errored out,
+	 * the it is unlocked and we can't touch it here.
+	 */
+	if (!count) {
+		xfs_aops_discard_page(page);
+		ClearPageUptodate(page);
+		unlock_page(page);
+	}
+	mapping_set_error(page->mapping, err);
 	return err;
 
 redirty:
