@@ -2272,6 +2272,20 @@ unsigned int intel_tile_height(const struct drm_i915_private *dev_priv,
 			intel_tile_width_bytes(dev_priv, fb_modifier, cpp);
 }
 
+/* Return the tile dimensions in pixel units */
+static void intel_tile_dims(const struct drm_i915_private *dev_priv,
+			    unsigned int *tile_width,
+			    unsigned int *tile_height,
+			    uint64_t fb_modifier,
+			    unsigned int cpp)
+{
+	unsigned int tile_width_bytes =
+		intel_tile_width_bytes(dev_priv, fb_modifier, cpp);
+
+	*tile_width = tile_width_bytes / cpp;
+	*tile_height = intel_tile_size(dev_priv) / tile_width_bytes;
+}
+
 unsigned int
 intel_fb_align_height(struct drm_device *dev, unsigned int height,
 		      uint32_t pixel_format, uint64_t fb_modifier)
@@ -2288,7 +2302,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 	struct intel_rotation_info *info = &view->params.rotated;
-	unsigned int tile_size, tile_width_bytes, tile_height, cpp;
+	unsigned int tile_size, tile_width, tile_height, cpp;
 
 	*view = i915_ggtt_view_normal;
 
@@ -2309,19 +2323,19 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	tile_size = intel_tile_size(dev_priv);
 
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-	tile_width_bytes = intel_tile_width_bytes(dev_priv, fb->modifier[0], cpp);
-	tile_height = tile_size / tile_width_bytes;
+	intel_tile_dims(dev_priv, &tile_width, &tile_height,
+			fb->modifier[0], cpp);
 
-	info->width_pages = DIV_ROUND_UP(fb->pitches[0], tile_width_bytes);
+	info->width_pages = DIV_ROUND_UP(fb->pitches[0], tile_width * cpp);
 	info->height_pages = DIV_ROUND_UP(fb->height, tile_height);
 	info->size = info->width_pages * info->height_pages * tile_size;
 
 	if (info->pixel_format == DRM_FORMAT_NV12) {
 		cpp = drm_format_plane_cpp(fb->pixel_format, 1);
-		tile_width_bytes = intel_tile_width_bytes(dev_priv, fb->modifier[1], cpp);
-		tile_height = tile_size / tile_width_bytes;
+		intel_tile_dims(dev_priv, &tile_width, &tile_height,
+				fb->modifier[1], cpp);
 
-		info->width_pages_uv = DIV_ROUND_UP(fb->pitches[1], tile_width_bytes);
+		info->width_pages_uv = DIV_ROUND_UP(fb->pitches[1], tile_width * cpp);
 		info->height_pages_uv = DIV_ROUND_UP(fb->height / 2, tile_height);
 		info->size_uv = info->width_pages_uv * info->height_pages_uv * tile_size;
 	}
@@ -2449,29 +2463,43 @@ static void intel_unpin_fb_obj(struct drm_framebuffer *fb,
 	i915_gem_object_unpin_from_display_plane(obj, &view);
 }
 
-/* Computes the linear offset to the base tile and adjusts x, y. bytes per pixel
- * is assumed to be a power-of-two. */
+/*
+ * Computes the linear offset to the base tile and adjusts
+ * x, y. bytes per pixel is assumed to be a power-of-two.
+ *
+ * In the 90/270 rotated case, x and y are assumed
+ * to be already rotated to match the rotated GTT view, and
+ * pitch is the tile_height aligned framebuffer height.
+ */
 u32 intel_compute_tile_offset(struct drm_i915_private *dev_priv,
 			      int *x, int *y,
 			      uint64_t fb_modifier,
 			      unsigned int cpp,
-			      unsigned int pitch)
+			      unsigned int pitch,
+			      unsigned int rotation)
 {
 	if (fb_modifier != DRM_FORMAT_MOD_NONE) {
-		unsigned int tile_size, tile_width_bytes, tile_height;
-		unsigned int tile_rows, tiles;
+		unsigned int tile_size, tile_width, tile_height;
+		unsigned int tile_rows, tiles, pitch_tiles;
 
 		tile_size = intel_tile_size(dev_priv);
-		tile_width_bytes = intel_tile_width_bytes(dev_priv, fb_modifier, cpp);
-		tile_height = tile_size / tile_width_bytes;
+		intel_tile_dims(dev_priv, &tile_width, &tile_height,
+				fb_modifier, cpp);
+
+		if (intel_rotation_90_or_270(rotation)) {
+			pitch_tiles = pitch / tile_height;
+			swap(tile_width, tile_height);
+		} else {
+			pitch_tiles = pitch / (tile_width * cpp);
+		}
 
 		tile_rows = *y / tile_height;
 		*y %= tile_height;
 
-		tiles = *x / (tile_width_bytes/cpp);
-		*x %= tile_width_bytes/cpp;
+		tiles = *x / tile_width;
+		*x %= tile_width;
 
-		return tile_rows * pitch * tile_height + tiles * tile_size;
+		return (tile_rows * pitch_tiles + tiles) * tile_size;
 	} else {
 		unsigned int alignment = intel_linear_alignment(dev_priv) - 1;
 		unsigned int offset;
@@ -2716,6 +2744,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	u32 linear_offset;
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
+	unsigned int rotation = plane_state->base.rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	int x = plane_state->src.x1 >> 16;
 	int y = plane_state->src.y1 >> 16;
@@ -2782,13 +2811,13 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 		intel_crtc->dspaddr_offset =
 			intel_compute_tile_offset(dev_priv, &x, &y,
 						  fb->modifier[0], cpp,
-						  fb->pitches[0]);
+						  fb->pitches[0], rotation);
 		linear_offset -= intel_crtc->dspaddr_offset;
 	} else {
 		intel_crtc->dspaddr_offset = linear_offset;
 	}
 
-	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
+	if (rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
 		x += (crtc_state->pipe_src_w - 1);
@@ -2846,6 +2875,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	u32 linear_offset;
 	u32 dspcntr;
 	i915_reg_t reg = DSPCNTR(plane);
+	unsigned int rotation = plane_state->base.rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	int x = plane_state->src.x1 >> 16;
 	int y = plane_state->src.y1 >> 16;
@@ -2889,9 +2919,9 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	intel_crtc->dspaddr_offset =
 		intel_compute_tile_offset(dev_priv, &x, &y,
 					  fb->modifier[0], cpp,
-					  fb->pitches[0]);
+					  fb->pitches[0], rotation);
 	linear_offset -= intel_crtc->dspaddr_offset;
-	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
+	if (rotation == BIT(DRM_ROTATE_180)) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
 		if (!IS_HASWELL(dev) && !IS_BROADWELL(dev)) {

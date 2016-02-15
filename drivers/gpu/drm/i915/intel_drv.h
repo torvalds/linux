@@ -1199,7 +1199,8 @@ u32 intel_compute_tile_offset(struct drm_i915_private *dev_priv,
 			      int *x, int *y,
 			      uint64_t fb_modifier,
 			      unsigned int cpp,
-			      unsigned int pitch);
+			      unsigned int pitch,
+			      unsigned int rotation);
 void intel_prepare_reset(struct drm_device *dev);
 void intel_finish_reset(struct drm_device *dev);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
