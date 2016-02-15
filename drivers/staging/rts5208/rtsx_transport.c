@@ -91,12 +91,10 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 			unsigned int sglen = sg->length - *offset;
 
 			if (sglen > buflen - cnt) {
-
 				/* Transfer ends within this s-g entry */
 				sglen = buflen - cnt;
 				*offset += sglen;
 			} else {
-
 				/* Transfer continues to next s-g entry */
 				*offset = 0;
 				++*index;
@@ -152,7 +150,6 @@ void rtsx_stor_get_xfer_buf(unsigned char *buffer,
 	if (buflen < scsi_bufflen(srb))
 		scsi_set_resid(srb, scsi_bufflen(srb) - buflen);
 }
-
 
 /***********************************************************************
  * Transport routines
