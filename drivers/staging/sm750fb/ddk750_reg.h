@@ -873,8 +873,9 @@
 #define PANEL_VERTICAL_TOTAL_DISPLAY_END_MASK         0x7ff
 
 #define PANEL_VERTICAL_SYNC                           0x080030
-#define PANEL_VERTICAL_SYNC_HEIGHT                    21:16
-#define PANEL_VERTICAL_SYNC_START                     10:0
+#define PANEL_VERTICAL_SYNC_HEIGHT_SHIFT              16
+#define PANEL_VERTICAL_SYNC_HEIGHT_MASK               (0x3f << 16)
+#define PANEL_VERTICAL_SYNC_START_MASK                0x7ff
 
 #define PANEL_CURRENT_LINE                            0x080034
 #define PANEL_CURRENT_LINE_LINE                       10:0
