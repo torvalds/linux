@@ -1523,14 +1523,8 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	}
 
 	/* Use only one "off" state if there were no states declared */
-	if (genpd->state_count == 0) {
-		genpd->states[0].power_on_latency_ns =
-					genpd->power_on_latency_ns;
-		genpd->states[0].power_off_latency_ns =
-					genpd->power_off_latency_ns;
-
+	if (genpd->state_count == 0)
 		genpd->state_count = 1;
-	}
 
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
