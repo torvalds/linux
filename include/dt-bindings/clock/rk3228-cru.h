@@ -29,6 +29,7 @@
 #define SCLK_SDMMC		68
 #define SCLK_SDIO		69
 #define SCLK_EMMC		71
+#define SCLK_TSADC		72
 #define SCLK_UART0		77
 #define SCLK_UART1		78
 #define SCLK_UART2		79
@@ -68,6 +69,7 @@
 #define PCLK_UART0		341
 #define PCLK_UART1		342
 #define PCLK_UART2		343
+#define PCLK_TSADC		344
 #define PCLK_PWM		350
 #define PCLK_TIMER		353
 #define PCLK_PERI		363
