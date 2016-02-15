@@ -50,9 +50,11 @@ ENTRY(shmobile_smp_boot)
 	mrc	p15, 0, r1, c0, c0, 5		@ r1 = MPIDR
 	and	r0, r1, r0			@ r0 = cpu_logical_map() value
 	mov	r1, #0				@ r1 = CPU index
-	adr	r5, 1f				@ array of per-cpu mpidr values
-	adr	r6, 2f				@ array of per-cpu functions
-	adr	r7, 3f				@ array of per-cpu arguments
+	adr	r2, 1f
+	ldmia	r2, {r5, r6, r7}
+	add	r5, r5, r2			@ array of per-cpu mpidr values
+	add	r6, r6, r2			@ array of per-cpu functions
+	add	r7, r7, r2			@ array of per-cpu arguments
 
 shmobile_smp_boot_find_mpidr:
 	ldr	r8, [r5, r1, lsl #2]
@@ -80,12 +82,18 @@ ENTRY(shmobile_smp_sleep)
 	b	shmobile_smp_boot
 ENDPROC(shmobile_smp_sleep)
 
+	.align	2
+1:	.long	shmobile_smp_mpidr - .
+	.long	shmobile_smp_fn - 1b
+	.long	shmobile_smp_arg - 1b
+
+	.bss
 	.globl	shmobile_smp_mpidr
 shmobile_smp_mpidr:
-1:	.space	NR_CPUS * 4
+	.space	NR_CPUS * 4
 	.globl	shmobile_smp_fn
 shmobile_smp_fn:
-2:	.space	NR_CPUS * 4
+	.space	NR_CPUS * 4
 	.globl	shmobile_smp_arg
 shmobile_smp_arg:
-3:	.space	NR_CPUS * 4
+	.space	NR_CPUS * 4
