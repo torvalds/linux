@@ -488,6 +488,7 @@ bool MACbSafeTxOff(struct vnt_private *priv)
 bool MACbSafeStop(struct vnt_private *priv)
 {
 	void __iomem *dwIoBase = priv->PortOffset;
+
 	MACvRegBitsOff(dwIoBase, MAC_REG_TCR, TCR_AUTOBCNTX);
 
 	if (!MACbSafeRxOff(priv)) {
