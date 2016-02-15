@@ -186,9 +186,9 @@ static const u32 platform_config_table_limits[PLATFORM_CONFIG_TABLE_MAX] = {
  */
 
 /*
- *=====================================================
+ * =====================================================
  *  System table encodings
- *====================================================
+ * =====================================================
  */
 #define PLATFORM_CONFIG_MAGIC_NUM		0x3d4f5041
 #define PLATFORM_CONFIG_MAGIC_NUMBER_LEN	4
@@ -208,9 +208,9 @@ enum platform_config_qsfp_power_class_encoding {
 };
 
 /*
- *=====================================================
+ * ====================================================
  *  Port table encodings
- *====================================================
+ * ====================================================
  */
 enum platform_config_port_type_encoding {
 	PORT_TYPE_UNKNOWN,

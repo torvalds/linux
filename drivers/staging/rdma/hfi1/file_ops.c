@@ -388,8 +388,10 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 				break;
 			}
 			if (dd->flags & HFI1_FORCED_FREEZE) {
-				/* Don't allow context reset if we are into
-				 * forced freeze */
+				/*
+				 * Don't allow context reset if we are into
+				 * forced freeze
+				 */
 				ret = -ENODEV;
 				break;
 			}

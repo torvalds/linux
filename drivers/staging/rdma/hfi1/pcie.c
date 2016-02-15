@@ -284,9 +284,11 @@ static void msix_setup(struct hfi1_devdata *dd, int pos, u32 *msixcnt,
 	struct msix_entry *msix_entry;
 	int i;
 
-	/* We can't pass hfi1_msix_entry array to msix_setup
+	/*
+	 * We can't pass hfi1_msix_entry array to msix_setup
 	 * so use a dummy msix_entry array and copy the allocated
-	 * irq back to the hfi1_msix_entry array. */
+	 * irq back to the hfi1_msix_entry array.
+	 */
 	msix_entry = kmalloc_array(nvec, sizeof(*msix_entry), GFP_KERNEL);
 	if (!msix_entry) {
 		ret = -ENOMEM;

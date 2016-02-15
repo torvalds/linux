@@ -6392,14 +6392,18 @@ static void dc_shutdown(struct hfi1_devdata *dd)
 	spin_unlock_irqrestore(&dd->dc8051_lock, flags);
 	/* Shutdown the LCB */
 	lcb_shutdown(dd, 1);
-	/* Going to OFFLINE would have causes the 8051 to put the
+	/*
+	 * Going to OFFLINE would have causes the 8051 to put the
 	 * SerDes into reset already. Just need to shut down the 8051,
-	 * itself. */
+	 * itself.
+	 */
 	write_csr(dd, DC_DC8051_CFG_RST, 0x1);
 }
 
-/* Calling this after the DC has been brought out of reset should not
- * do any damage. */
+/*
+ * Calling this after the DC has been brought out of reset should not
+ * do any damage.
+ */
 static void dc_start(struct hfi1_devdata *dd)
 {
 	unsigned long flags;
@@ -6525,8 +6529,10 @@ void handle_sma_message(struct work_struct *work)
 	u64 msg;
 	int ret;
 
-	/* msg is bytes 1-4 of the 40-bit idle message - the command code
-	   is stripped off */
+	/*
+	 * msg is bytes 1-4 of the 40-bit idle message - the command code
+	 * is stripped off
+	 */
 	ret = read_idle_sma(dd, &msg);
 	if (ret)
 		return;
@@ -6815,8 +6821,10 @@ void handle_link_up(struct work_struct *work)
 	}
 }
 
-/* Several pieces of LNI information were cached for SMA in ppd.
- * Reset these on link down */
+/*
+ * Several pieces of LNI information were cached for SMA in ppd.
+ * Reset these on link down
+ */
 static void reset_neighbor_info(struct hfi1_pportdata *ppd)
 {
 	ppd->neighbor_guid = 0;
@@ -6862,8 +6870,10 @@ void handle_link_down(struct work_struct *work)
 	/* disable the port */
 	clear_rcvctrl(ppd->dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
 
-	/* If there is no cable attached, turn the DC off. Otherwise,
-	 * start the link bring up. */
+	/*
+	 * If there is no cable attached, turn the DC off. Otherwise,
+	 * start the link bring up.
+	 */
 	if (!qsfp_mod_present(ppd)) {
 		dc_shutdown(ppd->dd);
 	} else {
@@ -7564,8 +7574,10 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	}
 
 	if (queue_link_down) {
-		/* if the link is already going down or disabled, do not
-		 * queue another */
+		/*
+		 * if the link is already going down or disabled, do not
+		 * queue another
+		 */
 		if ((ppd->host_link_state &
 		    (HLS_GOING_OFFLINE | HLS_LINK_COOLDOWN)) ||
 		    ppd->link_enabled == 0) {
@@ -7712,8 +7724,10 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			/* set status bit */
 			dd->err_info_rcvport.status_and_code |=
 				OPA_EI_STATUS_SMASK;
-			/* save first 2 flits in the packet that caused
-			 * the error */
+			/*
+			 * save first 2 flits in the packet that caused
+			 * the error
+			 */
 			 dd->err_info_rcvport.packet_flit1 = hdr0;
 			 dd->err_info_rcvport.packet_flit2 = hdr1;
 		}
@@ -7913,8 +7927,10 @@ static void is_reserved_int(struct hfi1_devdata *dd, unsigned int source)
 }
 
 static const struct is_table is_table[] = {
-/* start		     end
-				name func		interrupt func */
+/*
+ * start		 end
+ *				name func		interrupt func
+ */
 { IS_GENERAL_ERR_START,  IS_GENERAL_ERR_END,
 				is_misc_err_name,	is_misc_err_int },
 { IS_SDMAENG_ERR_START,  IS_SDMAENG_ERR_END,
@@ -10763,8 +10779,10 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 	 */
 	memset(changing, 0, sizeof(changing));
 	memset(lowering_dedicated, 0, sizeof(lowering_dedicated));
-	/* NOTE: Assumes that the individual VL bits are adjacent and in
-	   increasing order */
+	/*
+	 * NOTE: Assumes that the individual VL bits are adjacent and in
+	 * increasing order
+	 */
 	stat_mask =
 		SEND_CM_CREDIT_USED_STATUS_VL0_RETURN_CREDIT_STATUS_SMASK;
 	changing_mask = 0;
@@ -11129,8 +11147,10 @@ static void adjust_rcv_timeout(struct hfi1_ctxtdata *rcd, u32 npkts)
 	}
 
 	rcd->rcvavail_timeout = timeout;
-	/* timeout cannot be larger than rcv_intr_timeout_csr which has already
-	   been verified to be in range */
+	/*
+	 * timeout cannot be larger than rcv_intr_timeout_csr which has already
+	 * been verified to be in range
+	 */
 	write_kctxt_csr(dd, rcd->ctxt, RCV_AVAIL_TIME_OUT,
 		(u64)timeout << RCV_AVAIL_TIME_OUT_TIME_OUT_RELOAD_SHIFT);
 }
@@ -11323,8 +11343,10 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 	if (op & HFI1_RCVCTRL_TIDFLOW_DIS)
 		rcvctrl &= ~RCV_CTXT_CTRL_TID_FLOW_ENABLE_SMASK;
 	if (op & HFI1_RCVCTRL_ONE_PKT_EGR_ENB) {
-		/* In one-packet-per-eager mode, the size comes from
-		   the RcvArray entry. */
+		/*
+		 * In one-packet-per-eager mode, the size comes from
+		 * the RcvArray entry.
+		 */
 		rcvctrl &= ~RCV_CTXT_CTRL_EGR_BUF_SIZE_SMASK;
 		rcvctrl |= RCV_CTXT_CTRL_ONE_PACKET_PER_EGR_BUFFER_SMASK;
 	}
@@ -12524,7 +12546,8 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			me->type = IRQ_RCVCTXT;
 		} else {
 			/* not in our expected range - complain, then
-			   ignore it */
+			 * ignore it
+			 */
 			dd_dev_err(dd,
 				"Unexpected extra MSI-X interrupt %d\n", i);
 			continue;
@@ -12830,8 +12853,10 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 
 	/* PIO Send buffers */
 	/* SDMA Send buffers */
-	/* These are not normally read, and (presently) have no method
-	   to be read, so are not pre-initialized */
+	/*
+	 * These are not normally read, and (presently) have no method
+	 * to be read, so are not pre-initialized
+	 */
 
 	/* RcvHdrAddr */
 	/* RcvHdrTailAddr */
@@ -13026,8 +13051,10 @@ static void reset_misc_csrs(struct hfi1_devdata *dd)
 		write_csr(dd, MISC_CFG_RSA_SIGNATURE + (8 * i), 0);
 		write_csr(dd, MISC_CFG_RSA_MODULUS + (8 * i), 0);
 	}
-	/* MISC_CFG_SHA_PRELOAD leave alone - always reads 0 and can
-	   only be written 128-byte chunks */
+	/*
+	 * MISC_CFG_SHA_PRELOAD leave alone - always reads 0 and can
+	 * only be written 128-byte chunks
+	 */
 	/* init RSA engine to clear lingering errors */
 	write_csr(dd, MISC_CFG_RSA_CMD, 1);
 	write_csr(dd, MISC_CFG_RSA_MU, 0);
@@ -14045,8 +14072,10 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	dd->minrev = (dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT)
 			& CCE_REVISION_CHIP_REV_MINOR_MASK;
 
-	/* obtain the hardware ID - NOT related to unit, which is a
-	   software enumeration */
+	/*
+	 * obtain the hardware ID - NOT related to unit, which is a
+	 * software enumeration
+	 */
 	reg = read_csr(dd, CCE_REVISION2);
 	dd->hfi1_id = (reg >> CCE_REVISION2_HFI_ID_SHIFT)
 					& CCE_REVISION2_HFI_ID_MASK;

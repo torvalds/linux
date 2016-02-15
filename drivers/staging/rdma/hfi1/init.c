@@ -790,8 +790,10 @@ done:
 		for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 			ppd = dd->pport + pidx;
 
-			/* start the serdes - must be after interrupts are
-			   enabled so we are notified when the link goes up */
+			/*
+			 * start the serdes - must be after interrupts are
+			 * enabled so we are notified when the link goes up
+			 */
 			lastfail = bringup_serdes(ppd);
 			if (lastfail)
 				dd_dev_info(dd,
@@ -1188,8 +1190,10 @@ static int __init hfi1_mod_init(void)
 		user_credit_return_threshold = 100;
 
 	compute_krcvqs();
-	/* sanitize receive interrupt count, time must wait until after
-	   the hardware type is known */
+	/*
+	 * sanitize receive interrupt count, time must wait until after
+	 * the hardware type is known
+	 */
 	if (rcv_intr_count > RCV_HDR_HEAD_COUNTER_MASK)
 		rcv_intr_count = RCV_HDR_HEAD_COUNTER_MASK;
 	/* reject invalid combinations */

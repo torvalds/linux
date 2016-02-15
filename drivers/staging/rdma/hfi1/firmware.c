@@ -1294,8 +1294,10 @@ static int load_pcie_serdes_firmware(struct hfi1_devdata *dd,
 	/* step 3: enable XDMEM access */
 	sbus_request(dd, ra, 0x01, WRITE_SBUS_RECEIVER, 0x00000d40);
 	/* step 4: load firmware into SBus Master XDMEM */
-	/* NOTE: the dmem address, write_en, and wdata are all pre-packed,
-	   we only need to pick up the bytes and write them */
+	/*
+	 * NOTE: the dmem address, write_en, and wdata are all pre-packed,
+	 * we only need to pick up the bytes and write them
+	 */
 	for (i = 0; i < fdet->firmware_len; i += 4) {
 		sbus_request(dd, ra, 0x04, WRITE_SBUS_RECEIVER,
 					*(u32 *)&fdet->firmware_ptr[i]);
@@ -1305,8 +1307,10 @@ static int load_pcie_serdes_firmware(struct hfi1_devdata *dd,
 	/* step 6: allow SBus Spico to run */
 	sbus_request(dd, ra, 0x05, WRITE_SBUS_RECEIVER, 0x00000000);
 
-	/* steps 7-11: run RSA, if it succeeds, firmware is available to
-	   be swapped */
+	/*
+	 * steps 7-11: run RSA, if it succeeds, firmware is available to
+	 * be swapped
+	 */
 	return run_rsa(dd, "PCIe serdes", fdet->signature);
 }
 
@@ -1744,8 +1748,10 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 
 			src_ptr = (u32 *)((u8 *)src_ptr + seek);
 
-			/* We expect the field to be byte aligned and whole byte
-			 * lengths if we are here */
+			/*
+			 * We expect the field to be byte aligned and whole byte
+			 * lengths if we are here
+			 */
 			memcpy(data, src_ptr, wlen);
 			return 0;
 		}

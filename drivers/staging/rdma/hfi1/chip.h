@@ -79,8 +79,10 @@
 #define PIO_CMASK 0x7ff	/* counter mask for free and fill counters */
 #define MAX_EAGER_ENTRIES    2048	/* max receive eager entries */
 #define MAX_TID_PAIR_ENTRIES 1024	/* max receive expected pairs */
-/* Virtual? Allocation Unit, defined as AU = 8*2^vAU, 64 bytes, AU is fixed
-   at 64 bytes for all generation one devices */
+/*
+ * Virtual? Allocation Unit, defined as AU = 8*2^vAU, 64 bytes, AU is fixed
+ * at 64 bytes for all generation one devices
+ */
 #define CM_VAU 3
 /* HFI link credit count, AKA receive buffer depth (RBUF_DEPTH) */
 #define CM_GLOBAL_CREDITS 0x940
@@ -518,8 +520,10 @@ enum {
 #define LCB_CRC_48B			0x2	/* 48b CRC */
 #define LCB_CRC_12B_16B_PER_LANE	0x3	/* 12b-16b per lane CRC */
 
-/* the following enum is (almost) a copy/paste of the definition
- * in the OPA spec, section 20.2.2.6.8 (PortInfo) */
+/*
+ * the following enum is (almost) a copy/paste of the definition
+ * in the OPA spec, section 20.2.2.6.8 (PortInfo)
+ */
 enum {
 	PORT_LTP_CRC_MODE_NONE = 0,
 	PORT_LTP_CRC_MODE_14 = 1, /* 14-bit LTP CRC mode (optional) */

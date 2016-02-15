@@ -179,8 +179,10 @@ struct user_sdma_iovec {
 	unsigned npages;
 	/* array of pinned pages for this vector */
 	struct page **pages;
-	/* offset into the virtual address space of the vector at
-	 * which we last left off. */
+	/*
+	 * offset into the virtual address space of the vector at
+	 * which we last left off.
+	 */
 	u64 offset;
 };
 
@@ -596,8 +598,10 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	}
 
 	req->koffset = le32_to_cpu(req->hdr.kdeth.swdata[6]);
-	/* Calculate the initial TID offset based on the values of
-	   KDETH.OFFSET and KDETH.OM that are passed in. */
+	/*
+	 * Calculate the initial TID offset based on the values of
+	 * KDETH.OFFSET and KDETH.OM that are passed in.
+	 */
 	req->tidoffset = KDETH_GET(req->hdr.kdeth.ver_tid_offset, OFFSET) *
 		(KDETH_GET(req->hdr.kdeth.ver_tid_offset, OM) ?
 		 KDETH_OM_LARGE : KDETH_OM_SMALL);
@@ -742,8 +746,10 @@ static inline u32 compute_data_length(struct user_sdma_request *req,
 	} else if (req_opcode(req->info.ctrl) == EXPECTED) {
 		u32 tidlen = EXP_TID_GET(req->tids[req->tididx], LEN) *
 			PAGE_SIZE;
-		/* Get the data length based on the remaining space in the
-		 * TID pair. */
+		/*
+		 * Get the data length based on the remaining space in the
+		 * TID pair.
+		 */
 		len = min(tidlen - req->tidoffset, (u32)req->info.fragsize);
 		/* If we've filled up the TID pair, move to the next one. */
 		if (unlikely(!len) && ++req->tididx < req->n_tids &&
@@ -753,9 +759,11 @@ static inline u32 compute_data_length(struct user_sdma_request *req,
 			req->tidoffset = 0;
 			len = min_t(u32, tidlen, req->info.fragsize);
 		}
-		/* Since the TID pairs map entire pages, make sure that we
+		/*
+		 * Since the TID pairs map entire pages, make sure that we
 		 * are not going to try to send more data that we have
-		 * remaining. */
+		 * remaining.
+		 */
 		len = min(len, req->data_len - req->sent);
 	} else
 		len = min(req->data_len - req->sent, (u32)req->info.fragsize);
@@ -979,8 +987,10 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		req->sent += data_sent;
 		if (req->data_len) {
 			tx->iovecs[tx->idx].vec->offset += iov_offset;
-			/* If we've reached the end of the io vector, mark it
-			 * so the callback can unpin the pages and free it. */
+			/*
+			 * If we've reached the end of the io vector, mark it
+			 * so the callback can unpin the pages and free it.
+			 */
 			if (tx->iovecs[tx->idx].vec->offset ==
 			    tx->iovecs[tx->idx].vec->iov.iov_len)
 				tx->iovecs[tx->idx].flags |=
@@ -1216,8 +1226,10 @@ static int set_txreq_header(struct user_sdma_request *req,
 		if ((req->tidoffset) == (EXP_TID_GET(tidval, LEN) *
 					 PAGE_SIZE)) {
 			req->tidoffset = 0;
-			/* Since we don't copy all the TIDs, all at once,
-			 * we have to check again. */
+			/*
+			 * Since we don't copy all the TIDs, all at once,
+			 * we have to check again.
+			 */
 			if (++req->tididx > req->n_tids - 1 ||
 			    !req->tids[req->tididx]) {
 				return -EINVAL;
@@ -1298,8 +1310,10 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 		if ((req->tidoffset) == (EXP_TID_GET(tidval, LEN) *
 					 PAGE_SIZE)) {
 			req->tidoffset = 0;
-			/* Since we don't copy all the TIDs, all at once,
-			 * we have to check again. */
+			/*
+			 * Since we don't copy all the TIDs, all at once,
+			 * we have to check again.
+			 */
 			if (++req->tididx > req->n_tids - 1 ||
 			    !req->tids[req->tididx]) {
 				return -EINVAL;

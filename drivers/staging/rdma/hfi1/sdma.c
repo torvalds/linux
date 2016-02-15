@@ -2219,7 +2219,8 @@ static void __sdma_process_event(struct sdma_engine *sde,
 			 * of link up, then we need to start up.
 			 * This can happen when hw down is requested while
 			 * bringing the link up with traffic active on
-			 * 7220, e.g. */
+			 * 7220, e.g.
+			 */
 			ss->go_s99_running = 1;
 			/* fall through and start dma engine */
 		case sdma_event_e10_go_hw_start:

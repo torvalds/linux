@@ -718,8 +718,10 @@ struct hfi1_pportdata {
 	/* CA's max number of 64 entry units in the congestion control table */
 	u8 cc_max_table_entries;
 
-	/* begin congestion log related entries
-	 * cc_log_lock protects all congestion log related data */
+	/*
+	 * begin congestion log related entries
+	 * cc_log_lock protects all congestion log related data
+	 */
 	spinlock_t cc_log_lock ____cacheline_aligned_in_smp;
 	u8 threshold_cong_event_map[OPA_MAX_SLS / 8];
 	u16 threshold_event_counter;

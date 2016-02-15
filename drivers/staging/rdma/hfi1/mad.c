@@ -696,8 +696,10 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	/* read the cached value of DC_LCB_STS_ROUND_TRIP_LTP_CNT */
 	read_lcb_cache(DC_LCB_STS_ROUND_TRIP_LTP_CNT, &tmp);
 
-	/* this counter is 16 bits wide, but the replay_depth.wire
-	 * variable is only 8 bits */
+	/*
+	 * this counter is 16 bits wide, but the replay_depth.wire
+	 * variable is only 8 bits
+	 */
 	if (tmp > 0xff)
 		tmp = 0xff;
 	pi->replay_depth.wire = tmp;
@@ -1621,8 +1623,10 @@ static int __subn_set_opa_sc_to_vlt(struct opa_smp *smp, u32 am, u8 *data,
 	/* IB numbers ports from 1, hw from 0 */
 	ppd = dd->pport + (port - 1);
 	lstate = driver_lstate(ppd);
-	/* it's known that async_update is 0 by this point, but include
-	 * the explicit check for clarity */
+	/*
+	 * it's known that async_update is 0 by this point, but include
+	 * the explicit check for clarity
+	 */
 	if (!async_update &&
 	    (lstate == IB_PORT_ARMED || lstate == IB_PORT_ACTIVE)) {
 		smp->status |= IB_SMP_INVALID_FIELD;
@@ -1797,8 +1801,10 @@ static int __subn_get_opa_cable_info(struct opa_smp *smp, u32 am, u8 *data,
 #define __CI_PAGE_MASK ~(__CI_PAGE_SIZE - 1)
 #define __CI_PAGE_NUM(a) ((a) & __CI_PAGE_MASK)
 
-	/* check that addr is within spec, and
-	 * addr and (addr + len - 1) are on the same "page" */
+	/*
+	 * check that addr is within spec, and
+	 * addr and (addr + len - 1) are on the same "page"
+	 */
 	if (addr >= 4096 ||
 		(__CI_PAGE_NUM(addr) != __CI_PAGE_NUM(addr + len - 1))) {
 		smp->status |= IB_SMP_INVALID_FIELD;
@@ -1935,8 +1941,10 @@ static int __subn_set_opa_vl_arb(struct opa_smp *smp, u32 am, u8 *data,
 	case OPA_VLARB_HIGH_ELEMENTS:
 		(void)fm_set_table(ppd, FM_TBL_VL_HIGH_ARB, p);
 		break;
-	/* neither OPA_VLARB_PREEMPT_ELEMENTS, or OPA_VLARB_PREEMPT_MATRIX
-	 * can be changed from the default values */
+	/*
+	 * neither OPA_VLARB_PREEMPT_ELEMENTS, or OPA_VLARB_PREEMPT_MATRIX
+	 * can be changed from the default values
+	 */
 	case OPA_VLARB_PREEMPT_ELEMENTS:
 		/* FALLTHROUGH */
 	case OPA_VLARB_PREEMPT_MATRIX:
@@ -2148,8 +2156,10 @@ struct opa_port_data_counters_msg {
 };
 
 struct opa_port_error_counters64_msg {
-	/* Request contains first two fields, response contains the
-	 * whole magilla */
+	/*
+	 * Request contains first two fields, response contains the
+	 * whole magilla
+	 */
 	__be64 port_select_mask[4];
 	__be32 vl_select_mask;
 
@@ -2673,11 +2683,12 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 		/* rsp->port_vl_xmit_time_cong is 0 for HFIs */
 		/* rsp->port_vl_xmit_wasted_bw ??? */
 		/* port_vl_xmit_wait_data - TXE (table 13-9 HFI spec) ???
-		 * does this differ from rsp->vls[vfi].port_vl_xmit_wait */
+		 * does this differ from rsp->vls[vfi].port_vl_xmit_wait
+		 */
 		/*rsp->vls[vfi].port_vl_mark_fecn =
-			cpu_to_be64(read_csr(dd, DCC_PRF_PORT_VL_MARK_FECN_CNT
-				+ offset));
-		*/
+		 *	cpu_to_be64(read_csr(dd, DCC_PRF_PORT_VL_MARK_FECN_CNT
+		 *		+ offset));
+		 */
 		vlinfo++;
 		vfi++;
 	}
@@ -2996,8 +3007,10 @@ static int pma_get_opa_errorinfo(struct opa_pma_mad *pmp,
 	/* ExcessiverBufferOverrunInfo */
 	reg = read_csr(dd, RCV_ERR_INFO);
 	if (reg & RCV_ERR_INFO_RCV_EXCESS_BUFFER_OVERRUN_SMASK) {
-		/* if the RcvExcessBufferOverrun bit is set, save SC of
-		 * first pkt that encountered an excess buffer overrun */
+		/*
+		 * if the RcvExcessBufferOverrun bit is set, save SC of
+		 * first pkt that encountered an excess buffer overrun
+		 */
 		u8 tmp = (u8)reg;
 
 		tmp &=  RCV_ERR_INFO_RCV_EXCESS_BUFFER_OVERRUN_SC_SMASK;
@@ -3093,8 +3106,9 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 		write_dev_cntr(dd, C_DC_RCV_BBL, CNTR_INVALID_VL, 0);
 
 	/* Only applicable for switch */
-	/*if (counter_select & CS_PORT_MARK_FECN)
-		write_csr(dd, DCC_PRF_PORT_MARK_FECN_CNT, 0);*/
+	/* if (counter_select & CS_PORT_MARK_FECN)
+	 *	write_csr(dd, DCC_PRF_PORT_MARK_FECN_CNT, 0);
+	 */
 
 	if (counter_select & CS_PORT_RCV_CONSTRAINT_ERRORS)
 		write_port_cntr(ppd, C_SW_RCV_CSTR_ERR, CNTR_INVALID_VL, 0);
@@ -3167,9 +3181,9 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 		if (counter_select & CS_PORT_RCV_BUBBLE)
 			write_dev_cntr(dd, C_DC_RCV_BBL_VL, idx_from_vl(vl), 0);
 
-		/*if (counter_select & CS_PORT_MARK_FECN)
-		     write_csr(dd, DCC_PRF_PORT_VL_MARK_FECN_CNT + offset, 0);
-		*/
+		/* if (counter_select & CS_PORT_MARK_FECN)
+		 *     write_csr(dd, DCC_PRF_PORT_VL_MARK_FECN_CNT + offset, 0);
+		 */
 		/* port_vl_xmit_discards ??? */
 	}
 
@@ -3226,8 +3240,10 @@ static int pma_set_opa_errorinfo(struct opa_pma_mad *pmp,
 
 	/* ExcessiverBufferOverrunInfo */
 	if (error_info_select & ES_EXCESSIVE_BUFFER_OVERRUN_INFO)
-		/* status bit is essentially kept in the h/w - bit 5 of
-		 * RCV_ERR_INFO */
+		/*
+		 * status bit is essentially kept in the h/w - bit 5 of
+		 * RCV_ERR_INFO
+		 */
 		write_csr(dd, RCV_ERR_INFO,
 			  RCV_ERR_INFO_RCV_EXCESS_BUFFER_OVERRUN_SMASK);
 

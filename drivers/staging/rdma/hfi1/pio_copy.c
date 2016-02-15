@@ -86,8 +86,10 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 	dend = dest + ((count >> 1) * sizeof(u64));
 
 	if (dend < send) {
-		/* all QWORD data is within the SOP block, does *not*
-		   reach the end of the SOP block */
+		/*
+		 * all QWORD data is within the SOP block, does *not*
+		 * reach the end of the SOP block
+		 */
 
 		while (dest < dend) {
 			writeq(*(u64 *)from, dest);
@@ -152,8 +154,10 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 		writeq(val.val64, dest);
 		dest += sizeof(u64);
 	}
-	/* fill in rest of block, no need to check pbuf->end
-	   as we only wrap on a block boundary */
+	/*
+	 * fill in rest of block, no need to check pbuf->end
+	 * as we only wrap on a block boundary
+	 */
 	while (((unsigned long)dest & PIO_BLOCK_MASK) != 0) {
 		writeq(0, dest);
 		dest += sizeof(u64);
@@ -466,8 +470,10 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 	dend = dest + ((nbytes >> 3) * sizeof(u64));
 
 	if (dend < send) {
-		/* all QWORD data is within the SOP block, does *not*
-		   reach the end of the SOP block */
+		/*
+		 * all QWORD data is within the SOP block, does *not*
+		 * reach the end of the SOP block
+		 */
 
 		while (dest < dend) {
 			writeq(*(u64 *)from, dest);
@@ -562,8 +568,10 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 		void __iomem *send;		/* SOP end */
 		void __iomem *xend;
 
-		/* calculate the end of data or end of block, whichever
-		   comes first */
+		/*
+		 * calculate the end of data or end of block, whichever
+		 * comes first
+		 */
 		send = pbuf->start + PIO_BLOCK_SIZE;
 		xend = send < dend ? send : dend;
 
@@ -656,8 +664,10 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 		void __iomem *send;		/* SOP end */
 		void __iomem *xend;
 
-		/* calculate the end of data or end of block, whichever
-		   comes first */
+		/*
+		 * calculate the end of data or end of block, whichever
+		 * comes first
+		 */
 		send = pbuf->start + PIO_BLOCK_SIZE;
 		xend = send < dend ? send : dend;
 

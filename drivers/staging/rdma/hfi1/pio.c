@@ -177,8 +177,10 @@ static struct mem_pool_config sc_mem_pool_config[NUM_SC_POOLS] = {
 
 /* memory pool information, used when calculating final sizes */
 struct mem_pool_info {
-	int centipercent;	/* 100th of 1% of memory to use, -1 if blocks
-				   already set */
+	int centipercent;	/*
+				 * 100th of 1% of memory to use, -1 if blocks
+				 * already set
+				 */
 	int count;		/* count of contexts in the pool */
 	int blocks;		/* block size of the pool */
 	int size;		/* context size, in blocks */
@@ -1429,8 +1431,10 @@ retry:
 	next = head + 1;
 	if (next >= sc->sr_size)
 		next = 0;
-	/* update the head - must be last! - the releaser can look at fields
-	   in pbuf once we move the head */
+	/*
+	 * update the head - must be last! - the releaser can look at fields
+	 * in pbuf once we move the head
+	 */
 	smp_wmb();
 	sc->sr_head = next;
 	spin_unlock_irqrestore(&sc->alloc_lock, flags);
