@@ -538,8 +538,9 @@ static int rx8025_probe(struct i2c_client *client,
 	if (client->irq > 0) {
 		dev_info(&client->dev, "IRQ %d supplied\n", client->irq);
 		err = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-						rx8025_handle_irq, 0, "rx8025",
-						client);
+						rx8025_handle_irq,
+						IRQF_ONESHOT,
+						"rx8025", client);
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
