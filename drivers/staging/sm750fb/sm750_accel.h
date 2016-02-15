@@ -34,8 +34,9 @@
 #define DE_DESTINATION_Y_MASK                           0xffff
 
 #define DE_DIMENSION                                    0x8
-#define DE_DIMENSION_X                                  28:16
-#define DE_DIMENSION_Y_ET                               15:0
+#define DE_DIMENSION_X_SHIFT                            16
+#define DE_DIMENSION_X_MASK                             (0x1fff << 16)
+#define DE_DIMENSION_Y_ET_MASK                          0x1fff
 
 #define DE_CONTROL                                      0xC
 #define DE_CONTROL_STATUS                               31:31

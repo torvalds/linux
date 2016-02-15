@@ -119,8 +119,8 @@ int hw_fillrect(struct lynx_accel *accel,
 		  (y & DE_DESTINATION_Y_MASK)); /* dpr4 */
 
 	write_dpr(accel, DE_DIMENSION,
-			FIELD_VALUE(0, DE_DIMENSION, X, width)|
-			FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr8 */
+		  ((width << DE_DIMENSION_X_SHIFT) & DE_DIMENSION_X_MASK) |
+		  (height & DE_DIMENSION_Y_ET_MASK)); /* dpr8 */
 
 	deCtrl =
 		FIELD_SET(0, DE_CONTROL, STATUS, START)|
@@ -261,8 +261,8 @@ unsigned int rop2)   /* ROP value */
 		  ((dx << DE_DESTINATION_X_SHIFT) & DE_DESTINATION_X_MASK) |
 		  (dy & DE_DESTINATION_Y_MASK)); /* dpr04 */
 	write_dpr(accel, DE_DIMENSION,
-		  FIELD_VALUE(0, DE_DIMENSION, X,    width) |
-		  FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
+		  ((width << DE_DIMENSION_X_SHIFT) & DE_DIMENSION_X_MASK) |
+		  (height & DE_DIMENSION_Y_ET_MASK)); /* dpr08 */
 
 	de_ctrl = FIELD_VALUE(0, DE_CONTROL, ROP, rop2) |
 		  FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2) |
@@ -359,8 +359,8 @@ int hw_imageblit(struct lynx_accel *accel,
 		  (dy & DE_DESTINATION_Y_MASK)); /* dpr04 */
 
 	write_dpr(accel, DE_DIMENSION,
-		  FIELD_VALUE(0, DE_DIMENSION, X,    width) |
-		  FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
+		  ((width << DE_DIMENSION_X_SHIFT) & DE_DIMENSION_X_MASK) |
+		  (height & DE_DIMENSION_Y_ET_MASK)); /* dpr08 */
 
 	write_dpr(accel, DE_FOREGROUND, fColor);
 	write_dpr(accel, DE_BACKGROUND, bColor);
