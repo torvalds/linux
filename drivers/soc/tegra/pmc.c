@@ -176,7 +176,10 @@ static void tegra_pmc_writel(u32 value, unsigned long offset)
 
 static inline bool tegra_powergate_state(int id)
 {
-	return (tegra_pmc_readl(PWRGATE_STATUS) & BIT(id)) != 0;
+	if (id == TEGRA_POWERGATE_3D && pmc->soc->has_gpu_clamps)
+		return (tegra_pmc_readl(GPU_RG_CNTRL) & 0x1) == 0;
+	else
+		return (tegra_pmc_readl(PWRGATE_STATUS) & BIT(id)) != 0;
 }
 
 static inline bool tegra_powergate_is_valid(int id)
@@ -191,6 +194,9 @@ static inline bool tegra_powergate_is_valid(int id)
  */
 static int tegra_powergate_set(unsigned int id, bool new_state)
 {
+	if (id == TEGRA_POWERGATE_3D && pmc->soc->has_gpu_clamps)
+		return -EINVAL;
+
 	mutex_lock(&pmc->powergates_lock);
 
 	if (tegra_powergate_state(id) == new_state) {
