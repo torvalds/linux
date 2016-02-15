@@ -1961,7 +1961,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 	struct list_head *plist, *phead;
 	unsigned char *pbuf;
 	u8 bssid[ETH_ALEN];
-	char data[32];
+	char data[33];
 
 	if (padapter->bDriverStopped || (pdata == NULL))
 		return -EINVAL;
@@ -1976,6 +1976,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 	if (pdata->length >= 32) {
 		if (copy_from_user(data, pdata->pointer, 32))
 			return -EINVAL;
+                data[32] = 0;
 	} else {
 		 return -EINVAL;
 	}
