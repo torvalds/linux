@@ -130,7 +130,8 @@ static int fbtft_request_gpios(struct fbtft_par *par)
 	while (gpio->name[0]) {
 		flags = FBTFT_GPIO_NO_MATCH;
 		/* if driver provides match function, try it first,
-		   if no match use our own */
+		 * if no match use our own
+		 */
 		if (par->fbtftops.request_gpios_match)
 			flags = par->fbtftops.request_gpios_match(par, gpio);
 		if (flags == FBTFT_GPIO_NO_MATCH)
@@ -518,8 +519,7 @@ static ssize_t fbtft_fb_write(struct fb_info *info, const char __user *buf,
 		"%s: count=%zd, ppos=%llu\n", __func__,  count, *ppos);
 	res = fb_sys_write(info, buf, count, ppos);
 
-	/* TODO: only mark changed area
-	   update all for now */
+	/* TODO: only mark changed area update all for now */
 	par->fbtftops.mkdirty(info, -1, 0);
 
 	return res;
