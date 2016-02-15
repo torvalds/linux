@@ -1376,8 +1376,9 @@
 #define CRT_FB_ADDRESS_ADDRESS                        25:0
 
 #define CRT_FB_WIDTH                                  0x080208
-#define CRT_FB_WIDTH_WIDTH                            29:16
-#define CRT_FB_WIDTH_OFFSET                           13:0
+#define CRT_FB_WIDTH_WIDTH_SHIFT                      16
+#define CRT_FB_WIDTH_WIDTH_MASK                       (0x3fff << 16)
+#define CRT_FB_WIDTH_OFFSET_MASK                      0x3fff
 
 #define CRT_HORIZONTAL_TOTAL                          0x08020C
 #define CRT_HORIZONTAL_TOTAL_TOTAL_SHIFT              16
