@@ -20,11 +20,6 @@
 #define MAX_CR_LOOP 5
 #define MAX_EQ_LOOP 5
 
-enum link_rate_type {
-	LINK_RATE_1_62GBPS = 0x06,
-	LINK_RATE_2_70GBPS = 0x0a
-};
-
 enum link_lane_count_type {
 	LANE_COUNT1 = 1,
 	LANE_COUNT2 = 2,
@@ -128,7 +123,7 @@ struct video_info {
 	enum color_coefficient ycbcr_coeff;
 	enum color_depth color_depth;
 
-	enum link_rate_type link_rate;
+	int link_rate;
 	enum link_lane_count_type lane_count;
 };
 
