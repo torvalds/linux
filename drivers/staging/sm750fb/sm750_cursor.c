@@ -28,16 +28,10 @@ writel((data), cursor->mmio + (addr))
 
 /* cursor control for voyager and 718/750*/
 #define HWC_ADDRESS                         0x0
-#define HWC_ADDRESS_ENABLE                  31:31
-#define HWC_ADDRESS_ENABLE_DISABLE          0
-#define HWC_ADDRESS_ENABLE_ENABLE           1
-#define HWC_ADDRESS_EXT                     27:27
-#define HWC_ADDRESS_EXT_LOCAL               0
-#define HWC_ADDRESS_EXT_EXTERNAL            1
-#define HWC_ADDRESS_CS                      26:26
-#define HWC_ADDRESS_CS_0                    0
-#define HWC_ADDRESS_CS_1                    1
-#define HWC_ADDRESS_ADDRESS                 25:0
+#define HWC_ADDRESS_ENABLE                  BIT(31)
+#define HWC_ADDRESS_EXT                     BIT(27)
+#define HWC_ADDRESS_CS                      BIT(26)
+#define HWC_ADDRESS_ADDRESS_MASK            0x3ffffff
 
 #define HWC_LOCATION                        0x4
 #define HWC_LOCATION_TOP                    27:27
@@ -62,9 +56,7 @@ void hw_cursor_enable(struct lynx_cursor *cursor)
 {
 	u32 reg;
 
-	reg = FIELD_VALUE(0, HWC_ADDRESS, ADDRESS, cursor->offset)|
-			FIELD_SET(0, HWC_ADDRESS, EXT, LOCAL)|
-			FIELD_SET(0, HWC_ADDRESS, ENABLE, ENABLE);
+	reg = (cursor->offset & HWC_ADDRESS_ADDRESS_MASK) | HWC_ADDRESS_ENABLE;
 	POKE32(HWC_ADDRESS, reg);
 }
 void hw_cursor_disable(struct lynx_cursor *cursor)
