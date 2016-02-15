@@ -99,7 +99,7 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	idx = ioba >> SPAPR_TCE_SHIFT;
+	idx = ioba >> IOMMU_PAGE_SHIFT_4K;
 	page = stt->pages[idx / TCES_PER_PAGE];
 	tbl = (u64 *)page_address(page);
 
@@ -127,7 +127,7 @@ long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	idx = ioba >> SPAPR_TCE_SHIFT;
+	idx = ioba >> IOMMU_PAGE_SHIFT_4K;
 	page = stt->pages[idx / TCES_PER_PAGE];
 	tbl = (u64 *)page_address(page);
 

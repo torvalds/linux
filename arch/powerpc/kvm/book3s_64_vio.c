@@ -36,12 +36,13 @@
 #include <asm/ppc-opcode.h>
 #include <asm/kvm_host.h>
 #include <asm/udbg.h>
+#include <asm/iommu.h>
 
 #define TCES_PER_PAGE	(PAGE_SIZE / sizeof(u64))
 
 static unsigned long kvmppc_tce_pages(unsigned long window_size)
 {
-	return ALIGN((window_size >> SPAPR_TCE_SHIFT)
+	return ALIGN((window_size >> IOMMU_PAGE_SHIFT_4K)
 		     * sizeof(u64), PAGE_SIZE) / PAGE_SIZE;
 }
 
