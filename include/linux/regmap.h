@@ -76,6 +76,8 @@ struct reg_sequence {
 
 #define	regmap_field_write(field, val) \
 	regmap_field_update_bits_base(field, ~0, val, NULL, false, false)
+#define	regmap_field_update_bits(field, mask, val)\
+	regmap_field_update_bits_base(field, mask, val, NULL, false, false)
 
 #ifdef CONFIG_REGMAP
 
@@ -778,8 +780,6 @@ int regmap_field_read(struct regmap_field *field, unsigned int *val);
 int regmap_field_update_bits_base(struct regmap_field *field,
 				  unsigned int mask, unsigned int val,
 				  bool *change, bool async, bool force);
-int regmap_field_update_bits(struct regmap_field *field,
-			     unsigned int mask, unsigned int val);
 int regmap_fields_write(struct regmap_field *field, unsigned int id,
 			unsigned int val);
 int regmap_fields_force_write(struct regmap_field *field, unsigned int id,
