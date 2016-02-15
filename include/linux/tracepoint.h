@@ -14,8 +14,10 @@
  * See the file COPYING for more details.
  */
 
+#include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/types.h>
+#include <linux/cpumask.h>
 #include <linux/rcupdate.h>
 #include <linux/static_key.h>
 
@@ -145,6 +147,9 @@ extern void syscall_unregfunc(void);
 		struct tracepoint_func *it_func_ptr;			\
 		void *it_func;						\
 		void *__data;						\
+									\
+		if (!cpu_online(raw_smp_processor_id()))		\
+			return;						\
 									\
 		if (!(cond))						\
 			return;						\
