@@ -1074,6 +1074,15 @@ void serial8250_unregister_port(int line)
 	struct uart_8250_port *uart = &serial8250_ports[line];
 
 	mutex_lock(&serial_mutex);
+
+	if (uart->em485) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&uart->port.lock, flags);
+		serial8250_em485_destroy(uart);
+		spin_unlock_irqrestore(&uart->port.lock, flags);
+	}
+
 	uart_remove_one_port(&serial8250_reg, &uart->port);
 	if (serial8250_isa_devs) {
 		uart->port.flags &= ~UPF_BOOT_AUTOCONF;
