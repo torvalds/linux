@@ -77,8 +77,6 @@ if ((BTCoexDbgLevel == _bt_dbg_on_)) {\
 
 #define PlatformZeroMemory(ptr, sz)	memset(ptr, 0, sz)
 
-#define PlatformProcessHCICommands(...)
-#define PlatformTxBTQueuedPackets(...)
 #define PlatformIndicateBTACLData(...)	(RT_STATUS_SUCCESS)
 
 #define GET_UNDECORATED_AVERAGE_RSSI(padapter)	\
