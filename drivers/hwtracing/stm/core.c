@@ -113,6 +113,7 @@ struct stm_device *stm_find_device(const char *buf)
 
 	stm = to_stm_device(dev);
 	if (!try_module_get(stm->owner)) {
+		/* matches class_find_device() above */
 		put_device(dev);
 		return NULL;
 	}
@@ -125,7 +126,7 @@ struct stm_device *stm_find_device(const char *buf)
  * @stm:	stm device, previously acquired by stm_find_device()
  *
  * This drops the module reference and device reference taken by
- * stm_find_device().
+ * stm_find_device() or stm_char_open().
  */
 void stm_put_device(struct stm_device *stm)
 {
@@ -365,6 +366,8 @@ static int stm_char_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 
 err_free:
+	/* matches class_find_device() above */
+	put_device(dev);
 	kfree(stmf);
 
 	return err;
@@ -375,6 +378,11 @@ static int stm_char_release(struct inode *inode, struct file *file)
 	struct stm_file *stmf = file->private_data;
 
 	stm_output_free(stmf->stm, &stmf->output);
+
+	/*
+	 * matches the stm_char_open()'s
+	 * class_find_device() + try_module_get()
+	 */
 	stm_put_device(stmf->stm);
 	kfree(stmf);
 
@@ -539,10 +547,8 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 		ret = stm->data->link(stm->data, stmf->output.master,
 				      stmf->output.channel);
 
-	if (ret) {
+	if (ret)
 		stm_output_free(stmf->stm, &stmf->output);
-		stm_put_device(stmf->stm);
-	}
 
 err_free:
 	kfree(id);
@@ -679,6 +685,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	return 0;
 
 err_device:
+	/* matches device_initialize() above */
 	put_device(&stm->dev);
 err_free:
 	kfree(stm);
@@ -791,7 +798,6 @@ static int stm_source_link_add(struct stm_source_device *src,
 
 fail_free_output:
 	stm_output_free(stm, &src->output);
-	stm_put_device(stm);
 
 fail_detach:
 	mutex_lock(&stm->link_mutex);
@@ -905,8 +911,10 @@ static ssize_t stm_source_link_store(struct device *dev,
 		return -EINVAL;
 
 	err = stm_source_link_add(src, link);
-	if (err)
+	if (err) {
+		/* matches the stm_find_device() above */
 		stm_put_device(link);
+	}
 
 	return err ? : count;
 }
