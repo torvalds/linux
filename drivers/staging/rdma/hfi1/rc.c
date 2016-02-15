@@ -1610,7 +1610,7 @@ static void rc_rcv_resp(struct hfi1_ibport *ibp,
 		if (opcode == OP(ATOMIC_ACKNOWLEDGE)) {
 			__be32 *p = ohdr->u.at.atomic_ack_eth;
 
-			val = ((u64) be32_to_cpu(p[0]) << 32) |
+			val = ((u64)be32_to_cpu(p[0]) << 32) |
 				be32_to_cpu(p[1]);
 		} else
 			val = 0;
@@ -1708,7 +1708,7 @@ read_last:
 		aeth = be32_to_cpu(ohdr->u.aeth);
 		hfi1_copy_sge(&qp->s_rdma_read_sge, data, tlen, 0, 0);
 		WARN_ON(qp->s_rdma_read_sge.num_sge);
-		(void) do_rc_ack(qp, aeth, psn,
+		(void)do_rc_ack(qp, aeth, psn,
 				 OP(RDMA_READ_RESPONSE_LAST), 0, rcd);
 		goto ack_done;
 	}
@@ -1906,7 +1906,7 @@ static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
 		 * or the send tasklet is already backed up to send an
 		 * earlier entry, we can ignore this request.
 		 */
-		if (!e || e->opcode != (u8) opcode || old_req)
+		if (!e || e->opcode != (u8)opcode || old_req)
 			goto unlock_done;
 		qp->s_tail_ack_queue = prev;
 		break;
@@ -2430,7 +2430,7 @@ send_last:
 			e->rdma_sge.mr = NULL;
 		}
 		ateth = &ohdr->u.atomic_eth;
-		vaddr = ((u64) be32_to_cpu(ateth->vaddr[0]) << 32) |
+		vaddr = ((u64)be32_to_cpu(ateth->vaddr[0]) << 32) |
 			be32_to_cpu(ateth->vaddr[1]);
 		if (unlikely(vaddr & (sizeof(u64) - 1)))
 			goto nack_inv_unlck;
@@ -2441,11 +2441,11 @@ send_last:
 					  IB_ACCESS_REMOTE_ATOMIC)))
 			goto nack_acc_unlck;
 		/* Perform atomic OP and save result. */
-		maddr = (atomic64_t *) qp->r_sge.sge.vaddr;
+		maddr = (atomic64_t *)qp->r_sge.sge.vaddr;
 		sdata = be64_to_cpu(ateth->swap_data);
 		e->atomic_data = (opcode == OP(FETCH_ADD)) ?
-			(u64) atomic64_add_return(sdata, maddr) - sdata :
-			(u64) cmpxchg((u64 *) qp->r_sge.sge.vaddr,
+			(u64)atomic64_add_return(sdata, maddr) - sdata :
+			(u64)cmpxchg((u64 *)qp->r_sge.sge.vaddr,
 				      be64_to_cpu(ateth->compare_data),
 				      sdata);
 		rvt_put_mr(qp->r_sge.sge.mr);

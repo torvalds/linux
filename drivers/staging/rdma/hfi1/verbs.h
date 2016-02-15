@@ -346,7 +346,7 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
  */
 static inline int cmp_msn(u32 a, u32 b)
 {
-	return (((int) a) - ((int) b)) << 8;
+	return (((int)a) - ((int)b)) << 8;
 }
 
 /*
@@ -355,7 +355,7 @@ static inline int cmp_msn(u32 a, u32 b)
  */
 static inline int cmp_psn(u32 a, u32 b)
 {
-	return (((int) a) - ((int) b)) << PSN_SHIFT;
+	return (((int)a) - ((int)b)) << PSN_SHIFT;
 }
 
 /*

@@ -130,7 +130,7 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 	if (write) {
 		write_csr(dd, SEND_CTRL, reg);
 		if (flush)
-			(void) read_csr(dd, SEND_CTRL); /* flush write */
+			(void)read_csr(dd, SEND_CTRL); /* flush write */
 	}
 
 	spin_unlock_irqrestore(&dd->sendctrl_lock, flags);

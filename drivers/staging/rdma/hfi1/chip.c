@@ -5436,7 +5436,7 @@ static void update_rcverr_timer(unsigned long opaque)
 			OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN);
 		queue_work(ppd->hfi1_wq, &ppd->link_bounce_work);
 	}
-	dd->rcv_ovfl_cnt = (u32) cur_ovfl_cnt;
+	dd->rcv_ovfl_cnt = (u32)cur_ovfl_cnt;
 
 	mod_timer(&dd->rcverr_timer, jiffies + HZ * RCVERR_CHECK_TIME);
 }
@@ -6366,7 +6366,7 @@ static void lcb_shutdown(struct hfi1_devdata *dd, int abort)
 		reg
 		| (1ull << DCC_CFG_RESET_RESET_LCB_SHIFT)
 		| (1ull << DCC_CFG_RESET_RESET_RX_FPE_SHIFT));
-	(void) read_csr(dd, DCC_CFG_RESET); /* make sure the write completed */
+	(void)read_csr(dd, DCC_CFG_RESET); /* make sure the write completed */
 	if (!abort) {
 		udelay(1);    /* must hold for the longer of 16cclks or 20ns */
 		write_csr(dd, DCC_CFG_RESET, reg);
@@ -13407,7 +13407,7 @@ static void init_chip(struct hfi1_devdata *dd)
 	 * across the clear.
 	 */
 	write_csr(dd, CCE_DC_CTRL, CCE_DC_CTRL_DC_RESET_SMASK);
-	(void) read_csr(dd, CCE_DC_CTRL);
+	(void)read_csr(dd, CCE_DC_CTRL);
 
 	if (use_flr) {
 		/*

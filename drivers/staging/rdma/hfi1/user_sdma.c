@@ -1030,7 +1030,7 @@ free_tx:
  */
 static inline int num_user_pages(const struct iovec *iov)
 {
-	const unsigned long addr  = (unsigned long) iov->iov_base;
+	const unsigned long addr  = (unsigned long)iov->iov_base;
 	const unsigned long len   = iov->iov_len;
 	const unsigned long spage = addr & PAGE_MASK;
 	const unsigned long epage = (addr + len - 1) & PAGE_MASK;

@@ -1838,7 +1838,7 @@ void read_guid(struct hfi1_devdata *dd)
 {
 	/* Take the DC out of reset to get a valid GUID value */
 	write_csr(dd, CCE_DC_CTRL, 0);
-	(void) read_csr(dd, CCE_DC_CTRL);
+	(void)read_csr(dd, CCE_DC_CTRL);
 
 	dd->base_guid = read_csr(dd, DC_DC8051_CFG_LOCAL_GUID);
 	dd_dev_info(dd, "GUID %llx",

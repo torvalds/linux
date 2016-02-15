@@ -52,7 +52,7 @@
 
 #include "verbs.h"
 
-#define BAD_DMA_ADDRESS ((u64) 0)
+#define BAD_DMA_ADDRESS ((u64)0)
 
 /*
  * The following functions implement driver specific replacements
@@ -74,7 +74,7 @@ static u64 hfi1_dma_map_single(struct ib_device *dev, void *cpu_addr,
 	if (WARN_ON(!valid_dma_direction(direction)))
 		return BAD_DMA_ADDRESS;
 
-	return (u64) cpu_addr;
+	return (u64)cpu_addr;
 }
 
 static void hfi1_dma_unmap_single(struct ib_device *dev, u64 addr, size_t size,
@@ -95,7 +95,7 @@ static u64 hfi1_dma_map_page(struct ib_device *dev, struct page *page,
 	if (offset + size > PAGE_SIZE)
 		return BAD_DMA_ADDRESS;
 
-	addr = (u64) page_address(page);
+	addr = (u64)page_address(page);
 	if (addr)
 		addr += offset;
 
@@ -120,7 +120,7 @@ static int hfi1_map_sg(struct ib_device *dev, struct scatterlist *sgl,
 		return BAD_DMA_ADDRESS;
 
 	for_each_sg(sgl, sg, nents, i) {
-		addr = (u64) page_address(sg_page(sg));
+		addr = (u64)page_address(sg_page(sg));
 		if (!addr) {
 			ret = 0;
 			break;
@@ -161,14 +161,14 @@ static void *hfi1_dma_alloc_coherent(struct ib_device *dev, size_t size,
 	if (p)
 		addr = page_address(p);
 	if (dma_handle)
-		*dma_handle = (u64) addr;
+		*dma_handle = (u64)addr;
 	return addr;
 }
 
 static void hfi1_dma_free_coherent(struct ib_device *dev, size_t size,
 				   void *cpu_addr, u64 dma_handle)
 {
-	free_pages((unsigned long) cpu_addr, get_order(size));
+	free_pages((unsigned long)cpu_addr, get_order(size));
 }
 
 struct ib_dma_mapping_ops hfi1_dma_mapping_ops = {

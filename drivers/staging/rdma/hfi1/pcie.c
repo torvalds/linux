@@ -233,7 +233,7 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev,
  */
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *dd)
 {
-	u64 __iomem *base = (void __iomem *) dd->kregbase;
+	u64 __iomem *base = (void __iomem *)dd->kregbase;
 
 	dd->flags &= ~HFI1_PRESENT;
 	dd->kregbase = NULL;
@@ -1188,7 +1188,7 @@ retry:
 	/* step 5h: arm gasket logic */
 	/* hold DC in reset across the SBR */
 	write_csr(dd, CCE_DC_CTRL, CCE_DC_CTRL_DC_RESET_SMASK);
-	(void) read_csr(dd, CCE_DC_CTRL); /* DC reset hold */
+	(void)read_csr(dd, CCE_DC_CTRL); /* DC reset hold */
 	/* save firmware control across the SBR */
 	fw_ctrl = read_csr(dd, MISC_CFG_FW_CTRL);
 

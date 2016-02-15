@@ -534,7 +534,7 @@ static void sdma_err_progress_check(unsigned long data)
 
 static void sdma_hw_clean_up_task(unsigned long opaque)
 {
-	struct sdma_engine *sde = (struct sdma_engine *) opaque;
+	struct sdma_engine *sde = (struct sdma_engine *)opaque;
 	u64 statuscsr;
 
 	while (1) {
@@ -594,7 +594,7 @@ static void sdma_flush_descq(struct sdma_engine *sde)
 
 static void sdma_sw_clean_up_task(unsigned long opaque)
 {
-	struct sdma_engine *sde = (struct sdma_engine *) opaque;
+	struct sdma_engine *sde = (struct sdma_engine *)opaque;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sde->tail_lock, flags);
@@ -1345,8 +1345,8 @@ retry:
 	use_dmahead = HFI1_CAP_IS_KSET(USE_SDMA_HEAD) && __sdma_running(sde) &&
 					(dd->flags & HFI1_HAS_SDMA_TIMEOUT);
 	hwhead = use_dmahead ?
-		(u16) le64_to_cpu(*sde->head_dma) :
-		(u16) read_sde_csr(sde, SD(HEAD));
+		(u16)le64_to_cpu(*sde->head_dma) :
+		(u16)read_sde_csr(sde, SD(HEAD));
 
 	if (unlikely(HFI1_CAP_IS_KSET(SDMA_HEAD_CHECK))) {
 		u16 cnt;
@@ -3021,7 +3021,7 @@ void sdma_freeze(struct hfi1_devdata *dd)
 	 * software clean will read engine CSRs, so must be completed before
 	 * the next step, which will clear the engine CSRs.
 	 */
-	(void) wait_event_interruptible(dd->sdma_unfreeze_wq,
+	(void)wait_event_interruptible(dd->sdma_unfreeze_wq,
 				atomic_read(&dd->sdma_unfreeze_count) <= 0);
 	/* no need to check results - done no matter what */
 }

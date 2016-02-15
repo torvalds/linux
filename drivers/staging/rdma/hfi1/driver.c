@@ -594,7 +594,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 	while (1) {
 		struct hfi1_devdata *dd = rcd->dd;
 		struct hfi1_ibport *ibp = &rcd->ppd->ibport_data;
-		__le32 *rhf_addr = (__le32 *) rcd->rcvhdrq + mdata.ps_head +
+		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
 					 dd->rhf_offset;
 		struct rvt_qp *qp;
 		struct hfi1_ib_header *hdr;
@@ -730,7 +730,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 		}
 	}
 
-	packet->rhf_addr = (__le32 *) packet->rcd->rcvhdrq + packet->rhqoff +
+	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
 				      packet->rcd->dd->rhf_offset;
 	packet->rhf = rhf_to_cpu(packet->rhf_addr);
 
@@ -969,7 +969,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 
 			/* On to the next packet */
 			packet.rhqoff += packet.rsize;
-			packet.rhf_addr = (__le32 *) rcd->rcvhdrq +
+			packet.rhf_addr = (__le32 *)rcd->rcvhdrq +
 					  packet.rhqoff +
 					  dd->rhf_offset;
 			packet.rhf = rhf_to_cpu(packet.rhf_addr);

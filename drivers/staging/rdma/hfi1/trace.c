@@ -158,7 +158,7 @@ const char *parse_everbs_hdrs(
 			eh->atomic_eth.rkey,
 			(unsigned long long)ib_u64_get(
 				(__be32 *)&eh->atomic_eth.swap_data),
-			(unsigned long long) ib_u64_get(
+			(unsigned long long)ib_u64_get(
 				 (__be32 *)&eh->atomic_eth.compare_data));
 		break;
 	/* deth */

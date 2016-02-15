@@ -149,8 +149,8 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	if (!n_packets && !n_bytes)
 		return SEQ_SKIP;
 	seq_printf(s, "%02llx %llu/%llu\n", i,
-		(unsigned long long) n_packets,
-		(unsigned long long) n_bytes);
+		(unsigned long long)n_packets,
+		(unsigned long long)n_bytes);
 
 	return 0;
 }
