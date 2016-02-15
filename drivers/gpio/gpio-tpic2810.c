@@ -33,6 +33,8 @@ struct tpic2810 {
 	struct mutex lock;
 };
 
+static void tpic2810_set(struct gpio_chip *chip, unsigned offset, int value);
+
 static int tpic2810_get_direction(struct gpio_chip *chip,
 				  unsigned offset)
 {
@@ -51,6 +53,7 @@ static int tpic2810_direction_output(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
 	/* This device always output */
+	tpic2810_set(chip, offset, value);
 	return 0;
 }
 
