@@ -90,8 +90,11 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 				CRT_HORIZONTAL_TOTAL_DISPLAY_END_MASK));
 
 		POKE32(CRT_HORIZONTAL_SYNC,
-		FIELD_VALUE(0, CRT_HORIZONTAL_SYNC, WIDTH, pModeParam->horizontal_sync_width)
-		| FIELD_VALUE(0, CRT_HORIZONTAL_SYNC, START, pModeParam->horizontal_sync_start - 1));
+			((pModeParam->horizontal_sync_width <<
+				CRT_HORIZONTAL_SYNC_WIDTH_SHIFT) &
+				CRT_HORIZONTAL_SYNC_WIDTH_MASK) |
+			((pModeParam->horizontal_sync_start - 1) &
+				CRT_HORIZONTAL_SYNC_START_MASK));
 
 		POKE32(CRT_VERTICAL_TOTAL,
 		FIELD_VALUE(0, CRT_VERTICAL_TOTAL, TOTAL, pModeParam->vertical_total - 1)
