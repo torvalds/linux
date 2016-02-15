@@ -46,8 +46,6 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 
-	pci_set_drvdata(pdev, th);
-
 	return 0;
 }
 

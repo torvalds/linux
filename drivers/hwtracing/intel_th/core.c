@@ -584,6 +584,8 @@ intel_th_alloc(struct device *dev, struct resource *devres,
 	}
 	th->dev = dev;
 
+	dev_set_drvdata(dev, th);
+
 	err = intel_th_populate(th, devres, ndevres, irq);
 	if (err)
 		goto err_chrdev;
