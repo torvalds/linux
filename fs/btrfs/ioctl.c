@@ -2687,8 +2687,8 @@ static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
 	}
 
 	/* Check for compatibility reject unknown flags */
-	if (vol_args->flags & ~BTRFS_VOL_ARG_V2_FLAGS)
-		return -ENOTTY;
+	if (vol_args->flags & ~BTRFS_VOL_ARG_V2_FLAGS_SUPPORTED)
+		return -EOPNOTSUPP;
 
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
@@ -2697,7 +2697,7 @@ static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
-	if (vol_args->flags & BTRFS_DEVICE_BY_ID) {
+	if (vol_args->flags & BTRFS_DEVICE_SPEC_BY_ID) {
 		ret = btrfs_rm_device(root, NULL, vol_args->devid);
 	} else {
 		vol_args->name[BTRFS_SUBVOL_NAME_MAX] = '\0';
@@ -2707,7 +2707,7 @@ static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
 	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
 
 	if (!ret) {
-		if (vol_args->flags & BTRFS_DEVICE_BY_ID)
+		if (vol_args->flags & BTRFS_DEVICE_SPEC_BY_ID)
 			btrfs_info(root->fs_info, "device deleted: id %llu",
 					vol_args->devid);
 		else
