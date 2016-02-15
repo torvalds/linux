@@ -107,8 +107,8 @@
 /*
  * Bits defined in the send DMA descriptor.
  */
-#define SDMA_DESC0_FIRST_DESC_FLAG      (1ULL << 63)
-#define SDMA_DESC0_LAST_DESC_FLAG       (1ULL << 62)
+#define SDMA_DESC0_FIRST_DESC_FLAG      BIT_ULL(63)
+#define SDMA_DESC0_LAST_DESC_FLAG       BIT_ULL(62)
 #define SDMA_DESC0_BYTE_COUNT_SHIFT     48
 #define SDMA_DESC0_BYTE_COUNT_WIDTH     14
 #define SDMA_DESC0_BYTE_COUNT_MASK \
@@ -152,8 +152,8 @@
 	((1ULL << SDMA_DESC1_GENERATION_WIDTH) - 1)
 #define SDMA_DESC1_GENERATION_SMASK \
 	(SDMA_DESC1_GENERATION_MASK << SDMA_DESC1_GENERATION_SHIFT)
-#define SDMA_DESC1_INT_REQ_FLAG         (1ULL << 1)
-#define SDMA_DESC1_HEAD_TO_HOST_FLAG    (1ULL << 0)
+#define SDMA_DESC1_INT_REQ_FLAG         BIT_ULL(1)
+#define SDMA_DESC1_HEAD_TO_HOST_FLAG    BIT_ULL(0)
 
 enum sdma_states {
 	sdma_state_s00_hw_down,

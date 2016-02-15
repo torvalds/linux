@@ -102,7 +102,7 @@
 #define COUNT_DELAY_SEC(n) ((n) * (1000000 / WAIT_SLEEP_US))
 
 /* GPIO pins */
-#define EPROM_WP_N (1ull << 14)	/* EPROM write line */
+#define EPROM_WP_N BIT_ULL(14)	/* EPROM write line */
 
 /*
  * Use the EP mutex to guard against other callers from within the driver.

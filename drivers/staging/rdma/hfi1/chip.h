@@ -93,15 +93,15 @@
 #define TXE_PIO_SEND (TXE + TXE_PIO_SEND_OFFSET)
 
 /* PBC flags */
-#define PBC_INTR		(1ull << 31)
+#define PBC_INTR		BIT_ULL(31)
 #define PBC_DC_INFO_SHIFT	(30)
-#define PBC_DC_INFO		(1ull << PBC_DC_INFO_SHIFT)
-#define PBC_TEST_EBP	(1ull << 29)
-#define PBC_PACKET_BYPASS	(1ull << 28)
-#define PBC_CREDIT_RETURN	(1ull << 25)
-#define PBC_INSERT_BYPASS_ICRC (1ull << 24)
-#define PBC_TEST_BAD_ICRC	(1ull << 23)
-#define PBC_FECN		(1ull << 22)
+#define PBC_DC_INFO		BIT_ULL(PBC_DC_INFO_SHIFT)
+#define PBC_TEST_EBP		BIT_ULL(29)
+#define PBC_PACKET_BYPASS	BIT_ULL(28)
+#define PBC_CREDIT_RETURN	BIT_ULL(25)
+#define PBC_INSERT_BYPASS_ICRC	BIT_ULL(24)
+#define PBC_TEST_BAD_ICRC	BIT_ULL(23)
+#define PBC_FECN		BIT_ULL(22)
 
 /* PbcInsertHcrc field settings */
 #define PBC_IHCRC_LKDETH 0x0	/* insert @ local KDETH offset */
