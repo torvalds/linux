@@ -261,6 +261,8 @@ config CPU_SUBTYPE_SH7619
 config CPU_SUBTYPE_J2
 	bool "Support J2 processor"
 	select CPU_J2
+	select SYS_SUPPORTS_SMP
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 
 # SH-2A Processor Support
 
