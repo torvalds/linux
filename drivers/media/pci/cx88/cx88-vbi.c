@@ -118,7 +118,6 @@ static int queue_setup(struct vb2_queue *q,
 		sizes[0] = VBI_LINE_NTSC_COUNT * VBI_LINE_LENGTH * 2;
 	else
 		sizes[0] = VBI_LINE_PAL_COUNT * VBI_LINE_LENGTH * 2;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 

@@ -148,8 +148,6 @@ static int cx25821_queue_setup(struct vb2_queue *q,
 	struct cx25821_channel *chan = q->drv_priv;
 	unsigned size = (chan->fmt->depth * chan->width * chan->height) >> 3;
 
-	alloc_ctxs[0] = chan->dev->alloc_ctx;
-
 	if (*num_planes)
 		return sizes[0] < size ? -EINVAL : 0;
 
@@ -759,6 +757,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		q->mem_ops = &vb2_dma_sg_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->lock = &dev->lock;
+		q->dev = &dev->pci->dev;
 
 		if (!is_output) {
 			err = vb2_queue_init(q);

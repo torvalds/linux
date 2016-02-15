@@ -341,7 +341,6 @@ static int queue_setup(struct vb2_queue *q,
 
 	*num_planes = 1;
 	sizes[0] = (dev->fmt->depth * dev->width * dev->height) >> 3;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
@@ -1268,6 +1267,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &dev->lock;
+	q->dev = &dev->pci->dev;
 
 	err = vb2_queue_init(q);
 	if (err < 0)
@@ -1284,6 +1284,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &dev->lock;
+	q->dev = &dev->pci->dev;
 
 	err = vb2_queue_init(q);
 	if (err < 0)

@@ -691,17 +691,10 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 	cobalt->pci_dev = pci_dev;
 	cobalt->instance = i;
 
-	cobalt->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
-	if (IS_ERR(cobalt->alloc_ctx)) {
-		kfree(cobalt);
-		return -ENOMEM;
-	}
-
 	retval = v4l2_device_register(&pci_dev->dev, &cobalt->v4l2_dev);
 	if (retval) {
 		pr_err("cobalt: v4l2_device_register of card %d failed\n",
 				cobalt->instance);
-		vb2_dma_sg_cleanup_ctx(cobalt->alloc_ctx);
 		kfree(cobalt);
 		return retval;
 	}
@@ -782,7 +775,6 @@ err:
 	cobalt_err("error %d on initialization\n", retval);
 
 	v4l2_device_unregister(&cobalt->v4l2_dev);
-	vb2_dma_sg_cleanup_ctx(cobalt->alloc_ctx);
 	kfree(cobalt);
 	return retval;
 }
@@ -818,7 +810,6 @@ static void cobalt_remove(struct pci_dev *pci_dev)
 	cobalt_info("removed cobalt card\n");
 
 	v4l2_device_unregister(v4l2_dev);
-	vb2_dma_sg_cleanup_ctx(cobalt->alloc_ctx);
 	kfree(cobalt);
 }
 

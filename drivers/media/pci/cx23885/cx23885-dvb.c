@@ -102,7 +102,6 @@ static int queue_setup(struct vb2_queue *q,
 	port->ts_packet_count = 32;
 	*num_planes = 1;
 	sizes[0] = port->ts_packet_size * port->ts_packet_count;
-	alloc_ctxs[0] = port->dev->alloc_ctx;
 	*num_buffers = 32;
 	return 0;
 }
@@ -2397,6 +2396,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		q->mem_ops = &vb2_dma_sg_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->lock = &dev->lock;
+		q->dev = &dev->pci->dev;
 
 		err = vb2_queue_init(q);
 		if (err < 0)

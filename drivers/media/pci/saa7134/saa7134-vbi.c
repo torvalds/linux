@@ -155,7 +155,6 @@ static int queue_setup(struct vb2_queue *q,
 	*nbuffers = saa7134_buffer_count(size, *nbuffers);
 	*nplanes = 1;
 	sizes[0] = size;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 

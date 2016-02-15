@@ -430,7 +430,6 @@ struct cx23885_dev {
 	struct vb2_queue           vb2_vidq;
 	struct cx23885_dmaqueue    vbiq;
 	struct vb2_queue           vb2_vbiq;
-	void			   *alloc_ctx;
 
 	spinlock_t                 slock;
 

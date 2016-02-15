@@ -54,7 +54,6 @@ static int cobalt_queue_setup(struct vb2_queue *q,
 		*num_buffers = 3;
 	if (*num_buffers > NR_BUFS)
 		*num_buffers = NR_BUFS;
-	alloc_ctxs[0] = s->cobalt->alloc_ctx;
 	if (*num_planes)
 		return sizes[0] < size ? -EINVAL : 0;
 	*num_planes = 1;
@@ -1224,6 +1223,7 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->min_buffers_needed = 2;
 	q->lock = &s->lock;
+	q->dev = &cobalt->pci_dev->dev;
 	vdev->queue = q;
 
 	video_set_drvdata(vdev, s);
