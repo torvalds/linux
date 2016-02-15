@@ -3377,11 +3377,6 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 	unsigned int column, row;
 	unsigned int src_idx;
 
-	if (!sg) {
-		st->nents = 0;
-		sg = st->sgl;
-	}
-
 	for (column = 0; column < width; column++) {
 		src_idx = stride * (height - 1) + column;
 		for (row = 0; row < height; row++) {
@@ -3443,11 +3438,14 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 		i++;
 	}
 
+	st->nents = 0;
+	sg = st->sgl;
+
 	/* Rotate the pages. */
 	sg = rotate_pages(page_addr_list, 0,
 			  rot_info->plane[0].width, rot_info->plane[0].height,
 			  rot_info->plane[0].width,
-			  st, NULL);
+			  st, sg);
 
 	/* Append the UV plane if NV12. */
 	if (rot_info->pixel_format == DRM_FORMAT_NV12) {
@@ -3459,10 +3457,10 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 
 		rot_info->uv_start_page = uv_start_page;
 
-		rotate_pages(page_addr_list, rot_info->uv_start_page,
-			     rot_info->plane[1].width, rot_info->plane[1].height,
-			     rot_info->plane[1].width,
-			     st, sg);
+		sg = rotate_pages(page_addr_list, rot_info->uv_start_page,
+				  rot_info->plane[1].width, rot_info->plane[1].height,
+				  rot_info->plane[1].width,
+				  st, sg);
 	}
 
 	DRM_DEBUG_KMS("Created rotated page mapping for object size %zu (%ux%u tiles, %u pages (%u plane 0)).\n",
