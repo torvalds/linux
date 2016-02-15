@@ -4464,23 +4464,6 @@ void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
 u8 *ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key_conf *keyconf, u64 pn);
 
 /**
- * ieee80211_get_key_tx_seq - get key TX sequence counter
- *
- * @keyconf: the parameter passed with the set key
- * @seq: buffer to receive the sequence data
- *
- * This function allows a driver to retrieve the current TX IV/PN
- * for the given key. It must not be called if IV generation is
- * offloaded to the device.
- *
- * Note that this function may only be called when no TX processing
- * can be done concurrently, for example when queues are stopped
- * and the stop has been synchronized.
- */
-void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
-			      struct ieee80211_key_seq *seq);
-
-/**
  * ieee80211_get_key_rx_seq - get key RX sequence counter
  *
  * @keyconf: the parameter passed with the set key
@@ -4498,23 +4481,6 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
  */
 void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 			      int tid, struct ieee80211_key_seq *seq);
-
-/**
- * ieee80211_set_key_tx_seq - set key TX sequence counter
- *
- * @keyconf: the parameter passed with the set key
- * @seq: new sequence data
- *
- * This function allows a driver to set the current TX IV/PNs for the
- * given key. This is useful when resuming from WoWLAN sleep and the
- * device may have transmitted frames using the PTK, e.g. replies to
- * ARP requests.
- *
- * Note that this function may only be called when no TX processing
- * can be done concurrently.
- */
-void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
-			      struct ieee80211_key_seq *seq);
 
 /**
  * ieee80211_set_key_rx_seq - set key RX sequence counter
