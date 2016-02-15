@@ -531,7 +531,6 @@ struct amdgpu_bo {
 	struct amdgpu_bo		*parent;
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
-	pid_t				pid;
 	struct amdgpu_mn		*mn;
 	struct list_head		mn_list;
 };

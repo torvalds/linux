@@ -83,7 +83,6 @@ retry:
 		return r;
 	}
 	*obj = &robj->gem_base;
-	robj->pid = task_pid_nr(current);
 
 	mutex_lock(&adev->gem.mutex);
 	list_add_tail(&robj->list, &adev->gem.objects);
@@ -694,44 +693,73 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 }
 
 #if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
+{
+	struct drm_gem_object *gobj = ptr;
+	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
+	struct seq_file *m = data;
+
+	unsigned domain;
+	const char *placement;
+	unsigned pin_count;
+
+	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
+	switch (domain) {
+	case AMDGPU_GEM_DOMAIN_VRAM:
+		placement = "VRAM";
+		break;
+	case AMDGPU_GEM_DOMAIN_GTT:
+		placement = " GTT";
+		break;
+	case AMDGPU_GEM_DOMAIN_CPU:
+	default:
+		placement = " CPU";
+		break;
+	}
+	seq_printf(m, "\t0x%08x: %12ld byte %s @ 0x%010Lx",
+		   id, amdgpu_bo_size(bo), placement,
+		   amdgpu_bo_gpu_offset(bo));
+
+	pin_count = ACCESS_ONCE(bo->pin_count);
+	if (pin_count)
+		seq_printf(m, " pin count %d", pin_count);
+	seq_printf(m, "\n");
+
+	return 0;
+}
+
 static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = dev->dev_private;
-	struct amdgpu_bo *rbo;
-	unsigned i = 0;
+	struct drm_file *file;
+	int r;
 
-	mutex_lock(&adev->gem.mutex);
-	list_for_each_entry(rbo, &adev->gem.objects, list) {
-		unsigned pin_count;
-		unsigned domain;
-		const char *placement;
+	r = mutex_lock_interruptible(&dev->struct_mutex);
+	if (r)
+		return r;
 
-		domain = amdgpu_mem_type_to_domain(rbo->tbo.mem.mem_type);
-		switch (domain) {
-		case AMDGPU_GEM_DOMAIN_VRAM:
-			placement = "VRAM";
-			break;
-		case AMDGPU_GEM_DOMAIN_GTT:
-			placement = " GTT";
-			break;
-		case AMDGPU_GEM_DOMAIN_CPU:
-		default:
-			placement = " CPU";
-			break;
-		}
-		seq_printf(m, "bo[0x%08x] %12ld %s @ 0x%010Lx pid %8d",
-			   i, amdgpu_bo_size(rbo), placement,
-			   amdgpu_bo_gpu_offset(rbo), rbo->pid);
+	list_for_each_entry(file, &dev->filelist, lhead) {
+		struct task_struct *task;
 
-		pin_count = ACCESS_ONCE(rbo->pin_count);
-		if (pin_count)
-			seq_printf(m, " pin count %d", pin_count);
-		seq_printf(m, "\n");
-		i++;
+		/*
+		 * Although we have a valid reference on file->pid, that does
+		 * not guarantee that the task_struct who called get_pid() is
+		 * still alive (e.g. get_pid(current) => fork() => exit()).
+		 * Therefore, we need to protect this ->comm access using RCU.
+		 */
+		rcu_read_lock();
+		task = pid_task(file->pid, PIDTYPE_PID);
+		seq_printf(m, "pid %8d command %s:\n", pid_nr(file->pid),
+			   task ? task->comm : "<unknown>");
+		rcu_read_unlock();
+
+		spin_lock(&file->table_lock);
+		idr_for_each(&file->object_idr, amdgpu_debugfs_gem_bo_info, m);
+		spin_unlock(&file->table_lock);
 	}
-	mutex_unlock(&adev->gem.mutex);
+
+	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
