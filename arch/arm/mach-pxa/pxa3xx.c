@@ -450,7 +450,7 @@ static int __init pxa3xx_init(void)
 		if (of_have_populated_dt())
 			return 0;
 
-		pxa2xx_set_dmac_info(32);
+		pxa2xx_set_dmac_info(32, 100);
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 		if (ret)
 			return ret;
