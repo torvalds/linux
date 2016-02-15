@@ -779,6 +779,8 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 	if (rs->dma_rx.ch)
 		dma_release_channel(rs->dma_rx.ch);
 
+	spi_master_put(master);
+
 	return 0;
 }
 
