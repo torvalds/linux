@@ -506,7 +506,7 @@ static const struct of_device_id afe4403_of_match[] = {
 MODULE_DEVICE_TABLE(of, afe4403_of_match);
 #endif
 
-static int afe4403_suspend(struct device *dev)
+static int __maybe_unused afe4403_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct afe4403_data *afe = iio_priv(indio_dev);
@@ -527,7 +527,7 @@ static int afe4403_suspend(struct device *dev)
 	return 0;
 }
 
-static int afe4403_resume(struct device *dev)
+static int __maybe_unused afe4403_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct afe4403_data *afe = iio_priv(indio_dev);
