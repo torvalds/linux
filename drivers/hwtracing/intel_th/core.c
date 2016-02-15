@@ -319,6 +319,7 @@ static struct intel_th_subdevice {
 	unsigned		nres;
 	unsigned		type;
 	unsigned		otype;
+	unsigned		scrpd;
 	int			id;
 } intel_th_subdevices[TH_SUBDEVICE_MAX] = {
 	{
@@ -352,6 +353,7 @@ static struct intel_th_subdevice {
 		.id	= 0,
 		.type	= INTEL_TH_OUTPUT,
 		.otype	= GTH_MSU,
+		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC0_IS_ENABLED,
 	},
 	{
 		.nres	= 2,
@@ -371,6 +373,7 @@ static struct intel_th_subdevice {
 		.id	= 1,
 		.type	= INTEL_TH_OUTPUT,
 		.otype	= GTH_MSU,
+		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC1_IS_ENABLED,
 	},
 	{
 		.nres	= 2,
@@ -403,6 +406,7 @@ static struct intel_th_subdevice {
 		.name	= "pti",
 		.type	= INTEL_TH_OUTPUT,
 		.otype	= GTH_PTI,
+		.scrpd	= SCRPD_PTI_IS_PRIM_DEST,
 	},
 	{
 		.nres	= 1,
@@ -477,6 +481,7 @@ static int intel_th_populate(struct intel_th *th, struct resource *devres,
 			thdev->dev.devt = MKDEV(th->major, i);
 			thdev->output.type = subdev->otype;
 			thdev->output.port = -1;
+			thdev->output.scratchpad = subdev->scrpd;
 		}
 
 		err = device_add(&thdev->dev);
