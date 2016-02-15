@@ -300,13 +300,6 @@ static void gov_cancel_work(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 
-	/* Tell dbs_update_util_handler() to skip queuing up work items. */
-	atomic_inc(&policy_dbs->work_count);
-	/*
-	 * If dbs_update_util_handler() is already running, it may not notice
-	 * the incremented work_count, so wait for it to complete to prevent its
-	 * work item from being queued up after the cancel_work_sync() below.
-	 */
 	gov_clear_update_util(policy_dbs->policy);
 	irq_work_sync(&policy_dbs->irq_work);
 	cancel_work_sync(&policy_dbs->work);
@@ -360,7 +353,6 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	 * The work may not be allowed to be queued up right now.
 	 * Possible reasons:
 	 * - Work has already been queued up or is in progress.
-	 * - The governor is being stopped.
 	 * - It is too early (too little time from the previous sample).
 	 */
 	if (atomic_inc_return(&policy_dbs->work_count) == 1) {
