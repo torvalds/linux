@@ -1706,19 +1706,16 @@ out:
 	return ret;
 }
 
-static int btrfs_check_raid_min_devices(struct btrfs_fs_info *fs_info)
+/*
+ * Verify that @num_devices satisfies the RAID profile constraints in the whole
+ * filesystem. It's up to the caller to adjust that number regarding eg. device
+ * replace.
+ */
+static int btrfs_check_raid_min_devices(struct btrfs_fs_info *fs_info,
+		u64 num_devices)
 {
 	u64 all_avail;
-	u64 num_devices;
 	unsigned seq;
-
-	num_devices = fs_info->fs_devices->num_devices;
-	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
-	if (btrfs_dev_replace_is_ongoing(&fs_info->dev_replace)) {
-		WARN_ON(num_devices < 1);
-		num_devices--;
-	}
-	btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
 
 	do {
 		seq = read_seqbegin(&fs_info->profiles_lock);
@@ -1728,21 +1725,21 @@ static int btrfs_check_raid_min_devices(struct btrfs_fs_info *fs_info)
 			    fs_info->avail_metadata_alloc_bits;
 	} while (read_seqretry(&fs_info->profiles_lock, seq));
 
-	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) && num_devices <= 4) {
+	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) && num_devices < 4) {
 		return BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET;
 	}
 
-	if ((all_avail & BTRFS_BLOCK_GROUP_RAID1) && num_devices <= 2) {
+	if ((all_avail & BTRFS_BLOCK_GROUP_RAID1) && num_devices < 2) {
 		return BTRFS_ERROR_DEV_RAID1_MIN_NOT_MET;
 	}
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID5) &&
-	    fs_info->fs_devices->rw_devices <= 2) {
+	    fs_info->fs_devices->rw_devices < 2) {
 		return BTRFS_ERROR_DEV_RAID5_MIN_NOT_MET;
 	}
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID6) &&
-	    fs_info->fs_devices->rw_devices <= 3) {
+	    fs_info->fs_devices->rw_devices < 3) {
 		return BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET;
 	}
 
@@ -1761,7 +1758,15 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 
 	mutex_lock(&uuid_mutex);
 
-	ret = btrfs_check_raid_min_devices(root->fs_info);
+	num_devices = root->fs_info->fs_devices->num_devices;
+	btrfs_dev_replace_lock(&root->fs_info->dev_replace, 0);
+	if (btrfs_dev_replace_is_ongoing(&root->fs_info->dev_replace)) {
+		WARN_ON(num_devices < 1);
+		num_devices--;
+	}
+	btrfs_dev_replace_unlock(&root->fs_info->dev_replace, 0);
+
+	ret = btrfs_check_raid_min_devices(root->fs_info, num_devices - 1);
 	if (ret)
 		goto out;
 
