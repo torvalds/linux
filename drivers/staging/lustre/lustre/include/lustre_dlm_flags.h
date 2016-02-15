@@ -365,10 +365,10 @@
 #define LDLM_TEST_FLAG(_l, _b)        (((_l)->l_flags & (_b)) != 0)
 
 /** set a ldlm_lock flag bit */
-#define LDLM_SET_FLAG(_l, _b)         (((_l)->l_flags |= (_b))
+#define LDLM_SET_FLAG(_l, _b)         ((_l)->l_flags |= (_b))
 
 /** clear a ldlm_lock flag bit */
-#define LDLM_CLEAR_FLAG(_l, _b)       (((_l)->l_flags &= ~(_b))
+#define LDLM_CLEAR_FLAG(_l, _b)       ((_l)->l_flags &= ~(_b))
 
 /** Mask of flags inherited from parent lock when doing intents. */
 #define LDLM_INHERIT_FLAGS            LDLM_FL_INHERIT_MASK
