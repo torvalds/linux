@@ -569,6 +569,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PPC_GET_SMMU_INFO:
 		r = 1;
 		break;
+	case KVM_CAP_SPAPR_MULTITCE:
+		r = 1;
+		break;
 #endif
 	default:
 		r = 0;
