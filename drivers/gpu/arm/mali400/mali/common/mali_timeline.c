@@ -237,16 +237,16 @@ static void mali_timeline_destroy(struct mali_timeline *timeline)
 		MALI_DEBUG_ASSERT(NULL != timeline->system);
 		MALI_DEBUG_ASSERT(MALI_TIMELINE_MAX > timeline->id);
 
+		if (NULL != timeline->delayed_work) {
+			_mali_osk_wq_delayed_cancel_work_sync(timeline->delayed_work);
+			_mali_osk_wq_delayed_delete_work_nonflush(timeline->delayed_work);
+		}
+
 #if defined(CONFIG_SYNC)
 		if (NULL != timeline->sync_tl) {
 			sync_timeline_destroy(timeline->sync_tl);
 		}
 #endif /* defined(CONFIG_SYNC) */
-
-		if (NULL != timeline->delayed_work) {
-			_mali_osk_wq_delayed_cancel_work_sync(timeline->delayed_work);
-			_mali_osk_wq_delayed_delete_work_nonflush(timeline->delayed_work);
-		}
 
 #ifndef CONFIG_SYNC
 		_mali_osk_free(timeline);

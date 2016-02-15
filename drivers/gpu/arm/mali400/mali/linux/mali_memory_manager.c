@@ -413,7 +413,7 @@ _mali_osk_errcode_t _mali_ukk_mem_allocate(_mali_uk_alloc_mem_s *args)
 	mali_vma_node = mali_vma_offset_search(&session->allocation_mgr, args->gpu_vaddr, 0);
 
 	if (unlikely(mali_vma_node)) {
-		MALI_DEBUG_ASSERT(0);
+		MALI_DEBUG_PRINT_ERROR(("The mali virtual address has already been used ! \n"));
 		return _MALI_OSK_ERR_FAULT;
 	}
 	/**
@@ -680,7 +680,8 @@ _mali_osk_errcode_t _mali_ukk_mem_bind(_mali_uk_bind_mem_s *args)
 		break;
 	case _MALI_MEMORY_BIND_BACKEND_MALI_MEMORY:
 		/* not allowed */
-		MALI_DEBUG_ASSERT(0);
+		MALI_DEBUG_PRINT_ERROR(("Mali internal memory type not supported !\n"));
+		goto Failed_bind_backend;
 		break;
 
 	case _MALI_MEMORY_BIND_BACKEND_EXTERNAL_MEMORY:
@@ -696,11 +697,13 @@ _mali_osk_errcode_t _mali_ukk_mem_bind(_mali_uk_bind_mem_s *args)
 
 	case _MALI_MEMORY_BIND_BACKEND_EXT_COW:
 		/* not allowed */
-		MALI_DEBUG_ASSERT(0);
+		MALI_DEBUG_PRINT_ERROR(("External cow memory  type not supported !\n"));
+		goto Failed_bind_backend;
 		break;
 
 	default:
-		MALI_DEBUG_ASSERT(0);
+		MALI_DEBUG_PRINT_ERROR(("Invalid memory type  not supported !\n"));
+		goto Failed_bind_backend;
 		break;
 	}
 	MALI_DEBUG_ASSERT(0 == mem_backend->size % MALI_MMU_PAGE_SIZE);
@@ -779,7 +782,7 @@ _mali_osk_errcode_t _mali_ukk_mem_cow(_mali_uk_cow_mem_s *args)
 	mali_vma_node = mali_vma_offset_search(&session->allocation_mgr, args->vaddr, 0);
 
 	if (unlikely(mali_vma_node)) {
-		MALI_DEBUG_ASSERT(0);
+		MALI_DEBUG_PRINT_ERROR(("The mali virtual address has already been used ! \n"));
 		return ret;
 	}
 

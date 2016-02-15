@@ -129,7 +129,7 @@ static mali_bool mali_executor_has_virtual_group(void);
 static mali_bool mali_executor_virtual_group_is_usable(void);
 static void mali_executor_schedule(void);
 static void mali_executor_wq_schedule(void *arg);
-static void mali_executor_send_gp_oom_to_user(struct mali_gp_job *job, u32 added_size);
+static void mali_executor_send_gp_oom_to_user(struct mali_gp_job *job);
 static void mali_executor_complete_group(struct mali_group *group,
 		mali_bool success,
 		struct mali_gp_job **gp_job_done,
@@ -574,10 +574,23 @@ _mali_osk_errcode_t mali_executor_interrupt_gp(struct mali_group *group,
 			return _MALI_OSK_ERR_OK;
 		}
 	} else if (MALI_INTERRUPT_RESULT_OOM == int_result) {
+		struct mali_gp_job *job = mali_group_get_running_gp_job(group);
+
+		/* PLBU out of mem */
+		MALI_DEBUG_PRINT(3, ("Executor: PLBU needs more heap memory\n"));
+
+#if defined(CONFIG_MALI400_PROFILING)
+		/* Give group a chance to generate a SUSPEND event */
+		mali_group_oom(group);
+#endif
+
+		/*
+		 * no need to hold interrupt raised while
+		 * waiting for more memory.
+		 */
+		mali_executor_send_gp_oom_to_user(job);
 
 		mali_executor_unlock();
-
-		mali_group_schedule_oom_work_handler(group);
 
 		return _MALI_OSK_ERR_OK;
 	}
@@ -823,59 +836,6 @@ _mali_osk_errcode_t mali_executor_interrupt_mmu(struct mali_group *group,
 	}
 
 	return _MALI_OSK_ERR_OK;
-}
-
-void mali_executor_group_oom(struct mali_group *group)
-{
-	struct mali_gp_job *job = NULL;
-	MALI_DEBUG_ASSERT_POINTER(group);
-	MALI_DEBUG_ASSERT_POINTER(group->gp_core);
-	MALI_DEBUG_ASSERT_POINTER(group->mmu);
-
-	mali_executor_lock();
-
-	job = mali_group_get_running_gp_job(group);
-
-	MALI_DEBUG_ASSERT_POINTER(job);
-
-#if defined(CONFIG_MALI400_PROFILING)
-	/* Give group a chance to generate a SUSPEND event */
-	mali_group_oom(group);
-#endif
-
-	mali_gp_job_set_current_heap_addr(job, mali_gp_read_plbu_alloc_start_addr(group->gp_core));
-
-	mali_executor_unlock();
-
-	if (_MALI_OSK_ERR_OK  == mali_mem_add_mem_size(job->session, job->heap_base_addr, job->heap_grow_size)) {
-		_mali_osk_notification_t *new_notification = NULL;
-
-		new_notification = _mali_osk_notification_create(
-					   _MALI_NOTIFICATION_GP_STALLED,
-					   sizeof(_mali_uk_gp_job_suspended_s));
-
-		/* resume job with new heap,
-		* This will also re-enable interrupts
-		*/
-		mali_executor_lock();
-
-		mali_executor_send_gp_oom_to_user(job, job->heap_grow_size);
-
-		if (NULL != new_notification) {
-
-			mali_gp_job_set_oom_notification(job, new_notification);
-
-			mali_group_resume_gp_with_new_heap(group, mali_gp_job_get_id(job),
-							   job->heap_current_addr,
-							   job->heap_current_addr + job->heap_grow_size);
-		}
-		mali_executor_unlock();
-	} else {
-		mali_executor_lock();
-		mali_executor_send_gp_oom_to_user(job, 0);
-		mali_executor_unlock();
-	}
-
 }
 
 void mali_executor_group_power_up(struct mali_group *groups[], u32 num_groups)
@@ -1345,9 +1305,6 @@ _mali_osk_errcode_t _mali_ukk_gp_suspend_response(_mali_uk_gp_suspend_response_s
 								   args->cookie,
 								   args->arguments[0],
 								   args->arguments[1]);
-
-				job->heap_base_addr =  args->arguments[0];
-				job->heap_current_addr = args->arguments[0];
 
 				mali_executor_unlock();
 				return _MALI_OSK_ERR_OK;
@@ -1844,7 +1801,7 @@ static void mali_executor_wq_schedule(void *arg)
 	mali_executor_unlock();
 }
 
-static void mali_executor_send_gp_oom_to_user(struct mali_gp_job *job, u32 added_size)
+static void mali_executor_send_gp_oom_to_user(struct mali_gp_job *job)
 {
 	_mali_uk_gp_job_suspended_s *jobres;
 	_mali_osk_notification_t *notification;
@@ -1860,7 +1817,7 @@ static void mali_executor_send_gp_oom_to_user(struct mali_gp_job *job, u32 added
 	jobres = (_mali_uk_gp_job_suspended_s *)notification->result_buffer;
 	jobres->user_job_ptr = mali_gp_job_get_user_id(job);
 	jobres->cookie = gp_returned_cookie;
-	jobres->heap_added_size = added_size;
+
 	mali_session_send_notification(mali_gp_job_get_session(job),
 				       notification);
 }

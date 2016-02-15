@@ -65,9 +65,7 @@ struct mali_gp_job {
 	 * returning job to user. Hold executor lock when setting,
 	 * no lock needed when reading
 	 */
-	u32 heap_base_addr;                                /** < Holds the base mali addr of mem handle which is used for new heap*/
 	u32 heap_current_addr;                             /**< Holds the current HEAP address when the job has completed */
-	u32 heap_grow_size;                                /** < Holds the HEAP grow size when HEAP oom */
 	u32 perf_counter_value0;                           /**< Value of performance counter 0 (to be returned to user space) */
 	u32 perf_counter_value1;                           /**< Value of performance counter 1 (to be returned to user space) */
 	struct mali_defer_mem *dmem;                                          /** < used for defer bind to store dmem info */
@@ -75,6 +73,7 @@ struct mali_gp_job {
 	u32 bind_flag;                                     /** < flag for deferbind*/
 	u32 *varying_list;                                 /**< varying memory list need to to defer bind*/
 	struct list_head vary_todo;                        /**< list of backend list need to do defer bind*/
+	u32 required_varying_memsize;			   /** < size of varying memory to reallocate*/
 	u32 big_job;                                       /** < if the gp job have large varying output and may take long time*/
 };
 

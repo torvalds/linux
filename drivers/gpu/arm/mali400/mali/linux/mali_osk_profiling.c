@@ -254,7 +254,8 @@ static u32 _mali_profiling_read_packet_int(unsigned char *const buf, u32 *const 
 	u8 byte_value = ~0;
 
 	while ((byte_value & 0x80) != 0) {
-		MALI_DEBUG_ASSERT((*pos) < packet_size);
+		if ((*pos) >= packet_size);
+		return -1;
 		byte_value = buf[*pos];
 		*pos += 1;
 		int_value |= (u32)(byte_value & 0x7f) << shift;
@@ -283,7 +284,8 @@ static u32 _mali_profiling_pack_int(u8 *const buf, u32 const buf_size, u32 const
 			byte_value |= 0x80;
 		}
 
-		MALI_DEBUG_ASSERT((pos + add_bytes) < buf_size);
+		if ((pos + add_bytes) >= buf_size)
+			return 0;
 		buf[pos + add_bytes] = byte_value;
 		add_bytes++;
 	}
@@ -914,6 +916,9 @@ _mali_osk_errcode_t _mali_ukk_profiling_control_set(_mali_uk_profiling_control_s
 			}
 
 			/* Send supported counters */
+			if (PACKET_HEADER_SIZE > output_buffer_size)
+				return _MALI_OSK_ERR_FAULT;
+
 			*response_packet_data = PACKET_HEADER_COUNTERS_ACK;
 			args->response_packet_size = PACKET_HEADER_SIZE;
 
@@ -983,9 +988,13 @@ _mali_osk_errcode_t _mali_ukk_profiling_control_set(_mali_uk_profiling_control_s
 				u32 event;
 				u32 key;
 
+				/* Check the counter name which should be ended with null */
 				while (request_pos < control_packet_size && control_packet_data[request_pos] != '\0') {
 					++request_pos;
 				}
+
+				if (request_pos >= control_packet_size)
+					return _MALI_OSK_ERR_FAULT;
 
 				++request_pos;
 				event = _mali_profiling_read_packet_int(control_packet_data, &request_pos, control_packet_size);
@@ -993,6 +1002,7 @@ _mali_osk_errcode_t _mali_ukk_profiling_control_set(_mali_uk_profiling_control_s
 
 				for (i = 0; i < num_global_mali_profiling_counters; ++i) {
 					u32 name_size = strlen((char *)(control_packet_data + begin));
+
 					if (strncmp(global_mali_profiling_counters[i].counter_name, (char *)(control_packet_data + begin), name_size) == 0) {
 						if (!sw_counter_if_enabled && (FIRST_SW_COUNTER <= global_mali_profiling_counters[i].counter_id
 									       && global_mali_profiling_counters[i].counter_id <= LAST_SW_COUNTER)) {

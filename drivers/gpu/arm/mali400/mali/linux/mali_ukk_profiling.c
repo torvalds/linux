@@ -120,14 +120,20 @@ int profiling_control_set_wrapper(struct mali_session_data *session_data, _mali_
 
 	kargs.ctx = (uintptr_t)session_data;
 
+	
+	/* Sanity check about the size */
+	if (kargs.control_packet_size > PAGE_SIZE || kargs.response_packet_size > PAGE_SIZE)
+		return -EINVAL;
+
 	if (0 !=  kargs.control_packet_size) {
+
+		if (0 == kargs.response_packet_size)
+			return -EINVAL;
 
 		kernel_control_data = _mali_osk_calloc(1, kargs.control_packet_size);
 		if (NULL == kernel_control_data) {
 			return -ENOMEM;
 		}
-
-		MALI_DEBUG_ASSERT(0 != kargs.response_packet_size);
 
 		kernel_response_data = _mali_osk_calloc(1, kargs.response_packet_size);
 		if (NULL == kernel_response_data) {

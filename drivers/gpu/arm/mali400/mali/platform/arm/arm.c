@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/version.h>
 #include <linux/pm.h>
+#include "mali_kernel_linux.h"
 #ifdef CONFIG_PM_RUNTIME
 #include <linux/pm_runtime.h>
 #endif

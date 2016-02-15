@@ -30,6 +30,7 @@ struct mali_session_data {
 	_mali_osk_notification_queue_t *ioctl_queue;
 
 	_mali_osk_mutex_t *memory_lock; /**< Lock protecting the vm manipulation */
+	_mali_osk_mutex_t *cow_lock; /** < Lock protecting the cow memory free manipulation */
 #if 0
 	_mali_osk_list_t memory_head; /**< Track all the memory allocated in this session, for freeing on abnormal termination */
 #endif

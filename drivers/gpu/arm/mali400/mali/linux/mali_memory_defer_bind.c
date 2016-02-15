@@ -35,7 +35,7 @@ mali_defer_bind_manager *mali_dmem_man = NULL;
 
 static u32 mali_dmem_get_gp_varying_size(struct mali_gp_job *gp_job)
 {
-	return gp_job->uargs.varying_memsize / _MALI_OSK_MALI_PAGE_SIZE;
+	return gp_job->required_varying_memsize / _MALI_OSK_MALI_PAGE_SIZE;
 }
 
 _mali_osk_errcode_t mali_mem_defer_bind_manager_init(void)
@@ -108,7 +108,7 @@ _mali_osk_errcode_t mali_mem_prepare_mem_for_job(struct mali_gp_job *next_gp_job
 
 
 /* do preparetion for allocation before defer bind */
-_mali_osk_errcode_t mali_mem_defer_bind_allocation_prepare(mali_mem_allocation *alloc, struct list_head *list)
+_mali_osk_errcode_t mali_mem_defer_bind_allocation_prepare(mali_mem_allocation *alloc, struct list_head *list, u32 *required_varying_memsize)
 {
 	mali_mem_backend *mem_bkend = NULL;
 	struct mali_backend_bind_list *bk_list = _mali_osk_calloc(1, sizeof(struct mali_backend_bind_list));
@@ -121,10 +121,17 @@ _mali_osk_errcode_t mali_mem_defer_bind_allocation_prepare(mali_mem_allocation *
 	if (!(mem_bkend = idr_find(&mali_backend_idr, alloc->backend_handle))) {
 		MALI_DEBUG_PRINT(1, ("Can't find memory backend in defer bind!\n"));
 		mutex_unlock(&mali_idr_mutex);
-		kfree(bk_list);
+		_mali_osk_free(bk_list);
 		return _MALI_OSK_ERR_FAULT;
 	}
 	mutex_unlock(&mali_idr_mutex);
+
+	/* If the mem backend has already been bound, no need to bind again.*/
+	if (mem_bkend->os_mem.count > 0) {
+		_mali_osk_free(bk_list);
+		return _MALI_OSK_ERR_OK;
+	}
+
 	MALI_DEBUG_PRINT(4, ("bind_allocation_prepare:: allocation =%x vaddr=0x%x!\n", alloc, alloc->mali_vma_node.vm_node.start));
 
 	INIT_LIST_HEAD(&mem_bkend->os_mem.pages);
@@ -133,6 +140,7 @@ _mali_osk_errcode_t mali_mem_defer_bind_allocation_prepare(mali_mem_allocation *
 	bk_list->vaddr = alloc->mali_vma_node.vm_node.start;
 	bk_list->session = alloc->session;
 	bk_list->page_num = mem_bkend->size / _MALI_OSK_MALI_PAGE_SIZE;
+	*required_varying_memsize +=  mem_bkend->size;
 	MALI_DEBUG_ASSERT(mem_bkend->type == MALI_MEM_OS);
 
 	/* add to job to do list */
@@ -196,12 +204,17 @@ static struct list_head *mali_mem_defer_get_free_page_list(u32 count, struct lis
 @ pages page list to do this bind
 @ count number of pages
 */
-_mali_osk_errcode_t mali_mem_defer_bind(u32 count, struct mali_gp_job *gp,
+_mali_osk_errcode_t mali_mem_defer_bind(struct mali_gp_job *gp,
 					struct mali_defer_mem_block *dmem_block)
 {
 	struct mali_defer_mem *dmem = NULL;
 	struct mali_backend_bind_list *bkn, *bkn_tmp;
 	LIST_HEAD(pages);
+
+	if (gp->required_varying_memsize != (atomic_read(&dmem_block->num_free_pages) * _MALI_OSK_MALI_PAGE_SIZE)) {
+		MALI_DEBUG_PRINT_ERROR(("#BIND:  The memsize of varying buffer not match to the pagesize of the dmem_block!!## \n"));
+		return _MALI_OSK_ERR_FAULT;
+	}
 
 	MALI_DEBUG_PRINT(4, ("#BIND: GP job=%x## \n", gp));
 	dmem = (mali_defer_mem *)_mali_osk_calloc(1, sizeof(struct mali_defer_mem));
@@ -222,13 +235,16 @@ _mali_osk_errcode_t mali_mem_defer_bind(u32 count, struct mali_gp_job *gp,
 			_mali_osk_free(bkn);
 		} else {
 			/* not enough memory will not happen */
-			MALI_DEBUG_PRINT(1, ("#BIND: NOT enough memory when binded !!## \n"));
-			MALI_DEBUG_ASSERT(0);
+			MALI_DEBUG_PRINT_ERROR(("#BIND: NOT enough memory when binded !!## \n"));
+			_mali_osk_free(gp->dmem);
+			return _MALI_OSK_ERR_NOMEM;
 		}
 	}
 
 	if (!list_empty(&gp->vary_todo)) {
-		MALI_DEBUG_ASSERT(0);
+		MALI_DEBUG_PRINT_ERROR(("#BIND:  The deferbind backend list isn't empty !!## \n"));
+		_mali_osk_free(gp->dmem);
+		return _MALI_OSK_ERR_FAULT;
 	}
 
 	dmem->flag = MALI_DEFER_BIND_MEMORY_BINDED;

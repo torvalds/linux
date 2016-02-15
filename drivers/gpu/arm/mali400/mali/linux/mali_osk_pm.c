@@ -15,6 +15,7 @@
 
 #include <linux/sched.h>
 
+#include "mali_kernel_linux.h"
 #ifdef CONFIG_PM_RUNTIME
 #include <linux/pm_runtime.h>
 #endif /* CONFIG_PM_RUNTIME */
@@ -22,7 +23,6 @@
 #include <linux/version.h>
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
-#include "mali_kernel_linux.h"
 
 /* Can NOT run in atomic context */
 _mali_osk_errcode_t _mali_osk_pm_dev_ref_get_sync(void)

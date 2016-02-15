@@ -43,7 +43,8 @@ static int _mali_gp_add_varying_allocations(struct mali_session_data *session,
 				MALI_DEBUG_ASSERT(alloc[i] == mali_vma_node->vm_node.start);
 			} else {
 				MALI_DEBUG_PRINT(1, ("ERROE!_mali_gp_add_varying_allocations,can't find allocation %d by address =0x%x, num=%d\n", i, alloc[i], num));
-				MALI_DEBUG_ASSERT(0);
+				_mali_osk_free(alloc_node);
+				goto fail;
 			}
 			alloc_node->alloc = mali_alloc;
 			/* add to gp job varying alloc list*/
@@ -107,9 +108,7 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 		_mali_osk_list_init(&job->list);
 		job->session = session;
 		job->id = id;
-		job->heap_base_addr = job->uargs.frame_registers[4];
 		job->heap_current_addr = job->uargs.frame_registers[4];
-		job->heap_grow_size = job->uargs.heap_grow_size;
 		job->perf_counter_value0 = 0;
 		job->perf_counter_value1 = 0;
 		job->pid = _mali_osk_get_pid();
@@ -119,31 +118,37 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 		INIT_LIST_HEAD(&job->varying_alloc);
 		INIT_LIST_HEAD(&job->vary_todo);
 		job->dmem = NULL;
+
+		if (job->uargs.varying_alloc_num > session->allocation_mgr.mali_allocation_num) {
+			MALI_PRINT_ERROR(("Mali GP job: The number of  varying buffer to defer bind  is invalid !\n"));
+			goto fail1;
+		}
+
 		/* add varying allocation list*/
-		if (uargs->varying_alloc_num) {
+		if (job->uargs.varying_alloc_num > 0) {
 			/* copy varying list from user space*/
-			job->varying_list = _mali_osk_calloc(1, sizeof(u32) * uargs->varying_alloc_num);
+			job->varying_list = _mali_osk_calloc(1, sizeof(u32) * job->uargs.varying_alloc_num);
 			if (!job->varying_list) {
-				MALI_PRINT_ERROR(("Mali GP job: allocate varying_list failed varying_alloc_num = %d !\n", uargs->varying_alloc_num));
+				MALI_PRINT_ERROR(("Mali GP job: allocate varying_list failed varying_alloc_num = %d !\n", job->uargs.varying_alloc_num));
 				goto fail1;
 			}
 
 			memory_list = (u32 __user *)(uintptr_t)uargs->varying_alloc_list;
 
-			if (0 != _mali_osk_copy_from_user(job->varying_list, memory_list, sizeof(u32)*uargs->varying_alloc_num)) {
+			if (0 != _mali_osk_copy_from_user(job->varying_list, memory_list, sizeof(u32) * job->uargs.varying_alloc_num)) {
 				MALI_PRINT_ERROR(("Mali GP job: Failed to copy varying list from user space!\n"));
 				goto fail;
 			}
 
 			if (unlikely(_mali_gp_add_varying_allocations(session, job, job->varying_list,
-					uargs->varying_alloc_num))) {
+					job->uargs.varying_alloc_num))) {
 				MALI_PRINT_ERROR(("Mali GP job: _mali_gp_add_varying_allocations failed!\n"));
 				goto fail;
 			}
 
 			/* do preparetion for each allocation */
 			list_for_each_entry_safe(alloc_node, tmp_node, &job->varying_alloc, node) {
-				if (unlikely(_MALI_OSK_ERR_OK != mali_mem_defer_bind_allocation_prepare(alloc_node->alloc, &job->vary_todo))) {
+				if (unlikely(_MALI_OSK_ERR_OK != mali_mem_defer_bind_allocation_prepare(alloc_node->alloc, &job->vary_todo, &job->required_varying_memsize))) {
 					MALI_PRINT_ERROR(("Mali GP job: mali_mem_defer_bind_allocation_prepare failed!\n"));
 					goto fail;
 				}
@@ -162,7 +167,7 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 					MALI_PRINT_ERROR(("Mali GP job: mali_mem_prepare_mem_for_job failed!\n"));
 					goto fail;
 				}
-				if (_MALI_OSK_ERR_OK != mali_mem_defer_bind(job->uargs.varying_memsize / _MALI_OSK_MALI_PAGE_SIZE, job, &dmem_block)) {
+				if (_MALI_OSK_ERR_OK != mali_mem_defer_bind(job, &dmem_block)) {
 					MALI_PRINT_ERROR(("gp job create, mali_mem_defer_bind failed! GP %x fail!", job));
 					goto fail;
 				}
@@ -220,10 +225,6 @@ void mali_gp_job_delete(struct mali_gp_job *job)
 	list_for_each_entry_safe(bkn, bkn_tmp , &job->vary_todo, node) {
 		list_del(&bkn->node);
 		_mali_osk_free(bkn);
-	}
-
-	if (!list_empty(&job->vary_todo)) {
-		MALI_DEBUG_ASSERT(0);
 	}
 
 	mali_mem_defer_dmem_free(job);
