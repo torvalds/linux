@@ -65,8 +65,6 @@ struct common_obj {
 	struct v4l2_format fmt;
 	/* Buffer queue used in video-buf */
 	struct vb2_queue buffer_queue;
-	/* allocator-specific contexts for each plane */
-	struct vb2_alloc_ctx *alloc_ctx;
 	/* Queue of filled frames */
 	struct list_head dma_queue;
 	/* Used in video-buf */

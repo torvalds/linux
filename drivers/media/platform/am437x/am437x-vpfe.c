@@ -1915,7 +1915,6 @@ static int vpfe_queue_setup(struct vb2_queue *vq,
 
 	if (vq->num_buffers + *nbuffers < 3)
 		*nbuffers = 3 - vq->num_buffers;
-	alloc_ctxs[0] = vpfe->alloc_ctx;
 
 	if (*nplanes) {
 		if (sizes[0] < size)
@@ -2364,13 +2363,6 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 		goto probe_out;
 
 	/* Initialize videobuf2 queue as per the buffer type */
-	vpfe->alloc_ctx = vb2_dma_contig_init_ctx(vpfe->pdev);
-	if (IS_ERR(vpfe->alloc_ctx)) {
-		vpfe_err(vpfe, "Failed to get the context\n");
-		err = PTR_ERR(vpfe->alloc_ctx);
-		goto probe_out;
-	}
-
 	q = &vpfe->buffer_queue;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
@@ -2381,11 +2373,11 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &vpfe->lock;
 	q->min_buffers_needed = 1;
+	q->dev = vpfe->pdev;
 
 	err = vb2_queue_init(q);
 	if (err) {
 		vpfe_err(vpfe, "vb2_queue_init() failed\n");
-		vb2_dma_contig_cleanup_ctx(vpfe->alloc_ctx);
 		goto probe_out;
 	}
 

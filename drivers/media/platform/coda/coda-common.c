@@ -1151,9 +1151,6 @@ static int coda_queue_setup(struct vb2_queue *vq,
 	*nplanes = 1;
 	sizes[0] = size;
 
-	/* Set to vb2-dma-contig allocator context, ignored by vb2-vmalloc */
-	alloc_ctxs[0] = ctx->dev->alloc_ctx;
-
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 		 "get %d buffer(s) of size %d each.\n", *nbuffers, size);
 
@@ -1599,6 +1596,7 @@ static int coda_queue_init(struct coda_ctx *ctx, struct vb2_queue *vq)
 	 * that videobuf2 will keep the value of bytesused intact.
 	 */
 	vq->allow_zero_bytesused = 1;
+	vq->dev = &ctx->dev->plat_dev->dev;
 
 	return vb2_queue_init(vq);
 }
@@ -2040,16 +2038,10 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 	if (ret < 0)
 		goto put_pm;
 
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		v4l2_err(&dev->v4l2_dev, "Failed to alloc vb2 context\n");
-		goto put_pm;
-	}
-
 	dev->m2m_dev = v4l2_m2m_init(&coda_m2m_ops);
 	if (IS_ERR(dev->m2m_dev)) {
 		v4l2_err(&dev->v4l2_dev, "Failed to init mem2mem device\n");
-		goto rel_ctx;
+		goto put_pm;
 	}
 
 	for (i = 0; i < dev->devtype->num_vdevs; i++) {
@@ -2072,8 +2064,6 @@ rel_vfd:
 	while (--i >= 0)
 		video_unregister_device(&dev->vfd[i]);
 	v4l2_m2m_release(dev->m2m_dev);
-rel_ctx:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 put_pm:
 	pm_runtime_put_sync(&pdev->dev);
 }
@@ -2324,8 +2314,6 @@ static int coda_remove(struct platform_device *pdev)
 	if (dev->m2m_dev)
 		v4l2_m2m_release(dev->m2m_dev);
 	pm_runtime_disable(&pdev->dev);
-	if (dev->alloc_ctx)
-		vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	destroy_workqueue(dev->workqueue);
 	if (dev->iram.vaddr)
