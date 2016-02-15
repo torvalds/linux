@@ -57,6 +57,7 @@ struct stm_device {
 	container_of((_d), struct stm_device, dev)
 
 struct stm_output {
+	spinlock_t		lock;
 	unsigned int		master;
 	unsigned int		channel;
 	unsigned int		nr_chans;
