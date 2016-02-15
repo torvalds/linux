@@ -683,7 +683,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	return 0;
 
 err:
-	while (--pin) {
+	while (pin--) {
 		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
 			continue;
 
