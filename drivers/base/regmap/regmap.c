@@ -1748,28 +1748,6 @@ int regmap_fields_update_bits_base(struct regmap_field *field,  unsigned int id,
 }
 EXPORT_SYMBOL_GPL(regmap_fields_update_bits_base);
 
-/**
- * regmap_fields_write(): Write a value to a single register field with port ID
- *
- * @field: Register field to write to
- * @id: port ID
- * @val: Value to be written
- *
- * A value of zero will be returned on success, a negative errno will
- * be returned in error cases.
- */
-int regmap_fields_write(struct regmap_field *field, unsigned int id,
-			unsigned int val)
-{
-	if (id >= field->id_size)
-		return -EINVAL;
-
-	return regmap_update_bits(field->regmap,
-				  field->reg + (field->id_offset * id),
-				  field->mask, val << field->shift);
-}
-EXPORT_SYMBOL_GPL(regmap_fields_write);
-
 int regmap_fields_force_write(struct regmap_field *field, unsigned int id,
 			unsigned int val)
 {
