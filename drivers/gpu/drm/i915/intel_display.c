@@ -2297,8 +2297,9 @@ intel_fb_align_height(struct drm_device *dev, unsigned int height,
 }
 
 static void
-intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
-			const struct drm_plane_state *plane_state)
+intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
+			const struct drm_framebuffer *fb,
+			unsigned int rotation)
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 	struct intel_rotation_info *info = &view->params.rotated;
@@ -2306,10 +2307,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 
 	*view = i915_ggtt_view_normal;
 
-	if (!plane_state)
-		return;
-
-	if (!intel_rotation_90_or_270(plane_state->rotation))
+	if (!intel_rotation_90_or_270(rotation))
 		return;
 
 	*view = i915_ggtt_view_rotated;
@@ -2374,9 +2372,8 @@ static unsigned int intel_surf_alignment(const struct drm_i915_private *dev_priv
 }
 
 int
-intel_pin_and_fence_fb_obj(struct drm_plane *plane,
-			   struct drm_framebuffer *fb,
-			   const struct drm_plane_state *plane_state)
+intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
+			   unsigned int rotation)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2389,7 +2386,7 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 
 	alignment = intel_surf_alignment(dev_priv, fb->modifier[0]);
 
-	intel_fill_fb_ggtt_view(&view, fb, plane_state);
+	intel_fill_fb_ggtt_view(&view, fb, rotation);
 
 	/* Note that the w/a also requires 64 PTE of padding following the
 	 * bo. We currently fill all unused PTE with the shadow page and so
@@ -2447,15 +2444,14 @@ err_pm:
 	return ret;
 }
 
-static void intel_unpin_fb_obj(struct drm_framebuffer *fb,
-			       const struct drm_plane_state *plane_state)
+static void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 {
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct i915_ggtt_view view;
 
 	WARN_ON(!mutex_is_locked(&obj->base.dev->struct_mutex));
 
-	intel_fill_fb_ggtt_view(&view, fb, plane_state);
+	intel_fill_fb_ggtt_view(&view, fb, rotation);
 
 	if (view.type == I915_GGTT_VIEW_NORMAL)
 		i915_gem_object_unpin_fence(obj);
@@ -3014,7 +3010,7 @@ u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
 	u64 offset;
 
 	intel_fill_fb_ggtt_view(&view, intel_plane->base.state->fb,
-				intel_plane->base.state);
+				intel_plane->base.state->rotation);
 
 	vma = i915_gem_obj_to_ggtt_view(obj, &view);
 	if (WARN(!vma, "ggtt vma for display object not found! (view=%u)\n",
@@ -10959,7 +10955,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	struct drm_plane *primary = crtc->base.primary;
 
 	mutex_lock(&dev->struct_mutex);
-	intel_unpin_fb_obj(work->old_fb, primary->state);
+	intel_unpin_fb_obj(work->old_fb, primary->state->rotation);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 
 	if (work->flip_queued_req)
@@ -11731,8 +11727,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			goto cleanup_pending;
 	}
 
-	ret = intel_pin_and_fence_fb_obj(crtc->primary, fb,
-					 crtc->primary->state);
+	ret = intel_pin_and_fence_fb_obj(fb, primary->state->rotation);
 	if (ret)
 		goto cleanup_pending;
 
@@ -11782,7 +11777,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 cleanup_unpin:
-	intel_unpin_fb_obj(fb, crtc->primary->state);
+	intel_unpin_fb_obj(fb, crtc->primary->state->rotation);
 cleanup_pending:
 	if (!IS_ERR_OR_NULL(request))
 		i915_gem_request_cancel(request);
@@ -14004,7 +13999,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		if (ret)
 			DRM_DEBUG_KMS("failed to attach phys object\n");
 	} else {
-		ret = intel_pin_and_fence_fb_obj(plane, fb, new_state);
+		ret = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
 	}
 
 	if (ret == 0) {
@@ -14048,7 +14043,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 
 	if (old_obj && (plane->type != DRM_PLANE_TYPE_CURSOR ||
 	    !INTEL_INFO(dev)->cursor_needs_physical))
-		intel_unpin_fb_obj(old_state->fb, old_state);
+		intel_unpin_fb_obj(old_state->fb, old_state->rotation);
 
 	/* prepare_fb aborted? */
 	if ((old_obj && (old_obj->frontbuffer_bits & intel_plane->frontbuffer_bit)) ||
@@ -14056,7 +14051,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
 
 	i915_gem_request_assign(&old_intel_state->wait_req, NULL);
-
 }
 
 int
@@ -16179,9 +16173,8 @@ void intel_modeset_gem_init(struct drm_device *dev)
 			continue;
 
 		mutex_lock(&dev->struct_mutex);
-		ret = intel_pin_and_fence_fb_obj(c->primary,
-						 c->primary->fb,
-						 c->primary->state);
+		ret = intel_pin_and_fence_fb_obj(c->primary->fb,
+						 c->primary->state->rotation);
 		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			DRM_ERROR("failed to pin boot fb on pipe %d\n",
