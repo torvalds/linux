@@ -113,6 +113,7 @@ struct css_header {
 	u32 exponent_size;	/* in DWORDs */
 	u32 reserved[22];
 };
+
 /* expected field values */
 #define CSS_MODULE_TYPE	   0x00000006
 #define CSS_HEADER_LEN	   0x000000a1
@@ -172,6 +173,7 @@ enum fw_state {
 	FW_FINAL,
 	FW_ERR
 };
+
 static enum fw_state fw_state = FW_EMPTY;
 static int fw_err;
 static struct firmware_details fw_8051;

@@ -1495,6 +1495,7 @@ static inline int valid_ib_mtu(unsigned int mtu)
 		mtu == 1024 || mtu == 2048 ||
 		mtu == 4096;
 }
+
 static inline int valid_opa_max_mtu(unsigned int mtu)
 {
 	return mtu >= 2048 &&

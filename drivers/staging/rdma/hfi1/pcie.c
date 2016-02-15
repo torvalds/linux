@@ -529,6 +529,7 @@ static void tune_pcie_caps(struct hfi1_devdata *dd)
 		pcie_set_readrq(dd->pcidev, ep_mrrs);
 	}
 }
+
 /* End of PCIe capability tuning */
 
 /*

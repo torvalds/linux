@@ -71,6 +71,7 @@ static const struct seq_operations _##name##_seq_ops = { \
 	.stop  = _##name##_seq_stop, \
 	.show  = _##name##_seq_show \
 }
+
 #define DEBUGFS_SEQ_FILE_OPEN(name) \
 static int _##name##_open(struct inode *inode, struct file *s) \
 { \

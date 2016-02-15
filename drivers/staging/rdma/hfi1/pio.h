@@ -105,6 +105,7 @@ struct send_context {
 	struct hfi1_devdata *dd;		/* device */
 	void __iomem *base_addr;	/* start of PIO memory */
 	union pio_shadow_ring *sr;	/* shadow ring */
+
 	volatile __le64 *hw_free;	/* HW free counter */
 	struct work_struct halt_work;	/* halted context work queue entry */
 	unsigned long flags;		/* flags */

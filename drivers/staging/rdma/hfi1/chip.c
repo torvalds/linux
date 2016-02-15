@@ -6995,6 +6995,7 @@ static u16 link_width_to_bits(struct hfi1_devdata *dd, u16 width)
 static const u8 bit_counts[16] = {
 	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4
 };
+
 static inline u8 nibble_to_count(u8 nibble)
 {
 	return bit_counts[nibble & 0xf];
@@ -10410,6 +10411,7 @@ static int vl_arb_match_cache(struct vl_arb_cache *cache,
 {
 	return !memcmp(cache->table, vl, VL_ARB_TABLE_SIZE * sizeof(*vl));
 }
+
 /* end functions related to vl arbitration table caching */
 
 static int set_vl_weights(struct hfi1_pportdata *ppd, u32 target,
