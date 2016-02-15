@@ -1713,8 +1713,9 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 				     rcd->egrbufs.buffers[j].len)) {
 					j++;
 					offset = 0;
-				} else
+				} else {
 					offset += new_size;
+				}
 			}
 			rcd->egrbufs.rcvtid_size = new_size;
 		}

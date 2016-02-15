@@ -302,9 +302,9 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			goto drop;
 
 		/* Check for GRH */
-		if (lnh == HFI1_LRH_BTH)
+		if (lnh == HFI1_LRH_BTH) {
 			ohdr = &hdr->u.oth;
-		else if (lnh == HFI1_LRH_GRH) {
+		} else if (lnh == HFI1_LRH_GRH) {
 			u32 vtf;
 
 			ohdr = &hdr->u.l.oth;
@@ -314,9 +314,9 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
 				goto drop;
 			rcv_flags |= HFI1_HAS_GRH;
-		} else
+		} else {
 			goto drop;
-
+		}
 		/* Get the destination QP number. */
 		qp_num = be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
 		if (lid < be16_to_cpu(IB_MULTICAST_LID_BASE)) {
@@ -618,14 +618,14 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 			hfi1_get_msgheader(dd, rhf_addr);
 		lnh = be16_to_cpu(hdr->lrh[0]) & 3;
 
-		if (lnh == HFI1_LRH_BTH)
+		if (lnh == HFI1_LRH_BTH) {
 			ohdr = &hdr->u.oth;
-		else if (lnh == HFI1_LRH_GRH) {
+		} else if (lnh == HFI1_LRH_GRH) {
 			ohdr = &hdr->u.l.oth;
 			grh = &hdr->u.l.grh;
-		} else
+		} else {
 			goto next; /* just in case */
-
+		}
 		bth1 = be32_to_cpu(ohdr->bth[1]);
 		is_ecn = !!(bth1 & (HFI1_FECN_SMASK | HFI1_BECN_SMASK));
 

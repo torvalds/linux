@@ -399,8 +399,9 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 			ret = sc_enable(sc);
 			hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_ENB,
 				     uctxt->ctxt);
-		} else
+		} else {
 			ret = sc_restart(sc);
+		}
 		if (!ret)
 			sc_return_credits(sc);
 		break;
@@ -1409,8 +1410,9 @@ static unsigned int poll_next(struct file *fp,
 		set_bit(HFI1_CTXT_WAITING_RCV, &uctxt->event_flags);
 		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_ENB, uctxt->ctxt);
 		pollflag = 0;
-	} else
+	} else {
 		pollflag = POLLIN | POLLRDNORM;
+	}
 	spin_unlock_irq(&dd->uctxt_lock);
 
 	return pollflag;
@@ -1488,8 +1490,9 @@ static int manage_rcvq(struct hfi1_ctxtdata *uctxt, unsigned subctxt,
 		if (uctxt->rcvhdrtail_kvaddr)
 			clear_rcvhdrtail(uctxt);
 		rcvctrl_op = HFI1_RCVCTRL_CTXT_ENB;
-	} else
+	} else {
 		rcvctrl_op = HFI1_RCVCTRL_CTXT_DIS;
+	}
 	hfi1_rcvctrl(dd, rcvctrl_op, uctxt->ctxt);
 	/* always; new head should be equal to new tail; see above */
 bail:

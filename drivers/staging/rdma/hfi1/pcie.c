@@ -123,8 +123,9 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto bail;
 		}
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-	} else
+	} else {
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	}
 	if (ret) {
 		hfi1_early_err(&pdev->dev,
 			       "Unable to set DMA consistent mask: %d\n", ret);

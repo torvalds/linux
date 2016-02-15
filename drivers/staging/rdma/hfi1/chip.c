@@ -13829,9 +13829,9 @@ int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt, u16 pkey)
 	int ret = 0;
 	u64 reg;
 
-	if (ctxt < dd->num_rcv_contexts)
+	if (ctxt < dd->num_rcv_contexts) {
 		rcd = dd->rcd[ctxt];
-	else {
+	} else {
 		ret = -EINVAL;
 		goto done;
 	}
@@ -13857,9 +13857,9 @@ int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt)
 	int ret = 0;
 	u64 reg;
 
-	if (ctxt < dd->num_rcv_contexts)
+	if (ctxt < dd->num_rcv_contexts) {
 		rcd = dd->rcd[ctxt];
-	else {
+	} else {
 		ret = -EINVAL;
 		goto done;
 	}

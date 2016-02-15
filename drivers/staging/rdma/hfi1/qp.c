@@ -326,12 +326,15 @@ __be32 hfi1_compute_aeth(struct rvt_qp *qp)
 			x = (min + max) / 2;
 			if (credit_table[x] == credits)
 				break;
-			if (credit_table[x] > credits)
+			if (credit_table[x] > credits) {
 				max = x;
-			else if (min == x)
-				break;
-			else
-				min = x;
+			} else {
+				if (min == x) {
+					break;
+				} else {
+					min = x;
+				}
+			}
 		}
 		aeth |= x << HFI1_AETH_CREDIT_SHIFT;
 	}

@@ -135,15 +135,16 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 			struct ib_ah *ah;
 
 			ah = hfi1_create_qp0_ah(ibp, ibp->rvp.sm_lid);
-			if (IS_ERR(ah))
+			if (IS_ERR(ah)) {
 				ret = PTR_ERR(ah);
-			else {
+			} else {
 				send_buf->ah = ah;
 				ibp->rvp.sm_ah = ibah_to_rvtah(ah);
 				ret = 0;
 			}
-		} else
+		} else {
 			ret = -EINVAL;
+		}
 	} else {
 		send_buf->ah = &ibp->rvp.sm_ah->ibah;
 		ret = 0;
@@ -769,9 +770,9 @@ static int __subn_get_opa_pkeytable(struct opa_smp *smp, u32 am, u8 *data,
 			p[i] = cpu_to_be16(q[i]);
 		if (resp_len)
 			*resp_len += size;
-	} else
+	} else {
 		smp->status |= IB_SMP_INVALID_FIELD;
-
+	}
 	return reply((struct ib_mad_hdr *)smp);
 }
 
@@ -977,15 +978,15 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 			break;
 		/* FALLTHROUGH */
 	case IB_PORT_DOWN:
-		if (phys_state == IB_PORTPHYSSTATE_NOP)
+		if (phys_state == IB_PORTPHYSSTATE_NOP) {
 			link_state = HLS_DN_DOWNDEF;
-		else if (phys_state == IB_PORTPHYSSTATE_POLLING) {
+		} else if (phys_state == IB_PORTPHYSSTATE_POLLING) {
 			link_state = HLS_DN_POLL;
 			set_link_down_reason(ppd, OPA_LINKDOWN_REASON_FM_BOUNCE,
 					     0, OPA_LINKDOWN_REASON_FM_BOUNCE);
-		} else if (phys_state == IB_PORTPHYSSTATE_DISABLED)
+		} else if (phys_state == IB_PORTPHYSSTATE_DISABLED) {
 			link_state = HLS_DN_DISABLE;
-		else {
+		} else {
 			pr_warn("SubnSet(OPA_PortInfo) invalid physical state 0x%x\n",
 				phys_state);
 			smp->status |= IB_SMP_INVALID_FIELD;
@@ -1193,9 +1194,9 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 			set_link_width_downgrade_enabled(ppd, lwe);
 			call_link_downgrade_policy = 1;
 		}
-	} else
+	} else {
 		smp->status |= IB_SMP_INVALID_FIELD;
-
+	}
 	lse = be16_to_cpu(pi->link_speed.enabled);
 	if (lse) {
 		if (lse & be16_to_cpu(pi->link_speed.supported))

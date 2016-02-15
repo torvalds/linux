@@ -765,8 +765,9 @@ static inline u32 compute_data_length(struct user_sdma_request *req,
 		 * remaining.
 		 */
 		len = min(len, req->data_len - req->sent);
-	} else
+	} else {
 		len = min(req->data_len - req->sent, (u32)req->info.fragsize);
+	}
 	SDMA_DBG(req, "Data Length = %u", len);
 	return len;
 }
@@ -1337,8 +1338,9 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 								INTR) >> 16);
 			val &= cpu_to_le16(~(1U << 13));
 			AHG_HEADER_SET(req->ahg, diff, 7, 16, 14, val);
-		} else
+		} else {
 			AHG_HEADER_SET(req->ahg, diff, 7, 16, 12, val);
+		}
 	}
 
 	trace_hfi1_sdma_user_header_ahg(pq->dd, pq->ctxt, pq->subctxt,

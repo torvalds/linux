@@ -163,9 +163,9 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	/*
 	 * Get the next work request entry to find where to put the data.
 	 */
-	if (qp->r_flags & RVT_R_REUSE_SGE)
+	if (qp->r_flags & RVT_R_REUSE_SGE) {
 		qp->r_flags &= ~RVT_R_REUSE_SGE;
-	else {
+	} else {
 		int ret;
 
 		ret = hfi1_rvt_get_rwqe(qp, 0);
@@ -190,8 +190,9 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		hfi1_copy_sge(&qp->r_sge, &ah_attr->grh,
 			      sizeof(struct ib_grh), 1, 0);
 		wc.wc_flags |= IB_WC_GRH;
-	} else
+	} else {
 		hfi1_skip_sge(&qp->r_sge, sizeof(struct ib_grh), 1);
+	}
 	ssge.sg_list = swqe->sg_list + 1;
 	ssge.sge = *swqe->sg_list;
 	ssge.num_sge = swqe->wr.num_sge;
@@ -383,8 +384,9 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		qp->s_hdrwords++;
 		ohdr->u.ud.imm_data = wqe->wr.ex.imm_data;
 		bth0 = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE << 24;
-	} else
+	} else {
 		bth0 = IB_OPCODE_UD_SEND_ONLY << 24;
+	}
 	sc5 = ibp->sl_to_sc[ah_attr->sl];
 	lrh0 |= (ah_attr->sl & 0xf) << 4;
 	if (qp->ibqp.qp_type == IB_QPT_SMI) {
@@ -820,8 +822,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	} else if (opcode == IB_OPCODE_UD_SEND_ONLY) {
 		wc.ex.imm_data = 0;
 		wc.wc_flags = 0;
-	} else
+	} else {
 		goto drop;
+	}
 
 	/*
 	 * A GRH is expected to precede the data even if not
@@ -832,9 +835,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	/*
 	 * Get the next work request entry to find where to put the data.
 	 */
-	if (qp->r_flags & RVT_R_REUSE_SGE)
+	if (qp->r_flags & RVT_R_REUSE_SGE) {
 		qp->r_flags &= ~RVT_R_REUSE_SGE;
-	else {
+	} else {
 		int ret;
 
 		ret = hfi1_rvt_get_rwqe(qp, 0);
@@ -857,8 +860,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		hfi1_copy_sge(&qp->r_sge, &hdr->u.l.grh,
 			      sizeof(struct ib_grh), 1, 0);
 		wc.wc_flags |= IB_WC_GRH;
-	} else
+	} else {
 		hfi1_skip_sge(&qp->r_sge, sizeof(struct ib_grh), 1);
+	}
 	hfi1_copy_sge(&qp->r_sge, data, wc.byte_len - sizeof(struct ib_grh),
 		      1, 0);
 	rvt_put_ss(&qp->r_sge);
@@ -884,8 +888,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 			}
 		}
 		wc.pkey_index = (unsigned)mgmt_pkey_idx;
-	} else
+	} else {
 		wc.pkey_index = 0;
+	}
 
 	wc.slid = be16_to_cpu(hdr->lrh[3]);
 	sc = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;

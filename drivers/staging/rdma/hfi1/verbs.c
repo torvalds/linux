@@ -400,9 +400,9 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 
 	/* Check for GRH */
 	lnh = be16_to_cpu(hdr->lrh[0]) & 3;
-	if (lnh == HFI1_LRH_BTH)
+	if (lnh == HFI1_LRH_BTH) {
 		packet->ohdr = &hdr->u.oth;
-	else if (lnh == HFI1_LRH_GRH) {
+	} else if (lnh == HFI1_LRH_GRH) {
 		u32 vtf;
 
 		packet->ohdr = &hdr->u.l.oth;
@@ -412,8 +412,9 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
 			goto drop;
 		packet->rcv_flags |= HFI1_HAS_GRH;
-	} else
+	} else {
 		goto drop;
+	}
 
 	trace_input_ibhdr(rcd->dd, hdr);
 
@@ -528,9 +529,9 @@ static void verbs_sdma_complete(
 	struct rvt_qp *qp = tx->qp;
 
 	spin_lock(&qp->s_lock);
-	if (tx->wqe)
+	if (tx->wqe) {
 		hfi1_send_complete(qp, tx->wqe, IB_WC_SUCCESS);
-	else if (qp->ibqp.qp_type == IB_QPT_RC) {
+	} else if (qp->ibqp.qp_type == IB_QPT_RC) {
 		struct hfi1_ib_header *hdr;
 
 		hdr = &tx->phdr.hdr;

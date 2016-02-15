@@ -119,9 +119,9 @@ static void scl_out(struct hfi1_devdata *dd, u32 target, u8 bit)
 	 * Allow for slow slaves by simple
 	 * delay for falling edge, sampling on rise.
 	 */
-	if (!bit)
+	if (!bit) {
 		udelay(2);
-	else {
+	} else {
 		int rise_usec;
 
 		for (rise_usec = SCL_WAIT_USEC; rise_usec > 0; rise_usec -= 2) {

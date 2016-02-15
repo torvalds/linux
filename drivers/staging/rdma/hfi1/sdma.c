@@ -2009,8 +2009,9 @@ static int sdma_check_progress(
 		ret = wait->sleep(sde, wait, tx, seq);
 		if (ret == -EAGAIN)
 			sde->desc_avail = sdma_descq_freecnt(sde);
-	} else
+	} else {
 		ret = -EBUSY;
+	}
 	return ret;
 }
 

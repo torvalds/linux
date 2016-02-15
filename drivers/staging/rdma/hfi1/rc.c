@@ -505,9 +505,9 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 				len = pmtu;
 				break;
 			}
-			if (wqe->wr.opcode == IB_WR_SEND)
+			if (wqe->wr.opcode == IB_WR_SEND) {
 				qp->s_state = OP(SEND_ONLY);
-			else {
+			} else {
 				qp->s_state = OP(SEND_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after the BTH */
 				ohdr->u.imm_data = wqe->wr.ex.imm_data;
@@ -542,9 +542,9 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 				len = pmtu;
 				break;
 			}
-			if (wqe->wr.opcode == IB_WR_RDMA_WRITE)
+			if (wqe->wr.opcode == IB_WR_RDMA_WRITE) {
 				qp->s_state = OP(RDMA_WRITE_ONLY);
-			else {
+			} else {
 				qp->s_state =
 					OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after RETH */
@@ -672,9 +672,9 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			middle = HFI1_CAP_IS_KSET(SDMA_AHG);
 			break;
 		}
-		if (wqe->wr.opcode == IB_WR_SEND)
+		if (wqe->wr.opcode == IB_WR_SEND) {
 			qp->s_state = OP(SEND_LAST);
-		else {
+		} else {
 			qp->s_state = OP(SEND_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
 			ohdr->u.imm_data = wqe->wr.ex.imm_data;
@@ -712,9 +712,9 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			middle = HFI1_CAP_IS_KSET(SDMA_AHG);
 			break;
 		}
-		if (wqe->wr.opcode == IB_WR_RDMA_WRITE)
+		if (wqe->wr.opcode == IB_WR_RDMA_WRITE) {
 			qp->s_state = OP(RDMA_WRITE_LAST);
-		else {
+		} else {
 			qp->s_state = OP(RDMA_WRITE_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
 			ohdr->u.imm_data = wqe->wr.ex.imm_data;
@@ -1013,10 +1013,12 @@ static void restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 			hfi1_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
 			rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 			return;
-		} else /* need to handle delayed completion */
+		} else { /* need to handle delayed completion */
 			return;
-	} else
+		}
+	} else {
 		qp->s_retry--;
+	}
 
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	if (wqe->wr.opcode == IB_WR_RDMA_READ)
@@ -1612,8 +1614,9 @@ static void rc_rcv_resp(struct hfi1_ibport *ibp,
 
 			val = ((u64)be32_to_cpu(p[0]) << 32) |
 				be32_to_cpu(p[1]);
-		} else
+		} else {
 			val = 0;
+		}
 		if (!do_rc_ack(qp, aeth, psn, opcode, val, rcd) ||
 		    opcode != OP(RDMA_READ_RESPONSE_FIRST))
 			goto ack_done;
