@@ -720,9 +720,9 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 			placement = " CPU";
 			break;
 		}
-		seq_printf(m, "bo[0x%08x] %8ldkB %8ldMB %s pid %8ld\n",
+		seq_printf(m, "bo[0x%08x] %8ldkB %8ldMB %s pid %8d\n",
 			   i, amdgpu_bo_size(rbo) >> 10, amdgpu_bo_size(rbo) >> 20,
-			   placement, (unsigned long)rbo->pid);
+			   placement, rbo->pid);
 		i++;
 	}
 	mutex_unlock(&adev->gem.mutex);
