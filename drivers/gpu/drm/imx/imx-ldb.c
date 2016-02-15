@@ -139,13 +139,6 @@ static void imx_ldb_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 }
 
-static bool imx_ldb_encoder_mode_fixup(struct drm_encoder *encoder,
-			   const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
 		unsigned long serial_clk, unsigned long di_clk)
 {
@@ -376,7 +369,6 @@ static const struct drm_encoder_funcs imx_ldb_encoder_funcs = {
 
 static const struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
 	.dpms = imx_ldb_encoder_dpms,
-	.mode_fixup = imx_ldb_encoder_mode_fixup,
 	.prepare = imx_ldb_encoder_prepare,
 	.commit = imx_ldb_encoder_commit,
 	.mode_set = imx_ldb_encoder_mode_set,
