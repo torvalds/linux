@@ -41,11 +41,12 @@ writel((data), cursor->mmio + (addr))
 #define HWC_LOCATION_X_MASK                 0x7ff
 
 #define HWC_COLOR_12                        0x8
-#define HWC_COLOR_12_2_RGB565               31:16
-#define HWC_COLOR_12_1_RGB565               15:0
+#define HWC_COLOR_12_2_RGB565_SHIFT         16
+#define HWC_COLOR_12_2_RGB565_MASK          (0xffff << 16)
+#define HWC_COLOR_12_1_RGB565_MASK          0xffff
 
 #define HWC_COLOR_3                         0xC
-#define HWC_COLOR_3_RGB565                  15:0
+#define HWC_COLOR_3_RGB565_MASK             0xffff
 
 
 /* hw_cursor_xxx works for voyager,718 and 750 */
@@ -79,7 +80,10 @@ void hw_cursor_setPos(struct lynx_cursor *cursor,
 void hw_cursor_setColor(struct lynx_cursor *cursor,
 						u32 fg, u32 bg)
 {
-	POKE32(HWC_COLOR_12, (fg<<16)|(bg&0xffff));
+	u32 reg = (fg << HWC_COLOR_12_2_RGB565_SHIFT) &
+		HWC_COLOR_12_2_RGB565_MASK;
+
+	POKE32(HWC_COLOR_12, reg | (bg & HWC_COLOR_12_1_RGB565_MASK));
 	POKE32(HWC_COLOR_3, 0xffe0);
 }
 
