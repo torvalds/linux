@@ -123,8 +123,8 @@ struct video_info {
 	enum color_coefficient ycbcr_coeff;
 	enum color_depth color_depth;
 
-	int link_rate;
-	enum link_lane_count_type lane_count;
+	int max_link_rate;
+	enum link_lane_count_type max_lane_count;
 };
 
 struct link_train {
