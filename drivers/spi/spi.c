@@ -1184,6 +1184,9 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 		return;
 	}
 	mutex_unlock(&master->bus_lock_mutex);
+
+	/* Prod the scheduler in case transfer_one() was busy waiting */
+	cond_resched();
 }
 
 /**
