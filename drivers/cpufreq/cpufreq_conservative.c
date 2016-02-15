@@ -44,20 +44,20 @@ static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
  * Any frequency increase takes it to the maximum frequency. Frequency reduction
  * happens at minimum steps of 5% (default) of maximum frequency
  */
-static void cs_check_cpu(int cpu, unsigned int load)
+static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 {
-	struct cs_cpu_dbs_info_s *dbs_info = &per_cpu(cs_cpu_dbs_info, cpu);
-	struct cpufreq_policy *policy = dbs_info->cdbs.policy_dbs->policy;
+	struct cs_cpu_dbs_info_s *dbs_info = &per_cpu(cs_cpu_dbs_info, policy->cpu);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
+	unsigned int load = dbs_update(policy);
 
 	/*
 	 * break out if we 'cannot' reduce the speed as the user might
 	 * want freq_step to be zero
 	 */
 	if (cs_tuners->freq_step == 0)
-		return;
+		goto out;
 
 	/* Check for frequency increase */
 	if (load > dbs_data->up_threshold) {
@@ -65,7 +65,7 @@ static void cs_check_cpu(int cpu, unsigned int load)
 
 		/* if we are already at full speed then break out early */
 		if (dbs_info->requested_freq == policy->max)
-			return;
+			goto out;
 
 		dbs_info->requested_freq += get_freq_target(cs_tuners, policy);
 
@@ -74,12 +74,12 @@ static void cs_check_cpu(int cpu, unsigned int load)
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 			CPUFREQ_RELATION_H);
-		return;
+		goto out;
 	}
 
 	/* if sampling_down_factor is active break out early */
 	if (++dbs_info->down_skip < dbs_data->sampling_down_factor)
-		return;
+		goto out;
 	dbs_info->down_skip = 0;
 
 	/* Check for frequency decrease */
@@ -89,7 +89,7 @@ static void cs_check_cpu(int cpu, unsigned int load)
 		 * if we cannot reduce the frequency anymore, break out early
 		 */
 		if (policy->cur == policy->min)
-			return;
+			goto out;
 
 		freq_target = get_freq_target(cs_tuners, policy);
 		if (dbs_info->requested_freq > freq_target)
@@ -99,16 +99,9 @@ static void cs_check_cpu(int cpu, unsigned int load)
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 				CPUFREQ_RELATION_L);
-		return;
 	}
-}
 
-static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
-{
-	struct policy_dbs_info *policy_dbs = policy->governor_data;
-	struct dbs_data *dbs_data = policy_dbs->dbs_data;
-
-	dbs_check_cpu(policy);
+ out:
 	return delay_for_sampling_rate(dbs_data->sampling_rate);
 }
 
@@ -300,7 +293,6 @@ static struct dbs_governor cs_dbs_gov = {
 	.get_cpu_cdbs = get_cpu_cdbs,
 	.get_cpu_dbs_info_s = get_cpu_dbs_info_s,
 	.gov_dbs_timer = cs_dbs_timer,
-	.gov_check_cpu = cs_check_cpu,
 	.init = cs_init,
 	.exit = cs_exit,
 };

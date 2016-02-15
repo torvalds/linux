@@ -202,7 +202,6 @@ struct dbs_governor {
 	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
 	void *(*get_cpu_dbs_info_s)(int cpu);
 	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy);
-	void (*gov_check_cpu)(int cpu, unsigned int load);
 	int (*init)(struct dbs_data *dbs_data, bool notify);
 	void (*exit)(struct dbs_data *dbs_data, bool notify);
 
@@ -235,7 +234,7 @@ static inline int delay_for_sampling_rate(unsigned int sampling_rate)
 }
 
 extern struct mutex dbs_data_mutex;
-void dbs_check_cpu(struct cpufreq_policy *policy);
+unsigned int dbs_update(struct cpufreq_policy *policy);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int event);
 void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),

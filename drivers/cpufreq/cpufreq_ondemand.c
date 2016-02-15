@@ -150,13 +150,13 @@ static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
  * (default), then we try to increase frequency. Else, we adjust the frequency
  * proportional to load.
  */
-static void od_check_cpu(int cpu, unsigned int load)
+static void od_update(struct cpufreq_policy *policy)
 {
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
+	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
 	struct policy_dbs_info *policy_dbs = dbs_info->cdbs.policy_dbs;
-	struct cpufreq_policy *policy = policy_dbs->policy;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
+	unsigned int load = dbs_update(policy);
 
 	dbs_info->freq_lo = 0;
 
@@ -198,12 +198,16 @@ static unsigned int od_dbs_timer(struct cpufreq_policy *policy)
 
 	/* Common NORMAL_SAMPLE setup */
 	dbs_info->sample_type = OD_NORMAL_SAMPLE;
-	if (sample_type == OD_SUB_SAMPLE) {
+	/*
+	 * OD_SUB_SAMPLE doesn't make sense if sample_delay_ns is 0, so ignore
+	 * it then.
+	 */
+	if (sample_type == OD_SUB_SAMPLE && policy_dbs->sample_delay_ns > 0) {
 		delay = dbs_info->freq_lo_jiffies;
 		__cpufreq_driver_target(policy, dbs_info->freq_lo,
 					CPUFREQ_RELATION_H);
 	} else {
-		dbs_check_cpu(policy);
+		od_update(policy);
 		if (dbs_info->freq_lo) {
 			/* Setup timer for SUB_SAMPLE */
 			dbs_info->sample_type = OD_SUB_SAMPLE;
@@ -428,7 +432,6 @@ static struct dbs_governor od_dbs_gov = {
 	.get_cpu_cdbs = get_cpu_cdbs,
 	.get_cpu_dbs_info_s = get_cpu_dbs_info_s,
 	.gov_dbs_timer = od_dbs_timer,
-	.gov_check_cpu = od_check_cpu,
 	.gov_ops = &od_ops,
 	.init = od_init,
 	.exit = od_exit,

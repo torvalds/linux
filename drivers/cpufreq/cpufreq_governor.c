@@ -140,9 +140,8 @@ static const struct sysfs_ops governor_sysfs_ops = {
 	.store	= governor_store,
 };
 
-void dbs_check_cpu(struct cpufreq_policy *policy)
+unsigned int dbs_update(struct cpufreq_policy *policy)
 {
-	int cpu = policy->cpu;
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
@@ -154,7 +153,7 @@ void dbs_check_cpu(struct cpufreq_policy *policy)
 
 	if (gov->governor == GOV_ONDEMAND) {
 		struct od_cpu_dbs_info_s *od_dbs_info =
-				gov->get_cpu_dbs_info_s(cpu);
+				gov->get_cpu_dbs_info_s(policy->cpu);
 
 		/*
 		 * Sometimes, the ondemand governor uses an additional
@@ -250,10 +249,9 @@ void dbs_check_cpu(struct cpufreq_policy *policy)
 		if (load > max_load)
 			max_load = load;
 	}
-
-	gov->gov_check_cpu(cpu, max_load);
+	return max_load;
 }
-EXPORT_SYMBOL_GPL(dbs_check_cpu);
+EXPORT_SYMBOL_GPL(dbs_update);
 
 void gov_set_update_util(struct policy_dbs_info *policy_dbs,
 			 unsigned int delay_us)
@@ -601,11 +599,14 @@ static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 
 	mutex_lock(&policy_dbs->timer_mutex);
+
 	if (policy->max < policy->cur)
 		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
 	else if (policy->min > policy->cur)
 		__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
-	dbs_check_cpu(policy);
+
+	gov_update_sample_delay(policy_dbs, 0);
+
 	mutex_unlock(&policy_dbs->timer_mutex);
 
 	return 0;
