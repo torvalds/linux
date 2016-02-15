@@ -169,6 +169,30 @@ static const u16 bios_to_linux_keycode[256] __initconst = {
 	[255]	= KEY_PROG3,
 };
 
+/*
+ * These are applied if the 0xB2 DMI hotkey table is present and doesn't
+ * override them.
+ */
+static const struct key_entry dell_wmi_extra_keymap[] __initconst = {
+	/* Fn-lock */
+	{ KE_IGNORE, 0x151, { KEY_RESERVED } },
+
+	/* Change keyboard illumination */
+	{ KE_IGNORE, 0x152, { KEY_KBDILLUMTOGGLE } },
+
+	/*
+	 * Radio disable (notify only -- there is no model for which the
+	 * WMI event is supposed to trigger an action).
+	 */
+	{ KE_IGNORE, 0x153, { KEY_RFKILL } },
+
+	/* RGB keyboard backlight control */
+	{ KE_IGNORE, 0x154, { KEY_RESERVED } },
+
+	/* Stealth mode toggle */
+	{ KE_IGNORE, 0x155, { KEY_RESERVED } },
+};
+
 static struct input_dev *dell_wmi_input_dev;
 
 static void dell_wmi_process_key(int reported_key)
@@ -340,13 +364,27 @@ static void dell_wmi_notify(u32 value, void *context)
 	kfree(obj);
 }
 
+static bool have_scancode(u32 scancode, const struct key_entry *keymap, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (keymap[i].code == scancode)
+			return true;
+
+	return false;
+}
+
 static void __init handle_dmi_entry(const struct dmi_header *dm,
+
 				    void *opaque)
+
 {
 	struct dell_dmi_results *results = opaque;
 	struct dell_bios_hotkey_table *table;
+	int hotkey_num, i, pos = 0;
 	struct key_entry *keymap;
-	int hotkey_num, i;
+	int num_bios_keys;
 
 	if (results->err || results->keymap)
 		return;		/* We already found the hotkey table. */
@@ -370,7 +408,8 @@ static void __init handle_dmi_entry(const struct dmi_header *dm,
 		return;
 	}
 
-	keymap = kcalloc(hotkey_num + 1, sizeof(struct key_entry), GFP_KERNEL);
+	keymap = kcalloc(hotkey_num + ARRAY_SIZE(dell_wmi_extra_keymap) + 1,
+			 sizeof(struct key_entry), GFP_KERNEL);
 	if (!keymap) {
 		results->err = -ENOMEM;
 		return;
@@ -398,14 +437,32 @@ static void __init handle_dmi_entry(const struct dmi_header *dm,
 		}
 
 		if (keycode == KEY_KBDILLUMTOGGLE)
-			keymap[i].type = KE_IGNORE;
+			keymap[pos].type = KE_IGNORE;
 		else
-			keymap[i].type = KE_KEY;
-		keymap[i].code = bios_entry->scancode;
-		keymap[i].keycode = keycode;
+			keymap[pos].type = KE_KEY;
+		keymap[pos].code = bios_entry->scancode;
+		keymap[pos].keycode = keycode;
+
+		pos++;
 	}
 
-	keymap[hotkey_num].type = KE_END;
+	num_bios_keys = pos;
+
+	for (i = 0; i < ARRAY_SIZE(dell_wmi_extra_keymap); i++) {
+		const struct key_entry *entry = &dell_wmi_extra_keymap[i];
+
+		/*
+		 * Check if we've already found this scancode.  This takes
+		 * quadratic time, but it doesn't matter unless the list
+		 * of extra keys gets very long.
+		 */
+		if (!have_scancode(entry->code, keymap, num_bios_keys)) {
+			keymap[pos] = *entry;
+			pos++;
+		}
+	}
+
+	keymap[pos].type = KE_END;
 
 	results->keymap = keymap;
 }
