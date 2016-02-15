@@ -130,7 +130,7 @@ struct wilc_debugfs_info_t {
 	const char *name;
 	int perm;
 	unsigned int data;
-	struct file_operations fops;
+	const struct file_operations fops;
 };
 
 static struct wilc_debugfs_info_t debugfs_info[] = {
