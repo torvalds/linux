@@ -96,6 +96,8 @@ lnet_net_unique(__u32 net, struct list_head *nilist)
 void
 lnet_ni_free(struct lnet_ni *ni)
 {
+	int i;
+
 	if (ni->ni_refs)
 		cfs_percpt_free(ni->ni_refs);
 
@@ -105,6 +107,10 @@ lnet_ni_free(struct lnet_ni *ni)
 	if (ni->ni_cpts)
 		cfs_expr_list_values_free(ni->ni_cpts, ni->ni_ncpts);
 
+	for (i = 0; i < LNET_MAX_INTERFACES && ni->ni_interfaces[i]; i++) {
+		LIBCFS_FREE(ni->ni_interfaces[i],
+			    strlen(ni->ni_interfaces[i]) + 1);
+	}
 	LIBCFS_FREE(ni, sizeof(*ni));
 }
 
@@ -199,8 +205,6 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		return -ENOMEM;
 	}
 
-	the_lnet.ln_network_tokens = tokens;
-	the_lnet.ln_network_tokens_nob = tokensize;
 	memcpy(tokens, networks, tokensize);
 	tmp = tokens;
 	str = tokens;
@@ -321,7 +325,23 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 				goto failed;
 			}
 
-			ni->ni_interfaces[niface++] = iface;
+			/*
+			 * Allocate a separate piece of memory and copy
+			 * into it the string, so we don't have
+			 * a depencency on the tokens string.  This way we
+			 * can free the tokens at the end of the function.
+			 * The newly allocated ni_interfaces[] can be
+			 * freed when freeing the NI
+			 */
+			LIBCFS_ALLOC(ni->ni_interfaces[niface],
+				     strlen(iface) + 1);
+			if (!ni->ni_interfaces[niface]) {
+				CERROR("Can't allocate net interface name\n");
+				goto failed;
+			}
+			strncpy(ni->ni_interfaces[niface], iface,
+				strlen(iface));
+			niface++;
 			iface = comma;
 		} while (iface);
 
@@ -346,6 +366,8 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 	}
 
 	LASSERT(!list_empty(nilist));
+
+	LIBCFS_FREE(tokens, tokensize);
 	return 0;
 
  failed_syntax:
@@ -362,7 +384,6 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		cfs_expr_list_free(el);
 
 	LIBCFS_FREE(tokens, tokensize);
-	the_lnet.ln_network_tokens = NULL;
 
 	return -EINVAL;
 }
