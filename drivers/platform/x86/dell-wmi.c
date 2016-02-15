@@ -351,13 +351,24 @@ static void __init handle_dmi_entry(const struct dmi_header *dm,
 	if (results->err || results->keymap)
 		return;		/* We already found the hotkey table. */
 
-	if (dm->type != 0xb2 || dm->length <= 6)
+	if (dm->type != 0xb2)
 		return;
 
 	table = container_of(dm, struct dell_bios_hotkey_table, header);
 
-	hotkey_num = (table->header.length - 4) /
+	hotkey_num = (table->header.length -
+		      sizeof(struct dell_bios_hotkey_table)) /
 				sizeof(struct dell_bios_keymap_entry);
+	if (hotkey_num < 1) {
+		/*
+		 * Historically, dell-wmi would ignore a DMI entry of
+		 * fewer than 7 bytes.  Sizes between 4 and 8 bytes are
+		 * nonsensical (both the header and all entries are 4
+		 * bytes), so we approximate the old behavior by
+		 * ignoring tables with fewer than one entry.
+		 */
+		return;
+	}
 
 	keymap = kcalloc(hotkey_num + 1, sizeof(struct key_entry), GFP_KERNEL);
 	if (!keymap) {
