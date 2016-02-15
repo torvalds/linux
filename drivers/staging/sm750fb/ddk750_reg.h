@@ -1367,13 +1367,9 @@
 #define CRT_DISPLAY_CTRL_FORMAT_32                    (0x2 << 0)
 
 #define CRT_FB_ADDRESS                                0x080204
-#define CRT_FB_ADDRESS_STATUS                         31:31
-#define CRT_FB_ADDRESS_STATUS_CURRENT                 0
-#define CRT_FB_ADDRESS_STATUS_PENDING                 1
-#define CRT_FB_ADDRESS_EXT                            27:27
-#define CRT_FB_ADDRESS_EXT_LOCAL                      0
-#define CRT_FB_ADDRESS_EXT_EXTERNAL                   1
-#define CRT_FB_ADDRESS_ADDRESS                        25:0
+#define CRT_FB_ADDRESS_STATUS                         BIT(31)
+#define CRT_FB_ADDRESS_EXT                            BIT(27)
+#define CRT_FB_ADDRESS_ADDRESS_MASK                   0x3ffffff
 
 #define CRT_FB_WIDTH                                  0x080208
 #define CRT_FB_WIDTH_WIDTH_SHIFT                      16

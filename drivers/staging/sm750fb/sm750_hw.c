@@ -548,8 +548,8 @@ int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
 		       (total & PANEL_FB_ADDRESS_ADDRESS_MASK));
 	} else {
 		POKE32(CRT_FB_ADDRESS,
-			FIELD_VALUE(PEEK32(CRT_FB_ADDRESS),
-				CRT_FB_ADDRESS, ADDRESS, total));
+		       PEEK32(CRT_FB_ADDRESS) |
+		       (total & CRT_FB_ADDRESS_ADDRESS_MASK));
 	}
 	return 0;
 }
