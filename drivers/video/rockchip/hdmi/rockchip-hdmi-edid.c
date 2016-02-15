@@ -1,5 +1,5 @@
 #include "rockchip-hdmi.h"
-#include "../../edid.h"
+#include "../../fbdev/edid.h"
 
 #ifdef EDIDDEBUG
 #define EDBG	DBG
@@ -368,6 +368,7 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf,
 {
 	unsigned int ddc_offset, native_dtd_num, cur_offset = 4;
 	unsigned int tag, IEEEOUI = 0, count, i;
+	struct fb_videomode *vmode;
 
 	if (!buf)
 		return E_HDMI_EDID_PARAM;
@@ -457,8 +458,7 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf,
 	}
 
 	/* Parse DTD */
-	struct fb_videomode *vmode =
-		kmalloc(sizeof(struct fb_videomode), GFP_KERNEL);
+	vmode = kmalloc(sizeof(*vmode), GFP_KERNEL);
 
 	if (!vmode)
 		return E_HDMI_EDID_SUCCESS;
@@ -472,7 +472,6 @@ static int hdmi_edid_parse_extensions_cea(unsigned char *buf,
 	}
 	kfree(vmode);
 
-#endif
 	return E_HDMI_EDID_SUCCESS;
 }
 

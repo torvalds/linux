@@ -2,6 +2,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/of_gpio.h>
@@ -224,15 +225,7 @@ static int rockchip_hdmiv2_clk_enable(struct hdmi_dev *hdmi_dev)
 			hdmi_dev->clk_on |= HDMI_EXT_PHY_CLK_ON;
 		}
 	} else if ((hdmi_dev->clk_on & HDMI_PD_ON) == 0) {
-		if (!hdmi_dev->pd) {
-			hdmi_dev->pd = devm_clk_get(hdmi_dev->dev, "pd_hdmi");
-			if (IS_ERR(hdmi_dev->pd)) {
-				dev_err(hdmi_dev->dev,
-					"Unable to get hdmi pd\n");
-				return -1;
-			}
-		}
-		clk_prepare_enable(hdmi_dev->pd);
+		pm_runtime_get_sync(hdmi_dev->dev);
 		hdmi_dev->clk_on |= HDMI_PD_ON;
 	}
 
@@ -286,8 +279,8 @@ static int rockchip_hdmiv2_clk_disable(struct hdmi_dev *hdmi_dev)
 	if (hdmi_dev->clk_on == 0)
 		return 0;
 
-	if ((hdmi_dev->clk_on & HDMI_PD_ON) && (hdmi_dev->pd)) {
-		clk_disable_unprepare(hdmi_dev->pd);
+	if ((hdmi_dev->clk_on & HDMI_PD_ON)) {
+		pm_runtime_put(hdmi_dev->dev);
 		hdmi_dev->clk_on &= ~HDMI_PD_ON;
 	}
 
@@ -548,7 +541,7 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get hdmi reset: %d\n", ret);
 		goto failed;
 	}
-
+	pm_runtime_enable(hdmi_dev->dev);
 	/*enable pd and pclk and hdcp_clk*/
 	if (rockchip_hdmiv2_clk_enable(hdmi_dev) < 0) {
 		ret = -ENXIO;
@@ -585,10 +578,12 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 				SUPPORT_YCBCR_INPUT |
 				SUPPORT_1080I |
 				SUPPORT_480I_576I;
-		if (rockchip_get_cpu_version())
-			rk_hdmi_property.feature |=
-				SUPPORT_YUV420 |
-				SUPPORT_DEEP_10BIT;
+		/*
+		 *if (rockchip_get_cpu_version())
+		 *	rk_hdmi_property.feature |=
+		 *		SUPPORT_YUV420 |
+		 *		SUPPORT_DEEP_10BIT;
+		 */
 	} else {
 		ret = -ENXIO;
 		goto failed1;

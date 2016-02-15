@@ -645,10 +645,12 @@ int snd_config_hdmi_audio(struct snd_pcm_hw_params *params)
 
 	audio_cfg.rate = rate;
 
-	if (params->flags == HW_PARAMS_FLAG_NLPCM)
-		audio_cfg.type = HDMI_AUDIO_NLPCM;
-	else
-		audio_cfg.type = HDMI_AUDIO_LPCM;
+	/*
+	 *if (params->flags == HW_PARAMS_FLAG_NLPCM)
+	 *	audio_cfg.type = HDMI_AUDIO_NLPCM;
+	 *else
+	 */
+	audio_cfg.type = HDMI_AUDIO_LPCM;
 
 	audio_cfg.channel = params_channels(params);
 	audio_cfg.word_length = HDMI_AUDIO_WORD_LENGTH_16bit;

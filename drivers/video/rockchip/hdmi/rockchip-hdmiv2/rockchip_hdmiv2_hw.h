@@ -1662,6 +1662,13 @@ struct phy_mpll_config_tab {
 #define RK322X_PLL_PDATA_DEN	BIT(11 + 16)
 #define RK322X_PLL_PDATA_EN	(BIT(11) | BIT(11 + 16))
 
+#ifndef RK322X_GRF_SOC_CON2
+#define RK322X_GRF_SOC_CON2	RK3228_GRF_SOC_CON2
+#endif
+#ifndef RK322X_GRF_SOC_CON6
+#define RK322X_GRF_SOC_CON6	RK3228_GRF_SOC_CON6
+#endif
+
 struct ext_pll_config_tab {
 	u32	pix_clock;
 	u32	tmdsclock;

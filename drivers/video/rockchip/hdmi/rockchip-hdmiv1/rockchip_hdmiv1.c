@@ -357,7 +357,7 @@ static int rockchip_hdmiv1_probe(struct platform_device *pdev)
 		ret = devm_request_irq(hdmi_dev->hdmi->dev,
 				       hdmi_dev->irq,
 				       rockchip_hdmiv1_irq_func,
-				       IRQF_TRIGGER_HIGH | IRQF_DISABLED,
+				       IRQF_TRIGGER_HIGH,
 				       dev_name(hdmi_dev->hdmi->dev),
 				       hdmi_dev->hdmi);
 		if (ret) {

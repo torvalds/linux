@@ -673,7 +673,7 @@ static int ext_phy_config(struct hdmi_dev *hdmi_dev)
 	if ((stat & EXT_PHY_PPLL_LOCK_STATUS_MASK) == 0) {
 		stat = hdmi_readl(hdmi_dev, MC_LOCKONCLOCK);
 		dev_err(hdmi_dev->hdmi->dev,
-			"PHY PLL not locked: PCLK_ON=%d,TMDSCLK_ON=%d\n",
+			"PHY PLL not locked: PCLK_ON=%ld,TMDSCLK_ON=%ld\n",
 			(stat & m_PCLK_ON) >> 6, (stat & m_TMDSCLK_ON) >> 5);
 		return -1;
 	}
@@ -803,7 +803,7 @@ static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 	if ((stat & m_PHY_LOCK) == 0) {
 		stat = hdmi_readl(hdmi_dev, MC_LOCKONCLOCK);
 		dev_err(hdmi_dev->hdmi->dev,
-			"PHY PLL not locked: PCLK_ON=%d,TMDSCLK_ON=%d\n",
+			"PHY PLL not locked: PCLK_ON=%ld,TMDSCLK_ON=%ld\n",
 			(stat & m_PCLK_ON) >> 6, (stat & m_TMDSCLK_ON) >> 5);
 		return -1;
 	}
