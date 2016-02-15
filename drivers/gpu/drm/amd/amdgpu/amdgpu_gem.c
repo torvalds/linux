@@ -704,6 +704,7 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 
 	mutex_lock(&adev->gem.mutex);
 	list_for_each_entry(rbo, &adev->gem.objects, list) {
+		unsigned pin_count;
 		unsigned domain;
 		const char *placement;
 
@@ -720,8 +721,13 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 			placement = " CPU";
 			break;
 		}
-		seq_printf(m, "bo[0x%08x] %12ld %s pid %8d\n",
+		seq_printf(m, "bo[0x%08x] %12ld %s pid %8d",
 			   i, amdgpu_bo_size(rbo), placement, rbo->pid);
+
+		pin_count = ACCESS_ONCE(rbo->pin_count);
+		if (pin_count)
+			seq_printf(m, " pin count %d", pin_count);
+		seq_printf(m, "\n");
 		i++;
 	}
 	mutex_unlock(&adev->gem.mutex);
