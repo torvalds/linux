@@ -1760,32 +1760,6 @@ int regmap_fields_force_write(struct regmap_field *field, unsigned int id,
 }
 EXPORT_SYMBOL_GPL(regmap_fields_force_write);
 
-/**
- * regmap_fields_update_bits():	Perform a read/modify/write cycle
- *                              on the register field
- *
- * @field: Register field to write to
- * @id: port ID
- * @mask: Bitmask to change
- * @val: Value to be written
- *
- * A value of zero will be returned on success, a negative errno will
- * be returned in error cases.
- */
-int regmap_fields_update_bits(struct regmap_field *field,  unsigned int id,
-			      unsigned int mask, unsigned int val)
-{
-	if (id >= field->id_size)
-		return -EINVAL;
-
-	mask = (mask << field->shift) & field->mask;
-
-	return regmap_update_bits(field->regmap,
-				  field->reg + (field->id_offset * id),
-				  mask, val << field->shift);
-}
-EXPORT_SYMBOL_GPL(regmap_fields_update_bits);
-
 /*
  * regmap_bulk_write(): Write multiple registers to the device
  *
