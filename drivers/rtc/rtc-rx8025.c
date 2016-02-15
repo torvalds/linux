@@ -563,6 +563,9 @@ static int rx8025_probe(struct i2c_client *client,
 
 	rx8025->rtc->max_user_freq = 1;
 
+	/* the rx8025 alarm only supports a minute accuracy */
+	rx8025->rtc->uie_unsupported = 1;
+
 	err = rx8025_sysfs_register(&client->dev);
 	return err;
 }
