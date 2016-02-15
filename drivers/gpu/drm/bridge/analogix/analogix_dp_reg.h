@@ -22,6 +22,14 @@
 #define ANALOGIX_DP_VIDEO_CTL_8			0x3C
 #define ANALOGIX_DP_VIDEO_CTL_10		0x44
 
+#define ANALOGIX_DP_PLL_REG_1			0xfc
+#define ANALOGIX_DP_PLL_REG_2			0x9e4
+#define ANALOGIX_DP_PLL_REG_3			0x9e8
+#define ANALOGIX_DP_PLL_REG_4			0x9ec
+#define ANALOGIX_DP_PLL_REG_5			0xa00
+
+#define ANALOGIX_DP_PD				0x12c
+
 #define ANALOGIX_DP_LANE_MAP			0x35C
 
 #define ANALOGIX_DP_ANALOG_CTL_1		0x370
@@ -153,6 +161,10 @@
 #define INTERACE_SCAN_CFG			(0x1 << 2)
 #define VSYNC_POLARITY_CFG			(0x1 << 1)
 #define HSYNC_POLARITY_CFG			(0x1 << 0)
+
+/* ANALOGIX_DP_PLL_REG_1 */
+#define REF_CLK_24M				(0x1 << 1)
+#define REF_CLK_27M				(0x0 << 1)
 
 /* ANALOGIX_DP_LANE_MAP */
 #define LANE3_MAP_LOGIC_LANE_0			(0x0 << 6)

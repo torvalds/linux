@@ -15,6 +15,8 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 
+#include <drm/bridge/analogix_dp.h>
+
 #include "analogix_dp_core.h"
 #include "analogix_dp_reg.h"
 
@@ -71,6 +73,14 @@ void analogix_dp_init_analog_param(struct analogix_dp_device *dp)
 
 	reg = SEL_24M | TX_DVDD_BIT_1_0625V;
 	writel(reg, dp->reg_base + ANALOGIX_DP_ANALOG_CTL_2);
+
+	if (dp->plat_data && (dp->plat_data->dev_type == RK3288_DP)) {
+		writel(REF_CLK_24M, dp->reg_base + ANALOGIX_DP_PLL_REG_1);
+		writel(0x95, dp->reg_base + ANALOGIX_DP_PLL_REG_2);
+		writel(0x40, dp->reg_base + ANALOGIX_DP_PLL_REG_3);
+		writel(0x58, dp->reg_base + ANALOGIX_DP_PLL_REG_4);
+		writel(0x22, dp->reg_base + ANALOGIX_DP_PLL_REG_5);
+	}
 
 	reg = DRIVE_DVDD_BIT_1_0625V | VCO_BIT_600_MICRO;
 	writel(reg, dp->reg_base + ANALOGIX_DP_ANALOG_CTL_3);
@@ -206,81 +216,85 @@ void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 				       bool enable)
 {
 	u32 reg;
+	u32 phy_pd_addr = ANALOGIX_DP_PHY_PD;
+
+	if (dp->plat_data && (dp->plat_data->dev_type == RK3288_DP))
+		phy_pd_addr = ANALOGIX_DP_PD;
 
 	switch (block) {
 	case AUX_BLOCK:
 		if (enable) {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg |= AUX_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		} else {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg &= ~AUX_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		}
 		break;
 	case CH0_BLOCK:
 		if (enable) {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg |= CH0_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		} else {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg &= ~CH0_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		}
 		break;
 	case CH1_BLOCK:
 		if (enable) {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg |= CH1_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		} else {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg &= ~CH1_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		}
 		break;
 	case CH2_BLOCK:
 		if (enable) {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg |= CH2_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		} else {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg &= ~CH2_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		}
 		break;
 	case CH3_BLOCK:
 		if (enable) {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg |= CH3_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		} else {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg &= ~CH3_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		}
 		break;
 	case ANALOG_TOTAL:
 		if (enable) {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg |= DP_PHY_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		} else {
-			reg = readl(dp->reg_base + ANALOGIX_DP_PHY_PD);
+			reg = readl(dp->reg_base + phy_pd_addr);
 			reg &= ~DP_PHY_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		}
 		break;
 	case POWER_ALL:
 		if (enable) {
 			reg = DP_PHY_PD | AUX_PD | CH3_PD | CH2_PD |
 				CH1_PD | CH0_PD;
-			writel(reg, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(reg, dp->reg_base + phy_pd_addr);
 		} else {
-			writel(0x00, dp->reg_base + ANALOGIX_DP_PHY_PD);
+			writel(0x00, dp->reg_base + phy_pd_addr);
 		}
 		break;
 	default:
@@ -399,8 +413,14 @@ void analogix_dp_init_aux(struct analogix_dp_device *dp)
 	analogix_dp_reset_aux(dp);
 
 	/* Disable AUX transaction H/W retry */
-	reg = AUX_BIT_PERIOD_EXPECTED_DELAY(3) | AUX_HW_RETRY_COUNT_SEL(0) |
-	      AUX_HW_RETRY_INTERVAL_600_MICROSECONDS;
+	if (dp->plat_data && (dp->plat_data->dev_type == RK3288_DP))
+		reg = AUX_BIT_PERIOD_EXPECTED_DELAY(0) |
+		      AUX_HW_RETRY_COUNT_SEL(3) |
+		      AUX_HW_RETRY_INTERVAL_600_MICROSECONDS;
+	else
+		reg = AUX_BIT_PERIOD_EXPECTED_DELAY(3) |
+		      AUX_HW_RETRY_COUNT_SEL(0) |
+		      AUX_HW_RETRY_INTERVAL_600_MICROSECONDS;
 	writel(reg, dp->reg_base + ANALOGIX_DP_AUX_HW_RETRY_CTL);
 
 	/* Receive AUX Channel DEFER commands equal to DEFFER_COUNT*64 */
