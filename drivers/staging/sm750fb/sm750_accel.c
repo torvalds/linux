@@ -115,9 +115,8 @@ int hw_fillrect(struct lynx_accel *accel,
 	write_dpr(accel, DE_FOREGROUND, color); /* DPR14 */
 
 	write_dpr(accel, DE_DESTINATION,
-			FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE)|
-			FIELD_VALUE(0, DE_DESTINATION, X, x)|
-			FIELD_VALUE(0, DE_DESTINATION, Y, y)); /* dpr4 */
+		  ((x << DE_DESTINATION_X_SHIFT) & DE_DESTINATION_X_MASK) |
+		  (y & DE_DESTINATION_Y_MASK)); /* dpr4 */
 
 	write_dpr(accel, DE_DIMENSION,
 			FIELD_VALUE(0, DE_DIMENSION, X, width)|
@@ -259,9 +258,8 @@ unsigned int rop2)   /* ROP value */
 		  ((sx << DE_SOURCE_X_K1_SHIFT) & DE_SOURCE_X_K1_MASK) |
 		  (sy & DE_SOURCE_Y_K2_MASK)); /* dpr0 */
 	write_dpr(accel, DE_DESTINATION,
-		  FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE) |
-		  FIELD_VALUE(0, DE_DESTINATION, X,    dx)  |
-		  FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
+		  ((dx << DE_DESTINATION_X_SHIFT) & DE_DESTINATION_X_MASK) |
+		  (dy & DE_DESTINATION_Y_MASK)); /* dpr04 */
 	write_dpr(accel, DE_DIMENSION,
 		  FIELD_VALUE(0, DE_DIMENSION, X,    width) |
 		  FIELD_VALUE(0, DE_DIMENSION, Y_ET, height)); /* dpr08 */
@@ -357,9 +355,8 @@ int hw_imageblit(struct lynx_accel *accel,
 		  DE_SOURCE_X_K1_MONO_MASK); /* dpr00 */
 
 	write_dpr(accel, DE_DESTINATION,
-		  FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE) |
-		  FIELD_VALUE(0, DE_DESTINATION, X,    dx)    |
-		  FIELD_VALUE(0, DE_DESTINATION, Y,    dy)); /* dpr04 */
+		  ((dx << DE_DESTINATION_X_SHIFT) & DE_DESTINATION_X_MASK) |
+		  (dy & DE_DESTINATION_Y_MASK)); /* dpr04 */
 
 	write_dpr(accel, DE_DIMENSION,
 		  FIELD_VALUE(0, DE_DIMENSION, X,    width) |

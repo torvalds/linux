@@ -28,11 +28,10 @@
 #define DE_SOURCE_Y_K2_MASK                             0xffff
 
 #define DE_DESTINATION                                  0x4
-#define DE_DESTINATION_WRAP                             31:31
-#define DE_DESTINATION_WRAP_DISABLE                     0
-#define DE_DESTINATION_WRAP_ENABLE                      1
-#define DE_DESTINATION_X                                28:16
-#define DE_DESTINATION_Y                                15:0
+#define DE_DESTINATION_WRAP                             BIT(31)
+#define DE_DESTINATION_X_SHIFT                          16
+#define DE_DESTINATION_X_MASK                           (0x1fff << 16)
+#define DE_DESTINATION_Y_MASK                           0xffff
 
 #define DE_DIMENSION                                    0x8
 #define DE_DIMENSION_X                                  28:16
