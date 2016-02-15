@@ -1780,7 +1780,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 	if (ret)
 		goto out;
 
-	ret = btrfs_find_device_by_user_input(root, devid, device_path,
+	ret = btrfs_find_device_by_devspec(root, devid, device_path,
 				&device);
 	if (ret)
 		goto out;
@@ -2065,23 +2065,26 @@ int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
 	}
 }
 
-int btrfs_find_device_by_user_input(struct btrfs_root *root, u64 srcdevid,
-					 char *srcdev_name,
+/*
+ * Lookup a device given by device id, or the path if the id is 0.
+ */
+int btrfs_find_device_by_devspec(struct btrfs_root *root, u64 devid,
+					 char *devpath,
 					 struct btrfs_device **device)
 {
 	int ret;
 
-	if (srcdevid) {
+	if (devid) {
 		ret = 0;
-		*device = btrfs_find_device(root->fs_info, srcdevid, NULL,
+		*device = btrfs_find_device(root->fs_info, devid, NULL,
 					    NULL);
 		if (!*device)
 			ret = -ENOENT;
 	} else {
-		if (!srcdev_name || !srcdev_name[0])
+		if (!devpath || !devpath[0])
 			return -EINVAL;
 
-		ret = btrfs_find_device_missing_or_by_path(root, srcdev_name,
+		ret = btrfs_find_device_missing_or_by_path(root, devpath,
 							   device);
 	}
 	return ret;
