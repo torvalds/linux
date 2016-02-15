@@ -222,6 +222,25 @@
 		status = "disabled";
 	};
 
+	gmac: eth@ff440000 {
+		compatible = "rockchip,rk3366-gmac";
+		reg = <0x0 0xff440000 0x0 0x10000>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&cru SCLK_MAC>, <&cru SCLK_MAC_RX>,
+			 <&cru SCLK_MAC_RX>, <&cru SCLK_MACREF>,
+			 <&cru SCLK_MACREF_OUT>, <&cru ACLK_GMAC>,
+			 <&cru PCLK_GMAC>;
+		clock-names = "stmmaceth", "mac_clk_rx",
+			      "mac_clk_tx", "clk_mac_ref",
+			      "clk_mac_refout", "aclk_mac",
+			      "pclk_mac";
+		resets = <&cru SRST_MAC>;
+		reset-names = "stmmaceth";
+		status = "disabled";
+	};
+
 	i2c0: i2c@ff650000 {
 		compatible = "rockchip,rk3368-i2c", "rockchip,rk3288-i2c";
 		reg = <0x0 0xff728000 0x0 0x1000>;
@@ -974,6 +993,79 @@
 					<1 7  RK_FUNC_GPIO &pcfg_pull_none>, /* LCDC_D23 */
 					<1 8  RK_FUNC_GPIO &pcfg_pull_none>, /* DEN */
 					<1 9  RK_FUNC_GPIO &pcfg_pull_none>; /* DCLK */
+			};
+		};
+
+		gmac {
+			rgmii_pins: rgmii-pins {
+				rockchip,pins =
+					/* mac_rxd3 */
+					<2 7  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_rxd2 */
+					<2 6  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_txd3 */
+					<2 5  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_txd2 */
+					<2 4  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_rxd1 */
+					<2 3  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_rxd0 */
+					<2 2  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_txd1 */
+					<2 1  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_txd0 */
+					<2 0  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_crs */
+					/* <2 15 RK_FUNC_1 &pcfg_pull_none>, */
+					/* mac_rxclkin */
+					<2 14 RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_mdio */
+					<2 13 RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_txen */
+					<2 12 RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_clk */
+					<2 11 RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_rxer */
+					/* <2 10 RK_FUNC_1 &pcfg_pull_none>, */
+					/* mac_rxdv */
+					<2 9  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_mdc */
+					<2 8  RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			rmii_pins: rmii-pins {
+				rockchip,pins =
+					/* mac_rxd1 */
+					<2 3  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_rxd0 */
+					<2 2  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_txd1 */
+					<2 1  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_txd0 */
+					<2 0  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_crs */
+					/* <2 15 RK_FUNC_1 &pcfg_pull_none>, */
+					/* mac_rxclkin */
+					<2 14 RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_mdio */
+					<2 13 RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_txen */
+					<2 12 RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_clk */
+					<2 11 RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_rxer */
+					/* <2 10 RK_FUNC_1 &pcfg_pull_none>, */
+					/* mac_rxdv */
+					<2 9  RK_FUNC_1 &pcfg_pull_none>,
+					/* mac_mdc */
+					<2 8  RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		eth_phy {
+			eth_phy_pwr: eth-phy-pwr {
+				rockchip,pins =
+					<0 24 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};
 	};
