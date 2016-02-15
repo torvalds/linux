@@ -207,9 +207,10 @@ static int dw8250_handle_irq(struct uart_port *p)
 	struct dw8250_data *d = p->private_data;
 	unsigned int iir = p->serial_in(p, UART_IIR);
 
-	if (serial8250_handle_irq(p, iir)) {
+	if (serial8250_handle_irq(p, iir))
 		return 1;
-	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+
+	if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
 		/* Clear the USR */
 		(void)p->serial_in(p, d->usr_reg);
 
