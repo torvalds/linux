@@ -24,12 +24,14 @@ extern mempool_t *xfs_ioend_pool;
  * Types of I/O for bmap clustering and I/O completion tracking.
  */
 enum {
+	XFS_IO_INVALID,		/* initial state */
 	XFS_IO_DELALLOC,	/* covers delalloc region */
 	XFS_IO_UNWRITTEN,	/* covers allocated but uninitialized data */
 	XFS_IO_OVERWRITE,	/* covers already allocated extent */
 };
 
 #define XFS_IO_TYPES \
+	{ XFS_IO_INVALID,		"invalid" }, \
 	{ XFS_IO_DELALLOC,		"delalloc" }, \
 	{ XFS_IO_UNWRITTEN,		"unwritten" }, \
 	{ XFS_IO_OVERWRITE,		"overwrite" }
