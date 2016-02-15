@@ -3698,15 +3698,10 @@ static struct pciserial_board pci_boards[] = {
 		.base_baud	= 921600,
 		.reg_shift      = 2,
 	},
-	/*
-	 * Intel BayTrail HSUART reference clock is 44.2368 MHz at power-on,
-	 * but is overridden by byt_set_termios.
-	 */
 	[pbn_byt] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,
 		.base_baud	= 2764800,
-		.uart_offset	= 0x80,
 		.reg_shift      = 2,
 	},
 	[pbn_qrk] = {
