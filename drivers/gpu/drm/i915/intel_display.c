@@ -2496,13 +2496,14 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
  * to be already rotated to match the rotated GTT view, and
  * pitch is the tile_height aligned framebuffer height.
  */
-u32 intel_compute_tile_offset(struct drm_i915_private *dev_priv,
-			      int *x, int *y,
-			      uint64_t fb_modifier,
-			      unsigned int cpp,
+u32 intel_compute_tile_offset(int *x, int *y,
+			      const struct drm_framebuffer *fb, int plane,
 			      unsigned int pitch,
 			      unsigned int rotation)
 {
+	const struct drm_i915_private *dev_priv = to_i915(fb->dev);
+	uint64_t fb_modifier = fb->modifier[plane];
+	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
 	u32 offset, offset_aligned, alignment;
 
 	alignment = intel_surf_alignment(dev_priv, fb_modifier);
@@ -2845,8 +2846,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		intel_crtc->dspaddr_offset =
-			intel_compute_tile_offset(dev_priv, &x, &y,
-						  fb->modifier[0], cpp,
+			intel_compute_tile_offset(&x, &y, fb, 0,
 						  fb->pitches[0], rotation);
 		linear_offset -= intel_crtc->dspaddr_offset;
 	} else {
@@ -2953,8 +2953,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 
 	linear_offset = y * fb->pitches[0] + x * cpp;
 	intel_crtc->dspaddr_offset =
-		intel_compute_tile_offset(dev_priv, &x, &y,
-					  fb->modifier[0], cpp,
+		intel_compute_tile_offset(&x, &y, fb, 0,
 					  fb->pitches[0], rotation);
 	linear_offset -= intel_crtc->dspaddr_offset;
 	if (rotation == BIT(DRM_ROTATE_180)) {

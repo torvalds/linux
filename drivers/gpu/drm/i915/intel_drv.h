@@ -1194,10 +1194,8 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
-u32 intel_compute_tile_offset(struct drm_i915_private *dev_priv,
-			      int *x, int *y,
-			      uint64_t fb_modifier,
-			      unsigned int cpp,
+u32 intel_compute_tile_offset(int *x, int *y,
+			      const struct drm_framebuffer *fb, int plane,
 			      unsigned int pitch,
 			      unsigned int rotation);
 void intel_prepare_reset(struct drm_device *dev);
