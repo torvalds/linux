@@ -3805,7 +3805,6 @@ static int subn_get_opa_aggregate(struct opa_smp *smp,
 			return reply((struct ib_mad_hdr *)smp);
 		}
 		next_smp += agg_size;
-
 	}
 
 	return reply((struct ib_mad_hdr *)smp);
@@ -3849,7 +3848,6 @@ static int subn_set_opa_aggregate(struct opa_smp *smp,
 			return reply((struct ib_mad_hdr *)smp);
 		}
 		next_smp += agg_size;
-
 	}
 
 	return reply((struct ib_mad_hdr *)smp);

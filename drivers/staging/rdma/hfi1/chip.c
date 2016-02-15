@@ -13710,7 +13710,6 @@ static void assign_cm_au_table(struct hfi1_devdata *dd, u32 cu,
 			SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE6_SHIFT
 		| 64ull * cu <<
 			SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE7_SHIFT);
-
 }
 
 static void assign_local_cm_au_table(struct hfi1_devdata *dd, u8 vcu)

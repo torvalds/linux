@@ -178,7 +178,6 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		/* notify IB of the link change */
 		signal_ib_event(ppd, ev);
 	}
-
 }
 
 /*

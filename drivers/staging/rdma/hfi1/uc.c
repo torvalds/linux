@@ -604,5 +604,4 @@ drop:
 op_err:
 	hfi1_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 	return;
-
 }

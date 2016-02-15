@@ -772,7 +772,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 			mgmt_pkey_idx = hfi1_lookup_pkey_idx(ibp, pkey);
 			if (mgmt_pkey_idx < 0)
 				goto drop;
-
 		}
 		if (unlikely(qkey != qp->qkey)) {
 			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_Q_KEY, qkey,
@@ -810,7 +809,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		mgmt_pkey_idx = hfi1_lookup_pkey_idx(ibp, pkey);
 		if (mgmt_pkey_idx < 0)
 			goto drop;
-
 	}
 
 	if (qp->ibqp.qp_num > 1 &&

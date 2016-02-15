@@ -316,7 +316,6 @@ do_intx:
 		   nvec, ret);
 	*msixcnt = 0;
 	hfi1_enable_intx(dd->pcidev);
-
 }
 
 /* return the PCIe link speed from the given link status */

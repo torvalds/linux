@@ -762,7 +762,6 @@ static inline void finish_packet(struct hfi1_packet *packet)
 	 */
 	update_usrhead(packet->rcd, packet->rcd->head, packet->updegr,
 		       packet->etail, rcv_intr_dynamic, packet->numpkt);
-
 }
 
 static inline void process_rcv_qp_work(struct hfi1_packet *packet)

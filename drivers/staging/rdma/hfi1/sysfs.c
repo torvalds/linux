@@ -568,7 +568,6 @@ static ssize_t show_serial(struct device *device,
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->serial);
-
 }
 
 static ssize_t store_chip_reset(struct device *device,
