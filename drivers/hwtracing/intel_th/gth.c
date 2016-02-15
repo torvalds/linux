@@ -146,24 +146,6 @@ gth_master_set(struct gth_device *gth, unsigned int master, int port)
 	iowrite32(val, gth->base + reg);
 }
 
-/*static int gth_master_get(struct gth_device *gth, unsigned int master)
-{
-	unsigned int reg = REG_GTH_SWDEST0 + ((master >> 1) & ~3u);
-	unsigned int shift = (master & 0x7) * 4;
-	u32 val;
-
-	if (master >= 256) {
-		reg = REG_GTH_GSWTDEST;
-		shift = 0;
-	}
-
-	val = ioread32(gth->base + reg);
-	val &= (0xf << shift);
-	val >>= shift;
-
-	return val ? val & 0x7 : -1;
-	}*/
-
 static ssize_t master_attr_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
