@@ -1323,7 +1323,7 @@ static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 			return -ENOMEM;
 
 		sysfs_bin_attr_init(attr);
-		attr->size = dev->vpd->len;
+		attr->size = 0;
 		attr->attr.name = "vpd";
 		attr->attr.mode = S_IRUSR | S_IWUSR;
 		attr->read = read_vpd_attr;
