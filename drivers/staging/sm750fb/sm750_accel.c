@@ -41,20 +41,16 @@ void hw_de_init(struct lynx_accel *accel)
 	write_dpr(accel, DE_MASKS, 0xFFFFFFFF);
 
 	/* dpr1c */
-	reg = FIELD_SET(0, DE_STRETCH_FORMAT, PATTERN_XY, NORMAL)|
-		FIELD_VALUE(0, DE_STRETCH_FORMAT, PATTERN_Y, 0)|
-		FIELD_VALUE(0, DE_STRETCH_FORMAT, PATTERN_X, 0)|
-		FIELD_SET(0, DE_STRETCH_FORMAT, ADDRESSING, XY)|
-		FIELD_VALUE(0, DE_STRETCH_FORMAT, SOURCE_HEIGHT, 3);
+	reg =  0x3;
 
-	clr = FIELD_CLEAR(DE_STRETCH_FORMAT, PATTERN_XY)&
-		FIELD_CLEAR(DE_STRETCH_FORMAT, PATTERN_Y)&
-		FIELD_CLEAR(DE_STRETCH_FORMAT, PATTERN_X)&
-		FIELD_CLEAR(DE_STRETCH_FORMAT, ADDRESSING)&
-		FIELD_CLEAR(DE_STRETCH_FORMAT, SOURCE_HEIGHT);
+	clr = DE_STRETCH_FORMAT_PATTERN_XY | DE_STRETCH_FORMAT_PATTERN_Y_MASK |
+		DE_STRETCH_FORMAT_PATTERN_X_MASK |
+		DE_STRETCH_FORMAT_ADDRESSING_MASK |
+		DE_STRETCH_FORMAT_SOURCE_HEIGHT_MASK;
 
 	/* DE_STRETCH bpp format need be initialized in setMode routine */
-	write_dpr(accel, DE_STRETCH_FORMAT, (read_dpr(accel, DE_STRETCH_FORMAT) & clr) | reg);
+	write_dpr(accel, DE_STRETCH_FORMAT,
+		  (read_dpr(accel, DE_STRETCH_FORMAT) & ~clr) | reg);
 
 	/* disable clipping and transparent */
 	write_dpr(accel, DE_CLIP_TL, 0); /* dpr2c */
@@ -80,7 +76,9 @@ void hw_set2dformat(struct lynx_accel *accel, int fmt)
 
 	/* fmt=0,1,2 for 8,16,32,bpp on sm718/750/502 */
 	reg = read_dpr(accel, DE_STRETCH_FORMAT);
-	reg = FIELD_VALUE(reg, DE_STRETCH_FORMAT, PIXEL_FORMAT, fmt);
+	reg &= ~DE_STRETCH_FORMAT_PIXEL_FORMAT_MASK;
+	reg |= ((fmt << DE_STRETCH_FORMAT_PIXEL_FORMAT_SHIFT) &
+		DE_STRETCH_FORMAT_PIXEL_FORMAT_MASK);
 	write_dpr(accel, DE_STRETCH_FORMAT, reg);
 }
 

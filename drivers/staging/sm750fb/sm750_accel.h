@@ -109,21 +109,22 @@
 #define DE_BACKGROUND_COLOR                             31:0
 
 #define DE_STRETCH_FORMAT                               0x00001C
-#define DE_STRETCH_FORMAT_PATTERN_XY                    30:30
-#define DE_STRETCH_FORMAT_PATTERN_XY_NORMAL             0
-#define DE_STRETCH_FORMAT_PATTERN_XY_OVERWRITE          1
-#define DE_STRETCH_FORMAT_PATTERN_Y                     29:27
-#define DE_STRETCH_FORMAT_PATTERN_X                     25:23
-#define DE_STRETCH_FORMAT_PIXEL_FORMAT                  21:20
-#define DE_STRETCH_FORMAT_PIXEL_FORMAT_8                0
-#define DE_STRETCH_FORMAT_PIXEL_FORMAT_16               1
-#define DE_STRETCH_FORMAT_PIXEL_FORMAT_32               2
-#define DE_STRETCH_FORMAT_PIXEL_FORMAT_24               3
-
-#define DE_STRETCH_FORMAT_ADDRESSING                    19:16
-#define DE_STRETCH_FORMAT_ADDRESSING_XY                 0
-#define DE_STRETCH_FORMAT_ADDRESSING_LINEAR             15
-#define DE_STRETCH_FORMAT_SOURCE_HEIGHT                 11:0
+#define DE_STRETCH_FORMAT_PATTERN_XY                    BIT(30)
+#define DE_STRETCH_FORMAT_PATTERN_Y_SHIFT               27
+#define DE_STRETCH_FORMAT_PATTERN_Y_MASK                (0x7 << 27)
+#define DE_STRETCH_FORMAT_PATTERN_X_SHIFT               23
+#define DE_STRETCH_FORMAT_PATTERN_X_MASK                (0x7 << 23)
+#define DE_STRETCH_FORMAT_PIXEL_FORMAT_SHIFT            20
+#define DE_STRETCH_FORMAT_PIXEL_FORMAT_MASK             (0x3 << 20)
+#define DE_STRETCH_FORMAT_PIXEL_FORMAT_8                (0x0 << 20)
+#define DE_STRETCH_FORMAT_PIXEL_FORMAT_16               (0x1 << 20)
+#define DE_STRETCH_FORMAT_PIXEL_FORMAT_32               (0x2 << 20)
+#define DE_STRETCH_FORMAT_PIXEL_FORMAT_24               (0x3 << 20)
+#define DE_STRETCH_FORMAT_ADDRESSING_SHIFT              16
+#define DE_STRETCH_FORMAT_ADDRESSING_MASK               (0xf << 16)
+#define DE_STRETCH_FORMAT_ADDRESSING_XY                 (0x0 << 16)
+#define DE_STRETCH_FORMAT_ADDRESSING_LINEAR             (0xf << 16)
+#define DE_STRETCH_FORMAT_SOURCE_HEIGHT_MASK            0xfff
 
 #define DE_COLOR_COMPARE                                0x000020
 #define DE_COLOR_COMPARE_COLOR                          23:0
