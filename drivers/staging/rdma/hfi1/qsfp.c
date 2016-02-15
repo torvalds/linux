@@ -216,7 +216,7 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 
 	while (count < len) {
 		/*
-		 * Set the qsfp page based on a zero-based addresss
+		 * Set the qsfp page based on a zero-based address
 		 * and a page size of QSFP_PAGESIZE bytes.
 		 */
 		page = (u8)(addr / QSFP_PAGESIZE);

@@ -2739,7 +2739,7 @@ enomem:
  * This function calls _extend_sdma_tx_descs to extend or allocate
  * coalesce buffer. If there is a allocated coalesce buffer, it will
  * copy the input packet data into the coalesce buffer. It also adds
- * coalesce buffer descriptor once whe whole packet is received.
+ * coalesce buffer descriptor once when whole packet is received.
  *
  * Return:
  * <0 - error
