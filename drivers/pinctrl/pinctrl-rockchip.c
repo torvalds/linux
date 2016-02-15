@@ -63,6 +63,7 @@ enum rockchip_pinctrl_type {
 	RK3066B,
 	RK3188,
 	RK3288,
+	RK3366,
 	RK3368,
 	RK3399,
 };
@@ -95,11 +96,22 @@ enum rockchip_pin_drv_type {
 	DRV_TYPE_IO_1V8_ONLY,
 	DRV_TYPE_IO_1V8_3V0_AUTO,
 	DRV_TYPE_IO_3V3_ONLY,
+	DRV_TYPE_IO_WIDE_LEVEL,
+	DRV_TYPE_IO_NARROW_LEVEL,
 	DRV_TYPE_MAX
 };
 
 /**
- * @drv_type: drive strength variant using rockchip_perpin_drv_type
+ * enum type of pin extra drive alignment.
+ */
+enum rockchip_pin_extra_drv_type {
+	DRV_TYPE_EXTRA_DEFAULT = 0,
+	DRV_TYPE_EXTRA_SAME_OFFSET,
+	DRV_TYPE_EXTRA_SAME_BITS
+};
+
+/**
+ * @drv_type: drive strength variant using rockchip_pin_drv_type
  * @offset: if initialized to -1 it will be autocalculated, by specifying
  *	    an initial offset value the relevant source offset can be reset
  *	    to a new value for autocalculating the following drive strength
@@ -198,10 +210,52 @@ struct rockchip_pin_bank {
 		},							\
 	}
 
-#define PIN_BANK_IOMUX_DRV_FLAGS_OFFSET(id, pins, label, iom0, iom1,	\
-					iom2, iom3, drv0, drv1, drv2,	\
-					drv3, offset0, offset1,		\
-					offset2, offset3)		\
+#define PIN_BANK_IOMUX_DRV_FLAGS(id, pins, label, iom0, iom1, iom2,	\
+				iom3, drv0, drv1, drv2, drv3)		\
+	{								\
+		.bank_num	= id,					\
+		.nr_pins	= pins,					\
+		.name		= label,				\
+		.iomux		= {					\
+			{ .type = iom0, .offset = -1 },			\
+			{ .type = iom1, .offset = -1 },			\
+			{ .type = iom2, .offset = -1 },			\
+			{ .type = iom3, .offset = -1 },			\
+		},							\
+		.drv		= {					\
+			{ .drv_type = drv0, .offset = -1 },		\
+			{ .drv_type = drv1, .offset = -1 },		\
+			{ .drv_type = drv2, .offset = -1 },		\
+			{ .drv_type = drv3, .offset = -1 },		\
+		},							\
+	}
+
+#define PIN_BANK_IOMUX_FLAGS_OFFSET_DRV_FLAGS(id, pins, label, iom0,	\
+					     iom1, iom2, iom3, offset0,	\
+					     offset1, offset2, offset3,	\
+					     drv0, drv1, drv2, drv3)	\
+	{								\
+		.bank_num	= id,					\
+		.nr_pins	= pins,					\
+		.name		= label,				\
+		.iomux		= {					\
+			{ .type = iom0, .offset = offset0 },		\
+			{ .type = iom1, .offset = offset1 },		\
+			{ .type = iom2, .offset = offset2 },		\
+			{ .type = iom3, .offset = offset3 },		\
+		},							\
+		.drv		= {					\
+			{ .drv_type = drv0, .offset = -1 },		\
+			{ .drv_type = drv1, .offset = -1 },		\
+			{ .drv_type = drv2, .offset = -1 },		\
+			{ .drv_type = drv3, .offset = -1 },		\
+		},							\
+	}
+
+#define PIN_BANK_IOMUX_FLAGS_DRV_FLAGS_OFFSET(id, pins, label, iom0,	\
+					      iom1, iom2, iom3, drv0,	\
+					      drv1, drv2, drv3, offset0,\
+					      offset1, offset2, offset3)\
 	{								\
 		.bank_num	= id,					\
 		.nr_pins	= pins,					\
@@ -234,11 +288,16 @@ struct rockchip_pin_ctrl {
 	int				pmu_drv_offset;
 
 	void	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit);
-	void	(*drv_calc_reg)(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit);
+				 int pin_num, struct regmap **regmap,
+				 int *reg, u8 *bit);
+	enum rockchip_pin_drv_type (*drv_calc_reg)(
+				struct rockchip_pin_bank *bank,
+				int pin_num, struct regmap **regmap,
+				int *reg, u8 *bit);
+	enum rockchip_pin_extra_drv_type (*drv_calc_extra_reg)(
+				      struct rockchip_pin_bank *bank,
+				      int pin_num, struct regmap **regmap,
+				      int *reg, u8 *bit);
 };
 
 struct rockchip_pin_config {
@@ -658,9 +717,10 @@ static void rk3288_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 #define RK3288_DRV_PINS_PER_REG		8
 #define RK3288_DRV_BANK_STRIDE		16
 
-static void rk3288_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit)
+static enum rockchip_pin_drv_type rk3288_calc_drv_reg_and_bit(
+				       struct rockchip_pin_bank *bank,
+				       int pin_num, struct regmap **regmap,
+				       int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 
@@ -684,6 +744,8 @@ static void rk3288_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = (pin_num % RK3288_DRV_PINS_PER_REG);
 		*bit *= RK3288_DRV_BITS_PER_PIN;
 	}
+
+	return DRV_TYPE_IO_DEFAULT;
 }
 
 #define RK3228_PULL_OFFSET		0x100
@@ -705,9 +767,10 @@ static void rk3228_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 
 #define RK3228_DRV_GRF_OFFSET		0x200
 
-static void rk3228_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit)
+static enum rockchip_pin_drv_type rk3228_calc_drv_reg_and_bit(
+				       struct rockchip_pin_bank *bank,
+				       int pin_num, struct regmap **regmap,
+				       int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 
@@ -718,14 +781,185 @@ static void rk3228_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 
 	*bit = (pin_num % RK3288_DRV_PINS_PER_REG);
 	*bit *= RK3288_DRV_BITS_PER_PIN;
+
+	return DRV_TYPE_IO_DEFAULT;
+}
+
+#define RK3366_PULL_GRF_OFFSET		0x110
+#define RK3366_PULL_PMU_OFFSET		0x10
+
+static void rk3366_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
+					 int pin_num, struct regmap **regmap,
+					 int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+
+	/* The bank0:32 and bank1:16 pins are located in PMU */
+	if ((bank->bank_num == 0) || (bank->bank_num == 1)) {
+		*regmap = info->regmap_pmu;
+		*reg = RK3366_PULL_PMU_OFFSET + bank->bank_num * 0x30;
+
+		*reg += ((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
+		*bit = pin_num % RK3188_PULL_PINS_PER_REG;
+		*bit *= RK3188_PULL_BITS_PER_PIN;
+	} else {
+		*regmap = info->regmap_base;
+		*reg = RK3366_PULL_GRF_OFFSET;
+
+		/* correct the offset, as we're starting with the 2nd bank */
+		*reg -= 0x20;
+		*reg += bank->bank_num * RK3188_PULL_BANK_STRIDE;
+		*reg += ((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
+
+		*bit = (pin_num % RK3188_PULL_PINS_PER_REG);
+		*bit *= RK3188_PULL_BITS_PER_PIN;
+	}
+}
+
+#define RK3366_DRV_PMU_OFFSET		0x20
+#define RK3366_DRV_GRF_OFFSET		0x210
+
+#define RK3366_DRV_GPIO2B3_OFFSET	0x378
+#define RK3366_DRV_GPIO2B3_BITS		4
+
+#define RK3366_DRV_GPIO3A4_OFFSET	0x37c
+#define RK3366_DRV_GPIO3A4_BITS		4
+
+static enum rockchip_pin_drv_type rk3366_calc_drv_reg_and_bit(
+				       struct rockchip_pin_bank *bank,
+				       int pin_num, struct regmap **regmap,
+				       int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+
+	/* The bank0:32 and bank1:16 pins are located in PMU */
+	if ((bank->bank_num == 0) || (bank->bank_num == 1)) {
+		*regmap = info->regmap_pmu;
+		*reg = RK3366_DRV_PMU_OFFSET + bank->bank_num * 0x30;
+
+		*reg += ((pin_num / RK3288_DRV_PINS_PER_REG) * 4);
+		*bit = pin_num % RK3288_DRV_PINS_PER_REG;
+		*bit *= RK3288_DRV_BITS_PER_PIN;
+
+		return DRV_TYPE_IO_DEFAULT;
+	} else if ((bank->bank_num == 2) && (pin_num == 11)) {
+		/* GPIO2B3 is a special case in bank2 */
+		*regmap = info->regmap_base;
+		*reg = RK3366_DRV_GPIO2B3_OFFSET;
+		*bit = RK3366_DRV_GPIO2B3_BITS;
+
+		return DRV_TYPE_IO_WIDE_LEVEL;
+	} else if ((bank->bank_num == 3) && (pin_num == 4)) {
+		/* GPIO3A4 is a special case in bank3 */
+		*regmap = info->regmap_base;
+		*reg = RK3366_DRV_GPIO3A4_OFFSET;
+		*bit = RK3366_DRV_GPIO3A4_BITS;
+
+		return DRV_TYPE_IO_WIDE_LEVEL;
+	}
+
+	*regmap = info->regmap_base;
+	*reg = RK3366_DRV_GRF_OFFSET;
+
+	/* correct the offset, as we're starting with the 2nd bank */
+	*reg -= 0x20;
+	*reg += bank->bank_num * RK3288_DRV_BANK_STRIDE;
+	*reg += ((pin_num / RK3288_DRV_PINS_PER_REG) * 4);
+
+	*bit = (pin_num % RK3288_DRV_PINS_PER_REG);
+	*bit *= RK3288_DRV_BITS_PER_PIN;
+
+	/* special cases need special handle */
+	if ((bank->bank_num == 2) && (pin_num == 14))
+		return DRV_TYPE_IO_WIDE_LEVEL;
+	else if ((bank->bank_num == 2) && (pin_num == 16))
+		return DRV_TYPE_IO_NARROW_LEVEL;
+	else if ((bank->bank_num == 2) && (pin_num >= 24) && (pin_num <= 26))
+		return DRV_TYPE_IO_WIDE_LEVEL;
+
+	return DRV_TYPE_IO_DEFAULT;
+}
+
+#define RK3366_DRV_GPIO2A_EN_OFFSET	0x360
+#define RK3366_DRV_GPIO2A_EP_OFFSET	0x364
+
+#define RK3366_DRV_GPIO2C_EN_OFFSET	0x368
+#define RK3366_DRV_GPIO2C_EP_OFFSET	0x36C
+
+#define RK3366_DRV_GPIO2D_EN_OFFSET	0x370
+#define RK3366_DRV_GPIO2D_EP_OFFSET	0x374
+
+#define RK3366_DRV_GPIO2B3_E_OFFSET	0x378
+#define RK3366_DRV_GPIO2B3_EN_BIT	0
+#define RK3366_DRV_GPIO2B3_EP_BIT	2
+
+#define RK3366_DRV_GPIO3A4_E_OFFSET	0x37c
+#define RK3366_DRV_GPIO3A4_EN_BIT	0
+#define RK3366_DRV_GPIO3A4_EP_BIT	2
+
+#define RK3366_DRV_GPIO2B6_E_OFFSET	0x404
+#define RK3366_DRV_GPIO2B6_EN_BIT	12
+#define RK3366_DRV_GPIO2B6_EP_BIT	14
+
+static enum rockchip_pin_extra_drv_type rk3366_calc_drv_extra_reg_and_bit(
+					     struct rockchip_pin_bank *bank,
+					     int pin_num,
+					     struct regmap **regmap,
+					     int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+
+	*regmap = info->regmap_base;
+	if (bank->bank_num == 2) {
+		switch (pin_num / 8) {
+		case 0:
+			*reg = RK3366_DRV_GPIO2A_EN_OFFSET;
+			break;
+		case 1:
+			/* special cases need special handle */
+			if (pin_num == 11) {
+				*reg = RK3366_DRV_GPIO2B3_E_OFFSET;
+				*bit = RK3366_DRV_GPIO2B3_EN_BIT;
+			} else if (pin_num == 14) {
+				*reg = RK3366_DRV_GPIO2B6_E_OFFSET;
+				*bit = RK3366_DRV_GPIO2B6_EN_BIT;
+			} else {
+				return -1;
+			}
+
+			return DRV_TYPE_EXTRA_SAME_OFFSET;
+		case 2:
+			*reg = RK3366_DRV_GPIO2C_EN_OFFSET;
+			break;
+		case 3:
+			*reg = RK3366_DRV_GPIO2D_EN_OFFSET;
+			break;
+		default:
+			return -1;
+		}
+
+		*bit = pin_num % RK3288_DRV_PINS_PER_REG;
+		*bit *= RK3288_DRV_BITS_PER_PIN;
+
+		return DRV_TYPE_EXTRA_SAME_BITS;
+	}
+
+	/* GPIO3A4 is a special case */
+	if ((pin_num != 4) && (bank->bank_num != 3))
+		return -1;
+
+	*reg = RK3366_DRV_GPIO3A4_E_OFFSET;
+	*bit = RK3366_DRV_GPIO3A4_EN_BIT;
+
+	return DRV_TYPE_EXTRA_SAME_OFFSET;
 }
 
 #define RK3368_PULL_GRF_OFFSET		0x100
 #define RK3368_PULL_PMU_OFFSET		0x10
 
 static void rk3368_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit)
+					 int pin_num, struct regmap **regmap,
+					 int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 
@@ -754,9 +988,10 @@ static void rk3368_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 #define RK3368_DRV_PMU_OFFSET		0x20
 #define RK3368_DRV_GRF_OFFSET		0x200
 
-static void rk3368_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit)
+static enum rockchip_pin_drv_type rk3368_calc_drv_reg_and_bit(
+				       struct rockchip_pin_bank *bank,
+				       int pin_num, struct regmap **regmap,
+				       int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 
@@ -780,6 +1015,8 @@ static void rk3368_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = (pin_num % RK3288_DRV_PINS_PER_REG);
 		*bit *= RK3288_DRV_BITS_PER_PIN;
 	}
+
+	return DRV_TYPE_IO_DEFAULT;
 }
 
 #define RK3399_PULL_GRF_OFFSET		0xe040
@@ -816,9 +1053,10 @@ static void rk3399_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 	}
 }
 
-static void rk3399_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
-					int pin_num, struct regmap **regmap,
-					int *reg, u8 *bit)
+static enum rockchip_pin_drv_type rk3399_calc_drv_reg_and_bit(
+				       struct rockchip_pin_bank *bank,
+				       int pin_num, struct regmap **regmap,
+				       int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 	int drv_num = (pin_num / 8);
@@ -835,6 +1073,8 @@ static void rk3399_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = (pin_num % 8) * 3;
 	else
 		*bit = (pin_num % 8) * 2;
+
+	return DRV_TYPE_IO_DEFAULT;
 }
 
 static int rockchip_perpin_drv_list[DRV_TYPE_MAX][8] = {
@@ -842,7 +1082,9 @@ static int rockchip_perpin_drv_list[DRV_TYPE_MAX][8] = {
 	{ 3, 6, 9, 12, -1, -1, -1, -1 },
 	{ 5, 10, 15, 20, -1, -1, -1, -1 },
 	{ 4, 6, 8, 10, 12, 14, 16, 18 },
-	{ 4, 7, 10, 13, 16, 19, 22, 26 }
+	{ 4, 7, 10, 13, 16, 19, 22, 26 },
+	{ 0, 6, 12, 18, -1, -1, -1, -1 },
+	{ 4, 8, 12, 16, -1, -1, -1, -1 }
 };
 
 static int rockchip_get_drive_perpin(struct rockchip_pin_bank *bank,
@@ -850,13 +1092,15 @@ static int rockchip_get_drive_perpin(struct rockchip_pin_bank *bank,
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	struct regmap *regmap;
-	int reg, ret;
+	struct regmap *regmap, *extra_regmap;
+	int reg, ret, extra_reg;
 	u32 data, temp, rmask_bits;
-	u8 bit;
-	int drv_type = bank->drv[pin_num / 8].drv_type;
+	u8 bit, extra_bit;
+	int drv_type;
 
-	ctrl->drv_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	drv_type = ctrl->drv_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	if (!drv_type)
+		drv_type = bank->drv[pin_num / 8].drv_type;
 
 	switch (drv_type) {
 	case DRV_TYPE_IO_1V8_3V0_AUTO:
@@ -901,9 +1145,41 @@ static int rockchip_get_drive_perpin(struct rockchip_pin_bank *bank,
 		}
 
 		break;
+	case DRV_TYPE_IO_WIDE_LEVEL:
+		rmask_bits = RK3288_DRV_BITS_PER_PIN;
+		/* enable the write to the equivalent lower bits */
+		ret = regmap_read(regmap, reg, &data);
+		if (ret)
+			return ret;
+		data >>= bit;
+		data &= (1 << rmask_bits) - 1;
+
+		/*
+		 * assume the drive strength of N channel and
+		 * P channel are the same.
+		 */
+		if (ctrl->drv_calc_extra_reg)
+			ctrl->drv_calc_extra_reg(bank, pin_num,
+						 &extra_regmap,
+						 &extra_reg,
+						 &extra_bit);
+
+		/*
+		 * It is enough to read one channel drive strength,
+		 * this is N channel.
+		 */
+		ret = regmap_read(extra_regmap, extra_reg, &temp);
+		if (ret)
+			return ret;
+
+		temp >>= extra_bit;
+		temp &= (1 << rmask_bits) - 1;
+
+		return (rockchip_perpin_drv_list[drv_type][data]) + (temp * 2);
 	case DRV_TYPE_IO_DEFAULT:
 	case DRV_TYPE_IO_1V8_OR_3V0:
 	case DRV_TYPE_IO_1V8_ONLY:
+	case DRV_TYPE_IO_NARROW_LEVEL:
 		rmask_bits = RK3288_DRV_BITS_PER_PIN;
 		break;
 	default:
@@ -927,26 +1203,37 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
-	struct regmap *regmap;
+	struct regmap *regmap, *extra_regmap;
 	unsigned long flags;
 	int reg, ret, i;
-	u32 data, rmask, rmask_bits, temp;
-	u8 bit;
-	int drv_type = bank->drv[pin_num / 8].drv_type;
+	u32 data, temp, rmask, rmask_bits;
+	u8 bit, extra_bit;
+	int drv_type, extra_drv_type = 0;
+	int extra_value, extra_reg;
 
 	dev_dbg(info->dev, "setting drive of GPIO%d-%d to %d\n",
 		bank->bank_num, pin_num, strength);
 
-	ctrl->drv_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	drv_type = ctrl->drv_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	if (!drv_type)
+		drv_type = bank->drv[pin_num / 8].drv_type;
 
 	ret = -EINVAL;
-	for (i = 0; i < ARRAY_SIZE(rockchip_perpin_drv_list[drv_type]); i++) {
-		if (rockchip_perpin_drv_list[drv_type][i] == strength) {
-			ret = i;
-			break;
-		} else if (rockchip_perpin_drv_list[drv_type][i] < 0) {
-			ret = rockchip_perpin_drv_list[drv_type][i];
-			break;
+
+	if (drv_type == DRV_TYPE_IO_WIDE_LEVEL) {
+		if ((strength % 2 == 0) && (strength <= 24))
+			ret = ((strength > 18) ? 18 : strength) / 6;
+	} else {
+		for (i = 0; i < ARRAY_SIZE(rockchip_perpin_drv_list[drv_type]);
+		     i++) {
+			if (rockchip_perpin_drv_list[drv_type][i] < 0) {
+				ret = rockchip_perpin_drv_list[drv_type][i];
+				break;
+			} else if (rockchip_perpin_drv_list[drv_type][i] ==
+				   strength) {
+				ret = i;
+				break;
+			}
 		}
 	}
 
@@ -1002,9 +1289,51 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 			return -EINVAL;
 		}
 		break;
+	case DRV_TYPE_IO_WIDE_LEVEL:
+		extra_value = ((strength -
+				rockchip_perpin_drv_list[drv_type][ret])) >> 1;
+		rmask_bits = RK3288_DRV_BITS_PER_PIN;
+
+		/*
+		 * assume the drive strength of N channel and
+		 * P channel are the same.
+		 */
+		if (ctrl->drv_calc_extra_reg)
+			extra_drv_type = ctrl->drv_calc_extra_reg(bank, pin_num,
+								  &extra_regmap,
+								  &extra_reg,
+								  &extra_bit);
+
+		/* enable the write to the equivalent lower bits */
+		data = ((1 << rmask_bits) - 1) << (extra_bit + 16);
+		rmask = data | (data >> 16);
+		data |= (extra_value << extra_bit);
+
+		/* write drive strength of N channel */
+		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data))
+			return -EINVAL;
+
+		if (extra_drv_type == DRV_TYPE_EXTRA_SAME_OFFSET)
+			extra_bit += 2;
+		else if (extra_drv_type == DRV_TYPE_EXTRA_SAME_BITS)
+			extra_reg += 0x4;
+		else
+			return -EINVAL;
+
+		/* enable the write to the equivalent lower bits */
+		data = ((1 << rmask_bits) - 1) << (extra_bit + 16);
+		rmask = data | (data >> 16);
+		data |= (extra_value << extra_bit);
+
+		/* write drive strength of P channel */
+		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data))
+			return -EINVAL;
+
+		break;
 	case DRV_TYPE_IO_DEFAULT:
 	case DRV_TYPE_IO_1V8_OR_3V0:
 	case DRV_TYPE_IO_1V8_ONLY:
+	case DRV_TYPE_IO_NARROW_LEVEL:
 		rmask_bits = RK3288_DRV_BITS_PER_PIN;
 		break;
 	default:
@@ -1051,6 +1380,7 @@ static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 				: PIN_CONFIG_BIAS_DISABLE;
 	case RK3188:
 	case RK3288:
+	case RK3366:
 	case RK3368:
 	case RK3399:
 		data >>= bit;
@@ -1108,6 +1438,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 		break;
 	case RK3188:
 	case RK3288:
+	case RK3366:
 	case RK3368:
 	case RK3399:
 		spin_lock_irqsave(&bank->slock, flags);
@@ -1289,6 +1620,7 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 		return pull ? false : true;
 	case RK3188:
 	case RK3288:
+	case RK3366:
 	case RK3368:
 	case RK3399:
 		return (pull != PIN_CONFIG_BIAS_PULL_PIN_DEFAULT);
@@ -2523,6 +2855,69 @@ static struct rockchip_pin_ctrl rk3288_pin_ctrl = {
 		.drv_calc_reg		= rk3288_calc_drv_reg_and_bit,
 };
 
+static struct rockchip_pin_bank rk3366_pin_banks[] = {
+	PIN_BANK_IOMUX_DRV_FLAGS(0, 32, "gpio0",
+				 IOMUX_SOURCE_PMU,
+				 IOMUX_SOURCE_PMU,
+				 IOMUX_SOURCE_PMU,
+				 IOMUX_SOURCE_PMU,
+				 DRV_TYPE_IO_NARROW_LEVEL,
+				 DRV_TYPE_IO_NARROW_LEVEL,
+				 DRV_TYPE_IO_NARROW_LEVEL,
+				 DRV_TYPE_IO_NARROW_LEVEL
+				 ),
+	PIN_BANK_IOMUX_FLAGS_OFFSET_DRV_FLAGS(1, 32, "gpio1",
+					      IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      0x30,
+					      0x34,
+					      0x38,
+					      0x3c,
+					      DRV_TYPE_IO_NARROW_LEVEL,
+					      DRV_TYPE_IO_NARROW_LEVEL,
+					      DRV_TYPE_IO_NARROW_LEVEL,
+					      DRV_TYPE_IO_NARROW_LEVEL
+					      ),
+	PIN_BANK_DRV_FLAGS(2, 32, "gpio2",
+			   DRV_TYPE_IO_WIDE_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_WIDE_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL
+			   ),
+	PIN_BANK_DRV_FLAGS(3, 32, "gpio3",
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL
+			   ),
+	PIN_BANK_DRV_FLAGS(4, 32, "gpio4",
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL
+			   ),
+	PIN_BANK_DRV_FLAGS(5, 32, "gpio5",
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL,
+			   DRV_TYPE_IO_NARROW_LEVEL
+			   ),
+};
+
+static struct rockchip_pin_ctrl rk3366_pin_ctrl = {
+		.pin_banks		= rk3366_pin_banks,
+		.nr_banks		= ARRAY_SIZE(rk3366_pin_banks),
+		.label			= "RK3366-GPIO",
+		.type			= RK3366,
+		.grf_mux_offset		= 0x10,
+		.pmu_mux_offset		= 0x0,
+		.pull_calc_reg		= rk3366_calc_pull_reg_and_bit,
+		.drv_calc_reg		= rk3366_calc_drv_reg_and_bit,
+		.drv_calc_extra_reg	= rk3366_calc_drv_extra_reg_and_bit,
+};
+
 static struct rockchip_pin_bank rk3368_pin_banks[] = {
 	PIN_BANK_IOMUX_FLAGS(0, 32, "gpio0", IOMUX_SOURCE_PMU,
 					     IOMUX_SOURCE_PMU,
@@ -2546,32 +2941,32 @@ static struct rockchip_pin_ctrl rk3368_pin_ctrl = {
 };
 
 static struct rockchip_pin_bank rk3399_pin_banks[] = {
-	PIN_BANK_IOMUX_DRV_FLAGS_OFFSET(0, 32, "gpio0", IOMUX_SOURCE_PMU,
-					IOMUX_SOURCE_PMU,
-					IOMUX_SOURCE_PMU,
-					IOMUX_SOURCE_PMU,
-					DRV_TYPE_IO_1V8_ONLY,
-					DRV_TYPE_IO_1V8_ONLY,
-					DRV_TYPE_IO_DEFAULT,
-					DRV_TYPE_IO_DEFAULT,
-					0x0,
-					0x8,
-					-1,
-					-1
-					),
-	PIN_BANK_IOMUX_DRV_FLAGS_OFFSET(1, 32, "gpio1", IOMUX_SOURCE_PMU,
-					IOMUX_SOURCE_PMU,
-					IOMUX_SOURCE_PMU,
-					IOMUX_SOURCE_PMU,
-					DRV_TYPE_IO_1V8_OR_3V0,
-					DRV_TYPE_IO_1V8_OR_3V0,
-					DRV_TYPE_IO_1V8_OR_3V0,
-					DRV_TYPE_IO_1V8_OR_3V0,
-					0x20,
-					0x28,
-					0x30,
-					0x38
-					),
+	PIN_BANK_IOMUX_FLAGS_DRV_FLAGS_OFFSET(0, 32, "gpio0", IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      DRV_TYPE_IO_1V8_ONLY,
+					      DRV_TYPE_IO_1V8_ONLY,
+					      DRV_TYPE_IO_DEFAULT,
+					      DRV_TYPE_IO_DEFAULT,
+					      0x0,
+					      0x8,
+					      -1,
+					      -1
+					      ),
+	PIN_BANK_IOMUX_FLAGS_DRV_FLAGS_OFFSET(1, 32, "gpio1", IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      IOMUX_SOURCE_PMU,
+					      DRV_TYPE_IO_1V8_OR_3V0,
+					      DRV_TYPE_IO_1V8_OR_3V0,
+					      DRV_TYPE_IO_1V8_OR_3V0,
+					      DRV_TYPE_IO_1V8_OR_3V0,
+					      0x20,
+					      0x28,
+					      0x30,
+					      0x38
+					      ),
 	PIN_BANK_DRV_FLAGS(2, 32, "gpio2", DRV_TYPE_IO_1V8_OR_3V0,
 			   DRV_TYPE_IO_1V8_OR_3V0,
 			   DRV_TYPE_IO_1V8_ONLY,
@@ -2617,6 +3012,8 @@ static const struct of_device_id rockchip_pinctrl_dt_match[] = {
 		.data = (void *)&rk3228_pin_ctrl },
 	{ .compatible = "rockchip,rk3288-pinctrl",
 		.data = (void *)&rk3288_pin_ctrl },
+	{ .compatible = "rockchip,rk3366-pinctrl",
+		.data = (void *)&rk3366_pin_ctrl },
 	{ .compatible = "rockchip,rk3368-pinctrl",
 		.data = (void *)&rk3368_pin_ctrl },
 	{ .compatible = "rockchip,rk3399-pinctrl",
