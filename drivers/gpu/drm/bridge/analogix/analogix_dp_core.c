@@ -62,14 +62,37 @@ static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
 {
 	int timeout_loop = 0;
 
-	while (analogix_dp_get_plug_in_status(dp) != 0) {
+	while (timeout_loop < DP_TIMEOUT_LOOP_COUNT) {
+		if (analogix_dp_get_plug_in_status(dp) == 0)
+			return 0;
+
 		timeout_loop++;
-		if (timeout_loop > DP_TIMEOUT_LOOP_COUNT) {
-			dev_err(dp->dev, "failed to get hpd plug status\n");
-			return -ETIMEDOUT;
-		}
 		usleep_range(10, 11);
 	}
+
+	/*
+	 * Some edp screen do not have hpd signal, so we can't just
+	 * return failed when hpd plug in detect failed, DT property
+	 * "force-hpd" would indicate whether driver need this.
+	 */
+	if (!dp->force_hpd)
+		return -ETIMEDOUT;
+
+	/*
+	 * The eDP TRM indicate that if HPD_STATUS(RO) is 0, AUX CH
+	 * will not work, so we need to give a force hpd action to
+	 * set HPD_STATUS manually.
+	 */
+	dev_dbg(dp->dev, "failed to get hpd plug status, try to force hpd\n");
+
+	analogix_dp_force_hpd(dp);
+
+	if (analogix_dp_get_plug_in_status(dp) != 0) {
+		dev_err(dp->dev, "failed to get hpd plug in status\n");
+		return -EINVAL;
+	}
+
+	dev_dbg(dp->dev, "success to get plug in status after force hpd\n");
 
 	return 0;
 }
@@ -1290,6 +1313,8 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	dp->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dp->reg_base))
 		return PTR_ERR(dp->reg_base);
+
+	dp->force_hpd = of_property_read_bool(dev->of_node, "force-hpd");
 
 	dp->hpd_gpio = of_get_named_gpio(dev->of_node, "hpd-gpios", 0);
 	if (!gpio_is_valid(dp->hpd_gpio))

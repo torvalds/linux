@@ -22,6 +22,9 @@ Required properties for dp-controller:
 		from general PHY binding: Should be "dp".
 
 Optional properties for dp-controller:
+	-force-hpd:
+		Indicate driver need force hpd when hpd detect failed, this
+		is used for some eDP screen which don't have hpd signal.
 	-hpd-gpios:
 		Hotplug detect GPIO.
 		Indicates which GPIO should be used for hotplug detection
@@ -30,7 +33,6 @@ Optional properties for dp-controller:
 		please refer to the SoC specific binding document:
 		* Documentation/devicetree/bindings/display/exynos/exynos_dp.txt
 		* Documentation/devicetree/bindings/video/analogix_dp-rockchip.txt
-
 
 [1]: Documentation/devicetree/bindings/media/video-interfaces.txt
 -------------------------------------------------------------------------------

@@ -32,6 +32,7 @@ For the below properties, please refer to Analogix DP binding document:
 - phys (required)
 - phy-names (required)
 - hpd-gpios (optional)
+- force-hpd (optional)
 -------------------------------------------------------------------------------
 
 Example:
