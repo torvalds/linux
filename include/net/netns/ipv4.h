@@ -84,6 +84,8 @@ struct netns_ipv4 {
 	int sysctl_ip_no_pmtu_disc;
 	int sysctl_ip_fwd_use_pmtu;
 	int sysctl_ip_nonlocal_bind;
+	/* Shall we try to damage output packets if routing dev changes? */
+	int sysctl_ip_dynaddr;
 
 	int sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
