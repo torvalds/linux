@@ -38,7 +38,6 @@
 #define SCLK_ISP		71
 #define SCLK_HDMI_HDCP		72
 #define SCLK_HDMI_CEC		73
-#define SCLK_VIP_OUT		74
 #define SCLK_HDCP		75
 #define SCLK_PVTM_CORE		76
 #define SCLK_PVTM_GPU		77
@@ -89,6 +88,10 @@
 #define SCLK_WIFI_WPLL		122
 #define SCLK_WIFI_USBPHY480M	123
 #define SCLK_MIPIDSI_24M	124
+#define SCLK_HEVC_CABAC		125
+#define SCLK_HEVC_CORE		126
+#define SCLK_VIP_SRC		127
+#define SCLK_VIP_OUT		128
 
 #define DCLK_VOP_FULL		170
 #define DCLK_VOP_LITE		171
