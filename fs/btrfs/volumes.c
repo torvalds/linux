@@ -1706,7 +1706,7 @@ out:
 	return ret;
 }
 
-static int __check_raid_min_devices(struct btrfs_fs_info *fs_info)
+static int btrfs_check_raid_min_devices(struct btrfs_fs_info *fs_info)
 {
 	u64 all_avail;
 	u64 num_devices;
@@ -1761,7 +1761,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid)
 
 	mutex_lock(&uuid_mutex);
 
-	ret = __check_raid_min_devices(root->fs_info);
+	ret = btrfs_check_raid_min_devices(root->fs_info);
 	if (ret)
 		goto out;
 
