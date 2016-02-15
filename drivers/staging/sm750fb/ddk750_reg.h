@@ -1481,8 +1481,9 @@
     #define CRT_AUTO_CENTERING_TL_LEFT_MASK           0x7ff
 
     #define CRT_AUTO_CENTERING_BR                     0x080284
-    #define CRT_AUTO_CENTERING_BR_BOTTOM              26:16
-    #define CRT_AUTO_CENTERING_BR_RIGHT               10:0
+    #define CRT_AUTO_CENTERING_BR_BOTTOM_MASK         (0x7ff << 16)
+    #define CRT_AUTO_CENTERING_BR_BOTTOM_SHIFT        16
+    #define CRT_AUTO_CENTERING_BR_RIGHT_MASK          0x7ff
 #endif
 
 /* sm750le new register to control panel output */

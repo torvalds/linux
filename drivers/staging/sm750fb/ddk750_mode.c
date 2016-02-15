@@ -28,8 +28,9 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	POKE32(CRT_AUTO_CENTERING_TL, 0);
 
 	POKE32(CRT_AUTO_CENTERING_BR,
-	FIELD_VALUE(0, CRT_AUTO_CENTERING_BR, BOTTOM, y - 1)
-	| FIELD_VALUE(0, CRT_AUTO_CENTERING_BR, RIGHT, x - 1));
+		(((y - 1) << CRT_AUTO_CENTERING_BR_BOTTOM_SHIFT) &
+			CRT_AUTO_CENTERING_BR_BOTTOM_MASK) |
+		((x - 1) & CRT_AUTO_CENTERING_BR_RIGHT_MASK));
 
 	/* Assume common fields in dispControl have been properly set before
 	   calling this function.
