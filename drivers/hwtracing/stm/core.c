@@ -380,8 +380,8 @@ static int stm_file_assign(struct stm_file *stmf, char *id, unsigned int width)
 	return ret;
 }
 
-static void stm_write(struct stm_data *data, unsigned int master,
-		      unsigned int channel, const char *buf, size_t count)
+static ssize_t stm_write(struct stm_data *data, unsigned int master,
+			  unsigned int channel, const char *buf, size_t count)
 {
 	unsigned int flags = STP_PACKET_TIMESTAMPED;
 	const unsigned char *p = buf, nil = 0;
@@ -393,9 +393,14 @@ static void stm_write(struct stm_data *data, unsigned int master,
 		sz = data->packet(data, master, channel, STP_PACKET_DATA, flags,
 				  sz, p);
 		flags = 0;
+
+		if (sz < 0)
+			break;
 	}
 
 	data->packet(data, master, channel, STP_PACKET_FLAG, 0, 0, &nil);
+
+	return pos;
 }
 
 static ssize_t stm_char_write(struct file *file, const char __user *buf,
@@ -433,8 +438,8 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 	}
 
-	stm_write(stm->data, stmf->output.master, stmf->output.channel, kbuf,
-		  count);
+	count = stm_write(stm->data, stmf->output.master, stmf->output.channel,
+			  kbuf, count);
 
 	kfree(kbuf);
 
@@ -996,9 +1001,9 @@ int stm_source_write(struct stm_source_data *data, unsigned int chan,
 
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 	if (stm)
-		stm_write(stm->data, src->output.master,
-			  src->output.channel + chan,
-			  buf, count);
+		count = stm_write(stm->data, src->output.master,
+				  src->output.channel + chan,
+				  buf, count);
 	else
 		count = -ENODEV;
 
