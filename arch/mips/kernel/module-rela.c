@@ -170,7 +170,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		/* This is the symbol it is referring to */
 		sym = (Elf_Sym *)sechdrs[symindex].sh_addr
 			+ ELF_MIPS_R_SYM(rel[i]);
-		if (IS_ERR_VALUE(sym->st_value)) {
+		if (sym->st_value >= -MAX_ERRNO) {
 			/* Ignore unresolved weak symbol */
 			if (ELF_ST_BIND(sym->st_info) == STB_WEAK)
 				continue;
