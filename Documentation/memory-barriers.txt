@@ -1270,7 +1270,7 @@ TRANSITIVITY
 
 Transitivity is a deeply intuitive notion about ordering that is not
 always provided by real computer systems.  The following example
-demonstrates transitivity (also called "cumulativity"):
+demonstrates transitivity:
 
 	CPU 1			CPU 2			CPU 3
 	=======================	=======================	=======================
