@@ -1992,7 +1992,7 @@ static void log_cca_event(struct hfi1_pportdata *ppd, u8 sl, u32 rlid,
 
 	spin_lock_irqsave(&ppd->cc_log_lock, flags);
 
-	ppd->threshold_cong_event_map[sl/8] |= 1 << (sl % 8);
+	ppd->threshold_cong_event_map[sl / 8] |= 1 << (sl % 8);
 	ppd->threshold_event_counter++;
 
 	cc_event = &ppd->cc_events[ppd->cc_log_idx++];

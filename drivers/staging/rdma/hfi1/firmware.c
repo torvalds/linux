@@ -393,17 +393,17 @@ static int verify_css_header(struct hfi1_devdata *dd, struct css_header *css)
 	/* verify CSS header fields (most sizes are in DW, so add /4) */
 	if (invalid_header(dd, "module_type", css->module_type, CSS_MODULE_TYPE)
 			|| invalid_header(dd, "header_len", css->header_len,
-					(sizeof(struct firmware_file)/4))
+					(sizeof(struct firmware_file) / 4))
 			|| invalid_header(dd, "header_version",
 					css->header_version, CSS_HEADER_VERSION)
 			|| invalid_header(dd, "module_vendor",
 					css->module_vendor, CSS_MODULE_VENDOR)
 			|| invalid_header(dd, "key_size",
-					css->key_size, KEY_SIZE/4)
+					css->key_size, KEY_SIZE / 4)
 			|| invalid_header(dd, "modulus_size",
-					css->modulus_size, KEY_SIZE/4)
+					css->modulus_size, KEY_SIZE / 4)
 			|| invalid_header(dd, "exponent_size",
-					css->exponent_size, EXPONENT_SIZE/4)) {
+					css->exponent_size, EXPONENT_SIZE / 4)) {
 		return -EINVAL;
 	}
 	return 0;
@@ -488,7 +488,7 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 	ret = verify_css_header(dd, css);
 	if (ret) {
 		dd_dev_info(dd, "Invalid CSS header for \"%s\"\n", name);
-	} else if ((css->size*4) == fdet->fw->size) {
+	} else if ((css->size * 4) == fdet->fw->size) {
 		/* non-augmented firmware file */
 		struct firmware_file *ff = (struct firmware_file *)
 							fdet->fw->data;
@@ -513,7 +513,7 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 			dd_dev_err(dd, "driver is unable to validate firmware without r2 and mu (not in firmware file)\n");
 			ret = -EINVAL;
 		}
-	} else if ((css->size*4) + AUGMENT_SIZE == fdet->fw->size) {
+	} else if ((css->size * 4) + AUGMENT_SIZE == fdet->fw->size) {
 		/* augmented firmware file */
 		struct augmented_firmware_file *aff =
 			(struct augmented_firmware_file *)fdet->fw->data;
@@ -536,7 +536,7 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 		/* css->size check failed */
 		dd_dev_err(dd,
 			"invalid firmware header field size: expected 0x%lx or 0x%lx, actual 0x%x\n",
-			fdet->fw->size/4, (fdet->fw->size - AUGMENT_SIZE)/4,
+			fdet->fw->size / 4, (fdet->fw->size - AUGMENT_SIZE) / 4,
 			css->size);
 
 		ret = -EINVAL;
@@ -780,7 +780,7 @@ static int retry_firmware(struct hfi1_devdata *dd, int load_result)
 static void write_rsa_data(struct hfi1_devdata *dd, int what,
 			   const u8 *data, int nbytes)
 {
-	int qw_size = nbytes/8;
+	int qw_size = nbytes / 8;
 	int i;
 
 	if (((unsigned long)data & 0x7) == 0) {
@@ -788,14 +788,14 @@ static void write_rsa_data(struct hfi1_devdata *dd, int what,
 		u64 *ptr = (u64 *)data;
 
 		for (i = 0; i < qw_size; i++, ptr++)
-			write_csr(dd, what + (8*i), *ptr);
+			write_csr(dd, what + (8 * i), *ptr);
 	} else {
 		/* not aligned */
 		for (i = 0; i < qw_size; i++, data += 8) {
 			u64 value;
 
 			memcpy(&value, data, 8);
-			write_csr(dd, what + (8*i), value);
+			write_csr(dd, what + (8 * i), value);
 		}
 	}
 }
@@ -808,7 +808,7 @@ static void write_streamed_rsa_data(struct hfi1_devdata *dd, int what,
 				    const u8 *data, int nbytes)
 {
 	u64 *ptr = (u64 *)data;
-	int qw_size = nbytes/8;
+	int qw_size = nbytes / 8;
 
 	for (; qw_size > 0; qw_size--, ptr++)
 		write_csr(dd, what, *ptr);
@@ -1743,8 +1743,8 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 			if (len < field_len_bits)
 				return -EINVAL;
 
-			seek = field_start_bits/8;
-			wlen = field_len_bits/8;
+			seek = field_start_bits / 8;
+			wlen = field_len_bits / 8;
 
 			src_ptr = (u32 *)((u8 *)src_ptr + seek);
 
@@ -1783,7 +1783,7 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 	if (!src_ptr || len < field_len_bits)
 		return -EINVAL;
 
-	src_ptr += (field_start_bits/32);
+	src_ptr += (field_start_bits / 32);
 	*data = (*src_ptr >> (field_start_bits % 32)) &
 			((1 << field_len_bits) - 1);
 

@@ -874,7 +874,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		pio_copy(ppd->dd, pbuf, pbc, hdr, hdrwords);
 	} else {
 		if (ss) {
-			seg_pio_copy_start(pbuf, pbc, hdr, hdrwords*4);
+			seg_pio_copy_start(pbuf, pbc, hdr, hdrwords * 4);
 			while (len) {
 				void *addr = ss->sge.vaddr;
 				u32 slen = ss->sge.length;

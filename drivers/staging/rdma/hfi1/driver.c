@@ -702,7 +702,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 		 */
 		prefetch_range(packet->ebuf,
 			packet->tlen - ((packet->rcd->rcvhdrqentsize -
-				  (rhf_hdrq_offset(packet->rhf)+2)) * 4));
+				  (rhf_hdrq_offset(packet->rhf) + 2)) * 4));
 	}
 
 	/*

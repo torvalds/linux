@@ -534,7 +534,7 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	ppd = dd->pport + (port - 1);
 	ibp = &ppd->ibport_data;
 
-	if (ppd->vls_supported/2 > ARRAY_SIZE(pi->neigh_mtu.pvlx_to_mtu) ||
+	if (ppd->vls_supported / 2 > ARRAY_SIZE(pi->neigh_mtu.pvlx_to_mtu) ||
 		ppd->vls_supported > ARRAY_SIZE(dd->vld)) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
@@ -600,13 +600,13 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	for (i = 0; i < ppd->vls_supported; i++) {
 		mtu = mtu_to_enum(dd->vld[i].mtu, HFI1_DEFAULT_ACTIVE_MTU);
 		if ((i % 2) == 0)
-			pi->neigh_mtu.pvlx_to_mtu[i/2] |= (mtu << 4);
+			pi->neigh_mtu.pvlx_to_mtu[i / 2] |= (mtu << 4);
 		else
-			pi->neigh_mtu.pvlx_to_mtu[i/2] |= mtu;
+			pi->neigh_mtu.pvlx_to_mtu[i / 2] |= mtu;
 	}
 	/* don't forget VL 15 */
 	mtu = mtu_to_enum(dd->vld[15].mtu, 2048);
-	pi->neigh_mtu.pvlx_to_mtu[15/2] |= mtu;
+	pi->neigh_mtu.pvlx_to_mtu[15 / 2] |= mtu;
 	pi->smsl = ibp->rvp.sm_sl & OPA_PI_MASK_SMSL;
 	pi->operational_vls = hfi1_get_ib_cfg(ppd, HFI1_IB_CFG_OP_VLS);
 	pi->partenforce_filterraw |=
@@ -744,7 +744,7 @@ static int __subn_get_opa_pkeytable(struct opa_smp *smp, u32 am, u8 *data,
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	n_blocks_avail = (u16) (npkeys/OPA_PARTITION_TABLE_BLK_SIZE) + 1;
+	n_blocks_avail = (u16) (npkeys / OPA_PARTITION_TABLE_BLK_SIZE) + 1;
 
 	size = (n_blocks_req * OPA_PARTITION_TABLE_BLK_SIZE) * sizeof(u16);
 
@@ -1207,17 +1207,17 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_VL_HIGH_LIMIT,
 				    ibp->rvp.vl_high_limit);
 
-	if (ppd->vls_supported/2 > ARRAY_SIZE(pi->neigh_mtu.pvlx_to_mtu) ||
+	if (ppd->vls_supported / 2 > ARRAY_SIZE(pi->neigh_mtu.pvlx_to_mtu) ||
 		ppd->vls_supported > ARRAY_SIZE(dd->vld)) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
 	}
 	for (i = 0; i < ppd->vls_supported; i++) {
 		if ((i % 2) == 0)
-			mtu = enum_to_mtu((pi->neigh_mtu.pvlx_to_mtu[i/2] >> 4)
+			mtu = enum_to_mtu((pi->neigh_mtu.pvlx_to_mtu[i / 2] >> 4)
 					  & 0xF);
 		else
-			mtu = enum_to_mtu(pi->neigh_mtu.pvlx_to_mtu[i/2] & 0xF);
+			mtu = enum_to_mtu(pi->neigh_mtu.pvlx_to_mtu[i / 2] & 0xF);
 		if (mtu == 0xffff) {
 			pr_warn("SubnSet(OPA_PortInfo) mtu invalid %d (0x%x)\n",
 				mtu,
@@ -1236,7 +1236,7 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	/* As per OPAV1 spec: VL15 must support and be configured
 	 * for operation with a 2048 or larger MTU.
 	 */
-	mtu = enum_to_mtu(pi->neigh_mtu.pvlx_to_mtu[15/2] & 0xF);
+	mtu = enum_to_mtu(pi->neigh_mtu.pvlx_to_mtu[15 / 2] & 0xF);
 	if (mtu < 2048 || mtu == 0xffff)
 		mtu = 2048;
 	if (dd->vld[15].mtu != mtu) {
@@ -1419,7 +1419,7 @@ static int __subn_set_opa_pkeytable(struct opa_smp *smp, u32 am, u8 *data,
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	n_blocks_avail = (u16)(npkeys/OPA_PARTITION_TABLE_BLK_SIZE) + 1;
+	n_blocks_avail = (u16)(npkeys / OPA_PARTITION_TABLE_BLK_SIZE) + 1;
 
 	if (start_block + n_blocks_sent > n_blocks_avail ||
 	    n_blocks_sent > OPA_NUM_PKEY_BLOCKS_PER_SMP) {
@@ -3460,7 +3460,7 @@ static int __subn_get_opa_cc_table(struct opa_smp *smp, u32 am, u8 *data,
 	rcu_read_unlock();
 
 	if (resp_len)
-		*resp_len += sizeof(u16)*(IB_CCT_ENTRIES * n_blocks + 1);
+		*resp_len += sizeof(u16) * (IB_CCT_ENTRIES * n_blocks + 1);
 
 	return reply((struct ib_mad_hdr *)smp);
 }

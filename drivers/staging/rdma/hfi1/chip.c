@@ -422,10 +422,10 @@ static struct flag_table pio_err_status_flags[] = {
 	SEC_SPC_FREEZE,
 	SEND_PIO_ERR_STATUS_PIO_STATE_MACHINE_ERR_SMASK),
 /*23*/	FLAG_ENTRY("PioWriteQwValidParity",
-	SEC_WRITE_DROPPED|SEC_SPC_FREEZE,
+	SEC_WRITE_DROPPED | SEC_SPC_FREEZE,
 	SEND_PIO_ERR_STATUS_PIO_WRITE_QW_VALID_PARITY_ERR_SMASK),
 /*24*/	FLAG_ENTRY("PioBlockQwCountParity",
-	SEC_WRITE_DROPPED|SEC_SPC_FREEZE,
+	SEC_WRITE_DROPPED | SEC_SPC_FREEZE,
 	SEND_PIO_ERR_STATUS_PIO_BLOCK_QW_COUNT_PARITY_ERR_SMASK),
 /*25*/	FLAG_ENTRY("PioVlfVlLenParity",
 	SEC_SPC_FREEZE,
@@ -1196,7 +1196,7 @@ CNTR_ELEM(#name, \
 #define OVR_LBL(ctx) C_RCV_HDR_OVF_ ## ctx
 #define OVR_ELM(ctx) \
 CNTR_ELEM("RcvHdrOvr" #ctx, \
-	  (RCV_HDR_OVFL_CNT + ctx*0x100), \
+	  (RCV_HDR_OVFL_CNT + ctx * 0x100), \
 	  0, CNTR_NORMAL, port_access_u64_csr)
 
 /* 32bit TXE */
@@ -5259,7 +5259,7 @@ static char *is_various_name(char *buf, size_t bsize, unsigned int source)
 	if (source < ARRAY_SIZE(various_names))
 		strncpy(buf, various_names[source], bsize);
 	else
-		snprintf(buf, bsize, "Reserved%u", source+IS_VARIOUS_START);
+		snprintf(buf, bsize, "Reserved%u", source + IS_VARIOUS_START);
 	return buf;
 }
 
@@ -6318,7 +6318,7 @@ void reset_link_credits(struct hfi1_devdata *dd)
 
 	/* remove all previous VL credit limits */
 	for (i = 0; i < TXE_NUM_DATA_VL; i++)
-		write_csr(dd, SEND_CM_CREDIT_VL + (8*i), 0);
+		write_csr(dd, SEND_CM_CREDIT_VL + (8 * i), 0);
 	write_csr(dd, SEND_CM_CREDIT_VL15, 0);
 	write_global_credit(dd, 0, 0, 0);
 	/* reset the CM block */
@@ -7573,7 +7573,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		/* if the link is already going down or disabled, do not
 		 * queue another */
 		if ((ppd->host_link_state
-				    & (HLS_GOING_OFFLINE|HLS_LINK_COOLDOWN))
+				    & (HLS_GOING_OFFLINE | HLS_LINK_COOLDOWN))
 				|| ppd->link_enabled == 0) {
 			dd_dev_info(dd, "%s: not queuing link down\n",
 				__func__);
@@ -7991,7 +7991,7 @@ static irqreturn_t general_interrupt(int irq, void *data)
 
 	/* phase 2: call the appropriate handler */
 	for_each_set_bit(bit, (unsigned long *)&regs[0],
-						CCE_NUM_INT_CSRS*64) {
+						CCE_NUM_INT_CSRS * 64) {
 		is_interrupt(dd, bit);
 	}
 
@@ -8014,12 +8014,12 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 
 	/* This read_csr is really bad in the hot path */
 	status = read_csr(dd,
-			CCE_INT_STATUS + (8*(IS_SDMA_START/64)))
+			CCE_INT_STATUS + (8 * (IS_SDMA_START / 64)))
 			& sde->imask;
 	if (likely(status)) {
 		/* clear the interrupt(s) */
 		write_csr(dd,
-			CCE_INT_CLEAR + (8*(IS_SDMA_START/64)),
+			CCE_INT_CLEAR + (8 * (IS_SDMA_START / 64)),
 			status);
 
 		/* handle the interrupt(s) */
@@ -8944,10 +8944,10 @@ static u16 opa_to_vc_link_widths(u16 opa_widths)
 		u16 from;
 		u16 to;
 	} opa_link_xlate[] = {
-		{ OPA_LINK_WIDTH_1X, 1 << (1-1)  },
-		{ OPA_LINK_WIDTH_2X, 1 << (2-1)  },
-		{ OPA_LINK_WIDTH_3X, 1 << (3-1)  },
-		{ OPA_LINK_WIDTH_4X, 1 << (4-1)  },
+		{ OPA_LINK_WIDTH_1X, 1 << (1 - 1)  },
+		{ OPA_LINK_WIDTH_2X, 1 << (2 - 1)  },
+		{ OPA_LINK_WIDTH_3X, 1 << (3 - 1)  },
+		{ OPA_LINK_WIDTH_4X, 1 << (4 - 1)  },
 	};
 
 	for (i = 0; i < ARRAY_SIZE(opa_link_xlate); i++) {
@@ -9725,7 +9725,7 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	c1 &= ~(DCC_CFG_PORT_CONFIG1_TARGET_DLID_SMASK
 		| DCC_CFG_PORT_CONFIG1_DLID_MASK_SMASK);
 	c1 |= ((ppd->lid & DCC_CFG_PORT_CONFIG1_TARGET_DLID_MASK)
-			<< DCC_CFG_PORT_CONFIG1_TARGET_DLID_SHIFT)|
+			<< DCC_CFG_PORT_CONFIG1_TARGET_DLID_SHIFT) |
 	      ((mask & DCC_CFG_PORT_CONFIG1_DLID_MASK_MASK)
 			<< DCC_CFG_PORT_CONFIG1_DLID_MASK_SHIFT);
 	write_csr(ppd->dd, DCC_CFG_PORT_CONFIG1, c1);
@@ -10290,7 +10290,7 @@ int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val)
 		 * The VL Arbitrator high limit is sent in units of 4k
 		 * bytes, while HFI stores it in units of 64 bytes.
 		 */
-		val *= 4096/64;
+		val *= 4096 / 64;
 		reg = ((u64)val & SEND_HIGH_PRIORITY_LIMIT_LIMIT_MASK)
 			<< SEND_HIGH_PRIORITY_LIMIT_LIMIT_SHIFT;
 		write_csr(ppd->dd, SEND_HIGH_PRIORITY_LIMIT, reg);
@@ -10507,7 +10507,7 @@ static int get_buffer_control(struct hfi1_devdata *dd,
 
 	/* OPA and HFI have a 1-1 mapping */
 	for (i = 0; i < TXE_NUM_DATA_VL; i++)
-		read_one_cm_vl(dd, SEND_CM_CREDIT_VL + (8*i), &bc->vl[i]);
+		read_one_cm_vl(dd, SEND_CM_CREDIT_VL + (8 * i), &bc->vl[i]);
 
 	/* NOTE: assumes that VL* and VL15 CSRs are bit-wise identical */
 	read_one_cm_vl(dd, SEND_CM_CREDIT_VL15, &bc->vl[15]);
@@ -11207,16 +11207,16 @@ u32 hdrqempty(struct hfi1_ctxtdata *rcd)
 static u32 encoded_size(u32 size)
 {
 	switch (size) {
-	case   4*1024: return 0x1;
-	case   8*1024: return 0x2;
-	case  16*1024: return 0x3;
-	case  32*1024: return 0x4;
-	case  64*1024: return 0x5;
-	case 128*1024: return 0x6;
-	case 256*1024: return 0x7;
-	case 512*1024: return 0x8;
-	case   1*1024*1024: return 0x9;
-	case   2*1024*1024: return 0xa;
+	case   4 * 1024: return 0x1;
+	case   8 * 1024: return 0x2;
+	case  16 * 1024: return 0x3;
+	case  32 * 1024: return 0x4;
+	case  64 * 1024: return 0x5;
+	case 128 * 1024: return 0x6;
+	case 256 * 1024: return 0x7;
+	case 512 * 1024: return 0x8;
+	case   1 * 1024 * 1024: return 0x9;
+	case   2 * 1024 * 1024: return 0xa;
 	}
 	return 0x1;	/* if invalid, go with the minimum size */
 }
@@ -12324,12 +12324,12 @@ void set_intr_state(struct hfi1_devdata *dd, u32 enable)
 	if (enable) {
 		/* enable all interrupts */
 		for (i = 0; i < CCE_NUM_INT_CSRS; i++)
-			write_csr(dd, CCE_INT_MASK + (8*i), ~(u64)0);
+			write_csr(dd, CCE_INT_MASK + (8 * i), ~(u64)0);
 
 		init_qsfp_int(dd);
 	} else {
 		for (i = 0; i < CCE_NUM_INT_CSRS; i++)
-			write_csr(dd, CCE_INT_MASK + (8*i), 0ull);
+			write_csr(dd, CCE_INT_MASK + (8 * i), 0ull);
 	}
 }
 
@@ -12341,7 +12341,7 @@ static void clear_all_interrupts(struct hfi1_devdata *dd)
 	int i;
 
 	for (i = 0; i < CCE_NUM_INT_CSRS; i++)
-		write_csr(dd, CCE_INT_CLEAR + (8*i), ~(u64)0);
+		write_csr(dd, CCE_INT_CLEAR + (8 * i), ~(u64)0);
 
 	write_csr(dd, CCE_ERR_CLEAR, ~(u64)0);
 	write_csr(dd, MISC_ERR_CLEAR, ~(u64)0);
@@ -12421,10 +12421,10 @@ static void remap_intr(struct hfi1_devdata *dd, int isrc, int msix_intr)
 	/* direct the chip source to the given MSI-X interrupt */
 	m = isrc / 8;
 	n = isrc % 8;
-	reg = read_csr(dd, CCE_INT_MAP + (8*m));
-	reg &= ~((u64)0xff << (8*n));
-	reg |= ((u64)msix_intr & 0xff) << (8*n);
-	write_csr(dd, CCE_INT_MAP + (8*m), reg);
+	reg = read_csr(dd, CCE_INT_MAP + (8 * m));
+	reg &= ~((u64)0xff << (8 * n));
+	reg |= ((u64)msix_intr & 0xff) << (8 * n);
+	write_csr(dd, CCE_INT_MAP + (8 * m), reg);
 }
 
 static void remap_sdma_interrupts(struct hfi1_devdata *dd,
@@ -12437,11 +12437,11 @@ static void remap_sdma_interrupts(struct hfi1_devdata *dd,
 	 *	SDMAProgress
 	 *	SDMAIdle
 	 */
-	remap_intr(dd, IS_SDMA_START + 0*TXE_NUM_SDMA_ENGINES + engine,
+	remap_intr(dd, IS_SDMA_START + 0 * TXE_NUM_SDMA_ENGINES + engine,
 		msix_intr);
-	remap_intr(dd, IS_SDMA_START + 1*TXE_NUM_SDMA_ENGINES + engine,
+	remap_intr(dd, IS_SDMA_START + 1 * TXE_NUM_SDMA_ENGINES + engine,
 		msix_intr);
-	remap_intr(dd, IS_SDMA_START + 2*TXE_NUM_SDMA_ENGINES + engine,
+	remap_intr(dd, IS_SDMA_START + 2 * TXE_NUM_SDMA_ENGINES + engine,
 		msix_intr);
 }
 
@@ -12520,9 +12520,9 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			 * Set the interrupt register and mask for this
 			 * context's interrupt.
 			 */
-			rcd->ireg = (IS_RCVAVAIL_START+idx) / 64;
+			rcd->ireg = (IS_RCVAVAIL_START + idx) / 64;
 			rcd->imask = ((u64)1) <<
-					((IS_RCVAVAIL_START+idx) % 64);
+					((IS_RCVAVAIL_START + idx) % 64);
 			handler = receive_context_interrupt;
 			thread = receive_context_thread;
 			arg = rcd;
@@ -12542,7 +12542,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		if (arg == NULL)
 			continue;
 		/* make sure the name is terminated */
-		me->name[sizeof(me->name)-1] = 0;
+		me->name[sizeof(me->name) - 1] = 0;
 
 		ret = request_threaded_irq(me->msix.vector, handler, thread, 0,
 						me->name, arg);
@@ -12581,7 +12581,7 @@ static void reset_interrupts(struct hfi1_devdata *dd)
 
 	/* all chip interrupts map to MSI-X 0 */
 	for (i = 0; i < CCE_NUM_INT_MAP_CSRS; i++)
-		write_csr(dd, CCE_INT_MAP + (8*i), 0);
+		write_csr(dd, CCE_INT_MAP + (8 * i), 0);
 }
 
 static int set_up_interrupts(struct hfi1_devdata *dd)
@@ -12831,7 +12831,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 
 	/* CceIntMap */
 	for (i = 0; i < CCE_NUM_INT_MAP_CSRS; i++)
-		write_csr(dd, CCE_INT_MAP+(8*i), 0);
+		write_csr(dd, CCE_INT_MAP + (8 * i), 0);
 
 	/* SendCtxtCreditReturnAddr */
 	for (i = 0; i < dd->chip_send_contexts; i++)
@@ -12849,12 +12849,12 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 		write_kctxt_csr(dd, i, RCV_HDR_ADDR, 0);
 		write_kctxt_csr(dd, i, RCV_HDR_TAIL_ADDR, 0);
 		for (j = 0; j < RXE_NUM_TID_FLOWS; j++)
-			write_uctxt_csr(dd, i, RCV_TID_FLOW_TABLE+(8*j), 0);
+			write_uctxt_csr(dd, i, RCV_TID_FLOW_TABLE + (8 * j), 0);
 	}
 
 	/* RcvArray */
 	for (i = 0; i < dd->chip_rcv_array_count; i++)
-		write_csr(dd, RCV_ARRAY + (8*i),
+		write_csr(dd, RCV_ARRAY + (8 * i),
 					RCV_ARRAY_RT_WRITE_ENABLE_SMASK);
 
 	/* RcvQPMapTable */
@@ -13092,15 +13092,15 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 	write_csr(dd, SEND_ERR_CLEAR, ~0ull);
 	/* SEND_ERR_FORCE read-only */
 	for (i = 0; i < VL_ARB_LOW_PRIO_TABLE_SIZE; i++)
-		write_csr(dd, SEND_LOW_PRIORITY_LIST + (8*i), 0);
+		write_csr(dd, SEND_LOW_PRIORITY_LIST + (8 * i), 0);
 	for (i = 0; i < VL_ARB_HIGH_PRIO_TABLE_SIZE; i++)
-		write_csr(dd, SEND_HIGH_PRIORITY_LIST + (8*i), 0);
-	for (i = 0; i < dd->chip_send_contexts/NUM_CONTEXTS_PER_SET; i++)
-		write_csr(dd, SEND_CONTEXT_SET_CTRL + (8*i), 0);
+		write_csr(dd, SEND_HIGH_PRIORITY_LIST + (8 * i), 0);
+	for (i = 0; i < dd->chip_send_contexts / NUM_CONTEXTS_PER_SET; i++)
+		write_csr(dd, SEND_CONTEXT_SET_CTRL + (8 * i), 0);
 	for (i = 0; i < TXE_NUM_32_BIT_COUNTER; i++)
-		write_csr(dd, SEND_COUNTER_ARRAY32 + (8*i), 0);
+		write_csr(dd, SEND_COUNTER_ARRAY32 + (8 * i), 0);
 	for (i = 0; i < TXE_NUM_64_BIT_COUNTER; i++)
-		write_csr(dd, SEND_COUNTER_ARRAY64 + (8*i), 0);
+		write_csr(dd, SEND_COUNTER_ARRAY64 + (8 * i), 0);
 	write_csr(dd, SEND_CM_CTRL, SEND_CM_CTRL_RESETCSR);
 	write_csr(dd, SEND_CM_GLOBAL_CREDIT,
 					SEND_CM_GLOBAL_CREDIT_RESETCSR);
@@ -13111,7 +13111,7 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 	write_csr(dd, SEND_CM_REMOTE_AU_TABLE0_TO3, 0);
 	write_csr(dd, SEND_CM_REMOTE_AU_TABLE4_TO7, 0);
 	for (i = 0; i < TXE_NUM_DATA_VL; i++)
-		write_csr(dd, SEND_CM_CREDIT_VL + (8*i), 0);
+		write_csr(dd, SEND_CM_CREDIT_VL + (8 * i), 0);
 	write_csr(dd, SEND_CM_CREDIT_VL15, 0);
 	/* SEND_CM_CREDIT_USED_VL read-only */
 	/* SEND_CM_CREDIT_USED_VL15 read-only */
@@ -13403,7 +13403,7 @@ static void init_chip(struct hfi1_devdata *dd)
 		write_csr(dd, RCV_CTXT_CTRL, 0);
 	/* mask all interrupt sources */
 	for (i = 0; i < CCE_NUM_INT_CSRS; i++)
-		write_csr(dd, CCE_INT_MASK + (8*i), 0ull);
+		write_csr(dd, CCE_INT_MASK + (8 * i), 0ull);
 
 	/*
 	 * DC Reset: do a full DC reset before the register clear.
@@ -14404,7 +14404,7 @@ static void handle_temp_err(struct hfi1_devdata *dd)
 	dd_dev_emerg(dd,
 		     "Critical temperature reached! Forcing device into freeze mode!\n");
 	dd->flags |= HFI1_FORCED_FREEZE;
-	start_freeze_handling(ppd, FREEZE_SELF|FREEZE_ABORT);
+	start_freeze_handling(ppd, FREEZE_SELF | FREEZE_ABORT);
 	/*
 	 * Shut DC down as much and as quickly as possible.
 	 *

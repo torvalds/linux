@@ -166,7 +166,7 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		reset_link_credits(dd);
 
 		/* freeze after a link down to guarantee a clean egress */
-		start_freeze_handling(ppd, FREEZE_SELF|FREEZE_LINK_DOWN);
+		start_freeze_handling(ppd, FREEZE_SELF | FREEZE_LINK_DOWN);
 
 		ev = IB_EVENT_PORT_ERR;
 

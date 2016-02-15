@@ -214,7 +214,7 @@ struct qsfp_data {
 	/* Helps to find our way */
 	struct hfi1_pportdata *ppd;
 	struct work_struct qsfp_work;
-	u8 cache[QSFP_MAX_NUM_PAGES*128];
+	u8 cache[QSFP_MAX_NUM_PAGES * 128];
 	spinlock_t qsfp_lock;
 	u8 check_interrupt_flags;
 	u8 reset_needed;

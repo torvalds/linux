@@ -1020,7 +1020,7 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		dd->chip_sdma_mem_size);
 
 	per_sdma_credits =
-		dd->chip_sdma_mem_size/(num_engines * SDMA_BLOCK_SIZE);
+		dd->chip_sdma_mem_size / (num_engines * SDMA_BLOCK_SIZE);
 
 	/* set up freeze waitqueue */
 	init_waitqueue_head(&dd->sdma_unfreeze_wq);
@@ -1625,10 +1625,10 @@ static void sdma_setlengen(struct sdma_engine *sde)
 	 * generation counter.
 	 */
 	write_sde_csr(sde, SD(LEN_GEN),
-		(sde->descq_cnt/64) << SD(LEN_GEN_LENGTH_SHIFT)
+		(sde->descq_cnt / 64) << SD(LEN_GEN_LENGTH_SHIFT)
 	);
 	write_sde_csr(sde, SD(LEN_GEN),
-		((sde->descq_cnt/64) << SD(LEN_GEN_LENGTH_SHIFT))
+		((sde->descq_cnt / 64) << SD(LEN_GEN_LENGTH_SHIFT))
 		| (4ULL << SD(LEN_GEN_GENERATION_SHIFT))
 	);
 }
@@ -3057,5 +3057,5 @@ void _sdma_engine_progress_schedule(
 	trace_hfi1_sdma_engine_progress(sde, sde->progress_mask);
 	/* assume we have selected a good cpu */
 	write_csr(sde->dd,
-		  CCE_INT_FORCE + (8*(IS_SDMA_START/64)), sde->progress_mask);
+		  CCE_INT_FORCE + (8 * (IS_SDMA_START / 64)), sde->progress_mask);
 }

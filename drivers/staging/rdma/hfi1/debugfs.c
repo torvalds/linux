@@ -750,7 +750,7 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 					    ppd,
 					    &port_cntr_ops[i].ops,
 					    port_cntr_ops[i].ops.write == NULL ?
-					    S_IRUGO : S_IRUGO|S_IWUSR);
+					    S_IRUGO : S_IRUGO | S_IWUSR);
 		}
 }
 

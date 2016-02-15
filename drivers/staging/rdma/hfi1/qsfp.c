@@ -339,7 +339,7 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 	u8 *cache = &cp->cache[0];
 
 	/* ensure sane contents on invalid reads, for cable swaps */
-	memset(cache, 0, (QSFP_MAX_NUM_PAGES*128));
+	memset(cache, 0, (QSFP_MAX_NUM_PAGES * 128));
 	spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 	ppd->qsfp_info.cache_valid = 0;
 	spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock, flags);
@@ -420,7 +420,7 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 	return 0;
 
 bail:
-	memset(cache, 0, (QSFP_MAX_NUM_PAGES*128));
+	memset(cache, 0, (QSFP_MAX_NUM_PAGES * 128));
 	return ret;
 }
 
@@ -564,7 +564,7 @@ int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len)
 
 			memcpy(bin_buff, &cache[bidx], QSFP_DUMP_CHUNK);
 			for (iidx = 0; iidx < QSFP_DUMP_CHUNK; ++iidx) {
-				sofar += scnprintf(buf + sofar, len-sofar,
+				sofar += scnprintf(buf + sofar, len - sofar,
 					" %02X", bin_buff[iidx]);
 			}
 			sofar += scnprintf(buf + sofar, len - sofar, "\n");

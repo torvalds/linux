@@ -52,9 +52,9 @@
 
 /* additive distance between non-SOP and SOP space */
 #define SOP_DISTANCE (TXE_PIO_SIZE / 2)
-#define PIO_BLOCK_MASK (PIO_BLOCK_SIZE-1)
+#define PIO_BLOCK_MASK (PIO_BLOCK_SIZE - 1)
 /* number of QUADWORDs in a block */
-#define PIO_BLOCK_QWS (PIO_BLOCK_SIZE/sizeof(u64))
+#define PIO_BLOCK_QWS (PIO_BLOCK_SIZE / sizeof(u64))
 
 /**
  * pio_copy - copy data block to MMIO space
@@ -83,7 +83,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 	dest += sizeof(u64);
 
 	/* calculate where the QWORD data ends - in SOP=1 space */
-	dend = dest + ((count>>1) * sizeof(u64));
+	dend = dest + ((count >> 1) * sizeof(u64));
 
 	if (dend < send) {
 		/* all QWORD data is within the SOP block, does *not*
@@ -177,7 +177,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
  * "zero" shift - bit shift used to zero out upper bytes.  Input is
  * the count of LSB bytes to preserve.
  */
-#define zshift(x) (8 * (8-(x)))
+#define zshift(x) (8 * (8 - (x)))
 
 /*
  * "merge" shift - bit shift used to merge with carry bytes.  Input is
@@ -244,7 +244,7 @@ static inline void read_extra_bytes(struct pio_buf *pbuf,
 		pbuf->carry.val64 |= (((*(u64 *)from)
 					>> mshift(off))
 					<< zshift(xbytes))
-					>> zshift(xbytes+pbuf->carry_bytes);
+					>> zshift(xbytes + pbuf->carry_bytes);
 		off = 0;
 		pbuf->carry_bytes += xbytes;
 		nbytes -= xbytes;
@@ -411,7 +411,7 @@ static inline void merge_write8(
 
 	jcopy(&pbuf->carry.val8[pbuf->carry_bytes], src, remainder);
 	writeq(pbuf->carry.val64, dest);
-	jcopy(&pbuf->carry.val8[0], src+remainder, pbuf->carry_bytes);
+	jcopy(&pbuf->carry.val8[0], src + remainder, pbuf->carry_bytes);
 }
 
 /*
@@ -463,7 +463,7 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 	dest += sizeof(u64);
 
 	/* calculate where the QWORD data ends - in SOP=1 space */
-	dend = dest + ((nbytes>>3) * sizeof(u64));
+	dend = dest + ((nbytes >> 3) * sizeof(u64));
 
 	if (dend < send) {
 		/* all QWORD data is within the SOP block, does *not*
@@ -645,7 +645,7 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 	void __iomem *dend;			/* 8-byte data end */
 
 	/* calculate 8-byte data end */
-	dend = dest + ((nbytes>>3) * sizeof(u64));
+	dend = dest + ((nbytes >> 3) * sizeof(u64));
 
 	if (pbuf->qw_written < PIO_BLOCK_QWS) {
 		/*
@@ -713,7 +713,7 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 	/* we know carry_bytes was zero on entry to this routine */
 	read_low_bytes(pbuf, from, nbytes & 0x7);
 
-	pbuf->qw_written += nbytes>>3;
+	pbuf->qw_written += nbytes >> 3;
 }
 
 /*

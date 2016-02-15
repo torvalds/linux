@@ -1204,7 +1204,7 @@ static int set_txreq_header(struct user_sdma_request *req,
 
 	/* Set ACK request on last packet */
 	if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT))
-		hdr->bth[2] |= cpu_to_be32(1UL<<31);
+		hdr->bth[2] |= cpu_to_be32(1UL << 31);
 
 	/* Set the new offset */
 	hdr->kdeth.swdata[6] = cpu_to_le32(req->koffset);

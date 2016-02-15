@@ -840,7 +840,7 @@ static void write_gasket_interrupt(struct hfi1_devdata *dd, int index,
 {
 	write_csr(dd, ASIC_PCIE_SD_INTRPT_LIST + (index * 8),
 	    (((u64)code << ASIC_PCIE_SD_INTRPT_LIST_INTRPT_CODE_SHIFT)
-	    |((u64)data << ASIC_PCIE_SD_INTRPT_LIST_INTRPT_DATA_SHIFT)));
+	    | ((u64)data << ASIC_PCIE_SD_INTRPT_LIST_INTRPT_DATA_SHIFT)));
 }
 
 /*

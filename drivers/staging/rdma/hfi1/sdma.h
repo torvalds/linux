@@ -682,7 +682,7 @@ static inline void _sdma_close_tx(struct hfi1_devdata *dd,
 		dd->default_desc1;
 	if (tx->flags & SDMA_TXREQ_F_URGENT)
 		tx->descp[tx->num_desc].qw[1] |=
-			(SDMA_DESC1_HEAD_TO_HOST_FLAG|
+			(SDMA_DESC1_HEAD_TO_HOST_FLAG |
 			 SDMA_DESC1_INT_REQ_FLAG);
 }
 

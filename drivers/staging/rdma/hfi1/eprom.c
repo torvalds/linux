@@ -99,7 +99,7 @@
 
 /* sleep length while waiting for controller */
 #define WAIT_SLEEP_US 100	/* must be larger than 5 (see usage) */
-#define COUNT_DELAY_SEC(n) ((n) * (1000000/WAIT_SLEEP_US))
+#define COUNT_DELAY_SEC(n) ((n) * (1000000 / WAIT_SLEEP_US))
 
 /* GPIO pins */
 #define EPROM_WP_N (1ull << 14)	/* EPROM write line */
@@ -254,7 +254,7 @@ static void read_page(struct hfi1_devdata *dd, u32 offset, u32 *result)
 	int i;
 
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_READ_DATA(offset));
-	for (i = 0; i < EP_PAGE_SIZE/sizeof(u32); i++)
+	for (i = 0; i < EP_PAGE_SIZE / sizeof(u32); i++)
 		result[i] = (u32)read_csr(dd, ASIC_EEP_DATA);
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_NOP); /* close open page */
 }
@@ -265,7 +265,7 @@ static void read_page(struct hfi1_devdata *dd, u32 offset, u32 *result)
 static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, u64 addr)
 {
 	u32 offset;
-	u32 buffer[EP_PAGE_SIZE/sizeof(u32)];
+	u32 buffer[EP_PAGE_SIZE / sizeof(u32)];
 	int ret = 0;
 
 	/* reject anything not on an EPROM page boundary */
@@ -296,7 +296,7 @@ static int write_page(struct hfi1_devdata *dd, u32 offset, u32 *data)
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_WRITE_ENABLE);
 	write_csr(dd, ASIC_EEP_DATA, data[0]);
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_PAGE_PROGRAM(offset));
-	for (i = 1; i < EP_PAGE_SIZE/sizeof(u32); i++)
+	for (i = 1; i < EP_PAGE_SIZE / sizeof(u32); i++)
 		write_csr(dd, ASIC_EEP_DATA, data[i]);
 	/* will close the open page */
 	return wait_for_not_busy(dd);
@@ -308,7 +308,7 @@ static int write_page(struct hfi1_devdata *dd, u32 offset, u32 *data)
 static int write_length(struct hfi1_devdata *dd, u32 start, u32 len, u64 addr)
 {
 	u32 offset;
-	u32 buffer[EP_PAGE_SIZE/sizeof(u32)];
+	u32 buffer[EP_PAGE_SIZE / sizeof(u32)];
 	int ret = 0;
 
 	/* reject anything not on an EPROM page boundary */

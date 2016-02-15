@@ -101,7 +101,7 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 	/* Fall through */
 	case PSC_DATA_VL_ENABLE:
 		/* Disallow sending on VLs not enabled */
-		mask = (((~0ull)<<num_vls) & SEND_CTRL_UNSUPPORTED_VL_MASK)<<
+		mask = (((~0ull) << num_vls) & SEND_CTRL_UNSUPPORTED_VL_MASK) <<
 				SEND_CTRL_UNSUPPORTED_VL_SHIFT;
 		reg = (reg & ~SEND_CTRL_UNSUPPORTED_VL_SMASK) | mask;
 		break;
@@ -1346,7 +1346,7 @@ void sc_stop(struct send_context *sc, int flag)
 	wake_up(&sc->halt_wait);
 }
 
-#define BLOCK_DWORDS (PIO_BLOCK_SIZE/sizeof(u32))
+#define BLOCK_DWORDS (PIO_BLOCK_SIZE / sizeof(u32))
 #define dwords_to_blocks(x) DIV_ROUND_UP(x, BLOCK_DWORDS)
 
 /*
