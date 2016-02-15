@@ -635,7 +635,6 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 		return; /* can't carry NI status info */
 
 	list_for_each_entry(rtr, &gw->lp_routes, lr_gwlist) {
-		int ptl_status = LNET_NI_STATUS_INVALID;
 		int down = 0;
 		int up = 0;
 		int i;
@@ -655,10 +654,7 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 				continue;
 
 			if (stat->ns_status == LNET_NI_STATUS_DOWN) {
-				if (LNET_NETTYP(LNET_NIDNET(nid)) != PTLLND)
-					down++;
-				else if (ptl_status != LNET_NI_STATUS_UP)
-					ptl_status = LNET_NI_STATUS_DOWN;
+				down++;
 				continue;
 			}
 
@@ -667,12 +663,6 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 					up = 1;
 					break;
 				}
-				/*
-				 * ptl NIs are considered down only when
-				 * they're all down
-				 */
-				if (LNET_NETTYP(LNET_NIDNET(nid)) == PTLLND)
-					ptl_status = LNET_NI_STATUS_UP;
 				continue;
 			}
 
@@ -686,7 +676,7 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 			rtr->lr_downis = 0;
 			continue;
 		}
-		rtr->lr_downis = down + (ptl_status == LNET_NI_STATUS_DOWN);
+		rtr->lr_downis = down;
 	}
 }
 
