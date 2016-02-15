@@ -76,8 +76,12 @@ struct reg_sequence {
 
 #define	regmap_field_write(field, val) \
 	regmap_field_update_bits_base(field, ~0, val, NULL, false, false)
+#define	regmap_field_force_write(field, val) \
+	regmap_field_update_bits_base(field, ~0, val, NULL, false, true)
 #define	regmap_field_update_bits(field, mask, val)\
 	regmap_field_update_bits_base(field, mask, val, NULL, false, false)
+#define	regmap_field_force_update_bits(field, mask, val) \
+	regmap_field_update_bits_base(field, mask, val, NULL, false, true)
 
 #define	regmap_fields_write(field, id, val) \
 	regmap_fields_update_bits_base(field, id, ~0, val, NULL, false, false)
