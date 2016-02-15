@@ -180,18 +180,18 @@ struct iio_event_spec {
  * @address:		Driver specific identifier.
  * @scan_index:		Monotonic index to give ordering in scans when read
  *			from a buffer.
- * @scan_type:		Sign:		's' or 'u' to specify signed or unsigned
+ * @scan_type:		sign:		's' or 'u' to specify signed or unsigned
  *			realbits:	Number of valid bits of data
- *			storage_bits:	Realbits + padding
+ *			storagebits:	Realbits + padding
  *			shift:		Shift right by this before masking out
  *					realbits.
- *			endianness:	little or big endian
  *			repeat:		Number of times real/storage bits
  *					repeats. When the repeat element is
  *					more than 1, then the type element in
  *					sysfs will show a repeat value.
  *					Otherwise, the number of repetitions is
  *					omitted.
+ *			endianness:	little or big endian
  * @info_mask_separate: What information is to be exported that is specific to
  *			this channel.
  * @info_mask_shared_by_type: What information is to be exported that is shared
