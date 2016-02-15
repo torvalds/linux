@@ -178,10 +178,10 @@ static irqreturn_t atlas_trigger_handler(int irq, void *private)
 	struct atlas_data *data = iio_priv(indio_dev);
 	int ret;
 
-	ret = i2c_smbus_read_i2c_block_data(data->client, ATLAS_REG_PH_DATA,
-				sizeof(data->buffer[0]), (u8 *) &data->buffer);
+	ret = regmap_bulk_read(data->regmap, ATLAS_REG_PH_DATA,
+			      (u8 *) &data->buffer, sizeof(data->buffer[0]));
 
-	if (ret > 0)
+	if (!ret)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 				iio_get_time_ns());
 
