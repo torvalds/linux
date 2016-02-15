@@ -50,6 +50,20 @@
 		bootargs = "console=uart,mmio32,0xff690000";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x8000000>;
+			linux,cma-default;
+		};
+	};
+
 	ion {
 		compatible = "rockchip,ion";
 		#address-cells = <1>;
