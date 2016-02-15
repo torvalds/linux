@@ -345,13 +345,23 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
 	size_t len = strlen(symname);
-	size_t p_len;
-	char *p_str;
-	struct f2fs_str disk_link = FSTR_INIT(NULL, 0);
+	struct f2fs_str disk_link = FSTR_INIT((char *)symname, len + 1);
 	struct f2fs_encrypted_symlink_data *sd = NULL;
 	int err;
 
-	if (len > dir->i_sb->s_blocksize)
+	if (f2fs_encrypted_inode(dir)) {
+		err = f2fs_get_encryption_info(dir);
+		if (err)
+			return err;
+
+		if (!f2fs_encrypted_inode(dir))
+			return -EPERM;
+
+		disk_link.len = (f2fs_fname_encrypted_size(dir, len) +
+				sizeof(struct f2fs_encrypted_symlink_data));
+	}
+
+	if (disk_link.len > dir->i_sb->s_blocksize)
 		return -ENAMETOOLONG;
 
 	inode = f2fs_new_inode(dir, S_IFLNK | S_IRWXUGO);
@@ -374,42 +384,36 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	f2fs_unlock_op(sbi);
 	alloc_nid_done(sbi, inode->i_ino);
 
-	if (f2fs_encrypted_inode(dir)) {
+	if (f2fs_encrypted_inode(inode)) {
 		struct qstr istr = QSTR_INIT(symname, len);
+		struct f2fs_str ostr;
+
+		sd = kzalloc(disk_link.len, GFP_NOFS);
+		if (!sd) {
+			err = -ENOMEM;
+			goto err_out;
+		}
 
 		err = f2fs_get_encryption_info(inode);
 		if (err)
 			goto err_out;
 
-		err = f2fs_fname_crypto_alloc_buffer(inode, len, &disk_link);
-		if (err)
+		if (!f2fs_encrypted_inode(inode)) {
+			err = -EPERM;
 			goto err_out;
+		}
 
-		err = f2fs_fname_usr_to_disk(inode, &istr, &disk_link);
+		ostr.name = sd->encrypted_path;
+		ostr.len = disk_link.len;
+		err = f2fs_fname_usr_to_disk(inode, &istr, &ostr);
 		if (err < 0)
 			goto err_out;
 
-		p_len = encrypted_symlink_data_len(disk_link.len) + 1;
-
-		if (p_len > dir->i_sb->s_blocksize) {
-			err = -ENAMETOOLONG;
-			goto err_out;
-		}
-
-		sd = kzalloc(p_len, GFP_NOFS);
-		if (!sd) {
-			err = -ENOMEM;
-			goto err_out;
-		}
-		memcpy(sd->encrypted_path, disk_link.name, disk_link.len);
-		sd->len = cpu_to_le16(disk_link.len);
-		p_str = (char *)sd;
-	} else {
-		p_len = len + 1;
-		p_str = (char *)symname;
+		sd->len = cpu_to_le16(ostr.len);
+		disk_link.name = (char *)sd;
 	}
 
-	err = page_symlink(inode, p_str, p_len);
+	err = page_symlink(inode, disk_link.name, disk_link.len);
 
 err_out:
 	d_instantiate(dentry, inode);
@@ -425,7 +429,8 @@ err_out:
 	 * performance regression.
 	 */
 	if (!err) {
-		filemap_write_and_wait_range(inode->i_mapping, 0, p_len - 1);
+		filemap_write_and_wait_range(inode->i_mapping, 0,
+							disk_link.len - 1);
 
 		if (IS_DIRSYNC(dir))
 			f2fs_sync_fs(sbi->sb, 1);
@@ -434,7 +439,6 @@ err_out:
 	}
 
 	kfree(sd);
-	f2fs_fname_crypto_free_buffer(&disk_link);
 	return err;
 out:
 	handle_failed_inode(inode);
@@ -966,6 +970,7 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 
 	/* Symlink is encrypted */
 	sd = (struct f2fs_encrypted_symlink_data *)caddr;
+	cstr.name = sd->encrypted_path;
 	cstr.len = le16_to_cpu(sd->len);
 
 	/* this is broken symlink case */
@@ -973,12 +978,6 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 		res = -ENOENT;
 		goto errout;
 	}
-	cstr.name = kmalloc(cstr.len, GFP_NOFS);
-	if (!cstr.name) {
-		res = -ENOMEM;
-		goto errout;
-	}
-	memcpy(cstr.name, sd->encrypted_path, cstr.len);
 
 	/* this is broken symlink case */
 	if (unlikely(cstr.name[0] == 0)) {
@@ -1000,8 +999,6 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 	if (res < 0)
 		goto errout;
 
-	kfree(cstr.name);
-
 	paddr = pstr.name;
 
 	/* Null-terminate the name */
@@ -1011,7 +1008,6 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 	set_delayed_call(done, kfree_link, paddr);
 	return paddr;
 errout:
-	kfree(cstr.name);
 	f2fs_fname_crypto_free_buffer(&pstr);
 	page_cache_release(cpage);
 	return ERR_PTR(res);

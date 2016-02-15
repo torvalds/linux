@@ -2226,6 +2226,7 @@ int _f2fs_get_encryption_info(struct inode *inode);
 /* crypto_fname.c */
 bool f2fs_valid_filenames_enc_mode(uint32_t);
 u32 f2fs_fname_crypto_round_up(u32, u32);
+unsigned f2fs_fname_encrypted_size(struct inode *, u32);
 int f2fs_fname_crypto_alloc_buffer(struct inode *, u32, struct f2fs_str *);
 int f2fs_fname_disk_to_usr(struct inode *, f2fs_hash_t *,
 			const struct f2fs_str *, struct f2fs_str *);
