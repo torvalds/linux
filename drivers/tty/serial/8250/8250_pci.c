@@ -55,7 +55,6 @@ struct pci_serial_quirk {
 struct serial_private {
 	struct pci_dev		*dev;
 	unsigned int		nr;
-	void __iomem		*remapped_bar[PCI_NUM_BAR_RESOURCES];
 	struct pci_serial_quirk	*quirk;
 	int			line[0];
 };
@@ -85,15 +84,13 @@ setup_port(struct serial_private *priv, struct uart_8250_port *port,
 		return -EINVAL;
 
 	if (pci_resource_flags(dev, bar) & IORESOURCE_MEM) {
-		if (!priv->remapped_bar[bar])
-			priv->remapped_bar[bar] = pci_ioremap_bar(dev, bar);
-		if (!priv->remapped_bar[bar])
+		if (!pcim_iomap(dev, bar, 0) && !pcim_iomap_table(dev))
 			return -ENOMEM;
 
 		port->port.iotype = UPIO_MEM;
 		port->port.iobase = 0;
 		port->port.mapbase = pci_resource_start(dev, bar) + offset;
-		port->port.membase = priv->remapped_bar[bar] + offset;
+		port->port.membase = pcim_iomap_table(dev)[bar] + offset;
 		port->port.regshift = regshift;
 	} else {
 		port->port.iotype = UPIO_PORT;
@@ -3995,12 +3992,6 @@ void pciserial_remove_ports(struct serial_private *priv)
 	for (i = 0; i < priv->nr; i++)
 		serial8250_unregister_port(priv->line[i]);
 
-	for (i = 0; i < PCI_NUM_BAR_RESOURCES; i++) {
-		if (priv->remapped_bar[i])
-			iounmap(priv->remapped_bar[i]);
-		priv->remapped_bar[i] = NULL;
-	}
-
 	/*
 	 * Find the exit quirks.
 	 */
@@ -4072,7 +4063,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	board = &pci_boards[ent->driver_data];
 
-	rc = pci_enable_device(dev);
+	rc = pcim_enable_device(dev);
 	pci_save_state(dev);
 	if (rc)
 		return rc;
@@ -4091,7 +4082,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 		 */
 		rc = serial_pci_guess_board(dev, &tmp);
 		if (rc)
-			goto disable;
+			return rc;
 	} else {
 		/*
 		 * We matched an explicit entry.  If we are able to
@@ -4107,16 +4098,11 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	}
 
 	priv = pciserial_init_ports(dev, board);
-	if (!IS_ERR(priv)) {
-		pci_set_drvdata(dev, priv);
-		return 0;
-	}
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
 
-	rc = PTR_ERR(priv);
-
- disable:
-	pci_disable_device(dev);
-	return rc;
+	pci_set_drvdata(dev, priv);
+	return 0;
 }
 
 static void pciserial_remove_one(struct pci_dev *dev)
@@ -4124,8 +4110,6 @@ static void pciserial_remove_one(struct pci_dev *dev)
 	struct serial_private *priv = pci_get_drvdata(dev);
 
 	pciserial_remove_ports(priv);
-
-	pci_disable_device(dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
