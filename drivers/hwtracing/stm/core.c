@@ -694,18 +694,26 @@ err_free:
 }
 EXPORT_SYMBOL_GPL(stm_register_device);
 
-static void __stm_source_link_drop(struct stm_source_device *src,
-				   struct stm_device *stm);
+static int __stm_source_link_drop(struct stm_source_device *src,
+				  struct stm_device *stm);
 
 void stm_unregister_device(struct stm_data *stm_data)
 {
 	struct stm_device *stm = stm_data->stm;
 	struct stm_source_device *src, *iter;
-	int i;
+	int i, ret;
 
 	mutex_lock(&stm->link_mutex);
 	list_for_each_entry_safe(src, iter, &stm->link_list, link_entry) {
-		__stm_source_link_drop(src, stm);
+		ret = __stm_source_link_drop(src, stm);
+		/*
+		 * src <-> stm link must not change under the same
+		 * stm::link_mutex, so complain loudly if it has;
+		 * also in this situation ret!=0 means this src is
+		 * not connected to this stm and it should be otherwise
+		 * safe to proceed with the tear-down of stm.
+		 */
+		WARN_ON_ONCE(ret);
 	}
 	mutex_unlock(&stm->link_mutex);
 
@@ -824,22 +832,28 @@ fail_detach:
  *
  * Caller must hold stm::link_mutex.
  */
-static void __stm_source_link_drop(struct stm_source_device *src,
-				   struct stm_device *stm)
+static int __stm_source_link_drop(struct stm_source_device *src,
+				  struct stm_device *stm)
 {
 	struct stm_device *link;
+	int ret = 0;
 
 	lockdep_assert_held(&stm->link_mutex);
-
-	if (src->data->unlink)
-		src->data->unlink(src->data);
 
 	/* for stm::link_list modification, we hold both mutex and spinlock */
 	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 	link = srcu_dereference_check(src->link, &stm_source_srcu, 1);
-	if (WARN_ON_ONCE(link != stm))
+
+	/*
+	 * The linked device may have changed since we last looked, because
+	 * we weren't holding the src::link_lock back then; if this is the
+	 * case, tell the caller to retry.
+	 */
+	if (link != stm) {
+		ret = -EAGAIN;
 		goto unlock;
+	}
 
 	stm_output_free(link, &src->output);
 	list_del_init(&src->link_entry);
@@ -850,6 +864,11 @@ static void __stm_source_link_drop(struct stm_source_device *src,
 unlock:
 	spin_unlock(&src->link_lock);
 	spin_unlock(&stm->link_lock);
+
+	if (!ret && src->data->unlink)
+		src->data->unlink(src->data);
+
+	return ret;
 }
 
 /**
@@ -865,18 +884,29 @@ unlock:
 static void stm_source_link_drop(struct stm_source_device *src)
 {
 	struct stm_device *stm;
-	int idx;
+	int idx, ret;
 
+retry:
 	idx = srcu_read_lock(&stm_source_srcu);
+	/*
+	 * The stm device will be valid for the duration of this
+	 * read section, but the link may change before we grab
+	 * the src::link_lock in __stm_source_link_drop().
+	 */
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 
+	ret = 0;
 	if (stm) {
 		mutex_lock(&stm->link_mutex);
-		__stm_source_link_drop(src, stm);
+		ret = __stm_source_link_drop(src, stm);
 		mutex_unlock(&stm->link_mutex);
 	}
 
 	srcu_read_unlock(&stm_source_srcu, idx);
+
+	/* if it did change, retry */
+	if (ret == -EAGAIN)
+		goto retry;
 }
 
 static ssize_t stm_source_link_show(struct device *dev,
