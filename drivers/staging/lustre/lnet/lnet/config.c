@@ -77,7 +77,7 @@ lnet_issep(char c)
 	}
 }
 
-static int
+int
 lnet_net_unique(__u32 net, struct list_head *nilist)
 {
 	struct list_head *tmp;
