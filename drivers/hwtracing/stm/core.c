@@ -816,10 +816,8 @@ static void __stm_source_link_drop(struct stm_source_device *src,
 	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 	link = srcu_dereference_check(src->link, &stm_source_srcu, 1);
-	if (WARN_ON_ONCE(link != stm)) {
-		spin_unlock(&src->link_lock);
-		return;
-	}
+	if (WARN_ON_ONCE(link != stm))
+		goto unlock;
 
 	stm_output_free(link, &src->output);
 	list_del_init(&src->link_entry);
@@ -827,6 +825,7 @@ static void __stm_source_link_drop(struct stm_source_device *src,
 	stm_put_device(link);
 	rcu_assign_pointer(src->link, NULL);
 
+unlock:
 	spin_unlock(&src->link_lock);
 	spin_unlock(&stm->link_lock);
 }
