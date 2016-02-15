@@ -1429,6 +1429,18 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+/* set the cpu timer - may only be called from the VCPU thread itself */
+void kvm_s390_set_cpu_timer(struct kvm_vcpu *vcpu, __u64 cputm)
+{
+	vcpu->arch.sie_block->cputm = cputm;
+}
+
+/* get the cpu timer - can also be called from other VCPU threads */
+__u64 kvm_s390_get_cpu_timer(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.sie_block->cputm;
+}
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	/* Save host register state */
@@ -1476,7 +1488,7 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->gpsw.mask = 0UL;
 	vcpu->arch.sie_block->gpsw.addr = 0UL;
 	kvm_s390_set_prefix(vcpu, 0);
-	vcpu->arch.sie_block->cputm     = 0UL;
+	kvm_s390_set_cpu_timer(vcpu, 0);
 	vcpu->arch.sie_block->ckc       = 0UL;
 	vcpu->arch.sie_block->todpr     = 0;
 	memset(vcpu->arch.sie_block->gcr, 0, 16 * sizeof(__u64));
@@ -1723,7 +1735,7 @@ static int kvm_arch_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
 			     (u64 __user *)reg->addr);
 		break;
 	case KVM_REG_S390_CPU_TIMER:
-		r = put_user(vcpu->arch.sie_block->cputm,
+		r = put_user(kvm_s390_get_cpu_timer(vcpu),
 			     (u64 __user *)reg->addr);
 		break;
 	case KVM_REG_S390_CLOCK_COMP:
@@ -1761,6 +1773,7 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 					   struct kvm_one_reg *reg)
 {
 	int r = -EINVAL;
+	__u64 val;
 
 	switch (reg->id) {
 	case KVM_REG_S390_TODPR:
@@ -1772,8 +1785,9 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 			     (u64 __user *)reg->addr);
 		break;
 	case KVM_REG_S390_CPU_TIMER:
-		r = get_user(vcpu->arch.sie_block->cputm,
-			     (u64 __user *)reg->addr);
+		r = get_user(val, (u64 __user *)reg->addr);
+		if (!r)
+			kvm_s390_set_cpu_timer(vcpu, val);
 		break;
 	case KVM_REG_S390_CLOCK_COMP:
 		r = get_user(vcpu->arch.sie_block->ckc,
@@ -2290,7 +2304,7 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	}
 	if (kvm_run->kvm_dirty_regs & KVM_SYNC_ARCH0) {
-		vcpu->arch.sie_block->cputm = kvm_run->s.regs.cputm;
+		kvm_s390_set_cpu_timer(vcpu, kvm_run->s.regs.cputm);
 		vcpu->arch.sie_block->ckc = kvm_run->s.regs.ckc;
 		vcpu->arch.sie_block->todpr = kvm_run->s.regs.todpr;
 		vcpu->arch.sie_block->pp = kvm_run->s.regs.pp;
@@ -2312,7 +2326,7 @@ static void store_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	kvm_run->psw_addr = vcpu->arch.sie_block->gpsw.addr;
 	kvm_run->s.regs.prefix = kvm_s390_get_prefix(vcpu);
 	memcpy(&kvm_run->s.regs.crs, &vcpu->arch.sie_block->gcr, 128);
-	kvm_run->s.regs.cputm = vcpu->arch.sie_block->cputm;
+	kvm_run->s.regs.cputm = kvm_s390_get_cpu_timer(vcpu);
 	kvm_run->s.regs.ckc = vcpu->arch.sie_block->ckc;
 	kvm_run->s.regs.todpr = vcpu->arch.sie_block->todpr;
 	kvm_run->s.regs.pp = vcpu->arch.sie_block->pp;
@@ -2383,7 +2397,7 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 	unsigned char archmode = 1;
 	freg_t fprs[NUM_FPRS];
 	unsigned int px;
-	u64 clkcomp;
+	u64 clkcomp, cputm;
 	int rc;
 
 	px = kvm_s390_get_prefix(vcpu);
@@ -2417,8 +2431,9 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 			      &vcpu->run->s.regs.fpc, 4);
 	rc |= write_guest_abs(vcpu, gpa + __LC_TOD_PROGREG_SAVE_AREA,
 			      &vcpu->arch.sie_block->todpr, 4);
+	cputm = kvm_s390_get_cpu_timer(vcpu);
 	rc |= write_guest_abs(vcpu, gpa + __LC_CPU_TIMER_SAVE_AREA,
-			      &vcpu->arch.sie_block->cputm, 8);
+			      &cputm, 8);
 	clkcomp = vcpu->arch.sie_block->ckc >> 8;
 	rc |= write_guest_abs(vcpu, gpa + __LC_CLOCK_COMP_SAVE_AREA,
 			      &clkcomp, 8);

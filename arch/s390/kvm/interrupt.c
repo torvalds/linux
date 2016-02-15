@@ -182,8 +182,9 @@ static int cpu_timer_interrupts_enabled(struct kvm_vcpu *vcpu)
 
 static int cpu_timer_irq_pending(struct kvm_vcpu *vcpu)
 {
-	return (vcpu->arch.sie_block->cputm >> 63) &&
-	       cpu_timer_interrupts_enabled(vcpu);
+	if (!cpu_timer_interrupts_enabled(vcpu))
+		return 0;
+	return kvm_s390_get_cpu_timer(vcpu) >> 63;
 }
 
 static inline int is_ioirq(unsigned long irq_type)
