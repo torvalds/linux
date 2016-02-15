@@ -2711,31 +2711,6 @@ int regmap_write_bits(struct regmap *map, unsigned int reg,
 EXPORT_SYMBOL_GPL(regmap_write_bits);
 
 /**
- * regmap_update_bits_check: Perform a read/modify/write cycle on the
- *                           register map and report if updated
- *
- * @map: Register map to update
- * @reg: Register to update
- * @mask: Bitmask to change
- * @val: New value for bitmask
- * @change: Boolean indicating if a write was done
- *
- * Returns zero for success, a negative number on error.
- */
-int regmap_update_bits_check(struct regmap *map, unsigned int reg,
-			     unsigned int mask, unsigned int val,
-			     bool *change)
-{
-	int ret;
-
-	map->lock(map->lock_arg);
-	ret = _regmap_update_bits(map, reg, mask, val, change, false);
-	map->unlock(map->lock_arg);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(regmap_update_bits_check);
-
-/**
  * regmap_update_bits_check_async: Perform a read/modify/write cycle on the
  *                                 register map asynchronously and report if
  *                                 updated
