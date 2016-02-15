@@ -612,9 +612,7 @@ static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byCha
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool RFbInit(
-	struct vnt_private *priv
-)
+bool RFbInit(struct vnt_private *priv)
 {
 	bool ret = true;
 
