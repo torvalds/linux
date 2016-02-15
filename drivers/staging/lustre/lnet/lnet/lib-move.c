@@ -2187,16 +2187,16 @@ lnet_create_reply_msg(lnet_ni_t *ni, lnet_msg_t *getmsg)
 	LASSERT(!getmsg->msg_target_is_router);
 	LASSERT(!getmsg->msg_routing);
 
-	cpt = lnet_cpt_of_cookie(getmd->md_lh.lh_cookie);
-	lnet_res_lock(cpt);
-
-	LASSERT(getmd->md_refcount > 0);
-
 	if (!msg) {
 		CERROR("%s: Dropping REPLY from %s: can't allocate msg\n",
 		       libcfs_nid2str(ni->ni_nid), libcfs_id2str(peer_id));
 		goto drop;
 	}
+
+	cpt = lnet_cpt_of_cookie(getmd->md_lh.lh_cookie);
+	lnet_res_lock(cpt);
+
+	LASSERT(getmd->md_refcount > 0);
 
 	if (!getmd->md_threshold) {
 		CERROR("%s: Dropping REPLY from %s for inactive MD %p\n",
