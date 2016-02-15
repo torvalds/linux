@@ -50,6 +50,19 @@ module_param(nr_dummies, int, 0600);
 
 static unsigned int dummy_stm_nr;
 
+static unsigned int fail_mode;
+
+module_param(fail_mode, int, 0600);
+
+static int dummy_stm_link(struct stm_data *data, unsigned int master,
+			  unsigned int channel)
+{
+	if (fail_mode && (channel & fail_mode))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int dummy_stm_init(void)
 {
 	int i, ret = -ENOMEM, __nr_dummies = ACCESS_ONCE(nr_dummies);
@@ -66,6 +79,7 @@ static int dummy_stm_init(void)
 		dummy_stm[i].sw_end		= 0xffff;
 		dummy_stm[i].sw_nchannels	= 0xffff;
 		dummy_stm[i].packet		= dummy_stm_packet;
+		dummy_stm[i].link		= dummy_stm_link;
 
 		ret = stm_register_device(NULL, &dummy_stm[i], THIS_MODULE);
 		if (ret)
