@@ -2416,7 +2416,7 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 	tmp = read_dev_cntr(dd, C_DC_UNC_ERR, CNTR_INVALID_VL);
 	rsp->uncorrectable_errors = tmp < 0x100 ? (tmp & 0xff) : 0xff;
 
-	vlinfo = &(rsp->vls[0]);
+	vlinfo = &rsp->vls[0];
 	vfi = 0;
 	/* The vl_select_mask has been checked above, and we know
 	 * that it contains only entries which represent valid VLs.
@@ -2609,7 +2609,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 		return reply((struct ib_mad_hdr *)pmp);
 	}
 
-	rsp = (struct _port_dctrs *)&(req->port[0]);
+	rsp = (struct _port_dctrs *)&req->port[0];
 	memset(rsp, 0, sizeof(*rsp));
 
 	rsp->port_number = port;
@@ -2632,7 +2632,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 		cpu_to_be64(get_error_counter_summary(ibdev, port,
 						      res_lli, res_ler));
 
-	vlinfo = &(rsp->vls[0]);
+	vlinfo = &rsp->vls[0];
 	vfi = 0;
 	/* The vl_select_mask has been checked above, and we know
 	 * that it contains only entries which represent valid VLs.
@@ -2816,7 +2816,7 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 		return reply((struct ib_mad_hdr *)pmp);
 	}
 
-	rsp = (struct _port_ectrs *)&(req->port[0]);
+	rsp = (struct _port_ectrs *)&req->port[0];
 
 	ibp = to_iport(ibdev, port_num);
 	ppd = ppd_from_ibp(ibp);
@@ -2836,7 +2836,7 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 
 	rsp->uncorrectable_errors = tmp < 0x100 ? (tmp & 0xff) : 0xff;
 
-	vlinfo = (struct _vls_ectrs *)&(rsp->vls[0]);
+	vlinfo = (struct _vls_ectrs *)&rsp->vls[0];
 	vfi = 0;
 	vl_select_mask = be32_to_cpu(req->vl_select_mask);
 	for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
@@ -2952,7 +2952,7 @@ static int pma_get_opa_errorinfo(struct opa_pma_mad *pmp,
 	u64 reg;
 
 	req = (struct opa_port_error_info_msg *)pmp->data;
-	rsp = (struct _port_ei *)&(req->port[0]);
+	rsp = (struct _port_ei *)&req->port[0];
 
 	num_ports = OPA_AM_NPORT(be32_to_cpu(pmp->mad_hdr.attr_mod));
 	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));
@@ -3192,7 +3192,7 @@ static int pma_set_opa_errorinfo(struct opa_pma_mad *pmp,
 	u32 error_info_select;
 
 	req = (struct opa_port_error_info_msg *)pmp->data;
-	rsp = (struct _port_ei *)&(req->port[0]);
+	rsp = (struct _port_ei *)&req->port[0];
 
 	num_ports = OPA_AM_NPORT(be32_to_cpu(pmp->mad_hdr.attr_mod));
 	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));
