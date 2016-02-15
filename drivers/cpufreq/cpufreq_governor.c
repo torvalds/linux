@@ -350,15 +350,6 @@ static void dbs_irq_work(struct irq_work *irq_work)
 	schedule_work(&policy_dbs->work);
 }
 
-static inline void gov_queue_irq_work(struct policy_dbs_info *policy_dbs)
-{
-#ifdef CONFIG_SMP
-	irq_work_queue_on(&policy_dbs->irq_work, smp_processor_id());
-#else
-	irq_work_queue(&policy_dbs->irq_work);
-#endif
-}
-
 static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 				    unsigned long util, unsigned long max)
 {
@@ -378,7 +369,7 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 		delta_ns = time - policy_dbs->last_sample_time;
 		if ((s64)delta_ns >= policy_dbs->sample_delay_ns) {
 			policy_dbs->last_sample_time = time;
-			gov_queue_irq_work(policy_dbs);
+			irq_work_queue(&policy_dbs->irq_work);
 			return;
 		}
 	}
