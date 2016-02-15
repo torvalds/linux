@@ -41,7 +41,7 @@ enum {
  * It can manage several multi-page bio's at once.
  */
 typedef struct xfs_ioend {
-	struct xfs_ioend	*io_list;	/* next ioend in chain */
+	struct list_head	io_list;	/* next ioend in chain */
 	unsigned int		io_type;	/* delalloc / unwritten */
 	int			io_error;	/* I/O error code */
 	atomic_t		io_remaining;	/* hold count */

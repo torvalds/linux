@@ -43,7 +43,6 @@ struct xfs_writepage_ctx {
 	struct xfs_bmbt_irec    imap;
 	bool			imap_valid;
 	unsigned int		io_type;
-	struct xfs_ioend	*iohead;
 	struct xfs_ioend	*ioend;
 	sector_t		last_block;
 };
@@ -277,7 +276,7 @@ xfs_alloc_ioend(
 	 */
 	atomic_set(&ioend->io_remaining, 1);
 	ioend->io_error = 0;
-	ioend->io_list = NULL;
+	INIT_LIST_HEAD(&ioend->io_list);
 	ioend->io_type = type;
 	ioend->io_inode = inode;
 	ioend->io_buffer_head = NULL;
@@ -420,8 +419,7 @@ xfs_start_buffer_writeback(
 STATIC void
 xfs_start_page_writeback(
 	struct page		*page,
-	int			clear_dirty,
-	int			buffers)
+	int			clear_dirty)
 {
 	ASSERT(PageLocked(page));
 	ASSERT(!PageWriteback(page));
@@ -440,10 +438,6 @@ xfs_start_page_writeback(
 		set_page_writeback_keepwrite(page);
 
 	unlock_page(page);
-
-	/* If no buffers on the page are to be written, finish it here */
-	if (!buffers)
-		end_page_writeback(page);
 }
 
 static inline int xfs_bio_add_buffer(struct bio *bio, struct buffer_head *bh)
@@ -452,110 +446,90 @@ static inline int xfs_bio_add_buffer(struct bio *bio, struct buffer_head *bh)
 }
 
 /*
- * Submit all of the bios for all of the ioends we have saved up, covering the
- * initial writepage page and also any probed pages.
- *
- * Because we may have multiple ioends spanning a page, we need to start
- * writeback on all the buffers before we submit them for I/O. If we mark the
- * buffers as we got, then we can end up with a page that only has buffers
- * marked async write and I/O complete on can occur before we mark the other
- * buffers async write.
- *
- * The end result of this is that we trip a bug in end_page_writeback() because
- * we call it twice for the one page as the code in end_buffer_async_write()
- * assumes that all buffers on the page are started at the same time.
- *
- * The fix is two passes across the ioend list - one to start writeback on the
- * buffer_heads, and then submit them for I/O on the second pass.
+ * Submit all of the bios for an ioend. We are only passed a single ioend at a
+ * time; the caller is responsible for chaining prior to submission.
  *
  * If @fail is non-zero, it means that we have a situation where some part of
  * the submission process has failed after we have marked paged for writeback
  * and unlocked them. In this situation, we need to fail the ioend chain rather
  * than submit it to IO. This typically only happens on a filesystem shutdown.
  */
-STATIC void
+STATIC int
 xfs_submit_ioend(
 	struct writeback_control *wbc,
 	xfs_ioend_t		*ioend,
-	int			fail)
+	int			status)
 {
-	xfs_ioend_t		*head = ioend;
-	xfs_ioend_t		*next;
 	struct buffer_head	*bh;
 	struct bio		*bio;
 	sector_t		lastblock = 0;
 
-	/* Pass 1 - start writeback */
-	do {
-		next = ioend->io_list;
-		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private)
-			xfs_start_buffer_writeback(bh);
-	} while ((ioend = next) != NULL);
-
-	/* Pass 2 - submit I/O */
-	ioend = head;
-	do {
-		next = ioend->io_list;
-		bio = NULL;
-
-		/*
-		 * If we are failing the IO now, just mark the ioend with an
-		 * error and finish it. This will run IO completion immediately
-		 * as there is only one reference to the ioend at this point in
-		 * time.
-		 */
-		if (fail) {
-			ioend->io_error = fail;
-			xfs_finish_ioend(ioend);
-			continue;
-		}
-
-		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private) {
-
-			if (!bio) {
- retry:
-				bio = xfs_alloc_ioend_bio(bh);
-			} else if (bh->b_blocknr != lastblock + 1) {
-				xfs_submit_ioend_bio(wbc, ioend, bio);
-				goto retry;
-			}
-
-			if (xfs_bio_add_buffer(bio, bh) != bh->b_size) {
-				xfs_submit_ioend_bio(wbc, ioend, bio);
-				goto retry;
-			}
-
-			lastblock = bh->b_blocknr;
-		}
-		if (bio)
-			xfs_submit_ioend_bio(wbc, ioend, bio);
+	/* Reserve log space if we might write beyond the on-disk inode size. */
+	if (!status &&
+	     ioend->io_type != XFS_IO_UNWRITTEN && xfs_ioend_is_append(ioend))
+		status = xfs_setfilesize_trans_alloc(ioend);
+	/*
+	 * If we are failing the IO now, just mark the ioend with an
+	 * error and finish it. This will run IO completion immediately
+	 * as there is only one reference to the ioend at this point in
+	 * time.
+	 */
+	if (status) {
+		ioend->io_error = status;
 		xfs_finish_ioend(ioend);
-	} while ((ioend = next) != NULL);
+		return status;
+	}
+
+	bio = NULL;
+	for (bh = ioend->io_buffer_head; bh; bh = bh->b_private) {
+
+		if (!bio) {
+retry:
+			bio = xfs_alloc_ioend_bio(bh);
+		} else if (bh->b_blocknr != lastblock + 1) {
+			xfs_submit_ioend_bio(wbc, ioend, bio);
+			goto retry;
+		}
+
+		if (xfs_bio_add_buffer(bio, bh) != bh->b_size) {
+			xfs_submit_ioend_bio(wbc, ioend, bio);
+			goto retry;
+		}
+
+		lastblock = bh->b_blocknr;
+	}
+	if (bio)
+		xfs_submit_ioend_bio(wbc, ioend, bio);
+	xfs_finish_ioend(ioend);
+	return 0;
 }
 
 /*
  * Test to see if we've been building up a completion structure for
  * earlier buffers -- if so, we try to append to this ioend if we
  * can, otherwise we finish off any current ioend and start another.
- * Return true if we've finished the given ioend.
+ * Return the ioend we finished off so that the caller can submit it
+ * once it has finished processing the dirty page.
  */
 STATIC void
 xfs_add_to_ioend(
 	struct inode		*inode,
 	struct buffer_head	*bh,
 	xfs_off_t		offset,
-	struct xfs_writepage_ctx *wpc)
+	struct xfs_writepage_ctx *wpc,
+	struct list_head	*iolist)
 {
 	if (!wpc->ioend || wpc->io_type != wpc->ioend->io_type ||
 	    bh->b_blocknr != wpc->last_block + 1) {
 		struct xfs_ioend	*new;
 
+		if (wpc->ioend)
+			list_add(&wpc->ioend->io_list, iolist);
+
 		new = xfs_alloc_ioend(inode, wpc->io_type);
 		new->io_offset = offset;
 		new->io_buffer_head = bh;
 		new->io_buffer_tail = bh;
-		if (wpc->ioend)
-			wpc->ioend->io_list = new;
 		wpc->ioend = new;
 	} else {
 		wpc->ioend->io_buffer_tail->b_private = bh;
@@ -565,6 +539,7 @@ xfs_add_to_ioend(
 	bh->b_private = NULL;
 	wpc->ioend->io_size += bh->b_size;
 	wpc->last_block = bh->b_blocknr;
+	xfs_start_buffer_writeback(bh);
 }
 
 STATIC void
@@ -726,44 +701,41 @@ out_invalidate:
 	return;
 }
 
-static int
-xfs_writepage_submit(
-	struct xfs_writepage_ctx *wpc,
-	struct writeback_control *wbc,
-	int			status)
-{
-	struct blk_plug		plug;
-
-	/* Reserve log space if we might write beyond the on-disk inode size. */
-	if (!status && wpc->ioend && wpc->ioend->io_type != XFS_IO_UNWRITTEN &&
-	    xfs_ioend_is_append(wpc->ioend))
-		status = xfs_setfilesize_trans_alloc(wpc->ioend);
-
-	if (wpc->iohead) {
-		blk_start_plug(&plug);
-		xfs_submit_ioend(wbc, wpc->iohead, status);
-		blk_finish_plug(&plug);
-	}
-	return status;
-}
-
+/*
+ * We implement an immediate ioend submission policy here to avoid needing to
+ * chain multiple ioends and hence nest mempool allocations which can violate
+ * forward progress guarantees we need to provide. The current ioend we are
+ * adding buffers to is cached on the writepage context, and if the new buffer
+ * does not append to the cached ioend it will create a new ioend and cache that
+ * instead.
+ *
+ * If a new ioend is created and cached, the old ioend is returned and queued
+ * locally for submission once the entire page is processed or an error has been
+ * detected.  While ioends are submitted immediately after they are completed,
+ * batching optimisations are provided by higher level block plugging.
+ *
+ * At the end of a writeback pass, there will be a cached ioend remaining on the
+ * writepage context that the caller will need to submit.
+ */
 static int
 xfs_writepage_map(
 	struct xfs_writepage_ctx *wpc,
+	struct writeback_control *wbc,
 	struct inode		*inode,
 	struct page		*page,
 	loff_t			offset,
 	__uint64_t              end_offset)
 {
+	LIST_HEAD(submit_list);
+	struct xfs_ioend	*ioend, *next;
 	struct buffer_head	*bh, *head;
 	ssize_t			len = 1 << inode->i_blkbits;
 	int			error = 0;
-	int			uptodate = 1;
 	int			count = 0;
+	int			uptodate = 1;
 
 	bh = head = page_buffers(page);
 	offset = page_offset(page);
-
 	do {
 		if (offset >= end_offset)
 			break;
@@ -816,7 +788,7 @@ xfs_writepage_map(
 			error = xfs_map_blocks(inode, offset, &wpc->imap,
 					     wpc->io_type);
 			if (error)
-				goto out_error;
+				goto out;
 			wpc->imap_valid = xfs_imap_valid(inode, &wpc->imap,
 							 offset);
 		}
@@ -824,46 +796,65 @@ xfs_writepage_map(
 			lock_buffer(bh);
 			if (wpc->io_type != XFS_IO_OVERWRITE)
 				xfs_map_at_offset(inode, bh, &wpc->imap, offset);
-			xfs_add_to_ioend(inode, bh, offset, wpc);
+			xfs_add_to_ioend(inode, bh, offset, wpc, &submit_list);
 			count++;
 		}
-
-		if (!wpc->iohead)
-			wpc->iohead = wpc->ioend;
 
 	} while (offset += len, ((bh = bh->b_this_page) != head));
 
 	if (uptodate && bh == head)
 		SetPageUptodate(page);
 
-	xfs_start_page_writeback(page, 1, count);
-	ASSERT(wpc->iohead || !count);
-	return 0;
+	ASSERT(wpc->ioend || list_empty(&submit_list));
 
-out_error:
+out:
 	/*
-	 * On error, we have to fail the iohead here because we locked buffers
-	 * in the ioend chain. If we don't do this, we'll deadlock invalidating
-	 * the page as that tries to lock the buffers on the page. Also, because
-	 * we may have set pages under writeback, we have to make sure we run
-	 * IO completion to mark the error state of the IO appropriately, so we
-	 * can't cancel the ioend directly here. That means we have to mark this
-	 * page as under writeback if we included any buffers from it in the
-	 * ioend chain so that completion treats it correctly.
+	 * On error, we have to fail the ioend here because we have locked
+	 * buffers in the ioend. If we don't do this, we'll deadlock
+	 * invalidating the page as that tries to lock the buffers on the page.
+	 * Also, because we may have set pages under writeback, we have to make
+	 * sure we run IO completion to mark the error state of the IO
+	 * appropriately, so we can't cancel the ioend directly here. That means
+	 * we have to mark this page as under writeback if we included any
+	 * buffers from it in the ioend chain so that completion treats it
+	 * correctly.
 	 *
-	 * If we didn't include the page in the ioend, then we can simply
-	 * discard and unlock it as there are no other users of the page or it's
-	 * buffers right now. The caller will still need to trigger submission
-	 * of outstanding ioends on the writepage context so they are treated
-	 * correctly on error.
+	 * If we didn't include the page in the ioend, the on error we can
+	 * simply discard and unlock it as there are no other users of the page
+	 * or it's buffers right now. The caller will still need to trigger
+	 * submission of outstanding ioends on the writepage context so they are
+	 * treated correctly on error.
 	 */
-	if (count)
-		xfs_start_page_writeback(page, 0, count);
-	else {
+	if (count) {
+		xfs_start_page_writeback(page, !error);
+
+		/*
+		 * Preserve the original error if there was one, otherwise catch
+		 * submission errors here and propagate into subsequent ioend
+		 * submissions.
+		 */
+		list_for_each_entry_safe(ioend, next, &submit_list, io_list) {
+			int error2;
+
+			list_del_init(&ioend->io_list);
+			error2 = xfs_submit_ioend(wbc, ioend, error);
+			if (error2 && !error)
+				error = error2;
+		}
+	} else if (error) {
 		xfs_aops_discard_page(page);
 		ClearPageUptodate(page);
 		unlock_page(page);
+	} else {
+		/*
+		 * We can end up here with no error and nothing to write if we
+		 * race with a partial page truncate on a sub-page block sized
+		 * filesystem. In that case we need to mark the page clean.
+		 */
+		xfs_start_page_writeback(page, 1);
+		end_page_writeback(page);
 	}
+
 	mapping_set_error(page->mapping, error);
 	return error;
 }
@@ -979,7 +970,7 @@ xfs_do_writepage(
 		end_offset = offset;
 	}
 
-	return xfs_writepage_map(wpc, inode, page, offset, end_offset);
+	return xfs_writepage_map(wpc, wbc, inode, page, offset, end_offset);
 
 redirty:
 	redirty_page_for_writepage(wbc, page);
@@ -998,7 +989,9 @@ xfs_vm_writepage(
 	int			ret;
 
 	ret = xfs_do_writepage(page, wbc, &wpc);
-	return xfs_writepage_submit(&wpc, wbc, ret);
+	if (wpc.ioend)
+		ret = xfs_submit_ioend(wbc, wpc.ioend, ret);
+	return ret;
 }
 
 STATIC int
@@ -1013,7 +1006,9 @@ xfs_vm_writepages(
 
 	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
 	ret = write_cache_pages(mapping, wbc, xfs_do_writepage, &wpc);
-	return xfs_writepage_submit(&wpc, wbc, ret);
+	if (wpc.ioend)
+		ret = xfs_submit_ioend(wbc, wpc.ioend, ret);
+	return ret;
 }
 
 /*
