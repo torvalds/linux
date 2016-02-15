@@ -138,24 +138,17 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
-	unsigned int sampling_rate = dbs_data->sampling_rate;
 	unsigned int ignore_nice = dbs_data->ignore_nice_load;
 	unsigned int max_load = 0;
-	unsigned int j;
+	unsigned int sampling_rate, j;
 
-	if (gov->governor == GOV_ONDEMAND) {
-		struct od_cpu_dbs_info_s *od_dbs_info =
-				gov->get_cpu_dbs_info_s(policy->cpu);
-
-		/*
-		 * Sometimes, the ondemand governor uses an additional
-		 * multiplier to give long delays. So apply this multiplier to
-		 * the 'sampling_rate', so as to keep the wake-up-from-idle
-		 * detection logic a bit conservative.
-		 */
-		sampling_rate *= od_dbs_info->rate_mult;
-
-	}
+	/*
+	 * Sometimes governors may use an additional multiplier to increase
+	 * sample delays temporarily.  Apply that multiplier to sampling_rate
+	 * so as to keep the wake-up-from-idle detection logic a bit
+	 * conservative.
+	 */
+	sampling_rate = dbs_data->sampling_rate * policy_dbs->rate_mult;
 
 	/* Get Absolute Load */
 	for_each_cpu(j, policy->cpus) {
@@ -537,6 +530,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 		return -EINVAL;
 
 	policy_dbs->is_shared = policy_is_shared(policy);
+	policy_dbs->rate_mult = 1;
 
 	sampling_rate = dbs_data->sampling_rate;
 	ignore_nice = dbs_data->ignore_nice_load;
@@ -570,7 +564,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 		struct od_ops *od_ops = gov->gov_ops;
 		struct od_cpu_dbs_info_s *od_dbs_info = gov->get_cpu_dbs_info_s(cpu);
 
-		od_dbs_info->rate_mult = 1;
 		od_dbs_info->sample_type = OD_NORMAL_SAMPLE;
 		od_ops->powersave_bias_init_cpu(cpu);
 	}

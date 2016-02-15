@@ -164,7 +164,7 @@ static void od_update(struct cpufreq_policy *policy)
 	if (load > dbs_data->up_threshold) {
 		/* If switching to max speed, apply sampling_down_factor */
 		if (policy->cur < policy->max)
-			dbs_info->rate_mult = dbs_data->sampling_down_factor;
+			policy_dbs->rate_mult = dbs_data->sampling_down_factor;
 		dbs_freq_increase(policy, policy->max);
 	} else {
 		/* Calculate the next frequency proportional to load */
@@ -175,7 +175,7 @@ static void od_update(struct cpufreq_policy *policy)
 		freq_next = min_f + load * (max_f - min_f) / 100;
 
 		/* No longer fully busy, reset rate_mult */
-		dbs_info->rate_mult = 1;
+		policy_dbs->rate_mult = 1;
 
 		if (!od_tuners->powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
@@ -214,7 +214,7 @@ static unsigned int od_dbs_timer(struct cpufreq_policy *policy)
 			delay = dbs_info->freq_hi_jiffies;
 		} else {
 			delay = delay_for_sampling_rate(dbs_data->sampling_rate
-							* dbs_info->rate_mult);
+							* policy_dbs->rate_mult);
 		}
 	}
 
@@ -266,20 +266,27 @@ static ssize_t store_up_threshold(struct dbs_data *dbs_data, const char *buf,
 static ssize_t store_sampling_down_factor(struct dbs_data *dbs_data,
 		const char *buf, size_t count)
 {
-	unsigned int input, j;
+	struct policy_dbs_info *policy_dbs;
+	unsigned int input;
 	int ret;
 	ret = sscanf(buf, "%u", &input);
 
 	if (ret != 1 || input > MAX_SAMPLING_DOWN_FACTOR || input < 1)
 		return -EINVAL;
+
 	dbs_data->sampling_down_factor = input;
 
 	/* Reset down sampling multiplier in case it was active */
-	for_each_online_cpu(j) {
-		struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info,
-				j);
-		dbs_info->rate_mult = 1;
+	list_for_each_entry(policy_dbs, &dbs_data->policy_dbs_list, list) {
+		/*
+		 * Doing this without locking might lead to using different
+		 * rate_mult values in od_update() and od_dbs_timer().
+		 */
+		mutex_lock(&policy_dbs->timer_mutex);
+		policy_dbs->rate_mult = 1;
+		mutex_unlock(&policy_dbs->timer_mutex);
 	}
+
 	return count;
 }
 

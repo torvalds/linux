@@ -130,6 +130,8 @@ struct policy_dbs_info {
 	/* dbs_data may be shared between multiple policy objects */
 	struct dbs_data *dbs_data;
 	struct list_head list;
+	/* Multiplier for increasing sample delay temporarily. */
+	unsigned int rate_mult;
 	/* Status indicators */
 	bool is_shared;		/* This object is used by multiple CPUs */
 	bool work_in_progress;	/* Work is being queued up or in progress */
@@ -163,7 +165,6 @@ struct od_cpu_dbs_info_s {
 	unsigned int freq_lo;
 	unsigned int freq_lo_jiffies;
 	unsigned int freq_hi_jiffies;
-	unsigned int rate_mult;
 	unsigned int sample_type:1;
 };
 
