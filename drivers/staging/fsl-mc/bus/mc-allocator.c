@@ -756,7 +756,7 @@ int __init fsl_mc_allocator_driver_init(void)
 	return fsl_mc_driver_register(&fsl_mc_allocator_driver);
 }
 
-void __exit fsl_mc_allocator_driver_exit(void)
+void fsl_mc_allocator_driver_exit(void)
 {
 	fsl_mc_driver_unregister(&fsl_mc_allocator_driver);
 }
