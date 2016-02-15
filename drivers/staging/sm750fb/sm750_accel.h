@@ -39,78 +39,46 @@
 #define DE_DIMENSION_Y_ET_MASK                          0x1fff
 
 #define DE_CONTROL                                      0xC
-#define DE_CONTROL_STATUS                               31:31
-#define DE_CONTROL_STATUS_STOP                          0
-#define DE_CONTROL_STATUS_START                         1
-#define DE_CONTROL_PATTERN                              30:30
-#define DE_CONTROL_PATTERN_MONO                         0
-#define DE_CONTROL_PATTERN_COLOR                        1
-#define DE_CONTROL_UPDATE_DESTINATION_X                 29:29
-#define DE_CONTROL_UPDATE_DESTINATION_X_DISABLE         0
-#define DE_CONTROL_UPDATE_DESTINATION_X_ENABLE          1
-#define DE_CONTROL_QUICK_START                          28:28
-#define DE_CONTROL_QUICK_START_DISABLE                  0
-#define DE_CONTROL_QUICK_START_ENABLE                   1
-#define DE_CONTROL_DIRECTION                            27:27
-#define DE_CONTROL_DIRECTION_LEFT_TO_RIGHT              0
-#define DE_CONTROL_DIRECTION_RIGHT_TO_LEFT              1
-#define DE_CONTROL_MAJOR                                26:26
-#define DE_CONTROL_MAJOR_X                              0
-#define DE_CONTROL_MAJOR_Y                              1
-#define DE_CONTROL_STEP_X                               25:25
-#define DE_CONTROL_STEP_X_POSITIVE                      1
-#define DE_CONTROL_STEP_X_NEGATIVE                      0
-#define DE_CONTROL_STEP_Y                               24:24
-#define DE_CONTROL_STEP_Y_POSITIVE                      1
-#define DE_CONTROL_STEP_Y_NEGATIVE                      0
-#define DE_CONTROL_STRETCH                              23:23
-#define DE_CONTROL_STRETCH_DISABLE                      0
-#define DE_CONTROL_STRETCH_ENABLE                       1
-#define DE_CONTROL_HOST                                 22:22
-#define DE_CONTROL_HOST_COLOR                           0
-#define DE_CONTROL_HOST_MONO                            1
-#define DE_CONTROL_LAST_PIXEL                           21:21
-#define DE_CONTROL_LAST_PIXEL_OFF                       0
-#define DE_CONTROL_LAST_PIXEL_ON                        1
-#define DE_CONTROL_COMMAND                              20:16
-#define DE_CONTROL_COMMAND_BITBLT                       0
-#define DE_CONTROL_COMMAND_RECTANGLE_FILL               1
-#define DE_CONTROL_COMMAND_DE_TILE                      2
-#define DE_CONTROL_COMMAND_TRAPEZOID_FILL               3
-#define DE_CONTROL_COMMAND_ALPHA_BLEND                  4
-#define DE_CONTROL_COMMAND_RLE_STRIP                    5
-#define DE_CONTROL_COMMAND_SHORT_STROKE                 6
-#define DE_CONTROL_COMMAND_LINE_DRAW                    7
-#define DE_CONTROL_COMMAND_HOST_WRITE                   8
-#define DE_CONTROL_COMMAND_HOST_READ                    9
-#define DE_CONTROL_COMMAND_HOST_WRITE_BOTTOM_UP         10
-#define DE_CONTROL_COMMAND_ROTATE                       11
-#define DE_CONTROL_COMMAND_FONT                         12
-#define DE_CONTROL_COMMAND_TEXTURE_LOAD                 15
-#define DE_CONTROL_ROP_SELECT                           15:15
-#define DE_CONTROL_ROP_SELECT_ROP3                      0
-#define DE_CONTROL_ROP_SELECT_ROP2                      1
-#define DE_CONTROL_ROP2_SOURCE                          14:14
-#define DE_CONTROL_ROP2_SOURCE_BITMAP                   0
-#define DE_CONTROL_ROP2_SOURCE_PATTERN                  1
-#define DE_CONTROL_MONO_DATA                            13:12
-#define DE_CONTROL_MONO_DATA_NOT_PACKED                 0
-#define DE_CONTROL_MONO_DATA_8_PACKED                   1
-#define DE_CONTROL_MONO_DATA_16_PACKED                  2
-#define DE_CONTROL_MONO_DATA_32_PACKED                  3
-#define DE_CONTROL_REPEAT_ROTATE                        11:11
-#define DE_CONTROL_REPEAT_ROTATE_DISABLE                0
-#define DE_CONTROL_REPEAT_ROTATE_ENABLE                 1
-#define DE_CONTROL_TRANSPARENCY_MATCH                   10:10
-#define DE_CONTROL_TRANSPARENCY_MATCH_OPAQUE            0
-#define DE_CONTROL_TRANSPARENCY_MATCH_TRANSPARENT       1
-#define DE_CONTROL_TRANSPARENCY_SELECT                  9:9
-#define DE_CONTROL_TRANSPARENCY_SELECT_SOURCE           0
-#define DE_CONTROL_TRANSPARENCY_SELECT_DESTINATION      1
-#define DE_CONTROL_TRANSPARENCY                         8:8
-#define DE_CONTROL_TRANSPARENCY_DISABLE                 0
-#define DE_CONTROL_TRANSPARENCY_ENABLE                  1
-#define DE_CONTROL_ROP                                  7:0
+#define DE_CONTROL_STATUS                               BIT(31)
+#define DE_CONTROL_PATTERN                              BIT(30)
+#define DE_CONTROL_UPDATE_DESTINATION_X                 BIT(29)
+#define DE_CONTROL_QUICK_START                          BIT(28)
+#define DE_CONTROL_DIRECTION                            BIT(27)
+#define DE_CONTROL_MAJOR                                BIT(26)
+#define DE_CONTROL_STEP_X                               BIT(25)
+#define DE_CONTROL_STEP_Y                               BIT(24)
+#define DE_CONTROL_STRETCH                              BIT(23)
+#define DE_CONTROL_HOST                                 BIT(22)
+#define DE_CONTROL_LAST_PIXEL                           BIT(21)
+#define DE_CONTROL_COMMAND_SHIFT                        16
+#define DE_CONTROL_COMMAND_MASK                         (0x1f << 16)
+#define DE_CONTROL_COMMAND_BITBLT                       (0x0 << 16)
+#define DE_CONTROL_COMMAND_RECTANGLE_FILL               (0x1 << 16)
+#define DE_CONTROL_COMMAND_DE_TILE                      (0x2 << 16)
+#define DE_CONTROL_COMMAND_TRAPEZOID_FILL               (0x3 << 16)
+#define DE_CONTROL_COMMAND_ALPHA_BLEND                  (0x4 << 16)
+#define DE_CONTROL_COMMAND_RLE_STRIP                    (0x5 << 16)
+#define DE_CONTROL_COMMAND_SHORT_STROKE                 (0x6 << 16)
+#define DE_CONTROL_COMMAND_LINE_DRAW                    (0x7 << 16)
+#define DE_CONTROL_COMMAND_HOST_WRITE                   (0x8 << 16)
+#define DE_CONTROL_COMMAND_HOST_READ                    (0x9 << 16)
+#define DE_CONTROL_COMMAND_HOST_WRITE_BOTTOM_UP         (0xa << 16)
+#define DE_CONTROL_COMMAND_ROTATE                       (0xb << 16)
+#define DE_CONTROL_COMMAND_FONT                         (0xc << 16)
+#define DE_CONTROL_COMMAND_TEXTURE_LOAD                 (0xe << 16)
+#define DE_CONTROL_ROP_SELECT                           BIT(15)
+#define DE_CONTROL_ROP2_SOURCE                          BIT(14)
+#define DE_CONTROL_MONO_DATA_SHIFT                      12
+#define DE_CONTROL_MONO_DATA_MASK                       (0x3 << 12)
+#define DE_CONTROL_MONO_DATA_NOT_PACKED                 (0x0 << 12)
+#define DE_CONTROL_MONO_DATA_8_PACKED                   (0x1 << 12)
+#define DE_CONTROL_MONO_DATA_16_PACKED                  (0x2 << 12)
+#define DE_CONTROL_MONO_DATA_32_PACKED                  (0x3 << 12)
+#define DE_CONTROL_REPEAT_ROTATE                        BIT(11)
+#define DE_CONTROL_TRANSPARENCY_MATCH                   BIT(10)
+#define DE_CONTROL_TRANSPARENCY_SELECT                  BIT(9)
+#define DE_CONTROL_TRANSPARENCY                         BIT(8)
+#define DE_CONTROL_ROP_MASK                             0xff
 
 /* Pseudo fields. */
 

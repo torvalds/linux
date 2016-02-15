@@ -63,16 +63,11 @@ void hw_de_init(struct lynx_accel *accel)
 	write_dpr(accel, DE_COLOR_COMPARE_MASK, 0); /* dpr24 */
 	write_dpr(accel, DE_COLOR_COMPARE, 0);
 
-	reg = FIELD_SET(0, DE_CONTROL, TRANSPARENCY, DISABLE)|
-		FIELD_SET(0, DE_CONTROL, TRANSPARENCY_MATCH, OPAQUE)|
-		FIELD_SET(0, DE_CONTROL, TRANSPARENCY_SELECT, SOURCE);
-
-	clr = FIELD_CLEAR(DE_CONTROL, TRANSPARENCY)&
-		FIELD_CLEAR(DE_CONTROL, TRANSPARENCY_MATCH)&
-		FIELD_CLEAR(DE_CONTROL, TRANSPARENCY_SELECT);
+	clr = DE_CONTROL_TRANSPARENCY | DE_CONTROL_TRANSPARENCY_MATCH |
+		DE_CONTROL_TRANSPARENCY_SELECT;
 
 	/* dpr0c */
-	write_dpr(accel, DE_CONTROL, (read_dpr(accel, DE_CONTROL)&clr)|reg);
+	write_dpr(accel, DE_CONTROL, read_dpr(accel, DE_CONTROL) & ~clr);
 }
 
 /* set2dformat only be called from setmode functions
@@ -122,13 +117,9 @@ int hw_fillrect(struct lynx_accel *accel,
 		  ((width << DE_DIMENSION_X_SHIFT) & DE_DIMENSION_X_MASK) |
 		  (height & DE_DIMENSION_Y_ET_MASK)); /* dpr8 */
 
-	deCtrl =
-		FIELD_SET(0, DE_CONTROL, STATUS, START)|
-		FIELD_SET(0, DE_CONTROL, DIRECTION, LEFT_TO_RIGHT)|
-		FIELD_SET(0, DE_CONTROL, LAST_PIXEL, ON)|
-		FIELD_SET(0, DE_CONTROL, COMMAND, RECTANGLE_FILL)|
-		FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2)|
-		FIELD_VALUE(0, DE_CONTROL, ROP, rop); /* dpr0xc */
+	deCtrl = DE_CONTROL_STATUS | DE_CONTROL_LAST_PIXEL |
+		DE_CONTROL_COMMAND_RECTANGLE_FILL | DE_CONTROL_ROP_SELECT |
+		(rop & DE_CONTROL_ROP_MASK); /* dpr0xc */
 
 	write_dpr(accel, DE_CONTROL, deCtrl);
 	return 0;
@@ -264,13 +255,9 @@ unsigned int rop2)   /* ROP value */
 		  ((width << DE_DIMENSION_X_SHIFT) & DE_DIMENSION_X_MASK) |
 		  (height & DE_DIMENSION_Y_ET_MASK)); /* dpr08 */
 
-	de_ctrl = FIELD_VALUE(0, DE_CONTROL, ROP, rop2) |
-		  FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2) |
-		  FIELD_SET(0, DE_CONTROL, COMMAND, BITBLT) |
-		  ((nDirection == RIGHT_TO_LEFT) ?
-		  FIELD_SET(0, DE_CONTROL, DIRECTION, RIGHT_TO_LEFT)
-		  : FIELD_SET(0, DE_CONTROL, DIRECTION, LEFT_TO_RIGHT)) |
-		  FIELD_SET(0, DE_CONTROL, STATUS, START);
+	de_ctrl = (rop2 & DE_CONTROL_ROP_MASK) | DE_CONTROL_ROP_SELECT |
+		((nDirection == RIGHT_TO_LEFT) ? DE_CONTROL_DIRECTION : 0) |
+		DE_CONTROL_COMMAND_BITBLT | DE_CONTROL_STATUS;
 	write_dpr(accel, DE_CONTROL, de_ctrl); /* dpr0c */
 
 	}
@@ -284,10 +271,8 @@ static unsigned int deGetTransparency(struct lynx_accel *accel)
 
 	de_ctrl = read_dpr(accel, DE_CONTROL);
 
-	de_ctrl &=
-		   FIELD_MASK(DE_CONTROL_TRANSPARENCY_MATCH) |
-		   FIELD_MASK(DE_CONTROL_TRANSPARENCY_SELECT)|
-		   FIELD_MASK(DE_CONTROL_TRANSPARENCY);
+	de_ctrl &= (DE_CONTROL_TRANSPARENCY_MATCH |
+		    DE_CONTROL_TRANSPARENCY_SELECT | DE_CONTROL_TRANSPARENCY);
 
 	return de_ctrl;
 }
@@ -365,11 +350,9 @@ int hw_imageblit(struct lynx_accel *accel,
 	write_dpr(accel, DE_FOREGROUND, fColor);
 	write_dpr(accel, DE_BACKGROUND, bColor);
 
-	de_ctrl = FIELD_VALUE(0, DE_CONTROL, ROP, rop2)         |
-		FIELD_SET(0, DE_CONTROL, ROP_SELECT, ROP2)    |
-		FIELD_SET(0, DE_CONTROL, COMMAND, HOST_WRITE) |
-		FIELD_SET(0, DE_CONTROL, HOST, MONO)          |
-		FIELD_SET(0, DE_CONTROL, STATUS, START);
+	de_ctrl = (rop2 & DE_CONTROL_ROP_MASK) |
+		DE_CONTROL_ROP_SELECT | DE_CONTROL_COMMAND_HOST_WRITE |
+		DE_CONTROL_HOST | DE_CONTROL_STATUS;
 
 	write_dpr(accel, DE_CONTROL, de_ctrl | deGetTransparency(accel));
 
