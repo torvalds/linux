@@ -1015,12 +1015,6 @@ static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
-static inline  u64 cl_address(u64 address)
-{
-	/* return the cacheline of the address */
-	return (address & ~(cacheline_size - 1));
-}
-
 static int64_t
 sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
