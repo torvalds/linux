@@ -35,8 +35,47 @@
 #include <asm/ppc-opcode.h>
 #include <asm/kvm_host.h>
 #include <asm/udbg.h>
+#include <asm/iommu.h>
 
 #define TCES_PER_PAGE	(PAGE_SIZE / sizeof(u64))
+
+/*
+ * Finds a TCE table descriptor by LIOBN.
+ *
+ * WARNING: This will be called in real or virtual mode on HV KVM and virtual
+ *          mode on PR KVM
+ */
+static struct kvmppc_spapr_tce_table *kvmppc_find_table(struct kvm_vcpu *vcpu,
+		unsigned long liobn)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvmppc_spapr_tce_table *stt;
+
+	list_for_each_entry(stt, &kvm->arch.spapr_tce_tables, list)
+		if (stt->liobn == liobn)
+			return stt;
+
+	return NULL;
+}
+
+/*
+ * Validates IO address.
+ *
+ * WARNING: This will be called in real-mode on HV KVM and virtual
+ *          mode on PR KVM
+ */
+static long kvmppc_ioba_validate(struct kvmppc_spapr_tce_table *stt,
+		unsigned long ioba, unsigned long npages)
+{
+	unsigned long mask = (1ULL << IOMMU_PAGE_SHIFT_4K) - 1;
+	unsigned long idx = ioba >> IOMMU_PAGE_SHIFT_4K;
+	unsigned long size = stt->window_size >> IOMMU_PAGE_SHIFT_4K;
+
+	if ((ioba & mask) || (idx + npages > size) || (idx + npages < idx))
+		return H_PARAMETER;
+
+	return H_SUCCESS;
+}
 
 /* WARNING: This will be called in real-mode on HV KVM and virtual
  *          mode on PR KVM
@@ -44,62 +83,56 @@
 long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		      unsigned long ioba, unsigned long tce)
 {
-	struct kvm *kvm = vcpu->kvm;
-	struct kvmppc_spapr_tce_table *stt;
+	struct kvmppc_spapr_tce_table *stt = kvmppc_find_table(vcpu, liobn);
+	long ret;
+	unsigned long idx;
+	struct page *page;
+	u64 *tbl;
 
 	/* udbg_printf("H_PUT_TCE(): liobn=0x%lx ioba=0x%lx, tce=0x%lx\n", */
 	/* 	    liobn, ioba, tce); */
 
-	list_for_each_entry(stt, &kvm->arch.spapr_tce_tables, list) {
-		if (stt->liobn == liobn) {
-			unsigned long idx = ioba >> SPAPR_TCE_SHIFT;
-			struct page *page;
-			u64 *tbl;
+	if (!stt)
+		return H_TOO_HARD;
 
-			/* udbg_printf("H_PUT_TCE: liobn 0x%lx => stt=%p  window_size=0x%x\n", */
-			/* 	    liobn, stt, stt->window_size); */
-			if (ioba >= stt->window_size)
-				return H_PARAMETER;
+	ret = kvmppc_ioba_validate(stt, ioba, 1);
+	if (ret != H_SUCCESS)
+		return ret;
 
-			page = stt->pages[idx / TCES_PER_PAGE];
-			tbl = (u64 *)page_address(page);
+	idx = ioba >> SPAPR_TCE_SHIFT;
+	page = stt->pages[idx / TCES_PER_PAGE];
+	tbl = (u64 *)page_address(page);
 
-			/* FIXME: Need to validate the TCE itself */
-			/* udbg_printf("tce @ %p\n", &tbl[idx % TCES_PER_PAGE]); */
-			tbl[idx % TCES_PER_PAGE] = tce;
-			return H_SUCCESS;
-		}
-	}
+	/* FIXME: Need to validate the TCE itself */
+	/* udbg_printf("tce @ %p\n", &tbl[idx % TCES_PER_PAGE]); */
+	tbl[idx % TCES_PER_PAGE] = tce;
 
-	/* Didn't find the liobn, punt it to userspace */
-	return H_TOO_HARD;
+	return H_SUCCESS;
 }
 EXPORT_SYMBOL_GPL(kvmppc_h_put_tce);
 
 long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		      unsigned long ioba)
 {
-	struct kvm *kvm = vcpu->kvm;
-	struct kvmppc_spapr_tce_table *stt;
+	struct kvmppc_spapr_tce_table *stt = kvmppc_find_table(vcpu, liobn);
+	long ret;
+	unsigned long idx;
+	struct page *page;
+	u64 *tbl;
 
-	list_for_each_entry(stt, &kvm->arch.spapr_tce_tables, list) {
-		if (stt->liobn == liobn) {
-			unsigned long idx = ioba >> SPAPR_TCE_SHIFT;
-			struct page *page;
-			u64 *tbl;
+	if (!stt)
+		return H_TOO_HARD;
 
-			if (ioba >= stt->window_size)
-				return H_PARAMETER;
+	ret = kvmppc_ioba_validate(stt, ioba, 1);
+	if (ret != H_SUCCESS)
+		return ret;
 
-			page = stt->pages[idx / TCES_PER_PAGE];
-			tbl = (u64 *)page_address(page);
+	idx = ioba >> SPAPR_TCE_SHIFT;
+	page = stt->pages[idx / TCES_PER_PAGE];
+	tbl = (u64 *)page_address(page);
 
-			vcpu->arch.gpr[4] = tbl[idx % TCES_PER_PAGE];
-			return H_SUCCESS;
-		}
-	}
+	vcpu->arch.gpr[4] = tbl[idx % TCES_PER_PAGE];
 
-	/* Didn't find the liobn, punt it to userspace */
-	return H_TOO_HARD;
+	return H_SUCCESS;
 }
 EXPORT_SYMBOL_GPL(kvmppc_h_get_tce);
