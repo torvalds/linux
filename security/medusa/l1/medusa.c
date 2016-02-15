@@ -611,7 +611,9 @@ static int medusa_l1_task_wait(struct task_struct *p)
 static int medusa_l1_task_kill(struct task_struct *p, struct siginfo *info,
 			 int sig, u32 secid)
 {
-	return 0;
+    if(medusa_sendsig(sig, info, p) == MED_NO)
+        return -EPERM;
+    return 0;
 }
 
 static void medusa_l1_task_to_inode(struct task_struct *p, struct inode *inode)
