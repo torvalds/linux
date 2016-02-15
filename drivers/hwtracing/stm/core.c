@@ -185,6 +185,9 @@ static void stm_output_claim(struct stm_device *stm, struct stm_output *output)
 {
 	struct stp_master *master = stm_master(stm, output->master);
 
+	lockdep_assert_held(&stm->mc_lock);
+	lockdep_assert_held(&output->lock);
+
 	if (WARN_ON_ONCE(master->nr_free < output->nr_chans))
 		return;
 
@@ -198,6 +201,9 @@ static void
 stm_output_disclaim(struct stm_device *stm, struct stm_output *output)
 {
 	struct stp_master *master = stm_master(stm, output->master);
+
+	lockdep_assert_held(&stm->mc_lock);
+	lockdep_assert_held(&output->lock);
 
 	bitmap_release_region(&master->chan_map[0], output->channel,
 			      ilog2(output->nr_chans));
@@ -288,6 +294,7 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 	}
 
 	spin_lock(&stm->mc_lock);
+	spin_lock(&output->lock);
 	/* output is already assigned -- shouldn't happen */
 	if (WARN_ON_ONCE(output->nr_chans))
 		goto unlock;
@@ -304,6 +311,7 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 
 	ret = 0;
 unlock:
+	spin_unlock(&output->lock);
 	spin_unlock(&stm->mc_lock);
 
 	return ret;
@@ -312,9 +320,16 @@ unlock:
 static void stm_output_free(struct stm_device *stm, struct stm_output *output)
 {
 	spin_lock(&stm->mc_lock);
+	spin_lock(&output->lock);
 	if (output->nr_chans)
 		stm_output_disclaim(stm, output);
+	spin_unlock(&output->lock);
 	spin_unlock(&stm->mc_lock);
+}
+
+static void stm_output_init(struct stm_output *output)
+{
+	spin_lock_init(&output->lock);
 }
 
 static int major_match(struct device *dev, const void *data)
@@ -339,6 +354,7 @@ static int stm_char_open(struct inode *inode, struct file *file)
 	if (!stmf)
 		return -ENOMEM;
 
+	stm_output_init(&stmf->output);
 	stmf->stm = to_stm_device(dev);
 
 	if (!try_module_get(stmf->stm->owner))
@@ -952,6 +968,7 @@ int stm_source_register_device(struct device *parent,
 	if (err)
 		goto err;
 
+	stm_output_init(&src->output);
 	spin_lock_init(&src->link_lock);
 	INIT_LIST_HEAD(&src->link_entry);
 	src->data = data;
