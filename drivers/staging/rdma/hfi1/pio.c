@@ -700,7 +700,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	if (dd->flags & HFI1_FROZEN)
 		return NULL;
 
-	sc = kzalloc_node(sizeof(struct send_context), GFP_KERNEL, numa);
+	sc = kzalloc_node(sizeof(*sc), GFP_KERNEL, numa);
 	if (!sc)
 		return NULL;
 
