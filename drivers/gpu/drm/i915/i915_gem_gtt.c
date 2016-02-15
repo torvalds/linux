@@ -3405,7 +3405,7 @@ static struct sg_table *
 intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 			  struct drm_i915_gem_object *obj)
 {
-	unsigned int size_pages = rot_info->size >> PAGE_SHIFT;
+	unsigned int size_pages = rot_info->plane[0].width * rot_info->plane[0].height;
 	unsigned int size_pages_uv;
 	struct sg_page_iter sg_iter;
 	unsigned long i;
@@ -3423,7 +3423,7 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 
 	/* Account for UV plane with NV12. */
 	if (rot_info->pixel_format == DRM_FORMAT_NV12)
-		size_pages_uv = rot_info->size_uv >> PAGE_SHIFT;
+		size_pages_uv = rot_info->plane[1].width * rot_info->plane[1].height;
 	else
 		size_pages_uv = 0;
 
@@ -3445,9 +3445,9 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 
 	/* Rotate the pages. */
 	sg = rotate_pages(page_addr_list, 0,
-		     rot_info->width_pages, rot_info->height_pages,
-		     rot_info->width_pages,
-		     st, NULL);
+			  rot_info->plane[0].width, rot_info->plane[0].height,
+			  rot_info->plane[0].width,
+			  st, NULL);
 
 	/* Append the UV plane if NV12. */
 	if (rot_info->pixel_format == DRM_FORMAT_NV12) {
@@ -3459,18 +3459,15 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 
 		rot_info->uv_start_page = uv_start_page;
 
-		rotate_pages(page_addr_list, uv_start_page,
-			     rot_info->width_pages_uv,
-			     rot_info->height_pages_uv,
-			     rot_info->width_pages_uv,
+		rotate_pages(page_addr_list, rot_info->uv_start_page,
+			     rot_info->plane[1].width, rot_info->plane[1].height,
+			     rot_info->plane[1].width,
 			     st, sg);
 	}
 
-	DRM_DEBUG_KMS(
-		      "Created rotated page mapping for object size %zu (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %u pages (%u plane 0)).\n",
-		      obj->base.size, rot_info->pitch, rot_info->height,
-		      rot_info->pixel_format, rot_info->width_pages,
-		      rot_info->height_pages, size_pages + size_pages_uv,
+	DRM_DEBUG_KMS("Created rotated page mapping for object size %zu (%ux%u tiles, %u pages (%u plane 0)).\n",
+		      obj->base.size, rot_info->plane[0].width,
+		      rot_info->plane[0].height, size_pages + size_pages_uv,
 		      size_pages);
 
 	drm_free_large(page_addr_list);
@@ -3482,11 +3479,9 @@ err_sg_alloc:
 err_st_alloc:
 	drm_free_large(page_addr_list);
 
-	DRM_DEBUG_KMS(
-		      "Failed to create rotated mapping for object size %zu! (%d) (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %u pages (%u plane 0))\n",
-		      obj->base.size, ret, rot_info->pitch, rot_info->height,
-		      rot_info->pixel_format, rot_info->width_pages,
-		      rot_info->height_pages, size_pages + size_pages_uv,
+	DRM_DEBUG_KMS("Failed to create rotated mapping for object size %zu! (%d) (%ux%u tiles, %u pages (%u plane 0))\n",
+		      obj->base.size, ret, rot_info->plane[0].width,
+		      rot_info->plane[0].height, size_pages + size_pages_uv,
 		      size_pages);
 	return ERR_PTR(ret);
 }
@@ -3634,7 +3629,7 @@ i915_ggtt_view_size(struct drm_i915_gem_object *obj,
 	if (view->type == I915_GGTT_VIEW_NORMAL) {
 		return obj->base.size;
 	} else if (view->type == I915_GGTT_VIEW_ROTATED) {
-		return view->params.rotated.size + view->params.rotated.size_uv;
+		return intel_rotation_info_size(&view->params.rotated) << PAGE_SHIFT;
 	} else if (view->type == I915_GGTT_VIEW_PARTIAL) {
 		return view->params.partial.size << PAGE_SHIFT;
 	} else {

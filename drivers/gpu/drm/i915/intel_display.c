@@ -2296,6 +2296,17 @@ intel_fb_align_height(struct drm_device *dev, unsigned int height,
 	return ALIGN(height, tile_height);
 }
 
+unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info)
+{
+	unsigned int size = 0;
+	int i;
+
+	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++)
+		size += rot_info->plane[i].width * rot_info->plane[i].height;
+
+	return size;
+}
+
 static void
 intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 			const struct drm_framebuffer *fb,
@@ -2312,11 +2323,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 
 	*view = i915_ggtt_view_rotated;
 
-	info->height = fb->height;
-	info->pixel_format = fb->pixel_format;
-	info->pitch = fb->pitches[0];
 	info->uv_offset = fb->offsets[1];
-	info->fb_modifier = fb->modifier[0];
 
 	tile_size = intel_tile_size(dev_priv);
 
@@ -2324,18 +2331,16 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 	intel_tile_dims(dev_priv, &tile_width, &tile_height,
 			fb->modifier[0], cpp);
 
-	info->width_pages = DIV_ROUND_UP(fb->pitches[0], tile_width * cpp);
-	info->height_pages = DIV_ROUND_UP(fb->height, tile_height);
-	info->size = info->width_pages * info->height_pages * tile_size;
+	info->plane[0].width = DIV_ROUND_UP(fb->pitches[0], tile_width * cpp);
+	info->plane[0].height = DIV_ROUND_UP(fb->height, tile_height);
 
 	if (info->pixel_format == DRM_FORMAT_NV12) {
 		cpp = drm_format_plane_cpp(fb->pixel_format, 1);
 		intel_tile_dims(dev_priv, &tile_width, &tile_height,
 				fb->modifier[1], cpp);
 
-		info->width_pages_uv = DIV_ROUND_UP(fb->pitches[1], tile_width * cpp);
-		info->height_pages_uv = DIV_ROUND_UP(fb->height / 2, tile_height);
-		info->size_uv = info->width_pages_uv * info->height_pages_uv * tile_size;
+		info->plane[1].width = DIV_ROUND_UP(fb->pitches[1], tile_width * cpp);
+		info->plane[1].height = DIV_ROUND_UP(fb->height / 2, tile_height);
 	}
 }
 
