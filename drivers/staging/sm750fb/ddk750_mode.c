@@ -25,9 +25,7 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	   Note that normal SM750/SM718 only use those two register for
 	   auto-centering mode.
 	 */
-	POKE32(CRT_AUTO_CENTERING_TL,
-	FIELD_VALUE(0, CRT_AUTO_CENTERING_TL, TOP, 0)
-	| FIELD_VALUE(0, CRT_AUTO_CENTERING_TL, LEFT, 0));
+	POKE32(CRT_AUTO_CENTERING_TL, 0);
 
 	POKE32(CRT_AUTO_CENTERING_BR,
 	FIELD_VALUE(0, CRT_AUTO_CENTERING_BR, BOTTOM, y - 1)

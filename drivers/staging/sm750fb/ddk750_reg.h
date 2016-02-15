@@ -1477,8 +1477,8 @@
 #ifndef VALIDATION_CHIP
     /* Auto Centering */
     #define CRT_AUTO_CENTERING_TL                     0x080280
-    #define CRT_AUTO_CENTERING_TL_TOP                 26:16
-    #define CRT_AUTO_CENTERING_TL_LEFT                10:0
+    #define CRT_AUTO_CENTERING_TL_TOP_MASK            (0x7ff << 16)
+    #define CRT_AUTO_CENTERING_TL_LEFT_MASK           0x7ff
 
     #define CRT_AUTO_CENTERING_BR                     0x080284
     #define CRT_AUTO_CENTERING_BR_BOTTOM              26:16
