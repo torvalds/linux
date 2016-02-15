@@ -84,22 +84,31 @@ retry:
 	}
 	*obj = &robj->gem_base;
 
-	mutex_lock(&adev->gem.mutex);
-	list_add_tail(&robj->list, &adev->gem.objects);
-	mutex_unlock(&adev->gem.mutex);
-
 	return 0;
 }
 
-int amdgpu_gem_init(struct amdgpu_device *adev)
+void amdgpu_gem_force_release(struct amdgpu_device *adev)
 {
-	INIT_LIST_HEAD(&adev->gem.objects);
-	return 0;
-}
+	struct drm_device *ddev = adev->ddev;
+	struct drm_file *file;
 
-void amdgpu_gem_fini(struct amdgpu_device *adev)
-{
-	amdgpu_bo_force_delete(adev);
+	mutex_lock(&ddev->struct_mutex);
+
+	list_for_each_entry(file, &ddev->filelist, lhead) {
+		struct drm_gem_object *gobj;
+		int handle;
+
+		WARN_ONCE(1, "Still active user space clients!\n");
+		spin_lock(&file->table_lock);
+		idr_for_each_entry(&file->object_idr, gobj, handle) {
+			WARN_ONCE(1, "And also active allocations!\n");
+			drm_gem_object_unreference(gobj);
+		}
+		idr_destroy(&file->object_idr);
+		spin_unlock(&file->table_lock);
+	}
+
+	mutex_unlock(&ddev->struct_mutex);
 }
 
 /*

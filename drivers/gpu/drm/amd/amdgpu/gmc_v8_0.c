@@ -887,10 +887,6 @@ static int gmc_v8_0_sw_init(void *handle)
 	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_gem_init(adev);
-	if (r)
-		return r;
-
 	r = amdgpu_irq_add_id(adev, 146, &adev->mc.vm_fault);
 	if (r)
 		return r;
@@ -971,7 +967,7 @@ static int gmc_v8_0_sw_fini(void *handle)
 		adev->vm_manager.enabled = false;
 	}
 	gmc_v8_0_gart_fini(adev);
-	amdgpu_gem_fini(adev);
+	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
 
 	return 0;

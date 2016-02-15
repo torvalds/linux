@@ -607,13 +607,7 @@ struct amdgpu_sa_bo {
 /*
  * GEM objects.
  */
-struct amdgpu_gem {
-	struct mutex		mutex;
-	struct list_head	objects;
-};
-
-int amdgpu_gem_init(struct amdgpu_device *adev);
-void amdgpu_gem_fini(struct amdgpu_device *adev);
+void amdgpu_gem_force_release(struct amdgpu_device *adev);
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 				int alignment, u32 initial_domain,
 				u64 flags, bool kernel,
@@ -2012,7 +2006,6 @@ struct amdgpu_device {
 
 	/* memory management */
 	struct amdgpu_mman		mman;
-	struct amdgpu_gem		gem;
 	struct amdgpu_vram_scratch	vram_scratch;
 	struct amdgpu_wb		wb;
 	atomic64_t			vram_usage;

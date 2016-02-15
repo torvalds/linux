@@ -73,10 +73,6 @@ struct drm_gem_object *amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	mutex_lock(&adev->gem.mutex);
-	list_add_tail(&bo->list, &adev->gem.objects);
-	mutex_unlock(&adev->gem.mutex);
-
 	return &bo->gem_base;
 }
 
