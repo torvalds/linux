@@ -111,10 +111,11 @@ static void mcip_probe_n_setup(void)
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
 
 	sprintf(smp_cpuinfo_buf,
-		"Extn [SMP]\t: ARConnect (v%d): %d cores with %s%s%s%s\n",
+		"Extn [SMP]\t: ARConnect (v%d): %d cores with %s%s%s%s%s\n",
 		mp.ver, mp.num_cores,
 		IS_AVAIL1(mp.ipi, "IPI "),
 		IS_AVAIL1(mp.idu, "IDU "),
+		IS_AVAIL1(mp.llm, "LLM "),
 		IS_AVAIL1(mp.dbg, "DEBUG "),
 		IS_AVAIL1(mp.gfrc, "GFRC"));
 
