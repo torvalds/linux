@@ -1740,6 +1740,16 @@ pnfs_set_plh_return_iomode(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode)
 	lo->plh_return_iomode = iomode;
 }
 
+/**
+ * pnfs_mark_matching_lsegs_return - Free or return matching layout segments
+ * @lo: pointer to layout header
+ * @tmp_list: list header to be used with pnfs_free_lseg_list()
+ * @return_range: describe layout segment ranges to be returned
+ *
+ * This function is mainly intended for use by layoutrecall. It attempts
+ * to free the layout segment immediately, or else to mark it for return
+ * as soon as its reference count drops to zero.
+ */
 int
 pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
@@ -1762,10 +1772,11 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				lseg, lseg->pls_range.iomode,
 				lseg->pls_range.offset,
 				lseg->pls_range.length);
+			if (mark_lseg_invalid(lseg, tmp_list))
+				continue;
+			remaining++;
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
 			pnfs_set_plh_return_iomode(lo, return_range->iomode);
-			if (!mark_lseg_invalid(lseg, tmp_list))
-				remaining++;
 			set_bit(NFS_LAYOUT_RETURN_REQUESTED,
 					&lo->plh_flags);
 		}
