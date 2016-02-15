@@ -1723,7 +1723,6 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 		  rcd->ctxt, rcd->egrbufs.alloced, rcd->egrbufs.rcvtid_size,
 		  rcd->egrbufs.size);
 
-
 	/*
 	 * Set the contexts rcv array head update threshold to the closest
 	 * power of 2 (so we can use a mask instead of modulo) below half

@@ -50,7 +50,6 @@
  *
  */
 
-
 /* send context types */
 #define SC_KERNEL 0
 #define SC_ACK    1
@@ -317,7 +316,6 @@ void pio_kernel_unfreeze(struct hfi1_devdata *dd);
 
 void __cm_reset(struct hfi1_devdata *dd, u64 sendctrl);
 void pio_send_control(struct hfi1_devdata *dd, int op);
-
 
 /* PIO copy routines */
 void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,

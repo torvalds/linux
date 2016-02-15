@@ -376,7 +376,6 @@ dropit:
 	return 0;
 }
 
-
 /**
  * hfi1_ib_rcv - process an incoming packet
  * @packet: data packet information
@@ -964,7 +963,6 @@ static inline int egress_pkey_check(struct hfi1_pportdata *ppd,
 	/* If SC15, pkey[0:14] must be 0x7fff */
 	if ((sc5 == 0xf) && ((pkey & PKEY_LOW_15_MASK) != PKEY_LOW_15_MASK))
 		goto bad;
-
 
 	/* Is the pkey = 0x0, or 0x8000? */
 	if ((pkey & PKEY_LOW_15_MASK) == 0)

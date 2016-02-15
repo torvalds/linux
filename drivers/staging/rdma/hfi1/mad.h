@@ -235,7 +235,6 @@ struct ib_pma_portcounters_cong {
 #define IB_CC_SVCTYPE_RD 0x2
 #define IB_CC_SVCTYPE_UD 0x3
 
-
 /*
  * There should be an equivalent IB #define for the following, but
  * I cannot find it.

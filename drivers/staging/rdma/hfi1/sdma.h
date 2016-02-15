@@ -65,7 +65,6 @@
 /* Hardware limit for SDMA packet size */
 #define MAX_SDMA_PKT_SIZE ((16 * 1024) - 1)
 
-
 #define SDMA_TXREQ_S_OK        0
 #define SDMA_TXREQ_S_SENDERROR 1
 #define SDMA_TXREQ_S_ABORTED   2
@@ -418,7 +417,6 @@ struct sdma_engine {
 	struct list_head flushlist;
 };
 
-
 int sdma_init(struct hfi1_devdata *dd, u8 port);
 void sdma_start(struct hfi1_devdata *dd);
 void sdma_exit(struct hfi1_devdata *dd);
@@ -464,7 +462,6 @@ static inline int __sdma_running(struct sdma_engine *engine)
 	return engine->state.current_state == sdma_state_s99_running;
 }
 
-
 /**
  * sdma_running() - state suitability test
  * @engine: sdma engine
@@ -493,7 +490,6 @@ void _sdma_txreq_ahgadd(
 	u8 ahg_entry,
 	u32 *ahg,
 	u8 ahg_hlen);
-
 
 /**
  * sdma_txinit_ahg() - initialize an sdma_txreq struct with AHG

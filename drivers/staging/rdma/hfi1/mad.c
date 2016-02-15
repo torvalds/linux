@@ -2310,7 +2310,6 @@ static void a0_portstatus(struct hfi1_pportdata *ppd,
 	}
 }
 
-
 static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 			struct ib_device *ibdev, u8 port, u32 *resp_len)
 {

@@ -609,7 +609,6 @@ static void sdma_sw_clean_up_task(unsigned long opaque)
 	 *   descq are ours to play with.
 	 */
 
-
 	/*
 	 * In the error clean up sequence, software clean must be called
 	 * before the hardware clean so we can use the hardware head in
@@ -1689,7 +1688,6 @@ static void set_sdma_integrity(struct sdma_engine *sde)
 
 	write_sde_csr(sde, SD(CHECK_ENABLE), reg);
 }
-
 
 static void init_sdma_regs(
 	struct sdma_engine *sde,

@@ -852,7 +852,6 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 		  sc->credit_ctrl,
 		  thresh);
 
-
 	return sc;
 }
 

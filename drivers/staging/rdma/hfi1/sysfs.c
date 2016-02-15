@@ -53,7 +53,6 @@
 #include "mad.h"
 #include "trace.h"
 
-
 /*
  * Start of per-port congestion control structures and support code
  */
@@ -254,7 +253,6 @@ HFI1_SC2VL_ATTR(29);
 HFI1_SC2VL_ATTR(30);
 HFI1_SC2VL_ATTR(31);
 
-
 static struct attribute *sc2vl_default_attributes[] = {
 	&hfi1_sc2vl_attr_0.attr,
 	&hfi1_sc2vl_attr_1.attr,
@@ -359,7 +357,6 @@ HFI1_SL2SC_ATTR(28);
 HFI1_SL2SC_ATTR(29);
 HFI1_SL2SC_ATTR(30);
 HFI1_SL2SC_ATTR(31);
-
 
 static struct attribute *sl2sc_default_attributes[] = {
 	&hfi1_sl2sc_attr_0.attr,
@@ -493,7 +490,6 @@ static struct kobj_type hfi1_vl2mtu_ktype = {
 	.default_attrs = vl2mtu_default_attributes
 };
 
-
 /* end of per-port file structures and support code */
 
 /*
@@ -534,7 +530,6 @@ static ssize_t show_boardversion(struct device *device,
 	/* The string printed here is already newline-terminated. */
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->boardversion);
 }
-
 
 static ssize_t show_nctxts(struct device *device,
 			   struct device_attribute *attr, char *buf)
@@ -701,7 +696,6 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 		goto bail_sl2sc;
 	}
 	kobject_uevent(&ppd->vl2mtu_kobj, KOBJ_ADD);
-
 
 	ret = kobject_init_and_add(&ppd->pport_cc_kobj, &port_cc_ktype,
 				   kobj, "CCMgtA");

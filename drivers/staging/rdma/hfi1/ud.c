@@ -647,7 +647,6 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 	return 0;
 }
 
-
 /**
  * hfi1_ud_rcv - receive an incoming UD packet
  * @ibp: the port the packet came in on

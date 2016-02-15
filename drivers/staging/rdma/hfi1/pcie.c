@@ -447,7 +447,6 @@ void restore_pci_variables(struct hfi1_devdata *dd)
 	pci_write_config_dword(dd->pcidev, PCIE_CFG_TPH2, dd->pci_tph2);
 }
 
-
 /*
  * BIOS may not set PCIe bus-utilization parameters for best performance.
  * Check and optionally adjust them to maximize our throughput.

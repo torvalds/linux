@@ -878,7 +878,6 @@ struct hfi1_devdata {
 	wait_queue_head_t		  sdma_unfreeze_wq;
 	atomic_t			  sdma_unfreeze_count;
 
-
 	/* hfi1_pportdata, points to array of (physical) port-specific
 	 * data structs, indexed by pidx (0..n-1)
 	 */
@@ -1597,7 +1596,6 @@ static inline struct cc_state *get_cc_state(struct hfi1_pportdata *ppd)
 
 /* IB dword length mask in PBC (lower 11 bits); same for all chips */
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
-
 
 /* ctxt_flag bit offsets */
 		/* context has been setup */

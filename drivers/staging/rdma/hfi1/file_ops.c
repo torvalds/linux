@@ -162,7 +162,6 @@ enum mmap_types {
 #define dbg(fmt, ...)				\
 	pr_info(fmt, ##__VA_ARGS__)
 
-
 static inline int is_valid_mmap(u64 token)
 {
 	return (HFI1_MMAP_TOKEN_GET(MAGIC, token) == HFI1_MMAP_MAGIC);
@@ -1588,7 +1587,6 @@ static loff_t ui_lseek(struct file *filp, loff_t offset, int whence)
 
 	return filp->f_pos;
 }
-
 
 /* NOTE: assumes unsigned long is 8 bytes */
 static ssize_t ui_read(struct file *filp, char __user *buf, size_t count,

@@ -65,5 +65,4 @@ int hfi1_twsi_blk_rd(struct hfi1_devdata *dd, u32 target, int dev, int addr,
 int hfi1_twsi_blk_wr(struct hfi1_devdata *dd, u32 target, int dev, int addr,
 		     const void *buffer, int len);
 
-
 #endif /* _TWSI_H */
