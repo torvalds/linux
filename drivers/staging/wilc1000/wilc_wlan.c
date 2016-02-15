@@ -325,7 +325,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 	return 1;
 }
 
-static bool enabled = false;
+static bool enabled;
 
 void wilc_enable_tcp_ack_filter(bool value)
 {

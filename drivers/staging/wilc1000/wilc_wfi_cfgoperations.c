@@ -157,7 +157,7 @@ static u8 wlan_channel = INVALID_CHANNEL;
 static u8 curr_channel;
 static u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static u8 p2p_local_random = 0x01;
-static u8 p2p_recv_random = 0x00;
+static u8 p2p_recv_random;
 static u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 static bool wilc_ie;
 
