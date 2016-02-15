@@ -12459,8 +12459,10 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 
 	/* calculate the ranges we are going to use */
 	first_general = 0;
-	first_sdma = last_general = first_general + 1;
-	first_rx = last_sdma = first_sdma + dd->num_sdma;
+	last_general = first_general + 1;
+	first_sdma = last_general;
+	last_sdma = first_sdma + dd->num_sdma;
+	first_rx = last_sdma;
 	last_rx = first_rx + dd->n_krcv_queues;
 
 	/*

@@ -565,7 +565,8 @@ static inline int sdma_txinit_ahg(
 	tx->complete = cb;
 	tx->coalesce_buf = NULL;
 	tx->wait = NULL;
-	tx->tlen = tx->packet_len = tlen;
+	tx->packet_len = tlen;
+	tx->tlen = tx->packet_len;
 	tx->descs[0].qw[0] = SDMA_DESC0_FIRST_DESC_FLAG;
 	tx->descs[0].qw[1] = 0;
 	if (flags & SDMA_TXREQ_F_AHG_COPY)
