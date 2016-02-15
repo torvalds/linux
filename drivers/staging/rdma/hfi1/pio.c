@@ -2002,7 +2002,7 @@ int init_credit_return(struct hfi1_devdata *dd)
 					bytes,
 					&dd->cr_base[i].pa,
 					GFP_KERNEL);
-		if (dd->cr_base[i].va == NULL) {
+		if (!dd->cr_base[i].va) {
 			set_dev_node(&dd->pcidev->dev, dd->node);
 			dd_dev_err(dd,
 				"Unable to allocate credit return DMA range for NUMA %d\n",

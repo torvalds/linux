@@ -2025,7 +2025,7 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl, u16 rlid, u32 lqpn,
 
 	cc_state = get_cc_state(ppd);
 
-	if (cc_state == NULL)
+	if (!cc_state)
 		return;
 
 	/*

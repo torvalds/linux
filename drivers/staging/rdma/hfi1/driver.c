@@ -371,7 +371,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		if (rhf_use_egr_bfr(packet->rhf))
 			ebuf = packet->ebuf;
 
-		if (ebuf == NULL)
+		if (!ebuf)
 			goto drop; /* this should never happen */
 
 		if (lnh == HFI1_LRH_BTH)
@@ -402,7 +402,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			lqpn = be32_to_cpu(bth[1]) & RVT_QPN_MASK;
 			rcu_read_lock();
 			qp = rvt_lookup_qpn(rdi, &ibp->rvp, lqpn);
-			if (qp == NULL) {
+			if (!qp) {
 				rcu_read_unlock();
 				goto drop;
 			}
@@ -637,7 +637,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		rcu_read_lock();
 		qp = rvt_lookup_qpn(rdi, &ibp->rvp, qpn);
 
-		if (qp == NULL) {
+		if (!qp) {
 			rcu_read_unlock();
 			goto next;
 		}

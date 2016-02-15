@@ -12260,7 +12260,7 @@ u64 hfi1_gpio_mod(struct hfi1_devdata *dd, u32 target, u32 data, u32 dir,
 
 int hfi1_init_ctxt(struct send_context *sc)
 {
-	if (sc != NULL) {
+	if (sc) {
 		struct hfi1_devdata *dd = sc->dd;
 		u64 reg;
 		u8 set = (sc->type == SC_USER ?
@@ -12371,7 +12371,7 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 		struct hfi1_msix_entry *me = dd->msix_entries;
 
 		for (i = 0; i < dd->num_msix_entries; i++, me++) {
-			if (me->arg == NULL) /* => no irq, no affinity */
+			if (!me->arg) /* => no irq, no affinity */
 				continue;
 			hfi1_put_irq_affinity(dd, &dd->msix_entries[i]);
 			free_irq(me->msix.vector, me->arg);
@@ -12534,7 +12534,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			continue;
 		}
 		/* no argument, no interrupt */
-		if (arg == NULL)
+		if (!arg)
 			continue;
 		/* make sure the name is terminated */
 		me->name[sizeof(me->name) - 1] = 0;

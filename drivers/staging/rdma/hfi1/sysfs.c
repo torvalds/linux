@@ -83,7 +83,7 @@ static ssize_t read_cc_table_bin(struct file *filp, struct kobject *kobj,
 
 	rcu_read_lock();
 	cc_state = get_cc_state(ppd);
-	if (cc_state == NULL) {
+	if (!cc_state) {
 		rcu_read_unlock();
 		return -EINVAL;
 	}
@@ -130,7 +130,7 @@ static ssize_t read_cc_setting_bin(struct file *filp, struct kobject *kobj,
 
 	rcu_read_lock();
 	cc_state = get_cc_state(ppd);
-	if (cc_state == NULL) {
+	if (!cc_state) {
 		rcu_read_unlock();
 		return -EINVAL;
 	}

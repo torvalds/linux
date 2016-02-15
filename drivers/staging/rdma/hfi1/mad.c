@@ -3297,7 +3297,7 @@ static int __subn_get_opa_cong_setting(struct opa_smp *smp, u32 am,
 
 	cc_state = get_cc_state(ppd);
 
-	if (cc_state == NULL) {
+	if (!cc_state) {
 		rcu_read_unlock();
 		return reply((struct ib_mad_hdr *)smp);
 	}
@@ -3439,7 +3439,7 @@ static int __subn_get_opa_cc_table(struct opa_smp *smp, u32 am, u8 *data,
 
 	cc_state = get_cc_state(ppd);
 
-	if (cc_state == NULL) {
+	if (!cc_state) {
 		rcu_read_unlock();
 		return reply((struct ib_mad_hdr *)smp);
 	}
@@ -3505,14 +3505,14 @@ static int __subn_set_opa_cc_table(struct opa_smp *smp, u32 am, u8 *data,
 	}
 
 	new_cc_state = kzalloc(sizeof(*new_cc_state), GFP_KERNEL);
-	if (new_cc_state == NULL)
+	if (!new_cc_state)
 		goto getit;
 
 	spin_lock(&ppd->cc_state_lock);
 
 	old_cc_state = get_cc_state(ppd);
 
-	if (old_cc_state == NULL) {
+	if (!old_cc_state) {
 		spin_unlock(&ppd->cc_state_lock);
 		kfree(new_cc_state);
 		return reply((struct ib_mad_hdr *)smp);

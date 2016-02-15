@@ -431,7 +431,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		if (lnh != HFI1_LRH_GRH)
 			goto drop;
 		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid);
-		if (mcast == NULL)
+		if (!mcast)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
 			packet->qp = p->qp;
@@ -838,7 +838,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	if (cb)
 		iowait_pio_inc(&priv->s_iowait);
 	pbuf = sc_buffer_alloc(sc, plen, cb, qp);
-	if (unlikely(pbuf == NULL)) {
+	if (unlikely(!pbuf)) {
 		if (cb)
 			verbs_pio_complete(qp, 0);
 		if (ppd->host_link_state != HLS_UP_ACTIVE) {

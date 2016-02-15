@@ -386,7 +386,7 @@ void set_link_ipg(struct hfi1_pportdata *ppd)
 
 	cc_state = get_cc_state(ppd);
 
-	if (cc_state == NULL)
+	if (!cc_state)
 		/*
 		 * This should _never_ happen - rcu_read_lock() is held,
 		 * and set_link_ipg() should not be called if cc_state
@@ -438,7 +438,7 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
 
 	cc_state = get_cc_state(ppd);
 
-	if (cc_state == NULL) {
+	if (!cc_state) {
 		rcu_read_unlock();
 		return HRTIMER_NORESTART;
 	}
