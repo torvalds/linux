@@ -408,7 +408,7 @@ msc_buffer_iterate(struct msc_iter *iter, size_t size, void *data,
 		 * Second time (wrap_count==1), it's just like any other block,
 		 * containing data in the range of [MSC_BDESC..data_bytes].
 		 */
-		if (iter->block == iter->start_block && iter->wrap_count) {
+		if (iter->block == iter->start_block && iter->wrap_count == 2) {
 			tocopy = DATA_IN_PAGE - data_bytes;
 			src += data_bytes;
 		}
