@@ -341,11 +341,6 @@ void qed_resc_setup(struct qed_dev *cdev)
 	}
 }
 
-#define FINAL_CLEANUP_CMD_OFFSET        (0)
-#define FINAL_CLEANUP_CMD (0x1)
-#define FINAL_CLEANUP_VALID_OFFSET      (6)
-#define FINAL_CLEANUP_VFPF_ID_SHIFT     (7)
-#define FINAL_CLEANUP_COMP (0x2)
 #define FINAL_CLEANUP_POLL_CNT          (100)
 #define FINAL_CLEANUP_POLL_TIME         (10)
 int qed_final_cleanup(struct qed_hwfn *p_hwfn,
@@ -355,12 +350,14 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 	u32 command = 0, addr, count = FINAL_CLEANUP_POLL_CNT;
 	int rc = -EBUSY;
 
-	addr = GTT_BAR0_MAP_REG_USDM_RAM + USTORM_FLR_FINAL_ACK_OFFSET;
+	addr = GTT_BAR0_MAP_REG_USDM_RAM +
+		USTORM_FLR_FINAL_ACK_OFFSET(p_hwfn->rel_pf_id);
 
-	command |= FINAL_CLEANUP_CMD << FINAL_CLEANUP_CMD_OFFSET;
-	command |= 1 << FINAL_CLEANUP_VALID_OFFSET;
-	command |= id << FINAL_CLEANUP_VFPF_ID_SHIFT;
-	command |= FINAL_CLEANUP_COMP << SDM_OP_GEN_COMP_TYPE_SHIFT;
+	command |= X_FINAL_CLEANUP_AGG_INT <<
+		SDM_AGG_INT_COMP_PARAMS_AGG_INT_INDEX_SHIFT;
+	command |= 1 << SDM_AGG_INT_COMP_PARAMS_AGG_VECTOR_ENABLE_SHIFT;
+	command |= id << SDM_AGG_INT_COMP_PARAMS_AGG_VECTOR_BIT_SHIFT;
+	command |= SDM_COMP_TYPE_AGG_INT << SDM_OP_GEN_COMP_TYPE_SHIFT;
 
 	/* Make sure notification is not set before initiating final cleanup */
 	if (REG_RD(p_hwfn, addr)) {
@@ -415,18 +412,16 @@ static void qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 	}
 
 	switch (p_hwfn->cdev->mf_mode) {
-	case SF:
-		hw_mode |= 1 << MODE_SF;
-		break;
-	case MF_OVLAN:
-		hw_mode |= 1 << MODE_MF_SD;
-		break;
-	case MF_NPAR:
+	case QED_MF_DEFAULT:
+	case QED_MF_NPAR:
 		hw_mode |= 1 << MODE_MF_SI;
 		break;
+	case QED_MF_OVLAN:
+		hw_mode |= 1 << MODE_MF_SD;
+		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unsupported MF mode, init as SF\n");
-		hw_mode |= 1 << MODE_SF;
+		DP_NOTICE(p_hwfn, "Unsupported MF mode, init as DEFAULT\n");
+		hw_mode |= 1 << MODE_MF_SI;
 	}
 
 	hw_mode |= 1 << MODE_ASIC;
@@ -1018,8 +1013,7 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 	u32 *resc_num = p_hwfn->hw_info.resc_num;
 	int num_funcs, i;
 
-	num_funcs = IS_MF(p_hwfn) ? MAX_NUM_PFS_BB
-				  : p_hwfn->cdev->num_ports_in_engines;
+	num_funcs = MAX_NUM_PFS_BB;
 
 	resc_num[QED_SB] = min_t(u32,
 				 (MAX_SB_PER_PATH_BB / num_funcs),
@@ -1071,7 +1065,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 			       struct qed_ptt *p_ptt)
 {
 	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
-	u32 port_cfg_addr, link_temp, val, nvm_cfg_addr;
+	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities;
 	struct qed_mcp_link_params *link;
 
 	/* Read global nvm_cfg address */
@@ -1132,21 +1126,6 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n",
 			  core_cfg);
 		break;
-	}
-
-	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
-	       offsetof(struct nvm_cfg1, func[MCP_PF_ID(p_hwfn)]) +
-	       offsetof(struct nvm_cfg1_func, device_id);
-	val = qed_rd(p_hwfn, p_ptt, addr);
-
-	if (IS_MF(p_hwfn)) {
-		p_hwfn->hw_info.device_id =
-			(val & NVM_CFG1_FUNC_MF_VENDOR_DEVICE_ID_MASK) >>
-			NVM_CFG1_FUNC_MF_VENDOR_DEVICE_ID_OFFSET;
-	} else {
-		p_hwfn->hw_info.device_id =
-			(val & NVM_CFG1_FUNC_VENDOR_DEVICE_ID_MASK) >>
-			NVM_CFG1_FUNC_VENDOR_DEVICE_ID_OFFSET;
 	}
 
 	/* Read default link configuration */
@@ -1220,17 +1199,27 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 
 	switch (mf_mode) {
 	case NVM_CFG1_GLOB_MF_MODE_MF_ALLOWED:
-		p_hwfn->cdev->mf_mode = MF_OVLAN;
+		p_hwfn->cdev->mf_mode = QED_MF_OVLAN;
 		break;
 	case NVM_CFG1_GLOB_MF_MODE_NPAR1_0:
-		p_hwfn->cdev->mf_mode = MF_NPAR;
+		p_hwfn->cdev->mf_mode = QED_MF_NPAR;
 		break;
-	case NVM_CFG1_GLOB_MF_MODE_FORCED_SF:
-		p_hwfn->cdev->mf_mode = SF;
+	case NVM_CFG1_GLOB_MF_MODE_DEFAULT:
+		p_hwfn->cdev->mf_mode = QED_MF_DEFAULT;
 		break;
 	}
 	DP_INFO(p_hwfn, "Multi function mode is %08x\n",
 		p_hwfn->cdev->mf_mode);
+
+	/* Read Multi-function information from shmem */
+	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
+		offsetof(struct nvm_cfg1, glob) +
+		offsetof(struct nvm_cfg1_glob, device_capabilities);
+
+	device_capabilities = qed_rd(p_hwfn, p_ptt, addr);
+	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ETHERNET)
+		__set_bit(QED_DEV_CAP_ETH,
+			  &p_hwfn->hw_info.device_capabilities);
 
 	return qed_mcp_fill_shmem_func_info(p_hwfn, p_ptt);
 }
@@ -1293,29 +1282,36 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 
 static void qed_get_dev_info(struct qed_dev *cdev)
 {
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
 	u32 tmp;
 
-	cdev->chip_num = (u16)qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	/* Read Vendor Id / Device Id */
+	pci_read_config_word(cdev->pdev, PCI_VENDOR_ID,
+			     &cdev->vendor_id);
+	pci_read_config_word(cdev->pdev, PCI_DEVICE_ID,
+			     &cdev->device_id);
+	cdev->chip_num = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				     MISCS_REG_CHIP_NUM);
-	cdev->chip_rev = (u16)qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	cdev->chip_rev = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				     MISCS_REG_CHIP_REV);
 	MASK_FIELD(CHIP_REV, cdev->chip_rev);
 
+	cdev->type = QED_DEV_TYPE_BB;
 	/* Learn number of HW-functions */
-	tmp = qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	tmp = qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 		     MISCS_REG_CMT_ENABLED_FOR_PAIR);
 
-	if (tmp & (1 << cdev->hwfns[0].rel_pf_id)) {
+	if (tmp & (1 << p_hwfn->rel_pf_id)) {
 		DP_NOTICE(cdev->hwfns, "device in CMT mode\n");
 		cdev->num_hwfns = 2;
 	} else {
 		cdev->num_hwfns = 1;
 	}
 
-	cdev->chip_bond_id = qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	cdev->chip_bond_id = qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				    MISCS_REG_CHIP_TEST_REG) >> 4;
 	MASK_FIELD(CHIP_BOND_ID, cdev->chip_bond_id);
-	cdev->chip_metal = (u16)qed_rd(cdev->hwfns, cdev->hwfns[0].p_main_ptt,
+	cdev->chip_metal = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				       MISCS_REG_CHIP_METAL);
 	MASK_FIELD(CHIP_METAL, cdev->chip_metal);
 

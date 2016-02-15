@@ -581,7 +581,8 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn)
 	params.num_pf_cids = iids.cids;
 	params.start_pq = qm_info->start_pq;
 	params.num_pf_pqs = qm_info->num_pqs;
-	params.start_vport = qm_info->num_vports;
+	params.start_vport = qm_info->start_vport;
+	params.num_vports = qm_info->num_vports;
 	params.pf_wfq = qm_info->pf_wfq;
 	params.pf_rl = qm_info->pf_rl;
 	params.pq_params = qm_info->qm_pq_params;

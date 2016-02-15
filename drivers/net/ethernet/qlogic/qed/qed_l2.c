@@ -714,7 +714,6 @@ qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	p_ramrod->sb_id			= cpu_to_le16(p_params->sb);
 	p_ramrod->sb_index		= p_params->sb_idx;
 	p_ramrod->stats_counter_id	= stats_id;
-	p_ramrod->tc			= p_pq_params->eth.tc;
 
 	p_ramrod->pbl_size		= cpu_to_le16(pbl_size);
 	p_ramrod->pbl_base_addr.hi	= DMA_HI_LE(pbl_addr);
@@ -821,9 +820,8 @@ qed_filter_action(enum qed_filter_opcode opcode)
 	case QED_FILTER_REMOVE:
 		action = ETH_FILTER_ACTION_REMOVE;
 		break;
-	case QED_FILTER_REPLACE:
 	case QED_FILTER_FLUSH:
-		action = ETH_FILTER_ACTION_REPLACE;
+		action = ETH_FILTER_ACTION_REMOVE_ALL;
 		break;
 	default:
 		action = MAX_ETH_FILTER_ACTION;
@@ -892,8 +890,7 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 	p_ramrod->filter_cmd_hdr.tx = p_filter_cmd->is_tx_filter ? 1 : 0;
 
 	switch (p_filter_cmd->opcode) {
-	case QED_FILTER_FLUSH:
-		p_ramrod->filter_cmd_hdr.cmd_cnt = 0; break;
+	case QED_FILTER_REPLACE:
 	case QED_FILTER_MOVE:
 		p_ramrod->filter_cmd_hdr.cmd_cnt = 2; break;
 	default:
@@ -962,6 +959,12 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 
 		p_second_filter->action		= ETH_FILTER_ACTION_ADD;
 		p_second_filter->vport_id	= vport_to_add_to;
+	} else if (p_filter_cmd->opcode == QED_FILTER_REPLACE) {
+		p_first_filter->vport_id = vport_to_add_to;
+		memcpy(p_second_filter, p_first_filter,
+		       sizeof(*p_second_filter));
+		p_first_filter->action	= ETH_FILTER_ACTION_REMOVE_ALL;
+		p_second_filter->action = ETH_FILTER_ACTION_ADD;
 	} else {
 		action = qed_filter_action(p_filter_cmd->opcode);
 

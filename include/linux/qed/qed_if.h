@@ -80,7 +80,7 @@ struct qed_dev_info {
 	u8		num_hwfns;
 
 	u8		hw_mac[ETH_ALEN];
-	bool		is_mf;
+	bool		is_mf_default;
 
 	/* FW version */
 	u16		fw_major;
@@ -358,6 +358,12 @@ enum DP_MODULE {
 	QED_MSG_ROCE	= 0x4000000,
 	QED_MSG_DEBUG	= 0x8000000,
 	/* to be added...up to 0x8000000 */
+};
+
+enum qed_mf_mode {
+	QED_MF_DEFAULT,
+	QED_MF_OVLAN,
+	QED_MF_NPAR,
 };
 
 struct qed_eth_stats {

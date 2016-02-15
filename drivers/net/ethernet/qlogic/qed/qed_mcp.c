@@ -720,26 +720,25 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	if (p_hwfn->cdev->mf_mode != SF) {
-		info->bandwidth_min = (shmem_info.config &
-				       FUNC_MF_CFG_MIN_BW_MASK) >>
-				      FUNC_MF_CFG_MIN_BW_SHIFT;
-		if (info->bandwidth_min < 1 || info->bandwidth_min > 100) {
-			DP_INFO(p_hwfn,
-				"bandwidth minimum out of bounds [%02x]. Set to 1\n",
-				info->bandwidth_min);
-			info->bandwidth_min = 1;
-		}
 
-		info->bandwidth_max = (shmem_info.config &
-				       FUNC_MF_CFG_MAX_BW_MASK) >>
-				      FUNC_MF_CFG_MAX_BW_SHIFT;
-		if (info->bandwidth_max < 1 || info->bandwidth_max > 100) {
-			DP_INFO(p_hwfn,
-				"bandwidth maximum out of bounds [%02x]. Set to 100\n",
-				info->bandwidth_max);
-			info->bandwidth_max = 100;
-		}
+	info->bandwidth_min = (shmem_info.config &
+			       FUNC_MF_CFG_MIN_BW_MASK) >>
+			      FUNC_MF_CFG_MIN_BW_SHIFT;
+	if (info->bandwidth_min < 1 || info->bandwidth_min > 100) {
+		DP_INFO(p_hwfn,
+			"bandwidth minimum out of bounds [%02x]. Set to 1\n",
+			info->bandwidth_min);
+		info->bandwidth_min = 1;
+	}
+
+	info->bandwidth_max = (shmem_info.config &
+			       FUNC_MF_CFG_MAX_BW_MASK) >>
+			      FUNC_MF_CFG_MAX_BW_SHIFT;
+	if (info->bandwidth_max < 1 || info->bandwidth_max > 100) {
+		DP_INFO(p_hwfn,
+			"bandwidth maximum out of bounds [%02x]. Set to 100\n",
+			info->bandwidth_max);
+		info->bandwidth_max = 100;
 	}
 
 	if (shmem_info.mac_upper || shmem_info.mac_lower) {

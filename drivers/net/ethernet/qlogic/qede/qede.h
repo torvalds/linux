@@ -173,9 +173,9 @@ enum QEDE_STATE {
  * skb are built only after the frame was DMA-ed.
  */
 struct sw_rx_data {
-	u8 *data;
-
-	DEFINE_DMA_UNMAP_ADDR(mapping);
+	struct page *data;
+	dma_addr_t mapping;
+	unsigned int page_offset;
 };
 
 struct qede_rx_queue {
@@ -188,6 +188,7 @@ struct qede_rx_queue {
 	void __iomem		*hw_rxq_prod_addr;
 
 	int			rx_buf_size;
+	unsigned int		rx_buf_seg_size;
 
 	u16			num_rx_buffers;
 	u16			rxq_id;
@@ -281,6 +282,7 @@ void qede_fill_by_demand_stats(struct qede_dev *edev);
 #define NUM_TX_BDS_MIN		128
 #define NUM_TX_BDS_DEF		NUM_TX_BDS_MAX
 
+#define QEDE_RX_HDR_SIZE	256
 #define	for_each_rss(i) for (i = 0; i < edev->num_rss; i++)
 
 #endif /* _QEDE_H_ */

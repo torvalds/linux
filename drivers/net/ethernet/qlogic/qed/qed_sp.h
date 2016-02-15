@@ -343,7 +343,7 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
-		    enum mf_mode mode);
+		    enum qed_mf_mode mode);
 
 /**
  * @brief qed_sp_pf_stop - PF Function Stop Ramrod

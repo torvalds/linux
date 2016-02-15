@@ -330,15 +330,15 @@ static void qede_set_params_for_ipv6_ext(struct sk_buff *skb,
 					 struct eth_tx_3rd_bd *third_bd)
 {
 	u8 l4_proto;
-	u16 bd2_bits = 0, bd2_bits2 = 0;
+	u16 bd2_bits1 = 0, bd2_bits2 = 0;
 
-	bd2_bits2 |= (1 << ETH_TX_DATA_2ND_BD_IPV6_EXT_SHIFT);
+	bd2_bits1 |= (1 << ETH_TX_DATA_2ND_BD_IPV6_EXT_SHIFT);
 
-	bd2_bits |= ((((u8 *)skb_transport_header(skb) - skb->data) >> 1) &
+	bd2_bits2 |= ((((u8 *)skb_transport_header(skb) - skb->data) >> 1) &
 		     ETH_TX_DATA_2ND_BD_L4_HDR_START_OFFSET_W_MASK)
 		    << ETH_TX_DATA_2ND_BD_L4_HDR_START_OFFSET_W_SHIFT;
 
-	bd2_bits2 |= (ETH_L4_PSEUDO_CSUM_CORRECT_LENGTH <<
+	bd2_bits1 |= (ETH_L4_PSEUDO_CSUM_CORRECT_LENGTH <<
 		      ETH_TX_DATA_2ND_BD_L4_PSEUDO_CSUM_MODE_SHIFT);
 
 	if (vlan_get_protocol(skb) == htons(ETH_P_IPV6))
@@ -347,16 +347,15 @@ static void qede_set_params_for_ipv6_ext(struct sk_buff *skb,
 		l4_proto = ip_hdr(skb)->protocol;
 
 	if (l4_proto == IPPROTO_UDP)
-		bd2_bits2 |= 1 << ETH_TX_DATA_2ND_BD_L4_UDP_SHIFT;
+		bd2_bits1 |= 1 << ETH_TX_DATA_2ND_BD_L4_UDP_SHIFT;
 
-	if (third_bd) {
+	if (third_bd)
 		third_bd->data.bitfields |=
-			((tcp_hdrlen(skb) / 4) &
-			 ETH_TX_DATA_3RD_BD_TCP_HDR_LEN_DW_MASK) <<
-			ETH_TX_DATA_3RD_BD_TCP_HDR_LEN_DW_SHIFT;
-	}
+			cpu_to_le16(((tcp_hdrlen(skb) / 4) &
+				ETH_TX_DATA_3RD_BD_TCP_HDR_LEN_DW_MASK) <<
+				ETH_TX_DATA_3RD_BD_TCP_HDR_LEN_DW_SHIFT);
 
-	second_bd->data.bitfields = cpu_to_le16(bd2_bits);
+	second_bd->data.bitfields1 = cpu_to_le16(bd2_bits1);
 	second_bd->data.bitfields2 = cpu_to_le16(bd2_bits2);
 }
 
@@ -464,11 +463,15 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 
 	/* Fill the parsing flags & params according to the requested offload */
 	if (xmit_type & XMIT_L4_CSUM) {
+		u16 temp = 1 << ETH_TX_DATA_1ST_BD_TUNN_CFG_OVERRIDE_SHIFT;
+
 		/* We don't re-calculate IP checksum as it is already done by
 		 * the upper stack
 		 */
 		first_bd->data.bd_flags.bitfields |=
 			1 << ETH_TX_1ST_BD_FLAGS_L4_CSUM_SHIFT;
+
+		first_bd->data.bitfields |= cpu_to_le16(temp);
 
 		/* If the packet is IPv6 with extension header, indicate that
 		 * to FW and pass few params, since the device cracker doesn't
@@ -491,7 +494,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 
 		/* @@@TBD - if will not be removed need to check */
 		third_bd->data.bitfields |=
-			(1 << ETH_TX_DATA_3RD_BD_HDR_NBD_SHIFT);
+			cpu_to_le16((1 << ETH_TX_DATA_3RD_BD_HDR_NBD_SHIFT));
 
 		/* Make life easier for FW guys who can't deal with header and
 		 * data on same BD. If we need to split, use the second bd...
@@ -719,26 +722,52 @@ static bool qede_has_tx_work(struct qede_fastpath *fp)
 	return false;
 }
 
-/* This function copies the Rx buffer from the CONS position to the PROD
- * position, since we failed to allocate a new Rx buffer.
+/* This function reuses the buffer(from an offset) from
+ * consumer index to producer index in the bd ring
  */
-static void qede_reuse_rx_data(struct qede_rx_queue *rxq)
+static inline void qede_reuse_page(struct qede_dev *edev,
+				   struct qede_rx_queue *rxq,
+				   struct sw_rx_data *curr_cons)
 {
-	struct eth_rx_bd *rx_bd_cons = qed_chain_consume(&rxq->rx_bd_ring);
 	struct eth_rx_bd *rx_bd_prod = qed_chain_produce(&rxq->rx_bd_ring);
-	struct sw_rx_data *sw_rx_data_cons =
-		&rxq->sw_rx_ring[rxq->sw_rx_cons & NUM_RX_BDS_MAX];
-	struct sw_rx_data *sw_rx_data_prod =
-		&rxq->sw_rx_ring[rxq->sw_rx_prod & NUM_RX_BDS_MAX];
+	struct sw_rx_data *curr_prod;
+	dma_addr_t new_mapping;
 
-	dma_unmap_addr_set(sw_rx_data_prod, mapping,
-			   dma_unmap_addr(sw_rx_data_cons, mapping));
+	curr_prod = &rxq->sw_rx_ring[rxq->sw_rx_prod & NUM_RX_BDS_MAX];
+	*curr_prod = *curr_cons;
 
-	sw_rx_data_prod->data = sw_rx_data_cons->data;
-	memcpy(rx_bd_prod, rx_bd_cons, sizeof(struct eth_rx_bd));
+	new_mapping = curr_prod->mapping + curr_prod->page_offset;
 
-	rxq->sw_rx_cons++;
+	rx_bd_prod->addr.hi = cpu_to_le32(upper_32_bits(new_mapping));
+	rx_bd_prod->addr.lo = cpu_to_le32(lower_32_bits(new_mapping));
+
 	rxq->sw_rx_prod++;
+	curr_cons->data = NULL;
+}
+
+static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
+					 struct qede_rx_queue *rxq,
+					 struct sw_rx_data *curr_cons)
+{
+	/* Move to the next segment in the page */
+	curr_cons->page_offset += rxq->rx_buf_seg_size;
+
+	if (curr_cons->page_offset == PAGE_SIZE) {
+		if (unlikely(qede_alloc_rx_buffer(edev, rxq)))
+			return -ENOMEM;
+
+		dma_unmap_page(&edev->pdev->dev, curr_cons->mapping,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
+	} else {
+		/* Increment refcount of the page as we don't want
+		 * network stack to take the ownership of the page
+		 * which can be recycled multiple times by the driver.
+		 */
+		atomic_inc(&curr_cons->data->_count);
+		qede_reuse_page(edev, rxq, curr_cons);
+	}
+
+	return 0;
 }
 
 static inline void qede_update_rx_prod(struct qede_dev *edev,
@@ -857,9 +886,10 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 		struct sw_rx_data *sw_rx_data;
 		union eth_rx_cqe *cqe;
 		struct sk_buff *skb;
+		struct page *data;
+		__le16 flags;
 		u16 len, pad;
 		u32 rx_hash;
-		u8 *data;
 
 		/* Get the CQE from the completion ring */
 		cqe = (union eth_rx_cqe *)
@@ -879,56 +909,110 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 		data = sw_rx_data->data;
 
 		fp_cqe = &cqe->fast_path_regular;
-		len =  le16_to_cpu(fp_cqe->pkt_len);
+		len =  le16_to_cpu(fp_cqe->len_on_first_bd);
 		pad = fp_cqe->placement_offset;
+		flags = cqe->fast_path_regular.pars_flags.flags;
 
-		/* For every Rx BD consumed, we allocate a new BD so the BD ring
-		 * is always with a fixed size. If allocation fails, we take the
-		 * consumed BD and return it to the ring in the PROD position.
-		 * The packet that was received on that BD will be dropped (and
-		 * not passed to the upper stack).
-		 */
-		if (likely(qede_alloc_rx_buffer(edev, rxq) == 0)) {
-			dma_unmap_single(&edev->pdev->dev,
-					 dma_unmap_addr(sw_rx_data, mapping),
-					 rxq->rx_buf_size, DMA_FROM_DEVICE);
+		/* If this is an error packet then drop it */
+		parse_flag = le16_to_cpu(flags);
 
-			/* If this is an error packet then drop it */
-			parse_flag =
-			le16_to_cpu(cqe->fast_path_regular.pars_flags.flags);
-			csum_flag = qede_check_csum(parse_flag);
-			if (csum_flag == QEDE_CSUM_ERROR) {
-				DP_NOTICE(edev,
-					  "CQE in CONS = %u has error, flags = %x, dropping incoming packet\n",
-					  sw_comp_cons, parse_flag);
-				rxq->rx_hw_errors++;
-				kfree(data);
-				goto next_rx;
-			}
-
-			skb = build_skb(data, 0);
-
-			if (unlikely(!skb)) {
-				DP_NOTICE(edev,
-					  "Build_skb failed, dropping incoming packet\n");
-				kfree(data);
-				rxq->rx_alloc_errors++;
-				goto next_rx;
-			}
-
-			skb_reserve(skb, pad);
-
-		} else {
+		csum_flag = qede_check_csum(parse_flag);
+		if (unlikely(csum_flag == QEDE_CSUM_ERROR)) {
 			DP_NOTICE(edev,
-				  "New buffer allocation failed, dropping incoming packet and reusing its buffer\n");
-			qede_reuse_rx_data(rxq);
-			rxq->rx_alloc_errors++;
-			goto next_cqe;
+				  "CQE in CONS = %u has error, flags = %x, dropping incoming packet\n",
+				  sw_comp_cons, parse_flag);
+			rxq->rx_hw_errors++;
+			qede_reuse_page(edev, rxq, sw_rx_data);
+			goto next_rx;
 		}
 
-		sw_rx_data->data = NULL;
+		skb = netdev_alloc_skb(edev->ndev, QEDE_RX_HDR_SIZE);
+		if (unlikely(!skb)) {
+			DP_NOTICE(edev,
+				  "Build_skb failed, dropping incoming packet\n");
+			qede_reuse_page(edev, rxq, sw_rx_data);
+			rxq->rx_alloc_errors++;
+			goto next_rx;
+		}
 
-		skb_put(skb, len);
+		/* Copy data into SKB */
+		if (len + pad <= QEDE_RX_HDR_SIZE) {
+			memcpy(skb_put(skb, len),
+			       page_address(data) + pad +
+				sw_rx_data->page_offset, len);
+			qede_reuse_page(edev, rxq, sw_rx_data);
+		} else {
+			struct skb_frag_struct *frag;
+			unsigned int pull_len;
+			unsigned char *va;
+
+			frag = &skb_shinfo(skb)->frags[0];
+
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, data,
+					pad + sw_rx_data->page_offset,
+					len, rxq->rx_buf_seg_size);
+
+			va = skb_frag_address(frag);
+			pull_len = eth_get_headlen(va, QEDE_RX_HDR_SIZE);
+
+			/* Align the pull_len to optimize memcpy */
+			memcpy(skb->data, va, ALIGN(pull_len, sizeof(long)));
+
+			skb_frag_size_sub(frag, pull_len);
+			frag->page_offset += pull_len;
+			skb->data_len -= pull_len;
+			skb->tail += pull_len;
+
+			if (unlikely(qede_realloc_rx_buffer(edev, rxq,
+							    sw_rx_data))) {
+				DP_ERR(edev, "Failed to allocate rx buffer\n");
+				rxq->rx_alloc_errors++;
+				goto next_cqe;
+			}
+		}
+
+		if (fp_cqe->bd_num != 1) {
+			u16 pkt_len = le16_to_cpu(fp_cqe->pkt_len);
+			u8 num_frags;
+
+			pkt_len -= len;
+
+			for (num_frags = fp_cqe->bd_num - 1; num_frags > 0;
+			     num_frags--) {
+				u16 cur_size = pkt_len > rxq->rx_buf_size ?
+						rxq->rx_buf_size : pkt_len;
+
+				WARN_ONCE(!cur_size,
+					  "Still got %d BDs for mapping jumbo, but length became 0\n",
+					  num_frags);
+
+				if (unlikely(qede_alloc_rx_buffer(edev, rxq)))
+					goto next_cqe;
+
+				rxq->sw_rx_cons++;
+				sw_rx_index = rxq->sw_rx_cons & NUM_RX_BDS_MAX;
+				sw_rx_data = &rxq->sw_rx_ring[sw_rx_index];
+				qed_chain_consume(&rxq->rx_bd_ring);
+				dma_unmap_page(&edev->pdev->dev,
+					       sw_rx_data->mapping,
+					       PAGE_SIZE, DMA_FROM_DEVICE);
+
+				skb_fill_page_desc(skb,
+						   skb_shinfo(skb)->nr_frags++,
+						   sw_rx_data->data, 0,
+						   cur_size);
+
+				skb->truesize += PAGE_SIZE;
+				skb->data_len += cur_size;
+				skb->len += cur_size;
+				pkt_len -= cur_size;
+			}
+
+			if (pkt_len)
+				DP_ERR(edev,
+				       "Mapped all BDs of jumbo, but still have %d bytes\n",
+				       pkt_len);
+		}
 
 		skb->protocol = eth_type_trans(skb, edev->ndev);
 
@@ -1566,17 +1650,17 @@ static void qede_free_rx_buffers(struct qede_dev *edev,
 
 	for (i = rxq->sw_rx_cons; i != rxq->sw_rx_prod; i++) {
 		struct sw_rx_data *rx_buf;
-		u8 *data;
+		struct page *data;
 
 		rx_buf = &rxq->sw_rx_ring[i & NUM_RX_BDS_MAX];
 		data = rx_buf->data;
 
-		dma_unmap_single(&edev->pdev->dev,
-				 dma_unmap_addr(rx_buf, mapping),
-				 rxq->rx_buf_size, DMA_FROM_DEVICE);
+		dma_unmap_page(&edev->pdev->dev,
+			       rx_buf->mapping,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
 
 		rx_buf->data = NULL;
-		kfree(data);
+		__free_page(data);
 	}
 }
 
@@ -1600,29 +1684,32 @@ static int qede_alloc_rx_buffer(struct qede_dev *edev,
 	struct sw_rx_data *sw_rx_data;
 	struct eth_rx_bd *rx_bd;
 	dma_addr_t mapping;
+	struct page *data;
 	u16 rx_buf_size;
-	u8 *data;
 
 	rx_buf_size = rxq->rx_buf_size;
 
-	data = kmalloc(rx_buf_size, GFP_ATOMIC);
+	data = alloc_pages(GFP_ATOMIC, 0);
 	if (unlikely(!data)) {
-		DP_NOTICE(edev, "Failed to allocate Rx data\n");
+		DP_NOTICE(edev, "Failed to allocate Rx data [page]\n");
 		return -ENOMEM;
 	}
 
-	mapping = dma_map_single(&edev->pdev->dev, data,
-				 rx_buf_size, DMA_FROM_DEVICE);
+	/* Map the entire page as it would be used
+	 * for multiple RX buffer segment size mapping.
+	 */
+	mapping = dma_map_page(&edev->pdev->dev, data, 0,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&edev->pdev->dev, mapping))) {
-		kfree(data);
+		__free_page(data);
 		DP_NOTICE(edev, "Failed to map Rx buffer\n");
 		return -ENOMEM;
 	}
 
 	sw_rx_data = &rxq->sw_rx_ring[rxq->sw_rx_prod & NUM_RX_BDS_MAX];
+	sw_rx_data->page_offset = 0;
 	sw_rx_data->data = data;
-
-	dma_unmap_addr_set(sw_rx_data, mapping, mapping);
+	sw_rx_data->mapping = mapping;
 
 	/* Advance PROD and get BD pointer */
 	rx_bd = (struct eth_rx_bd *)qed_chain_produce(&rxq->rx_bd_ring);
@@ -1643,13 +1730,16 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev,
 
 	rxq->num_rx_buffers = edev->q_num_rx_buffers;
 
-	rxq->rx_buf_size = NET_IP_ALIGN +
-			   ETH_OVERHEAD +
-			   edev->ndev->mtu +
-			   QEDE_FW_RX_ALIGN_END;
+	rxq->rx_buf_size = NET_IP_ALIGN + ETH_OVERHEAD +
+			   edev->ndev->mtu;
+	if (rxq->rx_buf_size > PAGE_SIZE)
+		rxq->rx_buf_size = PAGE_SIZE;
+
+	/* Segment size to spilt a page in multiple equal parts */
+	rxq->rx_buf_seg_size = roundup_pow_of_two(rxq->rx_buf_size);
 
 	/* Allocate the parallel driver ring for Rx buffers */
-	size = sizeof(*rxq->sw_rx_ring) * NUM_RX_BDS_MAX;
+	size = sizeof(*rxq->sw_rx_ring) * RX_RING_SIZE;
 	rxq->sw_rx_ring = kzalloc(size, GFP_KERNEL);
 	if (!rxq->sw_rx_ring) {
 		DP_ERR(edev, "Rx buffers ring allocation failed\n");
@@ -1660,7 +1750,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev,
 	rc = edev->ops->common->chain_alloc(edev->cdev,
 					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
 					    QED_CHAIN_MODE_NEXT_PTR,
-					    NUM_RX_BDS_MAX,
+					    RX_RING_SIZE,
 					    sizeof(struct eth_rx_bd),
 					    &rxq->rx_bd_ring);
 
@@ -1671,7 +1761,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev,
 	rc = edev->ops->common->chain_alloc(edev->cdev,
 					    QED_CHAIN_USE_TO_CONSUME,
 					    QED_CHAIN_MODE_PBL,
-					    NUM_RX_BDS_MAX,
+					    RX_RING_SIZE,
 					    sizeof(union eth_rx_cqe),
 					    &rxq->rx_comp_ring);
 	if (rc)
