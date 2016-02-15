@@ -198,6 +198,7 @@ static const struct variable_validate variable_validate[] = {
 	{ EFI_GLOBAL_VARIABLE_GUID, "OsIndications", NULL },
 	{ EFI_GLOBAL_VARIABLE_GUID, "PlatformLang", validate_ascii_string },
 	{ EFI_GLOBAL_VARIABLE_GUID, "Timeout", validate_uint16 },
+	{ LINUX_EFI_CRASH_GUID, "*", NULL },
 	{ NULL_GUID, "", NULL },
 };
 
