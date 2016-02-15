@@ -73,7 +73,7 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 	 */
 	} else {
 		struct scatterlist *sg =
-				(struct scatterlist *) scsi_sglist(srb)
+				(struct scatterlist *)scsi_sglist(srb)
 				+ *index;
 
 		/*
