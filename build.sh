@@ -32,8 +32,8 @@ for arg in "$@"; do
 	elif [[ "$arg" == '--noreboot' || "$arg" == '-noreboot' ]]; then
 		REBOOT=0
         elif [[ "$arg" == '--medusa-only' || "$arg" == '-medusa-only' ]]; then
-		sudo find security/ -name '*.o' -delete
-		sudo find security/ -name '*.cmd' -delete
+		sudo find security/medusa/ -name '*.o' -delete
+		sudo find security/medusa/ -name '*.cmd' -delete
                 sudo make -j4
                 sudo cp arch/x86/boot/bzImage /boot/vmlinuz-`uname -r`
                 if [ "$DEST" != "NONE" ]; then
