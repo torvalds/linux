@@ -362,35 +362,57 @@ static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 /* Program BXT Mipi clocks and dividers */
 static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port)
 {
-	u32 tmp;
-	u32 divider;
-	u32 dsi_rate;
-	u32 pll_ratio;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 tmp;
+	u32 dsi_rate = 0;
+	u32 pll_ratio = 0;
+	u32 rx_div;
+	u32 tx_div;
+	u32 rx_div_upper;
+	u32 rx_div_lower;
+	u32 mipi_8by3_divider;
 
 	/* Clear old configurations */
 	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
 	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_ESCLK_VAR_DIV_MASK(port));
-	tmp &= ~(BXT_MIPI_DPHY_DIVIDER_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
 
 	/* Get the current DSI rate(actual) */
 	pll_ratio = I915_READ(BXT_DSI_PLL_CTL) &
 				BXT_DSI_PLL_RATIO_MASK;
 	dsi_rate = (BXT_REF_CLOCK_KHZ * pll_ratio) / 2;
 
-	/* Max possible output of clock is 39.5 MHz, program value -1 */
-	divider = (dsi_rate / BXT_MAX_VAR_OUTPUT_KHZ) - 1;
-	tmp |= BXT_MIPI_ESCLK_VAR_DIV(port, divider);
+	/*
+	 * tx clock should be <= 20MHz and the div value must be
+	 * subtracted by 1 as per bspec
+	 */
+	tx_div = DIV_ROUND_UP(dsi_rate, 20000) - 1;
+	/*
+	 * rx clock should be <= 150MHz and the div value must be
+	 * subtracted by 1 as per bspec
+	 */
+	rx_div = DIV_ROUND_UP(dsi_rate, 150000) - 1;
 
 	/*
-	 * Tx escape clock must be as close to 20MHz possible, but should
-	 * not exceed it. Hence select divide by 2
+	 * rx divider value needs to be updated in the
+	 * two differnt bit fields in the register hence splitting the
+	 * rx divider value accordingly
 	 */
-	tmp |= BXT_MIPI_TX_ESCLK_8XDIV_BY2(port);
+	rx_div_lower = rx_div & RX_DIVIDER_BIT_1_2;
+	rx_div_upper = (rx_div & RX_DIVIDER_BIT_3_4) >> 2;
 
-	tmp |= BXT_MIPI_RX_ESCLK_8X_BY3(port);
+	/* As per bpsec program the 8/3X clock divider to the below value */
+	if (dev_priv->vbt.dsi.config->is_cmd_mode)
+		mipi_8by3_divider = 0x2;
+	else
+		mipi_8by3_divider = 0x3;
+
+	tmp |= BXT_MIPI_8X_BY3_DIVIDER(port, mipi_8by3_divider);
+	tmp |= BXT_MIPI_TX_ESCLK_DIVIDER(port, tx_div);
+	tmp |= BXT_MIPI_RX_ESCLK_LOWER_DIVIDER(port, rx_div_lower);
+	tmp |= BXT_MIPI_RX_ESCLK_UPPER_DIVIDER(port, rx_div_upper);
 
 	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
 }
@@ -513,9 +535,9 @@ static void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 	/* Clear old configurations */
 	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
 	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_ESCLK_VAR_DIV_MASK(port));
-	tmp &= ~(BXT_MIPI_DPHY_DIVIDER_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
 	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
 	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
 }

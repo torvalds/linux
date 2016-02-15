@@ -7669,58 +7669,62 @@ enum skl_disp_power_wells {
 #define  BXT_MIPI_DIV_SHIFT(port)		\
 			_MIPI_PORT(port, BXT_MIPI1_DIV_SHIFT, \
 					BXT_MIPI2_DIV_SHIFT)
-/* Var clock divider to generate TX source. Result must be < 39.5 M */
-#define  BXT_MIPI1_ESCLK_VAR_DIV_MASK		(0x3F << 26)
-#define  BXT_MIPI2_ESCLK_VAR_DIV_MASK		(0x3F << 10)
-#define  BXT_MIPI_ESCLK_VAR_DIV_MASK(port)	\
-			_MIPI_PORT(port, BXT_MIPI1_ESCLK_VAR_DIV_MASK, \
-						BXT_MIPI2_ESCLK_VAR_DIV_MASK)
 
-#define  BXT_MIPI_ESCLK_VAR_DIV(port, val)	\
-			(val << BXT_MIPI_DIV_SHIFT(port))
 /* TX control divider to select actual TX clock output from (8x/var) */
-#define  BXT_MIPI1_TX_ESCLK_SHIFT		21
-#define  BXT_MIPI2_TX_ESCLK_SHIFT		5
+#define  BXT_MIPI1_TX_ESCLK_SHIFT		26
+#define  BXT_MIPI2_TX_ESCLK_SHIFT		10
 #define  BXT_MIPI_TX_ESCLK_SHIFT(port)		\
 			_MIPI_PORT(port, BXT_MIPI1_TX_ESCLK_SHIFT, \
 					BXT_MIPI2_TX_ESCLK_SHIFT)
-#define  BXT_MIPI1_TX_ESCLK_FIXDIV_MASK		(3 << 21)
-#define  BXT_MIPI2_TX_ESCLK_FIXDIV_MASK		(3 << 5)
+#define  BXT_MIPI1_TX_ESCLK_FIXDIV_MASK		(0x3F << 26)
+#define  BXT_MIPI2_TX_ESCLK_FIXDIV_MASK		(0x3F << 10)
 #define  BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port)	\
 			_MIPI_PORT(port, BXT_MIPI1_TX_ESCLK_FIXDIV_MASK, \
-						BXT_MIPI2_TX_ESCLK_FIXDIV_MASK)
-#define  BXT_MIPI_TX_ESCLK_8XDIV_BY2(port)	\
-		(0x0 << BXT_MIPI_TX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_TX_ESCLK_8XDIV_BY4(port)	\
-		(0x1 << BXT_MIPI_TX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_TX_ESCLK_8XDIV_BY8(port)	\
-		(0x2 << BXT_MIPI_TX_ESCLK_SHIFT(port))
-/* RX control divider to select actual RX clock output from 8x*/
-#define  BXT_MIPI1_RX_ESCLK_SHIFT		19
-#define  BXT_MIPI2_RX_ESCLK_SHIFT		3
-#define  BXT_MIPI_RX_ESCLK_SHIFT(port)		\
-			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_SHIFT, \
-					BXT_MIPI2_RX_ESCLK_SHIFT)
-#define  BXT_MIPI1_RX_ESCLK_FIXDIV_MASK		(3 << 19)
-#define  BXT_MIPI2_RX_ESCLK_FIXDIV_MASK		(3 << 3)
-#define  BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port)	\
-		(3 << BXT_MIPI_RX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_RX_ESCLK_8X_BY2(port)	\
-		(1 << BXT_MIPI_RX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_RX_ESCLK_8X_BY3(port)	\
-		(2 << BXT_MIPI_RX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_RX_ESCLK_8X_BY4(port)	\
-		(3 << BXT_MIPI_RX_ESCLK_SHIFT(port))
-/* BXT-A WA: Always prog DPHY dividers to 00 */
-#define  BXT_MIPI1_DPHY_DIV_SHIFT		16
-#define  BXT_MIPI2_DPHY_DIV_SHIFT		0
-#define  BXT_MIPI_DPHY_DIV_SHIFT(port)		\
-			_MIPI_PORT(port, BXT_MIPI1_DPHY_DIV_SHIFT, \
-					BXT_MIPI2_DPHY_DIV_SHIFT)
-#define  BXT_MIPI_1_DPHY_DIVIDER_MASK		(3 << 16)
-#define  BXT_MIPI_2_DPHY_DIVIDER_MASK		(3 << 0)
-#define  BXT_MIPI_DPHY_DIVIDER_MASK(port)	\
-		(3 << BXT_MIPI_DPHY_DIV_SHIFT(port))
+					BXT_MIPI2_TX_ESCLK_FIXDIV_MASK)
+#define  BXT_MIPI_TX_ESCLK_DIVIDER(port, val)	\
+		((val & 0x3F) << BXT_MIPI_TX_ESCLK_SHIFT(port))
+/* RX upper control divider to select actual RX clock output from 8x */
+#define  BXT_MIPI1_RX_ESCLK_UPPER_SHIFT		21
+#define  BXT_MIPI2_RX_ESCLK_UPPER_SHIFT		5
+#define  BXT_MIPI_RX_ESCLK_UPPER_SHIFT(port)		\
+			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_UPPER_SHIFT, \
+					BXT_MIPI2_RX_ESCLK_UPPER_SHIFT)
+#define  BXT_MIPI1_RX_ESCLK_UPPER_FIXDIV_MASK		(3 << 21)
+#define  BXT_MIPI2_RX_ESCLK_UPPER_FIXDIV_MASK		(3 << 5)
+#define  BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port)	\
+			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_UPPER_FIXDIV_MASK, \
+					BXT_MIPI2_RX_ESCLK_UPPER_FIXDIV_MASK)
+#define  BXT_MIPI_RX_ESCLK_UPPER_DIVIDER(port, val)	\
+		((val & 3) << BXT_MIPI_RX_ESCLK_UPPER_SHIFT(port))
+/* 8/3X divider to select the actual 8/3X clock output from 8x */
+#define  BXT_MIPI1_8X_BY3_SHIFT                19
+#define  BXT_MIPI2_8X_BY3_SHIFT                3
+#define  BXT_MIPI_8X_BY3_SHIFT(port)          \
+			_MIPI_PORT(port, BXT_MIPI1_8X_BY3_SHIFT, \
+					BXT_MIPI2_8X_BY3_SHIFT)
+#define  BXT_MIPI1_8X_BY3_DIVIDER_MASK         (3 << 19)
+#define  BXT_MIPI2_8X_BY3_DIVIDER_MASK         (3 << 3)
+#define  BXT_MIPI_8X_BY3_DIVIDER_MASK(port)    \
+			_MIPI_PORT(port, BXT_MIPI1_8X_BY3_DIVIDER_MASK, \
+						BXT_MIPI2_8X_BY3_DIVIDER_MASK)
+#define  BXT_MIPI_8X_BY3_DIVIDER(port, val)    \
+			((val & 3) << BXT_MIPI_8X_BY3_SHIFT(port))
+/* RX lower control divider to select actual RX clock output from 8x */
+#define  BXT_MIPI1_RX_ESCLK_LOWER_SHIFT		16
+#define  BXT_MIPI2_RX_ESCLK_LOWER_SHIFT		0
+#define  BXT_MIPI_RX_ESCLK_LOWER_SHIFT(port)		\
+			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_LOWER_SHIFT, \
+					BXT_MIPI2_RX_ESCLK_LOWER_SHIFT)
+#define  BXT_MIPI1_RX_ESCLK_LOWER_FIXDIV_MASK		(3 << 16)
+#define  BXT_MIPI2_RX_ESCLK_LOWER_FIXDIV_MASK		(3 << 0)
+#define  BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port)	\
+			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_LOWER_FIXDIV_MASK, \
+					BXT_MIPI2_RX_ESCLK_LOWER_FIXDIV_MASK)
+#define  BXT_MIPI_RX_ESCLK_LOWER_DIVIDER(port, val)	\
+		((val & 3) << BXT_MIPI_RX_ESCLK_LOWER_SHIFT(port))
+
+#define RX_DIVIDER_BIT_1_2                     0x3
+#define RX_DIVIDER_BIT_3_4                     0xC
 
 /* BXT MIPI mode configure */
 #define  _BXT_MIPIA_TRANS_HACTIVE			0x6B0F8
