@@ -7,7 +7,7 @@
 #
 
 config FSL_MC_BUS
-	tristate "Freescale Management Complex (MC) bus driver"
+	bool "Freescale Management Complex (MC) bus driver"
 	depends on OF && ARM64
 	select GENERIC_MSI_IRQ_DOMAIN
 	help
