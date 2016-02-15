@@ -24,7 +24,6 @@
 	.arm
 	.align  12
 ENTRY(shmobile_boot_vector)
-	ldr     r0, 2f
 	ldr     r1, 1f
 	bx	r1
 
@@ -34,9 +33,6 @@ ENDPROC(shmobile_boot_vector)
 	.globl	shmobile_boot_fn
 shmobile_boot_fn:
 1:	.space	4
-	.globl	shmobile_boot_arg
-shmobile_boot_arg:
-2:	.space	4
 	.globl	shmobile_boot_size
 shmobile_boot_size:
 	.long	. - shmobile_boot_vector
@@ -46,9 +42,9 @@ shmobile_boot_size:
  */
 
 ENTRY(shmobile_smp_boot)
-						@ r0 = MPIDR_HWID_BITMASK
 	mrc	p15, 0, r1, c0, c0, 5		@ r1 = MPIDR
-	and	r0, r1, r0			@ r0 = cpu_logical_map() value
+	and	r0, r1, #0xffffff		@ MPIDR_HWID_BITMASK
+						@ r0 = cpu_logical_map() value
 	mov	r1, #0				@ r1 = CPU index
 	adr	r2, 1f
 	ldmia	r2, {r5, r6, r7}
