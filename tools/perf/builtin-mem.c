@@ -6,6 +6,7 @@
 #include "util/tool.h"
 #include "util/session.h"
 #include "util/data.h"
+#include "util/mem-events.h"
 
 #define MEM_OPERATION_LOAD	0x1
 #define MEM_OPERATION_STORE	0x2
@@ -34,20 +35,20 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 
 	rec_argv[i++] = "record";
 
-	if (mem->operation & MEM_OPERATION_LOAD)
+	if (mem->operation & MEM_OPERATION_LOAD) {
+		perf_mem_events[PERF_MEM_EVENTS__LOAD].record = true;
 		rec_argv[i++] = "-W";
+	}
 
 	rec_argv[i++] = "-d";
 
-	if (mem->operation & MEM_OPERATION_LOAD) {
-		rec_argv[i++] = "-e";
-		rec_argv[i++] = "cpu/mem-loads/pp";
-	}
+	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+		if (!perf_mem_events[j].record)
+			continue;
 
-	if (mem->operation & MEM_OPERATION_STORE) {
 		rec_argv[i++] = "-e";
-		rec_argv[i++] = "cpu/mem-stores/pp";
-	}
+		rec_argv[i++] = perf_mem_events[j].name;
+	};
 
 	for (j = 1; j < argc; j++, i++)
 		rec_argv[i] = argv[j];
