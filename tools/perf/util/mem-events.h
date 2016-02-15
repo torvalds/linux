@@ -5,6 +5,7 @@
 
 struct perf_mem_event {
 	bool		record;
+	const char	*tag;
 	const char	*name;
 };
 
@@ -15,5 +16,7 @@ enum {
 };
 
 extern struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX];
+
+int perf_mem_events__parse(const char *str);
 
 #endif /* __PERF_MEM_EVENTS_H */
