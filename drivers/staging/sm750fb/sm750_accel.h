@@ -157,8 +157,9 @@
 #define DE_MONO_PATTERN_HIGH_PATTERN                    31:0
 
 #define DE_WINDOW_WIDTH                                 0x00003C
-#define DE_WINDOW_WIDTH_DESTINATION                     28:16
-#define DE_WINDOW_WIDTH_SOURCE                          12:0
+#define DE_WINDOW_WIDTH_DST_SHIFT                       16
+#define DE_WINDOW_WIDTH_DST_MASK                        (0x1fff << 16)
+#define DE_WINDOW_WIDTH_SRC_MASK                        0x1fff
 
 #define DE_WINDOW_SOURCE_BASE                           0x000040
 #define DE_WINDOW_SOURCE_BASE_EXT                       27:27

@@ -103,8 +103,9 @@ int hw_fillrect(struct lynx_accel *accel,
 		  (pitch / Bpp & DE_PITCH_SOURCE_MASK)); /* dpr10 */
 
 	write_dpr(accel, DE_WINDOW_WIDTH,
-			FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, pitch/Bpp)|
-			FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE, pitch/Bpp)); /* dpr44 */
+		  ((pitch / Bpp << DE_WINDOW_WIDTH_DST_SHIFT) &
+		   DE_WINDOW_WIDTH_DST_MASK) |
+		   (pitch / Bpp & DE_WINDOW_WIDTH_SRC_MASK)); /* dpr44 */
 
 	write_dpr(accel, DE_FOREGROUND, color); /* DPR14 */
 
@@ -235,8 +236,9 @@ unsigned int rop2)   /* ROP value */
        2D engine uses this value to calculate the linear address in frame buffer for a given point.
     */
 	write_dpr(accel, DE_WINDOW_WIDTH,
-	FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/Bpp)) |
-	FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (sPitch/Bpp))); /* dpr3c */
+		  ((dPitch / Bpp << DE_WINDOW_WIDTH_DST_SHIFT) &
+		   DE_WINDOW_WIDTH_DST_MASK) |
+		  (sPitch / Bpp & DE_WINDOW_WIDTH_SRC_MASK)); /* dpr3c */
 
 	if (accel->de_wait() != 0)
 		return -1;
@@ -327,8 +329,9 @@ int hw_imageblit(struct lynx_accel *accel,
 	 2D engine uses this value to calculate the linear address in frame buffer for a given point.
 	 */
 	write_dpr(accel, DE_WINDOW_WIDTH,
-		  FIELD_VALUE(0, DE_WINDOW_WIDTH, DESTINATION, (dPitch/bytePerPixel)) |
-		  FIELD_VALUE(0, DE_WINDOW_WIDTH, SOURCE,      (dPitch/bytePerPixel)));
+		  ((dPitch / bytePerPixel << DE_WINDOW_WIDTH_DST_SHIFT) &
+		   DE_WINDOW_WIDTH_DST_MASK) |
+		  (dPitch / bytePerPixel & DE_WINDOW_WIDTH_SRC_MASK));
 
 	 /* Note: For 2D Source in Host Write, only X_K1_MONO field is needed, and Y_K2 field is not used.
 	    For mono bitmap, use startBit for X_K1. */
