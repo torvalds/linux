@@ -690,7 +690,7 @@ void stm_unregister_device(struct stm_data *stm_data)
 		stp_policy_unbind(stm->policy);
 	mutex_unlock(&stm->policy_mutex);
 
-	for (i = 0; i < stm->sw_nmasters; i++)
+	for (i = stm->data->sw_start; i <= stm->data->sw_end; i++)
 		stp_master_free(stm, i);
 
 	device_unregister(&stm->dev);
