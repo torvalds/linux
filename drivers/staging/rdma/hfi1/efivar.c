@@ -127,13 +127,12 @@ static int read_efi_var(const char *name, unsigned long *size,
 	 * temporary buffer.  Now allocate a correctly sized
 	 * buffer.
 	 */
-	data = kmalloc(temp_size, GFP_KERNEL);
+	data = kmemdup(temp_buffer, temp_size, GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	memcpy(data, temp_buffer, temp_size);
 	*size = temp_size;
 	*return_data = data;
 
