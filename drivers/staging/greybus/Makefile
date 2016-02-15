@@ -47,7 +47,9 @@ obj-m += gb-light.o
 obj-m += gb-hid.o
 obj-m += gb-raw.o
 obj-m += gb-es2.o
-obj-m += gb-arche.o
+ifeq ($(CONFIG_USB_HSIC_USB3613),y)
+ obj-m += gb-arche.o
+endif
 ifeq ($(CONFIG_SND_SOC_DYNAMIC_DAILINK),y)
  obj-m += gb-audio-codec.o
 endif
