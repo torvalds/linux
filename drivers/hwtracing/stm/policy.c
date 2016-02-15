@@ -332,10 +332,11 @@ stp_policies_make(struct config_group *group, const char *name)
 
 	/*
 	 * node must look like <device_name>.<policy_name>, where
-	 * <device_name> is the name of an existing stm device and
-	 * <policy_name> is an arbitrary string
+	 * <device_name> is the name of an existing stm device; may
+	 *               contain dots;
+	 * <policy_name> is an arbitrary string; may not contain dots
 	 */
-	p = strchr(devname, '.');
+	p = strrchr(devname, '.');
 	if (!p) {
 		kfree(devname);
 		return ERR_PTR(-EINVAL);
