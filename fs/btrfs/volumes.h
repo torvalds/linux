@@ -340,7 +340,7 @@ struct btrfs_raid_attr {
 };
 
 extern const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES];
-
+extern const int btrfs_raid_mindev_error[BTRFS_NR_RAID_TYPES];
 extern const u64 btrfs_raid_group[BTRFS_NR_RAID_TYPES];
 
 struct map_lookup {
