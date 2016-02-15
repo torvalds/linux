@@ -18,6 +18,91 @@
 #include <asm/machvec.h>
 #include <asm/rtc.h>
 
+#ifdef CONFIG_SMP
+
+static void dummy_smp_setup(void)
+{
+}
+
+static void dummy_prepare_cpus(unsigned int max_cpus)
+{
+}
+
+static void dummy_start_cpu(unsigned int cpu, unsigned long entry_point)
+{
+}
+
+static unsigned int dummy_smp_processor_id(void)
+{
+	return 0;
+}
+
+static void dummy_send_ipi(unsigned int cpu, unsigned int message)
+{
+}
+
+static struct plat_smp_ops dummy_smp_ops = {
+	.smp_setup		= dummy_smp_setup,
+	.prepare_cpus		= dummy_prepare_cpus,
+	.start_cpu		= dummy_start_cpu,
+	.smp_processor_id	= dummy_smp_processor_id,
+	.send_ipi		= dummy_send_ipi,
+	.cpu_die		= native_cpu_die,
+	.cpu_disable		= native_cpu_disable,
+	.play_dead		= native_play_dead,
+};
+
+extern const struct of_cpu_method __cpu_method_of_table[];
+const struct of_cpu_method __cpu_method_of_table_sentinel
+	__section(__cpu_method_of_table_end);
+
+static void sh_of_smp_probe(void)
+{
+	struct device_node *np = 0;
+	const char *method = 0;
+	const struct of_cpu_method *m = __cpu_method_of_table;
+
+	pr_info("SH generic board support: scanning for cpus\n");
+
+	init_cpu_possible(cpumask_of(0));
+
+	while ((np = of_find_node_by_type(np, "cpu"))) {
+		const __be32 *cell = of_get_property(np, "reg", NULL);
+		u64 id = -1;
+		if (cell) id = of_read_number(cell, of_n_addr_cells(np));
+		if (id < NR_CPUS) {
+			if (!method)
+				of_property_read_string(np, "enable-method", &method);
+			set_cpu_possible(id, true);
+			set_cpu_present(id, true);
+			__cpu_number_map[id] = id;
+			__cpu_logical_map[id] = id;
+		}
+	}
+	if (!method) {
+		np = of_find_node_by_name(NULL, "cpus");
+		of_property_read_string(np, "enable-method", &method);
+	}
+
+	pr_info("CPU enable method: %s\n", method);
+	if (method)
+		for (; m->method; m++)
+			if (!strcmp(m->method, method)) {
+				register_smp_ops(m->ops);
+				return;
+			}
+
+	register_smp_ops(&dummy_smp_ops);
+}
+
+#else
+
+static void sh_of_smp_probe(void)
+{
+}
+
+#endif
+
 static void noop(void)
 {
 }
@@ -49,9 +134,7 @@ static void __init sh_of_setup(char **cmdline_p)
 	if (!sh_mv.mv_name)
 		sh_mv.mv_name = "Unknown SH model";
 
-	/* FIXME: register smp ops to use dt to find cpus, use
-	 * cpu enable-method, and use irq controller's ipi
-	 * functions. */
+	sh_of_smp_probe();
 }
 
 static int sh_of_irq_demux(int irq)
