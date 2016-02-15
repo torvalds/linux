@@ -2021,6 +2021,7 @@ static void hci_power_on(struct work_struct *work)
 	if (test_bit(HCI_UP, &hdev->flags) &&
 	    hci_dev_test_flag(hdev, HCI_MGMT) &&
 	    hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
+		cancel_delayed_work(&hdev->power_off);
 		hci_req_sync_lock(hdev);
 		err = __hci_req_hci_power_on(hdev);
 		hci_req_sync_unlock(hdev);
