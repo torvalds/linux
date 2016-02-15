@@ -104,21 +104,17 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
-	int i;
+	int i, ret;
 
 	if (!drm_fbdev_emulation)
 		return 0;
 
 	mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
-		struct drm_fb_helper_connector *fb_helper_connector;
+		ret = drm_fb_helper_add_one_connector(fb_helper, connector);
 
-		fb_helper_connector = kzalloc(sizeof(struct drm_fb_helper_connector), GFP_KERNEL);
-		if (!fb_helper_connector)
+		if (ret)
 			goto fail;
-
-		fb_helper_connector->connector = connector;
-		fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
@@ -130,7 +126,7 @@ fail:
 	fb_helper->connector_count = 0;
 	mutex_unlock(&dev->mode_config.mutex);
 
-	return -ENOMEM;
+	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_single_add_all_connectors);
 
