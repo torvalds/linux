@@ -341,7 +341,6 @@ struct gsc_dev {
 	wait_queue_head_t		irq_queue;
 	struct gsc_m2m_device		m2m;
 	unsigned long			state;
-	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		vdev;
 	struct v4l2_device		v4l2_dev;
 };

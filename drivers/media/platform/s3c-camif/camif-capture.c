@@ -440,7 +440,6 @@ static int queue_setup(struct vb2_queue *vq,
 		       unsigned int sizes[], void *allocators[])
 {
 	struct camif_vp *vp = vb2_get_drv_priv(vq);
-	struct camif_dev *camif = vp->camif;
 	struct camif_frame *frame = &vp->out_frame;
 	const struct camif_fmt *fmt = vp->out_fmt;
 	unsigned int size;
@@ -449,7 +448,6 @@ static int queue_setup(struct vb2_queue *vq,
 		return -EINVAL;
 
 	size = (frame->f_width * frame->f_height * fmt->depth) / 8;
-	allocators[0] = camif->alloc_ctx;
 
 	if (*num_planes)
 		return sizes[0] < size ? -EINVAL : 0;
@@ -1138,6 +1136,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	q->drv_priv = vp;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &vp->camif->lock;
+	q->dev = camif->v4l2_dev.dev;
 
 	ret = vb2_queue_init(q);
 	if (ret)
