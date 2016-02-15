@@ -80,11 +80,7 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 	struct gbaudio_dai *gb_dai;
 	struct gbaudio_codec_info *gb = dev_get_drvdata(dai->dev);
 
-	if (!atomic_read(&gb->is_connected))
-		return;
-
 	/* find the dai */
-	mutex_lock(&gb->lock);
 	gb_dai = gbaudio_find_dai(gb, -1, dai->name);
 	if (!gb_dai) {
 		dev_err(dai->dev, "%s: DAI not registered\n", dai->name);
@@ -93,6 +89,13 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 
 	atomic_dec(&gb_dai->users);
 
+	if (!atomic_read(&gb->is_connected)) {
+		if (!atomic_read(&gb_dai->users))
+			wake_up_interruptible(&gb_dai->wait_queue);
+		return;
+	}
+
+	mutex_lock(&gb->lock);
 	/* deactivate rx/tx */
 	cportid = gb_dai->connection->intf_cport_id;
 
@@ -120,6 +123,11 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 		gb_dai->connection->hd_cport_id, ret);
 func_exit:
 	mutex_unlock(&gb->lock);
+
+	/*
+	if (!atomic_read(&gb_dai->users))
+		wake_up_interruptible(&gb_dai->wait_queue);
+		*/
 
 	return;
 }
@@ -290,8 +298,11 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct gbaudio_dai *gb_dai;
 	struct gbaudio_codec_info *gb = dev_get_drvdata(dai->dev);
 
-	if (!atomic_read(&gb->is_connected))
+	if (!atomic_read(&gb->is_connected)) {
+		if (cmd == SNDRV_PCM_TRIGGER_STOP)
+			return 0;
 		return -ENODEV;
+	}
 
 	/* find the dai */
 	mutex_lock(&gb->lock);
@@ -443,9 +454,10 @@ static unsigned int gbcodec_read(struct snd_soc_codec *codec,
  */
 static void gb_audio_cleanup(struct gbaudio_codec_info *gb)
 {
-	int cportid, ret;
+	int cportid, ret, timeout_result;
 	struct gbaudio_dai *gb_dai;
 	struct gb_connection *connection;
+	long timeout = msecs_to_jiffies(50);	/* 50ms */
 	struct device *dev = gb->dev;
 
 	list_for_each_entry(gb_dai, &gb->dai_list, list) {
@@ -454,6 +466,16 @@ static void gb_audio_cleanup(struct gbaudio_codec_info *gb)
 		 * manually
 		 */
 		if (atomic_read(&gb_dai->users)) {
+			/* schedule a wait event */
+			timeout_result =
+				wait_event_interruptible_timeout(
+						gb_dai->wait_queue,
+						!atomic_read(&gb_dai->users),
+						timeout);
+			if (!timeout_result)
+				dev_warn(dev, "%s:DAI still in use.\n",
+					 gb_dai->name);
+
 			connection = gb_dai->connection;
 			/* PB active */
 			ret = gb_audio_apbridgea_stop_tx(connection, 0);
@@ -473,7 +495,6 @@ static void gb_audio_cleanup(struct gbaudio_codec_info *gb)
 			if (ret)
 				dev_info(dev, "%d:Failed during unregister cport\n",
 					 ret);
-			atomic_dec(&gb_dai->users);
 		}
 	}
 }
@@ -655,6 +676,7 @@ static int gb_audio_add_data_connection(struct gbaudio_codec_info *gbcodec,
 
 	connection->private = gbcodec;
 	atomic_set(&dai->users, 0);
+	init_waitqueue_head(&dai->wait_queue);
 	dai->data_cport = connection->intf_cport_id;
 	dai->connection = connection;
 	list_add(&dai->list, &gbcodec->dai_list);

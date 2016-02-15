@@ -88,6 +88,7 @@ struct gbaudio_dai {
 	atomic_t users;
 	struct gb_connection *connection;
 	struct list_head list;
+	wait_queue_head_t wait_queue;
 };
 
 struct gbaudio_codec_info {
