@@ -172,7 +172,6 @@ struct analogix_dp_device {
 
 	struct video_info	video_info;
 	struct link_train	link_train;
-	struct work_struct	hotplug_work;
 	struct phy		*phy;
 	int			dpms_mode;
 	int			hpd_gpio;
@@ -191,6 +190,8 @@ void analogix_dp_init_interrupt(struct analogix_dp_device *dp);
 void analogix_dp_reset(struct analogix_dp_device *dp);
 void analogix_dp_swreset(struct analogix_dp_device *dp);
 void analogix_dp_config_interrupt(struct analogix_dp_device *dp);
+void analogix_dp_mute_hpd_interrupt(struct analogix_dp_device *dp);
+void analogix_dp_unmute_hpd_interrupt(struct analogix_dp_device *dp);
 enum pll_status analogix_dp_get_pll_lock_status(struct analogix_dp_device *dp);
 void analogix_dp_set_pll_power_down(struct analogix_dp_device *dp, bool enable);
 void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,

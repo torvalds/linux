@@ -185,6 +185,32 @@ void analogix_dp_config_interrupt(struct analogix_dp_device *dp)
 	writel(reg, dp->reg_base + ANALOGIX_DP_INT_STA_MASK);
 }
 
+void analogix_dp_mute_hpd_interrupt(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	/* 0: mask, 1: unmask */
+	reg = readl(dp->reg_base + ANALOGIX_DP_COMMON_INT_MASK_4);
+	reg &= ~COMMON_INT_MASK_4;
+	writel(reg, dp->reg_base + ANALOGIX_DP_COMMON_INT_MASK_4);
+
+	reg = readl(dp->reg_base + ANALOGIX_DP_INT_STA_MASK);
+	reg &= ~INT_STA_MASK;
+	writel(reg, dp->reg_base + ANALOGIX_DP_INT_STA_MASK);
+}
+
+void analogix_dp_unmute_hpd_interrupt(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	/* 0: mask, 1: unmask */
+	reg = COMMON_INT_MASK_4;
+	writel(reg, dp->reg_base + ANALOGIX_DP_COMMON_INT_MASK_4);
+
+	reg = INT_STA_MASK;
+	writel(reg, dp->reg_base + ANALOGIX_DP_INT_STA_MASK);
+}
+
 enum pll_status analogix_dp_get_pll_lock_status(struct analogix_dp_device *dp)
 {
 	u32 reg;
