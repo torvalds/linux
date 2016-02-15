@@ -1290,7 +1290,7 @@ static int sa1111_match(struct device *_dev, struct device_driver *_drv)
 	struct sa1111_dev *dev = SA1111_DEV(_dev);
 	struct sa1111_driver *drv = SA1111_DRV(_drv);
 
-	return dev->devid & drv->devid;
+	return !!(dev->devid & drv->devid);
 }
 
 static int sa1111_bus_suspend(struct device *dev, pm_message_t state)
