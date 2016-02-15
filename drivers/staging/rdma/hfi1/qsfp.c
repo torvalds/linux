@@ -468,7 +468,7 @@ int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,
 
 	if (port_num > dd->num_pports || port_num < 1) {
 		dd_dev_info(dd, "%s: Invalid port number %d\n",
-				__func__, port_num);
+			    __func__, port_num);
 		ret = -EINVAL;
 		goto set_zeroes;
 	}

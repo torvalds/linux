@@ -1715,8 +1715,9 @@ void restore_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);
 int get_platform_config_field(struct hfi1_devdata *dd,
-			enum platform_config_table_type_encoding table_type,
-			int table_index, int field_index, u32 *data, u32 len);
+			      enum platform_config_table_type_encoding
+			      table_type, int table_index, int field_index,
+			      u32 *data, u32 len);
 
 const char *get_unit_name(int unit);
 const char *get_card_name(struct rvt_dev_info *rdi);

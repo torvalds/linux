@@ -115,11 +115,9 @@ static DEFINE_MUTEX(eprom_mutex);
 static void write_enable(struct hfi1_devdata *dd)
 {
 	/* raise signal */
-	write_csr(dd, ASIC_GPIO_OUT,
-		read_csr(dd, ASIC_GPIO_OUT) | EPROM_WP_N);
+	write_csr(dd, ASIC_GPIO_OUT, read_csr(dd, ASIC_GPIO_OUT) | EPROM_WP_N);
 	/* raise enable */
-	write_csr(dd, ASIC_GPIO_OE,
-		read_csr(dd, ASIC_GPIO_OE) | EPROM_WP_N);
+	write_csr(dd, ASIC_GPIO_OE, read_csr(dd, ASIC_GPIO_OE) | EPROM_WP_N);
 }
 
 /*
@@ -128,11 +126,9 @@ static void write_enable(struct hfi1_devdata *dd)
 static void write_disable(struct hfi1_devdata *dd)
 {
 	/* lower signal */
-	write_csr(dd, ASIC_GPIO_OUT,
-		read_csr(dd, ASIC_GPIO_OUT) & ~EPROM_WP_N);
+	write_csr(dd, ASIC_GPIO_OUT, read_csr(dd, ASIC_GPIO_OUT) & ~EPROM_WP_N);
 	/* lower enable */
-	write_csr(dd, ASIC_GPIO_OE,
-		read_csr(dd, ASIC_GPIO_OE) & ~EPROM_WP_N);
+	write_csr(dd, ASIC_GPIO_OE, read_csr(dd, ASIC_GPIO_OE) & ~EPROM_WP_N);
 }
 
 /*
@@ -210,8 +206,8 @@ static int erase_range(struct hfi1_devdata *dd, u32 start, u32 len)
 	/* check the end points for the minimum erase */
 	if ((start & MASK_4KB) || (end & MASK_4KB)) {
 		dd_dev_err(dd,
-			"%s: non-aligned range (0x%x,0x%x) for a 4KB erase\n",
-			__func__, start, end);
+			   "%s: non-aligned range (0x%x,0x%x) for a 4KB erase\n",
+			   __func__, start, end);
 		return -EINVAL;
 	}
 
@@ -275,7 +271,7 @@ static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, u64 addr)
 	for (offset = 0; offset < len; offset += EP_PAGE_SIZE) {
 		read_page(dd, start + offset, buffer);
 		if (copy_to_user((void __user *)(addr + offset),
-						buffer, EP_PAGE_SIZE)) {
+				 buffer, EP_PAGE_SIZE)) {
 			ret = -EFAULT;
 			goto done;
 		}
@@ -319,7 +315,7 @@ static int write_length(struct hfi1_devdata *dd, u32 start, u32 len, u64 addr)
 
 	for (offset = 0; offset < len; offset += EP_PAGE_SIZE) {
 		if (copy_from_user(buffer, (void __user *)(addr + offset),
-						EP_PAGE_SIZE)) {
+				   EP_PAGE_SIZE)) {
 			ret = -EFAULT;
 			goto done;
 		}
@@ -385,13 +381,13 @@ int handle_eprom_command(struct file *fp, const struct hfi1_cmd *cmd)
 	ret = acquire_hw_mutex(dd);
 	if (ret) {
 		dd_dev_err(dd,
-			"%s: unable to acquire hw mutex, no EPROM support\n",
-			__func__);
+			   "%s: unable to acquire hw mutex, no EPROM support\n",
+			   __func__);
 		goto done_asic;
 	}
 
 	dd_dev_info(dd, "%s: cmd: type %d, len 0x%x, addr 0x%016llx\n",
-		__func__, cmd->type, cmd->len, cmd->addr);
+		    __func__, cmd->type, cmd->len, cmd->addr);
 
 	switch (cmd->type) {
 	case HFI1_CMD_EP_INFO:
@@ -402,7 +398,7 @@ int handle_eprom_command(struct file *fp, const struct hfi1_cmd *cmd)
 		dev_id = read_device_id(dd);
 		/* addr points to a u32 user buffer */
 		if (copy_to_user((void __user *)cmd->addr, &dev_id,
-								sizeof(u32)))
+				 sizeof(u32)))
 			ret = -EFAULT;
 		break;
 
@@ -430,7 +426,7 @@ int handle_eprom_command(struct file *fp, const struct hfi1_cmd *cmd)
 
 	default:
 		dd_dev_err(dd, "%s: unexpected command %d\n",
-			__func__, cmd->type);
+			   __func__, cmd->type);
 		ret = -EINVAL;
 		break;
 	}
@@ -464,19 +460,18 @@ int eprom_init(struct hfi1_devdata *dd)
 	ret = acquire_hw_mutex(dd);
 	if (ret) {
 		dd_dev_err(dd,
-			"%s: unable to acquire hw mutex, no EPROM support\n",
-			__func__);
+			   "%s: unable to acquire hw mutex, no EPROM support\n",
+			   __func__);
 		goto done_asic;
 	}
 
 	/* reset EPROM to be sure it is in a good state */
 
 	/* set reset */
-	write_csr(dd, ASIC_EEP_CTL_STAT,
-					ASIC_EEP_CTL_STAT_EP_RESET_SMASK);
+	write_csr(dd, ASIC_EEP_CTL_STAT, ASIC_EEP_CTL_STAT_EP_RESET_SMASK);
 	/* clear reset, set speed */
 	write_csr(dd, ASIC_EEP_CTL_STAT,
-			EP_SPEED_FULL << ASIC_EEP_CTL_STAT_RATE_SPI_SHIFT);
+		  EP_SPEED_FULL << ASIC_EEP_CTL_STAT_RATE_SPI_SHIFT);
 
 	/* wake the device with command "release powerdown NoID" */
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_RELEASE_POWERDOWN_NOID);

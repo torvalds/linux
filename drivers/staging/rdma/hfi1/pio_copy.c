@@ -200,7 +200,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
  * o nbytes must not span a QW boundary
  */
 static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
-							unsigned int nbytes)
+				  unsigned int nbytes)
 {
 	unsigned long off;
 
@@ -227,7 +227,7 @@ static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
  * o nbytes may span a QW boundary
  */
 static inline void read_extra_bytes(struct pio_buf *pbuf,
-					const void *from, unsigned int nbytes)
+				    const void *from, unsigned int nbytes)
 {
 	unsigned long off = (unsigned long)from & 0x7;
 	unsigned int room, xbytes;
@@ -366,7 +366,7 @@ static inline void jcopy(u8 *dest, const u8 *src, u32 n)
  * o from may _not_ be u64 aligned.
  */
 static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
-							unsigned int nbytes)
+				  unsigned int nbytes)
 {
 	jcopy(&pbuf->carry.val8[0], from, nbytes);
 	pbuf->carry_bytes = nbytes;
@@ -381,7 +381,7 @@ static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
  * o nbytes may span a QW boundary
  */
 static inline void read_extra_bytes(struct pio_buf *pbuf,
-					const void *from, unsigned int nbytes)
+				    const void *from, unsigned int nbytes)
 {
 	jcopy(&pbuf->carry.val8[pbuf->carry_bytes], from, nbytes);
 	pbuf->carry_bytes += nbytes;
@@ -437,7 +437,7 @@ static inline int carry_write8(struct pio_buf *pbuf, void *dest)
 		u64 zero = 0;
 
 		jcopy(&pbuf->carry.val8[pbuf->carry_bytes], (u8 *)&zero,
-						8 - pbuf->carry_bytes);
+		      8 - pbuf->carry_bytes);
 		writeq(pbuf->carry.val64, dest);
 		return 1;
 	}
@@ -457,7 +457,7 @@ static inline int carry_write8(struct pio_buf *pbuf, void *dest)
  * @nbytes: bytes to copy
  */
 void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
-				const void *from, size_t nbytes)
+			const void *from, size_t nbytes)
 {
 	void __iomem *dest = pbuf->start + SOP_DISTANCE;
 	void __iomem *send = dest + PIO_BLOCK_SIZE;
@@ -647,7 +647,7 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
  * Must handle nbytes < 8.
  */
 static void mid_copy_straight(struct pio_buf *pbuf,
-						const void *from, size_t nbytes)
+			      const void *from, size_t nbytes)
 {
 	void __iomem *dest = pbuf->start + (pbuf->qw_written * sizeof(u64));
 	void __iomem *dend;			/* 8-byte data end */

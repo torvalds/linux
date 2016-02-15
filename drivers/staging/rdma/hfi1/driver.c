@@ -438,7 +438,7 @@ drop:
 }
 
 static inline void init_packet(struct hfi1_ctxtdata *rcd,
-			      struct hfi1_packet *packet)
+			       struct hfi1_packet *packet)
 {
 	packet->rsize = rcd->rcvhdrqentsize; /* words */
 	packet->maxcnt = rcd->rcvhdrq_cnt * packet->rsize; /* words */
@@ -700,8 +700,9 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 		 * The +2 is the size of the RHF.
 		 */
 		prefetch_range(packet->ebuf,
-			packet->tlen - ((packet->rcd->rcvhdrqentsize -
-				  (rhf_hdrq_offset(packet->rhf) + 2)) * 4));
+			       packet->tlen - ((packet->rcd->rcvhdrqentsize -
+					       (rhf_hdrq_offset(packet->rhf)
+						+ 2)) * 4));
 	}
 
 	/*
@@ -958,9 +959,9 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 	prescan_rxq(rcd, &packet);
 
 	while (last == RCV_PKT_OK) {
-
-		if (unlikely(dd->do_drop && atomic_xchg(&dd->drop_packet,
-			DROP_PACKET_OFF) == DROP_PACKET_ON)) {
+		if (unlikely(dd->do_drop &&
+			     atomic_xchg(&dd->drop_packet, DROP_PACKET_OFF) ==
+			     DROP_PACKET_ON)) {
 			dd->do_drop = 0;
 
 			/* On to the next packet */
@@ -990,8 +991,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			if (seq != rcd->seq_cnt)
 				last = RCV_PKT_DONE;
 			if (needset) {
-				dd_dev_info(dd,
-					"Switching to NO_DMA_RTAIL\n");
+				dd_dev_info(dd, "Switching to NO_DMA_RTAIL\n");
 				set_all_nodma_rtail(dd);
 				needset = 0;
 			}
@@ -1234,7 +1234,7 @@ void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
 	if (atomic_inc_return(&ppd->led_override_timer_active) == 1) {
 		/* Need to start timer */
 		setup_timer(&ppd->led_override_timer, run_led_override,
-				(unsigned long)ppd);
+			    (unsigned long)ppd);
 
 		ppd->led_override_timer.expires = jiffies + 1;
 		add_timer(&ppd->led_override_timer);
@@ -1271,8 +1271,8 @@ int hfi1_reset_device(int unit)
 
 	if (!dd->kregbase || !(dd->flags & HFI1_PRESENT)) {
 		dd_dev_info(dd,
-			"Invalid unit number %u or not initialized or not present\n",
-			unit);
+			    "Invalid unit number %u or not initialized or not present\n",
+			    unit);
 		ret = -ENXIO;
 		goto bail;
 	}
@@ -1302,11 +1302,11 @@ int hfi1_reset_device(int unit)
 
 	if (ret)
 		dd_dev_err(dd,
-			"Reinitialize unit %u after reset failed with %d\n",
-			unit, ret);
+			   "Reinitialize unit %u after reset failed with %d\n",
+			   unit, ret);
 	else
 		dd_dev_info(dd, "Reinitialized unit %u after resetting\n",
-			unit);
+			    unit);
 
 bail:
 	return ret;
@@ -1363,7 +1363,7 @@ int process_receive_bypass(struct hfi1_packet *packet)
 		handle_eflags(packet);
 
 	dd_dev_err(packet->rcd->dd,
-	   "Bypass packets are not supported in normal operation. Dropping\n");
+		   "Bypass packets are not supported in normal operation. Dropping\n");
 	return RHF_RCV_CONTINUE;
 }
 
@@ -1401,6 +1401,6 @@ int kdeth_process_eager(struct hfi1_packet *packet)
 int process_receive_invalid(struct hfi1_packet *packet)
 {
 	dd_dev_err(packet->rcd->dd, "Invalid packet type %d. Dropping\n",
-		rhf_rcv_type(packet->rhf));
+		   rhf_rcv_type(packet->rhf));
 	return RHF_RCV_CONTINUE;
 }

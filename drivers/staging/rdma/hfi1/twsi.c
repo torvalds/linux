@@ -131,7 +131,7 @@ static void scl_out(struct hfi1_devdata *dd, u32 target, u8 bit)
 		}
 		if (rise_usec <= 0)
 			dd_dev_err(dd, "SCL interface stuck low > %d uSec\n",
-				    SCL_WAIT_USEC);
+				   SCL_WAIT_USEC);
 	}
 	i2c_wait_for_writes(dd, target);
 }

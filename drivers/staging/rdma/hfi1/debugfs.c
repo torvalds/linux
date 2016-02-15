@@ -150,8 +150,8 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	if (!n_packets && !n_bytes)
 		return SEQ_SKIP;
 	seq_printf(s, "%02llx %llu/%llu\n", i,
-		(unsigned long long)n_packets,
-		(unsigned long long)n_bytes);
+		   (unsigned long long)n_packets,
+		   (unsigned long long)n_bytes);
 
 	return 0;
 }
@@ -246,7 +246,7 @@ __acquires(RCU)
 }
 
 static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
-				   loff_t *pos)
+				loff_t *pos)
 {
 	struct qp_iter *iter = iter_ptr;
 
@@ -392,7 +392,7 @@ static ssize_t portnames_read(struct file *file, char __user *buf,
 
 /* read the per-port counters */
 static ssize_t portcntrs_debugfs_read(struct file *file, char __user *buf,
-				size_t count, loff_t *ppos)
+				      size_t count, loff_t *ppos)
 {
 	u64 *counters;
 	size_t avail;
@@ -413,7 +413,7 @@ static ssize_t portcntrs_debugfs_read(struct file *file, char __user *buf,
  * read the per-port QSFP data for ppd
  */
 static ssize_t qsfp_debugfs_dump(struct file *file, char __user *buf,
-			   size_t count, loff_t *ppos)
+				 size_t count, loff_t *ppos)
 {
 	struct hfi1_pportdata *ppd;
 	char *tmp;
@@ -437,7 +437,7 @@ static ssize_t qsfp_debugfs_dump(struct file *file, char __user *buf,
 
 /* Do an i2c write operation on the chain for the given HFI. */
 static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos, u32 target)
+				   size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	char *buff;
@@ -484,21 +484,21 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 
 /* Do an i2c write operation on chain for HFI 0. */
 static ssize_t i2c1_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	return __i2c_debugfs_write(file, buf, count, ppos, 0);
 }
 
 /* Do an i2c write operation on chain for HFI 1. */
 static ssize_t i2c2_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	return __i2c_debugfs_write(file, buf, count, ppos, 1);
 }
 
 /* Do an i2c read operation on the chain for the given HFI. */
 static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos, u32 target)
+				  size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	char *buff;
@@ -545,21 +545,21 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 
 /* Do an i2c read operation on chain for HFI 0. */
 static ssize_t i2c1_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
+				 size_t count, loff_t *ppos)
 {
 	return __i2c_debugfs_read(file, buf, count, ppos, 0);
 }
 
 /* Do an i2c read operation on chain for HFI 1. */
 static ssize_t i2c2_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
+				 size_t count, loff_t *ppos)
 {
 	return __i2c_debugfs_read(file, buf, count, ppos, 1);
 }
 
 /* Do a QSFP write operation on the i2c chain for the given HFI. */
 static ssize_t __qsfp_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos, u32 target)
+				    size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	char *buff;
@@ -605,21 +605,21 @@ static ssize_t __qsfp_debugfs_write(struct file *file, const char __user *buf,
 
 /* Do a QSFP write operation on i2c chain for HFI 0. */
 static ssize_t qsfp1_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+				   size_t count, loff_t *ppos)
 {
 	return __qsfp_debugfs_write(file, buf, count, ppos, 0);
 }
 
 /* Do a QSFP write operation on i2c chain for HFI 1. */
 static ssize_t qsfp2_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+				   size_t count, loff_t *ppos)
 {
 	return __qsfp_debugfs_write(file, buf, count, ppos, 1);
 }
 
 /* Do a QSFP read operation on the i2c chain for the given HFI. */
 static ssize_t __qsfp_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos, u32 target)
+				   size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	char *buff;
@@ -665,14 +665,14 @@ static ssize_t __qsfp_debugfs_read(struct file *file, char __user *buf,
 
 /* Do a QSFP read operation on i2c chain for HFI 0. */
 static ssize_t qsfp1_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	return __qsfp_debugfs_read(file, buf, count, ppos, 0);
 }
 
 /* Do a QSFP read operation on i2c chain for HFI 1. */
 static ssize_t qsfp2_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	return __qsfp_debugfs_read(file, buf, count, ppos, 1);
 }

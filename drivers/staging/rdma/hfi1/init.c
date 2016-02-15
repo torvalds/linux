@@ -149,7 +149,7 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 		rcd = hfi1_create_ctxtdata(ppd, i, dd->node);
 		if (!rcd) {
 			dd_dev_err(dd,
-				"Unable to allocate kernel receive context, failing\n");
+				   "Unable to allocate kernel receive context, failing\n");
 			goto nomem;
 		}
 		/*
@@ -170,7 +170,7 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 		rcd->sc = sc_alloc(dd, SC_ACK, rcd->rcvhdrqentsize, dd->node);
 		if (!rcd->sc) {
 			dd_dev_err(dd,
-				"Unable to allocate kernel send context, failing\n");
+				   "Unable to allocate kernel send context, failing\n");
 			dd->rcd[rcd->ctxt] = NULL;
 			hfi1_free_ctxtdata(dd, rcd);
 			goto nomem;
@@ -741,7 +741,7 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 			lastfail = hfi1_setup_eagerbufs(rcd);
 		if (lastfail)
 			dd_dev_err(dd,
-				"failed to allocate kernel ctxt's rcvhdrq and/or egr bufs\n");
+				   "failed to allocate kernel ctxt's rcvhdrq and/or egr bufs\n");
 	}
 	if (lastfail)
 		ret = lastfail;
@@ -797,8 +797,8 @@ done:
 			lastfail = bringup_serdes(ppd);
 			if (lastfail)
 				dd_dev_info(dd,
-					"Failed to bring up port %u\n",
-					ppd->port);
+					    "Failed to bring up port %u\n",
+					    ppd->port);
 
 			/*
 			 * Set status even if port serdes is not initialized
@@ -1542,8 +1542,8 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 		if (!rcd->rcvhdrq) {
 			dd_dev_err(dd,
-				"attempt to allocate %d bytes for ctxt %u rcvhdrq failed\n",
-				amt, rcd->ctxt);
+				   "attempt to allocate %d bytes for ctxt %u rcvhdrq failed\n",
+				   amt, rcd->ctxt);
 			goto bail;
 		}
 
@@ -1587,8 +1587,8 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 bail_free:
 	dd_dev_err(dd,
-		"attempt to allocate 1 page for ctxt %u rcvhdrqtailaddr failed\n",
-		rcd->ctxt);
+		   "attempt to allocate 1 page for ctxt %u rcvhdrqtailaddr failed\n",
+		   rcd->ctxt);
 	vfree(rcd->user_event_mask);
 	rcd->user_event_mask = NULL;
 	dma_free_coherent(&dd->pcidev->dev, amt, rcd->rcvhdrq,
@@ -1678,7 +1678,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 			if (rcd->egrbufs.rcvtid_size == round_mtu ||
 			    !HFI1_CAP_KGET_MASK(rcd->flags, MULTI_PKT_EGR)) {
 				dd_dev_err(dd, "ctxt%u: Failed to allocate eager buffers\n",
-					rcd->ctxt);
+					   rcd->ctxt);
 				goto bail_rcvegrbuf_phys;
 			}
 
@@ -1760,14 +1760,14 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 
 	for (idx = 0; idx < rcd->egrbufs.alloced; idx++) {
 		hfi1_put_tid(dd, rcd->eager_base + idx, PT_EAGER,
-			      rcd->egrbufs.rcvtids[idx].phys, order);
+			     rcd->egrbufs.rcvtids[idx].phys, order);
 		cond_resched();
 	}
 	goto bail;
 
 bail_rcvegrbuf_phys:
 	for (idx = 0; idx < rcd->egrbufs.alloced &&
-		     rcd->egrbufs.buffers[idx].addr;
+	     rcd->egrbufs.buffers[idx].addr;
 	     idx++) {
 		dma_free_coherent(&dd->pcidev->dev,
 				  rcd->egrbufs.buffers[idx].len,

@@ -283,9 +283,10 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
 			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->rvp.gid_prefix,
 				    guid))
 				goto err;
-			if (!gid_ok(&hdr->u.l.grh.sgid,
-			    qp->alt_ah_attr.grh.dgid.global.subnet_prefix,
-			    qp->alt_ah_attr.grh.dgid.global.interface_id))
+			if (!gid_ok(
+				&hdr->u.l.grh.sgid,
+				qp->alt_ah_attr.grh.dgid.global.subnet_prefix,
+				qp->alt_ah_attr.grh.dgid.global.interface_id))
 				goto err;
 		}
 		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
@@ -317,9 +318,10 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
 			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->rvp.gid_prefix,
 				    guid))
 				goto err;
-			if (!gid_ok(&hdr->u.l.grh.sgid,
-			    qp->remote_ah_attr.grh.dgid.global.subnet_prefix,
-			    qp->remote_ah_attr.grh.dgid.global.interface_id))
+			if (!gid_ok(
+			     &hdr->u.l.grh.sgid,
+			     qp->remote_ah_attr.grh.dgid.global.subnet_prefix,
+			     qp->remote_ah_attr.grh.dgid.global.interface_id))
 				goto err;
 		}
 		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,

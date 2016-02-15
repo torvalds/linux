@@ -289,7 +289,7 @@ void sc_flush(struct send_context *sc);
 void sc_drop(struct send_context *sc);
 void sc_stop(struct send_context *sc, int bit);
 struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
-			pio_release_cb cb, void *arg);
+				pio_release_cb cb, void *arg);
 void sc_release_update(struct send_context *sc);
 void sc_return_credits(struct send_context *sc);
 void sc_group_release_update(struct hfi1_devdata *dd, u32 hw_context);
@@ -322,7 +322,7 @@ void pio_send_control(struct hfi1_devdata *dd, int op);
 void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 	      const void *from, size_t count);
 void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
-					const void *from, size_t nbytes);
+			const void *from, size_t nbytes);
 void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes);
 void seg_pio_copy_end(struct pio_buf *pbuf);
 

@@ -320,9 +320,10 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	if (ah_attr->dlid < be16_to_cpu(IB_MULTICAST_LID_BASE) ||
 	    ah_attr->dlid == be16_to_cpu(IB_LID_PERMISSIVE)) {
 		lid = ah_attr->dlid & ~((1 << ppd->lmc) - 1);
-		if (unlikely(!loopback && (lid == ppd->lid ||
-		    (lid == be16_to_cpu(IB_LID_PERMISSIVE) &&
-		     qp->ibqp.qp_type == IB_QPT_GSI)))) {
+		if (unlikely(!loopback &&
+			     (lid == ppd->lid ||
+			      (lid == be16_to_cpu(IB_LID_PERMISSIVE) &&
+			      qp->ibqp.qp_type == IB_QPT_GSI)))) {
 			unsigned long flags;
 			/*
 			 * If DMAs are in progress, we can't generate

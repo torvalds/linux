@@ -61,8 +61,8 @@
  * Congestion control table size followed by table entries
  */
 static ssize_t read_cc_table_bin(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *bin_attr,
-		char *buf, loff_t pos, size_t count)
+				 struct bin_attribute *bin_attr,
+				 char *buf, loff_t pos, size_t count)
 {
 	int ret;
 	struct hfi1_pportdata *ppd =
@@ -110,8 +110,8 @@ static struct bin_attribute cc_table_bin_attr = {
  * trigger threshold and the minimum injection rate delay.
  */
 static ssize_t read_cc_setting_bin(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *bin_attr,
-		char *buf, loff_t pos, size_t count)
+				   struct bin_attribute *bin_attr,
+				   char *buf, loff_t pos, size_t count)
 {
 	int ret;
 	struct hfi1_pportdata *ppd =
@@ -550,7 +550,7 @@ static ssize_t show_nctxts(struct device *device,
 }
 
 static ssize_t show_nfreectxts(struct device *device,
-			   struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct hfi1_ibdev *dev =
 		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
@@ -660,8 +660,8 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 
 	if (!port_num || port_num > dd->num_pports) {
 		dd_dev_err(dd,
-			"Skipping infiniband class with invalid port %u\n",
-			port_num);
+			   "Skipping infiniband class with invalid port %u\n",
+			   port_num);
 		return -ENODEV;
 	}
 	ppd = &dd->pport[port_num - 1];
@@ -700,34 +700,32 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 				   kobj, "CCMgtA");
 	if (ret) {
 		dd_dev_err(dd,
-		 "Skipping Congestion Control sysfs info, (err %d) port %u\n",
-		 ret, port_num);
+			   "Skipping Congestion Control sysfs info, (err %d) port %u\n",
+			   ret, port_num);
 		goto bail_vl2mtu;
 	}
 
 	kobject_uevent(&ppd->pport_cc_kobj, KOBJ_ADD);
 
-	ret = sysfs_create_bin_file(&ppd->pport_cc_kobj,
-				&cc_setting_bin_attr);
+	ret = sysfs_create_bin_file(&ppd->pport_cc_kobj, &cc_setting_bin_attr);
 	if (ret) {
 		dd_dev_err(dd,
-		 "Skipping Congestion Control setting sysfs info, (err %d) port %u\n",
-		 ret, port_num);
+			   "Skipping Congestion Control setting sysfs info, (err %d) port %u\n",
+			   ret, port_num);
 		goto bail_cc;
 	}
 
-	ret = sysfs_create_bin_file(&ppd->pport_cc_kobj,
-				&cc_table_bin_attr);
+	ret = sysfs_create_bin_file(&ppd->pport_cc_kobj, &cc_table_bin_attr);
 	if (ret) {
 		dd_dev_err(dd,
-		 "Skipping Congestion Control table sysfs info, (err %d) port %u\n",
-		 ret, port_num);
+			   "Skipping Congestion Control table sysfs info, (err %d) port %u\n",
+			   ret, port_num);
 		goto bail_cc_entry_bin;
 	}
 
 	dd_dev_info(dd,
-		"IB%u: Congestion Control Agent enabled for port %d\n",
-		dd->unit, port_num);
+		    "IB%u: Congestion Control Agent enabled for port %d\n",
+		    dd->unit, port_num);
 
 	return 0;
 

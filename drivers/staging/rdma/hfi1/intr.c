@@ -135,18 +135,16 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 			set_up_vl15(dd, dd->vau, dd->vl15_init);
 			assign_remote_cm_au_table(dd, dd->vcu);
 			ppd->neighbor_guid =
-				read_csr(dd,
-					DC_DC8051_STS_REMOTE_GUID);
+				read_csr(dd, DC_DC8051_STS_REMOTE_GUID);
 			ppd->neighbor_type =
 				read_csr(dd, DC_DC8051_STS_REMOTE_NODE_TYPE) &
 					DC_DC8051_STS_REMOTE_NODE_TYPE_VAL_MASK;
 			ppd->neighbor_port_number =
 				read_csr(dd, DC_DC8051_STS_REMOTE_PORT_NO) &
-					DC_DC8051_STS_REMOTE_PORT_NO_VAL_SMASK;
-			dd_dev_info(dd,
-				"Neighbor GUID: %llx Neighbor type %d\n",
-				ppd->neighbor_guid,
-				ppd->neighbor_type);
+					 DC_DC8051_STS_REMOTE_PORT_NO_VAL_SMASK;
+			dd_dev_info(dd, "Neighbor GUID: %llx Neighbor type %d\n",
+				    ppd->neighbor_guid,
+				    ppd->neighbor_type);
 		}
 
 		/* physical link went up */

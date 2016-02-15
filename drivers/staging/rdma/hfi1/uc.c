@@ -318,7 +318,7 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 			sl = ibp->sc_to_sl[sc5];
 
 			process_becn(ppd, sl, rlid, lqpn, rqpn,
-					IB_CC_SVCTYPE_UC);
+				     IB_CC_SVCTYPE_UC);
 		}
 
 		if (bth1 & HFI1_FECN_SMASK) {

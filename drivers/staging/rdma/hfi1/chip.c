@@ -944,7 +944,7 @@ static struct flag_table dc8051_err_flags[] = {
 	FLAG_ENTRY0("IRAM_MBE", D8E(IRAM_MBE)),
 	FLAG_ENTRY0("IRAM_SBE", D8E(IRAM_SBE)),
 	FLAG_ENTRY0("UNMATCHED_SECURE_MSG_ACROSS_BCC_LANES",
-		D8E(UNMATCHED_SECURE_MSG_ACROSS_BCC_LANES)),
+		    D8E(UNMATCHED_SECURE_MSG_ACROSS_BCC_LANES)),
 	FLAG_ENTRY0("INVALID_CSR_ADDR", D8E(INVALID_CSR_ADDR)),
 };
 
@@ -958,7 +958,7 @@ static struct flag_table dc8051_info_err_flags[] = {
 	FLAG_ENTRY0("Unknown frame received",  UNKNOWN_FRAME),
 	FLAG_ENTRY0("Target BER not met",      TARGET_BER_NOT_MET),
 	FLAG_ENTRY0("Serdes internal loopback failure",
-					FAILED_SERDES_INTERNAL_LOOPBACK),
+		    FAILED_SERDES_INTERNAL_LOOPBACK),
 	FLAG_ENTRY0("Failed SerDes init",      FAILED_SERDES_INIT),
 	FLAG_ENTRY0("Failed LNI(Polling)",     FAILED_LNI_POLLING),
 	FLAG_ENTRY0("Failed LNI(Debounce)",    FAILED_LNI_DEBOUNCE),
@@ -1147,11 +1147,8 @@ struct cntr_entry {
 	/*
 	 * accessor for stat element, context either dd or ppd
 	 */
-	u64 (*rw_cntr)(const struct cntr_entry *,
-			       void *context,
-			       int vl,
-			       int mode,
-			       u64 data);
+	u64 (*rw_cntr)(const struct cntr_entry *, void *context, int vl,
+		       int mode, u64 data);
 };
 
 #define C_RCV_HDR_OVF_FIRST C_RCV_HDR_OVF_0
@@ -1300,7 +1297,7 @@ static inline u64 read_write_csr(const struct hfi1_devdata *dd, u32 csr,
 
 /* Dev Access */
 static u64 dev_access_u32_csr(const struct cntr_entry *entry,
-			    void *context, int vl, int mode, u64 data)
+			      void *context, int vl, int mode, u64 data)
 {
 	struct hfi1_devdata *dd = context;
 	u64 csr = entry->csr;
@@ -1358,7 +1355,7 @@ static u64 access_sde_progress_int_cnt(const struct cntr_entry *entry,
 }
 
 static u64 dev_access_u64_csr(const struct cntr_entry *entry, void *context,
-			    int vl, int mode, u64 data)
+			      int vl, int mode, u64 data)
 {
 	struct hfi1_devdata *dd = context;
 
@@ -1379,7 +1376,7 @@ static u64 dev_access_u64_csr(const struct cntr_entry *entry, void *context,
 }
 
 static u64 dc_access_lcb_cntr(const struct cntr_entry *entry, void *context,
-			    int vl, int mode, u64 data)
+			      int vl, int mode, u64 data)
 {
 	struct hfi1_devdata *dd = context;
 	u32 csr = entry->csr;
@@ -1403,7 +1400,7 @@ static u64 dc_access_lcb_cntr(const struct cntr_entry *entry, void *context,
 
 /* Port Access */
 static u64 port_access_u32_csr(const struct cntr_entry *entry, void *context,
-			     int vl, int mode, u64 data)
+			       int vl, int mode, u64 data)
 {
 	struct hfi1_pportdata *ppd = context;
 
@@ -1413,7 +1410,7 @@ static u64 port_access_u32_csr(const struct cntr_entry *entry, void *context,
 }
 
 static u64 port_access_u64_csr(const struct cntr_entry *entry,
-			     void *context, int vl, int mode, u64 data)
+			       void *context, int vl, int mode, u64 data)
 {
 	struct hfi1_pportdata *ppd = context;
 	u64 val;
@@ -1453,7 +1450,7 @@ static inline u64 read_write_sw(struct hfi1_devdata *dd, u64 *cntr, int mode,
 }
 
 static u64 access_sw_link_dn_cnt(const struct cntr_entry *entry, void *context,
-			       int vl, int mode, u64 data)
+				 int vl, int mode, u64 data)
 {
 	struct hfi1_pportdata *ppd = context;
 
@@ -1463,7 +1460,7 @@ static u64 access_sw_link_dn_cnt(const struct cntr_entry *entry, void *context,
 }
 
 static u64 access_sw_link_up_cnt(const struct cntr_entry *entry, void *context,
-			       int vl, int mode, u64 data)
+				 int vl, int mode, u64 data)
 {
 	struct hfi1_pportdata *ppd = context;
 
@@ -1484,7 +1481,7 @@ static u64 access_sw_unknown_frame_cnt(const struct cntr_entry *entry,
 }
 
 static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
-				    void *context, int vl, int mode, u64 data)
+				   void *context, int vl, int mode, u64 data)
 {
 	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
 	u64 zero = 0;
@@ -1501,7 +1498,8 @@ static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
 }
 
 static u64 access_xmit_constraint_errs(const struct cntr_entry *entry,
-				     void *context, int vl, int mode, u64 data)
+				       void *context, int vl, int mode,
+				       u64 data)
 {
 	struct hfi1_pportdata *ppd = context;
 
@@ -1513,7 +1511,7 @@ static u64 access_xmit_constraint_errs(const struct cntr_entry *entry,
 }
 
 static u64 access_rcv_constraint_errs(const struct cntr_entry *entry,
-				     void *context, int vl, int mode, u64 data)
+				      void *context, int vl, int mode, u64 data)
 {
 	struct hfi1_pportdata *ppd = context;
 
@@ -1569,7 +1567,7 @@ static u64 access_sw_cpu_intr(const struct cntr_entry *entry,
 }
 
 static u64 access_sw_cpu_rcv_limit(const struct cntr_entry *entry,
-			      void *context, int vl, int mode, u64 data)
+				   void *context, int vl, int mode, u64 data)
 {
 	struct hfi1_devdata *dd = context;
 
@@ -1610,7 +1608,7 @@ static u64 access_sw_kmem_wait(const struct cntr_entry *entry,
 }
 
 static u64 access_sw_send_schedule(const struct cntr_entry *entry,
-			       void *context, int vl, int mode, u64 data)
+				   void *context, int vl, int mode, u64 data)
 {
 	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
 
@@ -4965,28 +4963,28 @@ static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
 [C_TX_WORDS] = TXE64_PORT_CNTR_ELEM(TxWords, SEND_DWORD_CNT, CNTR_NORMAL),
 [C_TX_WAIT] = TXE64_PORT_CNTR_ELEM(TxWait, SEND_WAIT_CNT, CNTR_SYNTH),
 [C_TX_FLIT_VL] = TXE64_PORT_CNTR_ELEM(TxFlitVL, SEND_DATA_VL0_CNT,
-			CNTR_SYNTH | CNTR_VL),
+				      CNTR_SYNTH | CNTR_VL),
 [C_TX_PKT_VL] = TXE64_PORT_CNTR_ELEM(TxPktVL, SEND_DATA_PKT_VL0_CNT,
-			CNTR_SYNTH | CNTR_VL),
+				     CNTR_SYNTH | CNTR_VL),
 [C_TX_WAIT_VL] = TXE64_PORT_CNTR_ELEM(TxWaitVL, SEND_WAIT_VL0_CNT,
-			CNTR_SYNTH | CNTR_VL),
+				      CNTR_SYNTH | CNTR_VL),
 [C_RX_PKT] = RXE64_PORT_CNTR_ELEM(RxPkt, RCV_DATA_PKT_CNT, CNTR_NORMAL),
 [C_RX_WORDS] = RXE64_PORT_CNTR_ELEM(RxWords, RCV_DWORD_CNT, CNTR_NORMAL),
 [C_SW_LINK_DOWN] = CNTR_ELEM("SwLinkDown", 0, 0, CNTR_SYNTH | CNTR_32BIT,
-			access_sw_link_dn_cnt),
+			     access_sw_link_dn_cnt),
 [C_SW_LINK_UP] = CNTR_ELEM("SwLinkUp", 0, 0, CNTR_SYNTH | CNTR_32BIT,
-			access_sw_link_up_cnt),
+			   access_sw_link_up_cnt),
 [C_SW_UNKNOWN_FRAME] = CNTR_ELEM("UnknownFrame", 0, 0, CNTR_NORMAL,
 				 access_sw_unknown_frame_cnt),
 [C_SW_XMIT_DSCD] = CNTR_ELEM("XmitDscd", 0, 0, CNTR_SYNTH | CNTR_32BIT,
-			access_sw_xmit_discards),
+			     access_sw_xmit_discards),
 [C_SW_XMIT_DSCD_VL] = CNTR_ELEM("XmitDscdVl", 0, 0,
-			CNTR_SYNTH | CNTR_32BIT | CNTR_VL,
-			access_sw_xmit_discards),
+				CNTR_SYNTH | CNTR_32BIT | CNTR_VL,
+				access_sw_xmit_discards),
 [C_SW_XMIT_CSTR_ERR] = CNTR_ELEM("XmitCstrErr", 0, 0, CNTR_SYNTH,
-			access_xmit_constraint_errs),
+				 access_xmit_constraint_errs),
 [C_SW_RCV_CSTR_ERR] = CNTR_ELEM("RcvCstrErr", 0, 0, CNTR_SYNTH,
-			access_rcv_constraint_errs),
+				access_rcv_constraint_errs),
 [C_SW_IBP_LOOP_PKTS] = SW_IBP_CNTR(LoopPkts, loop_pkts),
 [C_SW_IBP_RC_RESENDS] = SW_IBP_CNTR(RcResend, rc_resends),
 [C_SW_IBP_RNR_NAKS] = SW_IBP_CNTR(RnrNak, rnr_naks),
@@ -5002,9 +5000,9 @@ static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
 [C_SW_CPU_RC_ACKS] = CNTR_ELEM("RcAcks", 0, 0, CNTR_NORMAL,
 			       access_sw_cpu_rc_acks),
 [C_SW_CPU_RC_QACKS] = CNTR_ELEM("RcQacks", 0, 0, CNTR_NORMAL,
-			       access_sw_cpu_rc_qacks),
+				access_sw_cpu_rc_qacks),
 [C_SW_CPU_RC_DELAYED_COMP] = CNTR_ELEM("RcDelayComp", 0, 0, CNTR_NORMAL,
-			       access_sw_cpu_rc_delayed_comp),
+				       access_sw_cpu_rc_delayed_comp),
 [OVR_LBL(0)] = OVR_ELM(0), [OVR_LBL(1)] = OVR_ELM(1),
 [OVR_LBL(2)] = OVR_ELM(2), [OVR_LBL(3)] = OVR_ELM(3),
 [OVR_LBL(4)] = OVR_ELM(4), [OVR_LBL(5)] = OVR_ELM(5),
@@ -5153,7 +5151,7 @@ done:
  * the buffer.  End in '*' if the buffer is too short.
  */
 static char *flag_string(char *buf, int buf_len, u64 flags,
-				struct flag_table *table, int table_size)
+			 struct flag_table *table, int table_size)
 {
 	char extra[32];
 	char *p = buf;
@@ -5214,10 +5212,8 @@ static char *is_misc_err_name(char *buf, size_t bsize, unsigned int source)
 	if (source < ARRAY_SIZE(cce_misc_names))
 		strncpy(buf, cce_misc_names[source], bsize);
 	else
-		snprintf(buf,
-			bsize,
-			"Reserved%u",
-			source + IS_GENERAL_ERR_START);
+		snprintf(buf, bsize, "Reserved%u",
+			 source + IS_GENERAL_ERR_START);
 
 	return buf;
 }
@@ -5341,51 +5337,56 @@ static char *is_reserved_name(char *buf, size_t bsize, unsigned int source)
 static char *cce_err_status_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags,
-			cce_err_status_flags, ARRAY_SIZE(cce_err_status_flags));
+			   cce_err_status_flags,
+			   ARRAY_SIZE(cce_err_status_flags));
 }
 
 static char *rxe_err_status_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags,
-			rxe_err_status_flags, ARRAY_SIZE(rxe_err_status_flags));
+			   rxe_err_status_flags,
+			   ARRAY_SIZE(rxe_err_status_flags));
 }
 
 static char *misc_err_status_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags, misc_err_status_flags,
-			ARRAY_SIZE(misc_err_status_flags));
+			   ARRAY_SIZE(misc_err_status_flags));
 }
 
 static char *pio_err_status_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags,
-			pio_err_status_flags, ARRAY_SIZE(pio_err_status_flags));
+			   pio_err_status_flags,
+			   ARRAY_SIZE(pio_err_status_flags));
 }
 
 static char *sdma_err_status_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags,
-			sdma_err_status_flags,
-			ARRAY_SIZE(sdma_err_status_flags));
+			   sdma_err_status_flags,
+			   ARRAY_SIZE(sdma_err_status_flags));
 }
 
 static char *egress_err_status_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags,
-		egress_err_status_flags, ARRAY_SIZE(egress_err_status_flags));
+			   egress_err_status_flags,
+			   ARRAY_SIZE(egress_err_status_flags));
 }
 
 static char *egress_err_info_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags,
-		egress_err_info_flags, ARRAY_SIZE(egress_err_info_flags));
+			   egress_err_info_flags,
+			   ARRAY_SIZE(egress_err_info_flags));
 }
 
 static char *send_err_status_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags,
-			send_err_status_flags,
-			ARRAY_SIZE(send_err_status_flags));
+			   send_err_status_flags,
+			   ARRAY_SIZE(send_err_status_flags));
 }
 
 static void handle_cce_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
@@ -5398,7 +5399,7 @@ static void handle_cce_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	 * report or record it.
 	 */
 	dd_dev_info(dd, "CCE Error: %s\n",
-		cce_err_status_string(buf, sizeof(buf), reg));
+		    cce_err_status_string(buf, sizeof(buf), reg));
 
 	if ((reg & CCE_ERR_STATUS_CCE_CLI2_ASYNC_FIFO_PARITY_ERR_SMASK) &&
 	    is_ax(dd) && (dd->icode != ICODE_FUNCTIONAL_SIMULATOR)) {
@@ -5428,11 +5429,11 @@ static void update_rcverr_timer(unsigned long opaque)
 	u32 cur_ovfl_cnt = read_dev_cntr(dd, C_RCV_OVF, CNTR_INVALID_VL);
 
 	if (dd->rcv_ovfl_cnt < cur_ovfl_cnt &&
-		ppd->port_error_action & OPA_PI_MASK_EX_BUFFER_OVERRUN) {
+	    ppd->port_error_action & OPA_PI_MASK_EX_BUFFER_OVERRUN) {
 		dd_dev_info(dd, "%s: PortErrorAction bounce\n", __func__);
-		set_link_down_reason(ppd,
-		  OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN, 0,
-			OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN);
+		set_link_down_reason(
+		ppd, OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN, 0,
+		OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN);
 		queue_work(ppd->hfi1_wq, &ppd->link_bounce_work);
 	}
 	dd->rcv_ovfl_cnt = (u32)cur_ovfl_cnt;
@@ -5461,7 +5462,7 @@ static void handle_rxe_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	int i = 0;
 
 	dd_dev_info(dd, "Receive Error: %s\n",
-		rxe_err_status_string(buf, sizeof(buf), reg));
+		    rxe_err_status_string(buf, sizeof(buf), reg));
 
 	if (reg & ALL_RXE_FREEZE_ERR) {
 		int flags = 0;
@@ -5488,7 +5489,7 @@ static void handle_misc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	int i = 0;
 
 	dd_dev_info(dd, "Misc Error: %s",
-		misc_err_status_string(buf, sizeof(buf), reg));
+		    misc_err_status_string(buf, sizeof(buf), reg));
 	for (i = 0; i < NUM_MISC_ERR_STATUS_COUNTERS; i++) {
 		if (reg & (1ull << i))
 			incr_cntr64(&dd->misc_err_status_cnt[i]);
@@ -5501,7 +5502,7 @@ static void handle_pio_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	int i = 0;
 
 	dd_dev_info(dd, "PIO Error: %s\n",
-		pio_err_status_string(buf, sizeof(buf), reg));
+		    pio_err_status_string(buf, sizeof(buf), reg));
 
 	if (reg & ALL_PIO_FREEZE_ERR)
 		start_freeze_handling(dd->pport, 0);
@@ -5518,7 +5519,7 @@ static void handle_sdma_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	int i = 0;
 
 	dd_dev_info(dd, "SDMA Error: %s\n",
-		sdma_err_status_string(buf, sizeof(buf), reg));
+		    sdma_err_status_string(buf, sizeof(buf), reg));
 
 	if (reg & ALL_SDMA_FREEZE_ERR)
 		start_freeze_handling(dd->pport, 0);
@@ -5560,8 +5561,8 @@ static void handle_send_egress_err_info(struct hfi1_devdata *dd,
 	write_csr(dd, SEND_EGRESS_ERR_INFO, info);
 
 	dd_dev_info(dd,
-		"Egress Error Info: 0x%llx, %s Egress Error Src 0x%llx\n",
-		info, egress_err_info_string(buf, sizeof(buf), info), src);
+		    "Egress Error Info: 0x%llx, %s Egress Error Src 0x%llx\n",
+		    info, egress_err_info_string(buf, sizeof(buf), info), src);
 
 	/* Eventually add other counters for each bit */
 	if (info & PORT_DISCARD_EGRESS_ERRS) {
@@ -5699,7 +5700,7 @@ static void handle_egress_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 
 	if (reg)
 		dd_dev_info(dd, "Egress Error: %s\n",
-			egress_err_status_string(buf, sizeof(buf), reg));
+			    egress_err_status_string(buf, sizeof(buf), reg));
 
 	for (i = 0; i < NUM_SEND_EGRESS_ERR_STATUS_COUNTERS; i++) {
 		if (reg & (1ull << i))
@@ -5713,7 +5714,7 @@ static void handle_txe_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	int i = 0;
 
 	dd_dev_info(dd, "Send Error: %s\n",
-		send_err_status_string(buf, sizeof(buf), reg));
+		    send_err_status_string(buf, sizeof(buf), reg));
 
 	for (i = 0; i < NUM_SEND_ERR_STATUS_COUNTERS; i++) {
 		if (reg & (1ull << i))
@@ -5759,7 +5760,7 @@ static void interrupt_clear_down(struct hfi1_devdata *dd,
 			u64 mask;
 
 			dd_dev_err(dd, "Repeating %s bits 0x%llx - masking\n",
-				eri->desc, reg);
+				   eri->desc, reg);
 			/*
 			 * Read-modify-write so any other masked bits
 			 * remain masked.
@@ -5783,14 +5784,15 @@ static void is_misc_err_int(struct hfi1_devdata *dd, unsigned int source)
 		interrupt_clear_down(dd, 0, eri);
 	} else {
 		dd_dev_err(dd, "Unexpected misc interrupt (%u) - reserved\n",
-			source);
+			   source);
 	}
 }
 
 static char *send_context_err_status_string(char *buf, int buf_len, u64 flags)
 {
 	return flag_string(buf, buf_len, flags,
-			sc_err_status_flags, ARRAY_SIZE(sc_err_status_flags));
+			   sc_err_status_flags,
+			   ARRAY_SIZE(sc_err_status_flags));
 }
 
 /*
@@ -5815,15 +5817,15 @@ static void is_sendctxt_err_int(struct hfi1_devdata *dd,
 	sw_index = dd->hw_to_sw[hw_context];
 	if (sw_index >= dd->num_send_contexts) {
 		dd_dev_err(dd,
-			"out of range sw index %u for send context %u\n",
-			sw_index, hw_context);
+			   "out of range sw index %u for send context %u\n",
+			   sw_index, hw_context);
 		return;
 	}
 	sci = &dd->send_contexts[sw_index];
 	sc = sci->sc;
 	if (!sc) {
 		dd_dev_err(dd, "%s: context %u(%u): no sc?\n", __func__,
-			sw_index, hw_context);
+			   sw_index, hw_context);
 		return;
 	}
 
@@ -5833,7 +5835,8 @@ static void is_sendctxt_err_int(struct hfi1_devdata *dd,
 	status = read_kctxt_csr(dd, hw_context, SEND_CTXT_ERR_STATUS);
 
 	dd_dev_info(dd, "Send Context %u(%u) Error: %s\n", sw_index, hw_context,
-		send_context_err_status_string(flags, sizeof(flags), status));
+		    send_context_err_status_string(flags, sizeof(flags),
+						   status));
 
 	if (status & SEND_CTXT_ERR_STATUS_PIO_DISALLOWED_PACKET_ERR_SMASK)
 		handle_send_egress_err_info(dd, sc_to_vl(dd, sw_index));
@@ -5918,8 +5921,8 @@ static void is_various_int(struct hfi1_devdata *dd, unsigned int source)
 		interrupt_clear_down(dd, 0, eri);
 	else
 		dd_dev_info(dd,
-			"%s: Unimplemented/reserved interrupt %d\n",
-			__func__, source);
+			    "%s: Unimplemented/reserved interrupt %d\n",
+			    __func__, source);
 }
 
 static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
@@ -5931,7 +5934,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 
 	if (reg & QSFP_HFI0_MODPRST_N) {
 		dd_dev_info(dd, "%s: ModPresent triggered QSFP interrupt\n",
-				__func__);
+			    __func__);
 
 		if (!qsfp_mod_present(ppd)) {
 			ppd->driver_link_ready = 0;
@@ -5949,7 +5952,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 			ppd->qsfp_info.reset_needed = 0;
 			ppd->qsfp_info.limiting_active = 0;
 			spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock,
-						flags);
+					       flags);
 			/* Invert the ModPresent pin now to detect plug-in */
 			write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_INVERT :
 				  ASIC_QSFP1_INVERT, qsfp_int_mgmt);
@@ -5977,7 +5980,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 			ppd->qsfp_info.cache_valid = 0;
 			ppd->qsfp_info.cache_refresh_required = 1;
 			spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock,
-						flags);
+					       flags);
 
 			/*
 			 * Stop inversion of ModPresent pin to detect
@@ -5994,7 +5997,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 
 	if (reg & QSFP_HFI0_INT_N) {
 		dd_dev_info(dd, "%s: IntN triggered QSFP interrupt\n",
-				__func__);
+			    __func__);
 		spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 		ppd->qsfp_info.check_interrupt_flags = 1;
 		spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock, flags);
@@ -6010,11 +6013,11 @@ static int request_host_lcb_access(struct hfi1_devdata *dd)
 	int ret;
 
 	ret = do_8051_command(dd, HCMD_MISC,
-		(u64)HCMD_MISC_REQUEST_LCB_ACCESS << LOAD_DATA_FIELD_ID_SHIFT,
-		NULL);
+			      (u64)HCMD_MISC_REQUEST_LCB_ACCESS <<
+			      LOAD_DATA_FIELD_ID_SHIFT, NULL);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd, "%s: command failed with error %d\n",
-			__func__, ret);
+			   __func__, ret);
 	}
 	return ret == HCMD_SUCCESS ? 0 : -EBUSY;
 }
@@ -6024,11 +6027,11 @@ static int request_8051_lcb_access(struct hfi1_devdata *dd)
 	int ret;
 
 	ret = do_8051_command(dd, HCMD_MISC,
-		(u64)HCMD_MISC_GRANT_LCB_ACCESS << LOAD_DATA_FIELD_ID_SHIFT,
-		NULL);
+			      (u64)HCMD_MISC_GRANT_LCB_ACCESS <<
+			      LOAD_DATA_FIELD_ID_SHIFT, NULL);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd, "%s: command failed with error %d\n",
-			__func__, ret);
+			   __func__, ret);
 	}
 	return ret == HCMD_SUCCESS ? 0 : -EBUSY;
 }
@@ -6040,8 +6043,8 @@ static int request_8051_lcb_access(struct hfi1_devdata *dd)
 static inline void set_host_lcb_access(struct hfi1_devdata *dd)
 {
 	write_csr(dd, DC_DC8051_CFG_CSR_ACCESS_SEL,
-				DC_DC8051_CFG_CSR_ACCESS_SEL_DCC_SMASK
-				| DC_DC8051_CFG_CSR_ACCESS_SEL_LCB_SMASK);
+		  DC_DC8051_CFG_CSR_ACCESS_SEL_DCC_SMASK |
+		  DC_DC8051_CFG_CSR_ACCESS_SEL_LCB_SMASK);
 }
 
 /*
@@ -6051,7 +6054,7 @@ static inline void set_host_lcb_access(struct hfi1_devdata *dd)
 static inline void set_8051_lcb_access(struct hfi1_devdata *dd)
 {
 	write_csr(dd, DC_DC8051_CFG_CSR_ACCESS_SEL,
-				DC_DC8051_CFG_CSR_ACCESS_SEL_DCC_SMASK);
+		  DC_DC8051_CFG_CSR_ACCESS_SEL_DCC_SMASK);
 }
 
 /*
@@ -6085,7 +6088,7 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 	/* this access is valid only when the link is up */
 	if ((ppd->host_link_state & HLS_UP) == 0) {
 		dd_dev_info(dd, "%s: link state %s not up\n",
-			__func__, link_state_name(ppd->host_link_state));
+			    __func__, link_state_name(ppd->host_link_state));
 		ret = -EBUSY;
 		goto done;
 	}
@@ -6094,8 +6097,8 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 		ret = request_host_lcb_access(dd);
 		if (ret) {
 			dd_dev_err(dd,
-				"%s: unable to acquire LCB access, err %d\n",
-				__func__, ret);
+				   "%s: unable to acquire LCB access, err %d\n",
+				   __func__, ret);
 			goto done;
 		}
 		set_host_lcb_access(dd);
@@ -6132,7 +6135,7 @@ int release_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 
 	if (dd->lcb_access_count == 0) {
 		dd_dev_err(dd, "%s: LCB access count is zero.  Skipping.\n",
-			__func__);
+			   __func__);
 		goto done;
 	}
 
@@ -6141,8 +6144,8 @@ int release_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 		ret = request_8051_lcb_access(dd);
 		if (ret) {
 			dd_dev_err(dd,
-				"%s: unable to release LCB access, err %d\n",
-				__func__, ret);
+				   "%s: unable to release LCB access, err %d\n",
+				   __func__, ret);
 			/* restore host access if the grant didn't work */
 			set_host_lcb_access(dd);
 			goto done;
@@ -6174,9 +6177,10 @@ static void init_lcb_access(struct hfi1_devdata *dd)
 static void hreq_response(struct hfi1_devdata *dd, u8 return_code, u16 rsp_data)
 {
 	write_csr(dd, DC_DC8051_CFG_EXT_DEV_0,
-		DC_DC8051_CFG_EXT_DEV_0_COMPLETED_SMASK
-		| (u64)return_code << DC_DC8051_CFG_EXT_DEV_0_RETURN_CODE_SHIFT
-		| (u64)rsp_data << DC_DC8051_CFG_EXT_DEV_0_RSP_DATA_SHIFT);
+		  DC_DC8051_CFG_EXT_DEV_0_COMPLETED_SMASK |
+		  (u64)return_code <<
+		  DC_DC8051_CFG_EXT_DEV_0_RETURN_CODE_SHIFT |
+		  (u64)rsp_data << DC_DC8051_CFG_EXT_DEV_0_RSP_DATA_SHIFT);
 }
 
 /*
@@ -6214,7 +6218,7 @@ void handle_8051_request(struct work_struct *work)
 	case HREQ_SET_TX_EQ_ABS:
 	case HREQ_SET_TX_EQ_REL:
 		dd_dev_info(dd, "8051 request: request 0x%x not supported\n",
-			type);
+			    type);
 		hreq_response(dd, HREQ_NOT_SUPPORTED, 0);
 		break;
 
@@ -6272,11 +6276,11 @@ static void write_global_credit(struct hfi1_devdata *dd,
 				u8 vau, u16 total, u16 shared)
 {
 	write_csr(dd, SEND_CM_GLOBAL_CREDIT,
-		((u64)total
-			<< SEND_CM_GLOBAL_CREDIT_TOTAL_CREDIT_LIMIT_SHIFT)
-		| ((u64)shared
-			<< SEND_CM_GLOBAL_CREDIT_SHARED_LIMIT_SHIFT)
-		| ((u64)vau << SEND_CM_GLOBAL_CREDIT_AU_SHIFT));
+		  ((u64)total <<
+		   SEND_CM_GLOBAL_CREDIT_TOTAL_CREDIT_LIMIT_SHIFT) |
+		  ((u64)shared <<
+		   SEND_CM_GLOBAL_CREDIT_SHARED_LIMIT_SHIFT) |
+		  ((u64)vau << SEND_CM_GLOBAL_CREDIT_AU_SHIFT));
 }
 
 /*
@@ -6355,14 +6359,13 @@ static void lcb_shutdown(struct hfi1_devdata *dd, int abort)
 	write_csr(dd, DC_LCB_CFG_RUN, 0);
 	/* set tx fifo reset: LCB_CFG_TX_FIFOS_RESET.VAL = 1 */
 	write_csr(dd, DC_LCB_CFG_TX_FIFOS_RESET,
-		1ull << DC_LCB_CFG_TX_FIFOS_RESET_VAL_SHIFT);
+		  1ull << DC_LCB_CFG_TX_FIFOS_RESET_VAL_SHIFT);
 	/* set dcc reset csr: DCC_CFG_RESET.{reset_lcb,reset_rx_fpe} = 1 */
 	dd->lcb_err_en = read_csr(dd, DC_LCB_ERR_EN);
 	reg = read_csr(dd, DCC_CFG_RESET);
-	write_csr(dd, DCC_CFG_RESET,
-		reg
-		| (1ull << DCC_CFG_RESET_RESET_LCB_SHIFT)
-		| (1ull << DCC_CFG_RESET_RESET_RX_FPE_SHIFT));
+	write_csr(dd, DCC_CFG_RESET, reg |
+		  (1ull << DCC_CFG_RESET_RESET_LCB_SHIFT) |
+		  (1ull << DCC_CFG_RESET_RESET_RX_FPE_SHIFT));
 	(void)read_csr(dd, DCC_CFG_RESET); /* make sure the write completed */
 	if (!abort) {
 		udelay(1);    /* must hold for the longer of 16cclks or 20ns */
@@ -6419,7 +6422,7 @@ static void dc_start(struct hfi1_devdata *dd)
 	ret = wait_fm_ready(dd, TIMEOUT_8051_START);
 	if (ret) {
 		dd_dev_err(dd, "%s: timeout starting 8051 firmware\n",
-			__func__);
+			   __func__);
 	}
 	/* Take away reset for LCB and RX FPE (set in lcb_shutdown). */
 	write_csr(dd, DCC_CFG_RESET, 0x10);
@@ -6512,7 +6515,7 @@ static void adjust_lcb_for_fpga_serdes(struct hfi1_devdata *dd)
 	write_csr(dd, DC_LCB_CFG_RX_FIFOS_RADR, rx_radr);
 	/* LCB_CFG_IGNORE_LOST_RCLK.EN = 1 */
 	write_csr(dd, DC_LCB_CFG_IGNORE_LOST_RCLK,
-		DC_LCB_CFG_IGNORE_LOST_RCLK_EN_SMASK);
+		  DC_LCB_CFG_IGNORE_LOST_RCLK_EN_SMASK);
 	write_csr(dd, DC_LCB_CFG_TX_FIFOS_RADR, tx_radr);
 }
 
@@ -6571,8 +6574,8 @@ void handle_sma_message(struct work_struct *work)
 		break;
 	default:
 		dd_dev_err(dd,
-			"%s: received unexpected SMA idle message 0x%llx\n",
-			__func__, msg);
+			   "%s: received unexpected SMA idle message 0x%llx\n",
+			   __func__, msg);
 		break;
 	}
 }
@@ -6664,10 +6667,9 @@ static void wait_for_freeze_status(struct hfi1_devdata *dd, int freeze)
 
 		if (time_after(jiffies, timeout)) {
 			dd_dev_err(dd,
-				"Time out waiting for SPC %sfreeze, bits 0x%llx, expecting 0x%llx, continuing",
-				freeze ? "" : "un",
-				reg & ALL_FROZE,
-				freeze ? ALL_FROZE : 0ull);
+				   "Time out waiting for SPC %sfreeze, bits 0x%llx, expecting 0x%llx, continuing",
+				   freeze ? "" : "un", reg & ALL_FROZE,
+				   freeze ? ALL_FROZE : 0ull);
 			return;
 		}
 		usleep_range(80, 120);
@@ -6792,7 +6794,7 @@ void handle_freeze(struct work_struct *work)
 void handle_link_up(struct work_struct *work)
 {
 	struct hfi1_pportdata *ppd = container_of(work, struct hfi1_pportdata,
-								link_up_work);
+						  link_up_work);
 	set_link_state(ppd, HLS_UP_INIT);
 
 	/* cache the read of DC_LCB_STS_ROUND_TRIP_LTP_CNT */
@@ -6811,10 +6813,10 @@ void handle_link_up(struct work_struct *work)
 	if ((ppd->link_speed_active & ppd->link_speed_enabled) == 0) {
 		/* oops - current speed is not enabled, bounce */
 		dd_dev_err(ppd->dd,
-			"Link speed active 0x%x is outside enabled 0x%x, downing link\n",
-			ppd->link_speed_active, ppd->link_speed_enabled);
+			   "Link speed active 0x%x is outside enabled 0x%x, downing link\n",
+			   ppd->link_speed_active, ppd->link_speed_enabled);
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SPEED_POLICY, 0,
-			OPA_LINKDOWN_REASON_SPEED_POLICY);
+				     OPA_LINKDOWN_REASON_SPEED_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
 		tune_serdes(ppd);
 		start_link(ppd);
@@ -6896,7 +6898,7 @@ void handle_link_bounce(struct work_struct *work)
 		start_link(ppd);
 	} else {
 		dd_dev_info(ppd->dd, "%s: link not up (%s), nothing to do\n",
-			__func__, link_state_name(ppd->host_link_state));
+			    __func__, link_state_name(ppd->host_link_state));
 	}
 }
 
@@ -6993,7 +6995,7 @@ static u16 link_width_to_bits(struct hfi1_devdata *dd, u16 width)
 	case 3: return OPA_LINK_WIDTH_3X;
 	default:
 		dd_dev_info(dd, "%s: invalid width %d, using 4\n",
-			__func__, width);
+			    __func__, width);
 		/* fall through */
 	case 4: return OPA_LINK_WIDTH_4X;
 	}
@@ -7031,7 +7033,7 @@ static void get_link_widths(struct hfi1_devdata *dd, u16 *tx_width,
 
 	/* read the active lanes */
 	read_tx_settings(dd, &enable_lane_tx, &tx_polarity_inversion,
-				&rx_polarity_inversion, &max_rate);
+			 &rx_polarity_inversion, &max_rate);
 	read_local_lni(dd, &enable_lane_rx);
 
 	/* convert to counts */
@@ -7052,8 +7054,8 @@ static void get_link_widths(struct hfi1_devdata *dd, u16 *tx_width,
 			break;
 		default:
 			dd_dev_err(dd,
-				"%s: unexpected max rate %d, using 25Gb\n",
-				__func__, (int)max_rate);
+				   "%s: unexpected max rate %d, using 25Gb\n",
+				   __func__, (int)max_rate);
 			/* fall through */
 		case 1:
 			dd->pport[0].link_speed_active = OPA_LINK_SPEED_25G;
@@ -7062,8 +7064,8 @@ static void get_link_widths(struct hfi1_devdata *dd, u16 *tx_width,
 	}
 
 	dd_dev_info(dd,
-		"Fabric active lanes (width): tx 0x%x (%d), rx 0x%x (%d)\n",
-		enable_lane_tx, tx, enable_lane_rx, rx);
+		    "Fabric active lanes (width): tx 0x%x (%d), rx 0x%x (%d)\n",
+		    enable_lane_tx, tx, enable_lane_rx, rx);
 	*tx_width = link_width_to_bits(dd, tx);
 	*rx_width = link_width_to_bits(dd, rx);
 }
@@ -7166,13 +7168,8 @@ void handle_verify_cap(struct work_struct *work)
 	 */
 
 	read_vc_remote_phy(dd, &power_management, &continious);
-	read_vc_remote_fabric(
-		dd,
-		&vau,
-		&z,
-		&vcu,
-		&vl15buf,
-		&partner_supported_crc);
+	read_vc_remote_fabric(dd, &vau, &z, &vcu, &vl15buf,
+			      &partner_supported_crc);
 	read_vc_remote_link_width(dd, &remote_tx_rate, &link_widths);
 	read_remote_device_id(dd, &device_id, &device_rev);
 	/*
@@ -7183,19 +7180,16 @@ void handle_verify_cap(struct work_struct *work)
 	/* print the active widths */
 	get_link_widths(dd, &active_tx, &active_rx);
 	dd_dev_info(dd,
-		"Peer PHY: power management 0x%x, continuous updates 0x%x\n",
-		(int)power_management, (int)continious);
+		    "Peer PHY: power management 0x%x, continuous updates 0x%x\n",
+		    (int)power_management, (int)continious);
 	dd_dev_info(dd,
-		"Peer Fabric: vAU %d, Z %d, vCU %d, vl15 credits 0x%x, CRC sizes 0x%x\n",
-		(int)vau,
-		(int)z,
-		(int)vcu,
-		(int)vl15buf,
-		(int)partner_supported_crc);
+		    "Peer Fabric: vAU %d, Z %d, vCU %d, vl15 credits 0x%x, CRC sizes 0x%x\n",
+		    (int)vau, (int)z, (int)vcu, (int)vl15buf,
+		    (int)partner_supported_crc);
 	dd_dev_info(dd, "Peer Link Width: tx rate 0x%x, widths 0x%x\n",
-		(u32)remote_tx_rate, (u32)link_widths);
+		    (u32)remote_tx_rate, (u32)link_widths);
 	dd_dev_info(dd, "Peer Device ID: 0x%04x, Revision 0x%02x\n",
-		(u32)device_id, (u32)device_rev);
+		    (u32)device_id, (u32)device_rev);
 	/*
 	 * The peer vAU value just read is the peer receiver value.  HFI does
 	 * not support a transmit vAU of 0 (AU == 8).  We advertised that
@@ -7230,10 +7224,10 @@ void handle_verify_cap(struct work_struct *work)
 	reg = read_csr(dd, SEND_CM_CTRL);
 	if (crc_val == LCB_CRC_14B && crc_14b_sideband) {
 		write_csr(dd, SEND_CM_CTRL,
-			reg | SEND_CM_CTRL_FORCE_CREDIT_MODE_SMASK);
+			  reg | SEND_CM_CTRL_FORCE_CREDIT_MODE_SMASK);
 	} else {
 		write_csr(dd, SEND_CM_CTRL,
-			reg & ~SEND_CM_CTRL_FORCE_CREDIT_MODE_SMASK);
+			  reg & ~SEND_CM_CTRL_FORCE_CREDIT_MODE_SMASK);
 	}
 
 	ppd->link_speed_active = 0;	/* invalid value */
@@ -7258,7 +7252,7 @@ void handle_verify_cap(struct work_struct *work)
 	}
 	if (ppd->link_speed_active == 0) {
 		dd_dev_err(dd, "%s: unexpected remote tx rate %d, using 25Gb\n",
-			__func__, (int)remote_tx_rate);
+			   __func__, (int)remote_tx_rate);
 		ppd->link_speed_active = OPA_LINK_SPEED_25G;
 	}
 
@@ -7314,9 +7308,9 @@ void handle_verify_cap(struct work_struct *work)
 		read_csr(dd, DC_DC8051_STS_REMOTE_FM_SECURITY) &
 		DC_DC8051_STS_LOCAL_FM_SECURITY_DISABLED_MASK;
 	dd_dev_info(dd,
-		"Neighbor Guid: %llx Neighbor type %d MgmtAllowed %d FM security bypass %d\n",
-		ppd->neighbor_guid, ppd->neighbor_type,
-		ppd->mgmt_allowed, ppd->neighbor_fm_security);
+		    "Neighbor Guid: %llx Neighbor type %d MgmtAllowed %d FM security bypass %d\n",
+		    ppd->neighbor_guid, ppd->neighbor_type,
+		    ppd->mgmt_allowed, ppd->neighbor_fm_security);
 	if (ppd->mgmt_allowed)
 		add_full_mgmt_pkey(ppd);
 
@@ -7369,27 +7363,28 @@ retry:
 		/* downgrade is disabled */
 
 		/* bounce if not at starting active width */
-		if ((ppd->link_width_active != ppd->link_width_downgrade_tx_active) ||
-		    (ppd->link_width_active != ppd->link_width_downgrade_rx_active)) {
+		if ((ppd->link_width_active !=
+		     ppd->link_width_downgrade_tx_active) ||
+		    (ppd->link_width_active !=
+		     ppd->link_width_downgrade_rx_active)) {
 			dd_dev_err(ppd->dd,
-				"Link downgrade is disabled and link has downgraded, downing link\n");
+				   "Link downgrade is disabled and link has downgraded, downing link\n");
 			dd_dev_err(ppd->dd,
-				"  original 0x%x, tx active 0x%x, rx active 0x%x\n",
-				ppd->link_width_active,
-				ppd->link_width_downgrade_tx_active,
-				ppd->link_width_downgrade_rx_active);
+				   "  original 0x%x, tx active 0x%x, rx active 0x%x\n",
+				   ppd->link_width_active,
+				   ppd->link_width_downgrade_tx_active,
+				   ppd->link_width_downgrade_rx_active);
 			do_bounce = 1;
 		}
 	} else if ((lwde & ppd->link_width_downgrade_tx_active) == 0 ||
 		   (lwde & ppd->link_width_downgrade_rx_active) == 0) {
 		/* Tx or Rx is outside the enabled policy */
 		dd_dev_err(ppd->dd,
-			"Link is outside of downgrade allowed, downing link\n");
+			   "Link is outside of downgrade allowed, downing link\n");
 		dd_dev_err(ppd->dd,
-			"  enabled 0x%x, tx active 0x%x, rx active 0x%x\n",
-			lwde,
-			ppd->link_width_downgrade_tx_active,
-			ppd->link_width_downgrade_rx_active);
+			   "  enabled 0x%x, tx active 0x%x, rx active 0x%x\n",
+			   lwde, ppd->link_width_downgrade_tx_active,
+			   ppd->link_width_downgrade_rx_active);
 		do_bounce = 1;
 	}
 
@@ -7398,7 +7393,7 @@ done:
 
 	if (do_bounce) {
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_WIDTH_POLICY, 0,
-		  OPA_LINKDOWN_REASON_WIDTH_POLICY);
+				     OPA_LINKDOWN_REASON_WIDTH_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
 		tune_serdes(ppd);
 		start_link(ppd);
@@ -7481,9 +7476,10 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			    & (HLS_DN_POLL | HLS_VERIFY_CAP | HLS_GOING_UP)) {
 				queue_link_down = 1;
 				dd_dev_info(dd, "Link error: %s\n",
-					dc8051_info_err_string(buf,
-						sizeof(buf),
-						err & FAILED_LNI));
+					    dc8051_info_err_string(buf,
+								   sizeof(buf),
+								   err &
+								   FAILED_LNI));
 			}
 			err &= ~(u64)FAILED_LNI;
 		}
@@ -7495,7 +7491,8 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		if (err) {
 			/* report remaining errors, but do not do anything */
 			dd_dev_err(dd, "8051 info error: %s\n",
-				dc8051_info_err_string(buf, sizeof(buf), err));
+				   dc8051_info_err_string(buf, sizeof(buf),
+							  err));
 		}
 
 		/*
@@ -7548,8 +7545,9 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		if (host_msg) {
 			/* report remaining messages, but do not do anything */
 			dd_dev_info(dd, "8051 info host message: %s\n",
-				dc8051_info_host_msg_string(buf, sizeof(buf),
-					host_msg));
+				    dc8051_info_host_msg_string(buf,
+								sizeof(buf),
+								host_msg));
 		}
 
 		reg &= ~DC_DC8051_ERR_FLG_SET_BY_8051_SMASK;
@@ -7562,15 +7560,15 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		 */
 		dd_dev_err(dd, "Lost 8051 heartbeat\n");
 		write_csr(dd, DC_DC8051_ERR_EN,
-			read_csr(dd, DC_DC8051_ERR_EN)
-			  & ~DC_DC8051_ERR_EN_LOST_8051_HEART_BEAT_SMASK);
+			  read_csr(dd, DC_DC8051_ERR_EN) &
+			  ~DC_DC8051_ERR_EN_LOST_8051_HEART_BEAT_SMASK);
 
 		reg &= ~DC_DC8051_ERR_FLG_LOST_8051_HEART_BEAT_SMASK;
 	}
 	if (reg) {
 		/* report the error, but do not do anything */
 		dd_dev_err(dd, "8051 error: %s\n",
-			dc8051_err_string(buf, sizeof(buf), reg));
+			   dc8051_err_string(buf, sizeof(buf), reg));
 	}
 
 	if (queue_link_down) {
@@ -7582,7 +7580,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		    (HLS_GOING_OFFLINE | HLS_LINK_COOLDOWN)) ||
 		    ppd->link_enabled == 0) {
 			dd_dev_info(dd, "%s: not queuing link down\n",
-				__func__);
+				    __func__);
 		} else {
 			queue_work(ppd->hfi1_wq, &ppd->link_down_work);
 		}
@@ -7760,7 +7758,7 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		/* just report this */
 		dd_dev_info(dd, "DCC Error: PortRcv error: %s\n", extra);
 		dd_dev_info(dd, "           hdr0 0x%llx, hdr1 0x%llx\n",
-			hdr0, hdr1);
+			    hdr0, hdr1);
 
 		reg &= ~DCC_ERR_FLG_RCVPORT_ERR_SMASK;
 	}
@@ -7779,7 +7777,7 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	/* report any remaining errors */
 	if (reg)
 		dd_dev_info(dd, "DCC Error: %s\n",
-			dcc_err_string(buf, sizeof(buf), reg));
+			    dcc_err_string(buf, sizeof(buf), reg));
 
 	if (lcl_reason == 0)
 		lcl_reason = OPA_LINKDOWN_REASON_UNKNOWN;
@@ -7796,7 +7794,7 @@ static void handle_lcb_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	char buf[96];
 
 	dd_dev_info(dd, "LCB Error: %s\n",
-		lcb_err_string(buf, sizeof(buf), reg));
+		    lcb_err_string(buf, sizeof(buf), reg));
 }
 
 /*
@@ -7886,7 +7884,7 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 		err_detail = "out of range";
 	}
 	dd_dev_err(dd, "unexpected %s receive available context interrupt %u\n",
-		err_detail, source);
+		   err_detail, source);
 }
 
 /*
@@ -7912,7 +7910,7 @@ static void is_rcv_urgent_int(struct hfi1_devdata *dd, unsigned int source)
 		err_detail = "out of range";
 	}
 	dd_dev_err(dd, "unexpected %s receive urgent context interrupt %u\n",
-		err_detail, source);
+		   err_detail, source);
 }
 
 /*
@@ -7923,7 +7921,7 @@ static void is_reserved_int(struct hfi1_devdata *dd, unsigned int source)
 	char name[64];
 
 	dd_dev_err(dd, "unexpected %s interrupt\n",
-				is_reserved_name(name, sizeof(name), source));
+		   is_reserved_name(name, sizeof(name), source));
 }
 
 static const struct is_table is_table[] = {
@@ -8001,7 +7999,7 @@ static irqreturn_t general_interrupt(int irq, void *data)
 
 	/* phase 2: call the appropriate handler */
 	for_each_set_bit(bit, (unsigned long *)&regs[0],
-						CCE_NUM_INT_CSRS * 64) {
+			 CCE_NUM_INT_CSRS * 64) {
 		is_interrupt(dd, bit);
 	}
 
@@ -8024,19 +8022,19 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 
 	/* This read_csr is really bad in the hot path */
 	status = read_csr(dd,
-			CCE_INT_STATUS + (8 * (IS_SDMA_START / 64)))
-			& sde->imask;
+			  CCE_INT_STATUS + (8 * (IS_SDMA_START / 64)))
+			  & sde->imask;
 	if (likely(status)) {
 		/* clear the interrupt(s) */
 		write_csr(dd,
-			CCE_INT_CLEAR + (8 * (IS_SDMA_START / 64)),
-			status);
+			  CCE_INT_CLEAR + (8 * (IS_SDMA_START / 64)),
+			  status);
 
 		/* handle the interrupt(s) */
 		sdma_engine_interrupt(sde, status);
 	} else
 		dd_dev_err(dd, "SDMA engine %u interrupt, but no status bits set\n",
-			sde->this_idx);
+			   sde->this_idx);
 
 	return IRQ_HANDLED;
 }
@@ -8436,8 +8434,8 @@ int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
 	ret = do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd,
-			"load 8051 config: field id %d, lane %d, err %d\n",
-			(int)field_id, (int)lane_id, ret);
+			   "load 8051 config: field id %d, lane %d, err %d\n",
+			   (int)field_id, (int)lane_id, ret);
 	}
 	return ret;
 }
@@ -8474,7 +8472,7 @@ int read_8051_config(struct hfi1_devdata *dd, u8 field_id, u8 lane_id,
 	} else {
 		*result = 0;
 		dd_dev_err(dd, "%s: direct read failed, lane %d, field %d!\n",
-			__func__, lane_id, field_id);
+			   __func__, lane_id, field_id);
 	}
 
 	return ret;
@@ -8511,7 +8509,7 @@ static void read_vc_local_link_width(struct hfi1_devdata *dd, u8 *misc_bits,
 	u32 frame;
 
 	read_8051_config(dd, VERIFY_CAP_LOCAL_LINK_WIDTH, GENERAL_CONFIG,
-				&frame);
+			 &frame);
 	*misc_bits = (frame >> MISC_CONFIG_BITS_SHIFT) & MISC_CONFIG_BITS_MASK;
 	*flag_bits = (frame >> LOCAL_FLAG_BITS_SHIFT) & LOCAL_FLAG_BITS_MASK;
 	*link_widths = (frame >> LINK_WIDTH_SHIFT) & LINK_WIDTH_MASK;
@@ -8593,7 +8591,7 @@ static void read_vc_remote_link_width(struct hfi1_devdata *dd,
 	u32 frame;
 
 	read_8051_config(dd, VERIFY_CAP_REMOTE_LINK_WIDTH, GENERAL_CONFIG,
-				&frame);
+			 &frame);
 	*remote_tx_rate = (frame >> REMOTE_TX_RATE_SHIFT)
 				& REMOTE_TX_RATE_MASK;
 	*link_widths = (frame >> LINK_WIDTH_SHIFT) & LINK_WIDTH_MASK;
@@ -8633,7 +8631,7 @@ void hfi1_read_link_quality(struct hfi1_devdata *dd, u8 *link_quality)
 	*link_quality = 0;
 	if (dd->pport->host_link_state & HLS_UP) {
 		ret = read_8051_config(dd, LINK_QUALITY_INFO, GENERAL_CONFIG,
-					&frame);
+				       &frame);
 		if (ret == 0)
 			*link_quality = (frame >> LINK_QUALITY_SHIFT)
 						& LINK_QUALITY_MASK;
@@ -8693,10 +8691,9 @@ static void check_fabric_firmware_versions(struct hfi1_devdata *dd)
 	for (lane = 0; lane < 4; lane++) {
 		ret = read_8051_config(dd, SPICO_FW_VERSION, lane, &frame);
 		if (ret) {
-			dd_dev_err(
-				dd,
-				"Unable to read lane %d firmware details\n",
-				lane);
+			dd_dev_err(dd,
+				   "Unable to read lane %d firmware details\n",
+				   lane);
 			continue;
 		}
 		version = (frame >> SPICO_ROM_VERSION_SHIFT)
@@ -8704,8 +8701,8 @@ static void check_fabric_firmware_versions(struct hfi1_devdata *dd)
 		prod_id = (frame >> SPICO_ROM_PROD_ID_SHIFT)
 					& SPICO_ROM_PROD_ID_MASK;
 		dd_dev_info(dd,
-			"Lane %d firmware: version 0x%04x, prod_id 0x%04x\n",
-			lane, version, prod_id);
+			    "Lane %d firmware: version 0x%04x, prod_id 0x%04x\n",
+			    lane, version, prod_id);
 	}
 }
 
@@ -8718,11 +8715,10 @@ static int read_idle_message(struct hfi1_devdata *dd, u64 type, u64 *data_out)
 {
 	int ret;
 
-	ret = do_8051_command(dd, HCMD_READ_LCB_IDLE_MSG,
-		type, data_out);
+	ret = do_8051_command(dd, HCMD_READ_LCB_IDLE_MSG, type, data_out);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd, "read idle message: type %d, err %d\n",
-			(u32)type, ret);
+			   (u32)type, ret);
 		return -EINVAL;
 	}
 	dd_dev_info(dd, "%s: read idle message 0x%llx\n", __func__, *data_out);
@@ -8739,8 +8735,8 @@ static int read_idle_message(struct hfi1_devdata *dd, u64 type, u64 *data_out)
  */
 static int read_idle_sma(struct hfi1_devdata *dd, u64 *data)
 {
-	return read_idle_message(dd,
-			(u64)IDLE_SMA << IDLE_MSG_TYPE_SHIFT, data);
+	return read_idle_message(dd, (u64)IDLE_SMA << IDLE_MSG_TYPE_SHIFT,
+				 data);
 }
 
 /*
@@ -8756,7 +8752,7 @@ static int send_idle_message(struct hfi1_devdata *dd, u64 data)
 	ret = do_8051_command(dd, HCMD_SEND_LCB_IDLE_MSG, data, NULL);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd, "send idle message: data 0x%llx, err %d\n",
-			data, ret);
+			   data, ret);
 		return -EINVAL;
 	}
 	return 0;
@@ -8771,8 +8767,8 @@ int send_idle_sma(struct hfi1_devdata *dd, u64 message)
 {
 	u64 data;
 
-	data = ((message & IDLE_PAYLOAD_MASK) << IDLE_PAYLOAD_SHIFT)
-		| ((u64)IDLE_SMA << IDLE_MSG_TYPE_SHIFT);
+	data = ((message & IDLE_PAYLOAD_MASK) << IDLE_PAYLOAD_SHIFT) |
+		((u64)IDLE_SMA << IDLE_MSG_TYPE_SHIFT);
 	return send_idle_message(dd, data);
 }
 
@@ -8794,7 +8790,7 @@ static int do_quick_linkup(struct hfi1_devdata *dd)
 		/* LCB_CFG_LOOPBACK.VAL = 2 */
 		/* LCB_CFG_LANE_WIDTH.VAL = 0 */
 		write_csr(dd, DC_LCB_CFG_LOOPBACK,
-			IB_PACKET_TYPE << DC_LCB_CFG_LOOPBACK_VAL_SHIFT);
+			  IB_PACKET_TYPE << DC_LCB_CFG_LOOPBACK_VAL_SHIFT);
 		write_csr(dd, DC_LCB_CFG_LANE_WIDTH, 0);
 	}
 
@@ -8806,25 +8802,24 @@ static int do_quick_linkup(struct hfi1_devdata *dd)
 	if (loopback && dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
 		/* LCB_CFG_RUN.EN = 1 */
 		write_csr(dd, DC_LCB_CFG_RUN,
-			1ull << DC_LCB_CFG_RUN_EN_SHIFT);
+			  1ull << DC_LCB_CFG_RUN_EN_SHIFT);
 
 		/* watch LCB_STS_LINK_TRANSFER_ACTIVE */
 		timeout = jiffies + msecs_to_jiffies(10);
 		while (1) {
-			reg = read_csr(dd,
-				DC_LCB_STS_LINK_TRANSFER_ACTIVE);
+			reg = read_csr(dd, DC_LCB_STS_LINK_TRANSFER_ACTIVE);
 			if (reg)
 				break;
 			if (time_after(jiffies, timeout)) {
 				dd_dev_err(dd,
-					"timeout waiting for LINK_TRANSFER_ACTIVE\n");
+					   "timeout waiting for LINK_TRANSFER_ACTIVE\n");
 				return -ETIMEDOUT;
 			}
 			udelay(2);
 		}
 
 		write_csr(dd, DC_LCB_CFG_ALLOW_LINK_UP,
-			1ull << DC_LCB_CFG_ALLOW_LINK_UP_VAL_SHIFT);
+			  1ull << DC_LCB_CFG_ALLOW_LINK_UP_VAL_SHIFT);
 	}
 
 	if (!loopback) {
@@ -8836,10 +8831,9 @@ static int do_quick_linkup(struct hfi1_devdata *dd)
 		 * done with LCB set up before resuming.
 		 */
 		dd_dev_err(dd,
-			"Pausing for peer to be finished with LCB set up\n");
+			   "Pausing for peer to be finished with LCB set up\n");
 		msleep(5000);
-		dd_dev_err(dd,
-			"Continuing with quick linkup\n");
+		dd_dev_err(dd, "Continuing with quick linkup\n");
 	}
 
 	write_csr(dd, DC_LCB_ERR_EN, 0); /* mask LCB errors */
@@ -8853,8 +8847,8 @@ static int do_quick_linkup(struct hfi1_devdata *dd)
 	ret = set_physical_link_state(dd, PLS_QUICK_LINKUP);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd,
-			"%s: set physical link state to quick LinkUp failed with return %d\n",
-			__func__, ret);
+			   "%s: set physical link state to quick LinkUp failed with return %d\n",
+			   __func__, ret);
 
 		set_host_lcb_access(dd);
 		write_csr(dd, DC_LCB_ERR_EN, ~0ull); /* watch LCB errors */
@@ -8879,8 +8873,8 @@ static int set_serdes_loopback_mode(struct hfi1_devdata *dd)
 	if (ret == HCMD_SUCCESS)
 		return 0;
 	dd_dev_err(dd,
-		"Set physical link state to SerDes Loopback failed with return %d\n",
-		ret);
+		   "Set physical link state to SerDes Loopback failed with return %d\n",
+		   ret);
 	if (ret >= 0)
 		ret = -EINVAL;
 	return ret;
@@ -8895,7 +8889,7 @@ static int init_loopback(struct hfi1_devdata *dd)
 
 	/* all loopbacks should disable self GUID check */
 	write_csr(dd, DC_DC8051_CFG_MODE,
-		(read_csr(dd, DC_DC8051_CFG_MODE) | DISABLE_SELF_GUID_CHECK));
+		  (read_csr(dd, DC_DC8051_CFG_MODE) | DISABLE_SELF_GUID_CHECK));
 
 	/*
 	 * The simulator has only one loopback option - LCB.  Switch
@@ -8926,7 +8920,7 @@ static int init_loopback(struct hfi1_devdata *dd)
 		/* not supported in emulation due to emulation RTL changes */
 		if (dd->icode == ICODE_FPGA_EMULATION) {
 			dd_dev_err(dd,
-				"LCB loopback not supported in emulation\n");
+				   "LCB loopback not supported in emulation\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -8982,7 +8976,7 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 
 	/* set the local tx rate - need to read-modify-write */
 	ret = read_tx_settings(dd, &enable_lane_tx, &tx_polarity_inversion,
-		&rx_polarity_inversion, &ppd->local_tx_rate);
+			       &rx_polarity_inversion, &ppd->local_tx_rate);
 	if (ret)
 		goto set_local_link_attributes_fail;
 
@@ -9003,15 +8997,16 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 
 	enable_lane_tx = 0xF; /* enable all four lanes */
 	ret = write_tx_settings(dd, enable_lane_tx, tx_polarity_inversion,
-		     rx_polarity_inversion, ppd->local_tx_rate);
+				rx_polarity_inversion, ppd->local_tx_rate);
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
 
 	/*
 	 * DC supports continuous updates.
 	 */
-	ret = write_vc_local_phy(dd, 0 /* no power management */,
-				     1 /* continuous updates */);
+	ret = write_vc_local_phy(dd,
+				 0 /* no power management */,
+				 1 /* continuous updates */);
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
 
@@ -9022,7 +9017,8 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 		goto set_local_link_attributes_fail;
 
 	ret = write_vc_local_link_width(dd, 0, 0,
-		     opa_to_vc_link_widths(ppd->link_width_enabled));
+					opa_to_vc_link_widths(
+						ppd->link_width_enabled));
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
 
@@ -9033,8 +9029,8 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 
 set_local_link_attributes_fail:
 	dd_dev_err(dd,
-		"Failed to set local link attributes, return 0x%x\n",
-		ret);
+		   "Failed to set local link attributes, return 0x%x\n",
+		   ret);
 	return ret;
 }
 
@@ -9047,25 +9043,25 @@ int start_link(struct hfi1_pportdata *ppd)
 {
 	if (!ppd->link_enabled) {
 		dd_dev_info(ppd->dd,
-			"%s: stopping link start because link is disabled\n",
-			__func__);
+			    "%s: stopping link start because link is disabled\n",
+			    __func__);
 		return 0;
 	}
 	if (!ppd->driver_link_ready) {
 		dd_dev_info(ppd->dd,
-			"%s: stopping link start because driver is not ready\n",
-			__func__);
+			    "%s: stopping link start because driver is not ready\n",
+			    __func__);
 		return 0;
 	}
 
 	if (qsfp_mod_present(ppd) || loopback == LOOPBACK_SERDES ||
-			loopback == LOOPBACK_LCB ||
-			ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
+	    loopback == LOOPBACK_LCB ||
+	    ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
 		return set_link_state(ppd, HLS_DN_POLL);
 
 	dd_dev_info(ppd->dd,
-		"%s: stopping link start because no cable is present\n",
-		__func__);
+		    "%s: stopping link start because no cable is present\n",
+		    __func__);
 	return -EAGAIN;
 }
 
@@ -9121,20 +9117,19 @@ void reset_qsfp(struct hfi1_pportdata *ppd)
 	mask = (u64)QSFP_HFI0_RESET_N;
 	qsfp_mask = read_csr(dd, dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE);
 	qsfp_mask |= mask;
-	write_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE, qsfp_mask);
+	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE, qsfp_mask);
 
-	qsfp_mask = read_csr(dd, dd->hfi1_id ?
-				ASIC_QSFP2_OUT : ASIC_QSFP1_OUT);
+	qsfp_mask = read_csr(dd,
+			     dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT);
 	qsfp_mask &= ~mask;
 	write_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT, qsfp_mask);
+		  dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT, qsfp_mask);
 
 	udelay(10);
 
 	qsfp_mask |= mask;
 	write_csr(dd,
-		dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT, qsfp_mask);
+		  dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT, qsfp_mask);
 
 	wait_for_qsfp_init(ppd);
 
@@ -9151,102 +9146,86 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 	struct hfi1_devdata *dd = ppd->dd;
 
 	if ((qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_ALARM) ||
-		(qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_WARNING))
-		dd_dev_info(dd,
-			"%s: QSFP cable on fire\n",
-			__func__);
+	    (qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_WARNING))
+		dd_dev_info(dd, "%s: QSFP cable on fire\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[0] & QSFP_LOW_TEMP_ALARM) ||
-		(qsfp_interrupt_status[0] & QSFP_LOW_TEMP_WARNING))
-		dd_dev_info(dd,
-			"%s: QSFP cable temperature too low\n",
-			__func__);
+	    (qsfp_interrupt_status[0] & QSFP_LOW_TEMP_WARNING))
+		dd_dev_info(dd, "%s: QSFP cable temperature too low\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[1] & QSFP_HIGH_VCC_ALARM) ||
-		(qsfp_interrupt_status[1] & QSFP_HIGH_VCC_WARNING))
-		dd_dev_info(dd,
-			"%s: QSFP supply voltage too high\n",
-			__func__);
+	    (qsfp_interrupt_status[1] & QSFP_HIGH_VCC_WARNING))
+		dd_dev_info(dd, "%s: QSFP supply voltage too high\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[1] & QSFP_LOW_VCC_ALARM) ||
-		(qsfp_interrupt_status[1] & QSFP_LOW_VCC_WARNING))
-		dd_dev_info(dd,
-			"%s: QSFP supply voltage too low\n",
-			__func__);
+	    (qsfp_interrupt_status[1] & QSFP_LOW_VCC_WARNING))
+		dd_dev_info(dd, "%s: QSFP supply voltage too low\n",
+			    __func__);
 
 	/* Byte 2 is vendor specific */
 
 	if ((qsfp_interrupt_status[3] & QSFP_HIGH_POWER_ALARM) ||
-		(qsfp_interrupt_status[3] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable RX channel 1/2 power too high\n",
-			__func__);
+	    (qsfp_interrupt_status[3] & QSFP_HIGH_POWER_WARNING))
+		dd_dev_info(dd, "%s: Cable RX channel 1/2 power too high\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[3] & QSFP_LOW_POWER_ALARM) ||
-		(qsfp_interrupt_status[3] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable RX channel 1/2 power too low\n",
-			__func__);
+	    (qsfp_interrupt_status[3] & QSFP_LOW_POWER_WARNING))
+		dd_dev_info(dd, "%s: Cable RX channel 1/2 power too low\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[4] & QSFP_HIGH_POWER_ALARM) ||
-		(qsfp_interrupt_status[4] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable RX channel 3/4 power too high\n",
-			__func__);
+	    (qsfp_interrupt_status[4] & QSFP_HIGH_POWER_WARNING))
+		dd_dev_info(dd, "%s: Cable RX channel 3/4 power too high\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[4] & QSFP_LOW_POWER_ALARM) ||
-		(qsfp_interrupt_status[4] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable RX channel 3/4 power too low\n",
-			__func__);
+	    (qsfp_interrupt_status[4] & QSFP_LOW_POWER_WARNING))
+		dd_dev_info(dd, "%s: Cable RX channel 3/4 power too low\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_ALARM) ||
-		(qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable TX channel 1/2 bias too high\n",
-			__func__);
+	    (qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_WARNING))
+		dd_dev_info(dd, "%s: Cable TX channel 1/2 bias too high\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[5] & QSFP_LOW_BIAS_ALARM) ||
-		(qsfp_interrupt_status[5] & QSFP_LOW_BIAS_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable TX channel 1/2 bias too low\n",
-			__func__);
+	    (qsfp_interrupt_status[5] & QSFP_LOW_BIAS_WARNING))
+		dd_dev_info(dd, "%s: Cable TX channel 1/2 bias too low\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_ALARM) ||
-		(qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable TX channel 3/4 bias too high\n",
-			__func__);
+	    (qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_WARNING))
+		dd_dev_info(dd, "%s: Cable TX channel 3/4 bias too high\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[6] & QSFP_LOW_BIAS_ALARM) ||
-		(qsfp_interrupt_status[6] & QSFP_LOW_BIAS_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable TX channel 3/4 bias too low\n",
-			__func__);
+	    (qsfp_interrupt_status[6] & QSFP_LOW_BIAS_WARNING))
+		dd_dev_info(dd, "%s: Cable TX channel 3/4 bias too low\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[7] & QSFP_HIGH_POWER_ALARM) ||
-		(qsfp_interrupt_status[7] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable TX channel 1/2 power too high\n",
-			__func__);
+	    (qsfp_interrupt_status[7] & QSFP_HIGH_POWER_WARNING))
+		dd_dev_info(dd, "%s: Cable TX channel 1/2 power too high\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[7] & QSFP_LOW_POWER_ALARM) ||
-		(qsfp_interrupt_status[7] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable TX channel 1/2 power too low\n",
-			__func__);
+	    (qsfp_interrupt_status[7] & QSFP_LOW_POWER_WARNING))
+		dd_dev_info(dd, "%s: Cable TX channel 1/2 power too low\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[8] & QSFP_HIGH_POWER_ALARM) ||
-		(qsfp_interrupt_status[8] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable TX channel 3/4 power too high\n",
-			__func__);
+	    (qsfp_interrupt_status[8] & QSFP_HIGH_POWER_WARNING))
+		dd_dev_info(dd, "%s: Cable TX channel 3/4 power too high\n",
+			    __func__);
 
 	if ((qsfp_interrupt_status[8] & QSFP_LOW_POWER_ALARM) ||
-		(qsfp_interrupt_status[8] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd,
-			"%s: Cable TX channel 3/4 power too low\n",
-			__func__);
+	    (qsfp_interrupt_status[8] & QSFP_LOW_POWER_WARNING))
+		dd_dev_info(dd, "%s: Cable TX channel 3/4 power too low\n",
+			    __func__);
 
 	/* Bytes 9-10 and 11-12 are reserved */
 	/* Bytes 13-15 are vendor specific */
@@ -9298,8 +9277,8 @@ void qsfp_event(struct work_struct *work)
 		if (qsfp_read(ppd, dd->hfi1_id, 6,
 			      &qsfp_interrupt_status[0], 16) != 16) {
 			dd_dev_info(dd,
-				"%s: Failed to read status of QSFP module\n",
-				__func__);
+				    "%s: Failed to read status of QSFP module\n",
+				    __func__);
 		} else {
 			unsigned long flags;
 
@@ -9308,7 +9287,7 @@ void qsfp_event(struct work_struct *work)
 			spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 			ppd->qsfp_info.check_interrupt_flags = 0;
 			spin_unlock_irqrestore(&ppd->qsfp_info.qsfp_lock,
-								flags);
+					       flags);
 		}
 	}
 }
@@ -9430,7 +9409,7 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 	ppd->offline_disabled_reason =
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_SMA_DISABLED);
 	set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SMA_DISABLED, 0,
-	  OPA_LINKDOWN_REASON_SMA_DISABLED);
+			     OPA_LINKDOWN_REASON_SMA_DISABLED);
 	set_link_state(ppd, HLS_DN_OFFLINE);
 
 	/* disable the port */
@@ -9486,8 +9465,8 @@ void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		pa = 0;
 	} else if (type > PT_INVALID) {
 		dd_dev_err(dd,
-			"unexpected receive array type %u for index %u, not handled\n",
-			type, index);
+			   "unexpected receive array type %u for index %u, not handled\n",
+			   type, index);
 		goto done;
 	}
 
@@ -9702,12 +9681,15 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 	/* all kernel receive contexts have the same hdrqentsize */
 	for (i = 0; i < ppd->vls_supported; i++) {
 		sc_set_cr_threshold(dd->vld[i].sc,
-			sc_mtu_to_threshold(dd->vld[i].sc, dd->vld[i].mtu,
-				dd->rcd[0]->rcvhdrqentsize));
+				    sc_mtu_to_threshold(dd->vld[i].sc,
+							dd->vld[i].mtu,
+							dd->rcd[0]->
+							rcvhdrqentsize));
 	}
 	sc_set_cr_threshold(dd->vld[15].sc,
-		sc_mtu_to_threshold(dd->vld[15].sc, dd->vld[15].mtu,
-			dd->rcd[0]->rcvhdrqentsize));
+			    sc_mtu_to_threshold(dd->vld[15].sc,
+						dd->vld[15].mtu,
+						dd->rcd[0]->rcvhdrqentsize));
 
 	/* Adjust maximum MTU for the port in DC */
 	dcmtu = maxvlmtu == 10240 ? DCC_CFG_PORT_MTU_CAP_10240 :
@@ -9768,8 +9750,8 @@ static int wait_phy_linkstate(struct hfi1_devdata *dd, u32 state, u32 msecs)
 			break;
 		if (time_after(jiffies, timeout)) {
 			dd_dev_err(dd,
-				"timeout waiting for phy link state 0x%x, current state is 0x%x\n",
-				state, curr_state);
+				   "timeout waiting for phy link state 0x%x, current state is 0x%x\n",
+				   state, curr_state);
 			return -ETIMEDOUT;
 		}
 		usleep_range(1950, 2050); /* sleep 2ms-ish */
@@ -9812,12 +9794,12 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 
 	if (do_transition) {
 		ret = set_physical_link_state(dd,
-			PLS_OFFLINE | (rem_reason << 8));
+					      PLS_OFFLINE | (rem_reason << 8));
 
 		if (ret != HCMD_SUCCESS) {
 			dd_dev_err(dd,
-				"Failed to transition to Offline link state, return %d\n",
-				ret);
+				   "Failed to transition to Offline link state, return %d\n",
+				   ret);
 			return -EINVAL;
 		}
 		if (ppd->offline_disabled_reason ==
@@ -9862,7 +9844,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	ret = wait_fm_ready(dd, 7000);
 	if (ret) {
 		dd_dev_err(dd,
-			"After going offline, timed out waiting for the 8051 to become ready to accept host requests\n");
+			   "After going offline, timed out waiting for the 8051 to become ready to accept host requests\n");
 		/* state is really offline, so make it so */
 		ppd->host_link_state = HLS_DN_OFFLINE;
 		return ret;
@@ -9885,8 +9867,8 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 		read_last_local_state(dd, &last_local_state);
 		read_last_remote_state(dd, &last_remote_state);
 		dd_dev_err(dd,
-			"LNI failure last states: local 0x%08x, remote 0x%08x\n",
-			last_local_state, last_remote_state);
+			   "LNI failure last states: local 0x%08x, remote 0x%08x\n",
+			   last_local_state, last_remote_state);
 	}
 
 	/* the active link width (downgrade) is 0 on link down */
@@ -10038,10 +10020,10 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		      state == HLS_DN_POLL;
 
 	dd_dev_info(dd, "%s: current %s, new %s %s%s\n", __func__,
-		link_state_name(ppd->host_link_state),
-		link_state_name(orig_new_state),
-		poll_bounce ? "(bounce) " : "",
-		link_state_reason_name(ppd, state));
+		    link_state_name(ppd->host_link_state),
+		    link_state_name(orig_new_state),
+		    poll_bounce ? "(bounce) " : "",
+		    link_state_reason_name(ppd, state));
 
 	was_up = !!(ppd->host_link_state & HLS_UP);
 
@@ -10071,7 +10053,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			 * simulator jumps from polling to link up.
 			 * Accept that here.
 			 */
-			/* OK */;
+			/* OK */
 		} else if (ppd->host_link_state != HLS_GOING_UP) {
 			goto unexpected;
 		}
@@ -10082,8 +10064,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			/* logical state didn't change, stay at going_up */
 			ppd->host_link_state = HLS_GOING_UP;
 			dd_dev_err(dd,
-				"%s: logical state did not change to INIT\n",
-				__func__);
+				   "%s: logical state did not change to INIT\n",
+				   __func__);
 		} else {
 			/* clear old transient LINKINIT_REASON code */
 			if (ppd->linkinit_reason >= OPA_LINKINIT_REASON_CLEAR)
@@ -10107,8 +10089,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			/* logical state didn't change, stay at init */
 			ppd->host_link_state = HLS_UP_INIT;
 			dd_dev_err(dd,
-				"%s: logical state did not change to ARMED\n",
-				__func__);
+				   "%s: logical state did not change to ARMED\n",
+				   __func__);
 		}
 		/*
 		 * The simulator does not currently implement SMA messages,
@@ -10129,8 +10111,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			/* logical state didn't change, stay at armed */
 			ppd->host_link_state = HLS_UP_ARMED;
 			dd_dev_err(dd,
-				"%s: logical state did not change to ACTIVE\n",
-				__func__);
+				   "%s: logical state did not change to ACTIVE\n",
+				   __func__);
 		} else {
 			/* tell all engines to go running */
 			sdma_all_running(dd);
@@ -10178,8 +10160,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			ret1 = set_physical_link_state(dd, PLS_POLLING);
 			if (ret1 != HCMD_SUCCESS) {
 				dd_dev_err(dd,
-					"Failed to transition to Polling link state, return 0x%x\n",
-					ret1);
+					   "Failed to transition to Polling link state, return 0x%x\n",
+					   ret1);
 				ret = -EINVAL;
 			}
 		}
@@ -10209,8 +10191,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		ret1 = set_physical_link_state(dd, PLS_DISABLED);
 		if (ret1 != HCMD_SUCCESS) {
 			dd_dev_err(dd,
-				"Failed to transition to Disabled link state, return 0x%x\n",
-				ret1);
+				   "Failed to transition to Disabled link state, return 0x%x\n",
+				   ret1);
 			ret = -EINVAL;
 			break;
 		}
@@ -10238,8 +10220,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		ret1 = set_physical_link_state(dd, PLS_LINKUP);
 		if (ret1 != HCMD_SUCCESS) {
 			dd_dev_err(dd,
-				"Failed to transition to link up state, return 0x%x\n",
-				ret1);
+				   "Failed to transition to link up state, return 0x%x\n",
+				   ret1);
 			ret = -EINVAL;
 			break;
 		}
@@ -10250,7 +10232,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 	case HLS_LINK_COOLDOWN:		/* transient within goto_offline() */
 	default:
 		dd_dev_info(dd, "%s: state 0x%x: not supported\n",
-			__func__, state);
+			    __func__, state);
 		ret = -EINVAL;
 		break;
 	}
@@ -10270,8 +10252,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 
 unexpected:
 	dd_dev_err(dd, "%s: unexpected state transition from %s to %s\n",
-		__func__, link_state_name(ppd->host_link_state),
-		link_state_name(state));
+		   __func__, link_state_name(ppd->host_link_state),
+		   link_state_name(state));
 	ret = -EINVAL;
 
 done:
@@ -10359,8 +10341,8 @@ int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val)
 	default:
 		if (HFI1_CAP_IS_KSET(PRINT_UNIMPL))
 			dd_dev_info(ppd->dd,
-			  "%s: which %s, val 0x%x: not implemented\n",
-			  __func__, ib_cfg_name(which), val);
+				    "%s: which %s, val 0x%x: not implemented\n",
+				    __func__, ib_cfg_name(which), val);
 		break;
 	}
 	return ret;
@@ -10569,41 +10551,41 @@ static void get_vlarb_preempt(struct hfi1_devdata *dd, u32 nelems,
 static void set_sc2vlnt(struct hfi1_devdata *dd, struct sc2vlnt *dp)
 {
 	write_csr(dd, DCC_CFG_SC_VL_TABLE_15_0,
-		DC_SC_VL_VAL(15_0,
-		0, dp->vlnt[0] & 0xf,
-		1, dp->vlnt[1] & 0xf,
-		2, dp->vlnt[2] & 0xf,
-		3, dp->vlnt[3] & 0xf,
-		4, dp->vlnt[4] & 0xf,
-		5, dp->vlnt[5] & 0xf,
-		6, dp->vlnt[6] & 0xf,
-		7, dp->vlnt[7] & 0xf,
-		8, dp->vlnt[8] & 0xf,
-		9, dp->vlnt[9] & 0xf,
-		10, dp->vlnt[10] & 0xf,
-		11, dp->vlnt[11] & 0xf,
-		12, dp->vlnt[12] & 0xf,
-		13, dp->vlnt[13] & 0xf,
-		14, dp->vlnt[14] & 0xf,
-		15, dp->vlnt[15] & 0xf));
+		  DC_SC_VL_VAL(15_0,
+			       0, dp->vlnt[0] & 0xf,
+			       1, dp->vlnt[1] & 0xf,
+			       2, dp->vlnt[2] & 0xf,
+			       3, dp->vlnt[3] & 0xf,
+			       4, dp->vlnt[4] & 0xf,
+			       5, dp->vlnt[5] & 0xf,
+			       6, dp->vlnt[6] & 0xf,
+			       7, dp->vlnt[7] & 0xf,
+			       8, dp->vlnt[8] & 0xf,
+			       9, dp->vlnt[9] & 0xf,
+			       10, dp->vlnt[10] & 0xf,
+			       11, dp->vlnt[11] & 0xf,
+			       12, dp->vlnt[12] & 0xf,
+			       13, dp->vlnt[13] & 0xf,
+			       14, dp->vlnt[14] & 0xf,
+			       15, dp->vlnt[15] & 0xf));
 	write_csr(dd, DCC_CFG_SC_VL_TABLE_31_16,
-		DC_SC_VL_VAL(31_16,
-		16, dp->vlnt[16] & 0xf,
-		17, dp->vlnt[17] & 0xf,
-		18, dp->vlnt[18] & 0xf,
-		19, dp->vlnt[19] & 0xf,
-		20, dp->vlnt[20] & 0xf,
-		21, dp->vlnt[21] & 0xf,
-		22, dp->vlnt[22] & 0xf,
-		23, dp->vlnt[23] & 0xf,
-		24, dp->vlnt[24] & 0xf,
-		25, dp->vlnt[25] & 0xf,
-		26, dp->vlnt[26] & 0xf,
-		27, dp->vlnt[27] & 0xf,
-		28, dp->vlnt[28] & 0xf,
-		29, dp->vlnt[29] & 0xf,
-		30, dp->vlnt[30] & 0xf,
-		31, dp->vlnt[31] & 0xf));
+		  DC_SC_VL_VAL(31_16,
+			       16, dp->vlnt[16] & 0xf,
+			       17, dp->vlnt[17] & 0xf,
+			       18, dp->vlnt[18] & 0xf,
+			       19, dp->vlnt[19] & 0xf,
+			       20, dp->vlnt[20] & 0xf,
+			       21, dp->vlnt[21] & 0xf,
+			       22, dp->vlnt[22] & 0xf,
+			       23, dp->vlnt[23] & 0xf,
+			       24, dp->vlnt[24] & 0xf,
+			       25, dp->vlnt[25] & 0xf,
+			       26, dp->vlnt[26] & 0xf,
+			       27, dp->vlnt[27] & 0xf,
+			       28, dp->vlnt[28] & 0xf,
+			       29, dp->vlnt[29] & 0xf,
+			       30, dp->vlnt[30] & 0xf,
+			       31, dp->vlnt[31] & 0xf));
 }
 
 static void nonzero_msg(struct hfi1_devdata *dd, int idx, const char *what,
@@ -10611,7 +10593,7 @@ static void nonzero_msg(struct hfi1_devdata *dd, int idx, const char *what,
 {
 	if (limit != 0)
 		dd_dev_info(dd, "Invalid %s limit %d on VL %d, ignoring\n",
-			what, (int)limit, idx);
+			    what, (int)limit, idx);
 }
 
 /* change only the shared limit portion of SendCmGLobalCredit */
@@ -10689,14 +10671,14 @@ static void wait_for_vl_status_clear(struct hfi1_devdata *dd, u64 mask,
 	}
 
 	dd_dev_err(dd,
-		"%s credit change status not clearing after %dms, mask 0x%llx, not clear 0x%llx\n",
-		which, VL_STATUS_CLEAR_TIMEOUT, mask, reg);
+		   "%s credit change status not clearing after %dms, mask 0x%llx, not clear 0x%llx\n",
+		   which, VL_STATUS_CLEAR_TIMEOUT, mask, reg);
 	/*
 	 * If this occurs, it is likely there was a credit loss on the link.
 	 * The only recovery from that is a link bounce.
 	 */
 	dd_dev_err(dd,
-		"Continuing anyway.  A credit loss may occur.  Suggest a link bounce\n");
+		   "Continuing anyway.  A credit loss may occur.  Suggest a link bounce\n");
 }
 
 /*
@@ -10763,9 +10745,9 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 			continue;
 		}
 		nonzero_msg(dd, i, "dedicated",
-			be16_to_cpu(new_bc->vl[i].dedicated));
+			    be16_to_cpu(new_bc->vl[i].dedicated));
 		nonzero_msg(dd, i, "shared",
-			be16_to_cpu(new_bc->vl[i].shared));
+			    be16_to_cpu(new_bc->vl[i].shared));
 		new_bc->vl[i].dedicated = 0;
 		new_bc->vl[i].shared = 0;
 	}
@@ -10836,7 +10818,7 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 	}
 
 	wait_for_vl_status_clear(dd, use_all_mask ? all_mask : changing_mask,
-		"shared");
+				 "shared");
 
 	if (change_count > 0) {
 		for (i = 0; i < NUM_USABLE_VLS; i++) {
@@ -10845,7 +10827,8 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 
 			if (lowering_dedicated[i]) {
 				set_vl_dedicated(dd, i,
-					be16_to_cpu(new_bc->vl[i].dedicated));
+						 be16_to_cpu(new_bc->
+							     vl[i].dedicated));
 				cur_bc.vl[i].dedicated =
 						new_bc->vl[i].dedicated;
 			}
@@ -10861,7 +10844,8 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 			if (be16_to_cpu(new_bc->vl[i].dedicated) >
 					be16_to_cpu(cur_bc.vl[i].dedicated))
 				set_vl_dedicated(dd, i,
-					be16_to_cpu(new_bc->vl[i].dedicated));
+						 be16_to_cpu(new_bc->
+							     vl[i].dedicated));
 		}
 	}
 
@@ -10877,9 +10861,9 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 
 	/* finally raise the global shared */
 	if (be16_to_cpu(new_bc->overall_shared_limit) >
-			be16_to_cpu(cur_bc.overall_shared_limit))
+	    be16_to_cpu(cur_bc.overall_shared_limit))
 		set_global_shared(dd,
-			be16_to_cpu(new_bc->overall_shared_limit));
+				  be16_to_cpu(new_bc->overall_shared_limit));
 
 	/* bracket the credit change with a total adjustment */
 	if (new_total < cur_total)
@@ -11152,7 +11136,8 @@ static void adjust_rcv_timeout(struct hfi1_ctxtdata *rcd, u32 npkts)
 	 * been verified to be in range
 	 */
 	write_kctxt_csr(dd, rcd->ctxt, RCV_AVAIL_TIME_OUT,
-		(u64)timeout << RCV_AVAIL_TIME_OUT_TIME_OUT_RELOAD_SHIFT);
+			(u64)timeout <<
+			RCV_AVAIL_TIME_OUT_TIME_OUT_RELOAD_SHIFT);
 }
 
 void update_usrhead(struct hfi1_ctxtdata *rcd, u32 hd, u32 updegr, u32 egrhd,
@@ -11370,14 +11355,14 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		reg = read_kctxt_csr(dd, ctxt, RCV_CTXT_STATUS);
 		if (reg != 0) {
 			dd_dev_info(dd, "ctxt %d status %lld (blocked)\n",
-				ctxt, reg);
+				    ctxt, reg);
 			read_uctxt_csr(dd, ctxt, RCV_HDR_HEAD);
 			write_uctxt_csr(dd, ctxt, RCV_HDR_HEAD, 0x10);
 			write_uctxt_csr(dd, ctxt, RCV_HDR_HEAD, 0x00);
 			read_uctxt_csr(dd, ctxt, RCV_HDR_HEAD);
 			reg = read_kctxt_csr(dd, ctxt, RCV_CTXT_STATUS);
 			dd_dev_info(dd, "ctxt %d status %lld (%s blocked)\n",
-				ctxt, reg, reg == 0 ? "not" : "still");
+				    ctxt, reg, reg == 0 ? "not" : "still");
 		}
 	}
 
@@ -11388,7 +11373,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		 */
 		/* set interrupt timeout */
 		write_kctxt_csr(dd, ctxt, RCV_AVAIL_TIME_OUT,
-			(u64)rcd->rcvavail_timeout <<
+				(u64)rcd->rcvavail_timeout <<
 				RCV_AVAIL_TIME_OUT_TIME_OUT_RELOAD_SHIFT);
 
 		/* set RcvHdrHead.Counter, zero RcvHdrHead.Head (again) */
@@ -11863,8 +11848,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 			dev_cntrs[i].offset = dd->ndevcntrs;
 			for (j = 0; j < C_VL_COUNT; j++) {
 				snprintf(name, C_MAX_NAME, "%s%d",
-					dev_cntrs[i].name,
-					vl_from_idx(j));
+					 dev_cntrs[i].name, vl_from_idx(j));
 				sz += strlen(name);
 				/* Add ",32" for 32-bit counters */
 				if (dev_cntrs[i].flags & CNTR_32BIT)
@@ -11987,8 +11971,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 			port_cntrs[i].offset = dd->nportcntrs;
 			for (j = 0; j < C_VL_COUNT; j++) {
 				snprintf(name, C_MAX_NAME, "%s%d",
-					port_cntrs[i].name,
-					vl_from_idx(j));
+					 port_cntrs[i].name, vl_from_idx(j));
 				sz += strlen(name);
 				/* Add ",32" for 32-bit counters */
 				if (port_cntrs[i].flags & CNTR_32BIT)
@@ -12021,8 +12004,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 		if (port_cntrs[i].flags & CNTR_VL) {
 			for (j = 0; j < C_VL_COUNT; j++) {
 				snprintf(name, C_MAX_NAME, "%s%d",
-					port_cntrs[i].name,
-					vl_from_idx(j));
+					 port_cntrs[i].name, vl_from_idx(j));
 				memcpy(p, name, strlen(name));
 				p += strlen(name);
 
@@ -12077,8 +12059,8 @@ static u32 chip_to_opa_lstate(struct hfi1_devdata *dd, u32 chip_lstate)
 	switch (chip_lstate) {
 	default:
 		dd_dev_err(dd,
-			 "Unknown logical state 0x%x, reporting IB_PORT_DOWN\n",
-			 chip_lstate);
+			   "Unknown logical state 0x%x, reporting IB_PORT_DOWN\n",
+			   chip_lstate);
 		/* fall through */
 	case LSTATE_DOWN:
 		return IB_PORT_DOWN;
@@ -12097,7 +12079,7 @@ u32 chip_to_opa_pstate(struct hfi1_devdata *dd, u32 chip_pstate)
 	switch (chip_pstate & 0xf0) {
 	default:
 		dd_dev_err(dd, "Unexpected chip physical state of 0x%x\n",
-			chip_pstate);
+			   chip_pstate);
 		/* fall through */
 	case PLS_DISABLED:
 		return IB_PORTPHYSSTATE_DISABLED;
@@ -12163,7 +12145,7 @@ u32 get_logical_state(struct hfi1_pportdata *ppd)
 	new_state = chip_to_opa_lstate(ppd->dd, read_logical_state(ppd->dd));
 	if (new_state != ppd->lstate) {
 		dd_dev_info(ppd->dd, "logical state changed to %s (0x%x)\n",
-			opa_lstate_name(new_state), new_state);
+			    opa_lstate_name(new_state), new_state);
 		ppd->lstate = new_state;
 	}
 	/*
@@ -12229,9 +12211,9 @@ u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd)
 	ib_pstate = chip_to_opa_pstate(ppd->dd, pstate);
 	if (ppd->last_pstate != ib_pstate) {
 		dd_dev_info(ppd->dd,
-			"%s: physical state changed to %s (0x%x), phy 0x%x\n",
-			__func__, opa_pstate_name(ib_pstate), ib_pstate,
-			pstate);
+			    "%s: physical state changed to %s (0x%x), phy 0x%x\n",
+			    __func__, opa_pstate_name(ib_pstate), ib_pstate,
+			    pstate);
 		ppd->last_pstate = ib_pstate;
 	}
 	return ib_pstate;
@@ -12449,11 +12431,11 @@ static void remap_sdma_interrupts(struct hfi1_devdata *dd,
 	 *	SDMAIdle
 	 */
 	remap_intr(dd, IS_SDMA_START + 0 * TXE_NUM_SDMA_ENGINES + engine,
-		msix_intr);
+		   msix_intr);
 	remap_intr(dd, IS_SDMA_START + 1 * TXE_NUM_SDMA_ENGINES + engine,
-		msix_intr);
+		   msix_intr);
 	remap_intr(dd, IS_SDMA_START + 2 * TXE_NUM_SDMA_ENGINES + engine,
-		msix_intr);
+		   msix_intr);
 }
 
 static int request_intx_irq(struct hfi1_devdata *dd)
@@ -12463,10 +12445,10 @@ static int request_intx_irq(struct hfi1_devdata *dd)
 	snprintf(dd->intx_name, sizeof(dd->intx_name), DRIVER_NAME "_%d",
 		 dd->unit);
 	ret = request_irq(dd->pcidev->irq, general_interrupt,
-				  IRQF_SHARED, dd->intx_name, dd);
+			  IRQF_SHARED, dd->intx_name, dd);
 	if (ret)
 		dd_dev_err(dd, "unable to request INTx interrupt, err %d\n",
-				ret);
+			   ret);
 	else
 		dd->requested_intx_irq = 1;
 	return ret;
@@ -12549,7 +12531,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			 * ignore it
 			 */
 			dd_dev_err(dd,
-				"Unexpected extra MSI-X interrupt %d\n", i);
+				   "Unexpected extra MSI-X interrupt %d\n", i);
 			continue;
 		}
 		/* no argument, no interrupt */
@@ -12559,11 +12541,11 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		me->name[sizeof(me->name) - 1] = 0;
 
 		ret = request_threaded_irq(me->msix.vector, handler, thread, 0,
-						me->name, arg);
+					   me->name, arg);
 		if (ret) {
 			dd_dev_err(dd,
-				"unable to allocate %s interrupt, vector %d, index %d, err %d\n",
-				 err_info, me->msix.vector, idx, ret);
+				   "unable to allocate %s interrupt, vector %d, index %d, err %d\n",
+				   err_info, me->msix.vector, idx, ret);
 			return ret;
 		}
 		/*
@@ -12748,11 +12730,11 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	dd->num_user_contexts = num_user_contexts;
 	dd->freectxts = num_user_contexts;
 	dd_dev_info(dd,
-		"rcv contexts: chip %d, used %d (kernel %d, user %d)\n",
-		(int)dd->chip_rcv_contexts,
-		(int)dd->num_rcv_contexts,
-		(int)dd->n_krcv_queues,
-		(int)dd->num_rcv_contexts - dd->n_krcv_queues);
+		    "rcv contexts: chip %d, used %d (kernel %d, user %d)\n",
+		    (int)dd->chip_rcv_contexts,
+		    (int)dd->num_rcv_contexts,
+		    (int)dd->n_krcv_queues,
+		    (int)dd->num_rcv_contexts - dd->n_krcv_queues);
 
 	/*
 	 * Receive array allocation:
@@ -12778,8 +12760,8 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		dd->rcv_entries.ngroups = (MAX_EAGER_ENTRIES * 2) /
 			dd->rcv_entries.group_size;
 		dd_dev_info(dd,
-		   "RcvArray group count too high, change to %u\n",
-		   dd->rcv_entries.ngroups);
+			    "RcvArray group count too high, change to %u\n",
+			    dd->rcv_entries.ngroups);
 		dd->rcv_entries.nctxt_extra = 0;
 	}
 	/*
@@ -12871,7 +12853,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 	/* RcvArray */
 	for (i = 0; i < dd->chip_rcv_array_count; i++)
 		write_csr(dd, RCV_ARRAY + (8 * i),
-					RCV_ARRAY_RT_WRITE_ENABLE_SMASK);
+			  RCV_ARRAY_RT_WRITE_ENABLE_SMASK);
 
 	/* RcvQPMapTable */
 	for (i = 0; i < 32; i++)
@@ -12903,8 +12885,8 @@ static void clear_cce_status(struct hfi1_devdata *dd, u64 status_bits,
 			return;
 		if (time_after(jiffies, timeout)) {
 			dd_dev_err(dd,
-				"Timeout waiting for CceStatus to clear bits 0x%llx, remaining 0x%llx\n",
-				status_bits, reg & status_bits);
+				   "Timeout waiting for CceStatus to clear bits 0x%llx, remaining 0x%llx\n",
+				   status_bits, reg & status_bits);
 			return;
 		}
 		udelay(1);
@@ -12936,7 +12918,7 @@ static void reset_cce_csrs(struct hfi1_devdata *dd)
 	for (i = 0; i < CCE_NUM_MSIX_VECTORS; i++) {
 		write_csr(dd, CCE_MSIX_TABLE_LOWER + (8 * i), 0);
 		write_csr(dd, CCE_MSIX_TABLE_UPPER + (8 * i),
-					CCE_MSIX_TABLE_UPPER_RESETCSR);
+			  CCE_MSIX_TABLE_UPPER_RESETCSR);
 	}
 	for (i = 0; i < CCE_NUM_MSIX_PBAS; i++) {
 		/* CCE_MSIX_PBA read-only */
@@ -13120,8 +13102,7 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 	for (i = 0; i < TXE_NUM_64_BIT_COUNTER; i++)
 		write_csr(dd, SEND_COUNTER_ARRAY64 + (8 * i), 0);
 	write_csr(dd, SEND_CM_CTRL, SEND_CM_CTRL_RESETCSR);
-	write_csr(dd, SEND_CM_GLOBAL_CREDIT,
-					SEND_CM_GLOBAL_CREDIT_RESETCSR);
+	write_csr(dd, SEND_CM_GLOBAL_CREDIT, SEND_CM_GLOBAL_CREDIT_RESETCSR);
 	/* SEND_CM_CREDIT_USED_STATUS read-only */
 	write_csr(dd, SEND_CM_TIMER_CTRL, 0);
 	write_csr(dd, SEND_CM_LOCAL_AU_TABLE0_TO3, 0);
@@ -13215,8 +13196,8 @@ static void init_rbufs(struct hfi1_devdata *dd)
 		 */
 		if (count++ > 500) {
 			dd_dev_err(dd,
-				"%s: in-progress DMA not clearing: RcvStatus 0x%llx, continuing\n",
-				__func__, reg);
+				   "%s: in-progress DMA not clearing: RcvStatus 0x%llx, continuing\n",
+				   __func__, reg);
 			break;
 		}
 		udelay(2); /* do not busy-wait the CSR */
@@ -13245,8 +13226,8 @@ static void init_rbufs(struct hfi1_devdata *dd)
 		/* give up after 100us - slowest possible at 33MHz is 73us */
 		if (count++ > 50) {
 			dd_dev_err(dd,
-				"%s: RcvStatus.RxRbufInit not set, continuing\n",
-				__func__);
+				   "%s: RcvStatus.RxRbufInit not set, continuing\n",
+				   __func__);
 			break;
 		}
 	}
@@ -13272,7 +13253,7 @@ static void reset_rxe_csrs(struct hfi1_devdata *dd)
 	write_csr(dd, RCV_VL15, 0);
 	/* this is a clear-down */
 	write_csr(dd, RCV_ERR_INFO,
-			RCV_ERR_INFO_RCV_EXCESS_BUFFER_OVERRUN_SMASK);
+		  RCV_ERR_INFO_RCV_EXCESS_BUFFER_OVERRUN_SMASK);
 	/* RCV_ERR_STATUS read-only */
 	write_csr(dd, RCV_ERR_MASK, 0);
 	write_csr(dd, RCV_ERR_CLEAR, ~0ull);
@@ -13318,8 +13299,8 @@ static void reset_rxe_csrs(struct hfi1_devdata *dd)
 		write_uctxt_csr(dd, i, RCV_EGR_INDEX_HEAD, 0);
 		/* RCV_EGR_OFFSET_TAIL read-only */
 		for (j = 0; j < RXE_NUM_TID_FLOWS; j++) {
-			write_uctxt_csr(dd, i, RCV_TID_FLOW_TABLE + (8 * j),
-				0);
+			write_uctxt_csr(dd, i,
+					RCV_TID_FLOW_TABLE + (8 * j), 0);
 		}
 	}
 }
@@ -13519,12 +13500,12 @@ static void init_kdeth_qp(struct hfi1_devdata *dd)
 		kdeth_qp = DEFAULT_KDETH_QP;
 
 	write_csr(dd, SEND_BTH_QP,
-			(kdeth_qp & SEND_BTH_QP_KDETH_QP_MASK)
-				<< SEND_BTH_QP_KDETH_QP_SHIFT);
+		  (kdeth_qp & SEND_BTH_QP_KDETH_QP_MASK) <<
+		  SEND_BTH_QP_KDETH_QP_SHIFT);
 
 	write_csr(dd, RCV_BTH_QP,
-			(kdeth_qp & RCV_BTH_QP_KDETH_QP_MASK)
-				<< RCV_BTH_QP_KDETH_QP_SHIFT);
+		  (kdeth_qp & RCV_BTH_QP_KDETH_QP_MASK) <<
+		  RCV_BTH_QP_KDETH_QP_SHIFT);
 }
 
 /**
@@ -13649,22 +13630,21 @@ static void init_qos(struct hfi1_devdata *dd, u32 first_ctxt)
 		write_csr(dd, RCV_RSM_MAP_TABLE + (8 * i), rsmmap[i]);
 	/* add rule0 */
 	write_csr(dd, RCV_RSM_CFG /* + (8 * 0) */,
-		RCV_RSM_CFG_ENABLE_OR_CHAIN_RSM0_MASK
-			<< RCV_RSM_CFG_ENABLE_OR_CHAIN_RSM0_SHIFT |
-		2ull << RCV_RSM_CFG_PACKET_TYPE_SHIFT);
+		  RCV_RSM_CFG_ENABLE_OR_CHAIN_RSM0_MASK <<
+		  RCV_RSM_CFG_ENABLE_OR_CHAIN_RSM0_SHIFT |
+		  2ull << RCV_RSM_CFG_PACKET_TYPE_SHIFT);
 	write_csr(dd, RCV_RSM_SELECT /* + (8 * 0) */,
-		LRH_BTH_MATCH_OFFSET
-			<< RCV_RSM_SELECT_FIELD1_OFFSET_SHIFT |
-		LRH_SC_MATCH_OFFSET << RCV_RSM_SELECT_FIELD2_OFFSET_SHIFT |
-		LRH_SC_SELECT_OFFSET << RCV_RSM_SELECT_INDEX1_OFFSET_SHIFT |
-		((u64)n) << RCV_RSM_SELECT_INDEX1_WIDTH_SHIFT |
-		QPN_SELECT_OFFSET << RCV_RSM_SELECT_INDEX2_OFFSET_SHIFT |
-		((u64)m + (u64)n) << RCV_RSM_SELECT_INDEX2_WIDTH_SHIFT);
+		  LRH_BTH_MATCH_OFFSET << RCV_RSM_SELECT_FIELD1_OFFSET_SHIFT |
+		  LRH_SC_MATCH_OFFSET << RCV_RSM_SELECT_FIELD2_OFFSET_SHIFT |
+		  LRH_SC_SELECT_OFFSET << RCV_RSM_SELECT_INDEX1_OFFSET_SHIFT |
+		  ((u64)n) << RCV_RSM_SELECT_INDEX1_WIDTH_SHIFT |
+		  QPN_SELECT_OFFSET << RCV_RSM_SELECT_INDEX2_OFFSET_SHIFT |
+		  ((u64)m + (u64)n) << RCV_RSM_SELECT_INDEX2_WIDTH_SHIFT);
 	write_csr(dd, RCV_RSM_MATCH /* + (8 * 0) */,
-		LRH_BTH_MASK << RCV_RSM_MATCH_MASK1_SHIFT |
-		LRH_BTH_VALUE << RCV_RSM_MATCH_VALUE1_SHIFT |
-		LRH_SC_MASK << RCV_RSM_MATCH_MASK2_SHIFT |
-		LRH_SC_VALUE << RCV_RSM_MATCH_VALUE2_SHIFT);
+		  LRH_BTH_MASK << RCV_RSM_MATCH_MASK1_SHIFT |
+		  LRH_BTH_VALUE << RCV_RSM_MATCH_VALUE1_SHIFT |
+		  LRH_SC_MASK << RCV_RSM_MATCH_MASK2_SHIFT |
+		  LRH_SC_VALUE << RCV_RSM_MATCH_VALUE2_SHIFT);
 	/* Enable RSM */
 	add_rcvctrl(dd, RCV_CTRL_RCV_RSM_ENABLE_SMASK);
 	kfree(rsmmap);
@@ -13682,9 +13662,8 @@ static void init_rxe(struct hfi1_devdata *dd)
 	/* enable all receive errors */
 	write_csr(dd, RCV_ERR_MASK, ~0ull);
 	/* setup QPN map table - start where VL15 context leaves off */
-	init_qos(
-		dd,
-		dd->n_krcv_queues > MIN_KERNEL_KCTXTS ? MIN_KERNEL_KCTXTS : 0);
+	init_qos(dd, dd->n_krcv_queues > MIN_KERNEL_KCTXTS ?
+		 MIN_KERNEL_KCTXTS : 0);
 	/*
 	 * make sure RcvCtrl.RcvWcb <= PCIe Device Control
 	 * Register Max_Payload_Size (PCI_EXP_DEVCTL in Linux PCIe config
@@ -13721,35 +13700,33 @@ static void assign_cm_au_table(struct hfi1_devdata *dd, u32 cu,
 			       u32 csr0to3, u32 csr4to7)
 {
 	write_csr(dd, csr0to3,
-		   0ull <<
-			SEND_CM_LOCAL_AU_TABLE0_TO3_LOCAL_AU_TABLE0_SHIFT
-		|  1ull <<
-			SEND_CM_LOCAL_AU_TABLE0_TO3_LOCAL_AU_TABLE1_SHIFT
-		|  2ull * cu <<
-			SEND_CM_LOCAL_AU_TABLE0_TO3_LOCAL_AU_TABLE2_SHIFT
-		|  4ull * cu <<
-			SEND_CM_LOCAL_AU_TABLE0_TO3_LOCAL_AU_TABLE3_SHIFT);
+		  0ull << SEND_CM_LOCAL_AU_TABLE0_TO3_LOCAL_AU_TABLE0_SHIFT |
+		  1ull << SEND_CM_LOCAL_AU_TABLE0_TO3_LOCAL_AU_TABLE1_SHIFT |
+		  2ull * cu <<
+		  SEND_CM_LOCAL_AU_TABLE0_TO3_LOCAL_AU_TABLE2_SHIFT |
+		  4ull * cu <<
+		  SEND_CM_LOCAL_AU_TABLE0_TO3_LOCAL_AU_TABLE3_SHIFT);
 	write_csr(dd, csr4to7,
-		   8ull * cu <<
-			SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE4_SHIFT
-		| 16ull * cu <<
-			SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE5_SHIFT
-		| 32ull * cu <<
-			SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE6_SHIFT
-		| 64ull * cu <<
-			SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE7_SHIFT);
+		  8ull * cu <<
+		  SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE4_SHIFT |
+		  16ull * cu <<
+		  SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE5_SHIFT |
+		  32ull * cu <<
+		  SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE6_SHIFT |
+		  64ull * cu <<
+		  SEND_CM_LOCAL_AU_TABLE4_TO7_LOCAL_AU_TABLE7_SHIFT);
 }
 
 static void assign_local_cm_au_table(struct hfi1_devdata *dd, u8 vcu)
 {
 	assign_cm_au_table(dd, vcu_to_cu(vcu), SEND_CM_LOCAL_AU_TABLE0_TO3,
-					SEND_CM_LOCAL_AU_TABLE4_TO7);
+			   SEND_CM_LOCAL_AU_TABLE4_TO7);
 }
 
 void assign_remote_cm_au_table(struct hfi1_devdata *dd, u8 vcu)
 {
 	assign_cm_au_table(dd, vcu_to_cu(vcu), SEND_CM_REMOTE_AU_TABLE0_TO3,
-					SEND_CM_REMOTE_AU_TABLE4_TO7);
+			   SEND_CM_REMOTE_AU_TABLE4_TO7);
 }
 
 static void init_txe(struct hfi1_devdata *dd)
@@ -13995,8 +13972,8 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		"Functional simulator"
 	};
 
-	dd = hfi1_alloc_devdata(pdev,
-		NUM_IB_PORTS * sizeof(struct hfi1_pportdata));
+	dd = hfi1_alloc_devdata(pdev, NUM_IB_PORTS *
+				sizeof(struct hfi1_pportdata));
 	if (IS_ERR(dd))
 		goto bail;
 	ppd = dd->pport;
@@ -14083,8 +14060,8 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	dd->icode = reg >> CCE_REVISION2_IMPL_CODE_SHIFT;
 	dd->irev = reg >> CCE_REVISION2_IMPL_REVISION_SHIFT;
 	dd_dev_info(dd, "Implementation: %s, revision 0x%x\n",
-		dd->icode < ARRAY_SIZE(inames) ? inames[dd->icode] : "unknown",
-		(int)dd->irev);
+		    dd->icode < ARRAY_SIZE(inames) ?
+		    inames[dd->icode] : "unknown", (int)dd->irev);
 
 	/* speeds the hardware can support */
 	dd->pport->link_speed_supported = OPA_LINK_SPEED_25G;

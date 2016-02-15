@@ -1145,9 +1145,9 @@ static int user_init(struct file *fp)
 	 * has done it.
 	 */
 	if (fd->subctxt) {
-		ret = wait_event_interruptible(uctxt->wait,
-			!test_bit(HFI1_CTXT_MASTER_UNINIT,
-			&uctxt->event_flags));
+		ret = wait_event_interruptible(uctxt->wait, !test_bit(
+					       HFI1_CTXT_MASTER_UNINIT,
+					       &uctxt->event_flags));
 		goto expected;
 	}
 
@@ -1592,7 +1592,7 @@ static loff_t ui_lseek(struct file *filp, loff_t offset, int whence)
 
 /* NOTE: assumes unsigned long is 8 bytes */
 static ssize_t ui_read(struct file *filp, char __user *buf, size_t count,
-			loff_t *f_pos)
+		       loff_t *f_pos)
 {
 	struct hfi1_devdata *dd = filp->private_data;
 	void __iomem *base = dd->kregbase;

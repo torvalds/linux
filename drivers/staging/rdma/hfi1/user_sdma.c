@@ -728,7 +728,7 @@ free_req:
 }
 
 static inline u32 compute_data_length(struct user_sdma_request *req,
-					    struct user_sdma_txreq *tx)
+				      struct user_sdma_txreq *tx)
 {
 	/*
 	 * Determine the proper size of the packet data.

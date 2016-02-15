@@ -970,7 +970,8 @@ static inline int egress_pkey_check(struct hfi1_pportdata *ppd,
 
 	/* The most likely matching pkey has index qp->s_pkey_index */
 	if (unlikely(!egress_pkey_matches_entry(pkey,
-					ppd->pkeys[qp->s_pkey_index]))) {
+						ppd->pkeys
+						[qp->s_pkey_index]))) {
 		/* no match - try the entire table */
 		for (; i < MAX_PKEY_VALUES; i++) {
 			if (egress_pkey_matches_entry(pkey, ppd->pkeys[i]))

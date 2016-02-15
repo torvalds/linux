@@ -1773,8 +1773,8 @@ static inline void rc_cancel_ack(struct rvt_qp *qp)
  * schedule a response to be sent.
  */
 static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
-			struct rvt_qp *qp, u32 opcode, u32 psn, int diff,
-			struct hfi1_ctxtdata *rcd)
+				 struct rvt_qp *qp, u32 opcode, u32 psn,
+				 int diff, struct hfi1_ctxtdata *rcd)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct rvt_ack_entry *e;
