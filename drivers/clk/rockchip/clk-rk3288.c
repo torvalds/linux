@@ -195,8 +195,8 @@ PNAME(mux_hsadcout_p)	= { "hsadc_src", "ext_hsadc" };
 PNAME(mux_edp_24m_p)	= { "ext_edp_24m", "xin24m" };
 PNAME(mux_tspout_p)	= { "cpll", "gpll", "npll", "xin27m" };
 
-PNAME(mux_usbphy480m_p)		= { "sclk_otgphy1", "sclk_otgphy2",
-				    "sclk_otgphy0" };
+PNAME(mux_usbphy480m_p)		= { "sclk_otgphy1_480m", "sclk_otgphy2_480m",
+				    "sclk_otgphy0_480m" };
 PNAME(mux_hsicphy480m_p)	= { "cpll", "gpll", "usbphy480m_src" };
 PNAME(mux_hsicphy12m_p)		= { "hsicphy12m_xin12m", "hsicphy12m_usbphy" };
 
@@ -333,6 +333,8 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	GATE(0, "aclk_bus_2pmu", "aclk_cpu_pre", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(0), 7, GFLAGS),
 
+	FACTOR(0, "xin12m", "xin24m", 0, 1, 2),
+
 	COMPOSITE(0, "i2s_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3288_CLKSEL_CON(4), 15, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3288_CLKGATE_CON(4), 1, GFLAGS),
@@ -399,12 +401,10 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	 */
 	GATE(ACLK_VCODEC, "aclk_vcodec", "aclk_vdpu", 0,
 		RK3288_CLKGATE_CON(9), 0, GFLAGS),
-	/*
-	 * We introduce a virtul node of hclk_vodec_pre_v to split one clock
-	 * struct with a gate and a fix divider into two node in software.
-	 */
-	GATE(0, "hclk_vcodec_pre_v", "aclk_vdpu", 0,
+
+	FACTOR_GATE(0, "hclk_vcodec_pre", "aclk_vdpu", 0, 1, 4,
 		RK3288_CLKGATE_CON(3), 10, GFLAGS),
+
 	GATE(HCLK_VCODEC, "hclk_vcodec", "hclk_vcodec_pre", 0,
 		RK3288_CLKGATE_CON(9), 1, GFLAGS),
 
@@ -537,11 +537,11 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 			RK3288_CLKSEL_CON(35), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3288_CLKGATE_CON(4), 10, GFLAGS),
 
-	GATE(SCLK_OTGPHY0, "sclk_otgphy0", "usb480m", CLK_IGNORE_UNUSED,
+	GATE(SCLK_OTGPHY0, "sclk_otgphy0", "xin24m", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(13), 4, GFLAGS),
-	GATE(SCLK_OTGPHY1, "sclk_otgphy1", "usb480m", CLK_IGNORE_UNUSED,
+	GATE(SCLK_OTGPHY1, "sclk_otgphy1", "xin24m", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(13), 5, GFLAGS),
-	GATE(SCLK_OTGPHY2, "sclk_otgphy2", "usb480m", CLK_IGNORE_UNUSED,
+	GATE(SCLK_OTGPHY2, "sclk_otgphy2", "xin24m", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(13), 6, GFLAGS),
 	GATE(SCLK_OTG_ADP, "sclk_otg_adp", "xin32k", CLK_IGNORE_UNUSED,
 			RK3288_CLKGATE_CON(13), 7, GFLAGS),
@@ -887,24 +887,6 @@ static void __init rk3288_clk_init(struct device_node *np)
 	}
 
 	rockchip_clk_init(np, rk3288_cru_base, CLK_NR_CLKS);
-
-	/* xin12m is created by an cru-internal divider */
-	clk = clk_register_fixed_factor(NULL, "xin12m", "xin24m", 0, 1, 2);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock xin12m: %ld\n",
-			__func__, PTR_ERR(clk));
-
-
-	clk = clk_register_fixed_factor(NULL, "usb480m", "xin24m", 0, 20, 1);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock usb480m: %ld\n",
-			__func__, PTR_ERR(clk));
-
-	clk = clk_register_fixed_factor(NULL, "hclk_vcodec_pre",
-					"hclk_vcodec_pre_v", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock hclk_vcodec_pre: %ld\n",
-			__func__, PTR_ERR(clk));
 
 	/* Watchdog pclk is controlled by RK3288_SGRF_SOC_CON0[1]. */
 	clk = clk_register_fixed_factor(NULL, "pclk_wdt", "pclk_pd_alive", 0, 1, 1);

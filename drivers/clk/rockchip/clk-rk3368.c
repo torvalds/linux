@@ -121,7 +121,7 @@ PNAME(mux_i2s_2ch_p)		= { "i2s_2ch_src", "i2s_2ch_frac",
 				    "dummy", "xin12m" };
 PNAME(mux_spdif_8ch_p)		= { "spdif_8ch_pre", "spdif_8ch_frac",
 				    "ext_i2s", "xin12m" };
-PNAME(mux_edp_24m_p)		= { "dummy", "xin24m" };
+PNAME(mux_edp_24m_p)		= { "xin24m", "dummy" };
 PNAME(mux_vip_out_p)		= { "vip_src", "xin24m" };
 PNAME(mux_usbphy480m_p)		= { "usbotg_out", "xin24m" };
 PNAME(mux_hsic_usbphy480m_p)	= { "usbotg_out", "dummy" };
@@ -165,7 +165,7 @@ static const struct rockchip_cpuclk_reg_data rk3368_cpuclkb_data = {
 	.core_reg = RK3368_CLKSEL_CON(0),
 	.div_core_shift = 0,
 	.div_core_mask = 0x1f,
-	.mux_core_shift = 15,
+	.mux_core_shift = 7,
 };
 
 static const struct rockchip_cpuclk_reg_data rk3368_cpuclkl_data = {
@@ -218,35 +218,37 @@ static const struct rockchip_cpuclk_reg_data rk3368_cpuclkl_data = {
 	}
 
 static struct rockchip_cpuclk_rate_table rk3368_cpuclkb_rates[] __initdata = {
-	RK3368_CPUCLKB_RATE(1512000000, 2, 6, 6),
-	RK3368_CPUCLKB_RATE(1488000000, 2, 5, 5),
-	RK3368_CPUCLKB_RATE(1416000000, 2, 5, 5),
-	RK3368_CPUCLKB_RATE(1200000000, 2, 4, 4),
-	RK3368_CPUCLKB_RATE(1008000000, 2, 4, 4),
-	RK3368_CPUCLKB_RATE( 816000000, 2, 3, 3),
-	RK3368_CPUCLKB_RATE( 696000000, 2, 3, 3),
-	RK3368_CPUCLKB_RATE( 600000000, 2, 2, 2),
-	RK3368_CPUCLKB_RATE( 408000000, 2, 2, 2),
-	RK3368_CPUCLKB_RATE( 312000000, 2, 2, 2),
+	RK3368_CPUCLKB_RATE(1512000000, 1, 5, 5),
+	RK3368_CPUCLKB_RATE(1488000000, 1, 4, 4),
+	RK3368_CPUCLKB_RATE(1416000000, 1, 4, 4),
+	RK3368_CPUCLKB_RATE(1200000000, 1, 3, 3),
+	RK3368_CPUCLKB_RATE(1008000000, 1, 3, 3),
+	RK3368_CPUCLKB_RATE( 816000000, 1, 2, 2),
+	RK3368_CPUCLKB_RATE( 696000000, 1, 2, 2),
+	RK3368_CPUCLKB_RATE( 600000000, 1, 1, 1),
+	RK3368_CPUCLKB_RATE( 408000000, 1, 1, 1),
+	RK3368_CPUCLKB_RATE( 312000000, 1, 1, 1),
 };
 
 static struct rockchip_cpuclk_rate_table rk3368_cpuclkl_rates[] __initdata = {
-	RK3368_CPUCLKL_RATE(1512000000, 2, 7, 7),
-	RK3368_CPUCLKL_RATE(1488000000, 2, 6, 6),
-	RK3368_CPUCLKL_RATE(1416000000, 2, 6, 6),
-	RK3368_CPUCLKL_RATE(1200000000, 2, 5, 5),
-	RK3368_CPUCLKL_RATE(1008000000, 2, 5, 5),
-	RK3368_CPUCLKL_RATE( 816000000, 2, 4, 4),
-	RK3368_CPUCLKL_RATE( 696000000, 2, 3, 3),
-	RK3368_CPUCLKL_RATE( 600000000, 2, 3, 3),
-	RK3368_CPUCLKL_RATE( 408000000, 2, 2, 2),
-	RK3368_CPUCLKL_RATE( 312000000, 2, 2, 2),
+	RK3368_CPUCLKL_RATE(1512000000, 1, 6, 6),
+	RK3368_CPUCLKL_RATE(1488000000, 1, 5, 5),
+	RK3368_CPUCLKL_RATE(1416000000, 1, 5, 5),
+	RK3368_CPUCLKL_RATE(1200000000, 1, 4, 4),
+	RK3368_CPUCLKL_RATE(1008000000, 1, 4, 4),
+	RK3368_CPUCLKL_RATE( 816000000, 1, 3, 3),
+	RK3368_CPUCLKL_RATE( 696000000, 1, 2, 2),
+	RK3368_CPUCLKL_RATE( 600000000, 1, 2, 2),
+	RK3368_CPUCLKL_RATE( 408000000, 1, 1, 1),
+	RK3368_CPUCLKL_RATE( 312000000, 1, 1, 1),
 };
 
 static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 2
 	 */
+
+	FACTOR(0, "xin12m", "xin24m", 0, 1, 2),
 
 	MUX(SCLK_USBPHY480M, "usbphy_480m", mux_usbphy480m_p, CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(13), 8, 1, MFLAGS),
@@ -299,7 +301,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	COMPOSITE_NOGATE_DIVTBL(0, "ddrphy_src", mux_ddrphy_p, CLK_IGNORE_UNUSED,
 			RK3368_CLKSEL_CON(13), 4, 1, MFLAGS, 0, 2, DFLAGS, div_ddrphy_t),
 
-	GATE(0, "sclk_ddr", "ddrphy_div4", CLK_IGNORE_UNUSED,
+	FACTOR_GATE(0, "sclk_ddr", "ddrphy_src", CLK_IGNORE_UNUSED, 1, 4,
 			RK3368_CLKGATE_CON(6), 14, GFLAGS),
 	GATE(0, "sclk_ddr4x", "ddrphy_src", CLK_IGNORE_UNUSED,
 			RK3368_CLKGATE_CON(6), 15, GFLAGS),
@@ -353,7 +355,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	COMPOSITE_FRAC(0, "spdif_8ch_frac", "spdif_8ch_src", CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(32), 0,
 			RK3368_CLKGATE_CON(6), 5, GFLAGS),
-	COMPOSITE_NODIV(SCLK_SPDIF_8CH, "sclk_spdif_8ch", mux_spdif_8ch_p, 0,
+	COMPOSITE_NODIV(SCLK_SPDIF_8CH, "sclk_spdif_8ch", mux_spdif_8ch_p, CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(31), 8, 2, MFLAGS,
 			RK3368_CLKGATE_CON(6), 6, GFLAGS),
 	COMPOSITE(0, "i2s_2ch_src", mux_pll_src_cpll_gpll_p, 0,
@@ -362,7 +364,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	COMPOSITE_FRAC(0, "i2s_2ch_frac", "i2s_2ch_src", CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(54), 0,
 			RK3368_CLKGATE_CON(5), 14, GFLAGS),
-	COMPOSITE_NODIV(SCLK_I2S_2CH, "sclk_i2s_2ch", mux_i2s_2ch_p, 0,
+	COMPOSITE_NODIV(SCLK_I2S_2CH, "sclk_i2s_2ch", mux_i2s_2ch_p, CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(53), 8, 2, MFLAGS,
 			RK3368_CLKGATE_CON(5), 15, GFLAGS),
 
@@ -384,18 +386,18 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 3
 	 */
 
-	COMPOSITE(0, "aclk_vepu", mux_pll_src_cpll_gpll_usb_p, 0,
+	COMPOSITE(0, "aclk_vepu", mux_pll_src_cpll_gpll_npll_usb_p, 0,
 			RK3368_CLKSEL_CON(15), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3368_CLKGATE_CON(4), 6, GFLAGS),
-	COMPOSITE(0, "aclk_vdpu", mux_pll_src_cpll_gpll_usb_p, 0,
+	COMPOSITE(0, "aclk_vdpu", mux_pll_src_cpll_gpll_npll_usb_p, 0,
 			RK3368_CLKSEL_CON(15), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3368_CLKGATE_CON(4), 7, GFLAGS),
 
 	/*
-	 * We introduce a virtual node of hclk_vodec_pre_v to split one clock
-	 * struct with a gate and a fix divider into two node in software.
+	 * We use aclk_vdpu by default ---GRF_SOC_CON0[7] setting in system,
+	 * so we ignore the mux and make clocks nodes as following,
 	 */
-	GATE(0, "hclk_video_pre_v", "aclk_vdpu", 0,
+	FACTOR_GATE(0, "hclk_video_pre", "aclk_vdpu", 0, 1, 4,
 		RK3368_CLKGATE_CON(4), 8, GFLAGS),
 
 	COMPOSITE(0, "sclk_hevc_cabac_src", mux_pll_src_cpll_gpll_npll_usb_p, 0,
@@ -442,7 +444,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	GATE(SCLK_HDMI_HDCP, "sclk_hdmi_hdcp", "xin24m", 0,
 			RK3368_CLKGATE_CON(4), 13, GFLAGS),
 	GATE(SCLK_HDMI_CEC, "sclk_hdmi_cec", "xin32k", 0,
-			RK3368_CLKGATE_CON(5), 12, GFLAGS),
+			RK3368_CLKGATE_CON(4), 12, GFLAGS),
 
 	COMPOSITE_NODIV(0, "vip_src", mux_pll_src_cpll_gpll_p, 0,
 			RK3368_CLKSEL_CON(21), 15, 1, MFLAGS,
@@ -841,24 +843,6 @@ static void __init rk3368_clk_init(struct device_node *np)
 	}
 
 	rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
-
-	/* xin12m is created by a cru-internal divider */
-	clk = clk_register_fixed_factor(NULL, "xin12m", "xin24m", 0, 1, 2);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock xin12m: %ld\n",
-			__func__, PTR_ERR(clk));
-
-	/* ddrphy_div4 is created by a cru-internal divider */
-	clk = clk_register_fixed_factor(NULL, "ddrphy_div4", "ddrphy_src", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock xin12m: %ld\n",
-			__func__, PTR_ERR(clk));
-
-	clk = clk_register_fixed_factor(NULL, "hclk_video_pre",
-					"hclk_video_pre_v", 0, 1, 4);
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock hclk_vcodec_pre: %ld\n",
-			__func__, PTR_ERR(clk));
 
 	/* Watchdog pclk is controlled by sgrf_soc_con3[7]. */
 	clk = clk_register_fixed_factor(NULL, "pclk_wdt", "pclk_pd_alive", 0, 1, 1);
