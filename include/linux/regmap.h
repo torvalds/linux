@@ -773,9 +773,11 @@ void devm_regmap_field_free(struct device *dev,	struct regmap_field *field);
 
 int regmap_field_read(struct regmap_field *field, unsigned int *val);
 int regmap_field_write(struct regmap_field *field, unsigned int val);
+int regmap_field_update_bits_base(struct regmap_field *field,
+				  unsigned int mask, unsigned int val,
+				  bool *change, bool async, bool force);
 int regmap_field_update_bits(struct regmap_field *field,
 			     unsigned int mask, unsigned int val);
-
 int regmap_fields_write(struct regmap_field *field, unsigned int id,
 			unsigned int val);
 int regmap_fields_force_write(struct regmap_field *field, unsigned int id,
@@ -949,6 +951,14 @@ static inline int regmap_update_bits_base(struct regmap *map, unsigned int reg,
 
 static inline int regmap_write_bits(struct regmap *map, unsigned int reg,
 				     unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_update_bits_base(struct regmap_field *field,
+					unsigned int mask, unsigned int val,
+					bool *change, bool async, bool force)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;
