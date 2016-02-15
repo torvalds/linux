@@ -59,6 +59,7 @@ static int tps65218_gpio_output(struct gpio_chip *gc, unsigned offset,
 				int value)
 {
 	/* Only drives GPOs */
+	tps65218_gpio_set(gc, offset, value);
 	return 0;
 }
 
