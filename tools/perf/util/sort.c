@@ -838,7 +838,6 @@ static const char * const tlb_access[] = {
 	"Walker",
 	"Fault",
 };
-#define NUM_TLB_ACCESS (sizeof(tlb_access)/sizeof(const char *))
 
 static int hist_entry__tlb_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
@@ -860,7 +859,7 @@ static int hist_entry__tlb_snprintf(struct hist_entry *he, char *bf,
 	/* already taken care of */
 	m &= ~(PERF_MEM_TLB_HIT|PERF_MEM_TLB_MISS);
 
-	for (i = 0; m && i < NUM_TLB_ACCESS; i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(tlb_access); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 		if (l) {
@@ -915,7 +914,6 @@ static const char * const mem_lvl[] = {
 	"I/O",
 	"Uncached",
 };
-#define NUM_MEM_LVL (sizeof(mem_lvl)/sizeof(const char *))
 
 static int hist_entry__lvl_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
@@ -937,7 +935,7 @@ static int hist_entry__lvl_snprintf(struct hist_entry *he, char *bf,
 	/* already taken care of */
 	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
 
-	for (i = 0; m && i < NUM_MEM_LVL; i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 		if (l) {
@@ -983,7 +981,6 @@ static const char * const snoop_access[] = {
 	"Hit",
 	"HitM",
 };
-#define NUM_SNOOP_ACCESS (sizeof(snoop_access)/sizeof(const char *))
 
 static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
@@ -998,7 +995,7 @@ static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 	if (he->mem_info)
 		m = he->mem_info->data_src.mem_snoop;
 
-	for (i = 0; m && i < NUM_SNOOP_ACCESS; i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 		if (l) {
