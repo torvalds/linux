@@ -102,7 +102,7 @@ static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 	}
 
  out:
-	return delay_for_sampling_rate(dbs_data->sampling_rate);
+	return dbs_data->sampling_rate;
 }
 
 static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,

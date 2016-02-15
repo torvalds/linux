@@ -282,7 +282,6 @@ static void dbs_work_handler(struct work_struct *work)
 	struct policy_dbs_info *policy_dbs;
 	struct cpufreq_policy *policy;
 	struct dbs_governor *gov;
-	unsigned int delay;
 
 	policy_dbs = container_of(work, struct policy_dbs_info, work);
 	policy = policy_dbs->policy;
@@ -293,8 +292,7 @@ static void dbs_work_handler(struct work_struct *work)
 	 * ondemand governor isn't updating the sampling rate in parallel.
 	 */
 	mutex_lock(&policy_dbs->timer_mutex);
-	delay = gov->gov_dbs_timer(policy);
-	policy_dbs->sample_delay_ns = jiffies_to_nsecs(delay);
+	gov_update_sample_delay(policy_dbs, gov->gov_dbs_timer(policy));
 	mutex_unlock(&policy_dbs->timer_mutex);
 
 	/* Allow the utilization update handler to queue up more work. */
