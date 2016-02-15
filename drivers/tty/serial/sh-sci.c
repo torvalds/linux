@@ -3071,15 +3071,10 @@ static int __init hscif_early_console_setup(struct earlycon_device *device,
 	return early_console_setup(device, PORT_HSCIF);
 }
 
-EARLYCON_DECLARE(sci, sci_early_console_setup);
 OF_EARLYCON_DECLARE(sci, "renesas,sci", sci_early_console_setup);
-EARLYCON_DECLARE(scif, scif_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif", scif_early_console_setup);
-EARLYCON_DECLARE(scifa, scifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifa, "renesas,scifa", scifa_early_console_setup);
-EARLYCON_DECLARE(scifb, scifb_early_console_setup);
 OF_EARLYCON_DECLARE(scifb, "renesas,scifb", scifb_early_console_setup);
-EARLYCON_DECLARE(hscif, hscif_early_console_setup);
 OF_EARLYCON_DECLARE(hscif, "renesas,hscif", hscif_early_console_setup);
 #endif /* CONFIG_SERIAL_SH_SCI_EARLYCON */
 
