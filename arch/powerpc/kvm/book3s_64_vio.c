@@ -39,10 +39,55 @@
 
 #define TCES_PER_PAGE	(PAGE_SIZE / sizeof(u64))
 
-static long kvmppc_stt_npages(unsigned long window_size)
+static unsigned long kvmppc_tce_pages(unsigned long window_size)
 {
 	return ALIGN((window_size >> SPAPR_TCE_SHIFT)
 		     * sizeof(u64), PAGE_SIZE) / PAGE_SIZE;
+}
+
+static unsigned long kvmppc_stt_pages(unsigned long tce_pages)
+{
+	unsigned long stt_bytes = sizeof(struct kvmppc_spapr_tce_table) +
+			(tce_pages * sizeof(struct page *));
+
+	return tce_pages + ALIGN(stt_bytes, PAGE_SIZE) / PAGE_SIZE;
+}
+
+static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
+{
+	long ret = 0;
+
+	if (!current || !current->mm)
+		return ret; /* process exited */
+
+	down_write(&current->mm->mmap_sem);
+
+	if (inc) {
+		unsigned long locked, lock_limit;
+
+		locked = current->mm->locked_vm + stt_pages;
+		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+			ret = -ENOMEM;
+		else
+			current->mm->locked_vm += stt_pages;
+	} else {
+		if (WARN_ON_ONCE(stt_pages > current->mm->locked_vm))
+			stt_pages = current->mm->locked_vm;
+
+		current->mm->locked_vm -= stt_pages;
+	}
+
+	pr_debug("[%d] RLIMIT_MEMLOCK KVM %c%ld %ld/%ld%s\n", current->pid,
+			inc ? '+' : '-',
+			stt_pages << PAGE_SHIFT,
+			current->mm->locked_vm << PAGE_SHIFT,
+			rlimit(RLIMIT_MEMLOCK),
+			ret ? " - exceeded" : "");
+
+	up_write(&current->mm->mmap_sem);
+
+	return ret;
 }
 
 static void release_spapr_tce_table(struct rcu_head *head)
@@ -50,8 +95,9 @@ static void release_spapr_tce_table(struct rcu_head *head)
 	struct kvmppc_spapr_tce_table *stt = container_of(head,
 			struct kvmppc_spapr_tce_table, rcu);
 	int i;
+	unsigned long npages = kvmppc_tce_pages(stt->window_size);
 
-	for (i = 0; i < kvmppc_stt_npages(stt->window_size); i++)
+	for (i = 0; i < npages; i++)
 		__free_page(stt->pages[i]);
 
 	kfree(stt);
@@ -62,7 +108,7 @@ static int kvm_spapr_tce_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct kvmppc_spapr_tce_table *stt = vma->vm_file->private_data;
 	struct page *page;
 
-	if (vmf->pgoff >= kvmppc_stt_npages(stt->window_size))
+	if (vmf->pgoff >= kvmppc_tce_pages(stt->window_size))
 		return VM_FAULT_SIGBUS;
 
 	page = stt->pages[vmf->pgoff];
@@ -89,6 +135,8 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
 
 	kvm_put_kvm(stt->kvm);
 
+	kvmppc_account_memlimit(
+		kvmppc_stt_pages(kvmppc_tce_pages(stt->window_size)), false);
 	call_rcu(&stt->rcu, release_spapr_tce_table);
 
 	return 0;
@@ -103,7 +151,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				   struct kvm_create_spapr_tce *args)
 {
 	struct kvmppc_spapr_tce_table *stt = NULL;
-	long npages;
+	unsigned long npages;
 	int ret = -ENOMEM;
 	int i;
 
@@ -113,7 +161,12 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 			return -EBUSY;
 	}
 
-	npages = kvmppc_stt_npages(args->window_size);
+	npages = kvmppc_tce_pages(args->window_size);
+	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
+	if (ret) {
+		stt = NULL;
+		goto fail;
+	}
 
 	stt = kzalloc(sizeof(*stt) + npages * sizeof(struct page *),
 		      GFP_KERNEL);
