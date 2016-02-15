@@ -83,8 +83,11 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 		/* programe secondary pixel clock */
 		POKE32(CRT_PLL_CTRL, formatPllReg(pll));
 		POKE32(CRT_HORIZONTAL_TOTAL,
-		FIELD_VALUE(0, CRT_HORIZONTAL_TOTAL, TOTAL, pModeParam->horizontal_total - 1)
-		| FIELD_VALUE(0, CRT_HORIZONTAL_TOTAL, DISPLAY_END, pModeParam->horizontal_display_end - 1));
+			(((pModeParam->horizontal_total - 1) <<
+				CRT_HORIZONTAL_TOTAL_TOTAL_SHIFT) &
+				CRT_HORIZONTAL_TOTAL_TOTAL_MASK) |
+			((pModeParam->horizontal_display_end - 1) &
+				CRT_HORIZONTAL_TOTAL_DISPLAY_END_MASK));
 
 		POKE32(CRT_HORIZONTAL_SYNC,
 		FIELD_VALUE(0, CRT_HORIZONTAL_SYNC, WIDTH, pModeParam->horizontal_sync_width)
