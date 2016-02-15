@@ -524,6 +524,10 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 	struct intel_svm *svm = NULL;
 	int head, tail, handled = 0;
 
+	/* Clear PPR bit before reading head/tail registers, to
+	 * ensure that we get a new interrupt if needed. */
+	writel(DMA_PRS_PPR, iommu->reg + DMAR_PRS_REG);
+
 	tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
 	head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
 	while (head != tail) {
