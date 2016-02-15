@@ -54,59 +54,39 @@ EXPORT_SYMBOL(channel5g_80m);
 void rtl_addr_delay(u32 addr)
 {
 	if (addr == 0xfe)
-		mdelay(50);
+		msleep(50);
 	else if (addr == 0xfd)
-		mdelay(5);
+		msleep(5);
 	else if (addr == 0xfc)
-		mdelay(1);
+		msleep(1);
 	else if (addr == 0xfb)
-		udelay(50);
+		usleep_range(50, 100);
 	else if (addr == 0xfa)
-		udelay(5);
+		usleep_range(5, 10);
 	else if (addr == 0xf9)
-		udelay(1);
+		usleep_range(1, 2);
 }
 EXPORT_SYMBOL(rtl_addr_delay);
 
 void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
 		     u32 mask, u32 data)
 {
-	if (addr == 0xfe) {
-		mdelay(50);
-	} else if (addr == 0xfd) {
-		mdelay(5);
-	} else if (addr == 0xfc) {
-		mdelay(1);
-	} else if (addr == 0xfb) {
-		udelay(50);
-	} else if (addr == 0xfa) {
-		udelay(5);
-	} else if (addr == 0xf9) {
-		udelay(1);
+	if (addr >= 0xf9 && addr <= 0xfe) {
+		rtl_addr_delay(addr);
 	} else {
 		rtl_set_rfreg(hw, rfpath, addr, mask, data);
-		udelay(1);
+		usleep_range(1, 2);
 	}
 }
 EXPORT_SYMBOL(rtl_rfreg_delay);
 
 void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
 {
-	if (addr == 0xfe) {
-		mdelay(50);
-	} else if (addr == 0xfd) {
-		mdelay(5);
-	} else if (addr == 0xfc) {
-		mdelay(1);
-	} else if (addr == 0xfb) {
-		udelay(50);
-	} else if (addr == 0xfa) {
-		udelay(5);
-	} else if (addr == 0xf9) {
-		udelay(1);
+	if (addr >= 0xf9 && addr <= 0xfe) {
+		rtl_addr_delay(addr);
 	} else {
 		rtl_set_bbreg(hw, addr, MASKDWORD, data);
-		udelay(1);
+		usleep_range(1, 2);
 	}
 }
 EXPORT_SYMBOL(rtl_bb_delay);
