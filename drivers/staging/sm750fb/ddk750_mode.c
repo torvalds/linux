@@ -104,8 +104,11 @@ static int programModeRegisters(mode_parameter_t *pModeParam, pll_value_t *pll)
 				CRT_VERTICAL_TOTAL_DISPLAY_END_MASK));
 
 		POKE32(CRT_VERTICAL_SYNC,
-		FIELD_VALUE(0, CRT_VERTICAL_SYNC, HEIGHT, pModeParam->vertical_sync_height)
-		| FIELD_VALUE(0, CRT_VERTICAL_SYNC, START, pModeParam->vertical_sync_start - 1));
+			((pModeParam->vertical_sync_height <<
+				CRT_VERTICAL_SYNC_HEIGHT_SHIFT) &
+				CRT_VERTICAL_SYNC_HEIGHT_MASK) |
+			((pModeParam->vertical_sync_start - 1) &
+				CRT_VERTICAL_SYNC_START_MASK));
 
 
 		tmp = DISPLAY_CTRL_TIMING | DISPLAY_CTRL_PLANE;

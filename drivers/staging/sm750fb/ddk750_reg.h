@@ -1392,8 +1392,9 @@
 #define CRT_VERTICAL_TOTAL_DISPLAY_END_MASK           (0x7ff)
 
 #define CRT_VERTICAL_SYNC                             0x080218
-#define CRT_VERTICAL_SYNC_HEIGHT                      21:16
-#define CRT_VERTICAL_SYNC_START                       10:0
+#define CRT_VERTICAL_SYNC_HEIGHT_SHIFT                16
+#define CRT_VERTICAL_SYNC_HEIGHT_MASK                 (0x3f << 16)
+#define CRT_VERTICAL_SYNC_START_MASK                  0x7ff
 
 #define CRT_SIGNATURE_ANALYZER                        0x08021C
 #define CRT_SIGNATURE_ANALYZER_STATUS                 31:16
