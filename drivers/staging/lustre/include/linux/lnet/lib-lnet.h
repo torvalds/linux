@@ -64,6 +64,19 @@ extern lnet_t	the_lnet;	/* THE network */
 /** exclusive lock */
 #define LNET_LOCK_EX		CFS_PERCPT_LOCK_EX
 
+static inline int lnet_is_route_alive(lnet_route_t *route)
+{
+	/* gateway is down */
+	if (!route->lr_gateway->lp_alive)
+		return 0;
+	/* no NI status, assume it's alive */
+	if ((route->lr_gateway->lp_ping_feats &
+	     LNET_PING_FEAT_NI_STATUS) == 0)
+		return 1;
+	/* has NI status, check # down NIs */
+	return route->lr_downis == 0;
+}
+
 static inline int lnet_is_wire_handle_none(lnet_handle_wire_t *wh)
 {
 	return (wh->wh_interface_cookie == LNET_WIRE_HANDLE_COOKIE_NONE &&
