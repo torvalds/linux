@@ -304,6 +304,7 @@ static void gov_cancel_work(struct cpufreq_policy *policy)
 	irq_work_sync(&policy_dbs->irq_work);
 	cancel_work_sync(&policy_dbs->work);
 	atomic_set(&policy_dbs->work_count, 0);
+	policy_dbs->work_in_progress = false;
 }
 
 static void dbs_work_handler(struct work_struct *work)
@@ -326,13 +327,15 @@ static void dbs_work_handler(struct work_struct *work)
 	policy_dbs->sample_delay_ns = jiffies_to_nsecs(delay);
 	mutex_unlock(&policy_dbs->timer_mutex);
 
+	/* Allow the utilization update handler to queue up more work. */
+	atomic_set(&policy_dbs->work_count, 0);
 	/*
-	 * If the atomic operation below is reordered with respect to the
-	 * sample delay modification, the utilization update handler may end
-	 * up using a stale sample delay value.
+	 * If the update below is reordered with respect to the sample delay
+	 * modification, the utilization update handler may end up using a stale
+	 * sample delay value.
 	 */
-	smp_mb__before_atomic();
-	atomic_dec(&policy_dbs->work_count);
+	smp_wmb();
+	policy_dbs->work_in_progress = false;
 }
 
 static void dbs_irq_work(struct irq_work *irq_work)
@@ -348,6 +351,7 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 {
 	struct cpu_dbs_info *cdbs = container_of(data, struct cpu_dbs_info, update_util);
 	struct policy_dbs_info *policy_dbs = cdbs->policy_dbs;
+	u64 delta_ns;
 
 	/*
 	 * The work may not be allowed to be queued up right now.
@@ -355,17 +359,30 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	 * - Work has already been queued up or is in progress.
 	 * - It is too early (too little time from the previous sample).
 	 */
-	if (atomic_inc_return(&policy_dbs->work_count) == 1) {
-		u64 delta_ns;
+	if (policy_dbs->work_in_progress)
+		return;
 
-		delta_ns = time - policy_dbs->last_sample_time;
-		if ((s64)delta_ns >= policy_dbs->sample_delay_ns) {
-			policy_dbs->last_sample_time = time;
-			irq_work_queue(&policy_dbs->irq_work);
-			return;
-		}
-	}
-	atomic_dec(&policy_dbs->work_count);
+	/*
+	 * If the reads below are reordered before the check above, the value
+	 * of sample_delay_ns used in the computation may be stale.
+	 */
+	smp_rmb();
+	delta_ns = time - policy_dbs->last_sample_time;
+	if ((s64)delta_ns < policy_dbs->sample_delay_ns)
+		return;
+
+	/*
+	 * If the policy is not shared, the irq_work may be queued up right away
+	 * at this point.  Otherwise, we need to ensure that only one of the
+	 * CPUs sharing the policy will do that.
+	 */
+	if (policy_dbs->is_shared &&
+	    !atomic_add_unless(&policy_dbs->work_count, 1, 1))
+		return;
+
+	policy_dbs->last_sample_time = time;
+	policy_dbs->work_in_progress = true;
+	irq_work_queue(&policy_dbs->irq_work);
 }
 
 static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *policy,
@@ -541,6 +558,8 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 
 	if (!policy->cur)
 		return -EINVAL;
+
+	policy_dbs->is_shared = policy_is_shared(policy);
 
 	sampling_rate = dbs_data->sampling_rate;
 	ignore_nice = dbs_data->ignore_nice_load;
