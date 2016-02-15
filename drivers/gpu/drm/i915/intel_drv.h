@@ -118,6 +118,7 @@ enum intel_output_type {
 struct intel_framebuffer {
 	struct drm_framebuffer base;
 	struct drm_i915_gem_object *obj;
+	struct intel_rotation_info rot_info;
 };
 
 struct intel_fbdev {

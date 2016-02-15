@@ -2312,18 +2312,20 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 			const struct drm_framebuffer *fb,
 			unsigned int rotation)
 {
-	struct drm_i915_private *dev_priv = to_i915(fb->dev);
-	struct intel_rotation_info *info = &view->params.rotated;
+	if (intel_rotation_90_or_270(rotation)) {
+		*view = i915_ggtt_view_rotated;
+		view->params.rotated = to_intel_framebuffer(fb)->rot_info;
+	} else {
+		*view = i915_ggtt_view_normal;
+	}
+}
+
+static void
+intel_fill_fb_info(struct drm_i915_private *dev_priv,
+		   struct drm_framebuffer *fb)
+{
+	struct intel_rotation_info *info = &to_intel_framebuffer(fb)->rot_info;
 	unsigned int tile_size, tile_width, tile_height, cpp;
-
-	*view = i915_ggtt_view_normal;
-
-	if (!intel_rotation_90_or_270(rotation))
-		return;
-
-	*view = i915_ggtt_view_rotated;
-
-	info->uv_offset = fb->offsets[1];
 
 	tile_size = intel_tile_size(dev_priv);
 
@@ -2339,6 +2341,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 		intel_tile_dims(dev_priv, &tile_width, &tile_height,
 				fb->modifier[1], cpp);
 
+		info->uv_offset = fb->offsets[1];
 		info->plane[1].width = DIV_ROUND_UP(fb->pitches[1], tile_width * cpp);
 		info->plane[1].height = DIV_ROUND_UP(fb->height / 2, tile_height);
 	}
@@ -14985,6 +14988,8 @@ static int intel_framebuffer_init(struct drm_device *dev,
 
 	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
 	intel_fb->obj = obj;
+
+	intel_fill_fb_info(dev_priv, &intel_fb->base);
 
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {
