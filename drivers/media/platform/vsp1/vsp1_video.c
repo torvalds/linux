@@ -533,17 +533,14 @@ vsp1_video_queue_setup(struct vb2_queue *vq,
 		for (i = 0; i < *nplanes; i++) {
 			if (sizes[i] < format->plane_fmt[i].sizeimage)
 				return -EINVAL;
-			alloc_ctxs[i] = video->alloc_ctx;
 		}
 		return 0;
 	}
 
 	*nplanes = format->num_planes;
 
-	for (i = 0; i < format->num_planes; ++i) {
+	for (i = 0; i < format->num_planes; ++i)
 		sizes[i] = format->plane_fmt[i].sizeimage;
-		alloc_ctxs[i] = video->alloc_ctx;
-	}
 
 	return 0;
 }
@@ -983,12 +980,6 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	video_set_drvdata(&video->video, video);
 
 	/* ... and the buffers queue... */
-	video->alloc_ctx = vb2_dma_contig_init_ctx(video->vsp1->dev);
-	if (IS_ERR(video->alloc_ctx)) {
-		ret = PTR_ERR(video->alloc_ctx);
-		goto error;
-	}
-
 	video->queue.type = video->type;
 	video->queue.io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	video->queue.lock = &video->lock;
@@ -997,6 +988,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	video->queue.ops = &vsp1_video_queue_qops;
 	video->queue.mem_ops = &vb2_dma_contig_memops;
 	video->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	video->queue.dev = video->vsp1->dev;
 	ret = vb2_queue_init(&video->queue);
 	if (ret < 0) {
 		dev_err(video->vsp1->dev, "failed to initialize vb2 queue\n");
@@ -1014,7 +1006,6 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	return video;
 
 error:
-	vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 	vsp1_video_cleanup(video);
 	return ERR_PTR(ret);
 }
@@ -1024,6 +1015,5 @@ void vsp1_video_cleanup(struct vsp1_video *video)
 	if (video_is_registered(&video->video))
 		video_unregister_device(&video->video);
 
-	vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 	media_entity_cleanup(&video->video.entity);
 }

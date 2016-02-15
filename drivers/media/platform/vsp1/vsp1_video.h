@@ -46,7 +46,6 @@ struct vsp1_video {
 	unsigned int pipe_index;
 
 	struct vb2_queue queue;
-	void *alloc_ctx;
 	spinlock_t irqlock;
 	struct list_head irqqueue;
 	unsigned int sequence;
