@@ -120,7 +120,10 @@ struct dell_bios_hotkey_table {
 
 };
 
-static const struct dell_bios_hotkey_table *dell_bios_hotkey_table;
+struct dell_dmi_results {
+	int err;
+	struct key_entry *keymap;
+};
 
 /* Uninitialized entries here are KEY_RESERVED == 0. */
 static const u16 bios_to_linux_keycode[256] __initconst = {
@@ -337,20 +340,34 @@ static void dell_wmi_notify(u32 value, void *context)
 	kfree(obj);
 }
 
-static const struct key_entry * __init dell_wmi_prepare_new_keymap(void)
+static void __init handle_dmi_entry(const struct dmi_header *dm,
+				    void *opaque)
 {
-	int hotkey_num = (dell_bios_hotkey_table->header.length - 4) /
-				sizeof(struct dell_bios_keymap_entry);
+	struct dell_dmi_results *results = opaque;
+	struct dell_bios_hotkey_table *table;
 	struct key_entry *keymap;
-	int i;
+	int hotkey_num, i;
+
+	if (results->err || results->keymap)
+		return;		/* We already found the hotkey table. */
+
+	if (dm->type != 0xb2 || dm->length <= 6)
+		return;
+
+	table = container_of(dm, struct dell_bios_hotkey_table, header);
+
+	hotkey_num = (table->header.length - 4) /
+				sizeof(struct dell_bios_keymap_entry);
 
 	keymap = kcalloc(hotkey_num + 1, sizeof(struct key_entry), GFP_KERNEL);
-	if (!keymap)
-		return NULL;
+	if (!keymap) {
+		results->err = -ENOMEM;
+		return;
+	}
 
 	for (i = 0; i < hotkey_num; i++) {
 		const struct dell_bios_keymap_entry *bios_entry =
-					&dell_bios_hotkey_table->keymap[i];
+					&table->keymap[i];
 
 		/* Uninitialized entries are 0 aka KEY_RESERVED. */
 		u16 keycode = (bios_entry->keycode <
@@ -379,11 +396,12 @@ static const struct key_entry * __init dell_wmi_prepare_new_keymap(void)
 
 	keymap[hotkey_num].type = KE_END;
 
-	return keymap;
+	results->keymap = keymap;
 }
 
 static int __init dell_wmi_input_setup(void)
 {
+	struct dell_dmi_results dmi_results = {};
 	int err;
 
 	dell_wmi_input_dev = input_allocate_device();
@@ -394,20 +412,31 @@ static int __init dell_wmi_input_setup(void)
 	dell_wmi_input_dev->phys = "wmi/input0";
 	dell_wmi_input_dev->id.bustype = BUS_HOST;
 
-	if (dell_new_hk_type) {
-		const struct key_entry *keymap = dell_wmi_prepare_new_keymap();
-		if (!keymap) {
-			err = -ENOMEM;
-			goto err_free_dev;
-		}
+	if (dmi_walk(handle_dmi_entry, &dmi_results)) {
+		/*
+		 * Historically, dell-wmi ignored dmi_walk errors.  A failure
+		 * is certainly surprising, but it probably just indicates
+		 * a very old laptop.
+		 */
+		pr_warn("no DMI; using the old-style hotkey interface\n");
+	}
 
-		err = sparse_keymap_setup(dell_wmi_input_dev, keymap, NULL);
+	if (dmi_results.err) {
+		err = dmi_results.err;
+		goto err_free_dev;
+	}
+
+	if (dmi_results.keymap) {
+		dell_new_hk_type = true;
+
+		err = sparse_keymap_setup(dell_wmi_input_dev,
+					  dmi_results.keymap, NULL);
 
 		/*
 		 * Sparse keymap library makes a copy of keymap so we
 		 * don't need the original one that was allocated.
 		 */
-		kfree(keymap);
+		kfree(dmi_results.keymap);
 	} else {
 		err = sparse_keymap_setup(dell_wmi_input_dev,
 					  dell_wmi_legacy_keymap, NULL);
@@ -432,15 +461,6 @@ static void dell_wmi_input_destroy(void)
 {
 	sparse_keymap_free(dell_wmi_input_dev);
 	input_unregister_device(dell_wmi_input_dev);
-}
-
-static void __init find_hk_type(const struct dmi_header *dm, void *dummy)
-{
-	if (dm->type == 0xb2 && dm->length > 6) {
-		dell_new_hk_type = true;
-		dell_bios_hotkey_table =
-			container_of(dm, struct dell_bios_hotkey_table, header);
-	}
 }
 
 /*
@@ -523,8 +543,6 @@ static int __init dell_wmi_init(void)
 	err = dell_wmi_check_descriptor_buffer();
 	if (err)
 		return err;
-
-	dmi_walk(find_hk_type, NULL);
 
 	err = dell_wmi_input_setup();
 	if (err)
