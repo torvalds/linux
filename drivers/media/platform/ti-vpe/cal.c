@@ -384,7 +384,7 @@ static struct cm_data *cm_create(struct cal_dev *dev)
 	cm->base = devm_ioremap_resource(&pdev->dev, cm->res);
 	if (IS_ERR(cm->base)) {
 		cal_err(dev, "failed to ioremap\n");
-		return cm->base;
+		return ERR_CAST(cm->base);
 	}
 
 	cal_dbg(1, dev, "ioresource %s at %pa - %pa\n",
@@ -456,7 +456,7 @@ static struct cc_data *cc_create(struct cal_dev *dev, unsigned int core)
 	cc->base = devm_ioremap_resource(&pdev->dev, cc->res);
 	if (IS_ERR(cc->base)) {
 		cal_err(dev, "failed to ioremap\n");
-		return cc->base;
+		return ERR_CAST(cc->base);
 	}
 
 	cal_dbg(1, dev, "ioresource %s at %pa - %pa\n",
@@ -500,13 +500,14 @@ static void cal_quickdump_regs(struct cal_dev *dev)
 {
 	cal_info(dev, "CAL Registers @ 0x%pa:\n", &dev->res->start);
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 4,
-		       dev->base, resource_size(dev->res), false);
+		       (__force const void *)dev->base,
+		       resource_size(dev->res), false);
 
 	if (dev->ctx[0]) {
 		cal_info(dev, "CSI2 Core 0 Registers @ %pa:\n",
 			 &dev->ctx[0]->cc->res->start);
 		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 4,
-			       dev->ctx[0]->cc->base,
+			       (__force const void *)dev->ctx[0]->cc->base,
 			       resource_size(dev->ctx[0]->cc->res),
 			       false);
 	}
@@ -515,7 +516,7 @@ static void cal_quickdump_regs(struct cal_dev *dev)
 		cal_info(dev, "CSI2 Core 1 Registers @ %pa:\n",
 			 &dev->ctx[1]->cc->res->start);
 		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 4,
-			       dev->ctx[1]->cc->base,
+			       (__force const void *)dev->ctx[1]->cc->base,
 			       resource_size(dev->ctx[1]->cc->res),
 			       false);
 	}
@@ -523,7 +524,7 @@ static void cal_quickdump_regs(struct cal_dev *dev)
 	cal_info(dev, "CAMERRX_Control Registers @ %pa:\n",
 		 &dev->cm->res->start);
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 4,
-		       dev->cm->base,
+		       (__force const void *)dev->cm->base,
 		       resource_size(dev->cm->res), false);
 }
 
@@ -1804,7 +1805,7 @@ static struct cal_ctx *cal_create_instance(struct cal_dev *dev, int inst)
 
 	ctx = devm_kzalloc(&dev->pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return 0;
+		return NULL;
 
 	/* save the cal_dev * for future ref */
 	ctx->dev = dev;
@@ -1841,7 +1842,7 @@ free_hdl:
 unreg_dev:
 	v4l2_device_unregister(&ctx->v4l2_dev);
 err_exit:
-	return 0;
+	return NULL;
 }
 
 static int cal_probe(struct platform_device *pdev)
