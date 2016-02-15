@@ -1731,6 +1731,7 @@ static int btrfs_check_raid_min_devices(struct btrfs_fs_info *fs_info,
 {
 	u64 all_avail;
 	unsigned seq;
+	int i;
 
 	do {
 		seq = read_seqbegin(&fs_info->profiles_lock);
@@ -1740,22 +1741,16 @@ static int btrfs_check_raid_min_devices(struct btrfs_fs_info *fs_info,
 			    fs_info->avail_metadata_alloc_bits;
 	} while (read_seqretry(&fs_info->profiles_lock, seq));
 
-	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) && num_devices < 4) {
-		return BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET;
-	}
+	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
+		if (!(all_avail & btrfs_raid_group[i]))
+			continue;
 
-	if ((all_avail & BTRFS_BLOCK_GROUP_RAID1) && num_devices < 2) {
-		return BTRFS_ERROR_DEV_RAID1_MIN_NOT_MET;
-	}
+		if (num_devices < btrfs_raid_array[i].devs_min) {
+			int ret = btrfs_raid_mindev_error[i];
 
-	if ((all_avail & BTRFS_BLOCK_GROUP_RAID5) &&
-	    fs_info->fs_devices->rw_devices < 2) {
-		return BTRFS_ERROR_DEV_RAID5_MIN_NOT_MET;
-	}
-
-	if ((all_avail & BTRFS_BLOCK_GROUP_RAID6) &&
-	    fs_info->fs_devices->rw_devices < 3) {
-		return BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET;
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
