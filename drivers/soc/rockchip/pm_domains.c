@@ -475,6 +475,10 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	}
 
 	pmu->regmap = syscon_node_to_regmap(parent->of_node);
+	if (IS_ERR(pmu->regmap)) {
+		dev_err(dev, "no regmap available\n");
+		return PTR_ERR(pmu->regmap);
+	}
 
 	/*
 	 * Configure power up and down transition delays for CORE
