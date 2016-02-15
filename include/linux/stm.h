@@ -74,6 +74,9 @@ struct stm_device;
  *      it must return zero;
  *   3) if it does not support the requested packet type/flag combination,
  *      it must return -ENOTSUPP.
+ *
+ * The @unlink callback is called when there are no more active writers so
+ * that the master/channel can be quiesced.
  */
 struct stm_data {
 	const char		*name;
