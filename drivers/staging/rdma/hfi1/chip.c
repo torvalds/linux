@@ -6552,8 +6552,8 @@ void handle_sma_message(struct work_struct *work)
 		 *
 		 * Can activate the node.  Discard otherwise.
 		 */
-		if (ppd->host_link_state == HLS_UP_ARMED
-					&& ppd->is_active_optimize_enabled) {
+		if (ppd->host_link_state == HLS_UP_ARMED &&
+		    ppd->is_active_optimize_enabled) {
 			ppd->neighbor_normal = 1;
 			ret = set_link_state(ppd, HLS_UP_ACTIVE);
 			if (ret)
@@ -7032,8 +7032,8 @@ static void get_link_widths(struct hfi1_devdata *dd, u16 *tx_width,
 	 * handle_verify_cap().  The ASIC 8051 firmware does not correctly
 	 * set the max_rate field in handle_verify_cap until v0.19.
 	 */
-	if ((dd->icode == ICODE_RTL_SILICON)
-				&& (dd->dc8051_ver < dc8051_ver(0, 19))) {
+	if ((dd->icode == ICODE_RTL_SILICON) &&
+	    (dd->dc8051_ver < dc8051_ver(0, 19))) {
 		/* max_rate: 0 = 12.5G, 1 = 25G */
 		switch (max_rate) {
 		case 0:
@@ -7358,10 +7358,8 @@ retry:
 		/* downgrade is disabled */
 
 		/* bounce if not at starting active width */
-		if ((ppd->link_width_active !=
-					ppd->link_width_downgrade_tx_active)
-				|| (ppd->link_width_active !=
-					ppd->link_width_downgrade_rx_active)) {
+		if ((ppd->link_width_active != ppd->link_width_downgrade_tx_active) ||
+		    (ppd->link_width_active != ppd->link_width_downgrade_rx_active)) {
 			dd_dev_err(ppd->dd,
 				"Link downgrade is disabled and link has downgraded, downing link\n");
 			dd_dev_err(ppd->dd,
@@ -7371,8 +7369,8 @@ retry:
 				ppd->link_width_downgrade_rx_active);
 			do_bounce = 1;
 		}
-	} else if ((lwde & ppd->link_width_downgrade_tx_active) == 0
-		|| (lwde & ppd->link_width_downgrade_rx_active) == 0) {
+	} else if ((lwde & ppd->link_width_downgrade_tx_active) == 0 ||
+		   (lwde & ppd->link_width_downgrade_rx_active) == 0) {
 		/* Tx or Rx is outside the enabled policy */
 		dd_dev_err(ppd->dd,
 			"Link is outside of downgrade allowed, downing link\n");
@@ -7567,9 +7565,9 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	if (queue_link_down) {
 		/* if the link is already going down or disabled, do not
 		 * queue another */
-		if ((ppd->host_link_state
-				    & (HLS_GOING_OFFLINE | HLS_LINK_COOLDOWN))
-				|| ppd->link_enabled == 0) {
+		if ((ppd->host_link_state &
+		    (HLS_GOING_OFFLINE | HLS_LINK_COOLDOWN)) ||
+		    ppd->link_enabled == 0) {
 			dd_dev_info(dd, "%s: not queuing link down\n",
 				__func__);
 		} else {
@@ -8888,10 +8886,9 @@ static int init_loopback(struct hfi1_devdata *dd)
 	 *
 	 * Accept all valid loopback values.
 	 */
-	if ((dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
-		&& (loopback == LOOPBACK_SERDES
-			|| loopback == LOOPBACK_LCB
-			|| loopback == LOOPBACK_CABLE)) {
+	if ((dd->icode == ICODE_FUNCTIONAL_SIMULATOR) &&
+	    (loopback == LOOPBACK_SERDES || loopback == LOOPBACK_LCB ||
+	     loopback == LOOPBACK_CABLE)) {
 		loopback = LOOPBACK_LCB;
 		quick_linkup = 1;
 		return 0;
@@ -10020,8 +10017,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		state = dd->link_default;
 
 	/* interpret poll -> poll as a link bounce */
-	poll_bounce = ppd->host_link_state == HLS_DN_POLL
-				&& state == HLS_DN_POLL;
+	poll_bounce = ppd->host_link_state == HLS_DN_POLL &&
+		      state == HLS_DN_POLL;
 
 	dd_dev_info(dd, "%s: current %s, new %s %s%s\n", __func__,
 		link_state_name(ppd->host_link_state),
@@ -10048,8 +10045,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 
 	switch (state) {
 	case HLS_UP_INIT:
-		if (ppd->host_link_state == HLS_DN_POLL && (quick_linkup
-			    || dd->icode == ICODE_FUNCTIONAL_SIMULATOR)) {
+		if (ppd->host_link_state == HLS_DN_POLL &&
+		    (quick_linkup || dd->icode == ICODE_FUNCTIONAL_SIMULATOR)) {
 			/*
 			 * Quick link up jumps from polling to here.
 			 *
@@ -10779,8 +10776,8 @@ int set_buffer_control(struct hfi1_pportdata *ppd,
 						!= cur_bc.vl[i].shared;
 		if (this_shared_changing)
 			any_shared_limit_changing = 1;
-		if (new_bc->vl[i].dedicated != cur_bc.vl[i].dedicated
-				|| this_shared_changing) {
+		if (new_bc->vl[i].dedicated != cur_bc.vl[i].dedicated ||
+		    this_shared_changing) {
 			changing[i] = 1;
 			changing_mask |= stat_mask;
 			change_count++;
@@ -11227,8 +11224,8 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 
 	rcvctrl = read_kctxt_csr(dd, ctxt, RCV_CTXT_CTRL);
 	/* if the context already enabled, don't do the extra steps */
-	if ((op & HFI1_RCVCTRL_CTXT_ENB)
-			&& !(rcvctrl & RCV_CTXT_CTRL_ENABLE_SMASK)) {
+	if ((op & HFI1_RCVCTRL_CTXT_ENB) &&
+	    !(rcvctrl & RCV_CTXT_CTRL_ENABLE_SMASK)) {
 		/* reset the tail and hdr addresses, and sequence count */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_ADDR,
 				rcd->rcvhdrq_phys);
@@ -11344,8 +11341,8 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 	write_kctxt_csr(dd, ctxt, RCV_CTXT_CTRL, rcd->rcvctrl);
 
 	/* work around sticky RcvCtxtStatus.BlockedRHQFull */
-	if (did_enable
-	    && (rcvctrl & RCV_CTXT_CTRL_DONT_DROP_RHQ_FULL_SMASK)) {
+	if (did_enable &&
+	    (rcvctrl & RCV_CTXT_CTRL_DONT_DROP_RHQ_FULL_SMASK)) {
 		reg = read_kctxt_csr(dd, ctxt, RCV_CTXT_STATUS);
 		if (reg != 0) {
 			dd_dev_info(dd, "ctxt %d status %lld (blocked)\n",
@@ -13989,8 +13986,8 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		/* link width active is 0 when link is down */
 		/* link width downgrade active is 0 when link is down */
 
-		if (num_vls < HFI1_MIN_VLS_SUPPORTED
-			|| num_vls > HFI1_MAX_VLS_SUPPORTED) {
+		if (num_vls < HFI1_MIN_VLS_SUPPORTED ||
+		    num_vls > HFI1_MAX_VLS_SUPPORTED) {
 			hfi1_early_err(&pdev->dev,
 				       "Invalid num_vls %u, using %u VLs\n",
 				    num_vls, HFI1_MAX_VLS_SUPPORTED);

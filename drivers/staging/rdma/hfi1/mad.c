@@ -1170,8 +1170,8 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	ppd->port_error_action = be32_to_cpu(pi->port_error_action);
 	lwe = be16_to_cpu(pi->link_width.enabled);
 	if (lwe) {
-		if (lwe == OPA_LINK_WIDTH_RESET
-				|| lwe == OPA_LINK_WIDTH_RESET_OLD)
+		if (lwe == OPA_LINK_WIDTH_RESET ||
+		    lwe == OPA_LINK_WIDTH_RESET_OLD)
 			set_link_width_enabled(ppd, ppd->link_width_supported);
 		else if ((lwe & ~ppd->link_width_supported) == 0)
 			set_link_width_enabled(ppd, lwe);
@@ -1180,8 +1180,8 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	}
 	lwe = be16_to_cpu(pi->link_width_downgrade.enabled);
 	/* LWD.E is always applied - 0 means "disabled" */
-	if (lwe == OPA_LINK_WIDTH_RESET
-			|| lwe == OPA_LINK_WIDTH_RESET_OLD) {
+	if (lwe == OPA_LINK_WIDTH_RESET ||
+	    lwe == OPA_LINK_WIDTH_RESET_OLD) {
 		set_link_width_downgrade_enabled(ppd,
 				ppd->link_width_downgrade_supported);
 	} else if ((lwe & ~ppd->link_width_downgrade_supported) == 0) {
@@ -2335,8 +2335,8 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 		return reply((struct ib_mad_hdr *)pmp);
 	}
 
-	if (nports != 1 || (port_num && port_num != port)
-	    || num_vls > OPA_MAX_VLS || (vl_select_mask & ~VL_MASK_ALL)) {
+	if (nports != 1 || (port_num && port_num != port) ||
+	    num_vls > OPA_MAX_VLS || (vl_select_mask & ~VL_MASK_ALL)) {
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)pmp);
 	}

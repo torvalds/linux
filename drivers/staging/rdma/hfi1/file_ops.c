@@ -1626,12 +1626,12 @@ static ssize_t ui_read(struct file *filp, char __user *buf, size_t count,
 		 * them.  These registers are defined as having a read value
 		 * of 0.
 		 */
-		else if (csr_off == ASIC_GPIO_CLEAR
-				|| csr_off == ASIC_GPIO_FORCE
-				|| csr_off == ASIC_QSFP1_CLEAR
-				|| csr_off == ASIC_QSFP1_FORCE
-				|| csr_off == ASIC_QSFP2_CLEAR
-				|| csr_off == ASIC_QSFP2_FORCE)
+		else if (csr_off == ASIC_GPIO_CLEAR ||
+			 csr_off == ASIC_GPIO_FORCE ||
+			 csr_off == ASIC_QSFP1_CLEAR ||
+			 csr_off == ASIC_QSFP1_FORCE ||
+			 csr_off == ASIC_QSFP2_CLEAR ||
+			 csr_off == ASIC_QSFP2_FORCE)
 			data = 0;
 		else if (csr_off >= barlen) {
 			/*

@@ -672,8 +672,8 @@ static void sdma_set_state(struct sdma_engine *sde,
 	ss->previous_op = ss->current_op;
 	ss->current_state = next_state;
 
-	if (ss->previous_state != sdma_state_s99_running
-		&& next_state == sdma_state_s99_running)
+	if (ss->previous_state != sdma_state_s99_running &&
+	    next_state == sdma_state_s99_running)
 		sdma_flush(sde);
 
 	if (action[next_state].op_enable)

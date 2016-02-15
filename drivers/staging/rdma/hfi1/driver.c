@@ -1123,9 +1123,9 @@ int set_mtu(struct hfi1_pportdata *ppd)
 	ppd->ibmaxlen = ppd->ibmtu + lrh_max_header_bytes(ppd->dd);
 
 	mutex_lock(&ppd->hls_lock);
-	if (ppd->host_link_state == HLS_UP_INIT
-			|| ppd->host_link_state == HLS_UP_ARMED
-			|| ppd->host_link_state == HLS_UP_ACTIVE)
+	if (ppd->host_link_state == HLS_UP_INIT ||
+	    ppd->host_link_state == HLS_UP_ARMED ||
+	    ppd->host_link_state == HLS_UP_ACTIVE)
 		is_up = 1;
 
 	drain = !is_ax(dd) && is_up;

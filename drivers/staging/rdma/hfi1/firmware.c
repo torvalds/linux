@@ -391,19 +391,13 @@ static int invalid_header(struct hfi1_devdata *dd, const char *what,
 static int verify_css_header(struct hfi1_devdata *dd, struct css_header *css)
 {
 	/* verify CSS header fields (most sizes are in DW, so add /4) */
-	if (invalid_header(dd, "module_type", css->module_type, CSS_MODULE_TYPE)
-			|| invalid_header(dd, "header_len", css->header_len,
-					(sizeof(struct firmware_file) / 4))
-			|| invalid_header(dd, "header_version",
-					css->header_version, CSS_HEADER_VERSION)
-			|| invalid_header(dd, "module_vendor",
-					css->module_vendor, CSS_MODULE_VENDOR)
-			|| invalid_header(dd, "key_size",
-					css->key_size, KEY_SIZE / 4)
-			|| invalid_header(dd, "modulus_size",
-					css->modulus_size, KEY_SIZE / 4)
-			|| invalid_header(dd, "exponent_size",
-					css->exponent_size, EXPONENT_SIZE / 4)) {
+	if (invalid_header(dd, "module_type", css->module_type, CSS_MODULE_TYPE) ||
+	    invalid_header(dd, "header_len", css->header_len, (sizeof(struct firmware_file) / 4)) ||
+	    invalid_header(dd, "header_version", css->header_version, CSS_HEADER_VERSION) ||
+	    invalid_header(dd, "module_vendor", css->module_vendor, CSS_MODULE_VENDOR) ||
+	    invalid_header(dd, "key_size", css->key_size, KEY_SIZE / 4) ||
+	    invalid_header(dd, "modulus_size", css->modulus_size, KEY_SIZE / 4) ||
+	    invalid_header(dd, "exponent_size", css->exponent_size, EXPONENT_SIZE / 4)) {
 		return -EINVAL;
 	}
 	return 0;
