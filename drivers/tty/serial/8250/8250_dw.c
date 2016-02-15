@@ -68,12 +68,6 @@ struct dw8250_data {
 	unsigned int		uart_16550_compatible:1;
 };
 
-#define BYT_PRV_CLK			0x800
-#define BYT_PRV_CLK_EN			(1 << 0)
-#define BYT_PRV_CLK_M_VAL_SHIFT		1
-#define BYT_PRV_CLK_N_VAL_SHIFT		16
-#define BYT_PRV_CLK_UPDATE		(1 << 31)
-
 static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = p->private_data;
