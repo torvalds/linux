@@ -124,17 +124,34 @@ static struct device_type intel_th_source_device_type = {
 	.release	= intel_th_device_release,
 };
 
+static struct intel_th *to_intel_th(struct intel_th_device *thdev)
+{
+	/*
+	 * subdevice tree is flat: if this one is not a switch, its
+	 * parent must be
+	 */
+	if (thdev->type != INTEL_TH_SWITCH)
+		thdev = to_intel_th_hub(thdev);
+
+	if (WARN_ON_ONCE(!thdev || thdev->type != INTEL_TH_SWITCH))
+		return NULL;
+
+	return dev_get_drvdata(thdev->dev.parent);
+}
+
 static char *intel_th_output_devnode(struct device *dev, umode_t *mode,
 				     kuid_t *uid, kgid_t *gid)
 {
 	struct intel_th_device *thdev = to_intel_th_device(dev);
+	struct intel_th *th = to_intel_th(thdev);
 	char *node;
 
 	if (thdev->id >= 0)
-		node = kasprintf(GFP_KERNEL, "intel_th%d/%s%d", 0, thdev->name,
-				 thdev->id);
+		node = kasprintf(GFP_KERNEL, "intel_th%d/%s%d", th->id,
+				 thdev->name, thdev->id);
 	else
-		node = kasprintf(GFP_KERNEL, "intel_th%d/%s", 0, thdev->name);
+		node = kasprintf(GFP_KERNEL, "intel_th%d/%s", th->id,
+				 thdev->name);
 
 	return node;
 }
