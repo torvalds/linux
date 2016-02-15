@@ -2648,6 +2648,46 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 }
 
 /**
+ * regmap_update_bits_base:
+ *	Perform a read/modify/write cycle on the
+ *	register map with change, async, force option
+ *
+ * @map: Register map to update
+ * @reg: Register to update
+ * @mask: Bitmask to change
+ * @val: New value for bitmask
+ * @change: Boolean indicating if a write was done
+ * @async: Boolean indicating asynchronously
+ * @force: Boolean indicating use force update
+ *
+ * if async was true,
+ * With most buses the read must be done synchronously so this is most
+ * useful for devices with a cache which do not need to interact with
+ * the hardware to determine the current register value.
+ *
+ * Returns zero for success, a negative number on error.
+ */
+int regmap_update_bits_base(struct regmap *map, unsigned int reg,
+			    unsigned int mask, unsigned int val,
+			    bool *change, bool async, bool force)
+{
+	int ret;
+
+	map->lock(map->lock_arg);
+
+	map->async = async;
+
+	ret = _regmap_update_bits(map, reg, mask, val, change, force);
+
+	map->async = false;
+
+	map->unlock(map->lock_arg);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regmap_update_bits_base);
+
+/**
  * regmap_update_bits: Perform a read/modify/write cycle on the register map
  *
  * @map: Register map to update
