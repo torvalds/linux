@@ -51,7 +51,7 @@ static struct kvmppc_spapr_tce_table *kvmppc_find_table(struct kvm_vcpu *vcpu,
 	struct kvm *kvm = vcpu->kvm;
 	struct kvmppc_spapr_tce_table *stt;
 
-	list_for_each_entry(stt, &kvm->arch.spapr_tce_tables, list)
+	list_for_each_entry_lockless(stt, &kvm->arch.spapr_tce_tables, list)
 		if (stt->liobn == liobn)
 			return stt;
 

@@ -45,19 +45,16 @@ static long kvmppc_stt_npages(unsigned long window_size)
 		     * sizeof(u64), PAGE_SIZE) / PAGE_SIZE;
 }
 
-static void release_spapr_tce_table(struct kvmppc_spapr_tce_table *stt)
+static void release_spapr_tce_table(struct rcu_head *head)
 {
-	struct kvm *kvm = stt->kvm;
+	struct kvmppc_spapr_tce_table *stt = container_of(head,
+			struct kvmppc_spapr_tce_table, rcu);
 	int i;
 
-	mutex_lock(&kvm->lock);
-	list_del(&stt->list);
 	for (i = 0; i < kvmppc_stt_npages(stt->window_size); i++)
 		__free_page(stt->pages[i]);
-	kfree(stt);
-	mutex_unlock(&kvm->lock);
 
-	kvm_put_kvm(kvm);
+	kfree(stt);
 }
 
 static int kvm_spapr_tce_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -88,7 +85,12 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
 {
 	struct kvmppc_spapr_tce_table *stt = filp->private_data;
 
-	release_spapr_tce_table(stt);
+	list_del_rcu(&stt->list);
+
+	kvm_put_kvm(stt->kvm);
+
+	call_rcu(&stt->rcu, release_spapr_tce_table);
+
 	return 0;
 }
 
@@ -131,7 +133,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	kvm_get_kvm(kvm);
 
 	mutex_lock(&kvm->lock);
-	list_add(&stt->list, &kvm->arch.spapr_tce_tables);
+	list_add_rcu(&stt->list, &kvm->arch.spapr_tce_tables);
 
 	mutex_unlock(&kvm->lock);
 
