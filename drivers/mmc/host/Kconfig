@@ -560,7 +560,7 @@ config MMC_TMIO
 
 config MMC_SDHI
 	tristate "SH-Mobile SDHI SD/SDIO controller support"
-	depends on SUPERH || ARM
+	depends on SUPERH || ARM || ARM64
 	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 	select MMC_TMIO_CORE
 	help
