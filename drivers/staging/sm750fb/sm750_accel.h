@@ -21,12 +21,11 @@
 #define DE_PORT_ADDR_TYPE3 0x100000
 
 #define DE_SOURCE                                       0x0
-#define DE_SOURCE_WRAP                                  31:31
-#define DE_SOURCE_WRAP_DISABLE                          0
-#define DE_SOURCE_WRAP_ENABLE                           1
-#define DE_SOURCE_X_K1                                  29:16
-#define DE_SOURCE_Y_K2                                  15:0
-#define DE_SOURCE_X_K1_MONO				20:16
+#define DE_SOURCE_WRAP                                  BIT(31)
+#define DE_SOURCE_X_K1_SHIFT                            16
+#define DE_SOURCE_X_K1_MASK                             (0x3fff << 16)
+#define DE_SOURCE_X_K1_MONO_MASK			(0x1f << 16)
+#define DE_SOURCE_Y_K2_MASK                             0xffff
 
 #define DE_DESTINATION                                  0x4
 #define DE_DESTINATION_WRAP                             31:31

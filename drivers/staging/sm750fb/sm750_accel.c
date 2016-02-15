@@ -256,9 +256,8 @@ unsigned int rop2)   /* ROP value */
 	{
 
 	write_dpr(accel, DE_SOURCE,
-		  FIELD_SET(0, DE_SOURCE, WRAP, DISABLE) |
-		  FIELD_VALUE(0, DE_SOURCE, X_K1, sx)   |
-		  FIELD_VALUE(0, DE_SOURCE, Y_K2, sy)); /* dpr0 */
+		  ((sx << DE_SOURCE_X_K1_SHIFT) & DE_SOURCE_X_K1_MASK) |
+		  (sy & DE_SOURCE_Y_K2_MASK)); /* dpr0 */
 	write_dpr(accel, DE_DESTINATION,
 		  FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE) |
 		  FIELD_VALUE(0, DE_DESTINATION, X,    dx)  |
@@ -354,8 +353,8 @@ int hw_imageblit(struct lynx_accel *accel,
 	 /* Note: For 2D Source in Host Write, only X_K1_MONO field is needed, and Y_K2 field is not used.
 	    For mono bitmap, use startBit for X_K1. */
 	write_dpr(accel, DE_SOURCE,
-		  FIELD_SET(0, DE_SOURCE, WRAP, DISABLE)       |
-		  FIELD_VALUE(0, DE_SOURCE, X_K1_MONO, startBit)); /* dpr00 */
+		  (startBit << DE_SOURCE_X_K1_SHIFT) &
+		  DE_SOURCE_X_K1_MONO_MASK); /* dpr00 */
 
 	write_dpr(accel, DE_DESTINATION,
 		  FIELD_SET(0, DE_DESTINATION, WRAP, DISABLE) |
