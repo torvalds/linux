@@ -6913,7 +6913,7 @@ M:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	drivers/*/max14577.c
-F:	drivers/*/max77686.c
+F:	drivers/*/max77686*.c
 F:	drivers/*/max77693.c
 F:	drivers/extcon/extcon-max14577.c
 F:	drivers/extcon/extcon-max77693.c
