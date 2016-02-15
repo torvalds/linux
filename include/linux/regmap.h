@@ -74,6 +74,9 @@ struct reg_sequence {
 #define	regmap_update_bits_check_async(map, reg, mask, val, change)\
 	regmap_update_bits_base(map, reg, mask, val, change, true, false)
 
+#define	regmap_field_write(field, val) \
+	regmap_field_update_bits_base(field, ~0, val, NULL, false, false)
+
 #ifdef CONFIG_REGMAP
 
 enum regmap_endian {
@@ -772,7 +775,6 @@ struct regmap_field *devm_regmap_field_alloc(struct device *dev,
 void devm_regmap_field_free(struct device *dev,	struct regmap_field *field);
 
 int regmap_field_read(struct regmap_field *field, unsigned int *val);
-int regmap_field_write(struct regmap_field *field, unsigned int val);
 int regmap_field_update_bits_base(struct regmap_field *field,
 				  unsigned int mask, unsigned int val,
 				  bool *change, bool async, bool force);

@@ -1717,22 +1717,6 @@ int regmap_field_update_bits_base(struct regmap_field *field,
 EXPORT_SYMBOL_GPL(regmap_field_update_bits_base);
 
 /**
- * regmap_field_write(): Write a value to a single register field
- *
- * @field: Register field to write to
- * @val: Value to be written
- *
- * A value of zero will be returned on success, a negative errno will
- * be returned in error cases.
- */
-int regmap_field_write(struct regmap_field *field, unsigned int val)
-{
-	return regmap_update_bits(field->regmap, field->reg,
-				field->mask, val << field->shift);
-}
-EXPORT_SYMBOL_GPL(regmap_field_write);
-
-/**
  * regmap_field_update_bits():	Perform a read/modify/write cycle
  *                              on the register field
  *
