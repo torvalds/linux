@@ -186,16 +186,15 @@ void dbs_check_cpu(struct cpufreq_policy *policy)
 			io_busy = od_tuners->io_is_busy;
 		cur_idle_time = get_cpu_idle_time(j, &cur_wall_time, io_busy);
 
-		wall_time = (unsigned int)
-			(cur_wall_time - j_cdbs->prev_cpu_wall);
+		wall_time = cur_wall_time - j_cdbs->prev_cpu_wall;
 		j_cdbs->prev_cpu_wall = cur_wall_time;
 
-		if (cur_idle_time < j_cdbs->prev_cpu_idle)
-			cur_idle_time = j_cdbs->prev_cpu_idle;
-
-		idle_time = (unsigned int)
-			(cur_idle_time - j_cdbs->prev_cpu_idle);
-		j_cdbs->prev_cpu_idle = cur_idle_time;
+		if (cur_idle_time <= j_cdbs->prev_cpu_idle) {
+			idle_time = 0;
+		} else {
+			idle_time = cur_idle_time - j_cdbs->prev_cpu_idle;
+			j_cdbs->prev_cpu_idle = cur_idle_time;
+		}
 
 		if (ignore_nice) {
 			u64 cur_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
@@ -562,13 +561,10 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 		struct cpu_dbs_info *j_cdbs = gov->get_cpu_cdbs(j);
 		unsigned int prev_load;
 
-		j_cdbs->prev_cpu_idle =
-			get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall, io_busy);
+		j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall, io_busy);
 
-		prev_load = (unsigned int)(j_cdbs->prev_cpu_wall -
-					    j_cdbs->prev_cpu_idle);
-		j_cdbs->prev_load = 100 * prev_load /
-				    (unsigned int)j_cdbs->prev_cpu_wall;
+		prev_load = j_cdbs->prev_cpu_wall - j_cdbs->prev_cpu_idle;
+		j_cdbs->prev_load = 100 * prev_load / (unsigned int)j_cdbs->prev_cpu_wall;
 
 		if (ignore_nice)
 			j_cdbs->prev_cpu_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
