@@ -1738,6 +1738,7 @@ pnfs_set_plh_return_iomode(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode)
 	if (lo->plh_return_iomode != 0)
 		iomode = IOMODE_ANY;
 	lo->plh_return_iomode = iomode;
+	set_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
 }
 
 /**
@@ -1777,8 +1778,6 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 			remaining++;
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
 			pnfs_set_plh_return_iomode(lo, return_range->iomode);
-			set_bit(NFS_LAYOUT_RETURN_REQUESTED,
-					&lo->plh_flags);
 		}
 	return remaining;
 }
