@@ -464,7 +464,6 @@ static int iowait_sleep(
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
-
 		/*
 		 * If we couldn't queue the DMA request, save the info
 		 * and try again later rather than destroying the

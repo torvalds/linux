@@ -2183,7 +2183,6 @@ struct opa_port_error_info_msg {
 	__be32 error_info_select_mask;
 	__be32 reserved1;
 	struct _port_ei {
-
 		u8 port_number;
 		u8 reserved2[7];
 
@@ -3140,7 +3139,6 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 
 	for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
 			 8 * sizeof(vl_select_mask)) {
-
 		if (counter_select & CS_PORT_XMIT_DATA)
 			write_port_cntr(ppd, C_TX_FLIT_VL, idx_from_vl(vl), 0);
 

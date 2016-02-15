@@ -1538,7 +1538,6 @@ static u64 read_write_cpu(struct hfi1_devdata *dd, u64 *z_val,
 			  u64 __percpu *cntr,
 			  int vl, int mode, u64 data)
 {
-
 	u64 ret = 0;
 
 	if (vl != CNTR_INVALID_VL)
@@ -5931,7 +5930,6 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 	u64 qsfp_int_mgmt = (u64)(QSFP_HFI0_INT_N | QSFP_HFI0_MODPRST_N);
 
 	if (reg & QSFP_HFI0_MODPRST_N) {
-
 		dd_dev_info(dd, "%s: ModPresent triggered QSFP interrupt\n",
 				__func__);
 
@@ -5995,7 +5993,6 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 	}
 
 	if (reg & QSFP_HFI0_INT_N) {
-
 		dd_dev_info(dd, "%s: IntN triggered QSFP interrupt\n",
 				__func__);
 		spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
@@ -9266,7 +9263,6 @@ void qsfp_event(struct work_struct *work)
 	dc_start(dd);
 
 	if (qd->cache_refresh_required) {
-
 		set_qsfp_int_n(ppd, 0);
 
 		wait_for_qsfp_init(ppd);
@@ -10122,7 +10118,6 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 				"%s: logical state did not change to ACTIVE\n",
 				__func__);
 		} else {
-
 			/* tell all engines to go running */
 			sdma_all_running(dd);
 

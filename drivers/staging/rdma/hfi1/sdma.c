@@ -475,7 +475,6 @@ static void sdma_err_halt_wait(struct work_struct *work)
 static void sdma_err_progress_check_schedule(struct sdma_engine *sde)
 {
 	if (!is_bx(sde->dd) && HFI1_CAP_IS_KSET(SDMA_AHG)) {
-
 		unsigned index;
 		struct hfi1_devdata *dd = sde->dd;
 
@@ -1238,7 +1237,6 @@ void sdma_exit(struct hfi1_devdata *dd)
 
 	for (this_idx = 0; dd->per_sdma && this_idx < dd->num_sdma;
 			++this_idx) {
-
 		sde = &dd->per_sdma[this_idx];
 		if (!list_empty(&sde->dmawait))
 			dd_dev_err(dd, "sde %u: dmawait list not empty!\n",

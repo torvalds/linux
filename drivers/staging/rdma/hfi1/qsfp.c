@@ -359,7 +359,6 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 
 	/* Is paging enabled? */
 	if (!(cache[2] & 4)) {
-
 		/* Paging enabled, page 03 required */
 		if ((cache[195] & 0xC0) == 0xC0) {
 			/* all */
@@ -520,7 +519,6 @@ int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len)
 	lenstr[1] = '\0';
 
 	if (ppd->qsfp_info.cache_valid) {
-
 		if (QSFP_IS_CU(cache[QSFP_MOD_TECH_OFFS]))
 			sprintf(lenstr, "%dM ", cache[QSFP_MOD_LEN_OFFS]);
 

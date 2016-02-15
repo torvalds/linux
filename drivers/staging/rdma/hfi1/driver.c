@@ -440,7 +440,6 @@ drop:
 static inline void init_packet(struct hfi1_ctxtdata *rcd,
 			      struct hfi1_packet *packet)
 {
-
 	packet->rsize = rcd->rcvhdrqentsize; /* words */
 	packet->maxcnt = rcd->rcvhdrq_cnt * packet->rsize; /* words */
 	packet->rcd = rcd;
@@ -755,7 +754,6 @@ static inline void process_rcv_update(int last, struct hfi1_packet *packet)
 
 static inline void finish_packet(struct hfi1_packet *packet)
 {
-
 	/*
 	 * Nothing we need to free for the packet.
 	 *
@@ -769,7 +767,6 @@ static inline void finish_packet(struct hfi1_packet *packet)
 
 static inline void process_rcv_qp_work(struct hfi1_packet *packet)
 {
-
 	struct hfi1_ctxtdata *rcd;
 	struct rvt_qp *qp, *nqp;
 
