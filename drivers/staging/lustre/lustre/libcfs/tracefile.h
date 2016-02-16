@@ -191,9 +191,9 @@ extern union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS];
 		     j++, (tcd) = &(*cfs_trace_data[i])[j].tcd)
 
 #define cfs_tcd_for_each_type_lock(tcd, i, cpu)			   \
-    for (i = 0; cfs_trace_data[i] &&				      \
-	 (tcd = &(*cfs_trace_data[i])[cpu].tcd) &&			\
-	 cfs_trace_lock_tcd(tcd, 1); cfs_trace_unlock_tcd(tcd, 1), i++)
+	for (i = 0; cfs_trace_data[i] &&				\
+	     (tcd = &(*cfs_trace_data[i])[cpu].tcd) &&			\
+	     cfs_trace_lock_tcd(tcd, 1); cfs_trace_unlock_tcd(tcd, 1), i++)
 
 /* XXX nikita: this declaration is internal to tracefile.c and should probably
  * be moved there */
