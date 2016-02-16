@@ -383,7 +383,7 @@ void vsp1_pipelines_resume(struct vsp1_device *vsp1)
 {
 	unsigned int i;
 
-	/* Resume pipeline all running pipelines. */
+	/* Resume all running pipelines. */
 	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;

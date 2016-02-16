@@ -64,9 +64,6 @@ struct vsp1_device {
 	void __iomem *mmio;
 	struct clk *clock;
 
-	struct mutex lock;
-	int ref_count;
-
 	struct vsp1_bru *bru;
 	struct vsp1_hsit *hsi;
 	struct vsp1_hsit *hst;

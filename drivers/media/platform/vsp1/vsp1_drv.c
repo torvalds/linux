@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/videodev2.h>
 
 #include <media/v4l2-subdev.h>
@@ -462,35 +463,16 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 /*
  * vsp1_device_get - Acquire the VSP1 device
  *
- * Increment the VSP1 reference count and initialize the device if the first
- * reference is taken.
+ * Make sure the device is not suspended and initialize it if needed.
  *
  * Return 0 on success or a negative error code otherwise.
  */
 int vsp1_device_get(struct vsp1_device *vsp1)
 {
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&vsp1->lock);
-	if (vsp1->ref_count > 0)
-		goto done;
-
-	ret = clk_prepare_enable(vsp1->clock);
-	if (ret < 0)
-		goto done;
-
-	ret = vsp1_device_init(vsp1);
-	if (ret < 0) {
-		clk_disable_unprepare(vsp1->clock);
-		goto done;
-	}
-
-done:
-	if (!ret)
-		vsp1->ref_count++;
-
-	mutex_unlock(&vsp1->lock);
-	return ret;
+	ret = pm_runtime_get_sync(vsp1->dev);
+	return ret < 0 ? ret : 0;
 }
 
 /*
@@ -501,12 +483,7 @@ done:
  */
 void vsp1_device_put(struct vsp1_device *vsp1)
 {
-	mutex_lock(&vsp1->lock);
-
-	if (--vsp1->ref_count == 0)
-		clk_disable_unprepare(vsp1->clock);
-
-	mutex_unlock(&vsp1->lock);
+	pm_runtime_put_sync(vsp1->dev);
 }
 
 /* -----------------------------------------------------------------------------
@@ -518,14 +495,8 @@ static int vsp1_pm_suspend(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 
-	WARN_ON(mutex_is_locked(&vsp1->lock));
-
-	if (vsp1->ref_count == 0)
-		return 0;
-
 	vsp1_pipelines_suspend(vsp1);
-
-	clk_disable_unprepare(vsp1->clock);
+	pm_runtime_force_suspend(vsp1->dev);
 
 	return 0;
 }
@@ -534,21 +505,45 @@ static int vsp1_pm_resume(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 
-	WARN_ON(mutex_is_locked(&vsp1->lock));
-
-	if (vsp1->ref_count == 0)
-		return 0;
-
-	clk_prepare_enable(vsp1->clock);
-
+	pm_runtime_force_resume(vsp1->dev);
 	vsp1_pipelines_resume(vsp1);
 
 	return 0;
 }
 #endif
 
+static int vsp1_pm_runtime_suspend(struct device *dev)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(vsp1->clock);
+
+	return 0;
+}
+
+static int vsp1_pm_runtime_resume(struct device *dev)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(vsp1->clock);
+	if (ret < 0)
+		return ret;
+
+	if (vsp1->info) {
+		ret = vsp1_device_init(vsp1);
+		if (ret < 0) {
+			clk_disable_unprepare(vsp1->clock);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct dev_pm_ops vsp1_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(vsp1_pm_suspend, vsp1_pm_resume)
+	SET_RUNTIME_PM_OPS(vsp1_pm_runtime_suspend, vsp1_pm_runtime_resume, NULL)
 };
 
 /* -----------------------------------------------------------------------------
@@ -640,9 +635,10 @@ static int vsp1_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	vsp1->dev = &pdev->dev;
-	mutex_init(&vsp1->lock);
 	INIT_LIST_HEAD(&vsp1->entities);
 	INIT_LIST_HEAD(&vsp1->videos);
+
+	platform_set_drvdata(pdev, vsp1);
 
 	/* I/O, IRQ and clock resources */
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -670,12 +666,14 @@ static int vsp1_probe(struct platform_device *pdev)
 	}
 
 	/* Configure device parameters based on the version register. */
-	ret = clk_prepare_enable(vsp1->clock);
+	pm_runtime_enable(&pdev->dev);
+
+	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0)
-		return ret;
+		goto done;
 
 	version = vsp1_read(vsp1, VI6_IP_VERSION);
-	clk_disable_unprepare(vsp1->clock);
+	pm_runtime_put_sync(&pdev->dev);
 
 	for (i = 0; i < ARRAY_SIZE(vsp1_device_infos); ++i) {
 		if ((version & VI6_IP_VERSION_MODEL_MASK) ==
@@ -687,7 +685,8 @@ static int vsp1_probe(struct platform_device *pdev)
 
 	if (!vsp1->info) {
 		dev_err(&pdev->dev, "unsupported IP version 0x%08x\n", version);
-		return -ENXIO;
+		ret = -ENXIO;
+		goto done;
 	}
 
 	dev_dbg(&pdev->dev, "IP version 0x%08x\n", version);
@@ -696,12 +695,14 @@ static int vsp1_probe(struct platform_device *pdev)
 	ret = vsp1_create_entities(vsp1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to create entities\n");
-		return ret;
+		goto done;
 	}
 
-	platform_set_drvdata(pdev, vsp1);
+done:
+	if (ret)
+		pm_runtime_disable(&pdev->dev);
 
-	return 0;
+	return ret;
 }
 
 static int vsp1_remove(struct platform_device *pdev)
@@ -709,6 +710,8 @@ static int vsp1_remove(struct platform_device *pdev)
 	struct vsp1_device *vsp1 = platform_get_drvdata(pdev);
 
 	vsp1_destroy_entities(vsp1);
+
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
