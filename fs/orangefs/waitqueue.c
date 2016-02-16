@@ -112,13 +112,6 @@ retry_servicing:
 	if (!(flags & ORANGEFS_OP_NO_SEMAPHORE))
 		mutex_unlock(&request_mutex);
 
-	/*
-	 * If we are asked to service an asynchronous operation from
-	 * VFS perspective, we are done.
-	 */
-	if (flags & ORANGEFS_OP_ASYNC)
-		return 0;
-
 	ret = wait_for_matching_downcall(op, timeout,
 					 flags & ORANGEFS_OP_INTERRUPTIBLE);
 
