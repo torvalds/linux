@@ -198,6 +198,26 @@
 		regulator-min-microvolt = <3800000>;
 		regulator-max-microvolt = <3800000>;
 	};
+
+	io-domains {
+		compatible = "rockchip,rk3368-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		dvp-supply = <&vcc_18>;
+		audio-supply = <&vcc_io>;
+		gpio30-supply = <&vcc_io>;
+		gpio1830-supply = <&vcc_io>;
+		sdcard-supply = <&vccio_sd>;
+		wifi-supply = <&vccio_wl>;
+	};
+
+	pmu-io-domains {
+		compatible = "rockchip,rk3368-pmu-io-voltage-domain";
+		rockchip,grf = <&pmugrf>;
+
+		pmu-supply = <&vcc_io>;
+		vop-supply = <&vcc_io>;
+	};
 };
 
 &emmc {
