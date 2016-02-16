@@ -1928,7 +1928,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_IDLE |
 			  BSS_CHANGED_TXPOWER;
 
-		if (sdata->flags & IEEE80211_SDATA_MU_MIMO_OWNER)
+		if (sdata->vif.mu_mimo_owner)
 			changed |= BSS_CHANGED_MU_GROUPS;
 
 		switch (sdata->vif.type) {

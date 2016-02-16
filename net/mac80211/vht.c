@@ -450,7 +450,7 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 
-	if (!(sdata->flags & IEEE80211_SDATA_MU_MIMO_OWNER))
+	if (!sdata->vif.mu_mimo_owner)
 		return;
 
 	if (!memcmp(mgmt->u.action.u.vht_group_notif.position,
@@ -472,10 +472,9 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 void ieee80211_update_mu_groups(struct ieee80211_vif *vif,
 				const u8 *membership, const u8 *position)
 {
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
-	if (WARN_ON_ONCE(!(sdata->flags & IEEE80211_SDATA_MU_MIMO_OWNER)))
+	if (WARN_ON_ONCE(!vif->mu_mimo_owner))
 		return;
 
 	memcpy(bss_conf->mu_group.membership, membership, WLAN_MEMBERSHIP_LEN);
