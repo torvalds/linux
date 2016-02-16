@@ -514,7 +514,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 					crc[0] = rb[rix++];
 					crc[1] = rb[rix++];
 				} else {
-					dev_err(&spi->dev,"buffer overrun when reading crc.\n");
+					dev_err(&spi->dev, "buffer overrun when reading crc.\n");
 					result = N_FAIL;
 					return result;
 				}
@@ -680,7 +680,7 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 		 **/
 		if (!g_spi.crc_off) {
 			if (wilc_spi_tx(wilc, crc, 2)) {
-				dev_err(&spi->dev,"Failed data block crc write, bus error...\n");
+				dev_err(&spi->dev, "Failed data block crc write, bus error...\n");
 				result = N_FAIL;
 				break;
 			}
@@ -1074,7 +1074,7 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 				ret = wilc_spi_write_reg(wilc,
 							 WILC_VMM_CORE_CTL, 1);
 				if (!ret) {
-					dev_err(&spi->dev,"fail write reg vmm_core_ctl...\n");
+					dev_err(&spi->dev, "fail write reg vmm_core_ctl...\n");
 					goto _fail_;
 				}
 			}
