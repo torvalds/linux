@@ -207,9 +207,8 @@ static inline int add_tcp_pending_ack(u32 ack, u32 session_index,
 	return 0;
 }
 
-static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
+static inline void tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 {
-	int ret;
 	u8 *eth_hdr_ptr;
 	u8 *buffer = tqe->buffer;
 	unsigned short h_proto;
@@ -267,14 +266,9 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 				add_tcp_pending_ack(ack_no, i, tqe);
 			}
 
-		} else {
-			ret = 0;
 		}
-	} else {
-		ret = 0;
 	}
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
-	return ret;
 }
 
 static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
