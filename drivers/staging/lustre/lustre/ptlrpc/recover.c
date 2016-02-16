@@ -260,7 +260,7 @@ void ptlrpc_request_handle_notconn(struct ptlrpc_request *failed_req)
  * Administratively active/deactive a client.
  * This should only be called by the ioctl interface, currently
  *  - the lctl deactivate and activate commands
- *  - echo 0/1 >> /proc/osc/XXX/active
+ *  - echo 0/1 >> /sys/fs/lustre/osc/XXX/active
  *  - client umount -f (ll_umount_begin)
  */
 int ptlrpc_set_import_active(struct obd_import *imp, int active)

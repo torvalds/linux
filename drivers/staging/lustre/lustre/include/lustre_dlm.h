@@ -373,7 +373,7 @@ struct ldlm_namespace {
 
 	/**
 	 * Namespace connect flags supported by server (may be changed via
-	 * /proc, LRU resize may be disabled/enabled).
+	 * sysfs, LRU resize may be disabled/enabled).
 	 */
 	__u64			ns_connect_flags;
 

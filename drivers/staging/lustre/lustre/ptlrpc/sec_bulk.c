@@ -120,7 +120,7 @@ static struct ptlrpc_enc_page_pool {
 } page_pools;
 
 /*
- * /proc/fs/lustre/sptlrpc/encrypt_page_pools
+ * /sys/kernel/debug/lustre/sptlrpc/encrypt_page_pools
  */
 int sptlrpc_proc_enc_pool_seq_show(struct seq_file *m, void *v)
 {

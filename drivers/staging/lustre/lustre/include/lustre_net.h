@@ -1947,7 +1947,7 @@ struct ptlrpc_service_ops {
  * or general metadata service for MDS.
  */
 struct ptlrpc_service {
-	/** serialize /proc operations */
+	/** serialize sysfs operations */
 	spinlock_t			srv_lock;
 	/** most often accessed fields */
 	/** chain thru all services */
