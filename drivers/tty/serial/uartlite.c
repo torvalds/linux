@@ -193,18 +193,17 @@ static int ulite_transmit(struct uart_port *port, int stat)
 static irqreturn_t ulite_isr(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	int busy, n = 0;
+	int stat, busy, n = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	do {
-		int stat = uart_in32(ULITE_STATUS, port);
+		spin_lock_irqsave(&port->lock, flags);
+		stat = uart_in32(ULITE_STATUS, port);
 		busy  = ulite_receive(port, stat);
 		busy |= ulite_transmit(port, stat);
+		spin_unlock_irqrestore(&port->lock, flags);
 		n++;
 	} while (busy);
-
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	/* work done? */
 	if (n > 1) {
