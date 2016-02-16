@@ -69,7 +69,7 @@ static int llog_cat_id2handle(const struct lu_env *env,
 	struct llog_handle	*loghandle;
 	int			 rc = 0;
 
-	if (cathandle == NULL)
+	if (!cathandle)
 		return -EBADF;
 
 	down_write(&cathandle->lgh_lock);

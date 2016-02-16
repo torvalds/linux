@@ -106,7 +106,7 @@ int obd_ioctl_getdata(char **buf, int *len, void __user *arg)
 	 * obdfilter-survey is an example, which relies on ioctl. So we'd
 	 * better avoid vmalloc on ioctl path. LU-66 */
 	*buf = libcfs_kvzalloc(hdr.ioc_len, GFP_NOFS);
-	if (*buf == NULL) {
+	if (!*buf) {
 		CERROR("Cannot allocate control buffer of len %d\n",
 		       hdr.ioc_len);
 		return -EINVAL;
@@ -454,8 +454,7 @@ out:
 
 int class_procfs_clean(void)
 {
-	if (debugfs_lustre_root != NULL)
-		debugfs_remove_recursive(debugfs_lustre_root);
+	debugfs_remove_recursive(debugfs_lustre_root);
 
 	debugfs_lustre_root = NULL;
 

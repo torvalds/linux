@@ -152,7 +152,7 @@ struct cl_object *cl_object_top(struct cl_object *o)
 	struct cl_object_header *hdr = cl_object_header(o);
 	struct cl_object *top;
 
-	while (hdr->coh_parent != NULL)
+	while (hdr->coh_parent)
 		hdr = hdr->coh_parent;
 
 	top = lu2cl(lu_object_top(&hdr->coh_lu));
@@ -217,7 +217,7 @@ int cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 	top = obj->co_lu.lo_header;
 	result = 0;
 	list_for_each_entry(obj, &top->loh_layers, co_lu.lo_linkage) {
-		if (obj->co_ops->coo_attr_get != NULL) {
+		if (obj->co_ops->coo_attr_get) {
 			result = obj->co_ops->coo_attr_get(env, obj, attr);
 			if (result != 0) {
 				if (result > 0)
@@ -249,7 +249,7 @@ int cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
 	result = 0;
 	list_for_each_entry_reverse(obj, &top->loh_layers,
 					co_lu.lo_linkage) {
-		if (obj->co_ops->coo_attr_set != NULL) {
+		if (obj->co_ops->coo_attr_set) {
 			result = obj->co_ops->coo_attr_set(env, obj, attr, v);
 			if (result != 0) {
 				if (result > 0)
@@ -280,7 +280,7 @@ int cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 	result = 0;
 	list_for_each_entry_reverse(obj, &top->loh_layers,
 					co_lu.lo_linkage) {
-		if (obj->co_ops->coo_glimpse != NULL) {
+		if (obj->co_ops->coo_glimpse) {
 			result = obj->co_ops->coo_glimpse(env, obj, lvb);
 			if (result != 0)
 				break;
@@ -306,7 +306,7 @@ int cl_conf_set(const struct lu_env *env, struct cl_object *obj,
 	top = obj->co_lu.lo_header;
 	result = 0;
 	list_for_each_entry(obj, &top->loh_layers, co_lu.lo_linkage) {
-		if (obj->co_ops->coo_conf_set != NULL) {
+		if (obj->co_ops->coo_conf_set) {
 			result = obj->co_ops->coo_conf_set(env, obj, conf);
 			if (result != 0)
 				break;
@@ -328,7 +328,7 @@ void cl_object_kill(const struct lu_env *env, struct cl_object *obj)
 	struct cl_object_header *hdr;
 
 	hdr = cl_object_header(obj);
-	LASSERT(hdr->coh_tree.rnode == NULL);
+	LASSERT(!hdr->coh_tree.rnode);
 	LASSERT(hdr->coh_pages == 0);
 
 	set_bit(LU_OBJECT_HEARD_BANSHEE, &hdr->coh_lu.loh_flags);
@@ -541,7 +541,7 @@ static void cl_env_init0(struct cl_env *cle, void *debug)
 {
 	LASSERT(cle->ce_ref == 0);
 	LASSERT(cle->ce_magic == &cl_env_init0);
-	LASSERT(cle->ce_debug == NULL && cle->ce_owner == NULL);
+	LASSERT(!cle->ce_debug && !cle->ce_owner);
 
 	cle->ce_ref = 1;
 	cle->ce_debug = debug;
@@ -576,7 +576,7 @@ static int cl_env_hops_keycmp(const void *key, struct hlist_node *hn)
 {
 	struct cl_env *cle = cl_env_hops_obj(hn);
 
-	LASSERT(cle->ce_owner != NULL);
+	LASSERT(cle->ce_owner);
 	return (key == cle->ce_owner);
 }
 
@@ -610,7 +610,7 @@ static inline void cl_env_attach(struct cl_env *cle)
 	if (cle) {
 		int rc;
 
-		LASSERT(cle->ce_owner == NULL);
+		LASSERT(!cle->ce_owner);
 		cle->ce_owner = (void *) (long) current->pid;
 		rc = cfs_hash_add_unique(cl_env_hash, cle->ce_owner,
 					 &cle->ce_node);
@@ -638,7 +638,7 @@ static int cl_env_store_init(void)
 				      CFS_HASH_MAX_THETA,
 				      &cl_env_hops,
 				      CFS_HASH_RW_BKTLOCK);
-	return cl_env_hash != NULL ? 0 : -ENOMEM;
+	return cl_env_hash ? 0 : -ENOMEM;
 }
 
 static void cl_env_store_fini(void)
@@ -648,7 +648,7 @@ static void cl_env_store_fini(void)
 
 static inline struct cl_env *cl_env_detach(struct cl_env *cle)
 {
-	if (cle == NULL)
+	if (!cle)
 		cle = cl_env_fetch();
 
 	if (cle && cle->ce_owner)
@@ -663,7 +663,7 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 	struct cl_env *cle;
 
 	cle = kmem_cache_alloc(cl_env_kmem, GFP_NOFS | __GFP_ZERO);
-	if (cle != NULL) {
+	if (cle) {
 		int rc;
 
 		INIT_LIST_HEAD(&cle->ce_linkage);
@@ -717,7 +717,7 @@ static struct lu_env *cl_env_peek(int *refcheck)
 
 	env = NULL;
 	cle = cl_env_fetch();
-	if (cle != NULL) {
+	if (cle) {
 		CL_ENV_INC(hit);
 		env = &cle->ce_lu;
 		*refcheck = ++cle->ce_ref;
@@ -742,7 +742,7 @@ struct lu_env *cl_env_get(int *refcheck)
 	struct lu_env *env;
 
 	env = cl_env_peek(refcheck);
-	if (env == NULL) {
+	if (!env) {
 		env = cl_env_new(lu_context_tags_default,
 				 lu_session_tags_default,
 				 __builtin_return_address(0));
@@ -769,7 +769,7 @@ struct lu_env *cl_env_alloc(int *refcheck, __u32 tags)
 {
 	struct lu_env *env;
 
-	LASSERT(cl_env_peek(refcheck) == NULL);
+	LASSERT(!cl_env_peek(refcheck));
 	env = cl_env_new(tags, tags, __builtin_return_address(0));
 	if (!IS_ERR(env)) {
 		struct cl_env *cle;
@@ -784,7 +784,7 @@ EXPORT_SYMBOL(cl_env_alloc);
 
 static void cl_env_exit(struct cl_env *cle)
 {
-	LASSERT(cle->ce_owner == NULL);
+	LASSERT(!cle->ce_owner);
 	lu_context_exit(&cle->ce_lu.le_ctx);
 	lu_context_exit(&cle->ce_ses);
 }
@@ -803,7 +803,7 @@ void cl_env_put(struct lu_env *env, int *refcheck)
 	cle = cl_env_container(env);
 
 	LASSERT(cle->ce_ref > 0);
-	LASSERT(ergo(refcheck != NULL, cle->ce_ref == *refcheck));
+	LASSERT(ergo(refcheck, cle->ce_ref == *refcheck));
 
 	CDEBUG(D_OTHER, "%d@%p\n", cle->ce_ref, cle);
 	if (--cle->ce_ref == 0) {
@@ -878,7 +878,7 @@ struct lu_env *cl_env_nested_get(struct cl_env_nest *nest)
 
 	nest->cen_cookie = NULL;
 	env = cl_env_peek(&nest->cen_refcheck);
-	if (env != NULL) {
+	if (env) {
 		if (!cl_io_is_going(env))
 			return env;
 		cl_env_put(env, &nest->cen_refcheck);
@@ -930,14 +930,12 @@ struct cl_device *cl_type_setup(const struct lu_env *env, struct lu_site *site,
 	const char       *typename;
 	struct lu_device *d;
 
-	LASSERT(ldt != NULL);
-
 	typename = ldt->ldt_name;
 	d = ldt->ldt_ops->ldto_device_alloc(env, ldt, NULL);
 	if (!IS_ERR(d)) {
 		int rc;
 
-		if (site != NULL)
+		if (site)
 			d->ld_site = site;
 		rc = ldt->ldt_ops->ldto_device_init(env, d, typename, next);
 		if (rc == 0) {

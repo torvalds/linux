@@ -70,17 +70,16 @@ static struct obd_device *obd_device_alloc(void)
 	struct obd_device *obd;
 
 	obd = kmem_cache_alloc(obd_device_cachep, GFP_NOFS | __GFP_ZERO);
-	if (obd != NULL)
+	if (obd)
 		obd->obd_magic = OBD_DEVICE_MAGIC;
 	return obd;
 }
 
 static void obd_device_free(struct obd_device *obd)
 {
-	LASSERT(obd != NULL);
 	LASSERTF(obd->obd_magic == OBD_DEVICE_MAGIC, "obd %p obd_magic %08x != %08x\n",
 		 obd, obd->obd_magic, OBD_DEVICE_MAGIC);
-	if (obd->obd_namespace != NULL) {
+	if (obd->obd_namespace) {
 		CERROR("obd %p: namespace %p was not properly cleaned up (obd_force=%d)!\n",
 		       obd, obd->obd_namespace, obd->obd_force);
 		LBUG();
@@ -194,7 +193,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 		goto failed;
 	}
 
-	if (ldt != NULL) {
+	if (ldt) {
 		type->typ_lu = ldt;
 		rc = lu_device_type_init(ldt);
 		if (rc != 0)
@@ -356,7 +355,7 @@ void class_release_dev(struct obd_device *obd)
 		 obd, obd->obd_magic, OBD_DEVICE_MAGIC);
 	LASSERTF(obd == obd_devs[obd->obd_minor], "obd %p != obd_devs[%d] %p\n",
 		 obd, obd->obd_minor, obd_devs[obd->obd_minor]);
-	LASSERT(obd_type != NULL);
+	LASSERT(obd_type);
 
 	CDEBUG(D_INFO, "Release obd device %s at %d obd_type name =%s\n",
 	       obd->obd_name, obd->obd_minor, obd->obd_type->typ_name);
@@ -650,7 +649,7 @@ static void class_export_destroy(struct obd_export *exp)
 	struct obd_device *obd = exp->exp_obd;
 
 	LASSERT_ATOMIC_ZERO(&exp->exp_refcount);
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 
 	CDEBUG(D_IOCTL, "destroying export %p/%s for %s\n", exp,
 	       exp->exp_client_uuid.uuid, obd->obd_name);
@@ -690,7 +689,6 @@ EXPORT_SYMBOL(class_export_get);
 
 void class_export_put(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	LASSERT_ATOMIC_GT_LT(&exp->exp_refcount, 0, LI_POISON);
 	CDEBUG(D_INFO, "PUTting export %p : new refcount %d\n", exp,
 	       atomic_read(&exp->exp_refcount) - 1);
@@ -942,7 +940,7 @@ EXPORT_SYMBOL(class_new_import);
 
 void class_destroy_import(struct obd_import *import)
 {
-	LASSERT(import != NULL);
+	LASSERT(import);
 	LASSERT(import != LP_POISON);
 
 	class_handle_unhash(&import->imp_handle);
@@ -962,8 +960,7 @@ void __class_export_add_lock_ref(struct obd_export *exp, struct ldlm_lock *lock)
 
 	LASSERT(lock->l_exp_refs_nr >= 0);
 
-	if (lock->l_exp_refs_target != NULL &&
-	    lock->l_exp_refs_target != exp) {
+	if (lock->l_exp_refs_target && lock->l_exp_refs_target != exp) {
 		LCONSOLE_WARN("setting export %p for lock %p which already has export %p\n",
 			      exp, lock, lock->l_exp_refs_target);
 	}
@@ -1005,9 +1002,9 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 {
 	struct obd_export *export;
 
-	LASSERT(conn != NULL);
-	LASSERT(obd != NULL);
-	LASSERT(cluuid != NULL);
+	LASSERT(conn);
+	LASSERT(obd);
+	LASSERT(cluuid);
 
 	export = class_new_export(obd, cluuid);
 	if (IS_ERR(export))
@@ -1133,14 +1130,14 @@ static void obd_zombie_impexp_cull(void)
 
 		spin_unlock(&obd_zombie_impexp_lock);
 
-		if (import != NULL) {
+		if (import) {
 			class_import_destroy(import);
 			spin_lock(&obd_zombie_impexp_lock);
 			zombies_count--;
 			spin_unlock(&obd_zombie_impexp_lock);
 		}
 
-		if (export != NULL) {
+		if (export) {
 			class_export_destroy(export);
 			spin_lock(&obd_zombie_impexp_lock);
 			zombies_count--;
@@ -1148,7 +1145,7 @@ static void obd_zombie_impexp_cull(void)
 		}
 
 		cond_resched();
-	} while (import != NULL || export != NULL);
+	} while (import || export);
 }
 
 static struct completion	obd_zombie_start;

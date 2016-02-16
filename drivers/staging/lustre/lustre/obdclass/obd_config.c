@@ -210,7 +210,7 @@ static int class_attach(struct lustre_cfg *lcfg)
 		       name, typename, rc);
 		goto out;
 	}
-	LASSERTF(obd != NULL, "Cannot get obd device %s of type %s\n",
+	LASSERTF(obd, "Cannot get obd device %s of type %s\n",
 		 name, typename);
 	LASSERTF(obd->obd_magic == OBD_DEVICE_MAGIC,
 		 "obd %p obd_magic %08X != %08X\n",
@@ -272,9 +272,9 @@ static int class_attach(struct lustre_cfg *lcfg)
 	       obd->obd_minor, typename, atomic_read(&obd->obd_refcount));
 	return 0;
  out:
-	if (obd != NULL) {
+	if (obd)
 		class_release_dev(obd);
-	}
+
 	return rc;
 }
 
@@ -286,7 +286,7 @@ static int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	int err = 0;
 	struct obd_export *exp;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	LASSERTF(obd == class_num2obd(obd->obd_minor),
 		 "obd %p != obd_devs[%d] %p\n",
 		 obd, obd->obd_minor, class_num2obd(obd->obd_minor));
@@ -1183,7 +1183,7 @@ int class_config_llog_handler(const struct lu_env *env,
 
 		/* we override the llog's uuid for clients, to insure they
 		are unique */
-		if (clli && clli->cfg_instance != NULL &&
+		if (clli && clli->cfg_instance &&
 		    lcfg->lcfg_command == LCFG_ATTACH) {
 			lustre_cfg_bufs_set_string(&bufs, 2,
 						   clli->cfg_uuid.uuid);
@@ -1270,7 +1270,7 @@ int class_config_parse_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
 	if (cfg) {
 		cd.lpcd_first_idx = cfg->cfg_last_idx;
 		callback = cfg->cfg_callback;
-		LASSERT(callback != NULL);
+		LASSERT(callback);
 	} else {
 		callback = class_config_llog_handler;
 	}

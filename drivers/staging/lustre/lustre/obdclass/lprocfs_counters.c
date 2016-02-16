@@ -48,7 +48,7 @@ void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 	int				smp_id;
 	unsigned long			flags = 0;
 
-	if (stats == NULL)
+	if (!stats)
 		return;
 
 	LASSERTF(0 <= idx && idx < stats->ls_num,
@@ -96,7 +96,7 @@ void lprocfs_counter_sub(struct lprocfs_stats *stats, int idx, long amount)
 	int				smp_id;
 	unsigned long			flags = 0;
 
-	if (stats == NULL)
+	if (!stats)
 		return;
 
 	LASSERTF(0 <= idx && idx < stats->ls_num,

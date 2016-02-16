@@ -151,7 +151,7 @@ int class_del_uuid(const char *uuid)
 	struct uuid_nid_data *data;
 
 	spin_lock(&g_uuid_lock);
-	if (uuid != NULL) {
+	if (uuid) {
 		struct obd_uuid tmp;
 
 		obd_str2uuid(&tmp, uuid);
@@ -165,7 +165,7 @@ int class_del_uuid(const char *uuid)
 		list_splice_init(&g_uuid_list, &deathrow);
 	spin_unlock(&g_uuid_lock);
 
-	if (uuid != NULL && list_empty(&deathrow)) {
+	if (uuid && list_empty(&deathrow)) {
 		CDEBUG(D_INFO, "Try to delete a non-existent uuid %s\n", uuid);
 		return -EINVAL;
 	}

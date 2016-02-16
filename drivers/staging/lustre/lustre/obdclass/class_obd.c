@@ -341,7 +341,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 	}
 
 	if (data->ioc_dev == OBD_DEV_BY_DEVNAME) {
-		if (data->ioc_inllen4 <= 0 || data->ioc_inlbuf4 == NULL) {
+		if (data->ioc_inllen4 <= 0 || !data->ioc_inlbuf4) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -358,7 +358,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		goto out;
 	}
 
-	if (obd == NULL) {
+	if (!obd) {
 		CERROR("OBD ioctl : No Device %d\n", data->ioc_dev);
 		err = -EINVAL;
 		goto out;

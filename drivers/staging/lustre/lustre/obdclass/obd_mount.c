@@ -518,13 +518,12 @@ static int lustre_free_lsi(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
 
-	LASSERT(lsi != NULL);
 	CDEBUG(D_MOUNT, "Freeing lsi %p\n", lsi);
 
 	/* someone didn't call server_put_mount. */
 	LASSERT(atomic_read(&lsi->lsi_mounts) == 0);
 
-	if (lsi->lsi_lmd != NULL) {
+	if (lsi->lsi_lmd) {
 		kfree(lsi->lsi_lmd->lmd_dev);
 		kfree(lsi->lsi_lmd->lmd_profile);
 		kfree(lsi->lsi_lmd->lmd_mgssec);
@@ -538,7 +537,7 @@ static int lustre_free_lsi(struct super_block *sb)
 		kfree(lsi->lsi_lmd);
 	}
 
-	LASSERT(lsi->lsi_llsbi == NULL);
+	LASSERT(!lsi->lsi_llsbi);
 	kfree(lsi);
 	s2lsi_nocast(sb) = NULL;
 
@@ -550,8 +549,6 @@ static int lustre_free_lsi(struct super_block *sb)
 static int lustre_put_lsi(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
-
-	LASSERT(lsi != NULL);
 
 	CDEBUG(D_MOUNT, "put %p %d\n", sb, atomic_read(&lsi->lsi_mounts));
 	if (atomic_dec_and_test(&lsi->lsi_mounts)) {
@@ -588,12 +585,12 @@ static int server_name2fsname(const char *svname, char *fsname,
 	if (dash == svname)
 		return -EINVAL;
 
-	if (fsname != NULL) {
+	if (fsname) {
 		strncpy(fsname, svname, dash - svname);
 		fsname[dash - svname] = '\0';
 	}
 
-	if (endptr != NULL)
+	if (endptr)
 		*endptr = dash;
 
 	return 0;
@@ -627,18 +624,18 @@ static int server_name2index(const char *svname, __u32 *idx,
 	dash += 3;
 
 	if (strncmp(dash, "all", 3) == 0) {
-		if (endptr != NULL)
+		if (endptr)
 			*endptr = dash + 3;
 		return rc | LDD_F_SV_ALL;
 	}
 
 	index = simple_strtoul(dash, (char **)endptr, 16);
-	if (idx != NULL)
+	if (idx)
 		*idx = index;
 
 	/* Account for -mdc after index that is possible when specifying mdt */
-	if (endptr != NULL && strncmp(LUSTRE_MDC_NAME, *endptr + 1,
-				      sizeof(LUSTRE_MDC_NAME)-1) == 0)
+	if (endptr && strncmp(LUSTRE_MDC_NAME, *endptr + 1,
+			      sizeof(LUSTRE_MDC_NAME) - 1) == 0)
 		*endptr += sizeof(LUSTRE_MDC_NAME);
 
 	return rc;
@@ -788,7 +785,7 @@ static int lmd_parse_mgssec(struct lustre_mount_data *lmd, char *ptr)
 	lmd->lmd_mgssec = NULL;
 
 	tail = strchr(ptr, ',');
-	if (tail == NULL)
+	if (!tail)
 		length = strlen(ptr);
 	else
 		length = tail - ptr;
@@ -807,14 +804,14 @@ static int lmd_parse_string(char **handle, char *ptr)
 	char   *tail;
 	int     length;
 
-	if ((handle == NULL) || (ptr == NULL))
+	if (!handle || !ptr)
 		return -EINVAL;
 
 	kfree(*handle);
 	*handle = NULL;
 
 	tail = strchr(ptr, ',');
-	if (tail == NULL)
+	if (!tail)
 		length = strlen(ptr);
 	else
 		length = tail - ptr;
@@ -847,14 +844,14 @@ static int lmd_parse_mgs(struct lustre_mount_data *lmd, char **ptr)
 		return -EINVAL;
 	}
 
-	if (lmd->lmd_mgs != NULL)
+	if (lmd->lmd_mgs)
 		oldlen = strlen(lmd->lmd_mgs) + 1;
 
 	mgsnid = kzalloc(oldlen + length + 1, GFP_NOFS);
 	if (!mgsnid)
 		return -ENOMEM;
 
-	if (lmd->lmd_mgs != NULL) {
+	if (lmd->lmd_mgs) {
 		/* Multiple mgsnid= are taken to mean failover locations */
 		memcpy(mgsnid, lmd->lmd_mgs, oldlen);
 		mgsnid[oldlen - 1] = ':';
@@ -981,7 +978,7 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 			size_t length, params_length;
 			char *tail = strchr(s1 + 6, ',');
 
-			if (tail == NULL)
+			if (!tail)
 				length = strlen(s1);
 			else
 				length = tail - s1;
@@ -1011,7 +1008,7 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 
 		/* Find next opt */
 		s2 = strchr(s1, ',');
-		if (s2 == NULL) {
+		if (!s2) {
 			if (clear)
 				*s1 = '\0';
 			break;
@@ -1113,9 +1110,9 @@ static int lustre_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (lmd_is_client(lmd)) {
 		CDEBUG(D_MOUNT, "Mounting client %s\n", lmd->lmd_profile);
-		if (client_fill_super == NULL)
+		if (!client_fill_super)
 			request_module("lustre");
-		if (client_fill_super == NULL) {
+		if (!client_fill_super) {
 			LCONSOLE_ERROR_MSG(0x165, "Nothing registered for client mount! Is the 'lustre' module loaded?\n");
 			lustre_put_lsi(sb);
 			rc = -ENODEV;

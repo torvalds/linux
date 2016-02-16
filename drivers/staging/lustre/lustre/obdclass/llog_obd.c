@@ -110,11 +110,8 @@ int llog_cleanup(const struct lu_env *env, struct llog_ctxt *ctxt)
 	struct obd_llog_group *olg;
 	int rc, idx;
 
-	LASSERT(ctxt != NULL);
-	LASSERT(ctxt != LP_POISON);
-
 	olg = ctxt->loc_olg;
-	LASSERT(olg != NULL);
+	LASSERT(olg);
 	LASSERT(olg != LP_POISON);
 
 	idx = ctxt->loc_idx;
@@ -151,7 +148,7 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 	if (index < 0 || index >= LLOG_MAX_CTXTS)
 		return -EINVAL;
 
-	LASSERT(olg != NULL);
+	LASSERT(olg);
 
 	ctxt = llog_new_ctxt(obd);
 	if (!ctxt)

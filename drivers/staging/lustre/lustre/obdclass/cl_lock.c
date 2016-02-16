@@ -96,7 +96,7 @@ static int cl_lock_invariant(const struct lu_env *env,
 
 	result = atomic_read(&lock->cll_ref) > 0 &&
 		cl_lock_invariant_trusted(env, lock);
-	if (!result && env != NULL)
+	if (!result && env)
 		CL_LOCK_DEBUG(D_ERROR, env, lock, "invariant broken");
 	return result;
 }
@@ -288,7 +288,7 @@ void cl_lock_put(const struct lu_env *env, struct cl_lock *lock)
 
 	LINVRNT(cl_lock_invariant(env, lock));
 	obj = lock->cll_descr.cld_obj;
-	LINVRNT(obj != NULL);
+	LINVRNT(obj);
 
 	CDEBUG(D_TRACE, "releasing reference: %d %p %lu\n",
 	       atomic_read(&lock->cll_ref), lock, RETIP);
@@ -362,7 +362,7 @@ static struct cl_lock *cl_lock_alloc(const struct lu_env *env,
 	struct lu_object_header *head;
 
 	lock = kmem_cache_alloc(cl_lock_kmem, GFP_NOFS | __GFP_ZERO);
-	if (lock != NULL) {
+	if (lock) {
 		atomic_set(&lock->cll_ref, 1);
 		lock->cll_descr = *descr;
 		lock->cll_state = CLS_NEW;
@@ -461,7 +461,7 @@ static int cl_lock_fits_into(const struct lu_env *env,
 
 	LINVRNT(cl_lock_invariant_trusted(env, lock));
 	list_for_each_entry(slice, &lock->cll_layers, cls_linkage) {
-		if (slice->cls_ops->clo_fits_into != NULL &&
+		if (slice->cls_ops->clo_fits_into &&
 		    !slice->cls_ops->clo_fits_into(env, slice, need, io))
 			return 0;
 	}
@@ -524,14 +524,14 @@ static struct cl_lock *cl_lock_find(const struct lu_env *env,
 	lock = cl_lock_lookup(env, obj, io, need);
 	spin_unlock(&head->coh_lock_guard);
 
-	if (lock == NULL) {
+	if (!lock) {
 		lock = cl_lock_alloc(env, obj, io, need);
 		if (!IS_ERR(lock)) {
 			struct cl_lock *ghost;
 
 			spin_lock(&head->coh_lock_guard);
 			ghost = cl_lock_lookup(env, obj, io, need);
-			if (ghost == NULL) {
+			if (!ghost) {
 				cl_lock_get_trust(lock);
 				list_add_tail(&lock->cll_linkage,
 						  &head->coh_locks);
@@ -572,7 +572,7 @@ struct cl_lock *cl_lock_peek(const struct lu_env *env, const struct cl_io *io,
 		spin_lock(&head->coh_lock_guard);
 		lock = cl_lock_lookup(env, obj, io, need);
 		spin_unlock(&head->coh_lock_guard);
-		if (lock == NULL)
+		if (!lock)
 			return NULL;
 
 		cl_lock_mutex_get(env, lock);
@@ -584,7 +584,7 @@ struct cl_lock *cl_lock_peek(const struct lu_env *env, const struct cl_io *io,
 			cl_lock_put(env, lock);
 			lock = NULL;
 		}
-	} while (lock == NULL);
+	} while (!lock);
 
 	cl_lock_hold_add(env, lock, scope, source);
 	cl_lock_user_add(env, lock);
@@ -775,7 +775,7 @@ static void cl_lock_cancel0(const struct lu_env *env, struct cl_lock *lock)
 		lock->cll_flags |= CLF_CANCELLED;
 		list_for_each_entry_reverse(slice, &lock->cll_layers,
 						cls_linkage) {
-			if (slice->cls_ops->clo_cancel != NULL)
+			if (slice->cls_ops->clo_cancel)
 				slice->cls_ops->clo_cancel(env, slice);
 		}
 	}
@@ -812,7 +812,7 @@ static void cl_lock_delete0(const struct lu_env *env, struct cl_lock *lock)
 		 */
 		list_for_each_entry_reverse(slice, &lock->cll_layers,
 						cls_linkage) {
-			if (slice->cls_ops->clo_delete != NULL)
+			if (slice->cls_ops->clo_delete)
 				slice->cls_ops->clo_delete(env, slice);
 		}
 		/*
@@ -974,7 +974,7 @@ static void cl_lock_state_signal(const struct lu_env *env, struct cl_lock *lock,
 	LINVRNT(cl_lock_invariant(env, lock));
 
 	list_for_each_entry(slice, &lock->cll_layers, cls_linkage)
-		if (slice->cls_ops->clo_state != NULL)
+		if (slice->cls_ops->clo_state)
 			slice->cls_ops->clo_state(env, slice, state);
 	wake_up_all(&lock->cll_wq);
 }
@@ -1039,7 +1039,7 @@ static int cl_unuse_try_internal(const struct lu_env *env, struct cl_lock *lock)
 		result = -ENOSYS;
 		list_for_each_entry_reverse(slice, &lock->cll_layers,
 						cls_linkage) {
-			if (slice->cls_ops->clo_unuse != NULL) {
+			if (slice->cls_ops->clo_unuse) {
 				result = slice->cls_ops->clo_unuse(env, slice);
 				if (result != 0)
 					break;
@@ -1072,7 +1072,7 @@ int cl_use_try(const struct lu_env *env, struct cl_lock *lock, int atomic)
 	result = -ENOSYS;
 	state = cl_lock_intransit(env, lock);
 	list_for_each_entry(slice, &lock->cll_layers, cls_linkage) {
-		if (slice->cls_ops->clo_use != NULL) {
+		if (slice->cls_ops->clo_use) {
 			result = slice->cls_ops->clo_use(env, slice);
 			if (result != 0)
 				break;
@@ -1125,7 +1125,7 @@ static int cl_enqueue_kick(const struct lu_env *env,
 
 	result = -ENOSYS;
 	list_for_each_entry(slice, &lock->cll_layers, cls_linkage) {
-		if (slice->cls_ops->clo_enqueue != NULL) {
+		if (slice->cls_ops->clo_enqueue) {
 			result = slice->cls_ops->clo_enqueue(env,
 							     slice, io, flags);
 			if (result != 0)
@@ -1215,7 +1215,7 @@ int cl_lock_enqueue_wait(const struct lu_env *env,
 
 	LASSERT(cl_lock_is_mutexed(lock));
 	LASSERT(lock->cll_state == CLS_QUEUING);
-	LASSERT(lock->cll_conflict != NULL);
+	LASSERT(lock->cll_conflict);
 
 	conflict = lock->cll_conflict;
 	lock->cll_conflict = NULL;
@@ -1258,7 +1258,7 @@ static int cl_enqueue_locked(const struct lu_env *env, struct cl_lock *lock,
 	do {
 		result = cl_enqueue_try(env, lock, io, enqflags);
 		if (result == CLO_WAIT) {
-			if (lock->cll_conflict != NULL)
+			if (lock->cll_conflict)
 				result = cl_lock_enqueue_wait(env, lock, 1);
 			else
 				result = cl_lock_state_wait(env, lock);
@@ -1416,7 +1416,7 @@ int cl_wait_try(const struct lu_env *env, struct cl_lock *lock)
 
 		result = -ENOSYS;
 		list_for_each_entry(slice, &lock->cll_layers, cls_linkage) {
-			if (slice->cls_ops->clo_wait != NULL) {
+			if (slice->cls_ops->clo_wait) {
 				result = slice->cls_ops->clo_wait(env, slice);
 				if (result != 0)
 					break;
@@ -1487,7 +1487,7 @@ unsigned long cl_lock_weigh(const struct lu_env *env, struct cl_lock *lock)
 
 	pound = 0;
 	list_for_each_entry_reverse(slice, &lock->cll_layers, cls_linkage) {
-		if (slice->cls_ops->clo_weigh != NULL) {
+		if (slice->cls_ops->clo_weigh) {
 			ounce = slice->cls_ops->clo_weigh(env, slice);
 			pound += ounce;
 			if (pound < ounce) /* over-weight^Wflow */
@@ -1523,7 +1523,7 @@ int cl_lock_modify(const struct lu_env *env, struct cl_lock *lock,
 	LINVRNT(cl_lock_invariant(env, lock));
 
 	list_for_each_entry_reverse(slice, &lock->cll_layers, cls_linkage) {
-		if (slice->cls_ops->clo_modify != NULL) {
+		if (slice->cls_ops->clo_modify) {
 			result = slice->cls_ops->clo_modify(env, slice, desc);
 			if (result != 0)
 				return result;
@@ -1584,7 +1584,7 @@ int cl_lock_closure_build(const struct lu_env *env, struct cl_lock *lock,
 	result = cl_lock_enclosure(env, lock, closure);
 	if (result == 0) {
 		list_for_each_entry(slice, &lock->cll_layers, cls_linkage) {
-			if (slice->cls_ops->clo_closure != NULL) {
+			if (slice->cls_ops->clo_closure) {
 				result = slice->cls_ops->clo_closure(env, slice,
 								     closure);
 				if (result != 0)
@@ -1820,7 +1820,6 @@ static pgoff_t pgoff_at_lock(struct cl_page *page, struct cl_lock *lock)
 
 	dtype = lock->cll_descr.cld_obj->co_lu.lo_dev->ld_type;
 	slice = cl_page_at(page, dtype);
-	LASSERT(slice != NULL);
 	return slice->cpl_page->cp_index;
 }
 
@@ -1840,7 +1839,7 @@ static int check_and_discard_cb(const struct lu_env *env, struct cl_io *io,
 		/* refresh non-overlapped index */
 		tmp = cl_lock_at_pgoff(env, lock->cll_descr.cld_obj, index,
 					lock, 1, 0);
-		if (tmp != NULL) {
+		if (tmp) {
 			/* Cache the first-non-overlapped index so as to skip
 			 * all pages within [index, clt_fn_index). This
 			 * is safe because if tmp lock is canceled, it will
@@ -1950,7 +1949,7 @@ void cl_locks_prune(const struct lu_env *env, struct cl_object *obj, int cancel)
 	 * already destroyed (as otherwise they will be left unprotected).
 	 */
 	LASSERT(ergo(!cancel,
-		     head->coh_tree.rnode == NULL && head->coh_pages == 0));
+		     !head->coh_tree.rnode && head->coh_pages == 0));
 
 	spin_lock(&head->coh_lock_guard);
 	while (!list_empty(&head->coh_locks)) {
@@ -2194,7 +2193,7 @@ void cl_lock_print(const struct lu_env *env, void *cookie,
 		(*printer)(env, cookie, "    %s@%p: ",
 			   slice->cls_obj->co_lu.lo_dev->ld_type->ldt_name,
 			   slice);
-		if (slice->cls_ops->clo_print != NULL)
+		if (slice->cls_ops->clo_print)
 			slice->cls_ops->clo_print(env, cookie, printer, slice);
 		(*printer)(env, cookie, "\n");
 	}

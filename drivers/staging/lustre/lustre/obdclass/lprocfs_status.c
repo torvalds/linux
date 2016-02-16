@@ -109,7 +109,7 @@ int obd_connect_flags2str(char *page, int count, __u64 flags, char *sep)
 	__u64 mask = 1;
 	int i, ret = 0;
 
-	for (i = 0; obd_connect_names[i] != NULL; i++, mask <<= 1) {
+	for (i = 0; obd_connect_names[i]; i++, mask <<= 1) {
 		if (flags & mask)
 			ret += snprintf(page + ret, count - ret, "%s%s",
 					ret ? sep : "", obd_connect_names[i]);
@@ -199,7 +199,7 @@ int lprocfs_write_frac_helper(const char __user *buffer, unsigned long count,
 	if (pbuf == end)
 		return -EINVAL;
 
-	if (end != NULL && *end == '.') {
+	if (end && *end == '.') {
 		int temp_val, pow = 1;
 		int i;
 
@@ -247,7 +247,7 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 	struct dentry *entry;
 	umode_t mode = 0;
 
-	if (root == NULL || name == NULL || fops == NULL)
+	if (!root || !name || !fops)
 		return ERR_PTR(-EINVAL);
 
 	if (fops->read)
@@ -272,7 +272,7 @@ int ldebugfs_add_vars(struct dentry *parent,
 	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(list))
 		return -EINVAL;
 
-	while (list->name != NULL) {
+	while (list->name) {
 		struct dentry *entry;
 		umode_t mode = 0;
 
@@ -491,7 +491,7 @@ int lprocfs_rd_server_uuid(struct seq_file *m, void *data)
 	char *imp_state_name = NULL;
 	int rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lprocfs_climp_check(obd);
 	if (rc)
 		return rc;
@@ -514,7 +514,7 @@ int lprocfs_rd_conn_uuid(struct seq_file *m, void *data)
 	struct ptlrpc_connection *conn;
 	int rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 
 	rc = lprocfs_climp_check(obd);
 	if (rc)
@@ -543,7 +543,7 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 
 	memset(cnt, 0, sizeof(*cnt));
 
-	if (stats == NULL) {
+	if (!stats) {
 		/* set count to 1 to avoid divide-by-zero errs in callers */
 		cnt->lc_count = 1;
 		return;
@@ -554,7 +554,7 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 	num_entry = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
 
 	for (i = 0; i < num_entry; i++) {
-		if (stats->ls_percpu[i] == NULL)
+		if (!stats->ls_percpu[i])
 			continue;
 		percpu_cntr = lprocfs_stats_counter_get(stats, i, idx);
 
@@ -604,7 +604,7 @@ static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep
 	int i;
 	bool first = true;
 
-	for (i = 0; obd_connect_names[i] != NULL; i++, mask <<= 1) {
+	for (i = 0; obd_connect_names[i]; i++, mask <<= 1) {
 		if (flags & mask) {
 			seq_printf(m, "%s%s",
 					first ? sep : "", obd_connect_names[i]);
@@ -629,7 +629,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	int				rw	= 0;
 	int				rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lprocfs_climp_check(obd);
 	if (rc)
 		return rc;
@@ -665,7 +665,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		seq_printf(m, "%s%s", j ? ", " : "", nidstr);
 		j++;
 	}
-	if (imp->imp_connection != NULL)
+	if (imp->imp_connection)
 		libcfs_nid2str_r(imp->imp_connection->c_peer.nid,
 				 nidstr, sizeof(nidstr));
 	else
@@ -682,7 +682,7 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 		      atomic_read(&imp->imp_inval_count));
 	spin_unlock(&imp->imp_lock);
 
-	if (obd->obd_svc_stats == NULL)
+	if (!obd->obd_svc_stats)
 		goto out_climp;
 
 	header = &obd->obd_svc_stats->ls_cnt_header[PTLRPC_REQWAIT_CNTR];
@@ -779,7 +779,7 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 	struct obd_import *imp;
 	int j, k, rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lprocfs_climp_check(obd);
 	if (rc)
 		return rc;
@@ -825,7 +825,7 @@ int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 	struct dhms ts;
 	int i, rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 	rc = lprocfs_climp_check(obd);
 	if (rc)
 		return rc;
@@ -967,12 +967,12 @@ int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
 	unsigned long           flags = 0;
 	int                     i;
 
-	LASSERT(stats->ls_percpu[cpuid] == NULL);
+	LASSERT(!stats->ls_percpu[cpuid]);
 	LASSERT((stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) == 0);
 
 	percpusize = lprocfs_stats_counter_size(stats);
 	LIBCFS_ALLOC_ATOMIC(stats->ls_percpu[cpuid], percpusize);
-	if (stats->ls_percpu[cpuid] != NULL) {
+	if (stats->ls_percpu[cpuid]) {
 		rc = 0;
 		if (unlikely(stats->ls_biggest_alloc_num <= cpuid)) {
 			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
@@ -1017,7 +1017,7 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 
 	/* alloc percpu pointers for all possible cpu slots */
 	LIBCFS_ALLOC(stats, offsetof(typeof(*stats), ls_percpu[num_entry]));
-	if (stats == NULL)
+	if (!stats)
 		return NULL;
 
 	stats->ls_num = num;
@@ -1027,14 +1027,14 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 	/* alloc num of counter headers */
 	LIBCFS_ALLOC(stats->ls_cnt_header,
 		     stats->ls_num * sizeof(struct lprocfs_counter_header));
-	if (stats->ls_cnt_header == NULL)
+	if (!stats->ls_cnt_header)
 		goto fail;
 
 	if ((flags & LPROCFS_STATS_FLAG_NOPERCPU) != 0) {
 		/* contains only one set counters */
 		percpusize = lprocfs_stats_counter_size(stats);
 		LIBCFS_ALLOC_ATOMIC(stats->ls_percpu[0], percpusize);
-		if (stats->ls_percpu[0] == NULL)
+		if (!stats->ls_percpu[0])
 			goto fail;
 		stats->ls_biggest_alloc_num = 1;
 	} else if ((flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0) {
@@ -1059,7 +1059,7 @@ void lprocfs_free_stats(struct lprocfs_stats **statsh)
 	unsigned int percpusize;
 	unsigned int i;
 
-	if (stats == NULL || stats->ls_num == 0)
+	if (!stats || stats->ls_num == 0)
 		return;
 	*statsh = NULL;
 
@@ -1070,9 +1070,9 @@ void lprocfs_free_stats(struct lprocfs_stats **statsh)
 
 	percpusize = lprocfs_stats_counter_size(stats);
 	for (i = 0; i < num_entry; i++)
-		if (stats->ls_percpu[i] != NULL)
+		if (stats->ls_percpu[i])
 			LIBCFS_FREE(stats->ls_percpu[i], percpusize);
-	if (stats->ls_cnt_header != NULL)
+	if (stats->ls_cnt_header)
 		LIBCFS_FREE(stats->ls_cnt_header, stats->ls_num *
 					sizeof(struct lprocfs_counter_header));
 	LIBCFS_FREE(stats, offsetof(typeof(*stats), ls_percpu[num_entry]));
@@ -1090,7 +1090,7 @@ void lprocfs_clear_stats(struct lprocfs_stats *stats)
 	num_entry = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
 
 	for (i = 0; i < num_entry; i++) {
-		if (stats->ls_percpu[i] == NULL)
+		if (!stats->ls_percpu[i])
 			continue;
 		for (j = 0; j < stats->ls_num; j++) {
 			percpu_cntr = lprocfs_stats_counter_get(stats, i, j);
@@ -1230,10 +1230,8 @@ void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 	unsigned int			i;
 	unsigned int			num_cpu;
 
-	LASSERT(stats != NULL);
-
 	header = &stats->ls_cnt_header[index];
-	LASSERTF(header != NULL, "Failed to allocate stats header:[%d]%s/%s\n",
+	LASSERTF(header, "Failed to allocate stats header:[%d]%s/%s\n",
 		 index, name, units);
 
 	header->lc_config = conf;
@@ -1242,7 +1240,7 @@ void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 
 	num_cpu = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
 	for (i = 0; i < num_cpu; ++i) {
-		if (stats->ls_percpu[i] == NULL)
+		if (!stats->ls_percpu[i])
 			continue;
 		percpu_cntr = lprocfs_stats_counter_get(stats, i, index);
 		percpu_cntr->lc_count		= 0;
@@ -1270,7 +1268,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 {
 	__s64 ret = 0;
 
-	if (lc == NULL || header == NULL)
+	if (!lc || !header)
 		return 0;
 
 	switch (field) {
@@ -1412,7 +1410,7 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 
 	/* there is no strnstr() in rhel5 and ubuntu kernels */
 	val = lprocfs_strnstr(buffer, name, buflen);
-	if (val == NULL)
+	if (!val)
 		return (char *)buffer;
 
 	val += strlen(name);			     /* skip prefix */

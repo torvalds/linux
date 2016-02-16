@@ -93,7 +93,7 @@ static int cl_io_invariant(const struct cl_io *io)
 		 * CIS_IO_GOING.
 		 */
 		ergo(io->ci_owned_nr > 0, io->ci_state == CIS_IO_GOING ||
-		     (io->ci_state == CIS_LOCKED && up != NULL));
+		     (io->ci_state == CIS_LOCKED && up));
 }
 
 /**
@@ -111,7 +111,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 		slice = container_of(io->ci_layers.prev, struct cl_io_slice,
 				     cis_linkage);
 		list_del_init(&slice->cis_linkage);
-		if (slice->cis_iop->op[io->ci_type].cio_fini != NULL)
+		if (slice->cis_iop->op[io->ci_type].cio_fini)
 			slice->cis_iop->op[io->ci_type].cio_fini(env, slice);
 		/*
 		 * Invalidate slice to catch use after free. This assumes that
@@ -164,7 +164,7 @@ static int cl_io_init0(const struct lu_env *env, struct cl_io *io,
 
 	result = 0;
 	cl_object_for_each(scan, obj) {
-		if (scan->co_ops->coo_io_init != NULL) {
+		if (scan->co_ops->coo_io_init) {
 			result = scan->co_ops->coo_io_init(env, scan, io);
 			if (result != 0)
 				break;
@@ -186,7 +186,7 @@ int cl_io_sub_init(const struct lu_env *env, struct cl_io *io,
 	struct cl_thread_info *info = cl_env_info(env);
 
 	LASSERT(obj != cl_object_top(obj));
-	if (info->clt_current_io == NULL)
+	if (!info->clt_current_io)
 		info->clt_current_io = io;
 	return cl_io_init0(env, io, iot, obj);
 }
@@ -208,7 +208,7 @@ int cl_io_init(const struct lu_env *env, struct cl_io *io,
 	struct cl_thread_info *info = cl_env_info(env);
 
 	LASSERT(obj == cl_object_top(obj));
-	LASSERT(info->clt_current_io == NULL);
+	LASSERT(!info->clt_current_io);
 
 	info->clt_current_io = io;
 	return cl_io_init0(env, io, iot, obj);
@@ -224,7 +224,7 @@ int cl_io_rw_init(const struct lu_env *env, struct cl_io *io,
 		  enum cl_io_type iot, loff_t pos, size_t count)
 {
 	LINVRNT(iot == CIT_READ || iot == CIT_WRITE);
-	LINVRNT(io->ci_obj != NULL);
+	LINVRNT(io->ci_obj);
 
 	LU_OBJECT_HEADER(D_VFSTRACE, env, &io->ci_obj->co_lu,
 			 "io range: %u [%llu, %llu) %u %u\n",
@@ -292,7 +292,7 @@ static void cl_io_locks_sort(struct cl_io *io)
 		list_for_each_entry_safe(curr, temp,
 					     &io->ci_lockset.cls_todo,
 					     cill_linkage) {
-			if (prev != NULL) {
+			if (prev) {
 				switch (cl_lock_descr_sort(&prev->cill_descr,
 							  &curr->cill_descr)) {
 				case 0:
@@ -399,11 +399,11 @@ static void cl_lock_link_fini(const struct lu_env *env, struct cl_io *io,
 	struct cl_lock *lock = link->cill_lock;
 
 	list_del_init(&link->cill_linkage);
-	if (lock != NULL) {
+	if (lock) {
 		cl_lock_release(env, lock, "io", io);
 		link->cill_lock = NULL;
 	}
-	if (link->cill_fini != NULL)
+	if (link->cill_fini)
 		link->cill_fini(env, link);
 }
 
@@ -458,7 +458,7 @@ int cl_io_lock(const struct lu_env *env, struct cl_io *io)
 	LINVRNT(cl_io_invariant(io));
 
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->op[io->ci_type].cio_lock == NULL)
+		if (!scan->cis_iop->op[io->ci_type].cio_lock)
 			continue;
 		result = scan->cis_iop->op[io->ci_type].cio_lock(env, scan);
 		if (result != 0)
@@ -503,7 +503,7 @@ void cl_io_unlock(const struct lu_env *env, struct cl_io *io)
 		cl_lock_link_fini(env, io, link);
 	}
 	cl_io_for_each_reverse(scan, io) {
-		if (scan->cis_iop->op[io->ci_type].cio_unlock != NULL)
+		if (scan->cis_iop->op[io->ci_type].cio_unlock)
 			scan->cis_iop->op[io->ci_type].cio_unlock(env, scan);
 	}
 	io->ci_state = CIS_UNLOCKED;
@@ -529,7 +529,7 @@ int cl_io_iter_init(const struct lu_env *env, struct cl_io *io)
 
 	result = 0;
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->op[io->ci_type].cio_iter_init == NULL)
+		if (!scan->cis_iop->op[io->ci_type].cio_iter_init)
 			continue;
 		result = scan->cis_iop->op[io->ci_type].cio_iter_init(env,
 								      scan);
@@ -556,7 +556,7 @@ void cl_io_iter_fini(const struct lu_env *env, struct cl_io *io)
 	LINVRNT(cl_io_invariant(io));
 
 	cl_io_for_each_reverse(scan, io) {
-		if (scan->cis_iop->op[io->ci_type].cio_iter_fini != NULL)
+		if (scan->cis_iop->op[io->ci_type].cio_iter_fini)
 			scan->cis_iop->op[io->ci_type].cio_iter_fini(env, scan);
 	}
 	io->ci_state = CIS_IT_ENDED;
@@ -581,7 +581,7 @@ static void cl_io_rw_advance(const struct lu_env *env, struct cl_io *io,
 
 	/* layers have to be notified. */
 	cl_io_for_each_reverse(scan, io) {
-		if (scan->cis_iop->op[io->ci_type].cio_advance != NULL)
+		if (scan->cis_iop->op[io->ci_type].cio_advance)
 			scan->cis_iop->op[io->ci_type].cio_advance(env, scan,
 								   nob);
 	}
@@ -621,7 +621,7 @@ int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 	int result;
 
 	link = kzalloc(sizeof(*link), GFP_NOFS);
-	if (link != NULL) {
+	if (link) {
 		link->cill_descr     = *descr;
 		link->cill_fini      = cl_free_io_lock_link;
 		result = cl_io_lock_add(env, io, link);
@@ -648,7 +648,7 @@ int cl_io_start(const struct lu_env *env, struct cl_io *io)
 
 	io->ci_state = CIS_IO_GOING;
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->op[io->ci_type].cio_start == NULL)
+		if (!scan->cis_iop->op[io->ci_type].cio_start)
 			continue;
 		result = scan->cis_iop->op[io->ci_type].cio_start(env, scan);
 		if (result != 0)
@@ -673,7 +673,7 @@ void cl_io_end(const struct lu_env *env, struct cl_io *io)
 	LINVRNT(cl_io_invariant(io));
 
 	cl_io_for_each_reverse(scan, io) {
-		if (scan->cis_iop->op[io->ci_type].cio_end != NULL)
+		if (scan->cis_iop->op[io->ci_type].cio_end)
 			scan->cis_iop->op[io->ci_type].cio_end(env, scan);
 		/* TODO: error handling. */
 	}
@@ -687,7 +687,7 @@ cl_io_slice_page(const struct cl_io_slice *ios, struct cl_page *page)
 	const struct cl_page_slice *slice;
 
 	slice = cl_page_at(page, ios->cis_obj->co_lu.lo_dev->ld_type);
-	LINVRNT(slice != NULL);
+	LINVRNT(slice);
 	return slice;
 }
 
@@ -759,11 +759,11 @@ int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
 	 * "parallel io" (see CLO_REPEAT loops in cl_lock.c).
 	 */
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->cio_read_page != NULL) {
+		if (scan->cis_iop->cio_read_page) {
 			const struct cl_page_slice *slice;
 
 			slice = cl_io_slice_page(scan, page);
-			LINVRNT(slice != NULL);
+			LINVRNT(slice);
 			result = scan->cis_iop->cio_read_page(env, scan, slice);
 			if (result != 0)
 				break;
@@ -798,7 +798,7 @@ int cl_io_prepare_write(const struct lu_env *env, struct cl_io *io,
 	LASSERT(cl_page_in_io(page, io));
 
 	cl_io_for_each_reverse(scan, io) {
-		if (scan->cis_iop->cio_prepare_write != NULL) {
+		if (scan->cis_iop->cio_prepare_write) {
 			const struct cl_page_slice *slice;
 
 			slice = cl_io_slice_page(scan, page);
@@ -833,11 +833,11 @@ int cl_io_commit_write(const struct lu_env *env, struct cl_io *io,
 	 * state. Better (and more general) way of dealing with such situation
 	 * is needed.
 	 */
-	LASSERT(cl_page_is_owned(page, io) || page->cp_parent != NULL);
+	LASSERT(cl_page_is_owned(page, io) || page->cp_parent);
 	LASSERT(cl_page_in_io(page, io));
 
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->cio_commit_write != NULL) {
+		if (scan->cis_iop->cio_commit_write) {
 			const struct cl_page_slice *slice;
 
 			slice = cl_io_slice_page(scan, page);
@@ -872,7 +872,7 @@ int cl_io_submit_rw(const struct lu_env *env, struct cl_io *io,
 	LINVRNT(crt < ARRAY_SIZE(scan->cis_iop->req_op));
 
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->req_op[crt].cio_submit == NULL)
+		if (!scan->cis_iop->req_op[crt].cio_submit)
 			continue;
 		result = scan->cis_iop->req_op[crt].cio_submit(env, scan, crt,
 							       queue);
@@ -900,7 +900,7 @@ int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
 	int rc;
 
 	cl_page_list_for_each(pg, &queue->c2_qin) {
-		LASSERT(pg->cp_sync_io == NULL);
+		LASSERT(!pg->cp_sync_io);
 		pg->cp_sync_io = anchor;
 	}
 
@@ -1026,7 +1026,7 @@ void cl_io_slice_add(struct cl_io *io, struct cl_io_slice *slice,
 {
 	struct list_head *linkage = &slice->cis_linkage;
 
-	LASSERT((linkage->prev == NULL && linkage->next == NULL) ||
+	LASSERT((!linkage->prev && !linkage->next) ||
 		list_empty(linkage));
 
 	list_add_tail(linkage, &io->ci_layers);
@@ -1054,7 +1054,7 @@ void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page)
 {
 	/* it would be better to check that page is owned by "current" io, but
 	 * it is not passed here. */
-	LASSERT(page->cp_owner != NULL);
+	LASSERT(page->cp_owner);
 	LINVRNT(plist->pl_owner == current);
 
 	lockdep_off();
@@ -1263,7 +1263,7 @@ EXPORT_SYMBOL(cl_2queue_init_page);
  */
 struct cl_io *cl_io_top(struct cl_io *io)
 {
-	while (io->ci_parent != NULL)
+	while (io->ci_parent)
 		io = io->ci_parent;
 	return io;
 }
@@ -1296,13 +1296,13 @@ static void cl_req_free(const struct lu_env *env, struct cl_req *req)
 	LASSERT(list_empty(&req->crq_pages));
 	LASSERT(req->crq_nrpages == 0);
 	LINVRNT(list_empty(&req->crq_layers));
-	LINVRNT(equi(req->crq_nrobjs > 0, req->crq_o != NULL));
+	LINVRNT(equi(req->crq_nrobjs > 0, req->crq_o));
 
-	if (req->crq_o != NULL) {
+	if (req->crq_o) {
 		for (i = 0; i < req->crq_nrobjs; ++i) {
 			struct cl_object *obj = req->crq_o[i].ro_obj;
 
-			if (obj != NULL) {
+			if (obj) {
 				lu_object_ref_del_at(&obj->co_lu,
 						     &req->crq_o[i].ro_obj_ref,
 						     "cl_req", req);
@@ -1326,7 +1326,7 @@ static int cl_req_init(const struct lu_env *env, struct cl_req *req,
 	do {
 		list_for_each_entry(slice, &page->cp_layers, cpl_linkage) {
 			dev = lu2cl_dev(slice->cpl_obj->co_lu.lo_dev);
-			if (dev->cd_ops->cdo_req_init != NULL) {
+			if (dev->cd_ops->cdo_req_init) {
 				result = dev->cd_ops->cdo_req_init(env,
 								   dev, req);
 				if (result != 0)
@@ -1334,7 +1334,7 @@ static int cl_req_init(const struct lu_env *env, struct cl_req *req,
 			}
 		}
 		page = page->cp_child;
-	} while (page != NULL && result == 0);
+	} while (page && result == 0);
 	return result;
 }
 
@@ -1353,7 +1353,7 @@ void cl_req_completion(const struct lu_env *env, struct cl_req *req, int rc)
 		slice = list_entry(req->crq_layers.prev,
 				       struct cl_req_slice, crs_linkage);
 		list_del_init(&slice->crs_linkage);
-		if (slice->crs_ops->cro_completion != NULL)
+		if (slice->crs_ops->cro_completion)
 			slice->crs_ops->cro_completion(env, slice, rc);
 	}
 	cl_req_free(env, req);
@@ -1371,7 +1371,7 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 	LINVRNT(nr_objects > 0);
 
 	req = kzalloc(sizeof(*req), GFP_NOFS);
-	if (req != NULL) {
+	if (req) {
 		int result;
 
 		req->crq_type = crt;
@@ -1380,7 +1380,7 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 
 		req->crq_o = kcalloc(nr_objects, sizeof(req->crq_o[0]),
 				     GFP_NOFS);
-		if (req->crq_o != NULL) {
+		if (req->crq_o) {
 			req->crq_nrobjs = nr_objects;
 			result = cl_req_init(env, req, page);
 		} else
@@ -1408,7 +1408,7 @@ void cl_req_page_add(const struct lu_env *env,
 	page = cl_page_top(page);
 
 	LASSERT(list_empty(&page->cp_flight));
-	LASSERT(page->cp_req == NULL);
+	LASSERT(!page->cp_req);
 
 	CL_PAGE_DEBUG(D_PAGE, env, page, "req %p, %d, %u\n",
 		      req, req->crq_type, req->crq_nrpages);
@@ -1418,7 +1418,7 @@ void cl_req_page_add(const struct lu_env *env,
 	page->cp_req = req;
 	obj = cl_object_top(page->cp_obj);
 	for (i = 0, rqo = req->crq_o; obj != rqo->ro_obj; ++i, ++rqo) {
-		if (rqo->ro_obj == NULL) {
+		if (!rqo->ro_obj) {
 			rqo->ro_obj = obj;
 			cl_object_get(obj);
 			lu_object_ref_add_at(&obj->co_lu, &rqo->ro_obj_ref,
@@ -1463,11 +1463,11 @@ int cl_req_prep(const struct lu_env *env, struct cl_req *req)
 	 * of objects.
 	 */
 	for (i = 0; i < req->crq_nrobjs; ++i)
-		LASSERT(req->crq_o[i].ro_obj != NULL);
+		LASSERT(req->crq_o[i].ro_obj);
 
 	result = 0;
 	list_for_each_entry(slice, &req->crq_layers, crs_linkage) {
-		if (slice->crs_ops->cro_prep != NULL) {
+		if (slice->crs_ops->cro_prep) {
 			result = slice->crs_ops->cro_prep(env, slice);
 			if (result != 0)
 				break;
@@ -1501,9 +1501,8 @@ void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
 
 			scan = cl_page_at(page,
 					  slice->crs_dev->cd_lu_dev.ld_type);
-			LASSERT(scan != NULL);
 			obj = scan->cpl_obj;
-			if (slice->crs_ops->cro_attr_set != NULL)
+			if (slice->crs_ops->cro_attr_set)
 				slice->crs_ops->cro_attr_set(env, slice, obj,
 							     attr + i, flags);
 		}

@@ -76,8 +76,6 @@ static struct llog_handle *llog_alloc_handle(void)
  */
 static void llog_free_handle(struct llog_handle *loghandle)
 {
-	LASSERT(loghandle != NULL);
-
 	/* failed llog_init_handle */
 	if (!loghandle->lgh_hdr)
 		goto out;
@@ -115,7 +113,7 @@ static int llog_read_header(const struct lu_env *env,
 	if (rc)
 		return rc;
 
-	if (lop->lop_read_header == NULL)
+	if (!lop->lop_read_header)
 		return -EOPNOTSUPP;
 
 	rc = lop->lop_read_header(env, handle);
@@ -144,7 +142,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 	struct llog_log_hdr	*llh;
 	int			 rc;
 
-	LASSERT(handle->lgh_hdr == NULL);
+	LASSERT(!handle->lgh_hdr);
 
 	llh = kzalloc(sizeof(*llh), GFP_NOFS);
 	if (!llh)
@@ -228,11 +226,11 @@ static int llog_process_thread(void *arg)
 		return 0;
 	}
 
-	if (cd != NULL) {
+	if (cd) {
 		last_called_index = cd->lpcd_first_idx;
 		index = cd->lpcd_first_idx + 1;
 	}
-	if (cd != NULL && cd->lpcd_last_idx)
+	if (cd && cd->lpcd_last_idx)
 		last_index = cd->lpcd_last_idx;
 	else
 		last_index = LLOG_BITMAP_BYTES * 8 - 1;
@@ -328,7 +326,7 @@ repeat:
 	}
 
 out:
-	if (cd != NULL)
+	if (cd)
 		cd->lpcd_last_idx = last_called_index;
 
 	kfree(buf);
@@ -419,13 +417,13 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	LASSERT(ctxt);
 	LASSERT(ctxt->loc_logops);
 
-	if (ctxt->loc_logops->lop_open == NULL) {
+	if (!ctxt->loc_logops->lop_open) {
 		*lgh = NULL;
 		return -EOPNOTSUPP;
 	}
 
 	*lgh = llog_alloc_handle();
-	if (*lgh == NULL)
+	if (!*lgh)
 		return -ENOMEM;
 	(*lgh)->lgh_ctxt = ctxt;
 	(*lgh)->lgh_logops = ctxt->loc_logops;
@@ -452,7 +450,7 @@ int llog_close(const struct lu_env *env, struct llog_handle *loghandle)
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
 		goto out;
-	if (lop->lop_close == NULL) {
+	if (!lop->lop_close) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
