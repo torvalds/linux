@@ -745,3 +745,44 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 
 	return dt_virt;
 }
+
+int __init arch_ioremap_pud_supported(void)
+{
+	/* only 4k granule supports level 1 block mappings */
+	return IS_ENABLED(CONFIG_ARM64_4K_PAGES);
+}
+
+int __init arch_ioremap_pmd_supported(void)
+{
+	return 1;
+}
+
+int pud_set_huge(pud_t *pud, phys_addr_t phys, pgprot_t prot)
+{
+	BUG_ON(phys & ~PUD_MASK);
+	set_pud(pud, __pud(phys | PUD_TYPE_SECT | pgprot_val(mk_sect_prot(prot))));
+	return 1;
+}
+
+int pmd_set_huge(pmd_t *pmd, phys_addr_t phys, pgprot_t prot)
+{
+	BUG_ON(phys & ~PMD_MASK);
+	set_pmd(pmd, __pmd(phys | PMD_TYPE_SECT | pgprot_val(mk_sect_prot(prot))));
+	return 1;
+}
+
+int pud_clear_huge(pud_t *pud)
+{
+	if (!pud_sect(*pud))
+		return 0;
+	pud_clear(pud);
+	return 1;
+}
+
+int pmd_clear_huge(pmd_t *pmd)
+{
+	if (!pmd_sect(*pmd))
+		return 0;
+	pmd_clear(pmd);
+	return 1;
+}
