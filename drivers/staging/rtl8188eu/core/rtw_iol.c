@@ -14,9 +14,9 @@
  *
  ******************************************************************************/
 
-#include<rtw_iol.h>
+#include <rtw_iol.h>
 
-bool rtw_IOL_applied(struct adapter  *adapter)
+bool rtw_IOL_applied(struct adapter *adapter)
 {
 	if (1 == adapter->registrypriv.fw_iol)
 		return true;
