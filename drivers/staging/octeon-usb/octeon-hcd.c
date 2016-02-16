@@ -1480,9 +1480,9 @@ static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 	 */
 	packets_to_transfer = DIV_ROUND_UP(bytes_to_transfer,
 					   pipe->max_packet);
-	if (packets_to_transfer == 0)
+	if (packets_to_transfer == 0) {
 		packets_to_transfer = 1;
-	else if ((packets_to_transfer > 1) &&
+	} else if ((packets_to_transfer > 1) &&
 			(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)) {
 		/*
 		 * Limit to one packet when not using DMA. Channels must be
@@ -1634,8 +1634,9 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 				else
 					pipe->split_sc_frame =
 						(usb->frame_number + 2) & 0x7f;
-			} else
+			} else {
 				pipe->split_sc_frame = -1;
+			}
 
 			usbc_hcsplt.s.spltena = 1;
 			usbc_hcsplt.s.hubaddr = pipe->hub_device_addr;
@@ -1723,9 +1724,9 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 		 */
 		packets_to_transfer =
 			DIV_ROUND_UP(bytes_to_transfer, pipe->max_packet);
-		if (packets_to_transfer == 0)
+		if (packets_to_transfer == 0) {
 			packets_to_transfer = 1;
-		else if ((packets_to_transfer > 1) &&
+		} else if ((packets_to_transfer > 1) &&
 				(usb->init_flags &
 				 CVMX_USB_INITIALIZE_FLAGS_NO_DMA)) {
 			/*
