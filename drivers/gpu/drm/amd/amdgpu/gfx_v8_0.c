@@ -1092,8 +1092,13 @@ static void gfx_v8_0_get_csb_buffer(struct amdgpu_device *adev,
 			PACKET3_SET_CONTEXT_REG_START);
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
+	case CHIP_ELLESMERE:
 		buffer[count++] = cpu_to_le32(0x16000012);
 		buffer[count++] = cpu_to_le32(0x0000002A);
+		break;
+	case CHIP_BAFFIN:
+		buffer[count++] = cpu_to_le32(0x16000012);
+		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	case CHIP_FIJI:
 		buffer[count++] = cpu_to_le32(0x3a00161a);
@@ -3653,6 +3658,37 @@ static void gfx_v8_0_enable_save_restore_machine(struct amdgpu_device *adev)
 	WREG32(mmRLC_SRM_CNTL, data);
 }
 
+static void baffin_init_power_gating(struct amdgpu_device *adev)
+{
+	uint32_t data;
+
+	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
+			AMD_PG_SUPPORT_GFX_SMG |
+			AMD_PG_SUPPORT_GFX_DMG)) {
+		data = RREG32(mmCP_RB_WPTR_POLL_CNTL);
+		data &= ~CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT_MASK;
+		data |= (0x60 << CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT__SHIFT);
+		WREG32(mmCP_RB_WPTR_POLL_CNTL, data);
+
+		data = 0;
+		data |= (0x10 << RLC_PG_DELAY__POWER_UP_DELAY__SHIFT);
+		data |= (0x10 << RLC_PG_DELAY__POWER_DOWN_DELAY__SHIFT);
+		data |= (0x10 << RLC_PG_DELAY__CMD_PROPAGATE_DELAY__SHIFT);
+		data |= (0x10 << RLC_PG_DELAY__MEM_SLEEP_DELAY__SHIFT);
+		WREG32(mmRLC_PG_DELAY, data);
+
+		data = RREG32(mmRLC_PG_DELAY_2);
+		data &= ~RLC_PG_DELAY_2__SERDES_CMD_DELAY_MASK;
+		data |= (0x3 << RLC_PG_DELAY_2__SERDES_CMD_DELAY__SHIFT);
+		WREG32(mmRLC_PG_DELAY_2, data);
+
+		data = RREG32(mmRLC_AUTO_PG_CTRL);
+		data &= ~RLC_AUTO_PG_CTRL__GRBM_REG_SAVE_GFX_IDLE_THRESHOLD_MASK;
+		data |= (0x55f0 << RLC_AUTO_PG_CTRL__GRBM_REG_SAVE_GFX_IDLE_THRESHOLD__SHIFT);
+		WREG32(mmRLC_AUTO_PG_CTRL, data);
+	}
+}
+
 static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 {
 	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
@@ -3664,6 +3700,9 @@ static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 		gfx_v8_0_init_csb(adev);
 		gfx_v8_0_init_save_restore_list(adev);
 		gfx_v8_0_enable_save_restore_machine(adev);
+
+		if (adev->asic_type == CHIP_BAFFIN)
+			baffin_init_power_gating(adev);
 	}
 }
 
