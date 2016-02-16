@@ -1628,47 +1628,75 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type,
 				       u32 dm_value)
 {
-	if (dm_type == DIG_TYPE_THRESH_HIGH) {
+	switch (dm_type) {
+	case DIG_TYPE_THRESH_HIGH:
 		dm_digtable.rssi_high_thresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_LOW) {
+		break;
+
+	case  DIG_TYPE_THRESH_LOW:
 		dm_digtable.rssi_low_thresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH) {
+		break;
+
+	case  DIG_TYPE_THRESH_HIGHPWR_HIGH:
 		dm_digtable.rssi_high_power_highthresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_LOW) {
+		break;
+
+	case DIG_TYPE_THRESH_HIGHPWR_LOW:
 		dm_digtable.rssi_high_power_lowthresh = dm_value;
-	} else if (dm_type == DIG_TYPE_ENABLE) {
+		break;
+
+	case DIG_TYPE_ENABLE:
 		dm_digtable.dig_state		= DM_STA_DIG_MAX;
 		dm_digtable.dig_enable_flag	= true;
-	} else if (dm_type == DIG_TYPE_DISABLE) {
+		break;
+
+	case DIG_TYPE_DISABLE:
 		dm_digtable.dig_state		= DM_STA_DIG_MAX;
 		dm_digtable.dig_enable_flag	= false;
-	} else if (dm_type == DIG_TYPE_DBG_MODE) {
+		break;
+
+	case DIG_TYPE_DBG_MODE:
 		if (dm_value >= DM_DBG_MAX)
 			dm_value = DM_DBG_OFF;
 		dm_digtable.dbg_mode		= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RSSI) {
+		break;
+
+	case DIG_TYPE_RSSI:
 		if (dm_value > 100)
 			dm_value = 30;
 		dm_digtable.rssi_val			= (long)dm_value;
-	} else if (dm_type == DIG_TYPE_ALGORITHM) {
+		break;
+
+	case DIG_TYPE_ALGORITHM:
 		if (dm_value >= DIG_ALGO_MAX)
 			dm_value = DIG_ALGO_BY_FALSE_ALARM;
 		if (dm_digtable.dig_algorithm != (u8)dm_value)
 			dm_digtable.dig_algorithm_switch = 1;
 		dm_digtable.dig_algorithm	= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_BACKOFF) {
+		break;
+
+	case DIG_TYPE_BACKOFF:
 		if (dm_value > 30)
 			dm_value = 30;
 		dm_digtable.backoff_val		= (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RX_GAIN_MIN) {
+		break;
+
+	case DIG_TYPE_RX_GAIN_MIN:
 		if (dm_value == 0)
 			dm_value = 0x1;
 		dm_digtable.rx_gain_range_min = (u8)dm_value;
-	} else if (dm_type == DIG_TYPE_RX_GAIN_MAX) {
+		break;
+
+	case DIG_TYPE_RX_GAIN_MAX:
 		if (dm_value > 0x50)
 			dm_value = 0x50;
 		dm_digtable.rx_gain_range_max = (u8)dm_value;
+		break;
+
+	default:
+		break;
 	}
+
 }	/* DM_ChangeDynamicInitGainThresh */
 
 /*-----------------------------------------------------------------------------
