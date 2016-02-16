@@ -257,7 +257,7 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 {
 	int rc;
 
-	if (lsm_op_find(le32_to_cpu(*(__u32 *)lmm)) == NULL) {
+	if (!lsm_op_find(le32_to_cpu(*(__u32 *)lmm))) {
 		CERROR("bad disk LOV MAGIC: 0x%08X; dumping LMM (size=%d):\n",
 		       le32_to_cpu(*(__u32 *)lmm), lmm_bytes);
 		CERROR("%*phN\n", lmm_bytes, lmm);
@@ -306,10 +306,9 @@ int lov_free_memmd(struct lov_stripe_md **lsmp)
 	*lsmp = NULL;
 	LASSERT(atomic_read(&lsm->lsm_refc) > 0);
 	refc = atomic_dec_return(&lsm->lsm_refc);
-	if (refc == 0) {
-		LASSERT(lsm_op_find(lsm->lsm_magic) != NULL);
+	if (refc == 0)
 		lsm_op_find(lsm->lsm_magic)->lsm_free(lsm);
-	}
+
 	return refc;
 }
 
@@ -359,7 +358,6 @@ int lov_unpackmd(struct obd_export *exp,  struct lov_stripe_md **lsmp,
 	if (!lmm)
 		return lsm_size;
 
-	LASSERT(lsm_op_find(magic) != NULL);
 	rc = lsm_op_find(magic)->lsm_unpackmd(lov, *lsmp, lmm);
 	if (rc) {
 		lov_free_memmd(lsmp);

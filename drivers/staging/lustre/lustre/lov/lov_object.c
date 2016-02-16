@@ -154,7 +154,7 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 	/* reuse ->coh_attr_guard to protect coh_parent change */
 	spin_lock(&subhdr->coh_attr_guard);
 	parent = subhdr->coh_parent;
-	if (parent == NULL) {
+	if (!parent) {
 		subhdr->coh_parent = hdr;
 		spin_unlock(&subhdr->coh_attr_guard);
 		subhdr->coh_nesting = hdr->coh_nesting + 1;
@@ -170,7 +170,7 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 
 		spin_unlock(&subhdr->coh_attr_guard);
 		old_obj = lu_object_locate(&parent->coh_lu, &lov_device_type);
-		LASSERT(old_obj != NULL);
+		LASSERT(old_obj);
 		old_lov = cl2lov(lu2cl(old_obj));
 		if (old_lov->lo_layout_invalid) {
 			/* the object's layout has already changed but isn't
@@ -212,14 +212,14 @@ static int lov_init_raid0(const struct lu_env *env,
 			 LOV_MAGIC_V1, LOV_MAGIC_V3, lsm->lsm_magic);
 	}
 
-	LASSERT(lov->lo_lsm == NULL);
+	LASSERT(!lov->lo_lsm);
 	lov->lo_lsm = lsm_addref(lsm);
 	r0->lo_nr  = lsm->lsm_stripe_count;
 	LASSERT(r0->lo_nr <= lov_targets_nr(dev));
 
 	r0->lo_sub = libcfs_kvzalloc(r0->lo_nr * sizeof(r0->lo_sub[0]),
 				     GFP_NOFS);
-	if (r0->lo_sub != NULL) {
+	if (r0->lo_sub) {
 		result = 0;
 		subconf->coc_inode = conf->coc_inode;
 		spin_lock_init(&r0->lo_sub_lock);
@@ -241,7 +241,7 @@ static int lov_init_raid0(const struct lu_env *env,
 
 			subdev = lovsub2cl_dev(dev->ld_target[ost_idx]);
 			subconf->u.coc_oinfo = oinfo;
-			LASSERTF(subdev != NULL, "not init ost %d\n", ost_idx);
+			LASSERTF(subdev, "not init ost %d\n", ost_idx);
 			/* In the function below, .hs_keycmp resolves to
 			 * lu_obj_hop_keycmp() */
 			/* coverity[overrun-buffer-val] */
@@ -269,9 +269,9 @@ static int lov_init_released(const struct lu_env *env,
 {
 	struct lov_stripe_md *lsm = conf->u.coc_md->lsm;
 
-	LASSERT(lsm != NULL);
+	LASSERT(lsm);
 	LASSERT(lsm_is_released(lsm));
-	LASSERT(lov->lo_lsm == NULL);
+	LASSERT(!lov->lo_lsm);
 
 	lov->lo_lsm = lsm_addref(lsm);
 	return 0;
@@ -332,7 +332,7 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 		}
 		remove_wait_queue(&bkt->lsb_marche_funebre, waiter);
 	}
-	LASSERT(r0->lo_sub[idx] == NULL);
+	LASSERT(!r0->lo_sub[idx]);
 }
 
 static int lov_delete_raid0(const struct lu_env *env, struct lov_object *lov,
@@ -345,11 +345,11 @@ static int lov_delete_raid0(const struct lu_env *env, struct lov_object *lov,
 	dump_lsm(D_INODE, lsm);
 
 	lov_layout_wait(env, lov);
-	if (r0->lo_sub != NULL) {
+	if (r0->lo_sub) {
 		for (i = 0; i < r0->lo_nr; ++i) {
 			struct lovsub_object *los = r0->lo_sub[i];
 
-			if (los != NULL) {
+			if (los) {
 				cl_locks_prune(env, &los->lso_cl, 1);
 				/*
 				 * If top-level object is to be evicted from
@@ -374,7 +374,7 @@ static void lov_fini_raid0(const struct lu_env *env, struct lov_object *lov,
 {
 	struct lov_layout_raid0 *r0 = &state->raid0;
 
-	if (r0->lo_sub != NULL) {
+	if (r0->lo_sub) {
 		kvfree(r0->lo_sub);
 		r0->lo_sub = NULL;
 	}
@@ -412,7 +412,7 @@ static int lov_print_raid0(const struct lu_env *env, void *cookie,
 	for (i = 0; i < r0->lo_nr; ++i) {
 		struct lu_object *sub;
 
-		if (r0->lo_sub[i] != NULL) {
+		if (r0->lo_sub[i]) {
 			sub = lovsub2lu(r0->lo_sub[i]);
 			lu_object_print(env, cookie, p, sub);
 		} else {
@@ -569,7 +569,7 @@ static const struct lov_layout_operations lov_dispatch[] = {
  */
 static enum lov_layout_type lov_type(struct lov_stripe_md *lsm)
 {
-	if (lsm == NULL)
+	if (!lsm)
 		return LLT_EMPTY;
 	if (lsm_is_released(lsm))
 		return LLT_RELEASED;
@@ -624,7 +624,7 @@ static void lov_conf_lock(struct lov_object *lov)
 {
 	LASSERT(lov->lo_owner != current);
 	down_write(&lov->lo_type_guard);
-	LASSERT(lov->lo_owner == NULL);
+	LASSERT(!lov->lo_owner);
 	lov->lo_owner = current;
 }
 
@@ -666,7 +666,7 @@ static int lov_layout_change(const struct lu_env *unused,
 
 	LASSERT(0 <= lov->lo_type && lov->lo_type < ARRAY_SIZE(lov_dispatch));
 
-	if (conf->u.coc_md != NULL)
+	if (conf->u.coc_md)
 		llt = lov_type(conf->u.coc_md->lsm);
 	LASSERT(0 <= llt && llt < ARRAY_SIZE(lov_dispatch));
 
@@ -689,7 +689,7 @@ static int lov_layout_change(const struct lu_env *unused,
 		old_ops->llo_fini(env, lov, &lov->u);
 
 		LASSERT(atomic_read(&lov->lo_active_ios) == 0);
-		LASSERT(hdr->coh_tree.rnode == NULL);
+		LASSERT(!hdr->coh_tree.rnode);
 		LASSERT(hdr->coh_pages == 0);
 
 		lov->lo_type = LLT_EMPTY;
@@ -767,10 +767,10 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 
 	LASSERT(conf->coc_opc == OBJECT_CONF_SET);
 
-	if (conf->u.coc_md != NULL)
+	if (conf->u.coc_md)
 		lsm = conf->u.coc_md->lsm;
-	if ((lsm == NULL && lov->lo_lsm == NULL) ||
-	    ((lsm != NULL && lov->lo_lsm != NULL) &&
+	if ((!lsm && !lov->lo_lsm) ||
+	    ((lsm && lov->lo_lsm) &&
 	     (lov->lo_lsm->lsm_layout_gen == lsm->lsm_layout_gen) &&
 	     (lov->lo_lsm->lsm_pattern == lsm->lsm_pattern))) {
 		/* same version of layout */
@@ -892,7 +892,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	struct lu_object  *obj;
 
 	lov = kmem_cache_alloc(lov_object_kmem, GFP_NOFS | __GFP_ZERO);
-	if (lov != NULL) {
+	if (lov) {
 		obj = lov2lu(lov);
 		lu_object_init(obj, NULL, dev);
 		lov->lo_cl.co_ops = &lov_ops;
@@ -913,7 +913,7 @@ static struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
 	struct lov_stripe_md *lsm = NULL;
 
 	lov_conf_freeze(lov);
-	if (lov->lo_lsm != NULL) {
+	if (lov->lo_lsm) {
 		lsm = lsm_addref(lov->lo_lsm);
 		CDEBUG(D_INODE, "lsm %p addref %d/%d by %p.\n",
 			lsm, atomic_read(&lsm->lsm_refc),
@@ -928,12 +928,12 @@ struct lov_stripe_md *lov_lsm_get(struct cl_object *clobj)
 	struct lu_object *luobj;
 	struct lov_stripe_md *lsm = NULL;
 
-	if (clobj == NULL)
+	if (!clobj)
 		return NULL;
 
 	luobj = lu_object_locate(&cl_object_header(clobj)->coh_lu,
 				 &lov_device_type);
-	if (luobj != NULL)
+	if (luobj)
 		lsm = lov_lsm_addref(lu2lov(luobj));
 	return lsm;
 }
@@ -941,7 +941,7 @@ EXPORT_SYMBOL(lov_lsm_get);
 
 void lov_lsm_put(struct cl_object *unused, struct lov_stripe_md *lsm)
 {
-	if (lsm != NULL)
+	if (lsm)
 		lov_free_memmd(&lsm);
 }
 EXPORT_SYMBOL(lov_lsm_put);
@@ -953,7 +953,7 @@ int lov_read_and_clear_async_rc(struct cl_object *clob)
 
 	luobj = lu_object_locate(&cl_object_header(clob)->coh_lu,
 				 &lov_device_type);
-	if (luobj != NULL) {
+	if (luobj) {
 		struct lov_object *lov = lu2lov(luobj);
 
 		lov_conf_freeze(lov);
@@ -963,7 +963,6 @@ int lov_read_and_clear_async_rc(struct cl_object *clob)
 			int i;
 
 			lsm = lov->lo_lsm;
-			LASSERT(lsm != NULL);
 			for (i = 0; i < lsm->lsm_stripe_count; i++) {
 				struct lov_oinfo *loi = lsm->lsm_oinfo[i];
 

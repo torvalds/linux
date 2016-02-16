@@ -114,7 +114,6 @@ void lov_finish_set(struct lov_request_set *set);
 
 static inline void lov_get_reqset(struct lov_request_set *set)
 {
-	LASSERT(set != NULL);
 	LASSERT(atomic_read(&set->set_refcount) > 0);
 	atomic_inc(&set->set_refcount);
 }

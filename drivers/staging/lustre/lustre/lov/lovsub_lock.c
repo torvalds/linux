@@ -429,7 +429,7 @@ static int lovsub_lock_print(const struct lu_env *env, void *cookie,
 	list_for_each_entry(scan, &sub->lss_parents, lll_list) {
 		lov = scan->lll_super;
 		(*p)(env, cookie, "[%d %p ", scan->lll_idx, lov);
-		if (lov != NULL)
+		if (lov)
 			cl_lock_descr_print(env, cookie, p,
 					    &lov->lls_cl.cls_lock->cll_descr);
 		(*p)(env, cookie, "] ");
@@ -454,7 +454,7 @@ int lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
 	int result;
 
 	lsk = kmem_cache_alloc(lovsub_lock_kmem, GFP_NOFS | __GFP_ZERO);
-	if (lsk != NULL) {
+	if (lsk) {
 		INIT_LIST_HEAD(&lsk->lss_parents);
 		cl_lock_slice_add(lock, &lsk->lss_cl, obj, &lovsub_lock_ops);
 		result = 0;

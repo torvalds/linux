@@ -651,7 +651,7 @@ static inline struct lov_session *lov_env_session(const struct lu_env *env)
 	struct lov_session *ses;
 
 	ses = lu_context_key_get(env->le_ses, &lov_session_key);
-	LASSERT(ses != NULL);
+	LASSERT(ses);
 	return ses;
 }
 
@@ -759,7 +759,7 @@ static inline struct lovsub_lock *cl2sub_lock(const struct cl_lock *lock)
 	const struct cl_lock_slice *slice;
 
 	slice = cl_lock_at(lock, &lovsub_device_type);
-	LASSERT(slice != NULL);
+	LASSERT(slice);
 	return cl2lovsub_lock(slice);
 }
 
@@ -817,7 +817,7 @@ static inline struct lov_thread_info *lov_env_info(const struct lu_env *env)
 	struct lov_thread_info *info;
 
 	info = lu_context_key_get(&env->le_ctx, &lov_key);
-	LASSERT(info != NULL);
+	LASSERT(info);
 	return info;
 }
 

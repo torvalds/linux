@@ -46,7 +46,7 @@ static int lov_stripesize_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	seq_printf(m, "%llu\n", desc->ld_default_stripe_size);
 	return 0;
@@ -61,7 +61,7 @@ static ssize_t lov_stripesize_seq_write(struct file *file,
 	__u64 val;
 	int rc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	rc = lprocfs_write_u64_helper(buffer, count, &val);
 	if (rc)
@@ -79,7 +79,7 @@ static int lov_stripeoffset_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	seq_printf(m, "%llu\n", desc->ld_default_stripe_offset);
 	return 0;
@@ -94,7 +94,7 @@ static ssize_t lov_stripeoffset_seq_write(struct file *file,
 	__u64 val;
 	int rc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	rc = lprocfs_write_u64_helper(buffer, count, &val);
 	if (rc)
@@ -111,7 +111,7 @@ static int lov_stripetype_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	seq_printf(m, "%u\n", desc->ld_pattern);
 	return 0;
@@ -125,7 +125,7 @@ static ssize_t lov_stripetype_seq_write(struct file *file,
 	struct lov_desc *desc;
 	int val, rc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	rc = lprocfs_write_helper(buffer, count, &val);
 	if (rc)
@@ -143,7 +143,7 @@ static int lov_stripecount_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	seq_printf(m, "%d\n", (__s16)(desc->ld_default_stripe_count + 1) - 1);
 	return 0;
@@ -157,7 +157,7 @@ static ssize_t lov_stripecount_seq_write(struct file *file,
 	struct lov_desc *desc;
 	int val, rc;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	desc = &dev->u.lov.desc;
 	rc = lprocfs_write_helper(buffer, count, &val);
 	if (rc)
@@ -199,7 +199,7 @@ static int lov_desc_uuid_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = (struct obd_device *)m->private;
 	struct lov_obd *lov;
 
-	LASSERT(dev != NULL);
+	LASSERT(dev);
 	lov = &dev->u.lov;
 	seq_printf(m, "%s\n", lov->desc.ld_uuid.uuid);
 	return 0;

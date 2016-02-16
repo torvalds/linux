@@ -156,7 +156,7 @@ static int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 
 	tgt = lov->lov_tgts[ost_idx];
 
-	if (unlikely(tgt == NULL)) {
+	if (unlikely(!tgt)) {
 		rc = 0;
 		goto out;
 	}
@@ -178,7 +178,7 @@ static int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 				   cfs_time_seconds(1), NULL, NULL);
 
 	rc = l_wait_event(waitq, lov_check_set(lov, ost_idx), &lwi);
-	if (tgt != NULL && tgt->ltd_active)
+	if (tgt && tgt->ltd_active)
 		return 1;
 
 	return 0;
@@ -195,16 +195,14 @@ static int common_attr_done(struct lov_request_set *set)
 	struct obdo *tmp_oa;
 	int rc = 0, attrset = 0;
 
-	LASSERT(set->set_oi != NULL);
-
-	if (set->set_oi->oi_oa == NULL)
+	if (!set->set_oi->oi_oa)
 		return 0;
 
 	if (!atomic_read(&set->set_success))
 		return -EIO;
 
 	tmp_oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
-	if (tmp_oa == NULL) {
+	if (!tmp_oa) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -246,7 +244,7 @@ int lov_fini_getattr_set(struct lov_request_set *set)
 {
 	int rc = 0;
 
-	if (set == NULL)
+	if (!set)
 		return 0;
 	LASSERT(set->set_exp);
 	if (atomic_read(&set->set_completes))
@@ -312,7 +310,7 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 
 		req->rq_oi.oi_oa = kmem_cache_alloc(obdo_cachep,
 						    GFP_NOFS | __GFP_ZERO);
-		if (req->rq_oi.oi_oa == NULL) {
+		if (!req->rq_oi.oi_oa) {
 			kfree(req);
 			rc = -ENOMEM;
 			goto out_set;
@@ -337,7 +335,7 @@ out_set:
 
 int lov_fini_destroy_set(struct lov_request_set *set)
 {
-	if (set == NULL)
+	if (!set)
 		return 0;
 	LASSERT(set->set_exp);
 	if (atomic_read(&set->set_completes)) {
@@ -368,7 +366,7 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 	set->set_oi->oi_md = lsm;
 	set->set_oi->oi_oa = src_oa;
 	set->set_oti = oti;
-	if (oti != NULL && src_oa->o_valid & OBD_MD_FLCOOKIE)
+	if (oti && src_oa->o_valid & OBD_MD_FLCOOKIE)
 		set->set_cookies = oti->oti_logcookies;
 
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
@@ -395,7 +393,7 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 
 		req->rq_oi.oi_oa = kmem_cache_alloc(obdo_cachep,
 						    GFP_NOFS | __GFP_ZERO);
-		if (req->rq_oi.oi_oa == NULL) {
+		if (!req->rq_oi.oi_oa) {
 			kfree(req);
 			rc = -ENOMEM;
 			goto out_set;
@@ -419,7 +417,7 @@ int lov_fini_setattr_set(struct lov_request_set *set)
 {
 	int rc = 0;
 
-	if (set == NULL)
+	if (!set)
 		return 0;
 	LASSERT(set->set_exp);
 	if (atomic_read(&set->set_completes)) {
@@ -486,7 +484,7 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 	set->set_exp = exp;
 	set->set_oti = oti;
 	set->set_oi = oinfo;
-	if (oti != NULL && oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE)
+	if (oti && oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE)
 		set->set_cookies = oti->oti_logcookies;
 
 	for (i = 0; i < oinfo->oi_md->lsm_stripe_count; i++) {
@@ -511,7 +509,7 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 
 		req->rq_oi.oi_oa = kmem_cache_alloc(obdo_cachep,
 						    GFP_NOFS | __GFP_ZERO);
-		if (req->rq_oi.oi_oa == NULL) {
+		if (!req->rq_oi.oi_oa) {
 			kfree(req);
 			rc = -ENOMEM;
 			goto out_set;
@@ -581,7 +579,7 @@ int lov_fini_statfs_set(struct lov_request_set *set)
 {
 	int rc = 0;
 
-	if (set == NULL)
+	if (!set)
 		return 0;
 
 	if (atomic_read(&set->set_completes)) {
@@ -718,7 +716,7 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
 		struct lov_request *req;
 
-		if (lov->lov_tgts[i] == NULL ||
+		if (!lov->lov_tgts[i] ||
 		    (!lov_check_and_wait_active(lov, i) &&
 		     (oinfo->oi_flags & OBD_STATFS_NODELAY))) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", i);
