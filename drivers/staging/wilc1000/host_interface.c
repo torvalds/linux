@@ -429,12 +429,10 @@ static s32 handle_set_mac_address(struct wilc_vif *vif,
 {
 	s32 result = 0;
 	struct wid wid;
-	u8 *mac_buf = kmalloc(ETH_ALEN, GFP_KERNEL);
 
+	u8 *mac_buf = kmemdup(set_mac_addr->mac_addr, ETH_ALEN, GFP_KERNEL);
 	if (!mac_buf)
 		return -ENOMEM;
-
-	memcpy(mac_buf, set_mac_addr->mac_addr, ETH_ALEN);
 
 	wid.id = (u16)WID_MAC_ADDR;
 	wid.type = WID_STR;
