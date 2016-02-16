@@ -121,13 +121,6 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 			   cfg);
 }
 
-static bool atmel_hlcdc_crtc_mode_fixup(struct drm_crtc *crtc,
-					const struct drm_display_mode *mode,
-					struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void atmel_hlcdc_crtc_disable(struct drm_crtc *c)
 {
 	struct drm_device *dev = c->dev;
@@ -261,7 +254,6 @@ static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs lcdc_crtc_helper_funcs = {
-	.mode_fixup = atmel_hlcdc_crtc_mode_fixup,
 	.mode_set = drm_helper_crtc_mode_set,
 	.mode_set_nofb = atmel_hlcdc_crtc_mode_set_nofb,
 	.mode_set_base = drm_helper_crtc_mode_set_base,
@@ -349,4 +341,3 @@ fail:
 	atmel_hlcdc_crtc_destroy(&crtc->base);
 	return ret;
 }
-
