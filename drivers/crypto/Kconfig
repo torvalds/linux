@@ -503,6 +503,10 @@ config CRYPTO_DEV_ROCKCHIP
 	depends on OF && ARCH_ROCKCHIP
 	select CRYPTO_AES
 	select CRYPTO_DES
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
 	select CRYPTO_BLKCIPHER
 
 	help
