@@ -107,12 +107,4 @@ uinstall:
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" \
 	$(obj)/uImage System.map "$(INSTALL_PATH)"
 
-zi:
-	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" \
-	$(obj)/zImage System.map "$(INSTALL_PATH)"
-
-i:
-	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" \
-	$(obj)/Image System.map "$(INSTALL_PATH)"
-
 subdir-	    := bootp compressed dts
