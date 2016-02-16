@@ -442,7 +442,7 @@ static void handle_set_mac_address(struct wilc_vif *vif,
 	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 	if (ret)
-		PRINT_ER("Failed to set mac address\n");
+		netdev_err(vif->ndev, "Failed to set mac address\n");
 
 	kfree(mac_buf);
 }
