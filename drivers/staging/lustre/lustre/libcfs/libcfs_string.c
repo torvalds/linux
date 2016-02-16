@@ -337,8 +337,10 @@ cfs_range_expr_print(char *buffer, int count, struct cfs_range_expr *expr,
 	char s[] = "[";
 	char e[] = "]";
 
-	if (bracketed)
-		s[0] = e[0] = '\0';
+	if (bracketed) {
+		s[0] = '\0';
+		e[0] = '\0';
+	}
 
 	if (expr->re_lo == expr->re_hi)
 		i = scnprintf(buffer, count, "%u", expr->re_lo);

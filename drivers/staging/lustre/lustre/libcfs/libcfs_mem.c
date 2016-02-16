@@ -82,9 +82,10 @@ cfs_percpt_alloc(struct cfs_cpt_table *cptab, unsigned int size)
 	if (!arr)
 		return NULL;
 
-	arr->va_size	= size = L1_CACHE_ALIGN(size);
-	arr->va_count	= count;
-	arr->va_cptab	= cptab;
+	size = L1_CACHE_ALIGN(size);
+	arr->va_size = size;
+	arr->va_count = count;
+	arr->va_cptab = cptab;
 
 	for (i = 0; i < count; i++) {
 		LIBCFS_CPT_ALLOC(arr->va_ptrs[i], cptab, i, size);
