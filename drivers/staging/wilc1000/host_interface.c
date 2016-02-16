@@ -1973,7 +1973,6 @@ static s32 Handle_GetChnl(struct wilc_vif *vif)
 {
 	s32 result = 0;
 	struct wid wid;
-	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	wid.id = (u16)WID_CURRENT_CHANNEL;
 	wid.type = WID_CHAR;
@@ -1987,8 +1986,6 @@ static s32 Handle_GetChnl(struct wilc_vif *vif)
 		PRINT_ER("Failed to get channel number\n");
 		result = -EFAULT;
 	}
-
-	up(&hif_drv->sem_get_chnl);
 
 	return result;
 }
@@ -2017,7 +2014,6 @@ static void Handle_GetLinkspeed(struct wilc_vif *vif)
 {
 	s32 result = 0;
 	struct wid wid;
-	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	link_speed = 0;
 
@@ -2033,7 +2029,6 @@ static void Handle_GetLinkspeed(struct wilc_vif *vif)
 		result = -EFAULT;
 	}
 
-	up(&hif_drv->sem_get_link_speed);
 }
 
 static s32 Handle_GetStatistics(struct wilc_vif *vif,
@@ -3630,8 +3625,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	sema_init(&hif_drv->sem_test_key_block, 0);
 	sema_init(&hif_drv->sem_test_disconn_block, 0);
 	sema_init(&hif_drv->sem_get_rssi, 0);
-	sema_init(&hif_drv->sem_get_link_speed, 0);
-	sema_init(&hif_drv->sem_get_chnl, 0);
 	sema_init(&hif_drv->sem_inactive_time, 0);
 
 	if (clients_count == 0)	{
