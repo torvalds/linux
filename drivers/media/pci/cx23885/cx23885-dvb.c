@@ -1988,8 +1988,8 @@ static int dvb_register(struct cx23885_tsport *port)
 		break;
 	case CX23885_BOARD_DVBSKY_T980C:
 	case CX23885_BOARD_TT_CT2_4500_CI:
-		i2c_bus = &dev->i2c_bus[1];
-		i2c_bus2 = &dev->i2c_bus[0];
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
 
 		/* attach frontend */
 		memset(&si2168_config, 0, sizeof(si2168_config));
@@ -2001,7 +2001,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		info.addr = 0x64;
 		info.platform_data = &si2168_config;
 		request_module(info.type);
-		client_demod = i2c_new_device(&i2c_bus->i2c_adap, &info);
+		client_demod = i2c_new_device(&i2c_bus2->i2c_adap, &info);
 		if (client_demod == NULL || client_demod->dev.driver == NULL)
 			goto frontend_detach;
 		if (!try_module_get(client_demod->dev.driver->owner)) {
@@ -2030,13 +2030,13 @@ static int dvb_register(struct cx23885_tsport *port)
 		port->i2c_client_tuner = client_tuner;
 		break;
 	case CX23885_BOARD_DVBSKY_S950C:
-		i2c_bus = &dev->i2c_bus[1];
-		i2c_bus2 = &dev->i2c_bus[0];
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
 
 		/* attach frontend */
 		fe0->dvb.frontend = dvb_attach(m88ds3103_attach,
 				&dvbsky_s950c_m88ds3103_config,
-				&i2c_bus->i2c_adap, &adapter);
+				&i2c_bus2->i2c_adap, &adapter);
 		if (fe0->dvb.frontend == NULL)
 			break;
 
