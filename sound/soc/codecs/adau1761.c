@@ -1,5 +1,5 @@
 /*
- * Driver for ADAU1761/ADAU1461/ADAU1761/ADAU1961 codec
+ * Driver for ADAU1361/ADAU1461/ADAU1761/ADAU1961 codec
  *
  * Copyright 2011-2013 Analog Devices Inc.
  * Author: Lars-Peter Clausen <lars@metafoo.de>
