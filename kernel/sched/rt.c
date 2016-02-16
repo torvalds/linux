@@ -58,7 +58,15 @@ static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 	raw_spin_lock(&rt_b->rt_runtime_lock);
 	if (!rt_b->rt_period_active) {
 		rt_b->rt_period_active = 1;
-		hrtimer_forward_now(&rt_b->rt_period_timer, rt_b->rt_period);
+		/*
+		 * SCHED_DEADLINE updates the bandwidth, as a run away
+		 * RT task with a DL task could hog a CPU. But DL does
+		 * not reset the period. If a deadline task was running
+		 * without an RT task running, it can cause RT tasks to
+		 * throttle when they start up. Kick the timer right away
+		 * to update the period.
+		 */
+		hrtimer_forward_now(&rt_b->rt_period_timer, ns_to_ktime(0));
 		hrtimer_start_expires(&rt_b->rt_period_timer, HRTIMER_MODE_ABS_PINNED);
 	}
 	raw_spin_unlock(&rt_b->rt_runtime_lock);
