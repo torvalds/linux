@@ -90,9 +90,8 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  */
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
 {
-	amdgpu_sa_bo_free(adev, &ib->sa_bo, &ib->fence->base);
-	if (ib->fence)
-		fence_put(&ib->fence->base);
+	amdgpu_sa_bo_free(adev, &ib->sa_bo, ib->fence);
+	fence_put(ib->fence);
 }
 
 /**
@@ -198,7 +197,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	if (f)
-		*f = fence_get(&ib->fence->base);
+		*f = fence_get(ib->fence);
 
 	amdgpu_ring_commit(ring);
 	return 0;

@@ -429,7 +429,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   unsigned irq_type);
 void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
-int amdgpu_fence_emit(struct amdgpu_ring *ring, struct amdgpu_fence **fence);
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct fence **fence);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
@@ -766,7 +766,7 @@ struct amdgpu_ib {
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
-	struct amdgpu_fence		*fence;
+	struct fence			*fence;
 	struct amdgpu_user_fence        *user;
 	struct amdgpu_vm		*vm;
 	unsigned			vm_id;
