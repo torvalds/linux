@@ -49,7 +49,11 @@ for error in errors:
         fn = frame.find('fn')
         fi = frame.find('file')
         li = frame.find('line')
-        bodytext = fn.text
+
+        if fn is None:
+            bodytext = '(unresolved symbol)'
+        else:
+            bodytext = fn.text
         bodytext = bodytext.replace("&","&amp;")
         bodytext = bodytext.replace("<","&lt;")
         bodytext = bodytext.replace(">","&gt;")
