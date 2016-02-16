@@ -378,7 +378,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	__LASSERT(debug_buf == string_buf);
 
 	tage->used += needed;
-	__LASSERT (tage->used <= PAGE_CACHE_SIZE);
+	__LASSERT(tage->used <= PAGE_CACHE_SIZE);
 
 console:
 	if ((mask & libcfs_printk) == 0) {

@@ -163,7 +163,7 @@ cfs_wi_deschedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
 		wi->wi_scheduled = 0;
 	}
 
-	LASSERT (list_empty(&wi->wi_list));
+	LASSERT(list_empty(&wi->wi_list));
 
 	spin_unlock(&sched->ws_lock);
 	return rc;
@@ -186,7 +186,7 @@ cfs_wi_schedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
 	spin_lock(&sched->ws_lock);
 
 	if (!wi->wi_scheduled) {
-		LASSERT (list_empty(&wi->wi_list));
+		LASSERT(list_empty(&wi->wi_list));
 
 		wi->wi_scheduled = 1;
 		sched->ws_nscheduled++;
@@ -198,14 +198,13 @@ cfs_wi_schedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
 		}
 	}
 
-	LASSERT (!list_empty(&wi->wi_list));
+	LASSERT(!list_empty(&wi->wi_list));
 	spin_unlock(&sched->ws_lock);
 	return;
 }
 EXPORT_SYMBOL(cfs_wi_schedule);
 
-static int
-cfs_wi_scheduler (void *arg)
+static int cfs_wi_scheduler(void *arg)
 {
 	struct cfs_wi_sched	*sched = (struct cfs_wi_sched *)arg;
 

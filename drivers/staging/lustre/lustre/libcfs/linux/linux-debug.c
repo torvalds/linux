@@ -142,7 +142,7 @@ void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *msgdata)
 	argv[4] = buf;
 	argv[5] = NULL;
 
-	libcfs_run_upcall (argv);
+	libcfs_run_upcall(argv);
 }
 EXPORT_SYMBOL(libcfs_run_lbug_upcall);
 

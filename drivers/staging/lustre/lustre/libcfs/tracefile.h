@@ -279,8 +279,7 @@ cfs_trace_get_tcd(void)
 	return tcd;
 }
 
-static inline void
-cfs_trace_put_tcd (struct cfs_trace_cpu_data *tcd)
+static inline void cfs_trace_put_tcd(struct cfs_trace_cpu_data *tcd)
 {
 	cfs_trace_unlock_tcd(tcd, 0);
 
