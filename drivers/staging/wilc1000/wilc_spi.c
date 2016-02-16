@@ -380,9 +380,8 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 		break;
 	}
 
-	if (result != N_OK) {
+	if (result != N_OK)
 		return result;
-	}
 
 	if (!g_spi.crc_off)
 		wb[len - 1] = (crc7(0x7f, (const u8 *)&wb[0], len - 1)) << 1;
@@ -419,9 +418,8 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 		return result;
 	}
 	/* zero spi write buffers. */
-	for (wix = len; wix < len2; wix++) {
+	for (wix = len; wix < len2; wix++)
 		wb[wix] = 0;
-	}
 	rix = len;
 
 	if (wilc_spi_tx_rx(wilc, wb, rb, len2)) {
@@ -523,9 +521,8 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			int ix;
 
 			/* some data may be read in response to dummy bytes. */
-			for (ix = 0; (rix < len2) && (ix < sz); ) {
+			for (ix = 0; (rix < len2) && (ix < sz); )
 				b[ix++] = rb[rix++];
-			}
 
 			sz -= ix;
 
@@ -711,9 +708,8 @@ static int spi_internal_write(struct wilc *wilc, u32 adr, u32 dat)
 	dat = cpu_to_le32(dat);
 	result = spi_cmd_complete(wilc, CMD_INTERNAL_WRITE, adr, (u8 *)&dat, 4,
 				  0);
-	if (result != N_OK) {
+	if (result != N_OK)
 		dev_err(&spi->dev, "Failed internal write cmd...\n");
-	}
 
 	return result;
 }
@@ -756,9 +752,8 @@ static int wilc_spi_write_reg(struct wilc *wilc, u32 addr, u32 data)
 	}
 
 	result = spi_cmd_complete(wilc, cmd, addr, (u8 *)&data, 4, clockless);
-	if (result != N_OK) {
+	if (result != N_OK)
 		dev_err(&spi->dev, "Failed cmd, write reg (%08x)...\n", addr);
-	}
 
 	return result;
 }
@@ -786,9 +781,8 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	 *      Data
 	 **/
 	result = spi_data_write(wilc, buf, size);
-	if (result != N_OK) {
+	if (result != N_OK)
 		dev_err(&spi->dev, "Failed block data write...\n");
-	}
 
 	return 1;
 }
@@ -1124,9 +1118,9 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 		return 0;
 	}
 
-	for (i = 0; (i < 5) && (nint > 0); i++, nint--) {
+	for (i = 0; (i < 5) && (nint > 0); i++, nint--)
 		reg |= (BIT((27 + i)));
-	}
+
 	ret = wilc_spi_write_reg(wilc, WILC_INTR_ENABLE, reg);
 	if (!ret) {
 		dev_err(&spi->dev, "Failed write reg (%08x)...\n",
@@ -1141,9 +1135,8 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 			return 0;
 		}
 
-		for (i = 0; (i < 3) && (nint > 0); i++, nint--) {
+		for (i = 0; (i < 3) && (nint > 0); i++, nint--)
 			reg |= BIT(i);
-		}
 
 		ret = wilc_spi_read_reg(wilc, WILC_INTR2_ENABLE, &reg);
 		if (!ret) {
