@@ -5086,4 +5086,3 @@ void bnx2x_schedule_sp_rtnl(struct bnx2x *bp, enum sp_rtnl_flag flag,
 	   flag);
 	schedule_delayed_work(&bp->sp_rtnl_task, 0);
 }
-EXPORT_SYMBOL(bnx2x_schedule_sp_rtnl);
