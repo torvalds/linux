@@ -37,6 +37,8 @@ struct amdgpu_sync_entry {
 	struct fence		*fence;
 };
 
+static struct kmem_cache *amdgpu_sync_slab;
+
 /**
  * amdgpu_sync_create - zero init sync object
  *
@@ -133,7 +135,7 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		return 0;
 	}
 
-	e = kmalloc(sizeof(struct amdgpu_sync_entry), GFP_KERNEL);
+	e = kmem_cache_alloc(amdgpu_sync_slab, GFP_KERNEL);
 	if (!e)
 		return -ENOMEM;
 
@@ -214,7 +216,7 @@ struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync)
 		f = e->fence;
 
 		hash_del(&e->node);
-		kfree(e);
+		kmem_cache_free(amdgpu_sync_slab, e);
 
 		if (!fence_is_signaled(f))
 			return f;
@@ -237,7 +239,7 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync)
 
 		hash_del(&e->node);
 		fence_put(e->fence);
-		kfree(e);
+		kmem_cache_free(amdgpu_sync_slab, e);
 	}
 
 	return 0;
@@ -259,8 +261,34 @@ void amdgpu_sync_free(struct amdgpu_sync *sync)
 	hash_for_each_safe(sync->fences, i, tmp, e, node) {
 		hash_del(&e->node);
 		fence_put(e->fence);
-		kfree(e);
+		kmem_cache_free(amdgpu_sync_slab, e);
 	}
 
 	fence_put(sync->last_vm_update);
+}
+
+/**
+ * amdgpu_sync_init - init sync object subsystem
+ *
+ * Allocate the slab allocator.
+ */
+int amdgpu_sync_init(void)
+{
+	amdgpu_sync_slab = kmem_cache_create(
+		"amdgpu_sync", sizeof(struct amdgpu_sync_entry), 0,
+		SLAB_HWCACHE_ALIGN, NULL);
+	if (!amdgpu_sync_slab)
+		return -ENOMEM;
+
+	return 0;
+}
+
+/**
+ * amdgpu_sync_fini - fini sync object subsystem
+ *
+ * Free the slab allocator.
+ */
+void amdgpu_sync_fini(void)
+{
+	kmem_cache_destroy(amdgpu_sync_slab);
 }
