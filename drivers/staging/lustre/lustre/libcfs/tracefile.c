@@ -346,7 +346,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 			break;
 	}
 
-	if (*(string_buf+needed-1) != '\n')
+	if (*(string_buf + needed - 1) != '\n')
 		printk(KERN_INFO "format at %s:%d:%s doesn't end in newline\n",
 		       file, msgdata->msg_line, msgdata->msg_fn);
 
@@ -436,7 +436,7 @@ console:
 			remain = CFS_TRACE_CONSOLE_BUFFER_SIZE - needed;
 			if (remain > 0) {
 				va_start(ap, format2);
-				needed += vsnprintf(string_buf+needed, remain,
+				needed += vsnprintf(string_buf + needed, remain,
 						    format2, ap);
 				va_end(ap);
 			}
@@ -667,7 +667,8 @@ int cfs_tracefile_dump_all_pages(char *filename)
 
 	cfs_tracefile_write_lock();
 
-	filp = filp_open(filename, O_CREAT|O_EXCL|O_WRONLY|O_LARGEFILE, 0600);
+	filp = filp_open(filename, O_CREAT | O_EXCL | O_WRONLY | O_LARGEFILE,
+			 0600);
 	if (IS_ERR(filp)) {
 		rc = PTR_ERR(filp);
 		filp = NULL;

@@ -268,5 +268,5 @@ int cfs_trace_max_debug_mb(void)
 {
 	int  total_mb = (totalram_pages >> (20 - PAGE_SHIFT));
 
-	return max(512, (total_mb * 80)/100);
+	return max(512, (total_mb * 80) / 100);
 }

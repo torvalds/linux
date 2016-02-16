@@ -418,7 +418,7 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
 	/* Allow a number for backwards compatibility */
 
 	for (n = strlen(str); n > 0; n--)
-		if (!isspace(str[n-1]))
+		if (!isspace(str[n - 1]))
 			break;
 	matched = n;
 	t = sscanf(str, "%i%n", &m, &matched);

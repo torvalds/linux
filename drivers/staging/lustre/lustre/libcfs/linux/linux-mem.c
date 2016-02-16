@@ -50,7 +50,7 @@ void *libcfs_kvzalloc_cpt(struct cfs_cpt_table *cptab, int cpt, size_t size,
 	ret = kzalloc_node(size, flags | __GFP_NOWARN,
 			   cfs_cpt_spread_node(cptab, cpt));
 	if (!ret) {
-		WARN_ON(!(flags & (__GFP_FS|__GFP_HIGH)));
+		WARN_ON(!(flags & (__GFP_FS | __GFP_HIGH)));
 		ret = vmalloc_node(size, cfs_cpt_spread_node(cptab, cpt));
 	}
 
