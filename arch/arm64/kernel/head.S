@@ -428,7 +428,11 @@ __mmap_switched:
 	and	x4, x4, #~(THREAD_SIZE - 1)
 	msr	sp_el0, x4			// Save thread_info
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
-	str_l	x24, memstart_addr, x6		// Save PHYS_OFFSET
+
+	ldr	x4, =KIMAGE_VADDR		// Save the offset between
+	sub	x4, x4, x24			// the kernel virtual and
+	str_l	x4, kimage_voffset, x5		// physical mappings
+
 	mov	x29, #0
 #ifdef CONFIG_KASAN
 	bl	kasan_early_init

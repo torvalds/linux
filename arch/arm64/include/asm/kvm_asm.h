@@ -102,24 +102,9 @@
 #define KVM_ARM64_DEBUG_DIRTY_SHIFT	0
 #define KVM_ARM64_DEBUG_DIRTY		(1 << KVM_ARM64_DEBUG_DIRTY_SHIFT)
 
-#define kvm_ksym_ref(sym)		((void *)&sym + kvm_ksym_shift)
+#define kvm_ksym_ref(sym)		phys_to_virt((u64)&sym - kimage_voffset)
 
 #ifndef __ASSEMBLY__
-#if __GNUC__ > 4
-#define kvm_ksym_shift			(PAGE_OFFSET - KIMAGE_VADDR)
-#else
-/*
- * GCC versions 4.9 and older will fold the constant below into the addend of
- * the reference to 'sym' above if kvm_ksym_shift is declared static or if the
- * constant is used directly. However, since we use the small code model for
- * the core kernel, the reference to 'sym' will be emitted as a adrp/add pair,
- * with a +/- 4 GB range, resulting in linker relocation errors if the shift
- * is sufficiently large. So prevent the compiler from folding the shift into
- * the addend, by making the shift a variable with external linkage.
- */
-__weak u64 kvm_ksym_shift = PAGE_OFFSET - KIMAGE_VADDR;
-#endif
-
 struct kvm;
 struct kvm_vcpu;
 

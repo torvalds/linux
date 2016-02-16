@@ -24,6 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <linux/types.h>
+#include <asm/bug.h>
 #include <asm/sizes.h>
 
 /*
@@ -88,10 +89,10 @@
 #define __virt_to_phys(x) ({						\
 	phys_addr_t __x = (phys_addr_t)(x);				\
 	__x >= PAGE_OFFSET ? (__x - PAGE_OFFSET + PHYS_OFFSET) :	\
-			     (__x - KIMAGE_VADDR + PHYS_OFFSET); })
+			     (__x - kimage_voffset); })
 
 #define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET + PAGE_OFFSET))
-#define __phys_to_kimg(x)	((unsigned long)((x) - PHYS_OFFSET + KIMAGE_VADDR))
+#define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
 
 /*
  * Convert a page to/from a physical address
@@ -133,15 +134,16 @@
 
 extern phys_addr_t		memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
-#define PHYS_OFFSET		({ memstart_addr; })
+#define PHYS_OFFSET		({ BUG_ON(memstart_addr & 1); memstart_addr; })
+
+/* the offset between the kernel virtual and physical mappings */
+extern u64			kimage_voffset;
 
 /*
- * The maximum physical address that the linear direct mapping
- * of system RAM can cover. (PAGE_OFFSET can be interpreted as
- * a 2's complement signed quantity and negated to derive the
- * maximum size of the linear mapping.)
+ * Allow all memory at the discovery stage. We will clip it later.
  */
-#define MAX_MEMBLOCK_ADDR	({ memstart_addr - PAGE_OFFSET - 1; })
+#define MIN_MEMBLOCK_ADDR	0
+#define MAX_MEMBLOCK_ADDR	U64_MAX
 
 /*
  * PFNs are used to describe any physical page; this means

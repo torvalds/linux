@@ -46,6 +46,9 @@
 
 u64 idmap_t0sz = TCR_T0SZ(VA_BITS);
 
+u64 kimage_voffset __read_mostly;
+EXPORT_SYMBOL(kimage_voffset);
+
 /*
  * Empty_zero_page is a special page that is used for zero-initialized data
  * and COW.
