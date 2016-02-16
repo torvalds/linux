@@ -2005,7 +2005,7 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 		 * field.
 		 */
 		struct cvmx_usb_iso_packet *iso_packet =
-			(struct cvmx_usb_iso_packet *) urb->setup_packet;
+			(struct cvmx_usb_iso_packet *)urb->setup_packet;
 		/* Recalculate the transfer size by adding up each packet */
 		urb->actual_length = 0;
 		for (i = 0; i < urb->number_of_packets; i++) {
@@ -2294,7 +2294,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_isochronous(
 {
 	struct cvmx_usb_iso_packet *packets;
 
-	packets = (struct cvmx_usb_iso_packet *) urb->setup_packet;
+	packets = (struct cvmx_usb_iso_packet *)urb->setup_packet;
 	return cvmx_usb_submit_transaction(usb, pipe,
 					   CVMX_USB_TRANSFER_ISOCHRONOUS,
 					   urb->transfer_dma,
@@ -3433,7 +3433,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		break;
 	case GetHubStatus:
 		dev_dbg(dev, "GetHubStatus\n");
-		*(__le32 *) buf = 0;
+		*(__le32 *)buf = 0;
 		break;
 	case GetPortStatus:
 		dev_dbg(dev, "GetPortStatus\n");
@@ -3485,7 +3485,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			dev_dbg(dev, " LOWSPEED\n");
 		}
 
-		*((__le32 *) buf) = cpu_to_le32(port_status);
+		*((__le32 *)buf) = cpu_to_le32(port_status);
 		break;
 	case SetHubFeature:
 		dev_dbg(dev, "SetHubFeature\n");
