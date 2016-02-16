@@ -308,7 +308,8 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 	sru->entity.ops = &sru_entity_ops;
 	sru->entity.type = VSP1_ENTITY_SRU;
 
-	ret = vsp1_entity_init(vsp1, &sru->entity, "sru", 2, &sru_ops);
+	ret = vsp1_entity_init(vsp1, &sru->entity, "sru", 2, &sru_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

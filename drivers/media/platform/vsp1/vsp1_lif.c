@@ -165,7 +165,12 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
 	lif->entity.ops = &lif_entity_ops;
 	lif->entity.type = VSP1_ENTITY_LIF;
 
-	ret = vsp1_entity_init(vsp1, &lif->entity, "lif", 2, &lif_ops);
+	/* The LIF is never exposed to userspace, but media entity registration
+	 * requires a function to be set. Use PROC_VIDEO_PIXEL_FORMATTER just to
+	 * avoid triggering a WARN_ON(), the value won't be seen anywhere.
+	 */
+	ret = vsp1_entity_init(vsp1, &lif->entity, "lif", 2, &lif_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

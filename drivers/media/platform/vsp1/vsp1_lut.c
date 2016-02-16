@@ -204,7 +204,8 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 	lut->entity.ops = &lut_entity_ops;
 	lut->entity.type = VSP1_ENTITY_LUT;
 
-	ret = vsp1_entity_init(vsp1, &lut->entity, "lut", 2, &lut_ops);
+	ret = vsp1_entity_init(vsp1, &lut->entity, "lut", 2, &lut_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_LUT);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

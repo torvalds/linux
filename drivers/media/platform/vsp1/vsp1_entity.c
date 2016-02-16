@@ -340,7 +340,7 @@ static const struct vsp1_route vsp1_routes[] = {
 
 int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		     const char *name, unsigned int num_pads,
-		     const struct v4l2_subdev_ops *ops)
+		     const struct v4l2_subdev_ops *ops, u32 function)
 {
 	struct v4l2_subdev *subdev;
 	unsigned int i;
@@ -381,6 +381,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	subdev = &entity->subdev;
 	v4l2_subdev_init(subdev, ops);
 
+	subdev->entity.function = function;
 	subdev->entity.ops = &vsp1->media_ops;
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 

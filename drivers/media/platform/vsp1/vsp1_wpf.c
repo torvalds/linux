@@ -216,7 +216,8 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	wpf->entity.index = index;
 
 	sprintf(name, "wpf.%u", index);
-	ret = vsp1_entity_init(vsp1, &wpf->entity, name, 2, &wpf_ops);
+	ret = vsp1_entity_init(vsp1, &wpf->entity, name, 2, &wpf_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

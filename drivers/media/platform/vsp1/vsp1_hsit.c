@@ -161,8 +161,9 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 	else
 		hsit->entity.type = VSP1_ENTITY_HST;
 
-	ret = vsp1_entity_init(vsp1, &hsit->entity, inverse ? "hsi" : "hst", 2,
-			       &hsit_ops);
+	ret = vsp1_entity_init(vsp1, &hsit->entity, inverse ? "hsi" : "hst",
+			       2, &hsit_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

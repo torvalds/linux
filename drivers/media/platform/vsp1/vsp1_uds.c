@@ -314,7 +314,8 @@ struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index)
 	uds->entity.index = index;
 
 	sprintf(name, "uds.%u", index);
-	ret = vsp1_entity_init(vsp1, &uds->entity, name, 2, &uds_ops);
+	ret = vsp1_entity_init(vsp1, &uds->entity, name, 2, &uds_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

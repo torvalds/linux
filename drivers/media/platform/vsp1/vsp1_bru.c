@@ -390,7 +390,8 @@ struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
 	bru->entity.type = VSP1_ENTITY_BRU;
 
 	ret = vsp1_entity_init(vsp1, &bru->entity, "bru",
-			       vsp1->info->num_bru_inputs + 1, &bru_ops);
+			       vsp1->info->num_bru_inputs + 1, &bru_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
