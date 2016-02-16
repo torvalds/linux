@@ -1831,10 +1831,13 @@ struct dcbx_app_priority_entry {
 #elif defined(__LITTLE_ENDIAN)
 	u8 appBitfield;
 	#define DCBX_APP_ENTRY_VALID         0x01
-	#define DCBX_APP_ENTRY_SF_MASK       0x30
+	#define DCBX_APP_ENTRY_SF_MASK       0xF0
 	#define DCBX_APP_ENTRY_SF_SHIFT      4
+	#define DCBX_APP_ENTRY_VALID         0x01
 	#define DCBX_APP_SF_ETH_TYPE         0x10
 	#define DCBX_APP_SF_PORT             0x20
+	#define DCBX_APP_SF_UDP              0x40
+	#define DCBX_APP_SF_DEFAULT          0x80
 	u8  pri_bitmap;
 	u16  app_id;
 #endif
