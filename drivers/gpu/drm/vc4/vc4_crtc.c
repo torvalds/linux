@@ -212,6 +212,16 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 				 PV_HORZB_HFP) |
 		   VC4_SET_FIELD(mode->hdisplay, PV_HORZB_HACTIVE));
 
+	CRTC_WRITE(PV_VERTA,
+		   VC4_SET_FIELD(mode->vtotal - mode->vsync_end,
+				 PV_VERTA_VBP) |
+		   VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
+				 PV_VERTA_VSYNC));
+	CRTC_WRITE(PV_VERTB,
+		   VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
+				 PV_VERTB_VFP) |
+		   VC4_SET_FIELD(vactive, PV_VERTB_VACTIVE));
+
 	if (interlace) {
 		CRTC_WRITE(PV_VERTA_EVEN,
 			   VC4_SET_FIELD(mode->vtotal - mode->vsync_end - 1,
