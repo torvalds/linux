@@ -129,7 +129,7 @@ int mdc_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
 
 	lock = ldlm_handle2lock((struct lustre_handle *)lockh);
 
-	LASSERT(lock != NULL);
+	LASSERT(lock);
 	lock_res_and_lock(lock);
 	if (lock->l_resource->lr_lvb_inode &&
 	    lock->l_resource->lr_lvb_inode != data) {
@@ -191,12 +191,12 @@ int mdc_null_inode(struct obd_export *exp,
 	struct ldlm_resource *res;
 	struct ldlm_namespace *ns = class_exp2obd(exp)->obd_namespace;
 
-	LASSERTF(ns != NULL, "no namespace passed\n");
+	LASSERTF(ns, "no namespace passed\n");
 
 	fid_build_reg_res_name(fid, &res_id);
 
 	res = ldlm_resource_get(ns, NULL, &res_id, 0, 0);
-	if (res == NULL)
+	if (!res)
 		return 0;
 
 	lock_res(res);
@@ -317,7 +317,7 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_LDLM_INTENT_OPEN);
-	if (req == NULL) {
+	if (!req) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -365,7 +365,7 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					&RQF_LDLM_INTENT_GETXATTR);
-	if (req == NULL)
+	if (!req)
 		return ERR_PTR(-ENOMEM);
 
 	rc = ldlm_prep_enqueue_req(exp, req, &cancels, count);
@@ -409,7 +409,7 @@ static struct ptlrpc_request *mdc_intent_unlink_pack(struct obd_export *exp,
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_LDLM_INTENT_UNLINK);
-	if (req == NULL)
+	if (!req)
 		return ERR_PTR(-ENOMEM);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
@@ -453,7 +453,7 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_LDLM_INTENT_GETATTR);
-	if (req == NULL)
+	if (!req)
 		return ERR_PTR(-ENOMEM);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT,
@@ -497,7 +497,7 @@ static struct ptlrpc_request *mdc_intent_layout_pack(struct obd_export *exp,
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				&RQF_LDLM_INTENT_LAYOUT);
-	if (req == NULL)
+	if (!req)
 		return ERR_PTR(-ENOMEM);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_EADATA, RCL_CLIENT, 0);
@@ -530,7 +530,7 @@ mdc_enqueue_pack(struct obd_export *exp, int lvb_len)
 	int rc;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_LDLM_ENQUEUE);
-	if (req == NULL)
+	if (!req)
 		return ERR_PTR(-ENOMEM);
 
 	rc = ldlm_prep_enqueue_req(exp, req, NULL, 0);
@@ -573,7 +573,6 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		rc = 0;
 	} else { /* rc = 0 */
 		lock = ldlm_handle2lock(lockh);
-		LASSERT(lock != NULL);
 
 		/* If the server gave us back a different lock mode, we should
 		 * fix up our variables. */
@@ -586,7 +585,6 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	}
 
 	lockrep = req_capsule_server_get(pill, &RMF_DLM_REP);
-	LASSERT(lockrep != NULL); /* checked by ldlm_cli_enqueue() */
 
 	intent->it_disposition = (int)lockrep->lock_policy_res1;
 	intent->it_status = (int)lockrep->lock_policy_res2;
@@ -618,7 +616,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		struct mdt_body *body;
 
 		body = req_capsule_server_get(pill, &RMF_MDT_BODY);
-		if (body == NULL) {
+		if (!body) {
 			CERROR("Can't swab mdt_body\n");
 			return -EPROTO;
 		}
@@ -645,7 +643,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			 */
 			eadata = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
 							      body->eadatasize);
-			if (eadata == NULL)
+			if (!eadata)
 				return -EPROTO;
 
 			/* save lvb data and length in case this is for layout
@@ -690,7 +688,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			LASSERT(client_is_remote(exp));
 			perm = req_capsule_server_swab_get(pill, &RMF_ACL,
 						lustre_swab_mdt_remote_perm);
-			if (perm == NULL)
+			if (!perm)
 				return -EPROTO;
 		}
 	} else if (it->it_op & IT_LAYOUT) {
@@ -700,21 +698,21 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		if (lvb_len > 0) {
 			lvb_data = req_capsule_server_sized_get(pill,
 							&RMF_DLM_LVB, lvb_len);
-			if (lvb_data == NULL)
+			if (!lvb_data)
 				return -EPROTO;
 		}
 	}
 
 	/* fill in stripe data for layout lock */
 	lock = ldlm_handle2lock(lockh);
-	if (lock != NULL && ldlm_has_layout(lock) && lvb_data != NULL) {
+	if (lock && ldlm_has_layout(lock) && lvb_data) {
 		void *lmm;
 
 		LDLM_DEBUG(lock, "layout lock returned by: %s, lvb_len: %d\n",
 			ldlm_it2str(it->it_op), lvb_len);
 
 		lmm = libcfs_kvzalloc(lvb_len, GFP_NOFS);
-		if (lmm == NULL) {
+		if (!lmm) {
 			LDLM_LOCK_PUT(lock);
 			return -ENOMEM;
 		}
@@ -722,17 +720,17 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 
 		/* install lvb_data */
 		lock_res_and_lock(lock);
-		if (lock->l_lvb_data == NULL) {
+		if (!lock->l_lvb_data) {
 			lock->l_lvb_type = LVB_T_LAYOUT;
 			lock->l_lvb_data = lmm;
 			lock->l_lvb_len = lvb_len;
 			lmm = NULL;
 		}
 		unlock_res_and_lock(lock);
-		if (lmm != NULL)
+		if (lmm)
 			kvfree(lmm);
 	}
-	if (lock != NULL)
+	if (lock)
 		LDLM_LOCK_PUT(lock);
 
 	return rc;
@@ -782,7 +780,7 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 			policy = &getxattr_policy;
 	}
 
-	LASSERT(reqp == NULL);
+	LASSERT(!reqp);
 
 	generation = obddev->u.cli.cl_import->imp_generation;
 resend:
@@ -823,7 +821,7 @@ resend:
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	if (req != NULL && it && it->it_op & IT_CREAT)
+	if (req && it && it->it_op & IT_CREAT)
 		/* ask ptlrpc not to resend on EINPROGRESS since we have our own
 		 * retry logic */
 		req->rq_no_retry_einprogress = 1;
@@ -878,7 +876,6 @@ resend:
 	}
 
 	lockrep = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
-	LASSERT(lockrep != NULL);
 
 	lockrep->lock_policy_res2 =
 		ptlrpc_status_ntoh(lockrep->lock_policy_res2);
@@ -930,7 +927,6 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	struct ldlm_lock *lock;
 	int rc;
 
-	LASSERT(request != NULL);
 	LASSERT(request != LP_POISON);
 	LASSERT(request->rq_repmsg != LP_POISON);
 
@@ -945,7 +941,7 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 		return rc;
 
 	mdt_body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
-	LASSERT(mdt_body != NULL);      /* mdc_enqueue checked */
+	LASSERT(mdt_body);      /* mdc_enqueue checked */
 
 	/* If we were revalidating a fid/name pair, mark the intent in
 	 * case we fail and get called again from lookup */
@@ -1206,7 +1202,6 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 	}
 
 	lockrep = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
-	LASSERT(lockrep != NULL);
 
 	lockrep->lock_policy_res2 =
 		ptlrpc_status_ntoh(lockrep->lock_policy_res2);
