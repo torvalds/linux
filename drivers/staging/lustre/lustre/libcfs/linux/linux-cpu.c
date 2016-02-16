@@ -939,6 +939,7 @@ cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 		spin_lock(&cpt_data.cpt_lock);
 		cpt_data.cpt_version++;
 		spin_unlock(&cpt_data.cpt_lock);
+		/* Fall through */
 	default:
 		if (action != CPU_DEAD && action != CPU_DEAD_FROZEN) {
 			CDEBUG(D_INFO, "CPU changed [cpu %u action %lx]\n",
