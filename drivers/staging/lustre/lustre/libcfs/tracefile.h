@@ -39,12 +39,12 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-typedef enum {
+enum cfs_trace_buf_type {
 	CFS_TCD_TYPE_PROC = 0,
 	CFS_TCD_TYPE_SOFTIRQ,
 	CFS_TCD_TYPE_IRQ,
 	CFS_TCD_TYPE_MAX
-} cfs_trace_buf_type_t;
+};
 
 /* trace file lock routines */
 
@@ -208,7 +208,7 @@ int cfs_trace_lock_tcd(struct cfs_trace_cpu_data *tcd, int walking);
 void cfs_trace_unlock_tcd(struct cfs_trace_cpu_data *tcd, int walking);
 
 extern char *cfs_trace_console_buffers[NR_CPUS][CFS_TCD_TYPE_MAX];
-cfs_trace_buf_type_t cfs_trace_buf_idx_get(void);
+enum cfs_trace_buf_type cfs_trace_buf_idx_get(void);
 
 static inline char *
 cfs_trace_get_console_buffer(void)
