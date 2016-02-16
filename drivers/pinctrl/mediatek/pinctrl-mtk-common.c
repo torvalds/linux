@@ -764,6 +764,7 @@ static int mtk_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 	}
 
 	mtk_pmx_set_mode(pctldev, offset, muxval);
+	mtk_pconf_set_ies_smt(pctl, offset, 1, PIN_CONFIG_INPUT_ENABLE);
 
 	return 0;
 }
