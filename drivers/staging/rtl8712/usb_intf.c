@@ -221,7 +221,7 @@ static int r871x_suspend(struct usb_interface *pusb_intf, pm_message_t state)
 	return 0;
 }
 
-void rtl871x_intf_resume(struct _adapter *padapter)
+static void rtl871x_intf_resume(struct _adapter *padapter)
 {
 	if (padapter->dvobjpriv.inirp_init)
 		padapter->dvobjpriv.inirp_init(padapter);
