@@ -1602,6 +1602,28 @@ config SERIAL_STM32_CONSOLE
 	depends on SERIAL_STM32=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_MVEBU_UART
+	bool "Marvell EBU serial port support"
+	select SERIAL_CORE
+	help
+	  This driver is for Marvell EBU SoC's UART. If you have a machine
+	  based on the Armada-3700 SoC and wish to use the on-board serial
+	  port,
+	  say 'Y' here.
+	  Otherwise, say 'N'.
+
+config SERIAL_MVEBU_CONSOLE
+	bool "Console on Marvell EBU serial port"
+	depends on SERIAL_MVEBU_UART
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use Armada-3700 UART as the system console.
+	  (the system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode)
+	  Otherwise, say 'N'.
+
 endmenu
 
 config SERIAL_MCTRL_GPIO

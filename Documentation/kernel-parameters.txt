@@ -1058,6 +1058,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			A valid base address must be provided, and the serial
 			port must already be setup and configured.
 
+		armada3700_uart,<addr>
+			Start an early, polled-mode console on the
+			Armada 3700 serial port at the specified
+			address. The serial port must already be setup
+			and configured. Options are not yet supported.
+
 	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
 			earlyprintk=vga
 			earlyprintk=efi
