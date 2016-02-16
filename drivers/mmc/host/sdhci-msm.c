@@ -60,7 +60,6 @@ struct sdhci_msm_host {
 	struct clk *pclk;	/* SDHC peripheral bus clock */
 	struct clk *bus_clk;	/* SDHC bus voter clock */
 	struct mmc_host *mmc;
-	struct sdhci_pltfm_data sdhci_msm_pdata;
 };
 
 /* Platform specific tuning */
@@ -418,12 +417,18 @@ static const struct of_device_id sdhci_msm_dt_match[] = {
 
 MODULE_DEVICE_TABLE(of, sdhci_msm_dt_match);
 
-static struct sdhci_ops sdhci_msm_ops = {
+static const struct sdhci_ops sdhci_msm_ops = {
 	.platform_execute_tuning = sdhci_msm_execute_tuning,
 	.reset = sdhci_reset,
 	.set_clock = sdhci_set_clock,
 	.set_bus_width = sdhci_set_bus_width,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
+};
+
+static const struct sdhci_pltfm_data sdhci_msm_pdata = {
+	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+		  SDHCI_QUIRK_SINGLE_POWER_WRITE,
+	.ops = &sdhci_msm_ops,
 };
 
 static int sdhci_msm_probe(struct platform_device *pdev)
@@ -441,8 +446,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (!msm_host)
 		return -ENOMEM;
 
-	msm_host->sdhci_msm_pdata.ops = &sdhci_msm_ops;
-	host = sdhci_pltfm_init(pdev, &msm_host->sdhci_msm_pdata, 0);
+	host = sdhci_pltfm_init(pdev, &sdhci_msm_pdata, 0);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
@@ -521,9 +525,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	/* Set HC_MODE_EN bit in HC_MODE register */
 	writel_relaxed(HC_MODE_EN, (msm_host->core_mem + CORE_HC_MODE));
-
-	host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
-	host->quirks |= SDHCI_QUIRK_SINGLE_POWER_WRITE;
 
 	host_version = readw_relaxed((host->ioaddr + SDHCI_HOST_VERSION));
 	dev_dbg(&pdev->dev, "Host Version: 0x%x Vendor Version 0x%x\n",
