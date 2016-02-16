@@ -66,6 +66,8 @@ struct hists {
 	struct rb_root		entries_collapsed;
 	u64			nr_entries;
 	u64			nr_non_filtered_entries;
+	u64			callchain_period;
+	u64			callchain_non_filtered_period;
 	struct thread		*thread_filter;
 	const struct dso	*dso_filter;
 	const char		*uid_filter_str;
