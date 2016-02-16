@@ -803,6 +803,8 @@ static int mcp230xx_probe(struct i2c_client *client,
 			pdata = devm_kzalloc(&client->dev,
 					sizeof(struct mcp23s08_platform_data),
 					GFP_KERNEL);
+			if (!pdata)
+				return -ENOMEM;
 			pdata->base = -1;
 		}
 	}
