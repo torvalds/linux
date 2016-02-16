@@ -43,7 +43,7 @@
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
-/* /proc/lustre/llite mount point registration */
+/* debugfs llite mount point registration */
 static struct file_operations ll_rw_extents_stats_fops;
 static struct file_operations ll_rw_extents_stats_pp_fops;
 static struct file_operations ll_rw_offset_stats_fops;

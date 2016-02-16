@@ -1003,7 +1003,7 @@ static int vvp_io_commit_write(const struct lu_env *env,
 	 *
 	 *     (3) IO is batched up to the RPC size and is async until the
 	 *     client max cache is hit
-	 *     (/proc/fs/lustre/osc/OSC.../max_dirty_mb)
+	 *     (/sys/fs/lustre/osc/OSC.../max_dirty_mb)
 	 *
 	 */
 	if (!PageDirty(vmpage)) {
