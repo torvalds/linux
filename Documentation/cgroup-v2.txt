@@ -132,6 +132,12 @@ strongly discouraged for production use.  It is recommended to decide
 the hierarchies and controller associations before starting using the
 controllers after system boot.
 
+During transition to v2, system management software might still
+automount the v1 cgroup filesystem and so hijack all controllers
+during boot, before manual intervention is possible. To make testing
+and experimenting easier, the kernel parameter cgroup_no_v1= allows
+disabling controllers in v1 and make them always available in v2.
+
 
 2-2. Organizing Processes
 
