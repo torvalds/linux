@@ -569,7 +569,6 @@ static inline uint32_t cvmx_usb_read_csr32(struct cvmx_usb_state *usb,
 	return result;
 }
 
-
 /**
  * Write a USB 32bit CSR. It performs the necessary address
  * swizzle for 32bit CSRs and logs the value in a readable format
@@ -601,7 +600,6 @@ static inline int cvmx_usb_pipe_needs_split(struct cvmx_usb_state *usb,
 	return pipe->device_speed != CVMX_USB_SPEED_HIGH &&
 	       usb->usbcx_hprt.s.prtspd == CVMX_USB_SPEED_HIGH;
 }
-
 
 /**
  * Trivial utility function to return the correct PID for a pipe
@@ -1002,7 +1000,6 @@ static void cvmx_usb_reset_port(struct cvmx_usb_state *usb)
 						  CVMX_USBCX_HPRT(usb->index));
 }
 
-
 /**
  * Disable a USB port. After this call the USB port will not
  * generate data transfers and will not generate events.
@@ -1020,7 +1017,6 @@ static int cvmx_usb_disable(struct cvmx_usb_state *usb)
 			prtena, 1);
 	return 0;
 }
-
 
 /**
  * Get the current state of the USB port. Use this call to
@@ -1166,7 +1162,6 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
 	return pipe;
 }
 
-
 /**
  * Poll the RX FIFOs and remove data as needed. This function is only used
  * in non DMA mode. It is very important that this function be called quickly
@@ -1212,7 +1207,6 @@ static void cvmx_usb_poll_rx_fifo(struct cvmx_usb_state *usb)
 	}
 	CVMX_SYNCW;
 }
-
 
 /**
  * Fill the TX hardware fifo with data out of the software
@@ -1275,7 +1269,6 @@ static int cvmx_usb_fill_tx_hw(struct cvmx_usb_state *usb,
 	return fifo->head != fifo->tail;
 }
 
-
 /**
  * Check the hardware FIFOs and fill them as needed
  *
@@ -1311,7 +1304,6 @@ static void cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
 					cvmx_usbcx_gintmsk, nptxfempmsk, 0);
 	}
 }
-
 
 /**
  * Fill the TX FIFO with an outgoing packet
@@ -1514,7 +1506,6 @@ static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 	cvmx_usb_write_csr32(usb, CVMX_USBCX_HCTSIZX(channel, usb->index),
 			     usbc_hctsiz.u32);
 }
-
 
 /**
  * Start a channel to perform the pipe's head transaction
@@ -1858,7 +1849,6 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 		cvmx_usb_fill_tx_fifo(usb, channel);
 }
 
-
 /**
  * Find a pipe that is ready to be scheduled to hardware.
  * @usb:	 USB device state populated by cvmx_usb_initialize().
@@ -1891,7 +1881,6 @@ static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
 	}
 	return NULL;
 }
-
 
 /**
  * Called whenever a pipe might need to be scheduled to the
@@ -2134,7 +2123,6 @@ static void cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 	kfree(transaction);
 }
 
-
 /**
  * Submit a usb transaction to a pipe. Called for all types
  * of transactions.
@@ -2209,7 +2197,6 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_transaction(
 	return transaction;
 }
 
-
 /**
  * Call to submit a USB Bulk transfer to a pipe.
  *
@@ -2233,7 +2220,6 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_bulk(
 					   NULL, /* iso_packets */
 					   urb);
 }
-
 
 /**
  * Call to submit a USB Interrupt transfer to a pipe.
@@ -2259,7 +2245,6 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_interrupt(
 					   NULL, /* iso_packets */
 					   urb);
 }
-
 
 /**
  * Call to submit a USB Control transfer to a pipe.
@@ -2292,7 +2277,6 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_control(
 					   urb);
 }
 
-
 /**
  * Call to submit a USB Isochronous transfer to a pipe.
  *
@@ -2319,7 +2303,6 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_isochronous(
 					   urb->number_of_packets,
 					   packets, urb);
 }
-
 
 /**
  * Cancel one outstanding request in a pipe. Canceling a request
@@ -2370,7 +2353,6 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 	return 0;
 }
 
-
 /**
  * Cancel all outstanding requests in a pipe. Logically all this
  * does is call cvmx_usb_cancel() in a loop.
@@ -2394,7 +2376,6 @@ static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb,
 	}
 	return 0;
 }
-
 
 /**
  * Close a pipe created with cvmx_usb_open_pipe().
@@ -2436,7 +2417,6 @@ static int cvmx_usb_get_frame_number(struct cvmx_usb_state *usb)
 
 	return frame_number;
 }
-
 
 /**
  * Poll a channel for status
@@ -3616,7 +3596,6 @@ static int octeon_usb_probe(struct platform_device *pdev)
 		dev_err(dev, "Illegal USBN \"clock-frequency\" %u\n",
 				clock_rate);
 		return -ENXIO;
-
 	}
 
 	i = of_property_read_string(usbn_node,
