@@ -42,6 +42,53 @@ struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
 struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
+static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
+{
+	if (is_isa_arcompact()) {
+		struct bcr_iccm_arcompact iccm;
+		struct bcr_dccm_arcompact dccm;
+
+		READ_BCR(ARC_REG_ICCM_BUILD, iccm);
+		if (iccm.ver) {
+			cpu->iccm.sz = 4096 << iccm.sz;	/* 8K to 512K */
+			cpu->iccm.base_addr = iccm.base << 16;
+		}
+
+		READ_BCR(ARC_REG_DCCM_BUILD, dccm);
+		if (dccm.ver) {
+			unsigned long base;
+			cpu->dccm.sz = 2048 << dccm.sz;	/* 2K to 256K */
+
+			base = read_aux_reg(ARC_REG_DCCM_BASE_BUILD);
+			cpu->dccm.base_addr = base & ~0xF;
+		}
+	} else {
+		struct bcr_iccm_arcv2 iccm;
+		struct bcr_dccm_arcv2 dccm;
+		unsigned long region;
+
+		READ_BCR(ARC_REG_ICCM_BUILD, iccm);
+		if (iccm.ver) {
+			cpu->iccm.sz = 256 << iccm.sz00;	/* 512B to 16M */
+			if (iccm.sz00 == 0xF && iccm.sz01 > 0)
+				cpu->iccm.sz <<= iccm.sz01;
+
+			region = read_aux_reg(ARC_REG_AUX_ICCM);
+			cpu->iccm.base_addr = region & 0xF0000000;
+		}
+
+		READ_BCR(ARC_REG_DCCM_BUILD, dccm);
+		if (dccm.ver) {
+			cpu->dccm.sz = 256 << dccm.sz0;
+			if (dccm.sz0 == 0xF && dccm.sz1 > 0)
+				cpu->dccm.sz <<= dccm.sz1;
+
+			region = read_aux_reg(ARC_REG_AUX_DCCM);
+			cpu->dccm.base_addr = region & 0xF0000000;
+		}
+	}
+}
+
 static void read_arc_build_cfg_regs(void)
 {
 	struct bcr_perip uncached_space;
@@ -76,35 +123,10 @@ static void read_arc_build_cfg_regs(void)
 	cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR) ? 1 : 0;        /* 1,3 */
 	cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR) ? 1 : 0;
 	cpu->extn.minmax = read_aux_reg(ARC_REG_MIXMAX_BCR) > 1 ? 1 : 0; /* 2 */
-
-	/* Note that we read the CCM BCRs independent of kernel config
-	 * This is to catch the cases where user doesn't know that
-	 * CCMs are present in hardware build
-	 */
-	{
-		struct bcr_iccm iccm;
-		struct bcr_dccm dccm;
-		struct bcr_dccm_base dccm_base;
-		unsigned int bcr_32bit_val;
-
-		bcr_32bit_val = read_aux_reg(ARC_REG_ICCM_BCR);
-		if (bcr_32bit_val) {
-			iccm = *((struct bcr_iccm *)&bcr_32bit_val);
-			cpu->iccm.base_addr = iccm.base << 16;
-			cpu->iccm.sz = 0x2000 << (iccm.sz - 1);
-		}
-
-		bcr_32bit_val = read_aux_reg(ARC_REG_DCCM_BCR);
-		if (bcr_32bit_val) {
-			dccm = *((struct bcr_dccm *)&bcr_32bit_val);
-			cpu->dccm.sz = 0x800 << (dccm.sz);
-
-			READ_BCR(ARC_REG_DCCMBASE_BCR, dccm_base);
-			cpu->dccm.base_addr = dccm_base.addr << 8;
-		}
-	}
-
 	READ_BCR(ARC_REG_XY_MEM_BCR, cpu->extn_xymem);
+
+	/* Read CCM BCRs for boot reporting even if not enabled in Kconfig */
+	read_decode_ccm_bcr(cpu);
 
 	read_decode_mmu_bcr();
 	read_decode_cache_bcr();
