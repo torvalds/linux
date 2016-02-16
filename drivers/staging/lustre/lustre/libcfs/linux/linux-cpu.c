@@ -354,8 +354,6 @@ cfs_cpt_unset_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu)
 
 	if (i >= nr_cpu_ids)
 		node_clear(node, *cptab->ctb_nodemask);
-
-	return;
 }
 EXPORT_SYMBOL(cfs_cpt_unset_cpu);
 

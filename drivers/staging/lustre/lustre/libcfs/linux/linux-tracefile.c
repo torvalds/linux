@@ -198,7 +198,6 @@ cfs_set_ptldebug_header(struct ptldebug_header *header,
 	header->ph_pid = current->pid;
 	header->ph_line_num = msgdata->msg_line;
 	header->ph_extern_pid = 0;
-	return;
 }
 
 static char *
@@ -252,7 +251,6 @@ void cfs_print_to_console(struct ptldebug_header *hdr, int mask,
 		       hdr->ph_pid, hdr->ph_extern_pid, file, hdr->ph_line_num,
 		       fn, len, buf);
 	}
-	return;
 }
 
 int cfs_trace_max_debug_mb(void)

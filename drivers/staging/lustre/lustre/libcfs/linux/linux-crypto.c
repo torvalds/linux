@@ -286,6 +286,4 @@ void cfs_crypto_unregister(void)
 {
 	if (adler32 == 0)
 		cfs_crypto_adler32_unregister();
-
-	return;
 }

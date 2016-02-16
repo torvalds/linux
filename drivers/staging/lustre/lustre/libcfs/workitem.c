@@ -131,8 +131,6 @@ cfs_wi_exit(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
 
 	wi->wi_scheduled = 1; /* LBUG future schedule attempts */
 	spin_unlock(&sched->ws_lock);
-
-	return;
 }
 EXPORT_SYMBOL(cfs_wi_exit);
 
@@ -203,7 +201,6 @@ cfs_wi_schedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
 
 	LASSERT(!list_empty(&wi->wi_list));
 	spin_unlock(&sched->ws_lock);
-	return;
 }
 EXPORT_SYMBOL(cfs_wi_schedule);
 
