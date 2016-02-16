@@ -336,7 +336,7 @@ static int rk_ablk_cra_init(struct crypto_tfm *tfm)
 	struct crypto_alg *alg = tfm->__crt_alg;
 	struct rk_crypto_tmp *algt;
 
-	algt = container_of(alg, struct rk_crypto_tmp, alg);
+	algt = container_of(alg, struct rk_crypto_tmp, alg.crypto);
 
 	ctx->dev = algt->dev;
 	ctx->dev->align_size = crypto_tfm_alg_alignmask(tfm) + 1;
@@ -357,7 +357,8 @@ static void rk_ablk_cra_exit(struct crypto_tfm *tfm)
 }
 
 struct rk_crypto_tmp rk_ecb_aes_alg = {
-	.alg = {
+	.type = ALG_TYPE_CIPHER,
+	.alg.crypto = {
 		.cra_name		= "ecb(aes)",
 		.cra_driver_name	= "ecb-aes-rk",
 		.cra_priority		= 300,
@@ -381,7 +382,8 @@ struct rk_crypto_tmp rk_ecb_aes_alg = {
 };
 
 struct rk_crypto_tmp rk_cbc_aes_alg = {
-	.alg = {
+	.type = ALG_TYPE_CIPHER,
+	.alg.crypto = {
 		.cra_name		= "cbc(aes)",
 		.cra_driver_name	= "cbc-aes-rk",
 		.cra_priority		= 300,
@@ -406,7 +408,8 @@ struct rk_crypto_tmp rk_cbc_aes_alg = {
 };
 
 struct rk_crypto_tmp rk_ecb_des_alg = {
-	.alg = {
+	.type = ALG_TYPE_CIPHER,
+	.alg.crypto = {
 		.cra_name		= "ecb(des)",
 		.cra_driver_name	= "ecb-des-rk",
 		.cra_priority		= 300,
@@ -430,7 +433,8 @@ struct rk_crypto_tmp rk_ecb_des_alg = {
 };
 
 struct rk_crypto_tmp rk_cbc_des_alg = {
-	.alg = {
+	.type = ALG_TYPE_CIPHER,
+	.alg.crypto = {
 		.cra_name		= "cbc(des)",
 		.cra_driver_name	= "cbc-des-rk",
 		.cra_priority		= 300,
@@ -455,7 +459,8 @@ struct rk_crypto_tmp rk_cbc_des_alg = {
 };
 
 struct rk_crypto_tmp rk_ecb_des3_ede_alg = {
-	.alg = {
+	.type = ALG_TYPE_CIPHER,
+	.alg.crypto = {
 		.cra_name		= "ecb(des3_ede)",
 		.cra_driver_name	= "ecb-des3-ede-rk",
 		.cra_priority		= 300,
@@ -480,7 +485,8 @@ struct rk_crypto_tmp rk_ecb_des3_ede_alg = {
 };
 
 struct rk_crypto_tmp rk_cbc_des3_ede_alg = {
-	.alg = {
+	.type = ALG_TYPE_CIPHER,
+	.alg.crypto = {
 		.cra_name		= "cbc(des3_ede)",
 		.cra_driver_name	= "cbc-des3-ede-rk",
 		.cra_priority		= 300,
