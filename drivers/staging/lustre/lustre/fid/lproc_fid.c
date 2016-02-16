@@ -66,7 +66,7 @@ ldebugfs_fid_write_common(const char __user *buffer, size_t count,
 	int rc;
 	char kernbuf[MAX_FID_RANGE_STRLEN];
 
-	LASSERT(range != NULL);
+	LASSERT(range);
 
 	if (count >= sizeof(kernbuf))
 		return -EINVAL;
@@ -104,7 +104,6 @@ ldebugfs_fid_space_seq_write(struct file *file,
 	int rc;
 
 	seq = ((struct seq_file *)file->private_data)->private;
-	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
 	rc = ldebugfs_fid_write_common(buffer, count, &seq->lcs_space);
@@ -124,8 +123,6 @@ ldebugfs_fid_space_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 
-	LASSERT(seq != NULL);
-
 	mutex_lock(&seq->lcs_mutex);
 	seq_printf(m, "[%#llx - %#llx]:%x:%s\n", PRANGE(&seq->lcs_space));
 	mutex_unlock(&seq->lcs_mutex);
@@ -143,7 +140,6 @@ ldebugfs_fid_width_seq_write(struct file *file,
 	int rc, val;
 
 	seq = ((struct seq_file *)file->private_data)->private;
-	LASSERT(seq != NULL);
 
 	rc = lprocfs_write_helper(buffer, count, &val);
 	if (rc)
@@ -172,8 +168,6 @@ ldebugfs_fid_width_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 
-	LASSERT(seq != NULL);
-
 	mutex_lock(&seq->lcs_mutex);
 	seq_printf(m, "%llu\n", seq->lcs_width);
 	mutex_unlock(&seq->lcs_mutex);
@@ -185,8 +179,6 @@ static int
 ldebugfs_fid_fid_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
-
-	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
 	seq_printf(m, DFID "\n", PFID(&seq->lcs_fid));
@@ -201,9 +193,7 @@ ldebugfs_fid_server_seq_show(struct seq_file *m, void *unused)
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	struct client_obd *cli;
 
-	LASSERT(seq != NULL);
-
-	if (seq->lcs_exp != NULL) {
+	if (seq->lcs_exp) {
 		cli = &seq->lcs_exp->exp_obd->u.cli;
 		seq_printf(m, "%s\n", cli->cl_target_uuid.uuid);
 	}
