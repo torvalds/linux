@@ -187,7 +187,7 @@
 # define PV_VCONTROL_CONTINUOUS			BIT(1)
 # define PV_VCONTROL_VIDEN			BIT(0)
 
-#define PV_VSYNCD				0x08
+#define PV_VSYNCD_EVEN				0x08
 
 #define PV_HORZA				0x0c
 # define PV_HORZA_HBP_MASK			VC4_MASK(31, 16)
