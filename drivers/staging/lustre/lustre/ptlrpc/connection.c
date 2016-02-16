@@ -172,7 +172,7 @@ conn_keycmp(const void *key, struct hlist_node *hnode)
 	struct ptlrpc_connection *conn;
 	const lnet_process_id_t *conn_key;
 
-	LASSERT(key != NULL);
+	LASSERT(key);
 	conn_key = key;
 	conn = hlist_entry(hnode, struct ptlrpc_connection, c_hash);
 

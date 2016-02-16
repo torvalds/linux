@@ -56,7 +56,6 @@ static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
 	lnet_md_t md;
 
 	LASSERT(portal != 0);
-	LASSERT(conn != NULL);
 	CDEBUG(D_INFO, "conn=%p id %s\n", conn, libcfs_id2str(conn->c_peer));
 	md.start = base;
 	md.length = len;
@@ -130,7 +129,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	LASSERT(desc->bd_md_count == 0);
 	LASSERT(desc->bd_md_max_brw <= PTLRPC_BULK_OPS_COUNT);
 	LASSERT(desc->bd_iov_count <= PTLRPC_MAX_BRW_PAGES);
-	LASSERT(desc->bd_req != NULL);
+	LASSERT(desc->bd_req);
 	LASSERT(desc->bd_type == BULK_PUT_SINK ||
 		desc->bd_type == BULK_GET_SOURCE);
 
@@ -273,7 +272,7 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 	if (async)
 		return 0;
 
-	if (req->rq_set != NULL)
+	if (req->rq_set)
 		wq = &req->rq_set->set_waitq;
 	else
 		wq = &req->rq_reply_waitq;
@@ -305,8 +304,7 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 				 req->rq_arrival_time.tv_sec, 1);
 
 	if (!(flags & PTLRPC_REPLY_EARLY) &&
-	    (req->rq_type != PTL_RPC_MSG_ERR) &&
-	    (req->rq_reqmsg != NULL) &&
+	    (req->rq_type != PTL_RPC_MSG_ERR) && req->rq_reqmsg &&
 	    !(lustre_msg_get_flags(req->rq_reqmsg) &
 	      (MSG_RESENT | MSG_REPLAY |
 	       MSG_REQ_REPLAY_DONE | MSG_LOCK_REPLAY_DONE))) {
@@ -360,10 +358,10 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 	 * target_queue_final_reply().
 	 */
 	LASSERT(req->rq_no_reply == 0);
-	LASSERT(req->rq_reqbuf != NULL);
-	LASSERT(rs != NULL);
+	LASSERT(req->rq_reqbuf);
+	LASSERT(rs);
 	LASSERT((flags & PTLRPC_REPLY_MAYBE_DIFFICULT) || !rs->rs_difficult);
-	LASSERT(req->rq_repmsg != NULL);
+	LASSERT(req->rq_repmsg);
 	LASSERT(req->rq_repmsg == rs->rs_msg);
 	LASSERT(rs->rs_cb_id.cbid_fn == reply_out_callback);
 	LASSERT(rs->rs_cb_id.cbid_arg == rs);
@@ -403,12 +401,12 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 
 	ptlrpc_at_set_reply(req, flags);
 
-	if (req->rq_export == NULL || req->rq_export->exp_connection == NULL)
+	if (!req->rq_export || !req->rq_export->exp_connection)
 		conn = ptlrpc_connection_get(req->rq_peer, req->rq_self, NULL);
 	else
 		conn = ptlrpc_connection_addref(req->rq_export->exp_connection);
 
-	if (unlikely(conn == NULL)) {
+	if (unlikely(!conn)) {
 		CERROR("not replying on NULL connection\n"); /* bug 9635 */
 		return -ENOTCONN;
 	}
@@ -503,7 +501,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	LASSERT(!((lustre_msg_get_flags(request->rq_reqmsg) & MSG_REPLAY) &&
 		(request->rq_import->imp_state == LUSTRE_IMP_FULL)));
 
-	if (unlikely(obd != NULL && obd->obd_fail)) {
+	if (unlikely(obd && obd->obd_fail)) {
 		CDEBUG(D_HA, "muting rpc for failed imp obd %s\n",
 			obd->obd_name);
 		/* this prevents us from waiting in ptlrpc_queue_wait */
@@ -535,7 +533,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		goto out;
 
 	/* bulk register should be done after wrap_request() */
-	if (request->rq_bulk != NULL) {
+	if (request->rq_bulk) {
 		rc = ptlrpc_register_bulk(request);
 		if (rc != 0)
 			goto out;
@@ -543,9 +541,9 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	if (!noreply) {
 		LASSERT(request->rq_replen != 0);
-		if (request->rq_repbuf == NULL) {
-			LASSERT(request->rq_repdata == NULL);
-			LASSERT(request->rq_repmsg == NULL);
+		if (!request->rq_repbuf) {
+			LASSERT(!request->rq_repdata);
+			LASSERT(!request->rq_repmsg);
 			rc = sptlrpc_cli_alloc_repbuf(request,
 						      request->rq_replen);
 			if (rc) {
@@ -623,7 +621,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	/* add references on request for request_out_callback */
 	ptlrpc_request_addref(request);
-	if (obd != NULL && obd->obd_svc_stats != NULL)
+	if (obd && obd->obd_svc_stats)
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQACTIVE_CNTR,
 			atomic_read(&request->rq_import->imp_inflight));
 

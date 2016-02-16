@@ -1712,7 +1712,7 @@ void req_capsule_init(struct req_capsule *pill,
 	 * high-priority RPC queue getting peeked at before ost_handle()
 	 * handles an OST RPC.
 	 */
-	if (req != NULL && pill == &req->rq_pill && req->rq_pill_init)
+	if (req && pill == &req->rq_pill && req->rq_pill_init)
 		return;
 
 	memset(pill, 0, sizeof(*pill));
@@ -1720,7 +1720,7 @@ void req_capsule_init(struct req_capsule *pill,
 	pill->rc_loc = location;
 	req_capsule_init_area(pill);
 
-	if (req != NULL && pill == &req->rq_pill)
+	if (req && pill == &req->rq_pill)
 		req->rq_pill_init = 1;
 }
 EXPORT_SYMBOL(req_capsule_init);
@@ -1752,7 +1752,7 @@ static struct lustre_msg *__req_msg(const struct req_capsule *pill,
  */
 void req_capsule_set(struct req_capsule *pill, const struct req_format *fmt)
 {
-	LASSERT(pill->rc_fmt == NULL || pill->rc_fmt == fmt);
+	LASSERT(!pill->rc_fmt || pill->rc_fmt == fmt);
 	LASSERT(__req_format_is_sane(fmt));
 
 	pill->rc_fmt = fmt;
@@ -1772,8 +1772,6 @@ int req_capsule_filled_sizes(struct req_capsule *pill,
 {
 	const struct req_format *fmt = pill->rc_fmt;
 	int i;
-
-	LASSERT(fmt != NULL);
 
 	for (i = 0; i < fmt->rf_fields[loc].nr; ++i) {
 		if (pill->rc_area[loc][i] == -1) {
@@ -1810,7 +1808,7 @@ int req_capsule_server_pack(struct req_capsule *pill)
 
 	LASSERT(pill->rc_loc == RCL_SERVER);
 	fmt = pill->rc_fmt;
-	LASSERT(fmt != NULL);
+	LASSERT(fmt);
 
 	count = req_capsule_filled_sizes(pill, RCL_SERVER);
 	rc = lustre_pack_reply(pill->rc_req, count,
@@ -1865,7 +1863,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 	swabber = swabber ?: field->rmf_swabber;
 
 	if (ptlrpc_buf_need_swab(pill->rc_req, inout, offset) &&
-	    swabber != NULL && value != NULL)
+	    swabber && value)
 		do_swab = 1;
 	else
 		do_swab = 0;
@@ -1947,17 +1945,15 @@ static void *__req_capsule_get(struct req_capsule *pill,
 		[RCL_SERVER] = "server"
 	};
 
-	LASSERT(pill != NULL);
-	LASSERT(pill != LP_POISON);
 	fmt = pill->rc_fmt;
-	LASSERT(fmt != NULL);
+	LASSERT(fmt);
 	LASSERT(fmt != LP_POISON);
 	LASSERT(__req_format_is_sane(fmt));
 
 	offset = __req_capsule_offset(pill, field, loc);
 
 	msg = __req_msg(pill, loc);
-	LASSERT(msg != NULL);
+	LASSERT(msg);
 
 	getter = (field->rmf_flags & RMF_F_STRING) ?
 		(typeof(getter))lustre_msg_string : lustre_msg_buf;
@@ -1980,7 +1976,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 	}
 	value = getter(msg, offset, len);
 
-	if (value == NULL) {
+	if (!value) {
 		DEBUG_REQ(D_ERROR, pill->rc_req,
 			  "Wrong buffer for field `%s' (%d of %d) in format `%s': %d vs. %d (%s)\n",
 			  field->rmf_name, offset, lustre_msg_bufcount(msg),
@@ -2209,7 +2205,7 @@ void req_capsule_extend(struct req_capsule *pill, const struct req_format *fmt)
 
 	const struct req_format *old;
 
-	LASSERT(pill->rc_fmt != NULL);
+	LASSERT(pill->rc_fmt);
 	LASSERT(__req_format_is_sane(fmt));
 
 	old = pill->rc_fmt;
@@ -2222,7 +2218,7 @@ void req_capsule_extend(struct req_capsule *pill, const struct req_format *fmt)
 			const struct req_msg_field *ofield = FMT_FIELD(old, i, j);
 
 			/* "opaque" fields can be transmogrified */
-			if (ofield->rmf_swabber == NULL &&
+			if (!ofield->rmf_swabber &&
 			    (ofield->rmf_flags & ~RMF_F_NO_SIZE_CHECK) == 0 &&
 			    (ofield->rmf_size == -1 ||
 			    ofield->rmf_flags == RMF_F_NO_SIZE_CHECK))
@@ -2289,7 +2285,7 @@ void req_capsule_shrink(struct req_capsule *pill,
 	int offset;
 
 	fmt = pill->rc_fmt;
-	LASSERT(fmt != NULL);
+	LASSERT(fmt);
 	LASSERT(__req_format_is_sane(fmt));
 	LASSERT(req_capsule_has_field(pill, field, loc));
 	LASSERT(req_capsule_field_present(pill, field, loc));

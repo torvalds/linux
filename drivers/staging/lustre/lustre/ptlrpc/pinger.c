@@ -68,7 +68,7 @@ int ptlrpc_obd_ping(struct obd_device *obd)
 	struct ptlrpc_request *req;
 
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	req->rq_send_state = LUSTRE_IMP_FULL;
@@ -86,7 +86,7 @@ static int ptlrpc_ping(struct obd_import *imp)
 	struct ptlrpc_request *req;
 
 	req = ptlrpc_prep_ping(imp);
-	if (req == NULL) {
+	if (!req) {
 		CERROR("OOM trying to ping %s->%s\n",
 		       imp->imp_obd->obd_uuid.uuid,
 		       obd2cli_tgt(imp->imp_obd));
@@ -491,7 +491,6 @@ int ptlrpc_del_timeout_client(struct list_head *obd_list,
 			break;
 		}
 	}
-	LASSERTF(ti != NULL, "ti is NULL !\n");
 	if (list_empty(&ti->ti_obd_list)) {
 		list_del(&ti->ti_chain);
 		kfree(ti);

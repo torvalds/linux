@@ -312,7 +312,7 @@ void request_in_callback(lnet_event_t *ev)
 			return;
 		}
 		req = ptlrpc_request_cache_alloc(GFP_ATOMIC);
-		if (req == NULL) {
+		if (!req) {
 			CERROR("Can't allocate incoming request descriptor: Dropping %s RPC from %s\n",
 			       service->srv_name,
 			       libcfs_id2str(ev->initiator));

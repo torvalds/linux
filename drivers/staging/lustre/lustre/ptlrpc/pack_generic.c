@@ -183,7 +183,7 @@ void lustre_init_msg_v2(struct lustre_msg_v2 *msg, int count, __u32 *lens,
 	for (i = 0; i < count; i++)
 		msg->lm_buflens[i] = lens[i];
 
-	if (bufs == NULL)
+	if (!bufs)
 		return;
 
 	ptr = (char *)msg + lustre_msg_hdr_size_v2(count);
@@ -306,7 +306,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 	struct ptlrpc_reply_state *rs;
 	int msg_len, rc;
 
-	LASSERT(req->rq_reply_state == NULL);
+	LASSERT(!req->rq_reply_state);
 
 	if ((flags & LPRFL_EARLY_REPLY) == 0) {
 		spin_lock(&req->rq_lock);
@@ -383,7 +383,6 @@ void *lustre_msg_buf_v2(struct lustre_msg_v2 *m, int n, int min_size)
 {
 	int i, offset, buflen, bufcount;
 
-	LASSERT(m != NULL);
 	LASSERT(n >= 0);
 
 	bufcount = m->lm_bufcount;
@@ -488,7 +487,7 @@ void lustre_free_reply_state(struct ptlrpc_reply_state *rs)
 	LASSERT(!rs->rs_difficult || rs->rs_handled);
 	LASSERT(!rs->rs_on_net);
 	LASSERT(!rs->rs_scheduled);
-	LASSERT(rs->rs_export == NULL);
+	LASSERT(!rs->rs_export);
 	LASSERT(rs->rs_nlocks == 0);
 	LASSERT(list_empty(&rs->rs_exp_list));
 	LASSERT(list_empty(&rs->rs_obd_list));
@@ -705,7 +704,7 @@ char *lustre_msg_string(struct lustre_msg *m, int index, int max_len)
 		LASSERTF(0, "incorrect message magic: %08x\n", m->lm_magic);
 	}
 
-	if (str == NULL) {
+	if (!str) {
 		CERROR("can't unpack string in msg %p buffer[%d]\n", m, index);
 		return NULL;
 	}
@@ -740,7 +739,6 @@ static inline void *__lustre_swab_buf(struct lustre_msg *msg, int index,
 {
 	void *ptr = NULL;
 
-	LASSERT(msg != NULL);
 	switch (msg->lm_magic) {
 	case LUSTRE_MSG_MAGIC_V2:
 		ptr = lustre_msg_buf_v2(msg, index, min_size);
@@ -1377,7 +1375,7 @@ void lustre_msg_set_jobid(struct lustre_msg *msg, char *jobid)
 				       sizeof(struct ptlrpc_body));
 		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
 
-		if (jobid != NULL)
+		if (jobid)
 			memcpy(pb->pb_jobid, jobid, JOBSTATS_JOBID_SIZE);
 		else if (pb->pb_jobid[0] == '\0')
 			lustre_get_jobid(pb->pb_jobid);
@@ -1427,7 +1425,7 @@ int do_set_info_async(struct obd_import *imp,
 	int rc;
 
 	req = ptlrpc_request_alloc(imp, &RQF_OBD_SET_INFO);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	req_capsule_set_size(&req->rq_pill, &RMF_SETINFO_KEY,

@@ -163,8 +163,6 @@ void ptlrpcd_wake(struct ptlrpc_request *req)
 {
 	struct ptlrpc_request_set *rq_set = req->rq_set;
 
-	LASSERT(rq_set != NULL);
-
 	wake_up(&rq_set->set_waitq);
 }
 EXPORT_SYMBOL(ptlrpcd_wake);
@@ -176,7 +174,7 @@ ptlrpcd_select_pc(struct ptlrpc_request *req)
 	int		cpt;
 	int		idx;
 
-	if (req != NULL && req->rq_send_state != LUSTRE_IMP_FULL)
+	if (req && req->rq_send_state != LUSTRE_IMP_FULL)
 		return &ptlrpcd_rcv;
 
 	cpt = cfs_cpt_current(cfs_cpt_table, 1);
@@ -240,7 +238,7 @@ void ptlrpcd_add_req(struct ptlrpc_request *req)
 
 		req->rq_invalid_rqset = 0;
 		spin_unlock(&req->rq_lock);
-		l_wait_event(req->rq_set_waitq, (req->rq_set == NULL), &lwi);
+		l_wait_event(req->rq_set_waitq, !req->rq_set, &lwi);
 	} else if (req->rq_set) {
 		/* If we have a valid "rq_set", just reuse it to avoid double
 		 * linked. */
@@ -349,12 +347,12 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 				partner = pc->pc_partners[pc->pc_cursor++];
 				if (pc->pc_cursor >= pc->pc_npartners)
 					pc->pc_cursor = 0;
-				if (partner == NULL)
+				if (!partner)
 					continue;
 
 				spin_lock(&partner->pc_lock);
 				ps = partner->pc_set;
-				if (ps == NULL) {
+				if (!ps) {
 					spin_unlock(&partner->pc_lock);
 					continue;
 				}
@@ -580,7 +578,7 @@ int ptlrpcd_start(struct ptlrpcd_ctl *pc)
 	return 0;
 
 out_set:
-	if (pc->pc_set != NULL) {
+	if (pc->pc_set) {
 		struct ptlrpc_request_set *set = pc->pc_set;
 
 		spin_lock(&pc->pc_lock);
@@ -631,7 +629,7 @@ void ptlrpcd_free(struct ptlrpcd_ctl *pc)
 
 out:
 	if (pc->pc_npartners > 0) {
-		LASSERT(pc->pc_partners != NULL);
+		LASSERT(pc->pc_partners);
 
 		kfree(pc->pc_partners);
 		pc->pc_partners = NULL;
@@ -645,7 +643,7 @@ static void ptlrpcd_fini(void)
 	int i;
 	int j;
 
-	if (ptlrpcds != NULL) {
+	if (ptlrpcds) {
 		for (i = 0; i < ptlrpcds_num; i++) {
 			if (!ptlrpcds[i])
 				break;

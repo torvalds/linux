@@ -192,15 +192,15 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 	unsigned int svc_counter_config = LPROCFS_CNTR_AVGMINMAX |
 					  LPROCFS_CNTR_STDDEV;
 
-	LASSERT(*debugfs_root_ret == NULL);
-	LASSERT(*stats_ret == NULL);
+	LASSERT(!*debugfs_root_ret);
+	LASSERT(!*stats_ret);
 
 	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,
 					0);
-	if (svc_stats == NULL)
+	if (!svc_stats)
 		return;
 
-	if (dir != NULL) {
+	if (dir) {
 		svc_debugfs_entry = ldebugfs_register(dir, root, NULL, NULL);
 		if (IS_ERR(svc_debugfs_entry)) {
 			lprocfs_free_stats(&svc_stats);
@@ -246,11 +246,11 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 
 	rc = ldebugfs_register_stats(svc_debugfs_entry, name, svc_stats);
 	if (rc < 0) {
-		if (dir != NULL)
+		if (dir)
 			ldebugfs_remove(&svc_debugfs_entry);
 		lprocfs_free_stats(&svc_stats);
 	} else {
-		if (dir != NULL)
+		if (dir)
 			*debugfs_root_ret = svc_debugfs_entry;
 		*stats_ret = svc_stats;
 	}
@@ -456,8 +456,6 @@ static const char *nrs_state2str(enum ptlrpc_nrs_pol_state state)
 static void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
 				struct ptlrpc_nrs_pol_info *info)
 {
-	LASSERT(policy != NULL);
-	LASSERT(info != NULL);
 	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
 	memcpy(info->pi_name, policy->pol_desc->pd_name, NRS_POL_NAME_MAX);
@@ -508,7 +506,7 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	spin_unlock(&nrs->nrs_lock);
 
 	infos = kcalloc(num_pols, sizeof(*infos), GFP_NOFS);
-	if (infos == NULL) {
+	if (!infos) {
 		rc = -ENOMEM;
 		goto unlock;
 	}
@@ -676,7 +674,7 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 	/**
 	 * No [reg|hp] token has been specified
 	 */
-	if (cmd == NULL)
+	if (!cmd)
 		goto default_queue;
 
 	/**
@@ -733,8 +731,7 @@ ptlrpc_lprocfs_svc_req_history_seek(struct ptlrpc_service_part *svcpt,
 	struct list_head *e;
 	struct ptlrpc_request *req;
 
-	if (srhi->srhi_req != NULL &&
-	    srhi->srhi_seq > svcpt->scp_hist_seq_culled &&
+	if (srhi->srhi_req && srhi->srhi_seq > svcpt->scp_hist_seq_culled &&
 	    srhi->srhi_seq <= seq) {
 		/* If srhi_req was set previously, hasn't been culled and
 		 * we're searching for a seq on or after it (i.e. more
@@ -927,7 +924,7 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 			   (s64)req->rq_arrival_time.tv_sec,
 			   (long)(req->rq_sent - req->rq_arrival_time.tv_sec),
 			   (long)(req->rq_sent - req->rq_deadline));
-		if (svc->srv_ops.so_req_printer == NULL)
+		if (!svc->srv_ops.so_req_printer)
 			seq_putc(s, '\n');
 		else
 			svc->srv_ops.so_req_printer(s, srhi->srhi_req);
@@ -1103,7 +1100,7 @@ void ptlrpc_ldebugfs_register_service(struct dentry *entry,
 				 "stats", &svc->srv_debugfs_entry,
 				 &svc->srv_stats);
 
-	if (svc->srv_debugfs_entry == NULL)
+	if (IS_ERR_OR_NULL(svc->srv_debugfs_entry))
 		return;
 
 	ldebugfs_add_vars(svc->srv_debugfs_entry, lproc_vars, NULL);
@@ -1129,7 +1126,7 @@ void ptlrpc_lprocfs_rpc_sent(struct ptlrpc_request *req, long amount)
 	int opc = opcode_offset(op);
 
 	svc_stats = req->rq_import->imp_obd->obd_svc_stats;
-	if (svc_stats == NULL || opc <= 0)
+	if (!svc_stats || opc <= 0)
 		return;
 	LASSERT(opc < LUSTRE_MAX_OPCODES);
 	if (!(op == LDLM_ENQUEUE || op == MDS_REINT))
@@ -1166,7 +1163,7 @@ EXPORT_SYMBOL(ptlrpc_lprocfs_brw);
 
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc)
 {
-	if (svc->srv_debugfs_entry != NULL)
+	if (!IS_ERR_OR_NULL(svc->srv_debugfs_entry))
 		ldebugfs_remove(&svc->srv_debugfs_entry);
 
 	if (svc->srv_stats)
@@ -1198,7 +1195,7 @@ int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	up_read(&obd->u.cli.cl_sem);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	req->rq_send_state = LUSTRE_IMP_FULL;

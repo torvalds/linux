@@ -93,7 +93,7 @@ static int llog_client_open(const struct lu_env *env,
 	LASSERT(lgh);
 
 	req = ptlrpc_request_alloc(imp, &RQF_LLOG_ORIGIN_HANDLE_CREATE);
-	if (req == NULL) {
+	if (!req) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -130,7 +130,7 @@ static int llog_client_open(const struct lu_env *env,
 		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_LLOGD_BODY);
-	if (body == NULL) {
+	if (!body) {
 		rc = -EFAULT;
 		goto out;
 	}
@@ -158,7 +158,7 @@ static int llog_client_next_block(const struct lu_env *env,
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_NEXT_BLOCK,
 					LUSTRE_LOG_VERSION,
 					LLOG_ORIGIN_HANDLE_NEXT_BLOCK);
-	if (req == NULL) {
+	if (!req) {
 		rc = -ENOMEM;
 		goto err_exit;
 	}
@@ -179,14 +179,14 @@ static int llog_client_next_block(const struct lu_env *env,
 		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_LLOGD_BODY);
-	if (body == NULL) {
+	if (!body) {
 		rc = -EFAULT;
 		goto out;
 	}
 
 	/* The log records are swabbed as they are processed */
 	ptr = req_capsule_server_get(&req->rq_pill, &RMF_EADATA);
-	if (ptr == NULL) {
+	if (!ptr) {
 		rc = -EFAULT;
 		goto out;
 	}
@@ -216,7 +216,7 @@ static int llog_client_prev_block(const struct lu_env *env,
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_PREV_BLOCK,
 					LUSTRE_LOG_VERSION,
 					LLOG_ORIGIN_HANDLE_PREV_BLOCK);
-	if (req == NULL) {
+	if (!req) {
 		rc = -ENOMEM;
 		goto err_exit;
 	}
@@ -236,13 +236,13 @@ static int llog_client_prev_block(const struct lu_env *env,
 		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_LLOGD_BODY);
-	if (body == NULL) {
+	if (!body) {
 		rc = -EFAULT;
 		goto out;
 	}
 
 	ptr = req_capsule_server_get(&req->rq_pill, &RMF_EADATA);
-	if (ptr == NULL) {
+	if (!ptr) {
 		rc = -EFAULT;
 		goto out;
 	}
@@ -269,7 +269,7 @@ static int llog_client_read_header(const struct lu_env *env,
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_READ_HEADER,
 					LUSTRE_LOG_VERSION,
 					LLOG_ORIGIN_HANDLE_READ_HEADER);
-	if (req == NULL) {
+	if (!req) {
 		rc = -ENOMEM;
 		goto err_exit;
 	}
@@ -285,7 +285,7 @@ static int llog_client_read_header(const struct lu_env *env,
 		goto out;
 
 	hdr = req_capsule_server_get(&req->rq_pill, &RMF_LLOG_LOG_HDR);
-	if (hdr == NULL) {
+	if (!hdr) {
 		rc = -EFAULT;
 		goto out;
 	}

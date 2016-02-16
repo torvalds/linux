@@ -83,7 +83,7 @@ static int nrs_fifo_start(struct ptlrpc_nrs_policy *policy)
 	head = kzalloc_node(sizeof(*head), GFP_NOFS,
 			    cfs_cpt_spread_node(nrs_pol2cptab(policy),
 						nrs_pol2cptid(policy)));
-	if (head == NULL)
+	if (!head)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&head->fh_list);
@@ -104,7 +104,7 @@ static void nrs_fifo_stop(struct ptlrpc_nrs_policy *policy)
 {
 	struct nrs_fifo_head *head = policy->pol_private;
 
-	LASSERT(head != NULL);
+	LASSERT(head);
 	LASSERT(list_empty(&head->fh_list));
 
 	kfree(head);
@@ -169,7 +169,7 @@ struct ptlrpc_nrs_request *nrs_fifo_req_get(struct ptlrpc_nrs_policy *policy,
 	      list_entry(head->fh_list.next, struct ptlrpc_nrs_request,
 			     nr_u.fifo.fr_list);
 
-	if (likely(!peek && nrq != NULL)) {
+	if (likely(!peek && nrq)) {
 		struct ptlrpc_request *req = container_of(nrq,
 							  struct ptlrpc_request,
 							  rq_nrq);

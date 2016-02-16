@@ -553,7 +553,6 @@ static int import_select_connection(struct obd_import *imp)
 	imp->imp_connection = ptlrpc_connection_addref(imp_conn->oic_conn);
 
 	dlmexp = class_conn2export(&imp->imp_dlm_handle);
-	LASSERT(dlmexp != NULL);
 	ptlrpc_connection_put(dlmexp->exp_connection);
 	dlmexp->exp_connection = ptlrpc_connection_addref(imp_conn->oic_conn);
 	class_export_put(dlmexp);
@@ -687,7 +686,7 @@ int ptlrpc_connect_import(struct obd_import *imp)
 		goto out;
 
 	request = ptlrpc_request_alloc(imp, &RQF_MDS_CONNECT);
-	if (request == NULL) {
+	if (!request) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -817,7 +816,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	ocd = req_capsule_server_sized_get(&request->rq_pill,
 					   &RMF_CONNECT_DATA, ret);
 
-	if (ocd == NULL) {
+	if (!ocd) {
 		CERROR("%s: no connect data from server\n",
 		       imp->imp_obd->obd_name);
 		rc = -EPROTO;
@@ -1162,7 +1161,7 @@ out:
 			struct obd_connect_data *ocd;
 
 			/* reply message might not be ready */
-			if (request->rq_repmsg == NULL)
+			if (!request->rq_repmsg)
 				return -EPROTO;
 
 			ocd = req_capsule_server_get(&request->rq_pill,
@@ -1243,7 +1242,7 @@ static int signal_completed_replay(struct obd_import *imp)
 
 	req = ptlrpc_request_alloc_pack(imp, &RQF_OBD_PING, LUSTRE_OBD_VERSION,
 					OBD_PING);
-	if (req == NULL) {
+	if (!req) {
 		atomic_dec(&imp->imp_replay_inflight);
 		return -ENOMEM;
 	}
