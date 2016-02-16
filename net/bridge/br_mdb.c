@@ -88,11 +88,13 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 			for (pp = &mp->ports;
 			     (p = rcu_dereference(*pp)) != NULL;
 			      pp = &p->next) {
+				struct nlattr *nest_ent;
 				struct br_mdb_entry e;
 
 				port = p->port;
 				if (!port)
 					continue;
+
 				memset(&e, 0, sizeof(e));
 				e.ifindex = port->dev->ifindex;
 				e.vid = p->addr.vid;
@@ -104,11 +106,23 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 					e.addr.u.ip6 = p->addr.u.ip6;
 #endif
 				e.addr.proto = p->addr.proto;
-				if (nla_put(skb, MDBA_MDB_ENTRY_INFO, sizeof(e), &e)) {
+				nest_ent = nla_nest_start(skb,
+							  MDBA_MDB_ENTRY_INFO);
+				if (!nest_ent) {
 					nla_nest_cancel(skb, nest2);
 					err = -EMSGSIZE;
 					goto out;
 				}
+				if (nla_put_nohdr(skb, sizeof(e), &e) ||
+				    nla_put_u32(skb,
+						MDBA_MDB_EATTR_TIMER,
+						br_timer_value(&p->timer))) {
+					nla_nest_cancel(skb, nest_ent);
+					nla_nest_cancel(skb, nest2);
+					err = -EMSGSIZE;
+					goto out;
+				}
+				nla_nest_end(skb, nest_ent);
 			}
 			nla_nest_end(skb, nest2);
 		skip:
