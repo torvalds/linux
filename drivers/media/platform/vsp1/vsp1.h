@@ -62,7 +62,6 @@ struct vsp1_device {
 	const struct vsp1_device_info *info;
 
 	void __iomem *mmio;
-	struct clk *clock;
 
 	struct vsp1_bru *bru;
 	struct vsp1_hsit *hsi;
