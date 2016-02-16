@@ -362,6 +362,10 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 		dev_err(dai->dev, "%d:Error during %s stream\n", ret,
 			start ? "Start" : "Stop");
 
+	/* in case device removed, return 0 for stop trigger */
+	if (stop && (ret == -ENODEV))
+		ret = 0;
+
 func_exit:
 	mutex_unlock(&gb->lock);
 	return ret;
