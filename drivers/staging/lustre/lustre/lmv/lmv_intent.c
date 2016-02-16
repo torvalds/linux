@@ -69,7 +69,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	int			rc = 0;
 
 	body = req_capsule_server_get(&(*reqp)->rq_pill, &RMF_MDT_BODY);
-	if (body == NULL)
+	if (!body)
 		return -EPROTO;
 
 	LASSERT((body->valid & OBD_MD_MDS));
@@ -107,7 +107,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 
 	op_data->op_fid1 = body->fid1;
 	/* Sent the parent FID to the remote MDT */
-	if (parent_fid != NULL) {
+	if (parent_fid) {
 		/* The parent fid is only for remote open to
 		 * check whether the open is from OBF,
 		 * see mdt_cross_open */
@@ -204,7 +204,7 @@ static int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 		return rc;
 
 	body = req_capsule_server_get(&(*reqp)->rq_pill, &RMF_MDT_BODY);
-	if (body == NULL)
+	if (!body)
 		return -EPROTO;
 	/*
 	 * Not cross-ref case, just get out of here.
@@ -270,7 +270,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
 			     flags, reqp, cb_blocking, extra_lock_flags);
 
-	if (rc < 0 || *reqp == NULL)
+	if (rc < 0 || !*reqp)
 		return rc;
 
 	/*
@@ -278,7 +278,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 	 * remote inode. Let's check this.
 	 */
 	body = req_capsule_server_get(&(*reqp)->rq_pill, &RMF_MDT_BODY);
-	if (body == NULL)
+	if (!body)
 		return -EPROTO;
 	/* Not cross-ref case, just get out of here. */
 	if (likely(!(body->valid & OBD_MD_MDS)))
@@ -299,7 +299,6 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = exp->exp_obd;
 	int		rc;
 
-	LASSERT(it != NULL);
 	LASSERT(fid_is_sane(&op_data->op_fid1));
 
 	CDEBUG(D_INODE, "INTENT LOCK '%s' for '%*s' on "DFID"\n",
