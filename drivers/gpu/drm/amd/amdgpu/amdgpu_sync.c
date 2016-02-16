@@ -50,6 +50,14 @@ void amdgpu_sync_create(struct amdgpu_sync *sync)
 	sync->last_vm_update = NULL;
 }
 
+/**
+ * amdgpu_sync_same_dev - test if fence belong to us
+ *
+ * @adev: amdgpu device to use for the test
+ * @f: fence to test
+ *
+ * Test if the fence was issued by us.
+ */
 static bool amdgpu_sync_same_dev(struct amdgpu_device *adev, struct fence *f)
 {
 	struct amdgpu_fence *a_fence = to_amdgpu_fence(f);
@@ -68,17 +76,33 @@ static bool amdgpu_sync_same_dev(struct amdgpu_device *adev, struct fence *f)
 	return false;
 }
 
-static bool amdgpu_sync_test_owner(struct fence *f, void *owner)
+/**
+ * amdgpu_sync_get_owner - extract the owner of a fence
+ *
+ * @fence: fence get the owner from
+ *
+ * Extract who originally created the fence.
+ */
+static void *amdgpu_sync_get_owner(struct fence *f)
 {
 	struct amdgpu_fence *a_fence = to_amdgpu_fence(f);
 	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
+
 	if (s_fence)
-		return s_fence->owner == owner;
-	if (a_fence)
-		return a_fence->owner == owner;
-	return false;
+		return s_fence->owner;
+	else if (a_fence)
+		return a_fence->owner;
+	return AMDGPU_FENCE_OWNER_UNDEFINED;
 }
 
+/**
+ * amdgpu_sync_keep_later - Keep the later fence
+ *
+ * @keep: existing fence to test
+ * @fence: new fence
+ *
+ * Either keep the existing fence or the new one, depending which one is later.
+ */
 static void amdgpu_sync_keep_later(struct fence **keep, struct fence *fence)
 {
 	if (*keep && fence_is_later(*keep, fence))
@@ -104,7 +128,7 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		return 0;
 
 	if (amdgpu_sync_same_dev(adev, f) &&
-	    amdgpu_sync_test_owner(f, AMDGPU_FENCE_OWNER_VM))
+	    amdgpu_sync_get_owner(f) == AMDGPU_FENCE_OWNER_VM)
 		amdgpu_sync_keep_later(&sync->last_vm_update, f);
 
 	hash_for_each_possible(sync->fences, e, node, f->context) {
@@ -122,18 +146,6 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	hash_add(sync->fences, &e->node, f->context);
 	e->fence = fence_get(f);
 	return 0;
-}
-
-static void *amdgpu_sync_get_owner(struct fence *f)
-{
-	struct amdgpu_fence *a_fence = to_amdgpu_fence(f);
-	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
-
-	if (s_fence)
-		return s_fence->owner;
-	else if (a_fence)
-		return a_fence->owner;
-	return AMDGPU_FENCE_OWNER_UNDEFINED;
 }
 
 /**
