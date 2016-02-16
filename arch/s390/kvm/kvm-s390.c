@@ -274,7 +274,6 @@ static void kvm_s390_sync_dirty_log(struct kvm *kvm,
 	unsigned long address;
 	struct gmap *gmap = kvm->arch.gmap;
 
-	down_read(&gmap->mm->mmap_sem);
 	/* Loop over all guest pages */
 	last_gfn = memslot->base_gfn + memslot->npages;
 	for (cur_gfn = memslot->base_gfn; cur_gfn <= last_gfn; cur_gfn++) {
@@ -282,8 +281,10 @@ static void kvm_s390_sync_dirty_log(struct kvm *kvm,
 
 		if (gmap_test_and_clear_dirty(address, gmap))
 			mark_page_dirty(kvm, cur_gfn);
+		if (fatal_signal_pending(current))
+			return;
+		cond_resched();
 	}
-	up_read(&gmap->mm->mmap_sem);
 }
 
 /* Section: vm related */
@@ -1414,8 +1415,13 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 				    KVM_SYNC_PFAULT;
 	if (test_kvm_facility(vcpu->kvm, 64))
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_RICCB;
-	if (test_kvm_facility(vcpu->kvm, 129))
+	/* fprs can be synchronized via vrs, even if the guest has no vx. With
+	 * MACHINE_HAS_VX, (load|store)_fpu_regs() will work with vrs format.
+	 */
+	if (MACHINE_HAS_VX)
 		vcpu->run->kvm_valid_regs |= KVM_SYNC_VRS;
+	else
+		vcpu->run->kvm_valid_regs |= KVM_SYNC_FPRS;
 
 	if (kvm_is_ucontrol(vcpu->kvm))
 		return __kvm_ucontrol_vcpu_init(vcpu);
@@ -1430,10 +1436,10 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	vcpu->arch.host_fpregs.fpc = current->thread.fpu.fpc;
 	vcpu->arch.host_fpregs.regs = current->thread.fpu.regs;
 
-	/* Depending on MACHINE_HAS_VX, data stored to vrs either
-	 * has vector register or floating point register format.
-	 */
-	current->thread.fpu.regs = vcpu->run->s.regs.vrs;
+	if (MACHINE_HAS_VX)
+		current->thread.fpu.regs = vcpu->run->s.regs.vrs;
+	else
+		current->thread.fpu.regs = vcpu->run->s.regs.fprs;
 	current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
 	if (test_fp_ctl(current->thread.fpu.fpc))
 		/* User space provided an invalid FPC, let's clear it */
@@ -2158,8 +2164,10 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 
 static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 {
-	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	u8 opcode;
+	struct kvm_s390_pgm_info pgm_info = {
+		.code = PGM_ADDRESSING,
+	};
+	u8 opcode, ilen;
 	int rc;
 
 	VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
@@ -2173,12 +2181,21 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 	 * to look up the current opcode to get the length of the instruction
 	 * to be able to forward the PSW.
 	 */
-	rc = read_guest(vcpu, psw->addr, 0, &opcode, 1);
-	if (rc)
-		return kvm_s390_inject_prog_cond(vcpu, rc);
-	psw->addr = __rewind_psw(*psw, -insn_length(opcode));
-
-	return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = read_guest_instr(vcpu, &opcode, 1);
+	ilen = insn_length(opcode);
+	if (rc < 0) {
+		return rc;
+	} else if (rc) {
+		/* Instruction-Fetching Exceptions - we can't detect the ilen.
+		 * Forward by arbitrary ilc, injection will take care of
+		 * nullification if necessary.
+		 */
+		pgm_info = vcpu->arch.pgm;
+		ilen = 4;
+	}
+	pgm_info.flags = ilen | KVM_S390_PGM_FLAGS_ILC_VALID;
+	kvm_s390_forward_psw(vcpu, ilen);
+	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
 }
 
 static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
@@ -2386,7 +2403,7 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 				     fprs, 128);
 	} else {
 		rc = write_guest_abs(vcpu, gpa + __LC_FPREGS_SAVE_AREA,
-				     vcpu->run->s.regs.vrs, 128);
+				     vcpu->run->s.regs.fprs, 128);
 	}
 	rc |= write_guest_abs(vcpu, gpa + __LC_GPREGS_SAVE_AREA,
 			      vcpu->run->s.regs.gprs, 128);
@@ -2605,7 +2622,8 @@ static long kvm_s390_guest_mem_op(struct kvm_vcpu *vcpu,
 	switch (mop->op) {
 	case KVM_S390_MEMOP_LOGICAL_READ:
 		if (mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY) {
-			r = check_gva_range(vcpu, mop->gaddr, mop->ar, mop->size, false);
+			r = check_gva_range(vcpu, mop->gaddr, mop->ar,
+					    mop->size, GACC_FETCH);
 			break;
 		}
 		r = read_guest(vcpu, mop->gaddr, mop->ar, tmpbuf, mop->size);
@@ -2616,7 +2634,8 @@ static long kvm_s390_guest_mem_op(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_S390_MEMOP_LOGICAL_WRITE:
 		if (mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY) {
-			r = check_gva_range(vcpu, mop->gaddr, mop->ar, mop->size, true);
+			r = check_gva_range(vcpu, mop->gaddr, mop->ar,
+					    mop->size, GACC_STORE);
 			break;
 		}
 		if (copy_from_user(tmpbuf, uaddr, mop->size)) {
