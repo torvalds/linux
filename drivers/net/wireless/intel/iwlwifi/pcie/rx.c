@@ -1438,9 +1438,11 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 			 inta & ~trans_pcie->inta_mask);
 	}
 
-	/* Re-enable all interrupts */
-	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &trans->status))
+	/* we are loading the firmware, enable FH_TX interrupt only */
+	if (handled & CSR_INT_BIT_FH_TX)
+		iwl_enable_fw_load_int(trans);
+	/* only Re-enable all interrupt if disabled by irq */
+	else if (test_bit(STATUS_INT_ENABLED, &trans->status))
 		iwl_enable_interrupts(trans);
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
