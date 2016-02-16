@@ -199,8 +199,8 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev);
 static void get_typical_interval(struct menu_device *data)
 {
 	int i, divisor;
-	unsigned int max, thresh;
-	uint64_t avg, variance;
+	unsigned int max, thresh, avg;
+	uint64_t sum, variance;
 
 	thresh = UINT_MAX; /* Discard outliers above this value */
 
@@ -208,28 +208,28 @@ again:
 
 	/* First calculate the average of past intervals */
 	max = 0;
-	avg = 0;
+	sum = 0;
 	divisor = 0;
 	for (i = 0; i < INTERVALS; i++) {
 		unsigned int value = data->intervals[i];
 		if (value <= thresh) {
-			avg += value;
+			sum += value;
 			divisor++;
 			if (value > max)
 				max = value;
 		}
 	}
 	if (divisor == INTERVALS)
-		avg >>= INTERVAL_SHIFT;
+		avg = sum >> INTERVAL_SHIFT;
 	else
-		do_div(avg, divisor);
+		avg = div_u64(sum, divisor);
 
 	/* Then try to determine variance */
 	variance = 0;
 	for (i = 0; i < INTERVALS; i++) {
 		unsigned int value = data->intervals[i];
 		if (value <= thresh) {
-			int64_t diff = value - avg;
+			int64_t diff = (int64_t)value - avg;
 			variance += diff * diff;
 		}
 	}
@@ -251,7 +251,7 @@ again:
 	 * Use this result only if there is no timer to wake us up sooner.
 	 */
 	if (likely(variance <= U64_MAX/36)) {
-		if (((avg*avg > variance*36) && (divisor * 4 >= INTERVALS * 3))
+		if ((((u64)avg*avg > variance*36) && (divisor * 4 >= INTERVALS * 3))
 							|| variance <= 400) {
 			if (data->next_timer_us > avg)
 				data->predicted_us = avg;
