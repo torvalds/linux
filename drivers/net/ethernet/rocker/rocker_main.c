@@ -1,6 +1,6 @@
 /*
  * drivers/net/ethernet/rocker/rocker.c - Rocker switch device driver
- * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
+ * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -922,7 +922,8 @@ static bool rocker_desc_gen(const struct rocker_desc_info *desc_info)
 	return comp_err & ROCKER_DMA_DESC_COMP_ERR_GEN ? true : false;
 }
 
-static void *rocker_desc_cookie_ptr_get(const struct rocker_desc_info *desc_info)
+static void *
+rocker_desc_cookie_ptr_get(const struct rocker_desc_info *desc_info)
 {
 	return (void *)(uintptr_t)desc_info->desc->cookie;
 }
@@ -3435,10 +3436,10 @@ static int rocker_port_vlan(struct rocker_port *rocker_port,
 
 	if (adding && test_bit(ntohs(internal_vlan_id),
 			       rocker_port->vlan_bitmap))
-			return 0; /* already added */
+		return 0; /* already added */
 	else if (!adding && !test_bit(ntohs(internal_vlan_id),
 				      rocker_port->vlan_bitmap))
-			return 0; /* already removed */
+		return 0; /* already removed */
 
 	change_bit(ntohs(internal_vlan_id), rocker_port->vlan_bitmap);
 
@@ -4595,7 +4596,8 @@ static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
 		vlan->flags = 0;
 		if (rocker_vlan_id_is_internal(htons(vid)))
 			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
-		vlan->vid_begin = vlan->vid_end = vid;
+		vlan->vid_begin = vid;
+		vlan->vid_end = vid;
 		err = cb(&vlan->obj);
 		if (err)
 			break;
@@ -4998,7 +5000,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	dev->ethtool_ops = &rocker_port_ethtool_ops;
 	dev->switchdev_ops = &rocker_port_switchdev_ops;
 	netif_tx_napi_add(dev, &rocker_port->napi_tx, rocker_port_poll_tx,
-		       NAPI_POLL_WEIGHT);
+			  NAPI_POLL_WEIGHT);
 	netif_napi_add(dev, &rocker_port->napi_rx, rocker_port_poll_rx,
 		       NAPI_POLL_WEIGHT);
 	rocker_carrier_init(rocker_port);
@@ -5332,7 +5334,6 @@ static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 
 	return err;
 }
-
 
 static int rocker_port_ovs_changed(struct rocker_port *rocker_port,
 				   struct net_device *master)

@@ -3,3 +3,4 @@
 #
 
 obj-$(CONFIG_ROCKER) += rocker.o
+rocker-y := rocker_main.o
