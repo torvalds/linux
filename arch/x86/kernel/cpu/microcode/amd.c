@@ -788,15 +788,13 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 		return -EINVAL;
 	}
 
-	patch->data = kzalloc(patch_size, GFP_KERNEL);
+	patch->data = kmemdup(fw + SECTION_HDR_SIZE, patch_size, GFP_KERNEL);
 	if (!patch->data) {
 		pr_err("Patch data allocation failure.\n");
 		kfree(patch);
 		return -EINVAL;
 	}
 
-	/* All looks ok, copy patch... */
-	memcpy(patch->data, fw + SECTION_HDR_SIZE, patch_size);
 	INIT_LIST_HEAD(&patch->plist);
 	patch->patch_id  = mc_hdr->patch_id;
 	patch->equiv_cpu = proc_id;
