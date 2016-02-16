@@ -44,6 +44,19 @@ struct pthread_sem {
 #endif /* _POSIX_SEMAPHORES */
 };
 
+#define WARN_UNLESS(exp) do {						\
+		if (exp < 0)						\
+			lkl_printf("%s: %s\n", #exp, strerror(errno));	\
+	} while (0)
+
+/* pthread_* functions use the reverse convention */
+#define WARN_PTHREAD(exp) do {						\
+		int __ret = exp;					\
+		if (__ret > 0)						\
+			lkl_printf("%s: %s\n", #exp, strerror(__ret));	\
+	} while (0)
+
+
 static void *sem_alloc(int count)
 {
 	struct pthread_sem *sem;
@@ -61,7 +74,7 @@ static void *sem_alloc(int count)
 #else
 	pthread_mutex_init(&sem->lock, NULL);
 	sem->count = count;
-	pthread_cond_init(&sem->cond, NULL);
+	WARN_PTHREAD(pthread_cond_init(&sem->cond, NULL));
 #endif /* _POSIX_SEMAPHORES */
 
 	return sem;
@@ -77,14 +90,13 @@ static void sem_up(void *_sem)
 	struct pthread_sem *sem = (struct pthread_sem *)_sem;
 
 #ifdef _POSIX_SEMAPHORES
-	if (sem_post(&sem->sem) < 0)
-		lkl_printf("sem_post: %s\n", strerror(errno));
+	WARN_UNLESS(sem_post(&sem->sem));
 #else
-	pthread_mutex_lock(&sem->lock);
+	WARN_PTHREAD(pthread_mutex_lock(&sem->lock));
 	sem->count++;
 	if (sem->count > 0)
-		pthread_cond_signal(&sem->cond);
-	pthread_mutex_unlock(&sem->lock);
+		WARN_PTHREAD(pthread_cond_signal(&sem->cond));
+	WARN_PTHREAD(pthread_mutex_unlock(&sem->lock));
 #endif /* _POSIX_SEMAPHORES */
 
 }
@@ -101,11 +113,11 @@ static void sem_down(void *_sem)
 	if (err < 0 && errno != EINTR)
 		lkl_printf("sem_wait: %s\n", strerror(errno));
 #else
-	pthread_mutex_lock(&sem->lock);
+	WARN_PTHREAD(pthread_mutex_lock(&sem->lock));
 	while (sem->count <= 0)
-		pthread_cond_wait(&sem->cond, &sem->lock);
+		WARN_PTHREAD(pthread_cond_wait(&sem->cond, &sem->lock));
 	sem->count--;
-	pthread_mutex_unlock(&sem->lock);
+	WARN_PTHREAD(pthread_mutex_unlock(&sem->lock));
 #endif /* _POSIX_SEMAPHORES */
 }
 
