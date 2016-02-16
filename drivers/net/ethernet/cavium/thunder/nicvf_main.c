@@ -1537,6 +1537,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	nicvf_send_vf_struct(nic);
 
+	if (!pass1_silicon(nic->pdev))
+		nic->hw_tso = true;
+
 	/* Check if this VF is in QS only mode */
 	if (nic->sqs_mode)
 		return 0;
@@ -1555,9 +1558,6 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->hw_features |= NETIF_F_LOOPBACK;
 
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
-
-	if (!pass1_silicon(nic->pdev))
-		nic->hw_tso = true;
 
 	netdev->netdev_ops = &nicvf_netdev_ops;
 	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;
