@@ -2,7 +2,7 @@
  * VHT handling
  *
  * Portions of this file
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -468,6 +468,20 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MU_GROUPS);
 }
+
+void ieee80211_update_mu_groups(struct ieee80211_vif *vif,
+				const u8 *membership, const u8 *position)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
+
+	if (WARN_ON_ONCE(!(sdata->flags & IEEE80211_SDATA_MU_MIMO_OWNER)))
+		return;
+
+	memcpy(bss_conf->mu_group.membership, membership, WLAN_MEMBERSHIP_LEN);
+	memcpy(bss_conf->mu_group.position, position, WLAN_USER_POSITION_LEN);
+}
+EXPORT_SYMBOL_GPL(ieee80211_update_mu_groups);
 
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 struct sta_info *sta, u8 opmode,

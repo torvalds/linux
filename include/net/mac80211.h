@@ -5445,6 +5445,21 @@ ieee80211_vif_type_p2p(struct ieee80211_vif *vif)
 	return ieee80211_iftype_p2p(vif->type, vif->p2p);
 }
 
+/**
+ * ieee80211_update_mu_groups - set the VHT MU-MIMO groud data
+ *
+ * @vif: the specified virtual interface
+ * @membership: 64 bits array - a bit is set if station is member of the group
+ * @position: 2 bits per group id indicating the position in the group
+ *
+ * Note: This function assumes that the given vif is valid and the position and
+ * membership data is of the correct size and are in the same byte order as the
+ * matching GroupId management frame.
+ * Calls to this function need to be serialized with RX path.
+ */
+void ieee80211_update_mu_groups(struct ieee80211_vif *vif,
+				const u8 *membership, const u8 *position);
+
 void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
 				   int rssi_min_thold,
 				   int rssi_max_thold);
