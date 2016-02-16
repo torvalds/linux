@@ -189,10 +189,12 @@ static struct notifier_block libcfs_panic_notifier = {
 
 void libcfs_register_panic_notifier(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &libcfs_panic_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &libcfs_panic_notifier);
 }
 
 void libcfs_unregister_panic_notifier(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list, &libcfs_panic_notifier);
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &libcfs_panic_notifier);
 }

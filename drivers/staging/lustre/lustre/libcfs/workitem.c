@@ -46,7 +46,8 @@
 #define CFS_WS_NAME_LEN	 16
 
 struct cfs_wi_sched {
-	struct list_head		ws_list;	/* chain on global list */
+	/* chain on global list */
+	struct list_head		ws_list;
 	/** serialised workitems */
 	spinlock_t		ws_lock;
 	/** where schedulers sleep */

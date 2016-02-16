@@ -399,9 +399,9 @@ console:
 			return 1;
 		}
 
-		if (cfs_time_after(cfs_time_current(), cdls->cdls_next +
-						       libcfs_console_max_delay
-						       + cfs_time_seconds(10))) {
+		if (cfs_time_after(cfs_time_current(),
+				   cdls->cdls_next + libcfs_console_max_delay +
+				   cfs_time_seconds(10))) {
 			/* last timeout was a long time ago */
 			cdls->cdls_delay /= libcfs_console_backoff * 4;
 		} else {
