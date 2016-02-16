@@ -51,6 +51,9 @@ struct smsusb_urb_t {
 	struct smsusb_device_t *dev;
 
 	struct urb urb;
+
+	/* For the bottom half */
+	struct work_struct wq;
 };
 
 struct smsusb_device_t {
@@ -69,6 +72,18 @@ struct smsusb_device_t {
 
 static int smsusb_submit_urb(struct smsusb_device_t *dev,
 			     struct smsusb_urb_t *surb);
+
+/**
+ * Completing URB's callback handler - bottom half (proccess context)
+ * submits the URB prepared on smsusb_onresponse()
+ */
+static void do_submit_urb(struct work_struct *work)
+{
+	struct smsusb_urb_t *surb = container_of(work, struct smsusb_urb_t, wq);
+	struct smsusb_device_t *dev = surb->dev;
+
+	smsusb_submit_urb(dev, surb);
+}
 
 /**
  * Completing URB's callback handler - top half (interrupt context)
@@ -138,13 +153,15 @@ static void smsusb_onresponse(struct urb *urb)
 
 
 exit_and_resubmit:
-	smsusb_submit_urb(dev, surb);
+	INIT_WORK(&surb->wq, do_submit_urb);
+	schedule_work(&surb->wq);
 }
 
 static int smsusb_submit_urb(struct smsusb_device_t *dev,
 			     struct smsusb_urb_t *surb)
 {
 	if (!surb->cb) {
+		/* This function can sleep */
 		surb->cb = smscore_getbuffer(dev->coredev);
 		if (!surb->cb) {
 			pr_err("smscore_getbuffer(...) returned NULL\n");
