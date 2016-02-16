@@ -682,6 +682,34 @@ That said, it is much easier to fool yourself into believing that you have
 adhered to the as-if rule than it is to actually adhere to it!
 <p>@@QQE@@
 
+<p>@@QQ@@
+You claim that <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+generate absolutely no code in some kernel builds.
+This means that the compiler might arbitrarily rearrange consecutive
+RCU read-side critical sections.
+Given such rearrangement, if a given RCU read-side critical section
+is done, how can you be sure that all prior RCU read-side critical
+sections are done?
+Won't the compiler rearrangements make that impossible to determine?
+<p>@@QQA@@
+In cases where <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+generate absolutely no code, RCU infers quiescent states only at
+special locations, for example, within the scheduler.
+Because calls to <tt>schedule()</tt> had better prevent calling-code
+accesses to shared variables from being rearranged across the call to
+<tt>schedule()</tt>, if RCU detects the end of a given RCU read-side
+critical section, it will necessarily detect the end of all prior
+RCU read-side critical sections, no matter how aggressively the
+compiler scrambles the code.
+
+<p>
+Again, this all assumes that the compiler cannot scramble code across
+calls to the scheduler, out of interrupt handlers, into the idle loop,
+into user-mode code, and so on.
+But if your kernel build allows that sort of scrambling, you have broken
+far more than just RCU!
+<p>@@QQE@@
+
 <p>
 Note that these memory-barrier requirements do not replace the fundamental
 RCU requirement that a grace period wait for all pre-existing readers.

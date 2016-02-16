@@ -583,6 +583,17 @@ The first and second guarantees require unbelievably strict ordering!
 Are all these memory barriers <i> really</i> required?
 <br><a href="#qq6answer">Answer</a>
 
+<p><a name="Quick Quiz 7"><b>Quick Quiz 7</b>:</a>
+You claim that <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+generate absolutely no code in some kernel builds.
+This means that the compiler might arbitrarily rearrange consecutive
+RCU read-side critical sections.
+Given such rearrangement, if a given RCU read-side critical section
+is done, how can you be sure that all prior RCU read-side critical
+sections are done?
+Won't the compiler rearrangements make that impossible to determine?
+<br><a href="#qq7answer">Answer</a>
+
 <p>
 Note that these memory-barrier requirements do not replace the fundamental
 RCU requirement that a grace period wait for all pre-existing readers.
@@ -626,9 +637,9 @@ inconvenience can be avoided through use of the
 <tt>call_rcu()</tt> and <tt>kfree_rcu()</tt> API members
 described later in this document.
 
-<p><a name="Quick Quiz 7"><b>Quick Quiz 7</b>:</a>
+<p><a name="Quick Quiz 8"><b>Quick Quiz 8</b>:</a>
 But how does the upgrade-to-write operation exclude other readers?
-<br><a href="#qq7answer">Answer</a>
+<br><a href="#qq8answer">Answer</a>
 
 <p>
 This guarantee allows lookup code to be shared between read-side
@@ -714,9 +725,9 @@ to do significant reordering.
 This is by design:  Any significant ordering constraints would slow down
 these fast-path APIs.
 
-<p><a name="Quick Quiz 8"><b>Quick Quiz 8</b>:</a>
+<p><a name="Quick Quiz 9"><b>Quick Quiz 9</b>:</a>
 Can't the compiler also reorder this code?
-<br><a href="#qq8answer">Answer</a>
+<br><a href="#qq9answer">Answer</a>
 
 <h3><a name="Readers Do Not Exclude Updaters">Readers Do Not Exclude Updaters</a></h3>
 
@@ -769,10 +780,10 @@ new readers can start immediately after <tt>synchronize_rcu()</tt>
 starts, and <tt>synchronize_rcu()</tt> is under no
 obligation to wait for these new readers.
 
-<p><a name="Quick Quiz 9"><b>Quick Quiz 9</b>:</a>
+<p><a name="Quick Quiz 10"><b>Quick Quiz 10</b>:</a>
 Suppose that synchronize_rcu() did wait until all readers had completed.
 Would the updater be able to rely on this?
-<br><a href="#qq9answer">Answer</a>
+<br><a href="#qq10answer">Answer</a>
 
 <h3><a name="Grace Periods Don't Partition Read-Side Critical Sections">
 Grace Periods Don't Partition Read-Side Critical Sections</a></h3>
@@ -969,11 +980,11 @@ grace period.
 As a result, an RCU read-side critical section cannot partition a pair
 of RCU grace periods.
 
-<p><a name="Quick Quiz 10"><b>Quick Quiz 10</b>:</a>
+<p><a name="Quick Quiz 11"><b>Quick Quiz 11</b>:</a>
 How long a sequence of grace periods, each separated by an RCU read-side
 critical section, would be required to partition the RCU read-side
 critical sections at the beginning and end of the chain?
-<br><a href="#qq10answer">Answer</a>
+<br><a href="#qq11answer">Answer</a>
 
 <h3><a name="Disabling Preemption Does Not Block Grace Periods">
 Disabling Preemption Does Not Block Grace Periods</a></h3>
@@ -1127,9 +1138,9 @@ synchronization primitives be legal within RCU read-side critical sections,
 including spinlocks, sequence locks, atomic operations, reference
 counters, and memory barriers.
 
-<p><a name="Quick Quiz 11"><b>Quick Quiz 11</b>:</a>
+<p><a name="Quick Quiz 12"><b>Quick Quiz 12</b>:</a>
 What about sleeping locks?
-<br><a href="#qq11answer">Answer</a>
+<br><a href="#qq12answer">Answer</a>
 
 <p>
 It often comes as a surprise that many algorithms do not require a
@@ -1354,12 +1365,12 @@ write an RCU callback function that takes too long.
 Long-running operations should be relegated to separate threads or
 (in the Linux kernel) workqueues.
 
-<p><a name="Quick Quiz 12"><b>Quick Quiz 12</b>:</a>
+<p><a name="Quick Quiz 13"><b>Quick Quiz 13</b>:</a>
 Why does line&nbsp;19 use <tt>rcu_access_pointer()</tt>?
 After all, <tt>call_rcu()</tt> on line&nbsp;25 stores into the
 structure, which would interact badly with concurrent insertions.
 Doesn't this mean that <tt>rcu_dereference()</tt> is required?
-<br><a href="#qq12answer">Answer</a>
+<br><a href="#qq13answer">Answer</a>
 
 <p>
 However, all that <tt>remove_gp_cb()</tt> is doing is
@@ -1406,14 +1417,14 @@ This was due to the fact that RCU was not heavily used within DYNIX/ptx,
 so the very few places that needed something like
 <tt>synchronize_rcu()</tt> simply open-coded it.
 
-<p><a name="Quick Quiz 13"><b>Quick Quiz 13</b>:</a>
+<p><a name="Quick Quiz 14"><b>Quick Quiz 14</b>:</a>
 Earlier it was claimed that <tt>call_rcu()</tt> and
 <tt>kfree_rcu()</tt> allowed updaters to avoid being blocked
 by readers.
 But how can that be correct, given that the invocation of the callback
 and the freeing of the memory (respectively) must still wait for
 a grace period to elapse?
-<br><a href="#qq13answer">Answer</a>
+<br><a href="#qq14answer">Answer</a>
 
 <p>
 But what if the updater must wait for the completion of code to be
@@ -1838,11 +1849,11 @@ kthreads to be spawned.
 Therefore, invoking <tt>synchronize_rcu()</tt> during scheduler
 initialization can result in deadlock.
 
-<p><a name="Quick Quiz 14"><b>Quick Quiz 14</b>:</a>
+<p><a name="Quick Quiz 15"><b>Quick Quiz 15</b>:</a>
 So what happens with <tt>synchronize_rcu()</tt> during
 scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
 kernels?
-<br><a href="#qq14answer">Answer</a>
+<br><a href="#qq15answer">Answer</a>
 
 <p>
 I learned of these boot-time requirements as a result of a series of
@@ -2547,10 +2558,10 @@ If you needed to wait on multiple different flavors of SRCU
 (but why???), you would need to create a wrapper function resembling
 <tt>call_my_srcu()</tt> for each SRCU flavor.
 
-<p><a name="Quick Quiz 15"><b>Quick Quiz 15</b>:</a>
+<p><a name="Quick Quiz 16"><b>Quick Quiz 16</b>:</a>
 But what if I need to wait for multiple RCU flavors, but I also need
 the grace periods to be expedited?
-<br><a href="#qq15answer">Answer</a>
+<br><a href="#qq16answer">Answer</a>
 
 <p>
 Again, it is usually better to adjust the RCU read-side critical sections
@@ -2827,6 +2838,39 @@ adhered to the as-if rule than it is to actually adhere to it!
 
 <a name="qq7answer"></a>
 <p><b>Quick Quiz 7</b>:
+You claim that <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+generate absolutely no code in some kernel builds.
+This means that the compiler might arbitrarily rearrange consecutive
+RCU read-side critical sections.
+Given such rearrangement, if a given RCU read-side critical section
+is done, how can you be sure that all prior RCU read-side critical
+sections are done?
+Won't the compiler rearrangements make that impossible to determine?
+
+
+</p><p><b>Answer</b>:
+In cases where <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+generate absolutely no code, RCU infers quiescent states only at
+special locations, for example, within the scheduler.
+Because calls to <tt>schedule()</tt> had better prevent calling-code
+accesses to shared variables from being rearranged across the call to
+<tt>schedule()</tt>, if RCU detects the end of a given RCU read-side
+critical section, it will necessarily detect the end of all prior
+RCU read-side critical sections, no matter how aggressively the
+compiler scrambles the code.
+
+<p>
+Again, this all assumes that the compiler cannot scramble code across
+calls to the scheduler, out of interrupt handlers, into the idle loop,
+into user-mode code, and so on.
+But if your kernel build allows that sort of scrambling, you have broken
+far more than just RCU!
+
+
+</p><p><a href="#Quick%20Quiz%207"><b>Back to Quick Quiz 7</b>.</a>
+
+<a name="qq8answer"></a>
+<p><b>Quick Quiz 8</b>:
 But how does the upgrade-to-write operation exclude other readers?
 
 
@@ -2835,10 +2879,10 @@ It doesn't, just like normal RCU updates, which also do not exclude
 RCU readers.
 
 
-</p><p><a href="#Quick%20Quiz%207"><b>Back to Quick Quiz 7</b>.</a>
+</p><p><a href="#Quick%20Quiz%208"><b>Back to Quick Quiz 8</b>.</a>
 
-<a name="qq8answer"></a>
-<p><b>Quick Quiz 8</b>:
+<a name="qq9answer"></a>
+<p><b>Quick Quiz 9</b>:
 Can't the compiler also reorder this code?
 
 
@@ -2848,10 +2892,10 @@ No, the volatile casts in <tt>READ_ONCE()</tt> and
 this particular case.
 
 
-</p><p><a href="#Quick%20Quiz%208"><b>Back to Quick Quiz 8</b>.</a>
+</p><p><a href="#Quick%20Quiz%209"><b>Back to Quick Quiz 9</b>.</a>
 
-<a name="qq9answer"></a>
-<p><b>Quick Quiz 9</b>:
+<a name="qq10answer"></a>
+<p><b>Quick Quiz 10</b>:
 Suppose that synchronize_rcu() did wait until all readers had completed.
 Would the updater be able to rely on this?
 
@@ -2866,10 +2910,10 @@ Therefore, the code following
 in any case.
 
 
-</p><p><a href="#Quick%20Quiz%209"><b>Back to Quick Quiz 9</b>.</a>
+</p><p><a href="#Quick%20Quiz%2010"><b>Back to Quick Quiz 10</b>.</a>
 
-<a name="qq10answer"></a>
-<p><b>Quick Quiz 10</b>:
+<a name="qq11answer"></a>
+<p><b>Quick Quiz 11</b>:
 How long a sequence of grace periods, each separated by an RCU read-side
 critical section, would be required to partition the RCU read-side
 critical sections at the beginning and end of the chain?
@@ -2883,10 +2927,10 @@ Therefore, even in practice, RCU users must abide by the theoretical rather
 than the practical answer.
 
 
-</p><p><a href="#Quick%20Quiz%2010"><b>Back to Quick Quiz 10</b>.</a>
+</p><p><a href="#Quick%20Quiz%2011"><b>Back to Quick Quiz 11</b>.</a>
 
-<a name="qq11answer"></a>
-<p><b>Quick Quiz 11</b>:
+<a name="qq12answer"></a>
+<p><b>Quick Quiz 12</b>:
 What about sleeping locks?
 
 
@@ -2914,10 +2958,10 @@ the mutex was not immediately available.
 Either way, <tt>mutex_trylock()</tt> returns immediately without sleeping.
 
 
-</p><p><a href="#Quick%20Quiz%2011"><b>Back to Quick Quiz 11</b>.</a>
+</p><p><a href="#Quick%20Quiz%2012"><b>Back to Quick Quiz 12</b>.</a>
 
-<a name="qq12answer"></a>
-<p><b>Quick Quiz 12</b>:
+<a name="qq13answer"></a>
+<p><b>Quick Quiz 13</b>:
 Why does line&nbsp;19 use <tt>rcu_access_pointer()</tt>?
 After all, <tt>call_rcu()</tt> on line&nbsp;25 stores into the
 structure, which would interact badly with concurrent insertions.
@@ -2933,10 +2977,10 @@ is released on line&nbsp;25, which in turn means that
 <tt>rcu_access_pointer()</tt> suffices.
 
 
-</p><p><a href="#Quick%20Quiz%2012"><b>Back to Quick Quiz 12</b>.</a>
+</p><p><a href="#Quick%20Quiz%2013"><b>Back to Quick Quiz 13</b>.</a>
 
-<a name="qq13answer"></a>
-<p><b>Quick Quiz 13</b>:
+<a name="qq14answer"></a>
+<p><b>Quick Quiz 14</b>:
 Earlier it was claimed that <tt>call_rcu()</tt> and
 <tt>kfree_rcu()</tt> allowed updaters to avoid being blocked
 by readers.
@@ -2957,10 +3001,10 @@ next update as soon as it has invoked <tt>call_rcu()</tt> or
 grace period.
 
 
-</p><p><a href="#Quick%20Quiz%2013"><b>Back to Quick Quiz 13</b>.</a>
+</p><p><a href="#Quick%20Quiz%2014"><b>Back to Quick Quiz 14</b>.</a>
 
-<a name="qq14answer"></a>
-<p><b>Quick Quiz 14</b>:
+<a name="qq15answer"></a>
+<p><b>Quick Quiz 15</b>:
 So what happens with <tt>synchronize_rcu()</tt> during
 scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
 kernels?
@@ -2976,10 +3020,10 @@ so it is still necessary to avoid invoking <tt>synchronize_rcu()</tt>
 during scheduler initialization.
 
 
-</p><p><a href="#Quick%20Quiz%2014"><b>Back to Quick Quiz 14</b>.</a>
+</p><p><a href="#Quick%20Quiz%2015"><b>Back to Quick Quiz 15</b>.</a>
 
-<a name="qq15answer"></a>
-<p><b>Quick Quiz 15</b>:
+<a name="qq16answer"></a>
+<p><b>Quick Quiz 16</b>:
 But what if I need to wait for multiple RCU flavors, but I also need
 the grace periods to be expedited?
 
@@ -2991,7 +3035,7 @@ But if that is nevertheless a problem, you can use workqueues or multiple
 kthreads to wait on the various expedited grace periods concurrently.
 
 
-</p><p><a href="#Quick%20Quiz%2015"><b>Back to Quick Quiz 15</b>.</a>
+</p><p><a href="#Quick%20Quiz%2016"><b>Back to Quick Quiz 16</b>.</a>
 
 
 </body></html>
