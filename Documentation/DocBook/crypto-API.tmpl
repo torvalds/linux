@@ -485,6 +485,9 @@
       <para>CRYPTO_ALG_TYPE_RNG Random Number Generation</para>
      </listitem>
      <listitem>
+      <para>CRYPTO_ALG_TYPE_AKCIPHER Asymmetric cipher</para>
+     </listitem>
+     <listitem>
       <para>CRYPTO_ALG_TYPE_PCOMPRESS Enhanced version of
        CRYPTO_ALG_TYPE_COMPRESS allowing for segmented compression /
        decompression instead of performing the operation on one
@@ -1816,6 +1819,26 @@ read(opfd, out, outlen);
 !Finclude/crypto/rng.h crypto_rng_reset
 !Finclude/crypto/rng.h crypto_rng_seedsize
 !Cinclude/crypto/rng.h
+   </sect1>
+   <sect1><title>Asymmetric Cipher API</title>
+!Pinclude/crypto/akcipher.h Generic Public Key API
+!Finclude/crypto/akcipher.h akcipher_alg
+!Finclude/crypto/akcipher.h akcipher_request
+!Finclude/crypto/akcipher.h crypto_alloc_akcipher
+!Finclude/crypto/akcipher.h crypto_free_akcipher
+!Finclude/crypto/akcipher.h crypto_akcipher_set_pub_key
+!Finclude/crypto/akcipher.h crypto_akcipher_set_priv_key
+   </sect1>
+   <sect1><title>Asymmetric Cipher Request Handle</title>
+!Finclude/crypto/akcipher.h akcipher_request_alloc
+!Finclude/crypto/akcipher.h akcipher_request_free
+!Finclude/crypto/akcipher.h akcipher_request_set_callback
+!Finclude/crypto/akcipher.h akcipher_request_set_crypt
+!Finclude/crypto/akcipher.h crypto_akcipher_maxsize
+!Finclude/crypto/akcipher.h crypto_akcipher_encrypt
+!Finclude/crypto/akcipher.h crypto_akcipher_decrypt
+!Finclude/crypto/akcipher.h crypto_akcipher_sign
+!Finclude/crypto/akcipher.h crypto_akcipher_verify
    </sect1>
   </chapter>
 
