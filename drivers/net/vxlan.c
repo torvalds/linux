@@ -246,6 +246,10 @@ static struct vxlan_dev *vxlan_vs_find_vni(struct vxlan_sock *vs, __be32 vni)
 {
 	struct vxlan_dev *vxlan;
 
+	/* For flow based devices, map all packets to VNI 0 */
+	if (vs->flags & VXLAN_F_COLLECT_METADATA)
+		vni = 0;
+
 	hlist_for_each_entry_rcu(vxlan, vni_head(vs, vni), hlist) {
 		if (vxlan->default_dst.remote_vni == vni)
 			return vxlan;
@@ -1193,10 +1197,6 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 	struct pcpu_sw_netstats *stats;
 	union vxlan_addr saddr;
 	int err = 0;
-
-	/* For flow based devices, map all packets to VNI 0 */
-	if (vs->flags & VXLAN_F_COLLECT_METADATA)
-		vni = 0;
 
 	/* Is this VNI defined? */
 	vxlan = vxlan_vs_find_vni(vs, vni);
