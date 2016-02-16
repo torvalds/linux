@@ -183,7 +183,7 @@ int cfs_crypto_hash_final(struct cfs_crypto_hash_desc *hdesc,
 		*hash_len = size;
 		return -ENOSPC;
 	}
-	err = crypto_hash_final((struct hash_desc *) hdesc, hash);
+	err = crypto_hash_final((struct hash_desc *)hdesc, hash);
 
 	if (err < 0) {
 		/* May be caller can fix error */
