@@ -37,6 +37,15 @@
 
 #define BIT(x) (1ULL << x)
 
+#ifdef DEBUG
+#define bad_driver(msg) do {					\
+		lkl_printf("LKL virtio error: %s\n", msg);	\
+		lkl_host_ops.panic();				\
+	} while (0)
+#else
+#define bad_driver(msg) do { } while (0)
+#endif /* DEBUG */
+
 struct virtio_queue {
 	uint32_t num_max;
 	uint32_t num;
@@ -82,30 +91,51 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 		virtio_deliver_irq(dev);
 }
 
+/* Grab the vring_desc from the queue at the appropriate index in the
+ * queue's circular buffer, converting from little-endian to
+ * the host's endianness. */
+static inline struct lkl_vring_desc *vring_desc_at_le_idx(struct virtio_queue *q,
+							__lkl__virtio16 le_idx)
+{
+	return &q->desc[le16toh(le_idx) & (q->num -1)];
+}
+
+/* Initialize buf to hold the same info as the vring_desc */
+static void init_dev_buf_from_vring_desc(struct lkl_dev_buf *buf,
+					struct lkl_vring_desc *vring_desc)
+{
+	buf->addr = (void *)le64toh(vring_desc->addr);
+	buf->len = le32toh(vring_desc->len);
+
+	if (!(buf->addr && buf->len))
+		bad_driver("bad vring_desc\n");
+}
+
 static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
 			      int idx)
 {
-	int j, ret;
-	uint16_t prev_flags = LKL_VRING_DESC_F_NEXT;
-	struct lkl_vring_desc *i;
+	int q_buf_cnt = 0, ret = -1;
 	struct virtio_req req = {
 		.dev = dev,
 		.q = q,
 		.idx = q->avail->ring[idx & (q->num - 1)],
 	};
+	uint16_t prev_flags = LKL_VRING_DESC_F_NEXT;
+	struct lkl_vring_desc *curr_vring_desc = vring_desc_at_le_idx(q, req.idx);
 
-	for (i = &q->desc[le16toh(req.idx) & (q->num - 1)], j = 0;
-	     prev_flags & LKL_VRING_DESC_F_NEXT;
-	     i = &q->desc[le16toh(i->next) & (q->num - 1)], j++) {
-		prev_flags = le16toh(i->flags);
-		if (j >= VIRTIO_REQ_MAX_BUFS)
-			continue;
-		req.buf[j].addr = (void *)(uintptr_t)le64toh(i->addr);
-		req.buf[j].len = le32toh(i->len);
+	while ((prev_flags & LKL_VRING_DESC_F_NEXT) &&
+		(q_buf_cnt < VIRTIO_REQ_MAX_BUFS)) {
+		prev_flags = le16toh(curr_vring_desc->flags);
+		init_dev_buf_from_vring_desc(&req.buf[q_buf_cnt++], curr_vring_desc);
+		curr_vring_desc = vring_desc_at_le_idx(q, curr_vring_desc->next);
 	}
 
-	req.buf_count = j;
+	/* Somehow, we've built a request that's too long to fit onto our device */
+	if (q_buf_cnt == VIRTIO_REQ_MAX_BUFS &&
+		(prev_flags & LKL_VRING_DESC_F_NEXT))
+		bad_driver("enqueued too many request bufs");
 
+	req.buf_count = q_buf_cnt;
 	ret = dev->ops->enqueue(dev, &req);
 	if (ret < 0)
 		return ret;
