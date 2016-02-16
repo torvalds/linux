@@ -169,7 +169,7 @@ struct fld_cache_entry
 static inline const char *
 fld_target_name(struct lu_fld_target *tar)
 {
-	if (tar->ft_srv != NULL)
+	if (tar->ft_srv)
 		return tar->ft_srv->lsf_name;
 
 	return (const char *)tar->ft_exp->exp_obd->obd_name;

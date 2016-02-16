@@ -148,9 +148,9 @@ again:
 		fld->lcf_name, hash, seq, fld->lcf_count);
 
 	list_for_each_entry(target, &fld->lcf_targets, ft_chain) {
-		const char *srv_name = target->ft_srv != NULL  ?
+		const char *srv_name = target->ft_srv ?
 			target->ft_srv->lsf_name : "<null>";
-		const char *exp_name = target->ft_exp != NULL ?
+		const char *exp_name = target->ft_exp ?
 			(char *)target->ft_exp->exp_obd->obd_uuid.uuid :
 			"<null>";
 
@@ -183,13 +183,13 @@ fld_client_get_target(struct lu_client_fld *fld, u64 seq)
 {
 	struct lu_fld_target *target;
 
-	LASSERT(fld->lcf_hash != NULL);
+	LASSERT(fld->lcf_hash);
 
 	spin_lock(&fld->lcf_lock);
 	target = fld->lcf_hash->fh_scan_func(fld, seq);
 	spin_unlock(&fld->lcf_lock);
 
-	if (target != NULL) {
+	if (target) {
 		CDEBUG(D_INFO, "%s: Found target (idx %llu) by seq %#llx\n",
 		       fld->lcf_name, target->ft_idx, seq);
 	}
@@ -207,10 +207,10 @@ int fld_client_add_target(struct lu_client_fld *fld,
 	const char *name;
 	struct lu_fld_target *target, *tmp;
 
-	LASSERT(tar != NULL);
+	LASSERT(tar);
 	name = fld_target_name(tar);
-	LASSERT(name != NULL);
-	LASSERT(tar->ft_srv != NULL || tar->ft_exp != NULL);
+	LASSERT(name);
+	LASSERT(tar->ft_srv || tar->ft_exp);
 
 	if (fld->lcf_flags != LUSTRE_FLD_INIT) {
 		CERROR("%s: Attempt to add target %s (idx %llu) on fly - skip it\n",
@@ -236,7 +236,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 	}
 
 	target->ft_exp = tar->ft_exp;
-	if (target->ft_exp != NULL)
+	if (target->ft_exp)
 		class_export_get(target->ft_exp);
 	target->ft_srv = tar->ft_srv;
 	target->ft_idx = tar->ft_idx;
@@ -264,7 +264,7 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 			list_del(&target->ft_chain);
 			spin_unlock(&fld->lcf_lock);
 
-			if (target->ft_exp != NULL)
+			if (target->ft_exp)
 				class_export_put(target->ft_exp);
 
 			kfree(target);
@@ -326,8 +326,6 @@ int fld_client_init(struct lu_client_fld *fld,
 	int cache_size, cache_threshold;
 	int rc;
 
-	LASSERT(fld != NULL);
-
 	snprintf(fld->lcf_name, sizeof(fld->lcf_name),
 		 "cli-%s", prefix);
 
@@ -379,13 +377,13 @@ void fld_client_fini(struct lu_client_fld *fld)
 				     &fld->lcf_targets, ft_chain) {
 		fld->lcf_count--;
 		list_del(&target->ft_chain);
-		if (target->ft_exp != NULL)
+		if (target->ft_exp)
 			class_export_put(target->ft_exp);
 		kfree(target);
 	}
 	spin_unlock(&fld->lcf_lock);
 
-	if (fld->lcf_cache != NULL) {
+	if (fld->lcf_cache) {
 		if (!IS_ERR(fld->lcf_cache))
 			fld_cache_fini(fld->lcf_cache);
 		fld->lcf_cache = NULL;
@@ -402,12 +400,12 @@ int fld_client_rpc(struct obd_export *exp,
 	int		    rc;
 	struct obd_import     *imp;
 
-	LASSERT(exp != NULL);
+	LASSERT(exp);
 
 	imp = class_exp2cliimp(exp);
 	req = ptlrpc_request_alloc_pack(imp, &RQF_FLD_QUERY, LUSTRE_MDS_VERSION,
 					FLD_QUERY);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	op = req_capsule_client_get(&req->rq_pill, &RMF_FLD_OPC);
@@ -436,7 +434,7 @@ int fld_client_rpc(struct obd_export *exp,
 		goto out_req;
 
 	prange = req_capsule_server_get(&req->rq_pill, &RMF_FLD_MDFLD);
-	if (prange == NULL) {
+	if (!prange) {
 		rc = -EFAULT;
 		goto out_req;
 	}
@@ -463,7 +461,7 @@ int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 
 	/* Can not find it in the cache */
 	target = fld_client_get_target(fld, seq);
-	LASSERT(target != NULL);
+	LASSERT(target);
 
 	CDEBUG(D_INFO, "%s: Lookup fld entry (seq: %#llx) on target %s (idx %llu)\n",
 			fld->lcf_name, seq, fld_target_name(target), target->ft_idx);
