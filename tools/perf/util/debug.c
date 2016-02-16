@@ -22,7 +22,7 @@ int debug_ordered_events;
 static int redirect_to_stderr;
 int debug_data_convert;
 
-static int _eprintf(int level, int var, const char *fmt, va_list args)
+int veprintf(int level, int var, const char *fmt, va_list args)
 {
 	int ret = 0;
 
@@ -36,24 +36,19 @@ static int _eprintf(int level, int var, const char *fmt, va_list args)
 	return ret;
 }
 
-int veprintf(int level, int var, const char *fmt, va_list args)
-{
-	return _eprintf(level, var, fmt, args);
-}
-
 int eprintf(int level, int var, const char *fmt, ...)
 {
 	va_list args;
 	int ret;
 
 	va_start(args, fmt);
-	ret = _eprintf(level, var, fmt, args);
+	ret = veprintf(level, var, fmt, args);
 	va_end(args);
 
 	return ret;
 }
 
-static int __eprintf_time(u64 t, const char *fmt, va_list args)
+static int veprintf_time(u64 t, const char *fmt, va_list args)
 {
 	int ret = 0;
 	u64 secs, usecs, nsecs = t;
@@ -75,7 +70,7 @@ int eprintf_time(int level, int var, u64 t, const char *fmt, ...)
 
 	if (var >= level) {
 		va_start(args, fmt);
-		ret = __eprintf_time(t, fmt, args);
+		ret = veprintf_time(t, fmt, args);
 		va_end(args);
 	}
 
@@ -91,7 +86,7 @@ void pr_stat(const char *fmt, ...)
 	va_list args;
 
 	va_start(args, fmt);
-	_eprintf(1, verbose, fmt, args);
+	veprintf(1, verbose, fmt, args);
 	va_end(args);
 	eprintf(1, verbose, "\n");
 }
