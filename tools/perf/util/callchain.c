@@ -586,7 +586,7 @@ append_chain(struct callchain_node *root,
 	     struct callchain_cursor *cursor,
 	     u64 period);
 
-static void
+static int
 append_chain_children(struct callchain_node *root,
 		      struct callchain_cursor *cursor,
 		      u64 period)
@@ -598,7 +598,7 @@ append_chain_children(struct callchain_node *root,
 
 	node = callchain_cursor_current(cursor);
 	if (!node)
-		return;
+		return -1;
 
 	/* lookup in childrens */
 	while (*p) {
@@ -611,6 +611,8 @@ append_chain_children(struct callchain_node *root,
 		ret = append_chain(rnode, cursor, period);
 		if (ret == MATCH_EQ)
 			goto inc_children_hit;
+		if (ret == MATCH_ERROR)
+			return -1;
 
 		if (ret == MATCH_LT)
 			p = &parent->rb_left;
@@ -620,7 +622,7 @@ append_chain_children(struct callchain_node *root,
 	/* nothing in children, add to the current node */
 	rnode = add_child(root, cursor, period);
 	if (rnode == NULL)
-		return;
+		return -1;
 
 	rb_link_node(&rnode->rb_node_in, parent, p);
 	rb_insert_color(&rnode->rb_node_in, &root->rb_root_in);
@@ -628,6 +630,7 @@ append_chain_children(struct callchain_node *root,
 inc_children_hit:
 	root->children_hit += period;
 	root->children_count++;
+	return 0;
 }
 
 static enum match_result
@@ -688,7 +691,8 @@ append_chain(struct callchain_node *root,
 	}
 
 	/* We match the node and still have a part remaining */
-	append_chain_children(root, cursor, period);
+	if (append_chain_children(root, cursor, period) < 0)
+		return MATCH_ERROR;
 
 	return MATCH_EQ;
 }
@@ -702,7 +706,8 @@ int callchain_append(struct callchain_root *root,
 
 	callchain_cursor_commit(cursor);
 
-	append_chain_children(&root->node, cursor, period);
+	if (append_chain_children(&root->node, cursor, period) < 0)
+		return -1;
 
 	if (cursor->nr > root->max_depth)
 		root->max_depth = cursor->nr;
@@ -730,7 +735,8 @@ merge_chain_branch(struct callchain_cursor *cursor,
 
 	if (src->hit) {
 		callchain_cursor_commit(cursor);
-		append_chain_children(dst, cursor, src->hit);
+		if (append_chain_children(dst, cursor, src->hit) < 0)
+			return -1;
 	}
 
 	n = rb_first(&src->rb_root_in);
