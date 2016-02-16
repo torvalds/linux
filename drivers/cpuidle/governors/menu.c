@@ -200,7 +200,7 @@ static void get_typical_interval(struct menu_device *data)
 {
 	int i, divisor;
 	unsigned int max, thresh;
-	uint64_t avg, stddev;
+	uint64_t avg, variance;
 
 	thresh = UINT_MAX; /* Discard outliers above this value */
 
@@ -224,36 +224,35 @@ again:
 	else
 		do_div(avg, divisor);
 
-	/* Then try to determine standard deviation */
-	stddev = 0;
+	/* Then try to determine variance */
+	variance = 0;
 	for (i = 0; i < INTERVALS; i++) {
 		unsigned int value = data->intervals[i];
 		if (value <= thresh) {
 			int64_t diff = value - avg;
-			stddev += diff * diff;
+			variance += diff * diff;
 		}
 	}
 	if (divisor == INTERVALS)
-		stddev >>= INTERVAL_SHIFT;
+		variance >>= INTERVAL_SHIFT;
 	else
-		do_div(stddev, divisor);
+		do_div(variance, divisor);
 
 	/*
-	 * The typical interval is obtained when standard deviation is small
-	 * or standard deviation is small compared to the average interval.
-	 *
-	 * int_sqrt() formal parameter type is unsigned long. When the
-	 * greatest difference to an outlier exceeds ~65 ms * sqrt(divisor)
-	 * the resulting squared standard deviation exceeds the input domain
-	 * of int_sqrt on platforms where unsigned long is 32 bits in size.
-	 * In such case reject the candidate average.
+	 * The typical interval is obtained when standard deviation is
+	 * small (stddev <= 20 us, variance <= 400 us^2) or standard
+	 * deviation is small compared to the average interval (avg >
+	 * 6*stddev, avg^2 > 36*variance). The average is smaller than
+	 * UINT_MAX aka U32_MAX, so computing its square does not
+	 * overflow a u64. We simply reject this candidate average if
+	 * the standard deviation is greater than 715 s (which is
+	 * rather unlikely).
 	 *
 	 * Use this result only if there is no timer to wake us up sooner.
 	 */
-	if (likely(stddev <= ULONG_MAX)) {
-		stddev = int_sqrt(stddev);
-		if (((avg > stddev * 6) && (divisor * 4 >= INTERVALS * 3))
-							|| stddev <= 20) {
+	if (likely(variance <= U64_MAX/36)) {
+		if (((avg*avg > variance*36) && (divisor * 4 >= INTERVALS * 3))
+							|| variance <= 400) {
 			if (data->next_timer_us > avg)
 				data->predicted_us = avg;
 			return;
