@@ -24,7 +24,9 @@ static int orangefs_create(struct inode *dir,
 	struct inode *inode;
 	int ret;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s: called\n", __func__);
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s: %s\n",
+		     __func__,
+		     dentry->d_name.name);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_CREATE);
 	if (!new_op)
@@ -41,35 +43,39 @@ static int orangefs_create(struct inode *dir,
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Create Got ORANGEFS handle %pU on fsid %d (ret=%d)\n",
+		     "%s: %s: handle:%pU: fsid:%d: new_op:%p: ret:%d:\n",
+		     __func__,
+		     dentry->d_name.name,
 		     &new_op->downcall.resp.create.refn.khandle,
-		     new_op->downcall.resp.create.refn.fs_id, ret);
+		     new_op->downcall.resp.create.refn.fs_id,
+		     new_op,
+		     ret);
 
-	if (ret < 0) {
-		gossip_debug(GOSSIP_NAME_DEBUG,
-			     "%s: failed with error code %d\n",
-			     __func__, ret);
+	if (ret < 0)
 		goto out;
-	}
 
 	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
 				&new_op->downcall.resp.create.refn);
 	if (IS_ERR(inode)) {
-		gossip_err("*** Failed to allocate orangefs file inode\n");
+		gossip_err("%s: Failed to allocate inode for file :%s:\n",
+			   __func__,
+			   dentry->d_name.name);
 		ret = PTR_ERR(inode);
 		goto out;
 	}
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Assigned file inode new number of %pU\n",
-		     get_khandle_from_ino(inode));
+		     "%s: Assigned inode :%pU: for file :%s:\n",
+		     __func__,
+		     get_khandle_from_ino(inode),
+		     dentry->d_name.name);
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Regular File) %pU -> %s\n",
-		     get_khandle_from_ino(inode),
+		     "%s: dentry instantiated for %s\n",
+		     __func__,
 		     dentry->d_name.name);
 
 	SetMtimeFlag(parent);
@@ -78,7 +84,11 @@ static int orangefs_create(struct inode *dir,
 	ret = 0;
 out:
 	op_release(new_op);
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s: returning %d\n", __func__, ret);
+	gossip_debug(GOSSIP_NAME_DEBUG,
+		     "%s: %s: returning %d\n",
+		     __func__,
+		     dentry->d_name.name,
+		     ret);
 	return ret;
 }
 
@@ -229,7 +239,11 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	ret = service_operation(new_op, "orangefs_unlink",
 				get_interruptible_flag(inode));
 
-	/* when request is serviced properly, free req op struct */
+	gossip_debug(GOSSIP_NAME_DEBUG,
+		     "%s: service_operation returned:%d:\n",
+		     __func__,
+		     ret);
+
 	op_release(new_op);
 
 	if (!ret) {

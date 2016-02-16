@@ -443,8 +443,8 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	int error;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_get_custom_inode_common: called\n"
-		     "(sb is %p | MAJOR(dev)=%u | MINOR(dev)=%u mode=%o)\n",
+		     "%s:(sb is %p | MAJOR(dev)=%u | MINOR(dev)=%u mode=%o)\n",
+		     __func__,
 		     sb,
 		     MAJOR(dev),
 		     MINOR(dev),

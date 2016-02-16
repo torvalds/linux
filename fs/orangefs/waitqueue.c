@@ -67,11 +67,10 @@ int service_operation(struct orangefs_kernel_op_s *op,
 retry_servicing:
 	op->downcall.status = 0;
 	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "orangefs: service_operation: %s %p\n",
+		     "%s: %s op:%p: process:%s: pid:%d:\n",
+		     __func__,
 		     op_name,
-		     op);
-	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "orangefs: operation posted by process: %s, pid: %i\n",
+		     op,
 		     current->comm,
 		     current->pid);
 
@@ -122,6 +121,13 @@ retry_servicing:
 
 	ret = wait_for_matching_downcall(op, timeout,
 					 flags & ORANGEFS_OP_INTERRUPTIBLE);
+
+	gossip_debug(GOSSIP_WAIT_DEBUG,
+		     "%s: wait_for_matching_downcall returned %d for %p\n",
+		     __func__,
+		     ret,
+		     op);
+
 	if (!ret) {
 		spin_unlock(&op->lock);
 		/* got matching downcall; make sure status is in errno format */
