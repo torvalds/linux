@@ -288,7 +288,7 @@ static void _rtl92e_tx_timeout(struct net_device *dev)
 
 void rtl92e_irq_enable(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->irq_enabled = 1;
 
@@ -297,7 +297,7 @@ void rtl92e_irq_enable(struct net_device *dev)
 
 void rtl92e_irq_disable(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->ops->irq_disable(dev);
 
@@ -306,7 +306,7 @@ void rtl92e_irq_disable(struct net_device *dev)
 
 static void _rtl92e_set_chan(struct net_device *dev, short ch)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	RT_TRACE(COMP_CH, "=====>%s()====ch:%d\n", __func__, ch);
 	if (priv->chan_forced)
@@ -1546,14 +1546,14 @@ static void _rtl92e_watchdog_timer_cb(unsigned long data)
 *****************************************************************************/
 void rtl92e_rx_enable(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->ops->rx_enable(dev);
 }
 
 void rtl92e_tx_enable(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->ops->tx_enable(dev);
 
@@ -1612,7 +1612,7 @@ static void _rtl92e_free_tx_ring(struct net_device *dev, unsigned int prio)
 static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
 				    MAX_DEV_ADDR_SIZE);
@@ -1643,7 +1643,7 @@ static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 
 static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
 				    MAX_DEV_ADDR_SIZE);
@@ -1676,7 +1676,7 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void _rtl92e_tx_isr(struct net_device *dev, int prio)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
 
@@ -1850,7 +1850,7 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 static int _rtl92e_alloc_tx_ring(struct net_device *dev, unsigned int prio,
 				 unsigned int entries)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct tx_desc *ring;
 	dma_addr_t dma;
 	int i;
@@ -1944,7 +1944,7 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
 				    struct rtllib_rx_stats *stats)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (stats->bIsAMPDU && !stats->bFirstMPDU)
 		stats->mac_time = priv->LastRxDescTSF;
@@ -2022,7 +2022,7 @@ void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
 
 static void _rtl92e_rx_normal(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_hdr_1addr *rtllib_hdr = NULL;
 	bool unicast_packet = false;
 	bool bLedBlinking = true;
@@ -2128,7 +2128,7 @@ done:
 
 static void _rtl92e_tx_resume(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 	struct sk_buff *skb;
 	int queue_index;
@@ -2279,7 +2279,7 @@ static int _rtl92e_set_mac_adr(struct net_device *dev, void *mac)
 /* based on ipw2200 driver */
 static int _rtl92e_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct iwreq *wrq = (struct iwreq *)rq;
 	int ret = -1;
 	struct rtllib_device *ieee = priv->rtllib;
@@ -2403,7 +2403,7 @@ out:
 static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 {
 	struct net_device *dev = (struct net_device *) netdev;
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags;
 	u32 inta;
 	u32 intb;
