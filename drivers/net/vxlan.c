@@ -1288,16 +1288,19 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	/* Need Vxlan and inner Ethernet header to be present */
 	if (!pskb_may_pull(skb, VXLAN_HLEN))
-		goto error;
+		return 1;
 
 	unparsed = *vxlan_hdr(skb);
-	if (unparsed.vx_flags & VXLAN_HF_VNI) {
-		unparsed.vx_flags &= ~VXLAN_HF_VNI;
-		unparsed.vx_vni &= ~VXLAN_VNI_MASK;
-	} else {
-		/* VNI flag always required to be set */
-		goto bad_flags;
+	/* VNI flag always required to be set */
+	if (!(unparsed.vx_flags & VXLAN_HF_VNI)) {
+		netdev_dbg(skb->dev, "invalid vxlan flags=%#x vni=%#x\n",
+			   ntohl(vxlan_hdr(skb)->vx_flags),
+			   ntohl(vxlan_hdr(skb)->vx_vni));
+		/* Return non vxlan pkt */
+		return 1;
 	}
+	unparsed.vx_flags &= ~VXLAN_HF_VNI;
+	unparsed.vx_vni &= ~VXLAN_VNI_MASK;
 
 	if (iptunnel_pull_header(skb, VXLAN_HLEN, htons(ETH_P_TEB)))
 		goto drop;
@@ -1337,29 +1340,19 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		 * is more robust and provides a little more security in
 		 * adding extensions to VXLAN.
 		 */
-
-		goto bad_flags;
+		goto drop;
 	}
 
 	vxlan_rcv(vs, skb, md, vxlan_vni(vxlan_hdr(skb)->vx_vni), tun_dst);
 	return 0;
 
 drop:
-	/* Consume bad packet */
-	kfree_skb(skb);
-	return 0;
-
-bad_flags:
-	netdev_dbg(skb->dev, "invalid vxlan flags=%#x vni=%#x\n",
-		   ntohl(vxlan_hdr(skb)->vx_flags),
-		   ntohl(vxlan_hdr(skb)->vx_vni));
-
-error:
 	if (tun_dst)
 		dst_release((struct dst_entry *)tun_dst);
 
-	/* Return non vxlan pkt */
-	return 1;
+	/* Consume bad packet */
+	kfree_skb(skb);
+	return 0;
 }
 
 static int arp_reduce(struct net_device *dev, struct sk_buff *skb)
