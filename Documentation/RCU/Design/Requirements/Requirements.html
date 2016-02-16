@@ -1354,7 +1354,8 @@ situations where neither <tt>synchronize_rcu()</tt> nor
 <tt>synchronize_rcu_expedited()</tt> would be legal,
 including within preempt-disable code, <tt>local_bh_disable()</tt> code,
 interrupt-disable code, and interrupt handlers.
-However, even <tt>call_rcu()</tt> is illegal within NMI handlers.
+However, even <tt>call_rcu()</tt> is illegal within NMI handlers
+and from offline CPUs.
 The callback function (<tt>remove_gp_cb()</tt> in this case) will be
 executed within softirq (software interrupt) environment within the
 Linux kernel,
