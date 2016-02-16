@@ -412,11 +412,10 @@ static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 {
 	struct ldlm_lock *lock;
 
-	if (resource == NULL)
-		LBUG();
+	LASSERT(resource);
 
 	lock = kmem_cache_alloc(ldlm_lock_slab, GFP_NOFS | __GFP_ZERO);
-	if (lock == NULL)
+	if (!lock)
 		return NULL;
 
 	spin_lock_init(&lock->l_lock);
@@ -485,7 +484,7 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 	unlock_res_and_lock(lock);
 
 	newres = ldlm_resource_get(ns, NULL, new_resid, type, 1);
-	if (newres == NULL)
+	if (!newres)
 		return -ENOMEM;
 
 	lu_ref_add(&newres->lr_reference, "lock", lock);
@@ -547,7 +546,7 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 	LASSERT(handle);
 
 	lock = class_handle2object(handle->cookie);
-	if (lock == NULL)
+	if (!lock)
 		return NULL;
 
 	/* It's unlikely but possible that someone marked the lock as
@@ -559,7 +558,7 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 
 	lock_res_and_lock(lock);
 
-	LASSERT(lock->l_resource != NULL);
+	LASSERT(lock->l_resource);
 
 	lu_ref_add_atomic(&lock->l_reference, "handle", current);
 	if (unlikely(lock->l_flags & LDLM_FL_DESTROYED)) {
@@ -617,7 +616,7 @@ static void ldlm_add_bl_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
 		LASSERT(list_empty(&lock->l_bl_ast));
 		list_add(&lock->l_bl_ast, work_list);
 		LDLM_LOCK_GET(lock);
-		LASSERT(lock->l_blocking_lock == NULL);
+		LASSERT(!lock->l_blocking_lock);
 		lock->l_blocking_lock = LDLM_LOCK_GET(new);
 	}
 }
@@ -664,7 +663,7 @@ void ldlm_lock_addref(struct lustre_handle *lockh, __u32 mode)
 	struct ldlm_lock *lock;
 
 	lock = ldlm_handle2lock(lockh);
-	LASSERT(lock != NULL);
+	LASSERT(lock);
 	ldlm_lock_addref_internal(lock, mode);
 	LDLM_LOCK_PUT(lock);
 }
@@ -708,7 +707,7 @@ int ldlm_lock_addref_try(struct lustre_handle *lockh, __u32 mode)
 
 	result = -EAGAIN;
 	lock = ldlm_handle2lock(lockh);
-	if (lock != NULL) {
+	if (lock) {
 		lock_res_and_lock(lock);
 		if (lock->l_readers != 0 || lock->l_writers != 0 ||
 		    !(lock->l_flags & LDLM_FL_CBPENDING)) {
@@ -835,7 +834,7 @@ void ldlm_lock_decref(struct lustre_handle *lockh, __u32 mode)
 {
 	struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
 
-	LASSERTF(lock != NULL, "Non-existing lock: %#llx\n", lockh->cookie);
+	LASSERTF(lock, "Non-existing lock: %#llx\n", lockh->cookie);
 	ldlm_lock_decref_internal(lock, mode);
 	LDLM_LOCK_PUT(lock);
 }
@@ -852,7 +851,7 @@ void ldlm_lock_decref_and_cancel(struct lustre_handle *lockh, __u32 mode)
 {
 	struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
 
-	LASSERT(lock != NULL);
+	LASSERT(lock);
 
 	LDLM_DEBUG(lock, "ldlm_lock_decref(%s)", ldlm_lockname[mode]);
 	lock_res_and_lock(lock);
@@ -1037,7 +1036,7 @@ void ldlm_grant_lock(struct ldlm_lock *lock, struct list_head *work_list)
 	if (lock->l_granted_mode < res->lr_most_restr)
 		res->lr_most_restr = lock->l_granted_mode;
 
-	if (work_list && lock->l_completion_ast != NULL)
+	if (work_list && lock->l_completion_ast)
 		ldlm_add_ast_work_item(lock, NULL, work_list);
 
 	ldlm_pool_add(&ldlm_res_to_ns(res)->ns_pool, lock);
@@ -1201,7 +1200,7 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 	struct ldlm_lock *lock, *old_lock = NULL;
 	int rc = 0;
 
-	if (ns == NULL) {
+	if (!ns) {
 		old_lock = ldlm_handle2lock(lockh);
 		LASSERT(old_lock);
 
@@ -1212,8 +1211,8 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 	}
 
 	res = ldlm_resource_get(ns, NULL, res_id, type, 0);
-	if (res == NULL) {
-		LASSERT(old_lock == NULL);
+	if (!res) {
+		LASSERT(!old_lock);
 		return 0;
 	}
 
@@ -1222,7 +1221,7 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 
 	lock = search_queue(&res->lr_granted, &mode, policy, old_lock,
 			    flags, unref);
-	if (lock != NULL) {
+	if (lock) {
 		rc = 1;
 		goto out;
 	}
@@ -1232,7 +1231,7 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 	}
 	lock = search_queue(&res->lr_waiting, &mode, policy, old_lock,
 			    flags, unref);
-	if (lock != NULL) {
+	if (lock) {
 		rc = 1;
 		goto out;
 	}
@@ -1324,7 +1323,7 @@ ldlm_mode_t ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
 	ldlm_mode_t mode = 0;
 
 	lock = ldlm_handle2lock(lockh);
-	if (lock != NULL) {
+	if (lock) {
 		lock_res_and_lock(lock);
 		if (lock->l_flags & LDLM_FL_GONE_MASK)
 			goto out;
@@ -1340,7 +1339,7 @@ ldlm_mode_t ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
 	}
 
 out:
-	if (lock != NULL) {
+	if (lock) {
 		unlock_res_and_lock(lock);
 		LDLM_LOCK_PUT(lock);
 	}
@@ -1354,7 +1353,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 {
 	void *lvb;
 
-	LASSERT(data != NULL);
+	LASSERT(data);
 	LASSERT(size >= 0);
 
 	switch (lock->l_lvb_type) {
@@ -1368,7 +1367,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 				lvb = req_capsule_server_swab_get(pill,
 						&RMF_DLM_LVB,
 						lustre_swab_ost_lvb);
-			if (unlikely(lvb == NULL)) {
+			if (unlikely(!lvb)) {
 				LDLM_ERROR(lock, "no LVB");
 				return -EPROTO;
 			}
@@ -1385,7 +1384,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 				lvb = req_capsule_server_sized_swab_get(pill,
 						&RMF_DLM_LVB, size,
 						lustre_swab_ost_lvb_v1);
-			if (unlikely(lvb == NULL)) {
+			if (unlikely(!lvb)) {
 				LDLM_ERROR(lock, "no LVB");
 				return -EPROTO;
 			}
@@ -1410,7 +1409,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 				lvb = req_capsule_server_swab_get(pill,
 						&RMF_DLM_LVB,
 						lustre_swab_lquota_lvb);
-			if (unlikely(lvb == NULL)) {
+			if (unlikely(!lvb)) {
 				LDLM_ERROR(lock, "no LVB");
 				return -EPROTO;
 			}
@@ -1431,7 +1430,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 			lvb = req_capsule_client_get(pill, &RMF_DLM_LVB);
 		else
 			lvb = req_capsule_server_get(pill, &RMF_DLM_LVB);
-		if (unlikely(lvb == NULL)) {
+		if (unlikely(!lvb)) {
 			LDLM_ERROR(lock, "no LVB");
 			return -EPROTO;
 		}
@@ -1463,12 +1462,12 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 	struct ldlm_resource *res;
 
 	res = ldlm_resource_get(ns, NULL, res_id, type, 1);
-	if (res == NULL)
+	if (!res)
 		return NULL;
 
 	lock = ldlm_lock_new(res);
 
-	if (lock == NULL)
+	if (!lock)
 		return NULL;
 
 	lock->l_req_mode = mode;
@@ -1483,7 +1482,7 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 	lock->l_tree_node = NULL;
 	/* if this is the extent lock, allocate the interval tree node */
 	if (type == LDLM_EXTENT) {
-		if (ldlm_interval_alloc(lock) == NULL)
+		if (!ldlm_interval_alloc(lock))
 			goto out;
 	}
 
@@ -1633,7 +1632,7 @@ ldlm_work_cp_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	lock->l_flags &= ~LDLM_FL_CP_REQD;
 	unlock_res_and_lock(lock);
 
-	if (completion_callback != NULL)
+	if (completion_callback)
 		rc = completion_callback(lock, 0, (void *)arg);
 	LDLM_LOCK_RELEASE(lock);
 
@@ -1752,7 +1751,7 @@ int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 	 * to keep the number of requests in flight to ns_max_parallel_ast */
 	arg->set = ptlrpc_prep_fcset(ns->ns_max_parallel_ast ? : UINT_MAX,
 				     work_ast_lock, arg);
-	if (arg->set == NULL) {
+	if (!arg->set) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1846,7 +1845,7 @@ int ldlm_lock_set_data(struct lustre_handle *lockh, void *data)
 	int rc = -EINVAL;
 
 	if (lock) {
-		if (lock->l_ast_data == NULL)
+		if (!lock->l_ast_data)
 			lock->l_ast_data = data;
 		if (lock->l_ast_data == data)
 			rc = 0;
@@ -1874,7 +1873,7 @@ void ldlm_lock_dump_handle(int level, struct lustre_handle *lockh)
 		return;
 
 	lock = ldlm_handle2lock(lockh);
-	if (lock == NULL)
+	if (!lock)
 		return;
 
 	LDLM_DEBUG_LIMIT(level, lock, "###");
@@ -1900,13 +1899,13 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 
 	if (exp && exp->exp_connection) {
 		nid = libcfs_nid2str(exp->exp_connection->c_peer.nid);
-	} else if (exp && exp->exp_obd != NULL) {
+	} else if (exp && exp->exp_obd) {
 		struct obd_import *imp = exp->exp_obd->u.cli.cl_import;
 
 		nid = libcfs_nid2str(imp->imp_connection->c_peer.nid);
 	}
 
-	if (resource == NULL) {
+	if (!resource) {
 		libcfs_debug_vmsg2(msgdata, fmt, args,
 				   " ns: \?\? lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s res: \?\? rrc=\?\? type: \?\?\? flags: %#llx nid: %s remote: %#llx expref: %d pid: %u timeout: %lu lvb_type: %d\n",
 				   lock,

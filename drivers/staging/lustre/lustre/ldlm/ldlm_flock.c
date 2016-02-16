@@ -361,7 +361,7 @@ reprocess:
 		lock->l_policy_data.l_flock.start =
 			new->l_policy_data.l_flock.end + 1;
 		new2->l_conn_export = lock->l_conn_export;
-		if (lock->l_export != NULL) {
+		if (lock->l_export) {
 			new2->l_export = class_export_lock_get(lock->l_export,
 							       new2);
 			if (new2->l_export->exp_lock_hash &&
@@ -381,7 +381,7 @@ reprocess:
 	}
 
 	/* if new2 is created but never used, destroy it*/
-	if (splitted == 0 && new2 != NULL)
+	if (splitted == 0 && new2)
 		ldlm_lock_destroy_nolock(new2);
 
 	/* At this point we're granting the lock request. */
@@ -462,8 +462,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	if ((lock->l_flags & (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) ==
 	    (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) {
 		if (lock->l_req_mode == lock->l_granted_mode &&
-		    lock->l_granted_mode != LCK_NL &&
-		    data == NULL)
+		    lock->l_granted_mode != LCK_NL && !data)
 			ldlm_lock_decref_internal(lock, lock->l_req_mode);
 
 		/* Need to wake up the waiter if we were evicted */
@@ -475,7 +474,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 
 	if (!(flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED |
 		       LDLM_FL_BLOCK_CONV))) {
-		if (data == NULL)
+		if (!data)
 			/* mds granted the lock in the reply */
 			goto granted;
 		/* CP AST RPC: lock get granted, wake it up */
@@ -488,10 +487,10 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	obd = class_exp2obd(lock->l_conn_export);
 
 	/* if this is a local lock, there is no import */
-	if (obd != NULL)
+	if (obd)
 		imp = obd->u.cli.cl_import;
 
-	if (imp != NULL) {
+	if (imp) {
 		spin_lock(&imp->imp_lock);
 		fwd.fwd_generation = imp->imp_generation;
 		spin_unlock(&imp->imp_lock);

@@ -113,7 +113,7 @@ struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
 	node = kmem_cache_alloc(ldlm_interval_slab, GFP_NOFS | __GFP_ZERO);
-	if (node == NULL)
+	if (!node)
 		return NULL;
 
 	INIT_LIST_HEAD(&node->li_group);
@@ -134,7 +134,7 @@ struct ldlm_interval *ldlm_interval_detach(struct ldlm_lock *l)
 {
 	struct ldlm_interval *n = l->l_tree_node;
 
-	if (n == NULL)
+	if (!n)
 		return NULL;
 
 	LASSERT(!list_empty(&n->li_group));
@@ -168,7 +168,7 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 	LASSERT(lock->l_granted_mode == lock->l_req_mode);
 
 	node = lock->l_tree_node;
-	LASSERT(node != NULL);
+	LASSERT(node);
 	LASSERT(!interval_is_intree(&node->li_node));
 
 	idx = lock_mode_to_index(lock->l_granted_mode);
@@ -185,7 +185,6 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 		struct ldlm_interval *tmp;
 
 		tmp = ldlm_interval_detach(lock);
-		LASSERT(tmp != NULL);
 		ldlm_interval_free(tmp);
 		ldlm_interval_attach(to_ldlm_interval(found), lock);
 	}
@@ -211,7 +210,7 @@ void ldlm_extent_unlink_lock(struct ldlm_lock *lock)
 	LASSERT(lock->l_granted_mode == 1 << idx);
 	tree = &res->lr_itree[idx];
 
-	LASSERT(tree->lit_root != NULL); /* assure the tree is not null */
+	LASSERT(tree->lit_root); /* assure the tree is not null */
 
 	tree->lit_size--;
 	node = ldlm_interval_detach(lock);

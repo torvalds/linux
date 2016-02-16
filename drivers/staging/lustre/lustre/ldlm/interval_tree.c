@@ -49,13 +49,11 @@ enum {
 
 static inline int node_is_left_child(struct interval_node *node)
 {
-	LASSERT(node->in_parent != NULL);
 	return node == node->in_parent->in_left;
 }
 
 static inline int node_is_right_child(struct interval_node *node)
 {
-	LASSERT(node->in_parent != NULL);
 	return node == node->in_parent->in_right;
 }
 
