@@ -100,6 +100,12 @@
 #define MT_S2_NORMAL		0xf
 #define MT_S2_DEVICE_nGnRE	0x1
 
+#ifdef CONFIG_ARM64_4K_PAGES
+#define IOREMAP_MAX_ORDER	(PUD_SHIFT)
+#else
+#define IOREMAP_MAX_ORDER	(PMD_SHIFT)
+#endif
+
 #ifndef __ASSEMBLY__
 
 extern phys_addr_t		memstart_addr;
