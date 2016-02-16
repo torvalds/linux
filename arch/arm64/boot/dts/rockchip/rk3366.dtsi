@@ -744,8 +744,8 @@
 		i2c1 {
 			i2c1_xfer: i2c1-xfer {
 				rockchip,pins =
-					<4 19 RK_FUNC_1 &pcfg_pull_none>,
-					<4 20 RK_FUNC_1 &pcfg_pull_none>;
+					<4 25 RK_FUNC_1 &pcfg_pull_none>,
+					<4 26 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
@@ -822,19 +822,19 @@
 		spi1 {
 			spi1_clk: spi1-clk {
 				rockchip,pins =
-					<2 4 RK_FUNC_2 &pcfg_pull_up>;
+					<2 4 RK_FUNC_3 &pcfg_pull_up>;
 			};
 			spi1_cs0: spi1-cs0 {
 				rockchip,pins =
-					<2 5 RK_FUNC_2 &pcfg_pull_up>;
-			};
-			spi1_rx: spi1-rx {
-				rockchip,pins =
-					<2 6 RK_FUNC_2 &pcfg_pull_up>;
+					<2 5 RK_FUNC_3 &pcfg_pull_up>;
 			};
 			spi1_tx: spi1-tx {
 				rockchip,pins =
-					<2 7 RK_FUNC_2 &pcfg_pull_up>;
+					<2 6 RK_FUNC_3 &pcfg_pull_up>;
+			};
+			spi1_rx: spi1-rx {
+				rockchip,pins =
+					<2 7 RK_FUNC_3 &pcfg_pull_up>;
 			};
 		};
 
