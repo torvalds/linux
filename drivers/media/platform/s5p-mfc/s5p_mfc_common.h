@@ -287,7 +287,6 @@ struct s5p_mfc_priv_buf {
  * @watchdog_cnt:	counter for the watchdog
  * @watchdog_workqueue:	workqueue for the watchdog
  * @watchdog_work:	worker for the watchdog
- * @alloc_ctx:		videobuf2 allocator contexts for two memory banks
  * @enter_suspend:	flag set when entering suspend
  * @ctx_buf:		common context memory (MFCv6)
  * @warn_start:		hardware error code from which warnings start
@@ -330,7 +329,6 @@ struct s5p_mfc_dev {
 	struct timer_list watchdog_timer;
 	struct workqueue_struct *watchdog_workqueue;
 	struct work_struct watchdog_work;
-	void *alloc_ctx[2];
 	unsigned long enter_suspend;
 
 	struct s5p_mfc_priv_buf ctx_buf;

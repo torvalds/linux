@@ -57,20 +57,16 @@ static int isp_video_capture_queue_setup(struct vb2_queue *vq,
 	if (*num_planes) {
 		if (*num_planes != fmt->memplanes)
 			return -EINVAL;
-		for (i = 0; i < *num_planes; i++) {
+		for (i = 0; i < *num_planes; i++)
 			if (sizes[i] < (wh * fmt->depth[i]) / 8)
 				return -EINVAL;
-			allocators[i] = isp->alloc_ctx;
-		}
 		return 0;
 	}
 
 	*num_planes = fmt->memplanes;
 
-	for (i = 0; i < fmt->memplanes; i++) {
+	for (i = 0; i < fmt->memplanes; i++)
 		sizes[i] = (wh * fmt->depth[i]) / 8;
-		allocators[i] = isp->alloc_ctx;
-	}
 
 	return 0;
 }
@@ -597,6 +593,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	q->drv_priv = isp;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &isp->video_lock;
+	q->dev = &isp->pdev->dev;
 
 	ret = vb2_queue_init(q);
 	if (ret < 0)

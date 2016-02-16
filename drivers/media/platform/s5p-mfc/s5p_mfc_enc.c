@@ -1832,7 +1832,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		if (*buf_count > MFC_MAX_BUFFERS)
 			*buf_count = MFC_MAX_BUFFERS;
 		psize[0] = ctx->enc_dst_buf_size;
-		allocators[0] = ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
+		allocators[0] = &ctx->dev->mem_dev_l;
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (ctx->src_fmt)
 			*plane_count = ctx->src_fmt->num_planes;
@@ -1848,15 +1848,11 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		psize[1] = ctx->chroma_size;
 
 		if (IS_MFCV6_PLUS(dev)) {
-			allocators[0] =
-				ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
-			allocators[1] =
-				ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
+			allocators[0] = &ctx->dev->mem_dev_l;
+			allocators[1] = &ctx->dev->mem_dev_l;
 		} else {
-			allocators[0] =
-				ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
-			allocators[1] =
-				ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
+			allocators[0] = &ctx->dev->mem_dev_r;
+			allocators[1] = &ctx->dev->mem_dev_r;
 		}
 	} else {
 		mfc_err("invalid queue type: %d\n", vq->type);

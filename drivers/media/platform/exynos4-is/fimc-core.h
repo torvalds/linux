@@ -307,7 +307,6 @@ struct fimc_m2m_device {
  */
 struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
-	struct vb2_alloc_ctx		*alloc_ctx;
 	struct v4l2_subdev		subdev;
 	struct exynos_video_entity	ve;
 	struct media_pad		vd_pad;
@@ -417,7 +416,6 @@ struct fimc_ctx;
  * @m2m:	memory-to-memory V4L2 device information
  * @vid_cap:	camera capture device information
  * @state:	flags used to synchronize m2m and capture mode operation
- * @alloc_ctx:	videobuf2 memory allocator context
  * @pipeline:	fimc video capture pipeline data structure
  */
 struct fimc_dev {
@@ -436,7 +434,6 @@ struct fimc_dev {
 	struct fimc_m2m_device		m2m;
 	struct fimc_vid_cap		vid_cap;
 	unsigned long			state;
-	struct vb2_alloc_ctx		*alloc_ctx;
 };
 
 /**

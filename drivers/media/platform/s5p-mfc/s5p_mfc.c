@@ -1192,23 +1192,13 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	}
 
 	vb2_dma_contig_set_max_seg_size(dev->mem_dev_l, DMA_BIT_MASK(32));
-	dev->alloc_ctx[0] = vb2_dma_contig_init_ctx(dev->mem_dev_l);
-	if (IS_ERR(dev->alloc_ctx[0])) {
-		ret = PTR_ERR(dev->alloc_ctx[0]);
-		goto err_res;
-	}
 	vb2_dma_contig_set_max_seg_size(dev->mem_dev_r, DMA_BIT_MASK(32));
-	dev->alloc_ctx[1] = vb2_dma_contig_init_ctx(dev->mem_dev_r);
-	if (IS_ERR(dev->alloc_ctx[1])) {
-		ret = PTR_ERR(dev->alloc_ctx[1]);
-		goto err_mem_init_ctx_1;
-	}
 
 	mutex_init(&dev->mfc_mutex);
 
 	ret = s5p_mfc_alloc_firmware(dev);
 	if (ret)
-		goto err_alloc_fw;
+		goto err_res;
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
@@ -1294,10 +1284,6 @@ err_dec_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_v4l2_dev_reg:
 	s5p_mfc_release_firmware(dev);
-err_alloc_fw:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
-err_mem_init_ctx_1:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
 err_res:
 	s5p_mfc_final_pm(dev);
 err_dma:
@@ -1325,8 +1311,6 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	video_device_release(dev->vfd_dec);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	s5p_mfc_release_firmware(dev);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
 	s5p_mfc_unconfigure_dma_memory(dev);
 	vb2_dma_contig_clear_max_seg_size(dev->mem_dev_l);
 	vb2_dma_contig_clear_max_seg_size(dev->mem_dev_r);
