@@ -216,7 +216,6 @@ struct timeout_item {
 };
 
 #define OSC_MAX_RIF_DEFAULT       8
-#define MDS_OSC_MAX_RIF_DEFAULT   50
 #define OSC_MAX_RIF_MAX	 256
 #define OSC_MAX_DIRTY_DEFAULT  (OSC_MAX_RIF_DEFAULT * 4)
 #define OSC_MAX_DIRTY_MB_MAX   2048     /* arbitrary, but < MAX_LONG bytes */
