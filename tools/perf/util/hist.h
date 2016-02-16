@@ -122,11 +122,16 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 			 int max_stack_depth, void *arg);
 
+struct perf_hpp;
+struct perf_hpp_fmt;
+
 int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
 int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
 int hist_entry__transaction_len(void);
 int hist_entry__sort_snprintf(struct hist_entry *he, char *bf, size_t size,
 			      struct hists *hists);
+int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
+				   struct perf_hpp_fmt *fmt, int printed);
 void hist_entry__delete(struct hist_entry *he);
 
 void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog);

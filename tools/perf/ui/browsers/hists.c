@@ -1061,7 +1061,6 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 				    struct hist_entry *entry,
 				    unsigned short row)
 {
-	char s[256];
 	int printed = 0;
 	int width = browser->b.width;
 	char folded_sign = ' ';
@@ -1086,16 +1085,18 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			.folded_sign	= folded_sign,
 			.current_entry	= current_entry,
 		};
-		struct perf_hpp hpp = {
-			.buf		= s,
-			.size		= sizeof(s),
-			.ptr		= &arg,
-		};
 		int column = 0;
 
 		hist_browser__gotorc(browser, row, 0);
 
 		hists__for_each_format(browser->hists, fmt) {
+			char s[2048];
+			struct perf_hpp hpp = {
+				.buf	= s,
+				.size	= sizeof(s),
+				.ptr	= &arg,
+			};
+
 			if (perf_hpp__should_skip(fmt, entry->hists) ||
 			    column++ < browser->b.horiz_scroll)
 				continue;
@@ -1120,11 +1121,18 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			}
 
 			if (fmt->color) {
-				width -= fmt->color(fmt, &hpp, entry);
+				int ret = fmt->color(fmt, &hpp, entry);
+				hist_entry__snprintf_alignment(entry, &hpp, fmt, ret);
+				/*
+				 * fmt->color() already used ui_browser to
+				 * print the non alignment bits, skip it (+ret):
+				 */
+				ui_browser__printf(&browser->b, "%s", s + ret);
 			} else {
-				width -= fmt->entry(fmt, &hpp, entry);
+				hist_entry__snprintf_alignment(entry, &hpp, fmt, fmt->entry(fmt, &hpp, entry));
 				ui_browser__printf(&browser->b, "%s", s);
 			}
+			width -= hpp.buf - s;
 		}
 
 		/* The scroll bar isn't being used */
@@ -1452,9 +1460,10 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 			first = false;
 
 		ret = fmt->entry(fmt, &hpp, he);
+		ret = hist_entry__snprintf_alignment(he, &hpp, fmt, ret);
 		advance_hpp(&hpp, ret);
 	}
-	printed += fprintf(fp, "%s\n", rtrim(s));
+	printed += fprintf(fp, "%s\n", s);
 
 	if (folded_sign == '-')
 		printed += hist_browser__fprintf_callchain(browser, he, fp);

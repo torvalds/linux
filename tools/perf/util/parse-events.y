@@ -218,7 +218,7 @@ PE_NAME '/' event_config '/'
 
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_add_pmu(data, list, $1, $3));
-	parse_events__free_terms($3);
+	parse_events_terms__delete($3);
 	$$ = list;
 }
 |
@@ -246,7 +246,7 @@ PE_KERNEL_PMU_EVENT sep_dc
 
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_add_pmu(data, list, "cpu", head));
-	parse_events__free_terms(head);
+	parse_events_terms__delete(head);
 	$$ = list;
 }
 |
@@ -266,7 +266,7 @@ PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_add_pmu(data, list, "cpu", head));
-	parse_events__free_terms(head);
+	parse_events_terms__delete(head);
 	$$ = list;
 }
 
@@ -285,7 +285,7 @@ value_sym '/' event_config '/'
 
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_add_numeric(data, list, type, config, $3));
-	parse_events__free_terms($3);
+	parse_events_terms__delete($3);
 	$$ = list;
 }
 |

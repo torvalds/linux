@@ -103,7 +103,7 @@ static void sig_handler(int signum __maybe_unused,
 	}
 }
 
-static int __event(bool is_x, void *addr, int signal)
+static int __event(bool is_x, void *addr, int sig)
 {
 	struct perf_event_attr pe;
 	int fd;
@@ -133,7 +133,7 @@ static int __event(bool is_x, void *addr, int signal)
 	}
 
 	fcntl(fd, F_SETFL, O_RDWR|O_NONBLOCK|O_ASYNC);
-	fcntl(fd, F_SETSIG, signal);
+	fcntl(fd, F_SETSIG, sig);
 	fcntl(fd, F_SETOWN, getpid());
 
 	ioctl(fd, PERF_EVENT_IOC_RESET, 0);
@@ -141,14 +141,14 @@ static int __event(bool is_x, void *addr, int signal)
 	return fd;
 }
 
-static int bp_event(void *addr, int signal)
+static int bp_event(void *addr, int sig)
 {
-	return __event(true, addr, signal);
+	return __event(true, addr, sig);
 }
 
-static int wp_event(void *addr, int signal)
+static int wp_event(void *addr, int sig)
 {
-	return __event(false, addr, signal);
+	return __event(false, addr, sig);
 }
 
 static long long bp_count(int fd)

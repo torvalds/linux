@@ -1386,8 +1386,7 @@ int parse_events_terms(struct list_head *terms, const char *str)
 		return 0;
 	}
 
-	if (data.terms)
-		parse_events__free_terms(data.terms);
+	parse_events_terms__delete(data.terms);
 	return ret;
 }
 
@@ -2068,12 +2067,22 @@ int parse_events_term__clone(struct parse_events_term **new,
 			term->err_term, term->err_val);
 }
 
-void parse_events__free_terms(struct list_head *terms)
+void parse_events_terms__purge(struct list_head *terms)
 {
 	struct parse_events_term *term, *h;
 
-	list_for_each_entry_safe(term, h, terms, list)
+	list_for_each_entry_safe(term, h, terms, list) {
+		list_del_init(&term->list);
 		free(term);
+	}
+}
+
+void parse_events_terms__delete(struct list_head *terms)
+{
+	if (!terms)
+		return;
+	parse_events_terms__purge(terms);
+	free(terms);
 }
 
 void parse_events_evlist_error(struct parse_events_evlist *data,

@@ -858,6 +858,23 @@ static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 	return 0;
 }
 
+static void cleanup_events(struct perf_session *session)
+{
+	struct perf_evlist *evlist = session->evlist;
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel) {
+		struct evsel_priv *priv;
+
+		priv = evsel->priv;
+		bt_ctf_event_class_put(priv->event_class);
+		zfree(&evsel->priv);
+	}
+
+	perf_evlist__delete(evlist);
+	session->evlist = NULL;
+}
+
 static int setup_streams(struct ctf_writer *cw, struct perf_session *session)
 {
 	struct ctf_stream **stream;
@@ -1171,6 +1188,7 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 		(double) c.events_size / 1024.0 / 1024.0,
 		c.events_count);
 
+	cleanup_events(session);
 	perf_session__delete(session);
 	ctf_writer__cleanup(cw);
 

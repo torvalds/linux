@@ -403,6 +403,7 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 		else
 			ret = fmt->entry(fmt, hpp, he);
 
+		ret = hist_entry__snprintf_alignment(he, hpp, fmt, ret);
 		advance_hpp(hpp, ret);
 	}
 

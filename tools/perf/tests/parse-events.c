@@ -1666,7 +1666,7 @@ static int test_term(struct terms_test *t)
 	}
 
 	ret = t->check(&terms);
-	parse_events__free_terms(&terms);
+	parse_events_terms__purge(&terms);
 
 	return ret;
 }
