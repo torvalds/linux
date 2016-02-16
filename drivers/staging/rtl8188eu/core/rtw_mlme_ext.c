@@ -20,6 +20,7 @@
 #define _RTW_MLME_EXT_C_
 
 #include <linux/ieee80211.h>
+#include <asm/unaligned.h>
 
 #include <osdep_service.h>
 #include <drv_types.h>
@@ -1027,7 +1028,6 @@ static void issue_assocreq(struct adapter *padapter)
 	unsigned char		*pframe, *p;
 	struct rtw_ieee80211_hdr	*pwlanhdr;
 	__le16 *fctrl;
-	__le16		le_tmp;
 	unsigned int	i, j, ie_len, index = 0;
 	unsigned char	rf_type, bssrate[NumRates], sta_bssrate[NumRates];
 	struct ndis_802_11_var_ie *pIE;
@@ -1073,8 +1073,7 @@ static void issue_assocreq(struct adapter *padapter)
 
 	/* listen interval */
 	/* todo: listen interval for power saving */
-	le_tmp = cpu_to_le16(3);
-	memcpy(pframe , (unsigned char *)&le_tmp, 2);
+	put_unaligned_le16(3, pframe);
 	pframe += 2;
 	pattrib->pktlen += 2;
 
