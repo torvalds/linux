@@ -54,7 +54,7 @@ cfs_percpt_free(void *vars)
 	arr = container_of(vars, struct cfs_var_array, va_ptrs[0]);
 
 	for (i = 0; i < arr->va_count; i++) {
-		if (arr->va_ptrs[i] != NULL)
+		if (arr->va_ptrs[i])
 			LIBCFS_FREE(arr->va_ptrs[i], arr->va_size);
 	}
 

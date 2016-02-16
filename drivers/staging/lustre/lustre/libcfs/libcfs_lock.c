@@ -38,7 +38,7 @@
 void
 cfs_percpt_lock_free(struct cfs_percpt_lock *pcl)
 {
-	LASSERT(pcl->pcl_locks != NULL);
+	LASSERT(pcl->pcl_locks);
 	LASSERT(!pcl->pcl_locked);
 
 	cfs_percpt_free(pcl->pcl_locks);

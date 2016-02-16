@@ -129,7 +129,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile, unsigned long cmd,
 	 * Handled in arch/cfs_module.c
 	 */
 	case IOC_LIBCFS_MARK_DEBUG:
-		if (data->ioc_inlbuf1 == NULL ||
+		if (!data->ioc_inlbuf1 ||
 		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0')
 			return -EINVAL;
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
@@ -165,7 +165,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 	int err = 0;
 
 	LIBCFS_ALLOC_GFP(buf, 1024, GFP_KERNEL);
-	if (buf == NULL)
+	if (!buf)
 		return -ENOMEM;
 
 	/* 'cmd' and permissions get checked in our arch-specific caller */
@@ -329,11 +329,11 @@ static int __proc_cpt_table(void *data, int write,
 	if (write)
 		return -EPERM;
 
-	LASSERT(cfs_cpt_table != NULL);
+	LASSERT(cfs_cpt_table);
 
 	while (1) {
 		LIBCFS_ALLOC(buf, len);
-		if (buf == NULL)
+		if (!buf)
 			return -ENOMEM;
 
 		rc = cfs_cpt_table_print(cfs_cpt_table, buf, len);
@@ -355,7 +355,7 @@ static int __proc_cpt_table(void *data, int write,
 
 	rc = cfs_trace_copyout_string(buffer, nob, buf + pos, NULL);
  out:
-	if (buf != NULL)
+	if (buf)
 		LIBCFS_FREE(buf, len);
 	return rc;
 }
@@ -531,7 +531,7 @@ static const struct file_operations *lnet_debugfs_fops_select(umode_t mode)
 void lustre_insert_debugfs(struct ctl_table *table,
 			   const struct lnet_debugfs_symlink_def *symlinks)
 {
-	if (lnet_debugfs_root == NULL)
+	if (!lnet_debugfs_root)
 		lnet_debugfs_root = debugfs_create_dir("lnet", NULL);
 
 	/* Even if we cannot create, just ignore it altogether) */
@@ -555,8 +555,7 @@ EXPORT_SYMBOL_GPL(lustre_insert_debugfs);
 
 static void lustre_remove_debugfs(void)
 {
-	if (lnet_debugfs_root != NULL)
-		debugfs_remove_recursive(lnet_debugfs_root);
+	debugfs_remove_recursive(lnet_debugfs_root);
 
 	lnet_debugfs_root = NULL;
 }

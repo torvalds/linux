@@ -45,14 +45,14 @@ static int cfs_crypto_hash_alloc(unsigned char alg_id,
 
 	*type = cfs_crypto_hash_type(alg_id);
 
-	if (*type == NULL) {
+	if (!*type) {
 		CWARN("Unsupported hash algorithm id = %d, max id is %d\n",
 		      alg_id, CFS_HASH_ALG_MAX);
 		return -EINVAL;
 	}
 	desc->tfm = crypto_alloc_hash((*type)->cht_name, 0, 0);
 
-	if (desc->tfm == NULL)
+	if (!desc->tfm)
 		return -EINVAL;
 
 	if (IS_ERR(desc->tfm)) {
@@ -69,7 +69,7 @@ static int cfs_crypto_hash_alloc(unsigned char alg_id,
 	 * Skip this function for digest, because we use shash logic at
 	 * cfs_crypto_hash_alloc.
 	 */
-	if (key != NULL)
+	if (key)
 		err = crypto_hash_setkey(desc->tfm, key, key_len);
 	else if ((*type)->cht_key != 0)
 		err = crypto_hash_setkey(desc->tfm,
@@ -99,14 +99,14 @@ int cfs_crypto_hash_digest(unsigned char alg_id,
 	int			err;
 	const struct cfs_crypto_hash_type	*type;
 
-	if (buf == NULL || buf_len == 0 || hash_len == NULL)
+	if (!buf || buf_len == 0 || !hash_len)
 		return -EINVAL;
 
 	err = cfs_crypto_hash_alloc(alg_id, &type, &hdesc, key, key_len);
 	if (err != 0)
 		return err;
 
-	if (hash == NULL || *hash_len < type->cht_size) {
+	if (!hash || *hash_len < type->cht_size) {
 		*hash_len = type->cht_size;
 		crypto_free_hash(hdesc.tfm);
 		return -ENOSPC;
@@ -131,7 +131,7 @@ struct cfs_crypto_hash_desc *
 	const struct cfs_crypto_hash_type       *type;
 
 	hdesc = kmalloc(sizeof(*hdesc), 0);
-	if (hdesc == NULL)
+	if (!hdesc)
 		return ERR_PTR(-ENOMEM);
 
 	err = cfs_crypto_hash_alloc(alg_id, &type, hdesc, key, key_len);
@@ -175,12 +175,12 @@ int cfs_crypto_hash_final(struct cfs_crypto_hash_desc *hdesc,
 	int     err;
 	int     size = crypto_hash_digestsize(((struct hash_desc *)hdesc)->tfm);
 
-	if (hash_len == NULL) {
+	if (!hash_len) {
 		crypto_free_hash(((struct hash_desc *)hdesc)->tfm);
 		kfree(hdesc);
 		return 0;
 	}
-	if (hash == NULL || *hash_len < size) {
+	if (!hash || *hash_len < size) {
 		*hash_len = size;
 		return -ENOSPC;
 	}
@@ -253,7 +253,7 @@ static int cfs_crypto_test_hashes(void)
 	unsigned int	    data_len = 1 * 128 * 1024;
 
 	data = kmalloc(data_len, 0);
-	if (data == NULL) {
+	if (!data) {
 		CERROR("Failed to allocate mem\n");
 		return -ENOMEM;
 	}

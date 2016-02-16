@@ -212,7 +212,7 @@ cfs_wi_scheduler (void *arg)
 	cfs_block_allsigs();
 
 	/* CPT affinity scheduler? */
-	if (sched->ws_cptab != NULL)
+	if (sched->ws_cptab)
 		if (cfs_cpt_bind(sched->ws_cptab, sched->ws_cpt) != 0)
 			CWARN("Failed to bind %s on CPT %d\n",
 			      sched->ws_name, sched->ws_cpt);
@@ -343,11 +343,11 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 
 	LASSERT(cfs_wi_data.wi_init);
 	LASSERT(!cfs_wi_data.wi_stopping);
-	LASSERT(cptab == NULL || cpt == CFS_CPT_ANY ||
+	LASSERT(!cptab || cpt == CFS_CPT_ANY ||
 		(cpt >= 0 && cpt < cfs_cpt_number(cptab)));
 
 	LIBCFS_ALLOC(sched, sizeof(*sched));
-	if (sched == NULL)
+	if (!sched)
 		return -ENOMEM;
 
 	strlcpy(sched->ws_name, name, CFS_WS_NAME_LEN);
@@ -376,7 +376,7 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 		sched->ws_starting++;
 		spin_unlock(&cfs_wi_data.wi_glock);
 
-		if (sched->ws_cptab != NULL && sched->ws_cpt >= 0) {
+		if (sched->ws_cptab && sched->ws_cpt >= 0) {
 			snprintf(name, sizeof(name), "%s_%02d_%02u",
 				 sched->ws_name, sched->ws_cpt,
 				 sched->ws_nthreads);

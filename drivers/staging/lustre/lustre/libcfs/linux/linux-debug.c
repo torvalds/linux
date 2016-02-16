@@ -80,7 +80,7 @@ void libcfs_run_debug_log_upcall(char *file)
 
 	argv[0] = lnet_debug_log_upcall;
 
-	LASSERTF(file != NULL, "called on a null filename\n");
+	LASSERTF(file, "called on a null filename\n");
 	argv[1] = file; /* only need to pass the path of the file */
 
 	argv[2] = NULL;
@@ -106,7 +106,7 @@ void libcfs_run_upcall(char **argv)
 
 	argv[0] = lnet_upcall;
 	argc = 1;
-	while (argv[argc] != NULL)
+	while (argv[argc])
 		argc++;
 
 	LASSERT(argc >= 2);

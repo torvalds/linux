@@ -81,8 +81,7 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 		found = 0;
 		for (i = 0; i < 32; i++) {
 			debugstr = bit2str(i);
-			if (debugstr != NULL &&
-			    strlen(debugstr) == len &&
+			if (debugstr && strlen(debugstr) == len &&
 			    strncasecmp(str, debugstr, len) == 0) {
 				if (op == '-')
 					newmask &= ~(1 << i);
@@ -175,7 +174,7 @@ cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res)
 {
 	char *end;
 
-	if (next->ls_str == NULL)
+	if (!next->ls_str)
 		return 0;
 
 	/* skip leading white spaces */
@@ -196,7 +195,7 @@ cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res)
 
 	res->ls_str = next->ls_str;
 	end = memchr(next->ls_str, delim, next->ls_len);
-	if (end == NULL) {
+	if (!end) {
 		/* there is no the delimeter in the string */
 		end = next->ls_str + next->ls_len;
 		next->ls_str = NULL;
@@ -266,7 +265,7 @@ cfs_range_expr_parse(struct cfs_lstr *src, unsigned min, unsigned max,
 	struct cfs_lstr		tok;
 
 	LIBCFS_ALLOC(re, sizeof(*re));
-	if (re == NULL)
+	if (!re)
 		return -ENOMEM;
 
 	if (src->ls_len == 1 && src->ls_str[0] == '*') {
@@ -442,7 +441,7 @@ cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, __u32 **valpp)
 	}
 
 	LIBCFS_ALLOC(val, sizeof(val[0]) * count);
-	if (val == NULL)
+	if (!val)
 		return -ENOMEM;
 
 	count = 0;
@@ -495,7 +494,7 @@ cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
 	int			rc;
 
 	LIBCFS_ALLOC(expr_list, sizeof(*expr_list));
-	if (expr_list == NULL)
+	if (!expr_list)
 		return -ENOMEM;
 
 	src.ls_str = str;
@@ -509,7 +508,7 @@ cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
 		src.ls_len -= 2;
 
 		rc = -EINVAL;
-		while (src.ls_str != NULL) {
+		while (src.ls_str) {
 			struct cfs_lstr tok;
 
 			if (!cfs_gettok(&src, ',', &tok)) {

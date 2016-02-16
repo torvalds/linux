@@ -56,7 +56,7 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 	}
 
 	LIBCFS_ALLOC(cptab, sizeof(*cptab));
-	if (cptab != NULL) {
+	if (cptab) {
 		cptab->ctb_version = CFS_CPU_VERSION_MAGIC;
 		node_set(0, cptab->ctb_nodemask);
 		cptab->ctb_nparts  = ncpt;
@@ -215,7 +215,7 @@ EXPORT_SYMBOL(cfs_cpt_bind);
 void
 cfs_cpu_fini(void)
 {
-	if (cfs_cpt_table != NULL) {
+	if (cfs_cpt_table) {
 		cfs_cpt_table_free(cfs_cpt_table);
 		cfs_cpt_table = NULL;
 	}
@@ -226,7 +226,7 @@ cfs_cpu_init(void)
 {
 	cfs_cpt_table = cfs_cpt_table_alloc(1);
 
-	return cfs_cpt_table != NULL ? 0 : -1;
+	return cfs_cpt_table ? 0 : -1;
 }
 
 #endif /* HAVE_LIBCFS_CPT */

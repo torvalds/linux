@@ -185,10 +185,10 @@ union cfs_trace_data_union {
 extern union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS];
 
 #define cfs_tcd_for_each(tcd, i, j)				       \
-    for (i = 0; cfs_trace_data[i] != NULL; i++)			   \
-	for (j = 0, ((tcd) = &(*cfs_trace_data[i])[j].tcd);	       \
-	     j < num_possible_cpus();				 \
-	     j++, (tcd) = &(*cfs_trace_data[i])[j].tcd)
+	for (i = 0; cfs_trace_data[i]; i++)				\
+		for (j = 0, ((tcd) = &(*cfs_trace_data[i])[j].tcd);	\
+		     j < num_possible_cpus();				 \
+		     j++, (tcd) = &(*cfs_trace_data[i])[j].tcd)
 
 #define cfs_tcd_for_each_type_lock(tcd, i, cpu)			   \
     for (i = 0; cfs_trace_data[i] &&				      \
@@ -308,8 +308,8 @@ do {								    \
 
 #define __LASSERT_TAGE_INVARIANT(tage)				  \
 do {								    \
-	__LASSERT(tage != NULL);					\
-	__LASSERT(tage->page != NULL);				  \
+	__LASSERT(tage);					\
+	__LASSERT(tage->page);				  \
 	__LASSERT(tage->used <= PAGE_CACHE_SIZE);			 \
 	__LASSERT(page_count(tage->page) > 0);		      \
 } while (0)

@@ -102,7 +102,7 @@ libcfs_psdev_open(struct inode *inode, struct file *file)
 
 	if (!inode)
 		return -EINVAL;
-	if (libcfs_psdev_ops.p_open != NULL)
+	if (libcfs_psdev_ops.p_open)
 		rc = libcfs_psdev_ops.p_open(0, NULL);
 	else
 		return -EPERM;
@@ -117,7 +117,7 @@ libcfs_psdev_release(struct inode *inode, struct file *file)
 
 	if (!inode)
 		return -EINVAL;
-	if (libcfs_psdev_ops.p_close != NULL)
+	if (libcfs_psdev_ops.p_close)
 		rc = libcfs_psdev_ops.p_close(0, NULL);
 	else
 		rc = -EPERM;
@@ -150,7 +150,7 @@ static long libcfs_ioctl(struct file *file,
 		return 0;
 	}
 
-	if (libcfs_psdev_ops.p_ioctl != NULL)
+	if (libcfs_psdev_ops.p_ioctl)
 		rc = libcfs_psdev_ops.p_ioctl(&pfile, cmd, (void __user *)arg);
 	else
 		rc = -EPERM;

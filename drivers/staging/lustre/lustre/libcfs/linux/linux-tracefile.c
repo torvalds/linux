@@ -63,7 +63,7 @@ int cfs_tracefile_init_arch(void)
 		cfs_trace_data[i] =
 			kmalloc(sizeof(union cfs_trace_data_union) *
 				num_possible_cpus(), GFP_KERNEL);
-		if (cfs_trace_data[i] == NULL)
+		if (!cfs_trace_data[i])
 			goto out;
 
 	}
@@ -82,7 +82,7 @@ int cfs_tracefile_init_arch(void)
 				kmalloc(CFS_TRACE_CONSOLE_BUFFER_SIZE,
 					GFP_KERNEL);
 
-			if (cfs_trace_console_buffers[i][j] == NULL)
+			if (!cfs_trace_console_buffers[i][j])
 				goto out;
 		}
 
@@ -105,7 +105,7 @@ void cfs_tracefile_fini_arch(void)
 			cfs_trace_console_buffers[i][j] = NULL;
 		}
 
-	for (i = 0; cfs_trace_data[i] != NULL; i++) {
+	for (i = 0; cfs_trace_data[i]; i++) {
 		kfree(cfs_trace_data[i]);
 		cfs_trace_data[i] = NULL;
 	}

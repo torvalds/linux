@@ -378,7 +378,7 @@ libcfs_debug_mask2str(char *str, int size, int mask, int is_subsys)
 				continue;
 
 			token = fn(i);
-			if (token == NULL)	      /* unused bit */
+			if (!token)	      /* unused bit */
 				continue;
 
 			if (len > 0) {		  /* separator? */
@@ -505,7 +505,7 @@ int libcfs_debug_init(unsigned long bufsize)
 		libcfs_console_min_delay = CDEBUG_DEFAULT_MIN_DELAY;
 	}
 
-	if (libcfs_debug_file_path != NULL) {
+	if (libcfs_debug_file_path) {
 		strlcpy(libcfs_debug_file_path_arr,
 			libcfs_debug_file_path,
 			sizeof(libcfs_debug_file_path_arr));

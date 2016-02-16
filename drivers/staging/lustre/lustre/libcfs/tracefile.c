@@ -80,11 +80,11 @@ static struct cfs_trace_page *cfs_tage_alloc(gfp_t gfp)
 	 */
 	gfp |= __GFP_NOWARN;
 	page = alloc_page(gfp);
-	if (page == NULL)
+	if (!page)
 		return NULL;
 
 	tage = kmalloc(sizeof(*tage), gfp);
-	if (tage == NULL) {
+	if (!tage) {
 		__free_page(page);
 		return NULL;
 	}
@@ -96,9 +96,6 @@ static struct cfs_trace_page *cfs_tage_alloc(gfp_t gfp)
 
 static void cfs_tage_free(struct cfs_trace_page *tage)
 {
-	__LASSERT(tage != NULL);
-	__LASSERT(tage->page != NULL);
-
 	__free_page(tage->page);
 	kfree(tage);
 	atomic_dec(&cfs_tage_allocated);
@@ -107,9 +104,6 @@ static void cfs_tage_free(struct cfs_trace_page *tage)
 static void cfs_tage_to_tail(struct cfs_trace_page *tage,
 			     struct list_head *queue)
 {
-	__LASSERT(tage != NULL);
-	__LASSERT(queue != NULL);
-
 	list_move_tail(&tage->linkage, queue);
 }
 
@@ -127,7 +121,7 @@ int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 		struct cfs_trace_page *tage;
 
 		tage = cfs_tage_alloc(gfp);
-		if (tage == NULL)
+		if (!tage)
 			break;
 		list_add_tail(&tage->linkage, stock);
 	}
@@ -154,7 +148,7 @@ cfs_trace_get_tage_try(struct cfs_trace_cpu_data *tcd, unsigned long len)
 			list_del_init(&tage->linkage);
 		} else {
 			tage = cfs_tage_alloc(GFP_ATOMIC);
-			if (unlikely(tage == NULL)) {
+			if (unlikely(!tage)) {
 				if ((!memory_pressure_get() ||
 				     in_interrupt()) && printk_ratelimit())
 					printk(KERN_WARNING
@@ -227,7 +221,7 @@ static struct cfs_trace_page *cfs_trace_get_tage(struct cfs_trace_cpu_data *tcd,
 	}
 
 	tage = cfs_trace_get_tage_try(tcd, len);
-	if (tage != NULL)
+	if (tage)
 		return tage;
 	if (thread_running)
 		cfs_tcd_shrink(tcd);
@@ -281,7 +275,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	 * warning on Linux when debugging is enabled. */
 	cfs_set_ptldebug_header(&header, msgdata, CDEBUG_STACK());
 
-	if (tcd == NULL)		/* arch may not log in IRQ context */
+	if (!tcd)		/* arch may not log in IRQ context */
 		goto console;
 
 	if (tcd->tcd_cur_pages == 0)
@@ -308,7 +302,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	 */
 	for (i = 0; i < 2; i++) {
 		tage = cfs_trace_get_tage(tcd, needed + known_size + 1);
-		if (tage == NULL) {
+		if (!tage) {
 			if (needed + known_size > PAGE_CACHE_SIZE)
 				mask |= D_ERROR;
 
@@ -389,18 +383,18 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 console:
 	if ((mask & libcfs_printk) == 0) {
 		/* no console output requested */
-		if (tcd != NULL)
+		if (tcd)
 			cfs_trace_put_tcd(tcd);
 		return 1;
 	}
 
-	if (cdls != NULL) {
+	if (cdls) {
 		if (libcfs_console_ratelimit &&
 		    cdls->cdls_next != 0 &&     /* not first time ever */
 		    !cfs_time_after(cfs_time_current(), cdls->cdls_next)) {
 			/* skipping a console message */
 			cdls->cdls_count++;
-			if (tcd != NULL)
+			if (tcd)
 				cfs_trace_put_tcd(tcd);
 			return 1;
 		}
@@ -423,7 +417,7 @@ console:
 		cdls->cdls_next = (cfs_time_current() + cdls->cdls_delay) | 1;
 	}
 
-	if (tcd != NULL) {
+	if (tcd) {
 		cfs_print_to_console(&header, mask, string_buf, needed, file,
 				     msgdata->msg_fn);
 		cfs_trace_put_tcd(tcd);
@@ -431,14 +425,14 @@ console:
 		string_buf = cfs_trace_get_console_buffer();
 
 		needed = 0;
-		if (format1 != NULL) {
+		if (format1) {
 			va_copy(ap, args);
 			needed = vsnprintf(string_buf,
 					   CFS_TRACE_CONSOLE_BUFFER_SIZE,
 					   format1, ap);
 			va_end(ap);
 		}
-		if (format2 != NULL) {
+		if (format2) {
 			remain = CFS_TRACE_CONSOLE_BUFFER_SIZE - needed;
 			if (remain > 0) {
 				va_start(ap, format2);
@@ -453,7 +447,7 @@ console:
 		put_cpu();
 	}
 
-	if (cdls != NULL && cdls->cdls_count != 0) {
+	if (cdls && cdls->cdls_count != 0) {
 		string_buf = cfs_trace_get_console_buffer();
 
 		needed = snprintf(string_buf, CFS_TRACE_CONSOLE_BUFFER_SIZE,
@@ -783,7 +777,7 @@ int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
 	if (copy_to_user(usr_buffer, knl_buffer, nob))
 		return -EFAULT;
 
-	if (append != NULL && nob < usr_buffer_nob) {
+	if (append && nob < usr_buffer_nob) {
 		if (copy_to_user(usr_buffer + nob, append, 1))
 			return -EFAULT;
 
@@ -800,7 +794,7 @@ int cfs_trace_allocate_string_buffer(char **str, int nob)
 		return -EINVAL;
 
 	*str = kmalloc(nob, GFP_KERNEL | __GFP_ZERO);
-	if (*str == NULL)
+	if (!*str)
 		return -ENOMEM;
 
 	return 0;
@@ -978,7 +972,7 @@ static int tracefiled(void *arg)
 			}
 		}
 		cfs_tracefile_read_unlock();
-		if (filp == NULL) {
+		if (!filp) {
 			put_pages_on_daemon_list(&pc);
 			__LASSERT(list_empty(&pc.pc_pages));
 			goto end_loop;
