@@ -144,6 +144,7 @@ void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *msgdata)
 
 	libcfs_run_upcall (argv);
 }
+EXPORT_SYMBOL(libcfs_run_lbug_upcall);
 
 /* coverity[+kill] */
 void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
@@ -166,6 +167,7 @@ void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 	while (1)
 		schedule();
 }
+EXPORT_SYMBOL(lbug_with_loc);
 
 static int panic_notifier(struct notifier_block *self, unsigned long unused1,
 			  void *unused2)
@@ -194,6 +196,3 @@ void libcfs_unregister_panic_notifier(void)
 {
 	atomic_notifier_chain_unregister(&panic_notifier_list, &libcfs_panic_notifier);
 }
-
-EXPORT_SYMBOL(libcfs_run_lbug_upcall);
-EXPORT_SYMBOL(lbug_with_loc);

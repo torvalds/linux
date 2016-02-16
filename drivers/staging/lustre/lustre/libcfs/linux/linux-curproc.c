@@ -65,6 +65,7 @@ void cfs_cap_raise(cfs_cap_t cap)
 		commit_creds(cred);
 	}
 }
+EXPORT_SYMBOL(cfs_cap_raise);
 
 void cfs_cap_lower(cfs_cap_t cap)
 {
@@ -76,11 +77,13 @@ void cfs_cap_lower(cfs_cap_t cap)
 		commit_creds(cred);
 	}
 }
+EXPORT_SYMBOL(cfs_cap_lower);
 
 int cfs_cap_raised(cfs_cap_t cap)
 {
 	return cap_raised(current_cap(), cap);
 }
+EXPORT_SYMBOL(cfs_cap_raised);
 
 static void cfs_kernel_cap_pack(kernel_cap_t kcap, cfs_cap_t *cap)
 {
@@ -95,10 +98,6 @@ cfs_cap_t cfs_curproc_cap_pack(void)
 	cfs_kernel_cap_pack(current_cap(), &cap);
 	return cap;
 }
-
-EXPORT_SYMBOL(cfs_cap_raise);
-EXPORT_SYMBOL(cfs_cap_lower);
-EXPORT_SYMBOL(cfs_cap_raised);
 EXPORT_SYMBOL(cfs_curproc_cap_pack);
 
 /*

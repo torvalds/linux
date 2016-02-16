@@ -47,15 +47,15 @@
 static char debug_file_name[1024];
 
 unsigned int libcfs_subsystem_debug = ~0;
+EXPORT_SYMBOL(libcfs_subsystem_debug);
 module_param(libcfs_subsystem_debug, int, 0644);
 MODULE_PARM_DESC(libcfs_subsystem_debug, "Lustre kernel debug subsystem mask");
-EXPORT_SYMBOL(libcfs_subsystem_debug);
 
 unsigned int libcfs_debug = (D_CANTMASK |
 			     D_NETERROR | D_HA | D_CONFIG | D_IOCTL);
+EXPORT_SYMBOL(libcfs_debug);
 module_param(libcfs_debug, int, 0644);
 MODULE_PARM_DESC(libcfs_debug, "Lustre kernel debug mask");
-EXPORT_SYMBOL(libcfs_debug);
 
 static int libcfs_param_debug_mb_set(const char *val,
 				     const struct kernel_param *kp)
