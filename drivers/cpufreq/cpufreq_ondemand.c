@@ -417,7 +417,6 @@ define_get_cpu_dbs_routines(od_cpu_dbs_info);
 static struct od_ops od_ops = {
 	.powersave_bias_init_cpu = ondemand_powersave_bias_init_cpu,
 	.powersave_bias_target = generic_powersave_bias_target,
-	.freq_increase = dbs_freq_increase,
 };
 
 static struct dbs_governor od_dbs_gov = {
