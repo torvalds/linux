@@ -163,8 +163,11 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 					index, 1);
 			file->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
 			bh = ext4_bread(NULL, inode, map.m_lblk, 0);
-			if (IS_ERR(bh))
-				return PTR_ERR(bh);
+			if (IS_ERR(bh)) {
+				err = PTR_ERR(bh);
+				bh = NULL;
+				goto errout;
+			}
 		}
 
 		if (!bh) {
