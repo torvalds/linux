@@ -409,9 +409,6 @@ struct amdgpu_fence {
 	struct amdgpu_ring		*ring;
 	uint64_t			seq;
 
-	/* filp or special value for fence creator */
-	void				*owner;
-
 	wait_queue_t			fence_wake;
 };
 
@@ -432,8 +429,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   unsigned irq_type);
 void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
-int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
-		      struct amdgpu_fence **fence);
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct amdgpu_fence **fence);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
@@ -1177,8 +1173,7 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib);
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib);
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
-		       struct amdgpu_ib *ib, void *owner,
-		       struct fence *last_vm_update,
+		       struct amdgpu_ib *ib, struct fence *last_vm_update,
 		       struct fence **f);
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);

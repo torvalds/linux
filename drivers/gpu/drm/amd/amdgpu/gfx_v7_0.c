@@ -2136,8 +2136,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
 
-	r = amdgpu_ib_schedule(ring, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED,
-			       NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
 	if (r)
 		goto err2;
 

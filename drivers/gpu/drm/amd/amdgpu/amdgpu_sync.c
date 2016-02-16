@@ -60,11 +60,7 @@ void amdgpu_sync_create(struct amdgpu_sync *sync)
  */
 static bool amdgpu_sync_same_dev(struct amdgpu_device *adev, struct fence *f)
 {
-	struct amdgpu_fence *a_fence = to_amdgpu_fence(f);
 	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
-
-	if (a_fence)
-		return a_fence->ring->adev == adev;
 
 	if (s_fence) {
 		struct amdgpu_ring *ring;
@@ -85,13 +81,11 @@ static bool amdgpu_sync_same_dev(struct amdgpu_device *adev, struct fence *f)
  */
 static void *amdgpu_sync_get_owner(struct fence *f)
 {
-	struct amdgpu_fence *a_fence = to_amdgpu_fence(f);
 	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
 
 	if (s_fence)
 		return s_fence->owner;
-	else if (a_fence)
-		return a_fence->owner;
+
 	return AMDGPU_FENCE_OWNER_UNDEFINED;
 }
 

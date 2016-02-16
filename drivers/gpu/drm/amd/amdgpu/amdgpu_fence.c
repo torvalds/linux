@@ -91,25 +91,21 @@ static u32 amdgpu_fence_read(struct amdgpu_ring *ring)
  * amdgpu_fence_emit - emit a fence on the requested ring
  *
  * @ring: ring the fence is associated with
- * @owner: creator of the fence
  * @fence: amdgpu fence object
  *
  * Emits a fence command on the requested ring (all asics).
  * Returns 0 on success, -ENOMEM on failure.
  */
-int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
-		      struct amdgpu_fence **fence)
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct amdgpu_fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	/* we are protected by the ring emission mutex */
 	*fence = kmem_cache_alloc(amdgpu_fence_slab, GFP_KERNEL);
 	if ((*fence) == NULL) {
 		return -ENOMEM;
 	}
 	(*fence)->seq = ++ring->fence_drv.sync_seq;
 	(*fence)->ring = ring;
-	(*fence)->owner = owner;
 	fence_init(&(*fence)->base, &amdgpu_fence_ops,
 		&ring->fence_drv.fence_queue.lock,
 		adev->fence_context + ring->idx,

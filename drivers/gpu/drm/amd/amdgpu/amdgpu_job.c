@@ -148,7 +148,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 
 	trace_amdgpu_sched_run_job(job);
-	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job->owner,
+	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
 			       job->sync.last_vm_update, &fence);
 	if (r) {
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
