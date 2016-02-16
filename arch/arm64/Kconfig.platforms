@@ -77,6 +77,7 @@ config ARCH_RENESAS
 	select ARCH_SHMOBILE
 	select PINCTRL
 	select PM_GENERIC_DOMAINS if PM
+	select RENESAS_IRQC
 	help
 	  This enables support for the ARMv8 based Renesas SoCs.
 
