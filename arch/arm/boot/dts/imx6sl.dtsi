@@ -709,8 +709,12 @@
 				interrupts = <0 89 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&intc>;
 				pu-supply = <&reg_pu>;
-				clocks = <&clks IMX6SL_CLK_GPU2D_OVG>,
-					 <&clks IMX6SL_CLK_GPU2D_PODF>;
+				clocks = <&clks IMX6SL_CLK_GPU2D_PODF>, <&clks IMX6SL_CLK_GPU2D_OVG>,
+					<&clks IMX6SL_CLK_IPG>, <&clks IMX6SL_CLK_LCDIF_AXI>,
+					<&clks IMX6SL_CLK_LCDIF_PIX>, <&clks IMX6SL_CLK_EPDC_AXI>,
+					<&clks IMX6SL_CLK_EPDC_PIX>, <&clks IMX6SL_CLK_PXP_AXI>;
+				clock-names = "gpu2d_podf", "gpu2d_ovg", "ipg", "lcd_axi",
+						"lcd_pix", "epdc_axi", "epdc_pix", "pxp_axi";
 				#power-domain-cells = <1>;
 			};
 
@@ -733,6 +737,7 @@
 					<&clks IMX6SL_CLK_DUMMY>,
 					<&clks IMX6SL_CLK_DUMMY>;
 				clock-names = "disp-axi", "csi_mclk", "disp_dcic";
+				power-domains = <&gpc 2>;
 				status = "disabled";
 			};
 
@@ -760,6 +765,7 @@
 				interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SL_CLK_PXP_AXI>, <&clks IMX6SL_CLK_DUMMY>;
 				clock-names = "pxp-axi", "disp-axi";
+				power-domains = <&gpc 2>;
 				status = "disabled";
 			};
 
@@ -769,6 +775,7 @@
 				interrupts = <0 97 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SL_CLK_EPDC_AXI>, <&clks IMX6SL_CLK_EPDC_PIX>;
 				clock-names = "epdc_axi", "epdc_pix";
+				power-domains = <&gpc 2>;
 			};
 
 			lcdif: lcdif@020f8000 {
@@ -779,6 +786,7 @@
 					 <&clks IMX6SL_CLK_LCDIF_AXI>,
 					 <&clks IMX6SL_CLK_DUMMY>;
 				clock-names = "pix", "axi", "disp_axi";
+				power-domains = <&gpc 2>;
 				status = "disabled";
 			};
 
