@@ -146,13 +146,13 @@ enum cvmx_usb_complete {
  *			status call.
  */
 struct cvmx_usb_port_status {
-	uint32_t reserved		: 25;
-	uint32_t port_enabled		: 1;
-	uint32_t port_over_current	: 1;
-	uint32_t port_powered		: 1;
+	u32 reserved			: 25;
+	u32 port_enabled		: 1;
+	u32 port_over_current		: 1;
+	u32 port_powered		: 1;
 	enum cvmx_usb_speed port_speed	: 2;
-	uint32_t connected		: 1;
-	uint32_t connect_change		: 1;
+	u32 connected			: 1;
+	u32 connect_change		: 1;
 };
 
 /**
@@ -270,9 +270,9 @@ enum cvmx_usb_stage {
 struct cvmx_usb_transaction {
 	struct list_head node;
 	enum cvmx_usb_transfer type;
-	uint64_t buffer;
+	u64 buffer;
 	int buffer_length;
-	uint64_t control_header;
+	u64 control_header;
 	int iso_start_frame;
 	int iso_number_packets;
 	struct cvmx_usb_iso_packet *iso_packets;
@@ -314,28 +314,28 @@ struct cvmx_usb_transaction {
 struct cvmx_usb_pipe {
 	struct list_head node;
 	struct list_head transactions;
-	uint64_t interval;
-	uint64_t next_tx_frame;
+	u64 interval;
+	u64 next_tx_frame;
 	enum cvmx_usb_pipe_flags flags;
 	enum cvmx_usb_speed device_speed;
 	enum cvmx_usb_transfer transfer_type;
 	enum cvmx_usb_direction transfer_dir;
 	int multi_count;
-	uint16_t max_packet;
-	uint8_t device_addr;
-	uint8_t endpoint_num;
-	uint8_t hub_device_addr;
-	uint8_t hub_port;
-	uint8_t pid_toggle;
-	uint8_t channel;
-	int8_t split_sc_frame;
+	u16 max_packet;
+	u8 device_addr;
+	u8 endpoint_num;
+	u8 hub_device_addr;
+	u8 hub_port;
+	u8 pid_toggle;
+	u8 channel;
+	s8 split_sc_frame;
 };
 
 struct cvmx_usb_tx_fifo {
 	struct {
 		int channel;
 		int size;
-		uint64_t address;
+		u64 address;
 	} entry[MAX_CHANNELS+1];
 	int head;
 	int tail;
@@ -368,7 +368,7 @@ struct cvmx_usb_state {
 	struct cvmx_usb_port_status port_status;
 	struct list_head idle_pipes;
 	struct list_head active_pipes[4];
-	uint64_t frame_number;
+	u64 frame_number;
 	struct cvmx_usb_transaction *active_split;
 	struct cvmx_usb_tx_fifo periodic;
 	struct cvmx_usb_tx_fifo nonperiodic;
@@ -383,8 +383,8 @@ struct octeon_hcd {
 #define CVMX_WAIT_FOR_FIELD32(address, _union, cond, timeout_usec)	    \
 	({int result;							    \
 	do {								    \
-		uint64_t done = cvmx_get_cycle() + (uint64_t)timeout_usec * \
-			octeon_get_clock_rate() / 1000000;		    \
+		u64 done = cvmx_get_cycle() + (u64)timeout_usec *	    \
+			   octeon_get_clock_rate() / 1000000;		    \
 		union _union c;						    \
 									    \
 		while (1) {						    \
@@ -548,10 +548,9 @@ static void octeon_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
  *
  * Returns: Result of the read
  */
-static inline uint32_t cvmx_usb_read_csr32(struct cvmx_usb_state *usb,
-					   uint64_t address)
+static inline u32 cvmx_usb_read_csr32(struct cvmx_usb_state *usb, u64 address)
 {
-	uint32_t result = cvmx_read64_uint32(address ^ 4);
+	u32 result = cvmx_read64_uint32(address ^ 4);
 	return result;
 }
 
@@ -565,7 +564,7 @@ static inline uint32_t cvmx_usb_read_csr32(struct cvmx_usb_state *usb,
  * @value:   Value to write
  */
 static inline void cvmx_usb_write_csr32(struct cvmx_usb_state *usb,
-					uint64_t address, uint32_t value)
+					u64 address, u32 value)
 {
 	cvmx_write64_uint32(address ^ 4, value);
 	cvmx_read64_uint64(CVMX_USBNX_DMA0_INB_CHN0(usb->index));
@@ -1160,8 +1159,8 @@ static void cvmx_usb_poll_rx_fifo(struct cvmx_usb_state *usb)
 	union cvmx_usbcx_grxstsph rx_status;
 	int channel;
 	int bytes;
-	uint64_t address;
-	uint32_t *ptr;
+	u64 address;
+	u32 *ptr;
 
 	rx_status.u32 = cvmx_usb_read_csr32(usb,
 					    CVMX_USBCX_GRXSTSPH(usb->index));
@@ -1214,9 +1213,9 @@ static int cvmx_usb_fill_tx_hw(struct cvmx_usb_state *usb,
 	 */
 	while (available && (fifo->head != fifo->tail)) {
 		int i = fifo->tail;
-		const uint32_t *ptr = cvmx_phys_to_ptr(fifo->entry[i].address);
-		uint64_t csr_address = USB_FIFO_ADDRESS(fifo->entry[i].channel,
-							usb->index) ^ 4;
+		const u32 *ptr = cvmx_phys_to_ptr(fifo->entry[i].address);
+		u64 csr_address = USB_FIFO_ADDRESS(fifo->entry[i].channel,
+						   usb->index) ^ 4;
 		int words = available;
 
 		/* Limit the amount of data to what the SW fifo has */
@@ -1569,9 +1568,9 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 
 	/* Setup the location the DMA engine uses. */
 	{
-		uint64_t reg;
-		uint64_t dma_address = transaction->buffer +
-					transaction->actual_bytes;
+		u64 reg;
+		u64 dma_address = transaction->buffer +
+				  transaction->actual_bytes;
 
 		if (transaction->type == CVMX_USB_TRANSFER_ISOCHRONOUS)
 			dma_address = transaction->buffer +
@@ -1848,7 +1847,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
 		struct cvmx_usb_state *usb,
 		struct list_head *list,
-		uint64_t current_frame)
+		u64 current_frame)
 {
 	struct cvmx_usb_pipe *pipe;
 
@@ -2136,9 +2135,9 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_transaction(
 				struct cvmx_usb_state *usb,
 				struct cvmx_usb_pipe *pipe,
 				enum cvmx_usb_transfer type,
-				uint64_t buffer,
+				u64 buffer,
 				int buffer_length,
-				uint64_t control_header,
+				u64 control_header,
 				int iso_start_frame,
 				int iso_number_packets,
 				struct cvmx_usb_iso_packet *iso_packets,
@@ -2248,7 +2247,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_control(
 						struct urb *urb)
 {
 	int buffer_length = urb->transfer_buffer_length;
-	uint64_t control_header = urb->setup_dma;
+	u64 control_header = urb->setup_dma;
 	struct usb_ctrlrequest *header = cvmx_phys_to_ptr(control_header);
 
 	if ((header->bRequestType & USB_DIR_IN) == 0)
