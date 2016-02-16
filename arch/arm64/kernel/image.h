@@ -42,15 +42,18 @@
 #endif
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
-#define __HEAD_FLAG_BE	1
+#define __HEAD_FLAG_BE		1
 #else
-#define __HEAD_FLAG_BE	0
+#define __HEAD_FLAG_BE		0
 #endif
 
-#define __HEAD_FLAG_PAGE_SIZE ((PAGE_SHIFT - 10) / 2)
+#define __HEAD_FLAG_PAGE_SIZE	((PAGE_SHIFT - 10) / 2)
 
-#define __HEAD_FLAGS	((__HEAD_FLAG_BE << 0) |	\
-			 (__HEAD_FLAG_PAGE_SIZE << 1))
+#define __HEAD_FLAG_PHYS_BASE	1
+
+#define __HEAD_FLAGS		((__HEAD_FLAG_BE << 0) |	\
+				 (__HEAD_FLAG_PAGE_SIZE << 1) |	\
+				 (__HEAD_FLAG_PHYS_BASE << 3))
 
 /*
  * These will output as part of the Image header, which should be little-endian

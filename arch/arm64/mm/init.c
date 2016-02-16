@@ -35,8 +35,10 @@
 #include <linux/efi.h>
 #include <linux/swiotlb.h>
 
+#include <asm/boot.h>
 #include <asm/fixmap.h>
 #include <asm/kasan.h>
+#include <asm/kernel-pgtable.h>
 #include <asm/memory.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -46,7 +48,13 @@
 
 #include "mm.h"
 
-phys_addr_t memstart_addr __read_mostly = 0;
+/*
+ * We need to be able to catch inadvertent references to memstart_addr
+ * that occur (potentially in generic code) before arm64_memblock_init()
+ * executes, which assigns it its actual value. So use a default value
+ * that cannot be mistaken for a real physical address.
+ */
+phys_addr_t memstart_addr __read_mostly = ~0ULL;
 phys_addr_t arm64_dma_phys_limit __read_mostly;
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -160,7 +168,33 @@ early_param("mem", early_mem);
 
 void __init arm64_memblock_init(void)
 {
-	memblock_enforce_memory_limit(memory_limit);
+	const s64 linear_region_size = -(s64)PAGE_OFFSET;
+
+	/*
+	 * Select a suitable value for the base of physical memory.
+	 */
+	memstart_addr = round_down(memblock_start_of_DRAM(),
+				   ARM64_MEMSTART_ALIGN);
+
+	/*
+	 * Remove the memory that we will not be able to cover with the
+	 * linear mapping. Take care not to clip the kernel which may be
+	 * high in memory.
+	 */
+	memblock_remove(max(memstart_addr + linear_region_size, __pa(_end)),
+			ULLONG_MAX);
+	if (memblock_end_of_DRAM() > linear_region_size)
+		memblock_remove(0, memblock_end_of_DRAM() - linear_region_size);
+
+	/*
+	 * Apply the memory limit if it was set. Since the kernel may be loaded
+	 * high up in memory, add back the kernel region that must be accessible
+	 * via the linear mapping.
+	 */
+	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
+		memblock_enforce_memory_limit(memory_limit);
+		memblock_add(__pa(_text), (u64)(_end - _text));
+	}
 
 	/*
 	 * Register the kernel text, kernel data, initrd, and initial
@@ -386,3 +420,28 @@ static int __init keepinitrd_setup(char *__unused)
 
 __setup("keepinitrd", keepinitrd_setup);
 #endif
+
+/*
+ * Dump out memory limit information on panic.
+ */
+static int dump_mem_limit(struct notifier_block *self, unsigned long v, void *p)
+{
+	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
+		pr_emerg("Memory Limit: %llu MB\n", memory_limit >> 20);
+	} else {
+		pr_emerg("Memory Limit: none\n");
+	}
+	return 0;
+}
+
+static struct notifier_block mem_limit_notifier = {
+	.notifier_call = dump_mem_limit,
+};
+
+static int __init register_mem_limit_dumper(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &mem_limit_notifier);
+	return 0;
+}
+__initcall(register_mem_limit_dumper);
