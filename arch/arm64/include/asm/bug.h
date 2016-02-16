@@ -18,7 +18,7 @@
 #ifndef _ARCH_ARM64_ASM_BUG_H
 #define _ARCH_ARM64_ASM_BUG_H
 
-#include <asm/debug-monitors.h>
+#define BUG_BRK_IMM			0x800
 
 #ifdef CONFIG_GENERIC_BUG
 #define HAVE_ARCH_BUG
