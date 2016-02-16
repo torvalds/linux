@@ -79,6 +79,8 @@
 #define rr_lo_hi(a1, a2) a1, a2
 #endif
 
+#define kvm_ksym_ref(kva)	(kva)
+
 #ifndef __ASSEMBLY__
 struct kvm;
 struct kvm_vcpu;

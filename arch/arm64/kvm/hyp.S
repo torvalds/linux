@@ -20,7 +20,7 @@
 #include <asm/assembler.h>
 
 /*
- * u64 kvm_call_hyp(void *hypfn, ...);
+ * u64 __kvm_call_hyp(void *hypfn, ...);
  *
  * This is not really a variadic function in the classic C-way and care must
  * be taken when calling this to ensure parameters are passed in registers
@@ -37,7 +37,7 @@
  * used to implement __hyp_get_vectors in the same way as in
  * arch/arm64/kernel/hyp_stub.S.
  */
-ENTRY(kvm_call_hyp)
+ENTRY(__kvm_call_hyp)
 	hvc	#0
 	ret
-ENDPROC(kvm_call_hyp)
+ENDPROC(__kvm_call_hyp)
