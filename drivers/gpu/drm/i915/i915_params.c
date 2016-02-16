@@ -92,7 +92,7 @@ MODULE_PARM_DESC(enable_fbc,
 	"Enable frame buffer compression for power savings "
 	"(default: -1 (use per-chip default))");
 
-module_param_named_unsafe(lvds_channel_mode, i915.lvds_channel_mode, int, 0600);
+module_param_named_unsafe(lvds_channel_mode, i915.lvds_channel_mode, int, 0400);
 MODULE_PARM_DESC(lvds_channel_mode,
 	 "Specify LVDS channel mode "
 	 "(0=probe BIOS [default], 1=single-channel, 2=dual-channel)");
@@ -102,7 +102,7 @@ MODULE_PARM_DESC(lvds_use_ssc,
 	"Use Spread Spectrum Clock with panels [LVDS/eDP] "
 	"(default: auto from VBT)");
 
-module_param_named_unsafe(vbt_sdvo_panel_type, i915.vbt_sdvo_panel_type, int, 0600);
+module_param_named_unsafe(vbt_sdvo_panel_type, i915.vbt_sdvo_panel_type, int, 0400);
 MODULE_PARM_DESC(vbt_sdvo_panel_type,
 	"Override/Ignore selection of SDVO panel mode in the VBT "
 	"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
@@ -131,7 +131,7 @@ MODULE_PARM_DESC(enable_psr, "Enable PSR "
 		 "(0=disabled, 1=enabled - link mode chosen per-platform, 2=force link-standby mode, 3=force link-off mode) "
 		 "Default: -1 (use per-chip default)");
 
-module_param_named_unsafe(preliminary_hw_support, i915.preliminary_hw_support, int, 0600);
+module_param_named_unsafe(preliminary_hw_support, i915.preliminary_hw_support, int, 0400);
 MODULE_PARM_DESC(preliminary_hw_support,
 	"Enable preliminary hardware support.");
 
@@ -165,7 +165,7 @@ MODULE_PARM_DESC(invert_brightness,
 	"to dri-devel@lists.freedesktop.org, if your machine needs it. "
 	"It will then be included in an upcoming module version.");
 
-module_param_named(disable_display, i915.disable_display, bool, 0600);
+module_param_named(disable_display, i915.disable_display, bool, 0400);
 MODULE_PARM_DESC(disable_display, "Disable display (default: false)");
 
 module_param_named_unsafe(disable_vtd_wa, i915.disable_vtd_wa, bool, 0600);
