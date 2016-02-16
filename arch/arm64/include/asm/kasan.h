@@ -14,7 +14,7 @@
  * KASAN_SHADOW_END: KASAN_SHADOW_START + 1/8 of kernel virtual addresses.
  */
 #define KASAN_SHADOW_START      (VA_START)
-#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1UL << (VA_BITS - 3)))
+#define KASAN_SHADOW_END        (KASAN_SHADOW_START + KASAN_SHADOW_SIZE)
 
 /*
  * This value is used to map an address to the corresponding shadow

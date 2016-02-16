@@ -45,16 +45,15 @@
  * VA_START - the first kernel virtual address.
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
- * The module space lives between the addresses given by TASK_SIZE
- * and PAGE_OFFSET - it must be within 128MB of the kernel text.
  */
 #define VA_BITS			(CONFIG_ARM64_VA_BITS)
 #define VA_START		(UL(0xffffffffffffffff) << VA_BITS)
 #define PAGE_OFFSET		(UL(0xffffffffffffffff) << (VA_BITS - 1))
-#define KIMAGE_VADDR		(PAGE_OFFSET)
-#define MODULES_END		(KIMAGE_VADDR)
-#define MODULES_VADDR		(MODULES_END - SZ_64M)
-#define PCI_IO_END		(MODULES_VADDR - SZ_2M)
+#define KIMAGE_VADDR		(MODULES_END)
+#define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
+#define MODULES_VADDR		(VA_START + KASAN_SHADOW_SIZE)
+#define MODULES_VSIZE		(SZ_64M)
+#define PCI_IO_END		(PAGE_OFFSET - SZ_2M)
 #define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
 #define FIXADDR_TOP		(PCI_IO_START - SZ_2M)
 #define TASK_SIZE_64		(UL(1) << VA_BITS)
@@ -70,6 +69,16 @@
 #endif /* CONFIG_COMPAT */
 
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
+
+/*
+ * The size of the KASAN shadow region. This should be 1/8th of the
+ * size of the entire kernel virtual address space.
+ */
+#ifdef CONFIG_KASAN
+#define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - 3))
+#else
+#define KASAN_SHADOW_SIZE	(0)
+#endif
 
 /*
  * Physical vs virtual RAM address space conversion.  These are
