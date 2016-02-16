@@ -6043,8 +6043,7 @@ static int broxton_calc_cdclk(struct drm_i915_private *dev_priv,
 		return 144000;
 }
 
-/* Compute the max pixel clock for new configuration. Uses atomic state if
- * that's non-NULL, look at current state otherwise. */
+/* Compute the max pixel clock for new configuration. */
 static int intel_mode_max_pixclk(struct drm_device *dev,
 				 struct drm_atomic_state *state)
 {
@@ -6066,9 +6065,6 @@ static int intel_mode_max_pixclk(struct drm_device *dev,
 
 		intel_state->min_pixclk[i] = pixclk;
 	}
-
-	if (!intel_state->active_crtcs)
-		return 0;
 
 	for_each_pipe(dev_priv, pipe)
 		max_pixclk = max(intel_state->min_pixclk[pipe], max_pixclk);
@@ -9681,9 +9677,6 @@ static int ilk_max_pixel_rate(struct drm_atomic_state *state)
 		intel_state->min_pixclk[i] = pixel_rate;
 	}
 
-	if (!intel_state->active_crtcs)
-		return 0;
-
 	for_each_pipe(dev_priv, pipe)
 		max_pixel_rate = max(intel_state->min_pixclk[pipe], max_pixel_rate);
 
@@ -13221,6 +13214,9 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 
 		if (ret < 0)
 			return ret;
+
+		DRM_DEBUG_KMS("New cdclk calculated to be atomic %u, actual %u\n",
+			      intel_state->cdclk, intel_state->dev_cdclk);
 	} else
 		to_intel_atomic_state(state)->cdclk = dev_priv->atomic_cdclk_freq;
 
