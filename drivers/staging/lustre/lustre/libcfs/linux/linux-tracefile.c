@@ -190,7 +190,8 @@ cfs_set_ptldebug_header(struct ptldebug_header *header,
 	header->ph_cpu_id = smp_processor_id();
 	header->ph_type = cfs_trace_buf_idx_get();
 	/* y2038 safe since all user space treats this as unsigned, but
-	 * will overflow in 2106 */
+	 * will overflow in 2106
+	 */
 	header->ph_sec = (u32)ts.tv_sec;
 	header->ph_usec = ts.tv_nsec / NSEC_PER_USEC;
 	header->ph_stack = stack;

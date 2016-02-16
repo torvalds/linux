@@ -97,7 +97,8 @@ int __cfs_fail_check_set(__u32 id, __u32 value, int set)
 	/* Lost race to set CFS_FAILED_BIT. */
 	if (test_and_set_bit(CFS_FAILED_BIT, &cfs_fail_loc)) {
 		/* If CFS_FAIL_ONCE is valid, only one process can fail,
-		 * otherwise multi-process can fail at the same time. */
+		 * otherwise multi-process can fail at the same time.
+		 */
 		if (cfs_fail_loc & CFS_FAIL_ONCE)
 			return 0;
 	}

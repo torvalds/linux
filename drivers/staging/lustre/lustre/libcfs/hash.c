@@ -579,7 +579,8 @@ cfs_hash_bd_move_locked(struct cfs_hash *hs, struct cfs_hash_bd *bd_old,
 		return;
 
 	/* use cfs_hash_bd_hnode_add/del, to avoid atomic & refcount ops
-	 * in cfs_hash_bd_del/add_locked */
+	 * in cfs_hash_bd_del/add_locked
+	 */
 	hs->hs_hops->hop_hnode_del(hs, bd_old, hnode);
 	rc = hs->hs_hops->hop_hnode_add(hs, bd_new, hnode);
 	cfs_hash_bd_dep_record(hs, bd_new, rc);
@@ -635,7 +636,8 @@ cfs_hash_bd_lookup_intent(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	int intent_add = (intent & CFS_HS_LOOKUP_MASK_ADD) != 0;
 
 	/* with this function, we can avoid a lot of useless refcount ops,
-	 * which are expensive atomic operations most time. */
+	 * which are expensive atomic operations most time.
+	 */
 	match = intent_add ? NULL : hnode;
 	hlist_for_each(ehnode, hhead) {
 		if (!cfs_hash_keycmp(hs, key, ehnode))
@@ -1109,7 +1111,8 @@ cfs_hash_destroy(struct cfs_hash *hs)
 					 hs->hs_name, bd.bd_bucket->hsb_index,
 					 bd.bd_offset, bd.bd_bucket->hsb_count);
 				/* can't assert key valicate, because we
-				 * can interrupt rehash */
+				 * can interrupt rehash
+				 */
 				cfs_hash_bd_del_locked(hs, &bd, hnode);
 				cfs_hash_exit(hs, hnode);
 			}
@@ -1160,7 +1163,8 @@ cfs_hash_rehash_bits(struct cfs_hash *hs)
 		return -EAGAIN;
 
 	/* XXX: need to handle case with max_theta != 2.0
-	 *      and the case with min_theta != 0.5 */
+	 *      and the case with min_theta != 0.5
+	 */
 	if ((hs->hs_cur_bits < hs->hs_max_bits) &&
 	    (__cfs_hash_theta(hs) > hs->hs_max_theta))
 		return hs->hs_cur_bits + 1;
@@ -1374,7 +1378,8 @@ cfs_hash_for_each_enter(struct cfs_hash *hs)
 	/* NB: iteration is mostly called by service thread,
 	 * we tend to cancel pending rehash-request, instead of
 	 * blocking service thread, we will relaunch rehash request
-	 * after iteration */
+	 * after iteration
+	 */
 	if (cfs_hash_is_rehashing(hs))
 		cfs_hash_rehash_cancel_locked(hs);
 	cfs_hash_unlock(hs, 1);
@@ -1987,7 +1992,8 @@ void cfs_hash_rehash_key(struct cfs_hash *hs, const void *old_key,
 		cfs_hash_bd_add_locked(hs, &new_bd, hnode);
 	}
 	/* overwrite key inside locks, otherwise may screw up with
-	 * other operations, i.e: rehash */
+	 * other operations, i.e: rehash
+	 */
 	cfs_hash_keycpy(hs, hnode, new_key);
 
 	cfs_hash_multi_bd_unlock(hs, bds, 3, 1);

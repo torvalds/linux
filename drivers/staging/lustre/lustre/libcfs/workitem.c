@@ -54,11 +54,13 @@ struct cfs_wi_sched {
 	wait_queue_head_t		ws_waitq;
 	/** concurrent workitems */
 	struct list_head		ws_runq;
-	/** rescheduled running-workitems, a workitem can be rescheduled
+	/**
+	 * rescheduled running-workitems, a workitem can be rescheduled
 	 * while running in wi_action(), but we don't to execute it again
 	 * unless it returns from wi_action(), so we put it on ws_rerunq
 	 * while rescheduling, and move it to runq after it returns
-	 * from wi_action() */
+	 * from wi_action()
+	 */
 	struct list_head		ws_rerunq;
 	/** CPT-table for this scheduler */
 	struct cfs_cpt_table	*ws_cptab;
@@ -261,14 +263,16 @@ static int cfs_wi_scheduler(void *arg)
 
 			LASSERT(wi->wi_scheduled);
 			/* wi is rescheduled, should be on rerunq now, we
-			 * move it to runq so it can run action now */
+			 * move it to runq so it can run action now
+			 */
 			list_move_tail(&wi->wi_list, &sched->ws_runq);
 		}
 
 		if (!list_empty(&sched->ws_runq)) {
 			spin_unlock(&sched->ws_lock);
 			/* don't sleep because some workitems still
-			 * expect me to come back soon */
+			 * expect me to come back soon
+			 */
 			cond_resched();
 			spin_lock(&sched->ws_lock);
 			continue;

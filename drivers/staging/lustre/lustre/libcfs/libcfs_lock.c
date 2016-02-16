@@ -110,7 +110,8 @@ cfs_percpt_lock(struct cfs_percpt_lock *pcl, int index)
 		if (i == 0) {
 			LASSERT(!pcl->pcl_locked);
 			/* nobody should take private lock after this
-			 * so I wouldn't starve for too long time */
+			 * so I wouldn't starve for too long time
+			 */
 			pcl->pcl_locked = 1;
 		}
 	}

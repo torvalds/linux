@@ -317,7 +317,8 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 
 	/* cfs_trace_get_tcd() grabs a lock, which disables preemption and
 	 * pins us to a particular CPU.  This avoids an smp_processor_id()
-	 * warning on Linux when debugging is enabled. */
+	 * warning on Linux when debugging is enabled.
+	 */
 	cfs_set_ptldebug_header(&header, msgdata, CDEBUG_STACK());
 
 	if (!tcd)		/* arch may not log in IRQ context */
@@ -340,7 +341,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	if (libcfs_debug_binary)
 		known_size += sizeof(header);
 
-	/*/
+	/*
 	 * '2' used because vsnprintf return real size required for output
 	 * _without_ terminating NULL.
 	 * if needed is to small for this format.
@@ -536,7 +537,8 @@ panic_collect_pages(struct page_collection *pc)
 {
 	/* Do the collect_pages job on a single CPU: assumes that all other
 	 * CPUs have been stopped during a panic.  If this isn't true for some
-	 * arch, this will have to be implemented separately in each arch.  */
+	 * arch, this will have to be implemented separately in each arch.
+	 */
 	int			i;
 	int			j;
 	struct cfs_trace_cpu_data *tcd;
@@ -618,7 +620,8 @@ static void put_pages_back(struct page_collection *pc)
 /* Add pages to a per-cpu debug daemon ringbuffer.  This buffer makes sure that
  * we have a good amount of data at all times for dumping during an LBUG, even
  * if we have been steadily writing (and otherwise discarding) pages via the
- * debug daemon. */
+ * debug daemon.
+ */
 static void put_pages_on_tcd_daemon_list(struct page_collection *pc,
 					 struct cfs_trace_cpu_data *tcd)
 {
@@ -730,7 +733,8 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	}
 
 	/* ok, for now, just write the pages.  in the future we'll be building
-	 * iobufs with the pages and calling generic_direct_IO */
+	 * iobufs with the pages and calling generic_direct_IO
+	 */
 	MMSPACE_OPEN;
 	list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
 

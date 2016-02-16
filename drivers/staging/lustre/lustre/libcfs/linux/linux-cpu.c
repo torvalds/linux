@@ -525,7 +525,8 @@ cfs_cpt_current(struct cfs_cpt_table *cptab, int remap)
 			return cpt;
 
 		/* don't return negative value for safety of upper layer,
-		 * instead we shadow the unknown cpu to a valid partition ID */
+		 * instead we shadow the unknown cpu to a valid partition ID
+		 */
 		cpt = cpu % cptab->ctb_nparts;
 	}
 
@@ -677,7 +678,8 @@ cfs_cpt_num_estimate(void)
 
 	/* generate reasonable number of CPU partitions based on total number
 	 * of CPUs, Preferred N should be power2 and match this condition:
-	 * 2 * (N - 1)^2 < NCPUS <= 2 * N^2 */
+	 * 2 * (N - 1)^2 < NCPUS <= 2 * N^2
+	 */
 	for (ncpt = 2; ncpu > 2 * ncpt * ncpt; ncpt <<= 1)
 		;
 
@@ -695,7 +697,8 @@ cfs_cpt_num_estimate(void)
  out:
 #if (BITS_PER_LONG == 32)
 	/* config many CPU partitions on 32-bit system could consume
-	 * too much memory */
+	 * too much memory
+	 */
 	ncpt = min(2U, ncpt);
 #endif
 	while (ncpu % ncpt != 0)

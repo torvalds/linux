@@ -249,7 +249,8 @@ static int cfs_crypto_test_hashes(void)
 	unsigned char	   *data;
 	unsigned int	    j;
 	/* Data block size for testing hash. Maximum
-	 * kmalloc size for 2.6.18 kernel is 128K */
+	 * kmalloc size for 2.6.18 kernel is 128K
+	 */
 	unsigned int	    data_len = 1 * 128 * 1024;
 
 	data = kmalloc(data_len, 0);

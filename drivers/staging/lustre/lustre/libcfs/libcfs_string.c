@@ -54,7 +54,8 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 	 * and optionally an operator ('+' or '-').  If an operator
 	 * appears first in <str>, '*oldmask' is used as the starting point
 	 * (relative), otherwise minmask is used (absolute).  An operator
-	 * applies to all following tokens up to the next operator. */
+	 * applies to all following tokens up to the next operator.
+	 */
 	while (*str != '\0') {
 		while (isspace(*str))
 			str++;

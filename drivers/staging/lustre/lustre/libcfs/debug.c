@@ -82,7 +82,8 @@ static int libcfs_param_debug_mb_set(const char *val,
 
 /* While debug_mb setting look like unsigned int, in fact
  * it needs quite a bunch of extra processing, so we define special
- * debugmb parameter type with corresponding methods to handle this case */
+ * debugmb parameter type with corresponding methods to handle this case
+ */
 static struct kernel_param_ops param_ops_debugmb = {
 	.set = libcfs_param_debug_mb_set,
 	.get = param_get_uint,
@@ -227,8 +228,7 @@ MODULE_PARM_DESC(libcfs_debug_file_path,
 
 int libcfs_panic_in_progress;
 
-/* libcfs_debug_token2mask() expects the returned
- * string in lower-case */
+/* libcfs_debug_token2mask() expects the returned string in lower-case */
 static const char *
 libcfs_debug_subsys2str(int subsys)
 {
@@ -290,8 +290,7 @@ libcfs_debug_subsys2str(int subsys)
 	}
 }
 
-/* libcfs_debug_token2mask() expects the returned
- * string in lower-case */
+/* libcfs_debug_token2mask() expects the returned string in lower-case */
 static const char *
 libcfs_debug_dbg2str(int debug)
 {
@@ -470,7 +469,8 @@ void libcfs_debug_dumplog(void)
 
 	/* we're being careful to ensure that the kernel thread is
 	 * able to set our state to running as it exits before we
-	 * get to schedule() */
+	 * get to schedule()
+	 */
 	init_waitqueue_entry(&wait, current);
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&debug_ctlwq, &wait);
@@ -511,7 +511,8 @@ int libcfs_debug_init(unsigned long bufsize)
 	}
 
 	/* If libcfs_debug_mb is set to an invalid value or uninitialized
-	 * then just make the total buffers smp_num_cpus * TCD_MAX_PAGES */
+	 * then just make the total buffers smp_num_cpus * TCD_MAX_PAGES
+	 */
 	if (max > cfs_trace_max_debug_mb() || max < num_possible_cpus()) {
 		max = TCD_MAX_PAGES;
 	} else {
@@ -541,8 +542,7 @@ int libcfs_debug_clear_buffer(void)
 	return 0;
 }
 
-/* Debug markers, although printed by S_LNET
- * should not be be marked as such. */
+/* Debug markers, although printed by S_LNET should not be be marked as such. */
 #undef DEBUG_SUBSYSTEM
 #define DEBUG_SUBSYSTEM S_UNDEFINED
 int libcfs_debug_mark_buffer(const char *text)

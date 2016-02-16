@@ -42,11 +42,11 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 /*
-From: George Marsaglia <geo@stat.fsu.edu>
-Newsgroups: sci.math
-Subject: Re: A RANDOM NUMBER GENERATOR FOR C
-Date: Tue, 30 Sep 1997 05:29:35 -0700
-
+ * From: George Marsaglia <geo@stat.fsu.edu>
+ * Newsgroups: sci.math
+ * Subject: Re: A RANDOM NUMBER GENERATOR FOR C
+ * Date: Tue, 30 Sep 1997 05:29:35 -0700
+ *
  * You may replace the two constants 36969 and 18000 by any
  * pair of distinct constants from this list:
  * 18000 18030 18273 18513 18879 19074 19098 19164 19215 19584
@@ -58,7 +58,8 @@ Date: Tue, 30 Sep 1997 05:29:35 -0700
  * 27960 28320 28380 28689 28710 28794 28854 28959 28980 29013
  * 29379 29889 30135 30345 30459 30714 30903 30963 31059 31083
  * (or any other 16-bit constants k for which both k*2^16-1
- * and k*2^15-1 are prime) */
+ * and k*2^15-1 are prime)
+ */
 
 #define RANDOM_CONST_A 18030
 #define RANDOM_CONST_B 29013
