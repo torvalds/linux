@@ -325,7 +325,7 @@ struct e1000_mac_operations {
 	s32 (*get_thermal_sensor_data)(struct e1000_hw *);
 	s32 (*init_thermal_sensor_thresh)(struct e1000_hw *);
 #endif
-
+	void (*write_vfta)(struct e1000_hw *, u32, u32);
 };
 
 struct e1000_phy_operations {
