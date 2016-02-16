@@ -882,12 +882,15 @@ int cfs_trace_daemon_command(char *str)
 		memset(cfs_tracefile, 0, sizeof(cfs_tracefile));
 
 	} else if (strncmp(str, "size=", 5) == 0) {
-		cfs_tracefile_size = simple_strtoul(str + 5, NULL, 0);
-		if (cfs_tracefile_size < 10 || cfs_tracefile_size > 20480)
-			cfs_tracefile_size = CFS_TRACEFILE_SIZE;
-		else
-			cfs_tracefile_size <<= 20;
+		unsigned long tmp;
 
+		rc = kstrtoul(str + 5, 10, &tmp);
+		if (!rc) {
+			if (tmp < 10 || tmp > 20480)
+				cfs_tracefile_size = CFS_TRACEFILE_SIZE;
+			else
+				cfs_tracefile_size = tmp << 20;
+		}
 	} else if (strlen(str) >= sizeof(cfs_tracefile)) {
 		rc = -ENAMETOOLONG;
 	} else if (str[0] != '/') {
