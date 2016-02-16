@@ -1254,7 +1254,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_supported_hw);
 
 /**
  * dev_pm_opp_put_supported_hw() - Releases resources blocked for supported hw
- * @dev: Device for which supported-hw has to be set.
+ * @dev: Device for which supported-hw has to be put.
  *
  * This is required only for the V2 bindings, and is called for a matching
  * dev_pm_opp_set_supported_hw(). Until this is called, the device_opp structure
@@ -1303,7 +1303,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_put_supported_hw);
 
 /**
  * dev_pm_opp_set_prop_name() - Set prop-extn name
- * @dev: Device for which the regulator has to be set.
+ * @dev: Device for which the prop-name has to be set.
  * @name: name to postfix to properties.
  *
  * This is required only for the V2 bindings, and it enables a platform to
@@ -1362,7 +1362,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_prop_name);
 
 /**
  * dev_pm_opp_put_prop_name() - Releases resources blocked for prop-name
- * @dev: Device for which the regulator has to be set.
+ * @dev: Device for which the prop-name has to be put.
  *
  * This is required only for the V2 bindings, and is called for a matching
  * dev_pm_opp_set_prop_name(). Until this is called, the device_opp structure
