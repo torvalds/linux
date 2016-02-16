@@ -108,23 +108,10 @@
 			};
 		};
 
-		idle-states {
-			entry-method = "psci";
-
-			cpu_sleep: cpu-sleep-0 {
-				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x1010000>;
-				entry-latency-us = <0x3fffffff>;
-				exit-latency-us = <0x40000000>;
-				min-residency-us = <0xffffffff>;
-			};
-		};
-
 		cpu_l0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x0>;
-			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
 
 			#cooling-cells = <2>; /* min followed by max */
@@ -134,7 +121,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
-			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
 		};
 
@@ -142,7 +128,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
-			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
 		};
 
@@ -150,7 +135,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
-			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
 		};
 
@@ -158,7 +142,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x100>;
-			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
 
 			#cooling-cells = <2>; /* min followed by max */
@@ -168,7 +151,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x101>;
-			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
 		};
 
@@ -176,7 +158,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x102>;
-			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
 		};
 
@@ -184,7 +165,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x103>;
-			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
 		};
 	};
