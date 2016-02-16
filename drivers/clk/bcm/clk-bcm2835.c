@@ -1060,16 +1060,7 @@ static long bcm2835_pll_divider_round_rate(struct clk_hw *hw,
 static unsigned long bcm2835_pll_divider_get_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
-	struct bcm2835_pll_divider *divider = bcm2835_pll_divider_from_hw(hw);
-	struct bcm2835_cprman *cprman = divider->cprman;
-	const struct bcm2835_pll_divider_data *data = divider->data;
-	u32 div = cprman_read(cprman, data->a2w_reg);
-
-	div &= (1 << A2W_PLL_DIV_BITS) - 1;
-	if (div == 0)
-		div = 256;
-
-	return parent_rate / div;
+	return clk_divider_ops.recalc_rate(hw, parent_rate);
 }
 
 static void bcm2835_pll_divider_off(struct clk_hw *hw)
@@ -1430,7 +1421,7 @@ bcm2835_register_pll_divider(struct bcm2835_cprman *cprman,
 	divider->div.reg = cprman->regs + data->a2w_reg;
 	divider->div.shift = A2W_PLL_DIV_SHIFT;
 	divider->div.width = A2W_PLL_DIV_BITS;
-	divider->div.flags = 0;
+	divider->div.flags = CLK_DIVIDER_MAX_AT_ZERO;
 	divider->div.lock = &cprman->regs_lock;
 	divider->div.hw.init = &init;
 	divider->div.table = NULL;
