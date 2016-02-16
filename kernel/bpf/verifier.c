@@ -2082,7 +2082,7 @@ static void adjust_branches(struct bpf_prog *prog, int pos, int delta)
 		/* adjust offset of jmps if necessary */
 		if (i < pos && i + insn->off + 1 > pos)
 			insn->off += delta;
-		else if (i > pos && i + insn->off + 1 < pos)
+		else if (i > pos + delta && i + insn->off + 1 <= pos + delta)
 			insn->off -= delta;
 	}
 }

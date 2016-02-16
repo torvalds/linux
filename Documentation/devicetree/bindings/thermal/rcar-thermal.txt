@@ -1,8 +1,9 @@
 * Renesas R-Car Thermal
 
 Required properties:
-- compatible		: "renesas,thermal-<soctype>", "renesas,rcar-thermal"
-			  as fallback.
+- compatible		: "renesas,thermal-<soctype>",
+			   "renesas,rcar-gen2-thermal" (with thermal-zone) or
+			   "renesas,rcar-thermal" (without thermal-zone) as fallback.
 			  Examples with soctypes are:
 			    - "renesas,thermal-r8a73a4" (R-Mobile APE6)
 			    - "renesas,thermal-r8a7779" (R-Car H1)
@@ -35,4 +36,36 @@ thermal@e61f0000 {
 		0xe61f0200 0x38
 		0xe61f0300 0x38>;
 	interrupts = <0 69 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+Example (with thermal-zone):
+
+thermal-zones {
+	cpu_thermal: cpu-thermal {
+		polling-delay-passive	= <1000>;
+		polling-delay		= <5000>;
+
+		thermal-sensors = <&thermal>;
+
+		trips {
+			cpu-crit {
+				temperature	= <115000>;
+				hysteresis	= <0>;
+				type		= "critical";
+			};
+		};
+		cooling-maps {
+		};
+	};
+};
+
+thermal: thermal@e61f0000 {
+	compatible =	"renesas,thermal-r8a7790",
+			"renesas,rcar-gen2-thermal",
+			"renesas,rcar-thermal";
+	reg = <0 0xe61f0000 0 0x14>, <0 0xe61f0100 0 0x38>;
+	interrupts = <0 69 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&mstp5_clks R8A7790_CLK_THERMAL>;
+	power-domains = <&cpg_clocks>;
+	#thermal-sensor-cells = <0>;
 };
