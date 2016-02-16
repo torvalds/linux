@@ -43,29 +43,15 @@
  * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE RISK ARISING OUT OF USE OR
  * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/prefetch.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
+
 #include <linux/usb.h>
-
-#include <linux/time.h>
-#include <linux/delay.h>
-
-#include <asm/octeon/cvmx.h>
-#include <asm/octeon/cvmx-iob-defs.h>
-
+#include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/usb/hcd.h>
-
-#include <linux/err.h>
+#include <linux/prefetch.h>
+#include <linux/platform_device.h>
 
 #include <asm/octeon/octeon.h>
-#include <asm/octeon/cvmx-helper.h>
-#include <asm/octeon/cvmx-sysinfo.h>
-#include <asm/octeon/cvmx-helper-board.h>
 
 #include "octeon-hcd.h"
 
