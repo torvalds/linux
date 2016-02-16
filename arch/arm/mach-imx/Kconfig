@@ -616,6 +616,13 @@ config SOC_IMX6UL
 	help
 	  This enables support for Freescale i.MX6 UltraLite processor.
 
+config SOC_IMX6ULL
+	bool "i.MX6 ULL support"
+	select SOC_IMX6UL
+
+	help
+	  This enables support for Freescale i.MX6 ULL processor.
+
 config SOC_IMX7
 	bool
 	select CPU_V7

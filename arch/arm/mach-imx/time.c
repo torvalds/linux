@@ -323,7 +323,7 @@ static void __init _mxc_timer_init(int irq,
 		if (clk_get_rate(clk_per) == V2_TIMER_RATE_OSC_DIV8) {
 			tctl_val |= V2_TCTL_CLK_OSC_DIV8;
 			if (cpu_is_imx6dl() || cpu_is_imx6sx() || cpu_is_imx6ul() ||
-			    cpu_is_imx7d()) {
+			    cpu_is_imx6ull() || cpu_is_imx7d()) {
 				/* 24 / 8 = 3 MHz */
 				__raw_writel(7 << V2_TPRER_PRE24M,
 					timer_base + MXC_TPRER);
