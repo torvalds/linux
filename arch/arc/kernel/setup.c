@@ -237,8 +237,6 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 
 			n += scnprintf(buf + n, len - n, "mpy[opt %d] ", opt);
 		}
-		n += scnprintf(buf + n, len - n, "%s",
-			       IS_USED_CFG(CONFIG_ARC_HAS_HW_MPY));
 	}
 
 	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",

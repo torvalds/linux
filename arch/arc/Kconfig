@@ -275,14 +275,6 @@ config ARC_DCCM_BASE
 	default "0xA0000000"
 	depends on ARC_HAS_DCCM
 
-config ARC_HAS_HW_MPY
-	bool "Use Hardware Multiplier (Normal or Faster XMAC)"
-	default y
-	help
-	  Influences how gcc generates code for MPY operations.
-	  If enabled, MPYxx insns are generated, provided by Standard/XMAC
-	  Multipler. Otherwise software multipy lib is used
-
 choice
 	prompt "MMU Version"
 	default ARC_MMU_V3 if ARC_CPU_770
