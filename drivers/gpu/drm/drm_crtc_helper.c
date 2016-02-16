@@ -343,9 +343,12 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		}
 	}
 
-	if (!(ret = crtc_funcs->mode_fixup(crtc, mode, adjusted_mode))) {
-		DRM_DEBUG_KMS("CRTC fixup failed\n");
-		goto done;
+	if (crtc_funcs->mode_fixup) {
+		if (!(ret = crtc_funcs->mode_fixup(crtc, mode,
+						adjusted_mode))) {
+			DRM_DEBUG_KMS("CRTC fixup failed\n");
+			goto done;
+		}
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
