@@ -427,7 +427,7 @@ static s32 handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 static void handle_set_mac_address(struct wilc_vif *vif,
 				   struct set_mac_addr *set_mac_addr)
 {
-	int result = 0;
+	int ret = 0;
 	struct wid wid;
 
 	u8 *mac_buf = kmemdup(set_mac_addr->mac_addr, ETH_ALEN, GFP_KERNEL);
@@ -439,9 +439,9 @@ static void handle_set_mac_address(struct wilc_vif *vif,
 	wid.val = mac_buf;
 	wid.size = ETH_ALEN;
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result)
+	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
+	if (ret)
 		PRINT_ER("Failed to set mac address\n");
 
 	kfree(mac_buf);
