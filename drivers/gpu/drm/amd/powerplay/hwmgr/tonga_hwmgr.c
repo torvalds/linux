@@ -4451,6 +4451,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	pp_atomctrl_gpio_pin_assignment gpio_pin_assignment;
 	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
 	phw_tonga_ulv_parm *ulv;
+	struct cgs_system_info sys_info = {0};
 
 	PP_ASSERT_WITH_CODE((NULL != hwmgr),
 		"Invalid Parameter!", return -1;);
@@ -4615,9 +4616,23 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	data->vddc_phase_shed_control = 0;
 
-	if (0 == result) {
-		struct cgs_system_info sys_info = {0};
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+		      PHM_PlatformCaps_UVDPowerGating);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+		      PHM_PlatformCaps_VCEPowerGating);
+	sys_info.size = sizeof(struct cgs_system_info);
+	sys_info.info_id = CGS_SYSTEM_INFO_PG_FLAGS;
+	result = cgs_query_system_info(hwmgr->device, &sys_info);
+	if (!result) {
+		if (sys_info.value & AMD_PG_SUPPORT_UVD)
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				      PHM_PlatformCaps_UVDPowerGating);
+		if (sys_info.value & AMD_PG_SUPPORT_VCE)
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				      PHM_PlatformCaps_VCEPowerGating);
+	}
 
+	if (0 == result) {
 		data->is_tlu_enabled = 0;
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 			TONGA_MAX_HARDWARE_POWERLEVELS;
