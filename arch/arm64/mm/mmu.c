@@ -614,7 +614,7 @@ static inline pud_t * fixmap_pud(unsigned long addr)
 
 	BUG_ON(pgd_none(*pgd) || pgd_bad(*pgd));
 
-	return pud_offset(pgd, addr);
+	return pud_offset_kimg(pgd, addr);
 }
 
 static inline pmd_t * fixmap_pmd(unsigned long addr)
@@ -623,16 +623,12 @@ static inline pmd_t * fixmap_pmd(unsigned long addr)
 
 	BUG_ON(pud_none(*pud) || pud_bad(*pud));
 
-	return pmd_offset(pud, addr);
+	return pmd_offset_kimg(pud, addr);
 }
 
 static inline pte_t * fixmap_pte(unsigned long addr)
 {
-	pmd_t *pmd = fixmap_pmd(addr);
-
-	BUG_ON(pmd_none(*pmd) || pmd_bad(*pmd));
-
-	return pte_offset_kernel(pmd, addr);
+	return &bm_pte[pte_index(addr)];
 }
 
 void __init early_fixmap_init(void)
@@ -644,14 +640,14 @@ void __init early_fixmap_init(void)
 
 	pgd = pgd_offset_k(addr);
 	pgd_populate(&init_mm, pgd, bm_pud);
-	pud = pud_offset(pgd, addr);
+	pud = fixmap_pud(addr);
 	pud_populate(&init_mm, pud, bm_pmd);
-	pmd = pmd_offset(pud, addr);
+	pmd = fixmap_pmd(addr);
 	pmd_populate_kernel(&init_mm, pmd, bm_pte);
 
 	/*
 	 * The boot-ioremap range spans multiple pmds, for which
-	 * we are not preparted:
+	 * we are not prepared:
 	 */
 	BUILD_BUG_ON((__fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT)
 		     != (__fix_to_virt(FIX_BTMAP_END) >> PMD_SHIFT));
