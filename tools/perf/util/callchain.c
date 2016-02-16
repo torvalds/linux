@@ -453,6 +453,9 @@ add_child(struct callchain_node *parent,
 	struct callchain_node *new;
 
 	new = create_child(parent, false);
+	if (new == NULL)
+		return NULL;
+
 	fill_node(new, cursor);
 
 	new->children_hit = 0;
@@ -524,6 +527,8 @@ split_add_child(struct callchain_node *parent,
 
 		node = callchain_cursor_current(cursor);
 		new = add_child(parent, cursor, period);
+		if (new == NULL)
+			return;
 
 		/*
 		 * This is second child since we moved parent's children
@@ -585,6 +590,9 @@ append_chain_children(struct callchain_node *root,
 	}
 	/* nothing in children, add to the current node */
 	rnode = add_child(root, cursor, period);
+	if (rnode == NULL)
+		return;
+
 	rb_link_node(&rnode->rb_node_in, parent, p);
 	rb_insert_color(&rnode->rb_node_in, &root->rb_root_in);
 
