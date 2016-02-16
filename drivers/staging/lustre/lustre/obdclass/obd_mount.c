@@ -1163,7 +1163,7 @@ void lustre_register_kill_super_cb(void (*cfs)(struct super_block *sb))
 EXPORT_SYMBOL(lustre_register_kill_super_cb);
 
 /***************** FS registration ******************/
-struct dentry *lustre_mount(struct file_system_type *fs_type, int flags,
+static struct dentry *lustre_mount(struct file_system_type *fs_type, int flags,
 				const char *devname, void *data)
 {
 	struct lustre_mount_data2 lmd2 = {
