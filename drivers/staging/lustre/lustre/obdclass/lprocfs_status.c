@@ -149,10 +149,10 @@ int lprocfs_read_frac_helper(char *buffer, unsigned long count, long val,
 		}
 		/*
 		 * Need to think these cases :
-		 *      1. #echo x.00 > /proc/xxx       output result : x
-		 *      2. #echo x.0x > /proc/xxx       output result : x.0x
-		 *      3. #echo x.x0 > /proc/xxx       output result : x.x
-		 *      4. #echo x.xx > /proc/xxx       output result : x.xx
+		 *      1. #echo x.00 > /sys/xxx       output result : x
+		 *      2. #echo x.0x > /sys/xxx       output result : x.0x
+		 *      3. #echo x.x0 > /sys/xxx       output result : x.x
+		 *      4. #echo x.xx > /sys/xxx       output result : x.xx
 		 *      Only reserved 2 bits fraction.
 		 */
 		for (i = 0; i < (5 - prtn); i++)

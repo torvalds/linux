@@ -52,7 +52,7 @@ EXPORT_SYMBOL(obd_devs);
 struct list_head obd_types;
 DEFINE_RWLOCK(obd_dev_lock);
 
-/* The following are visible and mutable through /proc/sys/lustre/. */
+/* The following are visible and mutable through /sys/fs/lustre. */
 unsigned int obd_debug_peer_on_timeout;
 EXPORT_SYMBOL(obd_debug_peer_on_timeout);
 unsigned int obd_dump_on_timeout;
@@ -67,7 +67,7 @@ unsigned int obd_timeout = OBD_TIMEOUT_DEFAULT;   /* seconds */
 EXPORT_SYMBOL(obd_timeout);
 unsigned int obd_timeout_set;
 EXPORT_SYMBOL(obd_timeout_set);
-/* Adaptive timeout defs here instead of ptlrpc module for /proc/sys/ access */
+/* Adaptive timeout defs here instead of ptlrpc module for /sys/fs/ access */
 unsigned int at_min;
 EXPORT_SYMBOL(at_min);
 unsigned int at_max = 600;

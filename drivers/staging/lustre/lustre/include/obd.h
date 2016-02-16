@@ -302,7 +302,7 @@ struct client_obd {
 	struct list_head	       cl_loi_read_list;
 	int		      cl_r_in_flight;
 	int		      cl_w_in_flight;
-	/* just a sum of the loi/lop pending numbers to be exported by /proc */
+	/* just a sum of the loi/lop pending numbers to be exported by sysfs */
 	atomic_t	     cl_pending_w_pages;
 	atomic_t	     cl_pending_r_pages;
 	__u32			 cl_max_pages_per_rpc;
@@ -449,7 +449,7 @@ struct pool_desc {
 	struct lov_qos_rr     pool_rr;		/* round robin qos */
 	struct hlist_node      pool_hash;	      /* access by poolname */
 	struct list_head	    pool_list;	      /* serial access */
-	struct dentry		*pool_debugfs_entry;	/* file in /proc */
+	struct dentry		*pool_debugfs_entry;	/* file in debugfs */
 	struct obd_device    *pool_lobd;	/* obd of the lov/lod to which
 						*  this pool belongs */
 };
@@ -737,7 +737,8 @@ struct obd_device {
 		      obd_async_recov:1,   /* allow asynchronous orphan cleanup */
 		      obd_no_conn:1,       /* deny new connections */
 		      obd_inactive:1,      /* device active/inactive
-					   * (for /proc/status only!!) */
+					    * (for sysfs status only!!)
+					    */
 		      obd_no_ir:1,	 /* no imperative recovery. */
 		      obd_process_conf:1;  /* device is processing mgs config */
 	/* use separate field as it is set in interrupt to don't mess with

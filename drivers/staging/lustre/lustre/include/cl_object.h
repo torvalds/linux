@@ -2613,7 +2613,7 @@ struct cl_site {
 	 * Statistical counters. Atomics do not scale, something better like
 	 * per-cpu counters is needed.
 	 *
-	 * These are exported as /proc/fs/lustre/llite/.../site
+	 * These are exported as /sys/kernel/debug/lustre/llite/.../site
 	 *
 	 * When interpreting keep in mind that both sub-locks (and sub-pages)
 	 * and top-locks (and top-pages) are accounted here.

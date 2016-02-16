@@ -54,7 +54,7 @@ struct lprocfs_vars {
 	struct file_operations	*fops;
 	void			*data;
 	/**
-	 * /proc file mode.
+	 * sysfs file mode.
 	 */
 	umode_t			proc_mode;
 };
