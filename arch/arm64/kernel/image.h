@@ -100,6 +100,7 @@ __efistub_memcpy		= KALLSYMS_HIDE(__pi_memcpy);
 __efistub_memmove		= KALLSYMS_HIDE(__pi_memmove);
 __efistub_memset		= KALLSYMS_HIDE(__pi_memset);
 __efistub_strlen		= KALLSYMS_HIDE(__pi_strlen);
+__efistub_strnlen		= KALLSYMS_HIDE(__pi_strnlen);
 __efistub_strcmp		= KALLSYMS_HIDE(__pi_strcmp);
 __efistub_strncmp		= KALLSYMS_HIDE(__pi_strncmp);
 __efistub___flush_dcache_area	= KALLSYMS_HIDE(__pi___flush_dcache_area);
