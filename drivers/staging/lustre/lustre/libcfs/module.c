@@ -192,9 +192,9 @@ struct cfs_psdev_ops libcfs_psdev_ops = {
 };
 
 static int proc_call_handler(void *data, int write, loff_t *ppos,
-		void __user *buffer, size_t *lenp,
-		int (*handler)(void *data, int write,
-		loff_t pos, void __user *buffer, int len))
+			     void __user *buffer, size_t *lenp,
+			     int (*handler)(void *data, int write, loff_t pos,
+					    void __user *buffer, int len))
 {
 	int rc = handler(data, write, *ppos, buffer, *lenp);
 
@@ -361,7 +361,7 @@ static int __proc_cpt_table(void *data, int write,
 }
 
 static int proc_cpt_table(struct ctl_table *table, int write,
-			   void __user *buffer, size_t *lenp, loff_t *ppos)
+			  void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	return proc_call_handler(table->data, write, ppos, buffer, lenp,
 				 __proc_cpt_table);

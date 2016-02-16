@@ -343,11 +343,10 @@ cfs_range_expr_print(char *buffer, int count, struct cfs_range_expr *expr,
 		i = scnprintf(buffer, count, "%u", expr->re_lo);
 	else if (expr->re_stride == 1)
 		i = scnprintf(buffer, count, "%s%u-%u%s",
-				s, expr->re_lo, expr->re_hi, e);
+			      s, expr->re_lo, expr->re_hi, e);
 	else
 		i = scnprintf(buffer, count, "%s%u-%u/%u%s",
-				s, expr->re_lo, expr->re_hi,
-				expr->re_stride, e);
+			      s, expr->re_lo, expr->re_hi, expr->re_stride, e);
 	return i;
 }
 
@@ -469,7 +468,7 @@ cfs_expr_list_free(struct cfs_expr_list *expr_list)
 		struct cfs_range_expr *expr;
 
 		expr = list_entry(expr_list->el_exprs.next,
-				      struct cfs_range_expr, re_link);
+				  struct cfs_range_expr, re_link);
 		list_del(&expr->re_link);
 		LIBCFS_FREE(expr, sizeof(*expr));
 	}
@@ -520,15 +519,12 @@ cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
 			if (rc != 0)
 				break;
 
-			list_add_tail(&expr->re_link,
-					  &expr_list->el_exprs);
+			list_add_tail(&expr->re_link, &expr_list->el_exprs);
 		}
 	} else {
 		rc = cfs_range_expr_parse(&src, min, max, 0, &expr);
-		if (rc == 0) {
-			list_add_tail(&expr->re_link,
-					  &expr_list->el_exprs);
-		}
+		if (rc == 0)
+			list_add_tail(&expr->re_link, &expr_list->el_exprs);
 	}
 
 	if (rc != 0)
@@ -554,8 +550,7 @@ cfs_expr_list_free_list(struct list_head *list)
 	struct cfs_expr_list *el;
 
 	while (!list_empty(list)) {
-		el = list_entry(list->next,
-				    struct cfs_expr_list, el_link);
+		el = list_entry(list->next, struct cfs_expr_list, el_link);
 		list_del(&el->el_link);
 		cfs_expr_list_free(el);
 	}

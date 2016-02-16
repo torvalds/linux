@@ -503,8 +503,7 @@ panic_collect_pages(struct page_collection *pc)
 		tcd->tcd_cur_pages = 0;
 
 		if (pc->pc_want_daemon_pages) {
-			list_splice_init(&tcd->tcd_daemon_pages,
-					     &pc->pc_pages);
+			list_splice_init(&tcd->tcd_daemon_pages, &pc->pc_pages);
 			tcd->tcd_cur_daemon_pages = 0;
 		}
 	}
@@ -521,7 +520,7 @@ static void collect_pages_on_all_cpus(struct page_collection *pc)
 			tcd->tcd_cur_pages = 0;
 			if (pc->pc_want_daemon_pages) {
 				list_splice_init(&tcd->tcd_daemon_pages,
-						     &pc->pc_pages);
+						 &pc->pc_pages);
 				tcd->tcd_cur_daemon_pages = 0;
 			}
 		}
@@ -673,7 +672,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		rc = PTR_ERR(filp);
 		filp = NULL;
 		pr_err("LustreError: can't open %s for dump: rc %d\n",
-			filename, rc);
+		       filename, rc);
 		goto out;
 	}
 
@@ -872,7 +871,7 @@ int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob)
 		return rc;
 
 	rc = cfs_trace_copyin_string(str, usr_str_nob + 1,
-				 usr_str, usr_str_nob);
+				     usr_str, usr_str_nob);
 	if (rc == 0)
 		rc = cfs_trace_daemon_command(str);
 
@@ -980,8 +979,7 @@ static int tracefiled(void *arg)
 
 		MMSPACE_OPEN;
 
-		list_for_each_entry_safe(tage, tmp, &pc.pc_pages,
-						   linkage) {
+		list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
 			static loff_t f_pos;
 
 			__LASSERT_TAGE_INVARIANT(tage);
@@ -1012,8 +1010,7 @@ static int tracefiled(void *arg)
 			int i;
 
 			printk(KERN_ALERT "Lustre: trace pages aren't empty\n");
-			pr_err("total cpus(%d): ",
-				num_possible_cpus());
+			pr_err("total cpus(%d): ", num_possible_cpus());
 			for (i = 0; i < num_possible_cpus(); i++)
 				if (cpu_online(i))
 					pr_cont("%d(on) ", i);
@@ -1023,9 +1020,9 @@ static int tracefiled(void *arg)
 
 			i = 0;
 			list_for_each_entry_safe(tage, tmp, &pc.pc_pages,
-						     linkage)
+						 linkage)
 				pr_err("page %d belongs to cpu %d\n",
-					++i, tage->cpu);
+				       ++i, tage->cpu);
 			pr_err("There are %d pages unwritten\n", i);
 		}
 		__LASSERT(list_empty(&pc.pc_pages));
@@ -1132,7 +1129,7 @@ static void trace_cleanup_on_all_cpus(void)
 			tcd->tcd_shutting_down = 1;
 
 			list_for_each_entry_safe(tage, tmp, &tcd->tcd_pages,
-							   linkage) {
+						 linkage) {
 				__LASSERT_TAGE_INVARIANT(tage);
 
 				list_del(&tage->linkage);

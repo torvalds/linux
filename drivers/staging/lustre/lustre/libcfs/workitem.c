@@ -234,8 +234,8 @@ cfs_wi_scheduler (void *arg)
 
 		while (!list_empty(&sched->ws_runq) &&
 		       nloops < CFS_WI_RESCHED) {
-			wi = list_entry(sched->ws_runq.next,
-					    cfs_workitem_t, wi_list);
+			wi = list_entry(sched->ws_runq.next, cfs_workitem_t,
+					wi_list);
 			LASSERT(wi->wi_scheduled && !wi->wi_running);
 
 			list_del_init(&wi->wi_list);
@@ -455,7 +455,7 @@ cfs_wi_shutdown(void)
 	}
 	while (!list_empty(&cfs_wi_data.wi_scheds)) {
 		sched = list_entry(cfs_wi_data.wi_scheds.next,
-				       struct cfs_wi_sched, ws_list);
+				   struct cfs_wi_sched, ws_list);
 		list_del(&sched->ws_list);
 		LIBCFS_FREE(sched, sizeof(*sched));
 	}

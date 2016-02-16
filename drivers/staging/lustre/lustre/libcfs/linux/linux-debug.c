@@ -168,7 +168,7 @@ void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 }
 
 static int panic_notifier(struct notifier_block *self, unsigned long unused1,
-			 void *unused2)
+			  void *unused2)
 {
 	if (libcfs_panic_in_progress)
 		return 0;

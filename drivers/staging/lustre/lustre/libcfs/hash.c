@@ -2040,15 +2040,15 @@ void cfs_hash_debug_str(struct cfs_hash *hs, struct seq_file *m)
 	theta = __cfs_hash_theta(hs);
 
 	seq_printf(m, "%-*s %5d %5d %5d %d.%03d %d.%03d %d.%03d  0x%02x %6d ",
-		      CFS_HASH_BIGNAME_LEN, hs->hs_name,
-		      1 << hs->hs_cur_bits, 1 << hs->hs_min_bits,
-		      1 << hs->hs_max_bits,
-		      __cfs_hash_theta_int(theta), __cfs_hash_theta_frac(theta),
-		      __cfs_hash_theta_int(hs->hs_min_theta),
-		      __cfs_hash_theta_frac(hs->hs_min_theta),
-		      __cfs_hash_theta_int(hs->hs_max_theta),
-		      __cfs_hash_theta_frac(hs->hs_max_theta),
-		      hs->hs_flags, hs->hs_rehash_count);
+		   CFS_HASH_BIGNAME_LEN, hs->hs_name,
+		   1 << hs->hs_cur_bits, 1 << hs->hs_min_bits,
+		   1 << hs->hs_max_bits,
+		   __cfs_hash_theta_int(theta), __cfs_hash_theta_frac(theta),
+		   __cfs_hash_theta_int(hs->hs_min_theta),
+		   __cfs_hash_theta_frac(hs->hs_min_theta),
+		   __cfs_hash_theta_int(hs->hs_max_theta),
+		   __cfs_hash_theta_frac(hs->hs_max_theta),
+		   hs->hs_flags, hs->hs_rehash_count);
 
 	/*
 	 * The distribution is a summary of the chained hash depth in
