@@ -416,7 +416,7 @@ create_child(struct callchain_node *parent, bool inherit_children)
 /*
  * Fill the node with callchain values
  */
-static void
+static int
 fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 {
 	struct callchain_cursor_node *cursor_node;
@@ -433,7 +433,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		call = zalloc(sizeof(*call));
 		if (!call) {
 			perror("not enough memory for the code path tree");
-			return;
+			return -1;
 		}
 		call->ip = cursor_node->ip;
 		call->ms.sym = cursor_node->sym;
@@ -443,6 +443,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		callchain_cursor_advance(cursor);
 		cursor_node = callchain_cursor_current(cursor);
 	}
+	return 0;
 }
 
 static struct callchain_node *
@@ -456,7 +457,16 @@ add_child(struct callchain_node *parent,
 	if (new == NULL)
 		return NULL;
 
-	fill_node(new, cursor);
+	if (fill_node(new, cursor) < 0) {
+		struct callchain_list *call, *tmp;
+
+		list_for_each_entry_safe(call, tmp, &new->val, list) {
+			list_del(&call->list);
+			free(call);
+		}
+		free(new);
+		return NULL;
+	}
 
 	new->children_hit = 0;
 	new->hit = period;
