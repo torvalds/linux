@@ -69,7 +69,7 @@ static void osc_page_fini(const struct lu_env *env,
 	struct osc_page *opg = cl2osc_page(slice);
 
 	CDEBUG(D_TRACE, "%p\n", opg);
-	LASSERT(opg->ops_lock == NULL);
+	LASSERT(!opg->ops_lock);
 }
 
 static void osc_page_transfer_get(struct osc_page *opg, const char *label)
@@ -135,7 +135,7 @@ static int osc_page_cache_add(const struct lu_env *env,
 	 * osc_io_end() is called, so release it earlier.
 	 * for mkwrite(), it's known there is no further pages. */
 	if (cl_io_is_sync_write(io) || cl_io_is_mkwrite(io)) {
-		if (oio->oi_active != NULL) {
+		if (oio->oi_active) {
 			osc_extent_release(env, oio->oi_active);
 			oio->oi_active = NULL;
 		}
@@ -159,7 +159,7 @@ static int osc_page_addref_lock(const struct lu_env *env,
 	struct osc_lock *olock;
 	int rc;
 
-	LASSERT(opg->ops_lock == NULL);
+	LASSERT(!opg->ops_lock);
 
 	olock = osc_lock_at(lock);
 	if (atomic_inc_return(&olock->ols_pageref) <= 0) {
@@ -179,7 +179,7 @@ static void osc_page_putref_lock(const struct lu_env *env,
 	struct cl_lock *lock = opg->ops_lock;
 	struct osc_lock *olock;
 
-	LASSERT(lock != NULL);
+	LASSERT(lock);
 	olock = osc_lock_at(lock);
 
 	atomic_dec(&olock->ols_pageref);
@@ -197,7 +197,7 @@ static int osc_page_is_under_lock(const struct lu_env *env,
 
 	lock = cl_lock_at_page(env, slice->cpl_obj, slice->cpl_page,
 			       NULL, 1, 0);
-	if (lock != NULL) {
+	if (lock) {
 		if (osc_page_addref_lock(env, cl2osc_page(slice), lock) == 0)
 			result = -EBUSY;
 		cl_lock_put(env, lock);
@@ -325,7 +325,7 @@ static void osc_page_delete(const struct lu_env *env,
 	}
 
 	spin_lock(&obj->oo_seatbelt);
-	if (opg->ops_submitter != NULL) {
+	if (opg->ops_submitter) {
 		LASSERT(!list_empty(&opg->ops_inflight));
 		list_del_init(&opg->ops_inflight);
 		opg->ops_submitter = NULL;
@@ -589,14 +589,14 @@ int osc_lru_shrink(struct client_obd *cli, int target)
 			continue;
 		}
 
-		LASSERT(page->cp_obj != NULL);
+		LASSERT(page->cp_obj);
 		if (clobj != page->cp_obj) {
 			struct cl_object *tmp = page->cp_obj;
 
 			cl_object_get(tmp);
 			client_obd_list_unlock(&cli->cl_lru_list_lock);
 
-			if (clobj != NULL) {
+			if (clobj) {
 				count -= discard_pagevec(env, io, pvec, index);
 				index = 0;
 
@@ -641,7 +641,7 @@ int osc_lru_shrink(struct client_obd *cli, int target)
 	}
 	client_obd_list_unlock(&cli->cl_lru_list_lock);
 
-	if (clobj != NULL) {
+	if (clobj) {
 		count -= discard_pagevec(env, io, pvec, index);
 
 		cl_io_fini(env, io);
@@ -720,7 +720,7 @@ static int osc_lru_reclaim(struct client_obd *cli)
 	int max_scans;
 	int rc;
 
-	LASSERT(cache != NULL);
+	LASSERT(cache);
 
 	rc = osc_lru_shrink(cli, lru_shrink_min);
 	if (rc != 0) {
@@ -776,7 +776,7 @@ static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
 	struct client_obd *cli = osc_cli(obj);
 	int rc = 0;
 
-	if (cli->cl_cache == NULL) /* shall not be in LRU */
+	if (!cli->cl_cache) /* shall not be in LRU */
 		return 0;
 
 	LASSERT(atomic_read(cli->cl_lru_left) >= 0);

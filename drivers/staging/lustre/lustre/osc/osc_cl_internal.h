@@ -472,7 +472,7 @@ static inline struct osc_thread_info *osc_env_info(const struct lu_env *env)
 	struct osc_thread_info *info;
 
 	info = lu_context_key_get(&env->le_ctx, &osc_key);
-	LASSERT(info != NULL);
+	LASSERT(info);
 	return info;
 }
 
@@ -481,7 +481,7 @@ static inline struct osc_session *osc_env_session(const struct lu_env *env)
 	struct osc_session *ses;
 
 	ses = lu_context_key_get(env->le_ses, &osc_session_key);
-	LASSERT(ses != NULL);
+	LASSERT(ses);
 	return ses;
 }
 

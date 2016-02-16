@@ -113,18 +113,18 @@ static int osc_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 	int lmm_size;
 
 	lmm_size = sizeof(**lmmp);
-	if (lmmp == NULL)
+	if (!lmmp)
 		return lmm_size;
 
-	if (*lmmp != NULL && lsm == NULL) {
+	if (*lmmp && !lsm) {
 		kfree(*lmmp);
 		*lmmp = NULL;
 		return 0;
-	} else if (unlikely(lsm != NULL && ostid_id(&lsm->lsm_oi) == 0)) {
+	} else if (unlikely(lsm && ostid_id(&lsm->lsm_oi) == 0)) {
 		return -EBADF;
 	}
 
-	if (*lmmp == NULL) {
+	if (!*lmmp) {
 		*lmmp = kzalloc(lmm_size, GFP_NOFS);
 		if (!*lmmp)
 			return -ENOMEM;
@@ -143,7 +143,7 @@ static int osc_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 	int lsm_size;
 	struct obd_import *imp = class_exp2cliimp(exp);
 
-	if (lmm != NULL) {
+	if (lmm) {
 		if (lmm_bytes < sizeof(*lmm)) {
 			CERROR("%s: lov_mds_md too small: %d, need %d\n",
 			       exp->exp_obd->obd_name, lmm_bytes,
@@ -160,23 +160,23 @@ static int osc_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 	}
 
 	lsm_size = lov_stripe_md_size(1);
-	if (lsmp == NULL)
+	if (!lsmp)
 		return lsm_size;
 
-	if (*lsmp != NULL && lmm == NULL) {
+	if (*lsmp && !lmm) {
 		kfree((*lsmp)->lsm_oinfo[0]);
 		kfree(*lsmp);
 		*lsmp = NULL;
 		return 0;
 	}
 
-	if (*lsmp == NULL) {
+	if (!*lsmp) {
 		*lsmp = kzalloc(lsm_size, GFP_NOFS);
-		if (unlikely(*lsmp == NULL))
+		if (unlikely(!*lsmp))
 			return -ENOMEM;
 		(*lsmp)->lsm_oinfo[0] = kzalloc(sizeof(struct lov_oinfo),
 						GFP_NOFS);
-		if (unlikely((*lsmp)->lsm_oinfo[0] == NULL)) {
+		if (unlikely(!(*lsmp)->lsm_oinfo[0])) {
 			kfree(*lsmp);
 			return -ENOMEM;
 		}
@@ -185,11 +185,11 @@ static int osc_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		return -EBADF;
 	}
 
-	if (lmm != NULL)
+	if (lmm)
 		/* XXX zero *lsmp? */
 		ostid_le_to_cpu(&lmm->lmm_oi, &(*lsmp)->lsm_oi);
 
-	if (imp != NULL &&
+	if (imp &&
 	    (imp->imp_connect_data.ocd_connect_flags & OBD_CONNECT_MAXBYTES))
 		(*lsmp)->lsm_maxbytes = imp->imp_connect_data.ocd_maxbytes;
 	else
@@ -246,7 +246,7 @@ static int osc_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
 	int rc;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_GETATTR);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_GETATTR);
@@ -276,7 +276,7 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 	int rc;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_GETATTR);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_GETATTR);
@@ -294,7 +294,7 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL) {
+	if (!body) {
 		rc = -EPROTO;
 		goto out;
 	}
@@ -321,7 +321,7 @@ static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
 	LASSERT(oinfo->oi_oa->o_valid & OBD_MD_FLGROUP);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_SETATTR);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_SETATTR);
@@ -339,7 +339,7 @@ static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
 		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL) {
+	if (!body) {
 		rc = -EPROTO;
 		goto out;
 	}
@@ -362,7 +362,7 @@ static int osc_setattr_interpret(const struct lu_env *env,
 		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL) {
+	if (!body) {
 		rc = -EPROTO;
 		goto out;
 	}
@@ -384,7 +384,7 @@ int osc_setattr_async_base(struct obd_export *exp, struct obd_info *oinfo,
 	int rc;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_SETATTR);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_SETATTR);
@@ -451,7 +451,7 @@ static int osc_real_create(struct obd_export *exp, struct obdo *oa,
 	}
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_CREATE);
-	if (req == NULL) {
+	if (!req) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -482,7 +482,7 @@ static int osc_real_create(struct obd_export *exp, struct obdo *oa,
 		goto out_req;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL) {
+	if (!body) {
 		rc = -EPROTO;
 		goto out_req;
 	}
@@ -500,7 +500,7 @@ static int osc_real_create(struct obd_export *exp, struct obdo *oa,
 	lsm->lsm_oi = oa->o_oi;
 	*ea = lsm;
 
-	if (oti != NULL) {
+	if (oti) {
 		oti->oti_transno = lustre_msg_get_transno(req->rq_repmsg);
 
 		if (oa->o_valid & OBD_MD_FLCOOKIE) {
@@ -530,7 +530,7 @@ int osc_punch_base(struct obd_export *exp, struct obd_info *oinfo,
 	int rc;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_PUNCH);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_PUNCH);
@@ -573,7 +573,7 @@ static int osc_sync_interpret(const struct lu_env *env,
 		goto out;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL) {
+	if (!body) {
 		CERROR("can't unpack ost_body\n");
 		rc = -EPROTO;
 		goto out;
@@ -595,7 +595,7 @@ int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
 	int rc;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_SYNC);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_SYNC);
@@ -650,7 +650,7 @@ static int osc_resource_get_unused(struct obd_export *exp, struct obdo *oa,
 
 	ostid_build_res_name(&oa->o_oi, &res_id);
 	res = ldlm_resource_get(ns, NULL, &res_id, 0, 0);
-	if (res == NULL)
+	if (!res)
 		return 0;
 
 	LDLM_RESOURCE_ADDREF(res);
@@ -743,7 +743,7 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 					LDLM_FL_DISCARD_DATA);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_DESTROY);
-	if (req == NULL) {
+	if (!req) {
 		ldlm_lock_list_put(&cancels, l_bl_ast, count);
 		return -ENOMEM;
 	}
@@ -758,7 +758,7 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 	req->rq_request_portal = OST_IO_PORTAL; /* bug 7198 */
 	ptlrpc_at_set_req_timeout(req);
 
-	if (oti != NULL && oa->o_valid & OBD_MD_FLCOOKIE)
+	if (oti && oa->o_valid & OBD_MD_FLCOOKIE)
 		oa->o_lcookie = *oti->oti_logcookies;
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OST_BODY);
 	LASSERT(body);
@@ -1106,7 +1106,7 @@ static int check_write_rcs(struct ptlrpc_request *req,
 	remote_rcs = req_capsule_server_sized_get(&req->rq_pill, &RMF_RCS,
 						  sizeof(*remote_rcs) *
 						  niocount);
-	if (remote_rcs == NULL) {
+	if (!remote_rcs) {
 		CDEBUG(D_INFO, "Missing/short RC vector on BRW_WRITE reply\n");
 		return -EPROTO;
 	}
@@ -1244,7 +1244,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 		opc = OST_READ;
 		req = ptlrpc_request_alloc(cli->cl_import, &RQF_OST_BRW_READ);
 	}
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	for (niocount = i = 1; i < page_count; i++) {
@@ -1274,7 +1274,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 		opc == OST_WRITE ? BULK_GET_SOURCE : BULK_PUT_SINK,
 		OST_BULK_PORTAL);
 
-	if (desc == NULL) {
+	if (!desc) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1283,7 +1283,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 	body = req_capsule_client_get(pill, &RMF_OST_BODY);
 	ioobj = req_capsule_client_get(pill, &RMF_OBD_IOOBJ);
 	niobuf = req_capsule_client_get(pill, &RMF_NIOBUF_REMOTE);
-	LASSERT(body != NULL && ioobj != NULL && niobuf != NULL);
+	LASSERT(body && ioobj && niobuf);
 
 	lustre_set_wire_obdo(&req->rq_import->imp_connect_data, &body->oa, oa);
 
@@ -1472,9 +1472,9 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 		return rc;
 	}
 
-	LASSERTF(req->rq_repmsg != NULL, "rc = %d\n", rc);
+	LASSERTF(req->rq_repmsg, "rc = %d\n", rc);
 	body = req_capsule_server_get(&req->rq_pill, &RMF_OST_BODY);
-	if (body == NULL) {
+	if (!body) {
 		DEBUG_REQ(D_INFO, req, "Can't unpack body\n");
 		return -EPROTO;
 	}
@@ -1627,7 +1627,7 @@ static int osc_brw_redo_request(struct ptlrpc_request *request,
 		return rc;
 
 	list_for_each_entry(oap, &aa->aa_oaps, oap_rpc_item) {
-		if (oap->oap_request != NULL) {
+		if (oap->oap_request) {
 			LASSERTF(request == oap->oap_request,
 				 "request %p != oap_request %p\n",
 				 request, oap->oap_request);
@@ -1709,7 +1709,7 @@ static void sort_brw_pages(struct brw_page **array, int num)
 
 static void osc_release_ppga(struct brw_page **ppga, u32 count)
 {
-	LASSERT(ppga != NULL);
+	LASSERT(ppga);
 	kfree(ppga);
 }
 
@@ -1748,7 +1748,7 @@ static int brw_interpret(const struct lu_env *env,
 	}
 
 	list_for_each_entry_safe(ext, tmp, &aa->aa_exts, oe_link) {
-		if (obj == NULL && rc == 0) {
+		if (!obj && rc == 0) {
 			obj = osc2cl(ext->oe_obj);
 			cl_object_get(obj);
 		}
@@ -1759,7 +1759,7 @@ static int brw_interpret(const struct lu_env *env,
 	LASSERT(list_empty(&aa->aa_exts));
 	LASSERT(list_empty(&aa->aa_oaps));
 
-	if (obj != NULL) {
+	if (obj) {
 		struct obdo *oa = aa->aa_oa;
 		struct cl_attr *attr  = &osc_env_info(env)->oti_attr;
 		unsigned long valid = 0;
@@ -1871,13 +1871,13 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	}
 
 	pga = kcalloc(page_count, sizeof(*pga), GFP_NOFS);
-	if (pga == NULL) {
+	if (!pga) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
 	oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
-	if (oa == NULL) {
+	if (!oa) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1886,7 +1886,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	list_for_each_entry(oap, &rpc_list, oap_rpc_item) {
 		struct cl_page *page = oap2cl_page(oap);
 
-		if (clerq == NULL) {
+		if (!clerq) {
 			clerq = cl_req_alloc(env, page, crt,
 					     1 /* only 1-object rpcs for now */);
 			if (IS_ERR(clerq)) {
@@ -1907,7 +1907,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	}
 
 	/* always get the data for the obdo for the rpc */
-	LASSERT(clerq != NULL);
+	LASSERT(clerq);
 	crattr->cra_oa = oa;
 	cl_req_attr_set(env, clerq, crattr, ~0ULL);
 	if (lock) {
@@ -1959,7 +1959,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	tmp = NULL;
 	list_for_each_entry(oap, &aa->aa_oaps, oap_rpc_item) {
 		/* only one oap gets a request reference */
-		if (tmp == NULL)
+		if (!tmp)
 			tmp = oap;
 		if (oap->oap_interrupted && !req->rq_intr) {
 			CDEBUG(D_INODE, "oap %p in req %p interrupted\n",
@@ -1967,7 +1967,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 			ptlrpc_mark_interrupted(req);
 		}
 	}
-	if (tmp != NULL)
+	if (tmp)
 		tmp->oap_request = ptlrpc_request_addref(req);
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
@@ -2001,7 +2001,7 @@ out:
 	kfree(crattr);
 
 	if (rc != 0) {
-		LASSERT(req == NULL);
+		LASSERT(!req);
 
 		if (oa)
 			kmem_cache_free(obdo_cachep, oa);
@@ -2026,7 +2026,6 @@ static int osc_set_lock_data_with_check(struct ldlm_lock *lock,
 	void *data = einfo->ei_cbdata;
 	int set = 0;
 
-	LASSERT(lock != NULL);
 	LASSERT(lock->l_blocking_ast == einfo->ei_cb_bl);
 	LASSERT(lock->l_resource->lr_type == einfo->ei_type);
 	LASSERT(lock->l_completion_ast == einfo->ei_cb_cp);
@@ -2035,7 +2034,7 @@ static int osc_set_lock_data_with_check(struct ldlm_lock *lock,
 	lock_res_and_lock(lock);
 	spin_lock(&osc_ast_guard);
 
-	if (lock->l_ast_data == NULL)
+	if (!lock->l_ast_data)
 		lock->l_ast_data = data;
 	if (lock->l_ast_data == data)
 		set = 1;
@@ -2052,7 +2051,7 @@ static int osc_set_data_with_check(struct lustre_handle *lockh,
 	struct ldlm_lock *lock = ldlm_handle2lock(lockh);
 	int set = 0;
 
-	if (lock != NULL) {
+	if (lock) {
 		set = osc_set_lock_data_with_check(lock, einfo);
 		LDLM_LOCK_PUT(lock);
 	} else
@@ -2095,7 +2094,6 @@ static int osc_enqueue_fini(struct ptlrpc_request *req, struct ost_lvb *lvb,
 			rep = req_capsule_server_get(&req->rq_pill,
 						     &RMF_DLM_REP);
 
-			LASSERT(rep != NULL);
 			rep->lock_policy_res1 =
 				ptlrpc_status_ntoh(rep->lock_policy_res1);
 			if (rep->lock_policy_res1)
@@ -2170,7 +2168,7 @@ static int osc_enqueue_interpret(const struct lu_env *env,
 		 */
 		ldlm_lock_decref(&handle, mode);
 
-	LASSERTF(lock != NULL, "lockh %p, req %p, aa %p - client evicted?\n",
+	LASSERTF(lock, "lockh %p, req %p, aa %p - client evicted?\n",
 		 aa->oa_lockh, req, aa);
 	ldlm_lock_decref(&handle, mode);
 	LDLM_LOCK_PUT(lock);
@@ -2281,7 +2279,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 
 		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					   &RQF_LDLM_ENQUEUE_LVB);
-		if (req == NULL)
+		if (!req)
 			return -ENOMEM;
 
 		rc = ldlm_prep_enqueue_req(exp, req, &cancels, 0);
@@ -2361,7 +2359,7 @@ int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	rc = ldlm_lock_match(obd->obd_namespace, lflags,
 			     res_id, type, policy, rc, lockh, unref);
 	if (rc) {
-		if (data != NULL) {
+		if (data) {
 			if (!osc_set_data_with_check(lockh, data)) {
 				if (!(lflags & LDLM_FL_TEST_LOCK))
 					ldlm_lock_decref(lockh, rc);
@@ -2411,7 +2409,7 @@ static int osc_statfs_interpret(const struct lu_env *env,
 		goto out;
 
 	msfs = req_capsule_server_get(&req->rq_pill, &RMF_OBD_STATFS);
-	if (msfs == NULL) {
+	if (!msfs) {
 		rc = -EPROTO;
 		goto out;
 	}
@@ -2438,7 +2436,7 @@ static int osc_statfs_async(struct obd_export *exp,
 	 * is not so great if request processing is slow, while absolute
 	 * timestamps are not ideal because they need time synchronization. */
 	req = ptlrpc_request_alloc(obd->u.cli.cl_import, &RQF_OST_STATFS);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_STATFS);
@@ -2493,7 +2491,7 @@ static int osc_statfs(const struct lu_env *env, struct obd_export *exp,
 
 	class_import_put(imp);
 
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	rc = ptlrpc_request_pack(req, LUSTRE_OST_VERSION, OST_STATFS);
@@ -2516,7 +2514,7 @@ static int osc_statfs(const struct lu_env *env, struct obd_export *exp,
 		goto out;
 
 	msfs = req_capsule_server_get(&req->rq_pill, &RMF_OBD_STATFS);
-	if (msfs == NULL) {
+	if (!msfs) {
 		rc = -EPROTO;
 		goto out;
 	}
@@ -2701,7 +2699,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 
 		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					   &RQF_OST_GET_INFO_LAST_ID);
-		if (req == NULL)
+		if (!req)
 			return -ENOMEM;
 
 		req_capsule_set_size(&req->rq_pill, &RMF_SETINFO_KEY,
@@ -2722,7 +2720,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 			goto out;
 
 		reply = req_capsule_server_get(&req->rq_pill, &RMF_OBD_ID);
-		if (reply == NULL) {
+		if (!reply) {
 			rc = -EPROTO;
 			goto out;
 		}
@@ -2775,7 +2773,7 @@ out:
 skip_locking:
 		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					   &RQF_OST_GET_INFO_FIEMAP);
-		if (req == NULL) {
+		if (!req) {
 			rc = -ENOMEM;
 			goto drop_lock;
 		}
@@ -2804,7 +2802,7 @@ skip_locking:
 			goto fini_req;
 
 		reply = req_capsule_server_get(&req->rq_pill, &RMF_FIEMAP_VAL);
-		if (reply == NULL) {
+		if (!reply) {
 			rc = -EPROTO;
 			goto fini_req;
 		}
@@ -2853,7 +2851,7 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	if (KEY_IS(KEY_CACHE_SET)) {
 		struct client_obd *cli = &obd->u.cli;
 
-		LASSERT(cli->cl_cache == NULL); /* only once */
+		LASSERT(!cli->cl_cache); /* only once */
 		cli->cl_cache = val;
 		atomic_inc(&cli->cl_cache->ccc_users);
 		cli->cl_lru_left = &cli->cl_cache->ccc_lru_left;
@@ -2890,7 +2888,7 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	req = ptlrpc_request_alloc(imp, KEY_IS(KEY_GRANT_SHRINK) ?
 						&RQF_OST_SET_GRANT_INFO :
 						&RQF_OBD_SET_INFO);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	req_capsule_set_size(&req->rq_pill, &RMF_SETINFO_KEY,
@@ -2929,7 +2927,7 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 	if (!KEY_IS(KEY_GRANT_SHRINK)) {
-		LASSERT(set != NULL);
+		LASSERT(set);
 		ptlrpc_set_add_req(set, req);
 		ptlrpc_check_set(NULL, set);
 	} else {
@@ -2947,7 +2945,7 @@ static int osc_reconnect(const struct lu_env *env,
 {
 	struct client_obd *cli = &obd->u.cli;
 
-	if (data != NULL && (data->ocd_connect_flags & OBD_CONNECT_GRANT)) {
+	if (data && (data->ocd_connect_flags & OBD_CONNECT_GRANT)) {
 		long lost_grant;
 
 		client_obd_list_lock(&cli->cl_loi_list_lock);
@@ -2988,7 +2986,7 @@ static int osc_disconnect(struct obd_export *exp)
 	 * So the osc should be disconnected from the shrink list, after we
 	 * are sure the import has been destroyed. BUG18662
 	 */
-	if (obd->u.cli.cl_import == NULL)
+	if (!obd->u.cli.cl_import)
 		osc_del_shrink_grant(&obd->u.cli);
 	return rc;
 }
@@ -3213,7 +3211,7 @@ int osc_cleanup(struct obd_device *obd)
 	int rc;
 
 	/* lru cleanup */
-	if (cli->cl_cache != NULL) {
+	if (cli->cl_cache) {
 		LASSERT(atomic_read(&cli->cl_cache->ccc_users) > 0);
 		spin_lock(&cli->cl_cache->ccc_lru_lock);
 		list_del_init(&cli->cl_lru_osc);

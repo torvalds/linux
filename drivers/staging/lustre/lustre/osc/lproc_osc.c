@@ -381,7 +381,7 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 
 	DECLARE_CKSUM_NAME;
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(cksum_name); i++) {
@@ -406,7 +406,7 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 	DECLARE_CKSUM_NAME;
 	char kernbuf[10];
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	if (count > sizeof(kernbuf) - 1)

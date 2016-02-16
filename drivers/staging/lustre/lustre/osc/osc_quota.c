@@ -36,7 +36,7 @@ static inline struct osc_quota_info *osc_oqi_alloc(u32 id)
 	struct osc_quota_info *oqi;
 
 	oqi = kmem_cache_alloc(osc_quota_kmem, GFP_NOFS | __GFP_ZERO);
-	if (oqi != NULL)
+	if (oqi)
 		oqi->oqi_id = id;
 
 	return oqi;
@@ -90,11 +90,11 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 		if ((flags & FL_QUOTA_FLAG(type)) != 0) {
 			/* This ID is getting close to its quota limit, let's
 			 * switch to sync I/O */
-			if (oqi != NULL)
+			if (oqi)
 				continue;
 
 			oqi = osc_oqi_alloc(qid[type]);
-			if (oqi == NULL) {
+			if (!oqi) {
 				rc = -ENOMEM;
 				break;
 			}
@@ -114,7 +114,7 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 		} else {
 			/* This ID is now off the hook, let's remove it from
 			 * the hash table */
-			if (oqi == NULL)
+			if (!oqi)
 				continue;
 
 			oqi = cfs_hash_del_key(cli->cl_quota_hash[type],
@@ -147,7 +147,7 @@ oqi_keycmp(const void *key, struct hlist_node *hnode)
 	struct osc_quota_info *oqi;
 	u32 uid;
 
-	LASSERT(key != NULL);
+	LASSERT(key);
 	uid = *((u32 *)key);
 	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
 
@@ -218,7 +218,7 @@ int osc_quota_setup(struct obd_device *obd)
 							   CFS_HASH_MAX_THETA,
 							   &quota_hash_ops,
 							   CFS_HASH_DEFAULT);
-		if (cli->cl_quota_hash[type] == NULL)
+		if (!cli->cl_quota_hash[type])
 			break;
 	}
 
@@ -252,7 +252,7 @@ int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_OST_QUOTACTL, LUSTRE_OST_VERSION,
 					OST_QUOTACTL);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	oqc = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
@@ -294,7 +294,7 @@ int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_OST_QUOTACHECK, LUSTRE_OST_VERSION,
 					OST_QUOTACHECK);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);

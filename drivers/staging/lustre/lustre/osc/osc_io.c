@@ -73,7 +73,7 @@ static struct osc_page *osc_cl_page_osc(struct cl_page *page)
 	const struct cl_page_slice *slice;
 
 	slice = cl_page_at(page, &osc_device_type);
-	LASSERT(slice != NULL);
+	LASSERT(slice);
 
 	return cl2osc_page(slice);
 }
@@ -135,7 +135,7 @@ static int osc_io_submit(const struct lu_env *env,
 
 		/* Top level IO. */
 		io = page->cp_owner;
-		LASSERT(io != NULL);
+		LASSERT(io);
 
 		opg = osc_cl_page_osc(page);
 		oap = &opg->ops_oap;
@@ -266,7 +266,7 @@ static int osc_io_prepare_write(const struct lu_env *env,
 	 * This implements OBD_BRW_CHECK logic from old client.
 	 */
 
-	if (imp == NULL || imp->imp_invalid)
+	if (!imp || imp->imp_invalid)
 		result = -EIO;
 	if (result == 0 && oio->oi_lockless)
 		/* this page contains `invalid' data, but who cares?
@@ -349,7 +349,7 @@ static int trunc_check_cb(const struct lu_env *env, struct cl_io *io,
 	__u64 start = *(__u64 *)cbdata;
 
 	slice = cl_page_at(page, &osc_device_type);
-	LASSERT(slice != NULL);
+	LASSERT(slice);
 	ops = cl2osc_page(slice);
 	oap = &ops->ops_oap;
 
@@ -500,7 +500,7 @@ static void osc_io_setattr_end(const struct lu_env *env,
 		__u64 size = io->u.ci_setattr.sa_attr.lvb_size;
 
 		osc_trunc_check(env, io, oio, size);
-		if (oio->oi_trunc != NULL) {
+		if (oio->oi_trunc) {
 			osc_cache_truncate_end(env, oio, cl2osc(obj));
 			oio->oi_trunc = NULL;
 		}
@@ -754,7 +754,7 @@ static void osc_req_attr_set(const struct lu_env *env,
 		opg = osc_cl_page_osc(apage);
 		apage = opg->ops_cl.cpl_page; /* now apage is a sub-page */
 		lock = cl_lock_at_page(env, apage->cp_obj, apage, NULL, 1, 1);
-		if (lock == NULL) {
+		if (!lock) {
 			struct cl_object_header *head;
 			struct cl_lock *scan;
 
@@ -770,10 +770,9 @@ static void osc_req_attr_set(const struct lu_env *env,
 		}
 
 		olck = osc_lock_at(lock);
-		LASSERT(olck != NULL);
-		LASSERT(ergo(opg->ops_srvlock, olck->ols_lock == NULL));
+		LASSERT(ergo(opg->ops_srvlock, !olck->ols_lock));
 		/* check for lockless io. */
-		if (olck->ols_lock != NULL) {
+		if (olck->ols_lock) {
 			oa->o_handle = olck->ols_lock->l_remote_handle;
 			oa->o_valid |= OBD_MD_FLHANDLE;
 		}
@@ -804,7 +803,7 @@ int osc_req_init(const struct lu_env *env, struct cl_device *dev,
 	int result;
 
 	or = kmem_cache_alloc(osc_req_kmem, GFP_NOFS | __GFP_ZERO);
-	if (or != NULL) {
+	if (or) {
 		cl_req_slice_add(req, &or->or_cl, dev, &osc_req_ops);
 		result = 0;
 	} else

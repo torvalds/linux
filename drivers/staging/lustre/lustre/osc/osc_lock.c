@@ -79,7 +79,7 @@ static struct ldlm_lock *osc_handle_ptr(struct lustre_handle *handle)
 	struct ldlm_lock *lock;
 
 	lock = ldlm_handle2lock(handle);
-	if (lock != NULL)
+	if (lock)
 		LDLM_LOCK_PUT(lock);
 	return lock;
 }
@@ -94,42 +94,40 @@ static int osc_lock_invariant(struct osc_lock *ols)
 	int handle_used = lustre_handle_is_used(&ols->ols_handle);
 
 	if (ergo(osc_lock_is_lockless(ols),
-		 ols->ols_locklessable && ols->ols_lock == NULL))
+		 ols->ols_locklessable && !ols->ols_lock))
 		return 1;
 
 	/*
 	 * If all the following "ergo"s are true, return 1, otherwise 0
 	 */
-	if (!ergo(olock != NULL, handle_used))
+	if (!ergo(olock, handle_used))
 		return 0;
 
-	if (!ergo(olock != NULL,
-		   olock->l_handle.h_cookie == ols->ols_handle.cookie))
+	if (!ergo(olock, olock->l_handle.h_cookie == ols->ols_handle.cookie))
 		return 0;
 
 	if (!ergo(handle_used,
-		   ergo(lock != NULL && olock != NULL, lock == olock) &&
-		   ergo(lock == NULL, olock == NULL)))
+		  ergo(lock && olock, lock == olock) &&
+		  ergo(!lock, !olock)))
 		return 0;
 	/*
 	 * Check that ->ols_handle and ->ols_lock are consistent, but
 	 * take into account that they are set at the different time.
 	 */
 	if (!ergo(ols->ols_state == OLS_CANCELLED,
-		   olock == NULL && !handle_used))
+		  !olock && !handle_used))
 		return 0;
 	/*
 	 * DLM lock is destroyed only after we have seen cancellation
 	 * ast.
 	 */
-	if (!ergo(olock != NULL && ols->ols_state < OLS_CANCELLED,
-		   ((olock->l_flags & LDLM_FL_DESTROYED) == 0)))
+	if (!ergo(olock && ols->ols_state < OLS_CANCELLED,
+		  ((olock->l_flags & LDLM_FL_DESTROYED) == 0)))
 		return 0;
 
 	if (!ergo(ols->ols_state == OLS_GRANTED,
-		   olock != NULL &&
-		   olock->l_req_mode == olock->l_granted_mode &&
-		   ols->ols_hold))
+		  olock && olock->l_req_mode == olock->l_granted_mode &&
+		  ols->ols_hold))
 		return 0;
 	return 1;
 }
@@ -149,7 +147,7 @@ static void osc_lock_detach(const struct lu_env *env, struct osc_lock *olck)
 
 	spin_lock(&osc_ast_guard);
 	dlmlock = olck->ols_lock;
-	if (dlmlock == NULL) {
+	if (!dlmlock) {
 		spin_unlock(&osc_ast_guard);
 		return;
 	}
@@ -247,7 +245,7 @@ static void osc_lock_fini(const struct lu_env *env,
 	 * lock is destroyed immediately after upcall.
 	 */
 	osc_lock_unhold(ols);
-	LASSERT(ols->ols_lock == NULL);
+	LASSERT(!ols->ols_lock);
 	LASSERT(atomic_read(&ols->ols_pageref) == 0 ||
 		atomic_read(&ols->ols_pageref) == _PAGEREF_MAGIC);
 
@@ -292,7 +290,7 @@ static struct osc_lock *osc_ast_data_get(struct ldlm_lock *dlm_lock)
 	lock_res_and_lock(dlm_lock);
 	spin_lock(&osc_ast_guard);
 	olck = dlm_lock->l_ast_data;
-	if (olck != NULL) {
+	if (olck) {
 		struct cl_lock *lock = olck->ols_cl.cls_lock;
 		/*
 		 * If osc_lock holds a reference on ldlm lock, return it even
@@ -359,7 +357,6 @@ static void osc_lock_lvb_update(const struct lu_env *env, struct osc_lock *olck,
 		__u64 size;
 
 		dlmlock = olck->ols_lock;
-		LASSERT(dlmlock != NULL);
 
 		/* re-grab LVB from a dlm lock under DLM spin-locks. */
 		*lvb = *(struct ost_lvb *)dlmlock->l_lvb_data;
@@ -444,12 +441,12 @@ static void osc_lock_upcall0(const struct lu_env *env, struct osc_lock *olck)
 	struct ldlm_lock *dlmlock;
 
 	dlmlock = ldlm_handle2lock_long(&olck->ols_handle, 0);
-	LASSERT(dlmlock != NULL);
+	LASSERT(dlmlock);
 
 	lock_res_and_lock(dlmlock);
 	spin_lock(&osc_ast_guard);
 	LASSERT(dlmlock->l_ast_data == olck);
-	LASSERT(olck->ols_lock == NULL);
+	LASSERT(!olck->ols_lock);
 	olck->ols_lock = dlmlock;
 	spin_unlock(&osc_ast_guard);
 
@@ -508,10 +505,10 @@ static int osc_lock_upcall(void *cookie, int errcode)
 			struct ldlm_lock *dlmlock;
 
 			dlmlock = ldlm_handle2lock(&olck->ols_handle);
-			if (dlmlock != NULL) {
+			if (dlmlock) {
 				lock_res_and_lock(dlmlock);
 				spin_lock(&osc_ast_guard);
-				LASSERT(olck->ols_lock == NULL);
+				LASSERT(!olck->ols_lock);
 				dlmlock->l_ast_data = NULL;
 				olck->ols_handle.cookie = 0ULL;
 				spin_unlock(&osc_ast_guard);
@@ -634,7 +631,7 @@ static int osc_dlm_blocking_ast0(const struct lu_env *env,
 
 	cancel = 0;
 	olck = osc_ast_data_get(dlmlock);
-	if (olck != NULL) {
+	if (olck) {
 		lock = olck->ols_cl.cls_lock;
 		cl_lock_mutex_get(env, lock);
 		LINVRNT(osc_lock_invariant(olck));
@@ -786,17 +783,17 @@ static int osc_ldlm_completion_ast(struct ldlm_lock *dlmlock,
 	env = cl_env_nested_get(&nest);
 	if (!IS_ERR(env)) {
 		olck = osc_ast_data_get(dlmlock);
-		if (olck != NULL) {
+		if (olck) {
 			lock = olck->ols_cl.cls_lock;
 			cl_lock_mutex_get(env, lock);
 			/*
 			 * ldlm_handle_cp_callback() copied LVB from request
 			 * to lock->l_lvb_data, store it in osc_lock.
 			 */
-			LASSERT(dlmlock->l_lvb_data != NULL);
+			LASSERT(dlmlock->l_lvb_data);
 			lock_res_and_lock(dlmlock);
 			olck->ols_lvb = *(struct ost_lvb *)dlmlock->l_lvb_data;
-			if (olck->ols_lock == NULL) {
+			if (!olck->ols_lock) {
 				/*
 				 * upcall (osc_lock_upcall()) hasn't yet been
 				 * called. Do nothing now, upcall will bind
@@ -850,7 +847,7 @@ static int osc_ldlm_glimpse_ast(struct ldlm_lock *dlmlock, void *data)
 		 * environment.
 		 */
 		olck = osc_ast_data_get(dlmlock);
-		if (olck != NULL) {
+		if (olck) {
 			lock = olck->ols_cl.cls_lock;
 			/* Do not grab the mutex of cl_lock for glimpse.
 			 * See LU-1274 for details.
@@ -1074,7 +1071,7 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 		} else {
 			CDEBUG(D_DLMTRACE, "lock %p is conflicted with %p, will wait\n",
 			       lock, conflict);
-			LASSERT(lock->cll_conflict == NULL);
+			LASSERT(!lock->cll_conflict);
 			lu_ref_add(&conflict->cll_reference, "cancel-wait",
 				   lock);
 			lock->cll_conflict = conflict;
@@ -1197,7 +1194,7 @@ static int osc_lock_wait(const struct lu_env *env,
 	}
 
 	LASSERT(equi(olck->ols_state >= OLS_UPCALL_RECEIVED &&
-		     lock->cll_error == 0, olck->ols_lock != NULL));
+		     lock->cll_error == 0, olck->ols_lock));
 
 	return lock->cll_error ?: olck->ols_state >= OLS_GRANTED ? 0 : CLO_WAIT;
 }
@@ -1306,7 +1303,7 @@ static void osc_lock_cancel(const struct lu_env *env,
 	LASSERT(cl_lock_is_mutexed(lock));
 	LINVRNT(osc_lock_invariant(olck));
 
-	if (dlmlock != NULL) {
+	if (dlmlock) {
 		int do_cancel;
 
 		discard = !!(dlmlock->l_flags & LDLM_FL_DISCARD_DATA);
@@ -1382,7 +1379,7 @@ static void osc_lock_state(const struct lu_env *env,
 	if (state == CLS_HELD && slice->cls_lock->cll_state != CLS_HELD) {
 		struct osc_io *oio = osc_env_io(env);
 
-		LASSERT(lock->ols_owner == NULL);
+		LASSERT(!lock->ols_owner);
 		lock->ols_owner = oio;
 	} else if (state != CLS_HELD)
 		lock->ols_owner = NULL;
@@ -1556,7 +1553,7 @@ int osc_lock_init(const struct lu_env *env,
 	int result;
 
 	clk = kmem_cache_alloc(osc_lock_kmem, GFP_NOFS | __GFP_ZERO);
-	if (clk != NULL) {
+	if (clk) {
 		__u32 enqflags = lock->cll_descr.cld_enq_flags;
 
 		osc_lock_build_einfo(env, lock, clk, &clk->ols_einfo);
@@ -1599,7 +1596,7 @@ int osc_dlm_lock_pageref(struct ldlm_lock *dlm)
 	 * doesn't matter because in the worst case we don't cancel a lock
 	 * which we actually can, that's no harm.
 	 */
-	if (olock != NULL &&
+	if (olock &&
 	    atomic_add_return(_PAGEREF_MAGIC,
 				  &olock->ols_pageref) != _PAGEREF_MAGIC) {
 		atomic_sub(_PAGEREF_MAGIC, &olock->ols_pageref);
