@@ -1156,6 +1156,24 @@ static bool vxlan_remcsum(struct sk_buff *skb, u32 vxflags, __be32 vni_field)
 	return true;
 }
 
+static void vxlan_parse_gbp_hdr(struct sk_buff *skb, struct vxlan_metadata *md,
+				struct metadata_dst *tun_dst)
+{
+	struct vxlanhdr_gbp *gbp;
+
+	gbp = (struct vxlanhdr_gbp *)vxlan_hdr(skb);
+	md->gbp = ntohs(gbp->policy_id);
+
+	if (tun_dst)
+		tun_dst->u.tun_info.key.tun_flags |= TUNNEL_VXLAN_OPT;
+
+	if (gbp->dont_learn)
+		md->gbp |= VXLAN_GBP_DONT_LEARN;
+
+	if (gbp->policy_applied)
+		md->gbp |= VXLAN_GBP_POLICY_APPLIED;
+}
+
 static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 		      struct vxlan_metadata *md, __be32 vni,
 		      struct metadata_dst *tun_dst)
@@ -1304,20 +1322,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	 * used by VXLAN extensions if explicitly requested.
 	 */
 	if ((flags & VXLAN_HF_GBP) && (vs->flags & VXLAN_F_GBP)) {
-		struct vxlanhdr_gbp *gbp;
-
-		gbp = (struct vxlanhdr_gbp *)vxlan_hdr(skb);
-		md->gbp = ntohs(gbp->policy_id);
-
-		if (tun_dst)
-			tun_dst->u.tun_info.key.tun_flags |= TUNNEL_VXLAN_OPT;
-
-		if (gbp->dont_learn)
-			md->gbp |= VXLAN_GBP_DONT_LEARN;
-
-		if (gbp->policy_applied)
-			md->gbp |= VXLAN_GBP_POLICY_APPLIED;
-
+		vxlan_parse_gbp_hdr(skb, md, tun_dst);
 		flags &= ~VXLAN_GBP_USED_BITS;
 	}
 
