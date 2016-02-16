@@ -1117,12 +1117,6 @@ int wilc_wlan_start(struct wilc *wilc)
 	return (ret < 0) ? ret : 0;
 }
 
-void wilc_wlan_global_reset(struct wilc *wilc)
-{
-	acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
-	wilc->hif_func->hif_write_reg(wilc, WILC_GLB_RESET_0, 0x0);
-	release_bus(wilc, RELEASE_ONLY);
-}
 int wilc_wlan_stop(struct wilc *wilc)
 {
 	u32 reg = 0;
