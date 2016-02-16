@@ -49,7 +49,6 @@ struct i915_params i915 __read_mostly = {
 	.invert_brightness = 0,
 	.disable_display = 0,
 	.enable_cmd_parser = 1,
-	.disable_vtd_wa = 0,
 	.use_mmio_flip = 0,
 	.mmio_debug = 0,
 	.verbose_state_checks = 1,
@@ -167,9 +166,6 @@ MODULE_PARM_DESC(invert_brightness,
 
 module_param_named(disable_display, i915.disable_display, bool, 0400);
 MODULE_PARM_DESC(disable_display, "Disable display (default: false)");
-
-module_param_named_unsafe(disable_vtd_wa, i915.disable_vtd_wa, bool, 0600);
-MODULE_PARM_DESC(disable_vtd_wa, "Disable all VT-d workarounds (default: false)");
 
 module_param_named_unsafe(enable_cmd_parser, i915.enable_cmd_parser, int, 0600);
 MODULE_PARM_DESC(enable_cmd_parser,
