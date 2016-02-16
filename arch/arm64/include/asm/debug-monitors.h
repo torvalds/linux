@@ -20,6 +20,7 @@
 
 #include <linux/errno.h>
 #include <linux/types.h>
+#include <asm/bug.h>
 #include <asm/esr.h>
 #include <asm/insn.h>
 #include <asm/ptrace.h>
@@ -57,7 +58,6 @@
 #define FAULT_BRK_IMM			0x100
 #define KGDB_DYN_DBG_BRK_IMM		0x400
 #define KGDB_COMPILED_DBG_BRK_IMM	0x401
-#define BUG_BRK_IMM			0x800
 
 /*
  * BRK instruction encoding
