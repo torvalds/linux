@@ -508,7 +508,7 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
  * give a part of its callchain to the created child.
  * Then create another child to host the given callchain of new branch
  */
-static void
+static int
 split_add_child(struct callchain_node *parent,
 		struct callchain_cursor *cursor,
 		struct callchain_list *to_split,
@@ -520,6 +520,8 @@ split_add_child(struct callchain_node *parent,
 
 	/* split */
 	new = create_child(parent, true);
+	if (new == NULL)
+		return -1;
 
 	/* split the callchain and move a part to the new child */
 	old_tail = parent->val.prev;
@@ -554,7 +556,7 @@ split_add_child(struct callchain_node *parent,
 		node = callchain_cursor_current(cursor);
 		new = add_child(parent, cursor, period);
 		if (new == NULL)
-			return;
+			return -1;
 
 		/*
 		 * This is second child since we moved parent's children
@@ -576,6 +578,7 @@ split_add_child(struct callchain_node *parent,
 		parent->hit = period;
 		parent->count = 1;
 	}
+	return 0;
 }
 
 static enum match_result
@@ -670,7 +673,10 @@ append_chain(struct callchain_node *root,
 
 	/* we match only a part of the node. Split it and add the new chain */
 	if (matches < root->val_nr) {
-		split_add_child(root, cursor, cnode, start, matches, period);
+		if (split_add_child(root, cursor, cnode, start, matches,
+				    period) < 0)
+			return MATCH_ERROR;
+
 		return MATCH_EQ;
 	}
 
