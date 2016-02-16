@@ -427,7 +427,7 @@ static s32 handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 static void handle_set_mac_address(struct wilc_vif *vif,
 				   struct set_mac_addr *set_mac_addr)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 
 	u8 *mac_buf = kmemdup(set_mac_addr->mac_addr, ETH_ALEN, GFP_KERNEL);
