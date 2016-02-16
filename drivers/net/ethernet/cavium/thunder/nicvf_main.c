@@ -1125,7 +1125,6 @@ int nicvf_stop(struct net_device *netdev)
 
 	/* Clear multiqset info */
 	nic->pnicvf = nic;
-	nic->sqs_count = 0;
 
 	return 0;
 }
