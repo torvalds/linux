@@ -220,13 +220,13 @@ enum cvmx_usb_pipe_flags {
  * The low level hardware can transfer a maximum of this number of bytes in each
  * transfer. The field is 19 bits wide
  */
-#define MAX_TRANSFER_BYTES	((1<<19)-1)
+#define MAX_TRANSFER_BYTES	((1 << 19) - 1)
 
 /*
  * The low level hardware can transfer a maximum of this number of packets in
  * each transfer. The field is 10 bits wide
  */
-#define MAX_TRANSFER_PACKETS	((1<<10)-1)
+#define MAX_TRANSFER_PACKETS	((1 << 10) - 1)
 
 /**
  * Logical transactions may take numerous low level
@@ -336,7 +336,7 @@ struct cvmx_usb_tx_fifo {
 		int channel;
 		int size;
 		u64 address;
-	} entry[MAX_CHANNELS+1];
+	} entry[MAX_CHANNELS + 1];
 	int head;
 	int tail;
 };
@@ -417,7 +417,7 @@ struct octeon_hcd {
 
 /* Returns the IO address to push/pop stuff data from the FIFOs */
 #define USB_FIFO_ADDRESS(channel, usb_index) \
-	(CVMX_USBCX_GOTGCTL(usb_index) + ((channel)+1)*0x1000)
+	(CVMX_USBCX_GOTGCTL(usb_index) + ((channel) + 1) * 0x1000)
 
 /**
  * struct octeon_temp_buffer - a bounce buffer for USB transfers
@@ -1124,9 +1124,9 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
 	if (!interval)
 		interval = 1;
 	if (cvmx_usb_pipe_needs_split(usb, pipe)) {
-		pipe->interval = interval*8;
+		pipe->interval = interval * 8;
 		/* Force start splits to be schedule on uFrame 0 */
-		pipe->next_tx_frame = ((usb->frame_number+7)&~7) +
+		pipe->next_tx_frame = ((usb->frame_number + 7) & ~7) +
 					pipe->interval;
 	} else {
 		pipe->interval = interval;
@@ -1334,7 +1334,7 @@ static void cvmx_usb_fill_tx_fifo(struct cvmx_usb_state *usb, int channel)
 	fifo->entry[fifo->head].address =
 		cvmx_read64_uint64(CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) +
 				   channel * 8);
-	fifo->entry[fifo->head].size = (usbc_hctsiz.s.xfersize+3)>>2;
+	fifo->entry[fifo->head].size = (usbc_hctsiz.s.xfersize + 3) >> 2;
 	fifo->head++;
 	if (fifo->head > MAX_CHANNELS)
 		fifo->head = 0;
@@ -1515,7 +1515,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 	pipe->flags |= CVMX_USB_PIPE_FLAGS_SCHEDULED;
 
 	/* Mark this channel as in use */
-	usb->idle_hardware_channels &= ~(1<<channel);
+	usb->idle_hardware_channels &= ~(1 << channel);
 
 	/* Enable the channel interrupt bits */
 	{
@@ -1561,7 +1561,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 		/* Enable the channel interrupt to propagate */
 		usbc_haintmsk.u32 = cvmx_usb_read_csr32(usb,
 					CVMX_USBCX_HAINTMSK(usb->index));
-		usbc_haintmsk.s.haintmsk |= 1<<channel;
+		usbc_haintmsk.s.haintmsk |= 1 << channel;
 		cvmx_usb_write_csr32(usb, CVMX_USBCX_HAINTMSK(usb->index),
 				     usbc_haintmsk.u32);
 	}
@@ -1612,7 +1612,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 			 * We only store the lower two bits since the time ahead
 			 * can only be two frames
 			 */
-			if ((transaction->stage&1) == 0) {
+			if ((transaction->stage & 1) == 0) {
 				if (transaction->type == CVMX_USB_TRANSFER_BULK)
 					pipe->split_sc_frame =
 						(usb->frame_number + 1) & 0x7f;
@@ -1760,7 +1760,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 		 * Set the startframe odd/even properly. This is only used for
 		 * periodic
 		 */
-		usbc_hcchar.s.oddfrm = usb->frame_number&1;
+		usbc_hcchar.s.oddfrm = usb->frame_number & 1;
 
 		/*
 		 * Set the number of back to back packets allowed by this
@@ -1897,7 +1897,7 @@ static void cvmx_usb_schedule(struct cvmx_usb_state *usb, int is_sof)
 						CVMX_USBCX_HFIR(usb->index))
 		};
 
-		if (hfnum.s.frrem < hfir.s.frint/4)
+		if (hfnum.s.frrem < hfir.s.frint / 4)
 			goto done;
 	}
 
@@ -2490,7 +2490,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 
 	/* Disable the channel interrupts now that it is done */
 	cvmx_usb_write_csr32(usb, CVMX_USBCX_HCINTMSKX(channel, usb->index), 0);
-	usb->idle_hardware_channels |= (1<<channel);
+	usb->idle_hardware_channels |= (1 << channel);
 
 	/* Make sure this channel is tied to a valid pipe */
 	pipe = usb->pipe_for_channel[channel];
@@ -2948,7 +2948,7 @@ static int cvmx_usb_poll(struct cvmx_usb_state *usb)
 
 	/* Update the frame counter */
 	usbc_hfnum.u32 = cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index));
-	if ((usb->frame_number&0x3fff) > usbc_hfnum.s.frnum)
+	if ((usb->frame_number & 0x3fff) > usbc_hfnum.s.frnum)
 		usb->frame_number += 0x4000;
 	usb->frame_number &= ~0x3fffull;
 	usb->frame_number |= usbc_hfnum.s.frnum;
@@ -3023,7 +3023,7 @@ static int cvmx_usb_poll(struct cvmx_usb_state *usb)
 
 			channel = __fls(usbc_haint.u32);
 			cvmx_usb_poll_channel(usb, channel);
-			usbc_haint.u32 ^= 1<<channel;
+			usbc_haint.u32 ^= 1 << channel;
 		}
 	}
 
