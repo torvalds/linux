@@ -229,17 +229,12 @@ int
 cfs_str2num_check(char *str, int nob, unsigned *num,
 		  unsigned min, unsigned max)
 {
-	char	*endp;
+	int rc;
 
 	str = cfs_trimwhite(str);
-	*num = simple_strtoul(str, &endp, 0);
-	if (endp == str)
+	rc = kstrtouint(str, 10, num);
+	if (rc)
 		return 0;
-
-	for (; endp < str + nob; endp++) {
-		if (!isspace(*endp))
-			return 0;
-	}
 
 	return (*num >= min && *num <= max);
 }
