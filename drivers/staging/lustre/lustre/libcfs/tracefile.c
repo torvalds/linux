@@ -56,6 +56,51 @@ static int thread_running;
 
 static atomic_t cfs_tage_allocated = ATOMIC_INIT(0);
 
+struct page_collection {
+	struct list_head	pc_pages;
+	/*
+	 * if this flag is set, collect_pages() will spill both
+	 * ->tcd_daemon_pages and ->tcd_pages to the ->pc_pages. Otherwise,
+	 * only ->tcd_pages are spilled.
+	 */
+	int		pc_want_daemon_pages;
+};
+
+struct tracefiled_ctl {
+	struct completion	tctl_start;
+	struct completion	tctl_stop;
+	wait_queue_head_t		tctl_waitq;
+	pid_t			tctl_pid;
+	atomic_t		tctl_shutdown;
+};
+
+/*
+ * small data-structure for each page owned by tracefiled.
+ */
+struct cfs_trace_page {
+	/*
+	 * page itself
+	 */
+	struct page	  *page;
+	/*
+	 * linkage into one of the lists in trace_data_union or
+	 * page_collection
+	 */
+	struct list_head	   linkage;
+	/*
+	 * number of bytes used within this page
+	 */
+	unsigned int	 used;
+	/*
+	 * cpu that owns this page
+	 */
+	unsigned short       cpu;
+	/*
+	 * type(context) of this page
+	 */
+	unsigned short       type;
+};
+
 static void put_pages_on_tcd_daemon_list(struct page_collection *pc,
 					 struct cfs_trace_cpu_data *tcd);
 
