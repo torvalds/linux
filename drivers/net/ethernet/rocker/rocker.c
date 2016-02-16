@@ -39,7 +39,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <generated/utsrelease.h>
 
-#include "rocker.h"
+#include "rocker_hw.h"
 
 static const char rocker_driver_name[] = "rocker";
 
