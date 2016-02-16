@@ -6397,55 +6397,16 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
  */
 int intel_display_suspend(struct drm_device *dev)
 {
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_modeset_acquire_ctx *ctx = config->acquire_ctx;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state;
-	struct drm_crtc *crtc;
-	unsigned crtc_mask = 0;
-	int ret = 0;
+	int ret;
 
-	if (WARN_ON(!ctx))
-		return 0;
-
-	lockdep_assert_held(&ctx->ww_ctx);
-	state = drm_atomic_state_alloc(dev);
-	if (WARN_ON(!state))
-		return -ENOMEM;
-
-	state->acquire_ctx = ctx;
-	state->allow_modeset = true;
-
-	for_each_crtc(dev, crtc) {
-		struct drm_crtc_state *crtc_state =
-			drm_atomic_get_crtc_state(state, crtc);
-
-		ret = PTR_ERR_OR_ZERO(crtc_state);
-		if (ret)
-			goto free;
-
-		if (!crtc_state->active)
-			continue;
-
-		crtc_state->active = false;
-		crtc_mask |= 1 << drm_crtc_index(crtc);
-	}
-
-	if (crtc_mask) {
-		ret = drm_atomic_commit(state);
-
-		if (!ret) {
-			for_each_crtc(dev, crtc)
-				if (crtc_mask & (1 << drm_crtc_index(crtc)))
-					crtc->state->active = true;
-
-			return ret;
-		}
-	}
-
-free:
+	state = drm_atomic_helper_suspend(dev);
+	ret = PTR_ERR_OR_ZERO(state);
 	if (ret)
 		DRM_ERROR("Suspending crtc's failed with %i\n", ret);
-	drm_atomic_state_free(state);
+	else
+		dev_priv->modeset_restore_state = state;
 	return ret;
 }
 
@@ -15918,51 +15879,57 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 
 void intel_display_resume(struct drm_device *dev)
 {
-	struct drm_atomic_state *state = drm_atomic_state_alloc(dev);
-	struct intel_connector *conn;
-	struct intel_plane *plane;
-	struct drm_crtc *crtc;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_atomic_state *state = dev_priv->modeset_restore_state;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
+	bool setup = false;
 
-	if (!state)
-		return;
+	dev_priv->modeset_restore_state = NULL;
 
-	state->acquire_ctx = dev->mode_config.acquire_ctx;
+	drm_modeset_acquire_init(&ctx, 0);
 
-	for_each_crtc(dev, crtc) {
-		struct drm_crtc_state *crtc_state =
-			drm_atomic_get_crtc_state(state, crtc);
+retry:
+	ret = drm_modeset_lock_all_ctx(dev, &ctx);
 
-		ret = PTR_ERR_OR_ZERO(crtc_state);
-		if (ret)
-			goto err;
+	if (ret == 0 && !setup) {
+		setup = true;
 
-		/* force a restore */
-		crtc_state->mode_changed = true;
+		intel_modeset_setup_hw_state(dev);
+		i915_redisable_vga(dev);
 	}
 
-	for_each_intel_plane(dev, plane) {
-		ret = PTR_ERR_OR_ZERO(drm_atomic_get_plane_state(state, &plane->base));
-		if (ret)
-			goto err;
+	if (ret == 0 && state) {
+		struct drm_crtc_state *crtc_state;
+		struct drm_crtc *crtc;
+		int i;
+
+		state->acquire_ctx = &ctx;
+
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
+			/*
+			 * Force recalculation even if we restore
+			 * current state. With fast modeset this may not result
+			 * in a modeset when the state is compatible.
+			 */
+			crtc_state->mode_changed = true;
+		}
+
+		ret = drm_atomic_commit(state);
 	}
 
-	for_each_intel_connector(dev, conn) {
-		ret = PTR_ERR_OR_ZERO(drm_atomic_get_connector_state(state, &conn->base));
-		if (ret)
-			goto err;
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
 	}
 
-	intel_modeset_setup_hw_state(dev);
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
-	i915_redisable_vga(dev);
-	ret = drm_atomic_commit(state);
-	if (!ret)
-		return;
-
-err:
-	DRM_ERROR("Restoring old state failed with %i\n", ret);
-	drm_atomic_state_free(state);
+	if (ret) {
+		DRM_ERROR("Restoring old state failed with %i\n", ret);
+		drm_atomic_state_free(state);
+	}
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)

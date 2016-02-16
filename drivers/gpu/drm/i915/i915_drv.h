@@ -1848,6 +1848,7 @@ struct drm_i915_private {
 
 	enum modeset_restore modeset_restore;
 	struct mutex modeset_restore_lock;
+	struct drm_atomic_state *modeset_restore_state;
 
 	struct list_head vm_list; /* Global list of all address spaces */
 	struct i915_gtt gtt; /* VM representing the global address space */
