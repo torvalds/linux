@@ -69,7 +69,7 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 #define BNXT_RX_DMA_OFFSET NET_SKB_PAD
 #define BNXT_RX_COPY_THRESH 256
 
-#define BNXT_TX_PUSH_THRESH 92
+#define BNXT_TX_PUSH_THRESH 164
 
 enum board_idx {
 	BCM57301,
@@ -223,11 +223,12 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (free_size == bp->tx_ring_size && length <= bp->tx_push_thresh) {
-		struct tx_push_bd *push = txr->tx_push;
-		struct tx_bd *tx_push = &push->txbd1;
-		struct tx_bd_ext *tx_push1 = &push->txbd2;
-		void *pdata = tx_push1 + 1;
-		int j;
+		struct tx_push_buffer *tx_push_buf = txr->tx_push;
+		struct tx_push_bd *tx_push = &tx_push_buf->push_bd;
+		struct tx_bd_ext *tx_push1 = &tx_push->txbd2;
+		void *pdata = tx_push_buf->data;
+		u64 *end;
+		int j, push_len;
 
 		/* Set COAL_NOW to be ready quickly for the next push */
 		tx_push->tx_bd_len_flags_type =
@@ -247,6 +248,9 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_push1->tx_bd_cfa_meta = cpu_to_le32(vlan_tag_flags);
 		tx_push1->tx_bd_cfa_action = cpu_to_le32(cfa_action);
 
+		end = PTR_ALIGN(pdata + length + 1, 8) - 1;
+		*end = 0;
+
 		skb_copy_from_linear_data(skb, pdata, len);
 		pdata += len;
 		for (j = 0; j < last_frag; j++) {
@@ -261,22 +265,29 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			pdata += skb_frag_size(frag);
 		}
 
-		memcpy(txbd, tx_push, sizeof(*txbd));
+		txbd->tx_bd_len_flags_type = tx_push->tx_bd_len_flags_type;
+		txbd->tx_bd_haddr = txr->data_mapping;
 		prod = NEXT_TX(prod);
 		txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
 		memcpy(txbd, tx_push1, sizeof(*txbd));
 		prod = NEXT_TX(prod);
-		push->doorbell =
+		tx_push->doorbell =
 			cpu_to_le32(DB_KEY_TX_PUSH | DB_LONG_TX_PUSH | prod);
 		txr->tx_prod = prod;
 
 		netdev_tx_sent_queue(txq, skb->len);
 
-		__iowrite64_copy(txr->tx_doorbell, push,
-				 (length + sizeof(*push) + 8) / 8);
+		push_len = (length + sizeof(*tx_push) + 7) / 8;
+		if (push_len > 16) {
+			__iowrite64_copy(txr->tx_doorbell, tx_push_buf, 16);
+			__iowrite64_copy(txr->tx_doorbell + 4, tx_push_buf + 1,
+					 push_len - 16);
+		} else {
+			__iowrite64_copy(txr->tx_doorbell, tx_push_buf,
+					 push_len);
+		}
 
 		tx_buf->is_push = 1;
-
 		goto tx_done;
 	}
 
@@ -1753,7 +1764,7 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 		push_size  = L1_CACHE_ALIGN(sizeof(struct tx_push_bd) +
 					bp->tx_push_thresh);
 
-		if (push_size > 128) {
+		if (push_size > 256) {
 			push_size = 0;
 			bp->tx_push_thresh = 0;
 		}
@@ -1772,7 +1783,6 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 			return rc;
 
 		if (bp->tx_push_size) {
-			struct tx_bd *txbd;
 			dma_addr_t mapping;
 
 			/* One pre-allocated DMA buffer to backup
@@ -1786,13 +1796,11 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 			if (!txr->tx_push)
 				return -ENOMEM;
 
-			txbd = &txr->tx_push->txbd1;
-
 			mapping = txr->tx_push_mapping +
 				sizeof(struct tx_push_bd);
-			txbd->tx_bd_haddr = cpu_to_le64(mapping);
+			txr->data_mapping = cpu_to_le64(mapping);
 
-			memset(txbd + 1, 0, sizeof(struct tx_bd_ext));
+			memset(txr->tx_push, 0, sizeof(struct tx_push_bd));
 		}
 		ring->queue_id = bp->q_info[j].queue_id;
 		if (i % bp->tx_nr_rings_per_tc == (bp->tx_nr_rings_per_tc - 1))
@@ -5670,22 +5678,16 @@ static int bnxt_probe_phy(struct bnxt *bp)
 	}
 
 	/*initialize the ethool setting copy with NVM settings */
-	if (BNXT_AUTO_MODE(link_info->auto_mode))
-		link_info->autoneg |= BNXT_AUTONEG_SPEED;
-
-	if (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) {
-		if (link_info->auto_pause_setting == BNXT_LINK_PAUSE_BOTH)
-			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
+		link_info->autoneg = BNXT_AUTONEG_SPEED |
+				     BNXT_AUTONEG_FLOW_CTRL;
+		link_info->advertising = link_info->auto_link_speeds;
 		link_info->req_flow_ctrl = link_info->auto_pause_setting;
-	} else if (link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) {
+	} else {
+		link_info->req_link_speed = link_info->force_link_speed;
+		link_info->req_duplex = link_info->duplex_setting;
 		link_info->req_flow_ctrl = link_info->force_pause_setting;
 	}
-	link_info->req_duplex = link_info->duplex_setting;
-	if (link_info->autoneg & BNXT_AUTONEG_SPEED)
-		link_info->req_link_speed = link_info->auto_link_speed;
-	else
-		link_info->req_link_speed = link_info->force_link_speed;
-	link_info->advertising = link_info->auto_link_speeds;
 	snprintf(phy_ver, PHY_VER_STR_LEN, " ph %d.%d.%d",
 		 link_info->phy_ver[0],
 		 link_info->phy_ver[1],
