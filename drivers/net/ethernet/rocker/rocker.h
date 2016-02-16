@@ -12,9 +12,13 @@
 #ifndef _ROCKER_H
 #define _ROCKER_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/hashtable.h>
 #include <linux/if_vlan.h>
+#include <linux/netdevice.h>
+#include <net/neighbour.h>
+#include <net/switchdev.h>
 
 #include "rocker_hw.h"
 
@@ -57,6 +61,7 @@ struct rocker_port {
 	struct net_device *dev;
 	struct net_device *bridge_dev;
 	struct rocker *rocker;
+	void *wpriv;
 	unsigned int port_number;
 	u32 pport;
 	__be16 internal_vlan_id;
@@ -71,6 +76,8 @@ struct rocker_port {
 	struct rocker_dma_ring_info rx_ring;
 };
 
+struct rocker_world_ops;
+
 struct rocker {
 	struct pci_dev *pdev;
 	u8 __iomem *hw_addr;
@@ -83,6 +90,8 @@ struct rocker {
 	spinlock_t cmd_ring_lock;		/* for cmd ring accesses */
 	struct rocker_dma_ring_info cmd_ring;
 	struct rocker_dma_ring_info event_ring;
+	struct rocker_world_ops *wops;
+	void *wpriv;
 	DECLARE_HASHTABLE(flow_tbl, 16);
 	spinlock_t flow_tbl_lock;		/* for flow tbl accesses */
 	u64 flow_tbl_next_cookie;
@@ -98,5 +107,65 @@ struct rocker {
 	spinlock_t neigh_tbl_lock;		/* for neigh tbl accesses */
 	u32 neigh_tbl_next_index;
 };
+
+struct rocker_world_ops {
+	const char *kind;
+	size_t priv_size;
+	size_t port_priv_size;
+	u8 mode;
+	int (*init)(struct rocker *rocker);
+	void (*fini)(struct rocker *rocker);
+	int (*port_pre_init)(struct rocker_port *rocker_port);
+	int (*port_init)(struct rocker_port *rocker_port);
+	void (*port_fini)(struct rocker_port *rocker_port);
+	void (*port_post_fini)(struct rocker_port *rocker_port);
+	int (*port_open)(struct rocker_port *rocker_port);
+	void (*port_stop)(struct rocker_port *rocker_port);
+	int (*port_attr_stp_state_set)(struct rocker_port *rocker_port,
+				       u8 state,
+				       struct switchdev_trans *trans);
+	int (*port_attr_bridge_flags_set)(struct rocker_port *rocker_port,
+					  unsigned long brport_flags,
+					  struct switchdev_trans *trans);
+	int (*port_attr_bridge_flags_get)(const struct rocker_port *rocker_port,
+					  unsigned long *p_brport_flags);
+	int (*port_attr_bridge_ageing_time_set)(struct rocker_port *rocker_port,
+						u32 ageing_time,
+						struct switchdev_trans *trans);
+	int (*port_obj_vlan_add)(struct rocker_port *rocker_port,
+				 const struct switchdev_obj_port_vlan *vlan,
+				 struct switchdev_trans *trans);
+	int (*port_obj_vlan_del)(struct rocker_port *rocker_port,
+				 const struct switchdev_obj_port_vlan *vlan);
+	int (*port_obj_vlan_dump)(const struct rocker_port *rocker_port,
+				  struct switchdev_obj_port_vlan *vlan,
+				  switchdev_obj_dump_cb_t *cb);
+	int (*port_obj_fib4_add)(struct rocker_port *rocker_port,
+				 const struct switchdev_obj_ipv4_fib *fib4,
+				 struct switchdev_trans *trans);
+	int (*port_obj_fib4_del)(struct rocker_port *rocker_port,
+				 const struct switchdev_obj_ipv4_fib *fib4);
+	int (*port_obj_fdb_add)(struct rocker_port *rocker_port,
+				const struct switchdev_obj_port_fdb *fdb,
+				struct switchdev_trans *trans);
+	int (*port_obj_fdb_del)(struct rocker_port *rocker_port,
+				const struct switchdev_obj_port_fdb *fdb);
+	int (*port_obj_fdb_dump)(const struct rocker_port *rocker_port,
+				 struct switchdev_obj_port_fdb *fdb,
+				 switchdev_obj_dump_cb_t *cb);
+	int (*port_master_linked)(struct rocker_port *rocker_port,
+				  struct net_device *master);
+	int (*port_master_unlinked)(struct rocker_port *rocker_port,
+				    struct net_device *master);
+	int (*port_neigh_update)(struct rocker_port *rocker_port,
+				 struct neighbour *n);
+	int (*port_neigh_destroy)(struct rocker_port *rocker_port,
+				  struct neighbour *n);
+	int (*port_ev_mac_vlan_seen)(struct rocker_port *rocker_port,
+				     const unsigned char *addr,
+				     __be16 vlan_id);
+};
+
+extern struct rocker_world_ops rocker_ofdpa_ops;
 
 #endif
