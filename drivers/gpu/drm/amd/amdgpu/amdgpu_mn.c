@@ -71,12 +71,11 @@ static void amdgpu_mn_destroy(struct work_struct *work)
 	struct amdgpu_mn_node *node, *next_node;
 	struct amdgpu_bo *bo, *next_bo;
 
-	down_write(&rmn->mm->mmap_sem);
 	mutex_lock(&adev->mn_lock);
+	down_write(&rmn->mm->mmap_sem);
 	hash_del(&rmn->node);
 	rbtree_postorder_for_each_entry_safe(node, next_node, &rmn->objects,
 					     it.rb) {
-
 		interval_tree_remove(&node->it, &rmn->objects);
 		list_for_each_entry_safe(bo, next_bo, &node->bos, mn_list) {
 			bo->mn = NULL;
@@ -84,8 +83,8 @@ static void amdgpu_mn_destroy(struct work_struct *work)
 		}
 		kfree(node);
 	}
-	mutex_unlock(&adev->mn_lock);
 	up_write(&rmn->mm->mmap_sem);
+	mutex_unlock(&adev->mn_lock);
 	mmu_notifier_unregister_no_release(&rmn->mn, rmn->mm);
 	kfree(rmn);
 }
@@ -182,8 +181,8 @@ static struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
 	struct amdgpu_mn *rmn;
 	int r;
 
-	down_write(&mm->mmap_sem);
 	mutex_lock(&adev->mn_lock);
+	down_write(&mm->mmap_sem);
 
 	hash_for_each_possible(adev->mn_hash, rmn, node, (unsigned long)mm)
 		if (rmn->mm == mm)
@@ -207,14 +206,14 @@ static struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
 	hash_add(adev->mn_hash, &rmn->node, (unsigned long)mm);
 
 release_locks:
-	mutex_unlock(&adev->mn_lock);
 	up_write(&mm->mmap_sem);
+	mutex_unlock(&adev->mn_lock);
 
 	return rmn;
 
 free_rmn:
-	mutex_unlock(&adev->mn_lock);
 	up_write(&mm->mmap_sem);
+	mutex_unlock(&adev->mn_lock);
 	kfree(rmn);
 
 	return ERR_PTR(r);
@@ -288,14 +287,18 @@ int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 void amdgpu_mn_unregister(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = bo->adev;
-	struct amdgpu_mn *rmn = bo->mn;
+	struct amdgpu_mn *rmn;
 	struct list_head *head;
 
-	if (rmn == NULL)
+	mutex_lock(&adev->mn_lock);
+
+	rmn = bo->mn;
+	if (rmn == NULL) {
+		mutex_unlock(&adev->mn_lock);
 		return;
+	}
 
 	down_write(&rmn->mm->mmap_sem);
-	mutex_lock(&adev->mn_lock);
 
 	/* save the next list entry for later */
 	head = bo->mn_list.next;
@@ -310,6 +313,6 @@ void amdgpu_mn_unregister(struct amdgpu_bo *bo)
 		kfree(node);
 	}
 
-	mutex_unlock(&adev->mn_lock);
 	up_write(&rmn->mm->mmap_sem);
+	mutex_unlock(&adev->mn_lock);
 }
