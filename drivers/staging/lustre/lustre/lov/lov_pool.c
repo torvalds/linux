@@ -154,7 +154,7 @@ struct cfs_hash_ops pool_hash_operations = {
 
 /* ifdef needed for liblustre support */
 /*
- * pool /proc seq_file methods
+ * pool debugfs seq_file methods
  */
 /*
  * iterator is used to go through the target pool entries
@@ -429,7 +429,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	INIT_HLIST_NODE(&new_pool->pool_hash);
 
 	/* we need this assert seq_file is not implemented for liblustre */
-	/* get ref for /proc file */
+	/* get ref for debugfs file */
 	lov_pool_getref(new_pool);
 	new_pool->pool_debugfs_entry = ldebugfs_add_simple(
 						lov->lov_pool_debugfs_entry,
