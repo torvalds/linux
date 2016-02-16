@@ -595,34 +595,6 @@ struct obd_trans_info {
 	struct obd_uuid	 *oti_ost_uuid;
 };
 
-static inline void oti_init(struct obd_trans_info *oti,
-			    struct ptlrpc_request *req)
-{
-	if (oti == NULL)
-		return;
-	memset(oti, 0, sizeof(*oti));
-
-	if (req == NULL)
-		return;
-
-	oti->oti_xid = req->rq_xid;
-	/** VBR: take versions from request */
-	if (req->rq_reqmsg != NULL &&
-	    lustre_msg_get_flags(req->rq_reqmsg) & MSG_REPLAY) {
-		__u64 *pre_version = lustre_msg_get_versions(req->rq_reqmsg);
-
-		oti->oti_pre_version = pre_version ? pre_version[0] : 0;
-		oti->oti_transno = lustre_msg_get_transno(req->rq_reqmsg);
-	}
-
-	/** called from mds_create_objects */
-	if (req->rq_repmsg != NULL)
-		oti->oti_transno = lustre_msg_get_transno(req->rq_repmsg);
-	oti->oti_thread = req->rq_svc_thread;
-	if (req->rq_reqmsg != NULL)
-		oti->oti_conn_cnt = lustre_msg_get_conn_cnt(req->rq_reqmsg);
-}
-
 static inline void oti_alloc_cookies(struct obd_trans_info *oti,
 				     int num_cookies)
 {
