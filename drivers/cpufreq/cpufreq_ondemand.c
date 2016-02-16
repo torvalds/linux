@@ -175,14 +175,11 @@ static void od_update(struct cpufreq_policy *policy)
 		/* No longer fully busy, reset rate_mult */
 		policy_dbs->rate_mult = 1;
 
-		if (!od_tuners->powersave_bias) {
-			__cpufreq_driver_target(policy, freq_next,
-					CPUFREQ_RELATION_C);
-			return;
-		}
+		if (od_tuners->powersave_bias)
+			freq_next = od_ops.powersave_bias_target(policy,
+								 freq_next,
+								 CPUFREQ_RELATION_L);
 
-		freq_next = od_ops.powersave_bias_target(policy, freq_next,
-					CPUFREQ_RELATION_L);
 		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_C);
 	}
 }
