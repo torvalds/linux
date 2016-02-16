@@ -923,6 +923,7 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	struct bnx2x_func_state_params func_params = {NULL};
 	struct bnx2x_func_start_params *start_params =
 		&func_params.params.start;
+	u16 port;
 
 	/* Prepare parameters for function state transitions */
 	__set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
@@ -959,8 +960,14 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 		start_params->network_cos_mode = STATIC_COS;
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
-
-	start_params->vxlan_dst_port = bp->vxlan_dst_port;
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].count) {
+		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].dst_port;
+		start_params->vxlan_dst_port = port;
+	}
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].count) {
+		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].dst_port;
+		start_params->geneve_dst_port = port;
+	}
 
 	start_params->inner_rss = 1;
 
