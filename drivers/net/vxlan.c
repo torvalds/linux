@@ -1135,29 +1135,25 @@ static int vxlan_igmp_leave(struct vxlan_dev *vxlan)
 	return ret;
 }
 
-static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
-				      size_t hdrlen, __be32 vni_field,
-				      bool nopartial)
+static bool vxlan_remcsum(struct sk_buff *skb, u32 vxflags, __be32 vni_field)
 {
 	size_t start, offset, plen;
 
 	if (skb->remcsum_offload)
-		return vh;
+		return true;
 
 	start = vxlan_rco_start(vni_field);
 	offset = start + vxlan_rco_offset(vni_field);
 
-	plen = hdrlen + offset + sizeof(u16);
+	plen = sizeof(struct vxlanhdr) + offset + sizeof(u16);
 
 	if (!pskb_may_pull(skb, plen))
-		return NULL;
+		return false;
 
-	vh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
+	skb_remcsum_process(skb, (void *)(vxlan_hdr(skb) + 1), start, offset,
+			    !!(vxflags & VXLAN_F_REMCSUM_NOPARTIAL));
 
-	skb_remcsum_process(skb, (void *)vh + hdrlen, start, offset,
-			    nopartial);
-
-	return vh;
+	return true;
 }
 
 static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
@@ -1285,9 +1281,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 
 	if ((flags & VXLAN_HF_RCO) && (vs->flags & VXLAN_F_REMCSUM_RX)) {
-		if (!vxlan_remcsum(skb, vxlan_hdr(skb), sizeof(struct vxlanhdr),
-				   vni_field,
-				   !!(vs->flags & VXLAN_F_REMCSUM_NOPARTIAL)))
+		if (!vxlan_remcsum(skb, vs->flags, vni_field))
 			goto drop;
 
 		flags &= ~VXLAN_HF_RCO;
