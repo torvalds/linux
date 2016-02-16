@@ -368,10 +368,6 @@ static int proc_cpt_table(struct ctl_table *table, int write,
 }
 
 static struct ctl_table lnet_table[] = {
-	/*
-	 * NB No .strategy entries have been provided since sysctl(8) prefers
-	 * to go via /proc for portability.
-	 */
 	{
 		.procname = "debug",
 		.data     = &libcfs_debug,

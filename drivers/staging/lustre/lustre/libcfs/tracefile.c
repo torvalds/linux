@@ -771,9 +771,10 @@ EXPORT_SYMBOL(cfs_trace_copyin_string);
 int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
 			     const char *knl_buffer, char *append)
 {
-	/* NB if 'append' != NULL, it's a single character to append to the
-	 * copied out string - usually "\n", for /proc entries and "" (i.e. a
-	 * terminating zero byte) for sysctl entries */
+	/*
+	 * NB if 'append' != NULL, it's a single character to append to the
+	 * copied out string - usually "\n" or "" (i.e. a terminating zero byte)
+	 */
 	int   nob = strlen(knl_buffer);
 
 	if (nob > usr_buffer_nob)
