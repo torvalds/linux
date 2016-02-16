@@ -387,15 +387,6 @@ int arche_apb_ctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = coldboot_seq(pdev);
-	if (ret) {
-		dev_err(dev, "failed to set init state of control signal %d\n",
-				ret);
-		device_remove_file(dev, &dev_attr_state);
-		platform_set_drvdata(pdev, NULL);
-		return ret;
-	}
-
 	dev_info(&pdev->dev, "Device registered successfully\n");
 	return 0;
 }
