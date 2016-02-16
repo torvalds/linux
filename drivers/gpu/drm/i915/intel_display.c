@@ -15883,6 +15883,13 @@ void intel_display_resume(struct drm_device *dev)
 
 	dev_priv->modeset_restore_state = NULL;
 
+	/*
+	 * This is a cludge because with real atomic modeset mode_config.mutex
+	 * won't be taken. Unfortunately some probed state like
+	 * audio_codec_enable is still protected by mode_config.mutex, so lock
+	 * it here for now.
+	 */
+	mutex_lock(&dev->mode_config.mutex);
 	drm_modeset_acquire_init(&ctx, 0);
 
 retry:
@@ -15921,6 +15928,7 @@ retry:
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
+	mutex_unlock(&dev->mode_config.mutex);
 
 	if (ret) {
 		DRM_ERROR("Restoring old state failed with %i\n", ret);
