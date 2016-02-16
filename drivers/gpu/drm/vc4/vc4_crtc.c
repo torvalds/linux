@@ -183,6 +183,8 @@ static int vc4_get_clock_select(struct drm_crtc *crtc)
 
 static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct drm_crtc_state *state = crtc->state;
 	struct drm_display_mode *mode = &state->adjusted_mode;
@@ -250,6 +252,10 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		   VC4_SET_FIELD(clock_select, PV_CONTROL_CLK_SELECT) |
 		   PV_CONTROL_FIFO_CLR |
 		   PV_CONTROL_EN);
+
+	HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
+		  SCALER_DISPBKGND_AUTOHS |
+		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d regs after:\n", drm_crtc_index(crtc));
