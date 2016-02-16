@@ -913,7 +913,7 @@ static inline struct vvp_thread_info *vvp_env_info(const struct lu_env *env)
 	struct vvp_thread_info      *info;
 
 	info = lu_context_key_get(&env->le_ctx, &vvp_key);
-	LASSERT(info != NULL);
+	LASSERT(info);
 	return info;
 }
 
@@ -937,7 +937,7 @@ static inline struct vvp_session *vvp_env_session(const struct lu_env *env)
 	struct vvp_session *ses;
 
 	ses = lu_context_key_get(env->le_ses, &vvp_session_key);
-	LASSERT(ses != NULL);
+	LASSERT(ses);
 	return ses;
 }
 
@@ -968,7 +968,7 @@ static inline void ll_invalidate_page(struct page *vmpage)
 	loff_t offset = vmpage->index << PAGE_CACHE_SHIFT;
 
 	LASSERT(PageLocked(vmpage));
-	if (mapping == NULL)
+	if (!mapping)
 		return;
 
 	ll_teardown_mmaps(mapping, offset, offset + PAGE_CACHE_SIZE);
@@ -993,7 +993,7 @@ static inline struct client_obd *sbi2mdc(struct ll_sb_info *sbi)
 {
 	struct obd_device *obd = sbi->ll_md_exp->exp_obd;
 
-	if (obd == NULL)
+	if (!obd)
 		LBUG();
 	return &obd->u.cli;
 }
@@ -1018,7 +1018,7 @@ static inline struct lu_fid *ll_inode2fid(struct inode *inode)
 {
 	struct lu_fid *fid;
 
-	LASSERT(inode != NULL);
+	LASSERT(inode);
 	fid = &ll_i2info(inode)->lli_fid;
 
 	return fid;
@@ -1171,8 +1171,8 @@ ll_statahead_mark(struct inode *dir, struct dentry *dentry)
 	if (lli->lli_opendir_pid != current_pid())
 		return;
 
-	LASSERT(ldd != NULL);
-	if (sai != NULL)
+	LASSERT(ldd);
+	if (sai)
 		ldd->lld_sa_generation = sai->sai_generation;
 }
 
@@ -1191,7 +1191,7 @@ d_need_statahead(struct inode *dir, struct dentry *dentryp)
 		return -EAGAIN;
 
 	/* statahead has been stopped */
-	if (lli->lli_opendir_key == NULL)
+	if (!lli->lli_opendir_key)
 		return -EAGAIN;
 
 	ldd = ll_d2d(dentryp);
@@ -1345,7 +1345,6 @@ static inline int ll_file_nolock(const struct file *file)
 	struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 	struct inode *inode = file_inode(file);
 
-	LASSERT(fd != NULL);
 	return ((fd->fd_flags & LL_FILE_IGNORE_LOCK) ||
 		(ll_i2sbi(inode)->ll_flags & LL_SBI_NOLCK));
 }
@@ -1383,7 +1382,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		it->d.lustre.it_lock_set = 1;
 	}
 
-	if (bits != NULL)
+	if (bits)
 		*bits = it->d.lustre.it_lock_bits;
 }
 
@@ -1401,14 +1400,14 @@ static inline int d_lustre_invalid(const struct dentry *dentry)
 {
 	struct ll_dentry_data *lld = ll_d2d(dentry);
 
-	return (lld == NULL) || lld->lld_invalid;
+	return !lld || lld->lld_invalid;
 }
 
 static inline void __d_lustre_invalidate(struct dentry *dentry)
 {
 	struct ll_dentry_data *lld = ll_d2d(dentry);
 
-	if (lld != NULL)
+	if (lld)
 		lld->lld_invalid = 1;
 }
 
@@ -1442,7 +1441,7 @@ static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 static inline void d_lustre_revalidate(struct dentry *dentry)
 {
 	spin_lock(&dentry->d_lock);
-	LASSERT(ll_d2d(dentry) != NULL);
+	LASSERT(ll_d2d(dentry));
 	ll_d2d(dentry)->lld_invalid = 0;
 	spin_unlock(&dentry->d_lock);
 }

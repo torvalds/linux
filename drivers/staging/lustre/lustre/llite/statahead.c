@@ -130,7 +130,7 @@ ll_sa_entry_unhash(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 static inline int agl_should_run(struct ll_statahead_info *sai,
 				 struct inode *inode)
 {
-	return (inode != NULL && S_ISREG(inode->i_mode) && sai->sai_agl_valid);
+	return (inode && S_ISREG(inode->i_mode) && sai->sai_agl_valid);
 }
 
 static inline int sa_sent_full(struct ll_statahead_info *sai)
@@ -499,7 +499,7 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 			return;
 		}
 
-		LASSERT(lli->lli_opendir_key == NULL);
+		LASSERT(!lli->lli_opendir_key);
 		LASSERT(thread_is_stopped(&sai->sai_thread));
 		LASSERT(thread_is_stopped(&sai->sai_agl_thread));
 
@@ -618,13 +618,13 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 	it = &minfo->mi_it;
 	req = entry->se_req;
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-	if (body == NULL) {
+	if (!body) {
 		rc = -EFAULT;
 		goto out;
 	}
 
 	child = entry->se_inode;
-	if (child == NULL) {
+	if (!child) {
 		/*
 		 * lookup.
 		 */
@@ -705,7 +705,7 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 
 	spin_lock(&lli->lli_sa_lock);
 	/* stale entry */
-	if (unlikely(lli->lli_sai == NULL ||
+	if (unlikely(!lli->lli_sai ||
 		     lli->lli_sai->sai_generation != minfo->mi_generation)) {
 		spin_unlock(&lli->lli_sa_lock);
 		rc = -ESTALE;
@@ -720,7 +720,7 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 		}
 
 		entry = ll_sa_entry_get_byindex(sai, minfo->mi_cbdata);
-		if (entry == NULL) {
+		if (!entry) {
 			sai->sai_replied++;
 			spin_unlock(&lli->lli_sa_lock);
 			rc = -EIDRM;
@@ -756,7 +756,7 @@ out:
 		iput(dir);
 		kfree(minfo);
 	}
-	if (sai != NULL)
+	if (sai)
 		ll_sai_put(sai);
 	return rc;
 }
@@ -853,7 +853,7 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	struct ldlm_enqueue_info *einfo;
 	int rc;
 
-	if (unlikely(inode == NULL))
+	if (unlikely(!inode))
 		return 1;
 
 	if (d_mountpoint(dentry))
@@ -908,10 +908,9 @@ static void ll_statahead_one(struct dentry *parent, const char *entry_name,
 		rc = do_sa_revalidate(dir, entry, dentry);
 		if (rc == 1 && agl_should_run(sai, d_inode(dentry)))
 			ll_agl_add(sai, d_inode(dentry), entry->se_index);
-	}
 
-	if (dentry != NULL)
 		dput(dentry);
+	}
 
 	if (rc) {
 		rc1 = ll_sa_entry_to_stated(sai, entry,
@@ -1070,7 +1069,7 @@ static int ll_statahead_thread(void *arg)
 		}
 
 		dp = page_address(page);
-		for (ent = lu_dirent_start(dp); ent != NULL;
+		for (ent = lu_dirent_start(dp); ent;
 		     ent = lu_dirent_next(ent)) {
 			__u64 hash;
 			int namelen;
@@ -1274,7 +1273,7 @@ void ll_stop_statahead(struct inode *dir, void *key)
 {
 	struct ll_inode_info *lli = ll_i2info(dir);
 
-	if (unlikely(key == NULL))
+	if (unlikely(!key))
 		return;
 
 	spin_lock(&lli->lli_sa_lock);
@@ -1357,7 +1356,7 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 		}
 
 		dp = page_address(page);
-		for (ent = lu_dirent_start(dp); ent != NULL;
+		for (ent = lu_dirent_start(dp); ent;
 		     ent = lu_dirent_next(ent)) {
 			__u64 hash;
 			int namelen;
@@ -1448,7 +1447,7 @@ ll_sai_unplug(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 	struct ll_sb_info    *sbi    = ll_i2sbi(sai->sai_inode);
 	int		   hit;
 
-	if (entry != NULL && entry->se_stat == SA_ENTRY_SUCC)
+	if (entry && entry->se_stat == SA_ENTRY_SUCC)
 		hit = 1;
 	else
 		hit = 0;
@@ -1541,7 +1540,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		}
 
 		entry = ll_sa_entry_get_byname(sai, &(*dentryp)->d_name);
-		if (entry == NULL || only_unplug) {
+		if (!entry || only_unplug) {
 			ll_sai_unplug(sai, entry);
 			return entry ? 1 : -EAGAIN;
 		}
@@ -1560,8 +1559,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 			}
 		}
 
-		if (entry->se_stat == SA_ENTRY_SUCC &&
-		    entry->se_inode != NULL) {
+		if (entry->se_stat == SA_ENTRY_SUCC && entry->se_inode) {
 			struct inode *inode = entry->se_inode;
 			struct lookup_intent it = { .it_op = IT_GETATTR,
 						    .d.lustre.it_lock_handle =
@@ -1571,7 +1569,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 			rc = md_revalidate_lock(ll_i2mdexp(dir), &it,
 						ll_inode2fid(inode), &bits);
 			if (rc == 1) {
-				if (d_inode(*dentryp) == NULL) {
+				if (!d_inode(*dentryp)) {
 					struct dentry *alias;
 
 					alias = ll_splice_alias(inode,
@@ -1617,14 +1615,14 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	}
 
 	sai = ll_sai_alloc();
-	if (sai == NULL) {
+	if (!sai) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
 	sai->sai_ls_all = (rc == LS_FIRST_DOT_DE);
 	sai->sai_inode = igrab(dir);
-	if (unlikely(sai->sai_inode == NULL)) {
+	if (unlikely(!sai->sai_inode)) {
 		CWARN("Do not start stat ahead on dying inode "DFID"\n",
 		      PFID(&lli->lli_fid));
 		rc = -ESTALE;
@@ -1671,7 +1669,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		 * reference from allocation time. */
 		ll_sai_put(sai);
 		ll_sai_put(sai);
-		LASSERT(lli->lli_sai == NULL);
+		LASSERT(!lli->lli_sai);
 		return -EAGAIN;
 	}
 

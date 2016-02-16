@@ -54,7 +54,7 @@ static struct inode *ll_alloc_inode(struct super_block *sb)
 
 	ll_stats_ops_tally(ll_s2sbi(sb), LPROC_LL_ALLOC_INODE, 1);
 	lli = kmem_cache_alloc(ll_inode_cachep, GFP_NOFS | __GFP_ZERO);
-	if (lli == NULL)
+	if (!lli)
 		return NULL;
 
 	inode_init_once(&lli->lli_vfs_inode);
@@ -108,26 +108,26 @@ static int __init init_lustre_lite(void)
 					    sizeof(struct ll_inode_info),
 					    0, SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
 					    NULL);
-	if (ll_inode_cachep == NULL)
+	if (!ll_inode_cachep)
 		goto out_cache;
 
 	ll_file_data_slab = kmem_cache_create("ll_file_data",
 						 sizeof(struct ll_file_data), 0,
 						 SLAB_HWCACHE_ALIGN, NULL);
-	if (ll_file_data_slab == NULL)
+	if (!ll_file_data_slab)
 		goto out_cache;
 
 	ll_remote_perm_cachep = kmem_cache_create("ll_remote_perm_cache",
 						  sizeof(struct ll_remote_perm),
 						      0, 0, NULL);
-	if (ll_remote_perm_cachep == NULL)
+	if (!ll_remote_perm_cachep)
 		goto out_cache;
 
 	ll_rmtperm_hash_cachep = kmem_cache_create("ll_rmtperm_hash_cache",
 						   REMOTE_PERM_HASHSIZE *
 						   sizeof(struct list_head),
 						   0, 0, NULL);
-	if (ll_rmtperm_hash_cachep == NULL)
+	if (!ll_rmtperm_hash_cachep)
 		goto out_cache;
 
 	llite_root = debugfs_create_dir("llite", debugfs_lustre_root);

@@ -147,7 +147,7 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 	if (conf->coc_opc != OBJECT_CONF_SET)
 		return 0;
 
-	if (conf->u.coc_md != NULL && conf->u.coc_md->lsm != NULL) {
+	if (conf->u.coc_md && conf->u.coc_md->lsm) {
 		CDEBUG(D_VFSTRACE, DFID ": layout version change: %u -> %u\n",
 		       PFID(&lli->lli_fid), lli->lli_layout_gen,
 		       conf->u.coc_md->lsm->lsm_layout_gen);
@@ -186,9 +186,8 @@ struct ccc_object *cl_inode2ccc(struct inode *inode)
 	struct cl_object     *obj = lli->lli_clob;
 	struct lu_object     *lu;
 
-	LASSERT(obj != NULL);
 	lu = lu_object_locate(obj->co_lu.lo_header, &vvp_device_type);
-	LASSERT(lu != NULL);
+	LASSERT(lu);
 	return lu2ccc(lu);
 }
 

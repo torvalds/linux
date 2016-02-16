@@ -181,7 +181,7 @@ static void vvp_io_fault_fini(const struct lu_env *env,
 
 	CLOBINVRNT(env, io->ci_obj, ccc_object_invariant(io->ci_obj));
 
-	if (page != NULL) {
+	if (page) {
 		lu_ref_del(&page->cp_reference, "fault", io);
 		cl_page_put(env, page);
 		io->u.ci_fault.ft_page = NULL;
@@ -220,11 +220,11 @@ static int vvp_mmap_locks(const struct lu_env *env,
 	if (!cl_is_normalio(env, io))
 		return 0;
 
-	if (vio->cui_iter == NULL) /* nfs or loop back device write */
+	if (!vio->cui_iter) /* nfs or loop back device write */
 		return 0;
 
 	/* No MM (e.g. NFS)? No vmas too. */
-	if (mm == NULL)
+	if (!mm)
 		return 0;
 
 	iov_for_each(iov, i, *(vio->cui_iter)) {
@@ -587,7 +587,7 @@ static int vvp_io_write_start(const struct lu_env *env,
 
 	CDEBUG(D_VFSTRACE, "write: [%lli, %lli)\n", pos, pos + (long long)cnt);
 
-	if (cio->cui_iter == NULL) /* from a temp io in ll_cl_init(). */
+	if (!cio->cui_iter) /* from a temp io in ll_cl_init(). */
 		result = 0;
 	else
 		result = generic_file_write_iter(cio->cui_iocb, cio->cui_iter);
@@ -673,7 +673,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 	/* must return locked page */
 	if (fio->ft_mkwrite) {
-		LASSERT(cfio->ft_vmpage != NULL);
+		LASSERT(cfio->ft_vmpage);
 		lock_page(cfio->ft_vmpage);
 	} else {
 		result = vvp_io_kernel_fault(cfio);
@@ -792,7 +792,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 out:
 	/* return unlocked vmpage to avoid deadlocking */
-	if (vmpage != NULL)
+	if (vmpage)
 		unlock_page(vmpage);
 	cfio->fault.ft_flags &= ~VM_FAULT_LOCKED;
 	return result;

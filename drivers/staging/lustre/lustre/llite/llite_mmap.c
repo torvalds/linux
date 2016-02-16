@@ -72,7 +72,7 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 	LASSERT(!down_write_trylock(&mm->mmap_sem));
 
 	for (vma = find_vma(mm, addr);
-	    vma != NULL && vma->vm_start < (addr + count); vma = vma->vm_next) {
+	    vma && vma->vm_start < (addr + count); vma = vma->vm_next) {
 		if (vma->vm_ops && vma->vm_ops == &ll_file_vm_ops &&
 		    vma->vm_flags & VM_SHARED) {
 			ret = vma;
@@ -125,7 +125,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 
 	io = ccc_env_thread_io(env);
 	io->ci_obj = ll_i2info(inode)->lli_clob;
-	LASSERT(io->ci_obj != NULL);
+	LASSERT(io->ci_obj);
 
 	fio = &io->u.ci_fault;
 	fio->ft_index      = index;
@@ -136,7 +136,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 	 * the kernel will not read other pages not covered by ldlm in
 	 * filemap_nopage. we do our readahead in ll_readpage.
 	 */
-	if (ra_flags != NULL)
+	if (ra_flags)
 		*ra_flags = vma->vm_flags & (VM_RAND_READ|VM_SEQ_READ);
 	vma->vm_flags &= ~VM_SEQ_READ;
 	vma->vm_flags |= VM_RAND_READ;
@@ -178,8 +178,6 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	struct inode	     *inode;
 	struct ll_inode_info     *lli;
 
-	LASSERT(vmpage != NULL);
-
 	io = ll_fault_io_init(vma, &env,  &nest, vmpage->index, NULL);
 	if (IS_ERR(io)) {
 		result = PTR_ERR(io);
@@ -217,7 +215,7 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 		struct ll_inode_info *lli = ll_i2info(inode);
 
 		lock_page(vmpage);
-		if (vmpage->mapping == NULL) {
+		if (!vmpage->mapping) {
 			unlock_page(vmpage);
 
 			/* page was truncated and lock was cancelled, return
@@ -320,7 +318,7 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 			fault_ret = vio->u.fault.fault.ft_flags;
 
 		vmpage = vio->u.fault.ft_vmpage;
-		if (result != 0 && vmpage != NULL) {
+		if (result != 0 && vmpage) {
 			page_cache_release(vmpage);
 			vmf->page = NULL;
 		}
@@ -357,7 +355,7 @@ restart:
 
 		/* check if this page has been truncated */
 		lock_page(vmpage);
-		if (unlikely(vmpage->mapping == NULL)) { /* unlucky */
+		if (unlikely(!vmpage->mapping)) { /* unlucky */
 			unlock_page(vmpage);
 			page_cache_release(vmpage);
 			vmf->page = NULL;

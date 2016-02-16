@@ -92,9 +92,9 @@ static void ll_invalidatepage(struct page *vmpage, unsigned int offset,
 		if (!IS_ERR(env)) {
 			inode = vmpage->mapping->host;
 			obj = ll_i2info(inode)->lli_clob;
-			if (obj != NULL) {
+			if (obj) {
 				page = cl_vmpage_page(vmpage, obj);
-				if (page != NULL) {
+				if (page) {
 					lu_ref_add(&page->cp_reference,
 						   "delete", vmpage);
 					cl_page_delete(env, page);
@@ -128,11 +128,11 @@ static int ll_releasepage(struct page *vmpage, RELEASEPAGE_ARG_TYPE gfp_mask)
 		return 0;
 
 	mapping = vmpage->mapping;
-	if (mapping == NULL)
+	if (!mapping)
 		return 1;
 
 	obj = ll_i2info(mapping->host)->lli_clob;
-	if (obj == NULL)
+	if (!obj)
 		return 1;
 
 	/* 1 for page allocator, 1 for cl_page and 1 for page cache */
@@ -149,8 +149,8 @@ static int ll_releasepage(struct page *vmpage, RELEASEPAGE_ARG_TYPE gfp_mask)
 		return 0;
 
 	page = cl_vmpage_page(vmpage, obj);
-	result = page == NULL;
-	if (page != NULL) {
+	result = !page;
+	if (page) {
 		if (!cl_page_in_use(page)) {
 			result = 1;
 			cl_page_delete(env, page);
@@ -396,7 +396,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 	env = cl_env_get(&refcheck);
 	LASSERT(!IS_ERR(env));
 	io = ccc_env_io(env)->cui_cl.cis_io;
-	LASSERT(io != NULL);
+	LASSERT(io);
 
 	/* 0. Need locking between buffered and direct access. and race with
 	 *    size changing by concurrent truncates and writes.
@@ -461,7 +461,7 @@ out:
 			struct lov_stripe_md *lsm;
 
 			lsm = ccc_inode_lsm_get(inode);
-			LASSERT(lsm != NULL);
+			LASSERT(lsm);
 			lov_stripe_lock(lsm);
 			obd_adjust_kms(ll_i2dtexp(inode), lsm, file_offset, 0);
 			lov_stripe_unlock(lsm);

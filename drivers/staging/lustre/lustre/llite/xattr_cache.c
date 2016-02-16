@@ -59,9 +59,6 @@ void ll_xattr_fini(void)
  */
 static void ll_xattr_cache_init(struct ll_inode_info *lli)
 {
-
-	LASSERT(lli != NULL);
-
 	INIT_LIST_HEAD(&lli->lli_xattrs);
 	lli->lli_flags |= LLIF_XATTR_CACHE;
 }
@@ -83,8 +80,7 @@ static int ll_xattr_cache_find(struct list_head *cache,
 
 	list_for_each_entry(entry, cache, xe_list) {
 		/* xattr_name == NULL means look for any entry */
-		if (xattr_name == NULL ||
-		    strcmp(xattr_name, entry->xe_name) == 0) {
+		if (!xattr_name || strcmp(xattr_name, entry->xe_name) == 0) {
 			*xattr = entry;
 			CDEBUG(D_CACHE, "find: [%s]=%.*s\n",
 			       entry->xe_name, entry->xe_vallen,
@@ -118,7 +114,7 @@ static int ll_xattr_cache_add(struct list_head *cache,
 	}
 
 	xattr = kmem_cache_alloc(xattr_kmem, GFP_NOFS | __GFP_ZERO);
-	if (xattr == NULL) {
+	if (!xattr) {
 		CDEBUG(D_CACHE, "failed to allocate xattr\n");
 		return -ENOMEM;
 	}
@@ -359,7 +355,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	}
 
 	/* Matched but no cache? Cancelled on error by a parallel refill. */
-	if (unlikely(req == NULL)) {
+	if (unlikely(!req)) {
 		CDEBUG(D_CACHE, "cancelled by a parallel getxattr\n");
 		rc = -EIO;
 		goto out_maybe_drop;
@@ -376,7 +372,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	}
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-	if (body == NULL) {
+	if (!body) {
 		CERROR("no MDT BODY in the refill xattr reply\n");
 		rc = -EPROTO;
 		goto out_destroy;
@@ -388,7 +384,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 						body->aclsize);
 	xsizes = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS_LENS,
 					      body->max_mdsize * sizeof(__u32));
-	if (xdata == NULL || xval == NULL || xsizes == NULL) {
+	if (!xdata || !xval || !xsizes) {
 		CERROR("wrong setxattr reply\n");
 		rc = -EPROTO;
 		goto out_destroy;
@@ -404,7 +400,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	for (i = 0; i < body->max_mdsize; i++) {
 		CDEBUG(D_CACHE, "caching [%s]=%.*s\n", xdata, *xsizes, xval);
 		/* Perform consistency checks: attr names and vals in pill */
-		if (memchr(xdata, 0, xtail - xdata) == NULL) {
+		if (!memchr(xdata, 0, xtail - xdata)) {
 			CERROR("xattr protocol violation (names are broken)\n");
 			rc = -EPROTO;
 		} else if (xval + *xsizes > xvtail) {

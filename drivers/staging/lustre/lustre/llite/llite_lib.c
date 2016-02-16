@@ -171,7 +171,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		return -ENOMEM;
 	}
 
-	if (llite_root != NULL) {
+	if (llite_root) {
 		err = ldebugfs_register_mountpoint(llite_root, sb, dt, md);
 		if (err < 0)
 			CERROR("could not register mount in <debugfs>/lustre/llite\n");
@@ -493,7 +493,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	md_free_lustre_md(sbi->ll_md_exp, &lmd);
 	ptlrpc_req_finished(request);
 
-	if (root == NULL || IS_ERR(root)) {
+	if (IS_ERR_OR_NULL(root)) {
 		if (lmd.lsm)
 			obd_free_memmd(sbi->ll_dt_exp, &lmd.lsm);
 #ifdef CONFIG_FS_POSIX_ACL
@@ -532,7 +532,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				 &sbi->ll_cache, NULL);
 
 	sb->s_root = d_make_root(root);
-	if (sb->s_root == NULL) {
+	if (!sb->s_root) {
 		CERROR("%s: can't make root dentry\n",
 			ll_get_fsname(sb, NULL, 0));
 		err = -ENOMEM;
@@ -547,7 +547,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	/* s_dev is also used in lt_compare() to compare two fs, but that is
 	 * only a node-local comparison. */
 	uuid = obd_get_uuid(sbi->ll_md_exp);
-	if (uuid != NULL) {
+	if (uuid) {
 		sb->s_dev = get_uuid2int(uuid->uuid, strlen(uuid->uuid));
 		get_uuid2fsid(uuid->uuid, strlen(uuid->uuid), &sbi->ll_fsid);
 	}
@@ -777,7 +777,7 @@ static int ll_options(char *options, int *flags)
 next:
 		/* Find next opt */
 		s2 = strchr(s1, ',');
-		if (s2 == NULL)
+		if (!s2)
 			break;
 		s1 = s2 + 1;
 	}
@@ -904,7 +904,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 
 	/* Profile set with LCFG_MOUNTOPT so we can find our mdc and osc obds */
 	lprof = class_get_profile(profilenm);
-	if (lprof == NULL) {
+	if (!lprof) {
 		LCONSOLE_ERROR_MSG(0x156, "The client profile '%s' could not be read from the MGS.  Does that filesystem exist?\n",
 				   profilenm);
 		err = -EINVAL;
@@ -1036,8 +1036,8 @@ void ll_clear_inode(struct inode *inode)
 
 	if (S_ISDIR(inode->i_mode)) {
 		/* these should have been cleared in ll_file_release */
-		LASSERT(lli->lli_opendir_key == NULL);
-		LASSERT(lli->lli_sai == NULL);
+		LASSERT(!lli->lli_opendir_key);
+		LASSERT(!lli->lli_sai);
 		LASSERT(lli->lli_opendir_pid == 0);
 	}
 
@@ -1065,7 +1065,7 @@ void ll_clear_inode(struct inode *inode)
 	ll_xattr_cache_destroy(inode);
 
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
-		LASSERT(lli->lli_posix_acl == NULL);
+		LASSERT(!lli->lli_posix_acl);
 		if (lli->lli_remote_perms) {
 			free_rmtperm_hash(lli->lli_remote_perms);
 			lli->lli_remote_perms = NULL;
@@ -1074,7 +1074,7 @@ void ll_clear_inode(struct inode *inode)
 #ifdef CONFIG_FS_POSIX_ACL
 	else if (lli->lli_posix_acl) {
 		LASSERT(atomic_read(&lli->lli_posix_acl->a_refcount) == 1);
-		LASSERT(lli->lli_remote_perms == NULL);
+		LASSERT(!lli->lli_remote_perms);
 		posix_acl_release(lli->lli_posix_acl);
 		lli->lli_posix_acl = NULL;
 	}
@@ -1161,7 +1161,6 @@ static int ll_setattr_done_writing(struct inode *inode,
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int rc = 0;
 
-	LASSERT(op_data != NULL);
 	if (!S_ISREG(inode->i_mode))
 		return 0;
 
@@ -1514,7 +1513,7 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 
 	LASSERT((lsm != NULL) == ((body->valid & OBD_MD_FLEASIZE) != 0));
-	if (lsm != NULL) {
+	if (lsm) {
 		if (!lli->lli_has_smd &&
 		    !(sbi->ll_flags & LL_SBI_LAYOUT_LOCK))
 			cl_file_inode_init(inode, md);
@@ -1689,7 +1688,7 @@ void ll_delete_inode(struct inode *inode)
 {
 	struct cl_inode_info *lli = cl_i2info(inode);
 
-	if (S_ISREG(inode->i_mode) && lli->lli_clob != NULL)
+	if (S_ISREG(inode->i_mode) && lli->lli_clob)
 		/* discard all dirty pages before truncating them, required by
 		 * osc_extent implementation at LU-1030. */
 		cl_sync_file_range(inode, 0, OBD_OBJECT_EOF,
@@ -1831,7 +1830,7 @@ void ll_umount_begin(struct super_block *sb)
 	       sb->s_count, atomic_read(&sb->s_active));
 
 	obd = class_exp2obd(sbi->ll_md_exp);
-	if (obd == NULL) {
+	if (!obd) {
 		CERROR("Invalid MDC connection handle %#llx\n",
 		       sbi->ll_md_exp->exp_handle.h_cookie);
 		return;
@@ -1839,7 +1838,7 @@ void ll_umount_begin(struct super_block *sb)
 	obd->obd_force = 1;
 
 	obd = class_exp2obd(sbi->ll_dt_exp);
-	if (obd == NULL) {
+	if (!obd) {
 		CERROR("Invalid LOV connection handle %#llx\n",
 		       sbi->ll_dt_exp->exp_handle.h_cookie);
 		return;
@@ -1954,7 +1953,7 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 	if (*inode) {
 		ll_update_inode(*inode, &md);
 	} else {
-		LASSERT(sb != NULL);
+		LASSERT(sb);
 
 		/*
 		 * At this point server returns to client's same fid as client
@@ -1965,7 +1964,7 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 		*inode = ll_iget(sb, cl_fid_build_ino(&md.body->fid1,
 					     sbi->ll_flags & LL_SBI_32BIT_API),
 				 &md);
-		if (*inode == NULL || IS_ERR(*inode)) {
+		if (IS_ERR_OR_NULL(*inode)) {
 #ifdef CONFIG_FS_POSIX_ACL
 			if (md.posix_acl) {
 				posix_acl_release(md.posix_acl);
@@ -1987,13 +1986,13 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 	 * 2. layout was changed by another client
 	 * 3. proc2: refresh layout and layout lock granted
 	 * 4. proc1: to apply a stale layout */
-	if (it != NULL && it->d.lustre.it_lock_mode != 0) {
+	if (it && it->d.lustre.it_lock_mode != 0) {
 		struct lustre_handle lockh;
 		struct ldlm_lock *lock;
 
 		lockh.cookie = it->d.lustre.it_lock_handle;
 		lock = ldlm_handle2lock(&lockh);
-		LASSERT(lock != NULL);
+		LASSERT(lock);
 		if (ldlm_has_layout(lock)) {
 			struct cl_object_conf conf;
 
@@ -2008,7 +2007,7 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 	}
 
 out:
-	if (md.lsm != NULL)
+	if (md.lsm)
 		obd_free_memmd(sbi->ll_dt_exp, &md.lsm);
 	md_free_lustre_md(sbi->ll_md_exp, &md);
 
@@ -2113,15 +2112,13 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 				       const char *name, int namelen,
 				       int mode, __u32 opc, void *data)
 {
-	LASSERT(i1 != NULL);
-
 	if (namelen > ll_i2sbi(i1)->ll_namelen)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	if (op_data == NULL)
+	if (!op_data)
 		op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
 
-	if (op_data == NULL)
+	if (!op_data)
 		return ERR_PTR(-ENOMEM);
 
 	ll_i2gids(op_data->op_suppgids, i1, i2);
@@ -2141,8 +2138,8 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 	op_data->op_cap = cfs_curproc_cap_pack();
 	op_data->op_bias = 0;
 	op_data->op_cli_flags = 0;
-	if ((opc == LUSTRE_OPC_CREATE) && (name != NULL) &&
-	     filename_is_volatile(name, namelen, NULL))
+	if ((opc == LUSTRE_OPC_CREATE) && name &&
+	    filename_is_volatile(name, namelen, NULL))
 		op_data->op_bias |= MDS_CREATE_VOLATILE;
 	op_data->op_opc = opc;
 	op_data->op_mds = 0;
@@ -2177,7 +2174,7 @@ int ll_show_options(struct seq_file *seq, struct dentry *dentry)
 {
 	struct ll_sb_info *sbi;
 
-	LASSERT((seq != NULL) && (dentry != NULL));
+	LASSERT(seq && dentry);
 	sbi = ll_s2sbi(dentry->d_sb);
 
 	if (sbi->ll_flags & LL_SBI_NOLCK)
@@ -2238,7 +2235,7 @@ char *ll_get_fsname(struct super_block *sb, char *buf, int buflen)
 	char *ptr;
 	int len;
 
-	if (buf == NULL) {
+	if (!buf) {
 		/* this means the caller wants to use static buffer
 		 * and it doesn't care about race. Usually this is
 		 * in error reporting path */
@@ -2267,9 +2264,9 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 
 	/* this can be called inside spin lock so use GFP_ATOMIC. */
 	buf = (char *)__get_free_page(GFP_ATOMIC);
-	if (buf != NULL) {
+	if (buf) {
 		dentry = d_find_alias(page->mapping->host);
-		if (dentry != NULL)
+		if (dentry)
 			path = dentry_path_raw(dentry, buf, PAGE_SIZE);
 	}
 
@@ -2280,9 +2277,9 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 	       PFID(&obj->cob_header.coh_lu.loh_fid),
 	       (path && !IS_ERR(path)) ? path : "", ioret);
 
-	if (dentry != NULL)
+	if (dentry)
 		dput(dentry);
 
-	if (buf != NULL)
+	if (buf)
 		free_page((unsigned long)buf);
 }

@@ -52,7 +52,7 @@ void vvp_write_pending(struct ccc_object *club, struct ccc_page *page)
 
 	spin_lock(&lli->lli_lock);
 	lli->lli_flags |= LLIF_SOM_DIRTY;
-	if (page != NULL && list_empty(&page->cpg_pending_linkage))
+	if (page && list_empty(&page->cpg_pending_linkage))
 		list_add(&page->cpg_pending_linkage,
 			     &club->cob_pending_list);
 	spin_unlock(&lli->lli_lock);
@@ -65,7 +65,7 @@ void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
 	int rc = 0;
 
 	spin_lock(&lli->lli_lock);
-	if (page != NULL && !list_empty(&page->cpg_pending_linkage)) {
+	if (page && !list_empty(&page->cpg_pending_linkage)) {
 		list_del_init(&page->cpg_pending_linkage);
 		rc = 1;
 	}
@@ -144,8 +144,8 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 	spin_lock(&lli->lli_lock);
 	if (!(list_empty(&club->cob_pending_list))) {
 		if (!(lli->lli_flags & LLIF_EPOCH_PENDING)) {
-			LASSERT(*och != NULL);
-			LASSERT(lli->lli_pending_och == NULL);
+			LASSERT(*och);
+			LASSERT(!lli->lli_pending_och);
 			/* Inode is dirty and there is no pending write done
 			 * request yet, DONE_WRITE is to be sent later. */
 			lli->lli_flags |= LLIF_EPOCH_PENDING;
@@ -215,7 +215,7 @@ int ll_som_update(struct inode *inode, struct md_op_data *op_data)
 	struct obdo *oa;
 	int rc;
 
-	LASSERT(op_data != NULL);
+	LASSERT(op_data);
 	if (lli->lli_flags & LLIF_MDS_SIZE_LOCK)
 		CERROR("ino %lu/%u(flags %u) som valid it just after recovery\n",
 		       inode->i_ino, inode->i_generation,
@@ -266,7 +266,7 @@ static void ll_prepare_done_writing(struct inode *inode,
 {
 	ll_ioepoch_close(inode, op_data, och, LLIF_DONE_WRITING);
 	/* If there is no @och, we do not do D_W yet. */
-	if (*och == NULL)
+	if (!*och)
 		return;
 
 	ll_pack_inode2opdata(inode, op_data, &(*och)->och_fh);
@@ -289,7 +289,7 @@ static void ll_done_writing(struct inode *inode)
 
 	ll_prepare_done_writing(inode, op_data, &och);
 	/* If there is no @och, we do not do D_W yet. */
-	if (och == NULL)
+	if (!och)
 		goto out;
 
 	rc = md_done_writing(ll_i2sbi(inode)->ll_md_exp, op_data, NULL);

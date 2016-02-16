@@ -118,7 +118,7 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 
 			ll_read_inode2(inode, md);
 			if (S_ISREG(inode->i_mode) &&
-			    ll_i2info(inode)->lli_clob == NULL) {
+			    !ll_i2info(inode)->lli_clob) {
 				CDEBUG(D_INODE,
 					"%s: apply lsm %p to inode "DFID".\n",
 					ll_get_fsname(sb, NULL, 0), md->lsm,
@@ -181,9 +181,9 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 
 		/* Inode is set to lock->l_resource->lr_lvb_inode
 		 * for mdc - bug 24555 */
-		LASSERT(lock->l_ast_data == NULL);
+		LASSERT(!lock->l_ast_data);
 
-		if (inode == NULL)
+		if (!inode)
 			break;
 
 		/* Invalidate all dentries associated with this inode */
@@ -260,7 +260,7 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 		}
 
 		if ((bits & (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_PERM)) &&
-		    inode->i_sb->s_root != NULL &&
+		    inode->i_sb->s_root &&
 		    !is_root_inode(inode))
 			ll_invalidate_aliases(inode);
 
@@ -288,12 +288,7 @@ __u32 ll_i2suppgid(struct inode *i)
  * array in case it might be useful.  Not needed if doing an MDS-side upcall. */
 void ll_i2gids(__u32 *suppgids, struct inode *i1, struct inode *i2)
 {
-#if 0
-	int i;
-#endif
-
-	LASSERT(i1 != NULL);
-	LASSERT(suppgids != NULL);
+	LASSERT(i1);
 
 	suppgids[0] = ll_i2suppgid(i1);
 
@@ -301,22 +296,6 @@ void ll_i2gids(__u32 *suppgids, struct inode *i1, struct inode *i2)
 		suppgids[1] = ll_i2suppgid(i2);
 		else
 			suppgids[1] = -1;
-
-#if 0
-	for (i = 0; i < current_ngroups; i++) {
-		if (suppgids[0] == -1) {
-			if (current_groups[i] != suppgids[1])
-				suppgids[0] = current_groups[i];
-			continue;
-		}
-		if (suppgids[1] == -1) {
-			if (current_groups[i] != suppgids[0])
-				suppgids[1] = current_groups[i];
-			continue;
-		}
-		break;
-	}
-#endif
 }
 
 /*
@@ -445,7 +424,7 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		   !it_disposition(it, DISP_OPEN_CREATE)) {
 		/* With DISP_OPEN_CREATE dentry will
 		   instantiated in ll_create_it. */
-		LASSERT(d_inode(*de) == NULL);
+		LASSERT(!d_inode(*de));
 		d_instantiate(*de, inode);
 	}
 
@@ -498,7 +477,7 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	if (d_mountpoint(dentry))
 		CERROR("Tell Peter, lookup on mtpt, it %s\n", LL_IT2STR(it));
 
-	if (it == NULL || it->it_op == IT_GETXATTR)
+	if (!it || it->it_op == IT_GETXATTR)
 		it = &lookup_it;
 
 	if (it->it_op == IT_GETATTR) {
@@ -557,7 +536,7 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
  out:
 	if (req)
 		ptlrpc_req_finished(req);
-	if (it->it_op == IT_GETATTR && (retval == NULL || retval == dentry))
+	if (it->it_op == IT_GETATTR && (!retval || retval == dentry))
 		ll_statahead_mark(parent, dentry);
 	return retval;
 }
@@ -582,7 +561,7 @@ static struct dentry *ll_lookup_nd(struct inode *parent, struct dentry *dentry,
 		itp = &it;
 	de = ll_lookup_it(parent, dentry, itp, 0);
 
-	if (itp != NULL)
+	if (itp)
 		ll_intent_release(itp);
 
 	return de;
@@ -622,7 +601,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	de = ll_lookup_it(dir, dentry, it, lookup_flags);
 	if (IS_ERR(de))
 		rc = PTR_ERR(de);
-	else if (de != NULL)
+	else if (de)
 		dentry = de;
 
 	if (!rc) {
@@ -631,7 +610,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 			rc = ll_create_it(dir, dentry, mode, it);
 			if (rc) {
 				/* We dget in ll_splice_alias. */
-				if (de != NULL)
+				if (de)
 					dput(de);
 				goto out_release;
 			}
@@ -655,7 +634,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 				/* We dget in ll_splice_alias. finish_open takes
 				 * care of dget for fd open.
 				 */
-				if (de != NULL)
+				if (de)
 					dput(de);
 			}
 		} else {
@@ -767,7 +746,7 @@ static int ll_new_node(struct inode *dir, struct dentry *dentry,
 	int tgt_len = 0;
 	int err;
 
-	if (unlikely(tgt != NULL))
+	if (unlikely(tgt))
 		tgt_len = strlen(tgt) + 1;
 
 	op_data = ll_prep_md_op_data(NULL, dir, NULL,
@@ -891,7 +870,7 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	 * check it is complete and sensible. */
 	eadata = req_capsule_server_sized_get(&request->rq_pill, &RMF_MDT_MD,
 					      body->eadatasize);
-	LASSERT(eadata != NULL);
+	LASSERT(eadata);
 
 	rc = obd_unpackmd(ll_i2dtexp(dir), &lsm, eadata, body->eadatasize);
 	if (rc < 0) {
@@ -901,7 +880,7 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	LASSERT(rc >= sizeof(*lsm));
 
 	oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
-	if (oa == NULL) {
+	if (!oa) {
 		rc = -ENOMEM;
 		goto out_free_memmd;
 	}
@@ -917,7 +896,7 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 						     &RMF_LOGCOOKIES,
 						   sizeof(struct llog_cookie) *
 						     lsm->lsm_stripe_count);
-		if (oti.oti_logcookies == NULL) {
+		if (!oti.oti_logcookies) {
 			oa->o_valid &= ~OBD_MD_FLCOOKIE;
 			body->valid &= ~OBD_MD_FLCOOKIE;
 		}

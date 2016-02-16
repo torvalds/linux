@@ -125,12 +125,12 @@ int rct_add(struct rmtacl_ctl_table *rct, pid_t key, int ops)
 	struct rmtacl_ctl_entry *rce, *e;
 
 	rce = rce_alloc(key, ops);
-	if (rce == NULL)
+	if (!rce)
 		return -ENOMEM;
 
 	spin_lock(&rct->rct_lock);
 	e = __rct_search(rct, key);
-	if (unlikely(e != NULL)) {
+	if (unlikely(e)) {
 		CWARN("Unexpected stale rmtacl_entry found: [key: %d] [ops: %d]\n",
 		      (int)key, ops);
 		rce_free(e);
@@ -213,7 +213,7 @@ static struct eacl_entry *__et_search_del(struct eacl_table *et, pid_t key,
 	struct eacl_entry *ee;
 	struct list_head *head = &et->et_entries[ee_hashfunc(key)];
 
-	LASSERT(fid != NULL);
+	LASSERT(fid);
 	list_for_each_entry(ee, head, ee_list)
 		if (ee->ee_key == key) {
 			if (lu_fid_eq(&ee->ee_fid, fid) &&
@@ -256,12 +256,12 @@ int ee_add(struct eacl_table *et, pid_t key, struct lu_fid *fid, int type,
 	struct eacl_entry *ee, *e;
 
 	ee = ee_alloc(key, fid, type, header);
-	if (ee == NULL)
+	if (!ee)
 		return -ENOMEM;
 
 	spin_lock(&et->et_lock);
 	e = __et_search_del(et, key, fid, type);
-	if (unlikely(e != NULL)) {
+	if (unlikely(e)) {
 		CWARN("Unexpected stale eacl_entry found: [key: %d] [fid: " DFID "] [type: %d]\n",
 		      (int)key, PFID(fid), type);
 		ee_free(e);

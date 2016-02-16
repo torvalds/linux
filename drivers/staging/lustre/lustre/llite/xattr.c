@@ -148,7 +148,7 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	    (xattr_type == XATTR_ACL_ACCESS_T ||
 	    xattr_type == XATTR_ACL_DEFAULT_T)) {
 		rce = rct_search(&sbi->ll_rct, current_pid());
-		if (rce == NULL ||
+		if (!rce ||
 		    (rce->rce_ops != RMT_LSETFACL &&
 		    rce->rce_ops != RMT_RSETFACL))
 			return -EOPNOTSUPP;
@@ -158,7 +158,6 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 
 			ee = et_search_del(&sbi->ll_et, current_pid(),
 					   ll_inode2fid(inode), xattr_type);
-			LASSERT(ee != NULL);
 			if (valid & OBD_MD_FLXATTR) {
 				acl = lustre_acl_xattr_merge2ext(
 						(posix_acl_xattr_header *)value,
@@ -196,7 +195,7 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	 * Release the posix ACL space.
 	 */
 	kfree(new_value);
-	if (acl != NULL)
+	if (acl)
 		lustre_ext_acl_xattr_free(acl);
 #endif
 	if (rc) {
@@ -239,10 +238,10 @@ int ll_setxattr(struct dentry *dentry, const char *name,
 		/* Attributes that are saved via getxattr will always have
 		 * the stripe_offset as 0.  Instead, the MDS should be
 		 * allowed to pick the starting OST index.   b=17846 */
-		if (lump != NULL && lump->lmm_stripe_offset == 0)
+		if (lump && lump->lmm_stripe_offset == 0)
 			lump->lmm_stripe_offset = -1;
 
-		if (lump != NULL && S_ISREG(inode->i_mode)) {
+		if (lump && S_ISREG(inode->i_mode)) {
 			int flags = FMODE_WRITE;
 			int lum_size = (lump->lmm_magic == LOV_USER_MAGIC_V1) ?
 				sizeof(*lump) : sizeof(struct lov_user_md_v3);
@@ -324,7 +323,7 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 	    (xattr_type == XATTR_ACL_ACCESS_T ||
 	    xattr_type == XATTR_ACL_DEFAULT_T)) {
 		rce = rct_search(&sbi->ll_rct, current_pid());
-		if (rce == NULL ||
+		if (!rce ||
 		    (rce->rce_ops != RMT_LSETFACL &&
 		    rce->rce_ops != RMT_LGETFACL &&
 		    rce->rce_ops != RMT_RSETFACL &&
@@ -365,7 +364,7 @@ do_getxattr:
 			goto out_xattr;
 
 		/* Add "system.posix_acl_access" to the list */
-		if (lli->lli_posix_acl != NULL && valid & OBD_MD_FLXATTRLS) {
+		if (lli->lli_posix_acl && valid & OBD_MD_FLXATTRLS) {
 			if (size == 0) {
 				rc += sizeof(XATTR_NAME_ACL_ACCESS);
 			} else if (size - rc >= sizeof(XATTR_NAME_ACL_ACCESS)) {
@@ -487,7 +486,7 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 		}
 
 		lsm = ccc_inode_lsm_get(inode);
-		if (lsm == NULL) {
+		if (!lsm) {
 			if (S_ISDIR(inode->i_mode)) {
 				rc = ll_dir_getstripe(inode, &lmm,
 						      &lmmsize, &request);
@@ -559,7 +558,7 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	if (rc < 0)
 		goto out;
 
-	if (buffer != NULL) {
+	if (buffer) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
 		char *xattr_name = buffer;
 		int xlen, rem = rc;
@@ -597,12 +596,12 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		const size_t name_len   = sizeof("lov") - 1;
 		const size_t total_len  = prefix_len + name_len + 1;
 
-		if (((rc + total_len) > size) && (buffer != NULL)) {
+		if (((rc + total_len) > size) && buffer) {
 			ptlrpc_req_finished(request);
 			return -ERANGE;
 		}
 
-		if (buffer != NULL) {
+		if (buffer) {
 			buffer += rc;
 			memcpy(buffer, XATTR_LUSTRE_PREFIX, prefix_len);
 			memcpy(buffer + prefix_len, "lov", name_len);

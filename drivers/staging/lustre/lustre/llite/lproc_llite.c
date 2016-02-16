@@ -453,7 +453,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 		if (diff <= 0)
 			break;
 
-		if (sbi->ll_dt_exp == NULL) { /* being initialized */
+		if (!sbi->ll_dt_exp) { /* being initialized */
 			rc = -ENODEV;
 			break;
 		}
@@ -966,9 +966,9 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 
 	name[MAX_STRING_SIZE] = '\0';
 
-	LASSERT(sbi != NULL);
-	LASSERT(mdc != NULL);
-	LASSERT(osc != NULL);
+	LASSERT(sbi);
+	LASSERT(mdc);
+	LASSERT(osc);
 
 	/* Get fsname */
 	len = strlen(lsi->lsi_lmd->lmd_profile);
@@ -1012,7 +1012,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	/* File operations stats */
 	sbi->ll_stats = lprocfs_alloc_stats(LPROC_LL_FILE_OPCODES,
 					    LPROCFS_STATS_FLAG_NONE);
-	if (sbi->ll_stats == NULL) {
+	if (!sbi->ll_stats) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -1039,7 +1039,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 
 	sbi->ll_ra_stats = lprocfs_alloc_stats(ARRAY_SIZE(ra_stat_string),
 					       LPROCFS_STATS_FLAG_NONE);
-	if (sbi->ll_ra_stats == NULL) {
+	if (!sbi->ll_ra_stats) {
 		err = -ENOMEM;
 		goto out;
 	}

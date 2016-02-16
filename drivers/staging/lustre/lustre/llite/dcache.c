@@ -60,7 +60,7 @@ static void ll_release(struct dentry *de)
 {
 	struct ll_dentry_data *lld;
 
-	LASSERT(de != NULL);
+	LASSERT(de);
 	lld = ll_d2d(de);
 	if (!lld) /* NFS copies the de->d_op methods (bug 4655) */
 		return;
@@ -178,8 +178,6 @@ static int ll_ddelete(const struct dentry *de)
 
 int ll_d_init(struct dentry *de)
 {
-	LASSERT(de != NULL);
-
 	CDEBUG(D_DENTRY, "ldd on dentry %pd (%p) parent %p inode %p refc %d\n",
 		de, de, de->d_parent, d_inode(de),
 		d_count(de));
@@ -251,8 +249,6 @@ void ll_invalidate_aliases(struct inode *inode)
 {
 	struct dentry *dentry;
 
-	LASSERT(inode != NULL);
-
 	CDEBUG(D_INODE, "marking dentries for ino %lu/%u(%p) invalid\n",
 	       inode->i_ino, inode->i_generation, inode);
 
@@ -286,9 +282,7 @@ int ll_revalidate_it_finish(struct ptlrpc_request *request,
 
 void ll_lookup_finish_locks(struct lookup_intent *it, struct inode *inode)
 {
-	LASSERT(it != NULL);
-
-	if (it->d.lustre.it_lock_mode && inode != NULL) {
+	if (it->d.lustre.it_lock_mode && inode) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
 
 		CDEBUG(D_DLMTRACE, "setting l_data to inode %p (%lu/%u)\n",

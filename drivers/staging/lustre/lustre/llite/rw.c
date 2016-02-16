@@ -70,9 +70,9 @@ static void ll_cl_fini(struct ll_cl_context *lcc)
 	struct cl_page *page = lcc->lcc_page;
 
 	LASSERT(lcc->lcc_cookie == current);
-	LASSERT(env != NULL);
+	LASSERT(env);
 
-	if (page != NULL) {
+	if (page) {
 		lu_ref_del(&page->cp_reference, "cl_io", io);
 		cl_page_put(env, page);
 	}
@@ -97,7 +97,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 	int result = 0;
 
 	clob = ll_i2info(vmpage->mapping->host)->lli_clob;
-	LASSERT(clob != NULL);
+	LASSERT(clob);
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -111,7 +111,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 
 	cio = ccc_env_io(env);
 	io = cio->cui_cl.cis_io;
-	if (io == NULL && create) {
+	if (!io && create) {
 		struct inode *inode = vmpage->mapping->host;
 		loff_t pos;
 
@@ -163,12 +163,11 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 	}
 
 	lcc->lcc_io = io;
-	if (io == NULL)
+	if (!io)
 		result = -EIO;
 	if (result == 0) {
 		struct cl_page   *page;
 
-		LASSERT(io != NULL);
 		LASSERT(io->ci_state == CIS_IO_GOING);
 		LASSERT(cio->cui_fd == LUSTRE_FPRIVATE(file));
 		page = cl_page_find(env, clob, vmpage->index, vmpage,
@@ -473,7 +472,7 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 	const char       *msg   = NULL;
 
 	vmpage = grab_cache_page_nowait(mapping, index);
-	if (vmpage != NULL) {
+	if (vmpage) {
 		/* Check if vmpage was truncated or reclaimed */
 		if (vmpage->mapping == mapping) {
 			page = cl_page_find(env, clob, vmpage->index,
@@ -500,7 +499,7 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 		which = RA_STAT_FAILED_GRAB_PAGE;
 		msg   = "g_c_p_n failed";
 	}
-	if (msg != NULL) {
+	if (msg) {
 		ll_ra_stats_inc(mapping, which);
 		CDEBUG(D_READA, "%s\n", msg);
 	}
@@ -616,7 +615,7 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 	int rc, count = 0, stride_ria;
 	unsigned long page_idx;
 
-	LASSERT(ria != NULL);
+	LASSERT(ria);
 	RIA_DEBUG(ria);
 
 	stride_ria = ria->ria_length > ria->ria_pages && ria->ria_pages > 0;
@@ -699,7 +698,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 		bead = NULL;
 
 	/* Enlarge the RA window to encompass the full read */
-	if (bead != NULL && ras->ras_window_start + ras->ras_window_len <
+	if (bead && ras->ras_window_start + ras->ras_window_len <
 	    bead->lrr_start + bead->lrr_count) {
 		ras->ras_window_len = bead->lrr_start + bead->lrr_count -
 				      ras->ras_window_start;
@@ -1100,7 +1099,7 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	LASSERT(PageLocked(vmpage));
 	LASSERT(!PageWriteback(vmpage));
 
-	LASSERT(ll_i2dtexp(inode) != NULL);
+	LASSERT(ll_i2dtexp(inode));
 
 	env = cl_env_nested_get(&nest);
 	if (IS_ERR(env)) {
@@ -1109,7 +1108,7 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	}
 
 	clob  = ll_i2info(inode)->lli_clob;
-	LASSERT(clob != NULL);
+	LASSERT(clob);
 
 	io = ccc_env_thread_io(env);
 	io->ci_obj = clob;
