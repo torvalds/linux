@@ -289,9 +289,6 @@ static inline void cfs_trace_put_tcd(struct cfs_trace_cpu_data *tcd)
 int cfs_trace_refill_stock(struct cfs_trace_cpu_data *tcd, gfp_t gfp,
 			   struct list_head *stock);
 
-int cfs_tcd_owns_tage(struct cfs_trace_cpu_data *tcd,
-		      struct cfs_trace_page *tage);
-
 void cfs_trace_assertion_failed(const char *str,
 				struct libcfs_debug_msg_data *m);
 

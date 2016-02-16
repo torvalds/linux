@@ -176,16 +176,6 @@ void cfs_trace_unlock_tcd(struct cfs_trace_cpu_data *tcd, int walking)
 		spin_unlock(&tcd->tcd_lock);
 }
 
-int cfs_tcd_owns_tage(struct cfs_trace_cpu_data *tcd,
-		      struct cfs_trace_page *tage)
-{
-	/*
-	 * XXX nikita: do NOT call portals_debug_msg() (CDEBUG/ENTRY/EXIT)
-	 * from here: this will lead to infinite recursion.
-	 */
-	return tcd->tcd_cpu == tage->cpu;
-}
-
 void
 cfs_set_ptldebug_header(struct ptldebug_header *header,
 			struct libcfs_debug_msg_data *msgdata,
