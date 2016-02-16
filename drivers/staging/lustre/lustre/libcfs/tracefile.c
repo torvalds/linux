@@ -598,7 +598,6 @@ static void put_pages_back_on_all_cpus(struct page_collection *pc)
 
 			list_for_each_entry_safe(tage, tmp, &pc->pc_pages,
 						 linkage) {
-
 				__LASSERT_TAGE_INVARIANT(tage);
 
 				if (tage->cpu != cpu || tage->type != i)
@@ -629,7 +628,6 @@ static void put_pages_on_tcd_daemon_list(struct page_collection *pc,
 	struct cfs_trace_page *tmp;
 
 	list_for_each_entry_safe(tage, tmp, &pc->pc_pages, linkage) {
-
 		__LASSERT_TAGE_INVARIANT(tage);
 
 		if (tage->cpu != tcd->tcd_cpu || tage->type != tcd->tcd_type)
@@ -737,7 +735,6 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	 */
 	MMSPACE_OPEN;
 	list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
-
 		__LASSERT_TAGE_INVARIANT(tage);
 
 		buf = kmap(tage->page);
@@ -775,7 +772,6 @@ void cfs_trace_flush_pages(void)
 	pc.pc_want_daemon_pages = 1;
 	collect_pages(&pc);
 	list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
-
 		__LASSERT_TAGE_INVARIANT(tage);
 
 		list_del(&tage->linkage);

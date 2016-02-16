@@ -125,7 +125,6 @@ struct cfs_crypto_hash_desc *
 	cfs_crypto_hash_init(unsigned char alg_id,
 			     unsigned char *key, unsigned int key_len)
 {
-
 	struct  hash_desc       *hdesc;
 	int		     err;
 	const struct cfs_crypto_hash_type       *type;
@@ -212,7 +211,6 @@ static void cfs_crypto_performance_test(unsigned char alg_id,
 					     hash, &hash_len);
 		if (err)
 			break;
-
 	}
 	end = jiffies;
 

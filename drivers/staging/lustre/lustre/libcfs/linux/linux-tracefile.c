@@ -65,7 +65,6 @@ int cfs_tracefile_init_arch(void)
 				num_possible_cpus(), GFP_KERNEL);
 		if (!cfs_trace_data[i])
 			goto out;
-
 	}
 
 	/* arch related info initialized */

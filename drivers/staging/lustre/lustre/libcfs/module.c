@@ -549,7 +549,6 @@ void lustre_insert_debugfs(struct ctl_table *table,
 	for (; symlinks && symlinks->name; symlinks++)
 		debugfs_create_symlink(symlinks->name, lnet_debugfs_root,
 				       symlinks->target);
-
 }
 EXPORT_SYMBOL_GPL(lustre_insert_debugfs);
 
