@@ -138,7 +138,7 @@ void hist_entry__delete(struct hist_entry *he);
 
 void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog);
 void hists__output_resort(struct hists *hists, struct ui_progress *prog);
-void hists__collapse_resort(struct hists *hists, struct ui_progress *prog);
+int hists__collapse_resort(struct hists *hists, struct ui_progress *prog);
 
 void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel);
 void hists__delete_entries(struct hists *hists);
@@ -197,7 +197,7 @@ int hists__init(void);
 int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list);
 
 struct rb_root *hists__get_rotate_entries_in(struct hists *hists);
-bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
+int hists__collapse_insert_entry(struct hists *hists,
 				  struct rb_root *root, struct hist_entry *he);
 
 struct perf_hpp {
