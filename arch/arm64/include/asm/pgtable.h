@@ -36,19 +36,13 @@
  *
  * VMEMAP_SIZE: allows the whole VA space to be covered by a struct page array
  *	(rounded up to PUD_SIZE).
- * VMALLOC_START: beginning of the kernel VA space
+ * VMALLOC_START: beginning of the kernel vmalloc space
  * VMALLOC_END: extends to the available space below vmmemmap, PCI I/O space,
  *	fixed mappings and modules
  */
 #define VMEMMAP_SIZE		ALIGN((1UL << (VA_BITS - PAGE_SHIFT)) * sizeof(struct page), PUD_SIZE)
 
-#ifndef CONFIG_KASAN
-#define VMALLOC_START		(VA_START)
-#else
-#include <asm/kasan.h>
-#define VMALLOC_START		(KASAN_SHADOW_END + SZ_64K)
-#endif
-
+#define VMALLOC_START		(MODULES_END)
 #define VMALLOC_END		(PAGE_OFFSET - PUD_SIZE - VMEMMAP_SIZE - SZ_64K)
 
 #define vmemmap			((struct page *)(VMALLOC_END + SZ_64K))
