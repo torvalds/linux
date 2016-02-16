@@ -35,8 +35,12 @@ SOLIBEXT=so
 
 # The following works at least on fedora 23, you may need the next
 # line for other distros.
+ifeq (,$(wildcard /usr/sbin/update-java-alternatives))
 JDIR=$(shell alternatives --display java | tail -1 | cut -d' ' -f 5 | sed 's%/jre/bin/java.%%g')
-#JDIR=$(shell /usr/sbin/update-java-alternatives -l | head -1 | cut -d ' ' -f 3)
+else
+JDIR=$(shell /usr/sbin/update-java-alternatives -l | head -1 | cut -d ' ' -f 3)
+endif
+
 # -lrt required in 32-bit mode for clock_gettime()
 LIBS=-lelf -lrt
 INCDIR=-I $(JDIR)/include -I $(JDIR)/include/linux
