@@ -465,7 +465,6 @@ struct ldlm_namespace {
  */
 static inline int ns_connect_cancelset(struct ldlm_namespace *ns)
 {
-	LASSERT(ns != NULL);
 	return !!(ns->ns_connect_flags & OBD_CONNECT_CANCELSET);
 }
 
@@ -474,14 +473,12 @@ static inline int ns_connect_cancelset(struct ldlm_namespace *ns)
  */
 static inline int ns_connect_lru_resize(struct ldlm_namespace *ns)
 {
-	LASSERT(ns != NULL);
 	return !!(ns->ns_connect_flags & OBD_CONNECT_LRU_RESIZE);
 }
 
 static inline void ns_register_cancel(struct ldlm_namespace *ns,
 				      ldlm_cancel_for_recovery arg)
 {
-	LASSERT(ns != NULL);
 	ns->ns_cancel_for_recovery = arg;
 }
 
@@ -921,7 +918,7 @@ static inline int ldlm_lvbo_init(struct ldlm_resource *res)
 {
 	struct ldlm_namespace *ns = ldlm_res_to_ns(res);
 
-	if (ns->ns_lvbo != NULL && ns->ns_lvbo->lvbo_init != NULL)
+	if (ns->ns_lvbo && ns->ns_lvbo->lvbo_init)
 		return ns->ns_lvbo->lvbo_init(res);
 
 	return 0;
@@ -931,7 +928,7 @@ static inline int ldlm_lvbo_size(struct ldlm_lock *lock)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
-	if (ns->ns_lvbo != NULL && ns->ns_lvbo->lvbo_size != NULL)
+	if (ns->ns_lvbo && ns->ns_lvbo->lvbo_size)
 		return ns->ns_lvbo->lvbo_size(lock);
 
 	return 0;
@@ -941,10 +938,9 @@ static inline int ldlm_lvbo_fill(struct ldlm_lock *lock, void *buf, int len)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
-	if (ns->ns_lvbo != NULL) {
-		LASSERT(ns->ns_lvbo->lvbo_fill != NULL);
+	if (ns->ns_lvbo)
 		return ns->ns_lvbo->lvbo_fill(lock, buf, len);
-	}
+
 	return 0;
 }
 
@@ -1015,7 +1011,7 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 
 /** Non-rate-limited lock printing function for debugging purposes. */
 #define LDLM_DEBUG(lock, fmt, a...)   do {				  \
-	if (likely(lock != NULL)) {					    \
+	if (likely(lock)) {						    \
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_DLMTRACE, NULL);      \
 		ldlm_lock_debug(&msgdata, D_DLMTRACE, NULL, lock,	    \
 				"### " fmt, ##a);			    \
@@ -1091,7 +1087,7 @@ ldlm_handle2lock_long(const struct lustre_handle *h, __u64 flags)
 	struct ldlm_lock *lock;
 
 	lock = __ldlm_handle2lock(h, flags);
-	if (lock != NULL)
+	if (lock)
 		LDLM_LOCK_REF_DEL(lock);
 	return lock;
 }

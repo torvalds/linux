@@ -507,7 +507,6 @@ extern char obd_jobid_var[];
 do {									      \
 	struct portals_handle *__h = (handle);				      \
 									      \
-	LASSERT(handle != NULL);					      \
 	__h->h_cookie = (unsigned long)(ptr);				      \
 	__h->h_size = (size);						      \
 	call_rcu(&__h->h_rcu, class_handle_free_cb);			      \

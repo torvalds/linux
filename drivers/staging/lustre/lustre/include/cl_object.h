@@ -2653,7 +2653,7 @@ static inline int lu_device_is_cl(const struct lu_device *d)
 
 static inline struct cl_device *lu2cl_dev(const struct lu_device *d)
 {
-	LASSERT(d == NULL || IS_ERR(d) || lu_device_is_cl(d));
+	LASSERT(!d || IS_ERR(d) || lu_device_is_cl(d));
 	return container_of0(d, struct cl_device, cd_lu_dev);
 }
 
@@ -2664,7 +2664,7 @@ static inline struct lu_device *cl2lu_dev(struct cl_device *d)
 
 static inline struct cl_object *lu2cl(const struct lu_object *o)
 {
-	LASSERT(o == NULL || IS_ERR(o) || lu_device_is_cl(o->lo_dev));
+	LASSERT(!o || IS_ERR(o) || lu_device_is_cl(o->lo_dev));
 	return container_of0(o, struct cl_object, co_lu);
 }
 
@@ -2681,7 +2681,7 @@ static inline struct cl_object *cl_object_next(const struct cl_object *obj)
 
 static inline struct cl_device *cl_object_device(const struct cl_object *o)
 {
-	LASSERT(o == NULL || IS_ERR(o) || lu_device_is_cl(o->co_lu.lo_dev));
+	LASSERT(!o || IS_ERR(o) || lu_device_is_cl(o->co_lu.lo_dev));
 	return container_of0(o->co_lu.lo_dev, struct cl_device, cd_lu_dev);
 }
 

@@ -228,7 +228,6 @@ static inline __u64 exp_connect_flags(struct obd_export *exp)
 
 static inline int exp_max_brw_size(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	if (exp_connect_flags(exp) & OBD_CONNECT_BRW_SIZE)
 		return exp->exp_connect_data.ocd_brw_size;
 
@@ -242,19 +241,16 @@ static inline int exp_connect_multibulk(struct obd_export *exp)
 
 static inline int exp_connect_cancelset(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_CANCELSET);
 }
 
 static inline int exp_connect_lru_resize(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_LRU_RESIZE);
 }
 
 static inline int exp_connect_rmtclient(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_RMT_CLIENT);
 }
 
@@ -268,14 +264,11 @@ static inline int client_is_remote(struct obd_export *exp)
 
 static inline int exp_connect_vbr(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
-	LASSERT(exp->exp_connection);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_VBR);
 }
 
 static inline int exp_connect_som(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	return !!(exp_connect_flags(exp) & OBD_CONNECT_SOM);
 }
 
@@ -288,7 +281,6 @@ static inline int imp_connect_lru_resize(struct obd_import *imp)
 {
 	struct obd_connect_data *ocd;
 
-	LASSERT(imp != NULL);
 	ocd = &imp->imp_connect_data;
 	return !!(ocd->ocd_connect_flags & OBD_CONNECT_LRU_RESIZE);
 }
@@ -300,7 +292,6 @@ static inline int exp_connect_layout(struct obd_export *exp)
 
 static inline bool exp_connect_lvb_type(struct obd_export *exp)
 {
-	LASSERT(exp != NULL);
 	if (exp_connect_flags(exp) & OBD_CONNECT_LVB_TYPE)
 		return true;
 	else
@@ -311,7 +302,6 @@ static inline bool imp_connect_lvb_type(struct obd_import *imp)
 {
 	struct obd_connect_data *ocd;
 
-	LASSERT(imp != NULL);
 	ocd = &imp->imp_connect_data;
 	if (ocd->ocd_connect_flags & OBD_CONNECT_LVB_TYPE)
 		return true;
@@ -331,7 +321,6 @@ static inline bool imp_connect_disp_stripe(struct obd_import *imp)
 {
 	struct obd_connect_data *ocd;
 
-	LASSERT(imp != NULL);
 	ocd = &imp->imp_connect_data;
 	return ocd->ocd_connect_flags & OBD_CONNECT_DISP_STRIPE;
 }

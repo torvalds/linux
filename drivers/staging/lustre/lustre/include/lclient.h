@@ -127,7 +127,7 @@ static inline struct ccc_thread_info *ccc_env_info(const struct lu_env *env)
 	struct ccc_thread_info      *info;
 
 	info = lu_context_key_get(&env->le_ctx, &ccc_key);
-	LASSERT(info != NULL);
+	LASSERT(info);
 	return info;
 }
 
@@ -156,7 +156,7 @@ static inline struct ccc_session *ccc_env_session(const struct lu_env *env)
 	struct ccc_session *ses;
 
 	ses = lu_context_key_get(env->le_ses, &ccc_session_key);
-	LASSERT(ses != NULL);
+	LASSERT(ses);
 	return ses;
 }
 

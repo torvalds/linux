@@ -407,7 +407,7 @@ static inline int lprocfs_stats_lock(struct lprocfs_stats *stats, int opc,
 		} else {
 			unsigned int cpuid = get_cpu();
 
-			if (unlikely(stats->ls_percpu[cpuid] == NULL)) {
+			if (unlikely(!stats->ls_percpu[cpuid])) {
 				rc = lprocfs_stats_alloc_one(stats, cpuid);
 				if (rc < 0) {
 					put_cpu();
@@ -521,11 +521,11 @@ static inline __u64 lprocfs_stats_collector(struct lprocfs_stats *stats,
 	unsigned long flags	= 0;
 	__u64	      ret	= 0;
 
-	LASSERT(stats != NULL);
+	LASSERT(stats);
 
 	num_cpu = lprocfs_stats_lock(stats, LPROCFS_GET_NUM_CPU, &flags);
 	for (i = 0; i < num_cpu; i++) {
-		if (stats->ls_percpu[i] == NULL)
+		if (!stats->ls_percpu[i])
 			continue;
 		ret += lprocfs_read_helper(
 				lprocfs_stats_counter_get(stats, i, idx),

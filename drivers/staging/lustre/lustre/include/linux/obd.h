@@ -73,7 +73,7 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 
 	while (1) {
 		if (spin_trylock(&lock->lock)) {
-			LASSERT(lock->task == NULL);
+			LASSERT(!lock->task);
 			lock->task = current;
 			lock->func = func;
 			lock->line = line;
@@ -85,7 +85,7 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 		    time_before(lock->time + 5 * HZ, jiffies)) {
 			struct task_struct *task = lock->task;
 
-			if (task == NULL)
+			if (!task)
 				continue;
 
 			LCONSOLE_WARN("%s:%d: lock %p was acquired by <%s:%d:%s:%d> for %lu seconds.\n",
@@ -108,7 +108,7 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 
 static inline void client_obd_list_unlock(client_obd_lock_t *lock)
 {
-	LASSERT(lock->task != NULL);
+	LASSERT(lock->task);
 	lock->task = NULL;
 	lock->time = jiffies;
 	spin_unlock(&lock->lock);

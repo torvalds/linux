@@ -123,7 +123,7 @@ static inline bool lsm_is_released(struct lov_stripe_md *lsm)
 
 static inline bool lsm_has_objects(struct lov_stripe_md *lsm)
 {
-	if (lsm == NULL)
+	if (!lsm)
 		return false;
 	if (lsm_is_released(lsm))
 		return false;
@@ -1224,7 +1224,7 @@ static inline struct md_open_data *obd_mod_alloc(void)
 	struct md_open_data *mod;
 
 	mod = kzalloc(sizeof(*mod), GFP_NOFS);
-	if (mod == NULL)
+	if (!mod)
 		return NULL;
 	atomic_set(&mod->mod_refcount, 1);
 	return mod;
@@ -1271,7 +1271,7 @@ static inline bool filename_is_volatile(const char *name, int namelen, int *idx)
 		return false;
 
 	/* caller does not care of idx */
-	if (idx == NULL)
+	if (!idx)
 		return true;
 
 	/* volatile file, the MDT can be set from name */
@@ -1306,7 +1306,6 @@ bad_format:
 
 static inline int cli_brw_size(struct obd_device *obd)
 {
-	LASSERT(obd != NULL);
 	return obd->u.cli.cl_max_pages_per_rpc << PAGE_CACHE_SHIFT;
 }
 

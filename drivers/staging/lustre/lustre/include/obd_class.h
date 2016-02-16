@@ -306,7 +306,7 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	 / sizeof(((struct obd_ops *)(0))->iocontrol))
 
 #define OBD_COUNTER_INCREMENT(obdx, op)			   \
-	if ((obdx)->obd_stats != NULL) {			  \
+	if ((obdx)->obd_stats) {				  \
 		unsigned int coffset;			     \
 		coffset = (unsigned int)((obdx)->obd_cntr_base) + \
 			OBD_COUNTER_OFFSET(op);		   \
@@ -315,7 +315,7 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	}
 
 #define EXP_COUNTER_INCREMENT(export, op)				    \
-	if ((export)->exp_obd->obd_stats != NULL) {			  \
+	if ((export)->exp_obd->obd_stats) {			  \
 		unsigned int coffset;					\
 		coffset = (unsigned int)((export)->exp_obd->obd_cntr_base) + \
 			OBD_COUNTER_OFFSET(op);			      \
@@ -329,7 +329,7 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	 / sizeof(((struct md_ops *)(0))->getstatus))
 
 #define MD_COUNTER_INCREMENT(obdx, op)			   \
-	if ((obd)->md_stats != NULL) {			   \
+	if ((obd)->md_stats) {			   \
 		unsigned int coffset;			    \
 		coffset = (unsigned int)((obdx)->md_cntr_base) + \
 			MD_COUNTER_OFFSET(op);		   \
@@ -338,24 +338,24 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	}
 
 #define EXP_MD_COUNTER_INCREMENT(export, op)				 \
-	if ((export)->exp_obd->obd_stats != NULL) {			  \
+	if ((export)->exp_obd->obd_stats) {				  \
 		unsigned int coffset;					\
 		coffset = (unsigned int)((export)->exp_obd->md_cntr_base) +  \
 			MD_COUNTER_OFFSET(op);			       \
 		LASSERT(coffset < (export)->exp_obd->md_stats->ls_num);      \
 		lprocfs_counter_incr((export)->exp_obd->md_stats, coffset);  \
-		if ((export)->exp_md_stats != NULL)			  \
+		if ((export)->exp_md_stats)				  \
 			lprocfs_counter_incr(				\
 				(export)->exp_md_stats, coffset);	    \
 	}
 
 #define EXP_CHECK_MD_OP(exp, op)				\
 do {							    \
-	if ((exp) == NULL) {				    \
+	if (!(exp)) {				    \
 		CERROR("obd_" #op ": NULL export\n");	   \
 		return -ENODEV;				\
 	}						       \
-	if ((exp)->exp_obd == NULL || !OBT((exp)->exp_obd)) {   \
+	if (!(exp)->exp_obd || !OBT((exp)->exp_obd)) {   \
 		CERROR("obd_" #op ": cleaned up obd\n");	\
 		return -EOPNOTSUPP;			    \
 	}						       \
@@ -379,11 +379,11 @@ do {							    \
 
 #define EXP_CHECK_DT_OP(exp, op)				\
 do {							    \
-	if ((exp) == NULL) {				    \
+	if (!(exp)) {				    \
 		CERROR("obd_" #op ": NULL export\n");	   \
 		return -ENODEV;				\
 	}						       \
-	if ((exp)->exp_obd == NULL || !OBT((exp)->exp_obd)) {   \
+	if (!(exp)->exp_obd || !OBT((exp)->exp_obd)) {   \
 		CERROR("obd_" #op ": cleaned up obd\n");	\
 		return -EOPNOTSUPP;			    \
 	}						       \
@@ -467,7 +467,7 @@ static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	DECLARE_LU_VARS(ldt, d);
 
 	ldt = obd->obd_type->typ_lu;
-	if (ldt != NULL) {
+	if (ldt) {
 		struct lu_context  session_ctx;
 		struct lu_env env;
 
@@ -509,7 +509,7 @@ static inline int obd_precleanup(struct obd_device *obd,
 		return rc;
 	ldt = obd->obd_type->typ_lu;
 	d = obd->obd_lu_dev;
-	if (ldt != NULL && d != NULL) {
+	if (ldt && d) {
 		if (cleanup_stage == OBD_CLEANUP_EXPORTS) {
 			struct lu_env env;
 
@@ -538,7 +538,7 @@ static inline int obd_cleanup(struct obd_device *obd)
 
 	ldt = obd->obd_type->typ_lu;
 	d = obd->obd_lu_dev;
-	if (ldt != NULL && d != NULL) {
+	if (ldt && d) {
 		struct lu_env env;
 
 		rc = lu_env_init(&env, ldt->ldt_ctx_tags);
@@ -586,7 +586,7 @@ obd_process_config(struct obd_device *obd, int datalen, void *data)
 	obd->obd_process_conf = 1;
 	ldt = obd->obd_type->typ_lu;
 	d = obd->obd_lu_dev;
-	if (ldt != NULL && d != NULL) {
+	if (ldt && d) {
 		struct lu_env env;
 
 		rc = lu_env_init(&env, ldt->ldt_ctx_tags);
@@ -674,7 +674,7 @@ static inline int obd_alloc_memmd(struct obd_export *exp,
 				  struct lov_stripe_md **mem_tgt)
 {
 	LASSERT(mem_tgt);
-	LASSERT(*mem_tgt == NULL);
+	LASSERT(!*mem_tgt);
 	return obd_unpackmd(exp, mem_tgt, NULL, 0);
 }
 
@@ -767,7 +767,7 @@ static inline int obd_setattr_rqset(struct obd_export *exp,
 	EXP_COUNTER_INCREMENT(exp, setattr_async);
 
 	set =  ptlrpc_prep_set();
-	if (set == NULL)
+	if (!set)
 		return -ENOMEM;
 
 	rc = OBP(exp->exp_obd, setattr_async)(exp, oinfo, oti, set);
@@ -858,7 +858,7 @@ static inline int obd_connect(const struct lu_env *env,
 
 	rc = OBP(obd, connect)(env, exp, obd, cluuid, data, localdata);
 	/* check that only subset is granted */
-	LASSERT(ergo(data != NULL, (data->ocd_connect_flags & ocf) ==
+	LASSERT(ergo(data, (data->ocd_connect_flags & ocf) ==
 				    data->ocd_connect_flags));
 	return rc;
 }
@@ -882,8 +882,7 @@ static inline int obd_reconnect(const struct lu_env *env,
 
 	rc = OBP(obd, reconnect)(env, exp, obd, cluuid, d, localdata);
 	/* check that only subset is granted */
-	LASSERT(ergo(d != NULL,
-		     (d->ocd_connect_flags & ocf) == d->ocd_connect_flags));
+	LASSERT(ergo(d, (d->ocd_connect_flags & ocf) == d->ocd_connect_flags));
 	return rc;
 }
 
@@ -998,7 +997,7 @@ static inline int obd_init_export(struct obd_export *exp)
 {
 	int rc = 0;
 
-	if ((exp)->exp_obd != NULL && OBT((exp)->exp_obd) &&
+	if ((exp)->exp_obd && OBT((exp)->exp_obd) &&
 	    OBP((exp)->exp_obd, init_export))
 		rc = OBP(exp->exp_obd, init_export)(exp);
 	return rc;
@@ -1006,7 +1005,7 @@ static inline int obd_init_export(struct obd_export *exp)
 
 static inline int obd_destroy_export(struct obd_export *exp)
 {
-	if ((exp)->exp_obd != NULL && OBT((exp)->exp_obd) &&
+	if ((exp)->exp_obd && OBT((exp)->exp_obd) &&
 	    OBP((exp)->exp_obd, destroy_export))
 		OBP(exp->exp_obd, destroy_export)(exp);
 	return 0;
@@ -1023,7 +1022,7 @@ static inline int obd_statfs_async(struct obd_export *exp,
 	int rc = 0;
 	struct obd_device *obd;
 
-	if (exp == NULL || exp->exp_obd == NULL)
+	if (!exp || !exp->exp_obd)
 		return -EINVAL;
 
 	obd = exp->exp_obd;
@@ -1059,7 +1058,7 @@ static inline int obd_statfs_rqset(struct obd_export *exp,
 	int rc = 0;
 
 	set =  ptlrpc_prep_set();
-	if (set == NULL)
+	if (!set)
 		return -ENOMEM;
 
 	oinfo.oi_osfs = osfs;
@@ -1081,7 +1080,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 	int rc = 0;
 	struct obd_device *obd = exp->exp_obd;
 
-	if (obd == NULL)
+	if (!obd)
 		return -EINVAL;
 
 	OBD_CHECK_DT_OP(obd, statfs, -EOPNOTSUPP);
@@ -1241,7 +1240,7 @@ static inline int obd_notify_observer(struct obd_device *observer,
 	 * Also, call non-obd listener, if any
 	 */
 	onu = &observer->obd_upcall;
-	if (onu->onu_upcall != NULL)
+	if (onu->onu_upcall)
 		rc2 = onu->onu_upcall(observer, observed, ev,
 				      onu->onu_owner, NULL);
 	else
@@ -1287,7 +1286,7 @@ static inline int obd_health_check(const struct lu_env *env,
 	int rc;
 
 	/* don't use EXP_CHECK_DT_OP, because NULL method is normal here */
-	if (obd == NULL || !OBT(obd)) {
+	if (!obd || !OBT(obd)) {
 		CERROR("cleaned up obd\n");
 		return -EOPNOTSUPP;
 	}

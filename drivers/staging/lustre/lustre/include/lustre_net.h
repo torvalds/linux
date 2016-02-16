@@ -1518,7 +1518,7 @@ struct ptlrpc_request {
 static inline int ptlrpc_req_interpret(const struct lu_env *env,
 				       struct ptlrpc_request *req, int rc)
 {
-	if (req->rq_interpret_reply != NULL) {
+	if (req->rq_interpret_reply) {
 		req->rq_status = req->rq_interpret_reply(env, req,
 							 &req->rq_async_args,
 							 rc);
@@ -2141,8 +2141,8 @@ struct ptlrpc_service_part {
 #define ptlrpc_service_for_each_part(part, i, svc)			\
 	for (i = 0;							\
 	     i < (svc)->srv_ncpts &&					\
-	     (svc)->srv_parts != NULL &&				\
-	     ((part) = (svc)->srv_parts[i]) != NULL; i++)
+	     (svc)->srv_parts &&					\
+	     ((part) = (svc)->srv_parts[i]); i++)
 
 /**
  * Declaration of ptlrpcd control structure
@@ -2259,7 +2259,6 @@ static inline bool nrs_policy_compat_all(const struct ptlrpc_service *svc,
 static inline bool nrs_policy_compat_one(const struct ptlrpc_service *svc,
 					 const struct ptlrpc_nrs_pol_desc *desc)
 {
-	LASSERT(desc->pd_compat_svc_name != NULL);
 	return strcmp(svc->srv_name, desc->pd_compat_svc_name) == 0;
 }
 
@@ -2303,7 +2302,6 @@ static inline int ptlrpc_client_bulk_active(struct ptlrpc_request *req)
 	struct ptlrpc_bulk_desc *desc;
 	int		      rc;
 
-	LASSERT(req != NULL);
 	desc = req->rq_bulk;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
@@ -2726,7 +2724,7 @@ ptlrpc_client_recv_or_unlink(struct ptlrpc_request *req)
 static inline void
 ptlrpc_client_wake_req(struct ptlrpc_request *req)
 {
-	if (req->rq_set == NULL)
+	if (!req->rq_set)
 		wake_up(&req->rq_reply_waitq);
 	else
 		wake_up(&req->rq_set->set_waitq);
@@ -2750,7 +2748,7 @@ ptlrpc_rs_decref(struct ptlrpc_reply_state *rs)
 /* Should only be called once per req */
 static inline void ptlrpc_req_drop_rs(struct ptlrpc_request *req)
 {
-	if (req->rq_reply_state == NULL)
+	if (!req->rq_reply_state)
 		return; /* shouldn't occur */
 	ptlrpc_rs_decref(req->rq_reply_state);
 	req->rq_reply_state = NULL;
@@ -2807,7 +2805,6 @@ ptlrpc_server_get_timeout(struct ptlrpc_service_part *svcpt)
 static inline struct ptlrpc_service *
 ptlrpc_req2svc(struct ptlrpc_request *req)
 {
-	LASSERT(req->rq_rqbd != NULL);
 	return req->rq_rqbd->rqbd_svcpt->scp_service;
 }
 

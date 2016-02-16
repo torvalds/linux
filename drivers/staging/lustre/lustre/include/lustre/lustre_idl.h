@@ -807,7 +807,7 @@ static inline void fid_be_to_cpu(struct lu_fid *dst, const struct lu_fid *src)
 
 static inline int fid_is_sane(const struct lu_fid *fid)
 {
-	return fid != NULL &&
+	return fid &&
 	       ((fid_seq(fid) >= FID_SEQ_START && fid_ver(fid) == 0) ||
 		fid_is_igif(fid) || fid_is_idif(fid) ||
 		fid_seq_is_rsvd(fid_seq(fid)));
@@ -3273,7 +3273,7 @@ static inline void lustre_set_wire_obdo(struct obd_connect_data *ocd,
 {
 	*wobdo = *lobdo;
 	wobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
-	if (ocd == NULL)
+	if (!ocd)
 		return;
 
 	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
@@ -3300,7 +3300,7 @@ static inline void lustre_get_wire_obdo(struct obd_connect_data *ocd,
 		lobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
 		lobdo->o_flags |= local_flags;
 	}
-	if (ocd == NULL)
+	if (!ocd)
 		return;
 
 	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
