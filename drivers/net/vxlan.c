@@ -1257,7 +1257,6 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct metadata_dst *tun_dst = NULL;
 	struct vxlan_sock *vs;
-	struct vxlanhdr *vxh;
 	u32 flags, vni;
 	struct vxlan_metadata _md;
 	struct vxlan_metadata *md = &_md;
@@ -1266,9 +1265,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (!pskb_may_pull(skb, VXLAN_HLEN))
 		goto error;
 
-	vxh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
-	flags = ntohl(vxh->vx_flags);
-	vni = ntohl(vxh->vx_vni);
+	flags = ntohl(vxlan_hdr(skb)->vx_flags);
+	vni = ntohl(vxlan_hdr(skb)->vx_vni);
 
 	if (flags & VXLAN_HF_VNI) {
 		flags &= ~VXLAN_HF_VNI;
@@ -1279,16 +1277,14 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	if (iptunnel_pull_header(skb, VXLAN_HLEN, htons(ETH_P_TEB)))
 		goto drop;
-	vxh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
 
 	vs = rcu_dereference_sk_user_data(sk);
 	if (!vs)
 		goto drop;
 
 	if ((flags & VXLAN_HF_RCO) && (vs->flags & VXLAN_F_REMCSUM_RX)) {
-		vxh = vxlan_remcsum(skb, vxh, sizeof(struct vxlanhdr), vni,
-				    !!(vs->flags & VXLAN_F_REMCSUM_NOPARTIAL));
-		if (!vxh)
+		if (!vxlan_remcsum(skb, vxlan_hdr(skb), sizeof(struct vxlanhdr), vni,
+				   !!(vs->flags & VXLAN_F_REMCSUM_NOPARTIAL)))
 			goto drop;
 
 		flags &= ~VXLAN_HF_RCO;
@@ -1313,7 +1309,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if ((flags & VXLAN_HF_GBP) && (vs->flags & VXLAN_F_GBP)) {
 		struct vxlanhdr_gbp *gbp;
 
-		gbp = (struct vxlanhdr_gbp *)vxh;
+		gbp = (struct vxlanhdr_gbp *)vxlan_hdr(skb);
 		md->gbp = ntohs(gbp->policy_id);
 
 		if (tun_dst)
@@ -1351,7 +1347,8 @@ drop:
 
 bad_flags:
 	netdev_dbg(skb->dev, "invalid vxlan flags=%#x vni=%#x\n",
-		   ntohl(vxh->vx_flags), ntohl(vxh->vx_vni));
+		   ntohl(vxlan_hdr(skb)->vx_flags),
+		   ntohl(vxlan_hdr(skb)->vx_vni));
 
 error:
 	if (tun_dst)

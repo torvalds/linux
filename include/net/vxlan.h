@@ -262,6 +262,11 @@ static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 /* IPv6 header + UDP + VXLAN + Ethernet header */
 #define VXLAN6_HEADROOM (40 + 8 + 8 + 14)
 
+static inline struct vxlanhdr *vxlan_hdr(struct sk_buff *skb)
+{
+	return (struct vxlanhdr *)(udp_hdr(skb) + 1);
+}
+
 #if IS_ENABLED(CONFIG_VXLAN)
 void vxlan_get_rx_port(struct net_device *netdev);
 #else
