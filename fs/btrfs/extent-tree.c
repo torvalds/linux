@@ -7018,7 +7018,7 @@ btrfs_lock_cluster(struct btrfs_block_group_cache *block_group,
 		   struct btrfs_free_cluster *cluster,
 		   int delalloc)
 {
-	struct btrfs_block_group_cache *used_bg;
+	struct btrfs_block_group_cache *used_bg = NULL;
 	bool locked = false;
 again:
 	spin_lock(&cluster->refill_lock);
