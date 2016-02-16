@@ -121,6 +121,14 @@
 #define IOREMAP_MAX_ORDER	(PMD_SHIFT)
 #endif
 
+#ifdef CONFIG_BLK_DEV_INITRD
+#define __early_init_dt_declare_initrd(__start, __end)			\
+	do {								\
+		initrd_start = (__start);				\
+		initrd_end = (__end);					\
+	} while (0)
+#endif
+
 #ifndef __ASSEMBLY__
 
 extern phys_addr_t		memstart_addr;
