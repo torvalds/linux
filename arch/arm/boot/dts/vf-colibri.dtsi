@@ -108,6 +108,7 @@
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
 	cd-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+	disable-wp;
 };
 
 &fec1 {
