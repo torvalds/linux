@@ -1027,9 +1027,29 @@ static int fm10k_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 	return 0;
 }
 
-static u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
+u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
 {
 	return FM10K_RETA_SIZE * FM10K_RETA_ENTRIES_PER_REG;
+}
+
+void fm10k_write_reta(struct fm10k_intfc *interface, const u32 *indir)
+{
+	struct fm10k_hw *hw = &interface->hw;
+	int i;
+
+	/* record entries to reta table */
+	for (i = 0; i < FM10K_RETA_SIZE; i++, indir += 4) {
+		u32 reta = indir[0] |
+			   (indir[1] << 8) |
+			   (indir[2] << 16) |
+			   (indir[3] << 24);
+
+		if (interface->reta[i] == reta)
+			continue;
+
+		interface->reta[i] = reta;
+		fm10k_write_reg(hw, FM10K_RETA(0, i), reta);
+	}
 }
 
 static int fm10k_get_reta(struct net_device *netdev, u32 *indir)
@@ -1055,7 +1075,6 @@ static int fm10k_get_reta(struct net_device *netdev, u32 *indir)
 static int fm10k_set_reta(struct net_device *netdev, const u32 *indir)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
-	struct fm10k_hw *hw = &interface->hw;
 	int i;
 	u16 rss_i;
 
@@ -1070,19 +1089,7 @@ static int fm10k_set_reta(struct net_device *netdev, const u32 *indir)
 		return -EINVAL;
 	}
 
-	/* record entries to reta table */
-	for (i = 0; i < FM10K_RETA_SIZE; i++, indir += 4) {
-		u32 reta = indir[0] |
-			   (indir[1] << 8) |
-			   (indir[2] << 16) |
-			   (indir[3] << 24);
-
-		if (interface->reta[i] == reta)
-			continue;
-
-		interface->reta[i] = reta;
-		fm10k_write_reg(hw, FM10K_RETA(0, i), reta);
-	}
+	fm10k_write_reta(interface, indir);
 
 	return 0;
 }

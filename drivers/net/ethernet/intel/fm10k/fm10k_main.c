@@ -1943,7 +1943,8 @@ static void fm10k_assign_rings(struct fm10k_intfc *interface)
 static void fm10k_init_reta(struct fm10k_intfc *interface)
 {
 	u16 i, rss_i = interface->ring_feature[RING_F_RSS].indices;
-	u32 reta, base;
+	struct net_device *netdev = interface->netdev;
+	u32 reta, *indir;
 
 	/* If the Rx flow indirection table has been configured manually, we
 	 * need to maintain it when possible.
@@ -1968,21 +1969,16 @@ static void fm10k_init_reta(struct fm10k_intfc *interface)
 	}
 
 repopulate_reta:
-	/* Populate the redirection table 4 entries at a time.  To do this
-	 * we are generating the results for n and n+2 and then interleaving
-	 * those with the results with n+1 and n+3.
-	 */
-	for (i = FM10K_RETA_SIZE; i--;) {
-		/* first pass generates n and n+2 */
-		base = ((i * 0x00040004) + 0x00020000) * rss_i;
-		reta = (base & 0x3F803F80) >> 7;
+	indir = kcalloc(fm10k_get_reta_size(netdev),
+			sizeof(indir[0]), GFP_KERNEL);
 
-		/* second pass generates n+1 and n+3 */
-		base += 0x00010001 * rss_i;
-		reta |= (base & 0x3F803F80) << 1;
+	/* generate redirection table using the default kernel policy */
+	for (i = 0; i < fm10k_get_reta_size(netdev); i++)
+		indir[i] = ethtool_rxfh_indir_default(i, rss_i);
 
-		interface->reta[i] = reta;
-	}
+	fm10k_write_reta(interface, indir);
+
+	kfree(indir);
 }
 
 /**

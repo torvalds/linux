@@ -510,6 +510,8 @@ int fm10k_close(struct net_device *netdev);
 
 /* Ethtool */
 void fm10k_set_ethtool_ops(struct net_device *dev);
+u32 fm10k_get_reta_size(struct net_device *netdev);
+void fm10k_write_reta(struct fm10k_intfc *interface, const u32 *indir);
 
 /* IOV */
 s32 fm10k_iov_event(struct fm10k_intfc *interface);
