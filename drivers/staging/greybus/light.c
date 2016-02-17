@@ -1004,8 +1004,10 @@ static int gb_lights_light_register(struct gb_light *light)
 
 	if (light->has_flash) {
 		ret = gb_lights_light_v4l2_register(light);
-		if (ret < 0)
+		if (ret < 0) {
+			light->has_flash = false;
 			return ret;
+		}
 	}
 
 	return 0;
