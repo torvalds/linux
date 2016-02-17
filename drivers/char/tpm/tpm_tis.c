@@ -930,8 +930,10 @@ static int tpm_check_resource(struct acpi_resource *ares, void *data)
 
 	if (acpi_dev_resource_interrupt(ares, 0, &res))
 		tpm_info->irq = res.start;
-	else if (acpi_dev_resource_memory(ares, &res))
+	else if (acpi_dev_resource_memory(ares, &res)) {
 		tpm_info->res = res;
+		tpm_info->res.name = NULL;
+	}
 
 	return 1;
 }

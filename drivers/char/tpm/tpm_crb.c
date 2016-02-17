@@ -227,8 +227,10 @@ static int crb_check_resource(struct acpi_resource *ares, void *data)
 	struct crb_priv *priv = data;
 	struct resource res;
 
-	if (acpi_dev_resource_memory(ares, &res))
+	if (acpi_dev_resource_memory(ares, &res)) {
 		priv->res = res;
+		priv->res.name = NULL;
+	}
 
 	return 1;
 }
