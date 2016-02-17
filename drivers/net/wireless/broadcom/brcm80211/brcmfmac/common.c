@@ -230,10 +230,8 @@ void brcmf_mp_attach(void)
 int brcmf_mp_device_attach(struct brcmf_pub *drvr)
 {
 	drvr->settings = kzalloc(sizeof(*drvr->settings), GFP_ATOMIC);
-	if (!drvr->settings) {
-		brcmf_err("Failed to alloca storage space for settings\n");
+	if (!drvr->settings)
 		return -ENOMEM;
-	}
 
 	drvr->settings->sdiod_txglomsz = brcmf_sdiod_txglomsz;
 	drvr->settings->p2p_enable = !!brcmf_p2p_enable;

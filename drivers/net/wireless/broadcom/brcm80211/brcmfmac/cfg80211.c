@@ -6405,28 +6405,85 @@ int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
 				  vif_event_equals(event, action), timeout);
 }
 
+static s32 brcmf_translate_country_code(struct brcmf_pub *drvr, char alpha2[2],
+					struct brcmf_fil_country_le *ccreq)
+{
+	struct cc_translate *country_codes;
+	struct cc_entry *cc;
+	s32 found_index;
+	int i;
+
+	country_codes = drvr->settings->country_codes;
+	if (!country_codes) {
+		brcmf_dbg(TRACE, "No country codes configured for device\n");
+		return -EINVAL;
+	}
+
+	if ((alpha2[0] == ccreq->country_abbrev[0]) &&
+	    (alpha2[1] == ccreq->country_abbrev[1])) {
+		brcmf_dbg(TRACE, "Country code already set\n");
+		return -EAGAIN;
+	}
+
+	found_index = -1;
+	for (i = 0; i < country_codes->table_size; i++) {
+		cc = &country_codes->table[i];
+		if ((cc->iso3166[0] == '\0') && (found_index == -1))
+			found_index = i;
+		if ((cc->iso3166[0] == alpha2[0]) &&
+		    (cc->iso3166[1] == alpha2[1])) {
+			found_index = i;
+			break;
+		}
+	}
+	if (found_index == -1) {
+		brcmf_dbg(TRACE, "No country code match found\n");
+		return -EINVAL;
+	}
+	memset(ccreq, 0, sizeof(*ccreq));
+	ccreq->rev = cpu_to_le32(country_codes->table[found_index].rev);
+	memcpy(ccreq->ccode, country_codes->table[found_index].cc,
+	       BRCMF_COUNTRY_BUF_SZ);
+	ccreq->country_abbrev[0] = alpha2[0];
+	ccreq->country_abbrev[1] = alpha2[1];
+	ccreq->country_abbrev[2] = 0;
+
+	return 0;
+}
+
 static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
 					struct regulatory_request *req)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 	struct brcmf_fil_country_le ccreq;
+	s32 err;
 	int i;
-
-	brcmf_dbg(TRACE, "enter: initiator=%d, alpha=%c%c\n", req->initiator,
-		  req->alpha2[0], req->alpha2[1]);
 
 	/* ignore non-ISO3166 country codes */
 	for (i = 0; i < sizeof(req->alpha2); i++)
 		if (req->alpha2[i] < 'A' || req->alpha2[i] > 'Z') {
-			brcmf_err("not a ISO3166 code\n");
+			brcmf_err("not a ISO3166 code (0x%02x 0x%02x)\n",
+				  req->alpha2[0], req->alpha2[1]);
 			return;
 		}
-	memset(&ccreq, 0, sizeof(ccreq));
-	ccreq.rev = cpu_to_le32(-1);
-	memcpy(ccreq.ccode, req->alpha2, sizeof(req->alpha2));
-	if (brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq))) {
-		brcmf_err("firmware rejected country setting\n");
+
+	brcmf_dbg(TRACE, "Enter: initiator=%d, alpha=%c%c\n", req->initiator,
+		  req->alpha2[0], req->alpha2[1]);
+
+	err = brcmf_fil_iovar_data_get(ifp, "country", &ccreq, sizeof(ccreq));
+	if (err) {
+		brcmf_err("Country code iovar returned err = %d\n", err);
+		return;
+	}
+
+	err = brcmf_translate_country_code(ifp->drvr, req->alpha2, &ccreq);
+	if (err)
+		return;
+
+	err = brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq));
+	if (err) {
+		brcmf_err("Firmware rejected country setting\n");
 		return;
 	}
 	brcmf_setup_wiphybands(wiphy);

@@ -134,6 +134,8 @@
 #define BRCMF_PFN_MAC_OUI_ONLY		BIT(0)
 #define BRCMF_PFN_SET_MAC_UNASSOC	BIT(1)
 
+#define BRCMF_MCSSET_LEN		16
+
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
 	BRCMF_JOIN_PREF_RSSI = 1,
@@ -279,7 +281,7 @@ struct brcmf_bss_info_le {
 	__le32 reserved32[1];	/* Reserved for expansion of BSS properties */
 	u8 flags;		/* flags */
 	u8 reserved[3];	/* Reserved for expansion of BSS properties */
-	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
+	u8 basic_mcs[BRCMF_MCSSET_LEN];	/* 802.11N BSS required MCS set */
 
 	__le16 ie_offset;	/* offset at which IEs start, from beginning */
 	__le32 ie_length;	/* byte length of Information Elements */

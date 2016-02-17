@@ -15,6 +15,8 @@
 #ifndef BRCMFMAC_COMMON_H
 #define BRCMFMAC_COMMON_H
 
+#include "fwil_types.h"
+
 extern const u8 ALLFFMAC[ETH_ALEN];
 
 #define BRCMF_FW_ALTPATH_LEN			256
@@ -39,6 +41,33 @@ struct brcmf_mp_global_t {
 extern struct brcmf_mp_global_t brcmf_mp_global;
 
 /**
+ * struct cc_entry - Struct for translating user space country code (iso3166) to
+ *		     firmware country code and revision.
+ *
+ * @iso3166: iso3166 alpha 2 country code string.
+ * @cc: firmware country code string.
+ * @rev: firmware country code revision.
+ */
+struct cc_entry {
+	char	iso3166[BRCMF_COUNTRY_BUF_SZ];
+	char	cc[BRCMF_COUNTRY_BUF_SZ];
+	s32	rev;
+};
+
+/**
+ * struct cc_translate - Struct for translating country codes as set by user
+ *			 space to a country code and rev which can be used by
+ *			 firmware.
+ *
+ * @table_size: number of entries in table (> 0)
+ * @table: dynamic array of 1 or more elements with translation information.
+ */
+struct cc_translate {
+	int	table_size;
+	struct cc_entry table[0];
+};
+
+/**
  * struct brcmf_mp_device - Device module paramaters.
  *
  * @sdiod_txglomsz: SDIO txglom size.
@@ -47,6 +76,7 @@ extern struct brcmf_mp_global_t brcmf_mp_global;
  * @feature_disable: Feature_disable bitmask.
  * @fcmode: FWS flow control.
  * @roamoff: Firmware roaming off?
+ * @country_codes: If available, pointer to struct for translating country codes
  */
 struct brcmf_mp_device {
 	int	sdiod_txglomsz;
@@ -56,6 +86,7 @@ struct brcmf_mp_device {
 	int	fcmode;
 	bool	roamoff;
 	bool	ignore_probe_fail;
+	struct cc_translate *country_codes;
 };
 
 void brcmf_mp_attach(void);
