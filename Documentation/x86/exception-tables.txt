@@ -290,3 +290,38 @@ Due to the way that the exception table is built and needs to be ordered,
 only use exceptions for code in the .text section.  Any other section
 will cause the exception table to not be sorted correctly, and the
 exceptions will fail.
+
+Things changed when 64-bit support was added to x86 Linux. Rather than
+double the size of the exception table by expanding the two entries
+from 32-bits to 64 bits, a clever trick was used to store addresses
+as relative offsets from the table itself. The assembly code changed
+from:
+	.long 1b,3b
+to:
+        .long (from) - .
+        .long (to) - .
+
+and the C-code that uses these values converts back to absolute addresses
+like this:
+
+	ex_insn_addr(const struct exception_table_entry *x)
+	{
+		return (unsigned long)&x->insn + x->insn;
+	}
+
+In v4.6 the exception table entry was expanded with a new field "handler".
+This is also 32-bits wide and contains a third relative function
+pointer which points to one of:
+
+1) int ex_handler_default(const struct exception_table_entry *fixup)
+   This is legacy case that just jumps to the fixup code
+2) int ex_handler_fault(const struct exception_table_entry *fixup)
+   This case provides the fault number of the trap that occurred at
+   entry->insn. It is used to distinguish page faults from machine
+   check.
+3) int ex_handler_ext(const struct exception_table_entry *fixup)
+   This case is used for uaccess_err ... we need to set a flag
+   in the task structure. Before the handler functions existed this
+   case was handled by adding a large offset to the fixup to tag
+   it as special.
+More functions can easily be added.
