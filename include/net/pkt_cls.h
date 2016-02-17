@@ -360,12 +360,12 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
-	u8 fshift;
+	struct tc_u32_sel *sel;
 	u32 handle;
 	u32 val;
 	u32 mask;
 	u32 link_handle;
-	struct tc_u32_sel *sel;
+	u8 fshift;
 };
 
 struct tc_cls_u32_hnode {
