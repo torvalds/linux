@@ -1359,16 +1359,26 @@ static netdev_tx_t i40e_fcoe_xmit_frame(struct sk_buff *skb,
 	struct i40e_ring *tx_ring = vsi->tx_rings[skb->queue_mapping];
 	struct i40e_tx_buffer *first;
 	u32 tx_flags = 0;
+	int fso, count;
 	u8 hdr_len = 0;
 	u8 sof = 0;
 	u8 eof = 0;
-	int fso;
 
 	if (i40e_fcoe_set_skb_header(skb))
 		goto out_drop;
 
-	if (!i40e_xmit_descriptor_count(skb, tx_ring))
+	count = i40e_xmit_descriptor_count(skb);
+
+	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
+	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,
+	 *       + 4 desc gap to avoid the cache line where head is,
+	 *       + 1 desc for context descriptor,
+	 * otherwise try next time
+	 */
+	if (i40e_maybe_stop_tx(tx_ring, count + 4 + 1)) {
+		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
+	}
 
 	/* prepare the xmit flags */
 	if (i40e_tx_prepare_vlan_flags(skb, tx_ring, &tx_flags))

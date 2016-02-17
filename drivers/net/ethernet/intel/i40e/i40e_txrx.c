@@ -2576,7 +2576,7 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
  *
  * Returns -EBUSY if a stop is needed, else 0
  **/
-static inline int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
+int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	/* Memory barrier before checking head and tail */
@@ -2590,24 +2590,6 @@ static inline int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 	netif_start_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	++tx_ring->tx_stats.restart_queue;
 	return 0;
-}
-
-/**
- * i40e_maybe_stop_tx - 1st level check for tx stop conditions
- * @tx_ring: the ring to be checked
- * @size:    the size buffer we want to assure is available
- *
- * Returns 0 if stop is not needed
- **/
-#ifdef I40E_FCOE
-inline int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
-#else
-static inline int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
-#endif
-{
-	if (likely(I40E_DESC_UNUSED(tx_ring) >= size))
-		return 0;
-	return __i40e_maybe_stop_tx(tx_ring, size);
 }
 
 /**
@@ -2870,43 +2852,6 @@ dma_error:
 }
 
 /**
- * i40e_xmit_descriptor_count - calculate number of tx descriptors needed
- * @skb:     send buffer
- * @tx_ring: ring to send buffer on
- *
- * Returns number of data descriptors needed for this skb. Returns 0 to indicate
- * there is not enough descriptors available in this ring since we need at least
- * one descriptor.
- **/
-#ifdef I40E_FCOE
-inline int i40e_xmit_descriptor_count(struct sk_buff *skb,
-				      struct i40e_ring *tx_ring)
-#else
-static inline int i40e_xmit_descriptor_count(struct sk_buff *skb,
-					     struct i40e_ring *tx_ring)
-#endif
-{
-	unsigned int f;
-	int count = 0;
-
-	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
-	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,
-	 *       + 4 desc gap to avoid the cache line where head is,
-	 *       + 1 desc for context descriptor,
-	 * otherwise try next time
-	 */
-	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
-		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
-
-	count += TXD_USE_COUNT(skb_headlen(skb));
-	if (i40e_maybe_stop_tx(tx_ring, count + 4 + 1)) {
-		tx_ring->tx_stats.tx_busy++;
-		return 0;
-	}
-	return count;
-}
-
-/**
  * i40e_xmit_frame_ring - Sends buffer on Tx ring
  * @skb:     send buffer
  * @tx_ring: ring to send buffer on
@@ -2924,14 +2869,24 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	__be16 protocol;
 	u32 td_cmd = 0;
 	u8 hdr_len = 0;
+	int tso, count;
 	int tsyn;
-	int tso;
 
 	/* prefetch the data, we'll need it later */
 	prefetch(skb->data);
 
-	if (0 == i40e_xmit_descriptor_count(skb, tx_ring))
+	count = i40e_xmit_descriptor_count(skb);
+
+	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
+	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,
+	 *       + 4 desc gap to avoid the cache line where head is,
+	 *       + 1 desc for context descriptor,
+	 * otherwise try next time
+	 */
+	if (i40e_maybe_stop_tx(tx_ring, count + 4 + 1)) {
+		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
+	}
 
 	/* prepare the xmit flags */
 	if (i40e_tx_prepare_vlan_flags(skb, tx_ring, &tx_flags))
