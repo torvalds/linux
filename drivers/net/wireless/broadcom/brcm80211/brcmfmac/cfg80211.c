@@ -6594,7 +6594,8 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_SCAN_RANDOM_MAC)) {
 		wiphy->features |= NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR;
 #ifdef CONFIG_PM
-		if (wiphy->wowlan->flags & WIPHY_WOWLAN_NET_DETECT)
+		if (wiphy->wowlan &&
+		    wiphy->wowlan->flags & WIPHY_WOWLAN_NET_DETECT)
 			wiphy->features |= NL80211_FEATURE_ND_RANDOM_MAC_ADDR;
 #endif
 	}
