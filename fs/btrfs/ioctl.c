@@ -5187,8 +5187,7 @@ out_unlock:
 	  .compat_ro_flags = BTRFS_FEATURE_COMPAT_RO_##suffix, \
 	  .incompat_flags = BTRFS_FEATURE_INCOMPAT_##suffix }
 
-static int btrfs_ioctl_get_supported_features(struct file *file,
-					      void __user *arg)
+int btrfs_ioctl_get_supported_features(struct file *file, void __user *arg)
 {
 	static const struct btrfs_ioctl_feature_flags features[3] = {
 		INIT_FEATURE_FLAGS(SUPP),
