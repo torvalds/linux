@@ -1226,8 +1226,8 @@ void i40e_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 		}
 
 		dma_sync_single_range_for_device(rx_ring->dev,
-						 bi->dma,
-						 0,
+						 rx_ring->rx_bi[0].dma,
+						 i * rx_ring->rx_hdr_len,
 						 rx_ring->rx_hdr_len,
 						 DMA_FROM_DEVICE);
 		/* Refresh the desc even if buffer_addrs didn't change
@@ -1542,8 +1542,8 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 			skb_record_rx_queue(skb, rx_ring->queue_index);
 			/* we are reusing so sync this buffer for CPU use */
 			dma_sync_single_range_for_cpu(rx_ring->dev,
-						      rx_bi->dma,
-						      0,
+						      rx_ring->rx_bi[0].dma,
+						      i * rx_ring->rx_hdr_len,
 						      rx_ring->rx_hdr_len,
 						      DMA_FROM_DEVICE);
 		}
@@ -2047,7 +2047,8 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	/* Due to lack of space, no more new filters can be programmed */
 	if (th->syn && (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
 		return;
-	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE) {
+	if ((pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE) &&
+	    (!(pf->auto_disable_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE))) {
 		/* HW ATR eviction will take care of removing filters on FIN
 		 * and RST packets.
 		 */
@@ -2109,7 +2110,8 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
 			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
 
-	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE)
+	if ((pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE) &&
+	    (!(pf->auto_disable_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE)))
 		dtype_cmd |= I40E_TXD_FLTR_QW1_ATR_MASK;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
@@ -2220,6 +2222,9 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	struct iphdr *iph;
 	u32 l4len;
 	int err;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
 
 	if (!skb_is_gso(skb))
 		return 0;

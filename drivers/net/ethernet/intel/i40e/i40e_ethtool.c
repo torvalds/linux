@@ -89,6 +89,8 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
 	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
 	I40E_VSI_STAT("tx_linearize", tx_linearize),
 	I40E_VSI_STAT("tx_force_wb", tx_force_wb),
+	I40E_VSI_STAT("rx_alloc_fail", rx_buf_failed),
+	I40E_VSI_STAT("rx_pg_alloc_fail", rx_page_failed),
 };
 
 /* These PF_STATs might look like duplicates of some NETDEV_STATs,
@@ -233,6 +235,7 @@ static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
 	"flow-director-atr",
 	"veb-stats",
 	"packet-split",
+	"hw-atr-eviction",
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings)
@@ -2729,6 +2732,8 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		I40E_PRIV_FLAGS_VEB_STATS : 0;
 	ret_flags |= pf->flags & I40E_FLAG_RX_PS_ENABLED ?
 		I40E_PRIV_FLAGS_PS : 0;
+	ret_flags |= pf->auto_disable_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE ?
+		0 : I40E_PRIV_FLAGS_HW_ATR_EVICT;
 
 	return ret_flags;
 }
@@ -2784,6 +2789,12 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 		pf->flags |= I40E_FLAG_VEB_STATS_ENABLED;
 	else
 		pf->flags &= ~I40E_FLAG_VEB_STATS_ENABLED;
+
+	if ((flags & I40E_PRIV_FLAGS_HW_ATR_EVICT) &&
+	    (pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE))
+		pf->auto_disable_flags &= ~I40E_FLAG_HW_ATR_EVICT_CAPABLE;
+	else
+		pf->auto_disable_flags |= I40E_FLAG_HW_ATR_EVICT_CAPABLE;
 
 	/* if needed, issue reset to cause things to take effect */
 	if (reset_required)

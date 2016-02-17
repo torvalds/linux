@@ -127,6 +127,9 @@ i40e_status i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 		u16 vsi_id, bool set, struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_vsi_multicast_promiscuous(struct i40e_hw *hw,
 		u16 vsi_id, bool set, struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_set_vsi_vlan_promisc(struct i40e_hw *hw,
+				u16 seid, bool enable,
+				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_get_vsi_params(struct i40e_hw *hw,
 				struct i40e_vsi_context *vsi_ctx,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -149,6 +152,15 @@ i40e_status i40e_aq_add_macvlan(struct i40e_hw *hw, u16 vsi_id,
 i40e_status i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 vsi_id,
 			struct i40e_aqc_remove_macvlan_element_data *mv_list,
 			u16 count, struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_add_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
+			u16 rule_type, u16 dest_vsi, u16 count, __le16 *mr_list,
+			struct i40e_asq_cmd_details *cmd_details,
+			u16 *rule_id, u16 *rules_used, u16 *rules_free);
+i40e_status i40e_aq_delete_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
+			u16 rule_type, u16 rule_id, u16 count, __le16 *mr_list,
+			struct i40e_asq_cmd_details *cmd_details,
+			u16 *rules_used, u16 *rules_free);
+
 i40e_status i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
 				u32 v_opcode, u32 v_retval, u8 *msg, u16 msglen,
 				struct i40e_asq_cmd_details *cmd_details);

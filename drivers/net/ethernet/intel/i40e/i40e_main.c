@@ -28,11 +28,6 @@
 #include <linux/of_net.h>
 #include <linux/pci.h>
 
-#ifdef CONFIG_SPARC
-#include <asm/idprom.h>
-#include <asm/prom.h>
-#endif
-
 /* Local includes */
 #include "i40e.h"
 #include "i40e_diag.h"
@@ -51,7 +46,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 11
+#define DRV_VERSION_BUILD 12
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1542,7 +1537,11 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 
-	return i40e_sync_vsi_filters(vsi);
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
+	return 0;
 }
 
 /**
@@ -1766,6 +1765,11 @@ bottom_of_search_loop:
 		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
 		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
 	}
+
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
 }
 
 /**
@@ -1937,7 +1941,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
 		del_list_size = filter_list_len *
 			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
-		del_list = kzalloc(del_list_size, GFP_KERNEL);
+		del_list = kzalloc(del_list_size, GFP_ATOMIC);
 		if (!del_list) {
 			i40e_cleanup_add_list(&tmp_add_list);
 
@@ -2015,7 +2019,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			       sizeof(struct i40e_aqc_add_macvlan_element_data),
 		add_list_size = filter_list_len *
 			       sizeof(struct i40e_aqc_add_macvlan_element_data);
-		add_list = kzalloc(add_list_size, GFP_KERNEL);
+		add_list = kzalloc(add_list_size, GFP_ATOMIC);
 		if (!add_list) {
 			/* Purge element from temporary lists */
 			i40e_cleanup_add_list(&tmp_add_list);
@@ -3264,22 +3268,6 @@ void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf)
 }
 
 /**
- * i40e_irq_dynamic_disable - Disable default interrupt generation settings
- * @vsi: pointer to a vsi
- * @vector: disable a particular Hw Interrupt vector
- **/
-void i40e_irq_dynamic_disable(struct i40e_vsi *vsi, int vector)
-{
-	struct i40e_pf *pf = vsi->back;
-	struct i40e_hw *hw = &pf->hw;
-	u32 val;
-
-	val = I40E_ITR_NONE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT;
-	wr32(hw, I40E_PFINT_DYN_CTLN(vector - 1), val);
-	i40e_flush(hw);
-}
-
-/**
  * i40e_msix_clean_rings - MSIX mode Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a q_vector
@@ -3754,7 +3742,7 @@ static int i40e_vsi_request_irq(struct i40e_vsi *vsi, char *basename)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /**
- * i40e_netpoll - A Polling 'interrupt'handler
+ * i40e_netpoll - A Polling 'interrupt' handler
  * @netdev: network interface device structure
  *
  * This is used by netconsole to send skbs without having to re-enable
@@ -5361,7 +5349,8 @@ int i40e_open(struct net_device *netdev)
 	vxlan_get_rx_port(netdev);
 #endif
 #ifdef CONFIG_I40E_GENEVE
-	geneve_get_rx_port(netdev);
+	if (pf->flags & I40E_FLAG_GENEVE_OFFLOAD_CAPABLE)
+		geneve_get_rx_port(netdev);
 #endif
 
 	return 0;
@@ -6817,12 +6806,12 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	if (ret)
 		goto end_core_reset;
 
-	/* driver is only interested in link up/down and module qualification
-	 * reports from firmware
+	/* The driver only wants link up/down and module qualification
+	 * reports from firmware.  Note the negative logic.
 	 */
 	ret = i40e_aq_set_phy_int_mask(&pf->hw,
-				       I40E_AQ_EVENT_LINK_UPDOWN |
-				       I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
+				       ~(I40E_AQ_EVENT_LINK_UPDOWN |
+					 I40E_AQ_EVENT_MODULE_QUAL_FAIL), NULL);
 	if (ret)
 		dev_info(&pf->pdev->dev, "set phy mask fail, err %s aq_err %s\n",
 			 i40e_stat_str(&pf->hw, ret),
@@ -8465,7 +8454,16 @@ static int i40e_sw_init(struct i40e_pf *pf)
 			     I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE |
 			     I40E_FLAG_100M_SGMII_CAPABLE |
 			     I40E_FLAG_GENEVE_OFFLOAD_CAPABLE;
+	} else if ((pf->hw.aq.api_maj_ver > 1) ||
+		   ((pf->hw.aq.api_maj_ver == 1) &&
+		    (pf->hw.aq.api_min_ver > 4))) {
+		/* Supported in FW API version higher than 1.4 */
+		pf->flags |= I40E_FLAG_GENEVE_OFFLOAD_CAPABLE;
+		pf->auto_disable_flags = I40E_FLAG_HW_ATR_EVICT_CAPABLE;
+	} else {
+		pf->auto_disable_flags = I40E_FLAG_HW_ATR_EVICT_CAPABLE;
 	}
+
 	pf->eeprom_version = 0xDEAD;
 	pf->lan_veb = I40E_NO_VEB;
 	pf->lan_vsi = I40E_NO_VSI;
@@ -8679,6 +8677,9 @@ static void i40e_add_geneve_port(struct net_device *netdev,
 	u8 next_idx;
 	u8 idx;
 
+	if (!(pf->flags & I40E_FLAG_GENEVE_OFFLOAD_CAPABLE))
+		return;
+
 	if (sa_family == AF_INET6)
 		return;
 
@@ -8724,6 +8725,9 @@ static void i40e_del_geneve_port(struct net_device *netdev,
 	u8 idx;
 
 	if (sa_family == AF_INET6)
+		return;
+
+	if (!(pf->flags & I40E_FLAG_GENEVE_OFFLOAD_CAPABLE))
 		return;
 
 	idx = i40e_get_udp_port_idx(pf, port);
@@ -10609,21 +10613,9 @@ static void i40e_print_features(struct i40e_pf *pf)
  **/
 static void i40e_get_platform_mac_addr(struct pci_dev *pdev, struct i40e_pf *pf)
 {
-	struct device_node *dp = pci_device_to_OF_node(pdev);
-	const unsigned char *addr;
-	u8 *mac_addr = pf->hw.mac.addr;
-
 	pf->flags &= ~I40E_FLAG_PF_MAC;
-	addr = of_get_mac_address(dp);
-	if (addr) {
-		ether_addr_copy(mac_addr, addr);
+	if (!eth_platform_get_mac_address(&pdev->dev, pf->hw.mac.addr))
 		pf->flags |= I40E_FLAG_PF_MAC;
-#ifdef CONFIG_SPARC
-	} else {
-		ether_addr_copy(mac_addr, idprom->id_ethaddr);
-		pf->flags |= I40E_FLAG_PF_MAC;
-#endif /* CONFIG_SPARC */
-	}
 }
 
 /**
@@ -10952,12 +10944,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	/* driver is only interested in link up/down and module qualification
-	 * reports from firmware
+	/* The driver only wants link up/down and module qualification
+	 * reports from firmware.  Note the negative logic.
 	 */
 	err = i40e_aq_set_phy_int_mask(&pf->hw,
-				       I40E_AQ_EVENT_LINK_UPDOWN |
-				       I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
+				       ~(I40E_AQ_EVENT_LINK_UPDOWN |
+					 I40E_AQ_EVENT_MODULE_QUAL_FAIL), NULL);
 	if (err)
 		dev_info(&pf->pdev->dev, "set phy mask fail, err %s aq_err %s\n",
 			 i40e_stat_str(&pf->hw, err),
@@ -11008,8 +11000,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((pf->flags & I40E_FLAG_SRIOV_ENABLED) &&
 	    (pf->flags & I40E_FLAG_MSIX_ENABLED) &&
 	    !test_bit(__I40E_BAD_EEPROM, &pf->state)) {
-		u32 val;
-
 		/* disable link interrupts for VFs */
 		val = rd32(hw, I40E_PFGEN_PORTMDIO_NUM);
 		val &= ~I40E_PFGEN_PORTMDIO_NUM_VFLINK_STAT_ENA_MASK;

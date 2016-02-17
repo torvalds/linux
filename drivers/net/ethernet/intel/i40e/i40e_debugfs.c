@@ -185,9 +185,11 @@ static ssize_t i40e_dbg_dump_write(struct file *filp,
 		if (i40e_dbg_prep_dump_buf(pf, buflen)) {
 			p = i40e_dbg_dump_buf;
 
-			len = sizeof(struct i40e_pf);
-			memcpy(p, pf, len);
-			p += len;
+			/* avoid use of memcpy here due to sparse warning
+			 * about copy size.
+			 */
+			*((struct i40e_pf *)p) = *pf;
+			p += sizeof(struct i40e_pf);
 
 			len = (sizeof(struct i40e_aq_desc)
 					* pf->hw.aq.num_asq_entries);
