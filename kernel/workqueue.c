@@ -5222,8 +5222,8 @@ int workqueue_sysfs_register(struct workqueue_struct *wq)
 
 	wq_dev->wq = wq;
 	wq_dev->dev.bus = &wq_subsys;
-	wq_dev->dev.init_name = wq->name;
 	wq_dev->dev.release = wq_device_release;
+	dev_set_name(&wq_dev->dev, "%s", wq->name);
 
 	/*
 	 * unbound_attrs are created separately.  Suppress uevent until
