@@ -45,7 +45,7 @@
  * ecryptfs_to_hex
  * @dst: Buffer to take hex character representation of contents of
  *       src; must be at least of size (src_size * 2)
- * @src: Buffer to be converted to a hex string respresentation
+ * @src: Buffer to be converted to a hex string representation
  * @src_size: number of bytes to convert
  */
 void ecryptfs_to_hex(char *dst, char *src, size_t src_size)
@@ -60,7 +60,7 @@ void ecryptfs_to_hex(char *dst, char *src, size_t src_size)
  * ecryptfs_from_hex
  * @dst: Buffer to take the bytes from src hex; must be at least of
  *       size (src_size / 2)
- * @src: Buffer to be converted from a hex string respresentation to raw value
+ * @src: Buffer to be converted from a hex string representation to raw value
  * @dst_size: size of dst buffer, or number of hex characters pairs to convert
  */
 void ecryptfs_from_hex(char *dst, char *src, int dst_size)
