@@ -9,7 +9,7 @@
 
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;
-	void *sem;
+	struct lkl_sem_t *sem;
 	int event;
 };
 

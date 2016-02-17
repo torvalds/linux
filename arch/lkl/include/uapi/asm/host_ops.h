@@ -3,6 +3,7 @@
 
 /* Defined in {posix,nt}-host.c */
 struct lkl_mutex_t;
+struct lkl_sem_t;
 
 /**
  * lkl_host_operations - host operations used by the Linux kernel
@@ -56,10 +57,10 @@ struct lkl_host_operations {
 	void (*print)(const char *str, int len);
 	void (*panic)(void);
 
-	void* (*sem_alloc)(int count);
-	void (*sem_free)(void *sem);
-	void (*sem_up)(void *sem);
-	void (*sem_down)(void *sem);
+	struct lkl_sem_t* (*sem_alloc)(int count);
+	void (*sem_free)(struct lkl_sem_t *sem);
+	void (*sem_up)(struct lkl_sem_t *sem);
+	void (*sem_down)(struct lkl_sem_t *sem);
 
 	struct lkl_mutex_t *(*mutex_alloc)(void);
 	void (*mutex_free)(struct lkl_mutex_t *mutex);

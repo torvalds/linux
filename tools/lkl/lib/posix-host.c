@@ -39,7 +39,7 @@ struct lkl_mutex_t {
 	pthread_mutex_t mutex;
 };
 
-struct pthread_sem {
+struct lkl_sem_t {
 #ifdef _POSIX_SEMAPHORES
 	sem_t sem;
 #else
@@ -62,9 +62,9 @@ struct pthread_sem {
 	} while (0)
 
 
-static void *sem_alloc(int count)
+static struct lkl_sem_t *sem_alloc(int count)
 {
-	struct pthread_sem *sem;
+	struct lkl_sem_t *sem;
 
 	sem = malloc(sizeof(*sem));
 	if (!sem)
@@ -85,15 +85,13 @@ static void *sem_alloc(int count)
 	return sem;
 }
 
-static void sem_free(void *sem)
+static void sem_free(struct lkl_sem_t *sem)
 {
 	free(sem);
 }
 
-static void sem_up(void *_sem)
+static void sem_up(struct lkl_sem_t *sem)
 {
-	struct pthread_sem *sem = (struct pthread_sem *)_sem;
-
 #ifdef _POSIX_SEMAPHORES
 	WARN_UNLESS(sem_post(&sem->sem));
 #else
@@ -106,9 +104,8 @@ static void sem_up(void *_sem)
 
 }
 
-static void sem_down(void *_sem)
+static void sem_down(struct lkl_sem_t *sem)
 {
-	struct pthread_sem *sem = (struct pthread_sem *)_sem;
 #ifdef _POSIX_SEMAPHORES
 	int err;
 
