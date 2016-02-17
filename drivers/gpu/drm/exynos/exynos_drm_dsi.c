@@ -10,6 +10,8 @@
  * published by the Free Software Foundation.
 */
 
+#include <asm/unaligned.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_mipi_dsi.h>
@@ -222,12 +224,8 @@ struct exynos_dsi_transfer {
 	struct list_head list;
 	struct completion completed;
 	int result;
-	u8 data_id;
-	u8 data[2];
+	struct mipi_dsi_packet packet;
 	u16 flags;
-
-	const u8 *tx_payload;
-	u16 tx_len;
 	u16 tx_done;
 
 	u8 *rx_payload;
@@ -322,6 +320,7 @@ enum reg_idx {
 static inline void exynos_dsi_write(struct exynos_dsi *dsi, enum reg_idx idx,
 				    u32 val)
 {
+
 	writel(val, dsi->reg_base + dsi->driver_data->reg_ofs[idx]);
 }
 
@@ -983,13 +982,14 @@ static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
 					struct exynos_dsi_transfer *xfer)
 {
 	struct device *dev = dsi->dev;
-	const u8 *payload = xfer->tx_payload + xfer->tx_done;
-	u16 length = xfer->tx_len - xfer->tx_done;
+	struct mipi_dsi_packet *pkt = &xfer->packet;
+	const u8 *payload = pkt->payload + xfer->tx_done;
+	u16 length = pkt->payload_length - xfer->tx_done;
 	bool first = !xfer->tx_done;
 	u32 reg;
 
 	dev_dbg(dev, "< xfer %p: tx len %u, done %u, rx len %u, done %u\n",
-		xfer, xfer->tx_len, xfer->tx_done, xfer->rx_len, xfer->rx_done);
+		xfer, length, xfer->tx_done, xfer->rx_len, xfer->rx_done);
 
 	if (length > DSI_TX_FIFO_SIZE)
 		length = DSI_TX_FIFO_SIZE;
@@ -998,8 +998,7 @@ static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
 
 	/* Send payload */
 	while (length >= 4) {
-		reg = (payload[3] << 24) | (payload[2] << 16)
-					| (payload[1] << 8) | payload[0];
+		reg = get_unaligned_le32(payload);
 		exynos_dsi_write(dsi, DSIM_PAYLOAD_REG, reg);
 		payload += 4;
 		length -= 4;
@@ -1017,16 +1016,13 @@ static void exynos_dsi_send_to_fifo(struct exynos_dsi *dsi,
 		reg |= payload[0];
 		exynos_dsi_write(dsi, DSIM_PAYLOAD_REG, reg);
 		break;
-	case 0:
-		/* Do nothing */
-		break;
 	}
 
 	/* Send packet header */
 	if (!first)
 		return;
 
-	reg = (xfer->data[1] << 16) | (xfer->data[0] << 8) | xfer->data_id;
+	reg = get_unaligned_le32(pkt->header);
 	if (exynos_dsi_wait_for_hdr_fifo(dsi)) {
 		dev_err(dev, "waiting for header FIFO timed out\n");
 		return;
@@ -1147,13 +1143,14 @@ again:
 
 	spin_unlock_irqrestore(&dsi->transfer_lock, flags);
 
-	if (xfer->tx_len && xfer->tx_done == xfer->tx_len)
+	if (xfer->packet.payload_length &&
+	    xfer->tx_done == xfer->packet.payload_length)
 		/* waiting for RX */
 		return;
 
 	exynos_dsi_send_to_fifo(dsi, xfer);
 
-	if (xfer->tx_len || xfer->rx_len)
+	if (xfer->packet.payload_length || xfer->rx_len)
 		return;
 
 	xfer->result = 0;
@@ -1189,10 +1186,11 @@ static bool exynos_dsi_transfer_finish(struct exynos_dsi *dsi)
 	spin_unlock_irqrestore(&dsi->transfer_lock, flags);
 
 	dev_dbg(dsi->dev,
-		"> xfer %p, tx_len %u, tx_done %u, rx_len %u, rx_done %u\n",
-		xfer, xfer->tx_len, xfer->tx_done, xfer->rx_len, xfer->rx_done);
+		"> xfer %p, tx_len %zu, tx_done %u, rx_len %u, rx_done %u\n",
+		xfer, xfer->packet.payload_length, xfer->tx_done, xfer->rx_len,
+		xfer->rx_done);
 
-	if (xfer->tx_done != xfer->tx_len)
+	if (xfer->tx_done != xfer->packet.payload_length)
 		return true;
 
 	if (xfer->rx_done != xfer->rx_len)
@@ -1263,9 +1261,10 @@ static int exynos_dsi_transfer(struct exynos_dsi *dsi,
 	wait_for_completion_timeout(&xfer->completed,
 				    msecs_to_jiffies(DSI_XFER_TIMEOUT_MS));
 	if (xfer->result == -ETIMEDOUT) {
+		struct mipi_dsi_packet *pkt = &xfer->packet;
 		exynos_dsi_remove_transfer(dsi, xfer);
-		dev_err(dsi->dev, "xfer timed out: %*ph %*ph\n", 2, xfer->data,
-			xfer->tx_len, xfer->tx_payload);
+		dev_err(dsi->dev, "xfer timed out: %*ph %*ph\n", 4, pkt->header,
+			(int)pkt->payload_length, pkt->payload);
 		return -ETIMEDOUT;
 	}
 
@@ -1438,12 +1437,6 @@ static int exynos_dsi_host_detach(struct mipi_dsi_host *host,
 	return 0;
 }
 
-/* distinguish between short and long DSI packet types */
-static bool exynos_dsi_is_short_dsi_type(u8 type)
-{
-	return (type & 0x0f) <= 8;
-}
-
 static ssize_t exynos_dsi_host_transfer(struct mipi_dsi_host *host,
 				        const struct mipi_dsi_msg *msg)
 {
@@ -1461,25 +1454,9 @@ static ssize_t exynos_dsi_host_transfer(struct mipi_dsi_host *host,
 		dsi->state |= DSIM_STATE_INITIALIZED;
 	}
 
-	if (msg->tx_len == 0)
-		return -EINVAL;
-
-	xfer.data_id = msg->type | (msg->channel << 6);
-
-	if (exynos_dsi_is_short_dsi_type(msg->type)) {
-		const char *tx_buf = msg->tx_buf;
-
-		if (msg->tx_len > 2)
-			return -EINVAL;
-		xfer.tx_len = 0;
-		xfer.data[0] = tx_buf[0];
-		xfer.data[1] = (msg->tx_len == 2) ? tx_buf[1] : 0;
-	} else {
-		xfer.tx_len = msg->tx_len;
-		xfer.data[0] = msg->tx_len & 0xff;
-		xfer.data[1] = msg->tx_len >> 8;
-		xfer.tx_payload = msg->tx_buf;
-	}
+	ret = mipi_dsi_create_packet(&xfer.packet, msg);
+	if (ret < 0)
+		return ret;
 
 	xfer.rx_len = msg->rx_len;
 	xfer.rx_payload = msg->rx_buf;
