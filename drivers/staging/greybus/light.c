@@ -1026,9 +1026,6 @@ static void gb_lights_channel_free(struct gb_channel *channel)
 
 static void gb_lights_channel_release(struct gb_channel *channel)
 {
-	if (!channel)
-		return;
-
 	channel->releasing = true;
 
 	gb_lights_channel_unregister(channel);
@@ -1041,8 +1038,6 @@ static void gb_lights_light_release(struct gb_light *light)
 	int i;
 	int count;
 
-	if (!light)
-		return;
 
 	count = light->channels_count;
 
