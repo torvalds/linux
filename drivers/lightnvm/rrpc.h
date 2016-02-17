@@ -174,8 +174,7 @@ static inline sector_t rrpc_get_sector(sector_t laddr)
 static inline int request_intersects(struct rrpc_inflight_rq *r,
 				sector_t laddr_start, sector_t laddr_end)
 {
-	return (laddr_end >= r->l_start && laddr_end <= r->l_end) &&
-		(laddr_start >= r->l_start && laddr_start <= r->l_end);
+	return (laddr_end >= r->l_start) && (laddr_start <= r->l_end);
 }
 
 static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
@@ -183,6 +182,8 @@ static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
 {
 	sector_t laddr_end = laddr + pages - 1;
 	struct rrpc_inflight_rq *rtmp;
+
+	WARN_ON(irqs_disabled());
 
 	spin_lock_irq(&rrpc->inflights.lock);
 	list_for_each_entry(rtmp, &rrpc->inflights.reqs, list) {
