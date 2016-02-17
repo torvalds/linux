@@ -505,6 +505,9 @@ void orangefs_kill_sb(struct super_block *sb)
 {
 	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_kill_sb: called\n");
 
+	/* provided sb cleanup */
+	kill_anon_super(sb);
+
 	/*
 	 * issue the unmount to userspace to tell it to remove the
 	 * dynamic mount info it has for this superblock
@@ -513,9 +516,6 @@ void orangefs_kill_sb(struct super_block *sb)
 
 	/* remove the sb from our list of orangefs specific sb's */
 	remove_orangefs_sb(sb);
-
-	/* provided sb cleanup */
-	kill_anon_super(sb);
 
 	/* free the orangefs superblock private data */
 	kfree(ORANGEFS_SB(sb));
