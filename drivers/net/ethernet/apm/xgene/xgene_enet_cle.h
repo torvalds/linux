@@ -34,6 +34,7 @@
 #define SPPTR0			0x0104
 #define DFCLSRESDBPTR0		0x0108
 #define DFCLSRESDB00		0x010c
+#define RSS_CTRL0		0x0000013c
 
 #define CLE_CMD_TO		10	/* ms */
 #define CLE_PKTRAM_SIZE		256	/* bytes */
@@ -98,6 +99,9 @@
 
 enum xgene_cle_ptree_nodes {
 	PKT_TYPE_NODE,
+	PKT_PROT_NODE,
+	RSS_IPV4_TCP_NODE,
+	RSS_IPV4_UDP_NODE,
 	LAST_NODE,
 	MAX_NODES
 };
@@ -137,6 +141,8 @@ enum xgene_cle_parser {
 #define XGENE_CLE_DRAM(type)	(((type) & 0xf) << 28)
 enum xgene_cle_dram_type {
 	PKT_RAM,
+	RSS_IDT,
+	RSS_IPV4_HASH_SKEY,
 	PTREE_RAM = 0xc,
 	AVL_RAM,
 	DB_RAM
@@ -150,12 +156,47 @@ enum xgene_cle_cmd_type {
 	CLE_CMD_AVL_SRCH = 32
 };
 
+enum xgene_cle_ipv4_rss_hashtype {
+	RSS_IPV4_8B,
+	RSS_IPV4_12B,
+};
+
+enum xgene_cle_prot_type {
+	XGENE_CLE_TCP,
+	XGENE_CLE_UDP,
+	XGENE_CLE_ESP,
+	XGENE_CLE_OTHER
+};
+
+enum xgene_cle_prot_version {
+	XGENE_CLE_IPV4,
+};
+
 enum xgene_cle_ptree_dbptrs {
 	DB_RES_DROP,
 	DB_RES_DEF,
 	DB_RES_ACCEPT,
 	DB_MAX_PTRS
 };
+
+/* RSS sideband signal info */
+#define SB_IPFRAG_POS	0
+#define SB_IPFRAG_LEN	1
+#define SB_IPPROT_POS	1
+#define SB_IPPROT_LEN	2
+#define SB_IPVER_POS	3
+#define SB_IPVER_LEN	1
+#define SB_HDRLEN_POS	4
+#define SB_HDRLEN_LEN	12
+
+/* RSS indirection table */
+#define XGENE_CLE_IDT_ENTRIES	128
+#define IDT_DSTQID_POS		0
+#define IDT_DSTQID_LEN		12
+#define IDT_FPSEL_POS		12
+#define IDT_FPSEL_LEN		4
+#define IDT_NFPSEL_POS		16
+#define IDT_NFPSEL_LEN		4
 
 struct xgene_cle_ptree_branch {
 	bool valid;
