@@ -5370,9 +5370,12 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static int bnxt_setup_tc(struct net_device *dev, u8 tc)
+static int bnxt_setup_tc(struct net_device *dev, u32 handle, u8 tc)
 {
 	struct bnxt *bp = netdev_priv(dev);
+
+	if (handle != TC_H_ROOT)
+		return -EINVAL;
 
 	if (tc > bp->max_tc) {
 		netdev_err(dev, "too many traffic classes requested: %d Max supported is %d\n",

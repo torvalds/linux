@@ -788,7 +788,7 @@ struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, u8 *macaddr,
 				      bool is_vf, bool is_netdev);
 #ifdef I40E_FCOE
 int i40e_close(struct net_device *netdev);
-int i40e_setup_tc(struct net_device *netdev, u8 tc);
+int __i40e_setup_tc(struct net_device *netdev, u32 handle, u8 tc);
 void i40e_netpoll(struct net_device *netdev);
 int i40e_fcoe_enable(struct net_device *netdev);
 int i40e_fcoe_disable(struct net_device *netdev);

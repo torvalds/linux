@@ -8200,6 +8200,15 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	return 0;
 }
 
+int __ixgbe_setup_tc(struct net_device *dev, u32 handle, u8 tc)
+{
+	/* Only support egress tc setup for now */
+	if (handle != TC_H_ROOT)
+		return -EINVAL;
+
+	return ixgbe_setup_tc(dev, tc);
+}
+
 #ifdef CONFIG_PCI_IOV
 void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter)
 {
@@ -8658,7 +8667,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_get_vf_config	= ixgbe_ndo_get_vf_config,
 	.ndo_get_stats64	= ixgbe_get_stats64,
 #ifdef CONFIG_IXGBE_DCB
-	.ndo_setup_tc		= ixgbe_setup_tc,
+	.ndo_setup_tc		= __ixgbe_setup_tc,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbe_netpoll,

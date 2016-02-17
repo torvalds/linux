@@ -1835,12 +1835,15 @@ static u16 netcp_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 
-static int netcp_setup_tc(struct net_device *dev, u8 num_tc)
+static int netcp_setup_tc(struct net_device *dev, u32 handle, u8 num_tc)
 {
 	int i;
 
 	/* setup tc must be called under rtnl lock */
 	ASSERT_RTNL();
+
+	if (handle != TC_H_ROOT)
+		return -EINVAL;
 
 	/* Sanity-check the number of traffic classes requested */
 	if ((dev->real_num_tx_queues <= 1) ||

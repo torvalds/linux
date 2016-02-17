@@ -1457,7 +1457,7 @@ static const struct net_device_ops i40e_fcoe_netdev_ops = {
 	.ndo_tx_timeout		= i40e_tx_timeout,
 	.ndo_vlan_rx_add_vid	= i40e_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40e_vlan_rx_kill_vid,
-	.ndo_setup_tc		= i40e_setup_tc,
+	.ndo_setup_tc		= __i40e_setup_tc,
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= i40e_netpoll,

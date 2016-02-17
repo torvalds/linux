@@ -1626,11 +1626,14 @@ static void xgbe_poll_controller(struct net_device *netdev)
 }
 #endif /* End CONFIG_NET_POLL_CONTROLLER */
 
-static int xgbe_setup_tc(struct net_device *netdev, u8 tc)
+static int xgbe_setup_tc(struct net_device *netdev, u32 handle, u8 tc)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	unsigned int offset, queue;
 	u8 i;
+
+	if (handle != TC_H_ROOT)
+		return -EINVAL;
 
 	if (tc && (tc != pdata->hw_feat.tc_cnt))
 		return -EINVAL;

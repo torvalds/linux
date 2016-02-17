@@ -4272,6 +4272,13 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 	return 0;
 }
 
+int __bnx2x_setup_tc(struct net_device *dev, u32 handle, u8 num_tc)
+{
+	if (handle != TC_H_ROOT)
+		return -EINVAL;
+	return bnx2x_setup_tc(dev, num_tc);
+}
+
 /* called with rtnl_lock */
 int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 {

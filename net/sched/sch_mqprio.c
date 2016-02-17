@@ -39,7 +39,7 @@ static void mqprio_destroy(struct Qdisc *sch)
 	}
 
 	if (priv->hw_owned && dev->netdev_ops->ndo_setup_tc)
-		dev->netdev_ops->ndo_setup_tc(dev, 0);
+		dev->netdev_ops->ndo_setup_tc(dev, sch->handle, 0);
 	else
 		netdev_set_num_tc(dev, 0);
 }
@@ -141,7 +141,8 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	 */
 	if (qopt->hw) {
 		priv->hw_owned = 1;
-		err = dev->netdev_ops->ndo_setup_tc(dev, qopt->num_tc);
+		err = dev->netdev_ops->ndo_setup_tc(dev, sch->handle,
+						    qopt->num_tc);
 		if (err)
 			goto err;
 	} else {
