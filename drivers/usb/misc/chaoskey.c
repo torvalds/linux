@@ -93,10 +93,12 @@ struct chaoskey {
 
 static void chaoskey_free(struct chaoskey *dev)
 {
-	usb_dbg(dev->interface, "free");
-	kfree(dev->name);
-	kfree(dev->buf);
-	kfree(dev);
+	if (dev) {
+		usb_dbg(dev->interface, "free");
+		kfree(dev->name);
+		kfree(dev->buf);
+		kfree(dev);
+	}
 }
 
 static int chaoskey_probe(struct usb_interface *interface,
@@ -107,7 +109,7 @@ static int chaoskey_probe(struct usb_interface *interface,
 	int i;
 	int in_ep = -1;
 	struct chaoskey *dev;
-	int result;
+	int result = -ENOMEM;
 	int size;
 
 	usb_dbg(interface, "probe %s-%s", udev->product, udev->serial);
@@ -142,14 +144,12 @@ static int chaoskey_probe(struct usb_interface *interface,
 	dev = kzalloc(sizeof(struct chaoskey), GFP_KERNEL);
 
 	if (dev == NULL)
-		return -ENOMEM;
+		goto out;
 
 	dev->buf = kmalloc(size, GFP_KERNEL);
 
-	if (dev->buf == NULL) {
-		kfree(dev);
-		return -ENOMEM;
-	}
+	if (dev->buf == NULL)
+		goto out;
 
 	/* Construct a name using the product and serial values. Each
 	 * device needs a unique name for the hwrng code
@@ -158,11 +158,8 @@ static int chaoskey_probe(struct usb_interface *interface,
 	if (udev->product && udev->serial) {
 		dev->name = kmalloc(strlen(udev->product) + 1 +
 				    strlen(udev->serial) + 1, GFP_KERNEL);
-		if (dev->name == NULL) {
-			kfree(dev->buf);
-			kfree(dev);
-			return -ENOMEM;
-		}
+		if (dev->name == NULL)
+			goto out;
 
 		strcpy(dev->name, udev->product);
 		strcat(dev->name, "-");
@@ -186,9 +183,7 @@ static int chaoskey_probe(struct usb_interface *interface,
 	result = usb_register_dev(interface, &chaoskey_class);
 	if (result) {
 		usb_err(interface, "Unable to allocate minor number.");
-		usb_set_intfdata(interface, NULL);
-		chaoskey_free(dev);
-		return result;
+		goto out;
 	}
 
 	dev->hwrng.name = dev->name ? dev->name : chaoskey_driver.name;
@@ -215,6 +210,11 @@ static int chaoskey_probe(struct usb_interface *interface,
 
 	usb_dbg(interface, "chaoskey probe success, size %d", dev->size);
 	return 0;
+
+out:
+	usb_set_intfdata(interface, NULL);
+	chaoskey_free(dev);
+	return result;
 }
 
 static void chaoskey_disconnect(struct usb_interface *interface)
