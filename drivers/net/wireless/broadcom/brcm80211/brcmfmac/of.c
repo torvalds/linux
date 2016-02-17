@@ -16,17 +16,16 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/mmc/card.h>
-#include <linux/platform_data/brcmfmac-sdio.h>
-#include <linux/mmc/sdio_func.h>
 
 #include <defs.h>
 #include "debug.h"
-#include "sdio.h"
+#include "core.h"
+#include "common.h"
+#include "of.h"
 
-void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)
+void
+brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_platform_data **sdio)
 {
-	struct device *dev = sdiodev->dev;
 	struct device_node *np = dev->of_node;
 	int irq;
 	u32 irqf;
@@ -35,12 +34,12 @@ void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)
 	if (!np || !of_device_is_compatible(np, "brcm,bcm4329-fmac"))
 		return;
 
-	sdiodev->pdata = devm_kzalloc(dev, sizeof(*sdiodev->pdata), GFP_KERNEL);
-	if (!sdiodev->pdata)
+	*sdio = devm_kzalloc(dev, sizeof(*sdio), GFP_KERNEL);
+	if (!(*sdio))
 		return;
 
 	if (of_property_read_u32(np, "brcm,drive-strength", &val) == 0)
-		sdiodev->pdata->drive_strength = val;
+		(*sdio)->drive_strength = val;
 
 	/* make sure there are interrupts defined in the node */
 	if (!of_find_property(np, "interrupts", NULL))
@@ -53,7 +52,7 @@ void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)
 	}
 	irqf = irqd_get_trigger_type(irq_get_irq_data(irq));
 
-	sdiodev->pdata->oob_irq_supported = true;
-	sdiodev->pdata->oob_irq_nr = irq;
-	sdiodev->pdata->oob_irq_flags = irqf;
+	(*sdio)->oob_irq_supported = true;
+	(*sdio)->oob_irq_nr = irq;
+	(*sdio)->oob_irq_flags = irqf;
 }

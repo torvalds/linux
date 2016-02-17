@@ -27,6 +27,7 @@
 #include "fwil_types.h"
 #include "tracepoint.h"
 #include "common.h"
+#include "of.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -79,6 +80,7 @@ module_param_named(ignore_probe_fail, brcmf_ignore_probe_fail, int, 0);
 MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for debugging");
 #endif
 
+static struct brcmfmac_sdio_platform_data *brcmfmac_pdata;
 struct brcmf_mp_global_t brcmf_mp_global;
 
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
@@ -231,6 +233,13 @@ static void brcmf_mp_attach(void)
 		BRCMF_FW_ALTPATH_LEN);
 }
 
+struct brcmfmac_sdio_platform_data *brcmf_get_module_param(struct device *dev)
+{
+	if (!brcmfmac_pdata)
+		brcmf_of_probe(dev, &brcmfmac_pdata);
+	return brcmfmac_pdata;
+}
+
 int brcmf_mp_device_attach(struct brcmf_pub *drvr)
 {
 	drvr->settings = kzalloc(sizeof(*drvr->settings), GFP_ATOMIC);
@@ -253,6 +262,35 @@ void brcmf_mp_device_detach(struct brcmf_pub *drvr)
 	kfree(drvr->settings);
 }
 
+static int __init brcmf_common_pd_probe(struct platform_device *pdev)
+{
+	brcmf_dbg(INFO, "Enter\n");
+
+	brcmfmac_pdata = dev_get_platdata(&pdev->dev);
+
+	if (brcmfmac_pdata->power_on)
+		brcmfmac_pdata->power_on();
+
+	return 0;
+}
+
+static int brcmf_common_pd_remove(struct platform_device *pdev)
+{
+	brcmf_dbg(INFO, "Enter\n");
+
+	if (brcmfmac_pdata->power_off)
+		brcmfmac_pdata->power_off();
+
+	return 0;
+}
+
+static struct platform_driver brcmf_pd = {
+	.remove		= brcmf_common_pd_remove,
+	.driver		= {
+		.name	= BRCMFMAC_SDIO_PDATA_NAME,
+	}
+};
+
 static int __init brcmfmac_module_init(void)
 {
 	int err;
@@ -260,16 +298,21 @@ static int __init brcmfmac_module_init(void)
 	/* Initialize debug system first */
 	brcmf_debugfs_init();
 
-#ifdef CONFIG_BRCMFMAC_SDIO
-	brcmf_sdio_init();
-#endif
+	/* Get the platform data (if available) for our devices */
+	err = platform_driver_probe(&brcmf_pd, brcmf_common_pd_probe);
+	if (err == -ENODEV)
+		brcmf_dbg(INFO, "No platform data available.\n");
+
 	/* Initialize global module paramaters */
 	brcmf_mp_attach();
 
 	/* Continue the initialization by registering the different busses */
 	err = brcmf_core_init();
-	if (err)
+	if (err) {
 		brcmf_debugfs_exit();
+		if (brcmfmac_pdata)
+			platform_driver_unregister(&brcmf_pd);
+	}
 
 	return err;
 }
@@ -277,6 +320,8 @@ static int __init brcmfmac_module_init(void)
 static void __exit brcmfmac_module_exit(void)
 {
 	brcmf_core_exit();
+	if (brcmfmac_pdata)
+		platform_driver_unregister(&brcmf_pd);
 	brcmf_debugfs_exit();
 }
 

@@ -15,6 +15,8 @@
 #ifndef BRCMFMAC_COMMON_H
 #define BRCMFMAC_COMMON_H
 
+#include <linux/platform_device.h>
+#include <linux/platform_data/brcmfmac-sdio.h>
 #include "fwil_types.h"
 
 extern const u8 ALLFFMAC[ETH_ALEN];
@@ -89,6 +91,7 @@ struct brcmf_mp_device {
 	struct cc_translate *country_codes;
 };
 
+struct brcmfmac_sdio_platform_data *brcmf_get_module_param(struct device *dev);
 int brcmf_mp_device_attach(struct brcmf_pub *drvr);
 void brcmf_mp_device_detach(struct brcmf_pub *drvr);
 #ifdef DEBUG
