@@ -1950,6 +1950,38 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	return video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 }
 
+static void coda_copy_firmware(struct coda_dev *dev, const u8 * const buf,
+			       size_t size)
+{
+	u32 *src = (u32 *)buf;
+
+	/* Check if the firmware has a 16-byte Freescale header, skip it */
+	if (buf[0] == 'M' && buf[1] == 'X')
+		src += 4;
+	/*
+	 * Check whether the firmware is in native order or pre-reordered for
+	 * memory access. The first instruction opcode always is 0xe40e.
+	 */
+	if (__le16_to_cpup((__le16 *)src) == 0xe40e) {
+		u32 *dst = dev->codebuf.vaddr;
+		int i;
+
+		/* Firmware in native order, reorder while copying */
+		if (dev->devtype->product == CODA_DX6) {
+			for (i = 0; i < (size - 16) / 4; i++)
+				dst[i] = (src[i] << 16) | (src[i] >> 16);
+		} else {
+			for (i = 0; i < (size - 16) / 4; i += 2) {
+				dst[i] = (src[i + 1] << 16) | (src[i + 1] >> 16);
+				dst[i + 1] = (src[i] << 16) | (src[i] >> 16);
+			}
+		}
+	} else {
+		/* Copy the already reordered firmware image */
+		memcpy(dev->codebuf.vaddr, src, size);
+	}
+}
+
 static void coda_fw_callback(const struct firmware *fw, void *context)
 {
 	struct coda_dev *dev = context;
@@ -1967,8 +1999,7 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 	if (ret < 0)
 		goto put_pm;
 
-	/* Copy the whole firmware image to the code buffer */
-	memcpy(dev->codebuf.vaddr, fw->data, fw->size);
+	coda_copy_firmware(dev, fw->data, fw->size);
 	release_firmware(fw);
 
 	ret = coda_hw_init(dev);
