@@ -1166,14 +1166,15 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 
 /*
  * Read f2fs raw super block.
- * Because we have two copies of super block, so read the first one at first,
- * if the first one is invalid, move to read the second one.
+ * Because we have two copies of super block, so read both of them
+ * to get the first valid one. If any one of them is broken, we pass
+ * them recovery flag back to the caller.
  */
 static int read_raw_super_block(struct super_block *sb,
 			struct f2fs_super_block **raw_super,
 			int *valid_super_block, int *recovery)
 {
-	int block = 0;
+	int block;
 	struct buffer_head *bh;
 	struct f2fs_super_block *super, *buf;
 	int err = 0;
@@ -1181,50 +1182,48 @@ static int read_raw_super_block(struct super_block *sb,
 	super = kzalloc(sizeof(struct f2fs_super_block), GFP_KERNEL);
 	if (!super)
 		return -ENOMEM;
-retry:
-	bh = sb_bread(sb, block);
-	if (!bh) {
-		*recovery = 1;
-		f2fs_msg(sb, KERN_ERR, "Unable to read %dth superblock",
+
+	for (block = 0; block < 2; block++) {
+		bh = sb_bread(sb, block);
+		if (!bh) {
+			f2fs_msg(sb, KERN_ERR, "Unable to read %dth superblock",
 				block + 1);
-		err = -EIO;
-		goto next;
-	}
+			err = -EIO;
+			continue;
+		}
 
-	buf = (struct f2fs_super_block *)(bh->b_data + F2FS_SUPER_OFFSET);
+		buf = (struct f2fs_super_block *)
+				(bh->b_data + F2FS_SUPER_OFFSET);
 
-	/* sanity checking of raw super */
-	if (sanity_check_raw_super(sb, buf)) {
+		/* sanity checking of raw super */
+		if (sanity_check_raw_super(sb, buf)) {
+			f2fs_msg(sb, KERN_ERR,
+				"Can't find valid F2FS filesystem in %dth superblock",
+				block + 1);
+			err = -EINVAL;
+			brelse(bh);
+			continue;
+		}
+
+		if (!*raw_super) {
+			memcpy(super, buf, sizeof(*super));
+			*valid_super_block = block;
+			*raw_super = super;
+		}
 		brelse(bh);
+	}
+
+	/* Fail to read any one of the superblocks*/
+	if (err < 0)
 		*recovery = 1;
-		f2fs_msg(sb, KERN_ERR,
-			"Can't find valid F2FS filesystem in %dth superblock",
-								block + 1);
-		err = -EINVAL;
-		goto next;
-	}
-
-	if (!*raw_super) {
-		memcpy(super, buf, sizeof(*super));
-		*valid_super_block = block;
-		*raw_super = super;
-	}
-	brelse(bh);
-
-next:
-	/* check the validity of the second superblock */
-	if (block == 0) {
-		block++;
-		goto retry;
-	}
 
 	/* No valid superblock */
-	if (!*raw_super) {
+	if (!*raw_super)
 		kfree(super);
-		return err;
-	}
+	else
+		err = 0;
 
-	return 0;
+	return err;
 }
 
 static int __f2fs_commit_super(struct f2fs_sb_info *sbi, int block)
