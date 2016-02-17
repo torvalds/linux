@@ -27,6 +27,7 @@
 #include <linux/cpufeature.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <crypto/xts.h>
 #include "crypt_s390.h"
 
 #define AES_KEYLEN_128		1

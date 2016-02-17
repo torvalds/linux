@@ -15,6 +15,7 @@
 #include <crypto/algapi.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
+#include <crypto/xts.h>
 
 #include "aes-ce-setkey.h"
 

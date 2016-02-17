@@ -15,6 +15,7 @@
 #include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <linux/module.h>
+#include <crypto/xts.h>
 
 MODULE_DESCRIPTION("AES-ECB/CBC/CTR/XTS using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");

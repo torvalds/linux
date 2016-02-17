@@ -22,6 +22,7 @@
 #include <asm/byteorder.h>
 #include <asm/switch_to.h>
 #include <crypto/algapi.h>
+#include <crypto/xts.h>
 
 /*
  * MAX_BYTES defines the number of bytes that are allowed to be processed
