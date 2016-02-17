@@ -1102,24 +1102,24 @@ static int
 sddr09_get_wp(struct us_data *us, struct sddr09_card_info *info) {
 	int result;
 	unsigned char status;
+	const char *wp_fmt;
 
 	result = sddr09_read_status(us, &status);
 	if (result) {
 		usb_stor_dbg(us, "read_status fails\n");
 		return result;
 	}
-	usb_stor_dbg(us, "status 0x%02X", status);
 	if ((status & 0x80) == 0) {
 		info->flags |= SDDR09_WP;	/* write protected */
-		US_DEBUGPX(" WP");
+		wp_fmt = " WP";
+	} else {
+		wp_fmt = "";
 	}
-	if (status & 0x40)
-		US_DEBUGPX(" Ready");
-	if (status & LUNBITS)
-		US_DEBUGPX(" Suspended");
-	if (status & 0x1)
-		US_DEBUGPX(" Error");
-	US_DEBUGPX("\n");
+	usb_stor_dbg(us, "status 0x%02X%s%s%s%s\n", status, wp_fmt,
+		     status & 0x40 ? " Ready" : "",
+		     status & LUNBITS ? " Suspended" : "",
+		     status & 0x01 ? " Error" : "");
+
 	return 0;
 }
 
