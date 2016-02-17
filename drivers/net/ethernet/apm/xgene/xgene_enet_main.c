@@ -93,13 +93,6 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 	return 0;
 }
 
-static u16 xgene_enet_dst_ring_num(struct xgene_enet_desc_ring *ring)
-{
-	struct xgene_enet_pdata *pdata = netdev_priv(ring->ndev);
-
-	return ((u16)pdata->rm << 10) | ring->num;
-}
-
 static u8 xgene_enet_hdr_len(const void *data)
 {
 	const struct ethhdr *eth = data;
@@ -1278,6 +1271,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	else
 		base_addr = pdata->base_addr;
 	pdata->eth_csr_addr = base_addr + BLOCK_ETH_CSR_OFFSET;
+	pdata->cle.base = base_addr + BLOCK_ETH_CLE_CSR_OFFSET;
 	pdata->eth_ring_if_addr = base_addr + BLOCK_ETH_RING_IF_OFFSET;
 	pdata->eth_diag_csr_addr = base_addr + BLOCK_ETH_DIAG_CSR_OFFSET;
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII ||
@@ -1298,6 +1292,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 
 static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 {
+	struct xgene_enet_cle *enet_cle = &pdata->cle;
 	struct net_device *ndev = pdata->ndev;
 	struct xgene_enet_desc_ring *buf_pool;
 	u16 dst_ring_num;
@@ -1323,7 +1318,24 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	}
 
 	dst_ring_num = xgene_enet_dst_ring_num(pdata->rx_ring);
-	pdata->port_ops->cle_bypass(pdata, dst_ring_num, buf_pool->id);
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
+		/* Initialize and Enable  PreClassifier Tree */
+		enet_cle->max_nodes = 512;
+		enet_cle->max_dbptrs = 1024;
+		enet_cle->parsers = 3;
+		enet_cle->active_parser = PARSER_ALL;
+		enet_cle->ptree.start_node = 0;
+		enet_cle->ptree.start_dbptr = 0;
+		enet_cle->jump_bytes = 8;
+		ret = pdata->cle_ops->cle_init(pdata);
+		if (ret) {
+			netdev_err(ndev, "Preclass Tree init error\n");
+			return ret;
+		}
+	} else {
+		pdata->port_ops->cle_bypass(pdata, dst_ring_num, buf_pool->id);
+	}
+
 	pdata->mac_ops->init(pdata);
 
 	return ret;
@@ -1345,6 +1357,7 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 	default:
 		pdata->mac_ops = &xgene_xgmac_ops;
 		pdata->port_ops = &xgene_xgport_ops;
+		pdata->cle_ops = &xgene_cle3in_ops;
 		pdata->rm = RM0;
 		break;
 	}

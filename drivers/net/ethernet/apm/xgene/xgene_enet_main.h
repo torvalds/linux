@@ -36,6 +36,7 @@
 #include <linux/if_vlan.h>
 #include <linux/phy.h>
 #include "xgene_enet_hw.h"
+#include "xgene_enet_cle.h"
 #include "xgene_enet_ring2.h"
 
 #define XGENE_DRV_VERSION	"v1.0"
@@ -145,6 +146,10 @@ struct xgene_ring_ops {
 	u32 (*len)(struct xgene_enet_desc_ring *);
 };
 
+struct xgene_cle_ops {
+	int (*cle_init)(struct xgene_enet_pdata *pdata);
+};
+
 /* ethernet private data */
 struct xgene_enet_pdata {
 	struct net_device *ndev;
@@ -174,10 +179,12 @@ struct xgene_enet_pdata {
 	void __iomem *ring_cmd_addr;
 	int phy_mode;
 	enum xgene_enet_rm rm;
+	struct xgene_enet_cle cle;
 	struct rtnl_link_stats64 stats;
 	const struct xgene_mac_ops *mac_ops;
 	const struct xgene_port_ops *port_ops;
 	struct xgene_ring_ops *ring_ops;
+	struct xgene_cle_ops *cle_ops;
 	struct delayed_work link_work;
 	u32 port_id;
 	u8 cpu_bufnum;
@@ -227,6 +234,13 @@ static inline u64 xgene_enet_get_field_value(int pos, int len, u64 src)
 static inline struct device *ndev_to_dev(struct net_device *ndev)
 {
 	return ndev->dev.parent;
+}
+
+static inline u16 xgene_enet_dst_ring_num(struct xgene_enet_desc_ring *ring)
+{
+	struct xgene_enet_pdata *pdata = netdev_priv(ring->ndev);
+
+	return ((u16)pdata->rm << 10) | ring->num;
 }
 
 void xgene_enet_set_ethtool_ops(struct net_device *netdev);
