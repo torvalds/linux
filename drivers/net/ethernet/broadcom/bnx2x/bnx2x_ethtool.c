@@ -981,6 +981,11 @@ static void bnx2x_get_regs(struct net_device *dev,
 	memcpy(p, &dump_hdr, sizeof(struct dump_header));
 	p += dump_hdr.header_size + 1;
 
+	/* This isn't really an error, but since attention handling is going
+	 * to print the GRC timeouts using this macro, we use the same.
+	 */
+	BNX2X_ERR("Generating register dump. Might trigger harmless GRC timeouts\n");
+
 	/* Actually read the registers */
 	__bnx2x_get_regs(bp, p);
 
