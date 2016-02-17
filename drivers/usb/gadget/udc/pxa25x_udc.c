@@ -289,14 +289,14 @@ static void pullup_on(void)
 		mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
 }
 
-#if defined(CONFIG_ARCH_IXP4XX) && defined(CONFIG_CPU_BIG_ENDIAN)
+#if defined(CONFIG_CPU_BIG_ENDIAN)
 /*
- * not sure if this is the correct behavior on ixp4xx in both
- * bit-endian and little-endian modes, but it's what the driver
- * has always done using direct pointer dereferences:
- * We assume that there is a byteswap done in hardware at the
- * MMIO register that matches what the CPU setting is, so we
- * never swap in software.
+ * IXP4xx has its buses wired up in a way that relies on never doing any
+ * byte swaps, independent of whether it runs in big-endian or little-endian
+ * mode, as explained by Krzysztof Hałasa.
+ *
+ * We only support pxa25x in little-endian mode, but it is very likely
+ * that it works the same way.
  */
 static inline void udc_set_reg(struct pxa25x_udc *dev, u32 reg, u32 val)
 {
