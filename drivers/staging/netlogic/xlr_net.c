@@ -932,13 +932,13 @@ static void xlr_port_enable(struct xlr_net_priv *priv)
 
 	/* Setup tx control reg */
 	xlr_reg_update(priv->base_addr, R_TX_CONTROL,
-		       ((1 << O_TX_CONTROL__TxEnable) |
-		       (512 << O_TX_CONTROL__TxThreshold)), 0x3fff);
+		       ((1 << O_TX_CONTROL__TXENABLE) |
+		       (512 << O_TX_CONTROL__TXTHRESHOLD)), 0x3fff);
 
 	/* Setup rx control reg */
 	xlr_reg_update(priv->base_addr, R_RX_CONTROL,
-		       1 << O_RX_CONTROL__RxEnable,
-		       1 << O_RX_CONTROL__RxEnable);
+		       1 << O_RX_CONTROL__RXENABLE,
+		       1 << O_RX_CONTROL__RXENABLE);
 }
 
 static void xlr_port_disable(struct xlr_net_priv *priv)
@@ -953,12 +953,12 @@ static void xlr_port_disable(struct xlr_net_priv *priv)
 
 	/* Setup tx control reg */
 	xlr_reg_update(priv->base_addr, R_TX_CONTROL,
-		       ((1 << O_TX_CONTROL__TxEnable) |
-		       (512 << O_TX_CONTROL__TxThreshold)), 0);
+		       ((1 << O_TX_CONTROL__TXENABLE) |
+		       (512 << O_TX_CONTROL__TXTHRESHOLD)), 0);
 
 	/* Setup rx control reg */
 	xlr_reg_update(priv->base_addr, R_RX_CONTROL,
-		       1 << O_RX_CONTROL__RxEnable, 0);
+		       1 << O_RX_CONTROL__RXENABLE, 0);
 }
 
 /*
@@ -974,9 +974,9 @@ static int xlr_gmac_init(struct xlr_net_priv *priv,
 	xlr_port_disable(priv);
 
 	xlr_nae_wreg(priv->base_addr, R_DESC_PACK_CTRL,
-		     (1 << O_DESC_PACK_CTRL__MaxEntry) |
-		     (BYTE_OFFSET << O_DESC_PACK_CTRL__ByteOffset) |
-		     (1600 << O_DESC_PACK_CTRL__RegularSize));
+		     (1 << O_DESC_PACK_CTRL__MAXENTRY) |
+		     (BYTE_OFFSET << O_DESC_PACK_CTRL__BYTEOFFSET) |
+		     (1600 << O_DESC_PACK_CTRL__REGULARSIZE));
 
 	ret = xlr_setup_mdio(priv, pdev);
 	if (ret)
@@ -988,13 +988,13 @@ static int xlr_gmac_init(struct xlr_net_priv *priv,
 	/* speed 2.5Mhz */
 	xlr_nae_wreg(priv->base_addr, R_CORECONTROL, 0x02);
 	/* Setup Interrupt mask reg */
-	xlr_nae_wreg(priv->base_addr, R_INTMASK, (1 << O_INTMASK__TxIllegal) |
-		     (1 << O_INTMASK__MDInt) | (1 << O_INTMASK__TxFetchError) |
-		     (1 << O_INTMASK__P2PSpillEcc) | (1 << O_INTMASK__TagFull) |
-		     (1 << O_INTMASK__Underrun) | (1 << O_INTMASK__Abort));
+	xlr_nae_wreg(priv->base_addr, R_INTMASK, (1 << O_INTMASK__TXILLEGAL) |
+		     (1 << O_INTMASK__MDINT) | (1 << O_INTMASK__TXFETCHERROR) |
+		     (1 << O_INTMASK__P2PSPILLECC) | (1 << O_INTMASK__TAGFULL) |
+		     (1 << O_INTMASK__UNDERRUN) | (1 << O_INTMASK__ABORT));
 
 	/* Clear all stats */
-	xlr_reg_update(priv->base_addr, R_STATCTRL, 0, 1 << O_STATCTRL__ClrCnt);
+	xlr_reg_update(priv->base_addr, R_STATCTRL, 0, 1 << O_STATCTRL__CLRCNT);
 	xlr_reg_update(priv->base_addr, R_STATCTRL, 1 << 2, 1 << 2);
 	return 0;
 }
