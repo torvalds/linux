@@ -213,8 +213,6 @@ unlocked_usbctlx_cancel_async(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx);
 
 static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx);
 
-static void hfa384x_cb_rrid(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx);
-
 static int
 usbctlx_get_status(const hfa384x_usb_cmdresp_t *cmdresp,
 		   hfa384x_cmdresult_t *result);
@@ -813,43 +811,6 @@ static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx)
 		}
 
 		ctlx->usercb(hw, &cmdresult, ctlx->usercb_data);
-	}
-}
-
-/*----------------------------------------------------------------
-* hfa384x_cb_rrid
-*
-* CTLX completion handler for async RRID type control exchanges.
-*
-* Note: If the handling is changed here, it should probably be
-*       changed in dorrid as well.
-*
-* Arguments:
-*	hw		hw struct
-*	ctlx		completed CTLX
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
-static void hfa384x_cb_rrid(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx)
-{
-	if (ctlx->usercb != NULL) {
-		hfa384x_rridresult_t rridresult;
-
-		if (ctlx->state != CTLX_COMPLETE) {
-			memset(&rridresult, 0, sizeof(rridresult));
-			rridresult.rid = le16_to_cpu(ctlx->outbuf.rridreq.rid);
-		} else {
-			usbctlx_get_rridresult(&ctlx->inbuf.rridresp,
-					       &rridresult);
-		}
-
-		ctlx->usercb(hw, &rridresult, ctlx->usercb_data);
 	}
 }
 
@@ -2076,41 +2037,6 @@ exit_proc:
 int hfa384x_drvr_getconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len)
 {
 	return hfa384x_dorrid_wait(hw, rid, buf, len);
-}
-
-/*----------------------------------------------------------------
- * hfa384x_drvr_getconfig_async
- *
- * Performs the sequence necessary to perform an async read of
- * of a config/info item.
- *
- * Arguments:
- *       hw              device structure
- *       rid             config/info record id (host order)
- *       buf             host side record buffer.  Upon return it will
- *                       contain the body portion of the record (minus the
- *                       RID and len).
- *       len             buffer length (in bytes, should match record length)
- *       cbfn            caller supplied callback, called when the command
- *                       is done (successful or not).
- *       cbfndata        pointer to some caller supplied data that will be
- *                       passed in as an argument to the cbfn.
- *
- * Returns:
- *       nothing         the cbfn gets a status argument identifying if
- *                       any errors occur.
- * Side effects:
- *       Queues an hfa384x_usbcmd_t for subsequent execution.
- *
- * Call context:
- *       Any
- ----------------------------------------------------------------*/
-int
-hfa384x_drvr_getconfig_async(hfa384x_t *hw,
-			     u16 rid, ctlx_usercb_t usercb, void *usercb_data)
-{
-	return hfa384x_dorrid_async(hw, rid, NULL, 0,
-				    hfa384x_cb_rrid, usercb, usercb_data);
 }
 
 /*----------------------------------------------------------------
