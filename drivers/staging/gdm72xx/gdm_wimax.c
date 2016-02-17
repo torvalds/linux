@@ -26,11 +26,11 @@
 #include "netlink_k.h"
 
 #define gdm_wimax_send(n, d, l)	\
-	(n->phy_dev->send_func)(n->phy_dev->priv_dev, d, l, NULL, NULL)
+	n->phy_dev->send_func(n->phy_dev->priv_dev, d, l, NULL, NULL)
 #define gdm_wimax_send_with_cb(n, d, l, c, b)	\
-	(n->phy_dev->send_func)(n->phy_dev->priv_dev, d, l, c, b)
+	n->phy_dev->send_func(n->phy_dev->priv_dev, d, l, c, b)
 #define gdm_wimax_rcv_with_cb(n, c, b)	\
-	(n->phy_dev->rcv_func)(n->phy_dev->priv_dev, c, b)
+	n->phy_dev->rcv_func(n->phy_dev->priv_dev, c, b)
 
 #define EVT_MAX_SIZE	2048
 
