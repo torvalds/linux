@@ -7,6 +7,7 @@ enum hv_perf_domains {
 #define DOMAIN(n, v, x, c) HV_PERF_DOMAIN_##n = v,
 #include "hv-24x7-domains.h"
 #undef DOMAIN
+	HV_PERF_DOMAIN_MAX,
 };
 
 struct hv_24x7_request {

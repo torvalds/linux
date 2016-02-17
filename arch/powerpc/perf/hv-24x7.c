@@ -68,6 +68,24 @@ static bool is_physical_domain(unsigned domain)
 	}
 }
 
+static const char *domain_name(unsigned domain)
+{
+	if (!domain_is_valid(domain))
+		return NULL;
+
+	switch (domain) {
+	case HV_PERF_DOMAIN_PHYS_CHIP:		return "Physical Chip";
+	case HV_PERF_DOMAIN_PHYS_CORE:		return "Physical Core";
+	case HV_PERF_DOMAIN_VCPU_HOME_CORE:	return "VCPU Home Core";
+	case HV_PERF_DOMAIN_VCPU_HOME_CHIP:	return "VCPU Home Chip";
+	case HV_PERF_DOMAIN_VCPU_HOME_NODE:	return "VCPU Home Node";
+	case HV_PERF_DOMAIN_VCPU_REMOTE_NODE:	return "VCPU Remote Node";
+	}
+
+	WARN_ON_ONCE(domain);
+	return NULL;
+}
+
 static bool catalog_entry_domain_is_valid(unsigned domain)
 {
 	return is_physical_domain(domain);
@@ -969,6 +987,27 @@ e_free:
 	return ret;
 }
 
+static ssize_t domains_show(struct device *dev, struct device_attribute *attr,
+			    char *page)
+{
+	int d, n, count = 0;
+	const char *str;
+
+	for (d = 0; d < HV_PERF_DOMAIN_MAX; d++) {
+		str = domain_name(d);
+		if (!str)
+			continue;
+
+		n = sprintf(page, "%d: %s\n", d, str);
+		if (n < 0)
+			break;
+
+		count += n;
+		page += n;
+	}
+	return count;
+}
+
 #define PAGE_0_ATTR(_name, _fmt, _expr)				\
 static ssize_t _name##_show(struct device *dev,			\
 			    struct device_attribute *dev_attr,	\
@@ -997,6 +1036,7 @@ PAGE_0_ATTR(catalog_version, "%lld\n",
 PAGE_0_ATTR(catalog_len, "%lld\n",
 		(unsigned long long)be32_to_cpu(page_0->length) * 4096);
 static BIN_ATTR_RO(catalog, 0/* real length varies */);
+static DEVICE_ATTR_RO(domains);
 
 static struct bin_attribute *if_bin_attrs[] = {
 	&bin_attr_catalog,
@@ -1006,6 +1046,7 @@ static struct bin_attribute *if_bin_attrs[] = {
 static struct attribute *if_attrs[] = {
 	&dev_attr_catalog_len.attr,
 	&dev_attr_catalog_version.attr,
+	&dev_attr_domains.attr,
 	NULL,
 };
 
