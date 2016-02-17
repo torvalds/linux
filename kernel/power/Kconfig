@@ -28,6 +28,15 @@ config SUSPEND_SKIP_SYNC
 	  of suspend, or they are content with invoking sync() from
 	  user-space before invoking suspend.  Say Y if that's your case.
 
+config WAKELOCK
+	bool "Android's method of preventing suspend"
+	default y
+	---help---
+	  This allows applications to prevent the CPU from suspending while
+	  they need it.
+
+	  Say Y if you are running an android userspace.
+
 config HIBERNATE_CALLBACKS
 	bool
 
