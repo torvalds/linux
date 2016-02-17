@@ -13,6 +13,7 @@
 #include <sys/uio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <poll.h>
 #include <lkl_host.h>
 #include "iomem.h"
@@ -236,6 +237,11 @@ static void panic(void)
 	assert(0);
 }
 
+static long gettid(void)
+{
+	return syscall(SYS_gettid);
+}
+
 struct lkl_host_operations lkl_host_ops = {
 	.panic = panic,
 	.thread_create = thread_create,
@@ -258,6 +264,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
+	.gettid = gettid,
 };
 
 static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)

@@ -154,6 +154,11 @@ static void print(const char *str, int len)
 	write(1, str, len);
 }
 
+static long gettid(void)
+{
+	return GetCurrentThreadId();
+}
+
 static void *mem_alloc(unsigned long size)
 {
 	return malloc(size);
@@ -181,6 +186,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
+	.gettid = gettid,
 };
 
 int handle_get_capacity(union lkl_disk disk, unsigned long long *res)

@@ -635,6 +635,20 @@ static int test_mutex(char *str, int len)
 	return ret;
 }
 
+static int test_gettid(char *str, int len)
+{
+	long tid = lkl_host_ops.gettid();
+	snprintf(str, len, "%ld", tid);
+
+	/* As far as I know, thread IDs are non-zero on all reasonable
+	 * systems. */
+	if (tid) {
+		return TEST_SUCCESS;
+	} else {
+		return TEST_FAILURE;
+	}
+}
+
 static struct cl_option *find_short_opt(char name)
 {
 	struct cl_option *opt;
@@ -740,6 +754,7 @@ int main(int argc, char **argv)
 	TEST(umount);
 	TEST(lo_ifup);
 	TEST(mutex);
+	TEST(gettid);
 
 	lkl_sys_halt();
 

@@ -47,6 +47,8 @@ struct lkl_mutex_t;
  * iomem_access
  * @iomem_acess - reads or writes to and I/O memory region; addr must be in the
  * range returned by ioremap
+ *
+ * @gettid - returns the host thread id of the caller
  */
 struct lkl_host_operations {
 	const char *virtio_devices;
@@ -79,6 +81,8 @@ struct lkl_host_operations {
 	void* (*ioremap)(long addr, int size);
 	int (*iomem_access)(const volatile void *addr, void *val, int size,
 			    int write);
+
+	long (*gettid)(void);
 };
 
 /**
