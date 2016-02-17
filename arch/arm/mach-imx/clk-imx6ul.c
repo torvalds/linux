@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -226,10 +226,10 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_PLL1_SW] 	  = imx_clk_mux_glitchless("pll1_sw",   base + 0x0c, 2,  1, pll1_sw_sels, ARRAY_SIZE(pll1_sw_sels));
 	clks[IMX6UL_CLK_AXI_ALT_SEL]	  = imx_clk_mux("axi_alt_sel",		base + 0x14, 7,  1, axi_alt_sels, ARRAY_SIZE(axi_alt_sels));
 	clks[IMX6UL_CLK_AXI_SEL] 	  = imx_clk_mux_flags("axi_sel", 	base + 0x14, 6,  1, axi_sels, ARRAY_SIZE(axi_sels), 0);
-	clks[IMX6UL_CLK_PERIPH_PRE] 	  = imx_clk_mux("periph_pre",       base + 0x18, 18, 2, periph_pre_sels, ARRAY_SIZE(periph_pre_sels));
-	clks[IMX6UL_CLK_PERIPH2_PRE] 	  = imx_clk_mux("periph2_pre",      base + 0x18, 21, 2, periph2_pre_sels, ARRAY_SIZE(periph2_pre_sels));
-	clks[IMX6UL_CLK_PERIPH_CLK2_SEL]  = imx_clk_mux("periph_clk2_sel",  base + 0x18, 12, 2, periph_clk2_sels, ARRAY_SIZE(periph_clk2_sels));
-	clks[IMX6UL_CLK_PERIPH2_CLK2_SEL] = imx_clk_mux("periph2_clk2_sel", base + 0x18, 20, 1, periph2_clk2_sels, ARRAY_SIZE(periph2_clk2_sels));
+	clks[IMX6UL_CLK_PERIPH_PRE]	  = imx_clk_mux_bus("periph_pre",       base + 0x18, 18, 2, periph_pre_sels, ARRAY_SIZE(periph_pre_sels));
+	clks[IMX6UL_CLK_PERIPH2_PRE]	  = imx_clk_mux_bus("periph2_pre",      base + 0x18, 21, 2, periph2_pre_sels, ARRAY_SIZE(periph2_pre_sels));
+	clks[IMX6UL_CLK_PERIPH_CLK2_SEL]  = imx_clk_mux_bus("periph_clk2_sel",  base + 0x18, 12, 2, periph_clk2_sels, ARRAY_SIZE(periph_clk2_sels));
+	clks[IMX6UL_CLK_PERIPH2_CLK2_SEL] = imx_clk_mux_bus("periph2_clk2_sel", base + 0x18, 20, 1, periph2_clk2_sels, ARRAY_SIZE(periph2_clk2_sels));
 	clks[IMX6UL_CLK_EIM_SLOW_SEL] 	  = imx_clk_mux("eim_slow_sel", base + 0x1c, 29, 2, eim_slow_sels, ARRAY_SIZE(eim_slow_sels));
 	clks[IMX6UL_CLK_GPMI_SEL]	  = imx_clk_mux("gpmi_sel",     base + 0x1c, 19, 1, gpmi_sels, ARRAY_SIZE(gpmi_sels));
 	clks[IMX6UL_CLK_BCH_SEL]      	  = imx_clk_mux("bch_sel", 	base + 0x1c, 18, 1, bch_sels, ARRAY_SIZE(bch_sels));
