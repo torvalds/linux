@@ -350,9 +350,9 @@ static ssize_t do_readv_writev(enum ORANGEFS_io_type type, struct file *file,
 			break;
 	} /*end while */
 
+out:
 	if (total_count > 0)
 		ret = total_count;
-out:
 	if (ret > 0) {
 		if (type == ORANGEFS_IO_READ) {
 			file_accessed(file);
