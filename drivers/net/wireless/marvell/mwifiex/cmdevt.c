@@ -1657,3 +1657,16 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 
 	return 0;
 }
+
+/* This function handles the command response of hs wakeup reason
+ * command.
+ */
+int mwifiex_ret_wakeup_reason(struct mwifiex_private *priv,
+			      struct host_cmd_ds_command *resp,
+			      struct host_cmd_ds_wakeup_reason *wakeup_reason)
+{
+	wakeup_reason->wakeup_reason =
+		resp->params.hs_wakeup_reason.wakeup_reason;
+
+	return 0;
+}

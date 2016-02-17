@@ -1060,7 +1060,12 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
 		priv->psmode = LBS802_11POWERMODECAM;
-		lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, true);
+		/* no need to wakeup if already woken up,
+		 * on suspend, this exit ps command is not processed
+		 * the driver hangs
+		 */
+		if (priv->psstate != PS_STATE_FULL_POWER)
+			lbs_set_ps_mode(priv, PS_MODE_ACTION_EXIT_PS, true);
 	}
 
 	if (priv->is_deep_sleep) {

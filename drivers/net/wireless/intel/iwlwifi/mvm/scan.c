@@ -930,8 +930,11 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	if (WARN_ON(num_channels > mvm->fw->ucode_capa.n_scan_channels))
 		return -ENOBUFS;
 
-	if (type == mvm->scan_type)
+	if (type == mvm->scan_type) {
+		IWL_DEBUG_SCAN(mvm,
+			       "Ignoring UMAC scan config of the same type\n");
 		return 0;
+	}
 
 	cmd_size = sizeof(*scan_config) + mvm->fw->ucode_capa.n_scan_channels;
 
@@ -1109,7 +1112,7 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->general_flags = cpu_to_le32(iwl_mvm_scan_umac_flags(mvm, params,
 								 vif));
 
-	if (type == IWL_MVM_SCAN_SCHED)
+	if (type == IWL_MVM_SCAN_SCHED || type == IWL_MVM_SCAN_NETDETECT)
 		cmd->flags = cpu_to_le32(IWL_UMAC_SCAN_FLAG_PREEMPTIVE);
 
 	if (iwl_mvm_scan_use_ebs(mvm, vif))
@@ -1351,7 +1354,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		hcmd.id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
-		ret = iwl_mvm_scan_umac(mvm, vif, &params, IWL_MVM_SCAN_SCHED);
+		ret = iwl_mvm_scan_umac(mvm, vif, &params, type);
 	} else {
 		hcmd.id = SCAN_OFFLOAD_REQUEST_CMD;
 		ret = iwl_mvm_scan_lmac(mvm, vif, &params);

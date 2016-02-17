@@ -271,6 +271,10 @@ struct mwifiex_ds_hs_cfg {
 	u32 gap;
 };
 
+struct mwifiex_ds_wakeup_reason {
+	u16  hs_wakeup_reason;
+};
+
 #define DEEP_SLEEP_ON  1
 #define DEEP_SLEEP_OFF 0
 #define DEEP_SLEEP_IDLE_TIME	100
@@ -414,6 +418,7 @@ struct mwifiex_ds_mef_cfg {
 #define MWIFIEX_VSIE_MASK_SCAN     0x01
 #define MWIFIEX_VSIE_MASK_ASSOC    0x02
 #define MWIFIEX_VSIE_MASK_ADHOC    0x04
+#define MWIFIEX_VSIE_MASK_BGSCAN   0x08
 
 enum {
 	MWIFIEX_FUNC_INIT = 1,

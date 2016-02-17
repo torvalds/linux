@@ -108,6 +108,8 @@ enum iwl_amsdu_size {
  * @power_level: power level, default = 1
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
+ * @nvm_file: specifies a external NVM file
+ * @uapsd_disable: disable U-APSD, default = 1
  * @d0i3_disable: disable d0i3, default = 1,
  * @d0i3_entry_delay: time to wait after no refs are taken before
  *	entering D0i3 (in msecs)

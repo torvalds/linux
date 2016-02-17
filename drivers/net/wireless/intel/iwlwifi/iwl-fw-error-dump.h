@@ -293,6 +293,8 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TX_LATENCY: trigger log collection when the tx latency goes above a
  *	threshold.
  * @FW_DBG_TDLS: trigger log collection upon TDLS related events.
+ * @FW_DBG_TRIGGER_TX_STATUS: trigger log collection upon tx status when
+ *  the firmware sends a tx reply.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -309,6 +311,7 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_BA,
 	FW_DBG_TRIGGER_TX_LATENCY,
 	FW_DBG_TRIGGER_TDLS,
+	FW_DBG_TRIGGER_TX_STATUS,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

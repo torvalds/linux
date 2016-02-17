@@ -138,14 +138,14 @@
 #define PAIRWISE_TA_TABLE_BASE		0x1a00
 
 #define SHARED_KEY_ENTRY(__idx) \
-	( SHARED_KEY_TABLE_BASE + \
-		((__idx) * sizeof(struct hw_key_entry)) )
+	(SHARED_KEY_TABLE_BASE + \
+		((__idx) * sizeof(struct hw_key_entry)))
 #define PAIRWISE_KEY_ENTRY(__idx) \
-	( PAIRWISE_KEY_TABLE_BASE + \
-		((__idx) * sizeof(struct hw_key_entry)) )
+	(PAIRWISE_KEY_TABLE_BASE + \
+		((__idx) * sizeof(struct hw_key_entry)))
 #define PAIRWISE_TA_ENTRY(__idx) \
-	( PAIRWISE_TA_TABLE_BASE + \
-		((__idx) * sizeof(struct hw_pairwise_ta_entry)) )
+	(PAIRWISE_TA_TABLE_BASE + \
+		((__idx) * sizeof(struct hw_pairwise_ta_entry)))
 
 struct hw_key_entry {
 	u8 key[16];
@@ -180,7 +180,7 @@ struct hw_pairwise_ta_entry {
 #define HW_BEACON_BASE3			0x2f00
 
 #define HW_BEACON_OFFSET(__index) \
-	( HW_BEACON_BASE0 + (__index * 0x0100) )
+	(HW_BEACON_BASE0 + (__index * 0x0100))
 
 /*
  * HOST-MCU shared memory.
@@ -1287,9 +1287,9 @@ struct hw_pairwise_ta_entry {
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 16 * sizeof(__le32) )
-#define TXINFO_SIZE			( 6 * sizeof(__le32) )
-#define RXD_DESC_SIZE			( 16 * sizeof(__le32) )
+#define TXD_DESC_SIZE			(16 * sizeof(__le32))
+#define TXINFO_SIZE			(6 * sizeof(__le32))
+#define RXD_DESC_SIZE			(16 * sizeof(__le32))
 
 /*
  * TX descriptor format for TX, PRIO and Beacon Ring.

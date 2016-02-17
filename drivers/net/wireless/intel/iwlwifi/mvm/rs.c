@@ -2062,7 +2062,8 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 	}
 
 	/* try decreasing first if applicable */
-	if (weak != TPC_INVALID) {
+	if (sr >= RS_PERCENT(IWL_MVM_RS_TPC_SR_NO_INCREASE) &&
+	    weak != TPC_INVALID) {
 		if (weak_tpt == IWL_INVALID_VALUE &&
 		    (strong_tpt == IWL_INVALID_VALUE ||
 		     current_tpt >= strong_tpt)) {

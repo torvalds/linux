@@ -33,6 +33,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -267,6 +268,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   true),
 	RX_HANDLER(MFUART_LOAD_NOTIFICATION, iwl_mvm_rx_mfuart_notif, false),
 	RX_HANDLER(TOF_NOTIFICATION, iwl_mvm_tof_resp_handler, true),
+	RX_HANDLER_GRP(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF,
+		       iwl_mvm_rx_stored_beacon_notif, false),
 
 };
 #undef RX_HANDLER
@@ -344,6 +347,7 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(MAC_PM_POWER_TABLE),
 	HCMD_NAME(TDLS_CHANNEL_SWITCH_NOTIFICATION),
 	HCMD_NAME(MFUART_LOAD_NOTIFICATION),
+	HCMD_NAME(RSS_CONFIG_CMD),
 	HCMD_NAME(SCAN_ITERATION_COMPLETE_UMAC),
 	HCMD_NAME(REPLY_RX_PHY_CMD),
 	HCMD_NAME(REPLY_RX_MPDU_CMD),
@@ -386,12 +390,19 @@ static const struct iwl_hcmd_names iwl_mvm_phy_names[] = {
 	HCMD_NAME(DTS_MEASUREMENT_NOTIF_WIDE),
 };
 
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
+static const struct iwl_hcmd_names iwl_mvm_prot_offload_names[] = {
+	HCMD_NAME(STORED_BEACON_NTF),
+};
+
 static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[LEGACY_GROUP] = HCMD_ARR(iwl_mvm_legacy_names),
 	[LONG_GROUP] = HCMD_ARR(iwl_mvm_legacy_names),
 	[PHY_OPS_GROUP] = HCMD_ARR(iwl_mvm_phy_names),
+	[PROT_OFFLOAD_GROUP] = HCMD_ARR(iwl_mvm_prot_offload_names),
 };
-
 
 /* this forward declaration can avoid to export the function */
 static void iwl_mvm_async_handlers_wk(struct work_struct *wk);
@@ -481,6 +492,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	}
 	mvm->sf_state = SF_UNINIT;
 	mvm->cur_ucode = IWL_UCODE_INIT;
+	mvm->drop_bcn_ap_mode = true;
 
 	mutex_init(&mvm->mutex);
 	mutex_init(&mvm->d0i3_suspend_mutex);
@@ -640,6 +652,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_trans_unref(mvm->trans);
 
 	iwl_mvm_tof_init(mvm);
+
+	/* init RSS hash key */
+	get_random_bytes(mvm->secret_key, ARRAY_SIZE(mvm->secret_key));
 
 	return op_mode;
 
@@ -1196,7 +1211,7 @@ static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
 	cmd->is_11n_connection = ap_sta->ht_cap.ht_supported;
 	cmd->offloading_tid = iter_data->offloading_tid;
 	cmd->flags = ENABLE_L3_FILTERING | ENABLE_NBNS_FILTERING |
-		ENABLE_DHCP_FILTERING;
+		ENABLE_DHCP_FILTERING | ENABLE_STORE_BEACON;
 	/*
 	 * The d0i3 uCode takes care of the nonqos counters,
 	 * so configure only the qos seq ones.
@@ -1217,8 +1232,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	struct iwl_wowlan_config_cmd wowlan_config_cmd = {
 		.wakeup_filter = cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
 					     IWL_WOWLAN_WAKEUP_BEACON_MISS |
-					     IWL_WOWLAN_WAKEUP_LINK_CHANGE |
-					     IWL_WOWLAN_WAKEUP_BCN_FILTERING),
+					     IWL_WOWLAN_WAKEUP_LINK_CHANGE),
 	};
 	struct iwl_d3_manager_config d3_cfg_cmd = {
 		.min_sleep_time = cpu_to_le32(1000),
@@ -1268,6 +1282,12 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	/* configure wowlan configuration only if needed */
 	if (mvm->d0i3_ap_sta_id != IWL_MVM_STATION_COUNT) {
+		/* wake on beacons only if beacon storing isn't supported */
+		if (!fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_BEACON_STORING))
+			wowlan_config_cmd.wakeup_filter |=
+				cpu_to_le32(IWL_WOWLAN_WAKEUP_BCN_FILTERING);
+
 		iwl_mvm_wowlan_config_key_params(mvm,
 						 d0i3_iter_data.connected_vif,
 						 true, flags);

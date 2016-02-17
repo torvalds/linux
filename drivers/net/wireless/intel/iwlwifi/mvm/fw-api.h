@@ -213,6 +213,8 @@ enum {
 
 	MFUART_LOAD_NOTIFICATION = 0xb1,
 
+	RSS_CONFIG_CMD = 0xb3,
+
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
 	FRAME_RELEASE = 0xc3,
@@ -280,11 +282,16 @@ enum iwl_phy_ops_subcmd_ids {
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
 
+enum iwl_prot_offload_subcmd_ids {
+	STORED_BEACON_NTF = 0xFF,
+};
+
 /* command groups */
 enum {
 	LEGACY_GROUP = 0x0,
 	LONG_GROUP = 0x1,
 	PHY_OPS_GROUP = 0x4,
+	PROT_OFFLOAD_GROUP = 0xb,
 };
 
 /**
@@ -1850,5 +1857,29 @@ struct iwl_shared_mem_cfg {
 	__le32 page_buff_addr;
 	__le32 page_buff_size;
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_1 */
+
+#define MAX_STORED_BEACON_SIZE 600
+
+/**
+ * Stored beacon notification
+ *
+ * @system_time: system time on air rise
+ * @tsf: TSF on air rise
+ * @beacon_timestamp: beacon on air rise
+ * @phy_flags: general phy flags: band, modulation, etc.
+ * @channel: channel this beacon was received on
+ * @rates: rate in ucode internal format
+ * @byte_count: frame's byte count
+ */
+struct iwl_stored_beacon_notif {
+	__le32 system_time;
+	__le64 tsf;
+	__le32 beacon_timestamp;
+	__le16 phy_flags;
+	__le16 channel;
+	__le32 rates;
+	__le32 byte_count;
+	u8 data[MAX_STORED_BEACON_SIZE];
+} __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_1 */
 
 #endif /* __fw_api_h__ */

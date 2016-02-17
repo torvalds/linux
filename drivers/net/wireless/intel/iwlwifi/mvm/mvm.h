@@ -346,8 +346,9 @@ struct iwl_mvm_vif_bf_data {
  * @pm_enabled - Indicate if MAC power management is allowed
  * @monitor_active: indicates that monitor context is configured, and that the
  *	interface should get quota etc.
- * @low_latency: indicates that this interface is in low-latency mode
- *	(VMACLowLatencyMode)
+ * @low_latency_traffic: indicates low latency traffic was detected
+ * @low_latency_dbgfs: low latency mode set from debugfs
+ * @low_latency_vcmd: low latency mode set from vendor command
  * @ps_disabled: indicates that this interface requires PS to be disabled
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
@@ -375,7 +376,7 @@ struct iwl_mvm_vif {
 	bool ap_ibss_active;
 	bool pm_enabled;
 	bool monitor_active;
-	bool low_latency;
+	bool low_latency_traffic, low_latency_dbgfs, low_latency_vcmd;
 	bool ps_disabled;
 	struct iwl_mvm_vif_bf_data bf_data;
 
@@ -432,6 +433,7 @@ struct iwl_mvm_vif {
 	struct iwl_dbgfs_pm dbgfs_pm;
 	struct iwl_dbgfs_bf dbgfs_bf;
 	struct iwl_mac_power_cmd mac_pwr_cmd;
+	int dbgfs_quota_min;
 #endif
 
 	enum ieee80211_smps_mode smps_requests[NUM_IWL_MVM_SMPS_REQ];
@@ -645,6 +647,7 @@ struct iwl_mvm {
 	atomic_t pending_frames[IWL_MVM_STATION_COUNT];
 	u32 tfd_drained[IWL_MVM_STATION_COUNT];
 	u8 rx_ba_sessions;
+	u32 secret_key[IWL_RSS_HASH_KEY_CNT];
 
 	/* configured by mac80211 */
 	u32 rts_threshold;
@@ -856,6 +859,12 @@ struct iwl_mvm {
 
 	u32 ciphers[6];
 	struct iwl_mvm_tof_data tof_data;
+
+	/*
+	 * Drop beacons from other APs in AP mode when there are no connected
+	 * clients.
+	 */
+	bool drop_bcn_ap_mode;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1005,10 +1014,18 @@ static inline bool iwl_mvm_is_mplut_supported(struct iwl_mvm *mvm)
 		IWL_MVM_BT_COEX_MPLUT;
 }
 
+static inline
+bool iwl_mvm_is_p2p_standalone_uapsd_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_P2P_STANDALONE_UAPSD) &&
+		IWL_MVM_P2P_UAPSD_STANDALONE;
+}
+
 static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
 {
-	/* firmware flag isn't defined yet */
-	return false;
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_MULTI_QUEUE_RX_SUPPORT);
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1184,6 +1201,8 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 			     struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 				     struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
+				    struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
@@ -1417,8 +1436,9 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 	 * binding, so this has no real impact. For now, just return
 	 * the current desired low-latency state.
 	 */
-
-	return mvmvif->low_latency;
+	return mvmvif->low_latency_dbgfs ||
+	       mvmvif->low_latency_traffic ||
+	       mvmvif->low_latency_vcmd;
 }
 
 /* hw scheduler queue config */
@@ -1481,7 +1501,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
 void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff);
 void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
-int iwl_mvm_get_temp(struct iwl_mvm *mvm);
+int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp);
 
 /* Location Aware Regulatory */
 struct iwl_mcc_update_resp *
