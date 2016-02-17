@@ -51,6 +51,7 @@
 #include <linux/neighbour.h>
 #include <uapi/linux/netdevice.h>
 #include <uapi/linux/if_bonding.h>
+#include <uapi/linux/pkt_cls.h>
 
 struct netpoll_info;
 struct device;
@@ -778,6 +779,25 @@ static inline bool netdev_phys_item_id_same(struct netdev_phys_item_id *a,
 typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
 				       struct sk_buff *skb);
 
+/* These structures hold the attributes of qdisc and classifiers
+ * that are being passed to the netdevice through the setup_tc op.
+ */
+enum {
+	TC_SETUP_MQPRIO,
+	TC_SETUP_CLSU32,
+};
+
+struct tc_cls_u32_offload;
+
+struct tc_to_netdev {
+	unsigned int type;
+	union {
+		u8 tc;
+		struct tc_cls_u32_offload *cls_u32;
+	};
+};
+
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -1150,7 +1170,10 @@ struct net_device_ops {
 	int			(*ndo_set_vf_rss_query_en)(
 						   struct net_device *dev,
 						   int vf, bool setting);
-	int			(*ndo_setup_tc)(struct net_device *dev, u8 tc);
+	int			(*ndo_setup_tc)(struct net_device *dev,
+						u32 handle,
+						__be16 protocol,
+						struct tc_to_netdev *tc);
 #if IS_ENABLED(CONFIG_FCOE)
 	int			(*ndo_fcoe_enable)(struct net_device *dev);
 	int			(*ndo_fcoe_disable)(struct net_device *dev);

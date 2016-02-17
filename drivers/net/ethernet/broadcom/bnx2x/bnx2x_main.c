@@ -13061,7 +13061,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
-	.ndo_setup_tc		= bnx2x_setup_tc,
+	.ndo_setup_tc		= __bnx2x_setup_tc,
 #ifdef CONFIG_BNX2X_SRIOV
 	.ndo_set_vf_mac		= bnx2x_set_vf_mac,
 	.ndo_set_vf_vlan	= bnx2x_set_vf_vlan,
