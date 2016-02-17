@@ -652,14 +652,9 @@ static int orangefs_fsync(struct file *file,
 static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 {
 	int ret = -EINVAL;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
-	if (!inode) {
-		gossip_err("orangefs_file_llseek: invalid inode (NULL)\n");
-		return ret;
-	}
-
-	if (origin == ORANGEFS_SEEK_END) {
+	if (origin == SEEK_END) {
 		/*
 		 * revalidate the inode's file size.
 		 * NOTE: We are only interested in file size here,
@@ -674,7 +669,6 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 				     __FILE__,
 				     __func__,
 				     __LINE__);
-			orangefs_make_bad_inode(inode);
 			return ret;
 		}
 	}
@@ -684,7 +678,7 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 		     " | inode size is %lu\n",
 		     (long)offset,
 		     origin,
-		     (unsigned long)file->f_path.dentry->d_inode->i_size);
+		     (unsigned long)i_size_read(inode));
 
 	return generic_file_llseek(file, offset, origin);
 }
