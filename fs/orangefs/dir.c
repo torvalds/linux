@@ -8,11 +8,6 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-struct readdir_handle_s {
-	struct orangefs_readdir_response_s readdir_response;
-	void *dents_buf;
-};
-
 /*
  * decode routine used by kmod to deal with the blob sent from
  * userspace for readdirs. The blob contains zero or more of these
@@ -141,44 +136,6 @@ out:
 	return ret;
 }
 
-static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
-				size_t size)
-{
-	long ret;
-
-	if (buf == NULL) {
-		gossip_err
-		    ("Invalid NULL buffer specified in readdir_handle_ctor\n");
-		return -ENOMEM;
-	}
-	rhandle->dents_buf = buf;
-	ret = decode_dirents(buf, size, &rhandle->readdir_response);
-	if (ret < 0) {
-		gossip_err("Could not decode readdir from buffer %ld\n", ret);
-		gossip_debug(GOSSIP_DIR_DEBUG, "vfree %p\n", buf);
-		vfree(buf);
-		rhandle->dents_buf = NULL;
-	}
-	return ret;
-}
-
-static void readdir_handle_dtor(struct readdir_handle_s *rhandle)
-{
-	if (rhandle == NULL)
-		return;
-
-	/* kfree(NULL) is safe */
-	kfree(rhandle->readdir_response.dirent_array);
-	rhandle->readdir_response.dirent_array = NULL;
-
-	if (rhandle->dents_buf) {
-		gossip_debug(GOSSIP_DIR_DEBUG, "vfree %p\n",
-			     rhandle->dents_buf);
-		vfree(rhandle->dents_buf);
-		rhandle->dents_buf = NULL;
-	}
-}
-
 /*
  * Read directory entries from an instance of an open directory.
  */
@@ -198,7 +155,8 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(dentry->d_inode);
 	int buffer_full = 0;
-	struct readdir_handle_s rhandle;
+	struct orangefs_readdir_response_s readdir_response;
+	void *dents_buf;
 	int i = 0;
 	int len = 0;
 	ino_t current_ino = 0;
@@ -224,8 +182,7 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 		     "orangefs_readdir called on %s (pos=%llu)\n",
 		     dentry->d_name.name, llu(pos));
 
-	rhandle.dents_buf = NULL;
-	memset(&rhandle.readdir_response, 0, sizeof(rhandle.readdir_response));
+	memset(&readdir_response, 0, sizeof(readdir_response));
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_READDIR);
 	if (!new_op)
@@ -278,7 +235,7 @@ get_new_buffer_index:
 	if (ret == -EIO && op_state_purged(new_op)) {
 		gossip_err("%s: Client is down. Aborting readdir call.\n",
 			__func__);
-		goto out_free_op;
+		goto out_slot;
 	}
 
 	if (ret < 0 || new_op->downcall.status != 0) {
@@ -287,18 +244,22 @@ get_new_buffer_index:
 			     new_op->downcall.status);
 		if (ret >= 0)
 			ret = new_op->downcall.status;
-		goto out_free_op;
+		goto out_slot;
 	}
 
-	bytes_decoded =
-		readdir_handle_ctor(&rhandle,
-				    new_op->downcall.trailer_buf,
-				    new_op->downcall.trailer_size);
+	dents_buf = new_op->downcall.trailer_buf;
+	if (dents_buf == NULL) {
+		gossip_err("Invalid NULL buffer in readdir response\n");
+		ret = -ENOMEM;
+		goto out_slot;
+	}
+
+	bytes_decoded = decode_dirents(dents_buf, new_op->downcall.trailer_size,
+					&readdir_response);
 	if (bytes_decoded < 0) {
-		gossip_err("orangefs_readdir: Could not decode trailer buffer into a readdir response %d\n",
-			ret);
 		ret = bytes_decoded;
-		goto out_free_op;
+		gossip_err("Could not decode readdir from buffer %d\n", ret);
+		goto out_vfree;
 	}
 
 	if (bytes_decoded != new_op->downcall.trailer_size) {
@@ -345,14 +306,14 @@ get_new_buffer_index:
 	gossip_debug(GOSSIP_DIR_DEBUG,
 		     "%s: dirent_outcount:%d:\n",
 		     __func__,
-		     rhandle.readdir_response.orangefs_dirent_outcount);
+		     readdir_response.orangefs_dirent_outcount);
 	for (i = ctx->pos;
-	     i < rhandle.readdir_response.orangefs_dirent_outcount;
+	     i < readdir_response.orangefs_dirent_outcount;
 	     i++) {
-		len = rhandle.readdir_response.dirent_array[i].d_length;
-		current_entry = rhandle.readdir_response.dirent_array[i].d_name;
+		len = readdir_response.dirent_array[i].d_length;
+		current_entry = readdir_response.dirent_array[i].d_name;
 		current_ino = orangefs_khandle_to_ino(
-			&(rhandle.readdir_response.dirent_array[i].khandle));
+			&readdir_response.dirent_array[i].khandle);
 
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			     "calling dir_emit for %s with len %d"
@@ -382,14 +343,14 @@ get_new_buffer_index:
 	 * getting another batch...
 	 */
 	if (ret) {
-		*ptoken = rhandle.readdir_response.token;
+		*ptoken = readdir_response.token;
 		ctx->pos = ORANGEFS_ITERATE_NEXT;
 	}
 
 	/*
 	 * Did we hit the end of the directory?
 	 */
-	if (rhandle.readdir_response.token == ORANGEFS_READDIR_END &&
+	if (readdir_response.token == ORANGEFS_READDIR_END &&
 	    !buffer_full) {
 		gossip_debug(GOSSIP_DIR_DEBUG,
 		"End of dir detected; setting ctx->pos to ORANGEFS_READDIR_END.\n");
@@ -397,7 +358,13 @@ get_new_buffer_index:
 	}
 
 out_destroy_handle:
-	readdir_handle_dtor(&rhandle);
+	/* kfree(NULL) is safe */
+	kfree(readdir_response.dirent_array);
+out_vfree:
+	gossip_debug(GOSSIP_DIR_DEBUG, "vfree %p\n", dents_buf);
+	vfree(dents_buf);
+out_slot:
+	orangefs_readdir_index_put(buffer_index);
 out_free_op:
 	op_release(new_op);
 	gossip_debug(GOSSIP_DIR_DEBUG, "orangefs_readdir returning %d\n", ret);
