@@ -9,7 +9,6 @@
 #include "orangefs-bufmap.h"
 
 struct readdir_handle_s {
-	int buffer_index;
 	struct orangefs_readdir_response_s readdir_response;
 	void *dents_buf;
 };
@@ -143,7 +142,7 @@ out:
 }
 
 static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
-				size_t size, int buffer_index)
+				size_t size)
 {
 	long ret;
 
@@ -152,17 +151,10 @@ static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
 		    ("Invalid NULL buffer specified in readdir_handle_ctor\n");
 		return -ENOMEM;
 	}
-	if (buffer_index < 0) {
-		gossip_err
-		    ("Invalid buffer index specified in readdir_handle_ctor\n");
-		return -EINVAL;
-	}
-	rhandle->buffer_index = buffer_index;
 	rhandle->dents_buf = buf;
 	ret = decode_dirents(buf, size, &rhandle->readdir_response);
 	if (ret < 0) {
 		gossip_err("Could not decode readdir from buffer %ld\n", ret);
-		rhandle->buffer_index = -1;
 		gossip_debug(GOSSIP_DIR_DEBUG, "vfree %p\n", buf);
 		vfree(buf);
 		rhandle->dents_buf = NULL;
@@ -179,10 +171,6 @@ static void readdir_handle_dtor(struct readdir_handle_s *rhandle)
 	kfree(rhandle->readdir_response.dirent_array);
 	rhandle->readdir_response.dirent_array = NULL;
 
-	if (rhandle->buffer_index >= 0) {
-		orangefs_readdir_index_put(rhandle->buffer_index);
-		rhandle->buffer_index = -1;
-	}
 	if (rhandle->dents_buf) {
 		gossip_debug(GOSSIP_DIR_DEBUG, "vfree %p\n",
 			     rhandle->dents_buf);
@@ -236,7 +224,6 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 		     "orangefs_readdir called on %s (pos=%llu)\n",
 		     dentry->d_name.name, llu(pos));
 
-	rhandle.buffer_index = -1;
 	rhandle.dents_buf = NULL;
 	memset(&rhandle.readdir_response, 0, sizeof(rhandle.readdir_response));
 
@@ -244,6 +231,10 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 	if (!new_op)
 		return -ENOMEM;
 
+	/*
+	 * Only the indices are shared. No memory is actually shared, but the
+	 * mechanism is used.
+	 */
 	new_op->uses_shared_memory = 1;
 	new_op->upcall.req.readdir.refn = orangefs_inode->refn;
 	new_op->upcall.req.readdir.max_dirent_count =
@@ -274,23 +265,19 @@ get_new_buffer_index:
 		     new_op->downcall.status,
 		     ret);
 
+	orangefs_readdir_index_put(buffer_index);
+
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
-		/*
-		 * readdir shared memory aread has been wiped due to
-		 * pvfs2-client-core restarting, so we must get a new
-		 * index into the shared memory.
-		 */
+		/* Client-core indices are invalid after it restarted. */
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			"%s: Getting new buffer_index for retry of readdir..\n",
 			 __func__);
-		orangefs_readdir_index_put(buffer_index);
 		goto get_new_buffer_index;
 	}
 
 	if (ret == -EIO && op_state_purged(new_op)) {
 		gossip_err("%s: Client is down. Aborting readdir call.\n",
 			__func__);
-		orangefs_readdir_index_put(buffer_index);
 		goto out_free_op;
 	}
 
@@ -298,7 +285,6 @@ get_new_buffer_index:
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			     "Readdir request failed.  Status:%d\n",
 			     new_op->downcall.status);
-		orangefs_readdir_index_put(buffer_index);
 		if (ret >= 0)
 			ret = new_op->downcall.status;
 		goto out_free_op;
@@ -307,13 +293,11 @@ get_new_buffer_index:
 	bytes_decoded =
 		readdir_handle_ctor(&rhandle,
 				    new_op->downcall.trailer_buf,
-				    new_op->downcall.trailer_size,
-				    buffer_index);
+				    new_op->downcall.trailer_size);
 	if (bytes_decoded < 0) {
 		gossip_err("orangefs_readdir: Could not decode trailer buffer into a readdir response %d\n",
 			ret);
 		ret = bytes_decoded;
-		orangefs_readdir_index_put(buffer_index);
 		goto out_free_op;
 	}
 
