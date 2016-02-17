@@ -213,9 +213,7 @@ static void pch_post_disable_crt(struct intel_encoder *encoder)
 
 static void intel_enable_crt(struct intel_encoder *encoder)
 {
-	struct intel_crt *crt = intel_encoder_to_crt(encoder);
-
-	intel_crt_set_dpms(encoder, crt->connector->base.dpms);
+	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
 static enum drm_mode_status
