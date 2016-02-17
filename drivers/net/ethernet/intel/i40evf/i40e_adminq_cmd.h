@@ -34,7 +34,7 @@
  */
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR	0x0004
+#define I40E_FW_API_VERSION_MINOR	0x0005
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -145,6 +145,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_remove_statistics		= 0x0202,
 	i40e_aqc_opc_set_port_parameters	= 0x0203,
 	i40e_aqc_opc_get_switch_resource_alloc	= 0x0204,
+	i40e_aqc_opc_set_switch_config		= 0x0205,
 
 	i40e_aqc_opc_add_vsi			= 0x0210,
 	i40e_aqc_opc_update_vsi_parameters	= 0x0211,
@@ -229,6 +230,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_nvm_config_read		= 0x0704,
 	i40e_aqc_opc_nvm_config_write		= 0x0705,
 	i40e_aqc_opc_oem_post_update		= 0x0720,
+	i40e_aqc_opc_thermal_sensor		= 0x0721,
 
 	/* virtualization commands */
 	i40e_aqc_opc_send_msg_to_pf		= 0x0801,
@@ -680,6 +682,17 @@ struct i40e_aqc_switch_resource_alloc_element_resp {
 
 I40E_CHECK_STRUCT_LEN(0x10, i40e_aqc_switch_resource_alloc_element_resp);
 
+/* Set Switch Configuration (direct 0x0205) */
+struct i40e_aqc_set_switch_config {
+	__le16	flags;
+#define I40E_AQ_SET_SWITCH_CFG_PROMISC		0x0001
+#define I40E_AQ_SET_SWITCH_CFG_L2_FILTER	0x0002
+	__le16	valid_flags;
+	u8	reserved[12];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_set_switch_config);
+
 /* Add VSI (indirect 0x0210)
  *    this indirect command uses struct i40e_aqc_vsi_properties_data
  *    as the indirect buffer (128 bytes)
@@ -906,7 +919,8 @@ struct i40e_aqc_add_veb {
 					I40E_AQC_ADD_VEB_PORT_TYPE_SHIFT)
 #define I40E_AQC_ADD_VEB_PORT_TYPE_DEFAULT	0x2
 #define I40E_AQC_ADD_VEB_PORT_TYPE_DATA		0x4
-#define I40E_AQC_ADD_VEB_ENABLE_L2_FILTER	0x8
+#define I40E_AQC_ADD_VEB_ENABLE_L2_FILTER	0x8     /* deprecated */
+#define I40E_AQC_ADD_VEB_ENABLE_DISABLE_STATS	0x10
 	u8	enable_tcs;
 	u8	reserved[9];
 };
@@ -973,6 +987,7 @@ struct i40e_aqc_add_macvlan_element_data {
 #define I40E_AQC_MACVLAN_ADD_HASH_MATCH		0x0002
 #define I40E_AQC_MACVLAN_ADD_IGNORE_VLAN	0x0004
 #define I40E_AQC_MACVLAN_ADD_TO_QUEUE		0x0008
+#define I40E_AQC_MACVLAN_ADD_USE_SHARED_MAC	0x0010
 	__le16	queue_number;
 #define I40E_AQC_MACVLAN_CMD_QUEUE_SHIFT	0
 #define I40E_AQC_MACVLAN_CMD_QUEUE_MASK		(0x7FF << \
@@ -1261,6 +1276,12 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_NVGRE_OMAC		1
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_GENEVE		2
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_IP			3
+#define I40E_AQC_ADD_CLOUD_TNL_TYPE_RESERVED		4
+#define I40E_AQC_ADD_CLOUD_TNL_TYPE_VXLAN_GPE		5
+
+#define I40E_AQC_ADD_CLOUD_FLAGS_SHARED_OUTER_MAC	0x2000
+#define I40E_AQC_ADD_CLOUD_FLAGS_SHARED_INNER_MAC	0x4000
+#define I40E_AQC_ADD_CLOUD_FLAGS_SHARED_OUTER_IP	0x8000
 
 	__le32	tenant_id;
 	u8	reserved[4];
@@ -1929,6 +1950,22 @@ struct i40e_aqc_nvm_oem_post_update_buffer {
 
 I40E_CHECK_STRUCT_LEN(0x28, i40e_aqc_nvm_oem_post_update_buffer);
 
+/* Thermal Sensor (indirect 0x0721)
+ *     read or set thermal sensor configs and values
+ *     takes a sensor and command specific data buffer, not detailed here
+ */
+struct i40e_aqc_thermal_sensor {
+	u8 sensor_action;
+#define I40E_AQ_THERMAL_SENSOR_READ_CONFIG	0
+#define I40E_AQ_THERMAL_SENSOR_SET_CONFIG	1
+#define I40E_AQ_THERMAL_SENSOR_READ_TEMP	2
+	u8 reserved[7];
+	__le32	addr_high;
+	__le32	addr_low;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_thermal_sensor);
+
 /* Send to PF command (indirect 0x0801) id is only used by PF
  * Send to VF command (indirect 0x0802) id is only used by PF
  * Send to Peer PF command (indirect 0x0803)
@@ -2103,6 +2140,7 @@ struct i40e_aqc_add_udp_tunnel {
 #define I40E_AQC_TUNNEL_TYPE_VXLAN	0x00
 #define I40E_AQC_TUNNEL_TYPE_NGE	0x01
 #define I40E_AQC_TUNNEL_TYPE_TEREDO	0x10
+#define I40E_AQC_TUNNEL_TYPE_VXLAN_GPE	0x11
 	u8	reserved1[10];
 };
 

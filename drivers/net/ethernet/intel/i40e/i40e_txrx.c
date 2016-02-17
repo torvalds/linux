@@ -789,12 +789,20 @@ void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 		if (q_vector->arm_wb_state)
 			return;
 
-		val = I40E_PFINT_DYN_CTLN_WB_ON_ITR_MASK;
+		if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+			val = I40E_PFINT_DYN_CTLN_WB_ON_ITR_MASK |
+			      I40E_PFINT_DYN_CTLN_ITR_INDX_MASK; /* set noitr */
 
-		wr32(&vsi->back->hw,
-		     I40E_PFINT_DYN_CTLN(q_vector->v_idx +
-					 vsi->base_vector - 1),
-		     val);
+			wr32(&vsi->back->hw,
+			     I40E_PFINT_DYN_CTLN(q_vector->v_idx +
+						 vsi->base_vector - 1),
+			     val);
+		} else {
+			val = I40E_PFINT_DYN_CTL0_WB_ON_ITR_MASK |
+			      I40E_PFINT_DYN_CTL0_ITR_INDX_MASK; /* set noitr */
+
+			wr32(&vsi->back->hw, I40E_PFINT_DYN_CTL0, val);
+		}
 		q_vector->arm_wb_state = true;
 	} else if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
 		u32 val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
