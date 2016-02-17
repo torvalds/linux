@@ -116,10 +116,10 @@ static int send_pcc_cmd(u16 cmd)
 	}
 
 	/* Write to the shared comm region. */
-	writew(cmd, &generic_comm_base->command);
+	writew_relaxed(cmd, &generic_comm_base->command);
 
 	/* Flip CMD COMPLETE bit */
-	writew(0, &generic_comm_base->status);
+	writew_relaxed(0, &generic_comm_base->status);
 
 	/* Ring doorbell */
 	ret = mbox_send_message(pcc_channel, &cmd);
@@ -601,16 +601,16 @@ static int cpc_read(struct cpc_reg *reg, u64 *val)
 
 		switch (reg->bit_width) {
 		case 8:
-			*val = readb(vaddr);
+			*val = readb_relaxed(vaddr);
 			break;
 		case 16:
-			*val = readw(vaddr);
+			*val = readw_relaxed(vaddr);
 			break;
 		case 32:
-			*val = readl(vaddr);
+			*val = readl_relaxed(vaddr);
 			break;
 		case 64:
-			*val = readq(vaddr);
+			*val = readq_relaxed(vaddr);
 			break;
 		default:
 			pr_debug("Error: Cannot read %u bit width from PCC\n",
@@ -632,16 +632,16 @@ static int cpc_write(struct cpc_reg *reg, u64 val)
 
 		switch (reg->bit_width) {
 		case 8:
-			writeb(val, vaddr);
+			writeb_relaxed(val, vaddr);
 			break;
 		case 16:
-			writew(val, vaddr);
+			writew_relaxed(val, vaddr);
 			break;
 		case 32:
-			writel(val, vaddr);
+			writel_relaxed(val, vaddr);
 			break;
 		case 64:
-			writeq(val, vaddr);
+			writeq_relaxed(val, vaddr);
 			break;
 		default:
 			pr_debug("Error: Cannot write %u bit width to PCC\n",
