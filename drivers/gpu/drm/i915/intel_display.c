@@ -12304,7 +12304,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			      pipe_config->dpll_hw_state.cfgcr1,
 			      pipe_config->dpll_hw_state.cfgcr2);
 	} else if (HAS_DDI(dev)) {
-		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
+		DRM_DEBUG_KMS("ddi_pll_sel: 0x%x; dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
 			      pipe_config->ddi_pll_sel,
 			      pipe_config->dpll_hw_state.wrpll,
 			      pipe_config->dpll_hw_state.spll);
