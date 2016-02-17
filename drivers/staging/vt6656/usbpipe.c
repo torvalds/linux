@@ -116,7 +116,7 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 		break;
 	}
 
-	if (status != STATUS_SUCCESS) {
+	if (status) {
 		priv->int_buf.in_use = false;
 
 		dev_dbg(&priv->usb->dev, "%s status = %d\n", __func__, status);
@@ -221,7 +221,7 @@ int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb)
 			  rcb);
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status != 0) {
+	if (status) {
 		dev_dbg(&priv->usb->dev, "Submit Rx URB failed %d\n", status);
 		return STATUS_FAILURE;
 	}
@@ -282,7 +282,7 @@ int vnt_tx_context(struct vnt_private *priv,
 			  context);
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status != 0) {
+	if (status) {
 		dev_dbg(&priv->usb->dev, "Submit Tx URB failed %d\n", status);
 
 		context->in_use = false;
