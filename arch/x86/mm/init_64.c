@@ -1074,7 +1074,6 @@ void __init mem_init(void)
 	mem_init_print_info(NULL);
 }
 
-#ifdef CONFIG_DEBUG_RODATA
 const int rodata_test_data = 0xC3;
 EXPORT_SYMBOL_GPL(rodata_test_data);
 
@@ -1165,8 +1164,6 @@ void mark_rodata_ro(void)
 
 	debug_checkwx();
 }
-
-#endif
 
 int kern_addr_valid(unsigned long addr)
 {
