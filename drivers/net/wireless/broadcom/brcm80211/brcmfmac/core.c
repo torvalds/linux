@@ -38,10 +38,6 @@
 #include "pcie.h"
 #include "common.h"
 
-MODULE_AUTHOR("Broadcom Corporation");
-MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
-MODULE_LICENSE("Dual BSD/GPL");
-
 #define MAX_WAIT_FOR_8021X_TX			msecs_to_jiffies(950)
 
 /* AMPDU rx reordering definitions */
@@ -1422,19 +1418,15 @@ static void brcmf_driver_register(struct work_struct *work)
 }
 static DECLARE_WORK(brcmf_driver_work, brcmf_driver_register);
 
-static int __init brcmfmac_module_init(void)
+int __init brcmf_core_init(void)
 {
-	brcmf_debugfs_init();
-#ifdef CONFIG_BRCMFMAC_SDIO
-	brcmf_sdio_init();
-#endif
 	if (!schedule_work(&brcmf_driver_work))
 		return -EBUSY;
 
 	return 0;
 }
 
-static void __exit brcmfmac_module_exit(void)
+void __exit brcmf_core_exit(void)
 {
 	cancel_work_sync(&brcmf_driver_work);
 
@@ -1447,8 +1439,5 @@ static void __exit brcmfmac_module_exit(void)
 #ifdef CONFIG_BRCMFMAC_PCIE
 	brcmf_pcie_exit();
 #endif
-	brcmf_debugfs_exit();
 }
 
-module_init(brcmfmac_module_init);
-module_exit(brcmfmac_module_exit);

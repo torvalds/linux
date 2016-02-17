@@ -89,7 +89,6 @@ struct brcmf_mp_device {
 	struct cc_translate *country_codes;
 };
 
-void brcmf_mp_attach(void);
 int brcmf_mp_device_attach(struct brcmf_pub *drvr);
 void brcmf_mp_device_detach(struct brcmf_pub *drvr);
 #ifdef DEBUG

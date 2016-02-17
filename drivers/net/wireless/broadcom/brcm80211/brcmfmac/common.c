@@ -28,6 +28,10 @@
 #include "tracepoint.h"
 #include "common.h"
 
+MODULE_AUTHOR("Broadcom Corporation");
+MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
+MODULE_LICENSE("Dual BSD/GPL");
+
 const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
@@ -221,7 +225,7 @@ void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 }
 #endif
 
-void brcmf_mp_attach(void)
+static void brcmf_mp_attach(void)
 {
 	strlcpy(brcmf_mp_global.firmware_path, brcmf_firmware_path,
 		BRCMF_FW_ALTPATH_LEN);
@@ -248,4 +252,34 @@ void brcmf_mp_device_detach(struct brcmf_pub *drvr)
 {
 	kfree(drvr->settings);
 }
+
+static int __init brcmfmac_module_init(void)
+{
+	int err;
+
+	/* Initialize debug system first */
+	brcmf_debugfs_init();
+
+#ifdef CONFIG_BRCMFMAC_SDIO
+	brcmf_sdio_init();
+#endif
+	/* Initialize global module paramaters */
+	brcmf_mp_attach();
+
+	/* Continue the initialization by registering the different busses */
+	err = brcmf_core_init();
+	if (err)
+		brcmf_debugfs_exit();
+
+	return err;
+}
+
+static void __exit brcmfmac_module_exit(void)
+{
+	brcmf_core_exit();
+	brcmf_debugfs_exit();
+}
+
+module_init(brcmfmac_module_init);
+module_exit(brcmfmac_module_exit);
 
