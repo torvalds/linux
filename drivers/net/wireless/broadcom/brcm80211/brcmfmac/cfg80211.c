@@ -2073,84 +2073,34 @@ done:
 }
 
 static s32
-brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
-	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
+brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
+		       u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_wsec_key key;
 	s32 err = 0;
-	u8 keybuf[8];
+
+	brcmf_dbg(TRACE, "Enter\n");
+	if (!check_vif_up(ifp->vif))
+		return -EIO;
+
+	if (key_idx >= BRCMF_MAX_DEFAULT_KEYS) {
+		/* we ignore this key index in this case */
+		return -EINVAL;
+	}
 
 	memset(&key, 0, sizeof(key));
-	key.index = (u32) key_idx;
-	/* Instead of bcast for ea address for default wep keys,
-		 driver needs it to be Null */
-	if (!is_multicast_ether_addr(mac_addr))
-		memcpy((char *)&key.ea, (void *)mac_addr, ETH_ALEN);
-	key.len = (u32) params->key_len;
-	/* check for key index change */
-	if (key.len == 0) {
-		/* key delete */
-		err = send_key_to_dongle(ifp, &key);
-		if (err)
-			brcmf_err("key delete error (%d)\n", err);
-	} else {
-		if (key.len > sizeof(key.data)) {
-			brcmf_err("Invalid key length (%d)\n", key.len);
-			return -EINVAL;
-		}
 
-		brcmf_dbg(CONN, "Setting the key index %d\n", key.index);
-		memcpy(key.data, params->key, key.len);
+	key.index = (u32)key_idx;
+	key.flags = BRCMF_PRIMARY_KEY;
+	key.algo = CRYPTO_ALGO_OFF;
 
-		if (!brcmf_is_apmode(ifp->vif) &&
-		    (params->cipher == WLAN_CIPHER_SUITE_TKIP)) {
-			brcmf_dbg(CONN, "Swapping RX/TX MIC key\n");
-			memcpy(keybuf, &key.data[24], sizeof(keybuf));
-			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
-			memcpy(&key.data[16], keybuf, sizeof(keybuf));
-		}
+	brcmf_dbg(CONN, "key index (%d)\n", key_idx);
 
-		/* if IW_ENCODE_EXT_RX_SEQ_VALID set */
-		if (params->seq && params->seq_len == 6) {
-			/* rx iv */
-			u8 *ivptr;
-			ivptr = (u8 *) params->seq;
-			key.rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
-			    (ivptr[3] << 8) | ivptr[2];
-			key.rxiv.lo = (ivptr[1] << 8) | ivptr[0];
-			key.iv_initialized = true;
-		}
+	/* Set the new key/index */
+	err = send_key_to_dongle(ifp, &key);
 
-		switch (params->cipher) {
-		case WLAN_CIPHER_SUITE_WEP40:
-			key.algo = CRYPTO_ALGO_WEP1;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_WEP40\n");
-			break;
-		case WLAN_CIPHER_SUITE_WEP104:
-			key.algo = CRYPTO_ALGO_WEP128;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_WEP104\n");
-			break;
-		case WLAN_CIPHER_SUITE_TKIP:
-			key.algo = CRYPTO_ALGO_TKIP;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_TKIP\n");
-			break;
-		case WLAN_CIPHER_SUITE_AES_CMAC:
-			key.algo = CRYPTO_ALGO_AES_CCM;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_AES_CMAC\n");
-			break;
-		case WLAN_CIPHER_SUITE_CCMP:
-			key.algo = CRYPTO_ALGO_AES_CCM;
-			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_CCMP\n");
-			break;
-		default:
-			brcmf_err("Invalid cipher (0x%x)\n", params->cipher);
-			return -EINVAL;
-		}
-		err = send_key_to_dongle(ifp, &key);
-		if (err)
-			brcmf_err("wsec_key error (%d)\n", err);
-	}
+	brcmf_dbg(TRACE, "Exit\n");
 	return err;
 }
 
@@ -2163,8 +2113,9 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_wsec_key *key;
 	s32 val;
 	s32 wsec;
-	s32 err = 0;
+	s32 err;
 	u8 keybuf[8];
+	bool ext_key;
 
 	brcmf_dbg(TRACE, "Enter\n");
 	brcmf_dbg(CONN, "key index (%d)\n", key_idx);
@@ -2177,27 +2128,32 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		return -EINVAL;
 	}
 
-	if (mac_addr &&
-		(params->cipher != WLAN_CIPHER_SUITE_WEP40) &&
-		(params->cipher != WLAN_CIPHER_SUITE_WEP104)) {
-		brcmf_dbg(TRACE, "Exit");
-		return brcmf_add_keyext(wiphy, ndev, key_idx, mac_addr, params);
+	if (params->key_len == 0)
+		return brcmf_cfg80211_del_key(wiphy, ndev, key_idx, pairwise,
+					      mac_addr);
+
+	if (params->key_len > sizeof(key->data)) {
+		brcmf_err("Too long key length (%u)\n", params->key_len);
+		return -EINVAL;
+	}
+
+	ext_key = false;
+	if (mac_addr && (params->cipher != WLAN_CIPHER_SUITE_WEP40) &&
+	    (params->cipher != WLAN_CIPHER_SUITE_WEP104)) {
+		brcmf_dbg(TRACE, "Ext key, mac %pM", mac_addr);
+		ext_key = true;
 	}
 
 	key = &ifp->vif->profile.key[key_idx];
 	memset(key, 0, sizeof(*key));
-
-	if (params->key_len > sizeof(key->data)) {
-		brcmf_err("Too long key length (%u)\n", params->key_len);
-		err = -EINVAL;
-		goto done;
-	}
+	if ((ext_key) && (!is_multicast_ether_addr(mac_addr)))
+		memcpy((char *)&key->ea, (void *)mac_addr, ETH_ALEN);
 	key->len = params->key_len;
 	key->index = key_idx;
-
 	memcpy(key->data, params->key, key->len);
+	if (!ext_key)
+		key->flags = BRCMF_PRIMARY_KEY;
 
-	key->flags = BRCMF_PRIMARY_KEY;
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 		key->algo = CRYPTO_ALGO_WEP1;
@@ -2237,7 +2193,7 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	err = send_key_to_dongle(ifp, key);
-	if (err)
+	if (ext_key || err)
 		goto done;
 
 	err = brcmf_fil_bsscfg_int_get(ifp, "wsec", &wsec);
@@ -2253,38 +2209,6 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 done:
-	brcmf_dbg(TRACE, "Exit\n");
-	return err;
-}
-
-static s32
-brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
-		    u8 key_idx, bool pairwise, const u8 *mac_addr)
-{
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_wsec_key key;
-	s32 err = 0;
-
-	brcmf_dbg(TRACE, "Enter\n");
-	if (!check_vif_up(ifp->vif))
-		return -EIO;
-
-	if (key_idx >= BRCMF_MAX_DEFAULT_KEYS) {
-		/* we ignore this key index in this case */
-		return -EINVAL;
-	}
-
-	memset(&key, 0, sizeof(key));
-
-	key.index = (u32) key_idx;
-	key.flags = BRCMF_PRIMARY_KEY;
-	key.algo = CRYPTO_ALGO_OFF;
-
-	brcmf_dbg(CONN, "key index (%d)\n", key_idx);
-
-	/* Set the new key/index */
-	err = send_key_to_dongle(ifp, &key);
-
 	brcmf_dbg(TRACE, "Exit\n");
 	return err;
 }
