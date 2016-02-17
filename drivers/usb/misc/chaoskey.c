@@ -73,6 +73,8 @@ static const struct usb_device_id chaoskey_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, chaoskey_table);
 
+static void chaos_read_callback(struct urb *urb);
+
 /* Driver-local specific stuff */
 struct chaoskey {
 	struct usb_interface *interface;
@@ -80,7 +82,8 @@ struct chaoskey {
 	struct mutex lock;
 	struct mutex rng_lock;
 	int open;			/* open count */
-	int present;			/* device not disconnected */
+	bool present;			/* device not disconnected */
+	bool reading;			/* ongoing IO */
 	int size;			/* size of buf */
 	int valid;			/* bytes of buf read */
 	int used;			/* bytes of buf consumed */
@@ -88,6 +91,7 @@ struct chaoskey {
 	struct hwrng hwrng;		/* Embedded struct for hwrng */
 	int hwrng_registered;		/* registered with hwrng API */
 	wait_queue_head_t wait_q;	/* for timeouts */
+	struct urb *urb;		/* for performing IO */
 	char *buf;
 };
 
@@ -95,6 +99,7 @@ static void chaoskey_free(struct chaoskey *dev)
 {
 	if (dev) {
 		usb_dbg(dev->interface, "free");
+		usb_free_urb(dev->urb);
 		kfree(dev->name);
 		kfree(dev->buf);
 		kfree(dev);
@@ -150,6 +155,19 @@ static int chaoskey_probe(struct usb_interface *interface,
 
 	if (dev->buf == NULL)
 		goto out;
+
+	dev->urb = usb_alloc_urb(0, GFP_KERNEL);
+
+	if (!dev->urb)
+		goto out;
+
+	usb_fill_bulk_urb(dev->urb,
+		udev,
+		usb_rcvbulkpipe(udev, in_ep),
+		dev->buf,
+		size,
+		chaos_read_callback,
+		dev);
 
 	/* Construct a name using the product and serial values. Each
 	 * device needs a unique name for the hwrng code
@@ -237,6 +255,7 @@ static void chaoskey_disconnect(struct usb_interface *interface)
 	mutex_lock(&dev->lock);
 
 	dev->present = 0;
+	usb_poison_urb(dev->urb);
 
 	if (!dev->open) {
 		mutex_unlock(&dev->lock);
@@ -311,14 +330,33 @@ static int chaoskey_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static void chaos_read_callback(struct urb *urb)
+{
+	struct chaoskey *dev = urb->context;
+	int status = urb->status;
+
+	usb_dbg(dev->interface, "callback status (%d)", status);
+
+	if (status == 0)
+		dev->valid = urb->actual_length;
+	else
+		dev->valid = 0;
+
+	dev->used = 0;
+
+	/* must be seen first before validity is announced */
+	smp_wmb();
+
+	dev->reading = false;
+	wake_up(&dev->wait_q);
+}
+
 /* Fill the buffer. Called with dev->lock held
  */
 static int _chaoskey_fill(struct chaoskey *dev)
 {
 	DEFINE_WAIT(wait);
 	int result;
-	int this_read;
-	struct usb_device *udev = interface_to_usbdev(dev->interface);
 
 	usb_dbg(dev->interface, "fill");
 
@@ -343,21 +381,31 @@ static int _chaoskey_fill(struct chaoskey *dev)
 		return result;
 	}
 
-	result = usb_bulk_msg(udev,
-			      usb_rcvbulkpipe(udev, dev->in_ep),
-			      dev->buf, dev->size, &this_read,
-			      NAK_TIMEOUT);
+	dev->reading = true;
+	result = usb_submit_urb(dev->urb, GFP_KERNEL);
+	if (result < 0) {
+		result = usb_translate_errors(result);
+		dev->reading = false;
+		goto out;
+	}
 
+	result = wait_event_interruptible_timeout(
+		dev->wait_q,
+		!dev->reading,
+		NAK_TIMEOUT);
+
+	if (result < 0)
+		goto out;
+
+	if (result == 0)
+		result = -ETIMEDOUT;
+	else
+		result = dev->valid;
+out:
 	/* Let the device go back to sleep eventually */
 	usb_autopm_put_interface(dev->interface);
 
-	if (result == 0) {
-		dev->valid = this_read;
-		dev->used = 0;
-	}
-
-	usb_dbg(dev->interface, "bulk_msg result %d this_read %d",
-		result, this_read);
+	usb_dbg(dev->interface, "read %d bytes", dev->valid);
 
 	return result;
 }
@@ -395,13 +443,7 @@ static ssize_t chaoskey_read(struct file *file,
 			goto bail;
 		if (dev->valid == dev->used) {
 			result = _chaoskey_fill(dev);
-			if (result) {
-				mutex_unlock(&dev->lock);
-				goto bail;
-			}
-
-			/* Read returned zero bytes */
-			if (dev->used == dev->valid) {
+			if (result < 0) {
 				mutex_unlock(&dev->lock);
 				goto bail;
 			}
@@ -435,6 +477,8 @@ bail:
 		return read_count;
 	}
 	usb_dbg(dev->interface, "empty read, result %d", result);
+	if (result == -ETIMEDOUT)
+		result = -EAGAIN;
 	return result;
 }
 
