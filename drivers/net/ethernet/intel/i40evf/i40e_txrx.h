@@ -327,6 +327,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget);
 void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector);
 u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw);
 int __i40evf_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
+bool __i40evf_chk_linearize(struct sk_buff *skb);
 
 /**
  * i40e_get_head - Retrieve head from head writeback
@@ -381,5 +382,23 @@ static inline int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 	if (likely(I40E_DESC_UNUSED(tx_ring) >= size))
 		return 0;
 	return __i40evf_maybe_stop_tx(tx_ring, size);
+}
+
+/**
+ * i40e_chk_linearize - Check if there are more than 8 fragments per packet
+ * @skb:      send buffer
+ * @count:    number of buffers used
+ *
+ * Note: Our HW can't scatter-gather more than 8 fragments to build
+ * a packet on the wire and so we need to figure out the cases where we
+ * need to linearize the skb.
+ **/
+static inline bool i40e_chk_linearize(struct sk_buff *skb, int count)
+{
+	/* we can only support up to 8 data buffers for a single send */
+	if (likely(count <= I40E_MAX_BUFFER_TXD))
+		return false;
+
+	return __i40evf_chk_linearize(skb);
 }
 #endif /* _I40E_TXRX_H_ */

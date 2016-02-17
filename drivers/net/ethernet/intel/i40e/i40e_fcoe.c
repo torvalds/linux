@@ -1368,6 +1368,12 @@ static netdev_tx_t i40e_fcoe_xmit_frame(struct sk_buff *skb,
 		goto out_drop;
 
 	count = i40e_xmit_descriptor_count(skb);
+	if (i40e_chk_linearize(skb, count)) {
+		if (__skb_linearize(skb))
+			goto out_drop;
+		count = TXD_USE_COUNT(skb->len);
+		tx_ring->tx_stats.tx_linearize++;
+	}
 
 	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
 	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,

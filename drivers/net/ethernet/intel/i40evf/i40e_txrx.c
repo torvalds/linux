@@ -1796,59 +1796,71 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 }
 
 /**
- * i40e_chk_linearize - Check if there are more than 8 fragments per packet
+ * __i40evf_chk_linearize - Check if there are more than 8 fragments per packet
  * @skb:      send buffer
- * @tx_flags: collected send information
  *
  * Note: Our HW can't scatter-gather more than 8 fragments to build
  * a packet on the wire and so we need to figure out the cases where we
  * need to linearize the skb.
  **/
-static bool i40e_chk_linearize(struct sk_buff *skb, u32 tx_flags)
+bool __i40evf_chk_linearize(struct sk_buff *skb)
 {
-	struct skb_frag_struct *frag;
-	bool linearize = false;
-	unsigned int size = 0;
-	u16 num_frags;
-	u16 gso_segs;
+	const struct skb_frag_struct *frag, *stale;
+	int gso_size, nr_frags, sum;
 
-	num_frags = skb_shinfo(skb)->nr_frags;
-	gso_segs = skb_shinfo(skb)->gso_segs;
+	/* check to see if TSO is enabled, if so we may get a repreive */
+	gso_size = skb_shinfo(skb)->gso_size;
+	if (unlikely(!gso_size))
+		return true;
 
-	if (tx_flags & (I40E_TX_FLAGS_TSO | I40E_TX_FLAGS_FSO)) {
-		u16 j = 0;
+	/* no need to check if number of frags is less than 8 */
+	nr_frags = skb_shinfo(skb)->nr_frags;
+	if (nr_frags < I40E_MAX_BUFFER_TXD)
+		return false;
 
-		if (num_frags < (I40E_MAX_BUFFER_TXD))
-			goto linearize_chk_done;
-		/* try the simple math, if we have too many frags per segment */
-		if (DIV_ROUND_UP((num_frags + gso_segs), gso_segs) >
-		    I40E_MAX_BUFFER_TXD) {
-			linearize = true;
-			goto linearize_chk_done;
-		}
-		frag = &skb_shinfo(skb)->frags[0];
-		/* we might still have more fragments per segment */
-		do {
-			size += skb_frag_size(frag);
-			frag++; j++;
-			if ((size >= skb_shinfo(skb)->gso_size) &&
-			    (j < I40E_MAX_BUFFER_TXD)) {
-				size = (size % skb_shinfo(skb)->gso_size);
-				j = (size) ? 1 : 0;
-			}
-			if (j == I40E_MAX_BUFFER_TXD) {
-				linearize = true;
-				break;
-			}
-			num_frags--;
-		} while (num_frags);
-	} else {
-		if (num_frags >= I40E_MAX_BUFFER_TXD)
-			linearize = true;
+	/* We need to walk through the list and validate that each group
+	 * of 6 fragments totals at least gso_size.  However we don't need
+	 * to perform such validation on the first or last 6 since the first
+	 * 6 cannot inherit any data from a descriptor before them, and the
+	 * last 6 cannot inherit any data from a descriptor after them.
+	 */
+	nr_frags -= I40E_MAX_BUFFER_TXD - 1;
+	frag = &skb_shinfo(skb)->frags[0];
+
+	/* Initialize size to the negative value of gso_size minus 1.  We
+	 * use this as the worst case scenerio in which the frag ahead
+	 * of us only provides one byte which is why we are limited to 6
+	 * descriptors for a single transmit as the header and previous
+	 * fragment are already consuming 2 descriptors.
+	 */
+	sum = 1 - gso_size;
+
+	/* Add size of frags 1 through 5 to create our initial sum */
+	sum += skb_frag_size(++frag);
+	sum += skb_frag_size(++frag);
+	sum += skb_frag_size(++frag);
+	sum += skb_frag_size(++frag);
+	sum += skb_frag_size(++frag);
+
+	/* Walk through fragments adding latest fragment, testing it, and
+	 * then removing stale fragments from the sum.
+	 */
+	stale = &skb_shinfo(skb)->frags[0];
+	for (;;) {
+		sum += skb_frag_size(++frag);
+
+		/* if sum is negative we failed to make sufficient progress */
+		if (sum < 0)
+			return true;
+
+		/* use pre-decrement to avoid processing last fragment */
+		if (!--nr_frags)
+			break;
+
+		sum -= skb_frag_size(++stale);
 	}
 
-linearize_chk_done:
-	return linearize;
+	return false;
 }
 
 /**
@@ -2095,6 +2107,12 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	prefetch(skb->data);
 
 	count = i40e_xmit_descriptor_count(skb);
+	if (i40e_chk_linearize(skb, count)) {
+		if (__skb_linearize(skb))
+			goto out_drop;
+		count = TXD_USE_COUNT(skb->len);
+		tx_ring->tx_stats.tx_linearize++;
+	}
 
 	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
 	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,
@@ -2130,11 +2148,6 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	else if (tso)
 		tx_flags |= I40E_TX_FLAGS_TSO;
 
-	if (i40e_chk_linearize(skb, tx_flags)) {
-		if (skb_linearize(skb))
-			goto out_drop;
-		tx_ring->tx_stats.tx_linearize++;
-	}
 	skb_tx_timestamp(skb);
 
 	/* always enable CRC insertion offload */
