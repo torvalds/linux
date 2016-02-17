@@ -233,7 +233,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	 * phys_efi_set_virtual_address_map().
 	 */
 	pfn = pa_memmap >> PAGE_SHIFT;
-	if (kernel_map_pages_in_pgd(pgd, pfn, pa_memmap, num_pages, _PAGE_NX)) {
+	if (kernel_map_pages_in_pgd(pgd, pfn, pa_memmap, num_pages, _PAGE_NX | _PAGE_RW)) {
 		pr_err("Error ident-mapping new memmap (0x%lx)!\n", pa_memmap);
 		return 1;
 	}
@@ -262,7 +262,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 		pfn = md->phys_addr >> PAGE_SHIFT;
 		npages = md->num_pages;
 
-		if (kernel_map_pages_in_pgd(pgd, pfn, md->phys_addr, npages, 0)) {
+		if (kernel_map_pages_in_pgd(pgd, pfn, md->phys_addr, npages, _PAGE_RW)) {
 			pr_err("Failed to map 1:1 memory\n");
 			return 1;
 		}
@@ -279,7 +279,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	text = __pa(_text);
 	pfn = text >> PAGE_SHIFT;
 
-	if (kernel_map_pages_in_pgd(pgd, pfn, text, npages, 0)) {
+	if (kernel_map_pages_in_pgd(pgd, pfn, text, npages, _PAGE_RW)) {
 		pr_err("Failed to map kernel text 1:1\n");
 		return 1;
 	}
@@ -294,7 +294,7 @@ void __init efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 
 static void __init __map_region(efi_memory_desc_t *md, u64 va)
 {
-	unsigned long flags = 0;
+	unsigned long flags = _PAGE_RW;
 	unsigned long pfn;
 	pgd_t *pgd = efi_pgd;
 
