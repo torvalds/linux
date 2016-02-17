@@ -1571,6 +1571,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	as->use_cs_gpios = true;
 	if (atmel_spi_is_v2(as) &&
+	    pdev->dev.of_node &&
 	    !of_get_property(pdev->dev.of_node, "cs-gpios", NULL)) {
 		as->use_cs_gpios = false;
 		master->num_chipselect = 4;

@@ -211,7 +211,11 @@ debug_marker_syscall:
 ; (since IRQ NOT allowed in DS in ARCv2, this can only happen if orig
 ; entry was via Exception in DS which got preempted in kernel).
 ;
-; IRQ RTIE won't reliably restore DE bit and/or BTA, needs handling
+; IRQ RTIE won't reliably restore DE bit and/or BTA, needs workaround
+;
+; Solution is return from Intr w/o any delay slot quirks into a kernel trampoline
+; and from pure kernel mode return to delay slot which handles DS bit/BTA correctly
+
 .Lintr_ret_to_delay_slot:
 debug_marker_ds:
 
@@ -222,18 +226,23 @@ debug_marker_ds:
 	ld	r2, [sp, PT_ret]
 	ld	r3, [sp, PT_status32]
 
+	; STAT32 for Int return created from scratch
+	; (No delay dlot, disable Further intr in trampoline)
+
 	bic  	r0, r3, STATUS_U_MASK|STATUS_DE_MASK|STATUS_IE_MASK|STATUS_L_MASK
 	st	r0, [sp, PT_status32]
 
 	mov	r1, .Lintr_ret_to_delay_slot_2
 	st	r1, [sp, PT_ret]
 
+	; Orig exception PC/STAT32 safekept @orig_r0 and @event stack slots
 	st	r2, [sp, 0]
 	st	r3, [sp, 4]
 
 	b	.Lisr_ret_fast_path
 
 .Lintr_ret_to_delay_slot_2:
+	; Trampoline to restore orig exception PC/STAT32/BTA/AUX_USER_SP
 	sub	sp, sp, SZ_PT_REGS
 	st	r9, [sp, -4]
 
@@ -243,11 +252,19 @@ debug_marker_ds:
 	ld	r9, [sp, 4]
 	sr	r9, [erstatus]
 
+	; restore AUX_USER_SP if returning to U mode
+	bbit0	r9, STATUS_U_BIT, 1f
+	ld	r9, [sp, PT_sp]
+	sr	r9, [AUX_USER_SP]
+
+1:
 	ld	r9, [sp, 8]
 	sr	r9, [erbta]
 
 	ld	r9, [sp, -4]
 	add	sp, sp, SZ_PT_REGS
+
+	; return from pure kernel mode to delay slot
 	rtie
 
 END(ret_from_exception)

@@ -322,6 +322,8 @@ int ib_ud_header_init(int     payload_bytes,
 		      int    immediate_present,
 		      struct ib_ud_header *header)
 {
+	size_t udp_bytes = udp_present ? IB_UDP_BYTES : 0;
+
 	grh_present = grh_present && !ip_version;
 	memset(header, 0, sizeof *header);
 
@@ -353,7 +355,8 @@ int ib_ud_header_init(int     payload_bytes,
 	if (ip_version == 6 || grh_present) {
 		header->grh.ip_version      = 6;
 		header->grh.payload_length  =
-			cpu_to_be16((IB_BTH_BYTES     +
+			cpu_to_be16((udp_bytes        +
+				     IB_BTH_BYTES     +
 				     IB_DETH_BYTES    +
 				     payload_bytes    +
 				     4                + /* ICRC     */
@@ -362,8 +365,6 @@ int ib_ud_header_init(int     payload_bytes,
 	}
 
 	if (ip_version == 4) {
-		int udp_bytes = udp_present ? IB_UDP_BYTES : 0;
-
 		header->ip4.ver = 4; /* version 4 */
 		header->ip4.hdr_len = 5; /* 5 words */
 		header->ip4.tot_len =

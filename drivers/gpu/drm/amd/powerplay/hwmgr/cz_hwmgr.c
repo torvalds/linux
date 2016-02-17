@@ -174,6 +174,8 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	uint32_t i;
+	struct cgs_system_info sys_info = {0};
+	int result;
 
 	cz_hwmgr->gfx_ramp_step = 256*25/100;
 
@@ -246,6 +248,22 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				   PHM_PlatformCaps_DisableVoltageIsland);
+
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+		      PHM_PlatformCaps_UVDPowerGating);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+		      PHM_PlatformCaps_VCEPowerGating);
+	sys_info.size = sizeof(struct cgs_system_info);
+	sys_info.info_id = CGS_SYSTEM_INFO_PG_FLAGS;
+	result = cgs_query_system_info(hwmgr->device, &sys_info);
+	if (!result) {
+		if (sys_info.value & AMD_PG_SUPPORT_UVD)
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				      PHM_PlatformCaps_UVDPowerGating);
+		if (sys_info.value & AMD_PG_SUPPORT_VCE)
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				      PHM_PlatformCaps_VCEPowerGating);
+	}
 
 	return 0;
 }

@@ -590,8 +590,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pixcir_ts_pins>;
 		reg = <0x5c>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <22 0>;
 
 		attb-gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 
@@ -599,7 +597,7 @@
 		 * 0x264 represents the offset of padconf register of
 		 * gpio3_22 from am43xx_pinmux base.
 		 */
-		interrupts-extended = <&gpio3 22 IRQ_TYPE_NONE>,
+		interrupts-extended = <&gpio3 22 IRQ_TYPE_EDGE_FALLING>,
 				      <&am43xx_pinmux 0x264>;
 		interrupt-names = "tsc", "wakeup";
 

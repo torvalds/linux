@@ -880,7 +880,7 @@ static int acpi_lpss_platform_notify(struct notifier_block *nb,
 		break;
 	case BUS_NOTIFY_DRIVER_NOT_BOUND:
 	case BUS_NOTIFY_UNBOUND_DRIVER:
-		pdev->dev.pm_domain = NULL;
+		dev_pm_domain_set(&pdev->dev, NULL);
 		break;
 	case BUS_NOTIFY_ADD_DEVICE:
 		dev_pm_domain_set(&pdev->dev, &acpi_lpss_pm_domain);
