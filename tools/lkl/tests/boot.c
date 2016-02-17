@@ -635,6 +635,23 @@ static int test_mutex(char *str, int len)
 	return ret;
 }
 
+static int test_semaphore(char *str, int len)
+{
+	long ret = TEST_SUCCESS;
+	/* Can't do much to verify that this works, so we'll just let
+	 * Valgrind warn us on CI if we've made bad memory
+	 * accesses. */
+
+	struct lkl_sem_t *sem = lkl_host_ops.sem_alloc(1);
+	lkl_host_ops.sem_down(sem);
+	lkl_host_ops.sem_up(sem);
+	lkl_host_ops.sem_free(sem);
+
+	snprintf(str, len, "%ld", ret);
+
+	return ret;
+}
+
 static int test_gettid(char *str, int len)
 {
 	long tid = lkl_host_ops.gettid();
@@ -754,6 +771,7 @@ int main(int argc, char **argv)
 	TEST(umount);
 	TEST(lo_ifup);
 	TEST(mutex);
+	TEST(semaphore);
 	TEST(gettid);
 
 	lkl_sys_halt();
