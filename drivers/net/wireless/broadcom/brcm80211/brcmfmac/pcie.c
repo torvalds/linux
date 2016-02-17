@@ -72,7 +72,6 @@ static struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 
 #define BRCMF_PCIE_FW_UP_TIMEOUT		2000 /* msec */
 
-#define BRCMF_PCIE_TCM_MAP_SIZE			(4096 * 1024)
 #define BRCMF_PCIE_REG_MAP_SIZE			(32 * 1024)
 
 /* backplane addres space accessed by BAR0 */
@@ -252,7 +251,6 @@ struct brcmf_pciedev_info {
 	char nvram_name[BRCMF_FW_NAME_LEN];
 	void __iomem *regs;
 	void __iomem *tcm;
-	u32 tcm_size;
 	u32 ram_base;
 	u32 ram_size;
 	struct brcmf_chip *ci;
@@ -1592,8 +1590,7 @@ static int brcmf_pcie_get_resource(struct brcmf_pciedev_info *devinfo)
 	}
 
 	devinfo->regs = ioremap_nocache(bar0_addr, BRCMF_PCIE_REG_MAP_SIZE);
-	devinfo->tcm = ioremap_nocache(bar1_addr, BRCMF_PCIE_TCM_MAP_SIZE);
-	devinfo->tcm_size = BRCMF_PCIE_TCM_MAP_SIZE;
+	devinfo->tcm = ioremap_nocache(bar1_addr, bar1_size);
 
 	if (!devinfo->regs || !devinfo->tcm) {
 		brcmf_err("ioremap() failed (%p,%p)\n", devinfo->regs,
@@ -1602,8 +1599,9 @@ static int brcmf_pcie_get_resource(struct brcmf_pciedev_info *devinfo)
 	}
 	brcmf_dbg(PCIE, "Phys addr : reg space = %p base addr %#016llx\n",
 		  devinfo->regs, (unsigned long long)bar0_addr);
-	brcmf_dbg(PCIE, "Phys addr : mem space = %p base addr %#016llx\n",
-		  devinfo->tcm, (unsigned long long)bar1_addr);
+	brcmf_dbg(PCIE, "Phys addr : mem space = %p base addr %#016llx size 0x%x\n",
+		  devinfo->tcm, (unsigned long long)bar1_addr,
+		  (unsigned int)bar1_size);
 
 	return 0;
 }
