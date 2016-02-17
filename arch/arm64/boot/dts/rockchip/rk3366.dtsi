@@ -526,6 +526,27 @@
 		status = "disabled";
 	};
 
+	hdmi: hdmi@ff980000 {
+		compatible = "rockchip,rk3366-hdmi";
+		reg = <0x0 0xff980000 0x0 0x20000>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_HDMI_CTRL>,
+			 <&cru SCLK_HDMI_HDCP>,
+			 <&cru SCLK_HDMI_CEC>,
+			 <&cru DCLK_HDMIPHY>;
+		clock-names = "pclk_hdmi",
+			      "hdcp_clk_hdmi",
+			      "cec_clk_hdmi",
+			      "dclk_hdmi_phy";
+		resets = <&cru SRST_HDMI>;
+		reset-names = "hdmi";
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&hdmii2c_xfer &hdmi_cec>;
+		pinctrl-1 = <&i2c5_gpio>;
+		status = "disabled";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3366-pinctrl";
 		rockchip,grf = <&grf>;
@@ -733,6 +754,21 @@
 			};
 		};
 
+		hdmi_i2c {
+			hdmii2c_xfer: hdmii2c-xfer {
+				rockchip,pins =
+					<5 13 RK_FUNC_2 &pcfg_pull_none>,
+					<5 14 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		hdmi_pin {
+			hdmi_cec: hdmi-cec {
+				rockchip,pins =
+					<5 12 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
 		i2c0 {
 			i2c0_xfer: i2c0-xfer {
 				rockchip,pins =
@@ -778,6 +814,11 @@
 				rockchip,pins =
 					<5 13 RK_FUNC_1 &pcfg_pull_none>,
 					<5 14 RK_FUNC_1 &pcfg_pull_none>;
+			};
+			i2c5_gpio: i2c5-gpio {
+				rockchip,pins =
+					<5 13 RK_FUNC_GPIO &pcfg_pull_none>,
+					<5 14 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};
 
