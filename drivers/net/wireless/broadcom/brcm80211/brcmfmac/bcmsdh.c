@@ -103,7 +103,7 @@ static void brcmf_sdiod_dummy_irqhandler(struct sdio_func *func)
 
 int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 {
-	struct brcmfmac_sdio_platform_data *pdata;
+	struct brcmfmac_sdio_pd *pdata;
 	int ret = 0;
 	u8 data;
 	u32 addr, gpiocontrol;
@@ -173,7 +173,7 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 
 int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
-	struct brcmfmac_sdio_platform_data *pdata;
+	struct brcmfmac_sdio_pd *pdata;
 
 	brcmf_dbg(SDIO, "Entering\n");
 
@@ -1164,17 +1164,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	dev_set_drvdata(&func->dev, bus_if);
 	dev_set_drvdata(&sdiodev->func[1]->dev, bus_if);
 	sdiodev->dev = &sdiodev->func[1]->dev;
-	sdiodev->pdata = brcmf_get_module_param(sdiodev->dev);
-
-#ifdef CONFIG_PM_SLEEP
-	/* wowl can be supported when KEEP_POWER is true and (WAKE_SDIO_IRQ
-	 * is true or when platform data OOB irq is true).
-	 */
-	if ((sdio_get_host_pm_caps(sdiodev->func[1]) & MMC_PM_KEEP_POWER) &&
-	    ((sdio_get_host_pm_caps(sdiodev->func[1]) & MMC_PM_WAKE_SDIO_IRQ) ||
-	     (sdiodev->pdata && sdiodev->pdata->oob_irq_supported)))
-		bus_if->wowl_supported = true;
-#endif
 
 	brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_DOWN);
 

@@ -33,8 +33,6 @@
 #include <linux/bcma/bcma.h>
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
-#include <linux/platform_data/brcmfmac-sdio.h>
-#include <linux/moduleparam.h>
 #include <asm/unaligned.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
@@ -44,6 +42,8 @@
 #include "sdio.h"
 #include "chip.h"
 #include "firmware.h"
+#include "core.h"
+#include "common.h"
 
 #define DCMD_RESP_TIMEOUT	msecs_to_jiffies(2500)
 #define CTL_DONE_TIMEOUT	msecs_to_jiffies(2500)
@@ -3775,26 +3775,28 @@ static const struct brcmf_buscore_ops brcmf_sdio_buscore_ops = {
 static bool
 brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 {
+	struct brcmf_sdio_dev *sdiodev;
 	u8 clkctl = 0;
 	int err = 0;
 	int reg_addr;
 	u32 reg_val;
 	u32 drivestrength;
 
-	sdio_claim_host(bus->sdiodev->func[1]);
+	sdiodev = bus->sdiodev;
+	sdio_claim_host(sdiodev->func[1]);
 
 	pr_debug("F1 signature read @0x18000000=0x%4x\n",
-		 brcmf_sdiod_regrl(bus->sdiodev, SI_ENUM_BASE, NULL));
+		 brcmf_sdiod_regrl(sdiodev, SI_ENUM_BASE, NULL));
 
 	/*
 	 * Force PLL off until brcmf_chip_attach()
 	 * programs PLL control regs
 	 */
 
-	brcmf_sdiod_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
+	brcmf_sdiod_regwb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
 			  BRCMF_INIT_CLKCTL1, &err);
 	if (!err)
-		clkctl = brcmf_sdiod_regrb(bus->sdiodev,
+		clkctl = brcmf_sdiod_regrb(sdiodev,
 					   SBSDIO_FUNC1_CHIPCLKCSR, &err);
 
 	if (err || ((clkctl & ~SBSDIO_AVBITS) != BRCMF_INIT_CLKCTL1)) {
@@ -3803,50 +3805,77 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 		goto fail;
 	}
 
-	bus->ci = brcmf_chip_attach(bus->sdiodev, &brcmf_sdio_buscore_ops);
+	bus->ci = brcmf_chip_attach(sdiodev, &brcmf_sdio_buscore_ops);
 	if (IS_ERR(bus->ci)) {
 		brcmf_err("brcmf_chip_attach failed!\n");
 		bus->ci = NULL;
 		goto fail;
 	}
+	sdiodev->pdata = brcmf_get_module_param(sdiodev->dev,
+						   BRCMF_BUSTYPE_SDIO,
+						   bus->ci->chip,
+						   bus->ci->chiprev);
+	/* platform specific configuration:
+	 *   alignments must be at least 4 bytes for ADMA
+	 */
+	bus->head_align = ALIGNMENT;
+	bus->sgentry_align = ALIGNMENT;
+	if (sdiodev->pdata) {
+		if (sdiodev->pdata->sd_head_align > ALIGNMENT)
+			bus->head_align = sdiodev->pdata->sd_head_align;
+		if (sdiodev->pdata->sd_sgentry_align > ALIGNMENT)
+			bus->sgentry_align = sdiodev->pdata->sd_sgentry_align;
+	}
+	/* allocate scatter-gather table. sg support
+	 * will be disabled upon allocation failure.
+	 */
+	brcmf_sdiod_sgtable_alloc(sdiodev);
+
+#ifdef CONFIG_PM_SLEEP
+	/* wowl can be supported when KEEP_POWER is true and (WAKE_SDIO_IRQ
+	 * is true or when platform data OOB irq is true).
+	 */
+	if ((sdio_get_host_pm_caps(sdiodev->func[1]) & MMC_PM_KEEP_POWER) &&
+	    ((sdio_get_host_pm_caps(sdiodev->func[1]) & MMC_PM_WAKE_SDIO_IRQ) ||
+	     (sdiodev->pdata && sdiodev->pdata->oob_irq_supported)))
+		sdiodev->bus_if->wowl_supported = true;
+#endif
 
 	if (brcmf_sdio_kso_init(bus)) {
 		brcmf_err("error enabling KSO\n");
 		goto fail;
 	}
 
-	if ((bus->sdiodev->pdata) && (bus->sdiodev->pdata->drive_strength))
-		drivestrength = bus->sdiodev->pdata->drive_strength;
+	if ((sdiodev->pdata) && (sdiodev->pdata->drive_strength))
+		drivestrength = sdiodev->pdata->drive_strength;
 	else
 		drivestrength = DEFAULT_SDIO_DRIVE_STRENGTH;
-	brcmf_sdio_drivestrengthinit(bus->sdiodev, bus->ci, drivestrength);
+	brcmf_sdio_drivestrengthinit(sdiodev, bus->ci, drivestrength);
 
 	/* Set card control so an SDIO card reset does a WLAN backplane reset */
-	reg_val = brcmf_sdiod_regrb(bus->sdiodev,
-				    SDIO_CCCR_BRCM_CARDCTRL, &err);
+	reg_val = brcmf_sdiod_regrb(sdiodev, SDIO_CCCR_BRCM_CARDCTRL, &err);
 	if (err)
 		goto fail;
 
 	reg_val |= SDIO_CCCR_BRCM_CARDCTRL_WLANRESET;
 
-	brcmf_sdiod_regwb(bus->sdiodev,
-			  SDIO_CCCR_BRCM_CARDCTRL, reg_val, &err);
+	brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_BRCM_CARDCTRL, reg_val, &err);
 	if (err)
 		goto fail;
 
 	/* set PMUControl so a backplane reset does PMU state reload */
 	reg_addr = CORE_CC_REG(brcmf_chip_get_pmu(bus->ci)->base, pmucontrol);
-	reg_val = brcmf_sdiod_regrl(bus->sdiodev, reg_addr, &err);
+	reg_val = brcmf_sdiod_regrl(sdiodev, reg_addr, &err);
 	if (err)
 		goto fail;
 
 	reg_val |= (BCMA_CC_PMU_CTL_RES_RELOAD << BCMA_CC_PMU_CTL_RES_SHIFT);
 
-	brcmf_sdiod_regwl(bus->sdiodev, reg_addr, reg_val, &err);
+	brcmf_sdiod_regwl(sdiodev, reg_addr, reg_val, &err);
 	if (err)
 		goto fail;
 
-	sdio_release_host(bus->sdiodev->func[1]);
+	sdio_release_host(sdiodev->func[1]);
 
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 
@@ -3867,7 +3896,7 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 	return true;
 
 fail:
-	sdio_release_host(bus->sdiodev->func[1]);
+	sdio_release_host(sdiodev->func[1]);
 	return false;
 }
 
@@ -4044,18 +4073,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	bus->rxbound = BRCMF_RXBOUND;
 	bus->txminmax = BRCMF_TXMINMAX;
 	bus->tx_seq = SDPCM_SEQ_WRAP - 1;
-
-	/* platform specific configuration:
-	 *   alignments must be at least 4 bytes for ADMA
-	 */
-	bus->head_align = ALIGNMENT;
-	bus->sgentry_align = ALIGNMENT;
-	if (sdiodev->pdata) {
-		if (sdiodev->pdata->sd_head_align > ALIGNMENT)
-			bus->head_align = sdiodev->pdata->sd_head_align;
-		if (sdiodev->pdata->sd_sgentry_align > ALIGNMENT)
-			bus->sgentry_align = sdiodev->pdata->sd_sgentry_align;
-	}
 
 	/* single-threaded workqueue */
 	wq = alloc_ordered_workqueue("brcmf_wq/%s", WQ_MEM_RECLAIM,

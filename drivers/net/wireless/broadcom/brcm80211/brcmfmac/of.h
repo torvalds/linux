@@ -15,10 +15,9 @@
  */
 #ifdef CONFIG_OF
 void
-brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_platform_data **sdio);
+brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd **sdio);
 #else
-static void brcmf_of_probe(struct device *dev,
-			   struct brcmfmac_sdio_platform_data **sdio)
+static void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd **sdio)
 {
 }
 #endif /* CONFIG_OF */

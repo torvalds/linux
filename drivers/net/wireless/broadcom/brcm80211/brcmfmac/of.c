@@ -23,8 +23,7 @@
 #include "common.h"
 #include "of.h"
 
-void
-brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_platform_data **sdio)
+void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd **sdio)
 {
 	struct device_node *np = dev->of_node;
 	int irq;

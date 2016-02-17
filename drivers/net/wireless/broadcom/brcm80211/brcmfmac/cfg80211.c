@@ -6459,8 +6459,8 @@ int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
 static s32 brcmf_translate_country_code(struct brcmf_pub *drvr, char alpha2[2],
 					struct brcmf_fil_country_le *ccreq)
 {
-	struct cc_translate *country_codes;
-	struct cc_entry *cc;
+	struct brcmfmac_pd_cc *country_codes;
+	struct brcmfmac_pd_cc_entry *cc;
 	s32 found_index;
 	int i;
 

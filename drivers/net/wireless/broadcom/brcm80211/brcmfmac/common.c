@@ -80,7 +80,7 @@ module_param_named(ignore_probe_fail, brcmf_ignore_probe_fail, int, 0);
 MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for debugging");
 #endif
 
-static struct brcmfmac_sdio_platform_data *brcmfmac_pdata;
+static struct brcmfmac_platform_data *brcmfmac_pdata;
 struct brcmf_mp_global_t brcmf_mp_global;
 
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
@@ -229,15 +229,46 @@ void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 
 static void brcmf_mp_attach(void)
 {
+	/* If module param firmware path is set then this will always be used,
+	 * if not set then if available use the platform data version. To make
+	 * sure it gets initialized at all, always copy the module param version
+	 */
 	strlcpy(brcmf_mp_global.firmware_path, brcmf_firmware_path,
 		BRCMF_FW_ALTPATH_LEN);
+	if ((brcmfmac_pdata) && (brcmfmac_pdata->fw_alternative_path) &&
+	    (brcmf_mp_global.firmware_path[0] == '\0')) {
+		strlcpy(brcmf_mp_global.firmware_path,
+			brcmfmac_pdata->fw_alternative_path,
+			BRCMF_FW_ALTPATH_LEN);
+	}
 }
 
-struct brcmfmac_sdio_platform_data *brcmf_get_module_param(struct device *dev)
+struct brcmfmac_sdio_pd *brcmf_get_module_param(struct device *dev,
+						enum brcmf_bus_type bus_type,
+						u32 chip, u32 chiprev)
 {
-	if (!brcmfmac_pdata)
-		brcmf_of_probe(dev, &brcmfmac_pdata);
-	return brcmfmac_pdata;
+	struct brcmfmac_sdio_pd *pdata;
+	struct brcmfmac_pd_device *device_pd;
+	int i;
+
+	if (brcmfmac_pdata) {
+		for (i = 0; i < brcmfmac_pdata->device_count; i++) {
+			device_pd = &brcmfmac_pdata->devices[i];
+			if ((device_pd->bus_type == bus_type) &&
+			    (device_pd->id == chip) &&
+			    ((device_pd->rev == chiprev) ||
+			     (device_pd->rev == -1))) {
+				brcmf_dbg(INFO, "Platform data for device found\n");
+				if (device_pd->bus_type == BRCMF_BUSTYPE_SDIO)
+					return &device_pd->bus.sdio;
+				break;
+			}
+		}
+	}
+	pdata = NULL;
+	brcmf_of_probe(dev, &pdata);
+
+	return pdata;
 }
 
 int brcmf_mp_device_attach(struct brcmf_pub *drvr)
@@ -287,7 +318,7 @@ static int brcmf_common_pd_remove(struct platform_device *pdev)
 static struct platform_driver brcmf_pd = {
 	.remove		= brcmf_common_pd_remove,
 	.driver		= {
-		.name	= BRCMFMAC_SDIO_PDATA_NAME,
+		.name	= BRCMFMAC_PDATA_NAME,
 	}
 };
 
