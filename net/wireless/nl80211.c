@@ -3,7 +3,7 @@
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2015	Intel Deutschland GmbH
+ * Copyright 2015-2016	Intel Deutschland GmbH
  */
 
 #include <linux/if.h>
@@ -7286,9 +7286,11 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (nla_get_flag(info->attrs[NL80211_ATTR_USE_RRM])) {
-		if (!(rdev->wiphy.features &
-		      NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES) ||
-		    !(rdev->wiphy.features & NL80211_FEATURE_QUIET))
+		if (!((rdev->wiphy.features &
+			NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES) &&
+		       (rdev->wiphy.features & NL80211_FEATURE_QUIET)) &&
+		    !wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_RRM))
 			return -EINVAL;
 		req.flags |= ASSOC_REQ_USE_RRM;
 	}
@@ -7976,9 +7978,11 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (nla_get_flag(info->attrs[NL80211_ATTR_USE_RRM])) {
-		if (!(rdev->wiphy.features &
-		      NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES) ||
-		    !(rdev->wiphy.features & NL80211_FEATURE_QUIET)) {
+		if (!((rdev->wiphy.features &
+			NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES) &&
+		       (rdev->wiphy.features & NL80211_FEATURE_QUIET)) &&
+		    !wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_RRM)) {
 			kzfree(connkeys);
 			return -EINVAL;
 		}
