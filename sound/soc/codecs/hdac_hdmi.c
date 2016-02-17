@@ -374,11 +374,6 @@ static int hdac_hdmi_playback_prepare(struct snd_pcm_substream *substream,
 	struct hdac_ext_dma_params *dd;
 	int ret;
 
-	if (dai->id > 0) {
-		dev_err(&hdac->hdac.dev, "Only one dai supported as of now\n");
-		return -ENODEV;
-	}
-
 	dai_map = &hdmi->dai_map[dai->id];
 
 	dd = (struct hdac_ext_dma_params *)snd_soc_dai_get_dma_data(dai, substream);
@@ -449,6 +444,18 @@ static int hdac_hdmi_playback_cleanup(struct snd_pcm_substream *substream,
 	}
 
 	return 0;
+}
+
+static void hdac_hdmi_enable_cvt(struct hdac_ext_device *edev,
+		struct hdac_hdmi_dai_pin_map *dai_map)
+{
+	/* Enable transmission */
+	snd_hdac_codec_write(&edev->hdac, dai_map->cvt->nid, 0,
+			AC_VERB_SET_DIGI_CONVERT_1, 1);
+
+	/* Category Code (CC) to zero */
+	snd_hdac_codec_write(&edev->hdac, dai_map->cvt->nid, 0,
+			AC_VERB_SET_DIGI_CONVERT_2, 0);
 }
 
 static int hdac_hdmi_enable_pin(struct hdac_ext_device *hdac,
@@ -580,6 +587,7 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 
 	dai_map->pin = pin;
 
+	hdac_hdmi_enable_cvt(hdac, dai_map);
 	ret = hdac_hdmi_enable_pin(hdac, dai_map);
 	if (ret < 0)
 		return ret;
@@ -948,14 +956,6 @@ static int hdac_hdmi_init_dai_map(struct hdac_ext_device *edev)
 		dai_map = &hdmi->dai_map[dai_id];
 		dai_map->dai_id = dai_id;
 		dai_map->cvt = cvt;
-
-		/* Enable transmission */
-		snd_hdac_codec_write(&edev->hdac, cvt->nid, 0,
-				AC_VERB_SET_DIGI_CONVERT_1, 1);
-
-		/* Category Code (CC) to zero */
-		snd_hdac_codec_write(&edev->hdac, cvt->nid, 0,
-				AC_VERB_SET_DIGI_CONVERT_2, 0);
 
 		dai_id++;
 
@@ -1526,6 +1526,9 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 		dev_err(bus->dev, "Cannot turn on display power on i915\n");
 		return err;
 	}
+
+	hdac_hdmi_skl_enable_all_pins(&edev->hdac);
+	hdac_hdmi_skl_enable_dp12(&edev->hdac);
 
 	/* Power up afg */
 	if (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D0))
