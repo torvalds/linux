@@ -2929,6 +2929,12 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	else if (tso)
 		tx_flags |= I40E_TX_FLAGS_TSO;
 
+	/* Always offload the checksum, since it's in the data descriptor */
+	tso = i40e_tx_enable_csum(skb, &tx_flags, &td_cmd, &td_offset,
+				  tx_ring, &cd_tunneling);
+	if (tso < 0)
+		goto out_drop;
+
 	tsyn = i40e_tsyn(tx_ring, skb, tx_flags, &cd_type_cmd_tso_mss);
 
 	if (tsyn)
@@ -2938,12 +2944,6 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 
 	/* always enable CRC insertion offload */
 	td_cmd |= I40E_TX_DESC_CMD_ICRC;
-
-	/* Always offload the checksum, since it's in the data descriptor */
-	tso = i40e_tx_enable_csum(skb, &tx_flags, &td_cmd, &td_offset,
-				  tx_ring, &cd_tunneling);
-	if (tso < 0)
-		goto out_drop;
 
 	i40e_create_tx_ctx(tx_ring, cd_type_cmd_tso_mss,
 			   cd_tunneling, cd_l2tag2);
