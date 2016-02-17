@@ -142,6 +142,10 @@
 #define BRCMF_RSN_KEK_LENGTH		16
 #define BRCMF_RSN_REPLAY_LEN		8
 
+#define BRCMF_MFP_NONE			0
+#define BRCMF_MFP_CAPABLE		1
+#define BRCMF_MFP_REQUIRED		2
+
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
 	BRCMF_JOIN_PREF_RSSI = 1,

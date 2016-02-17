@@ -72,7 +72,7 @@
 
 #define BRCMF_VNDR_IE_P2PAF_SHIFT	12
 
-#define BRCMF_MAX_DEFAULT_KEYS		4
+#define BRCMF_MAX_DEFAULT_KEYS		6
 
 /* beacon loss timeout defaults */
 #define BRCMF_DEFAULT_BCN_TIMEOUT_ROAM_ON	2
@@ -107,7 +107,6 @@ struct brcmf_cfg80211_security {
 	u32 auth_type;
 	u32 cipher_pairwise;
 	u32 cipher_group;
-	u32 wpa_auth;
 };
 
 /**
