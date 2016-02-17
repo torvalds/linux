@@ -968,9 +968,6 @@ static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin, int repoll)
 	struct hdac_hdmi_pcm *pcm;
 	int val;
 
-	if (!edev)
-		return;
-
 	pin->repoll_count = repoll;
 
 	pm_runtime_get_sync(&edev->hdac.dev);
