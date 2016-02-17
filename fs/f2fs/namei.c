@@ -612,6 +612,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct f2fs_dir_entry *old_dir_entry = NULL;
 	struct f2fs_dir_entry *old_entry;
 	struct f2fs_dir_entry *new_entry;
+	bool is_old_inline = f2fs_has_inline_dentry(old_dir);
 	int err = -ENOENT;
 
 	if ((old_dir != new_dir) && f2fs_encrypted_inode(new_dir) &&
@@ -697,6 +698,26 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (old_dir_entry) {
 			inc_nlink(new_dir);
 			update_inode_page(new_dir);
+		}
+
+		/*
+		 * old entry and new entry can locate in the same inline
+		 * dentry in inode, when attaching new entry in inline dentry,
+		 * it could force inline dentry conversion, after that,
+		 * old_entry and old_page will point to wrong address, in
+		 * order to avoid this, let's do the check and update here.
+		 */
+		if (is_old_inline && !f2fs_has_inline_dentry(old_dir)) {
+			f2fs_put_page(old_page, 0);
+			old_page = NULL;
+
+			old_entry = f2fs_find_entry(old_dir,
+						&old_dentry->d_name, &old_page);
+			if (!old_entry) {
+				err = -EIO;
+				f2fs_unlock_op(sbi);
+				goto out_whiteout;
+			}
 		}
 	}
 
