@@ -170,7 +170,7 @@ static void xls_gmac_init(void)
 		xlr_net_dev0.num_resources = 2;
 
 		xlr_resource_init(&xlr_net0_res[0], xlr_gmac_offsets[0],
-				xlr_gmac_irqs[0]);
+				  xlr_gmac_irqs[0]);
 		platform_device_register(&xlr_net_dev0);
 
 		/* second block is XAUI, not supported yet */
@@ -183,7 +183,7 @@ static void xls_gmac_init(void)
 			ndata0.phy_addr[mac] = mac + 0x10;
 
 			xlr_resource_init(&xlr_net0_res[mac * 2],
-					xlr_gmac_offsets[mac],
+					  xlr_gmac_offsets[mac],
 					xlr_gmac_irqs[mac]);
 		}
 		xlr_net_dev0.num_resources = 8;
@@ -223,7 +223,7 @@ static void xlr_gmac_init(void)
 		ndata0.tx_stnid[mac] = FMN_STNID_GMAC0_TX0 + mac;
 		ndata0.phy_addr[mac] = mac;
 		xlr_resource_init(&xlr_net0_res[mac * 2], xlr_gmac_offsets[mac],
-				xlr_gmac_irqs[mac]);
+				  xlr_gmac_irqs[mac]);
 	}
 	xlr_net_dev0.num_resources = 8;
 	xlr_net_dev0.resource = xlr_net0_res;
