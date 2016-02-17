@@ -558,7 +558,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	if (unlikely(ret != 0))
 		return ret;
 
-#ifdef CONFIG_GPIO_SH_PFC
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	/*
 	 * Then the GPIO chip
 	 */
@@ -584,7 +584,7 @@ static int sh_pfc_remove(struct platform_device *pdev)
 {
 	struct sh_pfc *pfc = platform_get_drvdata(pdev);
 
-#ifdef CONFIG_GPIO_SH_PFC
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	sh_pfc_unregister_gpiochip(pfc);
 #endif
 	sh_pfc_unregister_pinctrl(pfc);
