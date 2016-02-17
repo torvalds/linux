@@ -573,7 +573,6 @@ static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mt2701_pinctrl_probe,
 	.driver = {
 		.name = "mediatek-mt2701-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = mt2701_pctrl_match,
 		.pm = &mtk_eint_pm_ops,
 	},
