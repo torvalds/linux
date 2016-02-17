@@ -1,6 +1,10 @@
 #ifndef _LKL_H
 #define _LKL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define _LKL_LIBC_COMPAT_H
 
 #include <lkl/asm/syscalls.h>
@@ -226,5 +230,9 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac);
  * @returns the interface index or a stricly negative value in case of error
  */
 int lkl_netdev_get_ifindex(int id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
