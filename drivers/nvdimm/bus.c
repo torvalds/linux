@@ -382,14 +382,14 @@ static const struct nd_cmd_desc __nd_cmd_bus_descs[] = {
 	[ND_CMD_ARS_CAP] = {
 		.in_num = 2,
 		.in_sizes = { 8, 8, },
-		.out_num = 2,
-		.out_sizes = { 4, 4, },
+		.out_num = 4,
+		.out_sizes = { 4, 4, 4, 4, },
 	},
 	[ND_CMD_ARS_START] = {
-		.in_num = 4,
-		.in_sizes = { 8, 8, 2, 6, },
-		.out_num = 1,
-		.out_sizes = { 4, },
+		.in_num = 5,
+		.in_sizes = { 8, 8, 2, 1, 5, },
+		.out_num = 2,
+		.out_sizes = { 4, 4, },
 	},
 	[ND_CMD_ARS_STATUS] = {
 		.out_num = 3,

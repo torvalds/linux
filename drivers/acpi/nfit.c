@@ -1503,9 +1503,7 @@ static int ars_do_start(struct nvdimm_bus_descriptor *nd_desc,
 		case 1:
 			/* ARS unsupported, but we should never get here */
 			return 0;
-		case 2:
-			return -EINVAL;
-		case 3:
+		case 6:
 			/* ARS is in progress */
 			msleep(1000);
 			break;
@@ -1537,6 +1535,8 @@ static int ars_get_status(struct nvdimm_bus_descriptor *nd_desc,
 		case 2:
 			/* No ARS performed for the current boot */
 			return 0;
+		case 3:
+			/* TODO: error list overflow support */
 		default:
 			return -ENXIO;
 		}
