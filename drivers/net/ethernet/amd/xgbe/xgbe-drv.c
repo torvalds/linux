@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2068,7 +2068,7 @@ static int xgbe_one_poll(struct napi_struct *napi, int budget)
 	/* If we processed everything, we are done */
 	if (processed < budget) {
 		/* Turn off polling */
-		napi_complete(napi);
+		napi_complete_done(napi, processed);
 
 		/* Enable Tx and Rx interrupts */
 		enable_irq(channel->dma_irq);
@@ -2110,7 +2110,7 @@ static int xgbe_all_poll(struct napi_struct *napi, int budget)
 	/* If we processed everything, we are done */
 	if (processed < budget) {
 		/* Turn off polling */
-		napi_complete(napi);
+		napi_complete_done(napi, processed);
 
 		/* Enable Tx and Rx interrupts */
 		xgbe_enable_rx_tx_ints(pdata);
