@@ -3713,19 +3713,18 @@ static inline unsigned int skb_gso_network_seglen(const struct sk_buff *skb)
  */
 static inline __wsum lco_csum(struct sk_buff *skb)
 {
-	char *inner_csum_field;
-	__wsum csum;
+	unsigned char *csum_start = skb_checksum_start(skb);
+	unsigned char *l4_hdr = skb_transport_header(skb);
+	__wsum partial;
 
 	/* Start with complement of inner checksum adjustment */
-	inner_csum_field = skb->data + skb_checksum_start_offset(skb) +
-				skb->csum_offset;
-	csum = ~csum_unfold(*(__force __sum16 *)inner_csum_field);
+	partial = ~csum_unfold(*(__force __sum16 *)(csum_start +
+						    skb->csum_offset));
+
 	/* Add in checksum of our headers (incl. outer checksum
-	 * adjustment filled in by caller)
+	 * adjustment filled in by caller) and return result.
 	 */
-	csum = skb_checksum(skb, 0, skb_checksum_start_offset(skb), csum);
-	/* The result is the checksum from skb->data to end of packet */
-	return csum;
+	return csum_partial(l4_hdr, csum_start - l4_hdr, partial);
 }
 
 #endif	/* __KERNEL__ */
