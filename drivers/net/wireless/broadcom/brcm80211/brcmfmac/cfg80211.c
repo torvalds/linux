@@ -3092,6 +3092,11 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 
 	brcmf_dbg(SCAN, "Enter\n");
 
+	if (e->datalen < (sizeof(*pfn_result) + sizeof(*netinfo))) {
+		brcmf_dbg(SCAN, "Event data to small. Ignore\n");
+		return 0;
+	}
+
 	if (e->event_code == BRCMF_E_PFN_NET_LOST) {
 		brcmf_dbg(SCAN, "PFN NET LOST event. Do Nothing\n");
 		return 0;
@@ -3414,6 +3419,11 @@ brcmf_wowl_nd_results(struct brcmf_if *ifp, const struct brcmf_event_msg *e,
 	struct brcmf_pno_net_info_le *netinfo;
 
 	brcmf_dbg(SCAN, "Enter\n");
+
+	if (e->datalen < (sizeof(*pfn_result) + sizeof(*netinfo))) {
+		brcmf_dbg(SCAN, "Event data to small. Ignore\n");
+		return 0;
+	}
 
 	pfn_result = (struct brcmf_pno_scanresults_le *)data;
 
