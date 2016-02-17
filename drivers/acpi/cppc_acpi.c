@@ -67,6 +67,9 @@ static int pcc_subspace_idx = -1;
 static bool pcc_channel_acquired;
 static ktime_t deadline;
 
+/* pcc mapped address + header size + offset within PCC subspace */
+#define GET_PCC_VADDR(offs) (pcc_comm_addr + 0x8 + (offs))
+
 /*
  * Arbitrary Retries in case the remote processor is slow to respond
  * to PCC commands. Keeping it high enough to cover emulators where
@@ -582,29 +585,74 @@ void acpi_cppc_processor_exit(struct acpi_processor *pr)
 }
 EXPORT_SYMBOL_GPL(acpi_cppc_processor_exit);
 
-static u64 get_phys_addr(struct cpc_reg *reg)
+/*
+ * Since cpc_read and cpc_write are called while holding pcc_lock, it should be
+ * as fast as possible. We have already mapped the PCC subspace during init, so
+ * we can directly write to it.
+ */
+
+static int cpc_read(struct cpc_reg *reg, u64 *val)
 {
-	/* PCC communication addr space begins at byte offset 0x8. */
-	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM)
-		return (u64)comm_base_addr + 0x8 + reg->address;
-	else
-		return reg->address;
+	int ret_val = 0;
+
+	*val = 0;
+	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
+		void __iomem *vaddr = GET_PCC_VADDR(reg->address);
+
+		switch (reg->bit_width) {
+		case 8:
+			*val = readb(vaddr);
+			break;
+		case 16:
+			*val = readw(vaddr);
+			break;
+		case 32:
+			*val = readl(vaddr);
+			break;
+		case 64:
+			*val = readq(vaddr);
+			break;
+		default:
+			pr_debug("Error: Cannot read %u bit width from PCC\n",
+				reg->bit_width);
+			ret_val = -EFAULT;
+		}
+	} else
+		ret_val = acpi_os_read_memory((acpi_physical_address)reg->address,
+					val, reg->bit_width);
+	return ret_val;
 }
 
-static void cpc_read(struct cpc_reg *reg, u64 *val)
+static int cpc_write(struct cpc_reg *reg, u64 val)
 {
-	u64 addr = get_phys_addr(reg);
+	int ret_val = 0;
 
-	acpi_os_read_memory((acpi_physical_address)addr,
-			val, reg->bit_width);
-}
+	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
+		void __iomem *vaddr = GET_PCC_VADDR(reg->address);
 
-static void cpc_write(struct cpc_reg *reg, u64 val)
-{
-	u64 addr = get_phys_addr(reg);
-
-	acpi_os_write_memory((acpi_physical_address)addr,
-			val, reg->bit_width);
+		switch (reg->bit_width) {
+		case 8:
+			writeb(val, vaddr);
+			break;
+		case 16:
+			writew(val, vaddr);
+			break;
+		case 32:
+			writel(val, vaddr);
+			break;
+		case 64:
+			writeq(val, vaddr);
+			break;
+		default:
+			pr_debug("Error: Cannot write %u bit width to PCC\n",
+				reg->bit_width);
+			ret_val = -EFAULT;
+			break;
+		}
+	} else
+		ret_val = acpi_os_write_memory((acpi_physical_address)reg->address,
+				val, reg->bit_width);
+	return ret_val;
 }
 
 /**
