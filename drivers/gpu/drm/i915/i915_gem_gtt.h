@@ -418,7 +418,7 @@ static inline uint32_t i915_pte_index(uint64_t address, uint32_t pde_shift)
 static inline uint32_t i915_pte_count(uint64_t addr, size_t length,
 				      uint32_t pde_shift)
 {
-	const uint64_t mask = ~((1 << pde_shift) - 1);
+	const uint64_t mask = ~((1ULL << pde_shift) - 1);
 	uint64_t end;
 
 	WARN_ON(length == 0);
