@@ -663,7 +663,6 @@ void iser_conn_release(struct iser_conn *iser_conn)
 int iser_conn_terminate(struct iser_conn *iser_conn)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-	struct ib_send_wr *bad_wr;
 	int err = 0;
 
 	/* terminate the iser conn only if the conn state is UP */
@@ -688,14 +687,8 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
 			iser_err("Failed to disconnect, conn: 0x%p err %d\n",
 				 iser_conn, err);
 
-		/* post an indication that all flush errors were consumed */
-		err = ib_post_send(ib_conn->qp, &ib_conn->last, &bad_wr);
-		if (err) {
-			iser_err("conn %p failed to post last wr", ib_conn);
-			return 1;
-		}
-
-		wait_for_completion(&ib_conn->last_comp);
+		/* block until all flush errors are consumed */
+		ib_drain_sq(ib_conn->qp);
 	}
 
 	return 1;
@@ -954,10 +947,6 @@ void iser_conn_init(struct iser_conn *iser_conn)
 
 	ib_conn->post_recv_buf_count = 0;
 	ib_conn->reg_cqe.done = iser_reg_comp;
-	ib_conn->last_cqe.done = iser_last_comp;
-	ib_conn->last.wr_cqe = &ib_conn->last_cqe;
-	ib_conn->last.opcode = IB_WR_SEND;
-	init_completion(&ib_conn->last_comp);
 }
 
  /**
