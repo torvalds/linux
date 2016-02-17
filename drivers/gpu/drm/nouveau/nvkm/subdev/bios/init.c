@@ -795,11 +795,11 @@ init_generic_condition(struct nvbios_init *init)
 	struct nvkm_bios *bios = init->bios;
 	struct nvbios_dpout info;
 	u8  cond = nvbios_rd08(bios, init->offset + 1);
-	u8  unkn = nvbios_rd08(bios, init->offset + 2);
+	u8  size = nvbios_rd08(bios, init->offset + 2);
 	u8  ver, hdr, cnt, len;
 	u16 data;
 
-	trace("GENERIC_CONDITION\t0x%02x 0x%02x\n", cond, unkn);
+	trace("GENERIC_CONDITION\t0x%02x 0x%02x\n", cond, size);
 	init->offset += 3;
 
 	switch (cond) {
@@ -829,6 +829,7 @@ init_generic_condition(struct nvbios_init *init)
 		break;
 	default:
 		warn("INIT_GENERIC_CONDITON: unknown 0x%02x\n", cond);
+		init->offset += size;
 		break;
 	}
 }
