@@ -55,6 +55,7 @@ struct gb_light {
 	u8			channels_count;
 	struct gb_channel	*channels;
 	bool			has_flash;
+	bool			ready;
 #ifdef V4L2_HAVE_FLASH
 	struct v4l2_flash	*v4l2_flash;
 #endif
@@ -1002,6 +1003,8 @@ static int gb_lights_light_register(struct gb_light *light)
 			return ret;
 	}
 
+	light->ready = true;
+
 	if (light->has_flash) {
 		ret = gb_lights_light_v4l2_register(light);
 		if (ret < 0) {
@@ -1040,6 +1043,7 @@ static void gb_lights_light_release(struct gb_light *light)
 	int i;
 	int count;
 
+	light->ready = false;
 
 	count = light->channels_count;
 
@@ -1174,7 +1178,8 @@ static int gb_lights_request_handler(struct gb_operation *op)
 	payload = request->payload;
 	light_id = payload->light_id;
 
-	if (light_id >= glights->lights_count || !&glights->lights[light_id]) {
+	if (light_id >= glights->lights_count || !glights->lights ||
+	    !glights->lights[light_id].ready) {
 		dev_err(dev, "Event received for unconfigured light id: %d\n",
 			light_id);
 		return -EINVAL;
