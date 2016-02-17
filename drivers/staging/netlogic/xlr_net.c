@@ -265,7 +265,8 @@ static void xlr_make_tx_desc(struct nlm_fmn_msg *msg, unsigned long addr,
 		((u64)fr_stn_id << 54)	|	/* Free back id */
 		(u64)0 << 40		|	/* Set len to 0 */
 		((u64)physkb  & 0xffffffff));	/* 32bit address */
-	msg->msg2 = msg->msg3 = 0;
+	msg->msg2 = 0;
+	msg->msg3 = 0;
 }
 
 static void __maybe_unused xlr_wakeup_queue(unsigned long dev)
