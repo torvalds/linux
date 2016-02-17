@@ -221,16 +221,27 @@ static const struct acpi_device_id rbtn_ids[] = {
 
 	/*
 	 * This driver can also handle the "DELLABC6" device that
-	 * appears on the XPS 13 9350, but that device is disabled
-	 * by the DSDT unless booted with acpi_osi="!Windows 2012"
-	 * acpi_osi="!Windows 2013".  Even if we boot that and bind
-	 * the driver, we seem to have inconsistent behavior in
-	 * which NetworkManager can get out of sync with the rfkill
-	 * state.
+	 * appears on the XPS 13 9350, but that device is disabled by
+	 * the DSDT unless booted with acpi_osi="!Windows 2012"
+	 * acpi_osi="!Windows 2013".
 	 *
-	 * On the XPS 13 9350 and similar laptops, we're not supposed to
-	 * use DELLABC6 at all.  Instead, we handle the rfkill button
-	 * via the intel-hid driver.
+	 * According to Mario at Dell:
+	 *
+	 *  DELLABC6 is a custom interface that was created solely to
+	 *  have airplane mode support for Windows 7.  For Windows 10
+	 *  the proper interface is to use that which is handled by
+	 *  intel-hid. A OEM airplane mode driver is not used.
+	 *
+	 *  Since the kernel doesn't identify as Windows 7 it would be
+	 *  incorrect to do attempt to use that interface.
+	 *
+	 * Even if we override _OSI and bind to DELLABC6, we end up with
+	 * inconsistent behavior in which userspace can get out of sync
+	 * with the rfkill state as it conflicts with events from
+	 * intel-hid.
+	 *
+	 * The upshot is that it is better to just ignore DELLABC6
+	 * devices.
 	 */
 
 	{ "", 0 },
