@@ -1266,6 +1266,7 @@ static void rcu_stall_kick_kthreads(struct rcu_state *rsp)
 	j = READ_ONCE(rsp->jiffies_kick_kthreads);
 	if (time_after(jiffies, j) && rsp->gp_kthread) {
 		WARN_ONCE(1, "Kicking %s grace-period kthread\n", rsp->name);
+		rcu_ftrace_dump(DUMP_ALL);
 		wake_up_process(rsp->gp_kthread);
 		WRITE_ONCE(rsp->jiffies_kick_kthreads, j + HZ);
 	}
