@@ -224,12 +224,15 @@ static void intel_update_czclk(struct drm_i915_private *dev_priv)
 }
 
 static inline u32 /* units of 100MHz */
-intel_fdi_link_freq(struct drm_i915_private *dev_priv)
+intel_fdi_link_freq(struct drm_i915_private *dev_priv,
+		    const struct intel_crtc_state *pipe_config)
 {
-	if (IS_GEN5(dev_priv))
-		return (I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK) + 2;
+	if (HAS_DDI(dev_priv))
+		return pipe_config->port_clock; /* SPLL */
+	else if (IS_GEN5(dev_priv))
+		return ((I915_READ(FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK) + 2) * 10000;
 	else
-		return 27;
+		return 270000;
 }
 
 static const intel_limit_t intel_limits_i8xx_dac = {
@@ -6679,7 +6682,7 @@ retry:
 	 * Hence the bw of each lane in terms of the mode signal
 	 * is:
 	 */
-	link_bw = intel_fdi_link_freq(to_i915(dev)) * MHz(100)/KHz(1)/10;
+	link_bw = intel_fdi_link_freq(to_i915(dev), pipe_config);
 
 	fdi_dotclock = adjusted_mode->crtc_clock;
 
@@ -10840,7 +10843,7 @@ static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 	 * Calculate one based on the FDI configuration.
 	 */
 	pipe_config->base.adjusted_mode.crtc_clock =
-		intel_dotclock_calculate(intel_fdi_link_freq(dev_priv) * 10000,
+		intel_dotclock_calculate(intel_fdi_link_freq(dev_priv, pipe_config),
 					 &pipe_config->fdi_m_n);
 }
 
@@ -12873,7 +12876,7 @@ static void intel_pipe_config_sanity_check(struct drm_i915_private *dev_priv,
 					   const struct intel_crtc_state *pipe_config)
 {
 	if (pipe_config->has_pch_encoder) {
-		int fdi_dotclock = intel_dotclock_calculate(intel_fdi_link_freq(dev_priv) * 10000,
+		int fdi_dotclock = intel_dotclock_calculate(intel_fdi_link_freq(dev_priv, pipe_config),
 							    &pipe_config->fdi_m_n);
 		int dotclock = pipe_config->base.adjusted_mode.crtc_clock;
 
