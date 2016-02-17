@@ -109,7 +109,6 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	u32 tmp, flags = 0;
-	int dotclock;
 
 	tmp = I915_READ(lvds_encoder->reg);
 	if (tmp & LVDS_HSYNC_POLARITY)
@@ -130,12 +129,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 		pipe_config->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
 	}
 
-	dotclock = pipe_config->port_clock;
-
-	if (HAS_PCH_SPLIT(dev_priv->dev))
-		ironlake_check_encoder_dotclock(pipe_config, dotclock);
-
-	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static void intel_pre_enable_lvds(struct intel_encoder *encoder)

@@ -952,9 +952,6 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	if (pipe_config->pixel_multiplier)
 		dotclock /= pipe_config->pixel_multiplier;
 
-	if (HAS_PCH_SPLIT(dev_priv->dev))
-		ironlake_check_encoder_dotclock(pipe_config, dotclock);
-
 	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
 }
 

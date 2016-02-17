@@ -2422,7 +2422,6 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	int dotclock;
 
 	tmp = I915_READ(intel_dp->output_reg);
 
@@ -2472,13 +2471,9 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 			pipe_config->port_clock = 270000;
 	}
 
-	dotclock = intel_dotclock_calculate(pipe_config->port_clock,
-					    &pipe_config->dp_m_n);
-
-	if (HAS_PCH_SPLIT(dev_priv->dev) && port != PORT_A)
-		ironlake_check_encoder_dotclock(pipe_config, dotclock);
-
-	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+	pipe_config->base.adjusted_mode.crtc_clock =
+		intel_dotclock_calculate(pipe_config->port_clock,
+					 &pipe_config->dp_m_n);
 
 	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp &&
 	    pipe_config->pipe_bpp > dev_priv->vbt.edp_bpp) {

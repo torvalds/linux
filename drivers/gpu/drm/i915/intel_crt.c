@@ -120,17 +120,9 @@ static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 static void intel_crt_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = encoder->base.dev;
-	int dotclock;
-
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
-	dotclock = pipe_config->port_clock;
-
-	if (HAS_PCH_SPLIT(dev))
-		ironlake_check_encoder_dotclock(pipe_config, dotclock);
-
-	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static void hsw_crt_get_config(struct intel_encoder *encoder,
