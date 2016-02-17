@@ -402,8 +402,8 @@ bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg,
 void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
 				  struct brcmf_cfg80211_vif *vif);
 bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
-int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
-					  u8 action, ulong timeout);
+int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
+				  u8 action, ulong timeout);
 s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 				struct brcmf_if *ifp, bool aborted,
 				bool fw_abort);

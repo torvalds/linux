@@ -564,8 +564,8 @@ struct wireless_dev *brcmf_ap_add_vif(struct wiphy *wiphy, const char *name,
 	}
 
 	/* wait for firmware event */
-	err = brcmf_cfg80211_wait_vif_event_timeout(cfg, BRCMF_E_IF_ADD,
-						    BRCMF_VIF_EVENT_TIMEOUT);
+	err = brcmf_cfg80211_wait_vif_event(cfg, BRCMF_E_IF_ADD,
+					    BRCMF_VIF_EVENT_TIMEOUT);
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
 	if (!err) {
 		brcmf_err("timeout occurred\n");
@@ -6395,8 +6395,9 @@ bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg)
 
 	return armed;
 }
-int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
-					  u8 action, ulong timeout)
+
+int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
+				  u8 action, ulong timeout)
 {
 	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
 
