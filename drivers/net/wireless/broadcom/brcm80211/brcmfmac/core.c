@@ -1039,14 +1039,14 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 				return NOTIFY_OK;
 			}
 			for (i = 0; i < ARPOL_MAX_ENTRIES; i++) {
-				if (addr_table[i] != 0) {
-					brcmf_fil_iovar_data_set(ifp,
-						"arp_hostip", &addr_table[i],
-						sizeof(addr_table[i]));
-					if (ret)
-						brcmf_err("add arp ip err %d\n",
-							  ret);
-				}
+				if (addr_table[i] == 0)
+					continue;
+				ret = brcmf_fil_iovar_data_set(ifp, "arp_hostip",
+							       &addr_table[i],
+							       sizeof(addr_table[i]));
+				if (ret)
+					brcmf_err("add arp ip err %d\n",
+						  ret);
 			}
 		}
 		break;
