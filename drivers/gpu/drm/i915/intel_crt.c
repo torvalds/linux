@@ -218,18 +218,26 @@ intel_crt_mode_valid(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	int max_dotclk = to_i915(dev)->max_dotclk_freq;
+	int max_clock;
 
-	int max_clock = 0;
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 
-	if (IS_GEN2(dev))
-		max_clock = 350000;
-	else
+	if (HAS_PCH_LPT(dev))
+		max_clock = 180000;
+	else if (IS_VALLEYVIEW(dev))
+		/*
+		 * 270 MHz due to current DPLL limits,
+		 * DAC limit supposedly 355 MHz.
+		 */
+		max_clock = 270000;
+	else if (IS_GEN3(dev) || IS_GEN4(dev))
 		max_clock = 400000;
+	else
+		max_clock = 350000;
 	if (mode->clock > max_clock)
 		return MODE_CLOCK_HIGH;
 
