@@ -81,10 +81,7 @@ static unsigned long __init tangier_calibrate_tsc(void)
 	/* mark tsc clocksource as reliable */
 	set_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC_RELIABLE);
 
-	if (fast_calibrate)
-		return fast_calibrate;
-
-	return 0;
+	return fast_calibrate;
 }
 
 static void __init tangier_arch_setup(void)
