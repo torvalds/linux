@@ -326,7 +326,7 @@ static void xlr_hw_set_mac_addr(struct net_device *ndev)
 
 	if (priv->nd->phy_interface == PHY_INTERFACE_MODE_RGMII ||
 	    priv->nd->phy_interface == PHY_INTERFACE_MODE_SGMII)
-	    xlr_reg_update(priv->base_addr, R_IPG_IFG, MAC_B2B_IPG, 0x7f);
+		xlr_reg_update(priv->base_addr, R_IPG_IFG, MAC_B2B_IPG, 0x7f);
 }
 
 static int xlr_net_set_mac_addr(struct net_device *ndev, void *data)
