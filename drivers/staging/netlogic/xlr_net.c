@@ -130,13 +130,13 @@ static void xlr_net_fmn_handler(int bkt, int src_stnid, int size, int code,
 	struct xlr_net_priv *priv;
 	u32 port, length;
 	unsigned char *addr;
-	struct xlr_adapter *adapter = (struct xlr_adapter *) arg;
+	struct xlr_adapter *adapter = (struct xlr_adapter *)arg;
 
 	length = (msg->msg0 >> 40) & 0x3fff;
 	if (length == 0) {
 		addr = bus_to_virt(msg->msg0 & 0xffffffffffULL);
 		addr = addr - MAC_SKB_BACK_PTR_SIZE;
-		skb = (struct sk_buff *) *(unsigned long *)addr;
+		skb = (struct sk_buff *)(*(unsigned long *)addr);
 		dev_kfree_skb_any((struct sk_buff *)addr);
 	} else {
 		addr = (unsigned char *)
@@ -144,7 +144,7 @@ static void xlr_net_fmn_handler(int bkt, int src_stnid, int size, int code,
 		length = length - BYTE_OFFSET - MAC_CRC_LEN;
 		port = ((int)msg->msg0) & 0x0f;
 		addr = addr - MAC_SKB_BACK_PTR_SIZE;
-		skb = (struct sk_buff *) *(unsigned long *)addr;
+		skb = (struct sk_buff *)(*(unsigned long *)addr);
 		skb->dev = adapter->netdev[port];
 		if (skb->dev == NULL)
 			return;
@@ -270,7 +270,7 @@ static void xlr_make_tx_desc(struct nlm_fmn_msg *msg, unsigned long addr,
 
 static void __maybe_unused xlr_wakeup_queue(unsigned long dev)
 {
-	struct net_device *ndev = (struct net_device *) dev;
+	struct net_device *ndev = (struct net_device *)dev;
 	struct xlr_net_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev = xlr_get_phydev(priv);
 
@@ -663,7 +663,7 @@ static int xlr_phy_write(u32 *base_addr, int phy_addr, int regnum, u16 val)
 	xlr_nae_wreg(base_addr, R_MII_MGMT_ADDRESS, (phy_addr << 8) | regnum);
 
 	/* Write the data which starts the write cycle */
-	xlr_nae_wreg(base_addr, R_MII_MGMT_WRITE_DATA, (u32) val);
+	xlr_nae_wreg(base_addr, R_MII_MGMT_WRITE_DATA, (u32)val);
 
 	/* poll for the read cycle to complete */
 	while (!timedout) {
