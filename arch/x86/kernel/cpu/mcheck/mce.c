@@ -1576,6 +1576,17 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 
 		if (c->x86 == 6 && c->x86_model == 45)
 			quirk_no_way_out = quirk_sandybridge_ifu;
+		/*
+		 * MCG_CAP.MCG_SER_P is necessary but not sufficient to know
+		 * whether this processor will actually generate recoverable
+		 * machine checks. Check to see if this is an E7 model Xeon.
+		 * We can't do a model number check because E5 and E7 use the
+		 * same model number. E5 doesn't support recovery, E7 does.
+		 */
+		if (mca_cfg.recovery || (mca_cfg.ser &&
+			!strncmp(c->x86_model_id,
+				 "Intel(R) Xeon(R) CPU E7-", 24)))
+			set_cpu_cap(c, X86_FEATURE_MCE_RECOVERY);
 	}
 	if (cfg->monarch_timeout < 0)
 		cfg->monarch_timeout = 0;
@@ -2028,6 +2039,8 @@ static int __init mcheck_enable(char *str)
 		cfg->bootlog = (str[0] == 'b');
 	else if (!strcmp(str, "bios_cmci_threshold"))
 		cfg->bios_cmci_threshold = true;
+	else if (!strcmp(str, "recovery"))
+		cfg->recovery = true;
 	else if (isdigit(str[0])) {
 		if (get_option(&str, &cfg->tolerant) == 2)
 			get_option(&str, &(cfg->monarch_timeout));
