@@ -256,6 +256,7 @@ struct brcmf_cfg80211_wowl {
  * struct brcmf_cfg80211_info - dongle private data of cfg80211 interface
  *
  * @wiphy: wiphy object for cfg80211 interface.
+ * @ops: pointer to copy of ops as registered with wiphy object.
  * @conf: dongle configuration.
  * @p2p: peer-to-peer specific information.
  * @btcoex: Bluetooth coexistence information.
@@ -288,6 +289,7 @@ struct brcmf_cfg80211_wowl {
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
+	struct cfg80211_ops *ops;
 	struct brcmf_cfg80211_conf *conf;
 	struct brcmf_p2p_info p2p;
 	struct brcmf_btcoex_info *btcoex;

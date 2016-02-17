@@ -3526,6 +3526,10 @@ static void brcmf_report_wowl_wakeind(struct wiphy *wiphy, struct brcmf_if *ifp)
 			else
 				wakeup_data.net_detect = cfg->wowl.nd_info;
 		}
+		if (wakeind & BRCMF_WOWL_GTK_FAILURE) {
+			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_GTK_FAILURE\n");
+			wakeup_data.gtk_rekey_failure = true;
+		}
 	} else {
 		wakeup = NULL;
 	}
@@ -3607,6 +3611,8 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 		brcmf_fweh_register(cfg->pub, BRCMF_E_PFN_NET_FOUND,
 				    brcmf_wowl_nd_results);
 	}
+	if (wowl->gtk_rekey_failure)
+		wowl_config |= BRCMF_WOWL_GTK_FAILURE;
 	if (!test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
 		wowl_config |= BRCMF_WOWL_UNASSOC;
 
@@ -4874,7 +4880,32 @@ static int brcmf_cfg80211_tdls_oper(struct wiphy *wiphy,
 	return ret;
 }
 
-static struct cfg80211_ops wl_cfg80211_ops = {
+#ifdef CONFIG_PM
+static int
+brcmf_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *ndev,
+			      struct cfg80211_gtk_rekey_data *gtk)
+{
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_gtk_keyinfo_le gtk_le;
+	int ret;
+
+	brcmf_dbg(TRACE, "Enter, bssidx=%d\n", ifp->bsscfgidx);
+
+	memcpy(gtk_le.kck, gtk->kck, sizeof(gtk_le.kck));
+	memcpy(gtk_le.kek, gtk->kek, sizeof(gtk_le.kek));
+	memcpy(gtk_le.replay_counter, gtk->replay_ctr,
+	       sizeof(gtk_le.replay_counter));
+
+	ret = brcmf_fil_iovar_data_set(ifp, "gtk_key_info", &gtk_le,
+				       sizeof(gtk_le));
+	if (ret < 0)
+		brcmf_err("gtk_key_info iovar failed: ret=%d\n", ret);
+
+	return ret;
+}
+#endif
+
+static struct cfg80211_ops brcmf_cfg80211_ops = {
 	.add_virtual_intf = brcmf_cfg80211_add_iface,
 	.del_virtual_intf = brcmf_cfg80211_del_iface,
 	.change_virtual_intf = brcmf_cfg80211_change_iface,
@@ -6139,19 +6170,18 @@ static void brcmf_wiphy_wowl_params(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
 #ifdef CONFIG_PM
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	s32 err;
-	u32 wowl_cap;
 
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO)) {
-		err = brcmf_fil_iovar_int_get(ifp, "wowl_cap", &wowl_cap);
-		if (!err) {
-			if (wowl_cap & BRCMF_WOWL_PFN_FOUND) {
-				brcmf_wowlan_support.flags |=
-							WIPHY_WOWLAN_NET_DETECT;
-				init_waitqueue_head(&cfg->wowl.nd_data_wait);
-			}
+		if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_ND)) {
+			brcmf_wowlan_support.flags |= WIPHY_WOWLAN_NET_DETECT;
+			init_waitqueue_head(&cfg->wowl.nd_data_wait);
 		}
 	}
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_GTK)) {
+		brcmf_wowlan_support.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY;
+		brcmf_wowlan_support.flags |= WIPHY_WOWLAN_GTK_REKEY_FAILURE;
+	}
+
 	wiphy->wowlan = &brcmf_wowlan_support;
 #endif
 }
@@ -6538,6 +6568,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	struct net_device *ndev = brcmf_get_ifp(drvr, 0)->ndev;
 	struct brcmf_cfg80211_info *cfg;
 	struct wiphy *wiphy;
+	struct cfg80211_ops *ops;
 	struct brcmf_cfg80211_vif *vif;
 	struct brcmf_if *ifp;
 	s32 err = 0;
@@ -6549,8 +6580,17 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		return NULL;
 	}
 
+	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	if (!ops)
+		return NULL;
+
+	memcpy(ops, &brcmf_cfg80211_ops, sizeof(*ops));
 	ifp = netdev_priv(ndev);
-	wiphy = wiphy_new(&wl_cfg80211_ops, sizeof(struct brcmf_cfg80211_info));
+#ifdef CONFIG_PM
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_GTK))
+		ops->set_rekey_data = brcmf_cfg80211_set_rekey_data;
+#endif
+	wiphy = wiphy_new(ops, sizeof(struct brcmf_cfg80211_info));
 	if (!wiphy) {
 		brcmf_err("Could not allocate wiphy device\n");
 		return NULL;
@@ -6560,6 +6600,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 
 	cfg = wiphy_priv(wiphy);
 	cfg->wiphy = wiphy;
+	cfg->ops = ops;
 	cfg->pub = drvr;
 	init_vif_event(&cfg->vif_event);
 	INIT_LIST_HEAD(&cfg->vif_list);
@@ -6686,6 +6727,7 @@ priv_out:
 	ifp->vif = NULL;
 wiphy_out:
 	brcmf_free_wiphy(wiphy);
+	kfree(ops);
 	return NULL;
 }
 
@@ -6696,6 +6738,7 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 
 	brcmf_btcoex_detach(cfg);
 	wiphy_unregister(cfg->wiphy);
+	kfree(cfg->ops);
 	wl_deinit_priv(cfg);
 	brcmf_free_wiphy(cfg->wiphy);
 }

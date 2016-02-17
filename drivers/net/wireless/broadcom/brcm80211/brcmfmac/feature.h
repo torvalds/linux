@@ -27,6 +27,8 @@
  * RSDB: Real Simultaneous Dual Band
  * TDLS: Tunneled Direct Link Setup
  * SCAN_RANDOM_MAC: Random MAC during (net detect) scheduled scan.
+ * WOWL_ND: WOWL net detect (PNO)
+ * WOWL_GTK: (WOWL) GTK rekeying offload
  */
 #define BRCMF_FEAT_LIST \
 	BRCMF_FEAT_DEF(MBSS) \
@@ -36,7 +38,9 @@
 	BRCMF_FEAT_DEF(P2P) \
 	BRCMF_FEAT_DEF(RSDB) \
 	BRCMF_FEAT_DEF(TDLS) \
-	BRCMF_FEAT_DEF(SCAN_RANDOM_MAC)
+	BRCMF_FEAT_DEF(SCAN_RANDOM_MAC) \
+	BRCMF_FEAT_DEF(WOWL_ND) \
+	BRCMF_FEAT_DEF(WOWL_GTK)
 
 /*
  * Quirks:

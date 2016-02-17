@@ -111,7 +111,9 @@
 /* Wakeup if received matched secured pattern: */
 #define BRCMF_WOWL_SECURE		(1 << 25)
 /* Wakeup on finding preferred network */
-#define BRCMF_WOWL_PFN_FOUND		(1 << 26)
+#define BRCMF_WOWL_PFN_FOUND		(1 << 27)
+/* Wakeup on receiving pairwise key EAP packets: */
+#define WIPHY_WOWL_EAP_PK		(1 << 28)
 /* Link Down indication in WoWL mode: */
 #define BRCMF_WOWL_LINKDOWN		(1 << 31)
 
@@ -135,6 +137,10 @@
 #define BRCMF_PFN_SET_MAC_UNASSOC	BIT(1)
 
 #define BRCMF_MCSSET_LEN		16
+
+#define BRCMF_RSN_KCK_LENGTH		16
+#define BRCMF_RSN_KEK_LENGTH		16
+#define BRCMF_RSN_REPLAY_LEN		8
 
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
@@ -787,6 +793,19 @@ struct brcmf_pktcnt_le {
 	__le32 tx_good_pkt;
 	__le32 tx_bad_pkt;
 	__le32 rx_ocast_good_pkt;
+};
+
+/**
+ * struct brcmf_gtk_keyinfo_le - GTP rekey data
+ *
+ * @kck: key confirmation key.
+ * @kek: key encryption key.
+ * @replay_counter: replay counter.
+ */
+struct brcmf_gtk_keyinfo_le {
+	u8 kck[BRCMF_RSN_KCK_LENGTH];
+	u8 kek[BRCMF_RSN_KEK_LENGTH];
+	u8 replay_counter[BRCMF_RSN_REPLAY_LEN];
 };
 
 #endif /* FWIL_TYPES_H_ */
