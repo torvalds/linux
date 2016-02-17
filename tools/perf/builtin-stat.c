@@ -860,7 +860,7 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 
 	nl = new_line_std;
 
-	if (run == 0 || ena == 0) {
+	if (run == 0 || ena == 0 || counter->counts->scaled == -1) {
 		aggr_printout(counter, id, nr);
 
 		fprintf(stat_config.output, "%*s%s",
