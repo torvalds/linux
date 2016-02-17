@@ -99,6 +99,4 @@ config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
 	select ARCH_RMOBILE
 	select RENESAS_INTC_IRQPIN
-
-comment "Renesas ARM SoCs System Configuration"
 endif
