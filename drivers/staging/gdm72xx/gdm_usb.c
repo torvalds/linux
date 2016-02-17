@@ -29,7 +29,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define TX_BUF_SIZE		2048
 
 #if defined(CONFIG_WIMAX_GDM72XX_WIMAX2)
-#define RX_BUF_SIZE		(128*1024)	/* For packet aggregation */
+#define RX_BUF_SIZE		(128 * 1024)	/* For packet aggregation */
 #else
 #define RX_BUF_SIZE		2048
 #endif

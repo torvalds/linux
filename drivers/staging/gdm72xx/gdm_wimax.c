@@ -111,8 +111,8 @@ static void gdm_wimax_event_rcv(struct net_device *dev, u16 type, void *msg,
 	struct nic *nic = netdev_priv(dev);
 
 	u8 *buf = msg;
-	u16 hci_cmd =  (buf[0]<<8) | buf[1];
-	u16 hci_len = (buf[2]<<8) | buf[3];
+	u16 hci_cmd =  (buf[0] << 8) | buf[1];
+	u16 hci_len = (buf[2] << 8) | buf[3];
 
 	netdev_dbg(dev, "H=>D: 0x%04x(%d)\n", hci_cmd, hci_len);
 
@@ -193,8 +193,8 @@ static int gdm_wimax_event_send(struct net_device *dev, char *buf, int size)
 	struct evt_entry *e;
 	unsigned long flags;
 
-	u16 hci_cmd =  ((u8)buf[0]<<8) | (u8)buf[1];
-	u16 hci_len = ((u8)buf[2]<<8) | (u8)buf[3];
+	u16 hci_cmd =  ((u8)buf[0] << 8) | (u8)buf[1];
+	u16 hci_len = ((u8)buf[2] << 8) | (u8)buf[3];
 
 	netdev_dbg(dev, "D=>H: 0x%04x(%d)\n", hci_cmd, hci_len);
 
@@ -328,7 +328,8 @@ static void gdm_wimax_ind_if_updown(struct net_device *dev, int if_up)
 	hci->length = cpu_to_be16(sizeof(up_down));
 	hci->data[0] = up_down;
 
-	gdm_wimax_event_send(dev, (char *)hci, HCI_HEADER_SIZE+sizeof(up_down));
+	gdm_wimax_event_send(dev, (char *)hci, HCI_HEADER_SIZE +
+			     sizeof(up_down));
 }
 
 static int gdm_wimax_open(struct net_device *dev)
@@ -512,7 +513,7 @@ static void gdm_wimax_prepare_device(struct net_device *dev)
 	hci->cmd_evt = cpu_to_be16(WIMAX_GET_INFO);
 	hci->data[len++] = TLV_T(T_MAC_ADDRESS);
 	hci->length = cpu_to_be16(len);
-	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE+len);
+	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE + len);
 
 	val = T_CAPABILITY_WIMAX | T_CAPABILITY_MULTI_CS;
 	#if defined(CONFIG_WIMAX_GDM72XX_QOS)
@@ -531,7 +532,7 @@ static void gdm_wimax_prepare_device(struct net_device *dev)
 	memcpy(&hci->data[len], &val_be32, TLV_L(T_CAPABILITY));
 	len += TLV_L(T_CAPABILITY);
 	hci->length = cpu_to_be16(len);
-	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE+len);
+	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE + len);
 
 	netdev_info(dev, "GDM WiMax Set CAPABILITY: 0x%08X\n", val);
 }
@@ -544,10 +545,10 @@ static int gdm_wimax_hci_get_tlv(u8 *buf, u8 *T, u16 *L, u8 **V)
 	*T = buf[0];
 	if (buf[1] == 0x82) {
 		*L = be16_to_cpu(__U82U16(&buf[2]));
-		next_pos = 1/*type*/+3/*len*/;
+		next_pos = 1/*type*/ + 3/*len*/;
 	} else {
 		*L = buf[1];
-		next_pos = 1/*type*/+1/*len*/;
+		next_pos = 1/*type*/ + 1/*len*/;
 	}
 	*V = &buf[next_pos];
 

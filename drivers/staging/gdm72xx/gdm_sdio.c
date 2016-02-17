@@ -33,10 +33,10 @@
 #define SDU_TX_BUF_SIZE	2048
 #define TX_BUF_SIZE	2048
 #define TX_CHUNK_SIZE	(2048 - TYPE_A_HEADER_SIZE)
-#define RX_BUF_SIZE	(25*1024)
+#define RX_BUF_SIZE	(25 * 1024)
 
 #define TX_HZ		2000
-#define TX_INTERVAL	(NSEC_PER_SEC/TX_HZ)
+#define TX_INTERVAL	(NSEC_PER_SEC / TX_HZ)
 
 static struct sdio_tx *alloc_tx_struct(struct tx_cxt *tx)
 {

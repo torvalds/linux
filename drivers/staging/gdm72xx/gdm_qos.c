@@ -261,7 +261,7 @@ int gdm_qos_send_hci_pkt(struct sk_buff *skb, struct net_device *dev)
 	struct list_head send_list;
 	int ret = 0;
 
-	tcph = (struct tcphdr *)iph + iph->ihl*4;
+	tcph = (struct tcphdr *)iph + iph->ihl * 4;
 
 	if (ethh->h_proto == cpu_to_be16(ETH_P_IP)) {
 		if (qcb->qos_list_cnt && !qos_free_list.cnt) {
@@ -342,17 +342,17 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 	if (sub_cmd_evt == QOS_REPORT) {
 		spin_lock_irqsave(&qcb->qos_lock, flags);
 		for (i = 0; i < qcb->qos_list_cnt; i++) {
-			sfid = ((buf[(i*5) + 6] << 24) & 0xff000000);
-			sfid += ((buf[(i*5) + 7] << 16) & 0xff0000);
-			sfid += ((buf[(i*5) + 8] << 8) & 0xff00);
-			sfid += (buf[(i*5) + 9]);
+			sfid = ((buf[(i * 5) + 6] << 24) & 0xff000000);
+			sfid += ((buf[(i * 5) + 7] << 16) & 0xff0000);
+			sfid += ((buf[(i * 5) + 8] << 8) & 0xff00);
+			sfid += (buf[(i * 5) + 9]);
 			index = get_csr(qcb, sfid, 0);
 			if (index == -1) {
 				spin_unlock_irqrestore(&qcb->qos_lock, flags);
 				netdev_err(nic->netdev, "QoS ERROR: No SF\n");
 				return;
 			}
-			qcb->csr[index].qos_buf_count = buf[(i*5) + 10];
+			qcb->csr[index].qos_buf_count = buf[(i * 5) + 10];
 		}
 
 		extract_qos_list(nic, &send_list);
