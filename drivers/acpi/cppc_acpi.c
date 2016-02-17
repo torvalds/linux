@@ -39,6 +39,7 @@
 
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
+#include <linux/ktime.h>
 
 #include <acpi/cppc_acpi.h>
 /*
@@ -63,25 +64,53 @@ static struct mbox_chan *pcc_channel;
 static void __iomem *pcc_comm_addr;
 static u64 comm_base_addr;
 static int pcc_subspace_idx = -1;
-static u16 pcc_cmd_delay;
 static bool pcc_channel_acquired;
+static ktime_t deadline;
 
 /*
  * Arbitrary Retries in case the remote processor is slow to respond
- * to PCC commands.
+ * to PCC commands. Keeping it high enough to cover emulators where
+ * the processors run painfully slow.
  */
 #define NUM_RETRIES 500
 
+static int check_pcc_chan(void)
+{
+	int ret = -EIO;
+	struct acpi_pcct_shared_memory __iomem *generic_comm_base = pcc_comm_addr;
+	ktime_t next_deadline = ktime_add(ktime_get(), deadline);
+
+	/* Retry in case the remote processor was too slow to catch up. */
+	while (!ktime_after(ktime_get(), next_deadline)) {
+		if (readw_relaxed(&generic_comm_base->status) & PCC_CMD_COMPLETE) {
+			ret = 0;
+			break;
+		}
+		/*
+		 * Reducing the bus traffic in case this loop takes longer than
+		 * a few retries.
+		 */
+		udelay(3);
+	}
+
+	return ret;
+}
+
 static int send_pcc_cmd(u16 cmd)
 {
-	int retries, result = -EIO;
-	struct acpi_pcct_hw_reduced *pcct_ss = pcc_channel->con_priv;
+	int ret = -EIO;
 	struct acpi_pcct_shared_memory *generic_comm_base =
 		(struct acpi_pcct_shared_memory *) pcc_comm_addr;
-	u32 cmd_latency = pcct_ss->latency;
 
-	/* Min time OS should wait before sending next command. */
-	udelay(pcc_cmd_delay);
+	/*
+	 * For CMD_WRITE we know for a fact the caller should have checked
+	 * the channel before writing to PCC space
+	 */
+	if (cmd == CMD_READ) {
+		ret = check_pcc_chan();
+		if (ret)
+			return ret;
+	}
 
 	/* Write to the shared comm region. */
 	writew(cmd, &generic_comm_base->command);
@@ -90,31 +119,30 @@ static int send_pcc_cmd(u16 cmd)
 	writew(0, &generic_comm_base->status);
 
 	/* Ring doorbell */
-	result = mbox_send_message(pcc_channel, &cmd);
-	if (result < 0) {
+	ret = mbox_send_message(pcc_channel, &cmd);
+	if (ret < 0) {
 		pr_err("Err sending PCC mbox message. cmd:%d, ret:%d\n",
-				cmd, result);
-		return result;
+				cmd, ret);
+		return ret;
 	}
 
-	/* Wait for a nominal time to let platform process command. */
-	udelay(cmd_latency);
+	/*
+	 * For READs we need to ensure the cmd completed to ensure
+	 * the ensuing read()s can proceed. For WRITEs we dont care
+	 * because the actual write()s are done before coming here
+	 * and the next READ or WRITE will check if the channel
+	 * is busy/free at the entry of this call.
+	 */
+	if (cmd == CMD_READ)
+		ret = check_pcc_chan();
 
-	/* Retry in case the remote processor was too slow to catch up. */
-	for (retries = NUM_RETRIES; retries > 0; retries--) {
-		if (readw_relaxed(&generic_comm_base->status) & PCC_CMD_COMPLETE) {
-			result = 0;
-			break;
-		}
-	}
-
-	mbox_client_txdone(pcc_channel, result);
-	return result;
+	mbox_client_txdone(pcc_channel, ret);
+	return ret;
 }
 
 static void cppc_chan_tx_done(struct mbox_client *cl, void *msg, int ret)
 {
-	if (ret)
+	if (ret < 0)
 		pr_debug("TX did not complete: CMD sent:%x, ret:%d\n",
 				*(u16 *)msg, ret);
 	else
@@ -306,6 +334,7 @@ static int register_pcc_channel(int pcc_subspace_idx)
 {
 	struct acpi_pcct_hw_reduced *cppc_ss;
 	unsigned int len;
+	u64 usecs_lat;
 
 	if (pcc_subspace_idx >= 0) {
 		pcc_channel = pcc_mbox_request_channel(&cppc_mbox_cl,
@@ -335,7 +364,14 @@ static int register_pcc_channel(int pcc_subspace_idx)
 		 */
 		comm_base_addr = cppc_ss->base_address;
 		len = cppc_ss->length;
-		pcc_cmd_delay = cppc_ss->min_turnaround_time;
+
+		/*
+		 * cppc_ss->latency is just a Nominal value. In reality
+		 * the remote processor could be much slower to reply.
+		 * So add an arbitrary amount of wait on top of Nominal.
+		 */
+		usecs_lat = NUM_RETRIES * cppc_ss->latency;
+		deadline = ns_to_ktime(usecs_lat * NSEC_PER_USEC);
 
 		pcc_comm_addr = acpi_os_ioremap(comm_base_addr, len);
 		if (!pcc_comm_addr) {
@@ -604,7 +640,7 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 			(ref_perf->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM) ||
 			(nom_perf->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM)) {
 		/* Ring doorbell once to update PCC subspace */
-		if (send_pcc_cmd(CMD_READ)) {
+		if (send_pcc_cmd(CMD_READ) < 0) {
 			ret = -EIO;
 			goto out_err;
 		}
@@ -662,7 +698,7 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 	if ((delivered_reg->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM) ||
 			(reference_reg->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM)) {
 		/* Ring doorbell once to update PCC subspace */
-		if (send_pcc_cmd(CMD_READ)) {
+		if (send_pcc_cmd(CMD_READ) < 0) {
 			ret = -EIO;
 			goto out_err;
 		}
@@ -713,6 +749,13 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 
 	spin_lock(&pcc_lock);
 
+	/* If this is PCC reg, check if channel is free before writing */
+	if (desired_reg->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
+		ret = check_pcc_chan();
+		if (ret)
+			goto busy_channel;
+	}
+
 	/*
 	 * Skip writing MIN/MAX until Linux knows how to come up with
 	 * useful values.
@@ -722,10 +765,10 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	/* Is this a PCC reg ?*/
 	if (desired_reg->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
 		/* Ring doorbell so Remote can get our perf request. */
-		if (send_pcc_cmd(CMD_WRITE))
+		if (send_pcc_cmd(CMD_WRITE) < 0)
 			ret = -EIO;
 	}
-
+busy_channel:
 	spin_unlock(&pcc_lock);
 
 	return ret;
