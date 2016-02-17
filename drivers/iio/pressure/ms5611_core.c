@@ -136,17 +136,17 @@ static int ms5607_temp_and_pressure_compensate(struct ms5611_chip_info *chip_inf
 
 	t = 2000 + ((chip_info->prom[6] * dt) >> 23);
 	if (t < 2000) {
-		s64 off2, sens2, t2;
+		s64 off2, sens2, t2, tmp;
 
 		t2 = (dt * dt) >> 31;
-		off2 = (61 * (t - 2000) * (t - 2000)) >> 4;
-		sens2 = off2 << 1;
+		tmp = (t - 2000) * (t - 2000);
+		off2 = (61 * tmp) >> 4;
+		sens2 = tmp << 1;
 
 		if (t < -1500) {
-			s64 tmp = (t + 1500) * (t + 1500);
-
+			tmp = (t + 1500) * (t + 1500);
 			off2 += 15 * tmp;
-			sens2 += (8 * tmp);
+			sens2 += 8 * tmp;
 		}
 
 		t -= t2;
