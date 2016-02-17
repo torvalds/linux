@@ -272,7 +272,12 @@ static const struct key_entry dell_wmi_keymap_type_0010[] __initconst = {
 	/* RGB keyboard backlight control */
 	{ KE_IGNORE, 0x154, { KEY_RESERVED } },
 
-	/* Stealth mode toggle */
+	/*
+	 * Stealth mode toggle. This will "disable all lights and sounds".
+	 * The action is performed by the BIOS and EC; the WMI event is just
+	 * a notification. On the XPS 13 9350, this is Fn+F7, and there's
+	 * a BIOS setting to enable and disable the hotkey.
+	 */
 	{ KE_IGNORE, 0x155, { KEY_RESERVED } },
 
 	/* Rugged magnetic dock attach/detach events */
