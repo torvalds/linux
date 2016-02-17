@@ -98,13 +98,6 @@ static struct evt_entry *get_event_entry(void)
 	return e;
 }
 
-static void put_event_entry(struct evt_entry *e)
-{
-	BUG_ON(!e);
-
-	list_add_tail(&e->list, &wm_event.freeq);
-}
-
 static void gdm_wimax_event_rcv(struct net_device *dev, u16 type, void *msg,
 				int len)
 {
@@ -137,7 +130,7 @@ static void __gdm_wimax_event_send(struct work_struct *work)
 
 		spin_lock_irqsave(&wm_event.evt_lock, flags);
 		list_del(&e->list);
-		put_event_entry(e);
+		list_add_tail(&e->list, &wm_event.freeq);
 	}
 
 	spin_unlock_irqrestore(&wm_event.evt_lock, flags);
