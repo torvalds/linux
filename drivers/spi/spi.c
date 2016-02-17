@@ -2254,7 +2254,7 @@ static int __spi_split_transfer_maxsize(struct spi_master *master,
 
 	/* warn once about this fact that we are splitting a transfer */
 	dev_warn_once(&msg->spi->dev,
-		      "spi_transfer of length %i exceed max length of %i - needed to split transfers\n",
+		      "spi_transfer of length %i exceed max length of %zu - needed to split transfers\n",
 		      xfer->len, maxsize);
 
 	/* calculate how many we have to replace */
