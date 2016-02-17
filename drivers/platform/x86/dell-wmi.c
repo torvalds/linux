@@ -449,6 +449,7 @@ static void __init handle_dmi_entry(const struct dmi_header *dm,
 	if (results->err || results->keymap)
 		return;		/* We already found the hotkey table. */
 
+	/* The Dell hotkey table is type 0xB2.  Scan until we find it. */
 	if (dm->type != 0xb2)
 		return;
 
