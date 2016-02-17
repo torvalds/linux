@@ -49,6 +49,11 @@
 #define XGENE_ENET_MSS	1448
 #define XGENE_MIN_ENET_FRAME_SIZE	60
 
+#define XGENE_MAX_ENET_IRQ	8
+#define XGENE_NUM_RX_RING	4
+#define XGENE_NUM_TX_RING	4
+#define XGENE_NUM_TXC_RING	4
+
 #define START_CPU_BUFNUM_0	0
 #define START_ETH_BUFNUM_0	2
 #define START_BP_BUFNUM_0	0x22
@@ -73,7 +78,6 @@
 #define X2_START_RING_NUM_1	256
 
 #define IRQ_ID_SIZE		16
-#define XGENE_MAX_TXC_RINGS	1
 
 #define PHY_POLL_LINK_ON	(10 * HZ)
 #define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
@@ -103,6 +107,7 @@ struct xgene_enet_desc_ring {
 	void *irq_mbox_addr;
 	u16 dst_ring_num;
 	u8 nbufpool;
+	u8 index;
 	struct sk_buff *(*rx_skb);
 	struct sk_buff *(*cp_skb);
 	dma_addr_t *frag_dma_addr;
@@ -144,6 +149,7 @@ struct xgene_ring_ops {
 	void (*clear)(struct xgene_enet_desc_ring *);
 	void (*wr_cmd)(struct xgene_enet_desc_ring *, int);
 	u32 (*len)(struct xgene_enet_desc_ring *);
+	void (*coalesce)(struct xgene_enet_desc_ring *);
 };
 
 struct xgene_cle_ops {
@@ -159,15 +165,16 @@ struct xgene_enet_pdata {
 	struct clk *clk;
 	struct platform_device *pdev;
 	enum xgene_enet_id enet_id;
-	struct xgene_enet_desc_ring *tx_ring;
-	struct xgene_enet_desc_ring *rx_ring;
-	u16 tx_level;
-	u16 txc_level;
+	struct xgene_enet_desc_ring *tx_ring[XGENE_NUM_TX_RING];
+	struct xgene_enet_desc_ring *rx_ring[XGENE_NUM_RX_RING];
+	u16 tx_level[XGENE_NUM_TX_RING];
+	u16 txc_level[XGENE_NUM_TX_RING];
 	char *dev_name;
 	u32 rx_buff_cnt;
 	u32 tx_qcnt_hi;
-	u32 rx_irq;
-	u32 txc_irq;
+	u32 irqs[XGENE_MAX_ENET_IRQ];
+	u8 rxq_cnt;
+	u8 txq_cnt;
 	u8 cq_cnt;
 	void __iomem *eth_csr_addr;
 	void __iomem *eth_ring_if_addr;

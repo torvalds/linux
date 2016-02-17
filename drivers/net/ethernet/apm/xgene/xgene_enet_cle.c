@@ -331,14 +331,15 @@ static int xgene_cle_set_rss_skeys(struct xgene_enet_cle *cle)
 
 static int xgene_cle_set_rss_idt(struct xgene_enet_pdata *pdata)
 {
-	u32 fpsel, dstqid, nfpsel, idt_reg;
+	u32 fpsel, dstqid, nfpsel, idt_reg, idx;
 	int i, ret = 0;
 	u16 pool_id;
 
 	for (i = 0; i < XGENE_CLE_IDT_ENTRIES; i++) {
-		pool_id = pdata->rx_ring->buf_pool->id;
+		idx = i % pdata->rxq_cnt;
+		pool_id = pdata->rx_ring[idx]->buf_pool->id;
 		fpsel = xgene_enet_ring_bufnum(pool_id) - 0x20;
-		dstqid = xgene_enet_dst_ring_num(pdata->rx_ring);
+		dstqid = xgene_enet_dst_ring_num(pdata->rx_ring[idx]);
 		nfpsel = 0;
 		idt_reg = 0;
 
@@ -695,8 +696,8 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 		br->mask = 0xffff;
 	}
 
-	def_qid = xgene_enet_dst_ring_num(pdata->rx_ring);
-	pool_id = pdata->rx_ring->buf_pool->id;
+	def_qid = xgene_enet_dst_ring_num(pdata->rx_ring[0]);
+	pool_id = pdata->rx_ring[0]->buf_pool->id;
 	def_fpsel = xgene_enet_ring_bufnum(pool_id) - 0x20;
 
 	memset(dbptr, 0, sizeof(struct xgene_cle_dbptr) * DB_MAX_PTRS);
