@@ -8217,6 +8217,27 @@ static int ixgbe_delete_clsu32(struct ixgbe_adapter *adapter,
 	return err;
 }
 
+static int ixgbe_configure_clsu32_add_hnode(struct ixgbe_adapter *adapter,
+					    __be16 protocol,
+					    struct tc_cls_u32_offload *cls)
+{
+	/* This ixgbe devices do not support hash tables at the moment
+	 * so abort when given hash tables.
+	 */
+	if (cls->hnode.divisor > 0)
+		return -EINVAL;
+
+	set_bit(TC_U32_USERHTID(cls->hnode.handle), &adapter->tables);
+	return 0;
+}
+
+static int ixgbe_configure_clsu32_del_hnode(struct ixgbe_adapter *adapter,
+					    struct tc_cls_u32_offload *cls)
+{
+	clear_bit(TC_U32_USERHTID(cls->hnode.handle), &adapter->tables);
+	return 0;
+}
+
 static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 				  __be16 protocol,
 				  struct tc_cls_u32_offload *cls)
@@ -8250,6 +8271,9 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 	    cls->knode.link_handle >= IXGBE_MAX_LINK_HANDLE) {
 		struct ixgbe_nexthdr *nexthdr = ixgbe_ipv4_jumps;
 		u32 uhtid = TC_U32_USERHTID(cls->knode.link_handle);
+
+		if (!test_bit(uhtid, &adapter->tables))
+			return -EINVAL;
 
 		for (i = 0; nexthdr[i].jump; i++) {
 			if (nexthdr->o != cls->knode.sel->offoff ||
@@ -8386,6 +8410,13 @@ int __ixgbe_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 						      proto, tc->cls_u32);
 		case TC_CLSU32_DELETE_KNODE:
 			return ixgbe_delete_clsu32(adapter, tc->cls_u32);
+		case TC_CLSU32_NEW_HNODE:
+		case TC_CLSU32_REPLACE_HNODE:
+			return ixgbe_configure_clsu32_add_hnode(adapter, proto,
+								tc->cls_u32);
+		case TC_CLSU32_DELETE_HNODE:
+			return ixgbe_configure_clsu32_del_hnode(adapter,
+								tc->cls_u32);
 		default:
 			return -EINVAL;
 		}

@@ -798,6 +798,7 @@ struct ixgbe_adapter {
 
 #define IXGBE_MAX_LINK_HANDLE 10
 	struct ixgbe_mat_field *jump_tables[IXGBE_MAX_LINK_HANDLE];
+	unsigned long tables;
 
 /* maximum number of RETA entries among all devices supported by ixgbe
  * driver: currently it's x550 device in non-SRIOV mode
