@@ -298,7 +298,8 @@ static int ms5611_init(struct iio_dev *indio_dev)
 	return ms5611_read_prom(indio_dev);
 }
 
-int ms5611_probe(struct iio_dev *indio_dev, struct device *dev, int type)
+int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
+                 const char *name, int type)
 {
 	int ret;
 	struct ms5611_state *st = iio_priv(indio_dev);
@@ -306,7 +307,7 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev, int type)
 	mutex_init(&st->lock);
 	st->chip_info = &chip_info_tbl[type];
 	indio_dev->dev.parent = dev;
-	indio_dev->name = dev->driver->name;
+	indio_dev->name = name;
 	indio_dev->info = &ms5611_info;
 	indio_dev->channels = ms5611_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ms5611_channels);
