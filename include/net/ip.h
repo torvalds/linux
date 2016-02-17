@@ -245,12 +245,6 @@ extern int inet_peer_threshold;
 extern int inet_peer_minttl;
 extern int inet_peer_maxttl;
 
-/* From ip_input.c */
-extern int sysctl_ip_early_demux;
-
-/* From ip_output.c */
-extern int sysctl_ip_dynaddr;
-
 void ipfrag_init(void);
 
 void ip_static_sysctl_init(void);

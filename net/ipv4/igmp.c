@@ -1224,7 +1224,9 @@ static void igmp_group_dropped(struct ip_mc_list *im)
 static void igmp_group_added(struct ip_mc_list *im)
 {
 	struct in_device *in_dev = im->interface;
+#ifdef CONFIG_IP_MULTICAST
 	struct net *net = dev_net(in_dev->dev);
+#endif
 
 	if (im->loaded == 0) {
 		im->loaded = 1;
@@ -1316,7 +1318,9 @@ static void ip_mc_hash_remove(struct in_device *in_dev,
 void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 {
 	struct ip_mc_list *im;
+#ifdef CONFIG_IP_MULTICAST
 	struct net *net = dev_net(in_dev->dev);
+#endif
 
 	ASSERT_RTNL();
 
@@ -1643,7 +1647,9 @@ void ip_mc_down(struct in_device *in_dev)
 
 void ip_mc_init_dev(struct in_device *in_dev)
 {
+#ifdef CONFIG_IP_MULTICAST
 	struct net *net = dev_net(in_dev->dev);
+#endif
 	ASSERT_RTNL();
 
 #ifdef CONFIG_IP_MULTICAST
@@ -1662,7 +1668,9 @@ void ip_mc_init_dev(struct in_device *in_dev)
 void ip_mc_up(struct in_device *in_dev)
 {
 	struct ip_mc_list *pmc;
+#ifdef CONFIG_IP_MULTICAST
 	struct net *net = dev_net(in_dev->dev);
+#endif
 
 	ASSERT_RTNL();
 
@@ -2923,6 +2931,12 @@ static int __net_init igmp_net_init(struct net *net)
 		goto out_sock;
 	}
 
+	/* Sysctl initialization */
+	net->ipv4.sysctl_igmp_max_memberships = 20;
+	net->ipv4.sysctl_igmp_max_msf = 10;
+	/* IGMP reports for link-local multicast groups are enabled by default */
+	net->ipv4.sysctl_igmp_llm_reports = 1;
+	net->ipv4.sysctl_igmp_qrv = 2;
 	return 0;
 
 out_sock:
