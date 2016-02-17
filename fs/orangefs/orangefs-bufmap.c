@@ -455,17 +455,11 @@ void orangefs_bufmap_run_down(void)
  * gets a free mapped buffer descriptor, will sleep until one becomes
  * available if necessary
  *
- * returns 0 on success, -errno on failure
+ * returns slot on success, -errno on failure
  */
-int orangefs_bufmap_get(struct orangefs_bufmap **mapp, int *buffer_index)
+int orangefs_bufmap_get(void)
 {
-	int ret = get(&rw_map);
-	if (ret >= 0) {
-		*mapp = __orangefs_bufmap;
-		*buffer_index = ret;
-		ret = 0;
-	}
-	return ret;
+	return get(&rw_map);
 }
 
 /*
@@ -489,17 +483,11 @@ void orangefs_bufmap_put(int buffer_index)
  * we could do that at a later point of time. Regardless, these
  * indices are used by the client-core.
  *
- * returns 0 on success, -errno on failure
+ * returns slot on success, -errno on failure
  */
-int orangefs_readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index)
+int orangefs_readdir_index_get(void)
 {
-	int ret = get(&readdir_map);
-	if (ret >= 0) {
-		*mapp = __orangefs_bufmap;
-		*buffer_index = ret;
-		ret = 0;
-	}
-	return ret;
+	return get(&readdir_map);
 }
 
 void orangefs_readdir_index_put(int buffer_index)

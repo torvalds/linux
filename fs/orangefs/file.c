@@ -87,7 +87,6 @@ static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inod
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
-	struct orangefs_bufmap *bufmap = NULL;
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct iov_iter saved = *iter;
 	int buffer_index = -1;
@@ -104,11 +103,12 @@ static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inod
 
 populate_shared_memory:
 	/* get a shared buffer index */
-	ret = orangefs_bufmap_get(&bufmap, &buffer_index);
-	if (ret < 0) {
+	buffer_index = orangefs_bufmap_get();
+	if (buffer_index < 0) {
+		ret = buffer_index;
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s: orangefs_bufmap_get failure (%ld)\n",
-			     __func__, (long)ret);
+			     "%s: orangefs_bufmap_get failure (%zd)\n",
+			     __func__, ret);
 		goto out;
 	}
 	gossip_debug(GOSSIP_FILE_DEBUG,

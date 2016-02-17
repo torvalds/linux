@@ -19,11 +19,11 @@ void orangefs_bufmap_finalize(void);
 
 void orangefs_bufmap_run_down(void);
 
-int orangefs_bufmap_get(struct orangefs_bufmap **mapp, int *buffer_index);
+int orangefs_bufmap_get(void);
 
 void orangefs_bufmap_put(int buffer_index);
 
-int orangefs_readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index);
+int orangefs_readdir_index_get(void);
 
 void orangefs_readdir_index_put(int buffer_index);
 

@@ -141,7 +141,6 @@ out:
  */
 static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct orangefs_bufmap *bufmap = NULL;
 	int ret = 0;
 	int buffer_index;
 	/*
@@ -205,8 +204,9 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 	new_op->upcall.req.readdir.token = *ptoken;
 
 get_new_buffer_index:
-	ret = orangefs_readdir_index_get(&bufmap, &buffer_index);
-	if (ret < 0) {
+	buffer_index = orangefs_readdir_index_get();
+	if (buffer_index < 0) {
+		ret = buffer_index;
 		gossip_lerr("orangefs_readdir: orangefs_readdir_index_get() failure (%d)\n",
 			    ret);
 		goto out_free_op;
