@@ -393,13 +393,50 @@ void __init parse_efi_setup(u64 phys_addr, u32 data_len)
 	efi_setup = phys_addr + sizeof(struct setup_data);
 }
 
-void __init efi_runtime_mkexec(void)
+void __init efi_runtime_update_mappings(void)
 {
-	if (!efi_enabled(EFI_OLD_MEMMAP))
+	unsigned long pfn;
+	pgd_t *pgd = efi_pgd;
+	efi_memory_desc_t *md;
+	void *p;
+
+	if (efi_enabled(EFI_OLD_MEMMAP)) {
+		if (__supported_pte_mask & _PAGE_NX)
+			runtime_code_page_mkexec();
+		return;
+	}
+
+	if (!efi_enabled(EFI_NX_PE_DATA))
 		return;
 
-	if (__supported_pte_mask & _PAGE_NX)
-		runtime_code_page_mkexec();
+	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+		unsigned long pf = 0;
+		md = p;
+
+		if (!(md->attribute & EFI_MEMORY_RUNTIME))
+			continue;
+
+		if (!(md->attribute & EFI_MEMORY_WB))
+			pf |= _PAGE_PCD;
+
+		if ((md->attribute & EFI_MEMORY_XP) ||
+			(md->type == EFI_RUNTIME_SERVICES_DATA))
+			pf |= _PAGE_NX;
+
+		if (!(md->attribute & EFI_MEMORY_RO) &&
+			(md->type != EFI_RUNTIME_SERVICES_CODE))
+			pf |= _PAGE_RW;
+
+		/* Update the 1:1 mapping */
+		pfn = md->phys_addr >> PAGE_SHIFT;
+		if (kernel_map_pages_in_pgd(pgd, pfn, md->phys_addr, md->num_pages, pf))
+			pr_warn("Error mapping PA 0x%llx -> VA 0x%llx!\n",
+				   md->phys_addr, md->virt_addr);
+
+		if (kernel_map_pages_in_pgd(pgd, pfn, md->virt_addr, md->num_pages, pf))
+			pr_warn("Error mapping PA 0x%llx -> VA 0x%llx!\n",
+				   md->phys_addr, md->virt_addr);
+	}
 }
 
 void __init efi_dump_pagetable(void)

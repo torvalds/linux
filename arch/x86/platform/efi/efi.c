@@ -934,7 +934,6 @@ static void __init __efi_enter_virtual_mode(void)
 	}
 
 	efi_sync_low_kernel_mappings();
-	efi_dump_pagetable();
 
 	if (efi_is_native()) {
 		status = phys_efi_set_virtual_address_map(
@@ -972,7 +971,13 @@ static void __init __efi_enter_virtual_mode(void)
 
 	efi.set_virtual_address_map = NULL;
 
-	efi_runtime_mkexec();
+	/*
+	 * Apply more restrictive page table mapping attributes now that
+	 * SVAM() has been called and the firmware has performed all
+	 * necessary relocation fixups for the new virtual addresses.
+	 */
+	efi_runtime_update_mappings();
+	efi_dump_pagetable();
 
 	/*
 	 * We mapped the descriptor array into the EFI pagetable above
