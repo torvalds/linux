@@ -1360,7 +1360,6 @@ void hfa384x_destroy(hfa384x_t *hw);
 
 int
 hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis);
-int hfa384x_drvr_commtallies(hfa384x_t *hw);
 int hfa384x_drvr_disable(hfa384x_t *hw, u16 macport);
 int hfa384x_drvr_enable(hfa384x_t *hw, u16 macport);
 int hfa384x_drvr_flashdl_enable(hfa384x_t *hw);

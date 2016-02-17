@@ -1735,37 +1735,6 @@ done:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_commtallies
-*
-* Send a commtallies inquiry to the MAC.  Note that this is an async
-* call that will result in an info frame arriving sometime later.
-*
-* Arguments:
-*	hw		device structure
-*
-* Returns:
-*	zero		success.
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-int hfa384x_drvr_commtallies(hfa384x_t *hw)
-{
-	hfa384x_metacmd_t cmd;
-
-	cmd.cmd = HFA384x_CMDCODE_INQ;
-	cmd.parm0 = HFA384x_IT_COMMTALLIES;
-	cmd.parm1 = 0;
-	cmd.parm2 = 0;
-
-	hfa384x_docmd_async(hw, &cmd, NULL, NULL, NULL);
-
-	return 0;
-}
-
-/*----------------------------------------------------------------
 * hfa384x_drvr_disable
 *
 * Issues the disable command to stop communications on one of
