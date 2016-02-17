@@ -7,8 +7,6 @@
 #ifndef __ORANGEFS_BUFMAP_H
 #define __ORANGEFS_BUFMAP_H
 
-struct orangefs_bufmap;
-
 int orangefs_bufmap_size_query(void);
 
 int orangefs_bufmap_shift_query(void);
@@ -34,12 +32,5 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 			      int buffer_index,
 			      size_t size);
-
-size_t orangefs_bufmap_copy_to_user_task_iovec(struct task_struct *tsk,
-					   struct iovec *iovec,
-					   unsigned long nr_segs,
-					   struct orangefs_bufmap *bufmap,
-					   int buffer_index,
-					   size_t bytes_to_be_copied);
 
 #endif /* __ORANGEFS_BUFMAP_H */
