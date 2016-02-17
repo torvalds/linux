@@ -206,7 +206,7 @@ static int xlr_net_fill_rx_ring(struct net_device *ndev)
 	struct xlr_net_priv *priv = netdev_priv(ndev);
 	int i;
 
-	for (i = 0; i < MAX_FRIN_SPILL/4; i++) {
+	for (i = 0; i < MAX_FRIN_SPILL / 4; i++) {
 		skb_data = xlr_alloc_skb();
 		if (!skb_data) {
 			pr_err("SKB allocation failed\n");
@@ -1023,7 +1023,7 @@ static int xlr_net_probe(struct platform_device *pdev)
 	 * Each controller has 4 gmac ports, mapping each controller
 	 * under one parent device, 4 gmac ports under one device.
 	 */
-	for (port = 0; port < pdev->num_resources/2; port++) {
+	for (port = 0; port < pdev->num_resources / 2; port++) {
 		ndev = alloc_etherdev_mq(sizeof(struct xlr_net_priv), 32);
 		if (!ndev) {
 			pr_err("Allocation of Ethernet device failed\n");
