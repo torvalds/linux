@@ -28,8 +28,11 @@
 #define WL_ROAM_TRIGGER_LEVEL		-75
 #define WL_ROAM_DELTA			20
 
-#define WL_ESCAN_BUF_SIZE		(1024 * 64)
-#define WL_ESCAN_TIMER_INTERVAL_MS	10000 /* E-Scan timeout */
+/* Keep BRCMF_ESCAN_BUF_SIZE below 64K (65536). Allocing over 64K can be
+ * problematic on some systems and should be avoided.
+ */
+#define BRCMF_ESCAN_BUF_SIZE		65000
+#define BRCMF_ESCAN_TIMER_INTERVAL_MS	10000	/* E-Scan timeout */
 
 #define WL_ESCAN_ACTION_START		1
 #define WL_ESCAN_ACTION_CONTINUE	2
@@ -205,7 +208,7 @@ enum wl_escan_state {
 
 struct escan_info {
 	u32 escan_state;
-	u8 escan_buf[WL_ESCAN_BUF_SIZE];
+	u8 *escan_buf;
 	struct wiphy *wiphy;
 	struct brcmf_if *ifp;
 	s32 (*run)(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
@@ -278,7 +281,6 @@ struct brcmf_cfg80211_wowl {
  * @escan_info: escan information.
  * @escan_timeout: Timer for catch scan timeout.
  * @escan_timeout_work: scan timeout worker.
- * @escan_ioctl_buf: dongle command buffer for escan commands.
  * @vif_list: linked list of vif instances.
  * @vif_cnt: number of vif instances.
  * @vif_event: vif event signalling.
@@ -309,7 +311,6 @@ struct brcmf_cfg80211_info {
 	struct escan_info escan_info;
 	struct timer_list escan_timeout;
 	struct work_struct escan_timeout_work;
-	u8 *escan_ioctl_buf;
 	struct list_head vif_list;
 	struct brcmf_cfg80211_vif_event vif_event;
 	struct completion vif_disabled;

@@ -1125,7 +1125,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 
 	/* Arm scan timeout timer */
 	mod_timer(&cfg->escan_timeout, jiffies +
-			WL_ESCAN_TIMER_INTERVAL_MS * HZ / 1000);
+			BRCMF_ESCAN_TIMER_INTERVAL_MS * HZ / 1000);
 
 	return 0;
 
@@ -3020,7 +3020,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 
 		list = (struct brcmf_scan_results *)
 				cfg->escan_info.escan_buf;
-		if (bi_length > WL_ESCAN_BUF_SIZE - list->buflen) {
+		if (bi_length > BRCMF_ESCAN_BUF_SIZE - list->buflen) {
 			brcmf_err("Buffer is too small: ignoring\n");
 			goto exit;
 		}
@@ -3033,8 +3033,8 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 							  bss_info_le))
 				goto exit;
 		}
-		memcpy(&(cfg->escan_info.escan_buf[list->buflen]),
-			bss_info_le, bi_length);
+		memcpy(&cfg->escan_info.escan_buf[list->buflen], bss_info_le,
+		       bi_length);
 		list->version = le32_to_cpu(bss_info_le->version);
 		list->buflen += bi_length;
 		list->count++;
@@ -5402,23 +5402,20 @@ static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
 {
 	kfree(cfg->conf);
 	cfg->conf = NULL;
-	kfree(cfg->escan_ioctl_buf);
-	cfg->escan_ioctl_buf = NULL;
 	kfree(cfg->extra_buf);
 	cfg->extra_buf = NULL;
 	kfree(cfg->wowl.nd);
 	cfg->wowl.nd = NULL;
 	kfree(cfg->wowl.nd_info);
 	cfg->wowl.nd_info = NULL;
+	kfree(cfg->escan_info.escan_buf);
+	cfg->escan_info.escan_buf = NULL;
 }
 
 static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
 {
 	cfg->conf = kzalloc(sizeof(*cfg->conf), GFP_KERNEL);
 	if (!cfg->conf)
-		goto init_priv_mem_out;
-	cfg->escan_ioctl_buf = kzalloc(BRCMF_DCMD_MEDLEN, GFP_KERNEL);
-	if (!cfg->escan_ioctl_buf)
 		goto init_priv_mem_out;
 	cfg->extra_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
 	if (!cfg->extra_buf)
@@ -5430,6 +5427,9 @@ static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
 				    sizeof(struct cfg80211_wowlan_nd_match *),
 				    GFP_KERNEL);
 	if (!cfg->wowl.nd_info)
+		goto init_priv_mem_out;
+	cfg->escan_info.escan_buf = kzalloc(BRCMF_ESCAN_BUF_SIZE, GFP_KERNEL);
+	if (!cfg->escan_info.escan_buf)
 		goto init_priv_mem_out;
 
 	return 0;
