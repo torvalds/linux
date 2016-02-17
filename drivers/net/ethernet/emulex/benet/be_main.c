@@ -5456,6 +5456,8 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 
 	dev_err(&adapter->pdev->dev, "EEH error detected\n");
 
+	be_roce_dev_remove(adapter);
+
 	if (!be_check_error(adapter, BE_ERROR_EEH)) {
 		be_set_error(adapter, BE_ERROR_EEH);
 
@@ -5519,6 +5521,8 @@ static void be_eeh_resume(struct pci_dev *pdev)
 	status = be_resume(adapter);
 	if (status)
 		goto err;
+
+	be_roce_dev_add(adapter);
 
 	be_schedule_err_detection(adapter, ERR_DETECTION_DELAY);
 	return;
