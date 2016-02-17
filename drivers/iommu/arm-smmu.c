@@ -1131,6 +1131,16 @@ static void arm_smmu_domain_remove_master(struct arm_smmu_domain *smmu_domain,
 	arm_smmu_master_free_smrs(smmu, cfg);
 }
 
+static void arm_smmu_detach_dev(struct device *dev,
+				struct arm_smmu_master_cfg *cfg)
+{
+	struct iommu_domain *domain = dev->archdata.iommu;
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+
+	dev->archdata.iommu = NULL;
+	arm_smmu_domain_remove_master(smmu_domain, cfg);
+}
+
 static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
 	int ret;
@@ -1142,11 +1152,6 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	if (!smmu) {
 		dev_err(dev, "cannot attach to SMMU, is it on the same bus?\n");
 		return -ENXIO;
-	}
-
-	if (dev->archdata.iommu) {
-		dev_err(dev, "already attached to IOMMU domain\n");
-		return -EEXIST;
 	}
 
 	/* Ensure that the domain is finalised */
@@ -1170,23 +1175,14 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	if (!cfg)
 		return -ENODEV;
 
+	/* Detach the dev from its current domain */
+	if (dev->archdata.iommu)
+		arm_smmu_detach_dev(dev, cfg);
+
 	ret = arm_smmu_domain_add_master(smmu_domain, cfg);
 	if (!ret)
 		dev->archdata.iommu = domain;
 	return ret;
-}
-
-static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
-{
-	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
-	struct arm_smmu_master_cfg *cfg;
-
-	cfg = find_smmu_master_cfg(dev);
-	if (!cfg)
-		return;
-
-	dev->archdata.iommu = NULL;
-	arm_smmu_domain_remove_master(smmu_domain, cfg);
 }
 
 static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
@@ -1464,7 +1460,6 @@ static struct iommu_ops arm_smmu_ops = {
 	.domain_alloc		= arm_smmu_domain_alloc,
 	.domain_free		= arm_smmu_domain_free,
 	.attach_dev		= arm_smmu_attach_dev,
-	.detach_dev		= arm_smmu_detach_dev,
 	.map			= arm_smmu_map,
 	.unmap			= arm_smmu_unmap,
 	.map_sg			= default_iommu_map_sg,
