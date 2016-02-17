@@ -825,7 +825,8 @@ static int ipc_plat_probe(struct platform_device *pdev)
 		goto err_device;
 	}
 
-	if (request_irq(ipcdev.irq, ioc, 0, "intel_pmc_ipc", &ipcdev)) {
+	if (request_irq(ipcdev.irq, ioc, IRQF_NO_SUSPEND,
+			"intel_pmc_ipc", &ipcdev)) {
 		dev_err(&pdev->dev, "Failed to request irq\n");
 		ret = -EBUSY;
 		goto err_irq;
