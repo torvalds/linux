@@ -1783,6 +1783,7 @@ int f2fs_commit_super(struct f2fs_sb_info *, bool);
 int f2fs_sync_fs(struct super_block *, int);
 extern __printf(3, 4)
 void f2fs_msg(struct super_block *, const char *, const char *, ...);
+int sanity_check_ckpt(struct f2fs_sb_info *sbi);
 
 /*
  * hash.c
