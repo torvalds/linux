@@ -137,7 +137,7 @@ static inline void handle_group_key(struct ieee_param *param,
 	}
 }
 
-static inline char *translate_scan(struct _adapter *padapter,
+static noinline_for_stack char *translate_scan(struct _adapter *padapter,
 				   struct iw_request_info *info,
 				   struct wlan_network *pnetwork,
 				   char *start, char *stop)
