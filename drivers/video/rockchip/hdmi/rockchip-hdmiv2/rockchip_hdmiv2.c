@@ -209,12 +209,18 @@ void ext_pll_set_27m_out(void)
 
 static int rockchip_hdmiv2_clk_enable(struct hdmi_dev *hdmi_dev)
 {
-	if (hdmi_dev->soctype == HDMI_SOC_RK322X) {
+	if (hdmi_dev->soctype == HDMI_SOC_RK322X ||
+	    hdmi_dev->soctype == HDMI_SOC_RK3366) {
 		if ((hdmi_dev->clk_on & HDMI_EXT_PHY_CLK_ON) == 0) {
 			if (!hdmi_dev->pclk_phy) {
-				hdmi_dev->pclk_phy =
-					devm_clk_get(hdmi_dev->dev,
-						     "pclk_hdmi_phy");
+				if (hdmi_dev->soctype == HDMI_SOC_RK322X)
+					hdmi_dev->pclk_phy =
+						devm_clk_get(hdmi_dev->dev,
+							     "pclk_hdmi_phy");
+				else
+					hdmi_dev->pclk_phy =
+						devm_clk_get(hdmi_dev->dev,
+							     "dclk_hdmi_phy");
 				if (IS_ERR(hdmi_dev->pclk_phy)) {
 					dev_err(hdmi_dev->dev,
 						"get hdmi phy pclk error\n");
@@ -391,9 +397,10 @@ static struct hdmi_ops rk_hdmi_ops;
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rk_hdmi_dt_ids[] = {
-	{.compatible = "rockchip,rk3288-hdmi",},
-	{.compatible = "rockchip,rk3368-hdmi",},
 	{.compatible = "rockchip,rk322x-hdmi",},
+	{.compatible = "rockchip,rk3288-hdmi",},
+	{.compatible = "rockchip,rk3366-hdmi",},
+	{.compatible = "rockchip,rk3368-hdmi",},
 	{}
 };
 
@@ -413,6 +420,8 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 		hdmi_dev->soctype = HDMI_SOC_RK3368;
 	} else if (!strcmp(match->compatible, "rockchip,rk322x-hdmi")) {
 		hdmi_dev->soctype = HDMI_SOC_RK322X;
+	} else if (!strcmp(match->compatible, "rockchip,rk3366-hdmi")) {
+		hdmi_dev->soctype = HDMI_SOC_RK3366;
 	} else {
 		pr_err("It is not a valid rockchip soc!");
 		return -ENOMEM;
@@ -584,6 +593,18 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		 *		SUPPORT_YUV420 |
 		 *		SUPPORT_DEEP_10BIT;
 		 */
+	} else if (hdmi_dev->soctype == HDMI_SOC_RK3366) {
+		rk_hdmi_property.feature |=
+				SUPPORT_YCBCR_INPUT |
+				SUPPORT_1080I |
+				SUPPORT_480I_576I;
+		if (rk_hdmi_property.videosrc == DISPLAY_SOURCE_LCDC0)
+			rk_hdmi_property.feature |=
+						SUPPORT_4K |
+						SUPPORT_4K_4096 |
+						SUPPORT_YUV420 |
+						SUPPORT_YCBCR_INPUT |
+						SUPPORT_TMDS_600M;
 	} else {
 		ret = -ENXIO;
 		goto failed1;

@@ -693,6 +693,8 @@ static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 
 	if (hdmi_dev->soctype == HDMI_SOC_RK322X)
 		return ext_phy_config(hdmi_dev);
+	else if (hdmi_dev->soctype == HDMI_SOC_RK3366)
+		clk_set_rate(hdmi_dev->pclk_phy, hdmi_dev->pixelclk);
 
 	hdmi_msk_reg(hdmi_dev, PHY_I2CM_DIV,
 		     m_PHY_I2CM_FAST_STD, v_PHY_I2CM_FAST_STD(0));

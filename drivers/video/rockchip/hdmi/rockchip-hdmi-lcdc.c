@@ -848,7 +848,7 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 	screen->pin_dclk = 1;
 
 	/* Swap rule */
-	if (hdmi->soctype > HDMI_SOC_RK3288 &&
+	if (hdmi->soctype > HDMI_SOC_RK312X &&
 	    screen->color_mode > COLOR_RGB &&
 	    (screen->face == OUT_P888 ||
 	     screen->face == OUT_P101010))
