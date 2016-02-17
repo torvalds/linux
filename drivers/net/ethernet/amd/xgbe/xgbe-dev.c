@@ -2656,6 +2656,32 @@ static void xgbe_disable_tx(struct xgbe_prv_data *pdata)
 	}
 }
 
+static void xgbe_prepare_rx_stop(struct xgbe_prv_data *pdata,
+				 unsigned int queue)
+{
+	unsigned int rx_status;
+	unsigned long rx_timeout;
+
+	/* The Rx engine cannot be stopped if it is actively processing
+	 * packets. Wait for the Rx queue to empty the Rx fifo.  Don't
+	 * wait forever though...
+	 */
+	rx_timeout = jiffies + (XGBE_DMA_STOP_TIMEOUT * HZ);
+	while (time_before(jiffies, rx_timeout)) {
+		rx_status = XGMAC_MTL_IOREAD(pdata, queue, MTL_Q_RQDR);
+		if ((XGMAC_GET_BITS(rx_status, MTL_Q_RQDR, PRXQ) == 0) &&
+		    (XGMAC_GET_BITS(rx_status, MTL_Q_RQDR, RXQSTS) == 0))
+			break;
+
+		usleep_range(500, 1000);
+	}
+
+	if (!time_before(jiffies, rx_timeout))
+		netdev_info(pdata->netdev,
+			    "timed out waiting for Rx queue %u to empty\n",
+			    queue);
+}
+
 static void xgbe_enable_rx(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_channel *channel;
@@ -2693,6 +2719,10 @@ static void xgbe_disable_rx(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, CST, 0);
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, ACS, 0);
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, RE, 0);
+
+	/* Prepare for Rx DMA channel stop */
+	for (i = 0; i < pdata->rx_q_count; i++)
+		xgbe_prepare_rx_stop(pdata, i);
 
 	/* Disable each Rx queue */
 	XGMAC_IOWRITE(pdata, MAC_RQC0R, 0);
