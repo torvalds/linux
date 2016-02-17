@@ -861,7 +861,7 @@ static int apb_get_cport_count(struct usb_device *udev)
 	int retval;
 	__le16 *cport_count;
 
-	cport_count = kmalloc(sizeof(*cport_count), GFP_KERNEL);
+	cport_count = kzalloc(sizeof(*cport_count), GFP_KERNEL);
 	if (!cport_count)
 		return -ENOMEM;
 
@@ -870,9 +870,13 @@ static int apb_get_cport_count(struct usb_device *udev)
 				 USB_DIR_IN | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, cport_count,
 				 sizeof(*cport_count), ES2_TIMEOUT);
-	if (retval < 0) {
+	if (retval != sizeof(*cport_count)) {
 		dev_err(&udev->dev, "Cannot retrieve CPort count: %d\n",
 			retval);
+
+		if (retval >= 0)
+			retval = -EIO;
+
 		goto out;
 	}
 
