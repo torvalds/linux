@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/triggered_buffer.h>
@@ -290,6 +291,18 @@ static const struct iio_info ms5611_info = {
 static int ms5611_init(struct iio_dev *indio_dev)
 {
 	int ret;
+	struct regulator *vdd = devm_regulator_get(indio_dev->dev.parent,
+	                                           "vdd");
+
+	/* Enable attached regulator if any. */
+	if (!IS_ERR(vdd)) {
+		ret = regulator_enable(vdd);
+		if (ret) {
+			dev_err(indio_dev->dev.parent,
+			        "failed to enable Vdd supply: %d\n", ret);
+			return ret;
+		}
+	}
 
 	ret = ms5611_reset(indio_dev);
 	if (ret < 0)
