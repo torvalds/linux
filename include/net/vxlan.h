@@ -148,6 +148,7 @@ struct vxlan_rdst {
 	u32			 remote_ifindex;
 	struct list_head	 list;
 	struct rcu_head		 rcu;
+	struct dst_cache	 dst_cache;
 };
 
 struct vxlan_config {
