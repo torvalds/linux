@@ -1312,7 +1312,7 @@ EXPORT_SYMBOL_GPL(wilc_netdev_cleanup);
 int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		     int gpio, const struct wilc_hif_func *ops)
 {
-	int i;
+	int i, ret;
 	struct wilc_vif *vif;
 	struct net_device *ndev;
 	struct wilc *wl;
@@ -1333,7 +1333,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
 		ndev = alloc_etherdev(sizeof(struct wilc_vif));
 		if (!ndev)
-			return -1;
+			return -ENOMEM;
 
 		vif = netdev_priv(ndev);
 		memset(vif, 0, sizeof(struct wilc_vif));
@@ -1372,8 +1372,9 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 			vif->netstats.tx_bytes = 0;
 		}
 
-		if (register_netdev(ndev))
-			return -1;
+		ret = register_netdev(ndev);
+		if (ret)
+			return ret;
 
 		vif->iftype = STATION_MODE;
 		vif->mac_opened = 0;
