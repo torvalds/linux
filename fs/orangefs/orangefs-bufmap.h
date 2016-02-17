@@ -27,13 +27,11 @@ int orangefs_readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index)
 
 void orangefs_readdir_index_put(int buffer_index);
 
-int orangefs_bufmap_copy_from_iovec(struct orangefs_bufmap *bufmap,
-				struct iov_iter *iter,
+int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 				int buffer_index,
 				size_t size);
 
-int orangefs_bufmap_copy_to_iovec(struct orangefs_bufmap *bufmap,
-			      struct iov_iter *iter,
+int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 			      int buffer_index,
 			      size_t size);
 

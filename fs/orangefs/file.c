@@ -21,8 +21,7 @@
  *       can futher be kernel-space or user-space addresses.
  *       or it can pointers to struct page's
  */
-static int precopy_buffers(struct orangefs_bufmap *bufmap,
-			   int buffer_index,
+static int precopy_buffers(int buffer_index,
 			   struct iov_iter *iter,
 			   size_t total_size)
 {
@@ -34,8 +33,7 @@ static int precopy_buffers(struct orangefs_bufmap *bufmap,
 
 
 	if (total_size) {
-		ret = orangefs_bufmap_copy_from_iovec(bufmap,
-						      iter,
+		ret = orangefs_bufmap_copy_from_iovec(iter,
 						      buffer_index,
 						      total_size);
 		if (ret < 0)
@@ -58,8 +56,7 @@ static int precopy_buffers(struct orangefs_bufmap *bufmap,
  *       can futher be kernel-space or user-space addresses.
  *       or it can pointers to struct page's
  */
-static int postcopy_buffers(struct orangefs_bufmap *bufmap,
-			    int buffer_index,
+static int postcopy_buffers(int buffer_index,
 			    struct iov_iter *iter,
 			    size_t total_size)
 {
@@ -70,8 +67,7 @@ static int postcopy_buffers(struct orangefs_bufmap *bufmap,
 	 * struct page pointers.
 	 */
 	if (total_size) {
-		ret = orangefs_bufmap_copy_to_iovec(bufmap,
-						    iter,
+		ret = orangefs_bufmap_copy_to_iovec(iter,
 						    buffer_index,
 						    total_size);
 		if (ret < 0)
@@ -138,8 +134,7 @@ populate_shared_memory:
 	 * precopy_buffers only pertains to writes.
 	 */
 	if (type == ORANGEFS_IO_WRITE) {
-		ret = precopy_buffers(bufmap,
-				      buffer_index,
+		ret = precopy_buffers(buffer_index,
 				      iter,
 				      total_size);
 		if (ret < 0)
@@ -242,8 +237,7 @@ populate_shared_memory:
 	 * postcopy_buffers only pertains to reads.
 	 */
 	if (type == ORANGEFS_IO_READ) {
-		ret = postcopy_buffers(bufmap,
-				       buffer_index,
+		ret = postcopy_buffers(buffer_index,
 				       iter,
 				       new_op->downcall.resp.io.amt_complete);
 		if (ret < 0)

@@ -511,19 +511,18 @@ void orangefs_readdir_index_put(int buffer_index)
  * we've been handed an iovec, we need to copy it to 
  * the shared memory descriptor at "buffer_index".
  */
-int orangefs_bufmap_copy_from_iovec(struct orangefs_bufmap *bufmap,
-				struct iov_iter *iter,
+int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 				int buffer_index,
 				size_t size)
 {
-	struct orangefs_bufmap_desc *to = &bufmap->desc_array[buffer_index];
+	struct orangefs_bufmap_desc *to;
 	int i;
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		     "%s: buffer_index:%d: size:%zu:\n",
 		     __func__, buffer_index, size);
 
-
+	to = &__orangefs_bufmap->desc_array[buffer_index];
 	for (i = 0; size; i++) {
 		struct page *page = to->page_array[i];
 		size_t n = size;
@@ -542,14 +541,14 @@ int orangefs_bufmap_copy_from_iovec(struct orangefs_bufmap *bufmap,
  * we've been handed an iovec, we need to fill it from
  * the shared memory descriptor at "buffer_index".
  */
-int orangefs_bufmap_copy_to_iovec(struct orangefs_bufmap *bufmap,
-				    struct iov_iter *iter,
+int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 				    int buffer_index,
 				    size_t size)
 {
-	struct orangefs_bufmap_desc *from = &bufmap->desc_array[buffer_index];
+	struct orangefs_bufmap_desc *from;
 	int i;
 
+	from = &__orangefs_bufmap->desc_array[buffer_index];
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
 		     "%s: buffer_index:%d: size:%zu:\n",
 		     __func__, buffer_index, size);
