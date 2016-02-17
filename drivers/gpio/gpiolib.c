@@ -435,7 +435,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	 * First: allocate and populate the internal stat container, and
 	 * set up the struct device.
 	 */
-	gdev = kmalloc(sizeof(*gdev), GFP_KERNEL);
+	gdev = kzalloc(sizeof(*gdev), GFP_KERNEL);
 	if (!gdev)
 		return -ENOMEM;
 	gdev->dev.bus = &gpio_bus_type;
