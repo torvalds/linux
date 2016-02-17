@@ -910,9 +910,7 @@ struct intel_unpin_work {
 };
 
 struct intel_load_detect_pipe {
-	struct drm_framebuffer *release_fb;
-	bool load_detect_temp;
-	int dpms_mode;
+	struct drm_atomic_state *restore_state;
 };
 
 static inline struct intel_encoder *
