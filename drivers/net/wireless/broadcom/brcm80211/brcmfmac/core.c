@@ -1104,7 +1104,7 @@ static int brcmf_inet6addr_changed(struct notifier_block *nb,
 }
 #endif
 
-int brcmf_attach(struct device *dev)
+int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 {
 	struct brcmf_pub *drvr = NULL;
 	int ret = 0;
@@ -1126,10 +1126,7 @@ int brcmf_attach(struct device *dev)
 	drvr->hdrlen = 0;
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;
-
-	/* Initialize device specific settings */
-	if (brcmf_mp_device_attach(drvr))
-		goto fail;
+	drvr->settings = settings;
 
 	/* attach debug facilities */
 	brcmf_debug_attach(drvr);
@@ -1274,7 +1271,7 @@ fail:
 		brcmf_net_detach(p2p_ifp->ndev);
 	drvr->iflist[0] = NULL;
 	drvr->iflist[1] = NULL;
-	if (brcmf_ignoring_probe_fail(drvr))
+	if (drvr->settings->ignore_probe_fail)
 		ret = 0;
 
 	return ret;
@@ -1349,8 +1346,6 @@ void brcmf_detach(struct device *dev)
 	brcmf_bus_detach(drvr);
 
 	brcmf_proto_detach(drvr);
-
-	brcmf_mp_device_detach(drvr);
 
 	brcmf_debug_detach(drvr);
 	bus_if->drvr = NULL;

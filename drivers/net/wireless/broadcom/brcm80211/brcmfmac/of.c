@@ -23,7 +23,7 @@
 #include "common.h"
 #include "of.h"
 
-void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd **sdio)
+void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd *sdio)
 {
 	struct device_node *np = dev->of_node;
 	int irq;
@@ -33,12 +33,8 @@ void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd **sdio)
 	if (!np || !of_device_is_compatible(np, "brcm,bcm4329-fmac"))
 		return;
 
-	*sdio = devm_kzalloc(dev, sizeof(*sdio), GFP_KERNEL);
-	if (!(*sdio))
-		return;
-
 	if (of_property_read_u32(np, "brcm,drive-strength", &val) == 0)
-		(*sdio)->drive_strength = val;
+		sdio->drive_strength = val;
 
 	/* make sure there are interrupts defined in the node */
 	if (!of_find_property(np, "interrupts", NULL))
@@ -51,7 +47,7 @@ void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd **sdio)
 	}
 	irqf = irqd_get_trigger_type(irq_get_irq_data(irq));
 
-	(*sdio)->oob_irq_supported = true;
-	(*sdio)->oob_irq_nr = irq;
-	(*sdio)->oob_irq_flags = irqf;
+	sdio->oob_irq_supported = true;
+	sdio->oob_irq_nr = irq;
+	sdio->oob_irq_flags = irqf;
 }

@@ -109,8 +109,8 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 	u32 addr, gpiocontrol;
 	unsigned long flags;
 
-	pdata = sdiodev->pdata;
-	if ((pdata) && (pdata->oob_irq_supported)) {
+	pdata = &sdiodev->settings->bus.sdio;
+	if (pdata->oob_irq_supported) {
 		brcmf_dbg(SDIO, "Enter, register OOB IRQ %d\n",
 			  pdata->oob_irq_nr);
 		ret = request_irq(pdata->oob_irq_nr, brcmf_sdiod_oob_irqhandler,
@@ -177,8 +177,8 @@ int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 
 	brcmf_dbg(SDIO, "Entering\n");
 
-	pdata = sdiodev->pdata;
-	if ((pdata) && (pdata->oob_irq_supported)) {
+	pdata = &sdiodev->settings->bus.sdio;
+	if (pdata->oob_irq_supported) {
 		sdio_claim_host(sdiodev->func[1]);
 		brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
 		brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
@@ -522,7 +522,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	target_list = pktlist;
 	/* for host with broken sg support, prepare a page aligned list */
 	__skb_queue_head_init(&local_list);
-	if (sdiodev->pdata && sdiodev->pdata->broken_sg_support && !write) {
+	if (!write && sdiodev->settings->bus.sdio.broken_sg_support) {
 		req_sz = 0;
 		skb_queue_walk(pktlist, pkt_next)
 			req_sz += pkt_next->len;
@@ -629,7 +629,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		}
 	}
 
-	if (sdiodev->pdata && sdiodev->pdata->broken_sg_support && !write) {
+	if (!write && sdiodev->settings->bus.sdio.broken_sg_support) {
 		local_pkt_next = local_list.next;
 		orig_offset = 0;
 		skb_queue_walk(pktlist, pkt_next) {
@@ -900,7 +900,7 @@ void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev)
 		return;
 
 	nents = max_t(uint, BRCMF_DEFAULT_RXGLOM_SIZE,
-		      sdiodev->bus_if->drvr->settings->sdiod_txglomsz);
+		      sdiodev->settings->bus.sdio.txglomsz);
 	nents += (nents >> 4) + 1;
 
 	WARN_ON(nents > sdiodev->max_segment_count);
@@ -912,7 +912,7 @@ void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev)
 		sdiodev->sg_support = false;
 	}
 
-	sdiodev->txglomsz = sdiodev->bus_if->drvr->settings->sdiod_txglomsz;
+	sdiodev->txglomsz = sdiodev->settings->bus.sdio.txglomsz;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1246,8 +1246,8 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 
 	sdio_flags = MMC_PM_KEEP_POWER;
 	if (sdiodev->wowl_enabled) {
-		if (sdiodev->pdata->oob_irq_supported)
-			enable_irq_wake(sdiodev->pdata->oob_irq_nr);
+		if (sdiodev->settings->bus.sdio.oob_irq_supported)
+			enable_irq_wake(sdiodev->settings->bus.sdio.oob_irq_nr);
 		else
 			sdio_flags |= MMC_PM_WAKE_SDIO_IRQ;
 	}

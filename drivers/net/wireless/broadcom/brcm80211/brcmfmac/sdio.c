@@ -2442,15 +2442,17 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 
 static inline void brcmf_sdio_clrintr(struct brcmf_sdio *bus)
 {
+	struct brcmf_sdio_dev *sdiodev;
 	unsigned long flags;
 
-	if (bus->sdiodev->oob_irq_requested) {
-		spin_lock_irqsave(&bus->sdiodev->irq_en_lock, flags);
-		if (!bus->sdiodev->irq_en && !atomic_read(&bus->ipend)) {
-			enable_irq(bus->sdiodev->pdata->oob_irq_nr);
-			bus->sdiodev->irq_en = true;
+	sdiodev = bus->sdiodev;
+	if (sdiodev->oob_irq_requested) {
+		spin_lock_irqsave(&sdiodev->irq_en_lock, flags);
+		if (!sdiodev->irq_en && !atomic_read(&bus->ipend)) {
+			enable_irq(sdiodev->settings->bus.sdio.oob_irq_nr);
+			sdiodev->irq_en = true;
 		}
-		spin_unlock_irqrestore(&bus->sdiodev->irq_en_lock, flags);
+		spin_unlock_irqrestore(&sdiodev->irq_en_lock, flags);
 	}
 }
 
@@ -3394,9 +3396,7 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 					   sizeof(u32));
 	} else {
 		/* otherwise, set txglomalign */
-		value = 4;
-		if (sdiodev->pdata)
-			value = sdiodev->pdata->sd_sgentry_align;
+		value = sdiodev->settings->bus.sdio.sd_sgentry_align;
 		/* SDIO ADMA requires at least 32 bit alignment */
 		value = max_t(u32, value, 4);
 		err = brcmf_iovar_data_set(dev, "bus:txglomalign", &value,
@@ -3811,21 +3811,25 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 		bus->ci = NULL;
 		goto fail;
 	}
-	sdiodev->pdata = brcmf_get_module_param(sdiodev->dev,
+	sdiodev->settings = brcmf_get_module_param(sdiodev->dev,
 						   BRCMF_BUSTYPE_SDIO,
 						   bus->ci->chip,
 						   bus->ci->chiprev);
+	if (!sdiodev->settings) {
+		brcmf_err("Failed to get device parameters\n");
+		goto fail;
+	}
 	/* platform specific configuration:
 	 *   alignments must be at least 4 bytes for ADMA
 	 */
 	bus->head_align = ALIGNMENT;
 	bus->sgentry_align = ALIGNMENT;
-	if (sdiodev->pdata) {
-		if (sdiodev->pdata->sd_head_align > ALIGNMENT)
-			bus->head_align = sdiodev->pdata->sd_head_align;
-		if (sdiodev->pdata->sd_sgentry_align > ALIGNMENT)
-			bus->sgentry_align = sdiodev->pdata->sd_sgentry_align;
-	}
+	if (sdiodev->settings->bus.sdio.sd_head_align > ALIGNMENT)
+		bus->head_align = sdiodev->settings->bus.sdio.sd_head_align;
+	if (sdiodev->settings->bus.sdio.sd_sgentry_align > ALIGNMENT)
+		bus->sgentry_align =
+				sdiodev->settings->bus.sdio.sd_sgentry_align;
+
 	/* allocate scatter-gather table. sg support
 	 * will be disabled upon allocation failure.
 	 */
@@ -3837,7 +3841,7 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 	 */
 	if ((sdio_get_host_pm_caps(sdiodev->func[1]) & MMC_PM_KEEP_POWER) &&
 	    ((sdio_get_host_pm_caps(sdiodev->func[1]) & MMC_PM_WAKE_SDIO_IRQ) ||
-	     (sdiodev->pdata && sdiodev->pdata->oob_irq_supported)))
+	     (sdiodev->settings->bus.sdio.oob_irq_supported)))
 		sdiodev->bus_if->wowl_supported = true;
 #endif
 
@@ -3846,8 +3850,8 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 		goto fail;
 	}
 
-	if ((sdiodev->pdata) && (sdiodev->pdata->drive_strength))
-		drivestrength = sdiodev->pdata->drive_strength;
+	if (sdiodev->settings->bus.sdio.drive_strength)
+		drivestrength = sdiodev->settings->bus.sdio.drive_strength;
 	else
 		drivestrength = DEFAULT_SDIO_DRIVE_STRENGTH;
 	brcmf_sdio_drivestrengthinit(sdiodev, bus->ci, drivestrength);
@@ -4124,7 +4128,7 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	bus->tx_hdrlen = SDPCM_HWHDR_LEN + SDPCM_SWHDR_LEN;
 
 	/* Attach to the common layer, reserve hdr space */
-	ret = brcmf_attach(bus->sdiodev->dev);
+	ret = brcmf_attach(bus->sdiodev->dev, bus->sdiodev->settings);
 	if (ret != 0) {
 		brcmf_err("brcmf_attach failed\n");
 		goto fail;
@@ -4228,6 +4232,8 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 			}
 			brcmf_chip_detach(bus->ci);
 		}
+		if (bus->sdiodev->settings)
+			brcmf_release_module_param(bus->sdiodev->settings);
 
 		kfree(bus->rxbuf);
 		kfree(bus->hdrbuf);

@@ -243,14 +243,35 @@ static void brcmf_mp_attach(void)
 	}
 }
 
-struct brcmfmac_sdio_pd *brcmf_get_module_param(struct device *dev,
-						enum brcmf_bus_type bus_type,
-						u32 chip, u32 chiprev)
+struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
+					       enum brcmf_bus_type bus_type,
+					       u32 chip, u32 chiprev)
 {
-	struct brcmfmac_sdio_pd *pdata;
+	struct brcmf_mp_device *settings;
 	struct brcmfmac_pd_device *device_pd;
+	bool found;
 	int i;
 
+	brcmf_dbg(INFO, "Enter, bus=%d, chip=%d, rev=%d\n", bus_type, chip,
+		  chiprev);
+	settings = kzalloc(sizeof(*settings), GFP_ATOMIC);
+	if (!settings)
+		return NULL;
+
+	/* start by using the module paramaters */
+	settings->p2p_enable = !!brcmf_p2p_enable;
+	settings->feature_disable = brcmf_feature_disable;
+	settings->fcmode = brcmf_fcmode;
+	settings->roamoff = !!brcmf_roamoff;
+#ifdef DEBUG
+	settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
+#endif
+
+	if (bus_type == BRCMF_BUSTYPE_SDIO)
+		settings->bus.sdio.txglomsz = brcmf_sdiod_txglomsz;
+
+	/* See if there is any device specific platform data configured */
+	found = false;
 	if (brcmfmac_pdata) {
 		for (i = 0; i < brcmfmac_pdata->device_count; i++) {
 			device_pd = &brcmfmac_pdata->devices[i];
@@ -259,38 +280,29 @@ struct brcmfmac_sdio_pd *brcmf_get_module_param(struct device *dev,
 			    ((device_pd->rev == chiprev) ||
 			     (device_pd->rev == -1))) {
 				brcmf_dbg(INFO, "Platform data for device found\n");
+				settings->country_codes =
+						device_pd->country_codes;
 				if (device_pd->bus_type == BRCMF_BUSTYPE_SDIO)
-					return &device_pd->bus.sdio;
+					memcpy(&settings->bus.sdio,
+					       &device_pd->bus.sdio,
+					       sizeof(settings->bus.sdio));
+				found = true;
 				break;
 			}
 		}
 	}
-	pdata = NULL;
-	brcmf_of_probe(dev, &pdata);
-
-	return pdata;
+	if ((bus_type == BRCMF_BUSTYPE_SDIO) && (!found)) {
+		/* No platform data for this device. In case of SDIO try OF
+		 * (Open Firwmare) Device Tree.
+		 */
+		brcmf_of_probe(dev, &settings->bus.sdio);
+	}
+	return settings;
 }
 
-int brcmf_mp_device_attach(struct brcmf_pub *drvr)
+void brcmf_release_module_param(struct brcmf_mp_device *module_param)
 {
-	drvr->settings = kzalloc(sizeof(*drvr->settings), GFP_ATOMIC);
-	if (!drvr->settings)
-		return -ENOMEM;
-
-	drvr->settings->sdiod_txglomsz = brcmf_sdiod_txglomsz;
-	drvr->settings->p2p_enable = !!brcmf_p2p_enable;
-	drvr->settings->feature_disable = brcmf_feature_disable;
-	drvr->settings->fcmode = brcmf_fcmode;
-	drvr->settings->roamoff = !!brcmf_roamoff;
-#ifdef DEBUG
-	drvr->settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
-#endif
-	return 0;
-}
-
-void brcmf_mp_device_detach(struct brcmf_pub *drvr)
-{
-	kfree(drvr->settings);
+	kfree(module_param);
 }
 
 static int __init brcmf_common_pd_probe(struct platform_device *pdev)

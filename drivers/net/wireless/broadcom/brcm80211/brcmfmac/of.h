@@ -14,10 +14,9 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #ifdef CONFIG_OF
-void
-brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd **sdio);
+void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd *sdio);
 #else
-static void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd **sdio)
+static void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd *sdio)
 {
 }
 #endif /* CONFIG_OF */

@@ -37,6 +37,8 @@
 #include "pcie.h"
 #include "firmware.h"
 #include "chip.h"
+#include "core.h"
+#include "common.h"
 
 
 enum brcmf_pcie_state {
@@ -266,6 +268,7 @@ struct brcmf_pciedev_info {
 	u16 (*read_ptr)(struct brcmf_pciedev_info *devinfo, u32 mem_offset);
 	void (*write_ptr)(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 			  u16 value);
+	struct brcmf_mp_device *settings;
 };
 
 struct brcmf_pcie_ringbuf {
@@ -1525,16 +1528,16 @@ static void brcmf_pcie_release_resource(struct brcmf_pciedev_info *devinfo)
 }
 
 
-static int brcmf_pcie_attach_bus(struct device *dev)
+static int brcmf_pcie_attach_bus(struct brcmf_pciedev_info *devinfo)
 {
 	int ret;
 
 	/* Attach to the common driver interface */
-	ret = brcmf_attach(dev);
+	ret = brcmf_attach(&devinfo->pdev->dev, devinfo->settings);
 	if (ret) {
 		brcmf_err("brcmf_attach failed\n");
 	} else {
-		ret = brcmf_bus_start(dev);
+		ret = brcmf_bus_start(&devinfo->pdev->dev);
 		if (ret)
 			brcmf_err("dongle is not responding\n");
 	}
@@ -1672,7 +1675,7 @@ static void brcmf_pcie_setup(struct device *dev, const struct firmware *fw,
 	init_waitqueue_head(&devinfo->mbdata_resp_wait);
 
 	brcmf_pcie_intr_enable(devinfo);
-	if (brcmf_pcie_attach_bus(bus->dev) == 0)
+	if (brcmf_pcie_attach_bus(devinfo) == 0)
 		return;
 
 	brcmf_pcie_bus_console_read(devinfo);
@@ -1712,6 +1715,15 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pcie_bus_dev = kzalloc(sizeof(*pcie_bus_dev), GFP_KERNEL);
 	if (pcie_bus_dev == NULL) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	devinfo->settings = brcmf_get_module_param(&devinfo->pdev->dev,
+						   BRCMF_BUSTYPE_PCIE,
+						   devinfo->ci->chip,
+						   devinfo->ci->chiprev);
+	if (!devinfo->settings) {
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1760,6 +1772,8 @@ fail:
 	brcmf_pcie_release_resource(devinfo);
 	if (devinfo->ci)
 		brcmf_chip_detach(devinfo->ci);
+	if (devinfo->settings)
+		brcmf_release_module_param(devinfo->settings);
 	kfree(pcie_bus_dev);
 	kfree(devinfo);
 	return ret;
@@ -1799,6 +1813,8 @@ brcmf_pcie_remove(struct pci_dev *pdev)
 
 	if (devinfo->ci)
 		brcmf_chip_detach(devinfo->ci);
+	if (devinfo->settings)
+		brcmf_release_module_param(devinfo->settings);
 
 	kfree(devinfo);
 	dev_set_drvdata(&pdev->dev, NULL);
