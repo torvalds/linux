@@ -177,7 +177,8 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		tasklet_kill(&hw->completion_bh);
 		tasklet_kill(&hw->reaper_bh);
 
-		flush_scheduled_work();
+		cancel_work_sync(&hw->link_bh);
+		cancel_work_sync(&hw->commsqual_bh);
 
 		/* Now we complete any outstanding commands
 		 * and tell everyone who is waiting for their
