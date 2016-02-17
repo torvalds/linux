@@ -2279,7 +2279,7 @@ static int __spi_split_transfer_maxsize(struct spi_master *master,
 	/* the first transfer just needs the length modified, so we
 	 * run it outside the loop
 	 */
-	xfers[0].len = min(maxsize, xfer[0].len);
+	xfers[0].len = min_t(size_t, maxsize, xfer[0].len);
 
 	/* all the others need rx_buf/tx_buf also set */
 	for (i = 1, offset = maxsize; i < count; offset += maxsize, i++) {
