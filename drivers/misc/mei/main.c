@@ -221,7 +221,7 @@ copy_buffer:
 		goto free;
 	}
 
-	cl_dbg(dev, cl, "buf.size = %zd buf.idx = %zd offset = %lld\n",
+	cl_dbg(dev, cl, "buf.size = %zu buf.idx = %zu offset = %lld\n",
 	       cb->buf.size, cb->buf_idx, *offset);
 	if (*offset >= cb->buf_idx) {
 		rets = 0;

@@ -128,7 +128,7 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	buf_sz = mei_hdr->length + cb->buf_idx;
 	/* catch for integer overflow */
 	if (buf_sz < cb->buf_idx) {
-		cl_err(dev, cl, "message is too big len %d idx %ld\n",
+		cl_err(dev, cl, "message is too big len %d idx %zu\n",
 		       mei_hdr->length, cb->buf_idx);
 
 		list_move_tail(&cb->list, &complete_list->list);
@@ -137,7 +137,7 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	}
 
 	if (cb->buf.size < buf_sz) {
-		cl_dbg(dev, cl, "message overflow. size %zd len %d idx %zd\n",
+		cl_dbg(dev, cl, "message overflow. size %zu len %d idx %zu\n",
 			cb->buf.size, mei_hdr->length, cb->buf_idx);
 		buffer = krealloc(cb->buf.data, buf_sz, GFP_KERNEL);
 
@@ -156,7 +156,7 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	cb->buf_idx += mei_hdr->length;
 
 	if (mei_hdr->msg_complete) {
-		cl_dbg(dev, cl, "completed read length = %lu\n", cb->buf_idx);
+		cl_dbg(dev, cl, "completed read length = %zu\n", cb->buf_idx);
 		list_move_tail(&cb->list, &complete_list->list);
 	} else {
 		pm_runtime_mark_last_busy(dev->dev);
