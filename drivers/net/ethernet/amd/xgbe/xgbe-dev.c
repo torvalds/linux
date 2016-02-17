@@ -518,13 +518,45 @@ static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 
 static int xgbe_enable_tx_flow_control(struct xgbe_prv_data *pdata)
 {
+	struct ieee_pfc *pfc = pdata->pfc;
+	struct ieee_ets *ets = pdata->ets;
 	unsigned int max_q_count, q_count;
 	unsigned int reg, reg_val;
 	unsigned int i;
 
 	/* Set MTL flow control */
-	for (i = 0; i < pdata->rx_q_count; i++)
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, EHFC, 1);
+	for (i = 0; i < pdata->rx_q_count; i++) {
+		unsigned int ehfc = 0;
+
+		if (pfc && ets) {
+			unsigned int prio;
+
+			for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+				unsigned int tc;
+
+				/* Does this queue handle the priority? */
+				if (pdata->prio2q_map[prio] != i)
+					continue;
+
+				/* Get the Traffic Class for this priority */
+				tc = ets->prio_tc[prio];
+
+				/* Check if flow control should be enabled */
+				if (pfc->pfc_en & (1 << tc)) {
+					ehfc = 1;
+					break;
+				}
+			}
+		} else {
+			ehfc = 1;
+		}
+
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, EHFC, ehfc);
+
+		netif_dbg(pdata, drv, pdata->netdev,
+			  "flow control %s for RXq%u\n",
+			  ehfc ? "enabled" : "disabled", i);
+	}
 
 	/* Set MAC flow control */
 	max_q_count = XGMAC_MAX_FLOW_CONTROL_QUEUES;
