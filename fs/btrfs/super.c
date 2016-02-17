@@ -2164,8 +2164,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 		ret = !(fs_devices->num_devices == fs_devices->total_devices);
 		break;
 	case BTRFS_IOC_GET_SUPPORTED_FEATURES:
-		ret = btrfs_ioctl_get_supported_features(NULL,
-				(void __user*)arg);
+		ret = btrfs_ioctl_get_supported_features((void __user*)arg);
 		break;
 	}
 
