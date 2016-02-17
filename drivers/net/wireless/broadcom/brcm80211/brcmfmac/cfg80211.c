@@ -3556,7 +3556,8 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 		brcmf_report_wowl_wakeind(wiphy, ifp);
 		brcmf_fil_iovar_int_set(ifp, "wowl_clear", 0);
 		brcmf_config_wowl_pattern(ifp, "clr", NULL, 0, NULL, 0);
-		brcmf_configure_arp_nd_offload(ifp, true);
+		if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_ARP_ND))
+			brcmf_configure_arp_nd_offload(ifp, true);
 		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM,
 				      cfg->wowl.pre_pmmode);
 		cfg->wowl.active = false;
@@ -3580,7 +3581,8 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 
 	brcmf_dbg(TRACE, "Suspend, wowl config.\n");
 
-	brcmf_configure_arp_nd_offload(ifp, false);
+	if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_ARP_ND))
+		brcmf_configure_arp_nd_offload(ifp, false);
 	brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_PM, &cfg->wowl.pre_pmmode);
 	brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, PM_MAX);
 

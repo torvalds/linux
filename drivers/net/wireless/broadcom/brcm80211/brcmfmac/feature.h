@@ -29,6 +29,7 @@
  * SCAN_RANDOM_MAC: Random MAC during (net detect) scheduled scan.
  * WOWL_ND: WOWL net detect (PNO)
  * WOWL_GTK: (WOWL) GTK rekeying offload
+ * WOWL_ARP_ND: ARP and Neighbor Discovery offload support during WOWL.
  */
 #define BRCMF_FEAT_LIST \
 	BRCMF_FEAT_DEF(MBSS) \
@@ -40,7 +41,8 @@
 	BRCMF_FEAT_DEF(TDLS) \
 	BRCMF_FEAT_DEF(SCAN_RANDOM_MAC) \
 	BRCMF_FEAT_DEF(WOWL_ND) \
-	BRCMF_FEAT_DEF(WOWL_GTK)
+	BRCMF_FEAT_DEF(WOWL_GTK) \
+	BRCMF_FEAT_DEF(WOWL_ARP_ND)
 
 /*
  * Quirks:

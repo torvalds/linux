@@ -147,6 +147,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL)) {
 		err = brcmf_fil_iovar_int_get(ifp, "wowl_cap", &wowl_cap);
 		if (!err) {
+			ifp->drvr->feat_flags |= BIT(BRCMF_FEAT_WOWL_ARP_ND);
 			if (wowl_cap & BRCMF_WOWL_PFN_FOUND)
 				ifp->drvr->feat_flags |=
 					BIT(BRCMF_FEAT_WOWL_ND);
