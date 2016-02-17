@@ -215,7 +215,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 	int polarity;
 	int ret;
 
-	if (pci_has_managed_irq(dev))
+	if (dev->irq_managed && dev->irq > 0)
 		return 0;
 
 	switch (intel_mid_identify_cpu()) {
@@ -256,7 +256,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 
 static void intel_mid_pci_irq_disable(struct pci_dev *dev)
 {
-	if (pci_has_managed_irq(dev)) {
+	if (dev->irq_managed && dev->irq > 0) {
 		mp_unmap_irq(dev->irq);
 		dev->irq_managed = 0;
 		/*
