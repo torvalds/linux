@@ -2856,12 +2856,22 @@ static struct nes_cm_core *nes_cm_alloc_core(void)
 
 	nes_debug(NES_DBG_CM, "Enable QUEUE EVENTS\n");
 	cm_core->event_wq = create_singlethread_workqueue("nesewq");
+	if (!cm_core->event_wq)
+		goto out_free_cmcore;
 	cm_core->post_event = nes_cm_post_event;
 	nes_debug(NES_DBG_CM, "Enable QUEUE DISCONNECTS\n");
 	cm_core->disconn_wq = create_singlethread_workqueue("nesdwq");
+	if (!cm_core->disconn_wq)
+		goto out_free_wq;
 
 	print_core(cm_core);
 	return cm_core;
+
+out_free_wq:
+	destroy_workqueue(cm_core->event_wq);
+out_free_cmcore:
+	kfree(cm_core);
+	return NULL;
 }
 
 
