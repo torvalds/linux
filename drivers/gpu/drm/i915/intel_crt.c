@@ -128,6 +128,8 @@ static void intel_crt_get_config(struct intel_encoder *encoder,
 static void hsw_crt_get_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	intel_ddi_get_config(encoder, pipe_config);
 
 	pipe_config->base.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
@@ -135,6 +137,8 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 					      DRM_MODE_FLAG_PVSYNC |
 					      DRM_MODE_FLAG_NVSYNC);
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
+
+	pipe_config->base.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
 }
 
 /* Note: The caller is required to filter out dpms modes not supported by the

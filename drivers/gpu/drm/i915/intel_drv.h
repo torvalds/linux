@@ -1181,6 +1181,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 		     const struct dpll *dpll);
 void vlv_force_pll_off(struct drm_device *dev, enum pipe pipe);
+int lpt_get_iclkip(struct drm_i915_private *dev_priv);
 
 /* modesetting asserts */
 void assert_panel_unlocked(struct drm_i915_private *dev_priv,

@@ -4105,6 +4105,43 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_UNGATE);
 }
 
+int lpt_get_iclkip(struct drm_i915_private *dev_priv)
+{
+	u32 divsel, phaseinc, auxdiv;
+	u32 iclk_virtual_root_freq = 172800 * 1000;
+	u32 iclk_pi_range = 64;
+	u32 desired_divisor;
+	u32 temp;
+
+	if ((I915_READ(PIXCLK_GATE) & PIXCLK_GATE_UNGATE) == 0)
+		return 0;
+
+	mutex_lock(&dev_priv->sb_lock);
+
+	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK);
+	if (temp & SBI_SSCCTL_DISABLE) {
+		mutex_unlock(&dev_priv->sb_lock);
+		return 0;
+	}
+
+	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6, SBI_ICLK);
+	divsel = (temp & SBI_SSCDIVINTPHASE_DIVSEL_MASK) >>
+		SBI_SSCDIVINTPHASE_DIVSEL_SHIFT;
+	phaseinc = (temp & SBI_SSCDIVINTPHASE_INCVAL_MASK) >>
+		SBI_SSCDIVINTPHASE_INCVAL_SHIFT;
+
+	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6, SBI_ICLK);
+	auxdiv = (temp & SBI_SSCAUXDIV_FINALDIV2SEL_MASK) >>
+		SBI_SSCAUXDIV_FINALDIV2SEL_SHIFT;
+
+	mutex_unlock(&dev_priv->sb_lock);
+
+	desired_divisor = (divsel + 2) * iclk_pi_range + phaseinc;
+
+	return DIV_ROUND_CLOSEST(iclk_virtual_root_freq,
+				 desired_divisor << auxdiv);
+}
+
 static void ironlake_pch_transcoder_set_timings(struct intel_crtc *crtc,
 						enum pipe pch_transcoder)
 {
