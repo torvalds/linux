@@ -356,7 +356,7 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 				xgbe_disable_rx_tx_ints(pdata);
 
 				/* Turn on polling */
-				__napi_schedule(&pdata->napi);
+				__napi_schedule_irqoff(&pdata->napi);
 			}
 		}
 
@@ -409,7 +409,7 @@ static irqreturn_t xgbe_dma_isr(int irq, void *data)
 		disable_irq_nosync(channel->dma_irq);
 
 		/* Turn on polling */
-		__napi_schedule(&channel->napi);
+		__napi_schedule_irqoff(&channel->napi);
 	}
 
 	return IRQ_HANDLED;
