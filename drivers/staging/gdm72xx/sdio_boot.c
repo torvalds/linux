@@ -96,7 +96,7 @@ static int download_image(struct sdio_func *func, const char *img_name)
 		buf[1] = (len >> 8) & 0xff;
 		buf[2] = (len >> 16) & 0xff;
 
-		memcpy(buf+TYPE_A_HEADER_SIZE, firm->data + pos, len);
+		memcpy(buf + TYPE_A_HEADER_SIZE, firm->data + pos, len);
 		ret = sdio_memcpy_toio(func, 0, buf, len + TYPE_A_HEADER_SIZE);
 		if (ret < 0) {
 			dev_err(&func->dev,

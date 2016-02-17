@@ -292,8 +292,8 @@ static int em_download_image(struct usb_device *usbdev, const char *img_name,
 		return -ENOMEM;
 	}
 
-	strcpy(buf+pad_size, type_string);
-	ret = gdm_wibro_send(usbdev, buf, strlen(type_string)+pad_size);
+	strcpy(buf + pad_size, type_string);
+	ret = gdm_wibro_send(usbdev, buf, strlen(type_string) + pad_size);
 	if (ret < 0)
 		goto out;
 
@@ -310,8 +310,8 @@ static int em_download_image(struct usb_device *usbdev, const char *img_name,
 		else
 			len = img_len; /* the last chunk of data */
 
-		memcpy(buf+pad_size, firm->data + pos, len);
-		ret = gdm_wibro_send(usbdev, buf, len+pad_size);
+		memcpy(buf + pad_size, firm->data + pos, len);
+		ret = gdm_wibro_send(usbdev, buf, len + pad_size);
 
 		if (ret < 0)
 			goto out;
@@ -319,7 +319,7 @@ static int em_download_image(struct usb_device *usbdev, const char *img_name,
 		img_len -= DOWNLOAD_CHUCK;
 		pos += DOWNLOAD_CHUCK;
 
-		ret = em_wait_ack(usbdev, ((len+pad_size) % 512 == 0));
+		ret = em_wait_ack(usbdev, ((len + pad_size) % 512 == 0));
 		if (ret < 0)
 			goto out;
 	}

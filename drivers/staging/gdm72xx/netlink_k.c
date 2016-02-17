@@ -29,8 +29,8 @@
 #define ND_NLMSG_SPACE(len)		(nlmsg_total_size(len) + ND_IFINDEX_LEN)
 #define ND_NLMSG_DATA(nlh) \
 	((void *)((char *)nlmsg_data(nlh) + ND_IFINDEX_LEN))
-#define ND_NLMSG_S_LEN(len)		(len+ND_IFINDEX_LEN)
-#define ND_NLMSG_R_LEN(nlh)		(nlh->nlmsg_len-ND_IFINDEX_LEN)
+#define ND_NLMSG_S_LEN(len)		(len + ND_IFINDEX_LEN)
+#define ND_NLMSG_R_LEN(nlh)		(nlh->nlmsg_len - ND_IFINDEX_LEN)
 #define ND_NLMSG_IFIDX(nlh)		nlmsg_data(nlh)
 #define ND_MAX_MSG_LEN			8096
 
@@ -143,7 +143,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	NETLINK_CB(skb).portid = 0;
 	NETLINK_CB(skb).dst_group = 0;
 
-	ret = netlink_broadcast(sock, skb, 0, group+1, GFP_ATOMIC);
+	ret = netlink_broadcast(sock, skb, 0, group + 1, GFP_ATOMIC);
 
 	if (!ret)
 		return len;
