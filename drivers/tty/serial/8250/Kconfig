@@ -385,9 +385,10 @@ config SERIAL_8250_UNIPHIER
 	  serial ports, say Y to this option. If unsure, say N.
 
 config SERIAL_8250_INGENIC
-	bool "Support for Ingenic SoC serial ports"
-	depends on OF_FLATTREE
-	select LIBFDT
+	tristate "Support for Ingenic SoC serial ports"
+	depends on SERIAL_8250
+	depends on (OF_FLATTREE && SERIAL_8250_CONSOLE) || !SERIAL_EARLYCON
+	depends on MIPS || COMPILE_TEST
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of
 	  its UARTs, say Y to this option. If unsure, say N.

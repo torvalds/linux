@@ -48,7 +48,7 @@ static const struct of_device_id of_match[];
 #define UART_MCR_MDCE	BIT(7)
 #define UART_MCR_FCM	BIT(6)
 
-#ifdef CONFIG_SERIAL_EARLYCON
+#if defined(CONFIG_SERIAL_EARLYCON) && !defined(MODULE)
 static struct earlycon_device *early_device;
 
 static uint8_t __init early_in(struct uart_port *port, int offset)
