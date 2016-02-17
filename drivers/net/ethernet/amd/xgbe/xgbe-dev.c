@@ -1325,6 +1325,36 @@ static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 	return 0;
 }
 
+static void xgbe_config_tc(struct xgbe_prv_data *pdata)
+{
+	unsigned int offset, queue, prio;
+	u8 i;
+
+	netdev_reset_tc(pdata->netdev);
+	if (!pdata->num_tcs)
+		return;
+
+	netdev_set_num_tc(pdata->netdev, pdata->num_tcs);
+
+	for (i = 0, queue = 0, offset = 0; i < pdata->num_tcs; i++) {
+		while ((queue < pdata->tx_q_count) &&
+		       (pdata->q2tc_map[queue] == i))
+			queue++;
+
+		netif_dbg(pdata, drv, pdata->netdev, "TC%u using TXq%u-%u\n",
+			  i, offset, queue - 1);
+		netdev_set_tc_queue(pdata->netdev, i, queue - offset, offset);
+		offset = queue;
+	}
+
+	if (!pdata->ets)
+		return;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		netdev_set_prio_tc_map(pdata->netdev, prio,
+				       pdata->ets->prio_tc[prio]);
+}
+
 static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
 {
 	struct ieee_ets *ets = pdata->ets;
@@ -1386,6 +1416,8 @@ static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
 			break;
 		}
 	}
+
+	xgbe_config_tc(pdata);
 }
 
 static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
@@ -2910,6 +2942,7 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->get_tx_tstamp = xgbe_get_tx_tstamp;
 
 	/* For Data Center Bridging config */
+	hw_if->config_tc = xgbe_config_tc;
 	hw_if->config_dcb_tc = xgbe_config_dcb_tc;
 	hw_if->config_dcb_pfc = xgbe_config_dcb_pfc;
 
