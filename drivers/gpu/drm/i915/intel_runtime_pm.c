@@ -1435,6 +1435,22 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 	chv_set_pipe_power_well(dev_priv, power_well, false);
 }
 
+static void
+__intel_display_power_get_domain(struct drm_i915_private *dev_priv,
+				 enum intel_display_power_domain domain)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+	int i;
+
+	for_each_power_well(i, power_well, BIT(domain), power_domains) {
+		if (!power_well->count++)
+			intel_power_well_enable(dev_priv, power_well);
+	}
+
+	power_domains->domain_use_count[domain]++;
+}
+
 /**
  * intel_display_power_get - grab a power domain reference
  * @dev_priv: i915 device instance
@@ -1450,24 +1466,53 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain)
 {
-	struct i915_power_domains *power_domains;
-	struct i915_power_well *power_well;
-	int i;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
 	intel_runtime_pm_get(dev_priv);
 
-	power_domains = &dev_priv->power_domains;
+	mutex_lock(&power_domains->lock);
+
+	__intel_display_power_get_domain(dev_priv, domain);
+
+	mutex_unlock(&power_domains->lock);
+}
+
+/**
+ * intel_display_power_get_if_enabled - grab a reference for an enabled display power domain
+ * @dev_priv: i915 device instance
+ * @domain: power domain to reference
+ *
+ * This function grabs a power domain reference for @domain and ensures that the
+ * power domain and all its parents are powered up. Therefore users should only
+ * grab a reference to the innermost power domain they need.
+ *
+ * Any power domain reference obtained by this function must have a symmetric
+ * call to intel_display_power_put() to release the reference again.
+ */
+bool intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
+					enum intel_display_power_domain domain)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	bool is_enabled;
+
+	if (!intel_runtime_pm_get_if_in_use(dev_priv))
+		return false;
 
 	mutex_lock(&power_domains->lock);
 
-	for_each_power_well(i, power_well, BIT(domain), power_domains) {
-		if (!power_well->count++)
-			intel_power_well_enable(dev_priv, power_well);
+	if (__intel_display_power_is_enabled(dev_priv, domain)) {
+		__intel_display_power_get_domain(dev_priv, domain);
+		is_enabled = true;
+	} else {
+		is_enabled = false;
 	}
 
-	power_domains->domain_use_count[domain]++;
-
 	mutex_unlock(&power_domains->lock);
+
+	if (!is_enabled)
+		intel_runtime_pm_put(dev_priv);
+
+	return is_enabled;
 }
 
 /**
@@ -2236,6 +2281,43 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 
 	atomic_inc(&dev_priv->pm.wakeref_count);
 	assert_rpm_wakelock_held(dev_priv);
+}
+
+/**
+ * intel_runtime_pm_get_if_in_use - grab a runtime pm reference if device in use
+ * @dev_priv: i915 device instance
+ *
+ * This function grabs a device-level runtime pm reference if the device is
+ * already in use and ensures that it is powered up.
+ *
+ * Any runtime pm reference obtained by this function must have a symmetric
+ * call to intel_runtime_pm_put() to release the reference again.
+ */
+bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_PM))
+		return true;
+
+	ret = pm_runtime_get_if_in_use(device);
+
+	/*
+	 * In cases runtime PM is disabled by the RPM core and we get an
+	 * -EINVAL return value we are not supposed to call this function,
+	 * since the power state is undefined. This applies atm to the
+	 * late/early system suspend/resume handlers.
+	 */
+	WARN_ON_ONCE(ret < 0);
+	if (ret <= 0)
+		return false;
+
+	atomic_inc(&dev_priv->pm.wakeref_count);
+	assert_rpm_wakelock_held(dev_priv);
+
+	return true;
 }
 
 /**
