@@ -456,7 +456,7 @@ send_key_to_dongle(struct brcmf_if *ifp, struct brcmf_wsec_key *key)
 }
 
 static s32
-brcmf_configure_arp_offload(struct brcmf_if *ifp, bool enable)
+brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable)
 {
 	s32 err;
 	u32 mode;
@@ -483,6 +483,15 @@ brcmf_configure_arp_offload(struct brcmf_if *ifp, bool enable)
 			brcmf_dbg(TRACE, "successfully configured (%d) ARP offload to 0x%x\n",
 				  enable, mode);
 	}
+
+	err = brcmf_fil_iovar_int_set(ifp, "ndoe", enable);
+	if (err) {
+		brcmf_dbg(TRACE, "failed to configure (%d) ND offload err = %d\n",
+			  enable, err);
+		err = 0;
+	} else
+		brcmf_dbg(TRACE, "successfully configured (%d) ND offload to 0x%x\n",
+			  enable, mode);
 
 	return err;
 }
@@ -3543,7 +3552,7 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 		brcmf_report_wowl_wakeind(wiphy, ifp);
 		brcmf_fil_iovar_int_set(ifp, "wowl_clear", 0);
 		brcmf_config_wowl_pattern(ifp, "clr", NULL, 0, NULL, 0);
-		brcmf_configure_arp_offload(ifp, true);
+		brcmf_configure_arp_nd_offload(ifp, true);
 		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM,
 				      cfg->wowl.pre_pmmode);
 		cfg->wowl.active = false;
@@ -3567,7 +3576,7 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 
 	brcmf_dbg(TRACE, "Suspend, wowl config.\n");
 
-	brcmf_configure_arp_offload(ifp, false);
+	brcmf_configure_arp_nd_offload(ifp, false);
 	brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_PM, &cfg->wowl.pre_pmmode);
 	brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, PM_MAX);
 
@@ -4336,7 +4345,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 	if (!mbss) {
 		brcmf_set_mpc(ifp, 0);
-		brcmf_configure_arp_offload(ifp, false);
+		brcmf_configure_arp_nd_offload(ifp, false);
 	}
 
 	/* find the RSN_IE */
@@ -4482,7 +4491,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 exit:
 	if ((err) && (!mbss)) {
 		brcmf_set_mpc(ifp, 1);
-		brcmf_configure_arp_offload(ifp, true);
+		brcmf_configure_arp_nd_offload(ifp, true);
 	}
 	return err;
 }
@@ -4540,7 +4549,7 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 			brcmf_err("bss_enable config failed %d\n", err);
 	}
 	brcmf_set_mpc(ifp, 1);
-	brcmf_configure_arp_offload(ifp, true);
+	brcmf_configure_arp_nd_offload(ifp, true);
 	clear_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 	brcmf_net_setcarrier(ifp, false);
 
@@ -6287,7 +6296,7 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 	if (err)
 		goto default_conf_out;
 
-	brcmf_configure_arp_offload(ifp, true);
+	brcmf_configure_arp_nd_offload(ifp, true);
 
 	cfg->dongle_up = true;
 default_conf_out:
