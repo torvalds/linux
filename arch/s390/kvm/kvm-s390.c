@@ -1435,15 +1435,19 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 static void __start_cpu_timer_accounting(struct kvm_vcpu *vcpu)
 {
 	WARN_ON_ONCE(vcpu->arch.cputm_start != 0);
+	raw_write_seqcount_begin(&vcpu->arch.cputm_seqcount);
 	vcpu->arch.cputm_start = get_tod_clock_fast();
+	raw_write_seqcount_end(&vcpu->arch.cputm_seqcount);
 }
 
 /* needs disabled preemption to protect from TOD sync and vcpu_load/put */
 static void __stop_cpu_timer_accounting(struct kvm_vcpu *vcpu)
 {
 	WARN_ON_ONCE(vcpu->arch.cputm_start == 0);
+	raw_write_seqcount_begin(&vcpu->arch.cputm_seqcount);
 	vcpu->arch.sie_block->cputm -= get_tod_clock_fast() - vcpu->arch.cputm_start;
 	vcpu->arch.cputm_start = 0;
+	raw_write_seqcount_end(&vcpu->arch.cputm_seqcount);
 }
 
 /* needs disabled preemption to protect from TOD sync and vcpu_load/put */
@@ -1480,28 +1484,37 @@ static void disable_cpu_timer_accounting(struct kvm_vcpu *vcpu)
 void kvm_s390_set_cpu_timer(struct kvm_vcpu *vcpu, __u64 cputm)
 {
 	preempt_disable(); /* protect from TOD sync and vcpu_load/put */
+	raw_write_seqcount_begin(&vcpu->arch.cputm_seqcount);
 	if (vcpu->arch.cputm_enabled)
 		vcpu->arch.cputm_start = get_tod_clock_fast();
 	vcpu->arch.sie_block->cputm = cputm;
+	raw_write_seqcount_end(&vcpu->arch.cputm_seqcount);
 	preempt_enable();
 }
 
 /* update and get the cpu timer - can also be called from other VCPU threads */
 __u64 kvm_s390_get_cpu_timer(struct kvm_vcpu *vcpu)
 {
+	unsigned int seq;
 	__u64 value;
-	int me;
 
 	if (unlikely(!vcpu->arch.cputm_enabled))
 		return vcpu->arch.sie_block->cputm;
 
-	me = get_cpu(); /* also protects from TOD sync and vcpu_load/put */
-	value = vcpu->arch.sie_block->cputm;
-	if (likely(me == vcpu->cpu)) {
-		/* the VCPU itself will always read consistent values */
-		value -= get_tod_clock_fast() - vcpu->arch.cputm_start;
-	}
-	put_cpu();
+	preempt_disable(); /* protect from TOD sync and vcpu_load/put */
+	do {
+		seq = raw_read_seqcount(&vcpu->arch.cputm_seqcount);
+		/*
+		 * If the writer would ever execute a read in the critical
+		 * section, e.g. in irq context, we have a deadlock.
+		 */
+		WARN_ON_ONCE((seq & 1) && smp_processor_id() == vcpu->cpu);
+		value = vcpu->arch.sie_block->cputm;
+		/* if cputm_start is 0, accounting is being started/stopped */
+		if (likely(vcpu->arch.cputm_start))
+			value -= get_tod_clock_fast() - vcpu->arch.cputm_start;
+	} while (read_seqcount_retry(&vcpu->arch.cputm_seqcount, seq & ~1));
+	preempt_enable();
 	return value;
 }
 
@@ -1704,6 +1717,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
 	vcpu->arch.local_int.wq = &vcpu->wq;
 	vcpu->arch.local_int.cpuflags = &vcpu->arch.sie_block->cpuflags;
+	seqcount_init(&vcpu->arch.cputm_seqcount);
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)

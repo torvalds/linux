@@ -20,6 +20,7 @@
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
+#include <linux/seqlock.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
 #include <asm/fpu/api.h>
@@ -553,6 +554,13 @@ struct kvm_vcpu_arch {
 	unsigned long pfault_select;
 	unsigned long pfault_compare;
 	bool cputm_enabled;
+	/*
+	 * The seqcount protects updates to cputm_start and sie_block.cputm,
+	 * this way we can have non-blocking reads with consistent values.
+	 * Only the owning VCPU thread (vcpu->cpu) is allowed to change these
+	 * values and to start/stop/enable/disable cpu timer accounting.
+	 */
+	seqcount_t cputm_seqcount;
 	__u64 cputm_start;
 };
 
