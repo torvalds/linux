@@ -383,8 +383,7 @@ static int max98926_dai_hw_params(struct snd_pcm_substream *substream,
 	int rate = params_rate(params), i;
 	struct snd_soc_codec *codec = dai->codec;
 	struct max98926_priv *max98926 = snd_soc_codec_get_drvdata(codec);
-	/* BCLK/LRCLK ratio calculation */
-	int blr_clk_ratio = params_channels(params) * max98926->ch_size;
+	int blr_clk_ratio;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -413,6 +412,9 @@ static int max98926_dai_hw_params(struct snd_pcm_substream *substream,
 			params_format(params));
 		return -EINVAL;
 	}
+
+	/* BCLK/LRCLK ratio calculation */
+	blr_clk_ratio = params_channels(params) * max98926->ch_size;
 
 	switch (blr_clk_ratio) {
 	case 32:
