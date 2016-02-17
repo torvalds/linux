@@ -35,13 +35,13 @@ struct ixgbe_mat_field {
 	unsigned int mask;
 	int (*val)(struct ixgbe_fdir_filter *input,
 		   union ixgbe_atr_input *mask,
-		   __u32 val, __u32 m);
+		   u32 val, u32 m);
 	unsigned int type;
 };
 
 static inline int ixgbe_mat_prgm_sip(struct ixgbe_fdir_filter *input,
 				     union ixgbe_atr_input *mask,
-				     __u32 val, __u32 m)
+				     u32 val, u32 m)
 {
 	input->filter.formatted.src_ip[0] = val;
 	mask->formatted.src_ip[0] = m;
@@ -50,7 +50,7 @@ static inline int ixgbe_mat_prgm_sip(struct ixgbe_fdir_filter *input,
 
 static inline int ixgbe_mat_prgm_dip(struct ixgbe_fdir_filter *input,
 				     union ixgbe_atr_input *mask,
-				     __u32 val, __u32 m)
+				     u32 val, u32 m)
 {
 	input->filter.formatted.dst_ip[0] = val;
 	mask->formatted.dst_ip[0] = m;
@@ -67,7 +67,7 @@ static struct ixgbe_mat_field ixgbe_ipv4_fields[] = {
 
 static inline int ixgbe_mat_prgm_sport(struct ixgbe_fdir_filter *input,
 				       union ixgbe_atr_input *mask,
-				       __u32 val, __u32 m)
+				       u32 val, u32 m)
 {
 	input->filter.formatted.src_port = val & 0xffff;
 	mask->formatted.src_port = m & 0xffff;
@@ -76,7 +76,7 @@ static inline int ixgbe_mat_prgm_sport(struct ixgbe_fdir_filter *input,
 
 static inline int ixgbe_mat_prgm_dport(struct ixgbe_fdir_filter *input,
 				       union ixgbe_atr_input *mask,
-				       __u32 val, __u32 m)
+				       u32 val, u32 m)
 {
 	input->filter.formatted.dst_port = val & 0xffff;
 	mask->formatted.dst_port = m & 0xffff;
@@ -94,12 +94,12 @@ static struct ixgbe_mat_field ixgbe_tcp_fields[] = {
 struct ixgbe_nexthdr {
 	/* offset, shift, and mask of position to next header */
 	unsigned int o;
-	__u32 s;
-	__u32 m;
+	u32 s;
+	u32 m;
 	/* match criteria to make this jump*/
 	unsigned int off;
-	__u32 val;
-	__u32 mask;
+	u32 val;
+	u32 mask;
 	/* location of jump to make */
 	struct ixgbe_mat_field *jump;
 };
