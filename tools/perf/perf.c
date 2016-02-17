@@ -613,6 +613,8 @@ int main(int argc, const char **argv)
 	 */
 	pthread__block_sigwinch();
 
+	perf_debug_setup();
+
 	while (1) {
 		static int done_help;
 		int was_alias = run_argv(&argc, &argv);
