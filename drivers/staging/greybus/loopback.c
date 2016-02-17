@@ -81,6 +81,7 @@ struct gb_loopback {
 	atomic_t outstanding_operations;
 
 	/* Per connection stats */
+	struct timeval ts;
 	struct gb_loopback_stats latency;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
@@ -520,7 +521,6 @@ static void gb_loopback_async_operation_callback(struct gb_operation *operation)
 		gb_loopback_push_latency_ts(gb, &op_async->ts, &te);
 		gb->elapsed_nsecs = gb_loopback_calc_latency(&op_async->ts,
 							     &te);
-		gb_loopback_calculate_stats(gb);
 	}
 
 	if (op_async->pending) {
@@ -529,6 +529,7 @@ static void gb_loopback_async_operation_callback(struct gb_operation *operation)
 		del_timer_sync(&op_async->timer);
 		gb_loopback_async_operation_put(op_async);
 	}
+	gb_loopback_calculate_stats(gb);
 	mutex_unlock(&gb->mutex);
 
 	dev_dbg(&gb->connection->bundle->dev, "complete operation %d\n",
@@ -846,6 +847,7 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 	/* Should be initialized at least once per transaction set */
 	gb->apbridge_latency_ts = 0;
 	gb->gpbridge_latency_ts = 0;
+	memset(&gb->ts, 0, sizeof(struct timeval));
 }
 
 static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u32 val)
@@ -860,15 +862,15 @@ static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u32 val)
 
 static void gb_loopback_requests_update(struct gb_loopback *gb, u32 latency)
 {
-	u32 req = USEC_PER_SEC;
+	u64 req = gb->requests_completed * USEC_PER_SEC;
 
 	do_div(req, latency);
-	gb_loopback_update_stats(&gb->requests_per_second, req);
+	gb_loopback_update_stats(&gb->requests_per_second, (u32)req);
 }
 
 static void gb_loopback_throughput_update(struct gb_loopback *gb, u32 latency)
 {
-	u32 throughput;
+	u64 throughput;
 	u32 aggregate_size = sizeof(struct gb_operation_msg_hdr) * 2;
 
 	switch (gb->type) {
@@ -887,14 +889,13 @@ static void gb_loopback_throughput_update(struct gb_loopback *gb, u32 latency)
 		return;
 	}
 
-	/* Calculate bytes per second */
-	throughput = USEC_PER_SEC;
+	aggregate_size *= gb->requests_completed;
+	throughput = aggregate_size * USEC_PER_SEC;
 	do_div(throughput, latency);
-	throughput *= aggregate_size;
-	gb_loopback_update_stats(&gb->throughput, throughput);
+	gb_loopback_update_stats(&gb->throughput, (u32)throughput);
 }
 
-static void gb_loopback_calculate_stats(struct gb_loopback *gb)
+static void gb_loopback_calculate_latency_stats(struct gb_loopback *gb)
 {
 	u32 lat;
 
@@ -907,15 +908,32 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	/* Raw latency log on a per thread basis */
 	kfifo_in(&gb->kfifo_lat, (unsigned char *)&lat, sizeof(lat));
 
-	/* Log throughput and requests using latency as benchmark */
-	gb_loopback_throughput_update(gb, lat);
-	gb_loopback_requests_update(gb, lat);
-
 	/* Log the firmware supplied latency values */
 	gb_loopback_update_stats(&gb->apbridge_unipro_latency,
 				 gb->apbridge_latency_ts);
 	gb_loopback_update_stats(&gb->gpbridge_firmware_latency,
 				 gb->gpbridge_latency_ts);
+}
+
+static void gb_loopback_calculate_stats(struct gb_loopback *gb)
+{
+	u64 nlat;
+	u32 lat;
+	struct timeval te;
+
+	gb_loopback_calculate_latency_stats(gb);
+
+	if (gb->iteration_count == gb->iteration_max) {
+		do_gettimeofday(&te);
+		nlat = gb_loopback_calc_latency(&gb->ts, &te);
+		lat = gb_loopback_nsec_to_usec_latency(nlat);
+
+		gb_loopback_throughput_update(gb, lat);
+		gb_loopback_requests_update(gb, lat);
+
+		memset(&gb->ts, 0, sizeof(struct timeval));
+		gb->type = 0;
+	}
 }
 
 static void gb_loopback_async_wait_to_send(struct gb_loopback *gb)
@@ -955,8 +973,10 @@ static int gb_loopback_fn(void *data)
 
 		/* Optionally terminate */
 		if (send_count == gb->iteration_max) {
-			gb->type = 0;
-			send_count = 0;
+			if (!gb->async)
+				send_count = 0;
+			else if (gb->iteration_count == gb->iteration_max)
+				send_count = 0;
 			mutex_unlock(&gb->mutex);
 			continue;
 		}
@@ -965,10 +985,15 @@ static int gb_loopback_fn(void *data)
 		type = gb->type;
 		mutex_unlock(&gb->mutex);
 
+		if (gb->ts.tv_usec == 0 && gb->ts.tv_sec == 0)
+			do_gettimeofday(&gb->ts);
+
 		/* Else operations to perform */
 		if (gb->async) {
 			if (type == GB_LOOPBACK_TYPE_PING) {
 				error = gb_loopback_async_ping(gb);
+				if (!error)
+					gb->requests_completed++;
 				gb_loopback_calculate_stats(gb);
 			} else if (type == GB_LOOPBACK_TYPE_TRANSFER) {
 				error = gb_loopback_async_transfer(gb, size);
@@ -989,6 +1014,8 @@ static int gb_loopback_fn(void *data)
 
 			if (error)
 				gb->error++;
+			else
+				gb->requests_completed++;
 			gb->iteration_count++;
 			gb_loopback_calculate_stats(gb);
 		}
