@@ -658,8 +658,9 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (err)
 			goto put_out_dir;
 
-		if (update_dent_inode(old_inode, new_inode,
-						&new_dentry->d_name)) {
+		err = update_dent_inode(old_inode, new_inode,
+						&new_dentry->d_name);
+		if (err) {
 			release_orphan_inode(sbi);
 			goto put_out_dir;
 		}
