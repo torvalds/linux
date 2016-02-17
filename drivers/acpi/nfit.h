@@ -57,12 +57,16 @@ enum {
 	NFIT_ARS_START_BUSY = 6,
 	NFIT_ARS_CAP_NONE = 1,
 	NFIT_ARS_F_OVERFLOW = 1,
+	NFIT_ARS_TIMEOUT = 90,
 };
 
 struct nfit_spa {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
-	int is_registered;
+	struct nd_region *nd_region;
+	unsigned int ars_done:1;
+	u32 clear_err_unit;
+	u32 max_ars;
 };
 
 struct nfit_dcr {
@@ -124,6 +128,8 @@ struct acpi_nfit_desc {
 	struct list_head idts;
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
+	struct nd_cmd_ars_status *ars_status;
+	size_t ars_status_size;
 	struct work_struct work;
 	unsigned int cancel:1;
 	unsigned long dimm_dsm_force_en;
