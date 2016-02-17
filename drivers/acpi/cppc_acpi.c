@@ -66,6 +66,7 @@ static u64 comm_base_addr;
 static int pcc_subspace_idx = -1;
 static bool pcc_channel_acquired;
 static ktime_t deadline;
+static unsigned int pcc_mpar, pcc_mrtt;
 
 /* pcc mapped address + header size + offset within PCC subspace */
 #define GET_PCC_VADDR(offs) (pcc_comm_addr + 0x8 + (offs))
@@ -85,6 +86,11 @@ static int check_pcc_chan(void)
 
 	/* Retry in case the remote processor was too slow to catch up. */
 	while (!ktime_after(ktime_get(), next_deadline)) {
+		/*
+		 * Per spec, prior to boot the PCC space wil be initialized by
+		 * platform and should have set the command completion bit when
+		 * PCC can be used by OSPM
+		 */
 		if (readw_relaxed(&generic_comm_base->status) & PCC_CMD_COMPLETE) {
 			ret = 0;
 			break;
@@ -104,6 +110,9 @@ static int send_pcc_cmd(u16 cmd)
 	int ret = -EIO;
 	struct acpi_pcct_shared_memory *generic_comm_base =
 		(struct acpi_pcct_shared_memory *) pcc_comm_addr;
+	static ktime_t last_cmd_cmpl_time, last_mpar_reset;
+	static int mpar_count;
+	unsigned int time_delta;
 
 	/*
 	 * For CMD_WRITE we know for a fact the caller should have checked
@@ -113,6 +122,41 @@ static int send_pcc_cmd(u16 cmd)
 		ret = check_pcc_chan();
 		if (ret)
 			return ret;
+	}
+
+	/*
+	 * Handle the Minimum Request Turnaround Time(MRTT)
+	 * "The minimum amount of time that OSPM must wait after the completion
+	 * of a command before issuing the next command, in microseconds"
+	 */
+	if (pcc_mrtt) {
+		time_delta = ktime_us_delta(ktime_get(), last_cmd_cmpl_time);
+		if (pcc_mrtt > time_delta)
+			udelay(pcc_mrtt - time_delta);
+	}
+
+	/*
+	 * Handle the non-zero Maximum Periodic Access Rate(MPAR)
+	 * "The maximum number of periodic requests that the subspace channel can
+	 * support, reported in commands per minute. 0 indicates no limitation."
+	 *
+	 * This parameter should be ideally zero or large enough so that it can
+	 * handle maximum number of requests that all the cores in the system can
+	 * collectively generate. If it is not, we will follow the spec and just
+	 * not send the request to the platform after hitting the MPAR limit in
+	 * any 60s window
+	 */
+	if (pcc_mpar) {
+		if (mpar_count == 0) {
+			time_delta = ktime_ms_delta(ktime_get(), last_mpar_reset);
+			if (time_delta < 60 * MSEC_PER_SEC) {
+				pr_debug("PCC cmd not sent due to MPAR limit");
+				return -EIO;
+			}
+			last_mpar_reset = ktime_get();
+			mpar_count = pcc_mpar;
+		}
+		mpar_count--;
 	}
 
 	/* Write to the shared comm region. */
@@ -135,9 +179,17 @@ static int send_pcc_cmd(u16 cmd)
 	 * because the actual write()s are done before coming here
 	 * and the next READ or WRITE will check if the channel
 	 * is busy/free at the entry of this call.
+	 *
+	 * If Minimum Request Turnaround Time is non-zero, we need
+	 * to record the completion time of both READ and WRITE
+	 * command for proper handling of MRTT, so we need to check
+	 * for pcc_mrtt in addition to CMD_READ
 	 */
-	if (cmd == CMD_READ)
+	if (cmd == CMD_READ || pcc_mrtt) {
 		ret = check_pcc_chan();
+		if (pcc_mrtt)
+			last_cmd_cmpl_time = ktime_get();
+	}
 
 	mbox_client_txdone(pcc_channel, ret);
 	return ret;
@@ -375,6 +427,8 @@ static int register_pcc_channel(int pcc_subspace_idx)
 		 */
 		usecs_lat = NUM_RETRIES * cppc_ss->latency;
 		deadline = ns_to_ktime(usecs_lat * NSEC_PER_USEC);
+		pcc_mrtt = cppc_ss->min_turnaround_time;
+		pcc_mpar = cppc_ss->max_access_rate;
 
 		pcc_comm_addr = acpi_os_ioremap(comm_base_addr, len);
 		if (!pcc_comm_addr) {
