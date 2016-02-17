@@ -266,24 +266,15 @@ endif # CONFIG_STACK_VALIDATION
 
 define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
-	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c);				  \
+	$(call cmd_and_fixdep,cc_o_c)					  \
 	$(cmd_modversions)						  \
-	$(cmd_objtool)						  \
-	$(call echo-cmd,record_mcount)					  \
-	$(cmd_record_mcount)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' >    \
-	                                              $(dot-target).tmp;  \
-	rm -f $(depfile);						  \
-	mv -f $(dot-target).tmp $(dot-target).cmd
+	$(cmd_objtool)						          \
+	$(call echo-cmd,record_mcount) $(cmd_record_mcount)
 endef
 
 define rule_as_o_S
-	$(call echo-cmd,as_o_S) $(cmd_as_o_S);				  \
-	$(cmd_objtool)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,as_o_S)' >    \
-	                                              $(dot-target).tmp;  \
-	rm -f $(depfile);						  \
-	mv -f $(dot-target).tmp $(dot-target).cmd
+	$(call cmd_and_fixdep,as_o_S)					  \
+	$(cmd_objtool)
 endef
 
 # List module undefined symbols (or empty line if not enabled)
