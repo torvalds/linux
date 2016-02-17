@@ -31,7 +31,6 @@
 #include <linux/sched.h>       /* need_resched() */
 #include <linux/tick.h>
 #include <linux/cpuidle.h>
-#include <linux/syscore_ops.h>
 #include <acpi/processor.h>
 
 /*
@@ -192,42 +191,6 @@ static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 }
 
 #endif
-
-#ifdef CONFIG_PM_SLEEP
-static u32 saved_bm_rld;
-
-static int acpi_processor_suspend(void)
-{
-	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &saved_bm_rld);
-	return 0;
-}
-
-static void acpi_processor_resume(void)
-{
-	u32 resumed_bm_rld = 0;
-
-	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &resumed_bm_rld);
-	if (resumed_bm_rld == saved_bm_rld)
-		return;
-
-	acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
-}
-
-static struct syscore_ops acpi_processor_syscore_ops = {
-	.suspend = acpi_processor_suspend,
-	.resume = acpi_processor_resume,
-};
-
-void acpi_processor_syscore_init(void)
-{
-	register_syscore_ops(&acpi_processor_syscore_ops);
-}
-
-void acpi_processor_syscore_exit(void)
-{
-	unregister_syscore_ops(&acpi_processor_syscore_ops);
-}
-#endif /* CONFIG_PM_SLEEP */
 
 #if defined(CONFIG_X86)
 static void tsc_check_state(int state)
