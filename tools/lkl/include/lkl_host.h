@@ -1,6 +1,10 @@
 #ifndef _LKL_HOST_H
 #define _LKL_HOST_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <lkl/asm/host_ops.h>
 #include <lkl.h>
 
@@ -52,5 +56,9 @@ struct lkl_dev_net_ops {
 #define LKL_DEV_NET_POLL_TX		2
 	int (*poll)(union lkl_netdev nd, int events);
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
