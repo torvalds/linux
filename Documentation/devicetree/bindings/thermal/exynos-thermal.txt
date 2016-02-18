@@ -44,6 +44,14 @@
 - vtmu-supply: This entry is optional and provides the regulator node supplying
 		voltage to TMU. If needed this entry can be placed inside
 		board/platform specific dts file.
+
+The Exynos TMU supports generating interrupts when reaching given
+temperature thresholds. Number of supported thermal trip points depends
+on the SoC (only first trip points defined in DT will be configured):
+ - most of SoC: 4
+ - samsung,exynos5433-tmu: 8
+ - samsung,exynos7-tmu: 8
+
 Following properties are mandatory (depending on SoC):
 - samsung,tmu_gain: Gain value for internal TMU operation.
 - samsung,tmu_reference_voltage: Value of TMU IP block's reference voltage
