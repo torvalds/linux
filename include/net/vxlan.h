@@ -24,11 +24,11 @@ struct vxlanhdr {
 };
 
 /* VXLAN header flags. */
-#define VXLAN_HF_VNI BIT(27)
+#define VXLAN_HF_VNI	cpu_to_be32(BIT(27))
 
 #define VXLAN_N_VID     (1u << 24)
 #define VXLAN_VID_MASK  (VXLAN_N_VID - 1)
-#define VXLAN_VNI_MASK  (VXLAN_VID_MASK << 8)
+#define VXLAN_VNI_MASK	cpu_to_be32(VXLAN_VID_MASK << 8)
 #define VXLAN_HLEN (sizeof(struct udphdr) + sizeof(struct vxlanhdr))
 
 #define VNI_HASH_BITS	10
@@ -55,14 +55,14 @@ struct vxlanhdr {
  */
 
 /* VXLAN-RCO header flags. */
-#define VXLAN_HF_RCO BIT(21)
+#define VXLAN_HF_RCO	cpu_to_be32(BIT(21))
 
 /* Remote checksum offload header option */
-#define VXLAN_RCO_MASK  0x7f    /* Last byte of vni field */
-#define VXLAN_RCO_UDP   0x80    /* Indicate UDP RCO (TCP when not set *) */
-#define VXLAN_RCO_SHIFT 1       /* Left shift of start */
+#define VXLAN_RCO_MASK	cpu_to_be32(0x7f)  /* Last byte of vni field */
+#define VXLAN_RCO_UDP	cpu_to_be32(0x80)  /* Indicate UDP RCO (TCP when not set *) */
+#define VXLAN_RCO_SHIFT	1		   /* Left shift of start */
 #define VXLAN_RCO_SHIFT_MASK ((1 << VXLAN_RCO_SHIFT) - 1)
-#define VXLAN_MAX_REMCSUM_START (VXLAN_RCO_MASK << VXLAN_RCO_SHIFT)
+#define VXLAN_MAX_REMCSUM_START (0x7f << VXLAN_RCO_SHIFT)
 
 /*
  * VXLAN Group Based Policy Extension (VXLAN_F_GBP):
@@ -105,9 +105,9 @@ struct vxlanhdr_gbp {
 };
 
 /* VXLAN-GBP header flags. */
-#define VXLAN_HF_GBP BIT(31)
+#define VXLAN_HF_GBP	cpu_to_be32(BIT(31))
 
-#define VXLAN_GBP_USED_BITS (VXLAN_HF_GBP | 0xFFFFFF)
+#define VXLAN_GBP_USED_BITS (VXLAN_HF_GBP | cpu_to_be32(0xFFFFFF))
 
 /* skb->mark mapping
  *
@@ -144,7 +144,7 @@ union vxlan_addr {
 struct vxlan_rdst {
 	union vxlan_addr	 remote_ip;
 	__be16			 remote_port;
-	u32			 remote_vni;
+	__be32			 remote_vni;
 	u32			 remote_ifindex;
 	struct list_head	 list;
 	struct rcu_head		 rcu;
@@ -154,7 +154,7 @@ struct vxlan_rdst {
 struct vxlan_config {
 	union vxlan_addr	remote_ip;
 	union vxlan_addr	saddr;
-	u32			vni;
+	__be32			vni;
 	int			remote_ifindex;
 	int			mtu;
 	__be16			dst_port;
@@ -261,6 +261,59 @@ static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 #define VXLAN_HEADROOM (20 + 8 + 8 + 14)
 /* IPv6 header + UDP + VXLAN + Ethernet header */
 #define VXLAN6_HEADROOM (40 + 8 + 8 + 14)
+
+static inline struct vxlanhdr *vxlan_hdr(struct sk_buff *skb)
+{
+	return (struct vxlanhdr *)(udp_hdr(skb) + 1);
+}
+
+static inline __be32 vxlan_vni(__be32 vni_field)
+{
+#if defined(__BIG_ENDIAN)
+	return vni_field >> 8;
+#else
+	return (vni_field & VXLAN_VNI_MASK) << 8;
+#endif
+}
+
+static inline __be32 vxlan_vni_field(__be32 vni)
+{
+#if defined(__BIG_ENDIAN)
+	return vni << 8;
+#else
+	return vni >> 8;
+#endif
+}
+
+static inline __be32 vxlan_tun_id_to_vni(__be64 tun_id)
+{
+#if defined(__BIG_ENDIAN)
+	return tun_id;
+#else
+	return tun_id >> 32;
+#endif
+}
+
+static inline size_t vxlan_rco_start(__be32 vni_field)
+{
+	return be32_to_cpu(vni_field & VXLAN_RCO_MASK) << VXLAN_RCO_SHIFT;
+}
+
+static inline size_t vxlan_rco_offset(__be32 vni_field)
+{
+	return (vni_field & VXLAN_RCO_UDP) ?
+		offsetof(struct udphdr, check) :
+		offsetof(struct tcphdr, check);
+}
+
+static inline __be32 vxlan_compute_rco(unsigned int start, unsigned int offset)
+{
+	__be32 vni_field = cpu_to_be32(start >> VXLAN_RCO_SHIFT);
+
+	if (offset == offsetof(struct udphdr, check))
+		vni_field |= VXLAN_RCO_UDP;
+	return vni_field;
+}
 
 #if IS_ENABLED(CONFIG_VXLAN)
 void vxlan_get_rx_port(struct net_device *netdev);
