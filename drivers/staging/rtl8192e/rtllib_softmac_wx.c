@@ -243,7 +243,7 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
 {
-	u32 tmp_rate = 0;
+	u32 tmp_rate;
 
 	tmp_rate = TxCountToDataRate(ieee,
 				     ieee->softmac_stats.CurrentShowTxate);

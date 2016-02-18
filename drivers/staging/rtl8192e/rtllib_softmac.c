@@ -776,7 +776,7 @@ inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon,
 {
 	struct sk_buff *skb;
 	struct rtllib_authentication *auth;
-	int  len = 0;
+	int  len;
 
 	len = sizeof(struct rtllib_authentication) + challengelen +
 		     ieee->tx_headroom + 4;

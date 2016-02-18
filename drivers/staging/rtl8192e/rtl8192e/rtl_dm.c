@@ -1875,7 +1875,7 @@ void rtl92e_dm_rf_pathcheck_wq(void *data)
 				  struct r8192_priv,
 				  rfpath_check_wq);
 	struct net_device *dev = priv->rtllib->dev;
-	u8 rfpath = 0, i;
+	u8 rfpath, i;
 
 	rfpath = rtl92e_readb(dev, 0xc04);
 
