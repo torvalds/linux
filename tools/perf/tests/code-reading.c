@@ -439,7 +439,7 @@ static int do_test_code_reading(bool try_kcore)
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 4000,
+		.freq		     = 500,
 		.target		     = {
 			.uses_mmap   = true,
 		},
