@@ -128,12 +128,11 @@ EBU Armada family ARMv8
   Armada 3710/3720 Flavors:
 	88F3710
 	88F3720
+	Core: ARM Cortex A53 (ARMv8)
 
-  Core: ARM Cortex A53 (ARMv8)
-
-  Homepage     : http://www.marvell.com/embedded-processors/armada-3700/
-
-  Device tree descritpion located in arch/arm64/boot/dts/marvell/armada-37*
+	Homepage: http://www.marvell.com/embedded-processors/armada-3700/
+	Product Brief: http://www.marvell.com/embedded-processors/assets/PB-88F3700-FNL.pdf
+	Device tree files: arch/arm64/boot/dts/marvell/armada-37*
 
 Avanta family
 -------------
