@@ -1,0 +1,1 @@
+nvkm-y += nvkm/subdev/iccsense/base.o

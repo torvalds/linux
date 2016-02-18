@@ -12,6 +12,7 @@
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/ibus.h>
+#include <subdev/iccsense.h>
 #include <subdev/instmem.h>
 #include <subdev/ltc.h>
 #include <subdev/mc.h>
