@@ -367,10 +367,10 @@ static inline void complete_tx(struct sdma_engine *sde,
 	callback_t complete = tx->complete;
 
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
-	trace_hfi1_sdma_out_sn(sde, txp->sn);
-	if (WARN_ON_ONCE(sde->head_sn != txp->sn))
+	trace_hfi1_sdma_out_sn(sde, tx->sn);
+	if (WARN_ON_ONCE(sde->head_sn != tx->sn))
 		dd_dev_err(sde->dd, "expected %llu got %llu\n",
-			   sde->head_sn, txp->sn);
+			   sde->head_sn, tx->sn);
 	sde->head_sn++;
 #endif
 	sdma_txclean(sde->dd, tx);
