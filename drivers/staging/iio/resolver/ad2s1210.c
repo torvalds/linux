@@ -98,6 +98,7 @@ static const int ad2s1210_mode_vals[4][2] = {
 	[MOD_VEL] = { 0, 1 },
 	[MOD_CONFIG] = { 1, 0 },
 };
+
 static inline void ad2s1210_set_mode(enum ad2s1210_mode mode,
 				     struct ad2s1210_state *st)
 {
