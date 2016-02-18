@@ -333,8 +333,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	n = copy_from_iter(&op->downcall, downcall_size, iter);
 	if (n != downcall_size) {
 		gossip_err("%s: failed to copy downcall.\n", __func__);
-		ret = -EFAULT;
-		goto Broken;
+		goto Efault;
 	}
 
 	if (op->downcall.status)
@@ -354,8 +353,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 			   downcall_size,
 			   op->downcall.trailer_size,
 			   total);
-		ret = -EFAULT;
-		goto Broken;
+		goto Efault;
 	}
 
 	/* Only READDIR operations should have trailers. */
@@ -364,8 +362,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		gossip_err("%s: %x operation with trailer.",
 			   __func__,
 			   op->downcall.type);
-		ret = -EFAULT;
-		goto Broken;
+		goto Efault;
 	}
 
 	/* READDIR operations should always have trailers. */
@@ -374,8 +371,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		gossip_err("%s: %x operation with no trailer.",
 			   __func__,
 			   op->downcall.type);
-		ret = -EFAULT;
-		goto Broken;
+		goto Efault;
 	}
 
 	if (op->downcall.type != ORANGEFS_VFS_OP_READDIR)
@@ -386,8 +382,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	if (op->downcall.trailer_buf == NULL) {
 		gossip_err("%s: failed trailer vmalloc.\n",
 			   __func__);
-		ret = -ENOMEM;
-		goto Broken;
+		goto Enomem;
 	}
 	memset(op->downcall.trailer_buf, 0, op->downcall.trailer_size);
 	n = copy_from_iter(op->downcall.trailer_buf,
@@ -396,8 +391,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	if (n != op->downcall.trailer_size) {
 		gossip_err("%s: failed to copy trailer.\n", __func__);
 		vfree(op->downcall.trailer_buf);
-		ret = -EFAULT;
-		goto Broken;
+		goto Efault;
 	}
 
 wakeup:
@@ -406,38 +400,27 @@ wakeup:
 	 * that this op is done
 	 */
 	spin_lock(&op->lock);
-	if (unlikely(op_state_given_up(op))) {
+	if (unlikely(op_is_cancel(op))) {
 		spin_unlock(&op->lock);
-		goto out;
-	}
-	set_op_state_serviced(op);
-	spin_unlock(&op->lock);
-
-	/*
-	 * If this operation is an I/O operation we need to wait
-	 * for all data to be copied before we can return to avoid
-	 * buffer corruption and races that can pull the buffers
-	 * out from under us.
-	 *
-	 * Essentially we're synchronizing with other parts of the
-	 * vfs implicitly by not allowing the user space
-	 * application reading/writing this device to return until
-	 * the buffers are done being used.
-	 */
-out:
-	if (unlikely(op_is_cancel(op)))
 		put_cancel(op);
+	} else if (unlikely(op_state_given_up(op))) {
+		spin_unlock(&op->lock);
+	} else {
+		set_op_state_serviced(op);
+		spin_unlock(&op->lock);
+	}
 	op_release(op);
 	return ret;
 
-Broken:
-	spin_lock(&op->lock);
-	if (!op_state_given_up(op)) {
-		op->downcall.status = ret;
-		set_op_state_serviced(op);
-	}
-	spin_unlock(&op->lock);
-	goto out;
+Efault:
+	op->downcall.status = -(ORANGEFS_ERROR_BIT | 9);
+	ret = -EFAULT;
+	goto wakeup;
+
+Enomem:
+	op->downcall.status = -(ORANGEFS_ERROR_BIT | 8);
+	ret = -ENOMEM;
+	goto wakeup;
 }
 
 /* Returns whether any FS are still pending remounted */
