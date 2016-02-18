@@ -186,7 +186,7 @@ struct qcom_smd_channel {
 	int fifo_size;
 
 	void *bounce_buffer;
-	int (*cb)(struct qcom_smd_device *, const void *, size_t);
+	qcom_smd_cb_t cb;
 
 	spinlock_t recv_lock;
 
@@ -376,6 +376,19 @@ static void qcom_smd_channel_reset(struct qcom_smd_channel *channel)
 	channel->state = SMD_CHANNEL_CLOSED;
 	channel->pkt_size = 0;
 }
+
+/*
+ * Set the callback for a channel, with appropriate locking
+ */
+static void qcom_smd_channel_set_callback(struct qcom_smd_channel *channel,
+					  qcom_smd_cb_t cb)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&channel->recv_lock, flags);
+	channel->cb = cb;
+	spin_unlock_irqrestore(&channel->recv_lock, flags);
+};
 
 /*
  * Calculate the amount of data available in the rx fifo
@@ -814,8 +827,7 @@ static int qcom_smd_dev_probe(struct device *dev)
 	if (!channel->bounce_buffer)
 		return -ENOMEM;
 
-	channel->cb = qsdrv->callback;
-
+	qcom_smd_channel_set_callback(channel, qsdrv->callback);
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENING);
 
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENED);
@@ -831,7 +843,7 @@ static int qcom_smd_dev_probe(struct device *dev)
 err:
 	dev_err(&qsdev->dev, "probe failed\n");
 
-	channel->cb = NULL;
+	qcom_smd_channel_set_callback(channel, NULL);
 	kfree(channel->bounce_buffer);
 	channel->bounce_buffer = NULL;
 
@@ -850,16 +862,13 @@ static int qcom_smd_dev_remove(struct device *dev)
 	struct qcom_smd_device *qsdev = to_smd_device(dev);
 	struct qcom_smd_driver *qsdrv = to_smd_driver(dev);
 	struct qcom_smd_channel *channel = qsdev->channel;
-	unsigned long flags;
 
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_CLOSING);
 
 	/*
 	 * Make sure we don't race with the code receiving data.
 	 */
-	spin_lock_irqsave(&channel->recv_lock, flags);
-	channel->cb = NULL;
-	spin_unlock_irqrestore(&channel->recv_lock, flags);
+	qcom_smd_channel_set_callback(channel, NULL);
 
 	/* Wake up any sleepers in qcom_smd_send() */
 	wake_up_interruptible(&channel->fblockread_event);

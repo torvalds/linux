@@ -26,6 +26,8 @@ struct qcom_smd_device {
 	struct qcom_smd_channel *channel;
 };
 
+typedef int (*qcom_smd_cb_t)(struct qcom_smd_device *, const void *, size_t);
+
 /**
  * struct qcom_smd_driver - smd driver struct
  * @driver:	underlying device driver
@@ -42,7 +44,7 @@ struct qcom_smd_driver {
 
 	int (*probe)(struct qcom_smd_device *dev);
 	void (*remove)(struct qcom_smd_device *dev);
-	int (*callback)(struct qcom_smd_device *, const void *, size_t);
+	qcom_smd_cb_t callback;
 };
 
 int qcom_smd_driver_register(struct qcom_smd_driver *drv);
