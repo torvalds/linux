@@ -319,9 +319,9 @@ static ssize_t ad2s1210_store_control(struct device *dev,
 		data = ad2s1210_read_resolution_pin(st);
 		if (data != st->resolution)
 			dev_warn(dev, "ad2s1210: resolution settings not match\n");
-	} else
+	} else {
 		ad2s1210_set_resolution_pin(st);
-
+	}
 	ret = len;
 	st->hysteresis = !!(data & AD2S1210_ENABLE_HYSTERESIS);
 
@@ -381,8 +381,9 @@ static ssize_t ad2s1210_store_resolution(struct device *dev,
 		data = ad2s1210_read_resolution_pin(st);
 		if (data != st->resolution)
 			dev_warn(dev, "ad2s1210: resolution settings not match\n");
-	} else
+	} else {
 		ad2s1210_set_resolution_pin(st);
+	}
 	ret = len;
 error_ret:
 	mutex_unlock(&st->lock);
