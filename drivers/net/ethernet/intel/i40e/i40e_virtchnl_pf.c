@@ -2203,6 +2203,8 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 		 * and then reloading the VF driver.
 		 */
 		i40e_vc_disable_vf(pf, vf);
+		/* During reset the VF got a new VSI, so refresh the pointer. */
+		vsi = pf->vsi[vf->lan_vsi_idx];
 	}
 
 	/* Check for condition where there was already a port VLAN ID
