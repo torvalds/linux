@@ -2123,6 +2123,8 @@ static int mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (flush_fdb && mlxsw_sp_port_fdb_flush(mlxsw_sp_port))
 		netdev_err(mlxsw_sp_port->dev, "Failed to flush FDB\n");
 
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
+
 	mlxsw_sp_port->learning = 0;
 	mlxsw_sp_port->learning_sync = 0;
 	mlxsw_sp_port->uc_flood = 0;
