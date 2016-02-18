@@ -3126,7 +3126,8 @@ struct mlx5_ifc_query_vport_counter_in_bits {
 	u8         op_mod[0x10];
 
 	u8         other_vport[0x1];
-	u8         reserved_at_41[0xf];
+	u8         reserved_at_41[0xb];
+	u8	   port_num[0x4];
 	u8         vport_number[0x10];
 
 	u8         reserved_at_60[0x60];
