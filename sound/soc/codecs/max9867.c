@@ -212,16 +212,22 @@ static int max9867_dai_hw_params(struct snd_pcm_substream *substream,
 		switch (snd_pcm_format_width(params_format(params))) {
 		case 8:
 		case 16:
-			if (pclk_bclk_ratio == 2)
+			switch (pclk_bclk_ratio) {
+			case 2:
 				bclk_value = MAX9867_IFC1B_PCLK_2;
-			else if (pclk_bclk_ratio == 4)
+				break;
+			case 4:
 				bclk_value = MAX9867_IFC1B_PCLK_4;
-			else if (pclk_bclk_ratio == 8)
+				break;
+			case 8:
 				bclk_value = MAX9867_IFC1B_PCLK_8;
-			else if (pclk_bclk_ratio == 16)
+				break;
+			case 16:
 				bclk_value = MAX9867_IFC1B_PCLK_16;
-			else {
-				dev_err(codec->dev, "unsupported sampling rate\n");
+				break;
+			default:
+				dev_err(codec->dev,
+					"unsupported sampling rate\n");
 				return -EINVAL;
 			}
 			break;
