@@ -73,9 +73,9 @@
  * @miscdev:	specifics to handle "/dev/xyz.etb" entry.
  * @spinlock:	only one at a time pls.
  * @reading:	synchronise user space access to etb buffer.
+ * @mode:	this ETB is being used.
  * @buf:	area of memory where ETB buffer content gets sent.
  * @buffer_depth: size of @buf.
- * @enable:	this ETB is being used.
  * @trigger_cntr: amount of words to store after a trigger.
  */
 struct etb_drvdata {
@@ -86,9 +86,9 @@ struct etb_drvdata {
 	struct miscdevice	miscdev;
 	spinlock_t		spinlock;
 	local_t			reading;
+	local_t			mode;
 	u8			*buf;
 	u32			buffer_depth;
-	bool			enable;
 	u32			trigger_cntr;
 };
 
@@ -133,16 +133,31 @@ static void etb_enable_hw(struct etb_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
-static int etb_enable(struct coresight_device *csdev)
+static int etb_enable(struct coresight_device *csdev, u32 mode)
 {
-	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	u32 val;
 	unsigned long flags;
+	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	val = local_cmpxchg(&drvdata->mode,
+			    CS_MODE_DISABLED, mode);
+	/*
+	 * When accessing from Perf, a HW buffer can be handled
+	 * by a single trace entity.  In sysFS mode many tracers
+	 * can be logging to the same HW buffer.
+	 */
+	if (val == CS_MODE_PERF)
+		return -EBUSY;
+
+	/* Nothing to do, the tracer is already enabled. */
+	if (val == CS_MODE_SYSFS)
+		goto out;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	etb_enable_hw(drvdata);
-	drvdata->enable = true;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
+out:
 	dev_info(drvdata->dev, "ETB enabled\n");
 	return 0;
 }
@@ -243,8 +258,9 @@ static void etb_disable(struct coresight_device *csdev)
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	etb_disable_hw(drvdata);
 	etb_dump_hw(drvdata);
-	drvdata->enable = false;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
+	local_set(&drvdata->mode, CS_MODE_DISABLED);
 
 	dev_info(drvdata->dev, "ETB disabled\n");
 }
@@ -263,7 +279,7 @@ static void etb_dump(struct etb_drvdata *drvdata)
 	unsigned long flags;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (drvdata->enable) {
+	if (local_read(&drvdata->mode) == CS_MODE_SYSFS) {
 		etb_disable_hw(drvdata);
 		etb_dump_hw(drvdata);
 		etb_enable_hw(drvdata);

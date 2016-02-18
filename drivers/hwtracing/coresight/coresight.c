@@ -121,13 +121,13 @@ static int coresight_find_link_outport(struct coresight_device *csdev,
 	return 0;
 }
 
-static int coresight_enable_sink(struct coresight_device *csdev)
+static int coresight_enable_sink(struct coresight_device *csdev, u32 mode)
 {
 	int ret;
 
 	if (!csdev->enable) {
 		if (sink_ops(csdev)->enable) {
-			ret = sink_ops(csdev)->enable(csdev);
+			ret = sink_ops(csdev)->enable(csdev, mode);
 			if (ret)
 				return ret;
 		}
@@ -283,7 +283,7 @@ void coresight_disable_path(struct list_head *path)
 	}
 }
 
-int coresight_enable_path(struct list_head *path)
+int coresight_enable_path(struct list_head *path, u32 mode)
 {
 
 	int ret = 0;
@@ -296,7 +296,7 @@ int coresight_enable_path(struct list_head *path)
 		switch (csdev->type) {
 		case CORESIGHT_DEV_TYPE_SINK:
 		case CORESIGHT_DEV_TYPE_LINKSINK:
-			ret = coresight_enable_sink(csdev);
+			ret = coresight_enable_sink(csdev, mode);
 			if (ret)
 				goto err;
 			break;
@@ -454,7 +454,7 @@ int coresight_enable(struct coresight_device *csdev)
 		goto out;
 	}
 
-	ret = coresight_enable_path(path);
+	ret = coresight_enable_path(path, CS_MODE_SYSFS);
 	if (ret)
 		goto err_path;
 

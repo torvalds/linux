@@ -186,7 +186,7 @@ struct coresight_device {
  * @disable:	disables the sink.
  */
 struct coresight_ops_sink {
-	int (*enable)(struct coresight_device *csdev);
+	int (*enable)(struct coresight_device *csdev, u32 mode);
 	void (*disable)(struct coresight_device *csdev);
 };
 
