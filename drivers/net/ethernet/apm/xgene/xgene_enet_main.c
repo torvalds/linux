@@ -628,6 +628,7 @@ static int xgene_enet_register_irq(struct net_device *ndev)
 	int ret;
 
 	ring = pdata->rx_ring;
+	irq_set_status_flags(ring->irq, IRQ_DISABLE_UNLAZY);
 	ret = devm_request_irq(dev, ring->irq, xgene_enet_rx_irq,
 			       IRQF_SHARED, ring->irq_name, ring);
 	if (ret)
@@ -635,6 +636,7 @@ static int xgene_enet_register_irq(struct net_device *ndev)
 
 	if (pdata->cq_cnt) {
 		ring = pdata->tx_ring->cp_ring;
+		irq_set_status_flags(ring->irq, IRQ_DISABLE_UNLAZY);
 		ret = devm_request_irq(dev, ring->irq, xgene_enet_rx_irq,
 				       IRQF_SHARED, ring->irq_name, ring);
 		if (ret) {
@@ -649,15 +651,19 @@ static int xgene_enet_register_irq(struct net_device *ndev)
 static void xgene_enet_free_irq(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata;
+	struct xgene_enet_desc_ring *ring;
 	struct device *dev;
 
 	pdata = netdev_priv(ndev);
 	dev = ndev_to_dev(ndev);
-	devm_free_irq(dev, pdata->rx_ring->irq, pdata->rx_ring);
+	ring = pdata->rx_ring;
+	irq_clear_status_flags(ring->irq, IRQ_DISABLE_UNLAZY);
+	devm_free_irq(dev, ring->irq, ring);
 
 	if (pdata->cq_cnt) {
-		devm_free_irq(dev, pdata->tx_ring->cp_ring->irq,
-			      pdata->tx_ring->cp_ring);
+		ring = pdata->tx_ring->cp_ring;
+		irq_clear_status_flags(ring->irq, IRQ_DISABLE_UNLAZY);
+		devm_free_irq(dev, ring->irq, ring);
 	}
 }
 

@@ -931,7 +931,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 					tx->sgl, tx->nents, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_tx)
-			goto no_dma;
+			goto tx_nodma;
 
 		desc_tx->callback = spi_imx_dma_tx_callback;
 		desc_tx->callback_param = (void *)spi_imx;
@@ -943,7 +943,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 					rx->sgl, rx->nents, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_rx)
-			goto no_dma;
+			goto rx_nodma;
 
 		desc_rx->callback = spi_imx_dma_rx_callback;
 		desc_rx->callback_param = (void *)spi_imx;
@@ -1006,7 +1006,9 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 
 	return ret;
 
-no_dma:
+rx_nodma:
+	dmaengine_terminate_all(master->dma_tx);
+tx_nodma:
 	dev_warn_once(spi_imx->dev, "DMA not available, falling back to PIO\n");
 	return -EAGAIN;
 }

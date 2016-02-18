@@ -170,7 +170,7 @@ static void add_sector(struct faulty_conf *conf, sector_t start, int mode)
 		conf->nfaults = n+1;
 }
 
-static void make_request(struct mddev *mddev, struct bio *bio)
+static void faulty_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct faulty_conf *conf = mddev->private;
 	int failit = 0;
@@ -226,7 +226,7 @@ static void make_request(struct mddev *mddev, struct bio *bio)
 	generic_make_request(bio);
 }
 
-static void status(struct seq_file *seq, struct mddev *mddev)
+static void faulty_status(struct seq_file *seq, struct mddev *mddev)
 {
 	struct faulty_conf *conf = mddev->private;
 	int n;
@@ -259,7 +259,7 @@ static void status(struct seq_file *seq, struct mddev *mddev)
 }
 
 
-static int reshape(struct mddev *mddev)
+static int faulty_reshape(struct mddev *mddev)
 {
 	int mode = mddev->new_layout & ModeMask;
 	int count = mddev->new_layout >> ModeShift;
@@ -299,7 +299,7 @@ static sector_t faulty_size(struct mddev *mddev, sector_t sectors, int raid_disk
 	return sectors;
 }
 
-static int run(struct mddev *mddev)
+static int faulty_run(struct mddev *mddev)
 {
 	struct md_rdev *rdev;
 	int i;
@@ -327,7 +327,7 @@ static int run(struct mddev *mddev)
 	md_set_array_sectors(mddev, faulty_size(mddev, 0, 0));
 	mddev->private = conf;
 
-	reshape(mddev);
+	faulty_reshape(mddev);
 
 	return 0;
 }
@@ -344,11 +344,11 @@ static struct md_personality faulty_personality =
 	.name		= "faulty",
 	.level		= LEVEL_FAULTY,
 	.owner		= THIS_MODULE,
-	.make_request	= make_request,
-	.run		= run,
+	.make_request	= faulty_make_request,
+	.run		= faulty_run,
 	.free		= faulty_free,
-	.status		= status,
-	.check_reshape	= reshape,
+	.status		= faulty_status,
+	.check_reshape	= faulty_reshape,
 	.size		= faulty_size,
 };
 

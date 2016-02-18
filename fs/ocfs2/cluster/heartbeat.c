@@ -1254,15 +1254,15 @@ static const struct file_operations o2hb_debug_fops = {
 
 void o2hb_exit(void)
 {
-	kfree(o2hb_db_livenodes);
-	kfree(o2hb_db_liveregions);
-	kfree(o2hb_db_quorumregions);
-	kfree(o2hb_db_failedregions);
 	debugfs_remove(o2hb_debug_failedregions);
 	debugfs_remove(o2hb_debug_quorumregions);
 	debugfs_remove(o2hb_debug_liveregions);
 	debugfs_remove(o2hb_debug_livenodes);
 	debugfs_remove(o2hb_debug_dir);
+	kfree(o2hb_db_livenodes);
+	kfree(o2hb_db_liveregions);
+	kfree(o2hb_db_quorumregions);
+	kfree(o2hb_db_failedregions);
 }
 
 static struct dentry *o2hb_debug_create(const char *name, struct dentry *dir,
@@ -1438,13 +1438,15 @@ static void o2hb_region_release(struct config_item *item)
 
 	kfree(reg->hr_slots);
 
-	kfree(reg->hr_db_regnum);
-	kfree(reg->hr_db_livenodes);
 	debugfs_remove(reg->hr_debug_livenodes);
 	debugfs_remove(reg->hr_debug_regnum);
 	debugfs_remove(reg->hr_debug_elapsed_time);
 	debugfs_remove(reg->hr_debug_pinned);
 	debugfs_remove(reg->hr_debug_dir);
+	kfree(reg->hr_db_livenodes);
+	kfree(reg->hr_db_regnum);
+	kfree(reg->hr_debug_elapsed_time);
+	kfree(reg->hr_debug_pinned);
 
 	spin_lock(&o2hb_live_lock);
 	list_del(&reg->hr_all_item);

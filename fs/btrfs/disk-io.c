@@ -182,6 +182,7 @@ static struct btrfs_lockdep_keyset {
 	{ .id = BTRFS_TREE_RELOC_OBJECTID,	.name_stem = "treloc"	},
 	{ .id = BTRFS_DATA_RELOC_TREE_OBJECTID,	.name_stem = "dreloc"	},
 	{ .id = BTRFS_UUID_TREE_OBJECTID,	.name_stem = "uuid"	},
+	{ .id = BTRFS_FREE_SPACE_TREE_OBJECTID,	.name_stem = "free-space" },
 	{ .id = 0,				.name_stem = "tree"	},
 };
 
@@ -1787,7 +1788,6 @@ static int cleaner_kthread(void *arg)
 	int again;
 	struct btrfs_trans_handle *trans;
 
-	set_freezable();
 	do {
 		again = 0;
 

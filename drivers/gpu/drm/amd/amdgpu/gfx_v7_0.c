@@ -4738,6 +4738,22 @@ static int gfx_v7_0_early_init(void *handle)
 	return 0;
 }
 
+static int gfx_v7_0_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	r = amdgpu_irq_get(adev, &adev->gfx.priv_reg_irq, 0);
+	if (r)
+		return r;
+
+	r = amdgpu_irq_get(adev, &adev->gfx.priv_inst_irq, 0);
+	if (r)
+		return r;
+
+	return 0;
+}
+
 static int gfx_v7_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
@@ -4890,6 +4906,8 @@ static int gfx_v7_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
+	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
 	gfx_v7_0_cp_enable(adev, false);
 	gfx_v7_0_rlc_stop(adev);
 	gfx_v7_0_fini_pg(adev);
@@ -5527,7 +5545,7 @@ static int gfx_v7_0_set_powergating_state(void *handle,
 
 const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
 	.early_init = gfx_v7_0_early_init,
-	.late_init = NULL,
+	.late_init = gfx_v7_0_late_init,
 	.sw_init = gfx_v7_0_sw_init,
 	.sw_fini = gfx_v7_0_sw_fini,
 	.hw_init = gfx_v7_0_hw_init,

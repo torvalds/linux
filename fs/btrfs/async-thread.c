@@ -328,8 +328,8 @@ static inline void __btrfs_queue_work(struct __btrfs_workqueue *wq,
 		list_add_tail(&work->ordered_list, &wq->ordered_list);
 		spin_unlock_irqrestore(&wq->list_lock, flags);
 	}
-	queue_work(wq->normal_wq, &work->normal_work);
 	trace_btrfs_work_queued(work);
+	queue_work(wq->normal_wq, &work->normal_work);
 }
 
 void btrfs_queue_work(struct btrfs_workqueue *wq,

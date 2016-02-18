@@ -36,7 +36,7 @@
 #define DRIVER_AUTHOR	"WOOJUNG HUH <woojung.huh@microchip.com>"
 #define DRIVER_DESC	"LAN78XX USB 3.0 Gigabit Ethernet Devices"
 #define DRIVER_NAME	"lan78xx"
-#define DRIVER_VERSION	"1.0.1"
+#define DRIVER_VERSION	"1.0.2"
 
 #define TX_TIMEOUT_JIFFIES		(5 * HZ)
 #define THROTTLE_JIFFIES		(HZ / 8)
@@ -462,32 +462,53 @@ static int lan78xx_read_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 				   u32 length, u8 *data)
 {
 	u32 val;
+	u32 saved;
 	int i, ret;
+	int retval;
 
-	ret = lan78xx_eeprom_confirm_not_busy(dev);
-	if (ret)
-		return ret;
+	/* depends on chip, some EEPROM pins are muxed with LED function.
+	 * disable & restore LED function to access EEPROM.
+	 */
+	ret = lan78xx_read_reg(dev, HW_CFG, &val);
+	saved = val;
+	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000) {
+		val &= ~(HW_CFG_LED1_EN_ | HW_CFG_LED0_EN_);
+		ret = lan78xx_write_reg(dev, HW_CFG, val);
+	}
+
+	retval = lan78xx_eeprom_confirm_not_busy(dev);
+	if (retval)
+		return retval;
 
 	for (i = 0; i < length; i++) {
 		val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_READ_;
 		val |= (offset & E2P_CMD_EPC_ADDR_MASK_);
 		ret = lan78xx_write_reg(dev, E2P_CMD, val);
-		if (unlikely(ret < 0))
-			return -EIO;
+		if (unlikely(ret < 0)) {
+			retval = -EIO;
+			goto exit;
+		}
 
-		ret = lan78xx_wait_eeprom(dev);
-		if (ret < 0)
-			return ret;
+		retval = lan78xx_wait_eeprom(dev);
+		if (retval < 0)
+			goto exit;
 
 		ret = lan78xx_read_reg(dev, E2P_DATA, &val);
-		if (unlikely(ret < 0))
-			return -EIO;
+		if (unlikely(ret < 0)) {
+			retval = -EIO;
+			goto exit;
+		}
 
 		data[i] = val & 0xFF;
 		offset++;
 	}
 
-	return 0;
+	retval = 0;
+exit:
+	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000)
+		ret = lan78xx_write_reg(dev, HW_CFG, saved);
+
+	return retval;
 }
 
 static int lan78xx_read_eeprom(struct lan78xx_net *dev, u32 offset,
@@ -509,44 +530,67 @@ static int lan78xx_write_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 				    u32 length, u8 *data)
 {
 	u32 val;
+	u32 saved;
 	int i, ret;
+	int retval;
 
-	ret = lan78xx_eeprom_confirm_not_busy(dev);
-	if (ret)
-		return ret;
+	/* depends on chip, some EEPROM pins are muxed with LED function.
+	 * disable & restore LED function to access EEPROM.
+	 */
+	ret = lan78xx_read_reg(dev, HW_CFG, &val);
+	saved = val;
+	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000) {
+		val &= ~(HW_CFG_LED1_EN_ | HW_CFG_LED0_EN_);
+		ret = lan78xx_write_reg(dev, HW_CFG, val);
+	}
+
+	retval = lan78xx_eeprom_confirm_not_busy(dev);
+	if (retval)
+		goto exit;
 
 	/* Issue write/erase enable command */
 	val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_EWEN_;
 	ret = lan78xx_write_reg(dev, E2P_CMD, val);
-	if (unlikely(ret < 0))
-		return -EIO;
+	if (unlikely(ret < 0)) {
+		retval = -EIO;
+		goto exit;
+	}
 
-	ret = lan78xx_wait_eeprom(dev);
-	if (ret < 0)
-		return ret;
+	retval = lan78xx_wait_eeprom(dev);
+	if (retval < 0)
+		goto exit;
 
 	for (i = 0; i < length; i++) {
 		/* Fill data register */
 		val = data[i];
 		ret = lan78xx_write_reg(dev, E2P_DATA, val);
-		if (ret < 0)
-			return ret;
+		if (ret < 0) {
+			retval = -EIO;
+			goto exit;
+		}
 
 		/* Send "write" command */
 		val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_WRITE_;
 		val |= (offset & E2P_CMD_EPC_ADDR_MASK_);
 		ret = lan78xx_write_reg(dev, E2P_CMD, val);
-		if (ret < 0)
-			return ret;
+		if (ret < 0) {
+			retval = -EIO;
+			goto exit;
+		}
 
-		ret = lan78xx_wait_eeprom(dev);
-		if (ret < 0)
-			return ret;
+		retval = lan78xx_wait_eeprom(dev);
+		if (retval < 0)
+			goto exit;
 
 		offset++;
 	}
 
-	return 0;
+	retval = 0;
+exit:
+	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000)
+		ret = lan78xx_write_reg(dev, HW_CFG, saved);
+
+	return retval;
 }
 
 static int lan78xx_read_raw_otp(struct lan78xx_net *dev, u32 offset,
@@ -904,7 +948,6 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 	if (!phydev->link && dev->link_on) {
 		dev->link_on = false;
-		netif_carrier_off(dev->net);
 
 		/* reset MAC */
 		ret = lan78xx_read_reg(dev, MAC_CR, &buf);
@@ -914,6 +957,8 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 		ret = lan78xx_write_reg(dev, MAC_CR, buf);
 		if (unlikely(ret < 0))
 			return -EIO;
+
+		phy_mac_interrupt(phydev, 0);
 	} else if (phydev->link && !dev->link_on) {
 		dev->link_on = true;
 
@@ -953,7 +998,7 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 			  ethtool_cmd_speed(&ecmd), ecmd.duplex, ladv, radv);
 
 		ret = lan78xx_update_flowcontrol(dev, ecmd.duplex, ladv, radv);
-		netif_carrier_on(dev->net);
+		phy_mac_interrupt(phydev, 1);
 	}
 
 	return ret;
@@ -1495,7 +1540,6 @@ done:
 static int lan78xx_mdio_init(struct lan78xx_net *dev)
 {
 	int ret;
-	int i;
 
 	dev->mdiobus = mdiobus_alloc();
 	if (!dev->mdiobus) {
@@ -1510,10 +1554,6 @@ static int lan78xx_mdio_init(struct lan78xx_net *dev)
 
 	snprintf(dev->mdiobus->id, MII_BUS_ID_SIZE, "usb-%03d:%03d",
 		 dev->udev->bus->busnum, dev->udev->devnum);
-
-	/* handle our own interrupt */
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		dev->mdiobus->irq[i] = PHY_IGNORE_INTERRUPT;
 
 	switch (dev->devid & ID_REV_CHIP_ID_MASK_) {
 	case 0x78000000:
@@ -1558,6 +1598,16 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 		return -EIO;
 	}
 
+	/* Enable PHY interrupts.
+	 * We handle our own interrupt
+	 */
+	ret = phy_read(phydev, LAN88XX_INT_STS);
+	ret = phy_write(phydev, LAN88XX_INT_MASK,
+			LAN88XX_INT_MASK_MDINTPIN_EN_ |
+			LAN88XX_INT_MASK_LINK_CHANGE_);
+
+	phydev->irq = PHY_IGNORE_INTERRUPT;
+
 	ret = phy_connect_direct(dev->net, phydev,
 				 lan78xx_link_status_change,
 				 PHY_INTERFACE_MODE_GMII);
@@ -1580,14 +1630,6 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 			      SUPPORTED_Pause | SUPPORTED_Asym_Pause);
 	genphy_config_aneg(phydev);
 
-	/* Workaround to enable PHY interrupt.
-	 * phy_start_interrupts() is API for requesting and enabling
-	 * PHY interrupt. However, USB-to-Ethernet device can't use
-	 * request_irq() called in phy_start_interrupts().
-	 * Set PHY to PHY_HALTED and call phy_start()
-	 * to make a call to phy_enable_interrupts()
-	 */
-	phy_stop(phydev);
 	phy_start(phydev);
 
 	netif_dbg(dev, ifup, dev->net, "phy initialised successfully");
@@ -2221,7 +2263,9 @@ netdev_tx_t lan78xx_start_xmit(struct sk_buff *skb, struct net_device *net)
 	if (skb2) {
 		skb_queue_tail(&dev->txq_pend, skb2);
 
-		if (skb_queue_len(&dev->txq_pend) > 10)
+		/* throttle TX patch at slower than SUPER SPEED USB */
+		if ((dev->udev->speed < USB_SPEED_SUPER) &&
+		    (skb_queue_len(&dev->txq_pend) > 10))
 			netif_stop_queue(net);
 	} else {
 		netif_dbg(dev, tx_err, dev->net,
