@@ -318,9 +318,8 @@ static int __choose_path_in_pg(struct multipath *m, struct priority_group *pg,
 			       size_t nr_bytes)
 {
 	struct dm_path *path;
-	unsigned repeat_count;
 
-	path = pg->ps.type->select_path(&pg->ps, &repeat_count, nr_bytes);
+	path = pg->ps.type->select_path(&pg->ps, nr_bytes);
 	if (!path)
 		return -ENXIO;
 

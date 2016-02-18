@@ -178,8 +178,7 @@ static int rr_reinstate_path(struct path_selector *ps, struct dm_path *p)
 	return 0;
 }
 
-static struct dm_path *rr_select_path(struct path_selector *ps,
-				      unsigned *repeat_count, size_t nr_bytes)
+static struct dm_path *rr_select_path(struct path_selector *ps, size_t nr_bytes)
 {
 	unsigned long flags;
 	struct selector *s = ps->context;
@@ -189,7 +188,6 @@ static struct dm_path *rr_select_path(struct path_selector *ps,
 	if (!list_empty(&s->valid_paths)) {
 		pi = list_entry(s->valid_paths.next, struct path_info, list);
 		list_move_tail(&pi->list, &s->valid_paths);
-		*repeat_count = pi->repeat_count;
 	}
 	spin_unlock_irqrestore(&s->lock, flags);
 

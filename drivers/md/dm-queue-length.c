@@ -184,8 +184,7 @@ static int ql_reinstate_path(struct path_selector *ps, struct dm_path *path)
 /*
  * Select a path having the minimum number of in-flight I/Os
  */
-static struct dm_path *ql_select_path(struct path_selector *ps,
-				      unsigned *repeat_count, size_t nr_bytes)
+static struct dm_path *ql_select_path(struct path_selector *ps, size_t nr_bytes)
 {
 	struct selector *s = ps->context;
 	struct path_info *pi = NULL, *best = NULL;
@@ -210,8 +209,6 @@ static struct dm_path *ql_select_path(struct path_selector *ps,
 
 	if (!best)
 		goto out;
-
-	*repeat_count = best->repeat_count;
 
 	ret = best->path;
 out:
