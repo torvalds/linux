@@ -1651,6 +1651,12 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 	int pipe;
 
 	spin_lock(&dev_priv->irq_lock);
+
+	if (!dev_priv->display_irqs_enabled) {
+		spin_unlock(&dev_priv->irq_lock);
+		return;
+	}
+
 	for_each_pipe(dev_priv, pipe) {
 		i915_reg_t reg;
 		u32 mask, iir_bit = 0;
