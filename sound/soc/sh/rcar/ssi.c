@@ -188,14 +188,14 @@ u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
 	return mask;
 }
 
-static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
+static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 				     struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	struct rsnd_mod *mod = rsnd_mod_get(ssi);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
 	int slots = rsnd_get_slot_width(io);
 	int j, ret;
@@ -255,11 +255,11 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 	return -EIO;
 }
 
-static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi,
+static void rsnd_ssi_master_clk_stop(struct rsnd_mod *mod,
 				     struct rsnd_dai_stream *io)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	struct rsnd_mod *mod = rsnd_mod_get(ssi);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
 
 	if (!rsnd_rdai_is_clk_master(rdai))
@@ -277,11 +277,12 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi,
 	rsnd_adg_ssi_clk_stop(mod);
 }
 
-static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
+static int rsnd_ssi_config_init(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	u32 cr_own;
 	u32 cr_mode;
 	u32 wsr;
@@ -317,7 +318,7 @@ static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
 		return -EINVAL;
 	}
 
-	if (rsnd_ssi_is_dma_mode(rsnd_mod_get(ssi))) {
+	if (rsnd_ssi_is_dma_mode(mod)) {
 		cr_mode = UIEN | OIEN |	/* over/under run */
 			  DMEN;		/* DMA : enable DMA */
 	} else {
@@ -356,14 +357,14 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 
 	rsnd_mod_power_on(mod);
 
-	ret = rsnd_ssi_master_clk_start(ssi, io);
+	ret = rsnd_ssi_master_clk_start(mod, io);
 	if (ret < 0)
 		return ret;
 
 	if (rsnd_ssi_is_parent(mod, io))
 		return 0;
 
-	ret = rsnd_ssi_config_init(ssi, io);
+	ret = rsnd_ssi_config_init(mod, io);
 	if (ret < 0)
 		return ret;
 
@@ -389,7 +390,7 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	if (!rsnd_ssi_is_parent(mod, io))
 		ssi->cr_own	= 0;
 
-	rsnd_ssi_master_clk_stop(ssi, io);
+	rsnd_ssi_master_clk_stop(mod, io);
 
 	rsnd_mod_power_off(mod);
 
