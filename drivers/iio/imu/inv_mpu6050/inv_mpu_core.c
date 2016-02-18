@@ -247,8 +247,8 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 				if (result)
 					goto error_read_raw;
 			}
-			ret =  inv_mpu6050_sensor_show(st, st->reg->raw_gyro,
-						       chan->channel2, val);
+			ret = inv_mpu6050_sensor_show(st, st->reg->raw_gyro,
+						      chan->channel2, val);
 			if (!st->chip_config.gyro_fifo_enable ||
 			    !st->chip_config.enable) {
 				result = inv_mpu6050_switch_engine(st, false,
@@ -576,7 +576,7 @@ static int inv_mpu6050_validate_trigger(struct iio_dev *indio_dev,
 		.type = _type,                                        \
 		.modified = 1,                                        \
 		.channel2 = _channel2,                                \
-		.info_mask_shared_by_type =  BIT(IIO_CHAN_INFO_SCALE), \
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),         \
 		.scan_index = _index,                                 \
 		.scan_type = {                                        \
@@ -596,7 +596,7 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 	 */
 	{
 		.type = IIO_TEMP,
-		.info_mask_separate =  BIT(IIO_CHAN_INFO_RAW)
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)
 				| BIT(IIO_CHAN_INFO_OFFSET)
 				| BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = -1,
