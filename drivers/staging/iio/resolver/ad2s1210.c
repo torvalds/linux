@@ -67,7 +67,7 @@
 /* default input clock on serial interface */
 #define AD2S1210_DEF_CLKIN	8192000
 /* clock period in nano second */
-#define AD2S1210_DEF_TCK	(1000000000/AD2S1210_DEF_CLKIN)
+#define AD2S1210_DEF_TCK	(1000000000 / AD2S1210_DEF_CLKIN)
 #define AD2S1210_DEF_EXCIT	10000
 
 enum ad2s1210_mode {
@@ -176,9 +176,9 @@ static const int ad2s1210_res_pins[4][2] = {
 static inline void ad2s1210_set_resolution_pin(struct ad2s1210_state *st)
 {
 	gpio_set_value(st->pdata->res[0],
-		       ad2s1210_res_pins[(st->resolution - 10)/2][0]);
+		       ad2s1210_res_pins[(st->resolution - 10) / 2][0]);
 	gpio_set_value(st->pdata->res[1],
-		       ad2s1210_res_pins[(st->resolution - 10)/2][1]);
+		       ad2s1210_res_pins[(st->resolution - 10) / 2][1]);
 }
 
 static inline int ad2s1210_soft_reset(struct ad2s1210_state *st)

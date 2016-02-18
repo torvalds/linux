@@ -31,7 +31,7 @@
 /* input clock on serial interface */
 #define AD2S1200_HZ	8192000
 /* clock period in nano second */
-#define AD2S1200_TSCLK	(1000000000/AD2S1200_HZ)
+#define AD2S1200_TSCLK	(1000000000 / AD2S1200_HZ)
 
 struct ad2s1200_state {
 	struct mutex lock;
