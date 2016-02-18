@@ -494,10 +494,18 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 	val = I915_READ(DC_STATE_EN);
 	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
 		      val & mask, state);
+
+	/* Check if DMC is ignoring our DC state requests */
+	if ((val & mask) != dev_priv->csr.dc_state)
+		DRM_ERROR("DC state mismatch (0x%x -> 0x%x)\n",
+			  dev_priv->csr.dc_state, val & mask);
+
 	val &= ~mask;
 	val |= state;
 	I915_WRITE(DC_STATE_EN, val);
 	POSTING_READ(DC_STATE_EN);
+
+	dev_priv->csr.dc_state = val & mask;
 }
 
 void bxt_enable_dc9(struct drm_i915_private *dev_priv)

@@ -751,6 +751,7 @@ struct intel_csr {
 	uint32_t mmio_count;
 	i915_reg_t mmioaddr[8];
 	uint32_t mmiodata[8];
+	uint32_t dc_state;
 };
 
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \
