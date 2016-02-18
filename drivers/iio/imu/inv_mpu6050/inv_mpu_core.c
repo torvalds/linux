@@ -582,7 +582,7 @@ static int inv_mpu6050_validate_trigger(struct iio_dev *indio_dev,
 				.sign = 's',                          \
 				.realbits = 16,                       \
 				.storagebits = 16,                    \
-				.shift = 0 ,                          \
+				.shift = 0,                           \
 				.endianness = IIO_BE,                 \
 			     },                                       \
 	}
