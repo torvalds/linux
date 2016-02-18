@@ -702,7 +702,7 @@ static const char *isl29018_match_acpi_device(struct device *dev, int *data)
 	if (!id)
 		return NULL;
 
-	*data = (int) id->driver_data;
+	*data = (int)id->driver_data;
 
 	return dev_name(dev);
 }

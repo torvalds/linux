@@ -271,7 +271,7 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 	/* calculate ratio */
 	ratio = (ch1 << 15) / ch0;
 	/* convert to unscaled lux using the pointer to the table */
-	for (p = (struct taos_lux *) taos_device_lux;
+	for (p = (struct taos_lux *)taos_device_lux;
 	     p->ratio != 0 && p->ratio < ratio; p++)
 		;
 
@@ -378,7 +378,7 @@ static int taos_als_calibrate(struct iio_dev *indio_dev)
 		dev_err(&chip->client->dev, "taos_als_calibrate failed to get lux\n");
 		return lux_val;
 	}
-	gain_trim_val = (unsigned int) (((chip->taos_settings.als_cal_target)
+	gain_trim_val = (unsigned int)(((chip->taos_settings.als_cal_target)
 			* chip->taos_settings.als_gain_trim) / lux_val);
 
 	if ((gain_trim_val < 250) || (gain_trim_val > 4000)) {
@@ -387,9 +387,9 @@ static int taos_als_calibrate(struct iio_dev *indio_dev)
 			gain_trim_val);
 		return -ENODATA;
 	}
-	chip->taos_settings.als_gain_trim = (int) gain_trim_val;
+	chip->taos_settings.als_gain_trim = (int)gain_trim_val;
 
-	return (int) gain_trim_val;
+	return (int)gain_trim_val;
 }
 
 /*
