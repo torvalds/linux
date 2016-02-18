@@ -808,6 +808,43 @@ static int qcom_smd_dev_match(struct device *dev, struct device_driver *drv)
 }
 
 /*
+ * Helper for opening a channel
+ */
+static int qcom_smd_channel_open(struct qcom_smd_channel *channel,
+				 qcom_smd_cb_t cb)
+{
+	size_t bb_size;
+
+	/*
+	 * Packets are maximum 4k, but reduce if the fifo is smaller
+	 */
+	bb_size = min(channel->fifo_size, SZ_4K);
+	channel->bounce_buffer = kmalloc(bb_size, GFP_KERNEL);
+	if (!channel->bounce_buffer)
+		return -ENOMEM;
+
+	qcom_smd_channel_set_callback(channel, cb);
+	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENING);
+	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENED);
+
+	return 0;
+}
+
+/*
+ * Helper for closing and resetting a channel
+ */
+static void qcom_smd_channel_close(struct qcom_smd_channel *channel)
+{
+	qcom_smd_channel_set_callback(channel, NULL);
+
+	kfree(channel->bounce_buffer);
+	channel->bounce_buffer = NULL;
+
+	qcom_smd_channel_set_state(channel, SMD_CHANNEL_CLOSED);
+	qcom_smd_channel_reset(channel);
+}
+
+/*
  * Probe the smd client.
  *
  * The remote side have indicated that it want the channel to be opened, so
@@ -818,21 +855,11 @@ static int qcom_smd_dev_probe(struct device *dev)
 	struct qcom_smd_device *qsdev = to_smd_device(dev);
 	struct qcom_smd_driver *qsdrv = to_smd_driver(dev);
 	struct qcom_smd_channel *channel = qsdev->channel;
-	size_t bb_size;
 	int ret;
 
-	/*
-	 * Packets are maximum 4k, but reduce if the fifo is smaller
-	 */
-	bb_size = min(channel->fifo_size, SZ_4K);
-	channel->bounce_buffer = kmalloc(bb_size, GFP_KERNEL);
-	if (!channel->bounce_buffer)
-		return -ENOMEM;
-
-	qcom_smd_channel_set_callback(channel, qsdrv->callback);
-	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENING);
-
-	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENED);
+	ret = qcom_smd_channel_open(channel, qsdrv->callback);
+	if (ret)
+		return ret;
 
 	ret = qsdrv->probe(qsdev);
 	if (ret)
@@ -845,11 +872,7 @@ static int qcom_smd_dev_probe(struct device *dev)
 err:
 	dev_err(&qsdev->dev, "probe failed\n");
 
-	qcom_smd_channel_set_callback(channel, NULL);
-	kfree(channel->bounce_buffer);
-	channel->bounce_buffer = NULL;
-
-	qcom_smd_channel_set_state(channel, SMD_CHANNEL_CLOSED);
+	qcom_smd_channel_close(channel);
 	return ret;
 }
 
@@ -886,12 +909,7 @@ static int qcom_smd_dev_remove(struct device *dev)
 	 * The client is now gone, cleanup and reset the channel state.
 	 */
 	channel->qsdev = NULL;
-	kfree(channel->bounce_buffer);
-	channel->bounce_buffer = NULL;
-
-	qcom_smd_channel_set_state(channel, SMD_CHANNEL_CLOSED);
-
-	qcom_smd_channel_reset(channel);
+	qcom_smd_channel_close(channel);
 
 	return 0;
 }
