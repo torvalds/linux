@@ -48,8 +48,6 @@ static int replicator_enable(struct coresight_device *csdev, int inport,
 {
 	struct replicator_state *drvdata = dev_get_drvdata(csdev->dev.parent);
 
-	pm_runtime_get_sync(drvdata->dev);
-
 	CS_UNLOCK(drvdata->base);
 
 	/*
@@ -85,8 +83,6 @@ static void replicator_disable(struct coresight_device *csdev, int inport,
 		writel_relaxed(0xff, drvdata->base + REPLICATOR_IDFILTER1);
 
 	CS_LOCK(drvdata->base);
-
-	pm_runtime_put(drvdata->dev);
 
 	dev_info(drvdata->dev, "REPLICATOR disabled\n");
 }

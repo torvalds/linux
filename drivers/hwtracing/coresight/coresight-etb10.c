@@ -137,8 +137,6 @@ static int etb_enable(struct coresight_device *csdev)
 	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	unsigned long flags;
 
-	pm_runtime_get_sync(drvdata->dev);
-
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	etb_enable_hw(drvdata);
 	drvdata->enable = true;
@@ -246,8 +244,6 @@ static void etb_disable(struct coresight_device *csdev)
 	etb_dump_hw(drvdata);
 	drvdata->enable = false;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-
-	pm_runtime_put(drvdata->dev);
 
 	dev_info(drvdata->dev, "ETB disabled\n");
 }
