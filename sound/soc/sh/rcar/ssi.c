@@ -144,7 +144,7 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 		 rsnd_mod_name(mod), rsnd_mod_id(mod));
 }
 
-u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
+static u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod;
 	enum rsnd_mod_type types[] = {
@@ -164,6 +164,17 @@ u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
 	}
 
 	return mask;
+}
+
+u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	u32 mask = rsnd_ssi_multi_slaves(io);
+
+	if (mask && (runtime->channels >= 6))
+		return mask;
+
+	return 0;
 }
 
 static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
@@ -415,7 +426,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 	 * EN will be set via SSIU :: SSI_CONTROL
 	 * if Multi channel mode
 	 */
-	if (rsnd_ssi_multi_slaves(io))
+	if (rsnd_ssi_multi_slaves_runtime(io))
 		return 0;
 
 	rsnd_mod_bset(mod, SSICR, EN, EN);

@@ -230,7 +230,7 @@ int rsnd_get_slot_width(struct rsnd_dai_stream *io)
 	int chan = runtime->channels;
 
 	/* Multi channel Mode */
-	if (rsnd_ssi_multi_slaves(io))
+	if (rsnd_ssi_multi_slaves_runtime(io))
 		chan /= rsnd_get_slot_num(io);
 
 	/* TDM Extend Mode needs 8ch */

@@ -27,7 +27,7 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 			  struct rsnd_priv *priv)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	u32 multi_ssi_slaves = rsnd_ssi_multi_slaves(io);
+	u32 multi_ssi_slaves = rsnd_ssi_multi_slaves_runtime(io);
 	int use_busif = rsnd_ssi_use_busif(io);
 	int id = rsnd_mod_id(mod);
 	u32 mask1, val1;
@@ -136,7 +136,7 @@ static int rsnd_ssiu_start_gen2(struct rsnd_mod *mod,
 
 	rsnd_mod_write(mod, SSI_CTRL, 0x1);
 
-	if (rsnd_ssi_multi_slaves(io))
+	if (rsnd_ssi_multi_slaves_runtime(io))
 		rsnd_mod_write(mod, SSI_CONTROL, 0x1);
 
 	return 0;
@@ -151,7 +151,7 @@ static int rsnd_ssiu_stop_gen2(struct rsnd_mod *mod,
 
 	rsnd_mod_write(mod, SSI_CTRL, 0);
 
-	if (rsnd_ssi_multi_slaves(io))
+	if (rsnd_ssi_multi_slaves_runtime(io))
 		rsnd_mod_write(mod, SSI_CONTROL, 0);
 
 	return 0;
