@@ -168,7 +168,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 
 		result = kfifo_out(&st->timestamps, &timestamp, 1);
 		/* when there is no timestamp, put timestamp as 0 */
-		if (0 == result)
+		if (result == 0)
 			timestamp = 0;
 
 		result = iio_push_to_buffers_with_timestamp(indio_dev, data,

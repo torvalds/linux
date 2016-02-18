@@ -84,7 +84,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 	 * clock source be switched to gyro. Otherwise, it must be set to
 	 * internal clock
 	 */
-	if (INV_MPU6050_BIT_PWR_GYRO_STBY == mask) {
+	if (mask == INV_MPU6050_BIT_PWR_GYRO_STBY) {
 		result = regmap_read(st->map, st->reg->pwr_mgmt_1, &mgmt_1);
 		if (result)
 			return result;
@@ -92,7 +92,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 		mgmt_1 &= ~INV_MPU6050_BIT_CLK_MASK;
 	}
 
-	if ((INV_MPU6050_BIT_PWR_GYRO_STBY == mask) && (!en)) {
+	if ((mask == INV_MPU6050_BIT_PWR_GYRO_STBY) && (!en)) {
 		/*
 		 * turning off gyro requires switch to internal clock first.
 		 * Then turn off gyro engine
@@ -117,7 +117,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 	if (en) {
 		/* Wait for output stabilize */
 		msleep(INV_MPU6050_TEMP_UP_TIME);
-		if (INV_MPU6050_BIT_PWR_GYRO_STBY == mask) {
+		if (mask == INV_MPU6050_BIT_PWR_GYRO_STBY) {
 			/* switch internal clock to PLL */
 			mgmt_1 |= INV_CLK_PLL;
 			result = regmap_write(st->map,
