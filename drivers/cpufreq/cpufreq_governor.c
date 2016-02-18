@@ -24,8 +24,7 @@
 
 static DEFINE_PER_CPU(struct cpu_dbs_info, cpu_dbs);
 
-DEFINE_MUTEX(dbs_data_mutex);
-EXPORT_SYMBOL_GPL(dbs_data_mutex);
+static DEFINE_MUTEX(dbs_data_mutex);
 
 /* Common sysfs tunables */
 /**

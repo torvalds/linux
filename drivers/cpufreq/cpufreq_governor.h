@@ -178,7 +178,6 @@ struct od_ops {
 			unsigned int freq_next, unsigned int relation);
 };
 
-extern struct mutex dbs_data_mutex;
 unsigned int dbs_update(struct cpufreq_policy *policy);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int event);
 void od_register_powersave_bias_handler(unsigned int (*f)
