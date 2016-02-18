@@ -108,11 +108,42 @@ nvkm_rdi2cr(struct i2c_adapter *adap, u8 addr, u8 reg)
 }
 
 static inline int
+nv_rd16i2cr(struct i2c_adapter *adap, u8 addr, u8 reg)
+{
+	u8 val[2];
+	struct i2c_msg msgs[] = {
+		{ .addr = addr, .flags = 0, .len = 1, .buf = &reg },
+		{ .addr = addr, .flags = I2C_M_RD, .len = 2, .buf = val },
+	};
+
+	int ret = i2c_transfer(adap, msgs, ARRAY_SIZE(msgs));
+	if (ret != 2)
+		return -EIO;
+
+	return val[0] << 8 | val[1];
+}
+
+static inline int
 nvkm_wri2cr(struct i2c_adapter *adap, u8 addr, u8 reg, u8 val)
 {
 	u8 buf[2] = { reg, val };
 	struct i2c_msg msgs[] = {
 		{ .addr = addr, .flags = 0, .len = 2, .buf = buf },
+	};
+
+	int ret = i2c_transfer(adap, msgs, ARRAY_SIZE(msgs));
+	if (ret != 1)
+		return -EIO;
+
+	return 0;
+}
+
+static inline int
+nv_wr16i2cr(struct i2c_adapter *adap, u8 addr, u8 reg, u16 val)
+{
+	u8 buf[3] = { reg, val >> 8, val & 0xff};
+	struct i2c_msg msgs[] = {
+		{ .addr = addr, .flags = 0, .len = 3, .buf = buf },
 	};
 
 	int ret = i2c_transfer(adap, msgs, ARRAY_SIZE(msgs));
