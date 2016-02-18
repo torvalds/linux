@@ -753,7 +753,7 @@ static int dim2_probe(struct platform_device *pdev)
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		pr_err("failed to get irq\n");
+		dev_err(&pdev->dev, "failed to get irq\n");
 		return -ENODEV;
 	}
 	dev->irq_ahb0 = ret;
@@ -761,8 +761,8 @@ static int dim2_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, dev->irq_ahb0, dim2_ahb_isr, 0,
 			       "mlb_ahb0", dev);
 	if (ret) {
-		pr_err("failed to request IRQ: %d, err: %d\n",
-		       dev->irq_ahb0, ret);
+		dev_err(&pdev->dev, "failed to request IRQ: %d, err: %d\n",
+			dev->irq_ahb0, ret);
 		return ret;
 	}
 #endif
