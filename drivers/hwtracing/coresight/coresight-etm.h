@@ -110,7 +110,10 @@
 #define ETM_MODE_STALL		BIT(2)
 #define ETM_MODE_TIMESTAMP	BIT(3)
 #define ETM_MODE_CTXID		BIT(4)
-#define ETM_MODE_ALL		0x1f
+#define ETM_MODE_ALL		(ETM_MODE_EXCLUDE | ETM_MODE_CYCACC | \
+				 ETM_MODE_STALL | ETM_MODE_TIMESTAMP | \
+				 ETM_MODE_CTXID | ETM_MODE_EXCL_KERN | \
+				 ETM_MODE_EXCL_USER)
 
 #define ETM_SQR_MASK		0x3
 #define ETM_TRACEID_MASK	0x3f
@@ -296,5 +299,6 @@ static inline unsigned int etm_readl(struct etm_drvdata *drvdata, u32 off)
 extern const struct attribute_group *coresight_etm_groups[];
 int etm_get_trace_id(struct etm_drvdata *drvdata);
 void etm_set_default(struct etm_config *config);
+void etm_config_trace_mode(struct etm_config *config);
 struct etm_config *get_etm_config(struct etm_drvdata *drvdata);
 #endif

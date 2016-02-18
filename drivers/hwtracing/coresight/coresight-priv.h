@@ -34,6 +34,9 @@
 #define TIMEOUT_US		100
 #define BMVAL(val, lsb, msb)	((val & GENMASK(msb, lsb)) >> lsb)
 
+#define ETM_MODE_EXCL_KERN	BIT(30)
+#define ETM_MODE_EXCL_USER	BIT(31)
+
 enum cs_mode {
 	CS_MODE_DISABLED,
 	CS_MODE_SYSFS,
