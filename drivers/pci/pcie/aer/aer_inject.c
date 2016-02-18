@@ -363,7 +363,7 @@ static int aer_inject(struct aer_error_inj *einj)
 
 	pos_cap_err = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	if (!pos_cap_err) {
-		ret = -EPERM;
+		ret = -EPROTONOSUPPORT;
 		goto out_put;
 	}
 	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_SEVER, &sever);
@@ -373,7 +373,7 @@ static int aer_inject(struct aer_error_inj *einj)
 
 	rp_pos_cap_err = pci_find_ext_capability(rpdev, PCI_EXT_CAP_ID_ERR);
 	if (!rp_pos_cap_err) {
-		ret = -EPERM;
+		ret = -EPROTONOSUPPORT;
 		goto out_put;
 	}
 
@@ -481,12 +481,12 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (find_aer_device(rpdev, &edev)) {
 		if (!get_service_data(edev)) {
 			printk(KERN_WARNING "AER service is not initialized\n");
-			ret = -EINVAL;
+			ret = -EPROTONOSUPPORT;
 			goto out_put;
 		}
 		aer_irq(-1, edev);
 	} else
-		ret = -EINVAL;
+		ret = -ENODEV;
 out_put:
 	kfree(err_alloc);
 	kfree(rperr_alloc);
