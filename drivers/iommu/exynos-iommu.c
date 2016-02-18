@@ -25,9 +25,9 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/dma-iommu.h>
 
 #include <asm/cacheflush.h>
-#include <asm/dma-iommu.h>
 #include <asm/pgtable.h>
 
 typedef u32 sysmmu_iova_t;
@@ -662,16 +662,21 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 	struct exynos_iommu_domain *domain;
 	int i;
 
-	if (type != IOMMU_DOMAIN_UNMANAGED)
-		return NULL;
 
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		return NULL;
 
+	if (type == IOMMU_DOMAIN_DMA) {
+		if (iommu_get_dma_cookie(&domain->domain) != 0)
+			goto err_pgtable;
+	} else if (type != IOMMU_DOMAIN_UNMANAGED) {
+		goto err_pgtable;
+	}
+
 	domain->pgtable = (sysmmu_pte_t *)__get_free_pages(GFP_KERNEL, 2);
 	if (!domain->pgtable)
-		goto err_pgtable;
+		goto err_dma_cookie;
 
 	domain->lv2entcnt = (short *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
 	if (!domain->lv2entcnt)
@@ -703,6 +708,9 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 
 err_counter:
 	free_pages((unsigned long)domain->pgtable, 2);
+err_dma_cookie:
+	if (type == IOMMU_DOMAIN_DMA)
+		iommu_put_dma_cookie(&domain->domain);
 err_pgtable:
 	kfree(domain);
 	return NULL;
@@ -726,6 +734,9 @@ static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 	}
 
 	spin_unlock_irqrestore(&domain->lock, flags);
+
+	if (iommu_domain->type == IOMMU_DOMAIN_DMA)
+		iommu_put_dma_cookie(iommu_domain);
 
 	for (i = 0; i < NUM_LV1ENTRIES; i++)
 		if (lv1ent_page(domain->pgtable + i))
