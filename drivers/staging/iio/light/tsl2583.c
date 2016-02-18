@@ -731,7 +731,7 @@ static ssize_t taos_luxtable_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int value[ARRAY_SIZE(taos_device_lux)*3 + 1];
+	int value[ARRAY_SIZE(taos_device_lux) * 3 + 1];
 	int n;
 
 	get_options(buf, ARRAY_SIZE(value), value);
