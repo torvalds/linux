@@ -29,6 +29,7 @@
 
 static DEFINE_PER_CPU(struct od_cpu_dbs_info_s, od_cpu_dbs_info);
 
+static struct dbs_governor od_dbs_gov;
 static struct od_ops od_ops;
 
 static unsigned int default_powersave_bias;
@@ -222,7 +223,6 @@ static ssize_t store_io_is_busy(struct dbs_data *dbs_data, const char *buf,
 {
 	unsigned int input;
 	int ret;
-	unsigned int j;
 
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
@@ -230,12 +230,8 @@ static ssize_t store_io_is_busy(struct dbs_data *dbs_data, const char *buf,
 	dbs_data->io_is_busy = !!input;
 
 	/* we need to re-evaluate prev_cpu_idle */
-	for_each_online_cpu(j) {
-		struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info,
-									j);
-		dbs_info->cdbs.prev_cpu_idle = get_cpu_idle_time(j,
-			&dbs_info->cdbs.prev_cpu_wall, dbs_data->io_is_busy);
-	}
+	gov_update_cpu_data(&od_dbs_gov, dbs_data);
+
 	return count;
 }
 
@@ -288,8 +284,6 @@ static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 	unsigned int input;
 	int ret;
 
-	unsigned int j;
-
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
@@ -303,16 +297,8 @@ static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 	dbs_data->ignore_nice_load = input;
 
 	/* we need to re-evaluate prev_cpu_idle */
-	for_each_online_cpu(j) {
-		struct od_cpu_dbs_info_s *dbs_info;
-		dbs_info = &per_cpu(od_cpu_dbs_info, j);
-		dbs_info->cdbs.prev_cpu_idle = get_cpu_idle_time(j,
-			&dbs_info->cdbs.prev_cpu_wall, dbs_data->io_is_busy);
-		if (dbs_data->ignore_nice_load)
-			dbs_info->cdbs.prev_cpu_nice =
-				kcpustat_cpu(j).cpustat[CPUTIME_NICE];
+	gov_update_cpu_data(&od_dbs_gov, dbs_data);
 
-	}
 	return count;
 }
 

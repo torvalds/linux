@@ -23,6 +23,8 @@
 
 static DEFINE_PER_CPU(struct cs_cpu_dbs_info_s, cs_cpu_dbs_info);
 
+static struct dbs_governor cs_dbs_gov;
+
 static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
 					   struct cpufreq_policy *policy)
 {
@@ -164,7 +166,7 @@ static ssize_t store_down_threshold(struct dbs_data *dbs_data, const char *buf,
 static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 		const char *buf, size_t count)
 {
-	unsigned int input, j;
+	unsigned int input;
 	int ret;
 
 	ret = sscanf(buf, "%u", &input);
@@ -180,15 +182,8 @@ static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 	dbs_data->ignore_nice_load = input;
 
 	/* we need to re-evaluate prev_cpu_idle */
-	for_each_online_cpu(j) {
-		struct cs_cpu_dbs_info_s *dbs_info;
-		dbs_info = &per_cpu(cs_cpu_dbs_info, j);
-		dbs_info->cdbs.prev_cpu_idle = get_cpu_idle_time(j,
-					&dbs_info->cdbs.prev_cpu_wall, 0);
-		if (dbs_data->ignore_nice_load)
-			dbs_info->cdbs.prev_cpu_nice =
-				kcpustat_cpu(j).cpustat[CPUTIME_NICE];
-	}
+	gov_update_cpu_data(&cs_dbs_gov, dbs_data);
+
 	return count;
 }
 

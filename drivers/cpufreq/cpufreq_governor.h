@@ -218,4 +218,5 @@ void od_register_powersave_bias_handler(unsigned int (*f)
 void od_unregister_powersave_bias_handler(void);
 ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
 			    size_t count);
+void gov_update_cpu_data(struct dbs_governor *gov, struct dbs_data *dbs_data);
 #endif /* _CPUFREQ_GOVERNOR_H */

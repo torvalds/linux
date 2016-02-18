@@ -80,6 +80,36 @@ ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
 }
 EXPORT_SYMBOL_GPL(store_sampling_rate);
 
+/**
+ * gov_update_cpu_data - Update CPU load data.
+ * @gov: Governor whose data is to be updated.
+ * @dbs_data: Top-level governor data pointer.
+ *
+ * Update CPU load data for all CPUs in the domain governed by @dbs_data
+ * (that may be a single policy or a bunch of them if governor tunables are
+ * system-wide).
+ *
+ * Call under the @dbs_data mutex.
+ */
+void gov_update_cpu_data(struct dbs_governor *gov, struct dbs_data *dbs_data)
+{
+	struct policy_dbs_info *policy_dbs;
+
+	list_for_each_entry(policy_dbs, &dbs_data->policy_dbs_list, list) {
+		unsigned int j;
+
+		for_each_cpu(j, policy_dbs->policy->cpus) {
+			struct cpu_dbs_info *j_cdbs = gov->get_cpu_cdbs(j);
+
+			j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall,
+								  dbs_data->io_is_busy);
+			if (dbs_data->ignore_nice_load)
+				j_cdbs->prev_cpu_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(gov_update_cpu_data);
+
 static inline struct dbs_data *to_dbs_data(struct kobject *kobj)
 {
 	return container_of(kobj, struct dbs_data, kobj);
