@@ -146,6 +146,7 @@
  * @startstop_ctrl: setting for register ETMTSSCR.
  * @enable_event: setting for register ETMTEEVR.
  * @enable_ctrl1: setting for register ETMTECR1.
+ * @enable_ctrl2: setting for register ETMTECR2.
  * @fifofull_level: setting for register ETMFFLR.
  * @addr_idx:	index for the address comparator selection.
  * @addr_val:	value for address comparator register.
@@ -179,6 +180,7 @@ struct etm_config {
 	u32				startstop_ctrl;
 	u32				enable_event;
 	u32				enable_ctrl1;
+	u32				enable_ctrl2;
 	u32				fifofull_level;
 	u8				addr_idx;
 	u32				addr_val[ETM_MAX_ADDR_CMP];
