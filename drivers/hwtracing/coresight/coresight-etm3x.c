@@ -41,6 +41,7 @@ module_param_named(boot_enable, boot_enable, int, S_IRUGO);
 /* The number of ETM/PTM currently registered */
 static int etm_count;
 static struct etm_drvdata *etmdrvdata[NR_CPUS];
+static void etm_init_default_data(struct etm_config *config);
 
 /*
  * Memory mapped writes to clear os lock are not supported on some processors
@@ -186,36 +187,39 @@ static void etm_clr_prog(struct etm_drvdata *drvdata)
 	}
 }
 
-void etm_set_default(struct etm_drvdata *drvdata)
+void etm_set_default(struct etm_config *config)
 {
 	int i;
 
-	drvdata->trigger_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->enable_event = ETM_HARD_WIRE_RES_A;
+	if (WARN_ON_ONCE(!config))
+		return;
 
-	drvdata->seq_12_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_21_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_23_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_31_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_32_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_13_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->timestamp_event = ETM_DEFAULT_EVENT_VAL;
+	config->trigger_event = ETM_DEFAULT_EVENT_VAL;
+	config->enable_event = ETM_HARD_WIRE_RES_A;
 
-	for (i = 0; i < drvdata->nr_cntr; i++) {
-		drvdata->cntr_rld_val[i] = 0x0;
-		drvdata->cntr_event[i] = ETM_DEFAULT_EVENT_VAL;
-		drvdata->cntr_rld_event[i] = ETM_DEFAULT_EVENT_VAL;
-		drvdata->cntr_val[i] = 0x0;
+	config->seq_12_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_21_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_23_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_31_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_32_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_13_event = ETM_DEFAULT_EVENT_VAL;
+	config->timestamp_event = ETM_DEFAULT_EVENT_VAL;
+
+	for (i = 0; i < ETM_MAX_CNTR; i++) {
+		config->cntr_rld_val[i] = 0x0;
+		config->cntr_event[i] = ETM_DEFAULT_EVENT_VAL;
+		config->cntr_rld_event[i] = ETM_DEFAULT_EVENT_VAL;
+		config->cntr_val[i] = 0x0;
 	}
 
-	drvdata->seq_curr_state = 0x0;
-	drvdata->ctxid_idx = 0x0;
-	for (i = 0; i < drvdata->nr_ctxid_cmp; i++) {
-		drvdata->ctxid_pid[i] = 0x0;
-		drvdata->ctxid_vpid[i] = 0x0;
+	config->seq_curr_state = 0x0;
+	config->ctxid_idx = 0x0;
+	for (i = 0; i < ETM_MAX_CTXID_CMP; i++) {
+		config->ctxid_pid[i] = 0x0;
+		config->ctxid_vpid[i] = 0x0;
 	}
 
-	drvdata->ctxid_mask = 0x0;
+	config->ctxid_mask = 0x0;
 }
 
 static void etm_enable_hw(void *info)
@@ -223,6 +227,7 @@ static void etm_enable_hw(void *info)
 	int i;
 	u32 etmcr;
 	struct etm_drvdata *drvdata = info;
+	struct etm_config *config = &drvdata->config;
 
 	CS_UNLOCK(drvdata->base);
 
@@ -238,39 +243,39 @@ static void etm_enable_hw(void *info)
 	etmcr = etm_readl(drvdata, ETMCR);
 	etmcr &= (ETMCR_PWD_DWN | ETMCR_ETM_PRG);
 	etmcr |= drvdata->port_size;
-	etm_writel(drvdata, drvdata->ctrl | etmcr, ETMCR);
-	etm_writel(drvdata, drvdata->trigger_event, ETMTRIGGER);
-	etm_writel(drvdata, drvdata->startstop_ctrl, ETMTSSCR);
-	etm_writel(drvdata, drvdata->enable_event, ETMTEEVR);
-	etm_writel(drvdata, drvdata->enable_ctrl1, ETMTECR1);
-	etm_writel(drvdata, drvdata->fifofull_level, ETMFFLR);
+	etm_writel(drvdata, config->ctrl | etmcr, ETMCR);
+	etm_writel(drvdata, config->trigger_event, ETMTRIGGER);
+	etm_writel(drvdata, config->startstop_ctrl, ETMTSSCR);
+	etm_writel(drvdata, config->enable_event, ETMTEEVR);
+	etm_writel(drvdata, config->enable_ctrl1, ETMTECR1);
+	etm_writel(drvdata, config->fifofull_level, ETMFFLR);
 	for (i = 0; i < drvdata->nr_addr_cmp; i++) {
-		etm_writel(drvdata, drvdata->addr_val[i], ETMACVRn(i));
-		etm_writel(drvdata, drvdata->addr_acctype[i], ETMACTRn(i));
+		etm_writel(drvdata, config->addr_val[i], ETMACVRn(i));
+		etm_writel(drvdata, config->addr_acctype[i], ETMACTRn(i));
 	}
 	for (i = 0; i < drvdata->nr_cntr; i++) {
-		etm_writel(drvdata, drvdata->cntr_rld_val[i], ETMCNTRLDVRn(i));
-		etm_writel(drvdata, drvdata->cntr_event[i], ETMCNTENRn(i));
-		etm_writel(drvdata, drvdata->cntr_rld_event[i],
+		etm_writel(drvdata, config->cntr_rld_val[i], ETMCNTRLDVRn(i));
+		etm_writel(drvdata, config->cntr_event[i], ETMCNTENRn(i));
+		etm_writel(drvdata, config->cntr_rld_event[i],
 			   ETMCNTRLDEVRn(i));
-		etm_writel(drvdata, drvdata->cntr_val[i], ETMCNTVRn(i));
+		etm_writel(drvdata, config->cntr_val[i], ETMCNTVRn(i));
 	}
-	etm_writel(drvdata, drvdata->seq_12_event, ETMSQ12EVR);
-	etm_writel(drvdata, drvdata->seq_21_event, ETMSQ21EVR);
-	etm_writel(drvdata, drvdata->seq_23_event, ETMSQ23EVR);
-	etm_writel(drvdata, drvdata->seq_31_event, ETMSQ31EVR);
-	etm_writel(drvdata, drvdata->seq_32_event, ETMSQ32EVR);
-	etm_writel(drvdata, drvdata->seq_13_event, ETMSQ13EVR);
-	etm_writel(drvdata, drvdata->seq_curr_state, ETMSQR);
+	etm_writel(drvdata, config->seq_12_event, ETMSQ12EVR);
+	etm_writel(drvdata, config->seq_21_event, ETMSQ21EVR);
+	etm_writel(drvdata, config->seq_23_event, ETMSQ23EVR);
+	etm_writel(drvdata, config->seq_31_event, ETMSQ31EVR);
+	etm_writel(drvdata, config->seq_32_event, ETMSQ32EVR);
+	etm_writel(drvdata, config->seq_13_event, ETMSQ13EVR);
+	etm_writel(drvdata, config->seq_curr_state, ETMSQR);
 	for (i = 0; i < drvdata->nr_ext_out; i++)
 		etm_writel(drvdata, ETM_DEFAULT_EVENT_VAL, ETMEXTOUTEVRn(i));
 	for (i = 0; i < drvdata->nr_ctxid_cmp; i++)
-		etm_writel(drvdata, drvdata->ctxid_pid[i], ETMCIDCVRn(i));
-	etm_writel(drvdata, drvdata->ctxid_mask, ETMCIDCMR);
-	etm_writel(drvdata, drvdata->sync_freq, ETMSYNCFR);
+		etm_writel(drvdata, config->ctxid_pid[i], ETMCIDCVRn(i));
+	etm_writel(drvdata, config->ctxid_mask, ETMCIDCMR);
+	etm_writel(drvdata, config->sync_freq, ETMSYNCFR);
 	/* No external input selected */
 	etm_writel(drvdata, 0x0, ETMEXTINSELR);
-	etm_writel(drvdata, drvdata->timestamp_event, ETMTSEVR);
+	etm_writel(drvdata, config->timestamp_event, ETMTSEVR);
 	/* No auxiliary control selected */
 	etm_writel(drvdata, 0x0, ETMAUXCR);
 	etm_writel(drvdata, drvdata->traceid, ETMTRACEIDR);
@@ -278,7 +283,7 @@ static void etm_enable_hw(void *info)
 	etm_writel(drvdata, 0x0, ETMVMIDCVR);
 
 	/* Ensures trace output is enabled from this ETM */
-	etm_writel(drvdata, drvdata->ctrl | ETMCR_ETM_EN | etmcr, ETMCR);
+	etm_writel(drvdata, config->ctrl | ETMCR_ETM_EN | etmcr, ETMCR);
 
 	etm_clr_prog(drvdata);
 	CS_LOCK(drvdata->base);
@@ -362,6 +367,7 @@ static void etm_disable_hw(void *info)
 {
 	int i;
 	struct etm_drvdata *drvdata = info;
+	struct etm_config *config = &drvdata->config;
 
 	CS_UNLOCK(drvdata->base);
 	etm_set_prog(drvdata);
@@ -370,10 +376,10 @@ static void etm_disable_hw(void *info)
 	etm_writel(drvdata, ETM_HARD_WIRE_RES_A | ETM_EVENT_NOT_A, ETMTEEVR);
 
 	/* Read back sequencer and counters for post trace analysis */
-	drvdata->seq_curr_state = (etm_readl(drvdata, ETMSQR) & ETM_SQR_MASK);
+	config->seq_curr_state = (etm_readl(drvdata, ETMSQR) & ETM_SQR_MASK);
 
 	for (i = 0; i < drvdata->nr_cntr; i++)
-		drvdata->cntr_val[i] = etm_readl(drvdata, ETMCNTVRn(i));
+		config->cntr_val[i] = etm_readl(drvdata, ETMCNTVRn(i));
 
 	etm_set_pwrdwn(drvdata);
 	CS_LOCK(drvdata->base);
@@ -522,14 +528,8 @@ static void etm_init_arch_data(void *info)
 	CS_LOCK(drvdata->base);
 }
 
-static void etm_init_default_data(struct etm_drvdata *drvdata)
+static void etm_init_default_data(struct etm_config *config)
 {
-	/*
-	 * A trace ID of value 0 is invalid, so let's start at some
-	 * random value that fits in 7 bits and will be just as good.
-	 */
-	static int etm3x_traceid = 0x10;
-
 	u32 flags = (1 << 0 | /* instruction execute*/
 		     3 << 3 | /* ARM instruction */
 		     0 << 5 | /* No data value comparison */
@@ -537,25 +537,28 @@ static void etm_init_default_data(struct etm_drvdata *drvdata)
 		     0 << 8 | /* Ignore context ID */
 		     0 << 10); /* Security ignored */
 
-	/*
-	 * Initial configuration only - guarantees sources handled by
-	 * this driver have a unique ID at startup time but not between
-	 * all other types of sources.  For that we lean on the core
-	 * framework.
-	 */
-	drvdata->traceid = etm3x_traceid++;
-	drvdata->ctrl = (ETMCR_CYC_ACC | ETMCR_TIMESTAMP_EN);
-	drvdata->enable_ctrl1 = ETMTECR1_ADDR_COMP_1;
-	if (drvdata->nr_addr_cmp >= 2) {
-		drvdata->addr_val[0] = (u32) _stext;
-		drvdata->addr_val[1] = (u32) _etext;
-		drvdata->addr_acctype[0] = flags;
-		drvdata->addr_acctype[1] = flags;
-		drvdata->addr_type[0] = ETM_ADDR_TYPE_RANGE;
-		drvdata->addr_type[1] = ETM_ADDR_TYPE_RANGE;
-	}
+	if (WARN_ON_ONCE(!config))
+		return;
 
-	etm_set_default(drvdata);
+	config->ctrl = (ETMCR_CYC_ACC | ETMCR_TIMESTAMP_EN);
+	config->enable_ctrl1 = ETMTECR1_ADDR_COMP_1;
+	config->addr_val[0] = (u32) _stext;
+	config->addr_val[1] = (u32) _etext;
+	config->addr_acctype[0] = flags;
+	config->addr_acctype[1] = flags;
+	config->addr_type[0] = ETM_ADDR_TYPE_RANGE;
+	config->addr_type[1] = ETM_ADDR_TYPE_RANGE;
+
+	etm_set_default(config);
+}
+
+static void etm_init_trace_id(struct etm_drvdata *drvdata)
+{
+	/*
+	 * A trace ID of value 0 is invalid, so let's start at some
+	 * random value that fits in 7 bits and go from there.
+	 */
+	drvdata->traceid = 0x10 + drvdata->cpu;
 }
 
 static int etm_probe(struct amba_device *adev, const struct amba_id *id)
@@ -623,7 +626,9 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = -EINVAL;
 		goto err_arch_supported;
 	}
-	etm_init_default_data(drvdata);
+
+	etm_init_trace_id(drvdata);
+	etm_init_default_data(&drvdata->config);
 
 	desc->type = CORESIGHT_DEV_TYPE_SOURCE;
 	desc->subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_PROC;

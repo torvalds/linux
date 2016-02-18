@@ -136,29 +136,9 @@
 #define ETM_DEFAULT_EVENT_VAL	(ETM_HARD_WIRE_RES_A	|	\
 				 ETM_ADD_COMP_0		|	\
 				 ETM_EVENT_NOT_A)
+
 /**
- * struct etm_drvdata - specifics associated to an ETM component
- * @base:	memory mapped base address for this component.
- * @dev:	the device entity associated to this component.
- * @atclk:	optional clock for the core parts of the ETM.
- * @csdev:	component vitals needed by the framework.
- * @spinlock:	only one at a time pls.
- * @cpu:	the cpu this component is affined to.
- * @port_size:	port size as reported by ETMCR bit 4-6 and 21.
- * @arch:	ETM/PTM version number.
- * @use_cpu14:	true if management registers need to be accessed via CP14.
- * @enable:	is this ETM/PTM currently tracing.
- * @sticky_enable: true if ETM base configuration has been done.
- * @boot_enable:true if we should start tracing at boot time.
- * @os_unlock:	true if access to management registers is allowed.
- * @nr_addr_cmp:Number of pairs of address comparators as found in ETMCCR.
- * @nr_cntr:	Number of counters as found in ETMCCR bit 13-15.
- * @nr_ext_inp:	Number of external input as found in ETMCCR bit 17-19.
- * @nr_ext_out:	Number of external output as found in ETMCCR bit 20-22.
- * @nr_ctxid_cmp: Number of contextID comparators as found in ETMCCR bit 24-25.
- * @etmccr:	value of register ETMCCR.
- * @etmccer:	value of register ETMCCER.
- * @traceid:	value of the current ID for this component.
+ * struct etm_config - configuration information related to an ETM
  * @mode:	controls various modes supported by this ETM/PTM.
  * @ctrl:	used in conjunction with @mode.
  * @trigger_event: setting for register ETMTRIGGER.
@@ -189,30 +169,9 @@
  * @ctxid_mask: mask applicable to all the context IDs.
  * @sync_freq:	Synchronisation frequency.
  * @timestamp_event: Defines an event that requests the insertion
-		     of a timestamp into the trace stream.
+ *		     of a timestamp into the trace stream.
  */
-struct etm_drvdata {
-	void __iomem			*base;
-	struct device			*dev;
-	struct clk			*atclk;
-	struct coresight_device		*csdev;
-	spinlock_t			spinlock;
-	int				cpu;
-	int				port_size;
-	u8				arch;
-	bool				use_cp14;
-	bool				enable;
-	bool				sticky_enable;
-	bool				boot_enable;
-	bool				os_unlock;
-	u8				nr_addr_cmp;
-	u8				nr_cntr;
-	u8				nr_ext_inp;
-	u8				nr_ext_out;
-	u8				nr_ctxid_cmp;
-	u32				etmccr;
-	u32				etmccer;
-	u32				traceid;
+struct etm_config {
 	u32				mode;
 	u32				ctrl;
 	u32				trigger_event;
@@ -242,6 +201,56 @@ struct etm_drvdata {
 	u32				ctxid_mask;
 	u32				sync_freq;
 	u32				timestamp_event;
+};
+
+/**
+ * struct etm_drvdata - specifics associated to an ETM component
+ * @base:	memory mapped base address for this component.
+ * @dev:	the device entity associated to this component.
+ * @atclk:	optional clock for the core parts of the ETM.
+ * @csdev:	component vitals needed by the framework.
+ * @spinlock:	only one at a time pls.
+ * @cpu:	the cpu this component is affined to.
+ * @port_size:	port size as reported by ETMCR bit 4-6 and 21.
+ * @arch:	ETM/PTM version number.
+ * @use_cpu14:	true if management registers need to be accessed via CP14.
+ * @enable:	is this ETM/PTM currently tracing.
+ * @sticky_enable: true if ETM base configuration has been done.
+ * @boot_enable:true if we should start tracing at boot time.
+ * @os_unlock:	true if access to management registers is allowed.
+ * @nr_addr_cmp:Number of pairs of address comparators as found in ETMCCR.
+ * @nr_cntr:	Number of counters as found in ETMCCR bit 13-15.
+ * @nr_ext_inp:	Number of external input as found in ETMCCR bit 17-19.
+ * @nr_ext_out:	Number of external output as found in ETMCCR bit 20-22.
+ * @nr_ctxid_cmp: Number of contextID comparators as found in ETMCCR bit 24-25.
+ * @etmccr:	value of register ETMCCR.
+ * @etmccer:	value of register ETMCCER.
+ * @traceid:	value of the current ID for this component.
+ * @config:	structure holding configuration parameters.
+ */
+struct etm_drvdata {
+	void __iomem			*base;
+	struct device			*dev;
+	struct clk			*atclk;
+	struct coresight_device		*csdev;
+	spinlock_t			spinlock;
+	int				cpu;
+	int				port_size;
+	u8				arch;
+	bool				use_cp14;
+	bool				enable;
+	bool				sticky_enable;
+	bool				boot_enable;
+	bool				os_unlock;
+	u8				nr_addr_cmp;
+	u8				nr_cntr;
+	u8				nr_ext_inp;
+	u8				nr_ext_out;
+	u8				nr_ctxid_cmp;
+	u32				etmccr;
+	u32				etmccer;
+	u32				traceid;
+	struct etm_config		config;
 };
 
 enum etm_addr_type {
@@ -283,5 +292,6 @@ static inline unsigned int etm_readl(struct etm_drvdata *drvdata, u32 off)
 
 extern const struct attribute_group *coresight_etm_groups[];
 int etm_get_trace_id(struct etm_drvdata *drvdata);
-void etm_set_default(struct etm_drvdata *drvdata);
+void etm_set_default(struct etm_config *config);
+struct etm_config *get_etm_config(struct etm_drvdata *drvdata);
 #endif
