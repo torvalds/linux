@@ -358,12 +358,14 @@ static int aer_inject(struct aer_error_inj *einj)
 		return -ENODEV;
 	rpdev = pcie_find_root_port(dev);
 	if (!rpdev) {
+		dev_err(&dev->dev, "aer_inject: Root port not found\n");
 		ret = -ENODEV;
 		goto out_put;
 	}
 
 	pos_cap_err = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	if (!pos_cap_err) {
+		dev_err(&dev->dev, "aer_inject: Device doesn't support AER\n");
 		ret = -EPROTONOSUPPORT;
 		goto out_put;
 	}
@@ -374,6 +376,8 @@ static int aer_inject(struct aer_error_inj *einj)
 
 	rp_pos_cap_err = pci_find_ext_capability(rpdev, PCI_EXT_CAP_ID_ERR);
 	if (!rp_pos_cap_err) {
+		dev_err(&rpdev->dev,
+			"aer_inject: Root port doesn't support AER\n");
 		ret = -EPROTONOSUPPORT;
 		goto out_put;
 	}
@@ -489,8 +493,10 @@ static int aer_inject(struct aer_error_inj *einj)
 			goto out_put;
 		}
 		aer_irq(-1, edev);
-	} else
+	} else {
+		dev_err(&rpdev->dev, "aer_inject: AER device not found\n");
 		ret = -ENODEV;
+	}
 out_put:
 	kfree(err_alloc);
 	kfree(rperr_alloc);
