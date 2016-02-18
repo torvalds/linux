@@ -318,20 +318,6 @@ static inline unsigned long __virt_to_idmap(unsigned long x)
 #define __bus_to_pfn(x)	__phys_to_pfn(x)
 #endif
 
-#ifdef CONFIG_VIRT_TO_BUS
-#define virt_to_bus virt_to_bus
-static inline __deprecated unsigned long virt_to_bus(void *x)
-{
-	return __virt_to_bus((unsigned long)x);
-}
-
-#define bus_to_virt bus_to_virt
-static inline __deprecated void *bus_to_virt(unsigned long x)
-{
-	return (void *)__bus_to_virt(x);
-}
-#endif
-
 /*
  * Conversion between a struct page and a physical address.
  *
