@@ -251,4 +251,33 @@ enum etm_addr_type {
 	ETM_ADDR_TYPE_START,
 	ETM_ADDR_TYPE_STOP,
 };
+
+static inline void etm_writel(struct etm_drvdata *drvdata,
+			      u32 val, u32 off)
+{
+	if (drvdata->use_cp14) {
+		if (etm_writel_cp14(off, val)) {
+			dev_err(drvdata->dev,
+				"invalid CP14 access to ETM reg: %#x", off);
+		}
+	} else {
+		writel_relaxed(val, drvdata->base + off);
+	}
+}
+
+static inline unsigned int etm_readl(struct etm_drvdata *drvdata, u32 off)
+{
+	u32 val;
+
+	if (drvdata->use_cp14) {
+		if (etm_readl_cp14(off, &val)) {
+			dev_err(drvdata->dev,
+				"invalid CP14 access to ETM reg: %#x", off);
+		}
+	} else {
+		val = readl_relaxed(drvdata->base + off);
+	}
+
+	return val;
+}
 #endif
