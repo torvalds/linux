@@ -96,6 +96,8 @@ struct rsnd_ssi {
 #define rsnd_ssi_is_parent(ssi, io) ((ssi) == rsnd_io_to_mod_ssip(io))
 #define rsnd_ssi_is_multi_slave(mod, io) \
 	(rsnd_ssi_multi_slaves(io) & (1 << rsnd_mod_id(mod)))
+#define rsnd_ssi_is_run_mods(mod, io) \
+	(rsnd_ssi_run_mods(io) & (1 << rsnd_mod_id(mod)))
 
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 {
@@ -164,6 +166,16 @@ static u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
 	}
 
 	return mask;
+}
+
+static u32 rsnd_ssi_run_mods(struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
+
+	return rsnd_ssi_multi_slaves_runtime(io) |
+		1 << rsnd_mod_id(ssi_mod) |
+		1 << rsnd_mod_id(ssi_parent_mod);
 }
 
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
@@ -348,6 +360,9 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	int ret;
 
+	if (!rsnd_ssi_is_run_mods(mod, io))
+		return 0;
+
 	ssi->usrcnt++;
 
 	rsnd_mod_power_on(mod);
@@ -373,6 +388,9 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
+
+	if (!rsnd_ssi_is_run_mods(mod, io))
+		return 0;
 
 	if (!ssi->usrcnt) {
 		dev_err(dev, "%s[%d] usrcnt error\n",
@@ -422,6 +440,9 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
+	if (!rsnd_ssi_is_run_mods(mod, io))
+		return 0;
+
 	/*
 	 * EN will be set via SSIU :: SSI_CONTROL
 	 * if Multi channel mode
@@ -440,6 +461,9 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	u32 cr;
+
+	if (!rsnd_ssi_is_run_mods(mod, io))
+		return 0;
 
 	/*
 	 * don't stop if not last user
@@ -481,6 +505,9 @@ static int rsnd_ssi_irq(struct rsnd_mod *mod,
 		return 0;
 
 	if (rsnd_ssi_is_parent(mod, io))
+		return 0;
+
+	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
 
 	if (enable)
