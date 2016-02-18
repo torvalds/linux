@@ -75,6 +75,15 @@
 				clocks = <&clks VF610_CLK_PLATFORM_BUS>;
 			};
 		};
+
+		aips-bus@40080000 {
+			pmu@40089000 {
+				compatible = "arm,cortex-a5-pmu";
+				interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-affinity = <&a5_cpu>;
+			};
+		};
+
 	};
 };
 
