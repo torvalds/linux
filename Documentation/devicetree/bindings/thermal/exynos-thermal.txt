@@ -11,6 +11,7 @@
 	       "samsung,exynos5420-tmu" for TMU channel 0, 1 on Exynos5420
 	       "samsung,exynos5420-tmu-ext-triminfo" for TMU channels 2, 3 and 4
 			Exynos5420 (Must pass triminfo base and triminfo clock)
+               "samsung,exynos5433-tmu"
 	       "samsung,exynos5440-tmu"
 	       "samsung,exynos7-tmu"
 - interrupt-parent : The phandle for the interrupt controller
