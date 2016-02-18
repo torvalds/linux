@@ -50,9 +50,14 @@ config ARCH_MEDIATEK
 
 config ARCH_MVEBU
 	bool "Marvell EBU SoC Family"
+	select ARMADA_AP806_CORE_CLK
+	select ARMADA_AP806_RING_CLK
+	select MVEBU_ODMI
 	help
-	  This enables support for Marvell EBU family such as the
-	  Armada 3700 SoC family.
+	  This enables support for Marvell EBU familly, including:
+	   - Armada 3700 SoC Family
+	   - Armada 7K SoC Family
+	   - Armada 8K SoC Family
 
 config ARCH_QCOM
 	bool "Qualcomm Platforms"
