@@ -74,6 +74,12 @@ i40e_status i40e_aq_set_rss_key(struct i40e_hw *hw,
 
 u32 i40e_led_get(struct i40e_hw *hw);
 void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink);
+i40e_status i40e_led_set_phy(struct i40e_hw *hw, bool on,
+			     u16 led_addr, u32 mode);
+i40e_status i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
+			     u16 *val);
+i40e_status i40e_blink_phy_link_led(struct i40e_hw *hw,
+				    u32 time, u32 interval);
 
 /* admin send queue commands */
 
@@ -336,4 +342,11 @@ i40e_status i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
 			       struct i40e_asq_cmd_details *cmd_details);
 void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
 						    u16 vsi_seid);
+i40e_status i40e_read_phy_register(struct i40e_hw *hw, u8 page,
+				   u16 reg, u8 phy_addr, u16 *value);
+i40e_status i40e_write_phy_register(struct i40e_hw *hw, u8 page,
+				    u16 reg, u8 phy_addr, u16 value);
+u8 i40e_get_phy_address(struct i40e_hw *hw, u8 dev_num);
+i40e_status i40e_blink_phy_link_led(struct i40e_hw *hw,
+				    u32 time, u32 interval);
 #endif /* _I40E_PROTOTYPE_H_ */
