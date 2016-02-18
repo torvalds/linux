@@ -758,7 +758,8 @@ static int dim2_probe(struct platform_device *pdev)
 	}
 	dev->irq_ahb0 = ret;
 
-	ret = request_irq(dev->irq_ahb0, dim2_ahb_isr, 0, "mlb_ahb0", dev);
+	ret = devm_request_irq(&pdev->dev, dev->irq_ahb0, dim2_ahb_isr, 0,
+			       "mlb_ahb0", dev);
 	if (ret) {
 		pr_err("failed to request IRQ: %d, err: %d\n",
 		       dev->irq_ahb0, ret);
@@ -769,10 +770,8 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->deliver_netinfo = 0;
 	dev->netinfo_task = kthread_run(&deliver_netinfo_thread, (void *)dev,
 					"dim2_netinfo");
-	if (IS_ERR(dev->netinfo_task)) {
+	if (IS_ERR(dev->netinfo_task))
 		ret = PTR_ERR(dev->netinfo_task);
-		goto err_free_irq;
-	}
 
 	for (i = 0; i < DMA_CHANNELS; i++) {
 		struct most_channel_capability *cap = dev->capabilities + i;
@@ -840,10 +839,6 @@ err_unreg_iface:
 	most_deregister_interface(&dev->most_iface);
 err_stop_thread:
 	kthread_stop(dev->netinfo_task);
-err_free_irq:
-#if !defined(ENABLE_HDM_TEST)
-	free_irq(dev->irq_ahb0, dev);
-#endif
 
 	return ret;
 }
@@ -870,9 +865,6 @@ static int dim2_remove(struct platform_device *pdev)
 	dim2_sysfs_destroy(&dev->bus);
 	most_deregister_interface(&dev->most_iface);
 	kthread_stop(dev->netinfo_task);
-#if !defined(ENABLE_HDM_TEST)
-	free_irq(dev->irq_ahb0, dev);
-#endif
 
 	/*
 	 * break link to local platform_device_id struct
