@@ -186,7 +186,6 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 		st->mux_client = i2c_new_device(st->mux_adapter, &info);
 		if (!st->mux_client)
 			return -ENODEV;
-
 	}
 
 	return 0;
@@ -195,6 +194,7 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 void inv_mpu_acpi_delete_mux_client(struct i2c_client *client)
 {
 	struct inv_mpu6050_state *st = iio_priv(dev_get_drvdata(&client->dev));
+
 	if (st->mux_client)
 		i2c_unregister_device(st->mux_client);
 }

@@ -365,6 +365,7 @@ static int inv_write_raw_get_fmt(struct iio_dev *indio_dev,
 
 	return -EINVAL;
 }
+
 static int inv_mpu6050_write_accel_scale(struct inv_mpu6050_state *st, int val)
 {
 	int result, i;
