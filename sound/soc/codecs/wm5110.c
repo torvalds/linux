@@ -360,15 +360,13 @@ static int wm5110_hp_ev(struct snd_soc_dapm_widget *w,
 
 static int wm5110_clear_pga_volume(struct arizona *arizona, int output)
 {
-	struct reg_sequence clear_pga = {
-		ARIZONA_OUTPUT_PATH_CONFIG_1L + output * 4, 0x80
-	};
+	unsigned int reg = ARIZONA_OUTPUT_PATH_CONFIG_1L + output * 4;
 	int ret;
 
-	ret = regmap_multi_reg_write_bypassed(arizona->regmap, &clear_pga, 1);
+	ret = regmap_write(arizona->regmap, reg, 0x80);
 	if (ret)
 		dev_err(arizona->dev, "Failed to clear PGA (0x%x): %d\n",
-			clear_pga.reg, ret);
+			reg, ret);
 
 	return ret;
 }

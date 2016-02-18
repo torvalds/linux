@@ -2107,7 +2107,7 @@ static int dwceqos_tx_frags(struct sk_buff *skb, struct net_local *lp,
 			dd = &lp->tx_descs[lp->tx_next];
 
 			/* Set DMA Descriptor fields */
-			dd->des0 = dma_handle;
+			dd->des0 = dma_handle + consumed_size;
 			dd->des1 = 0;
 			dd->des2 = dma_size;
 
