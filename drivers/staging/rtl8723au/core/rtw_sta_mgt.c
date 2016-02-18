@@ -93,7 +93,6 @@ int _rtw_free_sta_priv23a(struct sta_priv *pstapriv)
 		spin_lock_bh(&pstapriv->sta_hash_lock);
 		for (index = 0; index < NUM_STA; index++) {
 			phead = &pstapriv->sta_hash[index];
-
 			list_for_each_entry_safe(psta, ptmp, phead, hash_list) {
 				int i;
 
@@ -333,12 +332,9 @@ void rtw_free_all_stainfo23a(struct rtw_adapter *padapter)
 		return;
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
-
 	for (index = 0; index < NUM_STA; index++) {
 		phead = &pstapriv->sta_hash[index];
-
 		list_for_each_entry_safe(psta, ptmp, phead, hash_list) {
-
 			if (pbcmc_stainfo != psta)
 				rtw_free_stainfo23a(padapter, psta);
 		}
@@ -351,7 +347,7 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 {
 	struct list_head *phead;
 	struct sta_info *psta = NULL;
-	u32	index;
+	u32 index;
 	const u8 *addr;
 
 	if (hwaddr == NULL)
@@ -365,11 +361,8 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 	index = wifi_mac_hash(addr);
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
-
 	phead = &pstapriv->sta_hash[index];
-
 	list_for_each_entry(psta, phead, hash_list) {
-
 		/*  if found the matched address */
 		if (ether_addr_equal(psta->hwaddr, addr))
 			break;
@@ -423,9 +416,7 @@ bool rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr)
 
 	spin_lock_bh(&pacl_node_q->lock);
 	phead = get_list_head(pacl_node_q);
-
 	list_for_each_entry(paclnode, phead, list) {
-
 		if (ether_addr_equal(paclnode->addr, mac_addr)) {
 			if (paclnode->valid) {
 				match = true;

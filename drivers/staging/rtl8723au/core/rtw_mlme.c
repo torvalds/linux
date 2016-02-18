@@ -177,12 +177,9 @@ void rtw_free_network_queue23a(struct rtw_adapter *padapter)
 	struct rtw_queue *scanned_queue = &pmlmepriv->scanned_queue;
 
 	spin_lock_bh(&scanned_queue->lock);
-
 	phead = get_list_head(scanned_queue);
-
 	list_for_each_entry_safe(pnetwork, ptmp, phead, list)
 		_rtw_free_network23a(pmlmepriv, pnetwork);
-
 	spin_unlock_bh(&scanned_queue->lock);
 }
 
@@ -331,9 +328,7 @@ rtw_get_oldest_wlan_network23a(struct rtw_queue *scanned_queue)
 	struct wlan_network *oldest = NULL;
 
 	phead = get_list_head(scanned_queue);
-
 	list_for_each_entry(pwlan, phead, list) {
-
 		if (pwlan->fixed != true) {
 			if (!oldest || time_after(oldest->last_scanned,
 						  pwlan->last_scanned))
@@ -441,7 +436,6 @@ static void rtw_update_scanned_network(struct rtw_adapter *adapter,
 
 	spin_lock_bh(&queue->lock);
 	phead = get_list_head(queue);
-
 	list_for_each(plist, phead) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 
@@ -712,14 +706,11 @@ static void free_scanqueue(struct mlme_priv *pmlmepriv)
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, "+free_scanqueue\n");
 	spin_lock_bh(&scan_queue->lock);
-
 	phead = get_list_head(scan_queue);
-
 	list_for_each_entry_safe(pnetwork, ptemp, phead, list) {
 		pnetwork->fixed = false;
 		_rtw_free_network23a(pmlmepriv, pnetwork);
 	}
-
 	spin_unlock_bh(&scan_queue->lock);
 }
 
@@ -1626,7 +1617,6 @@ rtw_select_candidate_from_queue(struct mlme_priv *pmlmepriv)
 
 	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 	phead = get_list_head(queue);
-
 	list_for_each_entry_safe(pnetwork, ptmp, phead, list) {
 		if (!pnetwork) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
