@@ -2690,6 +2690,9 @@ static int acpi_ipmi_probe(struct platform_device *dev)
 	unsigned long long tmp;
 	int rv = -EINVAL;
 
+	if (!si_tryacpi)
+	       return 0;
+
 	handle = ACPI_HANDLE(&dev->dev);
 	if (!handle)
 		return -ENODEV;
