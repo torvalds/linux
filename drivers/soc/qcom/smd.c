@@ -129,6 +129,8 @@ struct qcom_smd_edge {
 
 	unsigned smem_available;
 
+	wait_queue_head_t new_channel_event;
+
 	struct work_struct scan_work;
 	struct work_struct state_work;
 };
@@ -1042,6 +1044,77 @@ void qcom_smd_driver_unregister(struct qcom_smd_driver *qsdrv)
 }
 EXPORT_SYMBOL(qcom_smd_driver_unregister);
 
+static struct qcom_smd_channel *
+qcom_smd_find_channel(struct qcom_smd_edge *edge, const char *name)
+{
+	struct qcom_smd_channel *channel;
+	struct qcom_smd_channel *ret = NULL;
+	unsigned long flags;
+	unsigned state;
+
+	spin_lock_irqsave(&edge->channels_lock, flags);
+	list_for_each_entry(channel, &edge->channels, list) {
+		if (strcmp(channel->name, name))
+			continue;
+
+		state = GET_RX_CHANNEL_INFO(channel, state);
+		if (state != SMD_CHANNEL_OPENING &&
+		    state != SMD_CHANNEL_OPENED)
+			continue;
+
+		ret = channel;
+		break;
+	}
+	spin_unlock_irqrestore(&edge->channels_lock, flags);
+
+	return ret;
+}
+
+/**
+ * qcom_smd_open_channel() - claim additional channels on the same edge
+ * @sdev:	smd_device handle
+ * @name:	channel name
+ * @cb:		callback method to use for incoming data
+ *
+ * Returns a channel handle on success, or -EPROBE_DEFER if the channel isn't
+ * ready.
+ */
+struct qcom_smd_channel *qcom_smd_open_channel(struct qcom_smd_device *sdev,
+					       const char *name,
+					       qcom_smd_cb_t cb)
+{
+	struct qcom_smd_channel *channel;
+	struct qcom_smd_edge *edge = sdev->channel->edge;
+	int ret;
+
+	/* Wait up to HZ for the channel to appear */
+	ret = wait_event_interruptible_timeout(edge->new_channel_event,
+			(channel = qcom_smd_find_channel(edge, name)) != NULL,
+			HZ);
+	if (!ret)
+		return ERR_PTR(-ETIMEDOUT);
+
+	if (channel->state != SMD_CHANNEL_CLOSED) {
+		dev_err(&sdev->dev, "channel %s is busy\n", channel->name);
+		return ERR_PTR(-EBUSY);
+	}
+
+	channel->qsdev = sdev;
+	ret = qcom_smd_channel_open(channel, cb);
+	if (ret) {
+		channel->qsdev = NULL;
+		return ERR_PTR(ret);
+	}
+
+	/*
+	 * Append the list of channel to the channels associated with the sdev
+	 */
+	list_add_tail(&channel->dev_list, &sdev->channel->dev_list);
+
+	return channel;
+}
+EXPORT_SYMBOL(qcom_smd_open_channel);
+
 /*
  * Allocate the qcom_smd_channel object for a newly found smd channel,
  * retrieving and validating the smem items involved.
@@ -1178,6 +1251,8 @@ static void qcom_channel_scan_worker(struct work_struct *work)
 
 			dev_dbg(smd->dev, "new channel found: '%s'\n", channel->name);
 			set_bit(i, edge->allocated[tbl]);
+
+			wake_up_interruptible(&edge->new_channel_event);
 		}
 	}
 
@@ -1341,6 +1416,7 @@ static int qcom_smd_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(pdev->dev.of_node, node) {
 		edge = &smd->edges[i++];
 		edge->smd = smd;
+		init_waitqueue_head(&edge->new_channel_event);
 
 		ret = qcom_smd_parse_edge(&pdev->dev, node, edge);
 		if (ret)

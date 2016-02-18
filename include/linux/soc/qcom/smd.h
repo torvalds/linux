@@ -56,4 +56,8 @@ void qcom_smd_driver_unregister(struct qcom_smd_driver *drv);
 
 int qcom_smd_send(struct qcom_smd_channel *channel, const void *data, int len);
 
+struct qcom_smd_channel *qcom_smd_open_channel(struct qcom_smd_device *sdev,
+					       const char *name,
+					       qcom_smd_cb_t cb);
+
 #endif
