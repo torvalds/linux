@@ -2142,6 +2142,7 @@ static void __spi_replace_transfers_release(struct spi_master *master,
  * @release:       extra release code necessary in some circumstances
  * @extradatasize: extra data to allocate (with alignment guarantees
  *                 of struct @spi_transfer)
+ * @gfp:           gfp flags
  *
  * Returns: pointer to @spi_replaced_transfers,
  *          PTR_ERR(...) in case of errors.
