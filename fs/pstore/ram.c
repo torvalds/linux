@@ -181,10 +181,10 @@ static bool prz_ok(struct persistent_ram_zone *prz)
 static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 				   int *count, struct timespec *time,
 				   char **buf, bool *compressed,
+				   ssize_t *ecc_notice_size,
 				   struct pstore_info *psi)
 {
 	ssize_t size;
-	ssize_t ecc_notice_size;
 	struct ramoops_context *cxt = psi->data;
 	struct persistent_ram_zone *prz = NULL;
 	int header_length = 0;
@@ -229,16 +229,16 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	size = persistent_ram_old_size(prz) - header_length;
 
 	/* ECC correction notice */
-	ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
+	*ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
 
-	*buf = kmalloc(size + ecc_notice_size + 1, GFP_KERNEL);
+	*buf = kmalloc(size + *ecc_notice_size + 1, GFP_KERNEL);
 	if (*buf == NULL)
 		return -ENOMEM;
 
 	memcpy(*buf, (char *)persistent_ram_old(prz) + header_length, size);
-	persistent_ram_ecc_string(prz, *buf + size, ecc_notice_size + 1);
+	persistent_ram_ecc_string(prz, *buf + size, *ecc_notice_size + 1);
 
-	return size + ecc_notice_size;
+	return size;
 }
 
 static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
