@@ -3414,6 +3414,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 			goto out;
 		retry_sz = 64;
 		ioc->hba_queue_depth -= retry_sz;
+		_base_release_memory_pools(ioc);
 		goto retry_allocation;
 	}
 
