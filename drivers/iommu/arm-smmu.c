@@ -1094,6 +1094,13 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 	if (ret)
 		return ret == -EEXIST ? 0 : ret;
 
+	/*
+	 * FIXME: This won't be needed once we have IOMMU-backed DMA ops
+	 * for all devices behind the SMMU.
+	 */
+	if (smmu_domain->domain.type == IOMMU_DOMAIN_DMA)
+		return 0;
+
 	for (i = 0; i < cfg->num_streamids; ++i) {
 		u32 idx, s2cr;
 

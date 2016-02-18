@@ -1687,7 +1687,12 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		goto out_unlock;
 
 	smmu_group->domain	= smmu_domain;
-	smmu_group->ste.bypass	= false;
+
+	/*
+	 * FIXME: This should always be "false" once we have IOMMU-backed
+	 * DMA ops for all devices behind the SMMU.
+	 */
+	smmu_group->ste.bypass	= domain->type == IOMMU_DOMAIN_DMA;
 
 	ret = arm_smmu_install_ste_for_group(smmu_group);
 	if (IS_ERR_VALUE(ret))
