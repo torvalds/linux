@@ -1208,6 +1208,36 @@ struct mlx5_ifc_phys_layer_cntrs_bits {
 	u8         reserved_at_640[0x180];
 };
 
+struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits {
+	u8	   symbol_error_counter[0x10];
+
+	u8         link_error_recovery_counter[0x8];
+
+	u8         link_downed_counter[0x8];
+
+	u8         port_rcv_errors[0x10];
+
+	u8         port_rcv_remote_physical_errors[0x10];
+
+	u8         port_rcv_switch_relay_errors[0x10];
+
+	u8         port_xmit_discards[0x10];
+
+	u8         port_xmit_constraint_errors[0x8];
+
+	u8         port_rcv_constraint_errors[0x8];
+
+	u8         reserved_at_70[0x8];
+
+	u8         link_overrun_errors[0x8];
+
+	u8	   reserved_at_80[0x10];
+
+	u8         vl_15_dropped[0x10];
+
+	u8	   reserved_at_a0[0xa0];
+};
+
 struct mlx5_ifc_eth_per_traffic_grp_data_layout_bits {
 	u8         transmit_queue_high[0x20];
 
@@ -2618,6 +2648,7 @@ union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	struct mlx5_ifc_eth_extended_cntrs_grp_data_layout_bits eth_extended_cntrs_grp_data_layout;
 	struct mlx5_ifc_eth_per_prio_grp_data_layout_bits eth_per_prio_grp_data_layout;
 	struct mlx5_ifc_eth_per_traffic_grp_data_layout_bits eth_per_traffic_grp_data_layout;
+	struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits ib_port_cntrs_grp_data_layout;
 	struct mlx5_ifc_phys_layer_cntrs_bits phys_layer_cntrs;
 	u8         reserved_at_0[0x7c0];
 };
@@ -6955,6 +6986,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_peir_reg_bits peir_reg;
 	struct mlx5_ifc_pelc_reg_bits pelc_reg;
 	struct mlx5_ifc_pfcc_reg_bits pfcc_reg;
+	struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits ib_port_cntrs_grp_data_layout;
 	struct mlx5_ifc_phys_layer_cntrs_bits phys_layer_cntrs;
 	struct mlx5_ifc_pifr_reg_bits pifr_reg;
 	struct mlx5_ifc_pipg_reg_bits pipg_reg;
