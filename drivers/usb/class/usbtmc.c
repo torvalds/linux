@@ -1525,13 +1525,14 @@ static void usbtmc_disconnect(struct usb_interface *intf)
 	dev_dbg(&intf->dev, "usbtmc_disconnect called\n");
 
 	data = usb_get_intfdata(intf);
-	usbtmc_free_int(data);
 	usb_deregister_dev(intf, &usbtmc_class);
 	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
 	sysfs_remove_group(&intf->dev.kobj, &data_attr_grp);
 	mutex_lock(&data->io_mutex);
 	data->zombie = 1;
+	wake_up_all(&data->waitq);
 	mutex_unlock(&data->io_mutex);
+	usbtmc_free_int(data);
 	kref_put(&data->kref, usbtmc_delete);
 }
 
