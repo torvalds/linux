@@ -983,7 +983,6 @@ void hfi1_free_devdata(struct hfi1_devdata *dd)
 	list_del(&dd->list);
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
 	free_platform_config(dd);
-	hfi1_dbg_ibdev_exit(&dd->verbs_dev);
 	rcu_barrier(); /* wait for rcu callbacks to complete */
 	free_percpu(dd->int_counter);
 	free_percpu(dd->rcv_limit);
@@ -1088,7 +1087,6 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 			&pdev->dev,
 			"Could not alloc cpulist info, cpu affinity might be wrong\n");
 	}
-	hfi1_dbg_ibdev_init(&dd->verbs_dev);
 	return dd;
 
 bail:
@@ -1445,8 +1443,11 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * we still create devices, so diags, etc. can be used
 	 * to determine cause of problem.
 	 */
-	if (!initfail && !ret)
+	if (!initfail && !ret) {
 		dd->flags |= HFI1_INITTED;
+		/* create debufs files after init and ib register */
+		hfi1_dbg_ibdev_init(&dd->verbs_dev);
+	}
 
 	j = hfi1_device_create(dd);
 	if (j)
@@ -1487,6 +1488,8 @@ static void remove_one(struct pci_dev *pdev)
 {
 	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
 
+	/* close debugfs files before ib unregister */
+	hfi1_dbg_ibdev_exit(&dd->verbs_dev);
 	/* unregister from IB core */
 	hfi1_unregister_ib_device(dd);
 
