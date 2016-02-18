@@ -610,15 +610,19 @@ void i40e_free_tx_resources(struct i40e_ring *tx_ring)
 /**
  * i40e_get_tx_pending - how many tx descriptors not processed
  * @tx_ring: the ring of descriptors
+ * @in_sw: is tx_pending being checked in SW or HW
  *
  * Since there is no access to the ring head register
  * in XL710, we need to use our local copies
  **/
-u32 i40e_get_tx_pending(struct i40e_ring *ring)
+u32 i40e_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 {
 	u32 head, tail;
 
-	head = i40e_get_head(ring);
+	if (!in_sw)
+		head = i40e_get_head(ring);
+	else
+		head = ring->next_to_clean;
 	tail = readl(ring->tail);
 
 	if (head != tail)
@@ -741,7 +745,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		 * them to be written back in case we stay in NAPI.
 		 * In this mode on X722 we do not enable Interrupt.
 		 */
-		j = i40e_get_tx_pending(tx_ring);
+		j = i40e_get_tx_pending(tx_ring, false);
 
 		if (budget &&
 		    ((j / (WB_STRIDE + 1)) == 0) && (j != 0) &&
@@ -1659,28 +1663,33 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 					rx_bi->page_offset + copysize,
 					rx_packet_len, I40E_RXBUFFER_2048);
 
-			get_page(rx_bi->page);
-			/* switch to the other half-page here; the allocation
-			 * code programs the right addr into HW. If we haven't
-			 * used this half-page, the address won't be changed,
-			 * and HW can just use it next time through.
-			 */
-			rx_bi->page_offset ^= PAGE_SIZE / 2;
 			/* If the page count is more than 2, then both halves
 			 * of the page are used and we need to free it. Do it
 			 * here instead of in the alloc code. Otherwise one
 			 * of the half-pages might be released between now and
 			 * then, and we wouldn't know which one to use.
+			 * Don't call get_page and free_page since those are
+			 * both expensive atomic operations that just change
+			 * the refcount in opposite directions. Just give the
+			 * page to the stack; he can have our refcount.
 			 */
 			if (page_count(rx_bi->page) > 2) {
 				dma_unmap_page(rx_ring->dev,
 					       rx_bi->page_dma,
 					       PAGE_SIZE,
 					       DMA_FROM_DEVICE);
-				__free_page(rx_bi->page);
 				rx_bi->page = NULL;
 				rx_bi->page_dma = 0;
 				rx_ring->rx_stats.realloc_count++;
+			} else {
+				get_page(rx_bi->page);
+				/* switch to the other half-page here; the
+				 * allocation code programs the right addr
+				 * into HW. If we haven't used this half-page,
+				 * the address won't be changed, and HW can
+				 * just use it next time through.
+				 */
+				rx_bi->page_offset ^= PAGE_SIZE / 2;
 			}
 
 		}
@@ -2042,19 +2051,6 @@ tx_only:
 	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
 		i40e_update_enable_itr(vsi, q_vector);
 	} else { /* Legacy mode */
-		struct i40e_hw *hw = &vsi->back->hw;
-		/* We re-enable the queue 0 cause, but
-		 * don't worry about dynamic_enable
-		 * because we left it on for the other
-		 * possible interrupts during napi
-		 */
-		u32 qval = rd32(hw, I40E_QINT_RQCTL(0)) |
-			   I40E_QINT_RQCTL_CAUSE_ENA_MASK;
-
-		wr32(hw, I40E_QINT_RQCTL(0), qval);
-		qval = rd32(hw, I40E_QINT_TQCTL(0)) |
-		       I40E_QINT_TQCTL_CAUSE_ENA_MASK;
-		wr32(hw, I40E_QINT_TQCTL(0), qval);
 		i40e_irq_dynamic_enable_icr0(vsi->back, false);
 	}
 	return 0;

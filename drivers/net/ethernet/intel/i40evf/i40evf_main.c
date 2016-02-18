@@ -38,7 +38,7 @@ static const char i40evf_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 9
+#define DRV_VERSION_BUILD 11
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD) \
@@ -173,6 +173,19 @@ void i40evf_debug_d(void *hw, u32 mask, char *fmt_str, ...)
 }
 
 /**
+ * i40evf_schedule_reset - Set the flags and schedule a reset event
+ * @adapter: board private structure
+ **/
+void i40evf_schedule_reset(struct i40evf_adapter *adapter)
+{
+	if (!(adapter->flags &
+	      (I40EVF_FLAG_RESET_PENDING | I40EVF_FLAG_RESET_NEEDED))) {
+		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
+		schedule_work(&adapter->reset_task);
+	}
+}
+
+/**
  * i40evf_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  **/
@@ -181,11 +194,7 @@ static void i40evf_tx_timeout(struct net_device *netdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	adapter->tx_timeout_count++;
-	if (!(adapter->flags & (I40EVF_FLAG_RESET_PENDING |
-				I40EVF_FLAG_RESET_NEEDED))) {
-		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
-		queue_work(i40evf_wq, &adapter->reset_task);
-	}
+	i40evf_schedule_reset(adapter);
 }
 
 /**
@@ -638,35 +647,22 @@ static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 	int rx_buf_len;
 
 
-	adapter->flags &= ~I40EVF_FLAG_RX_PS_CAPABLE;
-	adapter->flags |= I40EVF_FLAG_RX_1BUF_CAPABLE;
-
-	/* Decide whether to use packet split mode or not */
-	if (netdev->mtu > ETH_DATA_LEN) {
-		if (adapter->flags & I40EVF_FLAG_RX_PS_CAPABLE)
-			adapter->flags |= I40EVF_FLAG_RX_PS_ENABLED;
-		else
-			adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
-	} else {
-		if (adapter->flags & I40EVF_FLAG_RX_1BUF_CAPABLE)
-			adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
-		else
-			adapter->flags |= I40EVF_FLAG_RX_PS_ENABLED;
-	}
-
 	/* Set the RX buffer length according to the mode */
-	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
-		rx_buf_len = I40E_RX_HDR_SIZE;
-	} else {
-		if (netdev->mtu <= ETH_DATA_LEN)
-			rx_buf_len = I40EVF_RXBUFFER_2048;
-		else
-			rx_buf_len = ALIGN(max_frame, 1024);
-	}
+	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED ||
+	    netdev->mtu <= ETH_DATA_LEN)
+		rx_buf_len = I40EVF_RXBUFFER_2048;
+	else
+		rx_buf_len = ALIGN(max_frame, 1024);
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
 		adapter->rx_rings[i].rx_buf_len = rx_buf_len;
+		if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
+			set_ring_ps_enabled(&adapter->rx_rings[i]);
+			adapter->rx_rings[i].rx_hdr_len = I40E_RX_HDR_SIZE;
+		} else {
+			clear_ring_ps_enabled(&adapter->rx_rings[i]);
+		}
 	}
 }
 
@@ -1003,7 +999,12 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		struct i40e_ring *ring = &adapter->rx_rings[i];
 
+	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
+		i40evf_alloc_rx_headers(ring);
+		i40evf_alloc_rx_buffers_ps(ring, ring->count);
+	} else {
 		i40evf_alloc_rx_buffers_1buf(ring, ring->count);
+	}
 		ring->next_to_use = ring->count - 1;
 		writel(ring->next_to_use, ring->tail);
 	}
@@ -1882,6 +1883,7 @@ static void i40evf_reset_task(struct work_struct *work)
 		adapter->netdev->flags &= ~IFF_UP;
 		clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 		adapter->flags &= ~I40EVF_FLAG_RESET_PENDING;
+		adapter->state = __I40EVF_DOWN;
 		dev_info(&adapter->pdev->dev, "Reset task did not complete, VF disabled\n");
 		return; /* Do not attempt to reinit. It's dead, Jim. */
 	}
@@ -2481,6 +2483,11 @@ static void i40evf_init_task(struct work_struct *work)
 	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 
 	adapter->flags |= I40EVF_FLAG_RX_CSUM_ENABLED;
+	adapter->flags |= I40EVF_FLAG_RX_1BUF_CAPABLE;
+	adapter->flags |= I40EVF_FLAG_RX_PS_CAPABLE;
+
+	/* Default to single buffer rx, can be changed through ethtool. */
+	adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
 
 	netdev->netdev_ops = &i40evf_netdev_ops;
 	i40evf_set_ethtool_ops(netdev);

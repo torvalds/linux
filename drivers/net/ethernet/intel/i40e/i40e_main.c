@@ -46,7 +46,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 13
+#define DRV_VERSION_BUILD 15
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -768,7 +768,7 @@ static void i40e_update_fcoe_stats(struct i40e_vsi *vsi)
 	if (vsi->type != I40E_VSI_FCOE)
 		return;
 
-	idx = (pf->pf_seid - I40E_BASE_PF_SEID) + I40E_FCOE_PF_STAT_OFFSET;
+	idx = hw->pf_id + I40E_FCOE_PF_STAT_OFFSET;
 	fs = &vsi->fcoe_stats;
 	ofs = &vsi->fcoe_stats_offsets;
 
@@ -819,6 +819,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	struct i40e_eth_stats *oes;
 	struct i40e_eth_stats *es;     /* device's eth stats */
 	u32 tx_restart, tx_busy;
+	u64 tx_lost_interrupt;
 	struct i40e_ring *p;
 	u32 rx_page, rx_buf;
 	u64 bytes, packets;
@@ -844,6 +845,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	rx_b = rx_p = 0;
 	tx_b = tx_p = 0;
 	tx_restart = tx_busy = tx_linearize = tx_force_wb = 0;
+	tx_lost_interrupt = 0;
 	rx_page = 0;
 	rx_buf = 0;
 	rcu_read_lock();
@@ -862,6 +864,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 		tx_busy += p->tx_stats.tx_busy;
 		tx_linearize += p->tx_stats.tx_linearize;
 		tx_force_wb += p->tx_stats.tx_force_wb;
+		tx_lost_interrupt += p->tx_stats.tx_lost_interrupt;
 
 		/* Rx queue is part of the same block as Tx queue */
 		p = &p[1];
@@ -880,6 +883,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	vsi->tx_busy = tx_busy;
 	vsi->tx_linearize = tx_linearize;
 	vsi->tx_force_wb = tx_force_wb;
+	vsi->tx_lost_interrupt = tx_lost_interrupt;
 	vsi->rx_page_failed = rx_page;
 	vsi->rx_buf_failed = rx_buf;
 
@@ -2118,7 +2122,9 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		cur_promisc = (!!(vsi->current_netdev_flags & IFF_PROMISC) ||
 			       test_bit(__I40E_FILTER_OVERFLOW_PROMISC,
 					&vsi->state));
-		if (vsi->type == I40E_VSI_MAIN && pf->lan_veb != I40E_NO_VEB) {
+		if ((vsi->type == I40E_VSI_MAIN) &&
+		    (pf->lan_veb != I40E_NO_VEB) &&
+		    !(pf->flags & I40E_FLAG_MFP_ENABLED)) {
 			/* set defport ON for Main VSI instead of true promisc
 			 * this way we will get all unicast/multicast and VLAN
 			 * promisc behavior but will not get VF or VMDq traffic
@@ -3456,16 +3462,12 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 		struct i40e_q_vector *q_vector = vsi->q_vectors[0];
 
-		/* temporarily disable queue cause for NAPI processing */
-		u32 qval = rd32(hw, I40E_QINT_RQCTL(0));
-
-		qval &= ~I40E_QINT_RQCTL_CAUSE_ENA_MASK;
-		wr32(hw, I40E_QINT_RQCTL(0), qval);
-
-		qval = rd32(hw, I40E_QINT_TQCTL(0));
-		qval &= ~I40E_QINT_TQCTL_CAUSE_ENA_MASK;
-		wr32(hw, I40E_QINT_TQCTL(0), qval);
-
+		/* We do not have a way to disarm Queue causes while leaving
+		 * interrupt enabled for all other causes, ideally
+		 * interrupt should be disabled while we are in NAPI but
+		 * this is not a performance path and napi_schedule()
+		 * can deal with rescheduling.
+		 */
 		if (!test_bit(__I40E_DOWN, &pf->state))
 			napi_schedule_irqoff(&q_vector->napi);
 	}
@@ -3473,6 +3475,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 	if (icr0 & I40E_PFINT_ICR0_ADMINQ_MASK) {
 		ena_mask &= ~I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
 		set_bit(__I40E_ADMINQ_EVENT_PENDING, &pf->state);
+		i40e_debug(&pf->hw, I40E_DEBUG_NVM, "AdminQ event\n");
 	}
 
 	if (icr0 & I40E_PFINT_ICR0_MAL_DETECT_MASK) {
@@ -4349,7 +4352,7 @@ static void i40e_detect_recover_hung_queue(int q_idx, struct i40e_vsi *vsi)
 {
 	struct i40e_ring *tx_ring = NULL;
 	struct i40e_pf	*pf;
-	u32 head, val, tx_pending;
+	u32 head, val, tx_pending_hw;
 	int i;
 
 	pf = vsi->back;
@@ -4375,16 +4378,9 @@ static void i40e_detect_recover_hung_queue(int q_idx, struct i40e_vsi *vsi)
 	else
 		val = rd32(&pf->hw, I40E_PFINT_DYN_CTL0);
 
-	/* Bail out if interrupts are disabled because napi_poll
-	 * execution in-progress or will get scheduled soon.
-	 * napi_poll cleans TX and RX queues and updates 'next_to_clean'.
-	 */
-	if (!(val & I40E_PFINT_DYN_CTLN_INTENA_MASK))
-		return;
-
 	head = i40e_get_head(tx_ring);
 
-	tx_pending = i40e_get_tx_pending(tx_ring);
+	tx_pending_hw = i40e_get_tx_pending(tx_ring, false);
 
 	/* HW is done executing descriptors, updated HEAD write back,
 	 * but SW hasn't processed those descriptors. If interrupt is
@@ -4392,12 +4388,12 @@ static void i40e_detect_recover_hung_queue(int q_idx, struct i40e_vsi *vsi)
 	 * dev_watchdog detecting timeout on those netdev_queue,
 	 * hence proactively trigger SW interrupt.
 	 */
-	if (tx_pending) {
+	if (tx_pending_hw && (!(val & I40E_PFINT_DYN_CTLN_INTENA_MASK))) {
 		/* NAPI Poll didn't run and clear since it was set */
 		if (test_and_clear_bit(I40E_Q_VECTOR_HUNG_DETECT,
 				       &tx_ring->q_vector->hung_detected)) {
-			netdev_info(vsi->netdev, "VSI_seid %d, Hung TX queue %d, tx_pending: %d, NTC:0x%x, HWB: 0x%x, NTU: 0x%x, TAIL: 0x%x\n",
-				    vsi->seid, q_idx, tx_pending,
+			netdev_info(vsi->netdev, "VSI_seid %d, Hung TX queue %d, tx_pending_hw: %d, NTC:0x%x, HWB: 0x%x, NTU: 0x%x, TAIL: 0x%x\n",
+				    vsi->seid, q_idx, tx_pending_hw,
 				    tx_ring->next_to_clean, head,
 				    tx_ring->next_to_use,
 				    readl(tx_ring->tail));
@@ -4409,6 +4405,17 @@ static void i40e_detect_recover_hung_queue(int q_idx, struct i40e_vsi *vsi)
 			set_bit(I40E_Q_VECTOR_HUNG_DETECT,
 				&tx_ring->q_vector->hung_detected);
 		}
+	}
+
+	/* This is the case where we have interrupts missing,
+	 * so the tx_pending in HW will most likely be 0, but we
+	 * will have tx_pending in SW since the WB happened but the
+	 * interrupt got lost.
+	 */
+	if ((!tx_pending_hw) && i40e_get_tx_pending(tx_ring, true) &&
+	    (!(val & I40E_PFINT_DYN_CTLN_INTENA_MASK))) {
+		if (napi_reschedule(&tx_ring->q_vector->napi))
+			tx_ring->tx_stats.tx_lost_interrupt++;
 	}
 }
 
@@ -6326,7 +6333,9 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		case i40e_aqc_opc_nvm_erase:
 		case i40e_aqc_opc_nvm_update:
 		case i40e_aqc_opc_oem_post_update:
-			i40e_debug(&pf->hw, I40E_DEBUG_NVM, "ARQ NVM operation completed\n");
+			i40e_debug(&pf->hw, I40E_DEBUG_NVM,
+				   "ARQ NVM operation 0x%04x completed\n",
+				   opcode);
 			break;
 		default:
 			dev_info(&pf->pdev->dev,
@@ -11219,8 +11228,8 @@ static void i40e_remove(struct pci_dev *pdev)
 		i40e_vsi_release(pf->vsi[pf->lan_vsi]);
 
 	/* shutdown and destroy the HMC */
-	if (pf->hw.hmc.hmc_obj) {
-		ret_code = i40e_shutdown_lan_hmc(&pf->hw);
+	if (hw->hmc.hmc_obj) {
+		ret_code = i40e_shutdown_lan_hmc(hw);
 		if (ret_code)
 			dev_warn(&pdev->dev,
 				 "Failed to destroy the HMC resources: %d\n",
@@ -11228,7 +11237,7 @@ static void i40e_remove(struct pci_dev *pdev)
 	}
 
 	/* shutdown the adminq */
-	ret_code = i40e_shutdown_adminq(&pf->hw);
+	ret_code = i40e_shutdown_adminq(hw);
 	if (ret_code)
 		dev_warn(&pdev->dev,
 			 "Failed to destroy the Admin Queue resources: %d\n",
@@ -11256,7 +11265,7 @@ static void i40e_remove(struct pci_dev *pdev)
 	kfree(pf->qp_pile);
 	kfree(pf->vsi);
 
-	iounmap(pf->hw.hw_addr);
+	iounmap(hw->hw_addr);
 	kfree(pf);
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));

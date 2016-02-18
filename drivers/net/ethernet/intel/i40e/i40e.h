@@ -64,9 +64,6 @@
 #include "i40e_dcb.h"
 
 /* Useful i40e defaults */
-#define I40E_BASE_PF_SEID     16
-#define I40E_BASE_VSI_SEID    512
-#define I40E_BASE_VEB_SEID    288
 #define I40E_MAX_VEB          16
 
 #define I40E_MAX_NUM_DESCRIPTORS      4096
@@ -512,6 +509,7 @@ struct i40e_vsi {
 	u32 tx_busy;
 	u64 tx_linearize;
 	u64 tx_force_wb;
+	u64 tx_lost_interrupt;
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 

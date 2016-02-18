@@ -270,6 +270,10 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 		vqpi->rxq.max_pkt_size = adapter->netdev->mtu
 					+ ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
 		vqpi->rxq.databuffer_size = adapter->rx_rings[i].rx_buf_len;
+		if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
+			vqpi->rxq.splithdr_enabled = true;
+			vqpi->rxq.hdr_size = I40E_RX_HDR_SIZE;
+		}
 		vqpi++;
 	}
 
