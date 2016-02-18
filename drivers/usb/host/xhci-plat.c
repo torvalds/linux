@@ -116,6 +116,7 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.compatible = "renesas,rcar-gen3-xhci",
 		.data = &xhci_plat_renesas_rcar_gen3,
 	},
+	{},
 };
 MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
 #endif
