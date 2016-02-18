@@ -10,6 +10,7 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/local.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -71,7 +72,7 @@
  * @csdev:	component vitals needed by the framework.
  * @miscdev:	specifics to handle "/dev/xyz.etb" entry.
  * @spinlock:	only one at a time pls.
- * @in_use:	synchronise user space access to etb buffer.
+ * @reading:	synchronise user space access to etb buffer.
  * @buf:	area of memory where ETB buffer content gets sent.
  * @buffer_depth: size of @buf.
  * @enable:	this ETB is being used.
@@ -84,7 +85,7 @@ struct etb_drvdata {
 	struct coresight_device	*csdev;
 	struct miscdevice	miscdev;
 	spinlock_t		spinlock;
-	atomic_t		in_use;
+	local_t			reading;
 	u8			*buf;
 	u32			buffer_depth;
 	bool			enable;
@@ -277,7 +278,7 @@ static int etb_open(struct inode *inode, struct file *file)
 	struct etb_drvdata *drvdata = container_of(file->private_data,
 						   struct etb_drvdata, miscdev);
 
-	if (atomic_cmpxchg(&drvdata->in_use, 0, 1))
+	if (local_cmpxchg(&drvdata->reading, 0, 1))
 		return -EBUSY;
 
 	dev_dbg(drvdata->dev, "%s: successfully opened\n", __func__);
@@ -313,7 +314,7 @@ static int etb_release(struct inode *inode, struct file *file)
 {
 	struct etb_drvdata *drvdata = container_of(file->private_data,
 						   struct etb_drvdata, miscdev);
-	atomic_set(&drvdata->in_use, 0);
+	local_set(&drvdata->reading, 0);
 
 	dev_dbg(drvdata->dev, "%s: released\n", __func__);
 	return 0;
