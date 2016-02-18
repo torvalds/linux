@@ -279,6 +279,14 @@ static void cs_exit(struct dbs_data *dbs_data, bool notify)
 	kfree(dbs_data->tuners);
 }
 
+static void cs_start(struct cpufreq_policy *policy)
+{
+	struct cs_cpu_dbs_info_s *dbs_info = &per_cpu(cs_cpu_dbs_info, policy->cpu);
+
+	dbs_info->down_skip = 0;
+	dbs_info->requested_freq = policy->cur;
+}
+
 define_get_cpu_dbs_routines(cs_cpu_dbs_info);
 
 static struct dbs_governor cs_dbs_gov = {
@@ -295,6 +303,7 @@ static struct dbs_governor cs_dbs_gov = {
 	.gov_dbs_timer = cs_dbs_timer,
 	.init = cs_init,
 	.exit = cs_exit,
+	.start = cs_start,
 };
 
 #define CPU_FREQ_GOV_CONSERVATIVE	(&cs_dbs_gov.gov)

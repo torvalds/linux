@@ -410,6 +410,15 @@ static void od_exit(struct dbs_data *dbs_data, bool notify)
 	kfree(dbs_data->tuners);
 }
 
+static void od_start(struct cpufreq_policy *policy)
+{
+	unsigned int cpu = policy->cpu;
+	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
+
+	dbs_info->sample_type = OD_NORMAL_SAMPLE;
+	od_ops.powersave_bias_init_cpu(cpu);
+}
+
 define_get_cpu_dbs_routines(od_cpu_dbs_info);
 
 static struct od_ops od_ops = {
@@ -432,6 +441,7 @@ static struct dbs_governor od_dbs_gov = {
 	.gov_ops = &od_ops,
 	.init = od_init,
 	.exit = od_exit,
+	.start = od_start,
 };
 
 #define CPU_FREQ_GOV_ONDEMAND	(&od_dbs_gov.gov)

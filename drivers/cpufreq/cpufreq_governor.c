@@ -517,7 +517,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
-	unsigned int sampling_rate, ignore_nice, j, cpu = policy->cpu;
+	unsigned int sampling_rate, ignore_nice, j;
 	unsigned int io_busy;
 
 	if (!policy->cur)
@@ -543,19 +543,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 			j_cdbs->prev_cpu_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 	}
 
-	if (gov->governor == GOV_CONSERVATIVE) {
-		struct cs_cpu_dbs_info_s *cs_dbs_info =
-			gov->get_cpu_dbs_info_s(cpu);
-
-		cs_dbs_info->down_skip = 0;
-		cs_dbs_info->requested_freq = policy->cur;
-	} else {
-		struct od_ops *od_ops = gov->gov_ops;
-		struct od_cpu_dbs_info_s *od_dbs_info = gov->get_cpu_dbs_info_s(cpu);
-
-		od_dbs_info->sample_type = OD_NORMAL_SAMPLE;
-		od_ops->powersave_bias_init_cpu(cpu);
-	}
+	gov->start(policy);
 
 	gov_set_update_util(policy_dbs, sampling_rate);
 	return 0;
