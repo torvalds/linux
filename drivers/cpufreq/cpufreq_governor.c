@@ -385,8 +385,8 @@ static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *poli
 	struct policy_dbs_info *policy_dbs;
 	int j;
 
-	/* Allocate memory for the common information for policy->cpus */
-	policy_dbs = kzalloc(sizeof(*policy_dbs), GFP_KERNEL);
+	/* Allocate memory for per-policy governor data. */
+	policy_dbs = gov->alloc();
 	if (!policy_dbs)
 		return NULL;
 
@@ -421,7 +421,7 @@ static void free_policy_dbs_info(struct cpufreq_policy *policy,
 		j_cdbs->policy_dbs = NULL;
 		j_cdbs->update_util.func = NULL;
 	}
-	kfree(policy_dbs);
+	gov->free(policy_dbs);
 }
 
 static int cpufreq_governor_init(struct cpufreq_policy *policy)
@@ -582,7 +582,6 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 static int cpufreq_governor_stop(struct cpufreq_policy *policy)
 {
 	gov_cancel_work(policy);
-
 	return 0;
 }
 

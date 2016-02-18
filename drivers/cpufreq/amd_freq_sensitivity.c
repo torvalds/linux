@@ -21,7 +21,7 @@
 #include <asm/msr.h>
 #include <asm/cpufeature.h>
 
-#include "cpufreq_governor.h"
+#include "cpufreq_ondemand.h"
 
 #define MSR_AMD64_FREQ_SENSITIVITY_ACTUAL	0xc0010080
 #define MSR_AMD64_FREQ_SENSITIVITY_REFERENCE	0xc0010081
@@ -48,8 +48,7 @@ static unsigned int amd_powersave_bias_target(struct cpufreq_policy *policy,
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *od_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = od_data->tuners;
-	struct od_cpu_dbs_info_s *od_info =
-		dbs_governor_of(policy)->get_cpu_dbs_info_s(policy->cpu);
+	struct od_policy_dbs_info *od_info = to_dbs_info(policy_dbs);
 
 	if (!od_info->freq_table)
 		return freq_next;

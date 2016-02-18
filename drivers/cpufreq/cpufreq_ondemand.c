@@ -16,7 +16,8 @@
 #include <linux/percpu-defs.h>
 #include <linux/slab.h>
 #include <linux/tick.h>
-#include "cpufreq_governor.h"
+
+#include "cpufreq_ondemand.h"
 
 /* On-demand governor macros */
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
@@ -69,9 +70,8 @@ static unsigned int generic_powersave_bias_target(struct cpufreq_policy *policy,
 	unsigned int freq_hi, freq_lo;
 	unsigned int index = 0;
 	unsigned int delay_hi_us;
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info,
-						   policy->cpu);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct od_policy_dbs_info *dbs_info = to_dbs_info(policy_dbs);
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
@@ -114,10 +114,9 @@ static unsigned int generic_powersave_bias_target(struct cpufreq_policy *policy,
 
 static void ondemand_powersave_bias_init(struct cpufreq_policy *policy)
 {
-	unsigned int cpu = policy->cpu;
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
+	struct od_policy_dbs_info *dbs_info = to_dbs_info(policy->governor_data);
 
-	dbs_info->freq_table = cpufreq_frequency_get_table(cpu);
+	dbs_info->freq_table = cpufreq_frequency_get_table(policy->cpu);
 	dbs_info->freq_lo = 0;
 }
 
@@ -144,8 +143,8 @@ static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
  */
 static void od_update(struct cpufreq_policy *policy)
 {
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
-	struct policy_dbs_info *policy_dbs = dbs_info->cdbs.policy_dbs;
+	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct od_policy_dbs_info *dbs_info = to_dbs_info(policy_dbs);
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	unsigned int load = dbs_update(policy);
@@ -182,7 +181,7 @@ static unsigned int od_dbs_timer(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
+	struct od_policy_dbs_info *dbs_info = to_dbs_info(policy_dbs);
 	int sample_type = dbs_info->sample_type;
 
 	/* Common NORMAL_SAMPLE setup */
@@ -347,6 +346,19 @@ static struct attribute *od_attributes[] = {
 
 /************************** sysfs end ************************/
 
+static struct policy_dbs_info *od_alloc(void)
+{
+	struct od_policy_dbs_info *dbs_info;
+
+	dbs_info = kzalloc(sizeof(*dbs_info), GFP_KERNEL);
+	return dbs_info ? &dbs_info->policy_dbs : NULL;
+}
+
+static void od_free(struct policy_dbs_info *policy_dbs)
+{
+	kfree(to_dbs_info(policy_dbs));
+}
+
 static int od_init(struct dbs_data *dbs_data, bool notify)
 {
 	struct od_dbs_tuners *tuners;
@@ -395,7 +407,7 @@ static void od_exit(struct dbs_data *dbs_data, bool notify)
 
 static void od_start(struct cpufreq_policy *policy)
 {
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
+	struct od_policy_dbs_info *dbs_info = to_dbs_info(policy->governor_data);
 
 	dbs_info->sample_type = OD_NORMAL_SAMPLE;
 	ondemand_powersave_bias_init(policy);
@@ -417,6 +429,8 @@ static struct dbs_governor od_dbs_gov = {
 	.kobj_type = { .default_attrs = od_attributes },
 	.get_cpu_cdbs = get_cpu_cdbs,
 	.gov_dbs_timer = od_dbs_timer,
+	.alloc = od_alloc,
+	.free = od_free,
 	.init = od_init,
 	.exit = od_exit,
 	.start = od_start,

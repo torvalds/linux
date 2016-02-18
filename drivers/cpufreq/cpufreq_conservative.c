@@ -14,6 +14,17 @@
 #include <linux/slab.h>
 #include "cpufreq_governor.h"
 
+struct cs_policy_dbs_info {
+	struct policy_dbs_info policy_dbs;
+	unsigned int down_skip;
+	unsigned int requested_freq;
+};
+
+static inline struct cs_policy_dbs_info *to_dbs_info(struct policy_dbs_info *policy_dbs)
+{
+	return container_of(policy_dbs, struct cs_policy_dbs_info, policy_dbs);
+}
+
 /* Conservative governor macros */
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
@@ -48,8 +59,8 @@ static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
  */
 static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 {
-	struct cs_cpu_dbs_info_s *dbs_info = &per_cpu(cs_cpu_dbs_info, policy->cpu);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct cs_policy_dbs_info *dbs_info = to_dbs_info(policy_dbs);
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int load = dbs_update(policy);
@@ -238,6 +249,19 @@ static struct attribute *cs_attributes[] = {
 
 /************************** sysfs end ************************/
 
+static struct policy_dbs_info *cs_alloc(void)
+{
+	struct cs_policy_dbs_info *dbs_info;
+
+	dbs_info = kzalloc(sizeof(*dbs_info), GFP_KERNEL);
+	return dbs_info ? &dbs_info->policy_dbs : NULL;
+}
+
+static void cs_free(struct policy_dbs_info *policy_dbs)
+{
+	kfree(to_dbs_info(policy_dbs));
+}
+
 static int cs_init(struct dbs_data *dbs_data, bool notify)
 {
 	struct cs_dbs_tuners *tuners;
@@ -276,7 +300,7 @@ static void cs_exit(struct dbs_data *dbs_data, bool notify)
 
 static void cs_start(struct cpufreq_policy *policy)
 {
-	struct cs_cpu_dbs_info_s *dbs_info = &per_cpu(cs_cpu_dbs_info, policy->cpu);
+	struct cs_policy_dbs_info *dbs_info = to_dbs_info(policy->governor_data);
 
 	dbs_info->down_skip = 0;
 	dbs_info->requested_freq = policy->cur;
@@ -294,6 +318,8 @@ static struct dbs_governor cs_dbs_gov = {
 	.kobj_type = { .default_attrs = cs_attributes },
 	.get_cpu_cdbs = get_cpu_cdbs,
 	.gov_dbs_timer = cs_dbs_timer,
+	.alloc = cs_alloc,
+	.free = cs_free,
 	.init = cs_init,
 	.exit = cs_exit,
 	.start = cs_start,
@@ -305,9 +331,8 @@ static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 				void *data)
 {
 	struct cpufreq_freqs *freq = data;
-	struct cs_cpu_dbs_info_s *dbs_info =
-					&per_cpu(cs_cpu_dbs_info, freq->cpu);
 	struct cpufreq_policy *policy = cpufreq_cpu_get_raw(freq->cpu);
+	struct cs_policy_dbs_info *dbs_info;
 
 	if (!policy)
 		return 0;
@@ -316,6 +341,7 @@ static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	if (policy->governor != CPU_FREQ_GOV_CONSERVATIVE)
 		return 0;
 
+	dbs_info = to_dbs_info(policy->governor_data);
 	/*
 	 * we only care if our internally tracked freq moves outside the 'valid'
 	 * ranges of frequency available to us otherwise we do not change it
