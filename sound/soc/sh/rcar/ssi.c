@@ -144,27 +144,6 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 		 rsnd_mod_name(mod), rsnd_mod_id(mod));
 }
 
-static int rsnd_ssi_irq(struct rsnd_mod *mod,
-			struct rsnd_dai_stream *io,
-			struct rsnd_priv *priv,
-			int enable)
-{
-	u32 val = 0;
-
-	if (rsnd_is_gen1(priv))
-		return 0;
-
-	if (rsnd_ssi_is_parent(mod, io))
-		return 0;
-
-	if (enable)
-		val = rsnd_ssi_is_dma_mode(mod) ? 0x0e000000 : 0x0f000000;
-
-	rsnd_mod_write(mod, SSI_INT_ENABLE, val);
-
-	return 0;
-}
-
 u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod;
@@ -476,6 +455,27 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	 */
 	rsnd_mod_write(mod, SSICR, cr);	/* disabled all */
 	rsnd_ssi_status_check(mod, IIRQ);
+
+	return 0;
+}
+
+static int rsnd_ssi_irq(struct rsnd_mod *mod,
+			struct rsnd_dai_stream *io,
+			struct rsnd_priv *priv,
+			int enable)
+{
+	u32 val = 0;
+
+	if (rsnd_is_gen1(priv))
+		return 0;
+
+	if (rsnd_ssi_is_parent(mod, io))
+		return 0;
+
+	if (enable)
+		val = rsnd_ssi_is_dma_mode(mod) ? 0x0e000000 : 0x0f000000;
+
+	rsnd_mod_write(mod, SSI_INT_ENABLE, val);
 
 	return 0;
 }
