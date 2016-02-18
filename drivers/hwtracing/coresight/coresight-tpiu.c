@@ -1,5 +1,7 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
+ * Description: CoreSight Trace Port Interface Unit driver
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -11,7 +13,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -218,8 +219,4 @@ static struct amba_driver tpiu_driver = {
 	.probe		= tpiu_probe,
 	.id_table	= tpiu_ids,
 };
-
-module_amba_driver(tpiu_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("CoreSight Trace Port Interface Unit driver");
+builtin_amba_driver(tpiu_driver);

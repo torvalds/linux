@@ -1,5 +1,7 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
+ * Description: CoreSight Program Flow Trace driver
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -11,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -38,6 +40,10 @@
 #include "coresight-etm.h"
 #include "coresight-etm-perf.h"
 
+/*
+ * Not really modular but using module_param is the easiest way to
+ * remain consistent with existing use cases for now.
+ */
 static int boot_enable;
 module_param_named(boot_enable, boot_enable, int, S_IRUGO);
 
@@ -912,8 +918,4 @@ static struct amba_driver etm_driver = {
 	.probe		= etm_probe,
 	.id_table	= etm_ids,
 };
-
-module_amba_driver(etm_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("CoreSight Program Flow Trace driver");
+builtin_amba_driver(etm_driver);

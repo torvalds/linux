@@ -10,7 +10,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/slab.h>
