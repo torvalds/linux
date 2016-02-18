@@ -1077,7 +1077,9 @@ static int __init cdns_early_console_setup(struct earlycon_device *device,
 
 	return 0;
 }
-EARLYCON_DECLARE(cdns, cdns_early_console_setup);
+OF_EARLYCON_DECLARE(cdns, "xlnx,xuartps", cdns_early_console_setup);
+OF_EARLYCON_DECLARE(cdns, "cdns,uart-r1p8", cdns_early_console_setup);
+OF_EARLYCON_DECLARE(cdns, "cdns,uart-r1p12", cdns_early_console_setup);
 
 /**
  * cdns_uart_console_write - perform write operation
