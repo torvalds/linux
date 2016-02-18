@@ -399,10 +399,9 @@ static int lov_set_osc_active(struct obd_device *obd, struct obd_uuid *uuid,
 			CDEBUG(D_INFO, "OSC %s already %sactive!\n",
 			       uuid->uuid, active ? "" : "in");
 			goto out;
-		} else {
-			CDEBUG(D_CONFIG, "Marking OSC %s %sactive\n",
-			       obd_uuid2str(uuid), active ? "" : "in");
 		}
+		CDEBUG(D_CONFIG, "Marking OSC %s %sactive\n",
+		       obd_uuid2str(uuid), active ? "" : "in");
 
 		lov->lov_tgts[index]->ltd_active = active;
 		if (active) {

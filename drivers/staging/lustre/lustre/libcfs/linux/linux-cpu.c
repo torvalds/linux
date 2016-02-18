@@ -850,7 +850,8 @@ cfs_cpt_table_create_pattern(char *pattern)
 			if (*str != 0) {
 				CERROR("Invalid pattern %s\n", str);
 				goto failed;
-			} else if (c != ncpt) {
+			}
+			if (c != ncpt) {
 				CERROR("expect %d partitions but found %d\n",
 				       ncpt, c);
 				goto failed;
