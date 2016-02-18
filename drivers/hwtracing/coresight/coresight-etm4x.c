@@ -187,7 +187,7 @@ static void etm4_enable_hw(void *info)
 	dev_dbg(drvdata->dev, "cpu: %d enable smp call done\n", drvdata->cpu);
 }
 
-static int etm4_enable(struct coresight_device *csdev)
+static int etm4_enable(struct coresight_device *csdev, u32 mode)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret;

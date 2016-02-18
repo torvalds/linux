@@ -222,7 +222,7 @@ static void coresight_disable_link(struct coresight_device *csdev,
 	csdev->enable = false;
 }
 
-static int coresight_enable_source(struct coresight_device *csdev)
+static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
 {
 	int ret;
 
@@ -234,7 +234,7 @@ static int coresight_enable_source(struct coresight_device *csdev)
 
 	if (!csdev->enable) {
 		if (source_ops(csdev)->enable) {
-			ret = source_ops(csdev)->enable(csdev);
+			ret = source_ops(csdev)->enable(csdev, mode);
 			if (ret)
 				return ret;
 		}
@@ -458,7 +458,7 @@ int coresight_enable(struct coresight_device *csdev)
 	if (ret)
 		goto err_path;
 
-	ret = coresight_enable_source(csdev);
+	ret = coresight_enable_source(csdev, CS_MODE_SYSFS);
 	if (ret)
 		goto err_source;
 
