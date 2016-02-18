@@ -35,6 +35,7 @@
 #include <asm/sections.h>
 
 #include "coresight-etm.h"
+#include "coresight-etm-perf.h"
 
 static int boot_enable;
 module_param_named(boot_enable, boot_enable, int, S_IRUGO);
@@ -824,6 +825,12 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->csdev = coresight_register(desc);
 	if (IS_ERR(drvdata->csdev)) {
 		ret = PTR_ERR(drvdata->csdev);
+		goto err_arch_supported;
+	}
+
+	ret = etm_perf_symlink(drvdata->csdev, true);
+	if (ret) {
+		coresight_unregister(drvdata->csdev);
 		goto err_arch_supported;
 	}
 
