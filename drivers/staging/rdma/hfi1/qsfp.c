@@ -102,7 +102,8 @@ int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	ret = hfi1_twsi_reset(ppd->dd, target);
 	if (ret) {
 		hfi1_dev_porterr(ppd->dd, ppd->port,
-				 "I2C write interface reset failed\n");
+				 "I2C chain %d write interface reset failed\n",
+				 target);
 		goto done;
 	}
 
@@ -121,15 +122,14 @@ static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	int ret, cnt, pass = 0;
-	int stuck = 0;
-	u8 *buff = bp;
+	int orig_offset = offset;
 
 	cnt = 0;
 	while (cnt < len) {
 		int rlen = len - cnt;
 
 		ret = hfi1_twsi_blk_rd(dd, target, i2c_addr, offset,
-				       buff + cnt, rlen);
+				       bp + cnt, rlen);
 		/* Some QSFP's fail first try. Retry as experiment */
 		if (ret && cnt == 0 && ++pass < I2C_MAX_RETRY)
 			continue;
@@ -145,14 +145,11 @@ static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 	ret = cnt;
 
 exit:
-	if (stuck)
-		dd_dev_err(dd, "I2C interface bus stuck non-idle\n");
-
-	if (pass >= I2C_MAX_RETRY && ret)
+	if (ret < 0) {
 		hfi1_dev_porterr(dd, ppd->port,
-				 "I2C failed even retrying\n");
-	else if (pass)
-		hfi1_dev_porterr(dd, ppd->port, "I2C retries: %d\n", pass);
+				 "I2C chain %d read failed, addr 0x%x, offset 0x%x, len %d\n",
+				 target, i2c_addr, orig_offset, len);
+	}
 
 	/* Must wait min 20us between qsfp i2c transactions */
 	udelay(20);
@@ -174,7 +171,8 @@ int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	ret = hfi1_twsi_reset(ppd->dd, target);
 	if (ret) {
 		hfi1_dev_porterr(ppd->dd, ppd->port,
-				 "I2C read interface reset failed\n");
+				 "I2C chain %d read interface reset failed\n",
+				 target);
 		goto done;
 	}
 
@@ -206,7 +204,8 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	ret = hfi1_twsi_reset(ppd->dd, target);
 	if (ret) {
 		hfi1_dev_porterr(ppd->dd, ppd->port,
-				 "QSFP write interface reset failed\n");
+				 "QSFP chain %d write interface reset failed\n",
+				 target);
 		mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
 		return ret;
 	}
@@ -221,10 +220,9 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		ret = __i2c_write(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
 				  QSFP_PAGE_SELECT_BYTE_OFFS, &page, 1);
 		if (ret != 1) {
-			hfi1_dev_porterr(
-			ppd->dd,
-			ppd->port,
-			"can't write QSFP_PAGE_SELECT_BYTE: %d\n", ret);
+			hfi1_dev_porterr(ppd->dd, ppd->port,
+					 "QSFP chain %d can't write QSFP_PAGE_SELECT_BYTE: %d\n",
+					 target, ret);
 			ret = -EIO;
 			break;
 		}
@@ -272,7 +270,8 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	ret = hfi1_twsi_reset(ppd->dd, target);
 	if (ret) {
 		hfi1_dev_porterr(ppd->dd, ppd->port,
-				 "QSFP read interface reset failed\n");
+				 "QSFP chain %d read interface reset failed\n",
+				 target);
 		mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
 		return ret;
 	}
@@ -286,10 +285,9 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		ret = __i2c_write(ppd, target, QSFP_DEV | QSFP_OFFSET_SIZE,
 				  QSFP_PAGE_SELECT_BYTE_OFFS, &page, 1);
 		if (ret != 1) {
-			hfi1_dev_porterr(
-			ppd->dd,
-			ppd->port,
-			"can't write QSFP_PAGE_SELECT_BYTE: %d\n", ret);
+			hfi1_dev_porterr(ppd->dd, ppd->port,
+					 "QSFP chain %d can't write QSFP_PAGE_SELECT_BYTE: %d\n",
+					 target, ret);
 			ret = -EIO;
 			break;
 		}
