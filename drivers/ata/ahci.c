@@ -85,6 +85,7 @@ enum board_ids {
 };
 
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+static void ahci_remove_one(struct pci_dev *dev);
 static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 				 unsigned long deadline);
 static int ahci_avn_hardreset(struct ata_link *link, unsigned int *class,
@@ -93,10 +94,14 @@ static void ahci_mcp89_apple_enable(struct pci_dev *pdev);
 static bool is_mcp89_apple(struct pci_dev *pdev);
 static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline);
+#ifdef CONFIG_PM
+static int ahci_pci_device_runtime_suspend(struct device *dev);
+static int ahci_pci_device_runtime_resume(struct device *dev);
 #ifdef CONFIG_PM_SLEEP
 static int ahci_pci_device_suspend(struct device *dev);
 static int ahci_pci_device_resume(struct device *dev);
 #endif
+#endif /* CONFIG_PM */
 
 static struct scsi_host_template ahci_sht = {
 	AHCI_SHT("ahci"),
@@ -559,13 +564,15 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 
 static const struct dev_pm_ops ahci_pci_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ahci_pci_device_suspend, ahci_pci_device_resume)
+	SET_RUNTIME_PM_OPS(ahci_pci_device_runtime_suspend,
+			   ahci_pci_device_runtime_resume, NULL)
 };
 
 static struct pci_driver ahci_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= ahci_pci_tbl,
 	.probe			= ahci_init_one,
-	.remove			= ata_pci_remove_one,
+	.remove			= ahci_remove_one,
 	.driver = {
 		.pm		= &ahci_pci_pm_ops,
 	},
@@ -796,20 +803,12 @@ static int ahci_avn_hardreset(struct ata_link *link, unsigned int *class,
 }
 
 
-#ifdef CONFIG_PM_SLEEP
-static int ahci_pci_device_suspend(struct device *dev)
+#ifdef CONFIG_PM
+static void ahci_pci_disable_interrupts(struct ata_host *host)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct ata_host *host = pci_get_drvdata(pdev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	void __iomem *mmio = hpriv->mmio;
 	u32 ctl;
-
-	if (hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
-		dev_err(&pdev->dev,
-			"BIOS update required for suspend/resume\n");
-		return -EIO;
-	}
 
 	/* AHCI spec rev1.1 section 8.3.3:
 	 * Software must disable interrupts prior to requesting a
@@ -819,7 +818,44 @@ static int ahci_pci_device_suspend(struct device *dev)
 	ctl &= ~HOST_IRQ_EN;
 	writel(ctl, mmio + HOST_CTL);
 	readl(mmio + HOST_CTL); /* flush */
+}
 
+static int ahci_pci_device_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
+
+	ahci_pci_disable_interrupts(host);
+	return 0;
+}
+
+static int ahci_pci_device_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
+	int rc;
+
+	rc = ahci_pci_reset_controller(host);
+	if (rc)
+		return rc;
+	ahci_pci_init_controller(host);
+	return 0;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int ahci_pci_device_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
+	struct ahci_host_priv *hpriv = host->private_data;
+
+	if (hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
+		dev_err(&pdev->dev,
+			"BIOS update required for suspend/resume\n");
+		return -EIO;
+	}
+
+	ahci_pci_disable_interrupts(host);
 	return ata_host_suspend(host, PMSG_SUSPEND);
 }
 
@@ -846,6 +882,8 @@ static int ahci_pci_device_resume(struct device *dev)
 	return 0;
 }
 #endif
+
+#endif /* CONFIG_PM */
 
 static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 {
@@ -1666,7 +1704,18 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	return ahci_host_activate(host, &ahci_sht);
+	rc = ahci_host_activate(host, &ahci_sht);
+	if (rc)
+		return rc;
+
+	pm_runtime_put_noidle(&pdev->dev);
+	return 0;
+}
+
+static void ahci_remove_one(struct pci_dev *pdev)
+{
+	pm_runtime_get_noresume(&pdev->dev);
+	ata_pci_remove_one(pdev);
 }
 
 module_pci_driver(ahci_pci_driver);
