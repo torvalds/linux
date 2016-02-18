@@ -411,6 +411,8 @@ int dquot_acquire(struct dquot *dquot)
 		ret = dqopt->ops[dquot->dq_id.type]->read_dqblk(dquot);
 	if (ret < 0)
 		goto out_iolock;
+	/* Make sure flags update is visible after dquot has been filled */
+	smp_mb__before_atomic();
 	set_bit(DQ_READ_B, &dquot->dq_flags);
 	/* Instantiate dquot if needed */
 	if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags) && !dquot->dq_off) {
@@ -427,6 +429,11 @@ int dquot_acquire(struct dquot *dquot)
 			goto out_iolock;
 		}
 	}
+	/*
+	 * Make sure flags update is visible after on-disk struct has been
+	 * allocated. Paired with smp_rmb() in dqget().
+	 */
+	smp_mb__before_atomic();
 	set_bit(DQ_ACTIVE_B, &dquot->dq_flags);
 out_iolock:
 	mutex_unlock(&dqopt->dqio_mutex);
@@ -887,6 +894,11 @@ we_slept:
 			goto out;
 		}
 	}
+	/*
+	 * Make sure following reads see filled structure - paired with
+	 * smp_mb__before_atomic() in dquot_acquire().
+	 */
+	smp_rmb();
 #ifdef CONFIG_QUOTA_DEBUG
 	BUG_ON(!dquot->dq_sb);	/* Has somebody invalidated entry under us? */
 #endif
