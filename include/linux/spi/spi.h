@@ -586,6 +586,10 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * SPI resource management while processing a SPI message
  */
 
+typedef void (*spi_res_release_t)(struct spi_master *master,
+				  struct spi_message *msg,
+				  void *res);
+
 /**
  * struct spi_res - spi resource management structure
  * @entry:   list entry
@@ -595,9 +599,6 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * this is based on ideas from devres, but focused on life-cycle
  * management during spi_message processing
  */
-typedef void (*spi_res_release_t)(struct spi_master *master,
-				  struct spi_message *msg,
-				  void *res);
 struct spi_res {
 	struct list_head        entry;
 	spi_res_release_t       release;
