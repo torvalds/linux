@@ -423,24 +423,40 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
+static bool omap_crtc_is_plane_prop(struct drm_device *dev,
+	struct drm_property *property)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+
+	return property == priv->zorder_prop ||
+		property == dev->mode_config.rotation_property;
+}
+
 static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
 					 struct drm_crtc_state *state,
 					 struct drm_property *property,
 					 uint64_t val)
 {
-	struct drm_plane_state *plane_state;
-	struct drm_plane *plane = crtc->primary;
+	struct drm_device *dev = crtc->dev;
 
-	/*
-	 * Delegate property set to the primary plane. Get the plane state and
-	 * set the property directly.
-	 */
+	if (omap_crtc_is_plane_prop(dev, property)) {
+		struct drm_plane_state *plane_state;
+		struct drm_plane *plane = crtc->primary;
 
-	plane_state = drm_atomic_get_plane_state(state->state, plane);
-	if (IS_ERR(plane_state))
-		return PTR_ERR(plane_state);
+		/*
+		 * Delegate property set to the primary plane. Get the plane
+		 * state and set the property directly.
+		 */
 
-	return drm_atomic_plane_set_property(plane, plane_state, property, val);
+		plane_state = drm_atomic_get_plane_state(state->state, plane);
+		if (IS_ERR(plane_state))
+			return PTR_ERR(plane_state);
+
+		return drm_atomic_plane_set_property(plane, plane_state,
+				property, val);
+	}
+
+	return -EINVAL;
 }
 
 static int omap_crtc_atomic_get_property(struct drm_crtc *crtc,
@@ -448,14 +464,20 @@ static int omap_crtc_atomic_get_property(struct drm_crtc *crtc,
 					 struct drm_property *property,
 					 uint64_t *val)
 {
-	/*
-	 * Delegate property get to the primary plane. The
-	 * drm_atomic_plane_get_property() function isn't exported, but can be
-	 * called through drm_object_property_get_value() as that will call
-	 * drm_atomic_get_property() for atomic drivers.
-	 */
-	return drm_object_property_get_value(&crtc->primary->base, property,
-					     val);
+	struct drm_device *dev = crtc->dev;
+
+	if (omap_crtc_is_plane_prop(dev, property)) {
+		/*
+		 * Delegate property get to the primary plane. The
+		 * drm_atomic_plane_get_property() function isn't exported, but
+		 * can be called through drm_object_property_get_value() as that
+		 * will call drm_atomic_get_property() for atomic drivers.
+		 */
+		return drm_object_property_get_value(&crtc->primary->base,
+				property, val);
+	}
+
+	return -EINVAL;
 }
 
 static const struct drm_crtc_funcs omap_crtc_funcs = {
