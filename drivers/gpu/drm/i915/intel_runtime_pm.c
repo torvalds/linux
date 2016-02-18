@@ -470,6 +470,43 @@ static void gen9_set_dc_state_debugmask_memory_up(
 	}
 }
 
+static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
+				u32 state)
+{
+	int rewrites = 0;
+	int rereads = 0;
+	u32 v;
+
+	I915_WRITE(DC_STATE_EN, state);
+
+	/* It has been observed that disabling the dc6 state sometimes
+	 * doesn't stick and dmc keeps returning old value. Make sure
+	 * the write really sticks enough times and also force rewrite until
+	 * we are confident that state is exactly what we want.
+	 */
+	do  {
+		v = I915_READ(DC_STATE_EN);
+
+		if (v != state) {
+			I915_WRITE(DC_STATE_EN, state);
+			rewrites++;
+			rereads = 0;
+		} else if (rereads++ > 5) {
+			break;
+		}
+
+	} while (rewrites < 100);
+
+	if (v != state)
+		DRM_ERROR("Writing dc state to 0x%x failed, now 0x%x\n",
+			  state, v);
+
+	/* Most of the times we need one retry, avoid spam */
+	if (rewrites > 1)
+		DRM_DEBUG_KMS("Rewrote dc state to 0x%x %d times\n",
+			      state, rewrites);
+}
+
 static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 {
 	uint32_t val;
@@ -502,8 +539,8 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 
 	val &= ~mask;
 	val |= state;
-	I915_WRITE(DC_STATE_EN, val);
-	POSTING_READ(DC_STATE_EN);
+
+	gen9_write_dc_state(dev_priv, val);
 
 	dev_priv->csr.dc_state = val & mask;
 }
