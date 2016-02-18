@@ -158,8 +158,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		goto flush_fifo;
 	/* Timestamp mismatch. */
 	if (kfifo_len(&st->timestamps) >
-		fifo_count / bytes_per_datum + INV_MPU6050_TIME_STAMP_TOR)
-			goto flush_fifo;
+	    fifo_count / bytes_per_datum + INV_MPU6050_TIME_STAMP_TOR)
+		goto flush_fifo;
 	while (fifo_count >= bytes_per_datum) {
 		result = regmap_bulk_read(st->map, st->reg->fifo_r_w,
 					  data, bytes_per_datum);
