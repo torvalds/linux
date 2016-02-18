@@ -11407,28 +11407,19 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 				dd->rcvhdrtail_dummy_physaddr);
 }
 
-u32 hfi1_read_cntrs(struct hfi1_devdata *dd, loff_t pos, char **namep,
-		    u64 **cntrp)
+u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp)
 {
 	int ret;
 	u64 val = 0;
 
 	if (namep) {
 		ret = dd->cntrnameslen;
-		if (pos != 0) {
-			dd_dev_err(dd, "read_cntrs does not support indexing");
-			return 0;
-		}
 		*namep = dd->cntrnames;
 	} else {
 		const struct cntr_entry *entry;
 		int i, j;
 
 		ret = (dd->ndevcntrs) * sizeof(u64);
-		if (pos != 0) {
-			dd_dev_err(dd, "read_cntrs does not support indexing");
-			return 0;
-		}
 
 		/* Get the start of the block of counters */
 		*cntrp = dd->cntrs;
@@ -11487,30 +11478,19 @@ u32 hfi1_read_cntrs(struct hfi1_devdata *dd, loff_t pos, char **namep,
 /*
  * Used by sysfs to create files for hfi stats to read
  */
-u32 hfi1_read_portcntrs(struct hfi1_devdata *dd, loff_t pos, u32 port,
-			char **namep, u64 **cntrp)
+u32 hfi1_read_portcntrs(struct hfi1_pportdata *ppd, char **namep, u64 **cntrp)
 {
 	int ret;
 	u64 val = 0;
 
 	if (namep) {
-		ret = dd->portcntrnameslen;
-		if (pos != 0) {
-			dd_dev_err(dd, "index not supported");
-			return 0;
-		}
-		*namep = dd->portcntrnames;
+		ret = ppd->dd->portcntrnameslen;
+		*namep = ppd->dd->portcntrnames;
 	} else {
 		const struct cntr_entry *entry;
-		struct hfi1_pportdata *ppd;
 		int i, j;
 
-		ret = (dd->nportcntrs) * sizeof(u64);
-		if (pos != 0) {
-			dd_dev_err(dd, "indexing not supported");
-			return 0;
-		}
-		ppd = (struct hfi1_pportdata *)(dd + 1 + port);
+		ret = ppd->dd->nportcntrs * sizeof(u64);
 		*cntrp = ppd->cntrs;
 
 		for (i = 0; i < PORT_CNTR_LAST; i++) {
