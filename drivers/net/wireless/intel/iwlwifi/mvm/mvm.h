@@ -633,6 +633,8 @@ struct iwl_mvm {
 
 	unsigned long status;
 
+	u32 queue_sync_cookie;
+	atomic_t queue_sync_counter;
 	/*
 	 * for beacon filtering -
 	 * currently only one interface can be supported

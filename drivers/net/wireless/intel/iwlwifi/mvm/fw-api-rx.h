@@ -437,9 +437,11 @@ struct iwl_rxq_sync_notification {
 /**
 * Internal message identifier
 *
+* @IWL_MVM_RXQ_SYNC: sync RSS queues
 * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
 */
 enum iwl_mvm_rxq_notif_type {
+	IWL_MVM_RXQ_SYNC,
 	IWL_MVM_RXQ_NOTIF_DEL_BA,
 };
 
@@ -448,10 +450,12 @@ enum iwl_mvm_rxq_notif_type {
 * in &iwl_rxq_sync_cmd. Should be DWORD aligned.
 *
 * @type: value from &iwl_mvm_rxq_notif_type
+* @cookie: internal cookie to identify old notifications
 * @data: payload
 */
 struct iwl_mvm_internal_rxq_notif {
 	u32 type;
+	u32 cookie;
 	u8 data[];
 } __packed;
 

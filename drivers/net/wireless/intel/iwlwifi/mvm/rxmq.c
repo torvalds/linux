@@ -406,6 +406,13 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	internal_notif = (void *)notif->payload;
 
 	switch (internal_notif->type) {
+	case IWL_MVM_RXQ_SYNC:
+		if (mvm->queue_sync_cookie == internal_notif->cookie)
+			atomic_dec(&mvm->queue_sync_counter);
+		else
+			WARN_ONCE(1,
+				  "Received expired RX queue sync message\n");
+		break;
 	case IWL_MVM_RXQ_NOTIF_DEL_BA:
 		/* TODO */
 		break;

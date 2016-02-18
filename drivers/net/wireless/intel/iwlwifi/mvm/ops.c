@@ -586,6 +586,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	skb_queue_head_init(&mvm->d0i3_tx);
 	init_waitqueue_head(&mvm->d0i3_exit_waitq);
 
+	atomic_set(&mvm->queue_sync_counter, 0);
+
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
 	/*

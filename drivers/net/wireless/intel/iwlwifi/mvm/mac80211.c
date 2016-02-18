@@ -4037,6 +4037,47 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 	}
 }
 
+static void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm)
+{
+	struct iwl_mvm_internal_rxq_notif data = {
+		.type = IWL_MVM_RXQ_SYNC,
+		.cookie = mvm->queue_sync_cookie,
+	};
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(notif_waitq);
+	u32 qmask = BIT(mvm->trans->num_rx_queues) - 1;
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!iwl_mvm_has_new_rx_api(mvm))
+		return;
+
+	atomic_set(&mvm->queue_sync_counter, mvm->trans->num_rx_queues);
+
+	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)&data, sizeof(data));
+	if (ret) {
+		IWL_ERR(mvm, "Failed to trigger RX queues sync (%d)\n", ret);
+		goto out;
+	}
+	ret = wait_event_timeout(notif_waitq,
+				 atomic_read(&mvm->queue_sync_counter) == 0,
+				 HZ);
+	WARN_ON_ONCE(!ret);
+
+out:
+	atomic_set(&mvm->queue_sync_counter, 0);
+	mvm->queue_sync_cookie++;
+}
+
+static void iwl_mvm_sync_rx_queues(struct ieee80211_hw *hw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_sync_rx_queues_internal(mvm);
+	mutex_unlock(&mvm->mutex);
+}
+
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -4092,6 +4133,8 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tdls_recv_channel_switch = iwl_mvm_tdls_recv_channel_switch,
 
 	.event_callback = iwl_mvm_mac_event_callback,
+
+	.sync_rx_queues = iwl_mvm_sync_rx_queues,
 
 	CFG80211_TESTMODE_CMD(iwl_mvm_mac_testmode_cmd)
 
