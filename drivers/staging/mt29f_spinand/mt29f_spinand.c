@@ -175,7 +175,7 @@ static int wait_till_ready(struct spi_device *spi_nand)
 		retval = spinand_read_status(spi_nand, &stat);
 		if (retval < 0)
 			return -1;
-		else if (!(stat & 0x1))
+		if (!(stat & 0x1))
 			break;
 
 		cond_resched();
