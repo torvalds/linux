@@ -147,6 +147,7 @@
 			compatible = "qcom,gcc-msm8996";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0x300000 0x90000>;
 		};
 
@@ -251,6 +252,7 @@
 			compatible = "qcom,mmcc-msm8996";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0x8c0000 0x40000>;
 			assigned-clocks = <&mmcc MMPLL9_PLL>,
 					  <&mmcc MMPLL1_PLL>,
