@@ -1310,9 +1310,10 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 
 	if (vxlan_collect_metadata(vs)) {
+		__be32 vni = vxlan_vni(vxlan_hdr(skb)->vx_vni);
+
 		tun_dst = udp_tun_rx_dst(skb, vxlan_get_sk_family(vs), TUNNEL_KEY,
-					 vxlan_vni(vxlan_hdr(skb)->vx_vni),
-					 sizeof(*md));
+					 vxlan_vni_to_tun_id(vni), sizeof(*md));
 
 		if (!tun_dst)
 			goto drop;
