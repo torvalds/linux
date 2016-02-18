@@ -134,10 +134,9 @@ enum cfs_trace_buf_type cfs_trace_buf_idx_get(void)
 {
 	if (in_irq())
 		return CFS_TCD_TYPE_IRQ;
-	else if (in_softirq())
+	if (in_softirq())
 		return CFS_TCD_TYPE_SOFTIRQ;
-	else
-		return CFS_TCD_TYPE_PROC;
+	return CFS_TCD_TYPE_PROC;
 }
 
 /*

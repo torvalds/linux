@@ -233,8 +233,7 @@ int cfs_crypto_hash_speed(unsigned char hash_alg)
 {
 	if (hash_alg < CFS_HASH_ALG_MAX)
 		return cfs_crypto_hash_speeds[hash_alg];
-	else
-		return -1;
+	return -1;
 }
 EXPORT_SYMBOL(cfs_crypto_hash_speed);
 
