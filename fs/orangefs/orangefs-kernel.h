@@ -259,7 +259,7 @@ static inline void set_op_state_purged(struct orangefs_kernel_op_s *op)
 {
 	spin_lock(&op->lock);
 	if (unlikely(op_is_cancel(op))) {
-		list_del(&op->list);
+		list_del_init(&op->list);
 		spin_unlock(&op->lock);
 		put_cancel(op);
 	} else {

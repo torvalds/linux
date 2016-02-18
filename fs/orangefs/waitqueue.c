@@ -208,15 +208,20 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
 	 * Called with op->lock held.
 	 */
 	op->op_state |= OP_VFS_STATE_GIVEN_UP;
-
-	if (op_state_waiting(op)) {
+	/* from that point on it can't be moved by anybody else */
+	if (list_empty(&op->list)) {
+		/* caught copying to/from daemon */
+		BUG_ON(op_state_serviced(op));
+		spin_unlock(&op->lock);
+		wait_for_completion(&op->waitq);
+	} else if (op_state_waiting(op)) {
 		/*
 		 * upcall hasn't been read; remove op from upcall request
 		 * list.
 		 */
 		spin_unlock(&op->lock);
 		spin_lock(&orangefs_request_list_lock);
-		list_del(&op->list);
+		list_del_init(&op->list);
 		spin_unlock(&orangefs_request_list_lock);
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "Interrupted: Removed op %p from request_list\n",
@@ -225,23 +230,16 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
 		/* op must be removed from the in progress htable */
 		spin_unlock(&op->lock);
 		spin_lock(&htable_ops_in_progress_lock);
-		list_del(&op->list);
+		list_del_init(&op->list);
 		spin_unlock(&htable_ops_in_progress_lock);
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "Interrupted: Removed op %p"
 			     " from htable_ops_in_progress\n",
 			     op);
-	} else if (!op_state_serviced(op)) {
+	} else {
 		spin_unlock(&op->lock);
 		gossip_err("interrupted operation is in a weird state 0x%x\n",
 			   op->op_state);
-	} else {
-		/*
-		 * It is not intended for execution to flow here,
-		 * but having this unlock here makes sparse happy.
-		 */
-		gossip_err("%s: can't get here.\n", __func__);
-		spin_unlock(&op->lock);
 	}
 	reinit_completion(&op->waitq);
 }
