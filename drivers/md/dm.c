@@ -556,17 +556,17 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return dm_get_geometry(md, geo);
 }
 
-static int dm_get_live_table_for_ioctl(struct mapped_device *md,
-				       struct block_device **bdev,
-				       fmode_t *mode, int *srcu_idx)
+static int dm_grab_bdev_for_ioctl(struct mapped_device *md,
+				  struct block_device **bdev,
+				  fmode_t *mode)
 {
 	struct dm_target *tgt;
 	struct dm_table *map;
-	int r;
+	int srcu_idx, r;
 
 retry:
 	r = -ENOTTY;
-	map = dm_get_live_table(md, srcu_idx);
+	map = dm_get_live_table(md, &srcu_idx);
 	if (!map || !dm_table_get_size(map))
 		goto out;
 
@@ -587,10 +587,12 @@ retry:
 	if (r < 0)
 		goto out;
 
+	bdgrab(*bdev);
+	dm_put_live_table(md, srcu_idx);
 	return r;
 
 out:
-	dm_put_live_table(md, *srcu_idx);
+	dm_put_live_table(md, srcu_idx);
 	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
 		msleep(10);
 		goto retry;
@@ -602,9 +604,9 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
-	int srcu_idx, r;
+	int r;
 
-	r = dm_get_live_table_for_ioctl(md, &bdev, &mode, &srcu_idx);
+	r = dm_grab_bdev_for_ioctl(md, &bdev, &mode);
 	if (r < 0)
 		return r;
 
@@ -621,7 +623,7 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 
 	r =  __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 out:
-	dm_put_live_table(md, srcu_idx);
+	bdput(bdev);
 	return r;
 }
 
@@ -3552,14 +3554,14 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 }
 
 static int dm_pr_register(struct block_device *bdev, u64 old_key, u64 new_key,
-		u32 flags)
+			  u32 flags)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int srcu_idx, r;
+	int r;
 
-	r = dm_get_live_table_for_ioctl(md, &bdev, &mode, &srcu_idx);
+	r = dm_grab_bdev_for_ioctl(md, &bdev, &mode);
 	if (r < 0)
 		return r;
 
@@ -3569,19 +3571,19 @@ static int dm_pr_register(struct block_device *bdev, u64 old_key, u64 new_key,
 	else
 		r = -EOPNOTSUPP;
 
-	dm_put_live_table(md, srcu_idx);
+	bdput(bdev);
 	return r;
 }
 
 static int dm_pr_reserve(struct block_device *bdev, u64 key, enum pr_type type,
-		u32 flags)
+			 u32 flags)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int srcu_idx, r;
+	int r;
 
-	r = dm_get_live_table_for_ioctl(md, &bdev, &mode, &srcu_idx);
+	r = dm_grab_bdev_for_ioctl(md, &bdev, &mode);
 	if (r < 0)
 		return r;
 
@@ -3591,7 +3593,7 @@ static int dm_pr_reserve(struct block_device *bdev, u64 key, enum pr_type type,
 	else
 		r = -EOPNOTSUPP;
 
-	dm_put_live_table(md, srcu_idx);
+	bdput(bdev);
 	return r;
 }
 
@@ -3600,9 +3602,9 @@ static int dm_pr_release(struct block_device *bdev, u64 key, enum pr_type type)
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int srcu_idx, r;
+	int r;
 
-	r = dm_get_live_table_for_ioctl(md, &bdev, &mode, &srcu_idx);
+	r = dm_grab_bdev_for_ioctl(md, &bdev, &mode);
 	if (r < 0)
 		return r;
 
@@ -3612,19 +3614,19 @@ static int dm_pr_release(struct block_device *bdev, u64 key, enum pr_type type)
 	else
 		r = -EOPNOTSUPP;
 
-	dm_put_live_table(md, srcu_idx);
+	bdput(bdev);
 	return r;
 }
 
 static int dm_pr_preempt(struct block_device *bdev, u64 old_key, u64 new_key,
-		enum pr_type type, bool abort)
+			 enum pr_type type, bool abort)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int srcu_idx, r;
+	int r;
 
-	r = dm_get_live_table_for_ioctl(md, &bdev, &mode, &srcu_idx);
+	r = dm_grab_bdev_for_ioctl(md, &bdev, &mode);
 	if (r < 0)
 		return r;
 
@@ -3634,7 +3636,7 @@ static int dm_pr_preempt(struct block_device *bdev, u64 old_key, u64 new_key,
 	else
 		r = -EOPNOTSUPP;
 
-	dm_put_live_table(md, srcu_idx);
+	bdput(bdev);
 	return r;
 }
 
@@ -3643,9 +3645,9 @@ static int dm_pr_clear(struct block_device *bdev, u64 key)
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int srcu_idx, r;
+	int r;
 
-	r = dm_get_live_table_for_ioctl(md, &bdev, &mode, &srcu_idx);
+	r = dm_grab_bdev_for_ioctl(md, &bdev, &mode);
 	if (r < 0)
 		return r;
 
@@ -3655,7 +3657,7 @@ static int dm_pr_clear(struct block_device *bdev, u64 key)
 	else
 		r = -EOPNOTSUPP;
 
-	dm_put_live_table(md, srcu_idx);
+	bdput(bdev);
 	return r;
 }
 
