@@ -128,6 +128,11 @@ void __init opal_msglog_init(void)
 
 void __init opal_msglog_sysfs_init(void)
 {
+	if (!opal_memcons) {
+		pr_warn("OPAL: message log initialisation failed, not creating sysfs entry\n");
+		return;
+	}
+
 	if (sysfs_create_bin_file(opal_kobj, &opal_msglog_attr) != 0)
 		pr_warn("OPAL: sysfs file creation failed\n");
 }
