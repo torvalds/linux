@@ -383,7 +383,7 @@ static inline int check_driver_override(struct rvt_dev_info *rdi,
 	return 1;
 }
 
-static int check_support(struct rvt_dev_info *rdi, int verb)
+static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 {
 	switch (verb) {
 	case MISC:
