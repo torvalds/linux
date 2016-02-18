@@ -140,7 +140,8 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 		udelay(50);
 	}
 
-	dev_warn(dev, "status check failed\n");
+	dev_warn(dev, "%s[%d] status check failed\n",
+		 rsnd_mod_name(mod), rsnd_mod_id(mod));
 }
 
 static int rsnd_ssi_irq(struct rsnd_mod *mod,
