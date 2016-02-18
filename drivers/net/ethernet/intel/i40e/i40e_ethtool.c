@@ -1826,28 +1826,52 @@ static int i40e_set_phys_id(struct net_device *netdev,
 			    enum ethtool_phys_id_state state)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	i40e_status ret = 0;
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	int blink_freq = 2;
+	u16 temp_status;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		pf->led_status = i40e_led_get(hw);
+		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY)) {
+			pf->led_status = i40e_led_get(hw);
+		} else {
+			i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_PORT, NULL);
+			ret = i40e_led_get_phy(hw, &temp_status,
+					       &pf->phy_led_val);
+			pf->led_status = temp_status;
+		}
 		return blink_freq;
 	case ETHTOOL_ID_ON:
-		i40e_led_set(hw, 0xF, false);
+		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY))
+			i40e_led_set(hw, 0xf, false);
+		else
+			ret = i40e_led_set_phy(hw, true, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_OFF:
-		i40e_led_set(hw, 0x0, false);
+		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY))
+			i40e_led_set(hw, 0x0, false);
+		else
+			ret = i40e_led_set_phy(hw, false, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_INACTIVE:
-		i40e_led_set(hw, pf->led_status, false);
+		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY)) {
+			i40e_led_set(hw, false, pf->led_status);
+		} else {
+			ret = i40e_led_set_phy(hw, false, pf->led_status,
+					       (pf->phy_led_val |
+					       I40E_PHY_LED_MODE_ORIG));
+			i40e_aq_set_phy_debug(hw, 0, NULL);
+		}
 		break;
 	default:
 		break;
 	}
-
-	return 0;
+		if (ret)
+			return -ENOENT;
+		else
+			return 0;
 }
 
 /* NOTE: i40e hardware uses a conversion factor of 2 for Interrupt

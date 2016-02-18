@@ -1888,6 +1888,32 @@ i40e_status i40e_aq_set_phy_int_mask(struct i40e_hw *hw,
 }
 
 /**
+ * i40e_aq_set_phy_debug
+ * @hw: pointer to the hw struct
+ * @cmd_flags: debug command flags
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Reset the external PHY.
+ **/
+enum i40e_status_code i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
+					struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_phy_debug *cmd =
+		(struct i40e_aqc_set_phy_debug *)&desc.params.raw;
+	enum i40e_status_code status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_phy_debug);
+
+	cmd->command_flags = cmd_flags;
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
  * i40e_aq_add_vsi
  * @hw: pointer to the hw struct
  * @vsi_ctx: pointer to a vsi context struct

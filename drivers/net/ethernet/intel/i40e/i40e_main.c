@@ -11130,6 +11130,10 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i40e_add_filter_to_drop_tx_flow_control_frames(&pf->hw,
 						       pf->main_vsi_seid);
 
+	if ((pf->hw.device_id == I40E_DEV_ID_10G_BASE_T) ||
+	    (pf->hw.device_id == I40E_DEV_ID_10G_BASE_T4))
+		pf->flags |= I40E_FLAG_HAVE_10GBASET_PHY;
+
 	/* print a string summarizing features */
 	i40e_print_features(pf);
 
