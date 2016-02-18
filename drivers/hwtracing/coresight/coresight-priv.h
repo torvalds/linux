@@ -34,6 +34,12 @@
 #define TIMEOUT_US		100
 #define BMVAL(val, lsb, msb)	((val & GENMASK(msb, lsb)) >> lsb)
 
+enum cs_mode {
+	CS_MODE_DISABLED,
+	CS_MODE_SYSFS,
+	CS_MODE_PERF,
+};
+
 static inline void CS_LOCK(void __iomem *addr)
 {
 	do {

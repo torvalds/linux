@@ -306,7 +306,7 @@ int etm_get_trace_id(struct etm_drvdata *drvdata)
 	if (!drvdata)
 		goto out;
 
-	if (!drvdata->enable)
+	if (!local_read(&drvdata->mode))
 		return drvdata->traceid;
 
 	pm_runtime_get_sync(drvdata->dev);
@@ -332,7 +332,7 @@ static int etm_trace_id(struct coresight_device *csdev)
 	return etm_get_trace_id(drvdata);
 }
 
-static int etm_enable(struct coresight_device *csdev)
+static int etm_enable_sysfs(struct coresight_device *csdev)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret;
@@ -351,15 +351,41 @@ static int etm_enable(struct coresight_device *csdev)
 			goto err;
 	}
 
-	drvdata->enable = true;
 	drvdata->sticky_enable = true;
-
 	spin_unlock(&drvdata->spinlock);
 
 	dev_info(drvdata->dev, "ETM tracing enabled\n");
 	return 0;
+
 err:
 	spin_unlock(&drvdata->spinlock);
+	return ret;
+}
+
+static int etm_enable(struct coresight_device *csdev, u32 mode)
+{
+	int ret;
+	u32 val;
+	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	val = local_cmpxchg(&drvdata->mode, CS_MODE_DISABLED, mode);
+
+	/* Someone is already using the tracer */
+	if (val)
+		return -EBUSY;
+
+	switch (mode) {
+	case CS_MODE_SYSFS:
+		ret = etm_enable_sysfs(csdev);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	/* The tracer didn't start */
+	if (ret)
+		local_set(&drvdata->mode, CS_MODE_DISABLED);
+
 	return ret;
 }
 
@@ -387,7 +413,7 @@ static void etm_disable_hw(void *info)
 	dev_dbg(drvdata->dev, "cpu: %d disable smp call done\n", drvdata->cpu);
 }
 
-static void etm_disable(struct coresight_device *csdev)
+static void etm_disable_sysfs(struct coresight_device *csdev)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -405,12 +431,38 @@ static void etm_disable(struct coresight_device *csdev)
 	 * ensures that register writes occur when cpu is powered.
 	 */
 	smp_call_function_single(drvdata->cpu, etm_disable_hw, drvdata, 1);
-	drvdata->enable = false;
 
 	spin_unlock(&drvdata->spinlock);
 	put_online_cpus();
 
 	dev_info(drvdata->dev, "ETM tracing disabled\n");
+}
+
+static void etm_disable(struct coresight_device *csdev)
+{
+	u32 mode;
+	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	/*
+	 * For as long as the tracer isn't disabled another entity can't
+	 * change its status.  As such we can read the status here without
+	 * fearing it will change under us.
+	 */
+	mode = local_read(&drvdata->mode);
+
+	switch (mode) {
+	case CS_MODE_DISABLED:
+		break;
+	case CS_MODE_SYSFS:
+		etm_disable_sysfs(csdev);
+		break;
+	default:
+		WARN_ON_ONCE(mode);
+		return;
+	}
+
+	if (mode)
+		local_set(&drvdata->mode, CS_MODE_DISABLED);
 }
 
 static const struct coresight_ops_source etm_source_ops = {
@@ -440,7 +492,7 @@ static int etm_cpu_callback(struct notifier_block *nfb, unsigned long action,
 			etmdrvdata[cpu]->os_unlock = true;
 		}
 
-		if (etmdrvdata[cpu]->enable)
+		if (local_read(&etmdrvdata[cpu]->mode))
 			etm_enable_hw(etmdrvdata[cpu]);
 		spin_unlock(&etmdrvdata[cpu]->spinlock);
 		break;
@@ -453,7 +505,7 @@ static int etm_cpu_callback(struct notifier_block *nfb, unsigned long action,
 
 	case CPU_DYING:
 		spin_lock(&etmdrvdata[cpu]->spinlock);
-		if (etmdrvdata[cpu]->enable)
+		if (local_read(&etmdrvdata[cpu]->mode))
 			etm_disable_hw(etmdrvdata[cpu]);
 		spin_unlock(&etmdrvdata[cpu]->spinlock);
 		break;
