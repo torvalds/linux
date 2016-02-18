@@ -529,9 +529,6 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 	else if (i915.enable_dc == 1 && state > DC_STATE_EN_UPTO_DC5)
 		state = DC_STATE_EN_UPTO_DC5;
 
-	if (state & DC_STATE_EN_UPTO_DC5_DC6_MASK)
-		gen9_set_dc_state_debugmask(dev_priv);
-
 	val = I915_READ(DC_STATE_EN);
 	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
 		      val & mask, state);
@@ -2122,8 +2119,8 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	skl_init_cdclk(dev_priv);
 
-	if (dev_priv->csr.dmc_payload)
-		intel_csr_load_program(dev_priv);
+	if (dev_priv->csr.dmc_payload && intel_csr_load_program(dev_priv))
+		gen9_set_dc_state_debugmask(dev_priv);
 }
 
 static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
