@@ -1841,7 +1841,7 @@ reclassify:
 			return err;
 	}
 
-	return -1;
+	return TC_ACT_UNSPEC; /* signal: continue lookup */
 #ifdef CONFIG_NET_CLS_ACT
 reset:
 	if (unlikely(limit++ >= MAX_REC_LOOP)) {
