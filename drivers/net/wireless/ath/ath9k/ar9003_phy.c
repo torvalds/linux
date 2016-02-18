@@ -976,8 +976,13 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	/*
 	 * JAPAN regulatory.
 	 */
-	if (chan->channel == 2484)
+	if (chan->channel == 2484) {
 		ar9003_hw_prog_ini(ah, &ah->iniCckfirJapan2484, 1);
+
+		if (AR_SREV_9531(ah))
+			REG_RMW_FIELD(ah, AR_PHY_FCAL_2_0,
+				      AR_PHY_FLC_PWR_THRESH, 0);
+	}
 
 	ah->modes_index = modesIndex;
 	ar9003_hw_override_ini(ah);
