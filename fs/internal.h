@@ -108,6 +108,7 @@ extern long do_handle_open(int mountdirfd,
 			   struct file_handle __user *ufh, int open_flag);
 extern int open_check_o_direct(struct file *f);
 extern int vfs_open(const struct path *, struct file *, const struct cred *);
+extern struct file *filp_clone_open(struct file *);
 
 /*
  * inode.c
