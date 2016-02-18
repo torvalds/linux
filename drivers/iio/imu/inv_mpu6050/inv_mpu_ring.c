@@ -57,7 +57,7 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 
 	/* reset FIFO*/
 	result = regmap_write(st->map, st->reg->user_ctrl,
-					INV_MPU6050_BIT_FIFO_RST);
+			      INV_MPU6050_BIT_FIFO_RST);
 	if (result)
 		goto reset_fifo_fail;
 
@@ -68,13 +68,13 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 	if (st->chip_config.accl_fifo_enable ||
 	    st->chip_config.gyro_fifo_enable) {
 		result = regmap_write(st->map, st->reg->int_enable,
-					INV_MPU6050_BIT_DATA_RDY_EN);
+				      INV_MPU6050_BIT_DATA_RDY_EN);
 		if (result)
 			return result;
 	}
 	/* enable FIFO reading and I2C master interface*/
 	result = regmap_write(st->map, st->reg->user_ctrl,
-					INV_MPU6050_BIT_FIFO_EN);
+			      INV_MPU6050_BIT_FIFO_EN);
 	if (result)
 		goto reset_fifo_fail;
 	/* enable sensor output to FIFO */
@@ -92,7 +92,7 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 reset_fifo_fail:
 	dev_err(regmap_get_device(st->map), "reset fifo failed %d\n", result);
 	result = regmap_write(st->map, st->reg->int_enable,
-					INV_MPU6050_BIT_DATA_RDY_EN);
+			      INV_MPU6050_BIT_DATA_RDY_EN);
 
 	return result;
 }
@@ -109,7 +109,7 @@ irqreturn_t inv_mpu6050_irq_handler(int irq, void *p)
 
 	timestamp = iio_get_time_ns();
 	kfifo_in_spinlocked(&st->timestamps, &timestamp, 1,
-				&st->time_stamp_lock);
+			    &st->time_stamp_lock);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -143,9 +143,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	 * read fifo_count register to know how many bytes inside FIFO
 	 * right now
 	 */
-	result = regmap_bulk_read(st->map,
-				       st->reg->fifo_count_h,
-				       data, INV_MPU6050_FIFO_COUNT_BYTE);
+	result = regmap_bulk_read(st->map, st->reg->fifo_count_h, data,
+				  INV_MPU6050_FIFO_COUNT_BYTE);
 	if (result)
 		goto end_session;
 	fifo_count = be16_to_cpup((__be16 *)(&data[0]));
@@ -172,7 +171,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 			timestamp = 0;
 
 		result = iio_push_to_buffers_with_timestamp(indio_dev, data,
-			timestamp);
+							    timestamp);
 		if (result)
 			goto flush_fifo;
 		fifo_count -= bytes_per_datum;

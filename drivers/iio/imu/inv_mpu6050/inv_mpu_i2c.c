@@ -111,7 +111,7 @@ static int inv_mpu6050_deselect_bypass(struct i2c_adapter *adap,
  *  Returns 0 on success, a negative error code otherwise.
  */
 static int inv_mpu_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct inv_mpu6050_state *st;
 	int result;

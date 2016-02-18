@@ -121,7 +121,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 			/* switch internal clock to PLL */
 			mgmt_1 |= INV_CLK_PLL;
 			result = regmap_write(st->map,
-					st->reg->pwr_mgmt_1, mgmt_1);
+					      st->reg->pwr_mgmt_1, mgmt_1);
 			if (result)
 				return result;
 		}
@@ -196,14 +196,14 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 		return result;
 
 	memcpy(&st->chip_config, hw_info[st->chip_type].config,
-		sizeof(struct inv_mpu6050_chip_config));
+	       sizeof(struct inv_mpu6050_chip_config));
 	result = inv_mpu6050_set_power_itg(st, false);
 
 	return result;
 }
 
 static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
-				int axis, int *val)
+				   int axis, int *val)
 {
 	int ind, result;
 	__be16 d;
@@ -217,11 +217,11 @@ static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
 	return IIO_VAL_INT;
 }
 
-static int inv_mpu6050_read_raw(struct iio_dev *indio_dev,
-			      struct iio_chan_spec const *chan,
-			      int *val,
-			      int *val2,
-			      long mask) {
+static int
+inv_mpu6050_read_raw(struct iio_dev *indio_dev,
+		     struct iio_chan_spec const *chan,
+		     int *val, int *val2, long mask)
+{
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
 
 	switch (mask) {
@@ -241,16 +241,16 @@ static int inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			if (!st->chip_config.gyro_fifo_enable ||
-					!st->chip_config.enable) {
+			    !st->chip_config.enable) {
 				result = inv_mpu6050_switch_engine(st, true,
 						INV_MPU6050_BIT_PWR_GYRO_STBY);
 				if (result)
 					goto error_read_raw;
 			}
 			ret =  inv_mpu6050_sensor_show(st, st->reg->raw_gyro,
-						chan->channel2, val);
+						       chan->channel2, val);
 			if (!st->chip_config.gyro_fifo_enable ||
-					!st->chip_config.enable) {
+			    !st->chip_config.enable) {
 				result = inv_mpu6050_switch_engine(st, false,
 						INV_MPU6050_BIT_PWR_GYRO_STBY);
 				if (result)
@@ -259,16 +259,16 @@ static int inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 			break;
 		case IIO_ACCEL:
 			if (!st->chip_config.accl_fifo_enable ||
-					!st->chip_config.enable) {
+			    !st->chip_config.enable) {
 				result = inv_mpu6050_switch_engine(st, true,
 						INV_MPU6050_BIT_PWR_ACCL_STBY);
 				if (result)
 					goto error_read_raw;
 			}
 			ret = inv_mpu6050_sensor_show(st, st->reg->raw_accl,
-						chan->channel2, val);
+						      chan->channel2, val);
 			if (!st->chip_config.accl_fifo_enable ||
-					!st->chip_config.enable) {
+			    !st->chip_config.enable) {
 				result = inv_mpu6050_switch_engine(st, false,
 						INV_MPU6050_BIT_PWR_ACCL_STBY);
 				if (result)
@@ -279,7 +279,7 @@ static int inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 			/* wait for stablization */
 			msleep(INV_MPU6050_SENSOR_UP_TIME);
 			inv_mpu6050_sensor_show(st, st->reg->temperature,
-							IIO_MOD_X, val);
+						IIO_MOD_X, val);
 			break;
 		default:
 			ret = -EINVAL;
@@ -387,10 +387,9 @@ static int inv_mpu6050_write_accel_scale(struct inv_mpu6050_state *st, int val)
 }
 
 static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       int val,
-			       int val2,
-			       long mask) {
+				 struct iio_chan_spec const *chan,
+				 int val, int val2, long mask)
+{
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
 	int result;
 
@@ -467,8 +466,9 @@ static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 /**
  * inv_mpu6050_fifo_rate_store() - Set fifo rate.
  */
-static ssize_t inv_mpu6050_fifo_rate_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t
+inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	s32 fifo_rate;
 	u8 d;
@@ -479,7 +479,7 @@ static ssize_t inv_mpu6050_fifo_rate_store(struct device *dev,
 	if (kstrtoint(buf, 10, &fifo_rate))
 		return -EINVAL;
 	if (fifo_rate < INV_MPU6050_MIN_FIFO_RATE ||
-				fifo_rate > INV_MPU6050_MAX_FIFO_RATE)
+	    fifo_rate > INV_MPU6050_MAX_FIFO_RATE)
 		return -EINVAL;
 	if (fifo_rate == st->chip_config.fifo_rate)
 		return count;
@@ -515,8 +515,9 @@ fifo_rate_fail:
 /**
  * inv_fifo_rate_show() - Get the current sampling rate.
  */
-static ssize_t inv_fifo_rate_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t
+inv_fifo_rate_show(struct device *dev, struct device_attribute *attr,
+		   char *buf)
 {
 	struct inv_mpu6050_state *st = iio_priv(dev_to_iio_dev(dev));
 
@@ -527,8 +528,8 @@ static ssize_t inv_fifo_rate_show(struct device *dev,
  * inv_attr_show() - calling this function will show current
  *                    parameters.
  */
-static ssize_t inv_attr_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t inv_attr_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct inv_mpu6050_state *st = iio_priv(dev_to_iio_dev(dev));
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
@@ -676,11 +677,11 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 		return result;
 
 	result = inv_mpu6050_switch_engine(st, false,
-					INV_MPU6050_BIT_PWR_ACCL_STBY);
+					   INV_MPU6050_BIT_PWR_ACCL_STBY);
 	if (result)
 		return result;
 	result = inv_mpu6050_switch_engine(st, false,
-					INV_MPU6050_BIT_PWR_GYRO_STBY);
+					   INV_MPU6050_BIT_PWR_GYRO_STBY);
 	if (result)
 		return result;
 
