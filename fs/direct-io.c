@@ -472,8 +472,8 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
 		dio->io_error = -EIO;
 
 	if (dio->is_async && dio->rw == READ && dio->should_dirty) {
-		bio_check_pages_dirty(bio);	/* transfers ownership */
 		err = bio->bi_error;
+		bio_check_pages_dirty(bio);	/* transfers ownership */
 	} else {
 		bio_for_each_segment_all(bvec, bio, i) {
 			struct page *page = bvec->bv_page;
