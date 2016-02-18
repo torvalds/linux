@@ -24,3 +24,7 @@ static inline struct od_policy_dbs_info *to_dbs_info(struct policy_dbs_info *pol
 {
 	return container_of(policy_dbs, struct od_policy_dbs_info, policy_dbs);
 }
+
+struct od_dbs_tuners {
+	unsigned int powersave_bias;
+};

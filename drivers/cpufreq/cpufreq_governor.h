@@ -148,16 +148,6 @@ struct cpu_dbs_info {
 	struct policy_dbs_info *policy_dbs;
 };
 
-/* Per policy Governors sysfs tunables */
-struct od_dbs_tuners {
-	unsigned int powersave_bias;
-};
-
-struct cs_dbs_tuners {
-	unsigned int down_threshold;
-	unsigned int freq_step;
-};
-
 /* Common Governor data across policies */
 struct dbs_governor {
 	struct cpufreq_governor gov;

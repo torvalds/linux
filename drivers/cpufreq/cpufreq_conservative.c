@@ -25,6 +25,11 @@ static inline struct cs_policy_dbs_info *to_dbs_info(struct policy_dbs_info *pol
 	return container_of(policy_dbs, struct cs_policy_dbs_info, policy_dbs);
 }
 
+struct cs_dbs_tuners {
+	unsigned int down_threshold;
+	unsigned int freq_step;
+};
+
 /* Conservative governor macros */
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
