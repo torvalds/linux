@@ -265,7 +265,7 @@ static int tmc_enable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
 	return 0;
 }
 
-static int tmc_enable_sink(struct coresight_device *csdev)
+static int tmc_enable_sink(struct coresight_device *csdev, u32 mode)
 {
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
