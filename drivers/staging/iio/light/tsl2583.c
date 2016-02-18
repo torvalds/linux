@@ -267,7 +267,8 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 
 	if (!ch0) {
 		/* have no data, so return LAST VALUE */
-		ret = chip->als_cur_info.lux = 0;
+		ret = 0;
+		chip->als_cur_info.lux = 0;
 		goto out_unlock;
 	}
 	/* calculate ratio */
@@ -292,7 +293,8 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 	/* note: lux is 31 bit max at this point */
 	if (ch1lux > ch0lux) {
 		dev_dbg(&chip->client->dev, "No Data - Return last value\n");
-		ret = chip->als_cur_info.lux = 0;
+		ret = 0;
+		chip->als_cur_info.lux = 0;
 		goto out_unlock;
 	}
 
