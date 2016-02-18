@@ -237,7 +237,6 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 	}
 
 	skb_reset_mac_header(skb);
-	skb_scrub_packet(skb, !net_eq(geneve->net, dev_net(geneve->dev)));
 	skb->protocol = eth_type_trans(skb, geneve->dev);
 	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
@@ -356,7 +355,8 @@ static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	opts_len = geneveh->opt_len * 4;
 	if (iptunnel_pull_header(skb, GENEVE_BASE_HLEN + opts_len,
-				 htons(ETH_P_TEB)))
+				 htons(ETH_P_TEB),
+				 !net_eq(geneve->net, dev_net(geneve->dev))))
 		goto drop;
 
 	geneve_rx(geneve, gs, skb);

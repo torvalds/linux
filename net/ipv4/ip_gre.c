@@ -238,7 +238,7 @@ static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return -EINVAL;
 		}
 	}
-	return iptunnel_pull_header(skb, hdr_len, tpi->proto);
+	return iptunnel_pull_header(skb, hdr_len, tpi->proto, false);
 }
 
 static void ipgre_err(struct sk_buff *skb, u32 info,

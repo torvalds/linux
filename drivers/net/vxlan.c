@@ -1198,7 +1198,6 @@ static void vxlan_rcv(struct vxlan_dev *vxlan, struct vxlan_sock *vs,
 	int err = 0;
 
 	skb_reset_mac_header(skb);
-	skb_scrub_packet(skb, !net_eq(vxlan->net, dev_net(vxlan->dev)));
 	skb->protocol = eth_type_trans(skb, vxlan->dev);
 	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
@@ -1305,7 +1304,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (!vxlan)
 		goto drop;
 
-	if (iptunnel_pull_header(skb, VXLAN_HLEN, htons(ETH_P_TEB)))
+	if (iptunnel_pull_header(skb, VXLAN_HLEN, htons(ETH_P_TEB),
+				 !net_eq(vxlan->net, dev_net(vxlan->dev))))
 		goto drop;
 
 	if (vxlan_collect_metadata(vs)) {
