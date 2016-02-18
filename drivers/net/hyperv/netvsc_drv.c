@@ -550,6 +550,8 @@ do_send:
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
 					       skb, packet, &pb);
 
+	/* timestamp packet in software */
+	skb_tx_timestamp(skb);
 	ret = netvsc_send(net_device_ctx->device_ctx, packet,
 			  rndis_msg, &pb, skb);
 
@@ -920,6 +922,7 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 	.get_channels   = netvsc_get_channels,
 	.set_channels   = netvsc_set_channels,
+	.get_ts_info	= ethtool_op_get_ts_info,
 };
 
 static const struct net_device_ops device_ops = {
