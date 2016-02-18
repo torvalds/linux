@@ -440,13 +440,6 @@ static int __sysmmu_enable(struct sysmmu_drvdata *data, phys_addr_t pgtable,
 	return ret;
 }
 
-static void __sysmmu_tlb_invalidate_flpdcache(struct sysmmu_drvdata *data,
-					      sysmmu_iova_t iova)
-{
-	if (data->version == MAKE_MMU_VER(3, 3))
-		__raw_writel(iova | 0x1, data->sfrbase + REG_MMU_FLUSH_ENTRY);
-}
-
 static void sysmmu_tlb_invalidate_flpdcache(struct sysmmu_drvdata *data,
 					    sysmmu_iova_t iova)
 {
@@ -455,8 +448,10 @@ static void sysmmu_tlb_invalidate_flpdcache(struct sysmmu_drvdata *data,
 	clk_enable(data->clk_master);
 
 	spin_lock_irqsave(&data->lock, flags);
-	if (is_sysmmu_active(data))
-		__sysmmu_tlb_invalidate_flpdcache(data, iova);
+	if (is_sysmmu_active(data)) {
+		if (data->version >= MAKE_MMU_VER(3, 3))
+			__sysmmu_tlb_invalidate_entry(data, iova, 1);
+	}
 	spin_unlock_irqrestore(&data->lock, flags);
 
 	clk_disable(data->clk_master);
