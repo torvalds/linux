@@ -124,6 +124,8 @@ struct qed_sp_vport_update_params {
 	u8				update_vport_active_tx_flg;
 	u8				vport_active_tx_flg;
 	u8				update_approx_mcast_flg;
+	u8				update_accept_any_vlan_flg;
+	u8				accept_any_vlan;
 	unsigned long			bins[8];
 	struct qed_rss_params		*rss_params;
 	struct qed_filter_accept_flags	accept_flags;
@@ -393,7 +395,9 @@ qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	p_cmn->update_rx_active_flg = p_params->update_vport_active_rx_flg;
 	p_cmn->tx_active_flg = p_params->vport_active_tx_flg;
 	p_cmn->update_tx_active_flg = p_params->update_vport_active_tx_flg;
-
+	p_cmn->accept_any_vlan = p_params->accept_any_vlan;
+	p_cmn->update_accept_any_vlan_flg =
+			p_params->update_accept_any_vlan_flg;
 	rc = qed_sp_vport_update_rss(p_hwfn, p_ramrod, p_rss_params);
 	if (rc) {
 		/* Return spq entry which is taken in qed_sp_init_request()*/
@@ -444,8 +448,10 @@ static int qed_sp_vport_stop(struct qed_hwfn *p_hwfn,
 static int qed_filter_accept_cmd(struct qed_dev *cdev,
 				 u8 vport,
 				 struct qed_filter_accept_flags accept_flags,
-				 enum spq_mode comp_mode,
-				 struct qed_spq_comp_cb *p_comp_data)
+				 u8 update_accept_any_vlan,
+				 u8 accept_any_vlan,
+				enum spq_mode comp_mode,
+				struct qed_spq_comp_cb *p_comp_data)
 {
 	struct qed_sp_vport_update_params vport_update_params;
 	int i, rc;
@@ -454,6 +460,8 @@ static int qed_filter_accept_cmd(struct qed_dev *cdev,
 	memset(&vport_update_params, 0, sizeof(vport_update_params));
 	vport_update_params.vport_id = vport;
 	vport_update_params.accept_flags = accept_flags;
+	vport_update_params.update_accept_any_vlan_flg = update_accept_any_vlan;
+	vport_update_params.accept_any_vlan = accept_any_vlan;
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -471,6 +479,10 @@ static int qed_filter_accept_cmd(struct qed_dev *cdev,
 			   "Accept filter configured, flags = [Rx]%x [Tx]%x\n",
 			   accept_flags.rx_accept_filter,
 			   accept_flags.tx_accept_filter);
+		if (update_accept_any_vlan)
+			DP_VERBOSE(p_hwfn, QED_MSG_SP,
+				   "accept_any_vlan=%d configured\n",
+				   accept_any_vlan);
 	}
 
 	return 0;
@@ -1347,6 +1359,9 @@ static int qed_update_vport(struct qed_dev *cdev,
 		params->update_vport_active_flg;
 	sp_params.vport_active_rx_flg = params->vport_active_flg;
 	sp_params.vport_active_tx_flg = params->vport_active_flg;
+	sp_params.accept_any_vlan = params->accept_any_vlan;
+	sp_params.update_accept_any_vlan_flg =
+		params->update_accept_any_vlan_flg;
 
 	/* RSS - is a bit tricky, since upper-layer isn't familiar with hwfns.
 	 * We need to re-fix the rss values per engine for CMT.
@@ -1566,7 +1581,7 @@ static int qed_configure_filter_rx_mode(struct qed_dev *cdev,
 	else if (type == QED_FILTER_RX_MODE_TYPE_MULTI_PROMISC)
 		accept_flags.rx_accept_filter |= QED_ACCEPT_MCAST_UNMATCHED;
 
-	return qed_filter_accept_cmd(cdev, 0, accept_flags,
+	return qed_filter_accept_cmd(cdev, 0, accept_flags, false, false,
 				     QED_SPQ_MODE_CB, NULL);
 }
 

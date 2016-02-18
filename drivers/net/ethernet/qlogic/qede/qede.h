@@ -100,6 +100,12 @@ struct qede_stats {
 	u64 tx_mac_ctrl_frames;
 };
 
+struct qede_vlan {
+	struct list_head list;
+	u16 vid;
+	bool configured;
+};
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -154,6 +160,10 @@ struct qede_dev {
 	u16			q_num_rx_buffers; /* Must be a power of two */
 	u16			q_num_tx_buffers; /* Must be a power of two */
 
+	struct list_head vlan_list;
+	u16 configured_vlans;
+	u16 non_configured_vlans;
+	bool accept_any_vlan;
 	struct delayed_work		sp_task;
 	unsigned long			sp_flags;
 };
