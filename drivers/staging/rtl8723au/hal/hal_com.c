@@ -328,7 +328,7 @@ int c2h_evt_read23a(struct rtw_adapter *adapter, u8 *buf)
 
 	if (trigger == C2H_EVT_HOST_CLOSE)
 		goto exit;	/* Not ready */
-	else if (trigger != C2H_EVT_FW_CLOSE)
+	if (trigger != C2H_EVT_FW_CLOSE)
 		goto clear_evt;	/* Not a valid value */
 
 	c2h_evt = (struct c2h_evt_hdr *)buf;
