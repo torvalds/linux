@@ -1526,8 +1526,31 @@ static struct omap_hwmod dra7xx_ocp2scp3_hwmod = {
  *
  */
 
+/*
+ * As noted in documentation for _reset() in omap_hwmod.c, the stock reset
+ * functionality of OMAP HWMOD layer does not deassert the hardreset lines
+ * associated with an IP automatically leaving the driver to handle that
+ * by itself. This does not work for PCIeSS which needs the reset lines
+ * deasserted for the driver to start accessing registers.
+ *
+ * We use a PCIeSS HWMOD class specific reset handler to deassert the hardreset
+ * lines after asserting them.
+ */
+static int dra7xx_pciess_reset(struct omap_hwmod *oh)
+{
+	int i;
+
+	for (i = 0; i < oh->rst_lines_cnt; i++) {
+		omap_hwmod_assert_hardreset(oh, oh->rst_lines[i].name);
+		omap_hwmod_deassert_hardreset(oh, oh->rst_lines[i].name);
+	}
+
+	return 0;
+}
+
 static struct omap_hwmod_class dra7xx_pciess_hwmod_class = {
 	.name	= "pcie",
+	.reset	= dra7xx_pciess_reset,
 };
 
 /* pcie1 */
