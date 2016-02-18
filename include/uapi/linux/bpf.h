@@ -83,6 +83,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_PERF_EVENT_ARRAY,
 	BPF_MAP_TYPE_PERCPU_HASH,
 	BPF_MAP_TYPE_PERCPU_ARRAY,
+	BPF_MAP_TYPE_STACK_TRACE,
 };
 
 enum bpf_prog_type {
@@ -272,6 +273,20 @@ enum bpf_func_id {
 	 */
 	BPF_FUNC_perf_event_output,
 	BPF_FUNC_skb_load_bytes,
+
+	/**
+	 * bpf_get_stackid(ctx, map, flags) - walk user or kernel stack and return id
+	 * @ctx: struct pt_regs*
+	 * @map: pointer to stack_trace map
+	 * @flags: bits 0-7 - numer of stack frames to skip
+	 *         bit 8 - collect user stack instead of kernel
+	 *         bit 9 - compare stacks by hash only
+	 *         bit 10 - if two different stacks hash into the same stackid
+	 *                  discard old
+	 *         other bits - reserved
+	 * Return: >= 0 stackid on success or negative error
+	 */
+	BPF_FUNC_get_stackid,
 	__BPF_FUNC_MAX_ID,
 };
 
@@ -293,6 +308,12 @@ enum bpf_func_id {
 
 /* BPF_FUNC_skb_set_tunnel_key and BPF_FUNC_skb_get_tunnel_key flags. */
 #define BPF_F_TUNINFO_IPV6		(1ULL << 0)
+
+/* BPF_FUNC_get_stackid flags. */
+#define BPF_F_SKIP_FIELD_MASK		0xffULL
+#define BPF_F_USER_STACK		(1ULL << 8)
+#define BPF_F_FAST_STACK_CMP		(1ULL << 9)
+#define BPF_F_REUSE_STACKID		(1ULL << 10)
 
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
