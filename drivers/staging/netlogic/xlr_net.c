@@ -437,8 +437,10 @@ static void *xlr_config_spill(struct xlr_net_priv *priv, int reg_start_0,
 	base = priv->base_addr;
 	spill_size = size;
 	spill = kmalloc(spill_size + SMP_CACHE_BYTES, GFP_ATOMIC);
-	if (!spill)
+	if (!spill) {
 		pr_err("Unable to allocate memory for spill area!\n");
+		return ZERO_SIZE_PTR;
+	}
 
 	spill = PTR_ALIGN(spill, SMP_CACHE_BYTES);
 	phys_addr = virt_to_phys(spill);
