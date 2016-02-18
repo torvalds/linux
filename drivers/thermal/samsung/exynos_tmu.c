@@ -1310,7 +1310,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	 * TODO: Add regulator as an SOC feature, so that regulator enable
 	 * is a compulsory call.
 	 */
-	data->regulator = devm_regulator_get(&pdev->dev, "vtmu");
+	data->regulator = devm_regulator_get_optional(&pdev->dev, "vtmu");
 	if (!IS_ERR(data->regulator)) {
 		ret = regulator_enable(data->regulator);
 		if (ret) {
