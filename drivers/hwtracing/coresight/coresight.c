@@ -234,7 +234,7 @@ static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
 
 	if (!csdev->enable) {
 		if (source_ops(csdev)->enable) {
-			ret = source_ops(csdev)->enable(csdev, mode);
+			ret = source_ops(csdev)->enable(csdev, NULL, mode);
 			if (ret)
 				return ret;
 		}
