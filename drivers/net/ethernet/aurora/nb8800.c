@@ -302,7 +302,7 @@ static int nb8800_poll(struct napi_struct *napi, int budget)
 	nb8800_tx_done(dev);
 
 again:
-	while (work < budget) {
+	do {
 		struct nb8800_rx_buf *rxb;
 		unsigned int len;
 
@@ -330,7 +330,7 @@ again:
 		rxd->report = 0;
 		last = next;
 		work++;
-	}
+	} while (work < budget);
 
 	if (work) {
 		priv->rx_descs[last].desc.config |= DESC_EOC;

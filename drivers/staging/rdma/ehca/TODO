@@ -1,4 +1,0 @@
-9/2015
-
-The ehca driver has been deprecated and moved to drivers/staging/rdma.
-It will be removed in the 4.6 merge window.

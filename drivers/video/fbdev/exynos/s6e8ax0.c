@@ -829,8 +829,7 @@ static int s6e8ax0_probe(struct mipi_dsim_lcd_device *dsim_dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int s6e8ax0_suspend(struct mipi_dsim_lcd_device *dsim_dev)
+static int __maybe_unused s6e8ax0_suspend(struct mipi_dsim_lcd_device *dsim_dev)
 {
 	struct s6e8ax0 *lcd = dev_get_drvdata(&dsim_dev->dev);
 
@@ -843,7 +842,7 @@ static int s6e8ax0_suspend(struct mipi_dsim_lcd_device *dsim_dev)
 	return 0;
 }
 
-static int s6e8ax0_resume(struct mipi_dsim_lcd_device *dsim_dev)
+static int __maybe_unused s6e8ax0_resume(struct mipi_dsim_lcd_device *dsim_dev)
 {
 	struct s6e8ax0 *lcd = dev_get_drvdata(&dsim_dev->dev);
 
@@ -855,10 +854,6 @@ static int s6e8ax0_resume(struct mipi_dsim_lcd_device *dsim_dev)
 
 	return 0;
 }
-#else
-#define s6e8ax0_suspend		NULL
-#define s6e8ax0_resume		NULL
-#endif
 
 static struct mipi_dsim_lcd_driver s6e8ax0_dsim_ddi_driver = {
 	.name = "s6e8ax0",
@@ -867,8 +862,8 @@ static struct mipi_dsim_lcd_driver s6e8ax0_dsim_ddi_driver = {
 	.power_on = s6e8ax0_power_on,
 	.set_sequence = s6e8ax0_set_sequence,
 	.probe = s6e8ax0_probe,
-	.suspend = s6e8ax0_suspend,
-	.resume = s6e8ax0_resume,
+	.suspend = IS_ENABLED(CONFIG_PM) ? s6e8ax0_suspend : NULL,
+	.resume = IS_ENABLED(CONFIG_PM) ? s6e8ax0_resume : NULL,
 };
 
 static int s6e8ax0_init(void)
