@@ -54,6 +54,7 @@ static inline void CS_UNLOCK(void __iomem *addr)
 
 void coresight_disable_path(struct list_head *path);
 int coresight_enable_path(struct list_head *path);
+struct coresight_device *coresight_get_sink(struct list_head *path);
 struct list_head *coresight_build_path(struct coresight_device *csdev);
 void coresight_release_path(struct list_head *path);
 
