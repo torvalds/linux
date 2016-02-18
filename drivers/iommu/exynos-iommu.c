@@ -284,6 +284,28 @@ static void __sysmmu_set_ptbase(struct sysmmu_drvdata *data, phys_addr_t pgd)
 	__sysmmu_tlb_invalidate(data);
 }
 
+static void __sysmmu_get_version(struct sysmmu_drvdata *data)
+{
+	u32 ver;
+
+	clk_enable(data->clk_master);
+	clk_enable(data->clk);
+
+	ver = __raw_readl(data->sfrbase + REG_MMU_VERSION);
+
+	/* controllers on some SoCs don't report proper version */
+	if (ver == 0x80000001u)
+		data->version = MAKE_MMU_VER(1, 0);
+	else
+		data->version = MMU_RAW_VER(ver);
+
+	dev_dbg(data->sysmmu, "hardware version: %d.%d\n",
+		MMU_MAJ_VER(data->version), MMU_MIN_VER(data->version));
+
+	clk_disable(data->clk);
+	clk_disable(data->clk_master);
+}
+
 static void show_fault_information(struct sysmmu_drvdata *data,
 				   const struct sysmmu_fault_info *finfo,
 				   sysmmu_iova_t fault_addr)
@@ -385,7 +407,6 @@ static void __sysmmu_init_config(struct sysmmu_drvdata *data)
 {
 	unsigned int cfg;
 
-	data->version = MMU_RAW_VER(__raw_readl(data->sfrbase + REG_MMU_VERSION));
 	if (data->version <= MAKE_MMU_VER(3, 1))
 		cfg = CFG_LRU | CFG_QOS(15);
 	else if (data->version <= MAKE_MMU_VER(3, 2))
@@ -551,6 +572,7 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
+	__sysmmu_get_version(data);
 	pm_runtime_enable(dev);
 
 	return 0;
