@@ -15,7 +15,6 @@
 #include <linux/clk.h>
 #include <linux/coresight.h>
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -198,5 +197,4 @@ static struct amba_driver replicator_driver = {
 	.probe		= replicator_probe,
 	.id_table	= replicator_ids,
 };
-
-module_amba_driver(replicator_driver);
+builtin_amba_driver(replicator_driver);

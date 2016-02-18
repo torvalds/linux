@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -2710,5 +2709,4 @@ static struct amba_driver etm4x_driver = {
 	.probe		= etm4_probe,
 	.id_table	= etm4_ids,
 };
-
-module_amba_driver(etm4x_driver);
+builtin_amba_driver(etm4x_driver);

@@ -1,5 +1,7 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
+ * Description: CoreSight Embedded Trace Buffer driver
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -12,7 +14,6 @@
 
 #include <asm/local.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -781,8 +782,4 @@ static struct amba_driver etb_driver = {
 	.probe		= etb_probe,
 	.id_table	= etb_ids,
 };
-
-module_amba_driver(etb_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("CoreSight Embedded Trace Buffer driver");
+builtin_amba_driver(etb_driver);
