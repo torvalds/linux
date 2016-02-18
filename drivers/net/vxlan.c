@@ -1187,21 +1187,15 @@ out:
 	unparsed->vx_flags &= ~VXLAN_GBP_USED_BITS;
 }
 
-static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
-		      struct vxlan_metadata *md, __be32 vni,
+static void vxlan_rcv(struct vxlan_dev *vxlan, struct vxlan_sock *vs,
+		      struct sk_buff *skb, struct vxlan_metadata *md,
 		      struct metadata_dst *tun_dst)
 {
 	struct iphdr *oip = NULL;
 	struct ipv6hdr *oip6 = NULL;
-	struct vxlan_dev *vxlan;
 	struct pcpu_sw_netstats *stats;
 	union vxlan_addr saddr;
 	int err = 0;
-
-	/* Is this VNI defined? */
-	vxlan = vxlan_vs_find_vni(vs, vni);
-	if (!vxlan)
-		goto drop;
 
 	skb_reset_mac_header(skb);
 	skb_scrub_packet(skb, !net_eq(vxlan->net, dev_net(vxlan->dev)));
@@ -1281,6 +1275,7 @@ drop:
 static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct metadata_dst *tun_dst = NULL;
+	struct vxlan_dev *vxlan;
 	struct vxlan_sock *vs;
 	struct vxlanhdr unparsed;
 	struct vxlan_metadata _md;
@@ -1302,11 +1297,15 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	unparsed.vx_flags &= ~VXLAN_HF_VNI;
 	unparsed.vx_vni &= ~VXLAN_VNI_MASK;
 
-	if (iptunnel_pull_header(skb, VXLAN_HLEN, htons(ETH_P_TEB)))
-		goto drop;
-
 	vs = rcu_dereference_sk_user_data(sk);
 	if (!vs)
+		goto drop;
+
+	vxlan = vxlan_vs_find_vni(vs, vxlan_vni(vxlan_hdr(skb)->vx_vni));
+	if (!vxlan)
+		goto drop;
+
+	if (iptunnel_pull_header(skb, VXLAN_HLEN, htons(ETH_P_TEB)))
 		goto drop;
 
 	if (vxlan_collect_metadata(vs)) {
@@ -1344,7 +1343,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	vxlan_rcv(vs, skb, md, vxlan_vni(vxlan_hdr(skb)->vx_vni), tun_dst);
+	vxlan_rcv(vxlan, vs, skb, md, tun_dst);
 	return 0;
 
 drop:
