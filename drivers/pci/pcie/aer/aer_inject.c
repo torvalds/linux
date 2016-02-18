@@ -492,6 +492,9 @@ static int aer_inject(struct aer_error_inj *einj)
 			ret = -EPROTONOSUPPORT;
 			goto out_put;
 		}
+		dev_info(&edev->device,
+			 "aer_inject: Injecting errors %08x/%08x into device %s\n",
+			 einj->cor_status, einj->uncor_status, pci_name(dev));
 		aer_irq(-1, edev);
 	} else {
 		dev_err(&rpdev->dev, "aer_inject: AER device not found\n");
