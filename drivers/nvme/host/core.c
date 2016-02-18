@@ -915,6 +915,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 		return -EIO;
 	}
 
+	ctrl->vid = le16_to_cpu(id->vid);
 	ctrl->oncs = le16_to_cpup(&id->oncs);
 	atomic_set(&ctrl->abort_limit, id->acl + 1);
 	ctrl->vwc = id->vwc;
@@ -1053,6 +1054,30 @@ static ssize_t nvme_sysfs_reset(struct device *dev,
 }
 static DEVICE_ATTR(reset_controller, S_IWUSR, NULL, nvme_sysfs_reset);
 
+static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
+								char *buf)
+{
+	struct nvme_ns *ns = dev_to_disk(dev)->private_data;
+	struct nvme_ctrl *ctrl = ns->ctrl;
+	int serial_len = sizeof(ctrl->serial);
+	int model_len = sizeof(ctrl->model);
+
+	if (memchr_inv(ns->uuid, 0, sizeof(ns->uuid)))
+		return sprintf(buf, "eui.%16phN\n", ns->uuid);
+
+	if (memchr_inv(ns->eui, 0, sizeof(ns->eui)))
+		return sprintf(buf, "eui.%8phN\n", ns->eui);
+
+	while (ctrl->serial[serial_len - 1] == ' ')
+		serial_len--;
+	while (ctrl->model[model_len - 1] == ' ')
+		model_len--;
+
+	return sprintf(buf, "nvme.%04x-%*phN-%*phN-%08x\n", ctrl->vid,
+		serial_len, ctrl->serial, model_len, ctrl->model, ns->ns_id);
+}
+static DEVICE_ATTR(wwid, S_IRUGO, wwid_show, NULL);
+
 static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
@@ -1078,6 +1103,7 @@ static ssize_t nsid_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(nsid, S_IRUGO, nsid_show, NULL);
 
 static struct attribute *nvme_ns_attrs[] = {
+	&dev_attr_wwid.attr,
 	&dev_attr_uuid.attr,
 	&dev_attr_eui.attr,
 	&dev_attr_nsid.attr,
