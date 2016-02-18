@@ -446,6 +446,16 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 	rcu_read_lock();
 	ppd = private2ppd(file);
 
+	/* byte offset format: [offsetSize][i2cAddr][offsetHigh][offsetLow] */
+	i2c_addr = (*ppos >> 16) & 0xffff;
+	offset = *ppos & 0xffff;
+
+	/* explicitly reject invalid address 0 to catch cp and cat */
+	if (i2c_addr == 0) {
+		ret = -EINVAL;
+		goto _return;
+	}
+
 	buff = kmalloc(count, GFP_KERNEL);
 	if (!buff) {
 		ret = -ENOMEM;
@@ -457,10 +467,6 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 		ret = -EFAULT;
 		goto _free;
 	}
-
-	/* byte offset format: [offsetSize][i2cAddr][offsetHigh][offsetLow] */
-	i2c_addr = (*ppos >> 16) & 0xffff;
-	offset = *ppos & 0xffff;
 
 	total_written = i2c_write(ppd, target, i2c_addr, offset, buff, count);
 	if (total_written < 0) {
@@ -507,15 +513,21 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 	rcu_read_lock();
 	ppd = private2ppd(file);
 
+	/* byte offset format: [offsetSize][i2cAddr][offsetHigh][offsetLow] */
+	i2c_addr = (*ppos >> 16) & 0xffff;
+	offset = *ppos & 0xffff;
+
+	/* explicitly reject invalid address 0 to catch cp and cat */
+	if (i2c_addr == 0) {
+		ret = -EINVAL;
+		goto _return;
+	}
+
 	buff = kmalloc(count, GFP_KERNEL);
 	if (!buff) {
 		ret = -ENOMEM;
 		goto _return;
 	}
-
-	/* byte offset format: [offsetSize][i2cAddr][offsetHigh][offsetLow] */
-	i2c_addr = (*ppos >> 16) & 0xffff;
-	offset = *ppos & 0xffff;
 
 	total_read = i2c_read(ppd, target, i2c_addr, offset, buff, count);
 	if (total_read < 0) {
