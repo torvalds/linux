@@ -34,14 +34,6 @@ static struct od_ops od_ops;
 
 static unsigned int default_powersave_bias;
 
-static void ondemand_powersave_bias_init_cpu(int cpu)
-{
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
-
-	dbs_info->freq_table = cpufreq_frequency_get_table(cpu);
-	dbs_info->freq_lo = 0;
-}
-
 /*
  * Not all CPUs want IO time to be accounted as busy; this depends on how
  * efficient idling at a higher frequency/voltage is.
@@ -120,12 +112,13 @@ static unsigned int generic_powersave_bias_target(struct cpufreq_policy *policy,
 	return freq_hi;
 }
 
-static void ondemand_powersave_bias_init(void)
+static void ondemand_powersave_bias_init(struct cpufreq_policy *policy)
 {
-	int i;
-	for_each_online_cpu(i) {
-		ondemand_powersave_bias_init_cpu(i);
-	}
+	unsigned int cpu = policy->cpu;
+	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
+
+	dbs_info->freq_table = cpufreq_frequency_get_table(cpu);
+	dbs_info->freq_lo = 0;
 }
 
 static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
@@ -306,6 +299,7 @@ static ssize_t store_powersave_bias(struct dbs_data *dbs_data, const char *buf,
 		size_t count)
 {
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
+	struct policy_dbs_info *policy_dbs;
 	unsigned int input;
 	int ret;
 	ret = sscanf(buf, "%u", &input);
@@ -317,7 +311,10 @@ static ssize_t store_powersave_bias(struct dbs_data *dbs_data, const char *buf,
 		input = 1000;
 
 	od_tuners->powersave_bias = input;
-	ondemand_powersave_bias_init();
+
+	list_for_each_entry(policy_dbs, &dbs_data->policy_dbs_list, list)
+		ondemand_powersave_bias_init(policy_dbs->policy);
+
 	return count;
 }
 
@@ -398,11 +395,10 @@ static void od_exit(struct dbs_data *dbs_data, bool notify)
 
 static void od_start(struct cpufreq_policy *policy)
 {
-	unsigned int cpu = policy->cpu;
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
+	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
 
 	dbs_info->sample_type = OD_NORMAL_SAMPLE;
-	ondemand_powersave_bias_init_cpu(cpu);
+	ondemand_powersave_bias_init(policy);
 }
 
 define_get_cpu_dbs_routines(od_cpu_dbs_info);
