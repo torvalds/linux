@@ -8032,7 +8032,7 @@ static int i40e_config_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
 		u32 *seed_dw = (u32 *)seed;
 
 		for (i = 0; i <= I40E_PFQF_HKEY_MAX_INDEX; i++)
-			wr32(hw, I40E_PFQF_HKEY(i), seed_dw[i]);
+			i40e_write_rx_ctl(hw, I40E_PFQF_HKEY(i), seed_dw[i]);
 	}
 
 	if (lut) {
@@ -8069,7 +8069,7 @@ static int i40e_get_rss_reg(struct i40e_vsi *vsi, u8 *seed,
 		u32 *seed_dw = (u32 *)seed;
 
 		for (i = 0; i <= I40E_PFQF_HKEY_MAX_INDEX; i++)
-			seed_dw[i] = rd32(hw, I40E_PFQF_HKEY(i));
+			seed_dw[i] = i40e_read_rx_ctl(hw, I40E_PFQF_HKEY(i));
 	}
 	if (lut) {
 		u32 *lut_dw = (u32 *)lut;
@@ -8152,19 +8152,19 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 	int ret;
 
 	/* By default we enable TCP/UDP with IPv4/IPv6 ptypes */
-	hena = (u64)rd32(hw, I40E_PFQF_HENA(0)) |
-		((u64)rd32(hw, I40E_PFQF_HENA(1)) << 32);
+	hena = (u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(0)) |
+		((u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1)) << 32);
 	hena |= i40e_pf_get_default_rss_hena(pf);
 
-	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
-	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(0), (u32)hena);
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
 
 	/* Determine the RSS table size based on the hardware capabilities */
-	reg_val = rd32(hw, I40E_PFQF_CTL_0);
+	reg_val = i40e_read_rx_ctl(hw, I40E_PFQF_CTL_0);
 	reg_val = (pf->rss_table_size == 512) ?
 			(reg_val | I40E_PFQF_CTL_0_HASHLUTSIZE_512) :
 			(reg_val & ~I40E_PFQF_CTL_0_HASHLUTSIZE_512);
-	wr32(hw, I40E_PFQF_CTL_0, reg_val);
+	i40e_write_rx_ctl(hw, I40E_PFQF_CTL_0, reg_val);
 
 	/* Determine the RSS size of the VSI */
 	if (!vsi->rss_size)
@@ -11211,8 +11211,8 @@ static void i40e_remove(struct pci_dev *pdev)
 	i40e_ptp_stop(pf);
 
 	/* Disable RSS in hw */
-	wr32(hw, I40E_PFQF_HENA(0), 0);
-	wr32(hw, I40E_PFQF_HENA(1), 0);
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(0), 0);
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(1), 0);
 
 	/* no more scheduling of any task */
 	set_bit(__I40E_DOWN, &pf->state);

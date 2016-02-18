@@ -1328,7 +1328,7 @@ void i40e_clear_hw(struct i40e_hw *hw)
 	num_vf_int = (val & I40E_GLPCI_CNF2_MSI_X_VF_N_MASK) >>
 		     I40E_GLPCI_CNF2_MSI_X_VF_N_SHIFT;
 
-	val = i40e_read_rx_ctl(hw, I40E_PFLAN_QALLOC);
+	val = rd32(hw, I40E_PFLAN_QALLOC);
 	base_queue = (val & I40E_PFLAN_QALLOC_FIRSTQ_MASK) >>
 		     I40E_PFLAN_QALLOC_FIRSTQ_SHIFT;
 	j = (val & I40E_PFLAN_QALLOC_LASTQ_MASK) >>

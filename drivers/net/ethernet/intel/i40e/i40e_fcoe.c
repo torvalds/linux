@@ -295,11 +295,11 @@ void i40e_init_pf_fcoe(struct i40e_pf *pf)
 	}
 
 	/* enable FCoE hash filter */
-	val = rd32(hw, I40E_PFQF_HENA(1));
+	val = i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1));
 	val |= BIT(I40E_FILTER_PCTYPE_FCOE_OX - 32);
 	val |= BIT(I40E_FILTER_PCTYPE_FCOE_RX - 32);
 	val &= I40E_PFQF_HENA_PTYPE_ENA_MASK;
-	wr32(hw, I40E_PFQF_HENA(1), val);
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(1), val);
 
 	/* enable flag */
 	pf->flags |= I40E_FLAG_FCOE_ENABLED;
@@ -317,11 +317,11 @@ void i40e_init_pf_fcoe(struct i40e_pf *pf)
 	pf->filter_settings.fcoe_cntx_num = I40E_DMA_CNTX_SIZE_4K;
 
 	/* Setup max frame with FCoE_MTU plus L2 overheads */
-	val = rd32(hw, I40E_GLFCOE_RCTL);
+	val = i40e_read_rx_ctl(hw, I40E_GLFCOE_RCTL);
 	val &= ~I40E_GLFCOE_RCTL_MAX_SIZE_MASK;
 	val |= ((FCOE_MTU + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN)
 		 << I40E_GLFCOE_RCTL_MAX_SIZE_SHIFT);
-	wr32(hw, I40E_GLFCOE_RCTL, val);
+	i40e_write_rx_ctl(hw, I40E_GLFCOE_RCTL, val);
 
 	dev_info(&pf->pdev->dev, "FCoE is supported.\n");
 }
