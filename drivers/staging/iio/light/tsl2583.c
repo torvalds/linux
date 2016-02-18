@@ -482,7 +482,7 @@ static int taos_chip_off(struct iio_dev *indio_dev)
 /* Sysfs Interface Functions */
 
 static ssize_t taos_power_state_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				     struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -491,7 +491,8 @@ static ssize_t taos_power_state_show(struct device *dev,
 }
 
 static ssize_t taos_power_state_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t len)
+				      struct device_attribute *attr,
+				      const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int value;
@@ -508,7 +509,7 @@ static ssize_t taos_power_state_store(struct device *dev,
 }
 
 static ssize_t taos_gain_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+			      struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -533,7 +534,8 @@ static ssize_t taos_gain_show(struct device *dev,
 }
 
 static ssize_t taos_gain_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t len)
+			       struct device_attribute *attr,
+			       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -564,13 +566,14 @@ static ssize_t taos_gain_store(struct device *dev,
 }
 
 static ssize_t taos_gain_available_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	return sprintf(buf, "%s\n", "1 8 16 111");
 }
 
 static ssize_t taos_als_time_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -579,7 +582,8 @@ static ssize_t taos_als_time_show(struct device *dev,
 }
 
 static ssize_t taos_als_time_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t len)
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -600,14 +604,15 @@ static ssize_t taos_als_time_store(struct device *dev,
 }
 
 static ssize_t taos_als_time_available_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+					    struct device_attribute *attr,
+					    char *buf)
 {
 	return sprintf(buf, "%s\n",
 		"50 100 150 200 250 300 350 400 450 500 550 600 650");
 }
 
 static ssize_t taos_als_trim_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -616,7 +621,8 @@ static ssize_t taos_als_trim_show(struct device *dev,
 }
 
 static ssize_t taos_als_trim_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t len)
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -632,7 +638,8 @@ static ssize_t taos_als_trim_store(struct device *dev,
 }
 
 static ssize_t taos_als_cal_target_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -641,7 +648,8 @@ static ssize_t taos_als_cal_target_show(struct device *dev,
 }
 
 static ssize_t taos_als_cal_target_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t len)
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -657,7 +665,7 @@ static ssize_t taos_als_cal_target_store(struct device *dev,
 }
 
 static ssize_t taos_lux_show(struct device *dev, struct device_attribute *attr,
-	char *buf)
+			     char *buf)
 {
 	int ret;
 
@@ -669,7 +677,8 @@ static ssize_t taos_lux_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t taos_do_calibrate(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t len)
+				 struct device_attribute *attr,
+				 const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int value;
@@ -684,7 +693,7 @@ static ssize_t taos_do_calibrate(struct device *dev,
 }
 
 static ssize_t taos_luxtable_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	int i;
 	int offset = 0;
@@ -707,7 +716,8 @@ static ssize_t taos_luxtable_show(struct device *dev,
 }
 
 static ssize_t taos_luxtable_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t len)
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -809,7 +819,7 @@ static int taos_probe(struct i2c_client *clientp,
 	struct iio_dev *indio_dev;
 
 	if (!i2c_check_functionality(clientp->adapter,
-		I2C_FUNC_SMBUS_BYTE_DATA)) {
+				     I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&clientp->dev, "taos_probe() - i2c smbus byte data func unsupported\n");
 		return -EOPNOTSUPP;
 	}
@@ -846,7 +856,7 @@ static int taos_probe(struct i2c_client *clientp,
 
 	if (!taos_tsl258x_device(buf)) {
 		dev_info(&clientp->dev,
-			"i2c device found but does not match expected id in taos_probe()\n");
+			 "i2c device found but does not match expected id in taos_probe()\n");
 		return -EINVAL;
 	}
 
