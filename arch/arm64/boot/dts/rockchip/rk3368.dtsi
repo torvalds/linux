@@ -801,10 +801,8 @@
 
 	i2s_2ch: i2s-2ch@ff890000 {
 		compatible = "rockchip,rk3368-i2s", "rockchip,rk3066-i2s";
-		reg = <0x0 0xff898000 0x0 0x1000>;
+		reg = <0x0 0xff890000 0x0 0x1000>;
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <2>;
-		#size-cells = <0>;
 		dmas = <&dmac_bus 6>, <&dmac_bus 7>;
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
@@ -816,8 +814,6 @@
 		compatible = "rockchip,rk3368-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff898000 0x0 0x1000>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		dmas = <&dmac_bus 0>, <&dmac_bus 1>;
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
