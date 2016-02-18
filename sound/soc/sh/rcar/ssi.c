@@ -149,13 +149,12 @@ static int rsnd_ssi_irq(struct rsnd_mod *mod,
 			struct rsnd_priv *priv,
 			int enable)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	u32 val = 0;
 
 	if (rsnd_is_gen1(priv))
 		return 0;
 
-	if (ssi->usrcnt != 1)
+	if (rsnd_ssi_is_parent(mod, io))
 		return 0;
 
 	if (enable)
