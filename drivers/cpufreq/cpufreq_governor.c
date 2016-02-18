@@ -112,7 +112,7 @@ static ssize_t governor_store(struct kobject *kobj, struct attribute *attr,
 
 	mutex_lock(&dbs_data->mutex);
 
-	if (gattr->store)
+	if (dbs_data->usage_count && gattr->store)
 		ret = gattr->store(dbs_data, buf, count);
 
 	mutex_unlock(&dbs_data->mutex);
