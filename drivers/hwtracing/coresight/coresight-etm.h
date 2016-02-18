@@ -280,4 +280,8 @@ static inline unsigned int etm_readl(struct etm_drvdata *drvdata, u32 off)
 
 	return val;
 }
+
+extern const struct attribute_group *coresight_etm_groups[];
+int etm_get_trace_id(struct etm_drvdata *drvdata);
+void etm_set_default(struct etm_drvdata *drvdata);
 #endif
