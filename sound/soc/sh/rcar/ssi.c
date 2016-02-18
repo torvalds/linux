@@ -276,7 +276,7 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_mod *mod,
 	rsnd_adg_ssi_clk_stop(mod);
 }
 
-static int rsnd_ssi_config_init(struct rsnd_mod *mod,
+static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
@@ -313,8 +313,6 @@ static int rsnd_ssi_config_init(struct rsnd_mod *mod,
 	case 32:
 		cr_own |= DWL_24;
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	if (rsnd_ssi_is_dma_mode(mod)) {
@@ -338,8 +336,16 @@ static int rsnd_ssi_config_init(struct rsnd_mod *mod,
 	ssi->cr_own	= cr_own;
 	ssi->cr_mode	= cr_mode;
 	ssi->wsr	= wsr;
+}
 
-	return 0;
+static void rsnd_ssi_register_setup(struct rsnd_mod *mod)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	rsnd_mod_write(mod, SSIWSR,	ssi->wsr);
+	rsnd_mod_write(mod, SSICR,	ssi->cr_own	|
+					ssi->cr_clk	|
+					ssi->cr_mode); /* without EN */
 }
 
 /*
@@ -360,12 +366,10 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	if (rsnd_ssi_is_parent(mod, io))
-		return 0;
+	if (!rsnd_ssi_is_parent(mod, io))
+		rsnd_ssi_config_init(mod, io);
 
-	ret = rsnd_ssi_config_init(mod, io);
-	if (ret < 0)
-		return ret;
+	rsnd_ssi_register_setup(mod);
 
 	/* clear error status */
 	rsnd_ssi_status_clear(mod);
@@ -428,22 +432,14 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	u32 cr;
-
-	cr  =	ssi->cr_own	|
-		ssi->cr_clk	|
-		ssi->cr_mode;
-
 	/*
 	 * EN will be set via SSIU :: SSI_CONTROL
 	 * if Multi channel mode
 	 */
-	if (!rsnd_ssi_multi_slaves(io))
-		cr |= EN;
+	if (rsnd_ssi_multi_slaves(io))
+		return 0;
 
-	rsnd_mod_write(mod, SSICR, cr);
-	rsnd_mod_write(mod, SSIWSR, ssi->wsr);
+	rsnd_mod_bset(mod, SSICR, EN, EN);
 
 	return 0;
 }
