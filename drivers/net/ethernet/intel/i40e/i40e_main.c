@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -46,7 +46,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 12
+#define DRV_VERSION_BUILD 13
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -2168,6 +2168,10 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		}
 	}
 out:
+	/* if something went wrong then set the changed flag so we try again */
+	if (retval)
+		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
+
 	clear_bit(__I40E_CONFIG_BUSY, &vsi->state);
 	return retval;
 }
@@ -3253,14 +3257,15 @@ void i40e_irq_dynamic_disable_icr0(struct i40e_pf *pf)
 /**
  * i40e_irq_dynamic_enable_icr0 - Enable default interrupt generation for icr0
  * @pf: board private structure
+ * @clearpba: true when all pending interrupt events should be cleared
  **/
-void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf)
+void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf, bool clearpba)
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 val;
 
 	val = I40E_PFINT_DYN_CTL0_INTENA_MASK   |
-	      I40E_PFINT_DYN_CTL0_CLEARPBA_MASK |
+	      (clearpba ? I40E_PFINT_DYN_CTL0_CLEARPBA_MASK : 0) |
 	      (I40E_ITR_NONE << I40E_PFINT_DYN_CTL0_ITR_INDX_SHIFT);
 
 	wr32(hw, I40E_PFINT_DYN_CTL0, val);
@@ -3392,7 +3397,7 @@ static int i40e_vsi_enable_irq(struct i40e_vsi *vsi)
 		for (i = 0; i < vsi->num_q_vectors; i++)
 			i40e_irq_dynamic_enable(vsi, i);
 	} else {
-		i40e_irq_dynamic_enable_icr0(pf);
+		i40e_irq_dynamic_enable_icr0(pf, true);
 	}
 
 	i40e_flush(&pf->hw);
@@ -3538,7 +3543,7 @@ enable_intr:
 	wr32(hw, I40E_PFINT_ICR0_ENA, ena_mask);
 	if (!test_bit(__I40E_DOWN, &pf->state)) {
 		i40e_service_event_schedule(pf);
-		i40e_irq_dynamic_enable_icr0(pf);
+		i40e_irq_dynamic_enable_icr0(pf, false);
 	}
 
 	return ret;
@@ -5008,8 +5013,7 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 	int err = 0;
 
 	/* Do not enable DCB for SW1 and SW2 images even if the FW is capable */
-	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
-	    (pf->hw.aq.fw_maj_ver < 4))
+	if (pf->flags & I40E_FLAG_NO_DCB_SUPPORT)
 		goto out;
 
 	/* Get the initial DCB configuration */
@@ -7113,6 +7117,7 @@ static void i40e_service_task(struct work_struct *work)
 	}
 
 	i40e_detect_recover_hung(pf);
+	i40e_sync_filters_subtask(pf);
 	i40e_reset_subtask(pf);
 	i40e_handle_mdd_event(pf);
 	i40e_vc_process_vflr_event(pf);
@@ -7854,7 +7859,7 @@ static int i40e_setup_misc_vector(struct i40e_pf *pf)
 
 	i40e_flush(hw);
 
-	i40e_irq_dynamic_enable_icr0(pf);
+	i40e_irq_dynamic_enable_icr0(pf, true);
 
 	return err;
 }
@@ -8420,11 +8425,25 @@ static int i40e_sw_init(struct i40e_pf *pf)
 				 pf->hw.func_caps.fd_filters_best_effort;
 	}
 
-	if (((pf->hw.mac.type == I40E_MAC_X710) ||
-	     (pf->hw.mac.type == I40E_MAC_XL710)) &&
+	if (i40e_is_mac_710(&pf->hw) &&
 	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
-	    (pf->hw.aq.fw_maj_ver < 4)))
+	    (pf->hw.aq.fw_maj_ver < 4))) {
 		pf->flags |= I40E_FLAG_RESTART_AUTONEG;
+		/* No DCB support  for FW < v4.33 */
+		pf->flags |= I40E_FLAG_NO_DCB_SUPPORT;
+	}
+
+	/* Disable FW LLDP if FW < v4.3 */
+	if (i40e_is_mac_710(&pf->hw) &&
+	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
+	    (pf->hw.aq.fw_maj_ver < 4)))
+		pf->flags |= I40E_FLAG_STOP_FW_LLDP;
+
+	/* Use the FW Set LLDP MIB API if FW > v4.40 */
+	if (i40e_is_mac_710(&pf->hw) &&
+	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver >= 40)) ||
+	    (pf->hw.aq.fw_maj_ver >= 5)))
+		pf->flags |= I40E_FLAG_USE_SET_LLDP_MIB;
 
 	if (pf->hw.func_caps.vmdq) {
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
@@ -8453,6 +8472,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 			     I40E_FLAG_WB_ON_ITR_CAPABLE |
 			     I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE |
 			     I40E_FLAG_100M_SGMII_CAPABLE |
+			     I40E_FLAG_USE_SET_LLDP_MIB |
 			     I40E_FLAG_GENEVE_OFFLOAD_CAPABLE;
 	} else if ((pf->hw.aq.api_maj_ver > 1) ||
 		   ((pf->hw.aq.api_maj_ver == 1) &&
@@ -10050,13 +10070,13 @@ static int i40e_add_veb(struct i40e_veb *veb, struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = veb->pf;
 	bool is_default = veb->pf->cur_promisc;
-	bool is_cloud = false;
+	bool enable_stats = !!(pf->flags & I40E_FLAG_VEB_STATS_ENABLED);
 	int ret;
 
 	/* get a VEB from the hardware */
 	ret = i40e_aq_add_veb(&pf->hw, veb->uplink_seid, vsi->seid,
 			      veb->enabled_tc, is_default,
-			      is_cloud, &veb->seid, NULL);
+			      &veb->seid, enable_stats, NULL);
 	if (ret) {
 		dev_info(&pf->pdev->dev,
 			 "couldn't add VEB, err %s aq_err %s\n",
@@ -10820,8 +10840,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * Ignore error return codes because if it was already disabled via
 	 * hardware settings this will fail
 	 */
-	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
-	    (pf->hw.aq.fw_maj_ver < 4)) {
+	if (pf->flags & I40E_FLAG_STOP_FW_LLDP) {
 		dev_info(&pdev->dev, "Stopping firmware LLDP agent.\n");
 		i40e_aq_stop_lldp(hw, true, NULL);
 	}

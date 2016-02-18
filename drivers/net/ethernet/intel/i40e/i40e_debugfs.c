@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -521,7 +521,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 rx_ring->dtype);
 		dev_info(&pf->pdev->dev,
 			 "    rx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
-			 i, rx_ring->hsplit,
+			 i, ring_is_ps_enabled(rx_ring),
 			 rx_ring->next_to_use,
 			 rx_ring->next_to_clean,
 			 rx_ring->ring_active);
@@ -535,6 +535,11 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 i,
 			 rx_ring->rx_stats.alloc_page_failed,
 			 rx_ring->rx_stats.alloc_buff_failed);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: rx_stats: realloc_count = %lld, page_reuse_count = %lld\n",
+			 i,
+			 rx_ring->rx_stats.realloc_count,
+			 rx_ring->rx_stats.page_reuse_count);
 		dev_info(&pf->pdev->dev,
 			 "    rx_rings[%i]: size = %i, dma = 0x%08lx\n",
 			 i, rx_ring->size,
@@ -567,8 +572,8 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 "    tx_rings[%i]: dtype = %d\n",
 			 i, tx_ring->dtype);
 		dev_info(&pf->pdev->dev,
-			 "    tx_rings[%i]: hsplit = %d, next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
-			 i, tx_ring->hsplit,
+			 "    tx_rings[%i]: next_to_use = %d, next_to_clean = %d, ring_active = %i\n",
+			 i,
 			 tx_ring->next_to_use,
 			 tx_ring->next_to_clean,
 			 tx_ring->ring_active);
@@ -825,20 +830,20 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 			if (!is_rx_ring) {
 				txd = I40E_TX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
-					 "   d[%03i] = 0x%016llx 0x%016llx\n",
+					 "   d[%03x] = 0x%016llx 0x%016llx\n",
 					 i, txd->buffer_addr,
 					 txd->cmd_type_offset_bsz);
 			} else if (sizeof(union i40e_rx_desc) ==
 				   sizeof(union i40e_16byte_rx_desc)) {
 				rxd = I40E_RX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
-					 "   d[%03i] = 0x%016llx 0x%016llx\n",
+					 "   d[%03x] = 0x%016llx 0x%016llx\n",
 					 i, rxd->read.pkt_addr,
 					 rxd->read.hdr_addr);
 			} else {
 				rxd = I40E_RX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
-					 "   d[%03i] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
+					 "   d[%03x] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
 					 i, rxd->read.pkt_addr,
 					 rxd->read.hdr_addr,
 					 rxd->read.rsvd1, rxd->read.rsvd2);
@@ -853,20 +858,20 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 		if (!is_rx_ring) {
 			txd = I40E_TX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
-				 "vsi = %02i tx ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
+				 "vsi = %02i tx ring = %02i d[%03x] = 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
 				 txd->buffer_addr, txd->cmd_type_offset_bsz);
 		} else if (sizeof(union i40e_rx_desc) ==
 			   sizeof(union i40e_16byte_rx_desc)) {
 			rxd = I40E_RX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
-				 "vsi = %02i rx ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
+				 "vsi = %02i rx ring = %02i d[%03x] = 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
 				 rxd->read.pkt_addr, rxd->read.hdr_addr);
 		} else {
 			rxd = I40E_RX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
-				 "vsi = %02i rx ring = %02i d[%03i] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
+				 "vsi = %02i rx ring = %02i d[%03x] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
 				 rxd->read.pkt_addr, rxd->read.hdr_addr,
 				 rxd->read.rsvd1, rxd->read.rsvd2);

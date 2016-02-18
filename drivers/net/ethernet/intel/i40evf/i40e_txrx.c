@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -292,40 +292,49 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 }
 
 /**
- * i40evf_force_wb -Arm hardware to do a wb on noncache aligned descriptors
+ * i40evf_enable_wb_on_itr - Arm hardware to do a wb, interrupts are not enabled
+ * @vsi: the VSI we care about
+ * @q_vector: the vector on which to enable writeback
+ *
+ **/
+static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
+				  struct i40e_q_vector *q_vector)
+{
+	u16 flags = q_vector->tx.ring[0].flags;
+	u32 val;
+
+	if (!(flags & I40E_TXR_FLAGS_WB_ON_ITR))
+		return;
+
+	if (q_vector->arm_wb_state)
+		return;
+
+	val = I40E_VFINT_DYN_CTLN1_WB_ON_ITR_MASK |
+	      I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK; /* set noitr */
+
+	wr32(&vsi->back->hw,
+	     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
+				  vsi->base_vector - 1), val);
+	q_vector->arm_wb_state = true;
+}
+
+/**
+ * i40evf_force_wb - Issue SW Interrupt so HW does a wb
  * @vsi: the VSI we care about
  * @q_vector: the vector  on which to force writeback
  *
  **/
-static void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
+void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
-	u16 flags = q_vector->tx.ring[0].flags;
+	u32 val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
+		  I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
+		  I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
+		  I40E_VFINT_DYN_CTLN1_SW_ITR_INDX_ENA_MASK
+		  /* allow 00 to be written to the index */;
 
-	if (flags & I40E_TXR_FLAGS_WB_ON_ITR) {
-		u32 val;
-
-		if (q_vector->arm_wb_state)
-			return;
-
-		val = I40E_VFINT_DYN_CTLN1_WB_ON_ITR_MASK |
-		      I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK; /* set noitr */
-
-		wr32(&vsi->back->hw,
-		     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
-					  vsi->base_vector - 1),
-		     val);
-		q_vector->arm_wb_state = true;
-	} else {
-		u32 val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-			  I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK | /* set noitr */
-			  I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
-			  I40E_VFINT_DYN_CTLN1_SW_ITR_INDX_ENA_MASK;
-			  /* allow 00 to be written to the index */
-
-		wr32(&vsi->back->hw,
-		     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
-					  vsi->base_vector - 1), val);
-	}
+	wr32(&vsi->back->hw,
+	     I40E_VFINT_DYN_CTLN1(q_vector->v_idx + vsi->base_vector - 1),
+	     val);
 }
 
 /**
@@ -523,7 +532,7 @@ void i40evf_clean_rx_ring(struct i40e_ring *rx_ring)
 			if (rx_bi->page_dma) {
 				dma_unmap_page(dev,
 					       rx_bi->page_dma,
-					       PAGE_SIZE / 2,
+					       PAGE_SIZE,
 					       DMA_FROM_DEVICE);
 				rx_bi->page_dma = 0;
 			}
@@ -658,16 +667,19 @@ static inline void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val)
  * i40evf_alloc_rx_buffers_ps - Replace used receive buffers; packet split
  * @rx_ring: ring to place buffers on
  * @cleaned_count: number of buffers to replace
+ *
+ * Returns true if any errors on allocation
  **/
-void i40evf_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
+bool i40evf_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 {
 	u16 i = rx_ring->next_to_use;
 	union i40e_rx_desc *rx_desc;
 	struct i40e_rx_buffer *bi;
+	const int current_node = numa_node_id();
 
 	/* do nothing if no valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
-		return;
+		return false;
 
 	while (cleaned_count--) {
 		rx_desc = I40E_RX_DESC(rx_ring, i);
@@ -675,56 +687,79 @@ void i40evf_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 
 		if (bi->skb) /* desc is in use */
 			goto no_buffers;
+
+	/* If we've been moved to a different NUMA node, release the
+	 * page so we can get a new one on the current node.
+	 */
+		if (bi->page &&  page_to_nid(bi->page) != current_node) {
+			dma_unmap_page(rx_ring->dev,
+				       bi->page_dma,
+				       PAGE_SIZE,
+				       DMA_FROM_DEVICE);
+			__free_page(bi->page);
+			bi->page = NULL;
+			bi->page_dma = 0;
+			rx_ring->rx_stats.realloc_count++;
+		} else if (bi->page) {
+			rx_ring->rx_stats.page_reuse_count++;
+		}
+
 		if (!bi->page) {
 			bi->page = alloc_page(GFP_ATOMIC);
 			if (!bi->page) {
 				rx_ring->rx_stats.alloc_page_failed++;
 				goto no_buffers;
 			}
-		}
-
-		if (!bi->page_dma) {
-			/* use a half page if we're re-using */
-			bi->page_offset ^= PAGE_SIZE / 2;
 			bi->page_dma = dma_map_page(rx_ring->dev,
 						    bi->page,
-						    bi->page_offset,
-						    PAGE_SIZE / 2,
+						    0,
+						    PAGE_SIZE,
 						    DMA_FROM_DEVICE);
-			if (dma_mapping_error(rx_ring->dev,
-					      bi->page_dma)) {
+			if (dma_mapping_error(rx_ring->dev, bi->page_dma)) {
 				rx_ring->rx_stats.alloc_page_failed++;
+				__free_page(bi->page);
+				bi->page = NULL;
 				bi->page_dma = 0;
+				bi->page_offset = 0;
 				goto no_buffers;
 			}
+			bi->page_offset = 0;
 		}
 
-		dma_sync_single_range_for_device(rx_ring->dev,
-						 rx_ring->rx_bi[0].dma,
-						 i * rx_ring->rx_hdr_len,
-						 rx_ring->rx_hdr_len,
-						 DMA_FROM_DEVICE);
 		/* Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info.
 		 */
-		rx_desc->read.pkt_addr = cpu_to_le64(bi->page_dma);
+		rx_desc->read.pkt_addr =
+				cpu_to_le64(bi->page_dma + bi->page_offset);
 		rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
 		i++;
 		if (i == rx_ring->count)
 			i = 0;
 	}
 
+	if (rx_ring->next_to_use != i)
+		i40e_release_rx_desc(rx_ring, i);
+
+	return false;
+
 no_buffers:
 	if (rx_ring->next_to_use != i)
 		i40e_release_rx_desc(rx_ring, i);
+
+	/* make sure to come back via polling to try again after
+	 * allocation failure
+	 */
+	return true;
 }
 
 /**
  * i40evf_alloc_rx_buffers_1buf - Replace used receive buffers; single buffer
  * @rx_ring: ring to place buffers on
  * @cleaned_count: number of buffers to replace
+ *
+ * Returns true if any errors on allocation
  **/
-void i40evf_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
+bool i40evf_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 {
 	u16 i = rx_ring->next_to_use;
 	union i40e_rx_desc *rx_desc;
@@ -733,7 +768,7 @@ void i40evf_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 
 	/* do nothing if no valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
-		return;
+		return false;
 
 	while (cleaned_count--) {
 		rx_desc = I40E_RX_DESC(rx_ring, i);
@@ -741,8 +776,10 @@ void i40evf_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 		skb = bi->skb;
 
 		if (!skb) {
-			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-							rx_ring->rx_buf_len);
+			skb = __netdev_alloc_skb_ip_align(rx_ring->netdev,
+							  rx_ring->rx_buf_len,
+							  GFP_ATOMIC |
+							  __GFP_NOWARN);
 			if (!skb) {
 				rx_ring->rx_stats.alloc_buff_failed++;
 				goto no_buffers;
@@ -760,6 +797,8 @@ void i40evf_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 			if (dma_mapping_error(rx_ring->dev, bi->dma)) {
 				rx_ring->rx_stats.alloc_buff_failed++;
 				bi->dma = 0;
+				dev_kfree_skb(bi->skb);
+				bi->skb = NULL;
 				goto no_buffers;
 			}
 		}
@@ -771,9 +810,19 @@ void i40evf_alloc_rx_buffers_1buf(struct i40e_ring *rx_ring, u16 cleaned_count)
 			i = 0;
 	}
 
+	if (rx_ring->next_to_use != i)
+		i40e_release_rx_desc(rx_ring, i);
+
+	return false;
+
 no_buffers:
 	if (rx_ring->next_to_use != i)
 		i40e_release_rx_desc(rx_ring, i);
+
+	/* make sure to come back via polling to try again after
+	 * allocation failure
+	 */
+	return true;
 }
 
 /**
@@ -956,18 +1005,19 @@ static inline void i40e_rx_hash(struct i40e_ring *ring,
  *
  * Returns true if there's any budget left (e.g. the clean is finished)
  **/
-static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
+static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	u16 rx_packet_len, rx_header_len, rx_sph, rx_hbo;
 	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
-	const int current_node = numa_mem_id();
 	struct i40e_vsi *vsi = rx_ring->vsi;
 	u16 i = rx_ring->next_to_clean;
 	union i40e_rx_desc *rx_desc;
 	u32 rx_error, rx_status;
+	bool failure = false;
 	u8 rx_ptype;
 	u64 qword;
+	u32 copysize;
 
 	do {
 		struct i40e_rx_buffer *rx_bi;
@@ -975,7 +1025,9 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 		u16 vlan_tag;
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
-			i40evf_alloc_rx_buffers_ps(rx_ring, cleaned_count);
+			failure = failure ||
+				  i40evf_alloc_rx_buffers_ps(rx_ring,
+							     cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -993,13 +1045,22 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 		 * DD bit is set.
 		 */
 		dma_rmb();
+		/* sync header buffer for reading */
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      rx_ring->rx_bi[0].dma,
+					      i * rx_ring->rx_hdr_len,
+					      rx_ring->rx_hdr_len,
+					      DMA_FROM_DEVICE);
 		rx_bi = &rx_ring->rx_bi[i];
 		skb = rx_bi->skb;
 		if (likely(!skb)) {
-			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-							rx_ring->rx_hdr_len);
+			skb = __netdev_alloc_skb_ip_align(rx_ring->netdev,
+							  rx_ring->rx_hdr_len,
+							  GFP_ATOMIC |
+							  __GFP_NOWARN);
 			if (!skb) {
 				rx_ring->rx_stats.alloc_buff_failed++;
+				failure = true;
 				break;
 			}
 
@@ -1026,9 +1087,16 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 
 		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
 			   I40E_RXD_QW1_PTYPE_SHIFT;
-		prefetch(rx_bi->page);
+		/* sync half-page for reading */
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      rx_bi->page_dma,
+					      rx_bi->page_offset,
+					      PAGE_SIZE / 2,
+					      DMA_FROM_DEVICE);
+		prefetch(page_address(rx_bi->page) + rx_bi->page_offset);
 		rx_bi->skb = NULL;
 		cleaned_count++;
+		copysize = 0;
 		if (rx_hbo || rx_sph) {
 			int len;
 
@@ -1039,38 +1107,45 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 			memcpy(__skb_put(skb, len), rx_bi->hdr_buf, len);
 		} else if (skb->len == 0) {
 			int len;
+			unsigned char *va = page_address(rx_bi->page) +
+					    rx_bi->page_offset;
 
-			len = (rx_packet_len > skb_headlen(skb) ?
-				skb_headlen(skb) : rx_packet_len);
-			memcpy(__skb_put(skb, len),
-			       rx_bi->page + rx_bi->page_offset,
-			       len);
-			rx_bi->page_offset += len;
+			len = min(rx_packet_len, rx_ring->rx_hdr_len);
+			memcpy(__skb_put(skb, len), va, len);
+			copysize = len;
 			rx_packet_len -= len;
 		}
-
 		/* Get the rest of the data if this was a header split */
 		if (rx_packet_len) {
-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
-					   rx_bi->page,
-					   rx_bi->page_offset,
-					   rx_packet_len);
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+					rx_bi->page,
+					rx_bi->page_offset + copysize,
+					rx_packet_len, I40E_RXBUFFER_2048);
 
-			skb->len += rx_packet_len;
-			skb->data_len += rx_packet_len;
-			skb->truesize += rx_packet_len;
-
-			if ((page_count(rx_bi->page) == 1) &&
-			    (page_to_nid(rx_bi->page) == current_node))
-				get_page(rx_bi->page);
-			else
+			get_page(rx_bi->page);
+			/* switch to the other half-page here; the allocation
+			 * code programs the right addr into HW. If we haven't
+			 * used this half-page, the address won't be changed,
+			 * and HW can just use it next time through.
+			 */
+			rx_bi->page_offset ^= PAGE_SIZE / 2;
+			/* If the page count is more than 2, then both halves
+			 * of the page are used and we need to free it. Do it
+			 * here instead of in the alloc code. Otherwise one
+			 * of the half-pages might be released between now and
+			 * then, and we wouldn't know which one to use.
+			 */
+			if (page_count(rx_bi->page) > 2) {
+				dma_unmap_page(rx_ring->dev,
+					       rx_bi->page_dma,
+					       PAGE_SIZE,
+					       DMA_FROM_DEVICE);
+				__free_page(rx_bi->page);
 				rx_bi->page = NULL;
+				rx_bi->page_dma = 0;
+				rx_ring->rx_stats.realloc_count++;
+			}
 
-			dma_unmap_page(rx_ring->dev,
-				       rx_bi->page_dma,
-				       PAGE_SIZE / 2,
-				       DMA_FROM_DEVICE);
-			rx_bi->page_dma = 0;
 		}
 		I40E_RX_INCREMENT(rx_ring, i);
 
@@ -1122,7 +1197,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 	rx_ring->q_vector->rx.total_packets += total_rx_packets;
 	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
 
-	return total_rx_packets;
+	return failure ? budget : total_rx_packets;
 }
 
 /**
@@ -1140,6 +1215,7 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 	union i40e_rx_desc *rx_desc;
 	u32 rx_error, rx_status;
 	u16 rx_packet_len;
+	bool failure = false;
 	u8 rx_ptype;
 	u64 qword;
 	u16 i;
@@ -1150,7 +1226,9 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 		u16 vlan_tag;
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
-			i40evf_alloc_rx_buffers_1buf(rx_ring, cleaned_count);
+			failure = failure ||
+				  i40evf_alloc_rx_buffers_1buf(rx_ring,
+							       cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -1231,7 +1309,7 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 	rx_ring->q_vector->rx.total_packets += total_rx_packets;
 	rx_ring->q_vector->rx.total_bytes += total_rx_bytes;
 
-	return total_rx_packets;
+	return failure ? budget : total_rx_packets;
 }
 
 static u32 i40e_buildreg_itr(const int type, const u16 itr)
@@ -1239,7 +1317,9 @@ static u32 i40e_buildreg_itr(const int type, const u16 itr)
 	u32 val;
 
 	val = I40E_VFINT_DYN_CTLN1_INTENA_MASK |
-	      I40E_VFINT_DYN_CTLN1_CLEARPBA_MASK |
+	      /* Don't clear PBA because that can cause lost interrupts that
+	       * came in while we were cleaning/polling
+	       */
 	      (type << I40E_VFINT_DYN_CTLN1_ITR_INDX_SHIFT) |
 	      (itr << I40E_VFINT_DYN_CTLN1_INTERVAL_SHIFT);
 
@@ -1352,7 +1432,8 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	i40e_for_each_ring(ring, q_vector->tx) {
-		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
+		clean_complete = clean_complete &&
+				 i40e_clean_tx_irq(ring, vsi->work_limit);
 		arm_wb = arm_wb || ring->arm_wb;
 		ring->arm_wb = false;
 	}
@@ -1376,7 +1457,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 
 		work_done += cleaned;
 		/* if we didn't clean as many as budgeted, we must be done */
-		clean_complete &= (budget_per_ring != cleaned);
+		clean_complete = clean_complete && (budget_per_ring > cleaned);
 	}
 
 	/* If work not completed, return budget and polling will return */
@@ -1384,7 +1465,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 tx_only:
 		if (arm_wb) {
 			q_vector->tx.ring[0].tx_stats.tx_force_wb++;
-			i40evf_force_wb(vsi, q_vector);
+			i40e_enable_wb_on_itr(vsi, q_vector);
 		}
 		return budget;
 	}

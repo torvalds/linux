@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -2308,8 +2308,8 @@ i40e_status i40e_update_link_info(struct i40e_hw *hw)
  * @downlink_seid: the VSI SEID
  * @enabled_tc: bitmap of TCs to be enabled
  * @default_port: true for default port VSI, false for control port
- * @enable_l2_filtering: true to add L2 filter table rules to regular forwarding rules for cloud support
  * @veb_seid: pointer to where to put the resulting VEB SEID
+ * @enable_stats: true to turn on VEB stats
  * @cmd_details: pointer to command details structure or NULL
  *
  * This asks the FW to add a VEB between the uplink and downlink
@@ -2317,8 +2317,8 @@ i40e_status i40e_update_link_info(struct i40e_hw *hw)
  **/
 i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc,
-				bool default_port, bool enable_l2_filtering,
-				u16 *veb_seid,
+				bool default_port, u16 *veb_seid,
+				bool enable_stats,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -2345,8 +2345,9 @@ i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
 	else
 		veb_flags |= I40E_AQC_ADD_VEB_PORT_TYPE_DATA;
 
-	if (enable_l2_filtering)
-		veb_flags |= I40E_AQC_ADD_VEB_ENABLE_L2_FILTER;
+	/* reverse logic here: set the bitflag to disable the stats */
+	if (!enable_stats)
+		veb_flags |= I40E_AQC_ADD_VEB_ENABLE_DISABLE_STATS;
 
 	cmd->veb_flags = cpu_to_le16(veb_flags);
 
@@ -2435,6 +2436,7 @@ i40e_status i40e_aq_add_macvlan(struct i40e_hw *hw, u16 seid,
 		(struct i40e_aqc_macvlan *)&desc.params.raw;
 	i40e_status status;
 	u16 buf_size;
+	int i;
 
 	if (count == 0 || !mv_list || !hw)
 		return I40E_ERR_PARAM;
@@ -2448,12 +2450,17 @@ i40e_status i40e_aq_add_macvlan(struct i40e_hw *hw, u16 seid,
 	cmd->seid[1] = 0;
 	cmd->seid[2] = 0;
 
+	for (i = 0; i < count; i++)
+		if (is_multicast_ether_addr(mv_list[i].mac_addr))
+			mv_list[i].flags |=
+			       cpu_to_le16(I40E_AQC_MACVLAN_ADD_USE_SHARED_MAC);
+
 	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
 	if (buf_size > I40E_AQ_LARGE_BUF)
 		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
 
 	status = i40e_asq_send_command(hw, &desc, mv_list, buf_size,
-				    cmd_details);
+				       cmd_details);
 
 	return status;
 }
