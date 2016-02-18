@@ -1597,8 +1597,7 @@ static void serial8250_unthrottle(struct uart_port *port)
 
 static void serial8250_disable_ms(struct uart_port *port)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 
 	/* no MSR capabilities */
 	if (up->bugs & UART_BUG_NOMSR)
@@ -2801,8 +2800,7 @@ static int do_get_rxtrig(struct tty_port *port)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = state->uart_port;
-	struct uart_8250_port *up =
-		container_of(uport, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(uport);
 
 	if (!(up->capabilities & UART_CAP_FIFO) || uport->fifosize <= 1)
 		return -EINVAL;
@@ -2838,8 +2836,7 @@ static int do_set_rxtrig(struct tty_port *port, unsigned char bytes)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = state->uart_port;
-	struct uart_8250_port *up =
-		container_of(uport, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(uport);
 	int rxtrig;
 
 	if (!(up->capabilities & UART_CAP_FIFO) || uport->fifosize <= 1 ||

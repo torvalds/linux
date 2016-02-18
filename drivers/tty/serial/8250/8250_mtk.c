@@ -41,11 +41,9 @@ static void
 mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 			struct ktermios *old)
 {
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 	unsigned int baud, quot;
-
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
 
 	serial8250_do_set_termios(port, termios, old);
 

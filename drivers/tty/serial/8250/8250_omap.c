@@ -318,8 +318,7 @@ static void omap_8250_set_termios(struct uart_port *port,
 				  struct ktermios *termios,
 				  struct ktermios *old)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
+	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = up->port.private_data;
 	unsigned char cval = 0;
 	unsigned int baud;
@@ -682,9 +681,8 @@ static void omap_8250_shutdown(struct uart_port *port)
 
 static void omap_8250_throttle(struct uart_port *port)
 {
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
 
 	pm_runtime_get_sync(port->dev);
 
@@ -729,9 +727,8 @@ static int omap_8250_rs485_config(struct uart_port *port,
 
 static void omap_8250_unthrottle(struct uart_port *port)
 {
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
 
 	pm_runtime_get_sync(port->dev);
 
