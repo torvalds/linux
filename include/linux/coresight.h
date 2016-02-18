@@ -152,7 +152,6 @@ struct coresight_connection {
 		by @coresight_ops.
  * @dev:	The device entity associated to this component.
  * @refcnt:	keep track of what is in use.
- * @path_link:	link of current component into the path being enabled.
  * @orphan:	true if the component has connections that haven't been linked.
  * @enable:	'true' if component is currently part of an active path.
  * @activated:	'true' only if a _sink_ has been activated.  A sink can be
@@ -168,7 +167,6 @@ struct coresight_device {
 	const struct coresight_ops *ops;
 	struct device dev;
 	atomic_t *refcnt;
-	struct list_head path_link;
 	bool orphan;
 	bool enable;	/* true only if configured as part of a path */
 	bool activated;	/* true only if a sink is part of a path */
