@@ -6659,13 +6659,12 @@ S:	Maintained
 F:	arch/arm/mach-lpc32xx/
 
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
-M:	Nagalakshmi Nandigama <nagalakshmi.nandigama@avagotech.com>
-M:	Praveen Krishnamoorthy <praveen.krishnamoorthy@avagotech.com>
-M:	Sreekanth Reddy <sreekanth.reddy@avagotech.com>
-M:	Abhijit Mahajan <abhijit.mahajan@avagotech.com>
-L:	MPT-FusionLinux.pdl@avagotech.com
+M:	Sathya Prakash <sathya.prakash@broadcom.com>
+M:	Chaitra P B <chaitra.basappa@broadcom.com>
+M:	Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>
+L:	MPT-FusionLinux.pdl@broadcom.com
 L:	linux-scsi@vger.kernel.org
-W:	http://www.lsilogic.com/support
+W:	http://www.avagotech.com/support/
 S:	Supported
 F:	drivers/message/fusion/
 F:	drivers/scsi/mpt2sas/
