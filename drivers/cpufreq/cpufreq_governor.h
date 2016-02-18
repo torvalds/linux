@@ -46,11 +46,6 @@ enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
 static struct cpu_dbs_info *get_cpu_cdbs(int cpu)			\
 {									\
 	return &per_cpu(_dbs_info, cpu).cdbs;				\
-}									\
-									\
-static void *get_cpu_dbs_info_s(int cpu)				\
-{									\
-	return &per_cpu(_dbs_info, cpu);				\
 }
 
 /*
@@ -188,10 +183,6 @@ struct cs_dbs_tuners {
 /* Common Governor data across policies */
 struct dbs_governor {
 	struct cpufreq_governor gov;
-
-	#define GOV_ONDEMAND		0
-	#define GOV_CONSERVATIVE	1
-	int governor;
 	struct kobj_type kobj_type;
 
 	/*
@@ -201,14 +192,10 @@ struct dbs_governor {
 	struct dbs_data *gdbs_data;
 
 	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
-	void *(*get_cpu_dbs_info_s)(int cpu);
 	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy);
 	int (*init)(struct dbs_data *dbs_data, bool notify);
 	void (*exit)(struct dbs_data *dbs_data, bool notify);
 	void (*start)(struct cpufreq_policy *policy);
-
-	/* Governor specific ops, see below */
-	void *gov_ops;
 };
 
 static inline struct dbs_governor *dbs_governor_of(struct cpufreq_policy *policy)
@@ -216,7 +203,7 @@ static inline struct dbs_governor *dbs_governor_of(struct cpufreq_policy *policy
 	return container_of(policy->governor, struct dbs_governor, gov);
 }
 
-/* Governor specific ops, will be passed to dbs_data->gov_ops */
+/* Governor specific operations */
 struct od_ops {
 	void (*powersave_bias_init_cpu)(int cpu);
 	unsigned int (*powersave_bias_target)(struct cpufreq_policy *policy,
