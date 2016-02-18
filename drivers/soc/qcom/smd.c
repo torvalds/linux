@@ -193,6 +193,7 @@ struct qcom_smd_channel {
 	int pkt_size;
 
 	struct list_head list;
+	struct list_head dev_list;
 };
 
 /**
@@ -887,6 +888,8 @@ static int qcom_smd_dev_remove(struct device *dev)
 	struct qcom_smd_device *qsdev = to_smd_device(dev);
 	struct qcom_smd_driver *qsdrv = to_smd_driver(dev);
 	struct qcom_smd_channel *channel = qsdev->channel;
+	struct qcom_smd_channel *tmp;
+	struct qcom_smd_channel *ch;
 
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_CLOSING);
 
@@ -906,10 +909,14 @@ static int qcom_smd_dev_remove(struct device *dev)
 		qsdrv->remove(qsdev);
 
 	/*
-	 * The client is now gone, cleanup and reset the channel state.
+	 * The client is now gone, close and release all channels associated
+	 * with this sdev
 	 */
-	channel->qsdev = NULL;
-	qcom_smd_channel_close(channel);
+	list_for_each_entry_safe(ch, tmp, &channel->dev_list, dev_list) {
+		qcom_smd_channel_close(ch);
+		list_del(&ch->dev_list);
+		ch->qsdev = NULL;
+	}
 
 	return 0;
 }
@@ -1056,6 +1063,7 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 	if (!channel)
 		return ERR_PTR(-ENOMEM);
 
+	INIT_LIST_HEAD(&channel->dev_list);
 	channel->edge = edge;
 	channel->name = devm_kstrdup(smd->dev, name, GFP_KERNEL);
 	if (!channel->name)
