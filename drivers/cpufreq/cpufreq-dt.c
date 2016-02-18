@@ -142,15 +142,16 @@ static int allocate_resources(int cpu, struct device **cdev,
 
 try_again:
 	cpu_reg = regulator_get_optional(cpu_dev, reg);
-	if (IS_ERR(cpu_reg)) {
+	ret = PTR_ERR_OR_ZERO(cpu_reg);
+	if (ret) {
 		/*
 		 * If cpu's regulator supply node is present, but regulator is
 		 * not yet registered, we should try defering probe.
 		 */
-		if (PTR_ERR(cpu_reg) == -EPROBE_DEFER) {
+		if (ret == -EPROBE_DEFER) {
 			dev_dbg(cpu_dev, "cpu%d regulator not ready, retry\n",
 				cpu);
-			return -EPROBE_DEFER;
+			return ret;
 		}
 
 		/* Try with "cpu-supply" */
@@ -159,17 +160,15 @@ try_again:
 			goto try_again;
 		}
 
-		dev_dbg(cpu_dev, "no regulator for cpu%d: %ld\n",
-			cpu, PTR_ERR(cpu_reg));
+		dev_dbg(cpu_dev, "no regulator for cpu%d: %d\n", cpu, ret);
 	}
 
 	cpu_clk = clk_get(cpu_dev, NULL);
-	if (IS_ERR(cpu_clk)) {
+	ret = PTR_ERR_OR_ZERO(cpu_clk);
+	if (ret) {
 		/* put regulator */
 		if (!IS_ERR(cpu_reg))
 			regulator_put(cpu_reg);
-
-		ret = PTR_ERR(cpu_clk);
 
 		/*
 		 * If cpu's clk node is present, but clock is not yet

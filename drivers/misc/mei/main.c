@@ -458,7 +458,11 @@ static int mei_ioctl_client_notify_request(struct file *file, u32 request)
 {
 	struct mei_cl *cl = file->private_data;
 
-	return mei_cl_notify_request(cl, file, request);
+	if (request != MEI_HBM_NOTIFICATION_START &&
+	    request != MEI_HBM_NOTIFICATION_STOP)
+		return -EINVAL;
+
+	return mei_cl_notify_request(cl, file, (u8)request);
 }
 
 /**

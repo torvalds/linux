@@ -120,6 +120,7 @@ static void __init cpu_set_ttbr1(unsigned long ttbr1)
 void __init kasan_init(void)
 {
 	struct memblock_region *reg;
+	int i;
 
 	/*
 	 * We are going to perform proper setup of shadow memory.
@@ -154,6 +155,14 @@ void __init kasan_init(void)
 				(unsigned long)kasan_mem_to_shadow(end) + 1,
 				pfn_to_nid(virt_to_pfn(start)));
 	}
+
+	/*
+	 * KAsan may reuse the contents of kasan_zero_pte directly, so we
+	 * should make sure that it maps the zero page read-only.
+	 */
+	for (i = 0; i < PTRS_PER_PTE; i++)
+		set_pte(&kasan_zero_pte[i],
+			pfn_pte(virt_to_pfn(kasan_zero_page), PAGE_KERNEL_RO));
 
 	memset(kasan_zero_page, 0, PAGE_SIZE);
 	cpu_set_ttbr1(__pa(swapper_pg_dir));

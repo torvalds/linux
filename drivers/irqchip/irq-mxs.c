@@ -241,6 +241,7 @@ static int __init asm9260_of_init(struct device_node *np,
 		writel(0, icoll_priv.intr + i);
 
 	icoll_add_domain(np, ASM9260_NUM_IRQS);
+	set_handle_irq(icoll_handle_irq);
 
 	return 0;
 }
