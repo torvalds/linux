@@ -123,7 +123,7 @@ static int ad2s1210_config_write(struct ad2s1210_state *st, u8 data)
 
 /* read value from one of the registers */
 static int ad2s1210_config_read(struct ad2s1210_state *st,
-		       unsigned char address)
+				unsigned char address)
 {
 	struct spi_transfer xfer = {
 		.len = 2,
@@ -282,8 +282,8 @@ static ssize_t ad2s1210_show_control(struct device *dev,
 }
 
 static ssize_t ad2s1210_store_control(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t len)
+				      struct device_attribute *attr,
+				      const char *buf, size_t len)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned char udata;
@@ -330,7 +330,8 @@ error_ret:
 }
 
 static ssize_t ad2s1210_show_resolution(struct device *dev,
-			struct device_attribute *attr, char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 
@@ -338,8 +339,8 @@ static ssize_t ad2s1210_show_resolution(struct device *dev,
 }
 
 static ssize_t ad2s1210_store_resolution(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t len)
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned char data;
@@ -389,7 +390,7 @@ error_ret:
 
 /* read the fault register since last sample */
 static ssize_t ad2s1210_show_fault(struct device *dev,
-			struct device_attribute *attr, char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	int ret;
@@ -441,7 +442,8 @@ static ssize_t ad2s1210_show_reg(struct device *dev,
 }
 
 static ssize_t ad2s1210_store_reg(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t len)
+				  struct device_attribute *attr,
+				  const char *buf, size_t len)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned char data;

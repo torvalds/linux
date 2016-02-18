@@ -42,10 +42,10 @@ struct ad2s1200_state {
 };
 
 static int ad2s1200_read_raw(struct iio_dev *indio_dev,
-			   struct iio_chan_spec const *chan,
-			   int *val,
-			   int *val2,
-			   long m)
+			     struct iio_chan_spec const *chan,
+			     int *val,
+			     int *val2,
+			     long m)
 {
 	int ret = 0;
 	s16 vel;
@@ -113,7 +113,7 @@ static int ad2s1200_probe(struct spi_device *spi)
 					    DRV_NAME);
 		if (ret) {
 			dev_err(&spi->dev, "request gpio pin %d failed\n",
-							pins[pn]);
+				pins[pn]);
 			return ret;
 		}
 	}
