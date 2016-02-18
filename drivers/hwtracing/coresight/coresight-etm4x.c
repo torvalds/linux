@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
+#include <linux/perf_event.h>
 #include <asm/sections.h>
 
 #include "coresight-etm4x.h"
@@ -187,7 +188,8 @@ static void etm4_enable_hw(void *info)
 	dev_dbg(drvdata->dev, "cpu: %d enable smp call done\n", drvdata->cpu);
 }
 
-static int etm4_enable(struct coresight_device *csdev, u32 mode)
+static int etm4_enable(struct coresight_device *csdev,
+		       struct perf_event_attr *attr, u32 mode)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret;
