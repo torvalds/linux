@@ -9583,9 +9583,14 @@ vector_setup_out:
  **/
 static struct i40e_vsi *i40e_vsi_reinit_setup(struct i40e_vsi *vsi)
 {
-	struct i40e_pf *pf = vsi->back;
+	struct i40e_pf *pf;
 	u8 enabled_tc;
 	int ret;
+
+	if (!vsi)
+		return NULL;
+
+	pf = vsi->back;
 
 	i40e_put_lump(pf->qp_pile, vsi->base_queue, vsi->idx);
 	i40e_vsi_clear_rings(vsi);
