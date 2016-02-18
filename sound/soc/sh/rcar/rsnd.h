@@ -550,10 +550,10 @@ struct rsnd_kctrl_cfg {
 	struct snd_kcontrol *kctrl;
 };
 
-#define RSND_DVC_CHANNELS	8
+#define RSND_MAX_CHANNELS	8
 struct rsnd_kctrl_cfg_m {
 	struct rsnd_kctrl_cfg cfg;
-	u32 val[RSND_DVC_CHANNELS];
+	u32 val[RSND_MAX_CHANNELS];
 };
 
 struct rsnd_kctrl_cfg_s {

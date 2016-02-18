@@ -83,15 +83,15 @@ static void rsnd_dvc_volume_parameter(struct rsnd_dai_stream *io,
 					      struct rsnd_mod *mod)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
-	u32 val[RSND_DVC_CHANNELS];
+	u32 val[RSND_MAX_CHANNELS];
 	int i;
 
 	/* Enable Ramp */
 	if (dvc->ren.val)
-		for (i = 0; i < RSND_DVC_CHANNELS; i++)
+		for (i = 0; i < RSND_MAX_CHANNELS; i++)
 			val[i] = dvc->volume.cfg.max;
 	else
-		for (i = 0; i < RSND_DVC_CHANNELS; i++)
+		for (i = 0; i < RSND_MAX_CHANNELS; i++)
 			val[i] = dvc->volume.val[i];
 
 	/* Enable Digital Volume */

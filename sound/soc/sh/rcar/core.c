@@ -988,7 +988,7 @@ int rsnd_kctrl_new_m(struct rsnd_mod *mod,
 		     int ch_size,
 		     u32 max)
 {
-	if (ch_size > RSND_DVC_CHANNELS)
+	if (ch_size > RSND_MAX_CHANNELS)
 		return -EINVAL;
 
 	_cfg->cfg.max	= max;
