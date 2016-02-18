@@ -5566,12 +5566,28 @@ static void handle_send_egress_err_info(struct hfi1_devdata *dd,
 		int weight, i;
 
 		/*
-		 * Count all, in case multiple bits are set.  Reminder:
-		 * since there is only one info register for many sources,
-		 * these may be attributed to the wrong VL if they occur
-		 * too close together.
+		 * Count all applicable bits as individual errors and
+		 * attribute them to the packet that triggered this handler.
+		 * This may not be completely accurate due to limitations
+		 * on the available hardware error information.  There is
+		 * a single information register and any number of error
+		 * packets may have occurred and contributed to it before
+		 * this routine is called.  This means that:
+		 * a) If multiple packets with the same error occur before
+		 *    this routine is called, earlier packets are missed.
+		 *    There is only a single bit for each error type.
+		 * b) Errors may not be attributed to the correct VL.
+		 *    The driver is attributing all bits in the info register
+		 *    to the packet that triggered this call, but bits
+		 *    could be an accumulation of different packets with
+		 *    different VLs.
+		 * c) A single error packet may have multiple counts attached
+		 *    to it.  There is no way for the driver to know if
+		 *    multiple bits set in the info register are due to a
+		 *    single packet or multiple packets.  The driver assumes
+		 *    multiple packets.
 		 */
-		weight = hweight64(info);
+		weight = hweight64(info & PORT_DISCARD_EGRESS_ERRS);
 		for (i = 0; i < weight; i++) {
 			__count_port_discards(ppd);
 			if (vl >= 0 && vl < TXE_NUM_DATA_VL)
