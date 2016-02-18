@@ -553,9 +553,8 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 	#ifdef CONFIG_MFD_SYSCON
 	hdmi_dev->grf_base =
 		syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR(hdmi_dev->grf_base)) {
+	if (IS_ERR(hdmi_dev->grf_base))
 		hdmi_dev->grf_base = NULL;
-	}
 	#endif
 	return 0;
 }

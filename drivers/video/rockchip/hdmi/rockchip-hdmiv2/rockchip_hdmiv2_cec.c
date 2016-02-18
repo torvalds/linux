@@ -113,15 +113,7 @@ void rockchip_hdmiv2_cec_init(struct hdmi *hdmi)
 		init = 0;
 		/* init_waitqueue_head(&wait); */
 	}
-	/*
-	 * Enable sending all message even if sink refuse
-	 * message broadcasted by us.
-	 */
-	if (hdmi_dev->grf_base)
-		regmap_write(hdmi_dev->grf_base,
-			     hdmi_dev->grf_reg_offset,
-			     (1 << hdmi_dev->grf_reg_shift) |
-			     (1 << (hdmi_dev->grf_reg_shift + 16)));
+
 	hdmi_writel(hdmi_dev, IH_MUTE_CEC_STAT0, m_ERR_INITIATOR |
 			m_ARB_LOST | m_NACK | m_DONE);
 	CECDBG("%s", __func__);
