@@ -66,11 +66,11 @@ static int asus_acpi_get_sensor_info(struct acpi_device *adev,
 		union acpi_object *elem;
 		int j;
 
-		elem = &(cpm->package.elements[i]);
+		elem = &cpm->package.elements[i];
 		for (j = 0; j < elem->package.count; ++j) {
 			union acpi_object *sub_elem;
 
-			sub_elem = &(elem->package.elements[j]);
+			sub_elem = &elem->package.elements[j];
 			if (sub_elem->type == ACPI_TYPE_STRING)
 				strlcpy(info->type, sub_elem->string.pointer,
 					sizeof(info->type));
