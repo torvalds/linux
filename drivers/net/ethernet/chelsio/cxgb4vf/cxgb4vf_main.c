@@ -741,6 +741,9 @@ static int adapter_up(struct adapter *adapter)
 	 */
 	enable_rx(adapter);
 	t4vf_sge_start(adapter);
+
+	/* Initialize hash mac addr list*/
+	INIT_LIST_HEAD(&adapter->mac_hlist);
 	return 0;
 }
 
@@ -905,51 +908,74 @@ static inline unsigned int collect_netdev_mc_list_addrs(const struct net_device 
 	return naddr;
 }
 
-/*
- * Configure the exact and hash address filters to handle a port's multicast
- * and secondary unicast MAC addresses.
- */
-static int set_addr_filters(const struct net_device *dev, bool sleep)
+static inline int cxgb4vf_set_addr_hash(struct port_info *pi)
 {
+	struct adapter *adapter = pi->adapter;
+	u64 vec = 0;
+	bool ucast = false;
+	struct hash_mac_addr *entry;
+
+	/* Calculate the hash vector for the updated list and program it */
+	list_for_each_entry(entry, &adapter->mac_hlist, list) {
+		ucast |= is_unicast_ether_addr(entry->addr);
+		vec |= (1ULL << hash_mac_addr(entry->addr));
+	}
+	return t4vf_set_addr_hash(adapter, pi->viid, ucast, vec, false);
+}
+
+static int cxgb4vf_mac_sync(struct net_device *netdev, const u8 *mac_addr)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+	int ret;
 	u64 mhash = 0;
 	u64 uhash = 0;
-	bool free = true;
-	unsigned int offset, naddr;
-	const u8 *addr[7];
+	bool free = false;
+	bool ucast = is_unicast_ether_addr(mac_addr);
+	const u8 *maclist[1] = {mac_addr};
+	struct hash_mac_addr *new_entry;
+
+	ret = t4vf_alloc_mac_filt(adapter, pi->viid, free, 1, maclist,
+				  NULL, ucast ? &uhash : &mhash, false);
+	if (ret < 0)
+		goto out;
+	/* if hash != 0, then add the addr to hash addr list
+	 * so on the end we will calculate the hash for the
+	 * list and program it
+	 */
+	if (uhash || mhash) {
+		new_entry = kzalloc(sizeof(*new_entry), GFP_ATOMIC);
+		if (!new_entry)
+			return -ENOMEM;
+		ether_addr_copy(new_entry->addr, mac_addr);
+		list_add_tail(&new_entry->list, &adapter->mac_hlist);
+		ret = cxgb4vf_set_addr_hash(pi);
+	}
+out:
+	return ret < 0 ? ret : 0;
+}
+
+static int cxgb4vf_mac_unsync(struct net_device *netdev, const u8 *mac_addr)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
 	int ret;
-	const struct port_info *pi = netdev_priv(dev);
+	const u8 *maclist[1] = {mac_addr};
+	struct hash_mac_addr *entry, *tmp;
 
-	/* first do the secondary unicast addresses */
-	for (offset = 0; ; offset += naddr) {
-		naddr = collect_netdev_uc_list_addrs(dev, addr, offset,
-						     ARRAY_SIZE(addr));
-		if (naddr == 0)
-			break;
-
-		ret = t4vf_alloc_mac_filt(pi->adapter, pi->viid, free,
-					  naddr, addr, NULL, &uhash, sleep);
-		if (ret < 0)
-			return ret;
-
-		free = false;
+	/* If the MAC address to be removed is in the hash addr
+	 * list, delete it from the list and update hash vector
+	 */
+	list_for_each_entry_safe(entry, tmp, &adapter->mac_hlist, list) {
+		if (ether_addr_equal(entry->addr, mac_addr)) {
+			list_del(&entry->list);
+			kfree(entry);
+			return cxgb4vf_set_addr_hash(pi);
+		}
 	}
 
-	/* next set up the multicast addresses */
-	for (offset = 0; ; offset += naddr) {
-		naddr = collect_netdev_mc_list_addrs(dev, addr, offset,
-						     ARRAY_SIZE(addr));
-		if (naddr == 0)
-			break;
-
-		ret = t4vf_alloc_mac_filt(pi->adapter, pi->viid, free,
-					  naddr, addr, NULL, &mhash, sleep);
-		if (ret < 0)
-			return ret;
-		free = false;
-	}
-
-	return t4vf_set_addr_hash(pi->adapter, pi->viid, uhash != 0,
-				  uhash | mhash, sleep);
+	ret = t4vf_free_mac_filt(adapter, pi->viid, 1, maclist, false);
+	return ret < 0 ? -EINVAL : 0;
 }
 
 /*
@@ -958,16 +984,18 @@ static int set_addr_filters(const struct net_device *dev, bool sleep)
  */
 static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 {
-	int ret;
 	struct port_info *pi = netdev_priv(dev);
 
-	ret = set_addr_filters(dev, sleep_ok);
-	if (ret == 0)
-		ret = t4vf_set_rxmode(pi->adapter, pi->viid, -1,
-				      (dev->flags & IFF_PROMISC) != 0,
-				      (dev->flags & IFF_ALLMULTI) != 0,
-				      1, -1, sleep_ok);
-	return ret;
+	if (!(dev->flags & IFF_PROMISC)) {
+		__dev_uc_sync(dev, cxgb4vf_mac_sync, cxgb4vf_mac_unsync);
+		if (!(dev->flags & IFF_ALLMULTI))
+			__dev_mc_sync(dev, cxgb4vf_mac_sync,
+				      cxgb4vf_mac_unsync);
+	}
+	return t4vf_set_rxmode(pi->adapter, pi->viid, -1,
+			       (dev->flags & IFF_PROMISC) != 0,
+			       (dev->flags & IFF_ALLMULTI) != 0,
+			       1, -1, sleep_ok);
 }
 
 /*
