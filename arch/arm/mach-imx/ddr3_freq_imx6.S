@@ -659,7 +659,11 @@ cont_1:
 	orr	r0, r0, #0x4
 	str	r0, [r5, #MMDC0_MDCF1]
 
-	ldr	r0, =0x00011680
+	ldr	r0, [r5, #MMDC0_MDMISC]
+	bic	r0, r0, #(0x3 << 16) /* walat = 0x1 */
+	orr	r0, r0, #(0x1 << 16)
+	bic	r0, r0, #(0x7 << 6)  /* ralat = 0x2 */
+	orr	r0, r0, #(0x2 << 6)
 	str	r0, [r5, #MMDC0_MDMISC]
 
 	/* enable dqs pull down in the IOMUX. */
@@ -790,7 +794,9 @@ poll_dvfs_clear_2:
 	cmp	r9, #0
 	beq	update_calibration_only
 
-	ldr	r0, =0xa1390003
+	/* issue zq calibration command */
+	ldr	r0, [r5, #MMDC0_MPZQHWCTRL]
+	orr	r0, r0, #0x3
 	str	r0, [r5, #MMDC0_MPZQHWCTRL]
 	ldr	r2, =MMDC1_MPZQHWCTRL
 	str	r0, [r5, r2]
@@ -846,10 +852,6 @@ update_iomux1:
 	ldr	r3, [r8, #0x4]
 	str	r3, [r5, r0]
 	add	r8, r8, #8
-
-	/* update MISC register: WALAT, RALAT */
-	ldr	r0, =0x00001740
-	str	r0, [r5, #MMDC0_MDMISC]
 
 	/* configure ddr devices to dll on, odt. */
 	ldr	r0, =0x00048031
