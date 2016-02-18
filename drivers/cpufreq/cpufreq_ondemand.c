@@ -220,7 +220,6 @@ static struct dbs_governor od_dbs_gov;
 static ssize_t store_io_is_busy(struct dbs_data *dbs_data, const char *buf,
 		size_t count)
 {
-	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	unsigned int input;
 	int ret;
 	unsigned int j;
@@ -228,14 +227,14 @@ static ssize_t store_io_is_busy(struct dbs_data *dbs_data, const char *buf,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	od_tuners->io_is_busy = !!input;
+	dbs_data->io_is_busy = !!input;
 
 	/* we need to re-evaluate prev_cpu_idle */
 	for_each_online_cpu(j) {
 		struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info,
 									j);
 		dbs_info->cdbs.prev_cpu_idle = get_cpu_idle_time(j,
-			&dbs_info->cdbs.prev_cpu_wall, od_tuners->io_is_busy);
+			&dbs_info->cdbs.prev_cpu_wall, dbs_data->io_is_busy);
 	}
 	return count;
 }
@@ -286,7 +285,6 @@ static ssize_t store_sampling_down_factor(struct dbs_data *dbs_data,
 static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 		const char *buf, size_t count)
 {
-	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	unsigned int input;
 	int ret;
 
@@ -309,7 +307,7 @@ static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 		struct od_cpu_dbs_info_s *dbs_info;
 		dbs_info = &per_cpu(od_cpu_dbs_info, j);
 		dbs_info->cdbs.prev_cpu_idle = get_cpu_idle_time(j,
-			&dbs_info->cdbs.prev_cpu_wall, od_tuners->io_is_busy);
+			&dbs_info->cdbs.prev_cpu_wall, dbs_data->io_is_busy);
 		if (dbs_data->ignore_nice_load)
 			dbs_info->cdbs.prev_cpu_nice =
 				kcpustat_cpu(j).cpustat[CPUTIME_NICE];
@@ -342,7 +340,7 @@ gov_show_one_common(up_threshold);
 gov_show_one_common(sampling_down_factor);
 gov_show_one_common(ignore_nice_load);
 gov_show_one_common(min_sampling_rate);
-gov_show_one(od, io_is_busy);
+gov_show_one_common(io_is_busy);
 gov_show_one(od, powersave_bias);
 
 gov_attr_rw(sampling_rate);
@@ -401,7 +399,7 @@ static int od_init(struct dbs_data *dbs_data, bool notify)
 	dbs_data->sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR;
 	dbs_data->ignore_nice_load = 0;
 	tuners->powersave_bias = default_powersave_bias;
-	tuners->io_is_busy = should_io_be_busy();
+	dbs_data->io_is_busy = should_io_be_busy();
 
 	dbs_data->tuners = tuners;
 	return 0;

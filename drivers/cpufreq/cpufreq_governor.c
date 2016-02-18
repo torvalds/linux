@@ -137,10 +137,9 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
-	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 	unsigned int ignore_nice = dbs_data->ignore_nice_load;
 	unsigned int max_load = 0;
-	unsigned int sampling_rate, j;
+	unsigned int sampling_rate, io_busy, j;
 
 	/*
 	 * Sometimes governors may use an additional multiplier to increase
@@ -149,6 +148,12 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 	 * conservative.
 	 */
 	sampling_rate = dbs_data->sampling_rate * policy_dbs->rate_mult;
+	/*
+	 * For the purpose of ondemand, waiting for disk IO is an indication
+	 * that you're performance critical, and not that the system is actually
+	 * idle, so do not add the iowait time to the CPU idle time then.
+	 */
+	io_busy = dbs_data->io_is_busy;
 
 	/* Get Absolute Load */
 	for_each_cpu(j, policy->cpus) {
@@ -156,18 +161,9 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 		u64 cur_wall_time, cur_idle_time;
 		unsigned int idle_time, wall_time;
 		unsigned int load;
-		int io_busy = 0;
 
 		j_cdbs = gov->get_cpu_cdbs(j);
 
-		/*
-		 * For the purpose of ondemand, waiting for disk IO is
-		 * an indication that you're performance critical, and
-		 * not that the system is actually idle. So do not add
-		 * the iowait time to the cpu idle time.
-		 */
-		if (gov->governor == GOV_ONDEMAND)
-			io_busy = od_tuners->io_is_busy;
 		cur_idle_time = get_cpu_idle_time(j, &cur_wall_time, io_busy);
 
 		wall_time = cur_wall_time - j_cdbs->prev_cpu_wall;
@@ -522,7 +518,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	unsigned int sampling_rate, ignore_nice, j, cpu = policy->cpu;
-	int io_busy = 0;
+	unsigned int io_busy;
 
 	if (!policy->cur)
 		return -EINVAL;
@@ -532,12 +528,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 
 	sampling_rate = dbs_data->sampling_rate;
 	ignore_nice = dbs_data->ignore_nice_load;
-
-	if (gov->governor == GOV_ONDEMAND) {
-		struct od_dbs_tuners *od_tuners = dbs_data->tuners;
-
-		io_busy = od_tuners->io_is_busy;
-	}
+	io_busy = dbs_data->io_is_busy;
 
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_dbs_info *j_cdbs = gov->get_cpu_cdbs(j);

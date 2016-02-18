@@ -71,6 +71,7 @@ struct dbs_data {
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
+	unsigned int io_is_busy;
 
 	struct kobject kobj;
 	struct list_head policy_dbs_list;
@@ -177,7 +178,6 @@ struct cs_cpu_dbs_info_s {
 /* Per policy Governors sysfs tunables */
 struct od_dbs_tuners {
 	unsigned int powersave_bias;
-	unsigned int io_is_busy;
 };
 
 struct cs_dbs_tuners {
