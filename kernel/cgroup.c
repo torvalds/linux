@@ -6083,10 +6083,11 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 	spin_unlock_bh(&css_set_lock);
 	mutex_unlock(&cgroup_mutex);
 
-	err = -ENOMEM;
 	new_ns = alloc_cgroup_ns();
-	if (!new_ns)
+	if (IS_ERR(new_ns)) {
+		err = PTR_ERR(new_ns);
 		goto err_out;
+	}
 
 	new_ns->user_ns = get_user_ns(user_ns);
 	new_ns->root_cset = cset;
