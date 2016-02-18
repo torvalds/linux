@@ -24,6 +24,7 @@
 #include <linux/coresight.h>
 #include <linux/of_platform.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 
 #include "coresight-priv.h"
 
@@ -376,7 +377,8 @@ out:
 	/*
 	 * A path from this element to a sink has been found.  The elements
 	 * leading to the sink are already enqueued, all that is left to do
-	 * is add a node for this element.
+	 * is tell the PM runtime core we need this element and add a node
+	 * for it.
 	 */
 	node = kzalloc(sizeof(struct coresight_node), GFP_KERNEL);
 	if (!node)
@@ -384,6 +386,7 @@ out:
 
 	node->csdev = csdev;
 	list_add(&node->link, path);
+	pm_runtime_get_sync(csdev->dev.parent);
 
 	return 0;
 }
@@ -415,9 +418,13 @@ struct list_head *coresight_build_path(struct coresight_device *csdev)
  */
 void coresight_release_path(struct list_head *path)
 {
+	struct coresight_device *csdev;
 	struct coresight_node *nd, *next;
 
 	list_for_each_entry_safe(nd, next, path, link) {
+		csdev = nd->csdev;
+
+		pm_runtime_put_sync(csdev->dev.parent);
 		list_del(&nd->link);
 		kfree(nd);
 	}
