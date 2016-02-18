@@ -14,30 +14,34 @@ static int save_stack_stack(void *data, char *name)
 	return 0;
 }
 
-static void
+static int
 __save_stack_address(void *data, unsigned long addr, bool reliable, bool nosched)
 {
 	struct stack_trace *trace = data;
 #ifdef CONFIG_FRAME_POINTER
 	if (!reliable)
-		return;
+		return 0;
 #endif
 	if (nosched && in_sched_functions(addr))
-		return;
+		return 0;
 	if (trace->skip > 0) {
 		trace->skip--;
-		return;
+		return 0;
 	}
-	if (trace->nr_entries < trace->max_entries)
+	if (trace->nr_entries < trace->max_entries) {
 		trace->entries[trace->nr_entries++] = addr;
+		return 0;
+	} else {
+		return -1; /* no more room, stop walking the stack */
+	}
 }
 
-static void save_stack_address(void *data, unsigned long addr, int reliable)
+static int save_stack_address(void *data, unsigned long addr, int reliable)
 {
 	return __save_stack_address(data, addr, reliable, false);
 }
 
-static void
+static int
 save_stack_address_nosched(void *data, unsigned long addr, int reliable)
 {
 	return __save_stack_address(data, addr, reliable, true);
