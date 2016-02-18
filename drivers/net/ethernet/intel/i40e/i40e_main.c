@@ -7109,12 +7109,13 @@ static void i40e_sync_udp_filters_subtask(struct i40e_pf *pf)
 				ret = i40e_aq_del_udp_tunnel(hw, i, NULL);
 
 			if (ret) {
-				dev_info(&pf->pdev->dev,
-					 "%s vxlan port %d, index %d failed, err %s aq_err %s\n",
-					 port ? "add" : "delete",
-					 ntohs(port), i,
-					 i40e_stat_str(&pf->hw, ret),
-					 i40e_aq_str(&pf->hw,
+				dev_dbg(&pf->pdev->dev,
+					"%s %s port %d, index %d failed, err %s aq_err %s\n",
+					pf->udp_ports[i].type ? "vxlan" : "geneve",
+					port ? "add" : "delete",
+					ntohs(port), i,
+					i40e_stat_str(&pf->hw, ret),
+					i40e_aq_str(&pf->hw,
 						    pf->hw.aq.asq_last_status));
 				pf->udp_ports[i].index = 0;
 			}
