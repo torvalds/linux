@@ -148,7 +148,6 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
     gdth_cmd_str *gdtcmd;
     gdth_evt_str *estr;
     char hrec[161];
-    struct timeval tv;
 
     char *buf;
     gdth_dskstat_str *pds;
@@ -540,8 +539,14 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         if (estr->event_data.eu.driver.ionode == ha->hanum &&
             estr->event_source == ES_ASYNC) { 
             gdth_log_event(&estr->event_data, hrec);
-            do_gettimeofday(&tv);
-            sec = (int)(tv.tv_sec - estr->first_stamp);
+
+	    /*
+	     * Elapsed seconds subtraction with unsigned operands is
+	     * safe from wrap around in year 2106.  Executes as:
+	     * operand a + (2's complement operand b) + 1
+	     */
+
+	    sec = (int)((u32)ktime_get_real_seconds() - estr->first_stamp);
             if (sec < 0) sec = 0;
             seq_printf(m," date- %02d:%02d:%02d\t%s\n",
                            sec/3600, sec%3600/60, sec%60, hrec);
