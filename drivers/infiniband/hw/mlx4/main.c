@@ -1653,6 +1653,9 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	struct mlx4_dev *dev = (to_mdev(qp->device))->dev;
 	int is_bonded = mlx4_is_bonded(dev);
 
+	if (flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	memset(type, 0, sizeof(type));
 
 	mflow = kzalloc(sizeof(*mflow), GFP_KERNEL);
