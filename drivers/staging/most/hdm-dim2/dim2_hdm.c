@@ -736,7 +736,7 @@ static int dim2_probe(struct platform_device *pdev)
 	int ret, i;
 	struct kobject *kobj;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -750,13 +750,13 @@ static int dim2_probe(struct platform_device *pdev)
 	if (!res) {
 		pr_err("no memory region defined\n");
 		ret = -ENOENT;
-		goto err_free_dev;
+		return ret;
 	}
 
 	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
 		pr_err("failed to request mem region\n");
 		ret = -EBUSY;
-		goto err_free_dev;
+		return ret;
 	}
 
 	dev->io_base = ioremap(res->start, resource_size(res));
@@ -862,9 +862,7 @@ err_unmap_io:
 	iounmap(dev->io_base);
 err_release_mem:
 	release_mem_region(res->start, resource_size(res));
-err_free_dev:
 #endif
-	kfree(dev);
 
 	return ret;
 }
@@ -897,7 +895,6 @@ static int dim2_remove(struct platform_device *pdev)
 	iounmap(dev->io_base);
 	release_mem_region(res->start, resource_size(res));
 #endif
-	kfree(dev);
 	platform_set_drvdata(pdev, NULL);
 
 	/*
