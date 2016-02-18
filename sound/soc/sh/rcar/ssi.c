@@ -545,10 +545,15 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
  *		SSI PIO
  */
 static void rsnd_ssi_parent_attach(struct rsnd_mod *mod,
-				   struct rsnd_dai_stream *io,
-				   struct rsnd_priv *priv)
+				   struct rsnd_dai_stream *io)
 {
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+
 	if (!__rsnd_ssi_is_pin_sharing(mod))
+		return;
+
+	if (!rsnd_rdai_is_clk_master(rdai))
 		return;
 
 	switch (rsnd_mod_id(mod)) {
@@ -563,6 +568,20 @@ static void rsnd_ssi_parent_attach(struct rsnd_mod *mod,
 		rsnd_dai_connect(rsnd_ssi_mod_get(priv, 7), io, RSND_MOD_SSIP);
 		break;
 	}
+}
+
+static int rsnd_ssi_pcm_new(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    struct snd_soc_pcm_runtime *rtd)
+{
+	/*
+	 * rsnd_rdai_is_clk_master() will be enabled after set_fmt,
+	 * and, pcm_new will be called after it.
+	 * This function reuse pcm_new at this point.
+	 */
+	rsnd_ssi_parent_attach(mod, io);
+
+	return 0;
 }
 
 static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
@@ -580,7 +599,10 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	if (rsnd_ssi_is_multi_slave(mod, io))
 		return 0;
 
-	rsnd_ssi_parent_attach(mod, io, priv);
+	/*
+	 * It can't judge ssi parent at this point
+	 * see rsnd_ssi_pcm_new()
+	 */
 
 	ret = rsnd_ssiu_attach(io, mod);
 	if (ret < 0)
@@ -602,6 +624,7 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.start	= rsnd_ssi_start,
 	.stop	= rsnd_ssi_stop,
 	.irq	= rsnd_ssi_irq,
+	.pcm_new = rsnd_ssi_pcm_new,
 	.hw_params = rsnd_ssi_hw_params,
 };
 
@@ -691,6 +714,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.start	= rsnd_ssi_start,
 	.stop	= rsnd_ssi_stop,
 	.irq	= rsnd_ssi_irq,
+	.pcm_new = rsnd_ssi_pcm_new,
 	.fallback = rsnd_ssi_fallback,
 	.hw_params = rsnd_ssi_hw_params,
 };
