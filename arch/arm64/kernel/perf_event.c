@@ -419,8 +419,8 @@ static const struct attribute_group *armv8_pmuv3_attr_groups[] = {
 /*
  * PMXEVTYPER: Event selection reg
  */
-#define	ARMV8_EVTYPE_MASK	0xc80003ff	/* Mask for writable bits */
-#define	ARMV8_EVTYPE_EVENT	0x3ff		/* Mask for EVENT bits */
+#define	ARMV8_EVTYPE_MASK	0xc800ffff	/* Mask for writable bits */
+#define	ARMV8_EVTYPE_EVENT	0xffff		/* Mask for EVENT bits */
 
 /*
  * Event filters for PMUv3
