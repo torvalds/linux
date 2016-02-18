@@ -747,29 +747,14 @@ static int dim2_probe(struct platform_device *pdev)
 	test_dev = dev;
 #else
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		pr_err("no memory region defined\n");
-		ret = -ENOENT;
-		return ret;
-	}
-
-	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
-		pr_err("failed to request mem region\n");
-		ret = -EBUSY;
-		return ret;
-	}
-
-	dev->io_base = ioremap(res->start, resource_size(res));
-	if (!dev->io_base) {
-		pr_err("failed to ioremap\n");
-		ret = -ENOMEM;
-		goto err_release_mem;
-	}
+	dev->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->io_base))
+		return PTR_ERR(dev->io_base);
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
 		pr_err("failed to get irq\n");
-		goto err_unmap_io;
+		return -ENODEV;
 	}
 	dev->irq_ahb0 = ret;
 
@@ -777,7 +762,7 @@ static int dim2_probe(struct platform_device *pdev)
 	if (ret) {
 		pr_err("failed to request IRQ: %d, err: %d\n",
 		       dev->irq_ahb0, ret);
-		goto err_unmap_io;
+		return ret;
 	}
 #endif
 	init_waitqueue_head(&dev->netinfo_waitq);
@@ -858,10 +843,6 @@ err_stop_thread:
 err_free_irq:
 #if !defined(ENABLE_HDM_TEST)
 	free_irq(dev->irq_ahb0, dev);
-err_unmap_io:
-	iounmap(dev->io_base);
-err_release_mem:
-	release_mem_region(res->start, resource_size(res));
 #endif
 
 	return ret;
@@ -876,7 +857,6 @@ err_release_mem:
 static int dim2_remove(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct dim2_platform_data *pdata = pdev->dev.platform_data;
 	unsigned long flags;
 
@@ -892,10 +872,7 @@ static int dim2_remove(struct platform_device *pdev)
 	kthread_stop(dev->netinfo_task);
 #if !defined(ENABLE_HDM_TEST)
 	free_irq(dev->irq_ahb0, dev);
-	iounmap(dev->io_base);
-	release_mem_region(res->start, resource_size(res));
 #endif
-	platform_set_drvdata(pdev, NULL);
 
 	/*
 	 * break link to local platform_device_id struct
