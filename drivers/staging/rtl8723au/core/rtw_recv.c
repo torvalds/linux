@@ -88,13 +88,12 @@ int _rtw_init_recv_priv23a(struct recv_priv *precvpriv,
 void _rtw_free_recv_priv23a (struct recv_priv *precvpriv)
 {
 	struct rtw_adapter *padapter = precvpriv->adapter;
-	struct recv_frame *precvframe;
-	struct list_head *plist, *ptmp;
+	struct recv_frame *precvframe, *ptmp;
 
 	rtw_free_uc_swdec_pending_queue23a(padapter);
 
-	list_for_each_safe(plist, ptmp, &precvpriv->free_recv_queue.queue) {
-		precvframe = container_of(plist, struct recv_frame, list);
+	list_for_each_entry_safe(precvframe, ptmp,
+				 &precvpriv->free_recv_queue.queue, list) {
 		list_del_init(&precvframe->list);
 		kfree(precvframe);
 	}
@@ -195,18 +194,16 @@ using spinlock to protect
 
 static void rtw_free_recvframe23a_queue(struct rtw_queue *pframequeue)
 {
-	struct recv_frame *hdr;
-	struct list_head *plist, *phead, *ptmp;
+	struct recv_frame *hdr, *ptmp;
+	struct list_head *plist, *phead;
 
 	spin_lock(&pframequeue->lock);
 
 	phead = get_list_head(pframequeue);
 	plist = phead->next;
 
-	list_for_each_safe(plist, ptmp, phead) {
-		hdr = container_of(plist, struct recv_frame, list);
+	list_for_each_entry_safe(hdr, ptmp, phead, list)
 		rtw_free_recvframe23a(hdr);
-	}
 
 	spin_unlock(&pframequeue->lock);
 }
@@ -1549,10 +1546,10 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 				    struct rtw_queue *defrag_q)
 {
-	struct list_head *plist, *phead, *ptmp;
+	struct list_head *plist, *phead;
 	u8	*data, wlanhdr_offset;
 	u8	curfragnum;
-	struct recv_frame *pnfhdr;
+	struct recv_frame *pnfhdr, *ptmp;
 	struct recv_frame *prframe, *pnextrframe;
 	struct rtw_queue	*pfree_recv_queue;
 	struct sk_buff *skb;
@@ -1583,8 +1580,7 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 
 	data = prframe->pkt->data;
 
-	list_for_each_safe(plist, ptmp, phead) {
-		pnfhdr = container_of(plist, struct recv_frame, list);
+	list_for_each_entry_safe(pnfhdr, ptmp, phead, list) {
 		pnextrframe = (struct recv_frame *)pnfhdr;
 		/* check the fragment sequence  (2nd ~n fragment frame) */
 

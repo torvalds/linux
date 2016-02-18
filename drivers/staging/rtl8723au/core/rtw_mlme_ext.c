@@ -6061,8 +6061,8 @@ int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 #ifdef CONFIG_8723AU_AP_MODE
 	else { /* tx bc/mc frames after update TIM */
 		struct sta_info *psta_bmc;
-		struct list_head *plist, *phead, *ptmp;
-		struct xmit_frame *pxmitframe;
+		struct list_head *phead;
+		struct xmit_frame *pxmitframe, *ptmp;
 		struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 		struct sta_priv  *pstapriv = &padapter->stapriv;
 
@@ -6078,10 +6078,8 @@ int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 			phead = get_list_head(&psta_bmc->sleep_q);
 
-			list_for_each_safe(plist, ptmp, phead) {
-				pxmitframe = container_of(plist,
-							  struct xmit_frame,
-							  list);
+			list_for_each_entry_safe(pxmitframe, ptmp,
+						 phead, list) {
 
 				list_del_init(&pxmitframe->list);
 
