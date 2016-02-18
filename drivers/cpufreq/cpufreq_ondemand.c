@@ -416,13 +416,12 @@ static void od_start(struct cpufreq_policy *policy)
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 
 	dbs_info->sample_type = OD_NORMAL_SAMPLE;
-	od_ops.powersave_bias_init_cpu(cpu);
+	ondemand_powersave_bias_init_cpu(cpu);
 }
 
 define_get_cpu_dbs_routines(od_cpu_dbs_info);
 
 static struct od_ops od_ops = {
-	.powersave_bias_init_cpu = ondemand_powersave_bias_init_cpu,
 	.powersave_bias_target = generic_powersave_bias_target,
 };
 

@@ -205,7 +205,6 @@ static inline struct dbs_governor *dbs_governor_of(struct cpufreq_policy *policy
 
 /* Governor specific operations */
 struct od_ops {
-	void (*powersave_bias_init_cpu)(int cpu);
 	unsigned int (*powersave_bias_target)(struct cpufreq_policy *policy,
 			unsigned int freq_next, unsigned int relation);
 };
