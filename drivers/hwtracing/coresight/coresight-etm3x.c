@@ -579,26 +579,23 @@ static void etm_init_arch_data(void *info)
 
 static void etm_init_default_data(struct etm_config *config)
 {
-	u32 flags = (1 << 0 | /* instruction execute*/
-		     3 << 3 | /* ARM instruction */
-		     0 << 5 | /* No data value comparison */
-		     0 << 7 | /* No exact mach */
-		     0 << 8 | /* Ignore context ID */
-		     0 << 10); /* Security ignored */
-
 	if (WARN_ON_ONCE(!config))
 		return;
 
-	config->ctrl = (ETMCR_CYC_ACC | ETMCR_TIMESTAMP_EN);
-	config->enable_ctrl1 = ETMTECR1_ADDR_COMP_1;
-	config->addr_val[0] = (u32) _stext;
-	config->addr_val[1] = (u32) _etext;
-	config->addr_acctype[0] = flags;
-	config->addr_acctype[1] = flags;
-	config->addr_type[0] = ETM_ADDR_TYPE_RANGE;
-	config->addr_type[1] = ETM_ADDR_TYPE_RANGE;
-
 	etm_set_default(config);
+
+	/*
+	 * Taken verbatim from the TRM:
+	 *
+	 * To trace all memory:
+	 *  set bit [24] in register 0x009, the ETMTECR1, to 1
+	 *  set all other bits in register 0x009, the ETMTECR1, to 0
+	 *  set all bits in register 0x007, the ETMTECR2, to 0
+	 *  set register 0x008, the ETMTEEVR, to 0x6F (TRUE).
+	 */
+	config->enable_ctrl1 = BIT(24);
+	config->enable_ctrl2 = 0x0;
+	config->enable_event = ETM_HARD_WIRE_RES_A;
 }
 
 static void etm_init_trace_id(struct etm_drvdata *drvdata)
