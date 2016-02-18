@@ -71,6 +71,15 @@
 			linux,default-trigger = "none";
 		};
 	};
+
+	pwm10: dmtimer-pwm@10 {
+		compatible = "ti,omap-dmtimer-pwm";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm_pins>;
+		ti,timers = <&timer10>;
+		#pwm-cells = <3>;
+	};
+
 };
 
 &vaux1 {
@@ -168,13 +177,13 @@
 	};
 
 	bl: backlight {
-		compatible = "gpio-backlight";
+		compatible = "pwm-backlight";
 		pinctrl-names = "default";
 		pinctrl-0 = <&backlight_pins>;
-
-		gpios = <&gpio5 26 GPIO_ACTIVE_HIGH>, /* gpio_154 */
-			<&gpio2 24 GPIO_ACTIVE_HIGH>; /* gpio_56 */
-		default-on;
+		pwms = <&pwm10 0 5000000 0>;
+		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
+		default-brightness-level = <7>;
+		enable-gpios = <&gpio5 26 GPIO_ACTIVE_HIGH>; /* gpio_154 */
 	};
 };
 
@@ -193,6 +202,12 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d6, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_clk.gpio_178 */
 			OMAP3_CORE1_IOPAD(0x21dc, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_cs0.gpio_181 */
+		>;
+	};
+
+	pwm_pins: pinmux_pwm_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20B8, PIN_OUTPUT | PIN_OFF_OUTPUT_LOW | MUX_MODE3)       /* gpmc_ncs5.gpt_10_pwm_evt */
 		>;
 	};
 
@@ -222,7 +237,6 @@
 
 	backlight_pins: pinmux_backlight_pins {
 		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x20B8, PIN_OUTPUT | PIN_OFF_OUTPUT_LOW | MUX_MODE4)       /* gpmc_ncs5.gpio_56 */
 			OMAP3_CORE1_IOPAD(0x2188, PIN_OUTPUT | PIN_OFF_OUTPUT_LOW | MUX_MODE4)       /* mcbsp4_dx.gpio_154 */
 		>;
 	};
