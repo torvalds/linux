@@ -131,7 +131,7 @@ int r8712_xmit_resource_alloc(struct _adapter *padapter,
 
 	for (i = 0; i < 8; i++) {
 		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
-		if (pxmitbuf->pxmit_urb[i] == NULL) {
+		if (!pxmitbuf->pxmit_urb[i]) {
 			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
 			return _FAIL;
 		}
@@ -171,7 +171,7 @@ int r8712_xmit_entry(_pkt *pkt, struct  net_device *pnetdev)
 		goto _xmit_entry_drop;
 	}
 	pxmitframe = r8712_alloc_xmitframe(pxmitpriv);
-	if (pxmitframe == NULL) {
+	if (!pxmitframe) {
 		ret = 0;
 		goto _xmit_entry_drop;
 	}
