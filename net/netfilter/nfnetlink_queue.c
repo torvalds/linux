@@ -301,7 +301,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			   __be32 **packet_id_ptr)
 {
 	size_t size;
-	size_t data_len = 0, cap_len = 0, rem_len = 0;
+	size_t data_len = 0, cap_len = 0;
 	unsigned int hlen = 0;
 	struct sk_buff *skb;
 	struct nlattr *nla;
@@ -361,7 +361,6 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		hlen = min_t(unsigned int, hlen, data_len);
 		size += sizeof(struct nlattr) + hlen;
 		cap_len = entskb->len;
-		rem_len = data_len - hlen;
 		break;
 	}
 
@@ -386,8 +385,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			size += nla_total_size(seclen);
 	}
 
-	skb = __netlink_alloc_skb(net->nfnl, size, rem_len, queue->peer_portid,
-				  GFP_ATOMIC);
+	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
 		skb_tx_error(entskb);
 		return NULL;
