@@ -1821,6 +1821,11 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc)
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
 
+	if (changes & BSS_CHANGED_ASSOC && !bss_conf->assoc &&
+	    mvmvif->lqm_active)
+		iwl_mvm_send_lqm_cmd(vif, LQM_CMD_OPERATION_STOP_MEASUREMENT,
+				     0, 0);
+
 	/*
 	 * If we're not associated yet, take the (new) BSSID before associating
 	 * so the firmware knows. If we're already associated, then use the old
@@ -3628,6 +3633,11 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 		break;
 	case NL80211_IFTYPE_STATION:
+		if (mvmvif->lqm_active)
+			iwl_mvm_send_lqm_cmd(vif,
+					     LQM_CMD_OPERATION_STOP_MEASUREMENT,
+					     0, 0);
+
 		/* Schedule the time event to a bit before beacon 1,
 		 * to make sure we're in the new channel when the
 		 * GO/AP arrives.

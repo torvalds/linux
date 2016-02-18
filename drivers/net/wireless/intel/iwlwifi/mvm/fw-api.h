@@ -279,6 +279,11 @@ enum {
 /* Please keep this enum *SORTED* by hex value.
  * Needed for binary search, otherwise a warning will be triggered.
  */
+enum iwl_mac_conf_subcmd_ids {
+	LINK_QUALITY_MEASUREMENT_CMD = 0x1,
+	LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF = 0xFE,
+};
+
 enum iwl_phy_ops_subcmd_ids {
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
 	CTDP_CONFIG_CMD = 0x03,
@@ -307,6 +312,7 @@ enum {
 	LEGACY_GROUP = 0x0,
 	LONG_GROUP = 0x1,
 	SYSTEM_GROUP = 0x2,
+	MAC_CONF_GROUP = 0x3,
 	PHY_OPS_GROUP = 0x4,
 	DATA_PATH_GROUP = 0x5,
 	PROT_OFFLOAD_GROUP = 0xb,
@@ -2016,5 +2022,61 @@ struct iwl_stored_beacon_notif {
 	__le32 byte_count;
 	u8 data[MAX_STORED_BEACON_SIZE];
 } __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_1 */
+
+#define LQM_NUMBER_OF_STATIONS_IN_REPORT 16
+
+enum iwl_lqm_cmd_operatrions {
+	LQM_CMD_OPERATION_START_MEASUREMENT = 0x01,
+	LQM_CMD_OPERATION_STOP_MEASUREMENT = 0x02,
+};
+
+enum iwl_lqm_status {
+	LQM_STATUS_SUCCESS = 0,
+	LQM_STATUS_TIMEOUT = 1,
+	LQM_STATUS_ABORT = 2,
+};
+
+/**
+ * Link Quality Measurement command
+ * @cmd_operatrion: command operation to be performed (start or stop)
+ *	as defined above.
+ * @mac_id: MAC ID the measurement applies to.
+ * @measurement_time: time of the total measurement to be performed, in uSec.
+ * @timeout: maximum time allowed until a response is sent, in uSec.
+ */
+struct iwl_link_qual_msrmnt_cmd {
+	__le32 cmd_operation;
+	__le32 mac_id;
+	__le32 measurement_time;
+	__le32 timeout;
+} __packed /* LQM_CMD_API_S_VER_1 */;
+
+/**
+ * Link Quality Measurement notification
+ *
+ * @frequent_stations_air_time: an array containing the total air time
+ *	(in uSec) used by the most frequently transmitting stations.
+ * @number_of_stations: the number of uniqe stations included in the array
+ *	(a number between 0 to 16)
+ * @total_air_time_other_stations: the total air time (uSec) used by all the
+ *	stations which are not included in the above report.
+ * @time_in_measurement_window: the total time in uSec in which a measurement
+ *	took place.
+ * @tx_frame_dropped: the number of TX frames dropped due to retry limit during
+ *	measurement
+ * @mac_id: MAC ID the measurement applies to.
+ * @status: return status. may be one of the LQM_STATUS_* defined above.
+ * @reserved: reserved.
+ */
+struct iwl_link_qual_msrmnt_notif {
+	__le32 frequent_stations_air_time[LQM_NUMBER_OF_STATIONS_IN_REPORT];
+	__le32 number_of_stations;
+	__le32 total_air_time_other_stations;
+	__le32 time_in_measurement_window;
+	__le32 tx_frame_dropped;
+	__le32 mac_id;
+	__le32 status;
+	__le32 reserved[3];
+} __packed; /* LQM_MEASUREMENT_COMPLETE_NTF_API_S_VER1 */
 
 #endif /* __fw_api_h__ */

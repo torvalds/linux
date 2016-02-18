@@ -1079,3 +1079,74 @@ void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 out:
 	ieee80211_connection_loss(vif);
 }
+
+int iwl_mvm_send_lqm_cmd(struct ieee80211_vif *vif,
+			 enum iwl_lqm_cmd_operatrions operation,
+			 u32 duration, u32 timeout)
+{
+	struct iwl_mvm_vif *mvm_vif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_link_qual_msrmnt_cmd cmd = {
+		.cmd_operation = cpu_to_le32(operation),
+		.mac_id = cpu_to_le32(mvm_vif->id),
+		.measurement_time = cpu_to_le32(duration),
+		.timeout = cpu_to_le32(timeout),
+	};
+	u32 cmdid =
+		iwl_cmd_id(LINK_QUALITY_MEASUREMENT_CMD, MAC_CONF_GROUP, 0);
+	int ret;
+
+	if (!fw_has_capa(&mvm_vif->mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_LQM_SUPPORT))
+		return -EOPNOTSUPP;
+
+	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+		return -EINVAL;
+
+	switch (operation) {
+	case LQM_CMD_OPERATION_START_MEASUREMENT:
+		if (iwl_mvm_lqm_active(mvm_vif->mvm))
+			return -EBUSY;
+		if (!vif->bss_conf.assoc)
+			return -EINVAL;
+		mvm_vif->lqm_active = true;
+		break;
+	case LQM_CMD_OPERATION_STOP_MEASUREMENT:
+		if (!iwl_mvm_lqm_active(mvm_vif->mvm))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = iwl_mvm_send_cmd_pdu(mvm_vif->mvm, cmdid, 0, sizeof(cmd),
+				   &cmd);
+
+	/* command failed - roll back lqm_active state */
+	if (ret) {
+		mvm_vif->lqm_active =
+			operation == LQM_CMD_OPERATION_STOP_MEASUREMENT;
+	}
+
+	return ret;
+}
+
+static void iwl_mvm_lqm_active_iterator(void *_data, u8 *mac,
+					struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvm_vif = iwl_mvm_vif_from_mac80211(vif);
+	bool *lqm_active = _data;
+
+	*lqm_active = *lqm_active || mvm_vif->lqm_active;
+}
+
+bool iwl_mvm_lqm_active(struct iwl_mvm *mvm)
+{
+	bool ret = false;
+
+	lockdep_assert_held(&mvm->mutex);
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_lqm_active_iterator, &ret);
+
+	return ret;
+}

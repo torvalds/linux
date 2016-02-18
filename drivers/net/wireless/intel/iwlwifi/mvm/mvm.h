@@ -453,6 +453,12 @@ struct iwl_mvm_vif {
 
 	/* TCP Checksum Offload */
 	netdev_features_t features;
+
+	/*
+	 * link quality measurement - used to check whether this interface
+	 * is in the middle of a link quality measurement
+	 */
+	bool lqm_active;
 };
 
 static inline struct iwl_mvm_vif *
@@ -1636,5 +1642,11 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    bool tdls, bool cmd_q);
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     const char *errmsg);
+
+/* Link Quality Measurement */
+int iwl_mvm_send_lqm_cmd(struct ieee80211_vif *vif,
+			 enum iwl_lqm_cmd_operatrions operation,
+			 u32 duration, u32 timeout);
+bool iwl_mvm_lqm_active(struct iwl_mvm *mvm);
 
 #endif /* __IWL_MVM_H__ */
