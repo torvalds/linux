@@ -320,8 +320,10 @@ static ssize_t show_prox_infrared_suppression(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
 
-	/* return the "proximity scheme" i.e. if the chip does on chip
-	infrared suppression (1 means perform on chip suppression) */
+	/*
+	 * return the "proximity scheme" i.e. if the chip does on chip
+	 * infrared suppression (1 means perform on chip suppression)
+	 */
 	return sprintf(buf, "%d\n", chip->prox_scheme);
 }
 
@@ -340,8 +342,10 @@ static ssize_t store_prox_infrared_suppression(struct device *dev,
 		return -EINVAL;
 	}
 
-	/* get the  "proximity scheme" i.e. if the chip does on chip
-	infrared suppression (1 means perform on chip suppression) */
+	/*
+	 * get the  "proximity scheme" i.e. if the chip does on chip
+	 * infrared suppression (1 means perform on chip suppression)
+	 */
 	mutex_lock(&chip->lock);
 	chip->prox_scheme = val;
 	mutex_unlock(&chip->lock);
