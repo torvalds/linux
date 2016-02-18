@@ -133,6 +133,32 @@ static int nvdimm_bus_remove(struct device *dev)
 	return rc;
 }
 
+void nd_device_notify(struct device *dev, enum nvdimm_event event)
+{
+	device_lock(dev);
+	if (dev->driver) {
+		struct nd_device_driver *nd_drv;
+
+		nd_drv = to_nd_device_driver(dev->driver);
+		if (nd_drv->notify)
+			nd_drv->notify(dev, event);
+	}
+	device_unlock(dev);
+}
+EXPORT_SYMBOL(nd_device_notify);
+
+void nvdimm_region_notify(struct nd_region *nd_region, enum nvdimm_event event)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
+
+	if (!nvdimm_bus)
+		return;
+
+	/* caller is responsible for holding a reference on the device */
+	nd_device_notify(&nd_region->dev, event);
+}
+EXPORT_SYMBOL_GPL(nvdimm_region_notify);
+
 static struct bus_type nvdimm_bus_type = {
 	.name = "nd",
 	.uevent = nvdimm_bus_uevent,

@@ -488,12 +488,27 @@ static int nd_pmem_remove(struct device *dev)
 	return 0;
 }
 
+static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
+{
+	struct pmem_device *pmem = dev_get_drvdata(dev);
+	struct nd_namespace_common *ndns = pmem->ndns;
+
+	if (event != NVDIMM_REVALIDATE_POISON)
+		return;
+
+	if (is_nd_btt(dev))
+		nvdimm_namespace_add_poison(ndns, &pmem->bb, 0);
+	else
+		nvdimm_namespace_add_poison(ndns, &pmem->bb, pmem->data_offset);
+}
+
 MODULE_ALIAS("pmem");
 MODULE_ALIAS_ND_DEVICE(ND_DEVICE_NAMESPACE_IO);
 MODULE_ALIAS_ND_DEVICE(ND_DEVICE_NAMESPACE_PMEM);
 static struct nd_device_driver nd_pmem_driver = {
 	.probe = nd_pmem_probe,
 	.remove = nd_pmem_remove,
+	.notify = nd_pmem_notify,
 	.drv = {
 		.name = "nd_pmem",
 	},
