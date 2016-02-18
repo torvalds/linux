@@ -27,6 +27,7 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/coresight.h>
+#include <linux/coresight-pmu.h>
 #include <linux/amba/bus.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -740,11 +741,7 @@ static void etm_init_arch_data(void *info)
 
 static void etm_init_trace_id(struct etm_drvdata *drvdata)
 {
-	/*
-	 * A trace ID of value 0 is invalid, so let's start at some
-	 * random value that fits in 7 bits and go from there.
-	 */
-	drvdata->traceid = 0x10 + drvdata->cpu;
+	drvdata->traceid = coresight_get_trace_id(drvdata->cpu);
 }
 
 static int etm_probe(struct amba_device *adev, const struct amba_id *id)
