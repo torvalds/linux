@@ -626,21 +626,16 @@ static int isif_set_params(struct v4l2_subdev *sd, void *params)
  */
 static long isif_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	int ret;
-
 	switch (cmd) {
 	case VIDIOC_VPFE_ISIF_S_RAW_PARAMS:
-		ret = isif_set_params(sd, arg);
-		break;
+		return isif_set_params(sd, arg);
 
 	case VIDIOC_VPFE_ISIF_G_RAW_PARAMS:
-		ret = isif_get_params(sd, arg);
-		break;
+		return isif_get_params(sd, arg);
 
 	default:
-		ret = -ENOIOCTLCMD;
+		return -ENOIOCTLCMD;
 	}
-	return ret;
 }
 
 static void isif_config_gain_offset(struct vpfe_isif_device *isif)
