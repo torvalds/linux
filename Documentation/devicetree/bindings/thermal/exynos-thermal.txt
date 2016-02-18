@@ -41,9 +41,6 @@
 		for current TMU channel
 	-- "tmu_sclk" clock for functional operation of the current TMU
 		channel
-- vtmu-supply: This entry is optional and provides the regulator node supplying
-		voltage to TMU. If needed this entry can be placed inside
-		board/platform specific dts file.
 
 The Exynos TMU supports generating interrupts when reaching given
 temperature thresholds. Number of supported thermal trip points depends
@@ -64,6 +61,12 @@ Following properties are mandatory (depending on SoC):
 - samsung,tmu_second_point_trim: Second point trimming value
 - samsung,tmu_default_temp_offset: Default temperature offset
 - samsung,tmu_cal_type: Callibration type
+
+** Optional properties:
+
+- vtmu-supply: This entry is optional and provides the regulator node supplying
+		voltage to TMU. If needed this entry can be placed inside
+		board/platform specific dts file.
 
 Example 1):
 
