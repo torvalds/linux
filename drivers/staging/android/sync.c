@@ -465,6 +465,13 @@ static bool android_fence_enable_signaling(struct fence *fence)
 	return true;
 }
 
+static void android_fence_disable_signaling(struct fence *fence)
+{
+	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
+
+	list_del_init(&pt->active_list);
+}
+
 static int android_fence_fill_driver_data(struct fence *fence,
 					  void *data, int size)
 {
@@ -508,6 +515,7 @@ static const struct fence_ops android_fence_ops = {
 	.get_driver_name = android_fence_get_driver_name,
 	.get_timeline_name = android_fence_get_timeline_name,
 	.enable_signaling = android_fence_enable_signaling,
+	.disable_signaling = android_fence_disable_signaling,
 	.signaled = android_fence_signaled,
 	.wait = fence_default_wait,
 	.release = android_fence_release,
@@ -519,12 +527,10 @@ static const struct fence_ops android_fence_ops = {
 static void sync_fence_free(struct kref *kref)
 {
 	struct sync_fence *fence = container_of(kref, struct sync_fence, kref);
-	int i, status = atomic_read(&fence->status);
+	int i;
 
 	for (i = 0; i < fence->num_fences; ++i) {
-		if (status)
-			fence_remove_callback(fence->cbs[i].sync_pt,
-					      &fence->cbs[i].cb);
+		fence_remove_callback(fence->cbs[i].sync_pt, &fence->cbs[i].cb);
 		fence_put(fence->cbs[i].sync_pt);
 	}
 

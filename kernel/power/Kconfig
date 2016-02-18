@@ -33,8 +33,13 @@ config HAS_WAKELOCK
 	default y
 
 config WAKELOCK
-	bool
+	bool "Android's method of preventing suspend"
 	default y
+	---help---
+	  This allows applications to prevent the CPU from suspending while
+	  they need it.
+
+	  Say Y if you are running an android userspace.
 
 config HIBERNATE_CALLBACKS
 	bool
