@@ -2336,6 +2336,8 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 
 	ret = 0;
 	queue_for_each_hw_ctx(q, hctx, i) {
+		if (!hctx->tags)
+			continue;
 		ret = blk_mq_tag_update_depth(hctx->tags, nr);
 		if (ret)
 			break;
