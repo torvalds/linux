@@ -195,12 +195,11 @@ using spinlock to protect
 static void rtw_free_recvframe23a_queue(struct rtw_queue *pframequeue)
 {
 	struct recv_frame *hdr, *ptmp;
-	struct list_head *plist, *phead;
+	struct list_head *phead;
 
 	spin_lock(&pframequeue->lock);
 
 	phead = get_list_head(pframequeue);
-	plist = phead->next;
 
 	list_for_each_entry_safe(hdr, ptmp, phead, list)
 		rtw_free_recvframe23a(hdr);
@@ -1547,7 +1546,7 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 				    struct rtw_queue *defrag_q)
 {
 	struct list_head *plist, *phead;
-	u8	*data, wlanhdr_offset;
+	u8	wlanhdr_offset;
 	u8	curfragnum;
 	struct recv_frame *pnfhdr, *ptmp;
 	struct recv_frame *prframe, *pnextrframe;
@@ -1575,10 +1574,6 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 	}
 
 	curfragnum++;
-
-	phead = get_list_head(defrag_q);
-
-	data = prframe->pkt->data;
 
 	list_for_each_entry_safe(pnfhdr, ptmp, phead, list) {
 		pnextrframe = (struct recv_frame *)pnfhdr;
