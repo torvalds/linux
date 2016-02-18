@@ -634,7 +634,6 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	u32 val;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -642,9 +641,13 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 
 	intel_dsi_clear_device_ready(encoder);
 
-	val = I915_READ(DSPCLK_GATE_D);
-	val &= ~DPOUNIT_CLOCK_GATE_DISABLE;
-	I915_WRITE(DSPCLK_GATE_D, val);
+	if (!IS_BROXTON(dev_priv)) {
+		u32 val;
+
+		val = I915_READ(DSPCLK_GATE_D);
+		val &= ~DPOUNIT_CLOCK_GATE_DISABLE;
+		I915_WRITE(DSPCLK_GATE_D, val);
+	}
 
 	drm_panel_unprepare(intel_dsi->panel);
 
