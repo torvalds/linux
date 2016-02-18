@@ -5946,10 +5946,10 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 	u64 qsfp_int_mgmt = (u64)(QSFP_HFI0_INT_N | QSFP_HFI0_MODPRST_N);
 
 	if (reg & QSFP_HFI0_MODPRST_N) {
-		dd_dev_info(dd, "%s: ModPresent triggered QSFP interrupt\n",
-			    __func__);
-
 		if (!qsfp_mod_present(ppd)) {
+			dd_dev_info(dd, "%s: QSFP module removed\n",
+				    __func__);
+
 			ppd->driver_link_ready = 0;
 			/*
 			 * Cable removed, reset all our information about the
@@ -5989,6 +5989,9 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 				queue_work(ppd->hfi1_wq, &ppd->link_down_work);
 			}
 		} else {
+			dd_dev_info(dd, "%s: QSFP module inserted\n",
+				    __func__);
+
 			spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 			ppd->qsfp_info.cache_valid = 0;
 			ppd->qsfp_info.cache_refresh_required = 1;
@@ -6009,7 +6012,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 	}
 
 	if (reg & QSFP_HFI0_INT_N) {
-		dd_dev_info(dd, "%s: IntN triggered QSFP interrupt\n",
+		dd_dev_info(dd, "%s: Interrupt received from QSFP module\n",
 			    __func__);
 		spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 		ppd->qsfp_info.check_interrupt_flags = 1;

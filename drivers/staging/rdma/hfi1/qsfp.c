@@ -187,7 +187,7 @@ done:
 
 /*
  * Write page n, offset m of QSFP memory as defined by SFF 8636
- * in the cache by writing @addr = ((256 * n) + m)
+ * by writing @addr = ((256 * n) + m)
  */
 int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	       int len)
@@ -253,7 +253,7 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 
 /*
  * Access page n, offset m of QSFP memory as defined by SFF 8636
- * in the cache by reading @addr = ((256 * n) + m)
+ * by reading @addr = ((256 * n) + m)
  */
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	      int len)
