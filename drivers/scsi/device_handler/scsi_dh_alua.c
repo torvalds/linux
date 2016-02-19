@@ -92,6 +92,7 @@ struct alua_dh_data {
 #define ALUA_POLICY_SWITCH_CURRENT	0
 #define ALUA_POLICY_SWITCH_ALL		1
 
+static int alua_rtpg(struct scsi_device *, struct alua_port_group *, int);
 static char print_alua_state(int);
 
 static void release_port_group(struct kref *kref)
@@ -294,7 +295,8 @@ static int alua_check_tpgs(struct scsi_device *sdev)
  * Extract the relative target port and the target port group
  * descriptor from the list of identificators.
  */
-static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h)
+static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
+			  int tpgs)
 {
 	int rel_port = -1, group_id;
 
@@ -310,13 +312,21 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h)
 			    ALUA_DH_NAME);
 		return SCSI_DH_DEV_UNSUPP;
 	}
-	h->group_id = group_id;
+
+	h->pg = alua_alloc_pg(sdev, group_id, tpgs);
+	if (IS_ERR(h->pg)) {
+		if (PTR_ERR(h->pg) == -ENOMEM)
+			return SCSI_DH_NOMEM;
+		return SCSI_DH_DEV_UNSUPP;
+	}
+	h->rel_port = rel_port;
 
 	sdev_printk(KERN_INFO, sdev,
-		    "%s: port group %x rel port %x\n",
-		    ALUA_DH_NAME, h->group_id, h->rel_port);
+		    "%s: device %s port group %x rel port %x\n",
+		    ALUA_DH_NAME, h->pg->device_id_str,
+		    h->group_id, h->rel_port);
 
-	return 0;
+	return alua_rtpg(sdev, h->pg, 0);
 }
 
 static char print_alua_state(int state)
@@ -633,23 +643,9 @@ static int alua_initialize(struct scsi_device *sdev, struct alua_dh_data *h)
 	int err = SCSI_DH_DEV_UNSUPP, tpgs;
 
 	tpgs = alua_check_tpgs(sdev);
-	if (tpgs == TPGS_MODE_NONE)
-		goto out;
+	if (tpgs != TPGS_MODE_NONE)
+		err = alua_check_vpd(sdev, h, tpgs);
 
-	err = alua_check_vpd(sdev, h);
-	if (err != SCSI_DH_OK)
-		goto out;
-
-	h->pg = alua_alloc_pg(sdev, h->group_id, tpgs);
-	if (IS_ERR(h->pg)) {
-		if (PTR_ERR(h->pg) == -ENOMEM)
-			err = SCSI_DH_NOMEM;
-		goto out;
-	}
-	kref_get(&h->pg->kref);
-	err = alua_rtpg(sdev, h->pg, 0);
-	kref_put(&h->pg->kref, release_port_group);
-out:
 	return err;
 }
 /*
