@@ -1155,6 +1155,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		bi.bytes_written = 0;
 	} else {
 		/* command was set up in "write" direction */
+		if (!comedi_is_subdevice_running(s))
+			bi.bytes_written = 0;
 		if (bi.bytes_written) {
 			comedi_buf_write_alloc(s, bi.bytes_written);
 			bi.bytes_written =
