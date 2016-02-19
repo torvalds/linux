@@ -235,10 +235,10 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 
 	if (permission_fault(esr) && (addr < USER_DS)) {
 		if (get_fs() == KERNEL_DS)
-			panic("Accessing user space memory with fs=KERNEL_DS");
+			die("Accessing user space memory with fs=KERNEL_DS", regs, esr);
 
 		if (!search_exception_tables(regs->pc))
-			panic("Accessing user space memory outside uaccess.h routines");
+			die("Accessing user space memory outside uaccess.h routines", regs, esr);
 	}
 
 	/*
