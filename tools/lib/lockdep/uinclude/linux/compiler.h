@@ -3,6 +3,7 @@
 
 #define __used		__attribute__((__unused__))
 #define unlikely
+#define READ_ONCE(x) (x)
 #define WRITE_ONCE(x, val) x=(val)
 #define RCU_INIT_POINTER(p, v) p=(v)
 
