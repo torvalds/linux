@@ -54,8 +54,8 @@ static void flush_tlb_206(unsigned int num_sets, unsigned int action)
 }
 
 /*
- * Generic routine to flush TLB on power7. This routine is used as
- * flush_tlb hook in cpu_spec for Power7 processor.
+ * Generic routines to flush TLB on POWER processors. These routines
+ * are used as flush_tlb hook in the cpu_spec.
  *
  * action => TLB_INVAL_SCOPE_GLOBAL:  Invalidate all TLBs.
  *	     TLB_INVAL_SCOPE_LPID: Invalidate TLB for current LPID.
@@ -65,17 +65,16 @@ void __flush_tlb_power7(unsigned int action)
 	flush_tlb_206(POWER7_TLB_SETS, action);
 }
 
-/*
- * Generic routine to flush TLB on power8. This routine is used as
- * flush_tlb hook in cpu_spec for power8 processor.
- *
- * action => TLB_INVAL_SCOPE_GLOBAL:  Invalidate all TLBs.
- *	     TLB_INVAL_SCOPE_LPID: Invalidate TLB for current LPID.
- */
 void __flush_tlb_power8(unsigned int action)
 {
 	flush_tlb_206(POWER8_TLB_SETS, action);
 }
+
+void __flush_tlb_power9(unsigned int action)
+{
+	flush_tlb_206(POWER9_TLB_SETS_HASH, action);
+}
+
 
 /* flush SLBs and reload */
 static void flush_and_reload_slb(void)
