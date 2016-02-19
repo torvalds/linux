@@ -40,26 +40,19 @@ static void mcip_ipi_send(int cpu)
 		return;
 	}
 
+	raw_spin_lock_irqsave(&mcip_lock, flags);
+
 	/*
-	 * NOTE: We must spin here if the other cpu hasn't yet
-	 * serviced a previous message. This can burn lots
-	 * of time, but we MUST follows this protocol or
-	 * ipi messages can be lost!!!
-	 * Also, we must release the lock in this loop because
-	 * the other side may get to this same loop and not
-	 * be able to ack -- thus causing deadlock.
+	 * If receiver already has a pending interrupt, elide sending this one.
+	 * Linux cross core calling works well with concurrent IPIs
+	 * coalesced into one
+	 * see arch/arc/kernel/smp.c: ipi_send_msg_one()
 	 */
+	__mcip_cmd(CMD_INTRPT_READ_STATUS, cpu);
+	ipi_was_pending = read_aux_reg(ARC_REG_MCIP_READBACK);
+	if (!ipi_was_pending)
+		__mcip_cmd(CMD_INTRPT_GENERATE_IRQ, cpu);
 
-	do {
-		raw_spin_lock_irqsave(&mcip_lock, flags);
-		__mcip_cmd(CMD_INTRPT_READ_STATUS, cpu);
-		ipi_was_pending = read_aux_reg(ARC_REG_MCIP_READBACK);
-		if (ipi_was_pending == 0)
-			break; /* break out but keep lock */
-		raw_spin_unlock_irqrestore(&mcip_lock, flags);
-	} while (1);
-
-	__mcip_cmd(CMD_INTRPT_GENERATE_IRQ, cpu);
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
 
 #ifdef CONFIG_ARC_IPI_DBG
