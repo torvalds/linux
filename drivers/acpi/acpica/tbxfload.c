@@ -206,9 +206,7 @@ acpi_status acpi_tb_load_namespace(void)
 	}
 
 	if (!tables_failed) {
-		ACPI_INFO((AE_INFO,
-			   "%u ACPI AML tables successfully acquired and loaded\n",
-			   tables_loaded));
+		ACPI_INFO(("%u ACPI AML tables successfully acquired and loaded\n", tables_loaded));
 	} else {
 		ACPI_ERROR((AE_INFO,
 			    "%u table load failures, %u successful",
@@ -301,7 +299,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 
 	/* Install the table and load it into the namespace */
 
-	ACPI_INFO((AE_INFO, "Host-directed Dynamic ACPI Table Load:"));
+	ACPI_INFO(("Host-directed Dynamic ACPI Table Load:"));
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
 	status = acpi_tb_install_standard_table(ACPI_PTR_TO_PHYSADDR(table),

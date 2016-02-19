@@ -281,7 +281,7 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 	}
 
 	if (walk_info.count) {
-		ACPI_INFO((AE_INFO, "Enabled %u new GPEs", walk_info.count));
+		ACPI_INFO(("Enabled %u new GPEs", walk_info.count));
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
