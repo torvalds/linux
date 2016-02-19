@@ -348,6 +348,13 @@ static irqreturn_t a4xx_irq(struct msm_gpu *gpu)
 	status = gpu_read(gpu, REG_A4XX_RBBM_INT_0_STATUS);
 	DBG("%s: Int status %08x", gpu->name, status);
 
+	if (status & A4XX_INT0_CP_REG_PROTECT_FAULT) {
+		uint32_t reg = gpu_read(gpu, REG_A4XX_CP_PROTECT_STATUS);
+		printk("CP | Protected mode error| %s | addr=%x\n",
+			reg & (1 << 24) ? "WRITE" : "READ",
+			(reg & 0xFFFFF) >> 2);
+	}
+
 	gpu_write(gpu, REG_A4XX_RBBM_INT_CLEAR_CMD, status);
 
 	msm_gpu_retire(gpu);
