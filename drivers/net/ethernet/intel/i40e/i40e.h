@@ -521,13 +521,6 @@ struct i40e_vsi {
 	struct i40e_ring **tx_rings;
 
 	u16 work_limit;
-	/* high bit set means dynamic, use accessor routines to read/write.
-	 * hardware only supports 2us resolution for the ITR registers.
-	 * these values always store the USER setting, and must be converted
-	 * before programming to a register.
-	 */
-	u16 rx_itr_setting;
-	u16 tx_itr_setting;
 	u16 int_rate_limit;  /* value in usecs */
 
 	u16 rss_table_size; /* HW RSS table size */
