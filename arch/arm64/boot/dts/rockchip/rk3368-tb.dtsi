@@ -465,7 +465,6 @@
 			};
 
 			vcc_tp: LDO_REG2 {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
@@ -606,6 +605,7 @@
 		max-y = <1900>;
 		tp-size = <911>;
 		status = "disabled";
+		tp-supply = <&vcc_tp>;
 	};
 };
 

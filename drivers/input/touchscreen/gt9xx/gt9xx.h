@@ -141,7 +141,8 @@ struct goodix_ts_data {
     u8 rqst_processing;
     u8 is_950;
 #endif
-    
+    struct regulator *tp_regulator;
+
 };
 
 extern u16 show_len;

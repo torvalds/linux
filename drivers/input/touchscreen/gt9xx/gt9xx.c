@@ -1911,7 +1911,6 @@ static int goodix_ts_early_suspend(struct tp_device *tp_d)
 {
     struct goodix_ts_data *ts;
     s8 ret = -1;
-    struct regulator *regulator_tp = NULL;
     int reg = 0;
 
     ts = container_of(tp_d, struct goodix_ts_data, tp);
@@ -1944,18 +1943,10 @@ static int goodix_ts_early_suspend(struct tp_device *tp_d)
     // to avoid waking up while not sleeping
     //  delay 48 + 10ms to ensure reliability
     msleep(58);
-	regulator_tp = regulator_get(NULL,"vcc_tp");
-	if(IS_ERR(regulator_tp))
-	{
-		printk("!!!!%s:%d:get regulator_tp failed\n",__func__,__LINE__);
-		return 0;
-	}
-	while(regulator_is_enabled(regulator_tp))
-	{
-		reg = regulator_disable(regulator_tp);
-		msleep(10);
-	}
-	regulator_put(regulator_tp);
+
+	reg = regulator_disable(ts->tp_regulator);
+	if (reg < 0)
+		GTP_ERROR("failed to disable tp regulator\n");
 	msleep(20);
 	return 0;
 }
@@ -1972,25 +1963,15 @@ static int goodix_ts_early_resume(struct tp_device *tp_d)
 {
     struct goodix_ts_data *ts;
     s8 ret = -1;
-    struct regulator *regulator_tp = NULL;
     int reg = 0;
     ts = container_of(tp_d, struct goodix_ts_data, tp);
     GTP_DEBUG_FUNC();
 
     GTP_INFO("System resume.");
 
-	regulator_tp = regulator_get(NULL, "vcc_tp");
-	if(IS_ERR(regulator_tp))
-	{
-		printk("!!!!%s:%d:get regulator_tp failed\n",__func__,__LINE__);
-		return 0;
-	}
-	while(!(regulator_is_enabled(regulator_tp)))
-	{
-		reg = regulator_enable(regulator_tp);
-		msleep(10);
-	}
-	regulator_put(regulator_tp);
+	reg = regulator_enable(ts->tp_regulator);
+	if (reg < 0)
+		GTP_ERROR("failed to enable tp regulator\n");
 	msleep(10);
 
     ret = gtp_wakeup_sleep(ts);
@@ -2621,6 +2602,13 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
         mGtp_Y_Reverse = TRUE;
     }
 
+	ts->tp_regulator = devm_regulator_get(&client->dev, "tp");
+	if (IS_ERR(ts->tp_regulator)) {
+		dev_err(&client->dev, "failed to get regulator, %ld\n",
+			PTR_ERR(ts->tp_regulator));
+		return PTR_ERR(ts->tp_regulator);
+	}
+
     ts->irq_pin = of_get_named_gpio_flags(np, "touch-gpio", 0, (enum of_gpio_flags *)(&ts->irq_flags));
     ts->rst_pin = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
     ts->pwr_pin = of_get_named_gpio_flags(np, "power-gpio", 0, &pwr_flags);
@@ -2752,7 +2740,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 #if GTP_CREATE_WR_NODE
     init_wr_node(client);
 #endif
-    
+   
 #if GTP_ESD_PROTECT
     gtp_esd_switch(client, SWITCH_ON);
 #endif
