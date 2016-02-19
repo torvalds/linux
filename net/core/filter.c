@@ -1364,9 +1364,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 	 */
 	if (unlikely((u32) offset > 0xffff || len > sizeof(sp->buff)))
 		return -EFAULT;
-
-	if (unlikely(skb_cloned(skb) &&
-		     !skb_clone_writable(skb, offset + len)))
+	if (unlikely(skb_try_make_writable(skb, offset + len)))
 		return -EFAULT;
 
 	ptr = skb_header_pointer(skb, offset, len, sp->buff);
@@ -1439,9 +1437,7 @@ static u64 bpf_l3_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 		return -EINVAL;
 	if (unlikely((u32) offset > 0xffff))
 		return -EFAULT;
-
-	if (unlikely(skb_cloned(skb) &&
-		     !skb_clone_writable(skb, offset + sizeof(sum))))
+	if (unlikely(skb_try_make_writable(skb, offset + sizeof(sum))))
 		return -EFAULT;
 
 	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
@@ -1488,9 +1484,7 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 		return -EINVAL;
 	if (unlikely((u32) offset > 0xffff))
 		return -EFAULT;
-
-	if (unlikely(skb_cloned(skb) &&
-		     !skb_clone_writable(skb, offset + sizeof(sum))))
+	if (unlikely(skb_try_make_writable(skb, offset + sizeof(sum))))
 		return -EFAULT;
 
 	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
@@ -1734,6 +1728,13 @@ bool bpf_helper_changes_skb_data(void *func)
 		return true;
 	if (func == bpf_skb_vlan_pop)
 		return true;
+	if (func == bpf_skb_store_bytes)
+		return true;
+	if (func == bpf_l3_csum_replace)
+		return true;
+	if (func == bpf_l4_csum_replace)
+		return true;
+
 	return false;
 }
 
