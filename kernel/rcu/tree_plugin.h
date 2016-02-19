@@ -1811,9 +1811,9 @@ early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
  * Wake up any no-CBs CPUs' kthreads that were waiting on the just-ended
  * grace period.
  */
-static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+static void rcu_nocb_gp_cleanup(wait_queue_head_t *sq)
 {
-	wake_up_all(&rnp->nocb_gp_wq[rnp->completed & 0x1]);
+	wake_up_all(sq);
 }
 
 /*
@@ -1827,6 +1827,11 @@ static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 {
 	rnp->need_future_gp[(rnp->completed + 1) & 0x1] += nrq;
+}
+
+static wait_queue_head_t *rcu_nocb_gp_get(struct rcu_node *rnp)
+{
+	return &rnp->nocb_gp_wq[rnp->completed & 0x1];
 }
 
 static void rcu_init_one_nocb(struct rcu_node *rnp)
@@ -2502,12 +2507,17 @@ static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu)
 	return false;
 }
 
-static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+static void rcu_nocb_gp_cleanup(wait_queue_head_t *sq)
 {
 }
 
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 {
+}
+
+static wait_queue_head_t *rcu_nocb_gp_get(struct rcu_node *rnp)
+{
+	return NULL;
 }
 
 static void rcu_init_one_nocb(struct rcu_node *rnp)
