@@ -33,10 +33,13 @@ Required properties:
 			As this will change in the future, filling correct
 			values here is a requirement.
  - interrupt-controller: The GPMC driver implements and interrupt controller for
-			the NAND events "fifoevent" and "termcount".
+			the NAND events "fifoevent" and "termcount" plus the
+			rising/falling edges on the GPMC_WAIT pins.
 			The interrupt number mapping is as follows
 			0 - NAND_fifoevent
 			1 - NAND_termcount
+			2 - GPMC_WAIT0 pin edge
+			3 - GPMC_WAIT1 pin edge, and so on.
  - interrupt-cells:	Must be set to 2
  - gpio-controller:	The GPMC driver implements a GPIO controller for the
 			GPMC WAIT pins that can be used as general purpose inputs.
