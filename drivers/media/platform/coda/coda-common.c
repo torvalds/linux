@@ -1982,15 +1982,43 @@ static void coda_copy_firmware(struct coda_dev *dev, const u8 * const buf,
 	}
 }
 
+static void coda_fw_callback(const struct firmware *fw, void *context);
+
+static int coda_firmware_request(struct coda_dev *dev)
+{
+	char *fw = dev->devtype->firmware[dev->firmware];
+
+	dev_dbg(&dev->plat_dev->dev, "requesting firmware '%s' for %s\n", fw,
+		coda_product_name(dev->devtype->product));
+
+	return request_firmware_nowait(THIS_MODULE, true, fw,
+				       &dev->plat_dev->dev, GFP_KERNEL, dev,
+				       coda_fw_callback);
+}
+
 static void coda_fw_callback(const struct firmware *fw, void *context)
 {
 	struct coda_dev *dev = context;
 	struct platform_device *pdev = dev->plat_dev;
 	int i, ret;
 
-	if (!fw) {
+	if (!fw && dev->firmware == 1) {
 		v4l2_err(&dev->v4l2_dev, "firmware request failed\n");
 		goto put_pm;
+	}
+	if (!fw) {
+		dev->firmware = 1;
+		coda_firmware_request(dev);
+		return;
+	}
+	if (dev->firmware == 1) {
+		/*
+		 * Since we can't suppress warnings for failed asynchronous
+		 * firmware requests, report that the fallback firmware was
+		 * found.
+		 */
+		dev_info(&pdev->dev, "Using fallback firmware %s\n",
+			 dev->devtype->firmware[dev->firmware]);
 	}
 
 	/* allocate auxiliary per-device code buffer for the BIT processor */
@@ -2050,17 +2078,6 @@ put_pm:
 	pm_runtime_put_sync(&pdev->dev);
 }
 
-static int coda_firmware_request(struct coda_dev *dev)
-{
-	char *fw = dev->devtype->firmware;
-
-	dev_dbg(&dev->plat_dev->dev, "requesting firmware '%s' for %s\n", fw,
-		coda_product_name(dev->devtype->product));
-
-	return request_firmware_nowait(THIS_MODULE, true,
-		fw, &dev->plat_dev->dev, GFP_KERNEL, dev, coda_fw_callback);
-}
-
 enum coda_platform {
 	CODA_IMX27,
 	CODA_IMX53,
@@ -2070,7 +2087,10 @@ enum coda_platform {
 
 static const struct coda_devtype coda_devdata[] = {
 	[CODA_IMX27] = {
-		.firmware     = "v4l-codadx6-imx27.bin",
+		.firmware     = {
+			"vpu_fw_imx27_TO2.bin",
+			"v4l-codadx6-imx27.bin"
+		},
 		.product      = CODA_DX6,
 		.codecs       = codadx6_codecs,
 		.num_codecs   = ARRAY_SIZE(codadx6_codecs),
@@ -2080,7 +2100,10 @@ static const struct coda_devtype coda_devdata[] = {
 		.iram_size    = 0xb000,
 	},
 	[CODA_IMX53] = {
-		.firmware     = "v4l-coda7541-imx53.bin",
+		.firmware     = {
+			"vpu_fw_imx53.bin",
+			"v4l-coda7541-imx53.bin"
+		},
 		.product      = CODA_7541,
 		.codecs       = coda7_codecs,
 		.num_codecs   = ARRAY_SIZE(coda7_codecs),
@@ -2091,7 +2114,10 @@ static const struct coda_devtype coda_devdata[] = {
 		.iram_size    = 0x14000,
 	},
 	[CODA_IMX6Q] = {
-		.firmware     = "v4l-coda960-imx6q.bin",
+		.firmware     = {
+			"vpu_fw_imx6q.bin",
+			"v4l-coda960-imx6q.bin"
+		},
 		.product      = CODA_960,
 		.codecs       = coda9_codecs,
 		.num_codecs   = ARRAY_SIZE(coda9_codecs),
@@ -2102,7 +2128,10 @@ static const struct coda_devtype coda_devdata[] = {
 		.iram_size    = 0x21000,
 	},
 	[CODA_IMX6DL] = {
-		.firmware     = "v4l-coda960-imx6dl.bin",
+		.firmware     = {
+			"vpu_fw_imx6d.bin",
+			"v4l-coda960-imx6dl.bin"
+		},
 		.product      = CODA_960,
 		.codecs       = coda9_codecs,
 		.num_codecs   = ARRAY_SIZE(coda9_codecs),
