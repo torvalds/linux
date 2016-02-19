@@ -10,25 +10,25 @@
 #ifndef WILC_WLAN_CFG_H
 #define WILC_WLAN_CFG_H
 
-typedef struct {
+struct wilc_cfg_byte {
 	u16 id;
 	u16 val;
-} wilc_cfg_byte_t;
+};
 
-typedef struct {
+struct wilc_cfg_hword {
 	u16 id;
 	u16 val;
-} wilc_cfg_hword_t;
+};
 
-typedef struct {
+struct wilc_cfg_word {
 	u32 id;
 	u32 val;
-} wilc_cfg_word_t;
+};
 
-typedef struct {
+struct wilc_cfg_str {
 	u32 id;
 	u8 *str;
-} wilc_cfg_str_t;
+};
 
 struct wilc;
 int wilc_wlan_cfg_set_wid(u8 *frame, u32 offset, u16 id, u8 *buf, int size);

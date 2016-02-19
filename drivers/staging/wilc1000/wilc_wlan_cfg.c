@@ -44,7 +44,7 @@ typedef struct {
 
 static wilc_mac_cfg_t g_mac;
 
-static wilc_cfg_byte_t g_cfg_byte[] = {
+static struct wilc_cfg_byte g_cfg_byte[] = {
 	{WID_BSS_TYPE, 0},
 	{WID_CURRENT_TX_RATE, 0},
 	{WID_CURRENT_CHANNEL, 0},
@@ -87,7 +87,7 @@ static wilc_cfg_byte_t g_cfg_byte[] = {
 	{WID_NIL, 0}
 };
 
-static wilc_cfg_hword_t g_cfg_hword[] = {
+static struct wilc_cfg_hword g_cfg_hword[] = {
 	{WID_LINK_LOSS_THRESHOLD, 0},
 	{WID_RTS_THRESHOLD, 0},
 	{WID_FRAG_THRESHOLD, 0},
@@ -108,7 +108,7 @@ static wilc_cfg_hword_t g_cfg_hword[] = {
 	{WID_NIL, 0}
 };
 
-static wilc_cfg_word_t g_cfg_word[] = {
+static struct wilc_cfg_word g_cfg_word[] = {
 	{WID_FAILED_COUNT, 0},
 	{WID_RETRY_COUNT, 0},
 	{WID_MULTIPLE_RETRY_COUNT, 0},
@@ -131,7 +131,7 @@ static wilc_cfg_word_t g_cfg_word[] = {
 
 };
 
-static wilc_cfg_str_t g_cfg_str[] = {
+static struct wilc_cfg_str g_cfg_str[] = {
 	{WID_SSID, g_mac.ssid},	/* 33 + 1 bytes */
 	{WID_FIRMWARE_VERSION, g_mac.firmware_version},
 	{WID_OPERATIONAL_RATE_SET, g_mac.supp_rate},
