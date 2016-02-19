@@ -105,7 +105,6 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 
 int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 {
-	void *src_addr, *dst_addr;
 	struct f2fs_io_info fio = {
 		.sbi = F2FS_I_SB(dn->inode),
 		.type = DATA,
@@ -115,8 +114,6 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	};
 	int dirty, err;
 
-	f2fs_bug_on(F2FS_I_SB(dn->inode), page->index);
-
 	if (!f2fs_exist_data(dn->inode))
 		goto clear_out;
 
@@ -125,19 +122,8 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 		return err;
 
 	f2fs_bug_on(F2FS_P_SB(page), PageWriteback(page));
-	if (PageUptodate(page))
-		goto no_update;
 
-	zero_user_segment(page, MAX_INLINE_DATA, PAGE_CACHE_SIZE);
-
-	/* Copy the whole inline data block */
-	src_addr = inline_data_addr(dn->inode_page);
-	dst_addr = kmap_atomic(page);
-	memcpy(dst_addr, src_addr, MAX_INLINE_DATA);
-	flush_dcache_page(page);
-	kunmap_atomic(dst_addr);
-	SetPageUptodate(page);
-no_update:
+	read_inline_data(page, dn->inode_page);
 	set_page_dirty(page);
 
 	/* clear dirty state */
