@@ -106,6 +106,9 @@ void __init imx_init_l2cache(void)
 		goto out;
 	}
 
+	if (readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)
+		goto skip_if_enabled;
+
 	/* Configure the L2 PREFETCH and POWER registers */
 	val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
 	val |= 0x70800000;
@@ -122,6 +125,7 @@ void __init imx_init_l2cache(void)
 		val &= ~(1 << 30 | 1 << 23);
 	writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
 
+skip_if_enabled:
 	iounmap(l2x0_base);
 	of_node_put(np);
 
