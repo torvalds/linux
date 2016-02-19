@@ -1477,10 +1477,12 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 {
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
 	bool is_pseudo = flags & BPF_F_PSEUDO_HDR;
+	bool is_mmzero = flags & BPF_F_MARK_MANGLED_0;
 	int offset = (int) r2;
 	__sum16 sum, *ptr;
 
-	if (unlikely(flags & ~(BPF_F_PSEUDO_HDR | BPF_F_HDR_FIELD_MASK)))
+	if (unlikely(flags & ~(BPF_F_MARK_MANGLED_0 | BPF_F_PSEUDO_HDR |
+			       BPF_F_HDR_FIELD_MASK)))
 		return -EINVAL;
 	if (unlikely((u32) offset > 0xffff))
 		return -EFAULT;
@@ -1490,6 +1492,8 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
 	if (unlikely(!ptr))
 		return -EFAULT;
+	if (is_mmzero && !*ptr)
+		return 0;
 
 	switch (flags & BPF_F_HDR_FIELD_MASK) {
 	case 0:
@@ -1508,6 +1512,8 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 		return -EINVAL;
 	}
 
+	if (is_mmzero && !*ptr)
+		*ptr = CSUM_MANGLED_0;
 	if (ptr == &sum)
 		/* skb_store_bits guaranteed to not return -EFAULT here */
 		skb_store_bits(skb, offset, ptr, sizeof(sum));

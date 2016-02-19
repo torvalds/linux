@@ -313,6 +313,7 @@ enum bpf_func_id {
 
 /* BPF_FUNC_l4_csum_replace flags. */
 #define BPF_F_PSEUDO_HDR		(1ULL << 4)
+#define BPF_F_MARK_MANGLED_0		(1ULL << 5)
 
 /* BPF_FUNC_clone_redirect and BPF_FUNC_redirect flags. */
 #define BPF_F_INGRESS			(1ULL << 0)
