@@ -1453,6 +1453,7 @@ static void au0828_s_input(struct au0828_dev *dev, int index)
 static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 {
 	struct au0828_dev *dev = video_drvdata(file);
+	struct video_device *vfd = video_devdata(file);
 
 	dprintk(1, "VIDIOC_S_INPUT in function %s, input=%d\n", __func__,
 		index);
@@ -1465,7 +1466,14 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		return 0;
 
 	au0828_s_input(dev, index);
-	return 0;
+
+	/*
+	 * Input has been changed. Disable the media source
+	 * associated with the old input and enable source
+	 * for the newly set input
+	 */
+	v4l_disable_media_source(vfd);
+	return v4l_enable_media_source(vfd);
 }
 
 static int vidioc_enumaudio(struct file *file, void *priv, struct v4l2_audio *a)
