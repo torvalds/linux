@@ -15,6 +15,12 @@ config PINCTRL_MT2701
 	default MACH_MT2701
 	select PINCTRL_MTK
 
+config PINCTRL_MT7623
+	bool "Mediatek MT7623 pin control" if COMPILE_TEST && !MACH_MT7623
+	depends on OF
+	default MACH_MT7623
+	select PINCTRL_MTK_COMMON
+
 config PINCTRL_MT8135
 	bool "Mediatek MT8135 pin control" if COMPILE_TEST && !MACH_MT8135
 	depends on OF
