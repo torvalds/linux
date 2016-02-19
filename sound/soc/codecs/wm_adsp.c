@@ -2845,7 +2845,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 		goto out;
 	}
 
-	if (compr->stream)
+	if (compr && compr->stream)
 		snd_compr_fragment_elapsed(compr->stream);
 
 out:
