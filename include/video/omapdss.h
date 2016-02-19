@@ -894,22 +894,6 @@ int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
 int omapdss_compat_init(void);
 void omapdss_compat_uninit(void);
 
-int dss_mgr_connect(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *dst);
-void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *dst);
-void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
-		const struct omap_video_timings *timings);
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
-		const struct dss_lcd_mgr_config *config);
-int dss_mgr_enable(struct omap_overlay_manager *mgr);
-void dss_mgr_disable(struct omap_overlay_manager *mgr);
-void dss_mgr_start_update(struct omap_overlay_manager *mgr);
-int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
-		void (*handler)(void *), void *data);
-void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
-		void (*handler)(void *), void *data);
-
 static inline bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
 {
 	return dssdev->src;

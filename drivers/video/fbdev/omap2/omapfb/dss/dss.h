@@ -527,4 +527,20 @@ struct dss_mgr_ops {
 int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops);
 void dss_uninstall_mgr_ops(void);
 
+int dss_mgr_connect(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dst);
+void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dst);
+void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
+		const struct omap_video_timings *timings);
+void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+		const struct dss_lcd_mgr_config *config);
+int dss_mgr_enable(struct omap_overlay_manager *mgr);
+void dss_mgr_disable(struct omap_overlay_manager *mgr);
+void dss_mgr_start_update(struct omap_overlay_manager *mgr);
+int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data);
+void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data);
+
 #endif
