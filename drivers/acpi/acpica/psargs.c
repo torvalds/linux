@@ -269,8 +269,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 */
 	if (ACPI_SUCCESS(status) &&
 	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
-		if (GET_CURRENT_ARG_TYPE(walk_state->arg_types) ==
-		    ARGP_SUPERNAME) {
+		if (walk_state->opcode == AML_UNLOAD_OP) {
 			/*
 			 * acpi_ps_get_next_namestring has increased the AML pointer,
 			 * so we need to restore the saved AML pointer for method call.
@@ -697,7 +696,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
  *
  * PARAMETERS:  walk_state          - Current state
  *              parser_state        - Current parser state object
- *              arg_type            - The parser argument type (ARGP_*)
+ *              arg_type            - The argument type (AML_*_ARG)
  *              return_arg          - Where the next arg is returned
  *
  * RETURN:      Status, and an op object containing the next argument.
@@ -817,9 +816,9 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 
-			/* super_name allows argument to be a method call */
+			/* To support super_name arg of Unload */
 
-			if (arg_type == ARGP_SUPERNAME) {
+			if (walk_state->opcode == AML_UNLOAD_OP) {
 				status =
 				    acpi_ps_get_next_namepath(walk_state,
 							      parser_state, arg,
