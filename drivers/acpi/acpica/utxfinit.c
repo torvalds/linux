@@ -301,7 +301,7 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 		}
 	}
 
-	acpi_gbl_reg_methods_enabled = TRUE;
+	acpi_gbl_namespace_initialized = TRUE;
 
 	/*
 	 * Initialize all device/region objects in the namespace. This runs

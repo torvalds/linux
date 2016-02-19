@@ -136,7 +136,7 @@ acpi_status acpi_ns_initialize_objects(void)
 
 acpi_status acpi_ns_initialize_devices(u32 flags)
 {
-	acpi_status status;
+	acpi_status status = AE_OK;
 	struct acpi_device_walk_info info;
 
 	ACPI_FUNCTION_TRACE(ns_initialize_devices);
