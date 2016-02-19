@@ -1065,8 +1065,8 @@ static u64 marvell_get_stat(struct phy_device *phydev, int i)
 {
 	struct marvell_hw_stat stat = marvell_hw_stats[i];
 	struct marvell_priv *priv = phydev->priv;
-	int err, oldpage;
-	u64 val;
+	int err, oldpage, val;
+	u64 ret;
 
 	oldpage = phy_read(phydev, MII_MARVELL_PHY_PAGE);
 	err = phy_write(phydev, MII_MARVELL_PHY_PAGE,
@@ -1076,16 +1076,16 @@ static u64 marvell_get_stat(struct phy_device *phydev, int i)
 
 	val = phy_read(phydev, stat.reg);
 	if (val < 0) {
-		val = UINT64_MAX;
+		ret = UINT64_MAX;
 	} else {
 		val = val & ((1 << stat.bits) - 1);
 		priv->stats[i] += val;
-		val = priv->stats[i];
+		ret = priv->stats[i];
 	}
 
 	phy_write(phydev, MII_MARVELL_PHY_PAGE, oldpage);
 
-	return val;
+	return ret;
 }
 
 static void marvell_get_stats(struct phy_device *phydev,
