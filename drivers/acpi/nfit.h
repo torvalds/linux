@@ -195,5 +195,5 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 
 const u8 *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *nfit, acpi_size sz);
-extern const struct attribute_group *acpi_nfit_attribute_groups[];
+void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);
 #endif /* __NFIT_H__ */

@@ -748,12 +748,11 @@ static struct attribute_group acpi_nfit_attribute_group = {
 	.attrs = acpi_nfit_attributes,
 };
 
-const struct attribute_group *acpi_nfit_attribute_groups[] = {
+static const struct attribute_group *acpi_nfit_attribute_groups[] = {
 	&nvdimm_bus_attribute_group,
 	&acpi_nfit_attribute_group,
 	NULL,
 };
-EXPORT_SYMBOL_GPL(acpi_nfit_attribute_groups);
 
 static struct acpi_nfit_memory_map *to_nfit_memdev(struct device *dev)
 {
@@ -1962,15 +1961,9 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 }
 EXPORT_SYMBOL_GPL(acpi_nfit_init);
 
-static struct acpi_nfit_desc *acpi_nfit_desc_init(struct acpi_device *adev)
+void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 {
 	struct nvdimm_bus_descriptor *nd_desc;
-	struct acpi_nfit_desc *acpi_desc;
-	struct device *dev = &adev->dev;
-
-	acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
-	if (!acpi_desc)
-		return ERR_PTR(-ENOMEM);
 
 	dev_set_drvdata(dev, acpi_desc);
 	acpi_desc->dev = dev;
@@ -1979,12 +1972,6 @@ static struct acpi_nfit_desc *acpi_nfit_desc_init(struct acpi_device *adev)
 	nd_desc->provider_name = "ACPI.NFIT";
 	nd_desc->ndctl = acpi_nfit_ctl;
 	nd_desc->attr_groups = acpi_nfit_attribute_groups;
-
-	acpi_desc->nvdimm_bus = nvdimm_bus_register(dev, nd_desc);
-	if (!acpi_desc->nvdimm_bus) {
-		devm_kfree(dev, acpi_desc);
-		return ERR_PTR(-ENXIO);
-	}
 
 	INIT_LIST_HEAD(&acpi_desc->spa_maps);
 	INIT_LIST_HEAD(&acpi_desc->spas);
@@ -1996,9 +1983,8 @@ static struct acpi_nfit_desc *acpi_nfit_desc_init(struct acpi_device *adev)
 	INIT_LIST_HEAD(&acpi_desc->dimms);
 	mutex_init(&acpi_desc->spa_map_mutex);
 	mutex_init(&acpi_desc->init_mutex);
-
-	return acpi_desc;
 }
+EXPORT_SYMBOL_GPL(acpi_nfit_desc_init);
 
 static int acpi_nfit_add(struct acpi_device *adev)
 {
@@ -2017,12 +2003,13 @@ static int acpi_nfit_add(struct acpi_device *adev)
 		return 0;
 	}
 
-	acpi_desc = acpi_nfit_desc_init(adev);
-	if (IS_ERR(acpi_desc)) {
-		dev_err(dev, "%s: error initializing acpi_desc: %ld\n",
-				__func__, PTR_ERR(acpi_desc));
-		return PTR_ERR(acpi_desc);
-	}
+	acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
+	if (!acpi_desc)
+		return -ENOMEM;
+	acpi_nfit_desc_init(acpi_desc, &adev->dev);
+	acpi_desc->nvdimm_bus = nvdimm_bus_register(dev, &acpi_desc->nd_desc);
+	if (!acpi_desc->nvdimm_bus)
+		return -ENOMEM;
 
 	/*
 	 * Save the acpi header for later and then skip it,
@@ -2085,12 +2072,13 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 	}
 
 	if (!acpi_desc) {
-		acpi_desc = acpi_nfit_desc_init(adev);
-		if (IS_ERR(acpi_desc)) {
-			dev_err(dev, "%s: error initializing acpi_desc: %ld\n",
-				__func__, PTR_ERR(acpi_desc));
+		acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
+		if (!acpi_desc)
 			goto out_unlock;
-		}
+		acpi_nfit_desc_init(acpi_desc, &adev->dev);
+		acpi_desc->nvdimm_bus = nvdimm_bus_register(dev, &acpi_desc->nd_desc);
+		if (!acpi_desc->nvdimm_bus)
+			goto out_unlock;
 	}
 
 	/* Evaluate _FIT */
