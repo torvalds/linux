@@ -1201,42 +1201,25 @@ static int cal_enum_frameintervals(struct file *file, void *priv,
 {
 	struct cal_ctx *ctx = video_drvdata(file);
 	const struct cal_fmt *fmt;
-	struct v4l2_subdev_frame_size_enum fse;
+	struct v4l2_subdev_frame_interval_enum fie = {
+		.index = fival->index,
+		.width = fival->width,
+		.height = fival->height,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
-
-	if (fival->index)
-		return -EINVAL;
 
 	fmt = find_format_by_pix(ctx, fival->pixel_format);
 	if (!fmt)
 		return -EINVAL;
 
-	/* check for valid width/height */
-	ret = 0;
-	fse.pad = 0;
-	fse.code = fmt->code;
-	fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	for (fse.index = 0; ; fse.index++) {
-		ret = v4l2_subdev_call(ctx->sensor, pad, enum_frame_size,
-				       NULL, &fse);
-		if (ret)
-			return -EINVAL;
-
-		if ((fival->width == fse.max_width) &&
-		    (fival->height == fse.max_height))
-			break;
-		else if ((fival->width >= fse.min_width) &&
-			 (fival->width <= fse.max_width) &&
-			 (fival->height >= fse.min_height) &&
-			 (fival->height <= fse.max_height))
-			break;
-
-		return -EINVAL;
-	}
-
+	fie.code = fmt->code;
+	ret = v4l2_subdev_call(ctx->sensor, pad, enum_frame_interval,
+			       NULL, &fie);
+	if (ret)
+		return ret;
 	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	fival->discrete.numerator = 1;
-	fival->discrete.denominator = 30;
+	fival->discrete = fie.interval;
 
 	return 0;
 }
