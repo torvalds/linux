@@ -342,7 +342,7 @@ static int mbox_test_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id mbox_test_match[] = {
-	{ .compatible = "mailbox_test" },
+	{ .compatible = "mailbox-test" },
 	{},
 };
 
