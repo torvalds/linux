@@ -363,7 +363,7 @@ static int config_attr(struct perf_event_attr *attr,
 
 int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2,
-			   struct parse_events_error *error,
+			   struct parse_events_error *err,
 			   struct list_head *head_config)
 {
 	struct perf_event_attr attr;
@@ -425,7 +425,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	attr.type = PERF_TYPE_HW_CACHE;
 
 	if (head_config) {
-		if (config_attr(&attr, head_config, error,
+		if (config_attr(&attr, head_config, err,
 				config_term_common))
 			return -EINVAL;
 
