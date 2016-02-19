@@ -596,7 +596,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	ttm_eu_backoff_reservation(&ticket, &list);
-	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE))
+	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) &&
+	    !amdgpu_vm_debug)
 		amdgpu_gem_va_update_vm(adev, bo_va, args->operation);
 
 	drm_gem_object_unreference_unlocked(gobj);
