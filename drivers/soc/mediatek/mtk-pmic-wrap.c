@@ -374,19 +374,10 @@ struct pmic_wrapper_type {
 	u32 int_en_all;
 	u32 spi_w;
 	u32 wdt_src;
+	int has_bridge:1;
 	int (*init_reg_clock)(struct pmic_wrapper *wrp);
 	int (*init_soc_specific)(struct pmic_wrapper *wrp);
 };
-
-static inline int pwrap_is_mt8135(struct pmic_wrapper *wrp)
-{
-	return wrp->master->type == PWRAP_MT8135;
-}
-
-static inline int pwrap_is_mt8173(struct pmic_wrapper *wrp)
-{
-	return wrp->master->type == PWRAP_MT8173;
-}
 
 static u32 pwrap_readl(struct pmic_wrapper *wrp, enum pwrap_regs reg)
 {
@@ -619,11 +610,14 @@ static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 	pwrap_writel(wrp, 0x1, PWRAP_CIPHER_KEY_SEL);
 	pwrap_writel(wrp, 0x2, PWRAP_CIPHER_IV_SEL);
 
-	if (pwrap_is_mt8135(wrp)) {
+	switch (wrp->master->type) {
+	case PWRAP_MT8135:
 		pwrap_writel(wrp, 1, PWRAP_CIPHER_LOAD);
 		pwrap_writel(wrp, 1, PWRAP_CIPHER_START);
-	} else {
+		break;
+	case PWRAP_MT8173:
 		pwrap_writel(wrp, 1, PWRAP_CIPHER_EN);
+		break;
 	}
 
 	/* Config cipher mode @PMIC */
@@ -713,7 +707,7 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	if (wrp->rstc_bridge)
 		reset_control_reset(wrp->rstc_bridge);
 
-	if (pwrap_is_mt8173(wrp)) {
+	if (wrp->master->type == PWRAP_MT8173) {
 		/* Enable DCM */
 		pwrap_writel(wrp, 3, PWRAP_DCM_EN);
 		pwrap_writel(wrp, 0, PWRAP_DCM_DBC_PRD);
@@ -773,7 +767,7 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	pwrap_writel(wrp, PWRAP_DEW_CRC_VAL, PWRAP_SIG_ADR);
 	pwrap_writel(wrp, wrp->master->arb_en_all, PWRAP_HIPRIO_ARB_EN);
 
-	if (pwrap_is_mt8135(wrp))
+	if (wrp->master->type == PWRAP_MT8135)
 		pwrap_writel(wrp, 0x7, PWRAP_RRARB_EN);
 
 	pwrap_writel(wrp, 0x1, PWRAP_WACS0_EN);
@@ -793,7 +787,7 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	pwrap_writel(wrp, 1, PWRAP_INIT_DONE0);
 	pwrap_writel(wrp, 1, PWRAP_INIT_DONE1);
 
-	if (pwrap_is_mt8135(wrp)) {
+	if (wrp->master->has_bridge) {
 		writel(1, wrp->bridge_base + PWRAP_MT8135_BRIDGE_INIT_DONE3);
 		writel(1, wrp->bridge_base + PWRAP_MT8135_BRIDGE_INIT_DONE4);
 	}
@@ -831,6 +825,7 @@ static struct pmic_wrapper_type pwrap_mt8135 = {
 	.int_en_all = ~(BIT(31) | BIT(1)),
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
 	.wdt_src = PWRAP_WDT_SRC_MASK_ALL,
+	.has_bridge = 1,
 	.init_reg_clock = pwrap_mt8135_init_reg_clock,
 	.init_soc_specific = pwrap_mt8135_init_soc_specific,
 };
@@ -842,6 +837,7 @@ static struct pmic_wrapper_type pwrap_mt8173 = {
 	.int_en_all = ~(BIT(31) | BIT(1)),
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
 	.wdt_src = PWRAP_WDT_SRC_MASK_NO_STAUPD,
+	.has_bridge = 0,
 	.init_reg_clock = pwrap_mt8173_init_reg_clock,
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
 };
@@ -889,7 +885,7 @@ static int pwrap_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pwrap_is_mt8135(wrp)) {
+	if (wrp->master->has_bridge) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 				"pwrap-bridge");
 		wrp->bridge_base = devm_ioremap_resource(wrp->dev, res);
