@@ -407,7 +407,7 @@ static DEVICE_ATTR(subcores_per_core, 0644,
 
 static int subcore_init(void)
 {
-	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+	if (!cpu_has_feature(CPU_FTR_SUBCORE))
 		return 0;
 
 	/*
