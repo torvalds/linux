@@ -686,13 +686,6 @@ static bool __comedi_is_subdevice_running(struct comedi_subdevice *s)
 	return comedi_is_runflags_running(runflags);
 }
 
-static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
-{
-	unsigned runflags = comedi_get_subdevice_runflags(s);
-
-	return !(runflags & COMEDI_SRF_BUSY_MASK);
-}
-
 bool comedi_can_auto_free_spriv(struct comedi_subdevice *s)
 {
 	unsigned runflags = __comedi_get_subdevice_runflags(s);
@@ -1111,6 +1104,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	struct comedi_bufinfo bi;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
+	unsigned int runflags;
+	int retval = 0;
 	bool become_nonbusy = false;
 
 	if (copy_from_user(&bi, arg, sizeof(bi)))
@@ -1132,9 +1127,20 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 			comedi_buf_read_alloc(s, bi.bytes_read);
 			bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
 		}
-		if (comedi_is_subdevice_idle(s) &&
-		    comedi_buf_read_n_available(s) == 0)
+		/*
+		 * If nothing left to read, and command has stopped, and
+		 * {"read" position not updated or command stopped normally},
+		 * then become non-busy.
+		 */
+		runflags = comedi_get_subdevice_runflags(s);
+		if (comedi_buf_read_n_available(s) == 0 &&
+		    !comedi_is_runflags_running(runflags) &&
+		    (bi.bytes_read == 0 ||
+		     !comedi_is_runflags_in_error(runflags))) {
 			become_nonbusy = true;
+			if (comedi_is_runflags_in_error(runflags))
+				retval = -EPIPE;
+		}
 		bi.bytes_written = 0;
 	} else {
 		/* command was set up in "write" direction */
@@ -1155,6 +1161,9 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 	if (become_nonbusy)
 		do_become_nonbusy(dev, s);
+
+	if (retval)
+		return retval;
 
 	if (copy_to_user(arg, &bi, sizeof(bi)))
 		return -EFAULT;
