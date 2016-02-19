@@ -31,7 +31,8 @@ static struct dentry *root_debugfs_dir;
 
 struct mbox_test_device {
 	struct device		*dev;
-	void __iomem		*mmio;
+	void __iomem		*tx_mmio;
+	void __iomem		*rx_mmio;
 	struct mbox_chan	*tx_channel;
 	struct mbox_chan	*rx_channel;
 	char			*rx_buffer;
@@ -112,7 +113,7 @@ static ssize_t mbox_test_message_write(struct file *filp,
 	 * A separate signal is only of use if there is
 	 * MMIO to subsequently pass the message through
 	 */
-	if (tdev->mmio && tdev->signal) {
+	if (tdev->tx_mmio && tdev->signal) {
 		print_hex_dump_bytes("Client: Sending: Signal: ", DUMP_PREFIX_ADDRESS,
 				     tdev->signal, MBOX_MAX_SIG_LEN);
 
@@ -220,8 +221,8 @@ static void mbox_test_receive_message(struct mbox_client *client, void *message)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tdev->lock, flags);
-	if (tdev->mmio) {
-		memcpy_fromio(tdev->rx_buffer, tdev->mmio, MBOX_MAX_MSG_LEN);
+	if (tdev->rx_mmio) {
+		memcpy_fromio(tdev->rx_buffer, tdev->rx_mmio, MBOX_MAX_MSG_LEN);
 		print_hex_dump_bytes("Client: Received [MMIO]: ", DUMP_PREFIX_ADDRESS,
 				     tdev->rx_buffer, MBOX_MAX_MSG_LEN);
 	} else if (message) {
@@ -236,11 +237,11 @@ static void mbox_test_prepare_message(struct mbox_client *client, void *message)
 {
 	struct mbox_test_device *tdev = dev_get_drvdata(client->dev);
 
-	if (tdev->mmio) {
+	if (tdev->tx_mmio) {
 		if (tdev->signal)
-			memcpy_toio(tdev->mmio, tdev->message, MBOX_MAX_MSG_LEN);
+			memcpy_toio(tdev->tx_mmio, tdev->message, MBOX_MAX_MSG_LEN);
 		else
-			memcpy_toio(tdev->mmio, message, MBOX_MAX_MSG_LEN);
+			memcpy_toio(tdev->tx_mmio, message, MBOX_MAX_MSG_LEN);
 	}
 }
 
@@ -294,15 +295,25 @@ static int mbox_test_probe(struct platform_device *pdev)
 
 	/* It's okay for MMIO to be NULL */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tdev->mmio = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(tdev->mmio))
-		tdev->mmio = NULL;
+	tdev->tx_mmio = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(tdev->tx_mmio))
+		tdev->tx_mmio = NULL;
+
+	/* If specified, second reg entry is Rx MMIO */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	tdev->rx_mmio = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(tdev->rx_mmio))
+		tdev->rx_mmio = tdev->tx_mmio;
 
 	tdev->tx_channel = mbox_test_request_channel(pdev, "tx");
 	tdev->rx_channel = mbox_test_request_channel(pdev, "rx");
 
 	if (!tdev->tx_channel && !tdev->rx_channel)
 		return -EPROBE_DEFER;
+
+	/* If Rx is not specified but has Rx MMIO, then Rx = Tx */
+	if (!tdev->rx_channel && (tdev->rx_mmio != tdev->tx_mmio))
+		tdev->rx_channel = tdev->tx_channel;
 
 	tdev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, tdev);
