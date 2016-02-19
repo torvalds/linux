@@ -447,6 +447,30 @@
 		reg = <0x0 0xff770000 0x0 0x1000>;
 	};
 
+	i2s_2ch: i2s-2ch@ff890000 {
+		compatible = "rockchip,rk3366-i2s", "rockchip,rk3066-i2s";
+		reg = <0x0 0xff890000 0x0 0x1000>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&dmac_bus 6>, <&dmac_bus 7>;
+		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S_2CH>, <&cru SCLK_I2S_2CH>;
+		status = "disabled";
+	};
+
+	i2s_8ch: i2s-8ch@ff898000 {
+		compatible = "rockchip,rk3366-i2s", "rockchip,rk3066-i2s";
+		reg = <0x0 0xff898000 0x0 0x1000>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&dmac_bus 0>, <&dmac_bus 1>;
+		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S_8CH>, <&cru SCLK_I2S_8CH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_bus>;
+		status = "disabled";
+	};
+
 	fb: fb {
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
