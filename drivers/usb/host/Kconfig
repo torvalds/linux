@@ -64,7 +64,7 @@ config USB_XHCI_MVEBU
 config USB_XHCI_RCAR
 	tristate "xHCI support for Renesas R-Car SoCs"
 	select USB_XHCI_PLATFORM
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Renesas R-Car ARM SoCs.
