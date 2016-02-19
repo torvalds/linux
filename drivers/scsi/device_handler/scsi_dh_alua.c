@@ -366,6 +366,8 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 		/* port group has changed. Update to new port group */
 		rcu_assign_pointer(h->pg, pg);
 	}
+	if (sdev->synchronous_alua)
+		pg->flags |= ALUA_SYNC_STPG;
 	alua_rtpg_queue(h->pg, sdev, NULL);
 	spin_unlock(&h->pg_lock);
 
