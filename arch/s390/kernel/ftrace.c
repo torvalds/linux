@@ -203,7 +203,7 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip)
 		goto out;
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
-	ip = (ip & PSW_ADDR_INSN) - MCOUNT_INSN_SIZE;
+	ip -= MCOUNT_INSN_SIZE;
 	trace.func = ip;
 	trace.depth = current->curr_ret_stack + 1;
 	/* Only trace if the calling function expects to. */

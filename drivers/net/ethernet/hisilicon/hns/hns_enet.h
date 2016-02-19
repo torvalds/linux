@@ -51,7 +51,7 @@ struct hns_nic_ops {
 };
 
 struct hns_nic_priv {
-	const char *ae_name;
+	const struct device_node *ae_node;
 	u32 enet_ver;
 	u32 port_id;
 	int phy_mode;

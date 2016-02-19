@@ -995,6 +995,9 @@ static int __init uncore_pci_init(void)
 	case 87: /* Knights Landing */
 		ret = knl_uncore_pci_init();
 		break;
+	case 94: /* SkyLake */
+		ret = skl_uncore_pci_init();
+		break;
 	default:
 		return 0;
 	}

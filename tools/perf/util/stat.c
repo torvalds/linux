@@ -310,7 +310,6 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	int i, ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
-	init_stats(ps->res_stats);
 
 	if (counter->per_pkg)
 		zero_per_pkg(counter);

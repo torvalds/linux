@@ -863,6 +863,7 @@ static int skl_get_delay_from_lpib(struct hdac_ext_bus *ebus,
 		else
 			delay += hstream->bufsize;
 	}
+	delay = (hstream->bufsize == delay) ? 0 : delay;
 
 	if (delay >= hstream->period_bytes) {
 		dev_info(bus->dev,

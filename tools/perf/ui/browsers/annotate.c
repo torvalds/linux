@@ -755,11 +755,11 @@ static int annotate_browser__run(struct annotate_browser *browser,
 				nd = browser->curr_hot;
 			break;
 		case K_UNTAB:
-			if (nd != NULL)
+			if (nd != NULL) {
 				nd = rb_next(nd);
 				if (nd == NULL)
 					nd = rb_first(&browser->entries);
-			else
+			} else
 				nd = browser->curr_hot;
 			break;
 		case K_F1:

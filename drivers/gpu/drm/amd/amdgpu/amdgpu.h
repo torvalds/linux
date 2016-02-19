@@ -2278,60 +2278,60 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_dpm_enable_bapm(adev, e) (adev)->pm.funcs->enable_bapm((adev), (e))
 
 #define amdgpu_dpm_get_temperature(adev) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->get_temperature((adev)->powerplay.pp_handle) : \
-	      (adev)->pm.funcs->get_temperature((adev))
+	      (adev)->pm.funcs->get_temperature((adev)))
 
 #define amdgpu_dpm_set_fan_control_mode(adev, m) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->set_fan_control_mode((adev)->powerplay.pp_handle, (m)) : \
-	      (adev)->pm.funcs->set_fan_control_mode((adev), (m))
+	      (adev)->pm.funcs->set_fan_control_mode((adev), (m)))
 
 #define amdgpu_dpm_get_fan_control_mode(adev) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->get_fan_control_mode((adev)->powerplay.pp_handle) : \
-	      (adev)->pm.funcs->get_fan_control_mode((adev))
+	      (adev)->pm.funcs->get_fan_control_mode((adev)))
 
 #define amdgpu_dpm_set_fan_speed_percent(adev, s) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->set_fan_speed_percent((adev)->powerplay.pp_handle, (s)) : \
-	      (adev)->pm.funcs->set_fan_speed_percent((adev), (s))
+	      (adev)->pm.funcs->set_fan_speed_percent((adev), (s)))
 
 #define amdgpu_dpm_get_fan_speed_percent(adev, s) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->get_fan_speed_percent((adev)->powerplay.pp_handle, (s)) : \
-	      (adev)->pm.funcs->get_fan_speed_percent((adev), (s))
+	      (adev)->pm.funcs->get_fan_speed_percent((adev), (s)))
 
 #define amdgpu_dpm_get_sclk(adev, l) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (l)) : \
-		(adev)->pm.funcs->get_sclk((adev), (l))
+		(adev)->pm.funcs->get_sclk((adev), (l)))
 
 #define amdgpu_dpm_get_mclk(adev, l)  \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (l)) : \
-	      (adev)->pm.funcs->get_mclk((adev), (l))
+	      (adev)->pm.funcs->get_mclk((adev), (l)))
 
 
 #define amdgpu_dpm_force_performance_level(adev, l) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->force_performance_level((adev)->powerplay.pp_handle, (l)) : \
-	      (adev)->pm.funcs->force_performance_level((adev), (l))
+	      (adev)->pm.funcs->force_performance_level((adev), (l)))
 
 #define amdgpu_dpm_powergate_uvd(adev, g) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->powergate_uvd((adev)->powerplay.pp_handle, (g)) : \
-	      (adev)->pm.funcs->powergate_uvd((adev), (g))
+	      (adev)->pm.funcs->powergate_uvd((adev), (g)))
 
 #define amdgpu_dpm_powergate_vce(adev, g) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->powergate_vce((adev)->powerplay.pp_handle, (g)) : \
-	      (adev)->pm.funcs->powergate_vce((adev), (g))
+	      (adev)->pm.funcs->powergate_vce((adev), (g)))
 
 #define amdgpu_dpm_debugfs_print_current_performance_level(adev, m) \
-	(adev)->pp_enabled ?						\
+	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->print_current_performance_level((adev)->powerplay.pp_handle, (m)) : \
-	      (adev)->pm.funcs->debugfs_print_current_performance_level((adev), (m))
+	      (adev)->pm.funcs->debugfs_print_current_performance_level((adev), (m)))
 
 #define amdgpu_dpm_get_current_power_state(adev) \
 	(adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle)
