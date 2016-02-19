@@ -228,16 +228,18 @@ static void r8712_usb_read_port_complete(struct urb *purb)
 		}
 	} else {
 		switch (purb->status) {
-		case -ENOENT:
-			if (padapter->bSuspended)
-				break;
-			/* Fall through. */
 		case -EINVAL:
 		case -EPIPE:
 		case -ENODEV:
 		case -ESHUTDOWN:
 			padapter->bDriverStopped = true;
 			break;
+		case -ENOENT:
+			if (!padapter->bSuspended) {
+				padapter->bDriverStopped = true;
+				break;
+			}
+			/* Fall through. */
 		case -EPROTO:
 			precvbuf->reuse = true;
 			r8712_read_port(padapter, precvpriv->ff_hwaddr, 0,
