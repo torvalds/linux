@@ -1131,11 +1131,10 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		if (bi.bytes_read) {
 			comedi_buf_read_alloc(s, bi.bytes_read);
 			bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
-
-			if (comedi_is_subdevice_idle(s) &&
-			    comedi_buf_read_n_available(s) == 0)
-				become_nonbusy = true;
 		}
+		if (comedi_is_subdevice_idle(s) &&
+		    comedi_buf_read_n_available(s) == 0)
+			become_nonbusy = true;
 		bi.bytes_written = 0;
 	} else {
 		/* command was set up in "write" direction */
