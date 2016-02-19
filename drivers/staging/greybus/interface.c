@@ -174,8 +174,10 @@ void gb_interface_remove(struct gb_interface *intf)
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
 
-	if (device_is_registered(&intf->dev))
+	if (device_is_registered(&intf->dev)) {
 		device_del(&intf->dev);
+		dev_info(&intf->dev, "Interface removed\n");
+	}
 
 	gb_control_disable(intf->control);
 
@@ -259,6 +261,11 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 		dev_err(&intf->dev, "failed to register interface: %d\n", ret);
 		goto free_manifest;
 	}
+
+	dev_info(&intf->dev, "Interface added: VID=0x%08x, PID=0x%08x\n",
+		 intf->vendor_id, intf->product_id);
+	dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
+		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id);
 
 	list_for_each_entry_safe_reverse(bundle, tmp, &intf->bundles, links) {
 		ret = gb_bundle_add(bundle);
