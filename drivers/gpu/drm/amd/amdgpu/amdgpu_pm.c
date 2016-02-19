@@ -113,6 +113,10 @@ static ssize_t amdgpu_get_dpm_forced_performance_level(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return snprintf(buf, PAGE_SIZE, "off\n");
+
 	if (adev->pp_enabled) {
 		enum amd_dpm_forced_level level;
 
@@ -139,6 +143,11 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amdgpu_dpm_forced_level level;
 	int ret = 0;
+
+	/* Can't force performance level when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
 
 	if (strncmp("low", buf, strlen("low")) == 0) {
 		level = AMDGPU_DPM_FORCED_LEVEL_LOW;
@@ -181,7 +190,13 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 				      char *buf)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	struct drm_device *ddev = adev->ddev;
 	int temp;
+
+	/* Can't get temperature when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
 
 	if (!adev->pp_enabled && !adev->pm.funcs->get_temperature)
 		temp = 0;
@@ -846,12 +861,16 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_device *ddev = adev->ddev;
 
 	if (!adev->pm.dpm_enabled) {
 		seq_printf(m, "dpm not enabled\n");
 		return 0;
 	}
-	if (adev->pp_enabled) {
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON)) {
+		seq_printf(m, "PX asic powered off\n");
+	} else if (adev->pp_enabled) {
 		amdgpu_dpm_debugfs_print_current_performance_level(adev, m);
 	} else {
 		mutex_lock(&adev->pm.mutex);
