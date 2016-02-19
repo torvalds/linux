@@ -171,7 +171,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 	u8 sign_of0x = 0;
 	u8 term = 0;
 
-	ACPI_FUNCTION_TRACE_STR(ut_stroul64, string);
+	ACPI_FUNCTION_TRACE_STR(ut_strtoul64, string);
 
 	switch (base) {
 	case ACPI_ANY_BASE:
