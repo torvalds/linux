@@ -35,4 +35,15 @@ int vsp1_drm_init(struct vsp1_device *vsp1);
 void vsp1_drm_cleanup(struct vsp1_device *vsp1);
 int vsp1_drm_create_links(struct vsp1_device *vsp1);
 
+int vsp1_du_init(struct device *dev);
+int vsp1_du_setup_lif(struct device *dev, unsigned int width,
+		      unsigned int height);
+void vsp1_du_atomic_begin(struct device *dev);
+int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
+			  u32 pixelformat, unsigned int pitch,
+			  dma_addr_t mem[2], const struct v4l2_rect *src,
+			  const struct v4l2_rect *dst);
+void vsp1_du_atomic_flush(struct device *dev);
+
+
 #endif /* __VSP1_DRM_H__ */
