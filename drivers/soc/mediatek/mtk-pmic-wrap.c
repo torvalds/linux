@@ -373,6 +373,7 @@ struct pmic_wrapper_type {
 	u32 arb_en_all;
 	u32 int_en_all;
 	u32 spi_w;
+	u32 wdt_src;
 	int (*init_reg_clock)(struct pmic_wrapper *wrp);
 	int (*init_soc_specific)(struct pmic_wrapper *wrp);
 };
@@ -829,6 +830,7 @@ static struct pmic_wrapper_type pwrap_mt8135 = {
 	.arb_en_all = 0x1ff,
 	.int_en_all = ~(BIT(31) | BIT(1)),
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
+	.wdt_src = PWRAP_WDT_SRC_MASK_ALL,
 	.init_reg_clock = pwrap_mt8135_init_reg_clock,
 	.init_soc_specific = pwrap_mt8135_init_soc_specific,
 };
@@ -839,6 +841,7 @@ static struct pmic_wrapper_type pwrap_mt8173 = {
 	.arb_en_all = 0x3f,
 	.int_en_all = ~(BIT(31) | BIT(1)),
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
+	.wdt_src = PWRAP_WDT_SRC_MASK_NO_STAUPD,
 	.init_reg_clock = pwrap_mt8173_init_reg_clock,
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
 };
@@ -858,7 +861,7 @@ MODULE_DEVICE_TABLE(of, of_pwrap_match_tbl);
 
 static int pwrap_probe(struct platform_device *pdev)
 {
-	int ret, irq, wdt_src;
+	int ret, irq;
 	struct pmic_wrapper *wrp;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
@@ -948,9 +951,7 @@ static int pwrap_probe(struct platform_device *pdev)
 	 * Since STAUPD was not used on mt8173 platform,
 	 * so STAUPD of WDT_SRC which should be turned off
 	 */
-	wdt_src = pwrap_is_mt8173(wrp) ?
-			PWRAP_WDT_SRC_MASK_NO_STAUPD : PWRAP_WDT_SRC_MASK_ALL;
-	pwrap_writel(wrp, wdt_src, PWRAP_WDT_SRC_EN);
+	pwrap_writel(wrp, wrp->master->wdt_src, PWRAP_WDT_SRC_EN);
 	pwrap_writel(wrp, 0x1, PWRAP_TIMER_EN);
 	pwrap_writel(wrp, wrp->master->int_en_all, PWRAP_INT_EN);
 
