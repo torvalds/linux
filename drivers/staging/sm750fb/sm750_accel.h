@@ -138,12 +138,8 @@
 
 #define DE_CLIP_TL                                      0x00002C
 #define DE_CLIP_TL_TOP                                  31:16
-#define DE_CLIP_TL_STATUS                               13:13
-#define DE_CLIP_TL_STATUS_DISABLE                       0
-#define DE_CLIP_TL_STATUS_ENABLE                        1
-#define DE_CLIP_TL_INHIBIT                              12:12
-#define DE_CLIP_TL_INHIBIT_OUTSIDE                      0
-#define DE_CLIP_TL_INHIBIT_INSIDE                       1
+#define DE_CLIP_TL_STATUS                               BIT(13)
+#define DE_CLIP_TL_INHIBIT                              BIT(12)
 #define DE_CLIP_TL_LEFT                                 11:0
 
 #define DE_CLIP_BR                                      0x000030
@@ -162,21 +158,13 @@
 #define DE_WINDOW_WIDTH_SRC_MASK                        0x1fff
 
 #define DE_WINDOW_SOURCE_BASE                           0x000040
-#define DE_WINDOW_SOURCE_BASE_EXT                       27:27
-#define DE_WINDOW_SOURCE_BASE_EXT_LOCAL                 0
-#define DE_WINDOW_SOURCE_BASE_EXT_EXTERNAL              1
-#define DE_WINDOW_SOURCE_BASE_CS                        26:26
-#define DE_WINDOW_SOURCE_BASE_CS_0                      0
-#define DE_WINDOW_SOURCE_BASE_CS_1                      1
+#define DE_WINDOW_SOURCE_BASE_EXT                       BIT(27)
+#define DE_WINDOW_SOURCE_BASE_CS                        BIT(26)
 #define DE_WINDOW_SOURCE_BASE_ADDRESS                   25:0
 
 #define DE_WINDOW_DESTINATION_BASE                      0x000044
-#define DE_WINDOW_DESTINATION_BASE_EXT                  27:27
-#define DE_WINDOW_DESTINATION_BASE_EXT_LOCAL            0
-#define DE_WINDOW_DESTINATION_BASE_EXT_EXTERNAL         1
-#define DE_WINDOW_DESTINATION_BASE_CS                   26:26
-#define DE_WINDOW_DESTINATION_BASE_CS_0                 0
-#define DE_WINDOW_DESTINATION_BASE_CS_1                 1
+#define DE_WINDOW_DESTINATION_BASE_EXT                  BIT(27)
+#define DE_WINDOW_DESTINATION_BASE_CS                   BIT(26)
 #define DE_WINDOW_DESTINATION_BASE_ADDRESS              25:0
 
 #define DE_ALPHA                                        0x000048
@@ -187,16 +175,8 @@
 #define DE_WRAP_Y                                       15:0
 
 #define DE_STATUS                                       0x000050
-#define DE_STATUS_CSC                                   1:1
-#define DE_STATUS_CSC_CLEAR                             0
-#define DE_STATUS_CSC_NOT_ACTIVE                        0
-#define DE_STATUS_CSC_ACTIVE                            1
-#define DE_STATUS_2D                                    0:0
-#define DE_STATUS_2D_CLEAR                              0
-#define DE_STATUS_2D_NOT_ACTIVE                         0
-#define DE_STATUS_2D_ACTIVE                             1
-
-
+#define DE_STATUS_CSC                                   BIT(1)
+#define DE_STATUS_2D                                    BIT(0)
 
 /* blt direction */
 #define TOP_TO_BOTTOM 0
