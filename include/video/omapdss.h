@@ -785,13 +785,6 @@ struct omap_dss_device {
 	struct omap_dss_device *dst;
 };
 
-struct omap_dss_hdmi_data
-{
-	int ct_cp_hpd_gpio;
-	int ls_oe_gpio;
-	int hpd_gpio;
-};
-
 struct omap_dss_driver {
 	int (*probe)(struct omap_dss_device *);
 	void (*remove)(struct omap_dss_device *);
