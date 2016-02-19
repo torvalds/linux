@@ -53,12 +53,10 @@ static int pisosr_gpio_refresh(struct pisosr_gpio *gpio)
 	}
 
 	ret = spi_read(gpio->spi, gpio->buffer, gpio->buffer_size);
-	if (ret)
-		return ret;
 
 	mutex_unlock(&gpio->lock);
 
-	return 0;
+	return ret;
 }
 
 static int pisosr_gpio_get_direction(struct gpio_chip *chip,
