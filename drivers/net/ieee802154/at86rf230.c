@@ -343,16 +343,26 @@ static const struct regmap_config at86rf230_regmap_spi_config = {
 };
 
 static void
+at86rf230_async_error_recover_complete(void *context)
+{
+	struct at86rf230_state_change *ctx = context;
+	struct at86rf230_local *lp = ctx->lp;
+
+	if (ctx->free)
+		kfree(ctx);
+
+	ieee802154_wake_queue(lp->hw);
+}
+
+static void
 at86rf230_async_error_recover(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 
 	lp->is_tx = 0;
-	at86rf230_async_state_change(lp, ctx, STATE_RX_AACK_ON, NULL);
-	ieee802154_wake_queue(lp->hw);
-	if (ctx->free)
-		kfree(ctx);
+	at86rf230_async_state_change(lp, ctx, STATE_RX_AACK_ON,
+				     at86rf230_async_error_recover_complete);
 }
 
 static inline void
