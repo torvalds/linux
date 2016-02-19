@@ -1516,13 +1516,13 @@ static int ars_do_start(struct nvdimm_bus_descriptor *nd_desc,
 }
 
 static int ars_get_status(struct nvdimm_bus_descriptor *nd_desc,
-		struct nd_cmd_ars_status *cmd)
+		struct nd_cmd_ars_status *cmd, u32 size)
 {
 	int rc;
 
 	while (1) {
 		rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_STATUS, cmd,
-			sizeof(*cmd));
+			size);
 		if (rc || cmd->status & 0xffff)
 			return -ENXIO;
 
@@ -1580,6 +1580,7 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
 	struct nd_cmd_ars_start *ars_start = NULL;
 	struct nd_cmd_ars_cap *ars_cap = NULL;
 	u64 start, len, cur, remaining;
+	u32 ars_status_size;
 	int rc;
 
 	ars_cap = kzalloc(sizeof(*ars_cap), GFP_KERNEL);
@@ -1609,14 +1610,14 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
 	 * Check if a full-range ARS has been run. If so, use those results
 	 * without having to start a new ARS.
 	 */
-	ars_status = kzalloc(ars_cap->max_ars_out + sizeof(*ars_status),
-			GFP_KERNEL);
+	ars_status_size = ars_cap->max_ars_out;
+	ars_status = kzalloc(ars_status_size, GFP_KERNEL);
 	if (!ars_status) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	rc = ars_get_status(nd_desc, ars_status);
+	rc = ars_get_status(nd_desc, ars_status, ars_status_size);
 	if (rc)
 		goto out;
 
@@ -1646,7 +1647,7 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
 		if (rc)
 			goto out;
 
-		rc = ars_get_status(nd_desc, ars_status);
+		rc = ars_get_status(nd_desc, ars_status, ars_status_size);
 		if (rc)
 			goto out;
 
