@@ -1026,6 +1026,13 @@ static int alua_prep_fn(struct scsi_device *sdev, struct request *req)
 
 }
 
+static void alua_rescan(struct scsi_device *sdev)
+{
+	struct alua_dh_data *h = sdev->handler_data;
+
+	alua_initialize(sdev, h);
+}
+
 /*
  * alua_bus_attach - Attach device handler
  * @sdev: device to be attached to
@@ -1086,6 +1093,7 @@ static struct scsi_device_handler alua_dh = {
 	.prep_fn = alua_prep_fn,
 	.check_sense = alua_check_sense,
 	.activate = alua_activate,
+	.rescan = alua_rescan,
 	.set_params = alua_set_params,
 };
 

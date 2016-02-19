@@ -71,6 +71,7 @@ struct scsi_device_handler {
 	int (*activate)(struct scsi_device *, activate_complete, void *);
 	int (*prep_fn)(struct scsi_device *, struct request *);
 	int (*set_params)(struct scsi_device *, const char *);
+	void (*rescan)(struct scsi_device *);
 };
 
 #ifdef CONFIG_SCSI_DH
