@@ -226,18 +226,7 @@ static struct net_device_stats *cvm_oct_common_get_stats(struct net_device *dev)
 		priv->stats.multicast += rx_status.multicast_packets;
 		priv->stats.rx_crc_errors += rx_status.inb_errors;
 		priv->stats.rx_frame_errors += rx_status.fcs_align_err_packets;
-
-		/*
-		 * The drop counter must be incremented atomically
-		 * since the RX tasklet also increments it.
-		 */
-#ifdef CONFIG_64BIT
-		atomic64_add(rx_status.dropped_packets,
-			     (atomic64_t *)&priv->stats.rx_dropped);
-#else
-		atomic_add(rx_status.dropped_packets,
-			     (atomic_t *)&priv->stats.rx_dropped);
-#endif
+		priv->stats.rx_dropped += rx_status.dropped_packets;
 	}
 
 	return &priv->stats;
