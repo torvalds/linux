@@ -1039,7 +1039,7 @@ config ARCH_SUPPORTS_BIG_ENDIAN
 
 config DEBUG_RODATA
 	bool "Make kernel text and rodata read-only"
-	depends on MMU
+	depends on MMU && !XIP_KERNEL
 	default y if CPU_V7
 	help
 	  If this is set, kernel text and rodata memory will be made
