@@ -595,8 +595,6 @@ force:
 
 	/* update display watermarks based on new power state */
 	amdgpu_display_bandwidth_update(adev);
-	/* update displays */
-	amdgpu_dpm_display_configuration_changed(adev);
 
 	adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
 	adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
@@ -615,6 +613,9 @@ force:
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps;
 
 	amdgpu_dpm_post_set_power_state(adev);
+
+	/* update displays */
+	amdgpu_dpm_display_configuration_changed(adev);
 
 	if (adev->pm.funcs->force_performance_level) {
 		if (adev->pm.dpm.thermal_active) {
