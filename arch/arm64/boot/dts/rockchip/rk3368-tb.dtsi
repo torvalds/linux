@@ -581,6 +581,8 @@
 		#sound-dai-cells = <0>;
 		compatible = "realtek,rt5640";
 		reg = <0x1c>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
 		status = "disabled";
 	};
 };
