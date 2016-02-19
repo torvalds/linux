@@ -120,8 +120,6 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 		spin_lock_init(&new_op->lock);
 		init_completion(&new_op->waitq);
 
-		atomic_set(&new_op->ref_count, 1);
-
 		new_op->upcall.type = ORANGEFS_VFS_OP_INVALID;
 		new_op->downcall.type = ORANGEFS_VFS_OP_INVALID;
 		new_op->downcall.status = -1;
@@ -149,7 +147,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 	return new_op;
 }
 
-void __op_release(struct orangefs_kernel_op_s *orangefs_op)
+void op_release(struct orangefs_kernel_op_s *orangefs_op)
 {
 	if (orangefs_op) {
 		gossip_debug(GOSSIP_CACHE_DEBUG,

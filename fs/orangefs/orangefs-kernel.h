@@ -205,8 +205,6 @@ struct orangefs_kernel_op_s {
 	struct completion waitq;
 	spinlock_t lock;
 
-	atomic_t ref_count;
-
 	/* VFS aio fields */
 
 	int attempts;
@@ -230,23 +228,7 @@ static inline void set_op_state_serviced(struct orangefs_kernel_op_s *op)
 #define op_state_given_up(op)    ((op)->op_state & OP_VFS_STATE_GIVEN_UP)
 #define op_is_cancel(op)         ((op)->upcall.type == ORANGEFS_VFS_OP_CANCEL)
 
-static inline void get_op(struct orangefs_kernel_op_s *op)
-{
-	atomic_inc(&op->ref_count);
-	gossip_debug(GOSSIP_DEV_DEBUG,
-			"(get) Alloced OP (%p:%llu)\n",	op, llu(op->tag));
-}
-
-void __op_release(struct orangefs_kernel_op_s *op);
-
-static inline void op_release(struct orangefs_kernel_op_s *op)
-{
-	if (atomic_dec_and_test(&op->ref_count)) {
-		gossip_debug(GOSSIP_DEV_DEBUG,
-			"(put) Releasing OP (%p:%llu)\n", op, llu((op)->tag));
-		__op_release(op);
-	}
-}
+void op_release(struct orangefs_kernel_op_s *op);
 
 extern void orangefs_bufmap_put(int);
 static inline void put_cancel(struct orangefs_kernel_op_s *op)
