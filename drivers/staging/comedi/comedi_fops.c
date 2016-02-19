@@ -1142,8 +1142,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		return -EACCES;
 
 	if (bi.bytes_read && !(async->cmd.flags & CMDF_WRITE)) {
-		bi.bytes_read = comedi_buf_read_alloc(s, bi.bytes_read);
-		comedi_buf_read_free(s, bi.bytes_read);
+		comedi_buf_read_alloc(s, bi.bytes_read);
+		bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
 
 		if (comedi_is_subdevice_idle(s) &&
 		    comedi_buf_read_n_available(s) == 0) {
@@ -1152,9 +1152,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	}
 
 	if (bi.bytes_written && (async->cmd.flags & CMDF_WRITE)) {
-		bi.bytes_written =
-		    comedi_buf_write_alloc(s, bi.bytes_written);
-		comedi_buf_write_free(s, bi.bytes_written);
+		comedi_buf_write_alloc(s, bi.bytes_written);
+		bi.bytes_written = comedi_buf_write_free(s, bi.bytes_written);
 	}
 
 copyback_position:
