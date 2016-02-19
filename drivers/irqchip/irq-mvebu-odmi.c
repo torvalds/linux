@@ -47,18 +47,6 @@ static unsigned int odmis_count;
 /* Protects odmis_bm */
 static DEFINE_SPINLOCK(odmis_bm_lock);
 
-static int odmi_set_affinity(struct irq_data *d,
-			     const struct cpumask *mask, bool force)
-{
-	int ret;
-
-	ret = irq_chip_set_affinity_parent(d, mask, force);
-	if (ret == IRQ_SET_MASK_OK)
-		ret = IRQ_SET_MASK_OK_DONE;
-
-	return ret;
-}
-
 static void odmi_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 {
 	struct odmi_data *odmi;
@@ -83,7 +71,7 @@ static struct irq_chip odmi_irq_chip = {
 	.irq_mask		= irq_chip_mask_parent,
 	.irq_unmask		= irq_chip_unmask_parent,
 	.irq_eoi		= irq_chip_eoi_parent,
-	.irq_set_affinity	= odmi_set_affinity,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.irq_compose_msi_msg	= odmi_compose_msi_msg,
 };
 

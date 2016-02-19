@@ -92,18 +92,6 @@ static struct msi_domain_info gicv2m_msi_domain_info = {
 	.chip	= &gicv2m_msi_irq_chip,
 };
 
-static int gicv2m_set_affinity(struct irq_data *irq_data,
-			       const struct cpumask *mask, bool force)
-{
-	int ret;
-
-	ret = irq_chip_set_affinity_parent(irq_data, mask, force);
-	if (ret == IRQ_SET_MASK_OK)
-		ret = IRQ_SET_MASK_OK_DONE;
-
-	return ret;
-}
-
 static void gicv2m_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct v2m_data *v2m = irq_data_get_irq_chip_data(data);
@@ -122,7 +110,7 @@ static struct irq_chip gicv2m_irq_chip = {
 	.irq_mask		= irq_chip_mask_parent,
 	.irq_unmask		= irq_chip_unmask_parent,
 	.irq_eoi		= irq_chip_eoi_parent,
-	.irq_set_affinity	= gicv2m_set_affinity,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.irq_compose_msi_msg	= gicv2m_compose_msi_msg,
 };
 
