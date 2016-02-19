@@ -71,6 +71,7 @@ struct nvdimm_bus_descriptor {
 	unsigned long dsm_mask;
 	char *provider_name;
 	ndctl_fn ndctl;
+	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
 };
 
 struct nd_cmd_desc {

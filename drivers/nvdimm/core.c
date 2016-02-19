@@ -298,6 +298,15 @@ static int flush_regions_dimms(struct device *dev, void *data)
 static ssize_t wait_probe_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
+	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+	int rc;
+
+	if (nd_desc->flush_probe) {
+		rc = nd_desc->flush_probe(nd_desc);
+		if (rc)
+			return rc;
+	}
 	nd_synchronize();
 	device_for_each_child(dev, NULL, flush_regions_dimms);
 	return sprintf(buf, "1\n");

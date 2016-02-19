@@ -14,6 +14,7 @@
  */
 #ifndef __NFIT_H__
 #define __NFIT_H__
+#include <linux/workqueue.h>
 #include <linux/libnvdimm.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
@@ -123,6 +124,8 @@ struct acpi_nfit_desc {
 	struct list_head idts;
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
+	struct work_struct work;
+	unsigned int cancel:1;
 	unsigned long dimm_dsm_force_en;
 	unsigned long bus_dsm_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,

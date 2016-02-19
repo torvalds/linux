@@ -34,6 +34,8 @@ static bool force_enable_dimms;
 module_param(force_enable_dimms, bool, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(force_enable_dimms, "Ignore _STA (ACPI DIMM device) status");
 
+static struct workqueue_struct *nfit_wq;
+
 struct nfit_table_prev {
 	struct list_head spas;
 	struct list_head memdevs;
@@ -1961,6 +1963,39 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 }
 EXPORT_SYMBOL_GPL(acpi_nfit_init);
 
+struct acpi_nfit_flush_work {
+	struct work_struct work;
+	struct completion cmp;
+};
+
+static void flush_probe(struct work_struct *work)
+{
+	struct acpi_nfit_flush_work *flush;
+
+	flush = container_of(work, typeof(*flush), work);
+	complete(&flush->cmp);
+}
+
+static int acpi_nfit_flush_probe(struct nvdimm_bus_descriptor *nd_desc)
+{
+	struct acpi_nfit_desc *acpi_desc = to_acpi_nfit_desc(nd_desc);
+	struct device *dev = acpi_desc->dev;
+	struct acpi_nfit_flush_work flush;
+
+	/* bounce the device lock to flush acpi_nfit_add / acpi_nfit_notify */
+	device_lock(dev);
+	device_unlock(dev);
+
+	/*
+	 * Scrub work could take 10s of seconds, userspace may give up so we
+	 * need to be interruptible while waiting.
+	 */
+	INIT_WORK_ONSTACK(&flush.work, flush_probe);
+	COMPLETION_INITIALIZER_ONSTACK(flush.cmp);
+	queue_work(nfit_wq, &flush.work);
+	return wait_for_completion_interruptible(&flush.cmp);
+}
+
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 {
 	struct nvdimm_bus_descriptor *nd_desc;
@@ -1971,6 +2006,7 @@ void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 	nd_desc = &acpi_desc->nd_desc;
 	nd_desc->provider_name = "ACPI.NFIT";
 	nd_desc->ndctl = acpi_nfit_ctl;
+	nd_desc->flush_probe = acpi_nfit_flush_probe;
 	nd_desc->attr_groups = acpi_nfit_attribute_groups;
 
 	INIT_LIST_HEAD(&acpi_desc->spa_maps);
@@ -2048,6 +2084,8 @@ static int acpi_nfit_remove(struct acpi_device *adev)
 {
 	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(&adev->dev);
 
+	acpi_desc->cancel = 1;
+	flush_workqueue(nfit_wq);
 	nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
 	return 0;
 }
@@ -2079,6 +2117,12 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 		acpi_desc->nvdimm_bus = nvdimm_bus_register(dev, &acpi_desc->nd_desc);
 		if (!acpi_desc->nvdimm_bus)
 			goto out_unlock;
+	} else {
+		/*
+		 * Finish previous registration before considering new
+		 * regions.
+		 */
+		flush_workqueue(nfit_wq);
 	}
 
 	/* Evaluate _FIT */
@@ -2146,12 +2190,17 @@ static __init int nfit_init(void)
 	acpi_str_to_uuid(UUID_NFIT_BUS, nfit_uuid[NFIT_DEV_BUS]);
 	acpi_str_to_uuid(UUID_NFIT_DIMM, nfit_uuid[NFIT_DEV_DIMM]);
 
+	nfit_wq = create_singlethread_workqueue("nfit");
+	if (!nfit_wq)
+		return -ENOMEM;
+
 	return acpi_bus_register_driver(&acpi_nfit_driver);
 }
 
 static __exit void nfit_exit(void)
 {
 	acpi_bus_unregister_driver(&acpi_nfit_driver);
+	destroy_workqueue(nfit_wq);
 }
 
 module_init(nfit_init);
