@@ -476,11 +476,13 @@ static int alua_check_sense(struct scsi_device *sdev,
 static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 {
 	struct scsi_sense_hdr sense_hdr;
+	struct alua_port_group *tmp_pg;
 	int len, k, off, valid_states = 0, bufflen = ALUA_RTPG_SIZE;
-	unsigned char *ucp, *buff;
+	unsigned char *desc, *buff;
 	unsigned err, retval;
 	unsigned int tpg_desc_tbl_off;
 	unsigned char orig_transition_tmo;
+	unsigned long flags;
 
 	if (!pg->expiry) {
 		unsigned long transition_tmo = ALUA_FAILOVER_TIMEOUT * HZ;
@@ -582,18 +584,32 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 	else
 		tpg_desc_tbl_off = 4;
 
-	for (k = tpg_desc_tbl_off, ucp = buff + tpg_desc_tbl_off;
+	for (k = tpg_desc_tbl_off, desc = buff + tpg_desc_tbl_off;
 	     k < len;
-	     k += off, ucp += off) {
+	     k += off, desc += off) {
+		u16 group_id = get_unaligned_be16(&desc[2]);
 
-		if (pg->group_id == get_unaligned_be16(&ucp[2])) {
-			pg->state = ucp[0] & 0x0f;
-			pg->pref = ucp[0] >> 7;
-			valid_states = ucp[1];
+		spin_lock_irqsave(&port_group_lock, flags);
+		tmp_pg = alua_find_get_pg(pg->device_id_str, pg->device_id_len,
+					  group_id);
+		spin_unlock_irqrestore(&port_group_lock, flags);
+		if (tmp_pg) {
+			if (spin_trylock_irqsave(&tmp_pg->lock, flags)) {
+				if ((tmp_pg == pg) ||
+				    !(tmp_pg->flags & ALUA_PG_RUNNING)) {
+					tmp_pg->state = desc[0] & 0x0f;
+					tmp_pg->pref = desc[0] >> 7;
+				}
+				if (tmp_pg == pg)
+					valid_states = desc[1];
+				spin_unlock_irqrestore(&tmp_pg->lock, flags);
+			}
+			kref_put(&tmp_pg->kref, release_port_group);
 		}
-		off = 8 + (ucp[7] * 4);
+		off = 8 + (desc[7] * 4);
 	}
 
+	spin_lock_irqsave(&pg->lock, flags);
 	sdev_printk(KERN_INFO, sdev,
 		    "%s: port group %02x state %c %s supports %c%c%c%c%c%c%c\n",
 		    ALUA_DH_NAME, pg->group_id, print_alua_state(pg->state),
@@ -630,6 +646,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 		pg->expiry = 0;
 		break;
 	}
+	spin_unlock_irqrestore(&pg->lock, flags);
 	kfree(buff);
 	return err;
 }
