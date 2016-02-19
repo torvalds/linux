@@ -65,7 +65,6 @@ static void mcip_ipi_clear(int irq)
 {
 	unsigned int cpu, c;
 	unsigned long flags;
-	unsigned int __maybe_unused copy;
 
 	if (unlikely(irq == SOFTIRQ_IRQ)) {
 		arc_softirq_clear(irq);
@@ -77,7 +76,7 @@ static void mcip_ipi_clear(int irq)
 	/* Who sent the IPI */
 	__mcip_cmd(CMD_INTRPT_CHECK_SOURCE, 0);
 
-	copy = cpu = read_aux_reg(ARC_REG_MCIP_READBACK);	/* 1,2,4,8... */
+	cpu = read_aux_reg(ARC_REG_MCIP_READBACK);	/* 1,2,4,8... */
 
 	/*
 	 * In rare case, multiple concurrent IPIs sent to same target can
@@ -91,12 +90,6 @@ static void mcip_ipi_clear(int irq)
 	} while (cpu);
 
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
-
-#ifdef CONFIG_ARC_IPI_DBG
-	if (c != __ffs(copy))
-		pr_info("IPIs from %x coalesced to %x\n",
-			copy, raw_smp_processor_id());
-#endif
 }
 
 static void mcip_probe_n_setup(void)

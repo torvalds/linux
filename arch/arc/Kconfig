@@ -532,14 +532,6 @@ config ARC_DBG_TLB_MISS_COUNT
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
 
-if SMP
-
-config ARC_IPI_DBG
-	bool "Debug Inter Core interrupts"
-	default n
-
-endif
-
 endif
 
 config ARC_UBOOT_SUPPORT
