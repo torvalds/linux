@@ -64,6 +64,7 @@ static inc_group_count(struct list_head *list,
 %type <str> PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_KERNEL_PMU_EVENT
 %type <num> value_sym
 %type <head> event_config
+%type <head> opt_event_config
 %type <term> event_term
 %type <head> event_pmu
 %type <head> event_legacy_symbol
@@ -222,16 +223,6 @@ PE_NAME '/' event_config '/'
 	$$ = list;
 }
 |
-PE_NAME '/' '/'
-{
-	struct parse_events_evlist *data = _data;
-	struct list_head *list;
-
-	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(data, list, $1, NULL));
-	$$ = list;
-}
-|
 PE_KERNEL_PMU_EVENT sep_dc
 {
 	struct parse_events_evlist *data = _data;
@@ -378,7 +369,7 @@ PE_PREFIX_MEM PE_VALUE sep_dc
 }
 
 event_legacy_tracepoint:
-tracepoint_name
+tracepoint_name opt_event_config
 {
 	struct parse_events_evlist *data = _data;
 	struct parse_events_error *error = data->error;
@@ -389,24 +380,7 @@ tracepoint_name
 		error->idx = @1.first_column;
 
 	if (parse_events_add_tracepoint(list, &data->idx, $1.sys, $1.event,
-					error, NULL))
-		return -1;
-
-	$$ = list;
-}
-|
-tracepoint_name '/' event_config '/'
-{
-	struct parse_events_evlist *data = _data;
-	struct parse_events_error *error = data->error;
-	struct list_head *list;
-
-	ALLOC_LIST(list);
-	if (error)
-		error->idx = @1.first_column;
-
-	if (parse_events_add_tracepoint(list, &data->idx, $1.sys, $1.event,
-					error, $3))
+					error, $2))
 		return -1;
 
 	$$ = list;
@@ -474,6 +448,21 @@ PE_BPF_SOURCE
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_load_bpf(data, list, $1, true));
 	$$ = list;
+}
+
+opt_event_config:
+'/' event_config '/'
+{
+	$$ = $2;
+}
+|
+'/' '/'
+{
+	$$ = NULL;
+}
+|
+{
+	$$ = NULL;
 }
 
 start_terms: event_config
