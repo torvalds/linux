@@ -317,12 +317,14 @@ SECTIONS
 	STABS_DEBUG
 }
 
+#ifdef CONFIG_DEBUG_RODATA
 /*
  * Without CONFIG_DEBUG_ALIGN_RODATA, __start_rodata_section_aligned will
  * be the first section-aligned location after __start_rodata. Otherwise,
  * it will be equal to __start_rodata.
  */
 __start_rodata_section_aligned = ALIGN(__start_rodata, 1 << SECTION_SHIFT);
+#endif
 
 /*
  * These must never be empty
