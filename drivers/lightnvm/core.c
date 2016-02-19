@@ -250,7 +250,7 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 		return 0;
 	}
 
-	plane_cnt = (1 << dev->plane_mode);
+	plane_cnt = dev->plane_mode;
 	rqd->nr_pages = plane_cnt * nr_ppas;
 
 	if (dev->ops->max_phys_sect < rqd->nr_pages)
