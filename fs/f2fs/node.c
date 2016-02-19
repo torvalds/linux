@@ -257,15 +257,20 @@ static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid)
 	return new;
 }
 
-static void cache_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid,
+static void cache_nat_entry(struct f2fs_sb_info *sbi, nid_t nid,
 						struct f2fs_nat_entry *ne)
 {
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
 
 	e = __lookup_nat_cache(nm_i, nid);
 	if (!e) {
 		e = grab_nat_entry(nm_i, nid);
 		node_info_from_raw_nat(&e->ni, ne);
+	} else {
+		f2fs_bug_on(sbi, nat_get_ino(e) != ne->ino ||
+				nat_get_blkaddr(e) != ne->block_addr ||
+				nat_get_version(e) != ne->version);
 	}
 }
 
@@ -371,14 +376,11 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 		ni->ino = nat_get_ino(e);
 		ni->blk_addr = nat_get_blkaddr(e);
 		ni->version = nat_get_version(e);
-	}
-	up_read(&nm_i->nat_tree_lock);
-	if (e)
+		up_read(&nm_i->nat_tree_lock);
 		return;
+	}
 
 	memset(&ne, 0, sizeof(struct f2fs_nat_entry));
-
-	down_write(&nm_i->nat_tree_lock);
 
 	/* Check current segment summary */
 	down_read(&curseg->journal_rwsem);
@@ -398,8 +400,10 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 	node_info_from_raw_nat(ni, &ne);
 	f2fs_put_page(page, 1);
 cache:
+	up_read(&nm_i->nat_tree_lock);
 	/* cache nat entry */
-	cache_nat_entry(NM_I(sbi), nid, &ne);
+	down_write(&nm_i->nat_tree_lock);
+	cache_nat_entry(sbi, nid, &ne);
 	up_write(&nm_i->nat_tree_lock);
 }
 
