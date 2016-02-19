@@ -1111,6 +1111,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	struct comedi_bufinfo bi;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
+	bool become_nonbusy = false;
 
 	if (copy_from_user(&bi, arg, sizeof(bi)))
 		return -EFAULT;
@@ -1149,7 +1150,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 			if (comedi_is_subdevice_idle(s) &&
 			    comedi_buf_read_n_available(s) == 0)
-				do_become_nonbusy(dev, s);
+				become_nonbusy = true;
 		}
 		bi.bytes_written = 0;
 	} else {
@@ -1167,6 +1168,9 @@ copyback_position:
 	bi.buf_write_ptr = async->buf_write_ptr;
 	bi.buf_read_count = async->buf_read_count;
 	bi.buf_read_ptr = async->buf_read_ptr;
+
+	if (become_nonbusy)
+		do_become_nonbusy(dev, s);
 
 copyback:
 	if (copy_to_user(arg, &bi, sizeof(bi)))
