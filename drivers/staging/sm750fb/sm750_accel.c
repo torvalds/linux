@@ -17,7 +17,6 @@
 
 #include "sm750.h"
 #include "sm750_accel.h"
-#include "sm750_help.h"
 static inline void write_dpr(struct lynx_accel *accel, int offset, u32 regValue)
 {
 	writel(regValue, accel->dprBase + offset);

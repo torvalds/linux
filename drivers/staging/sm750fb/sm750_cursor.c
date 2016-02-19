@@ -16,7 +16,6 @@
 #include <linux/screen_info.h>
 
 #include "sm750.h"
-#include "sm750_help.h"
 #include "sm750_cursor.h"
 
 
