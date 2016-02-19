@@ -40,8 +40,8 @@ struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
 
 	sprintf(mdev->bus_info, "PCI:%s", pci_name(pci_dev));
 
-	mdev->hw_revision = pci_dev->subsystem_vendor << 16
-			    || pci_dev->subsystem_device;
+	mdev->hw_revision = (pci_dev->subsystem_vendor << 16)
+			    | pci_dev->subsystem_device;
 
 	mdev->driver_version = LINUX_VERSION_CODE;
 
