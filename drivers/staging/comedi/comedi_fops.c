@@ -1141,19 +1141,25 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	if (s->busy != file)
 		return -EACCES;
 
-	if (bi.bytes_read && !(async->cmd.flags & CMDF_WRITE)) {
-		comedi_buf_read_alloc(s, bi.bytes_read);
-		bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
+	if (!(async->cmd.flags & CMDF_WRITE)) {
+		/* command was set up in "read" direction */
+		if (bi.bytes_read) {
+			comedi_buf_read_alloc(s, bi.bytes_read);
+			bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
 
-		if (comedi_is_subdevice_idle(s) &&
-		    comedi_buf_read_n_available(s) == 0) {
-			do_become_nonbusy(dev, s);
+			if (comedi_is_subdevice_idle(s) &&
+			    comedi_buf_read_n_available(s) == 0)
+				do_become_nonbusy(dev, s);
 		}
-	}
-
-	if (bi.bytes_written && (async->cmd.flags & CMDF_WRITE)) {
-		comedi_buf_write_alloc(s, bi.bytes_written);
-		bi.bytes_written = comedi_buf_write_free(s, bi.bytes_written);
+		bi.bytes_written = 0;
+	} else {
+		/* command was set up in "write" direction */
+		if (bi.bytes_written) {
+			comedi_buf_write_alloc(s, bi.bytes_written);
+			bi.bytes_written =
+			    comedi_buf_write_free(s, bi.bytes_written);
+		}
+		bi.bytes_read = 0;
 	}
 
 copyback_position:
