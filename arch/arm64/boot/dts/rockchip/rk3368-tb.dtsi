@@ -86,10 +86,8 @@
 			"Microphone", "Mic Jack",
 			"Headphone", "Headphone Jack";
 		simple-audio-card,routing =
-			"DMIC1", "Mic Jack",
-			"DMIC2", "Mic Jack",
 			"Mic Jack", "MICBIAS1",
-			"IN2P", "Mic Jack",
+			"IN1P", "Mic Jack",
 			"Headphone Jack", "HPOL",
 			"Headphone Jack", "HPOR";
 		simple-audio-card,cpu {
@@ -583,6 +581,7 @@
 		reg = <0x1c>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "mclk";
+		realtek,in1-differential;
 		status = "disabled";
 	};
 };
