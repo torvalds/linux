@@ -1957,13 +1957,6 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			goto drop;
 		sk = vxlan->vn4_sock->sock->sk;
 
-		if (info) {
-			if (info->key.tun_flags & TUNNEL_DONT_FRAGMENT)
-				df = htons(IP_DF);
-		} else {
-			udp_sum = !!(flags & VXLAN_F_UDP_CSUM);
-		}
-
 		rt = vxlan_get_route(vxlan, skb,
 				     rdst ? rdst->remote_ifindex : 0, tos,
 				     dst->sin.sin_addr.s_addr, &saddr,
@@ -1996,6 +1989,11 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			vxlan_encap_bypass(skb, vxlan, dst_vxlan);
 			return;
 		}
+
+		if (!info)
+			udp_sum = !(flags & VXLAN_F_UDP_ZERO_CSUM_TX);
+		else if (info->key.tun_flags & TUNNEL_DONT_FRAGMENT)
+			df = htons(IP_DF);
 
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
@@ -2898,8 +2896,9 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (data[IFLA_VXLAN_PORT])
 		conf.dst_port = nla_get_be16(data[IFLA_VXLAN_PORT]);
 
-	if (data[IFLA_VXLAN_UDP_CSUM] && nla_get_u8(data[IFLA_VXLAN_UDP_CSUM]))
-		conf.flags |= VXLAN_F_UDP_CSUM;
+	if (data[IFLA_VXLAN_UDP_CSUM] &&
+	    !nla_get_u8(data[IFLA_VXLAN_UDP_CSUM]))
+		conf.flags |= VXLAN_F_UDP_ZERO_CSUM_TX;
 
 	if (data[IFLA_VXLAN_UDP_ZERO_CSUM6_TX] &&
 	    nla_get_u8(data[IFLA_VXLAN_UDP_ZERO_CSUM6_TX]))
@@ -3043,7 +3042,7 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u32(skb, IFLA_VXLAN_LIMIT, vxlan->cfg.addrmax) ||
 	    nla_put_be16(skb, IFLA_VXLAN_PORT, vxlan->cfg.dst_port) ||
 	    nla_put_u8(skb, IFLA_VXLAN_UDP_CSUM,
-			!!(vxlan->flags & VXLAN_F_UDP_CSUM)) ||
+			!(vxlan->flags & VXLAN_F_UDP_ZERO_CSUM_TX)) ||
 	    nla_put_u8(skb, IFLA_VXLAN_UDP_ZERO_CSUM6_TX,
 			!!(vxlan->flags & VXLAN_F_UDP_ZERO_CSUM6_TX)) ||
 	    nla_put_u8(skb, IFLA_VXLAN_UDP_ZERO_CSUM6_RX,
