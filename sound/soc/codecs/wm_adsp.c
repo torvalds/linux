@@ -857,6 +857,9 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 			kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_READ;
 		if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
 			kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_VOLATILE;
+	} else {
+		kcontrol->access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
+		kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_VOLATILE;
 	}
 
 	ret = snd_soc_add_card_controls(dsp->card,
