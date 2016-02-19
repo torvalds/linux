@@ -8,9 +8,6 @@
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/page.h>
-#ifdef CONFIG_DEBUG_RODATA
-#include <asm/pgtable.h>
-#endif
 
 #define PROC_INFO							\
 	. = ALIGN(4);							\
@@ -92,10 +89,6 @@ SECTIONS
 		HEAD_TEXT
 	}
 
-#ifdef CONFIG_DEBUG_RODATA
-	. = ALIGN(1<<SECTION_SHIFT);
-#endif
-
 	.text : {			/* Real text segment		*/
 		_stext = .;		/* Text and read-only data	*/
 			IDMAP_TEXT
@@ -115,9 +108,6 @@ SECTIONS
 			ARM_CPU_KEEP(PROC_INFO)
 	}
 
-#ifdef CONFIG_DEBUG_RODATA
-	. = ALIGN(1<<SECTION_SHIFT);
-#endif
 	RO_DATA(PAGE_SIZE)
 
 	. = ALIGN(4);
