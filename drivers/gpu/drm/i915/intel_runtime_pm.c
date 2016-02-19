@@ -987,6 +987,9 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 	valleyview_disable_display_irqs(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
+	/* make sure we're done processing display irqs */
+	synchronize_irq(dev_priv->dev->irq);
+
 	vlv_power_sequencer_reset(dev_priv);
 }
 
