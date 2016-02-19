@@ -34,6 +34,7 @@
 #include "atom.h"
 
 #include <linux/pm_runtime.h>
+#include <linux/vga_switcheroo.h>
 
 static int radeon_dp_handle_hpd(struct drm_connector *connector)
 {
@@ -344,6 +345,11 @@ static void radeon_connector_get_edid(struct drm_connector *connector)
 		else if (radeon_connector->ddc_bus)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
 							      &radeon_connector->ddc_bus->adapter);
+	} else if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC &&
+		   connector->connector_type == DRM_MODE_CONNECTOR_LVDS &&
+		   radeon_connector->ddc_bus) {
+		radeon_connector->edid = drm_get_edid_switcheroo(&radeon_connector->base,
+								 &radeon_connector->ddc_bus->adapter);
 	} else if (radeon_connector->ddc_bus) {
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base,
 						      &radeon_connector->ddc_bus->adapter);

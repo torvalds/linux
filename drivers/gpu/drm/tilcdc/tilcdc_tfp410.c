@@ -80,14 +80,6 @@ static void tfp410_encoder_dpms(struct drm_encoder *encoder, int mode)
 	tfp410_encoder->dpms = mode;
 }
 
-static bool tfp410_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	/* nothing needed */
-	return true;
-}
-
 static void tfp410_encoder_prepare(struct drm_encoder *encoder)
 {
 	tfp410_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
@@ -112,7 +104,6 @@ static const struct drm_encoder_funcs tfp410_encoder_funcs = {
 
 static const struct drm_encoder_helper_funcs tfp410_encoder_helper_funcs = {
 		.dpms           = tfp410_encoder_dpms,
-		.mode_fixup     = tfp410_encoder_mode_fixup,
 		.prepare        = tfp410_encoder_prepare,
 		.commit         = tfp410_encoder_commit,
 		.mode_set       = tfp410_encoder_mode_set,

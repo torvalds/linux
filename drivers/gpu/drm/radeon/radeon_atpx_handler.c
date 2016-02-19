@@ -551,13 +551,14 @@ static bool radeon_atpx_detect(void)
 void radeon_register_atpx_handler(void)
 {
 	bool r;
+	enum vga_switcheroo_handler_flags_t handler_flags = 0;
 
 	/* detect if we have any ATPX + 2 VGA in the system */
 	r = radeon_atpx_detect();
 	if (!r)
 		return;
 
-	vga_switcheroo_register_handler(&radeon_atpx_handler);
+	vga_switcheroo_register_handler(&radeon_atpx_handler, handler_flags);
 }
 
 /**

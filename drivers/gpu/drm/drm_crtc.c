@@ -1161,6 +1161,29 @@ out_unlock:
 EXPORT_SYMBOL(drm_encoder_init);
 
 /**
+ * drm_encoder_index - find the index of a registered encoder
+ * @encoder: encoder to find index for
+ *
+ * Given a registered encoder, return the index of that encoder within a DRM
+ * device's list of encoders.
+ */
+unsigned int drm_encoder_index(struct drm_encoder *encoder)
+{
+	unsigned int index = 0;
+	struct drm_encoder *tmp;
+
+	drm_for_each_encoder(tmp, encoder->dev) {
+		if (tmp == encoder)
+			return index;
+
+		index++;
+	}
+
+	BUG();
+}
+EXPORT_SYMBOL(drm_encoder_index);
+
+/**
  * drm_encoder_cleanup - cleans up an initialised encoder
  * @encoder: encoder to cleanup
  *
@@ -5713,6 +5736,48 @@ int drm_format_vert_chroma_subsampling(uint32_t format)
 	}
 }
 EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
+
+/**
+ * drm_format_plane_width - width of the plane given the first plane
+ * @width: width of the first plane
+ * @format: pixel format
+ * @plane: plane index
+ *
+ * Returns:
+ * The width of @plane, given that the width of the first plane is @width.
+ */
+int drm_format_plane_width(int width, uint32_t format, int plane)
+{
+	if (plane >= drm_format_num_planes(format))
+		return 0;
+
+	if (plane == 0)
+		return width;
+
+	return width / drm_format_horz_chroma_subsampling(format);
+}
+EXPORT_SYMBOL(drm_format_plane_width);
+
+/**
+ * drm_format_plane_height - height of the plane given the first plane
+ * @height: height of the first plane
+ * @format: pixel format
+ * @plane: plane index
+ *
+ * Returns:
+ * The height of @plane, given that the height of the first plane is @height.
+ */
+int drm_format_plane_height(int height, uint32_t format, int plane)
+{
+	if (plane >= drm_format_num_planes(format))
+		return 0;
+
+	if (plane == 0)
+		return height;
+
+	return height / drm_format_vert_chroma_subsampling(format);
+}
+EXPORT_SYMBOL(drm_format_plane_height);
 
 /**
  * drm_rotation_simplify() - Try to simplify the rotation
