@@ -779,7 +779,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				cvmx_fau_atomic_write32(priv->fau + qos * 4, 0);
 
 			switch (priv->imode) {
-
 			/* These types don't support ports to IPD/PKO */
 			case CVMX_HELPER_INTERFACE_MODE_DISABLED:
 			case CVMX_HELPER_INTERFACE_MODE_PCIE:
