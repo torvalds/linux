@@ -279,7 +279,24 @@ const char *event_type(int type)
 	return "unknown";
 }
 
+static int parse_events__is_name_term(struct parse_events_term *term)
+{
+	return term->type_term == PARSE_EVENTS__TERM_TYPE_NAME;
+}
 
+static char *get_config_name(struct list_head *head_terms)
+{
+	struct parse_events_term *term;
+
+	if (!head_terms)
+		return NULL;
+
+	list_for_each_entry(term, head_terms, list)
+		if (parse_events__is_name_term(term))
+			return term->val.str;
+
+	return NULL;
+}
 
 static struct perf_evsel *
 __add_event(struct list_head *list, int *idx,
@@ -1029,22 +1046,6 @@ int parse_events_add_numeric(struct parse_events_evlist *data,
 	return add_event(list, &data->idx, &attr, NULL, &config_terms);
 }
 
-static int parse_events__is_name_term(struct parse_events_term *term)
-{
-	return term->type_term == PARSE_EVENTS__TERM_TYPE_NAME;
-}
-
-static char *pmu_event_name(struct list_head *head_terms)
-{
-	struct parse_events_term *term;
-
-	list_for_each_entry(term, head_terms, list)
-		if (parse_events__is_name_term(term))
-			return term->val.str;
-
-	return NULL;
-}
-
 int parse_events_add_pmu(struct parse_events_evlist *data,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config)
@@ -1089,7 +1090,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 		return -EINVAL;
 
 	evsel = __add_event(list, &data->idx, &attr,
-			    pmu_event_name(head_config), pmu->cpus,
+			    get_config_name(head_config), pmu->cpus,
 			    &config_terms);
 	if (evsel) {
 		evsel->unit = info.unit;
