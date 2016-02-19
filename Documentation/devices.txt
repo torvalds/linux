@@ -1,20 +1,17 @@
 
-		    LINUX ALLOCATED DEVICES (2.6+ version)
-
-	     Maintained by Alan Cox <device@lanana.org>
-
-		      Last revised: 6th April 2009
+		    LINUX ALLOCATED DEVICES (4.x+ version)
 
 This list is the Linux Device List, the official registry of allocated
 device numbers and /dev directory nodes for the Linux operating
 system.
 
-The latest version of this list is available from
-http://www.lanana.org/docs/device-list/ or
-ftp://ftp.kernel.org/pub/linux/docs/device-list/.  This version may be
-newer than the one distributed with the Linux kernel.
-
-The LaTeX version of this document is no longer maintained.
+The LaTeX version of this document is no longer maintained, nor is
+the document that used to reside at lanana.org.  This version in the
+mainline Linux kernel is the master document.  Updates shall be sent
+as patches to the kernel maintainers (see the SubmittingPatches document).
+Specifically explore the sections titled "CHAR and MISC DRIVERS", and
+"BLOCK LAYER" in the MAINTAINERS file to find the right maintainers
+to involve for character and block devices.
 
 This document is included by reference into the Filesystem Hierarchy
 Standard (FHS).	 The FHS is available from http://www.pathname.com/fhs/.
@@ -23,60 +20,33 @@ Allocations marked (68k/Amiga) apply to Linux/68k on the Amiga
 platform only.	Allocations marked (68k/Atari) apply to Linux/68k on
 the Atari platform only.
 
-The symbol {2.6} means the allocation is obsolete and scheduled for
-removal once kernel version 2.6 (or equivalent) is released. Some of these
-allocations have already been removed.
-
-This document is in the public domain.	The author requests, however,
+This document is in the public domain.	The authors requests, however,
 that semantically altered versions are not distributed without
-permission of the author, assuming the author can be contacted without
+permission of the authors, assuming the authors can be contacted without
 an unreasonable effort.
-
-In particular, please don't sent patches for this list to Linus, at
-least not without contacting me first.
-
-I do not have any information about these devices beyond what appears
-on this list.  Any such information requests will be deleted without
-reply.
 
 
 	  **** DEVICE DRIVERS AUTHORS PLEASE READ THIS ****
 
+Linux now has extensive support for dynamic allocation of device numbering
+and can use sysfs and udev (systemd) to handle the naming needs. There are
+still some exceptions in the serial and boot device area. Before asking
+for a device number make sure you actually need one.
+
 To have a major number allocated, or a minor number in situations
-where that applies (e.g. busmice), please contact me with the
-appropriate device information.	 Also, if you have additional
-information regarding any of the devices listed below, or if I have
-made a mistake, I would greatly appreciate a note.
+where that applies (e.g. busmice), please submit a patch and send to
+the authors as indicated above.
 
-I do, however, make a few requests about the nature of your report.
-This is necessary for me to be able to keep this list up to date and
-correct in a timely manner.  First of all, *please* send it to the
-correct address... <device@lanana.org>.  I receive hundreds of email
-messages a day, so mail sent to other addresses may very well get lost
-in the avalanche.  Please put in a descriptive subject, so I can find
-your mail again should I need to.  Too many people send me email
-saying just "device number request" in the subject.
-
-Second, please include a description of the device *in the same format
-as this list*.	The reason for this is that it is the only way I have
-found to ensure I have all the requisite information to publish your
+Keep the description of the device *in the same format
+as this list*.	The reason for this is that it is the only way we have
+found to ensure we have all the requisite information to publish your
 device and avoid conflicts.
 
-Third, please don't assume that the distributed version of the list is
-up to date.  Due to the number of registrations I have to maintain it
-in "batch mode", so there is likely additional registrations that
-haven't been listed yet.
-
-Fourth, remember that Linux now has extensive support for dynamic allocation
-of device numbering and can use sysfs and udev to handle the naming needs.
-There are still some exceptions in the serial and boot device area. Before
-asking for a device number make sure you actually need one.
-
-Finally, sometimes I have to play "namespace police."  Please don't be
-offended.  I often get submissions for /dev names that would be bound
-to cause conflicts down the road.  I am trying to avoid getting in a
+Finally, sometimes we have to play "namespace police."  Please don't be
+offended.  We often get submissions for /dev names that would be bound
+to cause conflicts down the road.  We are trying to avoid getting in a
 situation where we would have to suffer an incompatible forward
-change.  Therefore, please consult with me *before* you make your
+change.  Therefore, please consult with us *before* you make your
 device names and numbers in any way public, at least to the point
 where it would be at all difficult to get them changed.
 
