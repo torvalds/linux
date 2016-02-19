@@ -838,9 +838,10 @@ static void saa7134_create_entities(struct saa7134_dev *dev)
 
 	/* Check if it is using an external analog TV demod */
 	media_device_for_each_entity(entity, dev->media_dev) {
-		if (entity->function == MEDIA_ENT_F_ATV_DECODER)
+		if (entity->function == MEDIA_ENT_F_ATV_DECODER) {
 			decoder = entity;
 			break;
+		}
 	}
 
 	/*
