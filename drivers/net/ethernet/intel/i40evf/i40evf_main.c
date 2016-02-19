@@ -2337,8 +2337,23 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 			    NETIF_F_IPV6_CSUM |
 			    NETIF_F_TSO |
 			    NETIF_F_TSO6 |
+			    NETIF_F_TSO_ECN |
+			    NETIF_F_GSO_GRE	       |
+			    NETIF_F_GSO_UDP_TUNNEL |
 			    NETIF_F_RXCSUM |
 			    NETIF_F_GRO;
+
+	netdev->hw_enc_features |= NETIF_F_IP_CSUM	       |
+				   NETIF_F_IPV6_CSUM	       |
+				   NETIF_F_TSO		       |
+				   NETIF_F_TSO6		       |
+				   NETIF_F_TSO_ECN	       |
+				   NETIF_F_GSO_GRE	       |
+				   NETIF_F_GSO_UDP_TUNNEL      |
+				   NETIF_F_GSO_UDP_TUNNEL_CSUM;
+
+	if (adapter->flags & I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE)
+		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
@@ -2478,6 +2493,10 @@ static void i40evf_init_task(struct work_struct *work)
 	default:
 		goto err_alloc;
 	}
+
+	if (hw->mac.type == I40E_MAC_X722_VF)
+		adapter->flags |= I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE;
+
 	if (i40evf_process_config(adapter))
 		goto err_alloc;
 	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
@@ -2518,10 +2537,6 @@ static void i40evf_init_task(struct work_struct *work)
 	if (err)
 		goto err_sw_init;
 	i40evf_map_rings_to_vectors(adapter);
-	if (adapter->vf_res->vf_offload_flags &
-		    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
-		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
-
 	if (adapter->vf_res->vf_offload_flags &
 	    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
 		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;

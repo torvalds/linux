@@ -7474,8 +7474,6 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 		tx_ring->dcb_tc = 0;
 		if (vsi->back->flags & I40E_FLAG_WB_ON_ITR_CAPABLE)
 			tx_ring->flags = I40E_TXR_FLAGS_WB_ON_ITR;
-		if (vsi->back->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE)
-			tx_ring->flags |= I40E_TXR_FLAGS_OUTER_UDP_CSUM;
 		vsi->tx_rings[i] = tx_ring;
 
 		rx_ring = &tx_ring[1];
@@ -8628,9 +8626,6 @@ static void i40e_add_vxlan_port(struct net_device *netdev,
 	u8 next_idx;
 	u8 idx;
 
-	if (sa_family == AF_INET6)
-		return;
-
 	idx = i40e_get_udp_port_idx(pf, port);
 
 	/* Check if port already exists */
@@ -8670,9 +8665,6 @@ static void i40e_del_vxlan_port(struct net_device *netdev,
 	struct i40e_pf *pf = vsi->back;
 	u8 idx;
 
-	if (sa_family == AF_INET6)
-		return;
-
 	idx = i40e_get_udp_port_idx(pf, port);
 
 	/* Check if port already exists */
@@ -8707,9 +8699,6 @@ static void i40e_add_geneve_port(struct net_device *netdev,
 	u8 idx;
 
 	if (!(pf->flags & I40E_FLAG_GENEVE_OFFLOAD_CAPABLE))
-		return;
-
-	if (sa_family == AF_INET6)
 		return;
 
 	idx = i40e_get_udp_port_idx(pf, port);
@@ -8752,9 +8741,6 @@ static void i40e_del_geneve_port(struct net_device *netdev,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	u8 idx;
-
-	if (sa_family == AF_INET6)
-		return;
 
 	if (!(pf->flags & I40E_FLAG_GENEVE_OFFLOAD_CAPABLE))
 		return;
@@ -9046,10 +9032,14 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	np = netdev_priv(netdev);
 	np->vsi = vsi;
 
-	netdev->hw_enc_features |= NETIF_F_IP_CSUM	  |
-				   NETIF_F_GSO_UDP_TUNNEL |
-				   NETIF_F_GSO_GRE	  |
-				   NETIF_F_TSO		  |
+	netdev->hw_enc_features |= NETIF_F_IP_CSUM	       |
+				   NETIF_F_IPV6_CSUM	       |
+				   NETIF_F_TSO		       |
+				   NETIF_F_TSO6		       |
+				   NETIF_F_TSO_ECN	       |
+				   NETIF_F_GSO_GRE	       |
+				   NETIF_F_GSO_UDP_TUNNEL      |
+				   NETIF_F_GSO_UDP_TUNNEL_CSUM |
 				   0;
 
 	netdev->features = NETIF_F_SG		       |
@@ -9071,6 +9061,8 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 
 	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
 		netdev->features |= NETIF_F_NTUPLE;
+	if (pf->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE)
+		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
