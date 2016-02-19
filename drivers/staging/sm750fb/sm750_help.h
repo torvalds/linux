@@ -38,14 +38,6 @@
 #define FIELD_SIZE(field)               (1 + FIELD_END(field) - FIELD_START(field))
 #define FIELD_MASK(field)               (((1 << (FIELD_SIZE(field)-1)) | ((1 << (FIELD_SIZE(field)-1)) - 1)) << FIELD_START(field))
 
-static inline unsigned int absDiff(unsigned int a, unsigned int b)
-{
-	if (a < b)
-		return b-a;
-	else
-		return a-b;
-}
-
 /* n / d + 1 / 2 = (2n + d) / 2d */
 #define roundedDiv(num, denom)	((2 * (num) + (denom)) / (2 * (denom)))
 #define MHz(x) ((x) * 1000000)

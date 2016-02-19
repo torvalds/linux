@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <linux/sizes.h>
 
 #include "ddk750_help.h"
@@ -335,7 +336,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 				unsigned int diff;
 
 				tmpClock = pll->inputFreq * M / N / X;
-				diff = absDiff(tmpClock, request_orig);
+				diff = abs(tmpClock - request_orig);
 				if (diff < mini_diff) {
 					pll->M = M;
 					pll->N = N;
