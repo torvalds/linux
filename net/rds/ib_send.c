@@ -69,16 +69,6 @@ static void rds_ib_send_complete(struct rds_message *rm,
 	complete(rm, notify_status);
 }
 
-static void rds_ib_send_unmap_data(struct rds_ib_connection *ic,
-				   struct rm_data_op *op,
-				   int wc_status)
-{
-	if (op->op_nents)
-		ib_dma_unmap_sg(ic->i_cm_id->device,
-				op->op_sg, op->op_nents,
-				DMA_TO_DEVICE);
-}
-
 static void rds_ib_send_unmap_rdma(struct rds_ib_connection *ic,
 				   struct rm_rdma_op *op,
 				   int wc_status)
@@ -137,6 +127,21 @@ static void rds_ib_send_unmap_atomic(struct rds_ib_connection *ic,
 		rds_ib_stats_inc(s_ib_atomic_cswp);
 	else
 		rds_ib_stats_inc(s_ib_atomic_fadd);
+}
+
+static void rds_ib_send_unmap_data(struct rds_ib_connection *ic,
+				   struct rm_data_op *op,
+				   int wc_status)
+{
+	struct rds_message *rm = container_of(op, struct rds_message, data);
+
+	if (op->op_nents)
+		ib_dma_unmap_sg(ic->i_cm_id->device,
+				op->op_sg, op->op_nents,
+				DMA_TO_DEVICE);
+
+	if (rm->rdma.op_active && rm->data.op_notify)
+		rds_ib_send_unmap_rdma(ic, &rm->rdma, wc_status);
 }
 
 /*
