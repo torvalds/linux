@@ -2008,10 +2008,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				qh->offset,
 				urb->transfer_buffer_length);
 
-			done = musb_rx_dma_in_inventra_cppi41(c, hw_ep, qh,
-							      urb, xfer_len,
-							      iso_err);
-			if (done)
+			if (musb_rx_dma_in_inventra_cppi41(c, hw_ep, qh, urb,
+							   xfer_len, iso_err))
 				goto finish;
 			else
 				dev_err(musb->controller, "error: rx_dma failed\n");
