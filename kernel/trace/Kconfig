@@ -531,15 +531,12 @@ config MMIOTRACE
 config TRACING_MAP
 	bool
 	depends on ARCH_HAVE_NMI_SAFE_CMPXCHG
-	default n
 	help
 	  tracing_map is a special-purpose lock-free map for tracing,
 	  separated out as a stand-alone facility in order to allow it
 	  to be shared between multiple tracers.  It isn't meant to be
 	  generally used outside of that context, and is normally
 	  selected by tracers that use it.
-
-	  If in doubt, say N.
 
 config MMIOTRACE_TEST
 	tristate "Test module for mmiotrace"
