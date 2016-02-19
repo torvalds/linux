@@ -1067,7 +1067,8 @@ __acquires(ci->lock)
 		}
 		break;
 	case USB_REQ_GET_STATUS:
-		if (type != (USB_DIR_IN|USB_RECIP_DEVICE)   &&
+		if ((type != (USB_DIR_IN|USB_RECIP_DEVICE) ||
+			le16_to_cpu(req.wIndex) == OTG_STS_SELECTOR) &&
 		    type != (USB_DIR_IN|USB_RECIP_ENDPOINT) &&
 		    type != (USB_DIR_IN|USB_RECIP_INTERFACE))
 			goto delegate;
