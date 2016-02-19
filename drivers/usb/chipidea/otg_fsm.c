@@ -66,6 +66,11 @@ set_a_bus_req(struct device *dev, struct device_attribute *attr,
 			return count;
 		}
 		ci->fsm.a_bus_req = 1;
+		if (ci->fsm.otg->state == OTG_STATE_A_PERIPHERAL) {
+			ci->gadget.host_request_flag = 1;
+			mutex_unlock(&ci->fsm.lock);
+			return count;
+		}
 	}
 
 	ci_otg_queue_work(ci);
@@ -144,8 +149,14 @@ set_b_bus_req(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&ci->fsm.lock);
 	if (buf[0] == '0')
 		ci->fsm.b_bus_req = 0;
-	else if (buf[0] == '1')
+	else if (buf[0] == '1') {
 		ci->fsm.b_bus_req = 1;
+		if (ci->fsm.otg->state == OTG_STATE_B_PERIPHERAL) {
+			ci->gadget.host_request_flag = 1;
+			mutex_unlock(&ci->fsm.lock);
+			return count;
+		}
+	}
 
 	ci_otg_queue_work(ci);
 	mutex_unlock(&ci->fsm.lock);
