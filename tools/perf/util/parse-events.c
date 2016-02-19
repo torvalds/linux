@@ -746,6 +746,25 @@ static int check_type_val(struct parse_events_term *term,
 	return -EINVAL;
 }
 
+/*
+ * Update according to parse-events.l
+ */
+static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
+	[PARSE_EVENTS__TERM_TYPE_USER]			= "<sysfs term>",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG]		= "config",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG1]		= "config1",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG2]		= "config2",
+	[PARSE_EVENTS__TERM_TYPE_NAME]			= "name",
+	[PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD]		= "period",
+	[PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ]		= "freq",
+	[PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE]	= "branch_type",
+	[PARSE_EVENTS__TERM_TYPE_TIME]			= "time",
+	[PARSE_EVENTS__TERM_TYPE_CALLGRAPH]		= "call-graph",
+	[PARSE_EVENTS__TERM_TYPE_STACKSIZE]		= "stack-size",
+	[PARSE_EVENTS__TERM_TYPE_NOINHERIT]		= "no-inherit",
+	[PARSE_EVENTS__TERM_TYPE_INHERIT]		= "inherit",
+};
+
 typedef int config_term_func_t(struct perf_event_attr *attr,
 			       struct parse_events_term *term,
 			       struct parse_events_error *err);
@@ -2097,6 +2116,31 @@ void parse_events_evlist_error(struct parse_events_evlist *data,
 	WARN_ONCE(!err->str, "WARNING: failed to allocate error string");
 }
 
+static void config_terms_list(char *buf, size_t buf_sz)
+{
+	int i;
+	bool first = true;
+
+	buf[0] = '\0';
+	for (i = 0; i < __PARSE_EVENTS__TERM_TYPE_NR; i++) {
+		const char *name = config_term_names[i];
+
+		if (!name)
+			continue;
+		if (name[0] == '<')
+			continue;
+
+		if (strlen(buf) + strlen(name) + 2 >= buf_sz)
+			return;
+
+		if (!first)
+			strcat(buf, ",");
+		else
+			first = false;
+		strcat(buf, name);
+	}
+}
+
 /*
  * Return string contains valid config terms of an event.
  * @additional_terms: For terms such as PMU sysfs terms.
@@ -2104,10 +2148,11 @@ void parse_events_evlist_error(struct parse_events_evlist *data,
 char *parse_events_formats_error_string(char *additional_terms)
 {
 	char *str;
-	static const char *static_terms = "config,config1,config2,name,"
-					  "period,freq,branch_type,time,"
-					  "call-graph,stack-size\n";
+	/* "branch_type" is the longest name */
+	char static_terms[__PARSE_EVENTS__TERM_TYPE_NR *
+			  (sizeof("branch_type") - 1)];
 
+	config_terms_list(static_terms, sizeof(static_terms));
 	/* valid terms */
 	if (additional_terms) {
 		if (asprintf(&str, "valid terms: %s,%s",

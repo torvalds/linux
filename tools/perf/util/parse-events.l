@@ -178,8 +178,7 @@ modifier_bp	[rwx]{1,3}
 
 <config>{
 	/*
-	 * Please update parse_events_formats_error_string any time
-	 * new static term is added.
+	 * Please update config_term_names when new static term is added.
 	 */
 config			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG); }
 config1			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG1); }
