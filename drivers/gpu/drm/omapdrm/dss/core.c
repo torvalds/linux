@@ -166,6 +166,19 @@ int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 
 /* PLATFORM DEVICE */
 
+static void dss_disable_all_devices(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
+
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+			dssdev->driver->disable(dssdev);
+	}
+}
+
 static int __init omap_dss_probe(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;

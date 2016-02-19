@@ -78,19 +78,6 @@ void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_default_get_timings);
 
-void dss_disable_all_devices(void)
-{
-	struct omap_dss_device *dssdev = NULL;
-
-	for_each_dss_dev(dssdev) {
-		if (!dssdev->driver)
-			continue;
-
-		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
-			dssdev->driver->disable(dssdev);
-	}
-}
-
 static LIST_HEAD(panel_list);
 static DEFINE_MUTEX(panel_list_mutex);
 static int disp_num_counter;
