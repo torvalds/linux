@@ -543,12 +543,47 @@ static void a4xx_dump(struct msm_gpu *gpu)
 	adreno_dump(gpu);
 }
 
+static int a4xx_pm_resume(struct msm_gpu *gpu) {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int ret;
+
+	ret = msm_gpu_pm_resume(gpu);
+	if (ret)
+		return ret;
+
+	if (adreno_is_a430(adreno_gpu)) {
+		unsigned int reg;
+		/* Set the default register values; set SW_COLLAPSE to 0 */
+		gpu_write(gpu, REG_A4XX_RBBM_POWER_CNTL_IP, 0x778000);
+		do {
+			udelay(5);
+			reg = gpu_read(gpu, REG_A4XX_RBBM_POWER_STATUS);
+		} while (!(reg & A4XX_RBBM_POWER_CNTL_IP_SP_TP_PWR_ON));
+	}
+	return 0;
+}
+
+static int a4xx_pm_suspend(struct msm_gpu *gpu) {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int ret;
+
+	ret = msm_gpu_pm_suspend(gpu);
+	if (ret)
+		return ret;
+
+	if (adreno_is_a430(adreno_gpu)) {
+		/* Set the default register values; set SW_COLLAPSE to 1 */
+		gpu_write(gpu, REG_A4XX_RBBM_POWER_CNTL_IP, 0x778001);
+	}
+	return 0;
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
 		.hw_init = a4xx_hw_init,
-		.pm_suspend = msm_gpu_pm_suspend,
-		.pm_resume = msm_gpu_pm_resume,
+		.pm_suspend = a4xx_pm_suspend,
+		.pm_resume = a4xx_pm_resume,
 		.recover = a4xx_recover,
 		.last_fence = adreno_last_fence,
 		.submit = adreno_submit,
