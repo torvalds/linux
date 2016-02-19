@@ -448,15 +448,15 @@ static const struct tp_desc tp_desc_aux[] = {
 		KBASE_AUX_PAGEFAULT,
 		__stringify(KBASE_AUX_PAGEFAULT),
 		"Page fault",
-		"@II",
-		"ctx_nr,page_cnt"
+		"@IL",
+		"ctx_nr,page_cnt_change"
 	},
 	{
 		KBASE_AUX_PAGESALLOC,
 		__stringify(KBASE_AUX_PAGESALLOC),
 		"Total alloc pages change",
-		"@l",
-		"page_cnt_change"
+		"@IL",
+		"ctx_nr,page_cnt"
 	}
 };
 
@@ -1998,9 +1998,34 @@ void kbase_tlstream_aux_job_softstop(u32 js_id)
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);
 }
 
-void kbase_tlstream_aux_pagefault(u32 ctx_nr, u32 page_count)
+void kbase_tlstream_aux_pagefault(u32 ctx_nr, u64 page_count_change)
 {
 	const u32     msg_id = KBASE_AUX_PAGEFAULT;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(ctx_nr) +
+		sizeof(page_count_change);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_AUX, msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &ctx_nr, sizeof(ctx_nr));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos,
+			&page_count_change, sizeof(page_count_change));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);
+}
+
+void kbase_tlstream_aux_pagesalloc(u32 ctx_nr, u64 page_count)
+{
+	const u32     msg_id = KBASE_AUX_PAGESALLOC;
 	const size_t  msg_size =
 		sizeof(msg_id) + sizeof(u64) + sizeof(ctx_nr) +
 		sizeof(page_count);
@@ -2017,29 +2042,6 @@ void kbase_tlstream_aux_pagefault(u32 ctx_nr, u32 page_count)
 	pos = kbasep_tlstream_write_bytes(buffer, pos, &ctx_nr, sizeof(ctx_nr));
 	pos = kbasep_tlstream_write_bytes(
 			buffer, pos, &page_count, sizeof(page_count));
-	KBASE_DEBUG_ASSERT(msg_size == pos);
-
-	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);
-}
-
-void kbase_tlstream_aux_pagesalloc(s64 page_count_change)
-{
-	const u32     msg_id = KBASE_AUX_PAGESALLOC;
-	const size_t  msg_size =
-		sizeof(msg_id) + sizeof(u64) + sizeof(page_count_change);
-	unsigned long flags;
-	char          *buffer;
-	size_t        pos = 0;
-
-	buffer = kbasep_tlstream_msgbuf_acquire(
-			TL_STREAM_TYPE_AUX, msg_size, &flags);
-	KBASE_DEBUG_ASSERT(buffer);
-
-	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
-	pos = kbasep_tlstream_write_timestamp(buffer, pos);
-	pos = kbasep_tlstream_write_bytes(
-			buffer, pos,
-			&page_count_change, sizeof(page_count_change));
 	KBASE_DEBUG_ASSERT(msg_size == pos);
 
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);

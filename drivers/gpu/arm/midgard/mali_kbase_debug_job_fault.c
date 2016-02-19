@@ -433,12 +433,12 @@ void kbase_debug_job_fault_context_init(struct kbase_context *kctx)
 	/* We need allocate double size register range
 	 * Because this memory will keep the register address and value
 	 */
-	kctx->reg_dump = kmalloc(0x4000 * 2, GFP_KERNEL);
+	kctx->reg_dump = vmalloc(0x4000 * 2);
 	if (kctx->reg_dump == NULL)
 		return;
 
 	if (kbase_debug_job_fault_reg_snapshot_init(kctx, 0x4000) == false) {
-		kfree(kctx->reg_dump);
+		vfree(kctx->reg_dump);
 		kctx->reg_dump = NULL;
 	}
 	INIT_LIST_HEAD(&kctx->job_fault_resume_event_list);
@@ -451,7 +451,7 @@ void kbase_debug_job_fault_context_init(struct kbase_context *kctx)
  */
 void kbase_debug_job_fault_context_term(struct kbase_context *kctx)
 {
-	kfree(kctx->reg_dump);
+	vfree(kctx->reg_dump);
 }
 
 #else /* CONFIG_DEBUG_FS */

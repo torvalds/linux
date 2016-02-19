@@ -1060,7 +1060,7 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 			trace_gpu_sched_switch(kbasep_make_job_slot_string(js,
 								js_string),
 						ktime_to_ns(*end_timestamp),
-						(u32)next_katom->kctx, 0,
+						(u32)next_katom->kctx->id, 0,
 						next_katom->work_id);
 			kbdev->hwaccess.backend.slot_rb[js].last_context =
 							next_katom->kctx;

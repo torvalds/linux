@@ -1066,6 +1066,13 @@ static void kbase_pm_hw_issues_detect(struct kbase_device *kbdev)
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10797))
 		kbdev->hw_quirks_sc |= SC_ENABLE_TEXGRD_FLAGS;
 
+	if (!kbase_hw_has_issue(kbdev, GPUCORE_1619)) {
+		if (prod_id < 0x760 || prod_id == 0x6956) /* T60x, T62x, T72x */
+			kbdev->hw_quirks_sc |= SC_LS_ATTR_CHECK_DISABLE;
+		else if (prod_id >= 0x760 && prod_id <= 0x880) /* T76x, T8xx */
+			kbdev->hw_quirks_sc |= SC_LS_ALLOW_ATTR_TYPES;
+	}
+
 	kbdev->hw_quirks_tiler = kbase_reg_read(kbdev,
 			GPU_CONTROL_REG(TILER_CONFIG), NULL);
 
@@ -1230,10 +1237,10 @@ int kbase_pm_init_hw(struct kbase_device *kbdev, unsigned int flags)
 							RESET_COMPLETED) {
 		/* The interrupt is set in the RAWSTAT; this suggests that the
 		 * interrupts are not getting to the CPU */
-		dev_warn(kbdev->dev, "Reset interrupt didn't reach CPU. Check interrupt assignments.\n");
+		dev_err(kbdev->dev, "Reset interrupt didn't reach CPU. Check interrupt assignments.\n");
 		/* If interrupts aren't working we can't continue. */
 		destroy_hrtimer_on_stack(&rtdata.timer);
-		goto out;
+		return -EINVAL;
 	}
 
 	/* The GPU doesn't seem to be responding to the reset so try a hard

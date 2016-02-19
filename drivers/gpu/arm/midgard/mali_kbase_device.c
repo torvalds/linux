@@ -257,12 +257,19 @@ void kbase_device_free(struct kbase_device *kbdev)
 	kfree(kbdev);
 }
 
-void kbase_device_trace_buffer_install(struct kbase_context *kctx, u32 *tb, size_t size)
+int kbase_device_trace_buffer_install(
+		struct kbase_context *kctx, u32 *tb, size_t size)
 {
 	unsigned long flags;
 
 	KBASE_DEBUG_ASSERT(kctx);
 	KBASE_DEBUG_ASSERT(tb);
+
+	/* Interface uses 16-bit value to track last accessed entry. Each entry
+	 * is composed of two 32-bit words.
+	 * This limits the size that can be handled without an overflow. */
+	if (0xFFFF * (2 * sizeof(u32)) < size)
+		return -EINVAL;
 
 	/* set up the header */
 	/* magic number in the first 4 bytes */
@@ -278,6 +285,8 @@ void kbase_device_trace_buffer_install(struct kbase_context *kctx, u32 *tb, size
 	kctx->jctx.tb_wrap_offset = size / 8;
 	kctx->jctx.tb = tb;
 	spin_unlock_irqrestore(&kctx->jctx.tb_lock, flags);
+
+	return 0;
 }
 
 void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx)

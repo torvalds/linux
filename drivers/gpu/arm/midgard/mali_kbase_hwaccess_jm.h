@@ -254,6 +254,15 @@ void kbase_backend_jm_kill_jobs_from_kctx(struct kbase_context *kctx);
  */
 void kbase_jm_wait_for_zero_jobs(struct kbase_context *kctx);
 
+/**
+ * kbase_backend_get_current_flush_id - Return the current flush ID
+ *
+ * @kbdev: Device pointer
+ *
+ * Return: the current flush ID to be recorded for each job chain
+ */
+u32 kbase_backend_get_current_flush_id(struct kbase_device *kbdev);
+
 #if KBASE_GPU_RESET_EN
 /**
  * kbase_prepare_to_reset_gpu - Prepare for resetting the GPU.

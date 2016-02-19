@@ -921,6 +921,7 @@ void kbasep_js_kctx_term(struct kbase_context *kctx)
 	struct kbasep_js_kctx_info *js_kctx_info;
 	union kbasep_js_policy *js_policy;
 	int js;
+	bool update_ctx_count = false;
 
 	KBASE_DEBUG_ASSERT(kctx != NULL);
 
@@ -937,14 +938,31 @@ void kbasep_js_kctx_term(struct kbase_context *kctx)
 	}
 
 	mutex_lock(&kbdev->js_data.queue_mutex);
+	mutex_lock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
+
 	for (js = 0; js < kbdev->gpu_props.num_job_slots; js++)
 		list_del_init(&kctx->jctx.sched_info.ctx.ctx_list_entry[js]);
+
+	if (kctx->ctx_runnable_ref) {
+		WARN_ON(atomic_read(&kbdev->js_data.nr_contexts_runnable) <= 0);
+		atomic_dec(&kbdev->js_data.nr_contexts_runnable);
+		update_ctx_count = true;
+		kctx->ctx_runnable_ref = false;
+	}
+
+	mutex_unlock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
 	mutex_unlock(&kbdev->js_data.queue_mutex);
 
 	if ((js_kctx_info->init_status & JS_KCTX_INIT_POLICY))
 		kbasep_js_policy_term_ctx(js_policy, kctx);
 
 	js_kctx_info->init_status = JS_KCTX_INIT_NONE;
+
+	if (update_ctx_count) {
+		mutex_lock(&kbdev->js_data.runpool_mutex);
+		kbase_backend_ctx_count_changed(kbdev);
+		mutex_unlock(&kbdev->js_data.runpool_mutex);
+	}
 }
 
 /**
@@ -982,8 +1000,11 @@ static bool kbase_js_ctx_list_add_pullable(struct kbase_device *kbdev,
 	if (!kctx->slots_pullable) {
 		kbdev->js_data.nr_contexts_pullable++;
 		ret = true;
-		if (!atomic_read(&kctx->atoms_pulled))
+		if (!atomic_read(&kctx->atoms_pulled)) {
+			WARN_ON(kctx->ctx_runnable_ref);
+			kctx->ctx_runnable_ref = true;
 			atomic_inc(&kbdev->js_data.nr_contexts_runnable);
+		}
 	}
 	kctx->slots_pullable |= (1 << js);
 
@@ -1025,8 +1046,11 @@ static bool kbase_js_ctx_list_add_pullable_head(struct kbase_device *kbdev,
 	if (!kctx->slots_pullable) {
 		kbdev->js_data.nr_contexts_pullable++;
 		ret = true;
-		if (!atomic_read(&kctx->atoms_pulled))
+		if (!atomic_read(&kctx->atoms_pulled)) {
+			WARN_ON(kctx->ctx_runnable_ref);
+			kctx->ctx_runnable_ref = true;
 			atomic_inc(&kbdev->js_data.nr_contexts_runnable);
+		}
 	}
 	kctx->slots_pullable |= (1 << js);
 
@@ -1065,8 +1089,11 @@ static bool kbase_js_ctx_list_add_unpullable(struct kbase_device *kbdev,
 	if (kctx->slots_pullable == (1 << js)) {
 		kbdev->js_data.nr_contexts_pullable--;
 		ret = true;
-		if (!atomic_read(&kctx->atoms_pulled))
+		if (!atomic_read(&kctx->atoms_pulled)) {
+			WARN_ON(!kctx->ctx_runnable_ref);
+			kctx->ctx_runnable_ref = false;
 			atomic_dec(&kbdev->js_data.nr_contexts_runnable);
+		}
 	}
 	kctx->slots_pullable &= ~(1 << js);
 
@@ -1105,8 +1132,11 @@ static bool kbase_js_ctx_list_remove(struct kbase_device *kbdev,
 	if (kctx->slots_pullable == (1 << js)) {
 		kbdev->js_data.nr_contexts_pullable--;
 		ret = true;
-		if (!atomic_read(&kctx->atoms_pulled))
+		if (!atomic_read(&kctx->atoms_pulled)) {
+			WARN_ON(!kctx->ctx_runnable_ref);
+			kctx->ctx_runnable_ref = false;
 			atomic_dec(&kbdev->js_data.nr_contexts_runnable);
+		}
 	}
 	kctx->slots_pullable &= ~(1 << js);
 
@@ -1367,6 +1397,10 @@ bool kbasep_js_add_job(struct kbase_context *kctx,
 	if (!kbase_js_dep_validate(kctx, atom)) {
 		/* Dependencies could not be represented */
 		--(js_kctx_info->ctx.nr_jobs);
+
+		/* Setting atom status back to queued as it still has unresolved
+		 * dependencies */
+		atom->status = KBASE_JD_ATOM_STATE_QUEUED;
 
 		spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
 		mutex_unlock(&js_devdata->runpool_mutex);
@@ -2442,8 +2476,11 @@ struct kbase_jd_atom *kbase_js_pull(struct kbase_context *kctx, int js)
 
 	kctx->pulled = true;
 	pulled = atomic_inc_return(&kctx->atoms_pulled);
-	if (pulled == 1 && !kctx->slots_pullable)
+	if (pulled == 1 && !kctx->slots_pullable) {
+		WARN_ON(kctx->ctx_runnable_ref);
+		kctx->ctx_runnable_ref = true;
 		atomic_inc(&kctx->kbdev->js_data.nr_contexts_runnable);
+	}
 	atomic_inc(&kctx->atoms_pulled_slot[katom->slot_nr]);
 	jsctx_rb_pull(kctx, katom);
 
@@ -2495,8 +2532,11 @@ static void js_return_worker(struct work_struct *data)
 		timer_sync |= kbase_js_ctx_list_remove(kbdev, kctx, js);
 
 	if (!atomic_read(&kctx->atoms_pulled)) {
-		if (!kctx->slots_pullable)
+		if (!kctx->slots_pullable) {
+			WARN_ON(!kctx->ctx_runnable_ref);
+			kctx->ctx_runnable_ref = false;
 			atomic_dec(&kbdev->js_data.nr_contexts_runnable);
+		}
 
 		if (kctx->as_nr != KBASEP_AS_NR_INVALID &&
 				!js_kctx_info->ctx.is_dying) {
@@ -2698,8 +2738,12 @@ bool kbase_js_complete_atom_wq(struct kbase_context *kctx,
 		context_idle = !atomic_dec_return(&kctx->atoms_pulled);
 		atomic_dec(&kctx->atoms_pulled_slot[atom_slot]);
 
-		if (!atomic_read(&kctx->atoms_pulled) && !kctx->slots_pullable)
+		if (!atomic_read(&kctx->atoms_pulled) &&
+				!kctx->slots_pullable) {
+			WARN_ON(!kctx->ctx_runnable_ref);
+			kctx->ctx_runnable_ref = false;
 			atomic_dec(&kbdev->js_data.nr_contexts_runnable);
+		}
 
 		if (katom->event_code != BASE_JD_EVENT_DONE)
 			kbase_js_compact(kctx);

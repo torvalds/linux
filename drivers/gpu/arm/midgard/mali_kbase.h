@@ -196,7 +196,8 @@ bool kbase_replay_process(struct kbase_jd_atom *katom);
 
 /* api used internally for register access. Contains validation and tracing */
 void kbase_device_trace_register_access(struct kbase_context *kctx, enum kbase_reg_access_type type, u16 reg_offset, u32 reg_value);
-void kbase_device_trace_buffer_install(struct kbase_context *kctx, u32 *tb, size_t size);
+int kbase_device_trace_buffer_install(
+		struct kbase_context *kctx, u32 *tb, size_t size);
 void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx);
 
 /* api to be ported per OS, only need to do the raw register access */

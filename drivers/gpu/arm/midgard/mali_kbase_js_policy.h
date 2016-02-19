@@ -708,7 +708,7 @@ void kbasep_js_policy_deregister_job(union kbasep_js_policy *js_policy, struct k
 bool kbasep_js_policy_dequeue_job(struct kbase_device *kbdev, int job_slot_idx, struct kbase_jd_atom ** const katom_ptr);
 
 /**
- * @brief Requeue a Job back into the the Job Scheduler Policy Run Pool
+ * @brief Requeue a Job back into the Job Scheduler Policy Run Pool
  *
  * This will be used to enqueue a job after its creation and also to requeue
  * a job into the Run Pool that was previously dequeued (running). It notifies

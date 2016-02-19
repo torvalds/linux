@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r8p0-02rel0"
+MALI_RELEASE_NAME ?= "r9p0-05rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)

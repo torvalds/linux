@@ -144,14 +144,14 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 			"ctx_nr,atom_nr");
 #endif
 #ifdef CONFIG_GPU_TRACEPOINTS
-	if (kbase_backend_nr_atoms_submitted(kbdev, js) == 1) {
+	if (!kbase_backend_nr_atoms_submitted(kbdev, js)) {
 		/* If this is the only job on the slot, trace it as starting */
 		char js_string[16];
 
 		trace_gpu_sched_switch(
 				kbasep_make_job_slot_string(js, js_string),
 				ktime_to_ns(katom->start_timestamp),
-				(u32)katom->kctx, 0, katom->work_id);
+				(u32)katom->kctx->id, 0, katom->work_id);
 		kbdev->hwaccess.backend.slot_rb[js].last_context = katom->kctx;
 	}
 #endif
@@ -413,6 +413,8 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 
 			failed = done >> 16;
 			finished = (done & 0xFFFF) | failed;
+			if (done)
+				end_timestamp = ktime_get();
 		} while (finished & (1 << i));
 
 		kbasep_job_slot_update_head_start_timestamp(kbdev, i,
@@ -817,6 +819,14 @@ void kbase_jm_wait_for_zero_jobs(struct kbase_context *kctx)
 	mutex_lock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
 	mutex_unlock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
 	mutex_unlock(&kctx->jctx.lock);
+}
+
+u32 kbase_backend_get_current_flush_id(struct kbase_device *kbdev)
+{
+	u32 flush_id = 0;
+
+
+	return flush_id;
 }
 
 int kbase_job_slot_init(struct kbase_device *kbdev)

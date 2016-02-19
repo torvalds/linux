@@ -248,11 +248,6 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 		dma_addr_t dma_addr;
 		unsigned long min;
 
-		/* if page already is private, we can't store our
-		 * private data. */
-		if (PagePrivate(pages[i]))
-			goto unwind;
-
 		min = MIN(PAGE_SIZE - offset, local_size);
 		dma_addr = dma_map_page(dev, pages[i],
 				offset, min,
@@ -260,7 +255,7 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 		if (dma_mapping_error(dev, dma_addr))
 			goto unwind;
 
-		kbase_set_dma_addr(pages[i], dma_addr);
+		alloc->imported.user_buf.dma_addrs[i] = dma_addr;
 		pa[i] = page_to_phys(pages[i]);
 
 		local_size -= min;
@@ -279,7 +274,8 @@ static int kbase_jd_user_buf_map(struct kbase_context *kctx,
 	/* fall down */
 unwind:
 	while (i--) {
-		dma_unmap_page(kctx->kbdev->dev, kbase_dma_addr(pages[i]),
+		dma_unmap_page(kctx->kbdev->dev,
+				alloc->imported.user_buf.dma_addrs[i],
 				PAGE_SIZE, DMA_BIDIRECTIONAL);
 		put_page(pages[i]);
 		pages[i] = NULL;
@@ -299,12 +295,11 @@ static void kbase_jd_user_buf_unmap(struct kbase_context *kctx,
 	pages = alloc->imported.user_buf.pages;
 	for (i = 0; i < alloc->imported.user_buf.nr_pages; i++) {
 		unsigned long local_size;
-		dma_addr_t dma_addr = kbase_dma_addr(pages[i]);
+		dma_addr_t dma_addr = alloc->imported.user_buf.dma_addrs[i];
 
 		local_size = MIN(size, PAGE_SIZE - (dma_addr & ~PAGE_MASK));
 		dma_unmap_page(kctx->kbdev->dev, dma_addr, local_size,
 				DMA_BIDIRECTIONAL);
-		ClearPagePrivate(pages[i]);
 		if (writeable)
 			set_page_dirty_lock(pages[i]);
 		put_page(pages[i]);
@@ -1258,7 +1253,8 @@ bool jd_submit_atom(struct kbase_context *kctx,
 
 #ifdef CONFIG_GPU_TRACEPOINTS
 	katom->work_id = atomic_inc_return(&jctx->work_id);
-	trace_gpu_job_enqueue((u32)kctx, katom->work_id, kbasep_map_core_reqs_to_string(katom->core_req));
+	trace_gpu_job_enqueue((u32)kctx->id, katom->work_id,
+			kbasep_map_core_reqs_to_string(katom->core_req));
 #endif
 
 	if (queued && !IS_GPU_ATOM(katom)) {
@@ -1320,6 +1316,7 @@ int kbase_jd_submit(struct kbase_context *kctx,
 	bool need_to_try_schedule_context = false;
 	struct kbase_device *kbdev;
 	void __user *user_addr;
+	u32 latest_flush;
 
 	/*
 	 * kbase_jd_submit isn't expected to fail and so all errors with the jobs
@@ -1348,6 +1345,9 @@ int kbase_jd_submit(struct kbase_context *kctx,
 	user_addr = get_compat_pointer(kctx, &submit_data->addr);
 
 	KBASE_TIMELINE_ATOMS_IN_FLIGHT(kctx, atomic_add_return(submit_data->nr_atoms, &kctx->timeline.jd_atoms_in_flight));
+
+	/* All atoms submitted in this call have the same flush ID */
+	latest_flush = kbase_backend_get_current_flush_id(kbdev);
 
 	for (i = 0; i < submit_data->nr_atoms; i++) {
 		struct base_jd_atom_v2 user_atom;
@@ -1423,6 +1423,9 @@ while (false)
 #undef compiletime_assert_defined
 #endif
 		katom = &jctx->atoms[user_atom.atom_number];
+
+		/* Record the flush ID for the cache flush optimisation */
+		katom->flush_id = latest_flush;
 
 		while (katom->status != KBASE_JD_ATOM_STATE_UNUSED) {
 			/* Atom number is already in use, wait for the atom to

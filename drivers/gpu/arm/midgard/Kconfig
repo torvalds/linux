@@ -63,14 +63,6 @@ config MALI_MIDGARD_DVFS
 	help
 	  Choose this option to enable legacy DVFS in the Mali Midgard DDK.
 
-config MALI_MIDGARD_RT_PM
-	bool "Enable Runtime power management"
-	depends on MALI_MIDGARD
-	depends on PM
-	default y
-	help
-	  Choose this option to enable runtime power management in the Mali Midgard DDK.
-
 config MALI_MIDGARD_ENABLE_TRACE
 	bool "Enable kbase tracing"
 	depends on MALI_MIDGARD
@@ -78,13 +70,6 @@ config MALI_MIDGARD_ENABLE_TRACE
 	help
 	  Enables tracing in kbase.  Trace log available through
 	  the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
-
-config MALI_MIDGARD_DEBUG_SYS
-	bool "Enable sysfs for the Mali Midgard DDK "
-	depends on MALI_MIDGARD && SYSFS
-	default n
-	help
-	  Enables sysfs for the Mali Midgard DDK. Set/Monitor the Mali Midgard DDK
 
 config MALI_DEVFREQ
 	bool "devfreq support for Mali"
@@ -109,7 +94,7 @@ menuconfig MALI_EXPERT
 
 config MALI_DEBUG_SHADER_SPLIT_FS
 	bool "Allow mapping of shader cores via sysfs"
-	depends on MALI_MIDGARD && MALI_MIDGARD_DEBUG_SYS && MALI_EXPERT
+	depends on MALI_MIDGARD && MALI_EXPERT
 	default n
 	help
 	  Select this option to provide a sysfs entry for runtime configuration of shader

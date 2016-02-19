@@ -1124,6 +1124,8 @@ int kbase_alloc_phy_pages_helper(
 	struct kbase_mem_phy_alloc *alloc,
 	size_t nr_pages_requested)
 {
+	int new_page_count __maybe_unused;
+
 	KBASE_DEBUG_ASSERT(alloc);
 	KBASE_DEBUG_ASSERT(alloc->type == KBASE_MEM_TYPE_NATIVE);
 	KBASE_DEBUG_ASSERT(alloc->imported.kctx);
@@ -1131,7 +1133,8 @@ int kbase_alloc_phy_pages_helper(
 	if (nr_pages_requested == 0)
 		goto done; /*nothing to do*/
 
-	kbase_atomic_add_pages(nr_pages_requested, &alloc->imported.kctx->used_pages);
+	new_page_count = kbase_atomic_add_pages(
+			nr_pages_requested, &alloc->imported.kctx->used_pages);
 	kbase_atomic_add_pages(nr_pages_requested, &alloc->imported.kctx->kbdev->memdev.used_pages);
 
 	/* Increase mm counters before we allocate pages so that this
@@ -1143,7 +1146,9 @@ int kbase_alloc_phy_pages_helper(
 		goto no_alloc;
 
 #if defined(CONFIG_MALI_MIPE_ENABLED)
-	kbase_tlstream_aux_pagesalloc((s64)nr_pages_requested);
+	kbase_tlstream_aux_pagesalloc(
+			(u32)alloc->imported.kctx->id,
+			(u64)new_page_count);
 #endif
 
 	alloc->nents += nr_pages_requested;
@@ -1164,6 +1169,7 @@ int kbase_free_phy_pages_helper(
 {
 	bool syncback;
 	phys_addr_t *start_free;
+	int new_page_count __maybe_unused;
 
 	KBASE_DEBUG_ASSERT(alloc);
 	KBASE_DEBUG_ASSERT(alloc->type == KBASE_MEM_TYPE_NATIVE);
@@ -1185,11 +1191,14 @@ int kbase_free_phy_pages_helper(
 
 	alloc->nents -= nr_pages_to_free;
 	kbase_process_page_usage_dec(alloc->imported.kctx, nr_pages_to_free);
-	kbase_atomic_sub_pages(nr_pages_to_free, &alloc->imported.kctx->used_pages);
+	new_page_count = kbase_atomic_sub_pages(
+			nr_pages_to_free, &alloc->imported.kctx->used_pages);
 	kbase_atomic_sub_pages(nr_pages_to_free, &alloc->imported.kctx->kbdev->memdev.used_pages);
 
 #if defined(CONFIG_MALI_MIPE_ENABLED)
-	kbase_tlstream_aux_pagesalloc(-(s64)nr_pages_to_free);
+	kbase_tlstream_aux_pagesalloc(
+			(u32)alloc->imported.kctx->id,
+			(u64)new_page_count);
 #endif
 
 	return 0;

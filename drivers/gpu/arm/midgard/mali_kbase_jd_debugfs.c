@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -16,6 +16,8 @@
 
 
 #include <linux/seq_file.h>
+
+#include <mali_kbase.h>
 
 #include <mali_kbase_jd_debugfs.h>
 
@@ -40,6 +42,13 @@ static int kbasep_jd_debugfs_atoms_show(struct seq_file *sfile, void *data)
 	int i;
 
 	KBASE_DEBUG_ASSERT(kctx != NULL);
+
+	/* Print version */
+	seq_printf(sfile, "v%u\n", MALI_JD_DEBUGFS_VERSION);
+
+	/* Print U/K API version */
+	seq_printf(sfile, "ukv%u.%u\n", BASE_UK_VERSION_MAJOR,
+			BASE_UK_VERSION_MINOR);
 
 	/* Print table heading */
 	seq_puts(sfile, "atom id,core reqs,status,coreref status,predeps,start time,time on gpu\n");

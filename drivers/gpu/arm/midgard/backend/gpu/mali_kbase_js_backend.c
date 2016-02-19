@@ -38,9 +38,14 @@
  */
 static inline bool timer_callback_should_run(struct kbase_device *kbdev)
 {
+	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
 	s8 nr_running_ctxs;
 
 	lockdep_assert_held(&kbdev->js_data.runpool_mutex);
+
+	/* Timer must stop if we are suspending */
+	if (backend->suspend_timer)
+		return false;
 
 	/* nr_contexts_pullable is updated with the runpool_mutex. However, the
 	 * locking in the caller gives us a barrier that ensures
@@ -270,7 +275,6 @@ void kbase_backend_ctx_count_changed(struct kbase_device *kbdev)
 		spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
 		backend->timer_running = false;
 		spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
-
 		/* From now on, return value of timer_callback_should_run() will
 		 * also cause the timer to not requeue itself. Its return value
 		 * cannot change, because it depends on variables updated with
@@ -284,7 +288,6 @@ void kbase_backend_ctx_count_changed(struct kbase_device *kbdev)
 		spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
 		backend->timer_running = true;
 		spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
-
 		hrtimer_start(&backend->scheduling_timer,
 			HR_TIMER_DELAY_NSEC(js_devdata->scheduling_period_ns),
 							HRTIMER_MODE_REL);
@@ -312,5 +315,23 @@ void kbase_backend_timer_term(struct kbase_device *kbdev)
 	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
 
 	hrtimer_cancel(&backend->scheduling_timer);
+}
+
+void kbase_backend_timer_suspend(struct kbase_device *kbdev)
+{
+	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
+
+	backend->suspend_timer = true;
+
+	kbase_backend_ctx_count_changed(kbdev);
+}
+
+void kbase_backend_timer_resume(struct kbase_device *kbdev)
+{
+	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
+
+	backend->suspend_timer = false;
+
+	kbase_backend_ctx_count_changed(kbdev);
 }
 

@@ -772,11 +772,12 @@ static inline void base_jd_fence_wait_setup_v2(struct base_jd_atom_v2 *atom, str
 /**
  * @brief External resource info initialization.
  *
- * Sets up a external resource object to reference
+ * Sets up an external resource object to reference
  * a memory allocation and the type of access requested.
  *
  * @param[in] res     The resource object to initialize
- * @param     handle  The handle to the imported memory object
+ * @param     handle  The handle to the imported memory object, must be
+ *                    obtained by calling @ref base_mem_as_import_handle().
  * @param     access  The type of access requested
  */
 static inline void base_external_resource_init(struct base_external_resource *res, struct base_import_handle handle, base_external_resource_access access)

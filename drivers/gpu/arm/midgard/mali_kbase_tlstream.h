@@ -375,18 +375,18 @@ void kbase_tlstream_aux_job_softstop(u32 js_id);
 /**
  * kbase_tlstream_aux_pagefault - timeline message: MMU page fault event
  *                                resulting in new pages being mapped
- * @ctx_nr:     kernel context number
- * @page_count: number of currently used pages
+ * @ctx_nr:            kernel context number
+ * @page_count_change: number of pages to be added
  */
-void kbase_tlstream_aux_pagefault(u32 ctx_nr, u32 page_count);
+void kbase_tlstream_aux_pagefault(u32 ctx_nr, u64 page_count_change);
 
 /**
  * kbase_tlstream_aux_pagesalloc - timeline message: total number of allocated
  *                                 pages is changed
- * @page_count_change: number of pages to be added or subtracted (according to
- *                     the sign)
+ * @ctx_nr:     kernel context number
+ * @page_count: number of pages used by the context
  */
-void kbase_tlstream_aux_pagesalloc(s64 page_count_change);
+void kbase_tlstream_aux_pagesalloc(u32 ctx_nr, u64 page_count);
 
 #endif /* _KBASE_TLSTREAM_H */
 

@@ -41,4 +41,29 @@ int kbase_backend_timer_init(struct kbase_device *kbdev);
  */
 void kbase_backend_timer_term(struct kbase_device *kbdev);
 
+/**
+ * kbase_backend_timer_suspend - Suspend is happening, stop the JS scheduling
+ *                               timer
+ * @kbdev: Device pointer
+ *
+ * This function should be called on suspend, after the active count has reached
+ * zero. This is required as the timer may have been started on job submission
+ * to the job scheduler, but before jobs are submitted to the GPU.
+ *
+ * Caller must hold runpool_mutex.
+ */
+void kbase_backend_timer_suspend(struct kbase_device *kbdev);
+
+/**
+ * kbase_backend_timer_resume - Resume is happening, re-evaluate the JS
+ *                              scheduling timer
+ * @kbdev: Device pointer
+ *
+ * This function should be called on resume. Note that is is not guaranteed to
+ * re-start the timer, only evalute whether it should be re-started.
+ *
+ * Caller must hold runpool_mutex.
+ */
+void kbase_backend_timer_resume(struct kbase_device *kbdev);
+
 #endif /* _KBASE_JS_BACKEND_H_ */

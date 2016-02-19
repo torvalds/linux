@@ -63,6 +63,9 @@ struct slot_rb {
  * @scheduling_timer:		The timer tick used for rescheduling jobs
  * @timer_running:		Is the timer running? The runpool_mutex must be
  *				held whilst modifying this.
+ * @suspend_timer:              Is the timer suspended? Set when a suspend
+ *                              occurs and cleared on resume. The runpool_mutex
+ *                              must be held whilst modifying this.
  * @reset_gpu:			Set to a KBASE_RESET_xxx value (see comments)
  * @reset_workq:		Work queue for performing the reset
  * @reset_work:			Work item for performing the reset
@@ -80,6 +83,7 @@ struct kbase_backend_data {
 	struct hrtimer scheduling_timer;
 
 	bool timer_running;
+	bool suspend_timer;
 
 	atomic_t reset_gpu;
 

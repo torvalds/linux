@@ -29,6 +29,7 @@
 
 #include <mali_kbase_pm.h>
 #include <backend/gpu/mali_kbase_jm_internal.h>
+#include <backend/gpu/mali_kbase_js_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
 void kbase_pm_register_access_enable(struct kbase_device *kbdev)
@@ -363,6 +364,8 @@ void kbase_hwaccess_pm_suspend(struct kbase_device *kbdev)
 		WARN_ON(!kbase_pm_do_poweroff(kbdev, false));
 	}
 
+	kbase_backend_timer_suspend(kbdev);
+
 	mutex_unlock(&kbdev->pm.lock);
 	mutex_unlock(&js_devdata->runpool_mutex);
 }
@@ -373,8 +376,12 @@ void kbase_hwaccess_pm_resume(struct kbase_device *kbdev)
 
 	mutex_lock(&js_devdata->runpool_mutex);
 	mutex_lock(&kbdev->pm.lock);
+
 	kbdev->pm.suspending = false;
 	kbase_pm_do_poweron(kbdev, true);
+
+	kbase_backend_timer_resume(kbdev);
+
 	mutex_unlock(&kbdev->pm.lock);
 	mutex_unlock(&js_devdata->runpool_mutex);
 }

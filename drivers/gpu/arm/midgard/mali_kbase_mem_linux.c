@@ -145,7 +145,7 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 		unsigned long prot = PROT_NONE;
 		unsigned long va_size = va_pages << PAGE_SHIFT;
 		unsigned long va_map = va_size;
-		unsigned long cookie;
+		unsigned long cookie, cookie_nr;
 		unsigned long cpu_addr;
 
 		/* Bind to a cookie */
@@ -155,15 +155,15 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 			goto no_cookie;
 		}
 		/* return a cookie */
-		cookie = __ffs(kctx->cookies);
-		kctx->cookies &= ~(1UL << cookie);
-		BUG_ON(kctx->pending_regions[cookie]);
-		kctx->pending_regions[cookie] = reg;
+		cookie_nr = __ffs(kctx->cookies);
+		kctx->cookies &= ~(1UL << cookie_nr);
+		BUG_ON(kctx->pending_regions[cookie_nr]);
+		kctx->pending_regions[cookie_nr] = reg;
 
 		kbase_gpu_vm_unlock(kctx);
 
 		/* relocate to correct base */
-		cookie += PFN_DOWN(BASE_MEM_COOKIE_BASE);
+		cookie = cookie_nr + PFN_DOWN(BASE_MEM_COOKIE_BASE);
 		cookie <<= PAGE_SHIFT;
 
 		/* See if we must align memory due to GPU PC bits vs CPU VA */
@@ -197,8 +197,11 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 
 		cpu_addr = vm_mmap(kctx->filp, 0, va_map, prot, MAP_SHARED,
 				cookie);
-		if (IS_ERR_VALUE(cpu_addr))
+		if (IS_ERR_VALUE(cpu_addr)) {
+			kctx->pending_regions[cookie_nr] = NULL;
+			kctx->cookies |= (1UL << cookie_nr);
 			goto no_mmap;
+		}
 
 		/*
 		 * If we had to allocate extra VA space to force the
@@ -1440,7 +1443,11 @@ static int kbase_trace_buffer_mmap(struct kbase_context *kctx, struct vm_area_st
 			goto out;
 		}
 
-		kbase_device_trace_buffer_install(kctx, tb, size);
+		err = kbase_device_trace_buffer_install(kctx, tb, size);
+		if (err) {
+			vfree(tb);
+			goto out;
+		}
 	} else {
 		err = -EINVAL;
 		goto out;

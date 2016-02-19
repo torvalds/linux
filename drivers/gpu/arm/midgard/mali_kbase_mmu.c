@@ -46,18 +46,18 @@
 
 /**
  * kbase_mmu_sync_pgd - sync page directory to memory
- * @dev:	Device pointer.
+ * @kbdev:	Device pointer.
  * @handle:	Address of DMA region.
  * @size:       Size of the region to sync.
  *
  * This should be called after each page directory update.
  */
 
-static void kbase_mmu_sync_pgd(struct device *dev,
+static void kbase_mmu_sync_pgd(struct kbase_device *kbdev,
 		dma_addr_t handle, size_t size)
 {
 
-	dma_sync_single_for_device(dev, handle, size, DMA_TO_DEVICE);
+	dma_sync_single_for_device(kbdev->dev, handle, size, DMA_TO_DEVICE);
 }
 
 /*
@@ -260,9 +260,7 @@ void page_fault_worker(struct work_struct *data)
 		kbase_trace_mali_page_fault_insert_pages(as_no, new_pages);
 #endif
 #if defined(CONFIG_MALI_MIPE_ENABLED)
-		kbase_tlstream_aux_pagefault(
-				kctx->id,
-				atomic_read(&kctx->used_pages));
+		kbase_tlstream_aux_pagefault(kctx->id, (u64)new_pages);
 #endif
 
 		/* flush L2 and unlock the VA (resumes the MMU) */
@@ -316,14 +314,21 @@ phys_addr_t kbase_mmu_alloc_pgd(struct kbase_context *kctx)
 	u64 *page;
 	int i;
 	struct page *p;
+	int new_page_count __maybe_unused;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
-	kbase_atomic_add_pages(1, &kctx->used_pages);
+	new_page_count = kbase_atomic_add_pages(1, &kctx->used_pages);
 	kbase_atomic_add_pages(1, &kctx->kbdev->memdev.used_pages);
 
 	p = kbase_mem_pool_alloc(&kctx->mem_pool);
 	if (!p)
 		goto sub_pages;
+
+#if defined(CONFIG_MALI_MIPE_ENABLED)
+	kbase_tlstream_aux_pagesalloc(
+			(u32)kctx->id,
+			(u64)new_page_count);
+#endif
 
 	page = kmap(p);
 	if (NULL == page)
@@ -334,7 +339,7 @@ phys_addr_t kbase_mmu_alloc_pgd(struct kbase_context *kctx)
 	for (i = 0; i < KBASE_MMU_PAGE_ENTRIES; i++)
 		kctx->kbdev->mmu_mode->entry_invalidate(&page[i]);
 
-	kbase_mmu_sync_pgd(kctx->kbdev->dev, kbase_dma_addr(p), PAGE_SIZE);
+	kbase_mmu_sync_pgd(kctx->kbdev, kbase_dma_addr(p), PAGE_SIZE);
 
 	kunmap(p);
 	return page_to_phys(p);
@@ -388,8 +393,7 @@ static phys_addr_t mmu_get_next_pgd(struct kbase_context *kctx, phys_addr_t pgd,
 
 		kctx->kbdev->mmu_mode->entry_set_pte(&page[vpfn], target_pgd);
 
-		kbase_mmu_sync_pgd(kctx->kbdev->dev,
-				kbase_dma_addr(p), PAGE_SIZE);
+		kbase_mmu_sync_pgd(kctx->kbdev, kbase_dma_addr(p), PAGE_SIZE);
 		/* Rely on the caller to update the address space flags. */
 	}
 
@@ -404,7 +408,7 @@ static phys_addr_t mmu_get_bottom_pgd(struct kbase_context *kctx, u64 vpfn)
 
 	pgd = kctx->pgd;
 
-	for (l = MIDGARD_MMU_TOPLEVEL; l < 3; l++) {
+	for (l = MIDGARD_MMU_TOPLEVEL; l < MIDGARD_MMU_BOTTOMLEVEL; l++) {
 		pgd = mmu_get_next_pgd(kctx, pgd, vpfn, l);
 		/* Handle failure condition */
 		if (!pgd) {
@@ -451,7 +455,7 @@ static phys_addr_t mmu_insert_pages_recover_get_bottom_pgd(struct kbase_context 
 
 	pgd = kctx->pgd;
 
-	for (l = MIDGARD_MMU_TOPLEVEL; l < 3; l++) {
+	for (l = MIDGARD_MMU_TOPLEVEL; l < MIDGARD_MMU_BOTTOMLEVEL; l++) {
 		pgd = mmu_insert_pages_recover_get_next_pgd(kctx, pgd, vpfn, l);
 		/* Should never fail */
 		KBASE_DEBUG_ASSERT(0 != pgd);
@@ -500,9 +504,7 @@ static void mmu_insert_pages_failure_recovery(struct kbase_context *kctx, u64 vp
 		vpfn += count;
 		nr -= count;
 
-		kbase_mmu_sync_pgd(kctx->kbdev->dev,
-					   kbase_dma_addr(p),
-					   PAGE_SIZE);
+		kbase_mmu_sync_pgd(kctx->kbdev, kbase_dma_addr(p), PAGE_SIZE);
 
 		kunmap_atomic(pgd_page);
 	}
@@ -584,10 +586,9 @@ int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
 		vpfn += count;
 		nr -= count;
 
-		kbase_mmu_sync_pgd(kctx->kbdev->dev,
-					   kbase_dma_addr(p) +
-					   (index * sizeof(u64)),
-					   count * sizeof(u64));
+		kbase_mmu_sync_pgd(kctx->kbdev,
+				kbase_dma_addr(p) + (index * sizeof(u64)),
+				count * sizeof(u64));
 
 		kunmap(p);
 		/* We have started modifying the page table.
@@ -676,10 +677,9 @@ int kbase_mmu_insert_pages(struct kbase_context *kctx, u64 vpfn,
 		vpfn += count;
 		nr -= count;
 
-		kbase_mmu_sync_pgd(kctx->kbdev->dev,
-					   kbase_dma_addr(p) +
-					   (index * sizeof(u64)),
-					   count * sizeof(u64));
+		kbase_mmu_sync_pgd(kctx->kbdev,
+				kbase_dma_addr(p) + (index * sizeof(u64)),
+				count * sizeof(u64));
 
 		kunmap(p);
 		/* We have started modifying the page table. If further pages
@@ -824,10 +824,9 @@ int kbase_mmu_teardown_pages(struct kbase_context *kctx, u64 vpfn, size_t nr)
 		vpfn += count;
 		nr -= count;
 
-		kbase_mmu_sync_pgd(kctx->kbdev->dev,
-					   kbase_dma_addr(p) +
-					   (index * sizeof(u64)),
-					   count * sizeof(u64));
+		kbase_mmu_sync_pgd(kctx->kbdev,
+				kbase_dma_addr(p) + (index * sizeof(u64)),
+				count * sizeof(u64));
 
 		kunmap(p);
 	}
@@ -898,10 +897,9 @@ int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn, phys_addr_t *ph
 		vpfn += count;
 		nr -= count;
 
-		kbase_mmu_sync_pgd(kctx->kbdev->dev,
-					   kbase_dma_addr(p) +
-					   (index * sizeof(u64)),
-					   count * sizeof(u64));
+		kbase_mmu_sync_pgd(kctx->kbdev,
+				kbase_dma_addr(p) + (index * sizeof(u64)),
+				count * sizeof(u64));
 
 		kunmap(pfn_to_page(PFN_DOWN(pgd)));
 	}
@@ -952,7 +950,7 @@ static void mmu_teardown_level(struct kbase_context *kctx, phys_addr_t pgd, int 
 		target_pgd = mmu_mode->pte_to_phy_addr(pgd_page[i]);
 
 		if (target_pgd) {
-			if (level < 2) {
+			if (level < (MIDGARD_MMU_BOTTOMLEVEL - 1)) {
 				mmu_teardown_level(kctx, target_pgd, level + 1, zap, pgd_page_buffer + (PAGE_SIZE / sizeof(u64)));
 			} else {
 				/*
@@ -1001,6 +999,8 @@ void kbase_mmu_term(struct kbase_context *kctx)
 
 void kbase_mmu_free_pgd(struct kbase_context *kctx)
 {
+	int new_page_count __maybe_unused;
+
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	KBASE_DEBUG_ASSERT(NULL != kctx->mmu_teardown_pages);
 
@@ -1011,8 +1011,14 @@ void kbase_mmu_free_pgd(struct kbase_context *kctx)
 	beenthere(kctx, "pgd %lx", (unsigned long)kctx->pgd);
 	kbase_mem_pool_free(&kctx->mem_pool, phys_to_page(kctx->pgd), true);
 	kbase_process_page_usage_dec(kctx, 1);
-	kbase_atomic_sub_pages(1, &kctx->used_pages);
+	new_page_count = kbase_atomic_sub_pages(1, &kctx->used_pages);
 	kbase_atomic_sub_pages(1, &kctx->kbdev->memdev.used_pages);
+
+#if defined(CONFIG_MALI_MIPE_ENABLED)
+	kbase_tlstream_aux_pagesalloc(
+			(u32)kctx->id,
+			(u64)new_page_count);
+#endif
 }
 
 KBASE_EXPORT_TEST_API(kbase_mmu_free_pgd);
@@ -1052,16 +1058,21 @@ static size_t kbasep_mmu_dump_level(struct kbase_context *kctx, phys_addr_t pgd,
 		*size_left -= size;
 	}
 
-	for (i = 0; i < KBASE_MMU_PAGE_ENTRIES; i++) {
-		if (mmu_mode->pte_is_valid(pgd_page[i])) {
-			target_pgd = mmu_mode->pte_to_phy_addr(pgd_page[i]);
+	if (level < MIDGARD_MMU_BOTTOMLEVEL) {
+		for (i = 0; i < KBASE_MMU_PAGE_ENTRIES; i++) {
+			if (mmu_mode->pte_is_valid(pgd_page[i])) {
+				target_pgd = mmu_mode->pte_to_phy_addr(
+						pgd_page[i]);
 
-			dump_size = kbasep_mmu_dump_level(kctx, target_pgd, level + 1, buffer, size_left);
-			if (!dump_size) {
-				kunmap(pfn_to_page(PFN_DOWN(pgd)));
-				return 0;
+				dump_size = kbasep_mmu_dump_level(kctx,
+						target_pgd, level + 1,
+						buffer, size_left);
+				if (!dump_size) {
+					kunmap(pfn_to_page(PFN_DOWN(pgd)));
+					return 0;
+				}
+				size += dump_size;
 			}
-			size += dump_size;
 		}
 	}
 

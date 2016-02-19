@@ -32,7 +32,6 @@
 
 static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 {
-	ssize_t ret = 0;
 	struct list_head *entry;
 	const struct list_head *kbdev_list;
 
@@ -58,7 +57,7 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 		mutex_unlock(&kbdev->kctx_list_lock);
 	}
 	kbase_dev_list_put(kbdev_list);
-	return ret;
+	return 0;
 }
 
 /*
