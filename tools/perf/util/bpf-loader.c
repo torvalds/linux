@@ -108,8 +108,8 @@ void bpf__clear(void)
 }
 
 static void
-bpf_prog_priv__clear(struct bpf_program *prog __maybe_unused,
-		     void *_priv)
+clear_prog_priv(struct bpf_program *prog __maybe_unused,
+		void *_priv)
 {
 	struct bpf_prog_priv *priv = _priv;
 
@@ -337,7 +337,7 @@ config_bpf_program(struct bpf_program *prog)
 	}
 	pr_debug("bpf: config '%s' is ok\n", config_str);
 
-	err = bpf_program__set_private(prog, priv, bpf_prog_priv__clear);
+	err = bpf_program__set_private(prog, priv, clear_prog_priv);
 	if (err) {
 		pr_debug("Failed to set priv for program '%s'\n", config_str);
 		goto errout;
