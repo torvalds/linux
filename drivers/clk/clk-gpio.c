@@ -212,7 +212,7 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 
 	num_parents = of_clk_get_parent_count(node);
 	if (num_parents < 0)
-		return -EINVAL;
+		num_parents = 0;
 
 	if (num_parents) {
 		parent_names = devm_kcalloc(&pdev->dev, num_parents,
