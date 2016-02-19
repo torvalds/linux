@@ -348,7 +348,7 @@ static const struct of_device_id mbox_test_match[] = {
 
 static struct platform_driver mbox_test_driver = {
 	.driver = {
-		.name = "mailbox_sti_test",
+		.name = "mailbox_test",
 		.of_match_table = mbox_test_match,
 	},
 	.probe  = mbox_test_probe,
