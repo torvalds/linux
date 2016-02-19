@@ -354,24 +354,6 @@ enum pwrap_type {
 	PWRAP_MT8173,
 };
 
-struct pmic_wrapper_type {
-	int *regs;
-	enum pwrap_type type;
-	u32 arb_en_all;
-};
-
-static struct pmic_wrapper_type pwrap_mt8135 = {
-	.regs = mt8135_regs,
-	.type = PWRAP_MT8135,
-	.arb_en_all = 0x1ff,
-};
-
-static struct pmic_wrapper_type pwrap_mt8173 = {
-	.regs = mt8173_regs,
-	.type = PWRAP_MT8173,
-	.arb_en_all = 0x3f,
-};
-
 struct pmic_wrapper {
 	struct device *dev;
 	void __iomem *base;
@@ -383,6 +365,13 @@ struct pmic_wrapper {
 
 	struct reset_control *rstc_bridge;
 	void __iomem *bridge_base;
+};
+
+struct pmic_wrapper_type {
+	int *regs;
+	enum pwrap_type type;
+	u32 arb_en_all;
+	int (*init_reg_clock)(struct pmic_wrapper *wrp);
 };
 
 static inline int pwrap_is_mt8135(struct pmic_wrapper *wrp)
@@ -578,20 +567,23 @@ static int pwrap_init_sidly(struct pmic_wrapper *wrp)
 	return 0;
 }
 
-static int pwrap_init_reg_clock(struct pmic_wrapper *wrp)
+static int pwrap_mt8135_init_reg_clock(struct pmic_wrapper *wrp)
 {
-	if (pwrap_is_mt8135(wrp)) {
-		pwrap_writel(wrp, 0x4, PWRAP_CSHEXT);
-		pwrap_writel(wrp, 0x0, PWRAP_CSHEXT_WRITE);
-		pwrap_writel(wrp, 0x4, PWRAP_CSHEXT_READ);
-		pwrap_writel(wrp, 0x0, PWRAP_CSLEXT_START);
-		pwrap_writel(wrp, 0x0, PWRAP_CSLEXT_END);
-	} else {
-		pwrap_writel(wrp, 0x0, PWRAP_CSHEXT_WRITE);
-		pwrap_writel(wrp, 0x4, PWRAP_CSHEXT_READ);
-		pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_START);
-		pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_END);
-	}
+	pwrap_writel(wrp, 0x4, PWRAP_CSHEXT);
+	pwrap_writel(wrp, 0x0, PWRAP_CSHEXT_WRITE);
+	pwrap_writel(wrp, 0x4, PWRAP_CSHEXT_READ);
+	pwrap_writel(wrp, 0x0, PWRAP_CSLEXT_START);
+	pwrap_writel(wrp, 0x0, PWRAP_CSLEXT_END);
+
+	return 0;
+}
+
+static int pwrap_mt8173_init_reg_clock(struct pmic_wrapper *wrp)
+{
+	pwrap_writel(wrp, 0x0, PWRAP_CSHEXT_WRITE);
+	pwrap_writel(wrp, 0x4, PWRAP_CSHEXT_READ);
+	pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_START);
+	pwrap_writel(wrp, 0x2, PWRAP_CSLEXT_END);
 
 	return 0;
 }
@@ -699,7 +691,7 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 
 	pwrap_writel(wrp, 1, PWRAP_WACS2_EN);
 
-	ret = pwrap_init_reg_clock(wrp);
+	ret = wrp->master->init_reg_clock(wrp);
 	if (ret)
 		return ret;
 
@@ -812,6 +804,20 @@ static const struct regmap_config pwrap_regmap_config = {
 	.reg_read = pwrap_regmap_read,
 	.reg_write = pwrap_regmap_write,
 	.max_register = 0xffff,
+};
+
+static struct pmic_wrapper_type pwrap_mt8135 = {
+	.regs = mt8135_regs,
+	.type = PWRAP_MT8135,
+	.arb_en_all = 0x1ff,
+	.init_reg_clock = pwrap_mt8135_init_reg_clock,
+};
+
+static struct pmic_wrapper_type pwrap_mt8173 = {
+	.regs = mt8173_regs,
+	.type = PWRAP_MT8173,
+	.arb_en_all = 0x3f,
+	.init_reg_clock = pwrap_mt8173_init_reg_clock,
 };
 
 static struct of_device_id of_pwrap_match_tbl[] = {
