@@ -1888,13 +1888,27 @@ out:
 	return ret;
 }
 
+static int ethtool_set_per_queue(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_per_queue_op per_queue_opt;
+
+	if (copy_from_user(&per_queue_opt, useraddr, sizeof(per_queue_opt)))
+		return -EFAULT;
+
+	switch (per_queue_opt.sub_command) {
+
+	default:
+		return -EOPNOTSUPP;
+	};
+}
+
 /* The main entry point in this file.  Called from net/core/dev_ioctl.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
 {
 	struct net_device *dev = __dev_get_by_name(net, ifr->ifr_name);
 	void __user *useraddr = ifr->ifr_data;
-	u32 ethcmd;
+	u32 ethcmd, sub_cmd;
 	int rc;
 	netdev_features_t old_features;
 
@@ -1904,8 +1918,14 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
 		return -EFAULT;
 
+	if (ethcmd == ETHTOOL_PERQUEUE) {
+		if (copy_from_user(&sub_cmd, useraddr + sizeof(ethcmd), sizeof(sub_cmd)))
+			return -EFAULT;
+	} else {
+		sub_cmd = ethcmd;
+	}
 	/* Allow some commands to be done by anyone */
-	switch (ethcmd) {
+	switch (sub_cmd) {
 	case ETHTOOL_GSET:
 	case ETHTOOL_GDRVINFO:
 	case ETHTOOL_GMSGLVL:
@@ -2134,6 +2154,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GPHYSTATS:
 		rc = ethtool_get_phy_stats(dev, useraddr);
+		break;
+	case ETHTOOL_PERQUEUE:
+		rc = ethtool_set_per_queue(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
