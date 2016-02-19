@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2015 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,21 +19,24 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
-#ifndef __AMDGPU_UVD_H__
-#define __AMDGPU_UVD_H__
+#ifndef __AMDGPU_ACP_H__
+#define __AMDGPU_ACP_H__
 
-int amdgpu_uvd_sw_init(struct amdgpu_device *adev);
-int amdgpu_uvd_sw_fini(struct amdgpu_device *adev);
-int amdgpu_uvd_suspend(struct amdgpu_device *adev);
-int amdgpu_uvd_resume(struct amdgpu_device *adev);
-int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct fence **fence);
-int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       bool direct, struct fence **fence);
-void amdgpu_uvd_free_handles(struct amdgpu_device *adev,
-			     struct drm_file *filp);
-int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx);
+#include <linux/mfd/core.h>
 
-#endif
+struct amdgpu_acp {
+	struct device *parent;
+	void *cgs_device;
+	struct amd_acp_private *private;
+	struct mfd_cell *acp_cell;
+	struct resource *acp_res;
+	struct acp_pm_domain *acp_genpd;
+};
+
+extern const struct amd_ip_funcs acp_ip_funcs;
+
+#endif /* __AMDGPU_ACP_H__ */

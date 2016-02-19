@@ -2582,7 +2582,6 @@ static void dce_v8_0_crtc_destroy(struct drm_crtc *crtc)
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 
 	drm_crtc_cleanup(crtc);
-	destroy_workqueue(amdgpu_crtc->pflip_queue);
 	kfree(amdgpu_crtc);
 }
 
@@ -2809,7 +2808,6 @@ static int dce_v8_0_crtc_init(struct amdgpu_device *adev, int index)
 
 	drm_mode_crtc_set_gamma_size(&amdgpu_crtc->base, 256);
 	amdgpu_crtc->crtc_id = index;
-	amdgpu_crtc->pflip_queue = create_singlethread_workqueue("amdgpu-pageflip-queue");
 	adev->mode_info.crtcs[index] = amdgpu_crtc;
 
 	amdgpu_crtc->max_cursor_width = CIK_CURSOR_WIDTH;
@@ -3375,7 +3373,7 @@ static int dce_v8_0_pageflip_irq(struct amdgpu_device *adev,
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
 	drm_vblank_put(adev->ddev, amdgpu_crtc->crtc_id);
-	queue_work(amdgpu_crtc->pflip_queue, &works->unpin_work);
+	schedule_work(&works->unpin_work);
 
 	return 0;
 }

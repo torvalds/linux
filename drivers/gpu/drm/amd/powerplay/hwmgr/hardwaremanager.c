@@ -26,7 +26,7 @@
 #include "power_state.h"
 #include "pp_acpi.h"
 #include "amd_acpi.h"
-#include "amd_powerplay.h"
+#include "pp_debug.h"
 
 #define PHM_FUNC_CHECK(hw) \
 	do {							\
@@ -313,13 +313,12 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 }
 
 int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct amd_pp_dal_clock_info *info)
+		struct amd_pp_simple_clock_info *info)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (info == NULL || hwmgr->hwmgr_func->get_dal_power_level == NULL)
 		return -EINVAL;
-
 	return hwmgr->hwmgr_func->get_dal_power_level(hwmgr, info);
 }
 
@@ -331,4 +330,92 @@ int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 		return hwmgr->hwmgr_func->set_cpu_power_state(hwmgr);
 
 	return 0;
+}
+
+
+int phm_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
+				PHM_PerformanceLevelDesignation designation, uint32_t index,
+				PHM_PerformanceLevel *level)
+{
+	PHM_FUNC_CHECK(hwmgr);
+	if (hwmgr->hwmgr_func->get_performance_level == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_performance_level(hwmgr, state, designation, index, level);
+
+
+}
+
+
+/**
+* Gets Clock Info.
+*
+* @param    pHwMgr  the address of the powerplay hardware manager.
+* @param    pPowerState the address of the Power State structure.
+* @param    pClockInfo the address of PP_ClockInfo structure where the result will be returned.
+* @exception PP_Result_Failed if any of the paramters is NULL, otherwise the return value from the back-end.
+*/
+int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state, struct pp_clock_info *pclock_info,
+			PHM_PerformanceLevelDesignation designation)
+{
+	int result;
+	PHM_PerformanceLevel performance_level;
+
+	PHM_FUNC_CHECK(hwmgr);
+
+	PP_ASSERT_WITH_CODE((NULL != state), "Invalid Input!", return -EINVAL);
+	PP_ASSERT_WITH_CODE((NULL != pclock_info), "Invalid Input!", return -EINVAL);
+
+	result = phm_get_performance_level(hwmgr, state, PHM_PerformanceLevelDesignation_Activity, 0, &performance_level);
+
+	PP_ASSERT_WITH_CODE((0 == result), "Failed to retrieve minimum clocks.", return result);
+
+
+	pclock_info->min_mem_clk = performance_level.memory_clock;
+	pclock_info->min_eng_clk = performance_level.coreClock;
+	pclock_info->min_bus_bandwidth = performance_level.nonLocalMemoryFreq * performance_level.nonLocalMemoryWidth;
+
+
+	result = phm_get_performance_level(hwmgr, state, designation,
+					(hwmgr->platform_descriptor.hardwareActivityPerformanceLevels - 1), &performance_level);
+
+	PP_ASSERT_WITH_CODE((0 == result), "Failed to retrieve maximum clocks.", return result);
+
+	pclock_info->max_mem_clk = performance_level.memory_clock;
+	pclock_info->max_eng_clk = performance_level.coreClock;
+	pclock_info->max_bus_bandwidth = performance_level.nonLocalMemoryFreq * performance_level.nonLocalMemoryWidth;
+
+	return 0;
+}
+
+int phm_get_current_shallow_sleep_clocks(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state, struct pp_clock_info *clock_info)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_current_shallow_sleep_clocks == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_current_shallow_sleep_clocks(hwmgr, state, clock_info);
+
+}
+
+int phm_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_clock_by_type == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_clock_by_type(hwmgr, type, clocks);
+
+}
+
+int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_max_high_clocks == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_max_high_clocks(hwmgr, clocks);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2015 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,19 +21,30 @@
  *
  */
 
-#ifndef __AMDGPU_UVD_H__
-#define __AMDGPU_UVD_H__
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/device.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
 
-int amdgpu_uvd_sw_init(struct amdgpu_device *adev);
-int amdgpu_uvd_sw_fini(struct amdgpu_device *adev);
-int amdgpu_uvd_suspend(struct amdgpu_device *adev);
-int amdgpu_uvd_resume(struct amdgpu_device *adev);
-int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct fence **fence);
-int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       bool direct, struct fence **fence);
-void amdgpu_uvd_free_handles(struct amdgpu_device *adev,
-			     struct drm_file *filp);
-int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx);
+#include "acp_gfx_if.h"
 
-#endif
+#define ACP_MODE_I2S	0
+#define ACP_MODE_AZ	1
+
+#define mmACP_AZALIA_I2S_SELECT 0x51d4
+
+int amd_acp_hw_init(void *cgs_device,
+		    unsigned acp_version_major, unsigned acp_version_minor)
+{
+	unsigned int acp_mode = ACP_MODE_I2S;
+
+	if ((acp_version_major == 2) && (acp_version_minor == 2))
+		acp_mode = cgs_read_register(cgs_device,
+					mmACP_AZALIA_I2S_SELECT);
+
+	if (acp_mode != ACP_MODE_I2S)
+		return -ENODEV;
+
+	return 0;
+}

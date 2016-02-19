@@ -293,7 +293,7 @@ fInt GetScaledFraction(int X, int factor)
 	}
 
 	if (factor == 1)
-	return (ConvertToFraction(X));
+		return ConvertToFraction(X);
 
 	fValue = fDivide(ConvertToFraction(X * uPow(-1, bNEGATED)), ConvertToFraction(factor));
 
@@ -371,7 +371,7 @@ fInt fDivide (fInt X, fInt Y)
 	fZERO = ConvertToFraction(0);
 
 	if (Equal(Y, fZERO))
-	return fZERO;
+		return fZERO;
 
 	longlongX = (int64_t)X.full;
 	longlongY = (int64_t)Y.full;

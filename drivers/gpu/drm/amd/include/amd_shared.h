@@ -73,6 +73,7 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_SDMA,
 	AMD_IP_BLOCK_TYPE_UVD,
 	AMD_IP_BLOCK_TYPE_VCE,
+	AMD_IP_BLOCK_TYPE_ACP,
 };
 
 enum amd_clockgating_state {

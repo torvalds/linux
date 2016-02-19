@@ -694,7 +694,8 @@ static int gmc_v7_0_vm_init(struct amdgpu_device *adev)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.nvm = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.num_ids = AMDGPU_NUM_OF_VMIDS;
+	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */
 	if (adev->flags & AMD_IS_APU) {
@@ -926,10 +927,6 @@ static int gmc_v7_0_sw_init(void *handle)
 	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_gem_init(adev);
-	if (r)
-		return r;
-
 	r = amdgpu_irq_add_id(adev, 146, &adev->mc.vm_fault);
 	if (r)
 		return r;
@@ -1010,7 +1007,7 @@ static int gmc_v7_0_sw_fini(void *handle)
 		adev->vm_manager.enabled = false;
 	}
 	gmc_v7_0_gart_fini(adev);
-	amdgpu_gem_fini(adev);
+	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
 
 	return 0;
