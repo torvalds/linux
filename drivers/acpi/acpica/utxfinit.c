@@ -163,11 +163,13 @@ acpi_status __init acpi_enable_subsystem(u32 flags)
 	 * installed before any AML code can be executed, especially any
 	 * module-level code (11/2015).
 	 */
-	status = acpi_ev_install_region_handlers();
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"During Region initialization"));
-		return_ACPI_STATUS(status);
+	if (!acpi_gbl_group_module_level_code) {
+		status = acpi_ev_install_region_handlers();
+		if (ACPI_FAILURE(status)) {
+			ACPI_EXCEPTION((AE_INFO, status,
+					"During Region initialization"));
+			return_ACPI_STATUS(status);
+		}
 	}
 #if (!ACPI_REDUCED_HARDWARE)
 

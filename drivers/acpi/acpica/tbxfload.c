@@ -47,6 +47,7 @@
 #include "accommon.h"
 #include "acnamesp.h"
 #include "actables.h"
+#include "acevents.h"
 
 #define _COMPONENT          ACPI_TABLES
 ACPI_MODULE_NAME("tbxfload")
@@ -67,6 +68,27 @@ acpi_status __init acpi_load_tables(void)
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_load_tables);
+
+	/*
+	 * Install the default operation region handlers. These are the
+	 * handlers that are defined by the ACPI specification to be
+	 * "always accessible" -- namely, system_memory, system_IO, and
+	 * PCI_Config. This also means that no _REG methods need to be
+	 * run for these address spaces. We need to have these handlers
+	 * installed before any AML code can be executed, especially any
+	 * module-level code (11/2015).
+	 * Note that we allow OSPMs to install their own region handlers
+	 * between acpi_initialize_subsystem() and acpi_load_tables() to use
+	 * their customized default region handlers.
+	 */
+	if (acpi_gbl_group_module_level_code) {
+		status = acpi_ev_install_region_handlers();
+		if (ACPI_FAILURE(status) && status != AE_ALREADY_EXISTS) {
+			ACPI_EXCEPTION((AE_INFO, status,
+					"During Region initialization"));
+			return_ACPI_STATUS(status);
+		}
+	}
 
 	/* Load the namespace from the tables */
 
