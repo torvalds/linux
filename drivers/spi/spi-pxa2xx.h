@@ -69,8 +69,6 @@ struct driver_data {
 	void *rx;
 	void *rx_end;
 	int dma_mapped;
-	dma_addr_t rx_dma;
-	dma_addr_t tx_dma;
 	size_t rx_map_len;
 	size_t tx_map_len;
 	u8 n_bytes;
