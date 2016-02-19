@@ -3099,9 +3099,9 @@ Your cooperation is appreciated.
 		129 = /dev/ipath_sma    Device used by Subnet Management Agent
 		130 = /dev/ipath_diag   Device used by diagnostics programs
 
-234-239		UNASSIGNED
-
-240-254 char	LOCAL/EXPERIMENTAL USE
+234-254	char	RESERVED FOR DYNAMIC ASSIGNMENT
+		Character devices that request a dynamic allocation of major number will
+		take numbers starting from 254 and downward.
 
 240-254 block	LOCAL/EXPERIMENTAL USE
 		Allocated for local/experimental use.  For devices not
