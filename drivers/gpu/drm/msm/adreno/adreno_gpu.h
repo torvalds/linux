@@ -228,6 +228,11 @@ static inline int adreno_is_a420(struct adreno_gpu *gpu)
 	return gpu->revn == 420;
 }
 
+static inline int adreno_is_a430(struct adreno_gpu *gpu)
+{
+       return gpu->revn == 430;
+}
+
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 int adreno_hw_init(struct msm_gpu *gpu);
 uint32_t adreno_last_fence(struct msm_gpu *gpu);

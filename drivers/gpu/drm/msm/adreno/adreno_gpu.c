@@ -140,7 +140,8 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			if (priv->lastctx == ctx)
 				break;
 		case MSM_SUBMIT_CMD_BUF:
-			OUT_PKT3(ring, CP_INDIRECT_BUFFER_PFD, 2);
+			OUT_PKT3(ring, adreno_is_a430(adreno_gpu) ?
+				CP_INDIRECT_BUFFER_PFE : CP_INDIRECT_BUFFER_PFD, 2);
 			OUT_RING(ring, submit->cmd[i].iova);
 			OUT_RING(ring, submit->cmd[i].size);
 			ibs++;
