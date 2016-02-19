@@ -2083,7 +2083,7 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
     
     ts->tp.tp_resume = goodix_ts_early_resume;
     ts->tp.tp_suspend = goodix_ts_early_suspend;
-/*    tp_register_fb(&ts->tp); */
+    tp_register_fb(&ts->tp);
 
 #if GTP_WITH_PEN
     gtp_pen_init(ts);
@@ -2748,11 +2748,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 probe_init_error:
     printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);    
-    /* tp_unregister_fb(&ts->tp); */
+    tp_unregister_fb(&ts->tp);
     GTP_GPIO_FREE(ts->rst_pin);
     GTP_GPIO_FREE(ts->irq_pin);
 probe_init_error_requireio:
-    /* tp_unregister_fb(&ts->tp); */
+    tp_unregister_fb(&ts->tp); 
     kfree(ts);
     return ret;
 }
@@ -2770,7 +2770,7 @@ static int goodix_ts_remove(struct i2c_client *client)
 {
     struct goodix_ts_data *ts = i2c_get_clientdata(client);
     
-    /* tp_unregister_fb(&ts->tp); */
+    tp_unregister_fb(&ts->tp);
 
     GTP_DEBUG_FUNC();
 
