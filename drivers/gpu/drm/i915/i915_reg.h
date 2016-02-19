@@ -7568,6 +7568,7 @@ enum skl_disp_power_wells {
 #define  DC_STATE_EN_UPTO_DC5_DC6_MASK   0x3
 
 #define  DC_STATE_DEBUG                  _MMIO(0x45520)
+#define  DC_STATE_DEBUG_MASK_CORES	(1<<0)
 #define  DC_STATE_DEBUG_MASK_MEMORY_UP	(1<<1)
 
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,

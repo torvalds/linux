@@ -456,15 +456,19 @@ static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
 	  */
 }
 
-static void gen9_set_dc_state_debugmask_memory_up(
-			struct drm_i915_private *dev_priv)
+static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 {
-	uint32_t val;
+	uint32_t val, mask;
+
+	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
+
+	if (IS_BROXTON(dev_priv))
+		mask |= DC_STATE_DEBUG_MASK_CORES;
 
 	/* The below bit doesn't need to be cleared ever afterwards */
 	val = I915_READ(DC_STATE_DEBUG);
-	if (!(val & DC_STATE_DEBUG_MASK_MEMORY_UP)) {
-		val |= DC_STATE_DEBUG_MASK_MEMORY_UP;
+	if ((val & mask) != mask) {
+		val |= mask;
 		I915_WRITE(DC_STATE_DEBUG, val);
 		POSTING_READ(DC_STATE_DEBUG);
 	}
@@ -526,7 +530,7 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 		state = DC_STATE_EN_UPTO_DC5;
 
 	if (state & DC_STATE_EN_UPTO_DC5_DC6_MASK)
-		gen9_set_dc_state_debugmask_memory_up(dev_priv);
+		gen9_set_dc_state_debugmask(dev_priv);
 
 	val = I915_READ(DC_STATE_EN);
 	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
