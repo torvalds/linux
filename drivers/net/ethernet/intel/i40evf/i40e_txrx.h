@@ -146,10 +146,39 @@ enum i40e_dyn_idx_t {
 
 #define I40E_MAX_BUFFER_TXD	8
 #define I40E_MIN_TX_LEN		17
-#define I40E_MAX_DATA_PER_TXD	8192
+
+/* The size limit for a transmit buffer in a descriptor is (16K - 1).
+ * In order to align with the read requests we will align the value to
+ * the nearest 4K which represents our maximum read request size.
+ */
+#define I40E_MAX_READ_REQ_SIZE		4096
+#define I40E_MAX_DATA_PER_TXD		(16 * 1024 - 1)
+#define I40E_MAX_DATA_PER_TXD_ALIGNED \
+	(I40E_MAX_DATA_PER_TXD & ~(I40E_MAX_READ_REQ_SIZE - 1))
+
+/* This ugly bit of math is equivalent to DIV_ROUNDUP(size, X) where X is
+ * the value I40E_MAX_DATA_PER_TXD_ALIGNED.  It is needed due to the fact
+ * that 12K is not a power of 2 and division is expensive.  It is used to
+ * approximate the number of descriptors used per linear buffer.  Note
+ * that this will overestimate in some cases as it doesn't account for the
+ * fact that we will add up to 4K - 1 in aligning the 12K buffer, however
+ * the error should not impact things much as large buffers usually mean
+ * we will use fewer descriptors then there are frags in an skb.
+ */
+static inline unsigned int i40e_txd_use_count(unsigned int size)
+{
+	const unsigned int max = I40E_MAX_DATA_PER_TXD_ALIGNED;
+	const unsigned int reciprocal = ((1ull << 32) - 1 + (max / 2)) / max;
+	unsigned int adjust = ~(u32)0;
+
+	/* if we rounded up on the reciprocal pull down the adjustment */
+	if ((max * reciprocal) > adjust)
+		adjust = ~(u32)(reciprocal - 1);
+
+	return (u32)((((u64)size * reciprocal) + adjust) >> 32);
+}
 
 /* Tx Descriptors needed, worst case */
-#define TXD_USE_COUNT(S) DIV_ROUND_UP((S), I40E_MAX_DATA_PER_TXD)
 #define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 #define I40E_MIN_DESC_PENDING	4
 
@@ -359,7 +388,7 @@ static inline int i40e_xmit_descriptor_count(struct sk_buff *skb)
 	int count = 0, size = skb_headlen(skb);
 
 	for (;;) {
-		count += TXD_USE_COUNT(size);
+		count += i40e_txd_use_count(size);
 
 		if (!nr_frags--)
 			break;

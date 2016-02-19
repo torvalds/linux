@@ -1371,7 +1371,7 @@ static netdev_tx_t i40e_fcoe_xmit_frame(struct sk_buff *skb,
 	if (i40e_chk_linearize(skb, count)) {
 		if (__skb_linearize(skb))
 			goto out_drop;
-		count = TXD_USE_COUNT(skb->len);
+		count = i40e_txd_use_count(skb->len);
 		tx_ring->tx_stats.tx_linearize++;
 	}
 

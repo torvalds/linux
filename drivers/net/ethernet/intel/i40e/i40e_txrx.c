@@ -2717,6 +2717,8 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	tx_bi = first;
 
 	for (frag = &skb_shinfo(skb)->frags[0];; frag++) {
+		unsigned int max_data = I40E_MAX_DATA_PER_TXD_ALIGNED;
+
 		if (dma_mapping_error(tx_ring->dev, dma))
 			goto dma_error;
 
@@ -2724,12 +2726,14 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		dma_unmap_len_set(tx_bi, len, size);
 		dma_unmap_addr_set(tx_bi, dma, dma);
 
+		/* align size to end of page */
+		max_data += -dma & (I40E_MAX_READ_REQ_SIZE - 1);
 		tx_desc->buffer_addr = cpu_to_le64(dma);
 
 		while (unlikely(size > I40E_MAX_DATA_PER_TXD)) {
 			tx_desc->cmd_type_offset_bsz =
 				build_ctob(td_cmd, td_offset,
-					   I40E_MAX_DATA_PER_TXD, td_tag);
+					   max_data, td_tag);
 
 			tx_desc++;
 			i++;
@@ -2740,9 +2744,10 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 				i = 0;
 			}
 
-			dma += I40E_MAX_DATA_PER_TXD;
-			size -= I40E_MAX_DATA_PER_TXD;
+			dma += max_data;
+			size -= max_data;
 
+			max_data = I40E_MAX_DATA_PER_TXD_ALIGNED;
 			tx_desc->buffer_addr = cpu_to_le64(dma);
 		}
 
@@ -2892,7 +2897,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	if (i40e_chk_linearize(skb, count)) {
 		if (__skb_linearize(skb))
 			goto out_drop;
-		count = TXD_USE_COUNT(skb->len);
+		count = i40e_txd_use_count(skb->len);
 		tx_ring->tx_stats.tx_linearize++;
 	}
 
