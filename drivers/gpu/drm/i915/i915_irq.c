@@ -3366,6 +3366,22 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
+void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
+				     unsigned int pipe_mask)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (pipe_mask & 1 << PIPE_A)
+		GEN8_IRQ_RESET_NDX(DE_PIPE, PIPE_A);
+	if (pipe_mask & 1 << PIPE_B)
+		GEN8_IRQ_RESET_NDX(DE_PIPE, PIPE_B);
+	if (pipe_mask & 1 << PIPE_C)
+		GEN8_IRQ_RESET_NDX(DE_PIPE, PIPE_C);
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	/* make sure we're done processing display irqs */
+	synchronize_irq(dev_priv->dev->irq);
+}
+
 static void cherryview_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
