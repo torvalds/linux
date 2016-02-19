@@ -6,6 +6,10 @@
 #include "ddk750_chip.h"
 #include "ddk750_power.h"
 
+/* n / d + 1 / 2 = (2n + d) / 2d */
+#define roundedDiv(num, denom)	((2 * (num) + (denom)) / (2 * (denom)))
+#define MHz(x) ((x) * 1000000)
+
 logical_chip_type_t getChipType(void)
 {
 	unsigned short physicalID;
