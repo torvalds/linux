@@ -1123,24 +1123,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 
 	async = s->async;
 
-	if (!async) {
-		dev_dbg(dev->class_dev,
-			"subdevice does not have async capability\n");
-		bi.buf_write_ptr = 0;
-		bi.buf_read_ptr = 0;
-		bi.buf_write_count = 0;
-		bi.buf_read_count = 0;
-		bi.bytes_read = 0;
-		bi.bytes_written = 0;
-		goto copyback;
-	}
-	if (!s->busy) {
-		bi.bytes_read = 0;
-		bi.bytes_written = 0;
-		goto copyback_position;
-	}
-	if (s->busy != file)
-		return -EACCES;
+	if (!async || s->busy != file)
+		return -EINVAL;
 
 	if (!(async->cmd.flags & CMDF_WRITE)) {
 		/* command was set up in "read" direction */
@@ -1165,7 +1149,6 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		bi.bytes_read = 0;
 	}
 
-copyback_position:
 	bi.buf_write_count = async->buf_write_count;
 	bi.buf_write_ptr = async->buf_write_ptr;
 	bi.buf_read_count = async->buf_read_count;
@@ -1174,7 +1157,6 @@ copyback_position:
 	if (become_nonbusy)
 		do_become_nonbusy(dev, s);
 
-copyback:
 	if (copy_to_user(arg, &bi, sizeof(bi)))
 		return -EFAULT;
 
