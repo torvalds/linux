@@ -113,15 +113,15 @@ static ssize_t mbox_test_message_write(struct file *filp,
 	 * MMIO to subsequently pass the message through
 	 */
 	if (tdev->mmio && tdev->signal) {
-		print_hex_dump(KERN_INFO, "Client: Sending: Signal: ", DUMP_PREFIX_ADDRESS,
-			       MBOX_BYTES_PER_LINE, 1, tdev->signal, MBOX_MAX_SIG_LEN, true);
+		print_hex_dump_bytes("Client: Sending: Signal: ", DUMP_PREFIX_ADDRESS,
+				     tdev->signal, MBOX_MAX_SIG_LEN);
 
 		data = tdev->signal;
 	} else
 		data = tdev->message;
 
-	print_hex_dump(KERN_INFO, "Client: Sending: Message: ", DUMP_PREFIX_ADDRESS,
-		       MBOX_BYTES_PER_LINE, 1, tdev->message, MBOX_MAX_MSG_LEN, true);
+	print_hex_dump_bytes("Client: Sending: Message: ", DUMP_PREFIX_ADDRESS,
+			     tdev->message, MBOX_MAX_MSG_LEN);
 
 	ret = mbox_send_message(tdev->tx_channel, data);
 	if (ret < 0)
@@ -222,13 +222,11 @@ static void mbox_test_receive_message(struct mbox_client *client, void *message)
 	spin_lock_irqsave(&tdev->lock, flags);
 	if (tdev->mmio) {
 		memcpy_fromio(tdev->rx_buffer, tdev->mmio, MBOX_MAX_MSG_LEN);
-		print_hex_dump(KERN_INFO, "Client: Received [MMIO]: ",
-			       DUMP_PREFIX_ADDRESS, MBOX_BYTES_PER_LINE, 1,
-			       tdev->rx_buffer, MBOX_MAX_MSG_LEN, true);
+		print_hex_dump_bytes("Client: Received [MMIO]: ", DUMP_PREFIX_ADDRESS,
+				     tdev->rx_buffer, MBOX_MAX_MSG_LEN);
 	} else if (message) {
-		print_hex_dump(KERN_INFO, "Client: Received [API]: ",
-			       DUMP_PREFIX_ADDRESS, MBOX_BYTES_PER_LINE, 1,
-			       message, MBOX_MAX_MSG_LEN, true);
+		print_hex_dump_bytes("Client: Received [API]: ", DUMP_PREFIX_ADDRESS,
+				     message, MBOX_MAX_MSG_LEN);
 		memcpy(tdev->rx_buffer, message, MBOX_MAX_MSG_LEN);
 	}
 	spin_unlock_irqrestore(&tdev->lock, flags);
