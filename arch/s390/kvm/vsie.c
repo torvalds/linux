@@ -102,6 +102,26 @@ static int prepare_cpuflags(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	return 0;
 }
 
+/* shadow (round up/down) the ibc to avoid validity icpt */
+static void prepare_ibc(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+{
+	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
+	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
+	__u64 min_ibc = (sclp.ibc >> 16) & 0x0fffU;
+
+	scb_s->ibc = 0;
+	/* ibc installed in g2 and requested for g3 */
+	if (vcpu->kvm->arch.model.ibc && (scb_o->ibc & 0x0fffU)) {
+		scb_s->ibc = scb_o->ibc & 0x0fffU;
+		/* takte care of the minimum ibc level of the machine */
+		if (scb_s->ibc < min_ibc)
+			scb_s->ibc = min_ibc;
+		/* take care of the maximum ibc level set for the guest */
+		if (scb_s->ibc > vcpu->kvm->arch.model.ibc)
+			scb_s->ibc = vcpu->kvm->arch.model.ibc;
+	}
+}
+
 /* unshadow the scb, copying parameters back to the real scb */
 static void unshadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
@@ -214,6 +234,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	/* MVPG and Protection Exception Interpretation are always available */
 	scb_s->eca |= scb_o->eca & 0x01002000U;
 
+	prepare_ibc(vcpu, vsie_page);
 out:
 	if (rc)
 		unshadow_scb(vcpu, vsie_page);
