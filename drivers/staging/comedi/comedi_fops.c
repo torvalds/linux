@@ -1121,6 +1121,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	if (!async || s->busy != file)
 		return -EINVAL;
 
+	runflags = comedi_get_subdevice_runflags(s);
 	if (!(async->cmd.flags & CMDF_WRITE)) {
 		/* command was set up in "read" direction */
 		if (bi.bytes_read) {
@@ -1132,7 +1133,6 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		 * {"read" position not updated or command stopped normally},
 		 * then become non-busy.
 		 */
-		runflags = comedi_get_subdevice_runflags(s);
 		if (comedi_buf_read_n_available(s) == 0 &&
 		    !comedi_is_runflags_running(runflags) &&
 		    (bi.bytes_read == 0 ||
@@ -1144,9 +1144,12 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		bi.bytes_written = 0;
 	} else {
 		/* command was set up in "write" direction */
-		if (!comedi_is_subdevice_running(s))
+		if (!comedi_is_runflags_running(runflags)) {
 			bi.bytes_written = 0;
-		if (bi.bytes_written) {
+			become_nonbusy = true;
+			if (comedi_is_runflags_in_error(runflags))
+				retval = -EPIPE;
+		} else if (bi.bytes_written) {
 			comedi_buf_write_alloc(s, bi.bytes_written);
 			bi.bytes_written =
 			    comedi_buf_write_free(s, bi.bytes_written);
