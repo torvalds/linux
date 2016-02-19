@@ -3583,14 +3583,14 @@ static struct omap_hwmod_class_sysconfig omap34xx_ssi_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-static struct omap_hwmod_class omap34xx_ssi_hwmod_class = {
+static struct omap_hwmod_class omap3xxx_ssi_hwmod_class = {
 	.name	= "ssi",
 	.sysc	= &omap34xx_ssi_sysc,
 };
 
-static struct omap_hwmod omap34xx_ssi_hwmod = {
+static struct omap_hwmod omap3xxx_ssi_hwmod = {
 	.name		= "ssi",
-	.class		= &omap34xx_ssi_hwmod_class,
+	.class		= &omap3xxx_ssi_hwmod_class,
 	.clkdm_name	= "core_l4_clkdm",
 	.main_clk	= "ssi_ssr_fck",
 	.prcm		= {
@@ -3605,9 +3605,9 @@ static struct omap_hwmod omap34xx_ssi_hwmod = {
 };
 
 /* L4 CORE -> SSI */
-static struct omap_hwmod_ocp_if omap34xx_l4_core__ssi = {
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__ssi = {
 	.master		= &omap3xxx_l4_core_hwmod,
-	.slave		= &omap34xx_ssi_hwmod,
+	.slave		= &omap3xxx_ssi_hwmod,
 	.clk		= "ssi_ick",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
@@ -3760,7 +3760,7 @@ static struct omap_hwmod_ocp_if *omap34xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_sad2d__l3,
 	&omap3xxx_l4_core__mmu_isp,
 	&omap3xxx_l3_main__mmu_iva,
-	&omap34xx_l4_core__ssi,
+	&omap3xxx_l4_core__ssi,
 	NULL
 };
 
@@ -3784,6 +3784,7 @@ static struct omap_hwmod_ocp_if *omap36xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_sad2d__l3,
 	&omap3xxx_l4_core__mmu_isp,
 	&omap3xxx_l3_main__mmu_iva,
+	&omap3xxx_l4_core__ssi,
 	NULL
 };
 
