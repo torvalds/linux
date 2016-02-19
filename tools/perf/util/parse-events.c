@@ -841,10 +841,6 @@ void parse_events__shrink_config_terms(void)
 	config_term_shrinked = true;
 }
 
-typedef int config_term_func_t(struct perf_event_attr *attr,
-			       struct parse_events_term *term,
-			       struct parse_events_error *err);
-
 static int config_term_common(struct perf_event_attr *attr,
 			      struct parse_events_term *term,
 			      struct parse_events_error *err)
