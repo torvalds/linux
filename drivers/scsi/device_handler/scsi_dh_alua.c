@@ -87,7 +87,6 @@ struct alua_port_group {
 struct alua_dh_data {
 	struct alua_port_group	*pg;
 	int			group_id;
-	int			rel_port;
 	struct scsi_device	*sdev;
 	activate_complete	callback_fn;
 	void			*callback_data;
@@ -325,12 +324,10 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 			return SCSI_DH_NOMEM;
 		return SCSI_DH_DEV_UNSUPP;
 	}
-	h->rel_port = rel_port;
-
 	sdev_printk(KERN_INFO, sdev,
 		    "%s: device %s port group %x rel port %x\n",
 		    ALUA_DH_NAME, h->pg->device_id_str,
-		    h->group_id, h->rel_port);
+		    h->group_id, rel_port);
 
 	return alua_rtpg(sdev, h->pg);
 }
@@ -762,7 +759,6 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	if (!h)
 		return -ENOMEM;
 	h->pg = NULL;
-	h->rel_port = -1;
 	h->sdev = sdev;
 
 	err = alua_initialize(sdev, h);
