@@ -17,7 +17,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/tps65218.h>
-#include "gpiolib.h"
 
 struct tps65218_gpio {
 	struct tps65218 *tps65218;
