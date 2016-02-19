@@ -640,7 +640,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	else
 		gic_dist_wait_for_rwp();
 
-	return IRQ_SET_MASK_OK;
+	return IRQ_SET_MASK_OK_DONE;
 }
 #else
 #define gic_set_affinity	NULL
