@@ -53,7 +53,7 @@
 #define INTEL_QUARK_I2C_CLK_HZ	33000000
 
 struct intel_quark_mfd {
-	struct pci_dev		*pdev;
+	struct device		*dev;
 	struct clk		*i2c_clk;
 	struct clk_lookup	*i2c_clk_lookup;
 };
@@ -123,12 +123,12 @@ static const struct pci_device_id intel_quark_mfd_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, intel_quark_mfd_ids);
 
-static int intel_quark_register_i2c_clk(struct intel_quark_mfd *quark_mfd)
+static int intel_quark_register_i2c_clk(struct device *dev)
 {
-	struct pci_dev *pdev = quark_mfd->pdev;
+	struct intel_quark_mfd *quark_mfd = dev_get_drvdata(dev);
 	struct clk *i2c_clk;
 
-	i2c_clk = clk_register_fixed_rate(&pdev->dev,
+	i2c_clk = clk_register_fixed_rate(dev,
 					  INTEL_QUARK_I2C_CONTROLLER_CLK, NULL,
 					  CLK_IS_ROOT, INTEL_QUARK_I2C_CLK_HZ);
 	if (IS_ERR(i2c_clk))
@@ -140,16 +140,16 @@ static int intel_quark_register_i2c_clk(struct intel_quark_mfd *quark_mfd)
 
 	if (!quark_mfd->i2c_clk_lookup) {
 		clk_unregister(quark_mfd->i2c_clk);
-		dev_err(&pdev->dev, "Fixed clk register failed\n");
+		dev_err(dev, "Fixed clk register failed\n");
 		return -ENOMEM;
 	}
 
 	return 0;
 }
 
-static void intel_quark_unregister_i2c_clk(struct pci_dev *pdev)
+static void intel_quark_unregister_i2c_clk(struct device *dev)
 {
-	struct intel_quark_mfd *quark_mfd = dev_get_drvdata(&pdev->dev);
+	struct intel_quark_mfd *quark_mfd = dev_get_drvdata(dev);
 
 	if (!quark_mfd->i2c_clk_lookup)
 		return;
@@ -248,10 +248,10 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 	if (!quark_mfd)
 		return -ENOMEM;
 
-	quark_mfd->pdev = pdev;
+	quark_mfd->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, quark_mfd);
 
-	ret = intel_quark_register_i2c_clk(quark_mfd);
+	ret = intel_quark_register_i2c_clk(&pdev->dev);
 	if (ret)
 		return ret;
 
@@ -272,13 +272,13 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 	return 0;
 
 err_unregister_i2c_clk:
-	intel_quark_unregister_i2c_clk(pdev);
+	intel_quark_unregister_i2c_clk(&pdev->dev);
 	return ret;
 }
 
 static void intel_quark_mfd_remove(struct pci_dev *pdev)
 {
-	intel_quark_unregister_i2c_clk(pdev);
+	intel_quark_unregister_i2c_clk(&pdev->dev);
 	mfd_remove_devices(&pdev->dev);
 }
 
