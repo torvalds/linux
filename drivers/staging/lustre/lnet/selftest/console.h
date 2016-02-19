@@ -135,7 +135,7 @@ typedef struct lstcon_test {
 
 #define LST_CONSOLE_TIMEOUT 300	     /* default console timeout */
 
-typedef struct {
+struct lstcon_session {
 	struct mutex        ses_mutex;        /* only 1 thread in session */
 	lst_sid_t           ses_id;           /* global session id */
 	int                 ses_key;          /* local session key */
@@ -165,9 +165,9 @@ typedef struct {
 	spinlock_t          ses_rpc_lock;     /* serialize */
 	atomic_t            ses_rpc_counter;  /* # of initialized RPCs */
 	struct list_head    ses_rpc_freelist; /* idle console rpc */
-} lstcon_session_t; /* session descriptor */
+}; /* session descriptor */
 
-extern lstcon_session_t	 console_session;
+extern struct lstcon_session	 console_session;
 
 static inline lstcon_trans_stat_t *
 lstcon_trans_stat(void)

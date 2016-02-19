@@ -58,7 +58,7 @@ do {							\
 	(p)->nle_nnode++;				\
 } while (0)
 
-lstcon_session_t console_session;
+struct lstcon_session console_session;
 
 static void
 lstcon_node_get(lstcon_node_t *nd)
@@ -1994,7 +1994,7 @@ lstcon_console_init(void)
 	int i;
 	int rc;
 
-	memset(&console_session, 0, sizeof(lstcon_session_t));
+	memset(&console_session, 0, sizeof(struct lstcon_session));
 
 	console_session.ses_id		  = LST_INVALID_SID;
 	console_session.ses_state	  = LST_SESSION_NONE;
