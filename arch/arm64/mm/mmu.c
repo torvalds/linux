@@ -445,12 +445,18 @@ static void __init map_mem(pgd_t *pgd)
 
 void mark_rodata_ro(void)
 {
-	if (!IS_ENABLED(CONFIG_DEBUG_RODATA))
-		return;
+	unsigned long section_size;
 
+	section_size = (unsigned long)__start_rodata - (unsigned long)_stext;
 	create_mapping_late(__pa(_stext), (unsigned long)_stext,
-				(unsigned long)_etext - (unsigned long)_stext,
-				PAGE_KERNEL_ROX);
+			    section_size, PAGE_KERNEL_ROX);
+	/*
+	 * mark .rodata as read only. Use _etext rather than __end_rodata to
+	 * cover NOTES and EXCEPTION_TABLE.
+	 */
+	section_size = (unsigned long)_etext - (unsigned long)__start_rodata;
+	create_mapping_late(__pa(__start_rodata), (unsigned long)__start_rodata,
+			    section_size, PAGE_KERNEL_RO);
 }
 
 void fixup_init(void)
@@ -489,9 +495,10 @@ static void __init map_kernel_chunk(pgd_t *pgd, void *va_start, void *va_end,
  */
 static void __init map_kernel(pgd_t *pgd)
 {
-	static struct vm_struct vmlinux_text, vmlinux_init, vmlinux_data;
+	static struct vm_struct vmlinux_text, vmlinux_rodata, vmlinux_init, vmlinux_data;
 
-	map_kernel_chunk(pgd, _stext, _etext, PAGE_KERNEL_EXEC, &vmlinux_text);
+	map_kernel_chunk(pgd, _stext, __start_rodata, PAGE_KERNEL_EXEC, &vmlinux_text);
+	map_kernel_chunk(pgd, __start_rodata, _etext, PAGE_KERNEL, &vmlinux_rodata);
 	map_kernel_chunk(pgd, __init_begin, __init_end, PAGE_KERNEL_EXEC,
 			 &vmlinux_init);
 	map_kernel_chunk(pgd, _data, _end, PAGE_KERNEL, &vmlinux_data);
