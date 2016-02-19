@@ -64,6 +64,10 @@
 #define ALUA_OPTIMIZE_STPG		1
 #define ALUA_RTPG_EXT_HDR_UNSUPP	2
 
+static uint optimize_stpg;
+module_param(optimize_stpg, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(optimize_stpg, "Allow use of a non-optimized path, rather than sending a STPG, when implicit TPGS is supported (0=No,1=Yes). Default is 0.");
+
 static LIST_HEAD(port_group_list);
 static DEFINE_SPINLOCK(port_group_lock);
 
@@ -219,6 +223,8 @@ struct alua_port_group *alua_alloc_pg(struct scsi_device *sdev,
 	pg->group_id = group_id;
 	pg->tpgs = tpgs;
 	pg->state = TPGS_STATE_OPTIMIZED;
+	if (optimize_stpg)
+		pg->flags |= ALUA_OPTIMIZE_STPG;
 	kref_init(&pg->kref);
 
 	spin_lock(&port_group_lock);
@@ -678,10 +684,6 @@ static int alua_set_params(struct scsi_device *sdev, const char *params)
 	return result;
 }
 
-static uint optimize_stpg;
-module_param(optimize_stpg, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(optimize_stpg, "Allow use of a non-optimized path, rather than sending a STPG, when implicit TPGS is supported (0=No,1=Yes). Default is 0.");
-
 /*
  * alua_activate - activate a path
  * @sdev: device on the path to be activated
@@ -702,9 +704,6 @@ static int alua_activate(struct scsi_device *sdev,
 		goto out;
 
 	kref_get(&h->pg->kref);
-
-	if (optimize_stpg)
-		h->pg->flags |= ALUA_OPTIMIZE_STPG;
 
 	err = alua_rtpg(sdev, h->pg);
 	if (err != SCSI_DH_OK) {
