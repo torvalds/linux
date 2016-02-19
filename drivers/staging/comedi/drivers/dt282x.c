@@ -371,7 +371,7 @@ static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
-			divider = (*ns + base / 2) / base;
+			divider = DIV_ROUND_CLOSEST(*ns, base);
 			break;
 		case CMDF_ROUND_DOWN:
 			divider = (*ns) / base;

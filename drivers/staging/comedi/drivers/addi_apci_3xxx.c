@@ -496,7 +496,7 @@ static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
-			timer = (*ns + base / 2) / base;
+			timer = DIV_ROUND_CLOSEST(*ns, base);
 			break;
 		case CMDF_ROUND_DOWN:
 			timer = *ns / base;

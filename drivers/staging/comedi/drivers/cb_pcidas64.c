@@ -1376,7 +1376,7 @@ static int set_ai_fifo_segment_length(struct comedi_device *dev,
 		num_entries = fifo->max_segment_length;
 
 	/*  1 == 256 entries, 2 == 512 entries, etc */
-	num_increments = (num_entries + increment_size / 2) / increment_size;
+	num_increments = DIV_ROUND_CLOSEST(num_entries, increment_size);
 
 	bits = (~(num_increments - 1)) & fifo->fifo_size_reg_mask;
 	devpriv->fifo_size_bits &= ~fifo->fifo_size_reg_mask;
@@ -2004,7 +2004,7 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 		break;
 	case CMDF_ROUND_NEAREST:
 	default:
-		divisor = (ns + TIMER_BASE / 2) / TIMER_BASE;
+		divisor = DIV_ROUND_CLOSEST(ns, TIMER_BASE);
 		break;
 	}
 	return divisor;
