@@ -82,20 +82,20 @@
 
 /* Pseudo fields. */
 
-#define DE_CONTROL_SHORT_STROKE_DIR                     27:24
-#define DE_CONTROL_SHORT_STROKE_DIR_225                 0
-#define DE_CONTROL_SHORT_STROKE_DIR_135                 1
-#define DE_CONTROL_SHORT_STROKE_DIR_315                 2
-#define DE_CONTROL_SHORT_STROKE_DIR_45                  3
-#define DE_CONTROL_SHORT_STROKE_DIR_270                 4
-#define DE_CONTROL_SHORT_STROKE_DIR_90                  5
-#define DE_CONTROL_SHORT_STROKE_DIR_180                 8
-#define DE_CONTROL_SHORT_STROKE_DIR_0                   10
-#define DE_CONTROL_ROTATION                             25:24
-#define DE_CONTROL_ROTATION_0                           0
-#define DE_CONTROL_ROTATION_270                         1
-#define DE_CONTROL_ROTATION_90                          2
-#define DE_CONTROL_ROTATION_180                         3
+#define DE_CONTROL_SHORT_STROKE_DIR_MASK                (0xf << 24)
+#define DE_CONTROL_SHORT_STROKE_DIR_225                 (0x0 << 24)
+#define DE_CONTROL_SHORT_STROKE_DIR_135                 (0x1 << 24)
+#define DE_CONTROL_SHORT_STROKE_DIR_315                 (0x2 << 24)
+#define DE_CONTROL_SHORT_STROKE_DIR_45                  (0x3 << 24)
+#define DE_CONTROL_SHORT_STROKE_DIR_270                 (0x4 << 24)
+#define DE_CONTROL_SHORT_STROKE_DIR_90                  (0x5 << 24)
+#define DE_CONTROL_SHORT_STROKE_DIR_180                 (0x8 << 24)
+#define DE_CONTROL_SHORT_STROKE_DIR_0                   (0xa << 24)
+#define DE_CONTROL_ROTATION_MASK                        (0x3 << 24)
+#define DE_CONTROL_ROTATION_0                           (0x0 << 24)
+#define DE_CONTROL_ROTATION_270                         (0x1 << 24)
+#define DE_CONTROL_ROTATION_90                          (0x2 << 24)
+#define DE_CONTROL_ROTATION_180                         (0x3 << 24)
 
 #define DE_PITCH                                        0x000010
 #define DE_PITCH_DESTINATION_SHIFT                      16
@@ -103,10 +103,10 @@
 #define DE_PITCH_SOURCE_MASK                            0x1fff
 
 #define DE_FOREGROUND                                   0x000014
-#define DE_FOREGROUND_COLOR                             31:0
+#define DE_FOREGROUND_COLOR_MASK                        0xffffffff
 
 #define DE_BACKGROUND                                   0x000018
-#define DE_BACKGROUND_COLOR                             31:0
+#define DE_BACKGROUND_COLOR_MASK                        0xffffffff
 
 #define DE_STRETCH_FORMAT                               0x00001C
 #define DE_STRETCH_FORMAT_PATTERN_XY                    BIT(30)
@@ -127,30 +127,30 @@
 #define DE_STRETCH_FORMAT_SOURCE_HEIGHT_MASK            0xfff
 
 #define DE_COLOR_COMPARE                                0x000020
-#define DE_COLOR_COMPARE_COLOR                          23:0
+#define DE_COLOR_COMPARE_COLOR_MASK                     0xffffff
 
 #define DE_COLOR_COMPARE_MASK                           0x000024
-#define DE_COLOR_COMPARE_MASK_MASKS                     23:0
+#define DE_COLOR_COMPARE_MASK_MASK                      0xffffff
 
 #define DE_MASKS                                        0x000028
-#define DE_MASKS_BYTE_MASK                              31:16
-#define DE_MASKS_BIT_MASK                               15:0
+#define DE_MASKS_BYTE_MASK                              (0xffff << 16)
+#define DE_MASKS_BIT_MASK                               0xffff
 
 #define DE_CLIP_TL                                      0x00002C
-#define DE_CLIP_TL_TOP                                  31:16
+#define DE_CLIP_TL_TOP_MASK                             (0xffff << 16)
 #define DE_CLIP_TL_STATUS                               BIT(13)
 #define DE_CLIP_TL_INHIBIT                              BIT(12)
-#define DE_CLIP_TL_LEFT                                 11:0
+#define DE_CLIP_TL_LEFT_MASK                            0xfff
 
 #define DE_CLIP_BR                                      0x000030
-#define DE_CLIP_BR_BOTTOM                               31:16
-#define DE_CLIP_BR_RIGHT                                12:0
+#define DE_CLIP_BR_BOTTOM_MASK                          (0xffff << 16)
+#define DE_CLIP_BR_RIGHT_MASK                           0x1fff
 
 #define DE_MONO_PATTERN_LOW                             0x000034
-#define DE_MONO_PATTERN_LOW_PATTERN                     31:0
+#define DE_MONO_PATTERN_LOW_PATTERN_MASK                0xffffffff
 
 #define DE_MONO_PATTERN_HIGH                            0x000038
-#define DE_MONO_PATTERN_HIGH_PATTERN                    31:0
+#define DE_MONO_PATTERN_HIGH_PATTERN_MASK               0xffffffff
 
 #define DE_WINDOW_WIDTH                                 0x00003C
 #define DE_WINDOW_WIDTH_DST_SHIFT                       16
@@ -160,19 +160,19 @@
 #define DE_WINDOW_SOURCE_BASE                           0x000040
 #define DE_WINDOW_SOURCE_BASE_EXT                       BIT(27)
 #define DE_WINDOW_SOURCE_BASE_CS                        BIT(26)
-#define DE_WINDOW_SOURCE_BASE_ADDRESS                   25:0
+#define DE_WINDOW_SOURCE_BASE_ADDRESS_MASK              0x3ffffff
 
 #define DE_WINDOW_DESTINATION_BASE                      0x000044
 #define DE_WINDOW_DESTINATION_BASE_EXT                  BIT(27)
 #define DE_WINDOW_DESTINATION_BASE_CS                   BIT(26)
-#define DE_WINDOW_DESTINATION_BASE_ADDRESS              25:0
+#define DE_WINDOW_DESTINATION_BASE_ADDRESS_MASK         0x3ffffff
 
 #define DE_ALPHA                                        0x000048
-#define DE_ALPHA_VALUE                                  7:0
+#define DE_ALPHA_VALUE_MASK                             0xff
 
 #define DE_WRAP                                         0x00004C
-#define DE_WRAP_X                                       31:16
-#define DE_WRAP_Y                                       15:0
+#define DE_WRAP_X_MASK                                  (0xffff << 16)
+#define DE_WRAP_Y_MASK                                  0xffff
 
 #define DE_STATUS                                       0x000050
 #define DE_STATUS_CSC                                   BIT(1)

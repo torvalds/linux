@@ -110,135 +110,135 @@
 
 #define LOCALMEM_ARBITRATION                          0x00000C
 #define LOCALMEM_ARBITRATION_ROTATE                   BIT(28)
-#define LOCALMEM_ARBITRATION_VGA                      26:24
-#define LOCALMEM_ARBITRATION_VGA_OFF                  0
-#define LOCALMEM_ARBITRATION_VGA_PRIORITY_1           1
-#define LOCALMEM_ARBITRATION_VGA_PRIORITY_2           2
-#define LOCALMEM_ARBITRATION_VGA_PRIORITY_3           3
-#define LOCALMEM_ARBITRATION_VGA_PRIORITY_4           4
-#define LOCALMEM_ARBITRATION_VGA_PRIORITY_5           5
-#define LOCALMEM_ARBITRATION_VGA_PRIORITY_6           6
-#define LOCALMEM_ARBITRATION_VGA_PRIORITY_7           7
-#define LOCALMEM_ARBITRATION_DMA                      22:20
-#define LOCALMEM_ARBITRATION_DMA_OFF                  0
-#define LOCALMEM_ARBITRATION_DMA_PRIORITY_1           1
-#define LOCALMEM_ARBITRATION_DMA_PRIORITY_2           2
-#define LOCALMEM_ARBITRATION_DMA_PRIORITY_3           3
-#define LOCALMEM_ARBITRATION_DMA_PRIORITY_4           4
-#define LOCALMEM_ARBITRATION_DMA_PRIORITY_5           5
-#define LOCALMEM_ARBITRATION_DMA_PRIORITY_6           6
-#define LOCALMEM_ARBITRATION_DMA_PRIORITY_7           7
-#define LOCALMEM_ARBITRATION_ZVPORT1                  18:16
-#define LOCALMEM_ARBITRATION_ZVPORT1_OFF              0
-#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_1       1
-#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_2       2
-#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_3       3
-#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_4       4
-#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_5       5
-#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_6       6
-#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_7       7
-#define LOCALMEM_ARBITRATION_ZVPORT0                  14:12
-#define LOCALMEM_ARBITRATION_ZVPORT0_OFF              0
-#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_1       1
-#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_2       2
-#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_3       3
-#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_4       4
-#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_5       5
-#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_6       6
-#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_7       7
-#define LOCALMEM_ARBITRATION_VIDEO                    10:8
-#define LOCALMEM_ARBITRATION_VIDEO_OFF                0
-#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_1         1
-#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_2         2
-#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_3         3
-#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_4         4
-#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_5         5
-#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_6         6
-#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_7         7
-#define LOCALMEM_ARBITRATION_PANEL                    6:4
-#define LOCALMEM_ARBITRATION_PANEL_OFF                0
-#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_1         1
-#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_2         2
-#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_3         3
-#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_4         4
-#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_5         5
-#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_6         6
-#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_7         7
-#define LOCALMEM_ARBITRATION_CRT                      2:0
-#define LOCALMEM_ARBITRATION_CRT_OFF                  0
-#define LOCALMEM_ARBITRATION_CRT_PRIORITY_1           1
-#define LOCALMEM_ARBITRATION_CRT_PRIORITY_2           2
-#define LOCALMEM_ARBITRATION_CRT_PRIORITY_3           3
-#define LOCALMEM_ARBITRATION_CRT_PRIORITY_4           4
-#define LOCALMEM_ARBITRATION_CRT_PRIORITY_5           5
-#define LOCALMEM_ARBITRATION_CRT_PRIORITY_6           6
-#define LOCALMEM_ARBITRATION_CRT_PRIORITY_7           7
+#define LOCALMEM_ARBITRATION_VGA_MASK                 (0x7 << 24)
+#define LOCALMEM_ARBITRATION_VGA_OFF                  (0x0 << 24)
+#define LOCALMEM_ARBITRATION_VGA_PRIORITY_1           (0x1 << 24)
+#define LOCALMEM_ARBITRATION_VGA_PRIORITY_2           (0x2 << 24)
+#define LOCALMEM_ARBITRATION_VGA_PRIORITY_3           (0x3 << 24)
+#define LOCALMEM_ARBITRATION_VGA_PRIORITY_4           (0x4 << 24)
+#define LOCALMEM_ARBITRATION_VGA_PRIORITY_5           (0x5 << 24)
+#define LOCALMEM_ARBITRATION_VGA_PRIORITY_6           (0x6 << 24)
+#define LOCALMEM_ARBITRATION_VGA_PRIORITY_7           (0x7 << 24)
+#define LOCALMEM_ARBITRATION_DMA_MASK                 (0x7 << 20)
+#define LOCALMEM_ARBITRATION_DMA_OFF                  (0x0 << 20)
+#define LOCALMEM_ARBITRATION_DMA_PRIORITY_1           (0x1 << 20)
+#define LOCALMEM_ARBITRATION_DMA_PRIORITY_2           (0x2 << 20)
+#define LOCALMEM_ARBITRATION_DMA_PRIORITY_3           (0x3 << 20)
+#define LOCALMEM_ARBITRATION_DMA_PRIORITY_4           (0x4 << 20)
+#define LOCALMEM_ARBITRATION_DMA_PRIORITY_5           (0x5 << 20)
+#define LOCALMEM_ARBITRATION_DMA_PRIORITY_6           (0x6 << 20)
+#define LOCALMEM_ARBITRATION_DMA_PRIORITY_7           (0x7 << 20)
+#define LOCALMEM_ARBITRATION_ZVPORT1_MASK             (0x7 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT1_OFF              (0x0 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_1       (0x1 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_2       (0x2 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_3       (0x3 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_4       (0x4 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_5       (0x5 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_6       (0x6 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT1_PRIORITY_7       (0x7 << 16)
+#define LOCALMEM_ARBITRATION_ZVPORT0_MASK             (0x7 << 12)
+#define LOCALMEM_ARBITRATION_ZVPORT0_OFF              (0x0 << 12)
+#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_1       (0x1 << 12)
+#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_2       (0x2 << 12)
+#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_3       (0x3 << 12)
+#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_4       (0x4 << 12)
+#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_5       (0x5 << 12)
+#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_6       (0x6 << 12)
+#define LOCALMEM_ARBITRATION_ZVPORT0_PRIORITY_7       (0x7 << 12)
+#define LOCALMEM_ARBITRATION_VIDEO_MASK               (0x7 << 8)
+#define LOCALMEM_ARBITRATION_VIDEO_OFF                (0x0 << 8)
+#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_1         (0x1 << 8)
+#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_2         (0x2 << 8)
+#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_3         (0x3 << 8)
+#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_4         (0x4 << 8)
+#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_5         (0x5 << 8)
+#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_6         (0x6 << 8)
+#define LOCALMEM_ARBITRATION_VIDEO_PRIORITY_7         (0x7 << 8)
+#define LOCALMEM_ARBITRATION_PANEL_MASK               (0x7 << 4)
+#define LOCALMEM_ARBITRATION_PANEL_OFF                (0x0 << 4)
+#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_1         (0x1 << 4)
+#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_2         (0x2 << 4)
+#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_3         (0x3 << 4)
+#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_4         (0x4 << 4)
+#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_5         (0x5 << 4)
+#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_6         (0x6 << 4)
+#define LOCALMEM_ARBITRATION_PANEL_PRIORITY_7         (0x7 << 4)
+#define LOCALMEM_ARBITRATION_CRT_MASK                 0x7
+#define LOCALMEM_ARBITRATION_CRT_OFF                  0x0
+#define LOCALMEM_ARBITRATION_CRT_PRIORITY_1           0x1
+#define LOCALMEM_ARBITRATION_CRT_PRIORITY_2           0x2
+#define LOCALMEM_ARBITRATION_CRT_PRIORITY_3           0x3
+#define LOCALMEM_ARBITRATION_CRT_PRIORITY_4           0x4
+#define LOCALMEM_ARBITRATION_CRT_PRIORITY_5           0x5
+#define LOCALMEM_ARBITRATION_CRT_PRIORITY_6           0x6
+#define LOCALMEM_ARBITRATION_CRT_PRIORITY_7           0x7
 
 #define PCIMEM_ARBITRATION                            0x000010
 #define PCIMEM_ARBITRATION_ROTATE                     BIT(28)
-#define PCIMEM_ARBITRATION_VGA                        26:24
-#define PCIMEM_ARBITRATION_VGA_OFF                    0
-#define PCIMEM_ARBITRATION_VGA_PRIORITY_1             1
-#define PCIMEM_ARBITRATION_VGA_PRIORITY_2             2
-#define PCIMEM_ARBITRATION_VGA_PRIORITY_3             3
-#define PCIMEM_ARBITRATION_VGA_PRIORITY_4             4
-#define PCIMEM_ARBITRATION_VGA_PRIORITY_5             5
-#define PCIMEM_ARBITRATION_VGA_PRIORITY_6             6
-#define PCIMEM_ARBITRATION_VGA_PRIORITY_7             7
-#define PCIMEM_ARBITRATION_DMA                        22:20
-#define PCIMEM_ARBITRATION_DMA_OFF                    0
-#define PCIMEM_ARBITRATION_DMA_PRIORITY_1             1
-#define PCIMEM_ARBITRATION_DMA_PRIORITY_2             2
-#define PCIMEM_ARBITRATION_DMA_PRIORITY_3             3
-#define PCIMEM_ARBITRATION_DMA_PRIORITY_4             4
-#define PCIMEM_ARBITRATION_DMA_PRIORITY_5             5
-#define PCIMEM_ARBITRATION_DMA_PRIORITY_6             6
-#define PCIMEM_ARBITRATION_DMA_PRIORITY_7             7
-#define PCIMEM_ARBITRATION_ZVPORT1                    18:16
-#define PCIMEM_ARBITRATION_ZVPORT1_OFF                0
-#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_1         1
-#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_2         2
-#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_3         3
-#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_4         4
-#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_5         5
-#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_6         6
-#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_7         7
-#define PCIMEM_ARBITRATION_ZVPORT0                    14:12
-#define PCIMEM_ARBITRATION_ZVPORT0_OFF                0
-#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_1         1
-#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_2         2
-#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_3         3
-#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_4         4
-#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_5         5
-#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_6         6
-#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_7         7
-#define PCIMEM_ARBITRATION_VIDEO                      10:8
-#define PCIMEM_ARBITRATION_VIDEO_OFF                  0
-#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_1           1
-#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_2           2
-#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_3           3
-#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_4           4
-#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_5           5
-#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_6           6
-#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_7           7
-#define PCIMEM_ARBITRATION_PANEL                      6:4
-#define PCIMEM_ARBITRATION_PANEL_OFF                  0
-#define PCIMEM_ARBITRATION_PANEL_PRIORITY_1           1
-#define PCIMEM_ARBITRATION_PANEL_PRIORITY_2           2
-#define PCIMEM_ARBITRATION_PANEL_PRIORITY_3           3
-#define PCIMEM_ARBITRATION_PANEL_PRIORITY_4           4
-#define PCIMEM_ARBITRATION_PANEL_PRIORITY_5           5
-#define PCIMEM_ARBITRATION_PANEL_PRIORITY_6           6
-#define PCIMEM_ARBITRATION_PANEL_PRIORITY_7           7
-#define PCIMEM_ARBITRATION_CRT                        2:0
-#define PCIMEM_ARBITRATION_CRT_OFF                    0
-#define PCIMEM_ARBITRATION_CRT_PRIORITY_1             1
-#define PCIMEM_ARBITRATION_CRT_PRIORITY_2             2
-#define PCIMEM_ARBITRATION_CRT_PRIORITY_3             3
-#define PCIMEM_ARBITRATION_CRT_PRIORITY_4             4
-#define PCIMEM_ARBITRATION_CRT_PRIORITY_5             5
-#define PCIMEM_ARBITRATION_CRT_PRIORITY_6             6
-#define PCIMEM_ARBITRATION_CRT_PRIORITY_7             7
+#define PCIMEM_ARBITRATION_VGA_MASK                   (0x7 << 24)
+#define PCIMEM_ARBITRATION_VGA_OFF                    (0x0 << 24)
+#define PCIMEM_ARBITRATION_VGA_PRIORITY_1             (0x1 << 24)
+#define PCIMEM_ARBITRATION_VGA_PRIORITY_2             (0x2 << 24)
+#define PCIMEM_ARBITRATION_VGA_PRIORITY_3             (0x3 << 24)
+#define PCIMEM_ARBITRATION_VGA_PRIORITY_4             (0x4 << 24)
+#define PCIMEM_ARBITRATION_VGA_PRIORITY_5             (0x5 << 24)
+#define PCIMEM_ARBITRATION_VGA_PRIORITY_6             (0x6 << 24)
+#define PCIMEM_ARBITRATION_VGA_PRIORITY_7             (0x7 << 24)
+#define PCIMEM_ARBITRATION_DMA_MASK                   (0x7 << 20)
+#define PCIMEM_ARBITRATION_DMA_OFF                    (0x0 << 20)
+#define PCIMEM_ARBITRATION_DMA_PRIORITY_1             (0x1 << 20)
+#define PCIMEM_ARBITRATION_DMA_PRIORITY_2             (0x2 << 20)
+#define PCIMEM_ARBITRATION_DMA_PRIORITY_3             (0x3 << 20)
+#define PCIMEM_ARBITRATION_DMA_PRIORITY_4             (0x4 << 20)
+#define PCIMEM_ARBITRATION_DMA_PRIORITY_5             (0x5 << 20)
+#define PCIMEM_ARBITRATION_DMA_PRIORITY_6             (0x6 << 20)
+#define PCIMEM_ARBITRATION_DMA_PRIORITY_7             (0x7 << 20)
+#define PCIMEM_ARBITRATION_ZVPORT1_MASK               (0x7 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT1_OFF                (0x0 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_1         (0x1 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_2         (0x2 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_3         (0x3 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_4         (0x4 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_5         (0x5 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_6         (0x6 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT1_PRIORITY_7         (0x7 << 16)
+#define PCIMEM_ARBITRATION_ZVPORT0_MASK               (0x7 << 12)
+#define PCIMEM_ARBITRATION_ZVPORT0_OFF                (0x0 << 12)
+#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_1         (0x1 << 12)
+#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_2         (0x2 << 12)
+#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_3         (0x3 << 12)
+#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_4         (0x4 << 12)
+#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_5         (0x5 << 12)
+#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_6         (0x6 << 12)
+#define PCIMEM_ARBITRATION_ZVPORT0_PRIORITY_7         (0x7 << 12)
+#define PCIMEM_ARBITRATION_VIDEO_MASK                 (0x7 << 8)
+#define PCIMEM_ARBITRATION_VIDEO_OFF                  (0x0 << 8)
+#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_1           (0x1 << 8)
+#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_2           (0x2 << 8)
+#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_3           (0x3 << 8)
+#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_4           (0x4 << 8)
+#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_5           (0x5 << 8)
+#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_6           (0x6 << 8)
+#define PCIMEM_ARBITRATION_VIDEO_PRIORITY_7           (0x7 << 8)
+#define PCIMEM_ARBITRATION_PANEL_MASK                 (0x7 << 4)
+#define PCIMEM_ARBITRATION_PANEL_OFF                  (0x0 << 4)
+#define PCIMEM_ARBITRATION_PANEL_PRIORITY_1           (0x1 << 4)
+#define PCIMEM_ARBITRATION_PANEL_PRIORITY_2           (0x2 << 4)
+#define PCIMEM_ARBITRATION_PANEL_PRIORITY_3           (0x3 << 4)
+#define PCIMEM_ARBITRATION_PANEL_PRIORITY_4           (0x4 << 4)
+#define PCIMEM_ARBITRATION_PANEL_PRIORITY_5           (0x5 << 4)
+#define PCIMEM_ARBITRATION_PANEL_PRIORITY_6           (0x6 << 4)
+#define PCIMEM_ARBITRATION_PANEL_PRIORITY_7           (0x7 << 4)
+#define PCIMEM_ARBITRATION_CRT_MASK                   0x7
+#define PCIMEM_ARBITRATION_CRT_OFF                    0x0
+#define PCIMEM_ARBITRATION_CRT_PRIORITY_1             0x1
+#define PCIMEM_ARBITRATION_CRT_PRIORITY_2             0x2
+#define PCIMEM_ARBITRATION_CRT_PRIORITY_3             0x3
+#define PCIMEM_ARBITRATION_CRT_PRIORITY_4             0x4
+#define PCIMEM_ARBITRATION_CRT_PRIORITY_5             0x5
+#define PCIMEM_ARBITRATION_CRT_PRIORITY_6             0x6
+#define PCIMEM_ARBITRATION_CRT_PRIORITY_7             0x7
 
 #define RAW_INT                                       0x000020
 #define RAW_INT_ZVPORT1_VSYNC                         BIT(4)
@@ -352,16 +352,16 @@
 #define MODE0_GATE_DMA                                BIT(0)
 
 #define MODE1_GATE                                    0x000048
-#define MODE1_GATE_MCLK                               15:14
-#define MODE1_GATE_MCLK_112MHZ                        0
-#define MODE1_GATE_MCLK_84MHZ                         1
-#define MODE1_GATE_MCLK_56MHZ                         2
-#define MODE1_GATE_MCLK_42MHZ                         3
-#define MODE1_GATE_M2XCLK                             13:12
-#define MODE1_GATE_M2XCLK_336MHZ                      0
-#define MODE1_GATE_M2XCLK_168MHZ                      1
-#define MODE1_GATE_M2XCLK_112MHZ                      2
-#define MODE1_GATE_M2XCLK_84MHZ                       3
+#define MODE1_GATE_MCLK_MASK                          (0x3 << 14)
+#define MODE1_GATE_MCLK_112MHZ                        (0x0 << 14)
+#define MODE1_GATE_MCLK_84MHZ                         (0x1 << 14)
+#define MODE1_GATE_MCLK_56MHZ                         (0x2 << 14)
+#define MODE1_GATE_MCLK_42MHZ                         (0x3 << 14)
+#define MODE1_GATE_M2XCLK_MASK                        (0x3 << 12)
+#define MODE1_GATE_M2XCLK_336MHZ                      (0x0 << 12)
+#define MODE1_GATE_M2XCLK_168MHZ                      (0x1 << 12)
+#define MODE1_GATE_M2XCLK_112MHZ                      (0x2 << 12)
+#define MODE1_GATE_M2XCLK_84MHZ                       (0x3 << 12)
 #define MODE1_GATE_VGA                                BIT(10)
 #define MODE1_GATE_PWM                                BIT(9)
 #define MODE1_GATE_I2C                                BIT(8)
@@ -386,14 +386,14 @@
 #define POWER_MODE_CTRL_MODE_SLEEP                    (0x2 << 0)
 
 #define PCI_MASTER_BASE                               0x000050
-#define PCI_MASTER_BASE_ADDRESS                       7:0
+#define PCI_MASTER_BASE_ADDRESS_MASK                  0xff
 
 #define DEVICE_ID                                     0x000054
-#define DEVICE_ID_DEVICE_ID                           31:16
-#define DEVICE_ID_REVISION_ID                         7:0
+#define DEVICE_ID_DEVICE_ID_MASK                      (0xffff << 16)
+#define DEVICE_ID_REVISION_ID_MASK                    0xff
 
 #define PLL_CLK_COUNT                                 0x000058
-#define PLL_CLK_COUNT_COUNTER                         15:0
+#define PLL_CLK_COUNT_COUNTER_MASK                    0xffff
 
 #define PANEL_PLL_CTRL                                0x00005C
 #define PLL_CTRL_BYPASS                               BIT(18)
@@ -570,14 +570,14 @@
 #define PANEL_DISPLAY_CTRL_FORMAT_32                  (0x2 << 0)
 
 #define PANEL_PAN_CTRL                                0x080004
-#define PANEL_PAN_CTRL_VERTICAL_PAN                   31:24
-#define PANEL_PAN_CTRL_VERTICAL_VSYNC                 21:16
-#define PANEL_PAN_CTRL_HORIZONTAL_PAN                 15:8
-#define PANEL_PAN_CTRL_HORIZONTAL_VSYNC               5:0
+#define PANEL_PAN_CTRL_VERTICAL_PAN_MASK              (0xff << 24)
+#define PANEL_PAN_CTRL_VERTICAL_VSYNC_MASK            (0x3f << 16)
+#define PANEL_PAN_CTRL_HORIZONTAL_PAN_MASK            (0xff << 8)
+#define PANEL_PAN_CTRL_HORIZONTAL_VSYNC_MASK          0x3f
 
 #define PANEL_COLOR_KEY                               0x080008
-#define PANEL_COLOR_KEY_MASK                          31:16
-#define PANEL_COLOR_KEY_VALUE                         15:0
+#define PANEL_COLOR_KEY_MASK_MASK                     (0xffff << 16)
+#define PANEL_COLOR_KEY_VALUE_MASK                    0xffff
 
 #define PANEL_FB_ADDRESS                              0x08000C
 #define PANEL_FB_ADDRESS_STATUS                       BIT(31)
@@ -630,17 +630,17 @@
 #define PANEL_VERTICAL_SYNC_START_MASK                0x7ff
 
 #define PANEL_CURRENT_LINE                            0x080034
-#define PANEL_CURRENT_LINE_LINE                       10:0
+#define PANEL_CURRENT_LINE_LINE_MASK                  0x7ff
 
 /* Video Control */
 
 #define VIDEO_DISPLAY_CTRL                              0x080040
 #define VIDEO_DISPLAY_CTRL_LINE_BUFFER                  BIT(18)
-#define VIDEO_DISPLAY_CTRL_FIFO                         17:16
-#define VIDEO_DISPLAY_CTRL_FIFO_1                       0
-#define VIDEO_DISPLAY_CTRL_FIFO_3                       1
-#define VIDEO_DISPLAY_CTRL_FIFO_7                       2
-#define VIDEO_DISPLAY_CTRL_FIFO_11                      3
+#define VIDEO_DISPLAY_CTRL_FIFO_MASK                    (0x3 << 16)
+#define VIDEO_DISPLAY_CTRL_FIFO_1                       (0x0 << 16)
+#define VIDEO_DISPLAY_CTRL_FIFO_3                       (0x1 << 16)
+#define VIDEO_DISPLAY_CTRL_FIFO_7                       (0x2 << 16)
+#define VIDEO_DISPLAY_CTRL_FIFO_11                      (0x3 << 16)
 #define VIDEO_DISPLAY_CTRL_BUFFER                       BIT(15)
 #define VIDEO_DISPLAY_CTRL_CAPTURE                      BIT(14)
 #define VIDEO_DISPLAY_CTRL_DOUBLE_BUFFER                BIT(13)
@@ -649,349 +649,349 @@
 #define VIDEO_DISPLAY_CTRL_HORIZONTAL_SCALE             BIT(10)
 #define VIDEO_DISPLAY_CTRL_VERTICAL_MODE                BIT(9)
 #define VIDEO_DISPLAY_CTRL_HORIZONTAL_MODE              BIT(8)
-#define VIDEO_DISPLAY_CTRL_PIXEL                        7:4
+#define VIDEO_DISPLAY_CTRL_PIXEL_MASK                   (0xf << 4)
 #define VIDEO_DISPLAY_CTRL_GAMMA                        BIT(3)
-#define VIDEO_DISPLAY_CTRL_FORMAT                       1:0
-#define VIDEO_DISPLAY_CTRL_FORMAT_8                     0
-#define VIDEO_DISPLAY_CTRL_FORMAT_16                    1
-#define VIDEO_DISPLAY_CTRL_FORMAT_32                    2
-#define VIDEO_DISPLAY_CTRL_FORMAT_YUV                   3
+#define VIDEO_DISPLAY_CTRL_FORMAT_MASK                  0x3
+#define VIDEO_DISPLAY_CTRL_FORMAT_8                     0x0
+#define VIDEO_DISPLAY_CTRL_FORMAT_16                    0x1
+#define VIDEO_DISPLAY_CTRL_FORMAT_32                    0x2
+#define VIDEO_DISPLAY_CTRL_FORMAT_YUV                   0x3
 
 #define VIDEO_FB_0_ADDRESS                            0x080044
 #define VIDEO_FB_0_ADDRESS_STATUS                     BIT(31)
 #define VIDEO_FB_0_ADDRESS_EXT                        BIT(27)
-#define VIDEO_FB_0_ADDRESS_ADDRESS                    25:0
+#define VIDEO_FB_0_ADDRESS_ADDRESS_MASK               0x3ffffff
 
 #define VIDEO_FB_WIDTH                                0x080048
-#define VIDEO_FB_WIDTH_WIDTH                          29:16
-#define VIDEO_FB_WIDTH_OFFSET                         13:0
+#define VIDEO_FB_WIDTH_WIDTH_MASK                     (0x3fff << 16)
+#define VIDEO_FB_WIDTH_OFFSET_MASK                    0x3fff
 
 #define VIDEO_FB_0_LAST_ADDRESS                       0x08004C
 #define VIDEO_FB_0_LAST_ADDRESS_EXT                   BIT(27)
-#define VIDEO_FB_0_LAST_ADDRESS_ADDRESS               25:0
+#define VIDEO_FB_0_LAST_ADDRESS_ADDRESS_MASK          0x3ffffff
 
 #define VIDEO_PLANE_TL                                0x080050
-#define VIDEO_PLANE_TL_TOP                            26:16
-#define VIDEO_PLANE_TL_LEFT                           10:0
+#define VIDEO_PLANE_TL_TOP_MASK                       (0x7ff << 16)
+#define VIDEO_PLANE_TL_LEFT_MASK                      0x7ff
 
 #define VIDEO_PLANE_BR                                0x080054
-#define VIDEO_PLANE_BR_BOTTOM                         26:16
-#define VIDEO_PLANE_BR_RIGHT                          10:0
+#define VIDEO_PLANE_BR_BOTTOM_MASK                    (0x7ff << 16)
+#define VIDEO_PLANE_BR_RIGHT_MASK                     0x7ff
 
 #define VIDEO_SCALE                                   0x080058
 #define VIDEO_SCALE_VERTICAL_MODE                     BIT(31)
-#define VIDEO_SCALE_VERTICAL_SCALE                    27:16
+#define VIDEO_SCALE_VERTICAL_SCALE_MASK               (0xfff << 16)
 #define VIDEO_SCALE_HORIZONTAL_MODE                   BIT(15)
-#define VIDEO_SCALE_HORIZONTAL_SCALE                  11:0
+#define VIDEO_SCALE_HORIZONTAL_SCALE_MASK             0xfff
 
 #define VIDEO_INITIAL_SCALE                           0x08005C
-#define VIDEO_INITIAL_SCALE_FB_1                      27:16
-#define VIDEO_INITIAL_SCALE_FB_0                      11:0
+#define VIDEO_INITIAL_SCALE_FB_1_MASK                 (0xfff << 16)
+#define VIDEO_INITIAL_SCALE_FB_0_MASK                 0xfff
 
 #define VIDEO_YUV_CONSTANTS                           0x080060
-#define VIDEO_YUV_CONSTANTS_Y                         31:24
-#define VIDEO_YUV_CONSTANTS_R                         23:16
-#define VIDEO_YUV_CONSTANTS_G                         15:8
-#define VIDEO_YUV_CONSTANTS_B                         7:0
+#define VIDEO_YUV_CONSTANTS_Y_MASK                    (0xff << 24)
+#define VIDEO_YUV_CONSTANTS_R_MASK                    (0xff << 16)
+#define VIDEO_YUV_CONSTANTS_G_MASK                    (0xff << 8)
+#define VIDEO_YUV_CONSTANTS_B_MASK                    0xff
 
 #define VIDEO_FB_1_ADDRESS                            0x080064
 #define VIDEO_FB_1_ADDRESS_STATUS                     BIT(31)
 #define VIDEO_FB_1_ADDRESS_EXT                        BIT(27)
-#define VIDEO_FB_1_ADDRESS_ADDRESS                    25:0
+#define VIDEO_FB_1_ADDRESS_ADDRESS_MASK               0x3ffffff
 
 #define VIDEO_FB_1_LAST_ADDRESS                       0x080068
 #define VIDEO_FB_1_LAST_ADDRESS_EXT                   BIT(27)
-#define VIDEO_FB_1_LAST_ADDRESS_ADDRESS               25:0
+#define VIDEO_FB_1_LAST_ADDRESS_ADDRESS_MASK          0x3ffffff
 
 /* Video Alpha Control */
 
 #define VIDEO_ALPHA_DISPLAY_CTRL                        0x080080
 #define VIDEO_ALPHA_DISPLAY_CTRL_SELECT                 BIT(28)
-#define VIDEO_ALPHA_DISPLAY_CTRL_ALPHA                  27:24
-#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO                   17:16
-#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_1                 0
-#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_3                 1
-#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_7                 2
-#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_11                3
+#define VIDEO_ALPHA_DISPLAY_CTRL_ALPHA_MASK             (0xf << 24)
+#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_MASK              (0x3 << 16)
+#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_1                 (0x0 << 16)
+#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_3                 (0x1 << 16)
+#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_7                 (0x2 << 16)
+#define VIDEO_ALPHA_DISPLAY_CTRL_FIFO_11                (0x3 << 16)
 #define VIDEO_ALPHA_DISPLAY_CTRL_VERT_SCALE             BIT(11)
 #define VIDEO_ALPHA_DISPLAY_CTRL_HORZ_SCALE             BIT(10)
 #define VIDEO_ALPHA_DISPLAY_CTRL_VERT_MODE              BIT(9)
 #define VIDEO_ALPHA_DISPLAY_CTRL_HORZ_MODE              BIT(8)
-#define VIDEO_ALPHA_DISPLAY_CTRL_PIXEL                  7:4
+#define VIDEO_ALPHA_DISPLAY_CTRL_PIXEL_MASK             (0xf << 4)
 #define VIDEO_ALPHA_DISPLAY_CTRL_CHROMA_KEY             BIT(3)
-#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT                 1:0
-#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_8               0
-#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_16              1
-#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_ALPHA_4_4       2
-#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_ALPHA_4_4_4_4   3
+#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_MASK            0x3
+#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_8               0x0
+#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_16              0x1
+#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_ALPHA_4_4       0x2
+#define VIDEO_ALPHA_DISPLAY_CTRL_FORMAT_ALPHA_4_4_4_4   0x3
 
 #define VIDEO_ALPHA_FB_ADDRESS                        0x080084
 #define VIDEO_ALPHA_FB_ADDRESS_STATUS                 BIT(31)
 #define VIDEO_ALPHA_FB_ADDRESS_EXT                    BIT(27)
-#define VIDEO_ALPHA_FB_ADDRESS_ADDRESS                25:0
+#define VIDEO_ALPHA_FB_ADDRESS_ADDRESS_MASK           0x3ffffff
 
 #define VIDEO_ALPHA_FB_WIDTH                          0x080088
-#define VIDEO_ALPHA_FB_WIDTH_WIDTH                    29:16
-#define VIDEO_ALPHA_FB_WIDTH_OFFSET                   13:0
+#define VIDEO_ALPHA_FB_WIDTH_WIDTH_MASK               (0x3fff << 16)
+#define VIDEO_ALPHA_FB_WIDTH_OFFSET_MASK              0x3fff
 
 #define VIDEO_ALPHA_FB_LAST_ADDRESS                   0x08008C
 #define VIDEO_ALPHA_FB_LAST_ADDRESS_EXT               BIT(27)
-#define VIDEO_ALPHA_FB_LAST_ADDRESS_ADDRESS           25:0
+#define VIDEO_ALPHA_FB_LAST_ADDRESS_ADDRESS_MASK      0x3ffffff
 
 #define VIDEO_ALPHA_PLANE_TL                          0x080090
-#define VIDEO_ALPHA_PLANE_TL_TOP                      26:16
-#define VIDEO_ALPHA_PLANE_TL_LEFT                     10:0
+#define VIDEO_ALPHA_PLANE_TL_TOP_MASK                 (0x7ff << 16)
+#define VIDEO_ALPHA_PLANE_TL_LEFT_MASK                0x7ff
 
 #define VIDEO_ALPHA_PLANE_BR                          0x080094
-#define VIDEO_ALPHA_PLANE_BR_BOTTOM                   26:16
-#define VIDEO_ALPHA_PLANE_BR_RIGHT                    10:0
+#define VIDEO_ALPHA_PLANE_BR_BOTTOM_MASK              (0x7ff << 16)
+#define VIDEO_ALPHA_PLANE_BR_RIGHT_MASK               0x7ff
 
 #define VIDEO_ALPHA_SCALE                             0x080098
 #define VIDEO_ALPHA_SCALE_VERTICAL_MODE               BIT(31)
-#define VIDEO_ALPHA_SCALE_VERTICAL_SCALE              27:16
+#define VIDEO_ALPHA_SCALE_VERTICAL_SCALE_MASK         (0xfff << 16)
 #define VIDEO_ALPHA_SCALE_HORIZONTAL_MODE             BIT(15)
-#define VIDEO_ALPHA_SCALE_HORIZONTAL_SCALE            11:0
+#define VIDEO_ALPHA_SCALE_HORIZONTAL_SCALE_MASK       0xfff
 
 #define VIDEO_ALPHA_INITIAL_SCALE                     0x08009C
-#define VIDEO_ALPHA_INITIAL_SCALE_VERTICAL            27:16
-#define VIDEO_ALPHA_INITIAL_SCALE_HORIZONTAL          11:0
+#define VIDEO_ALPHA_INITIAL_SCALE_VERTICAL_MASK       (0xfff << 16)
+#define VIDEO_ALPHA_INITIAL_SCALE_HORIZONTAL_MASK     0xfff
 
 #define VIDEO_ALPHA_CHROMA_KEY                        0x0800A0
-#define VIDEO_ALPHA_CHROMA_KEY_MASK                   31:16
-#define VIDEO_ALPHA_CHROMA_KEY_VALUE                  15:0
+#define VIDEO_ALPHA_CHROMA_KEY_MASK_MASK              (0xffff << 16)
+#define VIDEO_ALPHA_CHROMA_KEY_VALUE_MASK             0xffff
 
 #define VIDEO_ALPHA_COLOR_LOOKUP_01                   0x0800A4
-#define VIDEO_ALPHA_COLOR_LOOKUP_01_1                 31:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_01_1_RED             31:27
-#define VIDEO_ALPHA_COLOR_LOOKUP_01_1_GREEN           26:21
-#define VIDEO_ALPHA_COLOR_LOOKUP_01_1_BLUE            20:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_01_0                 15:0
-#define VIDEO_ALPHA_COLOR_LOOKUP_01_0_RED             15:11
-#define VIDEO_ALPHA_COLOR_LOOKUP_01_0_GREEN           10:5
-#define VIDEO_ALPHA_COLOR_LOOKUP_01_0_BLUE            4:0
+#define VIDEO_ALPHA_COLOR_LOOKUP_01_1_MASK            (0xffff << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_01_1_RED_MASK        (0x1f << 27)
+#define VIDEO_ALPHA_COLOR_LOOKUP_01_1_GREEN_MASK      (0x3f << 21)
+#define VIDEO_ALPHA_COLOR_LOOKUP_01_1_BLUE_MASK       (0x1f << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_01_0_MASK            0xffff
+#define VIDEO_ALPHA_COLOR_LOOKUP_01_0_RED_MASK        (0x1f << 11)
+#define VIDEO_ALPHA_COLOR_LOOKUP_01_0_GREEN_MASK      (0x3f << 5)
+#define VIDEO_ALPHA_COLOR_LOOKUP_01_0_BLUE_MASK       0x1f
 
 #define VIDEO_ALPHA_COLOR_LOOKUP_23                   0x0800A8
-#define VIDEO_ALPHA_COLOR_LOOKUP_23_3                 31:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_23_3_RED             31:27
-#define VIDEO_ALPHA_COLOR_LOOKUP_23_3_GREEN           26:21
-#define VIDEO_ALPHA_COLOR_LOOKUP_23_3_BLUE            20:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_23_2                 15:0
-#define VIDEO_ALPHA_COLOR_LOOKUP_23_2_RED             15:11
-#define VIDEO_ALPHA_COLOR_LOOKUP_23_2_GREEN           10:5
-#define VIDEO_ALPHA_COLOR_LOOKUP_23_2_BLUE            4:0
+#define VIDEO_ALPHA_COLOR_LOOKUP_23_3_MASK            (0xffff << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_23_3_RED_MASK        (0x1f << 27)
+#define VIDEO_ALPHA_COLOR_LOOKUP_23_3_GREEN_MASK      (0x3f << 21)
+#define VIDEO_ALPHA_COLOR_LOOKUP_23_3_BLUE_MASK       (0x1f << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_23_2_MASK            0xffff
+#define VIDEO_ALPHA_COLOR_LOOKUP_23_2_RED_MASK        (0x1f << 11)
+#define VIDEO_ALPHA_COLOR_LOOKUP_23_2_GREEN_MASK      (0x3f << 5)
+#define VIDEO_ALPHA_COLOR_LOOKUP_23_2_BLUE_MASK       0x1f
 
 #define VIDEO_ALPHA_COLOR_LOOKUP_45                   0x0800AC
-#define VIDEO_ALPHA_COLOR_LOOKUP_45_5                 31:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_45_5_RED             31:27
-#define VIDEO_ALPHA_COLOR_LOOKUP_45_5_GREEN           26:21
-#define VIDEO_ALPHA_COLOR_LOOKUP_45_5_BLUE            20:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_45_4                 15:0
-#define VIDEO_ALPHA_COLOR_LOOKUP_45_4_RED             15:11
-#define VIDEO_ALPHA_COLOR_LOOKUP_45_4_GREEN           10:5
-#define VIDEO_ALPHA_COLOR_LOOKUP_45_4_BLUE            4:0
+#define VIDEO_ALPHA_COLOR_LOOKUP_45_5_MASK            (0xffff << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_45_5_RED_MASK        (0x1f << 27)
+#define VIDEO_ALPHA_COLOR_LOOKUP_45_5_GREEN_MASK      (0x3f << 21)
+#define VIDEO_ALPHA_COLOR_LOOKUP_45_5_BLUE_MASK       (0x1f << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_45_4_MASK            0xffff
+#define VIDEO_ALPHA_COLOR_LOOKUP_45_4_RED_MASK        (0x1f << 11)
+#define VIDEO_ALPHA_COLOR_LOOKUP_45_4_GREEN_MASK      (0x3f << 5)
+#define VIDEO_ALPHA_COLOR_LOOKUP_45_4_BLUE_MASK       0x1f
 
 #define VIDEO_ALPHA_COLOR_LOOKUP_67                   0x0800B0
-#define VIDEO_ALPHA_COLOR_LOOKUP_67_7                 31:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_67_7_RED             31:27
-#define VIDEO_ALPHA_COLOR_LOOKUP_67_7_GREEN           26:21
-#define VIDEO_ALPHA_COLOR_LOOKUP_67_7_BLUE            20:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_67_6                 15:0
-#define VIDEO_ALPHA_COLOR_LOOKUP_67_6_RED             15:11
-#define VIDEO_ALPHA_COLOR_LOOKUP_67_6_GREEN           10:5
-#define VIDEO_ALPHA_COLOR_LOOKUP_67_6_BLUE            4:0
+#define VIDEO_ALPHA_COLOR_LOOKUP_67_7_MASK            (0xffff << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_67_7_RED_MASK        (0x1f << 27)
+#define VIDEO_ALPHA_COLOR_LOOKUP_67_7_GREEN_MASK      (0x3f << 21)
+#define VIDEO_ALPHA_COLOR_LOOKUP_67_7_BLUE_MASK       (0x1f << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_67_6_MASK            0xffff
+#define VIDEO_ALPHA_COLOR_LOOKUP_67_6_RED_MASK        (0x1f << 11)
+#define VIDEO_ALPHA_COLOR_LOOKUP_67_6_GREEN_MASK      (0x3f << 5)
+#define VIDEO_ALPHA_COLOR_LOOKUP_67_6_BLUE_MASK       0x1f
 
 #define VIDEO_ALPHA_COLOR_LOOKUP_89                   0x0800B4
-#define VIDEO_ALPHA_COLOR_LOOKUP_89_9                 31:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_89_9_RED             31:27
-#define VIDEO_ALPHA_COLOR_LOOKUP_89_9_GREEN           26:21
-#define VIDEO_ALPHA_COLOR_LOOKUP_89_9_BLUE            20:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_89_8                 15:0
-#define VIDEO_ALPHA_COLOR_LOOKUP_89_8_RED             15:11
-#define VIDEO_ALPHA_COLOR_LOOKUP_89_8_GREEN           10:5
-#define VIDEO_ALPHA_COLOR_LOOKUP_89_8_BLUE            4:0
+#define VIDEO_ALPHA_COLOR_LOOKUP_89_9_MASK            (0xffff << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_89_9_RED_MASK        (0x1f << 27)
+#define VIDEO_ALPHA_COLOR_LOOKUP_89_9_GREEN_MASK      (0x3f << 21)
+#define VIDEO_ALPHA_COLOR_LOOKUP_89_9_BLUE_MASK       (0x1f << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_89_8_MASK            0xffff
+#define VIDEO_ALPHA_COLOR_LOOKUP_89_8_RED_MASK        (0x1f << 11)
+#define VIDEO_ALPHA_COLOR_LOOKUP_89_8_GREEN_MASK      (0x3f << 5)
+#define VIDEO_ALPHA_COLOR_LOOKUP_89_8_BLUE_MASK       0x1f
 
 #define VIDEO_ALPHA_COLOR_LOOKUP_AB                   0x0800B8
-#define VIDEO_ALPHA_COLOR_LOOKUP_AB_B                 31:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_AB_B_RED             31:27
-#define VIDEO_ALPHA_COLOR_LOOKUP_AB_B_GREEN           26:21
-#define VIDEO_ALPHA_COLOR_LOOKUP_AB_B_BLUE            20:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_AB_A                 15:0
-#define VIDEO_ALPHA_COLOR_LOOKUP_AB_A_RED             15:11
-#define VIDEO_ALPHA_COLOR_LOOKUP_AB_A_GREEN           10:5
-#define VIDEO_ALPHA_COLOR_LOOKUP_AB_A_BLUE            4:0
+#define VIDEO_ALPHA_COLOR_LOOKUP_AB_B_MASK            (0xffff << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_AB_B_RED_MASK        (0x1f << 27)
+#define VIDEO_ALPHA_COLOR_LOOKUP_AB_B_GREEN_MASK      (0x3f << 21)
+#define VIDEO_ALPHA_COLOR_LOOKUP_AB_B_BLUE_MASK       (0x1f << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_AB_A_MASK            0xffff
+#define VIDEO_ALPHA_COLOR_LOOKUP_AB_A_RED_MASK        (0x1f << 11)
+#define VIDEO_ALPHA_COLOR_LOOKUP_AB_A_GREEN_MASK      (0x3f << 5)
+#define VIDEO_ALPHA_COLOR_LOOKUP_AB_A_BLUE_MASK       0x1f
 
 #define VIDEO_ALPHA_COLOR_LOOKUP_CD                   0x0800BC
-#define VIDEO_ALPHA_COLOR_LOOKUP_CD_D                 31:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_CD_D_RED             31:27
-#define VIDEO_ALPHA_COLOR_LOOKUP_CD_D_GREEN           26:21
-#define VIDEO_ALPHA_COLOR_LOOKUP_CD_D_BLUE            20:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_CD_C                 15:0
-#define VIDEO_ALPHA_COLOR_LOOKUP_CD_C_RED             15:11
-#define VIDEO_ALPHA_COLOR_LOOKUP_CD_C_GREEN           10:5
-#define VIDEO_ALPHA_COLOR_LOOKUP_CD_C_BLUE            4:0
+#define VIDEO_ALPHA_COLOR_LOOKUP_CD_D_MASK            (0xffff << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_CD_D_RED_MASK        (0x1f << 27)
+#define VIDEO_ALPHA_COLOR_LOOKUP_CD_D_GREEN_MASK      (0x3f << 21)
+#define VIDEO_ALPHA_COLOR_LOOKUP_CD_D_BLUE_MASK       (0x1f << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_CD_C_MASK            0xffff
+#define VIDEO_ALPHA_COLOR_LOOKUP_CD_C_RED_MASK        (0x1f << 11)
+#define VIDEO_ALPHA_COLOR_LOOKUP_CD_C_GREEN_MASK      (0x3f << 5)
+#define VIDEO_ALPHA_COLOR_LOOKUP_CD_C_BLUE_MASK       0x1f
 
 #define VIDEO_ALPHA_COLOR_LOOKUP_EF                   0x0800C0
-#define VIDEO_ALPHA_COLOR_LOOKUP_EF_F                 31:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_EF_F_RED             31:27
-#define VIDEO_ALPHA_COLOR_LOOKUP_EF_F_GREEN           26:21
-#define VIDEO_ALPHA_COLOR_LOOKUP_EF_F_BLUE            20:16
-#define VIDEO_ALPHA_COLOR_LOOKUP_EF_E                 15:0
-#define VIDEO_ALPHA_COLOR_LOOKUP_EF_E_RED             15:11
-#define VIDEO_ALPHA_COLOR_LOOKUP_EF_E_GREEN           10:5
-#define VIDEO_ALPHA_COLOR_LOOKUP_EF_E_BLUE            4:0
+#define VIDEO_ALPHA_COLOR_LOOKUP_EF_F_MASK            (0xffff << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_EF_F_RED_MASK        (0x1f << 27)
+#define VIDEO_ALPHA_COLOR_LOOKUP_EF_F_GREEN_MASK      (0x3f << 21)
+#define VIDEO_ALPHA_COLOR_LOOKUP_EF_F_BLUE_MASK       (0x1f << 16)
+#define VIDEO_ALPHA_COLOR_LOOKUP_EF_E_MASK            0xffff
+#define VIDEO_ALPHA_COLOR_LOOKUP_EF_E_RED_MASK        (0x1f << 11)
+#define VIDEO_ALPHA_COLOR_LOOKUP_EF_E_GREEN_MASK      (0x3f << 5)
+#define VIDEO_ALPHA_COLOR_LOOKUP_EF_E_BLUE_MASK       0x1f
 
 /* Panel Cursor Control */
 
 #define PANEL_HWC_ADDRESS                             0x0800F0
 #define PANEL_HWC_ADDRESS_ENABLE                      BIT(31)
 #define PANEL_HWC_ADDRESS_EXT                         BIT(27)
-#define PANEL_HWC_ADDRESS_ADDRESS                     25:0
+#define PANEL_HWC_ADDRESS_ADDRESS_MASK                0x3ffffff
 
 #define PANEL_HWC_LOCATION                            0x0800F4
 #define PANEL_HWC_LOCATION_TOP                        BIT(27)
-#define PANEL_HWC_LOCATION_Y                          26:16
+#define PANEL_HWC_LOCATION_Y_MASK                     (0x7ff << 16)
 #define PANEL_HWC_LOCATION_LEFT                       BIT(11)
-#define PANEL_HWC_LOCATION_X                          10:0
+#define PANEL_HWC_LOCATION_X_MASK                     0x7ff
 
 #define PANEL_HWC_COLOR_12                            0x0800F8
-#define PANEL_HWC_COLOR_12_2_RGB565                   31:16
-#define PANEL_HWC_COLOR_12_1_RGB565                   15:0
+#define PANEL_HWC_COLOR_12_2_RGB565_MASK              (0xffff << 16)
+#define PANEL_HWC_COLOR_12_1_RGB565_MASK              0xffff
 
 #define PANEL_HWC_COLOR_3                             0x0800FC
-#define PANEL_HWC_COLOR_3_RGB565                      15:0
+#define PANEL_HWC_COLOR_3_RGB565_MASK                 0xffff
 
 /* Old Definitions +++ */
 #define PANEL_HWC_COLOR_01                            0x0800F8
-#define PANEL_HWC_COLOR_01_1_RED                      31:27
-#define PANEL_HWC_COLOR_01_1_GREEN                    26:21
-#define PANEL_HWC_COLOR_01_1_BLUE                     20:16
-#define PANEL_HWC_COLOR_01_0_RED                      15:11
-#define PANEL_HWC_COLOR_01_0_GREEN                    10:5
-#define PANEL_HWC_COLOR_01_0_BLUE                     4:0
+#define PANEL_HWC_COLOR_01_1_RED_MASK                 (0x1f << 27)
+#define PANEL_HWC_COLOR_01_1_GREEN_MASK               (0x3f << 21)
+#define PANEL_HWC_COLOR_01_1_BLUE_MASK                (0x1f << 16)
+#define PANEL_HWC_COLOR_01_0_RED_MASK                 (0x1f << 11)
+#define PANEL_HWC_COLOR_01_0_GREEN_MASK               (0x3f << 5)
+#define PANEL_HWC_COLOR_01_0_BLUE_MASK                0x1f
 
 #define PANEL_HWC_COLOR_2                             0x0800FC
-#define PANEL_HWC_COLOR_2_RED                         15:11
-#define PANEL_HWC_COLOR_2_GREEN                       10:5
-#define PANEL_HWC_COLOR_2_BLUE                        4:0
+#define PANEL_HWC_COLOR_2_RED_MASK                    (0x1f << 11)
+#define PANEL_HWC_COLOR_2_GREEN_MASK                  (0x3f << 5)
+#define PANEL_HWC_COLOR_2_BLUE_MASK                   0x1f
 /* Old Definitions --- */
 
 /* Alpha Control */
 
 #define ALPHA_DISPLAY_CTRL                            0x080100
 #define ALPHA_DISPLAY_CTRL_SELECT                     BIT(28)
-#define ALPHA_DISPLAY_CTRL_ALPHA                      27:24
-#define ALPHA_DISPLAY_CTRL_FIFO                       17:16
-#define ALPHA_DISPLAY_CTRL_FIFO_1                     0
-#define ALPHA_DISPLAY_CTRL_FIFO_3                     1
-#define ALPHA_DISPLAY_CTRL_FIFO_7                     2
-#define ALPHA_DISPLAY_CTRL_FIFO_11                    3
-#define ALPHA_DISPLAY_CTRL_PIXEL                      7:4
+#define ALPHA_DISPLAY_CTRL_ALPHA_MASK                 (0xf << 24)
+#define ALPHA_DISPLAY_CTRL_FIFO_MASK                  (0x3 << 16)
+#define ALPHA_DISPLAY_CTRL_FIFO_1                     (0x0 << 16)
+#define ALPHA_DISPLAY_CTRL_FIFO_3                     (0x1 << 16)
+#define ALPHA_DISPLAY_CTRL_FIFO_7                     (0x2 << 16)
+#define ALPHA_DISPLAY_CTRL_FIFO_11                    (0x3 << 16)
+#define ALPHA_DISPLAY_CTRL_PIXEL_MASK                 (0xf << 4)
 #define ALPHA_DISPLAY_CTRL_CHROMA_KEY                 BIT(3)
-#define ALPHA_DISPLAY_CTRL_FORMAT                     1:0
-#define ALPHA_DISPLAY_CTRL_FORMAT_16                  1
-#define ALPHA_DISPLAY_CTRL_FORMAT_ALPHA_4_4           2
-#define ALPHA_DISPLAY_CTRL_FORMAT_ALPHA_4_4_4_4       3
+#define ALPHA_DISPLAY_CTRL_FORMAT_MASK                0x3
+#define ALPHA_DISPLAY_CTRL_FORMAT_16                  0x1
+#define ALPHA_DISPLAY_CTRL_FORMAT_ALPHA_4_4           0x2
+#define ALPHA_DISPLAY_CTRL_FORMAT_ALPHA_4_4_4_4       0x3
 
 #define ALPHA_FB_ADDRESS                              0x080104
 #define ALPHA_FB_ADDRESS_STATUS                       BIT(31)
 #define ALPHA_FB_ADDRESS_EXT                          BIT(27)
-#define ALPHA_FB_ADDRESS_ADDRESS                      25:0
+#define ALPHA_FB_ADDRESS_ADDRESS_MASK                 0x3ffffff
 
 #define ALPHA_FB_WIDTH                                0x080108
-#define ALPHA_FB_WIDTH_WIDTH                          29:16
-#define ALPHA_FB_WIDTH_OFFSET                         13:0
+#define ALPHA_FB_WIDTH_WIDTH_MASK                     (0x3fff << 16)
+#define ALPHA_FB_WIDTH_OFFSET_MASK                    0x3fff
 
 #define ALPHA_PLANE_TL                                0x08010C
-#define ALPHA_PLANE_TL_TOP                            26:16
-#define ALPHA_PLANE_TL_LEFT                           10:0
+#define ALPHA_PLANE_TL_TOP_MASK                       (0x7ff << 16)
+#define ALPHA_PLANE_TL_LEFT_MASK                      0x7ff
 
 #define ALPHA_PLANE_BR                                0x080110
-#define ALPHA_PLANE_BR_BOTTOM                         26:16
-#define ALPHA_PLANE_BR_RIGHT                          10:0
+#define ALPHA_PLANE_BR_BOTTOM_MASK                    (0x7ff << 16)
+#define ALPHA_PLANE_BR_RIGHT_MASK                     0x7ff
 
 #define ALPHA_CHROMA_KEY                              0x080114
-#define ALPHA_CHROMA_KEY_MASK                         31:16
-#define ALPHA_CHROMA_KEY_VALUE                        15:0
+#define ALPHA_CHROMA_KEY_MASK_MASK                    (0xffff << 16)
+#define ALPHA_CHROMA_KEY_VALUE_MASK                   0xffff
 
 #define ALPHA_COLOR_LOOKUP_01                         0x080118
-#define ALPHA_COLOR_LOOKUP_01_1                       31:16
-#define ALPHA_COLOR_LOOKUP_01_1_RED                   31:27
-#define ALPHA_COLOR_LOOKUP_01_1_GREEN                 26:21
-#define ALPHA_COLOR_LOOKUP_01_1_BLUE                  20:16
-#define ALPHA_COLOR_LOOKUP_01_0                       15:0
-#define ALPHA_COLOR_LOOKUP_01_0_RED                   15:11
-#define ALPHA_COLOR_LOOKUP_01_0_GREEN                 10:5
-#define ALPHA_COLOR_LOOKUP_01_0_BLUE                  4:0
+#define ALPHA_COLOR_LOOKUP_01_1_MASK                  (0xffff << 16)
+#define ALPHA_COLOR_LOOKUP_01_1_RED_MASK              (0x1f << 27)
+#define ALPHA_COLOR_LOOKUP_01_1_GREEN_MASK            (0x3f << 21)
+#define ALPHA_COLOR_LOOKUP_01_1_BLUE_MASK             (0x1f << 16)
+#define ALPHA_COLOR_LOOKUP_01_0_MASK                  0xffff
+#define ALPHA_COLOR_LOOKUP_01_0_RED_MASK              (0x1f << 11)
+#define ALPHA_COLOR_LOOKUP_01_0_GREEN_MASK            (0x3f << 5)
+#define ALPHA_COLOR_LOOKUP_01_0_BLUE_MASK             0x1f
 
 #define ALPHA_COLOR_LOOKUP_23                         0x08011C
-#define ALPHA_COLOR_LOOKUP_23_3                       31:16
-#define ALPHA_COLOR_LOOKUP_23_3_RED                   31:27
-#define ALPHA_COLOR_LOOKUP_23_3_GREEN                 26:21
-#define ALPHA_COLOR_LOOKUP_23_3_BLUE                  20:16
-#define ALPHA_COLOR_LOOKUP_23_2                       15:0
-#define ALPHA_COLOR_LOOKUP_23_2_RED                   15:11
-#define ALPHA_COLOR_LOOKUP_23_2_GREEN                 10:5
-#define ALPHA_COLOR_LOOKUP_23_2_BLUE                  4:0
+#define ALPHA_COLOR_LOOKUP_23_3_MASK                  (0xffff << 16)
+#define ALPHA_COLOR_LOOKUP_23_3_RED_MASK              (0x1f << 27)
+#define ALPHA_COLOR_LOOKUP_23_3_GREEN_MASK            (0x3f << 21)
+#define ALPHA_COLOR_LOOKUP_23_3_BLUE_MASK             (0x1f << 16)
+#define ALPHA_COLOR_LOOKUP_23_2_MASK                  0xffff
+#define ALPHA_COLOR_LOOKUP_23_2_RED_MASK              (0x1f << 11)
+#define ALPHA_COLOR_LOOKUP_23_2_GREEN_MASK            (0x3f << 5)
+#define ALPHA_COLOR_LOOKUP_23_2_BLUE_MASK             0x1f
 
 #define ALPHA_COLOR_LOOKUP_45                         0x080120
-#define ALPHA_COLOR_LOOKUP_45_5                       31:16
-#define ALPHA_COLOR_LOOKUP_45_5_RED                   31:27
-#define ALPHA_COLOR_LOOKUP_45_5_GREEN                 26:21
-#define ALPHA_COLOR_LOOKUP_45_5_BLUE                  20:16
-#define ALPHA_COLOR_LOOKUP_45_4                       15:0
-#define ALPHA_COLOR_LOOKUP_45_4_RED                   15:11
-#define ALPHA_COLOR_LOOKUP_45_4_GREEN                 10:5
-#define ALPHA_COLOR_LOOKUP_45_4_BLUE                  4:0
+#define ALPHA_COLOR_LOOKUP_45_5_MASK                  (0xffff << 16)
+#define ALPHA_COLOR_LOOKUP_45_5_RED_MASK              (0x1f << 27)
+#define ALPHA_COLOR_LOOKUP_45_5_GREEN_MASK            (0x3f << 21)
+#define ALPHA_COLOR_LOOKUP_45_5_BLUE_MASK             (0x1f << 16)
+#define ALPHA_COLOR_LOOKUP_45_4_MASK                  0xffff
+#define ALPHA_COLOR_LOOKUP_45_4_RED_MASK              (0x1f << 11)
+#define ALPHA_COLOR_LOOKUP_45_4_GREEN_MASK            (0x3f << 5)
+#define ALPHA_COLOR_LOOKUP_45_4_BLUE_MASK             0x1f
 
 #define ALPHA_COLOR_LOOKUP_67                         0x080124
-#define ALPHA_COLOR_LOOKUP_67_7                       31:16
-#define ALPHA_COLOR_LOOKUP_67_7_RED                   31:27
-#define ALPHA_COLOR_LOOKUP_67_7_GREEN                 26:21
-#define ALPHA_COLOR_LOOKUP_67_7_BLUE                  20:16
-#define ALPHA_COLOR_LOOKUP_67_6                       15:0
-#define ALPHA_COLOR_LOOKUP_67_6_RED                   15:11
-#define ALPHA_COLOR_LOOKUP_67_6_GREEN                 10:5
-#define ALPHA_COLOR_LOOKUP_67_6_BLUE                  4:0
+#define ALPHA_COLOR_LOOKUP_67_7_MASK                  (0xffff << 16)
+#define ALPHA_COLOR_LOOKUP_67_7_RED_MASK              (0x1f << 27)
+#define ALPHA_COLOR_LOOKUP_67_7_GREEN_MASK            (0x3f << 21)
+#define ALPHA_COLOR_LOOKUP_67_7_BLUE_MASK             (0x1f << 16)
+#define ALPHA_COLOR_LOOKUP_67_6_MASK                  0xffff
+#define ALPHA_COLOR_LOOKUP_67_6_RED_MASK              (0x1f << 11)
+#define ALPHA_COLOR_LOOKUP_67_6_GREEN_MASK            (0x3f << 5)
+#define ALPHA_COLOR_LOOKUP_67_6_BLUE_MASK             0x1f
 
 #define ALPHA_COLOR_LOOKUP_89                         0x080128
-#define ALPHA_COLOR_LOOKUP_89_9                       31:16
-#define ALPHA_COLOR_LOOKUP_89_9_RED                   31:27
-#define ALPHA_COLOR_LOOKUP_89_9_GREEN                 26:21
-#define ALPHA_COLOR_LOOKUP_89_9_BLUE                  20:16
-#define ALPHA_COLOR_LOOKUP_89_8                       15:0
-#define ALPHA_COLOR_LOOKUP_89_8_RED                   15:11
-#define ALPHA_COLOR_LOOKUP_89_8_GREEN                 10:5
-#define ALPHA_COLOR_LOOKUP_89_8_BLUE                  4:0
+#define ALPHA_COLOR_LOOKUP_89_9_MASK                  (0xffff << 16)
+#define ALPHA_COLOR_LOOKUP_89_9_RED_MASK              (0x1f << 27)
+#define ALPHA_COLOR_LOOKUP_89_9_GREEN_MASK            (0x3f << 21)
+#define ALPHA_COLOR_LOOKUP_89_9_BLUE_MASK             (0x1f << 16)
+#define ALPHA_COLOR_LOOKUP_89_8_MASK                  0xffff
+#define ALPHA_COLOR_LOOKUP_89_8_RED_MASK              (0x1f << 11)
+#define ALPHA_COLOR_LOOKUP_89_8_GREEN_MASK            (0x3f << 5)
+#define ALPHA_COLOR_LOOKUP_89_8_BLUE_MASK             0x1f
 
 #define ALPHA_COLOR_LOOKUP_AB                         0x08012C
-#define ALPHA_COLOR_LOOKUP_AB_B                       31:16
-#define ALPHA_COLOR_LOOKUP_AB_B_RED                   31:27
-#define ALPHA_COLOR_LOOKUP_AB_B_GREEN                 26:21
-#define ALPHA_COLOR_LOOKUP_AB_B_BLUE                  20:16
-#define ALPHA_COLOR_LOOKUP_AB_A                       15:0
-#define ALPHA_COLOR_LOOKUP_AB_A_RED                   15:11
-#define ALPHA_COLOR_LOOKUP_AB_A_GREEN                 10:5
-#define ALPHA_COLOR_LOOKUP_AB_A_BLUE                  4:0
+#define ALPHA_COLOR_LOOKUP_AB_B_MASK                  (0xffff << 16)
+#define ALPHA_COLOR_LOOKUP_AB_B_RED_MASK              (0x1f << 27)
+#define ALPHA_COLOR_LOOKUP_AB_B_GREEN_MASK            (0x3f << 21)
+#define ALPHA_COLOR_LOOKUP_AB_B_BLUE_MASK             (0x1f << 16)
+#define ALPHA_COLOR_LOOKUP_AB_A_MASK                  0xffff
+#define ALPHA_COLOR_LOOKUP_AB_A_RED_MASK              (0x1f << 11)
+#define ALPHA_COLOR_LOOKUP_AB_A_GREEN_MASK            (0x3f << 5)
+#define ALPHA_COLOR_LOOKUP_AB_A_BLUE_MASK             0x1f
 
 #define ALPHA_COLOR_LOOKUP_CD                         0x080130
-#define ALPHA_COLOR_LOOKUP_CD_D                       31:16
-#define ALPHA_COLOR_LOOKUP_CD_D_RED                   31:27
-#define ALPHA_COLOR_LOOKUP_CD_D_GREEN                 26:21
-#define ALPHA_COLOR_LOOKUP_CD_D_BLUE                  20:16
-#define ALPHA_COLOR_LOOKUP_CD_C                       15:0
-#define ALPHA_COLOR_LOOKUP_CD_C_RED                   15:11
-#define ALPHA_COLOR_LOOKUP_CD_C_GREEN                 10:5
-#define ALPHA_COLOR_LOOKUP_CD_C_BLUE                  4:0
+#define ALPHA_COLOR_LOOKUP_CD_D_MASK                  (0xffff << 16)
+#define ALPHA_COLOR_LOOKUP_CD_D_RED_MASK              (0x1f << 27)
+#define ALPHA_COLOR_LOOKUP_CD_D_GREEN_MASK            (0x3f << 21)
+#define ALPHA_COLOR_LOOKUP_CD_D_BLUE_MASK             (0x1f << 16)
+#define ALPHA_COLOR_LOOKUP_CD_C_MASK                  0xffff
+#define ALPHA_COLOR_LOOKUP_CD_C_RED_MASK              (0x1f << 11)
+#define ALPHA_COLOR_LOOKUP_CD_C_GREEN_MASK            (0x3f << 5)
+#define ALPHA_COLOR_LOOKUP_CD_C_BLUE_MASK             0x1f
 
 #define ALPHA_COLOR_LOOKUP_EF                         0x080134
-#define ALPHA_COLOR_LOOKUP_EF_F                       31:16
-#define ALPHA_COLOR_LOOKUP_EF_F_RED                   31:27
-#define ALPHA_COLOR_LOOKUP_EF_F_GREEN                 26:21
-#define ALPHA_COLOR_LOOKUP_EF_F_BLUE                  20:16
-#define ALPHA_COLOR_LOOKUP_EF_E                       15:0
-#define ALPHA_COLOR_LOOKUP_EF_E_RED                   15:11
-#define ALPHA_COLOR_LOOKUP_EF_E_GREEN                 10:5
-#define ALPHA_COLOR_LOOKUP_EF_E_BLUE                  4:0
+#define ALPHA_COLOR_LOOKUP_EF_F_MASK                  (0xffff << 16)
+#define ALPHA_COLOR_LOOKUP_EF_F_RED_MASK              (0x1f << 27)
+#define ALPHA_COLOR_LOOKUP_EF_F_GREEN_MASK            (0x3f << 21)
+#define ALPHA_COLOR_LOOKUP_EF_F_BLUE_MASK             (0x1f << 16)
+#define ALPHA_COLOR_LOOKUP_EF_E_MASK                  0xffff
+#define ALPHA_COLOR_LOOKUP_EF_E_RED_MASK              (0x1f << 11)
+#define ALPHA_COLOR_LOOKUP_EF_E_GREEN_MASK            (0x3f << 5)
+#define ALPHA_COLOR_LOOKUP_EF_E_BLUE_MASK             0x1f
 
 /* CRT Graphics Control */
 
@@ -1075,66 +1075,66 @@
 #define CRT_VERTICAL_SYNC_START_MASK                  0x7ff
 
 #define CRT_SIGNATURE_ANALYZER                        0x08021C
-#define CRT_SIGNATURE_ANALYZER_STATUS                 31:16
+#define CRT_SIGNATURE_ANALYZER_STATUS_MASK            (0xffff << 16)
 #define CRT_SIGNATURE_ANALYZER_ENABLE                 BIT(3)
 #define CRT_SIGNATURE_ANALYZER_RESET                  BIT(2)
-#define CRT_SIGNATURE_ANALYZER_SOURCE                 1:0
+#define CRT_SIGNATURE_ANALYZER_SOURCE_MASK            0x3
 #define CRT_SIGNATURE_ANALYZER_SOURCE_RED             0
 #define CRT_SIGNATURE_ANALYZER_SOURCE_GREEN           1
 #define CRT_SIGNATURE_ANALYZER_SOURCE_BLUE            2
 
 #define CRT_CURRENT_LINE                              0x080220
-#define CRT_CURRENT_LINE_LINE                         10:0
+#define CRT_CURRENT_LINE_LINE_MASK                    0x7ff
 
 #define CRT_MONITOR_DETECT                            0x080224
 #define CRT_MONITOR_DETECT_VALUE                      BIT(25)
 #define CRT_MONITOR_DETECT_ENABLE                     BIT(24)
-#define CRT_MONITOR_DETECT_RED                        23:16
-#define CRT_MONITOR_DETECT_GREEN                      15:8
-#define CRT_MONITOR_DETECT_BLUE                       7:0
+#define CRT_MONITOR_DETECT_RED_MASK                   (0xff << 16)
+#define CRT_MONITOR_DETECT_GREEN_MASK                 (0xff << 8)
+#define CRT_MONITOR_DETECT_BLUE_MASK                  0xff
 
 #define CRT_SCALE                                     0x080228
 #define CRT_SCALE_VERTICAL_MODE                       BIT(31)
-#define CRT_SCALE_VERTICAL_SCALE                      27:16
+#define CRT_SCALE_VERTICAL_SCALE_MASK                 (0xfff << 16)
 #define CRT_SCALE_HORIZONTAL_MODE                     BIT(15)
-#define CRT_SCALE_HORIZONTAL_SCALE                    11:0
+#define CRT_SCALE_HORIZONTAL_SCALE_MASK               0xfff
 
 /* CRT Cursor Control */
 
 #define CRT_HWC_ADDRESS                               0x080230
 #define CRT_HWC_ADDRESS_ENABLE                        BIT(31)
 #define CRT_HWC_ADDRESS_EXT                           BIT(27)
-#define CRT_HWC_ADDRESS_ADDRESS                       25:0
+#define CRT_HWC_ADDRESS_ADDRESS_MASK                  0x3ffffff
 
 #define CRT_HWC_LOCATION                              0x080234
 #define CRT_HWC_LOCATION_TOP                          BIT(27)
-#define CRT_HWC_LOCATION_Y                            26:16
+#define CRT_HWC_LOCATION_Y_MASK                       (0x7ff << 16)
 #define CRT_HWC_LOCATION_LEFT                         BIT(11)
-#define CRT_HWC_LOCATION_X                            10:0
+#define CRT_HWC_LOCATION_X_MASK                       0x7ff
 
 #define CRT_HWC_COLOR_12                              0x080238
-#define CRT_HWC_COLOR_12_2_RGB565                     31:16
-#define CRT_HWC_COLOR_12_1_RGB565                     15:0
+#define CRT_HWC_COLOR_12_2_RGB565_MASK                (0xffff << 16)
+#define CRT_HWC_COLOR_12_1_RGB565_MASK                0xffff
 
 #define CRT_HWC_COLOR_3                               0x08023C
-#define CRT_HWC_COLOR_3_RGB565                        15:0
+#define CRT_HWC_COLOR_3_RGB565_MASK                   0xffff
 
 /* This vertical expansion below start at 0x080240 ~ 0x080264 */
 #define CRT_VERTICAL_EXPANSION                        0x080240
 #ifndef VALIDATION_CHIP
-    #define CRT_VERTICAL_CENTERING_VALUE              31:24
+    #define CRT_VERTICAL_CENTERING_VALUE_MASK         (0xff << 24)
 #endif
-#define CRT_VERTICAL_EXPANSION_COMPARE_VALUE          23:16
-#define CRT_VERTICAL_EXPANSION_LINE_BUFFER            15:12
-#define CRT_VERTICAL_EXPANSION_SCALE_FACTOR           11:0
+#define CRT_VERTICAL_EXPANSION_COMPARE_VALUE_MASK     (0xff << 16)
+#define CRT_VERTICAL_EXPANSION_LINE_BUFFER_MASK       (0xf << 12)
+#define CRT_VERTICAL_EXPANSION_SCALE_FACTOR_MASK      0xfff
 
 /* This horizontal expansion below start at 0x080268 ~ 0x08027C */
 #define CRT_HORIZONTAL_EXPANSION                      0x080268
 #ifndef VALIDATION_CHIP
-    #define CRT_HORIZONTAL_CENTERING_VALUE            31:24
+    #define CRT_HORIZONTAL_CENTERING_VALUE_MASK       (0xff << 24)
 #endif
-#define CRT_HORIZONTAL_EXPANSION_COMPARE_VALUE        23:16
-#define CRT_HORIZONTAL_EXPANSION_SCALE_FACTOR         11:0
+#define CRT_HORIZONTAL_EXPANSION_COMPARE_VALUE_MASK   (0xff << 16)
+#define CRT_HORIZONTAL_EXPANSION_SCALE_FACTOR_MASK    0xfff
 
 #ifndef VALIDATION_CHIP
     /* Auto Centering */
@@ -1163,76 +1163,76 @@
 #define CSC_Y_SOURCE_BASE                               0x1000C8
 #define CSC_Y_SOURCE_BASE_EXT                           BIT(27)
 #define CSC_Y_SOURCE_BASE_CS                            BIT(26)
-#define CSC_Y_SOURCE_BASE_ADDRESS                       25:0
+#define CSC_Y_SOURCE_BASE_ADDRESS_MASK                  0x3ffffff
 
 #define CSC_CONSTANTS                                   0x1000CC
-#define CSC_CONSTANTS_Y                                 31:24
-#define CSC_CONSTANTS_R                                 23:16
-#define CSC_CONSTANTS_G                                 15:8
-#define CSC_CONSTANTS_B                                 7:0
+#define CSC_CONSTANTS_Y_MASK                            (0xff << 24)
+#define CSC_CONSTANTS_R_MASK                            (0xff << 16)
+#define CSC_CONSTANTS_G_MASK                            (0xff << 8)
+#define CSC_CONSTANTS_B_MASK                            0xff
 
 #define CSC_Y_SOURCE_X                                  0x1000D0
-#define CSC_Y_SOURCE_X_INTEGER                          26:16
-#define CSC_Y_SOURCE_X_FRACTION                         15:3
+#define CSC_Y_SOURCE_X_INTEGER_MASK                     (0x7ff << 16)
+#define CSC_Y_SOURCE_X_FRACTION_MASK                    (0x1fff << 3)
 
 #define CSC_Y_SOURCE_Y                                  0x1000D4
-#define CSC_Y_SOURCE_Y_INTEGER                          27:16
-#define CSC_Y_SOURCE_Y_FRACTION                         15:3
+#define CSC_Y_SOURCE_Y_INTEGER_MASK                     (0xfff << 16)
+#define CSC_Y_SOURCE_Y_FRACTION_MASK                    (0x1fff << 3)
 
 #define CSC_U_SOURCE_BASE                               0x1000D8
 #define CSC_U_SOURCE_BASE_EXT                           BIT(27)
 #define CSC_U_SOURCE_BASE_CS                            BIT(26)
-#define CSC_U_SOURCE_BASE_ADDRESS                       25:0
+#define CSC_U_SOURCE_BASE_ADDRESS_MASK                  0x3ffffff
 
 #define CSC_V_SOURCE_BASE                               0x1000DC
 #define CSC_V_SOURCE_BASE_EXT                           BIT(27)
 #define CSC_V_SOURCE_BASE_CS                            BIT(26)
-#define CSC_V_SOURCE_BASE_ADDRESS                       25:0
+#define CSC_V_SOURCE_BASE_ADDRESS_MASK                  0x3ffffff
 
 #define CSC_SOURCE_DIMENSION                            0x1000E0
-#define CSC_SOURCE_DIMENSION_X                          31:16
-#define CSC_SOURCE_DIMENSION_Y                          15:0
+#define CSC_SOURCE_DIMENSION_X_MASK                     (0xffff << 16)
+#define CSC_SOURCE_DIMENSION_Y_MASK                     0xffff
 
 #define CSC_SOURCE_PITCH                                0x1000E4
-#define CSC_SOURCE_PITCH_Y                              31:16
-#define CSC_SOURCE_PITCH_UV                             15:0
+#define CSC_SOURCE_PITCH_Y_MASK                         (0xffff << 16)
+#define CSC_SOURCE_PITCH_UV_MASK                        0xffff
 
 #define CSC_DESTINATION                                 0x1000E8
 #define CSC_DESTINATION_WRAP                            BIT(31)
-#define CSC_DESTINATION_X                               27:16
-#define CSC_DESTINATION_Y                               11:0
+#define CSC_DESTINATION_X_MASK                          (0xfff << 16)
+#define CSC_DESTINATION_Y_MASK                          0xfff
 
 #define CSC_DESTINATION_DIMENSION                       0x1000EC
-#define CSC_DESTINATION_DIMENSION_X                     31:16
-#define CSC_DESTINATION_DIMENSION_Y                     15:0
+#define CSC_DESTINATION_DIMENSION_X_MASK                (0xffff << 16)
+#define CSC_DESTINATION_DIMENSION_Y_MASK                0xffff
 
 #define CSC_DESTINATION_PITCH                           0x1000F0
-#define CSC_DESTINATION_PITCH_X                         31:16
-#define CSC_DESTINATION_PITCH_Y                         15:0
+#define CSC_DESTINATION_PITCH_X_MASK                    (0xffff << 16)
+#define CSC_DESTINATION_PITCH_Y_MASK                    0xffff
 
 #define CSC_SCALE_FACTOR                                0x1000F4
-#define CSC_SCALE_FACTOR_HORIZONTAL                     31:16
-#define CSC_SCALE_FACTOR_VERTICAL                       15:0
+#define CSC_SCALE_FACTOR_HORIZONTAL_MASK                (0xffff << 16)
+#define CSC_SCALE_FACTOR_VERTICAL_MASK                  0xffff
 
 #define CSC_DESTINATION_BASE                            0x1000F8
 #define CSC_DESTINATION_BASE_EXT                        BIT(27)
 #define CSC_DESTINATION_BASE_CS                         BIT(26)
-#define CSC_DESTINATION_BASE_ADDRESS                    25:0
+#define CSC_DESTINATION_BASE_ADDRESS_MASK               0x3ffffff
 
 #define CSC_CONTROL                                     0x1000FC
 #define CSC_CONTROL_STATUS                              BIT(31)
-#define CSC_CONTROL_SOURCE_FORMAT                       30:28
-#define CSC_CONTROL_SOURCE_FORMAT_YUV422                0
-#define CSC_CONTROL_SOURCE_FORMAT_YUV420I               1
-#define CSC_CONTROL_SOURCE_FORMAT_YUV420                2
-#define CSC_CONTROL_SOURCE_FORMAT_YVU9                  3
-#define CSC_CONTROL_SOURCE_FORMAT_IYU1                  4
-#define CSC_CONTROL_SOURCE_FORMAT_IYU2                  5
-#define CSC_CONTROL_SOURCE_FORMAT_RGB565                6
-#define CSC_CONTROL_SOURCE_FORMAT_RGB8888               7
-#define CSC_CONTROL_DESTINATION_FORMAT                  27:26
-#define CSC_CONTROL_DESTINATION_FORMAT_RGB565           0
-#define CSC_CONTROL_DESTINATION_FORMAT_RGB8888          1
+#define CSC_CONTROL_SOURCE_FORMAT_MASK                  (0x7 << 28)
+#define CSC_CONTROL_SOURCE_FORMAT_YUV422                (0x0 << 28)
+#define CSC_CONTROL_SOURCE_FORMAT_YUV420I               (0x1 << 28)
+#define CSC_CONTROL_SOURCE_FORMAT_YUV420                (0x2 << 28)
+#define CSC_CONTROL_SOURCE_FORMAT_YVU9                  (0x3 << 28)
+#define CSC_CONTROL_SOURCE_FORMAT_IYU1                  (0x4 << 28)
+#define CSC_CONTROL_SOURCE_FORMAT_IYU2                  (0x5 << 28)
+#define CSC_CONTROL_SOURCE_FORMAT_RGB565                (0x6 << 28)
+#define CSC_CONTROL_SOURCE_FORMAT_RGB8888               (0x7 << 28)
+#define CSC_CONTROL_DESTINATION_FORMAT_MASK             (0x3 << 26)
+#define CSC_CONTROL_DESTINATION_FORMAT_RGB565           (0x0 << 26)
+#define CSC_CONTROL_DESTINATION_FORMAT_RGB8888          (0x1 << 26)
 #define CSC_CONTROL_HORIZONTAL_FILTER                   BIT(25)
 #define CSC_CONTROL_VERTICAL_FILTER                     BIT(24)
 #define CSC_CONTROL_BYTE_ORDER                          BIT(23)
@@ -1240,7 +1240,7 @@
 #define DE_DATA_PORT                                    0x110000
 
 #define I2C_BYTE_COUNT                                  0x010040
-#define I2C_BYTE_COUNT_COUNT                            3:0
+#define I2C_BYTE_COUNT_COUNT_MASK                       0xf
 
 #define I2C_CTRL                                        0x010041
 #define I2C_CTRL_INT                                    BIT(4)
@@ -1259,7 +1259,7 @@
 #define I2C_RESET_BUS_ERROR                             BIT(2)
 
 #define I2C_SLAVE_ADDRESS                               0x010043
-#define I2C_SLAVE_ADDRESS_ADDRESS                       7:1
+#define I2C_SLAVE_ADDRESS_ADDRESS_MASK                  (0x7f << 1)
 #define I2C_SLAVE_ADDRESS_RW                            BIT(0)
 
 #define I2C_DATA0                                       0x010044
@@ -1307,34 +1307,33 @@
 #define ZV0_CAPTURE_CTRL_CAP                            BIT(0)
 
 #define ZV0_CAPTURE_CLIP                                0x090004
-#define ZV0_CAPTURE_CLIP_YCLIP_EVEN_FIELD                25:16
-#define ZV0_CAPTURE_CLIP_YCLIP                          25:16
-#define ZV0_CAPTURE_CLIP_XCLIP                          9:0
+#define ZV0_CAPTURE_CLIP_EYCLIP_MASK                    (0x3ff << 16)
+#define ZV0_CAPTURE_CLIP_XCLIP_MASK                     0x3ff
 
 #define ZV0_CAPTURE_SIZE                                0x090008
-#define ZV0_CAPTURE_SIZE_HEIGHT                         26:16
-#define ZV0_CAPTURE_SIZE_WIDTH                          10:0
+#define ZV0_CAPTURE_SIZE_HEIGHT_MASK                    (0x7ff << 16)
+#define ZV0_CAPTURE_SIZE_WIDTH_MASK                     0x7ff
 
 #define ZV0_CAPTURE_BUF0_ADDRESS                        0x09000C
 #define ZV0_CAPTURE_BUF0_ADDRESS_STATUS                 BIT(31)
 #define ZV0_CAPTURE_BUF0_ADDRESS_EXT                    BIT(27)
 #define ZV0_CAPTURE_BUF0_ADDRESS_CS                     BIT(26)
-#define ZV0_CAPTURE_BUF0_ADDRESS_ADDRESS                25:0
+#define ZV0_CAPTURE_BUF0_ADDRESS_ADDRESS_MASK           0x3ffffff
 
 #define ZV0_CAPTURE_BUF1_ADDRESS                        0x090010
 #define ZV0_CAPTURE_BUF1_ADDRESS_STATUS                 BIT(31)
 #define ZV0_CAPTURE_BUF1_ADDRESS_EXT                    BIT(27)
 #define ZV0_CAPTURE_BUF1_ADDRESS_CS                     BIT(26)
-#define ZV0_CAPTURE_BUF1_ADDRESS_ADDRESS                25:0
+#define ZV0_CAPTURE_BUF1_ADDRESS_ADDRESS_MASK           0x3ffffff
 
 #define ZV0_CAPTURE_BUF_OFFSET                          0x090014
 #ifndef VALIDATION_CHIP
-    #define ZV0_CAPTURE_BUF_OFFSET_YCLIP_ODD_FIELD      25:16
+    #define ZV0_CAPTURE_BUF_OFFSET_YCLIP_ODD_FIELD      (0x3ff << 16)
 #endif
-#define ZV0_CAPTURE_BUF_OFFSET_OFFSET                   15:0
+#define ZV0_CAPTURE_BUF_OFFSET_OFFSET_MASK              0xffff
 
 #define ZV0_CAPTURE_FIFO_CTRL                           0x090018
-#define ZV0_CAPTURE_FIFO_CTRL_FIFO                      2:0
+#define ZV0_CAPTURE_FIFO_CTRL_FIFO_MASK                 0x7
 #define ZV0_CAPTURE_FIFO_CTRL_FIFO_0                    0
 #define ZV0_CAPTURE_FIFO_CTRL_FIFO_1                    1
 #define ZV0_CAPTURE_FIFO_CTRL_FIFO_2                    2
@@ -1345,13 +1344,13 @@
 #define ZV0_CAPTURE_FIFO_CTRL_FIFO_7                    7
 
 #define ZV0_CAPTURE_YRGB_CONST                          0x09001C
-#define ZV0_CAPTURE_YRGB_CONST_Y                        31:24
-#define ZV0_CAPTURE_YRGB_CONST_R                        23:16
-#define ZV0_CAPTURE_YRGB_CONST_G                        15:8
-#define ZV0_CAPTURE_YRGB_CONST_B                        7:0
+#define ZV0_CAPTURE_YRGB_CONST_Y_MASK                   (0xff << 24)
+#define ZV0_CAPTURE_YRGB_CONST_R_MASK                   (0xff << 16)
+#define ZV0_CAPTURE_YRGB_CONST_G_MASK                   (0xff << 8)
+#define ZV0_CAPTURE_YRGB_CONST_B_MASK                   0xff
 
 #define ZV0_CAPTURE_LINE_COMP                           0x090020
-#define ZV0_CAPTURE_LINE_COMP_LC                        10:0
+#define ZV0_CAPTURE_LINE_COMP_LC_MASK                   0x7ff
 
 /* ZV1 */
 
@@ -1383,30 +1382,30 @@
 #define ZV1_CAPTURE_CTRL_CAP                            BIT(0)
 
 #define ZV1_CAPTURE_CLIP                                0x098004
-#define ZV1_CAPTURE_CLIP_YCLIP                          25:16
-#define ZV1_CAPTURE_CLIP_XCLIP                          9:0
+#define ZV1_CAPTURE_CLIP_YCLIP_MASK                     (0x3ff << 16)
+#define ZV1_CAPTURE_CLIP_XCLIP_MASK                     0x3ff
 
 #define ZV1_CAPTURE_SIZE                                0x098008
-#define ZV1_CAPTURE_SIZE_HEIGHT                         26:16
-#define ZV1_CAPTURE_SIZE_WIDTH                          10:0
+#define ZV1_CAPTURE_SIZE_HEIGHT_MASK                    (0x7ff << 16)
+#define ZV1_CAPTURE_SIZE_WIDTH_MASK                     0x7ff
 
 #define ZV1_CAPTURE_BUF0_ADDRESS                        0x09800C
 #define ZV1_CAPTURE_BUF0_ADDRESS_STATUS                 BIT(31)
 #define ZV1_CAPTURE_BUF0_ADDRESS_EXT                    BIT(27)
 #define ZV1_CAPTURE_BUF0_ADDRESS_CS                     BIT(26)
-#define ZV1_CAPTURE_BUF0_ADDRESS_ADDRESS                25:0
+#define ZV1_CAPTURE_BUF0_ADDRESS_ADDRESS_MASK           0x3ffffff
 
 #define ZV1_CAPTURE_BUF1_ADDRESS                        0x098010
 #define ZV1_CAPTURE_BUF1_ADDRESS_STATUS                 BIT(31)
 #define ZV1_CAPTURE_BUF1_ADDRESS_EXT                    BIT(27)
 #define ZV1_CAPTURE_BUF1_ADDRESS_CS                     BIT(26)
-#define ZV1_CAPTURE_BUF1_ADDRESS_ADDRESS                25:0
+#define ZV1_CAPTURE_BUF1_ADDRESS_ADDRESS_MASK           0x3ffffff
 
 #define ZV1_CAPTURE_BUF_OFFSET                          0x098014
-#define ZV1_CAPTURE_BUF_OFFSET_OFFSET                   15:0
+#define ZV1_CAPTURE_BUF_OFFSET_OFFSET_MASK              0xffff
 
 #define ZV1_CAPTURE_FIFO_CTRL                           0x098018
-#define ZV1_CAPTURE_FIFO_CTRL_FIFO                      2:0
+#define ZV1_CAPTURE_FIFO_CTRL_FIFO_MASK                 0x7
 #define ZV1_CAPTURE_FIFO_CTRL_FIFO_0                    0
 #define ZV1_CAPTURE_FIFO_CTRL_FIFO_1                    1
 #define ZV1_CAPTURE_FIFO_CTRL_FIFO_2                    2
@@ -1417,24 +1416,24 @@
 #define ZV1_CAPTURE_FIFO_CTRL_FIFO_7                    7
 
 #define ZV1_CAPTURE_YRGB_CONST                          0x09801C
-#define ZV1_CAPTURE_YRGB_CONST_Y                        31:24
-#define ZV1_CAPTURE_YRGB_CONST_R                        23:16
-#define ZV1_CAPTURE_YRGB_CONST_G                        15:8
-#define ZV1_CAPTURE_YRGB_CONST_B                        7:0
+#define ZV1_CAPTURE_YRGB_CONST_Y_MASK                   (0xff << 24)
+#define ZV1_CAPTURE_YRGB_CONST_R_MASK                   (0xff << 16)
+#define ZV1_CAPTURE_YRGB_CONST_G_MASK                   (0xff << 8)
+#define ZV1_CAPTURE_YRGB_CONST_B_MASK                   0xff
 
 #define DMA_1_SOURCE                                    0x0D0010
 #define DMA_1_SOURCE_ADDRESS_EXT                        BIT(27)
 #define DMA_1_SOURCE_ADDRESS_CS                         BIT(26)
-#define DMA_1_SOURCE_ADDRESS                            25:0
+#define DMA_1_SOURCE_ADDRESS_MASK                       0x3ffffff
 
 #define DMA_1_DESTINATION                               0x0D0014
 #define DMA_1_DESTINATION_ADDRESS_EXT                   BIT(27)
 #define DMA_1_DESTINATION_ADDRESS_CS                    BIT(26)
-#define DMA_1_DESTINATION_ADDRESS                       25:0
+#define DMA_1_DESTINATION_ADDRESS_MASK                  0x3ffffff
 
 #define DMA_1_SIZE_CONTROL                              0x0D0018
 #define DMA_1_SIZE_CONTROL_STATUS                       BIT(31)
-#define DMA_1_SIZE_CONTROL_SIZE                         23:0
+#define DMA_1_SIZE_CONTROL_SIZE_MASK                    0xffffff
 
 #define DMA_ABORT_INTERRUPT                             0x0D0020
 #define DMA_ABORT_INTERRUPT_ABORT_1                     BIT(5)
