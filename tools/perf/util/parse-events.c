@@ -1043,7 +1043,8 @@ int parse_events_add_numeric(struct parse_events_evlist *data,
 			return -ENOMEM;
 	}
 
-	return add_event(list, &data->idx, &attr, NULL, &config_terms);
+	return add_event(list, &data->idx, &attr,
+			 get_config_name(head_config), &config_terms);
 }
 
 int parse_events_add_pmu(struct parse_events_evlist *data,

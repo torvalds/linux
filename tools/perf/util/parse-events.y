@@ -407,24 +407,26 @@ PE_NAME ':' PE_NAME
 }
 
 event_legacy_numeric:
-PE_VALUE ':' PE_VALUE
+PE_VALUE ':' PE_VALUE opt_event_config
 {
 	struct parse_events_evlist *data = _data;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_numeric(data, list, (u32)$1, $3, NULL));
+	ABORT_ON(parse_events_add_numeric(data, list, (u32)$1, $3, $4));
+	parse_events_terms__delete($4);
 	$$ = list;
 }
 
 event_legacy_raw:
-PE_RAW
+PE_RAW opt_event_config
 {
 	struct parse_events_evlist *data = _data;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_numeric(data, list, PERF_TYPE_RAW, $1, NULL));
+	ABORT_ON(parse_events_add_numeric(data, list, PERF_TYPE_RAW, $1, $2));
+	parse_events_terms__delete($2);
 	$$ = list;
 }
 
