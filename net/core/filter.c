@@ -530,12 +530,14 @@ do_pass:
 			*insn = BPF_MOV64_REG(BPF_REG_A, BPF_REG_TMP);
 			break;
 
-		/* RET_K, RET_A are remaped into 2 insns. */
+		/* RET_K is remaped into 2 insns. RET_A case doesn't need an
+		 * extra mov as BPF_REG_0 is already mapped into BPF_REG_A.
+		 */
 		case BPF_RET | BPF_A:
 		case BPF_RET | BPF_K:
-			*insn++ = BPF_MOV32_RAW(BPF_RVAL(fp->code) == BPF_K ?
-						BPF_K : BPF_X, BPF_REG_0,
-						BPF_REG_A, fp->k);
+			if (BPF_RVAL(fp->code) == BPF_K)
+				*insn++ = BPF_MOV32_RAW(BPF_K, BPF_REG_0,
+							0, fp->k);
 			*insn = BPF_EXIT_INSN();
 			break;
 
