@@ -106,6 +106,9 @@ void __init imx_init_l2cache(void)
 		goto out;
 	}
 
+	if (readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)
+		goto skip_if_enabled;
+
 	/* Configure the L2 PREFETCH and POWER registers */
 	/* Set prefetch offset with any value except 23 as per errata 765569 */
 	val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
@@ -128,6 +131,7 @@ void __init imx_init_l2cache(void)
 	val = L310_DYNAMIC_CLK_GATING_EN | L310_STNDBY_MODE_EN;
 	writel_relaxed(val, l2x0_base + L310_POWER_CTRL);
 
+skip_if_enabled:
 	iounmap(l2x0_base);
 	of_node_put(np);
 
