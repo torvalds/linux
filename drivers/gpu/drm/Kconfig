@@ -281,3 +281,5 @@ source "drivers/gpu/drm/imx/Kconfig"
 source "drivers/gpu/drm/vc4/Kconfig"
 
 source "drivers/gpu/drm/etnaviv/Kconfig"
+
+source "drivers/gpu/drm/arc/Kconfig"
