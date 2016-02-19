@@ -870,20 +870,19 @@ static int nvm_configure_by_str_event(const char *val,
 
 static int nvm_configure_get(char *buf, const struct kernel_param *kp)
 {
-	int sz = 0;
-	char *buf_start = buf;
+	int sz;
 	struct nvm_dev *dev;
 
-	buf += sprintf(buf, "available devices:\n");
+	sz = sprintf(buf, "available devices:\n");
 	down_write(&nvm_lock);
 	list_for_each_entry(dev, &nvm_devices, devices) {
-		if (sz > 4095 - DISK_NAME_LEN)
+		if (sz > 4095 - DISK_NAME_LEN - 2)
 			break;
-		buf += sprintf(buf, " %32s\n", dev->name);
+		sz += sprintf(buf + sz, " %32s\n", dev->name);
 	}
 	up_write(&nvm_lock);
 
-	return buf - buf_start - 1;
+	return sz;
 }
 
 static const struct kernel_param_ops nvm_configure_by_str_event_param_ops = {
