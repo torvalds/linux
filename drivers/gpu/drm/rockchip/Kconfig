@@ -1,5 +1,6 @@
 config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
+	depends on BROKEN
 	depends on DRM && ROCKCHIP_IOMMU
 	depends on RESET_CONTROLLER
 	select DRM_KMS_HELPER
