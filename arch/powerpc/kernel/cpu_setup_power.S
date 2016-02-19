@@ -15,6 +15,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
+#include <asm/mmu-hash64.h>
 
 /* Entry: r3 = crap, r4 = ptr to cputable entry
  *
@@ -139,7 +140,7 @@ __init_HFSCR:
  * (invalidate by congruence class). P7 has 128 CCs., P8 has 512.
  */
 __init_tlb_power7:
-	li	r6,128
+	li	r6,POWER7_TLB_SETS
 	mtctr	r6
 	li	r7,0xc00	/* IS field = 0b11 */
 	ptesync
@@ -150,7 +151,7 @@ __init_tlb_power7:
 1:	blr
 
 __init_tlb_power8:
-	li	r6,512
+	li	r6,POWER8_TLB_SETS
 	mtctr	r6
 	li	r7,0xc00	/* IS field = 0b11 */
 	ptesync
