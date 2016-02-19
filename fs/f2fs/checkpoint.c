@@ -1055,7 +1055,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	if (sb->s_bdev->bd_part)
 		kbytes_written += BD_PART_WRITTEN(sbi);
 
-	seg_i->sum_blk->journal.info.kbytes_written = cpu_to_le64(kbytes_written);
+	seg_i->journal->info.kbytes_written = cpu_to_le64(kbytes_written);
 
 	if (__remain_node_summaries(cpc->reason)) {
 		write_node_summaries(sbi, start_blk);

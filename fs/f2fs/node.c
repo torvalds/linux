@@ -354,7 +354,7 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
-	struct f2fs_journal *journal = &curseg->sum_blk->journal;
+	struct f2fs_journal *journal = curseg->journal;
 	nid_t start_nid = START_NID(nid);
 	struct f2fs_nat_block *nat_blk;
 	struct page *page = NULL;
@@ -381,13 +381,13 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 	down_write(&nm_i->nat_tree_lock);
 
 	/* Check current segment summary */
-	mutex_lock(&curseg->curseg_mutex);
+	down_read(&curseg->journal_rwsem);
 	i = lookup_journal_in_cursum(journal, NAT_JOURNAL, nid, 0);
 	if (i >= 0) {
 		ne = nat_in_journal(journal, i);
 		node_info_from_raw_nat(ni, &ne);
 	}
-	mutex_unlock(&curseg->curseg_mutex);
+	up_read(&curseg->journal_rwsem);
 	if (i >= 0)
 		goto cache;
 
@@ -1613,7 +1613,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
-	struct f2fs_journal *journal = &curseg->sum_blk->journal;
+	struct f2fs_journal *journal = curseg->journal;
 	int i = 0;
 	nid_t nid = nm_i->next_scan_nid;
 
@@ -1645,7 +1645,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 	nm_i->next_scan_nid = nid;
 
 	/* find free nids from current sum_pages */
-	mutex_lock(&curseg->curseg_mutex);
+	down_read(&curseg->journal_rwsem);
 	for (i = 0; i < nats_in_cursum(journal); i++) {
 		block_t addr;
 
@@ -1656,7 +1656,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 		else
 			remove_free_nid(nm_i, nid);
 	}
-	mutex_unlock(&curseg->curseg_mutex);
+	up_read(&curseg->journal_rwsem);
 	up_read(&nm_i->nat_tree_lock);
 
 	ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nm_i->next_scan_nid),
@@ -1920,10 +1920,10 @@ static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
-	struct f2fs_journal *journal = &curseg->sum_blk->journal;
+	struct f2fs_journal *journal = curseg->journal;
 	int i;
 
-	mutex_lock(&curseg->curseg_mutex);
+	down_write(&curseg->journal_rwsem);
 	for (i = 0; i < nats_in_cursum(journal); i++) {
 		struct nat_entry *ne;
 		struct f2fs_nat_entry raw_ne;
@@ -1939,7 +1939,7 @@ static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 		__set_nat_cache_dirty(nm_i, ne);
 	}
 	update_nats_in_cursum(journal, -i);
-	mutex_unlock(&curseg->curseg_mutex);
+	up_write(&curseg->journal_rwsem);
 }
 
 static void __adjust_nat_entry_set(struct nat_entry_set *nes,
@@ -1964,7 +1964,7 @@ static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 					struct nat_entry_set *set)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
-	struct f2fs_journal *journal = &curseg->sum_blk->journal;
+	struct f2fs_journal *journal = curseg->journal;
 	nid_t start_nid = set->set * NAT_ENTRY_PER_BLOCK;
 	bool to_journal = true;
 	struct f2fs_nat_block *nat_blk;
@@ -1980,7 +1980,7 @@ static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 		to_journal = false;
 
 	if (to_journal) {
-		mutex_lock(&curseg->curseg_mutex);
+		down_write(&curseg->journal_rwsem);
 	} else {
 		page = get_next_nat_page(sbi, start_nid);
 		nat_blk = page_address(page);
@@ -2013,7 +2013,7 @@ static void __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 	}
 
 	if (to_journal)
-		mutex_unlock(&curseg->curseg_mutex);
+		up_write(&curseg->journal_rwsem);
 	else
 		f2fs_put_page(page, 1);
 
@@ -2030,7 +2030,7 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
-	struct f2fs_journal *journal = &curseg->sum_blk->journal;
+	struct f2fs_journal *journal = curseg->journal;
 	struct nat_entry_set *setvec[SETVEC_SIZE];
 	struct nat_entry_set *set, *tmp;
 	unsigned int found;
