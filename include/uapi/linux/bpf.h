@@ -287,6 +287,17 @@ enum bpf_func_id {
 	 * Return: >= 0 stackid on success or negative error
 	 */
 	BPF_FUNC_get_stackid,
+
+	/**
+	 * bpf_csum_diff(from, from_size, to, to_size, seed) - calculate csum diff
+	 * @from: raw from buffer
+	 * @from_size: length of from buffer
+	 * @to: raw to buffer
+	 * @to_size: length of to buffer
+	 * @seed: optional seed
+	 * Return: csum result
+	 */
+	BPF_FUNC_csum_diff,
 	__BPF_FUNC_MAX_ID,
 };
 
