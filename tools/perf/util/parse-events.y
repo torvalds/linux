@@ -293,33 +293,39 @@ value_sym sep_slash_dc
 }
 
 event_legacy_cache:
-PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT '-' PE_NAME_CACHE_OP_RESULT
+PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT '-' PE_NAME_CACHE_OP_RESULT opt_event_config
 {
 	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_cache(list, &data->idx, $1, $3, $5));
+	ABORT_ON(parse_events_add_cache(list, &data->idx, $1, $3, $5, error, $6));
+	parse_events_terms__delete($6);
 	$$ = list;
 }
 |
-PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT
+PE_NAME_CACHE_TYPE '-' PE_NAME_CACHE_OP_RESULT opt_event_config
 {
 	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_cache(list, &data->idx, $1, $3, NULL));
+	ABORT_ON(parse_events_add_cache(list, &data->idx, $1, $3, NULL, error, $4));
+	parse_events_terms__delete($4);
 	$$ = list;
 }
 |
-PE_NAME_CACHE_TYPE
+PE_NAME_CACHE_TYPE opt_event_config
 {
 	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_cache(list, &data->idx, $1, NULL, NULL));
+	ABORT_ON(parse_events_add_cache(list, &data->idx, $1, NULL, NULL, error, $2));
+	parse_events_terms__delete($2);
 	$$ = list;
 }
 

@@ -140,7 +140,9 @@ int parse_events_add_numeric(struct parse_events_evlist *data,
 			     u32 type, u64 config,
 			     struct list_head *head_config);
 int parse_events_add_cache(struct list_head *list, int *idx,
-			   char *type, char *op_result1, char *op_result2);
+			   char *type, char *op_result1, char *op_result2,
+			   struct parse_events_error *error,
+			   struct list_head *head_config);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				void *ptr, char *type, u64 len);
 int parse_events_add_pmu(struct parse_events_evlist *data,

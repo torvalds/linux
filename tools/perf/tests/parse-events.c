@@ -1295,6 +1295,13 @@ static int test__checkevent_config_num(struct perf_evlist *evlist)
 	return 0;
 }
 
+static int test__checkevent_config_cache(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong name setting", strcmp(evsel->name, "cachepmu") == 0);
+	return 0;
+}
 
 static int count_tracepoints(void)
 {
@@ -1618,6 +1625,11 @@ static struct evlist_test test__events[] = {
 		.name  = "4:0x6530160/name=numpmu/",
 		.check = test__checkevent_config_num,
 		.id    = 50,
+	},
+	{
+		.name  = "L1-dcache-misses/name=cachepmu/",
+		.check = test__checkevent_config_cache,
+		.id    = 51,
 	},
 };
 
