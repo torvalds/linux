@@ -602,8 +602,8 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 	 * that VF queues be mapped using this method, even when they are
 	 * contiguous in real life
 	 */
-	wr32(hw, I40E_VSILAN_QBASE(vf->lan_vsi_id),
-	     I40E_VSILAN_QBASE_VSIQTABLE_ENA_MASK);
+	i40e_write_rx_ctl(hw, I40E_VSILAN_QBASE(vf->lan_vsi_id),
+			  I40E_VSILAN_QBASE_VSIQTABLE_ENA_MASK);
 
 	/* enable VF vplan_qtable mappings */
 	reg = I40E_VPLAN_MAPENA_TXRX_ENA_MASK;
@@ -630,7 +630,8 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 						      (j * 2) + 1);
 			reg |= qid << 16;
 		}
-		wr32(hw, I40E_VSILAN_QTABLE(j, vf->lan_vsi_id), reg);
+		i40e_write_rx_ctl(hw, I40E_VSILAN_QTABLE(j, vf->lan_vsi_id),
+				  reg);
 	}
 
 	i40e_flush(hw);
@@ -2202,6 +2203,8 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 		 * and then reloading the VF driver.
 		 */
 		i40e_vc_disable_vf(pf, vf);
+		/* During reset the VF got a new VSI, so refresh the pointer. */
+		vsi = pf->vsi[vf->lan_vsi_idx];
 	}
 
 	/* Check for condition where there was already a port VLAN ID
