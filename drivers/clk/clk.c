@@ -2986,9 +2986,21 @@ struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
 }
 EXPORT_SYMBOL_GPL(of_clk_get_from_provider);
 
-int of_clk_get_parent_count(struct device_node *np)
+/**
+ * of_clk_get_parent_count() - Count the number of clocks a device node has
+ * @np: device node to count
+ *
+ * Returns: The number of clocks that are possible parents of this node
+ */
+unsigned int of_clk_get_parent_count(struct device_node *np)
 {
-	return of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	int count;
+
+	count = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	if (count < 0)
+		return 0;
+
+	return count;
 }
 EXPORT_SYMBOL_GPL(of_clk_get_parent_count);
 
