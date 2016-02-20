@@ -611,12 +611,12 @@ void __init of_at91sam9x5_clk_main_setup(struct device_node *np,
 {
 	struct clk *clk;
 	const char *parent_names[2];
-	int num_parents;
+	unsigned int num_parents;
 	unsigned int irq;
 	const char *name = np->name;
 
 	num_parents = of_clk_get_parent_count(np);
-	if (num_parents <= 0 || num_parents > 2)
+	if (num_parents == 0 || num_parents > 2)
 		return;
 
 	of_clk_parent_fill(np, parent_names, num_parents);

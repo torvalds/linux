@@ -373,12 +373,12 @@ void __init of_at91sam9x5_clk_usb_setup(struct device_node *np,
 					struct at91_pmc *pmc)
 {
 	struct clk *clk;
-	int num_parents;
+	unsigned int num_parents;
 	const char *parent_names[USB_SOURCE_MAX];
 	const char *name = np->name;
 
 	num_parents = of_clk_get_parent_count(np);
-	if (num_parents <= 0 || num_parents > USB_SOURCE_MAX)
+	if (num_parents == 0 || num_parents > USB_SOURCE_MAX)
 		return;
 
 	of_clk_parent_fill(np, parent_names, num_parents);
