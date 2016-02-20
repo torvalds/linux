@@ -33,7 +33,7 @@ struct orangefs_symlink_response {
 
 struct orangefs_getattr_response {
 	struct ORANGEFS_sys_attr_s attributes;
-	char link_target[ORANGEFS_NAME_LEN];
+	char link_target[ORANGEFS_NAME_MAX];
 };
 
 struct orangefs_mkdir_response {

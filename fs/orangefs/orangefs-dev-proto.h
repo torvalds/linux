@@ -46,7 +46,6 @@
  * Misc constants. Please retain them as multiples of 8!
  * Otherwise 32-64 bit interactions will be messed up :)
  */
-#define ORANGEFS_NAME_LEN		0x00000100
 #define ORANGEFS_MAX_DEBUG_STRING_LEN	0x00000400
 #define ORANGEFS_MAX_DEBUG_ARRAY_LEN	0x00000800
 

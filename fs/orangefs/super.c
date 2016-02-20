@@ -170,7 +170,7 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_type = sb->s_magic;
 	memcpy(&buf->f_fsid, &ORANGEFS_SB(sb)->fs_id, sizeof(buf->f_fsid));
 	buf->f_bsize = new_op->downcall.resp.statfs.block_size;
-	buf->f_namelen = ORANGEFS_NAME_LEN;
+	buf->f_namelen = ORANGEFS_NAME_MAX;
 
 	buf->f_blocks = (sector_t) new_op->downcall.resp.statfs.blocks_total;
 	buf->f_bfree = (sector_t) new_op->downcall.resp.statfs.blocks_avail;

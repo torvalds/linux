@@ -27,20 +27,20 @@ struct orangefs_lookup_request_s {
 	__s32 sym_follow;
 	__s32 __pad1;
 	struct orangefs_object_kref parent_refn;
-	char d_name[ORANGEFS_NAME_LEN];
+	char d_name[ORANGEFS_NAME_MAX];
 };
 
 struct orangefs_create_request_s {
 	struct orangefs_object_kref parent_refn;
 	struct ORANGEFS_sys_attr_s attributes;
-	char d_name[ORANGEFS_NAME_LEN];
+	char d_name[ORANGEFS_NAME_MAX];
 };
 
 struct orangefs_symlink_request_s {
 	struct orangefs_object_kref parent_refn;
 	struct ORANGEFS_sys_attr_s attributes;
-	char entry_name[ORANGEFS_NAME_LEN];
-	char target[ORANGEFS_NAME_LEN];
+	char entry_name[ORANGEFS_NAME_MAX];
+	char target[ORANGEFS_NAME_MAX];
 };
 
 struct orangefs_getattr_request_s {
@@ -56,13 +56,13 @@ struct orangefs_setattr_request_s {
 
 struct orangefs_remove_request_s {
 	struct orangefs_object_kref parent_refn;
-	char d_name[ORANGEFS_NAME_LEN];
+	char d_name[ORANGEFS_NAME_MAX];
 };
 
 struct orangefs_mkdir_request_s {
 	struct orangefs_object_kref parent_refn;
 	struct ORANGEFS_sys_attr_s attributes;
-	char d_name[ORANGEFS_NAME_LEN];
+	char d_name[ORANGEFS_NAME_MAX];
 };
 
 struct orangefs_readdir_request_s {
@@ -84,8 +84,8 @@ struct orangefs_readdirplus_request_s {
 struct orangefs_rename_request_s {
 	struct orangefs_object_kref old_parent_refn;
 	struct orangefs_object_kref new_parent_refn;
-	char d_old_name[ORANGEFS_NAME_LEN];
-	char d_new_name[ORANGEFS_NAME_LEN];
+	char d_old_name[ORANGEFS_NAME_MAX];
+	char d_new_name[ORANGEFS_NAME_MAX];
 };
 
 struct orangefs_statfs_request_s {
