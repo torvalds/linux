@@ -684,7 +684,7 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 	if (ret < 0)
 		goto err;
 
-	if (tmp == 1 || tmp == 3) {
+	if (tmp == 1 || tmp == 3 || tmp == 5) {
 		/* configure gpioh1, reset & power slave demod */
 		ret = af9035_wr_reg_mask(d, 0x00d8b0, 0x01, 0x01);
 		if (ret < 0)
@@ -823,7 +823,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 	if (ret < 0)
 		goto err;
 
-	if (tmp == 1 || tmp == 3)
+	if (tmp == 1 || tmp == 3 || tmp == 5)
 		state->dual_mode = true;
 
 	dev_dbg(&d->udev->dev, "%s: ts mode=%d dual mode=%d\n", __func__,

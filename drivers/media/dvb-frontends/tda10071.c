@@ -701,11 +701,11 @@ error:
 	return ret;
 }
 
-static int tda10071_get_frontend(struct dvb_frontend *fe)
+static int tda10071_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *c)
 {
 	struct tda10071_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
 	u8 buf[5], tmp;
 

@@ -378,7 +378,7 @@ static int saa7134_go7007_send_firmware(struct go7007 *go, u8 *data, int len)
 	return 0;
 }
 
-static struct go7007_hpi_ops saa7134_go7007_hpi_ops = {
+static const struct go7007_hpi_ops saa7134_go7007_hpi_ops = {
 	.interface_reset	= saa7134_go7007_interface_reset,
 	.write_interrupt	= saa7134_go7007_write_interrupt,
 	.read_interrupt		= saa7134_go7007_read_interrupt,

@@ -615,9 +615,9 @@ timeout:
 	return 0;
 }
 
-static int stv0297_get_frontend(struct dvb_frontend *fe)
+static int stv0297_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0297_state *state = fe->demodulator_priv;
 	int reg_00, reg_83;
 

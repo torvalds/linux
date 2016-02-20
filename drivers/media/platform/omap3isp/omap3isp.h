@@ -33,9 +33,9 @@ enum isp_interface_type {
  * struct isp_parallel_cfg - Parallel interface configuration
  * @data_lane_shift: Data lane shifter
  *		0 - CAMEXT[13:0] -> CAM[13:0]
- *		1 - CAMEXT[13:2] -> CAM[11:0]
- *		2 - CAMEXT[13:4] -> CAM[9:0]
- *		3 - CAMEXT[13:6] -> CAM[7:0]
+ *		2 - CAMEXT[13:2] -> CAM[11:0]
+ *		4 - CAMEXT[13:4] -> CAM[9:0]
+ *		6 - CAMEXT[13:6] -> CAM[7:0]
  * @clk_pol: Pixel clock polarity
  *		0 - Sample on rising edge, 1 - Sample on falling edge
  * @hs_pol: Horizontal synchronization polarity
@@ -48,7 +48,7 @@ enum isp_interface_type {
  *		0 - Normal, 1 - One's complement
  */
 struct isp_parallel_cfg {
-	unsigned int data_lane_shift:2;
+	unsigned int data_lane_shift:3;
 	unsigned int clk_pol:1;
 	unsigned int hs_pol:1;
 	unsigned int vs_pol:1;

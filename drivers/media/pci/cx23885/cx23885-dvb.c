@@ -2301,7 +2301,8 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* register everything */
 	ret = vb2_dvb_register_bus(&port->frontends, THIS_MODULE, port,
-					&dev->pci->dev, adapter_nr, mfe_shared);
+				   &dev->pci->dev, NULL,
+				   adapter_nr, mfe_shared);
 	if (ret)
 		goto frontend_detach;
 

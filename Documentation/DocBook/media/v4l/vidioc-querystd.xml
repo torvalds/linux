@@ -59,6 +59,16 @@ then the driver will return V4L2_STD_UNKNOWN. When detection is not
 possible or fails, the set must contain all standards supported by the
 current video input or output.</para>
 
+<para>Please note that drivers shall <emphasis>not</emphasis> switch the video standard
+automatically if a new video standard is detected. Instead, drivers should send the
+<constant>V4L2_EVENT_SOURCE_CHANGE</constant> event (if they support this) and expect
+that userspace will take action by calling <constant>VIDIOC_QUERYSTD</constant>.
+The reason is that a new video standard can mean different buffer sizes as well, and you
+cannot change buffer sizes on the fly. In general, applications that receive the
+Source Change event will have to call <constant>VIDIOC_QUERYSTD</constant>,
+and if the detected video standard is valid they will have to stop streaming, set the new
+standard, allocate new buffers and start streaming again.</para>
+
   </refsect1>
 
   <refsect1>

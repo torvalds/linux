@@ -55,7 +55,11 @@ static int media_device_get_info(struct media_device *dev,
 
 	memset(&info, 0, sizeof(info));
 
-	strlcpy(info.driver, dev->dev->driver->name, sizeof(info.driver));
+	if (dev->driver_name[0])
+		strlcpy(info.driver, dev->driver_name, sizeof(info.driver));
+	else
+		strlcpy(info.driver, dev->dev->driver->name, sizeof(info.driver));
+
 	strlcpy(info.model, dev->model, sizeof(info.model));
 	strlcpy(info.serial, dev->serial, sizeof(info.serial));
 	strlcpy(info.bus_info, dev->bus_info, sizeof(info.bus_info));
@@ -234,7 +238,6 @@ static long media_device_setup_link(struct media_device *mdev,
 	return ret;
 }
 
-#if 0 /* Let's postpone it to Kernel 4.6 */
 static long __media_device_get_topology(struct media_device *mdev,
 				      struct media_v2_topology *topo)
 {
@@ -390,7 +393,6 @@ static long media_device_get_topology(struct media_device *mdev,
 
 	return 0;
 }
-#endif
 
 static long media_device_ioctl(struct file *filp, unsigned int cmd,
 			       unsigned long arg)
@@ -424,14 +426,13 @@ static long media_device_ioctl(struct file *filp, unsigned int cmd,
 		mutex_unlock(&dev->graph_mutex);
 		break;
 
-#if 0 /* Let's postpone it to Kernel 4.6 */
 	case MEDIA_IOC_G_TOPOLOGY:
 		mutex_lock(&dev->graph_mutex);
 		ret = media_device_get_topology(dev,
 				(struct media_v2_topology __user *)arg);
 		mutex_unlock(&dev->graph_mutex);
 		break;
-#endif
+
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -480,9 +481,7 @@ static long media_device_compat_ioctl(struct file *filp, unsigned int cmd,
 	case MEDIA_IOC_DEVICE_INFO:
 	case MEDIA_IOC_ENUM_ENTITIES:
 	case MEDIA_IOC_SETUP_LINK:
-#if 0 /* Let's postpone it to Kernel 4.6 */
 	case MEDIA_IOC_G_TOPOLOGY:
-#endif
 		return media_device_ioctl(filp, cmd, arg);
 
 	case MEDIA_IOC_ENUM_LINKS32:

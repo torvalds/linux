@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2001-5, B2C2 inc.
  *
- *  GPL/Linux driver written by Patrick Boettcher <patrick.boettcher@desy.de>
+ *  GPL/Linux driver written by Patrick Boettcher <patrick.boettcher@posteo.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

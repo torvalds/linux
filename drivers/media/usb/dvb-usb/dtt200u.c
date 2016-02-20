@@ -1,7 +1,7 @@
 /* DVB USB library compliant Linux driver for the WideView/ Yakumo/ Hama/
  * Typhoon/ Yuan/ Miglia DVB-T USB2.0 receiver.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * Thanks to Steve Chang from WideView for providing support for the WT-220U.
  *
@@ -362,7 +362,7 @@ static struct usb_driver dtt200u_usb_driver = {
 
 module_usb_driver(dtt200u_usb_driver);
 
-MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the WideView/Yakumo/Hama/Typhoon/Club3D/Miglia DVB-T USB2.0 devices");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
