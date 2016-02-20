@@ -205,15 +205,13 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	const char **parent_names, *gpio_name;
-	int num_parents, gpio;
+	unsigned int num_parents;
+	int gpio;
 	enum of_gpio_flags of_flags;
 	struct clk *clk;
 	bool active_low, is_mux;
 
 	num_parents = of_clk_get_parent_count(node);
-	if (num_parents < 0)
-		num_parents = 0;
-
 	if (num_parents) {
 		parent_names = devm_kcalloc(&pdev->dev, num_parents,
 					    sizeof(char *), GFP_KERNEL);
