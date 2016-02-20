@@ -4554,19 +4554,17 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	if (!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) &&
 	    link_info->force_pause_setting != link_info->req_flow_ctrl)
 		update_pause = true;
-	if (link_info->req_duplex != link_info->duplex_setting)
-		update_link = true;
 	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
 		if (BNXT_AUTO_MODE(link_info->auto_mode))
 			update_link = true;
 		if (link_info->req_link_speed != link_info->force_link_speed)
 			update_link = true;
+		if (link_info->req_duplex != link_info->duplex_setting)
+			update_link = true;
 	} else {
 		if (link_info->auto_mode == BNXT_LINK_AUTO_NONE)
 			update_link = true;
 		if (link_info->advertising != link_info->auto_link_speeds)
-			update_link = true;
-		if (link_info->req_link_speed != link_info->auto_link_speed)
 			update_link = true;
 	}
 
@@ -4644,7 +4642,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	if (link_re_init) {
 		rc = bnxt_update_phy_setting(bp);
 		if (rc)
-			goto open_err;
+			netdev_warn(bp->dev, "failed to update phy settings\n");
 	}
 
 	if (irq_re_init) {
@@ -4662,6 +4660,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* Enable TX queues */
 	bnxt_tx_enable(bp);
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
+	bnxt_update_link(bp, true);
 
 	return 0;
 
