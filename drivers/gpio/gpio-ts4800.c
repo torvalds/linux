@@ -54,8 +54,6 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 		return retval;
 	}
 
-	chip->base = -1;
-	chip->label = dev_name(&pdev->dev);
 	chip->ngpio = ngpios;
 
 	platform_set_drvdata(pdev, chip);
