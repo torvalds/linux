@@ -497,11 +497,20 @@ static void rrpc_gc_queue(struct work_struct *work)
 	struct rrpc *rrpc = gcb->rrpc;
 	struct rrpc_block *rblk = gcb->rblk;
 	struct nvm_lun *lun = rblk->parent->lun;
+	struct nvm_block *blk = rblk->parent;
 	struct rrpc_lun *rlun = &rrpc->luns[lun->id - rrpc->lun_offset];
 
 	spin_lock(&rlun->lock);
 	list_add_tail(&rblk->prio, &rlun->prio_list);
 	spin_unlock(&rlun->lock);
+
+	spin_lock(&lun->lock);
+	lun->nr_open_blocks--;
+	lun->nr_closed_blocks++;
+	blk->state &= ~NVM_BLK_ST_OPEN;
+	blk->state |= NVM_BLK_ST_CLOSED;
+	list_move_tail(&rblk->list, &rlun->closed_list);
+	spin_unlock(&lun->lock);
 
 	mempool_free(gcb, rrpc->gcb_pool);
 	pr_debug("nvm: block '%lu' is full, allow GC (sched)\n",
@@ -666,20 +675,8 @@ static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 		lun = rblk->parent->lun;
 
 		cmnt_size = atomic_inc_return(&rblk->data_cmnt_size);
-		if (unlikely(cmnt_size == rrpc->dev->pgs_per_blk)) {
-			struct nvm_block *blk = rblk->parent;
-			struct rrpc_lun *rlun = rblk->rlun;
-
-			spin_lock(&lun->lock);
-			lun->nr_open_blocks--;
-			lun->nr_closed_blocks++;
-			blk->state &= ~NVM_BLK_ST_OPEN;
-			blk->state |= NVM_BLK_ST_CLOSED;
-			list_move_tail(&rblk->list, &rlun->closed_list);
-			spin_unlock(&lun->lock);
-
+		if (unlikely(cmnt_size == rrpc->dev->pgs_per_blk))
 			rrpc_run_gc(rrpc, rblk);
-		}
 	}
 }
 
