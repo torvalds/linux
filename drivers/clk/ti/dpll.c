@@ -374,7 +374,7 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 	init->ops = ops;
 
 	init->num_parents = of_clk_get_parent_count(node);
-	if (init->num_parents < 1) {
+	if (!init->num_parents) {
 		pr_err("%s must have parent(s)\n", node->name);
 		goto cleanup;
 	}

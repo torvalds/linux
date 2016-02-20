@@ -109,7 +109,7 @@ static void __init of_ti_clockdomain_setup(struct device_node *node)
 	struct clk_hw *clk_hw;
 	const char *clkdm_name = node->name;
 	int i;
-	int num_clks;
+	unsigned int num_clks;
 
 	num_clks = of_clk_get_parent_count(node);
 
