@@ -73,7 +73,14 @@ enum {
 	SATA_EXT_PHY		= (1 << 6), /* 0==use PATA, 1==ext phy */
 };
 
+struct svia_priv {
+	bool			wd_workaround;
+};
+
 static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+#ifdef CONFIG_PM_SLEEP
+static int svia_pci_device_resume(struct pci_dev *pdev);
+#endif
 static int svia_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int svia_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int vt8251_scr_read(struct ata_link *link, unsigned int scr, u32 *val);
@@ -85,6 +92,7 @@ static void vt6420_bmdma_start(struct ata_queued_cmd *qc);
 static int vt6421_pata_cable_detect(struct ata_port *ap);
 static void vt6421_set_pio_mode(struct ata_port *ap, struct ata_device *adev);
 static void vt6421_set_dma_mode(struct ata_port *ap, struct ata_device *adev);
+static void vt6421_error_handler(struct ata_port *ap);
 
 static const struct pci_device_id svia_pci_tbl[] = {
 	{ PCI_VDEVICE(VIA, 0x5337), vt6420 },
@@ -105,7 +113,7 @@ static struct pci_driver svia_pci_driver = {
 	.probe			= svia_init_one,
 #ifdef CONFIG_PM_SLEEP
 	.suspend		= ata_pci_device_suspend,
-	.resume			= ata_pci_device_resume,
+	.resume			= svia_pci_device_resume,
 #endif
 	.remove			= ata_pci_remove_one,
 };
@@ -137,6 +145,7 @@ static struct ata_port_operations vt6421_sata_ops = {
 	.inherits		= &svia_base_ops,
 	.scr_read		= svia_scr_read,
 	.scr_write		= svia_scr_write,
+	.error_handler		= vt6421_error_handler,
 };
 
 static struct ata_port_operations vt8251_ops = {
@@ -536,7 +545,36 @@ static int vt8251_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	return 0;
 }
 
-static void svia_configure(struct pci_dev *pdev, int board_id)
+static void svia_wd_fix(struct pci_dev *pdev)
+{
+	u8 tmp8;
+
+	pci_read_config_byte(pdev, 0x52, &tmp8);
+	pci_write_config_byte(pdev, 0x52, tmp8 | BIT(2));
+}
+
+static void vt6421_error_handler(struct ata_port *ap)
+{
+	struct svia_priv *hpriv = ap->host->private_data;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	u32 serror;
+
+	/* see svia_configure() for description */
+	if (!hpriv->wd_workaround) {
+		svia_scr_read(&ap->link, SCR_ERROR, &serror);
+		if (serror == 0x1000500) {
+			ata_port_warn(ap, "Incompatible drive: enabling workaround. This slows down transfer rate to ~60 MB/s");
+			svia_wd_fix(pdev);
+			hpriv->wd_workaround = true;
+			ap->link.eh_context.i.flags |= ATA_EHI_QUIET;
+		}
+	}
+
+	ata_sff_error_handler(ap);
+}
+
+static void svia_configure(struct pci_dev *pdev, int board_id,
+			   struct svia_priv *hpriv)
 {
 	u8 tmp8;
 
@@ -593,11 +631,15 @@ static void svia_configure(struct pci_dev *pdev, int board_id)
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=15173
 	 * http://article.gmane.org/gmane.linux.ide/46352
 	 * http://thread.gmane.org/gmane.linux.kernel/1062139
+	 *
+	 * As the fix slows down data transfer, apply it only if the error
+	 * actually appears - see vt6421_error_handler()
+	 * Apply the fix always on vt6420 as we don't know if SCR_ERROR can be
+	 * read safely.
 	 */
-	if (board_id == vt6420 || board_id == vt6421) {
-		pci_read_config_byte(pdev, 0x52, &tmp8);
-		tmp8 |= 1 << 2;
-		pci_write_config_byte(pdev, 0x52, tmp8);
+	if (board_id == vt6420) {
+		svia_wd_fix(pdev);
+		hpriv->wd_workaround = true;
 	}
 }
 
@@ -608,6 +650,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_host *host = NULL;
 	int board_id = (int) ent->driver_data;
 	const unsigned *bar_sizes;
+	struct svia_priv *hpriv;
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
@@ -647,11 +690,35 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	svia_configure(pdev, board_id);
+	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!hpriv)
+		return -ENOMEM;
+	host->private_data = hpriv;
+
+	svia_configure(pdev, board_id, hpriv);
 
 	pci_set_master(pdev);
 	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				 IRQF_SHARED, &svia_sht);
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int svia_pci_device_resume(struct pci_dev *pdev)
+{
+	struct ata_host *host = pci_get_drvdata(pdev);
+	struct svia_priv *hpriv = host->private_data;
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
+	if (hpriv->wd_workaround)
+		svia_wd_fix(pdev);
+	ata_host_resume(host);
+
+	return 0;
+}
+#endif
 
 module_pci_driver(svia_pci_driver);
