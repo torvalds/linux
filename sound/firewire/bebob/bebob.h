@@ -88,8 +88,6 @@ struct snd_bebob {
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
 
-	/* for bus reset quirk */
-	struct completion bus_reset;
 	bool connected;
 
 	struct amdtp_stream *master;

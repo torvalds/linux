@@ -309,7 +309,10 @@ bebob_update(struct fw_unit *unit)
 		return;
 
 	fcp_bus_reset(bebob->unit);
+
+	mutex_lock(&bebob->mutex);
 	snd_bebob_stream_update_duplex(bebob);
+	mutex_unlock(&bebob->mutex);
 
 	if (bebob->deferred_registration) {
 		if (snd_card_register(bebob->card) < 0) {
@@ -326,10 +329,6 @@ static void bebob_remove(struct fw_unit *unit)
 
 	if (bebob == NULL)
 		return;
-
-	/* Awake bus-reset waiters. */
-	if (!completion_done(&bebob->bus_reset))
-		complete_all(&bebob->bus_reset);
 
 	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(bebob->card);
