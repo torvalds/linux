@@ -181,7 +181,7 @@ static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 	struct ar100_clk *ar100;
 	struct resource *r;
 	struct clk *clk;
-	int nparents;
+	unsigned int nparents;
 
 	ar100 = devm_kzalloc(&pdev->dev, sizeof(*ar100), GFP_KERNEL);
 	if (!ar100)
