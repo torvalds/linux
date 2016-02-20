@@ -104,7 +104,7 @@ struct rrpc {
 	struct rrpc_lun *luns;
 
 	/* calculated values */
-	unsigned long long nr_pages;
+	unsigned long long nr_sects;
 	unsigned long total_blocks;
 
 	/* Write strategy variables. Move these into each for structure for each
@@ -205,7 +205,7 @@ static inline int rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
 				 unsigned pages,
 				 struct rrpc_inflight_rq *r)
 {
-	BUG_ON((laddr + pages) > rrpc->nr_pages);
+	BUG_ON((laddr + pages) > rrpc->nr_sects);
 
 	return __rrpc_lock_laddr(rrpc, laddr, pages, r);
 }
@@ -242,7 +242,7 @@ static inline void rrpc_unlock_rq(struct rrpc *rrpc, struct nvm_rq *rqd)
 	struct rrpc_inflight_rq *r = rrpc_get_inflight_rq(rqd);
 	uint8_t pages = rqd->nr_pages;
 
-	BUG_ON((r->l_start + pages) > rrpc->nr_pages);
+	BUG_ON((r->l_start + pages) > rrpc->nr_sects);
 
 	rrpc_unlock_laddr(rrpc, r);
 }

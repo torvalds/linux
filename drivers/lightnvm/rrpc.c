@@ -552,7 +552,7 @@ static struct rrpc_addr *rrpc_update_map(struct rrpc *rrpc, sector_t laddr,
 	struct rrpc_addr *gp;
 	struct rrpc_rev_addr *rev;
 
-	BUG_ON(laddr >= rrpc->nr_pages);
+	BUG_ON(laddr >= rrpc->nr_sects);
 
 	gp = &rrpc->trans_map[laddr];
 	spin_lock(&rrpc->rev_lock);
@@ -721,7 +721,7 @@ static int rrpc_read_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 
 	for (i = 0; i < npages; i++) {
 		/* We assume that mapping occurs at 4KB granularity */
-		BUG_ON(!(laddr + i >= 0 && laddr + i < rrpc->nr_pages));
+		BUG_ON(!(laddr + i >= 0 && laddr + i < rrpc->nr_sects));
 		gp = &rrpc->trans_map[laddr + i];
 
 		if (gp->rblk) {
@@ -752,7 +752,7 @@ static int rrpc_read_rq(struct rrpc *rrpc, struct bio *bio, struct nvm_rq *rqd,
 	if (!is_gc && rrpc_lock_rq(rrpc, bio, rqd))
 		return NVM_IO_REQUEUE;
 
-	BUG_ON(!(laddr >= 0 && laddr < rrpc->nr_pages));
+	BUG_ON(!(laddr >= 0 && laddr < rrpc->nr_sects));
 	gp = &rrpc->trans_map[laddr];
 
 	if (gp->rblk) {
@@ -1002,11 +1002,10 @@ static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 	struct nvm_dev *dev = rrpc->dev;
 	struct rrpc_addr *addr = rrpc->trans_map + slba;
 	struct rrpc_rev_addr *raddr = rrpc->rev_trans_map;
-	sector_t max_pages = dev->total_pages * (dev->sec_size >> 9);
 	u64 elba = slba + nlb;
 	u64 i;
 
-	if (unlikely(elba > dev->total_pages)) {
+	if (unlikely(elba > dev->total_secs)) {
 		pr_err("nvm: L2P data from device is out of bounds!\n");
 		return -EINVAL;
 	}
@@ -1016,7 +1015,7 @@ static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 		/* LNVM treats address-spaces as silos, LBA and PBA are
 		 * equally large and zero-indexed.
 		 */
-		if (unlikely(pba >= max_pages && pba != U64_MAX)) {
+		if (unlikely(pba >= dev->total_secs && pba != U64_MAX)) {
 			pr_err("nvm: L2P data entry is out of bounds!\n");
 			return -EINVAL;
 		}
@@ -1041,16 +1040,16 @@ static int rrpc_map_init(struct rrpc *rrpc)
 	sector_t i;
 	int ret;
 
-	rrpc->trans_map = vzalloc(sizeof(struct rrpc_addr) * rrpc->nr_pages);
+	rrpc->trans_map = vzalloc(sizeof(struct rrpc_addr) * rrpc->nr_sects);
 	if (!rrpc->trans_map)
 		return -ENOMEM;
 
 	rrpc->rev_trans_map = vmalloc(sizeof(struct rrpc_rev_addr)
-							* rrpc->nr_pages);
+							* rrpc->nr_sects);
 	if (!rrpc->rev_trans_map)
 		return -ENOMEM;
 
-	for (i = 0; i < rrpc->nr_pages; i++) {
+	for (i = 0; i < rrpc->nr_sects; i++) {
 		struct rrpc_addr *p = &rrpc->trans_map[i];
 		struct rrpc_rev_addr *r = &rrpc->rev_trans_map[i];
 
@@ -1062,8 +1061,8 @@ static int rrpc_map_init(struct rrpc *rrpc)
 		return 0;
 
 	/* Bring up the mapping table from device */
-	ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_pages,
-							rrpc_l2p_update, rrpc);
+	ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_secs, rrpc_l2p_update,
+									rrpc);
 	if (ret) {
 		pr_err("nvm: rrpc: could not read L2P table.\n");
 		return -EINVAL;
@@ -1163,7 +1162,7 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 		spin_lock_init(&rlun->lock);
 
 		rrpc->total_blocks += dev->blks_per_lun;
-		rrpc->nr_pages += dev->sec_per_lun;
+		rrpc->nr_sects += dev->sec_per_lun;
 
 		rlun->blocks = vzalloc(sizeof(struct rrpc_block) *
 						rrpc->dev->blks_per_lun);
@@ -1216,9 +1215,9 @@ static sector_t rrpc_capacity(void *private)
 
 	/* cur, gc, and two emergency blocks for each lun */
 	reserved = rrpc->nr_luns * dev->max_pages_per_blk * 4;
-	provisioned = rrpc->nr_pages - reserved;
+	provisioned = rrpc->nr_sects - reserved;
 
-	if (reserved > rrpc->nr_pages) {
+	if (reserved > rrpc->nr_sects) {
 		pr_err("rrpc: not enough space available to expose storage.\n");
 		return 0;
 	}
@@ -1381,7 +1380,7 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 	blk_queue_max_hw_sectors(tqueue, queue_max_hw_sectors(bqueue));
 
 	pr_info("nvm: rrpc initialized with %u luns and %llu pages.\n",
-			rrpc->nr_luns, (unsigned long long)rrpc->nr_pages);
+			rrpc->nr_luns, (unsigned long long)rrpc->nr_sects);
 
 	mod_timer(&rrpc->gc_timer, jiffies + msecs_to_jiffies(10));
 

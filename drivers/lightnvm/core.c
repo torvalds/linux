@@ -467,7 +467,7 @@ static int nvm_core_init(struct nvm_dev *dev)
 				dev->blks_per_lun *
 				dev->luns_per_chnl *
 				dev->nr_chnls;
-	dev->total_pages = dev->total_blocks * dev->pgs_per_blk;
+	dev->total_secs = dev->total_blocks * dev->sec_per_blk;
 	INIT_LIST_HEAD(&dev->online_targets);
 	mutex_init(&dev->mlock);
 

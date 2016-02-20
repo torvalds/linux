@@ -100,14 +100,13 @@ static int gennvm_block_map(u64 slba, u32 nlb, __le64 *entries, void *private)
 {
 	struct nvm_dev *dev = private;
 	struct gen_nvm *gn = dev->mp;
-	sector_t max_pages = dev->total_pages * (dev->sec_size >> 9);
 	u64 elba = slba + nlb;
 	struct gen_lun *lun;
 	struct nvm_block *blk;
 	u64 i;
 	int lun_id;
 
-	if (unlikely(elba > dev->total_pages)) {
+	if (unlikely(elba > dev->total_secs)) {
 		pr_err("gennvm: L2P data from device is out of bounds!\n");
 		return -EINVAL;
 	}
@@ -115,7 +114,7 @@ static int gennvm_block_map(u64 slba, u32 nlb, __le64 *entries, void *private)
 	for (i = 0; i < nlb; i++) {
 		u64 pba = le64_to_cpu(entries[i]);
 
-		if (unlikely(pba >= max_pages && pba != U64_MAX)) {
+		if (unlikely(pba >= dev->total_secs && pba != U64_MAX)) {
 			pr_err("gennvm: L2P data entry is out of bounds!\n");
 			return -EINVAL;
 		}
@@ -197,7 +196,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	}
 
 	if (dev->ops->get_l2p_tbl) {
-		ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_pages,
+		ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_secs,
 							gennvm_block_map, dev);
 		if (ret) {
 			pr_err("gennvm: could not read L2P table.\n");
