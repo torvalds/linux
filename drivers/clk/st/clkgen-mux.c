@@ -26,10 +26,10 @@ static const char ** __init clkgen_mux_get_parents(struct device_node *np,
 						       int *num_parents)
 {
 	const char **parents;
-	int nparents;
+	unsigned int nparents;
 
 	nparents = of_clk_get_parent_count(np);
-	if (WARN_ON(nparents <= 0))
+	if (WARN_ON(!nparents))
 		return ERR_PTR(-EINVAL);
 
 	parents = kcalloc(nparents, sizeof(const char *), GFP_KERNEL);
