@@ -645,9 +645,10 @@ do {									\
 do {									\
 	sys_attr.owner = from_kuid(current_user_ns(), current_fsuid()); \
 	sys_attr.group = from_kgid(current_user_ns(), current_fsgid()); \
-	sys_attr.size = 0;						\
 	sys_attr.perms = ORANGEFS_util_translate_mode(mode);		\
-	sys_attr.objtype = type;					\
+	sys_attr.mtime = 0;						\
+	sys_attr.atime = 0;						\
+	sys_attr.ctime = 0;						\
 	sys_attr.mask = ORANGEFS_ATTR_SYS_ALL_SETABLE;			\
 } while (0)
 
