@@ -418,7 +418,10 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 	spin_unlock_irq(&m->lock);
 
 	if (clone) {
-		/* Old request-based interface: allocated clone is passed in */
+		/*
+		 * Old request-based interface: allocated clone is passed in.
+		 * Used by: .request_fn stacked on .request_fn path(s).
+		 */
 		clone->q = bdev_get_queue(bdev);
 		clone->rq_disk = bdev->bd_disk;
 		clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;

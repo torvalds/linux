@@ -1141,11 +1141,6 @@ static void free_rq_clone(struct request *clone)
 	else if (!md->queue->mq_ops)
 		/* request_fn queue stacked on request_fn queue(s) */
 		free_clone_request(md, clone);
-	/*
-	 * NOTE: for the blk-mq queue stacked on request_fn queue(s) case:
-	 * no need to call free_clone_request() because we leverage blk-mq by
-	 * allocating the clone at the end of the blk-mq pdu (see: clone_rq)
-	 */
 
 	if (!md->queue->mq_ops)
 		free_rq_tio(tio);
@@ -1866,24 +1861,18 @@ static struct request *clone_rq(struct request *rq, struct mapped_device *md,
 				struct dm_rq_target_io *tio, gfp_t gfp_mask)
 {
 	/*
-	 * Do not allocate a clone if tio->clone was already set
-	 * (see: dm_mq_queue_rq).
+	 * Create clone for use with .request_fn request_queue
 	 */
-	bool alloc_clone = !tio->clone;
 	struct request *clone;
 
-	if (alloc_clone) {
-		clone = alloc_clone_request(md, gfp_mask);
-		if (!clone)
-			return NULL;
-	} else
-		clone = tio->clone;
+	clone = alloc_clone_request(md, gfp_mask);
+	if (!clone)
+		return NULL;
 
 	blk_rq_init(NULL, clone);
 	if (setup_clone(clone, rq, tio, gfp_mask)) {
 		/* -ENOMEM */
-		if (alloc_clone)
-			free_clone_request(md, clone);
+		free_clone_request(md, clone);
 		return NULL;
 	}
 
@@ -2692,22 +2681,12 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 */
 	tio->ti = ti;
 
-	/*
-	 * Both the table and md type cannot change after initial table load
-	 */
-	if (dm_get_md_type(md) == DM_TYPE_REQUEST_BASED) {
-		/* clone request is allocated at the end of the pdu */
-		tio->clone = (void *)blk_mq_rq_to_pdu(rq) + sizeof(struct dm_rq_target_io);
-		(void) clone_rq(rq, md, tio, GFP_ATOMIC);
-		queue_kthread_work(&md->kworker, &tio->work);
-	} else {
-		/* Direct call is fine since .queue_rq allows allocations */
-		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE) {
-			/* Undo dm_start_request() before requeuing */
-			rq_end_stats(md, rq);
-			rq_completed(md, rq_data_dir(rq), false);
-			return BLK_MQ_RQ_QUEUE_BUSY;
-		}
+	/* Direct call is fine since .queue_rq allows allocations */
+	if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE) {
+		/* Undo dm_start_request() before requeuing */
+		rq_end_stats(md, rq);
+		rq_completed(md, rq_data_dir(rq), false);
+		return BLK_MQ_RQ_QUEUE_BUSY;
 	}
 
 	return BLK_MQ_RQ_QUEUE_OK;
@@ -2726,6 +2705,11 @@ static int dm_init_request_based_blk_mq_queue(struct mapped_device *md)
 	struct request_queue *q;
 	int err;
 
+	if (dm_get_md_type(md) == DM_TYPE_REQUEST_BASED) {
+		DMERR("request-based dm-mq may only be stacked on blk-mq device(s)");
+		return -EINVAL;
+	}
+
 	md->tag_set = kzalloc(sizeof(struct blk_mq_tag_set), GFP_KERNEL);
 	if (!md->tag_set)
 		return -ENOMEM;
@@ -2738,10 +2722,6 @@ static int dm_init_request_based_blk_mq_queue(struct mapped_device *md)
 	md->tag_set->driver_data = md;
 
 	md->tag_set->cmd_size = sizeof(struct dm_rq_target_io);
-	if (md_type == DM_TYPE_REQUEST_BASED) {
-		/* put the memory for non-blk-mq clone at the end of the pdu */
-		md->tag_set->cmd_size += sizeof(struct request);
-	}
 
 	err = blk_mq_alloc_tag_set(md->tag_set);
 	if (err)
@@ -2757,9 +2737,6 @@ static int dm_init_request_based_blk_mq_queue(struct mapped_device *md)
 
 	/* backfill 'mq' sysfs registration normally done in blk_register_queue */
 	blk_mq_register_disk(md->disk);
-
-	if (md_type == DM_TYPE_REQUEST_BASED)
-		init_rq_based_worker_thread(md);
 
 	return 0;
 
