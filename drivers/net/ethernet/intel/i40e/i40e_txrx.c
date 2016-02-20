@@ -1882,6 +1882,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	bool rx = false, tx = false;
 	u32 rxval, txval;
 	int vector;
+	int idx = q_vector->v_idx;
 
 	vector = (q_vector->v_idx + vsi->base_vector);
 
@@ -1891,17 +1892,17 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
 
 	if (q_vector->itr_countdown > 0 ||
-	    (!ITR_IS_DYNAMIC(vsi->rx_itr_setting) &&
-	     !ITR_IS_DYNAMIC(vsi->tx_itr_setting))) {
+	    (!ITR_IS_DYNAMIC(vsi->rx_rings[idx]->rx_itr_setting) &&
+	     !ITR_IS_DYNAMIC(vsi->tx_rings[idx]->tx_itr_setting))) {
 		goto enable_int;
 	}
 
-	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting)) {
+	if (ITR_IS_DYNAMIC(vsi->rx_rings[idx]->rx_itr_setting)) {
 		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
 		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
 	}
 
-	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting)) {
+	if (ITR_IS_DYNAMIC(vsi->tx_rings[idx]->tx_itr_setting)) {
 		tx = i40e_set_new_dynamic_itr(&q_vector->tx);
 		txval = i40e_buildreg_itr(I40E_TX_ITR, q_vector->tx.itr);
 	}
