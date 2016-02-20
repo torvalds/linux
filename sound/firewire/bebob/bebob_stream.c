@@ -589,8 +589,6 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	unsigned int curr_rate;
 	int err = 0;
 
-	mutex_lock(&bebob->mutex);
-
 	/* Need no substreams */
 	if (atomic_read(&bebob->substreams_counter) == 0)
 		goto end;
@@ -722,7 +720,6 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 		}
 	}
 end:
-	mutex_unlock(&bebob->mutex);
 	return err;
 }
 
@@ -738,8 +735,6 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 		master = &bebob->tx_stream;
 	}
 
-	mutex_lock(&bebob->mutex);
-
 	if (atomic_read(&bebob->substreams_counter) == 0) {
 		amdtp_stream_pcm_abort(master);
 		amdtp_stream_stop(master);
@@ -749,8 +744,6 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 
 		break_both_connections(bebob);
 	}
-
-	mutex_unlock(&bebob->mutex);
 }
 
 void snd_bebob_stream_update_duplex(struct snd_bebob *bebob)
