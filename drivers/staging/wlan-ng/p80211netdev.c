@@ -328,7 +328,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 
 	p80211_wep.data = NULL;
 
-	if (skb == NULL)
+	if (!skb)
 		return NETDEV_TX_OK;
 
 	if (wlandev->state != WLAN_DEVICE_OPEN) {
@@ -388,7 +388,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 			goto failed;
 		}
 	}
-	if (wlandev->txframe == NULL) {
+	if (!wlandev->txframe) {
 		result = 1;
 		goto failed;
 	}
@@ -736,7 +736,7 @@ int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
 
 	/* Allocate and initialize the wiphy struct */
 	wiphy = wlan_create_wiphy(physdev, wlandev);
-	if (wiphy == NULL) {
+	if (!wiphy) {
 		dev_err(physdev, "Failed to alloc wiphy.\n");
 		return 1;
 	}
@@ -744,7 +744,7 @@ int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
 	/* Allocate and initialize the struct device */
 	netdev = alloc_netdev(sizeof(struct wireless_dev), "wlan%d",
 			      NET_NAME_UNKNOWN, ether_setup);
-	if (netdev == NULL) {
+	if (!netdev) {
 		dev_err(physdev, "Failed to alloc netdev.\n");
 		wlan_free_wiphy(wiphy);
 		result = 1;
