@@ -640,9 +640,6 @@ nouveau_hwmon_init(struct drm_device *dev)
 		return -ENOMEM;
 	hwmon->dev = dev;
 
-	if (!therm || !therm->attr_get || !therm->attr_set)
-		return -ENODEV;
-
 	hwmon_dev = hwmon_device_register(&dev->pdev->dev);
 	if (IS_ERR(hwmon_dev)) {
 		ret = PTR_ERR(hwmon_dev);
@@ -656,26 +653,28 @@ nouveau_hwmon_init(struct drm_device *dev)
 	if (ret)
 		goto error;
 
-	/* if the card has a working thermal sensor */
-	if (nvkm_therm_temp_get(therm) >= 0) {
-		ret = sysfs_create_group(&hwmon_dev->kobj, &hwmon_temp_attrgroup);
-		if (ret)
-			goto error;
-	}
+	if (therm && therm->attr_get && therm->attr_set) {
+		/* if the card has a working thermal sensor */
+		if (nvkm_therm_temp_get(therm) >= 0) {
+			ret = sysfs_create_group(&hwmon_dev->kobj, &hwmon_temp_attrgroup);
+			if (ret)
+				goto error;
+		}
 
-	/* if the card has a pwm fan */
-	/*XXX: incorrect, need better detection for this, some boards have
-	 *     the gpio entries for pwm fan control even when there's no
-	 *     actual fan connected to it... therm table? */
-	if (therm->fan_get && therm->fan_get(therm) >= 0) {
-		ret = sysfs_create_group(&hwmon_dev->kobj,
-					 &hwmon_pwm_fan_attrgroup);
-		if (ret)
-			goto error;
+		/* if the card has a pwm fan */
+		/*XXX: incorrect, need better detection for this, some boards have
+		 *     the gpio entries for pwm fan control even when there's no
+		 *     actual fan connected to it... therm table? */
+		if (therm->fan_get && therm->fan_get(therm) >= 0) {
+			ret = sysfs_create_group(&hwmon_dev->kobj,
+						 &hwmon_pwm_fan_attrgroup);
+			if (ret)
+				goto error;
+		}
 	}
 
 	/* if the card can read the fan rpm */
-	if (nvkm_therm_fan_sense(therm) >= 0) {
+	if (therm && nvkm_therm_fan_sense(therm) >= 0) {
 		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_fan_rpm_attrgroup);
 		if (ret)
