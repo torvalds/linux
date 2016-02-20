@@ -240,16 +240,17 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "ngpios property is not valid\n");
 			return err;
 		}
-		if (ath79_gpio_count >= 32) {
-			dev_err(&pdev->dev, "ngpios must be less than 32\n");
-			return -EINVAL;
-		}
 		oe_inverted = of_device_is_compatible(np, "qca,ar9340-gpio");
 	} else if (pdata) {
 		ath79_gpio_count = pdata->ngpios;
 		oe_inverted = pdata->oe_inverted;
 	} else {
 		dev_err(&pdev->dev, "No DT node or platform data found\n");
+		return -EINVAL;
+	}
+
+	if (ath79_gpio_count >= 32) {
+		dev_err(&pdev->dev, "ngpios must be less than 32\n");
 		return -EINVAL;
 	}
 
