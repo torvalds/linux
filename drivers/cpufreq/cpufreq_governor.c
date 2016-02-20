@@ -22,6 +22,8 @@
 
 #include "cpufreq_governor.h"
 
+static DEFINE_PER_CPU(struct cpu_dbs_info, cpu_dbs);
+
 DEFINE_MUTEX(dbs_data_mutex);
 EXPORT_SYMBOL_GPL(dbs_data_mutex);
 
@@ -82,7 +84,6 @@ EXPORT_SYMBOL_GPL(store_sampling_rate);
 
 /**
  * gov_update_cpu_data - Update CPU load data.
- * @gov: Governor whose data is to be updated.
  * @dbs_data: Top-level governor data pointer.
  *
  * Update CPU load data for all CPUs in the domain governed by @dbs_data
@@ -91,7 +92,7 @@ EXPORT_SYMBOL_GPL(store_sampling_rate);
  *
  * Call under the @dbs_data mutex.
  */
-void gov_update_cpu_data(struct dbs_governor *gov, struct dbs_data *dbs_data)
+void gov_update_cpu_data(struct dbs_data *dbs_data)
 {
 	struct policy_dbs_info *policy_dbs;
 
@@ -99,7 +100,7 @@ void gov_update_cpu_data(struct dbs_governor *gov, struct dbs_data *dbs_data)
 		unsigned int j;
 
 		for_each_cpu(j, policy_dbs->policy->cpus) {
-			struct cpu_dbs_info *j_cdbs = gov->get_cpu_cdbs(j);
+			struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
 
 			j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall,
 								  dbs_data->io_is_busy);
@@ -164,7 +165,6 @@ static const struct sysfs_ops governor_sysfs_ops = {
 
 unsigned int dbs_update(struct cpufreq_policy *policy)
 {
-	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	unsigned int ignore_nice = dbs_data->ignore_nice_load;
@@ -187,12 +187,10 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 
 	/* Get Absolute Load */
 	for_each_cpu(j, policy->cpus) {
-		struct cpu_dbs_info *j_cdbs;
+		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
 		u64 cur_wall_time, cur_idle_time;
 		unsigned int idle_time, wall_time;
 		unsigned int load;
-
-		j_cdbs = gov->get_cpu_cdbs(j);
 
 		cur_idle_time = get_cpu_idle_time(j, &cur_wall_time, io_busy);
 
@@ -268,14 +266,13 @@ void gov_set_update_util(struct policy_dbs_info *policy_dbs,
 			 unsigned int delay_us)
 {
 	struct cpufreq_policy *policy = policy_dbs->policy;
-	struct dbs_governor *gov = dbs_governor_of(policy);
 	int cpu;
 
 	gov_update_sample_delay(policy_dbs, delay_us);
 	policy_dbs->last_sample_time = 0;
 
 	for_each_cpu(cpu, policy->cpus) {
-		struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(cpu);
+		struct cpu_dbs_info *cdbs = &per_cpu(cpu_dbs, cpu);
 
 		cpufreq_set_update_util_data(cpu, &cdbs->update_util);
 	}
@@ -398,7 +395,7 @@ static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *poli
 
 	/* Set policy_dbs for all CPUs, online+offline */
 	for_each_cpu(j, policy->related_cpus) {
-		struct cpu_dbs_info *j_cdbs = gov->get_cpu_cdbs(j);
+		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
 
 		j_cdbs->policy_dbs = policy_dbs;
 		j_cdbs->update_util.func = dbs_update_util_handler;
@@ -406,17 +403,15 @@ static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *poli
 	return policy_dbs;
 }
 
-static void free_policy_dbs_info(struct cpufreq_policy *policy,
+static void free_policy_dbs_info(struct policy_dbs_info *policy_dbs,
 				 struct dbs_governor *gov)
 {
-	struct cpu_dbs_info *cdbs = gov->get_cpu_cdbs(policy->cpu);
-	struct policy_dbs_info *policy_dbs = cdbs->policy_dbs;
 	int j;
 
 	mutex_destroy(&policy_dbs->timer_mutex);
 
-	for_each_cpu(j, policy->related_cpus) {
-		struct cpu_dbs_info *j_cdbs = gov->get_cpu_cdbs(j);
+	for_each_cpu(j, policy_dbs->policy->related_cpus) {
+		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
 
 		j_cdbs->policy_dbs = NULL;
 		j_cdbs->update_util.func = NULL;
@@ -507,7 +502,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 	kfree(dbs_data);
 
 free_policy_dbs_info:
-	free_policy_dbs_info(policy, gov);
+	free_policy_dbs_info(policy_dbs, gov);
 	return ret;
 }
 
@@ -538,7 +533,7 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 		policy->governor_data = NULL;
 	}
 
-	free_policy_dbs_info(policy, gov);
+	free_policy_dbs_info(policy_dbs, gov);
 	return 0;
 }
 
@@ -561,7 +556,7 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	io_busy = dbs_data->io_is_busy;
 
 	for_each_cpu(j, policy->cpus) {
-		struct cpu_dbs_info *j_cdbs = gov->get_cpu_cdbs(j);
+		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
 		unsigned int prev_load;
 
 		j_cdbs->prev_cpu_idle = get_cpu_idle_time(j, &j_cdbs->prev_cpu_wall, io_busy);

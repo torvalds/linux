@@ -32,10 +32,6 @@ static inline struct cs_policy_dbs_info *to_dbs_info(struct policy_dbs_info *pol
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 
-static DEFINE_PER_CPU(struct cs_cpu_dbs_info_s, cs_cpu_dbs_info);
-
-static struct dbs_governor cs_dbs_gov;
-
 static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
 					   struct cpufreq_policy *policy)
 {
@@ -193,7 +189,7 @@ static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 	dbs_data->ignore_nice_load = input;
 
 	/* we need to re-evaluate prev_cpu_idle */
-	gov_update_cpu_data(&cs_dbs_gov, dbs_data);
+	gov_update_cpu_data(dbs_data);
 
 	return count;
 }
@@ -306,8 +302,6 @@ static void cs_start(struct cpufreq_policy *policy)
 	dbs_info->requested_freq = policy->cur;
 }
 
-define_get_cpu_dbs_routines(cs_cpu_dbs_info);
-
 static struct dbs_governor cs_dbs_gov = {
 	.gov = {
 		.name = "conservative",
@@ -316,7 +310,6 @@ static struct dbs_governor cs_dbs_gov = {
 		.owner = THIS_MODULE,
 	},
 	.kobj_type = { .default_attrs = cs_attributes },
-	.get_cpu_cdbs = get_cpu_cdbs,
 	.gov_dbs_timer = cs_dbs_timer,
 	.alloc = cs_alloc,
 	.free = cs_free,

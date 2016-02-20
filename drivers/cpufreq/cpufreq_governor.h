@@ -41,13 +41,6 @@
 /* Ondemand Sampling types */
 enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
 
-/* create helper routines */
-#define define_get_cpu_dbs_routines(_dbs_info)				\
-static struct cpu_dbs_info *get_cpu_cdbs(int cpu)			\
-{									\
-	return &per_cpu(_dbs_info, cpu).cdbs;				\
-}
-
 /*
  * Abbreviations:
  * dbs: used as a shortform for demand based switching It helps to keep variable
@@ -155,14 +148,6 @@ struct cpu_dbs_info {
 	struct policy_dbs_info *policy_dbs;
 };
 
-struct od_cpu_dbs_info_s {
-	struct cpu_dbs_info cdbs;
-};
-
-struct cs_cpu_dbs_info_s {
-	struct cpu_dbs_info cdbs;
-};
-
 /* Per policy Governors sysfs tunables */
 struct od_dbs_tuners {
 	unsigned int powersave_bias;
@@ -184,7 +169,6 @@ struct dbs_governor {
 	 */
 	struct dbs_data *gdbs_data;
 
-	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
 	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy);
 	struct policy_dbs_info *(*alloc)(void);
 	void (*free)(struct policy_dbs_info *policy_dbs);
@@ -213,5 +197,5 @@ void od_register_powersave_bias_handler(unsigned int (*f)
 void od_unregister_powersave_bias_handler(void);
 ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
 			    size_t count);
-void gov_update_cpu_data(struct dbs_governor *gov, struct dbs_data *dbs_data);
+void gov_update_cpu_data(struct dbs_data *dbs_data);
 #endif /* _CPUFREQ_GOVERNOR_H */

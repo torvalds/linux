@@ -28,9 +28,6 @@
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 
-static DEFINE_PER_CPU(struct od_cpu_dbs_info_s, od_cpu_dbs_info);
-
-static struct dbs_governor od_dbs_gov;
 static struct od_ops od_ops;
 
 static unsigned int default_powersave_bias;
@@ -222,7 +219,7 @@ static ssize_t store_io_is_busy(struct dbs_data *dbs_data, const char *buf,
 	dbs_data->io_is_busy = !!input;
 
 	/* we need to re-evaluate prev_cpu_idle */
-	gov_update_cpu_data(&od_dbs_gov, dbs_data);
+	gov_update_cpu_data(dbs_data);
 
 	return count;
 }
@@ -289,7 +286,7 @@ static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 	dbs_data->ignore_nice_load = input;
 
 	/* we need to re-evaluate prev_cpu_idle */
-	gov_update_cpu_data(&od_dbs_gov, dbs_data);
+	gov_update_cpu_data(dbs_data);
 
 	return count;
 }
@@ -413,8 +410,6 @@ static void od_start(struct cpufreq_policy *policy)
 	ondemand_powersave_bias_init(policy);
 }
 
-define_get_cpu_dbs_routines(od_cpu_dbs_info);
-
 static struct od_ops od_ops = {
 	.powersave_bias_target = generic_powersave_bias_target,
 };
@@ -427,7 +422,6 @@ static struct dbs_governor od_dbs_gov = {
 		.owner = THIS_MODULE,
 	},
 	.kobj_type = { .default_attrs = od_attributes },
-	.get_cpu_cdbs = get_cpu_cdbs,
 	.gov_dbs_timer = od_dbs_timer,
 	.alloc = od_alloc,
 	.free = od_free,
@@ -440,9 +434,6 @@ static struct dbs_governor od_dbs_gov = {
 
 static void od_set_powersave_bias(unsigned int powersave_bias)
 {
-	struct cpufreq_policy *policy;
-	struct dbs_data *dbs_data;
-	struct od_dbs_tuners *od_tuners;
 	unsigned int cpu;
 	cpumask_t done;
 
@@ -451,20 +442,23 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
+		struct cpufreq_policy *policy;
 		struct policy_dbs_info *policy_dbs;
+		struct dbs_data *dbs_data;
+		struct od_dbs_tuners *od_tuners;
 
 		if (cpumask_test_cpu(cpu, &done))
 			continue;
 
-		policy_dbs = per_cpu(od_cpu_dbs_info, cpu).cdbs.policy_dbs;
+		policy = cpufreq_cpu_get_raw(cpu);
+		if (!policy || policy->governor != CPU_FREQ_GOV_ONDEMAND)
+			continue;
+
+		policy_dbs = policy->governor_data;
 		if (!policy_dbs)
 			continue;
 
-		policy = policy_dbs->policy;
 		cpumask_or(&done, &done, policy->cpus);
-
-		if (policy->governor != CPU_FREQ_GOV_ONDEMAND)
-			continue;
 
 		dbs_data = policy_dbs->dbs_data;
 		od_tuners = dbs_data->tuners;
