@@ -13,10 +13,10 @@
 
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/vsp1.h>
 
 #include <media/media-entity.h>
 #include <media/v4l2-subdev.h>
+#include <media/vsp1.h>
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
