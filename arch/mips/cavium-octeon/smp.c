@@ -127,7 +127,7 @@ static void octeon_smp_hotplug_setup(void)
 #endif
 }
 
-static void octeon_smp_setup(void)
+static void __init octeon_smp_setup(void)
 {
 	const int coreid = cvmx_get_core_num();
 	int cpus;
@@ -228,7 +228,7 @@ static void octeon_init_secondary(void)
  * Callout to firmware before smp_init
  *
  */
-void octeon_prepare_cpus(unsigned int max_cpus)
+static void __init octeon_prepare_cpus(unsigned int max_cpus)
 {
 	/*
 	 * Only the low order mailbox bits are used for IPIs, leave
