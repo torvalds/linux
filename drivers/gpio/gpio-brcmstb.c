@@ -233,17 +233,14 @@ static void brcmstb_gpio_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct brcmstb_gpio_priv *priv = brcmstb_gpio_gc_to_priv(gc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct list_head *pos;
+	struct brcmstb_gpio_bank *bank;
 
 	/* Interrupts weren't properly cleared during probe */
 	BUG_ON(!priv || !chip);
 
 	chained_irq_enter(chip, desc);
-	list_for_each(pos, &priv->bank_list) {
-		struct brcmstb_gpio_bank *bank =
-			list_entry(pos, struct brcmstb_gpio_bank, node);
+	list_for_each_entry(bank, &priv->bank_list, node)
 		brcmstb_gpio_irq_bank_handler(bank);
-	}
 	chained_irq_exit(chip, desc);
 }
 
@@ -280,7 +277,6 @@ static int brcmstb_gpio_sanity_check_banks(struct device *dev,
 static int brcmstb_gpio_remove(struct platform_device *pdev)
 {
 	struct brcmstb_gpio_priv *priv = platform_get_drvdata(pdev);
-	struct list_head *pos;
 	struct brcmstb_gpio_bank *bank;
 	int ret = 0;
 
@@ -293,10 +289,9 @@ static int brcmstb_gpio_remove(struct platform_device *pdev)
 	 * You can lose return values below, but we report all errors, and it's
 	 * more important to actually perform all of the steps.
 	 */
-	list_for_each(pos, &priv->bank_list) {
-		bank = list_entry(pos, struct brcmstb_gpio_bank, node);
+	list_for_each_entry(bank, &priv->bank_list, node)
 		gpiochip_remove(&bank->gc);
-	}
+
 	if (priv->reboot_notifier.notifier_call) {
 		ret = unregister_reboot_notifier(&priv->reboot_notifier);
 		if (ret)
