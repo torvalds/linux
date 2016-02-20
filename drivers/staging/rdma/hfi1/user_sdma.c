@@ -925,8 +925,8 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 			unsigned pageidx, len;
 
 			base = (unsigned long)iovec->iov.iov_base;
-			offset = ((base + iovec->offset + iov_offset) &
-				  ~PAGE_MASK);
+			offset = offset_in_page(base + iovec->offset +
+						iov_offset);
 			pageidx = (((iovec->offset + iov_offset +
 				     base) - (base & PAGE_MASK)) >> PAGE_SHIFT);
 			len = offset + req->info.fragsize > PAGE_SIZE ?
