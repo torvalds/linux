@@ -746,21 +746,6 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 	}
 }
 
-void snd_bebob_stream_update_duplex(struct snd_bebob *bebob)
-{
-	if ((cmp_connection_update(&bebob->in_conn) < 0) ||
-	    (cmp_connection_update(&bebob->out_conn) < 0)) {
-		amdtp_stream_pcm_abort(&bebob->rx_stream);
-		amdtp_stream_pcm_abort(&bebob->tx_stream);
-		amdtp_stream_stop(&bebob->rx_stream);
-		amdtp_stream_stop(&bebob->tx_stream);
-		break_both_connections(bebob);
-	} else {
-		amdtp_stream_update(&bebob->rx_stream);
-		amdtp_stream_update(&bebob->tx_stream);
-	}
-}
-
 /*
  * This function should be called before starting streams or after stopping
  * streams.

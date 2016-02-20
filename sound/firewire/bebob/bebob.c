@@ -300,6 +300,22 @@ error:
 	return err;
 }
 
+/*
+ * This driver doesn't update streams in bus reset handler.
+ *
+ * DM1000/ DM1100/DM1500 chipsets with BeBoB firmware transfer packets with
+ * discontinued counter at bus reset. This discontinuity is immediately
+ * detected in packet streaming layer, then it sets XRUN to PCM substream.
+ *
+ * ALSA PCM applications can know the XRUN by getting -EPIPE from PCM operation.
+ * Then, they can recover the PCM substream by executing ioctl(2) with
+ * SNDRV_PCM_IOCTL_PREPARE. 'struct snd_pcm_ops.prepare' is called and drivers
+ * restart packet streaming.
+ *
+ * The above processing may be executed before this bus-reset handler is
+ * executed. When this handler updates streams with current isochronous
+ * channels, the streams already have the current ones.
+ */
 static void
 bebob_update(struct fw_unit *unit)
 {
@@ -309,10 +325,6 @@ bebob_update(struct fw_unit *unit)
 		return;
 
 	fcp_bus_reset(bebob->unit);
-
-	mutex_lock(&bebob->mutex);
-	snd_bebob_stream_update_duplex(bebob);
-	mutex_unlock(&bebob->mutex);
 
 	if (bebob->deferred_registration) {
 		if (snd_card_register(bebob->card) < 0) {
