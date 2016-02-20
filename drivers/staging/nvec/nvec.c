@@ -38,18 +38,18 @@
 #include "nvec.h"
 
 #define I2C_CNFG			0x00
-#define I2C_CNFG_PACKET_MODE_EN		(1 << 10)
-#define I2C_CNFG_NEW_MASTER_SFM		(1 << 11)
+#define I2C_CNFG_PACKET_MODE_EN		BIT(10)
+#define I2C_CNFG_NEW_MASTER_SFM		BIT(11)
 #define I2C_CNFG_DEBOUNCE_CNT_SHIFT	12
 
 #define I2C_SL_CNFG		0x20
-#define I2C_SL_NEWSL		(1 << 2)
-#define I2C_SL_NACK		(1 << 1)
-#define I2C_SL_RESP		(1 << 0)
-#define I2C_SL_IRQ		(1 << 3)
-#define END_TRANS		(1 << 4)
-#define RCVD			(1 << 2)
-#define RNW			(1 << 1)
+#define I2C_SL_NEWSL		BIT(2)
+#define I2C_SL_NACK		BIT(1)
+#define I2C_SL_RESP		BIT(0)
+#define I2C_SL_IRQ		BIT(3)
+#define END_TRANS		BIT(4)
+#define RCVD			BIT(2)
+#define RNW			BIT(1)
 
 #define I2C_SL_RCVD		0x24
 #define I2C_SL_STATUS		0x28
