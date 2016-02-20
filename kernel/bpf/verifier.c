@@ -246,6 +246,7 @@ static const struct {
 	{BPF_MAP_TYPE_PROG_ARRAY, BPF_FUNC_tail_call},
 	{BPF_MAP_TYPE_PERF_EVENT_ARRAY, BPF_FUNC_perf_event_read},
 	{BPF_MAP_TYPE_PERF_EVENT_ARRAY, BPF_FUNC_perf_event_output},
+	{BPF_MAP_TYPE_STACK_TRACE, BPF_FUNC_get_stackid},
 };
 
 static void print_verifier_state(struct verifier_env *env)
@@ -911,8 +912,11 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 		 * don't allow any other map type to be passed into
 		 * the special func;
 		 */
-		if (bool_func && bool_map != bool_func)
+		if (bool_func && bool_map != bool_func) {
+			verbose("cannot pass map_type %d into func %d\n",
+				map->map_type, func_id);
 			return -EINVAL;
+		}
 	}
 
 	return 0;
