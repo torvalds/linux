@@ -1,3 +1,5 @@
+#include <dt-bindings/power/raspberrypi-power.h>
+
 / {
 	memory {
 		reg = <0 0x10000000>;
@@ -17,6 +19,12 @@
 		firmware: firmware {
 			compatible = "raspberrypi,bcm2835-firmware";
 			mboxes = <&mailbox>;
+		};
+
+		power: power {
+			compatible = "raspberrypi,bcm2835-power";
+			firmware = <&firmware>;
+			#power-domain-cells = <1>;
 		};
 	};
 };
@@ -57,4 +65,12 @@
 &sdhci {
 	status = "okay";
 	bus-width = <4>;
+};
+
+&pwm {
+	status = "okay";
+};
+
+&usb {
+	power-domains = <&power RPI_POWER_DOMAIN_USB>;
 };
