@@ -136,13 +136,11 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		ORANGEFS_NAME_MAX);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: doing lookup on %s under %pU,%d (follow=%s)\n",
+		     "%s: doing lookup on %s under %pU,%d\n",
 		     __func__,
 		     new_op->upcall.req.lookup.d_name,
 		     &new_op->upcall.req.lookup.parent_refn.khandle,
-		     new_op->upcall.req.lookup.parent_refn.fs_id,
-		     ((new_op->upcall.req.lookup.sym_follow ==
-		       ORANGEFS_LOOKUP_LINK_FOLLOW) ? "yes" : "no"));
+		     new_op->upcall.req.lookup.parent_refn.fs_id);
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 

@@ -339,7 +339,6 @@ struct ORANGEFS_sys_attr_s {
 };
 
 #define ORANGEFS_LOOKUP_LINK_NO_FOLLOW 0
-#define ORANGEFS_LOOKUP_LINK_FOLLOW    1
 
 /* pint-dev.h ***************************************************************/
 
