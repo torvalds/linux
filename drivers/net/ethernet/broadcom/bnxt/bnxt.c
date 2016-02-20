@@ -4642,7 +4642,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	if (link_re_init) {
 		rc = bnxt_update_phy_setting(bp);
 		if (rc)
-			goto open_err;
+			netdev_warn(bp->dev, "failed to update phy settings\n");
 	}
 
 	if (irq_re_init) {
