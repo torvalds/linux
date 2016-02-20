@@ -1215,6 +1215,18 @@ static void old_requeue_request(struct request *rq)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
+static void dm_mq_requeue_request(struct request *rq)
+{
+	struct request_queue *q = rq->q;
+	unsigned long flags;
+
+	blk_mq_requeue_request(rq);
+	spin_lock_irqsave(q->queue_lock, flags);
+	if (!blk_queue_stopped(q))
+		blk_mq_kick_requeue_list(q);
+	spin_unlock_irqrestore(q->queue_lock, flags);
+}
+
 static void dm_requeue_original_request(struct mapped_device *md,
 					struct request *rq)
 {
@@ -1225,10 +1237,8 @@ static void dm_requeue_original_request(struct mapped_device *md,
 	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		old_requeue_request(rq);
-	else {
-		blk_mq_requeue_request(rq);
-		blk_mq_kick_requeue_list(rq->q);
-	}
+	else
+		dm_mq_requeue_request(rq);
 
 	rq_completed(md, rw, false);
 }
@@ -1237,10 +1247,12 @@ static void old_stop_queue(struct request_queue *q)
 {
 	unsigned long flags;
 
-	if (blk_queue_stopped(q))
-		return;
-
 	spin_lock_irqsave(q->queue_lock, flags);
+	if (blk_queue_stopped(q)) {
+		spin_unlock_irqrestore(q->queue_lock, flags);
+		return;
+	}
+
 	blk_stop_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
@@ -1267,8 +1279,10 @@ static void start_queue(struct request_queue *q)
 {
 	if (!q->mq_ops)
 		old_start_queue(q);
-	else
+	else {
 		blk_mq_start_stopped_hw_queues(q, true);
+		blk_mq_kick_requeue_list(q);
+	}
 }
 
 static void dm_done(struct request *clone, int error, bool mapped)
