@@ -57,7 +57,7 @@ def find_enums(block_regexp, symbol_regexp, store):
             for j in reversed(i.groups()):
                 if j:
                     # remove comments
-                    j = re.sub(re.compile("(/\*[^\*]*\*/)", re.S|re.M), " ", j)
+                    j = re.sub(re.compile("(\/\*(\*(?!\/)|[^*])*\*\/)", re.S|re.M), " ", j)
                     for k in symbol_regexp.finditer(j):
                         for l in k.groups():
                             if l:
@@ -148,7 +148,9 @@ find_symbols(p, structs)
 structs.add("iovec")
 p = re.compile("union\s+(\w+)\s*\{")
 find_symbols(p, unions)
-p = re.compile("enum\s+(\w\s)*{([^}]*)}", re.M|re.S)
+p = re.compile("static\s+__inline__(\s+\w+)+\s+(\w+)\([^)]*\)\s")
+find_symbols(p, defines)
+p = re.compile("enum\s+(\w*)\s*{([^}]*)}", re.M|re.S)
 q = re.compile("(\w+)\s*(,|=[^,]*|$)", re.M|re.S)
 find_enums(p, q, defines)
 
