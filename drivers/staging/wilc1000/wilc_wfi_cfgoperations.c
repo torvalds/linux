@@ -2517,35 +2517,6 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
 
 };
 
-int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed)
-{
-	struct wilc_priv *priv;
-
-	priv = wiphy_priv(wiphy);
-	switch (changed) {
-	case WILC_WFI_RX_PKT:
-	{
-		priv->netstats.rx_packets++;
-		priv->netstats.rx_bytes += pktlen;
-		priv->netstats.rx_time = get_jiffies_64();
-	}
-	break;
-
-	case WILC_WFI_TX_PKT:
-	{
-		priv->netstats.tx_packets++;
-		priv->netstats.tx_bytes += pktlen;
-		priv->netstats.tx_time = get_jiffies_64();
-
-	}
-	break;
-
-	default:
-		break;
-	}
-	return 0;
-}
-
 static struct wireless_dev *WILC_WFI_CfgAlloc(void)
 {
 	struct wireless_dev *wdev;
