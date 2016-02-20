@@ -148,7 +148,7 @@ static int nvec_status_notifier(struct notifier_block *nb,
 
 	dev_warn(nvec->dev, "unhandled msg type %ld\n", event_type);
 	print_hex_dump(KERN_WARNING, "payload: ", DUMP_PREFIX_NONE, 16, 1,
-		msg, msg[1] + 2, true);
+		       msg, msg[1] + 2, true);
 
 	return NOTIFY_OK;
 }
@@ -257,7 +257,7 @@ static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
  * occurred, the nvec driver may print an error.
  */
 int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
-			short size)
+		     short size)
 {
 	struct nvec_msg *msg;
 	unsigned long flags;
@@ -313,10 +313,11 @@ int nvec_write_sync(struct nvec_chip *nvec,
 	}
 
 	dev_dbg(nvec->dev, "nvec_sync_write: 0x%04x\n",
-					nvec->sync_write_pending);
+		nvec->sync_write_pending);
 	if (!(wait_for_completion_timeout(&nvec->sync_write,
-				msecs_to_jiffies(2000)))) {
-		dev_warn(nvec->dev, "timeout waiting for sync write to complete\n");
+					  msecs_to_jiffies(2000)))) {
+		dev_warn(nvec->dev,
+			 "timeout waiting for sync write to complete\n");
 		mutex_unlock(&nvec->sync_write_mutex);
 		return -ETIMEDOUT;
 	}
@@ -422,8 +423,8 @@ static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 
 	if ((msg->data[0] >> 7) == 1 && (msg->data[0] & 0x0f) == 5)
 		print_hex_dump(KERN_WARNING, "ec system event ",
-				DUMP_PREFIX_NONE, 16, 1, msg->data,
-				msg->data[1] + 2, true);
+			       DUMP_PREFIX_NONE, 16, 1, msg->data,
+			       msg->data[1] + 2, true);
 
 	atomic_notifier_call_chain(&nvec->notifier_list, msg->data[0] & 0x8f,
 				   msg->data);
@@ -493,8 +494,8 @@ static void nvec_rx_completed(struct nvec_chip *nvec)
 {
 	if (nvec->rx->pos != nvec_msg_size(nvec->rx)) {
 		dev_err(nvec->dev, "RX incomplete: Expected %u bytes, got %u\n",
-			   (uint) nvec_msg_size(nvec->rx),
-			   (uint) nvec->rx->pos);
+			(uint)nvec_msg_size(nvec->rx),
+			(uint)nvec->rx->pos);
 
 		nvec_msg_free(nvec, nvec->rx);
 		nvec->state = 0;
@@ -688,8 +689,8 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 	if ((status & (RCVD | RNW)) == RCVD) {
 		if (received != nvec->i2c_addr)
 			dev_err(nvec->dev,
-			"received address 0x%02x, expected 0x%02x\n",
-			received, nvec->i2c_addr);
+				"received address 0x%02x, expected 0x%02x\n",
+				received, nvec->i2c_addr);
 		nvec->state = 1;
 	}
 
@@ -778,7 +779,7 @@ static int nvec_i2c_parse_dt_pdata(struct nvec_chip *nvec)
 	}
 
 	if (of_property_read_u32(nvec->dev->of_node, "slave-addr",
-				&nvec->i2c_addr)) {
+				 &nvec->i2c_addr)) {
 		dev_err(nvec->dev, "no i2c address specified");
 		return -ENODEV;
 	}
@@ -854,14 +855,14 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
 
 	err = devm_gpio_request_one(&pdev->dev, nvec->gpio, GPIOF_OUT_INIT_HIGH,
-					"nvec gpio");
+				    "nvec gpio");
 	if (err < 0) {
 		dev_err(nvec->dev, "couldn't request gpio\n");
 		return -ENODEV;
 	}
 
 	err = devm_request_irq(&pdev->dev, nvec->irq, nvec_interrupt, 0,
-				"nvec", nvec);
+			       "nvec", nvec);
 	if (err) {
 		dev_err(nvec->dev, "couldn't request irq\n");
 		return -ENODEV;
@@ -883,8 +884,10 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	err = nvec_write_sync(nvec, get_firmware_version, 2, &msg);
 
 	if (!err) {
-		dev_warn(nvec->dev, "ec firmware version %02x.%02x.%02x / %02x\n",
-			msg->data[4], msg->data[5], msg->data[6], msg->data[7]);
+		dev_warn(nvec->dev,
+			 "ec firmware version %02x.%02x.%02x / %02x\n",
+			 msg->data[4], msg->data[5],
+			 msg->data[6], msg->data[7]);
 
 		nvec_msg_free(nvec, msg);
 	}
