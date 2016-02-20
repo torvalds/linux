@@ -37,8 +37,6 @@ static inline int lkl_sys_fstatfs(unsigned int fd, struct lkl_statfs *buf)
 	return lkl_sys_fstatfs64(fd, sizeof(*buf), buf);
 }
 
-#define lkl_sys_statfs lkl_sys_statsf64
-#define lkl_sys_fstatfs lkl_sys_fstatsf64
 #endif
 
 #ifdef __lkl__NR_llseek
