@@ -512,6 +512,7 @@ static int max9867_i2c_remove(struct i2c_client *client)
 
 static const struct i2c_device_id max9867_i2c_id[] = {
 	{ "max9867", 0 },
+	{ }
 };
 
 static const struct of_device_id max9867_of_match[] = {
