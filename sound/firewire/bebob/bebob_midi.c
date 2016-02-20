@@ -18,7 +18,7 @@ static int midi_capture_open(struct snd_rawmidi_substream *substream)
 		goto end;
 
 	mutex_lock(&bebob->mutex);
-	atomic_inc(&bebob->substreams_counter);
+	bebob->substreams_counter++;
 	err = snd_bebob_stream_start_duplex(bebob, 0);
 	mutex_unlock(&bebob->mutex);
 	if (err < 0)
@@ -37,7 +37,7 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 		goto end;
 
 	mutex_lock(&bebob->mutex);
-	atomic_inc(&bebob->substreams_counter);
+	bebob->substreams_counter++;
 	err = snd_bebob_stream_start_duplex(bebob, 0);
 	mutex_unlock(&bebob->mutex);
 	if (err < 0)
@@ -51,7 +51,7 @@ static int midi_capture_close(struct snd_rawmidi_substream *substream)
 	struct snd_bebob *bebob = substream->rmidi->private_data;
 
 	mutex_lock(&bebob->mutex);
-	atomic_dec(&bebob->substreams_counter);
+	bebob->substreams_counter--;
 	snd_bebob_stream_stop_duplex(bebob);
 	mutex_unlock(&bebob->mutex);
 
@@ -64,7 +64,7 @@ static int midi_playback_close(struct snd_rawmidi_substream *substream)
 	struct snd_bebob *bebob = substream->rmidi->private_data;
 
 	mutex_lock(&bebob->mutex);
-	atomic_dec(&bebob->substreams_counter);
+	bebob->substreams_counter--;
 	snd_bebob_stream_stop_duplex(bebob);
 	mutex_unlock(&bebob->mutex);
 

@@ -220,7 +220,7 @@ pcm_capture_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		mutex_lock(&bebob->mutex);
-		atomic_inc(&bebob->substreams_counter);
+		bebob->substreams_counter++;
 		mutex_unlock(&bebob->mutex);
 	}
 
@@ -242,7 +242,7 @@ pcm_playback_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		mutex_lock(&bebob->mutex);
-		atomic_inc(&bebob->substreams_counter);
+		bebob->substreams_counter++;
 		mutex_unlock(&bebob->mutex);
 	}
 
@@ -258,7 +258,7 @@ pcm_capture_hw_free(struct snd_pcm_substream *substream)
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
 		mutex_lock(&bebob->mutex);
-		atomic_dec(&bebob->substreams_counter);
+		bebob->substreams_counter--;
 		mutex_unlock(&bebob->mutex);
 	}
 
@@ -273,7 +273,7 @@ pcm_playback_hw_free(struct snd_pcm_substream *substream)
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
 		mutex_lock(&bebob->mutex);
-		atomic_dec(&bebob->substreams_counter);
+		bebob->substreams_counter--;
 		mutex_unlock(&bebob->mutex);
 	}
 

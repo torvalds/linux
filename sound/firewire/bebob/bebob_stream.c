@@ -590,7 +590,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	int err = 0;
 
 	/* Need no substreams */
-	if (atomic_read(&bebob->substreams_counter) == 0)
+	if (bebob->substreams_counter == 0)
 		goto end;
 
 	err = get_sync_mode(bebob, &sync_mode);
@@ -735,7 +735,7 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 		master = &bebob->tx_stream;
 	}
 
-	if (atomic_read(&bebob->substreams_counter) == 0) {
+	if (bebob->substreams_counter == 0) {
 		amdtp_stream_pcm_abort(master);
 		amdtp_stream_stop(master);
 
