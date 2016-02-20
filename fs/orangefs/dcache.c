@@ -82,7 +82,6 @@ out_put_parent:
 out_drop:
 	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s:%s:%d revalidate failed\n",
 	    __FILE__, __func__, __LINE__);
-	d_drop(dentry);
 	goto out_release_op;
 }
 
@@ -109,10 +108,8 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	 * If this passes, the positive dentry still exists or the negative
 	 * dentry still does not exist.
 	 */
-	if (!orangefs_revalidate_lookup(dentry)) {
-		d_drop(dentry);
+	if (!orangefs_revalidate_lookup(dentry))
 		return 0;
-	}
 
 	/* We do not need to continue with negative dentries. */
 	if (!dentry->d_inode)
@@ -125,13 +122,10 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (ret < 0) {
 		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s:%s:%d getattr failure.\n",
 		    __FILE__, __func__, __LINE__);
-		d_drop(dentry);
 		return 0;
 	}
-	if (ret == 0) {
-		d_drop(dentry);
+	if (ret == 0)
 		return 0;
-	}
 
 out:
 	gossip_debug(GOSSIP_DCACHE_DEBUG,
