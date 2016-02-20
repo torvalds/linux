@@ -615,8 +615,8 @@ static void rtllib_softmac_scan_wq(void *data)
 	if (ieee->active_channel_map[ieee->current_network.channel] == 1)
 		rtllib_send_probe_requests(ieee, 0);
 
-	queue_delayed_work_rsl(ieee->wq, &ieee->softmac_scan_wq,
-			       msecs_to_jiffies(RTLLIB_SOFTMAC_SCAN_TIME));
+	schedule_delayed_work(&ieee->softmac_scan_wq,
+			      msecs_to_jiffies(RTLLIB_SOFTMAC_SCAN_TIME));
 
 	up(&ieee->scan_sem);
 	return;
@@ -689,7 +689,7 @@ static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 		ieee->scanning_continue = 0;
 		ieee->actscanning = false;
 
-		cancel_delayed_work(&ieee->softmac_scan_wq);
+		cancel_delayed_work_sync(&ieee->softmac_scan_wq);
 	}
 
 	up(&ieee->scan_sem);
@@ -745,8 +745,7 @@ static void rtllib_start_scan(struct rtllib_device *ieee)
 		if (ieee->scanning_continue == 0) {
 			ieee->actscanning = true;
 			ieee->scanning_continue = 1;
-			queue_delayed_work_rsl(ieee->wq,
-					       &ieee->softmac_scan_wq, 0);
+			schedule_delayed_work(&ieee->softmac_scan_wq, 0);
 		}
 	} else {
 		if (ieee->rtllib_start_hw_scan)
@@ -1428,8 +1427,8 @@ static void rtllib_associate_abort(struct rtllib_device *ieee)
 
 	ieee->state = RTLLIB_ASSOCIATING_RETRY;
 
-	queue_delayed_work_rsl(ieee->wq, &ieee->associate_retry_wq,
-			   RTLLIB_SOFTMAC_ASSOC_RETRY_TIME);
+	schedule_delayed_work(&ieee->associate_retry_wq,
+			      RTLLIB_SOFTMAC_ASSOC_RETRY_TIME);
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
@@ -1580,7 +1579,7 @@ static void rtllib_associate_complete(struct rtllib_device *ieee)
 	ieee->state = RTLLIB_LINKED;
 	rtllib_sta_send_associnfo(ieee);
 
-	queue_work_rsl(ieee->wq, &ieee->associate_complete_wq);
+	schedule_work(&ieee->associate_complete_wq);
 }
 
 static void rtllib_associate_procedure_wq(void *data)
@@ -1729,7 +1728,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				if (ieee->LedControlHandler != NULL)
 					ieee->LedControlHandler(ieee->dev,
 							 LED_CTL_START_TO_LINK);
-				queue_delayed_work_rsl(ieee->wq,
+				schedule_delayed_work(
 					   &ieee->associate_procedure_wq, 0);
 			} else {
 				if (rtllib_is_54g(&ieee->current_network) &&
@@ -2283,7 +2282,7 @@ inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 				    "Association response status code 0x%x\n",
 				    errcode);
 			if (ieee->AsocRetryCount < RT_ASOC_RETRY_LIMIT)
-				queue_delayed_work_rsl(ieee->wq,
+				schedule_delayed_work(
 					 &ieee->associate_procedure_wq, 0);
 			else
 				rtllib_associate_abort(ieee);
@@ -2393,7 +2392,7 @@ inline int rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 
 		if (!(ieee->rtllib_ap_sec_type(ieee) &
 		    (SEC_ALG_CCMP|SEC_ALG_TKIP)))
-			queue_delayed_work_rsl(ieee->wq,
+			schedule_delayed_work(
 				       &ieee->associate_procedure_wq, 5);
 	}
 	return 0;
@@ -2715,8 +2714,7 @@ static void rtllib_start_ibss_wq(void *data)
 
 inline void rtllib_start_ibss(struct rtllib_device *ieee)
 {
-	queue_delayed_work_rsl(ieee->wq, &ieee->start_ibss_wq,
-			       msecs_to_jiffies(150));
+	schedule_delayed_work(&ieee->start_ibss_wq, msecs_to_jiffies(150));
 }
 
 /* this is called only in user context, with wx_sem held */
@@ -2770,7 +2768,7 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 	ieee->is_set_key = false;
 	ieee->wap_set = 0;
 
-	queue_delayed_work_rsl(ieee->wq, &ieee->link_change_wq, 0);
+	schedule_delayed_work(&ieee->link_change_wq, 0);
 
 	notify_wx_assoc_event(ieee);
 }
@@ -2882,9 +2880,9 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 
 	rtllib_stop_send_beacons(ieee);
 	del_timer_sync(&ieee->associate_timer);
-	cancel_delayed_work(&ieee->associate_retry_wq);
-	cancel_delayed_work(&ieee->start_ibss_wq);
-	cancel_delayed_work(&ieee->link_change_wq);
+	cancel_delayed_work_sync(&ieee->associate_retry_wq);
+	cancel_delayed_work_sync(&ieee->start_ibss_wq);
+	cancel_delayed_work_sync(&ieee->link_change_wq);
 	rtllib_stop_scan(ieee);
 
 	if (ieee->state <= RTLLIB_ASSOCIATING_AUTHENTICATED)
@@ -3027,9 +3025,6 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 		    rtllib_send_beacon_cb,
 		    (unsigned long) ieee);
 
-
-	ieee->wq = create_workqueue(DRV_NAME);
-
 	INIT_DELAYED_WORK_RSL(&ieee->link_change_wq,
 			      (void *)rtllib_link_change_wq, ieee);
 	INIT_DELAYED_WORK_RSL(&ieee->start_ibss_wq,
@@ -3065,8 +3060,16 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 	ieee->pDot11dInfo = NULL;
 	del_timer_sync(&ieee->associate_timer);
 
-	cancel_delayed_work(&ieee->associate_retry_wq);
-	destroy_workqueue(ieee->wq);
+	cancel_delayed_work_sync(&ieee->associate_retry_wq);
+	cancel_delayed_work_sync(&ieee->associate_procedure_wq);
+	cancel_delayed_work_sync(&ieee->softmac_scan_wq);
+	cancel_delayed_work_sync(&ieee->start_ibss_wq);
+	cancel_delayed_work_sync(&ieee->hw_wakeup_wq);
+	cancel_delayed_work_sync(&ieee->hw_sleep_wq);
+	cancel_delayed_work_sync(&ieee->link_change_wq);
+	cancel_work_sync(&ieee->associate_complete_wq);
+	cancel_work_sync(&ieee->ips_leave_wq);
+	cancel_work_sync(&ieee->wx_sync_scan_wq);
 	up(&ieee->wx_sem);
 	tasklet_kill(&ieee->ps_task);
 }

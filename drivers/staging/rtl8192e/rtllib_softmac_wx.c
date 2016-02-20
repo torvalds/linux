@@ -429,7 +429,7 @@ int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
 	}
 
 	if (ieee->state == RTLLIB_LINKED) {
-		queue_work_rsl(ieee->wq, &ieee->wx_sync_scan_wq);
+		schedule_work(&ieee->wx_sync_scan_wq);
 		/* intentionally forget to up sem */
 		return 0;
 	}

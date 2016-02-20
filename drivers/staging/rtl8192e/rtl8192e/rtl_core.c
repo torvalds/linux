@@ -249,7 +249,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		if (StateToSet == eRfOn) {
 
 			if (bConnectBySSID && priv->blinked_ingpio) {
-				queue_delayed_work_rsl(ieee->wq,
+				schedule_delayed_work(
 					 &ieee->associate_procedure_wq, 0);
 				priv->blinked_ingpio = false;
 			}
@@ -1327,7 +1327,7 @@ RESET_START:
 			ieee->set_chan(ieee->dev,
 				       ieee->current_network.channel);
 
-			queue_work_rsl(ieee->wq, &ieee->associate_complete_wq);
+			schedule_work(&ieee->associate_complete_wq);
 
 		} else if (ieee->state == RTLLIB_LINKED && ieee->iw_mode ==
 			   IW_MODE_ADHOC) {
@@ -1499,7 +1499,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 			if (!(ieee->rtllib_ap_sec_type(ieee) &
 			     (SEC_ALG_CCMP|SEC_ALG_TKIP)))
-				queue_delayed_work_rsl(ieee->wq,
+				schedule_delayed_work(
 					&ieee->associate_procedure_wq, 0);
 
 			priv->check_roaming_cnt = 0;

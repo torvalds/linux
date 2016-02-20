@@ -1728,7 +1728,6 @@ struct rtllib_device {
 	struct delayed_work link_change_wq;
 	struct work_struct wx_sync_scan_wq;
 
-	struct workqueue_struct *wq;
 	union {
 		struct rtllib_rxb *RfdArray[REORDER_WIN_SIZE];
 		struct rtllib_rxb *stats_IndicateArray[REORDER_WIN_SIZE];
