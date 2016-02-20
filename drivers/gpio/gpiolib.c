@@ -684,11 +684,10 @@ void gpiochip_remove(struct gpio_chip *chip)
 	unsigned	i;
 	bool		requested = false;
 
-	/* Numb the device, cancelling all outstanding operations */
-	gdev->chip = NULL;
-
 	/* FIXME: should the legacy sysfs handling be moved to gpio_device? */
 	gpiochip_sysfs_unregister(gdev);
+	/* Numb the device, cancelling all outstanding operations */
+	gdev->chip = NULL;
 	gpiochip_irqchip_remove(chip);
 	acpi_gpiochip_remove(chip);
 	gpiochip_remove_pin_ranges(chip);
