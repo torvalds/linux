@@ -201,7 +201,9 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 
 		obj = vram->object;
 
+		mutex_lock(&obj->lock);
 		pages = etnaviv_gem_get_pages(obj);
+		mutex_unlock(&obj->lock);
 		if (pages) {
 			int j;
 
@@ -213,8 +215,8 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 
 		iter.hdr->iova = cpu_to_le64(vram->iova);
 
-		vaddr = etnaviv_gem_vaddr(&obj->base);
-		if (vaddr && !IS_ERR(vaddr))
+		vaddr = etnaviv_gem_vmap(&obj->base);
+		if (vaddr)
 			memcpy(iter.data, vaddr, obj->base.size);
 
 		etnaviv_core_dump_header(&iter, ETDUMP_BUF_BO, iter.data +

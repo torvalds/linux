@@ -515,7 +515,7 @@ static bool vsp1_pipeline_stopped(struct vsp1_pipeline *pipe)
 	bool stopped;
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
-	stopped = pipe->state == VSP1_PIPELINE_STOPPED,
+	stopped = pipe->state == VSP1_PIPELINE_STOPPED;
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
 	return stopped;

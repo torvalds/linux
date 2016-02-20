@@ -51,7 +51,7 @@ enum mem_cgroup_stat_index {
 	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
 	MEM_CGROUP_STAT_NSTATS,
 	/* default hierarchy stats */
-	MEMCG_SOCK,
+	MEMCG_SOCK = MEM_CGROUP_STAT_NSTATS,
 	MEMCG_NR_STAT,
 };
 

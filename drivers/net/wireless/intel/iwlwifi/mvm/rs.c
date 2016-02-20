@@ -2,6 +2,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -724,14 +725,28 @@ static int _rs_collect_tx_data(struct iwl_mvm *mvm,
 	return 0;
 }
 
-static int rs_collect_tx_data(struct iwl_mvm *mvm,
-			      struct iwl_lq_sta *lq_sta,
-			      struct iwl_scale_tbl_info *tbl,
-			      int scale_index, int attempts, int successes,
-			      u8 reduced_txp)
+static int rs_collect_tpc_data(struct iwl_mvm *mvm,
+			       struct iwl_lq_sta *lq_sta,
+			       struct iwl_scale_tbl_info *tbl,
+			       int scale_index, int attempts, int successes,
+			       u8 reduced_txp)
 {
 	struct iwl_rate_scale_data *window = NULL;
-	int ret;
+
+	if (WARN_ON_ONCE(reduced_txp > TPC_MAX_REDUCTION))
+		return -EINVAL;
+
+	window = &tbl->tpc_win[reduced_txp];
+	return  _rs_collect_tx_data(mvm, tbl, scale_index, attempts, successes,
+				    window);
+}
+
+static int rs_collect_tlc_data(struct iwl_mvm *mvm,
+			       struct iwl_lq_sta *lq_sta,
+			       struct iwl_scale_tbl_info *tbl,
+			       int scale_index, int attempts, int successes)
+{
+	struct iwl_rate_scale_data *window = NULL;
 
 	if (scale_index < 0 || scale_index >= IWL_RATE_COUNT)
 		return -EINVAL;
@@ -745,16 +760,6 @@ static int rs_collect_tx_data(struct iwl_mvm *mvm,
 
 	/* Select window for current tx bit rate */
 	window = &(tbl->win[scale_index]);
-
-	ret = _rs_collect_tx_data(mvm, tbl, scale_index, attempts, successes,
-				  window);
-	if (ret)
-		return ret;
-
-	if (WARN_ON_ONCE(reduced_txp > TPC_MAX_REDUCTION))
-		return -EINVAL;
-
-	window = &tbl->tpc_win[reduced_txp];
 	return _rs_collect_tx_data(mvm, tbl, scale_index, attempts, successes,
 				   window);
 }
@@ -1301,17 +1306,30 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 * first index into rate scale table.
 	 */
 	if (info->flags & IEEE80211_TX_STAT_AMPDU) {
-		/* ampdu_ack_len = 0 marks no BA was received. In this case
-		 * treat it as a single frame loss as we don't want the success
-		 * ratio to dip too quickly because a BA wasn't received
+		rs_collect_tpc_data(mvm, lq_sta, curr_tbl, lq_rate.index,
+				    info->status.ampdu_len,
+				    info->status.ampdu_ack_len,
+				    reduced_txp);
+
+		/* ampdu_ack_len = 0 marks no BA was received. For TLC, treat
+		 * it as a single frame loss as we don't want the success ratio
+		 * to dip too quickly because a BA wasn't received.
+		 * For TPC, there's no need for this optimisation since we want
+		 * to recover very quickly from a bad power reduction and,
+		 * therefore we'd like the success ratio to get an immediate hit
+		 * when failing to get a BA, so we'd switch back to a lower or
+		 * zero power reduction. When FW transmits agg with a rate
+		 * different from the initial rate, it will not use reduced txp
+		 * and will send BA notification twice (one empty with reduced
+		 * txp equal to the value from LQ and one with reduced txp 0).
+		 * We need to update counters for each txp level accordingly.
 		 */
 		if (info->status.ampdu_ack_len == 0)
 			info->status.ampdu_len = 1;
 
-		rs_collect_tx_data(mvm, lq_sta, curr_tbl, lq_rate.index,
-				   info->status.ampdu_len,
-				   info->status.ampdu_ack_len,
-				   reduced_txp);
+		rs_collect_tlc_data(mvm, lq_sta, curr_tbl, lq_rate.index,
+				    info->status.ampdu_len,
+				    info->status.ampdu_ack_len);
 
 		/* Update success/fail counts if not searching for new mode */
 		if (lq_sta->rs_state == RS_STATE_STAY_IN_COLUMN) {
@@ -1344,9 +1362,13 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			else
 				continue;
 
-			rs_collect_tx_data(mvm, lq_sta, tmp_tbl, lq_rate.index,
-					   1, i < retries ? 0 : legacy_success,
-					   reduced_txp);
+			rs_collect_tpc_data(mvm, lq_sta, tmp_tbl,
+					    lq_rate.index, 1,
+					    i < retries ? 0 : legacy_success,
+					    reduced_txp);
+			rs_collect_tlc_data(mvm, lq_sta, tmp_tbl,
+					    lq_rate.index, 1,
+					    i < retries ? 0 : legacy_success);
 		}
 
 		/* Update success/fail counts if not searching for new mode */

@@ -82,18 +82,18 @@ void btrfs_destroy_test_fs(void)
 struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(void)
 {
 	struct btrfs_fs_info *fs_info = kzalloc(sizeof(struct btrfs_fs_info),
-						GFP_NOFS);
+						GFP_KERNEL);
 
 	if (!fs_info)
 		return fs_info;
 	fs_info->fs_devices = kzalloc(sizeof(struct btrfs_fs_devices),
-				      GFP_NOFS);
+				      GFP_KERNEL);
 	if (!fs_info->fs_devices) {
 		kfree(fs_info);
 		return NULL;
 	}
 	fs_info->super_copy = kzalloc(sizeof(struct btrfs_super_block),
-				      GFP_NOFS);
+				      GFP_KERNEL);
 	if (!fs_info->super_copy) {
 		kfree(fs_info->fs_devices);
 		kfree(fs_info);
@@ -180,11 +180,11 @@ btrfs_alloc_dummy_block_group(unsigned long length)
 {
 	struct btrfs_block_group_cache *cache;
 
-	cache = kzalloc(sizeof(*cache), GFP_NOFS);
+	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 	if (!cache)
 		return NULL;
 	cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
-					GFP_NOFS);
+					GFP_KERNEL);
 	if (!cache->free_space_ctl) {
 		kfree(cache);
 		return NULL;

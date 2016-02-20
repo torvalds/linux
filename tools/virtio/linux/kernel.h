@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/bug.h>

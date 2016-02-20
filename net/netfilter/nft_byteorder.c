@@ -46,16 +46,14 @@ static void nft_byteorder_eval(const struct nft_expr *expr,
 		switch (priv->op) {
 		case NFT_BYTEORDER_NTOH:
 			for (i = 0; i < priv->len / 8; i++) {
-				src64 = get_unaligned_be64(&src[i]);
-				src64 = be64_to_cpu((__force __be64)src64);
+				src64 = get_unaligned((u64 *)&src[i]);
 				put_unaligned_be64(src64, &dst[i]);
 			}
 			break;
 		case NFT_BYTEORDER_HTON:
 			for (i = 0; i < priv->len / 8; i++) {
 				src64 = get_unaligned_be64(&src[i]);
-				src64 = (__force u64)cpu_to_be64(src64);
-				put_unaligned_be64(src64, &dst[i]);
+				put_unaligned(src64, (u64 *)&dst[i]);
 			}
 			break;
 		}

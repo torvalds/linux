@@ -3025,7 +3025,7 @@ len must be a multiple of sizeof(struct kvm_s390_irq). It must be > 0
 and it must not exceed (max_vcpus + 32) * sizeof(struct kvm_s390_irq),
 which is the maximum number of possibly pending cpu-local interrupts.
 
-4.90 KVM_SMI
+4.96 KVM_SMI
 
 Capability: KVM_CAP_X86_SMM
 Architectures: x86

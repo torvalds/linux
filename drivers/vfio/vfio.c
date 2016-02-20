@@ -123,8 +123,8 @@ struct iommu_group *vfio_iommu_group_get(struct device *dev)
 	/*
 	 * With noiommu enabled, an IOMMU group will be created for a device
 	 * that doesn't already have one and doesn't have an iommu_ops on their
-	 * bus.  We use iommu_present() again in the main code to detect these
-	 * fake groups.
+	 * bus.  We set iommudata simply to be able to identify these groups
+	 * as special use and for reclamation later.
 	 */
 	if (group || !noiommu || iommu_present(dev->bus))
 		return group;
@@ -134,6 +134,7 @@ struct iommu_group *vfio_iommu_group_get(struct device *dev)
 		return NULL;
 
 	iommu_group_set_name(group, "vfio-noiommu");
+	iommu_group_set_iommudata(group, &noiommu, NULL);
 	ret = iommu_group_add_device(group, dev);
 	iommu_group_put(group);
 	if (ret)
@@ -158,7 +159,7 @@ EXPORT_SYMBOL_GPL(vfio_iommu_group_get);
 void vfio_iommu_group_put(struct iommu_group *group, struct device *dev)
 {
 #ifdef CONFIG_VFIO_NOIOMMU
-	if (!iommu_present(dev->bus))
+	if (iommu_group_get_iommudata(group) == &noiommu)
 		iommu_group_remove_device(dev);
 #endif
 
@@ -190,16 +191,10 @@ static long vfio_noiommu_ioctl(void *iommu_data,
 	return -ENOTTY;
 }
 
-static int vfio_iommu_present(struct device *dev, void *unused)
-{
-	return iommu_present(dev->bus) ? 1 : 0;
-}
-
 static int vfio_noiommu_attach_group(void *iommu_data,
 				     struct iommu_group *iommu_group)
 {
-	return iommu_group_for_each_dev(iommu_group, NULL,
-					vfio_iommu_present) ? -EINVAL : 0;
+	return iommu_group_get_iommudata(iommu_group) == &noiommu ? 0 : -EINVAL;
 }
 
 static void vfio_noiommu_detach_group(void *iommu_data,
@@ -323,8 +318,7 @@ static void vfio_group_unlock_and_free(struct vfio_group *group)
 /**
  * Group objects - create, release, get, put, search
  */
-static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
-					    bool iommu_present)
+static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 {
 	struct vfio_group *group, *tmp;
 	struct device *dev;
@@ -342,7 +336,9 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
 	atomic_set(&group->container_users, 0);
 	atomic_set(&group->opened, 0);
 	group->iommu_group = iommu_group;
-	group->noiommu = !iommu_present;
+#ifdef CONFIG_VFIO_NOIOMMU
+	group->noiommu = (iommu_group_get_iommudata(iommu_group) == &noiommu);
+#endif
 
 	group->nb.notifier_call = vfio_iommu_group_notifier;
 
@@ -767,7 +763,7 @@ int vfio_add_group_dev(struct device *dev,
 
 	group = vfio_group_get_from_iommu(iommu_group);
 	if (!group) {
-		group = vfio_create_group(iommu_group, iommu_present(dev->bus));
+		group = vfio_create_group(iommu_group);
 		if (IS_ERR(group)) {
 			iommu_group_put(iommu_group);
 			return PTR_ERR(group);
