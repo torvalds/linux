@@ -24,7 +24,7 @@
 
 static DEFINE_PER_CPU(struct cpu_dbs_info, cpu_dbs);
 
-static DEFINE_MUTEX(dbs_data_mutex);
+static DEFINE_MUTEX(gov_dbs_data_mutex);
 
 /* Common sysfs tunables */
 /**
@@ -421,10 +421,10 @@ static void free_policy_dbs_info(struct policy_dbs_info *policy_dbs,
 static int cpufreq_governor_init(struct cpufreq_policy *policy)
 {
 	struct dbs_governor *gov = dbs_governor_of(policy);
-	struct dbs_data *dbs_data = gov->gdbs_data;
+	struct dbs_data *dbs_data;
 	struct policy_dbs_info *policy_dbs;
 	unsigned int latency;
-	int ret;
+	int ret = 0;
 
 	/* State should be equivalent to EXIT */
 	if (policy->governor_data)
@@ -434,6 +434,10 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 	if (!policy_dbs)
 		return -ENOMEM;
 
+	/* Protect gov->gdbs_data against concurrent updates. */
+	mutex_lock(&gov_dbs_data_mutex);
+
+	dbs_data = gov->gdbs_data;
 	if (dbs_data) {
 		if (WARN_ON(have_governor_per_policy())) {
 			ret = -EINVAL;
@@ -446,8 +450,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 		dbs_data->usage_count++;
 		list_add(&policy_dbs->list, &dbs_data->policy_dbs_list);
 		mutex_unlock(&dbs_data->mutex);
-
-		return 0;
+		goto out;
 	}
 
 	dbs_data = kzalloc(sizeof(*dbs_data), GFP_KERNEL);
@@ -488,7 +491,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 				   get_governor_parent_kobj(policy),
 				   "%s", gov->gov.name);
 	if (!ret)
-		return 0;
+		goto out;
 
 	/* Failure, so roll back. */
 	pr_err("cpufreq: Governor initialization failed (dbs_data kobject init error %d)\n", ret);
@@ -502,6 +505,9 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 
 free_policy_dbs_info:
 	free_policy_dbs_info(policy_dbs, gov);
+
+out:
+	mutex_unlock(&gov_dbs_data_mutex);
 	return ret;
 }
 
@@ -511,6 +517,9 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	int count;
+
+	/* Protect gov->gdbs_data against concurrent updates. */
+	mutex_lock(&gov_dbs_data_mutex);
 
 	mutex_lock(&dbs_data->mutex);
 	list_del(&policy_dbs->list);
@@ -533,6 +542,8 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 	}
 
 	free_policy_dbs_info(policy_dbs, gov);
+
+	mutex_unlock(&gov_dbs_data_mutex);
 	return 0;
 }
 
@@ -599,31 +610,20 @@ static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 
 int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int event)
 {
-	int ret = -EINVAL;
-
-	/* Lock governor to block concurrent initialization of governor */
-	mutex_lock(&dbs_data_mutex);
-
 	if (event == CPUFREQ_GOV_POLICY_INIT) {
-		ret = cpufreq_governor_init(policy);
+		return cpufreq_governor_init(policy);
 	} else if (policy->governor_data) {
 		switch (event) {
 		case CPUFREQ_GOV_POLICY_EXIT:
-			ret = cpufreq_governor_exit(policy);
-			break;
+			return cpufreq_governor_exit(policy);
 		case CPUFREQ_GOV_START:
-			ret = cpufreq_governor_start(policy);
-			break;
+			return cpufreq_governor_start(policy);
 		case CPUFREQ_GOV_STOP:
-			ret = cpufreq_governor_stop(policy);
-			break;
+			return cpufreq_governor_stop(policy);
 		case CPUFREQ_GOV_LIMITS:
-			ret = cpufreq_governor_limits(policy);
-			break;
+			return cpufreq_governor_limits(policy);
 		}
 	}
-
-	mutex_unlock(&dbs_data_mutex);
-	return ret;
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(cpufreq_governor_dbs);
