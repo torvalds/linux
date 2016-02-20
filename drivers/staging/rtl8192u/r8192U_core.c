@@ -1962,7 +1962,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 		     network->qos_data.param_count)) {
 			network->qos_data.old_param_count =
 				network->qos_data.param_count;
-			queue_work(priv->priv_wq, &priv->qos_activate);
+			schedule_work(&priv->qos_activate);
 			RT_TRACE(COMP_QOS,
 				 "QoS parameters change call qos_activate\n");
 		}
@@ -1971,7 +1971,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 		       &def_qos_parameters, size);
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
-			queue_work(priv->priv_wq, &priv->qos_activate);
+			schedule_work(&priv->qos_activate);
 			RT_TRACE(COMP_QOS,
 				 "QoS was disabled call qos_activate\n");
 		}
@@ -1990,7 +1990,7 @@ static int rtl8192_handle_beacon(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	rtl8192_qos_handle_probe_response(priv, 1, network);
-	queue_delayed_work(priv->priv_wq, &priv->update_beacon_wq, 0);
+	schedule_delayed_work(&priv->update_beacon_wq, 0);
 	return 0;
 
 }
@@ -2042,7 +2042,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 		 network->flags,
 		 priv->ieee80211->current_network.qos_data.active);
 	if (set_qos_param == 1)
-		queue_work(priv->priv_wq, &priv->qos_activate);
+		schedule_work(&priv->qos_activate);
 
 
 	return 0;
@@ -2387,7 +2387,6 @@ static void rtl8192_init_priv_task(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	priv->priv_wq = create_workqueue(DRV_NAME);
 
 	INIT_WORK(&priv->reset_wq, rtl8192_restart);
 
@@ -3518,7 +3517,7 @@ static void watch_dog_timer_callback(unsigned long data)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)data);
 
-	queue_delayed_work(priv->priv_wq, &priv->watch_dog_wq, 0);
+	schedule_delayed_work(&priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer,
 		  jiffies + msecs_to_jiffies(IEEE80211_WATCH_DOG_TIME));
 }
@@ -5022,7 +5021,6 @@ fail2:
 	kfree(priv->pFirmware);
 	priv->pFirmware = NULL;
 	rtl8192_usb_deleteendpoints(dev);
-	destroy_workqueue(priv->priv_wq);
 	mdelay(10);
 fail:
 	free_ieee80211(dev);
@@ -5060,7 +5058,6 @@ static void rtl8192_usb_disconnect(struct usb_interface *intf)
 		kfree(priv->pFirmware);
 		priv->pFirmware = NULL;
 		rtl8192_usb_deleteendpoints(dev);
-		destroy_workqueue(priv->priv_wq);
 		mdelay(10);
 	}
 	free_ieee80211(dev);
