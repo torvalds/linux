@@ -1198,21 +1198,21 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static void tc358743_print_register_map(struct v4l2_subdev *sd)
 {
-	v4l2_info(sd, "0x0000–0x00FF: Global Control Register\n");
-	v4l2_info(sd, "0x0100–0x01FF: CSI2-TX PHY Register\n");
-	v4l2_info(sd, "0x0200–0x03FF: CSI2-TX PPI Register\n");
-	v4l2_info(sd, "0x0400–0x05FF: Reserved\n");
-	v4l2_info(sd, "0x0600–0x06FF: CEC Register\n");
-	v4l2_info(sd, "0x0700–0x84FF: Reserved\n");
-	v4l2_info(sd, "0x8500–0x85FF: HDMIRX System Control Register\n");
-	v4l2_info(sd, "0x8600–0x86FF: HDMIRX Audio Control Register\n");
-	v4l2_info(sd, "0x8700–0x87FF: HDMIRX InfoFrame packet data Register\n");
-	v4l2_info(sd, "0x8800–0x88FF: HDMIRX HDCP Port Register\n");
-	v4l2_info(sd, "0x8900–0x89FF: HDMIRX Video Output Port & 3D Register\n");
-	v4l2_info(sd, "0x8A00–0x8BFF: Reserved\n");
-	v4l2_info(sd, "0x8C00–0x8FFF: HDMIRX EDID-RAM (1024bytes)\n");
-	v4l2_info(sd, "0x9000–0x90FF: HDMIRX GBD Extraction Control\n");
-	v4l2_info(sd, "0x9100–0x92FF: HDMIRX GBD RAM read\n");
+	v4l2_info(sd, "0x0000-0x00FF: Global Control Register\n");
+	v4l2_info(sd, "0x0100-0x01FF: CSI2-TX PHY Register\n");
+	v4l2_info(sd, "0x0200-0x03FF: CSI2-TX PPI Register\n");
+	v4l2_info(sd, "0x0400-0x05FF: Reserved\n");
+	v4l2_info(sd, "0x0600-0x06FF: CEC Register\n");
+	v4l2_info(sd, "0x0700-0x84FF: Reserved\n");
+	v4l2_info(sd, "0x8500-0x85FF: HDMIRX System Control Register\n");
+	v4l2_info(sd, "0x8600-0x86FF: HDMIRX Audio Control Register\n");
+	v4l2_info(sd, "0x8700-0x87FF: HDMIRX InfoFrame packet data Register\n");
+	v4l2_info(sd, "0x8800-0x88FF: HDMIRX HDCP Port Register\n");
+	v4l2_info(sd, "0x8900-0x89FF: HDMIRX Video Output Port & 3D Register\n");
+	v4l2_info(sd, "0x8A00-0x8BFF: Reserved\n");
+	v4l2_info(sd, "0x8C00-0x8FFF: HDMIRX EDID-RAM (1024bytes)\n");
+	v4l2_info(sd, "0x9000-0x90FF: HDMIRX GBD Extraction Control\n");
+	v4l2_info(sd, "0x9100-0x92FF: HDMIRX GBD RAM read\n");
 	v4l2_info(sd, "0x9300-      : Reserved\n");
 }
 
