@@ -860,7 +860,7 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 
 	nl = new_line_std;
 
-	if (run == 0 || ena == 0) {
+	if (run == 0 || ena == 0 || counter->counts->scaled == -1) {
 		aggr_printout(counter, id, nr);
 
 		fprintf(stat_config.output, "%*s%s",
@@ -1831,6 +1831,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (evsel_list == NULL)
 		return -ENOMEM;
 
+	parse_events__shrink_config_terms();
 	argc = parse_options_subcommand(argc, argv, stat_options, stat_subcommands,
 					(const char **) stat_usage,
 					PARSE_OPT_STOP_AT_NON_OPTION);

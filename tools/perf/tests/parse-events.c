@@ -1271,6 +1271,38 @@ static int test__checkevent_precise_max_modifier(struct perf_evlist *evlist)
 	return 0;
 }
 
+static int test__checkevent_config_symbol(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong name setting", strcmp(evsel->name, "insn") == 0);
+	return 0;
+}
+
+static int test__checkevent_config_raw(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong name setting", strcmp(evsel->name, "rawpmu") == 0);
+	return 0;
+}
+
+static int test__checkevent_config_num(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong name setting", strcmp(evsel->name, "numpmu") == 0);
+	return 0;
+}
+
+static int test__checkevent_config_cache(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong name setting", strcmp(evsel->name, "cachepmu") == 0);
+	return 0;
+}
+
 static int count_tracepoints(void)
 {
 	struct dirent *events_ent;
@@ -1578,6 +1610,26 @@ static struct evlist_test test__events[] = {
 		.name  = "task-clock:P,cycles",
 		.check = test__checkevent_precise_max_modifier,
 		.id    = 47,
+	},
+	{
+		.name  = "instructions/name=insn/",
+		.check = test__checkevent_config_symbol,
+		.id    = 48,
+	},
+	{
+		.name  = "r1234/name=rawpmu/",
+		.check = test__checkevent_config_raw,
+		.id    = 49,
+	},
+	{
+		.name  = "4:0x6530160/name=numpmu/",
+		.check = test__checkevent_config_num,
+		.id    = 50,
+	},
+	{
+		.name  = "L1-dcache-misses/name=cachepmu/",
+		.check = test__checkevent_config_cache,
+		.id    = 51,
 	},
 };
 

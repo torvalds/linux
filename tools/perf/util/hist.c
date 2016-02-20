@@ -405,6 +405,16 @@ static u8 symbol__parent_filter(const struct symbol *parent)
 	return 0;
 }
 
+static void hist_entry__add_callchain_period(struct hist_entry *he, u64 period)
+{
+	if (!symbol_conf.use_callchain)
+		return;
+
+	he->hists->callchain_period += period;
+	if (!he->filtered)
+		he->hists->callchain_non_filtered_period += period;
+}
+
 static struct hist_entry *hists__findnew_entry(struct hists *hists,
 					       struct hist_entry *entry,
 					       struct addr_location *al,
@@ -434,9 +444,7 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 		if (!cmp) {
 			if (sample_self) {
 				he_stat__add_period(&he->stat, period, weight);
-				hists->stats.total_period += period;
-				if (!he->filtered)
-					hists->stats.total_non_filtered_period += period;
+				hist_entry__add_callchain_period(he, period);
 			}
 			if (symbol_conf.cumulate_callchain)
 				he_stat__add_period(he->stat_acc, period, weight);
@@ -471,9 +479,8 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 		return NULL;
 
 	if (sample_self)
-		hists__inc_stats(hists, he);
-	else
-		hists->nr_entries++;
+		hist_entry__add_callchain_period(he, period);
+	hists->nr_entries++;
 
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, hists->entries_in);
@@ -1039,8 +1046,8 @@ int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
  * collapse the histogram
  */
 
-bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
-				  struct rb_root *root, struct hist_entry *he)
+int hists__collapse_insert_entry(struct hists *hists, struct rb_root *root,
+				 struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -1054,18 +1061,21 @@ bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
 		cmp = hist_entry__collapse(iter, he);
 
 		if (!cmp) {
+			int ret = 0;
+
 			he_stat__add_stat(&iter->stat, &he->stat);
 			if (symbol_conf.cumulate_callchain)
 				he_stat__add_stat(iter->stat_acc, he->stat_acc);
 
 			if (symbol_conf.use_callchain) {
 				callchain_cursor_reset(&callchain_cursor);
-				callchain_merge(&callchain_cursor,
-						iter->callchain,
-						he->callchain);
+				if (callchain_merge(&callchain_cursor,
+						    iter->callchain,
+						    he->callchain) < 0)
+					ret = -1;
 			}
 			hist_entry__delete(he);
-			return false;
+			return ret;
 		}
 
 		if (cmp < 0)
@@ -1077,7 +1087,7 @@ bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
 
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, root);
-	return true;
+	return 1;
 }
 
 struct rb_root *hists__get_rotate_entries_in(struct hists *hists)
@@ -1103,14 +1113,15 @@ static void hists__apply_filters(struct hists *hists, struct hist_entry *he)
 	hists__filter_entry_by_socket(hists, he);
 }
 
-void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
+int hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 {
 	struct rb_root *root;
 	struct rb_node *next;
 	struct hist_entry *n;
+	int ret;
 
 	if (!sort__need_collapse)
-		return;
+		return 0;
 
 	hists->nr_entries = 0;
 
@@ -1125,7 +1136,11 @@ void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 		next = rb_next(&n->rb_node_in);
 
 		rb_erase(&n->rb_node_in, root);
-		if (hists__collapse_insert_entry(hists, &hists->entries_collapsed, n)) {
+		ret = hists__collapse_insert_entry(hists, &hists->entries_collapsed, n);
+		if (ret < 0)
+			return -1;
+
+		if (ret) {
 			/*
 			 * If it wasn't combined with one of the entries already
 			 * collapsed, we need to apply the filters that may have
@@ -1136,6 +1151,7 @@ void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 		if (prog)
 			ui_progress__update(prog, 1);
 	}
+	return 0;
 }
 
 static int hist_entry__sort(struct hist_entry *a, struct hist_entry *b)
@@ -1227,9 +1243,14 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 	struct rb_root *root;
 	struct rb_node *next;
 	struct hist_entry *n;
+	u64 callchain_total;
 	u64 min_callchain_hits;
 
-	min_callchain_hits = hists__total_period(hists) * (callchain_param.min_percent / 100);
+	callchain_total = hists->callchain_period;
+	if (symbol_conf.filter_relative)
+		callchain_total = hists->callchain_non_filtered_period;
+
+	min_callchain_hits = callchain_total * (callchain_param.min_percent / 100);
 
 	if (sort__need_collapse)
 		root = &hists->entries_collapsed;

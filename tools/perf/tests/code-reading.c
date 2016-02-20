@@ -439,7 +439,7 @@ static int do_test_code_reading(bool try_kcore)
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 4000,
+		.freq		     = 500,
 		.target		     = {
 			.uses_mmap   = true,
 		},
@@ -559,7 +559,13 @@ static int do_test_code_reading(bool try_kcore)
 				evlist = NULL;
 				continue;
 			}
-			pr_debug("perf_evlist__open failed\n");
+
+			if (verbose) {
+				char errbuf[512];
+				perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
+				pr_debug("perf_evlist__open() failed!\n%s\n", errbuf);
+			}
+
 			goto out_put;
 		}
 		break;

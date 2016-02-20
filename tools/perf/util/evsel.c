@@ -898,6 +898,16 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	if (evsel->precise_max)
 		perf_event_attr__set_max_precise_ip(attr);
 
+	if (opts->all_user) {
+		attr->exclude_kernel = 1;
+		attr->exclude_user   = 0;
+	}
+
+	if (opts->all_kernel) {
+		attr->exclude_kernel = 0;
+		attr->exclude_user   = 1;
+	}
+
 	/*
 	 * Apply event specific term settings,
 	 * it overloads any global configuration.

@@ -416,7 +416,7 @@ create_child(struct callchain_node *parent, bool inherit_children)
 /*
  * Fill the node with callchain values
  */
-static void
+static int
 fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 {
 	struct callchain_cursor_node *cursor_node;
@@ -433,7 +433,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		call = zalloc(sizeof(*call));
 		if (!call) {
 			perror("not enough memory for the code path tree");
-			return;
+			return -1;
 		}
 		call->ip = cursor_node->ip;
 		call->ms.sym = cursor_node->sym;
@@ -443,6 +443,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		callchain_cursor_advance(cursor);
 		cursor_node = callchain_cursor_current(cursor);
 	}
+	return 0;
 }
 
 static struct callchain_node *
@@ -453,7 +454,19 @@ add_child(struct callchain_node *parent,
 	struct callchain_node *new;
 
 	new = create_child(parent, false);
-	fill_node(new, cursor);
+	if (new == NULL)
+		return NULL;
+
+	if (fill_node(new, cursor) < 0) {
+		struct callchain_list *call, *tmp;
+
+		list_for_each_entry_safe(call, tmp, &new->val, list) {
+			list_del(&call->list);
+			free(call);
+		}
+		free(new);
+		return NULL;
+	}
 
 	new->children_hit = 0;
 	new->hit = period;
@@ -462,16 +475,32 @@ add_child(struct callchain_node *parent,
 	return new;
 }
 
-static s64 match_chain(struct callchain_cursor_node *node,
-		      struct callchain_list *cnode)
+enum match_result {
+	MATCH_ERROR  = -1,
+	MATCH_EQ,
+	MATCH_LT,
+	MATCH_GT,
+};
+
+static enum match_result match_chain(struct callchain_cursor_node *node,
+				     struct callchain_list *cnode)
 {
 	struct symbol *sym = node->sym;
+	u64 left, right;
 
 	if (cnode->ms.sym && sym &&
-	    callchain_param.key == CCKEY_FUNCTION)
-		return cnode->ms.sym->start - sym->start;
-	else
-		return cnode->ip - node->ip;
+	    callchain_param.key == CCKEY_FUNCTION) {
+		left = cnode->ms.sym->start;
+		right = sym->start;
+	} else {
+		left = cnode->ip;
+		right = node->ip;
+	}
+
+	if (left == right)
+		return MATCH_EQ;
+
+	return left > right ? MATCH_GT : MATCH_LT;
 }
 
 /*
@@ -479,7 +508,7 @@ static s64 match_chain(struct callchain_cursor_node *node,
  * give a part of its callchain to the created child.
  * Then create another child to host the given callchain of new branch
  */
-static void
+static int
 split_add_child(struct callchain_node *parent,
 		struct callchain_cursor *cursor,
 		struct callchain_list *to_split,
@@ -491,6 +520,8 @@ split_add_child(struct callchain_node *parent,
 
 	/* split */
 	new = create_child(parent, true);
+	if (new == NULL)
+		return -1;
 
 	/* split the callchain and move a part to the new child */
 	old_tail = parent->val.prev;
@@ -524,6 +555,8 @@ split_add_child(struct callchain_node *parent,
 
 		node = callchain_cursor_current(cursor);
 		new = add_child(parent, cursor, period);
+		if (new == NULL)
+			return -1;
 
 		/*
 		 * This is second child since we moved parent's children
@@ -534,7 +567,7 @@ split_add_child(struct callchain_node *parent,
 		cnode = list_first_entry(&first->val, struct callchain_list,
 					 list);
 
-		if (match_chain(node, cnode) < 0)
+		if (match_chain(node, cnode) == MATCH_LT)
 			pp = &p->rb_left;
 		else
 			pp = &p->rb_right;
@@ -545,14 +578,15 @@ split_add_child(struct callchain_node *parent,
 		parent->hit = period;
 		parent->count = 1;
 	}
+	return 0;
 }
 
-static int
+static enum match_result
 append_chain(struct callchain_node *root,
 	     struct callchain_cursor *cursor,
 	     u64 period);
 
-static void
+static int
 append_chain_children(struct callchain_node *root,
 		      struct callchain_cursor *cursor,
 		      u64 period)
@@ -564,36 +598,42 @@ append_chain_children(struct callchain_node *root,
 
 	node = callchain_cursor_current(cursor);
 	if (!node)
-		return;
+		return -1;
 
 	/* lookup in childrens */
 	while (*p) {
-		s64 ret;
+		enum match_result ret;
 
 		parent = *p;
 		rnode = rb_entry(parent, struct callchain_node, rb_node_in);
 
 		/* If at least first entry matches, rely to children */
 		ret = append_chain(rnode, cursor, period);
-		if (ret == 0)
+		if (ret == MATCH_EQ)
 			goto inc_children_hit;
+		if (ret == MATCH_ERROR)
+			return -1;
 
-		if (ret < 0)
+		if (ret == MATCH_LT)
 			p = &parent->rb_left;
 		else
 			p = &parent->rb_right;
 	}
 	/* nothing in children, add to the current node */
 	rnode = add_child(root, cursor, period);
+	if (rnode == NULL)
+		return -1;
+
 	rb_link_node(&rnode->rb_node_in, parent, p);
 	rb_insert_color(&rnode->rb_node_in, &root->rb_root_in);
 
 inc_children_hit:
 	root->children_hit += period;
 	root->children_count++;
+	return 0;
 }
 
-static int
+static enum match_result
 append_chain(struct callchain_node *root,
 	     struct callchain_cursor *cursor,
 	     u64 period)
@@ -602,7 +642,7 @@ append_chain(struct callchain_node *root,
 	u64 start = cursor->pos;
 	bool found = false;
 	u64 matches;
-	int cmp = 0;
+	enum match_result cmp = MATCH_ERROR;
 
 	/*
 	 * Lookup in the current node
@@ -618,7 +658,7 @@ append_chain(struct callchain_node *root,
 			break;
 
 		cmp = match_chain(node, cnode);
-		if (cmp)
+		if (cmp != MATCH_EQ)
 			break;
 
 		found = true;
@@ -628,7 +668,7 @@ append_chain(struct callchain_node *root,
 
 	/* matches not, relay no the parent */
 	if (!found) {
-		WARN_ONCE(!cmp, "Chain comparison error\n");
+		WARN_ONCE(cmp == MATCH_ERROR, "Chain comparison error\n");
 		return cmp;
 	}
 
@@ -636,21 +676,25 @@ append_chain(struct callchain_node *root,
 
 	/* we match only a part of the node. Split it and add the new chain */
 	if (matches < root->val_nr) {
-		split_add_child(root, cursor, cnode, start, matches, period);
-		return 0;
+		if (split_add_child(root, cursor, cnode, start, matches,
+				    period) < 0)
+			return MATCH_ERROR;
+
+		return MATCH_EQ;
 	}
 
 	/* we match 100% of the path, increment the hit */
 	if (matches == root->val_nr && cursor->pos == cursor->nr) {
 		root->hit += period;
 		root->count++;
-		return 0;
+		return MATCH_EQ;
 	}
 
 	/* We match the node and still have a part remaining */
-	append_chain_children(root, cursor, period);
+	if (append_chain_children(root, cursor, period) < 0)
+		return MATCH_ERROR;
 
-	return 0;
+	return MATCH_EQ;
 }
 
 int callchain_append(struct callchain_root *root,
@@ -662,7 +706,8 @@ int callchain_append(struct callchain_root *root,
 
 	callchain_cursor_commit(cursor);
 
-	append_chain_children(&root->node, cursor, period);
+	if (append_chain_children(&root->node, cursor, period) < 0)
+		return -1;
 
 	if (cursor->nr > root->max_depth)
 		root->max_depth = cursor->nr;
@@ -690,7 +735,8 @@ merge_chain_branch(struct callchain_cursor *cursor,
 
 	if (src->hit) {
 		callchain_cursor_commit(cursor);
-		append_chain_children(dst, cursor, src->hit);
+		if (append_chain_children(dst, cursor, src->hit) < 0)
+			return -1;
 	}
 
 	n = rb_first(&src->rb_root_in);

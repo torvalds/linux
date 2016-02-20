@@ -279,7 +279,24 @@ const char *event_type(int type)
 	return "unknown";
 }
 
+static int parse_events__is_name_term(struct parse_events_term *term)
+{
+	return term->type_term == PARSE_EVENTS__TERM_TYPE_NAME;
+}
 
+static char *get_config_name(struct list_head *head_terms)
+{
+	struct parse_events_term *term;
+
+	if (!head_terms)
+		return NULL;
+
+	list_for_each_entry(term, head_terms, list)
+		if (parse_events__is_name_term(term))
+			return term->val.str;
+
+	return NULL;
+}
 
 static struct perf_evsel *
 __add_event(struct list_head *list, int *idx,
@@ -333,11 +350,25 @@ static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES]
 	return -1;
 }
 
+typedef int config_term_func_t(struct perf_event_attr *attr,
+			       struct parse_events_term *term,
+			       struct parse_events_error *err);
+static int config_term_common(struct perf_event_attr *attr,
+			      struct parse_events_term *term,
+			      struct parse_events_error *err);
+static int config_attr(struct perf_event_attr *attr,
+		       struct list_head *head,
+		       struct parse_events_error *err,
+		       config_term_func_t config_term);
+
 int parse_events_add_cache(struct list_head *list, int *idx,
-			   char *type, char *op_result1, char *op_result2)
+			   char *type, char *op_result1, char *op_result2,
+			   struct parse_events_error *error,
+			   struct list_head *head_config)
 {
 	struct perf_event_attr attr;
-	char name[MAX_NAME_LEN];
+	LIST_HEAD(config_terms);
+	char name[MAX_NAME_LEN], *config_name;
 	int cache_type = -1, cache_op = -1, cache_result = -1;
 	char *op_result[2] = { op_result1, op_result2 };
 	int i, n;
@@ -351,6 +382,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	if (cache_type == -1)
 		return -EINVAL;
 
+	config_name = get_config_name(head_config);
 	n = snprintf(name, MAX_NAME_LEN, "%s", type);
 
 	for (i = 0; (i < 2) && (op_result[i]); i++) {
@@ -391,7 +423,16 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	memset(&attr, 0, sizeof(attr));
 	attr.config = cache_type | (cache_op << 8) | (cache_result << 16);
 	attr.type = PERF_TYPE_HW_CACHE;
-	return add_event(list, idx, &attr, name, NULL);
+
+	if (head_config) {
+		if (config_attr(&attr, head_config, error,
+				config_term_common))
+			return -EINVAL;
+
+		if (get_config_terms(head_config, &config_terms))
+			return -ENOMEM;
+	}
+	return add_event(list, idx, &attr, config_name ? : name, &config_terms);
 }
 
 static void tracepoint_error(struct parse_events_error *e, int err,
@@ -746,6 +787,60 @@ static int check_type_val(struct parse_events_term *term,
 	return -EINVAL;
 }
 
+/*
+ * Update according to parse-events.l
+ */
+static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
+	[PARSE_EVENTS__TERM_TYPE_USER]			= "<sysfs term>",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG]		= "config",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG1]		= "config1",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG2]		= "config2",
+	[PARSE_EVENTS__TERM_TYPE_NAME]			= "name",
+	[PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD]		= "period",
+	[PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ]		= "freq",
+	[PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE]	= "branch_type",
+	[PARSE_EVENTS__TERM_TYPE_TIME]			= "time",
+	[PARSE_EVENTS__TERM_TYPE_CALLGRAPH]		= "call-graph",
+	[PARSE_EVENTS__TERM_TYPE_STACKSIZE]		= "stack-size",
+	[PARSE_EVENTS__TERM_TYPE_NOINHERIT]		= "no-inherit",
+	[PARSE_EVENTS__TERM_TYPE_INHERIT]		= "inherit",
+};
+
+static bool config_term_shrinked;
+
+static bool
+config_term_avail(int term_type, struct parse_events_error *err)
+{
+	if (term_type < 0 || term_type >= __PARSE_EVENTS__TERM_TYPE_NR) {
+		err->str = strdup("Invalid term_type");
+		return false;
+	}
+	if (!config_term_shrinked)
+		return true;
+
+	switch (term_type) {
+	case PARSE_EVENTS__TERM_TYPE_CONFIG:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG1:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+	case PARSE_EVENTS__TERM_TYPE_NAME:
+		return true;
+	default:
+		if (!err)
+			return false;
+
+		/* term_type is validated so indexing is safe */
+		if (asprintf(&err->str, "'%s' is not usable in 'perf stat'",
+			     config_term_names[term_type]) < 0)
+			err->str = NULL;
+		return false;
+	}
+}
+
+void parse_events__shrink_config_terms(void)
+{
+	config_term_shrinked = true;
+}
+
 typedef int config_term_func_t(struct perf_event_attr *attr,
 			       struct parse_events_term *term,
 			       struct parse_events_error *err);
@@ -815,6 +910,17 @@ do {									   \
 		return -EINVAL;
 	}
 
+	/*
+	 * Check term availbility after basic checking so
+	 * PARSE_EVENTS__TERM_TYPE_USER can be found and filtered.
+	 *
+	 * If check availbility at the entry of this function,
+	 * user will see "'<sysfs term>' is not usable in 'perf stat'"
+	 * if an invalid config term is provided for legacy events
+	 * (for example, instructions/badterm/...), which is confusing.
+	 */
+	if (!config_term_avail(term->type_term, err))
+		return -EINVAL;
 	return 0;
 #undef CHECK_TYPE_VAL
 }
@@ -961,23 +1067,8 @@ int parse_events_add_numeric(struct parse_events_evlist *data,
 			return -ENOMEM;
 	}
 
-	return add_event(list, &data->idx, &attr, NULL, &config_terms);
-}
-
-static int parse_events__is_name_term(struct parse_events_term *term)
-{
-	return term->type_term == PARSE_EVENTS__TERM_TYPE_NAME;
-}
-
-static char *pmu_event_name(struct list_head *head_terms)
-{
-	struct parse_events_term *term;
-
-	list_for_each_entry(term, head_terms, list)
-		if (parse_events__is_name_term(term))
-			return term->val.str;
-
-	return NULL;
+	return add_event(list, &data->idx, &attr,
+			 get_config_name(head_config), &config_terms);
 }
 
 int parse_events_add_pmu(struct parse_events_evlist *data,
@@ -1024,7 +1115,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 		return -EINVAL;
 
 	evsel = __add_event(list, &data->idx, &attr,
-			    pmu_event_name(head_config), pmu->cpus,
+			    get_config_name(head_config), pmu->cpus,
 			    &config_terms);
 	if (evsel) {
 		evsel->unit = info.unit;
@@ -2097,6 +2188,33 @@ void parse_events_evlist_error(struct parse_events_evlist *data,
 	WARN_ONCE(!err->str, "WARNING: failed to allocate error string");
 }
 
+static void config_terms_list(char *buf, size_t buf_sz)
+{
+	int i;
+	bool first = true;
+
+	buf[0] = '\0';
+	for (i = 0; i < __PARSE_EVENTS__TERM_TYPE_NR; i++) {
+		const char *name = config_term_names[i];
+
+		if (!config_term_avail(i, NULL))
+			continue;
+		if (!name)
+			continue;
+		if (name[0] == '<')
+			continue;
+
+		if (strlen(buf) + strlen(name) + 2 >= buf_sz)
+			return;
+
+		if (!first)
+			strcat(buf, ",");
+		else
+			first = false;
+		strcat(buf, name);
+	}
+}
+
 /*
  * Return string contains valid config terms of an event.
  * @additional_terms: For terms such as PMU sysfs terms.
@@ -2104,17 +2222,18 @@ void parse_events_evlist_error(struct parse_events_evlist *data,
 char *parse_events_formats_error_string(char *additional_terms)
 {
 	char *str;
-	static const char *static_terms = "config,config1,config2,name,"
-					  "period,freq,branch_type,time,"
-					  "call-graph,stack-size\n";
+	/* "branch_type" is the longest name */
+	char static_terms[__PARSE_EVENTS__TERM_TYPE_NR *
+			  (sizeof("branch_type") - 1)];
 
+	config_terms_list(static_terms, sizeof(static_terms));
 	/* valid terms */
 	if (additional_terms) {
-		if (!asprintf(&str, "valid terms: %s,%s",
-			      additional_terms, static_terms))
+		if (asprintf(&str, "valid terms: %s,%s",
+			     additional_terms, static_terms) < 0)
 			goto fail;
 	} else {
-		if (!asprintf(&str, "valid terms: %s", static_terms))
+		if (asprintf(&str, "valid terms: %s", static_terms) < 0)
 			goto fail;
 	}
 	return str;

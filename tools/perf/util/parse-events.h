@@ -68,7 +68,8 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_CALLGRAPH,
 	PARSE_EVENTS__TERM_TYPE_STACKSIZE,
 	PARSE_EVENTS__TERM_TYPE_NOINHERIT,
-	PARSE_EVENTS__TERM_TYPE_INHERIT
+	PARSE_EVENTS__TERM_TYPE_INHERIT,
+	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
 struct parse_events_term {
@@ -104,6 +105,7 @@ struct parse_events_terms {
 	struct list_head *terms;
 };
 
+void parse_events__shrink_config_terms(void);
 int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
 			   int type_term, char *config, u64 num,
@@ -138,7 +140,9 @@ int parse_events_add_numeric(struct parse_events_evlist *data,
 			     u32 type, u64 config,
 			     struct list_head *head_config);
 int parse_events_add_cache(struct list_head *list, int *idx,
-			   char *type, char *op_result1, char *op_result2);
+			   char *type, char *op_result1, char *op_result2,
+			   struct parse_events_error *error,
+			   struct list_head *head_config);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				void *ptr, char *type, u64 len);
 int parse_events_add_pmu(struct parse_events_evlist *data,
