@@ -40,7 +40,7 @@ static const char *const max98926_hpf_cutoff_txt[] = {
 	"200Hz", "400Hz", "800Hz",
 };
 
-static struct reg_default max98926_reg[] = {
+static const struct reg_default max98926_reg[] = {
 	{ 0x0B, 0x00 }, /* IRQ Enable0 */
 	{ 0x0C, 0x00 }, /* IRQ Enable1 */
 	{ 0x0D, 0x00 }, /* IRQ Enable2 */
@@ -506,7 +506,7 @@ static struct snd_soc_codec_driver soc_codec_dev_max98926 = {
 	.num_dapm_widgets = ARRAY_SIZE(max98926_dapm_widgets),
 };
 
-static struct regmap_config max98926_regmap = {
+static const struct regmap_config max98926_regmap = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= MAX98926_VERSION,
