@@ -30,15 +30,15 @@ static const struct sdio_device_id wilc_sdio_ids[] = {
 
 #define WILC_SDIO_BLOCK_SIZE 512
 
-typedef struct {
+struct wilc_sdio {
 	bool irq_gpio;
 	u32 block_size;
 	int nint;
 #define MAX_NUN_INT_THRPT_ENH2 (5) /* Max num interrupts allowed in registers 0xf7, 0xf8 */
 	int has_thrpt_enh3;
-} wilc_sdio_t;
+};
 
-static wilc_sdio_t g_sdio;
+static struct wilc_sdio g_sdio;
 
 static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data);
 static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data);
@@ -675,7 +675,7 @@ static int sdio_init(struct wilc *wilc, bool resume)
 	u32 chipid;
 
 	if (!resume) {
-		memset(&g_sdio, 0, sizeof(wilc_sdio_t));
+		memset(&g_sdio, 0, sizeof(struct wilc_sdio));
 		g_sdio.irq_gpio = wilc->dev_irq_num;
 	}
 

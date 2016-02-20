@@ -24,13 +24,13 @@
 #include "wilc_wlan.h"
 #include "wilc_wfi_netdevice.h"
 
-typedef struct {
+struct wilc_spi {
 	int crc_off;
 	int nint;
 	int has_thrpt_enh;
-} wilc_spi_t;
+};
 
-static wilc_spi_t g_spi;
+static struct wilc_spi g_spi;
 
 static int wilc_spi_read(struct wilc *wilc, u32, u8 *, u32);
 static int wilc_spi_write(struct wilc *wilc, u32, u8 *, u32);
@@ -861,7 +861,7 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 		return 1;
 	}
 
-	memset(&g_spi, 0, sizeof(wilc_spi_t));
+	memset(&g_spi, 0, sizeof(struct wilc_spi));
 
 	/**
 	 *      configure protocol

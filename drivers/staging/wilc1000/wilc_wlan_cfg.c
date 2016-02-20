@@ -19,7 +19,7 @@
  *
  ********************************************/
 
-typedef struct {
+struct wilc_mac_cfg {
 	wilc_debug_func dPrint;
 
 	int mac_status;
@@ -40,9 +40,9 @@ typedef struct {
 	u8 firmware_info[8];
 	u8 scan_result[256];
 	u8 scan_result1[256];
-} wilc_mac_cfg_t;
+};
 
-static wilc_mac_cfg_t g_mac;
+static struct wilc_mac_cfg g_mac;
 
 static struct wilc_cfg_byte g_cfg_byte[] = {
 	{WID_BSS_TYPE, 0},
@@ -349,7 +349,7 @@ static void wilc_wlan_parse_response_frame(u8 *info, int size)
 
 static int wilc_wlan_parse_info_frame(u8 *info, int size)
 {
-	wilc_mac_cfg_t *pd = &g_mac;
+	struct wilc_mac_cfg *pd = &g_mac;
 	u32 wid, len;
 	int type = WILC_CFG_RSP_STATUS;
 
@@ -539,7 +539,7 @@ int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 
 int wilc_wlan_cfg_init(wilc_debug_func func)
 {
-	memset((void *)&g_mac, 0, sizeof(wilc_mac_cfg_t));
+	memset((void *)&g_mac, 0, sizeof(struct wilc_mac_cfg));
 	g_mac.dPrint = func;
 	return 1;
 }
