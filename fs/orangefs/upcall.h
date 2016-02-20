@@ -13,10 +13,10 @@
  * client-core and device
  */
 struct orangefs_io_request_s {
-	__s32 async_vfs_io;
+	__s32 __pad1;
 	__s32 buf_index;
 	__s32 count;
-	__s32 __pad1;
+	__s32 __pad2;
 	__s64 offset;
 	struct orangefs_object_kref refn;
 	enum ORANGEFS_io_type io_type;

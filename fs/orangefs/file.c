@@ -102,7 +102,6 @@ static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inod
 		return -ENOMEM;
 
 	/* synchronous I/O */
-	new_op->upcall.req.io.async_vfs_io = ORANGEFS_VFS_SYNC_IO;
 	new_op->upcall.req.io.readahead_size = readahead_size;
 	new_op->upcall.req.io.io_type = type;
 	new_op->upcall.req.io.refn = orangefs_inode->refn;

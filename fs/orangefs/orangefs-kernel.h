@@ -101,14 +101,6 @@ enum orangefs_vfs_op_states {
 };
 
 /*
- * Defines for controlling whether I/O upcalls are for async or sync operations
- */
-enum ORANGEFS_async_io_type {
-	ORANGEFS_VFS_SYNC_IO = 0,
-	ORANGEFS_VFS_ASYNC_IO = 1,
-};
-
-/*
  * An array of client_debug_mask will be built to hold debug keyword/mask
  * values fetched from userspace.
  */
