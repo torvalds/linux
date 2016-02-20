@@ -1,6 +1,6 @@
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
-obj-$(CONFIG_PERF_EVENTS)	+= callchain.o
+obj-$(CONFIG_PERF_EVENTS)	+= callchain.o perf_regs.o
 
 obj-$(CONFIG_PPC_PERF_CTRS)	+= core-book3s.o bhrb.o
 obj64-$(CONFIG_PPC_PERF_CTRS)	+= power4-pmu.o ppc970-pmu.o power5-pmu.o \
