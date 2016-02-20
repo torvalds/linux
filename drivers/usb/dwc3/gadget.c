@@ -1670,10 +1670,13 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 		case USB_SPEED_SUPER_PLUS:
 			reg |= DWC3_DSTS_SUPERSPEED_PLUS;
 			break;
-		case USB_SPEED_SUPER:	/* FALLTHROUGH */
-		case USB_SPEED_UNKNOWN:	/* FALTHROUGH */
 		default:
-			reg |= DWC3_DSTS_SUPERSPEED;
+			dev_err(dwc->dev, "invalid dwc->maximum_speed (%d)\n",
+				dwc->maximum_speed);
+			/* fall through */
+		case USB_SPEED_SUPER:
+			reg |= DWC3_DCFG_SUPERSPEED;
+			break;
 		}
 	}
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
