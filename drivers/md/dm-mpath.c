@@ -1017,12 +1017,7 @@ static int reinstate_path(struct pgpath *pgpath)
 	if (pgpath->is_active)
 		goto out;
 
-	if (!pgpath->pg->ps.type->reinstate_path) {
-		DMWARN("Reinstate path not supported by path selector %s",
-		       pgpath->pg->ps.type->name);
-		r = -EINVAL;
-		goto out;
-	}
+	DMWARN("Reinstating path %s.", pgpath->path.dev->name);
 
 	r = pgpath->pg->ps.type->reinstate_path(&pgpath->pg->ps, &pgpath->path);
 	if (r)
@@ -1207,6 +1202,7 @@ static void pg_init_done(void *data, int errors)
 			fail_path(pgpath);
 		errors = 0;
 		break;
+	case SCSI_DH_DEV_OFFLINED:
 	default:
 		/*
 		 * We probably do not want to fail the path for a device
