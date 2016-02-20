@@ -436,7 +436,7 @@ static bool max9867_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct reg_default max9867_reg[] = {
+static const struct reg_default max9867_reg[] = {
 	{ 0x04, 0x00 },
 	{ 0x05, 0x00 },
 	{ 0x06, 0x00 },
@@ -459,7 +459,7 @@ static struct reg_default max9867_reg[] = {
 	{ 0x17, 0x00 },
 };
 
-static struct regmap_config max9867_regmap = {
+static const struct regmap_config max9867_regmap = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= MAX9867_REVISION,
