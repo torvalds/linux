@@ -301,7 +301,10 @@ static void efw_update(struct fw_unit *unit)
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
 
 	snd_efw_transaction_bus_reset(efw->unit);
+
+	mutex_lock(&efw->mutex);
 	snd_efw_stream_update_duplex(efw);
+	mutex_unlock(&efw->mutex);
 }
 
 static void efw_remove(struct fw_unit *unit)
