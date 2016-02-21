@@ -130,17 +130,19 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id bcm63xx_rng_of_match[] = {
 	{ .compatible = "brcm,bcm6368-rng", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, bcm63xx_rng_of_match);
+#endif
 
 static struct platform_driver bcm63xx_rng_driver = {
 	.probe		= bcm63xx_rng_probe,
 	.driver		= {
 		.name	= "bcm63xx-rng",
-		.of_match_table = bcm63xx_rng_of_match,
+		.of_match_table = of_match_ptr(bcm63xx_rng_of_match),
 	},
 };
 
