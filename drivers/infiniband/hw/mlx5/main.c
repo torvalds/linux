@@ -504,6 +504,11 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	    (MLX5_CAP_ETH(dev->mdev, csum_cap)))
 			props->device_cap_flags |= IB_DEVICE_RAW_IP_CSUM;
 
+	if (MLX5_CAP_GEN(mdev, ipoib_basic_offloads)) {
+		props->device_cap_flags |= IB_DEVICE_UD_IP_CSUM;
+		props->device_cap_flags |= IB_DEVICE_UD_TSO;
+	}
+
 	props->vendor_part_id	   = mdev->pdev->device;
 	props->hw_ver		   = mdev->pdev->revision;
 

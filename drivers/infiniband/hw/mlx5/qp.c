@@ -58,6 +58,7 @@ enum {
 
 static const u32 mlx5_ib_opcode[] = {
 	[IB_WR_SEND]				= MLX5_OPCODE_SEND,
+	[IB_WR_LSO]				= MLX5_OPCODE_LSO,
 	[IB_WR_SEND_WITH_IMM]			= MLX5_OPCODE_SEND_IMM,
 	[IB_WR_RDMA_WRITE]			= MLX5_OPCODE_RDMA_WRITE,
 	[IB_WR_RDMA_WRITE_WITH_IMM]		= MLX5_OPCODE_RDMA_WRITE_IMM,
@@ -72,6 +73,9 @@ static const u32 mlx5_ib_opcode[] = {
 	[MLX5_IB_WR_UMR]			= MLX5_OPCODE_UMR,
 };
 
+struct mlx5_wqe_eth_pad {
+	u8 rsvd0[16];
+};
 
 static int is_qp0(enum ib_qp_type qp_type)
 {
@@ -260,11 +264,11 @@ static int set_rq_size(struct mlx5_ib_dev *dev, struct ib_qp_cap *cap,
 	return 0;
 }
 
-static int sq_overhead(enum ib_qp_type qp_type)
+static int sq_overhead(struct ib_qp_init_attr *attr)
 {
 	int size = 0;
 
-	switch (qp_type) {
+	switch (attr->qp_type) {
 	case IB_QPT_XRC_INI:
 		size += sizeof(struct mlx5_wqe_xrc_seg);
 		/* fall through */
@@ -287,6 +291,10 @@ static int sq_overhead(enum ib_qp_type qp_type)
 		break;
 
 	case IB_QPT_UD:
+		if (attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO)
+			size += sizeof(struct mlx5_wqe_eth_pad) +
+				sizeof(struct mlx5_wqe_eth_seg);
+		/* fall through */
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 		size += sizeof(struct mlx5_wqe_ctrl_seg) +
@@ -311,7 +319,7 @@ static int calc_send_wqe(struct ib_qp_init_attr *attr)
 	int inl_size = 0;
 	int size;
 
-	size = sq_overhead(attr->qp_type);
+	size = sq_overhead(attr);
 	if (size < 0)
 		return size;
 
@@ -348,8 +356,8 @@ static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 		return -EINVAL;
 	}
 
-	qp->max_inline_data = wqe_size - sq_overhead(attr->qp_type) -
-		sizeof(struct mlx5_wqe_inline_seg);
+	qp->max_inline_data = wqe_size - sq_overhead(attr) -
+			      sizeof(struct mlx5_wqe_inline_seg);
 	attr->cap.max_inline_data = qp->max_inline_data;
 
 	if (attr->create_flags & IB_QP_CREATE_SIGNATURE_EN)
@@ -783,7 +791,9 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	int err;
 
 	uuari = &dev->mdev->priv.uuari;
-	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN | IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK))
+	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN |
+					IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
+					IB_QP_CREATE_IPOIB_UD_LSO))
 		return -EINVAL;
 
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
@@ -1228,6 +1238,14 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		if (init_attr->create_flags & IB_QP_CREATE_MANAGED_RECV)
 			qp->flags |= MLX5_IB_QP_MANAGED_RECV;
 	}
+
+	if (init_attr->qp_type == IB_QPT_UD &&
+	    (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO))
+		if (!MLX5_CAP_GEN(mdev, ipoib_basic_offloads)) {
+			mlx5_ib_dbg(dev, "ipoib UD lso qp isn't supported\n");
+			return -EOPNOTSUPP;
+		}
+
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = MLX5_WQE_CTRL_CQ_UPDATE;
 
@@ -1384,6 +1402,13 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
 		/* 0xffffff means we ask to work with cqe version 0 */
 		MLX5_SET(qpc, qpc, user_index, uidx);
+	}
+	/* we use IB_QP_CREATE_IPOIB_UD_LSO to indicates ipoib qp */
+	if (init_attr->qp_type == IB_QPT_UD &&
+	    (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO)) {
+		qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
+		MLX5_SET(qpc, qpc, ulp_stateless_offload_mode, 1);
+		qp->flags |= MLX5_IB_QP_LSO;
 	}
 
 	if (init_attr->qp_type == IB_QPT_RAW_PACKET) {
@@ -2442,6 +2467,59 @@ static __always_inline void set_raddr_seg(struct mlx5_wqe_raddr_seg *rseg,
 	rseg->reserved = 0;
 }
 
+static void *set_eth_seg(struct mlx5_wqe_eth_seg *eseg,
+			 struct ib_send_wr *wr, void *qend,
+			 struct mlx5_ib_qp *qp, int *size)
+{
+	void *seg = eseg;
+
+	memset(eseg, 0, sizeof(struct mlx5_wqe_eth_seg));
+
+	if (wr->send_flags & IB_SEND_IP_CSUM)
+		eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM |
+				 MLX5_ETH_WQE_L4_CSUM;
+
+	seg += sizeof(struct mlx5_wqe_eth_seg);
+	*size += sizeof(struct mlx5_wqe_eth_seg) / 16;
+
+	if (wr->opcode == IB_WR_LSO) {
+		struct ib_ud_wr *ud_wr = container_of(wr, struct ib_ud_wr, wr);
+		int size_of_inl_hdr_start = sizeof(eseg->inline_hdr_start);
+		u64 left, leftlen, copysz;
+		void *pdata = ud_wr->header;
+
+		left = ud_wr->hlen;
+		eseg->mss = cpu_to_be16(ud_wr->mss);
+		eseg->inline_hdr_sz = cpu_to_be16(left);
+
+		/*
+		 * check if there is space till the end of queue, if yes,
+		 * copy all in one shot, otherwise copy till the end of queue,
+		 * rollback and than the copy the left
+		 */
+		leftlen = qend - (void *)eseg->inline_hdr_start;
+		copysz = min_t(u64, leftlen, left);
+
+		memcpy(seg - size_of_inl_hdr_start, pdata, copysz);
+
+		if (likely(copysz > size_of_inl_hdr_start)) {
+			seg += ALIGN(copysz - size_of_inl_hdr_start, 16);
+			*size += ALIGN(copysz - size_of_inl_hdr_start, 16) / 16;
+		}
+
+		if (unlikely(copysz < left)) { /* the last wqe in the queue */
+			seg = mlx5_get_send_wqe(qp, 0);
+			left -= copysz;
+			pdata += copysz;
+			memcpy(seg, pdata, left);
+			seg += ALIGN(left, 16);
+			*size += ALIGN(left, 16) / 16;
+		}
+	}
+
+	return seg;
+}
+
 static void set_datagram_seg(struct mlx5_wqe_datagram_seg *dseg,
 			     struct ib_send_wr *wr)
 {
@@ -3373,7 +3451,6 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			}
 			break;
 
-		case IB_QPT_UD:
 		case IB_QPT_SMI:
 		case IB_QPT_GSI:
 			set_datagram_seg(seg, wr);
@@ -3382,7 +3459,29 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			if (unlikely((seg == qend)))
 				seg = mlx5_get_send_wqe(qp, 0);
 			break;
+		case IB_QPT_UD:
+			set_datagram_seg(seg, wr);
+			seg += sizeof(struct mlx5_wqe_datagram_seg);
+			size += sizeof(struct mlx5_wqe_datagram_seg) / 16;
 
+			if (unlikely((seg == qend)))
+				seg = mlx5_get_send_wqe(qp, 0);
+
+			/* handle qp that supports ud offload */
+			if (qp->flags & IB_QP_CREATE_IPOIB_UD_LSO) {
+				struct mlx5_wqe_eth_pad *pad;
+
+				pad = seg;
+				memset(pad, 0, sizeof(struct mlx5_wqe_eth_pad));
+				seg += sizeof(struct mlx5_wqe_eth_pad);
+				size += sizeof(struct mlx5_wqe_eth_pad) / 16;
+
+				seg = set_eth_seg(seg, wr, qend, qp, &size);
+
+				if (unlikely((seg == qend)))
+					seg = mlx5_get_send_wqe(qp, 0);
+			}
+			break;
 		case MLX5_IB_QPT_REG_UMR:
 			if (wr->opcode != MLX5_IB_WR_UMR) {
 				err = -EINVAL;
