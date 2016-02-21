@@ -805,9 +805,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->hw = &tegra20_i2c_hw;
 
 	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_device(tegra_i2c_of_match, &pdev->dev);
-		i2c_dev->hw = match->data;
+		i2c_dev->hw = of_device_get_match_data(&pdev->dev);
 		i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
 						"nvidia,tegra20-i2c-dvc");
 	} else if (pdev->id == 3) {
