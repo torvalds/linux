@@ -1835,6 +1835,20 @@ bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *fmt)
 	return fmt->cmp == __sort__hde_cmp;
 }
 
+static bool __sort__hde_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+{
+	struct hpp_dynamic_entry *hde_a;
+	struct hpp_dynamic_entry *hde_b;
+
+	if (!perf_hpp__is_dynamic_entry(a) || !perf_hpp__is_dynamic_entry(b))
+		return false;
+
+	hde_a = container_of(a, struct hpp_dynamic_entry, hpp);
+	hde_b = container_of(b, struct hpp_dynamic_entry, hpp);
+
+	return hde_a->field == hde_b->field;
+}
+
 static void hde_free(struct perf_hpp_fmt *fmt)
 {
 	struct hpp_dynamic_entry *hde;
@@ -1867,6 +1881,7 @@ __alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field)
 	hde->hpp.cmp = __sort__hde_cmp;
 	hde->hpp.collapse = __sort__hde_cmp;
 	hde->hpp.sort = __sort__hde_cmp;
+	hde->hpp.equal = __sort__hde_equal;
 	hde->hpp.free = hde_free;
 
 	INIT_LIST_HEAD(&hde->hpp.list);
