@@ -442,8 +442,9 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	/* } while(&rptr[1] <= &rb[len2]); */
 
 	if (rsp != cmd) {
-		dev_err(&spi->dev, "Failed cmd response, cmd (%02x)"
-			 ", resp (%02x)\n", cmd, rsp);
+		dev_err(&spi->dev,
+			"Failed cmd response, cmd (%02x), resp (%02x)\n",
+			cmd, rsp);
 		result = N_FAIL;
 		return result;
 	}
