@@ -1931,20 +1931,15 @@ static int rw_mem_cmd_buf(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 static int suit_cmd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	int result;
-
 	switch (srb->cmnd[3]) {
 	case INIT_BATCHCMD:
 	case ADD_BATCHCMD:
 	case SEND_BATCHCMD:
 	case GET_BATCHRSP:
-		result = rw_mem_cmd_buf(srb, chip);
-		break;
+		return rw_mem_cmd_buf(srb, chip);
 	default:
-		result = TRANSPORT_ERROR;
+		return TRANSPORT_ERROR;
 	}
-
-	return result;
 }
 
 static int read_phy_register(struct scsi_cmnd *srb, struct rtsx_chip *chip)
