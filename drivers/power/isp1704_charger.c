@@ -536,6 +536,7 @@ static int isp1704_charger_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id omap_isp1704_of_match[] = {
 	{ .compatible = "nxp,isp1704", },
+	{ .compatible = "nxp,isp1707", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_isp1704_of_match);
