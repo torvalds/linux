@@ -138,6 +138,7 @@ config AC97_BUS
 config SUPPORT_HDMI
         bool "SUPPORT_HDMI"
         depends on DRM_I915
+	select PM_RUNTIME
         default n
         help
           Choose this option to support HDMI.
