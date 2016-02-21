@@ -2052,7 +2052,7 @@ static int ni_ns_to_timer(const struct comedi_device *dev, unsigned nanosec,
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = (nanosec + devpriv->clock_ns / 2) / devpriv->clock_ns;
+		divider = DIV_ROUND_CLOSEST(nanosec, devpriv->clock_ns);
 		break;
 	case CMDF_ROUND_DOWN:
 		divider = (nanosec) / devpriv->clock_ns;
@@ -4233,9 +4233,8 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 	case INSN_CONFIG_PWM_OUTPUT:
 		switch (data[1]) {
 		case CMDF_ROUND_NEAREST:
-			up_count =
-			    (data[2] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			up_count = DIV_ROUND_CLOSEST(data[2],
+						     devpriv->clock_ns);
 			break;
 		case CMDF_ROUND_DOWN:
 			up_count = data[2] / devpriv->clock_ns;
@@ -4250,9 +4249,8 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 		}
 		switch (data[3]) {
 		case CMDF_ROUND_NEAREST:
-			down_count =
-			    (data[4] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			down_count = DIV_ROUND_CLOSEST(data[4],
+						       devpriv->clock_ns);
 			break;
 		case CMDF_ROUND_DOWN:
 			down_count = data[4] / devpriv->clock_ns;
@@ -4297,9 +4295,8 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 	case INSN_CONFIG_PWM_OUTPUT:
 		switch (data[1]) {
 		case CMDF_ROUND_NEAREST:
-			up_count =
-			    (data[2] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			up_count = DIV_ROUND_CLOSEST(data[2],
+						     devpriv->clock_ns);
 			break;
 		case CMDF_ROUND_DOWN:
 			up_count = data[2] / devpriv->clock_ns;
@@ -4314,9 +4311,8 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 		}
 		switch (data[3]) {
 		case CMDF_ROUND_NEAREST:
-			down_count =
-			    (data[4] +
-			     devpriv->clock_ns / 2) / devpriv->clock_ns;
+			down_count = DIV_ROUND_CLOSEST(data[4],
+						       devpriv->clock_ns);
 			break;
 		case CMDF_ROUND_DOWN:
 			down_count = data[4] / devpriv->clock_ns;
@@ -4918,9 +4914,9 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 
 	*freq_divider = best_div;
 	*freq_multiplier = best_mult;
-	*actual_period_ns =
-	    (best_period_picosec * fudge_factor_80_to_20Mhz +
-	     (pico_per_nano / 2)) / pico_per_nano;
+	*actual_period_ns = DIV_ROUND_CLOSEST(best_period_picosec *
+					      fudge_factor_80_to_20Mhz,
+					      pico_per_nano);
 	return 0;
 }
 
