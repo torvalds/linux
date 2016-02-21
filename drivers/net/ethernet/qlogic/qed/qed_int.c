@@ -399,7 +399,7 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 	dma_addr_t p_phys = 0;
 
 	/* SB struct */
-	p_sb = kmalloc(sizeof(*p_sb), GFP_ATOMIC);
+	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
 	if (!p_sb) {
 		DP_NOTICE(cdev, "Failed to allocate `struct qed_sb_attn_info'\n");
 		return -ENOMEM;
@@ -666,7 +666,7 @@ static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn,
 	void *p_virt;
 
 	/* SB struct */
-	p_sb = kmalloc(sizeof(*p_sb), GFP_ATOMIC);
+	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
 	if (!p_sb) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_sb_info'\n");
 		return -ENOMEM;
@@ -946,7 +946,7 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 	u16 sb_id;
 	u16 prev_sb_id = 0xFF;
 
-	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_ATOMIC);
+	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_KERNEL);
 
 	if (!p_hwfn->hw_info.p_igu_info)
 		return -ENOMEM;
@@ -1072,7 +1072,7 @@ static void qed_int_sp_dpc_setup(struct qed_hwfn *p_hwfn)
 
 static int qed_int_sp_dpc_alloc(struct qed_hwfn *p_hwfn)
 {
-	p_hwfn->sp_dpc = kmalloc(sizeof(*p_hwfn->sp_dpc), GFP_ATOMIC);
+	p_hwfn->sp_dpc = kmalloc(sizeof(*p_hwfn->sp_dpc), GFP_KERNEL);
 	if (!p_hwfn->sp_dpc)
 		return -ENOMEM;
 

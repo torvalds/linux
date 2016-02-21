@@ -134,17 +134,17 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 	/* PQs will be arranged as follows: First per-TC PQ then pure-LB quete.
 	 */
 	qm_info->qm_pq_params = kzalloc(sizeof(*qm_info->qm_pq_params) *
-					num_pqs, GFP_ATOMIC);
+					num_pqs, GFP_KERNEL);
 	if (!qm_info->qm_pq_params)
 		goto alloc_err;
 
 	qm_info->qm_vport_params = kzalloc(sizeof(*qm_info->qm_vport_params) *
-					   num_vports, GFP_ATOMIC);
+					   num_vports, GFP_KERNEL);
 	if (!qm_info->qm_vport_params)
 		goto alloc_err;
 
 	qm_info->qm_port_params = kzalloc(sizeof(*qm_info->qm_port_params) *
-					  MAX_NUM_PORTS, GFP_ATOMIC);
+					  MAX_NUM_PORTS, GFP_KERNEL);
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
 

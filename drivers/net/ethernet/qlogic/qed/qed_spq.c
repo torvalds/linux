@@ -327,7 +327,7 @@ struct qed_eq *qed_eq_alloc(struct qed_hwfn *p_hwfn,
 	struct qed_eq *p_eq;
 
 	/* Allocate EQ struct */
-	p_eq = kzalloc(sizeof(*p_eq), GFP_ATOMIC);
+	p_eq = kzalloc(sizeof(*p_eq), GFP_KERNEL);
 	if (!p_eq) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_eq'\n");
 		return NULL;
@@ -457,7 +457,7 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 
 	/* SPQ struct */
 	p_spq =
-		kzalloc(sizeof(struct qed_spq), GFP_ATOMIC);
+		kzalloc(sizeof(struct qed_spq), GFP_KERNEL);
 	if (!p_spq) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_spq'\n");
 		return -ENOMEM;
@@ -853,7 +853,7 @@ struct qed_consq *qed_consq_alloc(struct qed_hwfn *p_hwfn)
 	struct qed_consq *p_consq;
 
 	/* Allocate ConsQ struct */
-	p_consq = kzalloc(sizeof(*p_consq), GFP_ATOMIC);
+	p_consq = kzalloc(sizeof(*p_consq), GFP_KERNEL);
 	if (!p_consq) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_consq'\n");
 		return NULL;
