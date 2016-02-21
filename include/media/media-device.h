@@ -306,6 +306,8 @@ struct media_entity_notify {
  * @entity_notify: List of registered entity_notify callbacks
  * @lock:	Entities list lock
  * @graph_mutex: Entities graph operation lock
+ * @pm_count_walk: Graph walk for power state walk. Access serialised using
+ *		   graph_mutex.
  *
  * @source_priv: Driver Private data for enable/disable source handlers
  * @enable_source: Enable Source Handler function pointer
@@ -373,6 +375,7 @@ struct media_device {
 	spinlock_t lock;
 	/* Serializes graph operations. */
 	struct mutex graph_mutex;
+	struct media_entity_graph pm_count_walk;
 
 	void *source_priv;
 	int (*enable_source)(struct media_entity *entity,
