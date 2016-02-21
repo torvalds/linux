@@ -10416,6 +10416,32 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 		vars->eee_status &= ~SHMEM_EEE_SUPPORTED_MASK;
 	}
 
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+		/* Additional settings for jumbo packets in 1000BASE-T mode */
+		/* Allow rx extended length */
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_8481_AUX_CTRL, &val);
+		val |= 0x4000;
+		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8481_AUX_CTRL, val);
+		/* TX FIFO Elasticity LSB */
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_8481_1G_100T_EXT_CTRL, &val);
+		val |= 0x1;
+		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8481_1G_100T_EXT_CTRL, val);
+		/* TX FIFO Elasticity MSB */
+		/* Enable expansion register 0x46 (Pattern Generator status) */
+		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8481_EXPANSION_REG_ACCESS, 0xf46);
+
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_8481_EXPANSION_REG_RD_RW, &val);
+		val |= 0x4000;
+		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8481_EXPANSION_REG_RD_RW, val);
+	}
+
 	if (bnx2x_is_8483x_8485x(phy)) {
 		/* Bring PHY out of super isolate mode as the final step. */
 		bnx2x_cl45_read_and_write(bp, phy,
