@@ -1759,6 +1759,7 @@ static const struct i2c_device_id bq2415x_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq2415x_i2c_id_table);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id bq2415x_i2c_acpi_match[] = {
 	{ "BQ2415X", BQUNKNOWN },
 	{ "BQ241500", BQ24150 },
@@ -1776,6 +1777,7 @@ static const struct acpi_device_id bq2415x_i2c_acpi_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, bq2415x_i2c_acpi_match);
+#endif
 
 static struct i2c_driver bq2415x_driver = {
 	.driver = {
