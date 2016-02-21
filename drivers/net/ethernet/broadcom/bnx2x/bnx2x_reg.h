@@ -7339,6 +7339,10 @@ Theotherbitsarereservedandshouldbezero*/
 #define PHY84833_STATUS_CMD_NOT_OPEN_FOR_CMDS		0x0040
 #define PHY84833_STATUS_CMD_CLEAR_COMPLETE		0x0080
 #define PHY84833_STATUS_CMD_OPEN_OVERRIDE		0xa5a5
+/* Mailbox Process */
+#define PHY84833_MB_PROCESS1				1
+#define PHY84833_MB_PROCESS2				2
+#define PHY84833_MB_PROCESS3				3
 
 /* Mailbox status set used by 84858 only */
 #define PHY84858_STATUS_CMD_RECEIVED			0x0001
