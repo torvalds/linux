@@ -473,20 +473,20 @@ void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 			 u8 vf_valid)
 {
 	struct cau_sb_entry sb_entry;
-	u32 val;
 
 	qed_init_cau_sb_entry(p_hwfn, &sb_entry, p_hwfn->rel_pf_id,
 			      vf_number, vf_valid);
 
 	if (p_hwfn->hw_init_done) {
-		val = CAU_REG_SB_ADDR_MEMORY + igu_sb_id * sizeof(u64);
-		qed_wr(p_hwfn, p_ptt, val, lower_32_bits(sb_phys));
-		qed_wr(p_hwfn, p_ptt, val + sizeof(u32),
-		       upper_32_bits(sb_phys));
+		/* Wide-bus, initialize via DMAE */
+		u64 phys_addr = (u64)sb_phys;
 
-		val = CAU_REG_SB_VAR_MEMORY + igu_sb_id * sizeof(u64);
-		qed_wr(p_hwfn, p_ptt, val, sb_entry.data);
-		qed_wr(p_hwfn, p_ptt, val + sizeof(u32), sb_entry.params);
+		qed_dmae_host2grc(p_hwfn, p_ptt, (u64)(uintptr_t)&phys_addr,
+				  CAU_REG_SB_ADDR_MEMORY +
+				  igu_sb_id * sizeof(u64), 2, 0);
+		qed_dmae_host2grc(p_hwfn, p_ptt, (u64)(uintptr_t)&sb_entry,
+				  CAU_REG_SB_VAR_MEMORY +
+				  igu_sb_id * sizeof(u64), 2, 0);
 	} else {
 		/* Initialize Status Block Address */
 		STORE_RT_REG_AGG(p_hwfn,
