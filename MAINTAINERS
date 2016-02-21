@@ -2152,6 +2152,7 @@ M:	Simon Wunderlich <sw@simonwunderlich.de>
 M:	Antonio Quartulli <a@unstable.cc>
 L:	b.a.t.m.a.n@lists.open-mesh.org
 W:	https://www.open-mesh.org/
+Q:	https://patchwork.open-mesh.org/project/batman/list/
 S:	Maintained
 F:	net/batman-adv/
 
