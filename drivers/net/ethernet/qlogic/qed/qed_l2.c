@@ -142,9 +142,9 @@ static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
 			      u8 drop_ttl0_flg,
 			      u8 inner_vlan_removal_en_flg)
 {
-	struct qed_sp_init_request_params params;
 	struct vport_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent =  NULL;
+	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
 	u16 rx_mode = 0;
 	u8 abs_vport_id = 0;
@@ -153,16 +153,14 @@ static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
 	if (rc != 0)
 		return rc;
 
-	memset(&params, 0, sizeof(params));
-	params.ramrod_data_size = sizeof(*p_ramrod);
-	params.comp_mode = QED_SPQ_MODE_EBLOCK;
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+	init_data.opaque_fid = opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 qed_spq_get_cid(p_hwfn),
-				 opaque_fid,
 				 ETH_RAMROD_VPORT_START,
-				 PROTOCOLID_ETH,
-				 &params);
+				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;
 
@@ -362,7 +360,7 @@ qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 {
 	struct qed_rss_params *p_rss_params = p_params->rss_params;
 	struct vport_update_ramrod_data_cmn *p_cmn;
-	struct qed_sp_init_request_params sp_params;
+	struct qed_sp_init_data init_data;
 	struct vport_update_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	u8 abs_vport_id = 0;
@@ -372,17 +370,15 @@ qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	if (rc != 0)
 		return rc;
 
-	memset(&sp_params, 0, sizeof(sp_params));
-	sp_params.ramrod_data_size = sizeof(*p_ramrod);
-	sp_params.comp_mode = comp_mode;
-	sp_params.p_comp_data = p_comp_data;
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+	init_data.opaque_fid = p_params->opaque_fid;
+	init_data.comp_mode = comp_mode;
+	init_data.p_comp_data = p_comp_data;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 qed_spq_get_cid(p_hwfn),
-				 p_params->opaque_fid,
 				 ETH_RAMROD_VPORT_UPDATE,
-				 PROTOCOLID_ETH,
-				 &sp_params);
+				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;
 
@@ -416,8 +412,8 @@ static int qed_sp_vport_stop(struct qed_hwfn *p_hwfn,
 			     u16 opaque_fid,
 			     u8 vport_id)
 {
-	struct qed_sp_init_request_params sp_params;
 	struct vport_stop_ramrod_data *p_ramrod;
+	struct qed_sp_init_data init_data;
 	struct qed_spq_entry *p_ent;
 	u8 abs_vport_id = 0;
 	int rc;
@@ -426,16 +422,14 @@ static int qed_sp_vport_stop(struct qed_hwfn *p_hwfn,
 	if (rc != 0)
 		return rc;
 
-	memset(&sp_params, 0, sizeof(sp_params));
-	sp_params.ramrod_data_size = sizeof(*p_ramrod);
-	sp_params.comp_mode = QED_SPQ_MODE_EBLOCK;
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+	init_data.opaque_fid = opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 qed_spq_get_cid(p_hwfn),
-				 opaque_fid,
 				 ETH_RAMROD_VPORT_STOP,
-				 PROTOCOLID_ETH,
-				 &sp_params);
+				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;
 
@@ -514,8 +508,8 @@ qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 			    u16 cqe_pbl_size)
 {
 	struct rx_queue_start_ramrod_data *p_ramrod = NULL;
-	struct qed_sp_init_request_params sp_params;
 	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
 	struct qed_hw_cid_data *p_rx_cid;
 	u16 abs_rx_q_id = 0;
 	u8 abs_vport_id = 0;
@@ -540,15 +534,15 @@ qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 		   opaque_fid, cid, params->queue_id, params->vport_id,
 		   params->sb);
 
-	memset(&sp_params, 0, sizeof(params));
-	sp_params.comp_mode = QED_SPQ_MODE_EBLOCK;
-	sp_params.ramrod_data_size = sizeof(*p_ramrod);
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = cid;
+	init_data.opaque_fid = opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 cid, opaque_fid,
 				 ETH_RAMROD_RX_QUEUE_START,
-				 PROTOCOLID_ETH,
-				 &sp_params);
+				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;
 
@@ -640,21 +634,20 @@ static int qed_sp_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
 {
 	struct qed_hw_cid_data *p_rx_cid = &p_hwfn->p_rx_cids[rx_queue_id];
 	struct rx_queue_stop_ramrod_data *p_ramrod = NULL;
-	struct qed_sp_init_request_params sp_params;
 	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
 	u16 abs_rx_q_id = 0;
 	int rc = -EINVAL;
 
-	memset(&sp_params, 0, sizeof(sp_params));
-	sp_params.ramrod_data_size = sizeof(*p_ramrod);
-	sp_params.comp_mode = QED_SPQ_MODE_EBLOCK;
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = p_rx_cid->cid;
+	init_data.opaque_fid = p_rx_cid->opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 p_rx_cid->cid,
-				 p_rx_cid->opaque_fid,
 				 ETH_RAMROD_RX_QUEUE_STOP,
-				 PROTOCOLID_ETH,
-				 &sp_params);
+				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;
 
@@ -692,8 +685,8 @@ qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 			    union qed_qm_pq_params *p_pq_params)
 {
 	struct tx_queue_start_ramrod_data *p_ramrod = NULL;
-	struct qed_sp_init_request_params sp_params;
 	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
 	struct qed_hw_cid_data *p_tx_cid;
 	u8 abs_vport_id;
 	int rc = -EINVAL;
@@ -708,15 +701,15 @@ qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	if (rc)
 		return rc;
 
-	memset(&sp_params, 0, sizeof(sp_params));
-	sp_params.ramrod_data_size = sizeof(*p_ramrod);
-	sp_params.comp_mode = QED_SPQ_MODE_EBLOCK;
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = cid;
+	init_data.opaque_fid = opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
-	rc = qed_sp_init_request(p_hwfn, &p_ent, cid,
-				 opaque_fid,
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 ETH_RAMROD_TX_QUEUE_START,
-				 PROTOCOLID_ETH,
-				 &sp_params);
+				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;
 
@@ -796,20 +789,19 @@ static int qed_sp_eth_tx_queue_stop(struct qed_hwfn *p_hwfn,
 				    u16 tx_queue_id)
 {
 	struct qed_hw_cid_data *p_tx_cid = &p_hwfn->p_tx_cids[tx_queue_id];
-	struct qed_sp_init_request_params sp_params;
 	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
 
-	memset(&sp_params, 0, sizeof(sp_params));
-	sp_params.ramrod_data_size = sizeof(struct tx_queue_stop_ramrod_data);
-	sp_params.comp_mode = QED_SPQ_MODE_EBLOCK;
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = p_tx_cid->cid;
+	init_data.opaque_fid = p_tx_cid->opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 p_tx_cid->cid,
-				 p_tx_cid->opaque_fid,
 				 ETH_RAMROD_TX_QUEUE_STOP,
-				 PROTOCOLID_ETH,
-				 &sp_params);
+				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;
 
@@ -866,9 +858,9 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 {
 	u8 vport_to_add_to = 0, vport_to_remove_from = 0;
 	struct vport_filter_update_ramrod_data *p_ramrod;
-	struct qed_sp_init_request_params sp_params;
 	struct eth_filter_cmd *p_first_filter;
 	struct eth_filter_cmd *p_second_filter;
+	struct qed_sp_init_data init_data;
 	enum eth_filter_action action;
 	int rc;
 
@@ -882,17 +874,16 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	memset(&sp_params, 0, sizeof(sp_params));
-	sp_params.ramrod_data_size = sizeof(**pp_ramrod);
-	sp_params.comp_mode = comp_mode;
-	sp_params.p_comp_data = p_comp_data;
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+	init_data.opaque_fid = opaque_fid;
+	init_data.comp_mode = comp_mode;
+	init_data.p_comp_data = p_comp_data;
 
 	rc = qed_sp_init_request(p_hwfn, pp_ent,
-				 qed_spq_get_cid(p_hwfn),
-				 opaque_fid,
 				 ETH_RAMROD_FILTERS_UPDATE,
-				 PROTOCOLID_ETH,
-				 &sp_params);
+				 PROTOCOLID_ETH, &init_data);
 	if (rc)
 		return rc;
 
@@ -1116,8 +1107,8 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 {
 	unsigned long bins[ETH_MULTICAST_MAC_BINS_IN_REGS];
 	struct vport_update_ramrod_data *p_ramrod = NULL;
-	struct qed_sp_init_request_params sp_params;
 	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
 	u8 abs_vport_id = 0;
 	int rc, i;
 
@@ -1133,18 +1124,16 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 			return rc;
 	}
 
-	memset(&sp_params, 0, sizeof(sp_params));
-	sp_params.ramrod_data_size = sizeof(*p_ramrod);
-	sp_params.comp_mode = comp_mode;
-	sp_params.p_comp_data = p_comp_data;
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = comp_mode;
+	init_data.p_comp_data = p_comp_data;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 qed_spq_get_cid(p_hwfn),
-				 p_hwfn->hw_info.opaque_fid,
 				 ETH_RAMROD_VPORT_UPDATE,
-				 PROTOCOLID_ETH,
-				 &sp_params);
-
+				 PROTOCOLID_ETH, &init_data);
 	if (rc) {
 		DP_ERR(p_hwfn, "Multi-cast command failed %d\n", rc);
 		return rc;
