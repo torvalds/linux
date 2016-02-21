@@ -2378,7 +2378,7 @@ EXPORT_SYMBOL_GPL(cpufreq_boost_enabled);
  * submitted by the CPU Frequency driver.
  *
  * Registers a CPU Frequency driver to this core code. This code
- * returns zero on success, -EBUSY when another driver got here first
+ * returns zero on success, -EEXIST when another driver got here first
  * (and isn't unregistered in the meantime).
  *
  */
