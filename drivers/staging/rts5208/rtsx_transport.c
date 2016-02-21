@@ -224,7 +224,7 @@ void rtsx_add_cmd(struct rtsx_chip *chip,
 
 void rtsx_send_cmd_no_wait(struct rtsx_chip *chip)
 {
-	u32 val = 1 << 31;
+	u32 val = BIT(31);
 
 	rtsx_writel(chip, RTSX_HCBAR, chip->host_cmds_addr);
 
@@ -238,7 +238,7 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 {
 	struct rtsx_dev *rtsx = chip->rtsx;
 	struct completion trans_done;
-	u32 val = 1 << 31;
+	u32 val = BIT(31);
 	long timeleft;
 	int err = 0;
 
@@ -647,7 +647,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 	dma_addr_t addr;
 	u8 dir;
 	int err = 0;
-	u32 val = 1 << 31;
+	u32 val = BIT(31);
 	long timeleft;
 
 	if (!buf || (len <= 0))
