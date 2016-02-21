@@ -557,12 +557,10 @@ qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	p_ramrod->complete_event_flg	= 1;
 
 	p_ramrod->bd_max_bytes	= cpu_to_le16(bd_max_bytes);
-	p_ramrod->bd_base.hi	= DMA_HI_LE(bd_chain_phys_addr);
-	p_ramrod->bd_base.lo	= DMA_LO_LE(bd_chain_phys_addr);
+	DMA_REGPAIR_LE(p_ramrod->bd_base, bd_chain_phys_addr);
 
 	p_ramrod->num_of_pbl_pages	= cpu_to_le16(cqe_pbl_size);
-	p_ramrod->cqe_pbl_addr.hi	= DMA_HI_LE(cqe_pbl_addr);
-	p_ramrod->cqe_pbl_addr.lo	= DMA_LO_LE(cqe_pbl_addr);
+	DMA_REGPAIR_LE(p_ramrod->cqe_pbl_addr, cqe_pbl_addr);
 
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 
@@ -721,8 +719,7 @@ qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	p_ramrod->stats_counter_id	= stats_id;
 
 	p_ramrod->pbl_size		= cpu_to_le16(pbl_size);
-	p_ramrod->pbl_base_addr.hi	= DMA_HI_LE(pbl_addr);
-	p_ramrod->pbl_base_addr.lo	= DMA_LO_LE(pbl_addr);
+	DMA_REGPAIR_LE(p_ramrod->pbl_base_addr, pbl_addr);
 
 	pq_id			= qed_get_qm_pq(p_hwfn,
 						PROTOCOLID_ETH,

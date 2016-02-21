@@ -183,10 +183,8 @@ static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 	p_cxt->xstorm_st_context.spq_base_hi =
 		DMA_HI_LE(p_spq->chain.p_phys_addr);
 
-	p_cxt->xstorm_st_context.consolid_base_addr.lo =
-		DMA_LO_LE(p_hwfn->p_consq->chain.p_phys_addr);
-	p_cxt->xstorm_st_context.consolid_base_addr.hi =
-		DMA_HI_LE(p_hwfn->p_consq->chain.p_phys_addr);
+	DMA_REGPAIR_LE(p_cxt->xstorm_st_context.consolid_base_addr,
+		       p_hwfn->p_consq->chain.p_phys_addr);
 }
 
 static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
@@ -423,8 +421,7 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 	p_virt	= p_spq->p_virt;
 
 	for (i = 0; i < p_spq->chain.capacity; i++) {
-		p_virt->elem.data_ptr.hi = DMA_HI_LE(p_phys);
-		p_virt->elem.data_ptr.lo = DMA_LO_LE(p_phys);
+		DMA_REGPAIR_LE(p_virt->elem.data_ptr, p_phys);
 
 		list_add_tail(&p_virt->list, &p_spq->free_pool);
 

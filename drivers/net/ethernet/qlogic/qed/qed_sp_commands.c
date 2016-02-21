@@ -136,16 +136,12 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->outer_tag = p_hwfn->hw_info.ovlan;
 
 	/* Place EQ address in RAMROD */
-	p_ramrod->event_ring_pbl_addr.hi =
-			DMA_HI_LE(p_hwfn->p_eq->chain.pbl.p_phys_table);
-	p_ramrod->event_ring_pbl_addr.lo =
-			DMA_LO_LE(p_hwfn->p_eq->chain.pbl.p_phys_table);
+	DMA_REGPAIR_LE(p_ramrod->event_ring_pbl_addr,
+		       p_hwfn->p_eq->chain.pbl.p_phys_table);
 	p_ramrod->event_ring_num_pages = (u8)p_hwfn->p_eq->chain.page_cnt;
 
-	p_ramrod->consolid_q_pbl_addr.hi =
-			DMA_HI_LE(p_hwfn->p_consq->chain.pbl.p_phys_table);
-	p_ramrod->consolid_q_pbl_addr.lo =
-			DMA_LO_LE(p_hwfn->p_consq->chain.pbl.p_phys_table);
+	DMA_REGPAIR_LE(p_ramrod->consolid_q_pbl_addr,
+		       p_hwfn->p_consq->chain.pbl.p_phys_table);
 
 	p_hwfn->hw_info.personality = PERSONALITY_ETH;
 
