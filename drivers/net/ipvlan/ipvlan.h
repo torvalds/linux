@@ -115,7 +115,6 @@ static inline struct ipvl_port *ipvlan_port_get_rtnl(const struct net_device *d)
 }
 
 void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev);
-void ipvlan_set_port_mode(struct ipvl_port *port, u32 nval);
 void ipvlan_init_secret(void);
 unsigned int ipvlan_mac_hash(const unsigned char *addr);
 rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb);
