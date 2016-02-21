@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2011-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -367,6 +367,12 @@ static void enter_lpm_imx6sl(void)
 			 */
 			imx_clk_set_parent(step_clk, pll2_400_clk);
 			imx_clk_set_parent(pll1_sw_clk, step_clk);
+
+			/*
+			 * Need to ensure that PLL1 is bypassed and enabled
+			 * before ARM-PODF is set.
+			 */
+			clk_set_parent(pll1_bypass_clk, pll1_bypass_src_clk);
 
 			/*
 			 * Ensure that the clock will be
