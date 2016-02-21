@@ -9,7 +9,7 @@
 
 #include "ipvlan.h"
 
-void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
+static void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
 {
 	ipvlan->dev->mtu = dev->mtu - ipvlan->mtu_adj;
 }

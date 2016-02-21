@@ -53,8 +53,8 @@ static u8 ipvlan_get_v4_hash(const void *iaddr)
 	       IPVLAN_HASH_MASK;
 }
 
-struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
-					const void *iaddr, bool is_v6)
+static struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
+					       const void *iaddr, bool is_v6)
 {
 	struct ipvl_addr *addr;
 	u8 hash;
@@ -265,20 +265,25 @@ static int ipvlan_rcv_frame(struct ipvl_addr *addr, struct sk_buff **pskb,
 	struct sk_buff *skb = *pskb;
 
 	len = skb->len + ETH_HLEN;
-	if (unlikely(!(dev->flags & IFF_UP))) {
-		kfree_skb(skb);
-		goto out;
+	/* Only packets exchanged between two local slaves need to have
+	 * device-up check as well as skb-share check.
+	 */
+	if (local) {
+		if (unlikely(!(dev->flags & IFF_UP))) {
+			kfree_skb(skb);
+			goto out;
+		}
+
+		skb = skb_share_check(skb, GFP_ATOMIC);
+		if (!skb)
+			goto out;
+
+		*pskb = skb;
 	}
-
-	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (!skb)
-		goto out;
-
-	*pskb = skb;
 	skb->dev = dev;
-	skb->pkt_type = PACKET_HOST;
 
 	if (local) {
+		skb->pkt_type = PACKET_HOST;
 		if (dev_forward_skb(ipvlan->dev, skb) == NET_RX_SUCCESS)
 			success = true;
 	} else {
