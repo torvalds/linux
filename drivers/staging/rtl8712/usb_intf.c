@@ -399,11 +399,11 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	SET_NETDEV_DEV(pnetdev, &pusb_intf->dev);
 	pnetdev->dev.type = &wlan_type;
 	/* step 2. */
-	padapter->dvobj_init = &r8712_usb_dvobj_init;
-	padapter->dvobj_deinit = &r8712_usb_dvobj_deinit;
-	padapter->halpriv.hal_bus_init = &r8712_usb_hal_bus_init;
-	padapter->dvobjpriv.inirp_init = &r8712_usb_inirp_init;
-	padapter->dvobjpriv.inirp_deinit = &r8712_usb_inirp_deinit;
+	padapter->dvobj_init = r8712_usb_dvobj_init;
+	padapter->dvobj_deinit = r8712_usb_dvobj_deinit;
+	padapter->halpriv.hal_bus_init = r8712_usb_hal_bus_init;
+	padapter->dvobjpriv.inirp_init = r8712_usb_inirp_init;
+	padapter->dvobjpriv.inirp_deinit = r8712_usb_inirp_deinit;
 	/* step 3.
 	 * initialize the dvobj_priv
 	 */
