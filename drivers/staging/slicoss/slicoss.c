@@ -545,14 +545,6 @@ static int slic_card_download(struct adapter *adapter)
 			instruction = *(u32 *)(fw->data + index);
 			index += 4;
 
-			/* Check SRAM location zero. If it is non-zero. Abort.*/
-		     /*
-		      * failure = readl((u32 __iomem *)&slic_regs->slic_reset);
-		      * if (failure) {
-		      *	release_firmware(fw);
-		      *	return -EIO;
-		      * }
-		      */
 		}
 	}
 	release_firmware(fw);
@@ -907,11 +899,6 @@ static void slic_upr_start(struct adapter *adapter)
 {
 	struct slic_upr *upr;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
-/*
- *  char * ptr1;
- *  char * ptr2;
- *  uint cmdoffset;
- */
 	upr = adapter->upr_list;
 	if (!upr)
 		return;
@@ -2923,9 +2910,8 @@ static void slic_init_adapter(struct net_device *netdev,
 	adapter->functionnumber = (pcidev->devfn & 0x7);
 	adapter->slic_regs = memaddr;
 	adapter->irq = pcidev->irq;
-/*	adapter->netdev = netdev;*/
 	adapter->chipid = chip_idx;
-	adapter->port = 0;	/*adapter->functionnumber;*/
+	adapter->port = 0;
 	adapter->cardindex = adapter->port;
 	spin_lock_init(&adapter->upr_lock);
 	spin_lock_init(&adapter->bit64reglock);
@@ -3140,7 +3126,6 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 	mmio_start = pci_resource_start(pcidev, 0);
 	mmio_len = pci_resource_len(pcidev, 0);
 
-/*	memmapped_ioaddr =  (u32)ioremap_nocache(mmio_start, mmio_len);*/
 	memmapped_ioaddr = ioremap(mmio_start, mmio_len);
 	if (!memmapped_ioaddr) {
 		dev_err(&pcidev->dev, "cannot remap MMIO region %lx @ %lx\n",
