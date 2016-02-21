@@ -1052,8 +1052,15 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	unsigned int wdg_timeout =
 		iwl_mvm_get_wd_timeout(mvm, vif, sta->tdls, false);
-	int queue, fifo, ret;
+	int queue, ret;
 	u16 ssn;
+
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.sta_id = mvmsta->sta_id,
+		.tid = tid,
+		.frame_limit = buf_size,
+		.aggregate = true,
+	};
 
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
 		     != IWL_MAX_TID_COUNT);
@@ -1069,11 +1076,10 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	tid_data->amsdu_in_ampdu_allowed = amsdu;
 	spin_unlock_bh(&mvmsta->lock);
 
-	fifo = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
+	cfg.fifo = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
 
-	iwl_mvm_enable_agg_txq(mvm, queue,
-			       vif->hw_queue[tid_to_mac80211_ac[tid]], fifo,
-			       mvmsta->sta_id, tid, buf_size, ssn, wdg_timeout);
+	iwl_mvm_enable_txq(mvm, queue, vif->hw_queue[tid_to_mac80211_ac[tid]],
+			   ssn, &cfg, wdg_timeout);
 
 	ret = iwl_mvm_sta_tx_agg(mvm, sta, tid, queue, true);
 	if (ret)

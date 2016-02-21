@@ -1549,22 +1549,6 @@ void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	iwl_mvm_enable_txq(mvm, queue, mac80211_queue, ssn, &cfg, wdg_timeout);
 }
 
-static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
-					  int mac80211_queue, int fifo,
-					  int sta_id, int tid, int frame_limit,
-					  u16 ssn, unsigned int wdg_timeout)
-{
-	struct iwl_trans_txq_scd_cfg cfg = {
-		.fifo = fifo,
-		.sta_id = sta_id,
-		.tid = tid,
-		.frame_limit = frame_limit,
-		.aggregate = true,
-	};
-
-	iwl_mvm_enable_txq(mvm, queue, mac80211_queue, ssn, &cfg, wdg_timeout);
-}
-
 /* Thermal management and CT-kill */
 void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff);
 void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp);
