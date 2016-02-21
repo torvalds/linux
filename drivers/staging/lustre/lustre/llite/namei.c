@@ -127,7 +127,7 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 			}
 			if (rc != 0) {
 				iget_failed(inode);
-				inode = ERR_PTR(rc);
+				inode = NULL;
 			} else
 				unlock_new_inode(inode);
 		} else if (!(inode->i_state & (I_FREEING | I_CLEAR)))
