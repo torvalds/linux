@@ -1259,7 +1259,6 @@ static int arm_mbo_chain(struct most_c_obj *c, int dir,
 	for (i = 0; i < c->cfg.num_buffers; i++) {
 		mbo = kzalloc(sizeof(*mbo), GFP_KERNEL);
 		if (!mbo) {
-			pr_info("WARN: Allocation of MBO failed.\n");
 			retval = i;
 			goto _exit;
 		}
