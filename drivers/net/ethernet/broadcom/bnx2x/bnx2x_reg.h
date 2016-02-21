@@ -7296,6 +7296,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_84823_CTL_LED_CTL_1			0xa8e3
 #define MDIO_PMA_REG_84833_CTL_LED_CTL_1			0xa8ec
 #define MDIO_PMA_REG_84823_LED3_STRETCH_EN			0x0080
+/* BCM84858 only */
+#define MDIO_PMA_REG_84858_ALLOW_GPHY_ACT			0x8000
 
 /* BCM84833 only */
 #define MDIO_84833_TOP_CFG_FW_REV			0x400f
