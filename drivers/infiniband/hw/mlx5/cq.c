@@ -207,7 +207,10 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 		break;
 	case MLX5_CQE_RESP_SEND:
 		wc->opcode   = IB_WC_RECV;
-		wc->wc_flags = 0;
+		wc->wc_flags = IB_WC_IP_CSUM_OK;
+		if (unlikely(!((cqe->hds_ip_ext & CQE_L3_OK) &&
+			       (cqe->hds_ip_ext & CQE_L4_OK))))
+			wc->wc_flags = 0;
 		break;
 	case MLX5_CQE_RESP_SEND_IMM:
 		wc->opcode	= IB_WC_RECV;
