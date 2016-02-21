@@ -736,7 +736,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         cqe_version[0x4];
 
 	u8         compact_address_vector[0x1];
-	u8         reserved_at_200[0xe];
+	u8         reserved_at_200[0x3];
+	u8         ipoib_basic_offloads[0x1];
+	u8         reserved_at_204[0xa];
 	u8         drain_sigerr[0x1];
 	u8         cmdif_checksum[0x2];
 	u8         sigerr_cqe[0x1];
@@ -1810,7 +1812,7 @@ struct mlx5_ifc_qpc_bits {
 	u8         log_sq_size[0x4];
 	u8         reserved_at_55[0x6];
 	u8         rlky[0x1];
-	u8         reserved_at_5c[0x4];
+	u8         ulp_stateless_offload_mode[0x4];
 
 	u8         counter_set_id[0x8];
 	u8         uar_page[0x18];
