@@ -179,6 +179,9 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	if (h->transaction)
 		hists__new_col_len(hists, HISTC_TRANSACTION,
 				   hist_entry__transaction_len());
+
+	if (h->trace_output)
+		hists__new_col_len(hists, HISTC_TRACE, strlen(h->trace_output));
 }
 
 void hists__output_recalc_col_len(struct hists *hists, int max_rows)

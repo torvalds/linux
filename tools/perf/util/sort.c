@@ -483,9 +483,6 @@ sort__trace_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (right->trace_output == NULL)
 		right->trace_output = get_trace_output(right);
 
-	hists__new_col_len(left->hists, HISTC_TRACE, strlen(left->trace_output));
-	hists__new_col_len(right->hists, HISTC_TRACE, strlen(right->trace_output));
-
 	return strcmp(right->trace_output, left->trace_output);
 }
 
