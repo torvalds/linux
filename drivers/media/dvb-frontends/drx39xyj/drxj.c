@@ -4131,7 +4131,7 @@ int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, u32 a
 {
 	struct drxjscu_cmd scu_cmd;
 	int rc;
-	u16 set_param_parameters[15];
+	u16 set_param_parameters[18];
 	u16 cmd_result[15];
 
 	/* Parameter check */
