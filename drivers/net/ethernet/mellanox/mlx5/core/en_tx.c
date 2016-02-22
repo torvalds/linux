@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -185,9 +185,14 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	memset(wqe, 0, sizeof(*wqe));
 
-	if (likely(skb->ip_summed == CHECKSUM_PARTIAL))
-		eseg->cs_flags	= MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
-	else
+	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
+		eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM;
+		if (skb->encapsulation)
+			eseg->cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM |
+					  MLX5_ETH_WQE_L4_INNER_CSUM;
+		else
+			eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
+	} else
 		sq->stats.csum_offload_none++;
 
 	if (sq->cc != sq->prev_cc) {
@@ -200,8 +205,13 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 		eseg->mss    = cpu_to_be16(skb_shinfo(skb)->gso_size);
 		opcode       = MLX5_OPCODE_LSO;
-		ihs          = skb_transport_offset(skb) + tcp_hdrlen(skb);
-		payload_len  = skb->len - ihs;
+
+		if (skb->encapsulation)
+			ihs = skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
+		else
+			ihs = skb_transport_offset(skb) + tcp_hdrlen(skb);
+
+		payload_len   = skb->len - ihs;
 		wi->num_bytes = skb->len +
 				(skb_shinfo(skb)->gso_segs - 1) * ihs;
 		sq->stats.tso_packets++;
