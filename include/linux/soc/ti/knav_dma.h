@@ -44,6 +44,7 @@
 
 #define KNAV_DMA_NUM_EPIB_WORDS			4
 #define KNAV_DMA_NUM_PS_WORDS			16
+#define KNAV_DMA_NUM_SW_DATA_WORDS		4
 #define KNAV_DMA_FDQ_PER_CHAN			4
 
 /* Tx channel scheduling priority */
@@ -142,6 +143,7 @@ struct knav_dma_cfg {
  * @orig_buff:			buff pointer since 'buff' can be overwritten
  * @epib:			Extended packet info block
  * @psdata:			Protocol specific
+ * @sw_data:			Software private data not touched by h/w
  */
 struct knav_dma_desc {
 	__le32	desc_info;
@@ -154,7 +156,7 @@ struct knav_dma_desc {
 	__le32	orig_buff;
 	__le32	epib[KNAV_DMA_NUM_EPIB_WORDS];
 	__le32	psdata[KNAV_DMA_NUM_PS_WORDS];
-	__le32	pad[4];
+	u32	sw_data[KNAV_DMA_NUM_SW_DATA_WORDS];
 } ____cacheline_aligned;
 
 #if IS_ENABLED(CONFIG_KEYSTONE_NAVIGATOR_DMA)
