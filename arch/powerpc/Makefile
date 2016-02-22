@@ -310,6 +310,16 @@ corenet64_smp_defconfig:
 	$(call merge_into_defconfig,corenet_basic_defconfig,\
 		85xx-64bit 85xx-smp altivec 85xx-hw fsl-emb-nonhw)
 
+PHONY += mpc86xx_defconfig
+mpc86xx_defconfig:
+	$(call merge_into_defconfig,mpc86xx_basic_defconfig,\
+		86xx-hw fsl-emb-nonhw)
+
+PHONY += mpc86xx_smp_defconfig
+mpc86xx_smp_defconfig:
+	$(call merge_into_defconfig,mpc86xx_basic_defconfig,\
+		86xx-smp 86xx-hw fsl-emb-nonhw)
+
 define archhelp
   @echo '* zImage          - Build default images selected by kernel config'
   @echo '  zImage.*        - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
