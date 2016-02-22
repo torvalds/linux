@@ -286,7 +286,7 @@ static int em_download_image(struct usb_device *usbdev, const char *img_name,
 		return ret;
 	}
 
-	buf = kmalloc(DOWNLOAD_CHUCK + pad_size, GFP_KERNEL);
+	buf = kzalloc(DOWNLOAD_CHUCK + pad_size, GFP_KERNEL);
 	if (!buf) {
 		release_firmware(firm);
 		return -ENOMEM;
