@@ -1113,9 +1113,10 @@ lnet_return_rx_credits_locked(lnet_msg_t *msg)
 		 * buffers in this pool.  Make sure we never put back
 		 * more buffers than the stated number.
 		 */
-		if (rbp->rbp_credits >= rbp->rbp_nbuffers) {
+		if (unlikely(rbp->rbp_credits >= rbp->rbp_req_nbuffers)) {
 			/* Discard this buffer so we don't have too many. */
 			lnet_destroy_rtrbuf(rb, rbp->rbp_npages);
+			rbp->rbp_nbuffers--;
 		} else {
 			list_add(&rb->rb_list, &rbp->rbp_bufs);
 			rbp->rbp_credits++;

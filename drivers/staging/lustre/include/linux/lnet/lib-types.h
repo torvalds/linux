@@ -396,7 +396,10 @@ typedef struct {
 	struct list_head	rbp_msgs;	/* messages blocking
 						   for a buffer */
 	int			rbp_npages;	/* # pages in each buffer */
-	int			rbp_nbuffers;	/* # buffers */
+	/* requested number of buffers */
+	int			rbp_req_nbuffers;
+	/* # buffers actually allocated */
+	int			rbp_nbuffers;
 	int			rbp_credits;	/* # free buffers /
 						     blocked messages */
 	int			rbp_mincredits;	/* low water mark */
