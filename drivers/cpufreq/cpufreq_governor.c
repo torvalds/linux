@@ -125,12 +125,8 @@ static ssize_t governor_show(struct kobject *kobj, struct attribute *attr,
 {
 	struct dbs_data *dbs_data = to_dbs_data(kobj);
 	struct governor_attr *gattr = to_gov_attr(attr);
-	int ret = -EIO;
 
-	if (gattr->show)
-		ret = gattr->show(dbs_data, buf);
-
-	return ret;
+	return gattr->show(dbs_data, buf);
 }
 
 static ssize_t governor_store(struct kobject *kobj, struct attribute *attr,
@@ -138,11 +134,11 @@ static ssize_t governor_store(struct kobject *kobj, struct attribute *attr,
 {
 	struct dbs_data *dbs_data = to_dbs_data(kobj);
 	struct governor_attr *gattr = to_gov_attr(attr);
-	int ret = -EIO;
+	int ret = -EBUSY;
 
 	mutex_lock(&dbs_data->mutex);
 
-	if (dbs_data->usage_count && gattr->store)
+	if (dbs_data->usage_count)
 		ret = gattr->store(dbs_data, buf, count);
 
 	mutex_unlock(&dbs_data->mutex);
