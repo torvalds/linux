@@ -10,8 +10,8 @@
 struct mb2_cache;
 
 struct mb2_cache_entry {
-	/* LRU list - protected by cache->c_lru_list_lock */
-	struct list_head	e_lru_list;
+	/* List of entries in cache - protected by cache->c_list_lock */
+	struct list_head	e_list;
 	/* Hash table list - protected by bitlock in e_hash_list_head */
 	struct hlist_bl_node	e_hash_list;
 	atomic_t		e_refcnt;
@@ -19,8 +19,11 @@ struct mb2_cache_entry {
 	u32			e_key;
 	/* Block number of hashed block - stable during lifetime of the entry */
 	sector_t		e_block;
-	/* Head of hash list (for list bit lock) - stable */
-	struct hlist_bl_head	*e_hash_list_head;
+	/*
+	 * Head of hash list (for list bit lock) - stable. Combined with
+	 * referenced bit of entry
+	 */
+	unsigned long		_e_hash_list_head;
 };
 
 struct mb2_cache *mb2_cache_create(int bucket_bits);
