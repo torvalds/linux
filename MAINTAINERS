@@ -929,8 +929,12 @@ N:	meson[x68]
 
 ARM/Annapurna Labs ALPINE ARCHITECTURE
 M:	Tsahee Zidenberg <tsahee@annapurnalabs.com>
+M:	Antoine Tenart <antoine.tenart@free-electrons.com>
 S:	Maintained
 F:	arch/arm/mach-alpine/
+F:	arch/arm/boot/dts/alpine*
+F:	arch/arm64/boot/dts/al/
+F:	drivers/*/*alpine*
 
 ARM/ATMEL AT91RM9200, AT91SAM9 AND SAMA5 SOC SUPPORT
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
