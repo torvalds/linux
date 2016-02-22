@@ -111,6 +111,7 @@ static inline bool vfio_pci_is_vga(struct pci_dev *pdev)
 }
 
 static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev);
+static void vfio_pci_disable(struct vfio_pci_device *vdev);
 
 static int vfio_pci_enable(struct vfio_pci_device *vdev)
 {
@@ -170,10 +171,16 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		vdev->has_vga = true;
 
 
-	if (vfio_pci_is_vga(pdev) && pdev->vendor == PCI_VENDOR_ID_INTEL) {
-		if (vfio_pci_igd_opregion_init(vdev) == 0)
-			dev_info(&pdev->dev,
-				 "Intel IGD OpRegion support enabled\n");
+	if (vfio_pci_is_vga(pdev) &&
+	    pdev->vendor == PCI_VENDOR_ID_INTEL &&
+	    IS_ENABLED(CONFIG_VFIO_PCI_IGD)) {
+		ret = vfio_pci_igd_init(vdev);
+		if (ret) {
+			dev_warn(&vdev->pdev->dev,
+				 "Failed to setup Intel IGD regions\n");
+			vfio_pci_disable(vdev);
+			return ret;
+		}
 	}
 
 	return 0;
