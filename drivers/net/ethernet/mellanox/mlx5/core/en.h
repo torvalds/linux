@@ -70,6 +70,11 @@
 
 #define MLX5E_NUM_MAIN_GROUPS 9
 
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+#define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
+#define MLX5E_MIN_BW_ALLOC 1   /* Min percentage of BW allocation */
+#endif
+
 static const char vport_strings[][ETH_GSTRING_LEN] = {
 	/* vport statistics */
 	"rx_packets",
@@ -273,7 +278,6 @@ struct mlx5e_params {
 	u8  log_sq_size;
 	u8  log_rq_size;
 	u16 num_channels;
-	u8  default_vlan_prio;
 	u8  num_tc;
 	u16 rx_cq_moderation_usec;
 	u16 rx_cq_moderation_pkts;
@@ -286,6 +290,9 @@ struct mlx5e_params {
 	u8  rss_hfunc;
 	u8  toeplitz_hash_key[40];
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	struct ieee_ets ets;
+#endif
 };
 
 struct mlx5e_tstamp {
@@ -506,7 +513,6 @@ struct mlx5e_flow_tables {
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
-	int                        default_vlan_prio;
 	struct mlx5e_sq            **txq_to_sq_map;
 	int channeltc_to_txq_map[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
 	/* priv data path fields - end */
@@ -666,4 +672,9 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+extern const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops;
+int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets);
+#endif
+
 u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev);

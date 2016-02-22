@@ -1400,6 +1400,24 @@ static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
 	return 0;
 }
 
+static void mlx5e_netdev_set_tcs(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int nch = priv->params.num_channels;
+	int ntc = priv->params.num_tc;
+	int tc;
+
+	netdev_reset_tc(netdev);
+
+	if (ntc == 1)
+		return;
+
+	netdev_set_num_tc(netdev, ntc);
+
+	for (tc = 0; tc < ntc; tc++)
+		netdev_set_tc_queue(netdev, tc, nch, tc * nch);
+}
+
 int mlx5e_open_locked(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -1407,6 +1425,8 @@ int mlx5e_open_locked(struct net_device *netdev)
 	int err;
 
 	set_bit(MLX5E_STATE_OPENED, &priv->state);
+
+	mlx5e_netdev_set_tcs(netdev);
 
 	num_txqs = priv->params.num_channels * priv->params.num_tc;
 	netif_set_real_num_tx_queues(netdev, num_txqs);
@@ -1602,7 +1622,7 @@ static int mlx5e_create_tis(struct mlx5e_priv *priv, int tc)
 
 	memset(in, 0, sizeof(in));
 
-	MLX5_SET(tisc, tisc, prio,  tc);
+	MLX5_SET(tisc, tisc, prio, tc << 1);
 	MLX5_SET(tisc, tisc, transport_domain, priv->tdn);
 
 	return mlx5_core_create_tis(mdev, in, sizeof(in), &priv->tisn[tc]);
@@ -1618,7 +1638,7 @@ static int mlx5e_create_tises(struct mlx5e_priv *priv)
 	int err;
 	int tc;
 
-	for (tc = 0; tc < priv->params.num_tc; tc++) {
+	for (tc = 0; tc < MLX5E_MAX_NUM_TC; tc++) {
 		err = mlx5e_create_tis(priv, tc);
 		if (err)
 			goto err_close_tises;
@@ -1637,7 +1657,7 @@ static void mlx5e_destroy_tises(struct mlx5e_priv *priv)
 {
 	int tc;
 
-	for (tc = 0; tc < priv->params.num_tc; tc++)
+	for (tc = 0; tc < MLX5E_MAX_NUM_TC; tc++)
 		mlx5e_destroy_tis(priv, tc);
 }
 
@@ -1822,6 +1842,40 @@ static void mlx5e_destroy_tirs(struct mlx5e_priv *priv)
 
 	for (i = 0; i < MLX5E_NUM_TT; i++)
 		mlx5e_destroy_tir(priv, i);
+}
+
+static int mlx5e_setup_tc(struct net_device *netdev, u8 tc)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	bool was_opened;
+	int err = 0;
+
+	if (tc && tc != MLX5E_MAX_NUM_TC)
+		return -EINVAL;
+
+	mutex_lock(&priv->state_lock);
+
+	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (was_opened)
+		mlx5e_close_locked(priv->netdev);
+
+	priv->params.num_tc = tc ? tc : 1;
+
+	if (was_opened)
+		err = mlx5e_open_locked(priv->netdev);
+
+	mutex_unlock(&priv->state_lock);
+
+	return err;
+}
+
+static int mlx5e_ndo_setup_tc(struct net_device *dev, u32 handle,
+			      __be16 proto, struct tc_to_netdev *tc)
+{
+	if (handle != TC_H_ROOT || tc->type != TC_SETUP_MQPRIO)
+		return -EINVAL;
+
+	return mlx5e_setup_tc(dev, tc->tc);
 }
 
 static struct rtnl_link_stats64 *
@@ -2028,6 +2082,8 @@ static const struct net_device_ops mlx5e_netdev_ops_basic = {
 	.ndo_open                = mlx5e_open,
 	.ndo_stop                = mlx5e_close,
 	.ndo_start_xmit          = mlx5e_xmit,
+	.ndo_setup_tc            = mlx5e_ndo_setup_tc,
+	.ndo_select_queue        = mlx5e_select_queue,
 	.ndo_get_stats64         = mlx5e_get_stats,
 	.ndo_set_rx_mode         = mlx5e_set_rx_mode,
 	.ndo_set_mac_address     = mlx5e_set_mac,
@@ -2042,6 +2098,8 @@ static const struct net_device_ops mlx5e_netdev_ops_sriov = {
 	.ndo_open                = mlx5e_open,
 	.ndo_stop                = mlx5e_close,
 	.ndo_start_xmit          = mlx5e_xmit,
+	.ndo_setup_tc            = mlx5e_ndo_setup_tc,
+	.ndo_select_queue        = mlx5e_select_queue,
 	.ndo_get_stats64         = mlx5e_get_stats,
 	.ndo_set_rx_mode         = mlx5e_set_rx_mode,
 	.ndo_set_mac_address     = mlx5e_set_mac,
@@ -2089,6 +2147,24 @@ u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
 	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
 }
 
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+static void mlx5e_ets_init(struct mlx5e_priv *priv)
+{
+	int i;
+
+	priv->params.ets.ets_cap = mlx5_max_tc(priv->mdev) + 1;
+	for (i = 0; i < priv->params.ets.ets_cap; i++) {
+		priv->params.ets.tc_tx_bw[i] = MLX5E_MAX_BW_ALLOC;
+		priv->params.ets.tc_tsa[i] = IEEE_8021QAZ_TSA_VENDOR;
+		priv->params.ets.prio_tc[i] = i;
+	}
+
+	/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
+	priv->params.ets.prio_tc[0] = 1;
+	priv->params.ets.prio_tc[1] = 0;
+}
+#endif
+
 static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 				    struct net_device *netdev,
 				    int num_channels)
@@ -2112,7 +2188,6 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->params.min_rx_wqes           =
 		MLX5E_PARAMS_DEFAULT_MIN_RX_WQES;
 	priv->params.num_tc                = 1;
-	priv->params.default_vlan_prio     = 0;
 	priv->params.rss_hfunc             = ETH_RSS_HASH_XOR;
 
 	netdev_rss_key_fill(priv->params.toeplitz_hash_key,
@@ -2127,7 +2202,10 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->mdev                         = mdev;
 	priv->netdev                       = netdev;
 	priv->params.num_channels          = num_channels;
-	priv->default_vlan_prio            = priv->params.default_vlan_prio;
+
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	mlx5e_ets_init(priv);
+#endif
 
 	spin_lock_init(&priv->async_events_spinlock);
 	mutex_init(&priv->state_lock);
@@ -2156,10 +2234,14 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 
 	SET_NETDEV_DEV(netdev, &mdev->pdev->dev);
 
-	if (MLX5_CAP_GEN(mdev, vport_group_manager))
+	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
 		netdev->netdev_ops = &mlx5e_netdev_ops_sriov;
-	else
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+		netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
+#endif
+	} else {
 		netdev->netdev_ops = &mlx5e_netdev_ops_basic;
+	}
 
 	netdev->watchdog_timeo    = 15 * HZ;
 
@@ -2228,7 +2310,9 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 	if (mlx5e_check_required_hca_cap(mdev))
 		return NULL;
 
-	netdev = alloc_etherdev_mqs(sizeof(struct mlx5e_priv), nch, nch);
+	netdev = alloc_etherdev_mqs(sizeof(struct mlx5e_priv),
+				    nch * MLX5E_MAX_NUM_TC,
+				    nch);
 	if (!netdev) {
 		mlx5_core_err(mdev, "alloc_etherdev_mqs() failed\n");
 		return NULL;
@@ -2302,6 +2386,10 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 	}
 
 	mlx5e_init_eth_addr(priv);
+
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	mlx5e_dcbnl_ieee_setets_core(priv, &priv->params.ets);
+#endif
 
 	err = register_netdev(netdev);
 	if (err) {
