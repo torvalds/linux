@@ -1549,6 +1549,12 @@ void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	iwl_mvm_enable_txq(mvm, queue, mac80211_queue, ssn, &cfg, wdg_timeout);
 }
 
+static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
+{
+	mvm->ucode_loaded = false;
+	iwl_trans_stop_device(mvm->trans);
+}
+
 /* Thermal management and CT-kill */
 void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff);
 void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp);

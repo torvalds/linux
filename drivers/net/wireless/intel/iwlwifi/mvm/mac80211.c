@@ -972,7 +972,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	 */
 	iwl_mvm_unref_all_except(mvm, IWL_MVM_REF_UCODE_DOWN);
 
-	iwl_trans_stop_device(mvm->trans);
+	iwl_mvm_stop_device(mvm);
 
 	mvm->scan_status = 0;
 	mvm->ps_disabled = false;
@@ -1141,7 +1141,7 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	 */
 	flush_work(&mvm->roc_done_wk);
 
-	iwl_trans_stop_device(mvm->trans);
+	iwl_mvm_stop_device(mvm);
 
 	iwl_mvm_async_handlers_purge(mvm);
 	/* async_handlers_list is empty and will stay empty: HW is stopped */
@@ -1172,8 +1172,6 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 				mvm->scan_uid_status[i] = 0;
 		}
 	}
-
-	mvm->ucode_loaded = false;
 }
 
 static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)

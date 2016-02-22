@@ -816,8 +816,7 @@ static int iwl_mvm_switch_to_d3(struct iwl_mvm *mvm)
 {
 	iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
 
-	iwl_trans_stop_device(mvm->trans);
-
+	iwl_mvm_stop_device(mvm);
 	/*
 	 * Set the HW restart bit -- this is mostly true as we're
 	 * going to load new firmware and reprogram that, though

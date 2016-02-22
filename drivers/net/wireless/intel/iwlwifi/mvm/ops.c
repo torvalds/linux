@@ -643,7 +643,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
 		err = iwl_run_init_mvm_ucode(mvm, true);
 		if (!err || !iwlmvm_mod_params.init_dbg)
-			iwl_trans_stop_device(trans);
+			iwl_mvm_stop_device(mvm);
 		iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
 		mutex_unlock(&mvm->mutex);
 		/* returns 0 if successful, 1 if success but in rfkill */
