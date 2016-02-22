@@ -27,6 +27,8 @@ extern medusa_answer_t medusa_unlink(struct dentry *dentry);
 extern medusa_answer_t medusa_link(struct dentry *dentry, const char * newname);
 extern medusa_answer_t medusa_rename(struct dentry *dentry, const char * newname);
 
+extern medusa_answer_t medusa_readlink(struct dentry *dentry);
+
 /* the following routines are a support for many of access types,
  * and they're used both in L1 and L2 code. They're defined in
  * l2/evtype_getfile.c. Look there before using any of these routines.

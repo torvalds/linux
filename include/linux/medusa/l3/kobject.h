@@ -25,6 +25,8 @@
 #include <linux/medusa/l3/model.h>
 #include <linux/types.h>
 
+#pragma GCC optimize ("O0")
+
 struct medusa_attribute_s;
 struct medusa_kclass_s;
 struct medusa_kobject_s;

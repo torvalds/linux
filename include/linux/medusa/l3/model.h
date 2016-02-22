@@ -3,6 +3,8 @@
 
 #include <linux/medusa/l3/config.h>
 
+#pragma GCC optimize ("O0")
+
 /* this header file defines the VS model */
 
 /* objects and subjects are two different kinds of kobjects:

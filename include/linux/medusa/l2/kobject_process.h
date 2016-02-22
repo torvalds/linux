@@ -15,6 +15,8 @@
 #include <linux/sched.h>	/* contains all includes we need ;) */
 #include <linux/medusa/l3/kobject.h>
 
+#pragma GCC optimize ("O0")
+
 struct process_kobject { /* was: m_proc_inf */
 	MEDUSA_KOBJECT_HEADER;
 
