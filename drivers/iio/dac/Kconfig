@@ -217,4 +217,14 @@ config STX104
 	  addresses for the devices may be configured via the "base" module
 	  parameter array.
 
+config VF610_DAC
+	tristate "Vybrid vf610 DAC driver"
+	depends on OF
+	depends on HAS_IOMEM
+	help
+	  Say yes here to support Vybrid board digital-to-analog converter.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called vf610_dac.
+
 endmenu
