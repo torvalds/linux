@@ -1657,8 +1657,7 @@ static int skl_init_algo_data(struct device *dev, struct soc_bytes_ext *be,
 		if (!ac->params)
 			return -ENOMEM;
 
-		if (dfw_ac->params)
-			memcpy(ac->params, dfw_ac->params, ac->max);
+		memcpy(ac->params, dfw_ac->params, ac->max);
 	}
 
 	be->dobj.private  = ac;
