@@ -39,6 +39,26 @@ static const int gyro_scale_6050[] = {133090, 266181, 532362, 1064724};
  */
 static const int accel_scale[] = {598, 1196, 2392, 4785};
 
+static const struct inv_mpu6050_reg_map reg_set_6500 = {
+	.sample_rate_div	= INV_MPU6050_REG_SAMPLE_RATE_DIV,
+	.lpf                    = INV_MPU6050_REG_CONFIG,
+	.user_ctrl              = INV_MPU6050_REG_USER_CTRL,
+	.fifo_en                = INV_MPU6050_REG_FIFO_EN,
+	.gyro_config            = INV_MPU6050_REG_GYRO_CONFIG,
+	.accl_config            = INV_MPU6050_REG_ACCEL_CONFIG,
+	.fifo_count_h           = INV_MPU6050_REG_FIFO_COUNT_H,
+	.fifo_r_w               = INV_MPU6050_REG_FIFO_R_W,
+	.raw_gyro               = INV_MPU6050_REG_RAW_GYRO,
+	.raw_accl               = INV_MPU6050_REG_RAW_ACCEL,
+	.temperature            = INV_MPU6050_REG_TEMPERATURE,
+	.int_enable             = INV_MPU6050_REG_INT_ENABLE,
+	.pwr_mgmt_1             = INV_MPU6050_REG_PWR_MGMT_1,
+	.pwr_mgmt_2             = INV_MPU6050_REG_PWR_MGMT_2,
+	.int_pin_cfg		= INV_MPU6050_REG_INT_PIN_CFG,
+	.accl_offset		= INV_MPU6500_REG_ACCEL_OFFSET,
+	.gyro_offset		= INV_MPU6050_REG_GYRO_OFFSET,
+};
+
 static const struct inv_mpu6050_reg_map reg_set_6050 = {
 	.sample_rate_div	= INV_MPU6050_REG_SAMPLE_RATE_DIV,
 	.lpf                    = INV_MPU6050_REG_CONFIG,
@@ -68,7 +88,13 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.accl_fs = INV_MPU6050_FS_02G,
 };
 
-static const struct inv_mpu6050_hw hw_info[INV_NUM_PARTS] = {
+static const struct inv_mpu6050_hw hw_info[] = {
+	{
+		.num_reg = 117,
+		.name = "MPU6500",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6050,
+	},
 	{
 		.num_reg = 117,
 		.name = "MPU6050",
@@ -701,7 +727,6 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 {
 	int result;
 
-	st->chip_type = INV_MPU6050;
 	st->hw  = &hw_info[st->chip_type];
 	st->reg = hw_info[st->chip_type].reg;
 
@@ -737,7 +762,7 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 }
 
 int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
-		       int (*inv_mpu_bus_setup)(struct iio_dev *))
+		int (*inv_mpu_bus_setup)(struct iio_dev *), int chip_type)
 {
 	struct inv_mpu6050_state *st;
 	struct iio_dev *indio_dev;
@@ -750,6 +775,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
+	st->chip_type = chip_type;
 	st->powerup_count = 0;
 	st->irq = irq;
 	st->map = regmap;

@@ -130,7 +130,8 @@ static int inv_mpu_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
-	result = inv_mpu_core_probe(regmap, client->irq, name, NULL);
+	result = inv_mpu_core_probe(regmap, client->irq, name,
+				    NULL, id->driver_data);
 	if (result < 0)
 		return result;
 
