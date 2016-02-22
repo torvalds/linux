@@ -503,8 +503,7 @@ static ssize_t pch_phub_bin_read(struct file *filp, struct kobject *kobj,
 	int err;
 	ssize_t rom_size;
 
-	struct pch_phub_reg *chip =
-		dev_get_drvdata(container_of(kobj, struct device, kobj));
+	struct pch_phub_reg *chip = dev_get_drvdata(kobj_to_dev(kobj));
 
 	ret = mutex_lock_interruptible(&pch_phub_mutex);
 	if (ret) {
@@ -567,8 +566,7 @@ static ssize_t pch_phub_bin_write(struct file *filp, struct kobject *kobj,
 	unsigned int addr_offset;
 	int ret;
 	ssize_t rom_size;
-	struct pch_phub_reg *chip =
-		dev_get_drvdata(container_of(kobj, struct device, kobj));
+	struct pch_phub_reg *chip = dev_get_drvdata(kobj_to_dev(kobj));
 
 	ret = mutex_lock_interruptible(&pch_phub_mutex);
 	if (ret)

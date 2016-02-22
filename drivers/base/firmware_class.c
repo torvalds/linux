@@ -257,7 +257,7 @@ static void __fw_free_buf(struct kref *ref)
 		vunmap(buf->data);
 		for (i = 0; i < buf->nr_pages; i++)
 			__free_page(buf->pages[i]);
-		kfree(buf->pages);
+		vfree(buf->pages);
 	} else
 #endif
 		vfree(buf->data);
@@ -353,15 +353,15 @@ static int fw_get_filesystem_firmware(struct device *device,
 		rc = fw_read_file_contents(file, buf);
 		fput(file);
 		if (rc)
-			dev_warn(device, "firmware, attempted to load %s, but failed with error %d\n",
-				path, rc);
+			dev_warn(device, "loading %s failed with error %d\n",
+				 path, rc);
 		else
 			break;
 	}
 	__putname(path);
 
 	if (!rc) {
-		dev_dbg(device, "firmware: direct-loading firmware %s\n",
+		dev_dbg(device, "direct-loading %s\n",
 			buf->fw_id);
 		mutex_lock(&fw_lock);
 		set_bit(FW_STATUS_DONE, &buf->status);
@@ -660,7 +660,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 		if (!test_bit(FW_STATUS_DONE, &fw_buf->status)) {
 			for (i = 0; i < fw_buf->nr_pages; i++)
 				__free_page(fw_buf->pages[i]);
-			kfree(fw_buf->pages);
+			vfree(fw_buf->pages);
 			fw_buf->pages = NULL;
 			fw_buf->page_array_size = 0;
 			fw_buf->nr_pages = 0;
@@ -770,8 +770,7 @@ static int fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 					 buf->page_array_size * 2);
 		struct page **new_pages;
 
-		new_pages = kmalloc(new_array_size * sizeof(void *),
-				    GFP_KERNEL);
+		new_pages = vmalloc(new_array_size * sizeof(void *));
 		if (!new_pages) {
 			fw_load_abort(fw_priv);
 			return -ENOMEM;
@@ -780,7 +779,7 @@ static int fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 		       buf->page_array_size * sizeof(void *));
 		memset(&new_pages[buf->page_array_size], 0, sizeof(void *) *
 		       (new_array_size - buf->page_array_size));
-		kfree(buf->pages);
+		vfree(buf->pages);
 		buf->pages = new_pages;
 		buf->page_array_size = new_array_size;
 	}
@@ -1051,7 +1050,7 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 	}
 
 	if (fw_get_builtin_firmware(firmware, name)) {
-		dev_dbg(device, "firmware: using built-in firmware %s\n", name);
+		dev_dbg(device, "using built-in %s\n", name);
 		return 0; /* assigned */
 	}
 

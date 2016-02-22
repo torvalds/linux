@@ -2374,14 +2374,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rpi/linux-rpi.git
 S:	Maintained
 N:	bcm2835
 
-BROADCOM BCM33XX MIPS ARCHITECTURE
-M:	Kevin Cernekee <cernekee@gmail.com>
-L:	linux-mips@linux-mips.org
-S:	Maintained
-F:	arch/mips/bcm3384/*
-F:	arch/mips/include/asm/mach-bcm3384/*
-F:	arch/mips/kernel/*bmips*
-
 BROADCOM BCM47XX MIPS ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 M:	Rafał Miłecki <zajec5@gmail.com>
@@ -5754,6 +5746,7 @@ S:	Supported
 F:	include/uapi/linux/mei.h
 F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
+F:	drivers/watchdog/mei_wdt.c
 F:	Documentation/misc-devices/mei/*
 
 INTEL MIC DRIVERS (mic)
@@ -9799,10 +9792,11 @@ S:	Supported
 F:	drivers/scsi/be2iscsi/
 
 Emulex 10Gbps NIC BE2, BE3-R, Lancer, Skyhawk-R DRIVER
-M:	Sathya Perla <sathya.perla@avagotech.com>
-M:	Ajit Khaparde <ajit.khaparde@avagotech.com>
-M:	Padmanabh Ratnakar <padmanabh.ratnakar@avagotech.com>
-M:	Sriharsha Basavapatna <sriharsha.basavapatna@avagotech.com>
+M:	Sathya Perla <sathya.perla@broadcom.com>
+M:	Ajit Khaparde <ajit.khaparde@broadcom.com>
+M:	Padmanabh Ratnakar <padmanabh.ratnakar@broadcom.com>
+M:	Sriharsha Basavapatna <sriharsha.basavapatna@broadcom.com>
+M:	Somnath Kotur <somnath.kotur@broadcom.com>
 L:	netdev@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported

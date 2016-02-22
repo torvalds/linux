@@ -1,7 +1,7 @@
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2, as
@@ -15,14 +15,21 @@
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  *
- * Intel MIC Host driver.
+ * Intel Virtio Over PCIe (VOP) driver.
  *
  */
-#ifndef MIC_VIRTIO_H
-#define MIC_VIRTIO_H
+#ifndef _VOP_MAIN_H_
+#define _VOP_MAIN_H_
 
+#include <linux/vringh.h>
 #include <linux/virtio_config.h>
-#include <linux/mic_ioctl.h>
+#include <linux/virtio.h>
+#include <linux/miscdevice.h>
+
+#include <linux/mic_common.h>
+#include "../common/mic_dev.h"
+
+#include "../bus/vop_bus.h"
 
 /*
  * Note on endianness.
@@ -39,38 +46,68 @@
  *    in guest endianness.
  */
 
-/**
- * struct mic_vringh - Virtio ring host information.
+/*
+ * vop_info - Allocated per invocation of VOP probe
  *
- * @vring: The MIC vring used for setting up user space mappings.
+ * @vpdev: VOP device
+ * @hotplug_work: Handle virtio device creation, deletion and configuration
+ * @cookie: Cookie received upon requesting a virtio configuration interrupt
+ * @h2c_config_db: The doorbell used by the peer to indicate a config change
+ * @vdev_list: List of "active" virtio devices injected in the peer node
+ * @vop_mutex: Synchronize access to the device page as well as serialize
+ *             creation/deletion of virtio devices on the peer node
+ * @dp: Peer device page information
+ * @dbg: Debugfs entry
+ * @dma_ch: The DMA channel used by this transport for data transfers.
+ * @name: Name for this transport used in misc device creation.
+ * @miscdev: The misc device registered.
+ */
+struct vop_info {
+	struct vop_device *vpdev;
+	struct work_struct hotplug_work;
+	struct mic_irq *cookie;
+	int h2c_config_db;
+	struct list_head vdev_list;
+	struct mutex vop_mutex;
+	void __iomem *dp;
+	struct dentry *dbg;
+	struct dma_chan *dma_ch;
+	char name[16];
+	struct miscdevice miscdev;
+};
+
+/**
+ * struct vop_vringh - Virtio ring host information.
+ *
+ * @vring: The VOP vring used for setting up user space mappings.
  * @vrh: The host VRINGH used for accessing the card vrings.
  * @riov: The VRINGH read kernel IOV.
  * @wiov: The VRINGH write kernel IOV.
+ * @head: The VRINGH head index address passed to vringh_getdesc_kern(..).
  * @vr_mutex: Mutex for synchronizing access to the VRING.
  * @buf: Temporary kernel buffer used to copy in/out data
  * from/to the card via DMA.
  * @buf_da: dma address of buf.
- * @mvdev: Back pointer to MIC virtio device for vringh_notify(..).
- * @head: The VRINGH head index address passed to vringh_getdesc_kern(..).
+ * @vdev: Back pointer to VOP virtio device for vringh_notify(..).
  */
-struct mic_vringh {
+struct vop_vringh {
 	struct mic_vring vring;
 	struct vringh vrh;
 	struct vringh_kiov riov;
 	struct vringh_kiov wiov;
+	u16 head;
 	struct mutex vr_mutex;
 	void *buf;
 	dma_addr_t buf_da;
-	struct mic_vdev *mvdev;
-	u16 head;
+	struct vop_vdev *vdev;
 };
 
 /**
- * struct mic_vdev - Host information for a card Virtio device.
+ * struct vop_vdev - Host information for a card Virtio device.
  *
  * @virtio_id - Virtio device id.
  * @waitq - Waitqueue to allow ring3 apps to poll.
- * @mdev - Back pointer to host MIC device.
+ * @vpdev - pointer to VOP bus device.
  * @poll_wake - Used for waking up threads blocked in poll.
  * @out_bytes - Debug stats for number of bytes copied from host to card.
  * @in_bytes - Debug stats for number of bytes copied from card to host.
@@ -82,18 +119,23 @@ struct mic_vringh {
  * the transfer length did not have the required DMA alignment.
  * @tx_dst_unaligned - Debug stats for number of bytes copied where the
  * destination address on the card did not have the required DMA alignment.
- * @mvr - Store per VRING data structures.
+ * @vvr - Store per VRING data structures.
  * @virtio_bh_work - Work struct used to schedule virtio bottom half handling.
  * @dd - Virtio device descriptor.
  * @dc - Virtio device control fields.
  * @list - List of Virtio devices.
  * @virtio_db - The doorbell used by the card to interrupt the host.
  * @virtio_cookie - The cookie returned while requesting interrupts.
+ * @vi: Transport information.
+ * @vdev_mutex: Mutex synchronizing virtio device injection,
+ *              removal and data transfers.
+ * @destroy: Track if a virtio device is being destroyed.
+ * @deleted: The virtio device has been deleted.
  */
-struct mic_vdev {
+struct vop_vdev {
 	int virtio_id;
 	wait_queue_head_t waitq;
-	struct mic_device *mdev;
+	struct vop_device *vpdev;
 	int poll_wake;
 	unsigned long out_bytes;
 	unsigned long in_bytes;
@@ -101,55 +143,28 @@ struct mic_vdev {
 	unsigned long in_bytes_dma;
 	unsigned long tx_len_unaligned;
 	unsigned long tx_dst_unaligned;
-	struct mic_vringh mvr[MIC_MAX_VRINGS];
+	unsigned long rx_dst_unaligned;
+	struct vop_vringh vvr[MIC_MAX_VRINGS];
 	struct work_struct virtio_bh_work;
 	struct mic_device_desc *dd;
 	struct mic_device_ctrl *dc;
 	struct list_head list;
 	int virtio_db;
 	struct mic_irq *virtio_cookie;
+	struct vop_info *vi;
+	struct mutex vdev_mutex;
+	struct completion destroy;
+	bool deleted;
 };
 
-void mic_virtio_uninit(struct mic_device *mdev);
-int mic_virtio_add_device(struct mic_vdev *mvdev,
-			void __user *argp);
-void mic_virtio_del_device(struct mic_vdev *mvdev);
-int mic_virtio_config_change(struct mic_vdev *mvdev,
-			void __user *argp);
-int mic_virtio_copy_desc(struct mic_vdev *mvdev,
-	struct mic_copy_desc *request);
-void mic_virtio_reset_devices(struct mic_device *mdev);
-void mic_bh_handler(struct work_struct *work);
-
-/* Helper API to obtain the MIC PCIe device */
-static inline struct device *mic_dev(struct mic_vdev *mvdev)
-{
-	return &mvdev->mdev->pdev->dev;
-}
-
-/* Helper API to check if a virtio device is initialized */
-static inline int mic_vdev_inited(struct mic_vdev *mvdev)
-{
-	/* Device has not been created yet */
-	if (!mvdev->dd || !mvdev->dd->type) {
-		dev_err(mic_dev(mvdev), "%s %d err %d\n",
-			__func__, __LINE__, -EINVAL);
-		return -EINVAL;
-	}
-
-	/* Device has been removed/deleted */
-	if (mvdev->dd->type == -1) {
-		dev_err(mic_dev(mvdev), "%s %d err %d\n",
-			__func__, __LINE__, -ENODEV);
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 /* Helper API to check if a virtio device is running */
-static inline bool mic_vdevup(struct mic_vdev *mvdev)
+static inline bool vop_vdevup(struct vop_vdev *vdev)
 {
-	return !!mvdev->dd->status;
+	return !!vdev->dd->status;
 }
+
+void vop_init_debugfs(struct vop_info *vi);
+void vop_exit_debugfs(struct vop_info *vi);
+int vop_host_init(struct vop_info *vi);
+void vop_host_uninit(struct vop_info *vi);
 #endif

@@ -139,7 +139,7 @@ at25_bin_read(struct file *filp, struct kobject *kobj,
 	struct device		*dev;
 	struct at25_data	*at25;
 
-	dev = container_of(kobj, struct device, kobj);
+	dev = kobj_to_dev(kobj);
 	at25 = dev_get_drvdata(dev);
 
 	return at25_ee_read(at25, buf, off, count);
@@ -273,7 +273,7 @@ at25_bin_write(struct file *filp, struct kobject *kobj,
 	struct device		*dev;
 	struct at25_data	*at25;
 
-	dev = container_of(kobj, struct device, kobj);
+	dev = kobj_to_dev(kobj);
 	at25 = dev_get_drvdata(dev);
 
 	return at25_ee_write(at25, buf, off, count);

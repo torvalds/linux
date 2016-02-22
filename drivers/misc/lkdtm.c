@@ -335,7 +335,7 @@ static noinline void corrupt_stack(void)
 	memset((void *)data, 0, 64);
 }
 
-static void execute_location(void *dst)
+static void noinline execute_location(void *dst)
 {
 	void (*func)(void) = dst;
 

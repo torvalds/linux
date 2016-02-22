@@ -632,7 +632,6 @@ long st_register(struct st_proto_s *new_proto)
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return err;
 	}
-	pr_debug("done %s(%d) ", __func__, new_proto->chnl_id);
 }
 EXPORT_SYMBOL_GPL(st_register);
 

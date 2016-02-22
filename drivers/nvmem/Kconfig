@@ -25,6 +25,15 @@ config NVMEM_IMX_OCOTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-imx-ocotp.
 
+config NVMEM_LPC18XX_EEPROM
+	tristate "NXP LPC18XX EEPROM Memory Support"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	help
+	  Say Y here to include support for NXP LPC18xx EEPROM memory found in
+	  NXP LPC185x/3x and LPC435x/3x/2x/1x devices.
+	  To compile this driver as a module, choose M here: the module
+	  will be called nvmem_lpc18xx_eeprom.
+
 config NVMEM_MXS_OCOTP
 	tristate "Freescale MXS On-Chip OTP Memory Support"
 	depends on ARCH_MXS || COMPILE_TEST
@@ -35,6 +44,17 @@ config NVMEM_MXS_OCOTP
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-mxs-ocotp.
+
+config MTK_EFUSE
+	tristate "Mediatek SoCs EFUSE support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This is a driver to access hardware related data like sensor
+	  calibration, HDMI impedance etc.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called efuse-mtk.
 
 config QCOM_QFPROM
 	tristate "QCOM QFPROM Support"

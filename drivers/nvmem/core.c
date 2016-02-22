@@ -70,6 +70,9 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 	if (pos >= nvmem->size)
 		return 0;
 
+	if (count < nvmem->word_size)
+		return -EINVAL;
+
 	if (pos + count > nvmem->size)
 		count = nvmem->size - pos;
 
@@ -94,6 +97,9 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 	/* Stop the user from writing */
 	if (pos >= nvmem->size)
 		return 0;
+
+	if (count < nvmem->word_size)
+		return -EINVAL;
 
 	if (pos + count > nvmem->size)
 		count = nvmem->size - pos;
@@ -288,8 +294,10 @@ static int nvmem_add_cells(struct nvmem_device *nvmem,
 
 	return 0;
 err:
-	while (--i)
+	while (i--)
 		nvmem_cell_drop(cells[i]);
+
+	kfree(cells);
 
 	return rval;
 }
