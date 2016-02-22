@@ -41,7 +41,6 @@ static void nvec_led_brightness_set(struct led_classdev *led_cdev,
 	nvec_write_async(led->nvec, buf, sizeof(buf));
 
 	led->cdev.brightness = value;
-
 }
 
 static int nvec_paz00_probe(struct platform_device *pdev)
