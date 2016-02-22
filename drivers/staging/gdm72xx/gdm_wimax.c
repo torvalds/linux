@@ -661,9 +661,8 @@ static void gdm_wimax_transmit_pkt(struct net_device *dev, char *buf, int len)
 	cmd_len = be16_to_cpup((const __be16 *)&buf[2]);
 
 	if (len < cmd_len + HCI_HEADER_SIZE) {
-		if (len)
-			netdev_err(dev, "%s: invalid length [%d/%d]\n",
-				   __func__, cmd_len + HCI_HEADER_SIZE, len);
+		netdev_err(dev, "%s: invalid length [%d/%d]\n",
+			   __func__, cmd_len + HCI_HEADER_SIZE, len);
 		return;
 	}
 
