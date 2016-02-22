@@ -191,8 +191,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	if (skb->len < rtap_len)
 		return -1;
 
-	/* skip the radiotap header */
-	/* Skip the ratio tap header */
 	skb_pull(skb, rtap_len);
 
 	if (skb->data[0] == 0xc0 && (!(memcmp(broadcast, &skb->data[4], 6)))) {
@@ -226,8 +224,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 		return 0;
 	}
 	skb->dev = mon_priv->real_ndev;
-
-	/* actual deliver of data is device-specific, and not shown here */
 
 	/* Identify if Ethernet or MAC header (data or mgmt) */
 	memcpy(srcAdd, &skb->data[10], 6);
