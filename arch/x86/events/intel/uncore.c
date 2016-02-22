@@ -1023,7 +1023,7 @@ static int __init uncore_pci_init(void)
 		ret = skl_uncore_pci_init();
 		break;
 	default:
-		return 0;
+		return -ENODEV;
 	}
 
 	if (ret)
@@ -1324,7 +1324,7 @@ static int __init uncore_cpu_init(void)
 		knl_uncore_cpu_init();
 		break;
 	default:
-		return 0;
+		return -ENODEV;
 	}
 
 	ret = uncore_types_init(uncore_msr_uncores, true);
@@ -1349,7 +1349,7 @@ static void __init uncore_cpu_setup(void *dummy)
 /* Lazy to avoid allocation of a few bytes for the normal case */
 static __initdata DECLARE_BITMAP(packages, MAX_LOCAL_APIC);
 
-static int __init uncore_cpumask_init(void)
+static int __init uncore_cpumask_init(bool msr)
 {
 	unsigned int cpu;
 
@@ -1360,12 +1360,15 @@ static int __init uncore_cpumask_init(void)
 		if (test_and_set_bit(pkg, packages))
 			continue;
 		/*
-		 * The first online cpu of each package takes the refcounts
-		 * for all other online cpus in that package.
+		 * The first online cpu of each package allocates and takes
+		 * the refcounts for all other online cpus in that package.
+		 * If msrs are not enabled no allocation is required.
 		 */
-		ret = uncore_cpu_prepare(cpu);
-		if (ret)
-			return ret;
+		if (msr) {
+			ret = uncore_cpu_prepare(cpu);
+			if (ret)
+				return ret;
+		}
 		uncore_event_init_cpu(cpu);
 		smp_call_function_single(cpu, uncore_cpu_setup, NULL, 1);
 	}
@@ -1375,7 +1378,7 @@ static int __init uncore_cpumask_init(void)
 
 static int __init intel_uncore_init(void)
 {
-	int ret;
+	int pret, cret, ret;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return -ENODEV;
@@ -1385,15 +1388,14 @@ static int __init intel_uncore_init(void)
 
 	max_packages = topology_max_packages();
 
-	ret = uncore_pci_init();
-	if (ret)
-		return ret;
-	ret = uncore_cpu_init();
-	if (ret)
-		goto err;
+	pret = uncore_pci_init();
+	cret = uncore_cpu_init();
+
+	if (cret && pret)
+		return -ENODEV;
 
 	cpu_notifier_register_begin();
-	ret = uncore_cpumask_init();
+	ret = uncore_cpumask_init(!cret);
 	if (ret)
 		goto err;
 	cpu_notifier_register_done();
