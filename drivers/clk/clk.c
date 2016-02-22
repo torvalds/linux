@@ -2157,7 +2157,7 @@ unlock:
  *
  * Dynamically removes a clk and all its child nodes from the
  * debugfs clk directory if clk->dentry points to debugfs created by
- * clk_debug_register in __clk_init.
+ * clk_debug_register in __clk_core_init.
  */
 static void clk_debug_unregister(struct clk_core *core)
 {
@@ -2309,8 +2309,8 @@ static int __clk_core_init(struct clk_core *core)
 	core->parent = __clk_init_parent(core);
 
 	/*
-	 * Populate core->parent if parent has already been __clk_init'd.  If
-	 * parent has not yet been __clk_init'd then place clk in the orphan
+	 * Populate core->parent if parent has already been clk_core_init'd. If
+	 * parent has not yet been clk_core_init'd then place clk in the orphan
 	 * list.  If clk doesn't have any parents then place it in the root
 	 * clk list.
 	 *
