@@ -210,30 +210,30 @@ static inline char *get_hpte_slot_array(pmd_t *pmdp)
 /*
  * The linux hugepage PMD now include the pmd entries followed by the address
  * to the stashed pgtable_t. The stashed pgtable_t contains the hpte bits.
- * [ 1 bit secondary | 3 bit hidx | 1 bit valid | 000]. We use one byte per
+ * [ 000 | 1 bit secondary | 3 bit hidx | 1 bit valid]. We use one byte per
  * each HPTE entry. With 16MB hugepage and 64K HPTE we need 256 entries and
  * with 4K HPTE we need 4096 entries. Both will fit in a 4K pgtable_t.
  *
- * The last three bits are intentionally left to zero. This memory location
+ * The top three bits are intentionally left as zero. This memory location
  * are also used as normal page PTE pointers. So if we have any pointers
  * left around while we collapse a hugepage, we need to make sure
  * _PAGE_PRESENT bit of that is zero when we look at them
  */
 static inline unsigned int hpte_valid(unsigned char *hpte_slot_array, int index)
 {
-	return (hpte_slot_array[index] >> 3) & 0x1;
+	return hpte_slot_array[index] & 0x1;
 }
 
 static inline unsigned int hpte_hash_index(unsigned char *hpte_slot_array,
 					   int index)
 {
-	return hpte_slot_array[index] >> 4;
+	return hpte_slot_array[index] >> 1;
 }
 
 static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
 					unsigned int index, unsigned int hidx)
 {
-	hpte_slot_array[index] = hidx << 4 | 0x1 << 3;
+	hpte_slot_array[index] = (hidx << 1) | 0x1;
 }
 
 /*

@@ -14,7 +14,6 @@
  * combinations that newer processors provide but we currently don't.
  */
 #define _PAGE_PTE		0x00001	/* distinguishes PTEs from pointers */
-#define _PAGE_PRESENT		0x00002 /* software: pte contains a translation */
 #define _PAGE_BIT_SWAP_TYPE	2
 #define _PAGE_USER		0x00004 /* page may be accessed by userspace */
 #define _PAGE_EXEC		0x00008 /* execute permission */
@@ -38,6 +37,8 @@
 #else
 #define _PAGE_SOFT_DIRTY	0x00000
 #endif
+
+#define _PAGE_PRESENT		(1ul << 63)	/* pte contains a translation */
 
 /*
  * We need to differentiate between explicit huge page and THP huge
@@ -402,7 +403,7 @@ static inline int pte_protnone(pte_t pte)
 
 static inline int pte_present(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_PRESENT;
+	return !!(pte_val(pte) & _PAGE_PRESENT);
 }
 
 /* Conversion functions: convert a page and protection to a page entry,
