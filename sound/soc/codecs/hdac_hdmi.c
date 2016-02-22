@@ -1486,6 +1486,7 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 	struct hdac_ext_device *edev = to_hda_ext_device(dev);
 	struct hdac_device *hdac = &edev->hdac;
 	struct hdac_bus *bus = hdac->bus;
+	unsigned long timeout;
 	int err;
 
 	dev_dbg(dev, "Enter: %s\n", __func__);
@@ -1495,9 +1496,18 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 		return 0;
 
 	/* Power down afg */
-	if (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D3))
+	if (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D3)) {
 		snd_hdac_codec_write(hdac, hdac->afg, 0,
 			AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
+
+		/* Wait till power state is set to D3 */
+		timeout = jiffies + msecs_to_jiffies(1000);
+		while (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D3)
+				&& time_before(jiffies, timeout)) {
+
+			msleep(50);
+		}
+	}
 
 	err = snd_hdac_display_power(bus, false);
 	if (err < 0) {
