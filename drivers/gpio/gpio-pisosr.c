@@ -125,15 +125,12 @@ static int pisosr_gpio_probe(struct spi_device *spi)
 	if (!gpio->buffer)
 		return -ENOMEM;
 
-	gpio->load_gpio = devm_gpiod_get(dev, "load", GPIOD_OUT_LOW);
+	gpio->load_gpio = devm_gpiod_get_optional(dev, "load", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio->load_gpio)) {
 		ret = PTR_ERR(gpio->load_gpio);
-		if (ret != -ENOENT && ret != -ENOSYS) {
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "Unable to allocate load GPIO\n");
-			return ret;
-		}
-		gpio->load_gpio = NULL;
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Unable to allocate load GPIO\n");
+		return ret;
 	}
 
 	mutex_init(&gpio->lock);
