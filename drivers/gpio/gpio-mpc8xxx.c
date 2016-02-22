@@ -334,6 +334,7 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 
 	mpc8xxx_gc->read_reg = gc->read_reg;
 	mpc8xxx_gc->write_reg = gc->write_reg;
+	mpc8xxx_gc->direction_output = gc->direction_output;
 
 	if (!devtype)
 		devtype = &mpc8xxx_gpio_devtype_default;
@@ -347,8 +348,6 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	gc->direction_output = devtype->gpio_dir_out ?: gc->direction_output;
 	gc->get = devtype->gpio_get ?: gc->get;
 	gc->to_irq = mpc8xxx_gpio_to_irq;
-
-	mpc8xxx_gc->direction_output = gc->direction_output;
 
 	ret = gpiochip_add_data(gc, mpc8xxx_gc);
 	if (ret) {
