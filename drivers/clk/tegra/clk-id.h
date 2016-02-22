@@ -11,6 +11,7 @@ enum clk_id {
 	tegra_clk_afi,
 	tegra_clk_amx,
 	tegra_clk_amx1,
+	tegra_clk_apb2ape,
 	tegra_clk_apbdma,
 	tegra_clk_apbif,
 	tegra_clk_ape,
