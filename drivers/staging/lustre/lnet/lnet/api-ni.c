@@ -1785,6 +1785,16 @@ lnet_dyn_add_ni(lnet_pid_t requested_pid, char *nets,
 	if (rc)
 		goto failed1;
 
+	if (ni->ni_lnd->lnd_accept) {
+		rc = lnet_acceptor_start();
+		if (rc < 0) {
+			/* shutdown the ni that we just started */
+			CERROR("Failed to start up acceptor thread\n");
+			lnet_shutdown_lndni(ni);
+			goto failed1;
+		}
+	}
+
 	lnet_ping_target_update(pinfo, md_handle);
 	mutex_unlock(&the_lnet.ln_api_mutex);
 
@@ -1832,6 +1842,10 @@ lnet_dyn_del_ni(__u32 net)
 	lnet_ni_decref_locked(ni, 0);
 
 	lnet_shutdown_lndni(ni);
+
+	if (!lnet_count_acceptor_nis())
+		lnet_acceptor_stop();
+
 	lnet_ping_target_update(pinfo, md_handle);
 	goto out;
 failed:

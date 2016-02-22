@@ -46,7 +46,9 @@ static struct {
 	int			pta_shutdown;
 	struct socket		*pta_sock;
 	struct completion	pta_signal;
-} lnet_acceptor_state;
+} lnet_acceptor_state = {
+	.pta_shutdown = 1
+};
 
 int
 lnet_acceptor_port(void)
@@ -444,6 +446,10 @@ lnet_acceptor_start(void)
 	long rc2;
 	long secure;
 
+	/* if acceptor is already running return immediately */
+	if (!lnet_acceptor_state.pta_shutdown)
+		return 0;
+
 	LASSERT(!lnet_acceptor_state.pta_sock);
 
 	rc = lnet_acceptor_get_tunables();
@@ -484,7 +490,7 @@ lnet_acceptor_start(void)
 void
 lnet_acceptor_stop(void)
 {
-	if (!lnet_acceptor_state.pta_sock) /* not running */
+	if (lnet_acceptor_state.pta_shutdown) /* not running */
 		return;
 
 	lnet_acceptor_state.pta_shutdown = 1;
