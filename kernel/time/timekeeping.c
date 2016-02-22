@@ -888,6 +888,8 @@ void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot)
 	s64 nsec_real;
 	cycle_t now;
 
+	WARN_ON_ONCE(timekeeping_suspended);
+
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
 
@@ -904,44 +906,6 @@ void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot)
 	systime_snapshot->raw = ktime_add_ns(base_raw, nsec_raw);
 }
 EXPORT_SYMBOL_GPL(ktime_get_snapshot);
-
-#ifdef CONFIG_NTP_PPS
-
-/**
- * ktime_get_raw_and_real_ts64 - get day and raw monotonic time in timespec format
- * @ts_raw:	pointer to the timespec to be set to raw monotonic time
- * @ts_real:	pointer to the timespec to be set to the time of day
- *
- * This function reads both the time of day and raw monotonic time at the
- * same time atomically and stores the resulting timestamps in timespec
- * format.
- */
-void ktime_get_raw_and_real_ts64(struct timespec64 *ts_raw, struct timespec64 *ts_real)
-{
-	struct timekeeper *tk = &tk_core.timekeeper;
-	unsigned long seq;
-	s64 nsecs_raw, nsecs_real;
-
-	WARN_ON_ONCE(timekeeping_suspended);
-
-	do {
-		seq = read_seqcount_begin(&tk_core.seq);
-
-		*ts_raw = tk->raw_time;
-		ts_real->tv_sec = tk->xtime_sec;
-		ts_real->tv_nsec = 0;
-
-		nsecs_raw  = timekeeping_get_ns(&tk->tkr_raw);
-		nsecs_real = timekeeping_get_ns(&tk->tkr_mono);
-
-	} while (read_seqcount_retry(&tk_core.seq, seq));
-
-	timespec64_add_ns(ts_raw, nsecs_raw);
-	timespec64_add_ns(ts_real, nsecs_real);
-}
-EXPORT_SYMBOL(ktime_get_raw_and_real_ts64);
-
-#endif /* CONFIG_NTP_PPS */
 
 /**
  * do_gettimeofday - Returns the time of day in a timeval
