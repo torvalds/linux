@@ -252,10 +252,10 @@ static long __media_device_get_topology(struct media_device *mdev,
 	struct media_interface *intf;
 	struct media_pad *pad;
 	struct media_link *link;
-	struct media_v2_entity kentity, *uentity;
-	struct media_v2_interface kintf, *uintf;
-	struct media_v2_pad kpad, *upad;
-	struct media_v2_link klink, *ulink;
+	struct media_v2_entity kentity, __user *uentity;
+	struct media_v2_interface kintf, __user *uintf;
+	struct media_v2_pad kpad, __user *upad;
+	struct media_v2_link klink, __user *ulink;
 	unsigned int i;
 	int ret = 0;
 
