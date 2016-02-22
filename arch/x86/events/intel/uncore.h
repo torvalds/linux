@@ -73,13 +73,14 @@ struct intel_uncore_ops {
 };
 
 struct intel_uncore_pmu {
-	struct pmu pmu;
-	char name[UNCORE_PMU_NAME_LEN];
-	int pmu_idx;
-	int func_id;
-	struct intel_uncore_type *type;
-	struct intel_uncore_box ** __percpu box;
-	struct list_head box_list;
+	struct pmu			pmu;
+	char				name[UNCORE_PMU_NAME_LEN];
+	int				pmu_idx;
+	int				func_id;
+	bool				registered;
+	struct intel_uncore_type	*type;
+	struct intel_uncore_box		** __percpu box;
+	struct list_head		box_list;
 };
 
 struct intel_uncore_extra_reg {
