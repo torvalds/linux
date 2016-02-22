@@ -53,13 +53,21 @@ lnet_configure(void *arg)
 	mutex_lock(&lnet_config_mutex);
 
 	if (!the_lnet.ln_niinit_self) {
+		rc = try_module_get(THIS_MODULE);
+
+		if (rc != 1)
+			goto out;
+
 		rc = LNetNIInit(LNET_PID_LUSTRE);
 		if (rc >= 0) {
 			the_lnet.ln_niinit_self = 1;
 			rc = 0;
+		} else {
+			module_put(THIS_MODULE);
 		}
 	}
 
+out:
 	mutex_unlock(&lnet_config_mutex);
 	return rc;
 }
@@ -74,6 +82,7 @@ lnet_unconfigure(void)
 	if (the_lnet.ln_niinit_self) {
 		the_lnet.ln_niinit_self = 0;
 		LNetNIFini();
+		module_put(THIS_MODULE);
 	}
 
 	mutex_lock(&the_lnet.ln_api_mutex);
