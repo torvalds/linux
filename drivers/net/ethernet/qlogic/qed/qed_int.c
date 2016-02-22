@@ -399,7 +399,7 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 	dma_addr_t p_phys = 0;
 
 	/* SB struct */
-	p_sb = kmalloc(sizeof(*p_sb), GFP_ATOMIC);
+	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
 	if (!p_sb) {
 		DP_NOTICE(cdev, "Failed to allocate `struct qed_sb_attn_info'\n");
 		return -ENOMEM;
@@ -473,20 +473,20 @@ void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 			 u8 vf_valid)
 {
 	struct cau_sb_entry sb_entry;
-	u32 val;
 
 	qed_init_cau_sb_entry(p_hwfn, &sb_entry, p_hwfn->rel_pf_id,
 			      vf_number, vf_valid);
 
 	if (p_hwfn->hw_init_done) {
-		val = CAU_REG_SB_ADDR_MEMORY + igu_sb_id * sizeof(u64);
-		qed_wr(p_hwfn, p_ptt, val, lower_32_bits(sb_phys));
-		qed_wr(p_hwfn, p_ptt, val + sizeof(u32),
-		       upper_32_bits(sb_phys));
+		/* Wide-bus, initialize via DMAE */
+		u64 phys_addr = (u64)sb_phys;
 
-		val = CAU_REG_SB_VAR_MEMORY + igu_sb_id * sizeof(u64);
-		qed_wr(p_hwfn, p_ptt, val, sb_entry.data);
-		qed_wr(p_hwfn, p_ptt, val + sizeof(u32), sb_entry.params);
+		qed_dmae_host2grc(p_hwfn, p_ptt, (u64)(uintptr_t)&phys_addr,
+				  CAU_REG_SB_ADDR_MEMORY +
+				  igu_sb_id * sizeof(u64), 2, 0);
+		qed_dmae_host2grc(p_hwfn, p_ptt, (u64)(uintptr_t)&sb_entry,
+				  CAU_REG_SB_VAR_MEMORY +
+				  igu_sb_id * sizeof(u64), 2, 0);
 	} else {
 		/* Initialize Status Block Address */
 		STORE_RT_REG_AGG(p_hwfn,
@@ -666,7 +666,7 @@ static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn,
 	void *p_virt;
 
 	/* SB struct */
-	p_sb = kmalloc(sizeof(*p_sb), GFP_ATOMIC);
+	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
 	if (!p_sb) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_sb_info'\n");
 		return -ENOMEM;
@@ -946,7 +946,7 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 	u16 sb_id;
 	u16 prev_sb_id = 0xFF;
 
-	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_ATOMIC);
+	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_KERNEL);
 
 	if (!p_hwfn->hw_info.p_igu_info)
 		return -ENOMEM;
@@ -1072,7 +1072,7 @@ static void qed_int_sp_dpc_setup(struct qed_hwfn *p_hwfn)
 
 static int qed_int_sp_dpc_alloc(struct qed_hwfn *p_hwfn)
 {
-	p_hwfn->sp_dpc = kmalloc(sizeof(*p_hwfn->sp_dpc), GFP_ATOMIC);
+	p_hwfn->sp_dpc = kmalloc(sizeof(*p_hwfn->sp_dpc), GFP_KERNEL);
 	if (!p_hwfn->sp_dpc)
 		return -ENOMEM;
 

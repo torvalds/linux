@@ -311,19 +311,20 @@ void qed_consq_free(struct qed_hwfn *p_hwfn,
 #define QED_SP_EQ_COMPLETION  0x01
 #define QED_SP_CQE_COMPLETION 0x02
 
-struct qed_sp_init_request_params {
-	size_t			ramrod_data_size;
+struct qed_sp_init_data {
+	u32			cid;
+	u16			opaque_fid;
+
+	/* Information regarding operation upon sending & completion */
 	enum spq_mode		comp_mode;
 	struct qed_spq_comp_cb *p_comp_data;
 };
 
 int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 			struct qed_spq_entry **pp_ent,
-			u32 cid,
-			u16 opaque_fid,
 			u8 cmd,
 			u8 protocol,
-			struct qed_sp_init_request_params *p_params);
+			struct qed_sp_init_data *p_data);
 
 /**
  * @brief qed_sp_pf_start - PF Function Start Ramrod
