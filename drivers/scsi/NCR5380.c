@@ -2450,7 +2450,16 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	 * commands!
 	 */
 
-	hostdata->selecting = NULL;
+	if (list_del_cmd(&hostdata->unissued, cmd)) {
+		cmd->result = DID_RESET << 16;
+		cmd->scsi_done(cmd);
+	}
+
+	if (hostdata->selecting) {
+		hostdata->selecting->result = DID_RESET << 16;
+		complete_cmd(instance, hostdata->selecting);
+		hostdata->selecting = NULL;
+	}
 
 	list_for_each_entry(ncmd, &hostdata->disconnected, list) {
 		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
@@ -2458,6 +2467,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 		set_host_byte(cmd, DID_RESET);
 		cmd->scsi_done(cmd);
 	}
+	INIT_LIST_HEAD(&hostdata->disconnected);
 
 	list_for_each_entry(ncmd, &hostdata->autosense, list) {
 		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
@@ -2465,17 +2475,12 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 		set_host_byte(cmd, DID_RESET);
 		cmd->scsi_done(cmd);
 	}
+	INIT_LIST_HEAD(&hostdata->autosense);
 
 	if (hostdata->connected) {
 		set_host_byte(hostdata->connected, DID_RESET);
 		complete_cmd(instance, hostdata->connected);
 		hostdata->connected = NULL;
-	}
-
-	if (hostdata->sensing) {
-		set_host_byte(hostdata->connected, DID_RESET);
-		complete_cmd(instance, hostdata->sensing);
-		hostdata->sensing = NULL;
 	}
 
 	for (i = 0; i < 8; ++i)
