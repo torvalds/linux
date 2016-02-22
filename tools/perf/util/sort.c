@@ -286,35 +286,34 @@ struct sort_entry sort_sym = {
 
 /* --sort srcline */
 
+static char *hist_entry__get_srcline(struct hist_entry *he)
+{
+	struct map *map = he->ms.map;
+
+	if (!map)
+		return SRCLINE_UNKNOWN;
+
+	return get_srcline(map->dso, map__rip_2objdump(map, he->ip),
+			   he->ms.sym, true);
+}
+
 static int64_t
 sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	if (!left->srcline) {
-		if (!left->ms.map)
-			left->srcline = SRCLINE_UNKNOWN;
-		else {
-			struct map *map = left->ms.map;
-			left->srcline = get_srcline(map->dso,
-					   map__rip_2objdump(map, left->ip),
-						    left->ms.sym, true);
-		}
-	}
-	if (!right->srcline) {
-		if (!right->ms.map)
-			right->srcline = SRCLINE_UNKNOWN;
-		else {
-			struct map *map = right->ms.map;
-			right->srcline = get_srcline(map->dso,
-					     map__rip_2objdump(map, right->ip),
-						     right->ms.sym, true);
-		}
-	}
+	if (!left->srcline)
+		left->srcline = hist_entry__get_srcline(left);
+	if (!right->srcline)
+		right->srcline = hist_entry__get_srcline(right);
+
 	return strcmp(right->srcline, left->srcline);
 }
 
 static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
 					size_t size, unsigned int width)
 {
+	if (!he->srcline)
+		he->srcline = hist_entry__get_srcline(he);
+
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcline);
 }
 
@@ -329,10 +328,13 @@ struct sort_entry sort_srcline = {
 
 static char no_srcfile[1];
 
-static char *get_srcfile(struct hist_entry *e)
+static char *hist_entry__get_srcfile(struct hist_entry *e)
 {
 	char *sf, *p;
 	struct map *map = e->ms.map;
+
+	if (!map)
+		return no_srcfile;
 
 	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
 			 e->ms.sym, false, true);
@@ -350,24 +352,20 @@ static char *get_srcfile(struct hist_entry *e)
 static int64_t
 sort__srcfile_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	if (!left->srcfile) {
-		if (!left->ms.map)
-			left->srcfile = no_srcfile;
-		else
-			left->srcfile = get_srcfile(left);
-	}
-	if (!right->srcfile) {
-		if (!right->ms.map)
-			right->srcfile = no_srcfile;
-		else
-			right->srcfile = get_srcfile(right);
-	}
+	if (!left->srcfile)
+		left->srcfile = hist_entry__get_srcfile(left);
+	if (!right->srcfile)
+		right->srcfile = hist_entry__get_srcfile(right);
+
 	return strcmp(right->srcfile, left->srcfile);
 }
 
 static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
 					size_t size, unsigned int width)
 {
+	if (!he->srcfile)
+		he->srcfile = hist_entry__get_srcfile(he);
+
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcfile);
 }
 
