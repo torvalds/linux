@@ -33,6 +33,11 @@ enum bpf_loader_errno {
 	BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE,	/* Incorrect map type */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_KEYSIZE,	/* Incorrect map key size */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_VALUESIZE,/* Incorrect map value size */
+	BPF_LOADER_ERRNO__OBJCONF_MAP_NOEVT,	/* Event not found for map setting */
+	BPF_LOADER_ERRNO__OBJCONF_MAP_MAPSIZE,	/* Invalid map size for event setting */
+	BPF_LOADER_ERRNO__OBJCONF_MAP_EVTDIM,	/* Event dimension too large */
+	BPF_LOADER_ERRNO__OBJCONF_MAP_EVTINH,	/* Doesn't support inherit event */
+	BPF_LOADER_ERRNO__OBJCONF_MAP_EVTTYPE,	/* Wrong event type for map */
 	__BPF_LOADER_ERRNO__END,
 };
 

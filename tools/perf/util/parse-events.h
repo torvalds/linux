@@ -99,6 +99,7 @@ struct parse_events_evlist {
 	int			   idx;
 	int			   nr_groups;
 	struct parse_events_error *error;
+	struct perf_evlist	  *evlist;
 };
 
 struct parse_events_terms {

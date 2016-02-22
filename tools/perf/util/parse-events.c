@@ -697,14 +697,16 @@ parse_events_config_bpf(struct parse_events_evlist *data,
 			return -EINVAL;
 		}
 
-		err = bpf__config_obj(obj, term, NULL, &error_pos);
+		err = bpf__config_obj(obj, term, data->evlist, &error_pos);
 		if (err) {
-			bpf__strerror_config_obj(obj, term, NULL,
+			bpf__strerror_config_obj(obj, term, data->evlist,
 						 &error_pos, err, errbuf,
 						 sizeof(errbuf));
 			data->error->help = strdup(
-"Hint:\tValid config term:\n"
+"Hint:\tValid config terms:\n"
 "     \tmap:[<arraymap>].value=[value]\n"
+"     \tmap:[<eventmap>].event=[event]\n"
+"\n"
 "     \t(add -v to see detail)");
 			data->error->str = strdup(errbuf);
 			if (err == -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE)
@@ -1530,9 +1532,10 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 		 struct parse_events_error *err)
 {
 	struct parse_events_evlist data = {
-		.list  = LIST_HEAD_INIT(data.list),
-		.idx   = evlist->nr_entries,
-		.error = err,
+		.list   = LIST_HEAD_INIT(data.list),
+		.idx    = evlist->nr_entries,
+		.error  = err,
+		.evlist = evlist,
 	};
 	int ret;
 

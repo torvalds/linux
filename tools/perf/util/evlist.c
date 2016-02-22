@@ -1741,3 +1741,19 @@ void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 
 	tracking_evsel->tracking = true;
 }
+
+struct perf_evsel *
+perf_evlist__find_evsel_by_str(struct perf_evlist *evlist,
+			       const char *str)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel) {
+		if (!evsel->name)
+			continue;
+		if (strcmp(str, evsel->name) == 0)
+			return evsel;
+	}
+
+	return NULL;
+}
