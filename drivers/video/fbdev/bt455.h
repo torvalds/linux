@@ -2,6 +2,7 @@
  *	linux/drivers/video/bt455.h
  *
  *	Copyright 2003  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+ *	Copyright 2016  Maciej W. Rozycki <macro@linux-mips.org>
  *
  *	This file is subject to the terms and conditions of the GNU General
  *	Public License. See the file COPYING in the main directory of this
@@ -32,38 +33,38 @@ static inline void bt455_select_reg(struct bt455_regs *regs, int ir)
 /*
  * Read/write to a Bt455 color map register.
  */
-static inline void bt455_read_cmap_entry(struct bt455_regs *regs, int cr,
-					 u8* red, u8* green, u8* blue)
+static inline void bt455_read_cmap_entry(struct bt455_regs *regs,
+					 int cr, u8 *grey)
 {
 	bt455_select_reg(regs, cr);
 	mb();
-	*red = regs->addr_cmap_data & 0x0f;
+	regs->addr_cmap_data;
 	rmb();
-	*green = regs->addr_cmap_data & 0x0f;
+	*grey = regs->addr_cmap_data & 0xf;
 	rmb();
-	*blue = regs->addr_cmap_data & 0x0f;
+	regs->addr_cmap_data;
 }
 
-static inline void bt455_write_cmap_entry(struct bt455_regs *regs, int cr,
-					  u8 red, u8 green, u8 blue)
+static inline void bt455_write_cmap_entry(struct bt455_regs *regs,
+					  int cr, u8 grey)
 {
 	bt455_select_reg(regs, cr);
 	wmb();
-	regs->addr_cmap_data = red & 0x0f;
+	regs->addr_cmap_data = 0x0;
 	wmb();
-	regs->addr_cmap_data = green & 0x0f;
+	regs->addr_cmap_data = grey & 0xf;
 	wmb();
-	regs->addr_cmap_data = blue & 0x0f;
+	regs->addr_cmap_data = 0x0;
 }
 
-static inline void bt455_write_ovly_entry(struct bt455_regs *regs, int cr,
-					  u8 red, u8 green, u8 blue)
+static inline void bt455_write_ovly_entry(struct bt455_regs *regs,
+					  int cr, u8 grey)
 {
 	bt455_select_reg(regs, cr);
 	wmb();
-	regs->addr_ovly = red & 0x0f;
+	regs->addr_ovly = 0x0;
 	wmb();
-	regs->addr_ovly = green & 0x0f;
+	regs->addr_ovly = grey & 0xf;
 	wmb();
-	regs->addr_ovly = blue & 0x0f;
+	regs->addr_ovly = 0x0;
 }

@@ -121,9 +121,9 @@ static int aafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		u8 fg = cursor->image.fg_color ? 0xf : 0x0;
 		u8 bg = cursor->image.bg_color ? 0xf : 0x0;
 
-		bt455_write_cmap_entry(par->bt455, 8, 0, bg, 0);
-		bt455_write_cmap_entry(par->bt455, 9, 0, bg, 0);
-		bt455_write_ovly_entry(par->bt455, 0, 0, fg, 0);
+		bt455_write_cmap_entry(par->bt455, 8, bg);
+		bt455_write_cmap_entry(par->bt455, 9, bg);
+		bt455_write_ovly_entry(par->bt455, 0, fg);
 	}
 	if (cursor->set & (FB_CUR_SETSIZE | FB_CUR_SETSHAPE | FB_CUR_SETIMAGE))
 		bt431_set_cursor(par->bt431,
@@ -143,7 +143,7 @@ static int aafb_blank(int blank, struct fb_info *info)
 	struct aafb_par *par = info->par;
 	u8 val = blank ? 0x00 : 0x0f;
 
-	bt455_write_cmap_entry(par->bt455, 1, val, val, val);
+	bt455_write_cmap_entry(par->bt455, 1, val);
 	return 0;
 }
 
@@ -211,8 +211,8 @@ static int pmagaafb_probe(struct device *dev)
 	info->screen_size = info->fix.smem_len;
 
 	/* Init colormap. */
-	bt455_write_cmap_entry(par->bt455, 0, 0x00, 0x00, 0x00);
-	bt455_write_cmap_entry(par->bt455, 1, 0x0f, 0x0f, 0x0f);
+	bt455_write_cmap_entry(par->bt455, 0, 0x0);
+	bt455_write_cmap_entry(par->bt455, 1, 0xf);
 
 	/* Init hardware cursor. */
 	bt431_erase_cursor(par->bt431);
