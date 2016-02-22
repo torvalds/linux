@@ -30,13 +30,17 @@ static inline void bt455_select_reg(struct bt455_regs *regs, int ir)
 	regs->addr_cmap = ir & 0x0f;
 }
 
+static inline void bt455_reset_reg(struct bt455_regs *regs)
+{
+	mb();
+	regs->addr_clr = 0;
+}
+
 /*
  * Read/write to a Bt455 color map register.
  */
-static inline void bt455_read_cmap_entry(struct bt455_regs *regs,
-					 int cr, u8 *grey)
+static inline void bt455_read_cmap_next(struct bt455_regs *regs, u8 *grey)
 {
-	bt455_select_reg(regs, cr);
 	mb();
 	regs->addr_cmap_data;
 	rmb();
@@ -45,10 +49,8 @@ static inline void bt455_read_cmap_entry(struct bt455_regs *regs,
 	regs->addr_cmap_data;
 }
 
-static inline void bt455_write_cmap_entry(struct bt455_regs *regs,
-					  int cr, u8 grey)
+static inline void bt455_write_cmap_next(struct bt455_regs *regs, u8 grey)
 {
-	bt455_select_reg(regs, cr);
 	wmb();
 	regs->addr_cmap_data = 0x0;
 	wmb();
@@ -57,14 +59,32 @@ static inline void bt455_write_cmap_entry(struct bt455_regs *regs,
 	regs->addr_cmap_data = 0x0;
 }
 
-static inline void bt455_write_ovly_entry(struct bt455_regs *regs,
-					  int cr, u8 grey)
+static inline void bt455_write_ovly_next(struct bt455_regs *regs, u8 grey)
 {
-	bt455_select_reg(regs, cr);
 	wmb();
 	regs->addr_ovly = 0x0;
 	wmb();
 	regs->addr_ovly = grey & 0xf;
 	wmb();
 	regs->addr_ovly = 0x0;
+}
+
+static inline void bt455_read_cmap_entry(struct bt455_regs *regs,
+					 int cr, u8 *grey)
+{
+	bt455_select_reg(regs, cr);
+	bt455_read_cmap_next(regs, grey);
+}
+
+static inline void bt455_write_cmap_entry(struct bt455_regs *regs,
+					  int cr, u8 grey)
+{
+	bt455_select_reg(regs, cr);
+	bt455_write_cmap_next(regs, grey);
+}
+
+static inline void bt455_write_ovly_entry(struct bt455_regs *regs, u8 grey)
+{
+	bt455_reset_reg(regs);
+	bt455_write_ovly_next(regs, grey);
 }

@@ -122,8 +122,8 @@ static int aafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		u8 bg = cursor->image.bg_color ? 0xf : 0x0;
 
 		bt455_write_cmap_entry(par->bt455, 8, bg);
-		bt455_write_cmap_entry(par->bt455, 9, bg);
-		bt455_write_ovly_entry(par->bt455, 0, fg);
+		bt455_write_cmap_next(par->bt455, bg);
+		bt455_write_ovly_next(par->bt455, fg);
 	}
 	if (cursor->set & (FB_CUR_SETSIZE | FB_CUR_SETSHAPE | FB_CUR_SETIMAGE))
 		bt431_set_cursor(par->bt431,
@@ -212,7 +212,7 @@ static int pmagaafb_probe(struct device *dev)
 
 	/* Init colormap. */
 	bt455_write_cmap_entry(par->bt455, 0, 0x0);
-	bt455_write_cmap_entry(par->bt455, 1, 0xf);
+	bt455_write_cmap_next(par->bt455, 0xf);
 
 	/* Init hardware cursor. */
 	bt431_erase_cursor(par->bt431);
