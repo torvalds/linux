@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,8 +31,10 @@
  */
 
 #include <linux/mlx5/fs.h>
+#include <net/vxlan.h>
 #include "en.h"
 #include "eswitch.h"
+#include "vxlan.h"
 
 struct mlx5e_rq_param {
 	u32                        rqc[MLX5_ST_SZ_DW(rqc)];
@@ -2078,6 +2080,78 @@ static int mlx5e_get_vf_stats(struct net_device *dev,
 					    vf_stats);
 }
 
+static void mlx5e_add_vxlan_port(struct net_device *netdev,
+				 sa_family_t sa_family, __be16 port)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	if (!mlx5e_vxlan_allowed(priv->mdev))
+		return;
+
+	mlx5e_vxlan_add_port(priv, be16_to_cpu(port));
+}
+
+static void mlx5e_del_vxlan_port(struct net_device *netdev,
+				 sa_family_t sa_family, __be16 port)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	if (!mlx5e_vxlan_allowed(priv->mdev))
+		return;
+
+	mlx5e_vxlan_del_port(priv, be16_to_cpu(port));
+}
+
+static netdev_features_t mlx5e_vxlan_features_check(struct mlx5e_priv *priv,
+						    struct sk_buff *skb,
+						    netdev_features_t features)
+{
+	struct udphdr *udph;
+	u16 proto;
+	u16 port = 0;
+
+	switch (vlan_get_protocol(skb)) {
+	case htons(ETH_P_IP):
+		proto = ip_hdr(skb)->protocol;
+		break;
+	case htons(ETH_P_IPV6):
+		proto = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		goto out;
+	}
+
+	if (proto == IPPROTO_UDP) {
+		udph = udp_hdr(skb);
+		port = be16_to_cpu(udph->dest);
+	}
+
+	/* Verify if UDP port is being offloaded by HW */
+	if (port && mlx5e_vxlan_lookup_port(priv, port))
+		return features;
+
+out:
+	/* Disable CSUM and GSO if the udp dport is not offloaded by HW */
+	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+}
+
+static netdev_features_t mlx5e_features_check(struct sk_buff *skb,
+					      struct net_device *netdev,
+					      netdev_features_t features)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	features = vlan_features_check(skb, features);
+	features = vxlan_features_check(skb, features);
+
+	/* Validate if the tunneled packet is being offloaded by HW */
+	if (skb->encapsulation &&
+	    (features & NETIF_F_CSUM_MASK || features & NETIF_F_GSO_MASK))
+		return mlx5e_vxlan_features_check(priv, skb, features);
+
+	return features;
+}
+
 static const struct net_device_ops mlx5e_netdev_ops_basic = {
 	.ndo_open                = mlx5e_open,
 	.ndo_stop                = mlx5e_close,
@@ -2108,6 +2182,9 @@ static const struct net_device_ops mlx5e_netdev_ops_sriov = {
 	.ndo_set_features        = mlx5e_set_features,
 	.ndo_change_mtu          = mlx5e_change_mtu,
 	.ndo_do_ioctl            = mlx5e_ioctl,
+	.ndo_add_vxlan_port      = mlx5e_add_vxlan_port,
+	.ndo_del_vxlan_port      = mlx5e_del_vxlan_port,
+	.ndo_features_check      = mlx5e_features_check,
 	.ndo_set_vf_mac          = mlx5e_set_vf_mac,
 	.ndo_set_vf_vlan         = mlx5e_set_vf_vlan,
 	.ndo_get_vf_config       = mlx5e_get_vf_config,
@@ -2264,6 +2341,16 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
+	if (mlx5e_vxlan_allowed(mdev)) {
+		netdev->hw_features     |= NETIF_F_GSO_UDP_TUNNEL;
+		netdev->hw_enc_features |= NETIF_F_IP_CSUM;
+		netdev->hw_enc_features |= NETIF_F_RXCSUM;
+		netdev->hw_enc_features |= NETIF_F_TSO;
+		netdev->hw_enc_features |= NETIF_F_TSO6;
+		netdev->hw_enc_features |= NETIF_F_RXHASH;
+		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL;
+	}
+
 	netdev->features          = netdev->hw_features;
 	if (!priv->params.lro_en)
 		netdev->features  &= ~NETIF_F_LRO;
@@ -2387,6 +2474,8 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 
 	mlx5e_init_eth_addr(priv);
 
+	mlx5e_vxlan_init(priv);
+
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_ieee_setets_core(priv, &priv->params.ets);
 #endif
@@ -2396,6 +2485,9 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 		mlx5_core_err(mdev, "register_netdev failed, %d\n", err);
 		goto err_destroy_flow_tables;
 	}
+
+	if (mlx5e_vxlan_allowed(mdev))
+		vxlan_get_rx_port(netdev);
 
 	mlx5e_enable_async_events(priv);
 	schedule_work(&priv->set_rx_mode_work);
@@ -2449,6 +2541,7 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5e_disable_async_events(priv);
 	flush_scheduled_work();
 	unregister_netdev(netdev);
+	mlx5e_vxlan_cleanup(priv);
 	mlx5e_destroy_flow_tables(priv);
 	mlx5e_destroy_tirs(priv);
 	mlx5e_destroy_rqt(priv, MLX5E_SINGLE_RQ_RQT);
