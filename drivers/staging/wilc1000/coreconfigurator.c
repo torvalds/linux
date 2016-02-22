@@ -284,10 +284,8 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 
 	msg_type = msg_buffer[0];
 
-	if ('N' != msg_type) {
-		PRINT_ER("Received Message format incorrect.\n");
+	if ('N' != msg_type)
 		return -EFAULT;
-	}
 
 	msg_id = msg_buffer[1];
 	msg_len = MAKE_WORD16(msg_buffer[2], msg_buffer[3]);
