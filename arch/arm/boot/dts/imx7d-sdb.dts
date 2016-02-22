@@ -274,7 +274,7 @@
 	status = "okay";
 	port {
 		mipi_sensor_ep: endpoint1 {
-			remote-endpoint = <&ov5647_mipi_ep>;
+			remote-endpoint = <&ov5640_mipi_ep>;
 			data-lanes = <2>;
 			csis-hs-settle = <13>;
 			csis-wclk;
@@ -516,17 +516,18 @@
 		wlf,shared-lrclk;
 	};
 
-	ov5647_mipi: ov5647_mipi@36 {
-		compatible = "ovti,ov5647_mipi";
-		reg = <0x36>;
+	ov5640_mipi: ov5640_mipi@3c {
+		compatible = "ovti,ov5640_mipi";
+		reg = <0x3c>;
 		clocks = <&clks IMX7D_CLK_DUMMY>;
 		clock-names = "csi_mclk";
 		csi_id = <0>;
 		pwn-gpios = <&gpio_spi 6 GPIO_ACTIVE_HIGH>;
+		AVDD-supply = <&vgen6_reg>;
 		mclk = <24000000>;
 		mclk_source = <0>;
 		port {
-			ov5647_mipi_ep: endpoint {
+			ov5640_mipi_ep: endpoint {
 				remote-endpoint = <&mipi_sensor_ep>;
 			};
 		};
