@@ -571,35 +571,17 @@ lnet_msg_container_cleanup(struct lnet_msg_container *container)
 			    sizeof(*container->msc_finalizers));
 		container->msc_finalizers = NULL;
 	}
-#ifdef LNET_USE_LIB_FREELIST
-	lnet_freelist_fini(&container->msc_freelist);
-#endif
 	container->msc_init = 0;
 }
 
 int
 lnet_msg_container_setup(struct lnet_msg_container *container, int cpt)
 {
-	int rc;
-
 	container->msc_init = 1;
 
 	INIT_LIST_HEAD(&container->msc_active);
 	INIT_LIST_HEAD(&container->msc_finalizing);
 
-#ifdef LNET_USE_LIB_FREELIST
-	memset(&container->msc_freelist, 0, sizeof(lnet_freelist_t));
-
-	rc = lnet_freelist_init(&container->msc_freelist,
-				LNET_FL_MAX_MSGS, sizeof(lnet_msg_t));
-	if (rc) {
-		CERROR("Failed to init freelist for message container\n");
-		lnet_msg_container_cleanup(container);
-		return rc;
-	}
-#else
-	rc = 0;
-#endif
 	/* number of CPUs */
 	container->msc_nfinalizers = cfs_cpt_weight(lnet_cpt_table(), cpt);
 
@@ -613,7 +595,7 @@ lnet_msg_container_setup(struct lnet_msg_container *container, int cpt)
 		return -ENOMEM;
 	}
 
-	return rc;
+	return 0;
 }
 
 void

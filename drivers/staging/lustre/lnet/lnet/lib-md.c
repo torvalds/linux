@@ -281,7 +281,6 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 	int cpt;
 	int rc;
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (lnet_md_validate(&umd))
@@ -360,7 +359,6 @@ LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
 	int cpt;
 	int rc;
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (lnet_md_validate(&umd))
@@ -435,7 +433,6 @@ LNetMDUnlink(lnet_handle_md_t mdh)
 	lnet_libmd_t *md;
 	int cpt;
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	cpt = lnet_cpt_of_cookie(mdh.cookie);

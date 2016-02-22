@@ -291,7 +291,6 @@ lnet_register_lnd(lnd_t *lnd)
 {
 	mutex_lock(&the_lnet.ln_lnd_mutex);
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(libcfs_isknown_lnd(lnd->lnd_type));
 	LASSERT(!lnet_find_lnd_by_type(lnd->lnd_type));
 
@@ -309,7 +308,6 @@ lnet_unregister_lnd(lnd_t *lnd)
 {
 	mutex_lock(&the_lnet.ln_lnd_mutex);
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(lnet_find_lnd_by_type(lnd->lnd_type) == lnd);
 	LASSERT(!lnd->lnd_refcount);
 
@@ -1166,12 +1164,6 @@ lnet_shutdown_lndnis(void)
 		lnet_ni_unlink_locked(ni);
 	}
 
-	/* Drop the cached eqwait NI. */
-	if (the_lnet.ln_eq_waitni) {
-		lnet_ni_decref_locked(the_lnet.ln_eq_waitni, 0);
-		the_lnet.ln_eq_waitni = NULL;
-	}
-
 	/* Drop the cached loopback NI. */
 	if (the_lnet.ln_loni) {
 		lnet_ni_decref_locked(the_lnet.ln_loni, 0);
@@ -1364,7 +1356,6 @@ lnet_startup_lndnis(struct list_head *nilist)
 {
 	struct lnet_ni *ni;
 	int rc;
-	int lnd_type;
 	int ni_count = 0;
 
 	while (!list_empty(nilist)) {
@@ -1378,14 +1369,6 @@ lnet_startup_lndnis(struct list_head *nilist)
 		ni_count++;
 	}
 
-	if (the_lnet.ln_eq_waitni && ni_count > 1) {
-		lnd_type = the_lnet.ln_eq_waitni->ni_lnd->lnd_type;
-		LCONSOLE_ERROR_MSG(0x109, "LND %s can only run single-network\n",
-				   libcfs_lnd2str(lnd_type));
-		rc = -EINVAL;
-		goto failed;
-	}
-
 	return ni_count;
 failed:
 	lnet_shutdown_lndnis();
@@ -1396,10 +1379,9 @@ failed:
 /**
  * Initialize LNet library.
  *
- * Only userspace program needs to call this function - it's automatically
- * called in the kernel at module loading time. Caller has to call lnet_fini()
- * after a call to lnet_init(), if and only if the latter returned 0. It must
- * be called exactly once.
+ * Automatically called at module loading time. Caller has to call
+ * lnet_exit() after a call to lnet_init(), if and only if the
+ * latter returned 0. It must be called exactly once.
  *
  * \return 0 on success, and -ve on failures.
  */
@@ -1409,7 +1391,6 @@ lnet_init(void)
 	int rc;
 
 	lnet_assert_wire_constants();
-	LASSERT(!the_lnet.ln_init);
 
 	memset(&the_lnet, 0, sizeof(the_lnet));
 
@@ -1435,7 +1416,6 @@ lnet_init(void)
 	}
 
 	the_lnet.ln_refcount = 0;
-	the_lnet.ln_init = 1;
 	LNetInvalidateHandle(&the_lnet.ln_rc_eqh);
 	INIT_LIST_HEAD(&the_lnet.ln_lnds);
 	INIT_LIST_HEAD(&the_lnet.ln_rcd_zombie);
@@ -1465,30 +1445,23 @@ lnet_init(void)
 /**
  * Finalize LNet library.
  *
- * Only userspace program needs to call this function. It can be called
- * at most once.
- *
  * \pre lnet_init() called with success.
  * \pre All LNet users called LNetNIFini() for matching LNetNIInit() calls.
  */
 void
 lnet_fini(void)
 {
-	LASSERT(the_lnet.ln_init);
 	LASSERT(!the_lnet.ln_refcount);
 
 	while (!list_empty(&the_lnet.ln_lnds))
 		lnet_unregister_lnd(list_entry(the_lnet.ln_lnds.next,
 					       lnd_t, lnd_list));
 	lnet_destroy_locks();
-
-	the_lnet.ln_init = 0;
 }
 
 /**
  * Set LNet PID and start LNet interfaces, routing, and forwarding.
  *
- * Userspace program should call this after a successful call to lnet_init().
  * Users must call this function at least once before any other functions.
  * For each successful call there must be a corresponding call to
  * LNetNIFini(). For subsequent calls to LNetNIInit(), \a requested_pid is
@@ -1515,7 +1488,6 @@ LNetNIInit(lnet_pid_t requested_pid)
 
 	mutex_lock(&the_lnet.ln_api_mutex);
 
-	LASSERT(the_lnet.ln_init);
 	CDEBUG(D_OTHER, "refs %d\n", the_lnet.ln_refcount);
 
 	if (the_lnet.ln_refcount > 0) {
@@ -1632,7 +1604,6 @@ LNetNIFini(void)
 {
 	mutex_lock(&the_lnet.ln_api_mutex);
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (the_lnet.ln_refcount != 1) {
@@ -1886,8 +1857,6 @@ LNetCtl(unsigned int cmd, void *arg)
 	int rc;
 	unsigned long secs_passed;
 
-	LASSERT(the_lnet.ln_init);
-
 	switch (cmd) {
 	case IOC_LIBCFS_GET_NI:
 		rc = LNetGetId(data->ioc_count, &id);
@@ -2106,8 +2075,6 @@ LNetGetId(unsigned int index, lnet_process_id_t *id)
 	struct list_head *tmp;
 	int cpt;
 	int rc = -ENOENT;
-
-	LASSERT(the_lnet.ln_init);
 
 	/* LNetNI initilization failed? */
 	if (!the_lnet.ln_refcount)

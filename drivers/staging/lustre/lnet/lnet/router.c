@@ -1049,7 +1049,7 @@ lnet_router_checker_start(void)
 {
 	struct task_struct *task;
 	int rc;
-	int eqsz;
+	int eqsz = 0;
 
 	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_SHUTDOWN);
 
@@ -1060,13 +1060,8 @@ lnet_router_checker_start(void)
 	}
 
 	sema_init(&the_lnet.ln_rc_signal, 0);
-	/*
-	 * EQ size doesn't matter; the callback is guaranteed to get every
-	 * event
-	 */
-	eqsz = 0;
-	rc = LNetEQAlloc(eqsz, lnet_router_checker_event,
-			 &the_lnet.ln_rc_eqh);
+
+	rc = LNetEQAlloc(0, lnet_router_checker_event, &the_lnet.ln_rc_eqh);
 	if (rc) {
 		CERROR("Can't allocate EQ(%d): %d\n", eqsz, rc);
 		return -ENOMEM;

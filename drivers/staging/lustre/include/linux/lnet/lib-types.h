@@ -577,8 +577,6 @@ typedef struct {
 	/* dying LND instances */
 	struct list_head		  ln_nis_zombie;
 	lnet_ni_t			 *ln_loni;	/* the loopback NI */
-	/* NI to wait for events in */
-	lnet_ni_t			 *ln_eq_waitni;
 
 	/* remote networks with routes to them */
 	struct list_head		 *ln_remote_nets_hash;
@@ -608,8 +606,6 @@ typedef struct {
 
 	struct mutex			  ln_api_mutex;
 	struct mutex			  ln_lnd_mutex;
-	int				  ln_init;	/* lnet_init()
-							   called? */
 	/* Have I called LNetNIInit myself? */
 	int				  ln_niinit_self;
 	/* LNetNIInit/LNetNIFini counter */

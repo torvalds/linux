@@ -59,8 +59,6 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 	struct list_head *next;
 	struct list_head cull;
 
-	LASSERT(the_lnet.ln_init);
-
 	/* NB: use lnet_net_lock(0) to serialize operations on test peers */
 	if (threshold) {
 		/* Adding a new entry */
@@ -2162,7 +2160,6 @@ LNetPut(lnet_nid_t self, lnet_handle_md_t mdh, lnet_ack_req_t ack,
 	int cpt;
 	int rc;
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (!list_empty(&the_lnet.ln_test_peers) && /* normally we don't */
@@ -2367,7 +2364,6 @@ LNetGet(lnet_nid_t self, lnet_handle_md_t mdh,
 	int cpt;
 	int rc;
 
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (!list_empty(&the_lnet.ln_test_peers) && /* normally we don't */
@@ -2467,7 +2463,6 @@ LNetDist(lnet_nid_t dstnid, lnet_nid_t *srcnidp, __u32 *orderp)
 	 * keep order 0 free for 0@lo and order 1 free for a local NID
 	 * match
 	 */
-	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	cpt = lnet_net_lock_current();

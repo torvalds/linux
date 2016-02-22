@@ -206,8 +206,6 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 }
 EXPORT_SYMBOL(lnet_connect);
 
-/* Below is the code common for both kernel and MT user-space */
-
 static int
 lnet_accept(struct socket *sock, __u32 magic)
 {
