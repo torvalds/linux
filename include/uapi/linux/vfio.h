@@ -221,12 +221,36 @@ struct vfio_region_info {
 #define VFIO_REGION_INFO_FLAG_READ	(1 << 0) /* Region supports read */
 #define VFIO_REGION_INFO_FLAG_WRITE	(1 << 1) /* Region supports write */
 #define VFIO_REGION_INFO_FLAG_MMAP	(1 << 2) /* Region supports mmap */
+#define VFIO_REGION_INFO_FLAG_CAPS	(1 << 3) /* Info supports caps */
 	__u32	index;		/* Region index */
-	__u32	resv;		/* Reserved for alignment */
+	__u32	cap_offset;	/* Offset within info struct of first cap */
 	__u64	size;		/* Region size (bytes) */
 	__u64	offset;		/* Region offset from start of device fd */
 };
 #define VFIO_DEVICE_GET_REGION_INFO	_IO(VFIO_TYPE, VFIO_BASE + 8)
+
+/*
+ * The sparse mmap capability allows finer granularity of specifying areas
+ * within a region with mmap support.  When specified, the user should only
+ * mmap the offset ranges specified by the areas array.  mmaps outside of the
+ * areas specified may fail (such as the range covering a PCI MSI-X table) or
+ * may result in improper device behavior.
+ *
+ * The structures below define version 1 of this capability.
+ */
+#define VFIO_REGION_INFO_CAP_SPARSE_MMAP	1
+
+struct vfio_region_sparse_mmap_area {
+	__u64	offset;	/* Offset of mmap'able area within region */
+	__u64	size;	/* Size of mmap'able area */
+};
+
+struct vfio_region_info_cap_sparse_mmap {
+	struct vfio_info_cap_header header;
+	__u32	nr_areas;
+	__u32	reserved;
+	struct vfio_region_sparse_mmap_area areas[];
+};
 
 /**
  * VFIO_DEVICE_GET_IRQ_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 9,
