@@ -3414,6 +3414,29 @@ int pci_wait_for_pending_transaction(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_wait_for_pending_transaction);
 
+/*
+ * We should only need to wait 100ms after FLR, but some devices take longer.
+ * Wait for up to 1000ms for config space to return something other than -1.
+ * Intel IGD requires this when an LCD panel is attached.  We read the 2nd
+ * dword because VFs don't implement the 1st dword.
+ */
+static void pci_flr_wait(struct pci_dev *dev)
+{
+	int i = 0;
+	u32 id;
+
+	do {
+		msleep(100);
+		pci_read_config_dword(dev, PCI_COMMAND, &id);
+	} while (i++ < 10 && id == ~0);
+
+	if (id == ~0)
+		dev_warn(&dev->dev, "Failed to return from FLR\n");
+	else if (i > 1)
+		dev_info(&dev->dev, "Required additional %dms to return from FLR\n",
+			 (i - 1) * 100);
+}
+
 static int pcie_flr(struct pci_dev *dev, int probe)
 {
 	u32 cap;
@@ -3429,7 +3452,7 @@ static int pcie_flr(struct pci_dev *dev, int probe)
 		dev_err(&dev->dev, "timed out waiting for pending transaction; performing function level reset anyway\n");
 
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-	msleep(100);
+	pci_flr_wait(dev);
 	return 0;
 }
 
@@ -3459,7 +3482,7 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 		dev_err(&dev->dev, "timed out waiting for pending transaction; performing AF function level reset anyway\n");
 
 	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
-	msleep(100);
+	pci_flr_wait(dev);
 	return 0;
 }
 
