@@ -277,15 +277,6 @@ EXPORT_SYMBOL(pci_write_vpd);
 
 #define PCI_VPD_MAX_SIZE (PCI_VPD_ADDR_MASK + 1)
 
-struct pci_vpd_pci22 {
-	struct pci_vpd base;
-	struct mutex lock;
-	u16	flag;
-	u8	cap;
-	u8	busy:1;
-	u8	valid:1;
-};
-
 /**
  * pci_vpd_size - determine actual size of Vital Product Data
  * @dev:	pci device struct
@@ -350,8 +341,7 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
  */
 static int pci_vpd_wait(struct pci_dev *dev)
 {
-	struct pci_vpd_pci22 *vpd =
-		container_of(dev->vpd, struct pci_vpd_pci22, base);
+	struct pci_vpd *vpd = dev->vpd;
 	unsigned long timeout = jiffies + HZ/20 + 2;
 	u16 status;
 	int ret;
@@ -384,8 +374,7 @@ static int pci_vpd_wait(struct pci_dev *dev)
 static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 			    void *arg)
 {
-	struct pci_vpd_pci22 *vpd =
-		container_of(dev->vpd, struct pci_vpd_pci22, base);
+	struct pci_vpd *vpd = dev->vpd;
 	int ret;
 	loff_t end = pos + count;
 	u8 *buf = arg;
@@ -395,17 +384,17 @@ static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
 
 	if (!vpd->valid) {
 		vpd->valid = 1;
-		vpd->base.len = pci_vpd_size(dev, vpd->base.len);
+		vpd->len = pci_vpd_size(dev, vpd->len);
 	}
 
-	if (vpd->base.len == 0)
+	if (vpd->len == 0)
 		return -EIO;
 
-	if (pos >= vpd->base.len)
+	if (pos > vpd->len)
 		return 0;
 
-	if (end > vpd->base.len) {
-		end = vpd->base.len;
+	if (end > vpd->len) {
+		end = vpd->len;
 		count = end - pos;
 	}
 
@@ -452,8 +441,7 @@ out:
 static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 			     const void *arg)
 {
-	struct pci_vpd_pci22 *vpd =
-		container_of(dev->vpd, struct pci_vpd_pci22, base);
+	struct pci_vpd *vpd = dev->vpd;
 	const u8 *buf = arg;
 	loff_t end = pos + count;
 	int ret = 0;
@@ -463,13 +451,13 @@ static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
 
 	if (!vpd->valid) {
 		vpd->valid = 1;
-		vpd->base.len = pci_vpd_size(dev, vpd->base.len);
+		vpd->len = pci_vpd_size(dev, vpd->len);
 	}
 
-	if (vpd->base.len == 0)
+	if (vpd->len == 0)
 		return -EIO;
 
-	if (end > vpd->base.len)
+	if (end > vpd->len)
 		return -EINVAL;
 
 	if (mutex_lock_killable(&vpd->lock))
@@ -550,7 +538,7 @@ static const struct pci_vpd_ops pci_vpd_f0_ops = {
 
 int pci_vpd_init(struct pci_dev *dev)
 {
-	struct pci_vpd_pci22 *vpd;
+	struct pci_vpd *vpd;
 	u8 cap;
 
 	cap = pci_find_capability(dev, PCI_CAP_ID_VPD);
@@ -561,23 +549,22 @@ int pci_vpd_init(struct pci_dev *dev)
 	if (!vpd)
 		return -ENOMEM;
 
-	vpd->base.len = PCI_VPD_MAX_SIZE;
+	vpd->len = PCI_VPD_MAX_SIZE;
 	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0)
-		vpd->base.ops = &pci_vpd_f0_ops;
+		vpd->ops = &pci_vpd_f0_ops;
 	else
-		vpd->base.ops = &pci_vpd_ops;
+		vpd->ops = &pci_vpd_ops;
 	mutex_init(&vpd->lock);
 	vpd->cap = cap;
 	vpd->busy = 0;
 	vpd->valid = 0;
-	dev->vpd = &vpd->base;
+	dev->vpd = vpd;
 	return 0;
 }
 
 void pci_vpd_release(struct pci_dev *dev)
 {
-	if (dev->vpd)
-		kfree(container_of(dev->vpd, struct pci_vpd_pci22, base));
+	kfree(dev->vpd);
 }
 
 /**

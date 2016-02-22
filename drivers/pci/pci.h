@@ -100,9 +100,14 @@ struct pci_vpd_ops {
 };
 
 struct pci_vpd {
-	unsigned int len;
 	const struct pci_vpd_ops *ops;
 	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
+	struct mutex	lock;
+	unsigned int	len;
+	u16		flag;
+	u8		cap;
+	u8		busy:1;
+	u8		valid:1;
 };
 
 int pci_vpd_init(struct pci_dev *dev);
