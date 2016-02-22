@@ -91,7 +91,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	struct amdgpu_bo *gws_obj = adev->gds.gws_gfx_bo;
 	struct amdgpu_bo *oa_obj = adev->gds.oa_gfx_bo;
 
-	bool has_userptr = false;
+	unsigned last_entry = 0, first_userptr = num_entries;
 	unsigned i;
 	int r;
 
@@ -101,8 +101,9 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	memset(array, 0, num_entries * sizeof(struct amdgpu_bo_list_entry));
 
 	for (i = 0; i < num_entries; ++i) {
-		struct amdgpu_bo_list_entry *entry = &array[i];
+		struct amdgpu_bo_list_entry *entry;
 		struct drm_gem_object *gobj;
+		struct amdgpu_bo *bo;
 		struct mm_struct *usermm;
 
 		gobj = drm_gem_object_lookup(adev->ddev, filp, info[i].bo_handle);
@@ -111,19 +112,24 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 			goto error_free;
 		}
 
-		entry->robj = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
+		bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
 		drm_gem_object_unreference_unlocked(gobj);
-		entry->priority = min(info[i].bo_priority,
-				      AMDGPU_BO_LIST_MAX_PRIORITY);
-		usermm = amdgpu_ttm_tt_get_usermm(entry->robj->tbo.ttm);
+
+		usermm = amdgpu_ttm_tt_get_usermm(bo->tbo.ttm);
 		if (usermm) {
 			if (usermm != current->mm) {
-				amdgpu_bo_unref(&entry->robj);
+				amdgpu_bo_unref(&bo);
 				r = -EPERM;
 				goto error_free;
 			}
-			has_userptr = true;
+			entry = &array[--first_userptr];
+		} else {
+			entry = &array[last_entry++];
 		}
+
+		entry->robj = bo;
+		entry->priority = min(info[i].bo_priority,
+				      AMDGPU_BO_LIST_MAX_PRIORITY);
 		entry->tv.bo = &entry->robj->tbo;
 		entry->tv.shared = true;
 
@@ -145,7 +151,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	list->gds_obj = gds_obj;
 	list->gws_obj = gws_obj;
 	list->oa_obj = oa_obj;
-	list->has_userptr = has_userptr;
+	list->first_userptr = first_userptr;
 	list->array = array;
 	list->num_entries = num_entries;
 

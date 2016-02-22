@@ -1048,7 +1048,7 @@ struct amdgpu_bo_list {
 	struct amdgpu_bo *gds_obj;
 	struct amdgpu_bo *gws_obj;
 	struct amdgpu_bo *oa_obj;
-	bool has_userptr;
+	unsigned first_userptr;
 	unsigned num_entries;
 	struct amdgpu_bo_list_entry *array;
 };

@@ -350,7 +350,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
 	if (p->bo_list) {
-		need_mmap_lock = p->bo_list->has_userptr;
+		need_mmap_lock = p->bo_list->first_userptr !=
+			p->bo_list->num_entries;
 		amdgpu_bo_list_get_list(p->bo_list, &p->validated);
 	}
 
