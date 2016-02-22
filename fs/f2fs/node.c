@@ -1275,6 +1275,7 @@ next_step:
 			 * If an fsync mode,
 			 * we should not skip writing node pages.
 			 */
+lock_node:
 			if (ino && ino_of_node(page) == ino)
 				lock_page(page);
 			else if (!trylock_page(page))
@@ -1298,7 +1299,7 @@ continue_unlock:
 				clear_inline_node(page);
 				unlock_page(page);
 				flush_inline_data(sbi, ino_of_node(page));
-				continue;
+				goto lock_node;
 			}
 
 			f2fs_wait_on_page_writeback(page, NODE, true);
