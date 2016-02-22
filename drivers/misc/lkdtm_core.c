@@ -52,6 +52,8 @@
 #include <linux/ide.h>
 #endif
 
+#include "lkdtm.h"
+
 /*
  * Make sure our attempts to over run the kernel stack doesn't trigger
  * a compiler warning when CONFIG_FRAME_WARN is set. Then make sure we
@@ -103,6 +105,7 @@ enum ctype {
 	CT_EXEC_STACK,
 	CT_EXEC_KMALLOC,
 	CT_EXEC_VMALLOC,
+	CT_EXEC_RODATA,
 	CT_EXEC_USERSPACE,
 	CT_ACCESS_USERSPACE,
 	CT_WRITE_RO,
@@ -145,6 +148,7 @@ static char* cp_type[] = {
 	"EXEC_STACK",
 	"EXEC_KMALLOC",
 	"EXEC_VMALLOC",
+	"EXEC_RODATA",
 	"EXEC_USERSPACE",
 	"ACCESS_USERSPACE",
 	"WRITE_RO",
@@ -346,15 +350,18 @@ static noinline void corrupt_stack(void)
 	memset((void *)data, 0, 64);
 }
 
-static void noinline execute_location(void *dst)
+static noinline void execute_location(void *dst, bool write)
 {
 	void (*func)(void) = dst;
 
 	pr_info("attempting ok execution at %p\n", do_nothing);
 	do_nothing();
 
-	memcpy(dst, do_nothing, EXEC_SIZE);
-	flush_icache_range((unsigned long)dst, (unsigned long)dst + EXEC_SIZE);
+	if (write) {
+		memcpy(dst, do_nothing, EXEC_SIZE);
+		flush_icache_range((unsigned long)dst,
+				   (unsigned long)dst + EXEC_SIZE);
+	}
 	pr_info("attempting bad execution at %p\n", func);
 	func();
 }
@@ -551,25 +558,28 @@ static void lkdtm_do_action(enum ctype which)
 		schedule();
 		break;
 	case CT_EXEC_DATA:
-		execute_location(data_area);
+		execute_location(data_area, true);
 		break;
 	case CT_EXEC_STACK: {
 		u8 stack_area[EXEC_SIZE];
-		execute_location(stack_area);
+		execute_location(stack_area, true);
 		break;
 	}
 	case CT_EXEC_KMALLOC: {
 		u32 *kmalloc_area = kmalloc(EXEC_SIZE, GFP_KERNEL);
-		execute_location(kmalloc_area);
+		execute_location(kmalloc_area, true);
 		kfree(kmalloc_area);
 		break;
 	}
 	case CT_EXEC_VMALLOC: {
 		u32 *vmalloc_area = vmalloc(EXEC_SIZE);
-		execute_location(vmalloc_area);
+		execute_location(vmalloc_area, true);
 		vfree(vmalloc_area);
 		break;
 	}
+	case CT_EXEC_RODATA:
+		execute_location(lkdtm_rodata_do_nothing, false);
+		break;
 	case CT_EXEC_USERSPACE: {
 		unsigned long user_addr;
 
