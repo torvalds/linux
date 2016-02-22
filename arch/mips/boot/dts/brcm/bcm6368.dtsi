@@ -54,7 +54,7 @@
 		periph_cntl: syscon@10000000 {
 			compatible = "syscon";
 			reg = <0x10000000 0x14>;
-			little-endian;
+			native-endian;
 		};
 
 		reboot: syscon-reboot@10000008 {
