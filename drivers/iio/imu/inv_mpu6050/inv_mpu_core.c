@@ -278,7 +278,7 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 		case IIO_TEMP:
 			/* wait for stablization */
 			msleep(INV_MPU6050_SENSOR_UP_TIME);
-			inv_mpu6050_sensor_show(st, st->reg->temperature,
+			ret = inv_mpu6050_sensor_show(st, st->reg->temperature,
 						IIO_MOD_X, val);
 			break;
 		default:
