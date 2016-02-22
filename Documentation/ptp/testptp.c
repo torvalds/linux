@@ -277,13 +277,15 @@ int main(int argc, char *argv[])
 			       "  %d external time stamp channels\n"
 			       "  %d programmable periodic signals\n"
 			       "  %d pulse per second\n"
-			       "  %d programmable pins\n",
+			       "  %d programmable pins\n"
+			       "  %d cross timestamping\n",
 			       caps.max_adj,
 			       caps.n_alarm,
 			       caps.n_ext_ts,
 			       caps.n_per_out,
 			       caps.pps,
-			       caps.n_pins);
+			       caps.n_pins,
+			       caps.cross_timestamping);
 		}
 	}
 
