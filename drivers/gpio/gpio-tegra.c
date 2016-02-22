@@ -545,7 +545,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	tegra_gpio_chip.of_node = pdev->dev.of_node;
 
-	ret = gpiochip_add_data(&tegra_gpio_chip, NULL);
+	ret = devm_gpiochip_add_data(&pdev->dev, &tegra_gpio_chip, NULL);
 	if (ret < 0) {
 		irq_domain_remove(irq_domain);
 		return ret;
