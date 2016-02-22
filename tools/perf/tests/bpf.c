@@ -112,7 +112,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	parse_evlist.error = &parse_error;
 	INIT_LIST_HEAD(&parse_evlist.list);
 
-	err = parse_events_load_bpf_obj(&parse_evlist, &parse_evlist.list, obj);
+	err = parse_events_load_bpf_obj(&parse_evlist, &parse_evlist.list, obj, NULL);
 	if (err || list_empty(&parse_evlist.list)) {
 		pr_debug("Failed to add events selected by BPF\n");
 		return TEST_FAIL;

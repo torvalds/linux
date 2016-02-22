@@ -146,7 +146,8 @@ int parse_events_load_bpf(struct parse_events_evlist *data,
 struct bpf_object;
 int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 			      struct list_head *list,
-			      struct bpf_object *obj);
+			      struct bpf_object *obj,
+			      struct list_head *head_config);
 int parse_events_add_numeric(struct parse_events_evlist *data,
 			     struct list_head *list,
 			     u32 type, u64 config,

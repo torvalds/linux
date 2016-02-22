@@ -581,6 +581,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 struct __add_bpf_event_param {
 	struct parse_events_evlist *data;
 	struct list_head *list;
+	struct list_head *head_config;
 };
 
 static int add_bpf_event(struct probe_trace_event *tev, int fd,
@@ -597,7 +598,8 @@ static int add_bpf_event(struct probe_trace_event *tev, int fd,
 		 tev->group, tev->event, fd);
 
 	err = parse_events_add_tracepoint(&new_evsels, &evlist->idx, tev->group,
-					  tev->event, evlist->error, NULL);
+					  tev->event, evlist->error,
+					  param->head_config);
 	if (err) {
 		struct perf_evsel *evsel, *tmp;
 
@@ -622,11 +624,12 @@ static int add_bpf_event(struct probe_trace_event *tev, int fd,
 
 int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 			      struct list_head *list,
-			      struct bpf_object *obj)
+			      struct bpf_object *obj,
+			      struct list_head *head_config)
 {
 	int err;
 	char errbuf[BUFSIZ];
-	struct __add_bpf_event_param param = {data, list};
+	struct __add_bpf_event_param param = {data, list, head_config};
 	static bool registered_unprobe_atexit = false;
 
 	if (IS_ERR(obj) || !obj) {
@@ -720,14 +723,47 @@ parse_events_config_bpf(struct parse_events_evlist *data,
 	return 0;
 }
 
+/*
+ * Split config terms:
+ * perf record -e bpf.c/call-graph=fp,map:array.value[0]=1/ ...
+ *  'call-graph=fp' is 'evt config', should be applied to each
+ *  events in bpf.c.
+ * 'map:array.value[0]=1' is 'obj config', should be processed
+ * with parse_events_config_bpf.
+ *
+ * Move object config terms from the first list to obj_head_config.
+ */
+static void
+split_bpf_config_terms(struct list_head *evt_head_config,
+		       struct list_head *obj_head_config)
+{
+	struct parse_events_term *term, *temp;
+
+	/*
+	 * Currectly, all possible user config term
+	 * belong to bpf object. parse_events__is_hardcoded_term()
+	 * happends to be a good flag.
+	 *
+	 * See parse_events_config_bpf() and
+	 * config_term_tracepoint().
+	 */
+	list_for_each_entry_safe(term, temp, evt_head_config, list)
+		if (!parse_events__is_hardcoded_term(term))
+			list_move_tail(&term->list, obj_head_config);
+}
+
 int parse_events_load_bpf(struct parse_events_evlist *data,
 			  struct list_head *list,
 			  char *bpf_file_name,
 			  bool source,
 			  struct list_head *head_config)
 {
-	struct bpf_object *obj;
 	int err;
+	struct bpf_object *obj;
+	LIST_HEAD(obj_head_config);
+
+	if (head_config)
+		split_bpf_config_terms(head_config, &obj_head_config);
 
 	obj = bpf__prepare_load(bpf_file_name, source);
 	if (IS_ERR(obj)) {
@@ -749,10 +785,18 @@ int parse_events_load_bpf(struct parse_events_evlist *data,
 		return err;
 	}
 
-	err = parse_events_load_bpf_obj(data, list, obj);
+	err = parse_events_load_bpf_obj(data, list, obj, head_config);
 	if (err)
 		return err;
-	return parse_events_config_bpf(data, obj, head_config);
+	err = parse_events_config_bpf(data, obj, &obj_head_config);
+
+	/*
+	 * Caller doesn't know anything about obj_head_config,
+	 * so combine them together again before returnning.
+	 */
+	if (head_config)
+		list_splice_tail(&obj_head_config, head_config);
+	return err;
 }
 
 static int
