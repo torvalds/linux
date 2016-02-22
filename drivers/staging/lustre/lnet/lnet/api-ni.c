@@ -1219,7 +1219,7 @@ static int
 lnet_startup_lndni(struct lnet_ni *ni, __s32 peer_timeout,
 		   __s32 peer_cr, __s32 peer_buf_cr, __s32 credits)
 {
-	int rc = 0;
+	int rc = -EINVAL;
 	int lnd_type;
 	lnd_t *lnd;
 	struct lnet_tx_queue *tq;
@@ -1237,19 +1237,19 @@ lnet_startup_lndni(struct lnet_ni *ni, __s32 peer_timeout,
 
 	/* Make sure this new NI is unique. */
 	lnet_net_lock(LNET_LOCK_EX);
-	if (!lnet_net_unique(LNET_NIDNET(ni->ni_nid), &the_lnet.ln_nis)) {
+	rc = lnet_net_unique(LNET_NIDNET(ni->ni_nid), &the_lnet.ln_nis);
+	lnet_net_unlock(LNET_LOCK_EX);
+	if (!rc) {
 		if (lnd_type == LOLND) {
-			lnet_net_unlock(LNET_LOCK_EX);
 			lnet_ni_free(ni);
 			return 0;
 		}
-		lnet_net_unlock(LNET_LOCK_EX);
 
 		CERROR("Net %s is not unique\n",
 		       libcfs_net2str(LNET_NIDNET(ni->ni_nid)));
+		rc = -EEXIST;
 		goto failed0;
 	}
-	lnet_net_unlock(LNET_LOCK_EX);
 
 	mutex_lock(&the_lnet.ln_lnd_mutex);
 	lnd = lnet_find_lnd_by_type(lnd_type);
@@ -1265,6 +1265,7 @@ lnet_startup_lndni(struct lnet_ni *ni, __s32 peer_timeout,
 			CERROR("Can't load LND %s, module %s, rc=%d\n",
 			       libcfs_lnd2str(lnd_type),
 			       libcfs_lnd2modname(lnd_type), rc);
+			rc = -EINVAL;
 			goto failed0;
 		}
 	}
@@ -1354,7 +1355,7 @@ lnet_startup_lndni(struct lnet_ni *ni, __s32 peer_timeout,
 	return 0;
 failed0:
 	lnet_ni_free(ni);
-	return -EINVAL;
+	return rc;
 }
 
 static int
@@ -1503,7 +1504,7 @@ int
 LNetNIInit(lnet_pid_t requested_pid)
 {
 	int im_a_router = 0;
-	int rc, rc2;
+	int rc;
 	int ni_count;
 	lnet_ping_info_t *pinfo;
 	lnet_handle_md_t md_handle;
@@ -1592,10 +1593,7 @@ LNetNIInit(lnet_pid_t requested_pid)
 	return 0;
 
 err_stop_ping:
-	lnet_ping_md_unlink(pinfo, &md_handle);
-	lnet_ping_info_free(pinfo);
-	rc2 = LNetEQFree(the_lnet.ln_ping_target_eq);
-	LASSERT(!rc2);
+	lnet_ping_target_fini();
 err_acceptor_stop:
 	the_lnet.ln_refcount = 0;
 	lnet_acceptor_stop();
