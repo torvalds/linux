@@ -67,7 +67,8 @@ static int coldboot_seq(struct platform_device *pdev)
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 	int ret;
 
-	if (apb->init_disabled)
+	if (apb->init_disabled ||
+			apb->state == ARCHE_PLATFORM_STATE_ACTIVE)
 		return 0;
 
 	/* Hold APB in reset state */
@@ -112,7 +113,8 @@ static int fw_flashing_seq(struct platform_device *pdev)
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 	int ret;
 
-	if (apb->init_disabled)
+	if (apb->init_disabled ||
+			apb->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
 		return 0;
 
 	ret = regulator_enable(apb->vcore);
@@ -141,8 +143,9 @@ static int standby_boot_seq(struct platform_device *pdev)
 	if (apb->init_disabled)
 		return 0;
 
-	/* If it is in OFF state, then we do not want to change the state */
-	if (apb->state == ARCHE_PLATFORM_STATE_OFF)
+	/* Even if it is in OFF state, then we do not want to change the state */
+	if (apb->state == ARCHE_PLATFORM_STATE_STANDBY ||
+			apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return 0;
 
 	/*
@@ -162,7 +165,7 @@ static void poweroff_seq(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
-	if (apb->init_disabled)
+	if (apb->init_disabled || apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return;
 
 	/* disable the clock */
