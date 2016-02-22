@@ -314,7 +314,7 @@ static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
 	if (!he->srcline)
 		he->srcline = hist_entry__get_srcline(he);
 
-	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcline);
+	return repsep_snprintf(bf, size, "%-.*s", width, he->srcline);
 }
 
 struct sort_entry sort_srcline = {
@@ -366,7 +366,7 @@ static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
 	if (!he->srcfile)
 		he->srcfile = hist_entry__get_srcfile(he);
 
-	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcfile);
+	return repsep_snprintf(bf, size, "%-.*s", width, he->srcfile);
 }
 
 struct sort_entry sort_srcfile = {
@@ -496,11 +496,11 @@ static int hist_entry__trace_snprintf(struct hist_entry *he, char *bf,
 
 	evsel = hists_to_evsel(he->hists);
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
-		return scnprintf(bf, size, "%-*.*s", width, width, "N/A");
+		return scnprintf(bf, size, "%-.*s", width, "N/A");
 
 	if (he->trace_output == NULL)
 		he->trace_output = get_trace_output(he);
-	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->trace_output);
+	return repsep_snprintf(bf, size, "%-.*s", width, he->trace_output);
 }
 
 struct sort_entry sort_trace = {
