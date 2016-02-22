@@ -35,6 +35,7 @@
 enum jmp_type { JTL, JFL, JKL };
 
 extern FILE *yyin;
+extern int yylineno;
 extern int yylex(void);
 extern void yyerror(const char *str);
 
@@ -55,14 +56,14 @@ static void bpf_set_jmp_label(char *label, enum jmp_type type);
 %token OP_RET OP_TAX OP_TXA OP_LDXB OP_MOD OP_NEG OP_JNEQ OP_JLT OP_JLE OP_LDI
 %token OP_LDXI
 
-%token K_PKT_LEN K_PROTO K_TYPE K_NLATTR K_NLATTR_NEST K_MARK K_QUEUE K_HATYPE
-%token K_RXHASH K_CPU K_IFIDX K_VLAN_TCI K_VLAN_AVAIL K_VLAN_TPID K_POFF K_RAND
+%token K_PKT_LEN
 
 %token ':' ',' '[' ']' '(' ')' 'x' 'a' '+' 'M' '*' '&' '#' '%'
 
-%token number label
+%token extension number label
 
 %type <label> label
+%type <number> extension
 %type <number> number
 
 %%
@@ -125,51 +126,9 @@ ldb
 		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_IND, 0, 0, $6); }
 	| OP_LDB '[' number ']' {
 		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0, $3); }
-	| OP_LDB K_PROTO {
+	| OP_LDB extension {
 		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PROTOCOL); }
-	| OP_LDB K_TYPE {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PKTTYPE); }
-	| OP_LDB K_IFIDX {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_IFINDEX); }
-	| OP_LDB K_NLATTR {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_NLATTR); }
-	| OP_LDB K_NLATTR_NEST {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_NLATTR_NEST); }
-	| OP_LDB K_MARK {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_MARK); }
-	| OP_LDB K_QUEUE {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_QUEUE); }
-	| OP_LDB K_HATYPE {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_HATYPE); }
-	| OP_LDB K_RXHASH {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_RXHASH); }
-	| OP_LDB K_CPU {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_CPU); }
-	| OP_LDB K_VLAN_TCI {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TAG); }
-	| OP_LDB K_VLAN_AVAIL {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TAG_PRESENT); }
-	| OP_LDB K_POFF {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PAY_OFFSET); }
-	| OP_LDB K_RAND {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_RANDOM); }
-	| OP_LDB K_VLAN_TPID {
-		bpf_set_curr_instr(BPF_LD | BPF_B | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TPID); }
+				   SKF_AD_OFF + $2); }
 	;
 
 ldh
@@ -179,51 +138,9 @@ ldh
 		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_IND, 0, 0, $6); }
 	| OP_LDH '[' number ']' {
 		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0, $3); }
-	| OP_LDH K_PROTO {
+	| OP_LDH extension {
 		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PROTOCOL); }
-	| OP_LDH K_TYPE {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PKTTYPE); }
-	| OP_LDH K_IFIDX {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_IFINDEX); }
-	| OP_LDH K_NLATTR {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_NLATTR); }
-	| OP_LDH K_NLATTR_NEST {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_NLATTR_NEST); }
-	| OP_LDH K_MARK {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_MARK); }
-	| OP_LDH K_QUEUE {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_QUEUE); }
-	| OP_LDH K_HATYPE {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_HATYPE); }
-	| OP_LDH K_RXHASH {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_RXHASH); }
-	| OP_LDH K_CPU {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_CPU); }
-	| OP_LDH K_VLAN_TCI {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TAG); }
-	| OP_LDH K_VLAN_AVAIL {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TAG_PRESENT); }
-	| OP_LDH K_POFF {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PAY_OFFSET); }
-	| OP_LDH K_RAND {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_RANDOM); }
-	| OP_LDH K_VLAN_TPID {
-		bpf_set_curr_instr(BPF_LD | BPF_H | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TPID); }
+				   SKF_AD_OFF + $2); }
 	;
 
 ldi
@@ -238,51 +155,9 @@ ld
 		bpf_set_curr_instr(BPF_LD | BPF_IMM, 0, 0, $3); }
 	| OP_LD K_PKT_LEN {
 		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_LEN, 0, 0, 0); }
-	| OP_LD K_PROTO {
+	| OP_LD extension {
 		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PROTOCOL); }
-	| OP_LD K_TYPE {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PKTTYPE); }
-	| OP_LD K_IFIDX {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_IFINDEX); }
-	| OP_LD K_NLATTR {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_NLATTR); }
-	| OP_LD K_NLATTR_NEST {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_NLATTR_NEST); }
-	| OP_LD K_MARK {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_MARK); }
-	| OP_LD K_QUEUE {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_QUEUE); }
-	| OP_LD K_HATYPE {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_HATYPE); }
-	| OP_LD K_RXHASH {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_RXHASH); }
-	| OP_LD K_CPU {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_CPU); }
-	| OP_LD K_VLAN_TCI {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TAG); }
-	| OP_LD K_VLAN_AVAIL {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TAG_PRESENT); }
-	| OP_LD K_POFF {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_PAY_OFFSET); }
-	| OP_LD K_RAND {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_RANDOM); }
-	| OP_LD K_VLAN_TPID {
-		bpf_set_curr_instr(BPF_LD | BPF_W | BPF_ABS, 0, 0,
-				   SKF_AD_OFF + SKF_AD_VLAN_TPID); }
+				   SKF_AD_OFF + $2); }
 	| OP_LD 'M' '[' number ']' {
 		bpf_set_curr_instr(BPF_LD | BPF_MEM, 0, 0, $4); }
 	| OP_LD '[' 'x' '+' number ']' {
@@ -776,5 +651,6 @@ void bpf_asm_compile(FILE *fp, bool cstyle)
 
 void yyerror(const char *str)
 {
+	fprintf(stderr, "error: %s at line %d\n", str, yylineno);
 	exit(1);
 }
