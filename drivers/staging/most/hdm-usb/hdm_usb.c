@@ -40,7 +40,6 @@
 #define MAX_SUFFIX_LEN		10
 #define MAX_STRING_LEN		80
 #define MAX_BUF_SIZE		0xFFFF
-#define CEILING(x, y)		(((x) + (y) - 1) / (y))
 
 #define USB_VENDOR_ID_SMSC	0x0424  /* VID: SMSC */
 #define USB_DEV_ID_BRDG		0xC001  /* PID: USB Bridge */
@@ -786,7 +785,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	temp_size += tail_space;
 
 	/* calculate extra length to comply w/ HW padding */
-	conf->extra_len = (CEILING(temp_size, USB_MTU) * USB_MTU)
+	conf->extra_len = (DIV_ROUND_UP(temp_size, USB_MTU) * USB_MTU)
 			  - conf->buffer_size;
 exit:
 	mdev->conf[channel] = *conf;
