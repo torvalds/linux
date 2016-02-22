@@ -1530,6 +1530,18 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 	return 0;
 }
 
+static void set_stream_info(struct snd_soc_pcm_stream *stream,
+	struct snd_soc_tplg_stream_caps *caps)
+{
+	stream->stream_name = kstrdup(caps->name, GFP_KERNEL);
+	stream->channels_min = caps->channels_min;
+	stream->channels_max = caps->channels_max;
+	stream->rates = caps->rates;
+	stream->rate_min = caps->rate_min;
+	stream->rate_max = caps->rate_max;
+	stream->formats = caps->formats;
+}
+
 static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
@@ -1548,25 +1560,13 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	if (pcm->playback) {
 		stream = &dai_drv->playback;
 		caps = &pcm->caps[SND_SOC_TPLG_STREAM_PLAYBACK];
-
-		stream->stream_name = kstrdup(caps->name, GFP_KERNEL);
-		stream->channels_min = caps->channels_min;
-		stream->channels_max = caps->channels_max;
-		stream->rates = snd_pcm_rate_range_to_bits(caps->rate_min,
-							caps->rate_max);
-		stream->formats = caps->formats;
+		set_stream_info(stream, caps);
 	}
 
 	if (pcm->capture) {
 		stream = &dai_drv->capture;
 		caps = &pcm->caps[SND_SOC_TPLG_STREAM_CAPTURE];
-
-		stream->stream_name = kstrdup(caps->name, GFP_KERNEL);
-		stream->channels_min = caps->channels_min;
-		stream->channels_max = caps->channels_max;
-		stream->rates = snd_pcm_rate_range_to_bits(caps->rate_min,
-							caps->rate_max);
-		stream->formats = caps->formats;
+		set_stream_info(stream, caps);
 	}
 
 	/* pass control to component driver for optional further init */
