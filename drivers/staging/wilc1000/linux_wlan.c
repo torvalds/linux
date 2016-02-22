@@ -226,7 +226,6 @@ static void deinit_irq(struct net_device *dev)
 
 void wilc_dbg(u8 *buff)
 {
-	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
 
 int wilc_lock_timeout(struct wilc *nic, void *vp, u32 timeout)
