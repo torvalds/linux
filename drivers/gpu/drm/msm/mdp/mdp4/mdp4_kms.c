@@ -326,7 +326,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		if (priv->hdmi) {
 			/* Construct bridge/connector for HDMI: */
-			ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+			ret = msm_hdmi_modeset_init(priv->hdmi, dev, encoder);
 			if (ret) {
 				dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
 				return ret;

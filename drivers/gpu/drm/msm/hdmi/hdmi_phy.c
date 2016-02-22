@@ -15,7 +15,7 @@
 
 #include "hdmi.h"
 
-static int hdmi_phy_resource_init(struct hdmi_phy *phy)
+static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 {
 	struct hdmi_phy_cfg *cfg = phy->cfg;
 	struct device *dev = &phy->pdev->dev;
@@ -62,7 +62,7 @@ static int hdmi_phy_resource_init(struct hdmi_phy *phy)
 	return 0;
 }
 
-int hdmi_phy_resource_enable(struct hdmi_phy *phy)
+int msm_hdmi_phy_resource_enable(struct hdmi_phy *phy)
 {
 	struct hdmi_phy_cfg *cfg = phy->cfg;
 	struct device *dev = &phy->pdev->dev;
@@ -87,7 +87,7 @@ int hdmi_phy_resource_enable(struct hdmi_phy *phy)
 	return ret;
 }
 
-void hdmi_phy_resource_disable(struct hdmi_phy *phy)
+void msm_hdmi_phy_resource_disable(struct hdmi_phy *phy)
 {
 	struct hdmi_phy_cfg *cfg = phy->cfg;
 	struct device *dev = &phy->pdev->dev;
@@ -102,7 +102,7 @@ void hdmi_phy_resource_disable(struct hdmi_phy *phy)
 	pm_runtime_put_sync(dev);
 }
 
-void hdmi_phy_powerup(struct hdmi_phy *phy, unsigned long int pixclock)
+void msm_hdmi_phy_powerup(struct hdmi_phy *phy, unsigned long int pixclock)
 {
 	if (!phy || !phy->cfg->powerup)
 		return;
@@ -110,7 +110,7 @@ void hdmi_phy_powerup(struct hdmi_phy *phy, unsigned long int pixclock)
 	phy->cfg->powerup(phy, pixclock);
 }
 
-void hdmi_phy_powerdown(struct hdmi_phy *phy)
+void msm_hdmi_phy_powerdown(struct hdmi_phy *phy)
 {
 	if (!phy || !phy->cfg->powerdown)
 		return;
@@ -118,17 +118,17 @@ void hdmi_phy_powerdown(struct hdmi_phy *phy)
 	phy->cfg->powerdown(phy);
 }
 
-static int hdmi_phy_pll_init(struct platform_device *pdev,
+static int msm_hdmi_phy_pll_init(struct platform_device *pdev,
 			     enum hdmi_phy_type type)
 {
 	int ret;
 
 	switch (type) {
 	case MSM_HDMI_PHY_8960:
-		ret = hdmi_pll_8960_init(pdev);
+		ret = msm_hdmi_pll_8960_init(pdev);
 		break;
 	case MSM_HDMI_PHY_8996:
-		ret = hdmi_pll_8996_init(pdev);
+		ret = msm_hdmi_pll_8996_init(pdev);
 		break;
 	/*
 	 * we don't have PLL support for these, don't report an error for now
@@ -143,7 +143,7 @@ static int hdmi_phy_pll_init(struct platform_device *pdev,
 	return ret;
 }
 
-static int hdmi_phy_probe(struct platform_device *pdev)
+static int msm_hdmi_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hdmi_phy *phy;
@@ -165,66 +165,66 @@ static int hdmi_phy_probe(struct platform_device *pdev)
 
 	phy->pdev = pdev;
 
-	ret = hdmi_phy_resource_init(phy);
+	ret = msm_hdmi_phy_resource_init(phy);
 	if (ret)
 		return ret;
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = hdmi_phy_resource_enable(phy);
+	ret = msm_hdmi_phy_resource_enable(phy);
 	if (ret)
 		return ret;
 
-	ret = hdmi_phy_pll_init(pdev, phy->cfg->type);
+	ret = msm_hdmi_phy_pll_init(pdev, phy->cfg->type);
 	if (ret) {
 		dev_err(dev, "couldn't init PLL\n");
-		hdmi_phy_resource_disable(phy);
+		msm_hdmi_phy_resource_disable(phy);
 		return ret;
 	}
 
-	hdmi_phy_resource_disable(phy);
+	msm_hdmi_phy_resource_disable(phy);
 
 	platform_set_drvdata(pdev, phy);
 
 	return 0;
 }
 
-static int hdmi_phy_remove(struct platform_device *pdev)
+static int msm_hdmi_phy_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
 
-static const struct of_device_id hdmi_phy_dt_match[] = {
+static const struct of_device_id msm_hdmi_phy_dt_match[] = {
 	{ .compatible = "qcom,hdmi-phy-8660",
-	  .data = &hdmi_phy_8x60_cfg },
+	  .data = &msm_hdmi_phy_8x60_cfg },
 	{ .compatible = "qcom,hdmi-phy-8960",
-	  .data = &hdmi_phy_8960_cfg },
+	  .data = &msm_hdmi_phy_8960_cfg },
 	{ .compatible = "qcom,hdmi-phy-8974",
-	  .data = &hdmi_phy_8x74_cfg },
+	  .data = &msm_hdmi_phy_8x74_cfg },
 	{ .compatible = "qcom,hdmi-phy-8084",
-	  .data = &hdmi_phy_8x74_cfg },
+	  .data = &msm_hdmi_phy_8x74_cfg },
 	{ .compatible = "qcom,hdmi-phy-8996",
-	  .data = &hdmi_phy_8996_cfg },
+	  .data = &msm_hdmi_phy_8996_cfg },
 	{}
 };
 
-static struct platform_driver hdmi_phy_platform_driver = {
-	.probe      = hdmi_phy_probe,
-	.remove     = hdmi_phy_remove,
+static struct platform_driver msm_hdmi_phy_platform_driver = {
+	.probe      = msm_hdmi_phy_probe,
+	.remove     = msm_hdmi_phy_remove,
 	.driver     = {
 		.name   = "msm_hdmi_phy",
-		.of_match_table = hdmi_phy_dt_match,
+		.of_match_table = msm_hdmi_phy_dt_match,
 	},
 };
 
-void __init hdmi_phy_driver_register(void)
+void __init msm_hdmi_phy_driver_register(void)
 {
-	platform_driver_register(&hdmi_phy_platform_driver);
+	platform_driver_register(&msm_hdmi_phy_platform_driver);
 }
 
-void __exit hdmi_phy_driver_unregister(void)
+void __exit msm_hdmi_phy_driver_unregister(void)
 {
-	platform_driver_unregister(&hdmi_phy_platform_driver);
+	platform_driver_unregister(&msm_hdmi_phy_platform_driver);
 }

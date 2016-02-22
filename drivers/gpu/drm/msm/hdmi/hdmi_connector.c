@@ -28,7 +28,7 @@ struct hdmi_connector {
 };
 #define to_hdmi_connector(x) container_of(x, struct hdmi_connector, base)
 
-static void hdmi_phy_reset(struct hdmi *hdmi)
+static void msm_hdmi_phy_reset(struct hdmi *hdmi)
 {
 	unsigned int val;
 
@@ -179,9 +179,9 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 		}
 	}
 
-	hdmi_set_mode(hdmi, false);
-	hdmi_phy_reset(hdmi);
-	hdmi_set_mode(hdmi, true);
+	msm_hdmi_set_mode(hdmi, false);
+	msm_hdmi_phy_reset(hdmi);
+	msm_hdmi_set_mode(hdmi, true);
 
 	hdmi_write(hdmi, REG_HDMI_USEC_REFTIMER, 0x0001001b);
 
@@ -218,7 +218,7 @@ static void hdp_disable(struct hdmi_connector *hdmi_connector)
 	/* Disable HPD interrupt */
 	hdmi_write(hdmi, REG_HDMI_HPD_INT_CTRL, 0);
 
-	hdmi_set_mode(hdmi, false);
+	msm_hdmi_set_mode(hdmi, false);
 
 	for (i = 0; i < config->hpd_clk_cnt; i++)
 		clk_disable_unprepare(hdmi->hpd_clks[i]);
@@ -240,7 +240,7 @@ static void hdp_disable(struct hdmi_connector *hdmi_connector)
 }
 
 static void
-hotplug_work(struct work_struct *work)
+msm_hdmi_hotplug_work(struct work_struct *work)
 {
 	struct hdmi_connector *hdmi_connector =
 		container_of(work, struct hdmi_connector, hpd_work);
@@ -248,7 +248,7 @@ hotplug_work(struct work_struct *work)
 	drm_helper_hpd_irq_event(connector->dev);
 }
 
-void hdmi_connector_irq(struct drm_connector *connector)
+void msm_hdmi_connector_irq(struct drm_connector *connector)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 	struct hdmi *hdmi = hdmi_connector->hdmi;
@@ -347,7 +347,7 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 	kfree(hdmi_connector);
 }
 
-static int hdmi_connector_get_modes(struct drm_connector *connector)
+static int msm_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 	struct hdmi *hdmi = hdmi_connector->hdmi;
@@ -373,7 +373,7 @@ static int hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static int hdmi_connector_mode_valid(struct drm_connector *connector,
+static int msm_hdmi_connector_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
@@ -403,7 +403,7 @@ static int hdmi_connector_mode_valid(struct drm_connector *connector,
 }
 
 static struct drm_encoder *
-hdmi_connector_best_encoder(struct drm_connector *connector)
+msm_hdmi_connector_best_encoder(struct drm_connector *connector)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 	return hdmi_connector->hdmi->encoder;
@@ -419,14 +419,14 @@ static const struct drm_connector_funcs hdmi_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static const struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
-	.get_modes = hdmi_connector_get_modes,
-	.mode_valid = hdmi_connector_mode_valid,
-	.best_encoder = hdmi_connector_best_encoder,
+static const struct drm_connector_helper_funcs msm_hdmi_connector_helper_funcs = {
+	.get_modes = msm_hdmi_connector_get_modes,
+	.mode_valid = msm_hdmi_connector_mode_valid,
+	.best_encoder = msm_hdmi_connector_best_encoder,
 };
 
 /* initialize connector */
-struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
+struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi)
 {
 	struct drm_connector *connector = NULL;
 	struct hdmi_connector *hdmi_connector;
@@ -439,13 +439,13 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 	}
 
 	hdmi_connector->hdmi = hdmi;
-	INIT_WORK(&hdmi_connector->hpd_work, hotplug_work);
+	INIT_WORK(&hdmi_connector->hpd_work, msm_hdmi_hotplug_work);
 
 	connector = &hdmi_connector->base;
 
 	drm_connector_init(hdmi->dev, connector, &hdmi_connector_funcs,
 			DRM_MODE_CONNECTOR_HDMIA);
-	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
+	drm_connector_helper_add(connector, &msm_hdmi_connector_helper_funcs);
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 			DRM_CONNECTOR_POLL_DISCONNECT;

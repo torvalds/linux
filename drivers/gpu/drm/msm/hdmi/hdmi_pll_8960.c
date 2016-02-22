@@ -426,7 +426,7 @@ static struct clk_init_data pll_init = {
 	.num_parents = ARRAY_SIZE(hdmi_pll_parents),
 };
 
-int hdmi_pll_8960_init(struct platform_device *pdev)
+int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hdmi_pll_8960 *pll;

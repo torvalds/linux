@@ -704,7 +704,7 @@ static struct clk_init_data pll_init = {
 	.num_parents = ARRAY_SIZE(hdmi_pll_parents),
 };
 
-int hdmi_pll_8996_init(struct platform_device *pdev)
+int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hdmi_pll_8996 *pll;
@@ -757,7 +757,7 @@ static const char * const hdmi_phy_8996_clk_names[] = {
 	"ref_clk",
 };
 
-const struct hdmi_phy_cfg hdmi_phy_8996_cfg = {
+const struct hdmi_phy_cfg msm_hdmi_phy_8996_cfg = {
 	.type = MSM_HDMI_PHY_8996,
 	.reg_names = hdmi_phy_8996_reg_names,
 	.num_regs = ARRAY_SIZE(hdmi_phy_8996_reg_names),

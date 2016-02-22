@@ -51,7 +51,7 @@ static const char * const hdmi_phy_8960_clk_names[] = {
 	"slave_iface_clk",
 };
 
-const struct hdmi_phy_cfg hdmi_phy_8960_cfg = {
+const struct hdmi_phy_cfg msm_hdmi_phy_8960_cfg = {
 	.type = MSM_HDMI_PHY_8960,
 	.powerup = hdmi_phy_8960_powerup,
 	.powerdown = hdmi_phy_8960_powerdown,

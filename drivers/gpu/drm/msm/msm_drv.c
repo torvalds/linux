@@ -1121,7 +1121,7 @@ static int __init msm_drm_register(void)
 	DBG("init");
 	msm_dsi_register();
 	msm_edp_register();
-	hdmi_register();
+	msm_hdmi_register();
 	adreno_register();
 	return platform_driver_register(&msm_platform_driver);
 }
@@ -1130,7 +1130,7 @@ static void __exit msm_drm_unregister(void)
 {
 	DBG("fini");
 	platform_driver_unregister(&msm_platform_driver);
-	hdmi_unregister();
+	msm_hdmi_unregister();
 	adreno_unregister();
 	msm_edp_unregister();
 	msm_dsi_unregister();

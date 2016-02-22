@@ -45,7 +45,7 @@ static const char * const hdmi_phy_8x74_clk_names[] = {
 	"alt_iface_clk"
 };
 
-const struct hdmi_phy_cfg hdmi_phy_8x74_cfg = {
+const struct hdmi_phy_cfg msm_hdmi_phy_8x74_cfg = {
 	.type = MSM_HDMI_PHY_8x74,
 	.powerup = hdmi_phy_8x74_powerup,
 	.powerdown = hdmi_phy_8x74_powerdown,

@@ -122,7 +122,7 @@ struct hdmi_platform_config {
 	struct hdmi_gpio_data gpios[HDMI_MAX_NUM_GPIO];
 };
 
-void hdmi_set_mode(struct hdmi *hdmi, bool power_on);
+void msm_hdmi_set_mode(struct hdmi *hdmi, bool power_on);
 
 static inline void hdmi_write(struct hdmi *hdmi, u32 reg, u32 data)
 {
@@ -161,10 +161,10 @@ struct hdmi_phy_cfg {
 	int num_clks;
 };
 
-extern const struct hdmi_phy_cfg hdmi_phy_8x60_cfg;
-extern const struct hdmi_phy_cfg hdmi_phy_8960_cfg;
-extern const struct hdmi_phy_cfg hdmi_phy_8x74_cfg;
-extern const struct hdmi_phy_cfg hdmi_phy_8996_cfg;
+extern const struct hdmi_phy_cfg msm_hdmi_phy_8x60_cfg;
+extern const struct hdmi_phy_cfg msm_hdmi_phy_8960_cfg;
+extern const struct hdmi_phy_cfg msm_hdmi_phy_8x74_cfg;
+extern const struct hdmi_phy_cfg msm_hdmi_phy_8996_cfg;
 
 struct hdmi_phy {
 	struct platform_device *pdev;
@@ -185,23 +185,23 @@ static inline u32 hdmi_phy_read(struct hdmi_phy *phy, u32 reg)
 	return msm_readl(phy->mmio + reg);
 }
 
-int hdmi_phy_resource_enable(struct hdmi_phy *phy);
-void hdmi_phy_resource_disable(struct hdmi_phy *phy);
-void hdmi_phy_powerup(struct hdmi_phy *phy, unsigned long int pixclock);
-void hdmi_phy_powerdown(struct hdmi_phy *phy);
-void __init hdmi_phy_driver_register(void);
-void __exit hdmi_phy_driver_unregister(void);
+int msm_hdmi_phy_resource_enable(struct hdmi_phy *phy);
+void msm_hdmi_phy_resource_disable(struct hdmi_phy *phy);
+void msm_hdmi_phy_powerup(struct hdmi_phy *phy, unsigned long int pixclock);
+void msm_hdmi_phy_powerdown(struct hdmi_phy *phy);
+void __init msm_hdmi_phy_driver_register(void);
+void __exit msm_hdmi_phy_driver_unregister(void);
 
 #ifdef CONFIG_COMMON_CLK
-int hdmi_pll_8960_init(struct platform_device *pdev);
-int hdmi_pll_8996_init(struct platform_device *pdev);
+int msm_hdmi_pll_8960_init(struct platform_device *pdev);
+int msm_hdmi_pll_8996_init(struct platform_device *pdev);
 #else
-int hdmi_pll_8960_init(struct platform_device *pdev);
+static inline int msm_hdmi_pll_8960_init(struct platform_device *pdev);
 {
 	return -ENODEV;
 }
 
-int hdmi_pll_8996_init(struct platform_device *pdev)
+static inline int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 {
 	return -ENODEV;
 }
@@ -211,42 +211,42 @@ int hdmi_pll_8996_init(struct platform_device *pdev)
  * audio:
  */
 
-int hdmi_audio_update(struct hdmi *hdmi);
-int hdmi_audio_info_setup(struct hdmi *hdmi, bool enabled,
+int msm_hdmi_audio_update(struct hdmi *hdmi);
+int msm_hdmi_audio_info_setup(struct hdmi *hdmi, bool enabled,
 	uint32_t num_of_channels, uint32_t channel_allocation,
 	uint32_t level_shift, bool down_mix);
-void hdmi_audio_set_sample_rate(struct hdmi *hdmi, int rate);
+void msm_hdmi_audio_set_sample_rate(struct hdmi *hdmi, int rate);
 
 
 /*
  * hdmi bridge:
  */
 
-struct drm_bridge *hdmi_bridge_init(struct hdmi *hdmi);
-void hdmi_bridge_destroy(struct drm_bridge *bridge);
+struct drm_bridge *msm_hdmi_bridge_init(struct hdmi *hdmi);
+void msm_hdmi_bridge_destroy(struct drm_bridge *bridge);
 
 /*
  * hdmi connector:
  */
 
-void hdmi_connector_irq(struct drm_connector *connector);
-struct drm_connector *hdmi_connector_init(struct hdmi *hdmi);
+void msm_hdmi_connector_irq(struct drm_connector *connector);
+struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi);
 
 /*
  * i2c adapter for ddc:
  */
 
-void hdmi_i2c_irq(struct i2c_adapter *i2c);
-void hdmi_i2c_destroy(struct i2c_adapter *i2c);
-struct i2c_adapter *hdmi_i2c_init(struct hdmi *hdmi);
+void msm_hdmi_i2c_irq(struct i2c_adapter *i2c);
+void msm_hdmi_i2c_destroy(struct i2c_adapter *i2c);
+struct i2c_adapter *msm_hdmi_i2c_init(struct hdmi *hdmi);
 
 /*
  * hdcp
  */
-struct hdmi_hdcp_ctrl *hdmi_hdcp_init(struct hdmi *hdmi);
-void hdmi_hdcp_destroy(struct hdmi *hdmi);
-void hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl);
-void hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl);
-void hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl);
+struct hdmi_hdcp_ctrl *msm_hdmi_hdcp_init(struct hdmi *hdmi);
+void msm_hdmi_hdcp_destroy(struct hdmi *hdmi);
+void msm_hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl);
+void msm_hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl);
+void msm_hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl);
 
 #endif /* __HDMI_CONNECTOR_H__ */
