@@ -166,6 +166,8 @@ enum {
 	MLX5_CMD_OP_SET_L2_TABLE_ENTRY            = 0x829,
 	MLX5_CMD_OP_QUERY_L2_TABLE_ENTRY          = 0x82a,
 	MLX5_CMD_OP_DELETE_L2_TABLE_ENTRY         = 0x82b,
+	MLX5_CMD_OP_SET_WOL_ROL                   = 0x830,
+	MLX5_CMD_OP_QUERY_WOL_ROL                 = 0x831,
 	MLX5_CMD_OP_CREATE_TIR                    = 0x900,
 	MLX5_CMD_OP_MODIFY_TIR                    = 0x901,
 	MLX5_CMD_OP_DESTROY_TIR                   = 0x902,
@@ -731,7 +733,17 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_msg[0x5];
 	u8         reserved_at_1c7[0x4];
 	u8         max_tc[0x4];
-	u8         reserved_at_1cf[0x10];
+	u8         reserved_at_1cf[0x6];
+	u8         rol_s[0x1];
+	u8         rol_g[0x1];
+	u8         reserved_at_1d7[0x1];
+	u8         wol_s[0x1];
+	u8         wol_g[0x1];
+	u8         wol_a[0x1];
+	u8         wol_b[0x1];
+	u8         wol_m[0x1];
+	u8         wol_u[0x1];
+	u8         wol_p[0x1];
 
 	u8         stat_rate_support[0x10];
 	u8         reserved_at_1ef[0xc];
@@ -6871,6 +6883,54 @@ struct mlx5_ifc_mtt_bits {
 	u8         reserved_at_38[0x6];
 	u8         wr_en[0x1];
 	u8         rd_en[0x1];
+};
+
+struct mlx5_ifc_query_wol_rol_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x10];
+	u8         rol_mode[0x8];
+	u8         wol_mode[0x8];
+
+	u8         reserved_at_60[0x20];
+};
+
+struct mlx5_ifc_query_wol_rol_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_set_wol_rol_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_set_wol_rol_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         rol_mode_valid[0x1];
+	u8         wol_mode_valid[0x1];
+	u8         reserved_at_42[0xe];
+	u8         rol_mode[0x8];
+	u8         wol_mode[0x8];
+
+	u8         reserved_at_60[0x20];
 };
 
 enum {

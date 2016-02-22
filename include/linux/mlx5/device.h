@@ -1183,6 +1183,17 @@ enum {
 	MLX5_RQC_RQ_TYPE_MEMORY_RQ_RPM    = 0x1,
 };
 
+enum mlx5_wol_mode {
+	MLX5_WOL_DISABLE        = 0,
+	MLX5_WOL_SECURED_MAGIC  = 1 << 1,
+	MLX5_WOL_MAGIC          = 1 << 2,
+	MLX5_WOL_ARP            = 1 << 3,
+	MLX5_WOL_BROADCAST      = 1 << 4,
+	MLX5_WOL_MULTICAST      = 1 << 5,
+	MLX5_WOL_UNICAST        = 1 << 6,
+	MLX5_WOL_PHY_ACTIVITY   = 1 << 7,
+};
+
 /* MLX5 DEV CAPs */
 
 /* TODO: EAT.ME */

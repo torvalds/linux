@@ -546,3 +546,41 @@ int mlx5_query_port_ets_rate_limit(struct mlx5_core_dev *mdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_ets_rate_limit);
+
+int mlx5_set_port_wol(struct mlx5_core_dev *mdev, u8 wol_mode)
+{
+	u32 in[MLX5_ST_SZ_DW(set_wol_rol_in)];
+	u32 out[MLX5_ST_SZ_DW(set_wol_rol_out)];
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(set_wol_rol_in, in, opcode, MLX5_CMD_OP_SET_WOL_ROL);
+	MLX5_SET(set_wol_rol_in, in, wol_mode_valid, 1);
+	MLX5_SET(set_wol_rol_in, in, wol_mode, wol_mode);
+
+	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in),
+					  out, sizeof(out));
+}
+EXPORT_SYMBOL_GPL(mlx5_set_port_wol);
+
+int mlx5_query_port_wol(struct mlx5_core_dev *mdev, u8 *wol_mode)
+{
+	u32 in[MLX5_ST_SZ_DW(query_wol_rol_in)];
+	u32 out[MLX5_ST_SZ_DW(query_wol_rol_out)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(query_wol_rol_in, in, opcode, MLX5_CMD_OP_QUERY_WOL_ROL);
+
+	err = mlx5_cmd_exec_check_status(mdev, in, sizeof(in),
+					 out, sizeof(out));
+
+	if (!err)
+		*wol_mode = MLX5_GET(query_wol_rol_out, out, wol_mode);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_wol);

@@ -560,6 +560,12 @@ const char *mlx5_command_str(int command)
 	case MLX5_CMD_OP_ACCESS_REG:
 		return "MLX5_CMD_OP_ACCESS_REG";
 
+	case MLX5_CMD_OP_SET_WOL_ROL:
+		return "SET_WOL_ROL";
+
+	case MLX5_CMD_OP_QUERY_WOL_ROL:
+		return "QUERY_WOL_ROL";
+
 	default: return "unknown command opcode";
 	}
 }
