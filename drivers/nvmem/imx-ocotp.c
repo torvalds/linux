@@ -51,7 +51,7 @@ static int imx_ocotp_read(void *context, const void *reg, size_t reg_size,
 		val += 4;
 	}
 
-	return (i - index) * 4;
+	return 0;
 }
 
 static int imx_ocotp_write(void *context, const void *data, size_t count)
