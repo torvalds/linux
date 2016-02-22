@@ -200,6 +200,11 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	/* Turn on performance counters: */
 	gpu_write(gpu, REG_A4XX_RBBM_PERFCTR_CTL, 0x01);
 
+	/* use the first CP counter for timestamp queries.. userspace may set
+	 * this as well but it selects the same counter/countable:
+	 */
+	gpu_write(gpu, REG_A4XX_CP_PERFCTR_CP_SEL_0, CP_ALWAYS_COUNT);
+
 	if (adreno_is_a430(adreno_gpu))
 		gpu_write(gpu, REG_A4XX_UCHE_CACHE_WAYS_VFD, 0x07);
 
@@ -294,6 +299,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A4XX_CP_ME_CNTL, 0);
 
 	a4xx_me_init(gpu);
+
 	return 0;
 }
 
@@ -585,6 +591,22 @@ static int a4xx_pm_suspend(struct msm_gpu *gpu) {
 	return 0;
 }
 
+static int a4xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
+{
+	uint32_t hi, lo, tmp;
+
+	tmp = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_HI);
+	do {
+		hi = tmp;
+		lo = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_LO);
+		tmp = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_HI);
+	} while (tmp != hi);
+
+	*value = (((uint64_t)hi) << 32) | lo;
+
+	return 0;
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
@@ -602,6 +624,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.show = a4xx_show,
 #endif
 	},
+	.get_timestamp = a4xx_get_timestamp,
 };
 
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)

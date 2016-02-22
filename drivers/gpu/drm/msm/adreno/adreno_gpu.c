@@ -44,6 +44,10 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 	case MSM_PARAM_MAX_FREQ:
 		*value = adreno_gpu->base.fast_rate;
 		return 0;
+	case MSM_PARAM_TIMESTAMP:
+		if (adreno_gpu->funcs->get_timestamp)
+			return adreno_gpu->funcs->get_timestamp(gpu, value);
+		return -EINVAL;
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);
 		return -EINVAL;

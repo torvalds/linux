@@ -114,6 +114,7 @@ struct adreno_rev {
 
 struct adreno_gpu_funcs {
 	struct msm_gpu_funcs base;
+	int (*get_timestamp)(struct msm_gpu *gpu, uint64_t *value);
 };
 
 struct adreno_info {
