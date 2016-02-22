@@ -1212,9 +1212,11 @@ static int cx231xx_media_device_init(struct cx231xx *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	mdev = media_device_usb_init(udev, dev->board.name);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
+
+	media_device_usb_init(mdev, udev, dev->board.name);
 
 	dev->media_dev = mdev;
 #endif

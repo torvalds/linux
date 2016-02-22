@@ -191,12 +191,14 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	if (!dev->board.name)
-		mdev = media_device_usb_init(udev, "unknown au0828");
-	else
-		mdev = media_device_usb_init(udev, dev->board.name);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
+
+	if (!dev->board.name)
+		media_device_usb_init(mdev, udev, "unknown au0828");
+	else
+		media_device_usb_init(mdev, udev, dev->board.name);
 
 	dev->media_dev = mdev;
 #endif

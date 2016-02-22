@@ -3019,16 +3019,16 @@ static int em28xx_media_device_init(struct em28xx *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	if (udev->product) {
-		mdev = media_device_usb_init(udev, udev->product);
-	} else if (udev->manufacturer) {
-		mdev = media_device_usb_init(udev, udev->manufacturer);
-	} else {
-		mdev = media_device_usb_init(udev, dev->name);
-	}
-
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
+
+	if (udev->product)
+		media_device_usb_init(mdev, udev, udev->product);
+	else if (udev->manufacturer)
+		media_device_usb_init(mdev, udev, udev->manufacturer);
+	else
+		media_device_usb_init(mdev, udev, dev->name);
 
 	dev->media_dev = mdev;
 #endif

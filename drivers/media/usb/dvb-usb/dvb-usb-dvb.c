@@ -103,7 +103,11 @@ static int dvb_usb_media_device_init(struct dvb_usb_adapter *adap)
 	struct dvb_usb_device *d = adap->dev;
 	struct usb_device *udev = d->udev;
 
-	mdev = media_device_usb_init(udev, d->desc->name);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return -ENOMEM;
+
+	media_device_usb_init(mdev, udev, d->desc->name);
 
 	dvb_register_media_controller(&adap->dvb_adap, mdev);
 

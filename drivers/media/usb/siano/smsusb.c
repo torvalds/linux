@@ -367,9 +367,11 @@ static void *siano_media_device_register(struct smsusb_device_t *dev,
 	struct sms_board *board = sms_get_board(board_id);
 	int ret;
 
-	mdev = media_device_usb_init(udev, board->name);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return NULL;
+
+	media_device_usb_init(mdev, udev, board->name);
 
 	ret = media_device_register(mdev);
 	if (ret) {

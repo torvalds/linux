@@ -755,16 +755,11 @@ struct media_device *media_device_find_devres(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(media_device_find_devres);
 
-struct media_device *media_device_pci_init(struct pci_dev *pci_dev,
-					   const char *name)
+void media_device_pci_init(struct media_device *mdev,
+			   struct pci_dev *pci_dev,
+			   const char *name)
 {
 #ifdef CONFIG_PCI
-	struct media_device *mdev;
-
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
-	if (!mdev)
-		return NULL;
-
 	mdev->dev = &pci_dev->dev;
 
 	if (name)
@@ -780,25 +775,16 @@ struct media_device *media_device_pci_init(struct pci_dev *pci_dev,
 	mdev->driver_version = LINUX_VERSION_CODE;
 
 	media_device_init(mdev);
-
-	return mdev;
-#else
-	return NULL;
 #endif
 }
 EXPORT_SYMBOL_GPL(media_device_pci_init);
 
-struct media_device *__media_device_usb_init(struct usb_device *udev,
-					     const char *board_name,
-					     const char *driver_name)
+void __media_device_usb_init(struct media_device *mdev,
+			     struct usb_device *udev,
+			     const char *board_name,
+			     const char *driver_name)
 {
 #ifdef CONFIG_USB
-	struct media_device *mdev;
-
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
-	if (!mdev)
-		return NULL;
-
 	mdev->dev = &udev->dev;
 
 	if (driver_name)
@@ -818,10 +804,6 @@ struct media_device *__media_device_usb_init(struct usb_device *udev,
 	mdev->driver_version = LINUX_VERSION_CODE;
 
 	media_device_init(mdev);
-
-	return mdev;
-#else
-	return NULL;
 #endif
 }
 EXPORT_SYMBOL_GPL(__media_device_usb_init);
