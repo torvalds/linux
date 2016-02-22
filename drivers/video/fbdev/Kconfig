@@ -1808,8 +1808,8 @@ config FB_HIT
 	  frame buffer card.
 
 config FB_PMAG_AA
-	bool "PMAG-AA TURBOchannel framebuffer support"
-	depends on (FB = y) && TC
+	tristate "PMAG-AA TURBOchannel framebuffer support"
+	depends on FB && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
