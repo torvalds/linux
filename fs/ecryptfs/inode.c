@@ -397,11 +397,9 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	int rc = 0;
 
 	lower_dir_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry->d_parent);
-	inode_lock(d_inode(lower_dir_dentry));
-	lower_dentry = lookup_one_len(ecryptfs_dentry->d_name.name,
+	lower_dentry = lookup_one_len_unlocked(ecryptfs_dentry->d_name.name,
 				      lower_dir_dentry,
 				      ecryptfs_dentry->d_name.len);
-	inode_unlock(d_inode(lower_dir_dentry));
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
@@ -426,11 +424,9 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		       "filename; rc = [%d]\n", __func__, rc);
 		goto out;
 	}
-	inode_lock(d_inode(lower_dir_dentry));
-	lower_dentry = lookup_one_len(encrypted_and_encoded_name,
+	lower_dentry = lookup_one_len_unlocked(encrypted_and_encoded_name,
 				      lower_dir_dentry,
 				      encrypted_and_encoded_name_size);
-	inode_unlock(d_inode(lower_dir_dentry));
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
