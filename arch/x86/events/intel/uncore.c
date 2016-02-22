@@ -754,6 +754,30 @@ static void uncore_pmu_unregister(struct intel_uncore_pmu *pmu)
 	pmu->registered = false;
 }
 
+static void __init __uncore_exit_boxes(struct intel_uncore_type *type, int cpu)
+{
+	struct intel_uncore_pmu *pmu = type->pmus;
+	struct intel_uncore_box *box;
+	int i, pkg;
+
+	if (pmu) {
+		pkg = topology_physical_package_id(cpu);
+		for (i = 0; i < type->num_boxes; i++, pmu++) {
+			box = pmu->boxes[pkg];
+			if (box)
+				uncore_box_exit(box);
+		}
+	}
+}
+
+static void __init uncore_exit_boxes(void *dummy)
+{
+	struct intel_uncore_type **types;
+
+	for (types = uncore_msr_uncores; *types; types++)
+		__uncore_exit_boxes(*types++, smp_processor_id());
+}
+
 static void uncore_free_boxes(struct intel_uncore_pmu *pmu)
 {
 	int pkg;
@@ -1376,6 +1400,8 @@ static int __init intel_uncore_init(void)
 	return 0;
 
 err:
+	/* Undo box->init_box() */
+	on_each_cpu_mask(&uncore_cpu_mask, uncore_exit_boxes, NULL, 1);
 	uncore_types_exit(uncore_msr_uncores);
 	uncore_pci_exit();
 	cpu_notifier_register_done();
