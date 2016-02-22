@@ -3095,7 +3095,6 @@ struct iw_handler_def rtw_handlers_def = {
 	.get_wireless_stats = rtw_get_wireless_stats,
 };
 
-#include <rtw_android.h>
 int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct iwreq *wrq = (struct iwreq *)rq;
