@@ -1054,6 +1054,21 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			sb->s_flags |= MS_RDONLY;
 			ufs->workdir = NULL;
 		}
+
+		/*
+		 * Upper should support d_type, else whiteouts are visible.
+		 * Given workdir and upper are on same fs, we can do
+		 * iterate_dir() on workdir.
+		 */
+		err = ovl_check_d_type_supported(&workpath);
+		if (err < 0)
+			goto out_put_workdir;
+
+		if (!err) {
+			pr_err("overlayfs: upper fs needs to support d_type.\n");
+			err = -EINVAL;
+			goto out_put_workdir;
+		}
 	}
 
 	err = -ENOMEM;
