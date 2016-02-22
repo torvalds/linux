@@ -2317,8 +2317,8 @@ static int __spi_split_transfer_maxsize(struct spi_master *master,
  *                              when an individual transfer exceeds a
  *                              certain size
  * @master:    the @spi_master for this transfer
- * @message:   the @spi_message to transform
- * @max_size:  the maximum when to apply this
+ * @msg:   the @spi_message to transform
+ * @maxsize:  the maximum when to apply this
  *
  * Return: status of transformation
  */
