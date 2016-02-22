@@ -1389,18 +1389,18 @@ static u32 init_chip(struct net_device *dev)
 	if ((chipid & 0xfff) != 0xa0) {
 		ret = wilc->hif_func->hif_read_reg(wilc, 0x1118, &reg);
 		if (!ret) {
-			wilc_debug(N_ERR, "[wilc start]: fail read reg 0x1118 ...\n");
+			netdev_err(dev, "fail read reg 0x1118\n");
 			return ret;
 		}
 		reg |= BIT(0);
 		ret = wilc->hif_func->hif_write_reg(wilc, 0x1118, reg);
 		if (!ret) {
-			wilc_debug(N_ERR, "[wilc start]: fail write reg 0x1118 ...\n");
+			netdev_err(dev, "fail write reg 0x1118\n");
 			return ret;
 		}
 		ret = wilc->hif_func->hif_write_reg(wilc, 0xc0000, 0x71);
 		if (!ret) {
-			wilc_debug(N_ERR, "[wilc start]: fail write reg 0xc0000 ...\n");
+			netdev_err(dev, "fail write reg 0xc0000\n");
 			return ret;
 		}
 	}
