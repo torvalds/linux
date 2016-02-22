@@ -252,6 +252,27 @@ pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 	}
 }
 
+/*
+ * Mark a pnfs_layout_hdr and all associated layout segments as invalid
+ *
+ * In order to continue using the pnfs_layout_hdr, a full recovery
+ * is required.
+ * Note that caller must hold inode->i_lock.
+ */
+static void
+pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
+		struct list_head *lseg_list)
+{
+	struct pnfs_layout_range range = {
+		.iomode = IOMODE_ANY,
+		.offset = 0,
+		.length = NFS4_MAX_UINT64,
+	};
+
+	set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+	pnfs_mark_matching_lsegs_invalid(lo, lseg_list, &range);
+}
+
 static int
 pnfs_iomode_to_fail_bit(u32 iomode)
 {
@@ -554,9 +575,8 @@ pnfs_destroy_layout(struct nfs_inode *nfsi)
 	spin_lock(&nfsi->vfs_inode.i_lock);
 	lo = nfsi->layout;
 	if (lo) {
-		lo->plh_block_lgets++; /* permanently block new LAYOUTGETs */
-		pnfs_mark_matching_lsegs_invalid(lo, &tmp_list, NULL);
 		pnfs_get_layout_hdr(lo);
+		pnfs_mark_layout_stateid_invalid(lo, &tmp_list);
 		pnfs_layout_clear_fail_bit(lo, NFS_LAYOUT_RO_FAILED);
 		pnfs_layout_clear_fail_bit(lo, NFS_LAYOUT_RW_FAILED);
 		spin_unlock(&nfsi->vfs_inode.i_lock);
