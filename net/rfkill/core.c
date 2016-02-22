@@ -455,7 +455,6 @@ bool rfkill_get_global_sw_state(const enum rfkill_type type)
 }
 #endif
 
-
 bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
 {
 	unsigned long flags;
