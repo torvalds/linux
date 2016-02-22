@@ -74,12 +74,12 @@ struct fsm_s {
 };
 
 struct data_s {
-	int	size;
+	unsigned int size;
 	void	*buf;
 };
 
 struct udata_s {
-	int		size;
+	unsigned int	size;
 	void __user	*buf;
 };
 
