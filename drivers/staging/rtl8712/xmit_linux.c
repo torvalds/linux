@@ -70,10 +70,7 @@ uint _r8712_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 
 sint r8712_endofpktfile(struct pkt_file *pfile)
 {
-	if (pfile->pkt_len == 0)
-		return true;
-	else
-		return false;
+	return (pfile->pkt_len == 0);
 }
 
 
