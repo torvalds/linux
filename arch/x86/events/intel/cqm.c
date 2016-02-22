@@ -1244,15 +1244,12 @@ static struct pmu intel_cqm_pmu = {
 
 static inline void cqm_pick_event_reader(int cpu)
 {
-	int phys_id = topology_physical_package_id(cpu);
-	int i;
+	int reader;
 
-	for_each_cpu(i, &cqm_cpumask) {
-		if (phys_id == topology_physical_package_id(i))
-			return;	/* already got reader for this socket */
-	}
-
-	cpumask_set_cpu(cpu, &cqm_cpumask);
+	/* First online cpu in package becomes the reader */
+	reader = cpumask_any_and(&cqm_cpumask, topology_core_cpumask(cpu));
+	if (reader >= nr_cpu_ids)
+		cpumask_set_cpu(cpu, &cqm_cpumask);
 }
 
 static void intel_cqm_cpu_starting(unsigned int cpu)
@@ -1270,24 +1267,17 @@ static void intel_cqm_cpu_starting(unsigned int cpu)
 
 static void intel_cqm_cpu_exit(unsigned int cpu)
 {
-	int phys_id = topology_physical_package_id(cpu);
-	int i;
+	int target;
 
-	/*
-	 * Is @cpu a designated cqm reader?
-	 */
+	/* Is @cpu the current cqm reader for this package ? */
 	if (!cpumask_test_and_clear_cpu(cpu, &cqm_cpumask))
 		return;
 
-	for_each_online_cpu(i) {
-		if (i == cpu)
-			continue;
+	/* Find another online reader in this package */
+	target = cpumask_any_but(topology_core_cpumask(cpu), cpu);
 
-		if (phys_id == topology_physical_package_id(i)) {
-			cpumask_set_cpu(i, &cqm_cpumask);
-			break;
-		}
-	}
+	if (target < nr_cpu_ids)
+		cpumask_set_cpu(target, &cqm_cpumask);
 }
 
 static int intel_cqm_cpu_notifier(struct notifier_block *nb,
