@@ -2497,6 +2497,9 @@ static bool list_del_cmd(struct list_head *haystack,
  * If cmd was not found at all then presumably it has already been completed,
  * in which case return SUCCESS to try to avoid further EH measures.
  * If the command has not completed yet, we must not fail to find it.
+ *
+ * The lock protects driver data structures, but EH handlers also use it
+ * to serialize their own execution and prevent their own re-entry.
  */
 
 static int NCR5380_abort(struct scsi_cmnd *cmd)
@@ -2533,14 +2536,11 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 	if (list_del_cmd(&hostdata->disconnected, cmd)) {
 		dsprintk(NDEBUG_ABORT, instance,
 		         "abort: removed %p from disconnected list\n", cmd);
-		cmd->result = DID_ERROR << 16;
-		if (!hostdata->connected)
-			NCR5380_select(instance, cmd);
-		if (hostdata->connected != cmd) {
-			complete_cmd(instance, cmd);
-			result = FAILED;
-			goto out;
-		}
+		/* Can't call NCR5380_select() and send ABORT because that
+		 * means releasing the lock. Need a bus reset.
+		 */
+		result = FAILED;
+		goto out;
 	}
 
 	if (hostdata->connected == cmd) {
