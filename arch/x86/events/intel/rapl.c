@@ -129,15 +129,23 @@ struct rapl_pmu {
 	struct hrtimer		hrtimer;
 };
 
+struct rapl_pmus {
+	struct pmu		pmu;
+	unsigned int		maxpkg;
+	struct rapl_pmu		*pmus[];
+};
+
  /* 1/2^hw_unit Joule */
 static int rapl_hw_unit[NR_RAPL_DOMAINS] __read_mostly;
-static struct pmu rapl_pmu_class;
+static struct rapl_pmus *rapl_pmus;
 static cpumask_t rapl_cpu_mask;
-static int rapl_cntr_mask;
+static unsigned int rapl_cntr_mask;
 static u64 rapl_timer_ms;
 
-static DEFINE_PER_CPU(struct rapl_pmu *, rapl_pmu);
-static DEFINE_PER_CPU(struct rapl_pmu *, rapl_pmu_to_free);
+static inline struct rapl_pmu *cpu_to_rapl_pmu(unsigned int cpu)
+{
+	return rapl_pmus->pmus[topology_logical_package_id(cpu)];
+}
 
 static inline u64 rapl_read_counter(struct perf_event *event)
 {
@@ -317,12 +325,12 @@ static void rapl_pmu_event_del(struct perf_event *event, int flags)
 
 static int rapl_pmu_event_init(struct perf_event *event)
 {
-	struct rapl_pmu *pmu = __this_cpu_read(rapl_pmu);
 	u64 cfg = event->attr.config & RAPL_EVENT_MASK;
 	int bit, msr, ret = 0;
+	struct rapl_pmu *pmu;
 
 	/* only look at RAPL events */
-	if (event->attr.type != rapl_pmu_class.type)
+	if (event->attr.type != rapl_pmus->pmu.type)
 		return -ENOENT;
 
 	/* check only supported bits are set */
@@ -370,6 +378,7 @@ static int rapl_pmu_event_init(struct perf_event *event)
 		return -EINVAL;
 
 	/* must be done before validate_group */
+	pmu = cpu_to_rapl_pmu(event->cpu);
 	event->cpu = pmu->cpu;
 	event->pmu_private = pmu;
 	event->hw.event_base = msr;
@@ -502,116 +511,62 @@ const struct attribute_group *rapl_attr_groups[] = {
 	NULL,
 };
 
-static struct pmu rapl_pmu_class = {
-	.attr_groups	= rapl_attr_groups,
-	.task_ctx_nr	= perf_invalid_context, /* system-wide only */
-	.event_init	= rapl_pmu_event_init,
-	.add		= rapl_pmu_event_add, /* must have */
-	.del		= rapl_pmu_event_del, /* must have */
-	.start		= rapl_pmu_event_start,
-	.stop		= rapl_pmu_event_stop,
-	.read		= rapl_pmu_event_read,
-};
-
 static void rapl_cpu_exit(int cpu)
 {
-	struct rapl_pmu *pmu = per_cpu(rapl_pmu, cpu);
-	int i, phys_id = topology_physical_package_id(cpu);
-	int target = -1;
+	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
+	int target;
 
-	/* find a new cpu on same package */
-	for_each_online_cpu(i) {
-		if (i == cpu)
-			continue;
-		if (phys_id == topology_physical_package_id(i)) {
-			target = i;
-			break;
-		}
-	}
-	/*
-	 * clear cpu from cpumask
-	 * if was set in cpumask and still some cpu on package,
-	 * then move to new cpu
-	 */
-	if (cpumask_test_and_clear_cpu(cpu, &rapl_cpu_mask) && target >= 0)
+	/* Check if exiting cpu is used for collecting rapl events */
+	if (!cpumask_test_and_clear_cpu(cpu, &rapl_cpu_mask))
+		return;
+
+	pmu->cpu = -1;
+	/* Find a new cpu to collect rapl events */
+	target = cpumask_any_but(topology_core_cpumask(cpu), cpu);
+
+	/* Migrate rapl events to the new target */
+	if (target < nr_cpu_ids) {
 		cpumask_set_cpu(target, &rapl_cpu_mask);
-
-	WARN_ON(cpumask_empty(&rapl_cpu_mask));
-	/*
-	 * migrate events and context to new cpu
-	 */
-	if (target >= 0)
+		pmu->cpu = target;
 		perf_pmu_migrate_context(pmu->pmu, cpu, target);
-
-	/* cancel overflow polling timer for CPU */
-	hrtimer_cancel(&pmu->hrtimer);
+	}
 }
 
 static void rapl_cpu_init(int cpu)
 {
-	int i, phys_id = topology_physical_package_id(cpu);
+	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
+	int target;
 
-	/* check if phys_is is already covered */
-	for_each_cpu(i, &rapl_cpu_mask) {
-		if (phys_id == topology_physical_package_id(i))
-			return;
-	}
-	/* was not found, so add it */
+	/*
+	 * Check if there is an online cpu in the package which collects rapl
+	 * events already.
+	 */
+	target = cpumask_any_and(&rapl_cpu_mask, topology_core_cpumask(cpu));
+	if (target < nr_cpu_ids)
+		return;
+
 	cpumask_set_cpu(cpu, &rapl_cpu_mask);
+	pmu->cpu = cpu;
 }
 
 static int rapl_cpu_prepare(int cpu)
 {
-	struct rapl_pmu *pmu = per_cpu(rapl_pmu, cpu);
-	int phys_id = topology_physical_package_id(cpu);
+	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
 
 	if (pmu)
 		return 0;
 
-	if (phys_id < 0)
-		return -1;
-
 	pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
 	if (!pmu)
-		return -1;
+		return -ENOMEM;
+
 	raw_spin_lock_init(&pmu->lock);
-
 	INIT_LIST_HEAD(&pmu->active_list);
-
-	pmu->pmu = &rapl_pmu_class;
-	pmu->cpu = cpu;
-
+	pmu->pmu = &rapl_pmus->pmu;
 	pmu->timer_interval = ms_to_ktime(rapl_timer_ms);
-
+	pmu->cpu = -1;
 	rapl_hrtimer_init(pmu);
-
-	/* set RAPL pmu for this cpu for now */
-	per_cpu(rapl_pmu, cpu) = pmu;
-	per_cpu(rapl_pmu_to_free, cpu) = NULL;
-
-	return 0;
-}
-
-static void rapl_cpu_kfree(int cpu)
-{
-	struct rapl_pmu *pmu = per_cpu(rapl_pmu_to_free, cpu);
-
-	kfree(pmu);
-
-	per_cpu(rapl_pmu_to_free, cpu) = NULL;
-}
-
-static int rapl_cpu_dying(int cpu)
-{
-	struct rapl_pmu *pmu = per_cpu(rapl_pmu, cpu);
-
-	if (!pmu)
-		return 0;
-
-	per_cpu(rapl_pmu, cpu) = NULL;
-
-	per_cpu(rapl_pmu_to_free, cpu) = pmu;
-
+	rapl_pmus->pmus[topology_logical_package_id(cpu)] = pmu;
 	return 0;
 }
 
@@ -624,24 +579,16 @@ static int rapl_cpu_notifier(struct notifier_block *self,
 	case CPU_UP_PREPARE:
 		rapl_cpu_prepare(cpu);
 		break;
-	case CPU_STARTING:
+
+	case CPU_DOWN_FAILED:
+	case CPU_ONLINE:
 		rapl_cpu_init(cpu);
 		break;
-	case CPU_UP_CANCELED:
-	case CPU_DYING:
-		rapl_cpu_dying(cpu);
-		break;
-	case CPU_ONLINE:
-	case CPU_DEAD:
-		rapl_cpu_kfree(cpu);
-		break;
+
 	case CPU_DOWN_PREPARE:
 		rapl_cpu_exit(cpu);
 		break;
-	default:
-		break;
 	}
-
 	return NOTIFY_OK;
 }
 
@@ -703,10 +650,14 @@ static void __init rapl_advertise(void)
 
 static int __init rapl_prepare_cpus(void)
 {
-	unsigned int cpu;
+	unsigned int cpu, pkg;
 	int ret;
 
 	for_each_online_cpu(cpu) {
+		pkg = topology_logical_package_id(cpu);
+		if (rapl_pmus->pmus[pkg])
+			continue;
+
 		ret = rapl_cpu_prepare(cpu);
 		if (ret)
 			return ret;
@@ -717,10 +668,33 @@ static int __init rapl_prepare_cpus(void)
 
 static void __init cleanup_rapl_pmus(void)
 {
-	int cpu;
+	int i;
 
-	for_each_online_cpu(cpu)
-		kfree(per_cpu(rapl_pmu, cpu));
+	for (i = 0; i < rapl_pmus->maxpkg; i++)
+		kfree(rapl_pmus->pmus + i);
+	kfree(rapl_pmus);
+}
+
+static int __init init_rapl_pmus(void)
+{
+	int maxpkg = topology_max_packages();
+	size_t size;
+
+	size = sizeof(*rapl_pmus) + maxpkg * sizeof(struct rapl_pmu *);
+	rapl_pmus = kzalloc(size, GFP_KERNEL);
+	if (!rapl_pmus)
+		return -ENOMEM;
+
+	rapl_pmus->maxpkg		= maxpkg;
+	rapl_pmus->pmu.attr_groups	= rapl_attr_groups;
+	rapl_pmus->pmu.task_ctx_nr	= perf_invalid_context;
+	rapl_pmus->pmu.event_init	= rapl_pmu_event_init;
+	rapl_pmus->pmu.add		= rapl_pmu_event_add;
+	rapl_pmus->pmu.del		= rapl_pmu_event_del;
+	rapl_pmus->pmu.start		= rapl_pmu_event_start;
+	rapl_pmus->pmu.stop		= rapl_pmu_event_stop;
+	rapl_pmus->pmu.read		= rapl_pmu_event_read;
+	return 0;
 }
 
 static const struct x86_cpu_id rapl_cpu_match[] __initconst = {
@@ -771,13 +745,17 @@ static int __init rapl_pmu_init(void)
 	if (ret)
 		return ret;
 
+	ret = init_rapl_pmus();
+	if (ret)
+		return ret;
+
 	cpu_notifier_register_begin();
 
 	ret = rapl_prepare_cpus();
 	if (ret)
 		goto out;
 
-	ret = perf_pmu_register(&rapl_pmu_class, "power", -1);
+	ret = perf_pmu_register(&rapl_pmus->pmu, "power", -1);
 	if (ret)
 		goto out;
 
