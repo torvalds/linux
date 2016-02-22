@@ -3,21 +3,6 @@
 #include "wilc_wfi_netdevice.h"
 #include "wilc_wlan_cfg.h"
 
-static u32 dbgflag = N_INIT | N_ERR | N_INTR | N_TXQ | N_RXQ;
-
-/* FIXME: replace with dev_debug() */
-static void wilc_debug(u32 flag, char *fmt, ...)
-{
-	char buf[256];
-	va_list args;
-
-	if (flag & dbgflag) {
-		va_start(args, fmt);
-		vsprintf(buf, fmt, args);
-		va_end(args);
-	}
-}
-
 static CHIP_PS_STATE_T chip_ps_state = CHIP_WAKEDUP;
 
 static inline void acquire_bus(struct wilc *wilc, BUS_ACQUIRE_T acquire)
@@ -1448,7 +1433,7 @@ int wilc_wlan_init(struct net_device *dev)
 		goto _fail_;
 	}
 
-	if (!wilc_wlan_cfg_init(wilc_debug)) {
+	if (!wilc_wlan_cfg_init()) {
 		ret = -ENOBUFS;
 		goto _fail_;
 	}

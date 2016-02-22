@@ -531,7 +531,7 @@ int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 	return ret;
 }
 
-int wilc_wlan_cfg_init(wilc_debug_func func)
+int wilc_wlan_cfg_init(void)
 {
 	memset((void *)&g_mac, 0, sizeof(struct wilc_mac_cfg));
 	return 1;
