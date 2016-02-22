@@ -754,7 +754,7 @@ static int pca953x_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	ret = gpiochip_add_data(&chip->gpio_chip, chip);
+	ret = devm_gpiochip_add_data(&client->dev, &chip->gpio_chip, chip);
 	if (ret)
 		return ret;
 
@@ -788,8 +788,6 @@ static int pca953x_remove(struct i2c_client *client)
 			return ret;
 		}
 	}
-
-	gpiochip_remove(&chip->gpio_chip);
 
 	return 0;
 }
