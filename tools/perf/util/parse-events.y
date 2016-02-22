@@ -437,24 +437,26 @@ PE_RAW opt_event_config
 }
 
 event_bpf_file:
-PE_BPF_OBJECT
+PE_BPF_OBJECT opt_event_config
 {
 	struct parse_events_evlist *data = _data;
 	struct parse_events_error *error = data->error;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_load_bpf(data, list, $1, false));
+	ABORT_ON(parse_events_load_bpf(data, list, $1, false, $2));
+	parse_events_terms__delete($2);
 	$$ = list;
 }
 |
-PE_BPF_SOURCE
+PE_BPF_SOURCE opt_event_config
 {
 	struct parse_events_evlist *data = _data;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_load_bpf(data, list, $1, true));
+	ABORT_ON(parse_events_load_bpf(data, list, $1, true, $2));
+	parse_events_terms__delete($2);
 	$$ = list;
 }
 

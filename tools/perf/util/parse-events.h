@@ -129,7 +129,8 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 int parse_events_load_bpf(struct parse_events_evlist *data,
 			  struct list_head *list,
 			  char *bpf_file_name,
-			  bool source);
+			  bool source,
+			  struct list_head *head_config);
 /* Provide this function for perf test */
 struct bpf_object;
 int parse_events_load_bpf_obj(struct parse_events_evlist *data,
