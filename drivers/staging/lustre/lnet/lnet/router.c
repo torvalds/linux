@@ -1228,8 +1228,6 @@ lnet_router_checker(void *arg)
 
 	cfs_block_allsigs();
 
-	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_RUNNING);
-
 	while (the_lnet.ln_rc_state == LNET_RC_STATE_RUNNING) {
 		__u64 version;
 		int cpt;
@@ -1286,8 +1284,6 @@ rescan:
 							 false,
 							 cfs_time_seconds(1));
 	}
-
-	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_STOPPING);
 
 	lnet_prune_rc_data(1); /* wait for UNLINK */
 
