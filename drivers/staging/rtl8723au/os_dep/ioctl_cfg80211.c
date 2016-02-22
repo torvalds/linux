@@ -458,7 +458,7 @@ static int set_group_key(struct rtw_adapter *padapter, struct key_params *parms,
 
 	pcmd->cmdcode = _SetKey_CMD_;
 	pcmd->parmbuf = (u8 *) psetkeyparm;
-	pcmd->cmdsz = (sizeof(struct setkey_parm));
+	pcmd->cmdsz = sizeof(struct setkey_parm);
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 
@@ -2197,7 +2197,7 @@ static int cfg80211_rtw_get_txpower(struct wiphy *wiphy,
 				    struct wireless_dev *wdev, int *dbm)
 {
 	DBG_8723A("%s\n", __func__);
-	*dbm = (12);
+	*dbm = 12;
 	return 0;
 }
 
