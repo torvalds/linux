@@ -380,17 +380,19 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		 * this GPIO so it can't use it.
 		 */
 		lineinfo.flags = 0;
-		if (desc->flags & (FLAG_REQUESTED | FLAG_IS_HOGGED |
-				   FLAG_USED_AS_IRQ | FLAG_EXPORT |
-				   FLAG_SYSFS))
+		if (test_bit(FLAG_REQUESTED, &desc->flags) ||
+		    test_bit(FLAG_IS_HOGGED, &desc->flags) ||
+		    test_bit(FLAG_USED_AS_IRQ, &desc->flags) ||
+		    test_bit(FLAG_EXPORT, &desc->flags) ||
+		    test_bit(FLAG_SYSFS, &desc->flags))
 			lineinfo.flags |= GPIOLINE_FLAG_KERNEL;
-		if (desc->flags & FLAG_IS_OUT)
+		if (test_bit(FLAG_IS_OUT, &desc->flags))
 			lineinfo.flags |= GPIOLINE_FLAG_IS_OUT;
-		if (desc->flags & FLAG_ACTIVE_LOW)
+		if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
 			lineinfo.flags |= GPIOLINE_FLAG_ACTIVE_LOW;
-		if (desc->flags & FLAG_OPEN_DRAIN)
+		if (test_bit(FLAG_OPEN_DRAIN, &desc->flags))
 			lineinfo.flags |= GPIOLINE_FLAG_OPEN_DRAIN;
-		if (desc->flags & FLAG_OPEN_SOURCE)
+		if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
 			lineinfo.flags |= GPIOLINE_FLAG_OPEN_SOURCE;
 
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
