@@ -1407,7 +1407,7 @@ lnet_send(lnet_nid_t src_nid, lnet_msg_t *msg, lnet_nid_t rtr_nid)
 
 		msg->msg_target_is_router = 1;
 		msg->msg_target.nid = lp->lp_nid;
-		msg->msg_target.pid = LUSTRE_SRV_LNET_PID;
+		msg->msg_target.pid = LNET_PID_LUSTRE;
 	}
 
 	/* 'lp' is our best choice of peer */

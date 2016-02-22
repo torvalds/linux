@@ -443,7 +443,7 @@ int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
 	lnet_nid_t dst_nid;
 	lnet_nid_t src_nid;
 
-	peer->pid = LUSTRE_SRV_LNET_PID;
+	peer->pid = LNET_PID_LUSTRE;
 
 	/* Choose the matching UUID that's closest */
 	while (lustre_uuid_to_peer(uuid->uuid, &dst_nid, count++) == 0) {
@@ -513,7 +513,7 @@ static lnet_pid_t ptl_get_pid(void)
 {
 	lnet_pid_t pid;
 
-	pid = LUSTRE_SRV_LNET_PID;
+	pid = LNET_PID_LUSTRE;
 	return pid;
 }
 

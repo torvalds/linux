@@ -1012,7 +1012,7 @@ lnet_ping_router_locked(lnet_peer_t *rtr)
 		lnet_handle_md_t mdh;
 
 		id.nid = rtr->lp_nid;
-		id.pid = LUSTRE_SRV_LNET_PID;
+		id.pid = LNET_PID_LUSTRE;
 		CDEBUG(D_NET, "Check: %s\n", libcfs_id2str(id));
 
 		rtr->lp_ping_notsent   = 1;
