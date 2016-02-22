@@ -760,7 +760,7 @@ static struct scsi_cmnd *dequeue_next_cmd(struct Scsi_Host *instance)
 	struct NCR5380_cmd *ncmd;
 	struct scsi_cmnd *cmd;
 
-	if (list_empty(&hostdata->autosense)) {
+	if (hostdata->sensing || list_empty(&hostdata->autosense)) {
 		list_for_each_entry(ncmd, &hostdata->unissued, list) {
 			cmd = NCR5380_to_scmd(ncmd);
 			dsprintk(NDEBUG_QUEUES, instance, "dequeue: cmd=%p target=%d busy=0x%02x lun=%llu\n",
@@ -793,7 +793,7 @@ static void requeue_cmd(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
 
-	if (hostdata->sensing) {
+	if (hostdata->sensing == cmd) {
 		scsi_eh_restore_cmnd(cmd, &hostdata->ses);
 		list_add(&ncmd->list, &hostdata->autosense);
 		hostdata->sensing = NULL;
