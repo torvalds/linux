@@ -4,6 +4,7 @@
 #include <linux/list_bl.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/workqueue.h>
 #include <linux/mbcache2.h>
 
 /*
@@ -27,15 +28,28 @@ struct mb2_cache {
 	struct hlist_bl_head	*c_hash;
 	/* log2 of hash table size */
 	int			c_bucket_bits;
+	/* Maximum entries in cache to avoid degrading hash too much */
+	int			c_max_entries;
 	/* Protects c_lru_list, c_entry_count */
 	spinlock_t		c_lru_list_lock;
 	struct list_head	c_lru_list;
 	/* Number of entries in cache */
 	unsigned long		c_entry_count;
 	struct shrinker		c_shrink;
+	/* Work for shrinking when the cache has too many entries */
+	struct work_struct	c_shrink_work;
 };
 
 static struct kmem_cache *mb2_entry_cache;
+
+static unsigned long mb2_cache_shrink(struct mb2_cache *cache,
+				      unsigned int nr_to_scan);
+
+/*
+ * Number of entries to reclaim synchronously when there are too many entries
+ * in cache
+ */
+#define SYNC_SHRINK_BATCH 64
 
 /*
  * mb2_cache_entry_create - create entry in cache
@@ -54,6 +68,13 @@ int mb2_cache_entry_create(struct mb2_cache *cache, gfp_t mask, u32 key,
 	struct mb2_cache_entry *entry, *dup;
 	struct hlist_bl_node *dup_node;
 	struct hlist_bl_head *head;
+
+	/* Schedule background reclaim if there are too many entries */
+	if (cache->c_entry_count >= cache->c_max_entries)
+		schedule_work(&cache->c_shrink_work);
+	/* Do some sync reclaim if background reclaim cannot keep up */
+	if (cache->c_entry_count >= 2*cache->c_max_entries)
+		mb2_cache_shrink(cache, SYNC_SHRINK_BATCH);
 
 	entry = kmem_cache_alloc(mb2_entry_cache, mask);
 	if (!entry)
@@ -223,12 +244,9 @@ static unsigned long mb2_cache_count(struct shrinker *shrink,
 }
 
 /* Shrink number of entries in cache */
-static unsigned long mb2_cache_scan(struct shrinker *shrink,
-				    struct shrink_control *sc)
+static unsigned long mb2_cache_shrink(struct mb2_cache *cache,
+				      unsigned int nr_to_scan)
 {
-	int nr_to_scan = sc->nr_to_scan;
-	struct mb2_cache *cache = container_of(shrink, struct mb2_cache,
-					      c_shrink);
 	struct mb2_cache_entry *entry;
 	struct hlist_bl_head *head;
 	unsigned int shrunk = 0;
@@ -261,6 +279,25 @@ static unsigned long mb2_cache_scan(struct shrinker *shrink,
 	return shrunk;
 }
 
+static unsigned long mb2_cache_scan(struct shrinker *shrink,
+				    struct shrink_control *sc)
+{
+	int nr_to_scan = sc->nr_to_scan;
+	struct mb2_cache *cache = container_of(shrink, struct mb2_cache,
+					      c_shrink);
+	return mb2_cache_shrink(cache, nr_to_scan);
+}
+
+/* We shrink 1/X of the cache when we have too many entries in it */
+#define SHRINK_DIVISOR 16
+
+static void mb2_cache_shrink_worker(struct work_struct *work)
+{
+	struct mb2_cache *cache = container_of(work, struct mb2_cache,
+					       c_shrink_work);
+	mb2_cache_shrink(cache, cache->c_max_entries / SHRINK_DIVISOR);
+}
+
 /*
  * mb2_cache_create - create cache
  * @bucket_bits: log2 of the hash table size
@@ -280,6 +317,7 @@ struct mb2_cache *mb2_cache_create(int bucket_bits)
 	if (!cache)
 		goto err_out;
 	cache->c_bucket_bits = bucket_bits;
+	cache->c_max_entries = bucket_count << 4;
 	INIT_LIST_HEAD(&cache->c_lru_list);
 	spin_lock_init(&cache->c_lru_list_lock);
 	cache->c_hash = kmalloc(bucket_count * sizeof(struct hlist_bl_head),
@@ -295,6 +333,8 @@ struct mb2_cache *mb2_cache_create(int bucket_bits)
 	cache->c_shrink.scan_objects = mb2_cache_scan;
 	cache->c_shrink.seeks = DEFAULT_SEEKS;
 	register_shrinker(&cache->c_shrink);
+
+	INIT_WORK(&cache->c_shrink_work, mb2_cache_shrink_worker);
 
 	return cache;
 
