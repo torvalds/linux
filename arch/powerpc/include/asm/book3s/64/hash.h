@@ -24,11 +24,7 @@
 #define _PAGE_DIRTY		0x00080 /* C: page changed */
 #define _PAGE_ACCESSED		0x00100 /* R: page referenced */
 #define _PAGE_RW		0x00200 /* software: user write access allowed */
-#define _PAGE_HASHPTE		0x00400 /* software: pte has an associated HPTE */
 #define _PAGE_BUSY		0x00800 /* software: PTE & hash are busy */
-#define _PAGE_F_GIX		0x07000 /* full page: hidx bits */
-#define _PAGE_F_GIX_SHIFT	12
-#define _PAGE_F_SECOND		0x08000 /* Whether to use secondary hash or not */
 #define _PAGE_SPECIAL		0x10000 /* software: special page */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -37,6 +33,10 @@
 #define _PAGE_SOFT_DIRTY	0x00000
 #endif
 
+#define _PAGE_F_GIX_SHIFT	57
+#define _PAGE_F_GIX		(7ul << 57)	/* HPTE index within HPTEG */
+#define _PAGE_F_SECOND		(1ul << 60)	/* HPTE is in 2ndary HPTEG */
+#define _PAGE_HASHPTE		(1ul << 61)	/* PTE has associated HPTE */
 #define _PAGE_PTE		(1ul << 62)	/* distinguishes PTEs from pointers */
 #define _PAGE_PRESENT		(1ul << 63)	/* pte contains a translation */
 
