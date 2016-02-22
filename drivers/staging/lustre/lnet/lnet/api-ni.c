@@ -1535,7 +1535,6 @@ LNetNIInit(lnet_pid_t requested_pid)
 	lnet_ping_info_t *pinfo;
 	lnet_handle_md_t md_handle;
 	struct list_head net_head;
-	char *nets;
 
 	INIT_LIST_HEAD(&net_head);
 
@@ -1550,13 +1549,11 @@ LNetNIInit(lnet_pid_t requested_pid)
 		return rc;
 	}
 
-	nets = lnet_get_networks();
-
 	rc = lnet_prepare(requested_pid);
 	if (rc)
 		goto failed0;
 
-	rc = lnet_parse_networks(&net_head, nets);
+	rc = lnet_parse_networks(&net_head, lnet_get_networks());
 	if (rc < 0)
 		goto failed1;
 

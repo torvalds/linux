@@ -184,7 +184,7 @@ int
 lnet_parse_networks(struct list_head *nilist, char *networks)
 {
 	struct cfs_expr_list *el = NULL;
-	int tokensize = strlen(networks) + 1;
+	int tokensize;
 	char *tokens;
 	char *str;
 	char *tmp;
@@ -192,12 +192,19 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 	__u32 net;
 	int nnets = 0;
 
+	if (!networks) {
+		CERROR("networks string is undefined\n");
+		return -EINVAL;
+	}
+
 	if (strlen(networks) > LNET_SINGLE_TEXTBUF_NOB) {
 		/* _WAY_ conservative */
 		LCONSOLE_ERROR_MSG(0x112,
 				   "Can't parse networks: string too long\n");
 		return -EINVAL;
 	}
+
+	tokensize = strlen(networks) + 1;
 
 	LIBCFS_ALLOC(tokens, tokensize);
 	if (!tokens) {
