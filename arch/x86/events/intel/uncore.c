@@ -1342,12 +1342,6 @@ static void __init uncore_cpumask_init(void)
 {
 	int cpu;
 
-	/*
-	 * ony invoke once from msr or pci init code
-	 */
-	if (!cpumask_empty(&uncore_cpu_mask))
-		return;
-
 	cpu_notifier_register_begin();
 
 	for_each_online_cpu(cpu) {
