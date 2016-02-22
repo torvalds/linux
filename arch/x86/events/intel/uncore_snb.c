@@ -95,6 +95,12 @@ static void snb_uncore_msr_init_box(struct intel_uncore_box *box)
 	}
 }
 
+static void snb_uncore_msr_exit_box(struct intel_uncore_box *box)
+{
+	if (box->pmu->pmu_idx == 0)
+		wrmsrl(SNB_UNC_PERF_GLOBAL_CTL, 0);
+}
+
 static struct uncore_event_desc snb_uncore_events[] = {
 	INTEL_UNCORE_EVENT_DESC(clockticks, "event=0xff,umask=0x00"),
 	{ /* end: all zeroes */ },
@@ -116,6 +122,7 @@ static struct attribute_group snb_uncore_format_group = {
 
 static struct intel_uncore_ops snb_uncore_msr_ops = {
 	.init_box	= snb_uncore_msr_init_box,
+	.exit_box	= snb_uncore_msr_exit_box,
 	.disable_event	= snb_uncore_msr_disable_event,
 	.enable_event	= snb_uncore_msr_enable_event,
 	.read_counter	= uncore_msr_read_counter,
@@ -229,6 +236,11 @@ static void snb_uncore_imc_init_box(struct intel_uncore_box *box)
 
 	box->io_addr = ioremap(addr, SNB_UNCORE_PCI_IMC_MAP_SIZE);
 	box->hrtimer_duration = UNCORE_SNB_IMC_HRTIMER_INTERVAL;
+}
+
+static void snb_uncore_imc_exit_box(struct intel_uncore_box *box)
+{
+	iounmap(box->io_addr);
 }
 
 static void snb_uncore_imc_enable_box(struct intel_uncore_box *box)
@@ -458,6 +470,7 @@ static struct pmu snb_uncore_imc_pmu = {
 
 static struct intel_uncore_ops snb_uncore_imc_ops = {
 	.init_box	= snb_uncore_imc_init_box,
+	.exit_box	= snb_uncore_imc_exit_box,
 	.enable_box	= snb_uncore_imc_enable_box,
 	.disable_box	= snb_uncore_imc_disable_box,
 	.disable_event	= snb_uncore_imc_disable_event,

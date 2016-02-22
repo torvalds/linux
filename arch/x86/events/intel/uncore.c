@@ -937,6 +937,7 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 		raw_spin_lock(&uncore_box_lock);
 		list_del(&box->list);
 		raw_spin_unlock(&uncore_box_lock);
+		uncore_box_exit(box);
 		kfree(box);
 	}
 	return ret;
@@ -982,6 +983,7 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	}
 
 	WARN_ON_ONCE(atomic_read(&box->refcnt) != 1);
+	uncore_box_exit(box);
 	kfree(box);
 
 	if (last_box)
@@ -1091,8 +1093,10 @@ static void uncore_cpu_dying(int cpu)
 			pmu = &type->pmus[j];
 			box = *per_cpu_ptr(pmu->box, cpu);
 			*per_cpu_ptr(pmu->box, cpu) = NULL;
-			if (box && atomic_dec_and_test(&box->refcnt))
+			if (box && atomic_dec_and_test(&box->refcnt)) {
 				list_add(&box->list, &boxes_to_free);
+				uncore_box_exit(box);
+			}
 		}
 	}
 }

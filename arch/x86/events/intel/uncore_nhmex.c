@@ -201,6 +201,11 @@ static void nhmex_uncore_msr_init_box(struct intel_uncore_box *box)
 	wrmsrl(NHMEX_U_MSR_PMON_GLOBAL_CTL, NHMEX_U_PMON_GLOBAL_EN_ALL);
 }
 
+static void nhmex_uncore_msr_exit_box(struct intel_uncore_box *box)
+{
+	wrmsrl(NHMEX_U_MSR_PMON_GLOBAL_CTL, 0);
+}
+
 static void nhmex_uncore_msr_disable_box(struct intel_uncore_box *box)
 {
 	unsigned msr = uncore_msr_box_ctl(box);
@@ -250,6 +255,7 @@ static void nhmex_uncore_msr_enable_event(struct intel_uncore_box *box, struct p
 
 #define NHMEX_UNCORE_OPS_COMMON_INIT()				\
 	.init_box	= nhmex_uncore_msr_init_box,		\
+	.exit_box	= nhmex_uncore_msr_exit_box,		\
 	.disable_box	= nhmex_uncore_msr_disable_box,		\
 	.enable_box	= nhmex_uncore_msr_enable_box,		\
 	.disable_event	= nhmex_uncore_msr_disable_event,	\

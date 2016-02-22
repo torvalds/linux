@@ -61,6 +61,7 @@ struct intel_uncore_type {
 
 struct intel_uncore_ops {
 	void (*init_box)(struct intel_uncore_box *);
+	void (*exit_box)(struct intel_uncore_box *);
 	void (*disable_box)(struct intel_uncore_box *);
 	void (*enable_box)(struct intel_uncore_box *);
 	void (*disable_event)(struct intel_uncore_box *, struct perf_event *);
@@ -303,6 +304,14 @@ static inline void uncore_box_init(struct intel_uncore_box *box)
 	if (!test_and_set_bit(UNCORE_BOX_FLAG_INITIATED, &box->flags)) {
 		if (box->pmu->type->ops->init_box)
 			box->pmu->type->ops->init_box(box);
+	}
+}
+
+static inline void uncore_box_exit(struct intel_uncore_box *box)
+{
+	if (test_and_clear_bit(UNCORE_BOX_FLAG_INITIATED, &box->flags)) {
+		if (box->pmu->type->ops->exit_box)
+			box->pmu->type->ops->exit_box(box);
 	}
 }
 
