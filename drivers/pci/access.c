@@ -342,14 +342,15 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 static int pci_vpd_wait(struct pci_dev *dev)
 {
 	struct pci_vpd *vpd = dev->vpd;
-	unsigned long timeout = jiffies + HZ/20 + 2;
+	unsigned long timeout = jiffies + msecs_to_jiffies(50);
+	unsigned long max_sleep = 16;
 	u16 status;
 	int ret;
 
 	if (!vpd->busy)
 		return 0;
 
-	for (;;) {
+	while (time_before(jiffies, timeout)) {
 		ret = pci_user_read_config_word(dev, vpd->cap + PCI_VPD_ADDR,
 						&status);
 		if (ret < 0)
@@ -360,15 +361,16 @@ static int pci_vpd_wait(struct pci_dev *dev)
 			return 0;
 		}
 
-		if (time_after(jiffies, timeout)) {
-			dev_printk(KERN_DEBUG, &dev->dev, "vpd r/w failed.  This is likely a firmware bug on this device.  Contact the card vendor for a firmware update\n");
-			return -ETIMEDOUT;
-		}
 		if (fatal_signal_pending(current))
 			return -EINTR;
-		if (!cond_resched())
-			udelay(10);
+
+		usleep_range(10, max_sleep);
+		if (max_sleep < 1024)
+			max_sleep *= 2;
 	}
+
+	dev_warn(&dev->dev, "VPD access failed.  This is likely a firmware bug on this device.  Contact the card vendor for a firmware update\n");
+	return -ETIMEDOUT;
 }
 
 static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
