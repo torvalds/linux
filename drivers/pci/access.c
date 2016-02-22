@@ -174,38 +174,6 @@ struct pci_ops *pci_bus_set_ops(struct pci_bus *bus, struct pci_ops *ops)
 }
 EXPORT_SYMBOL(pci_bus_set_ops);
 
-/**
- * pci_read_vpd - Read one entry from Vital Product Data
- * @dev:	pci device struct
- * @pos:	offset in vpd space
- * @count:	number of bytes to read
- * @buf:	pointer to where to store result
- *
- */
-ssize_t pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf)
-{
-	if (!dev->vpd || !dev->vpd->ops)
-		return -ENODEV;
-	return dev->vpd->ops->read(dev, pos, count, buf);
-}
-EXPORT_SYMBOL(pci_read_vpd);
-
-/**
- * pci_write_vpd - Write entry to Vital Product Data
- * @dev:	pci device struct
- * @pos:	offset in vpd space
- * @count:	number of bytes to write
- * @buf:	buffer containing write data
- *
- */
-ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf)
-{
-	if (!dev->vpd || !dev->vpd->ops)
-		return -ENODEV;
-	return dev->vpd->ops->write(dev, pos, count, buf);
-}
-EXPORT_SYMBOL(pci_write_vpd);
-
 /*
  * The following routines are to prevent the user from accessing PCI config
  * space when it's unsafe to do so.  Some devices require this during BIST and
@@ -276,6 +244,36 @@ PCI_USER_WRITE_CONFIG(word, u16)
 PCI_USER_WRITE_CONFIG(dword, u32)
 
 /* VPD access through PCI 2.2+ VPD capability */
+
+/**
+ * pci_read_vpd - Read one entry from Vital Product Data
+ * @dev:	pci device struct
+ * @pos:	offset in vpd space
+ * @count:	number of bytes to read
+ * @buf:	pointer to where to store result
+ */
+ssize_t pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf)
+{
+	if (!dev->vpd || !dev->vpd->ops)
+		return -ENODEV;
+	return dev->vpd->ops->read(dev, pos, count, buf);
+}
+EXPORT_SYMBOL(pci_read_vpd);
+
+/**
+ * pci_write_vpd - Write entry to Vital Product Data
+ * @dev:	pci device struct
+ * @pos:	offset in vpd space
+ * @count:	number of bytes to write
+ * @buf:	buffer containing write data
+ */
+ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf)
+{
+	if (!dev->vpd || !dev->vpd->ops)
+		return -ENODEV;
+	return dev->vpd->ops->write(dev, pos, count, buf);
+}
+EXPORT_SYMBOL(pci_write_vpd);
 
 #define PCI_VPD_PCI22_SIZE (PCI_VPD_ADDR_MASK + 1)
 
