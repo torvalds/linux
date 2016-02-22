@@ -70,4 +70,10 @@ int mlx5_set_port_pfc(struct mlx5_core_dev *dev, u8 pfc_en_tx, u8 pfc_en_rx);
 int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx,
 			u8 *pfc_en_rx);
 
+int mlx5_max_tc(struct mlx5_core_dev *mdev);
+
+int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, u8 *prio_tc);
+int mlx5_set_port_tc_group(struct mlx5_core_dev *mdev, u8 *tc_group);
+int mlx5_set_port_tc_bw_alloc(struct mlx5_core_dev *mdev, u8 *tc_bw);
+
 #endif /* __MLX5_PORT_H__ */

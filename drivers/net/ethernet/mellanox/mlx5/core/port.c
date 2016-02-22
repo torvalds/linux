@@ -405,3 +405,79 @@ int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx, u8 *pfc_en_rx)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_pfc);
+
+int mlx5_max_tc(struct mlx5_core_dev *mdev)
+{
+	u8 num_tc = MLX5_CAP_GEN(mdev, max_tc) ? : 8;
+
+	return num_tc - 1;
+}
+
+int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, u8 *prio_tc)
+{
+	u32 in[MLX5_ST_SZ_DW(qtct_reg)];
+	u32 out[MLX5_ST_SZ_DW(qtct_reg)];
+	int err;
+	int i;
+
+	memset(in, 0, sizeof(in));
+	for (i = 0; i < 8; i++) {
+		if (prio_tc[i] > mlx5_max_tc(mdev))
+			return -EINVAL;
+
+		MLX5_SET(qtct_reg, in, prio, i);
+		MLX5_SET(qtct_reg, in, tclass, prio_tc[i]);
+
+		err = mlx5_core_access_reg(mdev, in, sizeof(in), out,
+					   sizeof(out), MLX5_REG_QTCT, 0, 1);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_set_port_prio_tc);
+
+static int mlx5_set_port_qetcr_reg(struct mlx5_core_dev *mdev, u32 *in,
+				   int inlen)
+{
+	u32 out[MLX5_ST_SZ_DW(qtct_reg)];
+
+	if (!MLX5_CAP_GEN(mdev, ets))
+		return -ENOTSUPP;
+
+	return mlx5_core_access_reg(mdev, in, inlen, out, sizeof(out),
+				    MLX5_REG_QETCR, 0, 1);
+}
+
+int mlx5_set_port_tc_group(struct mlx5_core_dev *mdev, u8 *tc_group)
+{
+	u32 in[MLX5_ST_SZ_DW(qetc_reg)];
+	int i;
+
+	memset(in, 0, sizeof(in));
+
+	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
+		MLX5_SET(qetc_reg, in, tc_configuration[i].g, 1);
+		MLX5_SET(qetc_reg, in, tc_configuration[i].group, tc_group[i]);
+	}
+
+	return mlx5_set_port_qetcr_reg(mdev, in, sizeof(in));
+}
+EXPORT_SYMBOL_GPL(mlx5_set_port_tc_group);
+
+int mlx5_set_port_tc_bw_alloc(struct mlx5_core_dev *mdev, u8 *tc_bw)
+{
+	u32 in[MLX5_ST_SZ_DW(qetc_reg)];
+	int i;
+
+	memset(in, 0, sizeof(in));
+
+	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
+		MLX5_SET(qetc_reg, in, tc_configuration[i].b, 1);
+		MLX5_SET(qetc_reg, in, tc_configuration[i].bw_allocation, tc_bw[i]);
+	}
+
+	return mlx5_set_port_qetcr_reg(mdev, in, sizeof(in));
+}
+EXPORT_SYMBOL_GPL(mlx5_set_port_tc_bw_alloc);
