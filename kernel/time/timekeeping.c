@@ -908,6 +908,62 @@ void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot)
 EXPORT_SYMBOL_GPL(ktime_get_snapshot);
 
 /**
+ * get_device_system_crosststamp - Synchronously capture system/device timestamp
+ * @sync_devicetime:	Callback to get simultaneous device time and
+ *	system counter from the device driver
+ * @xtstamp:		Receives simultaneously captured system and device time
+ *
+ * Reads a timestamp from a device and correlates it to system time
+ */
+int get_device_system_crosststamp(int (*get_time_fn)
+				  (ktime_t *device_time,
+				   struct system_counterval_t *sys_counterval,
+				   void *ctx),
+				  void *ctx,
+				  struct system_device_crosststamp *xtstamp)
+{
+	struct system_counterval_t system_counterval;
+	struct timekeeper *tk = &tk_core.timekeeper;
+	ktime_t base_real, base_raw;
+	s64 nsec_real, nsec_raw;
+	unsigned long seq;
+	int ret;
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+		/*
+		 * Try to synchronously capture device time and a system
+		 * counter value calling back into the device driver
+		 */
+		ret = get_time_fn(&xtstamp->device, &system_counterval, ctx);
+		if (ret)
+			return ret;
+
+		/*
+		 * Verify that the clocksource associated with the captured
+		 * system counter value is the same as the currently installed
+		 * timekeeper clocksource
+		 */
+		if (tk->tkr_mono.clock != system_counterval.cs)
+			return -ENODEV;
+
+		base_real = ktime_add(tk->tkr_mono.base,
+				      tk_core.timekeeper.offs_real);
+		base_raw = tk->tkr_raw.base;
+
+		nsec_real = timekeeping_cycles_to_ns(&tk->tkr_mono,
+						     system_counterval.cycles);
+		nsec_raw = timekeeping_cycles_to_ns(&tk->tkr_raw,
+						    system_counterval.cycles);
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+
+	xtstamp->sys_realtime = ktime_add_ns(base_real, nsec_real);
+	xtstamp->sys_monoraw = ktime_add_ns(base_raw, nsec_raw);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(get_device_system_crosststamp);
+
+/**
  * do_gettimeofday - Returns the time of day in a timeval
  * @tv:		pointer to the timeval to be set
  *

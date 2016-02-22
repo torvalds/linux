@@ -280,6 +280,41 @@ struct system_time_snapshot {
 };
 
 /*
+ * struct system_device_crosststamp - system/device cross-timestamp
+ *	(syncronized capture)
+ * @device:		Device time
+ * @sys_realtime:	Realtime simultaneous with device time
+ * @sys_monoraw:	Monotonic raw simultaneous with device time
+ */
+struct system_device_crosststamp {
+	ktime_t device;
+	ktime_t sys_realtime;
+	ktime_t sys_monoraw;
+};
+
+/*
+ * struct system_counterval_t - system counter value with the pointer to the
+ *	corresponding clocksource
+ * @cycles:	System counter value
+ * @cs:		Clocksource corresponding to system counter value. Used by
+ *	timekeeping code to verify comparibility of two cycle values
+ */
+struct system_counterval_t {
+	cycle_t			cycles;
+	struct clocksource	*cs;
+};
+
+/*
+ * Get cross timestamp between system clock and device clock
+ */
+extern int get_device_system_crosststamp(
+			int (*get_time_fn)(ktime_t *device_time,
+				struct system_counterval_t *system_counterval,
+				void *ctx),
+			void *ctx,
+			struct system_device_crosststamp *xtstamp);
+
+/*
  * Simultaneously snapshot realtime and monotonic raw clocks
  */
 extern void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot);
