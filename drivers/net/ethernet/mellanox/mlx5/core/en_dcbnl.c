@@ -166,6 +166,43 @@ static int mlx5e_dcbnl_ieee_setets(struct net_device *netdev,
 	return 0;
 }
 
+static int mlx5e_dcbnl_ieee_getpfc(struct net_device *dev,
+				   struct ieee_pfc *pfc)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	pfc->pfc_cap = mlx5_max_tc(mdev) + 1;
+
+	return mlx5_query_port_pfc(mdev, &pfc->pfc_en, NULL);
+}
+
+static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
+				   struct ieee_pfc *pfc)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	enum mlx5_port_status ps;
+	u8 curr_pfc_en;
+	int ret;
+
+	mlx5_query_port_pfc(mdev, &curr_pfc_en, NULL);
+
+	if (pfc->pfc_en == curr_pfc_en)
+		return 0;
+
+	mlx5_query_port_admin_status(mdev, &ps);
+	if (ps == MLX5_PORT_UP)
+		mlx5_set_port_admin_status(mdev, MLX5_PORT_DOWN);
+
+	ret = mlx5_set_port_pfc(mdev, pfc->pfc_en, pfc->pfc_en);
+
+	if (ps == MLX5_PORT_UP)
+		mlx5_set_port_admin_status(mdev, MLX5_PORT_UP);
+
+	return ret;
+}
+
 static u8 mlx5e_dcbnl_getdcbx(struct net_device *dev)
 {
 	return DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
@@ -185,6 +222,8 @@ static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.ieee_getets	= mlx5e_dcbnl_ieee_getets,
 	.ieee_setets	= mlx5e_dcbnl_ieee_setets,
+	.ieee_getpfc	= mlx5e_dcbnl_ieee_getpfc,
+	.ieee_setpfc	= mlx5e_dcbnl_ieee_setpfc,
 	.getdcbx	= mlx5e_dcbnl_getdcbx,
 	.setdcbx	= mlx5e_dcbnl_setdcbx,
 };
