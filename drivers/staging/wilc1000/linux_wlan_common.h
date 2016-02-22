@@ -1,15 +1,7 @@
 #ifndef LINUX_WLAN_COMMON_H
 #define LINUX_WLAN_COMMON_H
 
-enum debug_region {
-	Init_debug = 0,
-	COMP = 0xFFFFFFFF,
-};
-
-#define INIT_DBG                (1 << Init_debug)
-
 #if defined(WILC_DEBUGFS)
-extern atomic_t WILC_REGION;
 extern atomic_t WILC_DEBUG_LEVEL;
 
 #define DEBUG           BIT(0)
@@ -19,8 +11,7 @@ extern atomic_t WILC_DEBUG_LEVEL;
 
 #define PRINT_D(region, ...)						\
 	do {								\
-		if ((atomic_read(&WILC_DEBUG_LEVEL) & DEBUG) &&	\
-		   ((atomic_read(&WILC_REGION)) & (region))) {	\
+		if ((atomic_read(&WILC_DEBUG_LEVEL) & DEBUG)) {	\
 			printk("DBG [%s: %d]", __func__, __LINE__);	\
 			printk(__VA_ARGS__);				\
 		}							\
@@ -28,8 +19,7 @@ extern atomic_t WILC_DEBUG_LEVEL;
 
 #define PRINT_INFO(region, ...)						\
 	do {								\
-		if ((atomic_read(&WILC_DEBUG_LEVEL) & INFO) &&	\
-		   ((atomic_read(&WILC_REGION)) & (region))) {	\
+		if ((atomic_read(&WILC_DEBUG_LEVEL) & INFO)) {	\
 			printk("INFO [%s]", __func__);			\
 			printk(__VA_ARGS__);				\
 		}							\
@@ -37,8 +27,7 @@ extern atomic_t WILC_DEBUG_LEVEL;
 
 #define PRINT_WRN(region, ...)						\
 	do {								\
-		if ((atomic_read(&WILC_DEBUG_LEVEL) & WRN) &&	\
-		   ((atomic_read(&WILC_REGION)) & (region))) {	\
+		if ((atomic_read(&WILC_DEBUG_LEVEL) & WRN)) {	\
 			printk("WRN [%s: %d]", __func__, __LINE__);	\
 			printk(__VA_ARGS__);				\
 		}							\

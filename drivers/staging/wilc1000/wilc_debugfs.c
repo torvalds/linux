@@ -24,10 +24,7 @@ static struct dentry *wilc_dir;
  * --------------------------------------------------------------------------------
  */
 
-#define DBG_REGION_ALL	(INIT_DBG)
 #define DBG_LEVEL_ALL	(DEBUG | INFO | WRN | ERR)
-atomic_t WILC_REGION = ATOMIC_INIT(INIT_DBG);
-EXPORT_SYMBOL_GPL(WILC_REGION);
 atomic_t WILC_DEBUG_LEVEL = ATOMIC_INIT(ERR);
 EXPORT_SYMBOL_GPL(WILC_DEBUG_LEVEL);
 
@@ -75,44 +72,6 @@ static ssize_t wilc_debug_level_write(struct file *filp, const char __user *buf,
 	return count;
 }
 
-static ssize_t wilc_debug_region_read(struct file *file, char __user *userbuf, size_t count, loff_t *ppos)
-{
-	char buf[128];
-	int res = 0;
-
-	/* only allow read from start */
-	if (*ppos > 0)
-		return 0;
-
-	res = scnprintf(buf, sizeof(buf), "Debug region: %x\n", atomic_read(&WILC_REGION));
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
-}
-
-static ssize_t wilc_debug_region_write(struct file *filp, const char __user *buf, size_t count, loff_t *ppos)
-{
-	char buffer[128] = {};
-	int flag;
-
-	if (count > sizeof(buffer))
-		return -EINVAL;
-
-	if (copy_from_user(buffer, buf, count))
-		return -EFAULT;
-
-	flag = buffer[0] - '0';
-
-	if (flag > DBG_REGION_ALL) {
-		printk("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&WILC_REGION));
-		return -EFAULT;
-	}
-
-	atomic_set(&WILC_REGION, (int)flag);
-	printk("new debug-region is %x\n", atomic_read(&WILC_REGION));
-
-	return count;
-}
-
 /*
  * --------------------------------------------------------------------------------
  */
@@ -134,7 +93,6 @@ struct wilc_debugfs_info_t {
 
 static struct wilc_debugfs_info_t debugfs_info[] = {
 	{ "wilc_debug_level",	0666,	(DEBUG | ERR), FOPS(NULL, wilc_debug_level_read, wilc_debug_level_write, NULL), },
-	{ "wilc_debug_region",	0666,	(INIT_DBG), FOPS(NULL, wilc_debug_region_read, wilc_debug_region_write, NULL), },
 };
 
 static int __init wilc_debugfs_init(void)
