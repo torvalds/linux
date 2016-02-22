@@ -525,7 +525,7 @@ lnet_res_lh_initialize(struct lnet_res_container *rec, lnet_libhandle_t *lh)
 	list_add(&lh->lh_hash_chain, &rec->rec_lh_hash[hash]);
 }
 
-int lnet_unprepare(void);
+static int lnet_unprepare(void);
 
 static int
 lnet_prepare(lnet_pid_t requested_pid)
@@ -611,7 +611,7 @@ lnet_prepare(lnet_pid_t requested_pid)
 	return rc;
 }
 
-int
+static int
 lnet_unprepare(void)
 {
 	/*
