@@ -21,7 +21,7 @@ static struct event_constraint uncore_constraint_fixed =
 struct event_constraint uncore_constraint_empty =
 	EVENT_CONSTRAINT(0, 0, 0);
 
-int uncore_pcibus_to_physid(struct pci_bus *bus)
+static int uncore_pcibus_to_physid(struct pci_bus *bus)
 {
 	struct pci2phy_map *map;
 	int phys_id = -1;

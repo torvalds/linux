@@ -125,7 +125,6 @@ struct pci2phy_map {
 	int pbus_to_physid[256];
 };
 
-int uncore_pcibus_to_physid(struct pci_bus *bus);
 struct pci2phy_map *__find_pci2phy_map(int segment);
 
 ssize_t uncore_event_show(struct kobject *kobj,
