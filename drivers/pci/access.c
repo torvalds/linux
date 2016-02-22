@@ -508,15 +508,9 @@ out:
 	return ret ? ret : count;
 }
 
-static void pci_vpd_pci22_release(struct pci_dev *dev)
-{
-	kfree(container_of(dev->vpd, struct pci_vpd_pci22, base));
-}
-
 static const struct pci_vpd_ops pci_vpd_pci22_ops = {
 	.read = pci_vpd_pci22_read,
 	.write = pci_vpd_pci22_write,
-	.release = pci_vpd_pci22_release,
 };
 
 static ssize_t pci_vpd_f0_read(struct pci_dev *dev, loff_t pos, size_t count,
@@ -552,7 +546,6 @@ static ssize_t pci_vpd_f0_write(struct pci_dev *dev, loff_t pos, size_t count,
 static const struct pci_vpd_ops pci_vpd_f0_ops = {
 	.read = pci_vpd_f0_read,
 	.write = pci_vpd_f0_write,
-	.release = pci_vpd_pci22_release,
 };
 
 int pci_vpd_pci22_init(struct pci_dev *dev)
@@ -584,7 +577,7 @@ int pci_vpd_pci22_init(struct pci_dev *dev)
 void pci_vpd_release(struct pci_dev *dev)
 {
 	if (dev->vpd)
-		dev->vpd->ops->release(dev);
+		kfree(container_of(dev->vpd, struct pci_vpd_pci22, base));
 }
 
 /**
