@@ -111,7 +111,7 @@ static int dwc2_desc_list_alloc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 		dma_unmap_single(hsotg->dev, qh->desc_list_dma,
 				 qh->desc_list_sz,
 				 DMA_FROM_DEVICE);
-		kfree(qh->desc_list);
+		kmem_cache_free(desc_cache, qh->desc_list);
 		qh->desc_list = NULL;
 		return -ENOMEM;
 	}
