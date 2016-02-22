@@ -131,6 +131,8 @@
 #define LINUX_RX_SIZE		(96 * 1024)
 #define LINUX_TX_SIZE		(64 * 1024)
 
+#define MODALIAS		"WILC_SPI"
+#define GPIO_NUM		0x44
 /*******************************************/
 /*        E0 and later Interrupt flags.    */
 /*******************************************/

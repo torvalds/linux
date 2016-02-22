@@ -31,7 +31,5 @@
 
 #else
 /* base on SAMA5D3_Xplained Board */
-	#define MODALIAS	"WILC_SPI"
-	#define GPIO_NUM	0x44
 #endif
 #endif
