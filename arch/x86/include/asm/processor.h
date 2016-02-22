@@ -129,6 +129,8 @@ struct cpuinfo_x86 {
 	u16			booted_cores;
 	/* Physical processor id: */
 	u16			phys_proc_id;
+	/* Logical processor id: */
+	u16			logical_proc_id;
 	/* Core id: */
 	u16			cpu_core_id;
 	/* Compute unit id */

@@ -975,6 +975,8 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
+	/* The boot/hotplug time assigment got cleared, restore it */
+	c->logical_proc_id = topology_phys_to_logical_pkg(c->phys_proc_id);
 }
 
 /*
