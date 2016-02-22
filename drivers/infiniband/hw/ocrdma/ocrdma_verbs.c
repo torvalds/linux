@@ -1094,7 +1094,6 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
 	spin_lock_init(&cq->comp_handler_lock);
 	INIT_LIST_HEAD(&cq->sq_head);
 	INIT_LIST_HEAD(&cq->rq_head);
-	cq->first_arm = true;
 
 	if (ib_ctx) {
 		uctx = get_ocrdma_ucontext(ib_ctx);
@@ -2910,12 +2909,9 @@ expand_cqe:
 	}
 stop_cqe:
 	cq->getp = cur_getp;
-	if (cq->deferred_arm || polled_hw_cqes) {
-		ocrdma_ring_cq_db(dev, cq->id, cq->deferred_arm,
-				  cq->deferred_sol, polled_hw_cqes);
-		cq->deferred_arm = false;
-		cq->deferred_sol = false;
-	}
+
+	if (polled_hw_cqes)
+		ocrdma_ring_cq_db(dev, cq->id, false, false, polled_hw_cqes);
 
 	return i;
 }
@@ -2999,13 +2995,7 @@ int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 	if (cq_flags & IB_CQ_SOLICITED)
 		sol_needed = true;
 
-	if (cq->first_arm) {
-		ocrdma_ring_cq_db(dev, cq_id, arm_needed, sol_needed, 0);
-		cq->first_arm = false;
-	}
-
-	cq->deferred_arm = true;
-	cq->deferred_sol = sol_needed;
+	ocrdma_ring_cq_db(dev, cq_id, arm_needed, sol_needed, 0);
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
 	return 0;

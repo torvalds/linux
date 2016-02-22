@@ -323,9 +323,6 @@ struct ocrdma_cq {
 			 */
 	u32 max_hw_cqe;
 	bool phase_change;
-	bool deferred_arm, deferred_sol;
-	bool first_arm;
-
 	spinlock_t cq_lock ____cacheline_aligned; /* provide synchronization
 						   * to cq polling
 						   */
