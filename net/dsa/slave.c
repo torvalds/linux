@@ -1194,7 +1194,6 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
 			   ret, slave_dev->name);
-		phy_disconnect(p->phy);
 		ds->ports[port] = NULL;
 		free_netdev(slave_dev);
 		return ret;
@@ -1205,6 +1204,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	ret = dsa_slave_phy_setup(p, slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d setting up slave phy\n", ret);
+		unregister_netdev(slave_dev);
 		free_netdev(slave_dev);
 		return ret;
 	}

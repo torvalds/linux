@@ -915,11 +915,13 @@ static int handle_existing_counter(struct mlx4_dev *dev, u8 slave, int port,
 
 	spin_lock_irq(mlx4_tlock(dev));
 	r = find_res(dev, counter_index, RES_COUNTER);
-	if (!r || r->owner != slave)
+	if (!r || r->owner != slave) {
 		ret = -EINVAL;
-	counter = container_of(r, struct res_counter, com);
-	if (!counter->port)
-		counter->port = port;
+	} else {
+		counter = container_of(r, struct res_counter, com);
+		if (!counter->port)
+			counter->port = port;
+	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
 	return ret;
