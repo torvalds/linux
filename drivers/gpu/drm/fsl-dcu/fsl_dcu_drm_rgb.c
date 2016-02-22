@@ -142,7 +142,7 @@ int fsl_dcu_drm_connector_create(struct fsl_dcu_drm_device *fsl_dev,
 				 struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = &fsl_dev->connector.base;
-	struct drm_mode_config mode_config = fsl_dev->drm->mode_config;
+	struct drm_mode_config *mode_config = &fsl_dev->drm->mode_config;
 	struct device_node *panel_node;
 	int ret;
 
@@ -164,7 +164,7 @@ int fsl_dcu_drm_connector_create(struct fsl_dcu_drm_device *fsl_dev,
 		goto err_sysfs;
 
 	drm_object_property_set_value(&connector->base,
-				      mode_config.dpms_property,
+				      mode_config->dpms_property,
 				      DRM_MODE_DPMS_OFF);
 
 	panel_node = of_parse_phandle(fsl_dev->np, "fsl,panel", 0);
