@@ -59,7 +59,6 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <asm/ioctls.h>
-#include <linux/poll.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
