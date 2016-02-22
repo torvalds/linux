@@ -904,7 +904,7 @@ lnet_ping_info_setup(lnet_ping_info_t **ppinfo, lnet_handle_md_t *md_handle,
 {
 	lnet_process_id_t id = {LNET_NID_ANY, LNET_PID_ANY};
 	lnet_handle_me_t me_handle;
-	lnet_md_t md = {0};
+	lnet_md_t md = { NULL };
 	int rc, rc2;
 
 	if (set_eq) {

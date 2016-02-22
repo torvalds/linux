@@ -72,7 +72,7 @@ EXPORT_SYMBOL(class_find_param);
 
 /* returns 0 if this is the first key in the buffer, else 1.
    valp points to first char after key. */
-static int class_match_param(char *buf, char *key, char **valp)
+static int class_match_param(char *buf, const char *key, char **valp)
 {
 	if (!buf)
 		return 1;
@@ -1008,7 +1008,7 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 		/* Search proc entries */
 		while (lvars[j].name) {
 			var = &lvars[j];
-			if (class_match_param(key, (char *)var->name, NULL) == 0
+			if (!class_match_param(key, var->name, NULL)
 			    && keylen == strlen(var->name)) {
 				matched++;
 				rc = -EROFS;
