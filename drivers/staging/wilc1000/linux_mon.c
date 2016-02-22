@@ -266,7 +266,9 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	/* if source address and bssid fields are equal>>Mac header */
 	/*send it to mgmt frames handler */
 	if (!(memcmp(srcAdd, bssid, 6))) {
-		mon_mgmt_tx(mon_priv->real_ndev, skb->data, skb->len);
+		ret = mon_mgmt_tx(mon_priv->real_ndev, skb->data, skb->len);
+		if (ret)
+			netdev_err(dev, "fail to mgmt tx\n");
 		dev_kfree_skb(skb);
 	} else {
 		ret = wilc_mac_xmit(skb, mon_priv->real_ndev);
