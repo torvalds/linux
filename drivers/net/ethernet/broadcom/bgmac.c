@@ -30,6 +30,7 @@ static inline bool bgmac_is_bcm4707_family(struct bgmac *bgmac)
 {
 	switch (bgmac->core->bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4707:
+	case BCMA_CHIP_ID_BCM47094:
 	case BCMA_CHIP_ID_BCM53018:
 		return true;
 	default:
@@ -1052,8 +1053,9 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 	    (ci->id == BCMA_CHIP_ID_BCM53572 && ci->pkg == BCMA_PKG_ID_BCM47188))
 		iost &= ~BGMAC_BCMA_IOST_ATTACHED;
 
-	/* 3GMAC: for BCM4707, only do core reset at bgmac_probe() */
-	if (ci->id != BCMA_CHIP_ID_BCM4707) {
+	/* 3GMAC: for BCM4707 & BCM47094, only do core reset at bgmac_probe() */
+	if (ci->id != BCMA_CHIP_ID_BCM4707 &&
+	    ci->id != BCMA_CHIP_ID_BCM47094) {
 		flags = 0;
 		if (iost & BGMAC_BCMA_IOST_ATTACHED) {
 			flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
