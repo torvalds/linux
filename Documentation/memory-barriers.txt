@@ -1550,7 +1550,7 @@ of optimizations:
      the following:
 
 	a = 0;
-	/* Code that does not store to variable a. */
+	... Code that does not store to variable a ...
 	a = 0;
 
      The compiler sees that the value of variable 'a' is already zero, so
@@ -1562,7 +1562,7 @@ of optimizations:
      wrong guess:
 
 	WRITE_ONCE(a, 0);
-	/* Code that does not store to variable a. */
+	... Code that does not store to variable a ...
 	WRITE_ONCE(a, 0);
 
  (*) The compiler is within its rights to reorder memory accesses unless
