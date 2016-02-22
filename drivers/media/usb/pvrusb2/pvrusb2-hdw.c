@@ -4903,6 +4903,9 @@ static void pvr2_hdw_state_log_state(struct pvr2_hdw *hdw)
 		printk(KERN_INFO "%s %.*s\n",hdw->name,ccnt,buf);
 	}
 	ccnt = pvr2_hdw_report_clients(hdw, buf, sizeof(buf));
+	if (ccnt >= sizeof(buf))
+		ccnt = sizeof(buf);
+
 	ucnt = 0;
 	while (ucnt < ccnt) {
 		lcnt = 0;
