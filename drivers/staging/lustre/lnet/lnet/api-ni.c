@@ -1553,7 +1553,9 @@ LNetNIInit(lnet_pid_t requested_pid)
 	if (rc)
 		goto failed0;
 
-	rc = lnet_parse_networks(&net_head, lnet_get_networks());
+	rc = lnet_parse_networks(&net_head,
+				 !the_lnet.ln_nis_from_mod_params ?
+				 lnet_get_networks() : "");
 	if (rc < 0)
 		goto failed1;
 
@@ -1668,6 +1670,94 @@ LNetNIFini(void)
 }
 EXPORT_SYMBOL(LNetNIFini);
 
+/**
+ * Grabs the ni data from the ni structure and fills the out
+ * parameters
+ *
+ * \param[in] ni network       interface structure
+ * \param[out] cpt_count       the number of cpts the ni is on
+ * \param[out] nid             Network Interface ID
+ * \param[out] peer_timeout    NI peer timeout
+ * \param[out] peer_tx_crdits  NI peer transmit credits
+ * \param[out] peer_rtr_credits NI peer router credits
+ * \param[out] max_tx_credits  NI max transmit credit
+ * \param[out] net_config      Network configuration
+ */
+static void
+lnet_fill_ni_info(struct lnet_ni *ni, __u32 *cpt_count, __u64 *nid,
+		  int *peer_timeout, int *peer_tx_credits,
+		  int *peer_rtr_credits, int *max_tx_credits,
+		  struct lnet_ioctl_net_config *net_config)
+{
+	int i;
+
+	if (!ni)
+		return;
+
+	if (!net_config)
+		return;
+
+	BUILD_BUG_ON(ARRAY_SIZE(ni->ni_interfaces) !=
+		     ARRAY_SIZE(net_config->ni_interfaces));
+
+	for (i = 0; i < ARRAY_SIZE(ni->ni_interfaces); i++) {
+		if (!ni->ni_interfaces[i])
+			break;
+
+		strncpy(net_config->ni_interfaces[i],
+			ni->ni_interfaces[i],
+			sizeof(net_config->ni_interfaces[i]));
+	}
+
+	*nid = ni->ni_nid;
+	*peer_timeout = ni->ni_peertimeout;
+	*peer_tx_credits = ni->ni_peertxcredits;
+	*peer_rtr_credits = ni->ni_peerrtrcredits;
+	*max_tx_credits = ni->ni_maxtxcredits;
+
+	net_config->ni_status = ni->ni_status->ns_status;
+
+	if (ni->ni_cpts) {
+		int num_cpts = min(ni->ni_ncpts, LNET_MAX_SHOW_NUM_CPT);
+
+		for (i = 0; i < num_cpts; i++)
+			net_config->ni_cpts[i] = ni->ni_cpts[i];
+
+		*cpt_count = num_cpts;
+	}
+}
+
+int
+lnet_get_net_config(int idx, __u32 *cpt_count, __u64 *nid, int *peer_timeout,
+		    int *peer_tx_credits, int *peer_rtr_credits,
+		    int *max_tx_credits,
+		    struct lnet_ioctl_net_config *net_config)
+{
+	struct lnet_ni *ni;
+	struct list_head *tmp;
+	int cpt, i = 0;
+	int rc = -ENOENT;
+
+	cpt = lnet_net_lock_current();
+
+	list_for_each(tmp, &the_lnet.ln_nis) {
+		if (i++ != idx)
+			continue;
+
+		ni = list_entry(tmp, lnet_ni_t, ni_list);
+		lnet_ni_lock(ni);
+		lnet_fill_ni_info(ni, cpt_count, nid, peer_timeout,
+				  peer_tx_credits, peer_rtr_credits,
+				  max_tx_credits, net_config);
+		lnet_ni_unlock(ni);
+		rc = 0;
+		break;
+	}
+
+	lnet_net_unlock(cpt);
+	return rc;
+}
+
 int
 lnet_dyn_add_ni(lnet_pid_t requested_pid, char *nets,
 		__s32 peer_timeout, __s32 peer_cr, __s32 peer_buf_cr,
@@ -1759,9 +1849,16 @@ LNetCtl(unsigned int cmd, void *arg)
 		return lnet_fail_nid(data->ioc_nid, data->ioc_count);
 
 	case IOC_LIBCFS_ADD_ROUTE:
+		config = arg;
+
+		if (config->cfg_hdr.ioc_len < sizeof(*config))
+			return -EINVAL;
+
 		mutex_lock(&the_lnet.ln_api_mutex);
-		rc = lnet_add_route(data->ioc_net, data->ioc_count,
-				    data->ioc_nid, data->ioc_priority);
+		rc = lnet_add_route(config->cfg_net,
+				    config->cfg_config_u.cfg_route.rtr_hop,
+				    config->cfg_nid,
+				    config->cfg_config_u.cfg_route.rtr_priority);
 		mutex_unlock(&the_lnet.ln_api_mutex);
 		return rc ? rc : lnet_check_routes();
 
@@ -1789,14 +1886,29 @@ LNetCtl(unsigned int cmd, void *arg)
 				      &config->cfg_config_u.cfg_route.rtr_flags,
 				      &config->cfg_config_u.cfg_route.rtr_priority);
 
-	case IOC_LIBCFS_ADD_NET:
-		return 0;
+	case IOC_LIBCFS_GET_NET: {
+		struct lnet_ioctl_net_config *net_config;
+		size_t total = sizeof(*config) + sizeof(*net_config);
 
-	case IOC_LIBCFS_DEL_NET:
-		return 0;
+		config = arg;
 
-	case IOC_LIBCFS_GET_NET:
-		return 0;
+		if (config->cfg_hdr.ioc_len < total)
+			return -EINVAL;
+
+		net_config = (struct lnet_ioctl_net_config *)
+				config->cfg_bulk;
+		if (!net_config)
+			return -EINVAL;
+
+		return lnet_get_net_config(config->cfg_count,
+					   &config->cfg_ncpts,
+					   &config->cfg_nid,
+					   &config->cfg_config_u.cfg_net.net_peer_timeout,
+					   &config->cfg_config_u.cfg_net.net_peer_tx_credits,
+					   &config->cfg_config_u.cfg_net.net_peer_rtr_credits,
+					   &config->cfg_config_u.cfg_net.net_max_tx_credits,
+					   net_config);
+	}
 
 	case IOC_LIBCFS_GET_LNET_STATS: {
 		struct lnet_ioctl_lnet_stats *lnet_stats = arg;
@@ -1809,16 +1921,64 @@ LNetCtl(unsigned int cmd, void *arg)
 	}
 
 	case IOC_LIBCFS_CONFIG_RTR:
+		config = arg;
+
+		if (config->cfg_hdr.ioc_len < sizeof(*config))
+			return -EINVAL;
+
+		mutex_lock(&the_lnet.ln_api_mutex);
+		if (config->cfg_config_u.cfg_buffers.buf_enable) {
+			rc = lnet_rtrpools_enable();
+			mutex_unlock(&the_lnet.ln_api_mutex);
+			return rc;
+		}
+		lnet_rtrpools_disable();
+		mutex_unlock(&the_lnet.ln_api_mutex);
 		return 0;
 
 	case IOC_LIBCFS_ADD_BUF:
-		return 0;
+		config = arg;
 
-	case IOC_LIBCFS_GET_BUF:
-		return 0;
+		if (config->cfg_hdr.ioc_len < sizeof(*config))
+			return -EINVAL;
 
-	case IOC_LIBCFS_GET_PEER_INFO:
-		return 0;
+		mutex_lock(&the_lnet.ln_api_mutex);
+		rc = lnet_rtrpools_adjust(config->cfg_config_u.cfg_buffers.buf_tiny,
+					  config->cfg_config_u.cfg_buffers.buf_small,
+					  config->cfg_config_u.cfg_buffers.buf_large);
+		mutex_unlock(&the_lnet.ln_api_mutex);
+		return rc;
+
+	case IOC_LIBCFS_GET_BUF: {
+		struct lnet_ioctl_pool_cfg *pool_cfg;
+		size_t total = sizeof(*config) + sizeof(*pool_cfg);
+
+		config = arg;
+
+		if (config->cfg_hdr.ioc_len < total)
+			return -EINVAL;
+
+		pool_cfg = (struct lnet_ioctl_pool_cfg *)config->cfg_bulk;
+		return lnet_get_rtr_pool_cfg(config->cfg_count, pool_cfg);
+	}
+
+	case IOC_LIBCFS_GET_PEER_INFO: {
+		struct lnet_ioctl_peer *peer_info = arg;
+
+		if (peer_info->pr_hdr.ioc_len < sizeof(*peer_info))
+			return -EINVAL;
+
+		return lnet_get_peer_info(peer_info->pr_count,
+			&peer_info->pr_nid,
+			peer_info->pr_lnd_u.pr_peer_credits.cr_aliveness,
+			&peer_info->pr_lnd_u.pr_peer_credits.cr_ncpt,
+			&peer_info->pr_lnd_u.pr_peer_credits.cr_refcount,
+			&peer_info->pr_lnd_u.pr_peer_credits.cr_ni_peer_tx_credits,
+			&peer_info->pr_lnd_u.pr_peer_credits.cr_peer_tx_credits,
+			&peer_info->pr_lnd_u.pr_peer_credits.cr_peer_rtr_credits,
+			&peer_info->pr_lnd_u.pr_peer_credits.cr_peer_min_rtr_credits,
+			&peer_info->pr_lnd_u.pr_peer_credits.cr_peer_tx_qnob);
+	}
 
 	case IOC_LIBCFS_NOTIFY_ROUTER:
 		secs_passed = (ktime_get_real_seconds() - data->ioc_u64[0]);

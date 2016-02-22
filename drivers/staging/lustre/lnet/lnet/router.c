@@ -542,6 +542,38 @@ lnet_destroy_routes(void)
 	lnet_del_route(LNET_NIDNET(LNET_NID_ANY), LNET_NID_ANY);
 }
 
+int lnet_get_rtr_pool_cfg(int idx, struct lnet_ioctl_pool_cfg *pool_cfg)
+{
+	int i, rc = -ENOENT, j;
+
+	if (!the_lnet.ln_rtrpools)
+		return rc;
+
+	for (i = 0; i < LNET_NRBPOOLS; i++) {
+		lnet_rtrbufpool_t *rbp;
+
+		lnet_net_lock(LNET_LOCK_EX);
+		cfs_percpt_for_each(rbp, j, the_lnet.ln_rtrpools) {
+			if (i++ != idx)
+				continue;
+
+			pool_cfg->pl_pools[i].pl_npages = rbp[i].rbp_npages;
+			pool_cfg->pl_pools[i].pl_nbuffers = rbp[i].rbp_nbuffers;
+			pool_cfg->pl_pools[i].pl_credits = rbp[i].rbp_credits;
+			pool_cfg->pl_pools[i].pl_mincredits = rbp[i].rbp_mincredits;
+			rc = 0;
+			break;
+		}
+		lnet_net_unlock(LNET_LOCK_EX);
+	}
+
+	lnet_net_lock(LNET_LOCK_EX);
+	pool_cfg->pl_routing = the_lnet.ln_routing;
+	lnet_net_unlock(LNET_LOCK_EX);
+
+	return rc;
+}
+
 int
 lnet_get_route(int idx, __u32 *net, __u32 *hops,
 	       lnet_nid_t *gateway, __u32 *alive, __u32 *priority)
@@ -1544,8 +1576,8 @@ lnet_rtrpools_alloc(int im_a_router)
 	return rc;
 }
 
-int
-lnet_rtrpools_adjust(int tiny, int small, int large)
+static int
+lnet_rtrpools_adjust_helper(int tiny, int small, int large)
 {
 	int nrb = 0;
 	int rc = 0;
@@ -1553,19 +1585,10 @@ lnet_rtrpools_adjust(int tiny, int small, int large)
 	lnet_rtrbufpool_t *rtrp;
 
 	/*
-	 * this function doesn't revert the changes if adding new buffers
-	 * failed.  It's up to the user space caller to revert the
-	 * changes.
-	 */
-
-	if (!the_lnet.ln_routing)
-		return 0;
-
-	/*
 	 * If the provided values for each buffer pool are different than the
 	 * configured values, we need to take action.
 	 */
-	if (tiny >= 0 && tiny != tiny_router_buffers) {
+	if (tiny >= 0) {
 		tiny_router_buffers = tiny;
 		nrb = lnet_nrb_tiny_calculate();
 		cfs_percpt_for_each(rtrp, i, the_lnet.ln_rtrpools) {
@@ -1575,7 +1598,7 @@ lnet_rtrpools_adjust(int tiny, int small, int large)
 				return rc;
 		}
 	}
-	if (small >= 0 && small != small_router_buffers) {
+	if (small >= 0) {
 		small_router_buffers = small;
 		nrb = lnet_nrb_small_calculate();
 		cfs_percpt_for_each(rtrp, i, the_lnet.ln_rtrpools) {
@@ -1585,7 +1608,7 @@ lnet_rtrpools_adjust(int tiny, int small, int large)
 				return rc;
 		}
 	}
-	if (large >= 0 && large != large_router_buffers) {
+	if (large >= 0) {
 		large_router_buffers = large;
 		nrb = lnet_nrb_large_calculate();
 		cfs_percpt_for_each(rtrp, i, the_lnet.ln_rtrpools) {
@@ -1597,6 +1620,20 @@ lnet_rtrpools_adjust(int tiny, int small, int large)
 	}
 
 	return 0;
+}
+
+int
+lnet_rtrpools_adjust(int tiny, int small, int large)
+{
+	/*
+	 * this function doesn't revert the changes if adding new buffers
+	 * failed.  It's up to the user space caller to revert the
+	 * changes.
+	 */
+	if (!the_lnet.ln_routing)
+		return 0;
+
+	return lnet_rtrpools_adjust_helper(tiny, small, large);
 }
 
 int
@@ -1617,7 +1654,7 @@ lnet_rtrpools_enable(void)
 		 */
 		return lnet_rtrpools_alloc(1);
 
-	rc = lnet_rtrpools_adjust(0, 0, 0);
+	rc = lnet_rtrpools_adjust_helper(0, 0, 0);
 	if (rc)
 		return rc;
 

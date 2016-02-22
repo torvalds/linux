@@ -627,6 +627,14 @@ typedef struct {
 	/* test protocol compatibility flags */
 	int				  ln_testprotocompat;
 
+	/*
+	 * 0 - load the NIs from the mod params
+	 * 1 - do not load the NIs from the mod params
+	 * Reverse logic to ensure that other calls to LNetNIInit
+	 * need no change
+	 */
+	bool				  ln_nis_from_mod_params;
+
 } lnet_t;
 
 #endif

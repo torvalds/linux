@@ -85,19 +85,79 @@ lnet_unconfigure(void)
 }
 
 static int
+lnet_dyn_configure(struct libcfs_ioctl_hdr *hdr)
+{
+	struct lnet_ioctl_config_data *conf =
+		(struct lnet_ioctl_config_data *)hdr;
+	int rc;
+
+	if (conf->cfg_hdr.ioc_len < sizeof(*conf))
+		return -EINVAL;
+
+	mutex_lock(&lnet_config_mutex);
+	if (!the_lnet.ln_niinit_self) {
+		rc = -EINVAL;
+		goto out_unlock;
+	}
+	rc = lnet_dyn_add_ni(LUSTRE_SRV_LNET_PID,
+			     conf->cfg_config_u.cfg_net.net_intf,
+			     conf->cfg_config_u.cfg_net.net_peer_timeout,
+			     conf->cfg_config_u.cfg_net.net_peer_tx_credits,
+			     conf->cfg_config_u.cfg_net.net_peer_rtr_credits,
+			     conf->cfg_config_u.cfg_net.net_max_tx_credits);
+out_unlock:
+	mutex_unlock(&lnet_config_mutex);
+
+	return rc;
+}
+
+static int
+lnet_dyn_unconfigure(struct libcfs_ioctl_hdr *hdr)
+{
+	struct lnet_ioctl_config_data *conf =
+		(struct lnet_ioctl_config_data *)hdr;
+	int rc;
+
+	if (conf->cfg_hdr.ioc_len < sizeof(*conf))
+		return -EINVAL;
+
+	mutex_lock(&lnet_config_mutex);
+	if (!the_lnet.ln_niinit_self) {
+		rc = -EINVAL;
+		goto out_unlock;
+	}
+	rc = lnet_dyn_del_ni(conf->cfg_net);
+out_unlock:
+	mutex_unlock(&lnet_config_mutex);
+
+	return rc;
+}
+
+static int
 lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 {
 	int rc;
 
 	switch (cmd) {
-	case IOC_LIBCFS_CONFIGURE:
+	case IOC_LIBCFS_CONFIGURE: {
+		struct libcfs_ioctl_data *data =
+			(struct libcfs_ioctl_data *)hdr;
+
+		if (data->ioc_hdr.ioc_len < sizeof(*data))
+			return -EINVAL;
+
+		the_lnet.ln_nis_from_mod_params = data->ioc_flags;
 		return lnet_configure(NULL);
+	}
 
 	case IOC_LIBCFS_UNCONFIGURE:
 		return lnet_unconfigure();
 
 	case IOC_LIBCFS_ADD_NET:
-		return LNetCtl(cmd, hdr);
+		return lnet_dyn_configure(hdr);
+
+	case IOC_LIBCFS_DEL_NET:
+		return lnet_dyn_unconfigure(hdr);
 
 	default:
 		/*
