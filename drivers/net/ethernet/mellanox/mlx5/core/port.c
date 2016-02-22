@@ -32,6 +32,7 @@
 
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/port.h>
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 
