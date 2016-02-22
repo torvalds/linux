@@ -392,6 +392,9 @@ void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 #define ioremap ioremap
 #define ioremap_nocache ioremap
 
+/*
+ * Do not use ioremap_cache for mapping memory. Use memremap instead.
+ */
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
 #define ioremap_cache ioremap_cache
 
@@ -407,6 +410,9 @@ void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
 
 void iounmap(volatile void __iomem *iomem_cookie);
 #define iounmap iounmap
+
+void *arch_memremap_wb(phys_addr_t phys_addr, size_t size);
+#define arch_memremap_wb arch_memremap_wb
 
 /*
  * io{read,write}{16,32}be() macros

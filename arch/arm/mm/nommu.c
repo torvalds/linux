@@ -384,6 +384,11 @@ void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size)
 }
 EXPORT_SYMBOL(ioremap_wc);
 
+void *arch_memremap_wb(phys_addr_t phys_addr, size_t size)
+{
+	return (void *)phys_addr;
+}
+
 void __iounmap(volatile void __iomem *addr)
 {
 }
