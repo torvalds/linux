@@ -17,6 +17,7 @@
 #include "llvm-utils.h"
 #include "probe-event.h"
 #include "probe-finder.h" // for MAX_PROBES
+#include "parse-events.h"
 #include "llvm-utils.h"
 
 #define DEFINE_PRINT_FN(name, level) \
@@ -747,12 +748,16 @@ enum bpf_map_op_type {
 
 enum bpf_map_key_type {
 	BPF_MAP_KEY_ALL,
+	BPF_MAP_KEY_RANGES,
 };
 
 struct bpf_map_op {
 	struct list_head list;
 	enum bpf_map_op_type op_type;
 	enum bpf_map_key_type key_type;
+	union {
+		struct parse_events_array array;
+	} k;
 	union {
 		u64 value;
 		struct perf_evsel *evsel;
@@ -768,6 +773,8 @@ bpf_map_op__delete(struct bpf_map_op *op)
 {
 	if (!list_empty(&op->list))
 		list_del(&op->list);
+	if (op->key_type == BPF_MAP_KEY_RANGES)
+		parse_events__clear_array(&op->k.array);
 	free(op);
 }
 
@@ -792,10 +799,33 @@ bpf_map_priv__clear(struct bpf_map *map __maybe_unused,
 	free(priv);
 }
 
+static int
+bpf_map_op_setkey(struct bpf_map_op *op, struct parse_events_term *term)
+{
+	op->key_type = BPF_MAP_KEY_ALL;
+	if (!term)
+		return 0;
+
+	if (term->array.nr_ranges) {
+		size_t memsz = term->array.nr_ranges *
+				sizeof(op->k.array.ranges[0]);
+
+		op->k.array.ranges = memdup(term->array.ranges, memsz);
+		if (!op->k.array.ranges) {
+			pr_debug("No enough memory to alloc indices for map\n");
+			return -ENOMEM;
+		}
+		op->key_type = BPF_MAP_KEY_RANGES;
+		op->k.array.nr_ranges = term->array.nr_ranges;
+	}
+	return 0;
+}
+
 static struct bpf_map_op *
-bpf_map_op__new(void)
+bpf_map_op__new(struct parse_events_term *term)
 {
 	struct bpf_map_op *op;
+	int err;
 
 	op = zalloc(sizeof(*op));
 	if (!op) {
@@ -804,7 +834,11 @@ bpf_map_op__new(void)
 	}
 	INIT_LIST_HEAD(&op->list);
 
-	op->key_type = BPF_MAP_KEY_ALL;
+	err = bpf_map_op_setkey(op, term);
+	if (err) {
+		free(op);
+		return ERR_PTR(err);
+	}
 	return op;
 }
 
@@ -841,12 +875,12 @@ bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 }
 
 static struct bpf_map_op *
-bpf_map__add_newop(struct bpf_map *map)
+bpf_map__add_newop(struct bpf_map *map, struct parse_events_term *term)
 {
 	struct bpf_map_op *op;
 	int err;
 
-	op = bpf_map_op__new();
+	op = bpf_map_op__new(term);
 	if (IS_ERR(op))
 		return op;
 
@@ -896,7 +930,7 @@ __bpf_map__config_value(struct bpf_map *map,
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUESIZE;
 	}
 
-	op = bpf_map__add_newop(map);
+	op = bpf_map__add_newop(map, term);
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 	op->op_type = BPF_MAP_OP_SET_VALUE;
@@ -958,7 +992,7 @@ __bpf_map__config_event(struct bpf_map *map,
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
 	}
 
-	op = bpf_map__add_newop(map);
+	op = bpf_map__add_newop(map, term);
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 	op->op_type = BPF_MAP_OP_SET_EVSEL;
@@ -996,6 +1030,44 @@ struct bpf_obj_config__map_func bpf_obj_config__map_funcs[] = {
 };
 
 static int
+config_map_indices_range_check(struct parse_events_term *term,
+			       struct bpf_map *map,
+			       const char *map_name)
+{
+	struct parse_events_array *array = &term->array;
+	struct bpf_map_def def;
+	unsigned int i;
+	int err;
+
+	if (!array->nr_ranges)
+		return 0;
+	if (!array->ranges) {
+		pr_debug("ERROR: map %s: array->nr_ranges is %d but range array is NULL\n",
+			 map_name, (int)array->nr_ranges);
+		return -BPF_LOADER_ERRNO__INTERNAL;
+	}
+
+	err = bpf_map__get_def(map, &def);
+	if (err) {
+		pr_debug("ERROR: Unable to get map definition from '%s'\n",
+			 map_name);
+		return -BPF_LOADER_ERRNO__INTERNAL;
+	}
+
+	for (i = 0; i < array->nr_ranges; i++) {
+		unsigned int start = array->ranges[i].start;
+		size_t length = array->ranges[i].length;
+		unsigned int idx = start + length - 1;
+
+		if (idx >= def.max_entries) {
+			pr_debug("ERROR: index %d too large\n", idx);
+			return -BPF_LOADER_ERRNO__OBJCONF_MAP_IDX2BIG;
+		}
+	}
+	return 0;
+}
+
+static int
 bpf__obj_config_map(struct bpf_object *obj,
 		    struct parse_events_term *term,
 		    struct perf_evlist *evlist,
@@ -1030,7 +1102,12 @@ bpf__obj_config_map(struct bpf_object *obj,
 		goto out;
 	}
 
-	*key_scan_pos += map_opt - map_name;
+	*key_scan_pos += strlen(map_opt);
+	err = config_map_indices_range_check(term, map, map_name);
+	if (err)
+		goto out;
+	*key_scan_pos -= strlen(map_opt);
+
 	for (i = 0; i < ARRAY_SIZE(bpf_obj_config__map_funcs); i++) {
 		struct bpf_obj_config__map_func *func =
 				&bpf_obj_config__map_funcs[i];
@@ -1100,6 +1177,33 @@ foreach_key_array_all(map_config_func_t func,
 }
 
 static int
+foreach_key_array_ranges(map_config_func_t func, void *arg,
+			 const char *name, int map_fd,
+			 struct bpf_map_def *pdef,
+			 struct bpf_map_op *op)
+{
+	unsigned int i, j;
+	int err;
+
+	for (i = 0; i < op->k.array.nr_ranges; i++) {
+		unsigned int start = op->k.array.ranges[i].start;
+		size_t length = op->k.array.ranges[i].length;
+
+		for (j = 0; j < length; j++) {
+			unsigned int idx = start + j;
+
+			err = func(name, map_fd, pdef, op, &idx, arg);
+			if (err) {
+				pr_debug("ERROR: failed to insert value to %s[%u]\n",
+					 name, idx);
+				return err;
+			}
+		}
+	}
+	return 0;
+}
+
+static int
 bpf_map_config_foreach_key(struct bpf_map *map,
 			   map_config_func_t func,
 			   void *arg)
@@ -1141,14 +1245,19 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 			case BPF_MAP_KEY_ALL:
 				err = foreach_key_array_all(func, arg, name,
 							    map_fd, &def, op);
-				if (err)
-					return err;
+				break;
+			case BPF_MAP_KEY_RANGES:
+				err = foreach_key_array_ranges(func, arg, name,
+							       map_fd, &def,
+							       op);
 				break;
 			default:
 				pr_debug("ERROR: keytype for map '%s' invalid\n",
 					 name);
 				return -BPF_LOADER_ERRNO__INTERNAL;
 			}
+			if (err)
+				return err;
 			break;
 		default:
 			pr_debug("ERROR: type of '%s' incorrect\n", name);
@@ -1336,6 +1445,7 @@ static const char *bpf_loader_strerror_table[NR_ERRNO] = {
 	[ERRCODE_OFFSET(OBJCONF_MAP_EVTDIM)]	= "Event dimension too large",
 	[ERRCODE_OFFSET(OBJCONF_MAP_EVTINH)]	= "Doesn't support inherit event",
 	[ERRCODE_OFFSET(OBJCONF_MAP_EVTTYPE)]	= "Wrong event type for map",
+	[ERRCODE_OFFSET(OBJCONF_MAP_IDX2BIG)]	= "Index too large",
 };
 
 static int

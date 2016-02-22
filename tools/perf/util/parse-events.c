@@ -2211,6 +2211,8 @@ void parse_events_terms__purge(struct list_head *terms)
 	struct parse_events_term *term, *h;
 
 	list_for_each_entry_safe(term, h, terms, list) {
+		if (term->array.nr_ranges)
+			free(term->array.ranges);
 		list_del_init(&term->list);
 		free(term);
 	}
@@ -2222,6 +2224,11 @@ void parse_events_terms__delete(struct list_head *terms)
 		return;
 	parse_events_terms__purge(terms);
 	free(terms);
+}
+
+void parse_events__clear_array(struct parse_events_array *a)
+{
+	free(a->ranges);
 }
 
 void parse_events_evlist_error(struct parse_events_evlist *data,

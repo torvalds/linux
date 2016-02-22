@@ -38,6 +38,7 @@ enum bpf_loader_errno {
 	BPF_LOADER_ERRNO__OBJCONF_MAP_EVTDIM,	/* Event dimension too large */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_EVTINH,	/* Doesn't support inherit event */
 	BPF_LOADER_ERRNO__OBJCONF_MAP_EVTTYPE,	/* Wrong event type for map */
+	BPF_LOADER_ERRNO__OBJCONF_MAP_IDX2BIG,	/* Index too large */
 	__BPF_LOADER_ERRNO__END,
 };
 
