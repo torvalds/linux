@@ -26,13 +26,13 @@
 #define _PAGE_WRITETHRU		0x00040 /* W: cache write-through */
 #define _PAGE_DIRTY		0x00080 /* C: page changed */
 #define _PAGE_ACCESSED		0x00100 /* R: page referenced */
+#define _PAGE_SPECIAL		0x00400 /* software: special page */
 #define _PAGE_BUSY		0x00800 /* software: PTE & hash are busy */
-#define _PAGE_SPECIAL		0x10000 /* software: special page */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
-#define _PAGE_SOFT_DIRTY	0x20000 /* software: software dirty tracking */
+#define _PAGE_SOFT_DIRTY	0x200 /* software: software dirty tracking */
 #else
-#define _PAGE_SOFT_DIRTY	0x00000
+#define _PAGE_SOFT_DIRTY	0x000
 #endif
 
 #define _PAGE_F_GIX_SHIFT	57
