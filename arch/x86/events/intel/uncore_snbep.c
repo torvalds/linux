@@ -986,7 +986,9 @@ static void snbep_qpi_enable_event(struct intel_uncore_box *box, struct perf_eve
 
 	if (reg1->idx != EXTRA_REG_NONE) {
 		int idx = box->pmu->pmu_idx + SNBEP_PCI_QPI_PORT0_FILTER;
-		struct pci_dev *filter_pdev = uncore_extra_pci_dev[box->phys_id][idx];
+		int pkg = topology_phys_to_logical_pkg(box->pci_phys_id);
+		struct pci_dev *filter_pdev = uncore_extra_pci_dev[pkg].dev[idx];
+
 		if (filter_pdev) {
 			pci_write_config_dword(filter_pdev, reg1->reg,
 						(u32)reg1->config);
@@ -2520,14 +2522,16 @@ static struct intel_uncore_type *hswep_msr_uncores[] = {
 
 void hswep_uncore_cpu_init(void)
 {
+	int pkg = topology_phys_to_logical_pkg(0);
+
 	if (hswep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		hswep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 
 	/* Detect 6-8 core systems with only two SBOXes */
-	if (uncore_extra_pci_dev[0][HSWEP_PCI_PCU_3]) {
+	if (uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3]) {
 		u32 capid4;
 
-		pci_read_config_dword(uncore_extra_pci_dev[0][HSWEP_PCI_PCU_3],
+		pci_read_config_dword(uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3],
 				      0x94, &capid4);
 		if (((capid4 >> 6) & 0x3) == 0)
 			hswep_uncore_sbox.num_boxes = 2;

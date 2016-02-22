@@ -19,10 +19,11 @@
 #define UNCORE_EXTRA_PCI_DEV		0xff
 #define UNCORE_EXTRA_PCI_DEV_MAX	3
 
-/* support up to 8 sockets */
-#define UNCORE_SOCKET_MAX		8
-
 #define UNCORE_EVENT_CONSTRAINT(c, n) EVENT_CONSTRAINT(c, n, 0xff)
+
+struct pci_extra_dev {
+	struct pci_dev *dev[UNCORE_EXTRA_PCI_DEV_MAX];
+};
 
 struct intel_uncore_ops;
 struct intel_uncore_pmu;
@@ -79,9 +80,9 @@ struct intel_uncore_pmu {
 	int				pmu_idx;
 	int				func_id;
 	bool				registered;
+	atomic_t			activeboxes;
 	struct intel_uncore_type	*type;
-	struct intel_uncore_box		** __percpu box;
-	struct list_head		box_list;
+	struct intel_uncore_box		**boxes;
 };
 
 struct intel_uncore_extra_reg {
@@ -91,7 +92,8 @@ struct intel_uncore_extra_reg {
 };
 
 struct intel_uncore_box {
-	int phys_id;
+	int pci_phys_id;
+	int pkgid;
 	int n_active;	/* number of active events */
 	int n_events;
 	int cpu;	/* cpu to collect events */
@@ -316,7 +318,7 @@ static inline void uncore_box_exit(struct intel_uncore_box *box)
 
 static inline bool uncore_box_is_fake(struct intel_uncore_box *box)
 {
-	return (box->phys_id < 0);
+	return (box->pkgid < 0);
 }
 
 static inline struct intel_uncore_pmu *uncore_event_to_pmu(struct perf_event *event)
@@ -345,7 +347,7 @@ extern struct intel_uncore_type **uncore_pci_uncores;
 extern struct pci_driver *uncore_pci_driver;
 extern raw_spinlock_t pci2phy_map_lock;
 extern struct list_head pci2phy_map_head;
-extern struct pci_dev *uncore_extra_pci_dev[UNCORE_SOCKET_MAX][UNCORE_EXTRA_PCI_DEV_MAX];
+extern struct pci_extra_dev *uncore_extra_pci_dev;
 extern struct event_constraint uncore_constraint_empty;
 
 /* perf_event_intel_uncore_snb.c */
