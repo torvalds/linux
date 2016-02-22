@@ -704,9 +704,10 @@ parse_events_config_bpf(struct parse_events_evlist *data,
 						 sizeof(errbuf));
 			data->error->help = strdup(
 "Hint:\tValid config terms:\n"
-"     \tmap:[<arraymap>].value=[value]\n"
-"     \tmap:[<eventmap>].event=[event]\n"
+"     \tmap:[<arraymap>].value<indices>=[value]\n"
+"     \tmap:[<eventmap>].event<indices>=[event]\n"
 "\n"
+"     \twhere <indices> is something like [0,3...5] or [all]\n"
 "     \t(add -v to see detail)");
 			data->error->str = strdup(errbuf);
 			if (err == -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE)
