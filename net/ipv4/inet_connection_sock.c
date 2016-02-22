@@ -202,6 +202,7 @@ tb_found:
 
 		if (((tb->fastreuse > 0 && reuse) ||
 		     (tb->fastreuseport > 0 &&
+		      !rcu_access_pointer(sk->sk_reuseport_cb) &&
 		      sk->sk_reuseport && uid_eq(tb->fastuid, uid))) &&
 		    smallest_size == -1)
 			goto success;
