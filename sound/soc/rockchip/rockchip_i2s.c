@@ -575,6 +575,9 @@ static int rockchip_i2s_remove(struct platform_device *pdev)
 
 static const struct of_device_id rockchip_i2s_match[] = {
 	{ .compatible = "rockchip,rk3066-i2s", },
+	{ .compatible = "rockchip,rk3188-i2s", },
+	{ .compatible = "rockchip,rk3288-i2s", },
+	{ .compatible = "rockchip,rk3399-i2s", },
 	{},
 };
 
