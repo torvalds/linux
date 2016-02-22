@@ -417,7 +417,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	dput(lower_dentry);
 	rc = ecryptfs_encrypt_and_encode_filename(
 		&encrypted_and_encoded_name, &encrypted_and_encoded_name_size,
-		NULL, mount_crypt_stat, ecryptfs_dentry->d_name.name,
+		mount_crypt_stat, ecryptfs_dentry->d_name.name,
 		ecryptfs_dentry->d_name.len);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to encrypt and encode "
@@ -498,7 +498,6 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 		dir->i_sb)->mount_crypt_stat;
 	rc = ecryptfs_encrypt_and_encode_filename(&encoded_symname,
 						  &encoded_symlen,
-						  NULL,
 						  mount_crypt_stat, symname,
 						  strlen(symname));
 	if (rc)
