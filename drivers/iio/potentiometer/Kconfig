@@ -17,4 +17,16 @@ config MCP4531
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcp4531.
 
+config TPL0102
+	tristate "Texas Instruments digital potentiometer driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the Texas Instruments
+	  TPL0102, TPL0402
+	  digital potentiometer chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tpl0102.
+
 endmenu
