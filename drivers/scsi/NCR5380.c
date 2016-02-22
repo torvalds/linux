@@ -1759,9 +1759,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 	unsigned char msgout = NOP;
 	int sink = 0;
 	int len;
-#if defined(PSEUDO_DMA) || defined(REAL_DMA_POLL)
 	int transfersize;
-#endif
 	unsigned char *data;
 	unsigned char phase, tmp, extended_msg[10], old_phase = 0xff;
 	struct scsi_cmnd *cmd;
@@ -1854,13 +1852,17 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				} else
 #endif				/* defined(PSEUDO_DMA) || defined(REAL_DMA_POLL) */
 				{
-					spin_unlock_irq(&hostdata->lock);
-					NCR5380_transfer_pio(instance, &phase,
-					                     (int *)&cmd->SCp.this_residual,
+					/* Break up transfer into 3 ms chunks,
+					 * presuming 6 accesses per handshake.
+					 */
+					transfersize = min((unsigned long)cmd->SCp.this_residual,
+					                   hostdata->accesses_per_ms / 2);
+					len = transfersize;
+					NCR5380_transfer_pio(instance, &phase, &len,
 					                     (unsigned char **)&cmd->SCp.ptr);
-					spin_lock_irq(&hostdata->lock);
+					cmd->SCp.this_residual -= transfersize - len;
 				}
-				break;
+				return;
 			case PHASE_MSGIN:
 				len = 1;
 				data = &tmp;
