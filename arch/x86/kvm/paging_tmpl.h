@@ -702,22 +702,15 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
 
-	if (unlikely(error_code & PFERR_RSVD_MASK)) {
-		r = handle_mmio_page_fault(vcpu, addr, mmu_is_nested(vcpu));
-		if (likely(r != RET_MMIO_PF_INVALID))
-			return r;
-
-		/*
-		 * page fault with PFEC.RSVD  = 1 is caused by shadow
-		 * page fault, should not be used to walk guest page
-		 * table.
-		 */
-		error_code &= ~PFERR_RSVD_MASK;
-	};
-
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		return r;
+
+	/*
+	 * If PFEC.RSVD is set, this is a shadow page fault.
+	 * The bit needs to be cleared before walking guest page tables.
+	 */
+	error_code &= ~PFERR_RSVD_MASK;
 
 	/*
 	 * Look up the guest pte for the faulting address.

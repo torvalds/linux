@@ -3370,13 +3370,6 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 
 	pgprintk("%s: gva %lx error %x\n", __func__, gva, error_code);
 
-	if (unlikely(error_code & PFERR_RSVD_MASK)) {
-		r = handle_mmio_page_fault(vcpu, gva, true);
-
-		if (likely(r != RET_MMIO_PF_INVALID))
-			return r;
-	}
-
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		return r;
@@ -3459,13 +3452,6 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	bool map_writable;
 
 	MMU_WARN_ON(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
-
-	if (unlikely(error_code & PFERR_RSVD_MASK)) {
-		r = handle_mmio_page_fault(vcpu, gpa, true);
-
-		if (likely(r != RET_MMIO_PF_INVALID))
-			return r;
-	}
 
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
@@ -4361,18 +4347,27 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code,
 	enum emulation_result er;
 	bool direct = vcpu->arch.mmu.direct_map || mmu_is_nested(vcpu);
 
+	if (unlikely(error_code & PFERR_RSVD_MASK)) {
+		r = handle_mmio_page_fault(vcpu, cr2, direct);
+		if (r == RET_MMIO_PF_EMULATE) {
+			emulation_type = 0;
+			goto emulate;
+		}
+		if (r == RET_MMIO_PF_RETRY)
+			return 1;
+		if (r < 0)
+			return r;
+	}
+
 	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code, false);
 	if (r < 0)
-		goto out;
-
-	if (!r) {
-		r = 1;
-		goto out;
-	}
+		return r;
+	if (!r)
+		return 1;
 
 	if (mmio_info_in_cache(vcpu, cr2, direct))
 		emulation_type = 0;
-
+emulate:
 	er = x86_emulate_instruction(vcpu, cr2, emulation_type, insn, insn_len);
 
 	switch (er) {
@@ -4386,8 +4381,6 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code,
 	default:
 		BUG();
 	}
-out:
-	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
