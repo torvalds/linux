@@ -2999,7 +2999,6 @@ int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
 	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	int i;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -3008,10 +3007,6 @@ int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	if (INFO) {
-		for (i = 0; i < len; i++)
-			PRINT_INFO(HOSTAPD_DBG, "KEY is %x\n", key[i]);
-	}
 	msg.id = HOST_IF_MSG_KEY;
 	msg.body.key_info.type = WEP;
 	msg.body.key_info.action = ADDKEY_AP;
