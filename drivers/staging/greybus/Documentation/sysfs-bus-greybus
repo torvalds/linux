@@ -150,13 +150,6 @@ Description:
 		Write the number of the interface that you wish to
 		forcibly eject from the system.
 
-What:		/sys/bus/greybus/device/N-svc/unique_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The unique ID, or serial number, of the SVC device
-
 What:		/sys/bus/greybus/device/N-svc/version
 Date:		October 2015
 KernelVersion:	4.XX
