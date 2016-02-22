@@ -16,6 +16,7 @@
 #include <linux/kallsyms.h>
 #include <linux/utsname.h>
 #include <linux/mempolicy.h>
+#include <linux/debugfs.h>
 
 #include "sched.h"
 
@@ -57,6 +58,136 @@ static unsigned long nsec_low(unsigned long long nsec)
 }
 
 #define SPLIT_NS(x) nsec_high(x), nsec_low(x)
+
+#define SCHED_FEAT(name, enabled)	\
+	#name ,
+
+static const char * const sched_feat_names[] = {
+#include "features.h"
+};
+
+#undef SCHED_FEAT
+
+static int sched_feat_show(struct seq_file *m, void *v)
+{
+	int i;
+
+	for (i = 0; i < __SCHED_FEAT_NR; i++) {
+		if (!(sysctl_sched_features & (1UL << i)))
+			seq_puts(m, "NO_");
+		seq_printf(m, "%s ", sched_feat_names[i]);
+	}
+	seq_puts(m, "\n");
+
+	return 0;
+}
+
+#ifdef HAVE_JUMP_LABEL
+
+#define jump_label_key__true  STATIC_KEY_INIT_TRUE
+#define jump_label_key__false STATIC_KEY_INIT_FALSE
+
+#define SCHED_FEAT(name, enabled)	\
+	jump_label_key__##enabled ,
+
+struct static_key sched_feat_keys[__SCHED_FEAT_NR] = {
+#include "features.h"
+};
+
+#undef SCHED_FEAT
+
+static void sched_feat_disable(int i)
+{
+	static_key_disable(&sched_feat_keys[i]);
+}
+
+static void sched_feat_enable(int i)
+{
+	static_key_enable(&sched_feat_keys[i]);
+}
+#else
+static void sched_feat_disable(int i) { };
+static void sched_feat_enable(int i) { };
+#endif /* HAVE_JUMP_LABEL */
+
+static int sched_feat_set(char *cmp)
+{
+	int i;
+	int neg = 0;
+
+	if (strncmp(cmp, "NO_", 3) == 0) {
+		neg = 1;
+		cmp += 3;
+	}
+
+	for (i = 0; i < __SCHED_FEAT_NR; i++) {
+		if (strcmp(cmp, sched_feat_names[i]) == 0) {
+			if (neg) {
+				sysctl_sched_features &= ~(1UL << i);
+				sched_feat_disable(i);
+			} else {
+				sysctl_sched_features |= (1UL << i);
+				sched_feat_enable(i);
+			}
+			break;
+		}
+	}
+
+	return i;
+}
+
+static ssize_t
+sched_feat_write(struct file *filp, const char __user *ubuf,
+		size_t cnt, loff_t *ppos)
+{
+	char buf[64];
+	char *cmp;
+	int i;
+	struct inode *inode;
+
+	if (cnt > 63)
+		cnt = 63;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+	cmp = strstrip(buf);
+
+	/* Ensure the static_key remains in a consistent state */
+	inode = file_inode(filp);
+	inode_lock(inode);
+	i = sched_feat_set(cmp);
+	inode_unlock(inode);
+	if (i == __SCHED_FEAT_NR)
+		return -EINVAL;
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
+static int sched_feat_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, sched_feat_show, NULL);
+}
+
+static const struct file_operations sched_feat_fops = {
+	.open		= sched_feat_open,
+	.write		= sched_feat_write,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static __init int sched_init_debug(void)
+{
+	debugfs_create_file("sched_features", 0644, NULL, NULL,
+			&sched_feat_fops);
+
+	return 0;
+}
+late_initcall(sched_init_debug);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group *tg)
