@@ -566,8 +566,17 @@ void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
 
 void print_dl_rq(struct seq_file *m, int cpu, struct dl_rq *dl_rq)
 {
+	struct dl_bw *dl_bw;
+
 	SEQ_printf(m, "\ndl_rq[%d]:\n", cpu);
 	SEQ_printf(m, "  .%-30s: %ld\n", "dl_nr_running", dl_rq->dl_nr_running);
+#ifdef CONFIG_SMP
+	dl_bw = &cpu_rq(cpu)->rd->dl_bw;
+#else
+	dl_bw = &dl_rq->dl_bw;
+#endif
+	SEQ_printf(m, "  .%-30s: %lld\n", "dl_bw->bw", dl_bw->bw);
+	SEQ_printf(m, "  .%-30s: %lld\n", "dl_bw->total_bw", dl_bw->total_bw);
 }
 
 extern __read_mostly int sched_clock_running;
