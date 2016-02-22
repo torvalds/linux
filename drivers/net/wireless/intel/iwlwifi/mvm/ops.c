@@ -672,8 +672,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
 
-	/* rpm starts with a taken reference, we can release it now */
-	iwl_trans_unref(mvm->trans);
+	/* The transport always starts with a taken reference, we can
+	 * release it now if d0i3 is supported */
+	if (iwl_mvm_is_d0i3_supported(mvm))
+		iwl_trans_unref(mvm->trans);
 
 	iwl_mvm_tof_init(mvm);
 
