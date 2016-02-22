@@ -79,6 +79,13 @@ static struct fb_var_screeninfo aafb_defined = {
 	.blue.length	= 0,
 	.activate	= FB_ACTIVATE_NOW,
 	.accel_flags	= FB_ACCEL_NONE,
+	.pixclock	= 7645,
+	.left_margin	= 224,
+	.right_margin	= 32,
+	.upper_margin	= 33,
+	.lower_margin	= 3,
+	.hsync_len	= 160,
+	.vsync_len	= 3,
 	.sync		= FB_SYNC_ON_GREEN,
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
