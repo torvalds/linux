@@ -1949,7 +1949,33 @@ static int rt5640_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
+	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
 	switch (level) {
+	case SND_SOC_BIAS_ON:
+		break;
+
+	case SND_SOC_BIAS_PREPARE:
+		/*
+		 * SND_SOC_BIAS_PREPARE is called while preparing for a
+		 * transition to ON or away from ON. If current bias_level
+		 * is SND_SOC_BIAS_ON, then it is preparing for a transition
+		 * away from ON. Disable the clock in that case, otherwise
+		 * enable it.
+		 */
+		if (IS_ERR(rt5640->mclk))
+			break;
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
+			clk_disable_unprepare(rt5640->mclk);
+		} else {
+			ret = clk_prepare_enable(rt5640->mclk);
+			if (ret)
+				return ret;
+		}
+		break;
+
 	case SND_SOC_BIAS_STANDBY:
 		if (SND_SOC_BIAS_OFF == snd_soc_codec_get_bias_level(codec)) {
 			snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
@@ -2087,6 +2113,11 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+
+	/* Check if MCLK provided */
+	rt5640->mclk = devm_clk_get(codec->dev, "mclk");
+	if (PTR_ERR(rt5640->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	rt5640->codec = codec;
 
