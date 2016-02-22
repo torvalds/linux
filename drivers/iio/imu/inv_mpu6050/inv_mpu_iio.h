@@ -39,6 +39,7 @@
  *  @int_enable:	Interrupt enable register.
  *  @pwr_mgmt_1:	Controls chip's power state and clock source.
  *  @pwr_mgmt_2:	Controls power state of individual sensors.
+ *  @int_pin_cfg;	Controls interrupt pin configuration.
  */
 struct inv_mpu6050_reg_map {
 	u8 sample_rate_div;
