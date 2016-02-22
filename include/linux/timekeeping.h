@@ -272,11 +272,15 @@ extern void ktime_get_raw_and_real_ts64(struct timespec64 *ts_raw,
  * @cycles:	Clocksource counter value to produce the system times
  * @real:	Realtime system time
  * @raw:	Monotonic raw system time
+ * @clock_was_set_seq:	The sequence number of clock was set events
+ * @cs_was_changed_seq:	The sequence number of clocksource change events
  */
 struct system_time_snapshot {
 	cycle_t		cycles;
 	ktime_t		real;
 	ktime_t		raw;
+	unsigned int	clock_was_set_seq;
+	u8		cs_was_changed_seq;
 };
 
 /*
@@ -312,6 +316,7 @@ extern int get_device_system_crosststamp(
 				struct system_counterval_t *system_counterval,
 				void *ctx),
 			void *ctx,
+			struct system_time_snapshot *history,
 			struct system_device_crosststamp *xtstamp);
 
 /*
