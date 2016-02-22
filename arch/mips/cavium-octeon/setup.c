@@ -464,7 +464,7 @@ static void octeon_halt(void)
 
 static char __read_mostly octeon_system_type[80];
 
-static int __init init_octeon_system_type(void)
+static void __init init_octeon_system_type(void)
 {
 	char const *board_type;
 
@@ -474,10 +474,7 @@ static int __init init_octeon_system_type(void)
 
 	snprintf(octeon_system_type, sizeof(octeon_system_type), "%s (%s)",
 		 board_type, octeon_model_get_string(read_c0_prid()));
-
-	return 0;
 }
-early_initcall(init_octeon_system_type);
 
 /**
  * Return a string representing the system type
@@ -1141,6 +1138,7 @@ void __init device_tree_init(void)
 		pr_info("Using internal Device Tree.\n");
 	}
 	unflatten_and_copy_device_tree();
+	init_octeon_system_type();
 }
 
 static int __initdata disable_octeon_edac_p;
