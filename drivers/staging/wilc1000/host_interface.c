@@ -2095,8 +2095,6 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 	stamac = wid.val;
 	memcpy(stamac, strHostIfStaInactiveT->mac, ETH_ALEN);
 
-	PRINT_D(CFG80211_DBG, "SETING STA inactive time\n");
-
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
@@ -2117,8 +2115,6 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 		PRINT_ER("Failed to get incative time\n");
 		return -EFAULT;
 	}
-
-	PRINT_D(CFG80211_DBG, "Getting inactive time : %d\n", inactive_time);
 
 	up(&hif_drv->sem_inactive_time);
 
@@ -3037,7 +3033,6 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	u8 key_len = ptk_key_len;
-	int i;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -3065,20 +3060,11 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 	if (!msg.body.key_info.attr.wpa.key)
 		return -ENOMEM;
 
-	if (rx_mic) {
+	if (rx_mic)
 		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic, RX_MIC_KEY_LEN);
-		if (INFO) {
-			for (i = 0; i < RX_MIC_KEY_LEN; i++)
-				PRINT_INFO(CFG80211_DBG, "PairwiseRx[%d] = %x\n", i, rx_mic[i]);
-		}
-	}
-	if (tx_mic) {
+
+	if (tx_mic)
 		memcpy(msg.body.key_info.attr.wpa.key + 24, tx_mic, TX_MIC_KEY_LEN);
-		if (INFO) {
-			for (i = 0; i < TX_MIC_KEY_LEN; i++)
-				PRINT_INFO(CFG80211_DBG, "PairwiseTx[%d] = %x\n", i, tx_mic[i]);
-		}
-	}
 
 	msg.body.key_info.attr.wpa.key_len = key_len;
 	msg.body.key_info.attr.wpa.mac_addr = mac_addr;
@@ -4083,20 +4069,11 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 	for (i = 0; i < MAX_NUM_STA; i++) {
 		if (memcmp(mac_addr[i], zero_addr, ETH_ALEN)) {
 			memcpy(del_all_sta_info->del_all_sta[i], mac_addr[i], ETH_ALEN);
-			PRINT_D(CFG80211_DBG, "BSSID = %x%x%x%x%x%x\n",
-				del_all_sta_info->del_all_sta[i][0],
-				del_all_sta_info->del_all_sta[i][1],
-				del_all_sta_info->del_all_sta[i][2],
-				del_all_sta_info->del_all_sta[i][3],
-				del_all_sta_info->del_all_sta[i][4],
-				del_all_sta_info->del_all_sta[i][5]);
 			assoc_sta++;
 		}
 	}
-	if (!assoc_sta) {
-		PRINT_D(CFG80211_DBG, "NO ASSOCIATED STAS\n");
+	if (!assoc_sta)
 		return result;
-	}
 
 	del_all_sta_info->assoc_sta = assoc_sta;
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
