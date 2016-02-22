@@ -607,8 +607,7 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 					*hops     = route->lr_hops;
 					*priority = route->lr_priority;
 					*gateway  = route->lr_gateway->lp_nid;
-					*alive = route->lr_gateway->lp_alive &&
-						 !route->lr_downis;
+					*alive = lnet_is_route_alive(route);
 					lnet_net_unlock(cpt);
 					return 0;
 				}
