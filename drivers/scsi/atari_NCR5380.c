@@ -1907,6 +1907,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				do_abort(instance);
 				cmd->result = DID_ERROR << 16;
 				complete_cmd(instance, cmd);
+				hostdata->connected = NULL;
 				return;
 #endif
 			case PHASE_DATAIN:
@@ -1964,7 +1965,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						sink = 1;
 						do_abort(instance);
 						cmd->result = DID_ERROR << 16;
-						complete_cmd(instance, cmd);
 						/* XXX - need to source or sink data here, as appropriate */
 					} else {
 #ifdef REAL_DMA
@@ -2489,14 +2489,14 @@ static bool list_del_cmd(struct list_head *haystack,
  * [disconnected -> connected ->]...
  * [autosense -> connected ->] done
  *
- * If cmd is unissued then just remove it.
- * If cmd is disconnected, try to select the target.
- * If cmd is connected, try to send an abort message.
- * If cmd is waiting for autosense, give it a chance to complete but check
- * that it isn't left connected.
  * If cmd was not found at all then presumably it has already been completed,
  * in which case return SUCCESS to try to avoid further EH measures.
+ *
  * If the command has not completed yet, we must not fail to find it.
+ * We have no option but to forget the aborted command (even if it still
+ * lacks sense data). The mid-layer may re-issue a command that is in error
+ * recovery (see scsi_send_eh_cmnd), but the logic and data structures in
+ * this driver are such that a command can appear on one queue only.
  *
  * The lock protects driver data structures, but EH handlers also use it
  * to serialize their own execution and prevent their own re-entry.
@@ -2522,6 +2522,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 		         "abort: removed %p from issue queue\n", cmd);
 		cmd->result = DID_ABORT << 16;
 		cmd->scsi_done(cmd); /* No tag or busy flag to worry about */
+		goto out;
 	}
 
 	if (hostdata->selecting == cmd) {
@@ -2539,6 +2540,8 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 		/* Can't call NCR5380_select() and send ABORT because that
 		 * means releasing the lock. Need a bus reset.
 		 */
+		set_host_byte(cmd, DID_ERROR);
+		complete_cmd(instance, cmd);
 		result = FAILED;
 		goto out;
 	}
@@ -2546,6 +2549,9 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 	if (hostdata->connected == cmd) {
 		dsprintk(NDEBUG_ABORT, instance, "abort: cmd %p is connected\n", cmd);
 		hostdata->connected = NULL;
+#ifdef REAL_DMA
+		hostdata->dma_len = 0;
+#endif
 		if (do_abort(instance)) {
 			set_host_byte(cmd, DID_ERROR);
 			complete_cmd(instance, cmd);
@@ -2553,48 +2559,14 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 			goto out;
 		}
 		set_host_byte(cmd, DID_ABORT);
-#ifdef REAL_DMA
-		hostdata->dma_len = 0;
-#endif
-		if (cmd->cmnd[0] == REQUEST_SENSE)
-			complete_cmd(instance, cmd);
-		else {
-			struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
-
-			/* Perform autosense for this command */
-			list_add(&ncmd->list, &hostdata->autosense);
-		}
+		complete_cmd(instance, cmd);
+		goto out;
 	}
 
-	if (list_find_cmd(&hostdata->autosense, cmd)) {
+	if (list_del_cmd(&hostdata->autosense, cmd)) {
 		dsprintk(NDEBUG_ABORT, instance,
-		         "abort: found %p on sense queue\n", cmd);
-		spin_unlock_irqrestore(&hostdata->lock, flags);
-		queue_work(hostdata->work_q, &hostdata->main_task);
-		msleep(1000);
-		spin_lock_irqsave(&hostdata->lock, flags);
-		if (list_del_cmd(&hostdata->autosense, cmd)) {
-			dsprintk(NDEBUG_ABORT, instance,
-			         "abort: removed %p from sense queue\n", cmd);
-			set_host_byte(cmd, DID_ABORT);
-			complete_cmd(instance, cmd);
-			goto out;
-		}
-	}
-
-	if (hostdata->connected == cmd) {
-		dsprintk(NDEBUG_ABORT, instance, "abort: cmd %p is connected\n", cmd);
-		hostdata->connected = NULL;
-		if (do_abort(instance)) {
-			set_host_byte(cmd, DID_ERROR);
-			complete_cmd(instance, cmd);
-			result = FAILED;
-			goto out;
-		}
-		set_host_byte(cmd, DID_ABORT);
-#ifdef REAL_DMA
-		hostdata->dma_len = 0;
-#endif
+		         "abort: removed %p from sense queue\n", cmd);
+		set_host_byte(cmd, DID_ERROR);
 		complete_cmd(instance, cmd);
 	}
 
