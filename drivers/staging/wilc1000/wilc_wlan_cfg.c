@@ -20,8 +20,6 @@
  ********************************************/
 
 struct wilc_mac_cfg {
-	wilc_debug_func dPrint;
-
 	int mac_status;
 	u8 mac_address[7];
 	u8 ip_address[5];
@@ -389,8 +387,6 @@ int wilc_wlan_cfg_set_wid(u8 *frame, u32 offset, u16 id, u8 *buf, int size)
 		ret = wilc_wlan_cfg_set_str(frame, offset, id, buf, size);
 	} else if (type == 4) {                 /* binary command */
 		ret = wilc_wlan_cfg_set_bin(frame, offset, id, buf, size);
-	} else {
-		g_mac.dPrint(N_ERR, "illegal id\n");
 	}
 
 	return ret;
@@ -481,8 +477,6 @@ int wilc_wlan_cfg_get_wid_value(u16 wid, u8 *buffer, u32 buffer_size)
 			}
 			i++;
 		} while (1);
-	} else {
-		g_mac.dPrint(N_ERR, "[CFG]: illegal type (%08x)\n", wid);
 	}
 
 	return ret;
@@ -540,6 +534,5 @@ int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 int wilc_wlan_cfg_init(wilc_debug_func func)
 {
 	memset((void *)&g_mac, 0, sizeof(struct wilc_mac_cfg));
-	g_mac.dPrint = func;
 	return 1;
 }
