@@ -84,7 +84,7 @@ lnet_unconfigure(void)
 }
 
 static int
-lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
+lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 {
 	int rc;
 
@@ -103,7 +103,7 @@ lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 		 */
 		rc = LNetNIInit(LNET_PID_ANY);
 		if (rc >= 0) {
-			rc = LNetCtl(cmd, data);
+			rc = LNetCtl(cmd, hdr);
 			LNetNIFini();
 		}
 		return rc;

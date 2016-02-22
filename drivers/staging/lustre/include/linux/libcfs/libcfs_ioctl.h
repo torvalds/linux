@@ -43,9 +43,13 @@
 
 #define LIBCFS_IOCTL_VERSION 0x0001000a
 
-struct libcfs_ioctl_data {
+struct libcfs_ioctl_hdr {
 	__u32 ioc_len;
 	__u32 ioc_version;
+};
+
+struct libcfs_ioctl_data {
+	struct libcfs_ioctl_hdr ioc_hdr;
 
 	__u64 ioc_nid;
 	__u64 ioc_u64[1];
@@ -70,11 +74,6 @@ struct libcfs_ioctl_data {
 
 #define ioc_priority ioc_u32[0]
 
-struct libcfs_ioctl_hdr {
-	__u32 ioc_len;
-	__u32 ioc_version;
-};
-
 struct libcfs_debug_ioctl_data {
 	struct libcfs_ioctl_hdr hdr;
 	unsigned int subs;
@@ -90,7 +89,7 @@ do {						    \
 
 struct libcfs_ioctl_handler {
 	struct list_head item;
-	int (*handle_ioctl)(unsigned int cmd, struct libcfs_ioctl_data *data);
+	int (*handle_ioctl)(unsigned int cmd, struct libcfs_ioctl_hdr *hdr);
 };
 
 #define DECLARE_IOCTL_HANDLER(ident, func)		      \
@@ -148,9 +147,9 @@ static inline int libcfs_ioctl_packlen(struct libcfs_ioctl_data *data)
 	return len;
 }
 
-static inline int libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
+static inline bool libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 {
-	if (data->ioc_len > (1<<30)) {
+	if (data->ioc_hdr.ioc_len > (1 << 30)) {
 		CERROR("LIBCFS ioctl: ioc_len larger than 1<<30\n");
 		return 1;
 	}
@@ -186,7 +185,7 @@ static inline int libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 		CERROR("LIBCFS ioctl: plen2 nonzero but no pbuf2 pointer\n");
 		return 1;
 	}
-	if ((__u32)libcfs_ioctl_packlen(data) != data->ioc_len) {
+	if ((__u32)libcfs_ioctl_packlen(data) != data->ioc_hdr.ioc_len) {
 		CERROR("LIBCFS ioctl: packlen != ioc_len\n");
 		return 1;
 	}
@@ -206,7 +205,9 @@ static inline int libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 
 int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
 int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
-int libcfs_ioctl_getdata(char *buf, char *end, void __user *arg);
+int libcfs_ioctl_getdata_len(const struct libcfs_ioctl_hdr __user *arg,
+			     __u32 *buf_len);
 int libcfs_ioctl_popdata(void __user *arg, void *buf, int size);
+int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data);
 
 #endif /* __LIBCFS_IOCTL_H__ */

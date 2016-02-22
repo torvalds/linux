@@ -801,14 +801,19 @@ out:
 }
 
 int
-lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data)
+lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 {
 	char   *buf;
-	int     opc = data->ioc_u32[0];
+	struct libcfs_ioctl_data *data;
+	int     opc;
 	int     rc;
 
 	if (cmd != IOC_LIBCFS_LNETST)
 		return -EINVAL;
+
+	data = container_of(hdr, struct libcfs_ioctl_data, ioc_hdr);
+
+	opc = data->ioc_u32[0];
 
 	if (data->ioc_plen1 > PAGE_CACHE_SIZE)
 		return -EINVAL;
