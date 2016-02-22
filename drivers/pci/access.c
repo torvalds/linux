@@ -581,6 +581,12 @@ int pci_vpd_pci22_init(struct pci_dev *dev)
 	return 0;
 }
 
+void pci_vpd_release(struct pci_dev *dev)
+{
+	if (dev->vpd)
+		dev->vpd->ops->release(dev);
+}
+
 /**
  * pci_cfg_access_lock - Lock PCI config reads/writes
  * @dev:	pci device struct

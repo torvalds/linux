@@ -107,11 +107,7 @@ struct pci_vpd {
 };
 
 int pci_vpd_pci22_init(struct pci_dev *dev);
-static inline void pci_vpd_release(struct pci_dev *dev)
-{
-	if (dev->vpd)
-		dev->vpd->ops->release(dev);
-}
+void pci_vpd_release(struct pci_dev *dev);
 
 /* PCI /proc functions */
 #ifdef CONFIG_PROC_FS
