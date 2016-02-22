@@ -248,7 +248,8 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_push1->tx_bd_cfa_meta = cpu_to_le32(vlan_tag_flags);
 		tx_push1->tx_bd_cfa_action = cpu_to_le32(cfa_action);
 
-		end = PTR_ALIGN(pdata + length + 1, 8) - 1;
+		end = pdata + length;
+		end = PTR_ALIGN(end, 8) - 1;
 		*end = 0;
 
 		skb_copy_from_linear_data(skb, pdata, len);
