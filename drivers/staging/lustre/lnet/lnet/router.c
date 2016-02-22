@@ -317,7 +317,7 @@ lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 		return -EINVAL;
 
 	if (lnet_islocalnet(net))	       /* it's a local network */
-		return 0;		       /* ignore the route entry */
+		return -EEXIST;
 
 	/* Assume net, route, all new */
 	LIBCFS_ALLOC(route, sizeof(*route));
@@ -348,7 +348,7 @@ lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 		LIBCFS_FREE(rnet, sizeof(*rnet));
 
 		if (rc == -EHOSTUNREACH) /* gateway is not on a local net */
-			return 0;	/* ignore the route entry */
+			return rc;	/* ignore the route entry */
 		CERROR("Error %d creating route %s %d %s\n", rc,
 		       libcfs_net2str(net), hops,
 		       libcfs_nid2str(gateway));
@@ -395,14 +395,17 @@ lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 	/* -1 for notify or !add_route */
 	lnet_peer_decref_locked(route->lr_gateway);
 	lnet_net_unlock(LNET_LOCK_EX);
+	rc = 0;
 
-	if (!add_route)
+	if (!add_route) {
+		rc = -EEXIST;
 		LIBCFS_FREE(route, sizeof(*route));
+	}
 
 	if (rnet != rnet2)
 		LIBCFS_FREE(rnet, sizeof(*rnet));
 
-	return 0;
+	return rc;
 }
 
 int
