@@ -1,0 +1,596 @@
+/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/qcom,gcc-msm8996.h>
+#include <dt-bindings/clock/qcom,mmcc-msm8996.h>
+
+/ {
+	model = "Qualcomm Technologies, Inc. MSM8996";
+
+	qcom,msm-id = <291 0x30001>;
+	qcom,pmic-id = <0x20009 0x2000A 0x0 0x0>;
+	interrupt-parent = <&intc>;
+
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen { };
+
+	memory {
+		device_type = "memory";
+		/* We expect the bootloader to fill in the reg */
+		reg = <0 0 0 0>;
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "qcom,kryo";
+			reg = <0x0 0x0>;
+			enable-method = "psci";
+			next-level-cache = <&L2_0>;
+			L2_0: l2-cache {
+			      compatible = "cache";
+			      cache-level = <2>;
+			};
+		};
+
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "qcom,kryo";
+			reg = <0x0 0x1>;
+			enable-method = "psci";
+			next-level-cache = <&L2_0>;
+		};
+
+		CPU2: cpu@100 {
+			device_type = "cpu";
+			compatible = "qcom,kryo";
+			reg = <0x0 0x100>;
+			enable-method = "psci";
+			next-level-cache = <&L2_1>;
+			L2_1: l2-cache {
+			      compatible = "cache";
+			      cache-level = <2>;
+			};
+		};
+
+		CPU3: cpu@101 {
+			device_type = "cpu";
+			compatible = "qcom,kryo";
+			reg = <0x0 0x101>;
+			enable-method = "psci";
+			next-level-cache = <&L2_1>;
+		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+
+				core1 {
+					cpu = <&CPU1>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&CPU2>;
+				};
+
+				core1 {
+					cpu = <&CPU3>;
+				};
+			};
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	clocks {
+		xo_board {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <19200000>;
+			clock-output-names = "xo_board";
+		};
+
+		sleep_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32764>;
+			clock-output-names = "sleep_clk";
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	soc: soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0 0xffffffff>;
+		compatible = "simple-bus";
+
+		intc: interrupt-controller@9bc0000 {
+			compatible = "arm,gic-v3";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			#redistributor-regions = <1>;
+			redistributor-stride = <0x0 0x40000>;
+			reg = <0x09bc0000 0x10000>,
+			      <0x09c00000 0x100000>;
+			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		gcc: clock-controller@300000 {
+			compatible = "qcom,gcc-msm8996";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+			reg = <0x300000 0x90000>;
+		};
+
+		blsp2_uart1: serial@75b0000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x75b0000 0x1000>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_UART2_APPS_CLK>,
+				 <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
+		pinctrl@1010000 {
+			compatible = "qcom,msm8996-pinctrl";
+			reg = <0x01010000 0x300000>;
+			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			mdss_hdmi_hpd_active: mdss_hdmi_hpd_active {
+				mux {
+					pins = "gpio34";
+					function = "hdmi_hot";
+				};
+
+				config {
+					pins = "gpio34";
+					bias-pull-down;
+					drive-strength = <16>;
+				};
+			};
+
+			mdss_hdmi_hpd_suspend: mdss_hdmi_hpd_suspend {
+				mux {
+					pins = "gpio34";
+					function = "hdmi_hot";
+				};
+
+				config {
+					pins = "gpio34";
+					bias-pull-down;
+					drive-strength = <2>;
+				};
+			};
+
+			mdss_hdmi_ddc_active: mdss_hdmi_ddc_active {
+				mux {
+					pins = "gpio32", "gpio33";
+					function = "hdmi_ddc";
+				};
+
+				config {
+					pins = "gpio32", "gpio33";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			mdss_hdmi_ddc_suspend: mdss_hdmi_ddc_suspend {
+				mux {
+					pins = "gpio32", "gpio33";
+					function = "hdmi_ddc";
+				};
+
+				config {
+					pins = "gpio32", "gpio33";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
+		};
+
+		timer@09840000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			compatible = "arm,armv7-timer-mem";
+			reg = <0x09840000 0x1000>;
+			clock-frequency = <19200000>;
+
+			frame@9850000 {
+				frame-number = <0>;
+				interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x09850000 0x1000>,
+				      <0x09860000 0x1000>;
+			};
+
+			frame@9870000 {
+				frame-number = <1>;
+				interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x09870000 0x1000>;
+				status = "disabled";
+			};
+
+			frame@9880000 {
+				frame-number = <2>;
+				interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x09880000 0x1000>;
+				status = "disabled";
+			};
+
+			frame@9890000 {
+				frame-number = <3>;
+				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x09890000 0x1000>;
+				status = "disabled";
+			};
+
+			frame@98a0000 {
+				frame-number = <4>;
+				interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x098a0000 0x1000>;
+				status = "disabled";
+			};
+
+			frame@98b0000 {
+				frame-number = <5>;
+				interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x098b0000 0x1000>;
+				status = "disabled";
+			};
+
+			frame@98c0000 {
+				frame-number = <6>;
+				interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x098c0000 0x1000>;
+				status = "disabled";
+			};
+		};
+
+		spmi_bus: qcom,spmi@400f000 {
+			compatible = "qcom,spmi-pmic-arb";
+			reg = <0x400f000 0x1000>,
+			      <0x4400000 0x800000>,
+			      <0x4c00000 0x800000>,
+			      <0x5800000 0x200000>,
+			      <0x400a000 0x002100>;
+			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
+			interrupt-names = "periph_irq";
+			interrupts = <GIC_SPI 326 IRQ_TYPE_NONE>;
+			qcom,ee = <0>;
+			qcom,channel = <0>;
+			#address-cells = <2>;
+			#size-cells = <0>;
+			interrupt-controller;
+			#interrupt-cells = <4>;
+		};
+
+		mmcc: clock-controller@8c0000 {
+			compatible = "qcom,mmcc-msm8996";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+			reg = <0x8c0000 0x40000>;
+			assigned-clocks = <&mmcc MMPLL9_PLL>,
+					  <&mmcc MMPLL1_PLL>,
+					  <&mmcc MMPLL3_PLL>,
+					  <&mmcc MMPLL4_PLL>,
+					  <&mmcc MMPLL5_PLL>;
+			assigned-clock-rates = <624000000>,
+					       <810000000>,
+					       <980000000>,
+					       <960000000>,
+					       <825000000>;
+		};
+
+		glink {
+			compatible = "qcom,glink";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			rpm {
+				qcom,glink-edge = "rpm";
+				interrupts = <0 168 1>;
+				qcom,irq-mask = <0x1>;
+				reg = <0x00068000 0x6000>,
+				      <0x09820010 0x4>;
+				reg-names = "msgram", "irq-reg-base";
+
+				rpm-requests {
+					compatible = "qcom,rpm-msm8996";
+					qcom,glink-channels = "rpm_requests";
+
+					rpmcc: qcom,rpmcc {
+						compatible = "qcom,rpmcc-msm8996", "qcom,rpmcc";
+						#clock-cells = <1>;
+					};
+
+					pm8994-regulators {
+						compatible = "qcom,rpm-pm8994-regulators";
+
+						pm8994_s1: s1 {};
+						pm8994_s2: s2 {};
+						pm8994_s3: s3 {
+							regulator-min-microvolt = <1300000>;
+							regulator-max-microvolt = <1300000>;
+						};
+						pm8994_s4: s4 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+						pm8994_s5: s5 {
+							regulator-min-microvolt = <2150000>;
+							regulator-max-microvolt = <2150000>;
+						};
+						pm8994_s6: s6 {};
+						pm8994_s7: s7 {
+							regulator-min-microvolt = <800000>;
+							regulator-max-microvolt = <800000>;
+						};
+						pm8994_s8: s8 {};
+						pm8994_s9: s9 {};
+						pm8994_s10: s10 {};
+						pm8994_s11: s11 {};
+						pm8994_s12: s12 {};
+
+						pm8994_l1: l1 {
+							regulator-min-microvolt = <1000000>;
+							regulator-max-microvolt = <1000000>;
+						};
+						pm8994_l2: l2 {
+							regulator-min-microvolt = <1250000>;
+							regulator-max-microvolt = <1250000>;
+						};
+						pm8994_l3: l3 {
+							regulator-min-microvolt = <850000>;
+							regulator-max-microvolt = <850000>;
+						};
+						pm8994_l4: l4 {
+							regulator-min-microvolt = <1225000>;
+							regulator-max-microvolt = <1225000>;
+						};
+						pm8994_l5: l5 {};
+						pm8994_l6: l6 {
+							regulator-min-microvolt = <1200000>;
+							regulator-max-microvolt = <1200000>;
+						};
+						pm8994_l7: l7 {};
+						pm8994_l8: l8 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+						pm8994_l9: l9 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+						pm8994_l10: l10 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+						pm8994_l11: l11 {
+							regulator-min-microvolt = <1150000>;
+							regulator-max-microvolt = <1150000>;
+						};
+						pm8994_l12: l12 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+						pm8994_l13: l13 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <2950000>;
+						};
+						pm8994_l14: l14 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+						pm8994_l15: l15 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+						pm8994_l16: l16 {
+							regulator-min-microvolt = <2700000>;
+							regulator-max-microvolt = <2700000>;
+						};
+						pm8994_l17: l17 {
+							regulator-min-microvolt = <2500000>;
+							regulator-max-microvolt = <2500000>;
+						};
+						pm8994_l18: l18 {
+							regulator-min-microvolt = <2700000>;
+							regulator-max-microvolt = <2900000>;
+						};
+						pm8994_l19: l19 {
+							regulator-min-microvolt = <3000000>;
+							regulator-max-microvolt = <3000000>;
+						};
+						pm8994_l20: l20 {
+							regulator-min-microvolt = <2950000>;
+							regulator-max-microvolt = <2950000>;
+						};
+						pm8994_l21: l21 {
+							regulator-min-microvolt = <2950000>;
+							regulator-max-microvolt = <2950000>;
+						};
+						pm8994_l22: l22 {
+							regulator-min-microvolt = <3300000>;
+							regulator-max-microvolt = <3300000>;
+						};
+						pm8994_l23: 23 {
+							regulator-min-microvolt = <2800000>;
+							regulator-max-microvolt = <2800000>;
+						};
+						pm8994_l24: l24 {
+							regulator-min-microvolt = <3075000>;
+							regulator-max-microvolt = <3075000>;
+						};
+						pm8994_l25: l25 {
+							regulator-min-microvolt = <1200000>;
+							regulator-max-microvolt = <1200000>;
+						};
+						pm8994_l26: l26 {};
+						pm8994_l27: l27 {
+							regulator-min-microvolt = <1000000>;
+							regulator-max-microvolt = <1000000>;
+						};
+						pm8994_l28: l28 {
+							regulator-min-microvolt = <925000>;
+							regulator-max-microvolt = <925000>;
+						};
+						pm8994_l29: l29 {
+							regulator-min-microvolt = <2800000>;
+							regulator-max-microvolt = <2800000>;
+						};
+						pm8994_l30: l30 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+						pm8994_l31: l31 {};
+						pm8994_l32: l32 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <1800000>;
+						};
+					};
+				};
+			};
+		};
+
+		mdss_mdp: qcom,mdss_mdp@900000 {
+			compatible = "qcom,mdss_mdp";
+			reg = <0x00900000 0x90000>,
+			      <0x009b0000 0x1040>,
+			      <0x009b8000 0x1040>;
+			reg-names = "mdp_phys",
+				"vbif_phys",
+				"vbif_nrt_phys";
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MMSS_MMAGIC_AHB_CLK>,
+				 <&mmcc MDSS_AXI_CLK>,
+				 <&mmcc MDP_CLK_SRC>,
+				 <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc SMMU_MDP_AXI_CLK>,
+				 <&mmcc MDSS_VSYNC_CLK>,
+				 <&mmcc MMAGIC_MDSS_AXI_CLK>,
+				 <&mmcc MMSS_MMAGIC_AXI_CLK>,
+				 <&mmcc MMSS_S0_AXI_CLK>,
+				 <&mmcc MMAGIC_BIMC_AXI_CLK>;
+			clock-names = "iface_clk",
+				"mmagic_iface_clk",
+				"bus_clk",
+				"core_clk_src",
+				"core_clk",
+				"iommu_clk",
+				"vsync_clk",
+				"mmagic_mdss_bus_clk",
+				"mmagic_mmss_bus_clk",
+				"mmss_s0_bus_clk",
+				"mmagic_bimc_bus_clk";
+
+			connectors = <&mdss_hdmi>;
+
+			power-domains = <&mmcc MDSS_GDSC>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <0 83 0>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			//iommus = <&mdp_smmu 0>;
+		};
+
+		mdss_hdmi_phy: qcom,hdmi_phy@9a0600 {
+			compatible = "qcom,hdmi-phy-8996";
+			reg = <0x9a0600 0x1c4>,
+			      <0x9a0a00 0x124>,
+			      <0x9a0c00 0x124>,
+			      <0x9a0e00 0x124>,
+			      <0x9a1000 0x124>,
+			      <0x9a1200 0x0c8>;
+			reg-names = "hdmi_pll",
+				    "hdmi_tx_l0",
+				    "hdmi_tx_l1",
+				    "hdmi_tx_l2",
+				    "hdmi_tx_l3",
+				    "hdmi_phy";
+
+			power-domains = <&mmcc MDSS_GDSC>;
+
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MMSS_MMAGIC_AHB_CLK>,
+				 <&gcc GCC_HDMI_CLKREF_CLK>;
+			clock-names = "iface_clk",
+				      "mmagic_iface_clk",
+				      "ref_clk";
+		};
+
+		mdss_hdmi: qcom,hdmi_tx@9a0000 {
+			compatible = "qcom,hdmi-tx-8996";
+			reg =	<0x009a0000 0x50c>,
+				<0x00070000 0x6158>,
+				<0x009e0000 0xfff>;
+			reg-names = "core_physical",
+				"qfprom_physical",
+				"hdcp_physical";
+			clocks = <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MDSS_HDMI_CLK>,
+				 <&mmcc MDSS_HDMI_AHB_CLK>,
+				 <&mmcc MDSS_EXTPCLK_CLK>;
+			clock-names =
+				"mdp_core_clk",
+				"iface_clk",
+				"core_clk",
+				"alt_iface_clk",
+				"extp_clk";
+			interrupt-parent = <&mdss_mdp>;
+			interrupts = <8 0>;
+
+			power-domains = <&mmcc MDSS_GDSC>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mdss_hdmi_hpd_active
+				     &mdss_hdmi_ddc_active>;
+			pinctrl-1 = <&mdss_hdmi_hpd_suspend
+				     &mdss_hdmi_ddc_suspend>;
+
+			qcom,hdmi-phy = <&mdss_hdmi_phy>;
+			status = "ok";
+		};
+	};
+};

@@ -69,6 +69,8 @@ struct smd_channel_info_pair;
 struct smd_channel_info_word;
 struct smd_channel_info_word_pair;
 
+static struct bus_type *ipc_bus;
+
 #define SMD_ALLOC_TBL_COUNT	2
 #define SMD_ALLOC_TBL_SIZE	64
 
@@ -149,7 +151,7 @@ enum smd_channel_state {
 /**
  * struct qcom_smd_channel - smd channel struct
  * @edge:		qcom_smd_edge this channel is living on
- * @qsdev:		reference to a associated smd client device
+ * @qidev:		reference to a associated ipc client device
  * @name:		name of the channel
  * @state:		local state of the channel
  * @remote_state:	remote state of the channel
@@ -169,7 +171,7 @@ enum smd_channel_state {
 struct qcom_smd_channel {
 	struct qcom_smd_edge *edge;
 
-	struct qcom_smd_device *qsdev;
+	struct qcom_ipc_device *qidev;
 
 	char *name;
 	enum smd_channel_state state;
@@ -186,7 +188,7 @@ struct qcom_smd_channel {
 	int fifo_size;
 
 	void *bounce_buffer;
-	int (*cb)(struct qcom_smd_device *, const void *, size_t);
+	int (*cb)(void *, const void *, size_t);
 
 	spinlock_t recv_lock;
 
@@ -497,7 +499,7 @@ static void qcom_smd_channel_advance(struct qcom_smd_channel *channel,
  */
 static int qcom_smd_channel_recv_single(struct qcom_smd_channel *channel)
 {
-	struct qcom_smd_device *qsdev = channel->qsdev;
+	struct qcom_ipc_device *qidev = channel->qidev;
 	unsigned tail;
 	size_t len;
 	void *ptr;
@@ -517,7 +519,7 @@ static int qcom_smd_channel_recv_single(struct qcom_smd_channel *channel)
 		len = channel->pkt_size;
 	}
 
-	ret = channel->cb(qsdev, ptr, len);
+	ret = channel->cb(qidev, ptr, len);
 	if (ret < 0)
 		return ret;
 
@@ -762,22 +764,22 @@ out:
 }
 EXPORT_SYMBOL(qcom_smd_send);
 
-static struct qcom_smd_device *to_smd_device(struct device *dev)
+static struct qcom_ipc_device *to_ipc_device(struct device *dev)
 {
-	return container_of(dev, struct qcom_smd_device, dev);
+	return container_of(dev, struct qcom_ipc_device, dev);
 }
 
-static struct qcom_smd_driver *to_smd_driver(struct device *dev)
+static struct qcom_ipc_driver *to_ipc_driver(struct device *dev)
 {
-	struct qcom_smd_device *qsdev = to_smd_device(dev);
+	struct qcom_ipc_device *qidev = to_ipc_device(dev);
 
-	return container_of(qsdev->dev.driver, struct qcom_smd_driver, driver);
+	return container_of(qidev->dev.driver, struct qcom_ipc_driver, driver);
 }
 
-static int qcom_smd_dev_match(struct device *dev, struct device_driver *drv)
+static int qcom_ipc_dev_match(struct device *dev, struct device_driver *drv)
 {
-	struct qcom_smd_device *qsdev = to_smd_device(dev);
-	struct qcom_smd_driver *qsdrv = container_of(drv, struct qcom_smd_driver, driver);
+	struct qcom_ipc_device *qsdev = to_ipc_device(dev);
+	struct qcom_ipc_driver *qsdrv = container_of(drv, struct qcom_ipc_driver, driver);
 	const struct qcom_smd_id *match = qsdrv->smd_match_table;
 	const char *name = qsdev->channel->name;
 
@@ -793,16 +795,16 @@ static int qcom_smd_dev_match(struct device *dev, struct device_driver *drv)
 }
 
 /*
- * Probe the smd client.
+ * Probe the ipc client.
  *
  * The remote side have indicated that it want the channel to be opened, so
  * complete the state handshake and probe our client driver.
  */
-static int qcom_smd_dev_probe(struct device *dev)
+static int qcom_ipc_dev_probe(struct device *dev)
 {
-	struct qcom_smd_device *qsdev = to_smd_device(dev);
-	struct qcom_smd_driver *qsdrv = to_smd_driver(dev);
-	struct qcom_smd_channel *channel = qsdev->channel;
+	struct qcom_ipc_device *qidev = to_ipc_device(dev);
+	struct qcom_ipc_driver *qidrv = to_ipc_driver(dev);
+	struct qcom_smd_channel *channel = qidev->channel;
 	size_t bb_size;
 	int ret;
 
@@ -814,13 +816,13 @@ static int qcom_smd_dev_probe(struct device *dev)
 	if (!channel->bounce_buffer)
 		return -ENOMEM;
 
-	channel->cb = qsdrv->callback;
+	channel->cb = qidrv->callback;
 
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENING);
 
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENED);
 
-	ret = qsdrv->probe(qsdev);
+	ret = qidrv->probe(qidev);
 	if (ret)
 		goto err;
 
@@ -829,7 +831,7 @@ static int qcom_smd_dev_probe(struct device *dev)
 	return 0;
 
 err:
-	dev_err(&qsdev->dev, "probe failed\n");
+	dev_err(&qidev->dev, "probe failed\n");
 
 	channel->cb = NULL;
 	kfree(channel->bounce_buffer);
@@ -845,11 +847,11 @@ err:
  * The channel is going away, for some reason, so remove the smd client and
  * reset the channel state.
  */
-static int qcom_smd_dev_remove(struct device *dev)
+static int qcom_ipc_dev_remove(struct device *dev)
 {
-	struct qcom_smd_device *qsdev = to_smd_device(dev);
-	struct qcom_smd_driver *qsdrv = to_smd_driver(dev);
-	struct qcom_smd_channel *channel = qsdev->channel;
+	struct qcom_ipc_device *qidev = to_ipc_device(dev);
+	struct qcom_ipc_driver *qidrv = to_ipc_driver(dev);
+	struct qcom_smd_channel *channel = qidev->channel;
 	unsigned long flags;
 
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_CLOSING);
@@ -868,13 +870,13 @@ static int qcom_smd_dev_remove(struct device *dev)
 	 * We expect that the client might block in remove() waiting for any
 	 * outstanding calls to qcom_smd_send() to wake up and finish.
 	 */
-	if (qsdrv->remove)
-		qsdrv->remove(qsdev);
+	if (qidrv->remove)
+		qidrv->remove(qidev);
 
 	/*
 	 * The client is now gone, cleanup and reset the channel state.
 	 */
-	channel->qsdev = NULL;
+	channel->qidev = NULL;
 	kfree(channel->bounce_buffer);
 	channel->bounce_buffer = NULL;
 
@@ -885,21 +887,21 @@ static int qcom_smd_dev_remove(struct device *dev)
 	return 0;
 }
 
-static struct bus_type qcom_smd_bus = {
-	.name = "qcom_smd",
-	.match = qcom_smd_dev_match,
-	.probe = qcom_smd_dev_probe,
-	.remove = qcom_smd_dev_remove,
+struct bus_type qcom_ipc_bus = {
+	.name = "qcom_ipc",
+	.match = qcom_ipc_dev_match,
+	.probe = qcom_ipc_dev_probe,
+	.remove = qcom_ipc_dev_remove,
 };
 
 /*
  * Release function for the qcom_smd_device object.
  */
-static void qcom_smd_release_device(struct device *dev)
+static void qcom_ipc_release_device(struct device *dev)
 {
-	struct qcom_smd_device *qsdev = to_smd_device(dev);
+	struct qcom_ipc_device *qidev = to_ipc_device(dev);
 
-	kfree(qsdev);
+	kfree(qidev);
 }
 
 /*
@@ -927,43 +929,44 @@ static struct device_node *qcom_smd_match_channel(struct device_node *edge_node,
 }
 
 /*
- * Create a smd client device for channel that is being opened.
+ * Create a ipc client device for channel that is being opened.
  */
-static int qcom_smd_create_device(struct qcom_smd_channel *channel)
+static int qcom_ipc_create_device(struct qcom_smd_channel *channel)
 {
-	struct qcom_smd_device *qsdev;
+	struct qcom_ipc_device *qidev;
 	struct qcom_smd_edge *edge = channel->edge;
 	struct device_node *node;
 	struct qcom_smd *smd = edge->smd;
 	int ret;
 
-	if (channel->qsdev)
+	if (channel->qidev)
 		return -EEXIST;
 
 	dev_dbg(smd->dev, "registering '%s'\n", channel->name);
 
-	qsdev = kzalloc(sizeof(*qsdev), GFP_KERNEL);
-	if (!qsdev)
+	qidev = kzalloc(sizeof(*qidev), GFP_KERNEL);
+	if (!qidev)
 		return -ENOMEM;
 
 	node = qcom_smd_match_channel(edge->of_node, channel->name);
-	dev_set_name(&qsdev->dev, "%s.%s",
+	dev_set_name(&qidev->dev, "%s.%s",
 		     edge->of_node->name,
 		     node ? node->name : channel->name);
 
-	qsdev->dev.parent = smd->dev;
-	qsdev->dev.bus = &qcom_smd_bus;
-	qsdev->dev.release = qcom_smd_release_device;
-	qsdev->dev.of_node = node;
+	dev_set_name(&qidev->dev, "%s.%s", edge->of_node->name, node->name);
+	qidev->dev.parent = smd->dev;
+	qidev->dev.bus = ipc_bus;
+	qidev->dev.release = qcom_ipc_release_device;
+	qidev->dev.of_node = node;
 
-	qsdev->channel = channel;
+	qidev->channel = channel;
 
-	channel->qsdev = qsdev;
+	channel->qidev = qidev;
 
-	ret = device_register(&qsdev->dev);
+	ret = device_register(&qidev->dev);
 	if (ret) {
 		dev_err(smd->dev, "device_register failed: %d\n", ret);
-		put_device(&qsdev->dev);
+		put_device(&qidev->dev);
 	}
 
 	return ret;
@@ -972,13 +975,13 @@ static int qcom_smd_create_device(struct qcom_smd_channel *channel)
 /*
  * Destroy a smd client device for a channel that's going away.
  */
-static void qcom_smd_destroy_device(struct qcom_smd_channel *channel)
+static void qcom_ipc_destroy_device(struct qcom_smd_channel *channel)
 {
 	struct device *dev;
 
-	BUG_ON(!channel->qsdev);
+	BUG_ON(!channel->qidev);
 
-	dev = &channel->qsdev->dev;
+	dev = &channel->qidev->dev;
 
 	device_unregister(dev);
 	of_node_put(dev->of_node);
@@ -986,25 +989,26 @@ static void qcom_smd_destroy_device(struct qcom_smd_channel *channel)
 }
 
 /**
- * qcom_smd_driver_register - register a smd driver
- * @qsdrv:	qcom_smd_driver struct
+ * qcom_ipc_driver_register - register a smd driver
+ * @qidrv:	qcom_ipc_driver struct
  */
-int qcom_smd_driver_register(struct qcom_smd_driver *qsdrv)
+int qcom_ipc_driver_register(struct qcom_ipc_driver *qidrv)
 {
-	qsdrv->driver.bus = &qcom_smd_bus;
-	return driver_register(&qsdrv->driver);
+	qidrv->driver.bus = ipc_bus;
+
+	return driver_register(&qidrv->driver);
 }
-EXPORT_SYMBOL(qcom_smd_driver_register);
+EXPORT_SYMBOL(qcom_ipc_driver_register);
 
 /**
- * qcom_smd_driver_unregister - unregister a smd driver
- * @qsdrv:	qcom_smd_driver struct
+ * qcom_ipc_driver_unregister - unregister a ipc driver
+ * @qidrv:	qcom_ipc_driver struct
  */
-void qcom_smd_driver_unregister(struct qcom_smd_driver *qsdrv)
+void qcom_ipc_driver_unregister(struct qcom_ipc_driver *qidrv)
 {
-	driver_unregister(&qsdrv->driver);
+	driver_unregister(&qidrv->driver);
 }
-EXPORT_SYMBOL(qcom_smd_driver_unregister);
+EXPORT_SYMBOL(qcom_ipc_driver_unregister);
 
 /*
  * Allocate the qcom_smd_channel object for a newly found smd channel,
@@ -1183,7 +1187,7 @@ static void qcom_channel_state_worker(struct work_struct *work)
 		    remote_state != SMD_CHANNEL_OPENED)
 			continue;
 
-		qcom_smd_create_device(channel);
+		qcom_ipc_create_device(channel);
 	}
 
 	/*
@@ -1200,7 +1204,7 @@ static void qcom_channel_state_worker(struct work_struct *work)
 		    remote_state == SMD_CHANNEL_OPENED)
 			continue;
 
-		qcom_smd_destroy_device(channel);
+		qcom_ipc_destroy_device(channel);
 	}
 }
 
@@ -1313,6 +1317,7 @@ static int qcom_smd_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, smd);
+	qcom_ipc_bus_register(&qcom_ipc_bus);
 
 	return 0;
 }
@@ -1335,10 +1340,10 @@ static int qcom_smd_remove(struct platform_device *pdev)
 		cancel_work_sync(&edge->work);
 
 		list_for_each_entry(channel, &edge->channels, list) {
-			if (!channel->qsdev)
+			if (!channel->qidev)
 				continue;
 
-			qcom_smd_destroy_device(channel);
+			qcom_ipc_destroy_device(channel);
 		}
 	}
 
@@ -1360,27 +1365,32 @@ static struct platform_driver qcom_smd_driver = {
 	},
 };
 
-static int __init qcom_smd_init(void)
+void qcom_ipc_bus_register(struct bus_type *bus)
 {
 	int ret;
 
-	ret = bus_register(&qcom_smd_bus);
+	ret = bus_register(bus);
 	if (ret) {
-		pr_err("failed to register smd bus: %d\n", ret);
-		return ret;
+		pr_err("failed to register ipc bus: %d\n", ret);
+		return;
 	}
 
+	ipc_bus = bus;
+}
+
+static int __init qcom_ipc_init(void)
+{
 	return platform_driver_register(&qcom_smd_driver);
 }
-postcore_initcall(qcom_smd_init);
+postcore_initcall(qcom_ipc_init);
 
-static void __exit qcom_smd_exit(void)
+static void __exit qcom_ipc_exit(void)
 {
 	platform_driver_unregister(&qcom_smd_driver);
-	bus_unregister(&qcom_smd_bus);
+	bus_unregister(ipc_bus);
 }
-module_exit(qcom_smd_exit);
+module_exit(qcom_ipc_exit);
 
 MODULE_AUTHOR("Bjorn Andersson <bjorn.andersson@sonymobile.com>");
-MODULE_DESCRIPTION("Qualcomm Shared Memory Driver");
+MODULE_DESCRIPTION("Qualcomm SMD IPC driver");
 MODULE_LICENSE("GPL v2");

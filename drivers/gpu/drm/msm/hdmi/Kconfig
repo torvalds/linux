@@ -1,0 +1,7 @@
+config DRM_MSM_HDMI
+	bool "Enable HDMI support in MSM DRM driver"
+	depends on DRM_MSM
+	default y
+	help
+	  Choose this option if you have a need for HDMI connector
+	  support.

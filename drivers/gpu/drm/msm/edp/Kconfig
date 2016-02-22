@@ -1,0 +1,7 @@
+config DRM_MSM_EDP
+	bool "Enable EDP support in MSM DRM driver"
+	depends on DRM_MSM
+	default y
+	help
+	  Choose this option if you have a need for Embedded Display
+	  Port encoder support.
