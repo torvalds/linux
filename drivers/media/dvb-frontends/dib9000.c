@@ -225,7 +225,7 @@ static u16 to_fw_output_mode(u16 mode)
 	}
 }
 
-static u16 dib9000_read16_attr(struct dib9000_state *state, u16 reg, u8 * b, u32 len, u16 attribute)
+static int dib9000_read16_attr(struct dib9000_state *state, u16 reg, u8 *b, u32 len, u16 attribute)
 {
 	u32 chunk_size = 126;
 	u32 l;
@@ -309,7 +309,7 @@ static inline u16 dib9000_read_word_attr(struct dib9000_state *state, u16 reg, u
 
 #define dib9000_read16_noinc_attr(state, reg, b, len, attribute) dib9000_read16_attr(state, reg, b, len, (attribute) | DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT)
 
-static u16 dib9000_write16_attr(struct dib9000_state *state, u16 reg, const u8 * buf, u32 len, u16 attribute)
+static int dib9000_write16_attr(struct dib9000_state *state, u16 reg, const u8 *buf, u32 len, u16 attribute)
 {
 	u32 chunk_size = 126;
 	u32 l;
