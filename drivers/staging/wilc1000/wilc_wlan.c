@@ -523,9 +523,6 @@ void chip_wakeup(struct wilc *wilc)
 
 				wilc->hif_func->hif_read_reg(wilc, 0xf1,
 							     &clk_status_reg);
-
-				if ((clk_status_reg & 0x1) == 0)
-					wilc_debug(N_ERR, "clocks still OFF. Wake up failed\n");
 			}
 			if ((clk_status_reg & 0x1) == 0) {
 				wilc->hif_func->hif_write_reg(wilc, 0xf0,
