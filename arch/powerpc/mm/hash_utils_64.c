@@ -168,11 +168,11 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 		rflags |= HPTE_R_N;
 	/*
 	 * PP bits:
-	 * Linux use slb key 0 for kernel and 1 for user.
-	 * kernel areas are mapped by PP bits 00
-	 * and and there is no kernel RO (_PAGE_KERNEL_RO).
-	 * User area mapped by 0x2 and read only use by
-	 * 0x3.
+	 * Linux uses slb key 0 for kernel and 1 for user.
+	 * kernel areas are mapped with PP=00
+	 * and there is no kernel RO (_PAGE_KERNEL_RO).
+	 * User area is mapped with PP=0x2 for read/write
+	 * or PP=0x3 for read-only (including writeable but clean pages).
 	 */
 	if (pteflags & _PAGE_USER) {
 		rflags |= 0x2;

@@ -4,8 +4,7 @@
 
 /*
  * Common bits between 4K and 64K pages in a linux-style PTE.
- * These match the bits in the (hardware-defined) PowerPC PTE as closely
- * as possible. Additional bits may be defined in pgtable-hash64-*.h
+ * Additional bits may be defined in pgtable-hash64-*.h
  *
  * Note: We only support user read/write permissions. Supervisor always
  * have full read/write to pages above PAGE_OFFSET (pages below that
@@ -14,13 +13,13 @@
  * We could create separate kernel read-only if we used the 3 PP bits
  * combinations that newer processors provide but we currently don't.
  */
-#define _PAGE_PTE		0x00001
+#define _PAGE_PTE		0x00001	/* distinguishes PTEs from pointers */
 #define _PAGE_PRESENT		0x00002 /* software: pte contains a translation */
 #define _PAGE_BIT_SWAP_TYPE	2
-#define _PAGE_USER		0x00004 /* matches one of the PP bits */
-#define _PAGE_EXEC		0x00008 /* No execute on POWER4 and newer (we invert) */
-#define _PAGE_GUARDED		0x00010
-/* We can derive Memory coherence from _PAGE_NO_CACHE */
+#define _PAGE_USER		0x00004 /* page may be accessed by userspace */
+#define _PAGE_EXEC		0x00008 /* execute permission */
+#define _PAGE_GUARDED		0x00010 /* G: guarded (side-effect) page */
+/* M (memory coherence) is always set in the HPTE, so we don't need it here */
 #define _PAGE_COHERENT		0x0
 #define _PAGE_NO_CACHE		0x00020 /* I: cache inhibit */
 #define _PAGE_WRITETHRU		0x00040 /* W: cache write-through */

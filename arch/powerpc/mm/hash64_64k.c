@@ -249,8 +249,7 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 			return 0;
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was
-		 * a write access. Since this is 4K insert of 64K page size
-		 * also add _PAGE_COMBO
+		 * a write access.
 		 */
 		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED;
 		if (access & _PAGE_RW)
