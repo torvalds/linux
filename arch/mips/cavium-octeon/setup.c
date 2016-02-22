@@ -466,9 +466,14 @@ static char __read_mostly octeon_system_type[80];
 
 static int __init init_octeon_system_type(void)
 {
+	char const *board_type;
+
+	board_type = cvmx_board_type_to_string(octeon_bootinfo->board_type);
+	if (board_type == NULL)
+		board_type = "Unsupported Board";
+
 	snprintf(octeon_system_type, sizeof(octeon_system_type), "%s (%s)",
-		cvmx_board_type_to_string(octeon_bootinfo->board_type),
-		octeon_model_get_string(read_c0_prid()));
+		 board_type, octeon_model_get_string(read_c0_prid()));
 
 	return 0;
 }

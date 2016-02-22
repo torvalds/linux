@@ -400,7 +400,7 @@ static inline const char *cvmx_board_type_to_string(enum
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_KONTRON_S1901)
 		ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MAX)
 	}
-	return "Unsupported Board";
+	return NULL;
 }
 
 #define ENUM_CHIP_TYPE_CASE(x) \
