@@ -739,6 +739,261 @@ int bpf__foreach_tev(struct bpf_object *obj,
 	return 0;
 }
 
+enum bpf_map_op_type {
+	BPF_MAP_OP_SET_VALUE,
+};
+
+enum bpf_map_key_type {
+	BPF_MAP_KEY_ALL,
+};
+
+struct bpf_map_op {
+	struct list_head list;
+	enum bpf_map_op_type op_type;
+	enum bpf_map_key_type key_type;
+	union {
+		u64 value;
+	} v;
+};
+
+struct bpf_map_priv {
+	struct list_head ops_list;
+};
+
+static void
+bpf_map_op__delete(struct bpf_map_op *op)
+{
+	if (!list_empty(&op->list))
+		list_del(&op->list);
+	free(op);
+}
+
+static void
+bpf_map_priv__purge(struct bpf_map_priv *priv)
+{
+	struct bpf_map_op *pos, *n;
+
+	list_for_each_entry_safe(pos, n, &priv->ops_list, list) {
+		list_del_init(&pos->list);
+		bpf_map_op__delete(pos);
+	}
+}
+
+static void
+bpf_map_priv__clear(struct bpf_map *map __maybe_unused,
+		    void *_priv)
+{
+	struct bpf_map_priv *priv = _priv;
+
+	bpf_map_priv__purge(priv);
+	free(priv);
+}
+
+static struct bpf_map_op *
+bpf_map_op__new(void)
+{
+	struct bpf_map_op *op;
+
+	op = zalloc(sizeof(*op));
+	if (!op) {
+		pr_debug("Failed to alloc bpf_map_op\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	INIT_LIST_HEAD(&op->list);
+
+	op->key_type = BPF_MAP_KEY_ALL;
+	return op;
+}
+
+static int
+bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
+{
+	struct bpf_map_priv *priv;
+	const char *map_name;
+	int err;
+
+	map_name = bpf_map__get_name(map);
+	err = bpf_map__get_private(map, (void **)&priv);
+	if (err) {
+		pr_debug("Failed to get private from map %s\n", map_name);
+		return err;
+	}
+
+	if (!priv) {
+		priv = zalloc(sizeof(*priv));
+		if (!priv) {
+			pr_debug("No enough memory to alloc map private\n");
+			return -ENOMEM;
+		}
+		INIT_LIST_HEAD(&priv->ops_list);
+
+		if (bpf_map__set_private(map, priv, bpf_map_priv__clear)) {
+			free(priv);
+			return -BPF_LOADER_ERRNO__INTERNAL;
+		}
+	}
+
+	list_add_tail(&op->list, &priv->ops_list);
+	return 0;
+}
+
+static int
+__bpf_map__config_value(struct bpf_map *map,
+			struct parse_events_term *term)
+{
+	struct bpf_map_def def;
+	struct bpf_map_op *op;
+	const char *map_name;
+	int err;
+
+	map_name = bpf_map__get_name(map);
+
+	err = bpf_map__get_def(map, &def);
+	if (err) {
+		pr_debug("Unable to get map definition from '%s'\n",
+			 map_name);
+		return -BPF_LOADER_ERRNO__INTERNAL;
+	}
+
+	if (def.type != BPF_MAP_TYPE_ARRAY) {
+		pr_debug("Map %s type is not BPF_MAP_TYPE_ARRAY\n",
+			 map_name);
+		return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
+	}
+	if (def.key_size < sizeof(unsigned int)) {
+		pr_debug("Map %s has incorrect key size\n", map_name);
+		return -BPF_LOADER_ERRNO__OBJCONF_MAP_KEYSIZE;
+	}
+	switch (def.value_size) {
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		break;
+	default:
+		pr_debug("Map %s has incorrect value size\n", map_name);
+		return -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUESIZE;
+	}
+
+	op = bpf_map_op__new();
+	if (IS_ERR(op))
+		return PTR_ERR(op);
+	op->op_type = BPF_MAP_OP_SET_VALUE;
+	op->v.value = term->val.num;
+
+	err = bpf_map__add_op(map, op);
+	if (err)
+		bpf_map_op__delete(op);
+	return err;
+}
+
+static int
+bpf_map__config_value(struct bpf_map *map,
+		      struct parse_events_term *term,
+		      struct perf_evlist *evlist __maybe_unused)
+{
+	if (!term->err_val) {
+		pr_debug("Config value not set\n");
+		return -BPF_LOADER_ERRNO__OBJCONF_CONF;
+	}
+
+	if (term->type_val != PARSE_EVENTS__TERM_TYPE_NUM) {
+		pr_debug("ERROR: wrong value type\n");
+		return -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE;
+	}
+
+	return __bpf_map__config_value(map, term);
+}
+
+struct bpf_obj_config__map_func {
+	const char *config_opt;
+	int (*config_func)(struct bpf_map *, struct parse_events_term *,
+			   struct perf_evlist *);
+};
+
+struct bpf_obj_config__map_func bpf_obj_config__map_funcs[] = {
+	{"value", bpf_map__config_value},
+};
+
+static int
+bpf__obj_config_map(struct bpf_object *obj,
+		    struct parse_events_term *term,
+		    struct perf_evlist *evlist,
+		    int *key_scan_pos)
+{
+	/* key is "map:<mapname>.<config opt>" */
+	char *map_name = strdup(term->config + sizeof("map:") - 1);
+	struct bpf_map *map;
+	int err = -BPF_LOADER_ERRNO__OBJCONF_OPT;
+	char *map_opt;
+	size_t i;
+
+	if (!map_name)
+		return -ENOMEM;
+
+	map_opt = strchr(map_name, '.');
+	if (!map_opt) {
+		pr_debug("ERROR: Invalid map config: %s\n", map_name);
+		goto out;
+	}
+
+	*map_opt++ = '\0';
+	if (*map_opt == '\0') {
+		pr_debug("ERROR: Invalid map option: %s\n", term->config);
+		goto out;
+	}
+
+	map = bpf_object__get_map_by_name(obj, map_name);
+	if (!map) {
+		pr_debug("ERROR: Map %s doesn't exist\n", map_name);
+		err = -BPF_LOADER_ERRNO__OBJCONF_MAP_NOTEXIST;
+		goto out;
+	}
+
+	*key_scan_pos += map_opt - map_name;
+	for (i = 0; i < ARRAY_SIZE(bpf_obj_config__map_funcs); i++) {
+		struct bpf_obj_config__map_func *func =
+				&bpf_obj_config__map_funcs[i];
+
+		if (strcmp(map_opt, func->config_opt) == 0) {
+			err = func->config_func(map, term, evlist);
+			goto out;
+		}
+	}
+
+	pr_debug("ERROR: Invalid map config option '%s'\n", map_opt);
+	err = -BPF_LOADER_ERRNO__OBJCONF_MAP_OPT;
+out:
+	free(map_name);
+	if (!err)
+		key_scan_pos += strlen(map_opt);
+	return err;
+}
+
+int bpf__config_obj(struct bpf_object *obj,
+		    struct parse_events_term *term,
+		    struct perf_evlist *evlist,
+		    int *error_pos)
+{
+	int key_scan_pos = 0;
+	int err;
+
+	if (!obj || !term || !term->config)
+		return -EINVAL;
+
+	if (!prefixcmp(term->config, "map:")) {
+		key_scan_pos = sizeof("map:") - 1;
+		err = bpf__obj_config_map(obj, term, evlist, &key_scan_pos);
+		goto out;
+	}
+	err = -BPF_LOADER_ERRNO__OBJCONF_OPT;
+out:
+	if (error_pos)
+		*error_pos = key_scan_pos;
+	return err;
+
+}
+
 #define ERRNO_OFFSET(e)		((e) - __BPF_LOADER_ERRNO__START)
 #define ERRCODE_OFFSET(c)	ERRNO_OFFSET(BPF_LOADER_ERRNO__##c)
 #define NR_ERRNO	(__BPF_LOADER_ERRNO__END - __BPF_LOADER_ERRNO__START)
@@ -753,6 +1008,14 @@ static const char *bpf_loader_strerror_table[NR_ERRNO] = {
 	[ERRCODE_OFFSET(PROLOGUE)]	= "Failed to generate prologue",
 	[ERRCODE_OFFSET(PROLOGUE2BIG)]	= "Prologue too big for program",
 	[ERRCODE_OFFSET(PROLOGUEOOB)]	= "Offset out of bound for prologue",
+	[ERRCODE_OFFSET(OBJCONF_OPT)]	= "Invalid object config option",
+	[ERRCODE_OFFSET(OBJCONF_CONF)]	= "Config value not set (missing '=')",
+	[ERRCODE_OFFSET(OBJCONF_MAP_OPT)]	= "Invalid object map config option",
+	[ERRCODE_OFFSET(OBJCONF_MAP_NOTEXIST)]	= "Target map doesn't exist",
+	[ERRCODE_OFFSET(OBJCONF_MAP_VALUE)]	= "Incorrect value type for map",
+	[ERRCODE_OFFSET(OBJCONF_MAP_TYPE)]	= "Incorrect map type",
+	[ERRCODE_OFFSET(OBJCONF_MAP_KEYSIZE)]	= "Incorrect map key size",
+	[ERRCODE_OFFSET(OBJCONF_MAP_VALUESIZE)]	= "Incorrect map value size",
 };
 
 static int
@@ -869,6 +1132,19 @@ int bpf__strerror_load(struct bpf_object *obj,
 		scnprintf(buf, size, "Failed to load program for unknown reason");
 		break;
 	}
+	bpf__strerror_end(buf, size);
+	return 0;
+}
+
+int bpf__strerror_config_obj(struct bpf_object *obj __maybe_unused,
+			     struct parse_events_term *term __maybe_unused,
+			     struct perf_evlist *evlist __maybe_unused,
+			     int *error_pos __maybe_unused, int err,
+			     char *buf, size_t size)
+{
+	bpf__strerror_head(err, buf, size);
+	bpf__strerror_entry(BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE,
+			    "Can't use this config term with this map type");
 	bpf__strerror_end(buf, size);
 	return 0;
 }
