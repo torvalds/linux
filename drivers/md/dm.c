@@ -126,8 +126,6 @@ struct dm_rq_clone_bio_info {
 struct mapped_device {
 	struct srcu_struct io_barrier;
 	struct mutex suspend_lock;
-	atomic_t holders;
-	atomic_t open_count;
 
 	/*
 	 * The current mapping (struct dm_table *).
@@ -148,6 +146,9 @@ struct mapped_device {
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
 
+	atomic_t holders;
+	atomic_t open_count;
+
 	struct dm_target *immutable_target;
 	struct target_type *immutable_target_type;
 
@@ -162,8 +163,20 @@ struct mapped_device {
 	atomic_t pending[2];
 	wait_queue_head_t wait;
 	struct work_struct work;
-	struct bio_list deferred;
 	spinlock_t deferred_lock;
+	struct bio_list deferred;
+
+	/*
+	 * Event handling.
+	 */
+	wait_queue_head_t eventq;
+	atomic_t event_nr;
+	atomic_t uevent_seq;
+	struct list_head uevent_list;
+	spinlock_t uevent_lock; /* Protect access to uevent_list */
+
+	/* the number of internal suspends */
+	unsigned internal_suspend_count;
 
 	/*
 	 * Processing queue (flush)
@@ -179,31 +192,20 @@ struct mapped_device {
 	struct bio_set *bs;
 
 	/*
-	 * Event handling.
-	 */
-	atomic_t event_nr;
-	wait_queue_head_t eventq;
-	atomic_t uevent_seq;
-	struct list_head uevent_list;
-	spinlock_t uevent_lock; /* Protect access to uevent_list */
-
-	/*
 	 * freeze/thaw support require holding onto a super block
 	 */
 	struct super_block *frozen_sb;
-	struct block_device *bdev;
 
 	/* forced geometry settings */
 	struct hd_geometry geometry;
+
+	struct block_device *bdev;
 
 	/* kobject and completion */
 	struct dm_kobject_holder kobj_holder;
 
 	/* zero-length flush that will be cloned and submitted to targets */
 	struct bio flush_bio;
-
-	/* the number of internal suspends */
-	unsigned internal_suspend_count;
 
 	struct dm_stats stats;
 
