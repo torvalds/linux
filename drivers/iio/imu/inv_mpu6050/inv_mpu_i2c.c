@@ -68,7 +68,8 @@ static int inv_mpu6050_select_bypass(struct i2c_adapter *adap, void *mux_priv,
 		if (ret)
 			goto write_error;
 
-		msleep(INV_MPU6050_REG_UP_TIME);
+		usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
+			     INV_MPU6050_REG_UP_TIME_MAX);
 	}
 	if (!ret) {
 		st->powerup_count++;

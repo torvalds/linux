@@ -151,7 +151,8 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 		return result;
 
 	if (power_on)
-		msleep(INV_MPU6050_REG_UP_TIME);
+		usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
+			     INV_MPU6050_REG_UP_TIME_MAX);
 
 	return 0;
 }

@@ -172,10 +172,15 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BYTES_PER_3AXIS_SENSOR   6
 #define INV_MPU6050_FIFO_COUNT_BYTE          2
 #define INV_MPU6050_FIFO_THRESHOLD           500
+
+/* delay time in milliseconds */
 #define INV_MPU6050_POWER_UP_TIME            100
 #define INV_MPU6050_TEMP_UP_TIME             100
 #define INV_MPU6050_SENSOR_UP_TIME           30
-#define INV_MPU6050_REG_UP_TIME              5
+
+/* delay time in microseconds */
+#define INV_MPU6050_REG_UP_TIME_MIN          5000
+#define INV_MPU6050_REG_UP_TIME_MAX          10000
 
 #define INV_MPU6050_TEMP_OFFSET	             12421
 #define INV_MPU6050_TEMP_SCALE               2941
