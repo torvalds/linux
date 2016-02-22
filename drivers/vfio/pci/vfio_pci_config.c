@@ -475,12 +475,17 @@ static void vfio_bar_fixup(struct vfio_pci_device *vdev)
 	bar = (__le32 *)&vdev->vconfig[PCI_ROM_ADDRESS];
 
 	/*
-	 * NB. we expose the actual BAR size here, regardless of whether
-	 * we can read it.  When we report the REGION_INFO for the ROM
-	 * we report what PCI tells us is the actual ROM size.
+	 * NB. REGION_INFO will have reported zero size if we weren't able
+	 * to read the ROM, but we still return the actual BAR size here if
+	 * it exists (or the shadow ROM space).
 	 */
 	if (pci_resource_start(pdev, PCI_ROM_RESOURCE)) {
 		mask = ~(pci_resource_len(pdev, PCI_ROM_RESOURCE) - 1);
+		mask |= PCI_ROM_ADDRESS_ENABLE;
+		*bar &= cpu_to_le32((u32)mask);
+	} else if (pdev->resource[PCI_ROM_RESOURCE].flags &
+					IORESOURCE_ROM_SHADOW) {
+		mask = ~(0x20000 - 1);
 		mask |= PCI_ROM_ADDRESS_ENABLE;
 		*bar &= cpu_to_le32((u32)mask);
 	} else

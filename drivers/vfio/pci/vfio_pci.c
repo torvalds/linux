@@ -609,8 +609,14 @@ static long vfio_pci_ioctl(void *device_data,
 
 			/* Report the BAR size, not the ROM size */
 			info.size = pci_resource_len(pdev, info.index);
-			if (!info.size)
-				break;
+			if (!info.size) {
+				/* Shadow ROMs appear as PCI option ROMs */
+				if (pdev->resource[PCI_ROM_RESOURCE].flags &
+							IORESOURCE_ROM_SHADOW)
+					info.size = 0x20000;
+				else
+					break;
+			}
 
 			/* Is it really there? */
 			io = pci_map_rom(pdev, &size);
