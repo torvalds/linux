@@ -252,6 +252,34 @@ struct vfio_region_info_cap_sparse_mmap {
 	struct vfio_region_sparse_mmap_area areas[];
 };
 
+/*
+ * The device specific type capability allows regions unique to a specific
+ * device or class of devices to be exposed.  This helps solve the problem for
+ * vfio bus drivers of defining which region indexes correspond to which region
+ * on the device, without needing to resort to static indexes, as done by
+ * vfio-pci.  For instance, if we were to go back in time, we might remove
+ * VFIO_PCI_VGA_REGION_INDEX and let vfio-pci simply define that all indexes
+ * greater than or equal to VFIO_PCI_NUM_REGIONS are device specific and we'd
+ * make a "VGA" device specific type to describe the VGA access space.  This
+ * means that non-VGA devices wouldn't need to waste this index, and thus the
+ * address space associated with it due to implementation of device file
+ * descriptor offsets in vfio-pci.
+ *
+ * The current implementation is now part of the user ABI, so we can't use this
+ * for VGA, but there are other upcoming use cases, such as opregions for Intel
+ * IGD devices and framebuffers for vGPU devices.  We missed VGA, but we'll
+ * use this for future additions.
+ *
+ * The structure below defines version 1 of this capability.
+ */
+#define VFIO_REGION_INFO_CAP_TYPE	2
+
+struct vfio_region_info_cap_type {
+	struct vfio_info_cap_header header;
+	__u32 type;	/* global per bus driver */
+	__u32 subtype;	/* type specific */
+};
+
 /**
  * VFIO_DEVICE_GET_IRQ_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 9,
  *				    struct vfio_irq_info)
@@ -387,7 +415,8 @@ enum {
 	 * between described ranges are unimplemented.
 	 */
 	VFIO_PCI_VGA_REGION_INDEX,
-	VFIO_PCI_NUM_REGIONS
+	VFIO_PCI_NUM_REGIONS = 9 /* Fixed user ABI, region indexes >=9 use */
+				 /* device specific cap to define content. */
 };
 
 enum {
