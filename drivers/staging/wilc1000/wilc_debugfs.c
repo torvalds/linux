@@ -23,6 +23,10 @@ static struct dentry *wilc_dir;
 /*
  * --------------------------------------------------------------------------------
  */
+#define DEBUG           BIT(0)
+#define INFO            BIT(1)
+#define WRN             BIT(2)
+#define ERR             BIT(3)
 
 #define DBG_LEVEL_ALL	(DEBUG | INFO | WRN | ERR)
 atomic_t WILC_DEBUG_LEVEL = ATOMIC_INIT(ERR);

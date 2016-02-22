@@ -1,17 +1,6 @@
 #ifndef LINUX_WLAN_COMMON_H
 #define LINUX_WLAN_COMMON_H
 
-#if defined(WILC_DEBUGFS)
-#define DEBUG           BIT(0)
-#define INFO            BIT(1)
-#define WRN             BIT(2)
-#define ERR             BIT(3)
-#else
-#define DEBUG       1
-#define INFO        0
-#define WRN         0
-#endif
-
 #define LINUX_RX_SIZE	(96 * 1024)
 #define LINUX_TX_SIZE	(64 * 1024)
 
