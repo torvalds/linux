@@ -275,7 +275,7 @@ ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void 
 }
 EXPORT_SYMBOL(pci_write_vpd);
 
-#define PCI_VPD_PCI22_SIZE (PCI_VPD_ADDR_MASK + 1)
+#define PCI_VPD_MAX_SIZE (PCI_VPD_ADDR_MASK + 1)
 
 struct pci_vpd_pci22 {
 	struct pci_vpd base;
@@ -291,7 +291,7 @@ struct pci_vpd_pci22 {
  * @dev:	pci device struct
  * @old_size:	current assumed size, also maximum allowed size
  */
-static size_t pci_vpd_pci22_size(struct pci_dev *dev, size_t old_size)
+static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 {
 	size_t off = 0;
 	unsigned char header[1+2];	/* 1 byte tag, 2 bytes length */
@@ -348,7 +348,7 @@ static size_t pci_vpd_pci22_size(struct pci_dev *dev, size_t old_size)
  *
  * Returns 0 on success, negative values indicate error.
  */
-static int pci_vpd_pci22_wait(struct pci_dev *dev)
+static int pci_vpd_wait(struct pci_dev *dev)
 {
 	struct pci_vpd_pci22 *vpd =
 		container_of(dev->vpd, struct pci_vpd_pci22, base);
@@ -381,8 +381,8 @@ static int pci_vpd_pci22_wait(struct pci_dev *dev)
 	}
 }
 
-static ssize_t pci_vpd_pci22_read(struct pci_dev *dev, loff_t pos, size_t count,
-				  void *arg)
+static ssize_t pci_vpd_read(struct pci_dev *dev, loff_t pos, size_t count,
+			    void *arg)
 {
 	struct pci_vpd_pci22 *vpd =
 		container_of(dev->vpd, struct pci_vpd_pci22, base);
@@ -395,7 +395,7 @@ static ssize_t pci_vpd_pci22_read(struct pci_dev *dev, loff_t pos, size_t count,
 
 	if (!vpd->valid) {
 		vpd->valid = 1;
-		vpd->base.len = pci_vpd_pci22_size(dev, vpd->base.len);
+		vpd->base.len = pci_vpd_size(dev, vpd->base.len);
 	}
 
 	if (vpd->base.len == 0)
@@ -412,7 +412,7 @@ static ssize_t pci_vpd_pci22_read(struct pci_dev *dev, loff_t pos, size_t count,
 	if (mutex_lock_killable(&vpd->lock))
 		return -EINTR;
 
-	ret = pci_vpd_pci22_wait(dev);
+	ret = pci_vpd_wait(dev);
 	if (ret < 0)
 		goto out;
 
@@ -426,7 +426,7 @@ static ssize_t pci_vpd_pci22_read(struct pci_dev *dev, loff_t pos, size_t count,
 			break;
 		vpd->busy = 1;
 		vpd->flag = PCI_VPD_ADDR_F;
-		ret = pci_vpd_pci22_wait(dev);
+		ret = pci_vpd_wait(dev);
 		if (ret < 0)
 			break;
 
@@ -449,8 +449,8 @@ out:
 	return ret ? ret : count;
 }
 
-static ssize_t pci_vpd_pci22_write(struct pci_dev *dev, loff_t pos, size_t count,
-				   const void *arg)
+static ssize_t pci_vpd_write(struct pci_dev *dev, loff_t pos, size_t count,
+			     const void *arg)
 {
 	struct pci_vpd_pci22 *vpd =
 		container_of(dev->vpd, struct pci_vpd_pci22, base);
@@ -463,7 +463,7 @@ static ssize_t pci_vpd_pci22_write(struct pci_dev *dev, loff_t pos, size_t count
 
 	if (!vpd->valid) {
 		vpd->valid = 1;
-		vpd->base.len = pci_vpd_pci22_size(dev, vpd->base.len);
+		vpd->base.len = pci_vpd_size(dev, vpd->base.len);
 	}
 
 	if (vpd->base.len == 0)
@@ -475,7 +475,7 @@ static ssize_t pci_vpd_pci22_write(struct pci_dev *dev, loff_t pos, size_t count
 	if (mutex_lock_killable(&vpd->lock))
 		return -EINTR;
 
-	ret = pci_vpd_pci22_wait(dev);
+	ret = pci_vpd_wait(dev);
 	if (ret < 0)
 		goto out;
 
@@ -497,7 +497,7 @@ static ssize_t pci_vpd_pci22_write(struct pci_dev *dev, loff_t pos, size_t count
 
 		vpd->busy = 1;
 		vpd->flag = 0;
-		ret = pci_vpd_pci22_wait(dev);
+		ret = pci_vpd_wait(dev);
 		if (ret < 0)
 			break;
 
@@ -508,9 +508,9 @@ out:
 	return ret ? ret : count;
 }
 
-static const struct pci_vpd_ops pci_vpd_pci22_ops = {
-	.read = pci_vpd_pci22_read,
-	.write = pci_vpd_pci22_write,
+static const struct pci_vpd_ops pci_vpd_ops = {
+	.read = pci_vpd_read,
+	.write = pci_vpd_write,
 };
 
 static ssize_t pci_vpd_f0_read(struct pci_dev *dev, loff_t pos, size_t count,
@@ -548,7 +548,7 @@ static const struct pci_vpd_ops pci_vpd_f0_ops = {
 	.write = pci_vpd_f0_write,
 };
 
-int pci_vpd_pci22_init(struct pci_dev *dev)
+int pci_vpd_init(struct pci_dev *dev)
 {
 	struct pci_vpd_pci22 *vpd;
 	u8 cap;
@@ -561,11 +561,11 @@ int pci_vpd_pci22_init(struct pci_dev *dev)
 	if (!vpd)
 		return -ENOMEM;
 
-	vpd->base.len = PCI_VPD_PCI22_SIZE;
+	vpd->base.len = PCI_VPD_MAX_SIZE;
 	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0)
 		vpd->base.ops = &pci_vpd_f0_ops;
 	else
-		vpd->base.ops = &pci_vpd_pci22_ops;
+		vpd->base.ops = &pci_vpd_ops;
 	mutex_init(&vpd->lock);
 	vpd->cap = cap;
 	vpd->busy = 0;

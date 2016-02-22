@@ -105,7 +105,7 @@ struct pci_vpd {
 	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
 };
 
-int pci_vpd_pci22_init(struct pci_dev *dev);
+int pci_vpd_init(struct pci_dev *dev);
 void pci_vpd_release(struct pci_dev *dev);
 
 /* PCI /proc functions */
