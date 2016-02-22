@@ -89,14 +89,12 @@ ifeq ($(CONFIG_ARM_ATAG_DTB_COMPAT),y)
 OBJS	+= $(libfdt_objs) atags_to_fdt.o
 endif
 
-targets       := vmlinux vmlinux.lds \
-		 piggy.$(suffix_y) piggy.$(suffix_y).o \
+targets       := vmlinux vmlinux.lds piggy_data piggy.o \
 		 lib1funcs.o ashldi3.o bswapsdi2.o \
 		 head.o $(OBJS)
 
-clean-files += piggy.gzip piggy.lzo piggy.lzma piggy.xzkern piggy.lz4 \
-		 lib1funcs.S ashldi3.S bswapsdi2.S $(libfdt) $(libfdt_hdrs) \
-		 hyp-stub.S
+clean-files += piggy_data lib1funcs.S ashldi3.S bswapsdi2.S \
+		$(libfdt) $(libfdt_hdrs) hyp-stub.S
 
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 
@@ -168,17 +166,17 @@ fi
 
 efi-obj-$(CONFIG_EFI_STUB) := $(objtree)/drivers/firmware/efi/libstub/lib.a
 
-$(obj)/vmlinux: $(obj)/vmlinux.lds $(obj)/$(HEAD) $(obj)/piggy.$(suffix_y).o \
+$(obj)/vmlinux: $(obj)/vmlinux.lds $(obj)/$(HEAD) $(obj)/piggy.o \
 		$(addprefix $(obj)/, $(OBJS)) $(lib1funcs) $(ashldi3) \
 		$(bswapsdi2) $(efi-obj-y) FORCE
 	@$(check_for_multiple_zreladdr)
 	$(call if_changed,ld)
 	@$(check_for_bad_syms)
 
-$(obj)/piggy.$(suffix_y): $(obj)/../Image FORCE
+$(obj)/piggy_data: $(obj)/../Image FORCE
 	$(call if_changed,$(suffix_y))
 
-$(obj)/piggy.$(suffix_y).o:  $(obj)/piggy.$(suffix_y)
+$(obj)/piggy.o: $(obj)/piggy_data
 
 CFLAGS_font.o := -Dstatic=
 
