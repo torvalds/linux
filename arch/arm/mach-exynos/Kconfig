@@ -5,7 +5,7 @@
 #
 # Licensed under GPLv2
 
-# Configuration options for the EXYNOS4
+# Configuration options for the EXYNOS
 
 menuconfig ARCH_EXYNOS
 	bool "Samsung EXYNOS"
