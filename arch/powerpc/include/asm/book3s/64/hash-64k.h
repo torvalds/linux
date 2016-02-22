@@ -25,8 +25,8 @@
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-#define _PAGE_COMBO	0x00040000 /* this is a combo 4k page */
-#define _PAGE_4K_PFN	0x00080000 /* PFN is for a single 4k page */
+#define _PAGE_COMBO	0x00001000 /* this is a combo 4k page */
+#define _PAGE_4K_PFN	0x00002000 /* PFN is for a single 4k page */
 /*
  * Used to track subpage group valid if _PAGE_COMBO is set
  * This overloads _PAGE_F_GIX and _PAGE_F_SECOND
@@ -39,11 +39,11 @@
 
 /* Shift to put page number into pte.
  *
- * That gives us a max RPN of 37 bits, which means a max of 53 bits
- * of addressable physical space, or 49 bits for the special 4k PFNs.
+ * That gives us a max RPN of 41 bits, which means a max of 57 bits
+ * of addressable physical space, or 53 bits for the special 4k PFNs.
  */
-#define PTE_RPN_SHIFT	(20)
-#define PTE_RPN_SIZE	(37)
+#define PTE_RPN_SHIFT	(16)
+#define PTE_RPN_SIZE	(41)
 
 /*
  * we support 16 fragments per PTE page of 64K size.

@@ -52,8 +52,8 @@
 			 _PAGE_F_SECOND | _PAGE_F_GIX)
 
 /* shift to put page number into pte */
-#define PTE_RPN_SHIFT	(18)
-#define PTE_RPN_SIZE	(39)	/* gives 51-bit real addresses */
+#define PTE_RPN_SHIFT	(12)
+#define PTE_RPN_SIZE	(45)	/* gives 57-bit real addresses */
 
 #define _PAGE_4K_PFN		0
 #ifndef __ASSEMBLY__
