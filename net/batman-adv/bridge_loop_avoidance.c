@@ -120,7 +120,7 @@ static int batadv_compare_backbone_gw(const struct hlist_node *node,
 }
 
 /**
- * batadv_compare_backbone_gw - compare address and vid of two claims
+ * batadv_compare_claim - compare address and vid of two claims
  * @node: list node of the first entry to compare
  * @data2: pointer to the second claims
  *
