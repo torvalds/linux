@@ -63,7 +63,7 @@ static inline u8 bt431_get_value(u16 val)
 #define BT431_CMD_CURS_ENABLE	0x40
 #define BT431_CMD_XHAIR_ENABLE	0x20
 #define BT431_CMD_OR_CURSORS	0x10
-#define BT431_CMD_AND_CURSORS	0x00
+#define BT431_CMD_XOR_CURSORS	0x00
 #define BT431_CMD_1_1_MUX	0x00
 #define BT431_CMD_4_1_MUX	0x04
 #define BT431_CMD_5_1_MUX	0x08
