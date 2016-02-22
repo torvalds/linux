@@ -319,9 +319,17 @@ static inline bool uncore_box_is_fake(struct intel_uncore_box *box)
 	return (box->phys_id < 0);
 }
 
-struct intel_uncore_pmu *uncore_event_to_pmu(struct perf_event *event);
+static inline struct intel_uncore_pmu *uncore_event_to_pmu(struct perf_event *event)
+{
+	return container_of(event->pmu, struct intel_uncore_pmu, pmu);
+}
+
+static inline struct intel_uncore_box *uncore_event_to_box(struct perf_event *event)
+{
+	return event->pmu_private;
+}
+
 struct intel_uncore_box *uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu);
-struct intel_uncore_box *uncore_event_to_box(struct perf_event *event);
 u64 uncore_msr_read_counter(struct intel_uncore_box *box, struct perf_event *event);
 void uncore_pmu_start_hrtimer(struct intel_uncore_box *box);
 void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box);

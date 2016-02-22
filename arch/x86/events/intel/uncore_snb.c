@@ -313,6 +313,7 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 		return -EINVAL;
 
 	event->cpu = box->cpu;
+	event->pmu_private = box;
 
 	event->hw.idx = -1;
 	event->hw.last_tag = ~0ULL;

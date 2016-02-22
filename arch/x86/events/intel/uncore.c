@@ -92,11 +92,6 @@ ssize_t uncore_event_show(struct kobject *kobj,
 	return sprintf(buf, "%s", event->config);
 }
 
-struct intel_uncore_pmu *uncore_event_to_pmu(struct perf_event *event)
-{
-	return container_of(event->pmu, struct intel_uncore_pmu, pmu);
-}
-
 struct intel_uncore_box *uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu)
 {
 	struct intel_uncore_box *box;
@@ -120,15 +115,6 @@ out:
 	raw_spin_unlock(&uncore_box_lock);
 
 	return *per_cpu_ptr(pmu->box, cpu);
-}
-
-struct intel_uncore_box *uncore_event_to_box(struct perf_event *event)
-{
-	/*
-	 * perf core schedules event on the basis of cpu, uncore events are
-	 * collected by one of the cpus inside a physical package.
-	 */
-	return uncore_pmu_to_box(uncore_event_to_pmu(event), smp_processor_id());
 }
 
 u64 uncore_msr_read_counter(struct intel_uncore_box *box, struct perf_event *event)
@@ -690,6 +676,7 @@ static int uncore_pmu_event_init(struct perf_event *event)
 	if (!box || box->cpu < 0)
 		return -EINVAL;
 	event->cpu = box->cpu;
+	event->pmu_private = box;
 
 	event->hw.idx = -1;
 	event->hw.last_tag = ~0ULL;
