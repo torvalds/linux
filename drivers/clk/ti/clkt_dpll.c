@@ -240,7 +240,7 @@ u8 omap2_init_dpll_parent(struct clk_hw *hw)
  */
 unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
 {
-	long long dpll_clk;
+	u64 dpll_clk;
 	u32 dpll_mult, dpll_div, v;
 	struct dpll_data *dd;
 
@@ -262,7 +262,7 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
 	dpll_div = v & dd->div1_mask;
 	dpll_div >>= __ffs(dd->div1_mask);
 
-	dpll_clk = (long long)clk_get_rate(dd->clk_ref) * dpll_mult;
+	dpll_clk = (u64)clk_get_rate(dd->clk_ref) * dpll_mult;
 	do_div(dpll_clk, dpll_div + 1);
 
 	return dpll_clk;

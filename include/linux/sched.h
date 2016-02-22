@@ -177,9 +177,9 @@ extern void get_iowait_load(unsigned long *nr_waiters, unsigned long *load);
 extern void calc_global_load(unsigned long ticks);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
-extern void update_cpu_load_nohz(void);
+extern void update_cpu_load_nohz(int active);
 #else
-static inline void update_cpu_load_nohz(void) { }
+static inline void update_cpu_load_nohz(int active) { }
 #endif
 
 extern unsigned long get_parent_ip(unsigned long addr);
@@ -377,6 +377,7 @@ extern void scheduler_tick(void);
 extern void sched_show_task(struct task_struct *p);
 
 #ifdef CONFIG_LOCKUP_DETECTOR
+extern void touch_softlockup_watchdog_sched(void);
 extern void touch_softlockup_watchdog(void);
 extern void touch_softlockup_watchdog_sync(void);
 extern void touch_all_softlockup_watchdogs(void);
@@ -387,6 +388,9 @@ extern unsigned int  softlockup_panic;
 extern unsigned int  hardlockup_panic;
 void lockup_detector_init(void);
 #else
+static inline void touch_softlockup_watchdog_sched(void)
+{
+}
 static inline void touch_softlockup_watchdog(void)
 {
 }
@@ -830,6 +834,8 @@ struct user_struct {
 	unsigned long mq_bytes;	/* How many bytes can be allocated to mqueue? */
 #endif
 	unsigned long locked_shm; /* How many pages of mlocked shm ? */
+	unsigned long unix_inflight;	/* How many files in flight in unix sockets */
+	atomic_long_t pipe_bufs;  /* how many pages are allocated in pipe buffers */
 
 #ifdef CONFIG_KEYS
 	struct key *uid_keyring;	/* UID specific keyring */
@@ -1268,8 +1274,13 @@ struct sched_entity {
 #endif
 
 #ifdef CONFIG_SMP
-	/* Per entity load average tracking */
-	struct sched_avg	avg;
+	/*
+	 * Per entity load average tracking.
+	 *
+	 * Put into separate cache line so it does not
+	 * collide with read-mostly values above.
+	 */
+	struct sched_avg	avg ____cacheline_aligned_in_smp;
 #endif
 };
 
@@ -1455,19 +1466,20 @@ struct task_struct {
 	/* Used for emulating ABI behavior of previous Linux versions */
 	unsigned int personality;
 
-	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
-				 * execve */
-	unsigned in_iowait:1;
-
-	/* Revert to default priority/policy when forking */
+	/* scheduler bits, serialized by scheduler locks */
 	unsigned sched_reset_on_fork:1;
 	unsigned sched_contributes_to_load:1;
 	unsigned sched_migrated:1;
+	unsigned :0; /* force alignment to the next boundary */
+
+	/* unserialized, strictly 'current' */
+	unsigned in_execve:1; /* bit to tell LSMs we're in execve */
+	unsigned in_iowait:1;
 #ifdef CONFIG_MEMCG
 	unsigned memcg_may_oom:1;
-#endif
-#ifdef CONFIG_MEMCG_KMEM
+#ifndef CONFIG_SLOB
 	unsigned memcg_kmem_skip_account:1;
+#endif
 #endif
 #ifdef CONFIG_COMPAT_BRK
 	unsigned brk_randomized:1;
@@ -1519,11 +1531,14 @@ struct task_struct {
 	cputime_t gtime;
 	struct prev_cputime prev_cputime;
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-	seqlock_t vtime_seqlock;
+	seqcount_t vtime_seqcount;
 	unsigned long long vtime_snap;
 	enum {
-		VTIME_SLEEPING = 0,
+		/* Task is sleeping or running in a CPU with VTIME inactive */
+		VTIME_INACTIVE = 0,
+		/* Task runs in userspace in a CPU with VTIME active */
 		VTIME_USER,
+		/* Task runs in kernelspace in a CPU with VTIME active */
 		VTIME_SYS,
 	} vtime_snap_whence;
 #endif
@@ -1628,6 +1643,9 @@ struct task_struct {
 	unsigned int lockdep_recursion;
 	struct held_lock held_locks[MAX_LOCK_DEPTH];
 	gfp_t lockdep_reclaim_gfp;
+#endif
+#ifdef CONFIG_UBSAN
+	unsigned int in_ubsan;
 #endif
 
 /* journalling filesystem info */
@@ -2002,7 +2020,8 @@ static inline int pid_alive(const struct task_struct *p)
 }
 
 /**
- * is_global_init - check if a task structure is init
+ * is_global_init - check if a task structure is init. Since init
+ * is free to have sub-threads we need to check tgid.
  * @tsk: Task structure to be checked.
  *
  * Check if a task structure is the first user space task the kernel created.
@@ -2011,7 +2030,7 @@ static inline int pid_alive(const struct task_struct *p)
  */
 static inline int is_global_init(struct task_struct *tsk)
 {
-	return tsk->pid == 1;
+	return task_tgid_nr(tsk) == 1;
 }
 
 extern struct pid *cad_pid;

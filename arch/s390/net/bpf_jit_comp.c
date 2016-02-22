@@ -408,7 +408,7 @@ static void emit_load_skb_data_hlen(struct bpf_jit *jit)
  * Save registers and create stack frame if necessary.
  * See stack frame layout desription in "bpf_jit.h"!
  */
-static void bpf_jit_prologue(struct bpf_jit *jit, bool is_classic)
+static void bpf_jit_prologue(struct bpf_jit *jit)
 {
 	if (jit->seen & SEEN_TAIL_CALL) {
 		/* xc STK_OFF_TCCNT(4,%r15),STK_OFF_TCCNT(%r15) */
@@ -448,15 +448,6 @@ static void bpf_jit_prologue(struct bpf_jit *jit, bool is_classic)
 		/* stg %b1,ST_OFF_SKBP(%r0,%r15) */
 		EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0, REG_15,
 			      STK_OFF_SKBP);
-	/* Clear A (%b0) and X (%b7) registers for converted BPF programs */
-	if (is_classic) {
-		if (REG_SEEN(BPF_REG_A))
-			/* lghi %ba,0 */
-			EMIT4_IMM(0xa7090000, BPF_REG_A, 0);
-		if (REG_SEEN(BPF_REG_X))
-			/* lghi %bx,0 */
-			EMIT4_IMM(0xa7090000, BPF_REG_X, 0);
-	}
 }
 
 /*
@@ -1245,7 +1236,7 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp)
 	jit->lit = jit->lit_start;
 	jit->prg = 0;
 
-	bpf_jit_prologue(jit, bpf_prog_was_classic(fp));
+	bpf_jit_prologue(jit);
 	for (i = 0; i < fp->len; i += insn_count) {
 		insn_count = bpf_jit_insn(jit, fp, i);
 		if (insn_count < 0)

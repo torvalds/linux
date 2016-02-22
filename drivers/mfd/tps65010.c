@@ -499,11 +499,11 @@ static int tps65010_gpio_get(struct gpio_chip *chip, unsigned offset)
 	if (offset < 4) {
 		value = i2c_smbus_read_byte_data(tps->client, TPS_DEFGPIO);
 		if (value < 0)
-			return 0;
+			return value;
 		if (value & (1 << (offset + 4)))	/* output */
 			return !(value & (1 << offset));
 		else					/* input */
-			return (value & (1 << offset));
+			return !!(value & (1 << offset));
 	}
 
 	/* REVISIT we *could* report LED1/nPG and LED2 state ... */
@@ -638,7 +638,7 @@ static int tps65010_probe(struct i2c_client *client,
 		tps->outmask = board->outmask;
 
 		tps->chip.label = client->name;
-		tps->chip.dev = &client->dev;
+		tps->chip.parent = &client->dev;
 		tps->chip.owner = THIS_MODULE;
 
 		tps->chip.set = tps65010_gpio_set;

@@ -17,6 +17,7 @@
 #include <linux/key-type.h>
 #include <crypto/public_key.h>
 #include <keys/asymmetric-type.h>
+#include <keys/system_keyring.h>
 
 #include "integrity.h"
 
@@ -32,9 +33,22 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 
 	pr_debug("key search: \"%s\"\n", name);
 
+	key = get_ima_blacklist_keyring();
+	if (key) {
+		key_ref_t kref;
+
+		kref = keyring_search(make_key_ref(key, 1),
+				     &key_type_asymmetric, name);
+		if (!IS_ERR(kref)) {
+			pr_err("Key '%s' is in ima_blacklist_keyring\n", name);
+			return ERR_PTR(-EKEYREJECTED);
+		}
+	}
+
 	if (keyring) {
 		/* search in specific keyring */
 		key_ref_t kref;
+
 		kref = keyring_search(make_key_ref(keyring, 1),
 				      &key_type_asymmetric, name);
 		if (IS_ERR(kref))

@@ -9,7 +9,7 @@
  *  Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar
  *  Copyright (C) 2009 Jaswinder Singh Rajput
  *  Copyright (C) 2009 Advanced Micro Devices, Inc., Robert Richter
- *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra
  */
 
 #include <linux/perf_event.h>
@@ -1828,10 +1828,17 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 void
 perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
+	u64 saved_fault_address = current_thread_info()->fault_address;
+	u8 saved_fault_code = get_thread_fault_code();
+	mm_segment_t old_fs;
+
 	perf_callchain_store(entry, regs->tpc);
 
 	if (!current->mm)
 		return;
+
+	old_fs = get_fs();
+	set_fs(USER_DS);
 
 	flushw_user();
 
@@ -1843,4 +1850,8 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		perf_callchain_user_64(entry, regs);
 
 	pagefault_enable();
+
+	set_fs(old_fs);
+	set_thread_fault_code(saved_fault_code);
+	current_thread_info()->fault_address = saved_fault_address;
 }

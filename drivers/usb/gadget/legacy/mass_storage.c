@@ -55,7 +55,7 @@ static struct usb_device_descriptor msg_device_desc = {
 	.bLength =		sizeof msg_device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		cpu_to_le16(0x0200),
+	/* .bcdUSB = DYNAMIC */
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 
 	/* Vendor and product id can be overridden by module parameters.  */

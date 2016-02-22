@@ -39,6 +39,7 @@ config SND_OXFW
 	   * Mackie(Loud) d.2 pro/d.4 pro
 	   * Mackie(Loud) U.420/U.420d
 	   * TASCAM FireOne
+	   * Stanton Controllers & Systems 1 Deck/Mixer
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-oxfw.
@@ -52,17 +53,6 @@ config SND_ISIGHT
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-isight.
-
-config SND_SCS1X
-	tristate "Stanton Control System 1 MIDI"
-	select SND_FIREWIRE_LIB
-	help
-	  Say Y here to include support for the MIDI ports of the Stanton
-	  SCS.1d/SCS.1m DJ controllers.  (SCS.1m audio is still handled
-	  by FFADO.)
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-scs1x.
 
 config SND_FIREWORKS
 	tristate "Echo Fireworks board module support"

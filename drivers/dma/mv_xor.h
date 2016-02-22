@@ -110,7 +110,6 @@ struct mv_xor_chan {
 	void __iomem		*mmr_high_base;
 	unsigned int		idx;
 	int                     irq;
-	enum dma_transaction_type	current_type;
 	struct list_head	chain;
 	struct list_head	free_slots;
 	struct list_head	allocated_slots;
@@ -126,6 +125,7 @@ struct mv_xor_chan {
 	char			dummy_src[MV_XOR_MIN_BYTE_COUNT];
 	char			dummy_dst[MV_XOR_MIN_BYTE_COUNT];
 	dma_addr_t		dummy_src_addr, dummy_dst_addr;
+	u32                     saved_config_reg, saved_int_mask_reg;
 };
 
 /**

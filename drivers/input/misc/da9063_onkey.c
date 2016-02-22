@@ -179,13 +179,13 @@ static irqreturn_t da9063_onkey_irq_handler(int irq, void *data)
 		input_report_key(onkey->input, KEY_POWER, 1);
 		input_sync(onkey->input);
 		schedule_delayed_work(&onkey->work, 0);
-		dev_dbg(onkey->dev, "KEY_POWER pressed.\n");
+		dev_dbg(onkey->dev, "KEY_POWER long press.\n");
 	} else {
-		input_report_key(onkey->input, KEY_SLEEP, 1);
+		input_report_key(onkey->input, KEY_POWER, 1);
 		input_sync(onkey->input);
-		input_report_key(onkey->input, KEY_SLEEP, 0);
+		input_report_key(onkey->input, KEY_POWER, 0);
 		input_sync(onkey->input);
-		dev_dbg(onkey->dev, "KEY_SLEEP pressed.\n");
+		dev_dbg(onkey->dev, "KEY_POWER short press.\n");
 	}
 
 	return IRQ_HANDLED;

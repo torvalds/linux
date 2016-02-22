@@ -22,7 +22,6 @@ config DRM_DW_HDMI_AHB_AUDIO
 	  Designware HDMI block.  This is used in conjunction with
 	  the i.MX6 HDMI driver.
 
-
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"
 	depends on OF

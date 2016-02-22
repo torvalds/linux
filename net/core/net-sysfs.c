@@ -471,6 +471,7 @@ static ssize_t phys_switch_id_show(struct device *dev,
 
 	if (dev_isalive(netdev)) {
 		struct switchdev_attr attr = {
+			.orig_dev = netdev,
 			.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
 			.flags = SWITCHDEV_F_NO_RECURSE,
 		};
@@ -1452,8 +1453,8 @@ static void netdev_release(struct device *d)
 
 static const void *net_namespace(struct device *d)
 {
-	struct net_device *dev;
-	dev = container_of(d, struct net_device, dev);
+	struct net_device *dev = to_net_dev(d);
+
 	return dev_net(dev);
 }
 

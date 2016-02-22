@@ -41,7 +41,7 @@ async_sum_product(struct page *dest, struct page **srcs, unsigned char *coef,
 	u8 *a, *b, *c;
 
 	if (dma)
-		unmap = dmaengine_get_unmap_data(dma->dev, 3, GFP_NOIO);
+		unmap = dmaengine_get_unmap_data(dma->dev, 3, GFP_NOWAIT);
 
 	if (unmap) {
 		struct device *dev = dma->dev;
@@ -105,7 +105,7 @@ async_mult(struct page *dest, struct page *src, u8 coef, size_t len,
 	u8 *d, *s;
 
 	if (dma)
-		unmap = dmaengine_get_unmap_data(dma->dev, 3, GFP_NOIO);
+		unmap = dmaengine_get_unmap_data(dma->dev, 3, GFP_NOWAIT);
 
 	if (unmap) {
 		dma_addr_t dma_dest[2];

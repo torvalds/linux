@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <linux/auxvec.h>
 
 #include "trace.h"
 #include "reg.h"
@@ -324,7 +323,7 @@ bool ebb_is_supported(void)
 {
 #ifdef PPC_FEATURE2_EBB
 	/* EBB requires at least POWER8 */
-	return ((long)get_auxv_entry(AT_HWCAP2) & PPC_FEATURE2_EBB);
+	return have_hwcap2(PPC_FEATURE2_EBB);
 #else
 	return false;
 #endif

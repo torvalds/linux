@@ -12,6 +12,7 @@
  * @spbcap: SPIB capabilities pointer
  * @mlcap: MultiLink capabilities pointer
  * @gtscap: gts capabilities pointer
+ * @drsmcap: dma resume capabilities pointer
  * @hlink_list: link list of HDA links
  */
 struct hdac_ext_bus {
@@ -23,6 +24,7 @@ struct hdac_ext_bus {
 	void __iomem *spbcap;
 	void __iomem *mlcap;
 	void __iomem *gtscap;
+	void __iomem *drsmcap;
 
 	struct list_head hlink_list;
 };
@@ -72,6 +74,9 @@ enum hdac_ext_stream_type {
  * @pplc_addr: processing pipe link stream pointer
  * @spib_addr: software position in buffers stream pointer
  * @fifo_addr: software position Max fifos stream pointer
+ * @dpibr_addr: DMA position in buffer resume pointer
+ * @dpib: DMA position in buffer
+ * @lpib: Linear position in buffer
  * @decoupled: stream host and link is decoupled
  * @link_locked: link is locked
  * @link_prepared: link is prepared
@@ -86,6 +91,10 @@ struct hdac_ext_stream {
 	void __iomem *spib_addr;
 	void __iomem *fifo_addr;
 
+	void __iomem *dpibr_addr;
+
+	u32 dpib;
+	u32 lpib;
 	bool decoupled:1;
 	bool link_locked:1;
 	bool link_prepared;
@@ -116,6 +125,11 @@ int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
 				 struct hdac_ext_stream *stream, u32 value);
 int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_ext_bus *ebus,
 				 struct hdac_ext_stream *stream);
+void snd_hdac_ext_stream_drsm_enable(struct hdac_ext_bus *ebus,
+				bool enable, int index);
+int snd_hdac_ext_stream_set_dpibr(struct hdac_ext_bus *ebus,
+				struct hdac_ext_stream *stream, u32 value);
+int snd_hdac_ext_stream_set_lpib(struct hdac_ext_stream *stream, u32 value);
 
 void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hstream);
 void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hstream);
@@ -133,6 +147,7 @@ struct hdac_ext_link {
 
 int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *link);
 int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *link);
+int snd_hdac_ext_bus_link_power_up_all(struct hdac_ext_bus *ebus);
 int snd_hdac_ext_bus_link_power_down_all(struct hdac_ext_bus *ebus);
 void snd_hdac_ext_link_set_stream_id(struct hdac_ext_link *link,
 				 int stream);
@@ -186,9 +201,15 @@ struct hdac_ext_device {
 	/* codec ops */
 	struct hdac_ext_codec_ops ops;
 
+	struct snd_card *card;
+	void *scodec;
 	void *private_data;
 };
 
+struct hdac_ext_dma_params {
+	u32 format;
+	u8 stream_tag;
+};
 #define to_ehdac_device(dev) (container_of((dev), \
 				 struct hdac_ext_device, hdac))
 /*

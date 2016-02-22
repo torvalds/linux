@@ -467,7 +467,7 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 
 	etsects->irq = platform_get_irq(dev, 0);
 
-	if (etsects->irq == NO_IRQ) {
+	if (etsects->irq < 0) {
 		pr_err("irq not in device tree\n");
 		goto no_node;
 	}

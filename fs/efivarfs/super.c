@@ -118,8 +118,9 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	struct dentry *dentry, *root = sb->s_root;
 	unsigned long size = 0;
 	char *name;
-	int len, i;
+	int len;
 	int err = -ENOMEM;
+	bool is_removable = false;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -128,15 +129,17 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	memcpy(entry->var.VariableName, name16, name_size);
 	memcpy(&(entry->var.VendorGuid), &vendor, sizeof(efi_guid_t));
 
-	len = ucs2_strlen(entry->var.VariableName);
+	len = ucs2_utf8size(entry->var.VariableName);
 
 	/* name, plus '-', plus GUID, plus NUL*/
 	name = kmalloc(len + 1 + EFI_VARIABLE_GUID_LEN + 1, GFP_KERNEL);
 	if (!name)
 		goto fail;
 
-	for (i = 0; i < len; i++)
-		name[i] = entry->var.VariableName[i] & 0xFF;
+	ucs2_as_utf8(name, entry->var.VariableName, len);
+
+	if (efivar_variable_is_removable(entry->var.VendorGuid, name, len))
+		is_removable = true;
 
 	name[len] = '-';
 
@@ -144,7 +147,8 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 
 	name[len + EFI_VARIABLE_GUID_LEN+1] = '\0';
 
-	inode = efivarfs_get_inode(sb, d_inode(root), S_IFREG | 0644, 0);
+	inode = efivarfs_get_inode(sb, d_inode(root), S_IFREG | 0644, 0,
+				   is_removable);
 	if (!inode)
 		goto fail_name;
 
@@ -160,10 +164,10 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	efivar_entry_size(entry, &size);
 	efivar_entry_add(entry, &efivarfs_list);
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	inode->i_private = entry;
 	i_size_write(inode, size + sizeof(entry->var.Attributes));
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	d_add(dentry, inode);
 
 	return 0;
@@ -200,7 +204,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_d_op		= &efivarfs_d_ops;
 	sb->s_time_gran         = 1;
 
-	inode = efivarfs_get_inode(sb, NULL, S_IFDIR | 0755, 0);
+	inode = efivarfs_get_inode(sb, NULL, S_IFDIR | 0755, 0, true);
 	if (!inode)
 		return -ENOMEM;
 	inode->i_op = &efivarfs_dir_inode_operations;

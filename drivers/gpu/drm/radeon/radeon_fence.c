@@ -130,7 +130,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
 		      struct radeon_fence **fence,
 		      int ring)
 {
-	u64 seq = ++rdev->fence_drv[ring].sync_seq[ring];
+	u64 seq;
 
 	/* we are protected by the ring emission mutex */
 	*fence = kmalloc(sizeof(struct radeon_fence), GFP_KERNEL);
@@ -138,7 +138,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
 		return -ENOMEM;
 	}
 	(*fence)->rdev = rdev;
-	(*fence)->seq = seq;
+	(*fence)->seq = seq = ++rdev->fence_drv[ring].sync_seq[ring];
 	(*fence)->ring = ring;
 	(*fence)->is_vm_update = false;
 	fence_init(&(*fence)->base, &radeon_fence_ops,

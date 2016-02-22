@@ -144,17 +144,17 @@ struct knav_dma_cfg {
  * @psdata:			Protocol specific
  */
 struct knav_dma_desc {
-	u32	desc_info;
-	u32	tag_info;
-	u32	packet_info;
-	u32	buff_len;
-	u32	buff;
-	u32	next_desc;
-	u32	orig_len;
-	u32	orig_buff;
-	u32	epib[KNAV_DMA_NUM_EPIB_WORDS];
-	u32	psdata[KNAV_DMA_NUM_PS_WORDS];
-	u32	pad[4];
+	__le32	desc_info;
+	__le32	tag_info;
+	__le32	packet_info;
+	__le32	buff_len;
+	__le32	buff;
+	__le32	next_desc;
+	__le32	orig_len;
+	__le32	orig_buff;
+	__le32	epib[KNAV_DMA_NUM_EPIB_WORDS];
+	__le32	psdata[KNAV_DMA_NUM_PS_WORDS];
+	__le32	pad[4];
 } ____cacheline_aligned;
 
 #if IS_ENABLED(CONFIG_KEYSTONE_NAVIGATOR_DMA)

@@ -22,11 +22,11 @@
 #include "util/color.h"
 #include "util/debug.h"
 #include "util/evlist.h"
-#include "util/exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "util/machine.h"
 #include "util/session.h"
 #include "util/thread.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/strlist.h"
 #include "util/intlist.h"
 #include "util/thread_map.h"

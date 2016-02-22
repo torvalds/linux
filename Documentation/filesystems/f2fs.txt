@@ -102,7 +102,7 @@ background_gc=%s       Turn on/off cleaning operations, namely garbage
                        collection, triggered in background when I/O subsystem is
                        idle. If background_gc=on, it will turn on the garbage
                        collection and if background_gc=off, garbage collection
-                       will be truned off. If background_gc=sync, it will turn
+                       will be turned off. If background_gc=sync, it will turn
                        on synchronous garbage collection running in background.
                        Default value for this option is on. So garbage
                        collection is on by default.
@@ -145,10 +145,12 @@ extent_cache           Enable an extent cache based on rb-tree, it can cache
                        as many as extent which map between contiguous logical
                        address and physical address per inode, resulting in
                        increasing the cache hit ratio. Set by default.
-noextent_cache         Diable an extent cache based on rb-tree explicitly, see
+noextent_cache         Disable an extent cache based on rb-tree explicitly, see
                        the above extent_cache mount option.
 noinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
+data_flush             Enable data flushing before checkpoint in order to
+                       persist data of regular and symlink.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -192,7 +194,7 @@ Files in /sys/fs/f2fs/<devname>
                               policy for garbage collection. Setting gc_idle = 0
                               (default) will disable this option. Setting
                               gc_idle = 1 will select the Cost Benefit approach
-                              & setting gc_idle = 2 will select the greedy aproach.
+                              & setting gc_idle = 2 will select the greedy approach.
 
  reclaim_segments             This parameter controls the number of prefree
                               segments to be reclaimed. If the number of prefree
@@ -298,7 +300,7 @@ The dump.f2fs shows the information of specific inode and dumps SSA and SIT to
 file. Each file is dump_ssa and dump_sit.
 
 The dump.f2fs is used to debug on-disk data structures of the f2fs filesystem.
-It shows on-disk inode information reconized by a given inode number, and is
+It shows on-disk inode information recognized by a given inode number, and is
 able to dump all the SSA and SIT entries into predefined files, ./dump_ssa and
 ./dump_sit respectively.
 

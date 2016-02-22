@@ -33,8 +33,6 @@
 
 #include "selftest.h"
 
-#define VERSION "2.21"
-
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
 static const struct net_proto_family *bt_proto[BT_MAX_PROTO];
@@ -176,20 +174,20 @@ EXPORT_SYMBOL(bt_accept_unlink);
 
 struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 {
-	struct list_head *p, *n;
+	struct bt_sock *s, *n;
 	struct sock *sk;
 
 	BT_DBG("parent %p", parent);
 
-	list_for_each_safe(p, n, &bt_sk(parent)->accept_q) {
-		sk = (struct sock *) list_entry(p, struct bt_sock, accept_q);
+	list_for_each_entry_safe(s, n, &bt_sk(parent)->accept_q, accept_q) {
+		sk = (struct sock *)s;
 
 		lock_sock(sk);
 
 		/* FIXME: Is this check still needed */
 		if (sk->sk_state == BT_CLOSED) {
-			release_sock(sk);
 			bt_accept_unlink(sk);
+			release_sock(sk);
 			continue;
 		}
 
@@ -271,11 +269,11 @@ static long bt_sock_data_wait(struct sock *sk, long timeo)
 		if (signal_pending(current) || !timeo)
 			break;
 
-		set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		release_sock(sk);
 		timeo = schedule_timeout(timeo);
 		lock_sock(sk);
-		clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+		sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 	}
 
 	__set_current_state(TASK_RUNNING);
@@ -390,11 +388,11 @@ EXPORT_SYMBOL(bt_sock_stream_recvmsg);
 
 static inline unsigned int bt_accept_poll(struct sock *parent)
 {
-	struct list_head *p, *n;
+	struct bt_sock *s, *n;
 	struct sock *sk;
 
-	list_for_each_safe(p, n, &bt_sk(parent)->accept_q) {
-		sk = (struct sock *) list_entry(p, struct bt_sock, accept_q);
+	list_for_each_entry_safe(s, n, &bt_sk(parent)->accept_q, accept_q) {
+		sk = (struct sock *)s;
 		if (sk->sk_state == BT_CONNECTED ||
 		    (test_bit(BT_SK_DEFER_SETUP, &bt_sk(parent)->flags) &&
 		     sk->sk_state == BT_CONNECT2))
@@ -441,7 +439,7 @@ unsigned int bt_sock_poll(struct file *file, struct socket *sock,
 	if (!test_bit(BT_SK_SUSPEND, &bt_sk(sk)->flags) && sock_writeable(sk))
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 	else
-		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 	return mask;
 }
@@ -671,7 +669,7 @@ static const struct file_operations bt_fops = {
 };
 
 int bt_procfs_init(struct net *net, const char *name,
-		   struct bt_sock_list* sk_list,
+		   struct bt_sock_list *sk_list,
 		   int (* seq_show)(struct seq_file *, void *))
 {
 	sk_list->custom_seq_show = seq_show;
@@ -687,7 +685,7 @@ void bt_procfs_cleanup(struct net *net, const char *name)
 }
 #else
 int bt_procfs_init(struct net *net, const char *name,
-		   struct bt_sock_list* sk_list,
+		   struct bt_sock_list *sk_list,
 		   int (* seq_show)(struct seq_file *, void *))
 {
 	return 0;
@@ -715,7 +713,7 @@ static int __init bt_init(void)
 
 	sock_skb_cb_check_size(sizeof(struct bt_skb_cb));
 
-	BT_INFO("Core ver %s", VERSION);
+	BT_INFO("Core ver %s", BT_SUBSYS_VERSION);
 
 	err = bt_selftest();
 	if (err < 0)
@@ -789,7 +787,7 @@ subsys_initcall(bt_init);
 module_exit(bt_exit);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
-MODULE_DESCRIPTION("Bluetooth Core ver " VERSION);
-MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Bluetooth Core ver " BT_SUBSYS_VERSION);
+MODULE_VERSION(BT_SUBSYS_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_BLUETOOTH);

@@ -53,11 +53,15 @@ enum dma_event_q {
 #define EDMA_CTLR(i)			((i) >> 16)
 #define EDMA_CHAN_SLOT(i)		((i) & 0xffff)
 
+#define EDMA_FILTER_PARAM(ctlr, chan)	((int[]) { EDMA_CTLR_CHAN(ctlr, chan) })
+
 struct edma_rsv_info {
 
 	const s16	(*rsv_chans)[2];
 	const s16	(*rsv_slots)[2];
 };
+
+struct dma_slave_map;
 
 /* platform_data for EDMA driver */
 struct edma_soc_info {
@@ -72,10 +76,13 @@ struct edma_soc_info {
 	struct edma_rsv_info	*rsv;
 
 	/* List of channels allocated for memcpy, terminated with -1 */
-	s16			*memcpy_channels;
+	s32			*memcpy_channels;
 
 	s8	(*queue_priority_mapping)[2];
 	const s16	(*xbar_chans)[2];
+
+	const struct dma_slave_map *slave_map;
+	int slavecnt;
 };
 
 #endif

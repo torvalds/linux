@@ -59,11 +59,13 @@ __drm_gem_cma_create(struct drm_device *drm, size_t size)
 	struct drm_gem_object *gem_obj;
 	int ret;
 
-	cma_obj = kzalloc(sizeof(*cma_obj), GFP_KERNEL);
-	if (!cma_obj)
+	if (drm->driver->gem_create_object)
+		gem_obj = drm->driver->gem_create_object(drm, size);
+	else
+		gem_obj = kzalloc(sizeof(*cma_obj), GFP_KERNEL);
+	if (!gem_obj)
 		return ERR_PTR(-ENOMEM);
-
-	gem_obj = &cma_obj->base;
+	cma_obj = container_of(gem_obj, struct drm_gem_cma_object, base);
 
 	ret = drm_gem_object_init(drm, gem_obj, size);
 	if (ret)
@@ -119,7 +121,7 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	return cma_obj;
 
 error:
-	drm_gem_cma_free_object(&cma_obj->base);
+	drm->driver->gem_free_object(&cma_obj->base);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_create);
@@ -169,7 +171,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 	return cma_obj;
 
 err_handle_create:
-	drm_gem_cma_free_object(gem_obj);
+	drm->driver->gem_free_object(gem_obj);
 
 	return ERR_PTR(ret);
 }

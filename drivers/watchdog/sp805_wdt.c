@@ -139,12 +139,11 @@ static int wdt_config(struct watchdog_device *wdd, bool ping)
 
 	writel_relaxed(UNLOCK, wdt->base + WDTLOCK);
 	writel_relaxed(wdt->load_val, wdt->base + WDTLOAD);
+	writel_relaxed(INT_MASK, wdt->base + WDTINTCLR);
 
-	if (!ping) {
-		writel_relaxed(INT_MASK, wdt->base + WDTINTCLR);
+	if (!ping)
 		writel_relaxed(INT_ENABLE | RESET_ENABLE, wdt->base +
 				WDTCONTROL);
-	}
 
 	writel_relaxed(LOCK, wdt->base + WDTLOCK);
 

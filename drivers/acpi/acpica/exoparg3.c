@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,10 +95,11 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 	case AML_FATAL_OP:	/* Fatal (fatal_type fatal_code fatal_arg) */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "FatalOp: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
-				  (u32) operand[0]->integer.value,
-				  (u32) operand[1]->integer.value,
-				  (u32) operand[2]->integer.value));
+				  "FatalOp: Type %X Code %X Arg %X "
+				  "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+				  (u32)operand[0]->integer.value,
+				  (u32)operand[1]->integer.value,
+				  (u32)operand[2]->integer.value));
 
 		fatal = ACPI_ALLOCATE(sizeof(struct acpi_signal_fatal_info));
 		if (fatal) {
@@ -131,6 +132,7 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 
 		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
+
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -193,7 +195,8 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 		/* Truncate request if larger than the actual String/Buffer */
 
 		else if ((index + length) > operand[0]->string.length) {
-			length = (acpi_size) operand[0]->string.length -
+			length =
+			    (acpi_size) operand[0]->string.length -
 			    (acpi_size) index;
 		}
 
@@ -237,8 +240,8 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 			/* We have a buffer, copy the portion requested */
 
-			memcpy(buffer, operand[0]->string.pointer + index,
-			       length);
+			memcpy(buffer,
+			       operand[0]->string.pointer + index, length);
 		}
 
 		/* Set the length of the new String/Buffer */
@@ -255,6 +258,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
+
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -270,12 +274,11 @@ cleanup:
 	if (ACPI_FAILURE(status) || walk_state->result_obj) {
 		acpi_ut_remove_reference(return_desc);
 		walk_state->result_obj = NULL;
-	}
+	} else {
+		/* Set the return object and exit */
 
-	/* Set the return object and exit */
-
-	else {
 		walk_state->result_obj = return_desc;
 	}
+
 	return_ACPI_STATUS(status);
 }

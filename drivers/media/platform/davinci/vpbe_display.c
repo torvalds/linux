@@ -74,7 +74,7 @@ static void vpbe_isr_even_field(struct vpbe_display *disp_obj,
 	if (layer->cur_frm == layer->next_frm)
 		return;
 
-	v4l2_get_timestamp(&layer->cur_frm->vb.timestamp);
+	layer->cur_frm->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&layer->cur_frm->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	/* Make cur_frm pointing to next_frm */
 	layer->cur_frm = layer->next_frm;
@@ -228,28 +228,27 @@ static int vpbe_buffer_prepare(struct vb2_buffer *vb)
  * This function allocates memory for the buffers
  */
 static int
-vpbe_buffer_queue_setup(struct vb2_queue *vq, const void *parg,
+vpbe_buffer_queue_setup(struct vb2_queue *vq,
 			unsigned int *nbuffers, unsigned int *nplanes,
 			unsigned int sizes[], void *alloc_ctxs[])
 
 {
-	const struct v4l2_format *fmt = parg;
 	/* Get the file handle object and layer object */
 	struct vpbe_layer *layer = vb2_get_drv_priv(vq);
 	struct vpbe_device *vpbe_dev = layer->disp_dev->vpbe_dev;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_buffer_setup\n");
 
-	if (fmt && fmt->fmt.pix.sizeimage < layer->pix_fmt.sizeimage)
-		return -EINVAL;
-
 	/* Store number of buffers allocated in numbuffer member */
 	if (vq->num_buffers + *nbuffers < VPBE_DEFAULT_NUM_BUFS)
 		*nbuffers = VPBE_DEFAULT_NUM_BUFS - vq->num_buffers;
+	alloc_ctxs[0] = layer->alloc_ctx;
+
+	if (*nplanes)
+		return sizes[0] < layer->pix_fmt.sizeimage ? -EINVAL : 0;
 
 	*nplanes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : layer->pix_fmt.sizeimage;
-	alloc_ctxs[0] = layer->alloc_ctx;
+	sizes[0] = layer->pix_fmt.sizeimage;
 
 	return 0;
 }

@@ -476,41 +476,22 @@ static irqreturn_t qed_single_int(int irq, void *dev_instance)
 	return rc;
 }
 
-static int qed_slowpath_irq_req(struct qed_dev *cdev)
+int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 {
-	int i = 0, rc = 0;
+	struct qed_dev *cdev = hwfn->cdev;
+	int rc = 0;
+	u8 id;
 
 	if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
-		/* Request all the slowpath MSI-X vectors */
-		for (i = 0; i < cdev->num_hwfns; i++) {
-			snprintf(cdev->hwfns[i].name, NAME_SIZE,
-				 "sp-%d-%02x:%02x.%02x",
-				 i, cdev->pdev->bus->number,
-				 PCI_SLOT(cdev->pdev->devfn),
-				 cdev->hwfns[i].abs_pf_id);
-
-			rc = request_irq(cdev->int_params.msix_table[i].vector,
-					 qed_msix_sp_int, 0,
-					 cdev->hwfns[i].name,
-					 cdev->hwfns[i].sp_dpc);
-			if (rc)
-				break;
-
-			DP_VERBOSE(&cdev->hwfns[i],
-				   (NETIF_MSG_INTR | QED_MSG_SP),
+		id = hwfn->my_id;
+		snprintf(hwfn->name, NAME_SIZE, "sp-%d-%02x:%02x.%02x",
+			 id, cdev->pdev->bus->number,
+			 PCI_SLOT(cdev->pdev->devfn), hwfn->abs_pf_id);
+		rc = request_irq(cdev->int_params.msix_table[id].vector,
+				 qed_msix_sp_int, 0, hwfn->name, hwfn->sp_dpc);
+		if (!rc)
+			DP_VERBOSE(hwfn, (NETIF_MSG_INTR | QED_MSG_SP),
 				   "Requested slowpath MSI-X\n");
-		}
-
-		if (i != cdev->num_hwfns) {
-			/* Free already request MSI-X vectors */
-			for (i--; i >= 0; i--) {
-				unsigned int vec =
-					cdev->int_params.msix_table[i].vector;
-				synchronize_irq(vec);
-				free_irq(cdev->int_params.msix_table[i].vector,
-					 cdev->hwfns[i].sp_dpc);
-			}
-		}
 	} else {
 		unsigned long flags = 0;
 
@@ -534,13 +515,17 @@ static void qed_slowpath_irq_free(struct qed_dev *cdev)
 
 	if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
 		for_each_hwfn(cdev, i) {
+			if (!cdev->hwfns[i].b_int_requested)
+				break;
 			synchronize_irq(cdev->int_params.msix_table[i].vector);
 			free_irq(cdev->int_params.msix_table[i].vector,
 				 cdev->hwfns[i].sp_dpc);
 		}
 	} else {
-		free_irq(cdev->pdev->irq, cdev);
+		if (QED_LEADING_HWFN(cdev)->b_int_requested)
+			free_irq(cdev->pdev->irq, cdev);
 	}
+	qed_int_disable_post_isr_release(cdev);
 }
 
 static int qed_nic_stop(struct qed_dev *cdev)
@@ -765,16 +750,11 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	if (rc)
 		goto err1;
 
-	/* Request the slowpath IRQ */
-	rc = qed_slowpath_irq_req(cdev);
-	if (rc)
-		goto err2;
-
 	/* Allocate stream for unzipping */
 	rc = qed_alloc_stream_mem(cdev);
 	if (rc) {
 		DP_NOTICE(cdev, "Failed to allocate stream memory\n");
-		goto err3;
+		goto err2;
 	}
 
 	/* Start the slowpath */
@@ -1135,6 +1115,23 @@ static int qed_drain(struct qed_dev *cdev)
 	return 0;
 }
 
+static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_set_led(hwfn, ptt, mode);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return status;
+}
+
 const struct qed_common_ops qed_common_ops_pass = {
 	.probe = &qed_probe,
 	.remove = &qed_remove,
@@ -1155,6 +1152,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.update_msglvl = &qed_init_dp,
 	.chain_alloc = &qed_chain_alloc,
 	.chain_free = &qed_chain_free,
+	.set_led = &qed_set_led,
 };
 
 u32 qed_get_protocol_version(enum qed_protocol protocol)

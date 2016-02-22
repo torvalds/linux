@@ -22,6 +22,7 @@
 #include <mach/map.h>
 #include <mach/irqs.h>
 
+#include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 #include <plat/wakeup-mask.h>
@@ -332,6 +333,9 @@ int __init s3c64xx_pm_init(void)
 
 static __init int s3c64xx_pm_initcall(void)
 {
+	if (!soc_is_s3c64xx())
+		return 0;
+
 	pm_cpu_prep = s3c64xx_pm_prepare;
 	pm_cpu_sleep = s3c64xx_cpu_suspend;
 

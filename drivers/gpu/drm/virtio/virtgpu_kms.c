@@ -130,7 +130,7 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 	static vq_callback_t *callbacks[] = {
 		virtio_gpu_ctrl_ack, virtio_gpu_cursor_ack
 	};
-	static const char *names[] = { "control", "cursor" };
+	static const char * const names[] = { "control", "cursor" };
 
 	struct virtio_gpu_device *vgdev;
 	/* this will expand later */

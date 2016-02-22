@@ -19,7 +19,7 @@
 #define TRACE_INCLUDE_PATH asm/trace
 #define TRACE_INCLUDE_FILE diag
 
-TRACE_EVENT(diagnose,
+TRACE_EVENT(s390_diagnose,
 	TP_PROTO(unsigned short nr),
 	TP_ARGS(nr),
 	TP_STRUCT__entry(
@@ -32,9 +32,9 @@ TRACE_EVENT(diagnose,
 );
 
 #ifdef CONFIG_TRACEPOINTS
-void trace_diagnose_norecursion(int diag_nr);
+void trace_s390_diagnose_norecursion(int diag_nr);
 #else
-static inline void trace_diagnose_norecursion(int diag_nr) { }
+static inline void trace_s390_diagnose_norecursion(int diag_nr) { }
 #endif
 
 #endif /* _TRACE_S390_DIAG_H */

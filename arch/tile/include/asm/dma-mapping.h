@@ -73,37 +73,7 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 }
 
 #define HAVE_ARCH_DMA_SET_MASK 1
-
-#include <asm-generic/dma-mapping-common.h>
-
-static inline int
-dma_set_mask(struct device *dev, u64 mask)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	/*
-	 * For PCI devices with 64-bit DMA addressing capability, promote
-	 * the dma_ops to hybrid, with the consistent memory DMA space limited
-	 * to 32-bit. For 32-bit capable devices, limit the streaming DMA
-	 * address range to max_direct_dma_addr.
-	 */
-	if (dma_ops == gx_pci_dma_map_ops ||
-	    dma_ops == gx_hybrid_pci_dma_map_ops ||
-	    dma_ops == gx_legacy_pci_dma_map_ops) {
-		if (mask == DMA_BIT_MASK(64) &&
-		    dma_ops == gx_legacy_pci_dma_map_ops)
-			set_dma_ops(dev, gx_hybrid_pci_dma_map_ops);
-		else if (mask > dev->archdata.max_direct_dma_addr)
-			mask = dev->archdata.max_direct_dma_addr;
-	}
-
-	if (!dev->dma_mask || !dma_supported(dev, mask))
-		return -EIO;
-
-	*dev->dma_mask = mask;
-
-	return 0;
-}
+int dma_set_mask(struct device *dev, u64 mask);
 
 /*
  * dma_alloc_noncoherent() is #defined to return coherent memory,

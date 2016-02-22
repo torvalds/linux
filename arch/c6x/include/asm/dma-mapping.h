@@ -12,104 +12,22 @@
 #ifndef _ASM_C6X_DMA_MAPPING_H
 #define _ASM_C6X_DMA_MAPPING_H
 
-#include <linux/dma-debug.h>
-#include <asm-generic/dma-coherent.h>
-
-#define dma_supported(d, m)	1
-
-static inline void dma_sync_single_range_for_device(struct device *dev,
-						    dma_addr_t addr,
-						    unsigned long offset,
-						    size_t size,
-						    enum dma_data_direction dir)
-{
-}
-
-static inline int dma_set_mask(struct device *dev, u64 dma_mask)
-{
-	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
-		return -EIO;
-
-	*dev->dma_mask = dma_mask;
-
-	return 0;
-}
-
 /*
  * DMA errors are defined by all-bits-set in the DMA address.
  */
-static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+#define DMA_ERROR_CODE ~0
+
+extern struct dma_map_ops c6x_dma_ops;
+
+static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
-	debug_dma_mapping_error(dev, dma_addr);
-	return dma_addr == ~0;
+	return &c6x_dma_ops;
 }
-
-extern dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
-				 size_t size, enum dma_data_direction dir);
-
-extern void dma_unmap_single(struct device *dev, dma_addr_t handle,
-			     size_t size, enum dma_data_direction dir);
-
-extern int dma_map_sg(struct device *dev, struct scatterlist *sglist,
-		      int nents, enum dma_data_direction direction);
-
-extern void dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
-			 int nents, enum dma_data_direction direction);
-
-static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
-				      unsigned long offset, size_t size,
-				      enum dma_data_direction dir)
-{
-	dma_addr_t handle;
-
-	handle = dma_map_single(dev, page_address(page) + offset, size, dir);
-
-	debug_dma_map_page(dev, page, offset, size, dir, handle, false);
-
-	return handle;
-}
-
-static inline void dma_unmap_page(struct device *dev, dma_addr_t handle,
-		size_t size, enum dma_data_direction dir)
-{
-	dma_unmap_single(dev, handle, size, dir);
-
-	debug_dma_unmap_page(dev, handle, size, dir, false);
-}
-
-extern void dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle,
-				    size_t size, enum dma_data_direction dir);
-
-extern void dma_sync_single_for_device(struct device *dev, dma_addr_t handle,
-				       size_t size,
-				       enum dma_data_direction dir);
-
-extern void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
-				int nents, enum dma_data_direction dir);
-
-extern void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
-				   int nents, enum dma_data_direction dir);
 
 extern void coherent_mem_init(u32 start, u32 size);
-extern void *dma_alloc_coherent(struct device *, size_t, dma_addr_t *, gfp_t);
-extern void dma_free_coherent(struct device *, size_t, void *, dma_addr_t);
-
-#define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent((d), (s), (h), (f))
-#define dma_free_noncoherent(d, s, v, h)  dma_free_coherent((d), (s), (v), (h))
-
-/* Not supported for now */
-static inline int dma_mmap_coherent(struct device *dev,
-				    struct vm_area_struct *vma, void *cpu_addr,
-				    dma_addr_t dma_addr, size_t size)
-{
-	return -EINVAL;
-}
-
-static inline int dma_get_sgtable(struct device *dev, struct sg_table *sgt,
-				  void *cpu_addr, dma_addr_t dma_addr,
-				  size_t size)
-{
-	return -EINVAL;
-}
+void *c6x_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+		gfp_t gfp, struct dma_attrs *attrs);
+void c6x_dma_free(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_handle, struct dma_attrs *attrs);
 
 #endif	/* _ASM_C6X_DMA_MAPPING_H */

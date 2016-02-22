@@ -321,6 +321,8 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 			goto error_free_cert;
 	} else if (!prep->trusted) {
 		ret = x509_validate_trust(cert, get_system_trusted_keyring());
+		if (ret)
+			ret = x509_validate_trust(cert, get_ima_mok_keyring());
 		if (!ret)
 			prep->trusted = 1;
 	}

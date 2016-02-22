@@ -122,44 +122,34 @@ void rds_ib_dev_put(struct rds_ib_device *rds_ibdev)
 static void rds_ib_add_one(struct ib_device *device)
 {
 	struct rds_ib_device *rds_ibdev;
-	struct ib_device_attr *dev_attr;
 
 	/* Only handle IB (no iWARP) devices */
 	if (device->node_type != RDMA_NODE_IB_CA)
 		return;
 
-	dev_attr = kmalloc(sizeof *dev_attr, GFP_KERNEL);
-	if (!dev_attr)
-		return;
-
-	if (ib_query_device(device, dev_attr)) {
-		rdsdebug("Query device failed for %s\n", device->name);
-		goto free_attr;
-	}
-
 	rds_ibdev = kzalloc_node(sizeof(struct rds_ib_device), GFP_KERNEL,
 				 ibdev_to_node(device));
 	if (!rds_ibdev)
-		goto free_attr;
+		return;
 
 	spin_lock_init(&rds_ibdev->spinlock);
 	atomic_set(&rds_ibdev->refcount, 1);
 	INIT_WORK(&rds_ibdev->free_work, rds_ib_dev_free);
 
-	rds_ibdev->max_wrs = dev_attr->max_qp_wr;
-	rds_ibdev->max_sge = min(dev_attr->max_sge, RDS_IB_MAX_SGE);
+	rds_ibdev->max_wrs = device->attrs.max_qp_wr;
+	rds_ibdev->max_sge = min(device->attrs.max_sge, RDS_IB_MAX_SGE);
 
-	rds_ibdev->fmr_max_remaps = dev_attr->max_map_per_fmr?: 32;
-	rds_ibdev->max_1m_fmrs = dev_attr->max_mr ?
-		min_t(unsigned int, (dev_attr->max_mr / 2),
+	rds_ibdev->fmr_max_remaps = device->attrs.max_map_per_fmr?: 32;
+	rds_ibdev->max_1m_fmrs = device->attrs.max_mr ?
+		min_t(unsigned int, (device->attrs.max_mr / 2),
 		      rds_ib_fmr_1m_pool_size) : rds_ib_fmr_1m_pool_size;
 
-	rds_ibdev->max_8k_fmrs = dev_attr->max_mr ?
-		min_t(unsigned int, ((dev_attr->max_mr / 2) * RDS_MR_8K_SCALE),
+	rds_ibdev->max_8k_fmrs = device->attrs.max_mr ?
+		min_t(unsigned int, ((device->attrs.max_mr / 2) * RDS_MR_8K_SCALE),
 		      rds_ib_fmr_8k_pool_size) : rds_ib_fmr_8k_pool_size;
 
-	rds_ibdev->max_initiator_depth = dev_attr->max_qp_init_rd_atom;
-	rds_ibdev->max_responder_resources = dev_attr->max_qp_rd_atom;
+	rds_ibdev->max_initiator_depth = device->attrs.max_qp_init_rd_atom;
+	rds_ibdev->max_responder_resources = device->attrs.max_qp_rd_atom;
 
 	rds_ibdev->dev = device;
 	rds_ibdev->pd = ib_alloc_pd(device);
@@ -183,7 +173,7 @@ static void rds_ib_add_one(struct ib_device *device)
 	}
 
 	rdsdebug("RDS/IB: max_mr = %d, max_wrs = %d, max_sge = %d, fmr_max_remaps = %d, max_1m_fmrs = %d, max_8k_fmrs = %d\n",
-		 dev_attr->max_fmr, rds_ibdev->max_wrs, rds_ibdev->max_sge,
+		 device->attrs.max_fmr, rds_ibdev->max_wrs, rds_ibdev->max_sge,
 		 rds_ibdev->fmr_max_remaps, rds_ibdev->max_1m_fmrs,
 		 rds_ibdev->max_8k_fmrs);
 
@@ -202,8 +192,6 @@ static void rds_ib_add_one(struct ib_device *device)
 
 put_dev:
 	rds_ib_dev_put(rds_ibdev);
-free_attr:
-	kfree(dev_attr);
 }
 
 /*

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -221,14 +221,13 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
 		ACPI_MOVE_16_TO_16(&aml->large_header.resource_length,
 				   &resource_length);
 	} else {
-		/* Small descriptor -- bits 2:0 of byte 0 contain the length */
-
+		/*
+		 * Small descriptor -- bits 2:0 of byte 0 contain the length
+		 * Clear any existing length, preserving descriptor type bits
+		 */
 		aml->small_header.descriptor_type = (u8)
-
-		    /* Clear any existing length, preserving descriptor type bits */
-		    ((aml->small_header.
-		      descriptor_type & ~ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK)
-
+		    ((aml->small_header.descriptor_type &
+		      ~ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK)
 		     | resource_length);
 	}
 }
@@ -333,8 +332,8 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 	aml_resource_source = ACPI_ADD_PTR(u8, aml, minimum_length);
 
 	/*
-	 * resource_source is present if the length of the descriptor is longer than
-	 * the minimum length.
+	 * resource_source is present if the length of the descriptor is longer
+	 * than the minimum length.
 	 *
 	 * Note: Some resource descriptors will have an additional null, so
 	 * we add 1 to the minimum length.
@@ -366,6 +365,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		total_length =
 		    (u32)strlen(ACPI_CAST_PTR(char, &aml_resource_source[1])) +
 		    1;
+
 		total_length = (u32)ACPI_ROUND_UP_TO_NATIVE_WORD(total_length);
 
 		memset(resource_source->string_ptr, 0, total_length);
@@ -438,8 +438,8 @@ acpi_rs_set_resource_source(union aml_resource * aml,
 		 * Add the length of the string (+ 1 for null terminator) to the
 		 * final descriptor length
 		 */
-		descriptor_length +=
-		    ((acpi_rsdesc_size) resource_source->string_length + 1);
+		descriptor_length += ((acpi_rsdesc_size)
+				      resource_source->string_length + 1);
 	}
 
 	/* Return the new total length of the AML descriptor */
@@ -478,8 +478,9 @@ acpi_rs_get_prt_method_data(struct acpi_namespace_node * node,
 
 	/* Execute the method, no parameters */
 
-	status = acpi_ut_evaluate_object(node, METHOD_NAME__PRT,
-					 ACPI_BTYPE_PACKAGE, &obj_desc);
+	status =
+	    acpi_ut_evaluate_object(node, METHOD_NAME__PRT, ACPI_BTYPE_PACKAGE,
+				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -527,8 +528,9 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
 
 	/* Execute the method, no parameters */
 
-	status = acpi_ut_evaluate_object(node, METHOD_NAME__CRS,
-					 ACPI_BTYPE_BUFFER, &obj_desc);
+	status =
+	    acpi_ut_evaluate_object(node, METHOD_NAME__CRS, ACPI_BTYPE_BUFFER,
+				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -577,8 +579,9 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 
 	/* Execute the method, no parameters */
 
-	status = acpi_ut_evaluate_object(node, METHOD_NAME__PRS,
-					 ACPI_BTYPE_BUFFER, &obj_desc);
+	status =
+	    acpi_ut_evaluate_object(node, METHOD_NAME__PRS, ACPI_BTYPE_BUFFER,
+				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -627,8 +630,9 @@ acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
 
 	/* Execute the method, no parameters */
 
-	status = acpi_ut_evaluate_object(node, METHOD_NAME__AEI,
-					 ACPI_BTYPE_BUFFER, &obj_desc);
+	status =
+	    acpi_ut_evaluate_object(node, METHOD_NAME__AEI, ACPI_BTYPE_BUFFER,
+				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

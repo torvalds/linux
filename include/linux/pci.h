@@ -412,9 +412,18 @@ struct pci_host_bridge {
 	void (*release_fn)(struct pci_host_bridge *);
 	void *release_data;
 	unsigned int ignore_reset_delay:1;	/* for entire hierarchy */
+	/* Resource alignment requirements */
+	resource_size_t (*align_resource)(struct pci_dev *dev,
+			const struct resource *res,
+			resource_size_t start,
+			resource_size_t size,
+			resource_size_t align);
 };
 
 #define	to_pci_host_bridge(n) container_of(n, struct pci_host_bridge, dev)
+
+struct pci_host_bridge *pci_find_host_bridge(struct pci_bus *bus);
+
 void pci_set_host_bridge_release(struct pci_host_bridge *bridge,
 		     void (*release_fn)(struct pci_host_bridge *),
 		     void *release_data);
@@ -1248,8 +1257,6 @@ struct msix_entry {
 	u16	entry;	/* driver uses to specify entry, OS writes */
 };
 
-void pci_msi_setup_pci_dev(struct pci_dev *dev);
-
 #ifdef CONFIG_PCI_MSI
 int pci_msi_vec_count(struct pci_dev *dev);
 void pci_msi_shutdown(struct pci_dev *dev);
@@ -1936,6 +1943,16 @@ pci_device_to_OF_node(const struct pci_dev *pdev) { return NULL; }
 static inline struct irq_domain *
 pci_host_bridge_of_msi_domain(struct pci_bus *bus) { return NULL; }
 #endif  /* CONFIG_OF */
+
+#ifdef CONFIG_ACPI
+struct irq_domain *pci_host_bridge_acpi_msi_domain(struct pci_bus *bus);
+
+void
+pci_msi_register_fwnode_provider(struct fwnode_handle *(*fn)(struct device *));
+#else
+static inline struct irq_domain *
+pci_host_bridge_acpi_msi_domain(struct pci_bus *bus) { return NULL; }
+#endif
 
 #ifdef CONFIG_EEH
 static inline struct eeh_dev *pci_dev_to_eeh_dev(struct pci_dev *pdev)

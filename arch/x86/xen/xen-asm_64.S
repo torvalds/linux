@@ -68,25 +68,6 @@ ENTRY(xen_sysret64)
 ENDPATCH(xen_sysret64)
 RELOC(xen_sysret64, 1b+1)
 
-ENTRY(xen_sysret32)
-	/*
-	 * We're already on the usermode stack at this point, but
-	 * still with the kernel gs, so we can easily switch back
-	 */
-	movq %rsp, PER_CPU_VAR(rsp_scratch)
-	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
-
-	pushq $__USER32_DS
-	pushq PER_CPU_VAR(rsp_scratch)
-	pushq %r11
-	pushq $__USER32_CS
-	pushq %rcx
-
-	pushq $0
-1:	jmp hypercall_iret
-ENDPATCH(xen_sysret32)
-RELOC(xen_sysret32, 1b+1)
-
 /*
  * Xen handles syscall callbacks much like ordinary exceptions, which
  * means we have:

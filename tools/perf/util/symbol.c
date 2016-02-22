@@ -39,6 +39,7 @@ struct symbol_conf symbol_conf = {
 	.cumulate_callchain	= true,
 	.show_hist_headers	= true,
 	.symfs			= "",
+	.event_group		= true,
 };
 
 static enum dso_binary_type binary_type_symtab[] = {
@@ -654,18 +655,23 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 	struct map_groups *kmaps = map__kmaps(map);
 	struct map *curr_map;
 	struct symbol *pos;
-	int count = 0, moved = 0;
+	int count = 0;
+	struct rb_root old_root = dso->symbols[map->type];
 	struct rb_root *root = &dso->symbols[map->type];
 	struct rb_node *next = rb_first(root);
 
 	if (!kmaps)
 		return -1;
 
+	*root = RB_ROOT;
+
 	while (next) {
 		char *module;
 
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
+
+		rb_erase_init(&pos->rb_node, &old_root);
 
 		module = strchr(pos->name, '\t');
 		if (module)
@@ -674,28 +680,21 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 		curr_map = map_groups__find(kmaps, map->type, pos->start);
 
 		if (!curr_map || (filter && filter(curr_map, pos))) {
-			rb_erase_init(&pos->rb_node, root);
 			symbol__delete(pos);
-		} else {
-			pos->start -= curr_map->start - curr_map->pgoff;
-			if (pos->end)
-				pos->end -= curr_map->start - curr_map->pgoff;
-			if (curr_map->dso != map->dso) {
-				rb_erase_init(&pos->rb_node, root);
-				symbols__insert(
-					&curr_map->dso->symbols[curr_map->type],
-					pos);
-				++moved;
-			} else {
-				++count;
-			}
+			continue;
 		}
+
+		pos->start -= curr_map->start - curr_map->pgoff;
+		if (pos->end)
+			pos->end -= curr_map->start - curr_map->pgoff;
+		symbols__insert(&curr_map->dso->symbols[curr_map->type], pos);
+		++count;
 	}
 
 	/* Symbols have been adjusted */
 	dso->adjust_symbols = 1;
 
-	return count + moved;
+	return count;
 }
 
 /*
@@ -1438,9 +1437,9 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		if (lstat(dso->name, &st) < 0)
 			goto out;
 
-		if (st.st_uid && (st.st_uid != geteuid())) {
+		if (!symbol_conf.force && st.st_uid && (st.st_uid != geteuid())) {
 			pr_warning("File %s not owned by current user or root, "
-				"ignoring it.\n", dso->name);
+				   "ignoring it (use -f to override).\n", dso->name);
 			goto out;
 		}
 
@@ -1467,7 +1466,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	 * Read the build id if possible. This is required for
 	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work
 	 */
-	if (filename__read_build_id(dso->name, build_id, BUILD_ID_SIZE) > 0)
+	if (filename__read_build_id(dso->long_name, build_id, BUILD_ID_SIZE) > 0)
 		dso__set_build_id(dso, build_id);
 
 	/*
@@ -1862,24 +1861,44 @@ static void vmlinux_path__exit(void)
 	zfree(&vmlinux_path);
 }
 
+static const char * const vmlinux_paths[] = {
+	"vmlinux",
+	"/boot/vmlinux"
+};
+
+static const char * const vmlinux_paths_upd[] = {
+	"/boot/vmlinux-%s",
+	"/usr/lib/debug/boot/vmlinux-%s",
+	"/lib/modules/%s/build/vmlinux",
+	"/usr/lib/debug/lib/modules/%s/vmlinux",
+	"/usr/lib/debug/boot/vmlinux-%s.debug"
+};
+
+static int vmlinux_path__add(const char *new_entry)
+{
+	vmlinux_path[vmlinux_path__nr_entries] = strdup(new_entry);
+	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
+		return -1;
+	++vmlinux_path__nr_entries;
+
+	return 0;
+}
+
 static int vmlinux_path__init(struct perf_env *env)
 {
 	struct utsname uts;
 	char bf[PATH_MAX];
 	char *kernel_version;
+	unsigned int i;
 
-	vmlinux_path = malloc(sizeof(char *) * 6);
+	vmlinux_path = malloc(sizeof(char *) * (ARRAY_SIZE(vmlinux_paths) +
+			      ARRAY_SIZE(vmlinux_paths_upd)));
 	if (vmlinux_path == NULL)
 		return -1;
 
-	vmlinux_path[vmlinux_path__nr_entries] = strdup("vmlinux");
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
-	vmlinux_path[vmlinux_path__nr_entries] = strdup("/boot/vmlinux");
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
+	for (i = 0; i < ARRAY_SIZE(vmlinux_paths); i++)
+		if (vmlinux_path__add(vmlinux_paths[i]) < 0)
+			goto out_fail;
 
 	/* only try kernel version if no symfs was given */
 	if (symbol_conf.symfs[0] != 0)
@@ -1894,28 +1913,11 @@ static int vmlinux_path__init(struct perf_env *env)
 		kernel_version = uts.release;
 	}
 
-	snprintf(bf, sizeof(bf), "/boot/vmlinux-%s", kernel_version);
-	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
-	snprintf(bf, sizeof(bf), "/usr/lib/debug/boot/vmlinux-%s",
-		 kernel_version);
-	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-        ++vmlinux_path__nr_entries;
-	snprintf(bf, sizeof(bf), "/lib/modules/%s/build/vmlinux", kernel_version);
-	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
-	snprintf(bf, sizeof(bf), "/usr/lib/debug/lib/modules/%s/vmlinux",
-		 kernel_version);
-	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
+	for (i = 0; i < ARRAY_SIZE(vmlinux_paths_upd); i++) {
+		snprintf(bf, sizeof(bf), vmlinux_paths_upd[i], kernel_version);
+		if (vmlinux_path__add(bf) < 0)
+			goto out_fail;
+	}
 
 	return 0;
 

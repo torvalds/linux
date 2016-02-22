@@ -40,7 +40,7 @@ int amdgpu_semaphore_create(struct amdgpu_device *adev,
 	if (*semaphore == NULL) {
 		return -ENOMEM;
 	}
-	r = amdgpu_sa_bo_new(adev, &adev->ring_tmp_bo,
+	r = amdgpu_sa_bo_new(&adev->ring_tmp_bo,
 			     &(*semaphore)->sa_bo, 8, 8);
 	if (r) {
 		kfree(*semaphore);

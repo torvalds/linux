@@ -238,11 +238,14 @@ void __init setup_arch(char **cmdline_p)
 	 * Give all the memory to the bootmap allocator, tell it to put the
 	 * boot mem_map at the start of memory.
 	 */
+	min_low_pfn = PFN_DOWN(memory_start);
+	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
+
 	bootmap_size = init_bootmem_node(
 			NODE_DATA(0),
-			memory_start >> PAGE_SHIFT, /* map goes here */
-			PAGE_OFFSET >> PAGE_SHIFT,	/* 0 on coldfire */
-			memory_end >> PAGE_SHIFT);
+			min_low_pfn,		/* map goes here */
+			PFN_DOWN(PAGE_OFFSET),
+			max_pfn);
 	/*
 	 * Free the usable memory, we have to make sure we do not free
 	 * the bootmem bitmap so we then reserve it after freeing it :-)

@@ -51,6 +51,11 @@
  * the same callbacks which drivers can use to e.g. restore the modeset
  * configuration on resume with drm_helper_resume_force_mode().
  *
+ * Note that this helper library doesn't track the current power state of CRTCs
+ * and encoders. It can call callbacks like ->dpms() even though the hardware is
+ * already in the desired state. This deficiency has been fixed in the atomic
+ * helpers.
+ *
  * The driver callbacks are mostly compatible with the atomic modeset helpers,
  * except for the handling of the primary plane: Atomic helpers require that the
  * primary plane is implemented as a real standalone plane and not directly tied
@@ -62,6 +67,11 @@
  * converting to the plane helpers). New drivers must not use these functions
  * but need to implement the atomic interface instead, potentially using the
  * atomic helpers for that.
+ *
+ * These legacy modeset helpers use the same function table structures as
+ * all other modesetting helpers. See the documentation for struct
+ * &drm_crtc_helper_funcs, struct &drm_encoder_helper_funcs and struct
+ * &drm_connector_helper_funcs.
  */
 MODULE_AUTHOR("David Airlie, Jesse Barnes");
 MODULE_DESCRIPTION("DRM KMS helper");
@@ -206,8 +216,8 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
  * @dev: DRM device
  *
  * This function walks through the entire mode setting configuration of @dev. It
- * will remove any crtc links of unused encoders and encoder links of
- * disconnected connectors. Then it will disable all unused encoders and crtcs
+ * will remove any CRTC links of unused encoders and encoder links of
+ * disconnected connectors. Then it will disable all unused encoders and CRTCs
  * either by calling their disable callback if available or by calling their
  * dpms callback with DRM_MODE_DPMS_OFF.
  */
@@ -329,7 +339,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
 		goto done;
 	}
-	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	crtc->hwmode = *adjusted_mode;
 
@@ -445,11 +455,36 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
  * drm_crtc_helper_set_config - set a new config from userspace
  * @set: mode set configuration
  *
- * Setup a new configuration, provided by the upper layers (either an ioctl call
- * from userspace or internally e.g. from the fbdev support code) in @set, and
- * enable it. This is the main helper functions for drivers that implement
- * kernel mode setting with the crtc helper functions and the assorted
- * ->prepare(), ->modeset() and ->commit() helper callbacks.
+ * The drm_crtc_helper_set_config() helper function implements the set_config
+ * callback of struct &drm_crtc_funcs for drivers using the legacy CRTC helpers.
+ *
+ * It first tries to locate the best encoder for each connector by calling the
+ * connector ->best_encoder() (struct &drm_connector_helper_funcs) helper
+ * operation.
+ *
+ * After locating the appropriate encoders, the helper function will call the
+ * mode_fixup encoder and CRTC helper operations to adjust the requested mode,
+ * or reject it completely in which case an error will be returned to the
+ * application. If the new configuration after mode adjustment is identical to
+ * the current configuration the helper function will return without performing
+ * any other operation.
+ *
+ * If the adjusted mode is identical to the current mode but changes to the
+ * frame buffer need to be applied, the drm_crtc_helper_set_config() function
+ * will call the CRTC ->mode_set_base() (struct &drm_crtc_helper_funcs) helper
+ * operation.
+ *
+ * If the adjusted mode differs from the current mode, or if the
+ * ->mode_set_base() helper operation is not provided, the helper function
+ * performs a full mode set sequence by calling the ->prepare(), ->mode_set()
+ * and ->commit() CRTC and encoder helper operations, in that order.
+ * Alternatively it can also use the dpms and disable helper operations. For
+ * details see struct &drm_crtc_helper_funcs and struct
+ * &drm_encoder_helper_funcs.
+ *
+ * This function is deprecated.  New drivers must implement atomic modeset
+ * support, for which this function is unsuitable. Instead drivers should use
+ * drm_atomic_helper_set_config().
  *
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.
@@ -484,11 +519,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		set->fb = NULL;
 
 	if (set->fb) {
-		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",
-				set->crtc->base.id, set->fb->base.id,
-				(int)set->num_connectors, set->x, set->y);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] [FB:%d] #connectors=%d (x y) (%i %i)\n",
+			      set->crtc->base.id, set->crtc->name,
+			      set->fb->base.id,
+			      (int)set->num_connectors, set->x, set->y);
 	} else {
-		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] [NOFB]\n",
+			      set->crtc->base.id, set->crtc->name);
 		drm_crtc_helper_disable(set->crtc);
 		return 0;
 	}
@@ -628,12 +665,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			connector->encoder->crtc = new_crtc;
 		}
 		if (new_crtc) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
-				connector->base.id, connector->name,
-				new_crtc->base.id);
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d:%s]\n",
+				      connector->base.id, connector->name,
+				      new_crtc->base.id, new_crtc->name);
 		} else {
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
-				connector->base.id, connector->name);
+				      connector->base.id, connector->name);
 		}
 	}
 
@@ -650,8 +687,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
 						      save_set.fb)) {
-				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
-					  set->crtc->base.id);
+				DRM_ERROR("failed to set mode on [CRTC:%d:%s]\n",
+					  set->crtc->base.id, set->crtc->name);
 				set->crtc->primary->fb = save_set.fb;
 				ret = -EINVAL;
 				goto fail;
@@ -758,10 +795,18 @@ static int drm_helper_choose_crtc_dpms(struct drm_crtc *crtc)
  * @connector: affected connector
  * @mode: DPMS mode
  *
- * This is the main helper function provided by the crtc helper framework for
+ * The drm_helper_connector_dpms() helper function implements the ->dpms()
+ * callback of struct &drm_connector_funcs for drivers using the legacy CRTC helpers.
+ *
+ * This is the main helper function provided by the CRTC helper framework for
  * implementing the DPMS connector attribute. It computes the new desired DPMS
- * state for all encoders and crtcs in the output mesh and calls the ->dpms()
- * callback provided by the driver appropriately.
+ * state for all encoders and CRTCs in the output mesh and calls the ->dpms()
+ * callbacks provided by the driver in struct &drm_crtc_helper_funcs and struct
+ * &drm_encoder_helper_funcs appropriately.
+ *
+ * This function is deprecated.  New drivers must implement atomic modeset
+ * support, for which this function is unsuitable. Instead drivers should use
+ * drm_atomic_helper_connector_dpms().
  *
  * Returns:
  * Always returns 0.
@@ -818,7 +863,7 @@ EXPORT_SYMBOL(drm_helper_connector_dpms);
  * metadata fields.
  */
 void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
-				    struct drm_mode_fb_cmd2 *mode_cmd)
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	int i;
 
@@ -855,6 +900,12 @@ EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
  * due to slight differences in allocating shared resources when the
  * configuration is restored in a different order than when userspace set it up)
  * need to use their own restore logic.
+ *
+ * This function is deprecated. New drivers should implement atomic mode-
+ * setting and use the atomic suspend/resume helpers.
+ *
+ * See also:
+ * drm_atomic_helper_suspend(), drm_atomic_helper_resume()
  */
 void drm_helper_resume_force_mode(struct drm_device *dev)
 {
@@ -913,9 +964,9 @@ EXPORT_SYMBOL(drm_helper_resume_force_mode);
  * @old_fb: previous framebuffer
  *
  * This function implements a callback useable as the ->mode_set callback
- * required by the crtc helpers. Besides the atomic plane helper functions for
+ * required by the CRTC helpers. Besides the atomic plane helper functions for
  * the primary plane the driver must also provide the ->mode_set_nofb callback
- * to set up the crtc.
+ * to set up the CRTC.
  *
  * This is a transitional helper useful for converting drivers to the atomic
  * interfaces.
@@ -979,7 +1030,7 @@ EXPORT_SYMBOL(drm_helper_crtc_mode_set);
  * @old_fb: previous framebuffer
  *
  * This function implements a callback useable as the ->mode_set_base used
- * required by the crtc helpers. The driver must provide the atomic plane helper
+ * required by the CRTC helpers. The driver must provide the atomic plane helper
  * functions for the primary plane.
  *
  * This is a transitional helper useful for converting drivers to the atomic

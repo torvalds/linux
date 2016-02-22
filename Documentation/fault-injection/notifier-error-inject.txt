@@ -10,6 +10,7 @@ modules that can be used to test the following notifiers.
  * PM notifier
  * Memory hotplug notifier
  * powerpc pSeries reconfig notifier
+ * Netdevice notifier
 
 CPU notifier error injection module
 -----------------------------------
@@ -86,6 +87,30 @@ Possible pSeries reconfig notifier events to be failed are:
  * PSERIES_RECONFIG_REMOVE
  * PSERIES_DRCONF_MEM_ADD
  * PSERIES_DRCONF_MEM_REMOVE
+
+Netdevice notifier error injection module
+----------------------------------------------
+This feature is controlled through debugfs interface
+/sys/kernel/debug/notifier-error-inject/netdev/actions/<notifier event>/error
+
+Netdevice notifier events which can be failed are:
+
+ * NETDEV_REGISTER
+ * NETDEV_CHANGEMTU
+ * NETDEV_CHANGENAME
+ * NETDEV_PRE_UP
+ * NETDEV_PRE_TYPE_CHANGE
+ * NETDEV_POST_INIT
+ * NETDEV_PRECHANGEMTU
+ * NETDEV_PRECHANGEUPPER
+ * NETDEV_CHANGEUPPER
+
+Example: Inject netdevice mtu change error (-22 == -EINVAL)
+
+	# cd /sys/kernel/debug/notifier-error-inject/netdev
+	# echo -22 > actions/NETDEV_CHANGEMTU/error
+	# ip link set eth0 mtu 1024
+	RTNETLINK answers: Invalid argument
 
 For more usage examples
 -----------------------

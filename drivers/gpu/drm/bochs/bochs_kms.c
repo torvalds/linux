@@ -119,7 +119,7 @@ static int bochs_crtc_page_flip(struct drm_crtc *crtc,
 	bochs_crtc_mode_set_base(crtc, 0, 0, old_fb);
 	if (event) {
 		spin_lock_irqsave(&bochs->dev->event_lock, irqflags);
-		drm_send_vblank_event(bochs->dev, -1, event);
+		drm_crtc_send_vblank_event(crtc, event);
 		spin_unlock_irqrestore(&bochs->dev->event_lock, irqflags);
 	}
 	return 0;
@@ -196,7 +196,7 @@ static void bochs_encoder_init(struct drm_device *dev)
 
 	encoder->possible_crtcs = 0x1;
 	drm_encoder_init(dev, encoder, &bochs_encoder_encoder_funcs,
-			 DRM_MODE_ENCODER_DAC);
+			 DRM_MODE_ENCODER_DAC, NULL);
 	drm_encoder_helper_add(encoder, &bochs_encoder_helper_funcs);
 }
 
@@ -245,13 +245,13 @@ static enum drm_connector_status bochs_connector_detect(struct drm_connector
 	return connector_status_connected;
 }
 
-struct drm_connector_helper_funcs bochs_connector_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs bochs_connector_connector_helper_funcs = {
 	.get_modes = bochs_connector_get_modes,
 	.mode_valid = bochs_connector_mode_valid,
 	.best_encoder = bochs_connector_best_encoder,
 };
 
-struct drm_connector_funcs bochs_connector_connector_funcs = {
+static const struct drm_connector_funcs bochs_connector_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = bochs_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -283,7 +283,7 @@ int bochs_kms_init(struct bochs_device *bochs)
 	bochs->dev->mode_config.preferred_depth = 24;
 	bochs->dev->mode_config.prefer_shadow = 0;
 
-	bochs->dev->mode_config.funcs = (void *)&bochs_mode_funcs;
+	bochs->dev->mode_config.funcs = &bochs_mode_funcs;
 
 	bochs_crtc_init(bochs->dev);
 	bochs_encoder_init(bochs->dev);

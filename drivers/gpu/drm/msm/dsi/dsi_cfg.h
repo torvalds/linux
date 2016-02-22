@@ -25,11 +25,15 @@
 #define MSM_DSI_6G_VER_MINOR_V1_3	0x10030000
 #define MSM_DSI_6G_VER_MINOR_V1_3_1	0x10030001
 
+#define MSM_DSI_V2_VER_MINOR_8064	0x0
+
 #define DSI_6G_REG_SHIFT	4
 
 struct msm_dsi_config {
 	u32 io_offset;
 	struct dsi_reg_config reg_cfg;
+	const char * const *bus_clk_names;
+	const int num_bus_clks;
 };
 
 struct msm_dsi_cfg_handler {

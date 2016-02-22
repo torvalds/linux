@@ -84,7 +84,7 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 {
 	struct ib_mad_send_buf *send_buf;
 	struct ib_mad_agent *agent;
-	struct ib_smp *smp;
+	struct opa_smp *smp;
 	int ret;
 	unsigned long flags;
 	unsigned long timeout;
@@ -117,15 +117,15 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 		return;
 
 	smp = send_buf->mad;
-	smp->base_version = IB_MGMT_BASE_VERSION;
+	smp->base_version = OPA_MGMT_BASE_VERSION;
 	smp->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	smp->class_version = 1;
+	smp->class_version = OPA_SMI_CLASS_VERSION;
 	smp->method = IB_MGMT_METHOD_TRAP;
 	ibp->tid++;
 	smp->tid = cpu_to_be64(ibp->tid);
 	smp->attr_id = IB_SMP_ATTR_NOTICE;
 	/* o14-1: smp->mkey = 0; */
-	memcpy(smp->data, data, len);
+	memcpy(smp->route.lid.data, data, len);
 
 	spin_lock_irqsave(&ibp->lock, flags);
 	if (!ibp->sm_ah) {
@@ -164,11 +164,16 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
  * Send a bad [PQ]_Key trap (ch. 14.3.8).
  */
 void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
-		    u32 qp1, u32 qp2, __be16 lid1, __be16 lid2)
+		    u32 qp1, u32 qp2, u16 lid1, u16 lid2)
 {
-	struct ib_mad_notice_attr data;
+	struct opa_mad_notice_attr data;
+	u32 lid = ppd_from_ibp(ibp)->lid;
+	u32 _lid1 = lid1;
+	u32 _lid2 = lid2;
 
-	if (trap_num == IB_NOTICE_TRAP_BAD_PKEY)
+	memset(&data, 0, sizeof(data));
+
+	if (trap_num == OPA_TRAP_BAD_P_KEY)
 		ibp->pkey_violations++;
 	else
 		ibp->qkey_violations++;
@@ -176,17 +181,15 @@ void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
 
 	/* Send violation trap */
 	data.generic_type = IB_NOTICE_TYPE_SECURITY;
-	data.prod_type_msb = 0;
 	data.prod_type_lsb = IB_NOTICE_PROD_CA;
 	data.trap_num = trap_num;
-	data.issuer_lid = cpu_to_be16(ppd_from_ibp(ibp)->lid);
-	data.toggle_count = 0;
-	memset(&data.details, 0, sizeof(data.details));
-	data.details.ntc_257_258.lid1 = lid1;
-	data.details.ntc_257_258.lid2 = lid2;
-	data.details.ntc_257_258.key = cpu_to_be32(key);
-	data.details.ntc_257_258.sl_qp1 = cpu_to_be32((sl << 28) | qp1);
-	data.details.ntc_257_258.qp2 = cpu_to_be32(qp2);
+	data.issuer_lid = cpu_to_be32(lid);
+	data.ntc_257_258.lid1 = cpu_to_be32(_lid1);
+	data.ntc_257_258.lid2 = cpu_to_be32(_lid2);
+	data.ntc_257_258.key = cpu_to_be32(key);
+	data.ntc_257_258.sl = sl << 3;
+	data.ntc_257_258.qp1 = cpu_to_be32(qp1);
+	data.ntc_257_258.qp2 = cpu_to_be32(qp2);
 
 	send_trap(ibp, &data, sizeof(data));
 }
@@ -197,32 +200,30 @@ void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
 static void bad_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
 		     __be64 mkey, __be32 dr_slid, u8 return_path[], u8 hop_cnt)
 {
-	struct ib_mad_notice_attr data;
+	struct opa_mad_notice_attr data;
+	u32 lid = ppd_from_ibp(ibp)->lid;
 
+	memset(&data, 0, sizeof(data));
 	/* Send violation trap */
 	data.generic_type = IB_NOTICE_TYPE_SECURITY;
-	data.prod_type_msb = 0;
 	data.prod_type_lsb = IB_NOTICE_PROD_CA;
-	data.trap_num = IB_NOTICE_TRAP_BAD_MKEY;
-	data.issuer_lid = cpu_to_be16(ppd_from_ibp(ibp)->lid);
-	data.toggle_count = 0;
-	memset(&data.details, 0, sizeof(data.details));
-	data.details.ntc_256.lid = data.issuer_lid;
-	data.details.ntc_256.method = mad->method;
-	data.details.ntc_256.attr_id = mad->attr_id;
-	data.details.ntc_256.attr_mod = mad->attr_mod;
-	data.details.ntc_256.mkey = mkey;
+	data.trap_num = OPA_TRAP_BAD_M_KEY;
+	data.issuer_lid = cpu_to_be32(lid);
+	data.ntc_256.lid = data.issuer_lid;
+	data.ntc_256.method = mad->method;
+	data.ntc_256.attr_id = mad->attr_id;
+	data.ntc_256.attr_mod = mad->attr_mod;
+	data.ntc_256.mkey = mkey;
 	if (mad->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) {
-
-		data.details.ntc_256.dr_slid = (__force __be16)dr_slid;
-		data.details.ntc_256.dr_trunc_hop = IB_NOTICE_TRAP_DR_NOTICE;
-		if (hop_cnt > ARRAY_SIZE(data.details.ntc_256.dr_rtn_path)) {
-			data.details.ntc_256.dr_trunc_hop |=
+		data.ntc_256.dr_slid = dr_slid;
+		data.ntc_256.dr_trunc_hop = IB_NOTICE_TRAP_DR_NOTICE;
+		if (hop_cnt > ARRAY_SIZE(data.ntc_256.dr_rtn_path)) {
+			data.ntc_256.dr_trunc_hop |=
 				IB_NOTICE_TRAP_DR_TRUNC;
-			hop_cnt = ARRAY_SIZE(data.details.ntc_256.dr_rtn_path);
+			hop_cnt = ARRAY_SIZE(data.ntc_256.dr_rtn_path);
 		}
-		data.details.ntc_256.dr_trunc_hop |= hop_cnt;
-		memcpy(data.details.ntc_256.dr_rtn_path, return_path,
+		data.ntc_256.dr_trunc_hop |= hop_cnt;
+		memcpy(data.ntc_256.dr_rtn_path, return_path,
 		       hop_cnt);
 	}
 
@@ -234,17 +235,17 @@ static void bad_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
  */
 void hfi1_cap_mask_chg(struct hfi1_ibport *ibp)
 {
-	struct ib_mad_notice_attr data;
+	struct opa_mad_notice_attr data;
+	u32 lid = ppd_from_ibp(ibp)->lid;
+
+	memset(&data, 0, sizeof(data));
 
 	data.generic_type = IB_NOTICE_TYPE_INFO;
-	data.prod_type_msb = 0;
 	data.prod_type_lsb = IB_NOTICE_PROD_CA;
-	data.trap_num = IB_NOTICE_TRAP_CAP_MASK_CHG;
-	data.issuer_lid = cpu_to_be16(ppd_from_ibp(ibp)->lid);
-	data.toggle_count = 0;
-	memset(&data.details, 0, sizeof(data.details));
-	data.details.ntc_144.lid = data.issuer_lid;
-	data.details.ntc_144.new_cap_mask = cpu_to_be32(ibp->port_cap_flags);
+	data.trap_num = OPA_TRAP_CHANGE_CAPABILITY;
+	data.issuer_lid = cpu_to_be32(lid);
+	data.ntc_144.lid = data.issuer_lid;
+	data.ntc_144.new_cap_mask = cpu_to_be32(ibp->port_cap_flags);
 
 	send_trap(ibp, &data, sizeof(data));
 }
@@ -254,17 +255,17 @@ void hfi1_cap_mask_chg(struct hfi1_ibport *ibp)
  */
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp)
 {
-	struct ib_mad_notice_attr data;
+	struct opa_mad_notice_attr data;
+	u32 lid = ppd_from_ibp(ibp)->lid;
+
+	memset(&data, 0, sizeof(data));
 
 	data.generic_type = IB_NOTICE_TYPE_INFO;
-	data.prod_type_msb = 0;
 	data.prod_type_lsb = IB_NOTICE_PROD_CA;
-	data.trap_num = IB_NOTICE_TRAP_SYS_GUID_CHG;
-	data.issuer_lid = cpu_to_be16(ppd_from_ibp(ibp)->lid);
-	data.toggle_count = 0;
-	memset(&data.details, 0, sizeof(data.details));
-	data.details.ntc_145.lid = data.issuer_lid;
-	data.details.ntc_145.new_sys_guid = ib_hfi1_sys_image_guid;
+	data.trap_num = OPA_TRAP_CHANGE_SYSGUID;
+	data.issuer_lid = cpu_to_be32(lid);
+	data.ntc_145.new_sys_guid = ib_hfi1_sys_image_guid;
+	data.ntc_145.lid = data.issuer_lid;
 
 	send_trap(ibp, &data, sizeof(data));
 }
@@ -274,18 +275,18 @@ void hfi1_sys_guid_chg(struct hfi1_ibport *ibp)
  */
 void hfi1_node_desc_chg(struct hfi1_ibport *ibp)
 {
-	struct ib_mad_notice_attr data;
+	struct opa_mad_notice_attr data;
+	u32 lid = ppd_from_ibp(ibp)->lid;
+
+	memset(&data, 0, sizeof(data));
 
 	data.generic_type = IB_NOTICE_TYPE_INFO;
-	data.prod_type_msb = 0;
 	data.prod_type_lsb = IB_NOTICE_PROD_CA;
-	data.trap_num = IB_NOTICE_TRAP_CAP_MASK_CHG;
-	data.issuer_lid = cpu_to_be16(ppd_from_ibp(ibp)->lid);
-	data.toggle_count = 0;
-	memset(&data.details, 0, sizeof(data.details));
-	data.details.ntc_144.lid = data.issuer_lid;
-	data.details.ntc_144.local_changes = 1;
-	data.details.ntc_144.change_flags = IB_NOTICE_TRAP_NODE_DESC_CHG;
+	data.trap_num = OPA_TRAP_CHANGE_CAPABILITY;
+	data.issuer_lid = cpu_to_be32(lid);
+	data.ntc_144.lid = data.issuer_lid;
+	data.ntc_144.change_flags =
+		cpu_to_be16(OPA_NOTICE_TRAP_NODE_DESC_CHG);
 
 	send_trap(ibp, &data, sizeof(data));
 }
@@ -2076,13 +2077,20 @@ struct opa_aggregate {
 	u8 data[0];
 };
 
-/* Request contains first two fields, response contains those plus the rest */
+#define MSK_LLI 0x000000f0
+#define MSK_LLI_SFT 4
+#define MSK_LER 0x0000000f
+#define MSK_LER_SFT 0
+#define ADD_LLI 8
+#define ADD_LER 2
+
+/* Request contains first three fields, response contains those plus the rest */
 struct opa_port_data_counters_msg {
 	__be64 port_select_mask[4];
 	__be32 vl_select_mask;
+	__be32 resolution;
 
 	/* Response fields follow */
-	__be32 reserved1;
 	struct _port_dctrs {
 		u8 port_number;
 		u8 reserved2[3];
@@ -2271,34 +2279,8 @@ static void a0_portstatus(struct hfi1_pportdata *ppd,
 {
 	if (!is_bx(ppd->dd)) {
 		unsigned long vl;
-		int vfi = 0;
 		u64 max_vl_xmit_wait = 0, tmp;
 		u32 vl_all_mask = VL_MASK_ALL;
-		u64 rcv_data, rcv_bubble;
-
-		rcv_data = be64_to_cpu(rsp->port_rcv_data);
-		rcv_bubble = be64_to_cpu(rsp->port_rcv_bubble);
-		/* In the measured time period, calculate the total number
-		 * of flits that were received. Subtract out one false
-		 * rcv_bubble increment for every 32 received flits but
-		 * don't let the number go negative.
-		 */
-		if (rcv_bubble >= (rcv_data>>5)) {
-			rcv_bubble -= (rcv_data>>5);
-			rsp->port_rcv_bubble = cpu_to_be64(rcv_bubble);
-		}
-		for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
-				 8 * sizeof(vl_select_mask)) {
-			rcv_data = be64_to_cpu(rsp->vls[vfi].port_vl_rcv_data);
-			rcv_bubble =
-				be64_to_cpu(rsp->vls[vfi].port_vl_rcv_bubble);
-			if (rcv_bubble >= (rcv_data>>5)) {
-				rcv_bubble -= (rcv_data>>5);
-				rsp->vls[vfi].port_vl_rcv_bubble =
-							cpu_to_be64(rcv_bubble);
-			}
-			vfi++;
-		}
 
 		for_each_set_bit(vl, (unsigned long *)&(vl_all_mask),
 				 8 * sizeof(vl_all_mask)) {
@@ -2363,8 +2345,6 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 					  CNTR_INVALID_VL));
 	rsp->port_rcv_data = cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_FLITS,
 					 CNTR_INVALID_VL));
-	rsp->port_rcv_bubble =
-		cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_BBL, CNTR_INVALID_VL));
 	rsp->port_xmit_pkts = cpu_to_be64(read_dev_cntr(dd, C_DC_XMIT_PKTS,
 					  CNTR_INVALID_VL));
 	rsp->port_rcv_pkts = cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_PKTS,
@@ -2434,9 +2414,6 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 
 		tmp = read_dev_cntr(dd, C_DC_RX_FLIT_VL, idx_from_vl(vl));
 		rsp->vls[vfi].port_vl_rcv_data = cpu_to_be64(tmp);
-		rsp->vls[vfi].port_vl_rcv_bubble =
-			cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_BBL_VL,
-					idx_from_vl(vl)));
 
 		rsp->vls[vfi].port_vl_rcv_pkts =
 			cpu_to_be64(read_dev_cntr(dd, C_DC_RX_PKT_VL,
@@ -2474,7 +2451,8 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 	return reply((struct ib_mad_hdr *)pmp);
 }
 
-static u64 get_error_counter_summary(struct ib_device *ibdev, u8 port)
+static u64 get_error_counter_summary(struct ib_device *ibdev, u8 port,
+				     u8 res_lli, u8 res_ler)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
 	struct hfi1_ibport *ibp = to_iport(ibdev, port);
@@ -2490,14 +2468,14 @@ static u64 get_error_counter_summary(struct ib_device *ibdev, u8 port)
 						CNTR_INVALID_VL);
 	error_counter_summary += read_dev_cntr(dd, C_DC_RMT_PHY_ERR,
 						CNTR_INVALID_VL);
-	error_counter_summary += read_dev_cntr(dd, C_DC_TX_REPLAY,
-						CNTR_INVALID_VL);
-	error_counter_summary += read_dev_cntr(dd, C_DC_RX_REPLAY,
-						CNTR_INVALID_VL);
-	error_counter_summary += read_dev_cntr(dd, C_DC_SEQ_CRC_CNT,
-						CNTR_INVALID_VL);
-	error_counter_summary += read_dev_cntr(dd, C_DC_REINIT_FROM_PEER_CNT,
-						CNTR_INVALID_VL);
+	/* local link integrity must be right-shifted by the lli resolution */
+	tmp = read_dev_cntr(dd, C_DC_RX_REPLAY, CNTR_INVALID_VL);
+	tmp += read_dev_cntr(dd, C_DC_TX_REPLAY, CNTR_INVALID_VL);
+	error_counter_summary += (tmp >> res_lli);
+	/* link error recovery must b right-shifted by the ler resolution */
+	tmp = read_dev_cntr(dd, C_DC_SEQ_CRC_CNT, CNTR_INVALID_VL);
+	tmp += read_dev_cntr(dd, C_DC_REINIT_FROM_PEER_CNT, CNTR_INVALID_VL);
+	error_counter_summary += (tmp >> res_ler);
 	error_counter_summary += read_dev_cntr(dd, C_DC_RCV_ERR,
 						CNTR_INVALID_VL);
 	error_counter_summary += read_dev_cntr(dd, C_RCV_OVF, CNTR_INVALID_VL);
@@ -2519,32 +2497,8 @@ static void a0_datacounters(struct hfi1_devdata *dd, struct _port_dctrs *rsp,
 	if (!is_bx(dd)) {
 		unsigned long vl;
 		int vfi = 0;
-		u64 rcv_data, rcv_bubble, sum_vl_xmit_wait = 0;
+		u64 sum_vl_xmit_wait = 0;
 
-		rcv_data = be64_to_cpu(rsp->port_rcv_data);
-		rcv_bubble = be64_to_cpu(rsp->port_rcv_bubble);
-		/* In the measured time period, calculate the total number
-		 * of flits that were received. Subtract out one false
-		 * rcv_bubble increment for every 32 received flits but
-		 * don't let the number go negative.
-		 */
-		if (rcv_bubble >= (rcv_data>>5)) {
-			rcv_bubble -= (rcv_data>>5);
-			rsp->port_rcv_bubble = cpu_to_be64(rcv_bubble);
-		}
-		for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
-				8 * sizeof(vl_select_mask)) {
-			rcv_data = be64_to_cpu(rsp->vls[vfi].port_vl_rcv_data);
-			rcv_bubble =
-				be64_to_cpu(rsp->vls[vfi].port_vl_rcv_bubble);
-			if (rcv_bubble >= (rcv_data>>5)) {
-				rcv_bubble -= (rcv_data>>5);
-				rsp->vls[vfi].port_vl_rcv_bubble =
-							cpu_to_be64(rcv_bubble);
-			}
-			vfi++;
-		}
-		vfi = 0;
 		for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
 				8 * sizeof(vl_select_mask)) {
 			u64 tmp = sum_vl_xmit_wait +
@@ -2575,6 +2529,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	u32 num_ports;
 	u8 num_pslm;
 	u8 lq, num_vls;
+	u8 res_lli, res_ler;
 	u64 port_mask;
 	unsigned long port_num;
 	unsigned long vl;
@@ -2585,6 +2540,10 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));
 	num_vls = hweight32(be32_to_cpu(req->vl_select_mask));
 	vl_select_mask = be32_to_cpu(req->vl_select_mask);
+	res_lli = (u8)(be32_to_cpu(req->resolution) & MSK_LLI) >> MSK_LLI_SFT;
+	res_lli = res_lli ? res_lli + ADD_LLI : 0;
+	res_ler = (u8)(be32_to_cpu(req->resolution) & MSK_LER) >> MSK_LER_SFT;
+	res_ler = res_ler ? res_ler + ADD_LER : 0;
 
 	if (num_ports != 1 || (vl_select_mask & ~VL_MASK_ALL)) {
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
@@ -2635,8 +2594,6 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 						CNTR_INVALID_VL));
 	rsp->port_rcv_data = cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_FLITS,
 						CNTR_INVALID_VL));
-	rsp->port_rcv_bubble =
-		cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_BBL, CNTR_INVALID_VL));
 	rsp->port_xmit_pkts = cpu_to_be64(read_dev_cntr(dd, C_DC_XMIT_PKTS,
 						CNTR_INVALID_VL));
 	rsp->port_rcv_pkts = cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_PKTS,
@@ -2655,7 +2612,8 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 		cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_BCN, CNTR_INVALID_VL));
 
 	rsp->port_error_counter_summary =
-		cpu_to_be64(get_error_counter_summary(ibdev, port));
+		cpu_to_be64(get_error_counter_summary(ibdev, port,
+						      res_lli, res_ler));
 
 	vlinfo = &(rsp->vls[0]);
 	vfi = 0;
@@ -2675,9 +2633,6 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 		rsp->vls[vfi].port_vl_rcv_data =
 			cpu_to_be64(read_dev_cntr(dd, C_DC_RX_FLIT_VL,
 							idx_from_vl(vl)));
-		rsp->vls[vfi].port_vl_rcv_bubble =
-			cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_BBL_VL,
-					idx_from_vl(vl)));
 
 		rsp->vls[vfi].port_vl_xmit_pkts =
 			cpu_to_be64(read_port_cntr(ppd, C_TX_PKT_VL,
@@ -3458,7 +3413,7 @@ static int __subn_get_opa_led_info(struct opa_smp *smp, u32 am, u8 *data,
 	u32 nport = OPA_AM_NPORT(am);
 	u64 reg;
 
-	if (nport != 1 || OPA_AM_PORTNUM(am)) {
+	if (nport != 1) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
 	}
@@ -3483,7 +3438,7 @@ static int __subn_set_opa_led_info(struct opa_smp *smp, u32 am, u8 *data,
 	u32 nport = OPA_AM_NPORT(am);
 	int on = !!(be32_to_cpu(p->rsvd_led_mask) & OPA_LED_MASK);
 
-	if (nport != 1 || OPA_AM_PORTNUM(am)) {
+	if (nport != 1) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
 	}

@@ -1385,52 +1385,63 @@ err0:
 	return rc;
 }
 
-static u32 qed_hw_bar_size(struct qed_dev *cdev,
-			   u8 bar_id)
+static u32 qed_hw_bar_size(struct qed_hwfn	*p_hwfn,
+			   u8			bar_id)
 {
-	u32 size = pci_resource_len(cdev->pdev, (bar_id > 0) ? 2 : 0);
+	u32 bar_reg = (bar_id == 0 ? PGLUE_B_REG_PF_BAR0_SIZE
+		       : PGLUE_B_REG_PF_BAR1_SIZE);
+	u32 val = qed_rd(p_hwfn, p_hwfn->p_main_ptt, bar_reg);
 
-	return size / cdev->num_hwfns;
+	/* Get the BAR size(in KB) from hardware given val */
+	return 1 << (val + 15);
 }
 
 int qed_hw_prepare(struct qed_dev *cdev,
 		   int personality)
 {
-	int rc, i;
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	int rc;
 
 	/* Store the precompiled init data ptrs */
 	qed_init_iro_array(cdev);
 
 	/* Initialize the first hwfn - will learn number of hwfns */
-	rc = qed_hw_prepare_single(&cdev->hwfns[0], cdev->regview,
+	rc = qed_hw_prepare_single(p_hwfn,
+				   cdev->regview,
 				   cdev->doorbells, personality);
 	if (rc)
 		return rc;
 
-	personality = cdev->hwfns[0].hw_info.personality;
+	personality = p_hwfn->hw_info.personality;
 
 	/* Initialize the rest of the hwfns */
-	for (i = 1; i < cdev->num_hwfns; i++) {
+	if (cdev->num_hwfns > 1) {
 		void __iomem *p_regview, *p_doorbell;
+		u8 __iomem *addr;
 
-		p_regview =  cdev->regview +
-			     i * qed_hw_bar_size(cdev, 0);
-		p_doorbell = cdev->doorbells +
-			     i * qed_hw_bar_size(cdev, 1);
-		rc = qed_hw_prepare_single(&cdev->hwfns[i], p_regview,
+		/* adjust bar offset for second engine */
+		addr = cdev->regview + qed_hw_bar_size(p_hwfn, 0) / 2;
+		p_regview = addr;
+
+		/* adjust doorbell bar offset for second engine */
+		addr = cdev->doorbells + qed_hw_bar_size(p_hwfn, 1) / 2;
+		p_doorbell = addr;
+
+		/* prepare second hw function */
+		rc = qed_hw_prepare_single(&cdev->hwfns[1], p_regview,
 					   p_doorbell, personality);
+
+		/* in case of error, need to free the previously
+		 * initiliazed hwfn 0.
+		 */
 		if (rc) {
-			/* Cleanup previously initialized hwfns */
-			while (--i >= 0) {
-				qed_init_free(&cdev->hwfns[i]);
-				qed_mcp_free(&cdev->hwfns[i]);
-				qed_hw_hwfn_free(&cdev->hwfns[i]);
-			}
-			return rc;
+			qed_init_free(p_hwfn);
+			qed_mcp_free(p_hwfn);
+			qed_hw_hwfn_free(p_hwfn);
 		}
 	}
 
-	return 0;
+	return rc;
 }
 
 void qed_hw_remove(struct qed_dev *cdev)

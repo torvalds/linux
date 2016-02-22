@@ -172,7 +172,7 @@ struct dw_mci {
 	/* For edmac */
 	struct dw_mci_dma_slave *dms;
 	/* Registers's physical base address */
-	void                    *phy_regs;
+	resource_size_t		phy_regs;
 
 	u32			cmd_status;
 	u32			data_status;
@@ -235,16 +235,10 @@ struct dw_mci_dma_ops {
 };
 
 /* IP Quirks/flags. */
-/* DTO fix for command transmission with IDMAC configured */
-#define DW_MCI_QUIRK_IDMAC_DTO			BIT(0)
-/* delay needed between retries on some 2.11a implementations */
-#define DW_MCI_QUIRK_RETRY_DELAY		BIT(1)
-/* High Speed Capable - Supports HS cards (up to 50MHz) */
-#define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
 /* Unreliable card detection */
-#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
+#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(0)
 /* Timer for broken data transfer over scheme */
-#define DW_MCI_QUIRK_BROKEN_DTO			BIT(4)
+#define DW_MCI_QUIRK_BROKEN_DTO			BIT(1)
 
 struct dma_pdata;
 

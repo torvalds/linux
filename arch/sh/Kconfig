@@ -11,7 +11,6 @@ config SUPERH
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_DMA_ATTRS
 	select HAVE_PERF_EVENTS
 	select HAVE_DEBUG_BUGVERBOSE
 	select ARCH_HAVE_CUSTOM_GPIO_H
@@ -128,9 +127,6 @@ config STACKTRACE_SUPPORT
 	def_bool y
 
 config LOCKDEP_SUPPORT
-	def_bool y
-
-config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
 config ARCH_HAS_ILOG2_U32

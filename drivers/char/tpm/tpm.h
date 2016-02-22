@@ -83,16 +83,20 @@ enum tpm2_structures {
 };
 
 enum tpm2_return_codes {
-	TPM2_RC_INITIALIZE	= 0x0100,
-	TPM2_RC_TESTING		= 0x090A,
+	TPM2_RC_HASH		= 0x0083, /* RC_FMT1 */
+	TPM2_RC_INITIALIZE	= 0x0100, /* RC_VER1 */
 	TPM2_RC_DISABLED	= 0x0120,
+	TPM2_RC_TESTING		= 0x090A, /* RC_WARN */
 };
 
 enum tpm2_algorithms {
 	TPM2_ALG_SHA1		= 0x0004,
 	TPM2_ALG_KEYEDHASH	= 0x0008,
 	TPM2_ALG_SHA256		= 0x000B,
-	TPM2_ALG_NULL		= 0x0010
+	TPM2_ALG_SHA384		= 0x000C,
+	TPM2_ALG_SHA512		= 0x000D,
+	TPM2_ALG_NULL		= 0x0010,
+	TPM2_ALG_SM3_256	= 0x0012,
 };
 
 enum tpm2_command_codes {
@@ -138,7 +142,6 @@ struct tpm_vendor_specific {
 	unsigned long base;		/* TPM base address */
 
 	int irq;
-	int probed_irq;
 
 	int region_size;
 	int have_region;

@@ -11,7 +11,7 @@
 #include <linux/acpi.h>
 #include <linux/pci.h>
 
-#include "amdgpu_acpi.h"
+#include "amd_acpi.h"
 
 struct amdgpu_atpx_functions {
 	bool px_params;

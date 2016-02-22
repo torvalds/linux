@@ -84,11 +84,6 @@ static inline struct evt_entry *alloc_event_entry(void)
 	return kmalloc(sizeof(struct evt_entry), GFP_ATOMIC);
 }
 
-static inline void free_event_entry(struct evt_entry *e)
-{
-	kfree(e);
-}
-
 static struct evt_entry *get_event_entry(void)
 {
 	struct evt_entry *e;
@@ -180,11 +175,11 @@ static void gdm_wimax_event_exit(void)
 
 		list_for_each_entry_safe(e, temp, &wm_event.evtq, list) {
 			list_del(&e->list);
-			free_event_entry(e);
+			kfree(e);
 		}
 		list_for_each_entry_safe(e, temp, &wm_event.freeq, list) {
 			list_del(&e->list);
-			free_event_entry(e);
+			kfree(e);
 		}
 
 		spin_unlock_irqrestore(&wm_event.evt_lock, flags);
@@ -368,7 +363,7 @@ static void kdelete(void **buf)
 	}
 }
 
-static int gdm_wimax_ioctl_get_data(struct data_s *dst, struct data_s *src)
+static int gdm_wimax_ioctl_get_data(struct udata_s *dst, struct data_s *src)
 {
 	int size;
 
@@ -384,7 +379,7 @@ static int gdm_wimax_ioctl_get_data(struct data_s *dst, struct data_s *src)
 	return 0;
 }
 
-static int gdm_wimax_ioctl_set_data(struct data_s *dst, struct data_s *src)
+static int gdm_wimax_ioctl_set_data(struct data_s *dst, struct udata_s *src)
 {
 	if (!src->size) {
 		dst->size = 0;
@@ -460,6 +455,7 @@ static int gdm_wimax_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct wm_req_s *req = (struct wm_req_s *)ifr;
 	struct nic *nic = netdev_priv(dev);
 	int ret;
+	struct fsm_s fsm_buf;
 
 	if (cmd != SIOCWMIOCTL)
 		return -EOPNOTSUPP;
@@ -482,8 +478,11 @@ static int gdm_wimax_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				/* NOTE: gdm_update_fsm should be called
 				 * before gdm_wimax_ioctl_set_data is called.
 				 */
-				gdm_update_fsm(dev,
-					       req->data.buf);
+				if (copy_from_user(&fsm_buf, req->data.buf,
+						   sizeof(struct fsm_s)))
+					return -EFAULT;
+
+				gdm_update_fsm(dev, &fsm_buf);
 			}
 			ret = gdm_wimax_ioctl_set_data(
 				&nic->sdk_data[req->data_id], &req->data);

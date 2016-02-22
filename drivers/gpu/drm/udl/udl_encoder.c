@@ -73,7 +73,8 @@ struct drm_encoder *udl_encoder_init(struct drm_device *dev)
 	if (!encoder)
 		return NULL;
 
-	drm_encoder_init(dev, encoder, &udl_enc_funcs, DRM_MODE_ENCODER_TMDS);
+	drm_encoder_init(dev, encoder, &udl_enc_funcs, DRM_MODE_ENCODER_TMDS,
+			 NULL);
 	drm_encoder_helper_add(encoder, &udl_helper_funcs);
 	encoder->possible_crtcs = 1;
 	return encoder;

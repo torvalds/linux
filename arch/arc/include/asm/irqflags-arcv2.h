@@ -30,12 +30,18 @@
 /* Was Intr taken in User Mode */
 #define AUX_IRQ_ACT_BIT_U	31
 
-/* 0 is highest level, but taken by FIRQs, if present in design */
-#define ARCV2_IRQ_DEF_PRIO		0
+/*
+ * User space should be interruptable even by lowest prio interrupt
+ * Safe even if actual interrupt priorities is fewer or even one
+ */
+#define ARCV2_IRQ_DEF_PRIO	15
 
 /* seed value for status register */
 #define ISA_INIT_STATUS_BITS	(STATUS_IE_MASK | STATUS_AD_MASK | \
 					(ARCV2_IRQ_DEF_PRIO << 1))
+
+/* SLEEP needs default irq priority (<=) which can interrupt the doze */
+#define ISA_SLEEP_ARG		(0x10 | ARCV2_IRQ_DEF_PRIO)
 
 #ifndef __ASSEMBLY__
 

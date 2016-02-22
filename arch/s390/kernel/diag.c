@@ -121,14 +121,14 @@ device_initcall(show_diag_stat_init);
 void diag_stat_inc(enum diag_stat_enum nr)
 {
 	this_cpu_inc(diag_stat.counter[nr]);
-	trace_diagnose(diag_map[nr].code);
+	trace_s390_diagnose(diag_map[nr].code);
 }
 EXPORT_SYMBOL(diag_stat_inc);
 
 void diag_stat_inc_norecursion(enum diag_stat_enum nr)
 {
 	this_cpu_inc(diag_stat.counter[nr]);
-	trace_diagnose_norecursion(diag_map[nr].code);
+	trace_s390_diagnose_norecursion(diag_map[nr].code);
 }
 EXPORT_SYMBOL(diag_stat_inc_norecursion);
 

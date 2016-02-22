@@ -7,6 +7,7 @@ struct nvkm_instmem {
 	const struct nvkm_instmem_func *func;
 	struct nvkm_subdev subdev;
 
+	spinlock_t lock;
 	struct list_head list;
 	u32 reserved;
 

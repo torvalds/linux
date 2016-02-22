@@ -797,7 +797,8 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	snprintf(mdp5_crtc->name, sizeof(mdp5_crtc->name), "%s:%d",
 			pipe2name(mdp5_plane_pipe(plane)), id);
 
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp5_crtc_funcs);
+	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp5_crtc_funcs,
+				  NULL);
 
 	drm_flip_work_init(&mdp5_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);

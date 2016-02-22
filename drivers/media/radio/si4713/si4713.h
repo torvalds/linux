@@ -20,7 +20,7 @@
 #include <linux/gpio/consumer.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
-#include <media/si4713.h>
+#include <linux/platform_data/media/si4713.h>
 
 #define SI4713_PRODUCT_NUMBER		0x0D
 

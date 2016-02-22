@@ -133,7 +133,7 @@ static int ucb1x00_gpio_get(struct gpio_chip *chip, unsigned offset)
 	val = ucb1x00_reg_read(ucb, UCB_IO_DATA);
 	ucb1x00_disable(ucb);
 
-	return val & (1 << offset);
+	return !!(val & (1 << offset));
 }
 
 static int ucb1x00_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -570,7 +570,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 	if (pdata && pdata->gpio_base) {
 		ucb->gpio.label = dev_name(&ucb->dev);
-		ucb->gpio.dev = &ucb->dev;
+		ucb->gpio.parent = &ucb->dev;
 		ucb->gpio.owner = THIS_MODULE;
 		ucb->gpio.base = pdata->gpio_base;
 		ucb->gpio.ngpio = 10;

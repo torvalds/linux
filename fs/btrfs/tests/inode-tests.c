@@ -100,7 +100,7 @@ static void insert_inode_item_key(struct btrfs_root *root)
 static void setup_file_extents(struct btrfs_root *root)
 {
 	int slot = 0;
-	u64 disk_bytenr = 1 * 1024 * 1024;
+	u64 disk_bytenr = SZ_1M;
 	u64 offset = 0;
 
 	/* First we want a hole */
@@ -974,7 +974,7 @@ static int test_extent_accounting(void)
 			       (BTRFS_MAX_EXTENT_SIZE >> 1) + 4095,
 			       EXTENT_DELALLOC | EXTENT_DIRTY |
 			       EXTENT_UPTODATE | EXTENT_DO_ACCOUNTING, 0, 0,
-			       NULL, GFP_NOFS);
+			       NULL, GFP_KERNEL);
 	if (ret) {
 		test_msg("clear_extent_bit returned %d\n", ret);
 		goto out;
@@ -1045,7 +1045,7 @@ static int test_extent_accounting(void)
 			       BTRFS_MAX_EXTENT_SIZE+8191,
 			       EXTENT_DIRTY | EXTENT_DELALLOC |
 			       EXTENT_DO_ACCOUNTING | EXTENT_UPTODATE, 0, 0,
-			       NULL, GFP_NOFS);
+			       NULL, GFP_KERNEL);
 	if (ret) {
 		test_msg("clear_extent_bit returned %d\n", ret);
 		goto out;
@@ -1079,7 +1079,7 @@ static int test_extent_accounting(void)
 	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
 			       EXTENT_DIRTY | EXTENT_DELALLOC |
 			       EXTENT_DO_ACCOUNTING | EXTENT_UPTODATE, 0, 0,
-			       NULL, GFP_NOFS);
+			       NULL, GFP_KERNEL);
 	if (ret) {
 		test_msg("clear_extent_bit returned %d\n", ret);
 		goto out;
@@ -1096,7 +1096,7 @@ out:
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
 				 EXTENT_DO_ACCOUNTING | EXTENT_UPTODATE, 0, 0,
-				 NULL, GFP_NOFS);
+				 NULL, GFP_KERNEL);
 	iput(inode);
 	btrfs_free_dummy_root(root);
 	return ret;

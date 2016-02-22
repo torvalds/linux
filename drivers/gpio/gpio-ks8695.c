@@ -234,7 +234,7 @@ static struct gpio_chip ks8695_gpio_chip = {
 /* Register the GPIOs */
 void ks8695_register_gpios(void)
 {
-	if (gpiochip_add(&ks8695_gpio_chip))
+	if (gpiochip_add_data(&ks8695_gpio_chip, NULL))
 		printk(KERN_ERR "Unable to register core GPIOs\n");
 }
 

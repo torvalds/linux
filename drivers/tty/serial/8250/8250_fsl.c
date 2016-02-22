@@ -60,3 +60,4 @@ int fsl8250_handle_irq(struct uart_port *port)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 	return 1;
 }
+EXPORT_SYMBOL_GPL(fsl8250_handle_irq);

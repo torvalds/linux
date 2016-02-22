@@ -485,9 +485,10 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	int rone;
 	u64 offset = OF_BAD_ADDR;
 
-	/* Normally, an absence of a "ranges" property means we are
+	/*
+	 * Normally, an absence of a "ranges" property means we are
 	 * crossing a non-translatable boundary, and thus the addresses
-	 * below the current not cannot be converted to CPU physical ones.
+	 * below the current cannot be converted to CPU physical ones.
 	 * Unfortunately, while this is very clear in the spec, it's not
 	 * what Apple understood, and they do have things like /uni-n or
 	 * /ht nodes with no "ranges" property and a lot of perfectly
@@ -596,7 +597,7 @@ static u64 __of_translate_address(struct device_node *dev,
 		pbus = of_match_bus(parent);
 		pbus->count_cells(dev, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
-			printk(KERN_ERR "prom_parse: Bad cell count for %s\n",
+			pr_err("prom_parse: Bad cell count for %s\n",
 			       of_node_full_name(dev));
 			break;
 		}

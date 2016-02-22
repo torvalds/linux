@@ -15,6 +15,8 @@
  */
 
 #include <linux/clk.h>
+#include <linux/gpio/driver.h>
+/* FIXME: needed for gpio_to_irq(), get rid of this */
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -290,7 +292,7 @@ static void atmel_gpio_irq_handler(struct irq_desc *desc)
 
 static int atmel_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct atmel_pioctrl *atmel_pioctrl = dev_get_drvdata(chip->dev);
+	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 	struct atmel_pin *pin = atmel_pioctrl->pins[offset];
 	unsigned reg;
 
@@ -305,7 +307,7 @@ static int atmel_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int atmel_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct atmel_pioctrl *atmel_pioctrl = dev_get_drvdata(chip->dev);
+	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 	struct atmel_pin *pin = atmel_pioctrl->pins[offset];
 	unsigned reg;
 
@@ -317,7 +319,7 @@ static int atmel_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int atmel_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 				       int value)
 {
-	struct atmel_pioctrl *atmel_pioctrl = dev_get_drvdata(chip->dev);
+	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 	struct atmel_pin *pin = atmel_pioctrl->pins[offset];
 	unsigned reg;
 
@@ -336,7 +338,7 @@ static int atmel_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static void atmel_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct atmel_pioctrl *atmel_pioctrl = dev_get_drvdata(chip->dev);
+	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 	struct atmel_pin *pin = atmel_pioctrl->pins[offset];
 
 	atmel_gpio_write(atmel_pioctrl, pin->bank,
@@ -346,7 +348,7 @@ static void atmel_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 
 static int atmel_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct atmel_pioctrl *atmel_pioctrl = dev_get_drvdata(chip->dev);
+	struct atmel_pioctrl *atmel_pioctrl = gpiochip_get_data(chip);
 
 	return irq_find_mapping(atmel_pioctrl->irq_domain, offset);
 }
@@ -500,7 +502,8 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (!num_pins) {
 		dev_err(pctldev->dev, "no pins found in node %s\n",
 			of_node_full_name(np));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	/*
@@ -514,19 +517,19 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	ret = pinctrl_utils_reserve_map(pctldev, map, reserved_maps, num_maps,
 					reserve);
 	if (ret < 0)
-		return ret;
+		goto exit;
 
 	for (i = 0; i < num_pins; i++) {
 		const char *group, *func;
 
 		ret = of_property_read_u32_index(np, "pinmux", i, &pinfunc);
 		if (ret)
-			return ret;
+			goto exit;
 
 		ret = atmel_pctl_xlate_pinfunc(pctldev, np, pinfunc, &group,
 					       &func);
 		if (ret)
-			return ret;
+			goto exit;
 
 		pinctrl_utils_add_map_mux(pctldev, map, reserved_maps, num_maps,
 					  group, func);
@@ -537,11 +540,13 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 					configs, num_configs,
 					PIN_MAP_TYPE_CONFIGS_GROUP);
 			if (ret < 0)
-				return ret;
+				goto exit;
 		}
 	}
 
-	return 0;
+exit:
+	kfree(configs);
+	return ret;
 }
 
 static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
@@ -969,7 +974,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->gpio_chip->of_node = dev->of_node;
 	atmel_pioctrl->gpio_chip->ngpio = atmel_pioctrl->npins;
 	atmel_pioctrl->gpio_chip->label = dev_name(dev);
-	atmel_pioctrl->gpio_chip->dev = dev;
+	atmel_pioctrl->gpio_chip->parent = dev;
 	atmel_pioctrl->gpio_chip->names = atmel_pioctrl->group_names;
 
 	atmel_pioctrl->pm_wakeup_sources = devm_kzalloc(dev,
@@ -1000,7 +1005,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		atmel_pioctrl->irqs[i] = res->start;
 		irq_set_chained_handler(res->start, atmel_gpio_irq_handler);
 		irq_set_handler_data(res->start, atmel_pioctrl);
-		dev_dbg(dev, "bank %i: hwirq=%u\n", i, res->start);
+		dev_dbg(dev, "bank %i: irq=%pr\n", i, res);
 	}
 
 	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_node,
@@ -1037,7 +1042,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		goto pinctrl_register_error;
 	}
 
-	ret = gpiochip_add(atmel_pioctrl->gpio_chip);
+	ret = gpiochip_add_data(atmel_pioctrl->gpio_chip, atmel_pioctrl);
 	if (ret) {
 		dev_err(dev, "failed to add gpiochip\n");
 		goto gpiochip_add_error;

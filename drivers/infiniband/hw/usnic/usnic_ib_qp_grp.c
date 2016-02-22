@@ -521,7 +521,7 @@ int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 
 	if (!status) {
 		qp_grp->state = new_state;
-		usnic_info("Transistioned %u from %s to %s",
+		usnic_info("Transitioned %u from %s to %s",
 		qp_grp->grp_id,
 		usnic_ib_qp_grp_state_to_string(old_state),
 		usnic_ib_qp_grp_state_to_string(new_state));
@@ -575,7 +575,7 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
 	return res_chunk_list;
 
 out_free_res:
-	for (i--; i > 0; i--)
+	for (i--; i >= 0; i--)
 		usnic_vnic_put_resources(res_chunk_list[i]);
 	kfree(res_chunk_list);
 	return ERR_PTR(err);

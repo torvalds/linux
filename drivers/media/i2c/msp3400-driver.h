@@ -4,7 +4,7 @@
 #ifndef MSP3400_DRIVER_H
 #define MSP3400_DRIVER_H
 
-#include <media/msp3400.h>
+#include <media/drv-intf/msp3400.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 

@@ -1,6 +1,8 @@
 #ifndef _UAPI__IP_SET_HASH_H
 #define _UAPI__IP_SET_HASH_H
 
+#include <linux/netfilter/ipset/ip_set.h>
+
 /* Hash type specific error codes */
 enum {
 	/* Hash is full */

@@ -119,7 +119,7 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 	int error = PTR_ERR(tmp);
 	static const struct open_flags uselib_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
-		.acc_mode = MAY_READ | MAY_EXEC | MAY_OPEN,
+		.acc_mode = MAY_READ | MAY_EXEC,
 		.intent = LOOKUP_OPEN,
 		.lookup_flags = LOOKUP_FOLLOW,
 	};
@@ -763,7 +763,7 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
 	int err;
 	struct open_flags open_exec_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
-		.acc_mode = MAY_EXEC | MAY_OPEN,
+		.acc_mode = MAY_EXEC,
 		.intent = LOOKUP_OPEN,
 		.lookup_flags = LOOKUP_FOLLOW,
 	};
@@ -1307,13 +1307,13 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 		return;
 
 	/* Be careful if suid/sgid is set */
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/* reload atomically mode/uid/gid now that lock held */
 	mode = inode->i_mode;
 	uid = inode->i_uid;
 	gid = inode->i_gid;
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	/* We ignore suid/sgid if there are no mappings for them in the ns */
 	if (!kuid_has_mapping(bprm->cred->user_ns, uid) ||

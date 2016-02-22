@@ -173,9 +173,9 @@ static int hfs_dir_release(struct inode *inode, struct file *file)
 {
 	struct hfs_readdir_data *rd = file->private_data;
 	if (rd) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		list_del(&rd->list);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		kfree(rd);
 	}
 	return 0;

@@ -69,13 +69,13 @@ void i915_check_vgpu(struct drm_device *dev)
 	if (!IS_HASWELL(dev))
 		return;
 
-	magic = readq(dev_priv->regs + vgtif_reg(magic));
+	magic = __raw_i915_read64(dev_priv, vgtif_reg(magic));
 	if (magic != VGT_MAGIC)
 		return;
 
 	version = INTEL_VGT_IF_VERSION_ENCODE(
-		readw(dev_priv->regs + vgtif_reg(version_major)),
-		readw(dev_priv->regs + vgtif_reg(version_minor)));
+		__raw_i915_read16(dev_priv, vgtif_reg(version_major)),
+		__raw_i915_read16(dev_priv, vgtif_reg(version_minor)));
 	if (version != INTEL_VGT_IF_VERSION) {
 		DRM_INFO("VGT interface version mismatch!\n");
 		return;

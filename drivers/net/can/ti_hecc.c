@@ -722,7 +722,6 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 	if (err_status & HECC_BUS_ERROR) {
 		++priv->can.can_stats.bus_error;
 		cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_PROT;
-		cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 		if (err_status & HECC_CANES_FE) {
 			hecc_set_bit(priv, HECC_CANES, HECC_CANES_FE);
 			cf->data[2] |= CAN_ERR_PROT_FORM;
@@ -737,13 +736,11 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 		}
 		if (err_status & HECC_CANES_CRCE) {
 			hecc_set_bit(priv, HECC_CANES, HECC_CANES_CRCE);
-			cf->data[3] |= CAN_ERR_PROT_LOC_CRC_SEQ |
-					CAN_ERR_PROT_LOC_CRC_DEL;
+			cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
 		}
 		if (err_status & HECC_CANES_ACKE) {
 			hecc_set_bit(priv, HECC_CANES, HECC_CANES_ACKE);
-			cf->data[3] |= CAN_ERR_PROT_LOC_ACK |
-					CAN_ERR_PROT_LOC_ACK_DEL;
+			cf->data[3] = CAN_ERR_PROT_LOC_ACK;
 		}
 	}
 

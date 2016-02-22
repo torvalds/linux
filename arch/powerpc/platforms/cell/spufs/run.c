@@ -326,7 +326,7 @@ static int spu_process_callback(struct spu_context *ctx)
 	spu_ret = -ENOSYS;
 	npc += 4;
 
-	if (s.nr_ret < __NR_syscalls) {
+	if (s.nr_ret < NR_syscalls) {
 		spu_release(ctx);
 		/* do actual system call from here */
 		spu_ret = spu_sys_callback(&s);

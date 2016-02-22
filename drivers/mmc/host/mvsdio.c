@@ -20,15 +20,12 @@
 #include <linux/scatterlist.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include <asm/sizes.h>
 #include <asm/unaligned.h>
-#include <linux/platform_data/mmc-mvsdio.h>
 
 #include "mvsdio.h"
 
@@ -704,6 +701,10 @@ static int mvsd_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret, irq;
 
+	if (!np) {
+		dev_err(&pdev->dev, "no DT node\n");
+		return -ENODEV;
+	}
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	if (!r || irq < 0)
@@ -727,8 +728,12 @@ static int mvsd_probe(struct platform_device *pdev)
 	 * fixed rate clock).
 	 */
 	host->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(host->clk))
-		clk_prepare_enable(host->clk);
+	if (IS_ERR(host->clk)) {
+		dev_err(&pdev->dev, "no clock associated\n");
+		ret = -EINVAL;
+		goto out;
+	}
+	clk_prepare_enable(host->clk);
 
 	mmc->ops = &mvsd_ops;
 
@@ -744,45 +749,10 @@ static int mvsd_probe(struct platform_device *pdev)
 	mmc->max_seg_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 
-	if (np) {
-		if (IS_ERR(host->clk)) {
-			dev_err(&pdev->dev, "DT platforms must have a clock associated\n");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		host->base_clock = clk_get_rate(host->clk) / 2;
-		ret = mmc_of_parse(mmc);
-		if (ret < 0)
-			goto out;
-	} else {
-		const struct mvsdio_platform_data *mvsd_data;
-
-		mvsd_data = pdev->dev.platform_data;
-		if (!mvsd_data) {
-			ret = -ENXIO;
-			goto out;
-		}
-		mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |
-			    MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
-		host->base_clock = mvsd_data->clock / 2;
-		/* GPIO 0 regarded as invalid for backward compatibility */
-		if (mvsd_data->gpio_card_detect &&
-		    gpio_is_valid(mvsd_data->gpio_card_detect)) {
-			ret = mmc_gpio_request_cd(mmc,
-						  mvsd_data->gpio_card_detect,
-						  0);
-			if (ret)
-				goto out;
-		} else {
-			mmc->caps |= MMC_CAP_NEEDS_POLL;
-		}
-
-		if (mvsd_data->gpio_write_protect &&
-		    gpio_is_valid(mvsd_data->gpio_write_protect))
-			mmc_gpio_request_ro(mmc, mvsd_data->gpio_write_protect);
-	}
-
+	host->base_clock = clk_get_rate(host->clk) / 2;
+	ret = mmc_of_parse(mmc);
+	if (ret < 0)
+		goto out;
 	if (maxfreq)
 		mmc->f_max = maxfreq;
 

@@ -153,76 +153,11 @@ static void scsi_dh_handler_detach(struct scsi_device *sdev)
 	module_put(sdev->handler->module);
 }
 
-/*
- * Functions for sysfs attribute 'dh_state'
- */
-static ssize_t
-store_dh_state(struct device *dev, struct device_attribute *attr,
-	       const char *buf, size_t count)
-{
-	struct scsi_device *sdev = to_scsi_device(dev);
-	struct scsi_device_handler *scsi_dh;
-	int err = -EINVAL;
-
-	if (sdev->sdev_state == SDEV_CANCEL ||
-	    sdev->sdev_state == SDEV_DEL)
-		return -ENODEV;
-
-	if (!sdev->handler) {
-		/*
-		 * Attach to a device handler
-		 */
-		scsi_dh = scsi_dh_lookup(buf);
-		if (!scsi_dh)
-			return err;
-		err = scsi_dh_handler_attach(sdev, scsi_dh);
-	} else {
-		if (!strncmp(buf, "detach", 6)) {
-			/*
-			 * Detach from a device handler
-			 */
-			sdev_printk(KERN_WARNING, sdev,
-				    "can't detach handler %s.\n",
-				    sdev->handler->name);
-			err = -EINVAL;
-		} else if (!strncmp(buf, "activate", 8)) {
-			/*
-			 * Activate a device handler
-			 */
-			if (sdev->handler->activate)
-				err = sdev->handler->activate(sdev, NULL, NULL);
-			else
-				err = 0;
-		}
-	}
-
-	return err<0?err:count;
-}
-
-static ssize_t
-show_dh_state(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct scsi_device *sdev = to_scsi_device(dev);
-
-	if (!sdev->handler)
-		return snprintf(buf, 20, "detached\n");
-
-	return snprintf(buf, 20, "%s\n", sdev->handler->name);
-}
-
-static struct device_attribute scsi_dh_state_attr =
-	__ATTR(dh_state, S_IRUGO | S_IWUSR, show_dh_state,
-	       store_dh_state);
-
 int scsi_dh_add_device(struct scsi_device *sdev)
 {
 	struct scsi_device_handler *devinfo = NULL;
 	const char *drv;
-	int err;
-
-	err = device_create_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
-	if (err)
-		return err;
+	int err = 0;
 
 	drv = scsi_dh_find_driver(sdev);
 	if (drv)
@@ -236,11 +171,6 @@ void scsi_dh_release_device(struct scsi_device *sdev)
 {
 	if (sdev->handler)
 		scsi_dh_handler_detach(sdev);
-}
-
-void scsi_dh_remove_device(struct scsi_device *sdev)
-{
-	device_remove_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
 }
 
 /*

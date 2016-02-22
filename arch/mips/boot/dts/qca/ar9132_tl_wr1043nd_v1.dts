@@ -35,6 +35,10 @@
 			};
 		};
 
+		usb@1b000100 {
+			status = "okay";
+		};
+
 		spi@1f000000 {
 			status = "okay";
 			num-cs = <1>;
@@ -63,6 +67,10 @@
 				};
 			};
 		};
+	};
+
+	usb-phy {
+		status = "okay";
 	};
 
 	gpio-keys {

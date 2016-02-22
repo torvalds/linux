@@ -14,11 +14,15 @@
 #include <linux/filter.h>
 #include <linux/vmalloc.h>
 
+struct bucket {
+	struct hlist_head head;
+	raw_spinlock_t lock;
+};
+
 struct bpf_htab {
 	struct bpf_map map;
-	struct hlist_head *buckets;
-	raw_spinlock_t lock;
-	u32 count;	/* number of elements in this hashtable */
+	struct bucket *buckets;
+	atomic_t count;	/* number of elements in this hashtable */
 	u32 n_buckets;	/* number of hash buckets */
 	u32 elem_size;	/* size of each element in bytes */
 };
@@ -64,34 +68,51 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		 */
 		goto free_htab;
 
-	err = -ENOMEM;
-	/* prevent zero size kmalloc and check for u32 overflow */
-	if (htab->n_buckets == 0 ||
-	    htab->n_buckets > U32_MAX / sizeof(struct hlist_head))
+	if (htab->map.value_size >= (1 << (KMALLOC_SHIFT_MAX - 1)) -
+	    MAX_BPF_STACK - sizeof(struct htab_elem))
+		/* if value_size is bigger, the user space won't be able to
+		 * access the elements via bpf syscall. This check also makes
+		 * sure that the elem_size doesn't overflow and it's
+		 * kmalloc-able later in htab_map_update_elem()
+		 */
 		goto free_htab;
-
-	htab->buckets = kmalloc_array(htab->n_buckets, sizeof(struct hlist_head),
-				      GFP_USER | __GFP_NOWARN);
-
-	if (!htab->buckets) {
-		htab->buckets = vmalloc(htab->n_buckets * sizeof(struct hlist_head));
-		if (!htab->buckets)
-			goto free_htab;
-	}
-
-	for (i = 0; i < htab->n_buckets; i++)
-		INIT_HLIST_HEAD(&htab->buckets[i]);
-
-	raw_spin_lock_init(&htab->lock);
-	htab->count = 0;
 
 	htab->elem_size = sizeof(struct htab_elem) +
 			  round_up(htab->map.key_size, 8) +
 			  htab->map.value_size;
 
-	htab->map.pages = round_up(htab->n_buckets * sizeof(struct hlist_head) +
+	/* prevent zero size kmalloc and check for u32 overflow */
+	if (htab->n_buckets == 0 ||
+	    htab->n_buckets > U32_MAX / sizeof(struct bucket))
+		goto free_htab;
+
+	if ((u64) htab->n_buckets * sizeof(struct bucket) +
+	    (u64) htab->elem_size * htab->map.max_entries >=
+	    U32_MAX - PAGE_SIZE)
+		/* make sure page count doesn't overflow */
+		goto free_htab;
+
+	htab->map.pages = round_up(htab->n_buckets * sizeof(struct bucket) +
 				   htab->elem_size * htab->map.max_entries,
 				   PAGE_SIZE) >> PAGE_SHIFT;
+
+	err = -ENOMEM;
+	htab->buckets = kmalloc_array(htab->n_buckets, sizeof(struct bucket),
+				      GFP_USER | __GFP_NOWARN);
+
+	if (!htab->buckets) {
+		htab->buckets = vmalloc(htab->n_buckets * sizeof(struct bucket));
+		if (!htab->buckets)
+			goto free_htab;
+	}
+
+	for (i = 0; i < htab->n_buckets; i++) {
+		INIT_HLIST_HEAD(&htab->buckets[i].head);
+		raw_spin_lock_init(&htab->buckets[i].lock);
+	}
+
+	atomic_set(&htab->count, 0);
+
 	return &htab->map;
 
 free_htab:
@@ -104,9 +125,14 @@ static inline u32 htab_map_hash(const void *key, u32 key_len)
 	return jhash(key, key_len, 0);
 }
 
-static inline struct hlist_head *select_bucket(struct bpf_htab *htab, u32 hash)
+static inline struct bucket *__select_bucket(struct bpf_htab *htab, u32 hash)
 {
 	return &htab->buckets[hash & (htab->n_buckets - 1)];
+}
+
+static inline struct hlist_head *select_bucket(struct bpf_htab *htab, u32 hash)
+{
+	return &__select_bucket(htab, hash)->head;
 }
 
 static struct htab_elem *lookup_elem_raw(struct hlist_head *head, u32 hash,
@@ -211,6 +237,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct htab_elem *l_new, *l_old;
 	struct hlist_head *head;
+	struct bucket *b;
 	unsigned long flags;
 	u32 key_size;
 	int ret;
@@ -222,7 +249,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	/* allocate new element outside of lock */
-	l_new = kmalloc(htab->elem_size, GFP_ATOMIC);
+	l_new = kmalloc(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN);
 	if (!l_new)
 		return -ENOMEM;
 
@@ -232,15 +259,15 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	memcpy(l_new->key + round_up(key_size, 8), value, map->value_size);
 
 	l_new->hash = htab_map_hash(l_new->key, key_size);
+	b = __select_bucket(htab, l_new->hash);
+	head = &b->head;
 
 	/* bpf_map_update_elem() can be called in_irq() */
-	raw_spin_lock_irqsave(&htab->lock, flags);
-
-	head = select_bucket(htab, l_new->hash);
+	raw_spin_lock_irqsave(&b->lock, flags);
 
 	l_old = lookup_elem_raw(head, l_new->hash, key, key_size);
 
-	if (!l_old && unlikely(htab->count >= map->max_entries)) {
+	if (!l_old && unlikely(atomic_read(&htab->count) >= map->max_entries)) {
 		/* if elem with this 'key' doesn't exist and we've reached
 		 * max_entries limit, fail insertion of new elem
 		 */
@@ -268,13 +295,13 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 		hlist_del_rcu(&l_old->hash_node);
 		kfree_rcu(l_old, rcu);
 	} else {
-		htab->count++;
+		atomic_inc(&htab->count);
 	}
-	raw_spin_unlock_irqrestore(&htab->lock, flags);
+	raw_spin_unlock_irqrestore(&b->lock, flags);
 
 	return 0;
 err:
-	raw_spin_unlock_irqrestore(&htab->lock, flags);
+	raw_spin_unlock_irqrestore(&b->lock, flags);
 	kfree(l_new);
 	return ret;
 }
@@ -284,6 +311,7 @@ static int htab_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct hlist_head *head;
+	struct bucket *b;
 	struct htab_elem *l;
 	unsigned long flags;
 	u32 hash, key_size;
@@ -294,21 +322,21 @@ static int htab_map_delete_elem(struct bpf_map *map, void *key)
 	key_size = map->key_size;
 
 	hash = htab_map_hash(key, key_size);
+	b = __select_bucket(htab, hash);
+	head = &b->head;
 
-	raw_spin_lock_irqsave(&htab->lock, flags);
-
-	head = select_bucket(htab, hash);
+	raw_spin_lock_irqsave(&b->lock, flags);
 
 	l = lookup_elem_raw(head, hash, key, key_size);
 
 	if (l) {
 		hlist_del_rcu(&l->hash_node);
-		htab->count--;
+		atomic_dec(&htab->count);
 		kfree_rcu(l, rcu);
 		ret = 0;
 	}
 
-	raw_spin_unlock_irqrestore(&htab->lock, flags);
+	raw_spin_unlock_irqrestore(&b->lock, flags);
 	return ret;
 }
 
@@ -323,7 +351,7 @@ static void delete_all_elements(struct bpf_htab *htab)
 
 		hlist_for_each_entry_safe(l, n, head, hash_node) {
 			hlist_del_rcu(&l->hash_node);
-			htab->count--;
+			atomic_dec(&htab->count);
 			kfree(l);
 		}
 	}

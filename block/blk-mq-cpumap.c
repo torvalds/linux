@@ -113,7 +113,7 @@ int blk_mq_hw_queue_to_node(unsigned int *mq_map, unsigned int index)
 
 	for_each_possible_cpu(i) {
 		if (index == mq_map[i])
-			return cpu_to_node(i);
+			return local_memory_node(cpu_to_node(i));
 	}
 
 	return NUMA_NO_NODE;

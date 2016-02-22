@@ -2927,7 +2927,7 @@ static struct si_dpm_quirk si_dpm_quirk_list[] = {
 	{ PCI_VENDOR_ID_ATI, 0x6810, 0x1462, 0x3036, 0, 120000 },
 	{ PCI_VENDOR_ID_ATI, 0x6811, 0x174b, 0xe271, 0, 120000 },
 	{ PCI_VENDOR_ID_ATI, 0x6810, 0x174b, 0xe271, 85000, 90000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x1762, 0x2015, 0, 120000 },
+	{ PCI_VENDOR_ID_ATI, 0x6811, 0x1462, 0x2015, 0, 120000 },
 	{ PCI_VENDOR_ID_ATI, 0x6811, 0x1043, 0x2015, 0, 120000 },
 	{ 0, 0, 0, 0 },
 };

@@ -149,7 +149,7 @@ static inline void exynos_pm_init(void) {}
 extern void exynos_cpu_resume(void);
 extern void exynos_cpu_resume_ns(void);
 
-extern struct smp_operations exynos_smp_ops;
+extern const struct smp_operations exynos_smp_ops;
 
 extern void exynos_cpu_power_down(int cpu);
 extern void exynos_cpu_power_up(int cpu);

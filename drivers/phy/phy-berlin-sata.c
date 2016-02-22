@@ -195,7 +195,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct phy_berlin_priv *priv;
 	struct resource *res;
-	int i = 0;
+	int ret, i = 0;
 	u32 phy_id;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -237,22 +237,27 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 		if (of_property_read_u32(child, "reg", &phy_id)) {
 			dev_err(dev, "missing reg property in node %s\n",
 				child->name);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto put_child;
 		}
 
 		if (phy_id >= ARRAY_SIZE(phy_berlin_power_down_bits)) {
 			dev_err(dev, "invalid reg in node %s\n", child->name);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto put_child;
 		}
 
 		phy_desc = devm_kzalloc(dev, sizeof(*phy_desc), GFP_KERNEL);
-		if (!phy_desc)
-			return -ENOMEM;
+		if (!phy_desc) {
+			ret = -ENOMEM;
+			goto put_child;
+		}
 
 		phy = devm_phy_create(dev, NULL, &phy_berlin_sata_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create PHY %d\n", phy_id);
-			return PTR_ERR(phy);
+			ret = PTR_ERR(phy);
+			goto put_child;
 		}
 
 		phy_desc->phy = phy;
@@ -269,6 +274,9 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	phy_provider =
 		devm_of_phy_provider_register(dev, phy_berlin_sata_phy_xlate);
 	return PTR_ERR_OR_ZERO(phy_provider);
+put_child:
+	of_node_put(child);
+	return ret;
 }
 
 static const struct of_device_id phy_berlin_sata_of_match[] = {

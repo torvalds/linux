@@ -42,7 +42,7 @@
 /*
  * The High Precision Event Timer driver.
  * This driver is closely modelled after the rtc.c driver.
- * http://www.intel.com/hardwaredesign/hpetspec_1.pdf
+ * See HPET spec revision 1.
  */
 #define	HPET_USER_FREQ	(64)
 #define	HPET_DRIFT	(500)

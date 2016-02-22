@@ -210,6 +210,7 @@ static void send_handler(struct ib_mad_agent *agent,
 }
 
 static void recv_handler(struct ib_mad_agent *agent,
+			 struct ib_mad_send_buf *send_buf,
 			 struct ib_mad_recv_wc *mad_recv_wc)
 {
 	struct ib_umad_file *file = agent->context;

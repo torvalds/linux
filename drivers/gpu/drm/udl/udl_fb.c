@@ -33,7 +33,6 @@ module_param(fb_defio, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 struct udl_fbdev {
 	struct drm_fb_helper helper;
 	struct udl_framebuffer ufb;
-	struct list_head fbdev_list;
 	int fb_count;
 };
 
@@ -456,7 +455,7 @@ static const struct drm_framebuffer_funcs udlfb_funcs = {
 static int
 udl_framebuffer_init(struct drm_device *dev,
 		     struct udl_framebuffer *ufb,
-		     struct drm_mode_fb_cmd2 *mode_cmd,
+		     const struct drm_mode_fb_cmd2 *mode_cmd,
 		     struct udl_gem_object *obj)
 {
 	int ret;
@@ -624,7 +623,7 @@ void udl_fbdev_unplug(struct drm_device *dev)
 struct drm_framebuffer *
 udl_fb_user_fb_create(struct drm_device *dev,
 		   struct drm_file *file,
-		   struct drm_mode_fb_cmd2 *mode_cmd)
+		   const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct udl_framebuffer *ufb;

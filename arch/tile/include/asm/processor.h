@@ -212,7 +212,7 @@ static inline void release_thread(struct task_struct *dead_task)
 	/* Nothing for now */
 }
 
-extern int do_work_pending(struct pt_regs *regs, u32 flags);
+extern void prepare_exit_to_usermode(struct pt_regs *regs, u32 flags);
 
 
 /*

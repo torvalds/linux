@@ -27,7 +27,7 @@
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
-#include <media/upd64031a.h>
+#include <media/i2c/upd64031a.h>
 
 /* --------------------- read registers functions define -------------------- */
 

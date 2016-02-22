@@ -130,6 +130,9 @@ static int chacha_decrypt(struct aead_request *req)
 	struct scatterlist *src, *dst;
 	int err;
 
+	if (rctx->cryptlen == 0)
+		goto skip;
+
 	chacha_iv(creq->iv, req, 1);
 
 	sg_init_table(rctx->src, 2);
@@ -150,6 +153,7 @@ static int chacha_decrypt(struct aead_request *req)
 	if (err)
 		return err;
 
+skip:
 	return poly_verify_tag(req);
 }
 
@@ -415,6 +419,9 @@ static int chacha_encrypt(struct aead_request *req)
 	struct scatterlist *src, *dst;
 	int err;
 
+	if (req->cryptlen == 0)
+		goto skip;
+
 	chacha_iv(creq->iv, req, 1);
 
 	sg_init_table(rctx->src, 2);
@@ -435,6 +442,7 @@ static int chacha_encrypt(struct aead_request *req)
 	if (err)
 		return err;
 
+skip:
 	return poly_genkey(req);
 }
 

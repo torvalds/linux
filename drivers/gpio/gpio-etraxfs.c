@@ -1,12 +1,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/basic_mmio_gpio.h>
 
 #define ETRAX_FS_rw_pa_dout	0
 #define ETRAX_FS_r_pa_din	4
@@ -67,7 +65,7 @@ struct etraxfs_gpio_block {
 };
 
 struct etraxfs_gpio_chip {
-	struct bgpio_chip bgc;
+	struct gpio_chip gc;
 	struct etraxfs_gpio_block *block;
 };
 
@@ -176,11 +174,6 @@ static const struct etraxfs_gpio_info etraxfs_gpio_artpec3 = {
 	.rw_intr_pins	= ARTPEC3_rw_intr_pins,
 };
 
-static struct etraxfs_gpio_chip *to_etraxfs(struct gpio_chip *gc)
-{
-	return container_of(gc, struct etraxfs_gpio_chip, bgc.gc);
-}
-
 static unsigned int etraxfs_gpio_chip_to_port(struct gpio_chip *gc)
 {
 	return gc->label[0] - 'A';
@@ -220,13 +213,13 @@ static unsigned int etraxfs_gpio_to_group_irq(unsigned int gpio)
 static unsigned int etraxfs_gpio_to_group_pin(struct etraxfs_gpio_chip *chip,
 					      unsigned int gpio)
 {
-	return 4 * etraxfs_gpio_chip_to_port(&chip->bgc.gc) + gpio / 8;
+	return 4 * etraxfs_gpio_chip_to_port(&chip->gc) + gpio / 8;
 }
 
 static void etraxfs_gpio_irq_ack(struct irq_data *d)
 {
 	struct etraxfs_gpio_chip *chip =
-		to_etraxfs(irq_data_get_irq_chip_data(d));
+		gpiochip_get_data(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 
@@ -236,7 +229,7 @@ static void etraxfs_gpio_irq_ack(struct irq_data *d)
 static void etraxfs_gpio_irq_mask(struct irq_data *d)
 {
 	struct etraxfs_gpio_chip *chip =
-		to_etraxfs(irq_data_get_irq_chip_data(d));
+		gpiochip_get_data(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 
@@ -249,7 +242,7 @@ static void etraxfs_gpio_irq_mask(struct irq_data *d)
 static void etraxfs_gpio_irq_unmask(struct irq_data *d)
 {
 	struct etraxfs_gpio_chip *chip =
-		to_etraxfs(irq_data_get_irq_chip_data(d));
+		gpiochip_get_data(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 
@@ -262,7 +255,7 @@ static void etraxfs_gpio_irq_unmask(struct irq_data *d)
 static int etraxfs_gpio_irq_set_type(struct irq_data *d, u32 type)
 {
 	struct etraxfs_gpio_chip *chip =
-		to_etraxfs(irq_data_get_irq_chip_data(d));
+		gpiochip_get_data(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 	u32 cfg;
@@ -299,7 +292,7 @@ static int etraxfs_gpio_irq_set_type(struct irq_data *d, u32 type)
 static int etraxfs_gpio_irq_request_resources(struct irq_data *d)
 {
 	struct etraxfs_gpio_chip *chip =
-		to_etraxfs(irq_data_get_irq_chip_data(d));
+		gpiochip_get_data(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 	int ret = -EBUSY;
@@ -308,7 +301,7 @@ static int etraxfs_gpio_irq_request_resources(struct irq_data *d)
 	if (block->group[grpirq])
 		goto out;
 
-	ret = gpiochip_lock_as_irq(&chip->bgc.gc, d->hwirq);
+	ret = gpiochip_lock_as_irq(&chip->gc, d->hwirq);
 	if (ret)
 		goto out;
 
@@ -330,13 +323,13 @@ out:
 static void etraxfs_gpio_irq_release_resources(struct irq_data *d)
 {
 	struct etraxfs_gpio_chip *chip =
-		to_etraxfs(irq_data_get_irq_chip_data(d));
+		gpiochip_get_data(irq_data_get_irq_chip_data(d));
 	struct etraxfs_gpio_block *block = chip->block;
 	unsigned int grpirq = etraxfs_gpio_to_group_irq(d->hwirq);
 
 	spin_lock(&block->lock);
 	block->group[grpirq] = 0;
-	gpiochip_unlock_as_irq(&chip->bgc.gc, d->hwirq);
+	gpiochip_unlock_as_irq(&chip->gc, d->hwirq);
 	spin_unlock(&block->lock);
 }
 
@@ -419,7 +412,7 @@ static int etraxfs_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < info->num_ports; i++) {
 		struct etraxfs_gpio_chip *chip = &chips[i];
-		struct bgpio_chip *bgc = &chip->bgc;
+		struct gpio_chip *gc = &chip->gc;
 		const struct etraxfs_gpio_port *port = &info->ports[i];
 		unsigned long flags = BGPIOF_READ_OUTPUT_REG_SET;
 		void __iomem *dat = regs + port->din;
@@ -433,7 +426,7 @@ static int etraxfs_gpio_probe(struct platform_device *pdev)
 			flags = BGPIOF_NO_OUTPUT;
 		}
 
-		ret = bgpio_init(bgc, dev, 4,
+		ret = bgpio_init(gc, dev, 4,
 				 dat, set, NULL, dirout, NULL,
 				 flags);
 		if (ret) {
@@ -442,28 +435,28 @@ static int etraxfs_gpio_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		bgc->gc.ngpio = port->ngpio;
-		bgc->gc.label = port->label;
+		gc->ngpio = port->ngpio;
+		gc->label = port->label;
 
-		bgc->gc.of_node = dev->of_node;
-		bgc->gc.of_gpio_n_cells = 3;
-		bgc->gc.of_xlate = etraxfs_gpio_of_xlate;
+		gc->of_node = dev->of_node;
+		gc->of_gpio_n_cells = 3;
+		gc->of_xlate = etraxfs_gpio_of_xlate;
 
-		ret = gpiochip_add(&bgc->gc);
+		ret = gpiochip_add_data(gc, chip);
 		if (ret) {
 			dev_err(dev, "Unable to register port %s\n",
-				bgc->gc.label);
+				gc->label);
 			continue;
 		}
 
 		if (i > 0 && !allportsirq)
 			continue;
 
-		ret = gpiochip_irqchip_add(&bgc->gc, &etraxfs_gpio_irq_chip, 0,
+		ret = gpiochip_irqchip_add(gc, &etraxfs_gpio_irq_chip, 0,
 					   handle_level_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(dev, "Unable to add irqchip to port %s\n",
-				bgc->gc.label);
+				gc->label);
 		}
 	}
 

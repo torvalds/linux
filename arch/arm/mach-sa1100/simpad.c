@@ -98,8 +98,8 @@ static void cs3_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int cs3_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	if (offset > 15)
-		return simpad_get_cs3_ro() & (1 << (offset - 16));
-	return simpad_get_cs3_shadow() & (1 << offset);
+		return !!(simpad_get_cs3_ro() & (1 << (offset - 16)));
+	return !!(simpad_get_cs3_shadow() & (1 << offset));
 };
 
 static int cs3_gpio_direction_input(struct gpio_chip *chip, unsigned offset)

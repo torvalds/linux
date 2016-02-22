@@ -14,25 +14,24 @@
  * | Module Init and Probe        |       0x017f       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e-0x0170  |
- * | Mailbox commands             |       0x118d       | 0x1115-0x1116	|
- * |                              |                    | 0x111a-0x111b  |
+ * | Mailbox commands             |       0x1192       |		|
+ * |                              |                    |		|
  * | Device Discovery             |       0x2016       | 0x2020-0x2022, |
  * |                              |                    | 0x2011-0x2012, |
  * |                              |                    | 0x2099-0x20a4  |
- * | Queue Command and IO tracing |       0x3075       | 0x300b         |
+ * | Queue Command and IO tracing |       0x3074       | 0x300b         |
  * |                              |                    | 0x3027-0x3028  |
  * |                              |                    | 0x303d-0x3041  |
  * |                              |                    | 0x302d,0x3033  |
  * |                              |                    | 0x3036,0x3038  |
  * |                              |                    | 0x303a		|
  * | DPC Thread                   |       0x4023       | 0x4002,0x4013  |
- * | Async Events                 |       0x508a       | 0x502b-0x502f  |
- * |                              |                    | 0x5047		|
+ * | Async Events                 |       0x5089       | 0x502b-0x502f  |
  * |                              |                    | 0x5084,0x5075	|
  * |                              |                    | 0x503d,0x5044  |
  * |                              |                    | 0x507b,0x505f	|
  * | Timer Routines               |       0x6012       |                |
- * | User Space Interactions      |       0x70e2       | 0x7018,0x702e  |
+ * | User Space Interactions      |       0x70e65      | 0x7018,0x702e  |
  * |				  |		       | 0x7020,0x7024  |
  * |                              |                    | 0x7039,0x7045  |
  * |                              |                    | 0x7073-0x7075  |
@@ -60,15 +59,11 @@
  * |                              |                    | 0xb13c-0xb140  |
  * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc00c       |		|
- * | Misc                         |       0xd300       | 0xd016-0xd017	|
- * |                              |                    | 0xd021,0xd024	|
- * |                              |                    | 0xd025,0xd029	|
- * |                              |                    | 0xd02a,0xd02e	|
- * |                              |                    | 0xd031-0xd0ff	|
+ * | Misc                         |       0xd301       | 0xd031-0xd0ff	|
  * |                              |                    | 0xd101-0xd1fe	|
  * |                              |                    | 0xd214-0xd2fe	|
  * | Target Mode		  |	  0xe080       |		|
- * | Target Mode Management	  |	  0xf096       | 0xf002		|
+ * | Target Mode Management	  |	  0xf09b       | 0xf002		|
  * |                              |                    | 0xf046-0xf049  |
  * | Target Mode Task Management  |	  0x1000d      |		|
  * ----------------------------------------------------------------------

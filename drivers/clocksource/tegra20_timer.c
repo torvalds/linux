@@ -96,7 +96,8 @@ static struct clock_event_device tegra_clockevent = {
 	.name			= "timer0",
 	.rating			= 300,
 	.features		= CLOCK_EVT_FEAT_ONESHOT |
-				  CLOCK_EVT_FEAT_PERIODIC,
+				  CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_DYNIRQ,
 	.set_next_event		= tegra_timer_set_next_event,
 	.set_state_shutdown	= tegra_timer_shutdown,
 	.set_state_periodic	= tegra_timer_set_periodic,

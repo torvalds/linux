@@ -12,7 +12,7 @@
 #include <linux/module.h>
 
 #define NAT_VALID_HOOKS ((1 << NF_BR_PRE_ROUTING) | (1 << NF_BR_LOCAL_OUT) | \
-   (1 << NF_BR_POST_ROUTING))
+			 (1 << NF_BR_POST_ROUTING))
 
 static struct ebt_entries initial_chains[] = {
 	{

@@ -26,7 +26,7 @@
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
-#include <media/tw9910.h>
+#include <media/i2c/tw9910.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-subdev.h>
 

@@ -96,13 +96,13 @@ static void mcip_probe_n_setup(void)
 #ifdef CONFIG_CPU_BIG_ENDIAN
 		unsigned int pad3:8,
 			     idu:1, llm:1, num_cores:6,
-			     iocoh:1,  grtc:1, dbg:1, pad2:1,
+			     iocoh:1,  gfrc:1, dbg:1, pad2:1,
 			     msg:1, sem:1, ipi:1, pad:1,
 			     ver:8;
 #else
 		unsigned int ver:8,
 			     pad:1, ipi:1, sem:1, msg:1,
-			     pad2:1, dbg:1, grtc:1, iocoh:1,
+			     pad2:1, dbg:1, gfrc:1, iocoh:1,
 			     num_cores:6, llm:1, idu:1,
 			     pad3:8;
 #endif
@@ -116,7 +116,7 @@ static void mcip_probe_n_setup(void)
 		IS_AVAIL1(mp.ipi, "IPI "),
 		IS_AVAIL1(mp.idu, "IDU "),
 		IS_AVAIL1(mp.dbg, "DEBUG "),
-		IS_AVAIL1(mp.grtc, "GRTC"));
+		IS_AVAIL1(mp.gfrc, "GFRC"));
 
 	idu_detected = mp.idu;
 
@@ -125,14 +125,14 @@ static void mcip_probe_n_setup(void)
 		__mcip_cmd_data(CMD_DEBUG_SET_MASK, 0xf, 0xf);
 	}
 
-	if (IS_ENABLED(CONFIG_ARC_HAS_GRTC) && !mp.grtc)
-		panic("kernel trying to use non-existent GRTC\n");
+	if (IS_ENABLED(CONFIG_ARC_HAS_GFRC) && !mp.gfrc)
+		panic("kernel trying to use non-existent GFRC\n");
 }
 
 struct plat_smp_ops plat_smp_ops = {
 	.info		= smp_cpuinfo_buf,
 	.init_early_smp	= mcip_probe_n_setup,
-	.init_irq_cpu	= mcip_setup_per_cpu,
+	.init_per_cpu	= mcip_setup_per_cpu,
 	.ipi_send	= mcip_ipi_send,
 	.ipi_clear	= mcip_ipi_clear,
 };

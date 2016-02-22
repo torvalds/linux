@@ -295,9 +295,9 @@ static int bpa10x_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		return -ENOMEM;
 
 	/* Prepend skb with frame type */
-	*skb_push(skb, 1) = bt_cb(skb)->pkt_type;
+	*skb_push(skb, 1) = hci_skb_pkt_type(skb);
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		dr = kmalloc(sizeof(*dr), GFP_ATOMIC);
 		if (!dr) {

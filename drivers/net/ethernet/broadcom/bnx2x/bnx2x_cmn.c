@@ -46,7 +46,6 @@ static void bnx2x_add_all_napi_cnic(struct bnx2x *bp)
 	for_each_rx_queue_cnic(bp, i) {
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, NAPI_POLL_WEIGHT);
-		napi_hash_add(&bnx2x_fp(bp, i, napi));
 	}
 }
 
@@ -58,7 +57,6 @@ static void bnx2x_add_all_napi(struct bnx2x *bp)
 	for_each_eth_queue(bp, i) {
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, NAPI_POLL_WEIGHT);
-		napi_hash_add(&bnx2x_fp(bp, i, napi));
 	}
 }
 
@@ -560,10 +558,8 @@ static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			put_page(pool->page);
 
 		pool->page = alloc_pages(gfp_mask, PAGES_PER_SGE_SHIFT);
-		if (unlikely(!pool->page)) {
-			BNX2X_ERR("Can't alloc sge\n");
+		if (unlikely(!pool->page))
 			return -ENOMEM;
-		}
 
 		pool->offset = 0;
 	}
@@ -747,7 +743,7 @@ static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			bnx2x_gro_csum(bp, skb, bnx2x_gro_ipv6_csum);
 			break;
 		default:
-			BNX2X_ERR("Error: FW GRO supports only IPv4/IPv6, not 0x%04x\n",
+			WARN_ONCE(1, "Error: FW GRO supports only IPv4/IPv6, not 0x%04x\n",
 				  be16_to_cpu(skb->protocol));
 		}
 	}
@@ -1094,12 +1090,7 @@ reuse_rx:
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       le16_to_cpu(cqe_fp->vlan_tag));
 
-		skb_mark_napi_id(skb, &fp->napi);
-
-		if (bnx2x_fp_ll_polling(fp))
-			netif_receive_skb(skb);
-		else
-			napi_gro_receive(&fp->napi, skb);
+		napi_gro_receive(&fp->napi, skb);
 next_rx:
 		rx_buf->data = NULL;
 
@@ -1130,9 +1121,6 @@ next_cqe:
 	/* Update producers */
 	bnx2x_update_rx_prod(bp, fp, bd_prod_fw, sw_comp_prod,
 			     fp->rx_sge_prod);
-
-	fp->rx_pkt += rx_pkt;
-	fp->rx_calls++;
 
 	return rx_pkt;
 }
@@ -1869,7 +1857,6 @@ static void bnx2x_napi_enable_cnic(struct bnx2x *bp)
 	int i;
 
 	for_each_rx_queue_cnic(bp, i) {
-		bnx2x_fp_busy_poll_init(&bp->fp[i]);
 		napi_enable(&bnx2x_fp(bp, i, napi));
 	}
 }
@@ -1879,7 +1866,6 @@ static void bnx2x_napi_enable(struct bnx2x *bp)
 	int i;
 
 	for_each_eth_queue(bp, i) {
-		bnx2x_fp_busy_poll_init(&bp->fp[i]);
 		napi_enable(&bnx2x_fp(bp, i, napi));
 	}
 }
@@ -1890,8 +1876,6 @@ static void bnx2x_napi_disable_cnic(struct bnx2x *bp)
 
 	for_each_rx_queue_cnic(bp, i) {
 		napi_disable(&bnx2x_fp(bp, i, napi));
-		while (!bnx2x_fp_ll_disable(&bp->fp[i]))
-			usleep_range(1000, 2000);
 	}
 }
 
@@ -1901,8 +1885,6 @@ static void bnx2x_napi_disable(struct bnx2x *bp)
 
 	for_each_eth_queue(bp, i) {
 		napi_disable(&bnx2x_fp(bp, i, napi));
-		while (!bnx2x_fp_ll_disable(&bp->fp[i]))
-			usleep_range(1000, 2000);
 	}
 }
 
@@ -3219,49 +3201,32 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
  */
 static int bnx2x_poll(struct napi_struct *napi, int budget)
 {
-	int work_done = 0;
-	u8 cos;
 	struct bnx2x_fastpath *fp = container_of(napi, struct bnx2x_fastpath,
 						 napi);
 	struct bnx2x *bp = fp->bp;
+	int rx_work_done;
+	u8 cos;
 
-	while (1) {
 #ifdef BNX2X_STOP_ON_ERROR
-		if (unlikely(bp->panic)) {
-			napi_complete(napi);
-			return 0;
-		}
+	if (unlikely(bp->panic)) {
+		napi_complete(napi);
+		return 0;
+	}
 #endif
-		if (!bnx2x_fp_lock_napi(fp))
-			return budget;
+	for_each_cos_in_tx_queue(fp, cos)
+		if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
+			bnx2x_tx_int(bp, fp->txdata_ptr[cos]);
 
-		for_each_cos_in_tx_queue(fp, cos)
-			if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
-				bnx2x_tx_int(bp, fp->txdata_ptr[cos]);
+	rx_work_done = (bnx2x_has_rx_work(fp)) ? bnx2x_rx_int(fp, budget) : 0;
 
-		if (bnx2x_has_rx_work(fp)) {
-			work_done += bnx2x_rx_int(fp, budget - work_done);
-
-			/* must not complete if we consumed full budget */
-			if (work_done >= budget) {
-				bnx2x_fp_unlock_napi(fp);
-				break;
-			}
-		}
-
-		bnx2x_fp_unlock_napi(fp);
-
-		/* Fall out from the NAPI loop if needed */
-		if (!(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
-
-			/* No need to update SB for FCoE L2 ring as long as
-			 * it's connected to the default SB and the SB
-			 * has been updated when NAPI was scheduled.
-			 */
-			if (IS_FCOE_FP(fp)) {
-				napi_complete(napi);
-				break;
-			}
+	if (rx_work_done < budget) {
+		/* No need to update SB for FCoE L2 ring as long as
+		 * it's connected to the default SB and the SB
+		 * has been updated when NAPI was scheduled.
+		 */
+		if (IS_FCOE_FP(fp)) {
+			napi_complete(napi);
+		} else {
 			bnx2x_update_fpsb_idx(fp);
 			/* bnx2x_has_rx_work() reads the status block,
 			 * thus we need to ensure that status block indices
@@ -3286,39 +3251,14 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 				bnx2x_ack_sb(bp, fp->igu_sb_id, USTORM_ID,
 					     le16_to_cpu(fp->fp_hc_idx),
 					     IGU_INT_ENABLE, 1);
-				break;
+			} else {
+				rx_work_done = budget;
 			}
 		}
 	}
 
-	return work_done;
+	return rx_work_done;
 }
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-/* must be called with local_bh_disable()d */
-int bnx2x_low_latency_recv(struct napi_struct *napi)
-{
-	struct bnx2x_fastpath *fp = container_of(napi, struct bnx2x_fastpath,
-						 napi);
-	struct bnx2x *bp = fp->bp;
-	int found = 0;
-
-	if ((bp->state == BNX2X_STATE_CLOSED) ||
-	    (bp->state == BNX2X_STATE_ERROR) ||
-	    (bp->dev->features & (NETIF_F_LRO | NETIF_F_GRO)))
-		return LL_FLUSH_FAILED;
-
-	if (!bnx2x_fp_lock_poll(fp))
-		return LL_FLUSH_BUSY;
-
-	if (bnx2x_has_rx_work(fp))
-		found = bnx2x_rx_int(fp, 4);
-
-	bnx2x_fp_unlock_poll(fp);
-
-	return found;
-}
-#endif
 
 /* we split the first BD into headers and data BDs
  * to ease the pain of our fellow microcode engineers
@@ -3430,25 +3370,29 @@ static u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 	return rc;
 }
 
-#if (MAX_SKB_FRAGS >= MAX_FETCH_BD - 3)
+/* VXLAN: 4 = 1 (for linear data BD) + 3 (2 for PBD and last BD) */
+#define BNX2X_NUM_VXLAN_TSO_WIN_SUB_BDS         4
+
+/* Regular: 3 = 1 (for linear data BD) + 2 (for PBD and last BD) */
+#define BNX2X_NUM_TSO_WIN_SUB_BDS               3
+
+#if (MAX_SKB_FRAGS >= MAX_FETCH_BD - BDS_PER_TX_PKT)
 /* check if packet requires linearization (packet is too fragmented)
    no need to check fragmentation if page size > 8K (there will be no
    violation to FW restrictions) */
 static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			     u32 xmit_type)
 {
-	int to_copy = 0;
-	int hlen = 0;
-	int first_bd_sz = 0;
+	int first_bd_sz = 0, num_tso_win_sub = BNX2X_NUM_TSO_WIN_SUB_BDS;
+	int to_copy = 0, hlen = 0;
 
-	/* 3 = 1 (for linear data BD) + 2 (for PBD and last BD) */
-	if (skb_shinfo(skb)->nr_frags >= (MAX_FETCH_BD - 3)) {
+	if (xmit_type & XMIT_GSO_ENC)
+		num_tso_win_sub = BNX2X_NUM_VXLAN_TSO_WIN_SUB_BDS;
 
+	if (skb_shinfo(skb)->nr_frags >= (MAX_FETCH_BD - num_tso_win_sub)) {
 		if (xmit_type & XMIT_GSO) {
 			unsigned short lso_mss = skb_shinfo(skb)->gso_size;
-			/* Check if LSO packet needs to be copied:
-			   3 = 1 (for headers BD) + 2 (for PBD and last BD) */
-			int wnd_size = MAX_FETCH_BD - 3;
+			int wnd_size = MAX_FETCH_BD - num_tso_win_sub;
 			/* Number of windows to check */
 			int num_wnds = skb_shinfo(skb)->nr_frags - wnd_size;
 			int wnd_idx = 0;
@@ -4490,7 +4434,6 @@ static int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 	/* Limit the CQE producer by the CQE ring size */
 	fp->rx_comp_prod = min_t(u16, NUM_RCQ_RINGS*RCQ_DESC_CNT,
 			       cqe_ring_prod);
-	fp->rx_pkt = fp->rx_calls = 0;
 
 	bnx2x_fp_stats(bp, fp)->eth_q_stats.rx_skb_alloc_failed += failure_cnt;
 

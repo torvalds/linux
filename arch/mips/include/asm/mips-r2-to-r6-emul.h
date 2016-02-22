@@ -52,7 +52,7 @@ do {									\
 	__this_cpu_inc(mipsr2emustats.M);				\
 	err = __get_user(nir, (u32 __user *)regs->cp0_epc);		\
 	if (!err) {							\
-		if (nir == BREAK_MATH)					\
+		if (nir == BREAK_MATH(0))				\
 			__this_cpu_inc(mipsr2bdemustats.M);		\
 	}								\
 	preempt_enable();						\

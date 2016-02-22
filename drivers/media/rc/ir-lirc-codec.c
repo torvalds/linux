@@ -415,6 +415,7 @@ static int ir_lirc_unregister(struct rc_dev *dev)
 
 	lirc_unregister_driver(lirc->drv->minor);
 	lirc_buffer_free(lirc->drv->rbuf);
+	kfree(lirc->drv->rbuf);
 	kfree(lirc->drv);
 
 	return 0;

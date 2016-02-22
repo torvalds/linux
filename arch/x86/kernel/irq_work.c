@@ -1,7 +1,7 @@
 /*
  * x86 specific code for irq_work
  *
- * Copyright (C) 2010 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright (C) 2010 Red Hat, Inc., Peter Zijlstra
  */
 
 #include <linux/kernel.h>

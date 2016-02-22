@@ -1,6 +1,6 @@
 /*
  * power/home/volume button support for
- * Microsoft Surface Pro 3 tablet.
+ * Microsoft Surface Pro 3/4 tablet.
  *
  * Copyright (c) 2015 Intel Corporation.
  * All rights reserved.
@@ -19,9 +19,10 @@
 #include <linux/acpi.h>
 #include <acpi/button.h>
 
-#define SURFACE_BUTTON_HID		"MSHW0028"
+#define SURFACE_PRO3_BUTTON_HID		"MSHW0028"
+#define SURFACE_PRO4_BUTTON_HID		"MSHW0040"
 #define SURFACE_BUTTON_OBJ_NAME		"VGBI"
-#define SURFACE_BUTTON_DEVICE_NAME	"Surface Pro 3 Buttons"
+#define SURFACE_BUTTON_DEVICE_NAME	"Surface Pro 3/4 Buttons"
 
 #define SURFACE_BUTTON_NOTIFY_PRESS_POWER	0xc6
 #define SURFACE_BUTTON_NOTIFY_RELEASE_POWER	0xc7
@@ -54,7 +55,8 @@ MODULE_LICENSE("GPL v2");
  * acpi_driver.
  */
 static const struct acpi_device_id surface_button_device_ids[] = {
-	{SURFACE_BUTTON_HID,    0},
+	{SURFACE_PRO3_BUTTON_HID,    0},
+	{SURFACE_PRO4_BUTTON_HID,    0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, surface_button_device_ids);
@@ -109,7 +111,7 @@ static void surface_button_notify(struct acpi_device *device, u32 event)
 		break;
 	}
 	input = button->input;
-	if (KEY_RESERVED == key_code)
+	if (key_code == KEY_RESERVED)
 		return;
 	if (pressed)
 		pm_wakeup_event(&device->dev, 0);

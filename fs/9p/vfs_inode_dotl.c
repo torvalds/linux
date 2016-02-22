@@ -899,26 +899,34 @@ error:
 }
 
 /**
- * v9fs_vfs_follow_link_dotl - follow a symlink path
+ * v9fs_vfs_get_link_dotl - follow a symlink path
  * @dentry: dentry for symlink
- * @cookie: place to pass the data to put_link()
+ * @inode: inode for symlink
+ * @done: destructor for return value
  */
 
 static const char *
-v9fs_vfs_follow_link_dotl(struct dentry *dentry, void **cookie)
+v9fs_vfs_get_link_dotl(struct dentry *dentry,
+		       struct inode *inode,
+		       struct delayed_call *done)
 {
-	struct p9_fid *fid = v9fs_fid_lookup(dentry);
+	struct p9_fid *fid;
 	char *target;
 	int retval;
 
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+
 	p9_debug(P9_DEBUG_VFS, "%pd\n", dentry);
 
+	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid))
 		return ERR_CAST(fid);
 	retval = p9_client_readlink(fid, &target);
 	if (retval)
 		return ERR_PTR(retval);
-	return *cookie = target;
+	set_delayed_call(done, kfree_link, target);
+	return target;
 }
 
 int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)
@@ -984,8 +992,7 @@ const struct inode_operations v9fs_file_inode_operations_dotl = {
 
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {
 	.readlink = generic_readlink,
-	.follow_link = v9fs_vfs_follow_link_dotl,
-	.put_link = kfree_put_link,
+	.get_link = v9fs_vfs_get_link_dotl,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
 	.setxattr = generic_setxattr,

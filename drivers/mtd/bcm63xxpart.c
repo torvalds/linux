@@ -24,6 +24,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/bcm963xx_tag.h>
 #include <linux/crc32.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -34,10 +35,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/mach-bcm63xx/bcm63xx_nvram.h>
-#include <asm/mach-bcm63xx/bcm963xx_tag.h>
 #include <asm/mach-bcm63xx/board_bcm963xx.h>
-
-#define BCM63XX_EXTENDED_SIZE	0xBFC00000	/* Extended flash address */
 
 #define BCM63XX_CFE_BLOCK_SIZE	SZ_64K		/* always at least 64KiB */
 
@@ -68,7 +66,7 @@ static int bcm63xx_detect_cfe(struct mtd_info *master)
 }
 
 static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
-					struct mtd_partition **pparts,
+					const struct mtd_partition **pparts,
 					struct mtd_part_parser_data *data)
 {
 	/* CFE, NVRAM and global Linux are always present */
@@ -123,8 +121,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		pr_info("CFE boot tag found with version %s and board type %s\n",
 			tagversion, boardid);
 
-		kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
-		rootfsaddr = rootfsaddr - BCM63XX_EXTENDED_SIZE;
+		kerneladdr = kerneladdr - BCM963XX_EXTENDED_SIZE;
+		rootfsaddr = rootfsaddr - BCM963XX_EXTENDED_SIZE;
 		spareaddr = roundup(totallen, master->erasesize) + cfelen;
 
 		if (rootfsaddr < kerneladdr) {
@@ -214,24 +212,10 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 };
 
 static struct mtd_part_parser bcm63xx_cfe_parser = {
-	.owner = THIS_MODULE,
 	.parse_fn = bcm63xx_parse_cfe_partitions,
 	.name = "bcm63xxpart",
 };
-
-static int __init bcm63xx_cfe_parser_init(void)
-{
-	register_mtd_parser(&bcm63xx_cfe_parser);
-	return 0;
-}
-
-static void __exit bcm63xx_cfe_parser_exit(void)
-{
-	deregister_mtd_parser(&bcm63xx_cfe_parser);
-}
-
-module_init(bcm63xx_cfe_parser_init);
-module_exit(bcm63xx_cfe_parser_exit);
+module_mtd_part_parser(bcm63xx_cfe_parser);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Dickinson <openwrt@cshore.neomailbox.net>");

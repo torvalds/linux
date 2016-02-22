@@ -37,7 +37,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/gpio/consumer.h>
-#include <media/adp1653.h>
+#include <media/i2c/adp1653.h>
 #include <media/v4l2-device.h>
 
 #define TIMEOUT_MAX		820000
@@ -512,11 +512,11 @@ static int adp1653_probe(struct i2c_client *client,
 	if (ret)
 		goto free_and_quit;
 
-	ret = media_entity_init(&flash->subdev.entity, 0, NULL, 0);
+	ret = media_entity_pads_init(&flash->subdev.entity, 0, NULL);
 	if (ret < 0)
 		goto free_and_quit;
 
-	flash->subdev.entity.type = MEDIA_ENT_T_V4L2_SUBDEV_FLASH;
+	flash->subdev.entity.function = MEDIA_ENT_F_FLASH;
 
 	return 0;
 

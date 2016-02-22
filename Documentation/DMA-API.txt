@@ -236,7 +236,7 @@ are guaranteed also to be cache line boundaries).
 
 DMA_TO_DEVICE synchronisation must be done after the last modification
 of the memory region by the software and before it is handed off to
-the driver.  Once this primitive is used, memory covered by this
+the device.  Once this primitive is used, memory covered by this
 primitive should be treated as read-only by the device.  If the device
 may write to it at any point, it should be DMA_BIDIRECTIONAL (see
 below).

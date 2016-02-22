@@ -483,7 +483,7 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 
 	fl->fl_type = F_UNLCK;
 
-	mutex_lock(&vnode->vfs_inode.i_mutex);
+	inode_lock(&vnode->vfs_inode);
 
 	/* check local lock records first */
 	ret = 0;
@@ -505,7 +505,7 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 	}
 
 error:
-	mutex_unlock(&vnode->vfs_inode.i_mutex);
+	inode_unlock(&vnode->vfs_inode);
 	_leave(" = %d [%hd]", ret, fl->fl_type);
 	return ret;
 }

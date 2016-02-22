@@ -745,14 +745,13 @@ static void tegra_dsi_soft_reset(struct tegra_dsi *dsi)
 
 static void tegra_dsi_connector_reset(struct drm_connector *connector)
 {
-	struct tegra_dsi_state *state;
+	struct tegra_dsi_state *state =
+		kzalloc(sizeof(*state), GFP_KERNEL);
 
-	kfree(connector->state);
-	connector->state = NULL;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state)
-		connector->state = &state->base;
+	if (state) {
+		kfree(connector->state);
+		__drm_atomic_helper_connector_reset(connector, &state->base);
+	}
 }
 
 static struct drm_connector_state *
@@ -1023,7 +1022,7 @@ static int tegra_dsi_init(struct host1x_client *client)
 
 		drm_encoder_init(drm, &dsi->output.encoder,
 				 &tegra_dsi_encoder_funcs,
-				 DRM_MODE_ENCODER_DSI);
+				 DRM_MODE_ENCODER_DSI, NULL);
 		drm_encoder_helper_add(&dsi->output.encoder,
 				       &tegra_dsi_encoder_helper_funcs);
 

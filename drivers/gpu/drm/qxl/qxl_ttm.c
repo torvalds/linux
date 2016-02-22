@@ -201,7 +201,7 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 		placement->num_busy_placement = 1;
 		return;
 	}
-	qbo = container_of(bo, struct qxl_bo, tbo);
+	qbo = to_qxl_bo(bo);
 	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU, false);
 	*placement = qbo->placement;
 }
@@ -365,7 +365,7 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 
 	if (!qxl_ttm_bo_is_qxl_bo(bo))
 		return;
-	qbo = container_of(bo, struct qxl_bo, tbo);
+	qbo = to_qxl_bo(bo);
 	qdev = qbo->gem_base.dev->dev_private;
 
 	if (bo->mem.mem_type == TTM_PL_PRIV0 && qbo->surface_id)

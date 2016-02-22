@@ -28,6 +28,8 @@ struct dyn_arch_ftrace {
 
 extern unsigned long ftrace_graph_call;
 
+extern void return_to_handler(void);
+
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
 	/*

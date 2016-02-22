@@ -1514,8 +1514,6 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 	if (sblock->no_io_error_seen)
 		scrub_recheck_block_checksum(sblock);
-
-	return;
 }
 
 static inline int scrub_check_fsid(u8 fsid[],
@@ -2815,7 +2813,7 @@ out:
 
 static inline int scrub_calc_parity_bitmap_len(int nsectors)
 {
-	return DIV_ROUND_UP(nsectors, BITS_PER_LONG) * (BITS_PER_LONG / 8);
+	return DIV_ROUND_UP(nsectors, BITS_PER_LONG) * sizeof(long);
 }
 
 static void scrub_parity_get(struct scrub_parity *sparity)
@@ -3432,7 +3430,9 @@ out:
 static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 					  struct btrfs_device *scrub_dev,
 					  u64 chunk_offset, u64 length,
-					  u64 dev_offset, int is_dev_replace)
+					  u64 dev_offset,
+					  struct btrfs_block_group_cache *cache,
+					  int is_dev_replace)
 {
 	struct btrfs_mapping_tree *map_tree =
 		&sctx->dev_root->fs_info->mapping_tree;
@@ -3445,10 +3445,20 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 	em = lookup_extent_mapping(&map_tree->map_tree, chunk_offset, 1);
 	read_unlock(&map_tree->map_tree.lock);
 
-	if (!em)
-		return -EINVAL;
+	if (!em) {
+		/*
+		 * Might have been an unused block group deleted by the cleaner
+		 * kthread or relocation.
+		 */
+		spin_lock(&cache->lock);
+		if (!cache->removed)
+			ret = -EINVAL;
+		spin_unlock(&cache->lock);
 
-	map = (struct map_lookup *)em->bdev;
+		return ret;
+	}
+
+	map = em->map_lookup;
 	if (em->start != chunk_offset)
 		goto out;
 
@@ -3483,6 +3493,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	u64 length;
 	u64 chunk_offset;
 	int ret = 0;
+	int ro_set;
 	int slot;
 	struct extent_buffer *l;
 	struct btrfs_key key;
@@ -3494,7 +3505,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
 
@@ -3568,7 +3579,21 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		scrub_pause_on(fs_info);
 		ret = btrfs_inc_block_group_ro(root, cache);
 		scrub_pause_off(fs_info);
-		if (ret) {
+
+		if (ret == 0) {
+			ro_set = 1;
+		} else if (ret == -ENOSPC) {
+			/*
+			 * btrfs_inc_block_group_ro return -ENOSPC when it
+			 * failed in creating new chunk for metadata.
+			 * It is not a problem for scrub/replace, because
+			 * metadata are always cowed, and our scrub paused
+			 * commit_transactions.
+			 */
+			ro_set = 0;
+		} else {
+			btrfs_warn(fs_info, "failed setting block group ro, ret=%d\n",
+				   ret);
 			btrfs_put_block_group(cache);
 			break;
 		}
@@ -3577,7 +3602,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
 		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
-				  found_key.offset, is_dev_replace);
+				  found_key.offset, cache, is_dev_replace);
 
 		/*
 		 * flush, submit all pending read and write bios, afterwards
@@ -3611,7 +3636,30 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		scrub_pause_off(fs_info);
 
-		btrfs_dec_block_group_ro(root, cache);
+		if (ro_set)
+			btrfs_dec_block_group_ro(root, cache);
+
+		/*
+		 * We might have prevented the cleaner kthread from deleting
+		 * this block group if it was already unused because we raced
+		 * and set it to RO mode first. So add it back to the unused
+		 * list, otherwise it might not ever be deleted unless a manual
+		 * balance is triggered or it becomes used and unused again.
+		 */
+		spin_lock(&cache->lock);
+		if (!cache->removed && !cache->ro && cache->reserved == 0 &&
+		    btrfs_block_group_used(&cache->item) == 0) {
+			spin_unlock(&cache->lock);
+			spin_lock(&fs_info->unused_bgs_lock);
+			if (list_empty(&cache->bg_list)) {
+				btrfs_get_block_group(cache);
+				list_add_tail(&cache->bg_list,
+					      &fs_info->unused_bgs);
+			}
+			spin_unlock(&fs_info->unused_bgs_lock);
+		} else {
+			spin_unlock(&cache->lock);
+		}
 
 		btrfs_put_block_group(cache);
 		if (ret)
@@ -3685,27 +3733,27 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	if (fs_info->scrub_workers_refcnt == 0) {
 		if (is_dev_replace)
 			fs_info->scrub_workers =
-				btrfs_alloc_workqueue("btrfs-scrub", flags,
+				btrfs_alloc_workqueue("scrub", flags,
 						      1, 4);
 		else
 			fs_info->scrub_workers =
-				btrfs_alloc_workqueue("btrfs-scrub", flags,
+				btrfs_alloc_workqueue("scrub", flags,
 						      max_active, 4);
 		if (!fs_info->scrub_workers)
 			goto fail_scrub_workers;
 
 		fs_info->scrub_wr_completion_workers =
-			btrfs_alloc_workqueue("btrfs-scrubwrc", flags,
+			btrfs_alloc_workqueue("scrubwrc", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_wr_completion_workers)
 			goto fail_scrub_wr_completion_workers;
 
 		fs_info->scrub_nocow_workers =
-			btrfs_alloc_workqueue("btrfs-scrubnc", flags, 1, 0);
+			btrfs_alloc_workqueue("scrubnc", flags, 1, 0);
 		if (!fs_info->scrub_nocow_workers)
 			goto fail_scrub_nocow_workers;
 		fs_info->scrub_parity_workers =
-			btrfs_alloc_workqueue("btrfs-scrubparity", flags,
+			btrfs_alloc_workqueue("scrubparity", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_parity_workers)
 			goto fail_scrub_parity_workers;
@@ -4161,7 +4209,7 @@ static int check_extent_to_block(struct inode *inode, u64 start, u64 len,
 
 	io_tree = &BTRFS_I(inode)->io_tree;
 
-	lock_extent_bits(io_tree, lockstart, lockend, 0, &cached_state);
+	lock_extent_bits(io_tree, lockstart, lockend, &cached_state);
 	ordered = btrfs_lookup_ordered_range(inode, lockstart, len);
 	if (ordered) {
 		btrfs_put_ordered_extent(ordered);
@@ -4231,7 +4279,7 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 		return PTR_ERR(inode);
 
 	/* Avoid truncate/dio/punch hole.. */
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	inode_dio_wait(inode);
 
 	physical_for_dev_replace = nocow_ctx->physical_for_dev_replace;
@@ -4310,7 +4358,7 @@ next_page:
 	}
 	ret = COPY_COMPLETE;
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	iput(inode);
 	return ret;
 }

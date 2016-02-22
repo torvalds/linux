@@ -1537,32 +1537,34 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 		struct block_device **bdev, fmode_t *mode)
 {
 	struct multipath *m = ti->private;
-	struct pgpath *pgpath;
 	unsigned long flags;
 	int r;
-
-	r = 0;
 
 	spin_lock_irqsave(&m->lock, flags);
 
 	if (!m->current_pgpath)
 		__choose_pgpath(m, 0);
 
-	pgpath = m->current_pgpath;
-
-	if (pgpath) {
-		*bdev = pgpath->path.dev->bdev;
-		*mode = pgpath->path.dev->mode;
+	if (m->current_pgpath) {
+		if (!m->queue_io) {
+			*bdev = m->current_pgpath->path.dev->bdev;
+			*mode = m->current_pgpath->path.dev->mode;
+			r = 0;
+		} else {
+			/* pg_init has not started or completed */
+			r = -ENOTCONN;
+		}
+	} else {
+		/* No path is available */
+		if (m->queue_if_no_path)
+			r = -ENOTCONN;
+		else
+			r = -EIO;
 	}
-
-	if ((pgpath && m->queue_io) || (!pgpath && m->queue_if_no_path))
-		r = -ENOTCONN;
-	else if (!*bdev)
-		r = -EIO;
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
+	if (r == -ENOTCONN) {
 		spin_lock_irqsave(&m->lock, flags);
 		if (!m->current_pg) {
 			/* Path status changed, redo selection */

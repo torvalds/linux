@@ -1,5 +1,6 @@
 menuconfig ARCH_MEDIATEK
-	bool "Mediatek MT65xx & MT81xx SoC" if ARCH_MULTI_V7
+	bool "Mediatek MT65xx & MT81xx SoC"
+	depends on ARCH_MULTI_V7
 	select ARM_GIC
 	select PINCTRL
 	select MTK_TIMER

@@ -35,6 +35,9 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
+#ifdef CONFIG_MLX5_CORE_EN
+#include "eswitch.h"
+#endif
 
 enum {
 	MLX5_EQE_SIZE		= sizeof(struct mlx5_eqe),
@@ -227,6 +230,7 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 		case MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
 		case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
 			rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
+			rsn |= (eqe->data.qp_srq.type << MLX5_USER_INDEX_LEN);
 			mlx5_core_dbg(dev, "event %s(%d) arrived on resource 0x%x\n",
 				      eqe_type_str(eqe->type), eqe->type, rsn);
 			mlx5_rsc_event(dev, rsn, eqe->type);
@@ -287,6 +291,11 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			break;
 #endif
 
+#ifdef CONFIG_MLX5_CORE_EN
+		case MLX5_EVENT_TYPE_NIC_VPORT_CHANGE:
+			mlx5_eswitch_vport_event(dev->priv.eswitch, eqe);
+			break;
+#endif
 		default:
 			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
 				       eqe->type, eq->eqn);
@@ -458,6 +467,11 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, pg))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PAGE_FAULT);
+
+	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH &&
+	    MLX5_CAP_GEN(dev, vport_group_manager) &&
+	    mlx5_core_is_pf(dev))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,

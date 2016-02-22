@@ -32,7 +32,7 @@
 #include "ivtv-gpio.h"
 #include "ivtv-controls.h"
 #include "ivtv-cards.h"
-#include <media/saa7127.h>
+#include <media/i2c/saa7127.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-event.h>
 #include <linux/dvb/audio.h>
@@ -831,11 +831,11 @@ static int ivtv_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cropca
 	struct ivtv *itv = id->itv;
 
 	if (cropcap->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		cropcap->pixelaspect.numerator = itv->is_50hz ? 59 : 10;
-		cropcap->pixelaspect.denominator = itv->is_50hz ? 54 : 11;
+		cropcap->pixelaspect.numerator = itv->is_50hz ? 54 : 11;
+		cropcap->pixelaspect.denominator = itv->is_50hz ? 59 : 10;
 	} else if (cropcap->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		cropcap->pixelaspect.numerator = itv->is_out_50hz ? 59 : 10;
-		cropcap->pixelaspect.denominator = itv->is_out_50hz ? 54 : 11;
+		cropcap->pixelaspect.numerator = itv->is_out_50hz ? 54 : 11;
+		cropcap->pixelaspect.denominator = itv->is_out_50hz ? 59 : 10;
 	} else {
 		return -EINVAL;
 	}

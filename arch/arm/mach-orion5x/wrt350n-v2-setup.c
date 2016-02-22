@@ -22,7 +22,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
+#include "orion5x.h"
 #include "common.h"
 #include "mpp.h"
 
@@ -262,6 +262,7 @@ subsys_initcall(wrt350n_v2_pci_init);
 MACHINE_START(WRT350N_V2, "Linksys WRT350N v2")
 	/* Maintainer: Lennert Buytenhek <buytenh@marvell.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= wrt350n_v2_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

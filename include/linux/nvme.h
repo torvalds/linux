@@ -17,20 +17,19 @@
 
 #include <linux/types.h>
 
-struct nvme_bar {
-	__u64			cap;	/* Controller Capabilities */
-	__u32			vs;	/* Version */
-	__u32			intms;	/* Interrupt Mask Set */
-	__u32			intmc;	/* Interrupt Mask Clear */
-	__u32			cc;	/* Controller Configuration */
-	__u32			rsvd1;	/* Reserved */
-	__u32			csts;	/* Controller Status */
-	__u32			nssr;	/* Subsystem Reset */
-	__u32			aqa;	/* Admin Queue Attributes */
-	__u64			asq;	/* Admin SQ Base Address */
-	__u64			acq;	/* Admin CQ Base Address */
-	__u32			cmbloc; /* Controller Memory Buffer Location */
-	__u32			cmbsz;  /* Controller Memory Buffer Size */
+enum {
+	NVME_REG_CAP	= 0x0000,	/* Controller Capabilities */
+	NVME_REG_VS	= 0x0008,	/* Version */
+	NVME_REG_INTMS	= 0x000c,	/* Interrupt Mask Set */
+	NVME_REG_INTMC	= 0x0010,	/* Interrupt Mask Set */
+	NVME_REG_CC	= 0x0014,	/* Controller Configuration */
+	NVME_REG_CSTS	= 0x001c,	/* Controller Status */
+	NVME_REG_NSSR	= 0x0020,	/* NVM Subsystem Reset */
+	NVME_REG_AQA	= 0x0024,	/* Admin Queue Attributes */
+	NVME_REG_ASQ	= 0x0028,	/* Admin SQ Base Address */
+	NVME_REG_ACQ	= 0x0030,	/* Admin SQ Base Address */
+	NVME_REG_CMBLOC = 0x0038,	/* Controller Memory Buffer Location */
+	NVME_REG_CMBSZ	= 0x003c,	/* Controller Memory Buffer Size */
 };
 
 #define NVME_CAP_MQES(cap)	((cap) & 0xffff)

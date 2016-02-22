@@ -173,7 +173,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			goto done;
 	} else {
 		ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
-				       encoder_type);
+				       encoder_type, NULL);
 		if (ret < 0)
 			goto done;
 

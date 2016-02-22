@@ -156,13 +156,10 @@ struct i915_ggtt_view {
 			u64 offset;
 			unsigned int size;
 		} partial;
+		struct intel_rotation_info rotation_info;
 	} params;
 
 	struct sg_table *pages;
-
-	union {
-		struct intel_rotation_info rotation_info;
-	};
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;
@@ -458,32 +455,29 @@ static inline uint32_t gen6_pde_index(uint32_t addr)
  * between from start until start + length. On gen8+ it simply iterates
  * over every page directory entry in a page directory.
  */
-#define gen8_for_each_pde(pt, pd, start, length, temp, iter)		\
-	for (iter = gen8_pde_index(start); \
-	     length > 0 && iter < I915_PDES ? \
-			(pt = (pd)->page_table[iter]), 1 : 0; \
-	     iter++,				\
-	     temp = ALIGN(start+1, 1 << GEN8_PDE_SHIFT) - start,	\
-	     temp = min(temp, length),					\
-	     start += temp, length -= temp)
+#define gen8_for_each_pde(pt, pd, start, length, iter)			\
+	for (iter = gen8_pde_index(start);				\
+	     length > 0 && iter < I915_PDES &&				\
+		(pt = (pd)->page_table[iter], true);			\
+	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDE_SHIFT);		\
+		    temp = min(temp - start, length);			\
+		    start += temp, length -= temp; }), ++iter)
 
-#define gen8_for_each_pdpe(pd, pdp, start, length, temp, iter)	\
-	for (iter = gen8_pdpe_index(start); \
-	     length > 0 && (iter < I915_PDPES_PER_PDP(dev)) ? \
-			(pd = (pdp)->page_directory[iter]), 1 : 0; \
-	     iter++,				\
-	     temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT) - start,	\
-	     temp = min(temp, length),					\
-	     start += temp, length -= temp)
+#define gen8_for_each_pdpe(pd, pdp, start, length, iter)		\
+	for (iter = gen8_pdpe_index(start);				\
+	     length > 0 && iter < I915_PDPES_PER_PDP(dev) &&		\
+		(pd = (pdp)->page_directory[iter], true);		\
+	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT);	\
+		    temp = min(temp - start, length);			\
+		    start += temp, length -= temp; }), ++iter)
 
-#define gen8_for_each_pml4e(pdp, pml4, start, length, temp, iter)	\
-	for (iter = gen8_pml4e_index(start);	\
-	     length > 0 && iter < GEN8_PML4ES_PER_PML4 ? \
-			(pdp = (pml4)->pdps[iter]), 1 : 0; \
-	     iter++,				\
-	     temp = ALIGN(start+1, 1ULL << GEN8_PML4E_SHIFT) - start,	\
-	     temp = min(temp, length),					\
-	     start += temp, length -= temp)
+#define gen8_for_each_pml4e(pdp, pml4, start, length, iter)		\
+	for (iter = gen8_pml4e_index(start);				\
+	     length > 0 && iter < GEN8_PML4ES_PER_PML4 &&		\
+		(pdp = (pml4)->pdps[iter], true);			\
+	     ({ u64 temp = ALIGN(start+1, 1ULL << GEN8_PML4E_SHIFT);	\
+		    temp = min(temp - start, length);			\
+		    start += temp, length -= temp; }), ++iter)
 
 static inline uint32_t gen8_pte_index(uint64_t address)
 {
@@ -556,7 +550,7 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 
 	if (a->type != b->type)
 		return false;
-	if (a->type == I915_GGTT_VIEW_PARTIAL)
+	if (a->type != I915_GGTT_VIEW_NORMAL)
 		return !memcmp(&a->params, &b->params, sizeof(a->params));
 	return true;
 }

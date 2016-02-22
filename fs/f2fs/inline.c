@@ -16,9 +16,6 @@
 
 bool f2fs_may_inline_data(struct inode *inode)
 {
-	if (!test_opt(F2FS_I_SB(inode), INLINE_DATA))
-		return false;
-
 	if (f2fs_is_atomic_file(inode))
 		return false;
 
@@ -177,6 +174,9 @@ int f2fs_convert_inline_inode(struct inode *inode)
 	struct page *ipage, *page;
 	int err = 0;
 
+	if (!f2fs_has_inline_data(inode))
+		return 0;
+
 	page = grab_cache_page(inode->i_mapping, 0);
 	if (!page)
 		return -ENOMEM;
@@ -199,6 +199,9 @@ out:
 	f2fs_unlock_op(sbi);
 
 	f2fs_put_page(page, 1);
+
+	f2fs_balance_fs(sbi, dn.node_changed);
+
 	return err;
 }
 

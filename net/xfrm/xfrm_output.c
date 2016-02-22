@@ -167,6 +167,8 @@ static int xfrm_output_gso(struct net *net, struct sock *sk, struct sk_buff *skb
 {
 	struct sk_buff *segs;
 
+	BUILD_BUG_ON(sizeof(*IPCB(skb)) > SKB_SGO_CB_OFFSET);
+	BUILD_BUG_ON(sizeof(*IP6CB(skb)) > SKB_SGO_CB_OFFSET);
 	segs = skb_gso_segment(skb, 0);
 	kfree_skb(skb);
 	if (IS_ERR(segs))

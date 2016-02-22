@@ -40,7 +40,7 @@
 #include <sound/control.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <media/wm8775.h>
+#include <media/i2c/wm8775.h>
 
 #include "cx88.h"
 #include "cx88-reg.h"
@@ -890,9 +890,9 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 		return err;
 	}
 
-	if (!pci_set_dma_mask(pci,DMA_BIT_MASK(32))) {
+	err = pci_set_dma_mask(pci,DMA_BIT_MASK(32));
+	if (err) {
 		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n",core->name);
-		err = -EIO;
 		cx88_core_put(core, pci);
 		return err;
 	}

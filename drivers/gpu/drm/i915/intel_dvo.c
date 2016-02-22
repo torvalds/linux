@@ -44,6 +44,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "sil164",
 		.dvo_reg = DVOC,
+		.dvo_srcdim_reg = DVOC_SRCDIM,
 		.slave_addr = SIL164_ADDR,
 		.dev_ops = &sil164_ops,
 	},
@@ -51,6 +52,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "ch7xxx",
 		.dvo_reg = DVOC,
+		.dvo_srcdim_reg = DVOC_SRCDIM,
 		.slave_addr = CH7xxx_ADDR,
 		.dev_ops = &ch7xxx_ops,
 	},
@@ -58,6 +60,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "ch7xxx",
 		.dvo_reg = DVOC,
+		.dvo_srcdim_reg = DVOC_SRCDIM,
 		.slave_addr = 0x75, /* For some ch7010 */
 		.dev_ops = &ch7xxx_ops,
 	},
@@ -65,6 +68,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.type = INTEL_DVO_CHIP_LVDS,
 		.name = "ivch",
 		.dvo_reg = DVOA,
+		.dvo_srcdim_reg = DVOA_SRCDIM,
 		.slave_addr = 0x02, /* Might also be 0x44, 0x84, 0xc4 */
 		.dev_ops = &ivch_ops,
 	},
@@ -72,6 +76,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.type = INTEL_DVO_CHIP_TMDS,
 		.name = "tfp410",
 		.dvo_reg = DVOC,
+		.dvo_srcdim_reg = DVOC_SRCDIM,
 		.slave_addr = TFP410_ADDR,
 		.dev_ops = &tfp410_ops,
 	},
@@ -79,6 +84,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.type = INTEL_DVO_CHIP_LVDS,
 		.name = "ch7017",
 		.dvo_reg = DVOC,
+		.dvo_srcdim_reg = DVOC_SRCDIM,
 		.slave_addr = 0x75,
 		.gpio = GMBUS_PIN_DPB,
 		.dev_ops = &ch7017_ops,
@@ -87,6 +93,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 	        .type = INTEL_DVO_CHIP_TMDS,
 		.name = "ns2501",
 		.dvo_reg = DVOB,
+		.dvo_srcdim_reg = DVOB_SRCDIM,
 		.slave_addr = NS2501_ADDR,
 		.dev_ops = &ns2501_ops,
        }
@@ -171,7 +178,7 @@ static void intel_disable_dvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
-	u32 dvo_reg = intel_dvo->dev.dvo_reg;
+	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
@@ -184,7 +191,7 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	u32 dvo_reg = intel_dvo->dev.dvo_reg;
+	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
 	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
@@ -255,20 +262,8 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder)
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	int pipe = crtc->pipe;
 	u32 dvo_val;
-	u32 dvo_reg = intel_dvo->dev.dvo_reg, dvo_srcdim_reg;
-
-	switch (dvo_reg) {
-	case DVOA:
-	default:
-		dvo_srcdim_reg = DVOA_SRCDIM;
-		break;
-	case DVOB:
-		dvo_srcdim_reg = DVOB_SRCDIM;
-		break;
-	case DVOC:
-		dvo_srcdim_reg = DVOC_SRCDIM;
-		break;
-	}
+	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
+	i915_reg_t dvo_srcdim_reg = intel_dvo->dev.dvo_srcdim_reg;
 
 	/* Save the data order, since I don't know what it should be set to. */
 	dvo_val = I915_READ(dvo_reg) &
@@ -434,7 +429,7 @@ void intel_dvo_init(struct drm_device *dev)
 
 	intel_encoder = &intel_dvo->base;
 	drm_encoder_init(dev, &intel_encoder->base,
-			 &intel_dvo_enc_funcs, encoder_type);
+			 &intel_dvo_enc_funcs, encoder_type, NULL);
 
 	intel_encoder->disable = intel_disable_dvo;
 	intel_encoder->enable = intel_enable_dvo;

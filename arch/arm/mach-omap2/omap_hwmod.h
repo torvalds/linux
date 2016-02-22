@@ -523,6 +523,8 @@ struct omap_hwmod_omap4_prcm {
  * HWMOD_RECONFIG_IO_CHAIN: omap_hwmod code needs to reconfigure wake-up 
  *     events by calling _reconfigure_io_chain() when a device is enabled
  *     or idled.
+ * HWMOD_OPT_CLKS_NEEDED: The optional clocks are needed for the module to
+ *     operate and they need to be handled at the same time as the main_clk.
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
@@ -538,6 +540,7 @@ struct omap_hwmod_omap4_prcm {
 #define HWMOD_FORCE_MSTANDBY			(1 << 11)
 #define HWMOD_SWSUP_SIDLE_ACT			(1 << 12)
 #define HWMOD_RECONFIG_IO_CHAIN			(1 << 13)
+#define HWMOD_OPT_CLKS_NEEDED			(1 << 14)
 
 /*
  * omap_hwmod._int_flags definitions

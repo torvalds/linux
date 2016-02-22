@@ -38,8 +38,7 @@
 
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
-#define KVM_USER_MEM_SLOTS 32
-#define KVM_MEM_SLOTS_NUM KVM_USER_MEM_SLOTS
+#define KVM_USER_MEM_SLOTS	512
 
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
@@ -49,6 +48,10 @@
 /* These values are internal and can be increased later */
 #define KVM_NR_IRQCHIPS          1
 #define KVM_IRQCHIP_NUM_PINS     256
+
+/* PPC-specific vcpu->requests bit members */
+#define KVM_REQ_WATCHDOG           8
+#define KVM_REQ_EPR_EXIT           9
 
 #include <linux/mmu_notifier.h>
 

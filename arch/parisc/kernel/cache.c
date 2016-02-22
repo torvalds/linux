@@ -172,6 +172,24 @@ parisc_cache_init(void)
 		cache_info.ic_count,
 		cache_info.ic_loop);
 
+	printk("IT  base 0x%lx stride 0x%lx count 0x%lx loop 0x%lx off_base 0x%lx off_stride 0x%lx off_count 0x%lx\n",
+		cache_info.it_sp_base,
+		cache_info.it_sp_stride,
+		cache_info.it_sp_count,
+		cache_info.it_loop,
+		cache_info.it_off_base,
+		cache_info.it_off_stride,
+		cache_info.it_off_count);
+
+	printk("DT  base 0x%lx stride 0x%lx count 0x%lx loop 0x%lx off_base 0x%lx off_stride 0x%lx off_count 0x%lx\n",
+		cache_info.dt_sp_base,
+		cache_info.dt_sp_stride,
+		cache_info.dt_sp_count,
+		cache_info.dt_loop,
+		cache_info.dt_off_base,
+		cache_info.dt_off_stride,
+		cache_info.dt_off_count);
+
 	printk("ic_conf = 0x%lx  alias %d blk %d line %d shift %d\n",
 		*(unsigned long *) (&cache_info.ic_conf),
 		cache_info.ic_conf.cc_alias,
@@ -184,19 +202,19 @@ parisc_cache_init(void)
 		cache_info.ic_conf.cc_cst,
 		cache_info.ic_conf.cc_hv);
 
-	printk("D-TLB conf: sh %d page %d cst %d aid %d pad1 %d\n",
+	printk("D-TLB conf: sh %d page %d cst %d aid %d sr %d\n",
 		cache_info.dt_conf.tc_sh,
 		cache_info.dt_conf.tc_page,
 		cache_info.dt_conf.tc_cst,
 		cache_info.dt_conf.tc_aid,
-		cache_info.dt_conf.tc_pad1);
+		cache_info.dt_conf.tc_sr);
 
-	printk("I-TLB conf: sh %d page %d cst %d aid %d pad1 %d\n",
+	printk("I-TLB conf: sh %d page %d cst %d aid %d sr %d\n",
 		cache_info.it_conf.tc_sh,
 		cache_info.it_conf.tc_page,
 		cache_info.it_conf.tc_cst,
 		cache_info.it_conf.tc_aid,
-		cache_info.it_conf.tc_pad1);
+		cache_info.it_conf.tc_sr);
 #endif
 
 	split_tlb = 0;

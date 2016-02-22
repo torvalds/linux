@@ -76,7 +76,7 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
 	if (kvm_cpu_has_extint(v))
 		return 1;
 
-	if (kvm_vcpu_apic_vid_enabled(v))
+	if (kvm_vcpu_apicv_active(v))
 		return 0;
 
 	return kvm_apic_has_interrupt(v) != -1; /* LAPIC */

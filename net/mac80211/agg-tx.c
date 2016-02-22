@@ -500,7 +500,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
 				     tid_tx->dialog_token, start_seq_num,
-				     local->hw.max_tx_aggregation_subframes,
+				     IEEE80211_MAX_AMPDU_BUF,
 				     tid_tx->timeout);
 }
 
@@ -926,6 +926,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	amsdu = capab & IEEE80211_ADDBA_PARAM_AMSDU_MASK;
 	tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 	buf_size = (capab & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK) >> 6;
+	buf_size = min(buf_size, local->hw.max_tx_aggregation_subframes);
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
 

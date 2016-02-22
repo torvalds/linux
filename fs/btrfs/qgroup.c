@@ -993,9 +993,10 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (!fs_info->quota_root)
 		goto out;
-	spin_lock(&fs_info->qgroup_lock);
 	fs_info->quota_enabled = 0;
 	fs_info->pending_quota_state = 0;
+	btrfs_qgroup_wait_for_completion(fs_info);
+	spin_lock(&fs_info->qgroup_lock);
 	quota_root = fs_info->quota_root;
 	fs_info->quota_root = NULL;
 	fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_ON;
@@ -1460,6 +1461,8 @@ struct btrfs_qgroup_extent_record
 	struct rb_node *parent_node = NULL;
 	struct btrfs_qgroup_extent_record *entry;
 	u64 bytenr = record->bytenr;
+
+	assert_spin_locked(&delayed_refs->lock);
 
 	while (*p) {
 		parent_node = *p;

@@ -1,3 +1,5 @@
+#include <linux/jump_label.h>
+
 /*
 
  x86 function call convention, 64-bit:
@@ -232,3 +234,16 @@ For 32-bit we have the following conventions - kernel is built with
 
 #endif /* CONFIG_X86_64 */
 
+/*
+ * This does 'call enter_from_user_mode' unless we can avoid it based on
+ * kernel config or using the static jump infrastructure.
+ */
+.macro CALL_enter_from_user_mode
+#ifdef CONFIG_CONTEXT_TRACKING
+#ifdef HAVE_JUMP_LABEL
+	STATIC_JUMP_IF_FALSE .Lafter_call_\@, context_tracking_enabled, def=0
+#endif
+	call enter_from_user_mode
+.Lafter_call_\@:
+#endif
+.endm

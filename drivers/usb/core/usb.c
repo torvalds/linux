@@ -49,12 +49,7 @@ const char *usbcore_name = "usbcore";
 
 static bool nousb;	/* Disable USB when built into kernel image */
 
-/* To disable USB, kernel command line is 'nousb' not 'usbcore.nousb' */
-#ifdef MODULE
 module_param(nousb, bool, 0444);
-#else
-core_param(nousb, nousb, bool, 0444);
-#endif
 
 /*
  * for external read access to <nousb>
@@ -316,7 +311,13 @@ static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static int usb_dev_prepare(struct device *dev)
 {
-	return 0;		/* Implement eventually? */
+	struct usb_device *udev = to_usb_device(dev);
+
+	/* Return 0 if the current wakeup setting is wrong, otherwise 1 */
+	if (udev->do_remote_wakeup != device_may_wakeup(dev))
+		return 0;
+
+	return 1;
 }
 
 static void usb_dev_complete(struct device *dev)

@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -623,9 +623,6 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 
 int lprocfs_single_release(struct inode *, struct file *);
 int lprocfs_seq_release(struct inode *, struct file *);
-
-#define LPROCFS_CLIMP_EXIT(obd)		 \
-	up_read(&(obd)->u.cli.cl_sem)
 
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
   proc entries; otherwise, you will define name##_seq_write function also for

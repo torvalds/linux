@@ -160,6 +160,7 @@ static int sti_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_reset(dev);
 
+	drm_helper_disable_unused_functions(dev);
 	drm_fbdev_cma_init(dev, 32,
 			   dev->mode_config.num_crtc,
 			   dev->mode_config.num_connector);

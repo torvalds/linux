@@ -33,7 +33,7 @@
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <media/v4l2-device.h>
-#include <media/tea575x.h>
+#include <media/drv-intf/tea575x.h>
 
 #if defined(CONFIG_LEDS_CLASS) || \
     (defined(CONFIG_LEDS_CLASS_MODULE) && defined(CONFIG_RADIO_SHARK_MODULE))
@@ -150,7 +150,7 @@ static u32 shark_read_val(struct snd_tea575x *tea)
 	return val;
 }
 
-static struct snd_tea575x_ops shark_tea_ops = {
+static const struct snd_tea575x_ops shark_tea_ops = {
 	.write_val = shark_write_val,
 	.read_val  = shark_read_val,
 };

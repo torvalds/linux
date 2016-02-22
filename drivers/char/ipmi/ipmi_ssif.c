@@ -1959,7 +1959,6 @@ MODULE_DEVICE_TABLE(i2c, ssif_id);
 static struct i2c_driver ssif_i2c_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver		= {
-		.owner			= THIS_MODULE,
 		.name			= DEVICE_NAME
 	},
 	.probe		= ssif_probe,

@@ -6,6 +6,7 @@ Required properties:
 Optional properties:
 	- autorepeat: Boolean, Enable auto repeat feature of Linux input
 	  subsystem.
+	- label: String, name of the input device.
 
 Each button (key) is represented as a sub-node of "gpio-keys":
 Subnode properties:

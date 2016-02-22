@@ -34,7 +34,7 @@ static struct fb_ops bochsfb_ops = {
 };
 
 static int bochsfb_create_object(struct bochs_device *bochs,
-				 struct drm_mode_fb_cmd2 *mode_cmd,
+				 const struct drm_mode_fb_cmd2 *mode_cmd,
 				 struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = bochs->dev;

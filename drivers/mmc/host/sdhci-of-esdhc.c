@@ -584,6 +584,8 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
 	struct device_node *np;
+	struct sdhci_pltfm_host *pltfm_host;
+	struct sdhci_esdhc *esdhc;
 	int ret;
 
 	np = pdev->dev.of_node;
@@ -599,6 +601,14 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	esdhc_init(pdev, host);
 
 	sdhci_get_of_property(pdev);
+
+	pltfm_host = sdhci_priv(host);
+	esdhc = pltfm_host->priv;
+	if (esdhc->vendor_ver == VENDOR_V_22)
+		host->quirks2 |= SDHCI_QUIRK2_HOST_NO_CMD23;
+
+	if (esdhc->vendor_ver > VENDOR_V_22)
+		host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
 
 	if (of_device_is_compatible(np, "fsl,p5040-esdhc") ||
 	    of_device_is_compatible(np, "fsl,p5020-esdhc") ||

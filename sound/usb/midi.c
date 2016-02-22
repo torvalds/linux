@@ -112,7 +112,7 @@ struct snd_usb_midi {
 	struct usb_interface *iface;
 	const struct snd_usb_audio_quirk *quirk;
 	struct snd_rawmidi *rmidi;
-	struct usb_protocol_ops *usb_protocol_ops;
+	const struct usb_protocol_ops *usb_protocol_ops;
 	struct list_head list;
 	struct timer_list error_timer;
 	spinlock_t disc_lock;
@@ -174,6 +174,8 @@ struct snd_usb_midi_in_endpoint {
 		u8 running_status_length;
 	} ports[0x10];
 	u8 seen_f5;
+	bool in_sysex;
+	u8 last_cin;
 	u8 error_resubmit;
 	int current_port;
 };
@@ -468,6 +470,39 @@ static void snd_usbmidi_maudio_broken_running_status_input(
 }
 
 /*
+ * QinHeng CH345 is buggy: every second packet inside a SysEx has not CIN 4
+ * but the previously seen CIN, but still with three data bytes.
+ */
+static void ch345_broken_sysex_input(struct snd_usb_midi_in_endpoint *ep,
+				     uint8_t *buffer, int buffer_length)
+{
+	unsigned int i, cin, length;
+
+	for (i = 0; i + 3 < buffer_length; i += 4) {
+		if (buffer[i] == 0 && i > 0)
+			break;
+		cin = buffer[i] & 0x0f;
+		if (ep->in_sysex &&
+		    cin == ep->last_cin &&
+		    (buffer[i + 1 + (cin == 0x6)] & 0x80) == 0)
+			cin = 0x4;
+#if 0
+		if (buffer[i + 1] == 0x90) {
+			/*
+			 * Either a corrupted running status or a real note-on
+			 * message; impossible to detect reliably.
+			 */
+		}
+#endif
+		length = snd_usbmidi_cin_length[cin];
+		snd_usbmidi_input_data(ep, 0, &buffer[i + 1], length);
+		ep->in_sysex = cin == 0x4;
+		if (!ep->in_sysex)
+			ep->last_cin = cin;
+	}
+}
+
+/*
  * CME protocol: like the standard protocol, but SysEx commands are sent as a
  * single USB packet preceded by a 0x0F byte.
  */
@@ -636,26 +671,33 @@ static void snd_usbmidi_standard_output(struct snd_usb_midi_out_endpoint *ep,
 	}
 }
 
-static struct usb_protocol_ops snd_usbmidi_standard_ops = {
+static const struct usb_protocol_ops snd_usbmidi_standard_ops = {
 	.input = snd_usbmidi_standard_input,
 	.output = snd_usbmidi_standard_output,
 	.output_packet = snd_usbmidi_output_standard_packet,
 };
 
-static struct usb_protocol_ops snd_usbmidi_midiman_ops = {
+static const struct usb_protocol_ops snd_usbmidi_midiman_ops = {
 	.input = snd_usbmidi_midiman_input,
 	.output = snd_usbmidi_standard_output,
 	.output_packet = snd_usbmidi_output_midiman_packet,
 };
 
-static struct usb_protocol_ops snd_usbmidi_maudio_broken_running_status_ops = {
+static const
+struct usb_protocol_ops snd_usbmidi_maudio_broken_running_status_ops = {
 	.input = snd_usbmidi_maudio_broken_running_status_input,
 	.output = snd_usbmidi_standard_output,
 	.output_packet = snd_usbmidi_output_standard_packet,
 };
 
-static struct usb_protocol_ops snd_usbmidi_cme_ops = {
+static const struct usb_protocol_ops snd_usbmidi_cme_ops = {
 	.input = snd_usbmidi_cme_input,
+	.output = snd_usbmidi_standard_output,
+	.output_packet = snd_usbmidi_output_standard_packet,
+};
+
+static const struct usb_protocol_ops snd_usbmidi_ch345_broken_sysex_ops = {
+	.input = ch345_broken_sysex_input,
 	.output = snd_usbmidi_standard_output,
 	.output_packet = snd_usbmidi_output_standard_packet,
 };
@@ -754,7 +796,7 @@ static void snd_usbmidi_akai_output(struct snd_usb_midi_out_endpoint *ep,
 	}
 }
 
-static struct usb_protocol_ops snd_usbmidi_akai_ops = {
+static const struct usb_protocol_ops snd_usbmidi_akai_ops = {
 	.input = snd_usbmidi_akai_input,
 	.output = snd_usbmidi_akai_output,
 };
@@ -794,7 +836,7 @@ static void snd_usbmidi_novation_output(struct snd_usb_midi_out_endpoint *ep,
 	urb->transfer_buffer_length = 2 + count;
 }
 
-static struct usb_protocol_ops snd_usbmidi_novation_ops = {
+static const struct usb_protocol_ops snd_usbmidi_novation_ops = {
 	.input = snd_usbmidi_novation_input,
 	.output = snd_usbmidi_novation_output,
 };
@@ -826,7 +868,7 @@ static void snd_usbmidi_raw_output(struct snd_usb_midi_out_endpoint *ep,
 	urb->transfer_buffer_length = count;
 }
 
-static struct usb_protocol_ops snd_usbmidi_raw_ops = {
+static const struct usb_protocol_ops snd_usbmidi_raw_ops = {
 	.input = snd_usbmidi_raw_input,
 	.output = snd_usbmidi_raw_output,
 };
@@ -842,7 +884,7 @@ static void snd_usbmidi_ftdi_input(struct snd_usb_midi_in_endpoint *ep,
 		snd_usbmidi_input_data(ep, 0, buffer + 2, buffer_length - 2);
 }
 
-static struct usb_protocol_ops snd_usbmidi_ftdi_ops = {
+static const struct usb_protocol_ops snd_usbmidi_ftdi_ops = {
 	.input = snd_usbmidi_ftdi_input,
 	.output = snd_usbmidi_raw_output,
 };
@@ -886,7 +928,7 @@ static void snd_usbmidi_us122l_output(struct snd_usb_midi_out_endpoint *ep,
 	urb->transfer_buffer_length = ep->max_transfer;
 }
 
-static struct usb_protocol_ops snd_usbmidi_122l_ops = {
+static const struct usb_protocol_ops snd_usbmidi_122l_ops = {
 	.input = snd_usbmidi_us122l_input,
 	.output = snd_usbmidi_us122l_output,
 };
@@ -1019,7 +1061,7 @@ static void snd_usbmidi_emagic_output(struct snd_usb_midi_out_endpoint *ep,
 	urb->transfer_buffer_length = ep->max_transfer - buf_free;
 }
 
-static struct usb_protocol_ops snd_usbmidi_emagic_ops = {
+static const struct usb_protocol_ops snd_usbmidi_emagic_ops = {
 	.input = snd_usbmidi_emagic_input,
 	.output = snd_usbmidi_emagic_output,
 	.init_out_endpoint = snd_usbmidi_emagic_init_out,
@@ -1341,6 +1383,7 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi *umidi,
 		 * Various chips declare a packet size larger than 4 bytes, but
 		 * do not actually work with larger packets:
 		 */
+	case USB_ID(0x0a67, 0x5011): /* Medeli DD305 */
 	case USB_ID(0x0a92, 0x1020): /* ESI M4U */
 	case USB_ID(0x1430, 0x474b): /* RedOctane GH MIDI INTERFACE */
 	case USB_ID(0x15ca, 0x0101): /* Textech USB Midi Cable */
@@ -2164,7 +2207,7 @@ static int snd_usbmidi_create_endpoints_midiman(struct snd_usb_midi *umidi,
 	return 0;
 }
 
-static struct snd_rawmidi_global_ops snd_usbmidi_ops = {
+static const struct snd_rawmidi_global_ops snd_usbmidi_ops = {
 	.get_port_info = snd_usbmidi_get_port_info,
 };
 
@@ -2378,6 +2421,10 @@ int snd_usbmidi_create(struct snd_card *card,
 
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
+	case QUIRK_MIDI_CH345:
+		umidi->usb_protocol_ops = &snd_usbmidi_ch345_broken_sysex_ops;
+		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
+		break;
 	default:
 		dev_err(&umidi->dev->dev, "invalid quirk type %d\n",
 			quirk->type);
@@ -2408,7 +2455,6 @@ int snd_usbmidi_create(struct snd_card *card,
 	else
 		err = snd_usbmidi_create_endpoints(umidi, endpoints);
 	if (err < 0) {
-		snd_usbmidi_free(umidi);
 		return err;
 	}
 

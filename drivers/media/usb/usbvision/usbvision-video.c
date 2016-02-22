@@ -59,7 +59,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
@@ -1461,11 +1461,32 @@ static int usbvision_probe(struct usb_interface *intf,
 	printk(KERN_INFO "%s: %s found\n", __func__,
 				usbvision_device_data[model].model_string);
 
+	/*
+	 * this is a security check.
+	 * an exploit using an incorrect bInterfaceNumber is known
+	 */
+	if (ifnum >= USB_MAXINTERFACES || !dev->actconfig->interface[ifnum])
+		return -ENODEV;
+
 	if (usbvision_device_data[model].interface >= 0)
 		interface = &dev->actconfig->interface[usbvision_device_data[model].interface]->altsetting[0];
-	else
+	else if (ifnum < dev->actconfig->desc.bNumInterfaces)
 		interface = &dev->actconfig->interface[ifnum]->altsetting[0];
+	else {
+		dev_err(&intf->dev, "interface %d is invalid, max is %d\n",
+		    ifnum, dev->actconfig->desc.bNumInterfaces - 1);
+		ret = -ENODEV;
+		goto err_usb;
+	}
+
+	if (interface->desc.bNumEndpoints < 2) {
+		dev_err(&intf->dev, "interface %d has %d endpoints, but must"
+		    " have minimum 2\n", ifnum, interface->desc.bNumEndpoints);
+		ret = -ENODEV;
+		goto err_usb;
+	}
 	endpoint = &interface->endpoint[1].desc;
+
 	if (!usb_endpoint_xfer_isoc(endpoint)) {
 		dev_err(&intf->dev, "%s: interface %d. has non-ISO endpoint!\n",
 		    __func__, ifnum);

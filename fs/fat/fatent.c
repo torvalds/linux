@@ -99,7 +99,7 @@ err:
 static int fat_ent_bread(struct super_block *sb, struct fat_entry *fatent,
 			 int offset, sector_t blocknr)
 {
-	struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
+	const struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
 
 	WARN_ON(blocknr < MSDOS_SB(sb)->fat_start);
 	fatent->fat_inode = MSDOS_SB(sb)->fat_inode;
@@ -246,7 +246,7 @@ static int fat32_ent_next(struct fat_entry *fatent)
 	return 0;
 }
 
-static struct fatent_operations fat12_ops = {
+static const struct fatent_operations fat12_ops = {
 	.ent_blocknr	= fat12_ent_blocknr,
 	.ent_set_ptr	= fat12_ent_set_ptr,
 	.ent_bread	= fat12_ent_bread,
@@ -255,7 +255,7 @@ static struct fatent_operations fat12_ops = {
 	.ent_next	= fat12_ent_next,
 };
 
-static struct fatent_operations fat16_ops = {
+static const struct fatent_operations fat16_ops = {
 	.ent_blocknr	= fat_ent_blocknr,
 	.ent_set_ptr	= fat16_ent_set_ptr,
 	.ent_bread	= fat_ent_bread,
@@ -264,7 +264,7 @@ static struct fatent_operations fat16_ops = {
 	.ent_next	= fat16_ent_next,
 };
 
-static struct fatent_operations fat32_ops = {
+static const struct fatent_operations fat32_ops = {
 	.ent_blocknr	= fat_ent_blocknr,
 	.ent_set_ptr	= fat32_ent_set_ptr,
 	.ent_bread	= fat_ent_bread,
@@ -320,7 +320,7 @@ static inline int fat_ent_update_ptr(struct super_block *sb,
 				     int offset, sector_t blocknr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	struct fatent_operations *ops = sbi->fatent_ops;
+	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct buffer_head **bhs = fatent->bhs;
 
 	/* Is this fatent's blocks including this entry? */
@@ -349,7 +349,7 @@ int fat_ent_read(struct inode *inode, struct fat_entry *fatent, int entry)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
-	struct fatent_operations *ops = sbi->fatent_ops;
+	const struct fatent_operations *ops = sbi->fatent_ops;
 	int err, offset;
 	sector_t blocknr;
 
@@ -407,7 +407,7 @@ int fat_ent_write(struct inode *inode, struct fat_entry *fatent,
 		  int new, int wait)
 {
 	struct super_block *sb = inode->i_sb;
-	struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
+	const struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
 	int err;
 
 	ops->ent_put(fatent, new);
@@ -432,7 +432,7 @@ static inline int fat_ent_next(struct msdos_sb_info *sbi,
 static inline int fat_ent_read_block(struct super_block *sb,
 				     struct fat_entry *fatent)
 {
-	struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
+	const struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
 	sector_t blocknr;
 	int offset;
 
@@ -463,7 +463,7 @@ int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	struct fatent_operations *ops = sbi->fatent_ops;
+	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent, prev_ent;
 	struct buffer_head *bhs[MAX_BUF_PER_PAGE];
 	int i, count, err, nr_bhs, idx_clus;
@@ -551,7 +551,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	struct fatent_operations *ops = sbi->fatent_ops;
+	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent;
 	struct buffer_head *bhs[MAX_BUF_PER_PAGE];
 	int i, err, nr_bhs;
@@ -636,7 +636,7 @@ EXPORT_SYMBOL_GPL(fat_free_clusters);
 static void fat_ent_reada(struct super_block *sb, struct fat_entry *fatent,
 			  unsigned long reada_blocks)
 {
-	struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
+	const struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
 	sector_t blocknr;
 	int i, offset;
 
@@ -649,7 +649,7 @@ static void fat_ent_reada(struct super_block *sb, struct fat_entry *fatent,
 int fat_count_free_clusters(struct super_block *sb)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	struct fatent_operations *ops = sbi->fatent_ops;
+	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent;
 	unsigned long reada_blocks, reada_mask, cur_block;
 	int err = 0, free;

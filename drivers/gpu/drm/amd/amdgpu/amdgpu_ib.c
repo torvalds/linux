@@ -62,7 +62,7 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
 	int r;
 
 	if (size) {
-		r = amdgpu_sa_bo_new(adev, &adev->ring_tmp_bo,
+		r = amdgpu_sa_bo_new(&adev->ring_tmp_bo,
 				      &ib->sa_bo, size, 256);
 		if (r) {
 			dev_err(adev->dev, "failed to get a new IB (%d)\n", r);
@@ -216,7 +216,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	}
 
 	if (ib->vm)
-		amdgpu_vm_fence(adev, ib->vm, ib->fence);
+		amdgpu_vm_fence(adev, ib->vm, &ib->fence->base);
 
 	amdgpu_ring_unlock_commit(ring);
 	return 0;

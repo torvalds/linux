@@ -67,11 +67,6 @@
 			<19200000>;
 };
 
-&fimd {
-	status = "okay";
-};
-
-
 &hdmi {
 	status = "okay";
 	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;

@@ -31,7 +31,7 @@
 #include <asm/mach/time.h>
 
 #include <mach/map.h>
-#include <mach/regs-timer.h>
+#include "regs-timer.h"
 
 #include "nuc9xx.h"
 

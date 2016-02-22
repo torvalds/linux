@@ -284,7 +284,7 @@ static int spidev_message(struct spidev_data *spidev,
 			k_tmp->speed_hz = spidev->speed_hz;
 #ifdef VERBOSE
 		dev_dbg(&spidev->spi->dev,
-			"  xfer len %zd %s%s%s%dbits %u usec %uHz\n",
+			"  xfer len %u %s%s%s%dbits %u usec %uHz\n",
 			u_tmp->len,
 			u_tmp->rx_buf ? "rx " : "",
 			u_tmp->tx_buf ? "tx " : "",
@@ -651,11 +651,11 @@ static int spidev_release(struct inode *inode, struct file *filp)
 		kfree(spidev->rx_buffer);
 		spidev->rx_buffer = NULL;
 
+		spin_lock_irq(&spidev->spi_lock);
 		if (spidev->spi)
 			spidev->speed_hz = spidev->spi->max_speed_hz;
 
 		/* ... after we unbound from the underlying device? */
-		spin_lock_irq(&spidev->spi_lock);
 		dofree = (spidev->spi == NULL);
 		spin_unlock_irq(&spidev->spi_lock);
 

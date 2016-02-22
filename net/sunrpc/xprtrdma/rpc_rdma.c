@@ -804,6 +804,11 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	if (req->rl_reply)
 		goto out_duplicate;
 
+	/* Sanity checking has passed. We are now committed
+	 * to complete this transaction.
+	 */
+	list_del_init(&rqst->rq_list);
+	spin_unlock_bh(&xprt->transport_lock);
 	dprintk("RPC:       %s: reply 0x%p completes request 0x%p\n"
 		"                   RPC request 0x%p xid 0x%08x\n",
 			__func__, rep, req, rqst,
@@ -888,12 +893,23 @@ badheader:
 		break;
 	}
 
+	/* Invalidate and flush the data payloads before waking the
+	 * waiting application. This guarantees the memory region is
+	 * properly fenced from the server before the application
+	 * accesses the data. It also ensures proper send flow
+	 * control: waking the next RPC waits until this RPC has
+	 * relinquished all its Send Queue entries.
+	 */
+	if (req->rl_nchunks)
+		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt, req);
+
 	credits = be32_to_cpu(headerp->rm_credit);
 	if (credits == 0)
 		credits = 1;	/* don't deadlock */
 	else if (credits > r_xprt->rx_buf.rb_max_requests)
 		credits = r_xprt->rx_buf.rb_max_requests;
 
+	spin_lock_bh(&xprt->transport_lock);
 	cwnd = xprt->cwnd;
 	xprt->cwnd = credits << RPC_CWNDSHIFT;
 	if (xprt->cwnd > cwnd)

@@ -163,9 +163,9 @@ void kvmppc_map_magic(struct kvm_vcpu *vcpu)
 	struct kvm_book3e_206_tlb_entry magic;
 	ulong shared_page = ((ulong)vcpu->arch.shared) & PAGE_MASK;
 	unsigned int stid;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 
-	pfn = (pfn_t)virt_to_phys((void *)shared_page) >> PAGE_SHIFT;
+	pfn = (kvm_pfn_t)virt_to_phys((void *)shared_page) >> PAGE_SHIFT;
 	get_page(pfn_to_page(pfn));
 
 	preempt_disable();
@@ -246,7 +246,7 @@ static inline int tlbe_is_writable(struct kvm_book3e_206_tlb_entry *tlbe)
 
 static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 					 struct kvm_book3e_206_tlb_entry *gtlbe,
-					 pfn_t pfn, unsigned int wimg)
+					 kvm_pfn_t pfn, unsigned int wimg)
 {
 	ref->pfn = pfn;
 	ref->flags = E500_TLB_VALID;
@@ -309,7 +309,7 @@ static void kvmppc_e500_setup_stlbe(
 	int tsize, struct tlbe_ref *ref, u64 gvaddr,
 	struct kvm_book3e_206_tlb_entry *stlbe)
 {
-	pfn_t pfn = ref->pfn;
+	kvm_pfn_t pfn = ref->pfn;
 	u32 pr = vcpu->arch.shared->msr & MSR_PR;
 
 	BUG_ON(!(ref->flags & E500_TLB_VALID));

@@ -41,9 +41,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/hardware.h>
-#include <mach/board-pbx.h>
-#include <mach/irqs.h>
+#include "hardware.h"
+#include "board-pbx.h"
+#include "irqs-pbx.h"
 
 #include "core.h"
 
@@ -79,14 +79,6 @@ static struct map_desc realview_pbx_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
-#ifdef CONFIG_PCI
-	{
-		.virtual	= PCIX_UNIT_BASE,
-		.pfn		= __phys_to_pfn(REALVIEW_PBX_PCI_BASE),
-		.length		= REALVIEW_PBX_PCI_BASE_SIZE,
-		.type		= MT_DEVICE,
-	},
-#endif
 #ifdef CONFIG_DEBUG_LL
 	{
 		.virtual	= IO_ADDRESS(REALVIEW_PBX_UART0_BASE),

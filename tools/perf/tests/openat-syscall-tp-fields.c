@@ -6,7 +6,7 @@
 #include "tests.h"
 #include "debug.h"
 
-int test__syscall_openat_tp_fields(void)
+int test__syscall_openat_tp_fields(int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.target = {

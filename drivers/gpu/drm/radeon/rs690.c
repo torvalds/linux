@@ -207,6 +207,9 @@ void rs690_line_buffer_adjust(struct radeon_device *rdev,
 {
 	u32 tmp;
 
+	/* Guess line buffer size to be 8192 pixels */
+	u32 lb_size = 8192;
+
 	/*
 	 * Line Buffer Setup
 	 * There is a single line buffer shared by both display controllers.
@@ -243,6 +246,13 @@ void rs690_line_buffer_adjust(struct radeon_device *rdev,
 		tmp |= V_006520_DC_LB_MEMORY_SPLIT_D1_1Q_D2_3Q;
 	}
 	WREG32(R_006520_DC_LB_MEMORY_SPLIT, tmp);
+
+	/* Save number of lines the linebuffer leads before the scanout */
+	if (mode1)
+		rdev->mode_info.crtcs[0]->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode1->crtc_hdisplay);
+
+	if (mode2)
+		rdev->mode_info.crtcs[1]->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode2->crtc_hdisplay);
 }
 
 struct rs690_watermark {

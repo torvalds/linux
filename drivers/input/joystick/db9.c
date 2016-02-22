@@ -592,6 +592,7 @@ static void db9_attach(struct parport *pp)
 		return;
 	}
 
+	memset(&db9_parport_cb, 0, sizeof(db9_parport_cb));
 	db9_parport_cb.flags = PARPORT_FLAG_EXCL;
 
 	pd = parport_register_dev_model(pp, "db9", &db9_parport_cb, port_idx);

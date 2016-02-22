@@ -677,6 +677,7 @@
 			#size-cells = <0>;
 			clocks = <&l4_mp_clk>, <&sdmmc_clk_divided>;
 			clock-names = "biu", "ciu";
+			status = "disabled";
 		};
 
 		ocram: sram@ffff0000 {

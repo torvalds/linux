@@ -259,7 +259,7 @@ static void xfrm4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	xfrm_dst_ifdown(dst, dev);
 }
 
-static struct dst_ops xfrm4_dst_ops = {
+static struct dst_ops xfrm4_dst_ops_template = {
 	.family =		AF_INET,
 	.gc =			xfrm4_garbage_collect,
 	.update_pmtu =		xfrm4_update_pmtu,
@@ -273,7 +273,7 @@ static struct dst_ops xfrm4_dst_ops = {
 
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.family = 		AF_INET,
-	.dst_ops =		&xfrm4_dst_ops,
+	.dst_ops =		&xfrm4_dst_ops_template,
 	.dst_lookup =		xfrm4_dst_lookup,
 	.get_saddr =		xfrm4_get_saddr,
 	.decode_session =	_decode_session4,
@@ -295,7 +295,7 @@ static struct ctl_table xfrm4_policy_table[] = {
 	{ }
 };
 
-static int __net_init xfrm4_net_init(struct net *net)
+static int __net_init xfrm4_net_sysctl_init(struct net *net)
 {
 	struct ctl_table *table;
 	struct ctl_table_header *hdr;
@@ -323,7 +323,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static void __net_exit xfrm4_net_exit(struct net *net)
+static void __net_exit xfrm4_net_sysctl_exit(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -335,12 +335,44 @@ static void __net_exit xfrm4_net_exit(struct net *net)
 	if (!net_eq(net, &init_net))
 		kfree(table);
 }
+#else /* CONFIG_SYSCTL */
+static int inline xfrm4_net_sysctl_init(struct net *net)
+{
+	return 0;
+}
+
+static void inline xfrm4_net_sysctl_exit(struct net *net)
+{
+}
+#endif
+
+static int __net_init xfrm4_net_init(struct net *net)
+{
+	int ret;
+
+	memcpy(&net->xfrm.xfrm4_dst_ops, &xfrm4_dst_ops_template,
+	       sizeof(xfrm4_dst_ops_template));
+	ret = dst_entries_init(&net->xfrm.xfrm4_dst_ops);
+	if (ret)
+		return ret;
+
+	ret = xfrm4_net_sysctl_init(net);
+	if (ret)
+		dst_entries_destroy(&net->xfrm.xfrm4_dst_ops);
+
+	return ret;
+}
+
+static void __net_exit xfrm4_net_exit(struct net *net)
+{
+	xfrm4_net_sysctl_exit(net);
+	dst_entries_destroy(&net->xfrm.xfrm4_dst_ops);
+}
 
 static struct pernet_operations __net_initdata xfrm4_net_ops = {
 	.init	= xfrm4_net_init,
 	.exit	= xfrm4_net_exit,
 };
-#endif
 
 static void __init xfrm4_policy_init(void)
 {
@@ -349,13 +381,9 @@ static void __init xfrm4_policy_init(void)
 
 void __init xfrm4_init(void)
 {
-	dst_entries_init(&xfrm4_dst_ops);
-
 	xfrm4_state_init();
 	xfrm4_policy_init();
 	xfrm4_protocol_init();
-#ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&xfrm4_net_ops);
-#endif
 }
 

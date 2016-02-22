@@ -113,7 +113,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		ext4_unwritten_wait(inode);
 	}
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0)
 		goto out;
@@ -169,7 +169,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	ret = __generic_file_write_iter(iocb, from);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	if (ret > 0) {
 		ssize_t err;
@@ -186,50 +186,42 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	return ret;
 
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	if (aio_mutex)
 		mutex_unlock(aio_mutex);
 	return ret;
 }
 
 #ifdef CONFIG_FS_DAX
-static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
-{
-	struct inode *inode = bh->b_assoc_map->host;
-	/* XXX: breaks on 32-bit > 16TB. Is that even supported? */
-	loff_t offset = (loff_t)(uintptr_t)bh->b_private << inode->i_blkbits;
-	int err;
-	if (!uptodate)
-		return;
-	WARN_ON(!buffer_unwritten(bh));
-	err = ext4_convert_unwritten_extents(NULL, inode, offset, bh->b_size);
-}
-
 static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	int result;
 	handle_t *handle = NULL;
-	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
+	struct inode *inode = file_inode(vma->vm_file);
+	struct super_block *sb = inode->i_sb;
 	bool write = vmf->flags & FAULT_FLAG_WRITE;
 
 	if (write) {
 		sb_start_pagefault(sb);
 		file_update_time(vma->vm_file);
+		down_read(&EXT4_I(inode)->i_mmap_sem);
 		handle = ext4_journal_start_sb(sb, EXT4_HT_WRITE_PAGE,
 						EXT4_DATA_TRANS_BLOCKS(sb));
-	}
+	} else
+		down_read(&EXT4_I(inode)->i_mmap_sem);
 
 	if (IS_ERR(handle))
 		result = VM_FAULT_SIGBUS;
 	else
-		result = __dax_fault(vma, vmf, ext4_get_block_dax,
-						ext4_end_io_unwritten);
+		result = __dax_fault(vma, vmf, ext4_dax_mmap_get_block, NULL);
 
 	if (write) {
 		if (!IS_ERR(handle))
 			ext4_journal_stop(handle);
+		up_read(&EXT4_I(inode)->i_mmap_sem);
 		sb_end_pagefault(sb);
-	}
+	} else
+		up_read(&EXT4_I(inode)->i_mmap_sem);
 
 	return result;
 }
@@ -246,44 +238,88 @@ static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 	if (write) {
 		sb_start_pagefault(sb);
 		file_update_time(vma->vm_file);
+		down_read(&EXT4_I(inode)->i_mmap_sem);
 		handle = ext4_journal_start_sb(sb, EXT4_HT_WRITE_PAGE,
 				ext4_chunk_trans_blocks(inode,
 							PMD_SIZE / PAGE_SIZE));
-	}
+	} else
+		down_read(&EXT4_I(inode)->i_mmap_sem);
 
 	if (IS_ERR(handle))
 		result = VM_FAULT_SIGBUS;
 	else
 		result = __dax_pmd_fault(vma, addr, pmd, flags,
-				ext4_get_block_dax, ext4_end_io_unwritten);
+				ext4_dax_mmap_get_block, NULL);
 
 	if (write) {
 		if (!IS_ERR(handle))
 			ext4_journal_stop(handle);
+		up_read(&EXT4_I(inode)->i_mmap_sem);
 		sb_end_pagefault(sb);
-	}
+	} else
+		up_read(&EXT4_I(inode)->i_mmap_sem);
 
 	return result;
 }
 
 static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_mkwrite(vma, vmf, ext4_get_block_dax,
-				ext4_end_io_unwritten);
+	int err;
+	struct inode *inode = file_inode(vma->vm_file);
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vma->vm_file);
+	down_read(&EXT4_I(inode)->i_mmap_sem);
+	err = __dax_mkwrite(vma, vmf, ext4_dax_mmap_get_block, NULL);
+	up_read(&EXT4_I(inode)->i_mmap_sem);
+	sb_end_pagefault(inode->i_sb);
+
+	return err;
+}
+
+/*
+ * Handle write fault for VM_MIXEDMAP mappings. Similarly to ext4_dax_mkwrite()
+ * handler we check for races agaist truncate. Note that since we cycle through
+ * i_mmap_sem, we are sure that also any hole punching that began before we
+ * were called is finished by now and so if it included part of the file we
+ * are working on, our pte will get unmapped and the check for pte_same() in
+ * wp_pfn_shared() fails. Thus fault gets retried and things work out as
+ * desired.
+ */
+static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
+				struct vm_fault *vmf)
+{
+	struct inode *inode = file_inode(vma->vm_file);
+	struct super_block *sb = inode->i_sb;
+	loff_t size;
+	int ret;
+
+	sb_start_pagefault(sb);
+	file_update_time(vma->vm_file);
+	down_read(&EXT4_I(inode)->i_mmap_sem);
+	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	if (vmf->pgoff >= size)
+		ret = VM_FAULT_SIGBUS;
+	else
+		ret = dax_pfn_mkwrite(vma, vmf);
+	up_read(&EXT4_I(inode)->i_mmap_sem);
+	sb_end_pagefault(sb);
+
+	return ret;
 }
 
 static const struct vm_operations_struct ext4_dax_vm_ops = {
 	.fault		= ext4_dax_fault,
 	.pmd_fault	= ext4_dax_pmd_fault,
 	.page_mkwrite	= ext4_dax_mkwrite,
-	.pfn_mkwrite	= dax_pfn_mkwrite,
+	.pfn_mkwrite	= ext4_dax_pfn_mkwrite,
 };
 #else
 #define ext4_dax_vm_ops	ext4_file_vm_ops
 #endif
 
 static const struct vm_operations_struct ext4_file_vm_ops = {
-	.fault		= filemap_fault,
+	.fault		= ext4_filemap_fault,
 	.map_pages	= filemap_map_pages,
 	.page_mkwrite   = ext4_page_mkwrite,
 };
@@ -314,6 +350,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	struct super_block *sb = inode->i_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct vfsmount *mnt = filp->f_path.mnt;
+	struct inode *dir = filp->f_path.dentry->d_parent->d_inode;
 	struct path path;
 	char buf[64], *cp;
 	int ret;
@@ -356,6 +393,14 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			return -EACCES;
 		if (ext4_encryption_info(inode) == NULL)
 			return -ENOKEY;
+	}
+	if (ext4_encrypted_inode(dir) &&
+	    !ext4_is_child_context_consistent_with_parent(dir, inode)) {
+		ext4_warning(inode->i_sb,
+			     "Inconsistent encryption contexts: %lu/%lu\n",
+			     (unsigned long) dir->i_ino,
+			     (unsigned long) inode->i_ino);
+		return -EPERM;
 	}
 	/*
 	 * Set up the jbd2_inode if we are opening the inode for
@@ -527,11 +572,11 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 	int blkbits;
 	int ret = 0;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	isize = i_size_read(inode);
 	if (offset >= isize) {
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		return -ENXIO;
 	}
 
@@ -579,7 +624,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 		dataoff = (loff_t)last << blkbits;
 	} while (last <= end);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	if (dataoff > isize)
 		return -ENXIO;
@@ -600,11 +645,11 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 	int blkbits;
 	int ret = 0;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	isize = i_size_read(inode);
 	if (offset >= isize) {
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		return -ENXIO;
 	}
 
@@ -655,7 +700,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 		break;
 	} while (last <= end);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	if (holeoff > isize)
 		holeoff = isize;

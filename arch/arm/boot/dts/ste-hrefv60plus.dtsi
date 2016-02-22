@@ -43,7 +43,6 @@
 				  <&vaudio_hf_hrefv60_mode>,
 				  <&gbf_hrefv60_mode>,
 				  <&hdtv_hrefv60_mode>,
-				  <&touch_hrefv60_mode>,
 				  <&gpios_hrefv60_mode>;
 
 			sdi0 {
@@ -189,23 +188,6 @@
 						ste,config = <&gpio_in_pd>;
 					};
 				 };
-			};
-			touch {
-				touch_hrefv60_mode: touch_hrefv60 {
-					/*
-					 * Touch screen uses GPIO 143 for RST1, GPIO 146 for RST2 and
-					 * GPIO 67 for interrupts. Pull-up the IRQ line and drive both
-					 * reset signals low.
-					 */
-					hrefv60_cfg1 {
-						pins = "GPIO143_D12", "GPIO146_D13";
-						ste,config = <&gpio_out_lo>;
-					};
-					hrefv60_cfg2 {
-						pins = "GPIO67_G2";
-						ste,config = <&gpio_in_pu>;
-					};
-				};
 			};
 			mcde {
 				lcd_hrefv60_mode: lcd_hrefv60 {

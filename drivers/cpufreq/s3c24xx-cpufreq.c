@@ -648,7 +648,7 @@ late_initcall(s3c_cpufreq_initcall);
  *
  * Register the given set of PLLs with the system.
  */
-int __init s3c_plltab_register(struct cpufreq_frequency_table *plls,
+int s3c_plltab_register(struct cpufreq_frequency_table *plls,
 			       unsigned int plls_no)
 {
 	struct cpufreq_frequency_table *vals;

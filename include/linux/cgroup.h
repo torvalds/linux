@@ -81,13 +81,15 @@ struct cgroup_subsys_state *cgroup_get_e_css(struct cgroup *cgroup,
 struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 						       struct cgroup_subsys *ss);
 
-bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor);
+struct cgroup *cgroup_get_from_path(const char *path);
+
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 
 int cgroup_add_dfl_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cftype *cfts);
+void cgroup_file_notify(struct cgroup_file *cfile);
 
 char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry);
@@ -95,12 +97,9 @@ int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 		     struct pid *pid, struct task_struct *tsk);
 
 void cgroup_fork(struct task_struct *p);
-extern int cgroup_can_fork(struct task_struct *p,
-			   void *ss_priv[CGROUP_CANFORK_COUNT]);
-extern void cgroup_cancel_fork(struct task_struct *p,
-			       void *ss_priv[CGROUP_CANFORK_COUNT]);
-extern void cgroup_post_fork(struct task_struct *p,
-			     void *old_ss_priv[CGROUP_CANFORK_COUNT]);
+extern int cgroup_can_fork(struct task_struct *p);
+extern void cgroup_cancel_fork(struct task_struct *p);
+extern void cgroup_post_fork(struct task_struct *p);
 void cgroup_exit(struct task_struct *p);
 void cgroup_free(struct task_struct *p);
 
@@ -119,8 +118,10 @@ struct cgroup_subsys_state *css_rightmost_descendant(struct cgroup_subsys_state 
 struct cgroup_subsys_state *css_next_descendant_post(struct cgroup_subsys_state *pos,
 						     struct cgroup_subsys_state *css);
 
-struct task_struct *cgroup_taskset_first(struct cgroup_taskset *tset);
-struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset);
+struct task_struct *cgroup_taskset_first(struct cgroup_taskset *tset,
+					 struct cgroup_subsys_state **dst_cssp);
+struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset,
+					struct cgroup_subsys_state **dst_cssp);
 
 void css_task_iter_start(struct cgroup_subsys_state *css,
 			 struct css_task_iter *it);
@@ -235,30 +236,39 @@ void css_task_iter_end(struct css_task_iter *it);
 /**
  * cgroup_taskset_for_each - iterate cgroup_taskset
  * @task: the loop cursor
+ * @dst_css: the destination css
  * @tset: taskset to iterate
  *
  * @tset may contain multiple tasks and they may belong to multiple
- * processes.  When there are multiple tasks in @tset, if a task of a
- * process is in @tset, all tasks of the process are in @tset.  Also, all
- * are guaranteed to share the same source and destination csses.
+ * processes.
+ *
+ * On the v2 hierarchy, there may be tasks from multiple processes and they
+ * may not share the source or destination csses.
+ *
+ * On traditional hierarchies, when there are multiple tasks in @tset, if a
+ * task of a process is in @tset, all tasks of the process are in @tset.
+ * Also, all are guaranteed to share the same source and destination csses.
  *
  * Iteration is not in any specific order.
  */
-#define cgroup_taskset_for_each(task, tset)				\
-	for ((task) = cgroup_taskset_first((tset)); (task);		\
-	     (task) = cgroup_taskset_next((tset)))
+#define cgroup_taskset_for_each(task, dst_css, tset)			\
+	for ((task) = cgroup_taskset_first((tset), &(dst_css));		\
+	     (task);							\
+	     (task) = cgroup_taskset_next((tset), &(dst_css)))
 
 /**
  * cgroup_taskset_for_each_leader - iterate group leaders in a cgroup_taskset
  * @leader: the loop cursor
+ * @dst_css: the destination css
  * @tset: takset to iterate
  *
  * Iterate threadgroup leaders of @tset.  For single-task migrations, @tset
  * may not contain any.
  */
-#define cgroup_taskset_for_each_leader(leader, tset)			\
-	for ((leader) = cgroup_taskset_first((tset)); (leader);		\
-	     (leader) = cgroup_taskset_next((tset)))			\
+#define cgroup_taskset_for_each_leader(leader, dst_css, tset)		\
+	for ((leader) = cgroup_taskset_first((tset), &(dst_css));	\
+	     (leader);							\
+	     (leader) = cgroup_taskset_next((tset), &(dst_css)))	\
 		if ((leader) != (leader)->group_leader)			\
 			;						\
 		else
@@ -350,6 +360,11 @@ static inline void css_put_many(struct cgroup_subsys_state *css, unsigned int n)
 {
 	if (!(css->flags & CSS_NO_REF))
 		percpu_ref_put_many(&css->refcnt, n);
+}
+
+static inline void cgroup_put(struct cgroup *cgrp)
+{
+	css_put(&cgrp->self);
 }
 
 /**
@@ -459,6 +474,23 @@ static inline struct cgroup *task_cgroup(struct task_struct *task,
 	return task_css(task, subsys_id)->cgroup;
 }
 
+/**
+ * cgroup_is_descendant - test ancestry
+ * @cgrp: the cgroup to be tested
+ * @ancestor: possible ancestor of @cgrp
+ *
+ * Test whether @cgrp is a descendant of @ancestor.  It also returns %true
+ * if @cgrp == @ancestor.  This function is safe to call as long as @cgrp
+ * and @ancestor are accessible.
+ */
+static inline bool cgroup_is_descendant(struct cgroup *cgrp,
+					struct cgroup *ancestor)
+{
+	if (cgrp->root != ancestor->root || cgrp->level < ancestor->level)
+		return false;
+	return cgrp->ancestor_ids[ancestor->level] == ancestor->id;
+}
+
 /* no synchronization, the result can only be used as a hint */
 static inline bool cgroup_is_populated(struct cgroup *cgrp)
 {
@@ -516,19 +548,6 @@ static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
 	pr_cont_kernfs_path(cgrp->kn);
 }
 
-/**
- * cgroup_file_notify - generate a file modified event for a cgroup_file
- * @cfile: target cgroup_file
- *
- * @cfile must have been obtained by setting cftype->file_offset.
- */
-static inline void cgroup_file_notify(struct cgroup_file *cfile)
-{
-	/* might not have been created due to one of the CFTYPE selector flags */
-	if (cfile->kn)
-		kernfs_notify(cfile->kn);
-}
-
 #else /* !CONFIG_CGROUPS */
 
 struct cgroup_subsys_state;
@@ -540,13 +559,9 @@ static inline int cgroupstats_build(struct cgroupstats *stats,
 				    struct dentry *dentry) { return -EINVAL; }
 
 static inline void cgroup_fork(struct task_struct *p) {}
-static inline int cgroup_can_fork(struct task_struct *p,
-				  void *ss_priv[CGROUP_CANFORK_COUNT])
-{ return 0; }
-static inline void cgroup_cancel_fork(struct task_struct *p,
-				      void *ss_priv[CGROUP_CANFORK_COUNT]) {}
-static inline void cgroup_post_fork(struct task_struct *p,
-				    void *ss_priv[CGROUP_CANFORK_COUNT]) {}
+static inline int cgroup_can_fork(struct task_struct *p) { return 0; }
+static inline void cgroup_cancel_fork(struct task_struct *p) {}
+static inline void cgroup_post_fork(struct task_struct *p) {}
 static inline void cgroup_exit(struct task_struct *p) {}
 static inline void cgroup_free(struct task_struct *p) {}
 
@@ -554,5 +569,46 @@ static inline int cgroup_init_early(void) { return 0; }
 static inline int cgroup_init(void) { return 0; }
 
 #endif /* !CONFIG_CGROUPS */
+
+/*
+ * sock->sk_cgrp_data handling.  For more info, see sock_cgroup_data
+ * definition in cgroup-defs.h.
+ */
+#ifdef CONFIG_SOCK_CGROUP_DATA
+
+#if defined(CONFIG_CGROUP_NET_PRIO) || defined(CONFIG_CGROUP_NET_CLASSID)
+extern spinlock_t cgroup_sk_update_lock;
+#endif
+
+void cgroup_sk_alloc_disable(void);
+void cgroup_sk_alloc(struct sock_cgroup_data *skcd);
+void cgroup_sk_free(struct sock_cgroup_data *skcd);
+
+static inline struct cgroup *sock_cgroup_ptr(struct sock_cgroup_data *skcd)
+{
+#if defined(CONFIG_CGROUP_NET_PRIO) || defined(CONFIG_CGROUP_NET_CLASSID)
+	unsigned long v;
+
+	/*
+	 * @skcd->val is 64bit but the following is safe on 32bit too as we
+	 * just need the lower ulong to be written and read atomically.
+	 */
+	v = READ_ONCE(skcd->val);
+
+	if (v & 1)
+		return &cgrp_dfl_root.cgrp;
+
+	return (struct cgroup *)(unsigned long)v ?: &cgrp_dfl_root.cgrp;
+#else
+	return (struct cgroup *)(unsigned long)skcd->val;
+#endif
+}
+
+#else	/* CONFIG_CGROUP_DATA */
+
+static inline void cgroup_sk_alloc(struct sock_cgroup_data *skcd) {}
+static inline void cgroup_sk_free(struct sock_cgroup_data *skcd) {}
+
+#endif	/* CONFIG_CGROUP_DATA */
 
 #endif /* _LINUX_CGROUP_H */

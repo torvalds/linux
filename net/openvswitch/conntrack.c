@@ -53,6 +53,8 @@ struct ovs_conntrack_info {
 	struct md_labels labels;
 };
 
+static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info);
+
 static u16 key_to_nfproto(const struct sw_flow_key *key)
 {
 	switch (ntohs(key->eth.type)) {
@@ -141,6 +143,7 @@ static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
  * previously sent the packet to conntrack via the ct action.
  */
 static void ovs_ct_update_key(const struct sk_buff *skb,
+			      const struct ovs_conntrack_info *info,
 			      struct sw_flow_key *key, bool post_ct)
 {
 	const struct nf_conntrack_zone *zone = &nf_ct_zone_dflt;
@@ -158,13 +161,15 @@ static void ovs_ct_update_key(const struct sk_buff *skb,
 		zone = nf_ct_zone(ct);
 	} else if (post_ct) {
 		state = OVS_CS_F_TRACKED | OVS_CS_F_INVALID;
+		if (info)
+			zone = &info->zone;
 	}
 	__ovs_ct_update_key(key, state, zone, ct);
 }
 
 void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key)
 {
-	ovs_ct_update_key(skb, key, false);
+	ovs_ct_update_key(skb, NULL, key, false);
 }
 
 int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb)
@@ -300,10 +305,10 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 			    u16 zone, struct sk_buff *skb)
 {
 	struct ovs_skb_cb ovs_cb = *OVS_CB(skb);
+	int err;
 
 	if (key->eth.type == htons(ETH_P_IP)) {
 		enum ip_defrag_users user = IP_DEFRAG_CONNTRACK_IN + zone;
-		int err;
 
 		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
 		err = ip_defrag(net, skb, user);
@@ -314,28 +319,13 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
-		struct sk_buff *reasm;
 
 		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
-		reasm = nf_ct_frag6_gather(net, skb, user);
-		if (!reasm)
-			return -EINPROGRESS;
+		err = nf_ct_frag6_gather(net, skb, user);
+		if (err)
+			return err;
 
-		if (skb == reasm) {
-			kfree_skb(skb);
-			return -EINVAL;
-		}
-
-		/* Don't free 'skb' even though it is one of the original
-		 * fragments, as we're going to morph it into the head.
-		 */
-		skb_get(skb);
-		nf_ct_frag6_consume_orig(reasm);
-
-		key->ip.proto = ipv6_hdr(reasm)->nexthdr;
-		skb_morph(skb, reasm);
-		skb->next = reasm->next;
-		consume_skb(reasm);
+		key->ip.proto = ipv6_hdr(skb)->nexthdr;
 		ovs_cb.mru = IP6CB(skb)->frag_max_size;
 #endif
 	} else {
@@ -418,7 +408,7 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		}
 	}
 
-	ovs_ct_update_key(skb, key, true);
+	ovs_ct_update_key(skb, info, key, true);
 
 	return 0;
 }
@@ -693,6 +683,10 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		OVS_NLERR(log, "Failed to allocate conntrack template");
 		return -ENOMEM;
 	}
+
+	__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
+	nf_conntrack_get(&ct_info.ct->ct_general);
+
 	if (helper) {
 		err = ovs_ct_add_helper(&ct_info, helper, key, log);
 		if (err)
@@ -704,11 +698,9 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	if (err)
 		goto err_free_ct;
 
-	__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
-	nf_conntrack_get(&ct_info.ct->ct_general);
 	return 0;
 err_free_ct:
-	nf_conntrack_free(ct_info.ct);
+	__ovs_ct_free_action(&ct_info);
 	return err;
 }
 
@@ -750,6 +742,11 @@ void ovs_ct_free_action(const struct nlattr *a)
 {
 	struct ovs_conntrack_info *ct_info = nla_data(a);
 
+	__ovs_ct_free_action(ct_info);
+}
+
+static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
+{
 	if (ct_info->helper)
 		module_put(ct_info->helper->me);
 	if (ct_info->ct)

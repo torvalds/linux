@@ -63,10 +63,10 @@ static inline int ieee754_class_nan(int xc)
 	if (ve == SP_EMAX+1+SP_EBIAS) {					\
 		if (vm == 0)						\
 			vc = IEEE754_CLASS_INF;				\
-		else if (vm & SP_MBIT(SP_FBITS-1))			\
-			vc = IEEE754_CLASS_SNAN;			\
-		else							\
+		else if (ieee754_csr.nan2008 ^ !(vm & SP_MBIT(SP_FBITS - 1))) \
 			vc = IEEE754_CLASS_QNAN;			\
+		else							\
+			vc = IEEE754_CLASS_SNAN;			\
 	} else if (ve == SP_EMIN-1+SP_EBIAS) {				\
 		if (vm) {						\
 			ve = SP_EMIN;					\
@@ -97,10 +97,10 @@ static inline int ieee754_class_nan(int xc)
 	if (ve == DP_EMAX+1+DP_EBIAS) {					\
 		if (vm == 0)						\
 			vc = IEEE754_CLASS_INF;				\
-		else if (vm & DP_MBIT(DP_FBITS-1))			\
-			vc = IEEE754_CLASS_SNAN;			\
-		else							\
+		else if (ieee754_csr.nan2008 ^ !(vm & DP_MBIT(DP_FBITS - 1))) \
 			vc = IEEE754_CLASS_QNAN;			\
+		else							\
+			vc = IEEE754_CLASS_SNAN;			\
 	} else if (ve == DP_EMIN-1+DP_EBIAS) {				\
 		if (vm) {						\
 			ve = DP_EMIN;					\

@@ -462,54 +462,57 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 
 /*
  * This routine is called on return from interrupt if any of the
- * TIF_WORK_MASK flags are set in thread_info->flags.  It is
- * entered with interrupts disabled so we don't miss an event
- * that modified the thread_info flags.  If any flag is set, we
- * handle it and return, and the calling assembly code will
- * re-disable interrupts, reload the thread flags, and call back
- * if more flags need to be handled.
- *
- * We return whether we need to check the thread_info flags again
- * or not.  Note that we don't clear TIF_SINGLESTEP here, so it's
- * important that it be tested last, and then claim that we don't
- * need to recheck the flags.
+ * TIF_ALLWORK_MASK flags are set in thread_info->flags.  It is
+ * entered with interrupts disabled so we don't miss an event that
+ * modified the thread_info flags.  We loop until all the tested flags
+ * are clear.  Note that the function is called on certain conditions
+ * that are not listed in the loop condition here (e.g. SINGLESTEP)
+ * which guarantees we will do those things once, and redo them if any
+ * of the other work items is re-done, but won't continue looping if
+ * all the other work is done.
  */
-int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
+void prepare_exit_to_usermode(struct pt_regs *regs, u32 thread_info_flags)
 {
-	/* If we enter in kernel mode, do nothing and exit the caller loop. */
-	if (!user_mode(regs))
-		return 0;
+	if (WARN_ON(!user_mode(regs)))
+		return;
 
-	user_exit();
+	do {
+		local_irq_enable();
 
-	/* Enable interrupts; they are disabled again on return to caller. */
-	local_irq_enable();
+		if (thread_info_flags & _TIF_NEED_RESCHED)
+			schedule();
 
-	if (thread_info_flags & _TIF_NEED_RESCHED) {
-		schedule();
-		return 1;
-	}
 #if CHIP_HAS_TILE_DMA()
-	if (thread_info_flags & _TIF_ASYNC_TLB) {
-		do_async_page_fault(regs);
-		return 1;
-	}
+		if (thread_info_flags & _TIF_ASYNC_TLB)
+			do_async_page_fault(regs);
 #endif
-	if (thread_info_flags & _TIF_SIGPENDING) {
-		do_signal(regs);
-		return 1;
-	}
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-		return 1;
-	}
-	if (thread_info_flags & _TIF_SINGLESTEP)
+
+		if (thread_info_flags & _TIF_SIGPENDING)
+			do_signal(regs);
+
+		if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+			clear_thread_flag(TIF_NOTIFY_RESUME);
+			tracehook_notify_resume(regs);
+		}
+
+		local_irq_disable();
+		thread_info_flags = READ_ONCE(current_thread_info()->flags);
+
+	} while (thread_info_flags & _TIF_WORK_MASK);
+
+	if (thread_info_flags & _TIF_SINGLESTEP) {
 		single_step_once(regs);
+#ifndef __tilegx__
+		/*
+		 * FIXME: on tilepro, since we enable interrupts in
+		 * this routine, it's possible that we miss a signal
+		 * or other asynchronous event.
+		 */
+		local_irq_disable();
+#endif
+	}
 
 	user_enter();
-
-	return 0;
 }
 
 unsigned long get_wchan(struct task_struct *p)

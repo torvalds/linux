@@ -66,11 +66,6 @@ enum {
 	SRP_TAG_TSK_MGMT	= 1U << 31,
 
 	SRP_MAX_PAGES_PER_MR	= 512,
-
-	LOCAL_INV_WR_ID_MASK	= 1,
-	FAST_REG_WR_ID_MASK	= 2,
-
-	SRP_LAST_WR_ID		= 0xfffffffcU,
 };
 
 enum srp_target_state {
@@ -128,6 +123,7 @@ struct srp_request {
 	struct srp_direct_buf  *indirect_desc;
 	dma_addr_t		indirect_dma_addr;
 	short			nmdesc;
+	struct ib_cqe		reg_cqe;
 };
 
 /**
@@ -231,6 +227,7 @@ struct srp_iu {
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;
+	struct ib_cqe		cqe;
 };
 
 /**
@@ -300,10 +297,7 @@ struct srp_map_state {
 	dma_addr_t		base_dma_addr;
 	u32			dma_len;
 	u32			total_len;
-	union {
-		unsigned int	npages;
-		int		sg_nents;
-	};
+	unsigned int		npages;
 	unsigned int		nmdesc;
 	unsigned int		ndesc;
 };

@@ -250,6 +250,12 @@ dentry names:
 
 	Passed by reference.
 
+block_device names:
+
+	%pg	sda, sda1 or loop0p1
+
+	For printing name of block_device pointers.
+
 struct va_format:
 
 	%pV
@@ -297,15 +303,6 @@ Network device features:
 	%pNF	0x000000000000c000
 
 	For printing netdev_features_t.
-
-	Passed by reference.
-
-Command from struct task_struct
-
-	%pT	ls
-
-	For printing executable name excluding path from struct
-	task_struct.
 
 	Passed by reference.
 

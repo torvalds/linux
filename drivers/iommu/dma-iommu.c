@@ -21,10 +21,13 @@
 
 #include <linux/device.h>
 #include <linux/dma-iommu.h>
+#include <linux/gfp.h>
 #include <linux/huge_mm.h>
 #include <linux/iommu.h>
 #include <linux/iova.h>
 #include <linux/mm.h>
+#include <linux/scatterlist.h>
+#include <linux/vmalloc.h>
 
 int iommu_dma_init(void)
 {
@@ -191,6 +194,7 @@ static struct page **__iommu_dma_alloc_pages(unsigned int count, gfp_t gfp)
 {
 	struct page **pages;
 	unsigned int i = 0, array_size = count * sizeof(*pages);
+	unsigned int order = MAX_ORDER;
 
 	if (array_size <= PAGE_SIZE)
 		pages = kzalloc(array_size, GFP_KERNEL);
@@ -204,14 +208,15 @@ static struct page **__iommu_dma_alloc_pages(unsigned int count, gfp_t gfp)
 
 	while (count) {
 		struct page *page = NULL;
-		int j, order = __fls(count);
+		int j;
 
 		/*
 		 * Higher-order allocations are a convenience rather
 		 * than a necessity, hence using __GFP_NORETRY until
 		 * falling back to single-page allocations.
 		 */
-		for (order = min(order, MAX_ORDER); order > 0; order--) {
+		for (order = min_t(unsigned int, order, __fls(count));
+		     order > 0; order--) {
 			page = alloc_pages(gfp | __GFP_NORETRY, order);
 			if (!page)
 				continue;
@@ -453,7 +458,7 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		size_t s_offset = iova_offset(iovad, s->offset);
 		size_t s_length = s->length;
 
-		sg_dma_address(s) = s->offset;
+		sg_dma_address(s) = s_offset;
 		sg_dma_len(s) = s_length;
 		s->offset -= s_offset;
 		s_length = iova_align(iovad, s_length + s_offset);

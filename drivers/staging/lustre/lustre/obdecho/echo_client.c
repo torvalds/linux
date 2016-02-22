@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -1228,8 +1228,10 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 			cl_page_put(env, clp);
 			break;
 		}
-
-		cl_2queue_add(queue, clp);
+		/*
+		 * Add a page to the incoming page list of 2-queue.
+		 */
+		cl_page_list_add(&queue->c2_qin, clp);
 
 		/* drop the reference count for cl_page_find, so that the page
 		 * will be freed in cl_2queue_fini. */
@@ -1270,6 +1272,7 @@ static int
 echo_copyout_lsm(struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
 {
 	struct lov_stripe_md *ulsm = _ulsm;
+	struct lov_oinfo **p;
 	int nob, i;
 
 	nob = offsetof(struct lov_stripe_md, lsm_oinfo[lsm->lsm_stripe_count]);
@@ -1279,9 +1282,10 @@ echo_copyout_lsm(struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
 	if (copy_to_user(ulsm, lsm, sizeof(*ulsm)))
 		return -EFAULT;
 
-	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		if (copy_to_user(ulsm->lsm_oinfo[i], lsm->lsm_oinfo[i],
-				      sizeof(lsm->lsm_oinfo[0])))
+	for (i = 0, p = lsm->lsm_oinfo; i < lsm->lsm_stripe_count; i++, p++) {
+		struct lov_oinfo __user *up;
+		if (get_user(up, ulsm->lsm_oinfo + i) ||
+		    copy_to_user(up, *p, sizeof(struct lov_oinfo)))
 			return -EFAULT;
 	}
 	return 0;
@@ -1289,9 +1293,10 @@ echo_copyout_lsm(struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
 
 static int
 echo_copyin_lsm(struct echo_device *ed, struct lov_stripe_md *lsm,
-		 void *ulsm, int ulsm_nob)
+		struct lov_stripe_md __user *ulsm, int ulsm_nob)
 {
 	struct echo_client_obd *ec = ed->ed_ec;
+	struct lov_oinfo **p;
 	int		     i;
 
 	if (ulsm_nob < sizeof(*lsm))
@@ -1306,11 +1311,10 @@ echo_copyin_lsm(struct echo_device *ed, struct lov_stripe_md *lsm,
 	    ((__u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count > ~0UL))
 		return -EINVAL;
 
-	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		if (copy_from_user(lsm->lsm_oinfo[i],
-				       ((struct lov_stripe_md *)ulsm)-> \
-				       lsm_oinfo[i],
-				       sizeof(lsm->lsm_oinfo[0])))
+	for (i = 0, p = lsm->lsm_oinfo; i < lsm->lsm_stripe_count; i++, p++) {
+		struct lov_oinfo __user *up;
+		if (get_user(up, ulsm->lsm_oinfo + i) ||
+		    copy_from_user(*p, up, sizeof(struct lov_oinfo)))
 			return -EFAULT;
 	}
 	return 0;
@@ -2128,10 +2132,10 @@ static int echo_client_disconnect(struct obd_export *exp)
 }
 
 static struct obd_ops echo_client_obd_ops = {
-	.o_owner       = THIS_MODULE,
-	.o_iocontrol   = echo_client_iocontrol,
-	.o_connect     = echo_client_connect,
-	.o_disconnect  = echo_client_disconnect
+	.owner          = THIS_MODULE,
+	.iocontrol      = echo_client_iocontrol,
+	.connect        = echo_client_connect,
+	.disconnect     = echo_client_disconnect
 };
 
 static int echo_client_init(void)
@@ -2170,7 +2174,7 @@ static void /*__exit*/ obdecho_exit(void)
 
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Testing Echo OBD driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(LUSTRE_VERSION_STRING);

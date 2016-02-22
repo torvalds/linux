@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -582,7 +582,8 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 
 		/* Ignore error and move on to next device */
 
-		char *scope_name = acpi_ns_get_external_pathname(info->node);
+		char *scope_name =
+		    acpi_ns_get_normalized_pathname(device_node, TRUE);
 
 		ACPI_EXCEPTION((AE_INFO, status, "during %s._INI execution",
 				scope_name));

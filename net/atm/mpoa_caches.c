@@ -534,7 +534,7 @@ static void eg_destroy_cache(struct mpoa_client *mpc)
 }
 
 
-static struct in_cache_ops ingress_ops = {
+static const struct in_cache_ops ingress_ops = {
 	in_cache_add_entry,               /* add_entry       */
 	in_cache_get,                     /* get             */
 	in_cache_get_with_mask,           /* get_with_mask   */
@@ -548,7 +548,7 @@ static struct in_cache_ops ingress_ops = {
 	in_destroy_cache                  /* destroy_cache   */
 };
 
-static struct eg_cache_ops egress_ops = {
+static const struct eg_cache_ops egress_ops = {
 	eg_cache_add_entry,               /* add_entry        */
 	eg_cache_get_by_cache_id,         /* get_by_cache_id  */
 	eg_cache_get_by_tag,              /* get_by_tag       */

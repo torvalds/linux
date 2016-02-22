@@ -9,15 +9,11 @@
 #ifndef _POSIX_ACL_XATTR_H
 #define _POSIX_ACL_XATTR_H
 
+#include <uapi/linux/xattr.h>
 #include <linux/posix_acl.h>
-
-/* Extended attribute names */
-#define POSIX_ACL_XATTR_ACCESS	"system.posix_acl_access"
-#define POSIX_ACL_XATTR_DEFAULT	"system.posix_acl_default"
 
 /* Supported ACL a_version fields */
 #define POSIX_ACL_XATTR_VERSION	0x0002
-
 
 /* An undefined entry e_id value */
 #define ACL_UNDEFINED_ID	(-1)

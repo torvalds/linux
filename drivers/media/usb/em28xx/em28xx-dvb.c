@@ -38,6 +38,7 @@
 #include "lgdt3305.h"
 #include "zl10353.h"
 #include "s5h1409.h"
+#include "mt2060.h"
 #include "mt352.h"
 #include "mt352_priv.h" /* FIXME */
 #include "tda1002x.h"
@@ -815,6 +816,10 @@ static struct zl10353_config em28xx_zl10353_no_i2c_gate_dev = {
 	.parallel_ts = 1,
 };
 
+static struct mt2060_config em28xx_mt2060_config = {
+	.i2c_address = 0x60,
+};
+
 static struct qt1010_config em28xx_qt1010_config = {
 	.i2c_address = 0x62
 };
@@ -1140,6 +1145,16 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		if (em28xx_attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;
+		}
+		break;
+	case EM2870_BOARD_TERRATEC_XS_MT2060:
+		dvb->fe[0] = dvb_attach(zl10353_attach,
+						&em28xx_zl10353_no_i2c_gate_dev,
+						&dev->i2c_adap[dev->def_i2c_bus]);
+		if (dvb->fe[0] != NULL) {
+			dvb_attach(mt2060_attach, dvb->fe[0],
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&em28xx_mt2060_config, 1220);
 		}
 		break;
 	case EM2870_BOARD_KWORLD_355U:

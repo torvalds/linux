@@ -1837,8 +1837,6 @@ static const struct drm_encoder_helper_funcs psb_intel_sdvo_helper_funcs = {
 
 static const struct drm_connector_funcs psb_intel_sdvo_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = psb_intel_sdvo_save,
-	.restore = psb_intel_sdvo_restore,
 	.detect = psb_intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = psb_intel_sdvo_set_property,
@@ -2020,6 +2018,9 @@ psb_intel_sdvo_connector_init(struct psb_intel_sdvo_connector *connector,
 	connector->base.base.interlace_allowed = 0;
 	connector->base.base.doublescan_allowed = 0;
 	connector->base.base.display_info.subpixel_order = SubPixelHorizontalRGB;
+
+	connector->base.save = psb_intel_sdvo_save;
+	connector->base.restore = psb_intel_sdvo_restore;
 
 	gma_connector_attach_encoder(&connector->base, &encoder->base);
 	drm_connector_register(&connector->base.base);
@@ -2525,7 +2526,8 @@ bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	/* encoder type will be decided later */
 	gma_encoder = &psb_intel_sdvo->base;
 	gma_encoder->type = INTEL_OUTPUT_SDVO;
-	drm_encoder_init(dev, &gma_encoder->base, &psb_intel_sdvo_enc_funcs, 0);
+	drm_encoder_init(dev, &gma_encoder->base, &psb_intel_sdvo_enc_funcs,
+			 0, NULL);
 
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {

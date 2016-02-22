@@ -55,7 +55,7 @@ static unsigned int ipv6_defrag(void *priv,
 				struct sk_buff *skb,
 				const struct nf_hook_state *state)
 {
-	struct sk_buff *reasm;
+	int err;
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	/* Previously seen (loopback)?	*/
@@ -63,23 +63,13 @@ static unsigned int ipv6_defrag(void *priv,
 		return NF_ACCEPT;
 #endif
 
-	reasm = nf_ct_frag6_gather(state->net, skb,
-				   nf_ct6_defrag_user(state->hook, skb));
+	err = nf_ct_frag6_gather(state->net, skb,
+				 nf_ct6_defrag_user(state->hook, skb));
 	/* queued */
-	if (reasm == NULL)
+	if (err == -EINPROGRESS)
 		return NF_STOLEN;
 
-	/* error occurred or not fragmented */
-	if (reasm == skb)
-		return NF_ACCEPT;
-
-	nf_ct_frag6_consume_orig(reasm);
-
-	NF_HOOK_THRESH(NFPROTO_IPV6, state->hook, state->net, state->sk, reasm,
-		       state->in, state->out,
-		       state->okfn, NF_IP6_PRI_CONNTRACK_DEFRAG + 1);
-
-	return NF_STOLEN;
+	return NF_ACCEPT;
 }
 
 static struct nf_hook_ops ipv6_defrag_ops[] = {

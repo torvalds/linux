@@ -2436,7 +2436,6 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.flush_tlb_others = xen_flush_tlb_others,
 
 	.pte_update = paravirt_nop,
-	.pte_update_defer = paravirt_nop,
 
 	.pgd_alloc = xen_pgd_alloc,
 	.pgd_free = xen_pgd_free,
@@ -2495,14 +2494,9 @@ void __init xen_init_mmu_ops(void)
 {
 	x86_init.paging.pagetable_init = xen_pagetable_init;
 
-	/* Optimization - we can use the HVM one but it has no idea which
-	 * VCPUs are descheduled - which means that it will needlessly IPI
-	 * them. Xen knows so let it do the job.
-	 */
-	if (xen_feature(XENFEAT_auto_translated_physmap)) {
-		pv_mmu_ops.flush_tlb_others = xen_flush_tlb_others;
+	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return;
-	}
+
 	pv_mmu_ops = xen_mmu_ops;
 
 	memset(dummy_mapping, 0xff, PAGE_SIZE);

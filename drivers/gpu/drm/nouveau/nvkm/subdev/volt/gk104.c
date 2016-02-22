@@ -59,7 +59,7 @@ gk104_volt_set(struct nvkm_volt *base, u32 uv)
 	duty = (uv - bios->base) * div / bios->pwm_range;
 
 	nvkm_wr32(device, 0x20340, div);
-	nvkm_wr32(device, 0x20344, 0x8000000 | duty);
+	nvkm_wr32(device, 0x20344, 0x80000000 | duty);
 
 	return 0;
 }

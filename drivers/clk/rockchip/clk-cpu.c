@@ -242,8 +242,8 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 	struct clk *clk, *cclk;
 	int ret;
 
-	if (num_parents != 2) {
-		pr_err("%s: needs two parent clocks\n", __func__);
+	if (num_parents < 2) {
+		pr_err("%s: needs at least two parent clocks\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 

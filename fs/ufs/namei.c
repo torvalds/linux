@@ -123,14 +123,15 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 
 	if (l > UFS_SB(sb)->s_uspi->s_maxsymlinklen) {
 		/* slow symlink */
-		inode->i_op = &ufs_symlink_inode_operations;
+		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &ufs_aops;
 		err = page_symlink(inode, symname, l);
 		if (err)
 			goto out_fail;
 	} else {
 		/* fast symlink */
-		inode->i_op = &ufs_fast_symlink_inode_operations;
+		inode->i_op = &simple_symlink_inode_operations;
 		inode->i_link = (char *)UFS_I(inode)->i_u1.i_symlink;
 		memcpy(inode->i_link, symname, l);
 		inode->i_size = l-1;

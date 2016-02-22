@@ -551,10 +551,6 @@ i40e_status i40evf_init_adminq(struct i40e_hw *hw)
 		goto init_adminq_exit;
 	}
 
-	/* initialize locks */
-	mutex_init(&hw->aq.asq_mutex);
-	mutex_init(&hw->aq.arq_mutex);
-
 	/* Set up register offsets */
 	i40e_adminq_init_regs(hw);
 
@@ -595,8 +591,6 @@ i40e_status i40evf_shutdown_adminq(struct i40e_hw *hw)
 
 	i40e_shutdown_asq(hw);
 	i40e_shutdown_arq(hw);
-
-	/* destroy the locks */
 
 	if (hw->nvm_buff.va)
 		i40e_free_virt_mem(hw, &hw->nvm_buff);

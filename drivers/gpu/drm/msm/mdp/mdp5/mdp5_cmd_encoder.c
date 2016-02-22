@@ -326,7 +326,7 @@ struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
 	mdp5_cmd_enc->ctl = ctl;
 
 	drm_encoder_init(dev, encoder, &mdp5_cmd_encoder_funcs,
-			DRM_MODE_ENCODER_DSI);
+			DRM_MODE_ENCODER_DSI, NULL);
 
 	drm_encoder_helper_add(encoder, &mdp5_cmd_encoder_helper_funcs);
 

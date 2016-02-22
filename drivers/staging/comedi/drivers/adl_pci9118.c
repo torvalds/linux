@@ -603,10 +603,11 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 	unsigned short *array = data;
 	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned int i;
+	__be16 *barray = data;
 
 	for (i = 0; i < num_samples; i++) {
 		if (devpriv->usedma)
-			array[i] = be16_to_cpu(array[i]);
+			array[i] = be16_to_cpu(barray[i]);
 		if (s->maxdata == 0xffff)
 			array[i] ^= 0x8000;
 		else

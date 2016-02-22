@@ -228,7 +228,7 @@ static inline void report_user_fault(struct pt_regs *regs, long signr)
 		return;
 	printk(KERN_ALERT "User process fault: interruption code %04x ilc:%d ",
 	       regs->int_code & 0xffff, regs->int_code >> 17);
-	print_vma_addr(KERN_CONT "in ", regs->psw.addr & PSW_ADDR_INSN);
+	print_vma_addr(KERN_CONT "in ", regs->psw.addr);
 	printk(KERN_CONT "\n");
 	printk(KERN_ALERT "failing address: %016lx TEID: %016lx\n",
 	       regs->int_parm_long & __FAIL_ADDR_MASK, regs->int_parm_long);
@@ -254,12 +254,11 @@ static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 static noinline void do_no_context(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
-	unsigned long address;
 
 	/* Are we prepared to handle this kernel fault?  */
-	fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
+	fixup = search_exception_tables(regs->psw.addr);
 	if (fixup) {
-		regs->psw.addr = extable_fixup(fixup) | PSW_ADDR_AMODE;
+		regs->psw.addr = extable_fixup(fixup);
 		return;
 	}
 
@@ -267,7 +266,6 @@ static noinline void do_no_context(struct pt_regs *regs)
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
-	address = regs->int_parm_long & __FAIL_ADDR_MASK;
 	if (!user_space_fault(regs))
 		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
 		       " in virtual kernel address space\n");

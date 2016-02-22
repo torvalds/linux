@@ -28,6 +28,7 @@
 #include <net/request_sock.h>
 #include <net/netns/hash.h>
 #include <net/tcp_states.h>
+#include <net/l3mdev.h>
 
 /** struct ip_options - IP Options
  *
@@ -111,6 +112,19 @@ static inline u32 inet_request_mark(const struct sock *sk, struct sk_buff *skb)
 		return skb->mark;
 
 	return sk->sk_mark;
+}
+
+static inline int inet_request_bound_dev_if(const struct sock *sk,
+					    struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	struct net *net = sock_net(sk);
+
+	if (!sk->sk_bound_dev_if && net->ipv4.sysctl_tcp_l3mdev_accept)
+		return l3mdev_master_ifindex_by_index(net, skb->skb_iif);
+#endif
+
+	return sk->sk_bound_dev_if;
 }
 
 struct inet_cork {
@@ -210,16 +224,35 @@ struct inet_sock {
 #define IP_CMSG_ORIGDSTADDR	BIT(6)
 #define IP_CMSG_CHECKSUM	BIT(7)
 
-/* SYNACK messages might be attached to request sockets.
+/**
+ * sk_to_full_sk - Access to a full socket
+ * @sk: pointer to a socket
+ *
+ * SYNACK messages might be attached to request sockets.
  * Some places want to reach the listener in this case.
  */
-static inline struct sock *skb_to_full_sk(const struct sk_buff *skb)
+static inline struct sock *sk_to_full_sk(struct sock *sk)
 {
-	struct sock *sk = skb->sk;
-
+#ifdef CONFIG_INET
 	if (sk && sk->sk_state == TCP_NEW_SYN_RECV)
 		sk = inet_reqsk(sk)->rsk_listener;
+#endif
 	return sk;
+}
+
+/* sk_to_full_sk() variant with a const argument */
+static inline const struct sock *sk_const_to_full_sk(const struct sock *sk)
+{
+#ifdef CONFIG_INET
+	if (sk && sk->sk_state == TCP_NEW_SYN_RECV)
+		sk = ((const struct request_sock *)sk)->rsk_listener;
+#endif
+	return sk;
+}
+
+static inline struct sock *skb_to_full_sk(const struct sk_buff *skb)
+{
+	return sk_to_full_sk(skb->sk);
 }
 
 static inline struct inet_sock *inet_sk(const struct sock *sk)

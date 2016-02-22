@@ -41,7 +41,7 @@ struct stp_config_pdu {
 #define NR32(p) ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3])
 
 static bool ebt_filter_config(const struct ebt_stp_info *info,
-   const struct stp_config_pdu *stpc)
+			      const struct stp_config_pdu *stpc)
 {
 	const struct ebt_stp_config_info *c;
 	uint16_t v16;

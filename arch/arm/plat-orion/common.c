@@ -21,7 +21,6 @@
 #include <net/dsa.h>
 #include <linux/platform_data/dma-mv_xor.h>
 #include <linux/platform_data/usb-ehci-orion.h>
-#include <mach/bridge-regs.h>
 #include <plat/common.h>
 
 /* Create a clkdev entry for a given device/clk */
@@ -586,26 +585,6 @@ void __init orion_spi_1_init(unsigned long mapbase)
 	fill_resources(&orion_spi_1, &orion_spi_1_resources,
 		       mapbase, SZ_512 - 1, NO_IRQ);
 	platform_device_register(&orion_spi_1);
-}
-
-/*****************************************************************************
- * Watchdog
- ****************************************************************************/
-static struct resource orion_wdt_resource[] = {
-		DEFINE_RES_MEM(TIMER_PHYS_BASE, 0x04),
-		DEFINE_RES_MEM(RSTOUTn_MASK_PHYS, 0x04),
-};
-
-static struct platform_device orion_wdt_device = {
-	.name		= "orion_wdt",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(orion_wdt_resource),
-	.resource	= orion_wdt_resource,
-};
-
-void __init orion_wdt_init(void)
-{
-	platform_device_register(&orion_wdt_device);
 }
 
 /*****************************************************************************

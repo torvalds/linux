@@ -587,9 +587,13 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 	uint32_t flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
 	int r;
 
-	if (gtt->userptr)
-		amdgpu_ttm_tt_pin_userptr(ttm);
-
+	if (gtt->userptr) {
+		r = amdgpu_ttm_tt_pin_userptr(ttm);
+		if (r) {
+			DRM_ERROR("failed to pin userptr\n");
+			return r;
+		}
+	}
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
 	if (!ttm->num_pages) {
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
@@ -708,7 +712,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 						       0, PAGE_SIZE,
 						       PCI_DMA_BIDIRECTIONAL);
 		if (pci_dma_mapping_error(adev->pdev, gtt->ttm.dma_address[i])) {
-			while (--i) {
+			while (i--) {
 				pci_unmap_page(adev->pdev, gtt->ttm.dma_address[i],
 					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 				gtt->ttm.dma_address[i] = 0;
@@ -779,6 +783,25 @@ bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm)
 	return !!gtt->userptr;
 }
 
+bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
+				  unsigned long end)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	unsigned long size;
+
+	if (gtt == NULL)
+		return false;
+
+	if (gtt->ttm.ttm.state != tt_bound || !gtt->userptr)
+		return false;
+
+	size = (unsigned long)gtt->ttm.ttm.num_pages * PAGE_SIZE;
+	if (gtt->userptr > end || gtt->userptr + size <= start)
+		return false;
+
+	return true;
+}
+
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
@@ -797,13 +820,14 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 	if (mem && mem->mem_type != TTM_PL_SYSTEM)
 		flags |= AMDGPU_PTE_VALID;
 
-	if (mem && mem->mem_type == TTM_PL_TT)
+	if (mem && mem->mem_type == TTM_PL_TT) {
 		flags |= AMDGPU_PTE_SYSTEM;
 
-	if (!ttm || ttm->caching_state == tt_cached)
-		flags |= AMDGPU_PTE_SNOOPED;
+		if (ttm->caching_state == tt_cached)
+			flags |= AMDGPU_PTE_SNOOPED;
+	}
 
-	if (adev->asic_type >= CHIP_TOPAZ)
+	if (adev->asic_type >= CHIP_TONGA)
 		flags |= AMDGPU_PTE_EXECUTABLE;
 
 	flags |= AMDGPU_PTE_READABLE;
@@ -1073,10 +1097,10 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	ret = drm_mm_dump_table(m, mm);
 	spin_unlock(&glob->lru_lock);
 	if (ttm_pl == TTM_PL_VRAM)
-		seq_printf(m, "man size:%llu pages, ram usage:%luMB, vis usage:%luMB\n",
+		seq_printf(m, "man size:%llu pages, ram usage:%lluMB, vis usage:%lluMB\n",
 			   adev->mman.bdev.man[ttm_pl].size,
-			   atomic64_read(&adev->vram_usage) >> 20,
-			   atomic64_read(&adev->vram_vis_usage) >> 20);
+			   (u64)atomic64_read(&adev->vram_usage) >> 20,
+			   (u64)atomic64_read(&adev->vram_vis_usage) >> 20);
 	return ret;
 }
 

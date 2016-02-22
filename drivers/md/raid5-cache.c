@@ -34,6 +34,12 @@
 #define RECLAIM_MAX_FREE_SPACE (10 * 1024 * 1024 * 2) /* sector */
 #define RECLAIM_MAX_FREE_SPACE_SHIFT (2)
 
+/*
+ * We only need 2 bios per I/O unit to make progress, but ensure we
+ * have a few more available to not get too tight.
+ */
+#define R5L_POOL_SIZE	4
+
 struct r5l_log {
 	struct md_rdev *rdev;
 
@@ -69,7 +75,12 @@ struct r5l_log {
 	struct list_head finished_ios;	/* io_units which settle down in log disk */
 	struct bio flush_bio;
 
+	struct list_head no_mem_stripes;   /* pending stripes, -ENOMEM */
+
 	struct kmem_cache *io_kc;
+	mempool_t *io_pool;
+	struct bio_set *bs;
+	mempool_t *meta_pool;
 
 	struct md_thread *reclaim_thread;
 	unsigned long reclaim_target;	/* number of space that need to be
@@ -150,27 +161,6 @@ static bool r5l_has_free_space(struct r5l_log *log, sector_t size)
 	return log->device_size > used_size + size;
 }
 
-static void r5l_free_io_unit(struct r5l_log *log, struct r5l_io_unit *io)
-{
-	__free_page(io->meta_page);
-	kmem_cache_free(log->io_kc, io);
-}
-
-static void r5l_move_io_unit_list(struct list_head *from, struct list_head *to,
-				  enum r5l_io_unit_state state)
-{
-	struct r5l_io_unit *io;
-
-	while (!list_empty(from)) {
-		io = list_first_entry(from, struct r5l_io_unit, log_sibling);
-		/* don't change list order */
-		if (io->state >= state)
-			list_move_tail(&io->log_sibling, to);
-		else
-			break;
-	}
-}
-
 static void __r5l_set_io_unit_state(struct r5l_io_unit *io,
 				    enum r5l_io_unit_state state)
 {
@@ -206,6 +196,20 @@ static void r5l_log_run_stripes(struct r5l_log *log)
 	}
 }
 
+static void r5l_move_to_end_ios(struct r5l_log *log)
+{
+	struct r5l_io_unit *io, *next;
+
+	assert_spin_locked(&log->io_list_lock);
+
+	list_for_each_entry_safe(io, next, &log->running_ios, log_sibling) {
+		/* don't change list order */
+		if (io->state < IO_UNIT_IO_END)
+			break;
+		list_move_tail(&io->log_sibling, &log->io_end_ios);
+	}
+}
+
 static void r5l_log_endio(struct bio *bio)
 {
 	struct r5l_io_unit *io = bio->bi_private;
@@ -216,12 +220,12 @@ static void r5l_log_endio(struct bio *bio)
 		md_error(log->rdev->mddev, log->rdev);
 
 	bio_put(bio);
+	mempool_free(io->meta_page, log->meta_pool);
 
 	spin_lock_irqsave(&log->io_list_lock, flags);
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_END);
 	if (log->need_cache_flush)
-		r5l_move_io_unit_list(&log->running_ios, &log->io_end_ios,
-				      IO_UNIT_IO_END);
+		r5l_move_to_end_ios(log);
 	else
 		r5l_log_run_stripes(log);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
@@ -255,7 +259,7 @@ static void r5l_submit_current_io(struct r5l_log *log)
 
 static struct bio *r5l_bio_alloc(struct r5l_log *log)
 {
-	struct bio *bio = bio_kmalloc(GFP_NOIO | __GFP_NOFAIL, BIO_MAX_PAGES);
+	struct bio *bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_PAGES, log->bs);
 
 	bio->bi_rw = WRITE;
 	bio->bi_bdev = log->rdev->bdev;
@@ -286,15 +290,19 @@ static struct r5l_io_unit *r5l_new_meta(struct r5l_log *log)
 	struct r5l_io_unit *io;
 	struct r5l_meta_block *block;
 
-	/* We can't handle memory allocate failure so far */
-	io = kmem_cache_zalloc(log->io_kc, GFP_NOIO | __GFP_NOFAIL);
+	io = mempool_alloc(log->io_pool, GFP_ATOMIC);
+	if (!io)
+		return NULL;
+	memset(io, 0, sizeof(*io));
+
 	io->log = log;
 	INIT_LIST_HEAD(&io->log_sibling);
 	INIT_LIST_HEAD(&io->stripe_list);
 	io->state = IO_UNIT_RUNNING;
 
-	io->meta_page = alloc_page(GFP_NOIO | __GFP_NOFAIL | __GFP_ZERO);
+	io->meta_page = mempool_alloc(log->meta_pool, GFP_NOIO);
 	block = page_address(io->meta_page);
+	clear_page(block);
 	block->magic = cpu_to_le32(R5LOG_MAGIC);
 	block->version = R5LOG_VERSION;
 	block->seq = cpu_to_le64(log->seq);
@@ -324,8 +332,12 @@ static int r5l_get_meta(struct r5l_log *log, unsigned int payload_size)
 	    log->current_io->meta_offset + payload_size > PAGE_SIZE)
 		r5l_submit_current_io(log);
 
-	if (!log->current_io)
+	if (!log->current_io) {
 		log->current_io = r5l_new_meta(log);
+		if (!log->current_io)
+			return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -370,11 +382,12 @@ static void r5l_append_payload_page(struct r5l_log *log, struct page *page)
 	r5_reserve_log_entry(log, io);
 }
 
-static void r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
+static int r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 			   int data_pages, int parity_pages)
 {
 	int i;
 	int meta_size;
+	int ret;
 	struct r5l_io_unit *io;
 
 	meta_size =
@@ -383,7 +396,10 @@ static void r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 		sizeof(struct r5l_payload_data_parity) +
 		sizeof(__le32) * parity_pages;
 
-	r5l_get_meta(log, meta_size);
+	ret = r5l_get_meta(log, meta_size);
+	if (ret)
+		return ret;
+
 	io = log->current_io;
 
 	for (i = 0; i < sh->disks; i++) {
@@ -413,6 +429,8 @@ static void r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 	list_add_tail(&sh->log_list, &io->stripe_list);
 	atomic_inc(&io->pending_stripe);
 	sh->log_io = io;
+
+	return 0;
 }
 
 static void r5l_wake_reclaim(struct r5l_log *log, sector_t space);
@@ -427,6 +445,7 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 	int meta_size;
 	int reserve;
 	int i;
+	int ret = 0;
 
 	if (!log)
 		return -EAGAIN;
@@ -475,17 +494,22 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 	mutex_lock(&log->io_mutex);
 	/* meta + data */
 	reserve = (1 + write_disks) << (PAGE_SHIFT - 9);
-	if (r5l_has_free_space(log, reserve))
-		r5l_log_stripe(log, sh, data_pages, parity_pages);
-	else {
+	if (!r5l_has_free_space(log, reserve)) {
 		spin_lock(&log->no_space_stripes_lock);
 		list_add_tail(&sh->log_list, &log->no_space_stripes);
 		spin_unlock(&log->no_space_stripes_lock);
 
 		r5l_wake_reclaim(log, reserve);
+	} else {
+		ret = r5l_log_stripe(log, sh, data_pages, parity_pages);
+		if (ret) {
+			spin_lock_irq(&log->io_list_lock);
+			list_add_tail(&sh->log_list, &log->no_mem_stripes);
+			spin_unlock_irq(&log->io_list_lock);
+		}
 	}
-	mutex_unlock(&log->io_mutex);
 
+	mutex_unlock(&log->io_mutex);
 	return 0;
 }
 
@@ -538,6 +562,21 @@ static sector_t r5l_reclaimable_space(struct r5l_log *log)
 				 log->next_checkpoint);
 }
 
+static void r5l_run_no_mem_stripe(struct r5l_log *log)
+{
+	struct stripe_head *sh;
+
+	assert_spin_locked(&log->io_list_lock);
+
+	if (!list_empty(&log->no_mem_stripes)) {
+		sh = list_first_entry(&log->no_mem_stripes,
+				      struct stripe_head, log_list);
+		list_del_init(&sh->log_list);
+		set_bit(STRIPE_HANDLE, &sh->state);
+		raid5_release_stripe(sh);
+	}
+}
+
 static bool r5l_complete_finished_ios(struct r5l_log *log)
 {
 	struct r5l_io_unit *io, *next;
@@ -554,7 +593,8 @@ static bool r5l_complete_finished_ios(struct r5l_log *log)
 		log->next_cp_seq = io->seq;
 
 		list_del(&io->log_sibling);
-		r5l_free_io_unit(log, io);
+		mempool_free(io, log->io_pool);
+		r5l_run_no_mem_stripe(log);
 
 		found = true;
 	}
@@ -787,6 +827,13 @@ void r5l_quiesce(struct r5l_log *log, int state)
 		return;
 	if (state == 0) {
 		log->in_teardown = 0;
+		/*
+		 * This is a special case for hotadd. In suspend, the array has
+		 * no journal. In resume, journal is initialized as well as the
+		 * reclaim thread.
+		 */
+		if (log->reclaim_thread)
+			return;
 		log->reclaim_thread = md_register_thread(r5l_reclaim_thread,
 					log->rdev->mddev, "reclaim");
 	} else if (state == 1) {
@@ -806,10 +853,18 @@ void r5l_quiesce(struct r5l_log *log, int state)
 
 bool r5l_log_disk_error(struct r5conf *conf)
 {
+	struct r5l_log *log;
+	bool ret;
 	/* don't allow write if journal disk is missing */
-	if (!conf->log)
-		return test_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
-	return test_bit(Faulty, &conf->log->rdev->flags);
+	rcu_read_lock();
+	log = rcu_dereference(conf->log);
+
+	if (!log)
+		ret = test_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
+	else
+		ret = test_bit(Faulty, &log->rdev->flags);
+	rcu_read_unlock();
+	return ret;
 }
 
 struct r5l_recovery_ctx {
@@ -1160,11 +1215,25 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (!log->io_kc)
 		goto io_kc;
 
+	log->io_pool = mempool_create_slab_pool(R5L_POOL_SIZE, log->io_kc);
+	if (!log->io_pool)
+		goto io_pool;
+
+	log->bs = bioset_create(R5L_POOL_SIZE, 0);
+	if (!log->bs)
+		goto io_bs;
+
+	log->meta_pool = mempool_create_page_pool(R5L_POOL_SIZE, 0);
+	if (!log->meta_pool)
+		goto out_mempool;
+
 	log->reclaim_thread = md_register_thread(r5l_reclaim_thread,
 						 log->rdev->mddev, "reclaim");
 	if (!log->reclaim_thread)
 		goto reclaim_thread;
 	init_waitqueue_head(&log->iounit_wait);
+
+	INIT_LIST_HEAD(&log->no_mem_stripes);
 
 	INIT_LIST_HEAD(&log->no_space_stripes);
 	spin_lock_init(&log->no_space_stripes_lock);
@@ -1172,11 +1241,19 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (r5l_load_log(log))
 		goto error;
 
-	conf->log = log;
+	rcu_assign_pointer(conf->log, log);
+	set_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
 	return 0;
+
 error:
 	md_unregister_thread(&log->reclaim_thread);
 reclaim_thread:
+	mempool_destroy(log->meta_pool);
+out_mempool:
+	bioset_free(log->bs);
+io_bs:
+	mempool_destroy(log->io_pool);
+io_pool:
 	kmem_cache_destroy(log->io_kc);
 io_kc:
 	kfree(log);
@@ -1186,6 +1263,9 @@ io_kc:
 void r5l_exit_log(struct r5l_log *log)
 {
 	md_unregister_thread(&log->reclaim_thread);
+	mempool_destroy(log->meta_pool);
+	bioset_free(log->bs);
+	mempool_destroy(log->io_pool);
 	kmem_cache_destroy(log->io_kc);
 	kfree(log);
 }

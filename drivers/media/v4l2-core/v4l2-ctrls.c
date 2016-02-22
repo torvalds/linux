@@ -1491,6 +1491,17 @@ static int new_to_user(struct v4l2_ext_control *c,
 	return ptr_to_user(c, ctrl, ctrl->p_new);
 }
 
+/* Helper function: copy the initial control value back to the caller */
+static int def_to_user(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
+{
+	int idx;
+
+	for (idx = 0; idx < ctrl->elems; idx++)
+		ctrl->type_ops->init(ctrl, idx, ctrl->p_new);
+
+	return ptr_to_user(c, ctrl, ctrl->p_new);
+}
+
 /* Helper function: copy the caller-provider value to the given control value */
 static int user_to_ptr(struct v4l2_ext_control *c,
 		       struct v4l2_ctrl *ctrl,
@@ -1762,7 +1773,7 @@ static struct v4l2_ctrl_ref *find_private_ref(
 	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
 		/* Search for private user controls that are compatible with
 		   VIDIOC_G/S_CTRL. */
-		if (V4L2_CTRL_ID2CLASS(ref->ctrl->id) == V4L2_CTRL_CLASS_USER &&
+		if (V4L2_CTRL_ID2WHICH(ref->ctrl->id) == V4L2_CTRL_CLASS_USER &&
 		    V4L2_CTRL_DRIVER_PRIV(ref->ctrl->id)) {
 			if (!ref->ctrl->is_int)
 				continue;
@@ -1831,7 +1842,7 @@ static int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 	struct v4l2_ctrl_ref *ref;
 	struct v4l2_ctrl_ref *new_ref;
 	u32 id = ctrl->id;
-	u32 class_ctrl = V4L2_CTRL_ID2CLASS(id) | 1;
+	u32 class_ctrl = V4L2_CTRL_ID2WHICH(id) | 1;
 	int bucket = id % hdl->nr_of_buckets;	/* which bucket to use */
 
 	/*
@@ -2253,9 +2264,9 @@ EXPORT_SYMBOL(v4l2_ctrl_add_handler);
 
 bool v4l2_ctrl_radio_filter(const struct v4l2_ctrl *ctrl)
 {
-	if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_FM_TX)
+	if (V4L2_CTRL_ID2WHICH(ctrl->id) == V4L2_CTRL_CLASS_FM_TX)
 		return true;
-	if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_FM_RX)
+	if (V4L2_CTRL_ID2WHICH(ctrl->id) == V4L2_CTRL_CLASS_FM_RX)
 		return true;
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -2710,7 +2721,9 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 
 		cs->error_idx = i;
 
-		if (cs->ctrl_class && V4L2_CTRL_ID2CLASS(id) != cs->ctrl_class)
+		if (cs->which &&
+		    cs->which != V4L2_CTRL_WHICH_DEF_VAL &&
+		    V4L2_CTRL_ID2WHICH(id) != cs->which)
 			return -EINVAL;
 
 		/* Old-style private controls are not allowed for
@@ -2787,11 +2800,11 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 /* Handles the corner case where cs->count == 0. It checks whether the
    specified control class exists. If that class ID is 0, then it checks
    whether there are any controls at all. */
-static int class_check(struct v4l2_ctrl_handler *hdl, u32 ctrl_class)
+static int class_check(struct v4l2_ctrl_handler *hdl, u32 which)
 {
-	if (ctrl_class == 0)
+	if (which == 0 || which == V4L2_CTRL_WHICH_DEF_VAL)
 		return list_empty(&hdl->ctrl_refs) ? -EINVAL : 0;
-	return find_ref_lock(hdl, ctrl_class | 1) ? 0 : -EINVAL;
+	return find_ref_lock(hdl, which | 1) ? 0 : -EINVAL;
 }
 
 
@@ -2803,15 +2816,18 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 	struct v4l2_ctrl_helper *helpers = helper;
 	int ret;
 	int i, j;
+	bool def_value;
+
+	def_value = (cs->which == V4L2_CTRL_WHICH_DEF_VAL);
 
 	cs->error_idx = cs->count;
-	cs->ctrl_class = V4L2_CTRL_ID2CLASS(cs->ctrl_class);
+	cs->which = V4L2_CTRL_ID2WHICH(cs->which);
 
 	if (hdl == NULL)
 		return -EINVAL;
 
 	if (cs->count == 0)
-		return class_check(hdl, cs->ctrl_class);
+		return class_check(hdl, cs->which);
 
 	if (cs->count > ARRAY_SIZE(helper)) {
 		helpers = kmalloc_array(cs->count, sizeof(helper[0]),
@@ -2829,8 +2845,10 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 
 	for (i = 0; !ret && i < cs->count; i++) {
 		int (*ctrl_to_user)(struct v4l2_ext_control *c,
-				    struct v4l2_ctrl *ctrl) = cur_to_user;
+				    struct v4l2_ctrl *ctrl);
 		struct v4l2_ctrl *master;
+
+		ctrl_to_user = def_value ? def_to_user : cur_to_user;
 
 		if (helpers[i].mref == NULL)
 			continue;
@@ -2841,8 +2859,9 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 		v4l2_ctrl_lock(master);
 
 		/* g_volatile_ctrl will update the new control values */
-		if ((master->flags & V4L2_CTRL_FLAG_VOLATILE) ||
-			(master->has_volatiles && !is_cur_manual(master))) {
+		if (!def_value &&
+		    ((master->flags & V4L2_CTRL_FLAG_VOLATILE) ||
+		    (master->has_volatiles && !is_cur_manual(master)))) {
 			for (j = 0; j < master->ncontrols; j++)
 				cur_to_new(master->cluster[j]);
 			ret = call_op(master, g_volatile_ctrl);
@@ -3064,13 +3083,18 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 	int ret;
 
 	cs->error_idx = cs->count;
-	cs->ctrl_class = V4L2_CTRL_ID2CLASS(cs->ctrl_class);
+
+	/* Default value cannot be changed */
+	if (cs->which == V4L2_CTRL_WHICH_DEF_VAL)
+		return -EINVAL;
+
+	cs->which = V4L2_CTRL_ID2WHICH(cs->which);
 
 	if (hdl == NULL)
 		return -EINVAL;
 
 	if (cs->count == 0)
-		return class_check(hdl, cs->ctrl_class);
+		return class_check(hdl, cs->which);
 
 	if (cs->count > ARRAY_SIZE(helper)) {
 		helpers = kmalloc_array(cs->count, sizeof(helper[0]),
@@ -3300,7 +3324,8 @@ EXPORT_SYMBOL(v4l2_ctrl_notify);
 int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 			s64 min, s64 max, u64 step, s64 def)
 {
-	bool changed;
+	bool value_changed;
+	bool range_changed = false;
 	int ret;
 
 	lockdep_assert_held(ctrl->handler->lock);
@@ -3324,10 +3349,14 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 	default:
 		return -EINVAL;
 	}
-	ctrl->minimum = min;
-	ctrl->maximum = max;
-	ctrl->step = step;
-	ctrl->default_value = def;
+	if ((ctrl->minimum != min) || (ctrl->maximum != max) ||
+		(ctrl->step != step) || ctrl->default_value != def) {
+		range_changed = true;
+		ctrl->minimum = min;
+		ctrl->maximum = max;
+		ctrl->step = step;
+		ctrl->default_value = def;
+	}
 	cur_to_new(ctrl);
 	if (validate_new(ctrl, ctrl->p_new)) {
 		if (ctrl->type == V4L2_CTRL_TYPE_INTEGER64)
@@ -3337,12 +3366,12 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 	}
 
 	if (ctrl->type == V4L2_CTRL_TYPE_INTEGER64)
-		changed = *ctrl->p_new.p_s64 != *ctrl->p_cur.p_s64;
+		value_changed = *ctrl->p_new.p_s64 != *ctrl->p_cur.p_s64;
 	else
-		changed = *ctrl->p_new.p_s32 != *ctrl->p_cur.p_s32;
-	if (changed)
+		value_changed = *ctrl->p_new.p_s32 != *ctrl->p_cur.p_s32;
+	if (value_changed)
 		ret = set_ctrl(NULL, ctrl, V4L2_EVENT_CTRL_CH_RANGE);
-	else
+	else if (range_changed)
 		send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_RANGE);
 	return ret;
 }

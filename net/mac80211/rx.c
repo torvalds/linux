@@ -661,8 +661,7 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
 static void ieee80211_verify_alignment(struct ieee80211_rx_data *rx)
 {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	WARN_ONCE((unsigned long)rx->skb->data & 1,
-		  "unaligned packet at 0x%p\n", rx->skb->data);
+	WARN_ON_ONCE((unsigned long)rx->skb->data & 1);
 #endif
 }
 
@@ -2736,8 +2735,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			opmode = mgmt->u.action.u.vht_opmode_notif.operating_mode;
 
 			ieee80211_vht_handle_opmode(rx->sdata, rx->sta,
-						    opmode, status->band,
-						    false);
+						    opmode, status->band);
 			goto handled;
 		}
 		default:

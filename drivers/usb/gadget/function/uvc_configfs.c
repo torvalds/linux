@@ -20,7 +20,7 @@
 #define UVC_ATTR(prefix, cname, aname) \
 static struct configfs_attribute prefix##attr_##cname = { \
 	.ca_name	= __stringify(aname),				\
-	.ca_mode	= S_IRUGO,					\
+	.ca_mode	= S_IRUGO | S_IWUGO,				\
 	.ca_owner	= THIS_MODULE,					\
 	.show		= prefix##cname##_show,				\
 	.store		= prefix##cname##_store,			\

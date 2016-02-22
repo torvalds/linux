@@ -582,6 +582,12 @@ static void __ftrace_clear_event_pids(struct trace_array *tr)
 	unregister_trace_sched_wakeup(event_filter_pid_sched_wakeup_probe_pre, tr);
 	unregister_trace_sched_wakeup(event_filter_pid_sched_wakeup_probe_post, tr);
 
+	unregister_trace_sched_wakeup_new(event_filter_pid_sched_wakeup_probe_pre, tr);
+	unregister_trace_sched_wakeup_new(event_filter_pid_sched_wakeup_probe_post, tr);
+
+	unregister_trace_sched_waking(event_filter_pid_sched_wakeup_probe_pre, tr);
+	unregister_trace_sched_waking(event_filter_pid_sched_wakeup_probe_post, tr);
+
 	list_for_each_entry(file, &tr->events, list) {
 		clear_bit(EVENT_FILE_FL_PID_FILTER_BIT, &file->flags);
 	}
@@ -1334,15 +1340,9 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (cnt >= PAGE_SIZE)
 		return -EINVAL;
 
-	buf = (char *)__get_free_page(GFP_TEMPORARY);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, ubuf, cnt)) {
-		free_page((unsigned long) buf);
-		return -EFAULT;
-	}
-	buf[cnt] = '\0';
+	buf = memdup_user_nul(ubuf, cnt);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	mutex_lock(&event_mutex);
 	file = event_file_data(filp);
@@ -1350,7 +1350,7 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		err = apply_event_filter(file, buf);
 	mutex_unlock(&event_mutex);
 
-	free_page((unsigned long) buf);
+	kfree(buf);
 	if (err < 0)
 		return err;
 
@@ -1501,18 +1501,12 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (cnt >= PAGE_SIZE)
 		return -EINVAL;
 
-	buf = (char *)__get_free_page(GFP_TEMPORARY);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, ubuf, cnt)) {
-		free_page((unsigned long) buf);
-		return -EFAULT;
-	}
-	buf[cnt] = '\0';
+	buf = memdup_user_nul(ubuf, cnt);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	err = apply_subsystem_event_filter(dir, buf);
-	free_page((unsigned long) buf);
+	kfree(buf);
 	if (err < 0)
 		return err;
 
@@ -1728,6 +1722,16 @@ ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 		register_trace_prio_sched_wakeup(event_filter_pid_sched_wakeup_probe_pre,
 						 tr, INT_MAX);
 		register_trace_prio_sched_wakeup(event_filter_pid_sched_wakeup_probe_post,
+						 tr, 0);
+
+		register_trace_prio_sched_wakeup_new(event_filter_pid_sched_wakeup_probe_pre,
+						     tr, INT_MAX);
+		register_trace_prio_sched_wakeup_new(event_filter_pid_sched_wakeup_probe_post,
+						     tr, 0);
+
+		register_trace_prio_sched_waking(event_filter_pid_sched_wakeup_probe_pre,
+						 tr, INT_MAX);
+		register_trace_prio_sched_waking(event_filter_pid_sched_wakeup_probe_post,
 						 tr, 0);
 	}
 

@@ -12,21 +12,13 @@
 #include <asm/ctl_reg.h>
 #include <asm/fpu/types.h>
 
-static inline void save_vx_regs_safe(__vector128 *vxrs)
+static inline void save_vx_regs(__vector128 *vxrs)
 {
-	unsigned long cr0, flags;
-
-	flags = arch_local_irq_save();
-	__ctl_store(cr0, 0, 0);
-	__ctl_set_bit(0, 17);
-	__ctl_set_bit(0, 18);
 	asm volatile(
 		"	la	1,%0\n"
 		"	.word	0xe70f,0x1000,0x003e\n"	/* vstm 0,15,0(1) */
 		"	.word	0xe70f,0x1100,0x0c3e\n"	/* vstm 16,31,256(1) */
 		: "=Q" (*(struct vx_array *) vxrs) : : "1");
-	__ctl_load(cr0, 0, 0);
-	arch_local_irq_restore(flags);
 }
 
 static inline void convert_vx_to_fp(freg_t *fprs, __vector128 *vxrs)

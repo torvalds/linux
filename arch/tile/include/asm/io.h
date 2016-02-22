@@ -161,14 +161,14 @@ extern void _tile_writew(u16 val, unsigned long addr);
 extern void _tile_writel(u32 val, unsigned long addr);
 extern void _tile_writeq(u64 val, unsigned long addr);
 
-#define __raw_readb(addr) _tile_readb((unsigned long)addr)
-#define __raw_readw(addr) _tile_readw((unsigned long)addr)
-#define __raw_readl(addr) _tile_readl((unsigned long)addr)
-#define __raw_readq(addr) _tile_readq((unsigned long)addr)
-#define __raw_writeb(val, addr) _tile_writeb(val, (unsigned long)addr)
-#define __raw_writew(val, addr) _tile_writew(val, (unsigned long)addr)
-#define __raw_writel(val, addr) _tile_writel(val, (unsigned long)addr)
-#define __raw_writeq(val, addr) _tile_writeq(val, (unsigned long)addr)
+#define __raw_readb(addr) _tile_readb((unsigned long)(addr))
+#define __raw_readw(addr) _tile_readw((unsigned long)(addr))
+#define __raw_readl(addr) _tile_readl((unsigned long)(addr))
+#define __raw_readq(addr) _tile_readq((unsigned long)(addr))
+#define __raw_writeb(val, addr) _tile_writeb(val, (unsigned long)(addr))
+#define __raw_writew(val, addr) _tile_writew(val, (unsigned long)(addr))
+#define __raw_writel(val, addr) _tile_writel(val, (unsigned long)(addr))
+#define __raw_writeq(val, addr) _tile_writeq(val, (unsigned long)(addr))
 
 #else /* CONFIG_PCI */
 

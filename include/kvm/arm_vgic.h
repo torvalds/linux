@@ -279,6 +279,12 @@ struct vgic_v2_cpu_if {
 	u32		vgic_lr[VGIC_V2_MAX_LRS];
 };
 
+/*
+ * LRs are stored in reverse order in memory. make sure we index them
+ * correctly.
+ */
+#define VGIC_V3_LR_INDEX(lr)		(VGIC_V3_MAX_LRS - 1 - lr)
+
 struct vgic_v3_cpu_if {
 #ifdef CONFIG_KVM_ARM_VGIC_V3
 	u32		vgic_hcr;
@@ -342,10 +348,10 @@ int kvm_vgic_inject_mapped_irq(struct kvm *kvm, int cpuid,
 			       struct irq_phys_map *map, bool level);
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
-int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu);
 struct irq_phys_map *kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu,
 					   int virt_irq, int irq);
 int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, struct irq_phys_map *map);
+bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, struct irq_phys_map *map);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
 #define vgic_initialized(k)	(!!((k)->arch.vgic.nr_cpus))

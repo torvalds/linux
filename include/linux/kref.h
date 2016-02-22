@@ -19,7 +19,6 @@
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <linux/spinlock.h>
 
 struct kref {
 	atomic_t refcount;
@@ -97,38 +96,6 @@ static inline int kref_sub(struct kref *kref, unsigned int count,
 static inline int kref_put(struct kref *kref, void (*release)(struct kref *kref))
 {
 	return kref_sub(kref, 1, release);
-}
-
-/**
- * kref_put_spinlock_irqsave - decrement refcount for object.
- * @kref: object.
- * @release: pointer to the function that will clean up the object when the
- *	     last reference to the object is released.
- *	     This pointer is required, and it is not acceptable to pass kfree
- *	     in as this function.
- * @lock: lock to take in release case
- *
- * Behaves identical to kref_put with one exception.  If the reference count
- * drops to zero, the lock will be taken atomically wrt dropping the reference
- * count.  The release function has to call spin_unlock() without _irqrestore.
- */
-static inline int kref_put_spinlock_irqsave(struct kref *kref,
-		void (*release)(struct kref *kref),
-		spinlock_t *lock)
-{
-	unsigned long flags;
-
-	WARN_ON(release == NULL);
-	if (atomic_add_unless(&kref->refcount, -1, 1))
-		return 0;
-	spin_lock_irqsave(lock, flags);
-	if (atomic_dec_and_test(&kref->refcount)) {
-		release(kref);
-		local_irq_restore(flags);
-		return 1;
-	}
-	spin_unlock_irqrestore(lock, flags);
-	return 0;
 }
 
 static inline int kref_put_mutex(struct kref *kref,

@@ -30,7 +30,7 @@
 #include <linux/vmalloc.h>
 
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
@@ -1360,7 +1360,7 @@ static int soc_camera_i2c_init(struct soc_camera_device *icd,
 	struct soc_camera_host_desc *shd = &sdesc->host_desc;
 	struct i2c_adapter *adap;
 	struct v4l2_subdev *subdev;
-	char clk_name[V4L2_SUBDEV_NAME_SIZE];
+	char clk_name[V4L2_CLK_NAME_SIZE];
 	int ret;
 
 	/* First find out how we link the main client */
@@ -1391,8 +1391,8 @@ static int soc_camera_i2c_init(struct soc_camera_device *icd,
 	ssdd->sd_pdata.regulators = NULL;
 	shd->board_info->platform_data = ssdd;
 
-	snprintf(clk_name, sizeof(clk_name), "%d-%04x",
-		 shd->i2c_adapter_id, shd->board_info->addr);
+	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
+			  shd->i2c_adapter_id, shd->board_info->addr);
 
 	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, icd);
 	if (IS_ERR(icd->clk)) {
@@ -1493,6 +1493,8 @@ static void soc_camera_async_unbind(struct v4l2_async_notifier *notifier,
 					struct soc_camera_async_client, notifier);
 	struct soc_camera_device *icd = platform_get_drvdata(sasc->pdev);
 
+	icd->control = NULL;
+
 	if (icd->clk) {
 		v4l2_clk_unregister(icd->clk);
 		icd->clk = NULL;
@@ -1526,7 +1528,7 @@ static int scan_async_group(struct soc_camera_host *ici,
 	struct soc_camera_async_client *sasc;
 	struct soc_camera_device *icd;
 	struct soc_camera_desc sdesc = {.host_desc.bus_id = ici->nr,};
-	char clk_name[V4L2_SUBDEV_NAME_SIZE];
+	char clk_name[V4L2_CLK_NAME_SIZE];
 	unsigned int i;
 	int ret;
 
@@ -1572,8 +1574,9 @@ static int scan_async_group(struct soc_camera_host *ici,
 	icd->sasc = sasc;
 	icd->parent = ici->v4l2_dev.dev;
 
-	snprintf(clk_name, sizeof(clk_name), "%d-%04x",
-		 sasd->asd.match.i2c.adapter_id, sasd->asd.match.i2c.address);
+	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
+			  sasd->asd.match.i2c.adapter_id,
+			  sasd->asd.match.i2c.address);
 
 	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, icd);
 	if (IS_ERR(icd->clk)) {
@@ -1631,7 +1634,7 @@ static int soc_of_bind(struct soc_camera_host *ici,
 	struct soc_camera_async_client *sasc;
 	struct soc_of_info *info;
 	struct i2c_client *client;
-	char clk_name[V4L2_SUBDEV_NAME_SIZE + 32];
+	char clk_name[V4L2_CLK_NAME_SIZE];
 	int ret;
 
 	/* allocate a new subdev and add match info to it */
@@ -1674,11 +1677,11 @@ static int soc_of_bind(struct soc_camera_host *ici,
 	client = of_find_i2c_device_by_node(remote);
 
 	if (client)
-		snprintf(clk_name, sizeof(clk_name), "%d-%04x",
-			 client->adapter->nr, client->addr);
+		v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
+				  client->adapter->nr, client->addr);
 	else
-		snprintf(clk_name, sizeof(clk_name), "of-%s",
-			 of_node_full_name(remote));
+		v4l2_clk_name_of(clk_name, sizeof(clk_name),
+				 of_node_full_name(remote));
 
 	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, icd);
 	if (IS_ERR(icd->clk)) {

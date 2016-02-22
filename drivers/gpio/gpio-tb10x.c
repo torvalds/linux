@@ -87,14 +87,9 @@ static inline void tb10x_set_bits(struct tb10x_gpio *gpio, unsigned int offs,
 	spin_unlock_irqrestore(&gpio->spinlock, flags);
 }
 
-static inline struct tb10x_gpio *to_tb10x_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct tb10x_gpio, gc);
-}
-
 static int tb10x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct tb10x_gpio *tb10x_gpio = to_tb10x_gpio(chip);
+	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
 	int mask = BIT(offset);
 	int val = TB10X_GPIO_DIR_IN << offset;
 
@@ -105,7 +100,7 @@ static int tb10x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 
 static int tb10x_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct tb10x_gpio *tb10x_gpio = to_tb10x_gpio(chip);
+	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
 	int val;
 
 	val = tb10x_reg_read(tb10x_gpio, OFFSET_TO_REG_DATA);
@@ -118,7 +113,7 @@ static int tb10x_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void tb10x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct tb10x_gpio *tb10x_gpio = to_tb10x_gpio(chip);
+	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
 	int mask = BIT(offset);
 	int val = value << offset;
 
@@ -128,7 +123,7 @@ static void tb10x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int tb10x_gpio_direction_out(struct gpio_chip *chip,
 					unsigned offset, int value)
 {
-	struct tb10x_gpio *tb10x_gpio = to_tb10x_gpio(chip);
+	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
 	int mask = BIT(offset);
 	int val = TB10X_GPIO_DIR_OUT << offset;
 
@@ -140,7 +135,7 @@ static int tb10x_gpio_direction_out(struct gpio_chip *chip,
 
 static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct tb10x_gpio *tb10x_gpio = to_tb10x_gpio(chip);
+	struct tb10x_gpio *tb10x_gpio = gpiochip_get_data(chip);
 
 	return irq_create_mapping(tb10x_gpio->domain, offset);
 }
@@ -197,7 +192,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(tb10x_gpio->base);
 
 	tb10x_gpio->gc.label		= of_node_full_name(dn);
-	tb10x_gpio->gc.dev		= &pdev->dev;
+	tb10x_gpio->gc.parent		= &pdev->dev;
 	tb10x_gpio->gc.owner		= THIS_MODULE;
 	tb10x_gpio->gc.direction_input	= tb10x_gpio_direction_in;
 	tb10x_gpio->gc.get		= tb10x_gpio_get;
@@ -210,7 +205,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	tb10x_gpio->gc.can_sleep	= false;
 
 
-	ret = gpiochip_add(&tb10x_gpio->gc);
+	ret = gpiochip_add_data(&tb10x_gpio->gc, tb10x_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not add gpiochip.\n");
 		goto fail_gpiochip_registration;

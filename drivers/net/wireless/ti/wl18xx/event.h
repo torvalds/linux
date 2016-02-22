@@ -41,6 +41,7 @@ enum {
 	SMART_CONFIG_SYNC_EVENT_ID               = BIT(22),
 	SMART_CONFIG_DECODE_EVENT_ID             = BIT(23),
 	TIME_SYNC_EVENT_ID                       = BIT(24),
+	FW_LOGGER_INDICATION			= BIT(25),
 };
 
 enum wl18xx_radar_types {

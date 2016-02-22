@@ -389,7 +389,7 @@ static int of_channel_match_helper(struct device_node *np, const char *name,
 	*dma_instance = dma_node->name;
 	index = of_property_match_string(np, "ti,navigator-dma-names", name);
 	if (index < 0) {
-		dev_err(kdev->dev, "No 'ti,navigator-dma-names' propery\n");
+		dev_err(kdev->dev, "No 'ti,navigator-dma-names' property\n");
 		return -ENODEV;
 	}
 

@@ -596,6 +596,7 @@
 #define mmSWRST_EP_CONTROL_0                                                    0x14ac
 #define mmCPM_CONTROL                                                           0x14b8
 #define mmGSKT_CONTROL                                                          0x14bf
+#define ixSWRST_COMMAND_1                                                       0x1400103
 #define ixLM_CONTROL                                                            0x1400120
 #define ixLM_PCIETXMUX0                                                         0x1400121
 #define ixLM_PCIETXMUX1                                                         0x1400122

@@ -75,10 +75,10 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 	for (i = 0; i < 64; i += 4) {
 		DRM_INFO("0x%08x (%s): 0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 i * 4, i < HVS_BOOTLOADER_DLIST_END ? "B" : "D",
-			 ((uint32_t *)vc4->hvs->dlist)[i + 0],
-			 ((uint32_t *)vc4->hvs->dlist)[i + 1],
-			 ((uint32_t *)vc4->hvs->dlist)[i + 2],
-			 ((uint32_t *)vc4->hvs->dlist)[i + 3]);
+			 readl((u32 __iomem *)vc4->hvs->dlist + i + 0),
+			 readl((u32 __iomem *)vc4->hvs->dlist + i + 1),
+			 readl((u32 __iomem *)vc4->hvs->dlist + i + 2),
+			 readl((u32 __iomem *)vc4->hvs->dlist + i + 3));
 	}
 }
 

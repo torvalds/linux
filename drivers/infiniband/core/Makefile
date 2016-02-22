@@ -8,7 +8,7 @@ obj-$(CONFIG_INFINIBAND_USER_MAD) +=	ib_umad.o
 obj-$(CONFIG_INFINIBAND_USER_ACCESS) +=	ib_uverbs.o ib_ucm.o \
 					$(user_access-y)
 
-ib_core-y :=			packer.o ud_header.o verbs.o sysfs.o \
+ib_core-y :=			packer.o ud_header.o verbs.o cq.o sysfs.o \
 				device.o fmr_pool.o cache.o netlink.o \
 				roce_gid_mgmt.o
 ib_core-$(CONFIG_INFINIBAND_USER_MEM) += umem.o
@@ -23,6 +23,8 @@ ib_cm-y :=			cm.o
 iw_cm-y :=			iwcm.o iwpm_util.o iwpm_msg.o
 
 rdma_cm-y :=			cma.o
+
+rdma_cm-$(CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS) += cma_configfs.o
 
 rdma_ucm-y :=			ucma.o
 

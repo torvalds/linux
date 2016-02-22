@@ -678,7 +678,8 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	drm_flip_work_init(&mdp4_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);
 
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs);
+	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs,
+				  NULL);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
 	plane->crtc = crtc;
 

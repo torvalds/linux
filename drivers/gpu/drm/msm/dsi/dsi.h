@@ -31,10 +31,12 @@ enum msm_dsi_phy_type {
 	MSM_DSI_PHY_28NM_HPM,
 	MSM_DSI_PHY_28NM_LP,
 	MSM_DSI_PHY_20NM,
+	MSM_DSI_PHY_28NM_8960,
 	MSM_DSI_PHY_MAX
 };
 
 #define DSI_DEV_REGULATOR_MAX	8
+#define DSI_BUS_CLK_MAX		4
 
 /* Regulators for DSI devices */
 struct dsi_reg_entry {
@@ -89,7 +91,7 @@ int msm_dsi_manager_phy_enable(int id,
 		u32 *clk_pre, u32 *clk_post);
 void msm_dsi_manager_phy_disable(int id);
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
-bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 iova, u32 len);
+bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 
@@ -143,7 +145,7 @@ int msm_dsi_host_cmd_tx(struct mipi_dsi_host *host,
 int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 					const struct mipi_dsi_msg *msg);
 void msm_dsi_host_cmd_xfer_commit(struct mipi_dsi_host *host,
-					u32 iova, u32 len);
+					u32 dma_base, u32 len);
 int msm_dsi_host_enable(struct mipi_dsi_host *host);
 int msm_dsi_host_disable(struct mipi_dsi_host *host);
 int msm_dsi_host_power_on(struct mipi_dsi_host *host);

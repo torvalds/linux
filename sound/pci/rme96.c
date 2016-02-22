@@ -741,10 +741,11 @@ snd_rme96_playback_setrate(struct rme96 *rme96,
 	{
 		/* change to/from double-speed: reset the DAC (if available) */
 		snd_rme96_reset_dac(rme96);
+		return 1; /* need to restore volume */
 	} else {
 		writel(rme96->wcreg, rme96->iobase + RME96_IO_CONTROL_REGISTER);
+		return 0;
 	}
-	return 0;
 }
 
 static int
@@ -980,6 +981,7 @@ snd_rme96_playback_hw_params(struct snd_pcm_substream *substream,
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err, rate, dummy;
+	bool apply_dac_volume = false;
 
 	runtime->dma_area = (void __force *)(rme96->iobase +
 					     RME96_IO_PLAY_BUFFER);
@@ -993,24 +995,26 @@ snd_rme96_playback_hw_params(struct snd_pcm_substream *substream,
 	{
                 /* slave clock */
                 if ((int)params_rate(params) != rate) {
-			spin_unlock_irq(&rme96->lock);
-			return -EIO;                    
-                }
-	} else if ((err = snd_rme96_playback_setrate(rme96, params_rate(params))) < 0) {
-		spin_unlock_irq(&rme96->lock);
-		return err;
+			err = -EIO;
+			goto error;
+		}
+	} else {
+		err = snd_rme96_playback_setrate(rme96, params_rate(params));
+		if (err < 0)
+			goto error;
+		apply_dac_volume = err > 0; /* need to restore volume later? */
 	}
-	if ((err = snd_rme96_playback_setformat(rme96, params_format(params))) < 0) {
-		spin_unlock_irq(&rme96->lock);
-		return err;
-	}
+
+	err = snd_rme96_playback_setformat(rme96, params_format(params));
+	if (err < 0)
+		goto error;
 	snd_rme96_setframelog(rme96, params_channels(params), 1);
 	if (rme96->capture_periodsize != 0) {
 		if (params_period_size(params) << rme96->playback_frlog !=
 		    rme96->capture_periodsize)
 		{
-			spin_unlock_irq(&rme96->lock);
-			return -EBUSY;
+			err = -EBUSY;
+			goto error;
 		}
 	}
 	rme96->playback_periodsize =
@@ -1021,9 +1025,16 @@ snd_rme96_playback_hw_params(struct snd_pcm_substream *substream,
 		rme96->wcreg &= ~(RME96_WCR_PRO | RME96_WCR_DOLBY | RME96_WCR_EMP);
 		writel(rme96->wcreg |= rme96->wcreg_spdif_stream, rme96->iobase + RME96_IO_CONTROL_REGISTER);
 	}
+
+	err = 0;
+ error:
 	spin_unlock_irq(&rme96->lock);
-		
-	return 0;
+	if (apply_dac_volume) {
+		usleep_range(3000, 10000);
+		snd_rme96_apply_dac_volume(rme96);
+	}
+
+	return err;
 }
 
 static int

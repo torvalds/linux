@@ -18,12 +18,6 @@
 #define PERCPU_MODULE_RESERVE		0
 #endif
 
-#ifndef PERCPU_ENOUGH_ROOM
-#define PERCPU_ENOUGH_ROOM						\
-	(ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES) +	\
-	 PERCPU_MODULE_RESERVE)
-#endif
-
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
 

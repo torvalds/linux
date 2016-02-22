@@ -131,7 +131,7 @@ static void qong_init_nor_mtd(void)
  */
 static void qong_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 
 	if (cmd == NAND_CMD_NONE)
 		return;

@@ -227,23 +227,15 @@
 				reg = <0x520 0x20>;
 
 				phy0: ethernet-phy@1f {
-					interrupt-parent = <&mpic>;
-					interrupts = <10 1>;
 					reg = <0x1f>;
 				};
 				phy1: ethernet-phy@0 {
-					interrupt-parent = <&mpic>;
-					interrupts = <10 1>;
 					reg = <0>;
 				};
 				phy2: ethernet-phy@1 {
-					interrupt-parent = <&mpic>;
-					interrupts = <10 1>;
 					reg = <1>;
 				};
 				phy3: ethernet-phy@2 {
-					interrupt-parent = <&mpic>;
-					interrupts = <10 1>;
 					reg = <2>;
 				};
 				tbi0: tbi-phy@11 {

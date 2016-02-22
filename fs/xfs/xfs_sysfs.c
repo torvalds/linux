@@ -255,11 +255,47 @@ write_grant_head_show(
 }
 XFS_SYSFS_ATTR_RO(write_grant_head);
 
+#ifdef DEBUG
+STATIC ssize_t
+log_badcrc_factor_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	struct xlog	*log = to_xlog(kobject);
+	int		ret;
+	uint32_t	val;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	log->l_badcrc_factor = val;
+
+	return count;
+}
+
+STATIC ssize_t
+log_badcrc_factor_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	struct xlog	*log = to_xlog(kobject);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", log->l_badcrc_factor);
+}
+
+XFS_SYSFS_ATTR_RW(log_badcrc_factor);
+#endif	/* DEBUG */
+
 static struct attribute *xfs_log_attrs[] = {
 	ATTR_LIST(log_head_lsn),
 	ATTR_LIST(log_tail_lsn),
 	ATTR_LIST(reserve_grant_head),
 	ATTR_LIST(write_grant_head),
+#ifdef DEBUG
+	ATTR_LIST(log_badcrc_factor),
+#endif
 	NULL,
 };
 

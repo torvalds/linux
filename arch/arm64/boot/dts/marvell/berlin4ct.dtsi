@@ -55,7 +55,7 @@
 	};
 
 	psci {
-		compatible = "arm,psci-0.2";
+		compatible = "arm,psci-1.0", "arm,psci-0.2";
 		method = "smc";
 	};
 
@@ -68,6 +68,7 @@
 			device_type = "cpu";
 			reg = <0x0>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		cpu1: cpu@1 {
@@ -75,6 +76,7 @@
 			device_type = "cpu";
 			reg = <0x1>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		cpu2: cpu@2 {
@@ -82,6 +84,7 @@
 			device_type = "cpu";
 			reg = <0x2>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		cpu3: cpu@3 {
@@ -89,6 +92,19 @@
 			device_type = "cpu";
 			reg = <0x3>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+			CPU_SLEEP_0: cpu-sleep-0 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <75>;
+				exit-latency-us = <155>;
+				min-residency-us = <1000>;
+			};
 		};
 	};
 
@@ -225,6 +241,16 @@
 			};
 		};
 
+		soc_pinctrl: pin-controller@ea8000 {
+			compatible = "marvell,berlin4ct-soc-pinctrl";
+			reg = <0xea8000 0x14>;
+		};
+
+		avio_pinctrl: pin-controller@ea8400 {
+			compatible = "marvell,berlin4ct-avio-pinctrl";
+			reg = <0xea8400 0x8>;
+		};
+
 		apb@fc0000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -239,6 +265,29 @@
 				#interrupt-cells = <1>;
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			wdt0: watchdog@3000 {
+				compatible = "snps,dw-wdt";
+				reg = <0x3000 0x100>;
+				clocks = <&osc>;
+				interrupts = <0>;
+			};
+
+			wdt1: watchdog@4000 {
+				compatible = "snps,dw-wdt";
+				reg = <0x4000 0x100>;
+				clocks = <&osc>;
+				interrupts = <1>;
+				status = "disabled";
+			};
+
+			wdt2: watchdog@5000 {
+				compatible = "snps,dw-wdt";
+				reg = <0x5000 0x100>;
+				clocks = <&osc>;
+				interrupts = <2>;
+				status = "disabled";
 			};
 
 			sm_gpio0: gpio@8000 {
@@ -278,6 +327,18 @@
 				clocks = <&osc>;
 				reg-shift = <2>;
 				status = "disabled";
+				pinctrl-0 = <&uart0_pmux>;
+				pinctrl-names = "default";
+			};
+		};
+
+		system_pinctrl: pin-controller@fe2200 {
+			compatible = "marvell,berlin4ct-system-pinctrl";
+			reg = <0xfe2200 0xc>;
+
+			uart0_pmux: uart0-pmux {
+				groups = "SM_URT0_TXD", "SM_URT0_RXD";
+				function = "uart0";
 			};
 		};
 	};

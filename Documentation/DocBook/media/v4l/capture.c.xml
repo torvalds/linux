@@ -5,7 +5,7 @@
  *  This program can be used and distributed without restrictions.
  *
  *      This program is provided with the V4L2 API
- * see http://linuxtv.org/docs.php for more information
+ * see https://linuxtv.org/docs.php for more information
  */
 
 #include &lt;stdio.h&gt;

@@ -861,32 +861,42 @@ void ioat_timer_event(unsigned long data)
 			return;
 	}
 
+	spin_lock_bh(&ioat_chan->cleanup_lock);
+
+	/* handle the no-actives case */
+	if (!ioat_ring_active(ioat_chan)) {
+		spin_lock_bh(&ioat_chan->prep_lock);
+		check_active(ioat_chan);
+		spin_unlock_bh(&ioat_chan->prep_lock);
+		spin_unlock_bh(&ioat_chan->cleanup_lock);
+		return;
+	}
+
 	/* if we haven't made progress and we have already
 	 * acknowledged a pending completion once, then be more
 	 * forceful with a restart
 	 */
-	spin_lock_bh(&ioat_chan->cleanup_lock);
 	if (ioat_cleanup_preamble(ioat_chan, &phys_complete))
 		__cleanup(ioat_chan, phys_complete);
 	else if (test_bit(IOAT_COMPLETION_ACK, &ioat_chan->state)) {
+		u32 chanerr;
+
+		chanerr = readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
+		dev_warn(to_dev(ioat_chan), "Restarting channel...\n");
+		dev_warn(to_dev(ioat_chan), "CHANSTS: %#Lx CHANERR: %#x\n",
+			 status, chanerr);
+		dev_warn(to_dev(ioat_chan), "Active descriptors: %d\n",
+			 ioat_ring_active(ioat_chan));
+
 		spin_lock_bh(&ioat_chan->prep_lock);
 		ioat_restart_channel(ioat_chan);
 		spin_unlock_bh(&ioat_chan->prep_lock);
 		spin_unlock_bh(&ioat_chan->cleanup_lock);
 		return;
-	} else {
+	} else
 		set_bit(IOAT_COMPLETION_ACK, &ioat_chan->state);
-		mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
-	}
 
-
-	if (ioat_ring_active(ioat_chan))
-		mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
-	else {
-		spin_lock_bh(&ioat_chan->prep_lock);
-		check_active(ioat_chan);
-		spin_unlock_bh(&ioat_chan->prep_lock);
-	}
+	mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
 	spin_unlock_bh(&ioat_chan->cleanup_lock);
 }
 

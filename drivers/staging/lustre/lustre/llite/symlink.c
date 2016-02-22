@@ -118,12 +118,20 @@ failed:
 	return rc;
 }
 
-static const char *ll_follow_link(struct dentry *dentry, void **cookie)
+static void ll_put_link(void *p)
 {
-	struct inode *inode = d_inode(dentry);
+	ptlrpc_req_finished(p);
+}
+
+static const char *ll_get_link(struct dentry *dentry,
+			       struct inode *inode,
+			       struct delayed_call *done)
+{
 	struct ptlrpc_request *request = NULL;
 	int rc;
 	char *symname = NULL;
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
 	CDEBUG(D_VFSTRACE, "VFS Op\n");
 	ll_inode_size_lock(inode);
@@ -135,22 +143,16 @@ static const char *ll_follow_link(struct dentry *dentry, void **cookie)
 	}
 
 	/* symname may contain a pointer to the request message buffer,
-	 * we delay request releasing until ll_put_link then.
+	 * we delay request releasing then.
 	 */
-	*cookie = request;
+	set_delayed_call(done, ll_put_link, request);
 	return symname;
 }
 
-static void ll_put_link(struct inode *unused, void *cookie)
-{
-	ptlrpc_req_finished(cookie);
-}
-
-struct inode_operations ll_fast_symlink_inode_operations = {
+const struct inode_operations ll_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.setattr	= ll_setattr,
-	.follow_link	= ll_follow_link,
-	.put_link	= ll_put_link,
+	.get_link	= ll_get_link,
 	.getattr	= ll_getattr,
 	.permission	= ll_inode_permission,
 	.setxattr	= ll_setxattr,

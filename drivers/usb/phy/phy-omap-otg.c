@@ -105,7 +105,6 @@ static int omap_otg_probe(struct platform_device *pdev)
 	extcon = extcon_get_extcon_dev(config->extcon);
 	if (!extcon)
 		return -EPROBE_DEFER;
-	otg_dev->extcon = extcon;
 
 	otg_dev = devm_kzalloc(&pdev->dev, sizeof(*otg_dev), GFP_KERNEL);
 	if (!otg_dev)
@@ -115,6 +114,7 @@ static int omap_otg_probe(struct platform_device *pdev)
 	if (IS_ERR(otg_dev->base))
 		return PTR_ERR(otg_dev->base);
 
+	otg_dev->extcon = extcon;
 	otg_dev->id_nb.notifier_call = omap_otg_id_notifier;
 	otg_dev->vbus_nb.notifier_call = omap_otg_vbus_notifier;
 

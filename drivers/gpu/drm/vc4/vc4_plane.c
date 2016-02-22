@@ -29,6 +29,14 @@ struct vc4_plane_state {
 	u32 *dlist;
 	u32 dlist_size; /* Number of dwords in allocated for the display list */
 	u32 dlist_count; /* Number of used dwords in the display list. */
+
+	/* Offset in the dlist to pointer word 0. */
+	u32 pw0_offset;
+
+	/* Offset where the plane's dlist was last stored in the
+	   hardware at vc4_crtc_atomic_flush() time.
+	*/
+	u32 *hw_dlist;
 };
 
 static inline struct vc4_plane_state *
@@ -70,7 +78,7 @@ static bool plane_enabled(struct drm_plane_state *state)
 	return state->fb && state->crtc;
 }
 
-struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane)
+static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct vc4_plane_state *vc4_state;
 
@@ -97,8 +105,8 @@ struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane)
 	return &vc4_state->base;
 }
 
-void vc4_plane_destroy_state(struct drm_plane *plane,
-			     struct drm_plane_state *state)
+static void vc4_plane_destroy_state(struct drm_plane *plane,
+				    struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 
@@ -108,7 +116,7 @@ void vc4_plane_destroy_state(struct drm_plane *plane,
 }
 
 /* Called during init to allocate the plane's atomic state. */
-void vc4_plane_reset(struct drm_plane *plane)
+static void vc4_plane_reset(struct drm_plane *plane)
 {
 	struct vc4_plane_state *vc4_state;
 
@@ -157,6 +165,16 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	int crtc_w = state->crtc_w;
 	int crtc_h = state->crtc_h;
 
+	if (state->crtc_w << 16 != state->src_w ||
+	    state->crtc_h << 16 != state->src_h) {
+		/* We don't support scaling yet, which involves
+		 * allocating the LBM memory for scaling temporary
+		 * storage, and putting filter kernels in the HVS
+		 * context.
+		 */
+		return -EINVAL;
+	}
+
 	if (crtc_x < 0) {
 		offset += drm_format_plane_cpp(fb->pixel_format, 0) * -crtc_x;
 		crtc_w += crtc_x;
@@ -196,6 +214,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 
 	/* Position Word 3: Context.  Written by the HVS. */
 	vc4_dlist_write(vc4_state, 0xc0c0c0c0);
+
+	vc4_state->pw0_offset = vc4_state->dlist_count;
 
 	/* Pointer Word 0: RGB / Y Pointer */
 	vc4_dlist_write(vc4_state, bo->paddr + offset);
@@ -248,6 +268,8 @@ u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist)
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(plane->state);
 	int i;
 
+	vc4_state->hw_dlist = dlist;
+
 	/* Can't memcpy_toio() because it needs to be 32-bit writes. */
 	for (i = 0; i < vc4_state->dlist_count; i++)
 		writel(vc4_state->dlist[i], &dlist[i]);
@@ -260,6 +282,34 @@ u32 vc4_plane_dlist_size(struct drm_plane_state *state)
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 
 	return vc4_state->dlist_count;
+}
+
+/* Updates the plane to immediately (well, once the FIFO needs
+ * refilling) scan out from at a new framebuffer.
+ */
+void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
+{
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(plane->state);
+	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
+	uint32_t addr;
+
+	/* We're skipping the address adjustment for negative origin,
+	 * because this is only called on the primary plane.
+	 */
+	WARN_ON_ONCE(plane->state->crtc_x < 0 || plane->state->crtc_y < 0);
+	addr = bo->paddr + fb->offsets[0];
+
+	/* Write the new address into the hardware immediately.  The
+	 * scanout will start from this address as soon as the FIFO
+	 * needs to refill with pixels.
+	 */
+	writel(addr, &vc4_state->hw_dlist[vc4_state->pw0_offset]);
+
+	/* Also update the CPU-side dlist copy, so that any later
+	 * atomic updates that don't do a new modeset on our plane
+	 * also use our updated address.
+	 */
+	vc4_state->dlist[vc4_state->pw0_offset] = addr;
 }
 
 static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
@@ -307,7 +357,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	ret = drm_universal_plane_init(dev, plane, 0xff,
 				       &vc4_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
-				       type);
+				       type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 

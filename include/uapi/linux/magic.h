@@ -31,6 +31,7 @@
 #define PSTOREFS_MAGIC		0x6165676C
 #define EFIVARFS_MAGIC		0xde5e81e4
 #define HOSTFS_SUPER_MAGIC	0x00c0ffee
+#define OVERLAYFS_SUPER_MAGIC	0x794c7630
 
 #define MINIX_SUPER_MAGIC	0x137F		/* minix v1 fs, 14 char names */
 #define MINIX_SUPER_MAGIC2	0x138F		/* minix v1 fs, 30 char names */
@@ -54,6 +55,7 @@
 
 #define SMB_SUPER_MAGIC		0x517B
 #define CGROUP_SUPER_MAGIC	0x27e0eb
+#define CGROUP2_SUPER_MAGIC	0x63677270
 
 
 #define STACK_END_MAGIC		0x57AC6E9D

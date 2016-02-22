@@ -575,9 +575,7 @@ static void i5100_check_error(struct mem_ctl_info *mci)
 
 static void i5100_refresh_scrubbing(struct work_struct *work)
 {
-	struct delayed_work *i5100_scrubbing = container_of(work,
-							    struct delayed_work,
-							    work);
+	struct delayed_work *i5100_scrubbing = to_delayed_work(work);
 	struct i5100_priv *priv = container_of(i5100_scrubbing,
 					       struct i5100_priv,
 					       i5100_scrubbing);

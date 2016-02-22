@@ -428,12 +428,11 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 
 #endif /* CONFIG_ISA_ARCV2 */
 
-void arc_cpu_pmu_irq_init(void)
+static void arc_cpu_pmu_irq_init(void *data)
 {
-	struct arc_pmu_cpu *pmu_cpu = this_cpu_ptr(&arc_pmu_cpu);
+	int irq = *(int *)data;
 
-	arc_request_percpu_irq(arc_pmu->irq, smp_processor_id(), arc_pmu_intr,
-			       "ARC perf counters", pmu_cpu);
+	enable_percpu_irq(irq, IRQ_TYPE_NONE);
 
 	/* Clear all pending interrupt flags */
 	write_aux_reg(ARC_REG_PCT_INT_ACT, 0xffffffff);
@@ -515,7 +514,6 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 
 	if (has_interrupts) {
 		int irq = platform_get_irq(pdev, 0);
-		unsigned long flags;
 
 		if (irq < 0) {
 			pr_err("Cannot get IRQ number for the platform\n");
@@ -524,24 +522,12 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 
 		arc_pmu->irq = irq;
 
-		/*
-		 * arc_cpu_pmu_irq_init() needs to be called on all cores for
-		 * their respective local PMU.
-		 * However we use opencoded on_each_cpu() to ensure it is called
-		 * on core0 first, so that arc_request_percpu_irq() sets up
-		 * AUTOEN etc. Otherwise enable_percpu_irq() fails to enable
-		 * perf IRQ on non master cores.
-		 * see arc_request_percpu_irq()
-		 */
-		preempt_disable();
-		local_irq_save(flags);
-		arc_cpu_pmu_irq_init();
-		local_irq_restore(flags);
-		smp_call_function((smp_call_func_t)arc_cpu_pmu_irq_init, 0, 1);
-		preempt_enable();
+		/* intc map function ensures irq_set_percpu_devid() called */
+		request_percpu_irq(irq, arc_pmu_intr, "ARC perf counters",
+				   this_cpu_ptr(&arc_pmu_cpu));
 
-		/* Clean all pending interrupt flags */
-		write_aux_reg(ARC_REG_PCT_INT_ACT, 0xffffffff);
+		on_each_cpu(arc_cpu_pmu_irq_init, &irq, 1);
+
 	} else
 		arc_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 

@@ -107,6 +107,27 @@ config IMA_DEFAULT_HASH
 	default "sha512" if IMA_DEFAULT_HASH_SHA512
 	default "wp512" if IMA_DEFAULT_HASH_WP512
 
+config IMA_WRITE_POLICY
+	bool "Enable multiple writes to the IMA policy"
+	depends on IMA
+	default n
+	help
+	  IMA policy can now be updated multiple times.  The new rules get
+	  appended to the original policy.  Have in mind that the rules are
+	  scanned in FIFO order so be careful when you design and add new ones.
+
+	  If unsure, say N.
+
+config IMA_READ_POLICY
+	bool "Enable reading back the current IMA policy"
+	depends on IMA
+	default y if IMA_WRITE_POLICY
+	default n if !IMA_WRITE_POLICY
+	help
+	   It is often useful to be able to read back the IMA policy.  It is
+	   even more important after introducing CONFIG_IMA_WRITE_POLICY.
+	   This option allows the root user to see the current policy rules.
+
 config IMA_APPRAISE
 	bool "Appraise integrity measurements"
 	depends on IMA
@@ -123,13 +144,34 @@ config IMA_APPRAISE
 	  If unsure, say N.
 
 config IMA_TRUSTED_KEYRING
-	bool "Require all keys on the .ima keyring be signed"
+	bool "Require all keys on the .ima keyring be signed (deprecated)"
 	depends on IMA_APPRAISE && SYSTEM_TRUSTED_KEYRING
 	depends on INTEGRITY_ASYMMETRIC_KEYS
+	select INTEGRITY_TRUSTED_KEYRING
 	default y
 	help
 	   This option requires that all keys added to the .ima
 	   keyring be signed by a key on the system trusted keyring.
+
+	   This option is deprecated in favor of INTEGRITY_TRUSTED_KEYRING
+
+config IMA_MOK_KEYRING
+	bool "Create IMA machine owner keys (MOK) and blacklist keyrings"
+	depends on SYSTEM_TRUSTED_KEYRING
+	depends on IMA_TRUSTED_KEYRING
+	default n
+	help
+	   This option creates IMA MOK and blacklist keyrings.  IMA MOK is an
+	   intermediate keyring that sits between .system and .ima keyrings,
+	   effectively forming a simple CA hierarchy.  To successfully import a
+	   key into .ima_mok it must be signed by a key which CA is in .system
+	   keyring.  On turn any key that needs to go in .ima keyring must be
+	   signed by CA in either .system or .ima_mok keyrings. IMA MOK is empty
+	   at kernel boot.
+
+	   IMA blacklist keyring contains all revoked IMA keys.  It is consulted
+	   before any other keyring.  If the search is successful the requested
+	   operation is rejected and error is returned to the caller.
 
 config IMA_LOAD_X509
 	bool "Load X509 certificate onto the '.ima' trusted keyring"

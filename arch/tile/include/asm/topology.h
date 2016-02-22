@@ -44,9 +44,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
 /* For now, use numa node -1 for global allocation. */
 #define pcibus_to_node(bus)		((void)(bus), -1)
 
-/* By definition, we create nodes based on online memory. */
-#define node_has_online_mem(nid) 1
-
 #endif /* CONFIG_NUMA */
 
 #include <asm-generic/topology.h>

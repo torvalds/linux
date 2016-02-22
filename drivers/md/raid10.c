@@ -1442,7 +1442,7 @@ retry_write:
 	one_write_done(r10_bio);
 }
 
-static void make_request(struct mddev *mddev, struct bio *bio)
+static void raid10_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct r10conf *conf = mddev->private;
 	sector_t chunk_mask = (conf->geo.chunk_mask & conf->prev.chunk_mask);
@@ -1484,7 +1484,7 @@ static void make_request(struct mddev *mddev, struct bio *bio)
 	wake_up(&conf->wait_barrier);
 }
 
-static void status(struct seq_file *seq, struct mddev *mddev)
+static void raid10_status(struct seq_file *seq, struct mddev *mddev)
 {
 	struct r10conf *conf = mddev->private;
 	int i;
@@ -1562,7 +1562,7 @@ static int enough(struct r10conf *conf, int ignore)
 		_enough(conf, 1, ignore);
 }
 
-static void error(struct mddev *mddev, struct md_rdev *rdev)
+static void raid10_error(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char b[BDEVNAME_SIZE];
 	struct r10conf *conf = mddev->private;
@@ -1698,6 +1698,9 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	if (rdev->saved_raid_disk < 0 && !_enough(conf, 1, -1))
 		return -EINVAL;
 
+	if (md_integrity_add_rdev(rdev, mddev))
+		return -ENXIO;
+
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
 
@@ -1739,9 +1742,6 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		rcu_assign_pointer(p->rdev, rdev);
 		break;
 	}
-	mddev_suspend(mddev);
-	md_integrity_add_rdev(rdev, mddev);
-	mddev_resume(mddev);
 	if (mddev->queue && blk_queue_discard(bdev_get_queue(rdev->bdev)))
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
 
@@ -1946,6 +1946,8 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 
 	first = i;
 	fbio = r10_bio->devs[i].bio;
+	fbio->bi_iter.bi_size = r10_bio->sectors << 9;
+	fbio->bi_iter.bi_idx = 0;
 
 	vcnt = (r10_bio->sectors + (PAGE_SIZE >> 9) - 1) >> (PAGE_SHIFT - 9);
 	/* now find blocks with errors */
@@ -1989,7 +1991,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		bio_reset(tbio);
 
 		tbio->bi_vcnt = vcnt;
-		tbio->bi_iter.bi_size = r10_bio->sectors << 9;
+		tbio->bi_iter.bi_size = fbio->bi_iter.bi_size;
 		tbio->bi_rw = WRITE;
 		tbio->bi_private = r10_bio;
 		tbio->bi_iter.bi_sector = r10_bio->devs[i].addr;
@@ -2800,7 +2802,7 @@ static int init_resync(struct r10conf *conf)
  *
  */
 
-static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
+static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			     int *skipped)
 {
 	struct r10conf *conf = mddev->private;
@@ -3521,7 +3523,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 	return ERR_PTR(err);
 }
 
-static int run(struct mddev *mddev)
+static int raid10_run(struct mddev *mddev)
 {
 	struct r10conf *conf;
 	int i, disk_idx, chunk_size;
@@ -4615,15 +4617,15 @@ static struct md_personality raid10_personality =
 	.name		= "raid10",
 	.level		= 10,
 	.owner		= THIS_MODULE,
-	.make_request	= make_request,
-	.run		= run,
+	.make_request	= raid10_make_request,
+	.run		= raid10_run,
 	.free		= raid10_free,
-	.status		= status,
-	.error_handler	= error,
+	.status		= raid10_status,
+	.error_handler	= raid10_error,
 	.hot_add_disk	= raid10_add_disk,
 	.hot_remove_disk= raid10_remove_disk,
 	.spare_active	= raid10_spare_active,
-	.sync_request	= sync_request,
+	.sync_request	= raid10_sync_request,
 	.quiesce	= raid10_quiesce,
 	.size		= raid10_size,
 	.resize		= raid10_resize,

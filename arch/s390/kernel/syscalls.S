@@ -382,3 +382,5 @@ SYSCALL(sys_sendmsg,compat_sys_sendmsg)			/* 370 */
 SYSCALL(sys_recvfrom,compat_sys_recvfrom)
 SYSCALL(sys_recvmsg,compat_sys_recvmsg)
 SYSCALL(sys_shutdown,sys_shutdown)
+SYSCALL(sys_mlock2,compat_sys_mlock2)
+SYSCALL(sys_copy_file_range,compat_sys_copy_file_range) /* 375 */

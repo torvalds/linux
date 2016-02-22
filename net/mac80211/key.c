@@ -4,6 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2015	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -320,7 +321,7 @@ static void ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (new)
-		list_add_tail(&new->list, &sdata->key_list);
+		list_add_tail_rcu(&new->list, &sdata->key_list);
 
 	WARN_ON(new && old && new->conf.keyidx != old->conf.keyidx);
 
@@ -368,7 +369,7 @@ static void ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (old)
-		list_del(&old->list);
+		list_del_rcu(&old->list);
 }
 
 struct ieee80211_key *
@@ -592,8 +593,8 @@ static void ieee80211_key_destroy(struct ieee80211_key *key,
 		return;
 
 	/*
-	 * Synchronize so the TX path can no longer be using
-	 * this key before we free/remove it.
+	 * Synchronize so the TX path and rcu key iterators
+	 * can no longer be using this key before we free/remove it.
 	 */
 	synchronize_net();
 
@@ -743,6 +744,53 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 	mutex_unlock(&local->key_mtx);
 }
 EXPORT_SYMBOL(ieee80211_iter_keys);
+
+static void
+_ieee80211_iter_keys_rcu(struct ieee80211_hw *hw,
+			 struct ieee80211_sub_if_data *sdata,
+			 void (*iter)(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_sta *sta,
+				      struct ieee80211_key_conf *key,
+				      void *data),
+			 void *iter_data)
+{
+	struct ieee80211_key *key;
+
+	list_for_each_entry_rcu(key, &sdata->key_list, list) {
+		/* skip keys of station in removal process */
+		if (key->sta && key->sta->removed)
+			continue;
+		if (!(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+			continue;
+
+		iter(hw, &sdata->vif,
+		     key->sta ? &key->sta->sta : NULL,
+		     &key->conf, iter_data);
+	}
+}
+
+void ieee80211_iter_keys_rcu(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     void (*iter)(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_sta *sta,
+					  struct ieee80211_key_conf *key,
+					  void *data),
+			     void *iter_data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata;
+
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		_ieee80211_iter_keys_rcu(hw, sdata, iter, iter_data);
+	} else {
+		list_for_each_entry_rcu(sdata, &local->interfaces, list)
+			_ieee80211_iter_keys_rcu(hw, sdata, iter, iter_data);
+	}
+}
+EXPORT_SYMBOL(ieee80211_iter_keys_rcu);
 
 static void ieee80211_free_keys_iface(struct ieee80211_sub_if_data *sdata,
 				      struct list_head *keys)

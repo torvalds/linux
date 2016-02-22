@@ -1,5 +1,6 @@
 menuconfig ARCH_BCM
-	bool "Broadcom SoC Support" if ARCH_MULTI_V6_V7
+	bool "Broadcom SoC Support"
+	depends on ARCH_MULTI_V6_V7
 	help
 	  This enables support for Broadcom ARM based SoC chips
 
@@ -27,7 +28,8 @@ config ARCH_BCM_IPROC
 	  Currently supported SoCs are Cygnus.
 
 config ARCH_BCM_CYGNUS
-	bool "Broadcom Cygnus Support" if ARCH_MULTI_V7
+	bool "Broadcom Cygnus Support"
+	depends on ARCH_MULTI_V7
 	select ARCH_BCM_IPROC
 	help
 	  Enable support for the Cygnus family,
@@ -36,10 +38,13 @@ config ARCH_BCM_CYGNUS
 	  BCM58300, BCM58302, BCM58303, BCM58305.
 
 config ARCH_BCM_NSP
-	bool "Broadcom Northstar Plus SoC Support" if ARCH_MULTI_V7
+	bool "Broadcom Northstar Plus SoC Support"
+	depends on ARCH_MULTI_V7
 	select ARCH_BCM_IPROC
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
+	select ARM_ERRATA_764369 if SMP
+	select HAVE_SMP
 	help
 	  Support for Broadcom Northstar Plus SoC.
 	  Broadcom Northstar Plus family of SoCs are used for switching control
@@ -50,8 +55,14 @@ config ARCH_BCM_NSP
 	  NAND flash, SATA and several other IO controllers.
 
 config ARCH_BCM_5301X
-	bool "Broadcom BCM470X / BCM5301X ARM SoC" if ARCH_MULTI_V7
+	bool "Broadcom BCM470X / BCM5301X ARM SoC"
+	depends on ARCH_MULTI_V7
 	select ARCH_BCM_IPROC
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select ARM_ERRATA_764369 if SMP
+	select HAVE_SMP
+
 	help
 	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
 
@@ -82,7 +93,8 @@ config ARCH_BCM_MOBILE
 	  This enables support for systems based on Broadcom mobile SoCs.
 
 config ARCH_BCM_281XX
-	bool "Broadcom BCM281XX SoC family" if ARCH_MULTI_V7
+	bool "Broadcom BCM281XX SoC family"
+	depends on ARCH_MULTI_V7
 	select ARCH_BCM_MOBILE
 	select HAVE_SMP
 	help
@@ -91,7 +103,8 @@ config ARCH_BCM_281XX
 	  variants.
 
 config ARCH_BCM_21664
-	bool "Broadcom BCM21664 SoC family" if ARCH_MULTI_V7
+	bool "Broadcom BCM21664 SoC family"
+	depends on ARCH_MULTI_V7
 	select ARCH_BCM_MOBILE
 	select HAVE_SMP
 	help
@@ -122,20 +135,23 @@ config ARCH_BCM_MOBILE_SMP
 comment "Other Architectures"
 
 config ARCH_BCM2835
-	bool "Broadcom BCM2835 family" if ARCH_MULTI_V6
+	bool "Broadcom BCM2835 family"
+	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
-	select ARM_ERRATA_411920
+	select ARM_ERRATA_411920 if ARCH_MULTI_V6
 	select ARM_TIMER_SP804
+	select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
 	select CLKSRC_OF
 	select PINCTRL
 	select PINCTRL_BCM2835
 	help
-	  This enables support for the Broadcom BCM2835 SoC. This SoC is
-	  used in the Raspberry Pi and Roku 2 devices.
+	  This enables support for the Broadcom BCM2835 and BCM2836 SoCs.
+	  This SoC is used in the Raspberry Pi and Roku 2 devices.
 
 config ARCH_BCM_63XX
-	bool "Broadcom BCM63xx DSL SoC" if ARCH_MULTI_V7
+	bool "Broadcom BCM63xx DSL SoC"
+	depends on ARCH_MULTI_V7
 	depends on MMU
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
@@ -152,7 +168,8 @@ config ARCH_BCM_63XX
 	  the BCM63138 variant.
 
 config ARCH_BRCMSTB
-	bool "Broadcom BCM7XXX based boards" if ARCH_MULTI_V7
+	bool "Broadcom BCM7XXX based boards"
+	depends on ARCH_MULTI_V7
 	select ARM_GIC
 	select ARM_ERRATA_798181 if SMP
 	select HAVE_ARM_ARCH_TIMER

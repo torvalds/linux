@@ -84,6 +84,7 @@ struct symbol_conf {
 	unsigned short	priv_size;
 	unsigned short	nr_events;
 	bool		try_vmlinux_path,
+			force,
 			ignore_vmlinux,
 			ignore_vmlinux_buildid,
 			show_kernel_path,
@@ -107,7 +108,9 @@ struct symbol_conf {
 			show_hist_headers,
 			branch_callstack,
 			has_filter,
-			show_ref_callgraph;
+			show_ref_callgraph,
+			hide_unresolved,
+			raw_trace;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

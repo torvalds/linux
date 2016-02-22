@@ -5,7 +5,7 @@
  * Jump label support
  *
  * Copyright (C) 2009-2012 Jason Baron <jbaron@redhat.com>
- * Copyright (C) 2011-2012 Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright (C) 2011-2012 Red Hat, Inc., Peter Zijlstra
  *
  * DEPRECATED API:
  *

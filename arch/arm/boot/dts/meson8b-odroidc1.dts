@@ -46,6 +46,7 @@
 
 /dts-v1/;
 #include "meson8b.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Hardkernel ODROID-C1";
@@ -57,6 +58,16 @@
 
 	memory {
 		reg = <0x40000000 0x40000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		blue {
+			label = "c1:blue:alive";
+			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
 	};
 };
 

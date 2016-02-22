@@ -34,8 +34,7 @@ static int get_sem(struct device *dev, u32 *sem)
 	u32 data;
 	int ret;
 
-	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ, PUNIT_SEMAPHORE,
-				&data);
+	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE, &data);
 	if (ret) {
 		dev_err(dev, "iosf failed to read punit semaphore\n");
 		return ret;
@@ -50,21 +49,19 @@ static void reset_semaphore(struct device *dev)
 {
 	u32 data;
 
-	if (iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
-				PUNIT_SEMAPHORE, &data)) {
+	if (iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE, &data)) {
 		dev_err(dev, "iosf failed to reset punit semaphore during read\n");
 		return;
 	}
 
 	data &= ~PUNIT_SEMAPHORE_BIT;
-	if (iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
-				PUNIT_SEMAPHORE, data))
+	if (iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, PUNIT_SEMAPHORE, data))
 		dev_err(dev, "iosf failed to reset punit semaphore during write\n");
 }
 
 static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 {
-	u32 sem;
+	u32 sem = PUNIT_SEMAPHORE_ACQUIRE;
 	int ret;
 	unsigned long start, end;
 
@@ -77,8 +74,7 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 		return 0;
 
 	/* host driver writes to side band semaphore register */
-	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_WRITE,
-				PUNIT_SEMAPHORE, PUNIT_SEMAPHORE_ACQUIRE);
+	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, PUNIT_SEMAPHORE, sem);
 	if (ret) {
 		dev_err(dev->dev, "iosf punit semaphore request failed\n");
 		return ret;
@@ -102,8 +98,7 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	dev_err(dev->dev, "punit semaphore timed out, resetting\n");
 	reset_semaphore(dev->dev);
 
-	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_BUNIT_READ,
-				PUNIT_SEMAPHORE, &sem);
+	ret = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, PUNIT_SEMAPHORE, &sem);
 	if (ret)
 		dev_err(dev->dev, "iosf failed to read punit semaphore\n");
 	else

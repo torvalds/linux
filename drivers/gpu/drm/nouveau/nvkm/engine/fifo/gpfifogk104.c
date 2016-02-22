@@ -30,6 +30,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
 static int
@@ -151,9 +152,9 @@ gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 	u32 coff = chan->base.chid * 8;
 
 	if (!list_empty(&chan->head)) {
-		list_del_init(&chan->head);
+		gk104_fifo_runlist_remove(fifo, chan);
 		nvkm_mask(device, 0x800004 + coff, 0x00000800, 0x00000800);
-		gk104_fifo_runlist_update(fifo, chan->engine);
+		gk104_fifo_runlist_commit(fifo, chan->engine);
 	}
 
 	nvkm_wr32(device, 0x800000 + coff, 0x00000000);
@@ -172,9 +173,9 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 	nvkm_wr32(device, 0x800000 + coff, 0x80000000 | addr);
 
 	if (list_empty(&chan->head) && !chan->killed) {
-		list_add_tail(&chan->head, &fifo->engine[chan->engine].chan);
+		gk104_fifo_runlist_insert(fifo, chan);
 		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
-		gk104_fifo_runlist_update(fifo, chan->engine);
+		gk104_fifo_runlist_commit(fifo, chan->engine);
 		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
 	}
 }
@@ -213,10 +214,10 @@ gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	struct gk104_fifo_chan *chan;
 	u64 usermem, ioffset, ilength;
 	u32 engines;
-	int ret, i;
+	int ret = -ENOSYS, i;
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create channel gpfifo vers %d vm %llx "
 				   "ioffset %016llx ilength %08x engine %08x\n",
 			   args->v0.version, args->v0.vm, args->v0.ioffset,

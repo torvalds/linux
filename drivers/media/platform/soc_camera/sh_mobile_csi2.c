@@ -18,10 +18,10 @@
 #include <linux/videodev2.h>
 #include <linux/module.h>
 
-#include <media/sh_mobile_ceu.h>
-#include <media/sh_mobile_csi2.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
+#include <media/drv-intf/sh_mobile_csi2.h>
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>

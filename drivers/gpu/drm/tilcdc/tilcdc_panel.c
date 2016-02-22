@@ -128,7 +128,7 @@ static struct drm_encoder *panel_encoder_create(struct drm_device *dev,
 	encoder->possible_crtcs = 1;
 
 	ret = drm_encoder_init(dev, encoder, &panel_encoder_funcs,
-			DRM_MODE_ENCODER_LVDS);
+			DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0)
 		goto fail;
 

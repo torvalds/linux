@@ -48,8 +48,8 @@ static int pnv_eeh_init(void)
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 
-	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
-		pr_warn("%s: OPALv3 is required !\n",
+	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
+		pr_warn("%s: OPAL is required !\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -444,9 +444,12 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * PCI devices of the PE are expected to be removed prior
 	 * to PE reset.
 	 */
-	if (!edev->pe->bus)
+	if (!(edev->pe->state & EEH_PE_PRI_BUS)) {
 		edev->pe->bus = pci_find_bus(hose->global_number,
 					     pdn->busno);
+		if (edev->pe->bus)
+			edev->pe->state |= EEH_PE_PRI_BUS;
+	}
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check

@@ -15,7 +15,7 @@ struct softirq_action;
 			 softirq_name(NET_TX)		\
 			 softirq_name(NET_RX)		\
 			 softirq_name(BLOCK)		\
-			 softirq_name(BLOCK_IOPOLL)	\
+			 softirq_name(IRQ_POLL)		\
 			 softirq_name(TASKLET)		\
 			 softirq_name(SCHED)		\
 			 softirq_name(HRTIMER)		\

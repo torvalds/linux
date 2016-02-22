@@ -53,7 +53,7 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 	struct dmaengine_unmap_data *unmap = NULL;
 
 	if (device)
-		unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_NOIO);
+		unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_NOWAIT);
 
 	if (unmap && is_dma_copy_aligned(device, src_offset, dest_offset, len)) {
 		unsigned long dma_prep_flags = 0;

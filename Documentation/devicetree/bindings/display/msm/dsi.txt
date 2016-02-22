@@ -14,17 +14,20 @@ Required properties:
 - clocks: device clocks
   See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required:
-  * "bus_clk"
-  * "byte_clk"
-  * "core_clk"
-  * "core_mmss_clk"
-  * "iface_clk"
   * "mdp_core_clk"
+  * "iface_clk"
+  * "bus_clk"
+  * "core_mmss_clk"
+  * "byte_clk"
   * "pixel_clk"
+  * "core_clk"
+  For DSIv2, we need an additional clock:
+   * "src_clk"
 - vdd-supply: phandle to vdd regulator device node
 - vddio-supply: phandle to vdd-io regulator device node
 - vdda-supply: phandle to vdda regulator device node
 - qcom,dsi-phy: phandle to DSI PHY device node
+- syscon-sfpb: A phandle to mmss_sfpb syscon node (only for DSIv2)
 
 Optional properties:
 - panel@0: Node of panel connected to this DSI controller.
@@ -51,6 +54,7 @@ Required properties:
   * "qcom,dsi-phy-28nm-hpm"
   * "qcom,dsi-phy-28nm-lp"
   * "qcom,dsi-phy-20nm"
+  * "qcom,dsi-phy-28nm-8960"
 - reg: Physical base address and length of the registers of PLL, PHY and PHY
   regulator
 - reg-names: The names of register regions. The following regions are required:

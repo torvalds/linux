@@ -813,6 +813,8 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.unmap_granularity = DA_UNMAP_GRANULARITY_DEFAULT;
 	dev->dev_attrib.unmap_granularity_alignment =
 				DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT;
+	dev->dev_attrib.unmap_zeroes_data =
+				DA_UNMAP_ZEROES_DATA_DEFAULT;
 	dev->dev_attrib.max_write_same_len = DA_MAX_WRITE_SAME_LEN;
 
 	xcopy_lun = &dev->xcopy_lun;
@@ -825,6 +827,50 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 
 	return dev;
 }
+
+/*
+ * Check if the underlying struct block_device request_queue supports
+ * the QUEUE_FLAG_DISCARD bit for UNMAP/WRITE_SAME in SCSI + TRIM
+ * in ATA and we need to set TPE=1
+ */
+bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
+				       struct request_queue *q, int block_size)
+{
+	if (!blk_queue_discard(q))
+		return false;
+
+	attrib->max_unmap_lba_count = (q->limits.max_discard_sectors << 9) /
+								block_size;
+	/*
+	 * Currently hardcoded to 1 in Linux/SCSI code..
+	 */
+	attrib->max_unmap_block_desc_count = 1;
+	attrib->unmap_granularity = q->limits.discard_granularity / block_size;
+	attrib->unmap_granularity_alignment = q->limits.discard_alignment /
+								block_size;
+	attrib->unmap_zeroes_data = q->limits.discard_zeroes_data;
+	return true;
+}
+EXPORT_SYMBOL(target_configure_unmap_from_queue);
+
+/*
+ * Convert from blocksize advertised to the initiator to the 512 byte
+ * units unconditionally used by the Linux block layer.
+ */
+sector_t target_to_linux_sector(struct se_device *dev, sector_t lb)
+{
+	switch (dev->dev_attrib.block_size) {
+	case 4096:
+		return lb << 3;
+	case 2048:
+		return lb << 2;
+	case 1024:
+		return lb << 1;
+	default:
+		return lb;
+	}
+}
+EXPORT_SYMBOL(target_to_linux_sector);
 
 int target_configure_device(struct se_device *dev)
 {

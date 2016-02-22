@@ -292,13 +292,14 @@ static int scpi_clocks_probe(struct platform_device *pdev)
 		ret = scpi_clk_add(dev, child, match);
 		if (ret) {
 			scpi_clocks_remove(pdev);
+			of_node_put(child);
 			return ret;
 		}
 	}
 	/* Add the virtual cpufreq device */
 	cpufreq_dev = platform_device_register_simple("scpi-cpufreq",
 						      -1, NULL, 0);
-	if (!cpufreq_dev)
+	if (IS_ERR(cpufreq_dev))
 		pr_warn("unable to register cpufreq device");
 
 	return 0;

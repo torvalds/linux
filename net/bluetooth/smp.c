@@ -1072,22 +1072,6 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 			hcon->dst_type = smp->remote_irk->addr_type;
 			queue_work(hdev->workqueue, &conn->id_addr_update_work);
 		}
-
-		/* When receiving an indentity resolving key for
-		 * a remote device that does not use a resolvable
-		 * private address, just remove the key so that
-		 * it is possible to use the controller white
-		 * list for scanning.
-		 *
-		 * Userspace will have been told to not store
-		 * this key at this point. So it is safe to
-		 * just remove it.
-		 */
-		if (!bacmp(&smp->remote_irk->rpa, BDADDR_ANY)) {
-			list_del_rcu(&smp->remote_irk->list);
-			kfree_rcu(smp->remote_irk, rcu);
-			smp->remote_irk = NULL;
-		}
 	}
 
 	if (smp->csrk) {
@@ -3027,8 +3011,13 @@ static void smp_ready_cb(struct l2cap_chan *chan)
 
 	BT_DBG("chan %p", chan);
 
+	/* No need to call l2cap_chan_hold() here since we already own
+	 * the reference taken in smp_new_conn_cb(). This is just the
+	 * first time that we tie it to a specific pointer. The code in
+	 * l2cap_core.c ensures that there's no risk this function wont
+	 * get called if smp_new_conn_cb was previously called.
+	 */
 	conn->smp = chan;
-	l2cap_chan_hold(chan);
 
 	if (hcon->type == ACL_LINK && test_bit(HCI_CONN_ENCRYPT, &hcon->flags))
 		bredr_pairing(chan);

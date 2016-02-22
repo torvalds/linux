@@ -60,7 +60,7 @@ SECTIONS
 		EXIT_DATA
 	}
 	PERCPU_SECTION(8)
-	. = ALIGN(PAGE_SIZE);
+	. = ALIGN(HUGEPAGE_SIZE);
 	__init_end = .;
 	/* freed after init ends here */
 
@@ -116,7 +116,7 @@ SECTIONS
 	 * that we can properly leave these
 	 * as writable
 	 */
-	. = ALIGN(PAGE_SIZE);
+	. = ALIGN(HUGEPAGE_SIZE);
 	data_start = .;
 
 	EXCEPTION_TABLE(8)
@@ -135,8 +135,11 @@ SECTIONS
 	_edata = .;
 
 	/* BSS */
-	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, 8)
+	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE)
 
+	/* bootmap is allocated in setup_bootmem() directly behind bss. */
+
+	. = ALIGN(HUGEPAGE_SIZE);
 	_end = . ;
 
 	STABS_DEBUG

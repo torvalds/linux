@@ -40,8 +40,8 @@ static void h8s_disable_irq(struct irq_data *data)
 	addr = IPRA + ((ipr_table[irq - 16] & 0xf0) >> 3);
 	pos = (ipr_table[irq - 16] & 0x0f) * 4;
 	pri = ~(0x000f << pos);
-	pri &= ctrl_inw(addr);
-	ctrl_outw(pri, addr);
+	pri &= readw(addr);
+	writew(pri, addr);
 }
 
 static void h8s_enable_irq(struct irq_data *data)
@@ -54,9 +54,9 @@ static void h8s_enable_irq(struct irq_data *data)
 	addr = IPRA + ((ipr_table[irq - 16] & 0xf0) >> 3);
 	pos = (ipr_table[irq - 16] & 0x0f) * 4;
 	pri = ~(0x000f << pos);
-	pri &= ctrl_inw(addr);
+	pri &= readw(addr);
 	pri |= 1 << pos;
-	ctrl_outw(pri, addr);
+	writew(pri, addr);
 }
 
 struct irq_chip h8s_irq_chip = {
@@ -90,7 +90,7 @@ static int __init h8s_intc_of_init(struct device_node *intc,
 	/* All interrupt priority is 0 (disable) */
 	/* IPRA to IPRK */
 	for (n = 0; n <= 'k' - 'a'; n++)
-		ctrl_outw(0x0000, IPRA + (n * 2));
+		writew(0x0000, IPRA + (n * 2));
 
 	domain = irq_domain_add_linear(intc, NR_IRQS, &irq_ops, NULL);
 	BUG_ON(!domain);

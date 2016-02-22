@@ -14,6 +14,17 @@ int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
 		dax_iodone_t);
 int __dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
 		dax_iodone_t);
+
+#ifdef CONFIG_FS_DAX
+struct page *read_dax_sector(struct block_device *bdev, sector_t n);
+#else
+static inline struct page *read_dax_sector(struct block_device *bdev,
+		sector_t n)
+{
+	return ERR_PTR(-ENXIO);
+}
+#endif
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 int dax_pmd_fault(struct vm_area_struct *, unsigned long addr, pmd_t *,
 				unsigned int flags, get_block_t, dax_iodone_t);
@@ -36,4 +47,11 @@ static inline bool vma_is_dax(struct vm_area_struct *vma)
 {
 	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
 }
+
+static inline bool dax_mapping(struct address_space *mapping)
+{
+	return mapping->host && IS_DAX(mapping->host);
+}
+int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
+		loff_t end);
 #endif

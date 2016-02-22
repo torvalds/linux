@@ -100,10 +100,8 @@ static void cmtp_application_del(struct cmtp_session *session, struct cmtp_appli
 static struct cmtp_application *cmtp_application_get(struct cmtp_session *session, int pattern, __u16 value)
 {
 	struct cmtp_application *app;
-	struct list_head *p;
 
-	list_for_each(p, &session->applications) {
-		app = list_entry(p, struct cmtp_application, list);
+	list_for_each_entry(app, &session->applications, list) {
 		switch (pattern) {
 		case CMTP_MSGNUM:
 			if (app->msgnum == value)
@@ -511,14 +509,12 @@ static int cmtp_proc_show(struct seq_file *m, void *v)
 	struct capi_ctr *ctrl = m->private;
 	struct cmtp_session *session = ctrl->driverdata;
 	struct cmtp_application *app;
-	struct list_head *p;
 
 	seq_printf(m, "%s\n\n", cmtp_procinfo(ctrl));
 	seq_printf(m, "addr %s\n", session->name);
 	seq_printf(m, "ctrl %d\n", session->num);
 
-	list_for_each(p, &session->applications) {
-		app = list_entry(p, struct cmtp_application, list);
+	list_for_each_entry(app, &session->applications, list) {
 		seq_printf(m, "appl %d -> %d\n", app->appl, app->mapping);
 	}
 

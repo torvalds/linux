@@ -653,8 +653,6 @@ const struct drm_connector_helper_funcs
 
 const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = psb_intel_lvds_save,
-	.restore = psb_intel_lvds_restore,
 	.detect = psb_intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = psb_intel_lvds_set_property,
@@ -715,6 +713,9 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	gma_encoder->dev_priv = lvds_priv;
 
 	connector = &gma_connector->base;
+	gma_connector->save = psb_intel_lvds_save;
+	gma_connector->restore = psb_intel_lvds_restore;
+
 	encoder = &gma_encoder->base;
 	drm_connector_init(dev, connector,
 			   &psb_intel_lvds_connector_funcs,
@@ -722,7 +723,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 
 	drm_encoder_init(dev, encoder,
 			 &psb_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 	gma_encoder->type = INTEL_OUTPUT_LVDS;

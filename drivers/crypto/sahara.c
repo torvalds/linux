@@ -130,18 +130,18 @@
 #define SAHARA_REG_IDAR		0x20
 
 struct sahara_hw_desc {
-	u32		hdr;
-	u32		len1;
-	dma_addr_t	p1;
-	u32		len2;
-	dma_addr_t	p2;
-	dma_addr_t	next;
+	u32	hdr;
+	u32	len1;
+	u32	p1;
+	u32	len2;
+	u32	p2;
+	u32	next;
 };
 
 struct sahara_hw_link {
-	u32		len;
-	dma_addr_t	p;
-	dma_addr_t	next;
+	u32	len;
+	u32	p;
+	u32	next;
 };
 
 struct sahara_ctx {
@@ -228,9 +228,9 @@ struct sahara_dev {
 
 	size_t			total;
 	struct scatterlist	*in_sg;
-	unsigned int		nb_in_sg;
+	int		nb_in_sg;
 	struct scatterlist	*out_sg;
-	unsigned int		nb_out_sg;
+	int		nb_out_sg;
 
 	u32			error;
 };
@@ -416,8 +416,8 @@ static void sahara_dump_descriptors(struct sahara_dev *dev)
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_DESC; i++) {
-		dev_dbg(dev->device, "Descriptor (%d) (0x%08x):\n",
-			i, dev->hw_phys_desc[i]);
+		dev_dbg(dev->device, "Descriptor (%d) (%pad):\n",
+			i, &dev->hw_phys_desc[i]);
 		dev_dbg(dev->device, "\thdr = 0x%08x\n", dev->hw_desc[i]->hdr);
 		dev_dbg(dev->device, "\tlen1 = %u\n", dev->hw_desc[i]->len1);
 		dev_dbg(dev->device, "\tp1 = 0x%08x\n", dev->hw_desc[i]->p1);
@@ -437,8 +437,8 @@ static void sahara_dump_links(struct sahara_dev *dev)
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_LINK; i++) {
-		dev_dbg(dev->device, "Link (%d) (0x%08x):\n",
-			i, dev->hw_phys_link[i]);
+		dev_dbg(dev->device, "Link (%d) (%pad):\n",
+			i, &dev->hw_phys_link[i]);
 		dev_dbg(dev->device, "\tlen = %u\n", dev->hw_link[i]->len);
 		dev_dbg(dev->device, "\tp = 0x%08x\n", dev->hw_link[i]->p);
 		dev_dbg(dev->device, "\tnext = 0x%08x\n",
@@ -477,7 +477,15 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 	}
 
 	dev->nb_in_sg = sg_nents_for_len(dev->in_sg, dev->total);
+	if (dev->nb_in_sg < 0) {
+		dev_err(dev->device, "Invalid numbers of src SG.\n");
+		return dev->nb_in_sg;
+	}
 	dev->nb_out_sg = sg_nents_for_len(dev->out_sg, dev->total);
+	if (dev->nb_out_sg < 0) {
+		dev_err(dev->device, "Invalid numbers of dst SG.\n");
+		return dev->nb_out_sg;
+	}
 	if ((dev->nb_in_sg + dev->nb_out_sg) > SAHARA_MAX_HW_LINK) {
 		dev_err(dev->device, "not enough hw links (%d)\n",
 			dev->nb_in_sg + dev->nb_out_sg);
@@ -793,6 +801,10 @@ static int sahara_sha_hw_links_create(struct sahara_dev *dev,
 	dev->in_sg = rctx->in_sg;
 
 	dev->nb_in_sg = sg_nents_for_len(dev->in_sg, rctx->total);
+	if (dev->nb_in_sg < 0) {
+		dev_err(dev->device, "Invalid numbers of src SG.\n");
+		return dev->nb_in_sg;
+	}
 	if ((dev->nb_in_sg) > SAHARA_MAX_HW_LINK) {
 		dev_err(dev->device, "not enough hw links (%d)\n",
 			dev->nb_in_sg + dev->nb_out_sg);

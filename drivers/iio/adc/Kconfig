@@ -175,6 +175,7 @@ config DA9150_GPADC
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
+	depends on HAS_IOMEM
 	help
 	  Core support for the ADC block found in the Samsung EXYNOS series
 	  of SoCs for drivers such as the touchscreen and hwmon to use to share
@@ -193,6 +194,26 @@ config HI8435
 
 	  This driver can also be built as a module. If so, the module will be
 	  called hi8435.
+
+config INA2XX_ADC
+	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
+	depends on I2C && !SENSORS_INA2XX
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say yes here to build support for TI INA2xx family of Power Monitors.
+	  This driver is mutually exclusive with the HWMON version.
+
+config IMX7D_ADC
+	tristate "IMX7D ADC driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say yes here to build support for IMX7D ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called imx7d_adc.
 
 config LP8788_ADC
 	tristate "LP8788 ADC driver"
@@ -275,6 +296,14 @@ config NAU7802
 	  To compile this driver as a module, choose M here: the
 	  module will be called nau7802.
 
+config PALMAS_GPADC
+	tristate "TI Palmas General Purpose ADC"
+	depends on MFD_PALMAS
+	help
+	  Palmas series pmic chip by Texas Instruments (twl6035/6037)
+	  is used in smartphones and tablets and supports a 16 channel
+	  general purpose ADC.
+
 config QCOM_SPMI_IADC
 	tristate "Qualcomm SPMI PMIC current ADC"
 	depends on SPMI
@@ -324,14 +353,24 @@ config TI_ADC081C
 	  called ti-adc081c.
 
 config TI_ADC128S052
-	tristate "Texas Instruments ADC128S052/ADC122S021"
+	tristate "Texas Instruments ADC128S052/ADC122S021/ADC124S021"
 	depends on SPI
 	help
-	  If you say yes here you get support for Texas Instruments ADC128S052
-	  and ADC122S021 chips.
+	  If you say yes here you get support for Texas Instruments ADC128S052,
+	  ADC122S021 and ADC124S021 chips.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc128s052.
+
+config TI_ADS8688
+	tristate "Texas Instruments ADS8688"
+	depends on SPI && OF
+	help
+	  If you say yes here you get support for Texas Instruments ADS8684 and
+	  and ADS8688 ADC chips
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads8688.
 
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"
@@ -372,6 +411,7 @@ config TWL6030_GPADC
 config VF610_ADC
 	tristate "Freescale vf610 ADC driver"
 	depends on OF
+	depends on HAS_IOMEM
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help

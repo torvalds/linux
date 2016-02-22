@@ -2,6 +2,7 @@
 #define ARCH_X86_KVM_CPUID_H
 
 #include "x86.h"
+#include <asm/cpu.h>
 
 int kvm_update_cpuid(struct kvm_vcpu *vcpu);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
@@ -36,6 +37,14 @@ static inline bool guest_cpuid_has_xsave(struct kvm_vcpu *vcpu)
 
 	best = kvm_find_cpuid_entry(vcpu, 1, 0);
 	return best && (best->ecx & bit(X86_FEATURE_XSAVE));
+}
+
+static inline bool guest_cpuid_has_mtrr(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 1, 0);
+	return best && (best->edx & bit(X86_FEATURE_MTRR));
 }
 
 static inline bool guest_cpuid_has_tsc_adjust(struct kvm_vcpu *vcpu)
@@ -169,5 +178,38 @@ static inline bool guest_cpuid_has_nrips(struct kvm_vcpu *vcpu)
 	return best && (best->edx & bit(BIT_NRIPS));
 }
 #undef BIT_NRIPS
+
+static inline int guest_cpuid_family(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x1, 0);
+	if (!best)
+		return -1;
+
+	return x86_family(best->eax);
+}
+
+static inline int guest_cpuid_model(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x1, 0);
+	if (!best)
+		return -1;
+
+	return x86_model(best->eax);
+}
+
+static inline int guest_cpuid_stepping(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x1, 0);
+	if (!best)
+		return -1;
+
+	return x86_stepping(best->eax);
+}
 
 #endif

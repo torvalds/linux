@@ -944,10 +944,9 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 			cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_PROT;
 
 			if (es->leaf.error_factor & M16C_EF_ACKE)
-				cf->data[3] |= (CAN_ERR_PROT_LOC_ACK);
+				cf->data[3] = CAN_ERR_PROT_LOC_ACK;
 			if (es->leaf.error_factor & M16C_EF_CRCE)
-				cf->data[3] |= (CAN_ERR_PROT_LOC_CRC_SEQ |
-						CAN_ERR_PROT_LOC_CRC_DEL);
+				cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
 			if (es->leaf.error_factor & M16C_EF_FORME)
 				cf->data[2] |= CAN_ERR_PROT_FORM;
 			if (es->leaf.error_factor & M16C_EF_STFE)

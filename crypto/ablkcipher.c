@@ -277,12 +277,12 @@ static int ablkcipher_walk_first(struct ablkcipher_request *req,
 	if (WARN_ON_ONCE(in_irq()))
 		return -EDEADLK;
 
+	walk->iv = req->info;
 	walk->nbytes = walk->total;
 	if (unlikely(!walk->total))
 		return 0;
 
 	walk->iv_buffer = NULL;
-	walk->iv = req->info;
 	if (unlikely(((unsigned long)walk->iv & alignmask))) {
 		int err = ablkcipher_copy_iv(walk, tfm, alignmask);
 
