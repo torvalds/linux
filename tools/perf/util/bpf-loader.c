@@ -1331,12 +1331,11 @@ apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_EVTINH;
 	}
 
+	if (perf_evsel__is_bpf_output(evsel))
+		check_pass = true;
 	if (attr->type == PERF_TYPE_RAW)
 		check_pass = true;
 	if (attr->type == PERF_TYPE_HARDWARE)
-		check_pass = true;
-	if (attr->type == PERF_TYPE_SOFTWARE &&
-			attr->config == PERF_COUNT_SW_BPF_OUTPUT)
 		check_pass = true;
 	if (!check_pass) {
 		pr_debug("ERROR: Event type is wrong for map %s\n", name);
