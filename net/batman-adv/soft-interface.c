@@ -1045,12 +1045,12 @@ static void batadv_softif_destroy_netlink(struct net_device *soft_iface,
 	unregister_netdevice_queue(soft_iface, head);
 }
 
-int batadv_softif_is_valid(const struct net_device *net_dev)
+bool batadv_softif_is_valid(const struct net_device *net_dev)
 {
 	if (net_dev->netdev_ops->ndo_start_xmit == batadv_interface_tx)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 struct rtnl_link_ops batadv_link_ops __read_mostly = {

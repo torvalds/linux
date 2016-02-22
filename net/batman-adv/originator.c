@@ -54,9 +54,9 @@ static void batadv_purge_orig(struct work_struct *work);
  * @node: node in the local table
  * @data2: second object to compare the node to
  *
- * Return: 1 if they are the same originator
+ * Return: true if they are the same originator
  */
-int batadv_compare_orig(const struct hlist_node *node, const void *data2)
+bool batadv_compare_orig(const struct hlist_node *node, const void *data2)
 {
 	const void *data1 = container_of(node, struct batadv_orig_node,
 					 hash_entry);

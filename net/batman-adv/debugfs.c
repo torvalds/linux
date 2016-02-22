@@ -134,7 +134,7 @@ static int batadv_log_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int batadv_log_empty(struct batadv_priv_debug_log *debug_log)
+static bool batadv_log_empty(struct batadv_priv_debug_log *debug_log)
 {
 	return !(debug_log->log_start - debug_log->log_end);
 }

@@ -20,6 +20,7 @@
 
 #include "main.h"
 
+#include <linux/types.h>
 #include <net/rtnetlink.h>
 
 struct net_device;
@@ -32,7 +33,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 			 struct batadv_orig_node *orig_node);
 struct net_device *batadv_softif_create(struct net *net, const char *name);
 void batadv_softif_destroy_sysfs(struct net_device *soft_iface);
-int batadv_softif_is_valid(const struct net_device *net_dev);
+bool batadv_softif_is_valid(const struct net_device *net_dev);
 extern struct rtnl_link_ops batadv_link_ops;
 int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid);
 void batadv_softif_vlan_put(struct batadv_softif_vlan *softif_vlan);

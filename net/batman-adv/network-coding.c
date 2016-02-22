@@ -510,10 +510,10 @@ static u32 batadv_nc_hash_choose(const void *data, u32 size)
  * @node: node in the local table
  * @data2: second object to compare the node to
  *
- * Return: 1 if the two entry are the same, 0 otherwise
+ * Return: true if the two entry are the same, false otherwise
  */
-static int batadv_nc_hash_compare(const struct hlist_node *node,
-				  const void *data2)
+static bool batadv_nc_hash_compare(const struct hlist_node *node,
+				   const void *data2)
 {
 	const struct batadv_nc_path *nc_path1, *nc_path2;
 
@@ -523,13 +523,13 @@ static int batadv_nc_hash_compare(const struct hlist_node *node,
 	/* Return 1 if the two keys are identical */
 	if (memcmp(nc_path1->prev_hop, nc_path2->prev_hop,
 		   sizeof(nc_path1->prev_hop)) != 0)
-		return 0;
+		return false;
 
 	if (memcmp(nc_path1->next_hop, nc_path2->next_hop,
 		   sizeof(nc_path1->next_hop)) != 0)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /**

@@ -146,22 +146,22 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 	return ret;
 }
 
-static int batadv_is_valid_iface(const struct net_device *net_dev)
+static bool batadv_is_valid_iface(const struct net_device *net_dev)
 {
 	if (net_dev->flags & IFF_LOOPBACK)
-		return 0;
+		return false;
 
 	if (net_dev->type != ARPHRD_ETHER)
-		return 0;
+		return false;
 
 	if (net_dev->addr_len != ETH_ALEN)
-		return 0;
+		return false;
 
 	/* no batman over batman */
 	if (batadv_is_on_batman_iface(net_dev))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /**
@@ -653,8 +653,7 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	ASSERT_RTNL();
 
-	ret = batadv_is_valid_iface(net_dev);
-	if (ret != 1)
+	if (!batadv_is_valid_iface(net_dev))
 		goto out;
 
 	dev_hold(net_dev);

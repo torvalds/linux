@@ -1168,13 +1168,13 @@ out:
  * @if_incoming: interface where the packet was received
  * @if_outgoing: interface for which the retransmission should be considered
  *
- * Return: 1 if the link can be considered bidirectional, 0 otherwise
+ * Return: true if the link can be considered bidirectional, false otherwise
  */
-static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
-				 struct batadv_orig_node *orig_neigh_node,
-				 struct batadv_ogm_packet *batadv_ogm_packet,
-				 struct batadv_hard_iface *if_incoming,
-				 struct batadv_hard_iface *if_outgoing)
+static bool batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
+				  struct batadv_orig_node *orig_neigh_node,
+				  struct batadv_ogm_packet *batadv_ogm_packet,
+				  struct batadv_hard_iface *if_incoming,
+				  struct batadv_hard_iface *if_outgoing)
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct batadv_neigh_node *neigh_node = NULL, *tmp_neigh_node;
@@ -1182,9 +1182,10 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	u8 total_count;
 	u8 orig_eq_count, neigh_rq_count, neigh_rq_inv, tq_own;
 	unsigned int neigh_rq_inv_cube, neigh_rq_max_cube;
-	int tq_asym_penalty, inv_asym_penalty, if_num, ret = 0;
+	int tq_asym_penalty, inv_asym_penalty, if_num;
 	unsigned int combined_tq;
 	int tq_iface_penalty;
+	bool ret = false;
 
 	/* find corresponding one hop neighbor */
 	rcu_read_lock();
@@ -1296,7 +1297,7 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	 * consider it bidirectional
 	 */
 	if (batadv_ogm_packet->tq >= BATADV_TQ_TOTAL_BIDRECT_LIMIT)
-		ret = 1;
+		ret = true;
 
 out:
 	if (neigh_node)
@@ -1325,9 +1326,9 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	struct batadv_orig_ifinfo *orig_ifinfo = NULL;
 	struct batadv_neigh_node *neigh_node;
 	struct batadv_neigh_ifinfo *neigh_ifinfo;
-	int is_dup;
+	bool is_dup;
 	s32 seq_diff;
-	int need_update = 0;
+	bool need_update = false;
 	int set_mark;
 	enum batadv_dup_status ret = BATADV_NO_DUP;
 	u32 seqno = ntohl(batadv_ogm_packet->seqno);
@@ -1437,7 +1438,7 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 	struct sk_buff *skb_priv;
 	struct ethhdr *ethhdr;
 	u8 *prev_sender;
-	int is_bidirect;
+	bool is_bidirect;
 
 	/* create a private copy of the skb, as some functions change tq value
 	 * and/or flags.

@@ -292,7 +292,7 @@ static inline void _batadv_dbg(int type __always_unused,
  *
  * note: can't use ether_addr_equal() as it requires aligned memory
  *
- * Return: 1 if they are the same ethernet addr
+ * Return: true if they are the same ethernet addr
  */
 static inline bool batadv_compare_eth(const void *data1, const void *data2)
 {
