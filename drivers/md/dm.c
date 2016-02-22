@@ -121,14 +121,6 @@ struct dm_rq_clone_bio_info {
 #define DMF_SUSPENDED_INTERNALLY 7
 
 /*
- * A dummy definition to make RCU happy.
- * struct dm_table should never be dereferenced in this file.
- */
-struct dm_table {
-	int undefined__;
-};
-
-/*
  * Work processed by per-device workqueue.
  */
 struct mapped_device {
@@ -138,11 +130,11 @@ struct mapped_device {
 	atomic_t open_count;
 
 	/*
-	 * The current mapping.
+	 * The current mapping (struct dm_table *).
 	 * Use dm_get_live_table{_fast} or take suspend_lock for
 	 * dereference.
 	 */
-	struct dm_table __rcu *map;
+	void __rcu *map;
 
 	struct list_head table_devices;
 	struct mutex table_devices_lock;
@@ -2562,7 +2554,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	__bind_mempools(md, t);
 
 	old_map = rcu_dereference_protected(md->map, lockdep_is_held(&md->suspend_lock));
-	rcu_assign_pointer(md->map, t);
+	rcu_assign_pointer(md->map, (void *)t);
 	md->immutable_target_type = dm_table_get_immutable_target_type(t);
 
 	dm_table_set_restrictions(t, q, limits);
