@@ -133,22 +133,12 @@ static int rapl_cntr_mask;
 static DEFINE_PER_CPU(struct rapl_pmu *, rapl_pmu);
 static DEFINE_PER_CPU(struct rapl_pmu *, rapl_pmu_to_free);
 
-static struct x86_pmu_quirk *rapl_quirks;
 static inline u64 rapl_read_counter(struct perf_event *event)
 {
 	u64 raw;
 	rdmsrl(event->hw.event_base, raw);
 	return raw;
 }
-
-#define rapl_add_quirk(func_)						\
-do {									\
-	static struct x86_pmu_quirk __quirk __initdata = {		\
-		.func = func_,						\
-	};								\
-	__quirk.next = rapl_quirks;					\
-	rapl_quirks = &__quirk;						\
-} while (0)
 
 static inline u64 rapl_scale(u64 v, int cfg)
 {
@@ -564,17 +554,6 @@ static void rapl_cpu_init(int cpu)
 	cpumask_set_cpu(cpu, &rapl_cpu_mask);
 }
 
-static __init void rapl_hsw_server_quirk(void)
-{
-	/*
-	 * DRAM domain on HSW server has fixed energy unit which can be
-	 * different than the unit from power unit MSR.
-	 * "Intel Xeon Processor E5-1600 and E5-2600 v3 Product Families, V2
-	 * of 2. Datasheet, September 2014, Reference Number: 330784-001 "
-	 */
-	rapl_hw_unit[RAPL_IDX_RAM_NRG_STAT] = 16;
-}
-
 static int rapl_cpu_prepare(int cpu)
 {
 	struct rapl_pmu *pmu = per_cpu(rapl_pmu, cpu);
@@ -672,7 +651,18 @@ static int rapl_cpu_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static int rapl_check_hw_unit(void)
+static __init void rapl_hsw_server_quirk(void)
+{
+	/*
+	 * DRAM domain on HSW server has fixed energy unit which can be
+	 * different than the unit from power unit MSR.
+	 * "Intel Xeon Processor E5-1600 and E5-2600 v3 Product Families, V2
+	 * of 2. Datasheet, September 2014, Reference Number: 330784-001 "
+	 */
+	rapl_hw_unit[RAPL_IDX_RAM_NRG_STAT] = 16;
+}
+
+static int rapl_check_hw_unit(void (*quirk)(void))
 {
 	u64 msr_rapl_power_unit_bits;
 	int i;
@@ -683,6 +673,9 @@ static int rapl_check_hw_unit(void)
 	for (i = 0; i < NR_RAPL_DOMAINS; i++)
 		rapl_hw_unit[i] = (msr_rapl_power_unit_bits >> 8) & 0x1FULL;
 
+	/* Apply cpu model quirk */
+	if (quirk)
+		quirk();
 	return 0;
 }
 
@@ -701,9 +694,9 @@ static const struct x86_cpu_id rapl_cpu_match[] = {
 
 static int __init rapl_pmu_init(void)
 {
+	void (*quirk)(void) = NULL;
 	struct rapl_pmu *pmu;
 	int cpu, ret;
-	struct x86_pmu_quirk *quirk;
 	int i;
 
 	/*
@@ -720,7 +713,7 @@ static int __init rapl_pmu_init(void)
 		rapl_pmu_events_group.attrs = rapl_events_cln_attr;
 		break;
 	case 63: /* Haswell-Server */
-		rapl_add_quirk(rapl_hsw_server_quirk);
+		quirk = rapl_hsw_server_quirk;
 		rapl_cntr_mask = RAPL_IDX_SRV;
 		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
 		break;
@@ -736,7 +729,7 @@ static int __init rapl_pmu_init(void)
 		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
 		break;
 	case 87: /* Knights Landing */
-		rapl_add_quirk(rapl_hsw_server_quirk);
+		quirk = rapl_hsw_server_quirk;
 		rapl_cntr_mask = RAPL_IDX_KNL;
 		rapl_pmu_events_group.attrs = rapl_events_knl_attr;
 		break;
@@ -745,13 +738,9 @@ static int __init rapl_pmu_init(void)
 		return -ENODEV;
 	}
 
-	ret = rapl_check_hw_unit();
+	ret = rapl_check_hw_unit(quirk);
 	if (ret)
 		return ret;
-
-	/* run cpu model quirks */
-	for (quirk = rapl_quirks; quirk; quirk = quirk->next)
-		quirk->func();
 
 	cpu_notifier_register_begin();
 
