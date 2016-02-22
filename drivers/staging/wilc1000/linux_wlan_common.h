@@ -1,8 +1,6 @@
 #ifndef LINUX_WLAN_COMMON_H
 #define LINUX_WLAN_COMMON_H
 
-#define WILC_MULTICAST_TABLE_SIZE	8
-
 #if defined(BEAGLE_BOARD)
 	#define SPI_CHANNEL	4
 
