@@ -150,6 +150,8 @@ struct mapped_device {
 	unsigned long flags;
 
 	struct request_queue *queue;
+	int numa_node_id;
+
 	unsigned type;
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
@@ -236,9 +238,11 @@ static bool use_blk_mq = false;
 
 #define DM_MQ_NR_HW_QUEUES 1
 #define DM_MQ_QUEUE_DEPTH 2048
+#define DM_NUMA_NODE NUMA_NO_NODE
 
 static unsigned dm_mq_nr_hw_queues = DM_MQ_NR_HW_QUEUES;
 static unsigned dm_mq_queue_depth = DM_MQ_QUEUE_DEPTH;
+static int dm_numa_node = DM_NUMA_NODE;
 
 bool dm_use_blk_mq(struct mapped_device *md)
 {
@@ -277,6 +281,27 @@ static unsigned reserved_bio_based_ios = RESERVED_BIO_BASED_IOS;
  * Request-based DM's mempools' reserved IOs set by the user.
  */
 static unsigned reserved_rq_based_ios = RESERVED_REQUEST_BASED_IOS;
+
+static int __dm_get_module_param_int(int *module_param, int min, int max)
+{
+	int param = ACCESS_ONCE(*module_param);
+	int modified_param = 0;
+	bool modified = true;
+
+	if (param < min)
+		modified_param = min;
+	else if (param > max)
+		modified_param = max;
+	else
+		modified = false;
+
+	if (modified) {
+		(void)cmpxchg(module_param, param, modified_param);
+		param = modified_param;
+	}
+
+	return param;
+}
 
 static unsigned __dm_get_module_param(unsigned *module_param,
 				      unsigned def, unsigned max)
@@ -320,6 +345,12 @@ static unsigned dm_get_blk_mq_queue_depth(void)
 {
 	return __dm_get_module_param(&dm_mq_queue_depth,
 				     DM_MQ_QUEUE_DEPTH, BLK_MQ_MAX_DEPTH);
+}
+
+static unsigned dm_get_numa_node(void)
+{
+	return __dm_get_module_param_int(&dm_numa_node,
+					 DM_NUMA_NODE, num_online_nodes() - 1);
 }
 
 static int __init local_init(void)
@@ -839,7 +870,7 @@ int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
 	mutex_lock(&md->table_devices_lock);
 	td = find_table_device(&md->table_devices, dev, mode);
 	if (!td) {
-		td = kmalloc(sizeof(*td), GFP_KERNEL);
+		td = kmalloc_node(sizeof(*td), GFP_KERNEL, md->numa_node_id);
 		if (!td) {
 			mutex_unlock(&md->table_devices_lock);
 			return -ENOMEM;
@@ -2296,10 +2327,11 @@ static void cleanup_mapped_device(struct mapped_device *md)
  */
 static struct mapped_device *alloc_dev(int minor)
 {
-	int r;
-	struct mapped_device *md = kzalloc(sizeof(*md), GFP_KERNEL);
+	int r, numa_node_id = dm_get_numa_node();
+	struct mapped_device *md;
 	void *old_md;
 
+	md = kzalloc_node(sizeof(*md), GFP_KERNEL, numa_node_id);
 	if (!md) {
 		DMWARN("unable to allocate device, out of memory.");
 		return NULL;
@@ -2320,6 +2352,7 @@ static struct mapped_device *alloc_dev(int minor)
 	if (r < 0)
 		goto bad_io_barrier;
 
+	md->numa_node_id = numa_node_id;
 	md->use_blk_mq = use_blk_mq;
 	md->init_tio_pdu = false;
 	md->type = DM_TYPE_NONE;
@@ -2335,13 +2368,13 @@ static struct mapped_device *alloc_dev(int minor)
 	INIT_LIST_HEAD(&md->table_devices);
 	spin_lock_init(&md->uevent_lock);
 
-	md->queue = blk_alloc_queue(GFP_KERNEL);
+	md->queue = blk_alloc_queue_node(GFP_KERNEL, numa_node_id);
 	if (!md->queue)
 		goto bad;
 
 	dm_init_md_queue(md);
 
-	md->disk = alloc_disk(1);
+	md->disk = alloc_disk_node(1, numa_node_id);
 	if (!md->disk)
 		goto bad;
 
@@ -2729,13 +2762,13 @@ static int dm_mq_init_request_queue(struct mapped_device *md,
 		return -EINVAL;
 	}
 
-	md->tag_set = kzalloc(sizeof(struct blk_mq_tag_set), GFP_KERNEL);
+	md->tag_set = kzalloc_node(sizeof(struct blk_mq_tag_set), GFP_KERNEL, md->numa_node_id);
 	if (!md->tag_set)
 		return -ENOMEM;
 
 	md->tag_set->ops = &dm_mq_ops;
 	md->tag_set->queue_depth = dm_get_blk_mq_queue_depth();
-	md->tag_set->numa_node = NUMA_NO_NODE;
+	md->tag_set->numa_node = md->numa_node_id;
 	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
 	md->tag_set->nr_hw_queues = dm_get_blk_mq_nr_hw_queues();
 	md->tag_set->driver_data = md;
@@ -3498,7 +3531,7 @@ EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned type,
 					    unsigned integrity, unsigned per_io_data_size)
 {
-	struct dm_md_mempools *pools = kzalloc(sizeof(*pools), GFP_KERNEL);
+	struct dm_md_mempools *pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);
 	struct kmem_cache *cachep = NULL;
 	unsigned int pool_size = 0;
 	unsigned int front_pad;
@@ -3714,6 +3747,9 @@ MODULE_PARM_DESC(dm_mq_nr_hw_queues, "Number of hardware queues for request-base
 
 module_param(dm_mq_queue_depth, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dm_mq_queue_depth, "Queue depth for request-based dm-mq devices");
+
+module_param(dm_numa_node, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(dm_numa_node, "NUMA node for DM device memory allocations");
 
 MODULE_DESCRIPTION(DM_NAME " driver");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
