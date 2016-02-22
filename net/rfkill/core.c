@@ -302,6 +302,19 @@ static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
 		rfkill_event(rfkill);
 }
 
+static void rfkill_update_global_state(enum rfkill_type type, bool blocked)
+{
+	int i;
+
+	if (type != RFKILL_TYPE_ALL) {
+		rfkill_global_states[type].cur = blocked;
+		return;
+	}
+
+	for (i = 0; i < NUM_RFKILL_TYPES; i++)
+		rfkill_global_states[i].cur = blocked;
+}
+
 #ifdef CONFIG_RFKILL_INPUT
 static atomic_t rfkill_input_disabled = ATOMIC_INIT(0);
 
@@ -319,15 +332,7 @@ static void __rfkill_switch_all(const enum rfkill_type type, bool blocked)
 {
 	struct rfkill *rfkill;
 
-	if (type == RFKILL_TYPE_ALL) {
-		int i;
-
-		for (i = 0; i < NUM_RFKILL_TYPES; i++)
-			rfkill_global_states[i].cur = blocked;
-	} else {
-		rfkill_global_states[type].cur = blocked;
-	}
-
+	rfkill_update_global_state(type, blocked);
 	list_for_each_entry(rfkill, &rfkill_list, node) {
 		if (rfkill->type != type && type != RFKILL_TYPE_ALL)
 			continue;
@@ -1166,15 +1171,8 @@ static ssize_t rfkill_fop_write(struct file *file, const char __user *buf,
 
 	mutex_lock(&rfkill_global_mutex);
 
-	if (ev.op == RFKILL_OP_CHANGE_ALL) {
-		if (ev.type == RFKILL_TYPE_ALL) {
-			enum rfkill_type i;
-			for (i = 0; i < NUM_RFKILL_TYPES; i++)
-				rfkill_global_states[i].cur = ev.soft;
-		} else {
-			rfkill_global_states[ev.type].cur = ev.soft;
-		}
-	}
+	if (ev.op == RFKILL_OP_CHANGE_ALL)
+		rfkill_update_global_state(ev.type, ev.soft);
 
 	list_for_each_entry(rfkill, &rfkill_list, node) {
 		if (rfkill->idx != ev.idx && ev.op != RFKILL_OP_CHANGE_ALL)
@@ -1263,10 +1261,8 @@ static struct miscdevice rfkill_miscdev = {
 static int __init rfkill_init(void)
 {
 	int error;
-	int i;
 
-	for (i = 0; i < NUM_RFKILL_TYPES; i++)
-		rfkill_global_states[i].cur = !rfkill_default_state;
+	rfkill_update_global_state(RFKILL_TYPE_ALL, !rfkill_default_state);
 
 	error = class_register(&rfkill_class);
 	if (error)
