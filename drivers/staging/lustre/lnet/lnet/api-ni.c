@@ -1907,8 +1907,14 @@ LNetCtl(unsigned int cmd, void *arg)
 				    config->cfg_config_u.cfg_route.rtr_hop,
 				    config->cfg_nid,
 				    config->cfg_config_u.cfg_route.rtr_priority);
+		if (!rc) {
+			rc = lnet_check_routes();
+			if (rc)
+				lnet_del_route(config->cfg_net,
+					       config->cfg_nid);
+		}
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc ? rc : lnet_check_routes();
+		return rc;
 
 	case IOC_LIBCFS_DEL_ROUTE:
 		config = arg;
