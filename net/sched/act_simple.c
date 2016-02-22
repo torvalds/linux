@@ -26,6 +26,8 @@
 
 #define SIMP_TAB_MASK     7
 
+static int simp_net_id;
+
 #define SIMP_MAX_DATA	32
 static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
@@ -80,6 +82,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action *a,
 			 int ovr, int bind)
 {
+	struct tc_action_net *tn = net_generic(net, simp_net_id);
 	struct nlattr *tb[TCA_DEF_MAX + 1];
 	struct tc_defact *parm;
 	struct tcf_defact *d;
@@ -102,9 +105,9 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_DEF_PARMS]);
 	defdata = nla_data(tb[TCA_DEF_DATA]);
 
-	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*d),
-				      bind, false);
+	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+		ret = tcf_hash_create(tn, parm->index, est, a,
+				      sizeof(*d), bind, false);
 		if (ret)
 			return ret;
 
@@ -129,7 +132,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(a);
+		tcf_hash_insert(tn, a);
 	return ret;
 }
 
@@ -161,6 +164,22 @@ nla_put_failure:
 	return -1;
 }
 
+static int tcf_simp_walker(struct net *net, struct sk_buff *skb,
+			   struct netlink_callback *cb, int type,
+			   struct tc_action *a)
+{
+	struct tc_action_net *tn = net_generic(net, simp_net_id);
+
+	return tcf_generic_walker(tn, skb, cb, type, a);
+}
+
+static int tcf_simp_search(struct net *net, struct tc_action *a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, simp_net_id);
+
+	return tcf_hash_search(tn, a, index);
+}
+
 static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
 	.type		=	TCA_ACT_SIMP,
@@ -169,6 +188,29 @@ static struct tc_action_ops act_simp_ops = {
 	.dump		=	tcf_simp_dump,
 	.cleanup	=	tcf_simp_release,
 	.init		=	tcf_simp_init,
+	.walk		=	tcf_simp_walker,
+	.lookup		=	tcf_simp_search,
+};
+
+static __net_init int simp_init_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, simp_net_id);
+
+	return tc_action_net_init(tn, &act_simp_ops, SIMP_TAB_MASK);
+}
+
+static void __net_exit simp_exit_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, simp_net_id);
+
+	tc_action_net_exit(tn);
+}
+
+static struct pernet_operations simp_net_ops = {
+	.init = simp_init_net,
+	.exit = simp_exit_net,
+	.id   = &simp_net_id,
+	.size = sizeof(struct tc_action_net),
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2005)");
@@ -177,8 +219,7 @@ MODULE_LICENSE("GPL");
 
 static int __init simp_init_module(void)
 {
-	int ret;
-	ret = tcf_register_action(&act_simp_ops, SIMP_TAB_MASK);
+	int ret = tcf_register_action(&act_simp_ops, &simp_net_ops);
 	if (!ret)
 		pr_info("Simple TC action Loaded\n");
 	return ret;
@@ -186,7 +227,7 @@ static int __init simp_init_module(void)
 
 static void __exit simp_cleanup_module(void)
 {
-	tcf_unregister_action(&act_simp_ops);
+	tcf_unregister_action(&act_simp_ops, &simp_net_ops);
 }
 
 module_init(simp_init_module);
