@@ -2315,7 +2315,6 @@ int wilc_init_host_int(struct net_device *net)
 
 	struct wilc_priv *priv;
 
-	PRINT_D(INIT_DBG, "Host[%p][%p]\n", net, net->ieee80211_ptr);
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
 		setup_timer(&hAgingTimer, remove_network_from_shadow, 0);
@@ -2364,24 +2363,17 @@ int wilc_deinit_host_int(struct net_device *net)
 
 void wilc_free_wiphy(struct net_device *net)
 {
-	if (!net) {
-		PRINT_D(INIT_DBG, "net_device is NULL\n");
+	if (!net)
 		return;
-	}
 
-	if (!net->ieee80211_ptr) {
-		PRINT_D(INIT_DBG, "ieee80211_ptr is NULL\n");
+	if (!net->ieee80211_ptr)
 		return;
-	}
 
-	if (!net->ieee80211_ptr->wiphy) {
-		PRINT_D(INIT_DBG, "wiphy is NULL\n");
+	if (!net->ieee80211_ptr->wiphy)
 		return;
-	}
 
 	wiphy_unregister(net->ieee80211_ptr->wiphy);
 
-	PRINT_D(INIT_DBG, "Freeing wiphy\n");
 	wiphy_free(net->ieee80211_ptr->wiphy);
 	kfree(net->ieee80211_ptr);
 }
