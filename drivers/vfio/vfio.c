@@ -1729,6 +1729,60 @@ long vfio_external_check_extension(struct vfio_group *group, unsigned long arg)
 EXPORT_SYMBOL_GPL(vfio_external_check_extension);
 
 /**
+ * Sub-module support
+ */
+/*
+ * Helper for managing a buffer of info chain capabilities, allocate or
+ * reallocate a buffer with additional @size, filling in @id and @version
+ * of the capability.  A pointer to the new capability is returned.
+ *
+ * NB. The chain is based at the head of the buffer, so new entries are
+ * added to the tail, vfio_info_cap_shift() should be called to fixup the
+ * next offsets prior to copying to the user buffer.
+ */
+struct vfio_info_cap_header *vfio_info_cap_add(struct vfio_info_cap *caps,
+					       size_t size, u16 id, u16 version)
+{
+	void *buf;
+	struct vfio_info_cap_header *header, *tmp;
+
+	buf = krealloc(caps->buf, caps->size + size, GFP_KERNEL);
+	if (!buf) {
+		kfree(caps->buf);
+		caps->size = 0;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	caps->buf = buf;
+	header = buf + caps->size;
+
+	/* Eventually copied to user buffer, zero */
+	memset(header, 0, size);
+
+	header->id = id;
+	header->version = version;
+
+	/* Add to the end of the capability chain */
+	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next)
+		; /* nothing */
+
+	tmp->next = caps->size;
+	caps->size += size;
+
+	return header;
+}
+EXPORT_SYMBOL_GPL(vfio_info_cap_add);
+
+void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset)
+{
+	struct vfio_info_cap_header *tmp;
+
+	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next - offset)
+		tmp->next += offset;
+}
+EXPORT_SYMBOL_GPL(vfio_info_cap_shift);
+
+/**
  * Module/class support
  */
 static char *vfio_devnode(struct device *dev, umode_t *mode)
