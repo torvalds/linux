@@ -528,6 +528,11 @@
 #define E1000_RXCW_C          0x20000000        /* Receive config */
 #define E1000_RXCW_SYNCH      0x40000000        /* Receive config synch */
 
+/* HH Time Sync */
+#define E1000_TSYNCTXCTL_MAX_ALLOWED_DLY_MASK	0x0000F000 /* max delay */
+#define E1000_TSYNCTXCTL_SYNC_COMP		0x40000000 /* sync complete */
+#define E1000_TSYNCTXCTL_START_SYNC		0x80000000 /* initiate sync */
+
 #define E1000_TSYNCTXCTL_VALID		0x00000001 /* Tx timestamp valid */
 #define E1000_TSYNCTXCTL_ENABLED	0x00000010 /* enable Tx timestamping */
 
