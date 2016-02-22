@@ -40,6 +40,8 @@
  *  @pwr_mgmt_1:	Controls chip's power state and clock source.
  *  @pwr_mgmt_2:	Controls power state of individual sensors.
  *  @int_pin_cfg;	Controls interrupt pin configuration.
+ *  @accl_offset:	Controls the accelerometer calibration offset.
+ *  @gyro_offset:	Controls the gyroscope calibration offset.
  */
 struct inv_mpu6050_reg_map {
 	u8 sample_rate_div;
@@ -57,6 +59,8 @@ struct inv_mpu6050_reg_map {
 	u8 pwr_mgmt_1;
 	u8 pwr_mgmt_2;
 	u8 int_pin_cfg;
+	u8 accl_offset;
+	u8 gyro_offset;
 };
 
 /*device enum */
@@ -133,6 +137,9 @@ struct inv_mpu6050_state {
 };
 
 /*register and associated bit definition*/
+#define INV_MPU6050_REG_ACCEL_OFFSET        0x06
+#define INV_MPU6050_REG_GYRO_OFFSET         0x13
+
 #define INV_MPU6050_REG_SAMPLE_RATE_DIV     0x19
 #define INV_MPU6050_REG_CONFIG              0x1A
 #define INV_MPU6050_REG_GYRO_CONFIG         0x1B
@@ -173,6 +180,9 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BYTES_PER_3AXIS_SENSOR   6
 #define INV_MPU6050_FIFO_COUNT_BYTE          2
 #define INV_MPU6050_FIFO_THRESHOLD           500
+
+/* mpu6500 registers */
+#define INV_MPU6500_REG_ACCEL_OFFSET        0x77
 
 /* delay time in milliseconds */
 #define INV_MPU6050_POWER_UP_TIME            100

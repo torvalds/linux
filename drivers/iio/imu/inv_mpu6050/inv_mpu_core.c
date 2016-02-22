@@ -55,6 +55,8 @@ static const struct inv_mpu6050_reg_map reg_set_6050 = {
 	.pwr_mgmt_1             = INV_MPU6050_REG_PWR_MGMT_1,
 	.pwr_mgmt_2             = INV_MPU6050_REG_PWR_MGMT_2,
 	.int_pin_cfg		= INV_MPU6050_REG_INT_PIN_CFG,
+	.accl_offset		= INV_MPU6050_REG_ACCEL_OFFSET,
+	.gyro_offset		= INV_MPU6050_REG_GYRO_OFFSET,
 };
 
 static const struct inv_mpu6050_chip_config chip_config_6050 = {
@@ -203,6 +205,20 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	return result;
 }
 
+static int inv_mpu6050_sensor_set(struct inv_mpu6050_state  *st, int reg,
+				int axis, int val)
+{
+	int ind, result;
+	__be16 d = cpu_to_be16(val);
+
+	ind = (axis - IIO_MOD_X) * 2;
+	result = regmap_bulk_write(st->map, reg + ind, (u8 *)&d, 2);
+	if (result)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
 				   int axis, int *val)
 {
@@ -224,11 +240,12 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 		     int *val, int *val2, long mask)
 {
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
+	int ret = 0;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 	{
-		int ret, result;
+		int result;
 
 		ret = IIO_VAL_INT;
 		result = 0;
@@ -321,6 +338,20 @@ error_read_raw:
 			*val = INV_MPU6050_TEMP_OFFSET;
 
 			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_CALIBBIAS:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+			ret = inv_mpu6050_sensor_show(st, st->reg->gyro_offset,
+						chan->channel2, val);
+			return IIO_VAL_INT;
+		case IIO_ACCEL:
+			ret = inv_mpu6050_sensor_show(st, st->reg->accl_offset,
+						chan->channel2, val);
+			return IIO_VAL_INT;
+
 		default:
 			return -EINVAL;
 		}
@@ -421,6 +452,21 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		break;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+			result = inv_mpu6050_sensor_set(st,
+							st->reg->gyro_offset,
+							chan->channel2, val);
+			break;
+		case IIO_ACCEL:
+			result = inv_mpu6050_sensor_set(st,
+							st->reg->accl_offset,
+							chan->channel2, val);
+			break;
+		default:
+			result = -EINVAL;
+		}
 	default:
 		result = -EINVAL;
 		break;
@@ -578,7 +624,8 @@ static int inv_mpu6050_validate_trigger(struct iio_dev *indio_dev,
 		.modified = 1,                                        \
 		.channel2 = _channel2,                                \
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),         \
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	      \
+				      BIT(IIO_CHAN_INFO_CALIBBIAS),   \
 		.scan_index = _index,                                 \
 		.scan_type = {                                        \
 				.sign = 's',                          \
