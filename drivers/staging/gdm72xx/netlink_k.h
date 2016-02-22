@@ -20,6 +20,6 @@
 struct sock *netlink_init(int unit, void (*cb)(struct net_device *dev, u16 type,
 					       void *msg, int len));
 void netlink_exit(struct sock *sock);
-int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len);
+int netlink_send(struct sock *sock, u16 group, u16 type, void *msg, int len);
 
 #endif /* __GDM72XX_NETLINK_K_H__ */

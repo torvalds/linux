@@ -114,7 +114,7 @@ void netlink_exit(struct sock *sock)
 	netlink_kernel_release(sock);
 }
 
-int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
+int netlink_send(struct sock *sock, u16 group, u16 type, void *msg, int len)
 {
 	static u32 seq;
 	struct sk_buff *skb = NULL;
