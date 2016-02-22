@@ -83,7 +83,28 @@ static struct platform_driver mtk_efuse_driver = {
 		.of_match_table = mtk_efuse_of_match,
 	},
 };
-module_platform_driver(mtk_efuse_driver);
+
+static int __init mtk_efuse_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&mtk_efuse_driver);
+	if (ret) {
+		pr_err("Failed to register efuse driver\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static void __exit mtk_efuse_exit(void)
+{
+	return platform_driver_unregister(&mtk_efuse_driver);
+}
+
+subsys_initcall(mtk_efuse_init);
+module_exit(mtk_efuse_exit);
+
 MODULE_AUTHOR("Andrew-CT Chen <andrew-ct.chen@mediatek.com>");
 MODULE_DESCRIPTION("Mediatek EFUSE driver");
 MODULE_LICENSE("GPL v2");
