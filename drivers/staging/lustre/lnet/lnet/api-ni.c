@@ -1196,9 +1196,15 @@ lnet_shutdown_lndnis(void)
 static void
 lnet_shutdown_lndni(struct lnet_ni *ni)
 {
+	int i;
+
 	lnet_net_lock(LNET_LOCK_EX);
 	lnet_ni_unlink_locked(ni);
 	lnet_net_unlock(LNET_LOCK_EX);
+
+	/* clear messages for this NI on the lazy portal */
+	for (i = 0; i < the_lnet.ln_nportals; i++)
+		lnet_clear_lazy_portal(ni, i, "Shutting down NI");
 
 	/* Do peer table cleanup for this ni */
 	lnet_peer_tables_cleanup(ni);
