@@ -55,7 +55,8 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 	if (skb->len >= NLMSG_HDRLEN) {
 		nlh = (struct nlmsghdr *)skb->data;
 
-		if (skb->len < nlh->nlmsg_len ||
+		if (nlh->nlmsg_len < ND_IFINDEX_LEN ||
+		    nlh->nlmsg_len > skb->len ||
 		    nlh->nlmsg_len > ND_MAX_MSG_LEN) {
 			netdev_err(skb->dev, "Invalid length (%d,%d)\n",
 				   skb->len, nlh->nlmsg_len);
