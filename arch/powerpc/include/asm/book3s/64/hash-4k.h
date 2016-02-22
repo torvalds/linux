@@ -53,6 +53,7 @@
 
 /* shift to put page number into pte */
 #define PTE_RPN_SHIFT	(18)
+#define PTE_RPN_SIZE	(39)	/* gives 51-bit real addresses */
 
 #define _PAGE_4K_PFN		0
 #ifndef __ASSEMBLY__

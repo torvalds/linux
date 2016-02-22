@@ -39,10 +39,12 @@
 
 /* Shift to put page number into pte.
  *
- * That gives us a max RPN of 34 bits, which means a max of 50 bits
- * of addressable physical space, or 46 bits for the special 4k PFNs.
+ * That gives us a max RPN of 37 bits, which means a max of 53 bits
+ * of addressable physical space, or 49 bits for the special 4k PFNs.
  */
-#define PTE_RPN_SHIFT	(30)
+#define PTE_RPN_SHIFT	(20)
+#define PTE_RPN_SIZE	(37)
+
 /*
  * we support 16 fragments per PTE page of 64K size.
  */
@@ -120,7 +122,7 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 	(((pte) & _PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
 
 #define remap_4k_pfn(vma, addr, pfn, prot)				\
-	(WARN_ON(((pfn) >= (1UL << (64 - PTE_RPN_SHIFT)))) ? -EINVAL :	\
+	(WARN_ON(((pfn) >= (1UL << PTE_RPN_SIZE))) ? -EINVAL :	\
 		remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,	\
 			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN)))
 
