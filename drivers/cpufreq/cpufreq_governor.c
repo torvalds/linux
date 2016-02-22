@@ -340,7 +340,7 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 {
 	struct cpu_dbs_info *cdbs = container_of(data, struct cpu_dbs_info, update_util);
 	struct policy_dbs_info *policy_dbs = cdbs->policy_dbs;
-	u64 delta_ns;
+	u64 delta_ns, lst;
 
 	/*
 	 * The work may not be allowed to be queued up right now.
@@ -356,7 +356,8 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	 * of sample_delay_ns used in the computation may be stale.
 	 */
 	smp_rmb();
-	delta_ns = time - policy_dbs->last_sample_time;
+	lst = READ_ONCE(policy_dbs->last_sample_time);
+	delta_ns = time - lst;
 	if ((s64)delta_ns < policy_dbs->sample_delay_ns)
 		return;
 
@@ -365,9 +366,19 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	 * at this point.  Otherwise, we need to ensure that only one of the
 	 * CPUs sharing the policy will do that.
 	 */
-	if (policy_dbs->is_shared &&
-	    !atomic_add_unless(&policy_dbs->work_count, 1, 1))
-		return;
+	if (policy_dbs->is_shared) {
+		if (!atomic_add_unless(&policy_dbs->work_count, 1, 1))
+			return;
+
+		/*
+		 * If another CPU updated last_sample_time in the meantime, we
+		 * shouldn't be here, so clear the work counter and bail out.
+		 */
+		if (unlikely(lst != READ_ONCE(policy_dbs->last_sample_time))) {
+			atomic_set(&policy_dbs->work_count, 0);
+			return;
+		}
+	}
 
 	policy_dbs->last_sample_time = time;
 	policy_dbs->work_in_progress = true;
