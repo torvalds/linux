@@ -81,7 +81,7 @@ event_triggers_call(struct trace_event_file *file, void *rec)
 		filter = rcu_dereference_sched(data->filter);
 		if (filter && !filter_match_preds(filter, rec))
 			continue;
-		if (data->cmd_ops->post_trigger) {
+		if (event_command_post_trigger(data->cmd_ops)) {
 			tt |= data->cmd_ops->trigger_type;
 			continue;
 		}
@@ -506,8 +506,8 @@ void update_cond_flag(struct trace_event_file *file)
 	bool set_cond = false;
 
 	list_for_each_entry_rcu(data, &file->triggers, list) {
-		if (data->filter || data->cmd_ops->post_trigger ||
-		    data->cmd_ops->needs_rec) {
+		if (data->filter || event_command_post_trigger(data->cmd_ops) ||
+		    event_command_needs_rec(data->cmd_ops)) {
 			set_cond = true;
 			break;
 		}
@@ -1035,7 +1035,7 @@ stacktrace_get_trigger_ops(char *cmd, char *param)
 static struct event_command trigger_stacktrace_cmd = {
 	.name			= "stacktrace",
 	.trigger_type		= ETT_STACKTRACE,
-	.post_trigger		= true,
+	.flags			= EVENT_CMD_FL_POST_TRIGGER,
 	.func			= event_trigger_callback,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,
