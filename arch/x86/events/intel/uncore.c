@@ -217,7 +217,8 @@ u64 uncore_shared_reg_config(struct intel_uncore_box *box, int idx)
 	return config;
 }
 
-static void uncore_assign_hw_event(struct intel_uncore_box *box, struct perf_event *event, int idx)
+static void uncore_assign_hw_event(struct intel_uncore_box *box,
+				   struct perf_event *event, int idx)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
@@ -312,18 +313,19 @@ static void uncore_pmu_init_hrtimer(struct intel_uncore_box *box)
 	box->hrtimer.function = uncore_pmu_hrtimer;
 }
 
-static struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type, int node)
+static struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type,
+						 int node)
 {
+	int i, size, numshared = type->num_shared_regs ;
 	struct intel_uncore_box *box;
-	int i, size;
 
-	size = sizeof(*box) + type->num_shared_regs * sizeof(struct intel_uncore_extra_reg);
+	size = sizeof(*box) + numshared * sizeof(struct intel_uncore_extra_reg);
 
 	box = kzalloc_node(size, GFP_KERNEL, node);
 	if (!box)
 		return NULL;
 
-	for (i = 0; i < type->num_shared_regs; i++)
+	for (i = 0; i < numshared; i++)
 		raw_spin_lock_init(&box->shared_regs[i].lock);
 
 	uncore_pmu_init_hrtimer(box);
@@ -351,7 +353,8 @@ static bool is_uncore_event(struct perf_event *event)
 }
 
 static int
-uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader, bool dogrp)
+uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader,
+		      bool dogrp)
 {
 	struct perf_event *event;
 	int n, max_count;
@@ -412,7 +415,8 @@ uncore_get_event_constraint(struct intel_uncore_box *box, struct perf_event *eve
 	return &type->unconstrainted;
 }
 
-static void uncore_put_event_constraint(struct intel_uncore_box *box, struct perf_event *event)
+static void uncore_put_event_constraint(struct intel_uncore_box *box,
+					struct perf_event *event)
 {
 	if (box->pmu->type->ops->put_constraint)
 		box->pmu->type->ops->put_constraint(box, event);
@@ -592,7 +596,7 @@ static void uncore_pmu_event_del(struct perf_event *event, int flags)
 		if (event == box->event_list[i]) {
 			uncore_put_event_constraint(box, event);
 
-			while (++i < box->n_events)
+			for (++i; i < box->n_events; i++)
 				box->event_list[i - 1] = box->event_list[i];
 
 			--box->n_events;
@@ -801,10 +805,8 @@ static void __init uncore_type_exit(struct intel_uncore_type *type)
 
 static void __init uncore_types_exit(struct intel_uncore_type **types)
 {
-	int i;
-
-	for (i = 0; types[i]; i++)
-		uncore_type_exit(types[i]);
+	for (; *types; types++)
+		uncore_type_exit(*types);
 }
 
 static int __init uncore_type_init(struct intel_uncore_type *type)
@@ -908,9 +910,11 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	 * some device types. Hence PCI device idx would be 0 for all devices.
 	 * So increment pmu pointer to point to an unused array element.
 	 */
-	if (boot_cpu_data.x86_model == 87)
+	if (boot_cpu_data.x86_model == 87) {
 		while (pmu->func_id >= 0)
 			pmu++;
+	}
+
 	if (pmu->func_id < 0)
 		pmu->func_id = pdev->devfn;
 	else
@@ -1170,42 +1174,43 @@ static int uncore_cpu_prepare(int cpu, int phys_id)
 	return 0;
 }
 
-static void
-uncore_change_context(struct intel_uncore_type **uncores, int old_cpu, int new_cpu)
+static void uncore_change_type_ctx(struct intel_uncore_type *type, int old_cpu,
+				   int new_cpu)
 {
-	struct intel_uncore_type *type;
-	struct intel_uncore_pmu *pmu;
+	struct intel_uncore_pmu *pmu = type->pmus;
 	struct intel_uncore_box *box;
-	int i, j;
+	int i;
 
-	for (i = 0; uncores[i]; i++) {
-		type = uncores[i];
-		for (j = 0; j < type->num_boxes; j++) {
-			pmu = &type->pmus[j];
-			if (old_cpu < 0)
-				box = uncore_pmu_to_box(pmu, new_cpu);
-			else
-				box = uncore_pmu_to_box(pmu, old_cpu);
-			if (!box)
-				continue;
+	for (i = 0; i < type->num_boxes; i++, pmu++) {
+		if (old_cpu < 0)
+			box = uncore_pmu_to_box(pmu, new_cpu);
+		else
+			box = uncore_pmu_to_box(pmu, old_cpu);
+		if (!box)
+			continue;
 
-			if (old_cpu < 0) {
-				WARN_ON_ONCE(box->cpu != -1);
-				box->cpu = new_cpu;
-				continue;
-			}
-
-			WARN_ON_ONCE(box->cpu != old_cpu);
-			if (new_cpu >= 0) {
-				uncore_pmu_cancel_hrtimer(box);
-				perf_pmu_migrate_context(&pmu->pmu,
-						old_cpu, new_cpu);
-				box->cpu = new_cpu;
-			} else {
-				box->cpu = -1;
-			}
+		if (old_cpu < 0) {
+			WARN_ON_ONCE(box->cpu != -1);
+			box->cpu = new_cpu;
+			continue;
 		}
+
+		WARN_ON_ONCE(box->cpu != old_cpu);
+		box->cpu = -1;
+		if (new_cpu < 0)
+			continue;
+
+		uncore_pmu_cancel_hrtimer(box);
+		perf_pmu_migrate_context(&pmu->pmu, old_cpu, new_cpu);
+		box->cpu = new_cpu;
 	}
+}
+
+static void uncore_change_context(struct intel_uncore_type **uncores,
+				  int old_cpu, int new_cpu)
+{
+	for (; *uncores; uncores++)
+		uncore_change_type_ctx(*uncores, old_cpu, new_cpu);
 }
 
 static void uncore_event_exit_cpu(int cpu)
@@ -1318,8 +1323,8 @@ static int __init uncore_msr_pmus_register(void)
 	struct intel_uncore_type **types = uncore_msr_uncores;
 	int ret;
 
-	while (*types) {
-		ret = type_pmu_register(*types++);
+	for (; *types; types++) {
+		ret = type_pmu_register(*types);
 		if (ret)
 			return ret;
 	}
