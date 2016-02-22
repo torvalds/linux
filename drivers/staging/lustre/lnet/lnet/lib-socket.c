@@ -514,7 +514,6 @@ lnet_sock_listen(struct socket **sockp, __u32 local_ip, int local_port,
 	sock_release(*sockp);
 	return rc;
 }
-EXPORT_SYMBOL(lnet_sock_listen);
 
 int
 lnet_sock_accept(struct socket **newsockp, struct socket *sock)
@@ -558,7 +557,6 @@ failed:
 	sock_release(newsock);
 	return rc;
 }
-EXPORT_SYMBOL(lnet_sock_accept);
 
 int
 lnet_sock_connect(struct socket **sockp, int *fatal, __u32 local_ip,
@@ -596,4 +594,3 @@ lnet_sock_connect(struct socket **sockp, int *fatal, __u32 local_ip,
 	sock_release(*sockp);
 	return rc;
 }
-EXPORT_SYMBOL(lnet_sock_connect);
