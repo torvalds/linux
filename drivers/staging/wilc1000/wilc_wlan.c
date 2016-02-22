@@ -502,9 +502,7 @@ void chip_wakeup(struct wilc *wilc)
 
 			do {
 				usleep_range(2 * 1000, 2 * 1000);
-				if ((wilc_get_chipid(wilc, true) == 0))
-					wilc_debug(N_ERR, "Couldn't read chip id. Wake up failed\n");
-
+				wilc_get_chipid(wilc, true);
 			} while ((wilc_get_chipid(wilc, true) == 0) && ((++trials % 3) == 0));
 
 		} while (wilc_get_chipid(wilc, true) == 0);
