@@ -71,6 +71,8 @@ int bpf__strerror_config_obj(struct bpf_object *obj,
 			     struct perf_evlist *evlist,
 			     int *error_pos, int err, char *buf,
 			     size_t size);
+int bpf__apply_obj_config(void);
+int bpf__strerror_apply_obj_config(int err, char *buf, size_t size);
 #else
 static inline struct bpf_object *
 bpf__prepare_load(const char *filename __maybe_unused,
@@ -106,6 +108,12 @@ bpf__config_obj(struct bpf_object *obj __maybe_unused,
 		struct parse_events_term *term __maybe_unused,
 		struct perf_evlist *evlist __maybe_unused,
 		int *error_pos __maybe_unused)
+{
+	return 0;
+}
+
+static inline int
+bpf__apply_obj_config(void)
 {
 	return 0;
 }
@@ -153,6 +161,13 @@ bpf__strerror_config_obj(struct bpf_object *obj __maybe_unused,
 			 int *error_pos __maybe_unused,
 			 int err __maybe_unused,
 			 char *buf, size_t size)
+{
+	return __bpf_strerror(buf, size);
+}
+
+static inline int
+bpf__strerror_apply_obj_config(int err __maybe_unused,
+			       char *buf, size_t size)
 {
 	return __bpf_strerror(buf, size);
 }

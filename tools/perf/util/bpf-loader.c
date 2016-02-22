@@ -7,6 +7,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/libbpf.h>
+#include <bpf/bpf.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include "perf.h"
@@ -994,6 +995,182 @@ out:
 
 }
 
+typedef int (*map_config_func_t)(const char *name, int map_fd,
+				 struct bpf_map_def *pdef,
+				 struct bpf_map_op *op,
+				 void *pkey, void *arg);
+
+static int
+foreach_key_array_all(map_config_func_t func,
+		      void *arg, const char *name,
+		      int map_fd, struct bpf_map_def *pdef,
+		      struct bpf_map_op *op)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < pdef->max_entries; i++) {
+		err = func(name, map_fd, pdef, op, &i, arg);
+		if (err) {
+			pr_debug("ERROR: failed to insert value to %s[%u]\n",
+				 name, i);
+			return err;
+		}
+	}
+	return 0;
+}
+
+static int
+bpf_map_config_foreach_key(struct bpf_map *map,
+			   map_config_func_t func,
+			   void *arg)
+{
+	int err, map_fd;
+	const char *name;
+	struct bpf_map_op *op;
+	struct bpf_map_def def;
+	struct bpf_map_priv *priv;
+
+	name = bpf_map__get_name(map);
+
+	err = bpf_map__get_private(map, (void **)&priv);
+	if (err) {
+		pr_debug("ERROR: failed to get private from map %s\n", name);
+		return -BPF_LOADER_ERRNO__INTERNAL;
+	}
+	if (!priv || list_empty(&priv->ops_list)) {
+		pr_debug("INFO: nothing to config for map %s\n", name);
+		return 0;
+	}
+
+	err = bpf_map__get_def(map, &def);
+	if (err) {
+		pr_debug("ERROR: failed to get definition from map %s\n", name);
+		return -BPF_LOADER_ERRNO__INTERNAL;
+	}
+	map_fd = bpf_map__get_fd(map);
+	if (map_fd < 0) {
+		pr_debug("ERROR: failed to get fd from map %s\n", name);
+		return map_fd;
+	}
+
+	list_for_each_entry(op, &priv->ops_list, list) {
+		switch (def.type) {
+		case BPF_MAP_TYPE_ARRAY:
+			switch (op->key_type) {
+			case BPF_MAP_KEY_ALL:
+				err = foreach_key_array_all(func, arg, name,
+							    map_fd, &def, op);
+				if (err)
+					return err;
+				break;
+			default:
+				pr_debug("ERROR: keytype for map '%s' invalid\n",
+					 name);
+				return -BPF_LOADER_ERRNO__INTERNAL;
+			}
+			break;
+		default:
+			pr_debug("ERROR: type of '%s' incorrect\n", name);
+			return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
+		}
+	}
+
+	return 0;
+}
+
+static int
+apply_config_value_for_key(int map_fd, void *pkey,
+			   size_t val_size, u64 val)
+{
+	int err = 0;
+
+	switch (val_size) {
+	case 1: {
+		u8 _val = (u8)(val);
+		err = bpf_map_update_elem(map_fd, pkey, &_val, BPF_ANY);
+		break;
+	}
+	case 2: {
+		u16 _val = (u16)(val);
+		err = bpf_map_update_elem(map_fd, pkey, &_val, BPF_ANY);
+		break;
+	}
+	case 4: {
+		u32 _val = (u32)(val);
+		err = bpf_map_update_elem(map_fd, pkey, &_val, BPF_ANY);
+		break;
+	}
+	case 8: {
+		err = bpf_map_update_elem(map_fd, pkey, &val, BPF_ANY);
+		break;
+	}
+	default:
+		pr_debug("ERROR: invalid value size\n");
+		return -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUESIZE;
+	}
+	if (err && errno)
+		err = -errno;
+	return err;
+}
+
+static int
+apply_obj_config_map_for_key(const char *name, int map_fd,
+			     struct bpf_map_def *pdef __maybe_unused,
+			     struct bpf_map_op *op,
+			     void *pkey, void *arg __maybe_unused)
+{
+	int err;
+
+	switch (op->op_type) {
+	case BPF_MAP_OP_SET_VALUE:
+		err = apply_config_value_for_key(map_fd, pkey,
+						 pdef->value_size,
+						 op->v.value);
+		break;
+	default:
+		pr_debug("ERROR: unknown value type for '%s'\n", name);
+		err = -BPF_LOADER_ERRNO__INTERNAL;
+	}
+	return err;
+}
+
+static int
+apply_obj_config_map(struct bpf_map *map)
+{
+	return bpf_map_config_foreach_key(map,
+					  apply_obj_config_map_for_key,
+					  NULL);
+}
+
+static int
+apply_obj_config_object(struct bpf_object *obj)
+{
+	struct bpf_map *map;
+	int err;
+
+	bpf_map__for_each(map, obj) {
+		err = apply_obj_config_map(map);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+int bpf__apply_obj_config(void)
+{
+	struct bpf_object *obj, *tmp;
+	int err;
+
+	bpf_object__for_each_safe(obj, tmp) {
+		err = apply_obj_config_object(obj);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 #define ERRNO_OFFSET(e)		((e) - __BPF_LOADER_ERRNO__START)
 #define ERRCODE_OFFSET(c)	ERRNO_OFFSET(BPF_LOADER_ERRNO__##c)
 #define NR_ERRNO	(__BPF_LOADER_ERRNO__END - __BPF_LOADER_ERRNO__START)
@@ -1145,6 +1322,13 @@ int bpf__strerror_config_obj(struct bpf_object *obj __maybe_unused,
 	bpf__strerror_head(err, buf, size);
 	bpf__strerror_entry(BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE,
 			    "Can't use this config term with this map type");
+	bpf__strerror_end(buf, size);
+	return 0;
+}
+
+int bpf__strerror_apply_obj_config(int err, char *buf, size_t size)
+{
+	bpf__strerror_head(err, buf, size);
 	bpf__strerror_end(buf, size);
 	return 0;
 }
