@@ -34,7 +34,7 @@ static void __init h8300_div_clk_setup(struct device_node *node)
 	}
 	offset = (unsigned long)divcr & 3;
 	offset = (3 - offset) * 8;
-	divcr = (void *)((unsigned long)divcr & ~3);
+	divcr = (void __iomem *)((unsigned long)divcr & ~3);
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	of_property_read_u32(node, "renesas,width", &width);
