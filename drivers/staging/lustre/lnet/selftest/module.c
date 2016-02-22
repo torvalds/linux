@@ -37,6 +37,7 @@
 #define DEBUG_SUBSYSTEM S_LNET
 
 #include "selftest.h"
+#include "console.h"
 
 enum {
 	LST_INIT_NONE = 0,
@@ -46,9 +47,6 @@ enum {
 	LST_INIT_FW,
 	LST_INIT_CONSOLE
 };
-
-extern int lstcon_console_init(void);
-extern int lstcon_console_fini(void);
 
 static int lst_init_step = LST_INIT_NONE;
 

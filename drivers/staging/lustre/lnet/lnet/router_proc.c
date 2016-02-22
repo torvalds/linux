@@ -800,8 +800,6 @@ static struct lnet_portal_rotors	portal_rotors[] = {
 	},
 };
 
-extern int portal_rotor;
-
 static int __proc_lnet_portal_rotor(void *data, int write,
 				    loff_t pos, void __user *buffer, int nob)
 {

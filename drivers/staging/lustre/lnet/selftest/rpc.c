@@ -1097,7 +1097,7 @@ srpc_client_rpc_expired(void *data)
 	spin_unlock(&srpc_data.rpc_glock);
 }
 
-inline void
+static void
 srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
 {
 	stt_timer_t *timer = &rpc->crpc_timer;

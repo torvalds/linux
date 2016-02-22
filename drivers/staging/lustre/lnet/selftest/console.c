@@ -1693,8 +1693,6 @@ lstcon_new_session_id(lst_sid_t *sid)
 	sid->ses_stamp = cfs_time_current();
 }
 
-extern srpc_service_t lstcon_acceptor_service;
-
 int
 lstcon_session_new(char *name, int key, unsigned feats,
 		   int timeout, int force, lst_sid_t __user *sid_up)
@@ -1973,7 +1971,7 @@ out:
 	return rc;
 }
 
-srpc_service_t lstcon_acceptor_service;
+static srpc_service_t lstcon_acceptor_service;
 static void lstcon_init_acceptor_service(void)
 {
 	/* initialize selftest console acceptor service table */

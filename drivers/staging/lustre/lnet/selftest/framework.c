@@ -1629,16 +1629,6 @@ static srpc_service_t sfw_services[] = {
 	}
 };
 
-extern sfw_test_client_ops_t ping_test_client;
-extern srpc_service_t	ping_test_service;
-extern void ping_init_test_client(void);
-extern void ping_init_test_service(void);
-
-extern sfw_test_client_ops_t brw_test_client;
-extern srpc_service_t	brw_test_service;
-extern void brw_init_test_client(void);
-extern void brw_init_test_service(void);
-
 int
 sfw_startup(void)
 {
