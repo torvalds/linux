@@ -2,83 +2,14 @@
 #define LINUX_WLAN_COMMON_H
 
 #if defined(WILC_DEBUGFS)
-extern atomic_t WILC_DEBUG_LEVEL;
-
 #define DEBUG           BIT(0)
 #define INFO            BIT(1)
 #define WRN             BIT(2)
 #define ERR             BIT(3)
-
-#define PRINT_D(region, ...)						\
-	do {								\
-		if ((atomic_read(&WILC_DEBUG_LEVEL) & DEBUG)) {	\
-			printk("DBG [%s: %d]", __func__, __LINE__);	\
-			printk(__VA_ARGS__);				\
-		}							\
-	} while (0)
-
-#define PRINT_INFO(region, ...)						\
-	do {								\
-		if ((atomic_read(&WILC_DEBUG_LEVEL) & INFO)) {	\
-			printk("INFO [%s]", __func__);			\
-			printk(__VA_ARGS__);				\
-		}							\
-	} while (0)
-
-#define PRINT_WRN(region, ...)						\
-	do {								\
-		if ((atomic_read(&WILC_DEBUG_LEVEL) & WRN)) {	\
-			printk("WRN [%s: %d]", __func__, __LINE__);	\
-			printk(__VA_ARGS__);				\
-		}							\
-	} while (0)
-
-#define PRINT_ER(...)							\
-	do {								\
-		if ((atomic_read(&WILC_DEBUG_LEVEL) & ERR)) {	\
-			printk("ERR [%s: %d]", __func__, __LINE__);	\
-			printk(__VA_ARGS__);				\
-		}							\
-	} while (0)
-
 #else
-
-#define REGION  (INIT_DBG | GENERIC_DBG | CFG80211_DBG | FIRM_DBG | HOSTAPD_DBG)
-
 #define DEBUG       1
 #define INFO        0
 #define WRN         0
-
-#define PRINT_D(region, ...)						\
-	do {								\
-		if (DEBUG == 1 && ((REGION)&(region))) {		\
-			printk("DBG [%s: %d]", __func__, __LINE__);	\
-			printk(__VA_ARGS__);				\
-		}							\
-	} while (0)
-
-#define PRINT_INFO(region, ...)						\
-	do {								\
-		if (INFO == 1 && ((REGION)&(region))) {			\
-			printk("INFO [%s]", __func__);			\
-			printk(__VA_ARGS__);				\
-		}							\
-	} while (0)
-
-#define PRINT_WRN(region, ...)						\
-	do {								\
-		if (WRN == 1 && ((REGION)&(region))) {			\
-			printk("WRN [%s: %d]", __func__, __LINE__);	\
-			printk(__VA_ARGS__);				\
-		}							\
-	} while (0)
-
-#define PRINT_ER(...)							\
-	do {								\
-		printk("ERR [%s: %d]", __func__, __LINE__);		\
-		printk(__VA_ARGS__);					\
-	} while (0)
-
 #endif
 
 #define LINUX_RX_SIZE	(96 * 1024)
