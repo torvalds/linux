@@ -422,6 +422,8 @@ lnet_ni_decref(lnet_ni_t *ni)
 }
 
 void lnet_ni_free(lnet_ni_t *ni);
+lnet_ni_t *
+lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist);
 
 static inline int
 lnet_nid2peerhash(lnet_nid_t nid)

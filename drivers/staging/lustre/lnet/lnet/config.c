@@ -114,7 +114,7 @@ lnet_ni_free(struct lnet_ni *ni)
 	LIBCFS_FREE(ni, sizeof(*ni));
 }
 
-static lnet_ni_t *
+lnet_ni_t *
 lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 {
 	struct lnet_tx_queue *tq;
@@ -191,6 +191,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 	struct lnet_ni *ni;
 	__u32 net;
 	int nnets = 0;
+	struct list_head *temp_node;
 
 	if (!networks) {
 		CERROR("networks string is undefined\n");
@@ -215,11 +216,6 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 	memcpy(tokens, networks, tokensize);
 	tmp = tokens;
 	str = tokens;
-
-	/* Add in the loopback network */
-	ni = lnet_ni_alloc(LNET_MKNET(LOLND, 0), NULL, nilist);
-	if (!ni)
-		goto failed;
 
 	while (str && *str) {
 		char *comma = strchr(str, ',');
@@ -294,7 +290,6 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 			goto failed_syntax;
 		}
 
-		nnets++;
 		ni = lnet_ni_alloc(net, el, nilist);
 		if (!ni)
 			goto failed;
@@ -372,10 +367,11 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		}
 	}
 
-	LASSERT(!list_empty(nilist));
+	list_for_each(temp_node, nilist)
+		nnets++;
 
 	LIBCFS_FREE(tokens, tokensize);
-	return 0;
+	return nnets;
 
  failed_syntax:
 	lnet_syntax("networks", networks, (int)(tmp - tokens), strlen(tmp));
