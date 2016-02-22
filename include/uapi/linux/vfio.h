@@ -59,6 +59,33 @@
 #define VFIO_TYPE	(';')
 #define VFIO_BASE	100
 
+/*
+ * For extension of INFO ioctls, VFIO makes use of a capability chain
+ * designed after PCI/e capabilities.  A flag bit indicates whether
+ * this capability chain is supported and a field defined in the fixed
+ * structure defines the offset of the first capability in the chain.
+ * This field is only valid when the corresponding bit in the flags
+ * bitmap is set.  This offset field is relative to the start of the
+ * INFO buffer, as is the next field within each capability header.
+ * The id within the header is a shared address space per INFO ioctl,
+ * while the version field is specific to the capability id.  The
+ * contents following the header are specific to the capability id.
+ */
+struct vfio_info_cap_header {
+	__u16	id;		/* Identifies capability */
+	__u16	version;	/* Version specific to the capability ID */
+	__u32	next;		/* Offset of next capability */
+};
+
+/*
+ * Callers of INFO ioctls passing insufficiently sized buffers will see
+ * the capability chain flag bit set, a zero value for the first capability
+ * offset (if available within the provided argsz), and argsz will be
+ * updated to report the necessary buffer size.  For compatibility, the
+ * INFO ioctl will not report error in this case, but the capability chain
+ * will not be available.
+ */
+
 /* -------- IOCTLs for VFIO file descriptor (/dev/vfio/vfio) -------- */
 
 /**
