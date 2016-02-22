@@ -12,7 +12,6 @@
 
 #include <linux/kthread.h>
 #include <linux/firmware.h>
-#include <linux/delay.h>
 
 #include <linux/init.h>
 #include <linux/netdevice.h>
