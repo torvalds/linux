@@ -44,6 +44,9 @@
  * the duration of the measurement. Tools may use a function such as
  * ldexp(raw_count, -32);
  */
+
+#define pr_fmt(fmt) "RAPL PMU: " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
@@ -144,7 +147,7 @@ static inline u64 rapl_read_counter(struct perf_event *event)
 static inline u64 rapl_scale(u64 v, int cfg)
 {
 	if (cfg > NR_RAPL_DOMAINS) {
-		pr_warn("invalid domain %d, failed to scale data\n", cfg);
+		pr_warn("Invalid domain %d, failed to scale data\n", cfg);
 		return v;
 	}
 	/*
@@ -680,6 +683,21 @@ static int rapl_check_hw_unit(void (*quirk)(void))
 	return 0;
 }
 
+static void __init rapl_advertise(void)
+{
+	int i;
+
+	pr_info("API unit is 2^-32 Joules, %d fixed counters, %llu ms ovfl timer\n",
+		hweight32(rapl_cntr_mask), rapl_timer_ms);
+
+	for (i = 0; i < NR_RAPL_DOMAINS; i++) {
+		if (rapl_cntr_mask & (1 << i)) {
+			pr_info("hw unit of domain %s 2^-%d Joules\n",
+				rapl_domain_names[i], rapl_hw_unit[i]);
+		}
+	}
+}
+
 static void __init cleanup_rapl_pmus(void)
 {
 	int cpu;
@@ -696,7 +714,7 @@ static const struct x86_cpu_id rapl_cpu_match[] = {
 static int __init rapl_pmu_init(void)
 {
 	void (*quirk)(void) = NULL;
-	int cpu, ret, i;
+	int cpu, ret;
 
 	/*
 	 * check for Intel processor family 6
@@ -751,30 +769,16 @@ static int __init rapl_pmu_init(void)
 	}
 
 	ret = perf_pmu_register(&rapl_pmu_class, "power", -1);
-	if (WARN_ON(ret)) {
-		pr_info("RAPL PMU detected, registration failed (%d), RAPL PMU disabled\n", ret);
+	if (ret)
 		goto out;
-	}
 
 	__perf_cpu_notifier(rapl_cpu_notifier);
 	cpu_notifier_register_done();
-
-	pr_info("RAPL PMU detected,"
-		" API unit is 2^-32 Joules,"
-		" %d fixed counters"
-		" %llu ms ovfl timer\n",
-		hweight32(rapl_cntr_mask),
-		rapl_timer_ms);
-	for (i = 0; i < NR_RAPL_DOMAINS; i++) {
-		if (rapl_cntr_mask & (1 << i)) {
-			pr_info("hw unit of domain %s 2^-%d Joules\n",
-				rapl_domain_names[i], rapl_hw_unit[i]);
-		}
-	}
-
+	rapl_advertise();
 	return 0;
 
 out:
+	pr_warn("Initialization failed (%d), disabled\n", ret);
 	cleanup_rapl_pmus();
 	cpu_notifier_register_done();
 	return ret;
