@@ -187,11 +187,13 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM;
-		if (skb->encapsulation)
+		if (skb->encapsulation) {
 			eseg->cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM |
 					  MLX5_ETH_WQE_L4_INNER_CSUM;
-		else
+			sq->stats.csum_offload_inner++;
+		} else {
 			eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
+		}
 	} else
 		sq->stats.csum_offload_none++;
 
@@ -201,21 +203,21 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	}
 
 	if (skb_is_gso(skb)) {
-		u32 payload_len;
-
 		eseg->mss    = cpu_to_be16(skb_shinfo(skb)->gso_size);
 		opcode       = MLX5_OPCODE_LSO;
 
-		if (skb->encapsulation)
+		if (skb->encapsulation) {
 			ihs = skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
-		else
+			sq->stats.tso_inner_packets++;
+			sq->stats.tso_inner_bytes += skb->len - ihs;
+		} else {
 			ihs = skb_transport_offset(skb) + tcp_hdrlen(skb);
+			sq->stats.tso_packets++;
+			sq->stats.tso_bytes += skb->len - ihs;
+		}
 
-		payload_len   = skb->len - ihs;
 		wi->num_bytes = skb->len +
 				(skb_shinfo(skb)->gso_segs - 1) * ihs;
-		sq->stats.tso_packets++;
-		sq->stats.tso_bytes += payload_len;
 	} else {
 		bf = sq->bf_budget &&
 		     !skb->xmit_more &&

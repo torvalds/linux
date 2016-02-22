@@ -145,9 +145,12 @@ void mlx5e_update_stats(struct mlx5e_priv *priv)
 	/* Collect firts the SW counters and then HW for consistency */
 	s->tso_packets		= 0;
 	s->tso_bytes		= 0;
+	s->tso_inner_packets	= 0;
+	s->tso_inner_bytes	= 0;
 	s->tx_queue_stopped	= 0;
 	s->tx_queue_wake	= 0;
 	s->tx_queue_dropped	= 0;
+	s->tx_csum_inner	= 0;
 	tx_offload_none		= 0;
 	s->lro_packets		= 0;
 	s->lro_bytes		= 0;
@@ -168,9 +171,12 @@ void mlx5e_update_stats(struct mlx5e_priv *priv)
 
 			s->tso_packets		+= sq_stats->tso_packets;
 			s->tso_bytes		+= sq_stats->tso_bytes;
+			s->tso_inner_packets	+= sq_stats->tso_inner_packets;
+			s->tso_inner_bytes	+= sq_stats->tso_inner_bytes;
 			s->tx_queue_stopped	+= sq_stats->stopped;
 			s->tx_queue_wake	+= sq_stats->wake;
 			s->tx_queue_dropped	+= sq_stats->dropped;
+			s->tx_csum_inner	+= sq_stats->csum_offload_inner;
 			tx_offload_none		+= sq_stats->csum_offload_none;
 		}
 	}
@@ -245,7 +251,7 @@ void mlx5e_update_stats(struct mlx5e_priv *priv)
 		s->tx_broadcast_bytes;
 
 	/* Update calculated offload counters */
-	s->tx_csum_offload = s->tx_packets - tx_offload_none;
+	s->tx_csum_offload = s->tx_packets - tx_offload_none - s->tx_csum_inner;
 	s->rx_csum_good    = s->rx_packets - s->rx_csum_none -
 			       s->rx_csum_sw;
 

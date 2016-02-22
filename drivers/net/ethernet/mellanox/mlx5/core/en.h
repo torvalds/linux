@@ -103,12 +103,15 @@ static const char vport_strings[][ETH_GSTRING_LEN] = {
 	/* SW counters */
 	"tso_packets",
 	"tso_bytes",
+	"tso_inner_packets",
+	"tso_inner_bytes",
 	"lro_packets",
 	"lro_bytes",
 	"rx_csum_good",
 	"rx_csum_none",
 	"rx_csum_sw",
 	"tx_csum_offload",
+	"tx_csum_inner",
 	"tx_queue_stopped",
 	"tx_queue_wake",
 	"tx_queue_dropped",
@@ -141,18 +144,21 @@ struct mlx5e_vport_stats {
 	/* SW counters */
 	u64 tso_packets;
 	u64 tso_bytes;
+	u64 tso_inner_packets;
+	u64 tso_inner_bytes;
 	u64 lro_packets;
 	u64 lro_bytes;
 	u64 rx_csum_good;
 	u64 rx_csum_none;
 	u64 rx_csum_sw;
 	u64 tx_csum_offload;
+	u64 tx_csum_inner;
 	u64 tx_queue_stopped;
 	u64 tx_queue_wake;
 	u64 tx_queue_dropped;
 	u64 rx_wqe_err;
 
-#define NUM_VPORT_COUNTERS     32
+#define NUM_VPORT_COUNTERS     35
 };
 
 static const char pport_strings[][ETH_GSTRING_LEN] = {
@@ -252,7 +258,10 @@ static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
 	"tso_packets",
 	"tso_bytes",
+	"tso_inner_packets",
+	"tso_inner_bytes",
 	"csum_offload_none",
+	"csum_offload_inner",
 	"stopped",
 	"wake",
 	"dropped",
@@ -263,12 +272,15 @@ struct mlx5e_sq_stats {
 	u64 packets;
 	u64 tso_packets;
 	u64 tso_bytes;
+	u64 tso_inner_packets;
+	u64 tso_inner_bytes;
 	u64 csum_offload_none;
+	u64 csum_offload_inner;
 	u64 stopped;
 	u64 wake;
 	u64 dropped;
 	u64 nop;
-#define NUM_SQ_STATS 8
+#define NUM_SQ_STATS 11
 };
 
 struct mlx5e_stats {
