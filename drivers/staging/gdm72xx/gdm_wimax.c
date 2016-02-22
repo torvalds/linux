@@ -695,7 +695,7 @@ static void gdm_wimax_transmit_pkt(struct net_device *dev, char *buf, int len)
 	}
 }
 
-static void rx_complete(void *arg, void *data, int len)
+static void rx_complete(void *arg, void *data, size_t len)
 {
 	struct nic *nic = arg;
 
@@ -703,7 +703,7 @@ static void rx_complete(void *arg, void *data, int len)
 	gdm_wimax_rcv_with_cb(nic, rx_complete, nic);
 }
 
-static void prepare_rx_complete(void *arg, void *data, int len)
+static void prepare_rx_complete(void *arg, void *data, size_t len)
 {
 	struct nic *nic = arg;
 	int ret;

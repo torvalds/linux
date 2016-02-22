@@ -284,7 +284,7 @@ static void gdm_usb_send_complete(struct urb *urb)
 	spin_unlock_irqrestore(&tx->lock, flags);
 }
 
-static int gdm_usb_send(void *priv_dev, void *data, int len,
+static int gdm_usb_send(void *priv_dev, void *data, size_t len,
 			void (*cb)(void *data), void *cb_data)
 {
 	struct usbwm_dev *udev = priv_dev;
@@ -341,7 +341,7 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	usb_fill_bulk_urb(t->urb, usbdev, usb_sndbulkpipe(usbdev, 1), t->buf,
 			  len + padding, gdm_usb_send_complete, t);
 
-	dev_dbg(&usbdev->dev, "usb_send: %*ph\n", len + padding, t->buf);
+	dev_dbg(&usbdev->dev, "usb_send: %*ph\n", (int)len + padding, t->buf);
 
 #ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	if (usbdev->state & USB_STATE_SUSPENDED) {
@@ -460,7 +460,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 }
 
 static int gdm_usb_receive(void *priv_dev,
-			   void (*cb)(void *cb_data, void *data, int len),
+			   void (*cb)(void *cb_data, void *data, size_t len),
 			   void *cb_data)
 {
 	struct usbwm_dev *udev = priv_dev;

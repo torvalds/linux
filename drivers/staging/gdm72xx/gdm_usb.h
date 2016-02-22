@@ -49,7 +49,7 @@ struct usb_rx {
 	struct rx_cxt		*rx_cxt;
 	struct urb		*urb;
 	u8			*buf;
-	void (*callback)(void *cb_data, void *data, int len);
+	void (*callback)(void *cb_data, void *data, size_t len);
 	void *cb_data;
 };
 

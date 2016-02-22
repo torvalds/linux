@@ -26,10 +26,10 @@
 struct phy_dev {
 	void			*priv_dev;
 	struct net_device	*netdev;
-	int (*send_func)(void *priv_dev, void *data, int len,
+	int (*send_func)(void *priv_dev, void *data, size_t len,
 			 void (*cb)(void *cb_data), void *cb_data);
 	int (*rcv_func)(void *priv_dev,
-			void (*cb)(void *cb_data, void *data, int len),
+			void (*cb)(void *cb_data, void *data, size_t len),
 			void *cb_data);
 };
 
