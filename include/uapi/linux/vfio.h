@@ -280,6 +280,11 @@ struct vfio_region_info_cap_type {
 	__u32 subtype;	/* type specific */
 };
 
+#define VFIO_REGION_TYPE_PCI_VENDOR_TYPE	(1 << 31)
+#define VFIO_REGION_TYPE_PCI_VENDOR_MASK	(0xffff)
+
+#define VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION	(1)
+
 /**
  * VFIO_DEVICE_GET_IRQ_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 9,
  *				    struct vfio_irq_info)

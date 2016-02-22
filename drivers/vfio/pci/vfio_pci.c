@@ -169,6 +169,13 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	if (!vfio_vga_disabled() && vfio_pci_is_vga(pdev))
 		vdev->has_vga = true;
 
+
+	if (vfio_pci_is_vga(pdev) && pdev->vendor == PCI_VENDOR_ID_INTEL) {
+		if (vfio_pci_igd_opregion_init(vdev) == 0)
+			dev_info(&pdev->dev,
+				 "Intel IGD OpRegion support enabled\n");
+	}
+
 	return 0;
 }
 

@@ -122,4 +122,12 @@ extern int vfio_pci_register_dev_region(struct vfio_pci_device *vdev,
 					unsigned int type, unsigned int subtype,
 					const struct vfio_pci_regops *ops,
 					size_t size, u32 flags, void *data);
+#ifdef CONFIG_VFIO_PCI_IGD
+extern int vfio_pci_igd_opregion_init(struct vfio_pci_device *vdev);
+#else
+static inline int vfio_pci_igd_opregion_init(struct vfio_pci_device *vdev)
+{
+	return -ENODEV;
+}
+#endif
 #endif /* VFIO_PCI_PRIVATE_H */
