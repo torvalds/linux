@@ -35,6 +35,9 @@
 
 #define MLX5E_MAX_PRIORITY 8
 
+#define MLX5E_100MB (100000)
+#define MLX5E_1GB   (1000000)
+
 static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 				   struct ieee_ets *ets)
 {
@@ -219,9 +222,79 @@ static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	return 0;
 }
 
+static int mlx5e_dcbnl_ieee_getmaxrate(struct net_device *netdev,
+				       struct ieee_maxrate *maxrate)
+{
+	struct mlx5e_priv *priv    = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 max_bw_value[IEEE_8021QAZ_MAX_TCS];
+	u8 max_bw_unit[IEEE_8021QAZ_MAX_TCS];
+	int err;
+	int i;
+
+	err = mlx5_query_port_ets_rate_limit(mdev, max_bw_value, max_bw_unit);
+	if (err)
+		return err;
+
+	memset(maxrate->tc_maxrate, 0, sizeof(maxrate->tc_maxrate));
+
+	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
+		switch (max_bw_unit[i]) {
+		case MLX5_100_MBPS_UNIT:
+			maxrate->tc_maxrate[i] = max_bw_value[i] * MLX5E_100MB;
+			break;
+		case MLX5_GBPS_UNIT:
+			maxrate->tc_maxrate[i] = max_bw_value[i] * MLX5E_1GB;
+			break;
+		case MLX5_BW_NO_LIMIT:
+			break;
+		default:
+			WARN(true, "non-supported BW unit");
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
+				       struct ieee_maxrate *maxrate)
+{
+	struct mlx5e_priv *priv    = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 max_bw_value[IEEE_8021QAZ_MAX_TCS];
+	u8 max_bw_unit[IEEE_8021QAZ_MAX_TCS];
+	__u64 upper_limit_mbps = roundup(255 * MLX5E_100MB, MLX5E_1GB);
+	int i;
+
+	memset(max_bw_value, 0, sizeof(max_bw_value));
+	memset(max_bw_unit, 0, sizeof(max_bw_unit));
+
+	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
+		if (!maxrate->tc_maxrate[i]) {
+			max_bw_unit[i]  = MLX5_BW_NO_LIMIT;
+			continue;
+		}
+		if (maxrate->tc_maxrate[i] < upper_limit_mbps) {
+			max_bw_value[i] = div_u64(maxrate->tc_maxrate[i],
+						  MLX5E_100MB);
+			max_bw_value[i] = max_bw_value[i] ? max_bw_value[i] : 1;
+			max_bw_unit[i]  = MLX5_100_MBPS_UNIT;
+		} else {
+			max_bw_value[i] = div_u64(maxrate->tc_maxrate[i],
+						  MLX5E_1GB);
+			max_bw_unit[i]  = MLX5_GBPS_UNIT;
+		}
+	}
+
+	return mlx5_modify_port_ets_rate_limit(mdev, max_bw_value, max_bw_unit);
+}
+
 const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.ieee_getets	= mlx5e_dcbnl_ieee_getets,
 	.ieee_setets	= mlx5e_dcbnl_ieee_setets,
+	.ieee_getmaxrate = mlx5e_dcbnl_ieee_getmaxrate,
+	.ieee_setmaxrate = mlx5e_dcbnl_ieee_setmaxrate,
 	.ieee_getpfc	= mlx5e_dcbnl_ieee_getpfc,
 	.ieee_setpfc	= mlx5e_dcbnl_ieee_setpfc,
 	.getdcbx	= mlx5e_dcbnl_getdcbx,
