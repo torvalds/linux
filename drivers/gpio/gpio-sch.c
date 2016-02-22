@@ -215,15 +215,7 @@ static int sch_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sch);
 
-	return gpiochip_add_data(&sch->chip, sch);
-}
-
-static int sch_gpio_remove(struct platform_device *pdev)
-{
-	struct sch_gpio *sch = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&sch->chip);
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &sch->chip, sch);
 }
 
 static struct platform_driver sch_gpio_driver = {
@@ -231,7 +223,6 @@ static struct platform_driver sch_gpio_driver = {
 		.name = "sch_gpio",
 	},
 	.probe		= sch_gpio_probe,
-	.remove		= sch_gpio_remove,
 };
 
 module_platform_driver(sch_gpio_driver);
