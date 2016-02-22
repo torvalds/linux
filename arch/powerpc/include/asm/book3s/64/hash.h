@@ -13,7 +13,6 @@
  * We could create separate kernel read-only if we used the 3 PP bits
  * combinations that newer processors provide but we currently don't.
  */
-#define _PAGE_PTE		0x00001	/* distinguishes PTEs from pointers */
 #define _PAGE_BIT_SWAP_TYPE	2
 #define _PAGE_USER		0x00004 /* page may be accessed by userspace */
 #define _PAGE_EXEC		0x00008 /* execute permission */
@@ -38,6 +37,7 @@
 #define _PAGE_SOFT_DIRTY	0x00000
 #endif
 
+#define _PAGE_PTE		(1ul << 62)	/* distinguishes PTEs from pointers */
 #define _PAGE_PRESENT		(1ul << 63)	/* pte contains a translation */
 
 /*
