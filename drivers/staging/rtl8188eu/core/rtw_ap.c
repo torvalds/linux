@@ -203,7 +203,7 @@ void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
 		if (bmatch)
 			dst_ie = p;
 		else
-			dst_ie = (p+ielen);
+			dst_ie = p+ielen;
 	}
 
 	if (remainder_ielen > 0) {
