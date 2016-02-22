@@ -1141,6 +1141,7 @@ static ssize_t rfkill_fop_write(struct file *file, const char __user *buf,
 {
 	struct rfkill *rfkill;
 	struct rfkill_event ev;
+	int ret;
 
 	/* we don't need the 'hard' variable but accept it */
 	if (count < RFKILL_EVENT_SIZE_V1 - 1)
@@ -1155,29 +1156,36 @@ static ssize_t rfkill_fop_write(struct file *file, const char __user *buf,
 	if (copy_from_user(&ev, buf, count))
 		return -EFAULT;
 
-	if (ev.op != RFKILL_OP_CHANGE && ev.op != RFKILL_OP_CHANGE_ALL)
-		return -EINVAL;
-
 	if (ev.type >= NUM_RFKILL_TYPES)
 		return -EINVAL;
 
 	mutex_lock(&rfkill_global_mutex);
 
-	if (ev.op == RFKILL_OP_CHANGE_ALL)
+	switch (ev.op) {
+	case RFKILL_OP_CHANGE_ALL:
 		rfkill_update_global_state(ev.type, ev.soft);
-
-	list_for_each_entry(rfkill, &rfkill_list, node) {
-		if (rfkill->idx != ev.idx && ev.op != RFKILL_OP_CHANGE_ALL)
-			continue;
-
-		if (rfkill->type != ev.type && ev.type != RFKILL_TYPE_ALL)
-			continue;
-
-		rfkill_set_block(rfkill, ev.soft);
+		list_for_each_entry(rfkill, &rfkill_list, node)
+			if (rfkill->type == ev.type ||
+			    ev.type == RFKILL_TYPE_ALL)
+				rfkill_set_block(rfkill, ev.soft);
+		ret = 0;
+		break;
+	case RFKILL_OP_CHANGE:
+		list_for_each_entry(rfkill, &rfkill_list, node)
+			if (rfkill->idx == ev.idx &&
+			    (rfkill->type == ev.type ||
+			     ev.type == RFKILL_TYPE_ALL))
+				rfkill_set_block(rfkill, ev.soft);
+		ret = 0;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
+
 	mutex_unlock(&rfkill_global_mutex);
 
-	return count;
+	return ret ?: count;
 }
 
 static int rfkill_fop_release(struct inode *inode, struct file *file)
