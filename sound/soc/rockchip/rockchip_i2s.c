@@ -440,11 +440,21 @@ static bool rockchip_i2s_precious_reg(struct device *dev, unsigned int reg)
 	}
 }
 
+static const struct reg_default rockchip_i2s_reg_defaults[] = {
+	{0x00, 0x0000000f},
+	{0x04, 0x0000000f},
+	{0x08, 0x00071f1f},
+	{0x10, 0x001f0000},
+	{0x14, 0x01f00000},
+};
+
 static const struct regmap_config rockchip_i2s_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = I2S_RXDR,
+	.reg_defaults = rockchip_i2s_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(rockchip_i2s_reg_defaults),
 	.writeable_reg = rockchip_i2s_wr_reg,
 	.readable_reg = rockchip_i2s_rd_reg,
 	.volatile_reg = rockchip_i2s_volatile_reg,
