@@ -129,6 +129,7 @@ static int rapl_hw_unit[NR_RAPL_DOMAINS] __read_mostly;  /* 1/2^hw_unit Joule */
 static struct pmu rapl_pmu_class;
 static cpumask_t rapl_cpu_mask;
 static int rapl_cntr_mask;
+static u64 rapl_timer_ms;
 
 static DEFINE_PER_CPU(struct rapl_pmu *, rapl_pmu);
 static DEFINE_PER_CPU(struct rapl_pmu *, rapl_pmu_to_free);
@@ -558,7 +559,6 @@ static int rapl_cpu_prepare(int cpu)
 {
 	struct rapl_pmu *pmu = per_cpu(rapl_pmu, cpu);
 	int phys_id = topology_physical_package_id(cpu);
-	u64 ms;
 
 	if (pmu)
 		return 0;
@@ -575,19 +575,7 @@ static int rapl_cpu_prepare(int cpu)
 
 	pmu->pmu = &rapl_pmu_class;
 
-	/*
-	 * use reference of 200W for scaling the timeout
-	 * to avoid missing counter overflows.
-	 * 200W = 200 Joules/sec
-	 * divide interval by 2 to avoid lockstep (2 * 100)
-	 * if hw unit is 32, then we use 2 ms 1/200/2
-	 */
-	if (rapl_hw_unit[0] < 32)
-		ms = (1000 / (2 * 100)) * (1ULL << (32 - rapl_hw_unit[0] - 1));
-	else
-		ms = 2;
-
-	pmu->timer_interval = ms_to_ktime(ms);
+	pmu->timer_interval = ms_to_ktime(rapl_timer_ms);
 
 	rapl_hrtimer_init(pmu);
 
@@ -676,6 +664,19 @@ static int rapl_check_hw_unit(void (*quirk)(void))
 	/* Apply cpu model quirk */
 	if (quirk)
 		quirk();
+
+	/*
+	 * Calculate the timer rate:
+	 * Use reference of 200W for scaling the timeout to avoid counter
+	 * overflows. 200W = 200 Joules/sec
+	 * Divide interval by 2 to avoid lockstep (2 * 100)
+	 * if hw unit is 32, then we use 2 ms 1/200/2
+	 */
+	rapl_timer_ms = 2;
+	if (rapl_hw_unit[0] < 32) {
+		rapl_timer_ms = (1000 / (2 * 100));
+		rapl_timer_ms *= (1ULL << (32 - rapl_hw_unit[0] - 1));
+	}
 	return 0;
 }
 
@@ -695,9 +696,7 @@ static const struct x86_cpu_id rapl_cpu_match[] = {
 static int __init rapl_pmu_init(void)
 {
 	void (*quirk)(void) = NULL;
-	struct rapl_pmu *pmu;
-	int cpu, ret;
-	int i;
+	int cpu, ret, i;
 
 	/*
 	 * check for Intel processor family 6
@@ -758,15 +757,14 @@ static int __init rapl_pmu_init(void)
 	}
 
 	__perf_cpu_notifier(rapl_cpu_notifier);
-
-	pmu = __this_cpu_read(rapl_pmu);
+	cpu_notifier_register_done();
 
 	pr_info("RAPL PMU detected,"
 		" API unit is 2^-32 Joules,"
 		" %d fixed counters"
 		" %llu ms ovfl timer\n",
 		hweight32(rapl_cntr_mask),
-		ktime_to_ms(pmu->timer_interval));
+		rapl_timer_ms);
 	for (i = 0; i < NR_RAPL_DOMAINS; i++) {
 		if (rapl_cntr_mask & (1 << i)) {
 			pr_info("hw unit of domain %s 2^-%d Joules\n",
@@ -774,7 +772,6 @@ static int __init rapl_pmu_init(void)
 		}
 	}
 
-	cpu_notifier_register_done();
 	return 0;
 
 out:
