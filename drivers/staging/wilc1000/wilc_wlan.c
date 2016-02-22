@@ -15,8 +15,6 @@ static void wilc_debug(u32 flag, char *fmt, ...)
 		va_start(args, fmt);
 		vsprintf(buf, fmt, args);
 		va_end(args);
-
-		wilc_dbg(buf);
 	}
 }
 

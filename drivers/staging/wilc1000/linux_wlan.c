@@ -224,10 +224,6 @@ static void deinit_irq(struct net_device *dev)
 	}
 }
 
-void wilc_dbg(u8 *buff)
-{
-}
-
 int wilc_lock_timeout(struct wilc *nic, void *vp, u32 timeout)
 {
 	/* FIXME: replace with mutex_lock or wait_for_completion */
