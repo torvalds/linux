@@ -9,12 +9,12 @@
 
 #include "ipvlan.h"
 
-void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
+static void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
 {
 	ipvlan->dev->mtu = dev->mtu - ipvlan->mtu_adj;
 }
 
-void ipvlan_set_port_mode(struct ipvl_port *port, u32 nval)
+static void ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
 {
 	struct ipvl_dev *ipvlan;
 
@@ -442,6 +442,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	struct ipvl_port *port;
 	struct net_device *phy_dev;
 	int err;
+	u16 mode = IPVLAN_MODE_L3;
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
@@ -460,10 +461,10 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 			return err;
 	}
 
-	port = ipvlan_port_get_rtnl(phy_dev);
 	if (data && data[IFLA_IPVLAN_MODE])
-		port->mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
+		mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
+	port = ipvlan_port_get_rtnl(phy_dev);
 	ipvlan->phy_dev = phy_dev;
 	ipvlan->dev = dev;
 	ipvlan->port = port;
@@ -489,6 +490,8 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 		goto ipvlan_destroy_port;
 
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
+	ipvlan_set_port_mode(port, mode);
+
 	netif_stacked_transfer_operstate(phy_dev, dev);
 	return 0;
 
