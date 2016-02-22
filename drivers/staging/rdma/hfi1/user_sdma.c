@@ -67,7 +67,6 @@
 #include "hfi.h"
 #include "sdma.h"
 #include "user_sdma.h"
-#include "sdma.h"
 #include "verbs.h"  /* for the headers */
 #include "common.h" /* for struct hfi1_tid_info */
 #include "trace.h"
