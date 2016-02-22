@@ -686,6 +686,14 @@ static int rapl_check_hw_unit(void)
 	return 0;
 }
 
+static void __init cleanup_rapl_pmus(void)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		kfree(per_cpu(rapl_pmu, cpu));
+}
+
 static const struct x86_cpu_id rapl_cpu_match[] = {
 	[0] = { .vendor = X86_VENDOR_INTEL, .family = 6 },
 	[1] = {},
@@ -702,7 +710,7 @@ static int __init rapl_pmu_init(void)
 	 * check for Intel processor family 6
 	 */
 	if (!x86_match_cpu(rapl_cpu_match))
-		return 0;
+		return -ENODEV;
 
 	/* check supported CPU */
 	switch (boot_cpu_data.x86_model) {
@@ -734,8 +742,9 @@ static int __init rapl_pmu_init(void)
 		break;
 	default:
 		/* unsupported */
-		return 0;
+		return -ENODEV;
 	}
+
 	ret = rapl_check_hw_unit();
 	if (ret)
 		return ret;
@@ -743,6 +752,7 @@ static int __init rapl_pmu_init(void)
 	/* run cpu model quirks */
 	for (quirk = rapl_quirks; quirk; quirk = quirk->next)
 		quirk->func();
+
 	cpu_notifier_register_begin();
 
 	for_each_online_cpu(cpu) {
@@ -752,14 +762,13 @@ static int __init rapl_pmu_init(void)
 		rapl_cpu_init(cpu);
 	}
 
-	__perf_cpu_notifier(rapl_cpu_notifier);
-
 	ret = perf_pmu_register(&rapl_pmu_class, "power", -1);
 	if (WARN_ON(ret)) {
 		pr_info("RAPL PMU detected, registration failed (%d), RAPL PMU disabled\n", ret);
-		cpu_notifier_register_done();
-		return -1;
+		goto out;
 	}
+
+	__perf_cpu_notifier(rapl_cpu_notifier);
 
 	pmu = __this_cpu_read(rapl_pmu);
 
@@ -775,9 +784,13 @@ static int __init rapl_pmu_init(void)
 				rapl_domain_names[i], rapl_hw_unit[i]);
 		}
 	}
-out:
-	cpu_notifier_register_done();
 
+	cpu_notifier_register_done();
 	return 0;
+
+out:
+	cleanup_rapl_pmus();
+	cpu_notifier_register_done();
+	return ret;
 }
 device_initcall(rapl_pmu_init);
