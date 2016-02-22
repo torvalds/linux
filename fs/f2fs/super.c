@@ -1502,8 +1502,10 @@ try_onemore:
 
 	/* recover broken superblock */
 	if (recovery && !f2fs_readonly(sb) && !bdev_read_only(sb->s_bdev)) {
-		f2fs_msg(sb, KERN_INFO, "Recover invalid superblock");
-		f2fs_commit_super(sbi, true);
+		err = f2fs_commit_super(sbi, true);
+		f2fs_msg(sb, KERN_INFO,
+			"Try to recover %dth superblock, ret: %ld",
+			sbi->valid_super_block ? 1 : 2, err);
 	}
 
 	f2fs_update_time(sbi, CP_TIME);
