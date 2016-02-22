@@ -28,8 +28,6 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
-#define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
-
 static unsigned long ti_composite_recalc_rate(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {

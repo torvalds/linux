@@ -26,8 +26,6 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
-#define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
-
 #define div_mask(d)	((1 << ((d)->width)) - 1)
 
 static unsigned int _get_table_maxdiv(const struct clk_div_table *table)

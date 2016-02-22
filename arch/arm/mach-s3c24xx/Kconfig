@@ -15,6 +15,7 @@ config PLAT_S3C24XX
 	select NO_IOPORT_MAP
 	select S3C_DEV_NAND
 	select IRQ_DOMAIN
+	select COMMON_CLK
 	help
 	  Base platform code for any Samsung S3C24XX device
 
