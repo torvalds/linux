@@ -69,7 +69,7 @@ int __tcf_hash_release(struct tc_action *a, bool bind, bool strict)
 			if (a->ops->cleanup)
 				a->ops->cleanup(a, bind);
 			tcf_hash_destroy(a);
-			ret = 1;
+			ret = ACT_P_DELETED;
 		}
 	}
 
@@ -302,6 +302,32 @@ void tcf_hash_insert(struct tc_action *a)
 }
 EXPORT_SYMBOL(tcf_hash_insert);
 
+static void tcf_hashinfo_destroy(const struct tc_action_ops *ops)
+{
+	struct tcf_hashinfo *hinfo = ops->hinfo;
+	struct tc_action a = {
+		.ops = ops,
+	};
+	int i;
+
+	for (i = 0; i < hinfo->hmask + 1; i++) {
+		struct tcf_common *p;
+		struct hlist_node *n;
+
+		hlist_for_each_entry_safe(p, n, &hinfo->htab[i], tcfc_head) {
+			int ret;
+
+			a.priv = p;
+			ret = __tcf_hash_release(&a, false, true);
+			if (ret == ACT_P_DELETED)
+				module_put(ops->owner);
+			else if (ret < 0)
+				return;
+		}
+	}
+	kfree(hinfo->htab);
+}
+
 static LIST_HEAD(act_base);
 static DEFINE_RWLOCK(act_mod_lock);
 
@@ -333,7 +359,7 @@ int tcf_register_action(struct tc_action_ops *act, unsigned int mask)
 	list_for_each_entry(a, &act_base, head) {
 		if (act->type == a->type || (strcmp(act->kind, a->kind) == 0)) {
 			write_unlock(&act_mod_lock);
-			tcf_hashinfo_destroy(act->hinfo);
+			tcf_hashinfo_destroy(act);
 			kfree(act->hinfo);
 			return -EEXIST;
 		}
@@ -353,7 +379,7 @@ int tcf_unregister_action(struct tc_action_ops *act)
 	list_for_each_entry(a, &act_base, head) {
 		if (a == act) {
 			list_del(&act->head);
-			tcf_hashinfo_destroy(act->hinfo);
+			tcf_hashinfo_destroy(act);
 			kfree(act->hinfo);
 			err = 0;
 			break;

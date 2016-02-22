@@ -65,11 +65,6 @@ static inline int tcf_hashinfo_init(struct tcf_hashinfo *hf, unsigned int mask)
 	return 0;
 }
 
-static inline void tcf_hashinfo_destroy(struct tcf_hashinfo *hf)
-{
-	kfree(hf->htab);
-}
-
 /* Update lastuse only if needed, to avoid dirtying a cache line.
  * We use a temp variable to avoid fetching jiffies twice.
  */
