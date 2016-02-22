@@ -339,8 +339,11 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	 */
 	mpc8xxx_irq_chip.irq_set_type = devtype->irq_set_type;
 
-	gc->direction_output = devtype->gpio_dir_out ?: gc->direction_output;
-	gc->get = devtype->gpio_get ?: gc->get;
+	if (devtype->gpio_dir_out)
+		gc->direction_output = devtype->gpio_dir_out;
+	if (devtype->gpio_get)
+		gc->get = devtype->gpio_get;
+
 	gc->to_irq = mpc8xxx_gpio_to_irq;
 
 	ret = gpiochip_add_data(gc, mpc8xxx_gc);
