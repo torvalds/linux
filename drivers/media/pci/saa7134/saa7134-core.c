@@ -1043,7 +1043,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	sprintf(dev->name, "saa%x[%d]", pci_dev->device, dev->nr);
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-	dev->media_dev = v4l2_mc_pci_media_device_init(pci_dev, dev->name);
+	dev->media_dev = media_device_pci_init(pci_dev, dev->name);
 	if (!dev->media_dev) {
 		err = -ENOMEM;
 		goto fail0;

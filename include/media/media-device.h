@@ -333,6 +333,10 @@ struct media_device {
 			   unsigned int notification);
 };
 
+/* We don't need to include pci.h or usb.h here */
+struct pci_dev;
+struct usb_device;
+
 #ifdef CONFIG_MEDIA_CONTROLLER
 
 /* Supported link_notify @notification values. */
@@ -541,6 +545,35 @@ struct media_device *media_device_find_devres(struct device *dev);
 /* Iterate over all links. */
 #define media_device_for_each_link(link, mdev)			\
 	list_for_each_entry(link, &(mdev)->links, graph_obj.list)
+
+/**
+ * media_device_pci_init() - create and initialize a
+ *	struct &media_device from a PCI device.
+ *
+ * @pci_dev:	pointer to struct pci_dev
+ * @name:	media device name. If %NULL, the routine will use the default
+ *		name for the pci device, given by pci_name() macro.
+ */
+struct media_device *media_device_pci_init(struct pci_dev *pci_dev,
+					   const char *name);
+/**
+ * __media_device_usb_init() - create and initialize a
+ *	struct &media_device from a PCI device.
+ *
+ * @udev:	pointer to struct usb_device
+ * @board_name:	media device name. If %NULL, the routine will use the usb
+ *		product name, if available.
+ * @driver_name: name of the driver. if %NULL, the routine will use the name
+ *		given by udev->dev->driver->name, with is usually the wrong
+ *		thing to do.
+ *
+ * NOTE: It is better to call media_device_usb_init() instead, as
+ * such macro fills driver_name with %KBUILD_MODNAME.
+ */
+struct media_device *__media_device_usb_init(struct usb_device *udev,
+					     const char *board_name,
+					     const char *driver_name);
+
 #else
 static inline int media_device_register(struct media_device *mdev)
 {
@@ -565,5 +598,25 @@ static inline struct media_device *media_device_find_devres(struct device *dev)
 {
 	return NULL;
 }
+
+static inline
+struct media_device *media_device_pci_init(struct pci_dev *pci_dev,
+					   char *name)
+{
+	return NULL;
+}
+
+static inline
+struct media_device *__media_device_usb_init(struct usb_device *udev,
+					     char *board_name,
+					     char *driver_name)
+{
+	return NULL;
+}
+
 #endif /* CONFIG_MEDIA_CONTROLLER */
+
+#define media_device_usb_init(udev, name) \
+	__media_device_usb_init(udev, name, KBUILD_MODNAME)
+
 #endif

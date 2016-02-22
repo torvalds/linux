@@ -3020,11 +3020,11 @@ static int em28xx_media_device_init(struct em28xx *dev,
 	struct media_device *mdev;
 
 	if (udev->product) {
-		mdev = v4l2_mc_usb_media_device_init(udev, udev->product);
+		mdev = media_device_usb_init(udev, udev->product);
 	} else if (udev->manufacturer) {
-		mdev = v4l2_mc_usb_media_device_init(udev, udev->manufacturer);
+		mdev = media_device_usb_init(udev, udev->manufacturer);
 	} else {
-		mdev = v4l2_mc_usb_media_device_init(udev, dev->name);
+		mdev = media_device_usb_init(udev, dev->name);
 	}
 
 	if (!mdev)

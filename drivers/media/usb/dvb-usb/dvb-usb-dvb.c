@@ -7,7 +7,7 @@
  * linux-dvb API.
  */
 #include "dvb-usb-common.h"
-#include <media/v4l2-mc.h>
+#include <media/media-device.h>
 
 /* does the complete input transfer handling */
 static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
@@ -103,7 +103,7 @@ static int dvb_usb_media_device_init(struct dvb_usb_adapter *adap)
 	struct dvb_usb_device *d = adap->dev;
 	struct usb_device *udev = d->udev;
 
-	mdev = v4l2_mc_usb_media_device_init(udev, d->desc->name);
+	mdev = media_device_usb_init(udev, d->desc->name);
 
 	dvb_register_media_controller(&adap->dvb_adap, mdev);
 

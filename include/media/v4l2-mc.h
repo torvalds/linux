@@ -116,57 +116,11 @@ struct usb_device;
  */
 int v4l2_mc_create_media_graph(struct media_device *mdev);
 
-/**
- * v4l2_mc_pci_media_device_init() - create and initialize a
- *	struct &media_device from a PCI device.
- *
- * @pci_dev:	pointer to struct pci_dev
- * @name:	media device name. If %NULL, the routine will use the default
- *		name for the pci device, given by pci_name() macro.
- */
-struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
-						   const char *name);
-/**
- * __v4l2_mc_usb_media_device_init() - create and initialize a
- *	struct &media_device from a PCI device.
- *
- * @udev:	pointer to struct usb_device
- * @board_name:	media device name. If %NULL, the routine will use the usb
- *		product name, if available.
- * @driver_name: name of the driver. if %NULL, the routine will use the name
- *		given by udev->dev->driver->name, with is usually the wrong
- *		thing to do.
- *
- * NOTE: It is better to call v4l2_mc_usb_media_device_init() instead, as
- * such macro fills driver_name with %KBUILD_MODNAME.
- */
-struct media_device *__v4l2_mc_usb_media_device_init(struct usb_device *udev,
-						     const char *board_name,
-						     const char *driver_name);
-
 #else
 static inline int v4l2_mc_create_media_graph(struct media_device *mdev)
 {
 	return 0;
 }
 
-static inline
-struct media_device *v4l2_mc_pci_media_device_init(struct pci_dev *pci_dev,
-						   char *name)
-{
-	return NULL;
-}
-
-static inline
-struct media_device *__v4l2_mc_usb_media_device_init(struct usb_device *udev,
-						     char *board_name,
-						     char *driver_name)
-{
-	return NULL;
-}
 #endif
-
-#define v4l2_mc_usb_media_device_init(udev, name) \
-	__v4l2_mc_usb_media_device_init(udev, name, KBUILD_MODNAME)
-
 #endif

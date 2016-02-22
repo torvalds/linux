@@ -27,6 +27,8 @@
 #include <linux/media.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/pci.h>
+#include <linux/usb.h>
 
 #include <media/media-device.h>
 #include <media/media-devnode.h>
@@ -752,5 +754,77 @@ struct media_device *media_device_find_devres(struct device *dev)
 	return devres_find(dev, media_device_release_devres, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(media_device_find_devres);
+
+struct media_device *media_device_pci_init(struct pci_dev *pci_dev,
+					   const char *name)
+{
+#ifdef CONFIG_PCI
+	struct media_device *mdev;
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return NULL;
+
+	mdev->dev = &pci_dev->dev;
+
+	if (name)
+		strlcpy(mdev->model, name, sizeof(mdev->model));
+	else
+		strlcpy(mdev->model, pci_name(pci_dev), sizeof(mdev->model));
+
+	sprintf(mdev->bus_info, "PCI:%s", pci_name(pci_dev));
+
+	mdev->hw_revision = (pci_dev->subsystem_vendor << 16)
+			    | pci_dev->subsystem_device;
+
+	mdev->driver_version = LINUX_VERSION_CODE;
+
+	media_device_init(mdev);
+
+	return mdev;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(media_device_pci_init);
+
+struct media_device *__media_device_usb_init(struct usb_device *udev,
+					     const char *board_name,
+					     const char *driver_name)
+{
+#ifdef CONFIG_USB
+	struct media_device *mdev;
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return NULL;
+
+	mdev->dev = &udev->dev;
+
+	if (driver_name)
+		strlcpy(mdev->driver_name, driver_name,
+			sizeof(mdev->driver_name));
+
+	if (board_name)
+		strlcpy(mdev->model, board_name, sizeof(mdev->model));
+	else if (udev->product)
+		strlcpy(mdev->model, udev->product, sizeof(mdev->model));
+	else
+		strlcpy(mdev->model, "unknown model", sizeof(mdev->model));
+	if (udev->serial)
+		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
+	usb_make_path(udev, mdev->bus_info, sizeof(mdev->bus_info));
+	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
+	mdev->driver_version = LINUX_VERSION_CODE;
+
+	media_device_init(mdev);
+
+	return mdev;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(__media_device_usb_init);
+
 
 #endif /* CONFIG_MEDIA_CONTROLLER */

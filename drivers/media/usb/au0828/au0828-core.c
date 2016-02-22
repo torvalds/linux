@@ -192,9 +192,9 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 	struct media_device *mdev;
 
 	if (!dev->board.name)
-		mdev = v4l2_mc_usb_media_device_init(udev, "unknown au0828");
+		mdev = media_device_usb_init(udev, "unknown au0828");
 	else
-		mdev = v4l2_mc_usb_media_device_init(udev, dev->board.name);
+		mdev = media_device_usb_init(udev, dev->board.name);
 	if (!mdev)
 		return -ENOMEM;
 

@@ -27,7 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <media/v4l2-mc.h>
+#include <media/media-device.h>
 
 #include "sms-cards.h"
 #include "smsendian.h"
@@ -367,7 +367,7 @@ static void *siano_media_device_register(struct smsusb_device_t *dev,
 	struct sms_board *board = sms_get_board(board_id);
 	int ret;
 
-	mdev = v4l2_mc_usb_media_device_init(udev, board->name);
+	mdev = media_device_usb_init(udev, board->name);
 	if (!mdev)
 		return NULL;
 

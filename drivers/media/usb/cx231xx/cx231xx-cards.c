@@ -1212,7 +1212,7 @@ static int cx231xx_media_device_init(struct cx231xx *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	mdev = v4l2_mc_usb_media_device_init(udev, dev->board.name);
+	mdev = media_device_usb_init(udev, dev->board.name);
 	if (!mdev)
 		return -ENOMEM;
 
