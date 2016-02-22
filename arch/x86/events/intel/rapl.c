@@ -731,7 +731,7 @@ static int __init rapl_pmu_init(void)
 		rapl_add_quirk(rapl_hsw_server_quirk);
 		rapl_cntr_mask = RAPL_IDX_KNL;
 		rapl_pmu_events_group.attrs = rapl_events_knl_attr;
-
+		break;
 	default:
 		/* unsupported */
 		return 0;
