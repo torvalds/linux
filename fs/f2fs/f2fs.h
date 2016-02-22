@@ -1711,7 +1711,7 @@ struct dentry *f2fs_get_parent(struct dentry *child);
  */
 extern unsigned char f2fs_filetype_table[F2FS_FT_MAX];
 void set_de_type(struct f2fs_dir_entry *, umode_t);
-
+unsigned char get_de_type(struct f2fs_dir_entry *);
 struct f2fs_dir_entry *find_target_dentry(struct fscrypt_name *,
 			f2fs_hash_t, int *, struct f2fs_dentry_ptr *);
 bool f2fs_fill_dentries(struct dir_context *, struct f2fs_dentry_ptr *,
@@ -1732,6 +1732,8 @@ void f2fs_set_link(struct inode *, struct f2fs_dir_entry *,
 int update_dent_inode(struct inode *, struct inode *, const struct qstr *);
 void f2fs_update_dentry(nid_t ino, umode_t mode, struct f2fs_dentry_ptr *,
 			const struct qstr *, f2fs_hash_t , unsigned int);
+int f2fs_add_regular_entry(struct inode *, const struct qstr *,
+						struct inode *, nid_t, umode_t);
 int __f2fs_add_link(struct inode *, const struct qstr *, struct inode *, nid_t,
 			umode_t);
 void f2fs_delete_entry(struct f2fs_dir_entry *, struct page *, struct inode *,

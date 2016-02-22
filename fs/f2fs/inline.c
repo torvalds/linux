@@ -355,7 +355,7 @@ int make_empty_inline_dir(struct inode *inode, struct inode *parent,
  * NOTE: ipage is grabbed by caller, but if any error occurs, we should
  * release ipage in this function.
  */
-static int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
+static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 				struct f2fs_inline_dentry *inline_dentry)
 {
 	struct page *page;
@@ -414,6 +414,98 @@ static int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
 out:
 	f2fs_put_page(page, 1);
 	return err;
+}
+
+static int f2fs_add_inline_entries(struct inode *dir,
+			struct f2fs_inline_dentry *inline_dentry)
+{
+	struct f2fs_dentry_ptr d;
+	unsigned long bit_pos = 0;
+	int err = 0;
+
+	make_dentry_ptr(NULL, &d, (void *)inline_dentry, 2);
+
+	while (bit_pos < d.max) {
+		struct f2fs_dir_entry *de;
+		struct qstr new_name;
+		nid_t ino;
+		umode_t fake_mode;
+
+		if (!test_bit_le(bit_pos, d.bitmap)) {
+			bit_pos++;
+			continue;
+		}
+
+		de = &d.dentry[bit_pos];
+		new_name.name = d.filename[bit_pos];
+		new_name.len = de->name_len;
+
+		ino = le32_to_cpu(de->ino);
+		fake_mode = get_de_type(de) << S_SHIFT;
+
+		err = f2fs_add_regular_entry(dir, &new_name, NULL,
+							ino, fake_mode);
+		if (err)
+			goto punch_dentry_pages;
+
+		if (unlikely(!de->name_len))
+			d.max = -1;
+
+		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
+	}
+	return 0;
+punch_dentry_pages:
+	truncate_inode_pages(&dir->i_data, 0);
+	truncate_blocks(dir, 0, false);
+	remove_dirty_inode(dir);
+	return err;
+}
+
+static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
+				struct f2fs_inline_dentry *inline_dentry)
+{
+	struct f2fs_inline_dentry *backup_dentry;
+	int err;
+
+	backup_dentry = kmalloc(sizeof(struct f2fs_inline_dentry),
+							GFP_F2FS_ZERO);
+	if (!backup_dentry)
+		return -ENOMEM;
+
+	memcpy(backup_dentry, inline_dentry, MAX_INLINE_DATA);
+	truncate_inline_inode(ipage, 0);
+
+	unlock_page(ipage);
+
+	err = f2fs_add_inline_entries(dir, backup_dentry);
+	if (err)
+		goto recover;
+
+	lock_page(ipage);
+
+	stat_dec_inline_dir(dir);
+	clear_inode_flag(F2FS_I(dir), FI_INLINE_DENTRY);
+	update_inode(dir, ipage);
+	kfree(backup_dentry);
+	return 0;
+recover:
+	lock_page(ipage);
+	memcpy(inline_dentry, backup_dentry, MAX_INLINE_DATA);
+	i_size_write(dir, MAX_INLINE_DATA);
+	update_inode(dir, ipage);
+	f2fs_put_page(ipage, 1);
+
+	kfree(backup_dentry);
+	return err;
+}
+
+static int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
+				struct f2fs_inline_dentry *inline_dentry)
+{
+	if (!F2FS_I(dir)->i_dir_level)
+		return f2fs_move_inline_dirents(dir, ipage, inline_dentry);
+	else
+		return f2fs_move_rehashed_dirents(dir, ipage, inline_dentry);
 }
 
 int f2fs_add_inline_entry(struct inode *dir, const struct qstr *name,
