@@ -267,6 +267,24 @@ extern void ktime_get_raw_and_real_ts64(struct timespec64 *ts_raw,
 				        struct timespec64 *ts_real);
 
 /*
+ * struct system_time_snapshot - simultaneous raw/real time capture with
+ *	counter value
+ * @cycles:	Clocksource counter value to produce the system times
+ * @real:	Realtime system time
+ * @raw:	Monotonic raw system time
+ */
+struct system_time_snapshot {
+	cycle_t		cycles;
+	ktime_t		real;
+	ktime_t		raw;
+};
+
+/*
+ * Simultaneously snapshot realtime and monotonic raw clocks
+ */
+extern void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot);
+
+/*
  * Persistent clock related interfaces
  */
 extern int persistent_clock_is_local;
