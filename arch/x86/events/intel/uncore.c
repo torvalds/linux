@@ -882,7 +882,7 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	int phys_id, ret;
 
 	phys_id = uncore_pcibus_to_physid(pdev->bus);
-	if (phys_id < 0)
+	if (phys_id < 0 || phys_id >= UNCORE_SOCKET_MAX)
 		return -ENODEV;
 
 	if (UNCORE_PCI_DEV_TYPE(id->driver_data) == UNCORE_EXTRA_PCI_DEV) {
