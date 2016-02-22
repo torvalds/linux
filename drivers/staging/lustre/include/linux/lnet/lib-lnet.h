@@ -693,6 +693,11 @@ void lnet_peer_tables_cleanup(lnet_ni_t *ni);
 void lnet_peer_tables_destroy(void);
 int lnet_peer_tables_create(void);
 void lnet_debug_peer(lnet_nid_t nid);
+int lnet_get_peers(int count, __u64 *nid, char *alivness,
+		   int *ncpt, int *refcount,
+		   int *ni_peer_tx_credits, int *peer_tx_credits,
+		   int *peer_rtr_credits, int *peer_min_rtr_credtis,
+		   int *peer_tx_qnob);
 
 static inline void
 lnet_peer_set_alive(lnet_peer_t *lp)

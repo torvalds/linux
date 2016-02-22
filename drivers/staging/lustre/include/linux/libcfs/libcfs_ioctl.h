@@ -41,7 +41,8 @@
 #ifndef __LIBCFS_IOCTL_H__
 #define __LIBCFS_IOCTL_H__
 
-#define LIBCFS_IOCTL_VERSION 0x0001000a
+#define LIBCFS_IOCTL_VERSION	0x0001000a
+#define LIBCFS_IOCTL_VERSION2	0x0001000b
 
 struct libcfs_ioctl_hdr {
 	__u32 ioc_len;
@@ -111,9 +112,6 @@ struct libcfs_ioctl_handler {
 /* lnet ioctls */
 #define IOC_LIBCFS_GET_NI		  _IOWR('e', 50, long)
 #define IOC_LIBCFS_FAIL_NID		_IOWR('e', 51, long)
-#define IOC_LIBCFS_ADD_ROUTE	       _IOWR('e', 52, long)
-#define IOC_LIBCFS_DEL_ROUTE	       _IOWR('e', 53, long)
-#define IOC_LIBCFS_GET_ROUTE	       _IOWR('e', 54, long)
 #define IOC_LIBCFS_NOTIFY_ROUTER	   _IOWR('e', 55, long)
 #define IOC_LIBCFS_UNCONFIGURE	     _IOWR('e', 56, long)
 /*	#define IOC_LIBCFS_PORTALS_COMPATIBILITY   _IOWR('e', 57, long) */
@@ -136,7 +134,25 @@ struct libcfs_ioctl_handler {
 #define IOC_LIBCFS_DEL_INTERFACE	   _IOWR('e', 79, long)
 #define IOC_LIBCFS_GET_INTERFACE	   _IOWR('e', 80, long)
 
-#define IOC_LIBCFS_MAX_NR			     80
+/*
+ * DLC Specific IOCTL numbers.
+ * In order to maintain backward compatibility with any possible external
+ * tools which might be accessing the IOCTL numbers, a new group of IOCTL
+ * number have been allocated.
+ */
+#define IOCTL_CONFIG_SIZE		struct lnet_ioctl_config_data
+#define IOC_LIBCFS_ADD_ROUTE		_IOWR(IOC_LIBCFS_TYPE, 81, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_DEL_ROUTE		_IOWR(IOC_LIBCFS_TYPE, 82, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_GET_ROUTE		_IOWR(IOC_LIBCFS_TYPE, 83, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_ADD_NET		_IOWR(IOC_LIBCFS_TYPE, 84, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_DEL_NET		_IOWR(IOC_LIBCFS_TYPE, 85, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_GET_NET		_IOWR(IOC_LIBCFS_TYPE, 86, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_CONFIG_RTR		_IOWR(IOC_LIBCFS_TYPE, 87, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_ADD_BUF		_IOWR(IOC_LIBCFS_TYPE, 88, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_GET_BUF		_IOWR(IOC_LIBCFS_TYPE, 89, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_GET_PEER_INFO	_IOWR(IOC_LIBCFS_TYPE, 90, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_GET_LNET_STATS	_IOWR(IOC_LIBCFS_TYPE, 91, IOCTL_CONFIG_SIZE)
+#define IOC_LIBCFS_MAX_NR		91
 
 static inline int libcfs_ioctl_packlen(struct libcfs_ioctl_data *data)
 {

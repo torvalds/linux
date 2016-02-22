@@ -39,6 +39,7 @@
 #include <linux/ktime.h>
 
 #include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lib-dlc.h"
 
 #define D_LNI D_CONSOLE
 
@@ -1743,6 +1744,7 @@ int
 LNetCtl(unsigned int cmd, void *arg)
 {
 	struct libcfs_ioctl_data *data = arg;
+	struct lnet_ioctl_config_data *config;
 	lnet_process_id_t id = {0};
 	lnet_ni_t *ni;
 	int rc;
@@ -1767,16 +1769,60 @@ LNetCtl(unsigned int cmd, void *arg)
 		return rc ? rc : lnet_check_routes();
 
 	case IOC_LIBCFS_DEL_ROUTE:
+		config = arg;
+
+		if (config->cfg_hdr.ioc_len < sizeof(*config))
+			return -EINVAL;
+
 		mutex_lock(&the_lnet.ln_api_mutex);
-		rc = lnet_del_route(data->ioc_net, data->ioc_nid);
+		rc = lnet_del_route(config->cfg_net, config->cfg_nid);
 		mutex_unlock(&the_lnet.ln_api_mutex);
 		return rc;
 
 	case IOC_LIBCFS_GET_ROUTE:
-		return lnet_get_route(data->ioc_count,
-				      &data->ioc_net, &data->ioc_count,
-				      &data->ioc_nid, &data->ioc_flags,
-				      &data->ioc_priority);
+		config = arg;
+
+		if (config->cfg_hdr.ioc_len < sizeof(*config))
+			return -EINVAL;
+
+		return lnet_get_route(config->cfg_count,
+				      &config->cfg_net,
+				      &config->cfg_config_u.cfg_route.rtr_hop,
+				      &config->cfg_nid,
+				      &config->cfg_config_u.cfg_route.rtr_flags,
+				      &config->cfg_config_u.cfg_route.rtr_priority);
+
+	case IOC_LIBCFS_ADD_NET:
+		return 0;
+
+	case IOC_LIBCFS_DEL_NET:
+		return 0;
+
+	case IOC_LIBCFS_GET_NET:
+		return 0;
+
+	case IOC_LIBCFS_GET_LNET_STATS: {
+		struct lnet_ioctl_lnet_stats *lnet_stats = arg;
+
+		if (lnet_stats->st_hdr.ioc_len < sizeof(*lnet_stats))
+			return -EINVAL;
+
+		lnet_counters_get(&lnet_stats->st_cntrs);
+		return 0;
+	}
+
+	case IOC_LIBCFS_CONFIG_RTR:
+		return 0;
+
+	case IOC_LIBCFS_ADD_BUF:
+		return 0;
+
+	case IOC_LIBCFS_GET_BUF:
+		return 0;
+
+	case IOC_LIBCFS_GET_PEER_INFO:
+		return 0;
+
 	case IOC_LIBCFS_NOTIFY_ROUTER:
 		secs_passed = (ktime_get_real_seconds() - data->ioc_u64[0]);
 		return lnet_notify(NULL, data->ioc_nid, data->ioc_flags,

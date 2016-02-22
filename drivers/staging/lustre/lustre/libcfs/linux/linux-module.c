@@ -65,7 +65,8 @@ int libcfs_ioctl_getdata_len(const struct libcfs_ioctl_hdr __user *arg,
 	if (copy_from_user(&hdr, arg, sizeof(hdr)))
 		return -EFAULT;
 
-	if (hdr.ioc_version != LIBCFS_IOCTL_VERSION) {
+	if (hdr.ioc_version != LIBCFS_IOCTL_VERSION &&
+	    hdr.ioc_version != LIBCFS_IOCTL_VERSION2) {
 		CERROR("LNET: version mismatch expected %#x, got %#x\n",
 		       LIBCFS_IOCTL_VERSION, hdr.ioc_version);
 		return -EINVAL;

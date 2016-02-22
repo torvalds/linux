@@ -36,6 +36,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 #include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lib-dlc.h"
 
 static int config_on_load;
 module_param(config_on_load, int, 0444);
@@ -94,6 +95,9 @@ lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 
 	case IOC_LIBCFS_UNCONFIGURE:
 		return lnet_unconfigure();
+
+	case IOC_LIBCFS_ADD_NET:
+		return LNetCtl(cmd, hdr);
 
 	default:
 		/*

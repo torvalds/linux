@@ -54,13 +54,15 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#define LIBCFS_MAX_IOCTL_BUF_LEN 2048
+#define LNET_MAX_IOCTL_BUF_LEN (sizeof(struct lnet_ioctl_net_config) + \
+				sizeof(struct lnet_ioctl_config_data))
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include <asm/div64.h>
 
 #include "../../include/linux/libcfs/libcfs_crypto.h"
 #include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lib-dlc.h"
 #include "../../include/linux/lnet/lnet.h"
 #include "tracefile.h"
 
@@ -123,8 +125,13 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 	struct libcfs_ioctl_data *data = NULL;
 	int err = -EINVAL;
 
-	if ((cmd <= IOC_LIBCFS_LNETST) ||
-	    (cmd >= IOC_LIBCFS_REGISTER_MYNID)) {
+	/*
+	 * The libcfs_ioctl_data_adjust() function performs adjustment
+	 * operations on the libcfs_ioctl_data structure to make
+	 * it usable by the code.  This doesn't need to be called
+	 * for new data structures added.
+	 */
+	if (hdr->ioc_version == LIBCFS_IOCTL_VERSION) {
 		data = container_of(hdr, struct libcfs_ioctl_data, ioc_hdr);
 		err = libcfs_ioctl_data_adjust(data);
 		if (err)
@@ -183,7 +190,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 	 * do a check here to restrict the size of the memory
 	 * to allocate to guard against DoS attacks.
 	 */
-	if (buf_len > LIBCFS_MAX_IOCTL_BUF_LEN) {
+	if (buf_len > LNET_MAX_IOCTL_BUF_LEN) {
 		CERROR("LNET: user buffer exceeds kernel buffer\n");
 		return -EINVAL;
 	}

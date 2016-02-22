@@ -39,6 +39,7 @@
 #define DEBUG_SUBSYSTEM S_LNET
 
 #include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lib-dlc.h"
 
 int
 lnet_peer_tables_create(void)
@@ -391,4 +392,64 @@ lnet_debug_peer(lnet_nid_t nid)
 	lnet_peer_decref_locked(lp);
 
 	lnet_net_unlock(cpt);
+}
+
+int lnet_get_peers(int count, __u64 *nid, char *aliveness,
+		   int *ncpt, int *refcount,
+		   int *ni_peer_tx_credits, int *peer_tx_credits,
+		   int *peer_rtr_credits, int *peer_min_rtr_credits,
+		   int *peer_tx_qnob)
+{
+	struct lnet_peer_table *peer_table;
+	lnet_peer_t *lp;
+	int j;
+	int lncpt, found = 0;
+
+	/* get the number of CPTs */
+	lncpt = cfs_percpt_number(the_lnet.ln_peer_tables);
+
+	/*
+	 * if the cpt number to be examined is >= the number of cpts in
+	 * the system then indicate that there are no more cpts to examin
+	 */
+	if (*ncpt >= lncpt)
+		return -ENOENT;
+
+	/* get the current table */
+	peer_table = the_lnet.ln_peer_tables[*ncpt];
+	/* if the ptable is NULL then there are no more cpts to examine */
+	if (!peer_table)
+		return -ENOENT;
+
+	lnet_net_lock(*ncpt);
+
+	for (j = 0; j < LNET_PEER_HASH_SIZE && !found; j++) {
+		struct list_head *peers = &peer_table->pt_hash[j];
+
+		list_for_each_entry(lp, peers, lp_hashlist) {
+			if (count-- > 0)
+				continue;
+
+			snprintf(aliveness, LNET_MAX_STR_LEN, "NA");
+			if (lnet_isrouter(lp) ||
+			    lnet_peer_aliveness_enabled(lp))
+				snprintf(aliveness, LNET_MAX_STR_LEN,
+					 lp->lp_alive ? "up" : "down");
+
+			*nid = lp->lp_nid;
+			*refcount = lp->lp_refcount;
+			*ni_peer_tx_credits = lp->lp_ni->ni_peertxcredits;
+			*peer_tx_credits = lp->lp_txcredits;
+			*peer_rtr_credits = lp->lp_rtrcredits;
+			*peer_min_rtr_credits = lp->lp_mintxcredits;
+			*peer_tx_qnob = lp->lp_txqnob;
+
+			found = 1;
+		}
+	}
+	lnet_net_unlock(*ncpt);
+
+	*ncpt = lncpt;
+
+	return found ? 0 : -ENOENT;
 }
