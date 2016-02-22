@@ -175,7 +175,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 static void vfio_pci_disable(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
-	int bar;
+	int i, bar;
 
 	/* Stop the device from further DMA */
 	pci_clear_master(pdev);
@@ -185,6 +185,13 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 				vdev->irq_type, 0, 0, NULL);
 
 	vdev->virq_disabled = false;
+
+	for (i = 0; i < vdev->num_regions; i++)
+		vdev->region[i].ops->release(vdev, &vdev->region[i]);
+
+	vdev->num_regions = 0;
+	kfree(vdev->region);
+	vdev->region = NULL; /* don't krealloc a freed pointer */
 
 	vfio_config_free(vdev);
 
@@ -463,6 +470,51 @@ static int msix_sparse_mmap_cap(struct vfio_pci_device *vdev,
 	return 0;
 }
 
+static int region_type_cap(struct vfio_pci_device *vdev,
+			   struct vfio_info_cap *caps,
+			   unsigned int type, unsigned int subtype)
+{
+	struct vfio_info_cap_header *header;
+	struct vfio_region_info_cap_type *cap;
+
+	header = vfio_info_cap_add(caps, sizeof(*cap),
+				   VFIO_REGION_INFO_CAP_TYPE, 1);
+	if (IS_ERR(header))
+		return PTR_ERR(header);
+
+	cap = container_of(header, struct vfio_region_info_cap_type, header);
+	cap->type = type;
+	cap->subtype = subtype;
+
+	return 0;
+}
+
+int vfio_pci_register_dev_region(struct vfio_pci_device *vdev,
+				 unsigned int type, unsigned int subtype,
+				 const struct vfio_pci_regops *ops,
+				 size_t size, u32 flags, void *data)
+{
+	struct vfio_pci_region *region;
+
+	region = krealloc(vdev->region,
+			  (vdev->num_regions + 1) * sizeof(*region),
+			  GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+
+	vdev->region = region;
+	vdev->region[vdev->num_regions].type = type;
+	vdev->region[vdev->num_regions].subtype = subtype;
+	vdev->region[vdev->num_regions].ops = ops;
+	vdev->region[vdev->num_regions].size = size;
+	vdev->region[vdev->num_regions].flags = flags;
+	vdev->region[vdev->num_regions].data = data;
+
+	vdev->num_regions++;
+
+	return 0;
+}
+
 static long vfio_pci_ioctl(void *device_data,
 			   unsigned int cmd, unsigned long arg)
 {
@@ -485,7 +537,7 @@ static long vfio_pci_ioctl(void *device_data,
 		if (vdev->reset_works)
 			info.flags |= VFIO_DEVICE_FLAGS_RESET;
 
-		info.num_regions = VFIO_PCI_NUM_REGIONS;
+		info.num_regions = VFIO_PCI_NUM_REGIONS + vdev->num_regions;
 		info.num_irqs = VFIO_PCI_NUM_IRQS;
 
 		return copy_to_user((void __user *)arg, &info, minsz);
@@ -494,7 +546,7 @@ static long vfio_pci_ioctl(void *device_data,
 		struct pci_dev *pdev = vdev->pdev;
 		struct vfio_region_info info;
 		struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
-		int ret;
+		int i, ret;
 
 		minsz = offsetofend(struct vfio_region_info, offset);
 
@@ -568,7 +620,21 @@ static long vfio_pci_ioctl(void *device_data,
 
 			break;
 		default:
-			return -EINVAL;
+			if (info.index >=
+			    VFIO_PCI_NUM_REGIONS + vdev->num_regions)
+				return -EINVAL;
+
+			i = info.index - VFIO_PCI_NUM_REGIONS;
+
+			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
+			info.size = vdev->region[i].size;
+			info.flags = vdev->region[i].flags;
+
+			ret = region_type_cap(vdev, &caps,
+					      vdev->region[i].type,
+					      vdev->region[i].subtype);
+			if (ret)
+				return ret;
 		}
 
 		if (caps.size) {
@@ -866,7 +932,7 @@ static ssize_t vfio_pci_rw(void *device_data, char __user *buf,
 	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
 	struct vfio_pci_device *vdev = device_data;
 
-	if (index >= VFIO_PCI_NUM_REGIONS)
+	if (index >= VFIO_PCI_NUM_REGIONS + vdev->num_regions)
 		return -EINVAL;
 
 	switch (index) {
@@ -883,6 +949,10 @@ static ssize_t vfio_pci_rw(void *device_data, char __user *buf,
 
 	case VFIO_PCI_VGA_REGION_INDEX:
 		return vfio_pci_vga_rw(vdev, buf, count, ppos, iswrite);
+	default:
+		index -= VFIO_PCI_NUM_REGIONS;
+		return vdev->region[index].ops->rw(vdev, buf,
+						   count, ppos, iswrite);
 	}
 
 	return -EINVAL;
@@ -1065,6 +1135,7 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 		return;
 
 	vfio_iommu_group_put(pdev->dev.iommu_group, &pdev->dev);
+	kfree(vdev->region);
 	kfree(vdev);
 
 	if (vfio_pci_is_vga(pdev)) {
