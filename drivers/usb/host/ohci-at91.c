@@ -24,8 +24,6 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 
-#include <asm/gpio.h>
-
 #include "ohci.h"
 
 #define valid_port(index)	((index) >= 0 && (index) < AT91_MAX_USBH_PORTS)

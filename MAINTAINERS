@@ -240,6 +240,12 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/abituguru3.c
 
+ACCES 104-DIO-48E GPIO DRIVER
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+F:	drivers/gpio/gpio-104-dio-48e.c
+
 ACCES 104-IDI-48 GPIO DRIVER
 M:	"William Breathitt Gray" <vilhelm.gray@gmail.com>
 L:	linux-gpio@vger.kernel.org
@@ -4815,10 +4821,14 @@ L:	linux-gpio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
 S:	Maintained
 F:	Documentation/gpio/
+F:	Documentation/ABI/testing/gpio-cdev
+F:	Documentation/ABI/obsolete/sysfs-gpio
 F:	drivers/gpio/
 F:	include/linux/gpio/
 F:	include/linux/gpio.h
 F:	include/asm-generic/gpio.h
+F:	include/uapi/linux/gpio.h
+F:	tools/gpio/
 
 GRE DEMULTIPLEXER DRIVER
 M:	Dmitry Kozlov <xeb@mail.ru>
@@ -11870,6 +11880,12 @@ WINBOND CIR DRIVER
 M:	David Härdeman <david@hardeman.nu>
 S:	Maintained
 F:	drivers/media/rc/winbond-cir.c
+
+WINSYSTEMS WS16C48 GPIO DRIVER
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+F:	drivers/gpio/gpio-ws16c48.c
 
 WIMAX STACK
 M:	Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>

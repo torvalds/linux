@@ -36,8 +36,8 @@
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 #include <asm/dma.h>
-#include <asm/gpio.h>
 #include <asm/portmux.h>
 
 #define DRV_NAME		"pata-bf54x"
