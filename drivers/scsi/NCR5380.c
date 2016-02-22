@@ -815,15 +815,17 @@ static void NCR5380_main(struct work_struct *work)
 	struct NCR5380_hostdata *hostdata =
 		container_of(work, struct NCR5380_hostdata, main_task);
 	struct Scsi_Host *instance = hostdata->host;
-	struct scsi_cmnd *cmd;
 	int done;
 
 	do {
 		done = 1;
 
 		spin_lock_irq(&hostdata->lock);
-		while (!hostdata->connected &&
-		       (cmd = dequeue_next_cmd(instance))) {
+		while (!hostdata->connected && !hostdata->selecting) {
+			struct scsi_cmnd *cmd = dequeue_next_cmd(instance);
+
+			if (!cmd)
+				break;
 
 			dsprintk(NDEBUG_MAIN, instance, "main: dequeued %p\n", cmd);
 
@@ -840,8 +842,7 @@ static void NCR5380_main(struct work_struct *work)
 			 * entire unit.
 			 */
 
-			cmd = NCR5380_select(instance, cmd);
-			if (!cmd) {
+			if (!NCR5380_select(instance, cmd)) {
 				dsprintk(NDEBUG_MAIN, instance, "main: select complete\n");
 			} else {
 				dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES, instance,
@@ -1054,6 +1055,11 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	spin_lock_irq(&hostdata->lock);
 	if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE)) {
 		/* Reselection interrupt */
+		goto out;
+	}
+	if (!hostdata->selecting) {
+		/* Command was aborted */
+		NCR5380_write(MODE_REG, MR_BASE);
 		goto out;
 	}
 	if (err < 0) {
