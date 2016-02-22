@@ -1022,7 +1022,6 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 			ret = -EIO;
 			goto _fail_;
 		}
-		PRINT_D(INIT_DBG, "Offset = %d\n", offset);
 	} while (offset < buffer_size);
 
 _fail_:
@@ -1448,8 +1447,6 @@ int wilc_wlan_init(struct net_device *dev)
 	struct wilc *wilc;
 
 	wilc = vif->wilc;
-
-	PRINT_D(INIT_DBG, "Initializing WILC_Wlan ...\n");
 
 	wilc->quit = 0;
 
