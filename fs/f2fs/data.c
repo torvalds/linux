@@ -219,7 +219,7 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	f2fs_trace_ios(fio, 0);
 
 	/* Allocate a new bio */
-	bio = __bio_alloc(fio->sbi, fio->blk_addr, 1, is_read_io(fio->rw));
+	bio = __bio_alloc(fio->sbi, fio->new_blkaddr, 1, is_read_io(fio->rw));
 
 	if (bio_add_page(bio, page, PAGE_CACHE_SIZE, 0) < PAGE_CACHE_SIZE) {
 		bio_put(bio);
@@ -240,21 +240,24 @@ void f2fs_submit_page_mbio(struct f2fs_io_info *fio)
 
 	io = is_read ? &sbi->read_io : &sbi->write_io[btype];
 
-	verify_block_addr(sbi, fio->blk_addr);
+	if (fio->old_blkaddr != NEW_ADDR)
+		verify_block_addr(sbi, fio->old_blkaddr);
+	verify_block_addr(sbi, fio->new_blkaddr);
 
 	down_write(&io->io_rwsem);
 
 	if (!is_read)
 		inc_page_count(sbi, F2FS_WRITEBACK);
 
-	if (io->bio && (io->last_block_in_bio != fio->blk_addr - 1 ||
+	if (io->bio && (io->last_block_in_bio != fio->new_blkaddr - 1 ||
 						io->fio.rw != fio->rw))
 		__submit_merged_bio(io);
 alloc_new:
 	if (io->bio == NULL) {
 		int bio_blocks = MAX_BIO_BLOCKS(sbi);
 
-		io->bio = __bio_alloc(sbi, fio->blk_addr, bio_blocks, is_read);
+		io->bio = __bio_alloc(sbi, fio->new_blkaddr,
+						bio_blocks, is_read);
 		io->fio = *fio;
 	}
 
@@ -266,7 +269,7 @@ alloc_new:
 		goto alloc_new;
 	}
 
-	io->last_block_in_bio = fio->blk_addr;
+	io->last_block_in_bio = fio->new_blkaddr;
 	f2fs_trace_ios(fio, 0);
 
 	up_write(&io->io_rwsem);
@@ -400,7 +403,7 @@ got_it:
 		return page;
 	}
 
-	fio.blk_addr = dn.data_blkaddr;
+	fio.new_blkaddr = fio.old_blkaddr = dn.data_blkaddr;
 	fio.page = page;
 	err = f2fs_submit_page_bio(&fio);
 	if (err)
@@ -1071,11 +1074,10 @@ int do_write_data_page(struct f2fs_io_info *fio)
 	if (err)
 		return err;
 
-	fio->blk_addr = dn.data_blkaddr;
 	fio->old_blkaddr = dn.data_blkaddr;
 
 	/* This page is already truncated */
-	if (fio->blk_addr == NULL_ADDR) {
+	if (fio->old_blkaddr == NULL_ADDR) {
 		ClearPageUptodate(page);
 		goto out_writepage;
 	}
@@ -1084,7 +1086,7 @@ int do_write_data_page(struct f2fs_io_info *fio)
 
 		/* wait for GCed encrypted page writeback */
 		f2fs_wait_on_encrypted_page_writeback(F2FS_I_SB(inode),
-							fio->blk_addr);
+							fio->old_blkaddr);
 
 		fio->encrypted_page = f2fs_encrypt(inode, fio->page);
 		if (IS_ERR(fio->encrypted_page)) {
@@ -1099,7 +1101,7 @@ int do_write_data_page(struct f2fs_io_info *fio)
 	 * If current allocation needs SSR,
 	 * it had better in-place writes for updated data.
 	 */
-	if (unlikely(fio->blk_addr != NEW_ADDR &&
+	if (unlikely(fio->old_blkaddr != NEW_ADDR &&
 			!is_cold_data(page) &&
 			!IS_ATOMIC_WRITTEN_PAGE(page) &&
 			need_inplace_update(inode))) {
@@ -1573,7 +1575,8 @@ repeat:
 			.sbi = sbi,
 			.type = DATA,
 			.rw = READ_SYNC,
-			.blk_addr = blkaddr,
+			.old_blkaddr = blkaddr,
+			.new_blkaddr = blkaddr,
 			.page = page,
 			.encrypted_page = NULL,
 		};

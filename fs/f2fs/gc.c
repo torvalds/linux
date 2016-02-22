@@ -581,10 +581,10 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 
 	/* read page */
 	fio.page = page;
-	fio.blk_addr = dn.data_blkaddr;
+	fio.new_blkaddr = fio.old_blkaddr = dn.data_blkaddr;
 
 	fio.encrypted_page = pagecache_get_page(META_MAPPING(fio.sbi),
-					fio.blk_addr,
+					fio.new_blkaddr,
 					FGP_LOCK|FGP_CREAT,
 					GFP_NOFS);
 	if (!fio.encrypted_page)
@@ -611,12 +611,12 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 
 	/* allocate block address */
 	f2fs_wait_on_page_writeback(dn.node_page, NODE, true);
-	allocate_data_block(fio.sbi, NULL, fio.blk_addr,
-					&fio.blk_addr, &sum, CURSEG_COLD_DATA);
+	allocate_data_block(fio.sbi, NULL, fio.old_blkaddr, &fio.new_blkaddr,
+							&sum, CURSEG_COLD_DATA);
 	fio.rw = WRITE_SYNC;
 	f2fs_submit_page_mbio(&fio);
 
-	dn.data_blkaddr = fio.blk_addr;
+	dn.data_blkaddr = fio.new_blkaddr;
 	set_data_blkaddr(&dn);
 	f2fs_update_extent_cache(&dn);
 	set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);

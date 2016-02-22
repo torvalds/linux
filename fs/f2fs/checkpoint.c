@@ -56,7 +56,8 @@ static struct page *__get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index,
 		.sbi = sbi,
 		.type = META,
 		.rw = READ_SYNC | REQ_META | REQ_PRIO,
-		.blk_addr = index,
+		.old_blkaddr = index,
+		.new_blkaddr = index,
 		.encrypted_page = NULL,
 	};
 
@@ -168,24 +169,24 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 					NAT_BLOCK_OFFSET(NM_I(sbi)->max_nid)))
 				blkno = 0;
 			/* get nat block addr */
-			fio.blk_addr = current_nat_addr(sbi,
+			fio.new_blkaddr = current_nat_addr(sbi,
 					blkno * NAT_ENTRY_PER_BLOCK);
 			break;
 		case META_SIT:
 			/* get sit block addr */
-			fio.blk_addr = current_sit_addr(sbi,
+			fio.new_blkaddr = current_sit_addr(sbi,
 					blkno * SIT_ENTRY_PER_BLOCK);
 			break;
 		case META_SSA:
 		case META_CP:
 		case META_POR:
-			fio.blk_addr = blkno;
+			fio.new_blkaddr = blkno;
 			break;
 		default:
 			BUG();
 		}
 
-		page = grab_cache_page(META_MAPPING(sbi), fio.blk_addr);
+		page = grab_cache_page(META_MAPPING(sbi), fio.new_blkaddr);
 		if (!page)
 			continue;
 		if (PageUptodate(page)) {
@@ -194,6 +195,7 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 		}
 
 		fio.page = page;
+		fio.old_blkaddr = fio.new_blkaddr;
 		f2fs_submit_page_mbio(&fio);
 		f2fs_put_page(page, 0);
 	}

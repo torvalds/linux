@@ -1385,8 +1385,8 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 {
 	int type = __get_segment_type(fio->page, fio->type);
 
-	allocate_data_block(fio->sbi, fio->page, fio->blk_addr,
-					&fio->blk_addr, sum, type);
+	allocate_data_block(fio->sbi, fio->page, fio->old_blkaddr,
+					&fio->new_blkaddr, sum, type);
 
 	/* writeout dirty page into bdev */
 	f2fs_submit_page_mbio(fio);
@@ -1398,7 +1398,8 @@ void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 		.sbi = sbi,
 		.type = META,
 		.rw = WRITE_SYNC | REQ_META | REQ_PRIO,
-		.blk_addr = page->index,
+		.old_blkaddr = page->index,
+		.new_blkaddr = page->index,
 		.page = page,
 		.encrypted_page = NULL,
 	};
@@ -1428,11 +1429,12 @@ void write_data_page(struct dnode_of_data *dn, struct f2fs_io_info *fio)
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 	do_write_page(&sum, fio);
-	dn->data_blkaddr = fio->blk_addr;
+	dn->data_blkaddr = fio->new_blkaddr;
 }
 
 void rewrite_data_page(struct f2fs_io_info *fio)
 {
+	fio->new_blkaddr = fio->old_blkaddr;
 	stat_inc_inplace_blocks(fio->sbi);
 	f2fs_submit_page_mbio(fio);
 }

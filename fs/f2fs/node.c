@@ -1068,7 +1068,7 @@ static int read_node_page(struct page *page, int rw)
 	if (PageUptodate(page))
 		return LOCKED_PAGE;
 
-	fio.blk_addr = ni.blk_addr;
+	fio.new_blkaddr = fio.old_blkaddr = ni.blk_addr;
 	return f2fs_submit_page_bio(&fio);
 }
 
@@ -1438,9 +1438,9 @@ static int f2fs_write_node_page(struct page *page,
 	}
 
 	set_page_writeback(page);
-	fio.blk_addr = ni.blk_addr;
+	fio.old_blkaddr = ni.blk_addr;
 	write_node_page(nid, &fio);
-	set_node_addr(sbi, &ni, fio.blk_addr, is_fsync_dnode(page));
+	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(page));
 	dec_page_count(sbi, F2FS_DIRTY_NODES);
 	up_read(&sbi->node_write);
 
