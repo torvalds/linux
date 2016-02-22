@@ -4493,20 +4493,20 @@ static bool g4x_digital_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
-static bool vlv_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool gm45_digital_port_connected(struct drm_i915_private *dev_priv,
+					struct intel_digital_port *port)
 {
 	u32 bit;
 
 	switch (port->port) {
 	case PORT_B:
-		bit = PORTB_HOTPLUG_LIVE_STATUS_VLV;
+		bit = PORTB_HOTPLUG_LIVE_STATUS_GM45;
 		break;
 	case PORT_C:
-		bit = PORTC_HOTPLUG_LIVE_STATUS_VLV;
+		bit = PORTC_HOTPLUG_LIVE_STATUS_GM45;
 		break;
 	case PORT_D:
-		bit = PORTD_HOTPLUG_LIVE_STATUS_VLV;
+		bit = PORTD_HOTPLUG_LIVE_STATUS_GM45;
 		break;
 	default:
 		MISSING_CASE(port->port);
@@ -4558,8 +4558,8 @@ bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 		return cpt_digital_port_connected(dev_priv, port);
 	else if (IS_BROXTON(dev_priv))
 		return bxt_digital_port_connected(dev_priv, port);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return vlv_digital_port_connected(dev_priv, port);
+	else if (IS_GM45(dev_priv))
+		return gm45_digital_port_connected(dev_priv, port);
 	else
 		return g4x_digital_port_connected(dev_priv, port);
 }

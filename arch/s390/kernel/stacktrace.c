@@ -59,25 +59,31 @@ static unsigned long save_context_stack(struct stack_trace *trace,
 	}
 }
 
-void save_stack_trace(struct stack_trace *trace)
+static void __save_stack_trace(struct stack_trace *trace, unsigned long sp)
 {
-	register unsigned long sp asm ("15");
-	unsigned long orig_sp, new_sp;
+	unsigned long new_sp, frame_size;
 
-	orig_sp = sp;
-	new_sp = save_context_stack(trace, orig_sp,
-				    S390_lowcore.panic_stack - PAGE_SIZE,
-				    S390_lowcore.panic_stack, 1);
-	if (new_sp != orig_sp)
-		return;
+	frame_size = STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
+	new_sp = save_context_stack(trace, sp,
+			S390_lowcore.panic_stack + frame_size - PAGE_SIZE,
+			S390_lowcore.panic_stack + frame_size, 1);
 	new_sp = save_context_stack(trace, new_sp,
-				    S390_lowcore.async_stack - ASYNC_SIZE,
-				    S390_lowcore.async_stack, 1);
-	if (new_sp != orig_sp)
-		return;
+			S390_lowcore.async_stack + frame_size - ASYNC_SIZE,
+			S390_lowcore.async_stack + frame_size, 1);
 	save_context_stack(trace, new_sp,
 			   S390_lowcore.thread_info,
 			   S390_lowcore.thread_info + THREAD_SIZE, 1);
+}
+
+void save_stack_trace(struct stack_trace *trace)
+{
+	register unsigned long r15 asm ("15");
+	unsigned long sp;
+
+	sp = r15;
+	__save_stack_trace(trace, sp);
+	if (trace->nr_entries < trace->max_entries)
+		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
@@ -86,6 +92,10 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	unsigned long sp, low, high;
 
 	sp = tsk->thread.ksp;
+	if (tsk == current) {
+		/* Get current stack pointer. */
+		asm volatile("la %0,0(15)" : "=a" (sp));
+	}
 	low = (unsigned long) task_stack_page(tsk);
 	high = (unsigned long) task_pt_regs(tsk);
 	save_context_stack(trace, sp, low, high, 0);
@@ -93,3 +103,14 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
+
+void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
+{
+	unsigned long sp;
+
+	sp = kernel_stack_pointer(regs);
+	__save_stack_trace(trace, sp);
+	if (trace->nr_entries < trace->max_entries)
+		trace->entries[trace->nr_entries++] = ULONG_MAX;
+}
+EXPORT_SYMBOL_GPL(save_stack_trace_regs);
