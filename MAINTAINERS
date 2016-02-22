@@ -223,9 +223,7 @@ F:	drivers/scsi/aacraid/
 
 ABI/API
 L:	linux-api@vger.kernel.org
-F:	Documentation/ABI/
 F:	include/linux/syscalls.h
-F:	include/uapi/
 F:	kernel/sys_ni.c
 
 ABIT UGURU 1,2 HARDWARE MONITOR DRIVER
@@ -686,13 +684,6 @@ M:	Michael Hanselmann <linux-kernel@hansmi.ch>
 S:	Supported
 F:	drivers/macintosh/ams/
 
-AMSO1100 RNIC DRIVER
-M:	Tom Tucker <tom@opengridcomputing.com>
-M:	Steve Wise <swise@opengridcomputing.com>
-L:	linux-rdma@vger.kernel.org
-S:	Maintained
-F:	drivers/infiniband/hw/amso1100/
-
 ANALOG DEVICES INC AD9389B DRIVER
 M:	Hans Verkuil <hans.verkuil@cisco.com>
 L:	linux-media@vger.kernel.org
@@ -967,6 +958,8 @@ M:	Rob Herring <robh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-highbank/
+F:	arch/arm/boot/dts/highbank.dts
+F:	arch/arm/boot/dts/ecx-*.dts*
 
 ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
 M:	Krzysztof Halasa <khalasa@piap.pl>
@@ -1042,6 +1035,7 @@ M:	Barry Song <baohua@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/baohua/linux.git
 S:	Maintained
+F:	arch/arm/boot/dts/prima2*
 F:	arch/arm/mach-prima2/
 F:	drivers/clk/sirf/
 F:	drivers/clocksource/timer-prima2.c
@@ -1143,6 +1137,10 @@ W:	http://www.hisilicon.com
 S:	Supported
 T:	git git://github.com/hisilicon/linux-hisi.git
 F:	arch/arm/mach-hisi/
+F:	arch/arm/boot/dts/hi3*
+F:	arch/arm/boot/dts/hip*
+F:	arch/arm/boot/dts/hisi*
+F:	arch/arm64/boot/dts/hisilicon/
 
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 M:	Kristoffer Ericson <kristoffer.ericson@gmail.com>
@@ -1219,6 +1217,7 @@ M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-keystone/
+F:	arch/arm/boot/dts/k2*
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
 
 ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK
@@ -1287,6 +1286,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-berlin/
 F:	arch/arm/boot/dts/berlin*
+F:	arch/arm64/boot/dts/marvell/berlin*
 
 
 ARM/Marvell Dove/MV78xx0/Orion SOC support
@@ -1425,6 +1425,7 @@ S:	Maintained
 F:	arch/arm/boot/dts/qcom-*.dts
 F:	arch/arm/boot/dts/qcom-*.dtsi
 F:	arch/arm/mach-qcom/
+F:	arch/arm64/boot/dts/qcom/*
 F:	drivers/soc/qcom/
 F:	drivers/tty/serial/msm_serial.h
 F:	drivers/tty/serial/msm_serial.c
@@ -1441,8 +1442,8 @@ S:	Maintained
 ARM/RENESAS ARM64 ARCHITECTURE
 M:	Simon Horman <horms@verge.net.au>
 M:	Magnus Damm <magnus.damm@gmail.com>
-L:	linux-sh@vger.kernel.org
-Q:	http://patchwork.kernel.org/project/linux-sh/list/
+L:	linux-renesas-soc@vger.kernel.org
+Q:	http://patchwork.kernel.org/project/linux-renesas-soc/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas.git next
 S:	Supported
 F:	arch/arm64/boot/dts/renesas/
@@ -1484,6 +1485,8 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/s3c*
+F:	arch/arm/boot/dts/s5p*
+F:	arch/arm/boot/dts/samsung*
 F:	arch/arm/boot/dts/exynos*
 F:	arch/arm64/boot/dts/exynos/
 F:	arch/arm/plat-samsung/
@@ -1563,6 +1566,7 @@ S:	Maintained
 F:	arch/arm/mach-socfpga/
 F:	arch/arm/boot/dts/socfpga*
 F:	arch/arm/configs/socfpga_defconfig
+F:	arch/arm64/boot/dts/altera/
 W:	http://www.rocketboards.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux.git
 
@@ -1716,7 +1720,7 @@ M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/vexpress*
-F:	arch/arm64/boot/dts/arm/vexpress*
+F:	arch/arm64/boot/dts/arm/
 F:	arch/arm/mach-vexpress/
 F:	*/*/vexpress*
 F:	*/*/*/vexpress*
@@ -2343,6 +2347,7 @@ F:	arch/arm/mach-bcm/
 F:	arch/arm/boot/dts/bcm113*
 F:	arch/arm/boot/dts/bcm216*
 F:	arch/arm/boot/dts/bcm281*
+F:	arch/arm64/boot/dts/broadcom/
 F:	arch/arm/configs/bcm_defconfig
 F:	drivers/mmc/host/sdhci-bcm-kona.c
 F:	drivers/clocksource/bcm_kona_timer.c
@@ -2356,14 +2361,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rpi/linux-rpi.git
 S:	Maintained
 N:	bcm2835
-
-BROADCOM BCM33XX MIPS ARCHITECTURE
-M:	Kevin Cernekee <cernekee@gmail.com>
-L:	linux-mips@linux-mips.org
-S:	Maintained
-F:	arch/mips/bcm3384/*
-F:	arch/mips/include/asm/mach-bcm3384/*
-F:	arch/mips/kernel/*bmips*
 
 BROADCOM BCM47XX MIPS ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
@@ -3445,7 +3442,7 @@ S:	Maintained
 F:	drivers/usb/dwc2/
 
 DESIGNWARE USB3 DRD IP DRIVER
-M:	Felipe Balbi <balbi@ti.com>
+M:	Felipe Balbi <balbi@kernel.org>
 L:	linux-usb@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
@@ -4183,13 +4180,6 @@ EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
 F:	fs/efs/
-
-EHCA (IBM GX bus InfiniBand adapter) DRIVER
-M:	Hoang-Nam Nguyen <hnguyen@de.ibm.com>
-M:	Christoph Raisch <raisch@de.ibm.com>
-L:	linux-rdma@vger.kernel.org
-S:	Supported
-F:	drivers/infiniband/hw/ehca/
 
 EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
 M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
@@ -5809,12 +5799,6 @@ M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
 S:	Maintained
 F:	net/ipv4/netfilter/ipt_MASQUERADE.c
 
-IPATH DRIVER
-M:	Mike Marciniszyn <infinipath@intel.com>
-L:	linux-rdma@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/rdma/ipath/
-
 IPMI SUBSYSTEM
 M:	Corey Minyard <minyard@acm.org>
 L:	openipmi-developer@lists.sourceforge.net (moderated for non-subscribers)
@@ -6144,7 +6128,7 @@ F:	include/uapi/linux/sunrpc/
 
 KERNEL SELFTEST FRAMEWORK
 M:	Shuah Khan <shuahkh@osg.samsung.com>
-L:	linux-api@vger.kernel.org
+L:	linux-kselftest@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/shuah/linux-kselftest
 S:	Maintained
 F:	tools/testing/selftests
@@ -7370,7 +7354,7 @@ F:	drivers/tty/isicom.c
 F:	include/linux/isicom.h
 
 MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
-M:	Felipe Balbi <balbi@ti.com>
+M:	Felipe Balbi <balbi@kernel.org>
 L:	linux-usb@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
@@ -7939,7 +7923,7 @@ F:	drivers/media/platform/omap3isp/
 F:	drivers/staging/media/omap4iss/
 
 OMAP USB SUPPORT
-M:	Felipe Balbi <balbi@ti.com>
+M:	Felipe Balbi <balbi@kernel.org>
 L:	linux-usb@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
@@ -8818,6 +8802,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/hzhuang1/linux.git
 T:	git git://github.com/rjarzmik/linux.git
 S:	Maintained
+F:	arch/arm/boot/dts/pxa*
 F:	arch/arm/mach-pxa/
 F:	drivers/dma/pxa*
 F:	drivers/pcmcia/pxa2xx*
@@ -8847,6 +8832,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/hzhuang1/linux.git
 T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
 S:	Maintained
+F:	arch/arm/boot/dts/mmp*
 F:	arch/arm/mach-mmp/
 
 PXA MMCI DRIVER
@@ -9793,10 +9779,11 @@ S:	Supported
 F:	drivers/scsi/be2iscsi/
 
 Emulex 10Gbps NIC BE2, BE3-R, Lancer, Skyhawk-R DRIVER
-M:	Sathya Perla <sathya.perla@avagotech.com>
-M:	Ajit Khaparde <ajit.khaparde@avagotech.com>
-M:	Padmanabh Ratnakar <padmanabh.ratnakar@avagotech.com>
-M:	Sriharsha Basavapatna <sriharsha.basavapatna@avagotech.com>
+M:	Sathya Perla <sathya.perla@broadcom.com>
+M:	Ajit Khaparde <ajit.khaparde@broadcom.com>
+M:	Padmanabh Ratnakar <padmanabh.ratnakar@broadcom.com>
+M:	Sriharsha Basavapatna <sriharsha.basavapatna@broadcom.com>
+M:	Somnath Kotur <somnath.kotur@broadcom.com>
 L:	netdev@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported
@@ -10158,6 +10145,7 @@ S:	Supported
 F:	drivers/media/pci/solo6x10/
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
+M:	Shaohua Li <shli@kernel.org>
 L:	linux-raid@vger.kernel.org
 T:	git git://neil.brown.name/md
 S:	Supported
@@ -10291,6 +10279,7 @@ L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
+F:	arch/arm/boot/dts/spear*
 F:	arch/arm/mach-spear/
 
 SPEAR CLOCK FRAMEWORK SUPPORT
@@ -11318,7 +11307,7 @@ F:	Documentation/usb/ehci.txt
 F:	drivers/usb/host/ehci*
 
 USB GADGET/PERIPHERAL SUBSYSTEM
-M:	Felipe Balbi <balbi@ti.com>
+M:	Felipe Balbi <balbi@kernel.org>
 L:	linux-usb@vger.kernel.org
 W:	http://www.linux-usb.org/gadget
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
@@ -11394,7 +11383,7 @@ S:	Maintained
 F:	drivers/net/usb/pegasus.*
 
 USB PHY LAYER
-M:	Felipe Balbi <balbi@ti.com>
+M:	Felipe Balbi <balbi@kernel.org>
 L:	linux-usb@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
@@ -12133,7 +12122,7 @@ F:	drivers/net/hamradio/*scc.c
 F:	drivers/net/hamradio/z8530.h
 
 ZBUD COMPRESSED PAGE ALLOCATOR
-M:	Seth Jennings <sjennings@variantweb.net>
+M:	Seth Jennings <sjenning@redhat.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zbud.c
@@ -12188,7 +12177,7 @@ F:	include/linux/zsmalloc.h
 F:	Documentation/vm/zsmalloc.txt
 
 ZSWAP COMPRESSED SWAP CACHING
-M:	Seth Jennings <sjennings@variantweb.net>
+M:	Seth Jennings <sjenning@redhat.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zswap.c

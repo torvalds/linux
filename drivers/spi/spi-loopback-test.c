@@ -761,6 +761,7 @@ static int spi_test_run_iter(struct spi_device *spi,
 		test.iterate_transfer_mask = 1;
 
 	/* count number of transfers with tx/rx_buf != NULL */
+	rx_count = tx_count = 0;
 	for (i = 0; i < test.transfer_count; i++) {
 		if (test.transfers[i].tx_buf)
 			tx_count++;

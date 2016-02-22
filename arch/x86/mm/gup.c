@@ -102,7 +102,6 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 			return 0;
 		}
 
-		page = pte_page(pte);
 		if (pte_devmap(pte)) {
 			pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
 			if (unlikely(!pgmap)) {
@@ -115,6 +114,7 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 			return 0;
 		}
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+		page = pte_page(pte);
 		get_page(page);
 		put_dev_pagemap(pgmap);
 		SetPageReferenced(page);

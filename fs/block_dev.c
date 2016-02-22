@@ -1730,6 +1730,12 @@ static int blkdev_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return __dax_fault(vma, vmf, blkdev_get_block, NULL);
 }
 
+static int blkdev_dax_pfn_mkwrite(struct vm_area_struct *vma,
+		struct vm_fault *vmf)
+{
+	return dax_pfn_mkwrite(vma, vmf);
+}
+
 static int blkdev_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 		pmd_t *pmd, unsigned int flags)
 {
@@ -1739,7 +1745,7 @@ static int blkdev_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 static const struct vm_operations_struct blkdev_dax_vm_ops = {
 	.fault		= blkdev_dax_fault,
 	.pmd_fault	= blkdev_dax_pmd_fault,
-	.pfn_mkwrite	= blkdev_dax_fault,
+	.pfn_mkwrite	= blkdev_dax_pfn_mkwrite,
 };
 
 static const struct vm_operations_struct blkdev_default_vm_ops = {
