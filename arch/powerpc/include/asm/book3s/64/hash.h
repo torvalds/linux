@@ -13,9 +13,12 @@
  * We could create separate kernel read-only if we used the 3 PP bits
  * combinations that newer processors provide but we currently don't.
  */
-#define _PAGE_BIT_SWAP_TYPE	2
-#define _PAGE_USER		0x00004 /* page may be accessed by userspace */
-#define _PAGE_EXEC		0x00008 /* execute permission */
+#define _PAGE_BIT_SWAP_TYPE	0
+
+#define _PAGE_EXEC		0x00001 /* execute permission */
+#define _PAGE_RW		0x00002 /* read & write access allowed */
+#define _PAGE_READ		0x00004	/* read access allowed */
+#define _PAGE_USER		0x00008 /* page may be accessed by userspace */
 #define _PAGE_GUARDED		0x00010 /* G: guarded (side-effect) page */
 /* M (memory coherence) is always set in the HPTE, so we don't need it here */
 #define _PAGE_COHERENT		0x0
@@ -23,7 +26,6 @@
 #define _PAGE_WRITETHRU		0x00040 /* W: cache write-through */
 #define _PAGE_DIRTY		0x00080 /* C: page changed */
 #define _PAGE_ACCESSED		0x00100 /* R: page referenced */
-#define _PAGE_RW		0x00200 /* software: user write access allowed */
 #define _PAGE_BUSY		0x00800 /* software: PTE & hash are busy */
 #define _PAGE_SPECIAL		0x10000 /* software: special page */
 
