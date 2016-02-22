@@ -798,7 +798,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		break;
 
 	default:
-		PRINT_D(CFG80211_DBG, "Automatic Authentation type = %d\n", sme->auth_type);
+		break;
 	}
 
 	if (sme->crypto.n_akm_suites) {
