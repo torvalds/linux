@@ -1,5 +1,4 @@
 #include "wilc_wfi_cfgoperations.h"
-#include "linux_wlan_common.h"
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 

@@ -18,7 +18,6 @@
 #include <linux/spi/spi.h>
 #include <linux/of_gpio.h>
 
-#include "linux_wlan_common.h"
 #include <linux/string.h>
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
