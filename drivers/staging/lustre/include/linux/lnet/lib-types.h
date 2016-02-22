@@ -635,6 +635,13 @@ typedef struct {
 	 */
 	bool				  ln_nis_from_mod_params;
 
+	/*
+	 * waitq for router checker.  As long as there are no routes in
+	 * the list, the router checker will sleep on this queue.  when
+	 * routes are added the thread will wake up
+	 */
+	wait_queue_head_t		  ln_rc_waitq;
+
 } lnet_t;
 
 #endif
