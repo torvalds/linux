@@ -160,6 +160,10 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&usb_sw_sel_pm>;
 		};
+
+		lpass@07708000 {
+			status = "okay";
+		};
 	};
 
 	usb2513 {
