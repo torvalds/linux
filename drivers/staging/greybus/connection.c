@@ -314,7 +314,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 	int ret;
 
 	if (gb_connection_is_static(connection))
-		return 0;
+		return gb_connection_hd_fct_flow_enable(connection);
 
 	intf = connection->intf;
 	ret = gb_svc_connection_create(hd->svc,
@@ -330,12 +330,23 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 		return ret;
 	}
 
+	ret = gb_connection_hd_fct_flow_enable(connection);
+	if (ret) {
+		gb_svc_connection_destroy(hd->svc, hd->svc->ap_intf_id,
+					  connection->hd_cport_id,
+					  intf->interface_id,
+					  connection->intf_cport_id);
+		return ret;
+	}
+
 	return 0;
 }
 
 static void
 gb_connection_svc_connection_destroy(struct gb_connection *connection)
 {
+	gb_connection_hd_fct_flow_disable(connection);
+
 	if (gb_connection_is_static(connection))
 		return;
 
