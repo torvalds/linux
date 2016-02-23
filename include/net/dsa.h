@@ -313,6 +313,9 @@ struct dsa_switch_driver {
 				 struct switchdev_trans *trans);
 	int	(*port_vlan_del)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan);
+	int	(*port_vlan_dump)(struct dsa_switch *ds, int port,
+				  struct switchdev_obj_port_vlan *vlan,
+				  int (*cb)(struct switchdev_obj *obj));
 	int	(*port_pvid_get)(struct dsa_switch *ds, int port, u16 *pvid);
 	int	(*vlan_getnext)(struct dsa_switch *ds, u16 *vid,
 				unsigned long *ports, unsigned long *untagged);

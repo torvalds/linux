@@ -554,6 +554,10 @@ Bridge VLAN filtering
 - port_vlan_del: bridge layer function invoked when a VLAN is removed from the
   given switch port
 
+- port_vlan_dump: bridge layer function invoked with a switchdev callback
+  function that the driver has to call for each VLAN the given port is a member
+  of. A switchdev object is used to carry the VID and bridge flags.
+
 - vlan_getnext: bridge layer function invoked to query the next configured VLAN
   in the switch, i.e. returns the bitmaps of members and untagged ports
 

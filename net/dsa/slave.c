@@ -248,6 +248,9 @@ static int dsa_slave_port_vlan_dump(struct net_device *dev,
 	u16 pvid, vid = 0;
 	int err;
 
+	if (ds->drv->port_vlan_dump)
+		return ds->drv->port_vlan_dump(ds, p->port, vlan, cb);
+
 	if (!ds->drv->vlan_getnext || !ds->drv->port_pvid_get)
 		return -EOPNOTSUPP;
 
