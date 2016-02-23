@@ -131,14 +131,12 @@ static int journal_submit_commit_record(journal_t *journal,
 	if (is_journal_aborted(journal))
 		return 0;
 
-	bh = jbd2_journal_get_descriptor_buffer(journal);
+	bh = jbd2_journal_get_descriptor_buffer(commit_transaction,
+						JBD2_COMMIT_BLOCK);
 	if (!bh)
 		return 1;
 
 	tmp = (struct commit_header *)bh->b_data;
-	tmp->h_magic = cpu_to_be32(JBD2_MAGIC_NUMBER);
-	tmp->h_blocktype = cpu_to_be32(JBD2_COMMIT_BLOCK);
-	tmp->h_sequence = cpu_to_be32(commit_transaction->t_tid);
 	tmp->h_commit_sec = cpu_to_be64(now.tv_sec);
 	tmp->h_commit_nsec = cpu_to_be32(now.tv_nsec);
 
@@ -379,7 +377,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	ktime_t start_time;
 	u64 commit_time;
 	char *tagp = NULL;
-	journal_header_t *header;
 	journal_block_tag_t *tag = NULL;
 	int space_left = 0;
 	int first_tag = 0;
@@ -615,7 +612,9 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 			jbd_debug(4, "JBD2: get descriptor\n");
 
-			descriptor = jbd2_journal_get_descriptor_buffer(journal);
+			descriptor = jbd2_journal_get_descriptor_buffer(
+							commit_transaction,
+							JBD2_DESCRIPTOR_BLOCK);
 			if (!descriptor) {
 				jbd2_journal_abort(journal, -EIO);
 				continue;
@@ -624,11 +623,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 			jbd_debug(4, "JBD2: got buffer %llu (%p)\n",
 				(unsigned long long)descriptor->b_blocknr,
 				descriptor->b_data);
-			header = (journal_header_t *)descriptor->b_data;
-			header->h_magic     = cpu_to_be32(JBD2_MAGIC_NUMBER);
-			header->h_blocktype = cpu_to_be32(JBD2_DESCRIPTOR_BLOCK);
-			header->h_sequence  = cpu_to_be32(commit_transaction->t_tid);
-
 			tagp = &descriptor->b_data[sizeof(journal_header_t)];
 			space_left = descriptor->b_size -
 						sizeof(journal_header_t);

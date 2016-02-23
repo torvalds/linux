@@ -570,7 +570,6 @@ static void write_one_revoke_record(transaction_t *transaction,
 	int csum_size = 0;
 	struct buffer_head *descriptor;
 	int sz, offset;
-	journal_header_t *header;
 
 	/* If we are already aborting, this all becomes a noop.  We
            still need to go round the loop in
@@ -600,13 +599,10 @@ static void write_one_revoke_record(transaction_t *transaction,
 	}
 
 	if (!descriptor) {
-		descriptor = jbd2_journal_get_descriptor_buffer(journal);
+		descriptor = jbd2_journal_get_descriptor_buffer(transaction,
+							JBD2_REVOKE_BLOCK);
 		if (!descriptor)
 			return;
-		header = (journal_header_t *)descriptor->b_data;
-		header->h_magic     = cpu_to_be32(JBD2_MAGIC_NUMBER);
-		header->h_blocktype = cpu_to_be32(JBD2_REVOKE_BLOCK);
-		header->h_sequence  = cpu_to_be32(transaction->t_tid);
 
 		/* Record it so that we can wait for IO completion later */
 		BUFFER_TRACE(descriptor, "file in log_bufs");

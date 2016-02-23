@@ -1137,7 +1137,7 @@ static inline void jbd2_unfile_log_bh(struct buffer_head *bh)
 }
 
 /* Log buffer allocation */
-struct buffer_head *jbd2_journal_get_descriptor_buffer(journal_t *journal);
+struct buffer_head *jbd2_journal_get_descriptor_buffer(transaction_t *, int);
 int jbd2_journal_next_log_block(journal_t *, unsigned long long *);
 int jbd2_journal_get_log_tail(journal_t *journal, tid_t *tid,
 			      unsigned long *block);
