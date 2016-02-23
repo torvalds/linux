@@ -1882,6 +1882,7 @@ static int pm_genpd_summary_one(struct seq_file *s,
 	struct pm_domain_data *pm_data;
 	const char *kobj_path;
 	struct gpd_link *link;
+	char state[16];
 	int ret;
 
 	ret = mutex_lock_interruptible(&genpd->lock);
@@ -1890,12 +1891,13 @@ static int pm_genpd_summary_one(struct seq_file *s,
 
 	if (WARN_ON(genpd->status >= ARRAY_SIZE(status_lookup)))
 		goto exit;
-	seq_printf(s, "%-30s  %s", genpd->name, status_lookup[genpd->status]);
-
 	if (genpd->status == GPD_STATE_POWER_OFF)
-		seq_printf(s, " %-13d ", genpd->state_idx);
+		snprintf(state, sizeof(state), "%s %u",
+			 status_lookup[genpd->status], genpd->state_idx);
 	else
-		seq_printf(s, " %-15s ", "");
+		snprintf(state, sizeof(state), "%s",
+			 status_lookup[genpd->status]);
+	seq_printf(s, "%-30s  %-15s ", genpd->name, state);
 
 	/*
 	 * Modifications on the list require holding locks on both
