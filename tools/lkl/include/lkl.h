@@ -23,6 +23,7 @@ extern "C" {
 #define lkl_sys_sendfile lkl_sys_sendfile64
 #define lkl_sys_fstatat lkl_sys_fstatat64
 #define lkl_sys_fstat lkl_sys_fstat64
+#define lkl_sys_fcntl lkl_sys_fcntl64
 
 #define lkl_statfs lkl_statfs64
 
@@ -230,6 +231,24 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac);
  * @returns the interface index or a stricly negative value in case of error
  */
 int lkl_netdev_get_ifindex(int id);
+
+/**
+ * lkl_create_syscall_thread - create an additional system call thread
+ *
+ * Create a new system call thread. All subsequent system calls issued from this
+ * host thread are queued to the newly created system call thread.
+ *
+ * System call threads must be stopped up by calling @lkl_stop_syscall_thread
+ * before @lkl_halt is called.
+ */
+int lkl_create_syscall_thread(void);
+
+/**
+ * lkl_stop_syscall_thread - stop the associated system call thread
+ *
+ * Stop the system call thread associated with this host thread, if any.
+ */
+int lkl_stop_syscall_thread();
 
 #ifdef __cplusplus
 }

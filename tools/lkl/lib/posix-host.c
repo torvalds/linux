@@ -178,6 +178,27 @@ static void thread_exit(void)
 	pthread_exit(NULL);
 }
 
+static int tls_alloc(unsigned int *key)
+{
+	return pthread_key_create((pthread_key_t*)key, NULL);
+}
+
+static int tls_free(unsigned int key)
+{
+	return pthread_key_delete(key);
+}
+
+static int tls_set(unsigned int key, void *data)
+{
+	return pthread_setspecific(key, data);
+}
+
+static void *tls_get(unsigned int key)
+{
+	return pthread_getspecific(key);
+}
+
+
 static unsigned long long time_ns(void)
 {
 	struct timeval tv;
@@ -251,6 +272,10 @@ struct lkl_host_operations lkl_host_ops = {
 	.mutex_free = mutex_free,
 	.mutex_lock = mutex_lock,
 	.mutex_unlock = mutex_unlock,
+	.tls_alloc = tls_alloc,
+	.tls_free = tls_free,
+	.tls_set = tls_set,
+	.tls_get = tls_get,
 	.time = time_ns,
 	.timer_alloc = timer_alloc,
 	.timer_set_oneshot = timer_set_oneshot,

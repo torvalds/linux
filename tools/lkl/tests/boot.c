@@ -666,6 +666,69 @@ static int test_gettid(char *str, int len)
 	}
 }
 
+static void test_thread(void *data)
+{
+	int *pipe_fds = (int*) data;
+	char tmp[LKL_PIPE_BUF+1];
+	int ret;
+
+	ret = lkl_create_syscall_thread();
+	if (ret < 0) {
+		fprintf(stderr, "%s: %s\n", __func__, lkl_strerror(ret));
+	}
+
+	ret = lkl_sys_read(pipe_fds[0], tmp, sizeof(tmp));
+	if (ret < 0) {
+		fprintf(stderr, "%s: %s\n", __func__, lkl_strerror(ret));
+	}
+
+	ret = lkl_stop_syscall_thread();
+	if (ret < 0) {
+		fprintf(stderr, "%s: %s %d\n", __func__, lkl_strerror(ret), ret);
+	}
+
+}
+
+static int test_syscall_thread(char *str, int len)
+{
+	int pipe_fds[2];
+	char tmp[LKL_PIPE_BUF+1];
+	long ret;
+
+	ret = lkl_sys_pipe2(pipe_fds, 0);
+	if (ret) {
+		snprintf(str, len, "pipe2: %s", lkl_strerror(ret));
+		return TEST_FAILURE;
+	}
+
+	ret = lkl_sys_fcntl(pipe_fds[0], LKL_F_SETPIPE_SZ, 1);
+	if (ret < 0) {
+		snprintf(str, len, "fcntl setpipe_sz: %s", lkl_strerror(ret));
+		return TEST_FAILURE;
+	}
+
+	ret = lkl_host_ops.thread_create(test_thread, pipe_fds);
+	if (ret) {
+		snprintf(str, len, "failed to create thread");
+		return TEST_FAILURE;
+	}
+
+	sleep(1);
+
+	ret = lkl_sys_write(pipe_fds[1], tmp, sizeof(tmp));
+	if (ret != sizeof(tmp)) {
+		if (ret < 0)
+			snprintf(str, len, "write: %s", lkl_strerror(ret));
+		else
+			snprintf(str, len, "write: short write: %ld", ret);
+		return TEST_FAILURE;
+	}
+
+	sleep(1);
+
+	return TEST_SUCCESS;
+}
+
 static struct cl_option *find_short_opt(char name)
 {
 	struct cl_option *opt;
@@ -773,6 +836,7 @@ int main(int argc, char **argv)
 	TEST(mutex);
 	TEST(semaphore);
 	TEST(gettid);
+	TEST(syscall_thread);
 
 	lkl_sys_halt();
 

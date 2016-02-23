@@ -33,6 +33,11 @@ struct lkl_sem_t;
  * thread handle or NULL if the thread could not be created
  * @thread_exit - terminates the current thread
  *
+ * @tls_alloc - allocate a thread local storage key; returns 0 if succesful
+ * @tls_free - frees a thread local storage key; returns 0 if succesful
+ * @tls_set - associate data to the thread local storage key; returns 0 if succesful
+ * @tls_get - return data associated with the thread local storage key or NULL on error
+ *
  * @mem_alloc - allocate memory
  * @mem_free - free memory
  *
@@ -69,6 +74,11 @@ struct lkl_host_operations {
 
 	int (*thread_create)(void (*f)(void *), void *arg);
 	void (*thread_exit)(void);
+
+	int (*tls_alloc)(unsigned int *key);
+	int (*tls_free)(unsigned int key);
+	int (*tls_set)(unsigned int key, void *data);
+	void *(*tls_get)(unsigned int key);
 
 	void* (*mem_alloc)(unsigned long);
 	void (*mem_free)(void *);

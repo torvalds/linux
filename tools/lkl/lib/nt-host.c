@@ -13,7 +13,7 @@ struct lkl_sem_t {
 	HANDLE sem;
 };
 
-static void *sem_alloc(int count)
+static struct lkl_sem_t *sem_alloc(int count)
 {
 	struct lkl_sem_t *sem = malloc(sizeof(struct lkl_sem_t));
 
@@ -73,6 +73,27 @@ static int thread_create(void (*fn)(void *), void *arg)
 static void thread_exit(void)
 {
 	ExitThread(0);
+}
+
+static int tls_alloc(unsigned int *key)
+{
+	*key = TlsAlloc();
+	return *key == TLS_OUT_OF_INDEXES ? -1 : 0;
+}
+
+static int tls_free(unsigned int key)
+{
+	return TlsFree(key) ? 0 : -1;
+}
+
+static int tls_set(unsigned int key, void *data)
+{
+	return TlsSetValue(key, data) ? 0 : -1;
+}
+
+static void *tls_get(unsigned int key)
+{
+	return TlsGetValue(key);
 }
 
 
@@ -184,6 +205,10 @@ struct lkl_host_operations lkl_host_ops = {
 	.mutex_free = mutex_free,
 	.mutex_lock = mutex_lock,
 	.mutex_unlock = mutex_unlock,
+	.tls_alloc = tls_alloc,
+	.tls_free = tls_free,
+	.tls_set = tls_set,
+	.tls_get = tls_get,
 	.time = time_ns,
 	.timer_alloc = timer_alloc,
 	.timer_set_oneshot = timer_set_oneshot,

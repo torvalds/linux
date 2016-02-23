@@ -22,7 +22,8 @@ endif
 
 LDFLAGS_vmlinux += -r
 LKL_ENTRY_POINTS := lkl_start_kernel lkl_sys_halt lkl_syscall lkl_trigger_irq \
-	lkl_get_free_irq lkl_put_irq
+	lkl_get_free_irq lkl_put_irq lkl_create_syscall_thread \
+	lkl_stop_syscall_thread
 
 core-y += arch/lkl/kernel/
 
