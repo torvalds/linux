@@ -881,6 +881,7 @@
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "ref", "pclk";
+		power-domains = <&power RK3288_PD_VIO>;
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
 		#size-cells = <0>;
