@@ -477,7 +477,7 @@ EXPORT_SYMBOL_GPL(chip_allow_sleep);
 
 void chip_wakeup(struct wilc *wilc)
 {
-	u32 reg, clk_status_reg, trials = 0;
+	u32 reg, clk_status_reg;
 
 	if ((wilc->io_type & 0x1) == HIF_SPI) {
 		do {
@@ -488,8 +488,7 @@ void chip_wakeup(struct wilc *wilc)
 			do {
 				usleep_range(2 * 1000, 2 * 1000);
 				wilc_get_chipid(wilc, true);
-			} while ((wilc_get_chipid(wilc, true) == 0) && ((++trials % 3) == 0));
-
+			} while (wilc_get_chipid(wilc, true) == 0);
 		} while (wilc_get_chipid(wilc, true) == 0);
 	} else if ((wilc->io_type & 0x1) == HIF_SDIO)	 {
 		wilc->hif_func->hif_write_reg(wilc, 0xfa, 1);
@@ -501,7 +500,7 @@ void chip_wakeup(struct wilc *wilc)
 			wilc->hif_func->hif_read_reg(wilc, 0xf1,
 						     &clk_status_reg);
 
-			while (((clk_status_reg & 0x1) == 0) && (((++trials) % 3) == 0)) {
+			while ((clk_status_reg & 0x1) == 0) {
 				usleep_range(2 * 1000, 2 * 1000);
 
 				wilc->hif_func->hif_read_reg(wilc, 0xf1,
