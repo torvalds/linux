@@ -1058,23 +1058,21 @@ static int
 get_vbus_header_info(struct visorchannel *chan,
 		     struct spar_vbus_headerinfo *hdr_info)
 {
-	int rc = -1;
-
 	if (!SPAR_VBUS_CHANNEL_OK_CLIENT(visorchannel_get_header(chan)))
-		goto away;
+		return -EINVAL;
+
 	if (visorchannel_read(chan, sizeof(struct channel_header), hdr_info,
 			      sizeof(*hdr_info)) < 0) {
-		goto away;
+		return -EIO;
 	}
 	if (hdr_info->struct_bytes < sizeof(struct spar_vbus_headerinfo))
-		goto away;
+		return -EINVAL;
+
 	if (hdr_info->device_info_struct_bytes <
 	    sizeof(struct ultra_vbus_deviceinfo)) {
-		goto away;
+		return -EINVAL;
 	}
-	rc = 0;
-away:
-	return rc;
+	return 0;
 }
 
 /* Write the contents of <info> to the struct
