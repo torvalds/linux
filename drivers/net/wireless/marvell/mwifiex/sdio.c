@@ -1684,6 +1684,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 	s32 f_precopy_cur_buf = 0;
 	s32 f_postcopy_cur_buf = 0;
 	u32 mport;
+	int index;
 
 	if (!card->mpa_tx.enabled ||
 	    (card->has_control_mask && (port == CTRL_PORT)) ||
@@ -1787,6 +1788,15 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 
 		ret = mwifiex_write_data_to_card(adapter, card->mpa_tx.buf,
 						 card->mpa_tx.buf_len, mport);
+
+		/* Save the last multi port tx aggreagation info to debug log */
+		index = adapter->dbg.last_sdio_mp_index;
+		index = (index + 1) % MWIFIEX_DBG_SDIO_MP_NUM;
+		adapter->dbg.last_sdio_mp_index = index;
+		adapter->dbg.last_mp_wr_ports[index] = mport;
+		adapter->dbg.last_mp_wr_bitmap[index] = card->mp_wr_bitmap;
+		adapter->dbg.last_mp_wr_len[index] = card->mpa_tx.buf_len;
+		adapter->dbg.last_mp_curr_wr_port[index] = card->curr_wr_port;
 
 		MP_TX_AGGR_BUF_RESET(card);
 	}
