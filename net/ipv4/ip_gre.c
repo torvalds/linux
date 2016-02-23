@@ -1070,8 +1070,9 @@ static const struct net_device_ops gre_tap_netdev_ops = {
 static void ipgre_tap_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-	dev->netdev_ops		= &gre_tap_netdev_ops;
-	dev->priv_flags 	|= IFF_LIVE_ADDR_CHANGE;
+	dev->netdev_ops	= &gre_tap_netdev_ops;
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags	|= IFF_LIVE_ADDR_CHANGE;
 	ip_tunnel_setup(dev, gre_tap_net_id);
 }
 
@@ -1256,6 +1257,14 @@ struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 	err = ipgre_newlink(net, dev, tb, NULL);
 	if (err < 0)
 		goto out;
+
+	/* openvswitch users expect packet sizes to be unrestricted,
+	 * so set the largest MTU we can.
+	 */
+	err = __ip_tunnel_change_mtu(dev, IP_MAX_MTU, false);
+	if (err)
+		goto out;
+
 	return dev;
 out:
 	free_netdev(dev);

@@ -260,12 +260,13 @@ static unsigned long __store_trace(struct perf_callchain_entry *entry,
 void perf_callchain_kernel(struct perf_callchain_entry *entry,
 			   struct pt_regs *regs)
 {
-	unsigned long head;
+	unsigned long head, frame_size;
 	struct stack_frame *head_sf;
 
 	if (user_mode(regs))
 		return;
 
+	frame_size = STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	head = regs->gprs[15];
 	head_sf = (struct stack_frame *) head;
 
@@ -273,8 +274,9 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 		return;
 
 	head = head_sf->back_chain;
-	head = __store_trace(entry, head, S390_lowcore.async_stack - ASYNC_SIZE,
-			     S390_lowcore.async_stack);
+	head = __store_trace(entry, head,
+			     S390_lowcore.async_stack + frame_size - ASYNC_SIZE,
+			     S390_lowcore.async_stack + frame_size);
 
 	__store_trace(entry, head, S390_lowcore.thread_info,
 		      S390_lowcore.thread_info + THREAD_SIZE);

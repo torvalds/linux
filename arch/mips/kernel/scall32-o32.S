@@ -595,3 +595,4 @@ EXPORT(sys_call_table)
 	PTR	sys_userfaultfd
 	PTR	sys_membarrier
 	PTR	sys_mlock2
+	PTR	sys_copy_file_range		/* 4360 */

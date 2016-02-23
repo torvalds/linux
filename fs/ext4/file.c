@@ -350,6 +350,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	struct super_block *sb = inode->i_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct vfsmount *mnt = filp->f_path.mnt;
+	struct inode *dir = filp->f_path.dentry->d_parent->d_inode;
 	struct path path;
 	char buf[64], *cp;
 	int ret;
@@ -392,6 +393,14 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			return -EACCES;
 		if (ext4_encryption_info(inode) == NULL)
 			return -ENOKEY;
+	}
+	if (ext4_encrypted_inode(dir) &&
+	    !ext4_is_child_context_consistent_with_parent(dir, inode)) {
+		ext4_warning(inode->i_sb,
+			     "Inconsistent encryption contexts: %lu/%lu\n",
+			     (unsigned long) dir->i_ino,
+			     (unsigned long) inode->i_ino);
+		return -EPERM;
 	}
 	/*
 	 * Set up the jbd2_inode if we are opening the inode for

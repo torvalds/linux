@@ -2382,6 +2382,7 @@ error:
 
 static int wm5110_remove(struct platform_device *pdev)
 {
+	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 

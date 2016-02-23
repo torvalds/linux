@@ -5389,12 +5389,12 @@ void *netdev_lower_get_next(struct net_device *dev, struct list_head **iter)
 {
 	struct netdev_adjacent *lower;
 
-	lower = list_entry((*iter)->next, struct netdev_adjacent, list);
+	lower = list_entry(*iter, struct netdev_adjacent, list);
 
 	if (&lower->list == &dev->adj_list.lower)
 		return NULL;
 
-	*iter = &lower->list;
+	*iter = lower->list.next;
 
 	return lower->dev;
 }
@@ -7440,8 +7440,10 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	dev->priv_flags = IFF_XMIT_DST_RELEASE | IFF_XMIT_DST_RELEASE_PERM;
 	setup(dev);
 
-	if (!dev->tx_queue_len)
+	if (!dev->tx_queue_len) {
 		dev->priv_flags |= IFF_NO_QUEUE;
+		dev->tx_queue_len = 1;
+	}
 
 	dev->num_tx_queues = txqs;
 	dev->real_num_tx_queues = txqs;

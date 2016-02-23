@@ -1095,6 +1095,9 @@ static int netvsc_probe(struct hv_device *dev,
 	net->ethtool_ops = &ethtool_ops;
 	SET_NETDEV_DEV(net, &dev->device);
 
+	/* We always need headroom for rndis header */
+	net->needed_headroom = RNDIS_AND_PPI_SIZE;
+
 	/* Notify the netvsc driver of the new device */
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;

@@ -1782,6 +1782,7 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 
 	bridge = of_drm_find_bridge(dsi->bridge_node);
 	if (bridge) {
+		encoder->bridge = bridge;
 		drm_bridge_attach(drm_dev, bridge);
 	}
 
@@ -1906,8 +1907,7 @@ static int exynos_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int exynos_dsi_suspend(struct device *dev)
+static int __maybe_unused exynos_dsi_suspend(struct device *dev)
 {
 	struct drm_encoder *encoder = dev_get_drvdata(dev);
 	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
@@ -1938,7 +1938,7 @@ static int exynos_dsi_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_dsi_resume(struct device *dev)
+static int __maybe_unused exynos_dsi_resume(struct device *dev)
 {
 	struct drm_encoder *encoder = dev_get_drvdata(dev);
 	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
@@ -1972,7 +1972,6 @@ err_clk:
 
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops exynos_dsi_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_dsi_suspend, exynos_dsi_resume, NULL)

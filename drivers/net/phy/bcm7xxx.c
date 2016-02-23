@@ -250,10 +250,6 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XXX_64CLK_MDIO);
 	phy_read(phydev, MII_BCM7XXX_AUX_MODE);
 
-	/* Workaround only required for 100Mbits/sec capable PHYs */
-	if (phydev->supported & PHY_GBIT_FEATURES)
-		return 0;
-
 	/* set shadow mode 2 */
 	ret = phy_set_clr_bits(phydev, MII_BCM7XXX_TEST,
 			MII_BCM7XXX_SHD_MODE_2, MII_BCM7XXX_SHD_MODE_2);
@@ -270,7 +266,7 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 	phy_write(phydev, MII_BCM7XXX_100TX_FALSE_CAR, 0x7555);
 
 	/* reset shadow mode 2 */
-	ret = phy_set_clr_bits(phydev, MII_BCM7XXX_TEST, MII_BCM7XXX_SHD_MODE_2, 0);
+	ret = phy_set_clr_bits(phydev, MII_BCM7XXX_TEST, 0, MII_BCM7XXX_SHD_MODE_2);
 	if (ret < 0)
 		return ret;
 
@@ -304,11 +300,6 @@ static int bcm7xxx_suspend(struct phy_device *phydev)
 			return ret;
 	}
 
-	return 0;
-}
-
-static int bcm7xxx_dummy_config_init(struct phy_device *phydev)
-{
 	return 0;
 }
 
@@ -351,31 +342,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	BCM7XXX_40NM_EPHY(PHY_ID_BCM7425, "Broadcom BCM7425"),
 	BCM7XXX_40NM_EPHY(PHY_ID_BCM7429, "Broadcom BCM7429"),
 	BCM7XXX_40NM_EPHY(PHY_ID_BCM7435, "Broadcom BCM7435"),
-{
-	.phy_id		= PHY_BCM_OUI_4,
-	.phy_id_mask	= 0xffff0000,
-	.name		= "Broadcom BCM7XXX 40nm",
-	.features	= PHY_GBIT_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_config_init,
-}, {
-	.phy_id		= PHY_BCM_OUI_5,
-	.phy_id_mask	= 0xffffff00,
-	.name		= "Broadcom BCM7XXX 65nm",
-	.features	= PHY_BASIC_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_dummy_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_config_init,
-} };
+};
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM7250, 0xfffffff0, },
@@ -386,8 +353,6 @@ static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM7439, 0xfffffff0, },
 	{ PHY_ID_BCM7435, 0xfffffff0, },
 	{ PHY_ID_BCM7445, 0xfffffff0, },
-	{ PHY_BCM_OUI_4, 0xffff0000 },
-	{ PHY_BCM_OUI_5, 0xffffff00 },
 	{ }
 };
 

@@ -557,7 +557,7 @@ choice
 
 config PPC_4K_PAGES
 	bool "4k page size"
-	select HAVE_ARCH_SOFT_DIRTY if CHECKPOINT_RESTORE && PPC_BOOK3S
+	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_16K_PAGES
 	bool "16k page size"
@@ -566,7 +566,7 @@ config PPC_16K_PAGES
 config PPC_64K_PAGES
 	bool "64k page size"
 	depends on !PPC_FSL_BOOK3E && (44x || PPC_STD_MMU_64 || PPC_BOOK3E_64)
-	select HAVE_ARCH_SOFT_DIRTY if CHECKPOINT_RESTORE && PPC_BOOK3S
+	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
 	bool "256k page size"
