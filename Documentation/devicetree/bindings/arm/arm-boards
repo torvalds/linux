@@ -123,7 +123,9 @@ Required nodes:
 
 - syscon: some subnode of the RealView SoC node must be a
   system controller node pointing to the control registers,
-  with the compatible string set to one of these tuples:
+  with the compatible string set to one of these:
+   "arm,realview-eb11mp-revb-syscon", "arm,realview-eb-syscon", "syscon"
+   "arm,realview-eb11mp-revc-syscon", "arm,realview-eb-syscon", "syscon"
    "arm,realview-eb-syscon", "syscon"
    "arm,realview-pb1176-syscon", "syscon"
    "arm,realview-pb11mp-syscon", "syscon"
