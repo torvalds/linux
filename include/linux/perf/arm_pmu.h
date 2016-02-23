@@ -107,6 +107,7 @@ struct arm_pmu {
 	struct platform_device	*plat_device;
 	struct pmu_hw_events	__percpu *hw_events;
 	struct notifier_block	hotplug_nb;
+	struct notifier_block	cpu_pm_nb;
 };
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
