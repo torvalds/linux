@@ -21,6 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/phy/phy.h>
 #include "sdhci-pltfm.h"
 
 #define SDHCI_ARASAN_CLK_CTRL_OFFSET	0x2c
@@ -32,9 +33,11 @@
 /**
  * struct sdhci_arasan_data
  * @clk_ahb:	Pointer to the AHB clock
+ * @phy: Pointer to the generic phy
  */
 struct sdhci_arasan_data {
 	struct clk	*clk_ahb;
+	struct phy	*phy;
 };
 
 static unsigned int sdhci_arasan_get_timeout_clock(struct sdhci_host *host)
@@ -72,7 +75,7 @@ static struct sdhci_pltfm_data sdhci_arasan_pdata = {
 /**
  * sdhci_arasan_suspend - Suspend method for the driver
  * @dev:	Address of the device structure
- * Returns 0 on success and error value on error
+ * Return: 0 on success and error value on error
  *
  * Put the device in a low power state.
  */
@@ -88,6 +91,14 @@ static int sdhci_arasan_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
+	if (!IS_ERR(sdhci_arasan->phy)) {
+		ret = phy_power_off(sdhci_arasan->phy);
+		if (ret) {
+			dev_err(dev, "Cannot power off phy.\n");
+			return ret;
+		}
+	}
+
 	clk_disable(pltfm_host->clk);
 	clk_disable(sdhci_arasan->clk_ahb);
 
@@ -97,7 +108,7 @@ static int sdhci_arasan_suspend(struct device *dev)
 /**
  * sdhci_arasan_resume - Resume method for the driver
  * @dev:	Address of the device structure
- * Returns 0 on success and error value on error
+ * Return: 0 on success and error value on error
  *
  * Resume operation after suspend
  */
@@ -118,11 +129,24 @@ static int sdhci_arasan_resume(struct device *dev)
 	ret = clk_enable(pltfm_host->clk);
 	if (ret) {
 		dev_err(dev, "Cannot enable SD clock.\n");
-		clk_disable(sdhci_arasan->clk_ahb);
-		return ret;
+		goto err_clk_en;
+	}
+
+	if (!IS_ERR(sdhci_arasan->phy)) {
+		ret = phy_power_on(sdhci_arasan->phy);
+		if (ret) {
+			dev_err(dev, "Cannot power on phy.\n");
+			goto err_phy_power;
+		}
 	}
 
 	return sdhci_resume_host(host);
+
+err_phy_power:
+	clk_disable(pltfm_host->clk);
+err_clk_en:
+	clk_disable(sdhci_arasan->clk_ahb);
+	return ret;
 }
 #endif /* ! CONFIG_PM_SLEEP */
 
@@ -188,6 +212,30 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 		goto clk_disable_all;
 	}
 
+	sdhci_arasan->phy = ERR_PTR(-ENODEV);
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "arasan,sdhci-5.1")) {
+		sdhci_arasan->phy = devm_phy_get(&pdev->dev,
+						 "phy_arasan");
+		if (IS_ERR(sdhci_arasan->phy)) {
+			ret = PTR_ERR(sdhci_arasan->phy);
+			dev_err(&pdev->dev, "No phy for arasan,sdhci-5.1.\n");
+			goto clk_disable_all;
+		}
+
+		ret = phy_init(sdhci_arasan->phy);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "phy_init err.\n");
+			goto clk_disable_all;
+		}
+
+		ret = phy_power_on(sdhci_arasan->phy);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "phy_power_on err.\n");
+			goto err_phy_power;
+		}
+	}
+
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto err_pltfm_free;
@@ -195,7 +243,12 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	return 0;
 
 err_pltfm_free:
+	if (!IS_ERR(sdhci_arasan->phy))
+		phy_power_off(sdhci_arasan->phy);
 	sdhci_pltfm_free(pdev);
+err_phy_power:
+	if (!IS_ERR(sdhci_arasan->phy))
+		phy_exit(sdhci_arasan->phy);
 clk_disable_all:
 	clk_disable_unprepare(clk_xin);
 clk_dis_ahb:
@@ -209,6 +262,11 @@ static int sdhci_arasan_remove(struct platform_device *pdev)
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = pltfm_host->priv;
+
+	if (!IS_ERR(sdhci_arasan->phy)) {
+		phy_power_off(sdhci_arasan->phy);
+		phy_exit(sdhci_arasan->phy);
+	}
 
 	clk_disable_unprepare(sdhci_arasan->clk_ahb);
 
