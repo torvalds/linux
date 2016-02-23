@@ -82,7 +82,7 @@ static void init_amd_k5(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_32
 /*
  * General Systems BIOSen alias the cpu frequency registers
- * of the Elan at 0x000df000. Unfortuantly, one of the Linux
+ * of the Elan at 0x000df000. Unfortunately, one of the Linux
  * drivers subsequently pokes it, and changes the CPU speed.
  * Workaround : Remove the unneeded alias.
  */

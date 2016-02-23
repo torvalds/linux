@@ -860,7 +860,7 @@ int uv_set_vga_state(struct pci_dev *pdev, bool decode,
  */
 void uv_cpu_init(void)
 {
-	/* CPU 0 initilization will be done via uv_system_init. */
+	/* CPU 0 initialization will be done via uv_system_init. */
 	if (!uv_blade_info)
 		return;
 

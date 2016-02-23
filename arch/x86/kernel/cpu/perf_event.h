@@ -272,7 +272,7 @@ struct cpu_hw_events {
  * events to select for counter rescheduling.
  *
  * Care must be taken as the rescheduling algorithm is O(n!) which
- * will increase scheduling cycles for an over-commited system
+ * will increase scheduling cycles for an over-committed system
  * dramatically.  The number of such EVENT_CONSTRAINT_OVERLAP() macros
  * and its counter masks must be kept at a minimum.
  */

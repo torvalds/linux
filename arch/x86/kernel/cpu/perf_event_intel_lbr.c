@@ -649,7 +649,7 @@ int intel_pmu_setup_lbr_filter(struct perf_event *event)
 
 /*
  * return the type of control flow change at address "from"
- * intruction is not necessarily a branch (in case of interrupt).
+ * instruction is not necessarily a branch (in case of interrupt).
  *
  * The branch type returned also includes the priv level of the
  * target of the control flow change (X86_BR_USER, X86_BR_KERNEL).

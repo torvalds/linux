@@ -1,5 +1,5 @@
 /*
- * platform_msic_thermal.c: msic_thermal platform data initilization file
+ * platform_msic_thermal.c: msic_thermal platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>

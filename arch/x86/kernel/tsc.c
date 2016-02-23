@@ -876,7 +876,7 @@ void tsc_restore_sched_clock_state(void)
 	local_irq_save(flags);
 
 	/*
-	 * We're comming out of suspend, there's no concurrency yet; don't
+	 * We're coming out of suspend, there's no concurrency yet; don't
 	 * bother being nice about the RCU stuff, just write to both
 	 * data fields.
 	 */

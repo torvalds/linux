@@ -5475,7 +5475,7 @@ static int handle_set_cr4(struct kvm_vcpu *vcpu, unsigned long val)
 		return kvm_set_cr4(vcpu, val);
 }
 
-/* called to set cr0 as approriate for clts instruction exit. */
+/* called to set cr0 as appropriate for clts instruction exit. */
 static void handle_clts(struct kvm_vcpu *vcpu)
 {
 	if (is_guest_mode(vcpu)) {
@@ -7223,7 +7223,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	/* The value to write might be 32 or 64 bits, depending on L1's long
 	 * mode, and eventually we need to write that into a field of several
 	 * possible lengths. The code below first zero-extends the value to 64
-	 * bit (field_value), and then copies only the approriate number of
+	 * bit (field_value), and then copies only the appropriate number of
 	 * bits into the vmcs12 field.
 	 */
 	u64 field_value = 0;

@@ -26,7 +26,7 @@
 		      (1 << XENFEAT_auto_translated_physmap) | \
 		      (1 << XENFEAT_supervisor_mode_kernel) | \
 		      (1 << XENFEAT_hvm_callback_vector))
-/* The XENFEAT_writable_page_tables is not stricly neccessary as we set that
+/* The XENFEAT_writable_page_tables is not stricly necessary as we set that
  * up regardless whether this CONFIG option is enabled or not, but it
  * clarifies what the right flags need to be.
  */

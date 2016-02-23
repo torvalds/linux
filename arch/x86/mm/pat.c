@@ -149,7 +149,7 @@ enum {
 	PAT_WT = 4,		/* Write Through */
 	PAT_WP = 5,		/* Write Protected */
 	PAT_WB = 6,		/* Write Back (default) */
-	PAT_UC_MINUS = 7,	/* UC, but can be overriden by MTRR */
+	PAT_UC_MINUS = 7,	/* UC, but can be overridden by MTRR */
 };
 
 #define CM(c) (_PAGE_CACHE_MODE_ ## c)
