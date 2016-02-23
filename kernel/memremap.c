@@ -114,7 +114,7 @@ EXPORT_SYMBOL(memunmap);
 
 static void devm_memremap_release(struct device *dev, void *res)
 {
-	memunmap(res);
+	memunmap(*(void **)res);
 }
 
 static int devm_memremap_match(struct device *dev, void *res, void *match_data)

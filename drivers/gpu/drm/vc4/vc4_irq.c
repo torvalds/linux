@@ -57,7 +57,7 @@ vc4_overflow_mem_work(struct work_struct *work)
 	struct vc4_bo *bo;
 
 	bo = vc4_bo_create(dev, 256 * 1024, true);
-	if (!bo) {
+	if (IS_ERR(bo)) {
 		DRM_ERROR("Couldn't allocate binner overflow mem\n");
 		return;
 	}
