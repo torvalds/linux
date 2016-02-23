@@ -429,8 +429,9 @@ static void handle_set_mac_address(struct wilc_vif *vif,
 {
 	int ret = 0;
 	struct wid wid;
+	u8 *mac_buf;
 
-	u8 *mac_buf = kmemdup(set_mac_addr->mac_addr, ETH_ALEN, GFP_KERNEL);
+	mac_buf = kmemdup(set_mac_addr->mac_addr, ETH_ALEN, GFP_KERNEL);
 	if (!mac_buf)
 		return;
 
