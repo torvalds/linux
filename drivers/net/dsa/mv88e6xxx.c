@@ -1151,19 +1151,6 @@ static int _mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
 	return 0;
 }
 
-int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
-{
-	int ret;
-
-	ret = mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_DEFAULT_VLAN);
-	if (ret < 0)
-		return ret;
-
-	*pvid = ret & PORT_DEFAULT_VLAN_MASK;
-
-	return 0;
-}
-
 static int _mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 pvid)
 {
 	return _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
@@ -1304,6 +1291,57 @@ static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds,
 
 	*entry = next;
 	return 0;
+}
+
+int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
+			     struct switchdev_obj_port_vlan *vlan,
+			     int (*cb)(struct switchdev_obj *obj))
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_vtu_stu_entry next;
+	u16 pvid;
+	int err;
+
+	mutex_lock(&ps->smi_mutex);
+
+	err = _mv88e6xxx_port_pvid_get(ds, port, &pvid);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_vtu_vid_write(ds, GLOBAL_VTU_VID_MASK);
+	if (err)
+		goto unlock;
+
+	do {
+		err = _mv88e6xxx_vtu_getnext(ds, &next);
+		if (err)
+			break;
+
+		if (!next.valid)
+			break;
+
+		if (next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+			continue;
+
+		/* reinit and dump this VLAN obj */
+		vlan->vid_begin = vlan->vid_end = next.vid;
+		vlan->flags = 0;
+
+		if (next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED)
+			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (next.vid == pvid)
+			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
+
+		err = cb(&vlan->obj);
+		if (err)
+			break;
+	} while (next.vid < GLOBAL_VTU_VID_MASK);
+
+unlock:
+	mutex_unlock(&ps->smi_mutex);
+
+	return err;
 }
 
 static int _mv88e6xxx_vtu_loadpurge(struct dsa_switch *ds,
@@ -1673,52 +1711,6 @@ unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return err;
-}
-
-int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
-			   unsigned long *ports, unsigned long *untagged)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	struct mv88e6xxx_vtu_stu_entry next;
-	int port;
-	int err;
-
-	if (*vid == 4095)
-		return -ENOENT;
-
-	mutex_lock(&ps->smi_mutex);
-	err = _mv88e6xxx_vtu_vid_write(ds, *vid);
-	if (err)
-		goto unlock;
-
-	err = _mv88e6xxx_vtu_getnext(ds, &next);
-unlock:
-	mutex_unlock(&ps->smi_mutex);
-
-	if (err)
-		return err;
-
-	if (!next.valid)
-		return -ENOENT;
-
-	*vid = next.vid;
-
-	for (port = 0; port < ps->num_ports; ++port) {
-		clear_bit(port, ports);
-		clear_bit(port, untagged);
-
-		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
-			continue;
-
-		if (next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED ||
-		    next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED)
-			set_bit(port, ports);
-
-		if (next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED)
-			set_bit(port, untagged);
-	}
-
-	return 0;
 }
 
 static int _mv88e6xxx_atu_mac_write(struct dsa_switch *ds,
