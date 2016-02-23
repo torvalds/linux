@@ -5,6 +5,7 @@
 #include <linux/compiler.h>
 #include <asm/synch.h>
 #include <asm/asm-compat.h>
+#include <linux/bug.h>
 
 /*
  * Atomic exchange
@@ -83,12 +84,6 @@ __xchg_u64_relaxed(u64 *p, unsigned long val)
 }
 #endif
 
-/*
- * This function doesn't exist, so you'll get a linker error
- * if something tries to do an invalid xchg().
- */
-extern void __xchg_called_with_bad_pointer(void);
-
 static __always_inline unsigned long
 __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
 {
@@ -100,7 +95,7 @@ __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
 		return __xchg_u64_local(ptr, x);
 #endif
 	}
-	__xchg_called_with_bad_pointer();
+	BUILD_BUG_ON_MSG(1, "Unsupported size for __xchg");
 	return x;
 }
 
@@ -115,7 +110,7 @@ __xchg_relaxed(void *ptr, unsigned long x, unsigned int size)
 		return __xchg_u64_relaxed(ptr, x);
 #endif
 	}
-	__xchg_called_with_bad_pointer();
+	BUILD_BUG_ON_MSG(1, "Unsupported size for __xchg_local");
 	return x;
 }
 #define xchg_local(ptr,x)						     \
@@ -316,10 +311,6 @@ __cmpxchg_u64_acquire(u64 *p, unsigned long old, unsigned long new)
 }
 #endif
 
-/* This function doesn't exist, so you'll get a linker error
-   if something tries to do an invalid cmpxchg().  */
-extern void __cmpxchg_called_with_bad_pointer(void);
-
 static __always_inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 	  unsigned int size)
@@ -332,7 +323,7 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 		return __cmpxchg_u64(ptr, old, new);
 #endif
 	}
-	__cmpxchg_called_with_bad_pointer();
+	BUILD_BUG_ON_MSG(1, "Unsupported size for __cmpxchg");
 	return old;
 }
 
@@ -348,7 +339,7 @@ __cmpxchg_local(volatile void *ptr, unsigned long old, unsigned long new,
 		return __cmpxchg_u64_local(ptr, old, new);
 #endif
 	}
-	__cmpxchg_called_with_bad_pointer();
+	BUILD_BUG_ON_MSG(1, "Unsupported size for __cmpxchg_local");
 	return old;
 }
 
@@ -364,7 +355,7 @@ __cmpxchg_relaxed(void *ptr, unsigned long old, unsigned long new,
 		return __cmpxchg_u64_relaxed(ptr, old, new);
 #endif
 	}
-	__cmpxchg_called_with_bad_pointer();
+	BUILD_BUG_ON_MSG(1, "Unsupported size for __cmpxchg_relaxed");
 	return old;
 }
 
@@ -380,7 +371,7 @@ __cmpxchg_acquire(void *ptr, unsigned long old, unsigned long new,
 		return __cmpxchg_u64_acquire(ptr, old, new);
 #endif
 	}
-	__cmpxchg_called_with_bad_pointer();
+	BUILD_BUG_ON_MSG(1, "Unsupported size for __cmpxchg_acquire");
 	return old;
 }
 #define cmpxchg(ptr, o, n)						 \
