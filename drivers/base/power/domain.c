@@ -1892,7 +1892,7 @@ static int pm_genpd_summary_one(struct seq_file *s,
 	if (WARN_ON(genpd->status >= ARRAY_SIZE(status_lookup)))
 		goto exit;
 	if (genpd->status == GPD_STATE_POWER_OFF)
-		snprintf(state, sizeof(state), "%s %u",
+		snprintf(state, sizeof(state), "%s-%u",
 			 status_lookup[genpd->status], genpd->state_idx);
 	else
 		snprintf(state, sizeof(state), "%s",
