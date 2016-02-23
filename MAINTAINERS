@@ -920,12 +920,15 @@ M:	Emilio López <emilio@elopez.com.ar>
 S:	Maintained
 F:	drivers/clk/sunxi/
 
-ARM/Amlogic MesonX SoC support
+ARM/Amlogic Meson SoC support
 M:	Carlo Caione <carlo@caione.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-meson@googlegroups.com
+W:	http://linux-meson.com/
 S:	Maintained
-F:	drivers/media/rc/meson-ir.c
-N:	meson[x68]
+F:	arch/arm/mach-meson/
+F:	arch/arm/boot/dts/meson*
+N:	meson
 
 ARM/Annapurna Labs ALPINE ARCHITECTURE
 M:	Tsahee Zidenberg <tsahee@annapurnalabs.com>
