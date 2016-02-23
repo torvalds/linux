@@ -195,6 +195,9 @@ struct gb_control_interface_version_response {
 /* request to control the CSI transmitter */
 #define GB_APB_REQUEST_AUDIO_CONTROL	0x09
 
+/* vendor requests to enable/disable FCT tokens flow */
+#define GB_APB_REQUEST_FCT_FLOW_EN	0x0b
+#define GB_APB_REQUEST_FCT_FLOW_DIS	0x0c
 
 /* Firmware Protocol */
 
