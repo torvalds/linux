@@ -849,15 +849,31 @@ static int scsiback_map(struct vscsibk_info *info)
 }
 
 /*
+  Check for a translation entry being present
+*/
+static struct v2p_entry *scsiback_chk_translation_entry(
+	struct vscsibk_info *info, struct ids_tuple *v)
+{
+	struct list_head *head = &(info->v2p_entry_lists);
+	struct v2p_entry *entry;
+
+	list_for_each_entry(entry, head, l)
+		if ((entry->v.chn == v->chn) &&
+		    (entry->v.tgt == v->tgt) &&
+		    (entry->v.lun == v->lun))
+			return entry;
+
+	return NULL;
+}
+
+/*
   Add a new translation entry
 */
 static int scsiback_add_translation_entry(struct vscsibk_info *info,
 					  char *phy, struct ids_tuple *v)
 {
 	int err = 0;
-	struct v2p_entry *entry;
 	struct v2p_entry *new;
-	struct list_head *head = &(info->v2p_entry_lists);
 	unsigned long flags;
 	char *lunp;
 	unsigned long long unpacked_lun;
@@ -917,15 +933,10 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	spin_lock_irqsave(&info->v2p_lock, flags);
 
 	/* Check double assignment to identical virtual ID */
-	list_for_each_entry(entry, head, l) {
-		if ((entry->v.chn == v->chn) &&
-		    (entry->v.tgt == v->tgt) &&
-		    (entry->v.lun == v->lun)) {
-			pr_warn("Virtual ID is already used. Assignment was not performed.\n");
-			err = -EEXIST;
-			goto out;
-		}
-
+	if (scsiback_chk_translation_entry(info, v)) {
+		pr_warn("Virtual ID is already used. Assignment was not performed.\n");
+		err = -EEXIST;
+		goto out;
 	}
 
 	/* Create a new translation entry and add to the list */
@@ -933,18 +944,18 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	new->v = *v;
 	new->tpg = tpg;
 	new->lun = unpacked_lun;
-	list_add_tail(&new->l, head);
+	list_add_tail(&new->l, &info->v2p_entry_lists);
 
 out:
 	spin_unlock_irqrestore(&info->v2p_lock, flags);
 
 out_free:
-	mutex_lock(&tpg->tv_tpg_mutex);
-	tpg->tv_tpg_fe_count--;
-	mutex_unlock(&tpg->tv_tpg_mutex);
-
-	if (err)
+	if (err) {
+		mutex_lock(&tpg->tv_tpg_mutex);
+		tpg->tv_tpg_fe_count--;
+		mutex_unlock(&tpg->tv_tpg_mutex);
 		kfree(new);
+	}
 
 	return err;
 }
@@ -956,39 +967,40 @@ static void __scsiback_del_translation_entry(struct v2p_entry *entry)
 }
 
 /*
-  Delete the translation entry specfied
+  Delete the translation entry specified
 */
 static int scsiback_del_translation_entry(struct vscsibk_info *info,
 					  struct ids_tuple *v)
 {
 	struct v2p_entry *entry;
-	struct list_head *head = &(info->v2p_entry_lists);
 	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&info->v2p_lock, flags);
 	/* Find out the translation entry specified */
-	list_for_each_entry(entry, head, l) {
-		if ((entry->v.chn == v->chn) &&
-		    (entry->v.tgt == v->tgt) &&
-		    (entry->v.lun == v->lun)) {
-			goto found;
-		}
-	}
+	entry = scsiback_chk_translation_entry(info, v);
+	if (entry)
+		__scsiback_del_translation_entry(entry);
+	else
+		ret = -ENOENT;
 
 	spin_unlock_irqrestore(&info->v2p_lock, flags);
-	return 1;
-
-found:
-	/* Delete the translation entry specfied */
-	__scsiback_del_translation_entry(entry);
-
-	spin_unlock_irqrestore(&info->v2p_lock, flags);
-	return 0;
+	return ret;
 }
 
 static void scsiback_do_add_lun(struct vscsibk_info *info, const char *state,
 				char *phy, struct ids_tuple *vir, int try)
 {
+	struct v2p_entry *entry;
+	unsigned long flags;
+
+	if (try) {
+		spin_lock_irqsave(&info->v2p_lock, flags);
+		entry = scsiback_chk_translation_entry(info, vir);
+		spin_unlock_irqrestore(&info->v2p_lock, flags);
+		if (entry)
+			return;
+	}
 	if (!scsiback_add_translation_entry(info, phy, vir)) {
 		if (xenbus_printf(XBT_NIL, info->dev->nodename, state,
 				  "%d", XenbusStateInitialised)) {
