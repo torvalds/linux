@@ -1033,7 +1033,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		}
 	}
 
-	if (usniffer_req && !*usniffer_images) {
+	if (!fw_has_capa(capa, IWL_UCODE_TLV_CAPA_USNIFFER_UNIFIED) &&
+	    usniffer_req && !*usniffer_images) {
 		IWL_ERR(drv,
 			"user selected to work with usniffer but usniffer image isn't available in ucode package\n");
 		return -EINVAL;
