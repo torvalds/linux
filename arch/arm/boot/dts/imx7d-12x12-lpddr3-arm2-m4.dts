@@ -63,6 +63,10 @@
 	status = "disabled";
 };
 
+&tempmon {
+	status = "disabled";
+};
+
 &uart2 {
 	status = "disabled";
 };
