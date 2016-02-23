@@ -96,7 +96,7 @@ enum CURRENT_TXRATE {
 	MBPS_54		= 54
 };
 
-struct cfg_param_val {
+struct cfg_param_attr {
 	u32 flag;
 	u8 ht_enable;
 	u8 bss_type;
@@ -272,7 +272,7 @@ struct host_if_drv {
 	enum host_if_state hif_state;
 
 	u8 assoc_bssid[ETH_ALEN];
-	struct cfg_param_val cfg_values;
+	struct cfg_param_attr cfg_values;
 
 	struct semaphore sem_cfg_values;
 	struct semaphore sem_test_key_block;
@@ -336,7 +336,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
 	      struct hidden_network *hidden_network);
 int wilc_hif_set_cfg(struct wilc_vif *vif,
-		     struct cfg_param_val *cfg_param);
+		     struct cfg_param_attr *cfg_param);
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);
 int wilc_deinit(struct wilc_vif *vif);
 int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,

@@ -1251,7 +1251,7 @@ static int change_bss(struct wiphy *wiphy, struct net_device *dev,
 static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
 	s32 s32Error = 0;
-	struct cfg_param_val pstrCfgParamVal;
+	struct cfg_param_attr pstrCfgParamVal;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
 
