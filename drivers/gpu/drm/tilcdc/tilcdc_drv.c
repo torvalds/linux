@@ -143,9 +143,6 @@ static int tilcdc_unload(struct drm_device *dev)
 
 	pm_runtime_disable(dev->dev);
 
-	kfree(priv->saved_register);
-	kfree(priv);
-
 	return 0;
 }
 
@@ -161,13 +158,12 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	u32 bpp = 0;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (priv)
-		priv->saved_register = kcalloc(tilcdc_num_regs(),
-					       sizeof(*priv->saved_register),
-					       GFP_KERNEL);
+		priv->saved_register =
+			devm_kcalloc(dev->dev, tilcdc_num_regs(),
+				     sizeof(*priv->saved_register), GFP_KERNEL);
 	if (!priv || !priv->saved_register) {
-		kfree(priv);
 		dev_err(dev->dev, "failed to allocate private data\n");
 		return -ENOMEM;
 	}
@@ -180,7 +176,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	priv->wq = alloc_ordered_workqueue("tilcdc", 0);
 	if (!priv->wq) {
 		ret = -ENOMEM;
-		goto fail_free_priv;
+		goto fail_unset_priv;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -346,10 +342,9 @@ fail_free_wq:
 	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
 
-fail_free_priv:
+fail_unset_priv:
 	dev->dev_private = NULL;
-	kfree(priv->saved_register);
-	kfree(priv);
+
 	return ret;
 }
 

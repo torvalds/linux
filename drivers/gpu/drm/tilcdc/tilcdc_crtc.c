@@ -127,8 +127,6 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 	of_node_put(crtc->port);
 	drm_crtc_cleanup(crtc);
 	drm_flip_work_cleanup(&tilcdc_crtc->unref_work);
-
-	kfree(tilcdc_crtc);
 }
 
 static int tilcdc_verify_fb(struct drm_crtc *crtc, struct drm_framebuffer *fb)
@@ -755,7 +753,7 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 	struct drm_crtc *crtc;
 	int ret;
 
-	tilcdc_crtc = kzalloc(sizeof(*tilcdc_crtc), GFP_KERNEL);
+	tilcdc_crtc = devm_kzalloc(dev->dev, sizeof(*tilcdc_crtc), GFP_KERNEL);
 	if (!tilcdc_crtc) {
 		dev_err(dev->dev, "allocation failed\n");
 		return NULL;
