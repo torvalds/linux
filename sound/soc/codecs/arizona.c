@@ -2108,11 +2108,12 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 		return -EINVAL;
 	}
 
-	arizona_fll_dbg(fll, "N=%x THETA=%x LAMBDA=%x\n",
+	arizona_fll_dbg(fll, "N=%d THETA=%d LAMBDA=%d\n",
 			cfg->n, cfg->theta, cfg->lambda);
-	arizona_fll_dbg(fll, "FRATIO=%x(%d) OUTDIV=%x REFCLK_DIV=%x\n",
-			cfg->fratio, cfg->fratio, cfg->outdiv, cfg->refdiv);
-	arizona_fll_dbg(fll, "GAIN=%d\n", cfg->gain);
+	arizona_fll_dbg(fll, "FRATIO=0x%x(%d) OUTDIV=%d REFCLK_DIV=0x%x(%d)\n",
+			cfg->fratio, ratio, cfg->outdiv,
+			cfg->refdiv, 1 << cfg->refdiv);
+	arizona_fll_dbg(fll, "GAIN=0x%x(%d)\n", cfg->gain, 1 << cfg->gain);
 
 	return 0;
 
