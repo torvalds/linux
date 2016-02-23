@@ -1165,16 +1165,17 @@ out:
 
 static void vxlan_parse_gbp_hdr(struct vxlanhdr *unparsed,
 				struct sk_buff *skb, u32 vxflags,
-				struct vxlan_metadata *md,
-				struct metadata_dst *tun_dst)
+				struct vxlan_metadata *md)
 {
 	struct vxlanhdr_gbp *gbp = (struct vxlanhdr_gbp *)unparsed;
+	struct metadata_dst *tun_dst;
 
 	if (!(unparsed->vx_flags & VXLAN_HF_GBP))
 		goto out;
 
 	md->gbp = ntohs(gbp->policy_id);
 
+	tun_dst = (struct metadata_dst *)skb_dst(skb);
 	if (tun_dst)
 		tun_dst->u.tun_info.key.tun_flags |= TUNNEL_VXLAN_OPT;
 
@@ -1250,7 +1251,6 @@ static bool vxlan_ecn_decapsulate(struct vxlan_sock *vs, void *oiph,
 /* Callback from net/ipv4/udp.c to receive packets */
 static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 {
-	struct metadata_dst *tun_dst = NULL;
 	struct pcpu_sw_netstats *stats;
 	struct vxlan_dev *vxlan;
 	struct vxlan_sock *vs;
@@ -1289,6 +1289,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 
 	if (vxlan_collect_metadata(vs)) {
 		__be32 vni = vxlan_vni(vxlan_hdr(skb)->vx_vni);
+		struct metadata_dst *tun_dst;
 
 		tun_dst = udp_tun_rx_dst(skb, vxlan_get_sk_family(vs), TUNNEL_KEY,
 					 vxlan_vni_to_tun_id(vni), sizeof(*md));
@@ -1297,6 +1298,8 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 			goto drop;
 
 		md = ip_tunnel_info_opts(&tun_dst->u.tun_info);
+
+		skb_dst_set(skb, (struct dst_entry *)tun_dst);
 	} else {
 		memset(md, 0, sizeof(*md));
 	}
@@ -1308,7 +1311,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		if (!vxlan_remcsum(&unparsed, skb, vs->flags))
 			goto drop;
 	if (vs->flags & VXLAN_F_GBP)
-		vxlan_parse_gbp_hdr(&unparsed, skb, vs->flags, md, tun_dst);
+		vxlan_parse_gbp_hdr(&unparsed, skb, vs->flags, md);
 
 	if (unparsed.vx_flags || unparsed.vx_vni) {
 		/* If there are any unprocessed flags remaining treat
@@ -1324,11 +1327,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 
 	if (!vxlan_set_mac(vxlan, vs, skb))
 		goto drop;
-
-	if (tun_dst) {
-		skb_dst_set(skb, (struct dst_entry *)tun_dst);
-		tun_dst = NULL;
-	}
 
 	oiph = skb_network_header(skb);
 	skb_reset_network_header(skb);
@@ -1349,9 +1347,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 
 drop:
-	if (tun_dst)
-		dst_release((struct dst_entry *)tun_dst);
-
 	/* Consume bad packet */
 	kfree_skb(skb);
 	return 0;
