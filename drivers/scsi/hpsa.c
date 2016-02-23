@@ -3208,8 +3208,10 @@ static void hpsa_get_enclosure_info(struct ctlr_info *h,
 
 	bmic_device_index = GET_BMIC_DRIVE_NUMBER(&rle->lunid[0]);
 
-	if (bmic_device_index == 0xFF00)
+	if (bmic_device_index == 0xFF00 || MASKED_DEVICE(&rle->lunid[0])) {
+		rc = IO_OK;
 		goto out;
+	}
 
 	bssbp = kzalloc(sizeof(*bssbp), GFP_KERNEL);
 	if (!bssbp)
@@ -4197,7 +4199,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 			ncurrent++;
 			break;
 		case TYPE_ENCLOSURE:
-			hpsa_get_enclosure_info(h, lunaddrbytes,
+			if (!this_device->external)
+				hpsa_get_enclosure_info(h, lunaddrbytes,
 						physdev_list, phys_dev_index,
 						this_device);
 			ncurrent++;
