@@ -719,6 +719,44 @@ static void pmu_set_event(struct cci_pmu *cci_pmu, int idx, unsigned long event)
 }
 
 /*
+ * For all counters on the CCI-PMU, disable any 'enabled' counters,
+ * saving the changed counters in the mask, so that we can restore
+ * it later using pmu_restore_counters. The mask is private to the
+ * caller. We cannot rely on the used_mask maintained by the CCI_PMU
+ * as it only tells us if the counter is assigned to perf_event or not.
+ * The state of the perf_event cannot be locked by the PMU layer, hence
+ * we check the individual counter status (which can be locked by
+ * cci_pm->hw_events->pmu_lock).
+ *
+ * @mask should be initialised to empty by the caller.
+ */
+static void __maybe_unused
+pmu_save_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
+{
+	int i;
+
+	for (i = 0; i < cci_pmu->num_cntrs; i++) {
+		if (pmu_counter_is_enabled(cci_pmu, i)) {
+			set_bit(i, mask);
+			pmu_disable_counter(cci_pmu, i);
+		}
+	}
+}
+
+/*
+ * Restore the status of the counters. Reversal of the pmu_save_counters().
+ * For each counter set in the mask, enable the counter back.
+ */
+static void __maybe_unused
+pmu_restore_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
+{
+	int i;
+
+	for_each_set_bit(i, mask, cci_pmu->num_cntrs)
+		pmu_enable_counter(cci_pmu, i);
+}
+
+/*
  * Returns the number of programmable counters actually implemented
  * by the cci
  */
