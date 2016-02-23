@@ -19,12 +19,48 @@
 			pins = "gpio20", "gpio21";
 			function = "gsbi1";
 		};
+
+		pinconf {
+			pins = "gpio20", "gpio21";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	i2c1_pins_sleep: i2c1_pins_sleep {
+		mux {
+			pins = "gpio20", "gpio21";
+			function = "gpio";
+		};
+		pinconf {
+			pins = "gpio20", "gpio21";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
 	};
 
 	i2c3_pins: i2c3 {
 		mux {
 			pins = "gpio8", "gpio9";
 			function = "gsbi3";
+		};
+
+		pinconf {
+			pins = "gpio8", "gpio9";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	i2c3_pins_sleep: i2c3_pins_sleep {
+		mux {
+			pins = "gpio8", "gpio9";
+			function = "gpio";
+		};
+		pinconf {
+			pins = "gpio8", "gpio9";
+			drive-strength = <2>;
+			bias-disable = <0>;
 		};
 	};
 

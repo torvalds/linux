@@ -227,8 +227,8 @@
 
 			gsbi1_i2c: i2c@12460000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
-				pinctrl-0 = <&i2c1_pins>;
-				pinctrl-names = "default";
+				pinctrl-0 = <&i2c1_pins &i2c1_pins_sleep>;
+				pinctrl-names = "default", "sleep";
 				reg = <0x12460000 0x1000>;
 				interrupts = <0 194 IRQ_TYPE_NONE>;
 				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
@@ -274,8 +274,8 @@
 			ranges;
 			gsbi3_i2c: i2c@16280000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
-				pinctrl-0 = <&i2c3_pins>;
-				pinctrl-names = "default";
+				pinctrl-0 = <&i2c3_pins &i2c3_pins_sleep>;
+				pinctrl-names = "default", "sleep";
 				reg = <0x16280000 0x1000>;
 				interrupts = <GIC_SPI 151 IRQ_TYPE_NONE>;
 				clocks = <&gcc GSBI3_QUP_CLK>,
