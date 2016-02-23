@@ -243,44 +243,11 @@ static int dsa_slave_port_vlan_dump(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	DECLARE_BITMAP(members, DSA_MAX_PORTS);
-	DECLARE_BITMAP(untagged, DSA_MAX_PORTS);
-	u16 pvid, vid = 0;
-	int err;
 
 	if (ds->drv->port_vlan_dump)
 		return ds->drv->port_vlan_dump(ds, p->port, vlan, cb);
 
-	if (!ds->drv->vlan_getnext || !ds->drv->port_pvid_get)
-		return -EOPNOTSUPP;
-
-	err = ds->drv->port_pvid_get(ds, p->port, &pvid);
-	if (err)
-		return err;
-
-	for (;;) {
-		err = ds->drv->vlan_getnext(ds, &vid, members, untagged);
-		if (err)
-			break;
-
-		if (!test_bit(p->port, members))
-			continue;
-
-		memset(vlan, 0, sizeof(*vlan));
-		vlan->vid_begin = vlan->vid_end = vid;
-
-		if (vid == pvid)
-			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
-
-		if (test_bit(p->port, untagged))
-			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
-
-		err = cb(&vlan->obj);
-		if (err)
-			break;
-	}
-
-	return err == -ENOENT ? 0 : err;
+	return -EOPNOTSUPP;
 }
 
 static int dsa_slave_port_fdb_add(struct net_device *dev,

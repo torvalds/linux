@@ -316,9 +316,6 @@ struct dsa_switch_driver {
 	int	(*port_vlan_dump)(struct dsa_switch *ds, int port,
 				  struct switchdev_obj_port_vlan *vlan,
 				  int (*cb)(struct switchdev_obj *obj));
-	int	(*port_pvid_get)(struct dsa_switch *ds, int port, u16 *pvid);
-	int	(*vlan_getnext)(struct dsa_switch *ds, u16 *vid,
-				unsigned long *ports, unsigned long *untagged);
 
 	/*
 	 * Forwarding database
