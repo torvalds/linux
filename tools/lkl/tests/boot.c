@@ -618,6 +618,54 @@ static int test_lo_ifup(char *str, int len)
 	return TEST_FAILURE;
 }
 
+static int test_mutex(char *str, int len)
+{
+	long ret = TEST_SUCCESS;
+	/* Can't do much to verify that this works, so we'll just let
+	 * Valgrind warn us on CI if we've made bad memory
+	 * accesses. */
+
+	struct lkl_mutex_t *mutex = lkl_host_ops.mutex_alloc();
+	lkl_host_ops.mutex_lock(mutex);
+	lkl_host_ops.mutex_unlock(mutex);
+	lkl_host_ops.mutex_free(mutex);
+
+	snprintf(str, len, "%ld", ret);
+
+	return ret;
+}
+
+static int test_semaphore(char *str, int len)
+{
+	long ret = TEST_SUCCESS;
+	/* Can't do much to verify that this works, so we'll just let
+	 * Valgrind warn us on CI if we've made bad memory
+	 * accesses. */
+
+	struct lkl_sem_t *sem = lkl_host_ops.sem_alloc(1);
+	lkl_host_ops.sem_down(sem);
+	lkl_host_ops.sem_up(sem);
+	lkl_host_ops.sem_free(sem);
+
+	snprintf(str, len, "%ld", ret);
+
+	return ret;
+}
+
+static int test_gettid(char *str, int len)
+{
+	long tid = lkl_host_ops.gettid();
+	snprintf(str, len, "%ld", tid);
+
+	/* As far as I know, thread IDs are non-zero on all reasonable
+	 * systems. */
+	if (tid) {
+		return TEST_SUCCESS;
+	} else {
+		return TEST_FAILURE;
+	}
+}
+
 static struct cl_option *find_short_opt(char name)
 {
 	struct cl_option *opt;
@@ -722,6 +770,9 @@ int main(int argc, char **argv)
 	TEST(getdents64);
 	TEST(umount);
 	TEST(lo_ifup);
+	TEST(mutex);
+	TEST(semaphore);
+	TEST(gettid);
 
 	lkl_sys_halt();
 

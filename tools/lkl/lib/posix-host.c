@@ -13,6 +13,7 @@
 #include <sys/uio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <poll.h>
 #include <lkl_host.h>
 #include "iomem.h"
@@ -34,6 +35,10 @@ static void print(const char *str, int len)
 	ret = write(STDOUT_FILENO, str, len);
 }
 
+struct lkl_mutex_t {
+	pthread_mutex_t mutex;
+};
+
 struct pthread_sem {
 #ifdef _POSIX_SEMAPHORES
 	sem_t sem;
@@ -43,6 +48,19 @@ struct pthread_sem {
 	pthread_cond_t cond;
 #endif /* _POSIX_SEMAPHORES */
 };
+
+#define WARN_UNLESS(exp) do {						\
+		if (exp < 0)						\
+			lkl_printf("%s: %s\n", #exp, strerror(errno));	\
+	} while (0)
+
+/* pthread_* functions use the reverse convention */
+#define WARN_PTHREAD(exp) do {						\
+		int __ret = exp;					\
+		if (__ret > 0)						\
+			lkl_printf("%s: %s\n", #exp, strerror(__ret));	\
+	} while (0)
+
 
 static void *sem_alloc(int count)
 {
@@ -61,7 +79,7 @@ static void *sem_alloc(int count)
 #else
 	pthread_mutex_init(&sem->lock, NULL);
 	sem->count = count;
-	pthread_cond_init(&sem->cond, NULL);
+	WARN_PTHREAD(pthread_cond_init(&sem->cond, NULL));
 #endif /* _POSIX_SEMAPHORES */
 
 	return sem;
@@ -77,14 +95,13 @@ static void sem_up(void *_sem)
 	struct pthread_sem *sem = (struct pthread_sem *)_sem;
 
 #ifdef _POSIX_SEMAPHORES
-	if (sem_post(&sem->sem) < 0)
-		lkl_printf("sem_post: %s\n", strerror(errno));
+	WARN_UNLESS(sem_post(&sem->sem));
 #else
-	pthread_mutex_lock(&sem->lock);
+	WARN_PTHREAD(pthread_mutex_lock(&sem->lock));
 	sem->count++;
 	if (sem->count > 0)
-		pthread_cond_signal(&sem->cond);
-	pthread_mutex_unlock(&sem->lock);
+		WARN_PTHREAD(pthread_cond_signal(&sem->cond));
+	WARN_PTHREAD(pthread_mutex_unlock(&sem->lock));
 #endif /* _POSIX_SEMAPHORES */
 
 }
@@ -101,12 +118,55 @@ static void sem_down(void *_sem)
 	if (err < 0 && errno != EINTR)
 		lkl_printf("sem_wait: %s\n", strerror(errno));
 #else
-	pthread_mutex_lock(&sem->lock);
+	WARN_PTHREAD(pthread_mutex_lock(&sem->lock));
 	while (sem->count <= 0)
-		pthread_cond_wait(&sem->cond, &sem->lock);
+		WARN_PTHREAD(pthread_cond_wait(&sem->cond, &sem->lock));
 	sem->count--;
-	pthread_mutex_unlock(&sem->lock);
+	WARN_PTHREAD(pthread_mutex_unlock(&sem->lock));
 #endif /* _POSIX_SEMAPHORES */
+}
+
+
+static struct lkl_mutex_t *mutex_alloc(void)
+{
+	struct lkl_mutex_t *_mutex = malloc(sizeof(struct lkl_mutex_t));
+	pthread_mutex_t *mutex = NULL;
+	pthread_mutexattr_t attr;
+
+	if (!_mutex)
+		return NULL;
+
+	mutex = &_mutex->mutex;
+	WARN_PTHREAD(pthread_mutexattr_init(&attr));
+
+	/* PTHREAD_MUTEX_ERRORCHECK is *very* useful for debugging,
+	 * but has some overhead, so we provide an option to turn it
+	 * off. */
+#ifdef DEBUG
+	WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK_NP));
+#endif /* DEBUG */
+
+	WARN_PTHREAD(pthread_mutex_init(mutex, &attr));
+
+	return _mutex;
+}
+
+static void mutex_lock(struct lkl_mutex_t *mutex)
+{
+	WARN_PTHREAD(pthread_mutex_lock(&mutex->mutex));
+}
+
+static void mutex_unlock(struct lkl_mutex_t *_mutex)
+{
+	pthread_mutex_t *mutex = &_mutex->mutex;
+	WARN_PTHREAD(pthread_mutex_unlock(mutex));
+}
+
+static void mutex_free(struct lkl_mutex_t *_mutex)
+{
+	pthread_mutex_t *mutex = &_mutex->mutex;
+	WARN_PTHREAD(pthread_mutex_destroy(mutex));
+	free(_mutex);
 }
 
 static int thread_create(void (*fn)(void *), void *arg)
@@ -177,6 +237,11 @@ static void panic(void)
 	assert(0);
 }
 
+static long gettid(void)
+{
+	return syscall(SYS_gettid);
+}
+
 struct lkl_host_operations lkl_host_ops = {
 	.panic = panic,
 	.thread_create = thread_create,
@@ -185,6 +250,10 @@ struct lkl_host_operations lkl_host_ops = {
 	.sem_free = sem_free,
 	.sem_up = sem_up,
 	.sem_down = sem_down,
+	.mutex_alloc = mutex_alloc,
+	.mutex_free = mutex_free,
+	.mutex_lock = mutex_lock,
+	.mutex_unlock = mutex_unlock,
 	.time = time_ns,
 	.timer_alloc = timer_alloc,
 	.timer_set_oneshot = timer_set_oneshot,
@@ -195,6 +264,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
+	.gettid = gettid,
 };
 
 static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)

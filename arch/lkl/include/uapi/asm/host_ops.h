@@ -1,6 +1,9 @@
 #ifndef _ASM_UAPI_LKL_HOST_OPS_H
 #define _ASM_UAPI_LKL_HOST_OPS_H
 
+/* Defined in {posix,nt}-host.c */
+struct lkl_mutex_t;
+
 /**
  * lkl_host_operations - host operations used by the Linux kernel
  *
@@ -19,6 +22,11 @@
  * @sem_free - free a host semaphore
  * @sem_up - perform an up operation on the semaphore
  * @sem_down - perform a down operation on the semaphore
+ *
+ * @mutex_alloc - allocate and initialize a host mutex
+ * @mutex_free - free a host mutex
+ * @mutex_lock - acquire the mutex
+ * @mutex_unlock - release the mutex
  *
  * @thread_create - create a new thread and run f(arg) in its context; returns a
  * thread handle or NULL if the thread could not be created
@@ -39,6 +47,8 @@
  * iomem_access
  * @iomem_acess - reads or writes to and I/O memory region; addr must be in the
  * range returned by ioremap
+ *
+ * @gettid - returns the host thread id of the caller
  */
 struct lkl_host_operations {
 	const char *virtio_devices;
@@ -50,6 +60,11 @@ struct lkl_host_operations {
 	void (*sem_free)(void *sem);
 	void (*sem_up)(void *sem);
 	void (*sem_down)(void *sem);
+
+	struct lkl_mutex_t *(*mutex_alloc)(void);
+	void (*mutex_free)(struct lkl_mutex_t *mutex);
+	void (*mutex_lock)(struct lkl_mutex_t *mutex);
+	void (*mutex_unlock)(struct lkl_mutex_t *mutex);
 
 	int (*thread_create)(void (*f)(void *), void *arg);
 	void (*thread_exit)(void);
@@ -67,6 +82,7 @@ struct lkl_host_operations {
 	int (*iomem_access)(const volatile void *addr, void *val, int size,
 			    int write);
 
+	long (*gettid)(void);
 };
 
 /**

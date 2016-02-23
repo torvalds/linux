@@ -5,6 +5,10 @@
 #include <lkl_host.h>
 #include "iomem.h"
 
+struct lkl_mutex_t {
+	HANDLE mutex;
+};
+
 static void *sem_alloc(int count)
 {
 	return CreateSemaphore(NULL, count, 100, NULL);
@@ -23,6 +27,32 @@ static void sem_down(void *sem)
 static void sem_free(void *sem)
 {
 	CloseHandle(sem);
+}
+
+static struct lkl_mutex_t *mutex_alloc(void)
+{
+	struct lkl_mutex_t *_mutex = malloc(sizeof(struct lkl_mutex_t));
+	if (!_mutex)
+		return NULL;
+
+	_mutex->mutex = CreateMutex(0, FALSE, 0);
+	return _mutex;
+}
+
+static void mutex_lock(struct lkl_mutex_t *mutex)
+{
+	WaitForSingleObject(mutex->mutex, INFINITE);
+}
+
+static void mutex_unlock(struct lkl_mutex_t *_mutex)
+{
+	ReleaseMutex(_mutex->mutex);
+}
+
+static void mutex_free(struct lkl_mutex_t *_mutex)
+{
+	CloseHandle(_mutex->mutex);
+	free(_mutex);
 }
 
 static int thread_create(void (*fn)(void *), void *arg)
@@ -124,6 +154,11 @@ static void print(const char *str, int len)
 	write(1, str, len);
 }
 
+static long gettid(void)
+{
+	return GetCurrentThreadId();
+}
+
 static void *mem_alloc(unsigned long size)
 {
 	return malloc(size);
@@ -137,6 +172,10 @@ struct lkl_host_operations lkl_host_ops = {
 	.sem_free = sem_free,
 	.sem_up = sem_up,
 	.sem_down = sem_down,
+	.mutex_alloc = mutex_alloc,
+	.mutex_free = mutex_free,
+	.mutex_lock = mutex_lock,
+	.mutex_unlock = mutex_unlock,
 	.time = time_ns,
 	.timer_alloc = timer_alloc,
 	.timer_set_oneshot = timer_set_oneshot,
@@ -147,6 +186,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
+	.gettid = gettid,
 };
 
 int handle_get_capacity(union lkl_disk disk, unsigned long long *res)
