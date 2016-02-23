@@ -2527,11 +2527,11 @@ static int cgroup_migrate_prepare_dst(struct cgroup *dst_cgrp,
 	lockdep_assert_held(&cgroup_mutex);
 
 	/*
-	 * Except for the root, subtree_ss_mask must be zero for a cgroup
+	 * Except for the root, subtree_control must be zero for a cgroup
 	 * with tasks so that child cgroups don't compete against tasks.
 	 */
 	if (dst_cgrp && cgroup_on_dfl(dst_cgrp) && cgroup_parent(dst_cgrp) &&
-	    dst_cgrp->subtree_ss_mask)
+	    dst_cgrp->subtree_control)
 		return -EBUSY;
 
 	/* look up the dst cset for each src cset and link it to src */
