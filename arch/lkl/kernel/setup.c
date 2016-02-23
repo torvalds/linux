@@ -147,7 +147,10 @@ void arch_cpu_idle(void)
 {
 	if (halt) {
 		threads_cleanup();
-		free_mem();
+		/* TODO(pscollins): If we free here, it causes a
+		 * segfault because the tx/rx threads are still
+		 * running in parallel. */
+		/* free_mem(); */
 		lkl_ops->sem_up(halt_sem);
 		lkl_ops->thread_exit();
 	}

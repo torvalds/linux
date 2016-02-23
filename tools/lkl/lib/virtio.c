@@ -131,6 +131,23 @@ static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
 	return 0;
 }
 
+/* NB: we can enter this function two different ways in the case of
+ * netdevs --- either through a tx/rx thread poll (which the LKL
+ * scheduler knows nothing about) or through virtio_write called
+ * inside an interrupt handler, so to be safe, it's not enough to
+ * synchronize only the tx/rx polling threads.
+ *
+ * At the moment, it seems like only netdevs require the
+ * synchronization we do here (i.e. locking around operations on a
+ * particular virtqueue, with dev->ops->acquire_queue), since they
+ * have these two different entry points, one of which isn't managed
+ * by the LKL scheduler. So only devs corresponding to netdevs will
+ * have non-NULL acquire/release_queue.
+ *
+ * In the future, this may change. If you see errors thrown in virtio
+ * driver code by block/console devices, you should be suspicious of
+ * the synchronization going on here.
+ */
 void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 {
 	struct virtio_queue *q = &dev->queue[qidx];
@@ -138,12 +155,18 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 	if (!q->ready)
 		return;
 
+	if (dev->ops->acquire_queue)
+		dev->ops->acquire_queue(dev, qidx);
+
 	virtio_set_avail_event(q, q->avail->idx);
 
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
 		if (virtio_process_one(dev, q, q->last_avail_idx) < 0)
-			return;
+			break;
 	}
+
+	if (dev->ops->release_queue)
+		dev->ops->release_queue(dev, qidx);
 }
 
 static inline uint32_t virtio_read_device_features(struct virtio_dev *dev)

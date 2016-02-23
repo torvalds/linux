@@ -23,6 +23,11 @@ struct virtio_dev_ops {
 	 * virtio_process_queue at a later time.
 	 */
 	int (*enqueue)(struct virtio_dev *dev, struct virtio_req *req);
+	/* Acquire/release a lock on the specified queue. Only
+	 * implemented by netdevs, all other devices have NULL
+	 * acquire/release function pointers. */
+	void (*acquire_queue)(struct virtio_dev *dev, int queue_idx);
+	void (*release_queue)(struct virtio_dev *dev, int queue_idx);
 };
 
 struct virtio_queue {
