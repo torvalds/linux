@@ -588,7 +588,8 @@ static long clk_hclk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 				    unsigned long *parent_rate)
 {
 	struct lpc32xx_pll_clk *clk = to_lpc32xx_pll_clk(hw);
-	u64 m_i, m, n, p, o = rate, i = *parent_rate, d = (u64)rate << 6;
+	u64 m_i, o = rate, i = *parent_rate, d = (u64)rate << 6;
+	u64 m = 0, n = 0, p = 0;
 	int p_i, n_i;
 
 	pr_debug("%s: %lu/%lu\n", clk_hw_get_name(hw), *parent_rate, rate);
@@ -1428,6 +1429,8 @@ static struct clk * __init lpc32xx_clk_register(u32 id)
 			hw = &clk_hw->hw0.div.hw;
 		else if (clk_hw->type == CLK_GATE)
 			hw = &clk_hw->hw0.gate.hw;
+		else
+			return ERR_PTR(-EINVAL);
 
 		hw->init = &clk_init;
 		clk = clk_register(NULL, hw);
