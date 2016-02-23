@@ -1191,15 +1191,11 @@ out:
 	unparsed->vx_flags &= ~VXLAN_GBP_USED_BITS;
 }
 
-static void vxlan_rcv(struct vxlan_dev *vxlan, struct vxlan_sock *vs,
-		      struct sk_buff *skb, struct vxlan_metadata *md,
-		      struct metadata_dst *tun_dst)
+static bool vxlan_set_mac(struct vxlan_dev *vxlan,
+			  struct vxlan_sock *vs,
+			  struct sk_buff *skb)
 {
-	struct iphdr *oip = NULL;
-	struct ipv6hdr *oip6 = NULL;
-	struct pcpu_sw_netstats *stats;
 	union vxlan_addr saddr;
-	int err = 0;
 
 	skb_reset_mac_header(skb);
 	skb->protocol = eth_type_trans(skb, vxlan->dev);
@@ -1207,29 +1203,50 @@ static void vxlan_rcv(struct vxlan_dev *vxlan, struct vxlan_sock *vs,
 
 	/* Ignore packet loops (and multicast echo) */
 	if (ether_addr_equal(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))
-		goto drop;
+		return false;
 
 	/* Get data from the outer IP header */
 	if (vxlan_get_sk_family(vs) == AF_INET) {
-		oip = ip_hdr(skb);
-		saddr.sin.sin_addr.s_addr = oip->saddr;
+		saddr.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
 		saddr.sa.sa_family = AF_INET;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		oip6 = ipv6_hdr(skb);
-		saddr.sin6.sin6_addr = oip6->saddr;
+		saddr.sin6.sin6_addr = ipv6_hdr(skb)->saddr;
 		saddr.sa.sa_family = AF_INET6;
 #endif
 	}
+
+	if ((vxlan->flags & VXLAN_F_LEARN) &&
+	    vxlan_snoop(skb->dev, &saddr, eth_hdr(skb)->h_source))
+		return false;
+
+	return true;
+}
+
+static void vxlan_rcv(struct vxlan_dev *vxlan, struct vxlan_sock *vs,
+		      struct sk_buff *skb, struct vxlan_metadata *md,
+		      struct metadata_dst *tun_dst)
+{
+	struct iphdr *oip = NULL;
+	struct ipv6hdr *oip6 = NULL;
+	struct pcpu_sw_netstats *stats;
+	int err = 0;
+
+	if (!vxlan_set_mac(vxlan, vs, skb))
+		goto drop;
+
+	/* Get data from the outer IP header */
+	if (vxlan_get_sk_family(vs) == AF_INET)
+		oip = ip_hdr(skb);
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		oip6 = ipv6_hdr(skb);
+#endif
 
 	if (tun_dst) {
 		skb_dst_set(skb, (struct dst_entry *)tun_dst);
 		tun_dst = NULL;
 	}
-
-	if ((vxlan->flags & VXLAN_F_LEARN) &&
-	    vxlan_snoop(skb->dev, &saddr, eth_hdr(skb)->h_source))
-		goto drop;
 
 	skb_reset_network_header(skb);
 
