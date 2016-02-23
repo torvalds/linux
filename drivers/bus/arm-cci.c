@@ -126,6 +126,7 @@ struct cci_pmu_model {
 	struct event_range event_ranges[CCI_IF_MAX];
 	int (*validate_hw_event)(struct cci_pmu *, unsigned long);
 	int (*get_event_idx)(struct cci_pmu *, struct cci_pmu_hw_events *, unsigned long);
+	void (*write_counters)(struct cci_pmu *, unsigned long *);
 };
 
 static struct cci_pmu_model cci_pmu_models[];
@@ -868,7 +869,7 @@ static void pmu_write_counter(struct cci_pmu *cci_pmu, u32 value, int idx)
 	pmu_write_register(cci_pmu, value, idx, CCI_PMU_CNTR);
 }
 
-static void pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
+static void __pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
 {
 	int i;
 	struct cci_pmu_hw_events *cci_hw = &cci_pmu->hw_events;
@@ -880,6 +881,14 @@ static void pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
 			continue;
 		pmu_write_counter(cci_pmu, local64_read(&event->hw.prev_count), i);
 	}
+}
+
+static void pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
+{
+	if (cci_pmu->model->write_counters)
+		cci_pmu->model->write_counters(cci_pmu, mask);
+	else
+		__pmu_write_counters(cci_pmu, mask);
 }
 
 static u64 pmu_event_update(struct perf_event *event)
