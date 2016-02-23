@@ -1354,6 +1354,11 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			mask = m_EDP_OUT_EN;
 			val = v_EDP_OUT_EN(1);
 			break;
+		default:
+			mask = 0;
+			val = 0;
+			pr_info("unknow screen type: %d\n", screen->type);
+			break;
 		}
 		if (dev_drv->version == VOP_FULL_RK3288_V1_1) {
 			mask |= m_HDMI_DCLK_OUT_EN;
