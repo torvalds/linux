@@ -771,6 +771,21 @@ static void pmu_write_counter(struct perf_event *event, u32 value)
 		pmu_write_register(cci_pmu, value, idx, CCI_PMU_CNTR);
 }
 
+static void __maybe_unused
+pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
+{
+	int i;
+	struct cci_pmu_hw_events *cci_hw = &cci_pmu->hw_events;
+
+	for_each_set_bit(i, mask, cci_pmu->num_cntrs) {
+		struct perf_event *event = cci_hw->events[i];
+
+		if (WARN_ON(!event))
+			continue;
+		pmu_write_counter(event, local64_read(&event->hw.prev_count));
+	}
+}
+
 static u64 pmu_event_update(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
