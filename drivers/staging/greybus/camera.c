@@ -162,6 +162,7 @@ struct ap_csi_config_request {
 	__u8 num_lanes;
 	__u8 padding;
 	__le32 bus_freq;
+	__le32 lines_per_second;
 } __packed;
 
 static int gb_camera_configure_streams(struct gb_camera *gcam,
@@ -254,7 +255,14 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	if (ret < 0)
 		goto done;
 
-	/* Configure the CSI transmitter. Hardcode the parameters for now. */
+	/*
+	 * Configure the APB1 CSI transmitter using the lines count reported by
+	 * the  camera module, but with hard-coded bus frequency and lanes number.
+	 *
+	 * TODO: use the clocking and size informations reported by camera module
+	 * to compute the required CSI bandwidth, and configure the CSI receiver
+	 * on AP side, and the CSI transmitter on APB1 side accordingly.
+	 */
 	memset(&csi_cfg, 0, sizeof(csi_cfg));
 
 	if (nstreams) {
@@ -262,6 +270,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		csi_cfg.clock_mode = 0;
 		csi_cfg.num_lanes = 4;
 		csi_cfg.bus_freq = cpu_to_le32(960000000);
+		csi_cfg.lines_per_second = resp->lines_per_second;
 		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
 				   sizeof(csi_cfg),
 				   GB_APB_REQUEST_CSI_TX_CONTROL, false);
