@@ -1270,7 +1270,7 @@ static int cci_pmu_cpu_notifier(struct notifier_block *self,
 		if (!cpumask_test_and_clear_cpu(cpu, &cci_pmu->cpus))
 			break;
 		target = cpumask_any_but(cpu_online_mask, cpu);
-		if (target < 0) // UP, last CPU
+		if (target >= nr_cpu_ids) // UP, last CPU
 			break;
 		/*
 		 * TODO: migrate context once core races on event->ctx have
