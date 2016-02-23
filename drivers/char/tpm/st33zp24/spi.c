@@ -229,9 +229,9 @@ static const struct st33zp24_phy_ops spi_phy_ops = {
 	.recv = st33zp24_spi_recv,
 };
 
-static int st33zp24_spi_acpi_request_resources(struct st33zp24_spi_phy *phy)
+static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
 {
-	struct spi_device *spi_dev = phy->spi_device;
+	struct st33zp24_spi_phy *phy = spi_get_drvdata(spi_dev);
 	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_lpcpd;
 	struct device *dev;
@@ -265,23 +265,23 @@ static int st33zp24_spi_acpi_request_resources(struct st33zp24_spi_phy *phy)
 	return 0;
 }
 
-static int st33zp24_spi_of_request_resources(struct st33zp24_spi_phy *phy)
+static int st33zp24_spi_of_request_resources(struct spi_device *spi_dev)
 {
+	struct st33zp24_spi_phy *phy = spi_get_drvdata(spi_dev);
 	struct device_node *pp;
-	struct spi_device *dev = phy->spi_device;
 	int gpio;
 	int ret;
 
-	pp = dev->dev.of_node;
+	pp = spi_dev->dev.of_node;
 	if (!pp) {
-		dev_err(&dev->dev, "No platform data\n");
+		dev_err(&spi_dev->dev, "No platform data\n");
 		return -ENODEV;
 	}
 
 	/* Get GPIO from device tree */
 	gpio = of_get_named_gpio(pp, "lpcpd-gpios", 0);
 	if (gpio < 0) {
-		dev_err(&dev->dev,
+		dev_err(&spi_dev->dev,
 			"Failed to retrieve lpcpd-gpios from dts.\n");
 		phy->io_lpcpd = -1;
 		/*
@@ -292,10 +292,10 @@ static int st33zp24_spi_of_request_resources(struct st33zp24_spi_phy *phy)
 		return 0;
 	}
 	/* GPIO request and configuration */
-	ret = devm_gpio_request_one(&dev->dev, gpio,
+	ret = devm_gpio_request_one(&spi_dev->dev, gpio,
 			GPIOF_OUT_INIT_HIGH, "TPM IO LPCPD");
 	if (ret) {
-		dev_err(&dev->dev, "Failed to request lpcpd pin\n");
+		dev_err(&spi_dev->dev, "Failed to request lpcpd pin\n");
 		return -ENODEV;
 	}
 	phy->io_lpcpd = gpio;
@@ -303,9 +303,9 @@ static int st33zp24_spi_of_request_resources(struct st33zp24_spi_phy *phy)
 	return 0;
 }
 
-static int st33zp24_spi_request_resources(struct spi_device *dev,
-					  struct st33zp24_spi_phy *phy)
+static int st33zp24_spi_request_resources(struct spi_device *dev)
 {
+	struct st33zp24_spi_phy *phy = spi_get_drvdata(dev);
 	struct st33zp24_platform_data *pdata;
 	int ret;
 
@@ -357,17 +357,20 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 		return -ENOMEM;
 
 	phy->spi_device = dev;
+
+	spi_set_drvdata(dev, phy);
+
 	pdata = dev->dev.platform_data;
 	if (!pdata && dev->dev.of_node) {
-		ret = st33zp24_spi_of_request_resources(phy);
+		ret = st33zp24_spi_of_request_resources(dev);
 		if (ret)
 			return ret;
 	} else if (pdata) {
-		ret = st33zp24_spi_request_resources(dev, phy);
+		ret = st33zp24_spi_request_resources(dev);
 		if (ret)
 			return ret;
 	} else if (ACPI_HANDLE(&dev->dev)) {
-		ret = st33zp24_spi_acpi_request_resources(phy);
+		ret = st33zp24_spi_acpi_request_resources(dev);
 		if (ret)
 			return ret;
 	}
