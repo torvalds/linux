@@ -1108,6 +1108,7 @@ void __init prom_free_prom_memory(void)
 	}
 }
 
+void __init octeon_fill_mac_addresses(void);
 int octeon_prune_device_tree(void);
 
 extern const char __appended_dtb;
@@ -1143,6 +1144,7 @@ void __init device_tree_init(void)
 
 	if (do_prune) {
 		octeon_prune_device_tree();
+		octeon_fill_mac_addresses();
 		pr_info("Using internal Device Tree.\n");
 	}
 	unflatten_and_copy_device_tree();
