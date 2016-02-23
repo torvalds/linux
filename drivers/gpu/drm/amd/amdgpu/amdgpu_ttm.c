@@ -508,22 +508,18 @@ struct amdgpu_ttm_tt {
 	uint32_t		userflags;
 	spinlock_t              guptasklock;
 	struct list_head        guptasks;
+	atomic_t		mmu_invalidations;
 };
 
-/* prepare the sg table with the user pages */
-static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
+int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 {
-	struct amdgpu_device *adev = amdgpu_get_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-	unsigned pinned = 0, nents;
+	int write = !(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY);
+	unsigned pinned = 0;
 	int r;
 
-	int write = !(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY);
-	enum dma_data_direction direction = write ?
-		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
-
 	if (gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) {
-		/* check that we only pin down anonymous memory
+		/* check that we only use anonymous memory
 		   to prevent problems with writeback */
 		unsigned long end = gtt->userptr + ttm->num_pages * PAGE_SIZE;
 		struct vm_area_struct *vma;
@@ -536,7 +532,7 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 	do {
 		unsigned num_pages = ttm->num_pages - pinned;
 		uint64_t userptr = gtt->userptr + pinned * PAGE_SIZE;
-		struct page **pages = ttm->pages + pinned;
+		struct page **p = pages + pinned;
 		struct amdgpu_ttm_gup_task_list guptask;
 
 		guptask.task = current;
@@ -545,7 +541,7 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 		spin_unlock(&gtt->guptasklock);
 
 		r = get_user_pages(current, current->mm, userptr, num_pages,
-				   write, 0, pages, NULL);
+				   write, 0, p, NULL);
 
 		spin_lock(&gtt->guptasklock);
 		list_del(&guptask.list);
@@ -557,6 +553,25 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 		pinned += r;
 
 	} while (pinned < ttm->num_pages);
+
+	return 0;
+
+release_pages:
+	release_pages(pages, pinned, 0);
+	return r;
+}
+
+/* prepare the sg table with the user pages */
+static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
+{
+	struct amdgpu_device *adev = amdgpu_get_adev(ttm->bdev);
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	unsigned nents;
+	int r;
+
+	int write = !(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY);
+	enum dma_data_direction direction = write ?
+		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 
 	r = sg_alloc_table_from_pages(ttm->sg, ttm->pages, ttm->num_pages, 0,
 				      ttm->num_pages << PAGE_SHIFT,
@@ -576,9 +591,6 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 
 release_sg:
 	kfree(ttm->sg);
-
-release_pages:
-	release_pages(ttm->pages, pinned, 0);
 	return r;
 }
 
@@ -803,6 +815,7 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 	gtt->userflags = flags;
 	spin_lock_init(&gtt->guptasklock);
 	INIT_LIST_HEAD(&gtt->guptasks);
+	atomic_set(&gtt->mmu_invalidations, 0);
 
 	return 0;
 }
@@ -840,7 +853,19 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 	}
 	spin_unlock(&gtt->guptasklock);
 
+	atomic_inc(&gtt->mmu_invalidations);
+
 	return true;
+}
+
+bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
+				       int *last_invalidated)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	int prev_invalidated = *last_invalidated;
+
+	*last_invalidated = atomic_read(&gtt->mmu_invalidations);
+	return prev_invalidated != *last_invalidated;
 }
 
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm)

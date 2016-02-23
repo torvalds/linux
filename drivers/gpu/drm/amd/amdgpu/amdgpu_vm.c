@@ -95,6 +95,7 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 	entry->priority = 0;
 	entry->tv.bo = &vm->page_directory->tbo;
 	entry->tv.shared = true;
+	entry->user_pages = NULL;
 	list_add(&entry->tv.head, validated);
 }
 
@@ -1186,6 +1187,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		entry->priority = 0;
 		entry->tv.bo = &entry->robj->tbo;
 		entry->tv.shared = true;
+		entry->user_pages = NULL;
 		vm->page_tables[pt_idx].addr = 0;
 	}
 
