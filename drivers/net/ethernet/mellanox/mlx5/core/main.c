@@ -423,6 +423,10 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 					 HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
 	} else {
 		return 0;
 	}
