@@ -1397,7 +1397,7 @@ resume_state_change_complete(struct visor_device *dev, int status)
 static void
 initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 {
-	int rc = -1, x;
+	int rc;
 	struct visor_driver *drv = NULL;
 	void (*notify_func)(struct visor_device *dev, int response) = NULL;
 
@@ -1406,14 +1406,18 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 	else
 		notify_func = chipset_responders.device_resume;
 	if (!notify_func)
-		goto away;
+		return;
 
 	drv = to_visor_driver(dev->device.driver);
-	if (!drv)
-		goto away;
+	if (!drv) {
+		(*notify_func)(dev, -ENODEV);
+		return;
+	}
 
-	if (dev->pausing || dev->resuming)
-		goto away;
+	if (dev->pausing || dev->resuming) {
+		(*notify_func)(dev, -EBUSY);
+		return;
+	}
 
 	/* Note that even though both drv->pause() and drv->resume
 	 * specify a callback function, it is NOT necessary for us to
@@ -1423,11 +1427,13 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 	 * visorbus while child function drivers are still running.
 	 */
 	if (is_pause) {
-		if (!drv->pause)
-			goto away;
+		if (!drv->pause) {
+			(*notify_func)(dev, -EINVAL);
+			return;
+		}
 
 		dev->pausing = true;
-		x = drv->pause(dev, pause_state_change_complete);
+		rc = drv->pause(dev, pause_state_change_complete);
 	} else {
 		/* This should be done at BUS resume time, but an
 		 * existing problem prevents us from ever getting a bus
@@ -1436,24 +1442,20 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 		 * would never even get here in that case.
 		 */
 		fix_vbus_dev_info(dev);
-		if (!drv->resume)
-			goto away;
+		if (!drv->resume) {
+			(*notify_func)(dev, -EINVAL);
+			return;
+		}
 
 		dev->resuming = true;
-		x = drv->resume(dev, resume_state_change_complete);
+		rc = drv->resume(dev, resume_state_change_complete);
 	}
-	if (x < 0) {
+	if (rc < 0) {
 		if (is_pause)
 			dev->pausing = false;
 		else
 			dev->resuming = false;
-		goto away;
-	}
-	rc = 0;
-away:
-	if (rc < 0) {
-		if (notify_func)
-			(*notify_func)(dev, rc);
+		(*notify_func)(dev, -EINVAL);
 	}
 }
 
