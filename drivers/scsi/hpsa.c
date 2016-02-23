@@ -4981,6 +4981,8 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		return IO_ACCEL_INELIGIBLE;
 
 	c->phys_disk = dev->phys_disk[map_index];
+	if (!c->phys_disk)
+		return IO_ACCEL_INELIGIBLE;
 
 	disk_handle = dd[map_index].ioaccel_handle;
 	disk_block = le64_to_cpu(map->disk_starting_blk) +
