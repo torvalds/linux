@@ -16,6 +16,19 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
+/* Values for secondary_data.status */
+
+#define CPU_MMU_OFF		(-1)
+#define CPU_BOOT_SUCCESS	(0)
+/* The cpu invoked ops->cpu_die, synchronise it with cpu_kill */
+#define CPU_KILL_ME		(1)
+/* The cpu couldn't die gracefully and is looping in the kernel */
+#define CPU_STUCK_IN_KERNEL	(2)
+/* Fatal system error detected by secondary CPU, crash the system */
+#define CPU_PANIC_KERNEL	(3)
+
+#ifndef __ASSEMBLY__
+
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
@@ -54,11 +67,17 @@ asmlinkage void secondary_start_kernel(void);
 
 /*
  * Initial data for bringing up a secondary CPU.
+ * @stack  - sp for the secondary CPU
+ * @status - Result passed back from the secondary CPU to
+ *           indicate failure.
  */
 struct secondary_data {
 	void *stack;
+	long status;
 };
+
 extern struct secondary_data secondary_data;
+extern long __early_cpu_boot_status;
 extern void secondary_entry(void);
 
 extern void arch_send_call_function_single_ipi(int cpu);
@@ -86,5 +105,14 @@ static inline void cpu_park_loop(void)
 		wfi();
 	}
 }
+
+static inline void update_cpu_boot_status(int val)
+{
+	WRITE_ONCE(secondary_data.status, val);
+	/* Ensure the visibility of the status update */
+	dsb(ishst);
+}
+
+#endif /* ifndef __ASSEMBLY__ */
 
 #endif /* ifndef __ASM_SMP_H */
