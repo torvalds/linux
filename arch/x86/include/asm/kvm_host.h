@@ -347,12 +347,8 @@ struct kvm_mmu {
 
 	struct rsvd_bits_validate guest_rsvd_check;
 
-	/*
-	 * Bitmap: bit set = last pte in walk
-	 * index[0:1]: level (zero-based)
-	 * index[2]: pte.ps
-	 */
-	u8 last_pte_bitmap;
+	/* Can have large pages at levels 2..last_nonleaf_level-1. */
+	u8 last_nonleaf_level;
 
 	bool nx;
 

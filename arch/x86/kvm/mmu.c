@@ -3632,13 +3632,24 @@ static bool sync_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
 	return false;
 }
 
-static inline bool is_last_gpte(struct kvm_mmu *mmu, unsigned level, unsigned gpte)
+static inline bool is_last_gpte(struct kvm_mmu *mmu,
+				unsigned level, unsigned gpte)
 {
-	unsigned index;
+	/*
+	 * PT_PAGE_TABLE_LEVEL always terminates.  The RHS has bit 7 set
+	 * iff level <= PT_PAGE_TABLE_LEVEL, which for our purpose means
+	 * level == PT_PAGE_TABLE_LEVEL; set PT_PAGE_SIZE_MASK in gpte then.
+	 */
+	gpte |= level - PT_PAGE_TABLE_LEVEL - 1;
 
-	index = level - 1;
-	index |= (gpte & PT_PAGE_SIZE_MASK) >> (PT_PAGE_SIZE_SHIFT - 2);
-	return mmu->last_pte_bitmap & (1 << index);
+	/*
+	 * The RHS has bit 7 set iff level < mmu->last_nonleaf_level.
+	 * If it is clear, there are no large pages at this level, so clear
+	 * PT_PAGE_SIZE_MASK in gpte if that is the case.
+	 */
+	gpte &= level - mmu->last_nonleaf_level;
+
+	return gpte & PT_PAGE_SIZE_MASK;
 }
 
 #define PTTYPE_EPT 18 /* arbitrary */
@@ -3910,22 +3921,13 @@ static void update_permission_bitmask(struct kvm_vcpu *vcpu,
 	}
 }
 
-static void update_last_pte_bitmap(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
+static void update_last_nonleaf_level(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 {
-	u8 map;
-	unsigned level, root_level = mmu->root_level;
-	const unsigned ps_set_index = 1 << 2;  /* bit 2 of index: ps */
+	unsigned root_level = mmu->root_level;
 
-	if (root_level == PT32E_ROOT_LEVEL)
-		--root_level;
-	/* PT_PAGE_TABLE_LEVEL always terminates */
-	map = 1 | (1 << ps_set_index);
-	for (level = PT_DIRECTORY_LEVEL; level <= root_level; ++level) {
-		if (level <= PT_PDPE_LEVEL
-		    && (mmu->root_level >= PT32E_ROOT_LEVEL || is_pse(vcpu)))
-			map |= 1 << (ps_set_index | (level - 1));
-	}
-	mmu->last_pte_bitmap = map;
+	mmu->last_nonleaf_level = root_level;
+	if (root_level == PT32_ROOT_LEVEL && is_pse(vcpu))
+		mmu->last_nonleaf_level++;
 }
 
 static void paging64_init_context_common(struct kvm_vcpu *vcpu,
@@ -3937,7 +3939,7 @@ static void paging64_init_context_common(struct kvm_vcpu *vcpu,
 
 	reset_rsvds_bits_mask(vcpu, context);
 	update_permission_bitmask(vcpu, context, false);
-	update_last_pte_bitmap(vcpu, context);
+	update_last_nonleaf_level(vcpu, context);
 
 	MMU_WARN_ON(!is_pae(vcpu));
 	context->page_fault = paging64_page_fault;
@@ -3964,7 +3966,7 @@ static void paging32_init_context(struct kvm_vcpu *vcpu,
 
 	reset_rsvds_bits_mask(vcpu, context);
 	update_permission_bitmask(vcpu, context, false);
-	update_last_pte_bitmap(vcpu, context);
+	update_last_nonleaf_level(vcpu, context);
 
 	context->page_fault = paging32_page_fault;
 	context->gva_to_gpa = paging32_gva_to_gpa;
@@ -4022,7 +4024,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	}
 
 	update_permission_bitmask(vcpu, context, false);
-	update_last_pte_bitmap(vcpu, context);
+	update_last_nonleaf_level(vcpu, context);
 	reset_tdp_shadow_zero_bits_mask(vcpu, context);
 }
 
@@ -4128,7 +4130,7 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	}
 
 	update_permission_bitmask(vcpu, g_context, false);
-	update_last_pte_bitmap(vcpu, g_context);
+	update_last_nonleaf_level(vcpu, g_context);
 }
 
 static void init_kvm_mmu(struct kvm_vcpu *vcpu)
