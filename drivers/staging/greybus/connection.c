@@ -274,6 +274,34 @@ static void gb_connection_hd_cport_disable(struct gb_connection *connection)
 	hd->driver->cport_disable(hd, connection->hd_cport_id);
 }
 
+static int gb_connection_hd_fct_flow_enable(struct gb_connection *connection)
+{
+	struct gb_host_device *hd = connection->hd;
+	int ret;
+
+	if (!hd->driver->fct_flow_enable)
+		return 0;
+
+	ret = hd->driver->fct_flow_enable(hd, connection->hd_cport_id);
+	if (ret) {
+		dev_err(&hd->dev, "%s: failed to enable FCT flow: %d\n",
+			connection->name, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void gb_connection_hd_fct_flow_disable(struct gb_connection *connection)
+{
+	struct gb_host_device *hd = connection->hd;
+
+	if (!hd->driver->fct_flow_disable)
+		return;
+
+	hd->driver->fct_flow_disable(hd, connection->hd_cport_id);
+}
+
 /*
  * Request the SVC to create a connection from AP's cport to interface's
  * cport.
