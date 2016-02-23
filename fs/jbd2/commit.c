@@ -317,22 +317,6 @@ static void write_tag_block(journal_t *j, journal_block_tag_t *tag,
 		tag->t_blocknr_high = cpu_to_be32((block >> 31) >> 1);
 }
 
-static void jbd2_descr_block_csum_set(journal_t *j,
-				      struct buffer_head *bh)
-{
-	struct jbd2_journal_block_tail *tail;
-	__u32 csum;
-
-	if (!jbd2_journal_has_csum_v2or3(j))
-		return;
-
-	tail = (struct jbd2_journal_block_tail *)(bh->b_data + j->j_blocksize -
-			sizeof(struct jbd2_journal_block_tail));
-	tail->t_checksum = 0;
-	csum = jbd2_chksum(j, j->j_csum_seed, bh->b_data, j->j_blocksize);
-	tail->t_checksum = cpu_to_be32(csum);
-}
-
 static void jbd2_block_tag_csum_set(journal_t *j, journal_block_tag_t *tag,
 				    struct buffer_head *bh, __u32 sequence)
 {
@@ -714,7 +698,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 			tag->t_flags |= cpu_to_be16(JBD2_FLAG_LAST_TAG);
 
-			jbd2_descr_block_csum_set(journal, descriptor);
+			jbd2_descriptor_block_csum_set(journal, descriptor);
 start_journal_io:
 			for (i = 0; i < bufs; i++) {
 				struct buffer_head *bh = wbuf[i];
