@@ -18,6 +18,7 @@ struct mb_cache_entry {
 	/* Key in hash - stable during lifetime of the entry */
 	u32			e_key;
 	u32			e_referenced:1;
+	u32			e_reusable:1;
 	/* Block number of hashed block - stable during lifetime of the entry */
 	sector_t		e_block;
 };
@@ -26,7 +27,7 @@ struct mb_cache *mb_cache_create(int bucket_bits);
 void mb_cache_destroy(struct mb_cache *cache);
 
 int mb_cache_entry_create(struct mb_cache *cache, gfp_t mask, u32 key,
-			  sector_t block);
+			  sector_t block, bool reusable);
 void __mb_cache_entry_free(struct mb_cache_entry *entry);
 static inline int mb_cache_entry_put(struct mb_cache *cache,
 				     struct mb_cache_entry *entry)
@@ -39,6 +40,8 @@ static inline int mb_cache_entry_put(struct mb_cache *cache,
 
 void mb_cache_entry_delete_block(struct mb_cache *cache, u32 key,
 				  sector_t block);
+struct mb_cache_entry *mb_cache_entry_get(struct mb_cache *cache, u32 key,
+					  sector_t block);
 struct mb_cache_entry *mb_cache_entry_find_first(struct mb_cache *cache,
 						 u32 key);
 struct mb_cache_entry *mb_cache_entry_find_next(struct mb_cache *cache,

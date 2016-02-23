@@ -545,6 +545,8 @@ static void
 ext4_xattr_release_block(handle_t *handle, struct inode *inode,
 			 struct buffer_head *bh)
 {
+	struct mb_cache *ext4_mb_cache = EXT4_GET_MB_CACHE(inode);
+	u32 hash, ref;
 	int error = 0;
 
 	BUFFER_TRACE(bh, "get_write_access");
@@ -553,23 +555,34 @@ ext4_xattr_release_block(handle_t *handle, struct inode *inode,
 		goto out;
 
 	lock_buffer(bh);
-	if (BHDR(bh)->h_refcount == cpu_to_le32(1)) {
-		__u32 hash = le32_to_cpu(BHDR(bh)->h_hash);
-
+	hash = le32_to_cpu(BHDR(bh)->h_hash);
+	ref = le32_to_cpu(BHDR(bh)->h_refcount);
+	if (ref == 1) {
 		ea_bdebug(bh, "refcount now=0; freeing");
 		/*
 		 * This must happen under buffer lock for
 		 * ext4_xattr_block_set() to reliably detect freed block
 		 */
-		mb_cache_entry_delete_block(EXT4_GET_MB_CACHE(inode), hash,
-					    bh->b_blocknr);
+		mb_cache_entry_delete_block(ext4_mb_cache, hash, bh->b_blocknr);
 		get_bh(bh);
 		unlock_buffer(bh);
 		ext4_free_blocks(handle, inode, bh, 0, 1,
 				 EXT4_FREE_BLOCKS_METADATA |
 				 EXT4_FREE_BLOCKS_FORGET);
 	} else {
-		le32_add_cpu(&BHDR(bh)->h_refcount, -1);
+		ref--;
+		BHDR(bh)->h_refcount = cpu_to_le32(ref);
+		if (ref == EXT4_XATTR_REFCOUNT_MAX - 1) {
+			struct mb_cache_entry *ce;
+
+			ce = mb_cache_entry_get(ext4_mb_cache, hash,
+						bh->b_blocknr);
+			if (ce) {
+				ce->e_reusable = 1;
+				mb_cache_entry_put(ext4_mb_cache, ce);
+			}
+		}
+
 		/*
 		 * Beware of this ugliness: Releasing of xattr block references
 		 * from different inodes can race and so we have to protect
@@ -872,6 +885,8 @@ inserted:
 			if (new_bh == bs->bh)
 				ea_bdebug(new_bh, "keeping");
 			else {
+				u32 ref;
+
 				/* The old block is released after updating
 				   the inode. */
 				error = dquot_alloc_block(inode,
@@ -886,15 +901,18 @@ inserted:
 				lock_buffer(new_bh);
 				/*
 				 * We have to be careful about races with
-				 * freeing or rehashing of xattr block. Once we
-				 * hold buffer lock xattr block's state is
-				 * stable so we can check whether the block got
-				 * freed / rehashed or not.  Since we unhash
-				 * mbcache entry under buffer lock when freeing
-				 * / rehashing xattr block, checking whether
-				 * entry is still hashed is reliable.
+				 * freeing, rehashing or adding references to
+				 * xattr block. Once we hold buffer lock xattr
+				 * block's state is stable so we can check
+				 * whether the block got freed / rehashed or
+				 * not.  Since we unhash mbcache entry under
+				 * buffer lock when freeing / rehashing xattr
+				 * block, checking whether entry is still
+				 * hashed is reliable. Same rules hold for
+				 * e_reusable handling.
 				 */
-				if (hlist_bl_unhashed(&ce->e_hash_list)) {
+				if (hlist_bl_unhashed(&ce->e_hash_list) ||
+				    !ce->e_reusable) {
 					/*
 					 * Undo everything and check mbcache
 					 * again.
@@ -909,9 +927,12 @@ inserted:
 					new_bh = NULL;
 					goto inserted;
 				}
-				le32_add_cpu(&BHDR(new_bh)->h_refcount, 1);
+				ref = le32_to_cpu(BHDR(new_bh)->h_refcount) + 1;
+				BHDR(new_bh)->h_refcount = cpu_to_le32(ref);
+				if (ref >= EXT4_XATTR_REFCOUNT_MAX)
+					ce->e_reusable = 0;
 				ea_bdebug(new_bh, "reusing; refcount now=%d",
-					le32_to_cpu(BHDR(new_bh)->h_refcount));
+					  ref);
 				unlock_buffer(new_bh);
 				error = ext4_handle_dirty_xattr_block(handle,
 								      inode,
@@ -1566,11 +1587,14 @@ cleanup:
 static void
 ext4_xattr_cache_insert(struct mb_cache *ext4_mb_cache, struct buffer_head *bh)
 {
-	__u32 hash = le32_to_cpu(BHDR(bh)->h_hash);
+	struct ext4_xattr_header *header = BHDR(bh);
+	__u32 hash = le32_to_cpu(header->h_hash);
+	int reusable = le32_to_cpu(header->h_refcount) <
+		       EXT4_XATTR_REFCOUNT_MAX;
 	int error;
 
 	error = mb_cache_entry_create(ext4_mb_cache, GFP_NOFS, hash,
-				      bh->b_blocknr);
+				      bh->b_blocknr, reusable);
 	if (error) {
 		if (error == -EBUSY)
 			ea_bdebug(bh, "already in cache");
@@ -1645,12 +1669,6 @@ ext4_xattr_cache_find(struct inode *inode, struct ext4_xattr_header *header,
 		if (!bh) {
 			EXT4_ERROR_INODE(inode, "block %lu read error",
 					 (unsigned long) ce->e_block);
-		} else if (le32_to_cpu(BHDR(bh)->h_refcount) >=
-				EXT4_XATTR_REFCOUNT_MAX) {
-			ea_idebug(inode, "block %lu refcount %d>=%d",
-				  (unsigned long) ce->e_block,
-				  le32_to_cpu(BHDR(bh)->h_refcount),
-					  EXT4_XATTR_REFCOUNT_MAX);
 		} else if (ext4_xattr_cmp(header, BHDR(bh)) == 0) {
 			*pce = ce;
 			return bh;
