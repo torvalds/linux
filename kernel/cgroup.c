@@ -514,22 +514,28 @@ static int notify_on_release(const struct cgroup *cgrp)
 	     (((ss) = cgroup_subsys[ssid]) || true); (ssid)++)
 
 /**
- * for_each_subsys_which - filter for_each_subsys with a bitmask
+ * do_each_subsys_mask - filter for_each_subsys with a bitmask
  * @ss: the iteration cursor
  * @ssid: the index of @ss, CGROUP_SUBSYS_COUNT after reaching the end
- * @ss_maskp: a pointer to the bitmask
+ * @ss_mask: the bitmask
  *
  * The block will only run for cases where the ssid-th bit (1 << ssid) of
- * mask is set to 1.
+ * @ss_mask is set.
  */
-#define for_each_subsys_which(ss, ssid, ss_maskp)			\
-	if (!CGROUP_SUBSYS_COUNT) /* to avoid spurious gcc warning */	\
+#define do_each_subsys_mask(ss, ssid, ss_mask) do {			\
+	unsigned long __ss_mask = (ss_mask);				\
+	if (!CGROUP_SUBSYS_COUNT) { /* to avoid spurious gcc warning */	\
 		(ssid) = 0;						\
-	else								\
-		for_each_set_bit(ssid, ss_maskp, CGROUP_SUBSYS_COUNT)	\
-			if (((ss) = cgroup_subsys[ssid]) && false)	\
-				break;					\
-			else
+		break;							\
+	}								\
+	for_each_set_bit(ssid, &__ss_mask, CGROUP_SUBSYS_COUNT) {	\
+		(ss) = cgroup_subsys[ssid];				\
+		{
+
+#define while_each_subsys_mask()					\
+		}							\
+	}								\
+} while (false)
 
 /* iterate across the hierarchies */
 #define for_each_root(root)						\
@@ -1284,8 +1290,9 @@ static unsigned long cgroup_calc_subtree_ss_mask(struct cgroup *cgrp,
 	while (true) {
 		unsigned long new_ss_mask = cur_ss_mask;
 
-		for_each_subsys_which(ss, ssid, &cur_ss_mask)
+		do_each_subsys_mask(ss, ssid, cur_ss_mask) {
 			new_ss_mask |= ss->depends_on;
+		} while_each_subsys_mask();
 
 		/*
 		 * Mask out subsystems which aren't available.  This can
@@ -1469,7 +1476,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	for_each_subsys_which(ss, ssid, &ss_mask) {
+	do_each_subsys_mask(ss, ssid, ss_mask) {
 		/* if @ss has non-root csses attached to it, can't move */
 		if (css_next_child(NULL, cgroup_css(&ss->root->cgrp, ss)))
 			return -EBUSY;
@@ -1477,14 +1484,14 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 		/* can't move between two non-dummy roots either */
 		if (ss->root != &cgrp_dfl_root && dst_root != &cgrp_dfl_root)
 			return -EBUSY;
-	}
+	} while_each_subsys_mask();
 
 	/* skip creating root files on dfl_root for inhibited subsystems */
 	tmp_ss_mask = ss_mask;
 	if (dst_root == &cgrp_dfl_root)
 		tmp_ss_mask &= ~cgrp_dfl_root_inhibit_ss_mask;
 
-	for_each_subsys_which(ss, ssid, &tmp_ss_mask) {
+	do_each_subsys_mask(ss, ssid, tmp_ss_mask) {
 		struct cgroup *scgrp = &ss->root->cgrp;
 		int tssid;
 
@@ -1507,19 +1514,19 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 			continue;
 		}
 
-		for_each_subsys_which(ss, tssid, &tmp_ss_mask) {
+		do_each_subsys_mask(ss, tssid, tmp_ss_mask) {
 			if (tssid == ssid)
 				break;
 			css_clear_dir(cgroup_css(scgrp, ss), dcgrp);
-		}
+		} while_each_subsys_mask();
 		return ret;
-	}
+	} while_each_subsys_mask();
 
 	/*
 	 * Nothing can fail from this point on.  Remove files for the
 	 * removed subsystems and rebind each subsystem.
 	 */
-	for_each_subsys_which(ss, ssid, &ss_mask) {
+	do_each_subsys_mask(ss, ssid, ss_mask) {
 		struct cgroup_root *src_root = ss->root;
 		struct cgroup *scgrp = &src_root->cgrp;
 		struct cgroup_subsys_state *css = cgroup_css(scgrp, ss);
@@ -1556,7 +1563,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 
 		if (ss->bind)
 			ss->bind(css);
-	}
+	} while_each_subsys_mask();
 
 	kernfs_activate(dcgrp->kn);
 	return 0;
@@ -2838,12 +2845,12 @@ static void cgroup_print_ss_mask(struct seq_file *seq, unsigned long ss_mask)
 	bool printed = false;
 	int ssid;
 
-	for_each_subsys_which(ss, ssid, &ss_mask) {
+	do_each_subsys_mask(ss, ssid, ss_mask) {
 		if (printed)
 			seq_putc(seq, ' ');
 		seq_printf(seq, "%s", ss->name);
 		printed = true;
-	}
+	} while_each_subsys_mask();
 	if (printed)
 		seq_putc(seq, '\n');
 }
@@ -2956,11 +2963,9 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 */
 	buf = strstrip(buf);
 	while ((tok = strsep(&buf, " "))) {
-		unsigned long tmp_ss_mask = ~cgrp_dfl_root_inhibit_ss_mask;
-
 		if (tok[0] == '\0')
 			continue;
-		for_each_subsys_which(ss, ssid, &tmp_ss_mask) {
+		do_each_subsys_mask(ss, ssid, ~cgrp_dfl_root_inhibit_ss_mask) {
 			if (!cgroup_ssid_enabled(ssid) ||
 			    strcmp(tok + 1, ss->name))
 				continue;
@@ -2975,7 +2980,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 				return -EINVAL;
 			}
 			break;
-		}
+		} while_each_subsys_mask();
 		if (ssid == CGROUP_SUBSYS_COUNT)
 			return -EINVAL;
 	}
@@ -3049,7 +3054,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 * still around.  In such cases, wait till it's gone using
 	 * offline_waitq.
 	 */
-	for_each_subsys_which(ss, ssid, &css_enable) {
+	do_each_subsys_mask(ss, ssid, css_enable) {
 		cgroup_for_each_live_child(child, cgrp) {
 			DEFINE_WAIT(wait);
 
@@ -3066,7 +3071,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 
 			return restart_syscall();
 		}
-	}
+	} while_each_subsys_mask();
 
 	cgrp->subtree_control = new_sc;
 	cgrp->subtree_ss_mask = new_ss;
@@ -5509,11 +5514,11 @@ int cgroup_can_fork(struct task_struct *child)
 	struct cgroup_subsys *ss;
 	int i, j, ret;
 
-	for_each_subsys_which(ss, i, &have_canfork_callback) {
+	do_each_subsys_mask(ss, i, have_canfork_callback) {
 		ret = ss->can_fork(child);
 		if (ret)
 			goto out_revert;
-	}
+	} while_each_subsys_mask();
 
 	return 0;
 
@@ -5598,8 +5603,9 @@ void cgroup_post_fork(struct task_struct *child)
 	 * css_set; otherwise, @child might change state between ->fork()
 	 * and addition to css_set.
 	 */
-	for_each_subsys_which(ss, i, &have_fork_callback)
+	do_each_subsys_mask(ss, i, have_fork_callback) {
 		ss->fork(child);
+	} while_each_subsys_mask();
 }
 
 /**
@@ -5642,8 +5648,9 @@ void cgroup_exit(struct task_struct *tsk)
 	}
 
 	/* see cgroup_post_fork() for details */
-	for_each_subsys_which(ss, i, &have_exit_callback)
+	do_each_subsys_mask(ss, i, have_exit_callback) {
 		ss->exit(tsk);
+	} while_each_subsys_mask();
 }
 
 void cgroup_free(struct task_struct *task)
@@ -5652,8 +5659,9 @@ void cgroup_free(struct task_struct *task)
 	struct cgroup_subsys *ss;
 	int ssid;
 
-	for_each_subsys_which(ss, ssid, &have_free_callback)
+	do_each_subsys_mask(ss, ssid, have_free_callback) {
 		ss->free(task);
+	} while_each_subsys_mask();
 
 	put_css_set(cset);
 }
