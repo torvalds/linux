@@ -534,4 +534,15 @@ static struct platform_driver keys_device_driver = {
 	}
 };
 
-module_platform_driver(keys_device_driver);
+static int __init rk_keys_driver_init(void)
+{
+	return platform_driver_register(&keys_device_driver);
+}
+
+static void __exit rk_keys_driver_exit(void)
+{
+	platform_driver_unregister(&keys_device_driver);
+}
+
+late_initcall_sync(rk_keys_driver_init);
+module_exit(rk_keys_driver_exit);
