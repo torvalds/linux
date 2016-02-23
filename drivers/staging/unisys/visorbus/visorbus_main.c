@@ -771,7 +771,7 @@ visordriver_probe_device(struct device *xdev)
 	get_device(&dev->device);
 	if (!drv->probe) {
 		up(&dev->visordriver_callback_lock);
-		rc = -1;
+		rc = -ENODEV;
 		goto away;
 	}
 	rc = drv->probe(dev);
