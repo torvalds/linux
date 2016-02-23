@@ -890,10 +890,7 @@ static void fail_incapable_cpu(char *cap_type,
 	/* Check if we can park ourselves */
 	if (cpu_ops[cpu] && cpu_ops[cpu]->cpu_die)
 		cpu_ops[cpu]->cpu_die(cpu);
-	asm(
-	"1:	wfe\n"
-	"	wfi\n"
-	"	b	1b");
+	cpu_park_loop();
 }
 
 /*
