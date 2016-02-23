@@ -1118,11 +1118,13 @@ void __init device_tree_init(void)
 {
 	const void *fdt;
 	bool do_prune;
+	bool fill_mac;
 
 #ifdef CONFIG_MIPS_ELF_APPENDED_DTB
 	if (!fdt_check_header(&__appended_dtb)) {
 		fdt = &__appended_dtb;
 		do_prune = false;
+		fill_mac = true;
 		pr_info("Using appended Device Tree.\n");
 	} else
 #endif
@@ -1131,22 +1133,26 @@ void __init device_tree_init(void)
 		if (fdt_check_header(fdt))
 			panic("Corrupt Device Tree passed to kernel.");
 		do_prune = false;
+		fill_mac = false;
 		pr_info("Using passed Device Tree.\n");
 	} else if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 		fdt = &__dtb_octeon_68xx_begin;
 		do_prune = true;
+		fill_mac = true;
 	} else {
 		fdt = &__dtb_octeon_3xxx_begin;
 		do_prune = true;
+		fill_mac = true;
 	}
 
 	initial_boot_params = (void *)fdt;
 
 	if (do_prune) {
 		octeon_prune_device_tree();
-		octeon_fill_mac_addresses();
 		pr_info("Using internal Device Tree.\n");
 	}
+	if (fill_mac)
+		octeon_fill_mac_addresses();
 	unflatten_and_copy_device_tree();
 	init_octeon_system_type();
 }
