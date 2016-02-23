@@ -25,6 +25,17 @@ struct virtio_dev_ops {
 	int (*enqueue)(struct virtio_dev *dev, struct virtio_req *req);
 };
 
+struct virtio_queue {
+	uint32_t num_max;
+	uint32_t num;
+	uint32_t ready;
+
+	struct lkl_vring_desc *desc;
+	struct lkl_vring_avail *avail;
+	struct lkl_vring_used *used;
+	uint16_t last_avail_idx;
+};
+
 struct virtio_dev {
 	uint32_t device_id;
 	uint32_t vendor_id;

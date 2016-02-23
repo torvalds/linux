@@ -7,6 +7,21 @@
 
 #define BIT(x) (1ULL << x)
 
+/* We always have 2 queues on a netdev: one for tx, one for rx. */
+#define RX_QUEUE_IDX 0
+#define TX_QUEUE_IDX 1
+#define NUM_QUEUES (TX_QUEUE_IDX + 1)
+
+#ifdef DEBUG
+#define bad_request(s) do {			\
+		lkl_printf("%s\n", s);		\
+		panic();			\
+	} while (0)
+#else
+#define bad_request(s) lkl_printf("virtio_net: %s\n", s);
+#endif /* DEBUG */
+
+
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;
 	struct lkl_sem_t *sem;
@@ -29,40 +44,54 @@ static int net_check_features(struct virtio_dev *dev)
 	return -LKL_EINVAL;
 }
 
+static inline int is_rx_queue(struct virtio_dev *dev, struct virtio_queue *queue)
+{
+       return &dev->queue[RX_QUEUE_IDX] == queue;
+}
+
+static inline int is_tx_queue(struct virtio_dev *dev, struct virtio_queue *queue)
+{
+       return &dev->queue[TX_QUEUE_IDX] == queue;
+}
+
 static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 {
-	struct lkl_virtio_net_hdr_v1 *h;
+	struct lkl_virtio_net_hdr_v1 *header;
 	struct virtio_net_dev *net_dev;
 	int ret, len;
 	void *buf;
 
-	h = req->buf[0].addr;
+	header = req->buf[0].addr;
 	net_dev = container_of(dev, struct virtio_net_dev, dev);
-	len = req->buf[0].len - sizeof(*h);
+	len = req->buf[0].len - sizeof(*header);
 
-	buf = &h[1];
+	buf = &header[1];
 
 	if (!len && req->buf_count > 1) {
 		buf = req->buf[1].addr;
 		len = req->buf[1].len;
 	}
 
-	if (req->q != dev->queue) {
+	/* Pick which virtqueue to send the buffer(s) to */
+	if (is_tx_queue(dev, req->q)) {
 		ret = net_dev->ops->tx(net_dev->nd, buf, len);
 		if (ret < 0) {
 			lkl_host_ops.sem_up(net_dev->tx_poll.sem);
 			return -1;
 		}
-	} else {
-		h->num_buffers = 1;
+	} else if (is_rx_queue(dev, req->q)) {
+		header->num_buffers = 1;
 		ret = net_dev->ops->rx(net_dev->nd, buf, &len);
 		if (ret < 0) {
 			lkl_host_ops.sem_up(net_dev->rx_poll.sem);
 			return -1;
 		}
+	} else {
+		bad_request("tried to push on non-existent queue");
+		return -1;
 	}
 
-	virtio_req_complete(req, len + sizeof(*h));
+	virtio_req_complete(req, len + sizeof(*header));
 	return 0;
 }
 

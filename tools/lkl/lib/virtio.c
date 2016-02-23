@@ -46,18 +46,6 @@
 #define bad_driver(msg) do { } while (0)
 #endif /* DEBUG */
 
-struct virtio_queue {
-	uint32_t num_max;
-	uint32_t num;
-	uint32_t ready;
-
-	struct lkl_vring_desc *desc;
-	struct lkl_vring_avail *avail;
-	struct lkl_vring_used *used;
-	uint16_t last_avail_idx;
-};
-
-
 static inline uint16_t virtio_get_used_event(struct virtio_queue *q)
 {
 	return q->avail->ring[q->num];
