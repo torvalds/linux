@@ -111,9 +111,9 @@ int list_device(const char *device_name)
 			perror("Failed to issue LINEINFO IOCTL\n");
 			goto exit_close_error;
 		}
-		fprintf(stdout, "\tline %d:", linfo.line_offset);
+		fprintf(stdout, "\tline %2d:", linfo.line_offset);
 		if (linfo.name[0])
-			fprintf(stdout, " %s", linfo.name);
+			fprintf(stdout, " \"%s\"", linfo.name);
 		else
 			fprintf(stdout, " unnamed");
 		if (linfo.label[0])
