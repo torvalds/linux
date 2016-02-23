@@ -207,10 +207,9 @@ static int max9867_dai_hw_params(struct snd_pcm_substream *substream,
 		unsigned long int bclk_rate, pclk_bclk_ratio;
 		int bclk_value;
 
-		bclk_rate = params_rate(params) * 2 *
-			snd_pcm_format_width(params_format(params));
+		bclk_rate = params_rate(params) * 2 * params_width(params);
 		pclk_bclk_ratio = max9867->pclk/bclk_rate;
-		switch (snd_pcm_format_width(params_format(params))) {
+		switch (params_width(params)) {
 		case 8:
 		case 16:
 			switch (pclk_bclk_ratio) {
