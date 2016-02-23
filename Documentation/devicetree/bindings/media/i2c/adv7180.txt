@@ -1,0 +1,20 @@
+* Analog Devices ADV7180 analog video decoder family
+
+The adv7180 family devices are used to capture analog video to different
+digital interfaces like parallel video.
+
+Required Properties :
+- compatible : value must be "adi,adv7180"
+
+Example:
+
+	i2c0@1c22000 {
+		...
+		...
+		adv7180@21 {
+			compatible = "adi,adv7180";
+			reg = <0x21>;
+		};
+		...
+	};
+
