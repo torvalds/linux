@@ -680,6 +680,13 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
 	__net_timestamp(skb);
 	mwifiex_queue_tx_pkt(priv, skb);
 
+	/* Delay 10ms to make sure tdls setup confirm/teardown frame
+	 * is received by peer
+	*/
+	if (action_code == WLAN_TDLS_SETUP_CONFIRM ||
+	    action_code == WLAN_TDLS_TEARDOWN)
+		msleep_interruptible(10);
+
 	return 0;
 }
 
