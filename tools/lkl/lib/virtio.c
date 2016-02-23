@@ -104,7 +104,7 @@ static inline struct lkl_vring_desc *vring_desc_at_le_idx(struct virtio_queue *q
 static void init_dev_buf_from_vring_desc(struct lkl_dev_buf *buf,
 					struct lkl_vring_desc *vring_desc)
 {
-	buf->addr = (void *)le64toh(vring_desc->addr);
+	buf->addr = (void *)(uintptr_t)le64toh(vring_desc->addr);
 	buf->len = le32toh(vring_desc->len);
 
 	if (!(buf->addr && buf->len))
