@@ -54,6 +54,7 @@ static const struct of_device_id arm_cci_matches[] = {
 #endif
 #ifdef CONFIG_ARM_CCI5xx_PMU
 	{ .compatible = "arm,cci-500", },
+	{ .compatible = "arm,cci-550", },
 #endif
 	{},
 };
@@ -156,6 +157,7 @@ enum cci_models {
 #endif
 #ifdef CONFIG_ARM_CCI5xx_PMU
 	CCI500_R0,
+	CCI550_R0,
 #endif
 	CCI_MODEL_MAX
 };
@@ -451,6 +453,7 @@ static inline struct cci_pmu_model *probe_cci_model(struct platform_device *pdev
 #define CCI5xx_PORT_M3			0xb
 #define CCI5xx_PORT_M4			0xc
 #define CCI5xx_PORT_M5			0xd
+#define CCI5xx_PORT_M6			0xe
 
 #define CCI5xx_PORT_GLOBAL		0xf
 
@@ -595,6 +598,58 @@ static int cci500_validate_hw_event(struct cci_pmu *cci_pmu,
 	case CCI5xx_PORT_M3:
 	case CCI5xx_PORT_M4:
 	case CCI5xx_PORT_M5:
+		if_type = CCI_IF_MASTER;
+		break;
+	case CCI5xx_PORT_GLOBAL:
+		if_type = CCI_IF_GLOBAL;
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	if (ev_code >= cci_pmu->model->event_ranges[if_type].min &&
+		ev_code <= cci_pmu->model->event_ranges[if_type].max)
+		return hw_event;
+
+	return -ENOENT;
+}
+
+/*
+ * CCI550 provides 8 independent event counters that can count
+ * any of the events available.
+ * CCI550 PMU event source ids
+ *	0x0-0x6 - Slave interfaces
+ *	0x8-0xe - Master interfaces
+ *	0xf     - Global Events
+ *	0x7	- Reserved
+ */
+static int cci550_validate_hw_event(struct cci_pmu *cci_pmu,
+					unsigned long hw_event)
+{
+	u32 ev_source = CCI5xx_PMU_EVENT_SOURCE(hw_event);
+	u32 ev_code = CCI5xx_PMU_EVENT_CODE(hw_event);
+	int if_type;
+
+	if (hw_event & ~CCI5xx_PMU_EVENT_MASK)
+		return -ENOENT;
+
+	switch (ev_source) {
+	case CCI5xx_PORT_S0:
+	case CCI5xx_PORT_S1:
+	case CCI5xx_PORT_S2:
+	case CCI5xx_PORT_S3:
+	case CCI5xx_PORT_S4:
+	case CCI5xx_PORT_S5:
+	case CCI5xx_PORT_S6:
+		if_type = CCI_IF_SLAVE;
+		break;
+	case CCI5xx_PORT_M0:
+	case CCI5xx_PORT_M1:
+	case CCI5xx_PORT_M2:
+	case CCI5xx_PORT_M3:
+	case CCI5xx_PORT_M4:
+	case CCI5xx_PORT_M5:
+	case CCI5xx_PORT_M6:
 		if_type = CCI_IF_MASTER;
 		break;
 	case CCI5xx_PORT_GLOBAL:
@@ -898,7 +953,7 @@ static void pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
 #ifdef CONFIG_ARM_CCI5xx_PMU
 
 /*
- * CCI-500 has advanced power saving policies, which could gate the
+ * CCI-500/CCI-550 has advanced power saving policies, which could gate the
  * clocks to the PMU counters, which makes the writes to them ineffective.
  * The only way to write to those counters is when the global counters
  * are enabled and the particular counter is enabled.
@@ -1546,6 +1601,30 @@ static struct cci_pmu_model cci_pmu_models[] = {
 		.validate_hw_event = cci500_validate_hw_event,
 		.write_counters	= cci5xx_pmu_write_counters,
 	},
+	[CCI550_R0] = {
+		.name = "CCI_550",
+		.fixed_hw_cntrs = 0,
+		.num_hw_cntrs = 8,
+		.cntr_size = SZ_64K,
+		.format_attrs = cci5xx_pmu_format_attrs,
+		.event_attrs = cci5xx_pmu_event_attrs,
+		.event_ranges = {
+			[CCI_IF_SLAVE] = {
+				CCI5xx_SLAVE_PORT_MIN_EV,
+				CCI5xx_SLAVE_PORT_MAX_EV,
+			},
+			[CCI_IF_MASTER] = {
+				CCI5xx_MASTER_PORT_MIN_EV,
+				CCI5xx_MASTER_PORT_MAX_EV,
+			},
+			[CCI_IF_GLOBAL] = {
+				CCI5xx_GLOBAL_PORT_MIN_EV,
+				CCI5xx_GLOBAL_PORT_MAX_EV,
+			},
+		},
+		.validate_hw_event = cci550_validate_hw_event,
+		.write_counters	= cci5xx_pmu_write_counters,
+	},
 #endif
 };
 
@@ -1568,6 +1647,10 @@ static const struct of_device_id arm_cci_pmu_matches[] = {
 	{
 		.compatible = "arm,cci-500-pmu,r0",
 		.data = &cci_pmu_models[CCI500_R0],
+	},
+	{
+		.compatible = "arm,cci-550-pmu,r0",
+		.data = &cci_pmu_models[CCI550_R0],
 	},
 #endif
 	{},
