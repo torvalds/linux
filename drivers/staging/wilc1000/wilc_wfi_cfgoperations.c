@@ -1928,7 +1928,7 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(dev);
-	wl = vif ->wilc;
+	wl = vif->wilc;
 
 	s32Error = set_channel(wiphy, &settings->chandef);
 
