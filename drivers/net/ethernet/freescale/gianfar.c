@@ -2436,15 +2436,8 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		txbdp_tstamp = txbdp = next_txbd(txbdp, base,
 						 tx_queue->tx_ring_size);
 
-	if (nr_frags == 0) {
-		if (unlikely(do_tstamp)) {
-			u32 lstatus_ts = be32_to_cpu(txbdp_tstamp->lstatus);
-
-			lstatus_ts |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
-			txbdp_tstamp->lstatus = cpu_to_be32(lstatus_ts);
-		} else {
-			lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
-		}
+	if (likely(!nr_frags)) {
+		lstatus |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
 	} else {
 		u32 lstatus_start = lstatus;
 
@@ -2488,8 +2481,11 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		bufaddr = be32_to_cpu(txbdp_start->bufPtr);
 		bufaddr += fcb_len;
+
 		lstatus_ts |= BD_LFLAG(TXBD_READY) |
 			      (skb_headlen(skb) - fcb_len);
+		if (!nr_frags)
+			lstatus_ts |= BD_LFLAG(TXBD_LAST | TXBD_INTERRUPT);
 
 		txbdp_tstamp->bufPtr = cpu_to_be32(bufaddr);
 		txbdp_tstamp->lstatus = cpu_to_be32(lstatus_ts);
