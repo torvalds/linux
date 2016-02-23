@@ -262,6 +262,21 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	int err = 0;
 	unsigned int root_ino = F2FS_ROOT_INO(F2FS_I_SB(dir));
 
+	if (f2fs_encrypted_inode(dir)) {
+		int res = fscrypt_get_encryption_info(dir);
+
+		/*
+		 * DCACHE_ENCRYPTED_WITH_KEY is set if the dentry is
+		 * created while the directory was encrypted and we
+		 * don't have access to the key.
+		 */
+		if (fscrypt_has_encryption_key(dir))
+			fscrypt_set_encrypted_dentry(dentry);
+		fscrypt_set_d_op(dentry);
+		if (res && res != -ENOKEY)
+			return ERR_PTR(res);
+	}
+
 	if (dentry->d_name.len > F2FS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
@@ -287,6 +302,14 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 		err = __recover_dot_dentries(inode, dir->i_ino);
 		if (err)
 			goto err_out;
+	}
+	if (!IS_ERR(inode) && f2fs_encrypted_inode(dir) &&
+			(S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) &&
+			!fscrypt_has_permitted_context(dir, inode)) {
+		bool nokey = f2fs_encrypted_inode(inode) &&
+			!fscrypt_has_encryption_key(inode);
+		iput(inode);
+		return nokey ? ERR_PTR(-ENOKEY) : ERR_PTR(-EPERM);
 	}
 	return d_splice_alias(inode, dentry);
 
