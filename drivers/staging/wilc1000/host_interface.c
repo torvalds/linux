@@ -735,7 +735,8 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		    curr_tx_rate == MBPS_11 || curr_tx_rate == MBPS_6 ||
 		    curr_tx_rate == MBPS_9 || curr_tx_rate == MBPS_12 ||
 		    curr_tx_rate == MBPS_18 || curr_tx_rate == MBPS_24 ||
-		    curr_tx_rate == MBPS_36 || curr_tx_rate == MBPS_48 || curr_tx_rate == MBPS_54) {
+		    curr_tx_rate == MBPS_36 || curr_tx_rate == MBPS_48 ||
+		    curr_tx_rate == MBPS_54) {
 			wid_list[i].id = WID_CURRENT_TX_RATE;
 			wid_list[i].val = (s8 *)&curr_tx_rate;
 			wid_list[i].type = WID_SHORT;
