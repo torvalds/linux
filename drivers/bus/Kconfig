@@ -34,7 +34,7 @@ config ARM_CCI400_PORT_CTRL
 	  Low level power management driver for CCI400 cache coherent
 	  interconnect for ARM platforms.
 
-config ARM_CCI500_PMU
+config ARM_CCI5xx_PMU
 	bool "ARM CCI500 PMU support"
 	depends on (ARM && CPU_V7) || ARM64
 	depends on PERF_EVENTS
