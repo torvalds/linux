@@ -556,7 +556,9 @@ dtb-$(CONFIG_ARCH_REALVIEW) += \
 	arm-realview-eb.dtb \
 	arm-realview-eb-11mp.dtb \
 	arm-realview-eb-11mp-revb.dtb \
-	arm-realview-eb-a9mp.dtb
+	arm-realview-eb-a9mp.dtb \
+	arm-realview-pba8.dtb \
+	arm-realview-pbx-a9.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3036-evb.dtb \
 	rk3036-kylin.dtb \
