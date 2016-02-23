@@ -271,6 +271,13 @@ extern long long virt_phys_offset;
 #else
 #define PD_HUGE 0x80000000
 #endif
+
+#else	/* CONFIG_PPC_BOOK3S_64 */
+/*
+ * Book3S 64 stores real addresses in the hugepd entries to
+ * avoid overlaps with _PAGE_PRESENT and _PAGE_PTE.
+ */
+#define HUGEPD_ADDR_MASK	(0x0ffffffffffffffful & ~HUGEPD_SHIFT_MASK)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 /*
