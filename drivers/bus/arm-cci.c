@@ -640,15 +640,20 @@ void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
 }
 
 /* Should be called with cci_pmu->hw_events->pmu_lock held */
-static void __cci_pmu_enable(struct cci_pmu *cci_pmu)
+static void __cci_pmu_enable_nosync(struct cci_pmu *cci_pmu)
 {
 	u32 val;
-
-	cci_pmu_sync_counters(cci_pmu);
 
 	/* Enable all the PMU counters. */
 	val = readl_relaxed(cci_ctrl_base + CCI_PMCR) | CCI_PMCR_CEN;
 	writel(val, cci_ctrl_base + CCI_PMCR);
+}
+
+/* Should be called with cci_pmu->hw_events->pmu_lock held */
+static void __cci_pmu_enable_sync(struct cci_pmu *cci_pmu)
+{
+	cci_pmu_sync_counters(cci_pmu);
+	__cci_pmu_enable_nosync(cci_pmu);
 }
 
 /* Should be called with cci_pmu->hw_events->pmu_lock held */
@@ -960,7 +965,7 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 	}
 
 	/* Enable the PMU and sync possibly overflowed counters */
-	__cci_pmu_enable(cci_pmu);
+	__cci_pmu_enable_sync(cci_pmu);
 	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 
 	return IRQ_RETVAL(handled);
@@ -1004,7 +1009,7 @@ static void cci_pmu_enable(struct pmu *pmu)
 		return;
 
 	raw_spin_lock_irqsave(&hw_events->pmu_lock, flags);
-	__cci_pmu_enable(cci_pmu);
+	__cci_pmu_enable_sync(cci_pmu);
 	raw_spin_unlock_irqrestore(&hw_events->pmu_lock, flags);
 
 }
