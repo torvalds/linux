@@ -1735,7 +1735,7 @@ static unsigned int neo_read_eeprom(unsigned char __iomem *base, unsigned int ad
 	/* enable chip select */
 	writeb(NEO_EECS, base + NEO_EEREG);
 	/* READ */
-	enable = (address | 0x180);
+	enable = address | 0x180;
 
 	for (bits = 9; bits--; ) {
 		databit = (enable & (1 << bits)) ? NEO_EEDI : 0;

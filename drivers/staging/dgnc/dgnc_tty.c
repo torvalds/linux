@@ -796,7 +796,7 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 	 *  And of course, rates above the dividend won't fly.
 	 */
 	if (newrate && newrate < ((ch->ch_bd->bd_dividend / 0xFFFF) + 1))
-		newrate = ((ch->ch_bd->bd_dividend / 0xFFFF) + 1);
+		newrate = (ch->ch_bd->bd_dividend / 0xFFFF) + 1;
 
 	if (newrate && newrate > ch->ch_bd->bd_dividend)
 		newrate = ch->ch_bd->bd_dividend;
@@ -1848,7 +1848,7 @@ static int dgnc_tty_tiocmget(struct tty_struct *tty)
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
-	mstat = (ch->ch_mostat | ch->ch_mistat);
+	mstat = ch->ch_mostat | ch->ch_mistat;
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
@@ -2048,7 +2048,7 @@ static inline int dgnc_get_mstat(struct channel_t *ch)
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
-	mstat = (ch->ch_mostat | ch->ch_mistat);
+	mstat = ch->ch_mostat | ch->ch_mistat;
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
