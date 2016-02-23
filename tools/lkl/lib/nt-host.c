@@ -13,7 +13,7 @@ struct lkl_sem_t {
 	HANDLE sem;
 };
 
-static void *sem_alloc(int count)
+static struct lkl_sem_t *sem_alloc(int count)
 {
 	struct lkl_sem_t *sem = malloc(sizeof(struct lkl_sem_t));
 
