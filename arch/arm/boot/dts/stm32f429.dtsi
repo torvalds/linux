@@ -278,6 +278,26 @@
 					bias-disable;
 				};
 			};
+
+			usbotg_hs_pins_a: usbotg_hs@0 {
+				pins {
+					pinmux = <STM32F429_PH4_FUNC_OTG_HS_ULPI_NXT>,
+						 <STM32F429_PI11_FUNC_OTG_HS_ULPI_DIR>,
+						 <STM32F429_PC0_FUNC_OTG_HS_ULPI_STP>,
+						 <STM32F429_PA5_FUNC_OTG_HS_ULPI_CK>,
+						 <STM32F429_PA3_FUNC_OTG_HS_ULPI_D0>,
+						 <STM32F429_PB0_FUNC_OTG_HS_ULPI_D1>,
+						 <STM32F429_PB1_FUNC_OTG_HS_ULPI_D2>,
+						 <STM32F429_PB10_FUNC_OTG_HS_ULPI_D3>,
+						 <STM32F429_PB11_FUNC_OTG_HS_ULPI_D4>,
+						 <STM32F429_PB12_FUNC_OTG_HS_ULPI_D5>,
+						 <STM32F429_PB13_FUNC_OTG_HS_ULPI_D6>,
+						 <STM32F429_PB5_FUNC_OTG_HS_ULPI_D7>;
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <2>;
+				};
+			};
 		};
 
 		rcc: rcc@40023810 {
@@ -316,6 +336,16 @@
 			clocks = <&rcc 0 22>;
 			#dma-cells = <4>;
 			st,mem2mem;
+		};
+
+		usbotg_hs: usb@40040000 {
+			compatible = "snps,dwc2";
+			dma-ranges;
+			reg = <0x40040000 0x40000>;
+			interrupts = <77>;
+			clocks = <&rcc 0 29>;
+			clock-names = "otg";
+			status = "disabled";
 		};
 
 		rng: rng@50060800 {
