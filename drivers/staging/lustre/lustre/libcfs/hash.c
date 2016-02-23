@@ -800,7 +800,7 @@ cfs_hash_bd_order(struct cfs_hash_bd *bd1, struct cfs_hash_bd *bd2)
 	}
 
 	rc = cfs_hash_bd_compare(bd1, bd2);
-	if (rc == 0)
+	if (!rc)
 		bd2->bd_bucket = NULL;
 	else if (rc > 0)
 		swap(*bd1, *bd2); /* swap bd1 and bd2 */
