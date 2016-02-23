@@ -23,6 +23,7 @@ extern "C" {
 #define lkl_sys_sendfile lkl_sys_sendfile64
 #define lkl_sys_fstatat lkl_sys_fstatat64
 #define lkl_sys_fstat lkl_sys_fstat64
+#define lkl_sys_fcntl lkl_sys_fcntl64
 
 #define lkl_statfs lkl_statfs64
 
