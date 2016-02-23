@@ -1402,6 +1402,14 @@ static SIMPLE_DEV_PM_OPS(adv7180_pm_ops, adv7180_suspend, adv7180_resume);
 #ifdef CONFIG_OF
 static const struct of_device_id adv7180_of_id[] = {
 	{ .compatible = "adi,adv7180", },
+	{ .compatible = "adi,adv7182", },
+	{ .compatible = "adi,adv7280", },
+	{ .compatible = "adi,adv7280-m", },
+	{ .compatible = "adi,adv7281", },
+	{ .compatible = "adi,adv7281-m", },
+	{ .compatible = "adi,adv7281-ma", },
+	{ .compatible = "adi,adv7282", },
+	{ .compatible = "adi,adv7282-m", },
 	{ },
 };
 
