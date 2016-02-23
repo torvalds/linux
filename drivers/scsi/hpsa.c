@@ -809,7 +809,8 @@ static ssize_t path_info_show(struct device *dev,
 				PAGE_SIZE - output_len,
 				"PORT: %.2s ",
 				phys_connector);
-		if (hdev->devtype == TYPE_DISK && hdev->expose_device) {
+		if ((hdev->devtype == TYPE_DISK || hdev->devtype == TYPE_ZBC) &&
+			hdev->expose_device) {
 			if (box == 0 || box == 0xFF) {
 				output_len += scnprintf(buf + output_len,
 					PAGE_SIZE - output_len,
@@ -1166,6 +1167,7 @@ static void hpsa_show_dev_msg(const char *level, struct ctlr_info *h,
 		snprintf(label, LABEL_SIZE, "enclosure");
 		break;
 	case TYPE_DISK:
+	case TYPE_ZBC:
 		if (dev->external)
 			snprintf(label, LABEL_SIZE, "external");
 		else if (!is_logical_dev_addr_mode(dev->scsi3addr))
@@ -1636,6 +1638,8 @@ static void hpsa_figure_phys_disk_ptrs(struct ctlr_info *h,
 				continue;
 			if (dev[j]->devtype != TYPE_DISK)
 				continue;
+			if (dev[j]->devtype != TYPE_ZBC)
+				continue;
 			if (is_logical_device(dev[j]))
 				continue;
 			if (dev[j]->ioaccel_handle != dd[i].ioaccel_handle)
@@ -1680,6 +1684,8 @@ static void hpsa_update_log_drive_phys_drive_ptrs(struct ctlr_info *h,
 		if (dev[i] == NULL)
 			continue;
 		if (dev[i]->devtype != TYPE_DISK)
+			continue;
+		if (dev[i]->devtype != TYPE_ZBC)
 			continue;
 		if (!is_logical_device(dev[i]))
 			continue;
@@ -3715,7 +3721,8 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 	hpsa_get_device_id(h, scsi3addr, this_device->device_id, 8,
 		sizeof(this_device->device_id));
 
-	if (this_device->devtype == TYPE_DISK &&
+	if ((this_device->devtype == TYPE_DISK ||
+		this_device->devtype == TYPE_ZBC) &&
 		is_logical_dev_addr_mode(scsi3addr)) {
 		int volume_offline;
 
@@ -4183,6 +4190,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 				ncurrent++;
 			break;
 		case TYPE_DISK:
+		case TYPE_ZBC:
 			if (this_device->physical_device) {
 				/* The disk is in HBA mode. */
 				/* Never use RAID mapper in HBA mode. */
