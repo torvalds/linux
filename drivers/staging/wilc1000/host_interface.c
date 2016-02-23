@@ -501,7 +501,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 			wid_list[i].size = sizeof(char);
 			hif_drv->cfg_values.auth_type = (u8)cfg_param_attr->auth_type;
 		} else {
-			netdev_err(vif->ndev, "Impossible value \n");
+			netdev_err(vif->ndev, "Impossible value\n");
 			result = -EINVAL;
 			goto ERRORHANDLER;
 		}
