@@ -5846,7 +5846,7 @@ static int hpsa_send_abort_ioaccel2(struct ctlr_info *h,
 }
 
 static int hpsa_send_abort_both_ways(struct ctlr_info *h,
-	unsigned char *scsi3addr, struct CommandList *abort, int reply_queue)
+	struct hpsa_scsi_dev_t *dev, struct CommandList *abort, int reply_queue)
 {
 	/*
 	 * ioccelerator mode 2 commands should be aborted via the
@@ -5855,14 +5855,16 @@ static int hpsa_send_abort_both_ways(struct ctlr_info *h,
 	 * Change abort to physical device reset when abort TMF is unsupported.
 	 */
 	if (abort->cmd_type == CMD_IOACCEL2) {
-		if (HPSATMF_IOACCEL_ENABLED & h->TMFSupportFlags)
+		if ((HPSATMF_IOACCEL_ENABLED & h->TMFSupportFlags) ||
+			dev->physical_device)
 			return hpsa_send_abort_ioaccel2(h, abort,
 						reply_queue);
 		else
-			return hpsa_send_reset_as_abort_ioaccel2(h, scsi3addr,
+			return hpsa_send_reset_as_abort_ioaccel2(h,
+							dev->scsi3addr,
 							abort, reply_queue);
 	}
-	return hpsa_send_abort(h, scsi3addr, abort, reply_queue);
+	return hpsa_send_abort(h, dev->scsi3addr, abort, reply_queue);
 }
 
 /* Find out which reply queue a command was meant to return on */
@@ -6000,7 +6002,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 		cmd_free(h, abort);
 		return FAILED;
 	}
-	rc = hpsa_send_abort_both_ways(h, dev->scsi3addr, abort, reply_queue);
+	rc = hpsa_send_abort_both_ways(h, dev, abort, reply_queue);
 	atomic_inc(&h->abort_cmds_available);
 	wake_up_all(&h->abort_cmd_wait_queue);
 	if (rc != 0) {
