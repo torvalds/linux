@@ -1120,6 +1120,8 @@ enum mac80211_rx_vht_flags {
  *
  * @mactime: value in microseconds of the 64-bit Time Synchronization Function
  * 	(TSF) timer when the first data symbol (MPDU) arrived at the hardware.
+ * @boottime_ns: CLOCK_BOOTTIME timestamp the frame was received at, this is
+ *	needed only for beacons and probe responses that update the scan cache.
  * @device_timestamp: arbitrary timestamp for the device, mac80211 doesn't use
  *	it but can store it and pass it back to the driver for synchronisation
  * @band: the active band when this frame was received
@@ -1146,6 +1148,7 @@ enum mac80211_rx_vht_flags {
  */
 struct ieee80211_rx_status {
 	u64 mactime;
+	u64 boottime_ns;
 	u32 device_timestamp;
 	u32 ampdu_reference;
 	u32 flag;
