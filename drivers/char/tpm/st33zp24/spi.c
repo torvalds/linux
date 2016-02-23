@@ -19,8 +19,10 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
+#include <linux/acpi.h>
 #include <linux/tpm.h>
 #include <linux/platform_data/st33zp24.h>
 
@@ -227,6 +229,42 @@ static const struct st33zp24_phy_ops spi_phy_ops = {
 	.recv = st33zp24_spi_recv,
 };
 
+static int st33zp24_spi_acpi_request_resources(struct st33zp24_spi_phy *phy)
+{
+	struct spi_device *spi_dev = phy->spi_device;
+	const struct acpi_device_id *id;
+	struct gpio_desc *gpiod_lpcpd;
+	struct device *dev;
+
+	if (!spi_dev)
+		return -EINVAL;
+
+	dev = &spi_dev->dev;
+
+	/* Match the struct device against a given list of ACPI IDs */
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	/* Get LPCPD GPIO from ACPI */
+	gpiod_lpcpd = devm_gpiod_get_index(dev, "TPM IO LPCPD", 1,
+					   GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod_lpcpd)) {
+		dev_err(dev, "Failed to retrieve lpcpd-gpios from acpi.\n");
+		phy->io_lpcpd = -1;
+		/*
+		 * lpcpd pin is not specified. This is not an issue as
+		 * power management can be also managed by TPM specific
+		 * commands. So leave with a success status code.
+		 */
+		return 0;
+	}
+
+	phy->io_lpcpd = desc_to_gpio(gpiod_lpcpd);
+
+	return 0;
+}
+
 static int st33zp24_spi_of_request_resources(struct st33zp24_spi_phy *phy)
 {
 	struct device_node *pp;
@@ -328,6 +366,10 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 		ret = st33zp24_spi_request_resources(dev, phy);
 		if (ret)
 			return ret;
+	} else if (ACPI_HANDLE(&dev->dev)) {
+		ret = st33zp24_spi_acpi_request_resources(phy);
+		if (ret)
+			return ret;
 	}
 
 	phy->latency = st33zp24_spi_evaluate_latency(phy);
@@ -362,6 +404,12 @@ static const struct of_device_id of_st33zp24_spi_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_st33zp24_spi_match);
 
+static const struct acpi_device_id st33zp24_spi_acpi_match[] = {
+	{"SMO3324"},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, st33zp24_spi_acpi_match);
+
 static SIMPLE_DEV_PM_OPS(st33zp24_spi_ops, st33zp24_pm_suspend,
 			 st33zp24_pm_resume);
 
@@ -370,6 +418,7 @@ static struct spi_driver st33zp24_spi_driver = {
 		.name = TPM_ST33_SPI,
 		.pm = &st33zp24_spi_ops,
 		.of_match_table = of_match_ptr(of_st33zp24_spi_match),
+		.acpi_match_table = ACPI_PTR(st33zp24_spi_acpi_match),
 	},
 	.probe = st33zp24_spi_probe,
 	.remove = st33zp24_spi_remove,
