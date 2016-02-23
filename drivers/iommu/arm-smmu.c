@@ -94,6 +94,7 @@
 #define sCR0_VMIDPNE			(1 << 11)
 #define sCR0_PTM			(1 << 12)
 #define sCR0_FB				(1 << 13)
+#define sCR0_VMID16EN			(1 << 31)
 #define sCR0_BSU_SHIFT			14
 #define sCR0_BSU_MASK			0x3
 
@@ -141,6 +142,7 @@
 #define ID2_PTFS_4K			(1 << 12)
 #define ID2_PTFS_16K			(1 << 13)
 #define ID2_PTFS_64K			(1 << 14)
+#define ID2_VMID16			(1 << 15)
 
 /* Global TLB invalidation */
 #define ARM_SMMU_GR0_TLBIVMID		0x64
@@ -193,6 +195,8 @@
 #define ARM_SMMU_GR1_CBA2R(n)		(0x800 + ((n) << 2))
 #define CBA2R_RW64_32BIT		(0 << 0)
 #define CBA2R_RW64_64BIT		(1 << 0)
+#define CBA2R_VMID_SHIFT		16
+#define CBA2R_VMID_MASK			0xffff
 
 /* Translation context bank */
 #define ARM_SMMU_CB_BASE(smmu)		((smmu)->base + ((smmu)->size >> 1))
@@ -305,6 +309,7 @@ struct arm_smmu_device {
 #define ARM_SMMU_FEAT_TRANS_S2		(1 << 3)
 #define ARM_SMMU_FEAT_TRANS_NESTED	(1 << 4)
 #define ARM_SMMU_FEAT_TRANS_OPS		(1 << 5)
+#define ARM_SMMU_FEAT_VMID16		(1 << 6)
 	u32				features;
 
 #define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
@@ -734,16 +739,15 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 
 	if (smmu->version > ARM_SMMU_V1) {
-		/*
-		 * CBA2R.
-		 * *Must* be initialised before CBAR thanks to VMID16
-		 * architectural oversight affected some implementations.
-		 */
 #ifdef CONFIG_64BIT
 		reg = CBA2R_RW64_64BIT;
 #else
 		reg = CBA2R_RW64_32BIT;
 #endif
+		/* 16-bit VMIDs live in CBA2R */
+		if (smmu->features & ARM_SMMU_FEAT_VMID16)
+			reg |= ARM_SMMU_CB_VMID(cfg) << CBA2R_VMID_SHIFT;
+
 		writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBA2R(cfg->cbndx));
 	}
 
@@ -759,7 +763,8 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	if (stage1) {
 		reg |= (CBAR_S1_BPSHCFG_NSH << CBAR_S1_BPSHCFG_SHIFT) |
 			(CBAR_S1_MEMATTR_WB << CBAR_S1_MEMATTR_SHIFT);
-	} else {
+	} else if (!(smmu->features & ARM_SMMU_FEAT_VMID16)) {
+		/* 8-bit VMIDs live in CBAR */
 		reg |= ARM_SMMU_CB_VMID(cfg) << CBAR_VMID_SHIFT;
 	}
 	writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBAR(cfg->cbndx));
@@ -1529,6 +1534,9 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	/* Don't upgrade barriers */
 	reg &= ~(sCR0_BSU_MASK << sCR0_BSU_SHIFT);
 
+	if (smmu->features & ARM_SMMU_FEAT_VMID16)
+		reg |= sCR0_VMID16EN;
+
 	/* Push the button */
 	__arm_smmu_tlb_sync(smmu);
 	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
@@ -1678,6 +1686,9 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	/* The output mask is also applied for bypass */
 	size = arm_smmu_id_size_to_bits((id >> ID2_OAS_SHIFT) & ID2_OAS_MASK);
 	smmu->pa_size = size;
+
+	if (id & ID2_VMID16)
+		smmu->features |= ARM_SMMU_FEAT_VMID16;
 
 	/*
 	 * What the page table walker can address actually depends on which
