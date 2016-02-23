@@ -201,47 +201,6 @@ out:
 	return 0;
 }
 
-static int dsa_bridge_check_vlan_range(struct dsa_switch *ds,
-				       const struct net_device *bridge,
-				       u16 vid_begin, u16 vid_end)
-{
-	struct dsa_slave_priv *p;
-	struct net_device *dev, *vlan_br;
-	DECLARE_BITMAP(members, DSA_MAX_PORTS);
-	DECLARE_BITMAP(untagged, DSA_MAX_PORTS);
-	u16 vid;
-	int member, err;
-
-	if (!ds->drv->vlan_getnext || !vid_begin)
-		return -EOPNOTSUPP;
-
-	vid = vid_begin - 1;
-
-	do {
-		err = ds->drv->vlan_getnext(ds, &vid, members, untagged);
-		if (err)
-			break;
-
-		if (vid > vid_end)
-			break;
-
-		member = find_first_bit(members, DSA_MAX_PORTS);
-		if (member == DSA_MAX_PORTS)
-			continue;
-
-		dev = ds->ports[member];
-		p = netdev_priv(dev);
-		vlan_br = p->bridge_dev;
-		if (vlan_br == bridge)
-			continue;
-
-		netdev_dbg(vlan_br, "hardware VLAN %d already in use\n", vid);
-		return -EOPNOTSUPP;
-	} while (vid < vid_end);
-
-	return err == -ENOENT ? 0 : err;
-}
-
 static int dsa_slave_port_vlan_add(struct net_device *dev,
 				   const struct switchdev_obj_port_vlan *vlan,
 				   struct switchdev_trans *trans)
@@ -253,15 +212,6 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 	if (switchdev_trans_ph_prepare(trans)) {
 		if (!ds->drv->port_vlan_prepare || !ds->drv->port_vlan_add)
 			return -EOPNOTSUPP;
-
-		/* If the requested port doesn't belong to the same bridge as
-		 * the VLAN members, fallback to software VLAN (hopefully).
-		 */
-		err = dsa_bridge_check_vlan_range(ds, p->bridge_dev,
-						  vlan->vid_begin,
-						  vlan->vid_end);
-		if (err)
-			return err;
 
 		err = ds->drv->port_vlan_prepare(ds, p->port, vlan, trans);
 		if (err)
@@ -383,31 +333,6 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return phy_mii_ioctl(p->phy, ifr, cmd);
 
 	return -EOPNOTSUPP;
-}
-
-/* Return a bitmask of all ports being currently bridged within a given bridge
- * device. Note that on leave, the mask will still return the bitmask of ports
- * currently bridged, prior to port removal, and this is exactly what we want.
- */
-static u32 dsa_slave_br_port_mask(struct dsa_switch *ds,
-				  struct net_device *bridge)
-{
-	struct dsa_slave_priv *p;
-	unsigned int port;
-	u32 mask = 0;
-
-	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if (!dsa_is_port_initialized(ds, port))
-			continue;
-
-		p = netdev_priv(ds->ports[port]);
-
-		if (ds->ports[port]->priv_flags & IFF_BRIDGE_PORT &&
-		    p->bridge_dev == bridge)
-			mask |= 1 << port;
-	}
-
-	return mask;
 }
 
 static int dsa_slave_stp_update(struct net_device *dev, u8 state)
@@ -533,8 +458,7 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 	p->bridge_dev = br;
 
 	if (ds->drv->port_join_bridge)
-		ret = ds->drv->port_join_bridge(ds, p->port,
-						dsa_slave_br_port_mask(ds, br));
+		ret = ds->drv->port_join_bridge(ds, p->port, br);
 
 	return ret;
 }
@@ -547,8 +471,7 @@ static int dsa_slave_bridge_port_leave(struct net_device *dev)
 
 
 	if (ds->drv->port_leave_bridge)
-		ret = ds->drv->port_leave_bridge(ds, p->port,
-						 dsa_slave_br_port_mask(ds, p->bridge_dev));
+		ret = ds->drv->port_leave_bridge(ds, p->port);
 
 	p->bridge_dev = NULL;
 
