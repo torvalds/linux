@@ -11,7 +11,7 @@
 #include "omap-gpmc-smsc9221.dtsi"
 
 / {
-	model = "LogicPD Zoom DM3730 Torpedo Development Kit";
+	model = "LogicPD Zoom DM3730 Torpedo + Wireless Development Kit";
 	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3630", "ti,omap3";
 
 	gpio_keys {
