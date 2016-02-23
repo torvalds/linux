@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/usb.h>
 #include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -525,9 +526,16 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 
 static void __init octeon_fdt_set_mac_addr(int n, u64 *pmac)
 {
+	const u8 *old_mac;
+	int old_len;
 	u8 new_mac[6];
 	u64 mac = *pmac;
 	int r;
+
+	old_mac = fdt_getprop(initial_boot_params, n, "local-mac-address",
+			      &old_len);
+	if (!old_mac || old_len != 6 || is_valid_ether_addr(old_mac))
+		return;
 
 	new_mac[0] = (mac >> 40) & 0xff;
 	new_mac[1] = (mac >> 32) & 0xff;
