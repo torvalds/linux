@@ -1096,6 +1096,17 @@ static int ext4_xattr_ibody_set(handle_t *handle, struct inode *inode,
 	return 0;
 }
 
+static int ext4_xattr_value_same(struct ext4_xattr_search *s,
+				 struct ext4_xattr_info *i)
+{
+	void *value;
+
+	if (le32_to_cpu(s->here->e_value_size) != i->value_len)
+		return 0;
+	value = ((void *)s->base) + le16_to_cpu(s->here->e_value_offs);
+	return !memcmp(value, i->value, i->value_len);
+}
+
 /*
  * ext4_xattr_set_handle()
  *
@@ -1172,6 +1183,13 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 		else if (!bs.s.not_found)
 			error = ext4_xattr_block_set(handle, inode, &i, &bs);
 	} else {
+		error = 0;
+		/* Xattr value did not change? Save us some work and bail out */
+		if (!is.s.not_found && ext4_xattr_value_same(&is.s, &i))
+			goto cleanup;
+		if (!bs.s.not_found && ext4_xattr_value_same(&bs.s, &i))
+			goto cleanup;
+
 		error = ext4_xattr_ibody_set(handle, inode, &i, &is);
 		if (!error && !bs.s.not_found) {
 			i.value = NULL;
