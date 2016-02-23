@@ -408,6 +408,7 @@
 			qcom,phy-init-sequence = <0x44 0x6B 0x24 0x13>;
 			dr_mode = "peripheral";
 			qcom,otg-control = <2>; // PMIC
+			qcom,manual-pullup;
 
 			clocks = <&gcc GCC_USB_HS_AHB_CLK>,
 				 <&gcc GCC_USB_HS_SYSTEM_CLK>,
