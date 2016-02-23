@@ -110,9 +110,9 @@ static const struct st33zp24_phy_ops i2c_phy_ops = {
 	.recv = st33zp24_i2c_recv,
 };
 
-static int st33zp24_i2c_acpi_request_resources(struct st33zp24_i2c_phy *phy)
+static int st33zp24_i2c_acpi_request_resources(struct i2c_client *client)
 {
-	struct i2c_client *client = phy->client;
+	struct st33zp24_i2c_phy *phy = i2c_get_clientdata(client);
 	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_lpcpd;
 	struct device *dev;
@@ -147,10 +147,10 @@ static int st33zp24_i2c_acpi_request_resources(struct st33zp24_i2c_phy *phy)
 	return 0;
 }
 
-static int st33zp24_i2c_of_request_resources(struct st33zp24_i2c_phy *phy)
+static int st33zp24_i2c_of_request_resources(struct i2c_client *client)
 {
+	struct st33zp24_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device_node *pp;
-	struct i2c_client *client = phy->client;
 	int gpio;
 	int ret;
 
@@ -185,10 +185,10 @@ static int st33zp24_i2c_of_request_resources(struct st33zp24_i2c_phy *phy)
 	return 0;
 }
 
-static int st33zp24_i2c_request_resources(struct i2c_client *client,
-					  struct st33zp24_i2c_phy *phy)
+static int st33zp24_i2c_request_resources(struct i2c_client *client)
 {
 	struct st33zp24_platform_data *pdata;
+	struct st33zp24_i2c_phy *phy = i2c_get_clientdata(client);
 	int ret;
 
 	pdata = client->dev.platform_data;
@@ -244,17 +244,20 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	phy->client = client;
+
+	i2c_set_clientdata(client, phy);
+
 	pdata = client->dev.platform_data;
 	if (!pdata && client->dev.of_node) {
-		ret = st33zp24_i2c_of_request_resources(phy);
+		ret = st33zp24_i2c_of_request_resources(client);
 		if (ret)
 			return ret;
 	} else if (pdata) {
-		ret = st33zp24_i2c_request_resources(client, phy);
+		ret = st33zp24_i2c_request_resources(client);
 		if (ret)
 			return ret;
 	} else if (ACPI_HANDLE(&client->dev)) {
-		ret = st33zp24_i2c_acpi_request_resources(phy);
+		ret = st33zp24_i2c_acpi_request_resources(client);
 		if (ret)
 			return ret;
 	}
