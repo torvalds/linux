@@ -31,13 +31,10 @@
 #define PCF85063_REG_MO			0x09
 #define PCF85063_REG_YR			0x0A
 
-#define PCF85063_MO_C			0x80 /* century */
-
 static struct i2c_driver pcf85063_driver;
 
 struct pcf85063 {
 	struct rtc_device *rtc;
-	int c_polarity;	/* 0: MO_C=1 means 19xx, otherwise MO_C=1 means 20xx */
 	int voltage_low; /* indicates if a low_voltage was detected */
 };
 
@@ -72,7 +69,6 @@ static int pcf85063_stop_clock(struct i2c_client *client, u8 *ctrl1)
 static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	int rc;
-	struct pcf85063 *pcf85063 = i2c_get_clientdata(client);
 	u8 regs[7];
 
 	/*
@@ -103,9 +99,6 @@ static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_year = bcd2bin(regs[6]);
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;	/* assume we are in 1970...2069 */
-	/* detect the polarity heuristically. see note above. */
-	pcf85063->c_polarity = (regs[5] & PCF85063_MO_C) ?
-		(tm->tm_year >= 100) : (tm->tm_year < 100);
 
 	return rtc_valid_tm(tm);
 }
