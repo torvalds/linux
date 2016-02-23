@@ -24,7 +24,6 @@
 #define DC_VOLTAGE_MAX		1400000
 #define FREQ_1P2_GHZ		1200000000
 #define FREQ_396_MHZ		396000
-#define FREQ_696_MHZ		696000
 
 static struct regulator *arm_reg;
 static struct regulator *pu_reg;
@@ -51,7 +50,6 @@ static unsigned int transition_latency;
 static struct mutex set_cpufreq_lock;
 static u32 *imx6_soc_volt;
 static u32 soc_opp_count;
-static bool ignore_dc_reg;
 
 static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
@@ -142,10 +140,6 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 			clk_set_parent(secondary_sel, pll2_pfd2_396m_clk);
 		clk_set_parent(step_clk, secondary_sel);
 		clk_set_parent(pll1_sw_clk, step_clk);
-		if (freq_hz > clk_get_rate(pll2_bus)) {
-			clk_set_rate(pll1, new_freq * 1000);
-			clk_set_parent(pll1_sw_clk, pll1_sys_clk);
-		}
 	} else {
 		clk_set_parent(step_clk, pll2_pfd2_396m_clk);
 		clk_set_parent(pll1_sw_clk, step_clk);
@@ -252,13 +246,13 @@ static int imx6_cpufreq_pm_notify(struct notifier_block *nb,
 		cpufreq_policy_min_pre_suspend = data->user_policy.min;
 		data->user_policy.min = data->user_policy.max;
 
-		if (!IS_ERR(dc_reg) && !ignore_dc_reg)
+		if (!IS_ERR(dc_reg))
 			regulator_set_voltage_tol(dc_reg, DC_VOLTAGE_MAX, 0);
 		break;
 	case PM_POST_SUSPEND:
 		data->user_policy.min = cpufreq_policy_min_pre_suspend;
 
-		if (!IS_ERR(dc_reg) && !ignore_dc_reg)
+		if (!IS_ERR(dc_reg))
 			regulator_set_voltage_tol(dc_reg, DC_VOLTAGE_MIN, 0);
 		break;
 	default:
@@ -328,6 +322,8 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	}
 
 	dc_reg = devm_regulator_get_optional(cpu_dev, "dc");
+	if (!IS_ERR(dc_reg))
+		regulator_set_voltage_tol(dc_reg, DC_VOLTAGE_MIN, 0);
 
 	/*
 	 * soc_reg sync  with arm_reg if arm shares the same regulator
@@ -368,15 +364,6 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 		dev_err(cpu_dev, "failed to init cpufreq table: %d\n", ret);
 		goto out_free_opp;
 	}
-
-	/*
-	 * On i.MX6UL EVK board, if the SOC is run in overide frequency,
-	 * the dc_regulator voltage should not be touched.
-	 */
-	if (freq_table[num - 1].frequency == FREQ_696_MHZ)
-		ignore_dc_reg = true;
-	if (!IS_ERR(dc_reg) && !ignore_dc_reg)
-		regulator_set_voltage_tol(dc_reg, DC_VOLTAGE_MIN, 0);
 
 	/* Make imx6_soc_volt array's size same as arm opp number */
 	imx6_soc_volt = devm_kzalloc(cpu_dev, sizeof(*imx6_soc_volt) * num, GFP_KERNEL);
