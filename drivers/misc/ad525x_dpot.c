@@ -452,7 +452,7 @@ static ssize_t sysfs_set_reg(struct device *dev,
 	int err;
 
 	if (reg & DPOT_ADDR_OTP_EN) {
-		if (!strncmp(buf, "enabled", sizeof("enabled")))
+		if (sysfs_streq(buf, "enabled"))
 			set_bit(DPOT_RDAC_MASK & reg, data->otp_en_mask);
 		else
 			clear_bit(DPOT_RDAC_MASK & reg, data->otp_en_mask);
