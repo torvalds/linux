@@ -3369,7 +3369,7 @@ static int cgroup_addrm_files(struct cgroup_subsys_state *css,
 			      bool is_add)
 {
 	struct cftype *cft, *cft_end = NULL;
-	int ret;
+	int ret = 0;
 
 	lockdep_assert_held(&cgroup_mutex);
 
@@ -3398,7 +3398,7 @@ restart:
 			cgroup_rm_file(cgrp, cft);
 		}
 	}
-	return 0;
+	return ret;
 }
 
 static int cgroup_apply_cftypes(struct cftype *cfts, bool is_add)
