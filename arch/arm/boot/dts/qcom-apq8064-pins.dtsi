@@ -90,6 +90,31 @@
 		};
 	};
 
+	i2c4_pins: i2c4 {
+		mux {
+			pins = "gpio12", "gpio13";
+			function = "gsbi4";
+		};
+
+		pinconf {
+			pins = "gpio12", "gpio13";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	i2c4_pins_sleep: i2c4_pins_sleep {
+		mux {
+			pins = "gpio12", "gpio13";
+			function = "gpio";
+		};
+		pinconf {
+			pins = "gpio12", "gpio13";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
 	spi5_default: spi5_default {
 		pinmux {
 			pins = "gpio51", "gpio52", "gpio54";

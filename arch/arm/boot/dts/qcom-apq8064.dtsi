@@ -289,6 +289,29 @@
 			};
 		};
 
+		gsbi4: gsbi@16300000 {
+			status = "disabled";
+			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <4>;
+			reg = <0x16300000 0x03>;
+			clocks = <&gcc GSBI4_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			gsbi4_i2c: i2c@16380000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				pinctrl-0 = <&i2c4_pins &i2c4_pins_sleep>;
+				pinctrl-names = "default", "sleep";
+				reg = <0x16380000 0x1000>;
+				interrupts = <GIC_SPI 153 IRQ_TYPE_NONE>;
+				clocks = <&gcc GSBI4_QUP_CLK>,
+					 <&gcc GSBI4_H_CLK>;
+				clock-names = "core", "iface";
+			};
+		};
+
 		gsbi5: gsbi@1a200000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
