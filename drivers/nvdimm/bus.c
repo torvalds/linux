@@ -490,16 +490,24 @@ void wait_nvdimm_bus_probe_idle(struct device *dev)
 }
 
 /* set_config requires an idle interleave set */
-static int nd_cmd_clear_to_send(struct nvdimm *nvdimm, unsigned int cmd)
+static int nd_cmd_clear_to_send(struct nvdimm_bus *nvdimm_bus,
+		struct nvdimm *nvdimm, unsigned int cmd)
 {
-	struct nvdimm_bus *nvdimm_bus;
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+
+	/* ask the bus provider if it would like to block this request */
+	if (nd_desc->clear_to_send) {
+		int rc = nd_desc->clear_to_send(nd_desc, nvdimm, cmd);
+
+		if (rc)
+			return rc;
+	}
 
 	if (!nvdimm || cmd != ND_CMD_SET_CONFIG_DATA)
 		return 0;
 
-	nvdimm_bus = walk_to_nvdimm_bus(&nvdimm->dev);
+	/* prevent label manipulation while the kernel owns label updates */
 	wait_nvdimm_bus_probe_idle(&nvdimm_bus->dev);
-
 	if (atomic_read(&nvdimm->busy))
 		return -EBUSY;
 	return 0;
@@ -609,7 +617,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	}
 
 	nvdimm_bus_lock(&nvdimm_bus->dev);
-	rc = nd_cmd_clear_to_send(nvdimm, cmd);
+	rc = nd_cmd_clear_to_send(nvdimm_bus, nvdimm, cmd);
 	if (rc)
 		goto out_unlock;
 

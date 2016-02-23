@@ -2186,6 +2186,28 @@ static int acpi_nfit_flush_probe(struct nvdimm_bus_descriptor *nd_desc)
 	return wait_for_completion_interruptible(&flush.cmp);
 }
 
+static int acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
+		struct nvdimm *nvdimm, unsigned int cmd)
+{
+	struct acpi_nfit_desc *acpi_desc = to_acpi_nfit_desc(nd_desc);
+
+	if (nvdimm)
+		return 0;
+	if (cmd != ND_CMD_ARS_START)
+		return 0;
+
+	/*
+	 * The kernel and userspace may race to initiate a scrub, but
+	 * the scrub thread is prepared to lose that initial race.  It
+	 * just needs guarantees that any ars it initiates are not
+	 * interrupted by any intervening start reqeusts from userspace.
+	 */
+	if (work_busy(&acpi_desc->work))
+		return -EBUSY;
+
+	return 0;
+}
+
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 {
 	struct nvdimm_bus_descriptor *nd_desc;
@@ -2197,6 +2219,7 @@ void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 	nd_desc->provider_name = "ACPI.NFIT";
 	nd_desc->ndctl = acpi_nfit_ctl;
 	nd_desc->flush_probe = acpi_nfit_flush_probe;
+	nd_desc->clear_to_send = acpi_nfit_clear_to_send;
 	nd_desc->attr_groups = acpi_nfit_attribute_groups;
 
 	INIT_LIST_HEAD(&acpi_desc->spa_maps);
