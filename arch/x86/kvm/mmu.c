@@ -1873,6 +1873,7 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 static int mmu_unsync_walk(struct kvm_mmu_page *sp,
 			   struct kvm_mmu_pages *pvec)
 {
+	pvec->nr = 0;
 	if (!sp->unsync_children)
 		return 0;
 
@@ -1986,13 +1987,12 @@ static void kvm_sync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
 }
 
 struct mmu_page_path {
-	struct kvm_mmu_page *parent[PT64_ROOT_LEVEL-1];
-	unsigned int idx[PT64_ROOT_LEVEL-1];
+	struct kvm_mmu_page *parent[PT64_ROOT_LEVEL];
+	unsigned int idx[PT64_ROOT_LEVEL];
 };
 
 #define for_each_sp(pvec, sp, parents, i)			\
-		for (i = mmu_pages_next(&pvec, &parents, -1),	\
-			sp = pvec.page[i].sp;			\
+		for (i = mmu_pages_first(&pvec, &parents);	\
 			i < pvec.nr && ({ sp = pvec.page[i].sp; 1;});	\
 			i = mmu_pages_next(&pvec, &parents, i))
 
@@ -2004,17 +2004,39 @@ static int mmu_pages_next(struct kvm_mmu_pages *pvec,
 
 	for (n = i+1; n < pvec->nr; n++) {
 		struct kvm_mmu_page *sp = pvec->page[n].sp;
+		unsigned idx = pvec->page[n].idx;
+		int level = sp->role.level;
 
-		if (sp->role.level == PT_PAGE_TABLE_LEVEL) {
-			parents->idx[0] = pvec->page[n].idx;
-			return n;
-		}
+		parents->idx[level-1] = idx;
+		if (level == PT_PAGE_TABLE_LEVEL)
+			break;
 
-		parents->parent[sp->role.level-2] = sp;
-		parents->idx[sp->role.level-1] = pvec->page[n].idx;
+		parents->parent[level-2] = sp;
 	}
 
 	return n;
+}
+
+static int mmu_pages_first(struct kvm_mmu_pages *pvec,
+			   struct mmu_page_path *parents)
+{
+	struct kvm_mmu_page *sp;
+	int level;
+
+	if (pvec->nr == 0)
+		return 0;
+
+	sp = pvec->page[0].sp;
+	level = sp->role.level;
+	WARN_ON(level == PT_PAGE_TABLE_LEVEL);
+
+	parents->parent[level-2] = sp;
+
+	/* Also set up a sentinel.  Further entries in pvec are all
+	 * children of sp, so this element is never overwritten.
+	 */
+	parents->parent[level-1] = NULL;
+	return mmu_pages_next(pvec, parents, 0);
 }
 
 static void mmu_pages_clear_parents(struct mmu_page_path *parents)
@@ -2024,22 +2046,13 @@ static void mmu_pages_clear_parents(struct mmu_page_path *parents)
 
 	do {
 		unsigned int idx = parents->idx[level];
-
 		sp = parents->parent[level];
 		if (!sp)
 			return;
 
 		clear_unsync_child_bit(sp, idx);
 		level++;
-	} while (level < PT64_ROOT_LEVEL-1 && !sp->unsync_children);
-}
-
-static void kvm_mmu_pages_init(struct kvm_mmu_page *parent,
-			       struct mmu_page_path *parents,
-			       struct kvm_mmu_pages *pvec)
-{
-	parents->parent[parent->role.level-1] = NULL;
-	pvec->nr = 0;
+	} while (!sp->unsync_children);
 }
 
 static void mmu_sync_children(struct kvm_vcpu *vcpu,
@@ -2051,7 +2064,6 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 	struct kvm_mmu_pages pages;
 	LIST_HEAD(invalid_list);
 
-	kvm_mmu_pages_init(parent, &parents, &pages);
 	while (mmu_unsync_walk(parent, &pages)) {
 		bool protected = false;
 
@@ -2067,7 +2079,6 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 		}
 		kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 		cond_resched_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_pages_init(parent, &parents, &pages);
 	}
 }
 
@@ -2305,7 +2316,6 @@ static int mmu_zap_unsync_children(struct kvm *kvm,
 	if (parent->role.level == PT_PAGE_TABLE_LEVEL)
 		return 0;
 
-	kvm_mmu_pages_init(parent, &parents, &pages);
 	while (mmu_unsync_walk(parent, &pages)) {
 		struct kvm_mmu_page *sp;
 
@@ -2314,7 +2324,6 @@ static int mmu_zap_unsync_children(struct kvm *kvm,
 			mmu_pages_clear_parents(&parents);
 			zapped++;
 		}
-		kvm_mmu_pages_init(parent, &parents, &pages);
 	}
 
 	return zapped;
