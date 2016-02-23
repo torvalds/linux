@@ -1320,7 +1320,7 @@ chipset_bus_destroy(struct visor_device *dev)
 static void
 chipset_device_create(struct visor_device *dev_info)
 {
-	int rc = -1;
+	int rc;
 	u32 bus_no = dev_info->chipset_bus_no;
 	u32 dev_no = dev_info->chipset_dev_no;
 
