@@ -33,15 +33,9 @@ void __init setup_arch(char **cl)
 
 int run_init_process(const char *init_filename)
 {
-	lkl_ops->sem_up(init_sem);
-
-	run_syscalls();
+	initial_syscall_thread(init_sem);
 
 	kernel_halt();
-
-	/* We want to kill init without panic()ing */
-	init_pid_ns.child_reaper = 0;
-	do_exit(0);
 
 	return 0;
 }
