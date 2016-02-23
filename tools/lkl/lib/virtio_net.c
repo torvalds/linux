@@ -5,11 +5,26 @@
 
 #include <lkl/linux/virtio_net.h>
 
+#define netdev_of(x) (container_of(x, struct virtio_net_dev, dev))
 #define BIT(x) (1ULL << x)
+
+/* We always have 2 queues on a netdev: one for tx, one for rx. */
+#define RX_QUEUE_IDX 0
+#define TX_QUEUE_IDX 1
+#define NUM_QUEUES (TX_QUEUE_IDX + 1)
+
+#ifdef DEBUG
+#define bad_request(s) do {			\
+		lkl_printf("%s\n", s);		\
+		panic();			\
+	} while (0)
+#else
+#define bad_request(s) lkl_printf("virtio_net: %s\n", s);
+#endif /* DEBUG */
+
 
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;
-	struct lkl_sem_t *sem;
 	int event;
 };
 
@@ -19,6 +34,7 @@ struct virtio_net_dev {
 	struct lkl_dev_net_ops *ops;
 	union lkl_netdev nd;
 	struct virtio_net_poll rx_poll, tx_poll;
+	struct lkl_mutex_t **queue_locks;
 };
 
 static int net_check_features(struct virtio_dev *dev)
@@ -29,46 +45,68 @@ static int net_check_features(struct virtio_dev *dev)
 	return -LKL_EINVAL;
 }
 
+static void net_acquire_queue(struct virtio_dev *dev, int queue_idx)
+{
+	lkl_host_ops.mutex_lock(netdev_of(dev)->queue_locks[queue_idx]);
+}
+
+static void net_release_queue(struct virtio_dev *dev, int queue_idx)
+{
+	lkl_host_ops.mutex_unlock(netdev_of(dev)->queue_locks[queue_idx]);
+}
+
+static inline int is_rx_queue(struct virtio_dev *dev, struct virtio_queue *queue)
+{
+       return &dev->queue[RX_QUEUE_IDX] == queue;
+}
+
+static inline int is_tx_queue(struct virtio_dev *dev, struct virtio_queue *queue)
+{
+       return &dev->queue[TX_QUEUE_IDX] == queue;
+}
+
 static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 {
-	struct lkl_virtio_net_hdr_v1 *h;
+	struct lkl_virtio_net_hdr_v1 *header;
 	struct virtio_net_dev *net_dev;
 	int ret, len;
 	void *buf;
 
-	h = req->buf[0].addr;
-	net_dev = container_of(dev, struct virtio_net_dev, dev);
-	len = req->buf[0].len - sizeof(*h);
+	header = req->buf[0].addr;
+	net_dev = netdev_of(dev);
+	len = req->buf[0].len - sizeof(*header);
 
-	buf = &h[1];
+	buf = &header[1];
 
 	if (!len && req->buf_count > 1) {
 		buf = req->buf[1].addr;
 		len = req->buf[1].len;
 	}
 
-	if (req->q != dev->queue) {
+	/* Pick which virtqueue to send the buffer(s) to */
+	if (is_tx_queue(dev, req->q)) {
 		ret = net_dev->ops->tx(net_dev->nd, buf, len);
-		if (ret < 0) {
-			lkl_host_ops.sem_up(net_dev->tx_poll.sem);
+		if (ret < 0)
 			return -1;
-		}
-	} else {
-		h->num_buffers = 1;
+	} else if (is_rx_queue(dev, req->q)) {
+		header->num_buffers = 1;
 		ret = net_dev->ops->rx(net_dev->nd, buf, &len);
-		if (ret < 0) {
-			lkl_host_ops.sem_up(net_dev->rx_poll.sem);
+		if (ret < 0)
 			return -1;
-		}
+	} else {
+		bad_request("tried to push on non-existent queue");
+		return -1;
 	}
 
-	virtio_req_complete(req, len + sizeof(*h));
+	virtio_req_complete(req, len + sizeof(*header));
 	return 0;
 }
 
 static struct virtio_dev_ops net_ops = {
 	.check_features = net_check_features,
 	.enqueue = net_enqueue,
+	.acquire_queue = net_acquire_queue,
+	.release_queue = net_release_queue,
 };
 
 void poll_thread(void *arg)
@@ -76,13 +114,45 @@ void poll_thread(void *arg)
 	struct virtio_net_poll *np = (struct virtio_net_poll *)arg;
 	int ret;
 
+	/* Synchronization is handled in virtio_process_queue */
 	while ((ret = np->dev->ops->poll(np->dev->nd, np->event)) >= 0) {
 		if (ret & LKL_DEV_NET_POLL_RX)
 			virtio_process_queue(&np->dev->dev, 0);
 		if (ret & LKL_DEV_NET_POLL_TX)
 			virtio_process_queue(&np->dev->dev, 1);
-		lkl_host_ops.sem_down(np->sem);
 	}
+}
+
+static void free_queue_locks(struct lkl_mutex_t **queues, int num_queues)
+{
+	int i = 0;
+	if (!queues)
+		return;
+
+	for (i = 0; i < num_queues; i++)
+		lkl_host_ops.mem_free(queues[i]);
+
+	lkl_host_ops.mem_free(queues);
+}
+
+static struct lkl_mutex_t **init_queue_locks(int num_queues)
+{
+	int i;
+	struct lkl_mutex_t **ret = lkl_host_ops.mem_alloc(
+		sizeof(struct lkl_mutex_t*) * num_queues);
+	if (!ret)
+		return NULL;
+
+	memset(ret, 0, sizeof(struct lkl_mutex_t*) * num_queues);
+	for (i = 0; i < num_queues; i++) {
+		ret[i] = lkl_host_ops.mutex_alloc();
+		if (!ret[i]) {
+			free_queue_locks(ret, num_queues);
+			return NULL;
+		}
+	}
+
+	return ret;
 }
 
 int lkl_netdev_add(union lkl_netdev nd, void *mac)
@@ -105,22 +175,26 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	dev->dev.ops = &net_ops;
 	dev->ops = &lkl_dev_net_ops;
 	dev->nd = nd;
+	dev->queue_locks = init_queue_locks(NUM_QUEUES);
+
+	if (!dev->queue_locks)
+		goto out_free;
 
 	if (mac)
 		memcpy(dev->config.mac, mac, LKL_ETH_ALEN);
 
 	dev->rx_poll.event = LKL_DEV_NET_POLL_RX;
-	dev->rx_poll.sem = lkl_host_ops.sem_alloc(0);
 	dev->rx_poll.dev = dev;
 
 	dev->tx_poll.event = LKL_DEV_NET_POLL_TX;
-	dev->tx_poll.sem = lkl_host_ops.sem_alloc(0);
 	dev->tx_poll.dev = dev;
 
-	if (!dev->rx_poll.sem || !dev->tx_poll.sem)
-		goto out_free;
+	/* MUST match the number of queue locks we initialized. We
+	 * could init the queues in virtio_dev_setup to help enforce
+	 * this, but netdevs are the only flavor that need these
+	 * locks, so it's better to do it here. */
+	ret = virtio_dev_setup(&dev->dev, NUM_QUEUES, 32);
 
-	ret = virtio_dev_setup(&dev->dev, 2, 32);
 	if (ret)
 		goto out_free;
 
@@ -138,10 +212,8 @@ out_cleanup_dev:
 	virtio_dev_cleanup(&dev->dev);
 
 out_free:
-	if (dev->rx_poll.sem)
-		lkl_host_ops.sem_free(dev->rx_poll.sem);
-	if (dev->tx_poll.sem)
-		lkl_host_ops.sem_free(dev->tx_poll.sem);
+	if (dev->queue_locks)
+		free_queue_locks(dev->queue_locks, NUM_QUEUES);
 	lkl_host_ops.mem_free(dev);
 
 	return ret;
