@@ -312,6 +312,18 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 	if (interlaced)
 		ipu_cpmem_interlaced_scan(ipu_plane->ipu_ch, fb->pitches[0]);
 
+	if (fb->pixel_format == DRM_FORMAT_YUV420) {
+		ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
+					      ipu_plane->stride[1],
+					      ipu_plane->u_offset,
+					      ipu_plane->v_offset);
+	} else if (fb->pixel_format == DRM_FORMAT_YVU420) {
+		ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
+					      ipu_plane->stride[1],
+					      ipu_plane->v_offset,
+					      ipu_plane->u_offset);
+	}
+
 	ipu_plane->w = src_w;
 	ipu_plane->h = src_h;
 
