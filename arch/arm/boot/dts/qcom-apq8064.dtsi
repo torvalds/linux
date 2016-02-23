@@ -236,6 +236,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+
 		};
 
 		gsbi2: gsbi@12480000 {
@@ -305,6 +306,19 @@
 				clocks = <&gcc GSBI5_UART_CLK>, <&gcc GSBI5_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
+			};
+
+			gsbi5_spi: spi@1a280000 {
+				compatible = "qcom,spi-qup-v1.1.1";
+				reg = <0x1a280000 0x1000>;
+				interrupts = <0 155 0>;
+				pinctrl-0 = <&spi5_default &spi5_sleep>;
+				pinctrl-names = "default", "sleep";
+				clocks = <&gcc GSBI5_QUP_CLK>, <&gcc GSBI5_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 

@@ -64,6 +64,44 @@
 		};
 	};
 
+	spi5_default: spi5_default {
+		pinmux {
+			pins = "gpio51", "gpio52", "gpio54";
+			function = "gsbi5";
+		};
+
+		pinmux_cs {
+			function = "gpio";
+			pins = "gpio53";
+		};
+
+		pinconf {
+			pins = "gpio51", "gpio52", "gpio54";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		pinconf_cs {
+			pins = "gpio53";
+			drive-strength = <16>;
+			bias-disable;
+			output-high;
+		};
+	};
+
+	spi5_sleep: spi5_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio51", "gpio52", "gpio53", "gpio54";
+		};
+
+		pinconf {
+			pins = "gpio51", "gpio52", "gpio53", "gpio54";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
 	gsbi6_uart_2pins: gsbi6_uart_2pins {
 		mux {
 			pins = "gpio14", "gpio15";
