@@ -33,6 +33,10 @@
 	};
 
 	soc {
+		dma@7884000 {
+			status = "okay";
+		};
+
 		serial@78af000 {
 			label = "LS-UART0";
 			status = "okay";
