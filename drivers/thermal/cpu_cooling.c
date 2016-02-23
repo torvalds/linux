@@ -32,6 +32,7 @@
 #include <linux/cpu.h>
 #include <linux/cpu_cooling.h>
 #include <linux/energy_model.h>
+#include <linux/of_device.h>
 
 #include <trace/events/thermal.h>
 
@@ -91,6 +92,7 @@ struct cpufreq_cooling_device {
 	struct cpufreq_policy *policy;
 	struct list_head node;
 	struct time_in_idle *idle_time;
+	struct cpu_cooling_ops *plat_ops;
 };
 
 static DEFINE_IDA(cpufreq_ida);
@@ -342,7 +344,16 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	cpufreq_cdev->cpufreq_state = state;
 	cpufreq_cdev->clipped_freq = clip_freq;
 
-	cpufreq_update_policy(cpufreq_cdev->policy->cpu);
+	/* Check if the device has a platform mitigation function that
+	 * can handle the CPU freq mitigation, if not, notify cpufreq
+	 * framework.
+	 */
+	if (cpufreq_cdev->plat_ops &&
+		cpufreq_cdev->plat_ops->ceil_limit)
+		cpufreq_cdev->plat_ops->ceil_limit(cpufreq_cdev->policy->cpu,
+							clip_freq);
+	else
+		cpufreq_update_policy(cpufreq_cdev->policy->cpu);
 
 	return 0;
 }
@@ -524,6 +535,9 @@ static struct notifier_block thermal_cpufreq_notifier_block = {
  * @policy: cpufreq policy
  * Normally this should be same as cpufreq policy->related_cpus.
  * @try_model: true if a power model should be used
+ * @plat_mitig_func: function that does the mitigation by changing the
+ *                   frequencies (Optional). By default, cpufreq framweork will
+ *                   be notified of the new limits.
  *
  * This interface function registers the cpufreq cooling device with the name
  * "thermal-cpufreq-%x". This api can support multiple instances of cpufreq
@@ -535,7 +549,8 @@ static struct notifier_block thermal_cpufreq_notifier_block = {
  */
 static struct thermal_cooling_device *
 __cpufreq_cooling_register(struct device_node *np,
-			struct cpufreq_policy *policy, bool try_model)
+			struct cpufreq_policy *policy, bool try_model,
+			struct cpu_cooling_ops *plat_ops)
 {
 	struct thermal_cooling_device *cdev;
 	struct cpufreq_cooling_device *cpufreq_cdev;
@@ -588,6 +603,8 @@ __cpufreq_cooling_register(struct device_node *np,
 	} else
 #endif
 		cooling_ops = &cpufreq_cooling_ops;
+
+	cpufreq_cdev->plat_ops = plat_ops;
 
 	ret = ida_simple_get(&cpufreq_ida, 0, 0, GFP_KERNEL);
 	if (ret < 0) {
@@ -642,7 +659,7 @@ free_cdev:
 struct thermal_cooling_device *
 cpufreq_cooling_register(struct cpufreq_policy *policy)
 {
-	return __cpufreq_cooling_register(NULL, policy, false);
+	return __cpufreq_cooling_register(NULL, policy, false, NULL);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
 
@@ -678,7 +695,7 @@ of_cpufreq_cooling_register(struct cpufreq_policy *policy)
 	}
 
 	if (of_find_property(np, "#cooling-cells", NULL)) {
-		cdev = __cpufreq_cooling_register(np, policy, true);
+		cdev = __cpufreq_cooling_register(np, policy, true, NULL);
 		if (IS_ERR(cdev)) {
 			pr_err("cpu_cooling: cpu%d is not running as cooling device: %ld\n",
 			       policy->cpu, PTR_ERR(cdev));
@@ -690,6 +707,37 @@ of_cpufreq_cooling_register(struct cpufreq_policy *policy)
 	return cdev;
 }
 EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);
+
+/**
+ * cpufreq_platform_cooling_register() - create cpufreq cooling device with
+ * additional platform specific mitigation function.
+ *
+ * @clip_cpus: cpumask of cpus where the frequency constraints will happen
+ * @plat_ops: the platform mitigation functions that will be called insted of
+ * cpufreq, if provided.
+ *
+ * Return: a valid struct thermal_cooling_device pointer on success,
+ * on failure, it returns a corresponding ERR_PTR().
+ */
+struct thermal_cooling_device *
+cpufreq_platform_cooling_register(struct cpufreq_policy *policy,
+				  struct cpu_cooling_ops *plat_ops)
+{
+	struct device_node *cpu_node;
+	struct thermal_cooling_device *cdev = NULL;
+
+	cpu_node = of_cpu_device_node_get(policy->cpu);
+	if (!cpu_node) {
+		pr_err("No cpu node\n");
+		return ERR_PTR(-EINVAL);
+	}
+	cdev = __cpufreq_cooling_register(cpu_node, policy, false,
+					  plat_ops);
+
+	of_node_put(cpu_node);
+	return cdev;
+}
+EXPORT_SYMBOL(cpufreq_platform_cooling_register);
 
 /**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.
