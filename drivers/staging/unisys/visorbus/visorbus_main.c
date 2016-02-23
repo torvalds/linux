@@ -973,7 +973,7 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
 static int
 create_visor_device(struct visor_device *dev)
 {
-	int rc = -1;
+	int rc;
 	u32 chipset_bus_no = dev->chipset_bus_no;
 	u32 chipset_dev_no = dev->chipset_dev_no;
 
@@ -995,6 +995,7 @@ create_visor_device(struct visor_device *dev)
 	if (!dev->periodic_work) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, chipset_dev_no,
 				 DIAG_SEVERITY_ERR);
+		rc = -EINVAL;
 		goto away;
 	}
 
@@ -1032,14 +1033,15 @@ create_visor_device(struct visor_device *dev)
 	if (rc < 0) {
 		POSTCODE_LINUX_3(DEVICE_REGISTER_FAILURE_PC, chipset_dev_no,
 				 DIAG_SEVERITY_ERR);
-		goto away_register;
+		goto away_unregister;
 	}
 
 	list_add_tail(&dev->list_all, &list_all_device_instances);
 	return 0;
 
-away_register:
+away_unregister:
 	device_unregister(&dev->device);
+
 away:
 	put_device(&dev->device);
 	return rc;
