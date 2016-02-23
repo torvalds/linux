@@ -395,60 +395,48 @@ void ipu_cpmem_set_yuv_interleaved(struct ipuv3_channel *ch, u32 pixel_format)
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_interleaved);
 
 void ipu_cpmem_set_yuv_planar_full(struct ipuv3_channel *ch,
-				   u32 pixel_format, int stride,
-				   int u_offset, int v_offset)
+				   unsigned int uv_stride,
+				   unsigned int u_offset, unsigned int v_offset)
 {
-	switch (pixel_format) {
-	case V4L2_PIX_FMT_YUV420:
-	case V4L2_PIX_FMT_YUV422P:
-		ipu_ch_param_write_field(ch, IPU_FIELD_SLUV, (stride / 2) - 1);
-		ipu_ch_param_write_field(ch, IPU_FIELD_UBO, u_offset / 8);
-		ipu_ch_param_write_field(ch, IPU_FIELD_VBO, v_offset / 8);
-		break;
-	case V4L2_PIX_FMT_YVU420:
-		ipu_ch_param_write_field(ch, IPU_FIELD_SLUV, (stride / 2) - 1);
-		ipu_ch_param_write_field(ch, IPU_FIELD_UBO, v_offset / 8);
-		ipu_ch_param_write_field(ch, IPU_FIELD_VBO, u_offset / 8);
-		break;
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV16:
-		ipu_ch_param_write_field(ch, IPU_FIELD_SLUV, stride - 1);
-		ipu_ch_param_write_field(ch, IPU_FIELD_UBO, u_offset / 8);
-		ipu_ch_param_write_field(ch, IPU_FIELD_VBO, u_offset / 8);
-		break;
-	}
+	ipu_ch_param_write_field(ch, IPU_FIELD_SLUV, uv_stride - 1);
+	ipu_ch_param_write_field(ch, IPU_FIELD_UBO, u_offset / 8);
+	ipu_ch_param_write_field(ch, IPU_FIELD_VBO, v_offset / 8);
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_planar_full);
 
 void ipu_cpmem_set_yuv_planar(struct ipuv3_channel *ch,
 			      u32 pixel_format, int stride, int height)
 {
-	int u_offset, v_offset;
+	int fourcc, u_offset, v_offset;
 	int uv_stride = 0;
 
-	switch (pixel_format) {
-	case V4L2_PIX_FMT_YUV420:
-	case V4L2_PIX_FMT_YVU420:
+	fourcc = v4l2_pix_fmt_to_drm_fourcc(pixel_format);
+	switch (fourcc) {
+	case DRM_FORMAT_YUV420:
 		uv_stride = stride / 2;
 		u_offset = stride * height;
 		v_offset = u_offset + (uv_stride * height / 2);
-		ipu_cpmem_set_yuv_planar_full(ch, pixel_format, stride,
-					      u_offset, v_offset);
 		break;
-	case V4L2_PIX_FMT_YUV422P:
+	case DRM_FORMAT_YVU420:
+		uv_stride = stride / 2;
+		v_offset = stride * height;
+		u_offset = v_offset + (uv_stride * height / 2);
+		break;
+	case DRM_FORMAT_YUV422:
 		uv_stride = stride / 2;
 		u_offset = stride * height;
 		v_offset = u_offset + (uv_stride * height);
-		ipu_cpmem_set_yuv_planar_full(ch, pixel_format, stride,
-					      u_offset, v_offset);
 		break;
-	case V4L2_PIX_FMT_NV12:
-	case V4L2_PIX_FMT_NV16:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV16:
+		uv_stride = stride;
 		u_offset = stride * height;
-		ipu_cpmem_set_yuv_planar_full(ch, pixel_format, stride,
-					      u_offset, 0);
+		v_offset = 0;
 		break;
+	default:
+		return;
 	}
+	ipu_cpmem_set_yuv_planar_full(ch, uv_stride, u_offset, v_offset);
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_planar);
 
@@ -684,6 +672,15 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 
 	switch (pix->pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
+		offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
+		u_offset = U_OFFSET(pix, image->rect.left,
+				    image->rect.top) - offset;
+		v_offset = V_OFFSET(pix, image->rect.left,
+				    image->rect.top) - offset;
+
+		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline / 2,
+					      u_offset, v_offset);
+		break;
 	case V4L2_PIX_FMT_YVU420:
 		offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
 		u_offset = U_OFFSET(pix, image->rect.left,
@@ -691,9 +688,8 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 		v_offset = V_OFFSET(pix, image->rect.left,
 				    image->rect.top) - offset;
 
-		ipu_cpmem_set_yuv_planar_full(ch, pix->pixelformat,
-					      pix->bytesperline,
-					      u_offset, v_offset);
+		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline / 2,
+					      v_offset, u_offset);
 		break;
 	case V4L2_PIX_FMT_YUV422P:
 		offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
@@ -702,8 +698,7 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 		v_offset = V2_OFFSET(pix, image->rect.left,
 				     image->rect.top) - offset;
 
-		ipu_cpmem_set_yuv_planar_full(ch, pix->pixelformat,
-					      pix->bytesperline,
+		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline / 2,
 					      u_offset, v_offset);
 		break;
 	case V4L2_PIX_FMT_NV12:
@@ -712,8 +707,7 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 				     image->rect.top) - offset;
 		v_offset = 0;
 
-		ipu_cpmem_set_yuv_planar_full(ch, pix->pixelformat,
-					      pix->bytesperline,
+		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline,
 					      u_offset, v_offset);
 		break;
 	case V4L2_PIX_FMT_NV16:
@@ -722,8 +716,7 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 				      image->rect.top) - offset;
 		v_offset = 0;
 
-		ipu_cpmem_set_yuv_planar_full(ch, pix->pixelformat,
-					      pix->bytesperline,
+		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline,
 					      u_offset, v_offset);
 		break;
 	case V4L2_PIX_FMT_UYVY:
