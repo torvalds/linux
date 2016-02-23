@@ -240,7 +240,7 @@ static const struct irq_domain_ops xgene_gpio_sb_domain_ops = {
 static int xgene_gpio_sb_probe(struct platform_device *pdev)
 {
 	struct xgene_gpio_sb *priv;
-	u32 ret;
+	int ret;
 	struct resource *res;
 	void __iomem *regs;
 	struct irq_domain *parent_domain = NULL;
