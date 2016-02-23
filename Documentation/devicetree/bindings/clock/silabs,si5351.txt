@@ -1,0 +1,121 @@
+Binding for Silicon Labs Si5351a/b/c programmable i2c clock generator.
+
+Reference
+[1] Si5351A/B/C Data Sheet
+    http://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
+
+The Si5351a/b/c are programmable i2c clock generators with up to 8 output
+clocks. Si5351a also has a reduced pin-count package (MSOP10) where only
+3 output clocks are accessible. The internal structure of the clock
+generators can be found in [1].
+
+==I2C device node==
+
+Required properties:
+- compatible: shall be one of "silabs,si5351{a,a-msop,b,c}".
+- reg: i2c device address, shall be 0x60 or 0x61.
+- #clock-cells: from common clock binding; shall be set to 1.
+- clocks: from common clock binding; list of parent clock
+  handles, shall be xtal reference clock or xtal and clkin for
+  si5351c only. Corresponding clock input names are "xtal" and
+  "clkin" respectively.
+- #address-cells: shall be set to 1.
+- #size-cells: shall be set to 0.
+
+Optional properties:
+- silabs,pll-source: pair of (number, source) for each pll. Allows
+  to overwrite clock source of pll A (number=0) or B (number=1).
+
+==Child nodes==
+
+Each of the clock outputs can be overwritten individually by
+using a child node to the I2C device node. If a child node for a clock
+output is not set, the eeprom configuration is not overwritten.
+
+Required child node properties:
+- reg: number of clock output.
+
+Optional child node properties:
+- silabs,clock-source: source clock of the output divider stage N, shall be
+  0 = multisynth N
+  1 = multisynth 0 for output clocks 0-3, else multisynth4
+  2 = xtal
+  3 = clkin (si5351c only)
+- silabs,drive-strength: output drive strength in mA, shall be one of {2,4,6,8}.
+- silabs,multisynth-source: source pll A(0) or B(1) of corresponding multisynth
+  divider.
+- silabs,pll-master: boolean, multisynth can change pll frequency.
+- silabs,disable-state : clock output disable state, shall be
+  0 = clock output is driven LOW when disabled
+  1 = clock output is driven HIGH when disabled
+  2 = clock output is FLOATING (HIGH-Z) when disabled
+  3 = clock output is NEVER disabled
+
+==Example==
+
+/* 25MHz reference crystal */
+ref25: ref25M {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <25000000>;
+};
+
+i2c-master-node {
+
+	/* Si5351a msop10 i2c clock generator */
+	si5351a: clock-generator@60 {
+		compatible = "silabs,si5351a-msop";
+		reg = <0x60>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#clock-cells = <1>;
+
+		/* connect xtal input to 25MHz reference */
+		clocks = <&ref25>;
+		clock-names = "xtal";
+
+		/* connect xtal input as source of pll0 and pll1 */
+		silabs,pll-source = <0 0>, <1 0>;
+
+		/*
+		 * overwrite clkout0 configuration with:
+		 * - 8mA output drive strength
+		 * - pll0 as clock source of multisynth0
+		 * - multisynth0 as clock source of output divider
+		 * - multisynth0 can change pll0
+		 * - set initial clock frequency of 74.25MHz
+		 */
+		clkout0 {
+			reg = <0>;
+			silabs,drive-strength = <8>;
+			silabs,multisynth-source = <0>;
+			silabs,clock-source = <0>;
+			silabs,pll-master;
+			clock-frequency = <74250000>;
+		};
+
+		/*
+		 * overwrite clkout1 configuration with:
+		 * - 4mA output drive strength
+		 * - pll1 as clock source of multisynth1
+		 * - multisynth1 as clock source of output divider
+		 * - multisynth1 can change pll1
+		 */
+		clkout1 {
+			reg = <1>;
+			silabs,drive-strength = <4>;
+			silabs,multisynth-source = <1>;
+			silabs,clock-source = <0>;
+			pll-master;
+		};
+
+		/*
+		 * overwrite clkout2 configuration with:
+		 * - xtal as clock source of output divider
+		 */
+		clkout2 {
+			reg = <2>;
+			silabs,clock-source = <2>;
+		};
+	};
+};

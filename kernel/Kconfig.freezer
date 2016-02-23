@@ -1,0 +1,2 @@
+config FREEZER
+	def_bool PM_SLEEP || CGROUP_FREEZER

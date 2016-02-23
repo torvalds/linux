@@ -1,0 +1,84 @@
+<refentry id="media-ioc-setup-link">
+  <refmeta>
+    <refentrytitle>ioctl MEDIA_IOC_SETUP_LINK</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>MEDIA_IOC_SETUP_LINK</refname>
+    <refpurpose>Modify the properties of a link</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct media_link_desc *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>File descriptor returned by
+	  <link linkend='media-func-open'><function>open()</function></link>.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>MEDIA_IOC_SETUP_LINK</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>To change link properties applications fill a &media-link-desc; with
+    link identification information (source and sink pad) and the new requested
+    link flags. They then call the MEDIA_IOC_SETUP_LINK ioctl with a pointer to
+    that structure.</para>
+    <para>The only configurable property is the <constant>ENABLED</constant>
+    link flag to enable/disable a link. Links marked with the
+    <constant>IMMUTABLE</constant> link flag can not be enabled or disabled.
+    </para>
+    <para>Link configuration has no side effect on other links. If an enabled
+    link at the sink pad prevents the link from being enabled, the driver
+    returns with an &EBUSY;.</para>
+    <para>Only links marked with the <constant>DYNAMIC</constant> link flag can
+    be enabled/disabled while streaming media data. Attempting to enable or
+    disable a streaming non-dynamic link will return an &EBUSY;.</para>
+    <para>If the specified link can't be found the driver returns with an
+    &EINVAL;.</para>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &media-link-desc; references a non-existing link, or the
+	  link is immutable and an attempt to modify its configuration was made.
+	  </para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

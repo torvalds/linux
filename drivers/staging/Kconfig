@@ -1,0 +1,113 @@
+menuconfig STAGING
+	bool "Staging drivers"
+	default n
+	---help---
+	  This option allows you to select a number of drivers that are
+	  not of the "normal" Linux kernel quality level.  These drivers
+	  are placed here in order to get a wider audience to make use of
+	  them.  Please note that these drivers are under heavy
+	  development, may or may not work, and may contain userspace
+	  interfaces that most likely will be changed in the near
+	  future.
+
+	  Using any of these drivers will taint your kernel which might
+	  affect support options from both the community, and various
+	  commercial support organizations.
+
+	  If you wish to work on these drivers, to help improve them, or
+	  to report problems you have with them, please see the
+	  driver_name.README file in the drivers/staging/ directory to
+	  see what needs to be worked on, and who to contact.
+
+	  If in doubt, say N here.
+
+
+if STAGING
+
+source "drivers/staging/slicoss/Kconfig"
+
+source "drivers/staging/wlan-ng/Kconfig"
+
+source "drivers/staging/comedi/Kconfig"
+
+source "drivers/staging/olpc_dcon/Kconfig"
+
+source "drivers/staging/panel/Kconfig"
+
+source "drivers/staging/rtl8192u/Kconfig"
+
+source "drivers/staging/rtl8192e/Kconfig"
+
+source "drivers/staging/rtl8712/Kconfig"
+
+source "drivers/staging/rtl8188eu/Kconfig"
+
+source "drivers/staging/rtl8723au/Kconfig"
+
+source "drivers/staging/rts5208/Kconfig"
+
+source "drivers/staging/octeon/Kconfig"
+
+source "drivers/staging/octeon-usb/Kconfig"
+
+source "drivers/staging/vt6655/Kconfig"
+
+source "drivers/staging/vt6656/Kconfig"
+
+source "drivers/staging/iio/Kconfig"
+
+source "drivers/staging/sm750fb/Kconfig"
+
+source "drivers/staging/xgifb/Kconfig"
+
+source "drivers/staging/emxx_udc/Kconfig"
+
+source "drivers/staging/speakup/Kconfig"
+
+source "drivers/staging/ste_rmi4/Kconfig"
+
+source "drivers/staging/nvec/Kconfig"
+
+source "drivers/staging/media/Kconfig"
+
+source "drivers/staging/rdma/Kconfig"
+
+source "drivers/staging/android/Kconfig"
+
+source "drivers/staging/board/Kconfig"
+
+source "drivers/staging/gdm72xx/Kconfig"
+
+source "drivers/staging/gdm724x/Kconfig"
+
+source "drivers/staging/fwserial/Kconfig"
+
+source "drivers/staging/goldfish/Kconfig"
+
+source "drivers/staging/netlogic/Kconfig"
+
+source "drivers/staging/mt29f_spinand/Kconfig"
+
+source "drivers/staging/lustre/Kconfig"
+
+source "drivers/staging/dgnc/Kconfig"
+
+source "drivers/staging/dgap/Kconfig"
+
+source "drivers/staging/gs_fpgaboot/Kconfig"
+
+source "drivers/staging/skein/Kconfig"
+
+source "drivers/staging/unisys/Kconfig"
+
+source "drivers/staging/clocking-wizard/Kconfig"
+
+source "drivers/staging/fbtft/Kconfig"
+
+source "drivers/staging/fsl-mc/Kconfig"
+
+source "drivers/staging/wilc1000/Kconfig"
+
+source "drivers/staging/most/Kconfig"
+
+endif # STAGING

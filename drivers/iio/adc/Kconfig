@@ -1,0 +1,444 @@
+#
+# ADC drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Analog to digital converters"
+
+config AD_SIGMA_DELTA
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config AD7266
+	tristate "Analog Devices AD7265/AD7266 ADC driver"
+	depends on SPI_MASTER
+	select IIO_BUFFER
+	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD7265 and AD7266
+	  ADCs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7266.
+
+config AD7291
+	tristate "Analog Devices AD7291 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices AD7291
+	  8 Channel ADC with temperature sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7291.
+
+config AD7298
+	tristate "Analog Devices AD7298 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD7298
+	  8 Channel ADC with temperature sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7298.
+
+config AD7476
+	tristate "Analog Devices AD7476 and similar 1-channel ADCs driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD7273, AD7274, AD7276,
+	  AD7277, AD7278, AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468,
+	  AD7495, AD7910, AD7920, AD7920 SPI analog to digital converters (ADC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7476.
+
+config AD7791
+	tristate "Analog Devices AD7791 ADC driver"
+	depends on SPI
+	select AD_SIGMA_DELTA
+	help
+	  Say yes here to build support for Analog Devices AD7787, AD7788, AD7789,
+	  AD7790 and AD7791 SPI analog to digital converters (ADC).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7791.
+
+config AD7793
+	tristate "Analog Devices AD7793 and similar ADCs driver"
+	depends on SPI
+	select AD_SIGMA_DELTA
+	help
+	  Say yes here to build support for Analog Devices AD7785, AD7792, AD7793,
+	  AD7794 and AD7795 SPI analog to digital converters (ADC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called AD7793.
+
+config AD7887
+	tristate "Analog Devices AD7887 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7887 SPI analog to digital converter (ADC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7887.
+
+config AD7923
+	tristate "Analog Devices AD7923 and similar ADCs driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7904, AD7914, AD7923, AD7924 4 Channel ADCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7923.
+
+config AD799X
+	tristate "Analog Devices AD799x ADC driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices:
+	  ad7991, ad7995, ad7999, ad7992, ad7993, ad7994, ad7997, ad7998
+	  i2c analog to digital converters (ADC). Provides direct access
+	  via sysfs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad799x.
+
+config AT91_ADC
+	tristate "Atmel AT91 ADC"
+	depends on ARCH_AT91
+	depends on INPUT
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select SYSFS
+	help
+	  Say yes here to build support for Atmel AT91 ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called at91_adc.
+
+config AXP288_ADC
+	tristate "X-Powers AXP288 ADC driver"
+	depends on MFD_AXP20X
+	help
+	  Say yes here to have support for X-Powers power management IC (PMIC) ADC
+	  device. Depending on platform configuration, this general purpose ADC can
+	  be used for sampling sensors such as thermal resistors.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called axp288_adc.
+
+config BERLIN2_ADC
+	tristate "Marvell Berlin2 ADC driver"
+	depends on ARCH_BERLIN
+	help
+	  Marvell Berlin2 ADC driver. This ADC has 8 channels, with one used for
+	  temperature measurement.
+
+config CC10001_ADC
+	tristate "Cosmic Circuits 10001 ADC driver"
+	depends on HAS_IOMEM && HAVE_CLK && REGULATOR
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Cosmic Circuits 10001 ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cc10001_adc.
+
+config DA9150_GPADC
+	tristate "Dialog DA9150 GPADC driver support"
+	depends on MFD_DA9150
+	help
+	  Say yes here to build support for Dialog DA9150 GPADC.
+
+	  This driver can also be built as a module. If chosen, the module name
+	  will be da9150-gpadc.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called berlin2-adc.
+
+config EXYNOS_ADC
+	tristate "Exynos ADC driver support"
+	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
+	help
+	  Core support for the ADC block found in the Samsung EXYNOS series
+	  of SoCs for drivers such as the touchscreen and hwmon to use to share
+	  this resource.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called exynos_adc.
+
+config HI8435
+	tristate "Holt Integrated Circuits HI-8435 threshold detector"
+	select IIO_TRIGGERED_EVENT
+	depends on SPI
+	help
+	  If you say yes here you get support for Holt Integrated Circuits
+	  HI-8435 chip.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called hi8435.
+
+config INA2XX_ADC
+	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
+	depends on I2C && !SENSORS_INA2XX
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say yes here to build support for TI INA2xx family of Power Monitors.
+	  This driver is mutually exclusive with the HWMON version.
+
+config IMX7D_ADC
+	tristate "IMX7D ADC driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  Say yes here to build support for IMX7D ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called imx7d_adc.
+
+config LP8788_ADC
+	tristate "LP8788 ADC driver"
+	depends on MFD_LP8788
+	help
+	  Say yes here to build support for TI LP8788 ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called lp8788_adc.
+
+config MAX1027
+	tristate "Maxim max1027 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Maxim SPI ADC models
+	  max1027, max1029 and max1031.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max1027.
+
+config MAX1363
+	tristate "Maxim max1363 ADC driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for many Maxim i2c analog to digital
+	  converters (ADC). (max1361, max1362, max1363, max1364, max1036,
+	  max1037, max1038, max1039, max1136, max1136, max1137, max1138,
+	  max1139, max1236, max1237, max11238, max1239, max11600, max11601,
+	  max11602, max11603, max11604, max11605, max11606, max11607,
+	  max11608, max11609, max11610, max11611, max11612, max11613,
+	  max11614, max11615, max11616, max11617, max11644, max11645,
+	  max11646, max11647) Provides direct access via sysfs and buffered
+	  data via the iio dev interface.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max1363.
+
+config MCP320X
+	tristate "Microchip Technology MCP3x01/02/04/08"
+	depends on SPI
+	help
+	  Say yes here to build support for Microchip Technology's
+	  MCP3001, MCP3002, MCP3004, MCP3008, MCP3201, MCP3202, MCP3204,
+	  MCP3208 or MCP3301 analog to digital converter.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mcp320x.
+
+config MCP3422
+	tristate "Microchip Technology MCP3422/3/4/6/7/8 driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Microchip Technology's
+	  MCP3422, MCP3423, MCP3424, MCP3426, MCP3427 or MCP3428
+	  analog to digital converters.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mcp3422.
+
+config MEN_Z188_ADC
+	tristate "MEN 16z188 ADC IP Core support"
+	depends on MCB
+	help
+	  Say yes here to enable support for the MEN 16z188 ADC IP-Core on a MCB
+	  carrier.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called men_z188_adc.
+
+config NAU7802
+	tristate "Nuvoton NAU7802 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Nuvoton NAU7802 ADC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nau7802.
+
+config PALMAS_GPADC
+	tristate "TI Palmas General Purpose ADC"
+	depends on MFD_PALMAS
+	help
+	  Palmas series pmic chip by Texas Instruments (twl6035/6037)
+	  is used in smartphones and tablets and supports a 16 channel
+	  general purpose ADC.
+
+config QCOM_SPMI_IADC
+	tristate "Qualcomm SPMI PMIC current ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  This is the IIO Current ADC driver for Qualcomm QPNP IADC Chip.
+
+	  The driver supports single mode operation to read from one of two
+	  channels (external or internal). Hardware have additional
+	  channels internally used for gain and offset calibration.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-iadc.
+
+config QCOM_SPMI_VADC
+	tristate "Qualcomm SPMI PMIC voltage ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  This is the IIO Voltage ADC driver for Qualcomm QPNP VADC Chip.
+
+	  The driver supports multiple channels read. The VADC is a 15-bit
+	  sigma-delta ADC. Some of the channels are internally used for
+	  calibration.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-vadc.
+
+config ROCKCHIP_SARADC
+	tristate "Rockchip SARADC driver"
+	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
+	help
+	  Say yes here to build support for the SARADC found in SoCs from
+	  Rockchip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rockchip_saradc.
+
+config TI_ADC081C
+	tristate "Texas Instruments ADC081C021/027"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments ADC081C021
+	  and ADC081C027 ADC chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc081c.
+
+config TI_ADC128S052
+	tristate "Texas Instruments ADC128S052/ADC122S021/ADC124S021"
+	depends on SPI
+	help
+	  If you say yes here you get support for Texas Instruments ADC128S052,
+	  ADC122S021 and ADC124S021 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc128s052.
+
+config TI_ADS8688
+	tristate "Texas Instruments ADS8688"
+	depends on SPI && OF
+	help
+	  If you say yes here you get support for Texas Instruments ADS8684 and
+	  and ADS8688 ADC chips
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads8688.
+
+config TI_AM335X_ADC
+	tristate "TI's AM335X ADC driver"
+	depends on MFD_TI_AM335X_TSCADC
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say yes here to build support for Texas Instruments ADC
+	  driver which is also a MFD client.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ti_am335x_adc.
+
+config TWL4030_MADC
+	tristate "TWL4030 MADC (Monitoring A/D Converter)"
+	depends on TWL4030_CORE
+	help
+	  This driver provides support for Triton TWL4030-MADC. The
+	  driver supports both RT and SW conversion methods.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called twl4030-madc.
+
+config TWL6030_GPADC
+	tristate "TWL6030 GPADC (General Purpose A/D Converter) Support"
+	depends on TWL4030_CORE
+	default n
+	help
+	  Say yes here if you want support for the TWL6030/TWL6032 General
+	  Purpose A/D Converter. This will add support for battery type
+	  detection, battery voltage and temperature measurement, die
+	  temperature measurement, system supply voltage, audio accessory,
+	  USB ID detection.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called twl6030-gpadc.
+
+config VF610_ADC
+	tristate "Freescale vf610 ADC driver"
+	depends on OF
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to support for Vybrid board analog-to-digital converter.
+	  Since the IP is used for i.MX6SLX, the driver also support i.MX6SLX.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called vf610_adc.
+
+config VIPERBOARD_ADC
+	tristate "Viperboard ADC support"
+	depends on MFD_VIPERBOARD && USB
+	help
+	  Say yes here to access the ADC part of the Nano River
+	  Technologies Viperboard.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called viperboard_adc.
+
+config XILINX_XADC
+	tristate "Xilinx XADC driver"
+	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
+	depends on HAS_IOMEM
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to have support for the Xilinx XADC. The driver does support
+	  both the ZYNQ interface to the XADC as well as the AXI-XADC interface.
+
+	  The driver can also be build as a module. If so, the module will be called
+	  xilinx-xadc.
+
+endmenu

@@ -1,0 +1,11 @@
+
+For generic kernel features that need architecture support, the
+arch-support.txt file in each feature directory shows the arch
+support matrix, for all upstream Linux architectures.
+
+The meaning of entries in the tables is:
+
+    | ok |  # feature supported by the architecture
+    |TODO|  # feature not yet supported by the architecture
+    | .. |  # feature cannot be supported by the hardware
+

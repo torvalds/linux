@@ -1,0 +1,12 @@
+config ISDN_DRV_ICN
+	tristate "ICN 2B and 4B support"
+	depends on ISA
+	help
+	  This enables support for two kinds of ISDN-cards made by a German
+	  company called ICN.  2B is the standard version for a single ISDN
+	  line with two B-channels, 4B supports two ISDN lines.  For running
+	  this card, additional firmware is necessary, which has to be
+	  downloaded into the card using a utility which is distributed
+	  separately.  See <file:Documentation/isdn/README> and
+	  <file:Documentation/isdn/README.icn> for more
+	  information.

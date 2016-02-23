@@ -1,0 +1,18 @@
+choice
+	prompt "System type"
+	default BFIN548_EZKIT
+	help
+	  Select your board!
+
+config BFIN548_EZKIT
+	bool "BF548-EZKIT"
+	help
+	  BFIN548-EZKIT board support.
+	  
+config BFIN548_BLUETECHNIX_CM
+	bool "Bluetechnix CM-BF548"
+	depends on (BF548)
+	help
+	  CM-BF548 support for DEV-Board.	  
+
+endchoice

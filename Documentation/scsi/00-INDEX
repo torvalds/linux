@@ -1,0 +1,110 @@
+00-INDEX
+	- this file
+53c700.txt
+	- info on driver for 53c700 based adapters
+BusLogic.txt
+	- info on driver for adapters with BusLogic chips
+ChangeLog.1992-1997
+	- Changes to scsi files, if not listed elsewhere
+ChangeLog.arcmsr
+	- Changes to driver for ARECA's SATA RAID controller cards
+ChangeLog.ips
+	- IBM ServeRAID driver Changelog
+ChangeLog.lpfc
+	- Changes to lpfc driver
+ChangeLog.megaraid
+	- Changes to LSI megaraid controller.
+ChangeLog.megaraid_sas
+	- Changes to serial attached scsi version of LSI megaraid controller.
+ChangeLog.ncr53c8xx
+	- Changes to ncr53c8xx driver
+ChangeLog.sym53c8xx
+	- Changes to sym53c8xx driver
+ChangeLog.sym53c8xx_2
+	- Changes to second generation of sym53c8xx driver
+FlashPoint.txt
+	- info on driver for BusLogic FlashPoint adapters
+LICENSE.FlashPoint
+	- Licence of the Flashpoint driver
+LICENSE.qla2xxx
+	- License for QLogic Linux Fibre Channel HBA Driver firmware.
+LICENSE.qla4xxx
+	- License for QLogic Linux iSCSI HBA Driver.
+Mylex.txt
+	- info on driver for Mylex adapters
+NinjaSCSI.txt
+	- info on WorkBiT NinjaSCSI-32/32Bi driver
+aacraid.txt
+	- Driver supporting Adaptec RAID controllers
+advansys.txt
+	- List of Advansys Host Adapters
+aha152x.txt
+	- info on driver for Adaptec AHA152x based adapters
+aic79xx.txt
+	- Adaptec Ultra320 SCSI host adapters
+aic7xxx.txt
+	- info on driver for Adaptec controllers
+arcmsr_spec.txt
+	- ARECA FIRMWARE SPEC (for IOP331 adapter)
+bfa.txt
+	- Brocade FC/FCOE adapter driver.
+bnx2fc.txt
+	- FCoE hardware offload for Broadcom network interfaces.
+cxgb3i.txt
+	- Chelsio iSCSI Linux Driver
+dc395x.txt
+	- README file for the dc395x SCSI driver
+dpti.txt
+	- info on driver for DPT SmartRAID and Adaptec I2O RAID based adapters
+dtc3x80.txt
+	- info on driver for DTC 2x80 based adapters
+g_NCR5380.txt
+	- info on driver for NCR5380 and NCR53c400 based adapters
+hpsa.txt
+	- HP Smart Array Controller SCSI driver.
+hptiop.txt
+	- HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
+in2000.txt
+	- info on in2000 driver
+libsas.txt
+	- Serial Attached SCSI management layer.
+link_power_management_policy.txt
+	- Link power management options.
+lpfc.txt
+	- LPFC driver release notes
+megaraid.txt
+	- Common Management Module, shared code handling ioctls for LSI drivers
+ncr53c8xx.txt
+	- info on driver for NCR53c8xx based adapters
+osd.txt
+	Object-Based Storage Device, command set introduction.
+osst.txt
+	- info on driver for OnStream SC-x0 SCSI tape
+ppa.txt
+	- info on driver for IOmega zip drive
+qlogicfas.txt
+	- info on driver for QLogic FASxxx based adapters
+scsi-changer.txt
+	- README for the SCSI media changer driver
+scsi-generic.txt
+	- info on the sg driver for generic (non-disk/CD/tape) SCSI devices.
+scsi-parameters.txt
+	- List of SCSI-parameters to pass to the kernel at module load-time.
+scsi.txt
+	- short blurb on using SCSI support as a module.
+scsi_mid_low_api.txt
+	- info on API between SCSI layer and low level drivers
+scsi_eh.txt
+	- info on SCSI midlayer error handling infrastructure
+scsi_fc_transport.txt
+	- SCSI Fiber Channel Tansport
+st.txt
+	- info on scsi tape driver
+sym53c500_cs.txt
+	- info on PCMCIA driver for Symbios Logic 53c500 based adapters
+sym53c8xx_2.txt
+	- info on second generation driver for sym53c8xx based adapters
+tmscsim.txt
+	- info on driver for AM53c974 based adapters
+ufs.txt
+	- info on Universal Flash Storage(UFS) and UFS host controller driver.

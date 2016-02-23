@@ -1,0 +1,972 @@
+# Helper to resolve issues with configs that have SPI enabled but I2C
+# modular, meaning we can't build the codec driver in with I2C support.
+# We use an ordered list of conditional defaults to pick the appropriate
+# setting - SPI can't be modular so that case doesn't need to be covered.
+config SND_SOC_I2C_AND_SPI
+	tristate
+	default m if I2C=m
+	default y if I2C=y
+	default y if SPI_MASTER=y
+
+menu "CODEC drivers"
+
+config SND_SOC_ALL_CODECS
+	tristate "Build all ASoC CODEC drivers"
+	depends on COMPILE_TEST
+	select SND_SOC_88PM860X if MFD_88PM860X
+	select SND_SOC_L3
+	select SND_SOC_AB8500_CODEC if ABX500_CORE
+	select SND_SOC_AC97_CODEC
+	select SND_SOC_AD1836 if SPI_MASTER
+	select SND_SOC_AD193X_SPI if SPI_MASTER
+	select SND_SOC_AD193X_I2C if I2C
+	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
+	select SND_SOC_AD73311
+	select SND_SOC_ADAU1373 if I2C
+	select SND_SOC_ADAU1761_I2C if I2C
+	select SND_SOC_ADAU1761_SPI if SPI
+	select SND_SOC_ADAU1781_I2C if I2C
+	select SND_SOC_ADAU1781_SPI if SPI
+	select SND_SOC_ADAV801 if SPI_MASTER
+	select SND_SOC_ADAV803 if I2C
+	select SND_SOC_ADAU1977_SPI if SPI_MASTER
+	select SND_SOC_ADAU1977_I2C if I2C
+	select SND_SOC_ADAU1701 if I2C
+	select SND_SOC_ADS117X
+	select SND_SOC_AK4104 if SPI_MASTER
+	select SND_SOC_AK4535 if I2C
+	select SND_SOC_AK4554
+	select SND_SOC_AK4613 if I2C
+	select SND_SOC_AK4641 if I2C
+	select SND_SOC_AK4642 if I2C
+	select SND_SOC_AK4671 if I2C
+	select SND_SOC_AK5386
+	select SND_SOC_ALC5623 if I2C
+	select SND_SOC_ALC5632 if I2C
+	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
+	select SND_SOC_CS35L32 if I2C
+	select SND_SOC_CS42L51_I2C if I2C
+	select SND_SOC_CS42L52 if I2C && INPUT
+	select SND_SOC_CS42L56 if I2C && INPUT
+	select SND_SOC_CS42L73 if I2C
+	select SND_SOC_CS4265 if I2C
+	select SND_SOC_CS4270 if I2C
+	select SND_SOC_CS4271_I2C if I2C
+	select SND_SOC_CS4271_SPI if SPI_MASTER
+	select SND_SOC_CS42XX8_I2C if I2C
+	select SND_SOC_CS4349 if I2C
+	select SND_SOC_CS47L24 if MFD_CS47L24
+	select SND_SOC_CX20442 if TTY
+	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_DA7213 if I2C
+	select SND_SOC_DA7218 if I2C
+	select SND_SOC_DA7219 if I2C
+	select SND_SOC_DA732X if I2C
+	select SND_SOC_DA9055 if I2C
+	select SND_SOC_DMIC
+	select SND_SOC_BT_SCO
+	select SND_SOC_ES8328_SPI if SPI_MASTER
+	select SND_SOC_ES8328_I2C if I2C
+	select SND_SOC_GTM601
+	select SND_SOC_HDAC_HDMI
+	select SND_SOC_ICS43432
+	select SND_SOC_INNO_RK3036
+	select SND_SOC_ISABELLE if I2C
+	select SND_SOC_JZ4740_CODEC
+	select SND_SOC_LM4857 if I2C
+	select SND_SOC_LM49453 if I2C
+	select SND_SOC_MAX98088 if I2C
+	select SND_SOC_MAX98090 if I2C
+	select SND_SOC_MAX98095 if I2C
+	select SND_SOC_MAX98357A if GPIOLIB
+	select SND_SOC_MAX98925 if I2C
+	select SND_SOC_MAX9850 if I2C
+	select SND_SOC_MAX9768 if I2C
+	select SND_SOC_MAX9877 if I2C
+	select SND_SOC_MC13783 if MFD_MC13XXX
+	select SND_SOC_ML26124 if I2C
+	select SND_SOC_NAU8825 if I2C
+	select SND_SOC_PCM1681 if I2C
+	select SND_SOC_PCM179X if SPI_MASTER
+	select SND_SOC_PCM3008
+	select SND_SOC_PCM3168A_I2C if I2C
+	select SND_SOC_PCM3168A_SPI if SPI_MASTER
+	select SND_SOC_PCM512x_I2C if I2C
+	select SND_SOC_PCM512x_SPI if SPI_MASTER
+	select SND_SOC_RT286 if I2C
+	select SND_SOC_RT298 if I2C
+	select SND_SOC_RT5616 if I2C
+	select SND_SOC_RT5631 if I2C
+	select SND_SOC_RT5640 if I2C
+	select SND_SOC_RT5645 if I2C
+	select SND_SOC_RT5651 if I2C
+	select SND_SOC_RT5659 if I2C
+	select SND_SOC_RT5670 if I2C
+	select SND_SOC_RT5677 if I2C && SPI_MASTER
+	select SND_SOC_SGTL5000 if I2C
+	select SND_SOC_SI476X if MFD_SI476X_CORE
+	select SND_SOC_SIRF_AUDIO_CODEC
+	select SND_SOC_SN95031 if INTEL_SCU_IPC
+	select SND_SOC_SPDIF
+	select SND_SOC_SSM2518 if I2C
+	select SND_SOC_SSM2602_SPI if SPI_MASTER
+	select SND_SOC_SSM2602_I2C if I2C
+	select SND_SOC_SSM4567 if I2C
+	select SND_SOC_STA32X if I2C
+	select SND_SOC_STA350 if I2C
+	select SND_SOC_STA529 if I2C
+	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
+	select SND_SOC_STI_SAS
+	select SND_SOC_TAS2552 if I2C
+	select SND_SOC_TAS5086 if I2C
+	select SND_SOC_TAS571X if I2C
+	select SND_SOC_TFA9879 if I2C
+	select SND_SOC_TLV320AIC23_I2C if I2C
+	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
+	select SND_SOC_TLV320AIC26 if SPI_MASTER
+	select SND_SOC_TLV320AIC31XX if I2C
+	select SND_SOC_TLV320AIC32X4 if I2C
+	select SND_SOC_TLV320AIC3X if I2C
+	select SND_SOC_TPA6130A2 if I2C
+	select SND_SOC_TLV320DAC33 if I2C
+	select SND_SOC_TS3A227E if I2C
+	select SND_SOC_TWL4030 if TWL4030_CORE
+	select SND_SOC_TWL6040 if TWL6040_CORE
+	select SND_SOC_UDA134X
+	select SND_SOC_UDA1380 if I2C
+	select SND_SOC_WL1273 if MFD_WL1273_CORE
+	select SND_SOC_WM0010 if SPI_MASTER
+	select SND_SOC_WM1250_EV1 if I2C
+	select SND_SOC_WM2000 if I2C
+	select SND_SOC_WM2200 if I2C
+	select SND_SOC_WM5100 if I2C
+	select SND_SOC_WM5102 if MFD_WM5102
+	select SND_SOC_WM5110 if MFD_WM5110
+	select SND_SOC_WM8350 if MFD_WM8350
+	select SND_SOC_WM8400 if MFD_WM8400
+	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8523 if I2C
+	select SND_SOC_WM8580 if I2C
+	select SND_SOC_WM8711 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8727
+	select SND_SOC_WM8728 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8731 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8737 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8741 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8750 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8753 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8770 if SPI_MASTER
+	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8782
+	select SND_SOC_WM8804_I2C if I2C
+	select SND_SOC_WM8804_SPI if SPI_MASTER
+	select SND_SOC_WM8900 if I2C
+	select SND_SOC_WM8903 if I2C
+	select SND_SOC_WM8904 if I2C
+	select SND_SOC_WM8940 if I2C
+	select SND_SOC_WM8955 if I2C
+	select SND_SOC_WM8960 if I2C
+	select SND_SOC_WM8961 if I2C
+	select SND_SOC_WM8962 if I2C && INPUT
+	select SND_SOC_WM8971 if I2C
+	select SND_SOC_WM8974 if I2C
+	select SND_SOC_WM8978 if I2C
+	select SND_SOC_WM8983 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8985 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8988 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8990 if I2C
+	select SND_SOC_WM8991 if I2C
+	select SND_SOC_WM8993 if I2C
+	select SND_SOC_WM8994 if MFD_WM8994
+	select SND_SOC_WM8995 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8996 if I2C
+	select SND_SOC_WM8997 if MFD_WM8997
+	select SND_SOC_WM8998 if MFD_WM8998
+	select SND_SOC_WM9081 if I2C
+	select SND_SOC_WM9090 if I2C
+	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
+	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
+	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
+        help
+          Normally ASoC codec drivers are only built if a machine driver which
+          uses them is also built since they are only usable with a machine
+          driver.  Selecting this option will allow these drivers to be built
+          without an explicit machine driver for test and development purposes.
+
+	  Support for the bus types used to access the codecs to be built must
+	  be selected separately.
+
+          If unsure select "N".
+
+config SND_SOC_88PM860X
+	tristate
+
+config SND_SOC_ARIZONA
+	tristate
+	default y if SND_SOC_CS47L24=y
+	default y if SND_SOC_WM5102=y
+	default y if SND_SOC_WM5110=y
+	default y if SND_SOC_WM8997=y
+	default y if SND_SOC_WM8998=y
+	default m if SND_SOC_CS47L24=m
+	default m if SND_SOC_WM5102=m
+	default m if SND_SOC_WM5110=m
+	default m if SND_SOC_WM8997=m
+	default m if SND_SOC_WM8998=m
+
+config SND_SOC_WM_HUBS
+	tristate
+	default y if SND_SOC_WM8993=y || SND_SOC_WM8994=y
+	default m if SND_SOC_WM8993=m || SND_SOC_WM8994=m
+
+config SND_SOC_WM_ADSP
+	tristate
+	select SND_SOC_COMPRESS
+	default y if SND_SOC_CS47L24=y
+	default y if SND_SOC_WM5102=y
+	default y if SND_SOC_WM5110=y
+	default y if SND_SOC_WM2200=y
+	default m if SND_SOC_CS47L24=m
+	default m if SND_SOC_WM5102=m
+	default m if SND_SOC_WM5110=m
+	default m if SND_SOC_WM2200=m
+
+config SND_SOC_AB8500_CODEC
+	tristate
+
+config SND_SOC_AC97_CODEC
+	tristate "Build generic ASoC AC97 CODEC driver"
+	select SND_AC97_CODEC
+	select SND_SOC_AC97_BUS
+
+config SND_SOC_AD1836
+	tristate
+
+config SND_SOC_AD193X
+	tristate
+
+config SND_SOC_AD193X_SPI
+	tristate
+	select SND_SOC_AD193X
+
+config SND_SOC_AD193X_I2C
+	tristate
+	select SND_SOC_AD193X
+
+config SND_SOC_AD1980
+	select REGMAP_AC97
+	tristate
+
+config SND_SOC_AD73311
+	tristate
+
+config SND_SOC_ADAU1373
+	tristate
+
+config SND_SOC_ADAU1701
+	tristate "Analog Devices ADAU1701 CODEC"
+	depends on I2C
+	select SND_SOC_SIGMADSP_I2C
+
+config SND_SOC_ADAU17X1
+	tristate
+	select SND_SOC_SIGMADSP_REGMAP
+
+config SND_SOC_ADAU1761
+	tristate
+	select SND_SOC_ADAU17X1
+
+config SND_SOC_ADAU1761_I2C
+	tristate
+	select SND_SOC_ADAU1761
+	select REGMAP_I2C
+
+config SND_SOC_ADAU1761_SPI
+	tristate
+	select SND_SOC_ADAU1761
+	select REGMAP_SPI
+
+config SND_SOC_ADAU1781
+	select SND_SOC_ADAU17X1
+	tristate
+
+config SND_SOC_ADAU1781_I2C
+	tristate
+	select SND_SOC_ADAU1781
+	select REGMAP_I2C
+
+config SND_SOC_ADAU1781_SPI
+	tristate
+	select SND_SOC_ADAU1781
+	select REGMAP_SPI
+
+config SND_SOC_ADAU1977
+	tristate
+
+config SND_SOC_ADAU1977_SPI
+	tristate
+	select SND_SOC_ADAU1977
+	select REGMAP_SPI
+
+config SND_SOC_ADAU1977_I2C
+	tristate
+	select SND_SOC_ADAU1977
+	select REGMAP_I2C
+
+config SND_SOC_ADAV80X
+	tristate
+
+config SND_SOC_ADAV801
+	tristate
+	select SND_SOC_ADAV80X
+
+config SND_SOC_ADAV803
+	tristate
+	select SND_SOC_ADAV80X
+
+config SND_SOC_ADS117X
+	tristate
+
+config SND_SOC_AK4104
+	tristate "AKM AK4104 CODEC"
+	depends on SPI_MASTER
+
+config SND_SOC_AK4535
+	tristate
+
+config SND_SOC_AK4554
+	tristate "AKM AK4554 CODEC"
+
+config SND_SOC_AK4613
+	tristate "AKM AK4613 CODEC"
+	depends on I2C
+
+config SND_SOC_AK4641
+	tristate
+
+config SND_SOC_AK4642
+	tristate "AKM AK4642 CODEC"
+	depends on I2C
+
+config SND_SOC_AK4671
+	tristate
+
+config SND_SOC_AK5386
+	tristate "AKM AK5638 CODEC"
+
+config SND_SOC_ALC5623
+       tristate "Realtek ALC5623 CODEC"
+	depends on I2C
+
+config SND_SOC_ALC5632
+	tristate
+
+config SND_SOC_CQ0093VC
+	tristate
+
+config SND_SOC_CS35L32
+	tristate "Cirrus Logic CS35L32 CODEC"
+	depends on I2C
+
+config SND_SOC_CS42L51
+	tristate
+
+config SND_SOC_CS42L51_I2C
+	tristate "Cirrus Logic CS42L51 CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_CS42L51
+
+config SND_SOC_CS42L52
+	tristate "Cirrus Logic CS42L52 CODEC"
+	depends on I2C && INPUT
+
+config SND_SOC_CS42L56
+	tristate "Cirrus Logic CS42L56 CODEC"
+	depends on I2C && INPUT
+
+config SND_SOC_CS42L73
+	tristate "Cirrus Logic CS42L73 CODEC"
+	depends on I2C
+
+config SND_SOC_CS4265
+	tristate "Cirrus Logic CS4265 CODEC"
+	depends on I2C
+	select REGMAP_I2C
+
+# Cirrus Logic CS4270 Codec
+config SND_SOC_CS4270
+	tristate "Cirrus Logic CS4270 CODEC"
+	depends on I2C
+
+# Cirrus Logic CS4270 Codec VD = 3.3V Errata
+# Select if you are affected by the errata where the part will not function
+# if MCLK divide-by-1.5 is selected and VD is set to 3.3V.  The driver will
+# not select any sample rates that require MCLK to be divided by 1.5.
+config SND_SOC_CS4270_VD33_ERRATA
+	bool
+	depends on SND_SOC_CS4270
+
+config SND_SOC_CS4271
+	tristate
+
+config SND_SOC_CS4271_I2C
+	tristate "Cirrus Logic CS4271 CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_CS4271
+	select REGMAP_I2C
+
+config SND_SOC_CS4271_SPI
+	tristate "Cirrus Logic CS4271 CODEC (SPI)"
+	depends on SPI_MASTER
+	select SND_SOC_CS4271
+	select REGMAP_SPI
+
+config SND_SOC_CS42XX8
+	tristate
+
+config SND_SOC_CS42XX8_I2C
+	tristate "Cirrus Logic CS42448/CS42888 CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_CS42XX8
+	select REGMAP_I2C
+
+# Cirrus Logic CS4349 HiFi DAC
+config SND_SOC_CS4349
+	tristate "Cirrus Logic CS4349 CODEC"
+	depends on I2C
+
+config SND_SOC_CS47L24
+	tristate
+
+config SND_SOC_CX20442
+	tristate
+	depends on TTY
+
+config SND_SOC_JZ4740_CODEC
+	select REGMAP_MMIO
+	tristate
+
+config SND_SOC_L3
+       tristate
+
+config SND_SOC_DA7210
+        tristate
+
+config SND_SOC_DA7213
+        tristate
+
+config SND_SOC_DA7218
+	tristate
+
+config SND_SOC_DA7219
+        tristate
+
+config SND_SOC_DA732X
+        tristate
+
+config SND_SOC_DA9055
+	tristate
+
+config SND_SOC_BT_SCO
+	tristate
+
+config SND_SOC_DMIC
+	tristate
+
+config SND_SOC_ES8328
+	tristate "Everest Semi ES8328 CODEC"
+
+config SND_SOC_ES8328_I2C
+	tristate
+	select SND_SOC_ES8328
+
+config SND_SOC_ES8328_SPI
+	tristate
+	select SND_SOC_ES8328
+
+config SND_SOC_GTM601
+	tristate 'GTM601 UMTS modem audio codec'
+
+config SND_SOC_HDAC_HDMI
+	tristate
+	select SND_HDA_EXT_CORE
+	select HDMI
+
+config SND_SOC_ICS43432
+	tristate
+
+config SND_SOC_INNO_RK3036
+	tristate "Inno codec driver for RK3036 SoC"
+
+config SND_SOC_ISABELLE
+        tristate
+
+config SND_SOC_LM49453
+	tristate
+
+config SND_SOC_MAX98088
+       tristate
+
+config SND_SOC_MAX98090
+       tristate
+
+config SND_SOC_MAX98095
+       tristate
+
+config SND_SOC_MAX98357A
+       tristate
+
+config SND_SOC_MAX98925
+       tristate
+
+config SND_SOC_MAX9850
+	tristate
+
+config SND_SOC_PCM1681
+	tristate "Texas Instruments PCM1681 CODEC"
+	depends on I2C
+
+config SND_SOC_PCM179X
+	tristate "Texas Instruments PCM179X CODEC"
+	depends on SPI_MASTER
+
+config SND_SOC_PCM3008
+       tristate
+
+config SND_SOC_PCM3168A
+	tristate
+
+config SND_SOC_PCM3168A_I2C
+	tristate "Texas Instruments PCM3168A CODEC - I2C"
+	depends on I2C
+	select SND_SOC_PCM3168A
+	select REGMAP_I2C
+
+config SND_SOC_PCM3168A_SPI
+	tristate "Texas Instruments PCM3168A CODEC - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_PCM3168A
+	select REGMAP_SPI
+
+config SND_SOC_PCM512x
+	tristate
+
+config SND_SOC_PCM512x_I2C
+	tristate "Texas Instruments PCM512x CODECs - I2C"
+	depends on I2C
+	select SND_SOC_PCM512x
+	select REGMAP_I2C
+
+config SND_SOC_PCM512x_SPI
+	tristate "Texas Instruments PCM512x CODECs - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_PCM512x
+	select REGMAP_SPI
+
+config SND_SOC_RL6231
+	tristate
+	default y if SND_SOC_RT5616=y
+	default y if SND_SOC_RT5640=y
+	default y if SND_SOC_RT5645=y
+	default y if SND_SOC_RT5651=y
+	default y if SND_SOC_RT5659=y
+	default y if SND_SOC_RT5670=y
+	default y if SND_SOC_RT5677=y
+	default m if SND_SOC_RT5616=m
+	default m if SND_SOC_RT5640=m
+	default m if SND_SOC_RT5645=m
+	default m if SND_SOC_RT5651=m
+	default m if SND_SOC_RT5659=m
+	default m if SND_SOC_RT5670=m
+	default m if SND_SOC_RT5677=m
+
+config SND_SOC_RL6347A
+	tristate
+	default y if SND_SOC_RT286=y
+	default y if SND_SOC_RT298=y
+	default m if SND_SOC_RT286=m
+	default m if SND_SOC_RT298=m
+
+config SND_SOC_RT286
+	tristate
+	depends on I2C
+
+config SND_SOC_RT298
+	tristate
+	depends on I2C
+
+config SND_SOC_RT5616
+	tristate
+
+config SND_SOC_RT5631
+	tristate "Realtek ALC5631/RT5631 CODEC"
+	depends on I2C
+
+config SND_SOC_RT5640
+	tristate
+
+config SND_SOC_RT5645
+        tristate
+
+config SND_SOC_RT5651
+	tristate
+
+config SND_SOC_RT5659
+	tristate
+
+config SND_SOC_RT5670
+	tristate
+
+config SND_SOC_RT5677
+	tristate
+	select REGMAP_I2C
+	select REGMAP_IRQ
+
+config SND_SOC_RT5677_SPI
+	tristate
+	default SND_SOC_RT5677 && SPI
+
+#Freescale sgtl5000 codec
+config SND_SOC_SGTL5000
+	tristate "Freescale SGTL5000 CODEC"
+	depends on I2C
+
+config SND_SOC_SI476X
+	tristate
+
+config SND_SOC_SIGMADSP
+	tristate
+	select CRC32
+
+config SND_SOC_SIGMADSP_I2C
+	tristate
+	select SND_SOC_SIGMADSP
+
+config SND_SOC_SIGMADSP_REGMAP
+	tristate
+	select SND_SOC_SIGMADSP
+
+config SND_SOC_SIRF_AUDIO_CODEC
+	tristate "SiRF SoC internal audio codec"
+	select REGMAP_MMIO
+
+config SND_SOC_SN95031
+	tristate
+
+config SND_SOC_SPDIF
+	tristate "S/PDIF CODEC"
+
+config SND_SOC_SSM2518
+	tristate
+
+config SND_SOC_SSM2602
+	tristate
+
+config SND_SOC_SSM2602_SPI
+	tristate "Analog Devices SSM2602 CODEC - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_SSM2602
+	select REGMAP_SPI
+
+config SND_SOC_SSM2602_I2C
+	tristate "Analog Devices SSM2602 CODEC - I2C"
+	depends on I2C
+	select SND_SOC_SSM2602
+	select REGMAP_I2C
+
+config SND_SOC_SSM4567
+	tristate "Analog Devices ssm4567 amplifier driver support"
+	depends on I2C
+
+config SND_SOC_STA32X
+	tristate "STA326, STA328 and STA329 speaker amplifier"
+	depends on I2C
+	select REGMAP_I2C
+
+config SND_SOC_STA350
+	tristate "STA350 speaker amplifier"
+	depends on I2C
+
+config SND_SOC_STA529
+	tristate
+
+config SND_SOC_STAC9766
+	tristate
+
+config SND_SOC_STI_SAS
+	tristate "codec Audio support for STI SAS codec"
+
+config SND_SOC_TAS2552
+	tristate "Texas Instruments TAS2552 Mono Audio amplifier"
+	depends on I2C
+
+config SND_SOC_TAS5086
+	tristate "Texas Instruments TAS5086 speaker amplifier"
+	depends on I2C
+
+config SND_SOC_TAS571X
+	tristate "Texas Instruments TAS5711/TAS5717/TAS5719 power amplifiers"
+	depends on I2C
+
+config SND_SOC_TFA9879
+	tristate "NXP Semiconductors TFA9879 amplifier"
+	depends on I2C
+
+config SND_SOC_TLV320AIC23
+	tristate
+
+config SND_SOC_TLV320AIC23_I2C
+	tristate "Texas Instruments TLV320AIC23 audio CODEC - I2C"
+	depends on I2C
+	select SND_SOC_TLV320AIC23
+
+config SND_SOC_TLV320AIC23_SPI
+	tristate "Texas Instruments TLV320AIC23 audio CODEC - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_TLV320AIC23
+
+config SND_SOC_TLV320AIC26
+	tristate
+	depends on SPI
+
+config SND_SOC_TLV320AIC31XX
+	tristate "Texas Instruments TLV320AIC31xx CODECs"
+	depends on I2C
+	select REGMAP_I2C
+
+config SND_SOC_TLV320AIC32X4
+	tristate
+
+config SND_SOC_TLV320AIC3X
+	tristate "Texas Instruments TLV320AIC3x CODECs"
+	depends on I2C
+
+config SND_SOC_TLV320DAC33
+	tristate
+
+config SND_SOC_TS3A227E
+	tristate "TI Headset/Mic detect and keypress chip"
+	depends on I2C
+
+config SND_SOC_TWL4030
+	select MFD_TWL4030_AUDIO
+	tristate
+
+config SND_SOC_TWL6040
+	tristate
+
+config SND_SOC_UDA134X
+       tristate
+
+config SND_SOC_UDA1380
+        tristate
+
+config SND_SOC_WL1273
+	tristate
+
+config SND_SOC_WM0010
+	tristate
+
+config SND_SOC_WM1250_EV1
+	tristate
+
+config SND_SOC_WM2000
+	tristate
+
+config SND_SOC_WM2200
+	tristate
+
+config SND_SOC_WM5100
+	tristate
+
+config SND_SOC_WM5102
+	tristate
+
+config SND_SOC_WM5110
+	tristate
+
+config SND_SOC_WM8350
+	tristate
+
+config SND_SOC_WM8400
+	tristate
+
+config SND_SOC_WM8510
+	tristate "Wolfson Microelectronics WM8510 CODEC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8523
+	tristate "Wolfson Microelectronics WM8523 DAC"
+	depends on I2C
+
+config SND_SOC_WM8580
+	tristate "Wolfson Microelectronics WM8523 CODEC"
+	depends on I2C
+
+config SND_SOC_WM8711
+	tristate "Wolfson Microelectronics WM8711 CODEC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8727
+	tristate
+
+config SND_SOC_WM8728
+	tristate "Wolfson Microelectronics WM8728 DAC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8731
+	tristate "Wolfson Microelectronics WM8731 CODEC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8737
+	tristate "Wolfson Microelectronics WM8737 ADC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8741
+	tristate "Wolfson Microelectronics WM8737 DAC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8750
+	tristate "Wolfson Microelectronics WM8750 CODEC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8753
+	tristate "Wolfson Microelectronics WM8753 CODEC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8770
+	tristate "Wolfson Microelectronics WM8770 CODEC"
+	depends on SPI_MASTER
+
+config SND_SOC_WM8776
+	tristate "Wolfson Microelectronics WM8776 CODEC"
+	depends on SND_SOC_I2C_AND_SPI
+
+config SND_SOC_WM8782
+	tristate
+
+config SND_SOC_WM8804
+	tristate
+
+config SND_SOC_WM8804_I2C
+	tristate "Wolfson Microelectronics WM8804 S/PDIF transceiver I2C"
+	depends on I2C
+	select SND_SOC_WM8804
+	select REGMAP_I2C
+
+config SND_SOC_WM8804_SPI
+	tristate "Wolfson Microelectronics WM8804 S/PDIF transceiver SPI"
+	depends on SPI_MASTER
+	select SND_SOC_WM8804
+	select REGMAP_SPI
+
+config SND_SOC_WM8900
+	tristate
+
+config SND_SOC_WM8903
+	tristate "Wolfson Microelectronics WM8903 CODEC"
+	depends on I2C
+
+config SND_SOC_WM8904
+	tristate
+
+config SND_SOC_WM8940
+        tristate
+
+config SND_SOC_WM8955
+	tristate
+
+config SND_SOC_WM8960
+	tristate
+
+config SND_SOC_WM8961
+	tristate
+
+config SND_SOC_WM8962
+	tristate "Wolfson Microelectronics WM8962 CODEC"
+	depends on I2C && INPUT
+
+config SND_SOC_WM8971
+	tristate
+
+config SND_SOC_WM8974
+	tristate "Wolfson Microelectronics WM8974 codec"
+	depends on I2C
+
+config SND_SOC_WM8978
+	tristate "Wolfson Microelectronics WM8978 codec"
+	depends on I2C
+
+config SND_SOC_WM8983
+	tristate
+
+config SND_SOC_WM8985
+	tristate
+
+config SND_SOC_WM8988
+	tristate
+
+config SND_SOC_WM8990
+	tristate
+
+config SND_SOC_WM8991
+	tristate
+
+config SND_SOC_WM8993
+	tristate
+
+config SND_SOC_WM8994
+	tristate
+
+config SND_SOC_WM8995
+	tristate
+
+config SND_SOC_WM8996
+	tristate
+
+config SND_SOC_WM8997
+	tristate
+
+config SND_SOC_WM8998
+	tristate
+
+config SND_SOC_WM9081
+	tristate
+
+config SND_SOC_WM9090
+	tristate
+
+config SND_SOC_WM9705
+	tristate
+
+config SND_SOC_WM9712
+	tristate
+
+config SND_SOC_WM9713
+	tristate
+	select REGMAP_AC97
+
+# Amp
+config SND_SOC_LM4857
+	tristate
+
+config SND_SOC_MAX9768
+	tristate
+
+config SND_SOC_MAX9877
+	tristate
+
+config SND_SOC_MC13783
+	tristate
+
+config SND_SOC_ML26124
+	tristate
+
+config SND_SOC_NAU8825
+	tristate
+
+config SND_SOC_TPA6130A2
+	tristate "Texas Instruments TPA6130A2 headphone amplifier"
+	depends on I2C
+
+endmenu

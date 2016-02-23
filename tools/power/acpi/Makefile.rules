@@ -1,0 +1,37 @@
+# tools/power/acpi/Makefile.rules - ACPI tool Makefile
+#
+# Copyright (c) 2015, Intel Corporation
+#   Author: Lv Zheng <lv.zheng@intel.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2
+# of the License.
+
+$(OUTPUT)$(TOOL): $(TOOL_OBJS) FORCE
+	$(ECHO) "  LD      " $@
+	$(QUIET) $(LD) $(CFLAGS) $(LDFLAGS) $(TOOL_OBJS) -L$(OUTPUT) -o $@
+	$(QUIET) $(STRIPCMD) $@
+
+$(OUTPUT)%.o: %.c
+	$(ECHO) "  CC      " $@
+	$(QUIET) $(CC) -c $(CFLAGS) -o $@ $<
+
+all: $(OUTPUT)$(TOOL)
+clean:
+	-find $(OUTPUT) \( -not -type d \) \
+	-and \( -name '*~' -o -name '*.[oas]' \) \
+	-type f -print \
+	 | xargs rm -f
+	-rm -f $(OUTPUT)$(TOOL)
+
+install-tools:
+	$(INSTALL) -d $(DESTDIR)${sbindir}
+	$(INSTALL_PROGRAM) $(OUTPUT)$(TOOL) $(DESTDIR)${sbindir}
+uninstall-tools:
+	- rm -f $(DESTDIR)${sbindir}/$(TOOL)
+
+install: all install-tools $(EXTRA_INSTALL)
+uninstall: uninstall-tools $(EXTRA_UNINSTALL)
+
+.PHONY: FORCE

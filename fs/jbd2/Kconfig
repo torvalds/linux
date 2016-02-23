@@ -1,0 +1,35 @@
+config JBD2
+	tristate
+	select CRC32
+	select CRYPTO
+	select CRYPTO_CRC32C
+	help
+	  This is a generic journaling layer for block devices that support
+	  both 32-bit and 64-bit block numbers.  It is currently used by
+	  the ext4 and OCFS2 filesystems, but it could also be used to add
+	  journal support to other file systems or block devices such
+	  as RAID or LVM.
+
+	  If you are using ext4 or OCFS2, you need to say Y here.
+	  If you are not using ext4 or OCFS2 then you will
+	  probably want to say N.
+
+	  To compile this device as a module, choose M here. The module will be
+	  called jbd2.  If you are compiling ext4 or OCFS2 into the kernel,
+	  you cannot compile this code as a module.
+
+config JBD2_DEBUG
+	bool "JBD2 (ext4) debugging support"
+	depends on JBD2
+	help
+	  If you are using the ext4 journaled file system (or
+	  potentially any other filesystem/device using JBD2), this option
+	  allows you to enable debugging output while the system is running,
+	  in order to help track down any problems you are having.
+	  By default, the debugging output will be turned off.
+
+	  If you select Y here, then you will be able to turn on debugging
+	  with "echo N > /sys/module/jbd2/parameters/jbd2_debug", where N is a
+	  number between 1 and 5. The higher the number, the more debugging
+	  output is generated.  To turn debugging off again, do
+	  "echo 0 > /sys/module/jbd2/parameters/jbd2_debug".

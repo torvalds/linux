@@ -1,0 +1,97 @@
+Rockchip SRAM for IO Voltage Domains:
+-------------------------------------
+
+IO domain voltages on some Rockchip SoCs are variable but need to be
+kept in sync between the regulators and the SoC using a special
+register.
+
+A specific example using rk3288:
+- If the regulator hooked up to a pin like SDMMC0_VDD is 3.3V then
+  bit 7 of GRF_IO_VSEL needs to be 0.  If the regulator hooked up to
+  that same pin is 1.8V then bit 7 of GRF_IO_VSEL needs to be 1.
+
+Said another way, this driver simply handles keeping bits in the SoC's
+general register file (GRF) in sync with the actual value of a voltage
+hooked up to the pins.
+
+Note that this driver specifically doesn't include:
+- any logic for deciding what voltage we should set regulators to
+- any logic for deciding whether regulators (or internal SoC blocks)
+  should have power or not have power
+
+If there were some other software that had the smarts of making
+decisions about regulators, it would work in conjunction with this
+driver.  When that other software adjusted a regulator's voltage then
+this driver would handle telling the SoC about it.  A good example is
+vqmmc for SD.  In that case the dw_mmc driver simply is told about a
+regulator.  It changes the regulator between 3.3V and 1.8V at the
+right time.  This driver notices the change and makes sure that the
+SoC is on the same page.
+
+
+Required properties:
+- compatible: should be one of:
+  - "rockchip,rk3188-io-voltage-domain" for rk3188
+  - "rockchip,rk3288-io-voltage-domain" for rk3288
+  - "rockchip,rk3368-io-voltage-domain" for rk3368
+  - "rockchip,rk3368-pmu-io-voltage-domain" for rk3368 pmu-domains
+- rockchip,grf: phandle to the syscon managing the "general register files"
+
+
+You specify supplies using the standard regulator bindings by including
+a phandle the relevant regulator.  All specified supplies must be able
+to report their voltage.  The IO Voltage Domain for any non-specified
+supplies will be not be touched.
+
+Possible supplies for rk3188:
+- ap0-supply:    The supply connected to AP0_VCC.
+- ap1-supply:    The supply connected to AP1_VCC.
+- cif-supply:    The supply connected to CIF_VCC.
+- flash-supply:  The supply connected to FLASH_VCC.
+- lcdc0-supply:  The supply connected to LCD0_VCC.
+- lcdc1-supply:  The supply connected to LCD1_VCC.
+- vccio0-supply: The supply connected to VCCIO0.
+- vccio1-supply: The supply connected to VCCIO1.
+                 Sometimes also labeled VCCIO1 and VCCIO2.
+
+Possible supplies for rk3288:
+- audio-supply:  The supply connected to APIO4_VDD.
+- bb-supply:     The supply connected to APIO5_VDD.
+- dvp-supply:    The supply connected to DVPIO_VDD.
+- flash0-supply: The supply connected to FLASH0_VDD.  Typically for eMMC
+- flash1-supply: The supply connected to FLASH1_VDD.  Also known as SDIO1.
+- gpio30-supply: The supply connected to APIO1_VDD.
+- gpio1830       The supply connected to APIO2_VDD.
+- lcdc-supply:   The supply connected to LCDC_VDD.
+- sdcard-supply: The supply connected to SDMMC0_VDD.
+- wifi-supply:   The supply connected to APIO3_VDD.  Also known as SDIO0.
+
+Possible supplies for rk3368:
+- audio-supply:  The supply connected to APIO3_VDD.
+- dvp-supply:    The supply connected to DVPIO_VDD.
+- flash0-supply: The supply connected to FLASH0_VDD.  Typically for eMMC
+- gpio30-supply: The supply connected to APIO1_VDD.
+- gpio1830       The supply connected to APIO4_VDD.
+- sdcard-supply: The supply connected to SDMMC0_VDD.
+- wifi-supply:   The supply connected to APIO2_VDD.  Also known as SDIO0.
+
+Possible supplies for rk3368 pmu-domains:
+- pmu-supply:    The supply connected to PMUIO_VDD.
+- vop-supply:    The supply connected to LCDC_VDD.
+
+Example:
+
+	io-domains {
+		compatible = "rockchip,rk3288-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		audio-supply = <&vcc18_codec>;
+		bb-supply = <&vcc33_io>;
+		dvp-supply = <&vcc_18>;
+		flash0-supply = <&vcc18_flashio>;
+		gpio1830-supply = <&vcc33_io>;
+		gpio30-supply = <&vcc33_pmuio>;
+		lcdc-supply = <&vcc33_lcd>;
+		sdcard-supply = <&vccio_sd>;
+		wifi-supply = <&vcc18_wl>;
+	};

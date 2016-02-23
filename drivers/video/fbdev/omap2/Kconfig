@@ -1,0 +1,5 @@
+if ARCH_OMAP2PLUS
+
+source "drivers/video/fbdev/omap2/omapfb/Kconfig"
+
+endif

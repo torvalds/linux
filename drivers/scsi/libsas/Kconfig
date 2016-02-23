@@ -1,0 +1,48 @@
+#
+# Kernel configuration file for the SAS Class
+#
+# Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
+# Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
+#
+# This file is licensed under GPLv2.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; version 2 of the
+# License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+# USA
+#
+
+config SCSI_SAS_LIBSAS
+	tristate "SAS Domain Transport Attributes"
+	depends on SCSI
+	select SCSI_SAS_ATTRS
+	help
+	  This provides transport specific helpers for SAS drivers which
+	  use the domain device construct (like the aic94xxx).
+
+config SCSI_SAS_ATA
+	bool "ATA support for libsas (requires libata)"
+	depends on SCSI_SAS_LIBSAS
+	depends on ATA = y || ATA = SCSI_SAS_LIBSAS
+	help
+		Builds in ATA support into libsas.  Will necessitate
+		the loading of libata along with libsas.
+
+config SCSI_SAS_HOST_SMP
+	bool "Support for SMP interpretation for SAS hosts"
+	default y
+	depends on SCSI_SAS_LIBSAS
+	help
+		Allows sas hosts to receive SMP frames.  Selecting this
+		option builds an SMP interpreter into libsas.  Say
+		N here if you want to save the few kb this consumes.

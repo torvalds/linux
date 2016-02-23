@@ -1,0 +1,212 @@
+
+config CLKDEV_LOOKUP
+	bool
+	select HAVE_CLK
+
+config HAVE_CLK_PREPARE
+	bool
+
+config HAVE_MACH_CLKDEV
+	bool
+
+config COMMON_CLK
+	bool
+	select HAVE_CLK_PREPARE
+	select CLKDEV_LOOKUP
+	select SRCU
+	select RATIONAL
+	---help---
+	  The common clock framework is a single definition of struct
+	  clk, useful across many platforms, as well as an
+	  implementation of the clock API in include/linux/clk.h.
+	  Architectures utilizing the common struct clk should select
+	  this option.
+
+menu "Common Clock Framework"
+	depends on COMMON_CLK
+
+config COMMON_CLK_WM831X
+	tristate "Clock driver for WM831x/2x PMICs"
+	depends on MFD_WM831X
+	---help---
+          Supports the clocking subsystem of the WM831x/2x series of
+	  PMICs from Wolfson Microelectronics.
+
+source "drivers/clk/versatile/Kconfig"
+
+config COMMON_CLK_MAX_GEN
+        bool
+
+config COMMON_CLK_MAX77686
+	tristate "Clock driver for Maxim 77686 MFD"
+	depends on MFD_MAX77686
+	select COMMON_CLK_MAX_GEN
+	---help---
+	  This driver supports Maxim 77686 crystal oscillator clock. 
+
+config COMMON_CLK_MAX77802
+	tristate "Clock driver for Maxim 77802 PMIC"
+	depends on MFD_MAX77686
+	select COMMON_CLK_MAX_GEN
+	---help---
+	  This driver supports Maxim 77802 crystal oscillator clock.
+
+config COMMON_CLK_RK808
+	tristate "Clock driver for RK808"
+	depends on MFD_RK808
+	---help---
+	  This driver supports RK808 crystal oscillator clock. These
+	  multi-function devices have two fixed-rate oscillators,
+	  clocked at 32KHz each. Clkout1 is always on, Clkout2 can off
+	  by control register.
+
+config COMMON_CLK_SCPI
+	tristate "Clock driver controlled via SCPI interface"
+	depends on ARM_SCPI_PROTOCOL || COMPILE_TEST
+	  ---help---
+	  This driver provides support for clocks that are controlled
+	  by firmware that implements the SCPI interface.
+
+	  This driver uses SCPI Message Protocol to interact with the
+	  firmware providing all the clock controls.
+
+config COMMON_CLK_SI5351
+	tristate "Clock driver for SiLabs 5351A/B/C"
+	depends on I2C
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports Silicon Labs 5351A/B/C programmable clock
+	  generators.
+
+config COMMON_CLK_SI514
+	tristate "Clock driver for SiLabs 514 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports the Silicon Labs 514 programmable clock
+	  generator.
+
+config COMMON_CLK_SI570
+	tristate "Clock driver for SiLabs 570 and compatible devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports Silicon Labs 570/571/598/599 programmable
+	  clock generators.
+
+config COMMON_CLK_CDCE925
+	tristate "Clock driver for TI CDCE925 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports the TI CDCE925 programmable clock synthesizer.
+	  The chip contains two PLLs with spread-spectrum clocking support and
+	  five output dividers. The driver only supports the following setup,
+	  and uses a fixed setting for the output muxes.
+	  Y1 is derived from the input clock
+	  Y2 and Y3 derive from PLL1
+	  Y4 and Y5 derive from PLL2
+	  Given a target output frequency, the driver will set the PLL and
+	  divider to best approximate the desired output.
+
+config COMMON_CLK_CS2000_CP
+	tristate "Clock driver for CS2000 Fractional-N Clock Synthesizer & Clock Multiplier"
+	depends on I2C
+	help
+	  If you say yes here you get support for the CS2000 clock multiplier.
+
+config COMMON_CLK_S2MPS11
+	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
+	depends on MFD_SEC_CORE
+	---help---
+	  This driver supports S2MPS11/S2MPS14/S5M8767 crystal oscillator
+	  clock. These multi-function devices have two (S2MPS14) or three
+	  (S2MPS11, S5M8767) fixed-rate oscillators, clocked at 32KHz each.
+
+config CLK_TWL6040
+	tristate "External McPDM functional clock from twl6040"
+	depends on TWL6040_CORE
+	---help---
+	  Enable the external functional clock support on OMAP4+ platforms for
+	  McPDM. McPDM module is using the external bit clock on the McPDM bus
+	  as functional clock.
+
+config COMMON_CLK_AXI_CLKGEN
+	tristate "AXI clkgen driver"
+	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
+	help
+	---help---
+	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
+	  FPGAs. It is commonly used in Analog Devices' reference designs.
+
+config CLK_QORIQ
+	bool "Clock driver for Freescale QorIQ platforms"
+	depends on (PPC_E500MC || ARM || ARM64 || COMPILE_TEST) && OF
+	---help---
+	  This adds the clock driver support for Freescale QorIQ platforms
+	  using common clock framework.
+
+config COMMON_CLK_XGENE
+	bool "Clock driver for APM XGene SoC"
+	default y
+	depends on ARM64 || COMPILE_TEST
+	---help---
+	  Sypport for the APM X-Gene SoC reference, PLL, and device clocks.
+
+config COMMON_CLK_KEYSTONE
+	tristate "Clock drivers for Keystone based SOCs"
+	depends on (ARCH_KEYSTONE || COMPILE_TEST) && OF
+	---help---
+          Supports clock drivers for Keystone based SOCs. These SOCs have local
+	  a power sleep control module that gate the clock to the IPs and PLLs.
+
+config COMMON_CLK_NXP
+	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
+	select REGMAP_MMIO if ARCH_LPC32XX
+	---help---
+	  Support for clock providers on NXP platforms.
+
+config COMMON_CLK_PALMAS
+	tristate "Clock driver for TI Palmas devices"
+	depends on MFD_PALMAS
+	---help---
+	  This driver supports TI Palmas devices 32KHz output KG and KG_AUDIO
+	  using common clock framework.
+
+config COMMON_CLK_PWM
+	tristate "Clock driver for PWMs used as clock outputs"
+	depends on PWM
+	---help---
+	  Adapter driver so that any PWM output can be (mis)used as clock signal
+	  at 50% duty cycle.
+
+config COMMON_CLK_PXA
+	def_bool COMMON_CLK && ARCH_PXA
+	---help---
+	  Sypport for the Marvell PXA SoC.
+
+config COMMON_CLK_CDCE706
+	tristate "Clock driver for TI CDCE706 clock synthesizer"
+	depends on I2C
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
+
+source "drivers/clk/bcm/Kconfig"
+source "drivers/clk/hisilicon/Kconfig"
+source "drivers/clk/qcom/Kconfig"
+
+endmenu
+
+source "drivers/clk/mvebu/Kconfig"
+
+source "drivers/clk/samsung/Kconfig"
+source "drivers/clk/tegra/Kconfig"

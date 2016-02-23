@@ -1,0 +1,40 @@
+WM8753 audio CODEC
+
+This device supports both I2C and SPI (configured with pin strapping
+on the board).
+
+Required properties:
+
+  - compatible : "wlf,wm8753"
+
+  - reg : the I2C address of the device for I2C, the chip select
+          number for SPI.
+
+Pins on the device (for linking into audio routes):
+
+  * LOUT1
+  * LOUT2
+  * ROUT1
+  * ROUT2
+  * MONO1
+  * MONO2
+  * OUT3
+  * OUT4
+  * LINE1
+  * LINE2
+  * RXP
+  * RXN
+  * ACIN
+  * ACOP
+  * MIC1N
+  * MIC1
+  * MIC2N
+  * MIC2
+  * Mic Bias
+
+Example:
+
+codec: wm8753@1a {
+	compatible = "wlf,wm8753";
+	reg = <0x1a>;
+};

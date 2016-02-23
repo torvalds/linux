@@ -1,0 +1,29 @@
+WM8741 audio CODEC
+
+This device supports both I2C and SPI (configured with pin strapping
+on the board).
+
+Required properties:
+
+  - compatible : "wlf,wm8741"
+
+  - reg : the I2C address of the device for I2C, the chip select
+          number for SPI.
+
+Optional properties:
+
+  - diff-mode: Differential output mode configuration. Default value for field
+    DIFF in register R8 (MODE_CONTROL_2). If absent, the default is 0, shall be:
+    0 = stereo
+    1 = mono left
+    2 = stereo reversed
+    3 = mono right
+
+Example:
+
+codec: wm8741@1a {
+	compatible = "wlf,wm8741";
+	reg = <0x1a>;
+
+	diff-mode = <3>;
+};

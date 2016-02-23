@@ -1,0 +1,43 @@
+/*
+ * Google Snow board device tree source
+ *
+ * Copyright (c) 2012 Google, Inc
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+#include "exynos5250-snow-common.dtsi"
+
+/ {
+	model = "Google Snow";
+	compatible = "google,snow-rev4", "google,snow", "samsung,exynos5250",
+		"samsung,exynos5";
+
+	sound {
+		compatible = "google,snow-audio-max98095";
+
+		samsung,model = "Snow-I2S-MAX98095";
+		samsung,audio-codec = <&max98095>;
+	};
+};
+
+&i2c_7 {
+	max98095: codec@11 {
+		compatible = "maxim,max98095";
+		reg = <0x11>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max98095_en>;
+	};
+};
+
+&pinctrl_0 {
+	max98095_en: max98095-en {
+		samsung,pins = "gpx1-7";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <0>;
+	};
+};

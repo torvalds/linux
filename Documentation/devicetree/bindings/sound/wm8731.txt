@@ -1,0 +1,27 @@
+WM8731 audio CODEC
+
+This device supports both I2C and SPI (configured with pin strapping
+on the board).
+
+Required properties:
+
+  - compatible : "wlf,wm8731"
+
+  - reg : the I2C address of the device for I2C, the chip select
+          number for SPI.
+
+Example:
+
+codec: wm8731@1a {
+	compatible = "wlf,wm8731";
+	reg = <0x1a>;
+};
+
+Available audio endpoints for an audio-routing table:
+ * LOUT: Left Channel Line Output
+ * ROUT: Right Channel Line Output
+ * LHPOUT: Left Channel Headphone Output
+ * RHPOUT: Right Channel Headphone Output
+ * LLINEIN: Left Channel Line Input
+ * RLINEIN: Right Channel Line Input
+ * MICIN: Microphone Input

@@ -1,0 +1,9 @@
+config RTL8192E
+	tristate "RealTek RTL8192E Wireless LAN NIC driver"
+	depends on PCI && WLAN && RTLLIB
+	depends on m
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select CRYPTO
+	select FW_LOADER
+	---help---

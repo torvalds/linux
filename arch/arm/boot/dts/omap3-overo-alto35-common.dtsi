@@ -1,0 +1,78 @@
+/*
+ * Copyright (C) 2014 Florian Vaussard, EPFL Mobots group
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Alto35 expansion board is manufactured by Gumstix Inc.
+ */
+
+#include "omap3-overo-common-peripherals.dtsi"
+#include "omap3-overo-common-lcd35.dtsi"
+
+#include <dt-bindings/input/input.h>
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins>;
+		gpio148 {
+			label = "overo:red:gpio148";
+			gpios = <&gpio5 20 GPIO_ACTIVE_HIGH>;		/* gpio 148 */
+		};
+		gpio150 {
+			label = "overo:yellow:gpio150";
+			gpios = <&gpio5 22 GPIO_ACTIVE_HIGH>;		/* gpio 150 */
+		};
+		gpio151 {
+			label = "overo:blue:gpio151";
+			gpios = <&gpio5 23 GPIO_ACTIVE_HIGH>;		/* gpio 151 */
+		};
+		gpio170 {
+			label = "overo:green:gpio170";
+			gpios = <&gpio6 10 GPIO_ACTIVE_HIGH>;		/* gpio 170 */
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&button_pins>;
+		button0@10 {
+			label = "button0";
+			linux,code = <BTN_0>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;		/* gpio_10 */
+			wakeup-source;
+		};
+	};
+};
+
+&omap3_pmx_core {
+	led_pins: pinmux_led_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE4)	/* uart1_tx.gpio_148 */
+			OMAP3_CORE1_IOPAD(0x2180, PIN_OUTPUT | MUX_MODE4)	/* uart1_cts.gpio_150 */
+			OMAP3_CORE1_IOPAD(0x2182, PIN_OUTPUT | MUX_MODE4)	/* uart1_rx.gpio_151 */
+			OMAP3_CORE1_IOPAD(0x21c6, PIN_OUTPUT | MUX_MODE4)	/* hdq_sio.gpio_170 */
+		>;
+	};
+};
+
+&omap3_pmx_wkup {
+	button_pins: pinmux_button_pins {
+		pinctrl-single,pins = <
+			OMAP3_WKUP_IOPAD(0x2a18, PIN_INPUT | MUX_MODE4)		/* sys_clkout1.gpio_10 */
+		>;
+	};
+};
+
+&usbhshost {
+	status = "disabled";
+};
+

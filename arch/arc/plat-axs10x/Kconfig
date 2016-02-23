@@ -1,0 +1,46 @@
+#
+# Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+
+menuconfig ARC_PLAT_AXS10X
+	bool "Synopsys ARC AXS10x Software Development Platforms"
+	select DW_APB_ICTL
+	select GPIO_DWAPB
+	select OF_GPIO
+	select GENERIC_IRQ_CHIP
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for the ARC AXS10x Software Development Platforms.
+
+	  The AXS10x Platforms consist of a mainboard with peripherals,
+	  on which several daughter cards can be placed. The daughter cards
+	  typically contain a CPU and memory.
+
+if ARC_PLAT_AXS10X
+
+config AXS101
+	depends on ISA_ARCOMPACT
+	bool "AXS101 with AXC001 CPU Card (ARC 770D/EM6/AS221)"
+	help
+	  This adds support for the 770D/EM6/AS221 CPU Card. Only the ARC
+	  770D is supported in Linux.
+
+	  The AXS101 Platform consists of an AXS10x mainboard with
+	  this daughtercard. Please use the axs101.dts device tree
+	  with this configuration.
+
+config AXS103
+	bool "AXS103 with AXC003 CPU Card (ARC HS38x)"
+	depends on ISA_ARCV2
+	help
+	  This adds support for the HS38x CPU Card.
+
+	  The AXS103 Platform consists of an AXS10x mainboard with
+	  this daughtercard. Please use the axs103.dts device tree
+	  with this configuration.
+
+endif

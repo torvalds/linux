@@ -1,0 +1,94 @@
+		     Memory Layout on AArch64 Linux
+		     ==============================
+
+Author: Catalin Marinas <catalin.marinas@arm.com>
+
+This document describes the virtual memory layout used by the AArch64
+Linux kernel. The architecture allows up to 4 levels of translation
+tables with a 4KB page size and up to 3 levels with a 64KB page size.
+
+AArch64 Linux uses either 3 levels or 4 levels of translation tables
+with the 4KB page configuration, allowing 39-bit (512GB) or 48-bit
+(256TB) virtual addresses, respectively, for both user and kernel. With
+64KB pages, only 2 levels of translation tables, allowing 42-bit (4TB)
+virtual address, are used but the memory layout is the same.
+
+User addresses have bits 63:48 set to 0 while the kernel addresses have
+the same bits set to 1. TTBRx selection is given by bit 63 of the
+virtual address. The swapper_pg_dir contains only kernel (global)
+mappings while the user pgd contains only user (non-global) mappings.
+The swapper_pg_dir address is written to TTBR1 and never written to
+TTBR0.
+
+
+AArch64 Linux memory layout with 4KB pages + 3 levels:
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000000000000000	0000007fffffffff	 512GB		user
+ffffff8000000000	ffffffffffffffff	 512GB		kernel
+
+
+AArch64 Linux memory layout with 4KB pages + 4 levels:
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000000000000000	0000ffffffffffff	 256TB		user
+ffff000000000000	ffffffffffffffff	 256TB		kernel
+
+
+AArch64 Linux memory layout with 64KB pages + 2 levels:
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000000000000000	000003ffffffffff	   4TB		user
+fffffc0000000000	ffffffffffffffff	   4TB		kernel
+
+
+AArch64 Linux memory layout with 64KB pages + 3 levels:
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000000000000000	0000ffffffffffff	 256TB		user
+ffff000000000000	ffffffffffffffff	 256TB		kernel
+
+
+For details of the virtual kernel memory layout please see the kernel
+booting log.
+
+
+Translation table lookup with 4KB pages:
+
++--------+--------+--------+--------+--------+--------+--------+--------+
+|63    56|55    48|47    40|39    32|31    24|23    16|15     8|7      0|
++--------+--------+--------+--------+--------+--------+--------+--------+
+ |                 |         |         |         |         |
+ |                 |         |         |         |         v
+ |                 |         |         |         |   [11:0]  in-page offset
+ |                 |         |         |         +-> [20:12] L3 index
+ |                 |         |         +-----------> [29:21] L2 index
+ |                 |         +---------------------> [38:30] L1 index
+ |                 +-------------------------------> [47:39] L0 index
+ +-------------------------------------------------> [63] TTBR0/1
+
+
+Translation table lookup with 64KB pages:
+
++--------+--------+--------+--------+--------+--------+--------+--------+
+|63    56|55    48|47    40|39    32|31    24|23    16|15     8|7      0|
++--------+--------+--------+--------+--------+--------+--------+--------+
+ |                 |    |               |              |
+ |                 |    |               |              v
+ |                 |    |               |            [15:0]  in-page offset
+ |                 |    |               +----------> [28:16] L3 index
+ |                 |    +--------------------------> [41:29] L2 index
+ |                 +-------------------------------> [47:42] L1 index
+ +-------------------------------------------------> [63] TTBR0/1
+
+
+When using KVM, the hypervisor maps kernel pages in EL2, at a fixed
+offset from the kernel VA (top 24bits of the kernel VA set to zero):
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000004000000000	0000007fffffffff	 256GB		kernel objects mapped in HYP

@@ -1,0 +1,39 @@
+Itsy is a research project done by the Western Research Lab, and Systems
+Research Center in Palo Alto, CA. The Itsy project is one of several
+research projects at Compaq that are related to pocket computing.
+
+For more information, see:
+
+	http://www.hpl.hp.com/downloads/crl/itsy/
+
+Notes on initial 2.4 Itsy support (8/27/2000) :
+The port was done on an Itsy version 1.5 machine with a daughtercard with
+64 Meg of DRAM and 32 Meg of Flash. The initial work includes support for
+serial console (to see what you're doing).  No other devices have been
+enabled.
+
+To build, do a "make menuconfig" (or xmenuconfig) and select Itsy support.
+Disable Flash and LCD support. and then do a make zImage.
+Finally, you will need to cd to arch/arm/boot/tools and execute a make there
+to build the params-itsy program used to boot the kernel.
+
+In order to install the port of 2.4 to the itsy, You will need to set the
+configuration parameters in the monitor as follows:
+Arg 1:0x08340000, Arg2: 0xC0000000, Arg3:18 (0x12), Arg4:0
+Make sure the start-routine address is set to 0x00060000.
+
+Next, flash the params-itsy program to 0x00060000 ("p 1 0x00060000" in the
+flash menu)  Flash the kernel in arch/arm/boot/zImage into 0x08340000
+("p 1 0x00340000").  Finally flash an initial ramdisk into 0xC8000000
+("p 2 0x0")  We used ramdisk-2-30.gz from the 0.11 version directory on
+handhelds.org.
+
+The serial connection we established was at:
+ 8-bit data, no parity, 1 stop bit(s), 115200.00 b/s. in the monitor, in the
+params-itsy program, and in the kernel itself.  This can be changed, but
+not easily. The monitor parameters are easily changed, the params program
+setup is assembly outl's, and the kernel is a configuration item specific to
+the itsy. (i.e. grep for CONFIG_SA1100_ITSY and you'll find where it is.)
+
+
+This should get you a properly booting 2.4 kernel on the itsy.

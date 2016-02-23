@@ -1,0 +1,27 @@
+* System Management Interface (SMI) / MDIO
+
+Properties:
+- compatible: "cavium,octeon-3860-mdio"
+
+  Compatibility with all cn3XXX, cn5XXX and cn6XXX SOCs.
+
+- reg: The base address of the MDIO bus controller register bank.
+
+- #address-cells: Must be <1>.
+
+- #size-cells: Must be <0>.  MDIO addresses have no size component.
+
+Typically an MDIO bus might have several children.
+
+Example:
+	mdio@1180000001800 {
+		compatible = "cavium,octeon-3860-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x11800 0x00001800 0x0 0x40>;
+
+		ethernet-phy@0 {
+			...
+			reg = <0>;
+		};
+	};

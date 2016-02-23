@@ -1,0 +1,9 @@
+bootsect
+bzImage
+cpustr.h
+mkcpustr
+voffset.h
+zoffset.h
+setup
+setup.bin
+setup.elf

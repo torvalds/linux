@@ -1,0 +1,15 @@
+# UAPI Header export list
+# Top-level Makefile calls into asm-$(ARCH)
+# List only non-arch directories below
+
+
+header-y += asm-generic/
+header-y += linux/
+header-y += sound/
+header-y += mtd/
+header-y += rdma/
+header-y += video/
+header-y += drm/
+header-y += xen/
+header-y += scsi/
+header-y += misc/

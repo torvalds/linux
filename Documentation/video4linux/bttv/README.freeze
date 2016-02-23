@@ -1,0 +1,74 @@
+
+If the box freezes hard with bttv ...
+=====================================
+
+It might be a bttv driver bug.  It also might be bad hardware.  It also
+might be something else ...
+
+Just mailing me "bttv freezes" isn't going to help much.  This README
+has a few hints how you can help to pin down the problem.
+
+
+bttv bugs
+---------
+
+If some version works and another doesn't it is likely to be a driver
+bug.  It is very helpful if you can tell where exactly it broke
+(i.e. the last working and the first broken version).
+
+With a hard freeze you probably doesn't find anything in the logfiles.
+The only way to capture any kernel messages is to hook up a serial
+console and let some terminal application log the messages.  /me uses
+screen.  See Documentation/serial-console.txt for details on setting
+up a serial console.
+
+Read Documentation/oops-tracing.txt to learn how to get any useful
+information out of a register+stack dump printed by the kernel on
+protection faults (so-called "kernel oops").
+
+If you run into some kind of deadlock, you can try to dump a call trace
+for each process using sysrq-t (see Documentation/sysrq.txt).
+This way it is possible to figure where *exactly* some process in "D"
+state is stuck.
+
+I've seen reports that bttv 0.7.x crashes whereas 0.8.x works rock solid
+for some people.  Thus probably a small buglet left somewhere in bttv
+0.7.x.  I have no idea where exactly, it works stable for me and a lot of
+other people.  But in case you have problems with the 0.7.x versions you
+can give 0.8.x a try ...
+
+
+hardware bugs
+-------------
+
+Some hardware can't deal with PCI-PCI transfers (i.e. grabber => vga).
+Sometimes problems show up with bttv just because of the high load on
+the PCI bus. The bt848/878 chips have a few workarounds for known
+incompatibilities, see README.quirks.
+
+Some folks report that increasing the pci latency helps too,
+althrought I'm not sure whenever this really fixes the problems or
+only makes it less likely to happen.  Both bttv and btaudio have a
+insmod option to set the PCI latency of the device.
+
+Some mainboard have problems to deal correctly with multiple devices
+doing DMA at the same time.  bttv + ide seems to cause this sometimes,
+if this is the case you likely see freezes only with video and hard disk
+access at the same time.  Updating the IDE driver to get the latest and
+greatest workarounds for hardware bugs might fix these problems.
+
+
+other
+-----
+
+If you use some binary-only yunk (like nvidia module) try to reproduce
+the problem without.
+
+IRQ sharing is known to cause problems in some cases.  It works just
+fine in theory and many configurations.  Neverless it might be worth a
+try to shuffle around the PCI cards to give bttv another IRQ or make
+it share the IRQ with some other piece of hardware.  IRQ sharing with
+VGA cards seems to cause trouble sometimes.  I've also seen funny
+effects with bttv sharing the IRQ with the ACPI bridge (and
+apci-enabled kernel).
+

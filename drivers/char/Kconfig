@@ -1,0 +1,607 @@
+#
+# Character device configuration
+#
+
+menu "Character devices"
+
+source "drivers/tty/Kconfig"
+
+config DEVMEM
+	bool "/dev/mem virtual device support"
+	default y
+	help
+	  Say Y here if you want to support the /dev/mem device.
+	  The /dev/mem device is used to access areas of physical
+	  memory.
+	  When in doubt, say "Y".
+
+config DEVKMEM
+	bool "/dev/kmem virtual device support"
+	default y
+	help
+	  Say Y here if you want to support the /dev/kmem device. The
+	  /dev/kmem device is rarely used, but can be used for certain
+	  kind of kernel debugging operations.
+	  When in doubt, say "N".
+
+config SGI_SNSC
+	bool "SGI Altix system controller communication support"
+	depends on (IA64_SGI_SN2 || IA64_GENERIC)
+	help
+	  If you have an SGI Altix and you want to enable system
+	  controller communication from user space (you want this!),
+	  say Y.  Otherwise, say N.
+
+config SGI_TIOCX
+       bool "SGI TIO CX driver support"
+       depends on (IA64_SGI_SN2 || IA64_GENERIC)
+       help
+         If you have an SGI Altix and you have fpga devices attached
+         to your TIO, say Y here, otherwise say N.
+
+config SGI_MBCS
+       tristate "SGI FPGA Core Services driver support"
+       depends on SGI_TIOCX
+       help
+         If you have an SGI Altix with an attached SABrick
+         say Y or M here, otherwise say N.
+
+source "drivers/tty/serial/Kconfig"
+
+config TTY_PRINTK
+	tristate "TTY driver to output user messages via printk"
+	depends on EXPERT && TTY
+	default n
+	---help---
+	  If you say Y here, the support for writing user messages (i.e.
+	  console messages) via printk is available.
+
+	  The feature is useful to inline user messages with kernel
+	  messages.
+	  In order to use this feature, you should output user messages
+	  to /dev/ttyprintk or redirect console to this TTY.
+
+	  If unsure, say N.
+
+config BFIN_OTP
+	tristate "Blackfin On-Chip OTP Memory Support"
+	depends on BLACKFIN && (BF51x || BF52x || BF54x)
+	default y
+	help
+	  If you say Y here, you will get support for a character device
+	  interface into the One Time Programmable memory pages that are
+	  stored on the Blackfin processor.  This will not get you access
+	  to the secure memory pages however.  You will need to write your
+	  own secure code and reader for that.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called bfin-otp.
+
+	  If unsure, it is safe to say Y.
+
+config BFIN_OTP_WRITE_ENABLE
+	bool "Enable writing support of OTP pages"
+	depends on BFIN_OTP
+	default n
+	help
+	  If you say Y here, you will enable support for writing of the
+	  OTP pages.  This is dangerous by nature as you can only program
+	  the pages once, so only enable this option when you actually
+	  need it so as to not inadvertently clobber data.
+
+	  If unsure, say N.
+
+config PRINTER
+	tristate "Parallel printer support"
+	depends on PARPORT
+	---help---
+	  If you intend to attach a printer to the parallel port of your Linux
+	  box (as opposed to using a serial printer; if the connector at the
+	  printer has 9 or 25 holes ["female"], then it's serial), say Y.
+	  Also read the Printing-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  It is possible to share one parallel port among several devices
+	  (e.g. printer and ZIP drive) and it is safe to compile the
+	  corresponding drivers into the kernel.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/parport.txt>.  The module will be called lp.
+
+	  If you have several parallel ports, you can specify which ports to
+	  use with the "lp" kernel command line option.  (Try "man bootparam"
+	  or see the documentation of your boot loader (lilo or loadlin) about
+	  how to pass options to the kernel at boot time.)  The syntax of the
+	  "lp" command line option can be found in <file:drivers/char/lp.c>.
+
+	  If you have more than 8 printers, you need to increase the LP_NO
+	  macro in lp.c and the PARPORT_MAX macro in parport.h.
+
+config LP_CONSOLE
+	bool "Support for console on line printer"
+	depends on PRINTER
+	---help---
+	  If you want kernel messages to be printed out as they occur, you
+	  can have a console on the printer. This option adds support for
+	  doing that; to actually get it to happen you need to pass the
+	  option "console=lp0" to the kernel at boot time.
+
+	  If the printer is out of paper (or off, or unplugged, or too
+	  busy..) the kernel will stall until the printer is ready again.
+	  By defining CONSOLE_LP_STRICT to 0 (at your own risk) you
+	  can make the kernel continue when this happens,
+	  but it'll lose the kernel messages.
+
+	  If unsure, say N.
+
+config PPDEV
+	tristate "Support for user-space parallel port device drivers"
+	depends on PARPORT
+	---help---
+	  Saying Y to this adds support for /dev/parport device nodes.  This
+	  is needed for programs that want portable access to the parallel
+	  port, for instance deviceid (which displays Plug-and-Play device
+	  IDs).
+
+	  This is the parallel port equivalent of SCSI generic support (sg).
+	  It is safe to say N to this -- it is not needed for normal printing
+	  or parallel port CD-ROM/disk support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ppdev.
+
+	  If unsure, say N.
+
+source "drivers/tty/hvc/Kconfig"
+
+config VIRTIO_CONSOLE
+	tristate "Virtio console"
+	depends on VIRTIO && TTY
+	select HVC_DRIVER
+	help
+	  Virtio console for use with lguest and other hypervisors.
+
+	  Also serves as a general-purpose serial device for data
+	  transfer between the guest and host.  Character devices at
+	  /dev/vportNpn will be created when corresponding ports are
+	  found, where N is the device number and n is the port number
+	  within that device.  If specified by the host, a sysfs
+	  attribute called 'name' will be populated with a name for
+	  the port which can be used by udev scripts to create a
+	  symlink to the device.
+
+config IBM_BSR
+	tristate "IBM POWER Barrier Synchronization Register support"
+	depends on PPC_PSERIES
+	help
+	  This devices exposes a hardware mechanism for fast synchronization
+	  of threads across a large system which avoids bouncing a cacheline
+	  between several cores on a system
+
+source "drivers/char/ipmi/Kconfig"
+
+config DS1620
+	tristate "NetWinder thermometer support"
+	depends on ARCH_NETWINDER
+	help
+	  Say Y here to include support for the thermal management hardware
+	  found in the NetWinder. This driver allows the user to control the
+	  temperature set points and to read the current temperature.
+
+	  It is also possible to say M here to build it as a module (ds1620)
+	  It is recommended to be used on a NetWinder, but it is not a
+	  necessity.
+
+config NWBUTTON
+	tristate "NetWinder Button"
+	depends on ARCH_NETWINDER
+	---help---
+	  If you say Y here and create a character device node /dev/nwbutton
+	  with major and minor numbers 10 and 158 ("man mknod"), then every
+	  time the orange button is pressed a number of times, the number of
+	  times the button was pressed will be written to that device.
+
+	  This is most useful for applications, as yet unwritten, which
+	  perform actions based on how many times the button is pressed in a
+	  row.
+
+	  Do not hold the button down for too long, as the driver does not
+	  alter the behaviour of the hardware reset circuitry attached to the
+	  button; it will still execute a hard reset if the button is held
+	  down for longer than approximately five seconds.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nwbutton.
+
+	  Most people will answer Y to this question and "Reboot Using Button"
+	  below to be able to initiate a system shutdown from the button.
+
+config NWBUTTON_REBOOT
+	bool "Reboot Using Button"
+	depends on NWBUTTON
+	help
+	  If you say Y here, then you will be able to initiate a system
+	  shutdown and reboot by pressing the orange button a number of times.
+	  The number of presses to initiate the shutdown is two by default,
+	  but this can be altered by modifying the value of NUM_PRESSES_REBOOT
+	  in nwbutton.h and recompiling the driver or, if you compile the
+	  driver as a module, you can specify the number of presses at load
+	  time with "insmod button reboot_count=<something>".
+
+config NWFLASH
+	tristate "NetWinder flash support"
+	depends on ARCH_NETWINDER
+	---help---
+	  If you say Y here and create a character device /dev/flash with
+	  major 10 and minor 160 you can manipulate the flash ROM containing
+	  the NetWinder firmware. Be careful as accidentally overwriting the
+	  flash contents can render your computer unbootable. On no account
+	  allow random users access to this device. :-)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nwflash.
+
+	  If you're not sure, say N.
+
+source "drivers/char/hw_random/Kconfig"
+
+config NVRAM
+	tristate "/dev/nvram support"
+	depends on ATARI || X86 || (ARM && RTC_DRV_CMOS) || GENERIC_NVRAM
+	---help---
+	  If you say Y here and create a character special file /dev/nvram
+	  with major number 10 and minor number 144 using mknod ("man mknod"),
+	  you get read and write access to the extra bytes of non-volatile
+	  memory in the real time clock (RTC), which is contained in every PC
+	  and most Ataris.  The actual number of bytes varies, depending on the
+	  nvram in the system, but is usually 114 (128-14 for the RTC).
+
+	  This memory is conventionally called "CMOS RAM" on PCs and "NVRAM"
+	  on Ataris. /dev/nvram may be used to view settings there, or to
+	  change them (with some utility). It could also be used to frequently
+	  save a few bits of very important data that may not be lost over
+	  power-off and for which writing to disk is too insecure. Note
+	  however that most NVRAM space in a PC belongs to the BIOS and you
+	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
+	  for a guide to the use of CMOS bytes by your BIOS.
+
+	  On Atari machines, /dev/nvram is always configured and does not need
+	  to be selected.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvram.
+
+#
+# These legacy RTC drivers just cause too many conflicts with the generic
+# RTC framework ... let's not even try to coexist any more.
+#
+if RTC_LIB=n
+
+config RTC
+	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
+	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC && !FRV \
+			&& !ARM && !SUPERH && !S390 && !AVR32 && !BLACKFIN && !UML
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+	  Every PC has such a clock built in. It can be used to generate
+	  signals from as low as 1Hz up to 8192Hz, and can also be used
+	  as a 24 hour alarm. It reports status information via the file
+	  /proc/driver/rtc and its behaviour is set by various ioctls on
+	  /dev/rtc.
+
+	  If you run Linux on a multiprocessor machine and said Y to
+	  "Symmetric Multi Processing" above, you should say Y here to read
+	  and set the RTC in an SMP compatible fashion.
+
+	  If you think you have a use for such a device (such as periodic data
+	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc.
+
+config JS_RTC
+	tristate "Enhanced Real Time Clock Support"
+	depends on SPARC32 && PCI
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+	  Every PC has such a clock built in. It can be used to generate
+	  signals from as low as 1Hz up to 8192Hz, and can also be used
+	  as a 24 hour alarm. It reports status information via the file
+	  /proc/driver/rtc and its behaviour is set by various ioctls on
+	  /dev/rtc.
+
+	  If you think you have a use for such a device (such as periodic data
+	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called js-rtc.
+
+config GEN_RTC
+	tristate "Generic /dev/rtc emulation"
+	depends on RTC!=y && !IA64 && !ARM && !M32R && !MIPS && !SPARC && !FRV && !S390 && !SUPERH && !AVR32 && !BLACKFIN && !UML
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+	  It reports status information via the file /proc/driver/rtc and its
+	  behaviour is set by various ioctls on /dev/rtc. If you enable the
+	  "extended RTC operation" below it will also provide an emulation
+	  for RTC_UIE which is required by some programs and may improve
+	  precision in some cases.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called genrtc.
+
+config GEN_RTC_X
+	bool "Extended RTC operation"
+	depends on GEN_RTC
+	help
+	  Provides an emulation for RTC_UIE which is required by some programs
+	  and may improve precision of the generic RTC support in some cases.
+
+config EFI_RTC
+	bool "EFI Real Time Clock Services"
+	depends on IA64
+
+config DS1302
+	tristate "DS1302 RTC support"
+	depends on M32R && (PLAT_M32700UT || PLAT_OPSPUT)
+	help
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 121 and minor number 0 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+endif # RTC_LIB
+
+config DTLK
+	tristate "Double Talk PC internal speech card support"
+	depends on ISA
+	help
+	  This driver is for the DoubleTalk PC, a speech synthesizer
+	  manufactured by RC Systems (<http://www.rcsys.com/>).  It is also
+	  called the `internal DoubleTalk'.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dtlk.
+
+config XILINX_HWICAP
+	tristate "Xilinx HWICAP Support"
+	depends on XILINX_VIRTEX || MICROBLAZE
+	help
+	  This option enables support for Xilinx Internal Configuration
+	  Access Port (ICAP) driver.  The ICAP is used on Xilinx Virtex
+	  FPGA platforms to partially reconfigure the FPGA at runtime.
+
+	  If unsure, say N.
+
+config R3964
+	tristate "Siemens R3964 line discipline"
+	depends on TTY
+	---help---
+	  This driver allows synchronous communication with devices using the
+	  Siemens R3964 packet protocol. Unless you are dealing with special
+	  hardware like PLCs, you are unlikely to need this.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called n_r3964.
+
+	  If unsure, say N.
+
+config APPLICOM
+	tristate "Applicom intelligent fieldbus card support"
+	depends on PCI
+	---help---
+	  This driver provides the kernel-side support for the intelligent
+	  fieldbus cards made by Applicom International. More information
+	  about these cards can be found on the WWW at the address
+	  <http://www.applicom-int.com/>, or by email from David Woodhouse
+	  <dwmw2@infradead.org>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called applicom.
+
+	  If unsure, say N.
+
+config SONYPI
+	tristate "Sony Vaio Programmable I/O Control Device support"
+	depends on X86_32 && PCI && INPUT
+	---help---
+	  This driver enables access to the Sony Programmable I/O Control
+	  Device which can be found in many (all ?) Sony Vaio laptops.
+
+	  If you have one of those laptops, read
+	  <file:Documentation/laptops/sonypi.txt>, and say Y or M here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sonypi.
+
+config GPIO_TB0219
+	tristate "TANBAC TB0219 GPIO support"
+	depends on TANBAC_TB022X
+	select GPIO_VR41XX
+
+source "drivers/char/pcmcia/Kconfig"
+
+config MWAVE
+	tristate "ACP Modem (Mwave) support"
+	depends on X86 && TTY
+	select SERIAL_8250
+	---help---
+	  The ACP modem (Mwave) for Linux is a WinModem. It is composed of a
+	  kernel driver and a user level application. Together these components
+	  support direct attachment to public switched telephone networks (PSTNs)
+	  and support selected world wide countries.
+
+	  This version of the ACP Modem driver supports the IBM Thinkpad 600E,
+	  600, and 770 that include on board ACP modem hardware.
+
+	  The modem also supports the standard communications port interface
+	  (ttySx) and is compatible with the Hayes AT Command Set.
+
+	  The user level application needed to use this driver can be found at
+	  the IBM Linux Technology Center (LTC) web site:
+	  <http://www.ibm.com/linux/ltc/>.
+
+	  If you own one of the above IBM Thinkpads which has the Mwave chipset
+	  in it, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mwave.
+
+config SCx200_GPIO
+	tristate "NatSemi SCx200 GPIO Support"
+	depends on SCx200
+	select NSC_GPIO
+	help
+	  Give userspace access to the GPIO pins on the National
+	  Semiconductor SCx200 processors.
+
+	  If compiled as a module, it will be called scx200_gpio.
+
+config PC8736x_GPIO
+	tristate "NatSemi PC8736x GPIO Support"
+	depends on X86_32 && !UML
+	default SCx200_GPIO	# mostly N
+	select NSC_GPIO		# needed for support routines
+	help
+	  Give userspace access to the GPIO pins on the National
+	  Semiconductor PC-8736x (x=[03456]) SuperIO chip.  The chip
+	  has multiple functional units, inc several managed by
+	  hwmon/pc87360 driver.  Tested with PC-87366
+
+	  If compiled as a module, it will be called pc8736x_gpio.
+
+config NSC_GPIO
+	tristate "NatSemi Base GPIO Support"
+	depends on X86_32
+	# selected by SCx200_GPIO and PC8736x_GPIO
+	# what about 2 selectors differing: m != y
+	help
+	  Common support used (and needed) by scx200_gpio and
+	  pc8736x_gpio drivers.  If those drivers are built as
+	  modules, this one will be too, named nsc_gpio
+
+config RAW_DRIVER
+	tristate "RAW driver (/dev/raw/rawN)"
+	depends on BLOCK
+	help
+	  The raw driver permits block devices to be bound to /dev/raw/rawN.
+	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O.
+	  See the raw(8) manpage for more details.
+
+          Applications should preferably open the device (eg /dev/hda1)
+          with the O_DIRECT flag.
+
+config MAX_RAW_DEVS
+	int "Maximum number of RAW devices to support (1-65536)"
+	depends on RAW_DRIVER
+	range 1 65536
+	default "256"
+	help
+	  The maximum number of RAW devices that are supported.
+	  Default is 256. Increase this number in case you need lots of
+	  raw devices.
+
+config HPET
+	bool "HPET - High Precision Event Timer" if (X86 || IA64)
+	default n
+	depends on ACPI
+	help
+	  If you say Y here, you will have a miscdevice named "/dev/hpet/".  Each
+	  open selects one of the timers supported by the HPET.  The timers are
+	  non-periodic and/or periodic.
+
+config HPET_MMAP
+	bool "Allow mmap of HPET"
+	default y
+	depends on HPET
+	help
+	  If you say Y here, user applications will be able to mmap
+	  the HPET registers.
+
+config HPET_MMAP_DEFAULT
+	bool "Enable HPET MMAP access by default"
+	default y
+	depends on HPET_MMAP
+	help
+	  In some hardware implementations, the page containing HPET
+	  registers may also contain other things that shouldn't be
+	  exposed to the user.  This option selects the default (if
+	  kernel parameter hpet_mmap is not set) user access to the
+	  registers for applications that require it.
+
+config HANGCHECK_TIMER
+	tristate "Hangcheck timer"
+	depends on X86 || IA64 || PPC64 || S390
+	help
+	  The hangcheck-timer module detects when the system has gone
+	  out to lunch past a certain margin.  It can reboot the system
+	  or merely print a warning.
+
+config MMTIMER
+	tristate "MMTIMER Memory mapped RTC for SGI Altix"
+	depends on IA64_GENERIC || IA64_SGI_SN2
+	default y
+	help
+	  The mmtimer device allows direct userspace access to the
+	  Altix system timer.
+
+config UV_MMTIMER
+	tristate "UV_MMTIMER Memory mapped RTC for SGI UV"
+	depends on X86_UV
+	default m
+	help
+	  The uv_mmtimer device allows direct userspace access to the
+	  UV system timer.
+
+source "drivers/char/tpm/Kconfig"
+
+config TELCLOCK
+	tristate "Telecom clock driver for ATCA SBC"
+	depends on X86
+	default n
+	help
+	  The telecom clock device is specific to the MPCBL0010 and MPCBL0050
+	  ATCA computers and allows direct userspace access to the
+	  configuration of the telecom clock configuration settings.  This
+	  device is used for hardware synchronization across the ATCA backplane
+	  fabric.  Upon loading, the driver exports a sysfs directory,
+	  /sys/devices/platform/telco_clock, with a number of files for
+	  controlling the behavior of this hardware.
+
+config DEVPORT
+	bool
+	depends on !M68K
+	depends on ISA || PCI
+	default y
+
+source "drivers/s390/char/Kconfig"
+
+config TILE_SROM
+	bool "Character-device access via hypervisor to the Tilera SPI ROM"
+	depends on TILE
+	default y
+	---help---
+	  This device provides character-level read-write access
+	  to the SROM, typically via the "0", "1", and "2" devices
+	  in /dev/srom/.  The Tilera hypervisor makes the flash
+	  device appear much like a simple EEPROM, and knows
+	  how to partition a single ROM for multiple purposes.
+
+source "drivers/char/xillybus/Kconfig"
+
+endmenu
+

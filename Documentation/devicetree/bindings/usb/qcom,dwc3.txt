@@ -1,0 +1,66 @@
+Qualcomm SuperSpeed DWC3 USB SoC controller
+
+Required properties:
+- compatible:	should contain "qcom,dwc3"
+- clocks:		A list of phandle + clock-specifier pairs for the
+				clocks listed in clock-names
+- clock-names:	Should contain the following:
+  "core"		Master/Core clock, have to be >= 125 MHz for SS
+				operation and >= 60MHz for HS operation
+
+Optional clocks:
+  "iface"		System bus AXI clock.  Not present on all platforms
+  "sleep"		Sleep clock, used when USB3 core goes into low
+				power mode (U3).
+
+Required child node:
+A child node must exist to represent the core DWC3 IP block. The name of
+the node is not important. The content of the node is defined in dwc3.txt.
+
+Phy documentation is provided in the following places:
+Documentation/devicetree/bindings/phy/qcom,dwc3-usb-phy.txt
+
+Example device nodes:
+
+		hs_phy: phy@100f8800 {
+			compatible = "qcom,dwc3-hs-usb-phy";
+			reg = <0x100f8800 0x30>;
+			clocks = <&gcc USB30_0_UTMI_CLK>;
+			clock-names = "ref";
+			#phy-cells = <0>;
+
+			status = "ok";
+		};
+
+		ss_phy: phy@100f8830 {
+			compatible = "qcom,dwc3-ss-usb-phy";
+			reg = <0x100f8830 0x30>;
+			clocks = <&gcc USB30_0_MASTER_CLK>;
+			clock-names = "ref";
+			#phy-cells = <0>;
+
+			status = "ok";
+		};
+
+		usb3_0: usb30@0 {
+			compatible = "qcom,dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&gcc USB30_0_MASTER_CLK>;
+			clock-names = "core";
+
+			ranges;
+
+			status = "ok";
+
+			dwc3@10000000 {
+				compatible = "snps,dwc3";
+				reg = <0x10000000 0xcd00>;
+				interrupts = <0 205 0x4>;
+				phys = <&hs_phy>, <&ss_phy>;
+				phy-names = "usb2-phy", "usb3-phy";
+				tx-fifo-resize;
+				dr_mode = "host";
+			};
+		};
+

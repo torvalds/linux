@@ -1,0 +1,43 @@
+# Hammerhead customization
+
+if BOARD_HAMMERHEAD
+
+config BOARD_HAMMERHEAD_USB
+	bool "Philips ISP116x-hcd USB support"
+	help
+	  This enables USB support for Hammerheads internal ISP116x
+	  controller from Philips.
+
+	  Choose 'Y' here if you want to have your board USB driven.
+
+config BOARD_HAMMERHEAD_LCD
+	bool "Atmel AT91/AT32 LCD support"
+	help
+	  This enables LCD support for the Hammerhead board. You may
+	  also add support for framebuffer devices (AT91/AT32 LCD Controller)
+	  and framebuffer console support to get the most out of your LCD.
+
+	  Choose 'Y' here if you have ordered a Corona daugther board and
+	  want to have support for your Hantronix HDA-351T-LV LCD.
+
+config BOARD_HAMMERHEAD_SND
+	bool "Atmel AC97 Sound support"
+	help
+	  This enables Sound support for the Hammerhead board. You may
+	  also go through the ALSA settings to get it working.
+
+	  Choose 'Y' here if you have ordered a Corona daugther board and
+	  want to make your board funky.
+
+config BOARD_HAMMERHEAD_FPGA
+	bool "Hammerhead FPGA Support"
+	default y
+	help
+	  This adds support for the Cyclone III FPGA from Altera
+	  found on Miromico's Hammerhead board.
+
+	  Choose 'Y' here if you want to have FPGA support enabled.
+	  You will have to choose the "Hammerhead FPGA Device Support" in
+	  Device Drivers->Misc to be able to use FPGA functionality.
+
+endif	# BOARD_ATNGW100

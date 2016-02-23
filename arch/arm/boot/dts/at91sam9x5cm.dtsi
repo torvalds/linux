@@ -1,0 +1,100 @@
+/*
+ * at91sam9x5cm.dtsi - Device Tree Include file for AT91SAM9x5 CPU Module
+ *
+ *  Copyright (C) 2012 Atmel,
+ *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+
+/ {
+	memory {
+		reg = <0x20000000 0x8000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		apb {
+			pinctrl@fffff400 {
+				1wire_cm {
+					pinctrl_1wire_cm: 1wire_cm-0 {
+						atmel,pins = <AT91_PIOB 18 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>; /* PB18 multidrive, conflicts with led */
+					};
+				};
+			};
+
+			rtc@fffffeb0 {
+				status = "okay";
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "hw";
+			atmel,has-pmecc;	/* Enable PMECC */
+			atmel,pmecc-cap = <2>;
+			atmel,pmecc-sector-size = <512>;
+			nand-on-flash-bbt;
+			status = "okay";
+
+			at91bootstrap@0 {
+				label = "at91bootstrap";
+				reg = <0x0 0x40000>;
+			};
+
+			uboot@40000 {
+				label = "u-boot";
+				reg = <0x40000 0x80000>;
+			};
+
+			ubootenv@c0000 {
+				label = "U-Boot Env";
+				reg = <0xc0000 0x140000>;
+			};
+
+			kernel@200000 {
+				label = "kernel";
+				reg = <0x200000 0x600000>;
+			};
+
+			rootfs@800000 {
+				label = "rootfs";
+				reg = <0x800000 0x1f800000>;
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		pb18 {
+			label = "pb18";
+			gpios = <&pioB 18 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		pd21 {
+			label = "pd21";
+			gpios = <&pioD 21 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	1wire_cm {
+		compatible = "w1-gpio";
+		gpios = <&pioB 18 GPIO_ACTIVE_HIGH>;
+		linux,open-drain;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_1wire_cm>;
+		status = "okay";
+	};
+
+};

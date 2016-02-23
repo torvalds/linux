@@ -1,0 +1,34 @@
+#
+# Atmel device configuration
+#
+
+config NET_CADENCE
+	bool "Cadence devices"
+	depends on HAS_IOMEM
+	default y
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  If unsure, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the remaining Atmel network card questions. If you say Y, you will be
+	  asked for your specific card in the following questions.
+
+if NET_CADENCE
+
+config MACB
+	tristate "Cadence MACB/GEM support"
+	depends on HAS_DMA
+	select PHYLIB
+	---help---
+	  The Cadence MACB ethernet interface is found on many Atmel AT32 and
+	  AT91 parts.  This driver also supports the Cadence GEM (Gigabit
+	  Ethernet MAC found in some ARM SoC devices).  Say Y to include
+	  support for the MACB/GEM chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macb.
+
+endif # NET_CADENCE

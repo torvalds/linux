@@ -1,0 +1,49 @@
+#
+# KVM configuration
+#
+source "virt/kvm/Kconfig"
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	---help---
+	  Say Y here to get to see options for using your Linux host to run
+	  other operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if VIRTUALIZATION
+
+config KVM
+	tristate "Kernel-based Virtual Machine (KVM) support"
+	depends on HAVE_KVM
+	select PREEMPT_NOTIFIERS
+	select ANON_INODES
+	select KVM_MMIO
+	select SRCU
+	---help---
+	  Support for hosting Guest kernels.
+	  Currently supported on MIPS32 processors.
+
+config KVM_MIPS_DYN_TRANS
+	bool "KVM/MIPS: Dynamic binary translation to reduce traps"
+	depends on KVM
+	---help---
+	  When running in Trap & Emulate mode patch privileged
+	  instructions to reduce the number of traps.
+
+	  If unsure, say Y.
+
+config KVM_MIPS_DEBUG_COP0_COUNTERS
+	bool "Maintain counters for COP0 accesses"
+	depends on KVM
+	---help---
+	  Maintain statistics for Guest COP0 accesses.
+	  A histogram of COP0 accesses is printed when the VM is
+	  shutdown.
+
+	  If unsure, say N.
+
+source drivers/vhost/Kconfig
+
+endif # VIRTUALIZATION

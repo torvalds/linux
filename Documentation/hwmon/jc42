@@ -1,0 +1,102 @@
+Kernel driver jc42
+==================
+
+Supported chips:
+  * Analog Devices ADT7408
+    Datasheets:
+	http://www.analog.com/static/imported-files/data_sheets/ADT7408.pdf
+  * Atmel AT30TS00, AT30TS002A/B, AT30TSE004A
+    Datasheets:
+	http://www.atmel.com/Images/doc8585.pdf
+	http://www.atmel.com/Images/doc8711.pdf
+	http://www.atmel.com/Images/Atmel-8852-SEEPROM-AT30TSE002A-Datasheet.pdf
+	http://www.atmel.com/Images/Atmel-8868-DTS-AT30TSE004A-Datasheet.pdf
+  * IDT TSE2002B3, TSE2002GB2, TSE2004GB2, TS3000B3, TS3000GB0, TS3000GB2,
+	TS3001GB2
+    Datasheets:
+	Available from IDT web site
+  * Maxim MAX6604
+    Datasheets:
+	http://datasheets.maxim-ic.com/en/ds/MAX6604.pdf
+  * Microchip MCP9804, MCP9805, MCP98242, MCP98243, MCP98244, MCP9843
+    Datasheets:
+	http://ww1.microchip.com/downloads/en/DeviceDoc/22203C.pdf
+	http://ww1.microchip.com/downloads/en/DeviceDoc/21977b.pdf
+	http://ww1.microchip.com/downloads/en/DeviceDoc/21996a.pdf
+	http://ww1.microchip.com/downloads/en/DeviceDoc/22153c.pdf
+	http://ww1.microchip.com/downloads/en/DeviceDoc/22327A.pdf
+  * NXP Semiconductors SE97, SE97B, SE98, SE98A
+    Datasheets:
+	http://www.nxp.com/documents/data_sheet/SE97.pdf
+	http://www.nxp.com/documents/data_sheet/SE97B.pdf
+	http://www.nxp.com/documents/data_sheet/SE98.pdf
+	http://www.nxp.com/documents/data_sheet/SE98A.pdf
+  * ON Semiconductor CAT34TS02, CAT6095
+    Datasheet:
+	http://www.onsemi.com/pub_link/Collateral/CAT34TS02-D.PDF
+	http://www.onsemi.com/pub/Collateral/CAT6095-D.PDF
+  * ST Microelectronics STTS424, STTS424E02, STTS2002, STTS2004, STTS3000
+    Datasheets:
+	http://www.st.com/web/en/resource/technical/document/datasheet/CD00157556.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/CD00157558.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/CD00266638.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/CD00225278.pdf
+	http://www.st.com/web/en/resource/technical/document/datasheet/DM00076709.pdf
+  * JEDEC JC 42.4 compliant temperature sensor chips
+    Datasheet:
+	http://www.jedec.org/sites/default/files/docs/4_01_04R19.pdf
+
+  Common for all chips:
+    Prefix: 'jc42'
+    Addresses scanned: I2C 0x18 - 0x1f
+
+Author:
+	Guenter Roeck <linux@roeck-us.net>
+
+
+Description
+-----------
+
+This driver implements support for JEDEC JC 42.4 compliant temperature sensors,
+which are used on many DDR3 memory modules for mobile devices and servers. Some
+systems use the sensor to prevent memory overheating by automatically throttling
+the memory controller.
+
+The driver auto-detects the chips listed above, but can be manually instantiated
+to support other JC 42.4 compliant chips.
+
+Example: the following will load the driver for a generic JC 42.4 compliant
+temperature sensor at address 0x18 on I2C bus #1:
+
+# modprobe jc42
+# echo jc42 0x18 > /sys/bus/i2c/devices/i2c-1/new_device
+
+A JC 42.4 compliant chip supports a single temperature sensor. Minimum, maximum,
+and critical temperature can be configured. There are alarms for high, low,
+and critical thresholds.
+
+There is also an hysteresis to control the thresholds for resetting alarms.
+Per JC 42.4 specification, the hysteresis threshold can be configured to 0, 1.5,
+3.0, and 6.0 degrees C. Configured hysteresis values will be rounded to those
+limits. The chip supports only a single register to configure the hysteresis,
+which applies to all limits. This register can be written by writing into
+temp1_crit_hyst. Other hysteresis attributes are read-only.
+
+If the BIOS has configured the sensor for automatic temperature management, it
+is likely that it has locked the registers, i.e., that the temperature limits
+cannot be changed.
+
+Sysfs entries
+-------------
+
+temp1_input		Temperature (RO)
+temp1_min		Minimum temperature (RO or RW)
+temp1_max		Maximum temperature (RO or RW)
+temp1_crit		Critical high temperature (RO or RW)
+
+temp1_crit_hyst		Critical hysteresis temperature (RO or RW)
+temp1_max_hyst		Maximum hysteresis temperature (RO)
+
+temp1_min_alarm		Temperature low alarm
+temp1_max_alarm		Temperature high alarm
+temp1_crit_alarm	Temperature critical alarm

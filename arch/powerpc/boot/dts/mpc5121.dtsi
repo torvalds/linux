@@ -1,0 +1,530 @@
+/*
+ * base MPC5121 Device Tree Source
+ *
+ * Copyright 2007-2008 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+#include <dt-bindings/clock/mpc512x-clock.h>
+
+/dts-v1/;
+
+/ {
+	model = "mpc5121";
+	compatible = "fsl,mpc5121";
+	#address-cells = <1>;
+	#size-cells = <1>;
+        interrupt-parent = <&ipic>;
+
+	aliases {
+		ethernet0 = &eth0;
+		pci = &pci;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,5121@0 {
+			device_type = "cpu";
+			reg = <0>;
+			d-cache-line-size = <0x20>;	/* 32 bytes */
+			i-cache-line-size = <0x20>;	/* 32 bytes */
+			d-cache-size = <0x8000>;	/* L1, 32K */
+			i-cache-size = <0x8000>;	/* L1, 32K */
+			timebase-frequency = <49500000>;/* 49.5 MHz (csb/4) */
+			bus-frequency = <198000000>;	/* 198 MHz csb bus */
+			clock-frequency = <396000000>;	/* 396 MHz ppc core */
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;	/* 256MB at 0 */
+	};
+
+	mbx@20000000 {
+		compatible = "fsl,mpc5121-mbx";
+		reg = <0x20000000 0x4000>;
+		interrupts = <66 0x8>;
+		clocks = <&clks MPC512x_CLK_MBX_BUS>,
+			 <&clks MPC512x_CLK_MBX_3D>,
+			 <&clks MPC512x_CLK_MBX>;
+		clock-names = "mbx-bus", "mbx-3d", "mbx";
+	};
+
+	sram@30000000 {
+		compatible = "fsl,mpc5121-sram";
+		reg = <0x30000000 0x20000>;	/* 128K at 0x30000000 */
+	};
+
+	nfc@40000000 {
+		compatible = "fsl,mpc5121-nfc";
+		reg = <0x40000000 0x100000>;	/* 1M at 0x40000000 */
+		interrupts = <6 8>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&clks MPC512x_CLK_NFC>;
+		clock-names = "ipg";
+	};
+
+	localbus@80000020 {
+		compatible = "fsl,mpc5121-localbus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0x80000020 0x40>;
+		ranges = <0x0 0x0 0xfc000000 0x04000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		osc: osc {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <33000000>;
+		};
+	};
+
+	soc@80000000 {
+		compatible = "fsl,mpc5121-immr";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x80000000 0x400000>;
+		reg = <0x80000000 0x400000>;
+		bus-frequency = <66000000>;	/* 66 MHz ips bus */
+
+
+		/*
+		 * IPIC
+		 * interrupts cell = <intr #, sense>
+		 * sense values match linux IORESOURCE_IRQ_* defines:
+		 * sense == 8: Level, low assertion
+		 * sense == 2: Edge, high-to-low change
+		 */
+		ipic: interrupt-controller@c00 {
+			compatible = "fsl,mpc5121-ipic", "fsl,ipic";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <0xc00 0x100>;
+		};
+
+		/* Watchdog timer */
+		wdt@900 {
+			compatible = "fsl,mpc5121-wdt";
+			reg = <0x900 0x100>;
+		};
+
+		/* Real time clock */
+		rtc@a00 {
+			compatible = "fsl,mpc5121-rtc";
+			reg = <0xa00 0x100>;
+			interrupts = <79 0x8 80 0x8>;
+		};
+
+		/* Reset module */
+		reset@e00 {
+			compatible = "fsl,mpc5121-reset";
+			reg = <0xe00 0x100>;
+		};
+
+		/* Clock control */
+		clks: clock@f00 {
+			compatible = "fsl,mpc5121-clock";
+			reg = <0xf00 0x100>;
+			#clock-cells = <1>;
+			clocks = <&osc>;
+			clock-names = "osc";
+		};
+
+		/* Power Management Controller */
+		pmc@1000{
+			compatible = "fsl,mpc5121-pmc";
+			reg = <0x1000 0x100>;
+			interrupts = <83 0x8>;
+		};
+
+		gpio@1100 {
+			compatible = "fsl,mpc5121-gpio";
+			reg = <0x1100 0x100>;
+			interrupts = <78 0x8>;
+		};
+
+		can@1300 {
+			compatible = "fsl,mpc5121-mscan";
+			reg = <0x1300 0x80>;
+			interrupts = <12 0x8>;
+			clocks = <&clks MPC512x_CLK_BDLC>,
+				 <&clks MPC512x_CLK_IPS>,
+				 <&clks MPC512x_CLK_SYS>,
+				 <&clks MPC512x_CLK_REF>,
+				 <&clks MPC512x_CLK_MSCAN0_MCLK>;
+			clock-names = "ipg", "ips", "sys", "ref", "mclk";
+		};
+
+		can@1380 {
+			compatible = "fsl,mpc5121-mscan";
+			reg = <0x1380 0x80>;
+			interrupts = <13 0x8>;
+			clocks = <&clks MPC512x_CLK_BDLC>,
+				 <&clks MPC512x_CLK_IPS>,
+				 <&clks MPC512x_CLK_SYS>,
+				 <&clks MPC512x_CLK_REF>,
+				 <&clks MPC512x_CLK_MSCAN1_MCLK>;
+			clock-names = "ipg", "ips", "sys", "ref", "mclk";
+		};
+
+		sdhc@1500 {
+			compatible = "fsl,mpc5121-sdhc";
+			reg = <0x1500 0x100>;
+			interrupts = <8 0x8>;
+			dmas = <&dma0 30>;
+			dma-names = "rx-tx";
+			clocks = <&clks MPC512x_CLK_IPS>,
+				 <&clks MPC512x_CLK_SDHC>;
+			clock-names = "ipg", "per";
+		};
+
+		i2c@1700 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc5121-i2c", "fsl-i2c";
+			reg = <0x1700 0x20>;
+			interrupts = <9 0x8>;
+			clocks = <&clks MPC512x_CLK_I2C>;
+			clock-names = "ipg";
+		};
+
+		i2c@1720 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc5121-i2c", "fsl-i2c";
+			reg = <0x1720 0x20>;
+			interrupts = <10 0x8>;
+			clocks = <&clks MPC512x_CLK_I2C>;
+			clock-names = "ipg";
+		};
+
+		i2c@1740 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc5121-i2c", "fsl-i2c";
+			reg = <0x1740 0x20>;
+			interrupts = <11 0x8>;
+			clocks = <&clks MPC512x_CLK_I2C>;
+			clock-names = "ipg";
+		};
+
+		i2ccontrol@1760 {
+			compatible = "fsl,mpc5121-i2c-ctrl";
+			reg = <0x1760 0x8>;
+		};
+
+		axe@2000 {
+			compatible = "fsl,mpc5121-axe";
+			reg = <0x2000 0x100>;
+			interrupts = <42 0x8>;
+			clocks = <&clks MPC512x_CLK_AXE>;
+			clock-names = "ipg";
+		};
+
+		display@2100 {
+			compatible = "fsl,mpc5121-diu";
+			reg = <0x2100 0x100>;
+			interrupts = <64 0x8>;
+			clocks = <&clks MPC512x_CLK_DIU>;
+			clock-names = "ipg";
+		};
+
+		can@2300 {
+			compatible = "fsl,mpc5121-mscan";
+			reg = <0x2300 0x80>;
+			interrupts = <90 0x8>;
+			clocks = <&clks MPC512x_CLK_BDLC>,
+				 <&clks MPC512x_CLK_IPS>,
+				 <&clks MPC512x_CLK_SYS>,
+				 <&clks MPC512x_CLK_REF>,
+				 <&clks MPC512x_CLK_MSCAN2_MCLK>;
+			clock-names = "ipg", "ips", "sys", "ref", "mclk";
+		};
+
+		can@2380 {
+			compatible = "fsl,mpc5121-mscan";
+			reg = <0x2380 0x80>;
+			interrupts = <91 0x8>;
+			clocks = <&clks MPC512x_CLK_BDLC>,
+				 <&clks MPC512x_CLK_IPS>,
+				 <&clks MPC512x_CLK_SYS>,
+				 <&clks MPC512x_CLK_REF>,
+				 <&clks MPC512x_CLK_MSCAN3_MCLK>;
+			clock-names = "ipg", "ips", "sys", "ref", "mclk";
+		};
+
+		viu@2400 {
+			compatible = "fsl,mpc5121-viu";
+			reg = <0x2400 0x400>;
+			interrupts = <67 0x8>;
+			clocks = <&clks MPC512x_CLK_VIU>;
+			clock-names = "ipg";
+		};
+
+		mdio@2800 {
+			compatible = "fsl,mpc5121-fec-mdio";
+			reg = <0x2800 0x800>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clks MPC512x_CLK_FEC>;
+			clock-names = "per";
+		};
+
+		eth0: ethernet@2800 {
+			device_type = "network";
+			compatible = "fsl,mpc5121-fec";
+			reg = <0x2800 0x800>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <4 0x8>;
+			clocks = <&clks MPC512x_CLK_FEC>;
+			clock-names = "per";
+		};
+
+		/* USB1 using external ULPI PHY */
+		usb@3000 {
+			compatible = "fsl,mpc5121-usb2-dr";
+			reg = <0x3000 0x600>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <43 0x8>;
+			dr_mode = "otg";
+			phy_type = "ulpi";
+			clocks = <&clks MPC512x_CLK_USB1>;
+			clock-names = "ipg";
+		};
+
+		/* USB0 using internal UTMI PHY */
+		usb@4000 {
+			compatible = "fsl,mpc5121-usb2-dr";
+			reg = <0x4000 0x600>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <44 0x8>;
+			dr_mode = "otg";
+			phy_type = "utmi_wide";
+			clocks = <&clks MPC512x_CLK_USB2>;
+			clock-names = "ipg";
+		};
+
+		/* IO control */
+		ioctl@a000 {
+			compatible = "fsl,mpc5121-ioctl";
+			reg = <0xA000 0x1000>;
+		};
+
+		/* LocalPlus controller */
+		lpc@10000 {
+			compatible = "fsl,mpc5121-lpc";
+			reg = <0x10000 0x100>;
+		};
+
+		sclpc@10100 {
+			compatible = "fsl,mpc512x-lpbfifo";
+			reg = <0x10100 0x50>;
+			interrupts = <7 0x8>;
+			dmas = <&dma0 26>;
+			dma-names = "rx-tx";
+		};
+
+		pata@10200 {
+			compatible = "fsl,mpc5121-pata";
+			reg = <0x10200 0x100>;
+			interrupts = <5 0x8>;
+			clocks = <&clks MPC512x_CLK_PATA>;
+			clock-names = "ipg";
+		};
+
+		/* 512x PSCs are not 52xx PSC compatible */
+
+		/* PSC0 */
+		psc@11000 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11000 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC0>,
+				 <&clks MPC512x_CLK_PSC0_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC1 */
+		psc@11100 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11100 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC1>,
+				 <&clks MPC512x_CLK_PSC1_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC2 */
+		psc@11200 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11200 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC2>,
+				 <&clks MPC512x_CLK_PSC2_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC3 */
+		psc@11300 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			reg = <0x11300 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC3>,
+				 <&clks MPC512x_CLK_PSC3_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC4 */
+		psc@11400 {
+			compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+			reg = <0x11400 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC4>,
+				 <&clks MPC512x_CLK_PSC4_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC5 */
+		psc@11500 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11500 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC5>,
+				 <&clks MPC512x_CLK_PSC5_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC6 */
+		psc@11600 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11600 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC6>,
+				 <&clks MPC512x_CLK_PSC6_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC7 */
+		psc@11700 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11700 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC7>,
+				 <&clks MPC512x_CLK_PSC7_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC8 */
+		psc@11800 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11800 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC8>,
+				 <&clks MPC512x_CLK_PSC8_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC9 */
+		psc@11900 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11900 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC9>,
+				 <&clks MPC512x_CLK_PSC9_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC10 */
+		psc@11a00 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11a00 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC10>,
+				 <&clks MPC512x_CLK_PSC10_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		/* PSC11 */
+		psc@11b00 {
+			compatible = "fsl,mpc5121-psc";
+			reg = <0x11b00 0x100>;
+			interrupts = <40 0x8>;
+			fsl,rx-fifo-size = <16>;
+			fsl,tx-fifo-size = <16>;
+			clocks = <&clks MPC512x_CLK_PSC11>,
+				 <&clks MPC512x_CLK_PSC11_MCLK>;
+			clock-names = "ipg", "mclk";
+		};
+
+		pscfifo@11f00 {
+			compatible = "fsl,mpc5121-psc-fifo";
+			reg = <0x11f00 0x100>;
+			interrupts = <40 0x8>;
+			clocks = <&clks MPC512x_CLK_PSC_FIFO>;
+			clock-names = "ipg";
+		};
+
+		dma0: dma@14000 {
+			compatible = "fsl,mpc5121-dma";
+			reg = <0x14000 0x1800>;
+			interrupts = <65 0x8>;
+			#dma-cells = <1>;
+		};
+	};
+
+	pci: pci@80008500 {
+		compatible = "fsl,mpc5121-pci";
+		device_type = "pci";
+		interrupts = <1 0x8>;
+		clock-frequency = <0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		clocks = <&clks MPC512x_CLK_PCI>;
+		clock-names = "ipg";
+
+		reg = <0x80008500 0x100	/* internal registers */
+		       0x80008300 0x8>;	/* config space access registers */
+		bus-range = <0x0 0x0>;
+		ranges = <0x42000000 0x0 0xa0000000 0xa0000000 0x0 0x10000000
+			  0x02000000 0x0 0xb0000000 0xb0000000 0x0 0x10000000
+			  0x01000000 0x0 0x00000000 0x84000000 0x0 0x01000000>;
+	};
+};

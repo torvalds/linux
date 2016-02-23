@@ -1,0 +1,86 @@
+SYSFS FILES
+
+  For each InfiniBand device, the InfiniBand drivers create the
+  following files under /sys/class/infiniband/<device name>:
+
+    node_type      - Node type (CA, switch or router)
+    node_guid      - Node GUID
+    sys_image_guid - System image GUID
+
+  In addition, there is a "ports" subdirectory, with one subdirectory
+  for each port.  For example, if mthca0 is a 2-port HCA, there will
+  be two directories:
+
+    /sys/class/infiniband/mthca0/ports/1
+    /sys/class/infiniband/mthca0/ports/2
+
+  (A switch will only have a single "0" subdirectory for switch port
+  0; no subdirectory is created for normal switch ports)
+
+  In each port subdirectory, the following files are created:
+
+    cap_mask       - Port capability mask
+    lid            - Port LID
+    lid_mask_count - Port LID mask count
+    rate           - Port data rate (active width * active speed)
+    sm_lid         - Subnet manager LID for port's subnet
+    sm_sl          - Subnet manager SL for port's subnet
+    state          - Port state (DOWN, INIT, ARMED, ACTIVE or ACTIVE_DEFER)
+    phys_state     - Port physical state (Sleep, Polling, LinkUp, etc)
+
+  There is also a "counters" subdirectory, with files
+
+    VL15_dropped
+    excessive_buffer_overrun_errors
+    link_downed
+    link_error_recovery
+    local_link_integrity_errors
+    port_rcv_constraint_errors
+    port_rcv_data
+    port_rcv_errors
+    port_rcv_packets
+    port_rcv_remote_physical_errors
+    port_rcv_switch_relay_errors
+    port_xmit_constraint_errors
+    port_xmit_data
+    port_xmit_discards
+    port_xmit_packets
+    symbol_error
+
+  Each of these files contains the corresponding value from the port's
+  Performance Management PortCounters attribute, as described in
+  section 16.1.3.5 of the InfiniBand Architecture Specification.
+
+  The "pkeys" and "gids" subdirectories contain one file for each
+  entry in the port's P_Key or GID table respectively.  For example,
+  ports/1/pkeys/10 contains the value at index 10 in port 1's P_Key
+  table.
+
+MTHCA
+
+  The Mellanox HCA driver also creates the files:
+
+    hw_rev   - Hardware revision number
+    fw_ver   - Firmware version
+    hca_type - HCA type: "MT23108", "MT25208 (MT23108 compat mode)",
+               or "MT25208"
+
+HFI1
+
+  The hfi1 driver also creates these additional files:
+
+   hw_rev - hardware revision
+   board_id - manufacturing board id
+   tempsense - thermal sense information
+   serial - board serial number
+   nfreectxts - number of free user contexts
+   nctxts - number of allowed contexts (PSM2)
+   chip_reset - diagnostic (root only)
+   boardversion - board version
+   ports/1/
+          CMgtA/
+               cc_settings_bin - CCA tables used by PSM2
+               cc_table_bin
+          sc2v/ - 32 files (0 - 31) used to translate sl->vl
+          sl2sc/ - 32 files (0 - 31) used to translate sl->sc
+          vl2mtu/ - 16 (0 - 15) files used to determine MTU for vl

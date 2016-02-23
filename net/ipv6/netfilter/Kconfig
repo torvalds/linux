@@ -1,0 +1,338 @@
+#
+# IP netfilter configuration
+#
+
+menu "IPv6: Netfilter Configuration"
+	depends on INET && IPV6 && NETFILTER
+
+config NF_DEFRAG_IPV6
+	tristate
+	default n
+
+config NF_CONNTRACK_IPV6
+	tristate "IPv6 connection tracking support"
+	depends on INET && IPV6 && NF_CONNTRACK
+	default m if NETFILTER_ADVANCED=n
+	select NF_DEFRAG_IPV6
+	---help---
+	  Connection tracking keeps a record of what packets have passed
+	  through your machine, in order to figure out how they are related
+	  into connections.
+
+	  This is IPv6 support on Layer 3 independent connection tracking.
+	  Layer 3 independent connection tracking is experimental scheme
+	  which generalize ip_conntrack to support other layer 3 protocols.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+if NF_TABLES
+
+config NF_TABLES_IPV6
+	tristate "IPv6 nf_tables support"
+	help
+	  This option enables the IPv6 support for nf_tables.
+
+if NF_TABLES_IPV6
+
+config NFT_CHAIN_ROUTE_IPV6
+	tristate "IPv6 nf_tables route chain support"
+	help
+	  This option enables the "route" chain for IPv6 in nf_tables. This
+	  chain type is used to force packet re-routing after mangling header
+	  fields such as the source, destination, flowlabel, hop-limit and
+	  the packet mark.
+
+config NFT_REJECT_IPV6
+	select NF_REJECT_IPV6
+	default NFT_REJECT
+	tristate
+
+config NFT_DUP_IPV6
+	tristate "IPv6 nf_tables packet duplication support"
+	depends on !NF_CONNTRACK || NF_CONNTRACK
+	select NF_DUP_IPV6
+	help
+	  This module enables IPv6 packet duplication support for nf_tables.
+
+endif # NF_TABLES_IPV6
+endif # NF_TABLES
+
+config NF_DUP_IPV6
+	tristate "Netfilter IPv6 packet duplication to alternate destination"
+	depends on !NF_CONNTRACK || NF_CONNTRACK
+	help
+	  This option enables the nf_dup_ipv6 core, which duplicates an IPv6
+	  packet to be rerouted to another destination.
+
+config NF_REJECT_IPV6
+	tristate "IPv6 packet rejection"
+	default m if NETFILTER_ADVANCED=n
+
+config NF_LOG_IPV6
+	tristate "IPv6 packet logging"
+	default m if NETFILTER_ADVANCED=n
+	select NF_LOG_COMMON
+
+config NF_NAT_IPV6
+	tristate "IPv6 NAT"
+	depends on NF_CONNTRACK_IPV6
+	depends on NETFILTER_ADVANCED
+	select NF_NAT
+	help
+	  The IPv6 NAT option allows masquerading, port forwarding and other
+	  forms of full Network Address Port Translation. This can be
+	  controlled by iptables or nft.
+
+if NF_NAT_IPV6
+
+config NFT_CHAIN_NAT_IPV6
+	depends on NF_TABLES_IPV6
+	tristate "IPv6 nf_tables nat chain support"
+	help
+	  This option enables the "nat" chain for IPv6 in nf_tables. This
+	  chain type is used to perform Network Address Translation (NAT)
+	  packet transformations such as the source, destination address and
+	  source and destination ports.
+
+config NF_NAT_MASQUERADE_IPV6
+	tristate "IPv6 masquerade support"
+	help
+	  This is the kernel functionality to provide NAT in the masquerade
+	  flavour (automatic source address selection) for IPv6.
+
+config NFT_MASQ_IPV6
+	tristate "IPv6 masquerade support for nf_tables"
+	depends on NF_TABLES_IPV6
+	depends on NFT_MASQ
+	select NF_NAT_MASQUERADE_IPV6
+	help
+	  This is the expression that provides IPv4 masquerading support for
+	  nf_tables.
+
+config NFT_REDIR_IPV6
+	tristate "IPv6 redirect support for nf_tables"
+	depends on NF_TABLES_IPV6
+	depends on NFT_REDIR
+	select NF_NAT_REDIRECT
+	help
+	  This is the expression that provides IPv4 redirect support for
+	  nf_tables.
+
+endif # NF_NAT_IPV6
+
+config IP6_NF_IPTABLES
+	tristate "IP6 tables support (required for filtering)"
+	depends on INET && IPV6
+	select NETFILTER_XTABLES
+	default m if NETFILTER_ADVANCED=n
+	help
+	  ip6tables is a general, extensible packet identification framework.
+	  Currently only the packet filtering and packet mangling subsystem
+	  for IPv6 use this, but connection tracking is going to follow.
+	  Say 'Y' or 'M' here if you want to use either of those.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+if IP6_NF_IPTABLES
+
+# The simple matches.
+config IP6_NF_MATCH_AH
+	tristate '"ah" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This module allows one to match AH packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_MATCH_EUI64
+	tristate '"eui64" address check'
+	depends on NETFILTER_ADVANCED
+	help
+	  This module performs checking on the IPv6 source address
+	  Compares the last 64 bits with the EUI64 (delivered
+	  from the MAC address) address
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_MATCH_FRAG
+	tristate '"frag" Fragmentation header match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  frag matching allows you to match packets based on the fragmentation
+	  header of the packet.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_MATCH_OPTS
+	tristate '"hbh" hop-by-hop and "dst" opts header match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This allows one to match packets based on the hop-by-hop
+	  and destination options headers of a packet.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_MATCH_HL
+	tristate '"hl" hoplimit match support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_MATCH_HL
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MATCH_HL.
+
+config IP6_NF_MATCH_IPV6HEADER
+	tristate '"ipv6header" IPv6 Extension Headers Match'
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This module allows one to match packets based upon
+	  the ipv6 extension headers.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_MATCH_MH
+	tristate '"mh" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This module allows one to match MH packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_MATCH_RPFILTER
+	tristate '"rpfilter" reverse path filter match support'
+	depends on NETFILTER_ADVANCED
+	depends on IP6_NF_MANGLE || IP6_NF_RAW
+	---help---
+	  This option allows you to match packets whose replies would
+	  go out via the interface the packet came in.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+	  The module will be called ip6t_rpfilter.
+
+config IP6_NF_MATCH_RT
+	tristate '"rt" Routing header match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  rt matching allows you to match packets based on the routing
+	  header of the packet.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+# The targets
+config IP6_NF_TARGET_HL
+	tristate '"HL" hoplimit target support'
+	depends on NETFILTER_ADVANCED && IP6_NF_MANGLE
+	select NETFILTER_XT_TARGET_HL
+	---help---
+	This is a backwards-compatible option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_TARGET_HL.
+
+config IP6_NF_FILTER
+	tristate "Packet filtering"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  Packet filtering defines a table `filter', which has a series of
+	  rules for simple packet filtering at local input, forwarding and
+	  local output.  See the man page for iptables(8).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_TARGET_REJECT
+	tristate "REJECT target support"
+	depends on IP6_NF_FILTER
+	select NF_REJECT_IPV6
+	default m if NETFILTER_ADVANCED=n
+	help
+	  The REJECT target allows a filtering rule to specify that an ICMPv6
+	  error should be issued in response to an incoming packet, rather
+	  than silently being dropped.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_TARGET_SYNPROXY
+	tristate "SYNPROXY target support"
+	depends on NF_CONNTRACK && NETFILTER_ADVANCED
+	select NETFILTER_SYNPROXY
+	select SYN_COOKIES
+	help
+	  The SYNPROXY target allows you to intercept TCP connections and
+	  establish them using syncookies before they are passed on to the
+	  server. This allows to avoid conntrack and server resource usage
+	  during SYN-flood attacks.
+
+	  To compile it as a module, choose M here. If unsure, say N.
+
+config IP6_NF_MANGLE
+	tristate "Packet mangling"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This option adds a `mangle' table to iptables: see the man page for
+	  iptables(8).  This table is used for various packet alterations
+	  which can effect how the packet is routed.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_RAW
+	tristate  'raw table support (required for TRACE)'
+	help
+	  This option adds a `raw' table to ip6tables. This table is the very
+	  first in the netfilter framework and hooks in at the PREROUTING
+	  and OUTPUT chains.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+# security table for MAC policy
+config IP6_NF_SECURITY
+       tristate "Security table"
+       depends on SECURITY
+       depends on NETFILTER_ADVANCED
+       help
+         This option adds a `security' table to iptables, for use
+         with Mandatory Access Control (MAC) policy.
+
+         If unsure, say N.
+
+config IP6_NF_NAT
+	tristate "ip6tables NAT support"
+	depends on NF_CONNTRACK_IPV6
+	depends on NETFILTER_ADVANCED
+	select NF_NAT
+	select NF_NAT_IPV6
+	select NETFILTER_XT_NAT
+	help
+	  This enables the `nat' table in ip6tables. This allows masquerading,
+	  port forwarding and other forms of full Network Address Port
+	  Translation.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+if IP6_NF_NAT
+
+config IP6_NF_TARGET_MASQUERADE
+	tristate "MASQUERADE target support"
+	select NF_NAT_MASQUERADE_IPV6
+	help
+	  Masquerading is a special case of NAT: all outgoing connections are
+	  changed to seem to come from a particular interface's address, and
+	  if the interface goes down, those connections are lost.  This is
+	  only useful for dialup accounts with dynamic IP address (ie. your IP
+	  address will be different on next dialup).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_TARGET_NPT
+	tristate "NPT (Network Prefix translation) target support"
+	help
+	  This option adds the `SNPT' and `DNPT' target, which perform
+	  stateless IPv6-to-IPv6 Network Prefix Translation per RFC 6296.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+endif # IP6_NF_NAT
+
+endif # IP6_NF_IPTABLES
+
+endmenu
+

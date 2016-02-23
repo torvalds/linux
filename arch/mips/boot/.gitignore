@@ -1,0 +1,8 @@
+mkboot
+elf2ecoff
+vmlinux.*
+zImage
+zImage.tmp
+calc_vmlinuz_load_addr
+uImage
+*.dtb

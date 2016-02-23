@@ -1,0 +1,33 @@
+Marvell Cryptographic Engines And Security Accelerator
+
+Required properties:
+- compatible: should be one of the following string
+	      "marvell,orion-crypto"
+	      "marvell,kirkwood-crypto"
+	      "marvell,dove-crypto"
+- reg: base physical address of the engine and length of memory mapped
+       region. Can also contain an entry for the SRAM attached to the CESA,
+       but this representation is deprecated and marvell,crypto-srams should
+       be used instead
+- reg-names: "regs". Can contain an "sram" entry, but this representation
+	     is deprecated and marvell,crypto-srams should be used instead
+- interrupts: interrupt number
+- clocks: reference to the crypto engines clocks. This property is only
+	  required for Dove platforms
+- marvell,crypto-srams: phandle to crypto SRAM definitions
+
+Optional properties:
+- marvell,crypto-sram-size: SRAM size reserved for crypto operations, if not
+			    specified the whole SRAM is used (2KB)
+
+Examples:
+
+	crypto@30000 {
+		compatible = "marvell,orion-crypto";
+		reg = <0x30000 0x10000>;
+		reg-names = "regs";
+		interrupts = <22>;
+		marvell,crypto-srams = <&crypto_sram>;
+		marvell,crypto-sram-size = <0x600>;
+		status = "okay";
+	};

@@ -1,0 +1,168 @@
+perf-trace(1)
+=============
+
+NAME
+----
+perf-trace - strace inspired tool
+
+SYNOPSIS
+--------
+[verse]
+'perf trace'
+'perf trace record'
+
+DESCRIPTION
+-----------
+This command will show the events associated with the target, initially
+syscalls, but other system events like pagefaults, task lifetime events,
+scheduling events, etc.
+
+This is a live mode tool in addition to working with perf.data files like
+the other perf tools. Files can be generated using the 'perf record' command
+but the session needs to include the raw_syscalls events (-e 'raw_syscalls:*').
+Alternatively, 'perf trace record' can be used as a shortcut to
+automatically include the raw_syscalls events when writing events to a file.
+
+The following options apply to perf trace; options to perf trace record are
+found in the perf record man page.
+
+OPTIONS
+-------
+
+-a::
+--all-cpus::
+        System-wide collection from all CPUs.
+
+-e::
+--expr::
+	List of syscalls to show, currently only syscall names.
+	Prefixing with ! shows all syscalls but the ones specified.  You may
+	need to escape it.
+
+-o::
+--output=::
+	Output file name.
+
+-p::
+--pid=::
+	Record events on existing process ID (comma separated list).
+
+-t::
+--tid=::
+        Record events on existing thread ID (comma separated list).
+
+-u::
+--uid=::
+        Record events in threads owned by uid. Name or number.
+
+--filter-pids=::
+	Filter out events for these pids and for 'trace' itself (comma separated list).
+
+-v::
+--verbose=::
+        Verbosity level.
+
+--no-inherit::
+	Child tasks do not inherit counters.
+
+-m::
+--mmap-pages=::
+	Number of mmap data pages (must be a power of two) or size
+	specification with appended unit character - B/K/M/G. The
+	size is rounded up to have nearest pages power of two value.
+
+-C::
+--cpu::
+Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
+comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode with inheritance mode on (default), Events are captured only when
+the thread executes on the designated CPUs. Default is to monitor all CPUs.
+
+--duration:
+	Show only events that had a duration greater than N.M ms.
+
+--sched:
+	Accrue thread runtime and provide a summary at the end of the session.
+
+-i
+--input
+	Process events from a given perf data file.
+
+-T
+--time
+	Print full timestamp rather time relative to first sample.
+
+--comm::
+        Show process COMM right beside its ID, on by default, disable with --no-comm.
+
+-s::
+--summary::
+	Show only a summary of syscalls by thread with min, max, and average times
+    (in msec) and relative stddev.
+
+-S::
+--with-summary::
+	Show all syscalls followed by a summary by thread with min, max, and
+    average times (in msec) and relative stddev.
+
+--tool_stats::
+	Show tool stats such as number of times fd->pathname was discovered thru
+	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.
+
+-F=[all|min|maj]::
+--pf=[all|min|maj]::
+	Trace pagefaults. Optionally, you can specify whether you want minor,
+	major or all pagefaults. Default value is maj.
+
+--syscalls::
+	Trace system calls. This options is enabled by default.
+
+--event::
+	Trace other events, see 'perf list' for a complete list.
+
+--proc-map-timeout::
+	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
+	because the file may be huge. A time out is needed in such cases.
+	This option sets the time out limit. The default value is 500 ms.
+
+PAGEFAULTS
+----------
+
+When tracing pagefaults, the format of the trace is as follows:
+
+<min|maj>fault [<ip.symbol>+<ip.offset>] => <addr.dso@addr.offset> (<map type><addr level>).
+
+- min/maj indicates whether fault event is minor or major;
+- ip.symbol shows symbol for instruction pointer (the code that generated the
+  fault); if no debug symbols available, perf trace will print raw IP;
+- addr.dso shows DSO for the faulted address;
+- map type is either 'd' for non-executable maps or 'x' for executable maps;
+- addr level is either 'k' for kernel dso or '.' for user dso.
+
+For symbols resolution you may need to install debugging symbols.
+
+Please be aware that duration is currently always 0 and doesn't reflect actual
+time it took for fault to be handled!
+
+When --verbose specified, perf trace tries to print all available information
+for both IP and fault address in the form of dso@symbol+offset.
+
+EXAMPLES
+--------
+
+Trace only major pagefaults:
+
+ $ perf trace --no-syscalls -F
+
+Trace syscalls, major and minor pagefaults:
+
+ $ perf trace -F all
+
+  1416.547 ( 0.000 ms): python/20235 majfault [CRYPTO_push_info_+0x0] => /lib/x86_64-linux-gnu/libcrypto.so.1.0.0@0x61be0 (x.)
+
+  As you can see, there was major pagefault in python process, from
+  CRYPTO_push_info_ routine which faulted somewhere in libcrypto.so.
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-script[1]

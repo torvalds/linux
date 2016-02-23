@@ -1,0 +1,44 @@
+menuconfig ARCH_U300
+	bool "ST-Ericsson U300 Series"
+	depends on ARCH_MULTI_V5 && MMU
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select ARM_VIC
+	select CLKSRC_MMIO
+	select CPU_ARM926T
+	select HAVE_TCM
+	select PINCTRL
+	select PINCTRL_COH901
+	select PINCTRL_U300
+	select MFD_SYSCON
+	help
+	  Support for ST-Ericsson U300 series mobile platforms.
+
+if ARCH_U300
+
+config MACH_U300
+	depends on ARCH_U300
+	bool "U300"
+	default y
+
+config U300_DEBUG
+	depends on ARCH_U300
+	bool "Debug support for U300"
+	depends on PM
+	help
+		Debug support for U300 in sysfs, procfs etc.
+
+config MACH_U300_SPIDUMMY
+	depends on ARCH_U300
+	bool "SSP/SPI dummy chip"
+	select SPI
+	select SPI_MASTER
+	select SPI_PL022
+	help
+		This creates a small kernel module that creates a dummy
+		SPI device to be used for loopback tests. Regularly used
+		to test reference designs. If you're not testing SPI,
+		you don't need it. Selecting this will activate the
+		SPI framework and ARM PL022 support.
+
+endif

@@ -1,0 +1,219 @@
+config IRQCHIP
+	def_bool y
+	depends on OF_IRQ
+
+config ARM_GIC
+	bool
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	select MULTI_IRQ_HANDLER
+
+config ARM_GIC_MAX_NR
+	int
+	default 2 if ARCH_REALVIEW
+	default 1
+
+config ARM_GIC_V2M
+	bool
+	depends on ARM_GIC
+	depends on PCI && PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
+
+config GIC_NON_BANKED
+	bool
+
+config ARM_GIC_V3
+	bool
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select IRQ_DOMAIN_HIERARCHY
+
+config ARM_GIC_V3_ITS
+	bool
+	select PCI_MSI_IRQ_DOMAIN
+
+config HISILICON_IRQ_MBIGEN
+	bool "Support mbigen interrupt controller"
+	default n
+	depends on ARM_GIC_V3 && ARM_GIC_V3_ITS && GENERIC_MSI_IRQ_DOMAIN
+	help
+	 Enable the mbigen interrupt controller used on
+	 Hisilicon platform.
+
+config ARM_NVIC
+	bool
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	select GENERIC_IRQ_CHIP
+
+config ARM_VIC
+	bool
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+
+config ARM_VIC_NR
+	int
+	default 4 if ARCH_S5PV210
+	default 2
+	depends on ARM_VIC
+	help
+	  The maximum number of VICs available in the system, for
+	  power management.
+
+config ATMEL_AIC_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
+config ATMEL_AIC5_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
+config I8259
+	bool
+	select IRQ_DOMAIN
+
+config BCM7038_L1_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config BCM7120_L2_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config BRCMSTB_L2_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config DW_APB_ICTL
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config IMGPDC_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config IRQ_MIPS_CPU
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config CLPS711X_IRQCHIP
+	bool
+	depends on ARCH_CLPS711X
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+	default y
+
+config OR1K_PIC
+	bool
+	select IRQ_DOMAIN
+
+config OMAP_IRQCHIP
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config ORION_IRQCHIP
+	bool
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+
+config PIC32_EVIC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config RENESAS_INTC_IRQPIN
+	bool
+	select IRQ_DOMAIN
+
+config RENESAS_IRQC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config ST_IRQCHIP
+	bool
+	select REGMAP
+	select MFD_SYSCON
+	help
+	  Enables SysCfg Controlled IRQs on STi based platforms.
+
+config TB10X_IRQC
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+
+config TS4800_IRQ
+	tristate "TS-4800 IRQ controller"
+	select IRQ_DOMAIN
+	help
+	  Support for the TS-4800 FPGA IRQ controller
+
+config VERSATILE_FPGA_IRQ
+	bool
+	select IRQ_DOMAIN
+
+config VERSATILE_FPGA_IRQ_NR
+       int
+       default 4
+       depends on VERSATILE_FPGA_IRQ
+
+config XTENSA_MX
+	bool
+	select IRQ_DOMAIN
+
+config IRQ_CROSSBAR
+	bool
+	help
+	  Support for a CROSSBAR ip that precedes the main interrupt controller.
+	  The primary irqchip invokes the crossbar's callback which inturn allocates
+	  a free irq and configures the IP. Thus the peripheral interrupts are
+	  routed to one of the free irqchip interrupt lines.
+
+config KEYSTONE_IRQ
+	tristate "Keystone 2 IRQ controller IP"
+	depends on ARCH_KEYSTONE
+	help
+		Support for Texas Instruments Keystone 2 IRQ controller IP which
+		is part of the Keystone 2 IPC mechanism
+
+config MIPS_GIC
+	bool
+	select MIPS_CM
+
+config INGENIC_IRQ
+	bool
+	depends on MACH_INGENIC
+	default y
+
+config RENESAS_H8300H_INTC
+        bool
+	select IRQ_DOMAIN
+
+config RENESAS_H8S_INTC
+        bool
+	select IRQ_DOMAIN
+
+config IMX_GPCV2
+	bool
+	select IRQ_DOMAIN
+	help
+	  Enables the wakeup IRQs for IMX platforms with GPCv2 block
+
+config IRQ_MXS
+	def_bool y if MACH_ASM9260 || ARCH_MXS
+	select IRQ_DOMAIN
+	select STMP_DEVICE

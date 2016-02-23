@@ -1,0 +1,313 @@
+config SUSPEND
+	bool "Suspend to RAM and standby"
+	depends on ARCH_SUSPEND_POSSIBLE
+	default y
+	---help---
+	  Allow the system to enter sleep states in which main memory is
+	  powered and thus its contents are preserved, such as the
+	  suspend-to-RAM state (e.g. the ACPI S3 state).
+
+config SUSPEND_FREEZER
+	bool "Enable freezer for suspend to RAM/standby" \
+		if ARCH_WANTS_FREEZER_CONTROL || BROKEN
+	depends on SUSPEND
+	default y
+	help
+	  This allows you to turn off the freezer for suspend. If this is
+	  done, no tasks are frozen for suspend to RAM/standby.
+
+	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
+
+config SUSPEND_SKIP_SYNC
+	bool "Skip kernel's sys_sync() on suspend to RAM/standby"
+	depends on SUSPEND
+	depends on EXPERT
+	help
+	  Skip the kernel sys_sync() before freezing user processes.
+	  Some systems prefer not to pay this cost on every invocation
+	  of suspend, or they are content with invoking sync() from
+	  user-space before invoking suspend.  Say Y if that's your case.
+
+config HIBERNATE_CALLBACKS
+	bool
+
+config HIBERNATION
+	bool "Hibernation (aka 'suspend to disk')"
+	depends on SWAP && ARCH_HIBERNATION_POSSIBLE
+	select HIBERNATE_CALLBACKS
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
+	select CRC32
+	---help---
+	  Enable the suspend to disk (STD) functionality, which is usually
+	  called "hibernation" in user interfaces.  STD checkpoints the
+	  system and powers it off; and restores that checkpoint on reboot.
+
+	  You can suspend your machine with 'echo disk > /sys/power/state'
+	  after placing resume=/dev/swappartition on the kernel command line
+	  in your bootloader's configuration file.
+
+	  Alternatively, you can use the additional userland tools available
+	  from <http://suspend.sf.net>.
+
+	  In principle it does not require ACPI or APM, although for example
+	  ACPI will be used for the final steps when it is available.  One
+	  of the reasons to use software suspend is that the firmware hooks
+	  for suspend states like suspend-to-RAM (STR) often don't work very
+	  well with Linux.
+
+	  It creates an image which is saved in your active swap. Upon the next
+	  boot, pass the 'resume=/dev/swappartition' argument to the kernel to
+	  have it detect the saved image, restore memory state from it, and
+	  continue to run as before. If you do not want the previous state to
+	  be reloaded, then use the 'noresume' kernel command line argument.
+	  Note, however, that fsck will be run on your filesystems and you will
+	  need to run mkswap against the swap partition used for the suspend.
+
+	  It also works with swap files to a limited extent (for details see
+	  <file:Documentation/power/swsusp-and-swap-files.txt>).
+
+	  Right now you may boot without resuming and resume later but in the
+	  meantime you cannot use the swap partition(s)/file(s) involved in
+	  suspending.  Also in this case you must not use the filesystems
+	  that were mounted before the suspend.  In particular, you MUST NOT
+	  MOUNT any journaled filesystems mounted before the suspend or they
+	  will get corrupted in a nasty way.
+
+	  For more information take a look at <file:Documentation/power/swsusp.txt>.
+
+config ARCH_SAVE_PAGE_KEYS
+	bool
+
+config PM_STD_PARTITION
+	string "Default resume partition"
+	depends on HIBERNATION
+	default ""
+	---help---
+	  The default resume partition is the partition that the suspend-
+	  to-disk implementation will look for a suspended disk image. 
+
+	  The partition specified here will be different for almost every user. 
+	  It should be a valid swap partition (at least for now) that is turned
+	  on before suspending. 
+
+	  The partition specified can be overridden by specifying:
+
+		resume=/dev/<other device> 
+
+	  which will set the resume partition to the device specified. 
+
+	  Note there is currently not a way to specify which device to save the
+	  suspended image to. It will simply pick the first available swap 
+	  device.
+
+config PM_SLEEP
+	def_bool y
+	depends on SUSPEND || HIBERNATE_CALLBACKS
+	select PM
+
+config PM_SLEEP_SMP
+	def_bool y
+	depends on SMP
+	depends on ARCH_SUSPEND_POSSIBLE || ARCH_HIBERNATION_POSSIBLE
+	depends on PM_SLEEP
+	select HOTPLUG_CPU
+
+config PM_AUTOSLEEP
+	bool "Opportunistic sleep"
+	depends on PM_SLEEP
+	default n
+	---help---
+	Allow the kernel to trigger a system transition into a global sleep
+	state automatically whenever there are no active wakeup sources.
+
+config PM_WAKELOCKS
+	bool "User space wakeup sources interface"
+	depends on PM_SLEEP
+	default n
+	---help---
+	Allow user space to create, activate and deactivate wakeup source
+	objects with the help of a sysfs-based interface.
+
+config PM_WAKELOCKS_LIMIT
+	int "Maximum number of user space wakeup sources (0 = no limit)"
+	range 0 100000
+	default 100
+	depends on PM_WAKELOCKS
+
+config PM_WAKELOCKS_GC
+	bool "Garbage collector for user space wakeup sources"
+	depends on PM_WAKELOCKS
+	default y
+
+config PM
+	bool "Device power management core functionality"
+	---help---
+	  Enable functionality allowing I/O devices to be put into energy-saving
+	  (low power) states, for example after a specified period of inactivity
+	  (autosuspended), and woken up in response to a hardware-generated
+	  wake-up event or a driver's request.
+
+	  Hardware support is generally required for this functionality to work
+	  and the bus type drivers of the buses the devices are on are
+	  responsible for the actual handling of device suspend requests and
+	  wake-up events.
+
+config PM_DEBUG
+	bool "Power Management Debug Support"
+	depends on PM
+	---help---
+	This option enables various debugging support in the Power Management
+	code. This is helpful when debugging and reporting PM bugs, like
+	suspend support.
+
+config PM_ADVANCED_DEBUG
+	bool "Extra PM attributes in sysfs for low-level debugging/testing"
+	depends on PM_DEBUG
+	---help---
+	Add extra sysfs attributes allowing one to access some Power Management
+	fields of device objects from user space.  If you are not a kernel
+	developer interested in debugging/testing Power Management, say "no".
+
+config PM_TEST_SUSPEND
+	bool "Test suspend/resume and wakealarm during bootup"
+	depends on SUSPEND && PM_DEBUG && RTC_CLASS=y
+	---help---
+	This option will let you suspend your machine during bootup, and
+	make it wake up a few seconds later using an RTC wakeup alarm.
+	Enable this with a kernel parameter like "test_suspend=mem".
+
+	You probably want to have your system's RTC driver statically
+	linked, ensuring that it's available when this test runs.
+
+config PM_SLEEP_DEBUG
+	def_bool y
+	depends on PM_DEBUG && PM_SLEEP
+
+config DPM_WATCHDOG
+	bool "Device suspend/resume watchdog"
+	depends on PM_DEBUG && PSTORE
+	---help---
+	  Sets up a watchdog timer to capture drivers that are
+	  locked up attempting to suspend/resume a device.
+	  A detected lockup causes system panic with message
+	  captured in pstore device for inspection in subsequent
+	  boot session.
+
+config DPM_WATCHDOG_TIMEOUT
+	int "Watchdog timeout in seconds"
+	range 1 120
+	default 60
+	depends on DPM_WATCHDOG
+
+config PM_TRACE
+	bool
+	help
+	  This enables code to save the last PM event point across
+	  reboot. The architecture needs to support this, x86 for
+	  example does by saving things in the RTC, see below.
+
+	  The architecture specific code must provide the extern
+	  functions from <linux/resume-trace.h> as well as the
+	  <asm/resume-trace.h> header with a TRACE_RESUME() macro.
+
+	  The way the information is presented is architecture-
+	  dependent, x86 will print the information during a
+	  late_initcall.
+
+config PM_TRACE_RTC
+	bool "Suspend/resume event tracing"
+	depends on PM_SLEEP_DEBUG
+	depends on X86
+	select PM_TRACE
+	---help---
+	This enables some cheesy code to save the last PM event point in the
+	RTC across reboots, so that you can debug a machine that just hangs
+	during suspend (or more commonly, during resume).
+
+	To use this debugging feature you should attempt to suspend the
+	machine, reboot it and then run
+
+		dmesg -s 1000000 | grep 'hash matches'
+
+	CAUTION: this option will cause your machine's real-time clock to be
+	set to an invalid time after a resume.
+
+config APM_EMULATION
+	tristate "Advanced Power Management Emulation"
+	depends on PM && SYS_SUPPORTS_APM_EMULATION
+	help
+	  APM is a BIOS specification for saving power using several different
+	  techniques. This is mostly useful for battery powered laptops with
+	  APM compliant BIOSes. If you say Y here, the system time will be
+	  reset after a RESUME operation, the /proc/apm device will provide
+	  battery status information, and user-space programs will receive
+	  notification of APM "events" (e.g. battery status change).
+
+	  In order to use APM, you will need supporting software. For location
+	  and more information, read <file:Documentation/power/apm-acpi.txt>
+	  and the Battery Powered Linux mini-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  This driver does not spin down disk drives (see the hdparm(8)
+	  manpage ("man 8 hdparm") for that), and it doesn't turn off
+	  VESA-compliant "green" monitors.
+
+	  Generally, if you don't have a battery in your machine, there isn't
+	  much point in using this driver and you should say N. If you get
+	  random kernel OOPSes or reboots that don't seem to be related to
+	  anything, try disabling/enabling this option (or disabling/enabling
+	  APM in your BIOS).
+
+config PM_OPP
+	bool
+	select SRCU
+	---help---
+	  SOCs have a standard set of tuples consisting of frequency and
+	  voltage pairs that the device will support per voltage domain. This
+	  is called Operating Performance Point or OPP. The actual definitions
+	  of OPP varies over silicon within the same family of devices.
+
+	  OPP layer organizes the data internally using device pointers
+	  representing individual voltage domains and provides SOC
+	  implementations a ready to use framework to manage OPPs.
+	  For more information, read <file:Documentation/power/opp.txt>
+
+config PM_CLK
+	def_bool y
+	depends on PM && HAVE_CLK
+
+config PM_GENERIC_DOMAINS
+	bool
+	depends on PM
+
+config WQ_POWER_EFFICIENT_DEFAULT
+	bool "Enable workqueue power-efficient mode by default"
+	depends on PM
+	default n
+	help
+	  Per-cpu workqueues are generally preferred because they show
+	  better performance thanks to cache locality; unfortunately,
+	  per-cpu workqueues tend to be more power hungry than unbound
+	  workqueues.
+
+	  Enabling workqueue.power_efficient kernel parameter makes the
+	  per-cpu workqueues which were observed to contribute
+	  significantly to power consumption unbound, leading to measurably
+	  lower power usage at the cost of small performance overhead.
+
+	  This config option determines whether workqueue.power_efficient
+	  is enabled by default.
+
+	  If in doubt, say N.
+
+config PM_GENERIC_DOMAINS_SLEEP
+	def_bool y
+	depends on PM_SLEEP && PM_GENERIC_DOMAINS
+
+config PM_GENERIC_DOMAINS_OF
+	def_bool y
+	depends on PM_GENERIC_DOMAINS && OF
+
+config CPU_PM
+	bool

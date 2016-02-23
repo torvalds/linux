@@ -1,0 +1,14 @@
+00-INDEX
+	- this file
+MSI-HOWTO.txt
+	- the Message Signaled Interrupts (MSI) Driver Guide HOWTO and FAQ.
+PCIEBUS-HOWTO.txt
+	- a guide describing the PCI Express Port Bus driver
+pci-error-recovery.txt
+	- info on PCI error recovery
+pci-iov-howto.txt
+	- the PCI Express I/O Virtualization HOWTO
+pci.txt
+	- info on the PCI subsystem for device driver authors
+pcieaer-howto.txt
+	- the PCI Express Advanced Error Reporting Driver Guide HOWTO

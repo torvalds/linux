@@ -1,0 +1,42 @@
+#
+# Frequency
+#	Direct Digital Synthesis drivers (DDS)
+#	Clock Distribution device drivers
+#	Phase-Locked Loop (PLL) frequency synthesizers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Frequency Synthesizers DDS/PLL"
+
+menu "Clock Generator/Distribution"
+
+config AD9523
+	tristate "Analog Devices AD9523 Low Jitter Clock Generator"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD9523 Low Jitter
+	  Clock Generator. The driver provides direct access via sysfs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad9523.
+
+endmenu
+
+#
+# Phase-Locked Loop (PLL) frequency synthesizers
+#
+
+menu "Phase-Locked Loop (PLL) frequency synthesizers"
+
+config ADF4350
+	tristate "Analog Devices ADF4350/ADF4351 Wideband Synthesizers"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices  ADF4350/ADF4351
+	  Wideband Synthesizers. The driver provides direct access via sysfs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adf4350.
+
+endmenu
+endmenu

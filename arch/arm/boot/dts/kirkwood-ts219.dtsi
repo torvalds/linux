@@ -1,0 +1,107 @@
+/ {
+	model = "QNAP TS219 family";
+	compatible = "qnap,ts219", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
+	};
+
+	mbus {
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+	};
+
+	ocp@f1000000 {
+		i2c@11000 {
+			status = "okay";
+			clock-frequency = <400000>;
+
+			s35390a: s35390a@30 {
+				compatible = "s35390a";
+				reg = <0x30>;
+			};
+		};
+		serial@12000 {
+			status = "okay";
+		};
+		serial@12100 {
+			status = "okay";
+		};
+		poweroff@12100 {
+			compatible = "qnap,power-off";
+			reg = <0x12100 0x100>;
+			clocks = <&gate_clk 7>;
+		};
+		spi@10600 {
+			status = "okay";
+
+			m25p128@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "m25p128", "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <20000000>;
+				mode = <0>;
+
+				partition@0000000 {
+					reg = <0x00000000 0x00080000>;
+					label = "U-Boot";
+				};
+
+				partition@00200000 {
+					reg = <0x00200000 0x00200000>;
+					label = "Kernel";
+				};
+
+				partition@00400000 {
+					reg = <0x00400000 0x00900000>;
+					label = "RootFS1";
+				};
+				partition@00d00000 {
+					reg = <0x00d00000 0x00300000>;
+					label = "RootFS2";
+				};
+				partition@00040000 {
+					reg = <0x00080000 0x00040000>;
+					label = "U-Boot Config";
+				};
+				partition@000c0000 {
+					reg = <0x000c0000 0x00140000>;
+					label = "NAS Config";
+				};
+			};
+		};
+		sata@80000 {
+			pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+			pinctrl-names = "default";
+			status = "okay";
+			nr-ports = <2>;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy {
+                /* overwrite reg property in board file */
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};

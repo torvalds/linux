@@ -1,0 +1,560 @@
+if ETRAX_ARCH_V10
+
+config ETRAX_ETHERNET
+	bool "Ethernet support"
+	depends on ETRAX_ARCH_V10 && NETDEVICES
+	select MII
+	help
+	  This option enables the ETRAX 100LX built-in 10/100Mbit Ethernet
+	  controller.
+
+config ETRAX_SERIAL
+	bool "Serial-port support"
+	depends on ETRAX_ARCH_V10
+	help
+	  Enables the ETRAX 100 serial driver for ser0 (ttyS0)
+	  You probably want this enabled.
+
+config ETRAX_SERIAL_FAST_TIMER
+	bool "Use fast timers for serial DMA flush (experimental)"
+	depends on ETRAX_SERIAL
+	help
+	  Select this to have the serial DMAs flushed at a higher rate than
+	  normally, possible by using the fast timer API, the timeout is
+	  approx. 4 character times.
+	  If unsure, say N.
+
+config ETRAX_SERIAL_FLUSH_DMA_FAST
+	bool "Fast serial port DMA flush"
+	depends on ETRAX_SERIAL && !ETRAX_SERIAL_FAST_TIMER
+	help
+	  Select this to have the serial DMAs flushed at a higher rate than
+	  normally possible through a fast timer interrupt (currently at
+	  15360 Hz).
+	  If unsure, say N.
+
+config ETRAX_SERIAL_RX_TIMEOUT_TICKS
+	int "Receive flush timeout (ticks) "
+	depends on ETRAX_SERIAL && !ETRAX_SERIAL_FAST_TIMER && !ETRAX_SERIAL_FLUSH_DMA_FAST
+	default "5"
+	help
+	  Number of timer ticks between flush of receive fifo (1 tick = 10ms).
+	  Try 0-3 for low latency applications.  Approx 5 for high load
+	  applications (e.g. PPP).  Maybe this should be more adaptive some
+	  day...
+
+config ETRAX_SERIAL_PORT0
+	bool "Serial port 0 enabled"
+	depends on ETRAX_SERIAL
+	help
+	  Enables the ETRAX 100 serial driver for ser0 (ttyS0)
+	  Normally you want this on, unless you use external DMA 1 that uses
+	  the same DMA channels.
+
+choice
+	prompt "Ser0 DTR, RI, DSR and CD assignment"
+	depends on ETRAX_SERIAL_PORT0
+	default ETRAX_SER0_DTR_RI_DSR_CD_ON_NONE
+
+config ETRAX_SER0_DTR_RI_DSR_CD_ON_NONE
+	bool "No_DTR_RI_DSR_CD"
+
+config ETRAX_SER0_DTR_RI_DSR_CD_ON_PA
+	bool "DTR_RI_DSR_CD_on_PA"
+
+config ETRAX_SER0_DTR_RI_DSR_CD_ON_PB
+	bool "DTR_RI_DSR_CD_on_PB"
+	help
+	  Enables the status and control signals DTR, RI, DSR and CD on PB for
+	  ser0.
+
+config ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	bool "DTR_RI_DSR_CD_mixed_on_PA_and_PB"
+
+endchoice
+
+config ETRAX_SER0_DTR_ON_PA_BIT
+	int "Ser0 DTR on PA bit (-1 = not used)" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PA || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT0
+	default "-1" if !ETRAX_SER0_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	default "4" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PA || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER0_RI_ON_PA_BIT
+	int "Ser0 RI  on PA bit (-1 = not used)" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PA || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT0
+	default "-1" if !ETRAX_SER0_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	default "5" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PA || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER0_DSR_ON_PA_BIT
+	int "Ser0 DSR on PA bit (-1 = not used)" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PA || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT0
+	default "-1" if !ETRAX_SER0_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	default "6" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PA || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER0_CD_ON_PA_BIT
+	int "Ser0 CD  on PA bit (-1 = not used)" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PA || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT0
+	default "-1" if !ETRAX_SER0_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	default "7" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PA || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER0_DTR_ON_PB_BIT
+	int "Ser0 DTR on PB bit (-1 = not used)" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PB || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT0
+	default "-1" if !ETRAX_SER0_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	default "4" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PB || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PB port to carry the DTR signal for serial
+	  port 0.
+
+config ETRAX_SER0_RI_ON_PB_BIT
+	int "Ser0 RI  on PB bit (-1 = not used)" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PB || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT0
+	default "-1" if !ETRAX_SER0_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	default "5" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PB || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PB port to carry the RI signal for serial
+	  port 0.
+
+config ETRAX_SER0_DSR_ON_PB_BIT
+	int "Ser0 DSR on PB bit (-1 = not used)" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PB || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT0
+	default "-1" if !ETRAX_SER0_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	default "6" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PB || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PB port to carry the DSR signal for serial
+	  port 0.
+
+config ETRAX_SER0_CD_ON_PB_BIT
+	int "Ser0 CD  on PB bit (-1 = not used)" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PB || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT0
+	default "-1" if !ETRAX_SER0_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	default "7" if ETRAX_SER0_DTR_RI_DSR_CD_ON_PB || ETRAX_SER0_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PB port to carry the CD signal for serial
+	  port 0.
+
+config ETRAX_SERIAL_PORT1
+	bool "Serial port 1 enabled"
+	depends on ETRAX_SERIAL
+	help
+	  Enables the ETRAX 100 serial driver for ser1 (ttyS1).
+
+choice
+	prompt "Ser1 DTR, RI, DSR and CD assignment"
+	depends on ETRAX_SERIAL_PORT1
+	default ETRAX_SER1_DTR_RI_DSR_CD_ON_NONE
+
+config ETRAX_SER1_DTR_RI_DSR_CD_ON_NONE
+	bool "No_DTR_RI_DSR_CD"
+
+config ETRAX_SER1_DTR_RI_DSR_CD_ON_PA
+	bool "DTR_RI_DSR_CD_on_PA"
+
+config ETRAX_SER1_DTR_RI_DSR_CD_ON_PB
+	bool "DTR_RI_DSR_CD_on_PB"
+	help
+	  Enables the status and control signals DTR, RI, DSR and CD on PB for
+	  ser1.
+
+config ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	bool "DTR_RI_DSR_CD_mixed_on_PA_and_PB"
+
+endchoice
+
+config ETRAX_SER1_DTR_ON_PA_BIT
+	int "Ser1 DTR on PA bit (-1 = not used)" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PA || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT1
+	default "-1" if !ETRAX_SER1_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	default "4" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PA || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER1_RI_ON_PA_BIT
+	int "Ser1 RI  on PA bit (-1 = not used)" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PA || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT1
+	default "-1" if !ETRAX_SER1_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	default "5" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PA || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER1_DSR_ON_PA_BIT
+	int "Ser1 DSR on PA bit (-1 = not used)" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PA || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT1
+	default "-1" if !ETRAX_SER1_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	default "6" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PA || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER1_CD_ON_PA_BIT
+	int "Ser1 CD  on PA bit (-1 = not used)" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PA || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT1
+	default "-1" if !ETRAX_SER1_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	default "7" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PA || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER1_DTR_ON_PB_BIT
+	int "Ser1 DTR on PB bit (-1 = not used)" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PB || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT1
+	default "-1" if !ETRAX_SER1_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	default "4" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PB || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PB port to carry the DTR signal for serial
+	  port 1.
+
+config ETRAX_SER1_RI_ON_PB_BIT
+	int "Ser1 RI  on PB bit (-1 = not used)" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PB || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT1
+	default "-1" if !ETRAX_SER1_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	default "5" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PB || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PB port to carry the RI signal for serial
+	  port 1.
+
+config ETRAX_SER1_DSR_ON_PB_BIT
+	int "Ser1 DSR on PB bit (-1 = not used)" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PB || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT1
+	default "-1" if !ETRAX_SER1_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	default "6" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PB || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PB port to carry the DSR signal for serial
+	  port 1.
+
+config ETRAX_SER1_CD_ON_PB_BIT
+	int "Ser1 CD  on PB bit (-1 = not used)" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PB || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT1
+	default "-1" if !ETRAX_SER1_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	default "7" if ETRAX_SER1_DTR_RI_DSR_CD_ON_PB || ETRAX_SER1_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PB port to carry the CD signal for serial
+	  port 1.
+
+comment "Make sure you do not have the same PB bits more than once!"
+	depends on ETRAX_SERIAL && ETRAX_SER0_DTR_RI_DSR_CD_ON_PB && ETRAX_SER1_DTR_RI_DSR_CD_ON_PB
+
+config ETRAX_SERIAL_PORT2
+	bool "Serial port 2 enabled"
+	depends on ETRAX_SERIAL
+	help
+	  Enables the ETRAX 100 serial driver for ser2 (ttyS2).
+
+choice
+	prompt "Ser2 DTR, RI, DSR and CD assignment"
+	depends on ETRAX_SERIAL_PORT2
+	default ETRAX_SER2_DTR_RI_DSR_CD_ON_NONE
+
+config ETRAX_SER2_DTR_RI_DSR_CD_ON_NONE
+	bool "No_DTR_RI_DSR_CD"
+
+config ETRAX_SER2_DTR_RI_DSR_CD_ON_PA
+	bool "DTR_RI_DSR_CD_on_PA"
+	help
+	  Enables the status and control signals DTR, RI, DSR and CD on PA for
+	  ser2.
+
+config ETRAX_SER2_DTR_RI_DSR_CD_ON_PB
+	bool "DTR_RI_DSR_CD_on_PB"
+
+config ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	bool "DTR_RI_DSR_CD_mixed_on_PA_and_PB"
+
+endchoice
+
+config ETRAX_SER2_DTR_ON_PA_BIT
+	int "Ser2 DTR on PA bit (-1 = not used)" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PA || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT2
+	default "-1" if !ETRAX_SER2_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	default "4" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PA || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PA port to carry the DTR signal for serial
+	  port 2.
+
+config ETRAX_SER2_RI_ON_PA_BIT
+	int "Ser2 RI  on PA bit (-1 = not used)" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PA || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT2
+	default "-1" if !ETRAX_SER2_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	default "5" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PA || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PA port to carry the RI signal for serial
+	  port 2.
+
+config ETRAX_SER2_DSR_ON_PA_BIT
+	int "Ser2 DSR on PA bit (-1 = not used)" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PA || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT2
+	default "-1" if !ETRAX_SER2_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	default "6" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PA || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PA port to carry the DTR signal for serial
+	  port 2.
+
+config ETRAX_SER2_CD_ON_PA_BIT
+	int "Ser2 CD  on PA bit (-1 = not used)" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PA || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT2
+	default "-1" if !ETRAX_SER2_DTR_RI_DSR_CD_ON_PA && !ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	default "7" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PA || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	help
+	  Specify the pin of the PA port to carry the CD signal for serial
+	  port 2.
+
+config ETRAX_SER2_DTR_ON_PB_BIT
+	int "Ser2 DTR on PB bit (-1 = not used)" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PB || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT2
+	default "-1" if !ETRAX_SER2_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	default "4" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PB || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER2_RI_ON_PB_BIT
+	int "Ser2 RI  on PB bit (-1 = not used)" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PB || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT2
+	default "-1" if !ETRAX_SER2_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	default "5" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PB || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER2_DSR_ON_PB_BIT
+	int "Ser2 DSR on PB bit (-1 = not used)" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PB || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT2
+	default "-1" if !ETRAX_SER2_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	default "6" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PB || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SER2_CD_ON_PB_BIT
+	int "Ser2 CD  on PB bit (-1 = not used)" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PB || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT2
+	default "-1" if !ETRAX_SER2_DTR_RI_DSR_CD_ON_PB && !ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+	default "7" if ETRAX_SER2_DTR_RI_DSR_CD_ON_PB || ETRAX_SER2_DTR_RI_DSR_CD_MIXED
+
+config ETRAX_SERIAL_PORT3
+	bool "Serial port 3 enabled"
+	depends on ETRAX_SERIAL
+	help
+	  Enables the ETRAX 100 serial driver for ser3 (ttyS3).
+
+choice
+	prompt "Ser3 DTR, RI, DSR and CD assignment"
+	depends on ETRAX_SERIAL_PORT3
+	default ETRAX_SER3_DTR_RI_DSR_CD_ON_NONE
+
+config ETRAX_SER3_DTR_RI_DSR_CD_ON_NONE
+	bool "No_DTR_RI_DSR_CD"
+
+config ETRAX_SER3_DTR_RI_DSR_CD_ON_PA
+	bool "DTR_RI_DSR_CD_on_PA"
+
+config ETRAX_SER3_DTR_RI_DSR_CD_ON_PB
+	bool "DTR_RI_DSR_CD_on_PB"
+
+config ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	bool "DTR_RI_DSR_CD_mixed_on_PA_and_PB"
+
+endchoice
+
+config ETRAX_SER3_DTR_ON_PA_BIT
+	int "Ser3 DTR on PA bit (-1 = not used)" if ETRAX_SER3_DTR_RI_DSR_CD_ON_PA || ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT3
+	default "-1"
+
+config ETRAX_SER3_RI_ON_PA_BIT
+	int "Ser3 RI  on PA bit (-1 = not used)" if ETRAX_SER3_DTR_RI_DSR_CD_ON_PA || ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT3
+	default "-1"
+
+config ETRAX_SER3_DSR_ON_PA_BIT
+	int "Ser3 DSR on PA bit (-1 = not used)" if ETRAX_SER3_DTR_RI_DSR_CD_ON_PA || ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT3
+	default "-1"
+
+config ETRAX_SER3_CD_ON_PA_BIT
+	int "Ser3 CD  on PA bit (-1 = not used)" if ETRAX_SER3_DTR_RI_DSR_CD_ON_PA || ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT3
+	default "-1"
+
+config ETRAX_SER3_DTR_ON_PB_BIT
+	int "Ser3 DTR on PB bit (-1 = not used)" if ETRAX_SER3_DTR_RI_DSR_CD_ON_PB || ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT3
+	default "-1"
+
+config ETRAX_SER3_RI_ON_PB_BIT
+	int "Ser3 RI  on PB bit (-1 = not used)" if ETRAX_SER3_DTR_RI_DSR_CD_ON_PB || ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT3
+	default "-1"
+
+config ETRAX_SER3_DSR_ON_PB_BIT
+	int "Ser3 DSR on PB bit (-1 = not used)" if ETRAX_SER3_DTR_RI_DSR_CD_ON_PB || ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT3
+	default "-1"
+
+config ETRAX_SER3_CD_ON_PB_BIT
+	int "Ser3 CD  on PB bit (-1 = not used)" if ETRAX_SER3_DTR_RI_DSR_CD_ON_PB || ETRAX_SER3_DTR_RI_DSR_CD_MIXED
+	depends on ETRAX_SERIAL_PORT3
+	default "-1"
+
+config ETRAX_RS485
+	bool "RS-485 support"
+	depends on ETRAX_SERIAL
+	help
+	  Enables support for RS-485 serial communication.  For a primer on
+	  RS-485, see <http://en.wikipedia.org/wiki/Rs485>
+
+config ETRAX_RS485_ON_PA
+	bool "RS-485 mode on PA"
+	depends on ETRAX_RS485
+	help
+	  Control Driver Output Enable on RS485 transceiver using a pin on PA
+	  port:
+	  Axis 2400/2401 uses PA 3.
+
+config ETRAX_RS485_ON_PA_BIT
+	int "RS-485 mode on PA bit"
+	depends on ETRAX_RS485_ON_PA
+	default "3"
+	help
+	  Control Driver Output Enable on RS485 transceiver using a this bit
+	  on PA port.
+
+config ETRAX_RS485_DISABLE_RECEIVER
+	bool "Disable serial receiver"
+	depends on ETRAX_RS485
+	help
+	  It's necessary to disable the serial receiver to avoid serial
+	  loopback.  Not all products are able to do this in software only.
+	  Axis 2400/2401 must disable receiver.
+
+config ETRAX_USB_HOST
+	bool "USB host"
+	select USB
+	help
+	   This option enables the host functionality of the ETRAX 100LX
+	   built-in USB controller. In host mode the controller is designed
+	   for CTRL and BULK traffic only, INTR traffic may work as well
+	   however (depending on the requirements of timeliness).
+
+config ETRAX_PTABLE_SECTOR
+	int "Byte-offset of partition table sector"
+	depends on ETRAX_AXISFLASHMAP
+	default "65536"
+	help
+	  Byte-offset of the partition table in the first flash chip.
+	  The default value is 64kB and should not be changed unless
+	  you know exactly what you are doing. The only valid reason
+	  for changing this is when the flash block size is bigger
+	  than 64kB (e.g. when using two parallel 16 bit flashes).
+
+config ETRAX_I2C
+	bool "I2C support"
+	depends on ETRAX_ARCH_V10
+	help
+	  Enables an I2C driver on ETRAX100.
+	  EXAMPLE usage:
+	  i2c_arg = I2C_WRITEARG(STA013_WRITE_ADDR, reg, val);
+	  ioctl(fd, _IO(ETRAXI2C_IOCTYPE, I2C_WRITEREG), i2c_arg);
+	  i2c_arg = I2C_READARG(STA013_READ_ADDR, reg);
+	  val = ioctl(fd, _IO(ETRAXI2C_IOCTYPE, I2C_READREG), i2c_arg);
+
+# this is true for most products since PB-I2C seems to be somewhat
+# flawed..
+config ETRAX_I2C_USES_PB_NOT_PB_I2C
+	bool "I2C uses PB not PB-I2C"
+	depends on ETRAX_I2C
+	help
+	  Select whether to use the special I2C mode in the PB I/O register or
+	  not.  This option needs to be selected in order to use some drivers
+	  that access the I2C I/O pins directly instead of going through the
+	  I2C driver, like the DS1302 realtime-clock driver.  If you are
+	  uncertain, choose Y here.
+
+config ETRAX_I2C_DATA_PORT
+	int "I2C SDA bit number"
+	depends on ETRAX_I2C_USES_PB_NOT_PB_I2C
+	default "0"
+	help
+	  Selects the pin on Port B where the data pin is connected
+
+config ETRAX_I2C_CLK_PORT
+	int "I2C SCL bit number"
+	depends on ETRAX_I2C_USES_PB_NOT_PB_I2C
+	default "1"
+	help
+	  Select the pin on Port B where the clock pin is connected
+
+config ETRAX_I2C_EEPROM
+	bool "I2C EEPROM (non-volatile RAM) support"
+	depends on ETRAX_I2C
+	help
+	  Enables I2C EEPROM (non-volatile RAM) on PB0 and PB1 using the I2C
+	  driver.  Select size option: Probed, 2k, 8k, 16k.
+	  (Probing works for 2k and 8k but not that well for 16k)
+
+choice
+	prompt "EEPROM size"
+	depends on ETRAX_I2C_EEPROM
+	default ETRAX_I2C_EEPROM_PROBE
+
+config ETRAX_I2C_EEPROM_PROBE
+	bool "Probed"
+	help
+	  Specifies size or auto probe of the EEPROM size.
+	  Options: Probed, 2k, 8k, 16k.
+	  (Probing works for 2k and 8k but not that well for 16k)
+
+config ETRAX_I2C_EEPROM_2KB
+	bool "2kB"
+	help
+	  Use a 2kB EEPROM.
+
+config ETRAX_I2C_EEPROM_8KB
+	bool "8kB"
+	help
+	  Use a 8kB EEPROM.
+
+config ETRAX_I2C_EEPROM_16KB
+	bool "16kB"
+	help
+	  Use a 16kB EEPROM.
+
+endchoice
+
+config ETRAX_GPIO
+	bool "GPIO support"
+	depends on ETRAX_ARCH_V10
+	---help---
+	  Enables the ETRAX general port device (major 120, minors 0 and 1).
+	  You can use this driver to access the general port bits. It supports
+	  these ioctl's:
+	  #include <linux/etraxgpio.h>
+	  fd = open("/dev/gpioa", O_RDWR); // or /dev/gpiob
+	  ioctl(fd, _IO(ETRAXGPIO_IOCTYPE, IO_SETBITS), bits_to_set);
+	  ioctl(fd, _IO(ETRAXGPIO_IOCTYPE, IO_CLRBITS), bits_to_clear);
+	  val = ioctl(fd, _IO(ETRAXGPIO_IOCTYPE, IO_READBITS), NULL);
+	  Remember that you need to setup the port directions appropriately in
+	  the General configuration.
+
+config ETRAX_PA_CHANGEABLE_DIR
+	hex "PA user changeable dir mask"
+	depends on ETRAX_GPIO
+	default "00"
+	help
+	  This is a bitmask with information of what bits in PA that a user
+	  can change direction on using ioctl's.
+	  Bit set = changeable.
+	  You probably want 00 here.
+
+config ETRAX_PA_CHANGEABLE_BITS
+	hex "PA user changeable bits mask"
+	depends on ETRAX_GPIO
+	default "FF"
+	help
+	  This is a bitmask with information of what bits in PA that a user
+	  can change the value on using ioctl's.
+	  Bit set = changeable.
+	  You probably want 00 here.
+
+config ETRAX_PB_CHANGEABLE_DIR
+	hex "PB user changeable dir mask"
+	depends on ETRAX_GPIO
+	default "00"
+	help
+	  This is a bitmask with information of what bits in PB that a user
+	  can change direction on using ioctl's.
+	  Bit set = changeable.
+	  You probably want 00 here.
+
+config ETRAX_PB_CHANGEABLE_BITS
+	hex "PB user changeable bits mask"
+	depends on ETRAX_GPIO
+	default "FF"
+	help
+	  This is a bitmask with information of what bits in PB that a user
+	  can change the value on using ioctl's.
+	  Bit set = changeable.
+	  You probably want 00 here.
+
+endif

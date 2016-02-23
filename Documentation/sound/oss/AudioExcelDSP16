@@ -1,0 +1,101 @@
+Driver
+------
+
+Information about Audio Excel DSP 16 driver can be found in the source
+file aedsp16.c
+Please, read the head of the source before using it. It contain useful
+information.
+
+Configuration
+-------------
+
+The Audio Excel configuration, is now done with the standard Linux setup.
+You have to configure the sound card (Sound Blaster or Microsoft Sound System)
+and, if you want it, the Roland MPU-401 (do not use the Sound Blaster MPU-401,
+SB-MPU401) in the main driver menu. Activate the lowlevel drivers then select
+the Audio Excel hardware that you want to initialize. Check the IRQ/DMA/MIRQ
+of the Audio Excel initialization: it must be the same as the SBPRO (or MSS)
+setup. If the parameters are different, correct it.
+I you own a Gallant's audio card based on SC-6600, activate the SC-6600 support.
+If you want to change the configuration of the sound board, be sure to
+check off all the configuration items before re-configure it.
+
+Module parameters
+-----------------
+To use this driver as a module, you must configure some module parameters, to
+set up I/O addresses, IRQ lines and DMA channels. Some parameters are
+mandatory while some others are optional. Here a list of parameters you can
+use with this module:
+
+Name		Description
+====		===========
+MANDATORY
+io		I/O base address (0x220 or 0x240)
+irq		irq line (5, 7, 9, 10 or 11)
+dma		dma channel (0, 1 or 3)
+
+OPTIONAL
+mss_base	I/O base address for activate MSS mode (default SBPRO)
+		(0x530 or 0xE80)
+mpu_base	I/O base address for activate MPU-401 mode
+		(0x300, 0x310, 0x320 or 0x330)
+mpu_irq		MPU-401 irq line (5, 7, 9, 10 or 0)
+
+A configuration file in /etc/modprobe.d/ directory will have lines like this:
+
+options opl3 io=0x388
+options ad1848 io=0x530 irq=11 dma=3
+options aedsp16 io=0x220 irq=11 dma=3 mss_base=0x530
+
+Where the aedsp16 options are the options for this driver while opl3 and
+ad1848 are the corresponding options for the MSS and OPL3 modules.
+
+Loading MSS and OPL3 needs to pre load the aedsp16 module to set up correctly
+the sound card. Installation dependencies must be written in configuration
+files under /etc/modprobe.d/ directory:
+
+softdep ad1848 pre: aedsp16
+softdep opl3 pre: aedsp16
+
+Then you must load the sound modules stack in this order:
+sound -> aedsp16 -> [ ad1848, opl3 ]
+
+With the above configuration, loading ad1848 or opl3 modules, will
+automatically load all the sound stack.
+
+Sound cards supported
+---------------------
+This driver supports the SC-6000 and SC-6600 based Gallant's sound card.
+It don't support the Audio Excel DSP 16 III (try the SC-6600 code).
+I'm working on the III version of the card: if someone have useful
+information about it, please let me know.
+For all the non-supported audio cards, you have to boot MS-DOS (or WIN95)
+activating the audio card with the MS-DOS device driver, then you have to
+<ctrl>-<alt>-<del> and boot Linux.
+Follow these steps:
+
+1) Compile Linux kernel with standard sound driver, using the emulation
+   you want, with the parameters of your audio card,
+   e.g. Microsoft Sound System irq10 dma3
+2) Install your new kernel as the default boot kernel.
+3) Boot MS-DOS and configure the audio card with the boot time device
+   driver, for MSS irq10 dma3 in our example.
+4) <ctrl>-<alt>-<del> and boot Linux. This will maintain the DOS configuration
+   and will boot the new kernel with sound driver. The sound driver will find
+   the audio card and will recognize and attach it.
+
+Reports on User successes
+-------------------------
+
+> Date: Mon, 29 Jul 1996 08:35:40 +0100
+> From: Mr S J Greenaway <sjg95@unixfe.rl.ac.uk>
+> To: riccardo@cdc8g5.cdc.polimi.it (Riccardo Facchetti)
+> Subject: Re: Audio Excel DSP 16 initialization code
+>
+> Just to let you know got my Audio Excel (emulating a MSS) working
+> with my original SB16, thanks for the driver!
+
+
+Last revised: 20 August 1998
+Riccardo Facchetti
+fizban@tin.it

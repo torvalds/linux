@@ -1,0 +1,35 @@
+DVI Connector
+==============
+
+Required properties:
+- compatible: "dvi-connector"
+
+Optional properties:
+- label: a symbolic name for the connector
+- ddc-i2c-bus: phandle to the i2c bus that is connected to DVI DDC
+- analog: the connector has DVI analog pins
+- digital: the connector has DVI digital pins
+- dual-link: the connector has pins for DVI dual-link
+
+Required nodes:
+- Video port for DVI input
+
+Note: One (or both) of 'analog' or 'digital' must be set.
+
+Example
+-------
+
+dvi0: connector@0 {
+	compatible = "dvi-connector";
+	label = "dvi";
+
+	digital;
+
+	ddc-i2c-bus = <&i2c3>;
+
+	port {
+		dvi_connector_in: endpoint {
+			remote-endpoint = <&tfp410_out>;
+		};
+	};
+};

@@ -1,0 +1,25 @@
+menuconfig PM_DEVFREQ_EVENT
+	bool "DEVFREQ-Event device Support"
+	help
+	  The devfreq-event device provide the raw data and events which
+	  indicate the current state of devfreq-event device. The provided
+	  data from devfreq-event device is used to monitor the state of
+	  device and determine the suitable size of resource to reduce the
+	  wasted resource.
+
+	  The devfreq-event device can support the various type of events
+	  (e.g., raw data, utilization, latency, bandwidth). The events
+	  may be used by devfreq governor and other subsystem.
+
+if PM_DEVFREQ_EVENT
+
+config DEVFREQ_EVENT_EXYNOS_PPMU
+	bool "EXYNOS PPMU (Platform Performance Monitoring Unit) DEVFREQ event Driver"
+	depends on ARCH_EXYNOS
+	select PM_OPP
+	help
+	  This add the devfreq-event driver for Exynos SoC. It provides PPMU
+	  (Platform Performance Monitoring Unit) counters to estimate the
+	  utilization of each module.
+
+endif # PM_DEVFREQ_EVENT

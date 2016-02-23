@@ -1,0 +1,17 @@
+InvenSense MPU-6050 Six-Axis (Gyro + Accelerometer) MEMS MotionTracking Device
+
+http://www.invensense.com/mems/gyro/mpu6050.html
+
+Required properties:
+ - compatible : should be "invensense,mpu6050"
+ - reg : the I2C address of the sensor
+ - interrupt-parent : should be the phandle for the interrupt controller
+ - interrupts : interrupt mapping for GPIO IRQ
+
+Example:
+	mpu6050@68 {
+		compatible = "invensense,mpu6050";
+		reg = <0x68>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <18 1>;
+	};

@@ -1,0 +1,193 @@
+/*
+ * at91-qil_a9260.dts - Device Tree file for Calao QIL A9260 board
+ *
+ * Copyright (C) 2011-2013 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2.
+ */
+/dts-v1/;
+#include "at91sam9260.dtsi"
+/ {
+	model = "Calao QIL A9260";
+	compatible = "calao,qil-a9260", "atmel,at91sam9260", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <12000000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		apb {
+			usb1: gadget@fffa4000 {
+				atmel,vbus-gpio = <&pioC 5 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+
+			mmc0: mmc@fffa8000 {
+				pinctrl-0 = <
+					&pinctrl_mmc0_clk
+					&pinctrl_mmc0_slot0_cmd_dat0
+					&pinctrl_mmc0_slot0_dat1_3>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+				};
+			};
+
+			usart0: serial@fffb0000 {
+				pinctrl-0 =
+					<&pinctrl_usart0
+					 &pinctrl_usart0_rts
+					 &pinctrl_usart0_cts
+					 &pinctrl_usart0_dtr_dsr
+					 &pinctrl_usart0_dcd
+					 &pinctrl_usart0_ri>;
+				status = "okay";
+			};
+
+			usart1: serial@fffb4000 {
+				pinctrl-0 =
+					<&pinctrl_usart1
+					 &pinctrl_usart1_rts
+					 &pinctrl_usart1_cts>;
+				status = "okay";
+			};
+
+			usart2: serial@fffb8000 {
+				pinctrl-0 =
+					<&pinctrl_usart2
+					 &pinctrl_usart2_rts
+					 &pinctrl_usart2_cts>;
+				status = "okay";
+			};
+
+			macb0: ethernet@fffc4000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			spi0: spi@fffc8000 {
+				status = "okay";
+				cs-gpios = <&pioA 3 GPIO_ACTIVE_HIGH>;
+
+				m41t94@0 {
+					compatible = "st,m41t94";
+					reg = <0>;
+					spi-max-frequency = <1000000>;
+				};
+
+			};
+
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			shdwc@fffffd10 {
+				atmel,wakeup-counter = <10>;
+				atmel,wakeup-rtt-timer;
+			};
+		};
+
+		usb0: ohci@00500000 {
+			num-ports = <2>;
+			status = "okay";
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt;
+			status = "okay";
+
+			at91bootstrap@0 {
+				label = "at91bootstrap";
+				reg = <0x0 0x20000>;
+			};
+
+			barebox@20000 {
+				label = "barebox";
+				reg = <0x20000 0x40000>;
+			};
+
+			bareboxenv@60000 {
+				label = "bareboxenv";
+				reg = <0x60000 0x20000>;
+			};
+
+			bareboxenv2@80000 {
+				label = "bareboxenv2";
+				reg = <0x80000 0x20000>;
+			};
+
+			oftree@a0000 {
+				label = "oftree";
+				reg = <0xa0000 0x20000>;
+			};
+
+			kernel@c0000 {
+				label = "kernel";
+				reg = <0xc0000 0x400000>;
+			};
+
+			rootfs@4c0000 {
+				label = "rootfs";
+				reg = <0x4c0000 0x7800000>;
+			};
+
+			data@7cc0000 {
+				label = "data";
+				reg = <0x7cc0000 0x8340000>;
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user_led {
+			label = "user_led";
+			gpios = <&pioB 21 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		user_pb {
+			label = "user_pb";
+			gpios = <&pioB 10 GPIO_ACTIVE_LOW>;
+			linux,code = <28>;
+			wakeup-source;
+		};
+	};
+
+	i2c@0 {
+		status = "okay";
+	};
+};

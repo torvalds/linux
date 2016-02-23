@@ -1,0 +1,52 @@
+# KVM common configuration items and defaults
+
+config HAVE_KVM
+       bool
+
+config HAVE_KVM_IRQCHIP
+       bool
+
+config HAVE_KVM_IRQFD
+       bool
+
+config HAVE_KVM_IRQ_ROUTING
+       bool
+
+config HAVE_KVM_EVENTFD
+       bool
+       select EVENTFD
+
+config KVM_APIC_ARCHITECTURE
+       bool
+
+config KVM_MMIO
+       bool
+
+config KVM_ASYNC_PF
+       bool
+
+# Toggle to switch between direct notification and batch job
+config KVM_ASYNC_PF_SYNC
+       bool
+
+config HAVE_KVM_MSI
+       bool
+
+config HAVE_KVM_CPU_RELAX_INTERCEPT
+       bool
+
+config KVM_VFIO
+       bool
+
+config HAVE_KVM_ARCH_TLB_FLUSH_ALL
+       bool
+
+config KVM_GENERIC_DIRTYLOG_READ_PROTECT
+       bool
+
+config KVM_COMPAT
+       def_bool y
+       depends on KVM && COMPAT && !S390
+
+config HAVE_KVM_IRQ_BYPASS
+       bool

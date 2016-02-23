@@ -1,0 +1,467 @@
+/*
+ * MPC8360E RDK Device Tree Source
+ *
+ * Copyright 2006 Freescale Semiconductor Inc.
+ * Copyright 2007-2008 MontaVista Software, Inc.
+ *
+ * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "fsl,mpc8360rdk";
+
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
+		serial3 = &serial3;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		pci0 = &pci0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,8360@0 {
+			device_type = "cpu";
+			reg = <0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <32768>;
+			i-cache-size = <32768>;
+			/* filled by u-boot */
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		/* filled by u-boot */
+		reg = <0 0>;
+	};
+
+	soc@e0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "soc";
+		compatible = "fsl,mpc8360-immr", "fsl,immr", "fsl,soc",
+			     "simple-bus";
+		ranges = <0 0xe0000000 0x200000>;
+		reg = <0xe0000000 0x200>;
+		/* filled by u-boot */
+		bus-frequency = <0>;
+
+		wdt@200 {
+			compatible = "mpc83xx_wdt";
+			reg = <0x200 0x100>;
+		};
+
+		pmc: power@b00 {
+			compatible = "fsl,mpc8360-pmc", "fsl,mpc8349-pmc";
+			reg = <0xb00 0x100 0xa00 0x100>;
+			interrupts = <80 0x8>;
+			interrupt-parent = <&ipic>;
+		};
+
+		i2c@3000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			compatible = "fsl-i2c";
+			reg = <0x3000 0x100>;
+			interrupts = <14 8>;
+			interrupt-parent = <&ipic>;
+			dfsrr;
+		};
+
+		i2c@3100 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			compatible = "fsl-i2c";
+			reg = <0x3100 0x100>;
+			interrupts = <16 8>;
+			interrupt-parent = <&ipic>;
+			dfsrr;
+		};
+
+		serial0: serial@4500 {
+			device_type = "serial";
+			compatible = "fsl,ns16550", "ns16550";
+			reg = <0x4500 0x100>;
+			interrupts = <9 8>;
+			interrupt-parent = <&ipic>;
+			/* filled by u-boot */
+			clock-frequency = <0>;
+		};
+
+		serial1: serial@4600 {
+			device_type = "serial";
+			compatible = "fsl,ns16550", "ns16550";
+			reg = <0x4600 0x100>;
+			interrupts = <10 8>;
+			interrupt-parent = <&ipic>;
+			/* filled by u-boot */
+			clock-frequency = <0>;
+		};
+
+		dma@82a8 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8360-dma", "fsl,elo-dma";
+			reg = <0x82a8 4>;
+			ranges = <0 0x8100 0x1a8>;
+			interrupt-parent = <&ipic>;
+			interrupts = <71 8>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
+				reg = <0 0x80>;
+				cell-index = <0>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
+				reg = <0x80 0x80>;
+				cell-index = <1>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
+				reg = <0x100 0x80>;
+				cell-index = <2>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
+				reg = <0x180 0x28>;
+				cell-index = <3>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+			};
+		};
+
+		crypto@30000 {
+			compatible = "fsl,sec2.0";
+			reg = <0x30000 0x10000>;
+			interrupts = <11 0x8>;
+			interrupt-parent = <&ipic>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x7e>;
+			fsl,descriptor-types-mask = <0x01010ebf>;
+			sleep = <&pmc 0x03000000>;
+		};
+
+		ipic: interrupt-controller@700 {
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			compatible = "fsl,pq2pro-pic", "fsl,ipic";
+			interrupt-controller;
+			reg = <0x700 0x100>;
+		};
+
+		qe_pio_b: gpio-controller@1418 {
+			#gpio-cells = <2>;
+			compatible = "fsl,mpc8360-qe-pario-bank",
+				     "fsl,mpc8323-qe-pario-bank";
+			reg = <0x1418 0x18>;
+			gpio-controller;
+		};
+
+		qe_pio_e: gpio-controller@1460 {
+			#gpio-cells = <2>;
+			compatible = "fsl,mpc8360-qe-pario-bank",
+				     "fsl,mpc8323-qe-pario-bank";
+			reg = <0x1460 0x18>;
+			gpio-controller;
+		};
+
+		qe@100000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			device_type = "qe";
+			compatible = "fsl,qe", "simple-bus";
+			ranges = <0 0x100000 0x100000>;
+			reg = <0x100000 0x480>;
+			/* filled by u-boot */
+			clock-frequency = <0>;
+			bus-frequency = <0>;
+			brg-frequency = <0>;
+			fsl,qe-num-riscs = <2>;
+			fsl,qe-num-snums = <28>;
+
+			muram@10000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "fsl,qe-muram", "fsl,cpm-muram";
+				ranges = <0 0x10000 0xc000>;
+
+				data-only@0 {
+					compatible = "fsl,qe-muram-data",
+						     "fsl,cpm-muram-data";
+					reg = <0 0xc000>;
+				};
+			};
+
+			timer@440 {
+				compatible = "fsl,mpc8360-qe-gtm",
+					     "fsl,qe-gtm", "fsl,gtm";
+				reg = <0x440 0x40>;
+				interrupts = <12 13 14 15>;
+				interrupt-parent = <&qeic>;
+				clock-frequency = <166666666>;
+			};
+
+			usb@6c0 {
+				compatible = "fsl,mpc8360-qe-usb",
+					     "fsl,mpc8323-qe-usb";
+				reg = <0x6c0 0x40 0x8b00 0x100>;
+				interrupts = <11>;
+				interrupt-parent = <&qeic>;
+				fsl,fullspeed-clock = "clk21";
+				gpios = <&qe_pio_b  2 0 /* USBOE */
+					 &qe_pio_b  3 0 /* USBTP */
+					 &qe_pio_b  8 0 /* USBTN */
+					 &qe_pio_b  9 0 /* USBRP */
+					 &qe_pio_b 11 0 /* USBRN */
+					 &qe_pio_e 20 0 /* SPEED */
+					 &qe_pio_e 21 1 /* POWER */>;
+			};
+
+			spi@4c0 {
+				cell-index = <0>;
+				compatible = "fsl,spi";
+				reg = <0x4c0 0x40>;
+				interrupts = <2>;
+				interrupt-parent = <&qeic>;
+				mode = "cpu-qe";
+			};
+
+			spi@500 {
+				cell-index = <1>;
+				compatible = "fsl,spi";
+				reg = <0x500 0x40>;
+				interrupts = <1>;
+				interrupt-parent = <&qeic>;
+				mode = "cpu-qe";
+			};
+
+			enet0: ucc@2000 {
+				device_type = "network";
+				compatible = "ucc_geth";
+				cell-index = <1>;
+				reg = <0x2000 0x200>;
+				interrupts = <32>;
+				interrupt-parent = <&qeic>;
+				rx-clock-name = "none";
+				tx-clock-name = "clk9";
+				phy-handle = <&phy2>;
+				phy-connection-type = "rgmii-rxid";
+				/* filled by u-boot */
+				local-mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			enet1: ucc@3000 {
+				device_type = "network";
+				compatible = "ucc_geth";
+				cell-index = <2>;
+				reg = <0x3000 0x200>;
+				interrupts = <33>;
+				interrupt-parent = <&qeic>;
+				rx-clock-name = "none";
+				tx-clock-name = "clk4";
+				phy-handle = <&phy4>;
+				phy-connection-type = "rgmii-rxid";
+				/* filled by u-boot */
+				local-mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			enet2: ucc@2600 {
+				device_type = "network";
+				compatible = "ucc_geth";
+				cell-index = <7>;
+				reg = <0x2600 0x200>;
+				interrupts = <42>;
+				interrupt-parent = <&qeic>;
+				rx-clock-name = "clk20";
+				tx-clock-name = "clk19";
+				phy-handle = <&phy1>;
+				phy-connection-type = "mii";
+				/* filled by u-boot */
+				local-mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			enet3: ucc@3200 {
+				device_type = "network";
+				compatible = "ucc_geth";
+				cell-index = <4>;
+				reg = <0x3200 0x200>;
+				interrupts = <35>;
+				interrupt-parent = <&qeic>;
+				rx-clock-name = "clk8";
+				tx-clock-name = "clk7";
+				phy-handle = <&phy3>;
+				phy-connection-type = "mii";
+				/* filled by u-boot */
+				local-mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			mdio@2120 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,ucc-mdio";
+				reg = <0x2120 0x18>;
+
+				phy1: ethernet-phy@1 {
+					compatible = "national,DP83848VV";
+					reg = <1>;
+				};
+
+				phy2: ethernet-phy@2 {
+					compatible = "broadcom,BCM5481UA2KMLG";
+					reg = <2>;
+				};
+
+				phy3: ethernet-phy@3 {
+					compatible = "national,DP83848VV";
+					reg = <3>;
+				};
+
+				phy4: ethernet-phy@4 {
+					compatible = "broadcom,BCM5481UA2KMLG";
+					reg = <4>;
+				};
+			};
+
+			serial2: ucc@2400 {
+				device_type = "serial";
+				compatible = "ucc_uart";
+				reg = <0x2400 0x200>;
+				cell-index = <5>;
+				port-number = <0>;
+				rx-clock-name = "brg7";
+				tx-clock-name = "brg8";
+				interrupts = <40>;
+				interrupt-parent = <&qeic>;
+				soft-uart;
+			};
+
+			serial3: ucc@3400 {
+				device_type = "serial";
+				compatible = "ucc_uart";
+				reg = <0x3400 0x200>;
+				cell-index = <6>;
+				port-number = <1>;
+				rx-clock-name = "brg13";
+				tx-clock-name = "brg14";
+				interrupts = <41>;
+				interrupt-parent = <&qeic>;
+				soft-uart;
+			};
+
+			qeic: interrupt-controller@80 {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				compatible = "fsl,qe-ic";
+				interrupt-controller;
+				reg = <0x80 0x80>;
+				big-endian;
+				interrupts = <32 8 33 8>;
+				interrupt-parent = <&ipic>;
+			};
+		};
+	};
+
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8360-localbus", "fsl,pq2pro-localbus",
+			     "simple-bus";
+		reg = <0xe0005000 0xd8>;
+		ranges = <0 0 0xff800000 0x0800000
+			  1 0 0x60000000 0x0001000
+			  2 0 0x70000000 0x4000000>;
+
+		flash@0,0 {
+			compatible = "intel,PC28F640P30T85", "cfi-flash";
+			reg = <0 0 0x800000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		upm@1,0 {
+			compatible = "fsl,upm-nand";
+			reg = <1 0 1>;
+			fsl,upm-addr-offset = <16>;
+			fsl,upm-cmd-offset = <8>;
+			gpios = <&qe_pio_e 18 0>;
+
+			flash {
+				compatible = "stm,nand512-a";
+			};
+		};
+
+		display@2,0 {
+			device_type = "display";
+			compatible = "fujitsu,MB86277", "fujitsu,mint";
+			reg = <2 0 0x4000000>;
+			fujitsu,sh3;
+			little-endian;
+			/* filled by u-boot */
+			address = <0>;
+			depth = <0>;
+			width = <0>;
+			height = <0>;
+			linebytes = <0>;
+			/* linux,opened; - added by uboot */
+		};
+	};
+
+	pci0: pci@e0008500 {
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		device_type = "pci";
+		compatible = "fsl,mpc8360-pci", "fsl,mpc8349-pci";
+		reg = <0xe0008500 0x100		/* internal registers */
+		       0xe0008300 0x8>;		/* config space access registers */
+		ranges = <0x02000000 0 0x90000000 0x90000000 0 0x10000000
+			  0x42000000 0 0x80000000 0x80000000 0 0x10000000
+			  0x01000000 0 0xe0300000 0xe0300000 0 0x00100000>;
+		interrupts = <66 8>;
+		interrupt-parent = <&ipic>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = </* miniPCI0 IDSEL 0x14 AD20 */
+				 0xa000 0 0 1 &ipic 18 8
+				 0xa000 0 0 2 &ipic 19 8
+
+				 /* PCI1 IDSEL 0x15 AD21 */
+				 0xa800 0 0 1 &ipic 19 8
+				 0xa800 0 0 2 &ipic 20 8
+				 0xa800 0 0 3 &ipic 21 8
+				 0xa800 0 0 4 &ipic 18 8>;
+		sleep = <&pmc 0x00010000>;
+		/* filled by u-boot */
+		bus-range = <0 0>;
+		clock-frequency = <0>;
+	};
+};

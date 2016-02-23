@@ -1,0 +1,18 @@
+config DVB_SMIPCIE
+	tristate "SMI PCIe DVBSky cards"
+	depends on DVB_CORE && PCI && I2C
+	select I2C_ALGOBIT
+	select DVB_M88DS3103 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_SI2168 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TS2020 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_M88RS6000T if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
+	depends on RC_CORE
+	help
+	  Support for cards with SMI PCIe bridge:
+	  - DVBSky S950 V3
+	  - DVBSky S952 V3
+	  - DVBSky T9580 V3
+
+	  Say Y or M if you own such a device and want to use it.
+	  If unsure say N.

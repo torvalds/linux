@@ -1,0 +1,346 @@
+perf-record(1)
+==============
+
+NAME
+----
+perf-record - Run a command and record its profile into perf.data
+
+SYNOPSIS
+--------
+[verse]
+'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
+'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] -- <command> [<options>]
+
+DESCRIPTION
+-----------
+This command runs a command and gathers a performance counter profile
+from it, into perf.data - without displaying anything.
+
+This file can then be inspected later on, using 'perf report'.
+
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+-e::
+--event=::
+	Select the PMU event. Selection can be:
+
+        - a symbolic event name	(use 'perf list' to list all events)
+
+        - a raw PMU event (eventsel+umask) in the form of rNNN where NNN is a
+	  hexadecimal event descriptor.
+
+	- a symbolically formed PMU event like 'pmu/param1=0x3,param2/' where
+	  'param1', 'param2', etc are defined as formats for the PMU in
+	  /sys/bus/event_sources/devices/<pmu>/format/*.
+
+	- a symbolically formed event like 'pmu/config=M,config1=N,config3=K/'
+
+          where M, N, K are numbers (in decimal, hex, octal format). Acceptable
+          values for each of 'config', 'config1' and 'config2' are defined by
+          corresponding entries in /sys/bus/event_sources/devices/<pmu>/format/*
+          param1 and param2 are defined as formats for the PMU in:
+          /sys/bus/event_sources/devices/<pmu>/format/*
+
+	  There are also some params which are not defined in .../<pmu>/format/*.
+	  These params can be used to overload default config values per event.
+	  Here is a list of the params.
+	  - 'period': Set event sampling period
+	  - 'freq': Set event sampling frequency
+	  - 'time': Disable/enable time stamping. Acceptable values are 1 for
+		    enabling time stamping. 0 for disabling time stamping.
+		    The default is 1.
+	  - 'call-graph': Disable/enable callgraph. Acceptable str are "fp" for
+			 FP mode, "dwarf" for DWARF mode, "lbr" for LBR mode and
+			 "no" for disable callgraph.
+	  - 'stack-size': user stack size for dwarf mode
+	  Note: If user explicitly sets options which conflict with the params,
+	  the value set by the params will be overridden.
+
+        - a hardware breakpoint event in the form of '\mem:addr[/len][:access]'
+          where addr is the address in memory you want to break in.
+          Access is the memory access type (read, write, execute) it can
+          be passed as follows: '\mem:addr[:[r][w][x]]'. len is the range,
+          number of bytes from specified addr, which the breakpoint will cover.
+          If you want to profile read-write accesses in 0x1000, just set
+          'mem:0x1000:rw'.
+          If you want to profile write accesses in [0x1000~1008), just set
+          'mem:0x1000/8:w'.
+
+	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
+	  Each event is separated by commas and the group should be quoted to
+	  prevent the shell interpretation.  You also need to use --group on
+	  "perf report" to view group events together.
+
+--filter=<filter>::
+        Event filter. This option should follow a event selector (-e) which
+	selects tracepoint event(s). Multiple '--filter' options are combined
+	using '&&'.
+
+--exclude-perf::
+	Don't record events issued by perf itself. This option should follow
+	a event selector (-e) which selects tracepoint event(s). It adds a
+	filter expression 'common_pid != $PERFPID' to filters. If other
+	'--filter' exists, the new filter expression will be combined with
+	them by '&&'.
+
+-a::
+--all-cpus::
+        System-wide collection from all CPUs.
+
+-p::
+--pid=::
+	Record events on existing process ID (comma separated list).
+
+-t::
+--tid=::
+        Record events on existing thread ID (comma separated list).
+        This option also disables inheritance by default.  Enable it by adding
+        --inherit.
+
+-u::
+--uid=::
+        Record events in threads owned by uid. Name or number.
+
+-r::
+--realtime=::
+	Collect data with this RT SCHED_FIFO priority.
+
+--no-buffering::
+	Collect data without buffering.
+
+-c::
+--count=::
+	Event period to sample.
+
+-o::
+--output=::
+	Output file name.
+
+-i::
+--no-inherit::
+	Child tasks do not inherit counters.
+-F::
+--freq=::
+	Profile at this frequency.
+
+-m::
+--mmap-pages=::
+	Number of mmap data pages (must be a power of two) or size
+	specification with appended unit character - B/K/M/G. The
+	size is rounded up to have nearest pages power of two value.
+	Also, by adding a comma, the number of mmap pages for AUX
+	area tracing can be specified.
+
+--group::
+	Put all events in a single event group.  This precedes the --event
+	option and remains only for backward compatibility.  See --event.
+
+-g::
+	Enables call-graph (stack chain/backtrace) recording.
+
+--call-graph::
+	Setup and enable call-graph (stack chain/backtrace) recording,
+	implies -g.  Default is "fp".
+
+	Allows specifying "fp" (frame pointer) or "dwarf"
+	(DWARF's CFI - Call Frame Information) or "lbr"
+	(Hardware Last Branch Record facility) as the method to collect
+	the information used to show the call graphs.
+
+	In some systems, where binaries are build with gcc
+	--fomit-frame-pointer, using the "fp" method will produce bogus
+	call graphs, using "dwarf", if available (perf tools linked to
+	the libunwind or libdw library) should be used instead.
+	Using the "lbr" method doesn't require any compiler options. It
+	will produce call graphs from the hardware LBR registers. The
+	main limition is that it is only available on new Intel
+	platforms, such as Haswell. It can only get user call chain. It
+	doesn't work with branch stack sampling at the same time.
+
+	When "dwarf" recording is used, perf also records (user) stack dump
+	when sampled.  Default size of the stack dump is 8192 (bytes).
+	User can change the size by passing the size after comma like
+	"--call-graph dwarf,4096".
+
+-q::
+--quiet::
+	Don't print any message, useful for scripting.
+
+-v::
+--verbose::
+	Be more verbose (show counter open errors, etc).
+
+-s::
+--stat::
+	Record per-thread event counts.  Use it with 'perf report -T' to see
+	the values.
+
+-d::
+--data::
+	Record the sample addresses.
+
+-T::
+--timestamp::
+	Record the sample timestamps. Use it with 'perf report -D' to see the
+	timestamps, for instance.
+
+-P::
+--period::
+	Record the sample period.
+
+-n::
+--no-samples::
+	Don't sample.
+
+-R::
+--raw-samples::
+Collect raw sample records from all opened counters (default for tracepoint counters).
+
+-C::
+--cpu::
+Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
+comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode with inheritance mode on (default), samples are captured only when
+the thread executes on the designated CPUs. Default is to monitor all CPUs.
+
+-B::
+--no-buildid::
+Do not save the build ids of binaries in the perf.data files. This skips
+post processing after recording, which sometimes makes the final step in
+the recording process to take a long time, as it needs to process all
+events looking for mmap records. The downside is that it can misresolve
+symbols if the workload binaries used when recording get locally rebuilt
+or upgraded, because the only key available in this case is the
+pathname. You can also set the "record.build-id" config variable to
+'skip to have this behaviour permanently.
+
+-N::
+--no-buildid-cache::
+Do not update the buildid cache. This saves some overhead in situations
+where the information in the perf.data file (which includes buildids)
+is sufficient.  You can also set the "record.build-id" config variable to
+'no-cache' to have the same effect.
+
+-G name,...::
+--cgroup name,...::
+monitor only in the container (cgroup) called "name". This option is available only
+in per-cpu mode. The cgroup filesystem must be mounted. All threads belonging to
+container "name" are monitored when they run on the monitored CPUs. Multiple cgroups
+can be provided. Each cgroup is applied to the corresponding event, i.e., first cgroup
+to first event, second cgroup to second event and so on. It is possible to provide
+an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
+corresponding events, i.e., they always refer to events defined earlier on the command
+line.
+
+-b::
+--branch-any::
+Enable taken branch stack sampling. Any type of taken branch may be sampled.
+This is a shortcut for --branch-filter any. See --branch-filter for more infos.
+
+-j::
+--branch-filter::
+Enable taken branch stack sampling. Each sample captures a series of consecutive
+taken branches. The number of branches captured with each sample depends on the
+underlying hardware, the type of branches of interest, and the executed code.
+It is possible to select the types of branches captured by enabling filters. The
+following filters are defined:
+
+        - any:  any type of branches
+        - any_call: any function call or system call
+        - any_ret: any function return or system call return
+        - ind_call: any indirect branch
+        - call: direct calls, including far (to/from kernel) calls
+        - u:  only when the branch target is at the user level
+        - k: only when the branch target is in the kernel
+        - hv: only when the target is at the hypervisor level
+	- in_tx: only when the target is in a hardware transaction
+	- no_tx: only when the target is not in a hardware transaction
+	- abort_tx: only when the target is a hardware transaction abort
+	- cond: conditional branches
+
++
+The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.
+The privilege levels may be omitted, in which case, the privilege levels of the associated
+event are applied to the branch filter. Both kernel (k) and hypervisor (hv) privilege
+levels are subject to permissions.  When sampling on multiple events, branch stack sampling
+is enabled for all the sampling events. The sampled branch type is the same for all events.
+The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
+Note that this feature may not be available on all processors.
+
+--weight::
+Enable weightened sampling. An additional weight is recorded per sample and can be
+displayed with the weight and local_weight sort keys.  This currently works for TSX
+abort events and some memory events in precise mode on modern Intel CPUs.
+
+--transaction::
+Record transaction flags for transaction related events.
+
+--per-thread::
+Use per-thread mmaps.  By default per-cpu mmaps are created.  This option
+overrides that and uses per-thread mmaps.  A side-effect of that is that
+inheritance is automatically disabled.  --per-thread is ignored with a warning
+if combined with -a or -C options.
+
+-D::
+--delay=::
+After starting the program, wait msecs before measuring. This is useful to
+filter out the startup phase of the program, which is often very different.
+
+-I::
+--intr-regs::
+Capture machine state (registers) at interrupt, i.e., on counter overflows for
+each sample. List of captured registers depends on the architecture. This option
+is off by default. It is possible to select the registers to sample using their
+symbolic names, e.g. on x86, ax, si. To list the available registers use
+--intr-regs=\?. To name registers, pass a comma separated list such as
+--intr-regs=ax,bx. The list of register is architecture dependent.
+
+
+--running-time::
+Record running and enabled time for read events (:S)
+
+-k::
+--clockid::
+Sets the clock id to use for the various time fields in the perf_event_type
+records. See clock_gettime(). In particular CLOCK_MONOTONIC and
+CLOCK_MONOTONIC_RAW are supported, some events might also allow
+CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
+
+-S::
+--snapshot::
+Select AUX area tracing Snapshot Mode. This option is valid only with an
+AUX area tracing event. Optionally the number of bytes to capture per
+snapshot can be specified. In Snapshot Mode, trace data is captured only when
+signal SIGUSR2 is received.
+
+--proc-map-timeout::
+When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
+because the file may be huge. A time out is needed in such cases.
+This option sets the time out limit. The default value is 500 ms.
+
+--switch-events::
+Record context switch events i.e. events of type PERF_RECORD_SWITCH or
+PERF_RECORD_SWITCH_CPU_WIDE.
+
+--clang-path=PATH::
+Path to clang binary to use for compiling BPF scriptlets.
+(enabled when BPF support is on)
+
+--clang-opt=OPTIONS::
+Options passed to clang when compiling BPF scriptlets.
+(enabled when BPF support is on)
+
+--vmlinux=PATH::
+Specify vmlinux path which has debuginfo.
+(enabled when BPF prologue is on)
+
+--buildid-all::
+Record build-id of all DSOs regardless whether it's actually hit or not.
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-list[1]

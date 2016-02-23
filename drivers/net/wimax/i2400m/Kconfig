@@ -1,0 +1,36 @@
+
+config WIMAX_I2400M
+	tristate
+	depends on WIMAX
+	select FW_LOADER
+
+comment "Enable USB support to see WiMAX USB drivers"
+	depends on USB = n
+
+config WIMAX_I2400M_USB
+	tristate "Intel Wireless WiMAX Connection 2400 over USB (including 5x50)"
+	depends on WIMAX && USB
+	select WIMAX_I2400M
+	help
+	  Select if you have a device based on the Intel WiMAX
+	  Connection 2400 over USB (like any of the Intel Wireless
+	  WiMAX/WiFi Link 5x50 series).
+
+	  If unsure, it is safe to select M (module).
+
+config WIMAX_I2400M_DEBUG_LEVEL
+	int "WiMAX i2400m debug level"
+	depends on WIMAX_I2400M
+	default 8
+	help
+
+	  Select the maximum debug verbosity level to be compiled into
+	  the WiMAX i2400m driver code.
+
+	  By default, this is disabled at runtime and can be
+	  selectively enabled at runtime for different parts of the
+	  code using the sysfs debug-levels file.
+
+	  If set at zero, this will compile out all the debug code.
+
+	  It is recommended that it is left at 8.

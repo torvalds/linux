@@ -1,0 +1,161 @@
+/*
+ * Digsy MTC board Device Tree Source
+ *
+ * Copyright (C) 2009 Semihalf
+ *
+ * Based on the CM5200 by M. Balakowicz
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "mpc5200b.dtsi"
+
+&gpt0 { gpio-controller; fsl,has-wdt; };
+&gpt1 { gpio-controller; };
+
+/ {
+	model = "intercontrol,digsy-mtc";
+	compatible = "intercontrol,digsy-mtc";
+
+	memory {
+		reg = <0x00000000 0x02000000>;	// 32MB
+	};
+
+	soc5200@f0000000 {
+		rtc@800 {
+			status = "disabled";
+		};
+
+		spi@f00 {
+			msp430@0 {
+				compatible = "spidev";
+				spi-max-frequency = <32000>;
+				reg = <0>;
+			};
+		};
+
+		psc@2000 {		// PSC1
+			status = "disabled";
+		};
+
+		psc@2200 {		// PSC2
+			status = "disabled";
+		};
+
+		psc@2400 {		// PSC3
+			status = "disabled";
+		};
+
+		psc@2600 {		// PSC4
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		psc@2800 {		// PSC5
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		psc@2c00 {		// PSC6
+			status = "disabled";
+		};
+
+		ethernet@3000 {
+			phy-handle = <&phy0>;
+		};
+
+		mdio@3000 {
+			phy0: ethernet-phy@0 {
+				reg = <0>;
+			};
+		};
+
+		i2c@3d00 {
+			eeprom@50 {
+				compatible = "at,24c08";
+				reg = <0x50>;
+			};
+
+			rtc@56 {
+				compatible = "mc,rv3029c2";
+				reg = <0x56>;
+			};
+
+			rtc@68 {
+				compatible = "dallas,ds1339";
+				reg = <0x68>;
+			};
+		};
+
+		i2c@3d40 {
+			status = "disabled";
+		};
+	};
+
+	pci@f0000d00 {
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0xc000 0 0 1 &mpc5200_pic 0 0 3
+				 0xc000 0 0 2 &mpc5200_pic 0 0 3
+				 0xc000 0 0 3 &mpc5200_pic 0 0 3
+				 0xc000 0 0 4 &mpc5200_pic 0 0 3>;
+		clock-frequency = <0>; // From boot loader
+		interrupts = <2 8 0 2 9 0 2 10 0>;
+		bus-range = <0 0>;
+		ranges = <0x42000000 0 0x80000000 0x80000000 0 0x10000000
+			  0x02000000 0 0x90000000 0x90000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xa0000000 0 0x01000000>;
+	};
+
+	localbus {
+		ranges = <0 0 0xff000000 0x1000000
+			  4 0 0x60000000 0x0001000>;
+
+		// 16-bit flash device at LocalPlus Bus CS0
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x1000000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			partition@0 {
+				label = "kernel";
+				reg = <0x0 0x00200000>;
+			};
+			partition@200000 {
+				label = "root";
+				reg = <0x00200000 0x00300000>;
+			};
+			partition@500000 {
+				label = "user";
+				reg = <0x00500000 0x00a00000>;
+			};
+			partition@f00000 {
+				label = "u-boot";
+				reg = <0x00f00000 0x100000>;
+			};
+		};
+
+		can@4,0 {
+			compatible = "nxp,sja1000";
+			reg = <4 0x000 0x80>;
+			nxp,external-clock-frequency = <24000000>;
+			interrupts = <1 2 3>; // Level-low
+		};
+
+		can@4,100 {
+			compatible = "nxp,sja1000";
+			reg = <4 0x100 0x80>;
+			nxp,external-clock-frequency = <24000000>;
+			interrupts = <1 2 3>;  // Level-low
+		};
+
+		serial@4,200 {
+			compatible = "nxp,sc28l92";
+			reg = <4 0x200 0x10>;
+			interrupts = <1 3 3>;
+		};
+	};
+};

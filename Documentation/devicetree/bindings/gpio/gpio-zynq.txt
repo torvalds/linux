@@ -1,0 +1,35 @@
+Xilinx Zynq GPIO controller Device Tree Bindings
+-------------------------------------------
+
+Required properties:
+- #gpio-cells 		: Should be two
+			  - First cell is the GPIO line number
+			  - Second cell is used to specify optional
+			    parameters (unused)
+- compatible		: Should be "xlnx,zynq-gpio-1.0" or "xlnx,zynqmp-gpio-1.0"
+- clocks		: Clock specifier (see clock bindings for details)
+- gpio-controller	: Marks the device node as a GPIO controller.
+- interrupts		: Interrupt specifier (see interrupt bindings for
+			  details)
+- interrupt-parent	: Must be core interrupt controller
+- interrupt-controller	: Marks the device node as an interrupt controller.
+- #interrupt-cells 	: Should be 2.  The first cell is the GPIO number.
+			  The second cell bits[3:0] is used to specify trigger type and level flags:
+			      1 = low-to-high edge triggered.
+			      2 = high-to-low edge triggered.
+			      4 = active high level-sensitive.
+			      8 = active low level-sensitive.
+- reg			: Address and length of the register set for the device
+
+Example:
+	gpio@e000a000 {
+		#gpio-cells = <2>;
+		compatible = "xlnx,zynq-gpio-1.0";
+		clocks = <&clkc 42>;
+		gpio-controller;
+		interrupt-parent = <&intc>;
+		interrupts = <0 20 4>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <0xe000a000 0x1000>;
+	};

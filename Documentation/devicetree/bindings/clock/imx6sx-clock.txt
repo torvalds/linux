@@ -1,0 +1,13 @@
+* Clock bindings for Freescale i.MX6 SoloX
+
+Required properties:
+- compatible: Should be "fsl,imx6sx-ccm"
+- reg: Address and length of the register set
+- #clock-cells: Should be <1>
+- clocks: list of clock specifiers, must contain an entry for each required
+  entry in clock-names
+- clock-names: should include entries "ckil", "osc", "ipp_di0" and "ipp_di1"
+
+The clock consumer should specify the desired clock by having the clock
+ID in its "clocks" phandle cell.  See include/dt-bindings/clock/imx6sx-clock.h
+for the full list of i.MX6 SoloX clock IDs.

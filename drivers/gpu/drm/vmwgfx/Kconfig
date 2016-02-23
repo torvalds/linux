@@ -1,0 +1,25 @@
+config DRM_VMWGFX
+	tristate "DRM driver for VMware Virtual GPU"
+	depends on DRM && PCI && X86
+	select FB_DEFERRED_IO
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select DRM_TTM
+	# Only needed for the transitional use of drm_crtc_init - can be removed
+	# again once vmwgfx sets up the primary plane itself.
+	select DRM_KMS_HELPER
+	help
+	  Choose this option if you would like to run 3D acceleration
+	  in a VMware virtual machine.
+	  This is a KMS enabled DRM driver for the VMware SVGA2
+	  virtual hardware.
+	  The compiled module will be called "vmwgfx.ko".
+
+config DRM_VMWGFX_FBCON
+	depends on DRM_VMWGFX && FB
+	bool "Enable framebuffer console under vmwgfx by default"
+	help
+	   Choose this option if you are shipping a new vmwgfx
+	   userspace driver that supports using the kernel driver.
+

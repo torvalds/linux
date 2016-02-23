@@ -1,0 +1,1649 @@
+#
+# Generic algorithms support
+#
+config XOR_BLOCKS
+	tristate
+
+#
+# async_tx api: hardware offloaded memory transfer/transform support
+#
+source "crypto/async_tx/Kconfig"
+
+#
+# Cryptographic API Configuration
+#
+menuconfig CRYPTO
+	tristate "Cryptographic API"
+	help
+	  This option provides the core Cryptographic API.
+
+if CRYPTO
+
+comment "Crypto core or helper"
+
+config CRYPTO_FIPS
+	bool "FIPS 200 compliance"
+	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && !CRYPTO_MANAGER_DISABLE_TESTS
+	depends on MODULE_SIG
+	help
+	  This options enables the fips boot option which is
+	  required if you want to system to operate in a FIPS 200
+	  certification.  You should say no unless you know what
+	  this is.
+
+config CRYPTO_ALGAPI
+	tristate
+	select CRYPTO_ALGAPI2
+	help
+	  This option provides the API for cryptographic algorithms.
+
+config CRYPTO_ALGAPI2
+	tristate
+
+config CRYPTO_AEAD
+	tristate
+	select CRYPTO_AEAD2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_AEAD2
+	tristate
+	select CRYPTO_ALGAPI2
+	select CRYPTO_NULL2
+	select CRYPTO_RNG2
+
+config CRYPTO_BLKCIPHER
+	tristate
+	select CRYPTO_BLKCIPHER2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_BLKCIPHER2
+	tristate
+	select CRYPTO_ALGAPI2
+	select CRYPTO_RNG2
+	select CRYPTO_WORKQUEUE
+
+config CRYPTO_HASH
+	tristate
+	select CRYPTO_HASH2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_HASH2
+	tristate
+	select CRYPTO_ALGAPI2
+
+config CRYPTO_RNG
+	tristate
+	select CRYPTO_RNG2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_RNG2
+	tristate
+	select CRYPTO_ALGAPI2
+
+config CRYPTO_RNG_DEFAULT
+	tristate
+	select CRYPTO_DRBG_MENU
+
+config CRYPTO_PCOMP
+	tristate
+	select CRYPTO_PCOMP2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_PCOMP2
+	tristate
+	select CRYPTO_ALGAPI2
+
+config CRYPTO_AKCIPHER2
+	tristate
+	select CRYPTO_ALGAPI2
+
+config CRYPTO_AKCIPHER
+	tristate
+	select CRYPTO_AKCIPHER2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_RSA
+	tristate "RSA algorithm"
+	select CRYPTO_AKCIPHER
+	select MPILIB
+	select ASN1
+	help
+	  Generic implementation of the RSA public key algorithm.
+
+config CRYPTO_MANAGER
+	tristate "Cryptographic algorithm manager"
+	select CRYPTO_MANAGER2
+	help
+	  Create default cryptographic template instantiations such as
+	  cbc(aes).
+
+config CRYPTO_MANAGER2
+	def_tristate CRYPTO_MANAGER || (CRYPTO_MANAGER!=n && CRYPTO_ALGAPI=y)
+	select CRYPTO_AEAD2
+	select CRYPTO_HASH2
+	select CRYPTO_BLKCIPHER2
+	select CRYPTO_PCOMP2
+	select CRYPTO_AKCIPHER2
+
+config CRYPTO_USER
+	tristate "Userspace cryptographic algorithm configuration"
+	depends on NET
+	select CRYPTO_MANAGER
+	help
+	  Userspace configuration for cryptographic instantiations such as
+	  cbc(aes).
+
+config CRYPTO_MANAGER_DISABLE_TESTS
+	bool "Disable run-time self tests"
+	default y
+	depends on CRYPTO_MANAGER2
+	help
+	  Disable run-time self tests that normally take place at
+	  algorithm registration.
+
+config CRYPTO_GF128MUL
+	tristate "GF(2^128) multiplication functions"
+	help
+	  Efficient table driven implementation of multiplications in the
+	  field GF(2^128).  This is needed by some cypher modes. This
+	  option will be selected automatically if you select such a
+	  cipher mode.  Only select this option by hand if you expect to load
+	  an external module that requires these functions.
+
+config CRYPTO_NULL
+	tristate "Null algorithms"
+	select CRYPTO_NULL2
+	help
+	  These are 'Null' algorithms, used by IPsec, which do nothing.
+
+config CRYPTO_NULL2
+	tristate
+	select CRYPTO_ALGAPI2
+	select CRYPTO_BLKCIPHER2
+	select CRYPTO_HASH2
+
+config CRYPTO_PCRYPT
+	tristate "Parallel crypto engine"
+	depends on SMP
+	select PADATA
+	select CRYPTO_MANAGER
+	select CRYPTO_AEAD
+	help
+	  This converts an arbitrary crypto algorithm into a parallel
+	  algorithm that executes in kernel threads.
+
+config CRYPTO_WORKQUEUE
+       tristate
+
+config CRYPTO_CRYPTD
+	tristate "Software async crypto daemon"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	select CRYPTO_WORKQUEUE
+	help
+	  This is a generic software asynchronous crypto daemon that
+	  converts an arbitrary synchronous software crypto algorithm
+	  into an asynchronous algorithm that executes in a kernel thread.
+
+config CRYPTO_MCRYPTD
+	tristate "Software async multi-buffer crypto daemon"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	select CRYPTO_WORKQUEUE
+	help
+	  This is a generic software asynchronous crypto daemon that
+	  provides the kernel thread to assist multi-buffer crypto
+	  algorithms for submitting jobs and flushing jobs in multi-buffer
+	  crypto algorithms.  Multi-buffer crypto algorithms are executed
+	  in the context of this kernel thread and drivers can post
+	  their crypto request asynchronously to be processed by this daemon.
+
+config CRYPTO_AUTHENC
+	tristate "Authenc support"
+	select CRYPTO_AEAD
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	select CRYPTO_HASH
+	select CRYPTO_NULL
+	help
+	  Authenc: Combined mode wrapper for IPsec.
+	  This is required for IPSec.
+
+config CRYPTO_TEST
+	tristate "Testing module"
+	depends on m
+	select CRYPTO_MANAGER
+	help
+	  Quick & dirty crypto test module.
+
+config CRYPTO_ABLK_HELPER
+	tristate
+	select CRYPTO_CRYPTD
+
+config CRYPTO_GLUE_HELPER_X86
+	tristate
+	depends on X86
+	select CRYPTO_ALGAPI
+
+comment "Authenticated Encryption with Associated Data"
+
+config CRYPTO_CCM
+	tristate "CCM support"
+	select CRYPTO_CTR
+	select CRYPTO_AEAD
+	help
+	  Support for Counter with CBC MAC. Required for IPsec.
+
+config CRYPTO_GCM
+	tristate "GCM/GMAC support"
+	select CRYPTO_CTR
+	select CRYPTO_AEAD
+	select CRYPTO_GHASH
+	select CRYPTO_NULL
+	help
+	  Support for Galois/Counter Mode (GCM) and Galois Message
+	  Authentication Code (GMAC). Required for IPSec.
+
+config CRYPTO_CHACHA20POLY1305
+	tristate "ChaCha20-Poly1305 AEAD support"
+	select CRYPTO_CHACHA20
+	select CRYPTO_POLY1305
+	select CRYPTO_AEAD
+	help
+	  ChaCha20-Poly1305 AEAD support, RFC7539.
+
+	  Support for the AEAD wrapper using the ChaCha20 stream cipher combined
+	  with the Poly1305 authenticator. It is defined in RFC7539 for use in
+	  IETF protocols.
+
+config CRYPTO_SEQIV
+	tristate "Sequence Number IV Generator"
+	select CRYPTO_AEAD
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_NULL
+	select CRYPTO_RNG_DEFAULT
+	help
+	  This IV generator generates an IV based on a sequence number by
+	  xoring it with a salt.  This algorithm is mainly useful for CTR
+
+config CRYPTO_ECHAINIV
+	tristate "Encrypted Chain IV Generator"
+	select CRYPTO_AEAD
+	select CRYPTO_NULL
+	select CRYPTO_RNG_DEFAULT
+	default m
+	help
+	  This IV generator generates an IV based on the encryption of
+	  a sequence number xored with a salt.  This is the default
+	  algorithm for CBC.
+
+comment "Block modes"
+
+config CRYPTO_CBC
+	tristate "CBC support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  CBC: Cipher Block Chaining mode
+	  This block cipher algorithm is required for IPSec.
+
+config CRYPTO_CTR
+	tristate "CTR support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_SEQIV
+	select CRYPTO_MANAGER
+	help
+	  CTR: Counter mode
+	  This block cipher algorithm is required for IPSec.
+
+config CRYPTO_CTS
+	tristate "CTS support"
+	select CRYPTO_BLKCIPHER
+	help
+	  CTS: Cipher Text Stealing
+	  This is the Cipher Text Stealing mode as described by
+	  Section 8 of rfc2040 and referenced by rfc3962.
+	  (rfc3962 includes errata information in its Appendix A)
+	  This mode is required for Kerberos gss mechanism support
+	  for AES encryption.
+
+config CRYPTO_ECB
+	tristate "ECB support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  ECB: Electronic CodeBook mode
+	  This is the simplest block cipher algorithm.  It simply encrypts
+	  the input block by block.
+
+config CRYPTO_LRW
+	tristate "LRW support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	select CRYPTO_GF128MUL
+	help
+	  LRW: Liskov Rivest Wagner, a tweakable, non malleable, non movable
+	  narrow block cipher mode for dm-crypt.  Use it with cipher
+	  specification string aes-lrw-benbi, the key must be 256, 320 or 384.
+	  The first 128, 192 or 256 bits in the key are used for AES and the
+	  rest is used to tie each cipher block to its logical position.
+
+config CRYPTO_PCBC
+	tristate "PCBC support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  PCBC: Propagating Cipher Block Chaining mode
+	  This block cipher algorithm is required for RxRPC.
+
+config CRYPTO_XTS
+	tristate "XTS support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	select CRYPTO_GF128MUL
+	help
+	  XTS: IEEE1619/D16 narrow block cipher use with aes-xts-plain,
+	  key size 256, 384 or 512 bits. This implementation currently
+	  can't handle a sectorsize which is not a multiple of 16 bytes.
+
+config CRYPTO_KEYWRAP
+	tristate "Key wrapping support"
+	select CRYPTO_BLKCIPHER
+	help
+	  Support for key wrapping (NIST SP800-38F / RFC3394) without
+	  padding.
+
+comment "Hash modes"
+
+config CRYPTO_CMAC
+	tristate "CMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  Cipher-based Message Authentication Code (CMAC) specified by
+	  The National Institute of Standards and Technology (NIST).
+
+	  https://tools.ietf.org/html/rfc4493
+	  http://csrc.nist.gov/publications/nistpubs/800-38B/SP_800-38B.pdf
+
+config CRYPTO_HMAC
+	tristate "HMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  HMAC: Keyed-Hashing for Message Authentication (RFC2104).
+	  This is required for IPSec.
+
+config CRYPTO_XCBC
+	tristate "XCBC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  XCBC: Keyed-Hashing with encryption algorithm
+		http://www.ietf.org/rfc/rfc3566.txt
+		http://csrc.nist.gov/encryption/modes/proposedmodes/
+		 xcbc-mac/xcbc-mac-spec.pdf
+
+config CRYPTO_VMAC
+	tristate "VMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  VMAC is a message authentication algorithm designed for
+	  very high speed on 64-bit architectures.
+
+	  See also:
+	  <http://fastcrypto.org/vmac>
+
+comment "Digest"
+
+config CRYPTO_CRC32C
+	tristate "CRC32c CRC algorithm"
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
+	  by iSCSI for header and data digests and by others.
+	  See Castagnoli93.  Module will be crc32c.
+
+config CRYPTO_CRC32C_INTEL
+	tristate "CRC32c INTEL hardware acceleration"
+	depends on X86
+	select CRYPTO_HASH
+	help
+	  In Intel processor with SSE4.2 supported, the processor will
+	  support CRC32C implementation using hardware accelerated CRC32
+	  instruction. This option will create 'crc32c-intel' module,
+	  which will enable any routine to use the CRC32 instruction to
+	  gain performance compared with software implementation.
+	  Module will be crc32c-intel.
+
+config CRYPTO_CRC32C_SPARC64
+	tristate "CRC32c CRC algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC32c CRC algorithm implemented using sparc64 crypto instructions,
+	  when available.
+
+config CRYPTO_CRC32
+	tristate "CRC32 CRC algorithm"
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC-32-IEEE 802.3 cyclic redundancy-check algorithm.
+	  Shash crypto api wrappers to crc32_le function.
+
+config CRYPTO_CRC32_PCLMUL
+	tristate "CRC32 PCLMULQDQ hardware acceleration"
+	depends on X86
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  From Intel Westmere and AMD Bulldozer processor with SSE4.2
+	  and PCLMULQDQ supported, the processor will support
+	  CRC32 PCLMULQDQ implementation using hardware accelerated PCLMULQDQ
+	  instruction. This option will create 'crc32-plcmul' module,
+	  which will enable any routine to use the CRC-32-IEEE 802.3 checksum
+	  and gain better performance as compared with the table implementation.
+
+config CRYPTO_CRCT10DIF
+	tristate "CRCT10DIF algorithm"
+	select CRYPTO_HASH
+	help
+	  CRC T10 Data Integrity Field computation is being cast as
+	  a crypto transform.  This allows for faster crc t10 diff
+	  transforms to be used if they are available.
+
+config CRYPTO_CRCT10DIF_PCLMUL
+	tristate "CRCT10DIF PCLMULQDQ hardware acceleration"
+	depends on X86 && 64BIT && CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  For x86_64 processors with SSE4.2 and PCLMULQDQ supported,
+	  CRC T10 DIF PCLMULQDQ computation can be hardware
+	  accelerated PCLMULQDQ instruction. This option will create
+	  'crct10dif-plcmul' module, which is faster when computing the
+	  crct10dif checksum as compared with the generic table implementation.
+
+config CRYPTO_GHASH
+	tristate "GHASH digest algorithm"
+	select CRYPTO_GF128MUL
+	help
+	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
+
+config CRYPTO_POLY1305
+	tristate "Poly1305 authenticator algorithm"
+	help
+	  Poly1305 authenticator algorithm, RFC7539.
+
+	  Poly1305 is an authenticator algorithm designed by Daniel J. Bernstein.
+	  It is used for the ChaCha20-Poly1305 AEAD, specified in RFC7539 for use
+	  in IETF protocols. This is the portable C implementation of Poly1305.
+
+config CRYPTO_POLY1305_X86_64
+	tristate "Poly1305 authenticator algorithm (x86_64/SSE2/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_POLY1305
+	help
+	  Poly1305 authenticator algorithm, RFC7539.
+
+	  Poly1305 is an authenticator algorithm designed by Daniel J. Bernstein.
+	  It is used for the ChaCha20-Poly1305 AEAD, specified in RFC7539 for use
+	  in IETF protocols. This is the x86_64 assembler implementation using SIMD
+	  instructions.
+
+config CRYPTO_MD4
+	tristate "MD4 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  MD4 message digest algorithm (RFC1320).
+
+config CRYPTO_MD5
+	tristate "MD5 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  MD5 message digest algorithm (RFC1321).
+
+config CRYPTO_MD5_OCTEON
+	tristate "MD5 digest algorithm (OCTEON)"
+	depends on CPU_CAVIUM_OCTEON
+	select CRYPTO_MD5
+	select CRYPTO_HASH
+	help
+	  MD5 message digest algorithm (RFC1321) implemented
+	  using OCTEON crypto instructions, when available.
+
+config CRYPTO_MD5_PPC
+	tristate "MD5 digest algorithm (PPC)"
+	depends on PPC
+	select CRYPTO_HASH
+	help
+	  MD5 message digest algorithm (RFC1321) implemented
+	  in PPC assembler.
+
+config CRYPTO_MD5_SPARC64
+	tristate "MD5 digest algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_MD5
+	select CRYPTO_HASH
+	help
+	  MD5 message digest algorithm (RFC1321) implemented
+	  using sparc64 crypto instructions, when available.
+
+config CRYPTO_MICHAEL_MIC
+	tristate "Michael MIC keyed digest algorithm"
+	select CRYPTO_HASH
+	help
+	  Michael MIC is used for message integrity protection in TKIP
+	  (IEEE 802.11i). This algorithm is required for TKIP, but it
+	  should not be used for other purposes because of the weakness
+	  of the algorithm.
+
+config CRYPTO_RMD128
+	tristate "RIPEMD-128 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  RIPEMD-128 (ISO/IEC 10118-3:2004).
+
+	  RIPEMD-128 is a 128-bit cryptographic hash function. It should only
+	  be used as a secure replacement for RIPEMD. For other use cases,
+	  RIPEMD-160 should be used.
+
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_RMD160
+	tristate "RIPEMD-160 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  RIPEMD-160 (ISO/IEC 10118-3:2004).
+
+	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
+	  to be used as a secure replacement for the 128-bit hash functions
+	  MD4, MD5 and it's predecessor RIPEMD
+	  (not to be confused with RIPEMD-128).
+
+	  It's speed is comparable to SHA1 and there are no known attacks
+	  against RIPEMD-160.
+
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_RMD256
+	tristate "RIPEMD-256 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  RIPEMD-256 is an optional extension of RIPEMD-128 with a
+	  256 bit hash. It is intended for applications that require
+	  longer hash-results, without needing a larger security level
+	  (than RIPEMD-128).
+
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_RMD320
+	tristate "RIPEMD-320 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  RIPEMD-320 is an optional extension of RIPEMD-160 with a
+	  320 bit hash. It is intended for applications that require
+	  longer hash-results, without needing a larger security level
+	  (than RIPEMD-160).
+
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <http://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_SHA1
+	tristate "SHA1 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
+config CRYPTO_SHA1_SSSE3
+	tristate "SHA1 digest algorithm (SSSE3/AVX/AVX2/SHA-NI)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions or Advanced Vector
+	  Extensions (AVX/AVX2) or SHA-NI(SHA Extensions New Instructions),
+	  when available.
+
+config CRYPTO_SHA256_SSSE3
+	tristate "SHA256 digest algorithm (SSSE3/AVX/AVX2/SHA-NI)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions, or Advanced Vector
+	  Extensions version 1 (AVX1), or Advanced Vector Extensions
+	  version 2 (AVX2) instructions, or SHA-NI (SHA Extensions New
+	  Instructions) when available.
+
+config CRYPTO_SHA512_SSSE3
+	tristate "SHA512 digest algorithm (SSSE3/AVX/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions, or Advanced Vector
+	  Extensions version 1 (AVX1), or Advanced Vector Extensions
+	  version 2 (AVX2) instructions, when available.
+
+config CRYPTO_SHA1_OCTEON
+	tristate "SHA1 digest algorithm (OCTEON)"
+	depends on CPU_CAVIUM_OCTEON
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using OCTEON crypto instructions, when available.
+
+config CRYPTO_SHA1_SPARC64
+	tristate "SHA1 digest algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using sparc64 crypto instructions, when available.
+
+config CRYPTO_SHA1_PPC
+	tristate "SHA1 digest algorithm (powerpc)"
+	depends on PPC
+	help
+	  This is the powerpc hardware accelerated implementation of the
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
+config CRYPTO_SHA1_PPC_SPE
+	tristate "SHA1 digest algorithm (PPC SPE)"
+	depends on PPC && SPE
+	help
+	  SHA-1 secure hash standard (DFIPS 180-4) implemented
+	  using powerpc SPE SIMD instruction set.
+
+config CRYPTO_SHA1_MB
+	tristate "SHA1 digest algorithm (x86_64 Multi-Buffer, Experimental)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	select CRYPTO_MCRYPTD
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using multi-buffer technique.  This algorithm computes on
+	  multiple data lanes concurrently with SIMD instructions for
+	  better throughput.  It should not be enabled by default but
+	  used when there is significant amount of work to keep the keep
+	  the data lanes filled to get performance benefit.  If the data
+	  lanes remain unfilled, a flush operation will be initiated to
+	  process the crypto jobs, adding a slight latency.
+
+config CRYPTO_SHA256
+	tristate "SHA224 and SHA256 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  SHA256 secure hash standard (DFIPS 180-2).
+
+	  This version of SHA implements a 256 bit hash with 128 bits of
+	  security against collision attacks.
+
+	  This code also includes SHA-224, a 224 bit hash with 112 bits
+	  of security against collision attacks.
+
+config CRYPTO_SHA256_PPC_SPE
+	tristate "SHA224 and SHA256 digest algorithm (PPC SPE)"
+	depends on PPC && SPE
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA224 and SHA256 secure hash standard (DFIPS 180-2)
+	  implemented using powerpc SPE SIMD instruction set.
+
+config CRYPTO_SHA256_OCTEON
+	tristate "SHA224 and SHA256 digest algorithm (OCTEON)"
+	depends on CPU_CAVIUM_OCTEON
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using OCTEON crypto instructions, when available.
+
+config CRYPTO_SHA256_SPARC64
+	tristate "SHA224 and SHA256 digest algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using sparc64 crypto instructions, when available.
+
+config CRYPTO_SHA512
+	tristate "SHA384 and SHA512 digest algorithms"
+	select CRYPTO_HASH
+	help
+	  SHA512 secure hash standard (DFIPS 180-2).
+
+	  This version of SHA implements a 512 bit hash with 256 bits of
+	  security against collision attacks.
+
+	  This code also includes SHA-384, a 384 bit hash with 192 bits
+	  of security against collision attacks.
+
+config CRYPTO_SHA512_OCTEON
+	tristate "SHA384 and SHA512 digest algorithms (OCTEON)"
+	depends on CPU_CAVIUM_OCTEON
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using OCTEON crypto instructions, when available.
+
+config CRYPTO_SHA512_SPARC64
+	tristate "SHA384 and SHA512 digest algorithm (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using sparc64 crypto instructions, when available.
+
+config CRYPTO_TGR192
+	tristate "Tiger digest algorithms"
+	select CRYPTO_HASH
+	help
+	  Tiger hash algorithm 192, 160 and 128-bit hashes
+
+	  Tiger is a hash function optimized for 64-bit processors while
+	  still having decent performance on 32-bit processors.
+	  Tiger was developed by Ross Anderson and Eli Biham.
+
+	  See also:
+	  <http://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
+
+config CRYPTO_WP512
+	tristate "Whirlpool digest algorithms"
+	select CRYPTO_HASH
+	help
+	  Whirlpool hash algorithm 512, 384 and 256-bit hashes
+
+	  Whirlpool-512 is part of the NESSIE cryptographic primitives.
+	  Whirlpool will be part of the ISO/IEC 10118-3:2003(E) standard
+
+	  See also:
+	  <http://www.larc.usp.br/~pbarreto/WhirlpoolPage.html>
+
+config CRYPTO_GHASH_CLMUL_NI_INTEL
+	tristate "GHASH digest algorithm (CLMUL-NI accelerated)"
+	depends on X86 && 64BIT
+	select CRYPTO_CRYPTD
+	help
+	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
+	  The implementation is accelerated by CLMUL-NI of Intel.
+
+comment "Ciphers"
+
+config CRYPTO_AES
+	tristate "AES cipher algorithms"
+	select CRYPTO_ALGAPI
+	help
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing
+	  environments regardless of its use in feedback or non-feedback
+	  modes. Its key setup time is excellent, and its key agility is
+	  good. Rijndael's very low memory requirements make it very well
+	  suited for restricted-space environments, in which it also
+	  demonstrates excellent performance. Rijndael's operations are
+	  among the easiest to defend against power and timing attacks.
+
+	  The AES specifies three key sizes: 128, 192 and 256 bits
+
+	  See <http://csrc.nist.gov/CryptoToolkit/aes/> for more information.
+
+config CRYPTO_AES_586
+	tristate "AES cipher algorithms (i586)"
+	depends on (X86 || UML_X86) && !64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES
+	help
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing
+	  environments regardless of its use in feedback or non-feedback
+	  modes. Its key setup time is excellent, and its key agility is
+	  good. Rijndael's very low memory requirements make it very well
+	  suited for restricted-space environments, in which it also
+	  demonstrates excellent performance. Rijndael's operations are
+	  among the easiest to defend against power and timing attacks.
+
+	  The AES specifies three key sizes: 128, 192 and 256 bits
+
+	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+config CRYPTO_AES_X86_64
+	tristate "AES cipher algorithms (x86_64)"
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES
+	help
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing
+	  environments regardless of its use in feedback or non-feedback
+	  modes. Its key setup time is excellent, and its key agility is
+	  good. Rijndael's very low memory requirements make it very well
+	  suited for restricted-space environments, in which it also
+	  demonstrates excellent performance. Rijndael's operations are
+	  among the easiest to defend against power and timing attacks.
+
+	  The AES specifies three key sizes: 128, 192 and 256 bits
+
+	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+config CRYPTO_AES_NI_INTEL
+	tristate "AES cipher algorithms (AES-NI)"
+	depends on X86
+	select CRYPTO_AES_X86_64 if 64BIT
+	select CRYPTO_AES_586 if !64BIT
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_ALGAPI
+	select CRYPTO_GLUE_HELPER_X86 if 64BIT
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Use Intel AES-NI instructions for AES algorithm.
+
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing
+	  environments regardless of its use in feedback or non-feedback
+	  modes. Its key setup time is excellent, and its key agility is
+	  good. Rijndael's very low memory requirements make it very well
+	  suited for restricted-space environments, in which it also
+	  demonstrates excellent performance. Rijndael's operations are
+	  among the easiest to defend against power and timing attacks.
+
+	  The AES specifies three key sizes: 128, 192 and 256 bits
+
+	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+	  In addition to AES cipher algorithm support, the acceleration
+	  for some popular block cipher mode is supported too, including
+	  ECB, CBC, LRW, PCBC, XTS. The 64 bit version has additional
+	  acceleration for CTR.
+
+config CRYPTO_AES_SPARC64
+	tristate "AES cipher algorithms (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_CRYPTD
+	select CRYPTO_ALGAPI
+	help
+	  Use SPARC64 crypto opcodes for AES algorithm.
+
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing
+	  environments regardless of its use in feedback or non-feedback
+	  modes. Its key setup time is excellent, and its key agility is
+	  good. Rijndael's very low memory requirements make it very well
+	  suited for restricted-space environments, in which it also
+	  demonstrates excellent performance. Rijndael's operations are
+	  among the easiest to defend against power and timing attacks.
+
+	  The AES specifies three key sizes: 128, 192 and 256 bits
+
+	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+	  In addition to AES cipher algorithm support, the acceleration
+	  for some popular block cipher mode is supported too, including
+	  ECB and CBC.
+
+config CRYPTO_AES_PPC_SPE
+	tristate "AES cipher algorithms (PPC SPE)"
+	depends on PPC && SPE
+	help
+	  AES cipher algorithms (FIPS-197). Additionally the acceleration
+	  for popular block cipher modes ECB, CBC, CTR and XTS is supported.
+	  This module should only be used for low power (router) devices
+	  without hardware AES acceleration (e.g. caam crypto). It reduces the
+	  size of the AES tables from 16KB to 8KB + 256 bytes and mitigates
+	  timining attacks. Nevertheless it might be not as secure as other
+	  architecture specific assembler implementations that work on 1KB
+	  tables or 256 bytes S-boxes.
+
+config CRYPTO_ANUBIS
+	tristate "Anubis cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  Anubis cipher algorithm.
+
+	  Anubis is a variable key length cipher which can use keys from
+	  128 bits to 320 bits in length.  It was evaluated as a entrant
+	  in the NESSIE competition.
+
+	  See also:
+	  <https://www.cosic.esat.kuleuven.be/nessie/reports/>
+	  <http://www.larc.usp.br/~pbarreto/AnubisPage.html>
+
+config CRYPTO_ARC4
+	tristate "ARC4 cipher algorithm"
+	select CRYPTO_BLKCIPHER
+	help
+	  ARC4 cipher algorithm.
+
+	  ARC4 is a stream cipher using keys ranging from 8 bits to 2048
+	  bits in length.  This algorithm is required for driver-based
+	  WEP, but it should not be for other purposes because of the
+	  weakness of the algorithm.
+
+config CRYPTO_BLOWFISH
+	tristate "Blowfish cipher algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLOWFISH_COMMON
+	help
+	  Blowfish cipher algorithm, by Bruce Schneier.
+
+	  This is a variable key length cipher which can use keys from 32
+	  bits to 448 bits in length.  It's fast, simple and specifically
+	  designed for use on "large microprocessors".
+
+	  See also:
+	  <http://www.schneier.com/blowfish.html>
+
+config CRYPTO_BLOWFISH_COMMON
+	tristate
+	help
+	  Common parts of the Blowfish cipher algorithm shared by the
+	  generic c and the assembler implementations.
+
+	  See also:
+	  <http://www.schneier.com/blowfish.html>
+
+config CRYPTO_BLOWFISH_X86_64
+	tristate "Blowfish cipher algorithm (x86_64)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLOWFISH_COMMON
+	help
+	  Blowfish cipher algorithm (x86_64), by Bruce Schneier.
+
+	  This is a variable key length cipher which can use keys from 32
+	  bits to 448 bits in length.  It's fast, simple and specifically
+	  designed for use on "large microprocessors".
+
+	  See also:
+	  <http://www.schneier.com/blowfish.html>
+
+config CRYPTO_CAMELLIA
+	tristate "Camellia cipher algorithms"
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	help
+	  Camellia cipher algorithms module.
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAMELLIA_X86_64
+	tristate "Camellia cipher algorithm (x86_64)"
+	depends on X86 && 64BIT
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Camellia cipher algorithm module (x86_64).
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
+	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX)"
+	depends on X86 && 64BIT
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_CAMELLIA_X86_64
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Camellia cipher algorithm module (x86_64/AES-NI/AVX).
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
+	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX2)"
+	depends on X86 && 64BIT
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_CAMELLIA_X86_64
+	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Camellia cipher algorithm module (x86_64/AES-NI/AVX2).
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAMELLIA_SPARC64
+	tristate "Camellia cipher algorithm (SPARC64)"
+	depends on SPARC64
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	help
+	  Camellia cipher algorithm module (SPARC64).
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAST_COMMON
+	tristate
+	help
+	  Common parts of the CAST cipher algorithms shared by the
+	  generic c and the assembler implementations.
+
+config CRYPTO_CAST5
+	tristate "CAST5 (CAST-128) cipher algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_CAST_COMMON
+	help
+	  The CAST5 encryption algorithm (synonymous with CAST-128) is
+	  described in RFC2144.
+
+config CRYPTO_CAST5_AVX_X86_64
+	tristate "CAST5 (CAST-128) cipher algorithm (x86_64/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_CAST_COMMON
+	select CRYPTO_CAST5
+	help
+	  The CAST5 encryption algorithm (synonymous with CAST-128) is
+	  described in RFC2144.
+
+	  This module provides the Cast5 cipher algorithm that processes
+	  sixteen blocks parallel using the AVX instruction set.
+
+config CRYPTO_CAST6
+	tristate "CAST6 (CAST-256) cipher algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_CAST_COMMON
+	help
+	  The CAST6 encryption algorithm (synonymous with CAST-256) is
+	  described in RFC2612.
+
+config CRYPTO_CAST6_AVX_X86_64
+	tristate "CAST6 (CAST-256) cipher algorithm (x86_64/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_CAST_COMMON
+	select CRYPTO_CAST6
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  The CAST6 encryption algorithm (synonymous with CAST-256) is
+	  described in RFC2612.
+
+	  This module provides the Cast6 cipher algorithm that processes
+	  eight blocks parallel using the AVX instruction set.
+
+config CRYPTO_DES
+	tristate "DES and Triple DES EDE cipher algorithms"
+	select CRYPTO_ALGAPI
+	help
+	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+
+config CRYPTO_DES_SPARC64
+	tristate "DES and Triple DES EDE cipher algorithms (SPARC64)"
+	depends on SPARC64
+	select CRYPTO_ALGAPI
+	select CRYPTO_DES
+	help
+	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3),
+	  optimized using SPARC64 crypto opcodes.
+
+config CRYPTO_DES3_EDE_X86_64
+	tristate "Triple DES EDE cipher algorithm (x86-64)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_DES
+	help
+	  Triple DES EDE (FIPS 46-3) algorithm.
+
+	  This module provides implementation of the Triple DES EDE cipher
+	  algorithm that is optimized for x86-64 processors. Two versions of
+	  algorithm are provided; regular processing one input block and
+	  one that processes three blocks parallel.
+
+config CRYPTO_FCRYPT
+	tristate "FCrypt cipher algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  FCrypt algorithm used by RxRPC.
+
+config CRYPTO_KHAZAD
+	tristate "Khazad cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  Khazad cipher algorithm.
+
+	  Khazad was a finalist in the initial NESSIE competition.  It is
+	  an algorithm optimized for 64-bit processors with good performance
+	  on 32-bit processors.  Khazad uses an 128 bit key size.
+
+	  See also:
+	  <http://www.larc.usp.br/~pbarreto/KhazadPage.html>
+
+config CRYPTO_SALSA20
+	tristate "Salsa20 stream cipher algorithm"
+	select CRYPTO_BLKCIPHER
+	help
+	  Salsa20 stream cipher algorithm.
+
+	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
+	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
+
+	  The Salsa20 stream cipher algorithm is designed by Daniel J.
+	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
+
+config CRYPTO_SALSA20_586
+	tristate "Salsa20 stream cipher algorithm (i586)"
+	depends on (X86 || UML_X86) && !64BIT
+	select CRYPTO_BLKCIPHER
+	help
+	  Salsa20 stream cipher algorithm.
+
+	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
+	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
+
+	  The Salsa20 stream cipher algorithm is designed by Daniel J.
+	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
+
+config CRYPTO_SALSA20_X86_64
+	tristate "Salsa20 stream cipher algorithm (x86_64)"
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_BLKCIPHER
+	help
+	  Salsa20 stream cipher algorithm.
+
+	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
+	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
+
+	  The Salsa20 stream cipher algorithm is designed by Daniel J.
+	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
+
+config CRYPTO_CHACHA20
+	tristate "ChaCha20 cipher algorithm"
+	select CRYPTO_BLKCIPHER
+	help
+	  ChaCha20 cipher algorithm, RFC7539.
+
+	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
+	  Bernstein and further specified in RFC7539 for use in IETF protocols.
+	  This is the portable C implementation of ChaCha20.
+
+	  See also:
+	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
+
+config CRYPTO_CHACHA20_X86_64
+	tristate "ChaCha20 cipher algorithm (x86_64/SSSE3/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_CHACHA20
+	help
+	  ChaCha20 cipher algorithm, RFC7539.
+
+	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
+	  Bernstein and further specified in RFC7539 for use in IETF protocols.
+	  This is the x86_64 assembler implementation using SIMD instructions.
+
+	  See also:
+	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
+
+config CRYPTO_SEED
+	tristate "SEED cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  SEED cipher algorithm (RFC4269).
+
+	  SEED is a 128-bit symmetric key block cipher that has been
+	  developed by KISA (Korea Information Security Agency) as a
+	  national standard encryption algorithm of the Republic of Korea.
+	  It is a 16 round block cipher with the key size of 128 bit.
+
+	  See also:
+	  <http://www.kisa.or.kr/kisa/seed/jsp/seed_eng.jsp>
+
+config CRYPTO_SERPENT
+	tristate "Serpent cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.  Also includes the 'Tnepres' algorithm, a reversed
+	  variant of Serpent for compatibility with old kerneli.org code.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_SERPENT_SSE2_X86_64
+	tristate "Serpent cipher algorithm (x86_64/SSE2)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SERPENT
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.
+
+	  This module provides Serpent cipher algorithm that processes eight
+	  blocks parallel using SSE2 instruction set.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_SERPENT_SSE2_586
+	tristate "Serpent cipher algorithm (i586/SSE2)"
+	depends on X86 && !64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SERPENT
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.
+
+	  This module provides Serpent cipher algorithm that processes four
+	  blocks parallel using SSE2 instruction set.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_SERPENT_AVX_X86_64
+	tristate "Serpent cipher algorithm (x86_64/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SERPENT
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.
+
+	  This module provides the Serpent cipher algorithm that processes
+	  eight blocks parallel using the AVX instruction set.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_SERPENT_AVX2_X86_64
+	tristate "Serpent cipher algorithm (x86_64/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SERPENT
+	select CRYPTO_SERPENT_AVX_X86_64
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.
+
+	  This module provides Serpent cipher algorithm that processes 16
+	  blocks parallel using AVX2 instruction set.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_TEA
+	tristate "TEA, XTEA and XETA cipher algorithms"
+	select CRYPTO_ALGAPI
+	help
+	  TEA cipher algorithm.
+
+	  Tiny Encryption Algorithm is a simple cipher that uses
+	  many rounds for security.  It is very fast and uses
+	  little memory.
+
+	  Xtendend Tiny Encryption Algorithm is a modification to
+	  the TEA algorithm to address a potential key weakness
+	  in the TEA algorithm.
+
+	  Xtendend Encryption Tiny Algorithm is a mis-implementation
+	  of the XTEA algorithm for compatibility purposes.
+
+config CRYPTO_TWOFISH
+	tristate "Twofish cipher algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_TWOFISH_COMMON
+	help
+	  Twofish cipher algorithm.
+
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
+
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_TWOFISH_COMMON
+	tristate
+	help
+	  Common parts of the Twofish cipher algorithm shared by the
+	  generic c and the assembler implementations.
+
+config CRYPTO_TWOFISH_586
+	tristate "Twofish cipher algorithms (i586)"
+	depends on (X86 || UML_X86) && !64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_TWOFISH_COMMON
+	help
+	  Twofish cipher algorithm.
+
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
+
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_TWOFISH_X86_64
+	tristate "Twofish cipher algorithm (x86_64)"
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_TWOFISH_COMMON
+	help
+	  Twofish cipher algorithm (x86_64).
+
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
+
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_TWOFISH_X86_64_3WAY
+	tristate "Twofish cipher algorithm (x86_64, 3-way parallel)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_TWOFISH_COMMON
+	select CRYPTO_TWOFISH_X86_64
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Twofish cipher algorithm (x86_64, 3-way parallel).
+
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
+
+	  This module provides Twofish cipher algorithm that processes three
+	  blocks parallel, utilizing resources of out-of-order CPUs better.
+
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_TWOFISH_AVX_X86_64
+	tristate "Twofish cipher algorithm (x86_64/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_TWOFISH_COMMON
+	select CRYPTO_TWOFISH_X86_64
+	select CRYPTO_TWOFISH_X86_64_3WAY
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Twofish cipher algorithm (x86_64/AVX).
+
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
+
+	  This module provides the Twofish cipher algorithm that processes
+	  eight blocks parallel using the AVX Instruction Set.
+
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+comment "Compression"
+
+config CRYPTO_DEFLATE
+	tristate "Deflate compression algorithm"
+	select CRYPTO_ALGAPI
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
+	help
+	  This is the Deflate algorithm (RFC1951), specified for use in
+	  IPSec with the IPCOMP protocol (RFC3173, RFC2394).
+
+	  You will most probably want this if using IPSec.
+
+config CRYPTO_ZLIB
+	tristate "Zlib compression algorithm"
+	select CRYPTO_PCOMP
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
+	select NLATTR
+	help
+	  This is the zlib algorithm.
+
+config CRYPTO_LZO
+	tristate "LZO compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
+	help
+	  This is the LZO algorithm.
+
+config CRYPTO_842
+	tristate "842 compression algorithm"
+	select CRYPTO_ALGAPI
+	select 842_COMPRESS
+	select 842_DECOMPRESS
+	help
+	  This is the 842 algorithm.
+
+config CRYPTO_LZ4
+	tristate "LZ4 compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZ4_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This is the LZ4 algorithm.
+
+config CRYPTO_LZ4HC
+	tristate "LZ4HC compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZ4HC_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This is the LZ4 high compression mode algorithm.
+
+comment "Random Number Generation"
+
+config CRYPTO_ANSI_CPRNG
+	tristate "Pseudo Random Number Generation for Cryptographic modules"
+	select CRYPTO_AES
+	select CRYPTO_RNG
+	help
+	  This option enables the generic pseudo random number generator
+	  for cryptographic modules.  Uses the Algorithm specified in
+	  ANSI X9.31 A.2.4. Note that this option must be enabled if
+	  CRYPTO_FIPS is selected
+
+menuconfig CRYPTO_DRBG_MENU
+	tristate "NIST SP800-90A DRBG"
+	help
+	  NIST SP800-90A compliant DRBG. In the following submenu, one or
+	  more of the DRBG types must be selected.
+
+if CRYPTO_DRBG_MENU
+
+config CRYPTO_DRBG_HMAC
+	bool
+	default y
+	select CRYPTO_HMAC
+	select CRYPTO_SHA256
+
+config CRYPTO_DRBG_HASH
+	bool "Enable Hash DRBG"
+	select CRYPTO_SHA256
+	help
+	  Enable the Hash DRBG variant as defined in NIST SP800-90A.
+
+config CRYPTO_DRBG_CTR
+	bool "Enable CTR DRBG"
+	select CRYPTO_AES
+	help
+	  Enable the CTR DRBG variant as defined in NIST SP800-90A.
+
+config CRYPTO_DRBG
+	tristate
+	default CRYPTO_DRBG_MENU
+	select CRYPTO_RNG
+	select CRYPTO_JITTERENTROPY
+
+endif	# if CRYPTO_DRBG_MENU
+
+config CRYPTO_JITTERENTROPY
+	tristate "Jitterentropy Non-Deterministic Random Number Generator"
+	help
+	  The Jitterentropy RNG is a noise that is intended
+	  to provide seed to another RNG. The RNG does not
+	  perform any cryptographic whitening of the generated
+	  random numbers. This Jitterentropy RNG registers with
+	  the kernel crypto API and can be used by any caller.
+
+config CRYPTO_USER_API
+	tristate
+
+config CRYPTO_USER_API_HASH
+	tristate "User-space interface for hash algorithms"
+	depends on NET
+	select CRYPTO_HASH
+	select CRYPTO_USER_API
+	help
+	  This option enables the user-spaces interface for hash
+	  algorithms.
+
+config CRYPTO_USER_API_SKCIPHER
+	tristate "User-space interface for symmetric key cipher algorithms"
+	depends on NET
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_USER_API
+	help
+	  This option enables the user-spaces interface for symmetric
+	  key cipher algorithms.
+
+config CRYPTO_USER_API_RNG
+	tristate "User-space interface for random number generator algorithms"
+	depends on NET
+	select CRYPTO_RNG
+	select CRYPTO_USER_API
+	help
+	  This option enables the user-spaces interface for random
+	  number generator algorithms.
+
+config CRYPTO_USER_API_AEAD
+	tristate "User-space interface for AEAD cipher algorithms"
+	depends on NET
+	select CRYPTO_AEAD
+	select CRYPTO_USER_API
+	help
+	  This option enables the user-spaces interface for AEAD
+	  cipher algorithms.
+
+config CRYPTO_HASH_INFO
+	bool
+
+source "drivers/crypto/Kconfig"
+source crypto/asymmetric_keys/Kconfig
+source certs/Kconfig
+
+endif	# if CRYPTO

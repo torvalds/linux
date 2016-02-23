@@ -1,0 +1,158 @@
+<refentry id="vidioc-subdev-g-crop">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_SUBDEV_G_CROP, VIDIOC_SUBDEV_S_CROP</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_SUBDEV_G_CROP</refname>
+    <refname>VIDIOC_SUBDEV_S_CROP</refname>
+    <refpurpose>Get or set the crop rectangle on a subdev pad</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_subdev_crop *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>const struct v4l2_subdev_crop *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_SUBDEV_G_CROP, VIDIOC_SUBDEV_S_CROP</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <note>
+      <title>Obsolete</title>
+
+      <para>This is an <link linkend="obsolete">obsolete</link>
+      interface and may be removed in the future. It is superseded by
+      <link linkend="vidioc-subdev-g-selection">the selection
+      API</link>.</para>
+    </note>
+
+    <para>To retrieve the current crop rectangle applications set the
+    <structfield>pad</structfield> field of a &v4l2-subdev-crop; to the
+    desired pad number as reported by the media API and the
+    <structfield>which</structfield> field to
+    <constant>V4L2_SUBDEV_FORMAT_ACTIVE</constant>. They then call the
+    <constant>VIDIOC_SUBDEV_G_CROP</constant> ioctl with a pointer to this
+    structure. The driver fills the members of the <structfield>rect</structfield>
+    field or returns &EINVAL; if the input arguments are invalid, or if cropping
+    is not supported on the given pad.</para>
+
+    <para>To change the current crop rectangle applications set both the
+    <structfield>pad</structfield> and <structfield>which</structfield> fields
+    and all members of the <structfield>rect</structfield> field. They then call
+    the <constant>VIDIOC_SUBDEV_S_CROP</constant> ioctl with a pointer to this
+    structure. The driver verifies the requested crop rectangle, adjusts it
+    based on the hardware capabilities and configures the device. Upon return
+    the &v4l2-subdev-crop; contains the current format as would be returned
+    by a <constant>VIDIOC_SUBDEV_G_CROP</constant> call.</para>
+
+    <para>Applications can query the device capabilities by setting the
+    <structfield>which</structfield> to
+    <constant>V4L2_SUBDEV_FORMAT_TRY</constant>. When set, 'try' crop
+    rectangles are not applied to the device by the driver, but are mangled
+    exactly as active crop rectangles and stored in the sub-device file handle.
+    Two applications querying the same sub-device would thus not interact with
+    each other.</para>
+
+    <para>Drivers must not return an error solely because the requested crop
+    rectangle doesn't match the device capabilities. They must instead modify
+    the rectangle to match what the hardware can provide. The modified format
+    should be as close as possible to the original request.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-subdev-crop">
+      <title>struct <structname>v4l2_subdev_crop</structname></title>
+      <tgroup cols="3">
+        &cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>pad</structfield></entry>
+	    <entry>Pad number as reported by the media framework.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>which</structfield></entry>
+	    <entry>Crop rectangle to get or set, from
+	    &v4l2-subdev-format-whence;.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-rect;</entry>
+	    <entry><structfield>rect</structfield></entry>
+	    <entry>Crop rectangle boundaries, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[8]</entry>
+	    <entry>Reserved for future extensions. Applications and drivers must
+	    set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The crop rectangle can't be changed because the pad is currently
+	  busy. This can be caused, for instance, by an active video stream on
+	  the pad. The ioctl must not be retried without performing another
+	  action to fix the problem first. Only returned by
+	  <constant>VIDIOC_SUBDEV_S_CROP</constant></para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-subdev-crop; <structfield>pad</structfield>
+	  references a non-existing pad, the <structfield>which</structfield>
+	  field references a non-existing format, or cropping is not supported
+	  on the given subdev pad.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

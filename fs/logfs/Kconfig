@@ -1,0 +1,17 @@
+config LOGFS
+	tristate "LogFS file system"
+	depends on MTD || (!MTD && BLOCK)
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
+	select CRC32
+	select BTREE
+	help
+	  Flash filesystem aimed to scale efficiently to large devices.
+	  In comparison to JFFS2 it offers significantly faster mount
+	  times and potentially less RAM usage, although the latter has
+	  not been measured yet.
+
+	  In its current state it is still very experimental and should
+	  not be used for other than testing purposes.
+
+	  If unsure, say N.

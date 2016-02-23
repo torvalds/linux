@@ -1,0 +1,47 @@
+Hisilicon Network Subsystem NIC controller
+
+Required properties:
+- compatible: "hisilicon,hns-nic-v1" or "hisilicon,hns-nic-v2".
+  "hisilicon,hns-nic-v1" is for hip05.
+  "hisilicon,hns-nic-v2" is for Hi1610 and Hi1612.
+- ae-name: accelerator name who provides this interface,
+  is simply a name referring to the name of name in the accelerator node.
+- port-id: is the index of port provided by DSAF (the accelerator). DSAF can
+  connect to 8 PHYs. Port 0 to 1 are both used for adminstration purpose. They
+  are called debug ports.
+
+  The remaining 6 PHYs are taken according to the mode of DSAF.
+
+  In NIC mode of DSAF, all 6 PHYs are taken as ethernet ports to the CPU. The
+  port-id can be 2 to 7. Here is the diagram:
+            +-----+---------------+
+            |            CPU      |
+            +-+-+-+---+-+-+-+-+-+-+
+              | |     | | | | | |
+             debug       service
+             port         port
+             (0,1)       (2-7)
+
+  In Switch mode of DSAF, all 6 PHYs are taken as physical ports connect to a
+  LAN Switch while the CPU side assume itself have one single NIC connect to
+  this switch. In this case, the port-id will be 2 only.
+            +-----+---------------+
+            |            CPU      |
+            +-+-+-+---+-+-+-+-+-+-+
+              | |   service| port(2)
+             debug   +------------+
+             port    |   switch   |
+             (0,1)   +-+-+-+-+-+-++
+                       | | | | | |
+                      external port
+
+- local-mac-address: mac addr of the ethernet interface
+
+Example:
+
+	ethernet@0{
+		compatible = "hisilicon,hns-nic-v1";
+		ae-name = "dsaf0";
+		port-id = <0>;
+		local-mac-address = [a2 14 e4 4b 56 76];
+	};

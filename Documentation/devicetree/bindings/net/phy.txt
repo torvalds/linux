@@ -1,0 +1,43 @@
+PHY nodes
+
+Required properties:
+
+ - interrupts : <a b> where a is the interrupt number and b is a
+   field that represents an encoding of the sense and level
+   information for the interrupt.  This should be encoded based on
+   the information in section 2) depending on the type of interrupt
+   controller you have.
+ - interrupt-parent : the phandle for the interrupt controller that
+   services interrupts for this device.
+ - reg : The ID number for the phy, usually a small integer
+
+Optional Properties:
+
+- compatible: Compatible list, may contain
+  "ethernet-phy-ieee802.3-c22" or "ethernet-phy-ieee802.3-c45" for
+  PHYs that implement IEEE802.3 clause 22 or IEEE802.3 clause 45
+  specifications. If neither of these are specified, the default is to
+  assume clause 22. The compatible list may also contain other
+  elements.
+
+  If the phy's identifier is known then the list may contain an entry
+  of the form: "ethernet-phy-idAAAA.BBBB" where
+     AAAA - The value of the 16 bit Phy Identifier 1 register as
+            4 hex digits. This is the chip vendor OUI bits 3:18
+     BBBB - The value of the 16 bit Phy Identifier 2 register as
+            4 hex digits. This is the chip vendor OUI bits 19:24,
+            followed by 10 bits of a vendor specific ID.
+
+- max-speed: Maximum PHY supported speed (10, 100, 1000...)
+
+- broken-turn-around: If set, indicates the PHY device does not correctly
+  release the turn around line low at the end of a MDIO transaction.
+
+Example:
+
+ethernet-phy@0 {
+	compatible = "ethernet-phy-id0141.0e90", "ethernet-phy-ieee802.3-c22";
+	interrupt-parent = <40000>;
+	interrupts = <35 1>;
+	reg = <0>;
+};

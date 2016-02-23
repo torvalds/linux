@@ -1,0 +1,43 @@
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ *
+ * Device Tree for the HREF version 60 or later with the ST UIB
+ */
+
+/dts-v1/;
+#include "ste-hrefv60plus.dtsi"
+#include "ste-href-stuib.dtsi"
+
+/ {
+	model = "ST-Ericsson HREF (v60+) and ST UIB";
+	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
+
+	/* This stablilizes the serial port enumeration */
+	aliases {
+		serial0 = &ux500_serial0;
+		serial1 = &ux500_serial1;
+		serial2 = &ux500_serial2;
+	};
+
+	soc {
+		/* Reset line for the BU21013 touchscreen */
+		i2c@80110000 {
+			/* Only one of these will be used */
+			bu21013_tp@5c {
+				touch-gpio = <&gpio2 20 0x4>;
+				reset-gpio = <&gpio4 17 0x4>;
+			};
+			bu21013_tp@5d {
+				touch-gpio = <&gpio2 20 0x4>;
+				reset-gpio = <&gpio4 17 0x4>;
+			};
+		};
+	};
+};

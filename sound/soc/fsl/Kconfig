@@ -1,0 +1,301 @@
+menu "SoC Audio for Freescale CPUs"
+
+comment "Common SoC Audio options for Freescale CPUs:"
+
+config SND_SOC_FSL_ASRC
+	tristate "Asynchronous Sample Rate Converter (ASRC) module support"
+	select REGMAP_MMIO
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y if you want to add Asynchronous Sample Rate Converter (ASRC)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+config SND_SOC_FSL_SAI
+	tristate "Synchronous Audio Interface (SAI) module support"
+	select REGMAP_MMIO
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y if you want to add Synchronous Audio Interface (SAI)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+config SND_SOC_FSL_SSI
+	tristate "Synchronous Serial Interface module (SSI) support"
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
+	select SND_SOC_IMX_PCM_FIQ if SND_IMX_SOC != n && (MXC_TZIC || MXC_AVIC)
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to add Synchronous Serial Interface (SSI)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+config SND_SOC_FSL_SPDIF
+	tristate "Sony/Philips Digital Interface (S/PDIF) module support"
+	select REGMAP_MMIO
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
+	select SND_SOC_IMX_PCM_FIQ if SND_IMX_SOC != n && (MXC_TZIC || MXC_AVIC)
+	help
+	  Say Y if you want to add Sony/Philips Digital Interface (SPDIF)
+	  support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+config SND_SOC_FSL_ESAI
+	tristate "Enhanced Serial Audio Interface (ESAI) module support"
+	select REGMAP_MMIO
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
+	help
+	  Say Y if you want to add Enhanced Synchronous Audio Interface
+	  (ESAI) support for the Freescale CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+config SND_SOC_FSL_UTILS
+	tristate
+
+config SND_SOC_IMX_PCM_DMA
+	tristate
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+
+config SND_SOC_IMX_AUDMUX
+	tristate "Digital Audio Mux module support"
+	help
+	  Say Y if you want to add Digital Audio Mux (AUDMUX) support
+	  for the ARM i.MX CPUs.
+	  This option is only useful for out-of-tree drivers since
+	  in-tree drivers select it automatically.
+
+config SND_POWERPC_SOC
+	tristate "SoC Audio for Freescale PowerPC CPUs"
+	depends on FSL_SOC || PPC_MPC52xx
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the PowerPC CPUs.
+
+config SND_IMX_SOC
+	tristate "SoC Audio for Freescale i.MX CPUs"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the i.MX CPUs.
+
+if SND_POWERPC_SOC
+
+config SND_MPC52xx_DMA
+	tristate
+
+config SND_SOC_POWERPC_DMA
+	tristate
+
+comment "SoC Audio support for Freescale PPC boards:"
+
+config SND_SOC_MPC8610_HPCD
+	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
+	# I2C is necessary for the CS4270 driver
+	depends on MPC8610_HPCD && I2C
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	select SND_SOC_POWERPC_DMA
+	select SND_SOC_CS4270
+	select SND_SOC_CS4270_VD33_ERRATA
+	default y if MPC8610_HPCD
+	help
+	  Say Y if you want to enable audio on the Freescale MPC8610 HPCD.
+
+config SND_SOC_P1022_DS
+	tristate "ALSA SoC support for the Freescale P1022 DS board"
+	# I2C is necessary for the WM8776 driver
+	depends on P1022_DS && I2C
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	select SND_SOC_POWERPC_DMA
+	select SND_SOC_WM8776
+	default y if P1022_DS
+	help
+	  Say Y if you want to enable audio on the Freescale P1022 DS board.
+	  This will also include the Wolfson Microelectronics WM8776 codec
+	  driver.
+
+config SND_SOC_P1022_RDK
+	tristate "ALSA SoC support for the Freescale / iVeia P1022 RDK board"
+	# I2C is necessary for the WM8960 driver
+	depends on P1022_RDK && I2C
+	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_UTILS
+	select SND_SOC_POWERPC_DMA
+	select SND_SOC_WM8960
+	default y if P1022_RDK
+	help
+	  Say Y if you want to enable audio on the Freescale / iVeia
+	  P1022 RDK board.  This will also include the Wolfson
+	  Microelectronics WM8960 codec driver.
+
+config SND_SOC_MPC5200_I2S
+	tristate "Freescale MPC5200 PSC in I2S mode driver"
+	depends on PPC_MPC52xx && PPC_BESTCOMM
+	select SND_MPC52xx_DMA
+	select PPC_BESTCOMM_GEN_BD
+	help
+	  Say Y here to support the MPC5200 PSCs in I2S mode.
+
+config SND_SOC_MPC5200_AC97
+	tristate "Freescale MPC5200 PSC in AC97 mode driver"
+	depends on PPC_MPC52xx && PPC_BESTCOMM
+	select SND_SOC_AC97_BUS
+	select SND_MPC52xx_DMA
+	select PPC_BESTCOMM_GEN_BD
+	help
+	  Say Y here to support the MPC5200 PSCs in AC97 mode.
+
+config SND_MPC52xx_SOC_PCM030
+	tristate "SoC AC97 Audio support for Phytec pcm030 and WM9712"
+	depends on PPC_MPC5200_SIMPLE
+	select SND_SOC_MPC5200_AC97
+	select SND_SOC_WM9712
+	help
+	  Say Y if you want to add support for sound on the Phytec pcm030
+	  baseboard.
+
+config SND_MPC52xx_SOC_EFIKA
+	tristate "SoC AC97 Audio support for bbplan Efika and STAC9766"
+	depends on PPC_EFIKA
+	select SND_SOC_MPC5200_AC97
+	select SND_SOC_STAC9766
+	help
+	  Say Y if you want to add support for sound on the Efika.
+
+endif # SND_POWERPC_SOC
+
+if SND_IMX_SOC
+
+config SND_SOC_IMX_SSI
+	tristate
+	select SND_SOC_FSL_UTILS
+
+config SND_SOC_IMX_PCM_FIQ
+	tristate
+	select FIQ
+
+comment "SoC Audio support for Freescale i.MX boards:"
+
+config SND_MXC_SOC_WM1133_EV1
+	tristate "Audio on the i.MX31ADS with WM1133-EV1 fitted"
+	depends on MACH_MX31ADS_WM1133_EV1
+	select SND_SOC_WM8350
+	select SND_SOC_IMX_PCM_FIQ
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
+	help
+	  Enable support for audio on the i.MX31ADS with the WM1133-EV1
+	  PMIC board with WM8835x fitted.
+
+config SND_SOC_MX27VIS_AIC32X4
+	tristate "SoC audio support for Visstrim M10 boards"
+	depends on MACH_IMX27_VISSTRIM_M10 && I2C
+	select SND_SOC_TLV320AIC32X4
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
+	help
+	  Say Y if you want to add support for SoC audio on Visstrim SM10
+	  board with TLV320AIC32X4 codec.
+
+config SND_SOC_PHYCORE_AC97
+	tristate "SoC Audio support for Phytec phyCORE (and phyCARD) boards"
+	depends on MACH_PCM043 || MACH_PCA100
+	select SND_SOC_AC97_BUS
+	select SND_SOC_WM9712
+	select SND_SOC_IMX_PCM_FIQ
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
+	help
+	  Say Y if you want to add support for SoC audio on Phytec phyCORE
+	  and phyCARD boards in AC97 mode
+
+config SND_SOC_EUKREA_TLV320
+	tristate "Eukrea TLV320"
+	depends on ARCH_MXC && I2C
+	select SND_SOC_TLV320AIC23_I2C
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_SSI
+	select SND_SOC_FSL_SSI
+	select SND_SOC_IMX_PCM_DMA
+	help
+	  Enable I2S based access to the TLV320AIC23B codec attached
+	  to the SSI interface
+
+config SND_SOC_IMX_WM8962
+	tristate "SoC Audio support for i.MX boards with wm8962"
+	depends on OF && I2C && INPUT
+	select SND_SOC_WM8962
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_FSL_SSI
+	help
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a wm8962 codec.
+
+config SND_SOC_IMX_ES8328
+	tristate "SoC Audio support for i.MX boards with the ES8328 codec"
+	depends on OF && (I2C || SPI)
+	select SND_SOC_ES8328_I2C if I2C
+	select SND_SOC_ES8328_SPI if SPI_MASTER
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_FSL_SSI
+	help
+	  Say Y if you want to add support for the ES8328 audio codec connected
+	  via SSI/I2S over either SPI or I2C.
+
+config SND_SOC_IMX_SGTL5000
+	tristate "SoC Audio support for i.MX boards with sgtl5000"
+	depends on OF && I2C
+	select SND_SOC_SGTL5000
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_FSL_SSI
+	help
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a sgtl5000 codec.
+
+config SND_SOC_IMX_SPDIF
+	tristate "SoC Audio support for i.MX boards with S/PDIF"
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_FSL_SPDIF
+	help
+	  SoC Audio support for i.MX boards with S/PDIF
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a S/DPDIF.
+
+config SND_SOC_IMX_MC13783
+	tristate "SoC Audio support for I.MX boards with mc13783"
+	depends on MFD_MC13XXX && ARM
+	select SND_SOC_IMX_SSI
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_MC13783
+	select SND_SOC_IMX_PCM_DMA
+
+config SND_SOC_FSL_ASOC_CARD
+	tristate "Generic ASoC Sound Card with ASRC support"
+	depends on OF && I2C
+	# enforce SND_SOC_FSL_ASOC_CARD=m if SND_AC97_CODEC=m:
+	depends on SND_AC97_CODEC || SND_AC97_CODEC=n
+	select SND_SOC_IMX_AUDMUX
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_FSL_ESAI
+	select SND_SOC_FSL_SAI
+	select SND_SOC_FSL_SSI
+	help
+	 ALSA SoC Audio support with ASRC feature for Freescale SoCs that have
+	 ESAI/SAI/SSI and connect with external CODECs such as WM8962, CS42888
+	 and SGTL5000.
+	 Say Y if you want to add support for Freescale Generic ASoC Sound Card.
+
+endif # SND_IMX_SOC
+
+endmenu

@@ -1,0 +1,64 @@
+Common leds properties.
+
+LED and flash LED devices provide the same basic functionality as current
+regulators, but extended with LED and flash LED specific features like
+blinking patterns, flash timeout, flash faults and external flash strobe mode.
+
+Many LED devices expose more than one current output that can be connected
+to one or more discrete LED component. Since the arrangement of connections
+can influence the way of the LED device initialization, the LED components
+have to be tightly coupled with the LED device binding. They are represented
+by child nodes of the parent LED device binding.
+
+Optional properties for child nodes:
+- led-sources : List of device current outputs the LED is connected to. The
+		outputs are identified by the numbers that must be defined
+		in the LED device binding documentation.
+- label : The label for this LED. If omitted, the label is taken from the node
+	  name (excluding the unit address). It has to uniquely identify
+	  a device, i.e. no other LED class device can be assigned the same
+	  label.
+
+- linux,default-trigger :  This parameter, if present, is a
+    string defining the trigger assigned to the LED.  Current triggers are:
+     "backlight" - LED will act as a back-light, controlled by the framebuffer
+		   system
+     "default-on" - LED will turn on (but for leds-gpio see "default-state"
+		    property in Documentation/devicetree/bindings/gpio/led.txt)
+     "heartbeat" - LED "double" flashes at a load average based rate
+     "ide-disk" - LED indicates disk activity
+     "timer" - LED flashes at a fixed, configurable rate
+
+- led-max-microamp : Maximum LED supply current in microamperes. This property
+                     can be made mandatory for the board configurations
+                     introducing a risk of hardware damage in case an excessive
+                     current is set.
+                     For flash LED controllers with configurable current this
+                     property is mandatory for the LEDs in the non-flash modes
+                     (e.g. torch or indicator).
+
+Required properties for flash LED child nodes:
+- flash-max-microamp : Maximum flash LED supply current in microamperes.
+- flash-max-timeout-us : Maximum timeout in microseconds after which the flash
+                         LED is turned off.
+
+For controllers that have no configurable current the flash-max-microamp
+property can be omitted.
+For controllers that have no configurable timeout the flash-max-timeout-us
+property can be omitted.
+
+Examples:
+
+system-status {
+	label = "Status";
+	linux,default-trigger = "heartbeat";
+	...
+};
+
+camera-flash {
+	label = "Flash";
+	led-sources = <0>, <1>;
+	led-max-microamp = <50000>;
+	flash-max-microamp = <320000>;
+	flash-max-timeout-us = <500000>;
+};

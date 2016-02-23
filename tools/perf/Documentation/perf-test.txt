@@ -1,0 +1,32 @@
+perf-test(1)
+============
+
+NAME
+----
+perf-test - Runs sanity tests.
+
+SYNOPSIS
+--------
+[verse]
+'perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]'
+
+DESCRIPTION
+-----------
+This command does assorted sanity tests, initially through linked routines but
+also will look for a directory with more tests in the form of scripts.
+
+To get a list of available tests use 'perf test list', specifying a test name
+fragment will show all tests that have it.
+
+To run just specific tests, inform test name fragments or the numbers obtained
+from 'perf test list'.
+
+OPTIONS
+-------
+-s::
+--skip::
+	Tests to skip (comma separated numeric list).
+
+-v::
+--verbose::
+	Be more verbose.

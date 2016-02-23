@@ -1,0 +1,102 @@
+config F2FS_FS
+	tristate "F2FS filesystem support"
+	depends on BLOCK
+	help
+	  F2FS is based on Log-structured File System (LFS), which supports
+	  versatile "flash-friendly" features. The design has been focused on
+	  addressing the fundamental issues in LFS, which are snowball effect
+	  of wandering tree and high cleaning overhead.
+
+	  Since flash-based storages show different characteristics according to
+	  the internal geometry or flash memory management schemes aka FTL, F2FS
+	  and tools support various parameters not only for configuring on-disk
+	  layout, but also for selecting allocation and cleaning algorithms.
+
+	  If unsure, say N.
+
+config F2FS_STAT_FS
+	bool "F2FS Status Information"
+	depends on F2FS_FS && DEBUG_FS
+	default y
+	help
+	  /sys/kernel/debug/f2fs/ contains information about all the partitions
+	  mounted as f2fs. Each file shows the whole f2fs information.
+
+	  /sys/kernel/debug/f2fs/status includes:
+	    - major filesystem information managed by f2fs currently
+	    - average SIT information about whole segments
+	    - current memory footprint consumed by f2fs.
+
+config F2FS_FS_XATTR
+	bool "F2FS extended attributes"
+	depends on F2FS_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+config F2FS_FS_POSIX_ACL
+	bool "F2FS Access Control Lists"
+	depends on F2FS_FS_XATTR
+	select FS_POSIX_ACL
+	default y
+	help
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N
+
+config F2FS_FS_SECURITY
+	bool "F2FS Security Labels"
+	depends on F2FS_FS_XATTR
+	help
+	  Security labels provide an access control facility to support Linux
+	  Security Models (LSMs) accepted by AppArmor, SELinux, Smack and TOMOYO
+	  Linux. This option enables an extended attribute handler for file
+	  security labels in the f2fs filesystem, so that it requires enabling
+	  the extended attribute support in advance.
+
+	  If you are not using a security module, say N.
+
+config F2FS_CHECK_FS
+	bool "F2FS consistency checking feature"
+	depends on F2FS_FS
+	help
+	  Enables BUG_ONs which check the filesystem consistency in runtime.
+
+	  If you want to improve the performance, say N.
+
+config F2FS_FS_ENCRYPTION
+	bool "F2FS Encryption"
+	depends on F2FS_FS
+	depends on F2FS_FS_XATTR
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_XTS
+	select CRYPTO_CTS
+	select CRYPTO_CTR
+	select CRYPTO_SHA256
+	select KEYS
+	select ENCRYPTED_KEYS
+	help
+	  Enable encryption of f2fs files and directories.  This
+	  feature is similar to ecryptfs, but it is more memory
+	  efficient since it avoids caching the encrypted and
+	  decrypted pages in the page cache.
+
+config F2FS_IO_TRACE
+	bool "F2FS IO tracer"
+	depends on F2FS_FS
+	depends on FUNCTION_TRACER
+	help
+	  F2FS IO trace is based on a function trace, which gathers process
+	  information and block IO patterns in the filesystem level.
+
+	  If unsure, say N.

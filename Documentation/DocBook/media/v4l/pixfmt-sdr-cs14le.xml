@@ -1,0 +1,47 @@
+<refentry id="V4L2-SDR-FMT-CS14LE">
+  <refmeta>
+    <refentrytitle>V4L2_SDR_FMT_CS14LE ('CS14')</refentrytitle>
+    &manvol;
+  </refmeta>
+    <refnamediv>
+      <refname>
+        <constant>V4L2_SDR_FMT_CS14LE</constant>
+      </refname>
+      <refpurpose>Complex signed 14-bit little endian IQ sample</refpurpose>
+    </refnamediv>
+    <refsect1>
+      <title>Description</title>
+      <para>
+This format contains sequence of complex number samples. Each complex number
+consist two parts, called In-phase and Quadrature (IQ). Both I and Q are
+represented as a 14 bit signed little endian number. I value comes first
+and Q value after that. 14 bit value is stored in 16 bit space with unused
+high bits padded with 0.
+      </para>
+    <example>
+      <title><constant>V4L2_SDR_FMT_CS14LE</constant> 1 sample</title>
+      <formalpara>
+        <title>Byte Order.</title>
+        <para>Each cell is one byte.
+          <informaltable frame="none">
+            <tgroup cols="3" align="center">
+              <colspec align="left" colwidth="2*" />
+              <tbody valign="top">
+                <row>
+                  <entry>start&nbsp;+&nbsp;0:</entry>
+                  <entry>I'<subscript>0[7:0]</subscript></entry>
+                  <entry>I'<subscript>0[13:8]</subscript></entry>
+                </row>
+                <row>
+                  <entry>start&nbsp;+&nbsp;2:</entry>
+                  <entry>Q'<subscript>0[7:0]</subscript></entry>
+                  <entry>Q'<subscript>0[13:8]</subscript></entry>
+                </row>
+              </tbody>
+            </tgroup>
+          </informaltable>
+        </para>
+      </formalpara>
+    </example>
+  </refsect1>
+</refentry>

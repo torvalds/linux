@@ -1,0 +1,459 @@
+Introduction	Notes on Modular Sound Drivers and Soundcore
+Wade Hampton 
+2/14/2001
+
+Purpose:  
+========
+This document provides some general notes on the modular 
+sound drivers and their configuration, along with the 
+support modules sound.o and soundcore.o.
+
+Note, some of this probably should be added to the Sound-HOWTO!
+
+Note, soundlow.o was present with 2.2 kernels but is not 
+required for 2.4.x kernels.  References have been removed
+to this.
+
+
+Copying:
+========
+none
+
+
+History:
+========
+0.1.0  11/20/1998  First version, draft
+1.0.0  11/1998     Alan Cox changes, incorporation in 2.2.0
+                   as Documentation/sound/oss/Introduction
+1.1.0  6/30/1999   Second version, added notes on making the drivers,
+                   added info on multiple sound cards of similar types,]
+                   added more diagnostics info, added info about esd.
+                   added info on OSS and ALSA.
+1.1.1  19991031	   Added notes on sound-slot- and sound-service.
+			(Alan Cox)
+1.1.2  20000920    Modified for Kernel 2.4 (Christoph Hellwig)
+1.1.3  20010214    Minor notes and corrections (Wade Hampton)
+                   Added examples of sound-slot-0, etc.
+
+
+Modular Sound Drivers:
+======================
+
+Thanks to the GREAT work by Alan Cox (alan@lxorguk.ukuu.org.uk),
+
+[And Oleg Drokin, Thomas Sailer, Andrew Veliath and more than a few 
+ others - not to mention Hannu's original code being designed well
+ enough to cope with that kind of chopping up](Alan)
+
+the standard Linux kernels support a modular sound driver.  From
+Alan's comments in linux/drivers/sound/README.FIRST:
+
+  The modular sound driver patches were funded by Red Hat Software 
+  (www.redhat.com). The sound driver here is thus a modified version of 
+  Hannu's code. Please bear that in mind when considering the appropriate
+  forums for bug reporting.
+
+The modular sound drivers may be loaded via insmod or modprobe.  
+To support all the various sound modules, there are two general 
+support modules that must be loaded first:
+ 
+   soundcore.o:   Top level handler for the sound system, provides
+                  a set of functions for registration of devices
+                  by type.
+
+   sound.o:       Common sound functions required by all modules.
+
+For the specific sound modules (e.g., sb.o for the Soundblaster), 
+read the documentation on that module to determine what options
+are available, for example IRQ, address, DMA.
+
+Warning, the options for different cards sometime use different names 
+for the same or a similar feature (dma1= versus dma16=).  As a last 
+resort, inspect the code (search for module_param).
+
+Notes:
+
+1.  There is a new OpenSource sound driver called ALSA which is
+    currently under development:  http://www.alsa-project.org/
+    The ALSA drivers support some newer hardware that may not 
+    be supported by this sound driver and also provide some 
+    additional features.
+
+2.  The commercial OSS driver may be obtained from the site:
+    http://www.opensound.com.  This may be used for cards that
+    are unsupported by the kernel driver, or may be used
+    by other operating systems.  
+
+3.  The enlightenment sound daemon may be used for playing
+    multiple sounds at the same time via a single card, eliminating
+    some of the requirements for multiple sound card systems.  For
+    more information, see:  http://www.tux.org/~ricdude/EsounD.html  
+    The "esd" program may be used with the real-player and mpeg 
+    players like mpg123 and x11amp.  The newer real-player 
+    and some games even include built-in support for ESD!
+
+
+Building the Modules:
+=====================
+
+This document does not provide full details on building the 
+kernel, etc.  The notes below apply only to making the kernel
+sound modules.   If this conflicts with the kernel's README,
+the README takes precedence. 
+
+1.  To make the kernel sound modules, cd to your /usr/src/linux
+    directory (typically) and type make config, make menuconfig, 
+    or make xconfig (to start the command line, dialog, or x-based
+    configuration tool).  
+
+2.  Select the Sound option and a dialog will be displayed.  
+
+3.  Select M (module) for "Sound card support".
+
+4.  Select your sound driver(s) as a module.  For ProAudio, Sound
+    Blaster, etc., select M (module) for OSS sound modules.
+    [thanks to Marvin Stodolsky <stodolsk@erols.com>]A
+
+5.  Make the kernel (e.g., make bzImage), and install the kernel.
+
+6.  Make the modules and install them (make modules; make modules_install).
+
+Note, for 2.5.x kernels, make sure you have the newer module-init-tools 
+installed or modules will not be loaded properly.  2.5.x requires an
+updated module-init-tools.
+
+
+Plug and Play (PnP:
+===================
+
+If the sound card is an ISA PnP card, isapnp may be used
+to configure the card.  See the file isapnp.txt in the 
+directory one level up (e.g., /usr/src/linux/Documentation).
+
+Also the 2.4.x kernels provide PnP capabilities, see the 
+file NEWS in this directory.
+
+PCI sound cards are highly recommended, as they are far 
+easier to configure and from what I have read, they use
+less resources and are more CPU efficient.
+
+
+INSMOD:
+=======
+
+If loading via insmod, the common modules must be loaded in the 
+order below BEFORE loading the other sound modules.  The card-specific
+modules may then be loaded (most require parameters).  For example,
+I use the following via a shell script to load my SoundBlaster:
+
+SB_BASE=0x240
+SB_IRQ=9
+SB_DMA=3
+SB_DMA2=5
+SB_MPU=0x300
+#
+echo Starting sound
+/sbin/insmod soundcore
+/sbin/insmod sound  
+#
+echo Starting sound blaster....
+/sbin/insmod uart401
+/sbin/insmod sb io=$SB_BASE irq=$SB_IRQ dma=$SB_DMA dma16=$SB_DMA2 mpu_io=$SB_MP
+
+When using sound as a module, I typically put these commands
+in a file such as /root/soundon.sh.
+
+
+MODPROBE:
+=========
+
+If loading via modprobe, these common files are automatically loaded when
+requested by modprobe.  For example, my /etc/modprobe.d/oss.conf contains:
+
+alias sound sb 
+options sb io=0x240 irq=9 dma=3 dma16=5 mpu_io=0x300
+
+All you need to do to load the module is:
+
+	/sbin/modprobe sb
+
+
+Sound Status:
+=============
+
+The status of sound may be read/checked by:
+        cat (anyfile).au >/dev/audio
+
+[WWH:  This may not work properly for SoundBlaster PCI 128 cards
+such as the es1370/1 (see the es1370/1 files in this directory) 
+as they do not automatically support uLaw on /dev/audio.]
+
+The status of the modules and which modules depend on 
+which other modules may be checked by:
+	/sbin/lsmod
+
+/sbin/lsmod should show something like the following:
+	sb                     26280   0 
+	uart401                 5640   0  [sb]
+	sound                  57112   0  [sb uart401]
+	soundcore               1968   8  [sb sound]
+
+
+Removing Sound: 
+=============== 
+
+Sound may be removed by using /sbin/rmmod in the reverse order
+in which you load the modules.  Note, if a program has a sound device
+open (e.g., xmixer), that module (and the modules on which it 
+depends) may not be unloaded.
+
+For example, I use the following to remove my Soundblaster (rmmod
+in the reverse order in which I loaded the modules):
+
+/sbin/rmmod sb
+/sbin/rmmod uart401
+/sbin/rmmod sound
+/sbin/rmmod soundcore
+
+When using sound as a module, I typically put these commands
+in a script such as /root/soundoff.sh.
+
+
+Removing Sound for use with OSS: 
+================================ 
+
+If you get really stuck or have a card that the kernel modules
+will not support, you can get a commercial sound driver from
+http://www.opensound.com.  Before loading the commercial sound
+driver, you should do the following:
+
+1.  remove sound modules (detailed above)
+2.  remove the sound modules from /etc/modprobe.d/*.conf
+3.  move the sound modules from /lib/modules/<kernel>/misc
+    (for example, I make a /lib/modules/<kernel>/misc/tmp
+    directory and copy the sound module files to that 
+    directory).
+
+
+Multiple Sound Cards:
+=====================
+
+The sound drivers will support multiple sound cards and there
+are some great applications like multitrack that support them.  
+Typically, you need two sound cards of different types.  Note, this
+uses more precious interrupts and DMA channels and sometimes 
+can be a configuration nightmare.  I have heard reports of 3-4
+sound cards (typically I only use 2).  You can sometimes use
+multiple PCI sound cards of the same type.
+
+On my machine I have two sound cards (cs4232 and Soundblaster Vibra
+16).  By loading sound as modules, I can control which is the first
+sound device (/dev/dsp, /dev/audio, /dev/mixer) and which is 
+the second.  Normally, the cs4232 (Dell sound on the motherboard) 
+would be the first sound device, but I prefer the Soundblaster.  
+All you have to do is to load the one you want as /dev/dsp 
+first (in my case "sb") and then load the other one
+(in my case "cs4232").
+
+If you have two cards of the same type that are jumpered 
+cards or different PnP revisions, you may load the same 
+module twice.  For example, I have a SoundBlaster vibra 16
+and an older SoundBlaster 16 (jumpers).  To load the module
+twice, you need to do the following:
+
+1.  Copy the sound modules to a new name.  For example
+    sb.o could be copied (or symlinked) to sb1.o for the
+    second SoundBlaster.
+
+2.  Make a second entry in /etc/modprobe.d/*conf, for example,
+    sound1 or sb1.  This second entry should refer to the
+    new module names for example sb1, and should include
+    the I/O, etc. for the second sound card.
+
+3.  Update your soundon.sh script, etc.
+
+Warning:  I have never been able to get two PnP sound cards of the
+same type to load at the same time.  I have tried this several times
+with the Soundblaster Vibra 16 cards.  OSS has indicated that this
+is a PnP problem....  If anyone has any luck doing this, please 
+send me an E-MAIL.  PCI sound cards should not have this problem.a
+Since this was originally release, I have received a couple of 
+mails from people who have accomplished this!
+
+NOTE: In Linux 2.4 the Sound Blaster driver (and only this one yet)
+supports multiple cards with one module by default.
+Read the file 'Soundblaster' in this directory for details.
+
+
+Sound Problems:
+===============
+
+First RTFM (including the troubleshooting section 
+in the Sound-HOWTO). 
+
+1)  If you are having problems loading the modules (for
+    example, if you get device conflict errors) try the
+    following:
+
+  A)  If you have Win95 or NT on the same computer,  
+      write down what addresses, IRQ, and DMA channels
+      those were using for the same hardware.  You probably 
+      can use these addresses, IRQs, and DMA channels.
+      You should really do this BEFORE attempting to get
+      sound working!
+  
+  B)  Check (cat) /proc/interrupts, /proc/ioports,
+      and /proc/dma.  Are you trying to use an address,
+      IRQ or DMA port that another device is using?
+  
+  C)  Check (cat) /proc/isapnp
+  
+  D)  Inspect your /var/log/messages file.  Often that will 
+      indicate what IRQ or IO port could not be obtained.
+  
+  E)  Try another port or IRQ.  Note this may involve 
+      using the PnP tools to move the sound card to 
+      another location.  Sometimes this is the only way 
+      and it is more or less trial and error.
+
+2)  If you get motor-boating (the same sound or part of a 
+    sound clip repeated), you probably have either an IRQ
+    or DMA conflict.  Move the card to another IRQ or DMA
+    port.  This has happened to me when playing long files 
+    when I had an IRQ conflict.
+
+3.  If you get dropouts or pauses when playing high sample
+    rate files such as using mpg123 or x11amp/xmms, you may 
+    have too slow of a CPU and may have to use the options to 
+    play the files at 1/2 speed.  For example, you may use
+    the -2 or -4 option on mpg123.  You may also get this
+    when trying to play mpeg files stored on a CD-ROM
+    (my Toshiba T8000 PII/366 sometimes has this problem).
+
+4.  If you get "cannot access device" errors, your /dev/dsp
+    files, etc. may be set to owner root, mode 600.  You 
+    may have to use the command:
+      chmod 666 /dev/dsp /dev/mixer /dev/audio
+
+5.  If you get "device busy" errors, another program has the
+    sound device open.  For example, if using the Enlightenment
+    sound daemon "esd", the "esd" program has the sound device.
+    If using "esd", please RTFM the docs on ESD.  For example,
+    esddsp <program> may be used to play files via a non-esd
+    aware program.
+
+6)  Ask for help on the sound list or send E-MAIL to the
+    sound driver author/maintainer.
+
+7)  Turn on debug in drivers/sound/sound_config.h (DEB, DDB, MDB).
+
+8)  If the system reports insufficient DMA memory then you may want to
+    load sound with the "dmabufs=1" option. Or in /etc/conf.modules add
+	
+	preinstall sound dmabufs=1
+
+    This makes the sound system allocate its buffers and hang onto them.
+
+    You may also set persistent DMA when building a 2.4.x kernel.
+
+
+Configuring Sound:
+==================
+
+There are several ways of configuring your sound:
+
+1)  On the kernel command line (when using the sound driver(s)
+    compiled in the kernel). Check the driver source and
+    documentation for details.
+
+2)  On the command line when using insmod or in a bash script
+    using command line calls to load sound.
+
+3)  In /etc/modprobe.d/*conf when using modprobe.
+
+4)  Via Red Hat's GPL'd /usr/sbin/sndconfig program (text based).
+
+5)  Via the OSS soundconf program (with the commercial version
+    of the OSS driver.
+
+6)  By just loading the module and let isapnp do everything relevant
+    for you. This works only with a few drivers yet and - of course -
+    only with isapnp hardware.
+
+And I am sure, several other ways.  
+
+Anyone want to write a linuxconf module for configuring sound?
+
+
+Module Loading:
+===============
+
+When a sound card is first referenced and sound is modular, the sound system
+will ask for the sound devices to be loaded. Initially it requests that
+the driver for the sound system is loaded. It then will ask for 
+sound-slot-0, where 0 is the first sound card. (sound-slot-1 the second and
+so on). Thus you can do
+
+alias sound-slot-0 sb
+
+To load a soundblaster at this point. If the slot loading does not provide
+the desired device - for example a soundblaster does not directly provide
+a midi synth in all cases then it will request "sound-service-0-n" where n
+is
+
+  0	Mixer
+
+  2  	MIDI
+
+  3, 4	DSP audio
+
+
+For example, I use the following to load my Soundblaster PCI 128
+(ES 1371) card first, followed by my SoundBlaster Vibra 16 card,
+then by my TV card:
+
+# Load the Soundblaster PCI 128 as /dev/dsp, /dev/dsp1, /dev/mixer
+alias sound-slot-0 es1371
+
+# Load the Soundblaster Vibra 16 as /dev/dsp2, /dev/mixer1
+alias sound-slot-1 sb
+options sb io=0x240 irq=5 dma=1 dma16=5 mpu_io=0x330
+
+# Load the BTTV (TV card) as /dev/mixer2
+alias sound-slot-2 bttv
+alias sound-service-2-0 tvmixer
+
+pre-install bttv  modprobe tuner ; modprobe tvmixer
+pre-install tvmixer modprobe msp3400; modprobe tvaudio 
+options tuner debug=0 type=8 
+options bttv  card=0 radio=0 pll=0
+
+
+For More Information (RTFM):
+============================
+1)  Information on kernel modules: manual pages for insmod and modprobe.
+
+2)  Information on PnP, RTFM manual pages for isapnp.
+
+3)  Sound-HOWTO and Sound-Playing-HOWTO.
+
+4)  OSS's WWW site at http://www.opensound.com.
+
+5)  All the files in Documentation/sound.
+
+6)  The comments and code in linux/drivers/sound.
+
+7)  The sndconfig and rhsound documentation from Red Hat.
+
+8)  The Linux-sound mailing list:  sound-list@redhat.com.
+
+9)  Enlightenment documentation (for info on esd)
+    http://www.tux.org/~ricdude/EsounD.html.
+
+10) ALSA home page:  http://www.alsa-project.org/
+
+
+Contact Information:
+====================
+Wade Hampton:  (whampton@staffnet.com)
+

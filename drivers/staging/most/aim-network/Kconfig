@@ -1,0 +1,13 @@
+#
+# MOST Networking configuration
+#
+
+config AIM_NETWORK
+	tristate "Networking AIM"
+	depends on NET
+
+	---help---
+	  Say Y here if you want to commumicate via a networking device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called aim_network.

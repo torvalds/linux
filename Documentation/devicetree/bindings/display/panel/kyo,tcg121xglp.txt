@@ -1,0 +1,7 @@
+Kyocera Corporation 12.1" XGA (1024x768) TFT LCD panel
+
+Required properties:
+- compatible: should be "kyo,tcg121xglp"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

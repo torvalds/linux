@@ -1,0 +1,65 @@
+Clock scaling
+-------------
+
+The kernel supports scaling of CLCK.CMODE, CLCK.CM and CLKC.P0 clock
+registers. If built with CONFIG_PM and CONFIG_SYSCTL options enabled, four
+extra files will appear in the directory /proc/sys/pm/. Reading these files
+will show:
+
+      p0		-- current value of the P0 bit in CLKC register.
+      cm		-- current value of the CM bits in CLKC register.
+      cmode		-- current value of the CMODE bits in CLKC register.
+
+On all boards, the 'p0' file should also be writable, and either '1' or '0'
+can be rewritten, to set or clear the CLKC_P0 bit respectively, hence
+controlling whether the resource bus rate clock is halved.
+
+The 'cm' file should also be available on all boards. '0' can be written to it
+to shift the board into High-Speed mode (normal), and '1' can be written to
+shift the board into Medium-Speed mode. Selecting Low-Speed mode is not
+supported by this interface, even though some CPUs do support it.
+
+On the boards with FR405 CPU (i.e. CB60 and CB70), the 'cmode' file is also
+writable, allowing the CPU core speed (and other clock speeds) to be
+controlled from userspace.
+
+
+Determining current and possible settings
+-----------------------------------------
+
+The current state and the available masks can be found in /proc/cpuinfo. For
+example, on the CB70:
+
+	# cat /proc/cpuinfo
+	CPU-Series:     fr400
+	CPU-Core:       fr405, gr0-31, BE, CCCR
+	CPU:            mb93405
+	MMU:            Prot
+	FP-Media:       fr0-31, Media
+	System:         mb93091-cb70, mb93090-mb00
+	PM-Controls:    cmode=0xd31f, cm=0x3, p0=0x3, suspend=0x9
+	PM-Status:      cmode=3, cm=0, p0=0
+	Clock-In:       50.00 MHz
+	Clock-Core:     300.00 MHz
+	Clock-SDRAM:    100.00 MHz
+	Clock-CBus:     100.00 MHz
+	Clock-Res:      50.00 MHz
+	Clock-Ext:      50.00 MHz
+	Clock-DSU:      25.00 MHz
+	BogoMips:       300.00
+
+And on the PDK, the PM lines look like the following:
+
+	PM-Controls:    cm=0x3, p0=0x3, suspend=0x9
+	PM-Status:      cmode=9, cm=0, p0=0
+
+The PM-Controls line, if present, will indicate which /proc/sys/pm files can
+be set to what values. The specification values are bitmasks; so, for example,
+"suspend=0x9" indicates that 0 and 3 can be written validly to
+/proc/sys/pm/suspend.
+
+The PM-Controls line will only be present if CONFIG_PM is configured to Y.
+
+The PM-Status line indicates which clock controls are set to which value. If
+the file can be read, then the suspend value must be 0, and so that's not
+included.

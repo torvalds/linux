@@ -1,0 +1,30 @@
+nvkm-y += nvkm/subdev/i2c/base.o
+nvkm-y += nvkm/subdev/i2c/nv04.o
+nvkm-y += nvkm/subdev/i2c/nv4e.o
+nvkm-y += nvkm/subdev/i2c/nv50.o
+nvkm-y += nvkm/subdev/i2c/g94.o
+nvkm-y += nvkm/subdev/i2c/gf117.o
+nvkm-y += nvkm/subdev/i2c/gf119.o
+nvkm-y += nvkm/subdev/i2c/gk104.o
+nvkm-y += nvkm/subdev/i2c/gm204.o
+
+nvkm-y += nvkm/subdev/i2c/pad.o
+nvkm-y += nvkm/subdev/i2c/padnv04.o
+nvkm-y += nvkm/subdev/i2c/padnv4e.o
+nvkm-y += nvkm/subdev/i2c/padnv50.o
+nvkm-y += nvkm/subdev/i2c/padg94.o
+nvkm-y += nvkm/subdev/i2c/padgf119.o
+nvkm-y += nvkm/subdev/i2c/padgm204.o
+
+nvkm-y += nvkm/subdev/i2c/bus.o
+nvkm-y += nvkm/subdev/i2c/busnv04.o
+nvkm-y += nvkm/subdev/i2c/busnv4e.o
+nvkm-y += nvkm/subdev/i2c/busnv50.o
+nvkm-y += nvkm/subdev/i2c/busgf119.o
+nvkm-y += nvkm/subdev/i2c/bit.o
+
+nvkm-y += nvkm/subdev/i2c/aux.o
+nvkm-y += nvkm/subdev/i2c/auxg94.o
+nvkm-y += nvkm/subdev/i2c/auxgm204.o
+
+nvkm-y += nvkm/subdev/i2c/anx9805.o

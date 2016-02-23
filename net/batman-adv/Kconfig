@@ -1,0 +1,70 @@
+#
+# B.A.T.M.A.N meshing protocol
+#
+
+config BATMAN_ADV
+	tristate "B.A.T.M.A.N. Advanced Meshing Protocol"
+	depends on NET
+	select CRC16
+	select LIBCRC32C
+        default n
+	help
+          B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
+          a routing protocol for multi-hop ad-hoc mesh networks. The
+          networks may be wired or wireless. See
+          http://www.open-mesh.org/ for more information and user space
+          tools.
+
+config BATMAN_ADV_BLA
+	bool "Bridge Loop Avoidance"
+	depends on BATMAN_ADV && INET
+	default y
+	help
+	  This option enables BLA (Bridge Loop Avoidance), a mechanism
+	  to avoid Ethernet frames looping when mesh nodes are connected
+	  to both the same LAN and the same mesh. If you will never use
+	  more than one mesh node in the same LAN, you can safely remove
+	  this feature and save some space.
+
+config BATMAN_ADV_DAT
+	bool "Distributed ARP Table"
+	depends on BATMAN_ADV && INET
+	default n
+	help
+	  This option enables DAT (Distributed ARP Table), a DHT based
+	  mechanism that increases ARP reliability on sparse wireless
+	  mesh networks. If you think that your network does not need
+	  this option you can safely remove it and save some space.
+
+config BATMAN_ADV_NC
+	bool "Network Coding"
+	depends on BATMAN_ADV
+	default n
+	help
+	  This option enables network coding, a mechanism that aims to
+	  increase the overall network throughput by fusing multiple
+	  packets in one transmission.
+	  Note that interfaces controlled by batman-adv must be manually
+	  configured to have promiscuous mode enabled in order to make
+	  network coding work.
+	  If you think that your network does not need this feature you
+	  can safely disable it and save some space.
+
+config BATMAN_ADV_MCAST
+	bool "Multicast optimisation"
+	depends on BATMAN_ADV
+	default n
+	help
+	  This option enables the multicast optimisation which aims to
+	  reduce the air overhead while improving the reliability of
+	  multicast messages.
+
+config BATMAN_ADV_DEBUG
+	bool "B.A.T.M.A.N. debugging"
+	depends on BATMAN_ADV
+	depends on DEBUG_FS
+	help
+	  This is an option for use by developers; most people should
+	  say N here. This enables compilation of support for
+	  outputting debugging information to the kernel log. The
+	  output is controlled via the module parameter debug.

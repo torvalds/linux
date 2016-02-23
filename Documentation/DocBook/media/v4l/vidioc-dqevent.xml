@@ -1,0 +1,471 @@
+<refentry id="vidioc-dqevent">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_DQEVENT</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_DQEVENT</refname>
+    <refpurpose>Dequeue event</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_event
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_DQEVENT</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Dequeue an event from a video device. No input is required
+    for this ioctl. All the fields of the &v4l2-event; structure are
+    filled by the driver. The file handle will also receive exceptions
+    which the application may get by e.g. using the select system
+    call.</para>
+
+    <table frame="none" pgwide="1" id="v4l2-event">
+      <title>struct <structname>v4l2_event</structname></title>
+      <tgroup cols="4">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+            <entry></entry>
+	    <entry>Type of the event, see <xref linkend="event-type" />.</entry>
+	  </row>
+	  <row>
+	    <entry>union</entry>
+	    <entry><structfield>u</structfield></entry>
+            <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-vsync;</entry>
+            <entry><structfield>vsync</structfield></entry>
+	    <entry>Event data for event <constant>V4L2_EVENT_VSYNC</constant>.
+            </entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-ctrl;</entry>
+            <entry><structfield>ctrl</structfield></entry>
+	    <entry>Event data for event <constant>V4L2_EVENT_CTRL</constant>.
+            </entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-frame-sync;</entry>
+            <entry><structfield>frame_sync</structfield></entry>
+	    <entry>Event data for event
+	    <constant>V4L2_EVENT_FRAME_SYNC</constant>.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-motion-det;</entry>
+            <entry><structfield>motion_det</structfield></entry>
+	    <entry>Event data for event V4L2_EVENT_MOTION_DET.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-src-change;</entry>
+            <entry><structfield>src_change</structfield></entry>
+	    <entry>Event data for event V4L2_EVENT_SOURCE_CHANGE.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__u8</entry>
+            <entry><structfield>data</structfield>[64]</entry>
+	    <entry>Event data. Defined by the event type. The union
+            should be used to define easily accessible type for
+            events.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>pending</structfield></entry>
+            <entry></entry>
+	    <entry>Number of pending events excluding this one.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>sequence</structfield></entry>
+            <entry></entry>
+	    <entry>Event sequence number. The sequence number is
+	    incremented for every subscribed event that takes place.
+	    If sequence numbers are not contiguous it means that
+	    events have been lost.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>struct timespec</entry>
+	    <entry><structfield>timestamp</structfield></entry>
+            <entry></entry>
+	    <entry>Event timestamp. The timestamp has been taken from the
+	    <constant>CLOCK_MONOTONIC</constant> clock. To access the
+	    same clock outside V4L2, use <function>clock_gettime(2)</function>.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>u32</entry>
+	    <entry><structfield>id</structfield></entry>
+            <entry></entry>
+	    <entry>The ID associated with the event source. If the event does not
+		have an associated ID (this depends on the event type), then this
+		is 0.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[8]</entry>
+            <entry></entry>
+	    <entry>Reserved for future extensions. Drivers must set
+	    the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="event-type">
+      <title>Event Types</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_ALL</constant></entry>
+	    <entry>0</entry>
+	    <entry>All events. V4L2_EVENT_ALL is valid only for
+	    VIDIOC_UNSUBSCRIBE_EVENT for unsubscribing all events at once.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_VSYNC</constant></entry>
+	    <entry>1</entry>
+	    <entry>This event is triggered on the vertical sync.
+	    This event has a &v4l2-event-vsync; associated with it.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_EOS</constant></entry>
+	    <entry>2</entry>
+	    <entry>This event is triggered when the end of a stream is reached.
+	    This is typically used with MPEG decoders to report to the application
+	    when the last of the MPEG stream has been decoded.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL</constant></entry>
+	    <entry>3</entry>
+	    <entry><para>This event requires that the <structfield>id</structfield>
+		matches the control ID from which you want to receive events.
+		This event is triggered if the control's value changes, if a
+		button control is pressed or if the control's flags change.
+	    	This event has a &v4l2-event-ctrl; associated with it. This struct
+		contains much of the same information as &v4l2-queryctrl; and
+		&v4l2-control;.</para>
+
+		<para>If the event is generated due to a call to &VIDIOC-S-CTRL; or
+		&VIDIOC-S-EXT-CTRLS;, then the event will <emphasis>not</emphasis> be sent to
+		the file handle that called the ioctl function. This prevents
+		nasty feedback loops. If you <emphasis>do</emphasis> want to get the
+		event, then set the <constant>V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK</constant>
+		flag.
+		</para>
+
+		<para>This event type will ensure that no information is lost when
+		more events are raised than there is room internally. In that
+		case the &v4l2-event-ctrl; of the second-oldest event is kept,
+		but the <structfield>changes</structfield> field of the
+		second-oldest event is ORed with the <structfield>changes</structfield>
+		field of the oldest event.</para>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_FRAME_SYNC</constant></entry>
+	    <entry>4</entry>
+	    <entry>
+	      <para>Triggered immediately when the reception of a
+	      frame has begun. This event has a
+	      &v4l2-event-frame-sync; associated with it.</para>
+
+	      <para>If the hardware needs to be stopped in the case of a
+	      buffer underrun it might not be able to generate this event.
+	      In such cases the <structfield>frame_sequence</structfield>
+	      field in &v4l2-event-frame-sync; will not be incremented. This
+	      causes two consecutive frame sequence numbers to have n times
+	      frame interval in between them.</para>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_SOURCE_CHANGE</constant></entry>
+	    <entry>5</entry>
+	    <entry>
+	      <para>This event is triggered when a source parameter change is
+	       detected during runtime by the video device. It can be a
+	       runtime resolution change triggered by a video decoder or the
+	       format change happening on an input connector.
+	       This event requires that the <structfield>id</structfield>
+	       matches the input index (when used with a video device node)
+	       or the pad index (when used with a subdevice node) from which
+	       you want to receive events.</para>
+
+              <para>This event has a &v4l2-event-src-change; associated
+	      with it. The <structfield>changes</structfield> bitfield denotes
+	      what has changed for the subscribed pad. If multiple events
+	      occurred before application could dequeue them, then the changes
+	      will have the ORed value of all the events generated.</para>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_MOTION_DET</constant></entry>
+	    <entry>6</entry>
+	    <entry>
+	      <para>Triggered whenever the motion detection state for one or more of the regions
+	      changes. This event has a &v4l2-event-motion-det; associated with it.</para>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_PRIVATE_START</constant></entry>
+	    <entry>0x08000000</entry>
+	    <entry>Base event number for driver-private events.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-vsync">
+      <title>struct <structname>v4l2_event_vsync</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>field</structfield></entry>
+	    <entry>The upcoming field. See &v4l2-field;.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-ctrl">
+      <title>struct <structname>v4l2_event_ctrl</structname></title>
+      <tgroup cols="4">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>changes</structfield></entry>
+	    <entry></entry>
+	    <entry>A bitmask that tells what has changed. See <xref linkend="ctrl-changes-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry></entry>
+	    <entry>The type of the control. See &v4l2-ctrl-type;.</entry>
+	  </row>
+	  <row>
+	    <entry>union (anonymous)</entry>
+	    <entry></entry>
+	    <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s32</entry>
+	    <entry><structfield>value</structfield></entry>
+	    <entry>The 32-bit value of the control for 32-bit control types.
+		This is 0 for string controls since the value of a string
+		cannot be passed using &VIDIOC-DQEVENT;.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s64</entry>
+	    <entry><structfield>value64</structfield></entry>
+	    <entry>The 64-bit value of the control for 64-bit control types.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry></entry>
+	    <entry>The control flags. See <xref linkend="control-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>minimum</structfield></entry>
+	    <entry></entry>
+	    <entry>The minimum value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>maximum</structfield></entry>
+	    <entry></entry>
+	    <entry>The maximum value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>step</structfield></entry>
+	    <entry></entry>
+	    <entry>The step value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>default_value</structfield></entry>
+	    <entry></entry>
+	    <entry>The default value value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-frame-sync">
+      <title>struct <structname>v4l2_event_frame_sync</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>frame_sequence</structfield></entry>
+	    <entry>
+	      The sequence number of the frame being received.
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-src-change">
+      <title>struct <structname>v4l2_event_src_change</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>changes</structfield></entry>
+	    <entry>
+	      A bitmask that tells what has changed. See <xref linkend="src-changes-flags" />.
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-motion-det">
+      <title>struct <structname>v4l2_event_motion_det</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry>
+	      Currently only one flag is available: if <constant>V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ</constant>
+	      is set, then the <structfield>frame_sequence</structfield> field is valid,
+	      otherwise that field should be ignored.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>frame_sequence</structfield></entry>
+	    <entry>
+	      The sequence number of the frame being received. Only valid if the
+	      <constant>V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ</constant> flag was set.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>region_mask</structfield></entry>
+	    <entry>
+	      The bitmask of the regions that reported motion. There is at least one
+	      region. If this field is 0, then no motion was detected at all.
+	      If there is no <constant>V4L2_CID_DETECT_MD_REGION_GRID</constant> control
+	      (see <xref linkend="detect-controls" />) to assign a different region
+	      to each cell in the motion detection grid, then that all cells
+	      are automatically assigned to the default region 0.
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="ctrl-changes-flags">
+      <title>Control Changes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL_CH_VALUE</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>This control event was triggered because the value of the control
+		changed. Special cases: Volatile controls do no generate this event;
+		If a control has the <constant>V4L2_CTRL_FLAG_EXECUTE_ON_WRITE</constant>
+		flag set, then this event is sent as well, regardless its value.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL_CH_FLAGS</constant></entry>
+	    <entry>0x0002</entry>
+	    <entry>This control event was triggered because the control flags
+		changed.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL_CH_RANGE</constant></entry>
+	    <entry>0x0004</entry>
+	    <entry>This control event was triggered because the minimum,
+	    maximum, step or the default value of the control changed.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="src-changes-flags">
+      <title>Source Changes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_SRC_CH_RESOLUTION</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>This event gets triggered when a resolution change is
+	    detected at an input. This can come from an input connector or
+	    from a video decoder.
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+  <refsect1>
+    &return-value;
+  </refsect1>
+</refentry>

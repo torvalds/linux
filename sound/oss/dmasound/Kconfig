@@ -1,0 +1,45 @@
+config DMASOUND_ATARI
+	tristate "Atari DMA sound support"
+	depends on ATARI && SOUND
+	select DMASOUND
+	help
+	  If you want to use the internal audio of your Atari in Linux, answer
+	  Y to this question. This will provide a Sun-like /dev/audio,
+	  compatible with the Linux/i386 sound system. Otherwise, say N.
+
+	  This driver is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you
+	  want). If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.
+
+config DMASOUND_PAULA
+	tristate "Amiga DMA sound support"
+	depends on AMIGA && SOUND
+	select DMASOUND
+	help
+	  If you want to use the internal audio of your Amiga in Linux, answer
+	  Y to this question. This will provide a Sun-like /dev/audio,
+	  compatible with the Linux/i386 sound system. Otherwise, say N.
+
+	  This driver is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you
+	  want). If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.
+
+config DMASOUND_Q40
+	tristate "Q40 sound support"
+	depends on Q40 && SOUND
+	select DMASOUND
+	help
+	  If you want to use the internal audio of your Q40 in Linux, answer
+	  Y to this question. This will provide a Sun-like /dev/audio,
+	  compatible with the Linux/i386 sound system. Otherwise, say N.
+
+	  This driver is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you
+	  want). If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.
+
+config DMASOUND
+	tristate
+	select SOUND_OSS_CORE

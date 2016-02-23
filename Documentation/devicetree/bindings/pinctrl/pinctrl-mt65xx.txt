@@ -1,0 +1,151 @@
+* Mediatek MT65XX Pin Controller
+
+The Mediatek's Pin controller is used to control SoC pins.
+
+Required properties:
+- compatible: value should be one of the following.
+	"mediatek,mt2701-pinctrl", compatible with mt2701 pinctrl.
+	"mediatek,mt6397-pinctrl", compatible with mt6397 pinctrl.
+	"mediatek,mt8127-pinctrl", compatible with mt8127 pinctrl.
+	"mediatek,mt8135-pinctrl", compatible with mt8135 pinctrl.
+	"mediatek,mt8173-pinctrl", compatible with mt8173 pinctrl.
+- pins-are-numbered: Specify the subnodes are using numbered pinmux to
+  specify pins.
+- gpio-controller : Marks the device node as a gpio controller.
+- #gpio-cells: number of cells in GPIO specifier. Since the generic GPIO
+  binding is used, the amount of cells must be specified as 2. See the below
+  mentioned gpio binding representation for description of particular cells.
+
+	Eg: <&pio 6 0>
+	<[phandle of the gpio controller node]
+	[line number within the gpio controller]
+	[flags]>
+
+	Values for gpio specifier:
+	- Line number: is a value between 0 to 202.
+	- Flags:  bit field of flags, as defined in <dt-bindings/gpio/gpio.h>.
+            Only the following flags are supported:
+            0 - GPIO_ACTIVE_HIGH
+            1 - GPIO_ACTIVE_LOW
+
+Optional properties:
+- mediatek,pctl-regmap: Should be a phandle of the syscfg node.
+- reg: physicall address base for EINT registers
+- interrupt-controller: Marks the device node as an interrupt controller
+- #interrupt-cells: Should be two.
+- interrupts : The interrupt outputs from the controller.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices.
+
+Subnode format
+A pinctrl node should contain at least one subnodes representing the
+pinctrl groups available on the machine. Each subnode will list the
+pins it needs, and how they should be configured, with regard to muxer
+configuration, pullups, drive strength, input enable/disable and input schmitt.
+
+    node {
+	pinmux = <PIN_NUMBER_PINMUX>;
+	GENERIC_PINCONFIG;
+    };
+
+Required properties:
+- pinmux: integer array, represents gpio pin number and mux setting.
+    Supported pin number and mux varies for different SoCs, and are defined
+    as macros in boot/dts/<soc>-pinfunc.h directly.
+
+Optional properties:
+- GENERIC_PINCONFIG: is the generic pinconfig options to use, bias-disable,
+    bias-pull-down, bias-pull-up, input-enable, input-disable, output-low, output-high,
+    input-schmitt-enable, input-schmitt-disable and drive-strength are valid.
+
+    Some special pins have extra pull up strength, there are R0 and R1 pull-up
+    resistors available, but for user, it's only need to set R1R0 as 00, 01, 10 or 11.
+    So when config bias-pull-up, it support arguments for those special pins.
+    Some macros have been defined for this usage, such as MTK_PUPD_SET_R1R0_00.
+    See dt-bindings/pinctrl/mt65xx.h.
+
+    When config drive-strength, it can support some arguments, such as
+    MTK_DRIVE_4mA, MTK_DRIVE_6mA, etc. See dt-bindings/pinctrl/mt65xx.h.
+
+Examples:
+
+#include "mt8135-pinfunc.h"
+
+...
+{
+	syscfg_pctl_a: syscfg_pctl_a@10005000 {
+		compatible = "mediatek,mt8135-pctl-a-syscfg", "syscon";
+		reg = <0 0x10005000 0 0x1000>;
+	};
+
+	syscfg_pctl_b: syscfg_pctl_b@1020C020 {
+		compatible = "mediatek,mt8135-pctl-b-syscfg", "syscon";
+		reg = <0 0x1020C020 0 0x1000>;
+	};
+
+	pinctrl@01c20800 {
+		compatible = "mediatek,mt8135-pinctrl";
+		reg = <0 0x1000B000 0 0x1000>;
+		mediatek,pctl-regmap = <&syscfg_pctl_a &syscfg_pctl_b>;
+		pins-are-numbered;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+
+		i2c0_pins_a: i2c0@0 {
+			pins1 {
+				pinmux = <MT8135_PIN_100_SDA0__FUNC_SDA0>,
+					 <MT8135_PIN_101_SCL0__FUNC_SCL0>;
+				bias-disable;
+			};
+		};
+
+		i2c1_pins_a: i2c1@0 {
+			pins {
+				pinmux = <MT8135_PIN_195_SDA1__FUNC_SDA1>,
+					 <MT8135_PIN_196_SCL1__FUNC_SCL1>;
+				bias-pull-up = <55>;
+			};
+		};
+
+		i2c2_pins_a: i2c2@0 {
+			pins1 {
+				pinmux = <MT8135_PIN_193_SDA2__FUNC_SDA2>;
+				bias-pull-down;
+			};
+
+			pins2 {
+				pinmux = <MT8135_PIN_49_WATCHDOG__FUNC_GPIO49>;
+				bias-pull-up;
+			};
+		};
+
+		i2c3_pins_a: i2c3@0 {
+			pins1 {
+				pinmux = <MT8135_PIN_40_DAC_CLK__FUNC_GPIO40>,
+					 <MT8135_PIN_41_DAC_WS__FUNC_GPIO41>;
+				bias-pull-up = <55>;
+			};
+
+			pins2 {
+				pinmux = <MT8135_PIN_35_SCL3__FUNC_SCL3>,
+					 <MT8135_PIN_36_SDA3__FUNC_SDA3>;
+				output-low;
+				bias-pull-up = <55>;
+			};
+
+			pins3 {
+				pinmux = <MT8135_PIN_57_JTCK__FUNC_GPIO57>,
+					 <MT8135_PIN_60_JTDI__FUNC_JTDI>;
+				drive-strength = <32>;
+			};
+		};
+
+		...
+	}
+};

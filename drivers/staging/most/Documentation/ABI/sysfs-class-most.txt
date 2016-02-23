@@ -1,0 +1,181 @@
+What:		/sys/class/most/mostcore/aims
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		List of AIMs that have been loaded.
+Users:
+
+What:		/sys/class/most/mostcore/aims/<aim>/add_link
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to establish a connection of a channel and the
+		current AIM.
+Users:
+
+What:		/sys/class/most/mostcore/aims/<aim>/remove_link
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to remove a connected channel from the
+		current AIM.
+Users:
+
+What:		/sys/class/most/mostcore/devices
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		List of attached MOST interfaces.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/description
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Provides information about the interface type and the physical
+		location of the device. Hardware attached via USB, for instance,
+		might return <usb_device 1-1.1:1.0>
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/interface
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the type of peripheral interface the current device
+		uses.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		For every channel of the device a directory is created, whose
+		name is dictated by the HDM. This enables an application to
+		collect information about the channel's capabilities and
+		configure it.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/available_datatypes
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the data types the current channel can transport.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/available_directions
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the directions the current channel is capable of.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/number_of_packet_buffers
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the number of packet buffers the current channel can
+		handle.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/number_of_stream_buffers
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the number of streaming buffers the current channel can
+		handle.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/size_of_packet_buffer
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the size of a packet buffer the current channel can
+		handle.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/size_of_stream_buffer
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the size of a streaming buffer the current channel can
+		handle.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/set_number_of_buffers
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is to configure the number of buffers of the current channel.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/set_buffer_size
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is to configure the size of a buffer of the current channel.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/set_direction
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is to configure the direction of the current channel.
+		The following strings will be accepted:
+			'dir_tx',
+			'dir_rx'
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/set_datatype
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is to configure the data type of the current channel.
+		The following strings will be accepted:
+			'control',
+			'async',
+			'sync',
+			'isoc_avp'
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/set_subbuffer_size
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is to configure the subbuffer size of the current channel.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/set_packets_per_xact
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is to configure the number of packets per transaction of
+		the current channel. This is only needed network interface
+		controller is attached via USB.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/channel_starving
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates whether current channel ran out of buffers.
+Users:

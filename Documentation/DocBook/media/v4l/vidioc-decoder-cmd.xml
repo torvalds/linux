@@ -1,0 +1,259 @@
+<refentry id="vidioc-decoder-cmd">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_DECODER_CMD, VIDIOC_TRY_DECODER_CMD</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_DECODER_CMD</refname>
+    <refname>VIDIOC_TRY_DECODER_CMD</refname>
+    <refpurpose>Execute an decoder command</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_decoder_cmd *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_DECODER_CMD, VIDIOC_TRY_DECODER_CMD</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>These ioctls control an audio/video (usually MPEG-) decoder.
+<constant>VIDIOC_DECODER_CMD</constant> sends a command to the
+decoder, <constant>VIDIOC_TRY_DECODER_CMD</constant> can be used to
+try a command without actually executing it. To send a command applications
+must initialize all fields of a &v4l2-decoder-cmd; and call
+<constant>VIDIOC_DECODER_CMD</constant> or <constant>VIDIOC_TRY_DECODER_CMD</constant>
+with a pointer to this structure.</para>
+
+    <para>The <structfield>cmd</structfield> field must contain the
+command code. Some commands use the <structfield>flags</structfield> field for
+additional information.
+</para>
+
+    <para>A <function>write</function>() or &VIDIOC-STREAMON; call sends an implicit
+START command to the decoder if it has not been started yet.
+</para>
+
+    <para>A <function>close</function>() or &VIDIOC-STREAMOFF; call of a streaming
+file descriptor sends an implicit immediate STOP command to the decoder, and all
+buffered data is discarded.</para>
+
+    <para>These ioctls are optional, not all drivers may support
+them. They were introduced in Linux 3.3.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-decoder-cmd">
+      <title>struct <structname>v4l2_decoder_cmd</structname></title>
+      <tgroup cols="5">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>cmd</structfield></entry>
+            <entry></entry>
+            <entry></entry>
+	    <entry>The decoder command, see <xref linkend="decoder-cmds" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+            <entry></entry>
+            <entry></entry>
+	    <entry>Flags to go with the command. If no flags are defined for
+this command, drivers and applications must set this field to zero.</entry>
+	  </row>
+	  <row>
+	    <entry>union</entry>
+	    <entry>(anonymous)</entry>
+            <entry></entry>
+	    <entry></entry>
+            <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>struct</entry>
+            <entry><structfield>start</structfield></entry>
+            <entry></entry>
+            <entry>Structure containing additional data for the
+<constant>V4L2_DEC_CMD_START</constant> command.</entry>
+	  </row>
+	  <row>
+            <entry></entry>
+            <entry></entry>
+	    <entry>__s32</entry>
+	    <entry><structfield>speed</structfield></entry>
+            <entry>Playback speed and direction. The playback speed is defined as
+<structfield>speed</structfield>/1000 of the normal speed. So 1000 is normal playback.
+Negative numbers denote reverse playback, so -1000 does reverse playback at normal
+speed. Speeds -1, 0 and 1 have special meanings: speed 0 is shorthand for 1000
+(normal playback). A speed of 1 steps just one frame forward, a speed of -1 steps
+just one frame back.
+	    </entry>
+	  </row>
+	  <row>
+            <entry></entry>
+            <entry></entry>
+	    <entry>__u32</entry>
+	    <entry><structfield>format</structfield></entry>
+            <entry>Format restrictions. This field is set by the driver, not the
+application. Possible values are <constant>V4L2_DEC_START_FMT_NONE</constant> if
+there are no format restrictions or <constant>V4L2_DEC_START_FMT_GOP</constant>
+if the decoder operates on full GOPs (<wordasword>Group Of Pictures</wordasword>).
+This is usually the case for reverse playback: the decoder needs full GOPs, which
+it can then play in reverse order. So to implement reverse playback the application
+must feed the decoder the last GOP in the video file, then the GOP before that, etc. etc.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>struct</entry>
+            <entry><structfield>stop</structfield></entry>
+            <entry></entry>
+            <entry>Structure containing additional data for the
+<constant>V4L2_DEC_CMD_STOP</constant> command.</entry>
+	  </row>
+	  <row>
+            <entry></entry>
+            <entry></entry>
+	    <entry>__u64</entry>
+	    <entry><structfield>pts</structfield></entry>
+            <entry>Stop playback at this <structfield>pts</structfield> or immediately
+if the playback is already past that timestamp. Leave to 0 if you want to stop after the
+last frame was decoded.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>struct</entry>
+            <entry><structfield>raw</structfield></entry>
+            <entry></entry>
+            <entry></entry>
+	  </row>
+	  <row>
+            <entry></entry>
+            <entry></entry>
+	    <entry>__u32</entry>
+	    <entry><structfield>data</structfield>[16]</entry>
+	    <entry>Reserved for future extensions. Drivers and
+applications must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="decoder-cmds">
+      <title>Decoder Commands</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_DEC_CMD_START</constant></entry>
+	    <entry>0</entry>
+	    <entry>Start the decoder. When the decoder is already
+running or paused, this command will just change the playback speed.
+That means that calling <constant>V4L2_DEC_CMD_START</constant> when
+the decoder was paused will <emphasis>not</emphasis> resume the decoder.
+You have to explicitly call <constant>V4L2_DEC_CMD_RESUME</constant> for that.
+This command has one flag:
+<constant>V4L2_DEC_CMD_START_MUTE_AUDIO</constant>. If set, then audio will
+be muted when playing back at a non-standard speed.
+            </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_DEC_CMD_STOP</constant></entry>
+	    <entry>1</entry>
+	    <entry>Stop the decoder. When the decoder is already stopped,
+this command does nothing. This command has two flags:
+if <constant>V4L2_DEC_CMD_STOP_TO_BLACK</constant> is set, then the decoder will
+set the picture to black after it stopped decoding. Otherwise the last image will
+repeat. mem2mem decoders will stop producing new frames altogether. They will send
+a <constant>V4L2_EVENT_EOS</constant> event when the last frame has been decoded
+and all frames are ready to be dequeued and will set the
+<constant>V4L2_BUF_FLAG_LAST</constant> buffer flag on the last buffer of the
+capture queue to indicate there will be no new buffers produced to dequeue. This
+buffer may be empty, indicated by the driver setting the
+<structfield>bytesused</structfield> field to 0. Once the
+<constant>V4L2_BUF_FLAG_LAST</constant> flag was set, the
+<link linkend="vidioc-qbuf">VIDIOC_DQBUF</link> ioctl will not block anymore,
+but return an &EPIPE;.
+If <constant>V4L2_DEC_CMD_STOP_IMMEDIATELY</constant> is set, then the decoder
+stops immediately (ignoring the <structfield>pts</structfield> value), otherwise it
+will keep decoding until timestamp >= pts or until the last of the pending data from
+its internal buffers was decoded.
+</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_DEC_CMD_PAUSE</constant></entry>
+	    <entry>2</entry>
+	    <entry>Pause the decoder. When the decoder has not been
+started yet, the driver will return an &EPERM;. When the decoder is
+already paused, this command does nothing. This command has one flag:
+if <constant>V4L2_DEC_CMD_PAUSE_TO_BLACK</constant> is set, then set the
+decoder output to black when paused.
+</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_DEC_CMD_RESUME</constant></entry>
+	    <entry>3</entry>
+	    <entry>Resume decoding after a PAUSE command. When the
+decoder has not been started yet, the driver will return an &EPERM;.
+When the decoder is already running, this command does nothing. No
+flags are defined for this command.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The <structfield>cmd</structfield> field is invalid.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EPERM</errorcode></term>
+	<listitem>
+	  <para>The application sent a PAUSE or RESUME command when
+the decoder was not running.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

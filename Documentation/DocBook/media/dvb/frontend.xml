@@ -1,0 +1,269 @@
+<title>DVB Frontend API</title>
+
+<para>The DVB frontend API was designed to support three types of delivery systems:</para>
+<itemizedlist>
+    <listitem><para>Terrestrial systems: DVB-T, DVB-T2, ATSC, ATSC M/H, ISDB-T, DVB-H, DTMB, CMMB</para></listitem>
+    <listitem><para>Cable systems: DVB-C Annex A/C, ClearQAM (DVB-C Annex B), ISDB-C</para></listitem>
+    <listitem><para>Satellite systems: DVB-S, DVB-S2, DVB Turbo, ISDB-S, DSS</para></listitem>
+</itemizedlist>
+<para>The DVB frontend controls several sub-devices including:</para>
+<itemizedlist>
+    <listitem><para>Tuner</para></listitem>
+    <listitem><para>Digital TV demodulator</para></listitem>
+    <listitem><para>Low noise amplifier (LNA)</para></listitem>
+    <listitem><para>Satellite Equipment Control (SEC) hardware (only for Satellite).</para></listitem>
+</itemizedlist>
+<para>The frontend can be accessed through
+    <constant>/dev/dvb/adapter?/frontend?</constant>. Data types and
+    ioctl definitions can be accessed by including
+    <constant>linux/dvb/frontend.h</constant> in your application.
+</para>
+
+<para>NOTE: Transmission via the internet (DVB-IP)
+    is not yet handled by this API but a future extension is possible.</para>
+<para>On Satellite systems, the API support for the Satellite Equipment Control
+    (SEC) allows to power control and to send/receive signals to control the
+    antenna subsystem, selecting the polarization and choosing the Intermediate
+    Frequency IF) of the Low Noise Block Converter Feed Horn (LNBf). It
+    supports the DiSEqC and V-SEC protocols. The DiSEqC (digital SEC)
+specification is available at
+<ulink url="http://www.eutelsat.com/satellites/4_5_5.html">Eutelsat</ulink>.</para>
+
+<section id="query-dvb-frontend-info">
+<title>Querying frontend information</title>
+
+<para>Usually, the first thing to do when the frontend is opened is to
+    check the frontend capabilities. This is done using <link linkend="FE_GET_INFO">FE_GET_INFO</link>. This ioctl will enumerate
+    the DVB API version and other characteristics about the frontend, and
+    can be opened either in read only or read/write mode.</para>
+</section>
+
+<section id="dvb-fe-read-status">
+<title>Querying frontend status and statistics</title>
+
+<para>Once <link linkend="FE_GET_PROPERTY"><constant>FE_SET_PROPERTY</constant></link>
+    is called, the frontend will run a kernel thread that will periodically
+    check for the tuner lock status and provide statistics about the quality
+    of the signal.</para>
+<para>The information about the frontend tuner locking status can be queried
+    using <link linkend="FE_READ_STATUS">FE_READ_STATUS</link>.</para>
+<para>Signal statistics are provided via <link linkend="FE_GET_PROPERTY"><constant>FE_GET_PROPERTY</constant></link>.
+    Please note that several statistics require the demodulator to be fully
+    locked (e. g. with FE_HAS_LOCK bit set). See
+    <link linkend="frontend-stat-properties">Frontend statistics indicators</link>
+    for more details.</para>
+</section>
+
+&sub-dvbproperty;
+
+<section id="frontend_fcalls">
+<title>Frontend Function Calls</title>
+
+<refentry id="frontend_f_open">
+  <refmeta>
+    <refentrytitle>DVB frontend open()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>fe-open</refname>
+    <refpurpose>Open a frontend device</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>#include &lt;fcntl.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>int <function>open</function></funcdef>
+	<paramdef>const char *<parameter>device_name</parameter></paramdef>
+	<paramdef>int <parameter>flags</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>device_name</parameter></term>
+	<listitem>
+	  <para>Device to be opened.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>flags</parameter></term>
+	<listitem>
+	  <para>Open flags. Access can either be
+              <constant>O_RDWR</constant> or <constant>O_RDONLY</constant>.</para>
+          <para>Multiple opens are allowed with <constant>O_RDONLY</constant>. In this mode, only query and read ioctls are allowed.</para>
+          <para>Only one open is allowed in <constant>O_RDWR</constant>. In this mode, all ioctls are allowed.</para>
+	  <para>When the <constant>O_NONBLOCK</constant> flag is given, the system calls may return &EAGAIN; when no data is available or when the device driver is temporarily busy.</para>
+         <para>Other flags have no effect.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+  <refsect1>
+    <title>Description</title>
+    <para>This system call opens a named frontend device (<constant>/dev/dvb/adapter?/frontend?</constant>)
+ for subsequent use. Usually the first thing to do after a successful open is to
+ find out the frontend type with <link linkend="FE_GET_INFO">FE_GET_INFO</link>.</para>
+<para>The device can be opened in read-only mode, which only allows monitoring of
+ device status and statistics, or read/write mode, which allows any kind of use
+ (e.g. performing tuning operations.)
+</para>
+<para>In a system with multiple front-ends, it is usually the case that multiple devices
+ cannot be open in read/write mode simultaneously. As long as a front-end
+ device is opened in read/write mode, other open() calls in read/write mode will
+ either fail or block, depending on whether non-blocking or blocking mode was
+ specified. A front-end device opened in blocking mode can later be put into
+ non-blocking mode (and vice versa) using the F_SETFL command of the fcntl
+ system call. This is a standard system call, documented in the Linux manual
+ page for fcntl. When an open() call has succeeded, the device will be ready
+ for use in the specified mode. This implies that the corresponding hardware is
+ powered up, and that other front-ends may have been powered down to make
+ that possible.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Return Value</title>
+
+    <para>On success <function>open</function> returns the new file
+descriptor. On error -1 is returned, and the <varname>errno</varname>
+variable is set appropriately. Possible error codes are:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EACCES</errorcode></term>
+	<listitem>
+	  <para>The caller has no permission to access the
+device.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The the device driver is already in use.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENXIO</errorcode></term>
+	<listitem>
+	  <para>No device corresponding to this device special file
+exists.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENOMEM</errorcode></term>
+	<listitem>
+	  <para>Not enough kernel memory was available to complete the
+request.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EMFILE</errorcode></term>
+	<listitem>
+	  <para>The  process  already  has  the  maximum number of
+files open.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENFILE</errorcode></term>
+	<listitem>
+	  <para>The limit on the total number of files open on the
+system has been reached.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENODEV</errorcode></term>
+	<listitem>
+	  <para>The device got removed.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<refentry id="frontend_f_close">
+  <refmeta>
+    <refentrytitle>DVB frontend close()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>fe-close</refname>
+    <refpurpose>Close a frontend device</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>#include &lt;unistd.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>int <function>close</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+<para>This system call closes a previously opened front-end device. After closing
+ a front-end device, its corresponding hardware might be powered down
+ automatically.</para>
+</refsect1>
+  <refsect1>
+    <title>Return Value</title>
+
+    <para>The function returns <returnvalue>0</returnvalue> on
+success, <returnvalue>-1</returnvalue> on failure and the
+<varname>errno</varname> is set appropriately. Possible error
+codes:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EBADF</errorcode></term>
+	<listitem>
+	  <para><parameter>fd</parameter> is not a valid open file
+descriptor.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+&sub-fe-get-info;
+&sub-fe-read-status;
+&sub-fe-get-property;
+&sub-fe-diseqc-reset-overload;
+&sub-fe-diseqc-send-master-cmd;
+&sub-fe-diseqc-recv-slave-reply;
+&sub-fe-diseqc-send-burst;
+&sub-fe-set-tone;
+&sub-fe-set-voltage;
+&sub-fe-enable-high-lnb-voltage;
+&sub-fe-set-frontend-tune-mode;
+
+</section>
+
+<section id="frontend_legacy_dvbv3_api">
+<title>DVB Frontend legacy API (a. k. a. DVBv3)</title>
+<para>The usage of this API is deprecated, as it doesn't support all digital
+    TV standards, doesn't provide good statistics measurements and provides
+    incomplete information. This is kept only to support legacy applications.</para>
+
+&sub-frontend_legacy_api;
+</section>

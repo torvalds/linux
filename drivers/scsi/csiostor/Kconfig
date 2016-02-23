@@ -1,0 +1,19 @@
+config SCSI_CHELSIO_FCOE
+	tristate "Chelsio Communications FCoE support"
+	depends on PCI && SCSI
+	depends on SCSI_FC_ATTRS
+	select FW_LOADER
+	help
+	  This driver supports FCoE Offload functionality over
+	  Chelsio T4-based 10Gb Converged Network Adapters.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.html>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module choose M here; the module
+	  will be called csiostor.

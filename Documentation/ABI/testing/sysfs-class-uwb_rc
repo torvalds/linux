@@ -1,0 +1,159 @@
+What:           /sys/class/uwb_rc
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                Interfaces for WiMedia Ultra Wideband Common Radio
+                Platform (UWB) radio controllers.
+
+                Familiarity with the ECMA-368 'High Rate Ultra
+                Wideband MAC and PHY Specification' is assumed.
+
+What:           /sys/class/uwb_rc/beacon_timeout_ms
+Date:           July 2008
+KernelVersion:  2.6.27
+Description:
+                If no beacons are received from a device for at least
+                this time, the device will be considered to have gone
+                and it will be removed.  The default is 3 superframes
+                (~197 ms) as required by the specification.
+
+What:           /sys/class/uwb_rc/uwbN/
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                An individual UWB radio controller.
+
+What:           /sys/class/uwb_rc/uwbN/beacon
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                Write:
+
+                <channel>
+
+                to force a specific channel to be used when beaconing,
+                or, if <channel> is -1, to prohibit beaconing.  If
+                <channel> is 0, then the default channel selection
+                algorithm will be used.  Valid channels depends on the
+                radio controller's supported band groups.
+
+                Reading returns the currently active channel, or -1 if
+                the radio controller is not beaconing.
+
+What:           /sys/class/uwb_rc/uwbN/ASIE
+Date:           August 2014
+KernelVersion:  3.18
+Contact:        linux-usb@vger.kernel.org
+Description:
+
+                The application-specific information element (ASIE)
+                included in this device's beacon, in space separated
+                hex octets.
+
+                Reading returns the current ASIE.  Writing replaces
+                the current ASIE with the one written.
+
+What:           /sys/class/uwb_rc/uwbN/scan
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                Write:
+
+                <channel> <type> [<bpst offset>]
+
+                to start (or stop) scanning on a channel.  <type> is one of:
+                    0 - scan
+                    1 - scan outside BP
+                    2 - scan while inactive
+                    3 - scanning disabled
+                    4 - scan (with start time of <bpst offset>)
+
+What:           /sys/class/uwb_rc/uwbN/mac_address
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                The EUI-48, in colon-separated hex octets, for this
+                radio controller.  A write will change the radio
+                controller's EUI-48 but only do so while the device is
+                not beaconing or scanning.
+
+What:           /sys/class/uwb_rc/uwbN/wusbhc
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                A symlink to the device (if any) of the WUSB Host
+                Controller PAL using this radio controller.
+
+What:           /sys/class/uwb_rc/uwbN/<EUI-48>/
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                A neighbour UWB device that has either been detected
+                as part of a scan or is a member of the radio
+                controllers beacon group.
+
+What:           /sys/class/uwb_rc/uwbN/<EUI-48>/BPST
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                The time (using the radio controllers internal 1 ms
+                interval superframe timer) of the last beacon from
+                this device was received.
+
+What:           /sys/class/uwb_rc/uwbN/<EUI-48>/DevAddr
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                The current DevAddr of this device in colon separated
+                hex octets.
+
+What:           /sys/class/uwb_rc/uwbN/<EUI-48>/EUI_48
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+
+                The EUI-48 of this device in colon separated hex
+                octets.
+
+What:           /sys/class/uwb_rc/uwbN/<EUI-48>/BPST
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+
+What:           /sys/class/uwb_rc/uwbN/<EUI-48>/IEs
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                The latest IEs included in this device's beacon, in
+                space separated hex octets with one IE per line.
+
+What:           /sys/class/uwb_rc/uwbN/<EUI-48>/LQE
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                Link Quality Estimate - the Signal to Noise Ratio
+                (SNR) of all packets received from this device in dB.
+                This gives an estimate on a suitable PHY rate. Refer
+                to [ECMA-368] section 13.3 for more details.
+
+What:           /sys/class/uwb_rc/uwbN/<EUI-48>/RSSI
+Date:           July 2008
+KernelVersion:  2.6.27
+Contact:        linux-usb@vger.kernel.org
+Description:
+                Received Signal Strength Indication - the strength of
+                the received signal in dB.  LQE is a more useful
+                measure of the radio link quality.

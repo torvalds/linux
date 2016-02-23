@@ -1,0 +1,70 @@
+/*
+ *  PS3 Game Console device tree.
+ *
+ *  Copyright (C) 2007 Sony Computer Entertainment Inc.
+ *  Copyright 2007 Sony Corp.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; version 2 of the License.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+/dts-v1/;
+
+/ {
+	model = "SonyPS3";
+	compatible = "sony,ps3";
+	#size-cells = <2>;
+	#address-cells = <2>;
+
+	chosen {
+	};
+
+	/*
+	 * We'll get the size of the bootmem block from lv1 after startup,
+	 * so we'll put a null entry here.
+	 */
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x00000000 0x00000000 0x00000000>;
+	};
+
+	/*
+	 * The boot cpu is always zero for PS3.
+	 *
+	 * dtc expects a clock-frequency and timebase-frequency entries, so
+	 * we'll put a null entries here.  These will be initialized after
+	 * startup with data from lv1.
+	 *
+	 * Seems the only way currently to indicate a processor has multiple
+	 * threads is with an ibm,ppc-interrupt-server#s entry.  We'll put one
+	 * here so we can bring up both of ours.  See smp_setup_cpu_maps().
+	 */
+
+	cpus {
+		#size-cells = <0>;
+		#address-cells = <1>;
+
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0x00000000>;
+			ibm,ppc-interrupt-server#s = <0x0 0x1>;
+			clock-frequency = <0>;
+			timebase-frequency = <0>;
+			i-cache-size = <32768>;
+			d-cache-size = <32768>;
+			i-cache-line-size = <128>;
+			d-cache-line-size = <128>;
+		};
+	};
+};

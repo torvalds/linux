@@ -1,0 +1,44 @@
+#
+# RxRPC session sockets
+#
+
+config AF_RXRPC
+	tristate "RxRPC session sockets"
+	depends on INET
+	select CRYPTO
+	select KEYS
+	help
+	  Say Y or M here to include support for RxRPC session sockets (just
+	  the transport part, not the presentation part: (un)marshalling is
+	  left to the application).
+
+	  These are used for AFS kernel filesystem and userspace utilities.
+
+	  This module at the moment only supports client operations and is
+	  currently incomplete.
+
+	  See Documentation/networking/rxrpc.txt.
+
+
+config AF_RXRPC_DEBUG
+	bool "RxRPC dynamic debugging"
+	depends on AF_RXRPC
+	help
+	  Say Y here to make runtime controllable debugging messages appear.
+
+	  See Documentation/networking/rxrpc.txt.
+
+
+config RXKAD
+	tristate "RxRPC Kerberos security"
+	depends on AF_RXRPC
+	select CRYPTO
+	select CRYPTO_MANAGER
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_PCBC
+	select CRYPTO_FCRYPT
+	help
+	  Provide kerberos 4 and AFS kaserver security handling for AF_RXRPC
+	  through the use of the key retention service.
+
+	  See Documentation/networking/rxrpc.txt.

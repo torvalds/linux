@@ -1,0 +1,65 @@
+# NGW100 customization
+
+if BOARD_ATNGW100_COMMON
+
+config BOARD_ATNGW100_MKII_LCD
+	bool "Enable ATNGW100 mkII LCD interface"
+	depends on BOARD_ATNGW100_MKII
+	help
+	  This enables the LCD controller (LCDC) in the AT32AP7000. Since the
+	  LCDC is multiplexed with MACB1 (LAN) Ethernet port, only one can be
+	  enabled at a time.
+
+	  This choice enables the LCDC and disables the MACB1 interface marked
+	  LAN on the PCB.
+
+choice
+	prompt "Select an NGW100 add-on board to support"
+	default BOARD_ATNGW100_ADDON_NONE
+
+config BOARD_ATNGW100_ADDON_NONE
+	bool "None"
+
+config BOARD_ATNGW100_EVKLCD10X
+	bool "EVKLCD10X addon board"
+	depends on BOARD_ATNGW100_MKI || BOARD_ATNGW100_MKII_LCD
+	help
+	  This enables support for the EVKLCD100 (QVGA) or EVKLCD101 (VGA)
+	  addon board for the NGW100 and NGW100 mkII. By enabling this the LCD
+	  controller and AC97 controller is added as platform devices.
+
+config BOARD_ATNGW100_MRMT
+	bool "Mediama RMT1/2 add-on board"
+	help
+	  This enables support for the Mediama RMT1 or RMT2 board.
+	  RMT provides LCD support, AC97 codec and other
+	  optional peripherals to the Atmel NGW100.
+
+	  This choice disables the detect pin and the write-protect pin for the
+	  MCI platform device, since it conflicts with the LCD platform device.
+	  The MCI pins can be reenabled by editing the "add device function" but
+	  this may break the setup for other displays that use these pins.
+
+endchoice
+
+choice
+	prompt "LCD panel resolution on EVKLCD10X"
+	depends on BOARD_ATNGW100_EVKLCD10X
+	default BOARD_ATNGW100_EVKLCD10X_VGA
+
+config BOARD_ATNGW100_EVKLCD10X_QVGA
+	bool "QVGA (320x240)"
+
+config BOARD_ATNGW100_EVKLCD10X_VGA
+	bool "VGA (640x480)"
+
+config BOARD_ATNGW100_EVKLCD10X_POW_QVGA
+	bool "Powertip QVGA (320x240)"
+
+endchoice
+
+if BOARD_ATNGW100_MRMT
+source	"arch/avr32/boards/atngw100/Kconfig_mrmt"
+endif
+
+endif	# BOARD_ATNGW100_COMMON

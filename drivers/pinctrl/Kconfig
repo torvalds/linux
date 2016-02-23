@@ -1,0 +1,275 @@
+#
+# PINCTRL infrastructure and drivers
+#
+
+config PINCTRL
+	bool
+
+menu "Pin controllers"
+	depends on PINCTRL
+
+config PINMUX
+	bool "Support pin multiplexing controllers" if COMPILE_TEST
+
+config PINCONF
+	bool "Support pin configuration controllers" if COMPILE_TEST
+
+config GENERIC_PINCONF
+	bool
+	select PINCONF
+
+config DEBUG_PINCTRL
+	bool "Debug PINCTRL calls"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
+
+config PINCTRL_ADI2
+	bool "ADI pin controller driver"
+	depends on BLACKFIN
+	select PINMUX
+	select IRQ_DOMAIN
+	help
+	  This is the pin controller and gpio driver for ADI BF54x, BF60x and
+	  future processors. This option is selected automatically when specific
+	  machine and arch are selected to build.
+
+config PINCTRL_AS3722
+	bool "Pinctrl and GPIO driver for ams AS3722 PMIC"
+	depends on MFD_AS3722 && GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  AS3722 device supports the configuration of GPIO pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the GPIO pins of AS3722 devices. It also
+	  supports the GPIO functionality through gpiolib.
+
+config PINCTRL_BF54x
+	def_bool y if BF54x
+	select PINCTRL_ADI2
+
+config PINCTRL_BF60x
+	def_bool y if BF60x
+	select PINCTRL_ADI2
+
+config PINCTRL_AT91
+	bool "AT91 pinctrl driver"
+	depends on OF
+	depends on ARCH_AT91
+	select PINMUX
+	select PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to enable the at91 pinctrl driver
+
+config PINCTRL_AT91PIO4
+	bool "AT91 PIO4 pinctrl driver"
+	depends on OF
+	depends on ARCH_AT91
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  Say Y here to enable the at91 pinctrl/gpio driver for Atmel PIO4
+	  controller available on sama5d2 SoC.
+
+config PINCTRL_AMD
+	bool "AMD GPIO pin control"
+	depends on GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  driver for memory mapped GPIO functionality on AMD platforms
+	  (x86 or arm).Most pins are usually muxed to some other
+	  functionality by firmware,so only a small amount is available
+	  for gpio use.
+
+	  Requires ACPI/FDT device enumeration code to set up a platform
+	  device.
+
+config PINCTRL_DIGICOLOR
+	bool
+	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
+	select PINMUX
+	select GENERIC_PINCONF
+
+config PINCTRL_LANTIQ
+	bool
+	depends on LANTIQ
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_LPC18XX
+	bool "NXP LPC18XX/43XX SCU pinctrl driver"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	default ARCH_LPC18XX
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Pinctrl driver for NXP LPC18xx/43xx System Control Unit (SCU).
+
+config PINCTRL_FALCON
+	bool
+	depends on SOC_FALCON
+	depends on PINCTRL_LANTIQ
+
+config PINCTRL_MESON
+	bool
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select REGMAP_MMIO
+
+config PINCTRL_ROCKCHIP
+	bool
+	select PINMUX
+	select GENERIC_PINCONF
+	select GENERIC_IRQ_CHIP
+	select MFD_SYSCON
+
+config PINCTRL_SINGLE
+	tristate "One-register-per-pin type device tree based pinctrl driver"
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  This selects the device tree based generic pinctrl driver.
+
+config PINCTRL_SIRF
+	bool "CSR SiRFprimaII pin controller driver"
+	depends on ARCH_SIRF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+
+config PINCTRL_PISTACHIO
+	def_bool y if MACH_PISTACHIO
+	depends on GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+
+config PINCTRL_ST
+	bool
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GPIOLIB_IRQCHIP
+
+config PINCTRL_TEGRA
+	bool
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_TEGRA20
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA30
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA114
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA124
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA210
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA_XUSB
+	def_bool y if ARCH_TEGRA
+	select GENERIC_PHY
+	select PINCONF
+	select PINMUX
+
+config PINCTRL_TZ1090
+	bool "Toumaz Xenif TZ1090 pin control driver"
+	depends on SOC_TZ1090
+	select PINMUX
+	select GENERIC_PINCONF
+
+config PINCTRL_TZ1090_PDC
+	bool "Toumaz Xenif TZ1090 PDC pin control driver"
+	depends on SOC_TZ1090
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_U300
+	bool "U300 pin controller driver"
+	depends on ARCH_U300
+	select PINMUX
+	select GENERIC_PINCONF
+
+config PINCTRL_COH901
+	bool "ST-Ericsson U300 COH 901 335/571 GPIO"
+	depends on GPIOLIB && ARCH_U300 && PINCTRL_U300
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support GPIO interface on ST-Ericsson U300.
+	  The names of the two IP block variants supported are
+	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
+	  ports of 8 GPIO pins each.
+
+config PINCTRL_PALMAS
+	bool "Pinctrl driver for the PALMAS Series MFD devices"
+	depends on OF && MFD_PALMAS
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Palmas device supports the configuration of pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the Palmas series devices like
+	  TPS65913, TPS80036 etc.
+
+config PINCTRL_ZYNQ
+	bool "Pinctrl driver for Xilinx Zynq"
+	depends on ARCH_ZYNQ
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This selects the pinctrl driver for Xilinx Zynq.
+
+source "drivers/pinctrl/bcm/Kconfig"
+source "drivers/pinctrl/berlin/Kconfig"
+source "drivers/pinctrl/freescale/Kconfig"
+source "drivers/pinctrl/intel/Kconfig"
+source "drivers/pinctrl/mvebu/Kconfig"
+source "drivers/pinctrl/nomadik/Kconfig"
+source "drivers/pinctrl/pxa/Kconfig"
+source "drivers/pinctrl/qcom/Kconfig"
+source "drivers/pinctrl/samsung/Kconfig"
+source "drivers/pinctrl/sh-pfc/Kconfig"
+source "drivers/pinctrl/spear/Kconfig"
+source "drivers/pinctrl/sunxi/Kconfig"
+source "drivers/pinctrl/uniphier/Kconfig"
+source "drivers/pinctrl/vt8500/Kconfig"
+source "drivers/pinctrl/mediatek/Kconfig"
+
+config PINCTRL_XWAY
+	bool
+	depends on SOC_TYPE_XWAY
+	depends on PINCTRL_LANTIQ
+
+config PINCTRL_TB10X
+	bool
+	depends on OF && ARC_PLAT_TB10X
+	select GPIOLIB
+
+endmenu

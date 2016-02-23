@@ -1,0 +1,139 @@
+# ==========================================================================
+# Installing headers
+#
+# header-y  - list files to be installed. They are preprocessed
+#             to remove __KERNEL__ section of the file
+# genhdr-y  - Same as header-y but in a generated/ directory
+#
+# ==========================================================================
+
+# generated header directory
+gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
+
+kbuild-file := $(srctree)/$(obj)/Kbuild
+include $(kbuild-file)
+
+# called may set destination dir (when installing to asm/)
+_dst := $(if $(destination-y),$(destination-y),$(if $(dst),$(dst),$(obj)))
+
+old-kbuild-file := $(srctree)/$(subst uapi/,,$(obj))/Kbuild
+ifneq ($(wildcard $(old-kbuild-file)),)
+include $(old-kbuild-file)
+endif
+
+include scripts/Kbuild.include
+
+installdir    := $(INSTALL_HDR_PATH)/$(subst uapi/,,$(_dst))
+
+header-y      := $(sort $(header-y))
+subdirs       := $(patsubst %/,%,$(filter %/, $(header-y)))
+header-y      := $(filter-out %/, $(header-y))
+
+# files used to track state of install/check
+install-file  := $(installdir)/.install
+check-file    := $(installdir)/.check
+
+# generic-y list all files an architecture uses from asm-generic
+# Use this to build a list of headers which require a wrapper
+wrapper-files := $(filter $(header-y), $(generic-y))
+
+srcdir        := $(srctree)/$(obj)
+gendir        := $(objtree)/$(gen)
+
+oldsrcdir     := $(srctree)/$(subst /uapi,,$(obj))
+
+# all headers files for this dir
+header-y      := $(filter-out $(generic-y), $(header-y))
+all-files     := $(header-y) $(genhdr-y) $(wrapper-files)
+output-files  := $(addprefix $(installdir)/, $(all-files))
+
+input-files1  := $(foreach hdr, $(header-y), \
+		   $(if $(wildcard $(srcdir)/$(hdr)), \
+			$(wildcard $(srcdir)/$(hdr))) \
+		   )
+input-files1-name := $(notdir $(input-files1))
+input-files2  := $(foreach hdr, $(header-y), \
+		   $(if  $(wildcard $(srcdir)/$(hdr)),, \
+			$(if $(wildcard $(oldsrcdir)/$(hdr)), \
+				$(wildcard $(oldsrcdir)/$(hdr)), \
+				$(error Missing UAPI file $(srcdir)/$(hdr))) \
+		   ))
+input-files2-name := $(notdir $(input-files2))
+input-files3  := $(foreach hdr, $(genhdr-y), \
+		   $(if	$(wildcard $(gendir)/$(hdr)), \
+			$(wildcard $(gendir)/$(hdr)), \
+			$(error Missing generated UAPI file $(gendir)/$(hdr)) \
+		   ))
+input-files3-name := $(notdir $(input-files3))
+
+# Work out what needs to be removed
+oldheaders    := $(patsubst $(installdir)/%,%,$(wildcard $(installdir)/*.h))
+unwanted      := $(filter-out $(all-files),$(oldheaders))
+
+# Prefix unwanted with full paths to $(INSTALL_HDR_PATH)
+unwanted-file := $(addprefix $(installdir)/, $(unwanted))
+
+printdir = $(patsubst $(INSTALL_HDR_PATH)/%/,%,$(dir $@))
+
+quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
+                            file$(if $(word 2, $(all-files)),s))
+      cmd_install = \
+        $(CONFIG_SHELL) $< $(installdir) $(srcdir) $(input-files1-name); \
+        $(CONFIG_SHELL) $< $(installdir) $(oldsrcdir) $(input-files2-name); \
+        $(CONFIG_SHELL) $< $(installdir) $(gendir) $(input-files3-name); \
+        for F in $(wrapper-files); do                                   \
+                echo "\#include <asm-generic/$$F>" > $(installdir)/$$F;    \
+        done;                                                           \
+        touch $@
+
+quiet_cmd_remove = REMOVE  $(unwanted)
+      cmd_remove = rm -f $(unwanted-file)
+
+quiet_cmd_check = CHECK   $(printdir) ($(words $(all-files)) files)
+# Headers list can be pretty long, xargs helps to avoid
+# the "Argument list too long" error.
+      cmd_check = for f in $(all-files); do                          \
+                  echo "$(installdir)/$${f}"; done                      \
+                  | xargs                                            \
+                  $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH); \
+	          touch $@
+
+PHONY += __headersinst __headerscheck
+
+ifndef HDRCHECK
+# Rules for installing headers
+__headersinst: $(subdirs) $(install-file)
+	@:
+
+targets += $(install-file)
+$(install-file): scripts/headers_install.sh $(input-files1) $(input-files2) $(input-files3) FORCE
+	$(if $(unwanted),$(call cmd,remove),)
+	$(if $(wildcard $(dir $@)),,$(shell mkdir -p $(dir $@)))
+	$(call if_changed,install)
+
+else
+__headerscheck: $(subdirs) $(check-file)
+	@:
+
+targets += $(check-file)
+$(check-file): scripts/headers_check.pl $(output-files) FORCE
+	$(call if_changed,check)
+
+endif
+
+# Recursion
+.PHONY: $(subdirs)
+$(subdirs):
+	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(_dst)/$@
+
+targets := $(wildcard $(sort $(targets)))
+cmd_files := $(wildcard \
+             $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
+
+ifneq ($(cmd_files),)
+	include $(cmd_files)
+endif
+
+.PHONY: $(PHONY)
+PHONY += FORCE
+FORCE: ;

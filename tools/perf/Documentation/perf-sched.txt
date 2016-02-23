@@ -1,0 +1,55 @@
+perf-sched(1)
+==============
+
+NAME
+----
+perf-sched - Tool to trace/measure scheduler properties (latencies)
+
+SYNOPSIS
+--------
+[verse]
+'perf sched' {record|latency|map|replay|script}
+
+DESCRIPTION
+-----------
+There are five variants of perf sched:
+
+  'perf sched record <command>' to record the scheduling events
+  of an arbitrary workload.
+
+  'perf sched latency' to report the per task scheduling latencies
+  and other scheduling properties of the workload.
+
+  'perf sched script' to see a detailed trace of the workload that
+   was recorded (aliased to 'perf script' for now).
+
+  'perf sched replay' to simulate the workload that was recorded
+  via perf sched record. (this is done by starting up mockup threads
+  that mimic the workload based on the events in the trace. These
+  threads can then replay the timings (CPU runtime and sleep patterns)
+  of the workload as it occurred when it was recorded - and can repeat
+  it a number of times, measuring its performance.)
+
+  'perf sched map' to print a textual context-switching outline of
+  workload captured via perf sched record.  Columns stand for
+  individual CPUs, and the two-letter shortcuts stand for tasks that
+  are running on a CPU. A '*' denotes the CPU that had the event, and
+  a dot signals an idle CPU.
+
+OPTIONS
+-------
+-i::
+--input=<file>::
+        Input file name. (default: perf.data unless stdin is a fifo)
+
+-v::
+--verbose::
+        Be more verbose. (show symbol address, etc)
+
+-D::
+--dump-raw-trace=::
+        Display verbose dump of the sched data.
+
+SEE ALSO
+--------
+linkperf:perf-record[1]

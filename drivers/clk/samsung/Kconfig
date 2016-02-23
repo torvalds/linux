@@ -1,0 +1,26 @@
+config COMMON_CLK_SAMSUNG
+	bool
+	select COMMON_CLK
+
+config S3C2410_COMMON_CLK
+	bool
+	select COMMON_CLK_SAMSUNG
+	help
+	  Build the s3c2410 clock driver based on the common clock framework.
+
+config S3C2410_COMMON_DCLK
+	bool
+	select COMMON_CLK_SAMSUNG
+	select REGMAP_MMIO
+	help
+	  Temporary symbol to build the dclk driver based on the common clock
+	  framework.
+
+config S3C2412_COMMON_CLK
+	bool
+	select COMMON_CLK_SAMSUNG
+
+config S3C2443_COMMON_CLK
+	bool
+	select COMMON_CLK_SAMSUNG
+

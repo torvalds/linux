@@ -1,0 +1,31 @@
+* SPEAr SMI
+
+Required properties:
+- compatible : "st,spear600-smi"
+- reg : Address range of the mtd chip
+- #address-cells, #size-cells : Must be present if the device has sub-nodes
+  representing partitions.
+- interrupt-parent: Should be the phandle for the interrupt controller
+  that services interrupts for this device
+- interrupts: Should contain the STMMAC interrupts
+- clock-rate : Functional clock rate of SMI in Hz
+
+Optional properties:
+- st,smi-fast-mode : Flash supports read in fast mode
+
+Example:
+
+	smi: flash@fc000000 {
+		compatible = "st,spear600-smi";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0xfc000000 0x1000>;
+		interrupt-parent = <&vic1>;
+		interrupts = <12>;
+		clock-rate = <50000000>;	/* 50MHz */
+
+		flash@f8000000 {
+			st,smi-fast-mode;
+			...
+		};
+	};

@@ -1,0 +1,85 @@
+#
+# AIC79XX 2.5.X Kernel configuration File.
+# $Id: //depot/linux-aic79xx-2.5.0/drivers/scsi/aic7xxx/Kconfig.aic79xx#4 $
+#
+config SCSI_AIC79XX
+	tristate "Adaptec AIC79xx U320 support"
+	depends on PCI && SCSI
+	select SCSI_SPI_ATTRS
+	help
+	This driver supports all of Adaptec's Ultra 320 PCI-X
+	based SCSI controllers.
+
+config AIC79XX_CMDS_PER_DEVICE
+	int "Maximum number of TCQ commands per device"
+	depends on SCSI_AIC79XX
+	default "32"
+	---help---
+	Specify the number of commands you would like to allocate per SCSI
+	device when Tagged Command Queueing (TCQ) is enabled on that device.
+
+	This is an upper bound value for the number of tagged transactions
+	to be used for any device.  The aic7xxx driver will automatically
+	vary this number based on device behavior.  For devices with a
+	fixed maximum, the driver will eventually lock to this maximum
+	and display a console message indicating this value.
+
+	Due to resource allocation issues in the Linux SCSI mid-layer, using
+	a high number of commands per device may result in memory allocation
+	failures when many devices are attached to the system.  For this reason,
+	the default is set to 32.  Higher values may result in higher performance
+	on some devices.  The upper bound is 253.  0 disables tagged queueing.
+
+	Per device tag depth can be controlled via the kernel command line
+	"tag_info" option.  See Documentation/scsi/aic79xx.txt for details.
+
+config AIC79XX_RESET_DELAY_MS
+	int "Initial bus reset delay in milli-seconds"
+	depends on SCSI_AIC79XX
+	default "5000"
+	---help---
+	The number of milliseconds to delay after an initial bus reset.
+	The bus settle delay following all error recovery actions is
+	dictated by the SCSI layer and is not affected by this value.
+
+	Default: 5000 (5 seconds)
+
+config AIC79XX_BUILD_FIRMWARE
+	bool "Build Adapter Firmware with Kernel Build"
+	depends on SCSI_AIC79XX && !PREVENT_FIRMWARE_BUILD
+	help
+	This option should only be enabled if you are modifying the firmware
+	source to the aic79xx driver and wish to have the generated firmware
+	include files updated during a normal kernel build.  The assembler
+	for the firmware requires lex and yacc or their equivalents, as well
+	as the db v1 library.  You may have to install additional packages
+	or modify the assembler Makefile or the files it includes if your
+	build environment is different than that of the author.
+
+config AIC79XX_DEBUG_ENABLE
+	bool "Compile in Debugging Code"
+	depends on SCSI_AIC79XX
+	default y
+	help
+	Compile in aic79xx debugging code that can be useful in diagnosing
+	driver errors.
+
+config AIC79XX_DEBUG_MASK
+	int "Debug code enable mask (16383 for all debugging)"
+	depends on SCSI_AIC79XX
+	default "0"
+	help
+	Bit mask of debug options that is only valid if the
+	CONFIG_AIC79XX_DEBUG_ENABLE option is enabled.  The bits in this mask
+	are defined in the drivers/scsi/aic7xxx/aic79xx.h - search for the
+	variable ahd_debug in that file to find them.
+
+config AIC79XX_REG_PRETTY_PRINT
+	bool "Decode registers during diagnostics"
+	depends on SCSI_AIC79XX
+	default y
+	help
+	Compile in register value tables for the output of expanded register
+	contents in diagnostics.  This make it much easier to understand debug
+	output without having to refer to a data book and/or the aic7xxx.reg
+	file.

@@ -1,0 +1,2 @@
+# UAPI Header export list
+header-y += hsi_char.h cs-protocol.h

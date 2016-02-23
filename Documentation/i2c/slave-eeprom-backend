@@ -1,0 +1,14 @@
+Linux I2C slave eeprom backend
+==============================
+
+by Wolfram Sang <wsa@sang-engineering.com> in 2014-15
+
+This is a proof-of-concept backend which acts like an EEPROM on the connected
+I2C bus. The memory contents can be modified from userspace via this file
+located in sysfs:
+
+	/sys/bus/i2c/devices/<device-direcory>/slave-eeprom
+
+As of 2015, Linux doesn't support poll on binary sysfs files, so there is no
+notfication when another master changed the content.
+

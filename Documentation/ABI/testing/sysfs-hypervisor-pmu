@@ -1,0 +1,23 @@
+What:		/sys/hypervisor/pmu/pmu_mode
+Date:		August 2015
+KernelVersion:	4.3
+Contact:	Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Description:
+		Describes mode that Xen's performance-monitoring unit (PMU)
+		uses. Accepted values are
+			"off"  -- PMU is disabled
+			"self" -- The guest can profile itself
+			"hv"   -- The guest can profile itself and, if it is
+				  privileged (e.g. dom0), the hypervisor
+			"all" --  The guest can profile itself, the hypervisor
+				  and all other guests. Only available to
+				  privileged guests.
+
+What:           /sys/hypervisor/pmu/pmu_features
+Date:           August 2015
+KernelVersion:  4.3
+Contact:        Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Description:
+		Describes Xen PMU features (as an integer). A set bit indicates
+		that the corresponding feature is enabled. See
+		include/xen/interface/xenpmu.h for available features

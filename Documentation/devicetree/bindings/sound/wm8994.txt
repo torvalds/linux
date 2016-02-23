@@ -1,0 +1,78 @@
+WM1811/WM8994/WM8958 audio CODEC
+
+These devices support both I2C and SPI (configured with pin strapping
+on the board).
+
+Required properties:
+
+  - compatible : One of "wlf,wm1811", "wlf,wm8994" or "wlf,wm8958".
+
+  - reg : the I2C address of the device for I2C, the chip select
+          number for SPI.
+
+  - gpio-controller : Indicates this device is a GPIO controller.
+  - #gpio-cells : Must be 2. The first cell is the pin number and the
+    second cell is used to specify optional parameters (currently unused).
+
+  - AVDD2-supply, DBVDD1-supply, DBVDD2-supply, DBVDD3-supply, CPVDD-supply,
+    SPKVDD1-supply, SPKVDD2-supply : power supplies for the device, as covered
+    in Documentation/devicetree/bindings/regulator/regulator.txt
+
+Optional properties:
+
+  - interrupts : The interrupt line the IRQ signal for the device is
+    connected to.  This is optional, if it is not connected then none
+    of the interrupt related properties should be specified.
+  - interrupt-controller : These devices contain interrupt controllers
+    and may provide interrupt services to other devices if they have an
+    interrupt line connected.
+  - interrupt-parent : The parent interrupt controller.
+  - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
+    The first cell is the IRQ number.
+    The second cell is the flags, encoded as the trigger masks from
+    Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+
+  - clocks : A list of up to two phandle and clock specifier pairs
+  - clock-names : A list of clock names sorted in the same order as clocks.
+                  Valid clock names are "MCLK1" and "MCLK2".
+
+  - wlf,gpio-cfg : A list of GPIO configuration register values. If absent,
+    no configuration of these registers is performed. If any value is
+    over 0xffff then the register will be left as default. If present 11
+    values must be supplied.
+
+  - wlf,micbias-cfg : Two MICBIAS register values for WM1811 or
+    WM8958.  If absent the register defaults will be used.
+
+  - wlf,ldo1ena : GPIO specifier for control of LDO1ENA input to device.
+  - wlf,ldo2ena : GPIO specifier for control of LDO2ENA input to device.
+
+  - wlf,lineout1-se : If present LINEOUT1 is in single ended mode.
+  - wlf,lineout2-se : If present LINEOUT2 is in single ended mode.
+
+  - wlf,lineout1-feedback : If present LINEOUT1 has common mode feedback
+    connected.
+  - wlf,lineout2-feedback : If present LINEOUT2 has common mode feedback
+    connected.
+
+  - wlf,ldoena-always-driven : If present LDOENA is always driven.
+
+Example:
+
+codec: wm8994@1a {
+	compatible = "wlf,wm8994";
+	reg = <0x1a>;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	lineout1-se;
+
+	AVDD2-supply = <&regulator>;
+	CPVDD-supply = <&regulator>;
+	DBVDD1-supply = <&regulator>;
+	DBVDD2-supply = <&regulator>;
+	DBVDD3-supply = <&regulator>;
+	SPKVDD1-supply = <&regulator>;
+	SPKVDD2-supply = <&regulator>;
+};

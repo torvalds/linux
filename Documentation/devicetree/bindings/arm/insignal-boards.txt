@@ -1,0 +1,8 @@
+* Insignal's Exynos4210 based Origen evaluation board
+
+Origen low-cost evaluation board is based on Samsung's Exynos4210 SoC.
+
+Required root node properties:
+    - compatible = should be one or more of the following.
+        (a) "samsung,smdkv310" - for Samsung's SMDKV310 eval board.
+        (b) "samsung,exynos4210"  - for boards based on Exynos4210 SoC.

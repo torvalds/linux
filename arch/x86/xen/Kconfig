@@ -1,0 +1,57 @@
+#
+# This Kconfig describes xen options
+#
+
+config XEN
+	bool "Xen guest support"
+	depends on PARAVIRT
+	select PARAVIRT_CLOCK
+	select XEN_HAVE_PVMMU
+	select XEN_HAVE_VPMU
+	depends on X86_64 || (X86_32 && X86_PAE)
+	depends on X86_LOCAL_APIC && X86_TSC
+	help
+	  This is the Linux Xen port.  Enabling this will allow the
+	  kernel to boot in a paravirtualized environment under the
+	  Xen hypervisor.
+
+config XEN_DOM0
+	def_bool y
+	depends on XEN && PCI_XEN && SWIOTLB_XEN
+	depends on X86_IO_APIC && ACPI && PCI
+
+config XEN_PVHVM
+	def_bool y
+	depends on XEN && PCI && X86_LOCAL_APIC
+
+config XEN_512GB
+	bool "Limit Xen pv-domain memory to 512GB"
+	depends on XEN && X86_64
+	default y
+	help
+	  Limit paravirtualized user domains to 512GB of RAM.
+
+	  The Xen tools and crash dump analysis tools might not support
+	  pv-domains with more than 512 GB of RAM. This option controls the
+	  default setting of the kernel to use only up to 512 GB or more.
+	  It is always possible to change the default via specifying the
+	  boot parameter "xen_512gb_limit".
+
+config XEN_SAVE_RESTORE
+       bool
+       depends on XEN
+       select HIBERNATE_CALLBACKS
+       default y
+
+config XEN_DEBUG_FS
+	bool "Enable Xen debug and tuning parameters in debugfs"
+	depends on XEN && DEBUG_FS
+	default n
+	help
+	  Enable statistics output and various tuning options in debugfs.
+	  Enabling this option may incur a significant performance overhead.
+
+config XEN_PVH
+	bool "Support for running as a PVH guest"
+	depends on X86_64 && XEN && XEN_PVHVM
+	def_bool n

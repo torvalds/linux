@@ -1,0 +1,183 @@
+/*
+ * Device Tree Source for MPC885 ADS running RedBoot
+ *
+ * Copyright 2006 MontaVista Software, Inc.
+ * Copyright 2007 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+/ {
+	model = "Analogue & Micro Adder MPC875";
+	compatible = "analogue-and-micro,adder875";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		console = &console;
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,875@0 {
+			device_type = "cpu";
+			reg = <0>;
+			d-cache-line-size = <16>;
+			i-cache-line-size = <16>;
+			d-cache-size = <8192>;
+			i-cache-size = <8192>;
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+			interrupts = <15 2>;	// decrementer interrupt
+			interrupt-parent = <&PIC>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x01000000>;
+	};
+
+	localbus@fa200100 {
+		compatible = "fsl,mpc885-localbus", "fsl,pq1-localbus",
+		             "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xfa200100 0x40>;
+
+		ranges = <
+			0 0 0xfe000000 0x00800000
+			2 0 0xfa100000 0x00008000
+		>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x800000>;
+			bank-width = <2>;
+			device-width = <2>;
+		};
+	};
+
+	soc@fa200000 {
+		compatible = "fsl,mpc875-immr", "fsl,pq1-soc", "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xfa200000 0x00004000>;
+
+		// Temporary until code stops depending on it.
+		device_type = "soc";
+
+		// Temporary until get_immrbase() is fixed.
+		reg = <0xfa200000 0x4000>;
+
+		mdio@e00 {
+			compatible = "fsl,mpc875-fec-mdio", "fsl,pq1-fec-mdio";
+			reg = <0xe00 0x188>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			PHY0: ethernet-phy@0 {
+				reg = <0>;
+			};
+
+			PHY1: ethernet-phy@1 {
+				reg = <1>;
+			};
+		};
+
+		eth0: ethernet@e00 {
+			device_type = "network";
+			compatible = "fsl,mpc875-fec-enet",
+			             "fsl,pq1-fec-enet";
+			reg = <0xe00 0x188>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <3 1>;
+			interrupt-parent = <&PIC>;
+			phy-handle = <&PHY0>;
+			linux,network-index = <0>;
+		};
+
+		eth1: ethernet@1e00 {
+			device_type = "network";
+			compatible = "fsl,mpc875-fec-enet",
+			             "fsl,pq1-fec-enet";
+			reg = <0x1e00 0x188>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <7 1>;
+			interrupt-parent = <&PIC>;
+			phy-handle = <&PHY1>;
+			linux,network-index = <1>;
+		};
+
+		PIC: interrupt-controller@0 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0 0x24>;
+			compatible = "fsl,mpc875-pic", "fsl,pq1-pic";
+		};
+
+		cpm@9c0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc875-cpm", "fsl,cpm1", "simple-bus";
+			interrupts = <0>;	// cpm error interrupt
+			interrupt-parent = <&CPM_PIC>;
+			reg = <0x9c0 0x40>;
+			ranges;
+
+			muram {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x2000 0x2000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0 0x1c00>;
+				};
+			};
+
+			brg@9f0 {
+				compatible = "fsl,mpc875-brg",
+				             "fsl,cpm1-brg",
+				             "fsl,cpm-brg";
+				clock-frequency = <50000000>;
+				reg = <0x9f0 0x10>;
+			};
+
+			CPM_PIC: interrupt-controller@930 {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupts = <5 2 0 2>;
+				interrupt-parent = <&PIC>;
+				reg = <0x930 0x20>;
+				compatible = "fsl,mpc875-cpm-pic",
+				             "fsl,cpm1-pic";
+			};
+
+			console: serial@a80 {
+				device_type = "serial";
+				compatible = "fsl,mpc875-smc-uart",
+				             "fsl,cpm1-smc-uart";
+				reg = <0xa80 0x10 0x3e80 0x40>;
+				interrupts = <4>;
+				interrupt-parent = <&CPM_PIC>;
+				fsl,cpm-brg = <1>;
+				fsl,cpm-command = <0x0090>;
+				current-speed = <115200>;
+			};
+		};
+	};
+
+	chosen {
+		linux,stdout-path = &console;
+	};
+};

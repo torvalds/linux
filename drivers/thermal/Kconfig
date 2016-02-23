@@ -1,0 +1,394 @@
+#
+# Generic thermal sysfs drivers configuration
+#
+
+menuconfig THERMAL
+	tristate "Generic Thermal sysfs driver"
+	help
+	  Generic Thermal Sysfs driver offers a generic mechanism for
+	  thermal management. Usually it's made up of one or more thermal
+	  zone and cooling device.
+	  Each thermal zone contains its own temperature, trip points,
+	  cooling devices.
+	  All platforms with ACPI thermal support can use this driver.
+	  If you want this support, you should say Y or M here.
+
+if THERMAL
+
+config THERMAL_HWMON
+	bool
+	prompt "Expose thermal sensors as hwmon device"
+	depends on HWMON=y || HWMON=THERMAL
+	default y
+	help
+	  In case a sensor is registered with the thermal
+	  framework, this option will also register it
+	  as a hwmon. The sensor will then have the common
+	  hwmon sysfs interface.
+
+	  Say 'Y' here if you want all thermal sensors to
+	  have hwmon sysfs interface too.
+
+config THERMAL_OF
+	bool
+	prompt "APIs to parse thermal data out of device tree"
+	depends on OF
+	default y
+	help
+	  This options provides helpers to add the support to
+	  read and parse thermal data definitions out of the
+	  device tree blob.
+
+	  Say 'Y' here if you need to build thermal infrastructure
+	  based on device tree.
+
+config THERMAL_WRITABLE_TRIPS
+	bool "Enable writable trip points"
+	help
+	  This option allows the system integrator to choose whether
+	  trip temperatures can be changed from userspace. The
+	  writable trips need to be specified when setting up the
+	  thermal zone but the choice here takes precedence.
+
+	  Say 'Y' here if you would like to allow userspace tools to
+	  change trip temperatures.
+
+choice
+	prompt "Default Thermal governor"
+	default THERMAL_DEFAULT_GOV_STEP_WISE
+	help
+	  This option sets which thermal governor shall be loaded at
+	  startup. If in doubt, select 'step_wise'.
+
+config THERMAL_DEFAULT_GOV_STEP_WISE
+	bool "step_wise"
+	select THERMAL_GOV_STEP_WISE
+	help
+	  Use the step_wise governor as default. This throttles the
+	  devices one step at a time.
+
+config THERMAL_DEFAULT_GOV_FAIR_SHARE
+	bool "fair_share"
+	select THERMAL_GOV_FAIR_SHARE
+	help
+	  Use the fair_share governor as default. This throttles the
+	  devices based on their 'contribution' to a zone. The
+	  contribution should be provided through platform data.
+
+config THERMAL_DEFAULT_GOV_USER_SPACE
+	bool "user_space"
+	select THERMAL_GOV_USER_SPACE
+	help
+	  Select this if you want to let the user space manage the
+	  platform thermals.
+
+config THERMAL_DEFAULT_GOV_POWER_ALLOCATOR
+	bool "power_allocator"
+	select THERMAL_GOV_POWER_ALLOCATOR
+	help
+	  Select this if you want to control temperature based on
+	  system and device power allocation. This governor can only
+	  operate on cooling devices that implement the power API.
+
+endchoice
+
+config THERMAL_GOV_FAIR_SHARE
+	bool "Fair-share thermal governor"
+	help
+	  Enable this to manage platform thermals using fair-share governor.
+
+config THERMAL_GOV_STEP_WISE
+	bool "Step_wise thermal governor"
+	help
+	  Enable this to manage platform thermals using a simple linear
+	  governor.
+
+config THERMAL_GOV_BANG_BANG
+	bool "Bang Bang thermal governor"
+	default n
+	help
+	  Enable this to manage platform thermals using bang bang governor.
+
+	  Say 'Y' here if you want to use two point temperature regulation
+	  used for fans without throttling.  Some fan drivers depend on this
+	  governor to be enabled (e.g. acerhdf).
+
+config THERMAL_GOV_USER_SPACE
+	bool "User_space thermal governor"
+	help
+	  Enable this to let the user space manage the platform thermals.
+
+config THERMAL_GOV_POWER_ALLOCATOR
+	bool "Power allocator thermal governor"
+	help
+	  Enable this to manage platform thermals by dynamically
+	  allocating and limiting power to devices.
+
+config CPU_THERMAL
+	bool "generic cpu cooling support"
+	depends on CPU_FREQ
+	depends on THERMAL_OF
+	help
+	  This implements the generic cpu cooling mechanism through frequency
+	  reduction. An ACPI version of this already exists
+	  (drivers/acpi/processor_thermal.c).
+	  This will be useful for platforms using the generic thermal interface
+	  and not the ACPI interface.
+
+	  If you want this support, you should say Y here.
+
+config CLOCK_THERMAL
+	bool "Generic clock cooling support"
+	depends on COMMON_CLK
+	depends on PM_OPP
+	help
+	  This entry implements the generic clock cooling mechanism through
+	  frequency clipping. Typically used to cool off co-processors. The
+	  device that is configured to use this cooling mechanism will be
+	  controlled to reduce clock frequency whenever temperature is high.
+
+config DEVFREQ_THERMAL
+	bool "Generic device cooling support"
+	depends on PM_DEVFREQ
+	depends on PM_OPP
+	help
+	  This implements the generic devfreq cooling mechanism through
+	  frequency reduction for devices using devfreq.
+
+	  This will throttle the device by limiting the maximum allowed DVFS
+	  frequency corresponding to the cooling level.
+
+	  In order to use the power extensions of the cooling device,
+	  devfreq should use the simple_ondemand governor.
+
+	  If you want this support, you should say Y here.
+
+config THERMAL_EMULATION
+	bool "Thermal emulation mode support"
+	help
+	  Enable this option to make a emul_temp sysfs node in thermal zone
+	  directory to support temperature emulation. With emulation sysfs node,
+	  user can manually input temperature and test the different trip
+	  threshold behaviour for simulation purpose.
+
+	  WARNING: Be careful while enabling this option on production systems,
+	  because userland can easily disable the thermal policy by simply
+	  flooding this sysfs node with low temperature values.
+
+config HISI_THERMAL
+	tristate "Hisilicon thermal driver"
+	depends on (ARCH_HISI && CPU_THERMAL && OF) || COMPILE_TEST
+	help
+	  Enable this to plug hisilicon's thermal sensor driver into the Linux
+	  thermal framework. cpufreq is used as the cooling device to throttle
+	  CPUs when the passive trip is crossed.
+
+config IMX_THERMAL
+	tristate "Temperature sensor driver for Freescale i.MX SoCs"
+	depends on CPU_THERMAL
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Support for Temperature Monitor (TEMPMON) found on Freescale i.MX SoCs.
+	  It supports one critical trip point and one passive trip point.  The
+	  cpufreq is used as the cooling device to throttle CPUs when the
+	  passive trip is crossed.
+
+config SPEAR_THERMAL
+	bool "SPEAr thermal sensor driver"
+	depends on PLAT_SPEAR || COMPILE_TEST
+	depends on OF
+	help
+	  Enable this to plug the SPEAr thermal sensor driver into the Linux
+	  thermal framework.
+
+config ROCKCHIP_THERMAL
+	tristate "Rockchip thermal driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on RESET_CONTROLLER
+	help
+	  Rockchip thermal driver provides support for Temperature sensor
+	  ADC (TS-ADC) found on Rockchip SoCs. It supports one critical
+	  trip point. Cpufreq is used as the cooling device and will throttle
+	  CPUs when the Temperature crosses the passive trip point.
+
+config RCAR_THERMAL
+	tristate "Renesas R-Car thermal driver"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enable this to plug the R-Car thermal sensor driver into the Linux
+	  thermal framework.
+
+config KIRKWOOD_THERMAL
+	tristate "Temperature sensor on Marvell Kirkwood SoCs"
+	depends on MACH_KIRKWOOD || COMPILE_TEST
+	depends on OF
+	help
+	  Support for the Kirkwood thermal sensor driver into the Linux thermal
+	  framework. Only kirkwood 88F6282 and 88F6283 have this sensor.
+
+config DOVE_THERMAL
+	tristate "Temperature sensor on Marvell Dove SoCs"
+	depends on ARCH_DOVE || MACH_DOVE || COMPILE_TEST
+	depends on OF
+	help
+	  Support for the Dove thermal sensor driver in the Linux thermal
+	  framework.
+
+config DB8500_THERMAL
+	bool "DB8500 thermal management"
+	depends on ARCH_U8500
+	default y
+	help
+	  Adds DB8500 thermal management implementation according to the thermal
+	  management framework. A thermal zone with several trip points will be
+	  created. Cooling devices can be bound to the trip points to cool this
+	  thermal zone if trip points reached.
+
+config ARMADA_THERMAL
+	tristate "Armada 370/XP thermal management"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	help
+	  Enable this option if you want to have support for thermal management
+	  controller present in Armada 370 and Armada XP SoC.
+
+config TEGRA_SOCTHERM
+	tristate "Tegra SOCTHERM thermal management"
+	depends on ARCH_TEGRA
+	help
+	  Enable this option for integrated thermal management support on NVIDIA
+	  Tegra124 systems-on-chip. The driver supports four thermal zones
+	  (CPU, GPU, MEM, PLLX). Cooling devices can be bound to the thermal
+	  zones to manage temperatures. This option is also required for the
+	  emergency thermal reset (thermtrip) feature to function.
+
+config DB8500_CPUFREQ_COOLING
+	tristate "DB8500 cpufreq cooling"
+	depends on ARCH_U8500
+	depends on CPU_THERMAL
+	default y
+	help
+	  Adds DB8500 cpufreq cooling devices, and these cooling devices can be
+	  bound to thermal zone trip points. When a trip point reached, the
+	  bound cpufreq cooling device turns active to set CPU frequency low to
+	  cool down the CPU.
+
+config INTEL_POWERCLAMP
+	tristate "Intel PowerClamp idle injection driver"
+	depends on THERMAL
+	depends on X86
+	depends on CPU_SUP_INTEL
+	help
+	  Enable this to enable Intel PowerClamp idle injection driver. This
+	  enforce idle time which results in more package C-state residency. The
+	  user interface is exposed via generic thermal framework.
+
+config X86_PKG_TEMP_THERMAL
+	tristate "X86 package temperature thermal driver"
+	depends on X86_THERMAL_VECTOR
+	select THERMAL_GOV_USER_SPACE
+	select THERMAL_WRITABLE_TRIPS
+	default m
+	help
+	  Enable this to register CPU digital sensor for package temperature as
+	  thermal zone. Each package will have its own thermal zone. There are
+	  two trip points which can be set by user to get notifications via thermal
+	  notification methods.
+
+config INTEL_SOC_DTS_IOSF_CORE
+	tristate
+	depends on X86
+	select IOSF_MBI
+	help
+	  This is becoming a common feature for Intel SoCs to expose the additional
+	  digital temperature sensors (DTSs) using side band interface (IOSF). This
+	  implements the common set of helper functions to register, get temperature
+	  and get/set thresholds on DTSs.
+
+config INTEL_SOC_DTS_THERMAL
+	tristate "Intel SoCs DTS thermal driver"
+	depends on X86
+	select INTEL_SOC_DTS_IOSF_CORE
+	select THERMAL_WRITABLE_TRIPS
+	help
+	  Enable this to register Intel SoCs (e.g. Bay Trail) platform digital
+	  temperature sensor (DTS). These SoCs have two additional DTSs in
+	  addition to DTSs on CPU cores. Each DTS will be registered as a
+	  thermal zone. There are two trip points. One of the trip point can
+	  be set by user mode programs to get notifications via Linux thermal
+	  notification methods.The other trip is a critical trip point, which
+	  was set by the driver based on the TJ MAX temperature.
+
+config INTEL_QUARK_DTS_THERMAL
+	tristate "Intel Quark DTS thermal driver"
+	depends on X86_INTEL_QUARK
+	help
+	  Enable this to register Intel Quark SoC (e.g. X1000) platform digital
+	  temperature sensor (DTS). For X1000 SoC, it has one on-die DTS.
+	  The DTS will be registered as a thermal zone. There are two trip points:
+	  hot & critical. The critical trip point default value is set by
+	  underlying BIOS/Firmware.
+
+config INT340X_THERMAL
+	tristate "ACPI INT340X thermal drivers"
+	depends on X86 && ACPI
+	select THERMAL_GOV_USER_SPACE
+	select ACPI_THERMAL_REL
+	select ACPI_FAN
+	select INTEL_SOC_DTS_IOSF_CORE
+	select THERMAL_WRITABLE_TRIPS
+	help
+	  Newer laptops and tablets that use ACPI may have thermal sensors and
+	  other devices with thermal control capabilities outside the core
+	  CPU/SOC, for thermal safety reasons.
+	  They are exposed for the OS to use via the INT3400 ACPI device object
+	  as the master, and INT3401~INT340B ACPI device objects as the slaves.
+	  Enable this to expose the temperature information and cooling ability
+	  from these objects to userspace via the normal thermal framework.
+	  This means that a wide range of applications and GUI widgets can show
+	  the information to the user or use this information for making
+	  decisions. For example, the Intel Thermal Daemon can use this
+	  information to allow the user to select his laptop to run without
+	  turning on the fans.
+
+config ACPI_THERMAL_REL
+	tristate
+	depends on ACPI
+
+config INTEL_PCH_THERMAL
+	tristate "Intel PCH Thermal Reporting Driver"
+	depends on X86 && PCI
+	help
+	  Enable this to support thermal reporting on certain intel PCHs.
+	  Thermal reporting device will provide temperature reading,
+	  programmable trip points and other information.
+
+menu "Texas Instruments thermal drivers"
+depends on ARCH_HAS_BANDGAP || COMPILE_TEST
+source "drivers/thermal/ti-soc-thermal/Kconfig"
+endmenu
+
+menu "Samsung thermal drivers"
+depends on ARCH_EXYNOS || COMPILE_TEST
+source "drivers/thermal/samsung/Kconfig"
+endmenu
+
+menu "STMicroelectronics thermal drivers"
+depends on ARCH_STI && OF
+source "drivers/thermal/st/Kconfig"
+endmenu
+
+config QCOM_SPMI_TEMP_ALARM
+	tristate "Qualcomm SPMI PMIC Temperature Alarm"
+	depends on OF && SPMI && IIO
+	select REGMAP_SPMI
+	help
+	  This enables a thermal sysfs driver for Qualcomm plug-and-play (QPNP)
+	  PMIC devices. It shows up in sysfs as a thermal sensor with multiple
+	  trip points. The temperature reported by the thermal sensor reflects the
+	  real time die temperature if an ADC is present or an estimate of the
+	  temperature based upon the over temperature stage value.
+
+endif

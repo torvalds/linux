@@ -1,0 +1,77 @@
+.TH "CPUPOWER\-FREQUENCY\-INFO" "1" "0.1" "" "cpupower Manual"
+.SH "NAME"
+.LP 
+cpupower frequency\-info \- Utility to retrieve cpufreq kernel information
+.SH "SYNTAX"
+.LP 
+cpupower [ \-c cpulist ] frequency\-info [\fIoptions\fP]
+.SH "DESCRIPTION"
+.LP 
+A small tool which prints out cpufreq information helpful to developers and interested users.
+.SH "OPTIONS"
+.LP 
+.TP  
+\fB\-e\fR \fB\-\-debug\fR
+Prints out debug information.
+.TP  
+\fB\-f\fR \fB\-\-freq\fR
+Get frequency the CPU currently runs at, according to the cpufreq core.
+.TP  
+\fB\-w\fR \fB\-\-hwfreq\fR
+Get frequency the CPU currently runs at, by reading it from hardware (only available to root).
+.TP  
+\fB\-l\fR \fB\-\-hwlimits\fR
+Determine the minimum and maximum CPU frequency allowed.
+.TP  
+\fB\-d\fR \fB\-\-driver\fR
+Determines the used cpufreq kernel driver.
+.TP  
+\fB\-p\fR \fB\-\-policy\fR
+Gets the currently used cpufreq policy.
+.TP  
+\fB\-g\fR \fB\-\-governors\fR
+Determines available cpufreq governors.
+.TP  
+\fB\-a\fR \fB\-\-related\-cpus\fR
+Determines which CPUs run at the same hardware frequency.
+.TP  
+\fB\-a\fR \fB\-\-affected\-cpus\fR
+Determines which CPUs need to have their frequency coordinated by software.
+.TP  
+\fB\-s\fR \fB\-\-stats\fR
+Shows cpufreq statistics if available.
+.TP  
+\fB\-y\fR \fB\-\-latency\fR
+Determines the maximum latency on CPU frequency changes.
+.TP  
+\fB\-o\fR \fB\-\-proc\fR
+Prints out information like provided by the /proc/cpufreq interface in 2.4. and early 2.6. kernels.
+.TP  
+\fB\-m\fR \fB\-\-human\fR
+human\-readable output for the \-f, \-w, \-s and \-y parameters.
+.TP  
+\fB\-n\fR \fB\-\-no-rounding\fR
+Output frequencies and latencies without rounding off values.
+.TP  
+.SH "REMARKS"
+.LP 
+By default only values of core zero are displayed. How to display settings of
+other cores is described in the cpupower(1) manpage in the \-\-cpu option section.
+.LP 
+You can't specify more than one of the output specific options \-o \-e \-a \-g \-p \-d \-l \-w \-f \-y.
+.LP 
+You also can't specify the \-o option combined with the \-c option.
+.SH "FILES"
+.nf 
+\fI/sys/devices/system/cpu/cpu*/cpufreq/\fP  
+\fI/proc/cpufreq\fP (deprecated) 
+\fI/proc/sys/cpu/\fP (deprecated)
+.fi 
+.SH "AUTHORS"
+.nf
+Dominik Brodowski <linux@brodo.de> \- author 
+Mattia Dongili<malattia@gmail.com> \- first autolibtoolization
+.fi
+.SH "SEE ALSO"
+.LP 
+cpupower\-frequency\-set(1), cpupower(1)

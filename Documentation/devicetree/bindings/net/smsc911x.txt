@@ -1,0 +1,35 @@
+* Smart Mixed-Signal Connectivity (SMSC) LAN911x/912x Controller
+
+Required properties:
+- compatible : Should be "smsc,lan<model>", "smsc,lan9115"
+- reg : Address and length of the io space for SMSC LAN
+- interrupts : Should contain SMSC LAN interrupt line
+- interrupt-parent : Should be the phandle for the interrupt controller
+  that services interrupts for this device
+- phy-mode : See ethernet.txt file in the same directory
+
+Optional properties:
+- reg-shift : Specify the quantity to shift the register offsets by
+- reg-io-width : Specify the size (in bytes) of the IO accesses that
+  should be performed on the device.  Valid value for SMSC LAN is
+  2 or 4.  If it's omitted or invalid, the size would be 2.
+- smsc,irq-active-high : Indicates the IRQ polarity is active-high
+- smsc,irq-push-pull : Indicates the IRQ type is push-pull
+- smsc,force-internal-phy : Forces SMSC LAN controller to use
+  internal PHY
+- smsc,force-external-phy : Forces SMSC LAN controller to use
+  external PHY
+- smsc,save-mac-address : Indicates that mac address needs to be saved
+  before resetting the controller
+
+Examples:
+
+lan9220@f4000000 {
+	compatible = "smsc,lan9220", "smsc,lan9115";
+	reg = <0xf4000000 0x2000000>;
+	phy-mode = "mii";
+	interrupt-parent = <&gpio1>;
+	interrupts = <31>;
+	reg-io-width = <4>;
+	smsc,irq-push-pull;
+};

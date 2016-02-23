@@ -1,0 +1,72 @@
+config INTEL_TH
+	tristate "Intel(R) Trace Hub controller"
+	help
+	  Intel(R) Trace Hub (TH) is a set of hardware blocks (subdevices) that
+	  produce, switch and output trace data from multiple hardware and
+	  software sources over several types of trace output ports encoded
+	  in System Trace Protocol (MIPI STPv2) and is intended to perform
+	  full system debugging.
+
+	  This option enables intel_th bus and common code used by TH
+	  subdevices to interact with each other and hardware and for
+	  platform glue layers to drive Intel TH devices.
+
+	  Say Y here to enable Intel(R) Trace Hub controller support.
+
+if INTEL_TH
+
+config INTEL_TH_PCI
+	tristate "Intel(R) Trace Hub PCI controller"
+	depends on PCI
+	help
+	  Intel(R) Trace Hub may exist as a PCI device. This option enables
+	  support glue layer for PCI-based Intel TH.
+
+	  Say Y here to enable PCI Intel TH support.
+
+config INTEL_TH_GTH
+	tristate "Intel(R) Trace Hub Global Trace Hub"
+	help
+	  Global Trace Hub (GTH) is the central component of the
+	  Intel TH infrastructure and acts as a switch for source
+	  and output devices. This driver is required for other
+	  Intel TH subdevices to initialize.
+
+	  Say Y here to enable GTH subdevice of Intel(R) Trace Hub.
+
+config INTEL_TH_STH
+	tristate "Intel(R) Trace Hub Software Trace Hub support"
+	depends on STM
+	help
+	  Software Trace Hub (STH) enables trace data from software
+	  trace sources to be sent out via Intel(R) Trace Hub. It
+	  uses stm class device to interface with its sources.
+
+	  Say Y here to enable STH subdevice of Intel(R) Trace Hub.
+
+config INTEL_TH_MSU
+	tristate "Intel(R) Trace Hub Memory Storage Unit"
+	help
+	  Memory Storage Unit (MSU) trace output device enables
+	  storing STP traces to system memory. It supports single
+	  and multiblock modes of operation and provides read()
+	  and mmap() access to the collected data.
+
+	  Say Y here to enable MSU output device for Intel TH.
+
+config INTEL_TH_PTI
+	tristate "Intel(R) Trace Hub PTI output"
+	help
+	  Parallel Trace Interface unit (PTI) is a trace output device
+	  of Intel TH architecture that facilitates STP trace output via
+	  a PTI port.
+
+	  Say Y to enable PTI output of Intel TH data.
+
+config INTEL_TH_DEBUG
+	bool "Intel(R) Trace Hub debugging"
+	depends on DEBUG_FS
+	help
+	  Say Y here to enable debugging.
+
+endif

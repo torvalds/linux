@@ -1,0 +1,51 @@
+* ARM AMBA Primecell PL011 serial UART
+
+Required properties:
+- compatible: must be "arm,primecell", "arm,pl011", "zte,zx296702-uart"
+- reg: exactly one register range with length 0x1000
+- interrupts: exactly one interrupt specifier
+
+Optional properties:
+- pinctrl:
+	   When present, must have one state named "default",
+	   and may contain a second name named "sleep". The former
+	   state sets up pins for ordinary operation whereas
+	   the latter state will put the associated pins to sleep
+	   when the UART is unused
+- clocks:
+	   When present, the first clock listed must correspond to
+	   the clock named UARTCLK on the IP block, i.e. the clock
+	   to the external serial line, whereas the second clock
+	   must correspond to the PCLK clocking the internal logic
+	   of the block. Just listing one clock (the first one) is
+	   deprecated.
+- clock-names:
+	   When present, the first clock listed must be named
+	   "uartclk" and the second clock listed must be named
+	   "apb_pclk"
+- dmas:	
+	   When present, may have one or two dma channels.
+	   The first one must be named "rx", the second one
+	   must be named "tx".
+- auto-poll:
+	   Enables polling when using RX DMA.
+- poll-rate-ms:
+	   Rate at which poll occurs when auto-poll is set,
+	   default 100ms.
+- poll-timeout-ms:
+	   Poll timeout when auto-poll is set, default
+	   3000ms.
+
+See also bindings/arm/primecell.txt
+
+Example:
+
+uart@80120000 {
+	compatible = "arm,pl011", "arm,primecell";
+	reg = <0x80120000 0x1000>;
+	interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+	dmas = <&dma 13 0 0x2>, <&dma 13 0 0x0>;
+	dma-names = "rx", "tx";
+	clocks = <&foo_clk>, <&bar_clk>;
+	clock-names = "uartclk", "apb_pclk";
+};

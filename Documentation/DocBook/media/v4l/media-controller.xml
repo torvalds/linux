@@ -1,0 +1,105 @@
+<partinfo>
+  <authorgroup>
+    <author>
+      <firstname>Laurent</firstname>
+      <surname>Pinchart</surname>
+      <affiliation><address><email>laurent.pinchart@ideasonboard.com</email></address></affiliation>
+      <contrib>Initial version.</contrib>
+    </author>
+  </authorgroup>
+  <copyright>
+    <year>2010</year>
+    <holder>Laurent Pinchart</holder>
+  </copyright>
+
+  <revhistory>
+    <!-- Put document revisions here, newest first. -->
+    <revision>
+      <revnumber>1.0.0</revnumber>
+      <date>2010-11-10</date>
+      <authorinitials>lp</authorinitials>
+      <revremark>Initial revision</revremark>
+    </revision>
+  </revhistory>
+</partinfo>
+
+<title>Media Controller API</title>
+
+<chapter id="media_controller">
+  <title>Media Controller</title>
+
+  <section id="media-controller-intro">
+    <title>Introduction</title>
+    <para>Media devices increasingly handle multiple related functions. Many USB
+    cameras include microphones, video capture hardware can also output video,
+    or SoC camera interfaces also perform memory-to-memory operations similar to
+    video codecs.</para>
+    <para>Independent functions, even when implemented in the same hardware, can
+    be modelled as separate devices. A USB camera with a microphone will be
+    presented to userspace applications as V4L2 and ALSA capture devices. The
+    devices' relationships (when using a webcam, end-users shouldn't have to
+    manually select the associated USB microphone), while not made available
+    directly to applications by the drivers, can usually be retrieved from
+    sysfs.</para>
+    <para>With more and more advanced SoC devices being introduced, the current
+    approach will not scale. Device topologies are getting increasingly complex
+    and can't always be represented by a tree structure. Hardware blocks are
+    shared between different functions, creating dependencies between seemingly
+    unrelated devices.</para>
+    <para>Kernel abstraction APIs such as V4L2 and ALSA provide means for
+    applications to access hardware parameters. As newer hardware expose an
+    increasingly high number of those parameters, drivers need to guess what
+    applications really require based on limited information, thereby
+    implementing policies that belong to userspace.</para>
+    <para>The media controller API aims at solving those problems.</para>
+  </section>
+
+  <section id="media-controller-model">
+    <title>Media device model</title>
+    <para>Discovering a device internal topology, and configuring it at runtime,
+    is one of the goals of the media controller API. To achieve this, hardware
+    devices and Linux Kernel interfaces are modelled as graph objects on
+    an oriented graph. The object types that constitute the graph are:</para>
+    <itemizedlist>
+    <listitem><para>An <emphasis role="bold">entity</emphasis>
+    is a basic media hardware or software building block. It can correspond to
+    a large variety of logical blocks such as physical hardware devices
+    (CMOS sensor for instance), logical hardware devices (a building block in
+    a System-on-Chip image processing pipeline), DMA channels or physical
+    connectors.</para></listitem>
+    <listitem><para>An <emphasis role="bold">interface</emphasis>
+    is a graph representation of a Linux Kernel userspace API interface,
+    like a device node or a sysfs file that controls one or more entities
+    in the graph.</para></listitem>
+    <listitem><para>A <emphasis role="bold">pad</emphasis>
+    is a data connection endpoint through which an entity can interact with
+    other entities. Data (not restricted to video) produced by an entity
+    flows from the entity's output to one or more entity inputs. Pads should
+    not be confused with physical pins at chip boundaries.</para></listitem>
+    <listitem><para>A <emphasis role="bold">data link</emphasis>
+    is a point-to-point oriented connection between two pads, either on the
+    same entity or on different entities. Data flows from a source pad to a
+    sink pad.</para></listitem>
+    <listitem><para>An <emphasis role="bold">interface link</emphasis>
+    is a point-to-point bidirectional control connection between a Linux
+    Kernel interface and an entity.m</para></listitem>
+    </itemizedlist>
+  </section>
+
+  <!-- All non-ioctl specific data types go here. -->
+  &sub-media-types;
+</chapter>
+
+<appendix id="media-user-func">
+  <title>Function Reference</title>
+  <!-- Keep this alphabetically sorted. -->
+  &sub-media-func-open;
+  &sub-media-func-close;
+  &sub-media-func-ioctl;
+  <!-- All ioctls go here. -->
+  &sub-media-ioc-device-info;
+  &sub-media-ioc-g-topology;
+  &sub-media-ioc-enum-entities;
+  &sub-media-ioc-enum-links;
+  &sub-media-ioc-setup-link;
+</appendix>

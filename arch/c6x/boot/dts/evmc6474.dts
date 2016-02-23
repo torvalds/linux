@@ -1,0 +1,58 @@
+/*
+ * arch/c6x/boot/dts/evmc6474.dts
+ *
+ * EVMC6474 Evaluation Platform For TMS320C6474
+ *
+ * Copyright (C) 2011 Texas Instruments Incorporated
+ *
+ * Author: Mark Salter <msalter@redhat.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ */
+
+/dts-v1/;
+
+/include/ "tms320c6474.dtsi"
+
+/ {
+	model = "Spectrum Digital EVMC6474";
+	compatible = "spectrum-digital,evmc6474";
+
+	chosen {
+		bootargs = "console=hvc root=/dev/nfs ip=dhcp rw";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x08000000>;
+	};
+
+	soc {
+		megamod_pic: interrupt-controller@1800000 {
+		       interrupts = < 12 13 14 15 >;
+		};
+
+		timer3: timer@2940000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 39 >;
+		};
+
+		timer4: timer@2950000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 41 >;
+		};
+
+		timer5: timer@2960000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 43 >;
+		};
+
+		clock-controller@29a0000 {
+			clock-frequency = <50000000>;
+		};
+	};
+};

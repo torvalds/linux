@@ -1,0 +1,94 @@
+SPI (Serial Peripheral Interface) busses
+
+SPI busses can be described with a node for the SPI master device
+and a set of child nodes for each SPI slave on the bus.  For this
+discussion, it is assumed that the system's SPI controller is in
+SPI master mode.  This binding does not describe SPI controllers
+in slave mode.
+
+The SPI master node requires the following properties:
+- #address-cells  - number of cells required to define a chip select
+    		address on the SPI bus.
+- #size-cells     - should be zero.
+- compatible      - name of SPI bus controller following generic names
+    		recommended practice.
+- cs-gpios	  - (optional) gpios chip select.
+No other properties are required in the SPI bus node.  It is assumed
+that a driver for an SPI bus device will understand that it is an SPI bus.
+However, the binding does not attempt to define the specific method for
+assigning chip select numbers.  Since SPI chip select configuration is
+flexible and non-standardized, it is left out of this binding with the
+assumption that board specific platform code will be used to manage
+chip selects.  Individual drivers can define additional properties to
+support describing the chip select layout.
+
+Optional property:
+- num-cs : total number of chipselects
+
+If cs-gpios is used the number of chip select will automatically increased
+with max(cs-gpios > hw cs)
+
+So if for example the controller has 2 CS lines, and the cs-gpios
+property looks like this:
+
+cs-gpios = <&gpio1 0 0> <0> <&gpio1 1 0> <&gpio1 2 0>;
+
+Then it should be configured so that num_chipselect = 4 with the
+following mapping:
+
+cs0 : &gpio1 0 0
+cs1 : native
+cs2 : &gpio1 1 0
+cs3 : &gpio1 2 0
+
+SPI slave nodes must be children of the SPI master node and can
+contain the following properties.
+- reg             - (required) chip select address of device.
+- compatible      - (required) name of SPI device following generic names
+    		recommended practice
+- spi-max-frequency - (required) Maximum SPI clocking speed of device in Hz
+- spi-cpol        - (optional) Empty property indicating device requires
+    		inverse clock polarity (CPOL) mode
+- spi-cpha        - (optional) Empty property indicating device requires
+    		shifted clock phase (CPHA) mode
+- spi-cs-high     - (optional) Empty property indicating device requires
+    		chip select active high
+- spi-3wire       - (optional) Empty property indicating device requires
+    		    3-wire mode.
+- spi-lsb-first   - (optional) Empty property indicating device requires
+		LSB first mode.
+- spi-tx-bus-width - (optional) The bus width(number of data wires) that
+                      used for MOSI. Defaults to 1 if not present.
+- spi-rx-bus-width - (optional) The bus width(number of data wires) that
+                      used for MISO. Defaults to 1 if not present.
+
+Some SPI controllers and devices support Dual and Quad SPI transfer mode.
+It allows data in the SPI system to be transferred in 2 wires(DUAL) or 4 wires(QUAD).
+Now the value that spi-tx-bus-width and spi-rx-bus-width can receive is
+only 1(SINGLE), 2(DUAL) and 4(QUAD).
+Dual/Quad mode is not allowed when 3-wire mode is used.
+
+If a gpio chipselect is used for the SPI slave the gpio number will be passed
+via the SPI master node cs-gpios property.
+
+SPI example for an MPC5200 SPI bus:
+	spi@f00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mpc5200b-spi","fsl,mpc5200-spi";
+		reg = <0xf00 0x20>;
+		interrupts = <2 13 0 2 14 0>;
+		interrupt-parent = <&mpc5200_pic>;
+
+		ethernet-switch@0 {
+			compatible = "micrel,ks8995m";
+			spi-max-frequency = <1000000>;
+			reg = <0>;
+		};
+
+		codec@1 {
+			compatible = "ti,tlv320aic26";
+			spi-max-frequency = <100000>;
+			reg = <1>;
+		};
+	};

@@ -1,0 +1,135 @@
+#
+# 1-wire slaves configuration
+#
+
+menu "1-wire Slaves"
+
+config W1_SLAVE_THERM
+	tristate "Thermal family implementation"
+	help
+	  Say Y here if you want to connect 1-wire thermal sensors to your
+	  wire.
+
+config W1_SLAVE_SMEM
+	tristate "Simple 64bit memory family implementation"
+	help
+	  Say Y here if you want to connect 1-wire
+	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to your wire.
+
+config W1_SLAVE_DS2408
+	tristate "8-Channel Addressable Switch (IO Expander) 0x29 family support (DS2408)"
+	help
+	  Say Y here if you want to use a 1-wire
+	  DS2408 8-Channel Addressable Switch device support
+
+config W1_SLAVE_DS2408_READBACK
+	bool "Read-back values written to DS2408's output register"
+	depends on W1_SLAVE_DS2408
+	default y
+	help
+	  Enabling this will cause the driver to read back the values written
+	  to the chip's output register in order to detect errors.
+
+	  This is slower but useful when debugging chips and/or busses.
+
+config W1_SLAVE_DS2413
+	tristate "Dual Channel Addressable Switch 0x3a family support (DS2413)"
+	help
+	  Say Y here if you want to use a 1-wire
+	  DS2413 Dual Channel Addressable Switch device support
+
+config W1_SLAVE_DS2406
+	tristate "Dual Channel Addressable Switch 0x12 family support (DS2406)"
+	select CRC16
+	help
+	  Say Y or M here if you want to use a 1-wire
+	  DS2406 Dual Channel Addressable Switch.  EPROM read/write
+	  support for these devices is not implemented.
+
+config W1_SLAVE_DS2423
+	tristate "Counter 1-wire device (DS2423)"
+	select CRC16
+	help
+	  If you enable this you can read the counter values available
+	  in the DS2423 chipset from the w1_slave file under the
+	  sys file system.
+
+	  Say Y here if you want to use a 1-wire
+	  counter family device (DS2423).
+
+config W1_SLAVE_DS2431
+	tristate "1kb EEPROM family support (DS2431)"
+	help
+	  Say Y here if you want to use a 1-wire
+	  1kb EEPROM family device (DS2431)
+
+config W1_SLAVE_DS2433
+	tristate "4kb EEPROM family support (DS2433)"
+	help
+	  Say Y here if you want to use a 1-wire
+	  4kb EEPROM family device (DS2433).
+
+config W1_SLAVE_DS2433_CRC
+	bool "Protect DS2433 data with a CRC16"
+	depends on W1_SLAVE_DS2433
+	select CRC16
+	help
+	  Say Y here to protect DS2433 data with a CRC16.
+	  Each block has 30 bytes of data and a two byte CRC16.
+	  Full block writes are only allowed if the CRC is valid.
+
+config W1_SLAVE_DS2760
+	tristate "Dallas 2760 battery monitor chip (HP iPAQ & others)"
+	help
+	  If you enable this you will have the DS2760 battery monitor
+	  chip support.
+
+	  The battery monitor chip is used in many batteries/devices
+	  as the one who is responsible for charging/discharging/monitoring
+	  Li+ batteries.
+
+	  If you are unsure, say N.
+
+config W1_SLAVE_DS2780
+	tristate "Dallas 2780 battery monitor chip"
+	help
+	  If you enable this you will have the DS2780 battery monitor
+	  chip support.
+
+	  The battery monitor chip is used in many batteries/devices
+	  as the one who is responsible for charging/discharging/monitoring
+	  Li+ batteries.
+
+	  If you are unsure, say N.
+
+config W1_SLAVE_DS2781
+	tristate "Dallas 2781 battery monitor chip"
+	help
+	  If you enable this you will have the DS2781 battery monitor
+	  chip support.
+
+	  The battery monitor chip is used in many batteries/devices
+	  as the one who is responsible for charging/discharging/monitoring
+	  Li+ batteries.
+
+	  If you are unsure, say N.
+
+config W1_SLAVE_DS28E04
+	tristate "4096-Bit Addressable 1-Wire EEPROM with PIO (DS28E04-100)"
+	select CRC16
+	help
+	  If you enable this you will have the DS28E04-100
+	  chip support.
+
+	  Say Y here if you want to use a 1-wire
+	  4kb EEPROM with PIO family device (DS28E04).
+
+	  If you are unsure, say N.
+
+config W1_SLAVE_BQ27000
+	tristate "BQ27000 slave support"
+	help
+	  Say Y here if you want to use a hdq
+	  bq27000 slave support.
+
+endmenu

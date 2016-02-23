@@ -1,0 +1,23 @@
+OUTPUT_ARCH(mips)
+
+SECTIONS
+{
+  .text :
+  {
+    *(.text..start)
+  }
+
+  /* Data in ROM */
+
+  .data ALIGN(0x10) :
+  {
+    *(.data)
+  }
+  _image_start = ADDR(.data);
+  _image_size = SIZEOF(.data);
+
+  .other :
+  {
+    *(.*)
+  }
+}

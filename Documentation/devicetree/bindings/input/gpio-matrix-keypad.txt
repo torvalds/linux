@@ -1,0 +1,47 @@
+* GPIO driven matrix keypad device tree bindings
+
+GPIO driven matrix keypad is used to interface a SoC with a matrix keypad.
+The matrix keypad supports multiple row and column lines, a key can be
+placed at each intersection of a unique row and a unique column. The matrix
+keypad can sense a key-press and key-release by means of GPIO lines and
+report the event using GPIO interrupts to the cpu.
+
+Required Properties:
+- compatible:		Should be "gpio-matrix-keypad"
+- row-gpios:		List of gpios used as row lines. The gpio specifier
+			for this property depends on the gpio controller to
+			which these row lines are connected.
+- col-gpios:		List of gpios used as column lines. The gpio specifier
+			for this property depends on the gpio controller to
+			which these column lines are connected.
+- linux,keymap:		The definition can be found at
+			bindings/input/matrix-keymap.txt
+
+Optional Properties:
+- linux,no-autorepeat:	do no enable autorepeat feature.
+- wakeup-source:	use any event on keypad as wakeup event.
+			(Legacy property supported: "linux,wakeup")
+- debounce-delay-ms:	debounce interval in milliseconds
+- col-scan-delay-us:	delay, measured in microseconds, that is needed
+			before we can scan keypad after activating column gpio
+
+Example:
+	matrix-keypad {
+		compatible = "gpio-matrix-keypad";
+		debounce-delay-ms = <5>;
+		col-scan-delay-us = <2>;
+
+		row-gpios = <&gpio2 25 0
+			     &gpio2 26 0
+			     &gpio2 27 0>;
+
+		col-gpios = <&gpio2 21 0
+			     &gpio2 22 0>;
+
+		linux,keymap = <0x0000008B
+				0x0100009E
+				0x02000069
+				0x0001006A
+				0x0101001C
+				0x0201006C>;
+	};

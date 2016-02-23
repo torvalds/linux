@@ -1,0 +1,26 @@
+* Freescale MPC512x/MPC8xxx/Layerscape GPIO controller
+
+Required properties:
+- compatible : Should be "fsl,<soc>-gpio"
+  The following <soc>s are known to be supported:
+    mpc5121, mpc5125, mpc8349, mpc8572, mpc8610, pq3, qoriq.
+- reg : Address and length of the register set for the device
+- interrupts : Should be the port interrupt shared by all 32 pins.
+- #gpio-cells : Should be two.  The first cell is the pin number and
+  the second cell is used to specify the gpio polarity:
+      0 = active high
+      1 = active low
+
+Optional properties:
+- little-endian : GPIO registers are used as little endian. If not
+                  present registers are used as big endian by default.
+
+Example:
+
+gpio0: gpio@1100 {
+	compatible = "fsl,mpc5125-gpio";
+	#gpio-cells = <2>;
+	reg = <0x1100 0x080>;
+	interrupts = <78 0x8>;
+	status = "okay";
+};

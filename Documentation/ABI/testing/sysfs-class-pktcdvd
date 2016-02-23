@@ -1,0 +1,72 @@
+What:           /sys/class/pktcdvd/
+Date:           Oct. 2006
+KernelVersion:  2.6.20
+Contact:        Thomas Maier <balagi@justmail.de>
+Description:
+
+sysfs interface
+---------------
+
+The pktcdvd module (packet writing driver) creates
+these files in the sysfs:
+(<devid> is in format  major:minor )
+
+/sys/class/pktcdvd/
+    add            (0200)  Write a block device id (major:minor)
+                           to create a new pktcdvd device and map
+                           it to the block device.
+
+    remove         (0200)  Write the pktcdvd device id (major:minor)
+                           to it to remove the pktcdvd device.
+
+    device_map     (0444)  Shows the device mapping in format:
+                             pktcdvd[0-7] <pktdevid> <blkdevid>
+
+/sys/class/pktcdvd/pktcdvd[0-7]/
+    dev                   (0444) Device id
+    uevent                (0200) To send an uevent.
+
+/sys/class/pktcdvd/pktcdvd[0-7]/stat/
+    packets_started       (0444) Number of started packets.
+    packets_finished      (0444) Number of finished packets.
+
+    kb_written            (0444) kBytes written.
+    kb_read               (0444) kBytes read.
+    kb_read_gather        (0444) kBytes read to fill write packets.
+
+    reset                 (0200) Write any value to it to reset
+                                 pktcdvd device statistic values, like
+                                 bytes read/written.
+
+/sys/class/pktcdvd/pktcdvd[0-7]/write_queue/
+    size                  (0444) Contains the size of the bio write
+                                 queue.
+
+    congestion_off        (0644) If bio write queue size is below
+                                 this mark, accept new bio requests
+                                 from the block layer.
+
+    congestion_on         (0644) If bio write queue size is higher
+                                 as this mark, do no longer accept
+                                 bio write requests from the block
+                                 layer and wait till the pktcdvd
+                                 device has processed enough bio's
+                                 so that bio write queue size is
+                                 below congestion off mark.
+                                 A value of <= 0 disables congestion
+                                 control.
+
+
+Example:
+--------
+To use the pktcdvd sysfs interface directly, you can do:
+
+# create a new pktcdvd device mapped to /dev/hdc
+echo "22:0" >/sys/class/pktcdvd/add
+cat /sys/class/pktcdvd/device_map
+# assuming device pktcdvd0 was created, look at stat's
+cat /sys/class/pktcdvd/pktcdvd0/stat/kb_written
+# print the device id of the mapped block device
+fgrep pktcdvd0 /sys/class/pktcdvd/device_map
+# remove device, using pktcdvd0 device id   253:0
+echo "253:0" >/sys/class/pktcdvd/remove

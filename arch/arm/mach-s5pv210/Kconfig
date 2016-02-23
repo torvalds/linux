@@ -1,0 +1,35 @@
+# arch/arm/mach-s5pv210/Kconfig
+#
+# Copyright (c) 2010 Samsung Electronics Co., Ltd.
+#		http://www.samsung.com/
+#
+# Licensed under GPLv2
+
+# Configuration options for the S5PV210/S5PC110
+
+config ARCH_S5PV210
+	bool "Samsung S5PV210/S5PC110"
+	depends on ARCH_MULTI_V7
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_VIC
+	select CLKSRC_SAMSUNG_PWM
+	select COMMON_CLK_SAMSUNG
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select HAVE_S3C_RTC if RTC_CLASS
+	select PINCTRL
+	select PINCTRL_EXYNOS
+	help
+	  Samsung S5PV210/S5PC110 series based systems
+
+if ARCH_S5PV210
+
+config CPU_S5PV210
+	def_bool y
+	select ARM_AMBA
+	select PL330_DMA if DMADEVICES
+	help
+	  Enable S5PV210 CPU support
+
+endif

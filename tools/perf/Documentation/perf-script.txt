@@ -1,0 +1,268 @@
+perf-script(1)
+=============
+
+NAME
+----
+perf-script - Read perf.data (created by perf record) and display trace output
+
+SYNOPSIS
+--------
+[verse]
+'perf script' [<options>]
+'perf script' [<options>] record <script> [<record-options>] <command>
+'perf script' [<options>] report <script> [script-args]
+'perf script' [<options>] <script> <required-script-args> [<record-options>] <command>
+'perf script' [<options>] <top-script> [script-args]
+
+DESCRIPTION
+-----------
+This command reads the input file and displays the trace recorded.
+
+There are several variants of perf script:
+
+  'perf script' to see a detailed trace of the workload that was
+  recorded.
+
+  You can also run a set of pre-canned scripts that aggregate and
+  summarize the raw trace data in various ways (the list of scripts is
+  available via 'perf script -l').  The following variants allow you to
+  record and run those scripts:
+
+  'perf script record <script> <command>' to record the events required
+  for 'perf script report'.  <script> is the name displayed in the
+  output of 'perf script --list' i.e. the actual script name minus any
+  language extension.  If <command> is not specified, the events are
+  recorded using the -a (system-wide) 'perf record' option.
+
+  'perf script report <script> [args]' to run and display the results
+  of <script>.  <script> is the name displayed in the output of 'perf
+  trace --list' i.e. the actual script name minus any language
+  extension.  The perf.data output from a previous run of 'perf script
+  record <script>' is used and should be present for this command to
+  succeed.  [args] refers to the (mainly optional) args expected by
+  the script.
+
+  'perf script <script> <required-script-args> <command>' to both
+  record the events required for <script> and to run the <script>
+  using 'live-mode' i.e. without writing anything to disk.  <script>
+  is the name displayed in the output of 'perf script --list' i.e. the
+  actual script name minus any language extension.  If <command> is
+  not specified, the events are recorded using the -a (system-wide)
+  'perf record' option.  If <script> has any required args, they
+  should be specified before <command>.  This mode doesn't allow for
+  optional script args to be specified; if optional script args are
+  desired, they can be specified using separate 'perf script record'
+  and 'perf script report' commands, with the stdout of the record step
+  piped to the stdin of the report script, using the '-o -' and '-i -'
+  options of the corresponding commands.
+
+  'perf script <top-script>' to both record the events required for
+  <top-script> and to run the <top-script> using 'live-mode'
+  i.e. without writing anything to disk.  <top-script> is the name
+  displayed in the output of 'perf script --list' i.e. the actual
+  script name minus any language extension; a <top-script> is defined
+  as any script name ending with the string 'top'.
+
+  [<record-options>] can be passed to the record steps of 'perf script
+  record' and 'live-mode' variants; this isn't possible however for
+  <top-script> 'live-mode' or 'perf script report' variants.
+
+  See the 'SEE ALSO' section for links to language-specific
+  information on how to write and run your own trace scripts.
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+-D::
+--dump-raw-script=::
+        Display verbose dump of the trace data.
+
+-L::
+--Latency=::
+        Show latency attributes (irqs/preemption disabled, etc).
+
+-l::
+--list=::
+        Display a list of available trace scripts.
+
+-s ['lang']::
+--script=::
+        Process trace data with the given script ([lang]:script[.ext]).
+	If the string 'lang' is specified in place of a script name, a
+        list of supported languages will be displayed instead.
+
+-g::
+--gen-script=::
+        Generate perf-script.[ext] starter script for given language,
+        using current perf.data.
+
+-a::
+        Force system-wide collection.  Scripts run without a <command>
+        normally use -a by default, while scripts run with a <command>
+        normally don't - this option allows the latter to be run in
+        system-wide mode.
+
+-i::
+--input=::
+        Input file name. (default: perf.data unless stdin is a fifo)
+
+-d::
+--debug-mode::
+        Do various checks like samples ordering and lost events.
+
+-F::
+--fields::
+        Comma separated list of fields to print. Options are:
+        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
+	srcline, period, iregs, brstack, brstacksym, flags.
+        Field list can be prepended with the type, trace, sw or hw,
+        to indicate to which event type the field list applies.
+        e.g., -f sw:comm,tid,time,ip,sym  and -f trace:time,cpu,trace
+
+		perf script -f <fields>
+
+	is equivalent to:
+
+		perf script -f trace:<fields> -f sw:<fields> -f hw:<fields>
+
+	i.e., the specified fields apply to all event types if the type string
+	is not given.
+
+	The arguments are processed in the order received. A later usage can
+	reset a prior request. e.g.:
+
+		-f trace: -f comm,tid,time,ip,sym
+
+	The first -f suppresses trace events (field list is ""), but then the
+	second invocation sets the fields to comm,tid,time,ip,sym. In this case a
+	warning is given to the user:
+
+		"Overriding previous field request for all events."
+
+	Alternatively, consider the order:
+
+		-f comm,tid,time,ip,sym -f trace:
+
+	The first -f sets the fields for all events and the second -f
+	suppresses trace events. The user is given a warning message about
+	the override, and the result of the above is that only S/W and H/W
+	events are displayed with the given fields.
+
+	For the 'wildcard' option if a user selected field is invalid for an
+	event type, a message is displayed to the user that the option is
+	ignored for that type. For example:
+
+		$ perf script -f comm,tid,trace
+		'trace' not valid for hardware events. Ignoring.
+		'trace' not valid for software events. Ignoring.
+
+	Alternatively, if the type is given an invalid field is specified it
+	is an error. For example:
+
+        perf script -v -f sw:comm,tid,trace
+        'trace' not valid for software events.
+
+	At this point usage is displayed, and perf-script exits.
+
+	The flags field is synthesized and may have a value when Instruction
+	Trace decoding. The flags are "bcrosyiABEx" which stand for branch,
+	call, return, conditional, system, asynchronous, interrupt,
+	transaction abort, trace begin, trace end, and in transaction,
+	respectively.
+
+	Finally, a user may not set fields to none for all event types.
+	i.e., -f "" is not allowed.
+
+	The brstack output includes branch related information with raw addresses using the
+	/v/v/v/v/ syntax in the following order:
+	FROM: branch source instruction
+	TO  : branch target instruction
+        M/P/-: M=branch target mispredicted or branch direction was mispredicted, P=target predicted or direction predicted, -=not supported
+	X/- : X=branch inside a transactional region, -=not in transaction region or not supported
+	A/- : A=TSX abort entry, -=not aborted region or not supported
+
+	The brstacksym is identical to brstack, except that the FROM and TO addresses are printed in a symbolic form if possible.
+
+-k::
+--vmlinux=<file>::
+        vmlinux pathname
+
+--kallsyms=<file>::
+        kallsyms pathname
+
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
+
+-G::
+--hide-call-graph::
+        When printing symbols do not display call chain.
+
+-C::
+--cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
+	be provided as a comma-separated list with no space: 0,1. Ranges of
+	CPUs are specified with -: 0-2. Default is to report samples on all
+	CPUs.
+
+-c::
+--comms=::
+	Only display events for these comms. CSV that understands
+	file://filename entries.
+
+--pid=::
+	Only show events for given process ID (comma separated list).
+
+--tid=::
+	Only show events for given thread ID (comma separated list).
+
+-I::
+--show-info::
+	Display extended information about the perf.data file. This adds
+	information which may be very large and thus may clutter the display.
+	It currently includes: cpu and numa topology of the host system.
+	It can only be used with the perf script report mode.
+
+--show-kernel-path::
+	Try to resolve the path of [kernel.kallsyms]
+
+--show-task-events
+	Display task related events (e.g. FORK, COMM, EXIT).
+
+--show-mmap-events
+	Display mmap related events (e.g. MMAP, MMAP2).
+
+--show-switch-events
+	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
+	PERF_RECORD_SWITCH_CPU_WIDE.
+
+--demangle::
+	Demangle symbol names to human readable form. It's enabled by default,
+	disable with --no-demangle.
+
+--demangle-kernel::
+	Demangle kernel symbol names to human readable form (for C++ kernels).
+
+--header
+	Show perf.data header.
+
+--header-only
+	Show only perf.data header.
+
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+include::itrace.txt[]
+
+	To disable decoding entirely, use --no-itrace.
+
+--full-source-path::
+	Show the full path for source files for srcline output.
+
+--ns::
+	Use 9 decimal places when displaying time (i.e. show the nanoseconds)
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-script-perl[1],
+linkperf:perf-script-python[1]

@@ -1,0 +1,1 @@
+source "drivers/staging/fsl-mc/bus/Kconfig"

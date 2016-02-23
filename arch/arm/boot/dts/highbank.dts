@@ -1,0 +1,142 @@
+/*
+ * Copyright 2011-2012 Calxeda, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/dts-v1/;
+
+/* First 4KB has pen for secondary cores. */
+/memreserve/ 0x00000000 0x0001000;
+
+/ {
+	model = "Calxeda Highbank";
+	compatible = "calxeda,highbank";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	clock-ranges;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@900 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0x900>;
+			next-level-cache = <&L2>;
+			clocks = <&a9pll>;
+			clock-names = "cpu";
+			operating-points = <
+				/* kHz    ignored */
+				 1300000  1000000
+				 1200000  1000000
+				 1100000  1000000
+				  800000  1000000
+				  400000  1000000
+				  200000  1000000
+			>;
+			clock-latency = <100000>;
+		};
+
+		cpu@901 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0x901>;
+			next-level-cache = <&L2>;
+			clocks = <&a9pll>;
+			clock-names = "cpu";
+		};
+
+		cpu@902 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0x902>;
+			next-level-cache = <&L2>;
+			clocks = <&a9pll>;
+			clock-names = "cpu";
+		};
+
+		cpu@903 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0x903>;
+			next-level-cache = <&L2>;
+			clocks = <&a9pll>;
+			clock-names = "cpu";
+		};
+	};
+
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x00000000 0xff900000>;
+	};
+
+	soc {
+		ranges = <0x00000000 0x00000000 0xffffffff>;
+
+		memory-controller@fff00000 {
+			compatible = "calxeda,hb-ddr-ctrl";
+			reg = <0xfff00000 0x1000>;
+			interrupts = <0 91 4>;
+		};
+
+		timer@fff10600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0xfff10600 0x20>;
+			interrupts = <1 13 0xf01>;
+			clocks = <&a9periphclk>;
+		};
+
+		watchdog@fff10620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0xfff10620 0x20>;
+			interrupts = <1 14 0xf01>;
+			clocks = <&a9periphclk>;
+		};
+
+		intc: interrupt-controller@fff11000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			#size-cells = <0>;
+			#address-cells = <1>;
+			interrupt-controller;
+			reg = <0xfff11000 0x1000>,
+			      <0xfff10100 0x100>;
+		};
+
+		L2: l2-cache {
+			compatible = "arm,pl310-cache";
+			reg = <0xfff12000 0x1000>;
+			interrupts = <0 70 4>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		pmu {
+			compatible = "arm,cortex-a9-pmu";
+			interrupts = <0 76 4  0 75 4  0 74 4  0 73 4>;
+		};
+
+
+		sregs@fff3c200 {
+			compatible = "calxeda,hb-sregs-l2-ecc";
+			reg = <0xfff3c200 0x100>;
+			interrupts = <0 71 4  0 72 4>;
+		};
+
+	};
+};
+
+/include/ "ecx-common.dtsi"

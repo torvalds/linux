@@ -1,0 +1,145 @@
+perf-list(1)
+============
+
+NAME
+----
+perf-list - List all symbolic event types
+
+SYNOPSIS
+--------
+[verse]
+'perf list' [hw|sw|cache|tracepoint|pmu|event_glob]
+
+DESCRIPTION
+-----------
+This command displays the symbolic event types which can be selected in the
+various perf commands with the -e option.
+
+[[EVENT_MODIFIERS]]
+EVENT MODIFIERS
+---------------
+
+Events can optionally have a modifier by appending a colon and one or
+more modifiers. Modifiers allow the user to restrict the events to be
+counted. The following modifiers exist:
+
+ u - user-space counting
+ k - kernel counting
+ h - hypervisor counting
+ I - non idle counting
+ G - guest counting (in KVM guests)
+ H - host counting (not in KVM guests)
+ p - precise level
+ P - use maximum detected precise level
+ S - read sample value (PERF_SAMPLE_READ)
+ D - pin the event to the PMU
+
+The 'p' modifier can be used for specifying how precise the instruction
+address should be. The 'p' modifier can be specified multiple times:
+
+ 0 - SAMPLE_IP can have arbitrary skid
+ 1 - SAMPLE_IP must have constant skid
+ 2 - SAMPLE_IP requested to have 0 skid
+ 3 - SAMPLE_IP must have 0 skid
+
+For Intel systems precise event sampling is implemented with PEBS
+which supports up to precise-level 2.
+
+On AMD systems it is implemented using IBS (up to precise-level 2).
+The precise modifier works with event types 0x76 (cpu-cycles, CPU
+clocks not halted) and 0xC1 (micro-ops retired). Both events map to
+IBS execution sampling (IBS op) with the IBS Op Counter Control bit
+(IbsOpCntCtl) set respectively (see AMD64 Architecture Programmer’s
+Manual Volume 2: System Programming, 13.3 Instruction-Based
+Sampling). Examples to use IBS:
+
+ perf record -a -e cpu-cycles:p ...    # use ibs op counting cycles
+ perf record -a -e r076:p ...          # same as -e cpu-cycles:p
+ perf record -a -e r0C1:p ...          # use ibs op counting micro-ops
+
+RAW HARDWARE EVENT DESCRIPTOR
+-----------------------------
+Even when an event is not available in a symbolic form within perf right now,
+it can be encoded in a per processor specific way.
+
+For instance For x86 CPUs NNN represents the raw register encoding with the
+layout of IA32_PERFEVTSELx MSRs (see [Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide] Figure 30-1 Layout
+of IA32_PERFEVTSELx MSRs) or AMD's PerfEvtSeln (see [AMD64 Architecture Programmer’s Manual Volume 2: System Programming], Page 344,
+Figure 13-7 Performance Event-Select Register (PerfEvtSeln)).
+
+Note: Only the following bit fields can be set in x86 counter
+registers: event, umask, edge, inv, cmask. Esp. guest/host only and
+OS/user mode flags must be setup using <<EVENT_MODIFIERS, EVENT
+MODIFIERS>>.
+
+Example:
+
+If the Intel docs for a QM720 Core i7 describe an event as:
+
+  Event  Umask  Event Mask
+  Num.   Value  Mnemonic    Description                        Comment
+
+  A8H      01H  LSD.UOPS    Counts the number of micro-ops     Use cmask=1 and
+                            delivered by loop stream detector  invert to count
+                                                               cycles
+
+raw encoding of 0x1A8 can be used:
+
+ perf stat -e r1a8 -a sleep 1
+ perf record -e r1a8 ...
+
+You should refer to the processor specific documentation for getting these
+details. Some of them are referenced in the SEE ALSO section below.
+
+PARAMETERIZED EVENTS
+--------------------
+
+Some pmu events listed by 'perf-list' will be displayed with '?' in them. For
+example:
+
+  hv_gpci/dtbp_ptitc,phys_processor_idx=?/
+
+This means that when provided as an event, a value for '?' must
+also be supplied. For example:
+
+  perf stat -C 0 -e 'hv_gpci/dtbp_ptitc,phys_processor_idx=0x2/' ...
+
+OPTIONS
+-------
+
+Without options all known events will be listed.
+
+To limit the list use:
+
+. 'hw' or 'hardware' to list hardware events such as cache-misses, etc.
+
+. 'sw' or 'software' to list software events such as context switches, etc.
+
+. 'cache' or 'hwcache' to list hardware cache events such as L1-dcache-loads, etc.
+
+. 'tracepoint' to list all tracepoint events, alternatively use
+  'subsys_glob:event_glob' to filter by tracepoint subsystems such as sched,
+  block, etc.
+
+. 'pmu' to print the kernel supplied PMU events.
+
+. If none of the above is matched, it will apply the supplied glob to all
+  events, printing the ones that match.
+
+. As a last resort, it will do a substring search in all event names.
+
+One or more types can be used at the same time, listing the events for the
+types specified.
+
+Support raw format:
+
+. '--raw-dump', shows the raw-dump of all the events.
+. '--raw-dump [hw|sw|cache|tracepoint|pmu|event_glob]', shows the raw-dump of
+  a certain kind of events.
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-top[1],
+linkperf:perf-record[1],
+http://www.intel.com/Assets/PDF/manual/253669.pdf[Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide],
+http://support.amd.com/us/Processor_TechDocs/24593_APM_v2.pdf[AMD64 Architecture Programmer’s Manual Volume 2: System Programming]

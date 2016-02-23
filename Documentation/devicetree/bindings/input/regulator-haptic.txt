@@ -1,0 +1,21 @@
+* Regulator Haptic Device Tree Bindings
+
+Required Properties:
+ - compatible : Should be "regulator-haptic"
+ - haptic-supply : Power supply to the haptic motor.
+	[*] refer Documentation/devicetree/bindings/regulator/regulator.txt
+
+ - max-microvolt : The maximum voltage value supplied to the haptic motor.
+		[The unit of the voltage is a micro]
+
+ - min-microvolt : The minimum voltage value supplied to the haptic motor.
+		[The unit of the voltage is a micro]
+
+Example:
+
+	haptics {
+		compatible = "regulator-haptic";
+		haptic-supply = <&motor_regulator>;
+		max-microvolt = <2700000>;
+		min-microvolt = <1100000>;
+	};

@@ -1,0 +1,427 @@
+/*
+ * Device Tree Source for AMCC (AppliedMicro) Eiger(460SX)
+ *
+ * Copyright 2009 AMCC (AppliedMicro) <ttnguyen@amcc.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without
+ * any warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <1>;
+	model = "amcc,eiger";
+	compatible = "amcc,eiger";
+	dcr-parent = <&{/cpus/cpu@0}>;
+
+	aliases {
+		ethernet0 = &EMAC0;
+		ethernet1 = &EMAC1;
+		ethernet2 = &EMAC2;
+		ethernet3 = &EMAC3;
+		serial0 = &UART0;
+		serial1 = &UART1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "PowerPC,460SX";
+			reg = <0x00000000>;
+			clock-frequency = <0>; /* Filled in by U-Boot */
+			timebase-frequency = <0>; /* Filled in by U-Boot */
+			i-cache-line-size = <32>;
+			d-cache-line-size = <32>;
+			i-cache-size = <32768>;
+			d-cache-size = <32768>;
+			dcr-controller;
+			dcr-access-method = "native";
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x00000000 0x00000000>; /* Filled in by U-Boot */
+	};
+
+	UIC0: interrupt-controller0 {
+		compatible = "ibm,uic-460sx","ibm,uic";
+		interrupt-controller;
+		cell-index = <0>;
+		dcr-reg = <0x0c0 0x009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+	};
+
+	UIC1: interrupt-controller1 {
+		compatible = "ibm,uic-460sx","ibm,uic";
+		interrupt-controller;
+		cell-index = <1>;
+		dcr-reg = <0x0d0 0x009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <0x1e 0x4 0x1f 0x4>; /* cascade */
+		interrupt-parent = <&UIC0>;
+	};
+
+	UIC2: interrupt-controller2 {
+		compatible = "ibm,uic-460sx","ibm,uic";
+		interrupt-controller;
+		cell-index = <2>;
+		dcr-reg = <0x0e0 0x009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <0xa 0x4 0xb 0x4>; /* cascade */
+		interrupt-parent = <&UIC0>;
+	};
+
+	UIC3: interrupt-controller3 {
+		compatible = "ibm,uic-460sx","ibm,uic";
+		interrupt-controller;
+		cell-index = <3>;
+		dcr-reg = <0x0f0 0x009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <0x10 0x4 0x11 0x4>; /* cascade */
+		interrupt-parent = <&UIC0>;
+	};
+
+	SDR0: sdr {
+		compatible = "ibm,sdr-460sx";
+		dcr-reg = <0x00e 0x002>;
+	};
+
+	CPR0: cpr {
+		compatible = "ibm,cpr-460sx";
+		dcr-reg = <0x00c 0x002>;
+	};
+
+	plb {
+		compatible = "ibm,plb-460sx", "ibm,plb4";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+		clock-frequency = <0>; /* Filled in by U-Boot */
+
+		SDRAM0: sdram {
+			compatible = "ibm,sdram-460sx", "ibm,sdram-405gp";
+			dcr-reg = <0x010 0x002>;
+		};
+
+		MAL0: mcmal {
+			compatible = "ibm,mcmal-460sx", "ibm,mcmal2";
+			dcr-reg = <0x180 0x62>;
+			num-tx-chans = <4>;
+			num-rx-chans = <32>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			interrupt-parent = <&UIC1>;
+			interrupts = <	/*TXEOB*/ 0x6 0x4
+					/*RXEOB*/ 0x7 0x4
+					/*SERR*/  0x1 0x4
+					/*TXDE*/  0x2 0x4
+					/*RXDE*/  0x3 0x4
+					/*COAL TX0*/ 0x18 0x2
+					/*COAL TX1*/ 0x19 0x2
+					/*COAL TX2*/ 0x1a 0x2
+					/*COAL TX3*/ 0x1b 0x2
+					/*COAL RX0*/ 0x1c 0x2
+					/*COAL RX1*/ 0x1d 0x2
+					/*COAL RX2*/ 0x1e 0x2
+					/*COAL RX3*/ 0x1f 0x2>;
+		};
+
+		POB0: opb {
+			compatible = "ibm,opb-460sx", "ibm,opb";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0xb0000000 0x00000004 0xb0000000 0x50000000>;
+			clock-frequency = <0>; /* Filled in by U-Boot */
+
+			EBC0: ebc {
+				compatible = "ibm,ebc-460sx", "ibm,ebc";
+				dcr-reg = <0x012 0x002>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				clock-frequency = <0>; /* Filled in by U-Boot */
+				/* ranges property is supplied by U-Boot */
+				interrupts = <0x6 0x4>;
+				interrupt-parent = <&UIC1>;
+
+				nor_flash@0,0 {
+					compatible = "amd,s29gl512n", "cfi-flash";
+					bank-width = <2>;
+					/* reg property is supplied in by U-Boot */
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "kernel";
+						reg = <0x00000000 0x001e0000>;
+					};
+					partition@1e0000 {
+						label = "dtb";
+						reg = <0x001e0000 0x00020000>;
+					};
+					partition@200000 {
+						label = "ramdisk";
+						reg = <0x00200000 0x01400000>;
+					};
+					partition@1600000 {
+						label = "jffs2";
+						reg = <0x01600000 0x00400000>;
+					};
+					partition@1a00000 {
+						label = "user";
+						reg = <0x01a00000 0x02560000>;
+					};
+					partition@3f60000 {
+						label = "env";
+						reg = <0x03f60000 0x00040000>;
+					};
+					partition@3fa0000 {
+						label = "u-boot";
+						reg = <0x03fa0000 0x00060000>;
+					};
+				};
+
+				ndfc@1,0 {
+					compatible = "ibm,ndfc";
+					/* reg property is supplied by U-boot */
+					ccr = <0x00003000>;
+					bank-settings = <0x80002222>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					nand {
+						#address-cells = <1>;
+						#size-cells = <1>;
+						partition@0 {
+							label = "uboot";
+							reg = <0x00000000 0x00200000>;
+						};
+						partition@200000 {
+							label = "uboot-environment";
+							reg = <0x00200000 0x00100000>;
+						};
+						partition@300000 {
+							label = "linux";
+							reg = <0x00300000 0x00300000>;
+						};
+						partition@600000 {
+							label = "root-file-system";
+							reg = <0x00600000 0x01900000>;
+						};
+						partition@1f00000 {
+							label = "device-tree";
+							reg = <0x01f00000 0x00020000>;
+						};
+						partition@1f20000 {
+							label = "data";
+							reg = <0x01f20000 0x060E0000>;
+						};
+					};
+				};
+			};
+
+			UART0: serial@ef600200 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0xef600200 0x00000008>;
+				virtual-reg = <0xef600200>;
+				clock-frequency = <0>; /* Filled in by U-Boot */
+				current-speed = <0>; /* Filled in by U-Boot */
+				interrupt-parent = <&UIC0>;
+				interrupts = <0x0 0x4>;
+			};
+
+			UART1: serial@ef600300 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0xef600300 0x00000008>;
+				virtual-reg = <0xef600300>;
+				clock-frequency = <0>; /* Filled in by U-Boot */
+				current-speed = <0>; /* Filled in by U-Boot */
+				interrupt-parent = <&UIC0>;
+				interrupts = <0x1 0x4>;
+			};
+
+			IIC0: i2c@ef600400 {
+				compatible = "ibm,iic-460sx", "ibm,iic";
+				reg = <0xef600400 0x00000014>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <0x2 0x4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				index = <0>;
+			};
+
+			IIC1: i2c@ef600500 {
+				compatible = "ibm,iic-460sx", "ibm,iic";
+				reg = <0xef600500 0x00000014>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <0x3 0x4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				index = <1>;
+			};
+
+			RGMII0: emac-rgmii@ef600900 {
+				compatible = "ibm,rgmii-460sx", "ibm,rgmii";
+				reg = <0xef600900 0x00000008>;
+				has-mdio;
+			};
+
+			RGMII1: emac-rgmii@ef600920 {
+				compatible = "ibm,rgmii-460sx", "ibm,rgmii";
+				reg = <0xef600920 0x00000008>;
+				has-mdio;
+			};
+
+			TAH0: emac-tah@ef600e50 {
+				compatible = "ibm,tah-460sx", "ibm,tah";
+				reg = <0xef600e50 0x00000030>;
+			};
+
+			TAH1: emac-tah@ef600f50 {
+				compatible = "ibm,tah-460sx", "ibm,tah";
+				reg = <0xef600f50 0x00000030>;
+			};
+
+			EMAC0: ethernet@ef600a00 {
+				device_type = "network";
+				compatible = "ibm,emac-460sx", "ibm,emac4";
+				interrupt-parent = <&EMAC0>;
+				interrupts = <0x0 0x1>;
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				#size-cells = <0>;
+				interrupt-map = </*Status*/ 0x0 &UIC0 0x13 0x4
+						 /*Wake*/   0x1 &UIC2 0x1d 0x4>;
+				reg = <0xef600a00 0x00000070>;
+				local-mac-address = [000000000000]; /* Filled in by U-Boot */
+				mal-device = <&MAL0>;
+				mal-tx-channel = <0>;
+				mal-rx-channel = <0>;
+				cell-index = <0>;
+				max-frame-size = <9000>;
+				rx-fifo-size = <4096>;
+				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
+				phy-mode = "rgmii";
+				phy-map = <0x00000000>;
+				rgmii-device = <&RGMII0>;
+				rgmii-channel = <0>;
+				tah-device = <&TAH0>;
+				tah-channel = <0>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
+			};
+
+			EMAC1: ethernet@ef600b00 {
+				device_type = "network";
+				compatible = "ibm,emac-460sx", "ibm,emac4";
+				interrupt-parent = <&EMAC1>;
+				interrupts = <0x0 0x1>;
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				#size-cells = <0>;
+				interrupt-map = </*Status*/ 0x0 &UIC0 0x14 0x4
+						 /*Wake*/   0x1 &UIC2 0x1d 0x4>;
+				reg = <0xef600b00 0x00000070>;
+				local-mac-address = [000000000000]; /* Filled in by U-Boot */
+				mal-device = <&MAL0>;
+				mal-tx-channel = <1>;
+				mal-rx-channel = <8>;
+				cell-index = <1>;
+				max-frame-size = <9000>;
+				rx-fifo-size = <4096>;
+				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
+				phy-mode = "rgmii";
+				phy-map = <0x00000000>;
+				rgmii-device = <&RGMII0>;
+				rgmii-channel = <1>;
+				tah-device = <&TAH1>;
+				tah-channel = <1>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
+				mdio-device = <&EMAC0>;
+			};
+
+			EMAC2: ethernet@ef600c00 {
+				device_type = "network";
+				compatible = "ibm,emac-460sx", "ibm,emac4";
+				interrupt-parent = <&EMAC2>;
+				interrupts = <0x0 0x1>;
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				#size-cells = <0>;
+				interrupt-map = </*Status*/ 0x0 &UIC0 0x15 0x4
+						 /*Wake*/   0x1 &UIC2 0x1d 0x4>;
+				reg = <0xef600c00 0x00000070>;
+				local-mac-address = [000000000000]; /* Filled in by U-Boot */
+				mal-device = <&MAL0>;
+				mal-tx-channel = <2>;
+				mal-rx-channel = <16>;
+				cell-index = <2>;
+				max-frame-size = <9000>;
+				rx-fifo-size = <4096>;
+				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
+				tx-fifo-size-gige = <16384>; /* emac2&3 only */
+				phy-mode = "rgmii";
+				phy-map = <0x00000000>;
+				rgmii-device = <&RGMII1>;
+				rgmii-channel = <0>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
+				mdio-device = <&EMAC0>;
+			};
+
+			EMAC3: ethernet@ef600d00 {
+				device_type = "network";
+				compatible = "ibm,emac-460sx", "ibm,emac4";
+				interrupt-parent = <&EMAC3>;
+				interrupts = <0x0 0x1>;
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				#size-cells = <0>;
+				interrupt-map = </*Status*/ 0x0 &UIC0 0x16 0x4
+						 /*Wake*/   0x1 &UIC2 0x1d 0x4>;
+				reg = <0xef600d00 0x00000070>;
+				local-mac-address = [000000000000]; /* Filled in by U-Boot */
+				mal-device = <&MAL0>;
+				mal-tx-channel = <3>;
+				mal-rx-channel = <24>;
+				cell-index = <3>;
+				max-frame-size = <9000>;
+				rx-fifo-size = <4096>;
+				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
+				tx-fifo-size-gige = <16384>; /* emac2&3 only */
+				phy-mode = "rgmii";
+				phy-map = <0x00000000>;
+				rgmii-device = <&RGMII1>;
+				rgmii-channel = <1>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
+				mdio-device = <&EMAC0>;
+			};
+		};
+
+	};
+	chosen {
+		linux,stdout-path = "/plb/opb/serial@ef600200";
+	};
+
+};

@@ -1,0 +1,63 @@
+Freescale Enhanced Serial Audio Interface (ESAI) Controller
+
+The Enhanced Serial Audio Interface (ESAI) provides a full-duplex serial port
+for serial communication with a variety of serial devices, including industry
+standard codecs, Sony/Phillips Digital Interface (S/PDIF) transceivers, and
+other DSPs. It has up to six transmitters and four receivers.
+
+Required properties:
+
+  - compatible		: Compatible list, must contain "fsl,imx35-esai" or
+			  "fsl,vf610-esai"
+
+  - reg			: Offset and length of the register set for the device.
+
+  - interrupts		: Contains the spdif interrupt.
+
+  - dmas		: Generic dma devicetree binding as described in
+			  Documentation/devicetree/bindings/dma/dma.txt.
+
+  - dma-names		: Two dmas have to be defined, "tx" and "rx".
+
+  - clocks		: Contains an entry for each entry in clock-names.
+
+  - clock-names		: Includes the following entries:
+	"core"		  The core clock used to access registers
+	"extal"		  The esai baud clock for esai controller used to
+			  derive HCK, SCK and FS.
+	"fsys"		  The system clock derived from ahb clock used to
+			  derive HCK, SCK and FS.
+	"spba"		  The spba clock is required when ESAI is placed as a
+			  bus slave of the Shared Peripheral Bus and when two
+			  or more bus masters (CPU, DMA or DSP) try to access
+			  it. This property is optional depending on the SoC
+			  design.
+
+  - fsl,fifo-depth	: The number of elements in the transmit and receive
+			  FIFOs. This number is the maximum allowed value for
+			  TFCR[TFWM] or RFCR[RFWM].
+
+  - fsl,esai-synchronous: This is a boolean property. If present, indicating
+			  that ESAI would work in the synchronous mode, which
+			  means all the settings for Receiving would be
+			  duplicated from Transmition related registers.
+
+  - big-endian		: If this property is absent, the native endian mode
+			  will be in use as default, or the big endian mode
+			  will be in use for all the device registers.
+
+Example:
+
+esai: esai@02024000 {
+	compatible = "fsl,imx35-esai";
+	reg = <0x02024000 0x4000>;
+	interrupts = <0 51 0x04>;
+	clocks = <&clks 208>, <&clks 118>, <&clks 208>;
+	clock-names = "core", "extal", "fsys";
+	dmas = <&sdma 23 21 0>, <&sdma 24 21 0>;
+	dma-names = "rx", "tx";
+	fsl,fifo-depth = <128>;
+	fsl,esai-synchronous;
+	big-endian;
+	status = "disabled";
+};

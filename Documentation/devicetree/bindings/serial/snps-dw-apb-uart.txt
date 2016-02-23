@@ -1,0 +1,76 @@
+* Synopsys DesignWare ABP UART
+
+Required properties:
+- compatible : "snps,dw-apb-uart"
+- reg : offset and length of the register set for the device.
+- interrupts : should contain uart interrupt.
+
+Clock handling:
+The clock rate of the input clock needs to be supplied by one of
+- clock-frequency : the input clock frequency for the UART.
+- clocks : phandle to the input clock
+
+The supplying peripheral clock can also be handled, needing a second property
+- clock-names: tuple listing input clock names.
+	Required elements: "baudclk", "apb_pclk"
+
+Optional properties:
+- snps,uart-16550-compatible : reflects the value of UART_16550_COMPATIBLE
+  configuration parameter. Define this if your UART does not implement the busy
+  functionality.
+- resets : phandle to the parent reset controller.
+- reg-shift : quantity to shift the register offsets by.  If this property is
+  not present then the register offsets are not shifted.
+- reg-io-width : the size (in bytes) of the IO accesses that should be
+  performed on the device.  If this property is not present then single byte
+  accesses are used.
+- dcd-override : Override the DCD modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- dsr-override : Override the DTS modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- cts-override : Override the CTS modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- ri-override : Override the RI modem status signal. This signal will always be
+  reported as inactive instead of being obtained from the modem status register.
+  Define this if your serial port does not use this pin.
+
+Example:
+
+	uart@80230000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x80230000 0x100>;
+		clock-frequency = <3686400>;
+		interrupts = <10>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dcd-override;
+		dsr-override;
+		cts-override;
+		ri-override;
+	};
+
+Example with one clock:
+
+	uart@80230000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x80230000 0x100>;
+		clocks = <&baudclk>;
+		interrupts = <10>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+Example with two clocks:
+
+	uart@80230000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x80230000 0x100>;
+		clocks = <&baudclk>, <&apb_pclk>;
+		clock-names = "baudclk", "apb_pclk";
+		interrupts = <10>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};

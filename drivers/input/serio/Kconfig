@@ -1,0 +1,309 @@
+#
+# Input core configuration
+#
+config SERIO
+	tristate "Serial I/O support"
+	default y
+	help
+	  Say Yes here if you have any input device that uses serial I/O to
+	  communicate with the system. This includes the
+	  		* standard AT keyboard and PS/2 mouse *
+	  as well as serial mice, Sun keyboards, some joysticks and 6dof
+	  devices and more.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called serio.
+
+config ARCH_MIGHT_HAVE_PC_SERIO
+	bool
+	help
+	  Select this config option from the architecture Kconfig if
+	  the architecture might use a PC serio device (i8042) to
+	  communicate with keyboard, mouse, etc.
+
+if SERIO
+
+config SERIO_I8042
+	tristate "i8042 PC Keyboard controller"
+	default y
+	depends on ARCH_MIGHT_HAVE_PC_SERIO
+	help
+	  i8042 is the chip over which the standard AT keyboard and PS/2
+	  mouse are connected to the computer. If you use these devices,
+	  you'll need to say Y here.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called i8042.
+
+config SERIO_SERPORT
+	tristate "Serial port line discipline"
+	default y
+	depends on TTY
+	help
+	  Say Y here if you plan to use an input device (mouse, joystick,
+	  tablet, 6dof) that communicates over the RS232 serial (COM) port.
+
+	  More information is available: <file:Documentation/input/input.txt>
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called serport.
+
+config SERIO_CT82C710
+	tristate "ct82c710 Aux port controller"
+	depends on X86
+	help
+	  Say Y here if you have a Texas Instruments TravelMate notebook
+	  equipped with the ct82c710 chip and want to use a mouse connected
+	  to the "QuickPort".
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ct82c710.
+
+config SERIO_Q40KBD
+	tristate "Q40 keyboard controller"
+	depends on Q40
+
+config SERIO_PARKBD
+	tristate "Parallel port keyboard adapter"
+	depends on PARPORT
+	help
+	  Say Y here if you built a simple parallel port adapter to attach
+	  an additional AT keyboard, XT keyboard or PS/2 mouse.
+
+	  More information is available: <file:Documentation/input/input.txt>
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called parkbd.
+
+config SERIO_RPCKBD
+	tristate "Acorn RiscPC keyboard controller"
+	depends on ARCH_ACORN
+	default y
+	help
+	  Say Y here if you have the Acorn RiscPC and want to use an AT
+	  keyboard connected to its keyboard controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rpckbd.
+
+config SERIO_AT32PSIF
+	tristate "AVR32 PSIF PS/2 keyboard and mouse controller"
+	depends on AVR32
+	help
+	  Say Y here if you want to use the PSIF peripheral on AVR32 devices
+	  and connect a PS/2 keyboard and/or mouse to it.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called at32psif.
+
+config SERIO_AMBAKMI
+	tristate "AMBA KMI keyboard controller"
+	depends on ARM_AMBA
+
+config SERIO_SA1111
+	tristate "Intel SA1111 keyboard controller"
+	depends on SA1111
+
+config SERIO_GSCPS2
+	tristate "HP GSC PS/2 keyboard and PS/2 mouse controller"
+	depends on GSC
+	default y
+	help
+	  This driver provides support for the PS/2 ports on PA-RISC machines
+	  over which HP PS/2 keyboards and PS/2 mice may be connected.
+	  If you use these devices, you'll need to say Y here.
+
+	  It's safe to enable this driver, so if unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gscps2.
+
+config HP_SDC
+	tristate "HP System Device Controller i8042 Support"
+	depends on (GSC || HP300) && SERIO
+	default y
+	help
+	  This option enables support for the "System Device
+	  Controller", an i8042 carrying microcode to manage a
+	  few miscellaneous devices on some Hewlett Packard systems.
+	  The SDC itself contains a 10ms resolution timer/clock capable
+	  of delivering interrupts on a periodic and one-shot basis.
+	  The SDC may also be connected to a battery-backed real-time
+	  clock, a basic audio waveform generator, and an HP-HIL Master
+	  Link Controller serving up to seven input devices.
+
+	  By itself this option is rather useless, but enabling it will
+	  enable selection of drivers for the abovementioned devices.
+	  It is, however, incompatible with the old, reliable HIL keyboard
+	  driver, and the new HIL driver is experimental, so if you plan
+	  to use a HIL keyboard as your primary keyboard, you may wish
+	  to keep using that driver until the new HIL drivers have had
+	  more testing.
+
+config HIL_MLC
+	tristate "HIL MLC Support (needed for HIL input devices)"
+	depends on HP_SDC
+
+config SERIO_PCIPS2
+	tristate "PCI PS/2 keyboard and PS/2 mouse controller"
+	depends on PCI
+	help
+	  Say Y here if you have a Mobility Docking station with PS/2
+	  keyboard and mice ports.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcips2.
+
+config SERIO_MACEPS2
+	tristate "SGI O2 MACE PS/2 controller"
+	depends on SGI_IP32
+	help
+	  Say Y here if you have SGI O2 workstation and want to use its
+	  PS/2 ports.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called maceps2.
+
+config SERIO_LIBPS2
+	tristate "PS/2 driver library"
+	depends on SERIO_I8042 || SERIO_I8042=n
+	help
+	  Say Y here if you are using a driver for device connected
+	  to a PS/2 port, such as PS/2 mouse or standard AT keyboard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called libps2.
+
+config SERIO_RAW
+	tristate "Raw access to serio ports"
+	help
+	  Say Y here if you want to have raw access to serio ports, such as
+	  AUX ports on i8042 keyboard controller. Each serio port that is
+	  bound to this driver will be accessible via a char device with
+	  major 10 and dynamically allocated minor. The driver will try
+	  allocating minor 1 (that historically corresponds to /dev/psaux)
+	  first. To bind this driver to a serio port use sysfs interface:
+
+	      echo -n "serio_raw" > /sys/bus/serio/devices/serioX/drvctl
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called serio_raw.
+
+config SERIO_XILINX_XPS_PS2
+	tristate "Xilinx XPS PS/2 Controller Support"
+	depends on PPC || MICROBLAZE
+	help
+	  This driver supports XPS PS/2 IP from the Xilinx EDK on
+	  PowerPC platform.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xilinx_ps2.
+
+config SERIO_ALTERA_PS2
+	tristate "Altera UP PS/2 controller"
+	depends on HAS_IOMEM
+	help
+	  Say Y here if you have Altera University Program PS/2 ports.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called altera_ps2.
+
+config SERIO_AMS_DELTA
+	tristate "Amstrad Delta (E3) mailboard support"
+	depends on MACH_AMS_DELTA
+	default y
+	---help---
+	  Say Y here if you have an E3 and want to use its mailboard,
+	  or any standard AT keyboard connected to the mailboard port.
+
+	  When used for the E3 mailboard, a non-standard key table
+	  must be loaded from userspace, possibly using udev extras
+	  provided keymap helper utility.
+
+	  To compile this driver as a module, choose M here;
+	  the module will be called ams_delta_serio.
+
+config SERIO_PS2MULT
+	tristate "TQC PS/2 multiplexer"
+	help
+	  Say Y here if you have the PS/2 line multiplexer like the one
+	  present on TQC boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ps2mult.
+
+config SERIO_ARC_PS2
+	tristate "ARC PS/2 support"
+	depends on HAS_IOMEM
+	help
+	  Say Y here if you have an ARC FPGA platform with a PS/2
+	  controller in it.
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called arc_ps2.
+
+config SERIO_APBPS2
+	tristate "GRLIB APBPS2 PS/2 keyboard/mouse controller"
+	depends on OF
+	help
+	  Say Y here if you want support for GRLIB APBPS2 peripherals used
+	  to connect to PS/2 keyboard and/or mouse.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called apbps2.
+
+config SERIO_OLPC_APSP
+	tristate "OLPC AP-SP input support"
+	depends on OLPC || COMPILE_TEST
+	help
+	  Say Y here if you want support for the keyboard and touchpad included
+	  in the OLPC XO-1.75 and XO-4 laptops.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called olpc_apsp.
+
+config HYPERV_KEYBOARD
+	tristate "Microsoft Synthetic Keyboard driver"
+	depends on HYPERV
+	default HYPERV
+	help
+	  Select this option to enable the Hyper-V Keyboard driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called hyperv_keyboard.
+
+config SERIO_SUN4I_PS2
+	tristate "Allwinner A10 PS/2 controller support"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  This selects support for the PS/2 Host Controller on
+	  Allwinner A10.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-ps2.
+
+config USERIO
+	tristate "User space serio port driver support"
+	help
+	  Say Y here if you want to support user level drivers for serio
+	  subsystem accessible under char device 10:240 - /dev/userio. Using
+	  this facility userspace programs can implement serio ports that
+	  will be used by the standard in-kernel serio consumer drivers,
+	  such as psmouse and atkbd.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called userio.
+
+	  If you are unsure, say N.
+
+endif

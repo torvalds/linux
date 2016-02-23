@@ -1,0 +1,316 @@
+/*
+ * Copyright 2013 Freescale Semiconductor, Inc.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "imx25.dtsi"
+
+/ {
+	model = "Freescale i.MX25 Product Development Kit";
+	compatible = "fsl,imx25-pdk", "fsl,imx25";
+
+	memory {
+		reg = <0x80000000 0x4000000>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_fec_3v3: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "fec-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 3 0>;
+			enable-active-high;
+		};
+
+		reg_2p5v: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "2P5V";
+			regulator-min-microvolt = <2500000>;
+			regulator-max-microvolt = <2500000>;
+		};
+
+		reg_3p3v: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		reg_can_3v3: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "can-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio4 6 0>;
+		};
+	};
+
+	sound {
+		compatible = "fsl,imx25-pdk-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx25-pdk-sgtl5000";
+		ssi-controller = <&ssi1>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <1>;
+		mux-ext-port = <4>;
+	};
+
+	wvga: display {
+		model = "CLAA057VC01CW";
+		bits-per-pixel = <16>;
+		fsl,pcr = <0xfa208b80>;
+		bus-width = <18>;
+		native-mode = <&wvga_timings>;
+		display-timings {
+			wvga_timings: 640x480 {
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <45>;
+				hfront-porch = <114>;
+				hsync-len = <1>;
+				vback-porch = <33>;
+				vfront-porch = <11>;
+				vsync-len = <1>;
+				clock-frequency = <25200000>;
+			};
+		};
+	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux>;
+	status = "okay";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can1>;
+	xceiver-supply = <&reg_can_3v3>;
+	status = "okay";
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	cd-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio2 0 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&fec {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-supply = <&reg_fec_3v3>;
+	phy-reset-gpios = <&gpio4 8 0>;
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	codec: sgtl5000@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		clocks = <&clks 129>;
+		VDDA-supply = <&reg_2p5v>;
+		VDDIO-supply = <&reg_3p3v>;
+	};
+};
+
+&iomuxc {
+	imx25-pdk {
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX25_PAD_RW__AUD4_TXFS			0xe0
+				MX25_PAD_OE__AUD4_TXC			0xe0
+				MX25_PAD_EB0__AUD4_TXD			0xe0
+				MX25_PAD_EB1__AUD4_RXD			0xe0
+			>;
+		};
+
+		pinctrl_can1: can1grp {
+			fsl,pins = <
+				MX25_PAD_GPIO_A__CAN1_TX		0x0
+				MX25_PAD_GPIO_B__CAN1_RX		0x0
+				MX25_PAD_D14__GPIO_4_6 			0x80000000
+			>;
+		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX25_PAD_SD1_CMD__SD1_CMD		0x80000000
+				MX25_PAD_SD1_CLK__SD1_CLK		0x80000000
+				MX25_PAD_SD1_DATA0__SD1_DATA0		0x80000000
+				MX25_PAD_SD1_DATA1__SD1_DATA1		0x80000000
+				MX25_PAD_SD1_DATA2__SD1_DATA2		0x80000000
+				MX25_PAD_SD1_DATA3__SD1_DATA3		0x80000000
+				MX25_PAD_A14__GPIO_2_0			0x80000000
+				MX25_PAD_A15__GPIO_2_1			0x80000000
+			>;
+		};
+
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX25_PAD_FEC_MDC__FEC_MDC		0x80000000
+				MX25_PAD_FEC_MDIO__FEC_MDIO		0x400001e0
+				MX25_PAD_FEC_TDATA0__FEC_TDATA0		0x80000000
+				MX25_PAD_FEC_TDATA1__FEC_TDATA1		0x80000000
+				MX25_PAD_FEC_TX_EN__FEC_TX_EN		0x80000000
+				MX25_PAD_FEC_RDATA0__FEC_RDATA0		0x80000000
+				MX25_PAD_FEC_RDATA1__FEC_RDATA1		0x80000000
+				MX25_PAD_FEC_RX_DV__FEC_RX_DV		0x80000000
+				MX25_PAD_FEC_TX_CLK__FEC_TX_CLK		0x1c0
+				MX25_PAD_A17__GPIO_2_3			0x80000000
+				MX25_PAD_D12__GPIO_4_8			0x80000000
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX25_PAD_I2C1_CLK__I2C1_CLK		0x80000000
+				MX25_PAD_I2C1_DAT__I2C1_DAT		0x80000000
+			>;
+		};
+
+		pinctrl_kpp: kppgrp {
+			fsl,pins = <
+				MX25_PAD_KPP_ROW0__KPP_ROW0	0x80000000
+				MX25_PAD_KPP_ROW1__KPP_ROW1	0x80000000
+				MX25_PAD_KPP_ROW2__KPP_ROW2	0x80000000
+				MX25_PAD_KPP_ROW3__KPP_ROW3	0x80000000
+				MX25_PAD_KPP_COL0__KPP_COL0	0x80000000
+				MX25_PAD_KPP_COL1__KPP_COL1	0x80000000
+				MX25_PAD_KPP_COL2__KPP_COL2	0x80000000
+				MX25_PAD_KPP_COL3__KPP_COL3	0x80000000
+			>;
+		};
+
+		pinctrl_lcd: lcdgrp {
+			fsl,pins = <
+				MX25_PAD_LD0__LD0		0xe0
+				MX25_PAD_LD1__LD1		0xe0
+				MX25_PAD_LD2__LD2		0xe0
+				MX25_PAD_LD3__LD3		0xe0
+				MX25_PAD_LD4__LD4		0xe0
+				MX25_PAD_LD5__LD5		0xe0
+				MX25_PAD_LD6__LD6		0xe0
+				MX25_PAD_LD7__LD7		0xe0
+				MX25_PAD_LD8__LD8		0xe0
+				MX25_PAD_LD9__LD9		0xe0
+				MX25_PAD_LD10__LD10		0xe0
+				MX25_PAD_LD11__LD11		0xe0
+				MX25_PAD_LD12__LD12		0xe0
+				MX25_PAD_LD13__LD13		0xe0
+				MX25_PAD_LD14__LD14		0xe0
+				MX25_PAD_LD15__LD15		0xe0
+				MX25_PAD_GPIO_E__LD16		0xe0
+				MX25_PAD_GPIO_F__LD17		0xe0
+				MX25_PAD_HSYNC__HSYNC		0xe0
+				MX25_PAD_VSYNC__VSYNC		0xe0
+				MX25_PAD_LSCLK__LSCLK		0xe0
+				MX25_PAD_OE_ACD__OE_ACD		0xe0
+				MX25_PAD_CONTRAST__CONTRAST	0xe0
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX25_PAD_UART1_RTS__UART1_RTS		0xe0
+				MX25_PAD_UART1_CTS__UART1_CTS		0xe0
+				MX25_PAD_UART1_TXD__UART1_TXD		0x80000000
+				MX25_PAD_UART1_RXD__UART1_RXD		0xc0
+			>;
+		};
+	};
+};
+
+&lcdc {
+	display = <&wvga>;
+	fsl,lpccr = <0x00a903ff>;
+	fsl,lscr1 = <0x00120300>;
+	fsl,dmacr = <0x00020010>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lcd>;
+	status = "okay";
+};
+
+&nfc {
+	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&kpp {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_kpp>;
+	linux,keymap = <
+			MATRIX_KEY(0x0, 0x0, KEY_UP)
+			MATRIX_KEY(0x0, 0x1, KEY_DOWN)
+			MATRIX_KEY(0x0, 0x2, KEY_VOLUMEDOWN)
+			MATRIX_KEY(0x0, 0x3, KEY_HOME)
+			MATRIX_KEY(0x1, 0x0, KEY_RIGHT)
+			MATRIX_KEY(0x1, 0x1, KEY_LEFT)
+			MATRIX_KEY(0x1, 0x2, KEY_ENTER)
+			MATRIX_KEY(0x1, 0x3, KEY_VOLUMEUP)
+			MATRIX_KEY(0x2, 0x0, KEY_F6)
+			MATRIX_KEY(0x2, 0x1, KEY_F8)
+			MATRIX_KEY(0x2, 0x2, KEY_F9)
+			MATRIX_KEY(0x2, 0x3, KEY_F10)
+			MATRIX_KEY(0x3, 0x0, KEY_F1)
+			MATRIX_KEY(0x3, 0x1, KEY_F2)
+			MATRIX_KEY(0x3, 0x2, KEY_F3)
+			MATRIX_KEY(0x3, 0x2, KEY_POWER)
+	>;
+	status = "okay";
+};
+
+&ssi1 {
+	codec-handle = <&codec>;
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&usbhost1 {
+	phy_type = "serial";
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbotg {
+	phy_type = "utmi";
+	dr_mode = "otg";
+	external-vbus-divider;
+	status = "okay";
+};

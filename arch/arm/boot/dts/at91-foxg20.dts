@@ -1,0 +1,165 @@
+/*
+ * at91-foxg20.dts - Device Tree file for Acme Systems FoxG20 board
+ *
+ * Based on DT files for at91sam9g20ek evaluation board (AT91SAM9G20 SoC)
+ *
+ * Copyright (C) 2013 Douglas Gilbert <dgilbert@interlog.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+#include "at91sam9g20.dtsi"
+
+/ {
+	model = "Acme Systems FoxG20";
+	compatible = "acme,foxg20", "atmel,at91sam9g20", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootwait";
+	};
+
+	memory {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <18432000>;
+		};
+	};
+
+	ahb {
+		apb {
+			usb1: gadget@fffa4000 {
+				atmel,vbus-gpio = <&pioC 6 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+
+			mmc0: mmc@fffa8000 {
+				pinctrl-0 = <
+					&pinctrl_mmc0_clk
+					&pinctrl_mmc0_slot1_cmd_dat0
+					&pinctrl_mmc0_slot1_dat1_3>;
+				status = "okay";
+
+				slot@1 {
+					reg = <1>;
+					bus-width = <4>;
+				};
+			};
+
+			usart0: serial@fffb0000 {
+				pinctrl-0 =
+					<&pinctrl_usart0
+					 &pinctrl_usart0_rts
+					 &pinctrl_usart0_cts
+					>;
+				status = "okay";
+			};
+
+			usart1: serial@fffb4000 {
+				status = "okay";
+			};
+
+			usart2: serial@fffb8000 {
+				status = "okay";
+			};
+
+			macb0: ethernet@fffc4000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			usart3: serial@fffd0000 {
+				status = "okay";
+			};
+
+			uart0: serial@fffd4000 {
+				status = "okay";
+			};
+
+			uart1: serial@fffd8000 {
+				status = "okay";
+			};
+
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			pinctrl@fffff400 {
+				board {
+					pinctrl_pck0_as_mck: pck0_as_mck {
+						atmel,pins =
+							<AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+				};
+
+				mmc0_slot1 {
+					pinctrl_board_mmc0_slot1: mmc0_slot1-board {
+						atmel,pins =
+							<AT91_PIOC 9 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* CD pin */
+					};
+				};
+
+				i2c0 {
+					pinctrl_i2c0: i2c0-0 {
+						atmel,pins =
+							<AT91_PIOA 23 AT91_PERIPH_A AT91_PINCTRL_MULTI_DRIVE	/* TWD (SDA), open drain */
+							 AT91_PIOA 24 AT91_PERIPH_A AT91_PINCTRL_MULTI_DRIVE>;	/* TWCK (SCL), open drain */
+					};
+				};
+			};
+
+			watchdog@fffffd40 {
+				status = "okay";
+			};
+		};
+
+		usb0: ohci@00500000 {
+			num-ports = <2>;
+			status = "okay";
+		};
+	};
+
+	i2c@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c0>;
+		i2c-gpio,delay-us = <5>;	/* ~85 kHz */
+		status = "okay";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		/* red LED marked "PC7" near mini USB (device) receptacle */
+		user_led {
+			label = "user_led";
+			gpios = <&pioC 7 GPIO_ACTIVE_HIGH>;	/* PC7 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		btn {
+			label = "Button";
+			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
+			linux,code = <0x103>;
+			wakeup-source;
+		};
+	};
+};

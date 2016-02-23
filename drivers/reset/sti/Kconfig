@@ -1,0 +1,19 @@
+if ARCH_STI
+
+config STI_RESET_SYSCFG
+	bool
+	select RESET_CONTROLLER
+
+config STIH415_RESET
+	bool
+	select STI_RESET_SYSCFG
+
+config STIH416_RESET
+	bool
+	select STI_RESET_SYSCFG
+
+config STIH407_RESET
+	bool
+	select STI_RESET_SYSCFG
+
+endif

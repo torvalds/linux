@@ -1,0 +1,14 @@
+Freescale Vybrid Miscellaneous System Control - CPU Configuration
+
+The MSCM IP contains multiple sub modules, this binding describes the first
+block of registers which contains CPU configuration information.
+
+Required properties:
+- compatible:	"fsl,vf610-mscm-cpucfg", "syscon"
+- reg:		the register range of the MSCM CPU configuration registers
+
+Example:
+	mscm_cpucfg: cpucfg@40001000 {
+		compatible = "fsl,vf610-mscm-cpucfg", "syscon";
+		reg = <0x40001000 0x800>;
+	}

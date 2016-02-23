@@ -1,0 +1,128 @@
+menuconfig ARCH_MVEBU
+	bool "Marvell Engineering Business Unit (MVEBU) SoCs"
+	depends on ARCH_MULTI_V7 || ARCH_MULTI_V5
+	select ARCH_SUPPORTS_BIG_ENDIAN
+	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
+	select PINCTRL
+	select PLAT_ORION
+	select SOC_BUS
+	select MVEBU_MBUS
+	select ZONE_DMA if ARM_LPAE
+	select ARCH_REQUIRE_GPIOLIB
+	select PCI_QUIRKS if PCI
+	select OF_ADDRESS_PCI
+
+if ARCH_MVEBU
+
+config MACH_MVEBU_ANY
+	bool
+
+config MACH_MVEBU_V7
+	bool
+	select ARMADA_370_XP_TIMER
+	select CACHE_L2X0
+	select ARM_CPU_SUSPEND
+	select MACH_MVEBU_ANY
+
+config MACH_ARMADA_370
+	bool "Marvell Armada 370 boards"
+	depends on ARCH_MULTI_V7
+	select ARMADA_370_CLK
+	select CPU_PJ4B
+	select MACH_MVEBU_V7
+	select PINCTRL_ARMADA_370
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada 370 SoC with device tree.
+
+config MACH_ARMADA_375
+	bool "Marvell Armada 375 boards"
+	depends on ARCH_MULTI_V7
+	select ARM_ERRATA_720789
+	select ARM_ERRATA_753970
+	select ARM_GIC
+	select ARMADA_375_CLK
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if SMP
+	select HAVE_SMP
+	select MACH_MVEBU_V7
+	select PINCTRL_ARMADA_375
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada 375 SoC with device tree.
+
+config MACH_ARMADA_38X
+	bool "Marvell Armada 380/385 boards"
+	depends on ARCH_MULTI_V7
+	select ARM_ERRATA_720789
+	select ARM_ERRATA_753970
+	select ARM_GIC
+	select ARMADA_38X_CLK
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if SMP
+	select HAVE_SMP
+	select MACH_MVEBU_V7
+	select PINCTRL_ARMADA_38X
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada 380/385 SoC with device tree.
+
+config MACH_ARMADA_39X
+	bool "Marvell Armada 39x boards"
+	depends on ARCH_MULTI_V7
+	select ARM_GIC
+	select ARMADA_39X_CLK
+	select CACHE_L2X0
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if SMP
+	select HAVE_SMP
+	select MACH_MVEBU_V7
+	select PINCTRL_ARMADA_39X
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada 39x SoC with device tree.
+
+config MACH_ARMADA_XP
+	bool "Marvell Armada XP boards"
+	depends on ARCH_MULTI_V7
+	select ARMADA_XP_CLK
+	select CPU_PJ4B
+	select MACH_MVEBU_V7
+	select PINCTRL_ARMADA_XP
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada XP SoC with device tree.
+
+config MACH_DOVE
+	bool "Marvell Dove boards"
+	depends on ARCH_MULTI_V7
+	select CACHE_L2X0
+	select CPU_PJ4
+	select DOVE_CLK
+	select MACH_MVEBU_ANY
+	select ORION_IRQCHIP
+	select ORION_TIMER
+	select PM_GENERIC_DOMAINS if PM
+	select PINCTRL_DOVE
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell Dove using flattened device tree.
+
+config MACH_KIRKWOOD
+	bool "Marvell Kirkwood boards"
+	depends on ARCH_MULTI_V5
+	select ARCH_REQUIRE_GPIOLIB
+	select CPU_FEROCEON
+	select KIRKWOOD_CLK
+	select MACH_MVEBU_ANY
+	select ORION_IRQCHIP
+	select ORION_TIMER
+	select PCI
+	select PCI_QUIRKS
+	select PINCTRL_KIRKWOOD
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Kirkwood device tree.
+
+endif

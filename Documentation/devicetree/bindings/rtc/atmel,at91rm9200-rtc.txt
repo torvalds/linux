@@ -1,0 +1,17 @@
+Atmel AT91RM9200 Real Time Clock
+
+Required properties:
+- compatible: should be: "atmel,at91rm9200-rtc" or "atmel,at91sam9x5-rtc"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: rtc alarm/event interrupt
+- clocks: phandle to input clock.
+
+Example:
+
+rtc@fffffe00 {
+	compatible = "atmel,at91rm9200-rtc";
+	reg = <0xfffffe00 0x100>;
+	interrupts = <1 4 7>;
+	clocks = <&clk32k>;
+};

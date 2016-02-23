@@ -1,0 +1,20 @@
+config UDF_FS
+	tristate "UDF file system support"
+	select CRC_ITU_T
+	help
+	  This is a file system used on some CD-ROMs and DVDs. Since the
+	  file system is supported by multiple operating systems and is more
+	  compatible with standard unix file systems, it is also suitable for
+	  removable USB disks. Say Y if you intend to mount DVD discs or CDRW's
+	  written in packet mode, or if you want to use UDF for removable USB
+	  disks. Please read <file:Documentation/filesystems/udf.txt>.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called udf.
+
+	  If unsure, say N.
+
+config UDF_NLS
+	bool
+	default y
+	depends on (UDF_FS=m && NLS) || (UDF_FS=y && NLS=y)

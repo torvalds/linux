@@ -1,0 +1,171 @@
+*ST pin controller.
+
+Each multi-function pin is controlled, driven and routed through the
+PIO multiplexing block. Each pin supports GPIO functionality (ALT0)
+and multiple alternate functions(ALT1 - ALTx) that directly connect
+the pin to different hardware blocks.
+
+When a pin is in GPIO mode, Output Enable (OE), Open Drain(OD), and
+Pull Up (PU) are driven by the related PIO block.
+
+ST pinctrl driver controls PIO multiplexing block and also interacts with
+gpio driver to configure a pin.
+
+GPIO bank can have one of the two possible types of interrupt-wirings.
+
+First type is via irqmux, single interrupt is used by multiple gpio banks. This
+reduces number of overall interrupts numbers required. All these banks belong to
+a single pincontroller.
+		  _________
+		 |	   |----> [gpio-bank (n)    ]
+		 |	   |----> [gpio-bank (n + 1)]
+	[irqN]-- | irq-mux |----> [gpio-bank (n + 2)]
+		 |	   |----> [gpio-bank (...  )]
+		 |_________|----> [gpio-bank (n + 7)]
+
+Second type has a dedicated interrupt per gpio bank.
+
+	[irqN]----> [gpio-bank (n)]
+
+
+Pin controller node:
+Required properties:
+- compatible	: should be "st,<SOC>-<pio-block>-pinctrl"
+	like st,stih415-sbc-pinctrl, st,stih415-front-pinctrl and so on.
+- st,syscfg		: Should be a phandle of the syscfg node.
+- st,retime-pin-mask	: Should be mask to specify which pins can be retimed.
+	If the property is not present, it is assumed that all the pins in the
+	bank are capable of retiming. Retiming is mainly used to improve the
+	IO timing margins of external synchronous interfaces.
+- ranges : defines mapping between pin controller node (parent) to gpio-bank
+  node (children).
+
+Optional properties:
+- interrupts	: Interrupt number of the irqmux. If the interrupt is shared
+  with other gpio banks via irqmux.
+  a irqline and gpio banks.
+- reg		: irqmux memory resource. If irqmux is present.
+- reg-names	: irqmux resource should be named as "irqmux".
+
+GPIO controller/bank node.
+Required properties:
+- gpio-controller : Indicates this device is a GPIO controller
+- #gpio-cells	  : Should be one. The first cell is the pin number.
+- st,bank-name	  : Should be a name string for this bank as specified in
+  datasheet.
+
+Optional properties:
+- interrupts	: Interrupt number for this gpio bank. If there is a dedicated
+  interrupt wired up for this gpio bank.
+
+- interrupt-controller : Indicates this device is a interrupt controller. GPIO
+  bank can be an interrupt controller iff one of the interrupt type either via
+irqmux or a dedicated interrupt per bank is specified.
+
+- #interrupt-cells: the value of this property should be 2.
+     - First Cell: represents the external gpio interrupt number local to the
+       gpio interrupt space of the controller.
+     - Second Cell: flags to identify the type of the interrupt
+       - 1 = rising edge triggered
+       - 2 = falling edge triggered
+       - 3 = rising and falling edge triggered
+       - 4 = high level triggered
+       - 8 = low level triggered
+for related macros look in:
+include/dt-bindings/interrupt-controller/irq.h
+
+Example:
+	pin-controller-sbc {
+		#address-cells	= <1>;
+		#size-cells	= <1>;
+		compatible	= "st,stih415-sbc-pinctrl";
+		st,syscfg	= <&syscfg_sbc>;
+		reg 		= <0xfe61f080 0x4>;
+		reg-names	= "irqmux";
+		interrupts 	= <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names	= "irqmux";
+		ranges 		= <0 0xfe610000 0x5000>;
+
+		PIO0: gpio@fe610000 {
+			gpio-controller;
+			#gpio-cells	= <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg		= <0 0x100>;
+			st,bank-name	= "PIO0";
+		};
+		...
+		pin-functions nodes follow...
+	};
+
+
+Contents of function subnode node:
+----------------------
+Required properties for pin configuration node:
+- st,pins	: Child node with list of pins with configuration.
+
+Below is the format of how each pin conf should look like.
+
+<bank offset mux mode rt_type rt_delay rt_clk>
+
+Every PIO is represented with 4-7 parameters depending on retime configuration.
+Each parameter is explained as below.
+
+-bank		: Should be bank phandle to which this PIO belongs.
+-offset		: Offset in the PIO bank.
+-mux		: Should be alternate function number associated this pin.
+		Use same numbers from datasheet.
+-mode		:pin configuration is selected from one of the below values.
+		IN
+		IN_PU
+		OUT
+		BIDIR
+		BIDIR_PU
+
+-rt_type	Retiming Configuration for the pin.
+		Possible retime configuration are:
+
+		-------		-------------
+		value		args
+		-------		-------------
+		NICLK		<delay> <clk>
+		ICLK_IO		<delay> <clk>
+		BYPASS		<delay>
+		DE_IO		<delay> <clk>
+		SE_ICLK_IO	<delay> <clk>
+		SE_NICLK_IO	<delay> <clk>
+
+- delay	is retime delay in pico seconds as mentioned in data sheet.
+
+- rt_clk	:clk to be use for retime.
+		Possible values are:
+		CLK_A
+		CLK_B
+		CLK_C
+		CLK_D
+
+Example of mmcclk pin which is a bi-direction pull pu with retime config
+as non inverted clock retimed with CLK_B and delay of 0 pico seconds:
+
+pin-controller {
+	...
+	mmc0 {
+		pinctrl_mmc: mmc {
+			st,pins {
+				mmcclk = <&PIO13 4 ALT4 BIDIR_PU NICLK 0 CLK_B>;
+				...
+			};
+		};
+	...
+	};
+};
+
+sdhci0:sdhci@fe810000{
+	...
+	interrupt-parent = <&PIO3>;
+	#interrupt-cells = <2>;
+	interrupts = <3 IRQ_TYPE_LEVEL_HIGH>; /* Interrupt line via PIO3-3 */
+	interrupt-names = "card-detect";
+	pinctrl-names = "default";
+	pinctrl-0	= <&pinctrl_mmc>;
+};

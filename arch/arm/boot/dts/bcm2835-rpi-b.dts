@@ -1,0 +1,18 @@
+/dts-v1/;
+#include "bcm2835.dtsi"
+#include "bcm2835-rpi.dtsi"
+
+/ {
+	compatible = "raspberrypi,model-b", "brcm,bcm2835";
+	model = "Raspberry Pi Model B";
+
+	leds {
+		act {
+			gpios = <&gpio 16 1>;
+		};
+	};
+};
+
+&gpio {
+	pinctrl-0 = <&gpioout &alt0 &alt3>;
+};

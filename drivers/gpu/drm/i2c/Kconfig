@@ -1,0 +1,34 @@
+menu "I2C encoder or helper chips"
+     depends on DRM && DRM_KMS_HELPER && I2C
+
+config DRM_I2C_ADV7511
+	tristate "AV7511 encoder"
+	select REGMAP_I2C
+	help
+	  Support for the Analog Device ADV7511(W) and ADV7513 HDMI encoders.
+
+config DRM_I2C_CH7006
+	tristate "Chrontel ch7006 TV encoder"
+	default m if DRM_NOUVEAU
+	help
+	  Support for Chrontel ch7006 and similar TV encoders, found
+	  on some nVidia video cards.
+
+	  This driver is currently only useful if you're also using
+	  the nouveau driver.
+
+config DRM_I2C_SIL164
+	tristate "Silicon Image sil164 TMDS transmitter"
+	default m if DRM_NOUVEAU
+	help
+	  Support for sil164 and similar single-link (or dual-link
+	  when used in pairs) TMDS transmitters, used in some nVidia
+	  video cards.
+
+config DRM_I2C_NXP_TDA998X
+	tristate "NXP Semiconductors TDA998X HDMI encoder"
+	default m if DRM_TILCDC
+	help
+	  Support for NXP Semiconductors TDA998X HDMI encoders.
+
+endmenu

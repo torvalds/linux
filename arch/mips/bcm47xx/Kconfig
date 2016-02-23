@@ -1,0 +1,37 @@
+if BCM47XX
+
+config BCM47XX_SSB
+	bool "SSB Support for Broadcom BCM47XX"
+	select SYS_HAS_CPU_BMIPS32_3300
+	select SSB
+	select SSB_HOST_SOC
+	select SSB_DRIVER_MIPS
+	select SSB_DRIVER_EXTIF
+	select SSB_EMBEDDED
+	select SSB_B43_PCI_BRIDGE if PCI
+	select SSB_DRIVER_PCICORE if PCI
+	select SSB_PCICORE_HOSTMODE if PCI
+	select SSB_DRIVER_GPIO
+	default y
+	help
+	 Add support for old Broadcom BCM47xx boards with Sonics Silicon Backplane support.
+
+	 This will generate an image with support for SSB and MIPS32 R1 instruction set.
+
+config BCM47XX_BCMA
+	bool "BCMA Support for Broadcom BCM47XX"
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_HIGHMEM
+	select CPU_MIPSR2_IRQ_VI
+	select BCMA
+	select BCMA_HOST_SOC
+	select BCMA_DRIVER_MIPS
+	select BCMA_DRIVER_PCI_HOSTMODE if PCI
+	select BCMA_DRIVER_GPIO
+	default y
+	help
+	 Add support for new Broadcom BCM47xx boards with Broadcom specific Advanced Microcontroller Bus.
+
+	 This will generate an image with support for BCMA and MIPS32 R2 instruction set.
+
+endif

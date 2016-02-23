@@ -1,0 +1,189 @@
+What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/add_target
+Date:		January 2, 2006
+KernelVersion:	2.6.15
+Contact:	linux-rdma@vger.kernel.org
+Description:	Interface for making ib_srp connect to a new target.
+		One can request ib_srp to connect to a new target by writing
+		a comma-separated list of login parameters to this sysfs
+		attribute. The supported parameters are:
+		* id_ext, a 16-digit hexadecimal number specifying the eight
+		  byte identifier extension in the 16-byte SRP target port
+		  identifier. The target port identifier is sent by ib_srp
+		  to the target in the SRP_LOGIN_REQ request.
+		* ioc_guid, a 16-digit hexadecimal number specifying the eight
+		  byte I/O controller GUID portion of the 16-byte target port
+		  identifier.
+		* dgid, a 32-digit hexadecimal number specifying the
+		  destination GID.
+		* pkey, a four-digit hexadecimal number specifying the
+		  InfiniBand partition key.
+		* service_id, a 16-digit hexadecimal number specifying the
+		  InfiniBand service ID used to establish communication with
+		  the SRP target. How to find out the value of the service ID
+		  is specified in the documentation of the SRP target.
+		* max_sect, a decimal number specifying the maximum number of
+		  512-byte sectors to be transferred via a single SCSI command.
+		* max_cmd_per_lun, a decimal number specifying the maximum
+		  number of outstanding commands for a single LUN.
+		* io_class, a hexadecimal number specifying the SRP I/O class.
+		  Must be either 0xff00 (rev 10) or 0x0100 (rev 16a). The I/O
+		  class defines the format of the SRP initiator and target
+		  port identifiers.
+		* initiator_ext, a 16-digit hexadecimal number specifying the
+		  identifier extension portion of the SRP initiator port
+		  identifier. This data is sent by the initiator to the target
+		  in the SRP_LOGIN_REQ request.
+		* cmd_sg_entries, a number in the range 1..255 that specifies
+		  the maximum number of data buffer descriptors stored in the
+		  SRP_CMD information unit itself. With allow_ext_sg=0 the
+		  parameter cmd_sg_entries defines the maximum S/G list length
+		  for a single SRP_CMD, and commands whose S/G list length
+		  exceeds this limit after S/G list collapsing will fail.
+		* allow_ext_sg, whether ib_srp is allowed to include a partial
+		  memory descriptor list in an SRP_CMD instead of the entire
+		  list. If a partial memory descriptor list has been included
+		  in an SRP_CMD the remaining memory descriptors are
+		  communicated from initiator to target via an additional RDMA
+		  transfer. Setting allow_ext_sg to 1 increases the maximum
+		  amount of data that can be transferred between initiator and
+		  target via a single SCSI command. Since not all SRP target
+		  implementations support partial memory descriptor lists the
+		  default value for this option is 0.
+		* sg_tablesize, a number in the range 1..2048 specifying the
+		  maximum S/G list length the SCSI layer is allowed to pass to
+		  ib_srp. Specifying a value that exceeds cmd_sg_entries is
+		  only safe with partial memory descriptor list support enabled
+		  (allow_ext_sg=1).
+		* comp_vector, a number in the range 0..n-1 specifying the
+		  MSI-X completion vector of the first RDMA channel. Some
+		  HCA's allocate multiple (n) MSI-X vectors per HCA port. If
+		  the IRQ affinity masks of these interrupts have been
+		  configured such that each MSI-X interrupt is handled by a
+		  different CPU then the comp_vector parameter can be used to
+		  spread the SRP completion workload over multiple CPU's.
+		* tl_retry_count, a number in the range 2..7 specifying the
+		  IB RC retry count.
+		* queue_size, the maximum number of commands that the
+		  initiator is allowed to queue per SCSI host. The default
+		  value for this parameter is 62. The lowest supported value
+		  is 2.
+
+What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/ibdev
+Date:		January 2, 2006
+KernelVersion:	2.6.15
+Contact:	linux-rdma@vger.kernel.org
+Description:	HCA name (<hca>).
+
+What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/port
+Date:		January 2, 2006
+KernelVersion:	2.6.15
+Contact:	linux-rdma@vger.kernel.org
+Description:	HCA port number (<port_number>).
+
+What:		/sys/class/scsi_host/host<n>/allow_ext_sg
+Date:		May 19, 2011
+KernelVersion:	2.6.39
+Contact:	linux-rdma@vger.kernel.org
+Description:	Whether ib_srp is allowed to include a partial memory
+		descriptor list in an SRP_CMD when communicating with an SRP
+		target.
+
+What:		/sys/class/scsi_host/host<n>/ch_count
+Date:		April 1, 2015
+KernelVersion:	3.19
+Contact:	linux-rdma@vger.kernel.org
+Description:	Number of RDMA channels used for communication with the SRP
+		target.
+
+What:		/sys/class/scsi_host/host<n>/cmd_sg_entries
+Date:		May 19, 2011
+KernelVersion:	2.6.39
+Contact:	linux-rdma@vger.kernel.org
+Description:	Maximum number of data buffer descriptors that may be sent to
+		the target in a single SRP_CMD request.
+
+What:		/sys/class/scsi_host/host<n>/comp_vector
+Date:		September 2, 2013
+KernelVersion:	3.11
+Contact:	linux-rdma@vger.kernel.org
+Description:	Completion vector used for the first RDMA channel.
+
+What:		/sys/class/scsi_host/host<n>/dgid
+Date:		June 17, 2006
+KernelVersion:	2.6.17
+Contact:	linux-rdma@vger.kernel.org
+Description:	InfiniBand destination GID used for communication with the SRP
+		target. Differs from orig_dgid if port redirection has happened.
+
+What:		/sys/class/scsi_host/host<n>/id_ext
+Date:		June 17, 2006
+KernelVersion:	2.6.17
+Contact:	linux-rdma@vger.kernel.org
+Description:	Eight-byte identifier extension portion of the 16-byte target
+		port identifier.
+
+What:		/sys/class/scsi_host/host<n>/ioc_guid
+Date:		June 17, 2006
+KernelVersion:	2.6.17
+Contact:	linux-rdma@vger.kernel.org
+Description:	Eight-byte I/O controller GUID portion of the 16-byte target
+		port identifier.
+
+What:		/sys/class/scsi_host/host<n>/local_ib_device
+Date:		November 29, 2006
+KernelVersion:	2.6.19
+Contact:	linux-rdma@vger.kernel.org
+Description:	Name of the InfiniBand HCA used for communicating with the
+		SRP target.
+
+What:		/sys/class/scsi_host/host<n>/local_ib_port
+Date:		November 29, 2006
+KernelVersion:	2.6.19
+Contact:	linux-rdma@vger.kernel.org
+Description:	Number of the HCA port used for communicating with the
+		SRP target.
+
+What:		/sys/class/scsi_host/host<n>/orig_dgid
+Date:		June 17, 2006
+KernelVersion:	2.6.17
+Contact:	linux-rdma@vger.kernel.org
+Description:	InfiniBand destination GID specified in the parameters
+		written to the add_target sysfs attribute.
+
+What:		/sys/class/scsi_host/host<n>/pkey
+Date:		June 17, 2006
+KernelVersion:	2.6.17
+Contact:	linux-rdma@vger.kernel.org
+Description:	A 16-bit number representing the InfiniBand partition key used
+		for communication with the SRP target.
+
+What:		/sys/class/scsi_host/host<n>/req_lim
+Date:		October 20, 2010
+KernelVersion:	2.6.36
+Contact:	linux-rdma@vger.kernel.org
+Description:	Number of requests ib_srp can send to the target before it has
+		to wait for more credits. For more information see also the
+		SRP credit algorithm in the SRP specification.
+
+What:		/sys/class/scsi_host/host<n>/service_id
+Date:		June 17, 2006
+KernelVersion:	2.6.17
+Contact:	linux-rdma@vger.kernel.org
+Description:	InfiniBand service ID used for establishing communication with
+		the SRP	target.
+
+What:		/sys/class/scsi_host/host<n>/sgid
+Date:		February 1, 2014
+KernelVersion:	3.13
+Contact:	linux-rdma@vger.kernel.org
+Description:	InfiniBand GID of the source port used for communication with
+		the SRP target.
+
+What:		/sys/class/scsi_host/host<n>/zero_req_lim
+Date:		September 20, 2006
+KernelVersion:	2.6.18
+Contact:	linux-rdma@vger.kernel.org
+Description:	Number of times the initiator had to wait before sending a
+		request to the target because it ran out of credits. For more
+		information see also the SRP credit algorithm in the SRP
+		specification.

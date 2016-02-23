@@ -1,0 +1,31 @@
+* Clock bindings for Freescale i.MX6 Quad
+
+Required properties:
+- compatible: Should be "fsl,imx6q-ccm"
+- reg: Address and length of the register set
+- interrupts: Should contain CCM interrupt
+- #clock-cells: Should be <1>
+
+The clock consumer should specify the desired clock by having the clock
+ID in its "clocks" phandle cell.  See include/dt-bindings/clock/imx6qdl-clock.h
+for the full list of i.MX6 Quad and DualLite clock IDs.
+
+Examples:
+
+#include <dt-bindings/clock/imx6qdl-clock.h>
+
+clks: ccm@020c4000 {
+	compatible = "fsl,imx6q-ccm";
+	reg = <0x020c4000 0x4000>;
+	interrupts = <0 87 0x04 0 88 0x04>;
+	#clock-cells = <1>;
+};
+
+uart1: serial@02020000 {
+	compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
+	reg = <0x02020000 0x4000>;
+	interrupts = <0 26 0x04>;
+	clocks = <&clks IMX6QDL_CLK_UART_IPG>, <&clks IMX6QDL_CLK_UART_SERIAL>;
+	clock-names = "ipg", "per";
+	status = "disabled";
+};

@@ -1,0 +1,100 @@
+What:		/sys/class/devfreq/.../
+Date:		September 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		Provide a place in sysfs for the devfreq objects.
+		This allows accessing various devfreq specific variables.
+		The name of devfreq object denoted as ... is same as the
+		name of device using devfreq.
+
+What:		/sys/class/devfreq/.../governor
+Date:		September 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../governor show or set the name of the
+		governor used by the corresponding devfreq object.
+
+What:		/sys/class/devfreq/.../cur_freq
+Date:		September 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../cur_freq shows the current
+		frequency of the corresponding devfreq object. Same as
+		target_freq when get_cur_freq() is not implemented by
+		devfreq driver.
+
+What:		/sys/class/devfreq/.../target_freq
+Date:		September 2012
+Contact:	Rajagopal Venkat <rajagopal.venkat@linaro.org>
+Description:
+		The /sys/class/devfreq/.../target_freq shows the next governor
+		predicted target frequency of the corresponding devfreq object.
+
+What:		/sys/class/devfreq/.../polling_interval
+Date:		September 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../polling_interval shows and sets
+		the requested polling interval of the corresponding devfreq
+		object. The values are represented in ms. If the value is
+		less than 1 jiffy, it is considered to be 0, which means
+		no polling. This value is meaningless if the governor is
+		not polling; thus. If the governor is not using
+		devfreq-provided central polling
+		(/sys/class/devfreq/.../central_polling is 0), this value
+		may be useless.
+
+What:		/sys/class/devfreq/.../trans_stat
+Date:		October 2012
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Descrtiption:
+		This ABI shows the statistics of devfreq behavior on a
+		specific device. It shows the time spent in each state and
+		the number of transitions between states.
+		In order to activate this ABI, the devfreq target device
+		driver should provide the list of available frequencies
+		with its profile.
+
+What:		/sys/class/devfreq/.../userspace/set_freq
+Date:		September 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../userspace/set_freq shows and
+		sets the requested frequency for the devfreq object if
+		userspace governor is in effect.
+
+What:		/sys/class/devfreq/.../available_frequencies
+Date:		October 2012
+Contact:	Nishanth Menon <nm@ti.com>
+Description:
+		The /sys/class/devfreq/.../available_frequencies shows
+		the available frequencies of the corresponding devfreq object.
+		This is a snapshot of available frequencies and not limited
+		by the min/max frequency restrictions.
+
+What:		/sys/class/devfreq/.../available_governors
+Date:		October 2012
+Contact:	Nishanth Menon <nm@ti.com>
+Description:
+		The /sys/class/devfreq/.../available_governors shows
+		currently available governors in the system.
+
+What:		/sys/class/devfreq/.../min_freq
+Date:		January 2013
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../min_freq shows and stores
+		the minimum frequency requested by users. It is 0 if
+		the user does not care. min_freq overrides the
+		frequency requested by governors.
+
+What:		/sys/class/devfreq/.../max_freq
+Date:		January 2013
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../max_freq shows and stores
+		the maximum frequency requested by users. It is 0 if
+		the user does not care. max_freq overrides the
+		frequency requested by governors and min_freq.
+		The max_freq overrides min_freq because max_freq may be
+		used to throttle devices to avoid overheating.

@@ -1,0 +1,72 @@
+Renesas MSIOF spi controller
+
+Required properties:
+- compatible           : "renesas,msiof-<soctype>" for SoCs,
+			 "renesas,sh-msiof" for SuperH, or
+			 "renesas,sh-mobile-msiof" for SH Mobile series.
+			 Examples with soctypes are:
+			 "renesas,msiof-r8a7790" (R-Car H2)
+			 "renesas,msiof-r8a7791" (R-Car M2-W)
+			 "renesas,msiof-r8a7792" (R-Car V2H)
+			 "renesas,msiof-r8a7793" (R-Car M2-N)
+			 "renesas,msiof-r8a7794" (R-Car E2)
+			 "renesas,msiof-sh73a0" (SH-Mobile AG5)
+- reg                  : A list of offsets and lengths of the register sets for
+			 the device.
+			 If only one register set is present, it is to be used
+			 by both the CPU and the DMA engine.
+			 If two register sets are present, the first is to be
+			 used by the CPU, and the second is to be used by the
+			 DMA engine.
+- interrupt-parent     : The phandle for the interrupt controller that
+			 services interrupts for this device
+- interrupts           : Interrupt specifier
+- #address-cells       : Must be <1>
+- #size-cells          : Must be <0>
+
+Optional properties:
+- clocks               : Must contain a reference to the functional clock.
+- num-cs               : Total number of chip-selects (default is 1)
+- dmas                 : Must contain a list of two references to DMA
+			 specifiers, one for transmission, and one for
+			 reception.
+- dma-names            : Must contain a list of two DMA names, "tx" and "rx".
+- renesas,dtdl         : delay sync signal (setup) in transmit mode.
+			 Must contain one of the following values:
+			 0   (no bit delay)
+			 50  (0.5-clock-cycle delay)
+			 100 (1-clock-cycle delay)
+			 150 (1.5-clock-cycle delay)
+			 200 (2-clock-cycle delay)
+
+- renesas,syncdl       : delay sync signal (hold) in transmit mode.
+			 Must contain one of the following values:
+			 0   (no bit delay)
+			 50  (0.5-clock-cycle delay)
+			 100 (1-clock-cycle delay)
+			 150 (1.5-clock-cycle delay)
+			 200 (2-clock-cycle delay)
+			 300 (3-clock-cycle delay)
+
+Optional properties, deprecated for soctype-specific bindings:
+- renesas,tx-fifo-size : Overrides the default tx fifo size given in words
+			 (default is 64)
+- renesas,rx-fifo-size : Overrides the default rx fifo size given in words
+			 (default is 64)
+
+Pinctrl properties might be needed, too.  See
+Documentation/devicetree/bindings/pinctrl/renesas,*.
+
+Example:
+
+	msiof0: spi@e6e20000 {
+		compatible = "renesas,msiof-r8a7791";
+		reg = <0 0xe6e20000 0 0x0064>;
+		interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7791_CLK_MSIOF0>;
+		dmas = <&dmac0 0x51>, <&dmac0 0x52>;
+		dma-names = "tx", "rx";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};

@@ -1,0 +1,49 @@
+# UAPI Header export list
+include include/uapi/asm-generic/Kbuild.asm
+
+generic-y += kvm_para.h
+
+header-y += auxvec.h
+header-y += bitsperlong.h
+header-y += break.h
+header-y += byteorder.h
+header-y += cmpxchg.h
+header-y += errno.h
+header-y += fcntl.h
+header-y += fpu.h
+header-y += gcc_intrin.h
+header-y += ia64regs.h
+header-y += intel_intrin.h
+header-y += intrinsics.h
+header-y += ioctl.h
+header-y += ioctls.h
+header-y += ipcbuf.h
+header-y += kvm_para.h
+header-y += mman.h
+header-y += msgbuf.h
+header-y += param.h
+header-y += perfmon.h
+header-y += perfmon_default_smpl.h
+header-y += poll.h
+header-y += posix_types.h
+header-y += ptrace.h
+header-y += ptrace_offsets.h
+header-y += resource.h
+header-y += rse.h
+header-y += sembuf.h
+header-y += setup.h
+header-y += shmbuf.h
+header-y += sigcontext.h
+header-y += siginfo.h
+header-y += signal.h
+header-y += socket.h
+header-y += sockios.h
+header-y += stat.h
+header-y += statfs.h
+header-y += swab.h
+header-y += termbits.h
+header-y += termios.h
+header-y += types.h
+header-y += ucontext.h
+header-y += unistd.h
+header-y += ustack.h

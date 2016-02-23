@@ -1,0 +1,648 @@
+#
+# Architectures that offer an FUNCTION_TRACER implementation should
+#  select HAVE_FUNCTION_TRACER:
+#
+
+config USER_STACKTRACE_SUPPORT
+	bool
+
+config NOP_TRACER
+	bool
+
+config HAVE_FTRACE_NMI_ENTER
+	bool
+	help
+	  See Documentation/trace/ftrace-design.txt
+
+config HAVE_FUNCTION_TRACER
+	bool
+	help
+	  See Documentation/trace/ftrace-design.txt
+
+config HAVE_FUNCTION_GRAPH_TRACER
+	bool
+	help
+	  See Documentation/trace/ftrace-design.txt
+
+config HAVE_FUNCTION_GRAPH_FP_TEST
+	bool
+	help
+	  See Documentation/trace/ftrace-design.txt
+
+config HAVE_DYNAMIC_FTRACE
+	bool
+	help
+	  See Documentation/trace/ftrace-design.txt
+
+config HAVE_DYNAMIC_FTRACE_WITH_REGS
+	bool
+
+config HAVE_FTRACE_MCOUNT_RECORD
+	bool
+	help
+	  See Documentation/trace/ftrace-design.txt
+
+config HAVE_SYSCALL_TRACEPOINTS
+	bool
+	help
+	  See Documentation/trace/ftrace-design.txt
+
+config HAVE_FENTRY
+	bool
+	help
+	  Arch supports the gcc options -pg with -mfentry
+
+config HAVE_C_RECORDMCOUNT
+	bool
+	help
+	  C version of recordmcount available?
+
+config TRACER_MAX_TRACE
+	bool
+
+config TRACE_CLOCK
+	bool
+
+config RING_BUFFER
+	bool
+	select TRACE_CLOCK
+	select IRQ_WORK
+
+config FTRACE_NMI_ENTER
+       bool
+       depends on HAVE_FTRACE_NMI_ENTER
+       default y
+
+config EVENT_TRACING
+	select CONTEXT_SWITCH_TRACER
+	bool
+
+config CONTEXT_SWITCH_TRACER
+	bool
+
+config RING_BUFFER_ALLOW_SWAP
+	bool
+	help
+	 Allow the use of ring_buffer_swap_cpu.
+	 Adds a very slight overhead to tracing when enabled.
+
+# All tracer options should select GENERIC_TRACER. For those options that are
+# enabled by all tracers (context switch and event tracer) they select TRACING.
+# This allows those options to appear when no other tracer is selected. But the
+# options do not appear when something else selects it. We need the two options
+# GENERIC_TRACER and TRACING to avoid circular dependencies to accomplish the
+# hiding of the automatic options.
+
+config TRACING
+	bool
+	select DEBUG_FS
+	select RING_BUFFER
+	select STACKTRACE if STACKTRACE_SUPPORT
+	select TRACEPOINTS
+	select NOP_TRACER
+	select BINARY_PRINTF
+	select EVENT_TRACING
+	select TRACE_CLOCK
+
+config GENERIC_TRACER
+	bool
+	select TRACING
+
+#
+# Minimum requirements an architecture has to meet for us to
+# be able to offer generic tracing facilities:
+#
+config TRACING_SUPPORT
+	bool
+	# PPC32 has no irqflags tracing support, but it can use most of the
+	# tracers anyway, they were tested to build and work. Note that new
+	# exceptions to this list aren't welcomed, better implement the
+	# irqflags tracing for your architecture.
+	depends on TRACE_IRQFLAGS_SUPPORT || PPC32
+	depends on STACKTRACE_SUPPORT
+	default y
+
+if TRACING_SUPPORT
+
+menuconfig FTRACE
+	bool "Tracers"
+	default y if DEBUG_KERNEL
+	help
+	  Enable the kernel tracing infrastructure.
+
+if FTRACE
+
+config FUNCTION_TRACER
+	bool "Kernel Function Tracer"
+	depends on HAVE_FUNCTION_TRACER
+	select KALLSYMS
+	select GENERIC_TRACER
+	select CONTEXT_SWITCH_TRACER
+	help
+	  Enable the kernel to trace every kernel function. This is done
+	  by using a compiler feature to insert a small, 5-byte No-Operation
+	  instruction at the beginning of every kernel function, which NOP
+	  sequence is then dynamically patched into a tracer call when
+	  tracing is enabled by the administrator. If it's runtime disabled
+	  (the bootup default), then the overhead of the instructions is very
+	  small and not measurable even in micro-benchmarks.
+
+config FUNCTION_GRAPH_TRACER
+	bool "Kernel Function Graph Tracer"
+	depends on HAVE_FUNCTION_GRAPH_TRACER
+	depends on FUNCTION_TRACER
+	depends on !X86_32 || !CC_OPTIMIZE_FOR_SIZE
+	default y
+	help
+	  Enable the kernel to trace a function at both its return
+	  and its entry.
+	  Its first purpose is to trace the duration of functions and
+	  draw a call graph for each thread with some information like
+	  the return value. This is done by setting the current return
+	  address on the current task structure into a stack of calls.
+
+
+config IRQSOFF_TRACER
+	bool "Interrupts-off Latency Tracer"
+	default n
+	depends on TRACE_IRQFLAGS_SUPPORT
+	depends on !ARCH_USES_GETTIMEOFFSET
+	select TRACE_IRQFLAGS
+	select GENERIC_TRACER
+	select TRACER_MAX_TRACE
+	select RING_BUFFER_ALLOW_SWAP
+	select TRACER_SNAPSHOT
+	select TRACER_SNAPSHOT_PER_CPU_SWAP
+	help
+	  This option measures the time spent in irqs-off critical
+	  sections, with microsecond accuracy.
+
+	  The default measurement method is a maximum search, which is
+	  disabled by default and can be runtime (re-)started
+	  via:
+
+	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
+
+	  (Note that kernel size and overhead increase with this option
+	  enabled. This option and the preempt-off timing option can be
+	  used together or separately.)
+
+config PREEMPT_TRACER
+	bool "Preemption-off Latency Tracer"
+	default n
+	depends on !ARCH_USES_GETTIMEOFFSET
+	depends on PREEMPT
+	select GENERIC_TRACER
+	select TRACER_MAX_TRACE
+	select RING_BUFFER_ALLOW_SWAP
+	select TRACER_SNAPSHOT
+	select TRACER_SNAPSHOT_PER_CPU_SWAP
+	help
+	  This option measures the time spent in preemption-off critical
+	  sections, with microsecond accuracy.
+
+	  The default measurement method is a maximum search, which is
+	  disabled by default and can be runtime (re-)started
+	  via:
+
+	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
+
+	  (Note that kernel size and overhead increase with this option
+	  enabled. This option and the irqs-off timing option can be
+	  used together or separately.)
+
+config SCHED_TRACER
+	bool "Scheduling Latency Tracer"
+	select GENERIC_TRACER
+	select CONTEXT_SWITCH_TRACER
+	select TRACER_MAX_TRACE
+	select TRACER_SNAPSHOT
+	help
+	  This tracer tracks the latency of the highest priority task
+	  to be scheduled in, starting from the point it has woken up.
+
+config ENABLE_DEFAULT_TRACERS
+	bool "Trace process context switches and events"
+	depends on !GENERIC_TRACER
+	select TRACING
+	help
+	  This tracer hooks to various trace points in the kernel,
+	  allowing the user to pick and choose which trace point they
+	  want to trace. It also includes the sched_switch tracer plugin.
+
+config FTRACE_SYSCALLS
+	bool "Trace syscalls"
+	depends on HAVE_SYSCALL_TRACEPOINTS
+	select GENERIC_TRACER
+	select KALLSYMS
+	help
+	  Basic tracer to catch the syscall entry and exit events.
+
+config TRACER_SNAPSHOT
+	bool "Create a snapshot trace buffer"
+	select TRACER_MAX_TRACE
+	help
+	  Allow tracing users to take snapshot of the current buffer using the
+	  ftrace interface, e.g.:
+
+	      echo 1 > /sys/kernel/debug/tracing/snapshot
+	      cat snapshot
+
+config TRACER_SNAPSHOT_PER_CPU_SWAP
+        bool "Allow snapshot to swap per CPU"
+	depends on TRACER_SNAPSHOT
+	select RING_BUFFER_ALLOW_SWAP
+	help
+	  Allow doing a snapshot of a single CPU buffer instead of a
+	  full swap (all buffers). If this is set, then the following is
+	  allowed:
+
+	      echo 1 > /sys/kernel/debug/tracing/per_cpu/cpu2/snapshot
+
+	  After which, only the tracing buffer for CPU 2 was swapped with
+	  the main tracing buffer, and the other CPU buffers remain the same.
+
+	  When this is enabled, this adds a little more overhead to the
+	  trace recording, as it needs to add some checks to synchronize
+	  recording with swaps. But this does not affect the performance
+	  of the overall system. This is enabled by default when the preempt
+	  or irq latency tracers are enabled, as those need to swap as well
+	  and already adds the overhead (plus a lot more).
+
+config TRACE_BRANCH_PROFILING
+	bool
+	select GENERIC_TRACER
+
+choice
+	prompt "Branch Profiling"
+	default BRANCH_PROFILE_NONE
+	help
+	 The branch profiling is a software profiler. It will add hooks
+	 into the C conditionals to test which path a branch takes.
+
+	 The likely/unlikely profiler only looks at the conditions that
+	 are annotated with a likely or unlikely macro.
+
+	 The "all branch" profiler will profile every if-statement in the
+	 kernel. This profiler will also enable the likely/unlikely
+	 profiler.
+
+	 Either of the above profilers adds a bit of overhead to the system.
+	 If unsure, choose "No branch profiling".
+
+config BRANCH_PROFILE_NONE
+	bool "No branch profiling"
+	help
+	  No branch profiling. Branch profiling adds a bit of overhead.
+	  Only enable it if you want to analyse the branching behavior.
+	  Otherwise keep it disabled.
+
+config PROFILE_ANNOTATED_BRANCHES
+	bool "Trace likely/unlikely profiler"
+	select TRACE_BRANCH_PROFILING
+	help
+	  This tracer profiles all likely and unlikely macros
+	  in the kernel. It will display the results in:
+
+	  /sys/kernel/debug/tracing/trace_stat/branch_annotated
+
+	  Note: this will add a significant overhead; only turn this
+	  on if you need to profile the system's use of these macros.
+
+config PROFILE_ALL_BRANCHES
+	bool "Profile all if conditionals"
+	select TRACE_BRANCH_PROFILING
+	help
+	  This tracer profiles all branch conditions. Every if ()
+	  taken in the kernel is recorded whether it hit or miss.
+	  The results will be displayed in:
+
+	  /sys/kernel/debug/tracing/trace_stat/branch_all
+
+	  This option also enables the likely/unlikely profiler.
+
+	  This configuration, when enabled, will impose a great overhead
+	  on the system. This should only be enabled when the system
+	  is to be analyzed in much detail.
+endchoice
+
+config TRACING_BRANCHES
+	bool
+	help
+	  Selected by tracers that will trace the likely and unlikely
+	  conditions. This prevents the tracers themselves from being
+	  profiled. Profiling the tracing infrastructure can only happen
+	  when the likelys and unlikelys are not being traced.
+
+config BRANCH_TRACER
+	bool "Trace likely/unlikely instances"
+	depends on TRACE_BRANCH_PROFILING
+	select TRACING_BRANCHES
+	help
+	  This traces the events of likely and unlikely condition
+	  calls in the kernel.  The difference between this and the
+	  "Trace likely/unlikely profiler" is that this is not a
+	  histogram of the callers, but actually places the calling
+	  events into a running trace buffer to see when and where the
+	  events happened, as well as their results.
+
+	  Say N if unsure.
+
+config STACK_TRACER
+	bool "Trace max stack"
+	depends on HAVE_FUNCTION_TRACER
+	select FUNCTION_TRACER
+	select STACKTRACE
+	select KALLSYMS
+	help
+	  This special tracer records the maximum stack footprint of the
+	  kernel and displays it in /sys/kernel/debug/tracing/stack_trace.
+
+	  This tracer works by hooking into every function call that the
+	  kernel executes, and keeping a maximum stack depth value and
+	  stack-trace saved.  If this is configured with DYNAMIC_FTRACE
+	  then it will not have any overhead while the stack tracer
+	  is disabled.
+
+	  To enable the stack tracer on bootup, pass in 'stacktrace'
+	  on the kernel command line.
+
+	  The stack tracer can also be enabled or disabled via the
+	  sysctl kernel.stack_tracer_enabled
+
+	  Say N if unsure.
+
+config BLK_DEV_IO_TRACE
+	bool "Support for tracing block IO actions"
+	depends on SYSFS
+	depends on BLOCK
+	select RELAY
+	select DEBUG_FS
+	select TRACEPOINTS
+	select GENERIC_TRACER
+	select STACKTRACE
+	help
+	  Say Y here if you want to be able to trace the block layer actions
+	  on a given queue. Tracing allows you to see any traffic happening
+	  on a block device queue. For more information (and the userspace
+	  support tools needed), fetch the blktrace tools from:
+
+	  git://git.kernel.dk/blktrace.git
+
+	  Tracing also is possible using the ftrace interface, e.g.:
+
+	    echo 1 > /sys/block/sda/sda1/trace/enable
+	    echo blk > /sys/kernel/debug/tracing/current_tracer
+	    cat /sys/kernel/debug/tracing/trace_pipe
+
+	  If unsure, say N.
+
+config KPROBE_EVENT
+	depends on KPROBES
+	depends on HAVE_REGS_AND_STACK_ACCESS_API
+	bool "Enable kprobes-based dynamic events"
+	select TRACING
+	select PROBE_EVENTS
+	default y
+	help
+	  This allows the user to add tracing events (similar to tracepoints)
+	  on the fly via the ftrace interface. See
+	  Documentation/trace/kprobetrace.txt for more details.
+
+	  Those events can be inserted wherever kprobes can probe, and record
+	  various register and memory values.
+
+	  This option is also required by perf-probe subcommand of perf tools.
+	  If you want to use perf tools, this option is strongly recommended.
+
+config UPROBE_EVENT
+	bool "Enable uprobes-based dynamic events"
+	depends on ARCH_SUPPORTS_UPROBES
+	depends on MMU
+	depends on PERF_EVENTS
+	select UPROBES
+	select PROBE_EVENTS
+	select TRACING
+	default n
+	help
+	  This allows the user to add tracing events on top of userspace
+	  dynamic events (similar to tracepoints) on the fly via the trace
+	  events interface. Those events can be inserted wherever uprobes
+	  can probe, and record various registers.
+	  This option is required if you plan to use perf-probe subcommand
+	  of perf tools on user space applications.
+
+config BPF_EVENTS
+	depends on BPF_SYSCALL
+	depends on (KPROBE_EVENT || UPROBE_EVENT) && PERF_EVENTS
+	bool
+	default y
+	help
+	  This allows the user to attach BPF programs to kprobe events.
+
+config PROBE_EVENTS
+	def_bool n
+
+config DYNAMIC_FTRACE
+	bool "enable/disable function tracing dynamically"
+	depends on FUNCTION_TRACER
+	depends on HAVE_DYNAMIC_FTRACE
+	default y
+	help
+	  This option will modify all the calls to function tracing
+	  dynamically (will patch them out of the binary image and
+	  replace them with a No-Op instruction) on boot up. During
+	  compile time, a table is made of all the locations that ftrace
+	  can function trace, and this table is linked into the kernel
+	  image. When this is enabled, functions can be individually
+	  enabled, and the functions not enabled will not affect
+	  performance of the system.
+
+	  See the files in /sys/kernel/debug/tracing:
+	    available_filter_functions
+	    set_ftrace_filter
+	    set_ftrace_notrace
+
+	  This way a CONFIG_FUNCTION_TRACER kernel is slightly larger, but
+	  otherwise has native performance as long as no tracing is active.
+
+config DYNAMIC_FTRACE_WITH_REGS
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_DYNAMIC_FTRACE_WITH_REGS
+
+config FUNCTION_PROFILER
+	bool "Kernel function profiler"
+	depends on FUNCTION_TRACER
+	default n
+	help
+	  This option enables the kernel function profiler. A file is created
+	  in debugfs called function_profile_enabled which defaults to zero.
+	  When a 1 is echoed into this file profiling begins, and when a
+	  zero is entered, profiling stops. A "functions" file is created in
+	  the trace_stats directory; this file shows the list of functions that
+	  have been hit and their counters.
+
+	  If in doubt, say N.
+
+config FTRACE_MCOUNT_RECORD
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_FTRACE_MCOUNT_RECORD
+
+config FTRACE_SELFTEST
+	bool
+
+config FTRACE_STARTUP_TEST
+	bool "Perform a startup test on ftrace"
+	depends on GENERIC_TRACER
+	select FTRACE_SELFTEST
+	help
+	  This option performs a series of startup tests on ftrace. On bootup
+	  a series of tests are made to verify that the tracer is
+	  functioning properly. It will do tests on all the configured
+	  tracers of ftrace.
+
+config EVENT_TRACE_TEST_SYSCALLS
+	bool "Run selftest on syscall events"
+	depends on FTRACE_STARTUP_TEST
+	help
+	 This option will also enable testing every syscall event.
+	 It only enables the event and disables it and runs various loads
+	 with the event enabled. This adds a bit more time for kernel boot
+	 up since it runs this on every system call defined.
+
+	 TBD - enable a way to actually call the syscalls as we test their
+	       events
+
+config MMIOTRACE
+	bool "Memory mapped IO tracing"
+	depends on HAVE_MMIOTRACE_SUPPORT && PCI
+	select GENERIC_TRACER
+	help
+	  Mmiotrace traces Memory Mapped I/O access and is meant for
+	  debugging and reverse engineering. It is called from the ioremap
+	  implementation and works via page faults. Tracing is disabled by
+	  default and can be enabled at run-time.
+
+	  See Documentation/trace/mmiotrace.txt.
+	  If you are not helping to develop drivers, say N.
+
+config MMIOTRACE_TEST
+	tristate "Test module for mmiotrace"
+	depends on MMIOTRACE && m
+	help
+	  This is a dumb module for testing mmiotrace. It is very dangerous
+	  as it will write garbage to IO memory starting at a given address.
+	  However, it should be safe to use on e.g. unused portion of VRAM.
+
+	  Say N, unless you absolutely know what you are doing.
+
+config TRACEPOINT_BENCHMARK
+        bool "Add tracepoint that benchmarks tracepoints"
+	help
+	 This option creates the tracepoint "benchmark:benchmark_event".
+	 When the tracepoint is enabled, it kicks off a kernel thread that
+	 goes into an infinite loop (calling cond_sched() to let other tasks
+	 run), and calls the tracepoint. Each iteration will record the time
+	 it took to write to the tracepoint and the next iteration that
+	 data will be passed to the tracepoint itself. That is, the tracepoint
+	 will report the time it took to do the previous tracepoint.
+	 The string written to the tracepoint is a static string of 128 bytes
+	 to keep the time the same. The initial string is simply a write of
+	 "START". The second string records the cold cache time of the first
+	 write which is not added to the rest of the calculations.
+
+	 As it is a tight loop, it benchmarks as hot cache. That's fine because
+	 we care most about hot paths that are probably in cache already.
+
+	 An example of the output:
+
+	      START
+	      first=3672 [COLD CACHED]
+	      last=632 first=3672 max=632 min=632 avg=316 std=446 std^2=199712
+	      last=278 first=3672 max=632 min=278 avg=303 std=316 std^2=100337
+	      last=277 first=3672 max=632 min=277 avg=296 std=258 std^2=67064
+	      last=273 first=3672 max=632 min=273 avg=292 std=224 std^2=50411
+	      last=273 first=3672 max=632 min=273 avg=288 std=200 std^2=40389
+	      last=281 first=3672 max=632 min=273 avg=287 std=183 std^2=33666
+
+
+config RING_BUFFER_BENCHMARK
+	tristate "Ring buffer benchmark stress tester"
+	depends on RING_BUFFER
+	help
+	  This option creates a test to stress the ring buffer and benchmark it.
+	  It creates its own ring buffer such that it will not interfere with
+	  any other users of the ring buffer (such as ftrace). It then creates
+	  a producer and consumer that will run for 10 seconds and sleep for
+	  10 seconds. Each interval it will print out the number of events
+	  it recorded and give a rough estimate of how long each iteration took.
+
+	  It does not disable interrupts or raise its priority, so it may be
+	  affected by processes that are running.
+
+	  If unsure, say N.
+
+config RING_BUFFER_STARTUP_TEST
+       bool "Ring buffer startup self test"
+       depends on RING_BUFFER
+       help
+         Run a simple self test on the ring buffer on boot up. Late in the
+	 kernel boot sequence, the test will start that kicks off
+	 a thread per cpu. Each thread will write various size events
+	 into the ring buffer. Another thread is created to send IPIs
+	 to each of the threads, where the IPI handler will also write
+	 to the ring buffer, to test/stress the nesting ability.
+	 If any anomalies are discovered, a warning will be displayed
+	 and all ring buffers will be disabled.
+
+	 The test runs for 10 seconds. This will slow your boot time
+	 by at least 10 more seconds.
+
+	 At the end of the test, statics and more checks are done.
+	 It will output the stats of each per cpu buffer. What
+	 was written, the sizes, what was read, what was lost, and
+	 other similar details.
+
+	 If unsure, say N
+
+config TRACE_ENUM_MAP_FILE
+       bool "Show enum mappings for trace events"
+       depends on TRACING
+       help
+        The "print fmt" of the trace events will show the enum names instead
+	of their values. This can cause problems for user space tools that
+	use this string to parse the raw data as user space does not know
+	how to convert the string to its value.
+
+	To fix this, there's a special macro in the kernel that can be used
+	to convert the enum into its value. If this macro is used, then the
+	print fmt strings will have the enums converted to their values.
+
+	If something does not get converted properly, this option can be
+	used to show what enums the kernel tried to convert.
+
+	This option is for debugging the enum conversions. A file is created
+	in the tracing directory called "enum_map" that will show the enum
+	names matched with their values and what trace event system they
+	belong too.
+
+	Normally, the mapping of the strings to values will be freed after
+	boot up or module load. With this option, they will not be freed, as
+	they are needed for the "enum_map" file. Enabling this option will
+	increase the memory footprint of the running kernel.
+
+	If unsure, say N
+
+config TRACING_EVENTS_GPIO
+	bool "Trace gpio events"
+	depends on GPIOLIB
+	default y
+	help
+	  Enable tracing events for gpio subsystem
+
+endif # FTRACE
+
+endif # TRACING_SUPPORT
+

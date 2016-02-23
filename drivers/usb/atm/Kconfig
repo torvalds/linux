@@ -1,0 +1,68 @@
+#
+# USB/ATM DSL configuration
+#
+
+menuconfig USB_ATM
+	tristate "USB DSL modem support"
+	depends on ATM
+	select CRC32
+	default n
+	help
+	  Say Y here if you want to connect a USB Digital Subscriber Line (DSL)
+	  modem to your computer's USB port.  You will then need to choose your
+	  modem from the list below.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbatm.
+
+if USB_ATM
+
+config USB_SPEEDTOUCH
+	tristate "Speedtouch USB support"
+	select FW_LOADER
+	help
+	  Say Y here if you have an SpeedTouch USB or SpeedTouch 330
+	  modem.  In order to use your modem you will need to install the 
+	  two parts of the firmware, extracted by the user space tools; see
+	  <http://www.linux-usb.org/SpeedTouch/> for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called speedtch.
+
+config USB_CXACRU
+	tristate "Conexant AccessRunner USB support"
+	select FW_LOADER
+	help
+	  Say Y here if you have an ADSL USB modem based on the Conexant
+	  AccessRunner chipset.  In order to use your modem you will need to
+	  install the firmware, extracted by the user space tools; see
+	  <http://accessrunner.sourceforge.net/> for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cxacru.
+
+config USB_UEAGLEATM
+	tristate "ADI 930 and eagle USB DSL modem"
+	select FW_LOADER
+	help
+	  Say Y here if you have an ADSL USB modem based on the ADI 930
+	  or eagle chipset. In order to use your modem you will need to
+	  install firmwares and CMV (Command Management Variables); see
+	  <https://gna.org/projects/ueagleatm/> for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ueagle-atm.
+
+config USB_XUSBATM
+	tristate "Other USB DSL modem support"
+	help
+	  Say Y here if you have a DSL USB modem not explicitly supported by
+	  another USB DSL drivers.  In order to use your modem you will need to
+	  pass the vendor ID, product ID, and endpoint numbers for transmission
+	  and reception as module parameters.  You may need to initialize
+	  the modem using a user space utility (a firmware loader for example).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xusbatm.
+
+endif # USB_ATM

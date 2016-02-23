@@ -1,0 +1,14 @@
+config EFS_FS
+	tristate "EFS file system support (read only)"
+	depends on BLOCK
+	help
+	  EFS is an older file system used for non-ISO9660 CD-ROMs and hard
+	  disk partitions by SGI's IRIX operating system (IRIX 6.0 and newer
+	  uses the XFS file system for hard disk partitions however).
+
+	  This implementation only offers read-only access. If you don't know
+	  what all this is about, it's safe to say N. For more information
+	  about EFS see its home page at <http://aeschi.ch.eu.org/efs/>.
+
+	  To compile the EFS file system support as a module, choose M here: the
+	  module will be called efs.

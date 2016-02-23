@@ -1,0 +1,38 @@
+* Rockchip specific extensions to the Synopsys Designware Mobile
+  Storage Host Controller
+
+The Synopsys designware mobile storage host controller is used to interface
+a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
+differences between the core Synopsys dw mshc controller properties described
+by synopsys-dw-mshc.txt and the properties used by the Rockchip specific
+extensions to the Synopsys Designware Mobile Storage Host Controller.
+
+Required Properties:
+
+* compatible: should be
+	- "rockchip,rk2928-dw-mshc": for Rockchip RK2928 and following,
+							before RK3288
+	- "rockchip,rk3288-dw-mshc": for Rockchip RK3288
+
+Optional Properties:
+* clocks: from common clock binding: if ciu_drive and ciu_sample are
+  specified in clock-names, should contain handles to these clocks.
+
+* clock-names: Apart from the clock-names described in synopsys-dw-mshc.txt
+  two more clocks "ciu-drive" and "ciu-sample" are supported. They are used
+  to control the clock phases, "ciu-sample" is required for tuning high-
+  speed modes.
+
+* rockchip,default-sample-phase: The default phase to set ciu_sample at
+  probing, low speeds or in case where all phases work at tuning time.
+  If not specified 0 deg will be used.
+
+Example:
+
+	rkdwmmc0@12200000 {
+		compatible = "rockchip,rk3288-dw-mshc";
+		reg = <0x12200000 0x1000>;
+		interrupts = <0 75 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};

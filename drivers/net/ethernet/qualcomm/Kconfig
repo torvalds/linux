@@ -1,0 +1,27 @@
+#
+# Qualcomm network device configuration
+#
+
+config NET_VENDOR_QUALCOMM
+	bool "Qualcomm devices"
+	default y
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Qualcomm cards. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_QUALCOMM
+
+config QCA7000
+	tristate "Qualcomm Atheros QCA7000 support"
+	depends on SPI_MASTER && OF
+	---help---
+	  This SPI protocol driver supports the Qualcomm Atheros QCA7000.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called qcaspi.
+
+endif # NET_VENDOR_QUALCOMM

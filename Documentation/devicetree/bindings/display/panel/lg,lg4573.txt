@@ -1,0 +1,19 @@
+LG LG4573 TFT Liquid Crystal Display with SPI control bus
+
+Required properties:
+  - compatible: "lg,lg4573"
+  - reg: address of the panel on the SPI bus
+
+The panel must obey rules for SPI slave device specified in document [1].
+
+[1]: Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+
+	lcd_panel: display@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "lg,lg4573";
+		spi-max-frequency = <10000000>;
+		reg = <0>;
+	};

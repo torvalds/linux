@@ -1,0 +1,181 @@
+/*
+ * Device Tree Source for UniPhier PH1-sLD8 SoC
+ *
+ * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/include/ "uniphier-common32.dtsi"
+
+/ {
+	compatible = "socionext,ph1-sld8";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+			next-level-cache = <&l2>;
+		};
+	};
+
+	clocks {
+		arm_timer_clk: arm_timer_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <50000000>;
+		};
+
+		uart_clk: uart_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <80000000>;
+		};
+
+		iobus_clk: iobus_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <100000000>;
+		};
+	};
+};
+
+&soc {
+	l2: l2-cache@500c0000 {
+		compatible = "socionext,uniphier-system-cache";
+		reg = <0x500c0000 0x2000>, <0x503c0100 0x4>, <0x506c0000 0x400>;
+		interrupts = <0 174 4>, <0 175 4>;
+		cache-unified;
+		cache-size = <(256 * 1024)>;
+		cache-sets = <256>;
+		cache-line-size = <128>;
+		cache-level = <2>;
+	};
+
+	i2c0: i2c@58400000 {
+		compatible = "socionext,uniphier-i2c";
+		status = "disabled";
+		reg = <0x58400000 0x40>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 41 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c0>;
+		clocks = <&iobus_clk>;
+		clock-frequency = <100000>;
+	};
+
+	i2c1: i2c@58480000 {
+		compatible = "socionext,uniphier-i2c";
+		status = "disabled";
+		reg = <0x58480000 0x40>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 42 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c1>;
+		clocks = <&iobus_clk>;
+		clock-frequency = <100000>;
+	};
+
+	/* chip-internal connection for DMD */
+	i2c2: i2c@58500000 {
+		compatible = "socionext,uniphier-i2c";
+		reg = <0x58500000 0x40>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 43 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c2>;
+		clocks = <&iobus_clk>;
+		clock-frequency = <400000>;
+	};
+
+	i2c3: i2c@58580000 {
+		compatible = "socionext,uniphier-i2c";
+		status = "disabled";
+		reg = <0x58580000 0x40>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 44 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c3>;
+		clocks = <&iobus_clk>;
+		clock-frequency = <100000>;
+	};
+
+	usb0: usb@5a800100 {
+		compatible = "socionext,uniphier-ehci", "generic-ehci";
+		status = "disabled";
+		reg = <0x5a800100 0x100>;
+		interrupts = <0 80 4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb0>;
+	};
+
+	usb1: usb@5a810100 {
+		compatible = "socionext,uniphier-ehci", "generic-ehci";
+		status = "disabled";
+		reg = <0x5a810100 0x100>;
+		interrupts = <0 81 4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb1>;
+	};
+
+	usb2: usb@5a820100 {
+		compatible = "socionext,uniphier-ehci", "generic-ehci";
+		status = "disabled";
+		reg = <0x5a820100 0x100>;
+		interrupts = <0 82 4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb2>;
+	};
+};
+
+&serial3 {
+	interrupts = <0 29 4>;
+};
+
+&pinctrl {
+	compatible = "socionext,ph1-sld8-pinctrl", "syscon";
+};

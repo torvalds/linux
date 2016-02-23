@@ -1,0 +1,47 @@
+CSR SiRFprimaII pinmux controller
+
+Required properties:
+- compatible	: "sirf,prima2-pinctrl"
+- reg		: Address range of the pinctrl registers
+- interrupts    : Interrupts used by every GPIO group
+- gpio-controller : Indicates this device is a GPIO controller
+- interrupt-controller  : Marks the device node as an interrupt controller
+Optional properties:
+- sirf,pullups : if n-th bit of m-th bank is set, set a pullup on GPIO-n of bank m
+- sirf,pulldowns : if n-th bit of m-th bank is set, set a pulldown on GPIO-n of bank m
+
+Please refer to pinctrl-bindings.txt in this directory for details of the common
+pinctrl bindings used by client devices.
+
+SiRFprimaII's pinmux nodes act as a container for an arbitrary number of subnodes.
+Each of these subnodes represents some desired configuration for a group of pins.
+
+Required subnode-properties:
+- sirf,pins : An array of strings. Each string contains the name of a group.
+- sirf,function: A string containing the name of the function to mux to the
+  group.
+
+  Valid values for group and function names can be found from looking at the
+  group and function arrays in driver files:
+  drivers/pinctrl/pinctrl-sirf.c
+
+For example, pinctrl might have subnodes like the following:
+ uart2_pins_a: uart2@0 {
+         uart {
+                 sirf,pins = "uart2grp";
+                 sirf,function = "uart2";
+         };
+ };
+ uart2_noflow_pins_a: uart2@1 {
+         uart {
+                 sirf,pins = "uart2_nostreamctrlgrp";
+                 sirf,function = "uart2_nostreamctrl";
+         };
+ };
+
+For a specific board, if it wants to use uart2 without hardware flow control,
+it can add the following to its board-specific .dts file.
+uart2: uart@0xb0070000 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_noflow_pins_a>;
+}

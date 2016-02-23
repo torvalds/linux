@@ -1,0 +1,273 @@
+What:		/sys/devices/system/cpu/
+Date:		pre-git history
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:
+		A collection of both global and individual CPU attributes
+
+		Individual CPU attributes are contained in subdirectories
+		named by the kernel's logical CPU number, e.g.:
+
+		/sys/devices/system/cpu/cpu#/
+
+What:		/sys/devices/system/cpu/kernel_max
+		/sys/devices/system/cpu/offline
+		/sys/devices/system/cpu/online
+		/sys/devices/system/cpu/possible
+		/sys/devices/system/cpu/present
+Date:		December 2008
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	CPU topology files that describe kernel limits related to
+		hotplug. Briefly:
+
+		kernel_max: the maximum cpu index allowed by the kernel
+		configuration.
+
+		offline: cpus that are not online because they have been
+		HOTPLUGGED off or exceed the limit of cpus allowed by the
+		kernel configuration (kernel_max above).
+
+		online: cpus that are online and being scheduled.
+
+		possible: cpus that have been allocated resources and can be
+		brought online if they are present.
+
+		present: cpus that have been identified as being present in
+		the system.
+
+		See Documentation/cputopology.txt for more information.
+
+
+What:		/sys/devices/system/cpu/probe
+		/sys/devices/system/cpu/release
+Date:		November 2009
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Dynamic addition and removal of CPU's.  This is not hotplug
+		removal, this is meant complete removal/addition of the CPU
+		from the system.
+
+		probe: writes to this file will dynamically add a CPU to the
+		system.  Information written to the file to add CPU's is
+		architecture specific.
+
+		release: writes to this file dynamically remove a CPU from
+		the system.  Information writtento the file to remove CPU's
+		is architecture specific.
+
+What:		/sys/devices/system/cpu/cpu#/node
+Date:		October 2009
+Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Description:	Discover NUMA node a CPU belongs to
+
+		When CONFIG_NUMA is enabled, a symbolic link that points
+		to the corresponding NUMA node directory.
+
+		For example, the following symlink is created for cpu42
+		in NUMA node 2:
+
+		/sys/devices/system/cpu/cpu42/node2 -> ../../node/node2
+
+
+What:		/sys/devices/system/cpu/cpu#/topology/core_id
+		/sys/devices/system/cpu/cpu#/topology/core_siblings
+		/sys/devices/system/cpu/cpu#/topology/core_siblings_list
+		/sys/devices/system/cpu/cpu#/topology/physical_package_id
+		/sys/devices/system/cpu/cpu#/topology/thread_siblings
+		/sys/devices/system/cpu/cpu#/topology/thread_siblings_list
+Date:		December 2008
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	CPU topology files that describe a logical CPU's relationship
+		to other cores and threads in the same physical package.
+
+		One cpu# directory is created per logical CPU in the system,
+		e.g. /sys/devices/system/cpu/cpu42/.
+
+		Briefly, the files above are:
+
+		core_id: the CPU core ID of cpu#. Typically it is the
+		hardware platform's identifier (rather than the kernel's).
+		The actual value is architecture and platform dependent.
+
+		core_siblings: internal kernel map of cpu#'s hardware threads
+		within the same physical_package_id.
+
+		core_siblings_list: human-readable list of the logical CPU
+		numbers within the same physical_package_id as cpu#.
+
+		physical_package_id: physical package id of cpu#. Typically
+		corresponds to a physical socket number, but the actual value
+		is architecture and platform dependent.
+
+		thread_siblings: internel kernel map of cpu#'s hardware
+		threads within the same core as cpu#
+
+		thread_siblings_list: human-readable list of cpu#'s hardware
+		threads within the same core as cpu#
+
+		See Documentation/cputopology.txt for more information.
+
+
+What:		/sys/devices/system/cpu/cpuidle/current_driver
+		/sys/devices/system/cpu/cpuidle/current_governer_ro
+Date:		September 2007
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Discover cpuidle policy and mechanism
+
+		Various CPUs today support multiple idle levels that are
+		differentiated by varying exit latencies and power
+		consumption during idle.
+
+		Idle policy (governor) is differentiated from idle mechanism
+		(driver)
+
+		current_driver: displays current idle mechanism
+
+		current_governor_ro: displays current idle policy
+
+		See files in Documentation/cpuidle/ for more information.
+
+
+What:		/sys/devices/system/cpu/cpu#/cpufreq/*
+Date:		pre-git history
+Contact:	linux-pm@vger.kernel.org
+Description:	Discover and change clock speed of CPUs
+
+		Clock scaling allows you to change the clock speed of the
+		CPUs on the fly. This is a nice method to save battery
+		power, because the lower the clock speed, the less power
+		the CPU consumes.
+
+		There are many knobs to tweak in this directory.
+
+		See files in Documentation/cpu-freq/ for more information.
+
+		In particular, read Documentation/cpu-freq/user-guide.txt
+		to learn how to control the knobs.
+
+
+What:		/sys/devices/system/cpu/cpu#/cpufreq/freqdomain_cpus
+Date:		June 2013
+Contact:	linux-pm@vger.kernel.org
+Description:	Discover CPUs in the same CPU frequency coordination domain
+
+		freqdomain_cpus is the list of CPUs (online+offline) that share
+		the same clock/freq domain (possibly at the hardware level).
+		That information may be hidden from the cpufreq core and the
+		value of related_cpus may be different from freqdomain_cpus. This
+		attribute is useful for user space DVFS controllers to get better
+		power/performance results for platforms using acpi-cpufreq.
+
+		This file is only present if the acpi-cpufreq driver is in use.
+
+
+What:		/sys/devices/system/cpu/cpu*/cache/index3/cache_disable_{0,1}
+Date:		August 2008
+KernelVersion:	2.6.27
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Disable L3 cache indices
+
+		These files exist in every CPU's cache/index3 directory. Each
+		cache_disable_{0,1} file corresponds to one disable slot which
+		can be used to disable a cache index. Reading from these files
+		on a processor with this functionality will return the currently
+		disabled index for that node. There is one L3 structure per
+		node, or per internal node on MCM machines. Writing a valid
+		index to one of these files will cause the specificed cache
+		index to be disabled.
+
+		All AMD processors with L3 caches provide this functionality.
+		For details, see BKDGs at
+		http://developer.amd.com/documentation/guides/Pages/default.aspx
+
+
+What:		/sys/devices/system/cpu/cpufreq/boost
+Date:		August 2012
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Processor frequency boosting control
+
+		This switch controls the boost setting for the whole system.
+		Boosting allows the CPU and the firmware to run at a frequency
+		beyound it's nominal limit.
+		More details can be found in Documentation/cpu-freq/boost.txt
+
+
+What:		/sys/devices/system/cpu/cpu#/crash_notes
+		/sys/devices/system/cpu/cpu#/crash_notes_size
+Date:		April 2013
+Contact:	kexec@lists.infradead.org
+Description:	address and size of the percpu note.
+
+		crash_notes: the physical address of the memory that holds the
+		note of cpu#.
+
+		crash_notes_size: size of the note of cpu#.
+
+
+What:		/sys/devices/system/cpu/intel_pstate/max_perf_pct
+		/sys/devices/system/cpu/intel_pstate/min_perf_pct
+		/sys/devices/system/cpu/intel_pstate/no_turbo
+Date:		February 2013
+Contact:	linux-pm@vger.kernel.org
+Description:	Parameters for the Intel P-state driver
+
+		Logic for selecting the current P-state in Intel
+		Sandybridge+ processors. The three knobs control
+		limits for the P-state that will be requested by the
+		driver.
+
+		max_perf_pct: limits the maximum P state that will be requested by
+		the driver stated as a percentage of the available performance.
+
+		min_perf_pct: limits the minimum P state that will be requested by
+		the driver stated as a percentage of the available performance.
+
+		no_turbo: limits the driver to selecting P states below the turbo
+		frequency range.
+
+		More details can be found in Documentation/cpu-freq/intel-pstate.txt
+
+What:		/sys/devices/system/cpu/cpu*/cache/index*/<set_of_attributes_mentioned_below>
+Date:		July 2014(documented, existed before August 2008)
+Contact:	Sudeep Holla <sudeep.holla@arm.com>
+		Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Parameters for the CPU cache attributes
+
+		allocation_policy:
+			- WriteAllocate: allocate a memory location to a cache line
+					 on a cache miss because of a write
+			- ReadAllocate: allocate a memory location to a cache line
+					on a cache miss because of a read
+			- ReadWriteAllocate: both writeallocate and readallocate
+
+		attributes: LEGACY used only on IA64 and is same as write_policy
+
+		coherency_line_size: the minimum amount of data in bytes that gets
+				     transferred from memory to cache
+
+		level: the cache hierarchy in the multi-level cache configuration
+
+		number_of_sets: total number of sets in the cache, a set is a
+				collection of cache lines with the same cache index
+
+		physical_line_partition: number of physical cache line per cache tag
+
+		shared_cpu_list: the list of logical cpus sharing the cache
+
+		shared_cpu_map: logical cpu mask containing the list of cpus sharing
+				the cache
+
+		size: the total cache size in kB
+
+		type:
+			- Instruction: cache that only holds instructions
+			- Data: cache that only caches data
+			- Unified: cache that holds both data and instructions
+
+		ways_of_associativity: degree of freedom in placing a particular block
+					of memory in the cache
+
+		write_policy:
+			- WriteThrough: data is written to both the cache line
+					and to the block in the lower-level memory
+			- WriteBack: data is written only to the cache line and
+				     the modified cache line is written to main
+				     memory only when it is replaced

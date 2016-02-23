@@ -1,0 +1,262 @@
+/*
+ * at91sam9n12ek.dts - Device Tree file for AT91SAM9N12-EK board
+ *
+ *  Copyright (C) 2012 Atmel,
+ *                2012 Hong Xu <hong.xu@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+#include "at91sam9n12.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9N12-EK";
+	compatible = "atmel,at91sam9n12ek", "atmel,at91sam9n12", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "root=/dev/mtdblock1 rw rootfstype=jffs2";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		reg = <0x20000000 0x8000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <16000000>;
+		};
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			ssc0: ssc@f0010000 {
+				status = "okay";
+			};
+
+			i2c0: i2c@f8010000 {
+				status = "okay";
+
+				wm8904: codec@1a {
+					compatible = "wlf,wm8904";
+					reg = <0x1a>;
+					clocks = <&pck0>;
+					clock-names = "mclk";
+				};
+
+				qt1070: keyboard@1b {
+					compatible = "qt1070";
+					reg = <0x1b>;
+					interrupt-parent = <&pioA>;
+					interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_qt1070_irq>;
+				};
+			};
+
+			mmc0: mmc@f0008000 {
+				pinctrl-0 = <
+					&pinctrl_board_mmc0
+					&pinctrl_mmc0_slot0_clk_cmd_dat0
+					&pinctrl_mmc0_slot0_dat1_3>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioA 7 GPIO_ACTIVE_HIGH>;
+				};
+			};
+
+			pinctrl@fffff400 {
+				mmc0 {
+					pinctrl_board_mmc0: mmc0-board {
+						atmel,pins =
+							<AT91_PIOA 7 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PA7 gpio CD pin pull up and deglitch */
+					};
+				};
+
+				qt1070 {
+					pinctrl_qt1070_irq: qt1070_irq {
+						atmel,pins =
+							<AT91_PIOA 2 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+				};
+
+				sound {
+					pinctrl_pck0_as_audio_mck: pck0_as_audio_mck {
+						atmel,pins =
+							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+				};
+
+				usb1 {
+					pinctrl_usb1_vbus_sense: usb1_vbus_sense {
+						atmel,pins =
+							<AT91_PIOB 16 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;	/* PB16 gpio usb vbus sense, no pull up and deglitch */
+					};
+				};
+			};
+
+			spi0: spi@f0000000 {
+				status = "okay";
+				cs-gpios = <&pioA 14 0>, <0>, <0>, <0>;
+				m25p80@0 {
+					compatible = "atmel,at25df321a";
+					spi-max-frequency = <50000000>;
+					reg = <0>;
+				};
+			};
+
+			hlcdc: hlcdc@f8038000 {
+				status = "okay";
+
+				hlcdc-display-controller {
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_lcd_base &pinctrl_lcd_rgb888>;
+
+					port@0 {
+						hlcdc_panel_output: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&panel_input>;
+						};
+					};
+				};
+			};
+
+			usb1: gadget@f803c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usb1_vbus_sense>;
+				atmel,vbus-gpio = <&pioB 16 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+
+			watchdog@fffffe40 {
+				status = "okay";
+			};
+
+			rtc@fffffeb0 {
+				status = "okay";
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "hw";
+			atmel,has-pmecc;
+			atmel,pmecc-cap = <2>;
+			atmel,pmecc-sector-size = <512>;
+			nand-on-flash-bbt;
+			status = "okay";
+		};
+
+		usb0: ohci@00500000 {
+			num-ports = <1>;
+			atmel,vbus-gpio = <&pioB 7 GPIO_ACTIVE_LOW>;
+			status = "okay";
+		};
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&hlcdc_pwm 0 50000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		power-supply = <&bl_reg>;
+		status = "okay";
+	};
+
+	bl_reg: backlight_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "backlight-power-supply";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		status = "okay";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		d8 {
+			label = "d8";
+			gpios = <&pioB 4 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "mmc0";
+		};
+
+		d9 {
+			label = "d9";
+			gpios = <&pioB 5 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "nand-disk";
+		};
+
+		d10 {
+			label = "d10";
+			gpios = <&pioB 6 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		enter {
+			label = "Enter";
+			gpios = <&pioB 3 GPIO_ACTIVE_LOW>;
+			linux,code = <28>;
+			wakeup-source;
+		};
+	};
+
+	panel: panel {
+		compatible = "qd,qd43003c0-40", "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&panel_reg>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			panel_input: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hlcdc_panel_output>;
+			};
+		};
+	};
+
+	panel_reg: panel_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "panel-power-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		status = "okay";
+	};
+
+	sound {
+		compatible = "atmel,asoc-wm8904";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pck0_as_audio_mck>;
+
+		atmel,model = "wm8904 @ AT91SAM9N12";
+		atmel,audio-routing =
+			"Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR",
+			"IN2L", "Line In Jack",
+			"IN2R", "Line In Jack",
+			"Mic", "MICBIAS",
+			"IN1L", "Mic";
+
+		atmel,ssc-controller = <&ssc0>;
+		atmel,audio-codec = <&wm8904>;
+	};
+};

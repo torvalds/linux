@@ -1,0 +1,31 @@
+NXP LPC32xx Key Scan Interface
+
+This binding is based on the matrix-keymap binding with the following
+changes:
+
+Required Properties:
+- compatible: Should be "nxp,lpc3220-key"
+- reg: Physical base address of the controller and length of memory mapped
+  region.
+- interrupts: The interrupt number to the cpu.
+- nxp,debounce-delay-ms: Debounce delay in ms
+- nxp,scan-delay-ms: Repeated scan period in ms
+- linux,keymap: the key-code to be reported when the key is pressed
+  and released, see also
+  Documentation/devicetree/bindings/input/matrix-keymap.txt
+
+Note: keypad,num-rows and keypad,num-columns are required, and must be equal
+since LPC32xx only supports square matrices
+
+Example:
+
+	key@40050000 {
+		compatible = "nxp,lpc3220-key";
+		reg = <0x40050000 0x1000>;
+		interrupts = <54 0>;
+		keypad,num-rows = <1>;
+		keypad,num-columns = <1>;
+		nxp,debounce-delay-ms = <3>;
+		nxp,scan-delay-ms = <34>;
+		linux,keymap = <0x00000002>;
+	};

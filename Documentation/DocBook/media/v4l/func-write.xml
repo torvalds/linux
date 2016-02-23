@@ -1,0 +1,128 @@
+<refentry id="func-write">
+  <refmeta>
+    <refentrytitle>V4L2 write()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>v4l2-write</refname>
+    <refpurpose>Write to a V4L2 device</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>#include &lt;unistd.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>ssize_t <function>write</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>void *<parameter>buf</parameter></paramdef>
+	<paramdef>size_t <parameter>count</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>buf</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>count</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para><function>write()</function> writes up to
+<parameter>count</parameter> bytes to the device referenced by the
+file descriptor <parameter>fd</parameter> from the buffer starting at
+<parameter>buf</parameter>. When the hardware outputs are not active
+yet, this function enables them. When <parameter>count</parameter> is
+zero, <function>write()</function> returns
+<returnvalue>0</returnvalue> without any other effect.</para>
+
+    <para>When the application does not provide more data in time, the
+previous video frame, raw VBI image, sliced VPS or WSS data is
+displayed again. Sliced Teletext or Closed Caption data is not
+repeated, the driver inserts a blank line instead.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Return Value</title>
+
+    <para>On success, the number of bytes written are returned. Zero
+indicates nothing was written. On error, <returnvalue>-1</returnvalue>
+is returned, and the <varname>errno</varname> variable is set
+appropriately. In this case the next write will start at the beginning
+of a new frame. Possible error codes are:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EAGAIN</errorcode></term>
+	<listitem>
+	  <para>Non-blocking I/O has been selected using the <link
+linkend="func-open"><constant>O_NONBLOCK</constant></link> flag and no
+buffer space was available to write the data immediately.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBADF</errorcode></term>
+	<listitem>
+	  <para><parameter>fd</parameter> is not a valid file
+descriptor or is not open for writing.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The driver does not support multiple write streams and the
+device is already in use.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EFAULT</errorcode></term>
+	<listitem>
+	  <para><parameter>buf</parameter> references an inaccessible
+memory area.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINTR</errorcode></term>
+	<listitem>
+	  <para>The call was interrupted by a signal before any
+data was written.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EIO</errorcode></term>
+	<listitem>
+	  <para>I/O error. This indicates some hardware problem.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The <function>write()</function> function is not
+supported by this driver, not on this device, or generally not on this
+type of device.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

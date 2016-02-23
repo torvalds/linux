@@ -1,0 +1,419 @@
+#
+# wan devices configuration
+#
+
+menuconfig WAN
+	bool "Wan interfaces support"
+	---help---
+	  Wide Area Networks (WANs), such as X.25, Frame Relay and leased
+	  lines, are used to interconnect Local Area Networks (LANs) over vast
+	  distances with data transfer rates significantly higher than those
+	  achievable with commonly used asynchronous modem connections.
+
+	  Usually, a quite expensive external device called a `WAN router' is
+	  needed to connect to a WAN. As an alternative, a relatively
+	  inexpensive WAN interface card can allow your Linux box to directly
+	  connect to a WAN.
+
+	  If you have one of those cards and wish to use it under Linux,
+	  say Y here and also to the WAN driver for your card.
+
+	  If unsure, say N.
+
+if WAN
+
+# There is no way to detect a comtrol sv11 - force it modular for now.
+config HOSTESS_SV11
+	tristate "Comtrol Hostess SV-11 support"
+	depends on ISA && m && ISA_DMA_API && INET && HDLC && VIRT_TO_BUS
+	help
+	  Driver for Comtrol Hostess SV-11 network card which
+	  operates on low speed synchronous serial links at up to
+	  256Kbps, supporting PPP and Cisco HDLC.
+
+	  The driver will be compiled as a module: the
+	  module will be called hostess_sv11.
+
+# The COSA/SRP driver has not been tested as non-modular yet.
+config COSA
+	tristate "COSA/SRP sync serial boards support"
+	depends on ISA && m && ISA_DMA_API && HDLC && VIRT_TO_BUS
+	---help---
+	  Driver for COSA and SRP synchronous serial boards.
+
+	  These boards allow to connect synchronous serial devices (for example
+	  base-band modems, or any other device with the X.21, V.24, V.35 or
+	  V.36 interface) to your Linux box. The cards can work as the
+	  character device, synchronous PPP network device, or the Cisco HDLC
+	  network device.
+
+	  You will need user-space utilities COSA or SRP boards for downloading
+ 	  the firmware to the cards and to set them up. Look at the
+	  <http://www.fi.muni.cz/~kas/cosa/> for more information. You can also
+	  read the comment at the top of the <file:drivers/net/wan/cosa.c> for
+	  details about the cards and the driver itself.
+
+	  The driver will be compiled as a module: the
+	  module will be called cosa.
+
+#
+# Lan Media's board. Currently 1000, 1200, 5200, 5245
+#
+config LANMEDIA
+	tristate "LanMedia Corp. SSI/V.35, T1/E1, HSSI, T3 boards"
+	depends on PCI && VIRT_TO_BUS && HDLC
+	---help---
+	  Driver for the following Lan Media family of serial boards:
+
+	  - LMC 1000 board allows you to connect synchronous serial devices
+	  (for example base-band modems, or any other device with the X.21,
+	  V.24, V.35 or V.36 interface) to your Linux box.
+
+	  - LMC 1200 with on board DSU board allows you to connect your Linux
+	  box directly to a T1 or E1 circuit.
+
+	  - LMC 5200 board provides a HSSI interface capable of running up to
+	  52 Mbits per second.
+
+	  - LMC 5245 board connects directly to a T3 circuit saving the
+	  additional external hardware.
+
+	  To change setting such as clock source you will need lmcctl.
+	  It is available at <ftp://ftp.lanmedia.com/> (broken link).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lmc.
+
+# There is no way to detect a Sealevel board. Force it modular
+config SEALEVEL_4021
+	tristate "Sealevel Systems 4021 support"
+	depends on ISA && m && ISA_DMA_API && INET && HDLC && VIRT_TO_BUS
+	help
+	  This is a driver for the Sealevel Systems ACB 56 serial I/O adapter.
+
+	  The driver will be compiled as a module: the
+	  module will be called sealevel.
+
+# Generic HDLC
+config HDLC
+	tristate "Generic HDLC layer"
+	help
+	  Say Y to this option if your Linux box contains a WAN (Wide Area
+	  Network) card supported by this driver and you are planning to
+	  connect the box to a WAN.
+
+	  You will need supporting software from
+	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
+	  Generic HDLC driver currently supports raw HDLC, Cisco HDLC, Frame
+	  Relay, synchronous Point-to-Point Protocol (PPP) and X.25.
+
+ 	  To compile this driver as a module, choose M here: the
+	  module will be called hdlc.
+
+	  If unsure, say N.
+
+config HDLC_RAW
+	tristate "Raw HDLC support"
+	depends on HDLC
+	help
+	  Generic HDLC driver supporting raw HDLC over WAN connections.
+
+	  If unsure, say N.
+
+config HDLC_RAW_ETH
+	tristate "Raw HDLC Ethernet device support"
+	depends on HDLC
+	help
+	  Generic HDLC driver supporting raw HDLC Ethernet device emulation
+	  over WAN connections.
+
+	  You will need it for Ethernet over HDLC bridges.
+
+	  If unsure, say N.
+
+config HDLC_CISCO
+	tristate "Cisco HDLC support"
+	depends on HDLC
+	help
+	  Generic HDLC driver supporting Cisco HDLC over WAN connections.
+
+	  If unsure, say N.
+
+config HDLC_FR
+	tristate "Frame Relay support"
+	depends on HDLC
+	help
+	  Generic HDLC driver supporting Frame Relay over WAN connections.
+
+	  If unsure, say N.
+
+config HDLC_PPP
+	tristate "Synchronous Point-to-Point Protocol (PPP) support"
+	depends on HDLC
+	help
+	  Generic HDLC driver supporting PPP over WAN connections.
+
+	  If unsure, say N.
+
+config HDLC_X25
+	tristate "X.25 protocol support"
+	depends on HDLC && (LAPB=m && HDLC=m || LAPB=y)
+	help
+	  Generic HDLC driver supporting X.25 over WAN connections.
+
+	  If unsure, say N.
+
+comment "X.25/LAPB support is disabled"
+	depends on HDLC && (LAPB!=m || HDLC!=m) && LAPB!=y
+
+config PCI200SYN
+	tristate "Goramo PCI200SYN support"
+	depends on HDLC && PCI
+	help
+	  Driver for PCI200SYN cards by Goramo sp. j.
+
+	  If you have such a card, say Y here and see
+	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
+
+	  To compile this as a module, choose M here: the
+	  module will be called pci200syn.
+
+	  If unsure, say N.
+
+config WANXL
+	tristate "SBE Inc. wanXL support"
+	depends on HDLC && PCI
+	help
+	  Driver for wanXL PCI cards by SBE Inc.
+
+	  If you have such a card, say Y here and see
+	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
+
+	  To compile this as a module, choose M here: the
+	  module will be called wanxl.
+
+	  If unsure, say N.
+
+config WANXL_BUILD_FIRMWARE
+	bool "rebuild wanXL firmware"
+	depends on WANXL && !PREVENT_FIRMWARE_BUILD
+	help
+	  Allows you to rebuild firmware run by the QUICC processor.
+	  It requires as68k, ld68k and hexdump programs.
+
+	  You should never need this option, say N.
+
+config PC300TOO
+	tristate "Cyclades PC300 RSV/X21 alternative support"
+	depends on HDLC && PCI
+	help
+	  Alternative driver for PC300 RSV/X21 PCI cards made by
+	  Cyclades, Inc. If you have such a card, say Y here and see
+	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
+
+	  To compile this as a module, choose M here: the module
+	  will be called pc300too.
+
+	  If unsure, say N here.
+
+config N2
+	tristate "SDL RISCom/N2 support"
+	depends on HDLC && ISA
+	help
+	  Driver for RISCom/N2 single or dual channel ISA cards by
+	  SDL Communications Inc.
+
+	  If you have such a card, say Y here and see
+	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
+
+	  Note that N2csu and N2dds cards are not supported by this driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called n2.
+
+	  If unsure, say N.
+
+config C101
+	tristate "Moxa C101 support"
+	depends on HDLC && ISA
+	help
+	  Driver for C101 SuperSync ISA cards by Moxa Technologies Co., Ltd.
+
+	  If you have such a card, say Y here and see
+	  <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called c101.
+
+	  If unsure, say N.
+
+config FARSYNC
+	tristate "FarSync T-Series support"
+	depends on HDLC && PCI
+	---help---
+	  Support for the FarSync T-Series X.21 (and V.35/V.24) cards by
+	  FarSite Communications Ltd.
+
+	  Synchronous communication is supported on all ports at speeds up to
+	  8Mb/s (128K on V.24) using synchronous PPP, Cisco HDLC, raw HDLC,
+	  Frame Relay or X.25/LAPB.
+
+	  If you want the module to be automatically loaded when the interface
+	  is referenced then you should add "alias hdlcX farsync" to a file
+	  in /etc/modprobe.d/ for each interface, where X is 0, 1, 2, ..., or
+	  simply use "alias hdlc* farsync" to indicate all of them.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called farsync.
+
+config DSCC4
+	tristate "Etinc PCISYNC serial board support"
+	depends on HDLC && PCI && m
+	help
+	  Driver for Etinc PCISYNC boards based on the Infineon (ex. Siemens)
+	  DSCC4 chipset.
+
+	  This is supposed to work with the four port card. Take a look at
+	  <http://www.cogenit.fr/dscc4/> for further information about the
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dscc4.
+
+config DSCC4_PCISYNC
+	bool "Etinc PCISYNC features"
+	depends on DSCC4
+	help
+	  Due to Etinc's design choice for its PCISYNC cards, some operations
+	  are only allowed on specific ports of the DSCC4. This option is the
+	  only way for the driver to know that it shouldn't return a success
+	  code for these operations.
+
+	  Please say Y if your card is an Etinc's PCISYNC.
+
+config DSCC4_PCI_RST
+	bool "Hard reset support"
+	depends on DSCC4
+	help
+	  Various DSCC4 bugs forbid any reliable software reset of the ASIC.
+	  As a replacement, some vendors provide a way to assert the PCI #RST
+	  pin of DSCC4 through the GPIO port of the card. If you choose Y,
+	  the driver will make use of this feature before module removal
+	  (i.e. rmmod). The feature is known to be available on Commtech's
+	  cards. Contact your manufacturer for details.
+
+	  Say Y if your card supports this feature.
+
+config IXP4XX_HSS
+	tristate "Intel IXP4xx HSS (synchronous serial port) support"
+	depends on HDLC && ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR
+	help
+	  Say Y here if you want to use built-in HSS ports
+	  on IXP4xx processor.
+
+config DLCI
+	tristate "Frame Relay DLCI support"
+	---help---
+	  Support for the Frame Relay protocol.
+
+	  Frame Relay is a fast low-cost way to connect to a remote Internet
+	  access provider or to form a private wide area network. The one
+	  physical line from your box to the local "switch" (i.e. the entry
+	  point to the Frame Relay network, usually at the phone company) can
+	  carry several logical point-to-point connections to other computers
+	  connected to the Frame Relay network. For a general explanation of
+	  the protocol, check out <http://www.mplsforum.org/>.
+
+	  To use frame relay, you need supporting hardware (called FRAD) and
+	  certain programs from the net-tools package as explained in
+	  <file:Documentation/networking/framerelay.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dlci.
+
+config DLCI_MAX
+	int "Max DLCI per device"
+	depends on DLCI
+	default "8"
+	help
+	  How many logical point-to-point frame relay connections (the
+	  identifiers of which are called DCLIs) should be handled by each
+	  of your hardware frame relay access devices.
+
+	  Go with the default.
+
+config SDLA
+	tristate "SDLA (Sangoma S502/S508) support"
+	depends on DLCI && ISA
+	help
+	  Driver for the Sangoma S502A, S502E, and S508 Frame Relay Access
+	  Devices.
+
+	  These are multi-protocol cards, but only Frame Relay is supported
+	  by the driver at this time. Please read
+	  <file:Documentation/networking/framerelay.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sdla.
+
+# X.25 network drivers
+config LAPBETHER
+	tristate "LAPB over Ethernet driver"
+	depends on LAPB && X25
+	---help---
+	  Driver for a pseudo device (typically called /dev/lapb0) which allows
+	  you to open an LAPB point-to-point connection to some other computer
+	  on your Ethernet network.
+
+	  In order to do this, you need to say Y or M to the driver for your
+	  Ethernet card as well as to "LAPB Data Link Driver".
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lapbether.
+
+	  If unsure, say N.
+
+config X25_ASY
+	tristate "X.25 async driver"
+	depends on LAPB && X25 && TTY
+	---help---
+	  Send and receive X.25 frames over regular asynchronous serial
+	  lines such as telephone lines equipped with ordinary modems.
+
+	  Experts should note that this driver doesn't currently comply with
+	  the asynchronous HDLS framing protocols in CCITT recommendation X.25.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called x25_asy.
+
+	  If unsure, say N.
+
+config SBNI
+	tristate "Granch SBNI12 Leased Line adapter support"
+	depends on X86
+	---help---
+	  Driver for ISA SBNI12-xx cards which are low cost alternatives to
+	  leased line modems.
+
+	  You can find more information and last versions of drivers and
+	  utilities at <http://www.granch.ru/>. If you have any question you
+	  can send email to <sbni@granch.ru>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sbni.
+
+	  If unsure, say N.
+
+config SBNI_MULTILINE
+	bool "Multiple line feature support"
+	depends on SBNI
+	help
+	  Schedule traffic for some parallel lines, via SBNI12 adapters.
+
+	  If you have two computers connected with two parallel lines it's
+	  possible to increase transfer rate nearly twice. You should have
+	  a program named 'sbniconfig' to configure adapters.
+
+	  If unsure, say N.
+
+endif # WAN

@@ -1,0 +1,40 @@
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+
+&pm8916_gpios {
+
+	usb_hub_reset_pm: usb_hub_reset_pm {
+		pinconf {
+			pins = "gpio3";
+			function = PMIC_GPIO_FUNC_NORMAL;
+			output-low;
+		};
+	};
+
+	usb_sw_sel_pm: usb_sw_sel_pm {
+		pinconf {
+			pins = "gpio4";
+			function = PMIC_GPIO_FUNC_NORMAL;
+			power-source = <PM8916_GPIO_VPH>;
+			input-disable;
+		};
+	};
+
+	pm8916_gpios_leds: pm8916_gpios_leds {
+		pinconf {
+			pins = "gpio1", "gpio2";
+			function = PMIC_GPIO_FUNC_NORMAL;
+			output-low;
+		};
+	};
+};
+
+&pm8916_mpps {
+
+	pm8916_mpps_leds: pm8916_mpps_leds {
+		pinconf {
+			pins = "mpp2", "mpp3";
+			function = PMIC_GPIO_FUNC_NORMAL;
+			output-low;
+		};
+	};
+};

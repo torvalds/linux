@@ -1,0 +1,6 @@
+#
+# Plug and Play ACPI configuration
+#
+config PNPACPI
+	bool
+	default (PNP && ACPI)

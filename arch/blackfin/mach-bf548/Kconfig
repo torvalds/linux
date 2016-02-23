@@ -1,0 +1,382 @@
+config BF542
+	def_bool y
+	depends on BF542_std || BF542M
+config BF544
+	def_bool y
+	depends on BF544_std || BF544M
+config BF547
+	def_bool y
+	depends on BF547_std || BF547M
+config BF548
+	def_bool y
+	depends on BF548_std || BF548M
+config BF549
+	def_bool y
+	depends on BF549_std || BF549M
+
+config BF54xM
+	def_bool y
+	depends on (BF542M || BF544M || BF547M || BF548M || BF549M)
+
+config BF54x
+	def_bool y
+	depends on (BF542 || BF544 || BF547 || BF548 || BF549)
+
+if (BF54x)
+
+source "arch/blackfin/mach-bf548/boards/Kconfig"
+
+menu "BF548 Specific Configuration"
+
+config DEB_DMA_URGENT
+	bool "DMA has priority over core for ext. accesses"
+	depends on BF54x
+	default y
+	help
+	  Treat any DEB1, DEB2 and DEB3 request as Urgent
+
+config BF548_ATAPI_ALTERNATIVE_PORT
+	bool "BF548 ATAPI alternative port via GPIO"
+	help
+	  BF548 ATAPI data and address PINs can be routed through
+	  async address or GPIO port F and G. Select y to route it
+	  to GPIO.
+
+choice
+	prompt "UART2 DMA channel selection"
+	depends on SERIAL_BFIN_UART2
+	default UART2_DMA_RX_ON_DMA18
+	help
+		UART2 DMA channel selection
+		RX -> DMA18
+		TX -> DMA19
+		or
+		RX -> DMA13
+		TX -> DMA14
+
+config UART2_DMA_RX_ON_DMA18
+	bool "UART2 DMA RX -> DMA18 TX -> DMA19"
+	help
+		UART2 DMA channel assignment
+		RX -> DMA18
+		TX -> DMA19
+		use SPORT2 default DMA channel
+
+config UART2_DMA_RX_ON_DMA13
+	bool "UART2 DMA RX -> DMA13 TX -> DMA14"
+	help
+		UART2 DMA channel assignment
+		RX -> DMA13
+		TX -> DMA14
+		use EPPI1 EPPI2 default DMA channel
+endchoice
+
+choice
+	prompt "UART3 DMA channel selection"
+	depends on SERIAL_BFIN_UART3
+	default UART3_DMA_RX_ON_DMA20
+	help
+		UART3 DMA channel selection
+		RX -> DMA20
+		TX -> DMA21
+		or
+		RX -> DMA15
+		TX -> DMA16
+
+config UART3_DMA_RX_ON_DMA20
+	bool "UART3 DMA RX -> DMA20 TX -> DMA21"
+	help
+		UART3 DMA channel assignment
+		RX -> DMA20
+		TX -> DMA21
+		use SPORT3 default DMA channel
+
+config UART3_DMA_RX_ON_DMA15
+	bool "UART3 DMA RX -> DMA15 TX -> DMA16"
+	help
+		UART3 DMA channel assignment
+		RX -> DMA15
+		TX -> DMA16
+		use PIXC default DMA channel
+
+endchoice
+
+comment "Interrupt Priority Assignment"
+menu "Priority"
+
+config IRQ_PLL_WAKEUP
+	int "IRQ_PLL_WAKEUP"
+	default 7
+config IRQ_DMAC0_ERR
+	int "IRQ_DMAC0_ERR"
+	default 7
+config IRQ_EPPI0_ERR
+	int "IRQ_EPPI0_ERR"
+	default 7
+config IRQ_SPORT0_ERR
+	int "IRQ_SPORT0_ERR"
+	default 7
+config IRQ_SPORT1_ERR
+	int "IRQ_SPORT1_ERR"
+	default 7
+config IRQ_SPI0_ERR
+	int "IRQ_SPI0_ERR"
+	default 7
+config IRQ_UART0_ERR
+	int "IRQ_UART0_ERR"
+	default 7
+config IRQ_RTC
+	int "IRQ_RTC"
+	default 8
+config IRQ_EPPI0
+	int "IRQ_EPPI0"
+	default 8
+config IRQ_SPORT0_RX
+	int "IRQ_SPORT0_RX"
+	default 9
+config IRQ_SPORT0_TX
+	int "IRQ_SPORT0_TX"
+	default 9
+config IRQ_SPORT1_RX
+	int "IRQ_SPORT1_RX"
+	default 9
+config IRQ_SPORT1_TX
+	int "IRQ_SPORT1_TX"
+	default 9
+config IRQ_SPI0
+	int "IRQ_SPI0"
+	default 10
+config IRQ_UART0_RX
+	int "IRQ_UART0_RX"
+	default 10
+config IRQ_UART0_TX
+	int "IRQ_UART0_TX"
+	default 10
+config IRQ_TIMER8
+	int "IRQ_TIMER8"
+	default 11
+config IRQ_TIMER9
+	int "IRQ_TIMER9"
+	default 11
+config IRQ_TIMER10
+	int "IRQ_TIMER10"
+	default 11
+config IRQ_PINT0
+	int "IRQ_PINT0"
+	default 12
+config IRQ_PINT1
+	int "IRQ_PINT0"
+	default 12
+config IRQ_MDMAS0
+	int "IRQ_MDMAS0"
+	default 13
+config IRQ_MDMAS1
+	int "IRQ_DMDMAS1"
+	default 13
+config IRQ_WATCHDOG
+	int "IRQ_WATCHDOG"
+	default 13
+config IRQ_DMAC1_ERR
+	int "IRQ_DMAC1_ERR"
+	default 7
+config IRQ_SPORT2_ERR
+	int "IRQ_SPORT2_ERR"
+	default 7
+config IRQ_SPORT3_ERR
+	int "IRQ_SPORT3_ERR"
+	default 7
+config IRQ_MXVR_DATA
+	int "IRQ MXVR Data"
+	default 7
+config IRQ_SPI1_ERR
+	int "IRQ_SPI1_ERR"
+	default 7
+config IRQ_SPI2_ERR
+	int "IRQ_SPI2_ERR"
+	default 7
+config IRQ_UART1_ERR
+	int "IRQ_UART1_ERR"
+	default 7
+config IRQ_UART2_ERR
+	int "IRQ_UART2_ERR"
+	default 7
+config IRQ_CAN0_ERR
+	int "IRQ_CAN0_ERR"
+	default 7
+config IRQ_SPORT2_RX
+	int "IRQ_SPORT2_RX"
+	default 9
+config IRQ_SPORT2_TX
+	int "IRQ_SPORT2_TX"
+	default 9
+config IRQ_SPORT3_RX
+	int "IRQ_SPORT3_RX"
+	default 9
+config IRQ_SPORT3_TX
+	int "IRQ_SPORT3_TX"
+	default 9
+config IRQ_EPPI1
+	int "IRQ_EPPI1"
+	default 9
+config IRQ_EPPI2
+	int "IRQ_EPPI2"
+	default 9
+config IRQ_SPI1
+	int "IRQ_SPI1"
+	default 10
+config IRQ_SPI2
+	int "IRQ_SPI2"
+	default 10
+config IRQ_UART1_RX
+	int "IRQ_UART1_RX"
+	default 10
+config IRQ_UART1_TX
+	int "IRQ_UART1_TX"
+	default 10
+config IRQ_ATAPI_RX
+	int "IRQ_ATAPI_RX"
+	default 10
+config IRQ_ATAPI_TX
+	int "IRQ_ATAPI_TX"
+	default 10
+config IRQ_TWI0
+	int "IRQ_TWI0"
+	default 11
+config IRQ_TWI1
+	int "IRQ_TWI1"
+	default 11
+config IRQ_CAN0_RX
+	int "IRQ_CAN_RX"
+	default 11
+config IRQ_CAN0_TX
+	int "IRQ_CAN_TX"
+	default 11
+config IRQ_MDMAS2
+	int "IRQ_MDMAS2"
+	default 13
+config IRQ_MDMAS3
+	int "IRQ_DMMAS3"
+	default 13
+config IRQ_MXVR_ERR
+	int "IRQ_MXVR_ERR"
+	default 11
+config IRQ_MXVR_MSG
+	int "IRQ_MXVR_MSG"
+	default 11
+config IRQ_MXVR_PKT
+	int "IRQ_MXVR_PKT"
+	default 11
+config IRQ_EPPI1_ERR
+	int "IRQ_EPPI1_ERR"
+	default 7
+config IRQ_EPPI2_ERR
+	int "IRQ_EPPI2_ERR"
+	default 7
+config IRQ_UART3_ERR
+	int "IRQ_UART3_ERR"
+	default 7
+config IRQ_HOST_ERR
+	int "IRQ_HOST_ERR"
+	default 7
+config IRQ_PIXC_ERR
+	int "IRQ_PIXC_ERR"
+	default 7
+config IRQ_NFC_ERR
+	int "IRQ_NFC_ERR"
+	default 7
+config IRQ_ATAPI_ERR
+	int "IRQ_ATAPI_ERR"
+	default 7
+config IRQ_CAN1_ERR
+	int "IRQ_CAN1_ERR"
+	default 7
+config IRQ_HS_DMA_ERR
+	int "IRQ Handshake DMA Status"
+	default 7
+config IRQ_PIXC_IN0
+	int "IRQ PIXC IN0"
+	default 8
+config IRQ_PIXC_IN1
+	int "IRQ PIXC IN1"
+	default 8
+config IRQ_PIXC_OUT
+	int "IRQ PIXC OUT"
+	default 8
+config IRQ_SDH
+	int "IRQ SDH"
+	default 8
+config IRQ_CNT
+	int "IRQ CNT"
+	default 8
+config IRQ_KEY
+	int "IRQ KEY"
+	default 8
+config IRQ_CAN1_RX
+	int "IRQ CAN1 RX"
+	default 11
+config IRQ_CAN1_TX
+	int "IRQ_CAN1_TX"
+	default 11
+config IRQ_SDH_MASK0
+	int "IRQ_SDH_MASK0"
+	default 11
+config IRQ_SDH_MASK1
+	int "IRQ_SDH_MASK1"
+	default 11
+config IRQ_USB_INT0
+	int "IRQ USB INT0"
+	default 11
+config IRQ_USB_INT1
+	int "IRQ USB INT1"
+	default 11
+config IRQ_USB_INT2
+	int "IRQ USB INT2"
+	default 11
+config IRQ_USB_DMA
+	int "IRQ USB DMA"
+	default 11
+config IRQ_OTPSEC
+	int "IRQ OPTSEC"
+	default 11
+config IRQ_TIMER0
+	int "IRQ_TIMER0"
+	default 7 if TICKSOURCE_GPTMR0
+	default 8
+config IRQ_TIMER1
+	int "IRQ_TIMER1"
+	default 11
+config IRQ_TIMER2
+	int "IRQ_TIMER2"
+	default 11
+config IRQ_TIMER3
+	int "IRQ_TIMER3"
+	default 11
+config IRQ_TIMER4
+	int "IRQ_TIMER4"
+	default 11
+config IRQ_TIMER5
+	int "IRQ_TIMER5"
+	default 11
+config IRQ_TIMER6
+	int "IRQ_TIMER6"
+	default 11
+config IRQ_TIMER7
+	int "IRQ_TIMER7"
+	default 11
+config IRQ_PINT2
+	int "IRQ_PIN2"
+	default 11
+config IRQ_PINT3
+	int "IRQ_PIN3"
+	default 11
+
+	help
+	  Enter the priority numbers between 7-13 ONLY.  Others are Reserved.
+	  This applies to all the above.  It is not recommended to assign the
+	  highest priority number 7 to UART or any other device.
+
+endmenu
+
+endmenu
+
+endif

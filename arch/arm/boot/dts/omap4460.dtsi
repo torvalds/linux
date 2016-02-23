@@ -1,0 +1,93 @@
+/*
+ * Device Tree Source for OMAP4460 SoC
+ *
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+#include "omap4.dtsi"
+
+/ {
+	cpus {
+		/* OMAP446x 'standard device' variants OPP50 to OPPTurbo */
+		cpu0: cpu@0 {
+			operating-points = <
+				/* kHz    uV */
+				350000  1025000
+				700000  1200000
+				920000  1313000
+			>;
+			clock-latency = <300000>; /* From legacy driver */
+
+			/* cooling options */
+			cooling-min-level = <0>;
+			cooling-max-level = <2>;
+			#cooling-cells = <2>; /* min followed by max */
+		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		ti,hwmods = "debugss";
+	};
+
+	thermal-zones {
+		#include "omap4-cpu-thermal.dtsi"
+	};
+
+	ocp {
+		bandgap: bandgap {
+			reg = <0x4a002260 0x4
+			       0x4a00232C 0x4
+			       0x4a002378 0x18>;
+			compatible = "ti,omap4460-bandgap";
+			interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>; /* talert */
+			gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>; /* tshut */
+
+			#thermal-sensor-cells = <0>;
+		};
+
+		abb_mpu: regulator-abb-mpu {
+			status = "okay";
+
+			reg = <0x4a307bd0 0x8>, <0x4a306014 0x4>,
+			      <0x4A002268 0x4>;
+			reg-names = "base-address", "int-address",
+				    "efuse-address";
+
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m	fbb_m	vset_m*/
+			1025000		0	0	0	0	0
+			1200000		0	0	0	0	0
+			1313000		0	0	0x100000 0x40000 0
+			1375000		1	0	0	0	0
+			1389000		1	0	0	0	0
+			>;
+		};
+
+		abb_iva: regulator-abb-iva {
+			status = "okay";
+
+			reg = <0x4a307bd8 0x8>, <0x4a306010 0x4>,
+			      <0x4A002268 0x4>;
+			reg-names = "base-address", "int-address",
+				    "efuse-address";
+
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m	fbb_m	vset_m*/
+			950000		0	0	0	0	0
+			1140000		0	0	0	0	0
+			1291000		0	0	0x200000 0	0
+			1375000		1	0	0	0	0
+			1376000		1	0	0	0	0
+			>;
+		};
+	};
+
+};
+
+/include/ "omap446x-clocks.dtsi"

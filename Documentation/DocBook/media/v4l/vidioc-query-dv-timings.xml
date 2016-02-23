@@ -1,0 +1,111 @@
+<refentry id="vidioc-query-dv-timings">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_QUERY_DV_TIMINGS</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_QUERY_DV_TIMINGS</refname>
+    <refname>VIDIOC_SUBDEV_QUERY_DV_TIMINGS</refname>
+    <refpurpose>Sense the DV preset received by the current
+input</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_dv_timings *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+	<varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_QUERY_DV_TIMINGS, VIDIOC_SUBDEV_QUERY_DV_TIMINGS</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <note>
+      <title>Experimental</title>
+      <para>This is an <link linkend="experimental"> experimental </link>
+      interface and may change in the future.</para>
+    </note>
+
+    <para>The hardware may be able to detect the current DV timings
+automatically, similar to sensing the video standard. To do so, applications
+call <constant>VIDIOC_QUERY_DV_TIMINGS</constant> with a pointer to a
+&v4l2-dv-timings;. Once the hardware detects the timings, it will fill in the
+timings structure.
+
+If the timings could not be detected because there was no signal, then
+<errorcode>ENOLINK</errorcode> is returned. If a signal was detected, but
+it was unstable and the receiver could not lock to the signal, then
+<errorcode>ENOLCK</errorcode> is returned. If the receiver could lock to the signal,
+but the format is unsupported (e.g. because the pixelclock is out of range
+of the hardware capabilities), then the driver fills in whatever timings it
+could find and returns <errorcode>ERANGE</errorcode>. In that case the application
+can call &VIDIOC-DV-TIMINGS-CAP; to compare the found timings with the hardware's
+capabilities in order to give more precise feedback to the user.
+</para>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>ENODATA</errorcode></term>
+	<listitem>
+	  <para>Digital video timings are not supported for this input or output.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENOLINK</errorcode></term>
+	<listitem>
+	  <para>No timings could be detected because no signal was found.
+</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENOLCK</errorcode></term>
+	<listitem>
+	  <para>The signal was unstable and the hardware could not lock on to it.
+</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ERANGE</errorcode></term>
+	<listitem>
+	  <para>Timings were found, but they are out of range of the hardware
+capabilities.
+</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

@@ -1,0 +1,29 @@
+TI SOC ECAP based APWM controller
+
+Required properties:
+- compatible: Must be "ti,<soc>-ecap".
+  for am33xx - compatible = "ti,am33xx-ecap";
+  for da850  - compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+- #pwm-cells: should be 3. See pwm.txt in this directory for a description of
+  the cells format. The PWM channel index ranges from 0 to 4. The only third
+  cell flag supported by this binding is PWM_POLARITY_INVERTED.
+- reg: physical base address and size of the registers map.
+
+Optional properties:
+- ti,hwmods: Name of the hwmod associated to the ECAP:
+  "ecap<x>", <x> being the 0-based instance number from the HW spec
+
+Example:
+
+ecap0: ecap@0 { /* ECAP on am33xx */
+	compatible = "ti,am33xx-ecap";
+	#pwm-cells = <3>;
+	reg = <0x48300100 0x80>;
+	ti,hwmods = "ecap0";
+};
+
+ecap0: ecap@0 { /* ECAP on da850 */
+	compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+	#pwm-cells = <3>;
+	reg = <0x306000 0x80>;
+};

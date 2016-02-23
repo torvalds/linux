@@ -1,0 +1,103 @@
+Kernel driver smsc47m192
+========================
+
+Supported chips:
+  * SMSC LPC47M192, LPC47M15x, LPC47M292 and LPC47M997
+    Prefix: 'smsc47m192'
+    Addresses scanned: I2C 0x2c - 0x2d
+    Datasheet: The datasheet for LPC47M192 is publicly available from
+               http://www.smsc.com/
+               The LPC47M15x, LPC47M292 and LPC47M997 are compatible for
+               hardware monitoring.
+
+Author: Hartmut Rick <linux@rick.claranet.de>
+        Special thanks to Jean Delvare for careful checking
+        of the code and many helpful comments and suggestions.
+
+
+Description
+-----------
+
+This driver implements support for the hardware sensor capabilities
+of the SMSC LPC47M192 and compatible Super-I/O chips.
+
+These chips support 3 temperature channels and 8 voltage inputs
+as well as CPU voltage VID input.
+
+They do also have fan monitoring and control capabilities, but the
+these features are accessed via ISA bus and are not supported by this
+driver. Use the 'smsc47m1' driver for fan monitoring and control.
+
+Voltages and temperatures are measured by an 8-bit ADC, the resolution
+of the temperatures is 1 bit per degree C.
+Voltages are scaled such that the nominal voltage corresponds to
+192 counts, i.e. 3/4 of the full range. Thus the available range for
+each voltage channel is 0V ... 255/192*(nominal voltage), the resolution
+is 1 bit per (nominal voltage)/192.
+Both voltage and temperature values are scaled by 1000, the sys files
+show voltages in mV and temperatures in units of 0.001 degC.
+
+The +12V analog voltage input channel (in4_input) is multiplexed with
+bit 4 of the encoded CPU voltage. This means that you either get
+a +12V voltage measurement or a 5 bit CPU VID, but not both.
+The default setting is to use the pin as 12V input, and use only 4 bit VID.
+This driver assumes that the information in the configuration register
+is correct, i.e. that the BIOS has updated the configuration if
+the motherboard has this input wired to VID4.
+
+The temperature and voltage readings are updated once every 1.5 seconds.
+Reading them more often repeats the same values.
+
+
+sysfs interface
+---------------
+
+in0_input	- +2.5V voltage input
+in1_input	- CPU voltage input (nominal 2.25V)
+in2_input	- +3.3V voltage input
+in3_input	- +5V voltage input
+in4_input	- +12V voltage input (may be missing if used as VID4)
+in5_input	- Vcc voltage input (nominal 3.3V)
+		  This is the supply voltage of the sensor chip itself.
+in6_input	- +1.5V voltage input
+in7_input	- +1.8V voltage input
+
+in[0-7]_min,
+in[0-7]_max	- lower and upper alarm thresholds for in[0-7]_input reading
+
+		  All voltages are read and written in mV.
+
+in[0-7]_alarm	- alarm flags for voltage inputs
+		  These files read '1' in case of alarm, '0' otherwise.
+
+temp1_input	- chip temperature measured by on-chip diode
+temp[2-3]_input	- temperature measured by external diodes (one of these would
+		  typically be wired to the diode inside the CPU)
+
+temp[1-3]_min,
+temp[1-3]_max	- lower and upper alarm thresholds for temperatures
+
+temp[1-3]_offset - temperature offset registers
+		  The chip adds the offsets stored in these registers to
+		  the corresponding temperature readings.
+		  Note that temp1 and temp2 offsets share the same register,
+		  they cannot both be different from zero at the same time.
+		  Writing a non-zero number to one of them will reset the other
+		  offset to zero.
+
+		  All temperatures and offsets are read and written in
+		  units of 0.001 degC.
+
+temp[1-3]_alarm - alarm flags for temperature inputs, '1' in case of alarm,
+		  '0' otherwise.
+temp[2-3]_input_fault - diode fault flags for temperature inputs 2 and 3.
+		  A fault is detected if the two pins for the corresponding
+		  sensor are open or shorted, or any of the two is shorted
+		  to ground or Vcc. '1' indicates a diode fault.
+
+cpu0_vid	- CPU voltage as received from the CPU
+
+vrm		- CPU VID standard used for decoding CPU voltage
+
+		  The *_min, *_max, *_offset and vrm files can be read and
+		  written, all others are read-only.

@@ -1,0 +1,82 @@
+MPC5121 PSC Device Tree Bindings
+
+PSC in UART mode
+----------------
+
+For PSC in UART mode the needed PSC serial devices
+are specified by fsl,mpc5121-psc-uart nodes in the
+fsl,mpc5121-immr SoC node. Additionally the PSC FIFO
+Controller node fsl,mpc5121-psc-fifo is required there:
+
+fsl,mpc512x-psc-uart nodes
+--------------------------
+
+Required properties :
+ - compatible : Should contain "fsl,<soc>-psc-uart" and "fsl,<soc>-psc"
+   Supported <soc>s: mpc5121, mpc5125
+ - reg : Offset and length of the register set for the PSC device
+ - interrupts : <a b> where a is the interrupt number of the
+   PSC FIFO Controller and b is a field that represents an
+   encoding of the sense and level information for the interrupt.
+ - interrupt-parent : the phandle for the interrupt controller that
+   services interrupts for this device.
+
+Recommended properties :
+ - fsl,rx-fifo-size : the size of the RX fifo slice (a multiple of 4)
+ - fsl,tx-fifo-size : the size of the TX fifo slice (a multiple of 4)
+
+PSC in SPI mode
+---------------
+
+Similar to the UART mode a PSC can be operated in SPI mode. The compatible used
+for that is fsl,mpc5121-psc-spi. It requires a fsl,mpc5121-psc-fifo as well.
+The required and recommended properties are identical to the
+fsl,mpc5121-psc-uart nodes, just use spi instead of uart in the compatible
+string.
+
+fsl,mpc512x-psc-fifo node
+-------------------------
+
+Required properties :
+ - compatible : Should be "fsl,<soc>-psc-fifo"
+   Supported <soc>s: mpc5121, mpc5125
+ - reg : Offset and length of the register set for the PSC
+         FIFO Controller
+ - interrupts : <a b> where a is the interrupt number of the
+   PSC FIFO Controller and b is a field that represents an
+   encoding of the sense and level information for the interrupt.
+ - interrupt-parent : the phandle for the interrupt controller that
+   services interrupts for this device.
+
+Recommended properties :
+ - clocks : specifies the clock needed to operate the fifo controller
+ - clock-names : name(s) for the clock(s) listed in clocks
+
+Example for a board using PSC0 and PSC1 devices in serial mode:
+
+serial@11000 {
+	compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+	cell-index = <0>;
+	reg = <0x11000 0x100>;
+	interrupts = <40 0x8>;
+	interrupt-parent = < &ipic >;
+	fsl,rx-fifo-size = <16>;
+	fsl,tx-fifo-size = <16>;
+};
+
+serial@11100 {
+	compatible = "fsl,mpc5121-psc-uart", "fsl,mpc5121-psc";
+	cell-index = <1>;
+	reg = <0x11100 0x100>;
+	interrupts = <40 0x8>;
+	interrupt-parent = < &ipic >;
+	fsl,rx-fifo-size = <16>;
+	fsl,tx-fifo-size = <16>;
+};
+
+pscfifo@11f00 {
+	compatible = "fsl,mpc5121-psc-fifo";
+	reg = <0x11f00 0x100>;
+	interrupts = <40 0x8>;
+	interrupt-parent = < &ipic >;
+};

@@ -1,0 +1,13 @@
+config DVB_NGENE
+	tristate "Micronas nGene support"
+	depends on DVB_CORE && PCI && I2C
+	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV6110x if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV090x if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LGDT330X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_DRXK if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA18271C2DD if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MT2131 if MEDIA_SUBDRV_AUTOSELECT
+	---help---
+	  Support for Micronas PCI express cards with nGene bridge.
+

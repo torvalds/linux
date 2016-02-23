@@ -1,0 +1,699 @@
+/*
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "omap443x.dtsi"
+#include "elpida_ecb240abacn.dtsi"
+
+/ {
+	model = "TI OMAP4 SDP board";
+	compatible = "ti,omap4-sdp", "ti,omap4430", "ti,omap4";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>; /* 1 GB */
+	};
+
+	aliases {
+		display0 = &lcd0;
+		display1 = &lcd1;
+		display2 = &hdmi0;
+	};
+
+	vdd_eth: fixedregulator-vdd-eth {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_ETH";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 16 GPIO_ACTIVE_HIGH>;  /* gpio line 48 */
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	vbat: fixedregulator-vbat {
+		compatible = "regulator-fixed";
+		regulator-name = "VBAT";
+		regulator-min-microvolt = <3750000>;
+		regulator-max-microvolt = <3750000>;
+		regulator-boot-on;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		debug0 {
+			label = "omap4:green:debug0";
+			gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>; /* 61 */
+		};
+
+		debug1 {
+			label = "omap4:green:debug1";
+			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>; /* 30 */
+		};
+
+		debug2 {
+			label = "omap4:green:debug2";
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>; /* 7 */
+		};
+
+		debug3 {
+			label = "omap4:green:debug3";
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>; /* 8 */
+		};
+
+		debug4 {
+			label = "omap4:green:debug4";
+			gpios = <&gpio2 18 GPIO_ACTIVE_HIGH>; /* 50 */
+		};
+
+		user1 {
+			label = "omap4:blue:user";
+			gpios = <&gpio6 9 GPIO_ACTIVE_HIGH>; /* 169 */
+		};
+
+		user2 {
+			label = "omap4:red:user";
+			gpios = <&gpio6 10 GPIO_ACTIVE_HIGH>; /* 170 */
+		};
+
+		user3 {
+			label = "omap4:green:user";
+			gpios = <&gpio5 11 GPIO_ACTIVE_HIGH>; /* 139 */
+		};
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+		kpad {
+			label = "omap4::keypad";
+			pwms = <&twl_pwm 0 7812500>;
+			max-brightness = <127>;
+		};
+
+		charging {
+			label = "omap4:green:chrg";
+			pwms = <&twl_pwmled 0 7812500>;
+			max-brightness = <255>;
+		};
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&twl_pwm 1 7812500>;
+		brightness-levels = <
+				0 10 20 30 40
+				50 60 70 80 90
+				100 110 120 127
+				>;
+		default-brightness-level = <13>;
+	};
+
+	sound {
+		compatible = "ti,abe-twl6040";
+		ti,model = "SDP4430";
+
+		ti,jack-detection = <1>;
+		ti,mclk-freq = <38400000>;
+
+		ti,mcpdm = <&mcpdm>;
+		ti,dmic = <&dmic>;
+
+		ti,twl6040 = <&twl6040>;
+
+		/* Audio routing */
+		ti,audio-routing =
+			"Headset Stereophone", "HSOL",
+			"Headset Stereophone", "HSOR",
+			"Earphone Spk", "EP",
+			"Ext Spk", "HFL",
+			"Ext Spk", "HFR",
+			"Line Out", "AUXL",
+			"Line Out", "AUXR",
+			"Vibrator", "VIBRAL",
+			"Vibrator", "VIBRAR",
+			"HSMIC", "Headset Mic",
+			"Headset Mic", "Headset Mic Bias",
+			"MAINMIC", "Main Handset Mic",
+			"Main Handset Mic", "Main Mic Bias",
+			"SUBMIC", "Sub Handset Mic",
+			"Sub Handset Mic", "Main Mic Bias",
+			"AFML", "Line In",
+			"AFMR", "Line In",
+			"DMic", "Digital Mic",
+			"Digital Mic", "Digital Mic1 Bias";
+	};
+
+	/* regulator for wl12xx on sdio5 */
+	wl12xx_vmmc: wl12xx_vmmc {
+		pinctrl-names = "default";
+		pinctrl-0 = <&wl12xx_gpio>;
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1271";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	tpd12s015: encoder@0 {
+		compatible = "ti,tpd12s015";
+
+		gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>,	/* 60, CT CP HPD */
+			<&gpio2 9 GPIO_ACTIVE_HIGH>,	/* 41, LS OE */
+			<&gpio2 31 GPIO_ACTIVE_HIGH>;	/* 63, HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint@0 {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint@0 {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+
+	hdmi0: connector@0 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "c";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
+};
+
+&omap4_pmx_core {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+			&dss_hdmi_pins
+			&tpd12s015_pins
+	>;
+
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x118, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart2_cts.uart2_cts */
+			OMAP4_IOPAD(0x11a, PIN_OUTPUT | MUX_MODE0)		/* uart2_rts.uart2_rts */
+			OMAP4_IOPAD(0x11c, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart2_rx.uart2_rx */
+			OMAP4_IOPAD(0x11e, PIN_OUTPUT | MUX_MODE0)		/* uart2_tx.uart2_tx */
+		>;
+	};
+
+	uart3_pins: pinmux_uart3_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x140, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart3_cts_rctx.uart3_cts_rctx */
+			OMAP4_IOPAD(0x142, PIN_OUTPUT | MUX_MODE0)		/* uart3_rts_sd.uart3_rts_sd */
+			OMAP4_IOPAD(0x144, PIN_INPUT | MUX_MODE0)		/* uart3_rx_irrx.uart3_rx_irrx */
+			OMAP4_IOPAD(0x146, PIN_OUTPUT | MUX_MODE0)		/* uart3_tx_irtx.uart3_tx_irtx */
+		>;
+	};
+
+	uart4_pins: pinmux_uart4_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x15c, PIN_INPUT | MUX_MODE0)		/* uart4_rx.uart4_rx */
+			OMAP4_IOPAD(0x15e, PIN_OUTPUT | MUX_MODE0)		/* uart4_tx.uart4_tx */
+		>;
+	};
+
+	twl6040_pins: pinmux_twl6040_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x120, PIN_OUTPUT | MUX_MODE3)		/* hdq_sio.gpio_127 */
+			OMAP4_IOPAD(0x1a0, PIN_INPUT | MUX_MODE0)		/* sys_nirq2.sys_nirq2 */
+		>;
+	};
+
+	mcpdm_pins: pinmux_mcpdm_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x106, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_ul_data.abe_pdm_ul_data */
+			OMAP4_IOPAD(0x108, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_dl_data.abe_pdm_dl_data */
+			OMAP4_IOPAD(0x10a, PIN_INPUT_PULLUP | MUX_MODE0)	/* abe_pdm_frame.abe_pdm_frame */
+			OMAP4_IOPAD(0x10c, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_lb_clk.abe_pdm_lb_clk */
+			OMAP4_IOPAD(0x10e, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_clks.abe_clks */
+		>;
+	};
+
+	dmic_pins: pinmux_dmic_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x110, PIN_OUTPUT | MUX_MODE0)		/* abe_dmic_clk1.abe_dmic_clk1 */
+			OMAP4_IOPAD(0x112, PIN_INPUT | MUX_MODE0)		/* abe_dmic_din1.abe_dmic_din1 */
+			OMAP4_IOPAD(0x114, PIN_INPUT | MUX_MODE0)		/* abe_dmic_din2.abe_dmic_din2 */
+			OMAP4_IOPAD(0x116, PIN_INPUT | MUX_MODE0)		/* abe_dmic_din3.abe_dmic_din3 */
+		>;
+	};
+
+	mcbsp1_pins: pinmux_mcbsp1_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x0fe, PIN_INPUT | MUX_MODE0)		/* abe_mcbsp1_clkx.abe_mcbsp1_clkx */
+			OMAP4_IOPAD(0x100, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_mcbsp1_dr.abe_mcbsp1_dr */
+			OMAP4_IOPAD(0x102, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* abe_mcbsp1_dx.abe_mcbsp1_dx */
+			OMAP4_IOPAD(0x104, PIN_INPUT | MUX_MODE0)		/* abe_mcbsp1_fsx.abe_mcbsp1_fsx */
+		>;
+	};
+
+	mcbsp2_pins: pinmux_mcbsp2_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x0f6, PIN_INPUT | MUX_MODE0)		/* abe_mcbsp2_clkx.abe_mcbsp2_clkx */
+			OMAP4_IOPAD(0x0f8, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_mcbsp2_dr.abe_mcbsp2_dr */
+			OMAP4_IOPAD(0x0fa, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* abe_mcbsp2_dx.abe_mcbsp2_dx */
+			OMAP4_IOPAD(0x0fc, PIN_INPUT | MUX_MODE0)		/* abe_mcbsp2_fsx.abe_mcbsp2_fsx */
+		>;
+	};
+
+	mcspi1_pins: pinmux_mcspi1_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x132, PIN_INPUT | MUX_MODE0)		/*  mcspi1_clk.mcspi1_clk */
+			OMAP4_IOPAD(0x134, PIN_INPUT | MUX_MODE0)		/*  mcspi1_somi.mcspi1_somi */
+			OMAP4_IOPAD(0x136, PIN_INPUT | MUX_MODE0)		/*  mcspi1_simo.mcspi1_simo */
+			OMAP4_IOPAD(0x138, PIN_INPUT | MUX_MODE0)		/*  mcspi1_cs0.mcspi1_cs0 */
+		>;
+	};
+
+	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x09a, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
+			OMAP4_IOPAD(0x09c, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_scl.hdmi_scl */
+			OMAP4_IOPAD(0x09e, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_sda.hdmi_sda */
+		>;
+	};
+
+	tpd12s015_pins: pinmux_tpd12s015_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x062, PIN_OUTPUT | MUX_MODE3)		/* gpmc_a17.gpio_41 */
+			OMAP4_IOPAD(0x088, PIN_OUTPUT | MUX_MODE3)		/* gpmc_nbe1.gpio_60 */
+			OMAP4_IOPAD(0x098, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* hdmi_hpd.gpio_63 */
+		>;
+	};
+
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x122, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_scl */
+			OMAP4_IOPAD(0x124, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_sda */
+		>;
+	};
+
+	i2c2_pins: pinmux_i2c2_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x126, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c2_scl */
+			OMAP4_IOPAD(0x128, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c2_sda */
+		>;
+	};
+
+	i2c3_pins: pinmux_i2c3_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x12a, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_scl */
+			OMAP4_IOPAD(0x12c, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_sda */
+		>;
+	};
+
+	i2c4_pins: pinmux_i2c4_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x12e, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c4_scl */
+			OMAP4_IOPAD(0x130, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c4_sda */
+		>;
+	};
+
+	/* wl12xx GPIO output for WLAN_EN */
+	wl12xx_gpio: pinmux_wl12xx_gpio {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x07c, PIN_OUTPUT | MUX_MODE3)		/* gpmc_nwp.gpio_54 */
+		>;
+	};
+
+	/* wl12xx GPIO inputs and SDIO pins */
+	wl12xx_pins: pinmux_wl12xx_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x07a, PIN_INPUT | MUX_MODE3)		/* gpmc_ncs3.gpio_53 */
+			OMAP4_IOPAD(0x148, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_clk.sdmmc5_clk */
+			OMAP4_IOPAD(0x14a, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_cmd.sdmmc5_cmd */
+			OMAP4_IOPAD(0x14c, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat0.sdmmc5_dat0 */
+			OMAP4_IOPAD(0x14e, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat1.sdmmc5_dat1 */
+			OMAP4_IOPAD(0x150, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat2.sdmmc5_dat2 */
+			OMAP4_IOPAD(0x152, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat3.sdmmc5_dat3 */
+		>;
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+
+	clock-frequency = <400000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		/* SPI = 0, IRQ# = 7, 4 = active high level-sensitive */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
+	};
+
+	twl6040: twl@4b {
+		compatible = "ti,twl6040";
+		reg = <0x4b>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&twl6040_pins>;
+
+		/* SPI = 0, IRQ# = 119, 4 = active high level-sensitive */
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_2N cascaded to gic */
+		ti,audpwron-gpio = <&gpio4 31 GPIO_ACTIVE_HIGH>;  /* gpio line 127 */
+
+		vio-supply = <&v1v8>;
+		v2v1-supply = <&v2v1>;
+		enable-active-high;
+
+		/* regulators for vibra motor */
+		vddvibl-supply = <&vbat>;
+		vddvibr-supply = <&vbat>;
+
+		vibra {
+			/* Vibra driver, motor resistance parameters */
+			ti,vibldrv-res = <8>;
+			ti,vibrdrv-res = <3>;
+			ti,viblmotor-res = <10>;
+			ti,vibrmotor-res = <10>;
+		};
+	};
+};
+
+#include "twl6030.dtsi"
+#include "twl6030_omap4.dtsi"
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+
+	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+
+	clock-frequency = <400000>;
+
+	/*
+	 * Temperature Sensor
+	 * http://www.ti.com/lit/ds/symlink/tmp105.pdf
+	 */
+	tmp105@48 {
+		compatible = "ti,tmp105";
+		reg = <0x48>;
+	};
+
+	/*
+	 * Ambient Light Sensor
+	 * http://www.rohm.com/products/databook/sensor/pdf/bh1780gli-e.pdf
+	 */
+	bh1780@29 {
+		compatible = "rohm,bh1780";
+		reg = <0x29>;
+	};
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins>;
+
+	clock-frequency = <400000>;
+
+	/*
+	 * 3-Axis Digital Compass
+	 * http://www.sparkfun.com/datasheets/Sensors/Magneto/HMC5843.pdf
+	 */
+	hmc5843@1e {
+		compatible = "honeywell,hmc5843";
+		reg = <0x1e>;
+	};
+};
+
+&mcspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcspi1_pins>;
+
+	eth@0 {
+		compatible = "ks8851";
+		spi-max-frequency = <24000000>;
+		reg = <0>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>; /* gpio line 34 */
+		vdd-supply = <&vdd_eth>;
+	};
+};
+
+&mmc1 {
+	vmmc-supply = <&vmmc>;
+	bus-width = <8>;
+};
+
+&mmc2 {
+	vmmc-supply = <&vaux1>;
+	bus-width = <8>;
+	ti,non-removable;
+};
+
+&mmc3 {
+	status = "disabled";
+};
+
+&mmc4 {
+	status = "disabled";
+};
+
+&mmc5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&wl12xx_pins>;
+	vmmc-supply = <&wl12xx_vmmc>;
+	non-removable;
+	bus-width = <4>;
+	cap-power-off-card;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1281";
+		reg = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <21 IRQ_TYPE_LEVEL_HIGH>; /* gpio 53 */
+		ref-clock-frequency = <26000000>;
+		tcxo-clock-frequency = <26000000>;
+	};
+};
+
+&emif1 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
+};
+
+&emif2 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
+};
+
+&keypad {
+	keypad,num-rows = <8>;
+	keypad,num-columns = <8>;
+	linux,keymap = <0x00000012	/* KEY_E */
+			0x00010013	/* KEY_R */
+			0x00020014	/* KEY_T */
+			0x00030066	/* KEY_HOME */
+			0x0004003f	/* KEY_F5 */
+			0x000500f0	/* KEY_UNKNOWN */
+			0x00060017	/* KEY_I */
+			0x0007002a	/* KEY_LEFTSHIFT */
+			0x01000020	/* KEY_D*/
+			0x01010021	/* KEY_F */
+			0x01020022	/* KEY_G */
+			0x010300e7	/* KEY_SEND */
+			0x01040040	/* KEY_F6 */
+			0x010500f0	/* KEY_UNKNOWN */
+			0x01060025	/* KEY_K */
+			0x0107001c	/* KEY_ENTER */
+			0x0200002d	/* KEY_X */
+			0x0201002e	/* KEY_C */
+			0x0202002f	/* KEY_V */
+			0x0203006b	/* KEY_END */
+			0x02040041	/* KEY_F7 */
+			0x020500f0	/* KEY_UNKNOWN */
+			0x02060034	/* KEY_DOT */
+			0x0207003a	/* KEY_CAPSLOCK */
+			0x0300002c	/* KEY_Z */
+			0x0301004e	/* KEY_KPLUS */
+			0x03020030	/* KEY_B */
+			0x0303003b	/* KEY_F1 */
+			0x03040042	/* KEY_F8 */
+			0x030500f0	/* KEY_UNKNOWN */
+			0x03060018	/* KEY_O */
+			0x03070039	/* KEY_SPACE */
+			0x04000011	/* KEY_W */
+			0x04010015	/* KEY_Y */
+			0x04020016	/* KEY_U */
+			0x0403003c	/* KEY_F2 */
+			0x04040073	/* KEY_VOLUMEUP */
+			0x040500f0	/* KEY_UNKNOWN */
+			0x04060026	/* KEY_L */
+			0x04070069	/* KEY_LEFT */
+			0x0500001f	/* KEY_S */
+			0x05010023	/* KEY_H */
+			0x05020024	/* KEY_J */
+			0x0503003d	/* KEY_F3 */
+			0x05040043	/* KEY_F9 */
+			0x05050072	/* KEY_VOLUMEDOWN */
+			0x05060032	/* KEY_M */
+			0x0507006a	/* KEY_RIGHT */
+			0x06000010	/* KEY_Q */
+			0x0601001e	/* KEY_A */
+			0x06020031	/* KEY_N */
+			0x0603009e	/* KEY_BACK */
+			0x0604000e	/* KEY_BACKSPACE */
+			0x060500f0	/* KEY_UNKNOWN */
+			0x06060019	/* KEY_P */
+			0x06070067	/* KEY_UP */
+			0x07000094	/* KEY_PROG1 */
+			0x07010095	/* KEY_PROG2 */
+			0x070200ca	/* KEY_PROG3 */
+			0x070300cb	/* KEY_PROG4 */
+			0x0704003e	/* KEY_F4 */
+			0x070500f0	/* KEY_UNKNOWN */
+			0x07060160	/* KEY_OK */
+			0x0707006c>;	/* KEY_DOWN */
+	linux,input-no-autorepeat;
+};
+
+&uart2 {
+	interrupts-extended = <&wakeupgen GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART2_RX>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+};
+
+&uart3 {
+	interrupts-extended = <&wakeupgen GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART3_RX>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+};
+
+&uart4 {
+	interrupts-extended = <&wakeupgen GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART4_RX>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_pins>;
+};
+
+&mcbsp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp1_pins>;
+	status = "okay";
+};
+
+&mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
+	status = "okay";
+};
+
+&dmic {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dmic_pins>;
+	status = "okay";
+};
+
+&mcpdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
+};
+
+&twl_usb_comparator {
+	usb-supply = <&vusb>;
+};
+
+&usb_otg_hs {
+	interface-type = <1>;
+	mode = <3>;
+	power = <50>;
+};
+
+&dss {
+	status = "ok";
+};
+
+&dsi1 {
+	status = "ok";
+	vdd-supply = <&vcxio>;
+
+	port {
+		dsi1_out_ep: endpoint {
+			remote-endpoint = <&lcd0_in>;
+			lanes = <0 1 2 3 4 5>;
+		};
+	};
+
+	lcd0: display {
+		compatible = "tpo,taal", "panel-dsi-cm";
+		label = "lcd0";
+
+		reset-gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>;	/* 102 */
+
+		port {
+			lcd0_in: endpoint {
+				remote-endpoint = <&dsi1_out_ep>;
+			};
+		};
+	};
+};
+
+&dsi2 {
+	status = "ok";
+	vdd-supply = <&vcxio>;
+
+	port {
+		dsi2_out_ep: endpoint {
+			remote-endpoint = <&lcd1_in>;
+			lanes = <0 1 2 3 4 5>;
+		};
+	};
+
+	lcd1: display {
+		compatible = "tpo,taal", "panel-dsi-cm";
+		label = "lcd1";
+
+		reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;	/* 104 */
+
+		port {
+			lcd1_in: endpoint {
+				remote-endpoint = <&dsi2_out_ep>;
+			};
+		};
+	};
+};
+
+&hdmi {
+	status = "ok";
+	vdda-supply = <&vdac>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
+};

@@ -1,0 +1,78 @@
+#include "qcom-msm8974.dtsi"
+#include "qcom-pm8841.dtsi"
+#include "qcom-pm8941.dtsi"
+
+/ {
+	model = "Qualcomm APQ8074 Dragonboard";
+	compatible = "qcom,apq8074-dragonboard", "qcom,apq8074";
+
+	aliases {
+		serial0 = &blsp1_uart2;
+		usid0 = &pm8941_0;
+		usid4 = &pm8841_0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	soc {
+		serial@f991e000 {
+			status = "ok";
+		};
+
+		sdhci@f9824900 {
+			bus-width = <8>;
+			non-removable;
+			status = "ok";
+		};
+
+		sdhci@f98a4900 {
+			cd-gpios = <&msmgpio 62 0x1>;
+			bus-width = <4>;
+		};
+
+
+		pinctrl@fd510000 {
+			i2c11_pins: i2c11 {
+				mux {
+					pins = "gpio83", "gpio84";
+					function = "blsp_i2c11";
+				};
+			};
+
+			spi8_default: spi8_default {
+				mosi {
+					pins = "gpio45";
+					function = "blsp_spi8";
+				};
+				miso {
+					pins = "gpio46";
+					function = "blsp_spi8";
+				};
+				cs {
+					pins = "gpio47";
+					function = "blsp_spi8";
+				};
+				clk {
+					pins = "gpio48";
+					function = "blsp_spi8";
+				};
+			};
+		};
+
+		i2c@f9967000 {
+			status = "okay";
+			clock-frequency = <200000>;
+			pinctrl-0 = <&i2c11_pins>;
+			pinctrl-names = "default";
+
+			eeprom: eeprom@52 {
+				compatible = "atmel,24c128";
+				reg = <0x52>;
+				pagesize = <32>;
+				read-only;
+			};
+		};
+	};
+};

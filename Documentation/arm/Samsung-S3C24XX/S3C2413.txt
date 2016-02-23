@@ -1,0 +1,21 @@
+		S3C2413 ARM Linux Overview
+		==========================
+
+Introduction
+------------
+
+  The S3C2413 is an extended version of the S3C2412, with an camera
+  interface and mobile DDR memory support. See the S3C2412 support
+  documentation for more information.
+
+
+Camera Interface
+---------------
+
+  This block is currently not supported.
+
+
+Document Author
+---------------
+
+Ben Dooks, Copyright 2006 Simtec Electronics

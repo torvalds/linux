@@ -1,0 +1,134 @@
+What:		/sys/class/power/ds2760-battery.*/charge_now
+Date:		May 2010
+KernelVersion:	2.6.35
+Contact:	Daniel Mack <daniel@caiaq.de>
+Description:
+		This file is writeable and can be used to set the current
+		coloumb counter value inside the battery monitor chip. This
+		is needed for unavoidable corrections of aging batteries.
+		A userspace daemon can monitor the battery charging logic
+		and once the counter drops out of considerable bounds, take
+		appropriate action.
+
+What:		/sys/class/power/ds2760-battery.*/charge_full
+Date:		May 2010
+KernelVersion:	2.6.35
+Contact:	Daniel Mack <daniel@caiaq.de>
+Description:
+		This file is writeable and can be used to set the assumed
+		battery 'full level'. As batteries age, this value has to be
+		amended over time.
+
+What:		/sys/class/power_supply/max14577-charger/device/fast_charge_timer
+Date:		October 2014
+KernelVersion:	3.18.0
+Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Description:
+		This entry shows and sets the maximum time the max14577
+		charger operates in fast-charge mode. When the timer expires
+		the device will terminate fast-charge mode (charging current
+		will drop to 0 A) and will trigger interrupt.
+
+		Valid values:
+		- 5, 6 or 7 (hours),
+		- 0: disabled.
+
+What:		/sys/class/power_supply/max77693-charger/device/fast_charge_timer
+Date:		January 2015
+KernelVersion:	3.19.0
+Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Description:
+		This entry shows and sets the maximum time the max77693
+		charger operates in fast-charge mode. When the timer expires
+		the device will terminate fast-charge mode (charging current
+		will drop to 0 A) and will trigger interrupt.
+
+		Valid values:
+		- 4 - 16 (hours), step by 2 (rounded down)
+		- 0: disabled.
+
+What:		/sys/class/power_supply/max77693-charger/device/top_off_threshold_current
+Date:		January 2015
+KernelVersion:	3.19.0
+Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Description:
+		This entry shows and sets the charging current threshold for
+		entering top-off charging mode. When charging current in fast
+		charge mode drops below this value, the charger will trigger
+		interrupt and start top-off charging mode.
+
+		Valid values:
+		- 100000 - 200000 (microamps), step by 25000 (rounded down)
+		- 200000 - 350000 (microamps), step by 50000 (rounded down)
+		- 0: disabled.
+
+What:		/sys/class/power_supply/max77693-charger/device/top_off_timer
+Date:		January 2015
+KernelVersion:	3.19.0
+Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Description:
+		This entry shows and sets the maximum time the max77693
+		charger operates in top-off charge mode. When the timer expires
+		the device will terminate top-off charge mode (charging current
+		will drop to 0 A) and will trigger interrupt.
+
+		Valid values:
+		- 0 - 70 (minutes), step by 10 (rounded down)
+
+What:		/sys/class/power_supply/bq24257-charger/ovp_voltage
+Date:		October 2015
+KernelVersion:	4.4.0
+Contact:	Andreas Dannenberg <dannenberg@ti.com>
+Description:
+		This entry configures the overvoltage protection feature of bq24257-
+		type charger devices. This feature protects the device and other
+		components against damage from overvoltage on the input supply. See
+		device datasheet for details.
+
+		Valid values:
+		- 6000000, 6500000, 7000000, 8000000, 9000000, 9500000, 10000000,
+		  10500000 (all uV)
+
+What:		/sys/class/power_supply/bq24257-charger/in_dpm_voltage
+Date:		October 2015
+KernelVersion:	4.4.0
+Contact:	Andreas Dannenberg <dannenberg@ti.com>
+Description:
+		This entry configures the input dynamic power path management voltage of
+		bq24257-type charger devices. Once the supply drops to the configured
+		voltage, the input current limit is reduced down to prevent the further
+		drop of the supply. When the IC enters this mode, the charge current is
+		lower than the set value. See device datasheet for details.
+
+		Valid values:
+		- 4200000, 4280000, 4360000, 4440000, 4520000, 4600000, 4680000,
+		  4760000 (all uV)
+
+What:		/sys/class/power_supply/bq24257-charger/high_impedance_enable
+Date:		October 2015
+KernelVersion:	4.4.0
+Contact:	Andreas Dannenberg <dannenberg@ti.com>
+Description:
+		This entry allows enabling the high-impedance mode of bq24257-type
+		charger devices. If enabled, it places the charger IC into low power
+		standby mode with the switch mode controller disabled. When disabled,
+		the charger operates normally. See device datasheet for details.
+
+		Valid values:
+		- 1: enabled
+		- 0: disabled
+
+What:		/sys/class/power_supply/bq24257-charger/sysoff_enable
+Date:		October 2015
+KernelVersion:	4.4.0
+Contact:	Andreas Dannenberg <dannenberg@ti.com>
+Description:
+		This entry allows enabling the sysoff mode of bq24257-type charger
+		devices. If enabled and the input is removed, the internal battery FET
+		is turned off in order to reduce the leakage from the BAT pin to less
+		than 1uA. Note that on some devices/systems this disconnects the battery
+		from the system. See device datasheet for details.
+
+		Valid values:
+		- 1: enabled
+		- 0: disabled

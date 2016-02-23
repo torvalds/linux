@@ -1,0 +1,9 @@
+config ISDN_DRV_ACT2000
+	tristate "IBM Active 2000 support"
+	depends on ISA
+	help
+	  Say Y here if you have an IBM Active 2000 ISDN card. In order to use
+	  this card, additional firmware is necessary, which has to be loaded
+	  into the card using a utility which is part of the latest
+	  isdn4k-utils package. Please read the file
+	  <file:Documentation/isdn/README.act2000> for more information.

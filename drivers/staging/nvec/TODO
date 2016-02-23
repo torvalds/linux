@@ -1,0 +1,8 @@
+ToDo list (incomplete, unordered)
+	- add compile as module support
+	- move half of the nvec init stuff to i2c-tegra.c
+	- move event handling to nvec_events
+	- finish suspend/resume support
+	- modifiy the sync_write method to return the received
+	  message in a variable (and return the error code).
+	- add support for more device implementations

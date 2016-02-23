@@ -1,0 +1,8 @@
+00-INDEX
+	- This file
+w1_therm
+	- The Maxim/Dallas Semiconductor ds18*20 temperature sensor.
+w1_ds2423
+	- The Maxim/Dallas Semiconductor ds2423 counter device.
+w1_ds28e04
+	- The Maxim/Dallas Semiconductor ds28e04 eeprom.

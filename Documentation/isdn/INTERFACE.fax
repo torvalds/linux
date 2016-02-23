@@ -1,0 +1,163 @@
+$Id: INTERFACE.fax,v 1.2 2000/08/06 09:22:50 armin Exp $
+
+
+Description of the fax-subinterface between linklevel and hardwarelevel of 
+  isdn4linux. 
+
+  The communication between linklevel (LL) and hardwarelevel (HL) for fax
+  is based on the struct T30_s (defined in isdnif.h).
+  This struct is allocated in the LL.  
+  In order to use fax, the LL provides the pointer to this struct with the 
+  command ISDN_CMD_SETL3 (parm.fax). This pointer expires in case of hangup 
+  and when a new channel to a new connection is assigned. 
+
+
+Data handling:
+  In send-mode the HL-driver has to handle the <DLE> codes and the bit-order 
+  conversion by itself. 
+  In receive-mode the LL-driver takes care of the bit-order conversion
+  (specified by +FBOR)
+
+Structure T30_s description:
+
+  This structure stores the values (set by AT-commands), the remote-
+  capability-values and the command-codes between LL and HL.
+
+  If the HL-driver receives ISDN_CMD_FAXCMD, all needed information
+  is in this struct set by the LL.
+  To signal information to the LL, the HL-driver has to set the 
+  parameters and use ISDN_STAT_FAXIND.
+  (Please refer to INTERFACE)
+
+Structure T30_s:
+
+  All members are 8-bit unsigned (__u8)
+
+  -  resolution     
+  -  rate
+  -  width
+  -  length
+  -  compression
+  -  ecm
+  -  binary
+  -  scantime
+  -  id[]
+  Local faxmachine's parameters, set by +FDIS, +FDCS, +FLID, ...
+
+  -  r_resolution
+  -  r_rate
+  -  r_width
+  -  r_length
+  -  r_compression
+  -  r_ecm
+  -  r_binary
+  -  r_scantime
+  -  r_id[]
+  Remote faxmachine's parameters. To be set by HL-driver.
+
+  -  phase      
+  Defines the actual state of fax connection. Set by HL or LL
+  depending on progress and type of connection.
+  If the phase changes because of an AT command, the LL driver
+  changes this value. Otherwise the HL-driver takes care of it, but
+  only necessary on call establishment (from IDLE to PHASE_A).
+  (one of the constants ISDN_FAX_PHASE_[IDLE,A,B,C,D,E])
+
+  -  direction
+  Defines outgoing/send or incoming/receive connection.
+  (ISDN_TTY_FAX_CONN_[IN,OUT])
+
+  -  code
+  Commands from LL to HL; possible constants : 
+      ISDN_TTY_FAX_DR        signals +FDR command to HL
+
+      ISDN_TTY_FAX_DT        signals +FDT command to HL 
+
+      ISDN_TTY_FAX_ET        signals +FET command to HL
+
+
+  Other than that the "code" is set with the hangup-code value at
+  the end of connection for the +FHNG message.
+        
+  -  r_code 
+  Commands from HL to LL; possible constants :
+      ISDN_TTY_FAX_CFR       output of +FCFR message. 
+
+      ISDN_TTY_FAX_RID       output of remote ID set in r_id[]
+                             (+FCSI/+FTSI on send/receive)
+
+      ISDN_TTY_FAX_DCS       output of +FDCS and CONNECT message,
+                             switching to phase C.
+
+      ISDN_TTY_FAX_ET        signals end of data,
+                             switching to phase D.
+
+      ISDN_TTY_FAX_FCON      signals the established, outgoing connection,
+                             switching to phase B.
+
+      ISDN_TTY_FAX_FCON_I    signals the established, incoming connection,
+                             switching to phase B.
+
+      ISDN_TTY_FAX_DIS       output of +FDIS message and values.
+
+      ISDN_TTY_FAX_SENT      signals that all data has been sent 
+                             and <DLE><ETX> is acknowledged,
+                             OK message will be sent.
+
+      ISDN_TTY_FAX_PTS       signals a msg-confirmation (page sent successful),
+                             depending on fet value:
+                             0: output OK message (more pages follow)
+                             1: switching to phase B (next document)
+
+      ISDN_TTY_FAX_TRAIN_OK  output of +FDCS and OK message (for receive mode).
+
+      ISDN_TTY_FAX_EOP       signals end of data in receive mode,
+                             switching to phase D.
+
+      ISDN_TTY_FAX_HNG       output of the +FHNG and value set by code and
+                             OK message, switching to phase E.
+
+
+  -  badlin
+  Value of +FBADLIN  
+
+  -  badmul
+  Value of +FBADMUL
+
+  -  bor
+  Value of +FBOR
+
+  -  fet
+  Value of +FET command in send-mode.
+  Set by HL in receive-mode for +FET message.
+
+  -  pollid[]  
+  ID-string, set by +FCIG
+
+  -  cq
+  Value of +FCQ
+
+  -  cr
+  Value of +FCR
+
+  -  ctcrty
+  Value of +FCTCRTY
+
+  -  minsp
+  Value of +FMINSP
+
+  -  phcto
+  Value of +FPHCTO
+
+  -  rel
+  Value of +FREL
+
+  -  nbc
+  Value of +FNBC (0,1)
+  (+FNBC is not a known class 2 fax command, I added this to change the
+   automatic "best capabilities" connection in the eicon HL-driver)
+
+  
+Armin
+mac@melware.de
+

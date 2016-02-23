@@ -1,0 +1,30 @@
+config PAGE_EXTENSION
+	bool "Extend memmap on extra space for more information on page"
+	---help---
+	  Extend memmap on extra space for more information on page. This
+	  could be used for debugging features that need to insert extra
+	  field for every page. This extension enables us to save memory
+	  by not allocating this extra memory according to boottime
+	  configuration.
+
+config DEBUG_PAGEALLOC
+	bool "Debug page memory allocations"
+	depends on DEBUG_KERNEL
+	depends on !HIBERNATION || ARCH_SUPPORTS_DEBUG_PAGEALLOC && !PPC && !SPARC
+	depends on !KMEMCHECK
+	select PAGE_EXTENSION
+	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	---help---
+	  Unmap pages from the kernel linear mapping after free_pages().
+	  This results in a large slowdown, but helps to find certain types
+	  of memory corruption.
+
+	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
+	  fill the pages with poison patterns after free_pages() and verify
+	  the patterns before alloc_pages().  Additionally,
+	  this option cannot be enabled in combination with hibernation as
+	  that would result in incorrect warnings of memory corruption after
+	  a resume because free pages are not saved to the suspend image.
+
+config PAGE_POISONING
+	bool

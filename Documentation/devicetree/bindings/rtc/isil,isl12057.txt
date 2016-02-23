@@ -1,0 +1,78 @@
+Intersil ISL12057 I2C RTC/Alarm chip
+
+ISL12057 is a trivial I2C device (it has simple device tree bindings,
+consisting of a compatible field, an address and possibly an interrupt
+line).
+
+Nonetheless, it also supports an option boolean property
+("wakeup-source") to handle the specific use-case found
+on at least three in-tree users of the chip (NETGEAR ReadyNAS 102, 104
+and 2120 ARM-based NAS); On those devices, the IRQ#2 pin of the chip
+(associated with the alarm supported by the driver) is not connected
+to the SoC but to a PMIC. It allows the device to be powered up when
+RTC alarm rings. In order to mark the device has a wakeup source and
+get access to the 'wakealarm' sysfs entry, this specific property can
+be set when the IRQ#2 pin of the chip is not connected to the SoC but
+can wake up the device.
+
+Required properties supported by the device:
+
+ - "compatible": must be "isil,isl12057"
+ - "reg": I2C bus address of the device
+
+Optional properties:
+
+ - "wakeup-source": mark the chip as a wakeup source, independently of
+    the availability of an IRQ line connected to the SoC.
+    (Legacy property supported: "isil,irq2-can-wakeup-machine")
+
+ - "interrupt-parent", "interrupts": for passing the interrupt line
+   of the SoC connected to IRQ#2 of the RTC chip.
+
+
+Example isl12057 node without IRQ#2 pin connected (no alarm support):
+
+	isl12057: isl12057@68 {
+		compatible = "isil,isl12057";
+		reg = <0x68>;
+	};
+
+
+Example isl12057 node with IRQ#2 pin connected to main SoC via MPP6 (note
+that the pinctrl-related properties below are given for completeness and
+may not be required or may be different depending on your system or
+SoC, and the main function of the MPP used as IRQ line, i.e.
+"interrupt-parent" and "interrupts" are usually sufficient):
+
+		    pinctrl {
+				...
+
+				rtc_alarm_pin: rtc_alarm_pin {
+					marvell,pins = "mpp6";
+					marvell,function = "gpio";
+				};
+
+				...
+
+		    };
+
+	...
+
+	isl12057: isl12057@68 {
+		compatible = "isil,isl12057";
+		reg = <0x68>;
+		pinctrl-0 = <&rtc_alarm_pin>;
+		pinctrl-names = "default";
+		interrupt-parent = <&gpio0>;
+		interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+	};
+
+
+Example isl12057 node without IRQ#2 pin connected to the SoC but to a
+PMIC, allowing the device to be started based on configured alarm:
+
+	isl12057: isl12057@68 {
+		compatible = "isil,isl12057";
+		reg = <0x68>;
+		wakeup-source;
+	};

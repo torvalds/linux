@@ -1,0 +1,17 @@
+#
+# NetLabel configuration
+#
+
+config NETLABEL
+	bool "NetLabel subsystem support"
+	depends on SECURITY
+	default n
+	---help---
+	  NetLabel provides support for explicit network packet labeling
+	  protocols such as CIPSO and RIPSO.  For more information see
+	  Documentation/netlabel as well as the NetLabel SourceForge project
+	  for configuration tools and additional documentation.
+
+	   * http://netlabel.sf.net
+
+	  If you are unsure, say N.

@@ -1,0 +1,153 @@
+# ===========================================================================
+# Module versions
+# ===========================================================================
+#
+# Stage one of module building created the following:
+# a) The individual .o files used for the module
+# b) A <module>.o file which is the .o files above linked together
+# c) A <module>.mod file in $(MODVERDIR)/, listing the name of the
+#    the preliminary <module>.o file, plus all .o files
+
+# Stage 2 is handled by this file and does the following
+# 1) Find all modules from the files listed in $(MODVERDIR)/
+# 2) modpost is then used to
+# 3)  create one <module>.mod.c file pr. module
+# 4)  create one Module.symvers file with CRC for all exported symbols
+# 5) compile all <module>.mod.c files
+# 6) final link of the module to a <module.ko> file
+
+# Step 3 is used to place certain information in the module's ELF
+# section, including information such as:
+#   Version magic (see include/linux/vermagic.h for full details)
+#     - Kernel release
+#     - SMP is CONFIG_SMP
+#     - PREEMPT is CONFIG_PREEMPT
+#     - GCC Version
+#   Module info
+#     - Module version (MODULE_VERSION)
+#     - Module alias'es (MODULE_ALIAS)
+#     - Module license (MODULE_LICENSE)
+#     - See include/linux/module.h for more details
+
+# Step 4 is solely used to allow module versioning in external modules,
+# where the CRC of each module is retrieved from the Module.symvers file.
+
+# KBUILD_MODPOST_WARN can be set to avoid error out in case of undefined
+# symbols in the final module linking stage
+# KBUILD_MODPOST_NOFINAL can be set to skip the final link of modules.
+# This is solely useful to speed up test compiles
+PHONY := _modpost
+_modpost: __modpost
+
+include include/config/auto.conf
+include scripts/Kbuild.include
+
+# When building external modules load the Kbuild file to retrieve EXTRA_SYMBOLS info
+ifneq ($(KBUILD_EXTMOD),)
+
+# set src + obj - they may be used when building the .mod.c file
+obj := $(KBUILD_EXTMOD)
+src := $(obj)
+
+# Include the module's Makefile to find KBUILD_EXTRA_SYMBOLS
+include $(if $(wildcard $(KBUILD_EXTMOD)/Kbuild), \
+             $(KBUILD_EXTMOD)/Kbuild, $(KBUILD_EXTMOD)/Makefile)
+endif
+
+include scripts/Makefile.lib
+
+kernelsymfile := $(objtree)/Module.symvers
+modulesymfile := $(firstword $(KBUILD_EXTMOD))/Module.symvers
+
+# Step 1), find all modules listed in $(MODVERDIR)/
+MODLISTCMD := find $(MODVERDIR) -name '*.mod' | xargs -r grep -h '\.ko$$' | sort -u
+__modules := $(shell $(MODLISTCMD))
+modules   := $(patsubst %.o,%.ko, $(wildcard $(__modules:.ko=.o)))
+
+# Stop after building .o files if NOFINAL is set. Makes compile tests quicker
+_modpost: $(if $(KBUILD_MODPOST_NOFINAL), $(modules:.ko:.o),$(modules))
+
+# Step 2), invoke modpost
+#  Includes step 3,4
+modpost = scripts/mod/modpost                    \
+ $(if $(CONFIG_MODVERSIONS),-m)                  \
+ $(if $(CONFIG_MODULE_SRCVERSION_ALL),-a,)       \
+ $(if $(KBUILD_EXTMOD),-i,-o) $(kernelsymfile)   \
+ $(if $(KBUILD_EXTMOD),-I $(modulesymfile))      \
+ $(if $(KBUILD_EXTRA_SYMBOLS), $(patsubst %, -e %,$(KBUILD_EXTRA_SYMBOLS))) \
+ $(if $(KBUILD_EXTMOD),-o $(modulesymfile))      \
+ $(if $(CONFIG_DEBUG_SECTION_MISMATCH),,-S)      \
+ $(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)  \
+ $(if $(KBUILD_EXTMOD)$(KBUILD_MODPOST_WARN),-w)
+
+MODPOST_OPT=$(subst -i,-n,$(filter -i,$(MAKEFLAGS)))
+
+# We can go over command line length here, so be careful.
+quiet_cmd_modpost = MODPOST $(words $(filter-out vmlinux FORCE, $^)) modules
+      cmd_modpost = $(MODLISTCMD) | sed 's/\.ko$$/.o/' | $(modpost) $(MODPOST_OPT) -s -T -
+
+PHONY += __modpost
+__modpost: $(modules:.ko=.o) FORCE
+	$(call cmd,modpost) $(wildcard vmlinux)
+
+quiet_cmd_kernel-mod = MODPOST $@
+      cmd_kernel-mod = $(modpost) $@
+
+vmlinux.o: FORCE
+	$(call cmd,kernel-mod)
+
+# Declare generated files as targets for modpost
+$(symverfile):         __modpost ;
+$(modules:.ko=.mod.c): __modpost ;
+
+
+# Step 5), compile all *.mod.c files
+
+# modname is set to make c_flags define KBUILD_MODNAME
+modname = $(notdir $(@:.mod.o=))
+
+quiet_cmd_cc_o_c = CC      $@
+      cmd_cc_o_c = $(CC) $(c_flags) $(KBUILD_CFLAGS_MODULE) $(CFLAGS_MODULE) \
+		   -c -o $@ $<
+
+$(modules:.ko=.mod.o): %.mod.o: %.mod.c FORCE
+	$(call if_changed_dep,cc_o_c)
+
+targets += $(modules:.ko=.mod.o)
+
+# Step 6), final link of the modules
+quiet_cmd_ld_ko_o = LD [M]  $@
+      cmd_ld_ko_o = $(LD) -r $(LDFLAGS)                                 \
+                             $(KBUILD_LDFLAGS_MODULE) $(LDFLAGS_MODULE) \
+                             -o $@ $(filter-out FORCE,$^)
+
+$(modules): %.ko :%.o %.mod.o FORCE
+	$(call if_changed,ld_ko_o)
+
+targets += $(modules)
+
+
+# Add FORCE to the prequisites of a target to force it to be always rebuilt.
+# ---------------------------------------------------------------------------
+
+PHONY += FORCE
+
+FORCE:
+
+# Read all saved command lines and dependencies for the $(targets) we
+# may be building above, using $(if_changed{,_dep}). As an
+# optimization, we don't need to read them if the target does not
+# exist, we will rebuild anyway in that case.
+
+targets := $(wildcard $(sort $(targets)))
+cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
+
+ifneq ($(cmd_files),)
+  include $(cmd_files)
+endif
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+
+.PHONY: $(PHONY)

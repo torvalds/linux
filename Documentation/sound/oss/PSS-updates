@@ -1,0 +1,88 @@
+	This file contains notes for users of PSS sound cards who wish to use the 
+newly added features of the newest version of this driver.
+
+	The major enhancements present in this new revision of this driver is the 
+addition of two new module parameters that allow you to take full advantage of 
+all the features present on your PSS sound card.  These features include the 
+ability to enable both the builtin CDROM and joystick ports.
+
+pss_enable_joystick
+
+	This parameter is basically a flag.  A 0 will leave the joystick port 
+disabled, while a non-zero value would enable the joystick port.  The default 
+setting is pss_enable_joystick=0 as this keeps this driver fully compatible 
+with systems that were using previous versions of this driver.  If you wish to 
+enable the joystick port you will have to add pss_enable_joystick=1 as an 
+argument to the driver.  To actually use the joystick port you will then have 
+to load the joystick driver itself.  Just remember to load the joystick driver 
+AFTER the pss sound driver.
+
+pss_cdrom_port
+
+	This parameter takes a port address as its parameter.  Any available port 
+address can be specified to enable the CDROM port, except for 0x0 and -1 as 
+these values would leave the port disabled.  Like the joystick port, the cdrom 
+port will require that an appropriate CDROM driver be loaded before you can make 
+use of the newly enabled CDROM port.  Like the joystick port option above, 
+remember to load the CDROM driver AFTER the pss sound driver.  While it may 
+differ on some PSS sound cards, all the PSS sound cards that I have seen have a 
+builtin Wearnes CDROM port.  If this is the case with your PSS sound card you 
+should load aztcd with the appropriate port option that matches the port you 
+assigned to the CDROM port when you loaded your pss sound driver.  (ex. 
+modprobe pss pss_cdrom_port=0x340 && modprobe aztcd aztcd=0x340)  The default 
+setting of this parameter leaves the CDROM port disabled to maintain full 
+compatibility with systems using previous versions of this driver.
+
+	Other options have also been added for the added convenience and utility 
+of the user.  These options are only available if this driver is loaded as a 
+module.
+
+pss_no_sound
+
+	This module parameter is a flag that can be used to tell the driver to 
+just configure non-sound components.  0 configures all components, a non-0 
+value will only attempt to configure the CDROM and joystick ports.  This 
+parameter can be used by a user who only wished to use the builtin joystick 
+and/or CDROM port(s) of his PSS sound card.  If this driver is loaded with this 
+parameter and with the parameter below set to true then a user can safely unload 
+this driver with the following command "rmmod pss && rmmod ad1848 && rmmod 
+mpu401 && rmmod sound && rmmod soundcore" and retain the full functionality of 
+his CDROM and/or joystick port(s) while gaining back the memory previously used 
+by the sound drivers.  This default setting of this parameter is 0 to retain 
+full behavioral compatibility with previous versions of this driver.
+
+pss_keep_settings
+
+	This parameter can be used to specify whether you want the driver to reset 
+all emulations whenever its unloaded.  This can be useful for those who are 
+sharing resources (io ports, IRQ's, DMA's) between different ISA cards.  This 
+flag can also be useful in that future versions of this driver may reset all 
+emulations by default on the driver's unloading (as it probably should), so 
+specifying it now will ensure that all future versions of this driver will 
+continue to work as expected.  The default value of this parameter is 1 to 
+retain full behavioral compatibility with previous versions of this driver.
+
+pss_firmware
+
+	This parameter can be used to specify the file containing the firmware 
+code so that a user could tell the driver where that file is located instead 
+of having to put it in a predefined location with a predefined name.  The 
+default setting of this parameter is "/etc/sound/pss_synth" as this was the 
+path and filename the hardcoded value in the previous versions of this driver.
+
+Examples:
+
+# Normal PSS sound card system, loading of drivers.
+# Should be specified in an rc file (ex. Slackware uses /etc/rc.d/rc.modules).
+
+/sbin/modprobe pss pss_io=0x220 mpu_io=0x338 mpu_irq=9 mss_io=0x530 mss_irq=10 mss_dma=1 pss_cdrom_port=0x340 pss_enable_joystick=1
+/sbin/modprobe aztcd aztcd=0x340
+/sbin/modprobe joystick
+
+# System using the PSS sound card just for its CDROM and joystick ports.
+# Should be specified in an rc file (ex. Slackware uses /etc/rc.d/rc.modules).
+
+/sbin/modprobe pss pss_io=0x220 pss_cdrom_port=0x340 pss_enable_joystick=1 pss_no_sound=1
+/sbin/rmmod pss && /sbin/rmmod ad1848 && /sbin/rmmod mpu401 && /sbin/rmmod sound && /sbin/rmmod soundcore  # This line not needed, but saves memory.
+/sbin/modprobe aztcd aztcd=0x340
+/sbin/modprobe joystick

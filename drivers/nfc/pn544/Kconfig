@@ -1,0 +1,30 @@
+config NFC_PN544
+	tristate
+	select CRC_CCITT
+	---help---
+	  NXP PN544 core driver.
+	  This is a driver based on the HCI NFC kernel layers and
+	  will thus not work with NXP libnfc library.
+
+config NFC_PN544_I2C
+	tristate "NXP PN544 device support (I2C)"
+	depends on NFC_HCI && I2C && NFC_SHDLC
+	select NFC_PN544
+	---help---
+	  This module adds support for the NXP pn544 i2c interface.
+	  Select this if your platform is using the i2c bus.
+
+	  If you choose to build a module, it'll be called pn544_i2c.
+	  Say N if unsure.
+
+config NFC_PN544_MEI
+	tristate "NXP PN544 device support (MEI)"
+	depends on NFC_HCI && NFC_MEI_PHY
+	select NFC_PN544
+	---help---
+	  This module adds support for the mei interface of adapters using
+	  NXP pn544 chipsets.  Select this if your pn544 chipset
+	  is handled by Intel's Management Engine Interface on your platform.
+
+	  If you choose to build a module, it'll be called pn544_mei.
+	  Say N if unsure.

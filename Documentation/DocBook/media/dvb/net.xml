@@ -1,0 +1,238 @@
+<title>DVB Network API</title>
+<para>The DVB net device controls the mapping of data packages that are
+    part of a transport stream to be mapped into a virtual network interface,
+    visible through the standard Linux network protocol stack.</para>
+<para>Currently, two encapsulations are supported:</para>
+<itemizedlist>
+    <listitem><para><ulink url="http://en.wikipedia.org/wiki/Multiprotocol_Encapsulation">
+	Multi Protocol Encapsulation (MPE)</ulink></para></listitem>
+    <listitem><para><ulink url="http://en.wikipedia.org/wiki/Unidirectional_Lightweight_Encapsulation">
+	Ultra Lightweight Encapsulation (ULE)</ulink></para></listitem>
+</itemizedlist>
+
+<para>In order to create the Linux virtual network interfaces, an application
+    needs to tell to the Kernel what are the PIDs and the encapsulation types
+    that are present on the transport stream. This is done through
+    <constant>/dev/dvb/adapter?/net?</constant> device node.
+    The data will be available via virtual <constant>dvb?_?</constant>
+    network interfaces, and will be controled/routed via the standard
+    ip tools (like ip, route, netstat, ifconfig, etc).</para>
+<para> Data types and and ioctl definitions are defined via
+    <constant>linux/dvb/net.h</constant> header.</para>
+
+<section id="net_fcalls">
+<title>DVB net Function Calls</title>
+
+
+<refentry id="NET_ADD_IF">
+  <refmeta>
+    <refentrytitle>ioctl NET_ADD_IF</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>NET_ADD_IF</refname>
+    <refpurpose>Creates a new network interface for a given Packet ID.</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct dvb_net_if *<parameter>net_if</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+        <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fe_fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>FE_SET_TONE</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>net_if</parameter></term>
+	<listitem>
+	  <para>pointer to &dvb-net-if;</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+<para>The NET_ADD_IF ioctl system call selects the Packet ID (PID) that
+    contains a TCP/IP traffic, the type of encapsulation to be used (MPE or ULE)
+    and the interface number for the new interface to be created. When the
+    system call successfully returns, a new virtual network interface is  created.</para>
+<para>The &dvb-net-if;::ifnum field will be filled with the number of the
+    created interface.</para>
+
+&return-value-dvb;
+</refsect1>
+
+<refsect1 id="dvb-net-if-t">
+<title>struct <structname>dvb_net_if</structname> description</title>
+
+<table pgwide="1" frame="none" id="dvb-net-if">
+    <title>struct <structname>dvb_net_if</structname></title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry align="char">pid</entry>
+	    <entry align="char">Packet ID (PID) of the MPEG-TS that contains
+		data</entry>
+	</row><row>
+	    <entry align="char">ifnum</entry>
+	    <entry align="char">number of the DVB interface.</entry>
+	</row><row>
+	    <entry align="char">feedtype</entry>
+	    <entry align="char">Encapsulation type of the feed. It can be:
+		<constant>DVB_NET_FEEDTYPE_MPE</constant> for MPE encoding
+		or
+		<constant>DVB_NET_FEEDTYPE_ULE</constant> for ULE encoding.
+		</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</refsect1>
+</refentry>
+
+<refentry id="NET_REMOVE_IF">
+  <refmeta>
+    <refentrytitle>ioctl NET_REMOVE_IF</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>NET_REMOVE_IF</refname>
+    <refpurpose>Removes a network interface.</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>int <parameter>ifnum</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+        <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fe_fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>FE_SET_TONE</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>net_if</parameter></term>
+	<listitem>
+	  <para>number of the interface to be removed</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+<para>The NET_REMOVE_IF ioctl deletes an interface previously created
+    via &NET-ADD-IF;.</para>
+
+&return-value-dvb;
+</refsect1>
+</refentry>
+
+
+<refentry id="NET_GET_IF">
+  <refmeta>
+    <refentrytitle>ioctl NET_GET_IF</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>NET_GET_IF</refname>
+    <refpurpose>Read the configuration data of an interface created via
+	&NET-ADD-IF;.</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct dvb_net_if *<parameter>net_if</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+        <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fe_fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>FE_SET_TONE</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>net_if</parameter></term>
+	<listitem>
+	  <para>pointer to &dvb-net-if;</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+<para>The NET_GET_IF ioctl uses the interface number given by the
+    &dvb-net-if;::ifnum field and fills the content of &dvb-net-if; with
+    the packet ID and encapsulation type used on such interface. If the
+    interface was not created yet with &NET-ADD-IF;, it will return -1 and
+    fill the <constant>errno</constant> with <constant>EINVAL</constant>
+    error code.</para>
+
+&return-value-dvb;
+</refsect1>
+</refentry>
+</section>

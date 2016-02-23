@@ -1,0 +1,87 @@
+if ARCH_KS8695
+
+menu "Kendin/Micrel KS8695 Implementations"
+
+config MACH_KS8695
+	bool "KS8695 development board"
+	select MIGHT_HAVE_PCI
+	help
+	  Say 'Y' here if you want your kernel to run on the original
+	  Kendin-Micrel KS8695 development board.
+
+config MACH_DSM320
+	bool "DSM-320 Wireless Media Player"
+	help
+	  Say 'Y' here if you want your kernel to run on the D-Link
+	  DSM-320 Wireless Media Player.
+
+config MACH_ACS5K
+	bool "Brivo Systems LLC, ACS-5000 Master board"
+	help
+	  say 'Y' here if you want your kernel to run on the Brivo
+	  Systems LLC, ACS-5000 Master board.
+
+config MACH_LITE300
+	bool "SecureComputing SG300"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  SecureComputing / SnapGear SG300 VPN Internet Router.
+	  See http://www.securecomputing.com for more details.
+
+config MACH_SG310
+	bool "McAfee SG310"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  McAfee / SnapGear SG310 VPN Internet Router.
+	  See http://www.mcafee.com for more details.
+
+config MACH_SE4200
+	bool "SecureComputing SE4200"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  SecureComputing / SnapGear SE4200 Secure Wireless VPN
+	  Internet Router.
+	  See http://www.securecomputing.com for more details.
+
+config MACH_CM4002
+	bool "OpenGear CM4002"
+	help
+	  Say 'Y' here if you want your kernel to support the OpenGear
+	  CM4002 Secure Access Server. See http://www.opengear.com for
+	  more details.
+
+config MACH_CM4008
+	bool "OpenGear CM4008"
+	select MIGHT_HAVE_PCI
+	help
+	  Say 'Y' here if you want your kernel to support the OpenGear
+	  CM4008 Console Server. See http://www.opengear.com for more
+	  details.
+
+config MACH_CM41xx
+	bool "OpenGear CM41xx"
+	select MIGHT_HAVE_PCI
+	help
+	  Say 'Y' here if you want your kernel to support the OpenGear
+	  CM4016 or CM4048 Console Servers. See http://www.opengear.com for
+	  more details.
+
+config MACH_IM4004
+	bool "OpenGear IM4004"
+	select MIGHT_HAVE_PCI
+	help
+	  Say 'Y' here if you want your kernel to support the OpenGear
+	  IM4004 Secure Access Server. See http://www.opengear.com for
+	  more details.
+
+config MACH_IM42xx
+	bool "OpenGear IM42xx"
+	select MIGHT_HAVE_PCI
+	help
+	  Say 'Y' here if you want your kernel to support the OpenGear
+	  IM4216 or IM4248 Console Servers. See http://www.opengear.com for
+	  more details.
+
+endmenu
+
+endif

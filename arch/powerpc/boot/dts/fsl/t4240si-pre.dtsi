@@ -1,0 +1,173 @@
+/*
+ * T4240 Silicon/SoC Device Tree Source (pre include)
+ *
+ * Copyright 2012 - 2015 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/dts-v1/;
+
+/include/ "e6500_power_isa.dtsi"
+
+/ {
+	compatible = "fsl,T4240";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
+
+	aliases {
+		ccsr = &soc;
+		dcsr = &dcsr;
+
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
+		serial3 = &serial3;
+		crypto = &crypto;
+
+		pci0 = &pci0;
+		pci1 = &pci1;
+		pci2 = &pci2;
+		pci3 = &pci3;
+		dma0 = &dma0;
+		dma1 = &dma1;
+		dma2 = &dma2;
+		sdhc = &sdhc;
+
+		fman0 = &fman0;
+		fman1 = &fman1;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		ethernet4 = &enet4;
+		ethernet5 = &enet5;
+		ethernet6 = &enet6;
+		ethernet7 = &enet7;
+		ethernet8 = &enet8;
+		ethernet9 = &enet9;
+		ethernet10 = &enet10;
+		ethernet11 = &enet11;
+		ethernet12 = &enet12;
+		ethernet13 = &enet13;
+		ethernet14 = &enet14;
+		ethernet15 = &enet15;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: PowerPC,e6500@0 {
+			device_type = "cpu";
+			reg = <0 1>;
+			clocks = <&mux0>;
+			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
+		};
+		cpu1: PowerPC,e6500@2 {
+			device_type = "cpu";
+			reg = <2 3>;
+			clocks = <&mux0>;
+			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
+		};
+		cpu2: PowerPC,e6500@4 {
+			device_type = "cpu";
+			reg = <4 5>;
+			clocks = <&mux0>;
+			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
+		};
+		cpu3: PowerPC,e6500@6 {
+			device_type = "cpu";
+			reg = <6 7>;
+			clocks = <&mux0>;
+			next-level-cache = <&L2_1>;
+			fsl,portid-mapping = <0x80000000>;
+		};
+		cpu4: PowerPC,e6500@8 {
+			device_type = "cpu";
+			reg = <8 9>;
+			clocks = <&mux1>;
+			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
+		};
+		cpu5: PowerPC,e6500@10 {
+			device_type = "cpu";
+			reg = <10 11>;
+			clocks = <&mux1>;
+			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
+		};
+		cpu6: PowerPC,e6500@12 {
+			device_type = "cpu";
+			reg = <12 13>;
+			clocks = <&mux1>;
+			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
+		};
+		cpu7: PowerPC,e6500@14 {
+			device_type = "cpu";
+			reg = <14 15>;
+			clocks = <&mux1>;
+			next-level-cache = <&L2_2>;
+			fsl,portid-mapping = <0x40000000>;
+		};
+		cpu8: PowerPC,e6500@16 {
+			device_type = "cpu";
+			reg = <16 17>;
+			clocks = <&mux2>;
+			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
+		};
+		cpu9: PowerPC,e6500@18 {
+			device_type = "cpu";
+			reg = <18 19>;
+			clocks = <&mux2>;
+			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
+		};
+		cpu10: PowerPC,e6500@20 {
+			device_type = "cpu";
+			reg = <20 21>;
+			clocks = <&mux2>;
+			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
+		};
+		cpu11: PowerPC,e6500@22 {
+			device_type = "cpu";
+			reg = <22 23>;
+			clocks = <&mux2>;
+			next-level-cache = <&L2_3>;
+			fsl,portid-mapping = <0x20000000>;
+		};
+	};
+};

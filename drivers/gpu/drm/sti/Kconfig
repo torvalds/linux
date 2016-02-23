@@ -1,0 +1,11 @@
+config DRM_STI
+	tristate "DRM Support for STMicroelectronics SoC stiH41x Series"
+	depends on DRM && (SOC_STIH415 || SOC_STIH416 || ARCH_MULTIPLATFORM)
+	select RESET_CONTROLLER
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_PANEL
+	select FW_LOADER
+	help
+	  Choose this option to enable DRM on STM stiH41x chipset

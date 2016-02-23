@@ -1,0 +1,241 @@
+/*
+ * Copyright 2011-2012 Calxeda, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/ {
+	chosen {
+		bootargs = "console=ttyAMA0";
+	};
+
+	psci {
+		compatible	= "arm,psci";
+		method		= "smc";
+		cpu_suspend	= <0x84000002>;
+		cpu_off		= <0x84000004>;
+		cpu_on		= <0x84000006>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&intc>;
+
+		sata@ffe08000 {
+			compatible = "calxeda,hb-ahci";
+			reg = <0xffe08000 0x10000>;
+			interrupts = <0 83 4>;
+			dma-coherent;
+			calxeda,port-phys = <&combophy5 0 &combophy0 0
+					     &combophy0 1 &combophy0 2
+					     &combophy0 3>;
+			calxeda,sgpio-gpio =<&gpioh 5 1 &gpioh 6 1 &gpioh 7 1>;
+			calxeda,led-order = <4 0 1 2 3>;
+		};
+
+		sdhci@ffe0e000 {
+			compatible = "calxeda,hb-sdhci";
+			reg = <0xffe0e000 0x1000>;
+			interrupts = <0 90 4>;
+			clocks = <&eclk>;
+			status = "disabled";
+		};
+
+		ipc@fff20000 {
+			compatible = "arm,pl320", "arm,primecell";
+			reg = <0xfff20000 0x1000>;
+			interrupts = <0 7 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		gpioe: gpio@fff30000 {
+			#gpio-cells = <2>;
+			compatible = "arm,pl061", "arm,primecell";
+			gpio-controller;
+			reg = <0xfff30000 0x1000>;
+			interrupts = <0 14 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+		};
+
+		gpiof: gpio@fff31000 {
+			#gpio-cells = <2>;
+			compatible = "arm,pl061", "arm,primecell";
+			gpio-controller;
+			reg = <0xfff31000 0x1000>;
+			interrupts = <0 15 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+		};
+
+		gpiog: gpio@fff32000 {
+			#gpio-cells = <2>;
+			compatible = "arm,pl061", "arm,primecell";
+			gpio-controller;
+			reg = <0xfff32000 0x1000>;
+			interrupts = <0 16 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+		};
+
+		gpioh: gpio@fff33000 {
+			#gpio-cells = <2>;
+			compatible = "arm,pl061", "arm,primecell";
+			gpio-controller;
+			reg = <0xfff33000 0x1000>;
+			interrupts = <0 17 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+		};
+
+		timer@fff34000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0xfff34000 0x1000>;
+			interrupts = <0 18 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		rtc@fff35000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0xfff35000 0x1000>;
+			interrupts = <0 19 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		serial@fff36000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0xfff36000 0x1000>;
+			interrupts = <0 20 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		smic@fff3a000 {
+			compatible = "ipmi-smic";
+			device_type = "ipmi";
+			reg = <0xfff3a000 0x1000>;
+			interrupts = <0 24 4>;
+			reg-size = <4>;
+			reg-spacing = <4>;
+		};
+
+		sregs@fff3c000 {
+			compatible = "calxeda,hb-sregs";
+			reg = <0xfff3c000 0x1000>;
+
+			clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				osc: oscillator {
+					#clock-cells = <0>;
+					compatible = "fixed-clock";
+					clock-frequency = <33333000>;
+				};
+
+				ddrpll: ddrpll {
+					#clock-cells = <0>;
+					compatible = "calxeda,hb-pll-clock";
+					clocks = <&osc>;
+					reg = <0x108>;
+				};
+
+				a9pll: a9pll {
+					#clock-cells = <0>;
+					compatible = "calxeda,hb-pll-clock";
+					clocks = <&osc>;
+					reg = <0x100>;
+				};
+
+				a9periphclk: a9periphclk {
+					#clock-cells = <0>;
+					compatible = "calxeda,hb-a9periph-clock";
+					clocks = <&a9pll>;
+					reg = <0x104>;
+				};
+
+				a9bclk: a9bclk {
+					#clock-cells = <0>;
+					compatible = "calxeda,hb-a9bus-clock";
+					clocks = <&a9pll>;
+					reg = <0x104>;
+				};
+
+				emmcpll: emmcpll {
+					#clock-cells = <0>;
+					compatible = "calxeda,hb-pll-clock";
+					clocks = <&osc>;
+					reg = <0x10C>;
+				};
+
+				eclk: eclk {
+					#clock-cells = <0>;
+					compatible = "calxeda,hb-emmc-clock";
+					clocks = <&emmcpll>;
+					reg = <0x114>;
+				};
+
+				pclk: pclk {
+					#clock-cells = <0>;
+					compatible = "fixed-clock";
+					clock-frequency = <150000000>;
+				};
+			};
+		};
+
+		dma@fff3d000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0xfff3d000 0x1000>;
+			interrupts = <0 92 4>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		ethernet@fff50000 {
+			compatible = "calxeda,hb-xgmac";
+			reg = <0xfff50000 0x1000>;
+			interrupts = <0 77 4  0 78 4  0 79 4>;
+			dma-coherent;
+		};
+
+		ethernet@fff51000 {
+			compatible = "calxeda,hb-xgmac";
+			reg = <0xfff51000 0x1000>;
+			interrupts = <0 80 4  0 81 4  0 82 4>;
+			dma-coherent;
+		};
+
+		combophy0: combo-phy@fff58000 {
+			compatible = "calxeda,hb-combophy";
+			#phy-cells = <1>;
+			reg = <0xfff58000 0x1000>;
+			phydev = <5>;
+		};
+
+		combophy5: combo-phy@fff5d000 {
+			compatible = "calxeda,hb-combophy";
+			#phy-cells = <1>;
+			reg = <0xfff5d000 0x1000>;
+			phydev = <31>;
+		};
+	};
+};

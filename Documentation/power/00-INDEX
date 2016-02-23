@@ -1,0 +1,46 @@
+00-INDEX
+	- This file
+apm-acpi.txt
+	- basic info about the APM and ACPI support.
+basic-pm-debugging.txt
+	- Debugging suspend and resume
+charger-manager.txt
+	- Battery charger management.
+devices.txt
+	- How drivers interact with system-wide power management
+drivers-testing.txt
+	- Testing suspend and resume support in device drivers
+freezing-of-tasks.txt
+	- How processes and controlled during suspend
+interface.txt
+	- Power management user interface in /sys/power
+notifiers.txt
+	- Registering suspend notifiers in device drivers
+opp.txt
+	- Operating Performance Point library
+pci.txt
+	- How the PCI Subsystem Does Power Management
+pm_qos_interface.txt
+	- info on Linux PM Quality of Service interface
+power_supply_class.txt
+	- Tells userspace about battery, UPS, AC or DC power supply properties
+runtime_pm.txt
+	- Power management framework for I/O devices.
+s2ram.txt
+	- How to get suspend to ram working (and debug it when it isn't)
+states.txt
+	- System power management states
+suspend-and-cpuhotplug.txt
+	- Explains the interaction between Suspend-to-RAM (S3) and CPU hotplug
+swsusp-and-swap-files.txt
+	- Using swap files with software suspend (to disk)
+swsusp-dmcrypt.txt
+	- How to use dm-crypt and software suspend (to disk) together
+swsusp.txt
+	- Goals, implementation, and usage of software suspend (ACPI S3)
+tricks.txt
+	- How to trick software suspend (to disk) into working when it isn't
+userland-swsusp.txt
+	- Experimental implementation of software suspend in userspace
+video.txt
+	- Video issues during resume from suspend

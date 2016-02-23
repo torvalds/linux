@@ -1,0 +1,52 @@
+config UBIFS_FS
+	tristate "UBIFS file system support"
+	select CRC16
+	select CRC32
+	select CRYPTO if UBIFS_FS_ADVANCED_COMPR
+	select CRYPTO if UBIFS_FS_LZO
+	select CRYPTO if UBIFS_FS_ZLIB
+	select CRYPTO_LZO if UBIFS_FS_LZO
+	select CRYPTO_DEFLATE if UBIFS_FS_ZLIB
+	depends on MTD_UBI
+	help
+	  UBIFS is a file system for flash devices which works on top of UBI.
+
+config UBIFS_FS_ADVANCED_COMPR
+	bool "Advanced compression options"
+	depends on UBIFS_FS
+	help
+	  This option allows to explicitly choose which compressions, if any,
+	  are enabled in UBIFS. Removing compressors means inability to read
+	  existing file systems.
+
+	  If unsure, say 'N'.
+
+config UBIFS_FS_LZO
+	bool "LZO compression support" if UBIFS_FS_ADVANCED_COMPR
+	depends on UBIFS_FS
+	default y
+	help
+	   LZO compressor is generally faster than zlib but compresses worse.
+	   Say 'Y' if unsure.
+
+config UBIFS_FS_ZLIB
+	bool "ZLIB compression support" if UBIFS_FS_ADVANCED_COMPR
+	depends on UBIFS_FS
+	default y
+	help
+	  Zlib compresses better than LZO but it is slower. Say 'Y' if unsure.
+
+config UBIFS_ATIME_SUPPORT
+	bool "Access time support" if UBIFS_FS
+	depends on UBIFS_FS
+	default n
+	help
+	  Originally UBIFS did not support atime, because it looked like a bad idea due
+	  increased flash wear. This option adds atime support and it is disabled by default
+	  to preserve the old behavior. If you enable this option, UBIFS starts updating atime,
+	  which means that file-system read operations will cause writes (inode atime
+	  updates). This may affect file-system performance and increase flash device wear,
+	  so be careful. How often atime is updated depends on the selected strategy:
+	  strictatime is the "heavy", relatime is "lighter", etc.
+
+	  If unsure, say 'N'

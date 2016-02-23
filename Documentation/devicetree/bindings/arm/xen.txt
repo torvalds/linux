@@ -1,0 +1,25 @@
+* Xen hypervisor device tree bindings
+
+Xen ARM virtual platforms shall have a top-level "hypervisor" node with
+the following properties:
+
+- compatible:
+	compatible = "xen,xen-<version>", "xen,xen";
+  where <version> is the version of the Xen ABI of the platform.
+
+- reg: specifies the base physical address and size of a region in
+  memory where the grant table should be mapped to, using an
+  HYPERVISOR_memory_op hypercall. The memory region is large enough to map
+  the whole grant table (it is larger or equal to gnttab_max_grant_frames()).
+
+- interrupts: the interrupt used by Xen to inject event notifications.
+  A GIC node is also required.
+
+
+Example (assuming #address-cells = <2> and #size-cells = <2>):
+
+hypervisor {
+	compatible = "xen,xen-4.3", "xen,xen";
+	reg = <0 0xb0000000 0 0x20000>;
+	interrupts = <1 15 0xf08>;
+};

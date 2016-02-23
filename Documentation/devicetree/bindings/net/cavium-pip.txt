@@ -1,0 +1,93 @@
+* PIP Ethernet nexus.
+
+The PIP Ethernet nexus can control several data packet input/output
+devices.  The devices have a two level grouping scheme.  There may be
+several interfaces, and each interface may have several ports.  These
+ports might be an individual Ethernet PHY.
+
+
+Properties for the PIP nexus:
+- compatible: "cavium,octeon-3860-pip"
+
+  Compatibility with all cn3XXX, cn5XXX and cn6XXX SOCs.
+
+- reg: The base address of the PIP's register bank.
+
+- #address-cells: Must be <1>.
+
+- #size-cells: Must be <0>.
+
+Properties for PIP interfaces which is a child the PIP nexus:
+- compatible: "cavium,octeon-3860-pip-interface"
+
+  Compatibility with all cn3XXX, cn5XXX and cn6XXX SOCs.
+
+- reg: The interface number.
+
+- #address-cells: Must be <1>.
+
+- #size-cells: Must be <0>.
+
+Properties for PIP port which is a child the PIP interface:
+- compatible: "cavium,octeon-3860-pip-port"
+
+  Compatibility with all cn3XXX, cn5XXX and cn6XXX SOCs.
+
+- reg: The port number within the interface group.
+
+- phy-handle: Optional, see ethernet.txt file in the same directory.
+
+Example:
+
+	pip@11800a0000000 {
+		compatible = "cavium,octeon-3860-pip";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x11800 0xa0000000 0x0 0x2000>;
+
+		interface@0 {
+			compatible = "cavium,octeon-3860-pip-interface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>; /* interface */
+
+			ethernet@0 {
+				compatible = "cavium,octeon-3860-pip-port";
+				reg = <0x0>; /* Port */
+				local-mac-address = [ 00 0f b7 10 63 60 ];
+				phy-handle = <&phy2>;
+			};
+			ethernet@1 {
+				compatible = "cavium,octeon-3860-pip-port";
+				reg = <0x1>; /* Port */
+				local-mac-address = [ 00 0f b7 10 63 61 ];
+				phy-handle = <&phy3>;
+			};
+			ethernet@2 {
+				compatible = "cavium,octeon-3860-pip-port";
+				reg = <0x2>; /* Port */
+				local-mac-address = [ 00 0f b7 10 63 62 ];
+				phy-handle = <&phy4>;
+			};
+			ethernet@3 {
+				compatible = "cavium,octeon-3860-pip-port";
+				reg = <0x3>; /* Port */
+				local-mac-address = [ 00 0f b7 10 63 63 ];
+				phy-handle = <&phy5>;
+			};
+		};
+
+		interface@1 {
+			compatible = "cavium,octeon-3860-pip-interface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>; /* interface */
+
+			ethernet@0 {
+				compatible = "cavium,octeon-3860-pip-port";
+				reg = <0x0>; /* Port */
+				local-mac-address = [ 00 0f b7 10 63 64 ];
+				phy-handle = <&phy6>;
+			};
+		};
+	};

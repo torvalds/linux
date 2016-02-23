@@ -1,0 +1,56 @@
+#
+# PCMCIA character device configuration
+#
+
+menu "PCMCIA character devices"
+	depends on PCMCIA!=n
+
+config SYNCLINK_CS
+	tristate "SyncLink PC Card support"
+	depends on PCMCIA && TTY
+	help
+	  Enable support for the SyncLink PC Card serial adapter, running
+	  asynchronous and HDLC communications up to 512Kbps. The port is
+	  selectable for RS-232, V.35, RS-449, RS-530, and X.21
+
+	  This driver may be built as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called synclink_cs.  If you want to do that, say M
+	  here.
+
+config CARDMAN_4000
+	tristate "Omnikey Cardman 4000 support"
+	depends on PCMCIA
+	select BITREVERSE
+	help
+	  Enable support for the Omnikey Cardman 4000 PCMCIA Smartcard
+	  reader.
+
+	  This kernel driver requires additional userspace support, either
+	  by the vendor-provided PC/SC ifd_handler (http://www.omnikey.com/),
+	  or via the cm4000 backend of OpenCT (http://www.opensc-project.org/opensc).
+
+config CARDMAN_4040
+	tristate "Omnikey CardMan 4040 support"
+	depends on PCMCIA
+	help
+	  Enable support for the Omnikey CardMan 4040 PCMCIA Smartcard
+	  reader.
+
+	  This card is basically a USB CCID device connected to a FIFO
+	  in I/O space.  To use the kernel driver, you will need either the
+	  PC/SC ifdhandler provided from the Omnikey homepage
+	  (http://www.omnikey.com/), or a current development version of OpenCT
+	  (http://www.opensc-project.org/opensc).
+
+config IPWIRELESS
+	tristate "IPWireless 3G UMTS PCMCIA card support"
+	depends on PCMCIA && NETDEVICES && TTY
+	select PPP
+	help
+	  This is a driver for 3G UMTS PCMCIA card from IPWireless company. In
+	  some countries (for example Czech Republic, T-Mobile ISP) this card
+	  is shipped for service called UMTS 4G.
+
+endmenu
+

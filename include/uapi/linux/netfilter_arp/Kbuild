@@ -1,0 +1,3 @@
+# UAPI Header export list
+header-y += arp_tables.h
+header-y += arpt_mangle.h

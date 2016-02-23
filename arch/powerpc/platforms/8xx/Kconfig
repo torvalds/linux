@@ -1,0 +1,178 @@
+config CPM1
+	bool
+	select CPM
+
+choice
+	prompt "8xx Machine Type"
+	depends on PPC_8xx
+	depends on 8xx
+	default MPC885ADS
+
+config MPC8XXFADS
+	bool "FADS"
+
+config MPC86XADS
+	bool "MPC86XADS"
+	select CPM1
+	help
+	  MPC86x Application Development System by Freescale Semiconductor.
+	  The MPC86xADS is meant to serve as a platform for s/w and h/w
+	  development around the MPC86X processor families.
+
+config MPC885ADS
+	bool "MPC885ADS"
+	select CPM1
+	select OF_DYNAMIC
+	help
+	  Freescale Semiconductor MPC885 Application Development System (ADS).
+	  Also known as DUET.
+	  The MPC885ADS is meant to serve as a platform for s/w and h/w
+	  development around the MPC885 processor family.
+
+config PPC_EP88XC
+	bool "Embedded Planet EP88xC (a.k.a. CWH-PPC-885XN-VE)"
+	select CPM1
+	help
+	  This enables support for the Embedded Planet EP88xC board.
+
+	  This board is also resold by Freescale as the QUICCStart
+	  MPC885 Evaluation System and/or the CWH-PPC-885XN-VE.
+
+config PPC_ADDER875
+	bool "Analogue & Micro Adder 875"
+	select CPM1
+	help
+	  This enables support for the Analogue & Micro Adder 875
+	  board.
+
+config TQM8XX
+	bool "TQM8XX"
+	select CPM1
+	help
+	  support for the mpc8xx based boards from TQM.
+
+endchoice
+
+menu "Freescale Ethernet driver platform-specific options"
+	depends on (FS_ENET && MPC885ADS)
+
+	config MPC8xx_SECOND_ETH
+	bool "Second Ethernet channel"
+	depends on MPC885ADS
+	default y
+	help
+	  This enables support for second Ethernet on MPC885ADS and MPC86xADS boards.
+	  The latter will use SCC1, for 885ADS you can select it below.
+
+	choice
+		prompt "Second Ethernet channel"
+		depends on MPC8xx_SECOND_ETH
+		default MPC8xx_SECOND_ETH_FEC2
+
+		config MPC8xx_SECOND_ETH_FEC2
+		bool "FEC2"
+		depends on MPC885ADS
+		help
+		  Enable FEC2 to serve as 2-nd Ethernet channel. Note that SMC2
+		  (often 2-nd UART) will not work if this is enabled.
+
+		config MPC8xx_SECOND_ETH_SCC3
+		bool "SCC3"
+		depends on MPC885ADS
+		help
+		  Enable SCC3 to serve as 2-nd Ethernet channel. Note that SMC1
+		  (often 1-nd UART) will not work if this is enabled.
+
+	endchoice
+
+endmenu
+
+#
+# MPC8xx Communication options
+#
+
+menu "MPC8xx CPM Options"
+	depends on 8xx
+
+# This doesn't really belong here, but it is convenient to ask
+# 8xx specific questions.
+comment "Generic MPC8xx Options"
+
+config 8xx_COPYBACK
+	bool "Copy-Back Data Cache (else Writethrough)"
+	help
+	  Saying Y here will cause the cache on an MPC8xx processor to be used
+	  in Copy-Back mode.  If you say N here, it is used in Writethrough
+	  mode.
+
+	  If in doubt, say Y here.
+
+config 8xx_GPIO
+	bool "GPIO API Support"
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Saying Y here will cause the ports on an MPC8xx processor to be used
+	  with the GPIO API.  If you say N here, the kernel needs less memory.
+
+	  If in doubt, say Y here.
+
+config 8xx_CPU6
+	bool "CPU6 Silicon Errata (860 Pre Rev. C)"
+	help
+	  MPC860 CPUs, prior to Rev C have some bugs in the silicon, which
+	  require workarounds for Linux (and most other OSes to work).  If you
+	  get a BUG() very early in boot, this might fix the problem.  For
+	  more details read the document entitled "MPC860 Family Device Errata
+	  Reference" on Freescale's website.  This option also incurs a
+	  performance hit.
+
+	  If in doubt, say N here.
+
+config 8xx_CPU15
+	bool "CPU15 Silicon Errata"
+	default y
+	help
+	  This enables a workaround for erratum CPU15 on MPC8xx chips.
+	  This bug can cause incorrect code execution under certain
+	  circumstances.  This workaround adds some overhead (a TLB miss
+	  every time execution crosses a page boundary), and you may wish
+	  to disable it if you have worked around the bug in the compiler
+	  (by not placing conditional branches or branches to LR or CTR
+	  in the last word of a page, with a target of the last cache
+	  line in the next page), or if you have used some other
+	  workaround.
+
+	  If in doubt, say Y here.
+
+choice
+	prompt "Microcode patch selection"
+	default NO_UCODE_PATCH
+	help
+	  Help not implemented yet, coming soon.
+
+config NO_UCODE_PATCH
+	bool "None"
+
+config USB_SOF_UCODE_PATCH
+	bool "USB SOF patch"
+	help
+	  Help not implemented yet, coming soon.
+
+config I2C_SPI_UCODE_PATCH
+	bool "I2C/SPI relocation patch"
+	help
+	  Help not implemented yet, coming soon.
+
+config I2C_SPI_SMC1_UCODE_PATCH
+	bool "I2C/SPI/SMC1 relocation patch"
+	help
+	  Help not implemented yet, coming soon.
+
+endchoice
+
+config UCODE_PATCH
+	bool
+	default y
+	depends on !NO_UCODE_PATCH
+
+endmenu

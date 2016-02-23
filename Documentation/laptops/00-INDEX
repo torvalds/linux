@@ -1,0 +1,20 @@
+00-INDEX
+	- This file
+Makefile
+	- Makefile for building dslm example program.
+asus-laptop.txt
+	- information on the Asus Laptop Extras driver.
+disk-shock-protection.txt
+	- information on hard disk shock protection.
+dslm.c
+	- Simple Disk Sleep Monitor program
+laptop-mode.txt
+	- how to conserve battery power using laptop-mode.
+sony-laptop.txt
+	- Sony Notebook Control Driver (SNC) Readme.
+sonypi.txt
+	- info on Linux Sony Programmable I/O Device support.
+thinkpad-acpi.txt
+	- information on the (IBM and Lenovo) ThinkPad ACPI Extras driver.
+toshiba_haps.txt
+	- information on the Toshiba HDD Active Protection Sensor driver.

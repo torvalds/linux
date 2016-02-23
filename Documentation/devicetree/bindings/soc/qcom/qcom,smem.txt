@@ -1,0 +1,57 @@
+Qualcomm Shared Memory Manager binding
+
+This binding describes the Qualcomm Shared Memory Manager, used to share data
+between various subsystems and OSes in Qualcomm platforms.
+
+- compatible:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be:
+		    "qcom,smem"
+
+- memory-region:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: handle to memory reservation for main SMEM memory region.
+
+- qcom,rpm-msg-ram:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: handle to RPM message memory resource
+
+- hwlocks:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: reference to a hwspinlock used to protect allocations from
+		    the shared memory
+
+= EXAMPLE
+The following example shows the SMEM setup for MSM8974, with a main SMEM region
+at 0xfa00000 and the RPM message ram at 0xfc428000:
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		smem_region: smem@fa00000 {
+			reg = <0xfa00000 0x200000>;
+			no-map;
+		};
+	};
+
+	smem@fa00000 {
+		compatible = "qcom,smem";
+
+		memory-region = <&smem_region>;
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+		hwlocks = <&tcsr_mutex 3>;
+	};
+
+	soc {
+		rpm_msg_ram: memory@fc428000 {
+			compatible = "qcom,rpm-msg-ram";
+			reg = <0xfc428000 0x4000>;
+		};
+	};

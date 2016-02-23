@@ -1,0 +1,100 @@
+#!/bin/sh
+
+TARGET=$1
+ARCH=$2
+SMP=$3
+PREEMPT=$4
+CC=$5
+
+vecho() { [ "${quiet}" = "silent_" ] || echo "$@" ; }
+
+# If compile.h exists already and we don't own autoconf.h
+# (i.e. we're not the same user who did make *config), don't
+# modify compile.h
+# So "sudo make install" won't change the "compiled by <user>"
+# do "compiled by root"
+
+if [ -r $TARGET -a ! -O include/generated/autoconf.h ]; then
+  vecho "  SKIPPED $TARGET"
+  exit 0
+fi
+
+# Do not expand names
+set -f
+
+# Fix the language to get consistent output
+LC_ALL=C
+export LC_ALL
+
+if [ -z "$KBUILD_BUILD_VERSION" ]; then
+	if [ -r .version ]; then
+		VERSION=`cat .version`
+	else
+		VERSION=0
+		echo 0 > .version
+	fi
+else
+	VERSION=$KBUILD_BUILD_VERSION
+fi
+
+if [ -z "$KBUILD_BUILD_TIMESTAMP" ]; then
+	TIMESTAMP=`date`
+else
+	TIMESTAMP=$KBUILD_BUILD_TIMESTAMP
+fi
+if test -z "$KBUILD_BUILD_USER"; then
+	LINUX_COMPILE_BY=$(whoami | sed 's/\\/\\\\/')
+else
+	LINUX_COMPILE_BY=$KBUILD_BUILD_USER
+fi
+if test -z "$KBUILD_BUILD_HOST"; then
+	LINUX_COMPILE_HOST=`hostname`
+else
+	LINUX_COMPILE_HOST=$KBUILD_BUILD_HOST
+fi
+
+UTS_VERSION="#$VERSION"
+CONFIG_FLAGS=""
+if [ -n "$SMP" ] ; then CONFIG_FLAGS="SMP"; fi
+if [ -n "$PREEMPT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT"; fi
+UTS_VERSION="$UTS_VERSION $CONFIG_FLAGS $TIMESTAMP"
+
+# Truncate to maximum length
+
+UTS_LEN=64
+UTS_TRUNCATE="cut -b -$UTS_LEN"
+
+# Generate a temporary compile.h
+
+( echo /\* This file is auto generated, version $VERSION \*/
+  if [ -n "$CONFIG_FLAGS" ] ; then echo "/* $CONFIG_FLAGS */"; fi
+
+  echo \#define UTS_MACHINE \"$ARCH\"
+
+  echo \#define UTS_VERSION \"`echo $UTS_VERSION | $UTS_TRUNCATE`\"
+
+  echo \#define LINUX_COMPILE_BY \"`echo $LINUX_COMPILE_BY | $UTS_TRUNCATE`\"
+  echo \#define LINUX_COMPILE_HOST \"`echo $LINUX_COMPILE_HOST | $UTS_TRUNCATE`\"
+
+  echo \#define LINUX_COMPILER \"`$CC -v 2>&1 | grep ' version '`\"
+) > .tmpcompile
+
+# Only replace the real compile.h if the new one is different,
+# in order to preserve the timestamp and avoid unnecessary
+# recompilations.
+# We don't consider the file changed if only the date/time changed.
+# A kernel config change will increase the generation number, thus
+# causing compile.h to be updated (including date/time) due to the
+# changed comment in the
+# first line.
+
+if [ -r $TARGET ] && \
+      grep -v 'UTS_VERSION' $TARGET > .tmpver.1 && \
+      grep -v 'UTS_VERSION' .tmpcompile > .tmpver.2 && \
+      cmp -s .tmpver.1 .tmpver.2; then
+   rm -f .tmpcompile
+else
+   vecho "  UPD     $TARGET"
+   mv -f .tmpcompile $TARGET
+fi
+rm -f .tmpver.1 .tmpver.2

@@ -1,0 +1,20 @@
+menuconfig ARCH_ZX
+	bool "ZTE ZX family"
+	depends on ARCH_MULTI_V7
+	help
+	  Support for ZTE ZX-based family of processors. TV
+	  set-top-box processor is supported. More will be
+	  added soon.
+
+if ARCH_ZX
+
+config SOC_ZX296702
+	def_bool y
+	select ARM_GIC
+	select ARM_GLOBAL_TIMER
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  Support for ZTE ZX296702 SoC which is a dual core CortexA9MP
+endif

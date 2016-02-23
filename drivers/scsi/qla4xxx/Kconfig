@@ -1,0 +1,8 @@
+config SCSI_QLA_ISCSI
+	tristate "QLogic ISP4XXX and ISP82XX host adapter family support"
+	depends on PCI && SCSI && NET
+	select SCSI_ISCSI_ATTRS
+	select ISCSI_BOOT_SYSFS
+	---help---
+	This driver supports the QLogic 40xx (ISP4XXX), 8022 (ISP82XX)
+	and 8032 (ISP83XX) iSCSI host adapter family.

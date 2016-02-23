@@ -1,0 +1,53 @@
+#
+# Exar device configuration
+#
+
+config NET_VENDOR_EXAR
+	bool "Exar devices"
+	default y
+	depends on PCI
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Exar cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_EXAR
+
+config S2IO
+	tristate "Exar Xframe 10Gb Ethernet Adapter"
+	depends on PCI
+	---help---
+	  This driver supports Exar Corp's Xframe Series 10Gb Ethernet Adapters.
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/s2io.txt>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called s2io.
+
+config VXGE
+	tristate "Exar X3100 Series 10GbE PCIe Server Adapter"
+	depends on PCI
+	---help---
+	  This driver supports Exar Corp's X3100 Series 10 GbE PCIe
+	  I/O Virtualized Server Adapter.
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/vxge.txt>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called vxge.
+
+config VXGE_DEBUG_TRACE_ALL
+	bool "Enabling All Debug trace statements in driver"
+	default n
+	depends on VXGE
+	---help---
+	  Say Y here if you want to enabling all the debug trace statements in
+	  the vxge driver. By default only few debug trace statements are
+	  enabled.
+
+endif # NET_VENDOR_EXAR

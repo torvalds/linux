@@ -1,0 +1,69 @@
+/*
+ * at91sam9x5_usart3.dtsi - Device Tree Include file for AT91SAM9x5 SoC with
+ * 4 USART.
+ *
+ * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
+ *
+ * Licensed under GPLv2.
+ */
+
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	aliases {
+		serial4 = &usart3;
+	};
+
+	ahb {
+		apb {
+			pinctrl@fffff400 {
+				usart3 {
+					pinctrl_usart3: usart3-0 {
+						atmel,pins =
+							<AT91_PIOC 22 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* PC22 periph B with pullup */
+							 AT91_PIOC 23 AT91_PERIPH_B AT91_PINCTRL_NONE>;		/* PC23 periph B */
+					};
+
+					pinctrl_usart3_rts: usart3_rts-0 {
+						atmel,pins =
+							<AT91_PIOC 24 AT91_PERIPH_B AT91_PINCTRL_NONE>;		/* PC24 periph B */
+					};
+
+					pinctrl_usart3_cts: usart3_cts-0 {
+						atmel,pins =
+							<AT91_PIOC 25 AT91_PERIPH_B AT91_PINCTRL_NONE>;		/* PC25 periph B */
+					};
+
+					pinctrl_usart3_sck: usart3_sck-0 {
+						atmel,pins =
+							<AT91_PIOC 26 AT91_PERIPH_B AT91_PINCTRL_NONE>;		/* PC26 periph B */
+					};
+				};
+			};
+
+			pmc: pmc@fffffc00 {
+				periphck {
+					usart3_clk: usart3_clk {
+						#clock-cells = <0>;
+						reg = <8>;
+					};
+				};
+			};
+
+			usart3: serial@f8028000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xf8028000 0x200>;
+				interrupts = <8 IRQ_TYPE_LEVEL_HIGH 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usart3>;
+				dmas = <&dma1 1 AT91_DMA_CFG_PER_ID(14)>,
+				       <&dma1 1 (AT91_DMA_CFG_PER_ID(15) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
+				clocks = <&usart3_clk>;
+				clock-names = "usart";
+				status = "disabled";
+			};
+		};
+	};
+};

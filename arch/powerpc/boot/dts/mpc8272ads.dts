@@ -1,0 +1,267 @@
+/*
+ * MPC8272 ADS Device Tree Source
+ *
+ * Copyright 2005,2008 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+
+/ {
+	model = "MPC8272ADS";
+	compatible = "fsl,mpc8272ads";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
+		serial0 = &scc1;
+		serial1 = &scc4;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,8272@0 {
+			device_type = "cpu";
+			reg = <0x0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <16384>;
+			i-cache-size = <16384>;
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
+	};
+
+	localbus@f0010100 {
+		compatible = "fsl,mpc8272-localbus",
+		             "fsl,pq2-localbus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xf0010100 0x40>;
+
+		ranges = <0x0 0x0 0xff800000 0x00800000
+		          0x1 0x0 0xf4500000 0x8000
+		          0x3 0x0 0xf8200000 0x8000>;
+
+		flash@0,0 {
+			compatible = "jedec-flash";
+			reg = <0x0 0x0 0x00800000>;
+			bank-width = <4>;
+			device-width = <1>;
+		};
+
+		board-control@1,0 {
+			reg = <0x1 0x0 0x20>;
+			compatible = "fsl,mpc8272ads-bcsr";
+		};
+
+		PCI_PIC: interrupt-controller@3,0 {
+			compatible = "fsl,mpc8272ads-pci-pic",
+			             "fsl,pq2ads-pci-pic";
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			reg = <0x3 0x0 0x8>;
+			interrupt-parent = <&PIC>;
+			interrupts = <20 8>;
+		};
+	};
+
+
+	pci@f0010800 {
+		device_type = "pci";
+		reg = <0xf0010800 0x10c 0xf00101ac 0x8 0xf00101c4 0x8>;
+		compatible = "fsl,mpc8272-pci", "fsl,pq2-pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		clock-frequency = <66666666>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+		                 /* IDSEL 0x16 */
+		                 0xb000 0x0 0x0 0x1 &PCI_PIC 0
+		                 0xb000 0x0 0x0 0x2 &PCI_PIC 1
+		                 0xb000 0x0 0x0 0x3 &PCI_PIC 2
+		                 0xb000 0x0 0x0 0x4 &PCI_PIC 3
+
+		                 /* IDSEL 0x17 */
+		                 0xb800 0x0 0x0 0x1 &PCI_PIC 4
+		                 0xb800 0x0 0x0 0x2 &PCI_PIC 5
+		                 0xb800 0x0 0x0 0x3 &PCI_PIC 6
+		                 0xb800 0x0 0x0 0x4 &PCI_PIC 7
+
+		                 /* IDSEL 0x18 */
+		                 0xc000 0x0 0x0 0x1 &PCI_PIC 8
+		                 0xc000 0x0 0x0 0x2 &PCI_PIC 9
+		                 0xc000 0x0 0x0 0x3 &PCI_PIC 10
+		                 0xc000 0x0 0x0 0x4 &PCI_PIC 11>;
+
+		interrupt-parent = <&PIC>;
+		interrupts = <18 8>;
+		ranges = <0x42000000 0x0 0x80000000 0x80000000 0x0 0x20000000
+		          0x2000000 0x0 0xa0000000 0xa0000000 0x0 0x20000000
+		          0x1000000 0x0 0x0 0xf6000000 0x0 0x2000000>;
+	};
+
+	soc@f0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "soc";
+		compatible = "fsl,mpc8272", "fsl,pq2-soc";
+		ranges = <0x0 0xf0000000 0x53000>;
+
+		// Temporary -- will go away once kernel uses ranges for get_immrbase().
+		reg = <0xf0000000 0x53000>;
+
+		cpm@119c0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8272-cpm", "fsl,cpm2";
+			reg = <0x119c0 0x30>;
+			ranges;
+
+			muram@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x0 0x10000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0x0 0x2000 0x9800 0x800>;
+				};
+			};
+
+			brg@119f0 {
+				compatible = "fsl,mpc8272-brg",
+				             "fsl,cpm2-brg",
+				             "fsl,cpm-brg";
+				reg = <0x119f0 0x10 0x115f0 0x10>;
+			};
+
+			scc1: serial@11a00 {
+				device_type = "serial";
+				compatible = "fsl,mpc8272-scc-uart",
+				             "fsl,cpm2-scc-uart";
+				reg = <0x11a00 0x20 0x8000 0x100>;
+				interrupts = <40 8>;
+				interrupt-parent = <&PIC>;
+				fsl,cpm-brg = <1>;
+				fsl,cpm-command = <0x800000>;
+			};
+
+			scc4: serial@11a60 {
+				device_type = "serial";
+				compatible = "fsl,mpc8272-scc-uart",
+				             "fsl,cpm2-scc-uart";
+				reg = <0x11a60 0x20 0x8300 0x100>;
+				interrupts = <43 8>;
+				interrupt-parent = <&PIC>;
+				fsl,cpm-brg = <4>;
+				fsl,cpm-command = <0xce00000>;
+			};
+
+			usb@11b60 {
+				compatible = "fsl,mpc8272-cpm-usb";
+				reg = <0x11b60 0x40 0x8b00 0x100>;
+				interrupts = <11 8>;
+				interrupt-parent = <&PIC>;
+				mode = "peripheral";
+			};
+
+			mdio@10d40 {
+				compatible = "fsl,mpc8272ads-mdio-bitbang",
+				             "fsl,mpc8272-mdio-bitbang",
+				             "fsl,cpm2-mdio-bitbang";
+				reg = <0x10d40 0x14>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fsl,mdio-pin = <18>;
+				fsl,mdc-pin = <19>;
+
+				PHY0: ethernet-phy@0 {
+					interrupt-parent = <&PIC>;
+					interrupts = <23 8>;
+					reg = <0x0>;
+				};
+
+				PHY1: ethernet-phy@1 {
+					interrupt-parent = <&PIC>;
+					interrupts = <23 8>;
+					reg = <0x3>;
+				};
+			};
+
+			eth0: ethernet@11300 {
+				device_type = "network";
+				compatible = "fsl,mpc8272-fcc-enet",
+				             "fsl,cpm2-fcc-enet";
+				reg = <0x11300 0x20 0x8400 0x100 0x11390 0x1>;
+				local-mac-address = [ 00 00 00 00 00 00 ];
+				interrupts = <32 8>;
+				interrupt-parent = <&PIC>;
+				phy-handle = <&PHY0>;
+				linux,network-index = <0>;
+				fsl,cpm-command = <0x12000300>;
+			};
+
+			eth1: ethernet@11320 {
+				device_type = "network";
+				compatible = "fsl,mpc8272-fcc-enet",
+				             "fsl,cpm2-fcc-enet";
+				reg = <0x11320 0x20 0x8500 0x100 0x113b0 0x1>;
+				local-mac-address = [ 00 00 00 00 00 00 ];
+				interrupts = <33 8>;
+				interrupt-parent = <&PIC>;
+				phy-handle = <&PHY1>;
+				linux,network-index = <1>;
+				fsl,cpm-command = <0x16200300>;
+			};
+
+			i2c@11860 {
+				compatible = "fsl,mpc8272-i2c",
+					     "fsl,cpm2-i2c";
+				reg = <0x11860 0x20 0x8afc 0x2>;
+				interrupts = <1 8>;
+				interrupt-parent = <&PIC>;
+				fsl,cpm-command = <0x29600000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		PIC: interrupt-controller@10c00 {
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			reg = <0x10c00 0x80>;
+			compatible = "fsl,mpc8272-pic", "fsl,cpm2-pic";
+		};
+
+		crypto@30000 {
+			compatible = "fsl,sec1.0";
+			reg = <0x40000 0x13000>;
+			interrupts = <47 0x8>;
+			interrupt-parent = <&PIC>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x7e>;
+			fsl,descriptor-types-mask = <0x1010415>;
+		};
+	};
+
+	chosen {
+		linux,stdout-path = "/soc/cpm/serial@11a00";
+	};
+};

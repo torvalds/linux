@@ -1,0 +1,94 @@
+/dts-v1/;
+
+#include "tegra30-cardhu.dtsi"
+
+/* This dts file support the cardhu A02 version of board */
+
+/ {
+	model = "NVIDIA Tegra30 Cardhu A02 evaluation board";
+	compatible = "nvidia,cardhu-a02", "nvidia,cardhu", "nvidia,tegra30";
+
+	sdhci@78000400 {
+		status = "okay";
+		power-gpios = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
+		bus-width = <4>;
+		keep-power-in-suspend;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ddr_reg: regulator@100 {
+			compatible = "regulator-fixed";
+			reg = <100>;
+			regulator-name = "vdd_ddr";
+			regulator-min-microvolt = <1500000>;
+			regulator-max-microvolt = <1500000>;
+			regulator-always-on;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		sys_3v3_reg: regulator@101 {
+			compatible = "regulator-fixed";
+			reg = <101>;
+			regulator-name = "sys_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		usb1_vbus_reg: regulator@102 {
+			compatible = "regulator-fixed";
+			reg = <102>;
+			regulator-name = "usb1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(I, 4) GPIO_ACTIVE_HIGH>;
+			gpio-open-drain;
+			vin-supply = <&vdd_5v0_reg>;
+		};
+
+		usb3_vbus_reg: regulator@103 {
+			compatible = "regulator-fixed";
+			reg = <103>;
+			regulator-name = "usb3_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(H, 7) GPIO_ACTIVE_HIGH>;
+			gpio-open-drain;
+			vin-supply = <&vdd_5v0_reg>;
+		};
+
+		vdd_5v0_reg: regulator@104 {
+			compatible = "regulator-fixed";
+			reg = <104>;
+			regulator-name = "5v0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&pmic 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		vdd_bl_reg: regulator@105 {
+			compatible = "regulator-fixed";
+			reg = <105>;
+			regulator-name = "vdd_bl";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(K, 3) GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+

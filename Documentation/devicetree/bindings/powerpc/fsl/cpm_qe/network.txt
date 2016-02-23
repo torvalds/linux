@@ -1,0 +1,43 @@
+* Network
+
+Currently defined compatibles:
+- fsl,cpm1-scc-enet
+- fsl,cpm2-scc-enet
+- fsl,cpm1-fec-enet
+- fsl,cpm2-fcc-enet (third resource is GFEMR)
+- fsl,qe-enet
+
+Example:
+
+	ethernet@11300 {
+		compatible = "fsl,mpc8272-fcc-enet",
+			     "fsl,cpm2-fcc-enet";
+		reg = <11300 20 8400 100 11390 1>;
+		local-mac-address = [ 00 00 00 00 00 00 ];
+		interrupts = <20 8>;
+		interrupt-parent = <&PIC>;
+		phy-handle = <&PHY0>;
+		fsl,cpm-command = <12000300>;
+	};
+
+* MDIO
+
+Currently defined compatibles:
+fsl,pq1-fec-mdio (reg is same as first resource of FEC device)
+fsl,cpm2-mdio-bitbang (reg is port C registers)
+
+Properties for fsl,cpm2-mdio-bitbang:
+fsl,mdio-pin : pin of port C controlling mdio data
+fsl,mdc-pin : pin of port C controlling mdio clock
+
+Example:
+	mdio@10d40 {
+		compatible = "fsl,mpc8272ads-mdio-bitbang",
+			     "fsl,mpc8272-mdio-bitbang",
+			     "fsl,cpm2-mdio-bitbang";
+		reg = <10d40 14>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		fsl,mdio-pin = <12>;
+		fsl,mdc-pin = <13>;
+	};

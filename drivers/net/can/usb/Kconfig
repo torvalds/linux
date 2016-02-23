@@ -1,0 +1,81 @@
+menu "CAN USB interfaces"
+	depends on USB
+
+config CAN_EMS_USB
+	tristate "EMS CPC-USB/ARM7 CAN/USB interface"
+	---help---
+	  This driver is for the one channel CPC-USB/ARM7 CAN/USB interface
+	  from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
+
+config CAN_ESD_USB2
+        tristate "ESD USB/2 CAN/USB interface"
+        ---help---
+          This driver supports the CAN-USB/2 interface
+          from esd electronic system design gmbh (http://www.esd.eu).
+
+config CAN_GS_USB
+	tristate "Geschwister Schneider UG interfaces"
+	---help---
+	  This driver supports the Geschwister Schneider USB/CAN devices.
+	  If unsure choose N,
+	  choose Y for built in support,
+	  M to compile as module (module will be named: gs_usb).
+
+config CAN_KVASER_USB
+	tristate "Kvaser CAN/USB interface"
+	---help---
+	  This driver adds support for Kvaser CAN/USB devices like Kvaser
+	  Leaf Light and Kvaser USBcan II.
+
+	  The driver provides support for the following devices:
+	    - Kvaser Leaf Light
+	    - Kvaser Leaf Professional HS
+	    - Kvaser Leaf SemiPro HS
+	    - Kvaser Leaf Professional LS
+	    - Kvaser Leaf Professional SWC
+	    - Kvaser Leaf Professional LIN
+	    - Kvaser Leaf SemiPro LS
+	    - Kvaser Leaf SemiPro SWC
+	    - Kvaser Memorator II HS/HS
+	    - Kvaser USBcan Professional HS/HS
+	    - Kvaser Leaf Light GI
+	    - Kvaser Leaf Professional HS (OBD-II connector)
+	    - Kvaser Memorator Professional HS/LS
+	    - Kvaser Leaf Light "China"
+	    - Kvaser BlackBird SemiPro
+	    - Kvaser USBcan R
+	    - Kvaser Leaf Light v2
+	    - Kvaser Mini PCI Express HS
+	    - Kvaser USBcan II HS/HS
+	    - Kvaser USBcan II HS/LS
+	    - Kvaser USBcan Rugged ("USBcan Rev B")
+	    - Kvaser Memorator HS/HS
+	    - Kvaser Memorator HS/LS
+	    - Scania VCI2 (if you have the Kvaser logo on top)
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called kvaser_usb.
+
+config CAN_PEAK_USB
+	tristate "PEAK PCAN-USB/USB Pro interfaces for CAN 2.0b/CAN-FD"
+	---help---
+	  This driver supports the PEAK-System Technik USB adapters that enable
+	  access to the CAN bus, with repect to the CAN 2.0b and/or CAN-FD
+	  standards, that is:
+
+	  PCAN-USB             single CAN 2.0b channel USB adapter
+	  PCAN-USB Pro         dual CAN 2.0b channels USB adapter
+	  PCAN-USB FD          single CAN-FD channel USB adapter
+	  PCAN-USB Pro FD      dual CAN-FD channels USB adapter
+
+	  (see also http://www.peak-system.com).
+
+config CAN_8DEV_USB
+	tristate "8 devices USB2CAN interface"
+	---help---
+	  This driver supports the USB2CAN interface
+	  from 8 devices (http://www.8devices.com).
+
+endmenu

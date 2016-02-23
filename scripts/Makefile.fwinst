@@ -1,0 +1,70 @@
+# ==========================================================================
+# Installing firmware
+#
+# We don't include the .config, so all firmware files are in $(fw-shipped-)
+# rather than in $(fw-shipped-y) or $(fw-shipped-m).
+# ==========================================================================
+
+INSTALL := install
+src := $(obj)
+
+# For modules_install installing firmware, we want to see .config
+# But for firmware_install, we don't care, but don't want to require it.
+-include $(objtree)/.config
+
+include scripts/Kbuild.include
+include $(src)/Makefile
+
+include scripts/Makefile.host
+
+mod-fw := $(fw-shipped-m)
+# If CONFIG_FIRMWARE_IN_KERNEL isn't set, then install the
+# firmware for in-kernel drivers too.
+ifndef CONFIG_FIRMWARE_IN_KERNEL
+mod-fw += $(fw-shipped-y)
+endif
+
+ifneq ($(KBUILD_SRC),)
+# Create output directory if not already present
+_dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
+
+firmware-dirs := $(sort $(addprefix $(objtree)/$(obj)/,$(dir $(fw-external-y) $(fw-shipped-all))))
+# Create directories for firmware in subdirectories
+_dummy := $(foreach d,$(firmware-dirs), $(shell [ -d $(d) ] || mkdir -p $(d)))
+endif
+
+installed-mod-fw := $(addprefix $(INSTALL_FW_PATH)/,$(mod-fw))
+
+installed-fw := $(addprefix $(INSTALL_FW_PATH)/,$(fw-shipped-all))
+
+quiet_cmd_install = INSTALL $(subst $(srctree)/,,$@)
+      cmd_install = mkdir -p $(@D); $(INSTALL) -m0644 $< $@
+
+$(installed-fw): $(INSTALL_FW_PATH)/%: $(obj)/%
+	$(call cmd,install)
+
+PHONY +=  __fw_install __fw_modinst FORCE
+
+.PHONY: $(PHONY)
+
+__fw_install: $(installed-fw)
+
+__fw_modinst: $(installed-mod-fw)
+	@:
+
+__fw_modbuild: $(addprefix $(obj)/,$(mod-fw))
+	@:
+
+FORCE:
+
+# Read all saved command lines and dependencies for the $(targets) we
+# may be building using $(if_changed{,_dep}). As an optimization, we
+# don't need to read them if the target does not exist; we will rebuild
+# anyway in that case.
+
+targets := $(wildcard $(sort $(targets)))
+cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
+
+ifneq ($(cmd_files),)
+  include $(cmd_files)
+endif

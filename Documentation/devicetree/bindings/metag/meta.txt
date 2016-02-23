@@ -1,0 +1,30 @@
+* Meta Processor Binding
+
+This binding specifies what properties must be available in the device tree
+representation of a Meta Processor Core, which is the root node in the tree.
+
+Required properties:
+
+    - compatible: Specifies the compatibility list for the Meta processor.
+      The type shall be <string> and the value shall include "img,meta".
+
+Optional properties:
+
+    - clocks: Clock consumer specifiers as described in
+      Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+    - clock-names: Clock consumer names as described in
+      Documentation/devicetree/bindings/clock/clock-bindings.txt.
+
+Clocks are identified by name. Valid clocks are:
+
+    - "core": The Meta core clock from which the Meta timers are derived.
+
+* Examples
+
+/ {
+	compatible = "toumaz,tz1090", "img,meta";
+
+	clocks = <&meta_core_clk>;
+	clock-names = "core";
+};

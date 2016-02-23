@@ -1,0 +1,75 @@
+Power Management Interface
+
+
+The power management subsystem provides a unified sysfs interface to 
+userspace, regardless of what architecture or platform one is
+running. The interface exists in /sys/power/ directory (assuming sysfs
+is mounted at /sys). 
+
+/sys/power/state controls system power state. Reading from this file
+returns what states are supported, which is hard-coded to 'freeze',
+'standby' (Power-On Suspend), 'mem' (Suspend-to-RAM), and 'disk'
+(Suspend-to-Disk). 
+
+Writing to this file one of those strings causes the system to
+transition into that state. Please see the file
+Documentation/power/states.txt for a description of each of those
+states.
+
+
+/sys/power/disk controls the operating mode of the suspend-to-disk
+mechanism. Suspend-to-disk can be handled in several ways. We have a
+few options for putting the system to sleep - using the platform driver
+(e.g. ACPI or other suspend_ops), powering off the system or rebooting the
+system (for testing).
+
+Additionally, /sys/power/disk can be used to turn on one of the two testing
+modes of the suspend-to-disk mechanism: 'testproc' or 'test'.  If the
+suspend-to-disk mechanism is in the 'testproc' mode, writing 'disk' to
+/sys/power/state will cause the kernel to disable nonboot CPUs and freeze
+tasks, wait for 5 seconds, unfreeze tasks and enable nonboot CPUs.  If it is
+in the 'test' mode, writing 'disk' to /sys/power/state will cause the kernel
+to disable nonboot CPUs and freeze tasks, shrink memory, suspend devices, wait
+for 5 seconds, resume devices, unfreeze tasks and enable nonboot CPUs.  Then,
+we are able to look in the log messages and work out, for example, which code
+is being slow and which device drivers are misbehaving.
+
+Reading from this file will display all supported modes and the currently
+selected one in brackets, for example
+
+	[shutdown] reboot test testproc
+
+Writing to this file will accept one of
+
+       'platform' (only if the platform supports it)
+       'shutdown'
+       'reboot'
+       'testproc'
+       'test'
+
+/sys/power/image_size controls the size of the image created by
+the suspend-to-disk mechanism.  It can be written a string
+representing a non-negative integer that will be used as an upper
+limit of the image size, in bytes.  The suspend-to-disk mechanism will
+do its best to ensure the image size will not exceed that number.  However,
+if this turns out to be impossible, it will try to suspend anyway using the
+smallest image possible.  In particular, if "0" is written to this file, the
+suspend image will be as small as possible.
+
+Reading from this file will display the current image size limit, which
+is set to 2/5 of available RAM by default.
+
+/sys/power/pm_trace controls the code which saves the last PM event point in
+the RTC across reboots, so that you can debug a machine that just hangs
+during suspend (or more commonly, during resume).  Namely, the RTC is only
+used to save the last PM event point if this file contains '1'.  Initially it
+contains '0' which may be changed to '1' by writing a string representing a
+nonzero integer into it.
+
+To use this debugging feature you should attempt to suspend the machine, then
+reboot it and run
+
+	dmesg -s 1000000 | grep 'hash matches'
+
+CAUTION: Using it will cause your machine's real-time (CMOS) clock to be
+set to a random invalid time after a resume.

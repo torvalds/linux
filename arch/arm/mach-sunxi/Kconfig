@@ -1,0 +1,49 @@
+menuconfig ARCH_SUNXI
+	bool "Allwinner SoCs"
+	depends on ARCH_MULTI_V7
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_RESET_CONTROLLER
+	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
+	select PINCTRL
+	select SUN4I_TIMER
+	select RESET_CONTROLLER
+
+if ARCH_SUNXI
+
+config MACH_SUN4I
+	bool "Allwinner A10 (sun4i) SoCs support"
+	default ARCH_SUNXI
+
+config MACH_SUN5I
+	bool "Allwinner A10s / A13 (sun5i) SoCs support"
+	default ARCH_SUNXI
+	select SUN5I_HSTIMER
+
+config MACH_SUN6I
+	bool "Allwinner A31 (sun6i) SoCs support"
+	default ARCH_SUNXI
+	select ARM_GIC
+	select MFD_SUN6I_PRCM
+	select SUN5I_HSTIMER
+
+config MACH_SUN7I
+	bool "Allwinner A20 (sun7i) SoCs support"
+	default ARCH_SUNXI
+	select ARM_GIC
+	select ARM_PSCI
+	select HAVE_ARM_ARCH_TIMER
+	select SUN5I_HSTIMER
+
+config MACH_SUN8I
+	bool "Allwinner sun8i Family SoCs support"
+	default ARCH_SUNXI
+	select ARM_GIC
+	select MFD_SUN6I_PRCM
+
+config MACH_SUN9I
+	bool "Allwinner (sun9i) SoCs support"
+	default ARCH_SUNXI
+	select ARM_GIC
+
+endif

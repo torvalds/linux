@@ -1,0 +1,103 @@
+menuconfig PM_DEVFREQ
+	bool "Generic Dynamic Voltage and Frequency Scaling (DVFS) support"
+	select SRCU
+	help
+	  A device may have a list of frequencies and voltages available.
+	  devfreq, a generic DVFS framework can be registered for a device
+	  in order to let the governor provided to devfreq choose an
+	  operating frequency based on the device driver's policy.
+
+	  Each device may have its own governor and policy. Devfreq can
+	  reevaluate the device state periodically and/or based on the
+	  notification to "nb", a notifier block, of devfreq.
+
+	  Like some CPUs with CPUfreq, a device may have multiple clocks.
+	  However, because the clock frequencies of a single device are
+	  determined by the single device's state, an instance of devfreq
+	  is attached to a single device and returns a "representative"
+	  clock frequency of the device, which is also attached
+	  to a device by 1-to-1. The device registering devfreq takes the
+	  responsibility to "interpret" the representative frequency and
+	  to set its every clock accordingly with the "target" callback
+	  given to devfreq.
+
+	  When OPP is used with the devfreq device, it is recommended to
+	  register devfreq's nb to the OPP's notifier head.  If OPP is
+	  used with the devfreq device, you may use OPP helper
+	  functions defined in devfreq.h.
+
+if PM_DEVFREQ
+
+comment "DEVFREQ Governors"
+
+config DEVFREQ_GOV_SIMPLE_ONDEMAND
+	tristate "Simple Ondemand"
+	help
+	  Chooses frequency based on the recent load on the device. Works
+	  similar as ONDEMAND governor of CPUFREQ does. A device with
+	  Simple-Ondemand should be able to provide busy/total counter
+	  values that imply the usage rate. A device may provide tuned
+	  values to the governor with data field at devfreq_add_device().
+
+config DEVFREQ_GOV_PERFORMANCE
+	tristate "Performance"
+	help
+	  Sets the frequency at the maximum available frequency.
+	  This governor always returns UINT_MAX as frequency so that
+	  the DEVFREQ framework returns the highest frequency available
+	  at any time.
+
+config DEVFREQ_GOV_POWERSAVE
+	tristate "Powersave"
+	help
+	  Sets the frequency at the minimum available frequency.
+	  This governor always returns 0 as frequency so that
+	  the DEVFREQ framework returns the lowest frequency available
+	  at any time.
+
+config DEVFREQ_GOV_USERSPACE
+	tristate "Userspace"
+	help
+	  Sets the frequency at the user specified one.
+	  This governor returns the user configured frequency if there
+	  has been an input to /sys/devices/.../power/devfreq_set_freq.
+	  Otherwise, the governor does not change the frequnecy
+	  given at the initialization.
+
+comment "DEVFREQ Drivers"
+
+config ARM_EXYNOS4_BUS_DEVFREQ
+	bool "ARM Exynos4210/4212/4412 Memory Bus DEVFREQ Driver"
+	depends on (CPU_EXYNOS4210 || SOC_EXYNOS4212 || SOC_EXYNOS4412) && !ARCH_MULTIPLATFORM
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_OPP
+	help
+	  This adds the DEVFREQ driver for Exynos4210 memory bus (vdd_int)
+	  and Exynos4212/4412 memory interface and bus (vdd_mif + vdd_int).
+	  It reads PPMU counters of memory controllers and adjusts
+	  the operating frequencies and voltages with OPP support.
+	  This does not yet operate with optimal voltages.
+
+config ARM_EXYNOS5_BUS_DEVFREQ
+	tristate "ARM Exynos5250 Bus DEVFREQ Driver"
+	depends on SOC_EXYNOS5250
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_OPP
+	help
+	  This adds the DEVFREQ driver for Exynos5250 bus interface (vdd_int).
+	  It reads PPMU counters of memory controllers and adjusts the
+	  operating frequencies and voltages with OPP support.
+
+config ARM_TEGRA_DEVFREQ
+       tristate "Tegra DEVFREQ Driver"
+       depends on ARCH_TEGRA_124_SOC
+       select DEVFREQ_GOV_SIMPLE_ONDEMAND
+       select PM_OPP
+       help
+         This adds the DEVFREQ driver for the Tegra family of SoCs.
+         It reads ACTMON counters of memory controllers and adjusts the
+         operating frequencies and voltages with OPP support.
+
+source "drivers/devfreq/event/Kconfig"
+
+endif # PM_DEVFREQ

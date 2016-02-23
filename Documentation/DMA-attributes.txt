@@ -1,0 +1,102 @@
+			DMA attributes
+			==============
+
+This document describes the semantics of the DMA attributes that are
+defined in linux/dma-attrs.h.
+
+DMA_ATTR_WRITE_BARRIER
+----------------------
+
+DMA_ATTR_WRITE_BARRIER is a (write) barrier attribute for DMA.  DMA
+to a memory region with the DMA_ATTR_WRITE_BARRIER attribute forces
+all pending DMA writes to complete, and thus provides a mechanism to
+strictly order DMA from a device across all intervening busses and
+bridges.  This barrier is not specific to a particular type of
+interconnect, it applies to the system as a whole, and so its
+implementation must account for the idiosyncrasies of the system all
+the way from the DMA device to memory.
+
+As an example of a situation where DMA_ATTR_WRITE_BARRIER would be
+useful, suppose that a device does a DMA write to indicate that data is
+ready and available in memory.  The DMA of the "completion indication"
+could race with data DMA.  Mapping the memory used for completion
+indications with DMA_ATTR_WRITE_BARRIER would prevent the race.
+
+DMA_ATTR_WEAK_ORDERING
+----------------------
+
+DMA_ATTR_WEAK_ORDERING specifies that reads and writes to the mapping
+may be weakly ordered, that is that reads and writes may pass each other.
+
+Since it is optional for platforms to implement DMA_ATTR_WEAK_ORDERING,
+those that do not will simply ignore the attribute and exhibit default
+behavior.
+
+DMA_ATTR_WRITE_COMBINE
+----------------------
+
+DMA_ATTR_WRITE_COMBINE specifies that writes to the mapping may be
+buffered to improve performance.
+
+Since it is optional for platforms to implement DMA_ATTR_WRITE_COMBINE,
+those that do not will simply ignore the attribute and exhibit default
+behavior.
+
+DMA_ATTR_NON_CONSISTENT
+-----------------------
+
+DMA_ATTR_NON_CONSISTENT lets the platform to choose to return either
+consistent or non-consistent memory as it sees fit.  By using this API,
+you are guaranteeing to the platform that you have all the correct and
+necessary sync points for this memory in the driver.
+
+DMA_ATTR_NO_KERNEL_MAPPING
+--------------------------
+
+DMA_ATTR_NO_KERNEL_MAPPING lets the platform to avoid creating a kernel
+virtual mapping for the allocated buffer. On some architectures creating
+such mapping is non-trivial task and consumes very limited resources
+(like kernel virtual address space or dma consistent address space).
+Buffers allocated with this attribute can be only passed to user space
+by calling dma_mmap_attrs(). By using this API, you are guaranteeing
+that you won't dereference the pointer returned by dma_alloc_attr(). You
+can treat it as a cookie that must be passed to dma_mmap_attrs() and
+dma_free_attrs(). Make sure that both of these also get this attribute
+set on each call.
+
+Since it is optional for platforms to implement
+DMA_ATTR_NO_KERNEL_MAPPING, those that do not will simply ignore the
+attribute and exhibit default behavior.
+
+DMA_ATTR_SKIP_CPU_SYNC
+----------------------
+
+By default dma_map_{single,page,sg} functions family transfer a given
+buffer from CPU domain to device domain. Some advanced use cases might
+require sharing a buffer between more than one device. This requires
+having a mapping created separately for each device and is usually
+performed by calling dma_map_{single,page,sg} function more than once
+for the given buffer with device pointer to each device taking part in
+the buffer sharing. The first call transfers a buffer from 'CPU' domain
+to 'device' domain, what synchronizes CPU caches for the given region
+(usually it means that the cache has been flushed or invalidated
+depending on the dma direction). However, next calls to
+dma_map_{single,page,sg}() for other devices will perform exactly the
+same synchronization operation on the CPU cache. CPU cache synchronization
+might be a time consuming operation, especially if the buffers are
+large, so it is highly recommended to avoid it if possible.
+DMA_ATTR_SKIP_CPU_SYNC allows platform code to skip synchronization of
+the CPU cache for the given buffer assuming that it has been already
+transferred to 'device' domain. This attribute can be also used for
+dma_unmap_{single,page,sg} functions family to force buffer to stay in
+device domain after releasing a mapping for it. Use this attribute with
+care!
+
+DMA_ATTR_FORCE_CONTIGUOUS
+-------------------------
+
+By default DMA-mapping subsystem is allowed to assemble the buffer
+allocated by dma_alloc_attrs() function from individual pages if it can
+be mapped as contiguous chunk into device dma address space. By
+specifying this attribute the allocated buffer is forced to be contiguous
+also in physical memory.

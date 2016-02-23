@@ -1,0 +1,137 @@
+<refentry id="vidioc-reqbufs">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_REQBUFS</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_REQBUFS</refname>
+    <refpurpose>Initiate Memory Mapping or User Pointer I/O</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_requestbuffers *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_REQBUFS</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+<para>This ioctl is used to initiate <link linkend="mmap">memory mapped</link>,
+<link linkend="userp">user pointer</link> or <link
+linkend="dmabuf">DMABUF</link> based I/O.  Memory mapped buffers are located in
+device memory and must be allocated with this ioctl before they can be mapped
+into the application's address space. User buffers are allocated by
+applications themselves, and this ioctl is merely used to switch the driver
+into user pointer I/O mode and to setup some internal structures.
+Similarly, DMABUF buffers are allocated by applications through a device
+driver, and this ioctl only configures the driver into DMABUF I/O mode without
+performing any direct allocation.</para>
+
+    <para>To allocate device buffers applications initialize all fields of the
+<structname>v4l2_requestbuffers</structname> structure.  They set the
+<structfield>type</structfield> field to the respective stream or buffer type,
+the <structfield>count</structfield> field to the desired number of buffers,
+<structfield>memory</structfield> must be set to the requested I/O method and
+the <structfield>reserved</structfield> array must be zeroed. When the ioctl is
+called with a pointer to this structure the driver will attempt to allocate the
+requested number of buffers and it stores the actual number allocated in the
+<structfield>count</structfield> field. It can be smaller than the number
+requested, even zero, when the driver runs out of free memory. A larger number
+is also possible when the driver requires more buffers to function correctly.
+For example video output requires at least two buffers, one displayed and one
+filled by the application.</para>
+    <para>When the I/O method is not supported the ioctl
+returns an &EINVAL;.</para>
+
+    <para>Applications can call <constant>VIDIOC_REQBUFS</constant>
+again to change the number of buffers, however this cannot succeed
+when any buffers are still mapped. A <structfield>count</structfield>
+value of zero frees all buffers, after aborting or finishing any DMA
+in progress, an implicit &VIDIOC-STREAMOFF;. <!-- mhs: I see no
+reason why munmap()ping one or even all buffers must imply
+streamoff.--></para>
+
+    <table pgwide="1" frame="none" id="v4l2-requestbuffers">
+      <title>struct <structname>v4l2_requestbuffers</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>count</structfield></entry>
+	    <entry>The number of buffers requested or granted.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>Type of the stream or buffers, this is the same
+as the &v4l2-format; <structfield>type</structfield> field. See <xref
+		linkend="v4l2-buf-type" /> for valid values.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>memory</structfield></entry>
+	    <entry>Applications set this field to
+<constant>V4L2_MEMORY_MMAP</constant>,
+<constant>V4L2_MEMORY_DMABUF</constant> or
+<constant>V4L2_MEMORY_USERPTR</constant>. See <xref linkend="v4l2-memory"
+/>.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[2]</entry>
+	    <entry>A place holder for future extensions. Drivers and applications
+must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The buffer type (<structfield>type</structfield> field) or the
+requested I/O method (<structfield>memory</structfield>) is not
+supported.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

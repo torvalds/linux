@@ -1,0 +1,56 @@
+#
+# Controller Area Network (CAN) network layer core configuration
+#
+
+menuconfig CAN
+	depends on NET
+	tristate "CAN bus subsystem support"
+	---help---
+	  Controller Area Network (CAN) is a slow (up to 1Mbit/s) serial
+	  communications protocol which was developed by Bosch in
+	  1991, mainly for automotive, but now widely used in marine
+	  (NMEA2000), industrial, and medical applications.
+	  More information on the CAN network protocol family PF_CAN
+	  is contained in <Documentation/networking/can.txt>.
+
+	  If you want CAN support you should say Y here and also to the
+	  specific driver for your controller(s) below.
+
+if CAN
+
+config CAN_RAW
+	tristate "Raw CAN Protocol (raw access with CAN-ID filtering)"
+	default y
+	---help---
+	  The raw CAN protocol option offers access to the CAN bus via
+	  the BSD socket API. You probably want to use the raw socket in
+	  most cases where no higher level protocol is being used. The raw
+	  socket has several filter options e.g. ID masking / error frames.
+	  To receive/send raw CAN messages, use AF_CAN with protocol CAN_RAW.
+
+config CAN_BCM
+	tristate "Broadcast Manager CAN Protocol (with content filtering)"
+	default y
+	---help---
+	  The Broadcast Manager offers content filtering, timeout monitoring,
+	  sending of RTR frames, and cyclic CAN messages without permanent user
+	  interaction. The BCM can be 'programmed' via the BSD socket API and
+	  informs you on demand e.g. only on content updates / timeouts.
+	  You probably want to use the bcm socket in most cases where cyclic
+	  CAN messages are used on the bus (e.g. in automotive environments).
+	  To use the Broadcast Manager, use AF_CAN with protocol CAN_BCM.
+
+config CAN_GW
+	tristate "CAN Gateway/Router (with netlink configuration)"
+	default y
+	---help---
+	  The CAN Gateway/Router is used to route (and modify) CAN frames.
+	  It is based on the PF_CAN core infrastructure for msg filtering and
+	  msg sending and can optionally modify routed CAN frames on the fly.
+	  CAN frames can be routed between CAN network interfaces (one hop).
+	  They can be modified with AND/OR/XOR/SET operations as configured
+	  by the netlink configuration interface known e.g. from iptables.
+
+source "drivers/net/can/Kconfig"
+
+endif

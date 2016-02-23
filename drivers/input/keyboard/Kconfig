@@ -1,0 +1,722 @@
+#
+# Input core configuration
+#
+menuconfig INPUT_KEYBOARD
+	bool "Keyboards"
+	default y
+	help
+	  Say Y here, and a list of supported keyboards will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if INPUT_KEYBOARD
+
+config KEYBOARD_ADP5520
+	tristate "Keypad Support for ADP5520 PMIC"
+	depends on PMIC_ADP5520
+	help
+	  This option enables support for the keypad scan matrix
+	  on Analog Devices ADP5520 PMICs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp5520-keys.
+
+config KEYBOARD_ADP5588
+	tristate "ADP5588/87 I2C QWERTY Keypad and IO Expander"
+	depends on I2C
+	help
+	  Say Y here if you want to use a ADP5588/87 attached to your
+	  system I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adp5588-keys.
+
+config KEYBOARD_ADP5589
+	tristate "ADP5585/ADP5589 I2C QWERTY Keypad and IO Expander"
+	depends on I2C
+	help
+	  Say Y here if you want to use a ADP5585/ADP5589 attached to your
+	  system I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adp5589-keys.
+
+config KEYBOARD_AMIGA
+	tristate "Amiga keyboard"
+	depends on AMIGA
+	help
+	  Say Y here if you are running Linux on any AMIGA and have a keyboard
+	  attached.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called amikbd.
+
+config ATARI_KBD_CORE
+	bool
+
+config KEYBOARD_ATARI
+	tristate "Atari keyboard"
+	depends on ATARI
+	select ATARI_KBD_CORE
+	help
+	  Say Y here if you are running Linux on any Atari and have a keyboard
+	  attached.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atakbd.
+
+config KEYBOARD_ATKBD
+	tristate "AT keyboard"
+	default y
+	select SERIO
+	select SERIO_LIBPS2
+	select SERIO_I8042 if ARCH_MIGHT_HAVE_PC_SERIO
+	select SERIO_GSCPS2 if GSC
+	help
+	  Say Y here if you want to use a standard AT or PS/2 keyboard. Usually
+	  you'll need this, unless you have a different type keyboard (USB, ADB
+	  or other). This also works for AT and PS/2 keyboards connected over a
+	  PS/2 to serial converter.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atkbd.
+
+config KEYBOARD_ATKBD_HP_KEYCODES
+	bool "Use HP keyboard scancodes"
+	depends on PARISC && KEYBOARD_ATKBD
+	default y
+	help
+	  Say Y here if you have a PA-RISC machine and want to use an AT or
+	  PS/2 keyboard, and your keyboard uses keycodes that are specific to
+	  PA-RISC keyboards.
+
+	  Say N if you use a standard keyboard.
+
+config KEYBOARD_ATKBD_RDI_KEYCODES
+	bool "Use PrecisionBook keyboard scancodes"
+	depends on KEYBOARD_ATKBD_HP_KEYCODES
+	default n
+	help
+	  If you have an RDI PrecisionBook, say Y here if you want to use its
+	  built-in keyboard (as opposed to an external keyboard).
+
+	  The PrecisionBook has five keys that conflict with those used by most
+	  AT and PS/2 keyboards. These are as follows:
+
+	    PrecisionBook    Standard AT or PS/2
+
+	    F1               F12
+	    Left Ctrl        Left Alt
+	    Caps Lock        Left Ctrl
+	    Right Ctrl       Caps Lock
+	    Left             102nd key (the key to the right of Left Shift)
+
+	  If you say N here, and use the PrecisionBook keyboard, then each key
+	  in the left-hand column will be interpreted as the corresponding key
+	  in the right-hand column.
+
+	  If you say Y here, and use an external keyboard, then each key in the
+	  right-hand column will be interpreted as the key shown in the
+	  left-hand column.
+
+config KEYBOARD_QT1070
+       tristate "Atmel AT42QT1070 Touch Sensor Chip"
+       depends on I2C
+       help
+         Say Y here if you want to use Atmel AT42QT1070 QTouch
+         Sensor chip as input device.
+
+         To compile this driver as a module, choose M here:
+         the module will be called qt1070
+
+config KEYBOARD_QT2160
+	tristate "Atmel AT42QT2160 Touch Sensor Chip"
+	depends on I2C
+	help
+	  If you say yes here you get support for Atmel AT42QT2160 Touch
+	  Sensor chip as a keyboard input.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called qt2160.
+
+config KEYBOARD_BFIN
+	tristate "Blackfin BF54x keypad support"
+	depends on (BF54x && !BF544)
+	help
+	  Say Y here if you want to use the BF54x keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bf54x-keys.
+
+config KEYBOARD_CLPS711X
+	tristate "CLPS711X Keypad support"
+	depends on OF_GPIO && (ARCH_CLPS711X || COMPILE_TEST)
+	select INPUT_MATRIXKMAP
+	select INPUT_POLLDEV
+	help
+	  Say Y here to enable the matrix keypad on the Cirrus Logic
+	  CLPS711X CPUs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called clps711x-keypad.
+
+config KEYBOARD_LKKBD
+	tristate "DECstation/VAXstation LK201/LK401 keyboard"
+	select SERIO
+	help
+	  Say Y here if you want to use a LK201 or LK401 style serial
+	  keyboard. This keyboard is also useable on PCs if you attach
+	  it with the inputattach program. The connector pinout is
+	  described within lkkbd.c.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lkkbd.
+
+config KEYBOARD_EP93XX
+	tristate "EP93xx Matrix Keypad support"
+	depends on ARCH_EP93XX
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here to enable the matrix keypad on the Cirrus EP93XX.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ep93xx_keypad.
+
+config KEYBOARD_GPIO
+	tristate "GPIO Buttons"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  This driver implements support for buttons connected
+	  to GPIO pins of various CPUs (and some other chips).
+
+	  Say Y here if your device has buttons connected
+	  directly to such GPIO pins.  Your board-specific
+	  setup logic must also provide a platform device,
+	  with configuration data saying which GPIOs are used.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio_keys.
+
+config KEYBOARD_GPIO_POLLED
+	tristate "Polled GPIO buttons"
+	depends on GPIOLIB
+	select INPUT_POLLDEV
+	help
+	  This driver implements support for buttons connected
+	  to GPIO pins that are not capable of generating interrupts.
+
+	  Say Y here if your device has buttons connected
+	  directly to such GPIO pins.  Your board-specific
+	  setup logic must also provide a platform device,
+	  with configuration data saying which GPIOs are used.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio_keys_polled.
+
+config KEYBOARD_TCA6416
+	tristate "TCA6416/TCA6408A Keypad Support"
+	depends on I2C
+	help
+	  This driver implements basic keypad functionality
+	  for keys connected through TCA6416/TCA6408A IO expanders.
+
+	  Say Y here if your device has keys connected to
+	  TCA6416/TCA6408A IO expander. Your board-specific setup logic
+	  must also provide pin-mask details(of which TCA6416 pins
+	  are used for keypad).
+
+	  If enabled the entire TCA6416 device will be managed through
+	  this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tca6416_keypad.
+
+config KEYBOARD_TCA8418
+	tristate "TCA8418 Keypad Support"
+	depends on I2C
+	select INPUT_MATRIXKMAP
+	help
+	  This driver implements basic keypad functionality
+	  for keys connected through TCA8418 keypad decoder.
+
+	  Say Y here if your device has keys connected to
+	  TCA8418 keypad decoder.
+
+	  If enabled the complete TCA8418 device will be managed through
+	  this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tca8418_keypad.
+
+config KEYBOARD_MATRIX
+	tristate "GPIO driven matrix keypad support"
+	depends on GPIOLIB || COMPILE_TEST
+	select INPUT_MATRIXKMAP
+	help
+	  Enable support for GPIO driven matrix keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called matrix_keypad.
+
+config KEYBOARD_HIL_OLD
+	tristate "HP HIL keyboard support (simple driver)"
+	depends on GSC || HP300
+	default y
+	help
+	  The "Human Interface Loop" is a older, 8-channel USB-like
+	  controller used in several Hewlett Packard models. This driver
+	  was adapted from the one written for m68k/hp300, and implements
+	  support for a keyboard attached to the HIL port, but not for
+	  any other types of HIL input devices like mice or tablets.
+	  However, it has been thoroughly tested and is stable.
+
+	  If you want full HIL support including support for multiple
+	  keyboards, mice, and tablets, you have to enable the
+	  "HP System Device Controller i8042 Support" in the input/serio
+	  submenu.
+
+config KEYBOARD_HIL
+	tristate "HP HIL keyboard/pointer support"
+	depends on GSC || HP300
+	default y
+	select HP_SDC
+	select HIL_MLC
+	select SERIO
+	help
+	  The "Human Interface Loop" is a older, 8-channel USB-like
+	  controller used in several Hewlett Packard models.
+	  This driver implements support for HIL-keyboards and pointing
+	  devices (mice, tablets, touchscreens) attached
+	  to your machine, so normally you should say Y here.
+
+config KEYBOARD_HP6XX
+	tristate "HP Jornada 6xx keyboard"
+	depends on SH_HP6XX
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you have a HP Jornada 620/660/680/690 and want to
+	  support the built-in keyboard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jornada680_kbd.
+
+config KEYBOARD_HP7XX
+	tristate "HP Jornada 7xx keyboard"
+	depends on SA1100_JORNADA720_SSP && SA1100_SSP
+	help
+	  Say Y here if you have a HP Jornada 710/720/728 and want to
+	  support the built-in keyboard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jornada720_kbd.
+
+config KEYBOARD_LM8323
+	tristate "LM8323 keypad chip"
+	depends on I2C
+	depends on LEDS_CLASS
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LM8323 keypad controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lm8323.
+
+config KEYBOARD_LM8333
+	tristate "LM8333 keypad chip"
+	depends on I2C
+	select INPUT_MATRIXKMAP
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LM8333 keypad controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lm8333.
+
+config KEYBOARD_LOCOMO
+	tristate "LoCoMo Keyboard Support"
+	depends on SHARP_LOCOMO
+	help
+	  Say Y here if you are running Linux on a Sharp Zaurus Collie or Poodle based PDA
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called locomokbd.
+
+config KEYBOARD_LPC32XX
+	tristate "LPC32XX matrix key scanner support"
+	depends on ARCH_LPC32XX && OF
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use NXP LPC32XX SoC key scanner interface,
+	  connected to a key matrix.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lpc32xx-keys.
+
+config KEYBOARD_MAPLE
+	tristate "Maple bus keyboard"
+	depends on SH_DREAMCAST && MAPLE
+	help
+	  Say Y here if you have a Dreamcast console running Linux and have
+	  a keyboard attached to its Maple bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called maple_keyb.
+
+config KEYBOARD_MAX7359
+	tristate "Maxim MAX7359 Key Switch Controller"
+	select INPUT_MATRIXKMAP
+	depends on I2C
+	help
+	  If you say yes here you get support for the Maxim MAX7359 Key
+	  Switch Controller chip. This providers microprocessors with
+	  management of up to 64 key switches
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max7359_keypad.
+
+config KEYBOARD_MCS
+	tristate "MELFAS MCS Touchkey"
+	depends on I2C
+	help
+	  Say Y here if you have the MELFAS MCS5000/5080 touchkey controller
+	  chip in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcs_touchkey.
+
+config KEYBOARD_MPR121
+	tristate "Freescale MPR121 Touchkey"
+	depends on I2C
+	help
+	  Say Y here if you have Freescale MPR121 touchkey controller
+	  chip in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mpr121_touchkey.
+
+config KEYBOARD_SNVS_PWRKEY
+	tristate "IMX SNVS Power Key Driver"
+	depends on SOC_IMX6SX
+	depends on OF
+	help
+	  This is the snvs powerkey driver for the Freescale i.MX application
+	  processors that are newer than i.MX6 SX.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called snvs_pwrkey.
+
+config KEYBOARD_IMX
+	tristate "IMX keypad support"
+	depends on ARCH_MXC
+	select INPUT_MATRIXKMAP
+	help
+	  Enable support for IMX keypad port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx_keypad.
+
+config KEYBOARD_NEWTON
+	tristate "Newton keyboard"
+	select SERIO
+	help
+	  Say Y here if you have a Newton keyboard on a serial port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called newtonkbd.
+
+config KEYBOARD_NOMADIK
+	tristate "ST-Ericsson Nomadik SKE keyboard"
+	depends on (ARCH_NOMADIK || ARCH_U8500)
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use a keypad provided on the SKE controller
+	  used on the Ux500 and Nomadik platforms
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nmk-ske-keypad.
+
+config KEYBOARD_NSPIRE
+	tristate "TI-NSPIRE built-in keyboard"
+	depends on ARCH_NSPIRE && OF
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the built-in keypad on TI-NSPIRE.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nspire-keypad.
+
+config KEYBOARD_TEGRA
+	tristate "NVIDIA Tegra internal matrix keyboard controller support"
+	depends on ARCH_TEGRA && OF
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use a matrix keyboard connected directly
+	  to the internal keyboard controller on Tegra SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tegra-kbc.
+
+config KEYBOARD_OPENCORES
+	tristate "OpenCores Keyboard Controller"
+	depends on HAS_IOMEM
+	help
+	  Say Y here if you want to use the OpenCores Keyboard Controller
+	  http://www.opencores.org/project,keyboardcontroller
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called opencores-kbd.
+
+config KEYBOARD_PXA27x
+	tristate "PXA27x/PXA3xx keypad support"
+	depends on PXA27x || PXA3xx || ARCH_MMP
+	select INPUT_MATRIXKMAP
+	help
+	  Enable support for PXA27x/PXA3xx keypad controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pxa27x_keypad.
+
+config KEYBOARD_PXA930_ROTARY
+	tristate "PXA930/PXA935 Enhanced Rotary Controller Support"
+	depends on CPU_PXA930 || CPU_PXA935
+	help
+	  Enable support for PXA930/PXA935 Enhanced Rotary Controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pxa930_rotary.
+
+config KEYBOARD_PMIC8XXX
+	tristate "Qualcomm PMIC8XXX keypad support"
+	depends on MFD_PM8XXX
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to enable the driver for the PMIC8XXX
+	  keypad provided as a reference design from Qualcomm. This is intended
+	  to support upto 18x8 matrix based keypad design.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called pmic8xxx-keypad.
+
+config KEYBOARD_SAMSUNG
+	tristate "Samsung keypad support"
+	depends on HAVE_CLK
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the keypad on your Samsung mobile
+	  device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called samsung-keypad.
+
+config KEYBOARD_GOLDFISH_EVENTS
+	depends on GOLDFISH || COMPILE_TEST
+	tristate "Generic Input Event device for Goldfish"
+	help
+	  Say Y here to get an input event device for the Goldfish virtual
+	  device emulator.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called goldfish-events.
+
+config KEYBOARD_STOWAWAY
+	tristate "Stowaway keyboard"
+	select SERIO
+	help
+	  Say Y here if you have a Stowaway keyboard on a serial port.
+	  Stowaway compatible keyboards like Dicota Input-PDA keyboard
+	  are also supported by this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stowaway.
+
+config KEYBOARD_ST_KEYSCAN
+	tristate "STMicroelectronics keyscan support"
+	depends on ARCH_STI || COMPILE_TEST
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use a keypad attached to the keyscan block
+	  on some STMicroelectronics SoC devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called st-keyscan.
+
+config KEYBOARD_SUNKBD
+	tristate "Sun Type 4 and Type 5 keyboard"
+	select SERIO
+	help
+	  Say Y here if you want to use a Sun Type 4 or Type 5 keyboard,
+	  connected either to the Sun keyboard connector or to an serial
+	  (RS-232) port via a simple adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sunkbd.
+
+config KEYBOARD_SH_KEYSC
+	tristate "SuperH KEYSC keypad support"
+	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	help
+	  Say Y here if you want to use a keypad attached to the KEYSC block
+	  on SuperH processors such as sh7722 and sh7343.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sh_keysc.
+
+config KEYBOARD_STMPE
+	tristate "STMPE keypad support"
+	depends on MFD_STMPE
+	depends on OF
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the keypad controller on STMPE I/O
+	  expanders.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called stmpe-keypad.
+
+config KEYBOARD_SUN4I_LRADC
+	tristate "Allwinner sun4i low res adc attached tablet keys support"
+	depends on ARCH_SUNXI
+	help
+	  This selects support for the Allwinner low res adc attached tablet
+	  keys found on Allwinner sunxi SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-lradc-keys.
+
+config KEYBOARD_DAVINCI
+	tristate "TI DaVinci Key Scan"
+	depends on ARCH_DAVINCI_DM365
+	help
+	  Say Y to enable keypad module support for the TI DaVinci
+	  platforms (DM365).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called davinci_keyscan.
+
+config KEYBOARD_IPAQ_MICRO
+	tristate "Buttons on Micro SoC (iPaq h3100,h3600,h3700)"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Say Y to enable support for the buttons attached to
+	  Micro peripheral controller on iPAQ h3100/h3600/h3700
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ipaq-micro-keys.
+
+config KEYBOARD_OMAP
+	tristate "TI OMAP keypad support"
+	depends on ARCH_OMAP1
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the OMAP keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omap-keypad.
+
+config KEYBOARD_OMAP4
+	tristate "TI OMAP4+ keypad support"
+	depends on OF || ARCH_OMAP2PLUS
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the OMAP4+ keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omap4-keypad.
+
+config KEYBOARD_SPEAR
+	tristate "ST SPEAR keyboard support"
+	depends on PLAT_SPEAR
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the SPEAR keyboard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called spear-keboard.
+
+config KEYBOARD_TC3589X
+	tristate "TC3589X Keypad support"
+	depends on MFD_TC3589X
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the keypad controller on
+	  TC35892/3 I/O expander.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tc3589x-keypad.
+
+config KEYBOARD_TWL4030
+	tristate "TI TWL4030/TWL5030/TPS659x0 keypad support"
+	depends on TWL4030_CORE
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if your board use the keypad controller on
+	  TWL4030 family chips.  It's safe to say enable this
+	  even on boards that don't use the keypad controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called twl4030_keypad.
+
+config KEYBOARD_XTKBD
+	tristate "XT keyboard"
+	select SERIO
+	help
+	  Say Y here if you want to use the old IBM PC/XT keyboard (or
+	  compatible) on your system. This is only possible with a
+	  parallel port keyboard adapter, you cannot connect it to the
+	  keyboard port on a PC that runs Linux.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xtkbd.
+
+config KEYBOARD_W90P910
+	tristate "W90P910 Matrix Keypad support"
+	depends on ARCH_W90X900
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here to enable the matrix keypad on evaluation board
+	  based on W90P910.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called w90p910_keypad.
+
+config KEYBOARD_CROS_EC
+	tristate "ChromeOS EC keyboard"
+	select INPUT_MATRIXKMAP
+	depends on MFD_CROS_EC
+	help
+	  Say Y here to enable the matrix keyboard used by ChromeOS devices
+	  and implemented on the ChromeOS EC. You must enable one bus option
+	  (MFD_CROS_EC_I2C or MFD_CROS_EC_SPI) to use this.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_keyb.
+
+config KEYBOARD_CAP11XX
+	tristate "Microchip CAP11XX based touch sensors"
+	depends on OF && I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable the CAP11XX touch sensor driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cap11xx.
+
+config KEYBOARD_BCM
+	tristate "Broadcom keypad driver"
+	depends on OF && HAVE_CLK
+	select INPUT_MATRIXKMAP
+	default ARCH_BCM_CYGNUS
+	help
+	  Say Y here if you want to use Broadcom keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bcm-keypad.
+
+endif

@@ -1,0 +1,51 @@
+Device-Tree bindings for Samsung Exynos SoC mobile image compressor (MIC)
+
+MIC (mobile image compressor) resides between decon and mipi dsi. Mipi dsi is
+not capable to transfer high resoltuion frame data as decon can send. MIC
+solves this problem by compressing the frame data by 1/2 before it is
+transferred through mipi dsi. The compressed frame data must be uncompressed in
+the panel PCB.
+
+Required properties:
+- compatible: value should be "samsung,exynos5433-mic".
+- reg: physical base address and length of the MIC registers set and system
+       register of mic.
+- clocks: must include clock specifiers corresponding to entries in the
+	  clock-names property.
+- clock-names: list of clock names sorted in the same order as the clocks
+	       property. Must contain "pclk_mic0", "sclk_rgb_vclk_to_mic0".
+- samsung,disp-syscon: the reference node for syscon for DISP block.
+- ports: contains a port which is connected to decon node and dsi node.
+	 address-cells and size-cells must 1 and 0, respectively.
+- port: contains an endpoint node which is connected to the endpoint in the
+	decon node or dsi node. The reg value must be 0 and 1 respectively.
+
+Example:
+SoC specific DT entry:
+mic: mic@13930000 {
+	compatible = "samsung,exynos5433-mic";
+	reg = <0x13930000 0x48>;
+	clocks = <&cmu_disp CLK_PCLK_MIC0>,
+	       <&cmu_disp CLK_SCLK_RGB_VCLK_TO_MIC0>;
+	clock-names = "pclk_mic0", "sclk_rgb_vclk_to_mic0";
+	samsung,disp-syscon = <&syscon_disp>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			mic_to_decon: endpoint {
+				remote-endpoint = <&decon_to_mic>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			mic_to_dsi: endpoint {
+				remote-endpoint = <&dsi_to_mic>;
+			};
+		};
+	};
+};

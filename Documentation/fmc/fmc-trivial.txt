@@ -1,0 +1,17 @@
+fmc-trivial
+===========
+
+The simple module fmc-trivial is just a simple client that registers an
+interrupt handler. I used it to verify the basic mechanism of the FMC
+bus and how interrupts worked.
+
+The module implements the generic FMC parameters, so it can program a
+different gateware file in each card. The whole list of parameters it
+accepts are:
+
+`busid='
+`gateware='
+     Generic parameters. See mezzanine.txt
+
+
+This driver is worth reading, in my opinion.

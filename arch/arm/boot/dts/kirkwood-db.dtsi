@@ -1,0 +1,92 @@
+/*
+ * Marvell DB-{88F6281,88F6282}-BP Development Board Setup
+ *
+ * Saeed Bishara <saeed@marvell.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * This file contains the definitions that are common between the 6281
+ * and 6282 variants of the Marvell Kirkwood Development Board.
+ */
+
+#include "kirkwood.dtsi"
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>; /* 512 MB */
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
+	};
+
+	ocp@f1000000 {
+		pin-controller@10000 {
+			pmx_sdio_gpios: pmx-sdio-gpios {
+				marvell,pins = "mpp37", "mpp38";
+				marvell,function = "gpio";
+			};
+		};
+
+		serial@12000 {
+			status = "okay";
+		};
+
+		sata@80000 {
+			nr-ports = <2>;
+			status = "okay";
+		};
+
+		ehci@50000 {
+			status = "okay";
+		};
+
+		mvsdio@90000 {
+			pinctrl-0 = <&pmx_sdio_gpios>;
+			pinctrl-names = "default";
+			wp-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+			cd-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+			status = "okay";
+		};
+	};
+};
+
+&nand {
+	chip-delay = <25>;
+	status = "okay";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0 0x100000>;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "root";
+		reg = <0x500000 0x1fb00000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@8 {
+		reg = <8>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};

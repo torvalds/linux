@@ -1,0 +1,48 @@
+menu "CPU Idle"
+
+config CPU_IDLE
+	bool "CPU idle PM support"
+	default y if ACPI || PPC_PSERIES
+	select CPU_IDLE_GOV_LADDER if (!NO_HZ && !NO_HZ_IDLE)
+	select CPU_IDLE_GOV_MENU if (NO_HZ || NO_HZ_IDLE)
+	help
+	  CPU idle is a generic framework for supporting software-controlled
+	  idle processor power management.  It includes modular cross-platform
+	  governors that can be swapped during runtime.
+
+	  If you're using an ACPI-enabled platform, you should say Y here.
+
+if CPU_IDLE
+
+config CPU_IDLE_MULTIPLE_DRIVERS
+        bool
+
+config CPU_IDLE_GOV_LADDER
+	bool "Ladder governor (for periodic timer tick)"
+
+config CPU_IDLE_GOV_MENU
+	bool "Menu governor (for tickless system)"
+
+config DT_IDLE_STATES
+	bool
+
+menu "ARM CPU Idle Drivers"
+depends on ARM || ARM64
+source "drivers/cpuidle/Kconfig.arm"
+endmenu
+
+menu "MIPS CPU Idle Drivers"
+depends on MIPS
+source "drivers/cpuidle/Kconfig.mips"
+endmenu
+
+menu "POWERPC CPU Idle Drivers"
+depends on PPC
+source "drivers/cpuidle/Kconfig.powerpc"
+endmenu
+
+endif
+
+config ARCH_NEEDS_CPU_IDLE_COUPLED
+	def_bool n
+endmenu

@@ -1,0 +1,197 @@
+#
+# Timer subsystem related configuration options
+#
+
+# Options selectable by arch Kconfig
+
+# Watchdog function for clocksources to detect instabilities
+config CLOCKSOURCE_WATCHDOG
+	bool
+
+# Architecture has extra clocksource data
+config ARCH_CLOCKSOURCE_DATA
+	bool
+
+# Clocksources require validation of the clocksource against the last
+# cycle update - x86/TSC misfeature
+config CLOCKSOURCE_VALIDATE_LAST_CYCLE
+	bool
+
+# Timekeeping vsyscall support
+config GENERIC_TIME_VSYSCALL
+	bool
+
+# Timekeeping vsyscall support
+config GENERIC_TIME_VSYSCALL_OLD
+	bool
+
+# Old style timekeeping
+config ARCH_USES_GETTIMEOFFSET
+	bool
+
+# The generic clock events infrastructure
+config GENERIC_CLOCKEVENTS
+	bool
+
+# Architecture can handle broadcast in a driver-agnostic way
+config ARCH_HAS_TICK_BROADCAST
+	bool
+
+# Clockevents broadcasting infrastructure
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	depends on GENERIC_CLOCKEVENTS
+
+# Automatically adjust the min. reprogramming time for
+# clock event device
+config GENERIC_CLOCKEVENTS_MIN_ADJUST
+	bool
+
+# Generic update of CMOS clock
+config GENERIC_CMOS_UPDATE
+	bool
+
+if GENERIC_CLOCKEVENTS
+menu "Timers subsystem"
+
+# Core internal switch. Selected by NO_HZ_COMMON / HIGH_RES_TIMERS. This is
+# only related to the tick functionality. Oneshot clockevent devices
+# are supported independ of this.
+config TICK_ONESHOT
+	bool
+
+config NO_HZ_COMMON
+	bool
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
+
+choice
+	prompt "Timer tick handling"
+	default NO_HZ_IDLE if NO_HZ
+
+config HZ_PERIODIC
+	bool "Periodic timer ticks (constant rate, no dynticks)"
+	help
+	  This option keeps the tick running periodically at a constant
+	  rate, even when the CPU doesn't need it.
+
+config NO_HZ_IDLE
+	bool "Idle dynticks system (tickless idle)"
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	select NO_HZ_COMMON
+	help
+	  This option enables a tickless idle system: timer interrupts
+	  will only trigger on an as-needed basis when the system is idle.
+	  This is usually interesting for energy saving.
+
+	  Most of the time you want to say Y here.
+
+config NO_HZ_FULL
+	bool "Full dynticks system (tickless)"
+	# NO_HZ_COMMON dependency
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	# We need at least one periodic CPU for timekeeping
+	depends on SMP
+	depends on HAVE_CONTEXT_TRACKING
+	# VIRT_CPU_ACCOUNTING_GEN dependency
+	depends on HAVE_VIRT_CPU_ACCOUNTING_GEN
+	select NO_HZ_COMMON
+	select RCU_NOCB_CPU
+	select VIRT_CPU_ACCOUNTING_GEN
+	select IRQ_WORK
+	help
+	 Adaptively try to shutdown the tick whenever possible, even when
+	 the CPU is running tasks. Typically this requires running a single
+	 task on the CPU. Chances for running tickless are maximized when
+	 the task mostly runs in userspace and has few kernel activity.
+
+	 You need to fill up the nohz_full boot parameter with the
+	 desired range of dynticks CPUs.
+
+	 This is implemented at the expense of some overhead in user <-> kernel
+	 transitions: syscalls, exceptions and interrupts. Even when it's
+	 dynamically off.
+
+	 Say N.
+
+endchoice
+
+config NO_HZ_FULL_ALL
+       bool "Full dynticks system on all CPUs by default (except CPU 0)"
+       depends on NO_HZ_FULL
+       help
+         If the user doesn't pass the nohz_full boot option to
+	 define the range of full dynticks CPUs, consider that all
+	 CPUs in the system are full dynticks by default.
+	 Note the boot CPU will still be kept outside the range to
+	 handle the timekeeping duty.
+
+config NO_HZ_FULL_SYSIDLE
+	bool "Detect full-system idle state for full dynticks system"
+	depends on NO_HZ_FULL
+	default n
+	help
+	 At least one CPU must keep the scheduling-clock tick running for
+	 timekeeping purposes whenever there is a non-idle CPU, where
+	 "non-idle" also includes dynticks CPUs as long as they are
+	 running non-idle tasks.  Because the underlying adaptive-tick
+	 support cannot distinguish between all CPUs being idle and
+	 all CPUs each running a single task in dynticks mode, the
+	 underlying support simply ensures that there is always a CPU
+	 handling the scheduling-clock tick, whether or not all CPUs
+	 are idle.  This Kconfig option enables scalable detection of
+	 the all-CPUs-idle state, thus allowing the scheduling-clock
+	 tick to be disabled when all CPUs are idle.  Note that scalable
+	 detection of the all-CPUs-idle state means that larger systems
+	 will be slower to declare the all-CPUs-idle state.
+
+	 Say Y if you would like to help debug all-CPUs-idle detection.
+
+	 Say N if you are unsure.
+
+config NO_HZ_FULL_SYSIDLE_SMALL
+	int "Number of CPUs above which large-system approach is used"
+	depends on NO_HZ_FULL_SYSIDLE
+	range 1 NR_CPUS
+	default 8
+	help
+	 The full-system idle detection mechanism takes a lazy approach
+	 on large systems, as is required to attain decent scalability.
+	 However, on smaller systems, scalability is not anywhere near as
+	 large a concern as is energy efficiency.  The sysidle subsystem
+	 therefore uses a fast but non-scalable algorithm for small
+	 systems and a lazier but scalable algorithm for large systems.
+	 This Kconfig parameter defines the number of CPUs in the largest
+	 system that will be considered to be "small".
+
+	 The default value will be fine in most cases.	Battery-powered
+	 systems that (1) enable NO_HZ_FULL_SYSIDLE, (2) have larger
+	 numbers of CPUs, and (3) are suffering from battery-lifetime
+	 problems due to long sysidle latencies might wish to experiment
+	 with larger values for this Kconfig parameter.  On the other
+	 hand, they might be even better served by disabling NO_HZ_FULL
+	 entirely, given that NO_HZ_FULL is intended for HPC and
+	 real-time workloads that at present do not tend to be run on
+	 battery-powered systems.
+
+	 Take the default if you are unsure.
+
+config NO_HZ
+	bool "Old Idle dynticks config"
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	help
+	  This is the old config entry that enables dynticks idle.
+	  We keep it around for a little while to enforce backward
+	  compatibility with older config files.
+
+config HIGH_RES_TIMERS
+	bool "High Resolution Timer Support"
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
+	help
+	  This option enables high resolution timer support. If your
+	  hardware is not capable then this option only increases
+	  the size of the kernel image.
+
+endmenu
+endif

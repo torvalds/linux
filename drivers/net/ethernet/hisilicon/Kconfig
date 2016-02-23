@@ -1,0 +1,66 @@
+#
+# HISILICON device configuration
+#
+
+config NET_VENDOR_HISILICON
+	bool "Hisilicon devices"
+	default y
+	depends on OF && HAS_DMA
+	depends on ARM || ARM64 || COMPILE_TEST
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Hisilicon devices. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_HISILICON
+
+config HIX5HD2_GMAC
+	tristate "Hisilicon HIX5HD2 Family Network Device Support"
+	select PHYLIB
+	help
+	  This selects the hix5hd2 mac family network device.
+
+config HIP04_ETH
+	tristate "HISILICON P04 Ethernet support"
+	select MARVELL_PHY
+	select MFD_SYSCON
+	select HNS_MDIO
+	---help---
+	  If you wish to compile a kernel for a hardware with hisilicon p04 SoC and
+	  want to use the internal ethernet then you should answer Y to this.
+
+config HNS_MDIO
+	tristate
+	select PHYLIB
+	---help---
+	  This selects the HNS MDIO support. It is needed by HNS_DSAF to access
+	  the PHY
+
+config HNS
+	tristate "Hisilicon Network Subsystem Support (Framework)"
+	---help---
+	  This selects the framework support for Hisilicon Network Subsystem. It
+	  is needed by any driver which provides HNS acceleration engine or make
+	  use of the engine
+
+config HNS_DSAF
+	tristate "Hisilicon HNS DSAF device Support"
+	select HNS
+	select HNS_MDIO
+	---help---
+	  This selects the DSAF (Distributed System Area Frabric) network
+	  acceleration engine support. The engine is used in Hisilicon hip05,
+	  Hi1610 and further ICT SoC
+
+config HNS_ENET
+	tristate "Hisilicon HNS Ethernet Device Support"
+	select PHYLIB
+	select HNS
+	---help---
+	  This selects the general ethernet driver for HNS.  This module make
+	  use of any HNS AE driver, such as HNS_DSAF
+
+endif # NET_VENDOR_HISILICON

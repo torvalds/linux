@@ -1,0 +1,90 @@
+Davinci SPI controller device bindings
+
+Links on DM:
+Keystone 2 - http://www.ti.com/lit/ug/sprugp2a/sprugp2a.pdf
+dm644x - http://www.ti.com/lit/ug/sprue32a/sprue32a.pdf
+OMAP-L138/da830 - http://www.ti.com/lit/ug/spruh77a/spruh77a.pdf
+
+Required properties:
+- #address-cells: number of cells required to define a chip select
+	address on the SPI bus. Should be set to 1.
+- #size-cells: should be zero.
+- compatible:
+	- "ti,dm6441-spi" for SPI used similar to that on DM644x SoC family
+	- "ti,da830-spi" for SPI used similar to that on DA8xx SoC family
+	- "ti,keystone-spi" for SPI used similar to that on Keystone2 SoC
+		family
+- reg: Offset and length of SPI controller register space
+- num-cs: Number of chip selects. This includes internal as well as
+	GPIO chip selects.
+- ti,davinci-spi-intr-line: interrupt line used to connect the SPI
+	IP to the interrupt controller within the SoC. Possible values
+	are 0 and 1. Manual says one of the two possible interrupt
+	lines can be tied to the interrupt controller. Set this
+	based on a specifc SoC configuration.
+- interrupts: interrupt number mapped to CPU.
+- clocks: spi clk phandle
+
+Optional:
+- cs-gpios: gpio chip selects
+	For example to have 3 internal CS and 2 GPIO CS, user could define
+	cs-gpios = <0>, <0>, <0>, <&gpio1 30 0>, <&gpio1 31 0>;
+	where first three are internal CS and last two are GPIO CS.
+
+Optional properties for slave devices:
+SPI slave nodes can contain the following properties.
+Not all SPI Peripherals from Texas Instruments support this.
+Please check SPI peripheral documentation for a device before using these.
+
+- ti,spi-wdelay : delay between transmission of words
+	(SPIFMTn.WDELAY, SPIDAT1.WDEL) must be specified in number of SPI module
+	clock periods.
+
+	delay = WDELAY * SPI_module_clock_period + 2 * SPI_module_clock_period
+
+Below is timing diagram which shows functional meaning of
+"ti,spi-wdelay" parameter.
+
+             +-+ +-+ +-+ +-+ +-+                           +-+ +-+ +-+
+SPI_CLK      | | | | | | | | | |                           | | | | | |
+  +----------+ +-+ +-+ +-+ +-+ +---------------------------+ +-+ +-+ +-
+
+SPI_SOMI/SIMO+-----------------+                           +-----------
+  +----------+ word1           +---------------------------+word2
+             +-----------------+                           +-----------
+                                          WDELAY
+                                <-------------------------->
+
+Example of a NOR flash slave device (n25q032) connected to DaVinci
+SPI controller device over the SPI bus.
+
+spi0:spi@20BF0000 {
+	#address-cells			= <1>;
+	#size-cells			= <0>;
+	compatible			= "ti,dm6446-spi";
+	reg				= <0x20BF0000 0x1000>;
+	num-cs				= <4>;
+	ti,davinci-spi-intr-line	= <0>;
+	interrupts			= <338>;
+	clocks				= <&clkspi>;
+
+	flash: n25q032@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "st,m25p32";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+		ti,spi-wdelay = <8>;
+
+		partition@0 {
+			label = "u-boot-spl";
+			reg = <0x0 0x80000>;
+			read-only;
+		};
+
+		partition@1 {
+			label = "test";
+			reg = <0x80000 0x380000>;
+		};
+	};
+};

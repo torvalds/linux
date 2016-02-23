@@ -1,0 +1,108 @@
+/*
+ * Broadcom BCM470X / BCM5301X ARM platform code.
+ * DTS for Netgear R8000
+ *
+ * Copyright (C) 2015 Rafał Miłecki <zajec5@gmail.com>
+ *
+ * Licensed under the GNU/GPL. See COPYING for details.
+ */
+
+/dts-v1/;
+
+#include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
+
+/ {
+	compatible = "netgear,r8000", "brcm,bcm4709", "brcm,bcm4708";
+	model = "Netgear R8000 (BCM4709)";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory {
+		reg = <0x00000000 0x08000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		power0 {
+			label = "bcm53xx:white:power";
+			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+
+		power1 {
+			label = "bcm53xx:amber:power";
+			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+
+		5ghz-1 {
+			label = "bcm53xx:white:5ghz-1";
+			gpios = <&chipcommon 12 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+
+		2ghz {
+			label = "bcm53xx:white:2ghz";
+			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+
+		wireless {
+			label = "bcm53xx:white:wireless";
+			gpios = <&chipcommon 14 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		wps {
+			label = "bcm53xx:white:wps";
+			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
+		5ghz-2 {
+			label = "bcm53xx:white:5ghz-2";
+			gpios = <&chipcommon 16 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+
+		usb3 {
+			label = "bcm53xx:white:usb3";
+			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+
+		usb2 {
+			label = "bcm53xx:white:usb2";
+			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rfkill {
+			label = "WiFi";
+			linux,code = <KEY_RFKILL>;
+			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 5 GPIO_ACTIVE_LOW>;
+		};
+
+		restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
+		};
+	};
+};

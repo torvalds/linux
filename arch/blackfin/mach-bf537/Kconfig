@@ -1,0 +1,117 @@
+if (BF537 || BF534 || BF536)
+
+source "arch/blackfin/mach-bf537/boards/Kconfig"
+
+menu "BF537 Specific Configuration"
+
+comment "Interrupt Priority Assignment"
+menu "Priority"
+
+config IRQ_PLL_WAKEUP
+	int "IRQ_PLL_WAKEUP"
+	default 7
+config IRQ_DMA_ERROR
+	int "IRQ_DMA_ERROR Generic"
+	default 7
+config IRQ_ERROR
+	int "IRQ_ERROR: PPI CAN MAC SPORT0 SPORT1 SPI UART0 UART1"
+	default 11
+config IRQ_RTC
+	int "IRQ_RTC"
+	default 8
+config IRQ_PPI
+	int "IRQ_PPI"
+	default 8
+config IRQ_SPORT0_RX
+	int "IRQ_SPORT0_RX"
+	default 9
+config IRQ_SPORT0_TX
+	int "IRQ_SPORT0_TX"
+	default 9
+config IRQ_SPORT1_RX
+	int "IRQ_SPORT1_RX"
+	default 9
+config IRQ_SPORT1_TX
+	int "IRQ_SPORT1_TX"
+	default 9
+config IRQ_TWI
+	int "IRQ_TWI"
+	default 10
+config IRQ_SPI
+	int "IRQ_SPI"
+	default 10
+config IRQ_UART0_RX
+	int "IRQ_UART0_RX"
+	default 10
+config IRQ_UART0_TX
+	int "IRQ_UART0_TX"
+	default 10
+config IRQ_UART1_RX
+	int "IRQ_UART1_RX"
+	default 10
+config IRQ_UART1_TX
+	int "IRQ_UART1_TX"
+	default 10
+config IRQ_CAN_RX
+	int "IRQ_CAN_RX"
+	default 11
+config IRQ_CAN_TX
+	int "IRQ_CAN_TX"
+	default 11
+config IRQ_MAC_RX
+	int "IRQ_MAC_RX"
+	default 11
+config IRQ_MAC_TX
+	int "IRQ_MAC_TX"
+	default 11
+config IRQ_TIMER0
+	int "IRQ_TIMER0"
+	default 7 if TICKSOURCE_GPTMR0
+	default 8
+config IRQ_TIMER1
+	int "IRQ_TIMER1"
+	default 12
+config IRQ_TIMER2
+	int "IRQ_TIMER2"
+	default 12
+config IRQ_TIMER3
+	int "IRQ_TIMER3"
+	default 12
+config IRQ_TIMER4
+	int "IRQ_TIMER4"
+	default 12
+config IRQ_TIMER5
+	int "IRQ_TIMER5"
+	default 12
+config IRQ_TIMER6
+	int "IRQ_TIMER6"
+	default 12
+config IRQ_TIMER7
+	int "IRQ_TIMER7"
+	default 12
+config IRQ_PROG_INTA
+	int "IRQ_PROG_INTA"
+	default 12
+config IRQ_PORTG_INTB
+	int "IRQ_PORTG_INTB"
+	default 12
+config IRQ_MEM_DMA0
+	int "IRQ_MEM_DMA0"
+	default 13
+config IRQ_MEM_DMA1
+	int "IRQ_MEM_DMA1"
+	default 13
+config IRQ_WATCH
+	int "IRQ_WATCH"
+	default 13
+
+	help
+	  Enter the priority numbers between 7-13 ONLY.  Others are Reserved.
+	  This applies to all the above.  It is not recommended to assign the
+	  highest priority number 7 to UART or any other device.
+
+endmenu
+
+endmenu
+
+endif

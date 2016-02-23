@@ -1,0 +1,659 @@
+HiSax is a Linux hardware-level driver for passive ISDN cards with Siemens
+chipset (ISAC_S 2085/2086/2186, HSCX SAB 82525). It is based on the Teles
+driver from Jan den Ouden.
+It is meant to be used with isdn4linux, an ISDN link-level module for Linux
+written by Fritz Elfert.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+Supported cards
+---------------
+
+Teles 8.0/16.0/16.3 and compatible ones
+Teles 16.3c
+Teles S0/PCMCIA
+Teles PCI
+Teles S0Box
+Creatix S0Box
+Creatix PnP S0
+Compaq ISDN S0 ISA card
+AVM A1 (Fritz, Teledat 150)
+AVM Fritz PCMCIA
+AVM Fritz PnP
+AVM Fritz PCI
+ELSA Microlink PCC-16, PCF, PCF-Pro, PCC-8
+ELSA Quickstep 1000
+ELSA Quickstep 1000PCI
+ELSA Quickstep 3000 (same settings as QS1000)
+ELSA Quickstep 3000PCI
+ELSA PCMCIA
+ITK ix1-micro Rev.2
+Eicon Diva 2.0 ISA and PCI (S0 and U interface, no PRO version)
+Eicon Diva 2.01 ISA and PCI
+Eicon Diva 2.02 PCI
+Eicon Diva Piccola
+ASUSCOM NETWORK INC. ISDNLink 128K PC adapter (order code I-IN100-ST-D)
+Dynalink IS64PH (OEM version of ASUSCOM NETWORK INC. ISDNLink 128K adapter)
+PCBIT-DP (OEM version of ASUSCOM NETWORK INC. ISDNLink)
+HFC-2BS0 based cards (TeleInt SA1)
+Sedlbauer Speed Card (Speed Win, Teledat 100, PCI, Fax+)
+Sedlbauer Speed Star/Speed Star2 (PCMCIA)
+Sedlbauer ISDN-Controller PC/104
+USR Sportster internal TA (compatible Stollmann tina-pp V3)
+USR internal TA PCI
+ith Kommunikationstechnik GmbH MIC 16 ISA card
+Traverse Technologie NETjet PCI S0 card and NETspider U card
+Ovislink ISDN sc100-p card (NETjet driver)
+Dr. Neuhaus Niccy PnP/PCI
+Siemens I-Surf 1.0
+Siemens I-Surf 2.0 (with IPAC, try type 12 asuscom) 
+ACER P10
+HST Saphir
+Berkom Telekom A4T
+Scitel Quadro
+Gazel ISDN cards
+HFC-PCI based cards
+Winbond W6692 based cards
+HFC-S+, HFC-SP/PCMCIA cards
+formula-n enternow
+Gerdes Power ISDN
+
+Note: PCF, PCF-Pro: up to now, only the ISDN part is supported
+      PCC-8: not tested yet
+      Eicon.Diehl Diva U interface not tested
+
+If you know other passive cards with the Siemens chipset, please let me know.
+You can combine any card, if there is no conflict between the resources
+(io, mem, irq).
+
+
+Configuring the driver
+----------------------
+
+The HiSax driver can either be built directly into the kernel or as a module.
+It can be configured using the command line feature while loading the kernel
+with LILO or LOADLIN or, if built as a module, using insmod/modprobe with
+parameters.
+There is also some config needed before you compile the kernel and/or
+modules. It is included in the normal "make [menu]config" target at the
+kernel. Don't forget it, especially to select the right D-channel protocol.
+
+Please note: In older versions of the HiSax driver, all PnP cards
+needed to be configured with isapnp and worked only with the HiSax
+driver used as a module.
+
+In the current version, HiSax will automatically use the in-kernel
+ISAPnP support, provided you selected it during kernel configuration
+(CONFIG_ISAPNP), if you don't give the io=, irq= command line parameters.
+
+The affected card types are: 4,7,12,14,19,27-30
+
+a) when built as a module
+-------------------------
+
+insmod/modprobe  hisax.o \
+  io=iobase irq=IRQ mem=membase type=card_type \
+  protocol=D_channel_protocol id=idstring
+
+or, if several cards are installed:
+
+insmod/modprobe hisax.o \
+  io=iobase1,iobase2,... irq=IRQ1,IRQ2,... mem=membase1,membase2,... \
+  type=card_type1,card_type2,... \
+  protocol=D_channel_protocol1,D_channel_protocol2,... \
+  id=idstring1%idstring2 ...
+
+where "iobaseN" represents the I/O base address of the Nth card, "membaseN"
+the memory base address of the Nth card, etc.
+
+The reason for the delimiter "%" being used in the idstrings is that ","
+won't work with the current modules package.
+
+The parameters may be specified in any order. For example, the "io"
+parameter may precede the "irq" parameter, or vice versa. If several
+cards are installed, the ordering within the comma separated parameter
+lists must of course be consistent.
+
+Only parameters applicable to the card type need to be specified. For
+example, the Teles 16.3 card is not memory-mapped, so the "mem"
+parameter may be omitted for this card. Sometimes it may be necessary
+to specify a dummy parameter, however. This is the case when there is
+a card of a different type later in the list that needs a parameter
+which the preceding card does not. For instance, if a Teles 16.0 card
+is listed after a Teles 16.3 card, a dummy memory base parameter of 0
+must be specified for the 16.3. Instead of a dummy value, the parameter
+can also be skipped by simply omitting the value. For example:
+mem=,0xd0000. See example 6 below.
+
+The parameter for the D-Channel protocol may be omitted if you selected the
+correct one during kernel config. Valid values are "1" for German 1TR6,
+"2" for EDSS1 (Euro ISDN), "3" for leased lines (no D-Channel) and "4"
+for US NI1.
+With US NI1 you have to include your SPID into the MSN setting in the form
+<MSN>:<SPID> for example (your phonenumber is 1234 your SPID 5678):
+AT&E1234:5678                       on ttyI interfaces
+isdnctrl eaz ippp0 1234:5678        on network devices
+
+The Creatix/Teles PnP cards use io1= and io2= instead of io= for specifying
+the I/O addresses of the ISAC and HSCX chips, respectively.
+
+Card types:
+
+    Type                Required parameters (in addition to type and protocol)
+
+    1   Teles 16.0               irq, mem, io
+    2   Teles  8.0               irq, mem
+    3   Teles 16.3 (non PnP)     irq, io
+    4   Creatix/Teles PnP        irq, io0 (ISAC), io1 (HSCX)
+    5   AVM A1 (Fritz)           irq, io
+    6   ELSA PCC/PCF cards       io or nothing for autodetect (the iobase is
+                                 required only if you have more than one ELSA
+                                 card in your PC)
+    7   ELSA Quickstep 1000      irq, io  (from isapnp setup)
+    8   Teles 16.3 PCMCIA     	 irq, io
+    9   ITK ix1-micro Rev.2      irq, io
+   10   ELSA PCMCIA		 irq, io  (set with card manager)
+   11   Eicon.Diehl Diva ISA PnP irq, io
+   11   Eicon.Diehl Diva PCI     no parameter
+   12   ASUS COM ISDNLink        irq, io  (from isapnp setup)
+   13   HFC-2BS0 based cards     irq, io
+   14   Teles 16.3c PnP          irq, io
+   15   Sedlbauer Speed Card     irq, io
+   15   Sedlbauer PC/104         irq, io
+   15   Sedlbauer Speed PCI	 no parameter
+   16   USR Sportster internal   irq, io
+   17   MIC card                 irq, io
+   18   ELSA Quickstep 1000PCI   no parameter
+   19   Compaq ISDN S0 ISA card  irq, io0, io1, io (from isapnp setup io=IO2)
+   20   NETjet PCI card          no parameter
+   21   Teles PCI                no parameter
+   22   Sedlbauer Speed Star (PCMCIA) irq, io (set with card manager)
+   24   Dr. Neuhaus Niccy PnP    irq, io0, io1 (from isapnp setup)
+   24   Dr. Neuhaus Niccy PCI    no parameter
+   25   Teles S0Box              irq, io (of the used lpt port)
+   26   AVM A1 PCMCIA (Fritz!)   irq, io (set with card manager)
+   27   AVM PnP (Fritz!PnP)      irq, io  (from isapnp setup)
+   27   AVM PCI (Fritz!PCI)      no parameter
+   28   Sedlbauer Speed Fax+     irq, io (from isapnp setup)
+   29	Siemens I-Surf 1.0       irq, io, memory (from isapnp setup)   
+   30	ACER P10                 irq, io (from isapnp setup)   
+   31	HST Saphir               irq, io
+   32	Telekom A4T              none
+   33	Scitel Quadro		 subcontroller (4*S0, subctrl 1...4)
+   34	Gazel ISDN cards (ISA)   irq,io
+   34	Gazel ISDN cards (PCI)   none
+   35	HFC 2BDS0 PCI            none
+   36	W6692 based PCI cards    none
+   37	HFC 2BDS0 S+, SP         irq,io 
+   38	NETspider U PCI card     none
+   39	HFC 2BDS0 SP/PCMCIA      irq,io (set with cardmgr)
+   40   hotplug interface
+   41   Formula-n enter:now PCI  none
+
+At the moment IRQ sharing is only possible with PCI cards. Please make sure
+that your IRQ is free and enabled for ISA use.
+
+
+Examples for module loading
+
+1. Teles 16.3, Euro ISDN, I/O base 280 hex, IRQ 10
+   modprobe hisax type=3 protocol=2 io=0x280 irq=10
+
+2. Teles 16.0, 1TR6 ISDN, I/O base d80 hex, IRQ 5, Memory d0000 hex
+   modprobe hisax protocol=1 type=1 io=0xd80 mem=0xd0000 irq=5
+
+3. Fritzcard, Euro ISDN, I/O base 340 hex, IRQ 10 and ELSA PCF, Euro ISDN
+   modprobe hisax type=5,6 protocol=2,2 io=0x340 irq=10 id=Fritz%Elsa
+
+4. Any ELSA PCC/PCF card, Euro ISDN
+   modprobe hisax type=6 protocol=2
+
+5. Teles 16.3 PnP, Euro ISDN, with isapnp configured
+   isapnp config:  (INT 0 (IRQ 10 (MODE +E)))
+ 		   (IO 0 (BASE 0x0580))
+                   (IO 1 (BASE 0x0180))
+   modprobe hisax type=4 protocol=2 irq=10 io0=0x580 io1=0x180
+
+   In the current version of HiSax, you can instead simply use
+
+   modprobe hisax type=4 protocol=2
+
+   if you configured your kernel for ISAPnP. Don't run isapnp in
+   this case!
+
+6. Teles 16.3, Euro ISDN, I/O base 280 hex, IRQ 12 and
+   Teles 16.0, 1TR6, IRQ 5, Memory d0000 hex
+   modprobe hisax type=3,1 protocol=2,1 io=0x280 mem=0,0xd0000
+
+   Please note the dummy 0 memory address for the Teles 16.3, used as a
+   placeholder as described above, in the last example.
+
+7. Teles PCMCIA, Euro ISDN, I/O base 180 hex, IRQ 15 (default values)
+   modprobe hisax type=8 protocol=2 io=0x180 irq=15
+
+
+b) using LILO/LOADLIN, with the driver compiled directly into the kernel
+------------------------------------------------------------------------
+
+hisax=typ1,dp1,pa_1,pb_1,pc_1[,typ2,dp2,pa_2 ... \
+      typn,dpn,pa_n,pb_n,pc_n][,idstring1[,idstring2,...,idstringn]]
+
+where
+     typ1 = type of 1st card (default depends on kernel settings)
+     dp1  = D-Channel protocol of 1st card. 1=1TR6, 2=EDSS1, 3=leased
+     pa_1 = 1st parameter (depending on the type of the card)
+     pb_1 = 2nd parameter (    "     "   "   "   "   "   "  )
+     pc_1 = 3rd parameter (    "     "   "   "   "   "   "  )
+
+     typ2,dp2,pa_2,pb_2,pc_2 = Parameters of the second card (defaults: none)
+     typn,dpn,pa_n,pb_n,pc_n = Parameters of the n'th card (up to 16 cards are
+                                                                     supported)
+
+     idstring = Driver ID for accessing the particular card with utility
+                programs and for identification when using a line monitor
+                (default: "HiSax")
+
+                Note: the ID string must start with an alphabetical character!
+
+Card types:
+
+type
+    1 	Teles 16.0     	        pa=irq  pb=membase  pc=iobase
+    2 	Teles  8.0              pa=irq  pb=membase
+    3 	Teles 16.3              pa=irq  pb=iobase
+    4 	Creatix/Teles PNP     	ONLY WORKS AS A MODULE !
+    5 	AVM A1 (Fritz)          pa=irq  pb=iobase
+    6 	ELSA PCC/PCF cards      pa=iobase or nothing for autodetect
+    7   ELSA Quickstep 1000     ONLY WORKS AS A MODULE !
+    8   Teles S0 PCMCIA         pa=irq  pb=iobase
+    9   ITK ix1-micro Rev.2     pa=irq  pb=iobase
+   10   ELSA PCMCIA             pa=irq, pb=io  (set with card manager)
+   11   Eicon.Diehl Diva ISAPnP ONLY WORKS AS A MODULE !
+   11   Eicon.Diehl Diva PCI    no parameter
+   12   ASUS COM ISDNLink       ONLY WORKS AS A MODULE !
+   13	HFC-2BS0 based cards    pa=irq  pb=io
+   14   Teles 16.3c PnP         ONLY WORKS AS A MODULE !
+   15	Sedlbauer Speed Card    pa=irq  pb=io (Speed Win only as module !)
+   15   Sedlbauer PC/104        pa=irq  pb=io
+   15   Sedlbauer Speed PCI	no parameter
+   16   USR Sportster internal  pa=irq  pb=io
+   17   MIC card                pa=irq  pb=io
+   18   ELSA Quickstep 1000PCI  no parameter
+   19   Compaq ISDN S0 ISA card ONLY WORKS AS A MODULE !
+   20   NETjet PCI card         no parameter
+   21   Teles PCI               no parameter
+   22   Sedlbauer Speed Star (PCMCIA)  pa=irq, pb=io  (set with card manager)
+   24   Dr. Neuhaus Niccy PnP   ONLY WORKS AS A MODULE !
+   24   Dr. Neuhaus Niccy PCI   no parameter
+   25   Teles S0Box             pa=irq, pb=io (of the used lpt port)
+   26   AVM A1 PCMCIA (Fritz!)  pa=irq, pb=io (set with card manager)
+   27   AVM PnP (Fritz!PnP)     ONLY WORKS AS A MODULE !
+   27   AVM PCI (Fritz!PCI)     no parameter
+   28   Sedlbauer Speed Fax+    ONLY WORKS AS A MODULE !
+   29	Siemens I-Surf 1.0      ONLY WORKS AS A MODULE !
+   30	ACER P10                ONLY WORKS AS A MODULE !
+   31	HST Saphir              pa=irq, pb=io
+   32	Telekom A4T             no parameter
+   33	Scitel Quadro		subcontroller (4*S0, subctrl 1...4)
+   34	Gazel ISDN cards (ISA)  pa=irq, pb=io
+   34	Gazel ISDN cards (PCI)  no parameter
+   35	HFC 2BDS0 PCI           no parameter
+   36	W6692 based PCI cards   none
+   37	HFC 2BDS0 S+,SP/PCMCIA  ONLY WORKS AS A MODULE !
+   38	NETspider U PCI card    none
+   39	HFC 2BDS0 SP/PCMCIA     ONLY WORKS AS A MODULE !
+   40   hotplug interface	ONLY WORKS AS A MODULE !
+   41   Formula-n enter:now PCI none
+
+Running the driver
+------------------
+
+When you insmod isdn.o and hisax.o (or with the in-kernel version, during
+boot time), a few lines should appear in your syslog. Look for something like:
+
+Apr 13 21:01:59 kke01 kernel: HiSax: Driver for Siemens chip set ISDN cards
+Apr 13 21:01:59 kke01 kernel: HiSax: Version 2.9
+Apr 13 21:01:59 kke01 kernel: HiSax: Revisions 1.14/1.9/1.10/1.25/1.8
+Apr 13 21:01:59 kke01 kernel: HiSax: Total 1 card defined
+Apr 13 21:01:59 kke01 kernel: HiSax: Card 1 Protocol EDSS1 Id=HiSax1 (0)
+Apr 13 21:01:59 kke01 kernel: HiSax: Elsa driver Rev. 1.13
+...
+Apr 13 21:01:59 kke01 kernel: Elsa: PCF-Pro found at 0x360 Rev.:C IRQ 10
+Apr 13 21:01:59 kke01 kernel: Elsa: timer OK; resetting card
+Apr 13 21:01:59 kke01 kernel: Elsa: HSCX version A: V2.1  B: V2.1
+Apr 13 21:01:59 kke01 kernel: Elsa: ISAC 2086/2186 V1.1
+...
+Apr 13 21:01:59 kke01 kernel: HiSax: DSS1 Rev. 1.14
+Apr 13 21:01:59 kke01 kernel: HiSax: 2 channels added
+
+This means that the card is ready for use.
+Cabling problems or line-downs are not detected, and only some ELSA cards can
+detect the S0 power.
+
+Remember that, according to the new strategy for accessing low-level drivers
+from within isdn4linux, you should also define a driver ID while doing
+insmod: Simply append hisax_id=<SomeString> to the insmod command line. This
+string MUST NOT start with a digit or a small 'x'!
+
+At this point you can run a 'cat /dev/isdnctrl0' and view debugging messages.
+
+At the moment, debugging messages are enabled with the hisaxctrl tool:
+
+    hisaxctrl <DriverId> DebugCmd <debugging_flags>
+
+<DriverId> default is HiSax, if you didn't specify one.
+
+DebugCmd is  1  for generic debugging
+            11  for layer 1 development debugging
+            13  for layer 3 development debugging
+
+where <debugging_flags> is the integer sum of the following debugging
+options you wish enabled:
+
+With DebugCmd set to 1:
+
+   0x0001  Link-level <--> hardware-level communication
+   0x0002  Top state machine
+   0x0004  D-Channel Frames for isdnlog
+   0x0008  D-Channel Q.921
+   0x0010  B-Channel X.75
+   0x0020  D-Channel l2
+   0x0040  B-Channel l2
+   0x0080  D-Channel link state debugging
+   0x0100  B-Channel link state debugging
+   0x0200  TEI debug
+   0x0400  LOCK debug in callc.c
+   0x0800  More paranoid debug in callc.c (not for normal use)
+   0x1000  D-Channel l1 state debugging
+   0x2000  B-Channel l1 state debugging
+
+With DebugCmd set to 11:
+
+   0x0001  Warnings (default: on)
+   0x0002  IRQ status
+   0x0004  ISAC
+   0x0008  ISAC FIFO
+   0x0010  HSCX
+   0x0020  HSCX FIFO (attention: full B-Channel output!)
+   0x0040  D-Channel LAPD frame types
+   0x0080  IPAC debug
+   0x0100  HFC receive debug
+   0x0200  ISAC monitor debug
+   0x0400  D-Channel frames for isdnlog (set with 1 0x4 too)
+   0x0800  D-Channel message verbose
+
+With DebugCmd set to 13:
+
+         1  Warnings (default: on)
+         2  l3 protocol descriptor errors
+         4  l3 state machine
+         8  charge info debugging (1TR6)
+
+For example, 'hisaxctrl HiSax 1 0x3ff' enables full generic debugging.
+
+Because of some obscure problems with some switch equipment, the delay
+between the CONNECT message and sending the first data on the B-channel is now
+configurable with
+
+hisaxctrl <DriverId> 2 <delay>
+<delay> in ms Value between 50 and 800 ms is recommended.
+
+Downloading Firmware
+--------------------
+At the moment, the Sedlbauer speed fax+ is the only card, which
+needs to download firmware.
+The firmware is downloaded with the hisaxctrl tool:
+
+    hisaxctrl <DriverId> 9 <firmware_filename>
+
+<DriverId> default is HiSax, if you didn't specify one,
+
+where <firmware_filename> is the filename of the firmware file.
+
+For example, 'hisaxctrl HiSax 9 ISAR.BIN' downloads the firmware for
+ISAR based cards (like the Sedlbauer speed fax+).
+
+Warning
+-------
+HiSax is a work in progress and may crash your machine.
+For certification look at HiSax.cert file.
+
+Limitations
+-----------
+At this time, HiSax only works on Euro ISDN lines and German 1TR6 lines.
+For leased lines see appendix.
+
+Bugs
+----
+If you find any, please let me know.
+
+
+Thanks
+------
+Special thanks to:
+
+        Emil Stephan for the name HiSax which is a mix of HSCX and ISAC.
+
+        Fritz Elfert, Jan den Ouden, Michael Hipp, Michael Wein,
+        Andreas Kool, Pekka Sarnila, Sim Yskes, Johan Myrre'en,
+	Klaus-Peter Nischke (ITK AG), Christof Petig, Werner Fehn (ELSA GmbH),
+	Volker Schmidt
+	Edgar Toernig and Marcus Niemann for the Sedlbauer driver
+	Stephan von Krawczynski
+	Juergen Quade for the Leased Line part
+	Klaus Lichtenwalder (Klaus.Lichtenwalder@WebForum.DE), for ELSA PCMCIA support
+	Enrik Berkhan (enrik@starfleet.inka.de) for S0BOX specific stuff
+	Ton van Rosmalen for Teles PCI
+	Petr Novak <petr.novak@i.cz> for Winbond W6692 support
+	Werner Cornelius <werner@isdn4linux.de> for HFC-PCI, HFC-S(+/P) and supplementary services support
+        and more people who are hunting bugs. (If I forgot somebody, please
+	send me a mail).
+
+        Firma ELSA GmbH
+        Firma Eicon.Diehl GmbH
+        Firma Dynalink NL
+	Firma ASUSCOM NETWORK INC. Taiwan
+	Firma S.u.S.E
+	Firma ith Kommunikationstechnik GmbH
+	Firma Traverse Technologie Australia
+	Firma Medusa GmbH  (www.medusa.de).
+	Firma Quant-X Austria for sponsoring a DEC Alpha board+CPU
+	Firma Cologne Chip Designs GmbH
+
+        My girl friend and partner in life Ute for her patience with me.
+
+
+Enjoy,
+
+Karsten Keil
+keil@isdn4linux.de
+
+
+Appendix: Teles PCMCIA driver
+-----------------------------
+
+See
+   http://www.linux.no/teles_cs.txt 
+for instructions.
+
+Appendix: Linux and ISDN-leased lines
+-------------------------------------
+
+Original from Juergen Quade, new version KKe.
+
+Attention NEW VERSION, the old leased line syntax won't work !!!
+
+You can use HiSax to connect your Linux-Box via an ISDN leased line
+to e.g. the Internet:
+
+1. Build a kernel which includes the HiSax driver either as a module
+   or as part of the kernel.
+     cd /usr/src/linux
+     make menuconfig
+     <ISDN subsystem - ISDN support -- HiSax>
+     make clean; make zImage; make modules; make modules_install
+2. Install the new kernel
+     cp /usr/src/linux/arch/x86/boot/zImage /etc/kernel/linux.isdn
+     vi /etc/lilo.conf
+     <add new kernel in the bootable image section>
+     lilo
+3. in case the hisax driver is a "fixed" part of the kernel, configure
+   the driver with lilo:
+     vi /etc/lilo.conf
+     <add HiSax driver parameter in the global section (see below)>
+     lilo
+   Your lilo.conf _might_ look like the following:
+
+	# LILO configuration-file
+	# global section
+    # teles 16.0 on IRQ=5, MEM=0xd8000, PORT=0xd80
+	append="hisax=1,3,5,0xd8000,0xd80,HiSax"
+    # teles 16.3 (non pnp) on IRQ=15, PORT=0xd80
+	# append="hisax=3,3,5,0xd8000,0xd80,HiSax"
+	boot=/dev/sda
+	compact        # faster, but won't work on all systems.
+	linear
+	read-only
+	prompt
+	timeout=100
+	vga = normal    # force sane state
+	# Linux bootable partition config begins
+	image = /etc/kernel/linux.isdn
+	root = /dev/sda1
+	label = linux.isdn
+	#
+	image = /etc/kernel/linux-2.0.30
+	root = /dev/sda1
+	label = linux.secure
+
+   In the line starting with "append" you have to adapt the parameters
+   according to your card (see above in this file)
+
+3. boot the new linux.isdn kernel
+4. start the ISDN subsystem:
+   a) load - if necessary - the modules (depends, whether you compiled
+      the ISDN driver as module or not)
+      According to the type of card you have to specify the necessary
+      driver parameter (irq, io, mem, type, protocol).
+      For the leased line the protocol is "3". See the table above for
+      the parameters, which you have to specify depending on your card.
+   b) configure i4l
+      /sbin/isdnctrl addif isdn0
+      # EAZ  1 -- B1 channel   2 --B2 channel
+      /sbin/isdnctrl eaz isdn0 1
+      /sbin/isdnctrl secure isdn0 on
+      /sbin/isdnctrl huptimeout isdn0 0
+      /sbin/isdnctrl l2_prot isdn0 hdlc
+      # Attention you must not set an outgoing number !!! This won't work !!!
+      # The incoming number is LEASED0 for the first card, LEASED1 for the
+      # second and so on.
+      /sbin/isdnctrl addphone isdn0 in LEASED0
+      # Here is no need to bind the channel.
+   c) in case the remote partner is a CISCO:
+      /sbin/isdnctrl encap isdn0 cisco-h
+   d) configure the interface
+      /sbin/ifconfig isdn0 ${LOCAL_IP} pointopoint ${REMOTE_IP}
+   e) set the routes
+      /sbin/route add -host ${REMOTE_IP} isdn0
+      /sbin/route add default gw ${REMOTE_IP}
+   f) switch the card into leased mode for each used B-channel
+      /sbin/hisaxctrl HiSax 5 1
+
+Remarks:
+a) Use state of the art isdn4k-utils
+
+Here an example script:
+#!/bin/sh
+# Start/Stop ISDN leased line connection
+
+I4L_AS_MODULE=yes
+I4L_REMOTE_IS_CISCO=no
+I4L_MODULE_PARAMS="type=16 io=0x268 irq=7 "
+I4L_DEBUG=no
+I4L_LEASED_128K=yes
+LOCAL_IP=192.168.1.1
+REMOTE_IP=192.168.2.1
+
+case "$1" in
+    start)
+	echo "Starting ISDN ..."
+        if [ ${I4L_AS_MODULE} = "yes" ]; then
+		echo "loading modules..."
+		/sbin/modprobe hisax ${I4L_MODULE_PARAMS}
+	fi
+	# configure interface
+	/sbin/isdnctrl addif isdn0
+	/sbin/isdnctrl secure isdn0 on
+	if [ ${I4L_DEBUG} = "yes" ]; then
+		/sbin/isdnctrl verbose 7
+		/sbin/hisaxctrl HiSax 1 0xffff
+		/sbin/hisaxctrl HiSax 11 0xff
+		cat  /dev/isdnctrl >/tmp/lea.log &
+	fi
+	if [ ${I4L_REMOTE_IS_CISCO} = "yes" ]; then
+		/sbin/isdnctrl encap isdn0 cisco-h
+	fi
+	/sbin/isdnctrl huptimeout isdn0 0
+	# B-CHANNEL 1
+	/sbin/isdnctrl eaz isdn0 1
+	/sbin/isdnctrl l2_prot isdn0 hdlc
+	# 1. card
+	/sbin/isdnctrl addphone isdn0 in LEASED0
+        if [ ${I4L_LEASED_128K} = "yes" ]; then
+		/sbin/isdnctrl addslave isdn0 isdn0s
+		/sbin/isdnctrl secure isdn0s on
+		/sbin/isdnctrl huptimeout isdn0s 0
+		# B-CHANNEL 2
+		/sbin/isdnctrl eaz isdn0s 2
+		/sbin/isdnctrl l2_prot isdn0s hdlc
+		# 1. card
+		/sbin/isdnctrl addphone isdn0s in LEASED0
+		if [ ${I4L_REMOTE_IS_CISCO} = "yes" ]; then
+			/sbin/isdnctrl encap isdn0s cisco-h
+		fi
+	fi
+	/sbin/isdnctrl dialmode isdn0 manual
+	# configure tcp/ip
+	/sbin/ifconfig isdn0 ${LOCAL_IP} pointopoint ${REMOTE_IP}
+	/sbin/route add -host ${REMOTE_IP} isdn0
+	/sbin/route add default gw ${REMOTE_IP}
+	# switch to leased mode
+	# B-CHANNEL 1
+	/sbin/hisaxctrl HiSax 5 1
+        if [ ${I4L_LEASED_128K} = "yes" ]; then
+		# B-CHANNEL 2
+		sleep 10; /* Wait for master */
+		/sbin/hisaxctrl HiSax 5 2
+	fi
+	;;
+    stop)
+	/sbin/ifconfig isdn0 down
+	/sbin/isdnctrl delif isdn0
+	if [ ${I4L_DEBUG} = "yes" ]; then
+		killall cat
+	fi
+	if [ ${I4L_AS_MODULE} = "yes" ]; then
+		/sbin/rmmod hisax
+		/sbin/rmmod isdn
+		/sbin/rmmod ppp
+		/sbin/rmmod slhc
+	fi
+	;;
+    *)
+	echo "Usage: $0 {start|stop}"
+	exit 1
+esac
+exit 0

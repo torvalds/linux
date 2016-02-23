@@ -1,0 +1,46 @@
+config 9P_FS
+	tristate "Plan 9 Resource Sharing Support (9P2000)"
+	depends on INET && NET_9P
+	help
+	  If you say Y here, you will get experimental support for
+	  Plan 9 resource sharing via the 9P2000 protocol.
+
+	  See <http://v9fs.sf.net> for more information.
+
+	  If unsure, say N.
+
+if 9P_FS
+config 9P_FSCACHE
+	bool "Enable 9P client caching support"
+	depends on 9P_FS=m && FSCACHE || 9P_FS=y && FSCACHE=y
+	help
+	  Choose Y here to enable persistent, read-only local
+	  caching support for 9p clients using FS-Cache
+
+
+config 9P_FS_POSIX_ACL
+	bool "9P POSIX Access Control Lists"
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N
+
+endif
+
+
+config 9P_FS_SECURITY
+        bool "9P Security Labels"
+        depends on 9P_FS
+        help
+          Security labels support alternative access control models
+          implemented by security modules like SELinux.  This option
+          enables an extended attribute handler for file security
+          labels in the 9P filesystem.
+
+          If you are not using a security module that requires using
+          extended attributes for file security labels, say N.

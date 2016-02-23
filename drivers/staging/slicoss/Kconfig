@@ -1,0 +1,14 @@
+config SLICOSS
+	tristate "Alacritech Gigabit IS-NIC support"
+	depends on PCI && X86 && NET
+	default n
+	help
+	  This driver supports Alacritech's IS-NIC gigabit ethernet cards.
+
+	  This includes the following devices:
+	    Mojave cards (single port PCI Gigabit) both copper and fiber
+	    Oasis cards (single and dual port PCI-x Gigabit) copper and fiber
+	    Kalahari cards (dual and quad port PCI-e Gigabit) copper and fiber
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called slicoss.

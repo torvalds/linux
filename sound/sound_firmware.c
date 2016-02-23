@@ -1,0 +1,77 @@
+#include <linux/vmalloc.h>
+#include <linux/module.h>
+#include <linux/fs.h>
+#include <linux/file.h>
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <asm/uaccess.h>
+#include "oss/sound_firmware.h"
+
+static int do_mod_firmware_load(const char *fn, char **fp)
+{
+	struct file* filp;
+	long l;
+	char *dp;
+
+	filp = filp_open(fn, 0, 0);
+	if (IS_ERR(filp))
+	{
+		printk(KERN_INFO "Unable to load '%s'.\n", fn);
+		return 0;
+	}
+	l = i_size_read(file_inode(filp));
+	if (l <= 0 || l > 131072)
+	{
+		printk(KERN_INFO "Invalid firmware '%s'\n", fn);
+		fput(filp);
+		return 0;
+	}
+	dp = vmalloc(l);
+	if (dp == NULL)
+	{
+		printk(KERN_INFO "Out of memory loading '%s'.\n", fn);
+		fput(filp);
+		return 0;
+	}
+	if (kernel_read(filp, 0, dp, l) != l)
+	{
+		printk(KERN_INFO "Failed to read '%s'.\n", fn);
+		vfree(dp);
+		fput(filp);
+		return 0;
+	}
+	fput(filp);
+	*fp = dp;
+	return (int) l;
+}
+
+/**
+ *	mod_firmware_load - load sound driver firmware
+ *	@fn: filename
+ *	@fp: return for the buffer.
+ *
+ *	Load the firmware for a sound module (up to 128K) into a buffer.
+ *	The buffer is returned in *fp. It is allocated with vmalloc so is
+ *	virtually linear and not DMAable. The caller should free it with
+ *	vfree when finished.
+ *
+ *	The length of the buffer is returned on a successful load, the
+ *	value zero on a failure.
+ *
+ *	Caution: This API is not recommended. Firmware should be loaded via
+ *	request_firmware.
+ */
+ 
+int mod_firmware_load(const char *fn, char **fp)
+{
+	int r;
+	mm_segment_t fs = get_fs();
+
+	set_fs(get_ds());
+	r = do_mod_firmware_load(fn, fp);
+	set_fs(fs);
+	return r;
+}
+EXPORT_SYMBOL(mod_firmware_load);
+
+MODULE_LICENSE("GPL");

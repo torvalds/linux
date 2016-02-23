@@ -1,0 +1,10 @@
+00-INDEX
+	- This file
+Makefile
+	- Makefile for gptimers example file.
+bfin-gpio-notes.txt
+	- Notes in developing/using bfin-gpio driver.
+bfin-spi-notes.txt
+	- Notes for using bfin spi bus driver.
+gptimers-example.c
+	- gptimers example

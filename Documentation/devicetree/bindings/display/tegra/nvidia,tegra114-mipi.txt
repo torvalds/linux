@@ -1,0 +1,41 @@
+NVIDIA Tegra MIPI pad calibration controller
+
+Required properties:
+- compatible: "nvidia,tegra<chip>-mipi"
+- reg: Physical base address and length of the controller's registers.
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: Must include the following entries:
+  - mipi-cal
+- #nvidia,mipi-calibrate-cells: Should be 1. The cell is a bitmask of the pads
+  that need to be calibrated for a given device.
+
+User nodes need to contain an nvidia,mipi-calibrate property that has a
+phandle to refer to the calibration controller node and a bitmask of the pads
+that need to be calibrated.
+
+Example:
+
+	mipi: mipi@700e3000 {
+		compatible = "nvidia,tegra114-mipi";
+		reg = <0x700e3000 0x100>;
+		clocks = <&tegra_car TEGRA114_CLK_MIPI_CAL>;
+		clock-names = "mipi-cal";
+		#nvidia,mipi-calibrate-cells = <1>;
+	};
+
+	...
+
+	host1x@50000000 {
+		...
+
+		dsi@54300000 {
+			...
+
+			nvidia,mipi-calibrate = <&mipi 0x060>;
+
+			...
+		};
+
+		...
+	};

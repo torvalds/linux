@@ -1,0 +1,206 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/input/input.h>
+
+/ {
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vcc>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		user0 {
+			label = "user0";
+			gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>;	/* LEDA */
+			linux,default-trigger = "none";
+		};
+	};
+
+	wl12xx_vmmc: wl12xx_vmmc {
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1271";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 29 0>;   /* gpio157 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+		vin-supply = <&vmmc2>;
+	};
+};
+
+&gpmc {
+	ranges = <0 0 0x00000000 0x1000000>;	/* CS0: 16MB for NAND */
+
+	nand@0,0 {
+		linux,mtd-name = "micron,mt29f4g16abbda3w";
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		nand-bus-width = <16>;
+		ti,nand-ecc-opt = "bch8";
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		gpmc,device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* u-boot uses mtdparts=omap2-nand.0:512k(x-loader),1920k(u-boot),128k(u-boot-env),4m(kernel),-(fs) */
+
+		x-loader@0 {
+			label = "x-loader";
+			reg = <0 0x80000>;
+		};
+
+		bootloaders@80000 {
+			label = "u-boot";
+			reg = <0x80000 0x1e0000>;
+		};
+
+		bootloaders_env@260000 {
+			label = "u-boot-env";
+			reg = <0x260000 0x20000>;
+		};
+
+		kernel@280000 {
+			label = "kernel";
+			reg = <0x280000 0x400000>;
+		};
+
+		filesystem@680000 {
+			label = "fs";
+			reg = <0x680000 0>;	/* 0 = MTDPART_SIZ_FULL */
+		};
+	};
+};
+
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+		interrupt-parent = <&intc>;
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			codec {
+			};
+		};
+	};
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+};
+
+/*
+ * Only found on the wireless SOM. For the SOM without wireless, the pins for
+ * MMC3 can be routed with jumpers to the second MMC slot on the devkit and
+ * gpio157 is not connected. So this should be OK to keep common for now,
+ * probably device tree overlays is the way to go with the various SOM and
+ * jumpering combinations for the long run.
+ */
+&mmc3 {
+	interrupts-extended = <&intc 94 &omap3_pmx_core2 0x46>;
+	pinctrl-0 = <&mmc3_pins &mmc3_core2_pins>;
+	pinctrl-names = "default";
+	vmmc-supply = <&wl12xx_vmmc>;
+	non-removable;
+	bus-width = <4>;
+	cap-power-off-card;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1283";
+		reg = <2>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>; /* gpio 152 */
+		ref-clock-frequency = <26000000>;
+	};
+};
+
+&omap3_pmx_core {
+	mmc3_pins: pinmux_mm3_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2164, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat4.sdmmc3_dat0 */
+			OMAP3_CORE1_IOPAD(0x2166, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat5.sdmmc3_dat1 */
+			OMAP3_CORE1_IOPAD(0x2168, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat6.sdmmc3_dat2 */
+			OMAP3_CORE1_IOPAD(0x216a, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat6.sdmmc3_dat3 */
+			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcbsp4_clkx.gpio_152 */
+			OMAP3_CORE1_IOPAD(0x218e, PIN_OUTPUT | MUX_MODE4)	/* mcbsp1_fsr.gpio_157 */
+		>;
+	};
+	mcbsp2_pins: pinmux_mcbsp2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x213c, PIN_INPUT | MUX_MODE0)        /* mcbsp2_fsx */
+			OMAP3_CORE1_IOPAD(0x213e, PIN_INPUT | MUX_MODE0)        /* mcbsp2_clkx */
+			OMAP3_CORE1_IOPAD(0x2140, PIN_INPUT | MUX_MODE0)        /* mcbsp2_dr */
+			OMAP3_CORE1_IOPAD(0x2142, PIN_OUTPUT | MUX_MODE0)       /* mcbsp2_dx */
+		>;
+	};
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2174, PIN_INPUT | MUX_MODE0)	/* uart2_cts.uart2_cts */
+			OMAP3_CORE1_IOPAD(0x2176, PIN_OUTPUT | MUX_MODE0)	/* uart2_rts .uart2_rts*/
+			OMAP3_CORE1_IOPAD(0x2178, PIN_OUTPUT | MUX_MODE0)	/* uart2_tx.uart2_tx */
+			OMAP3_CORE1_IOPAD(0x217a, PIN_INPUT | MUX_MODE0)	/* uart2_rx.uart2_rx */
+			OMAP3_CORE1_IOPAD(0x2198, PIN_OUTPUT | MUX_MODE4)	/* GPIO_162,BT_EN */
+		>;
+	};
+};
+
+&uart2 {
+	interrupts-extended = <&intc 73 &omap3_pmx_core OMAP3_UART2_RX>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+};
+
+&omap3_pmx_core2 {
+	mmc3_core2_pins: pinmux_mmc3_core2_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25d8, PIN_INPUT_PULLUP | MUX_MODE2)   /* etk_clk.sdmmc3_clk */
+			OMAP3630_CORE2_IOPAD(0x25da, PIN_INPUT_PULLUP | MUX_MODE2)   /* etk_ctl.sdmmc3_cmd */
+		>;
+	};
+};
+
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
+
+&twl {
+	twl_power: power {
+		compatible = "ti,twl4030-power-idle-osc-off", "ti,twl4030-power-idle";
+		ti,use_poweroff;
+	};
+};
+
+&twl_gpio {
+	ti,use-leds;
+};

@@ -1,0 +1,40 @@
+------------------------------------------------------------------------------
+ README file for the PCBIT-D Device Driver.
+------------------------------------------------------------------------------
+
+The PCBIT is a Euro ISDN adapter manufactured in Portugal by Octal and
+developed in cooperation with Portugal Telecom and Inesc.
+The driver interfaces with the standard kernel isdn facilities
+originally developed by Fritz Elfert in the isdn4linux project.
+
+The common versions of the pcbit board require a firmware that is 
+distributed (and copyrighted) by the manufacturer. To load this
+firmware you need "pcbitctl" available on the standard isdn4k-utils
+package or in the pcbit package available in:
+
+ftp://ftp.di.fc.ul.pt/pub/systems/Linux/isdn
+
+Known Limitations:
+
+- The board reset procedure is at the moment incorrect and will only
+allow you to load the firmware after a hard reset.
+
+- Only HDLC in B-channels is supported at the moment. There is no
+current support for X.25 in B or D channels nor LAPD in B
+channels. The main reason is that these two other protocol modes have,
+to my knowledge, very little use. If you want to see them implemented
+*do* send me a mail.
+
+- The driver often triggers errors in the board that I and the
+manufacturer believe to be caused by bugs in the firmware. The current
+version includes several procedures for error recovery that should
+allow normal operation. Plans for the future include cooperation with
+the manufacturer in order to solve this problem.
+
+Information/hints/help can be obtained in the linux isdn
+mailing list (isdn4linux@listserv.isdn4linux.de) or directly from me.
+
+regards,
+  Pedro.
+		
+<roque@di.fc.ul.pt>

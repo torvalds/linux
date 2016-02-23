@@ -1,0 +1,148 @@
+    4xx/Axon EMAC ethernet nodes
+
+    The EMAC ethernet controller in IBM and AMCC 4xx chips, and also
+    the Axon bridge.  To operate this needs to interact with a this
+    special McMAL DMA controller, and sometimes an RGMII or ZMII
+    interface.  In addition to the nodes and properties described
+    below, the node for the OPB bus on which the EMAC sits must have a
+    correct clock-frequency property.
+
+      i) The EMAC node itself
+
+    Required properties:
+    - device_type       : "network"
+
+    - compatible        : compatible list, contains 2 entries, first is
+			  "ibm,emac-CHIP" where CHIP is the host ASIC (440gx,
+			  405gp, Axon) and second is either "ibm,emac" or
+			  "ibm,emac4".  For Axon, thus, we have: "ibm,emac-axon",
+			  "ibm,emac4"
+    - interrupts        : <interrupt mapping for EMAC IRQ and WOL IRQ>
+    - interrupt-parent  : optional, if needed for interrupt mapping
+    - reg               : <registers mapping>
+    - local-mac-address : 6 bytes, MAC address
+    - mal-device        : phandle of the associated McMAL node
+    - mal-tx-channel    : 1 cell, index of the tx channel on McMAL associated
+			  with this EMAC
+    - mal-rx-channel    : 1 cell, index of the rx channel on McMAL associated
+			  with this EMAC
+    - cell-index        : 1 cell, hardware index of the EMAC cell on a given
+			  ASIC (typically 0x0 and 0x1 for EMAC0 and EMAC1 on
+			  each Axon chip)
+    - max-frame-size    : 1 cell, maximum frame size supported in bytes
+    - rx-fifo-size      : 1 cell, Rx fifo size in bytes for 10 and 100 Mb/sec
+			  operations.
+			  For Axon, 2048
+    - tx-fifo-size      : 1 cell, Tx fifo size in bytes for 10 and 100 Mb/sec
+			  operations.
+			  For Axon, 2048.
+    - fifo-entry-size   : 1 cell, size of a fifo entry (used to calculate
+			  thresholds).
+			  For Axon, 0x00000010
+    - mal-burst-size    : 1 cell, MAL burst size (used to calculate thresholds)
+			  in bytes.
+			  For Axon, 0x00000100 (I think ...)
+    - phy-mode          : string, mode of operations of the PHY interface.
+			  Supported values are: "mii", "rmii", "smii", "rgmii",
+			  "tbi", "gmii", rtbi", "sgmii".
+			  For Axon on CAB, it is "rgmii"
+    - mdio-device       : 1 cell, required iff using shared MDIO registers
+			  (440EP).  phandle of the EMAC to use to drive the
+			  MDIO lines for the PHY used by this EMAC.
+    - zmii-device       : 1 cell, required iff connected to a ZMII.  phandle of
+			  the ZMII device node
+    - zmii-channel      : 1 cell, required iff connected to a ZMII.  Which ZMII
+			  channel or 0xffffffff if ZMII is only used for MDIO.
+    - rgmii-device      : 1 cell, required iff connected to an RGMII. phandle
+			  of the RGMII device node.
+			  For Axon: phandle of plb5/plb4/opb/rgmii
+    - rgmii-channel     : 1 cell, required iff connected to an RGMII.  Which
+			  RGMII channel is used by this EMAC.
+			  Fox Axon: present, whatever value is appropriate for each
+			  EMAC, that is the content of the current (bogus) "phy-port"
+			  property.
+
+    Optional properties:
+    - phy-address       : 1 cell, optional, MDIO address of the PHY. If absent,
+			  a search is performed.
+    - phy-map           : 1 cell, optional, bitmap of addresses to probe the PHY
+			  for, used if phy-address is absent. bit 0x00000001 is
+			  MDIO address 0.
+			  For Axon it can be absent, though my current driver
+			  doesn't handle phy-address yet so for now, keep
+			  0x00ffffff in it.
+    - rx-fifo-size-gige : 1 cell, Rx fifo size in bytes for 1000 Mb/sec
+			  operations (if absent the value is the same as
+			  rx-fifo-size).  For Axon, either absent or 2048.
+    - tx-fifo-size-gige : 1 cell, Tx fifo size in bytes for 1000 Mb/sec
+			  operations (if absent the value is the same as
+			  tx-fifo-size). For Axon, either absent or 2048.
+    - tah-device        : 1 cell, optional. If connected to a TAH engine for
+			  offload, phandle of the TAH device node.
+    - tah-channel       : 1 cell, optional. If appropriate, channel used on the
+			  TAH engine.
+
+    Example:
+
+	EMAC0: ethernet@40000800 {
+		device_type = "network";
+		compatible = "ibm,emac-440gp", "ibm,emac";
+		interrupt-parent = <&UIC1>;
+		interrupts = <1c 4 1d 4>;
+		reg = <40000800 70>;
+		local-mac-address = [00 04 AC E3 1B 1E];
+		mal-device = <&MAL0>;
+		mal-tx-channel = <0 1>;
+		mal-rx-channel = <0>;
+		cell-index = <0>;
+		max-frame-size = <5dc>;
+		rx-fifo-size = <1000>;
+		tx-fifo-size = <800>;
+		phy-mode = "rmii";
+		phy-map = <00000001>;
+		zmii-device = <&ZMII0>;
+		zmii-channel = <0>;
+	};
+
+      ii) McMAL node
+
+    Required properties:
+    - device_type        : "dma-controller"
+    - compatible         : compatible list, containing 2 entries, first is
+			   "ibm,mcmal-CHIP" where CHIP is the host ASIC (like
+			   emac) and the second is either "ibm,mcmal" or
+			   "ibm,mcmal2".
+			   For Axon, "ibm,mcmal-axon","ibm,mcmal2"
+    - interrupts         : <interrupt mapping for the MAL interrupts sources:
+                           5 sources: tx_eob, rx_eob, serr, txde, rxde>.
+                           For Axon: This is _different_ from the current
+			   firmware.  We use the "delayed" interrupts for txeob
+			   and rxeob. Thus we end up with mapping those 5 MPIC
+			   interrupts, all level positive sensitive: 10, 11, 32,
+			   33, 34 (in decimal)
+    - dcr-reg            : < DCR registers range >
+    - dcr-parent         : if needed for dcr-reg
+    - num-tx-chans       : 1 cell, number of Tx channels
+    - num-rx-chans       : 1 cell, number of Rx channels
+
+      iii) ZMII node
+
+    Required properties:
+    - compatible         : compatible list, containing 2 entries, first is
+			   "ibm,zmii-CHIP" where CHIP is the host ASIC (like
+			   EMAC) and the second is "ibm,zmii".
+			   For Axon, there is no ZMII node.
+    - reg                : <registers mapping>
+
+      iv) RGMII node
+
+    Required properties:
+    - compatible         : compatible list, containing 2 entries, first is
+			   "ibm,rgmii-CHIP" where CHIP is the host ASIC (like
+			   EMAC) and the second is "ibm,rgmii".
+                           For Axon, "ibm,rgmii-axon","ibm,rgmii"
+    - reg                : <registers mapping>
+    - revision           : as provided by the RGMII new version register if
+			   available.
+			   For Axon: 0x0000012a
+

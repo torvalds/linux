@@ -1,0 +1,71 @@
+/*
+ * Common file for omap dpi panels with QVGA and reset pins
+ *
+ * Note that the board specifc DTS file needs to specify
+ * at minimum the GPIO enable-gpios for display, and
+ * gpios for gpio-backlight.
+ */
+
+/ {
+	aliases {
+		display0 = &lcd0;
+	};
+
+	backlight0: backlight {
+		compatible = "gpio-backlight";
+		default-on;
+	};
+
+	/* 3.3V GPIO controlled regulator for LCD_ENVDD */
+	lcd_3v3: regulator-lcd-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <70000>;
+	};
+
+	lcd0: display {
+		compatible = "sharp,ls037v7dw01";
+		label = "lcd";
+		power-supply = <&lcd_3v3>;
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+	};
+};
+
+/* Needed to power the DPI pins */
+&vpll2 {
+	regulator-always-on;
+};
+
+&dss {
+	status = "ok";
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&lcd_in>;
+			data-lines = <18>;
+		};
+	};
+};
+
+&mcspi1 {
+	tsc2046@0 {
+		reg = <0>;			/* CS0 */
+		compatible = "ti,tsc2046";
+		spi-max-frequency = <1000000>;
+		vcc-supply = <&lcd_3v3>;
+		ti,x-min = /bits/ 16 <0>;
+		ti,x-max = /bits/ 16 <8000>;
+		ti,y-min = /bits/ 16 <0>;
+		ti,y-max = /bits/ 16 <4800>;
+		ti,x-plate-ohms = /bits/ 16 <40>;
+		ti,pressure-max = /bits/ 16 <255>;
+		ti,swap-xy;
+		wakeup-source;
+	};
+};

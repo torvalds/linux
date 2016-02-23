@@ -1,0 +1,29 @@
+TDM slot:
+
+This specifies audio DAI's TDM slot.
+
+TDM slot properties:
+dai-tdm-slot-num : Number of slots in use.
+dai-tdm-slot-width : Width in bits for each slot.
+dai-tdm-slot-tx-mask : Transmit direction slot mask, optional
+dai-tdm-slot-rx-mask : Receive direction slot mask, optional
+
+For instance:
+	dai-tdm-slot-num = <2>;
+	dai-tdm-slot-width = <8>;
+	dai-tdm-slot-tx-mask = <0 1>;
+	dai-tdm-slot-rx-mask = <1 0>;
+
+And for each spcified driver, there could be one .of_xlate_tdm_slot_mask()
+to specify a explicit mapping of the channels and the slots. If it's absent
+the default snd_soc_of_xlate_tdm_slot_mask() will be used to generating the
+tx and rx masks.
+
+For snd_soc_of_xlate_tdm_slot_mask(), the tx and rx masks will use a 1 bit
+for an active slot as default, and the default active bits are at the LSB of
+the masks.
+
+The explicit masks are given as array of integers, where the first
+number presents bit-0 (LSB), second presents bit-1, etc. Any non zero
+number is considered 1 and 0 is 0. snd_soc_of_xlate_tdm_slot_mask()
+does not do anything, if either mask is set non zero value.

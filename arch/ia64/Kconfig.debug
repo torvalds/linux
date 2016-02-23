@@ -1,0 +1,64 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+choice
+	prompt "Physical memory granularity"
+	default IA64_GRANULE_64MB
+
+config IA64_GRANULE_16MB
+	bool "16MB"
+	help
+	  IA-64 identity-mapped regions use a large page size called "granules".
+
+	  Select "16MB" for a small granule size.
+	  Select "64MB" for a large granule size.  This is the current default.
+
+config IA64_GRANULE_64MB
+	bool "64MB"
+	depends on !(IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_SGI_SN2)
+
+endchoice
+
+config IA64_PRINT_HAZARDS
+	bool "Print possible IA-64 dependency violations to console"
+	depends on DEBUG_KERNEL
+	help
+	  Selecting this option prints more information for Illegal Dependency
+	  Faults, that is, for Read-after-Write (RAW), Write-after-Write (WAW),
+	  or Write-after-Read (WAR) violations.  This option is ignored if you
+	  are compiling for an Itanium A step processor
+	  (CONFIG_ITANIUM_ASTEP_SPECIFIC).  If you're unsure, select Y.
+
+config DISABLE_VHPT
+	bool "Disable VHPT"
+	depends on DEBUG_KERNEL
+	help
+	  The Virtual Hash Page Table (VHPT) enhances virtual address
+	  translation performance.  Normally you want the VHPT active but you
+	  can select this option to disable the VHPT for debugging.  If you're
+	  unsure, answer N.
+
+config IA64_DEBUG_CMPXCHG
+	bool "Turn on compare-and-exchange bug checking (slow!)"
+	depends on DEBUG_KERNEL
+	help
+	  Selecting this option turns on bug checking for the IA-64
+	  compare-and-exchange instructions.  This is slow!  Itaniums
+	  from step B3 or later don't have this problem. If you're unsure,
+	  select N.
+
+config IA64_DEBUG_IRQ
+	bool "Turn on irq debug checks (slow!)"
+	depends on DEBUG_KERNEL
+	help
+	  Selecting this option turns on bug checking for the IA-64 irq_save
+	  and restore instructions.  It's useful for tracking down spinlock
+	  problems, but slow!  If you're unsure, select N.
+
+config SYSVIPC_COMPAT
+	bool
+	depends on COMPAT && SYSVIPC
+	default y
+
+endmenu

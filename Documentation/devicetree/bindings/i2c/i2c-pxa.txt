@@ -1,0 +1,33 @@
+* Marvell MMP I2C controller
+
+Required properties :
+
+ - reg : Offset and length of the register set for the device
+ - compatible : should be "mrvl,mmp-twsi" where mmp is the name of a
+   compatible processor, e.g. pxa168, pxa910, mmp2, mmp3.
+   For the pxa2xx/pxa3xx, an additional node "mrvl,pxa-i2c" is required
+   as shown in the example below.
+
+Recommended properties :
+
+ - interrupts : the interrupt number
+ - interrupt-parent : the phandle for the interrupt controller that
+   services interrupts for this device. If the parent is the default
+   interrupt controller in device tree, it could be ignored.
+ - mrvl,i2c-polling : Disable interrupt of i2c controller. Polling
+   status register of i2c controller instead.
+ - mrvl,i2c-fast-mode : Enable fast mode of i2c controller.
+
+Examples:
+	twsi1: i2c@d4011000 {
+		compatible = "mrvl,mmp-twsi";
+		reg = <0xd4011000 0x1000>;
+		interrupts = <7>;
+		mrvl,i2c-fast-mode;
+	};
+	
+	twsi2: i2c@d4025000 {
+		compatible = "mrvl,mmp-twsi";
+		reg = <0xd4025000 0x1000>;
+		interrupts = <58>;
+	};

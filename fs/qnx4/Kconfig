@@ -1,0 +1,14 @@
+config QNX4FS_FS
+	tristate "QNX4 file system support (read only)"
+	depends on BLOCK
+	help
+	  This is the file system used by the real-time operating systems
+	  QNX 4 and QNX 6 (the latter is also called QNX RTP).
+	  Further information is available at <http://www.qnx.com/>.
+	  Say Y if you intend to mount QNX hard disks or floppies.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called qnx4.
+
+	  If you don't know whether you need it, then you don't need it:
+	  answer N.

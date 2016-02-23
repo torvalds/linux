@@ -1,0 +1,124 @@
+#
+# IIO Digital Gyroscope Sensor drivers configuration
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Digital gyroscope sensors"
+
+config ADIS16080
+	tristate "Analog Devices ADIS16080/100 Yaw Rate Gyroscope with SPI driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices ADIS16080, ADIS16100 Yaw
+	  Rate Gyroscope with SPI.
+
+config ADIS16130
+	tristate "Analog Devices ADIS16130 High Precision Angular Rate Sensor driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices ADIS16130 High Precision
+	  Angular Rate Sensor driver.
+
+config ADIS16136
+	tristate "Analog devices ADIS16136 and similar gyroscopes driver"
+	depends on SPI_MASTER
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for the Analog Devices ADIS16133, ADIS16135,
+	  ADIS16136 gyroscope devices.
+
+config ADIS16260
+	tristate "Analog Devices ADIS16260 Digital Gyroscope Sensor SPI driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices ADIS16260 ADIS16265
+	  ADIS16250 ADIS16255 and ADIS16251 programmable digital gyroscope sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called adis16260.
+
+config ADXRS450
+	tristate "Analog Devices ADXRS450/3 Digital Output Gyroscope SPI driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices ADXRS450 and ADXRS453
+	  programmable digital output gyroscope.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called adxrs450.
+
+config BMG160
+	tristate "BOSCH BMG160 Gyro Sensor"
+	depends on (I2C || SPI_MASTER)
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select BMG160_I2C if (I2C)
+	select BMG160_SPI if (SPI)
+	help
+	  Say yes here to build support for BOSCH BMG160 Tri-axis Gyro Sensor
+	  driver connected via I2C or SPI. This driver also supports BMI055
+	  gyroscope.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called bmg160_i2c or bmg160_spi.
+
+config BMG160_I2C
+	tristate
+	select REGMAP_I2C
+
+config BMG160_SPI
+	tristate
+	select REGMAP_SPI
+
+config HID_SENSOR_GYRO_3D
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	tristate "HID Gyroscope 3D"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Gyroscope 3D.
+
+config IIO_ST_GYRO_3AXIS
+	tristate "STMicroelectronics gyroscopes 3-Axis Driver"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_ST_SENSORS_CORE
+	select IIO_ST_GYRO_I2C_3AXIS if (I2C)
+	select IIO_ST_GYRO_SPI_3AXIS if (SPI_MASTER)
+	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
+	help
+	  Say yes here to build support for STMicroelectronics gyroscopes:
+	  L3G4200D, LSM330DL, L3GD20, LSM330DLC, L3G4IS, LSM330.
+
+	  This driver can also be built as a module. If so, these modules
+	  will be created:
+	  - st_gyro (core functions for the driver [it is mandatory]);
+	  - st_gyro_i2c (necessary for the I2C devices [optional*]);
+	  - st_gyro_spi (necessary for the SPI devices [optional*]);
+
+	  (*) one of these is necessary to do something.
+
+config IIO_ST_GYRO_I2C_3AXIS
+	tristate
+	depends on IIO_ST_GYRO_3AXIS
+	depends on IIO_ST_SENSORS_I2C
+
+config IIO_ST_GYRO_SPI_3AXIS
+	tristate
+	depends on IIO_ST_GYRO_3AXIS
+	depends on IIO_ST_SENSORS_SPI
+
+config ITG3200
+	tristate "InvenSense ITG3200 Digital 3-Axis Gyroscope I2C driver"
+	depends on I2C
+	select IIO_TRIGGERED_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to add support for the InvenSense ITG3200 digital
+	  3-axis gyroscope sensor.
+
+endmenu

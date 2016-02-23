@@ -1,0 +1,367 @@
+/*
+ * NXP LPC32xx SoC
+ *
+ * Copyright 2012 Roland Stigge <stigge@antcom.de>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "skeleton.dtsi"
+
+/ {
+	compatible = "nxp,lpc3220";
+	interrupt-parent = <&mic>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
+			reg = <0x0>;
+		};
+	};
+
+	ahb {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x20000000 0x20000000 0x30000000>,
+			 <0xe0000000 0xe0000000 0x04000000>;
+
+		/*
+		 * Enable either SLC or MLC
+		 */
+		slc: flash@20020000 {
+			compatible = "nxp,lpc3220-slc";
+			reg = <0x20020000 0x1000>;
+			status = "disabled";
+		};
+
+		mlc: flash@200a8000 {
+			compatible = "nxp,lpc3220-mlc";
+			reg = <0x200a8000 0x11000>;
+			interrupts = <11 0>;
+			status = "disabled";
+		};
+
+		dma: dma@31000000 {
+			compatible = "arm,pl080", "arm,primecell";
+			reg = <0x31000000 0x1000>;
+			interrupts = <0x1c 0>;
+		};
+
+		usb {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0x0 0x31020000 0x00001000>;
+
+			/*
+			 * Enable either ohci or usbd (gadget)!
+			 */
+			ohci: ohci@0 {
+				compatible = "nxp,ohci-nxp", "usb-ohci";
+				reg = <0x0 0x300>;
+				interrupts = <0x3b 0>;
+				status = "disabled";
+			};
+
+			usbd: usbd@0 {
+				compatible = "nxp,lpc3220-udc";
+				reg = <0x0 0x300>;
+				interrupts = <0x3d 0>, <0x3e 0>, <0x3c 0>, <0x3a 0>;
+				status = "disabled";
+			};
+
+			i2cusb: i2c@300 {
+				compatible = "nxp,pnx-i2c";
+				reg = <0x300 0x100>;
+				interrupts = <0x3f 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pnx,timeout = <0x64>;
+			};
+		};
+
+		clcd: clcd@31040000 {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0x31040000 0x1000>;
+			interrupts = <0x0e 0>;
+			status = "disabled";
+		};
+
+		mac: ethernet@31060000 {
+			compatible = "nxp,lpc-eth";
+			reg = <0x31060000 0x1000>;
+			interrupts = <0x1d 0>;
+		};
+
+		emc: memory-controller@31080000 {
+			compatible = "arm,pl175", "arm,primecell";
+			reg = <0x31080000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			ranges = <0 0xe0000000 0x01000000>,
+				 <1 0xe1000000 0x01000000>,
+				 <2 0xe2000000 0x01000000>,
+				 <3 0xe3000000 0x01000000>;
+			status = "disabled";
+		};
+
+		apb {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0x20000000 0x20000000 0x30000000>;
+
+			ssp0: ssp@20084000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0x20084000 0x1000>;
+				interrupts = <0x14 0>;
+			};
+
+			spi1: spi@20088000 {
+				compatible = "nxp,lpc3220-spi";
+				reg = <0x20088000 0x1000>;
+			};
+
+			ssp1: ssp@2008c000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0x2008c000 0x1000>;
+				interrupts = <0x15 0>;
+			};
+
+			spi2: spi@20090000 {
+				compatible = "nxp,lpc3220-spi";
+				reg = <0x20090000 0x1000>;
+			};
+
+			i2s0: i2s@20094000 {
+				compatible = "nxp,lpc3220-i2s";
+				reg = <0x20094000 0x1000>;
+			};
+
+			sd: sd@20098000 {
+				compatible = "arm,pl18x", "arm,primecell";
+				reg = <0x20098000 0x1000>;
+				interrupts = <0x0f 0>, <0x0d 0>;
+				status = "disabled";
+			};
+
+			i2s1: i2s@2009C000 {
+				compatible = "nxp,lpc3220-i2s";
+				reg = <0x2009C000 0x1000>;
+			};
+
+			/* UART5 first since it is the default console, ttyS0 */
+			uart5: serial@40090000 {
+				/* actually, ns16550a w/ 64 byte fifos! */
+				compatible = "nxp,lpc3220-uart";
+				reg = <0x40090000 0x1000>;
+				interrupts = <9 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			uart3: serial@40080000 {
+				compatible = "nxp,lpc3220-uart";
+				reg = <0x40080000 0x1000>;
+				interrupts = <7 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			uart4: serial@40088000 {
+				compatible = "nxp,lpc3220-uart";
+				reg = <0x40088000 0x1000>;
+				interrupts = <8 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			uart6: serial@40098000 {
+				compatible = "nxp,lpc3220-uart";
+				reg = <0x40098000 0x1000>;
+				interrupts = <10 0>;
+				clock-frequency = <13000000>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			i2c1: i2c@400A0000 {
+				compatible = "nxp,pnx-i2c";
+				reg = <0x400A0000 0x100>;
+				interrupts = <0x33 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pnx,timeout = <0x64>;
+			};
+
+			i2c2: i2c@400A8000 {
+				compatible = "nxp,pnx-i2c";
+				reg = <0x400A8000 0x100>;
+				interrupts = <0x32 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pnx,timeout = <0x64>;
+			};
+
+			mpwm: mpwm@400E8000 {
+				compatible = "nxp,lpc3220-motor-pwm";
+				reg = <0x400E8000 0x78>;
+				status = "disabled";
+				#pwm-cells = <2>;
+			};
+		};
+
+		fab {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0x20000000 0x20000000 0x30000000>;
+
+			/*
+			 * MIC Interrupt controller includes:
+			 *   MIC @40008000
+			 *   SIC1 @4000C000
+			 *   SIC2 @40010000
+			 */
+			mic: interrupt-controller@40008000 {
+				compatible = "nxp,lpc3220-mic";
+				interrupt-controller;
+				reg = <0x40008000 0xC000>;
+				#interrupt-cells = <2>;
+			};
+
+			uart1: serial@40014000 {
+				compatible = "nxp,lpc3220-hsuart";
+				reg = <0x40014000 0x1000>;
+				interrupts = <26 0>;
+				status = "disabled";
+			};
+
+			uart2: serial@40018000 {
+				compatible = "nxp,lpc3220-hsuart";
+				reg = <0x40018000 0x1000>;
+				interrupts = <25 0>;
+				status = "disabled";
+			};
+
+			uart7: serial@4001c000 {
+				compatible = "nxp,lpc3220-hsuart";
+				reg = <0x4001c000 0x1000>;
+				interrupts = <24 0>;
+				status = "disabled";
+			};
+
+			rtc: rtc@40024000 {
+				compatible = "nxp,lpc3220-rtc";
+				reg = <0x40024000 0x1000>;
+				interrupts = <0x34 0>;
+			};
+
+			gpio: gpio@40028000 {
+				compatible = "nxp,lpc3220-gpio";
+				reg = <0x40028000 0x1000>;
+				gpio-controller;
+				#gpio-cells = <3>; /* bank, pin, flags */
+			};
+
+			timer4: timer@4002C000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x4002C000 0x1000>;
+				interrupts = <0x3 0>;
+				status = "disabled";
+			};
+
+			timer5: timer@40030000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40030000 0x1000>;
+				interrupts = <0x4 0>;
+				status = "disabled";
+			};
+
+			watchdog: watchdog@4003C000 {
+				compatible = "nxp,pnx4008-wdt";
+				reg = <0x4003C000 0x1000>;
+			};
+
+			timer0: timer@40044000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40044000 0x1000>;
+				interrupts = <0x10 0>;
+			};
+
+			/*
+			 * TSC vs. ADC: Since those two share the same
+			 * hardware, you need to choose from one of the
+			 * following two and do 'status = "okay";' for one of
+			 * them
+			 */
+
+			adc: adc@40048000 {
+				compatible = "nxp,lpc3220-adc";
+				reg = <0x40048000 0x1000>;
+				interrupts = <0x27 0>;
+				status = "disabled";
+			};
+
+			tsc: tsc@40048000 {
+				compatible = "nxp,lpc3220-tsc";
+				reg = <0x40048000 0x1000>;
+				interrupts = <0x27 0>;
+				status = "disabled";
+			};
+
+			timer1: timer@4004C000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x4004C000 0x1000>;
+				interrupts = <0x11 0>;
+			};
+
+			key: key@40050000 {
+				compatible = "nxp,lpc3220-key";
+				reg = <0x40050000 0x1000>;
+				interrupts = <54 0>;
+				status = "disabled";
+			};
+
+			timer2: timer@40058000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40058000 0x1000>;
+				interrupts = <0x12 0>;
+				status = "disabled";
+			};
+
+			pwm1: pwm@4005C000 {
+				compatible = "nxp,lpc3220-pwm";
+				reg = <0x4005C000 0x4>;
+				status = "disabled";
+			};
+
+			pwm2: pwm@4005C004 {
+				compatible = "nxp,lpc3220-pwm";
+				reg = <0x4005C004 0x4>;
+				status = "disabled";
+			};
+
+			timer3: timer@40060000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40060000 0x1000>;
+				interrupts = <0x13 0>;
+				status = "disabled";
+			};
+		};
+	};
+};

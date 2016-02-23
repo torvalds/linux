@@ -1,0 +1,111 @@
+* Power State Coordination Interface (PSCI)
+
+Firmware implementing the PSCI functions described in ARM document number
+ARM DEN 0022A ("Power State Coordination Interface System Software on ARM
+processors") can be used by Linux to initiate various CPU-centric power
+operations.
+
+Issue A of the specification describes functions for CPU suspend, hotplug
+and migration of secure software.
+
+Functions are invoked by trapping to the privilege level of the PSCI
+firmware (specified as part of the binding below) and passing arguments
+in a manner similar to that specified by AAPCS:
+
+	 r0		=> 32-bit Function ID / return value
+	{r1 - r3}	=> Parameters
+
+Note that the immediate field of the trapping instruction must be set
+to #0.
+
+
+Main node required properties:
+
+ - compatible    : should contain at least one of:
+
+     * "arm,psci"     : For implementations complying to PSCI versions prior
+			to 0.2.
+			For these cases function IDs must be provided.
+
+     * "arm,psci-0.2" : For implementations complying to PSCI 0.2.
+			Function IDs are not required and should be ignored by
+			an OS with PSCI 0.2 support, but are permitted to be
+			present for compatibility with existing software when
+			"arm,psci" is later in the compatible list.
+
+     * "arm,psci-1.0" : For implementations complying to PSCI 1.0.
+			PSCI 1.0 is backward compatible with PSCI 0.2 with
+			minor specification updates, as defined in the PSCI
+			specification[2].
+
+ - method        : The method of calling the PSCI firmware. Permitted
+                   values are:
+
+                   "smc" : SMC #0, with the register assignments specified
+		           in this binding.
+
+                   "hvc" : HVC #0, with the register assignments specified
+		           in this binding.
+
+Main node optional properties:
+
+ - cpu_suspend   : Function ID for CPU_SUSPEND operation
+
+ - cpu_off       : Function ID for CPU_OFF operation
+
+ - cpu_on        : Function ID for CPU_ON operation
+
+ - migrate       : Function ID for MIGRATE operation
+
+Device tree nodes that require usage of PSCI CPU_SUSPEND function (ie idle
+state nodes, as per bindings in [1]) must specify the following properties:
+
+- arm,psci-suspend-param
+		Usage: Required for state nodes[1] if the corresponding
+                       idle-states node entry-method property is set
+                       to "psci".
+		Value type: <u32>
+		Definition: power_state parameter to pass to the PSCI
+			    suspend call.
+
+Example:
+
+Case 1: PSCI v0.1 only.
+
+	psci {
+		compatible	= "arm,psci";
+		method		= "smc";
+		cpu_suspend	= <0x95c10000>;
+		cpu_off		= <0x95c10001>;
+		cpu_on		= <0x95c10002>;
+		migrate		= <0x95c10003>;
+	};
+
+Case 2: PSCI v0.2 only
+
+	psci {
+		compatible	= "arm,psci-0.2";
+		method		= "smc";
+	};
+
+Case 3: PSCI v0.2 and PSCI v0.1.
+
+	A DTB may provide IDs for use by kernels without PSCI 0.2 support,
+	enabling firmware and hypervisors to support existing and new kernels.
+	These IDs will be ignored by kernels with PSCI 0.2 support, which will
+	use the standard PSCI 0.2 IDs exclusively.
+
+	psci {
+		compatible = "arm,psci-0.2", "arm,psci";
+		method = "hvc";
+
+		cpu_on = < arbitrary value >;
+		cpu_off = < arbitrary value >;
+
+		...
+	};
+
+[1] Kernel documentation - ARM idle states bindings
+    Documentation/devicetree/bindings/arm/idle-states.txt
+[2] Power State Coordination Interface (PSCI) specification
+    http://infocenter.arm.com/help/topic/com.arm.doc.den0022c/DEN0022C_Power_State_Coordination_Interface.pdf

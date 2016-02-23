@@ -1,0 +1,14 @@
+00-INDEX
+    	- this file
+ChangeLog.ide-cd.1994-2004
+	- ide-cd changelog
+ChangeLog.ide-floppy.1996-2002
+	- ide-floppy changelog
+ChangeLog.ide-tape.1995-2002
+	- ide-tape changelog
+ide-tape.txt
+	- info on the IDE ATAPI streaming tape driver
+ide.txt
+	- important info for users of ATA devices (IDE/EIDE disks and CD-ROMS).
+warm-plug-howto.txt
+	- using sysfs to remove and add IDE devices.

@@ -1,0 +1,29 @@
+menu "LPDDR & LPDDR2 PCM memory drivers"
+	depends on MTD
+
+config MTD_LPDDR
+	tristate "Support for LPDDR flash chips"
+	select MTD_QINFO_PROBE
+	help
+	  This option enables support of LPDDR (Low power double data rate)
+	  flash chips. Synonymous with Mobile-DDR. It is a new standard for
+	  DDR memories, intended for battery-operated systems.
+
+config MTD_QINFO_PROBE
+	depends on MTD_LPDDR
+	tristate "Detect flash chips by QINFO probe"
+	help
+	    Device Information for LPDDR chips is offered through the Overlay
+	    Window QINFO interface, permits software to be used for entire
+	    families of devices. This serves similar purpose of CFI on legacy
+	    Flash products
+
+config MTD_LPDDR2_NVM
+	# ARM dependency is only for writel_relaxed()
+	depends on MTD && ARM
+	tristate "Support for LPDDR2-NVM flash chips"
+	help
+	  This option enables support of PCM memories with a LPDDR2-NVM
+	  (Low power double data rate 2) interface.
+
+endmenu

@@ -1,0 +1,37 @@
+Kernel driver hih6130
+=====================
+
+Supported chips:
+  * Honeywell HIH-6130 / HIH-6131
+    Prefix: 'hih6130'
+    Addresses scanned: none
+    Datasheet: Publicly available at the Honeywell website
+    http://sensing.honeywell.com/index.php?ci_id=3106&la_id=1&defId=44872
+
+Author:
+  Iain Paton <ipaton0@gmail.com>
+
+Description
+-----------
+
+The HIH-6130 & HIH-6131 are humidity and temperature sensors in a SO8 package.
+The difference between the two devices is that the HIH-6131 has a condensation
+filter.
+
+The devices communicate with the I2C protocol. All sensors are set to the same
+I2C address 0x27 by default, so an entry with I2C_BOARD_INFO("hih6130", 0x27)
+can be used in the board setup code.
+
+Please see Documentation/i2c/instantiating-devices for details on how to
+instantiate I2C devices.
+
+sysfs-Interface
+---------------
+
+temp1_input - temperature input
+humidity1_input - humidity input
+
+Notes
+-----
+
+Command mode and alarms are not currently supported.

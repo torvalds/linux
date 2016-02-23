@@ -1,0 +1,13 @@
+This drivers still needs a lot of work. I can list all cleanups to do but it's
+going to be long. So, I'm writing "cleanups" and not the list.
+
+Arnaud
+
+TODO:
+- clean ups
+- sort out dup ids with SiS driver
+- remove useless/wrong/unused code...
+- get rid of non-linux related stuff
+
+Please send patches to:
+Arnaud Patard <arnaud.patard@rtp-net.org>

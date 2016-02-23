@@ -1,0 +1,176 @@
+menu "CAN Device Drivers"
+
+config CAN_VCAN
+	tristate "Virtual Local CAN Interface (vcan)"
+	---help---
+	  Similar to the network loopback devices, vcan offers a
+	  virtual local CAN interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called vcan.
+
+config CAN_SLCAN
+	tristate "Serial / USB serial CAN Adaptors (slcan)"
+	depends on TTY
+	---help---
+	  CAN driver for several 'low cost' CAN interfaces that are attached
+	  via serial lines or via USB-to-serial adapters using the LAWICEL
+	  ASCII protocol. The driver implements the tty linediscipline N_SLCAN.
+
+	  As only the sending and receiving of CAN frames is implemented, this
+	  driver should work with the (serial/USB) CAN hardware from:
+	  www.canusb.com / www.can232.com / www.mictronics.de / www.canhack.de
+
+	  Userspace tools to attach the SLCAN line discipline (slcan_attach,
+	  slcand) can be found in the can-utils at the SocketCAN SVN, see
+	  http://developer.berlios.de/projects/socketcan for details.
+
+	  The slcan driver supports up to 10 CAN netdevices by default which
+	  can be changed by the 'maxdev=xx' module option. This driver can
+	  also be built as a module. If so, the module will be called slcan.
+
+config CAN_DEV
+	tristate "Platform CAN drivers with Netlink support"
+	default y
+	---help---
+	  Enables the common framework for platform CAN drivers with Netlink
+	  support. This is the standard library for CAN drivers.
+	  If unsure, say Y.
+
+if CAN_DEV
+
+config CAN_CALC_BITTIMING
+	bool "CAN bit-timing calculation"
+	default y
+	---help---
+	  If enabled, CAN bit-timing parameters will be calculated for the
+	  bit-rate specified via Netlink argument "bitrate" when the device
+	  get started. This works fine for the most common CAN controllers
+	  with standard bit-rates but may fail for exotic bit-rates or CAN
+	  source clock frequencies. Disabling saves some space, but then the
+	  bit-timing parameters must be specified directly using the Netlink
+	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
+	  If unsure, say Y.
+
+config CAN_LEDS
+	bool "Enable LED triggers for Netlink based drivers"
+	depends on LEDS_CLASS
+	select LEDS_TRIGGERS
+	---help---
+	  This option adds two LED triggers for packet receive and transmit
+	  events on each supported CAN device.
+
+	  Say Y here if you are working on a system with led-class supported
+	  LEDs and you want to use them as canbus activity indicators.
+
+config CAN_AT91
+	tristate "Atmel AT91 onchip CAN controller"
+	depends on (ARCH_AT91 || COMPILE_TEST) && HAS_IOMEM
+	---help---
+	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
+	  and AT91SAM9X5 processors.
+
+config CAN_TI_HECC
+	depends on ARM
+	tristate "TI High End CAN Controller"
+	---help---
+	  Driver for TI HECC (High End CAN Controller) module found on many
+	  TI devices. The device specifications are available from www.ti.com
+
+config CAN_BFIN
+	depends on BF534 || BF536 || BF537 || BF538 || BF539 || BF54x
+	tristate "Analog Devices Blackfin on-chip CAN"
+	---help---
+	  Driver for the Analog Devices Blackfin on-chip CAN controllers
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_can.
+
+config CAN_JANZ_ICAN3
+	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
+	depends on MFD_JANZ_CMODIO
+	---help---
+	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
+	  connects to a MODULbus carrier board.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called janz-ican3.ko.
+
+config CAN_FLEXCAN
+	tristate "Support for Freescale FLEXCAN based chips"
+	depends on ARM || PPC
+	---help---
+	  Say Y here if you want to support for Freescale FlexCAN.
+
+config PCH_CAN
+	tristate "Intel EG20T PCH CAN controller"
+	depends on PCI && (X86_32 || COMPILE_TEST)
+	---help---
+	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
+	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
+	  This driver can access CAN bus.
+
+config CAN_GRCAN
+	tristate "Aeroflex Gaisler GRCAN and GRHCAN CAN devices"
+	depends on OF && HAS_DMA
+	---help---
+	  Say Y here if you want to use Aeroflex Gaisler GRCAN or GRHCAN.
+	  Note that the driver supports little endian, even though little
+	  endian syntheses of the cores would need some modifications on
+	  the hardware level to work.
+
+config CAN_RCAR
+	tristate "Renesas R-Car CAN controller"
+	depends on ARM
+	---help---
+	  Say Y here if you want to use CAN controller found on Renesas R-Car
+	  SoCs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called rcar_can.
+
+config CAN_SUN4I
+	tristate "Allwinner A10 CAN controller"
+	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
+	---help---
+	  Say Y here if you want to use CAN controller found on Allwinner
+	  A10/A20 SoCs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sun4i_can.
+
+config CAN_XILINXCAN
+	tristate "Xilinx CAN"
+	depends on ARCH_ZYNQ || ARM64 || MICROBLAZE || COMPILE_TEST
+	depends on COMMON_CLK && HAS_IOMEM
+	---help---
+	  Xilinx CAN driver. This driver supports both soft AXI CAN IP and
+	  Zynq CANPS IP.
+
+source "drivers/net/can/mscan/Kconfig"
+
+source "drivers/net/can/sja1000/Kconfig"
+
+source "drivers/net/can/c_can/Kconfig"
+
+source "drivers/net/can/m_can/Kconfig"
+
+source "drivers/net/can/cc770/Kconfig"
+
+source "drivers/net/can/spi/Kconfig"
+
+source "drivers/net/can/usb/Kconfig"
+
+source "drivers/net/can/softing/Kconfig"
+
+endif
+
+config CAN_DEBUG_DEVICES
+	bool "CAN devices debugging messages"
+	---help---
+	  Say Y here if you want the CAN device drivers to produce a bunch of
+	  debug messages to the system log.  Select this if you are having
+	  a problem with CAN support and want to see more of what is going
+	  on.
+
+endmenu

@@ -1,0 +1,200 @@
+#!/bin/bash
+# Intel MIC Platform Software Stack (MPSS)
+#
+# Copyright(c) 2013 Intel Corporation.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2, as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# The full GNU General Public License is included in this distribution in
+# the file called "COPYING".
+#
+# Intel MIC User Space Tools.
+#
+# mpss	Start mpssd.
+#
+# chkconfig: 2345 95 05
+# description: start MPSS stack processing.
+#
+### BEGIN INIT INFO
+# Provides: mpss
+# Required-Start:
+# Required-Stop:
+# Short-Description: MPSS stack control
+# Description: MPSS stack control
+### END INIT INFO
+
+# Source function library.
+. /etc/init.d/functions
+
+exec=/usr/sbin/mpssd
+sysfs="/sys/class/mic"
+mic_modules="mic_host mic_x100_dma scif"
+
+start()
+{
+	[ -x $exec ] || exit 5
+
+	if [ "`ps -e | awk '{print $4}' | grep mpssd | head -1`" = "mpssd" ]; then
+		echo -e $"MPSSD already running! "
+		success
+		echo
+		return 0
+	fi
+
+	echo -e $"Starting MPSS Stack"
+	echo -e $"Loading MIC drivers:" $mic_modules
+
+	modprobe -a $mic_modules
+	RETVAL=$?
+	if [ $RETVAL -ne 0 ]; then
+		failure
+		echo
+		return $RETVAL
+	fi
+
+	# Start the daemon
+	echo -n $"Starting MPSSD "
+	$exec
+	RETVAL=$?
+	if [ $RETVAL -ne 0 ]; then
+		failure
+		echo
+		return $RETVAL
+	fi
+	success
+	echo
+
+	sleep 5
+
+	# Boot the cards
+	micctrl -b
+
+	# Wait till ping works
+	for f in $sysfs/*
+	do
+		count=100
+		ipaddr=`cat $f/cmdline`
+		ipaddr=${ipaddr#*address,}
+		ipaddr=`echo $ipaddr | cut -d, -f1 | cut -d\; -f1`
+		while [ $count -ge 0 ]
+		do
+			echo -e "Pinging "`basename $f`" "
+			ping -c 1 $ipaddr &> /dev/null
+			RETVAL=$?
+			if [ $RETVAL -eq 0 ]; then
+				success
+				break
+			fi
+			sleep 1
+			count=`expr $count - 1`
+		done
+		[ $RETVAL -ne 0 ] && failure || success
+		echo
+	done
+	return $RETVAL
+}
+
+stop()
+{
+	echo -e $"Shutting down MPSS Stack: "
+
+	# Bail out if module is unloaded
+	if [ ! -d "$sysfs" ]; then
+		echo -n $"Module unloaded "
+		success
+		echo
+		return 0
+	fi
+
+	# Shut down the cards.
+	micctrl -S
+
+	# Wait for the cards to go offline
+	for f in $sysfs/*
+	do
+		while [ "`cat $f/state`" != "ready" ]
+		do
+			sleep 1
+			echo -e "Waiting for "`basename $f`" to become ready"
+		done
+	done
+
+	# Display the status of the cards
+	micctrl -s
+
+	# Kill MPSSD now
+	echo -n $"Killing MPSSD"
+	killall -9 mpssd 2>/dev/null
+	RETVAL=$?
+	[ $RETVAL -ne 0 ] && failure || success
+	echo
+	return $RETVAL
+}
+
+restart()
+{
+	stop
+	sleep 5
+	start
+}
+
+status()
+{
+	micctrl -s
+	if [ "`ps -e | awk '{print $4}' | grep mpssd | head -n 1`" = "mpssd" ]; then
+		echo "mpssd is running"
+	else
+		echo "mpssd is stopped"
+	fi
+	return 0
+}
+
+unload()
+{
+	if [ ! -d "$sysfs" ]; then
+		echo -n $"No MIC_HOST Module: "
+		success
+		echo
+		return
+	fi
+
+	stop
+
+	sleep 5
+	echo -n $"Removing MIC drivers:" $mic_modules
+	modprobe -r $mic_modules
+	RETVAL=$?
+	[ $RETVAL -ne 0 ] && failure || success
+	echo
+	return $RETVAL
+}
+
+case $1 in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		restart
+		;;
+	status)
+		status
+		;;
+	unload)
+		unload
+		;;
+	*)
+		echo $"Usage: $0 {start|stop|restart|status|unload}"
+		exit 2
+esac
+
+exit $?

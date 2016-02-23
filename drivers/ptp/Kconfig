@@ -1,0 +1,93 @@
+#
+# PTP clock support configuration
+#
+
+menu "PTP clock support"
+
+config PTP_1588_CLOCK
+	tristate "PTP clock support"
+	depends on NET
+	select PPS
+	select NET_PTP_CLASSIFY
+	help
+	  The IEEE 1588 standard defines a method to precisely
+	  synchronize distributed clocks over Ethernet networks. The
+	  standard defines a Precision Time Protocol (PTP), which can
+	  be used to achieve synchronization within a few dozen
+	  microseconds. In addition, with the help of special hardware
+	  time stamping units, it can be possible to achieve
+	  synchronization to within a few hundred nanoseconds.
+
+	  This driver adds support for PTP clocks as character
+	  devices. If you want to use a PTP clock, then you should
+	  also enable at least one clock driver as well.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp.
+
+config PTP_1588_CLOCK_GIANFAR
+	tristate "Freescale eTSEC as PTP clock"
+	depends on GIANFAR
+	select PTP_1588_CLOCK
+	default y
+	help
+	  This driver adds support for using the eTSEC as a PTP
+	  clock. This clock is only useful if your PTP programs are
+	  getting hardware time stamps on the PTP Ethernet packets
+	  using the SO_TIMESTAMPING API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called gianfar_ptp.
+
+config PTP_1588_CLOCK_IXP46X
+	tristate "Intel IXP46x as PTP clock"
+	depends on IXP4XX_ETH
+	select PTP_1588_CLOCK
+	default y
+	help
+	  This driver adds support for using the IXP46X as a PTP
+	  clock. This clock is only useful if your PTP programs are
+	  getting hardware time stamps on the PTP Ethernet packets
+	  using the SO_TIMESTAMPING API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_ixp46x.
+
+comment "Enable PHYLIB and NETWORK_PHY_TIMESTAMPING to see the additional clocks."
+	depends on PHYLIB=n || NETWORK_PHY_TIMESTAMPING=n
+
+config DP83640_PHY
+	tristate "Driver for the National Semiconductor DP83640 PHYTER"
+	depends on NETWORK_PHY_TIMESTAMPING
+	depends on PHYLIB
+	select PTP_1588_CLOCK
+	---help---
+	  Supports the DP83640 PHYTER with IEEE 1588 features.
+
+	  This driver adds support for using the DP83640 as a PTP
+	  clock. This clock is only useful if your PTP programs are
+	  getting hardware time stamps on the PTP Ethernet packets
+	  using the SO_TIMESTAMPING API.
+
+	  In order for this to work, your MAC driver must also
+	  implement the skb_tx_timestamp() function.
+
+config PTP_1588_CLOCK_PCH
+	tristate "Intel PCH EG20T as PTP clock"
+	depends on X86_32 || COMPILE_TEST
+	depends on HAS_IOMEM && NET
+	select PTP_1588_CLOCK
+	help
+	  This driver adds support for using the PCH EG20T as a PTP
+	  clock. The hardware supports time stamping of PTP packets
+	  when using the end-to-end delay (E2E) mechansim. The peer
+	  delay mechansim (P2P) is not supported.
+
+	  This clock is only useful if your PTP programs are getting
+	  hardware time stamps on the PTP Ethernet packets using the
+	  SO_TIMESTAMPING API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_pch.
+
+endmenu

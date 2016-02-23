@@ -1,0 +1,7 @@
+Xilinx Zynq Platforms Device Tree Bindings
+
+Boards with Zynq-7000 SOC based on an ARM Cortex A9 processor
+shall have the following properties.
+
+Required root node properties:
+    - compatible = "xlnx,zynq-7000";

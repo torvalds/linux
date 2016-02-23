@@ -1,0 +1,41 @@
+* Texas Instruments Davinci EMAC
+
+This file provides information, what the device node
+for the davinci_emac interface contains.
+
+Required properties:
+- compatible: "ti,davinci-dm6467-emac", "ti,am3517-emac" or
+  "ti,dm816-emac"
+- reg: Offset and length of the register set for the device
+- ti,davinci-ctrl-reg-offset: offset to control register
+- ti,davinci-ctrl-mod-reg-offset: offset to control module register
+- ti,davinci-ctrl-ram-offset: offset to control module ram
+- ti,davinci-ctrl-ram-size: size of control module ram
+- interrupts: interrupt mapping for the davinci emac interrupts sources:
+              4 sources: <Receive Threshold Interrupt
+			  Receive Interrupt
+			  Transmit Interrupt
+			  Miscellaneous Interrupt>
+
+Optional properties:
+- phy-handle: See ethernet.txt file in the same directory.
+              If absent, davinci_emac driver defaults to 100/FULL.
+- ti,davinci-rmii-en: 1 byte, 1 means use RMII
+- ti,davinci-no-bd-ram: boolean, does EMAC have BD RAM?
+
+Example (enbw_cmc board):
+	eth0: emac@1e20000 {
+		compatible = "ti,davinci-dm6467-emac";
+		reg = <0x220000 0x4000>;
+		ti,davinci-ctrl-reg-offset = <0x3000>;
+		ti,davinci-ctrl-mod-reg-offset = <0x2000>;
+		ti,davinci-ctrl-ram-offset = <0>;
+		ti,davinci-ctrl-ram-size = <0x2000>;
+		local-mac-address = [ 00 00 00 00 00 00 ];
+		interrupts = <33
+				34
+				35
+				36
+				>;
+		interrupt-parent = <&intc>;
+	};

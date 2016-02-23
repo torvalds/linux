@@ -1,0 +1,111 @@
+Atmel NAND flash
+
+Required properties:
+- compatible : should be "atmel,at91rm9200-nand" or "atmel,sama5d4-nand".
+- reg : should specify localbus address and size used for the chip,
+	and hardware ECC controller if available.
+	If the hardware ECC is PMECC, it should contain address and size for
+	PMECC and PMECC Error Location controller.
+	The PMECC lookup table address and size in ROM is optional. If not
+	specified, driver will build it in runtime.
+- atmel,nand-addr-offset : offset for the address latch.
+- atmel,nand-cmd-offset : offset for the command latch.
+- #address-cells, #size-cells : Must be present if the device has sub-nodes
+  representing partitions.
+
+- gpios : specifies the gpio pins to control the NAND device. detect is an
+  optional gpio and may be set to 0 if not present.
+
+Optional properties:
+- atmel,nand-has-dma : boolean to support dma transfer for nand read/write.
+- nand-ecc-mode : String, operation mode of the NAND ecc mode, soft by default.
+  Supported values are: "none", "soft", "hw", "hw_syndrome", "hw_oob_first",
+  "soft_bch".
+- atmel,has-pmecc : boolean to enable Programmable Multibit ECC hardware.
+  Only supported by at91sam9x5 or later sam9 product.
+- atmel,pmecc-cap : error correct capability for Programmable Multibit ECC
+  Controller. Supported values are: 2, 4, 8, 12, 24.
+- atmel,pmecc-sector-size : sector size for ECC computation. Supported values
+  are: 512, 1024.
+- atmel,pmecc-lookup-table-offset : includes two offsets of lookup table in ROM
+  for different sector size. First one is for sector size 512, the next is for
+  sector size 1024. If not specified, driver will build the table in runtime.
+- nand-bus-width : 8 or 16 bus width if not present 8
+- nand-on-flash-bbt: boolean to enable on flash bbt option if not present false
+- Nand Flash Controller(NFC) is a slave driver under Atmel nand flash
+  - Required properties:
+    - compatible : "atmel,sama5d3-nfc".
+    - reg : should specify the address and size used for NFC command registers,
+            NFC registers and NFC Sram. NFC Sram address and size can be absent
+            if don't want to use it.
+    - clocks: phandle to the peripheral clock
+  - Optional properties:
+    - atmel,write-by-sram: boolean to enable NFC write by sram.
+
+Examples:
+nand0: nand@40000000,0 {
+	compatible = "atmel,at91rm9200-nand";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	reg = <0x40000000 0x10000000
+	       0xffffe800 0x200
+	      >;
+	atmel,nand-addr-offset = <21>;	/* ale */
+	atmel,nand-cmd-offset = <22>;	/* cle */
+	nand-on-flash-bbt;
+	nand-ecc-mode = "soft";
+	gpios = <&pioC 13 0	/* rdy */
+		 &pioC 14 0 	/* nce */
+		 0		/* cd */
+		>;
+	partition@0 {
+		...
+	};
+};
+
+/* for PMECC supported chips */
+nand0: nand@40000000 {
+	compatible = "atmel,at91rm9200-nand";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	reg = < 0x40000000 0x10000000	/* bus addr & size */
+		0xffffe000 0x00000600	/* PMECC addr & size */
+		0xffffe600 0x00000200	/* PMECC ERRLOC addr & size */
+		0x00100000 0x00100000	/* ROM addr & size */
+		>;
+	atmel,nand-addr-offset = <21>;	/* ale */
+	atmel,nand-cmd-offset = <22>;	/* cle */
+	nand-on-flash-bbt;
+	nand-ecc-mode = "hw";
+	atmel,has-pmecc;	/* enable PMECC */
+	atmel,pmecc-cap = <2>;
+	atmel,pmecc-sector-size = <512>;
+	atmel,pmecc-lookup-table-offset = <0x8000 0x10000>;
+	gpios = <&pioD 5 0	/* rdy */
+		 &pioD 4 0	/* nce */
+		 0		/* cd */
+		>;
+	partition@0 {
+		...
+	};
+};
+
+/* for NFC supported chips */
+nand0: nand@40000000 {
+	compatible = "atmel,at91rm9200-nand";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+        ...
+        nfc@70000000 {
+		compatible = "atmel,sama5d3-nfc";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&hsmc_clk>
+		reg = <
+			0x70000000 0x10000000	/* NFC Command Registers */
+			0xffffc000 0x00000070	/* NFC HSMC regs */
+			0x00200000 0x00100000	/* NFC SRAM banks */
+		>;
+	};
+};

@@ -1,0 +1,20 @@
+* Freescale i.MX Watchdog Timer (WDT) Controller
+
+Required properties:
+- compatible : Should be "fsl,<soc>-wdt"
+- reg : Should contain WDT registers location and length
+- interrupts : Should contain WDT interrupt
+
+Optional property:
+- big-endian: If present the watchdog device's registers are implemented
+  in big endian mode, otherwise in native mode(same with CPU), for more
+  detail please see: Documentation/devicetree/bindings/regmap/regmap.txt.
+
+Examples:
+
+wdt@73f98000 {
+	compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
+	reg = <0x73f98000 0x4000>;
+	interrupts = <58>;
+	big-endian;
+};

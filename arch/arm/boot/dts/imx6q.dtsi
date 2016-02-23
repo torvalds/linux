@@ -1,0 +1,298 @@
+
+/*
+ * Copyright 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "imx6q-pinfunc.h"
+#include "imx6qdl.dtsi"
+
+/ {
+	aliases {
+		ipu1 = &ipu2;
+		spi4 = &ecspi5;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0>;
+			next-level-cache = <&L2>;
+			operating-points = <
+				/* kHz    uV */
+				1200000 1275000
+				996000  1250000
+				852000  1250000
+				792000  1175000
+				396000  975000
+			>;
+			fsl,soc-operating-points = <
+				/* ARM kHz  SOC-PU uV */
+				1200000 1275000
+				996000	1250000
+				852000	1250000
+				792000	1175000
+				396000	1175000
+			>;
+			clock-latency = <61036>; /* two CLK32 periods */
+			clocks = <&clks IMX6QDL_CLK_ARM>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
+				 <&clks IMX6QDL_CLK_STEP>,
+				 <&clks IMX6QDL_CLK_PLL1_SW>,
+				 <&clks IMX6QDL_CLK_PLL1_SYS>;
+			clock-names = "arm", "pll2_pfd2_396m", "step",
+				      "pll1_sw", "pll1_sys";
+			arm-supply = <&reg_arm>;
+			pu-supply = <&reg_pu>;
+			soc-supply = <&reg_soc>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <1>;
+			next-level-cache = <&L2>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <2>;
+			next-level-cache = <&L2>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <3>;
+			next-level-cache = <&L2>;
+		};
+	};
+
+	soc {
+		ocram: sram@00900000 {
+			compatible = "mmio-sram";
+			reg = <0x00900000 0x40000>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
+		};
+
+		aips-bus@02000000 { /* AIPS1 */
+			spba-bus@02000000 {
+				ecspi5: ecspi@02018000 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
+					reg = <0x02018000 0x4000>;
+					interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6Q_CLK_ECSPI5>,
+						 <&clks IMX6Q_CLK_ECSPI5>;
+					clock-names = "ipg", "per";
+					dmas = <&sdma 11 7 1>, <&sdma 12 7 2>;
+					dma-names = "rx", "tx";
+					status = "disabled";
+				};
+			};
+
+			iomuxc: iomuxc@020e0000 {
+				compatible = "fsl,imx6q-iomuxc";
+			};
+		};
+
+		sata: sata@02200000 {
+			compatible = "fsl,imx6q-ahci";
+			reg = <0x02200000 0x4000>;
+			interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_SATA>,
+				 <&clks IMX6QDL_CLK_SATA_REF_100M>,
+				 <&clks IMX6QDL_CLK_AHB>;
+			clock-names = "sata", "sata_ref", "ahb";
+			status = "disabled";
+		};
+
+		gpu_vg: gpu@02204000 {
+			compatible = "vivante,gc";
+			reg = <0x02204000 0x4000>;
+			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_OPENVG_AXI>,
+				 <&clks IMX6QDL_CLK_GPU2D_CORE>;
+			clock-names = "bus", "core";
+			power-domains = <&gpc 1>;
+		};
+
+		ipu2: ipu@02800000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,imx6q-ipu";
+			reg = <0x02800000 0x400000>;
+			interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_IPU2>,
+				 <&clks IMX6QDL_CLK_IPU2_DI0>,
+				 <&clks IMX6QDL_CLK_IPU2_DI1>;
+			clock-names = "bus", "di0", "di1";
+			resets = <&src 4>;
+
+			ipu2_csi0: port@0 {
+				reg = <0>;
+			};
+
+			ipu2_csi1: port@1 {
+				reg = <1>;
+			};
+
+			ipu2_di0: port@2 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <2>;
+
+				ipu2_di0_disp0: endpoint@0 {
+				};
+
+				ipu2_di0_hdmi: endpoint@1 {
+					remote-endpoint = <&hdmi_mux_2>;
+				};
+
+				ipu2_di0_mipi: endpoint@2 {
+				};
+
+				ipu2_di0_lvds0: endpoint@3 {
+					remote-endpoint = <&lvds0_mux_2>;
+				};
+
+				ipu2_di0_lvds1: endpoint@4 {
+					remote-endpoint = <&lvds1_mux_2>;
+				};
+			};
+
+			ipu2_di1: port@3 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <3>;
+
+				ipu2_di1_hdmi: endpoint@1 {
+					remote-endpoint = <&hdmi_mux_3>;
+				};
+
+				ipu2_di1_mipi: endpoint@2 {
+				};
+
+				ipu2_di1_lvds0: endpoint@3 {
+					remote-endpoint = <&lvds0_mux_3>;
+				};
+
+				ipu2_di1_lvds1: endpoint@4 {
+					remote-endpoint = <&lvds1_mux_3>;
+				};
+			};
+		};
+	};
+
+	display-subsystem {
+		compatible = "fsl,imx-display-subsystem";
+		ports = <&ipu1_di0>, <&ipu1_di1>, <&ipu2_di0>, <&ipu2_di1>;
+	};
+
+	gpu-subsystem {
+		compatible = "fsl,imx-gpu-subsystem";
+		cores = <&gpu_2d>, <&gpu_3d>, <&gpu_vg>;
+	};
+};
+
+&hdmi {
+	compatible = "fsl,imx6q-hdmi";
+
+	port@2 {
+		reg = <2>;
+
+		hdmi_mux_2: endpoint {
+			remote-endpoint = <&ipu2_di0_hdmi>;
+		};
+	};
+
+	port@3 {
+		reg = <3>;
+
+		hdmi_mux_3: endpoint {
+			remote-endpoint = <&ipu2_di1_hdmi>;
+		};
+	};
+};
+
+&ldb {
+	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>;
+	clock-names = "di0_pll", "di1_pll",
+		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
+		      "di0", "di1";
+
+	lvds-channel@0 {
+		port@2 {
+			reg = <2>;
+
+			lvds0_mux_2: endpoint {
+				remote-endpoint = <&ipu2_di0_lvds0>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+
+			lvds0_mux_3: endpoint {
+				remote-endpoint = <&ipu2_di1_lvds0>;
+			};
+		};
+	};
+
+	lvds-channel@1 {
+		port@2 {
+			reg = <2>;
+
+			lvds1_mux_2: endpoint {
+				remote-endpoint = <&ipu2_di0_lvds1>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+
+			lvds1_mux_3: endpoint {
+				remote-endpoint = <&ipu2_di1_lvds1>;
+			};
+		};
+	};
+};
+
+&mipi_dsi {
+	ports {
+		port@2 {
+			reg = <2>;
+
+			mipi_mux_2: endpoint {
+				remote-endpoint = <&ipu2_di0_mipi>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+
+			mipi_mux_3: endpoint {
+				remote-endpoint = <&ipu2_di1_mipi>;
+			};
+		};
+	};
+};
+
+&vpu {
+	compatible = "fsl,imx6q-vpu", "cnm,coda960";
+};

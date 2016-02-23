@@ -1,0 +1,88 @@
+menuconfig MAILBOX
+	bool "Mailbox Hardware Support"
+	help
+	  Mailbox is a framework to control hardware communication between
+	  on-chip processors through queued messages and interrupt driven
+	  signals. Say Y if your platform supports hardware mailboxes.
+
+if MAILBOX
+
+config ARM_MHU
+	tristate "ARM MHU Mailbox"
+	depends on ARM_AMBA
+	help
+	  Say Y here if you want to build the ARM MHU controller driver.
+	  The controller has 3 mailbox channels, the last of which can be
+	  used in Secure mode only.
+
+config PL320_MBOX
+	bool "ARM PL320 Mailbox"
+	depends on ARM_AMBA
+	help
+	  An implementation of the ARM PL320 Interprocessor Communication
+	  Mailbox (IPCM), tailored for the Calxeda Highbank. It is used to
+	  send short messages between Highbank's A9 cores and the EnergyCore
+	  Management Engine, primarily for cpufreq. Say Y here if you want
+	  to use the PL320 IPCM support.
+
+config OMAP2PLUS_MBOX
+	tristate "OMAP2+ Mailbox framework support"
+	depends on ARCH_OMAP2PLUS
+	help
+	  Mailbox implementation for OMAP family chips with hardware for
+	  interprocessor communication involving DSP, IVA1.0 and IVA2 in
+	  OMAP2/3; or IPU, IVA HD and DSP in OMAP4/5. Say Y here if you
+	  want to use OMAP2+ Mailbox framework support.
+
+config OMAP_MBOX_KFIFO_SIZE
+	int "Mailbox kfifo default buffer size (bytes)"
+	depends on OMAP2PLUS_MBOX
+	default 256
+	help
+	  Specify the default size of mailbox's kfifo buffers (bytes).
+	  This can also be changed at runtime (via the mbox_kfifo_size
+	  module parameter).
+
+config PCC
+	bool "Platform Communication Channel Driver"
+	depends on ACPI
+	default n
+	help
+	  ACPI 5.0+ spec defines a generic mode of communication
+	  between the OS and a platform such as the BMC. This medium
+	  (PCC) is typically used by CPPC (ACPI CPU Performance management),
+	  RAS (ACPI reliability protocol) and MPST (ACPI Memory power
+	  states). Select this driver if your platform implements the
+	  PCC clients mentioned above.
+
+config ALTERA_MBOX
+	tristate "Altera Mailbox"
+	depends on HAS_IOMEM
+	help
+	  An implementation of the Altera Mailbox soft core. It is used
+	  to send message between processors. Say Y here if you want to use the
+	  Altera mailbox support.
+
+config BCM2835_MBOX
+	tristate "BCM2835 Mailbox"
+	depends on ARCH_BCM2835
+	help
+	  An implementation of the BCM2385 Mailbox.  It is used to invoke
+	  the services of the Videocore. Say Y here if you want to use the
+	  BCM2835 Mailbox.
+
+config STI_MBOX
+	tristate "STI Mailbox framework support"
+	depends on ARCH_STI && OF
+	help
+	  Mailbox implementation for STMicroelectonics family chips with
+	  hardware for interprocessor communication.
+
+config MAILBOX_TEST
+	tristate "Mailbox Test Client"
+	depends on OF
+	help
+	  Test client to help with testing new Controller driver
+	  implementations.
+
+endif

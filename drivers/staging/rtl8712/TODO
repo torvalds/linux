@@ -1,0 +1,13 @@
+TODO:
+- merge Realtek's bugfixes and new features into the driver
+- switch to use LIB80211
+- switch to use MAC80211
+- checkpatch.pl fixes - only a few remain
+
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com>,
+Larry Finger <Larry.Finger@lwfinger.net> and
+Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
+
+
+
+

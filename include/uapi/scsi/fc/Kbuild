@@ -1,0 +1,5 @@
+# UAPI Header export list
+header-y += fc_els.h
+header-y += fc_fs.h
+header-y += fc_gs.h
+header-y += fc_ns.h

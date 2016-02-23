@@ -1,0 +1,40 @@
+# All platforms listed in alphabetic order
+
+platforms += alchemy
+platforms += ar7
+platforms += ath25
+platforms += ath79
+platforms += bcm47xx
+platforms += bcm63xx
+platforms += bmips
+platforms += cavium-octeon
+platforms += cobalt
+platforms += dec
+platforms += emma
+platforms += jazz
+platforms += jz4740
+platforms += lantiq
+platforms += lasat
+platforms += loongson32
+platforms += loongson64
+platforms += mti-malta
+platforms += mti-sead3
+platforms += netlogic
+platforms += paravirt
+platforms += pic32
+platforms += pistachio
+platforms += pmcs-msp71xx
+platforms += pnx833x
+platforms += ralink
+platforms += rb532
+platforms += sgi-ip22
+platforms += sgi-ip27
+platforms += sgi-ip32
+platforms += sibyte
+platforms += sni
+platforms += txx9
+platforms += vr41xx
+platforms += xilfpga
+
+# include the platform specific files
+include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))

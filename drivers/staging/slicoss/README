@@ -1,0 +1,7 @@
+This driver is supposed to support:
+
+	Mojave cards (single port PCI Gigabit) both copper and fiber
+	Oasis cards (single and dual port PCI-x Gigabit) copper and fiber
+	Kalahari cards (dual and quad port PCI-e Gigabit) copper and fiber
+
+The driver was actually tested on Oasis and Kalahari cards.

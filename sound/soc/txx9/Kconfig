@@ -1,0 +1,29 @@
+##
+## TXx9 ACLC
+##
+config SND_SOC_TXX9ACLC
+	tristate "SoC Audio for TXx9"
+	depends on HAS_TXX9_ACLC && TXX9_DMAC
+	help
+	  This option enables support for the AC Link Controllers in TXx9 SoC.
+
+config HAS_TXX9_ACLC
+	bool
+
+config SND_SOC_TXX9ACLC_AC97
+	tristate
+	select AC97_BUS
+	select SND_AC97_CODEC
+	select SND_SOC_AC97_BUS
+
+
+##
+## Boards
+##
+config SND_SOC_TXX9ACLC_GENERIC
+	tristate "Generic TXx9 ACLC sound machine"
+	depends on SND_SOC_TXX9ACLC
+	select SND_SOC_TXX9ACLC_AC97
+	select SND_SOC_AC97_CODEC
+	help
+	  This is a generic AC97 sound machine for use in TXx9 based systems.

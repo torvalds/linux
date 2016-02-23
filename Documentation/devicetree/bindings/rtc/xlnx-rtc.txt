@@ -1,0 +1,25 @@
+* Xilinx Zynq Ultrascale+ MPSoC Real Time Clock
+
+RTC controller for the Xilinx Zynq MPSoC Real Time Clock
+Separate IRQ lines for seconds and alarm
+
+Required properties:
+- compatible: Should be "xlnx,zynqmp-rtc"
+- reg: Physical base address of the controller and length
+       of memory mapped region.
+- interrupts: IRQ lines for the RTC.
+- interrupt-names: interrupt line names eg. "sec" "alarm"
+
+Optional:
+- calibration: calibration value for 1 sec period which will
+		be programmed directly to calibration register
+
+Example:
+rtc: rtc@ffa60000 {
+	compatible = "xlnx,zynqmp-rtc";
+	reg = <0x0 0xffa60000 0x100>;
+	interrupt-parent = <&gic>;
+	interrupts = <0 26 4>, <0 27 4>;
+	interrupt-names = "alarm", "sec";
+	calibration = <0x198233>;
+};

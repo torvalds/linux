@@ -1,0 +1,35 @@
+menuconfig RAS
+	bool "Reliability, Availability and Serviceability (RAS) features"
+	help
+	  Reliability, availability and serviceability (RAS) is a computer
+	  hardware engineering term. Computers designed with higher levels
+	  of RAS have a multitude of features that protect data integrity
+	  and help them stay available for long periods of time without
+	  failure.
+
+	  Reliability can be defined as the probability that the system will
+	  produce correct outputs up to some given time. Reliability is
+	  enhanced by features that help to avoid, detect and repair hardware
+	  faults.
+
+	  Availability is the probability a system is operational at a given
+	  time, i.e. the amount of time a device is actually operating as the
+	  percentage of total time it should be operating.
+
+	  Serviceability or maintainability is the simplicity and speed with
+	  which a system can be repaired or maintained; if the time to repair
+	  a failed system increases, then availability will decrease.
+
+	  Note that Reliability and Availability are distinct concepts:
+	  Reliability is a measure of the ability of a system to function
+	  correctly, including avoiding data corruption, whereas Availability
+	  measures how often it is available for use, even though it may not
+	  be functioning correctly. For example, a server may run forever and
+	  so have ideal availability, but may be unreliable, with frequent
+	  data corruption.
+
+if RAS
+
+source arch/x86/ras/Kconfig
+
+endif

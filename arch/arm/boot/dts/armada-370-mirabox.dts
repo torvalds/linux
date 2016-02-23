@@ -1,0 +1,211 @@
+/*
+ * Device Tree file for Globalscale Mirabox
+ *
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include "armada-370.dtsi"
+
+/ {
+	model = "Globalscale Mirabox";
+	compatible = "globalscale,mirabox", "marvell,armada370", "marvell,armada-370-xp";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>; /* 512 MB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
+
+		pcie-controller {
+			status = "okay";
+
+			/* Internal mini-PCIe connector */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			/* Connected on the PCB to a USB 3.0 XHCI controller */
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+			};
+		};
+
+		internal-regs {
+			serial@12000 {
+				status = "okay";
+			};
+			timer@20300 {
+				clock-frequency = <600000000>;
+				status = "okay";
+			};
+
+			gpio_leds {
+				compatible = "gpio-leds";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pwr_led_pin &stat_led_pins>;
+
+				green_pwr_led {
+					label = "mirabox:green:pwr";
+					gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
+					default-state = "keep";
+				};
+
+				blue_stat_led {
+					label = "mirabox:blue:stat";
+					gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+					default-state = "off";
+				};
+
+				green_stat_led {
+					label = "mirabox:green:stat";
+					gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+					default-state = "off";
+				};
+			};
+
+			mdio {
+				pinctrl-0 = <&mdio_pins>;
+				pinctrl-names = "default";
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <1>;
+				};
+			};
+			ethernet@70000 {
+				pinctrl-0 = <&ge0_rgmii_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@74000 {
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+
+			crypto@90000 {
+				status = "okay";
+			};
+
+			mvsdio@d4000 {
+				pinctrl-0 = <&sdio_pins3>;
+				pinctrl-names = "default";
+				status = "okay";
+				/*
+				 * No CD or WP GPIOs: SDIO interface used for
+				 * Wifi/Bluetooth chip
+				 */
+				 broken-cd;
+			};
+
+			usb@50000 {
+				status = "okay";
+			};
+
+			usb@51000 {
+				status = "okay";
+			};
+
+			i2c@11000 {
+				status = "okay";
+				clock-frequency = <100000>;
+				pca9505: pca9505@25 {
+					compatible = "nxp,pca9505";
+					gpio-controller;
+					#gpio-cells = <2>;
+					reg = <0x25>;
+				};
+			};
+
+			nand@d0000 {
+				status = "okay";
+				num-cs = <1>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
+
+				partition@0 {
+					label = "U-Boot";
+					reg = <0 0x400000>;
+				};
+				partition@400000 {
+					label = "Linux";
+					reg = <0x400000 0x400000>;
+				};
+				partition@800000 {
+					label = "Filesystem";
+					reg = <0x800000 0x3f800000>;
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	pwr_led_pin: pwr-led-pin {
+		marvell,pins = "mpp63";
+		marvell,function = "gpo";
+	};
+
+	stat_led_pins: stat-led-pins {
+		marvell,pins = "mpp64", "mpp65";
+		marvell,function = "gpio";
+	};
+};
+

@@ -1,0 +1,23 @@
+What:		/sys/firmware/ibft/initiator
+Date:		November 2007
+Contact:	Konrad Rzeszutek <ketuzsezr@darnok.org>
+Description:	The /sys/firmware/ibft/initiator directory will contain
+		files that expose the iSCSI Boot Firmware Table initiator data.
+		Usually this contains the Initiator name.
+
+What:		/sys/firmware/ibft/targetX
+Date:		November 2007
+Contact:	Konrad Rzeszutek <ketuzsezr@darnok.org>
+Description:	The /sys/firmware/ibft/targetX directory will contain
+		files that expose the iSCSI Boot Firmware Table target data.
+		Usually this contains the target's IP address, boot LUN,
+		target name, and what NIC it is associated with. It can also
+		contain the CHAP name (and password), the reverse CHAP
+		name (and password)
+
+What:		/sys/firmware/ibft/ethernetX
+Date:		November 2007
+Contact:	Konrad Rzeszutek <ketuzsezr@darnok.org>
+Description:	The /sys/firmware/ibft/ethernetX directory will contain
+		files that expose the iSCSI Boot Firmware Table NIC data.
+		Usually this contains the IP address, MAC, and gateway of the NIC.

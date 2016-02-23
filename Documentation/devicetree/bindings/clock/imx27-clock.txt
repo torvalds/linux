@@ -1,0 +1,28 @@
+* Clock bindings for Freescale i.MX27
+
+Required properties:
+- compatible: Should be "fsl,imx27-ccm"
+- reg: Address and length of the register set
+- interrupts: Should contain CCM interrupt
+- #clock-cells: Should be <1>
+
+The clock consumer should specify the desired clock by having the clock
+ID in its "clocks" phandle cell. See include/dt-bindings/clock/imx27-clock.h
+for the full list of i.MX27 clock IDs.
+
+Examples:
+	clks: ccm@10027000{
+		compatible = "fsl,imx27-ccm";
+		reg = <0x10027000 0x1000>;
+		#clock-cells = <1>;
+	};
+
+	uart1: serial@1000a000 {
+		compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+		reg = <0x1000a000 0x1000>;
+		interrupts = <20>;
+		clocks = <&clks IMX27_CLK_UART1_IPG_GATE>,
+			 <&clks IMX27_CLK_PER1_GATE>;
+		clock-names = "ipg", "per";
+		status = "disabled";
+	};

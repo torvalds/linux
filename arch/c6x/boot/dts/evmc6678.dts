@@ -1,0 +1,83 @@
+/*
+ * arch/c6x/boot/dts/evmc6678.dts
+ *
+ * EVMC6678 Evaluation Platform For TMS320C6678
+ *
+ * Copyright (C) 2012 Texas Instruments Incorporated
+ *
+ * Author: Ken Cox <jkc@redhat.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ */
+
+/dts-v1/;
+
+/include/ "tms320c6678.dtsi"
+
+/ {
+	model = "Advantech EVMC6678";
+	compatible = "advantech,evmc6678";
+
+	chosen {
+		bootargs = "root=/dev/nfs ip=dhcp rw";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;
+	};
+
+	soc {
+		megamod_pic: interrupt-controller@1800000 {
+		       interrupts = < 12 13 14 15 >;
+		};
+
+		timer8: timer@2280000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 66 >;
+		};
+
+		timer9: timer@2290000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 68 >;
+		};
+
+		timer10: timer@22A0000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 70 >;
+		};
+
+		timer11: timer@22B0000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 72 >;
+		};
+
+		timer12: timer@22C0000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 74 >;
+		};
+
+		timer13: timer@22D0000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 76 >;
+		};
+
+		timer14: timer@22E0000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 78 >;
+		};
+
+		timer15: timer@22F0000 {
+			interrupt-parent = <&megamod_pic>;
+			interrupts = < 80 >;
+		};
+
+		clock-controller@2310000 {
+			clock-frequency = <100000000>;
+		};
+	};
+};

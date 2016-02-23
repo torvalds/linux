@@ -1,0 +1,21 @@
+Cadence TTC - Triple Timer Counter
+
+Required properties:
+- compatible : Should be "cdns,ttc".
+- reg : Specifies base physical address and size of the registers.
+- interrupts : A list of 3 interrupts; one per timer channel.
+- clocks: phandle to the source clock
+
+Optional properties:
+- timer-width: Bit width of the timer, necessary if not 16.
+
+Example:
+
+ttc0: ttc0@f8001000 {
+	interrupt-parent = <&intc>;
+	interrupts = < 0 10 4 0 11 4 0 12 4 >;
+	compatible = "cdns,ttc";
+	reg = <0xF8001000 0x1000>;
+	clocks = <&cpu_clk 3>;
+	timer-width = <32>;
+};

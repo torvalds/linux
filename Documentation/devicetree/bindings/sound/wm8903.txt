@@ -1,0 +1,69 @@
+WM8903 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+  - compatible : "wlf,wm8903"
+
+  - reg : the I2C address of the device.
+
+  - gpio-controller : Indicates this device is a GPIO controller.
+
+  - #gpio-cells : Should be two. The first cell is the pin number and the
+    second cell is used to specify optional parameters (currently unused).
+
+Optional properties:
+
+  - interrupts : The interrupt line the codec is connected to.
+
+  - micdet-cfg : Default register value for R6 (Mic Bias). If absent, the
+    default is 0.
+
+  - micdet-delay : The debounce delay for microphone detection in mS. If
+    absent, the default is 100.
+
+  - gpio-cfg : A list of GPIO configuration register values. The list must
+    be 5 entries long. If absent, no configuration of these registers is
+    performed. If any entry has the value 0xffffffff, that GPIO's
+    configuration will not be modified.
+
+Pins on the device (for linking into audio routes):
+
+  * IN1L
+  * IN1R
+  * IN2L
+  * IN2R
+  * IN3L
+  * IN3R
+  * DMICDAT
+  * HPOUTL
+  * HPOUTR
+  * LINEOUTL
+  * LINEOUTR
+  * LOP
+  * LON
+  * ROP
+  * RON
+  * MICBIAS
+
+Example:
+
+codec: wm8903@1a {
+	compatible = "wlf,wm8903";
+	reg = <0x1a>;
+	interrupts = < 347 >;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	micdet-cfg = <0>;
+	micdet-delay = <100>;
+	gpio-cfg = <
+		0x0600 /* DMIC_LR, output */
+		0x0680 /* DMIC_DAT, input */
+		0x0000 /* GPIO, output, low */
+		0x0200 /* Interrupt, output */
+		0x01a0 /* BCLK, input, active high */
+	>;
+};
