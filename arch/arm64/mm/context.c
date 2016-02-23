@@ -40,6 +40,28 @@ static cpumask_t tlb_flush_pending;
 #define ASID_FIRST_VERSION	(1UL << asid_bits)
 #define NUM_USER_ASIDS		ASID_FIRST_VERSION
 
+/* Get the ASIDBits supported by the current CPU */
+static u32 get_cpu_asid_bits(void)
+{
+	u32 asid;
+	int fld = cpuid_feature_extract_field(read_cpuid(SYS_ID_AA64MMFR0_EL1),
+						ID_AA64MMFR0_ASID_SHIFT);
+
+	switch (fld) {
+	default:
+		pr_warn("CPU%d: Unknown ASID size (%d); assuming 8-bit\n",
+					smp_processor_id(),  fld);
+		/* Fallthrough */
+	case 0:
+		asid = 8;
+		break;
+	case 2:
+		asid = 16;
+	}
+
+	return asid;
+}
+
 static void flush_context(unsigned int cpu)
 {
 	int i;
@@ -187,19 +209,7 @@ switch_mm_fastpath:
 
 static int asids_init(void)
 {
-	int fld = cpuid_feature_extract_field(read_cpuid(SYS_ID_AA64MMFR0_EL1), 4);
-
-	switch (fld) {
-	default:
-		pr_warn("Unknown ASID size (%d); assuming 8-bit\n", fld);
-		/* Fallthrough */
-	case 0:
-		asid_bits = 8;
-		break;
-	case 2:
-		asid_bits = 16;
-	}
-
+	asid_bits = get_cpu_asid_bits();
 	/* If we end up with more CPUs than ASIDs, expect things to crash */
 	WARN_ON(NUM_USER_ASIDS < num_possible_cpus());
 	atomic64_set(&asid_generation, ASID_FIRST_VERSION);
