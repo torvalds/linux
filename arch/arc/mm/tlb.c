@@ -45,7 +45,7 @@
  *       in interrupt-safe region.
  *
  * Vineetg: April 23rd Bug #93131
- *    Problem: tlb_flush_kernel_range() doesnt do anything if the range to
+ *    Problem: tlb_flush_kernel_range() doesn't do anything if the range to
  *              flush is more than the size of TLB itself.
  *
  * Rahul Trivedi : Codito Technologies 2004
@@ -167,7 +167,7 @@ static void utlb_invalidate(void)
 	/* MMU v2 introduced the uTLB Flush command.
 	 * There was however an obscure hardware bug, where uTLB flush would
 	 * fail when a prior probe for J-TLB (both totally unrelated) would
-	 * return lkup err - because the entry didnt exist in MMU.
+	 * return lkup err - because the entry didn't exist in MMU.
 	 * The Workround was to set Index reg with some valid value, prior to
 	 * flush. This was fixed in MMU v3 hence not needed any more
 	 */
@@ -210,7 +210,7 @@ static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 
 	/*
 	 * Commit the Entry to MMU
-	 * It doesnt sound safe to use the TLBWriteNI cmd here
+	 * It doesn't sound safe to use the TLBWriteNI cmd here
 	 * which doesn't flush uTLBs. I'd rather be safe than sorry.
 	 */
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
@@ -636,7 +636,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
  * support.
  *
  * Normal and Super pages can co-exist (ofcourse not overlap) in TLB with a
- * new bit "SZ" in TLB page desciptor to distinguish between them.
+ * new bit "SZ" in TLB page descriptor to distinguish between them.
  * Super Page size is configurable in hardware (4K to 16M), but fixed once
  * RTL builds.
  *

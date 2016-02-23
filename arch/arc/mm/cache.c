@@ -650,7 +650,7 @@ static void __dma_cache_wback_l1(unsigned long start, unsigned long sz)
 
 /*
  * DMA ops for systems with both L1 and L2 caches, but without IOC
- * Both L1 and L2 lines need to be explicity flushed/invalidated
+ * Both L1 and L2 lines need to be explicitly flushed/invalidated
  */
 static void __dma_cache_wback_inv_slc(unsigned long start, unsigned long sz)
 {
