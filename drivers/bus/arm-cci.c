@@ -814,16 +814,9 @@ static u32 pmu_read_counter(struct perf_event *event)
 	return value;
 }
 
-static void pmu_write_counter(struct perf_event *event, u32 value)
+static void pmu_write_counter(struct cci_pmu *cci_pmu, u32 value, int idx)
 {
-	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
-	struct hw_perf_event *hw_counter = &event->hw;
-	int idx = hw_counter->idx;
-
-	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx)))
-		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
-	else
-		pmu_write_register(cci_pmu, value, idx, CCI_PMU_CNTR);
+	pmu_write_register(cci_pmu, value, idx, CCI_PMU_CNTR);
 }
 
 static void pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
@@ -836,7 +829,7 @@ static void pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
 
 		if (WARN_ON(!event))
 			continue;
-		pmu_write_counter(event, local64_read(&event->hw.prev_count));
+		pmu_write_counter(cci_pmu, local64_read(&event->hw.prev_count), i);
 	}
 }
 
