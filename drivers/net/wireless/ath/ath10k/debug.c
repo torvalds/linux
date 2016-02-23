@@ -2114,6 +2114,7 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 	struct ath10k *ar = file->private_data;
 	char buf[32];
 	size_t buf_size;
+	int ret = 0;
 	bool val;
 
 	buf_size = min(count, (sizeof(buf) - 1));
@@ -2127,6 +2128,12 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 
 	mutex_lock(&ar->conf_mutex);
 
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_RESTARTED) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
 	if (!(test_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags) ^ val))
 		goto exit;
 
@@ -2135,17 +2142,15 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 	else
 		clear_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
 
-	if (ar->state != ATH10K_STATE_ON)
-		goto exit;
-
 	ath10k_info(ar, "restarting firmware due to btcoex change");
 
 	queue_work(ar->workqueue, &ar->restart_work);
+	ret = count;
 
 exit:
 	mutex_unlock(&ar->conf_mutex);
 
-	return count;
+	return ret;
 }
 
 static ssize_t ath10k_read_btcoex(struct file *file, char __user *ubuf,
