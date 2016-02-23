@@ -39,6 +39,32 @@
 		};
 	};
 
+	i2c2_pins: i2c2 {
+		mux {
+			pins = "gpio24", "gpio25";
+			function = "gsbi2";
+		};
+
+		pinconf {
+			pins = "gpio24", "gpio25";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	i2c2_pins_sleep: i2c2_pins_sleep {
+		mux {
+			pins = "gpio24", "gpio25";
+			function = "gpio";
+		};
+
+		pinconf {
+			pins = "gpio24", "gpio25";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
 	i2c3_pins: i2c3 {
 		mux {
 			pins = "gpio8", "gpio9";
