@@ -367,6 +367,17 @@
 				clock-names = "core", "iface";
 				status = "disabled";
 			};
+
+			gsbi6_i2c: i2c@16580000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				pinctrl-0 = <&i2c6_pins &i2c6_pins_sleep>;
+				pinctrl-names = "default", "sleep";
+				reg = <0x16580000 0x1000>;
+				interrupts = <GIC_SPI 157 IRQ_TYPE_NONE>;
+				clocks = <&gcc GSBI6_QUP_CLK>,
+					 <&gcc GSBI6_H_CLK>;
+				clock-names = "core", "iface";
+			};
 		};
 
 		gsbi7: gsbi@16600000 {

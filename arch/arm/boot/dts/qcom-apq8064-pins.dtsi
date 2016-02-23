@@ -153,6 +153,31 @@
 		};
 	};
 
+	i2c6_pins: i2c6 {
+		mux {
+			pins = "gpio16", "gpio17";
+			function = "gsbi6";
+		};
+
+		pinconf {
+			pins = "gpio16", "gpio17";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	i2c6_pins_sleep: i2c6_pins_sleep {
+		mux {
+			pins = "gpio16", "gpio17";
+			function = "gpio";
+		};
+		pinconf {
+			pins = "gpio16", "gpio17";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
 	gsbi6_uart_2pins: gsbi6_uart_2pins {
 		mux {
 			pins = "gpio14", "gpio15";
