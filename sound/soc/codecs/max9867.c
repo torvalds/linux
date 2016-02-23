@@ -180,7 +180,8 @@ static int max9867_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct max9867_priv *max9867 = snd_soc_codec_get_drvdata(codec);
-	unsigned int ni_h, ni_l, value;
+	unsigned int ni_h, ni_l;
+	int value;
 
 	value = get_ni_value(max9867->sysclk, params_rate(params));
 	if (value < 0)
