@@ -624,7 +624,6 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 	struct gpio_keys_button *button;
 	int error;
 	int nbuttons;
-	int i;
 
 	node = dev->of_node;
 	if (!node)
@@ -640,18 +639,17 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	pdata->buttons = (struct gpio_keys_button *)(pdata + 1);
+	button = (struct gpio_keys_button *)(pdata + 1);
+
+	pdata->buttons = button;
 	pdata->nbuttons = nbuttons;
 
 	pdata->rep = !!of_get_property(node, "autorepeat", NULL);
 
 	of_property_read_string(node, "label", &pdata->name);
 
-	i = 0;
 	for_each_available_child_of_node(node, pp) {
 		enum of_gpio_flags flags;
-
-		button = &pdata->buttons[i++];
 
 		button->gpio = of_get_gpio_flags(pp, 0, &flags);
 		if (button->gpio < 0) {
@@ -694,6 +692,8 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 		if (of_property_read_u32(pp, "debounce-interval",
 					 &button->debounce_interval))
 			button->debounce_interval = 5;
+
+		button++;
 	}
 
 	if (pdata->nbuttons == 0)
