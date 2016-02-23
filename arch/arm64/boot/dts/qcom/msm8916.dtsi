@@ -352,6 +352,32 @@
 			status = "disabled";
 		};
 
+		lpass: lpass@07708000 {
+			status = "disabled";
+			compatible = "qcom,lpass-cpu-apq8016";
+			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
+				 <&gcc GCC_ULTAUDIO_PCNOC_MPORT_CLK>,
+				 <&gcc GCC_ULTAUDIO_PCNOC_SWAY_CLK>,
+				 <&gcc GCC_ULTAUDIO_LPAIF_PRI_I2S_CLK>,
+				 <&gcc GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK>,
+				 <&gcc GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK>,
+				 <&gcc GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK>;
+
+			clock-names = "ahbix-clk",
+					"pcnoc-mport-clk",
+					"pcnoc-sway-clk",
+					"mi2s-bit-clk0",
+					"mi2s-bit-clk1",
+					"mi2s-bit-clk2",
+					"mi2s-bit-clk3";
+			#sound-dai-cells = <1>;
+
+			interrupts = <0 160 0>;
+			interrupt-names = "lpass-irq-lpaif";
+			reg = <0x07708000 0x10000>;
+			reg-names = "lpass-lpaif";
+		};
+
 		sdhc_1: sdhci@07824000 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x07824900 0x11c>, <0x07824000 0x800>;
