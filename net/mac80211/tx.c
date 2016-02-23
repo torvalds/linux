@@ -1692,6 +1692,8 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 	u8 rate_retries = 0;
 	u16 rate_flags = 0;
 	u8 mcs_known, mcs_flags;
+	u16 vht_known;
+	u8 vht_mcs = 0, vht_nss = 0;
 	int i;
 
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
@@ -1772,6 +1774,32 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 				rate_flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 			break;
 
+		case IEEE80211_RADIOTAP_VHT:
+			vht_known = get_unaligned_le16(iterator.this_arg);
+			rate_found = true;
+
+			rate_flags = IEEE80211_TX_RC_VHT_MCS;
+			if ((vht_known & IEEE80211_RADIOTAP_VHT_KNOWN_GI) &&
+			    (iterator.this_arg[2] &
+			     IEEE80211_RADIOTAP_VHT_FLAG_SGI))
+				rate_flags |= IEEE80211_TX_RC_SHORT_GI;
+			if (vht_known &
+			    IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH) {
+				if (iterator.this_arg[3] == 1)
+					rate_flags |=
+						IEEE80211_TX_RC_40_MHZ_WIDTH;
+				else if (iterator.this_arg[3] == 4)
+					rate_flags |=
+						IEEE80211_TX_RC_80_MHZ_WIDTH;
+				else if (iterator.this_arg[3] == 11)
+					rate_flags |=
+						IEEE80211_TX_RC_160_MHZ_WIDTH;
+			}
+
+			vht_mcs = iterator.this_arg[4] >> 4;
+			vht_nss = iterator.this_arg[4] & 0xF;
+			break;
+
 		/*
 		 * Please update the file
 		 * Documentation/networking/mac80211-injection.txt
@@ -1797,6 +1825,9 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 
 		if (rate_flags & IEEE80211_TX_RC_MCS) {
 			info->control.rates[0].idx = rate;
+		} else if (rate_flags & IEEE80211_TX_RC_VHT_MCS) {
+			ieee80211_rate_set_vht(info->control.rates, vht_mcs,
+					       vht_nss);
 		} else {
 			for (i = 0; i < sband->n_bitrates; i++) {
 				if (rate * 5 != sband->bitrates[i].bitrate)
