@@ -86,7 +86,6 @@ struct hdmi_spec_per_pin {
 	struct hdmi_eld sink_eld;
 	struct mutex lock;
 	struct delayed_work work;
-	struct snd_kcontrol *eld_ctl;
 	struct hdmi_pcm *pcm; /* pointer to spec->pcm_rec[n] dynamically*/
 	int pcm_idx; /* which pcm is attached. -1 means no pcm is attached */
 	int repoll_count;
@@ -136,6 +135,7 @@ struct hdmi_ops {
 struct hdmi_pcm {
 	struct hda_pcm *pcm;
 	struct snd_jack *jack;
+	struct snd_kcontrol *eld_ctl;
 };
 
 struct hdmi_spec {
@@ -471,17 +471,22 @@ static int hdmi_eld_ctl_info(struct snd_kcontrol *kcontrol,
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_pin *per_pin;
 	struct hdmi_eld *eld;
-	int pin_idx;
+	int pcm_idx;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
 
-	pin_idx = kcontrol->private_value;
-	per_pin = get_pin(spec, pin_idx);
+	pcm_idx = kcontrol->private_value;
+	mutex_lock(&spec->pcm_lock);
+	per_pin = pcm_idx_to_pin(spec, pcm_idx);
+	if (!per_pin) {
+		/* no pin is bound to the pcm */
+		uinfo->count = 0;
+		mutex_unlock(&spec->pcm_lock);
+		return 0;
+	}
 	eld = &per_pin->sink_eld;
-
-	mutex_lock(&per_pin->lock);
 	uinfo->count = eld->eld_valid ? eld->eld_size : 0;
-	mutex_unlock(&per_pin->lock);
+	mutex_unlock(&spec->pcm_lock);
 
 	return 0;
 }
@@ -493,16 +498,23 @@ static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_pin *per_pin;
 	struct hdmi_eld *eld;
-	int pin_idx;
+	int pcm_idx;
 
-	pin_idx = kcontrol->private_value;
-	per_pin = get_pin(spec, pin_idx);
+	pcm_idx = kcontrol->private_value;
+	mutex_lock(&spec->pcm_lock);
+	per_pin = pcm_idx_to_pin(spec, pcm_idx);
+	if (!per_pin) {
+		/* no pin is bound to the pcm */
+		memset(ucontrol->value.bytes.data, 0,
+		       ARRAY_SIZE(ucontrol->value.bytes.data));
+		mutex_unlock(&spec->pcm_lock);
+		return 0;
+	}
 	eld = &per_pin->sink_eld;
 
-	mutex_lock(&per_pin->lock);
 	if (eld->eld_size > ARRAY_SIZE(ucontrol->value.bytes.data) ||
 	    eld->eld_size > ELD_MAX_SIZE) {
-		mutex_unlock(&per_pin->lock);
+		mutex_unlock(&spec->pcm_lock);
 		snd_BUG();
 		return -EINVAL;
 	}
@@ -512,7 +524,7 @@ static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 	if (eld->eld_valid)
 		memcpy(ucontrol->value.bytes.data, eld->eld_buffer,
 		       eld->eld_size);
-	mutex_unlock(&per_pin->lock);
+	mutex_unlock(&spec->pcm_lock);
 
 	return 0;
 }
@@ -525,7 +537,7 @@ static struct snd_kcontrol_new eld_bytes_ctl = {
 	.get = hdmi_eld_ctl_get,
 };
 
-static int hdmi_create_eld_ctl(struct hda_codec *codec, int pin_idx,
+static int hdmi_create_eld_ctl(struct hda_codec *codec, int pcm_idx,
 			int device)
 {
 	struct snd_kcontrol *kctl;
@@ -535,14 +547,17 @@ static int hdmi_create_eld_ctl(struct hda_codec *codec, int pin_idx,
 	kctl = snd_ctl_new1(&eld_bytes_ctl, codec);
 	if (!kctl)
 		return -ENOMEM;
-	kctl->private_value = pin_idx;
+	kctl->private_value = pcm_idx;
 	kctl->id.device = device;
 
-	err = snd_hda_ctl_add(codec, get_pin(spec, pin_idx)->pin_nid, kctl);
+	/* no pin nid is associated with the kctl now
+	 * tbd: associate pin nid to eld ctl later
+	 */
+	err = snd_hda_ctl_add(codec, 0, kctl);
 	if (err < 0)
 		return err;
 
-	get_pin(spec, pin_idx)->eld_ctl = kctl;
+	get_hdmi_pcm(spec, pcm_idx)->eld_ctl = kctl;
 	return 0;
 }
 
@@ -1841,7 +1856,10 @@ static void update_eld(struct hda_codec *codec,
 	struct hdmi_spec *spec = codec->spec;
 	bool old_eld_valid = pin_eld->eld_valid;
 	bool eld_changed;
+	int pcm_idx = -1;
 
+	/* for monitor disconnection, save pcm_idx firstly */
+	pcm_idx = per_pin->pcm_idx;
 	if (spec->dyn_pcm_assign) {
 		if (eld->eld_valid) {
 			hdmi_attach_hda_pcm(spec, per_pin);
@@ -1851,6 +1869,11 @@ static void update_eld(struct hda_codec *codec,
 			hdmi_detach_hda_pcm(spec, per_pin);
 		}
 	}
+	/* if pcm_idx == -1, it means this is in monitor connection event
+	 * we can get the correct pcm_idx now.
+	 */
+	if (pcm_idx == -1)
+		pcm_idx = per_pin->pcm_idx;
 
 	if (eld->eld_valid)
 		snd_hdmi_show_eld(codec, &eld->info);
@@ -1884,11 +1907,11 @@ static void update_eld(struct hda_codec *codec,
 		hdmi_setup_audio_infoframe(codec, per_pin, per_pin->non_pcm);
 	}
 
-	if (eld_changed)
+	if (eld_changed && pcm_idx >= 0)
 		snd_ctl_notify(codec->card,
 			       SNDRV_CTL_EVENT_MASK_VALUE |
 			       SNDRV_CTL_EVENT_MASK_INFO,
-			       &per_pin->eld_ctl->id);
+			       &get_hdmi_pcm(spec, pcm_idx)->eld_ctl->id);
 }
 
 /* update ELD and jack state via HD-audio verbs */
@@ -2629,17 +2652,16 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 		snd_hda_spdif_ctls_unassign(codec, pcm_idx);
+
+		/* add control for ELD Bytes */
+		err = hdmi_create_eld_ctl(codec, pcm_idx,
+					get_pcm_rec(spec, pcm_idx)->device);
+		if (err < 0)
+			return err;
 	}
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
-
-		/* add control for ELD Bytes */
-		err = hdmi_create_eld_ctl(codec, pin_idx,
-				get_pcm_rec(spec, pin_idx)->device);
-
-		if (err < 0)
-			return err;
 
 		hdmi_present_sense(per_pin, 0);
 	}
