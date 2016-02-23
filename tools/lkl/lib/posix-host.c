@@ -374,7 +374,7 @@ static int net_poll(union lkl_netdev nd, int events)
 	int ret = 0;
 
 	if (events & LKL_DEV_NET_POLL_RX)
-		pfd.events |= POLLIN;
+		pfd.events |= POLLIN | POLLPRI;
 	if (events & LKL_DEV_NET_POLL_TX)
 		pfd.events |= POLLOUT;
 
