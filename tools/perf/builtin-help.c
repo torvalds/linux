@@ -86,8 +86,7 @@ static int check_emacsclient_version(void)
 		return -1;
 	}
 
-	strbuf_remove(&buffer, 0, strlen("emacsclient"));
-	version = atoi(buffer.buf);
+	version = atoi(buffer.buf + strlen("emacsclient"));
 
 	if (version < 22) {
 		fprintf(stderr,
