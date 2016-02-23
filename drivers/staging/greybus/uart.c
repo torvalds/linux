@@ -43,7 +43,7 @@ struct gb_tty_line_coding {
 struct gb_tty {
 	struct tty_port port;
 	void *buffer;
-	u32 buffer_payload_max;
+	size_t buffer_payload_max;
 	struct gb_connection *connection;
 	u16 cport_id;
 	unsigned int minor;
@@ -608,11 +608,8 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	}
 
 	gb_tty->buffer_payload_max =
-		gb_operation_get_payload_size_max(connection);
-	if (!gb_tty->buffer_payload_max) {
-		retval = -EINVAL;
-		goto error_payload;
-	}
+		gb_operation_get_payload_size_max(connection) -
+			sizeof(struct gb_uart_send_data_request);
 
 	gb_tty->buffer = kzalloc(gb_tty->buffer_payload_max, GFP_KERNEL);
 	if (!gb_tty->buffer) {
