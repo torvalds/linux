@@ -162,6 +162,15 @@
 			};
 		};
 
+		gsbi@16300000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_I2C>;
+			/* CAM I2C MIPI-CSI connector */
+			i2c@16380000 {
+				status = "okay";
+			};
+		};
+
 		gsbi@12440000 {
 			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C>;
