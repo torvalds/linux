@@ -122,11 +122,11 @@ struct jbd2_revoke_table_s
 
 
 #ifdef __KERNEL__
-static void write_one_revoke_record(journal_t *, transaction_t *,
+static void write_one_revoke_record(transaction_t *,
 				    struct list_head *,
 				    struct buffer_head **, int *,
-				    struct jbd2_revoke_record_s *, int);
-static void flush_descriptor(journal_t *, struct buffer_head *, int, int);
+				    struct jbd2_revoke_record_s *);
+static void flush_descriptor(journal_t *, struct buffer_head *, int);
 #endif
 
 /* Utility functions to maintain the revoke table */
@@ -519,11 +519,10 @@ void jbd2_journal_switch_revoke_table(journal_t *journal)
  * Write revoke records to the journal for all entries in the current
  * revoke hash, deleting the entries as we go.
  */
-void jbd2_journal_write_revoke_records(journal_t *journal,
-				       transaction_t *transaction,
-				       struct list_head *log_bufs,
-				       int write_op)
+void jbd2_journal_write_revoke_records(transaction_t *transaction,
+				       struct list_head *log_bufs)
 {
+	journal_t *journal = transaction->t_journal;
 	struct buffer_head *descriptor;
 	struct jbd2_revoke_record_s *record;
 	struct jbd2_revoke_table_s *revoke;
@@ -544,16 +543,15 @@ void jbd2_journal_write_revoke_records(journal_t *journal,
 		while (!list_empty(hash_list)) {
 			record = (struct jbd2_revoke_record_s *)
 				hash_list->next;
-			write_one_revoke_record(journal, transaction, log_bufs,
-						&descriptor, &offset,
-						record, write_op);
+			write_one_revoke_record(transaction, log_bufs,
+						&descriptor, &offset, record);
 			count++;
 			list_del(&record->hash);
 			kmem_cache_free(jbd2_revoke_record_cache, record);
 		}
 	}
 	if (descriptor)
-		flush_descriptor(journal, descriptor, offset, write_op);
+		flush_descriptor(journal, descriptor, offset);
 	jbd_debug(1, "Wrote %d revoke records\n", count);
 }
 
@@ -562,14 +560,13 @@ void jbd2_journal_write_revoke_records(journal_t *journal,
  * block if the old one is full or if we have not already created one.
  */
 
-static void write_one_revoke_record(journal_t *journal,
-				    transaction_t *transaction,
+static void write_one_revoke_record(transaction_t *transaction,
 				    struct list_head *log_bufs,
 				    struct buffer_head **descriptorp,
 				    int *offsetp,
-				    struct jbd2_revoke_record_s *record,
-				    int write_op)
+				    struct jbd2_revoke_record_s *record)
 {
+	journal_t *journal = transaction->t_journal;
 	int csum_size = 0;
 	struct buffer_head *descriptor;
 	int sz, offset;
@@ -597,7 +594,7 @@ static void write_one_revoke_record(journal_t *journal,
 	/* Make sure we have a descriptor with space left for the record */
 	if (descriptor) {
 		if (offset + sz > journal->j_blocksize - csum_size) {
-			flush_descriptor(journal, descriptor, offset, write_op);
+			flush_descriptor(journal, descriptor, offset);
 			descriptor = NULL;
 		}
 	}
@@ -654,7 +651,7 @@ static void jbd2_revoke_csum_set(journal_t *j, struct buffer_head *bh)
 
 static void flush_descriptor(journal_t *journal,
 			     struct buffer_head *descriptor,
-			     int offset, int write_op)
+			     int offset)
 {
 	jbd2_journal_revoke_header_t *header;
 
@@ -670,7 +667,7 @@ static void flush_descriptor(journal_t *journal,
 	set_buffer_jwrite(descriptor);
 	BUFFER_TRACE(descriptor, "write");
 	set_buffer_dirty(descriptor);
-	write_dirty_buffer(descriptor, write_op);
+	write_dirty_buffer(descriptor, WRITE_SYNC);
 }
 #endif
 

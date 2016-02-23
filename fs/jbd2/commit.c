@@ -554,8 +554,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		jbd2_journal_abort(journal, err);
 
 	blk_start_plug(&plug);
-	jbd2_journal_write_revoke_records(journal, commit_transaction,
-					  &log_bufs, WRITE_SYNC);
+	jbd2_journal_write_revoke_records(commit_transaction, &log_bufs);
 
 	jbd_debug(3, "JBD2: commit phase 2b\n");
 
