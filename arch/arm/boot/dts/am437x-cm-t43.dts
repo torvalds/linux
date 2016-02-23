@@ -146,7 +146,11 @@
 	pinctrl-0 = <&nand_flash_x8>;
 	ranges = <0 0 0x08000000 0x1000000>;
 	nand@0,0 {
-		reg = <0 0 0>;
+		compatible = "ti,omap2-nand";
+		reg = <0 0 4>;		/* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		ti,nand-ecc-opt = "bch8";
 		ti,elm-id = <&elm>;
 
