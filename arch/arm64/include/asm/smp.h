@@ -77,6 +77,7 @@ extern int __cpu_disable(void);
 
 extern void __cpu_die(unsigned int cpu);
 extern void cpu_die(void);
+extern void cpu_die_early(void);
 
 static inline void cpu_park_loop(void)
 {
