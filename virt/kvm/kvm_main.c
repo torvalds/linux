@@ -1434,11 +1434,17 @@ kvm_pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn,
 {
 	unsigned long addr = __gfn_to_hva_many(slot, gfn, NULL, write_fault);
 
-	if (addr == KVM_HVA_ERR_RO_BAD)
+	if (addr == KVM_HVA_ERR_RO_BAD) {
+		if (writable)
+			*writable = false;
 		return KVM_PFN_ERR_RO_FAULT;
+	}
 
-	if (kvm_is_error_hva(addr))
+	if (kvm_is_error_hva(addr)) {
+		if (writable)
+			*writable = false;
 		return KVM_PFN_NOSLOT;
+	}
 
 	/* Do not map writable pfn in the readonly memslot. */
 	if (writable && memslot_is_readonly(slot)) {
