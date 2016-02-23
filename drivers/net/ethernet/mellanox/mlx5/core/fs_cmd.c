@@ -424,3 +424,51 @@ void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
 	*packets = MLX5_GET64(traffic_counter, stats, packets);
 	*bytes = MLX5_GET64(traffic_counter, stats, octets);
 }
+
+#define MAX_ENCAP_SIZE (128)
+
+int mlx5_cmd_alloc_encap(struct mlx5_core_dev *dev,
+			 int header_type,
+			 size_t size,
+			 void *encap_header,
+			 u32 *encap_id)
+{
+	u32 out[MLX5_ST_SZ_DW(alloc_encap_header_out)];
+	u32 in[MLX5_ST_SZ_DW(alloc_encap_header_in) +
+	      (MAX_ENCAP_SIZE / sizeof(u32))];
+	void *encap_header_in = MLX5_ADDR_OF(alloc_encap_header_in, in,
+					     encap_header);
+	void *header = MLX5_ADDR_OF(encap_header_in, encap_header_in,
+				    encap_header);
+	int inlen = header - (void *)in  + size;
+	int err;
+
+	if (size > MAX_ENCAP_SIZE)
+		return -EINVAL;
+
+	memset(in, 0, inlen);
+	MLX5_SET(alloc_encap_header_in, in, opcode,
+		 MLX5_CMD_OP_ALLOC_ENCAP_HEADER);
+	MLX5_SET(encap_header_in, encap_header_in, encap_header_size, size);
+	MLX5_SET(encap_header_in, encap_header_in, header_type, header_type);
+	memcpy(header, encap_header, size);
+
+	memset(out, 0, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+
+	*encap_id = MLX5_GET(alloc_encap_header_out, out, encap_id);
+	return err;
+}
+
+void mlx5_cmd_dealloc_encap(struct mlx5_core_dev *dev, u32 encap_id)
+{
+	u32 in[MLX5_ST_SZ_DW(dealloc_encap_header_in)];
+	u32 out[MLX5_ST_SZ_DW(dealloc_encap_header_out)];
+
+	memset(in, 0, sizeof(in));
+	MLX5_SET(dealloc_encap_header_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_ENCAP_HEADER);
+	MLX5_SET(dealloc_encap_header_in, in, encap_id, encap_id);
+
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
