@@ -71,16 +71,15 @@ static void batadv_gw_node_release(struct kref *ref)
 
 	gw_node = container_of(ref, struct batadv_gw_node, refcount);
 
-	batadv_orig_node_free_ref(gw_node->orig_node);
+	batadv_orig_node_put(gw_node->orig_node);
 	kfree_rcu(gw_node, rcu);
 }
 
 /**
- * batadv_gw_node_free_ref - decrement the gw_node refcounter and possibly
- *  release it
+ * batadv_gw_node_put - decrement the gw_node refcounter and possibly release it
  * @gw_node: gateway node to free
  */
-static void batadv_gw_node_free_ref(struct batadv_gw_node *gw_node)
+static void batadv_gw_node_put(struct batadv_gw_node *gw_node)
 {
 	kref_put(&gw_node->refcount, batadv_gw_node_release);
 }
@@ -125,7 +124,7 @@ unlock:
 	rcu_read_unlock();
 out:
 	if (gw_node)
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 	return orig_node;
 }
 
@@ -143,7 +142,7 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 	rcu_assign_pointer(bat_priv->gw.curr_gw, new_gw_node);
 
 	if (curr_gw_node)
-		batadv_gw_node_free_ref(curr_gw_node);
+		batadv_gw_node_put(curr_gw_node);
 
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
@@ -204,7 +203,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			    ((tmp_gw_factor == max_gw_factor) &&
 			     (tq_avg > max_tq))) {
 				if (curr_gw)
-					batadv_gw_node_free_ref(curr_gw);
+					batadv_gw_node_put(curr_gw);
 				curr_gw = gw_node;
 				kref_get(&curr_gw->refcount);
 			}
@@ -219,7 +218,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			  */
 			if (tq_avg > max_tq) {
 				if (curr_gw)
-					batadv_gw_node_free_ref(curr_gw);
+					batadv_gw_node_put(curr_gw);
 				curr_gw = gw_node;
 				kref_get(&curr_gw->refcount);
 			}
@@ -232,12 +231,12 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 		if (tmp_gw_factor > max_gw_factor)
 			max_gw_factor = tmp_gw_factor;
 
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 
 next:
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 		if (router_ifinfo)
-			batadv_neigh_ifinfo_free_ref(router_ifinfo);
+			batadv_neigh_ifinfo_put(router_ifinfo);
 	}
 	rcu_read_unlock();
 
@@ -273,7 +272,7 @@ void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
 	 */
 	batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_DEL, NULL);
 
-	batadv_gw_node_free_ref(curr_gw);
+	batadv_gw_node_put(curr_gw);
 }
 
 void batadv_gw_election(struct batadv_priv *bat_priv)
@@ -348,13 +347,13 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 
 out:
 	if (curr_gw)
-		batadv_gw_node_free_ref(curr_gw);
+		batadv_gw_node_put(curr_gw);
 	if (next_gw)
-		batadv_gw_node_free_ref(next_gw);
+		batadv_gw_node_put(next_gw);
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 	if (router_ifinfo)
-		batadv_neigh_ifinfo_free_ref(router_ifinfo);
+		batadv_neigh_ifinfo_put(router_ifinfo);
 }
 
 void batadv_gw_check_election(struct batadv_priv *bat_priv,
@@ -415,15 +414,15 @@ reselect:
 	batadv_gw_reselect(bat_priv);
 out:
 	if (curr_gw_orig)
-		batadv_orig_node_free_ref(curr_gw_orig);
+		batadv_orig_node_put(curr_gw_orig);
 	if (router_gw)
-		batadv_neigh_node_free_ref(router_gw);
+		batadv_neigh_node_put(router_gw);
 	if (router_orig)
-		batadv_neigh_node_free_ref(router_orig);
+		batadv_neigh_node_put(router_orig);
 	if (router_gw_tq)
-		batadv_neigh_ifinfo_free_ref(router_gw_tq);
+		batadv_neigh_ifinfo_put(router_gw_tq);
 	if (router_orig_tq)
-		batadv_neigh_ifinfo_free_ref(router_orig_tq);
+		batadv_neigh_ifinfo_put(router_orig_tq);
 }
 
 /**
@@ -446,7 +445,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 
 	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
 	if (!gw_node) {
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 		return;
 	}
 
@@ -547,7 +546,7 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 		spin_lock_bh(&bat_priv->gw.list_lock);
 		if (!hlist_unhashed(&gw_node->list)) {
 			hlist_del_init_rcu(&gw_node->list);
-			batadv_gw_node_free_ref(gw_node);
+			batadv_gw_node_put(gw_node);
 		}
 		spin_unlock_bh(&bat_priv->gw.list_lock);
 
@@ -556,12 +555,12 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 			batadv_gw_reselect(bat_priv);
 
 		if (curr_gw)
-			batadv_gw_node_free_ref(curr_gw);
+			batadv_gw_node_put(curr_gw);
 	}
 
 out:
 	if (gw_node)
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 }
 
 void batadv_gw_node_delete(struct batadv_priv *bat_priv,
@@ -584,7 +583,7 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 	hlist_for_each_entry_safe(gw_node, node_tmp,
 				  &bat_priv->gw.list, list) {
 		hlist_del_init_rcu(&gw_node->list);
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 	}
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
@@ -621,12 +620,12 @@ static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
 	ret = seq_has_overflowed(seq) ? -1 : 0;
 
 	if (curr_gw)
-		batadv_gw_node_free_ref(curr_gw);
+		batadv_gw_node_put(curr_gw);
 out:
 	if (router_ifinfo)
-		batadv_neigh_ifinfo_free_ref(router_ifinfo);
+		batadv_neigh_ifinfo_put(router_ifinfo);
 	if (router)
-		batadv_neigh_node_free_ref(router);
+		batadv_neigh_node_put(router);
 	return ret;
 }
 
@@ -663,7 +662,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	return 0;
 }
 
@@ -857,7 +856,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			goto out;
 
 		curr_tq_avg = curr_ifinfo->bat_iv.tq_avg;
-		batadv_neigh_ifinfo_free_ref(curr_ifinfo);
+		batadv_neigh_ifinfo_put(curr_ifinfo);
 
 		break;
 	case BATADV_GW_MODE_OFF:
@@ -875,18 +874,18 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 
 	if ((curr_tq_avg - old_ifinfo->bat_iv.tq_avg) > BATADV_GW_THRESHOLD)
 		out_of_range = true;
-	batadv_neigh_ifinfo_free_ref(old_ifinfo);
+	batadv_neigh_ifinfo_put(old_ifinfo);
 
 out:
 	if (orig_dst_node)
-		batadv_orig_node_free_ref(orig_dst_node);
+		batadv_orig_node_put(orig_dst_node);
 	if (curr_gw)
-		batadv_gw_node_free_ref(curr_gw);
+		batadv_gw_node_put(curr_gw);
 	if (gw_node)
-		batadv_gw_node_free_ref(gw_node);
+		batadv_gw_node_put(gw_node);
 	if (neigh_old)
-		batadv_neigh_node_free_ref(neigh_old);
+		batadv_neigh_node_put(neigh_old);
 	if (neigh_curr)
-		batadv_neigh_node_free_ref(neigh_curr);
+		batadv_neigh_node_put(neigh_curr);
 	return out_of_range;
 }
