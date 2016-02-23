@@ -3665,18 +3665,6 @@ static int hpsa_device_supports_aborts(struct ctlr_info *h,
 	return rc;
 }
 
-static void sanitize_inquiry_string(unsigned char *s, int len)
-{
-	bool terminated = false;
-
-	for (; len > 0; (--len, ++s)) {
-		if (*s == 0)
-			terminated = true;
-		if (terminated || *s < 0x20 || *s > 0x7e)
-			*s = ' ';
-	}
-}
-
 static int hpsa_update_device_info(struct ctlr_info *h,
 	unsigned char scsi3addr[], struct hpsa_scsi_dev_t *this_device,
 	unsigned char *is_OBDR_device)
@@ -3707,8 +3695,8 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		goto bail_out;
 	}
 
-	sanitize_inquiry_string(&inq_buff[8], 8);
-	sanitize_inquiry_string(&inq_buff[16], 16);
+	scsi_sanitize_inquiry_string(&inq_buff[8], 8);
+	scsi_sanitize_inquiry_string(&inq_buff[16], 16);
 
 	this_device->devtype = (inq_buff[0] & 0x1f);
 	memcpy(this_device->scsi3addr, scsi3addr, 8);
