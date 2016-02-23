@@ -24,6 +24,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/mmu_context.h>
+#include <asm/smp.h>
 #include <asm/tlbflush.h>
 
 static u32 asid_bits;
@@ -60,6 +61,23 @@ static u32 get_cpu_asid_bits(void)
 	}
 
 	return asid;
+}
+
+/* Check if the current cpu's ASIDBits is compatible with asid_bits */
+void verify_cpu_asid_bits(void)
+{
+	u32 asid = get_cpu_asid_bits();
+
+	if (asid < asid_bits) {
+		/*
+		 * We cannot decrease the ASID size at runtime, so panic if we support
+		 * fewer ASID bits than the boot CPU.
+		 */
+		pr_crit("CPU%d: smaller ASID size(%u) than boot CPU (%u)\n",
+				smp_processor_id(), asid, asid_bits);
+		update_cpu_boot_status(CPU_PANIC_KERNEL);
+		cpu_park_loop();
+	}
 }
 
 static void flush_context(unsigned int cpu)

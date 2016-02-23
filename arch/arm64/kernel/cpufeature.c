@@ -24,6 +24,7 @@
 #include <asm/cpu.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu_ops.h>
+#include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/sysreg.h>
 
@@ -873,6 +874,15 @@ static u64 __raw_read_system_reg(u32 sys_id)
 }
 
 /*
+ * Check for CPU features that are used in early boot
+ * based on the Boot CPU value.
+ */
+static void check_early_cpu_features(void)
+{
+	verify_cpu_asid_bits();
+}
+
+/*
  * Run through the enabled system capabilities and enable() it on this CPU.
  * The capabilities were decided based on the available CPUs at the boot time.
  * Any new CPU should match the system wide status of the capability. If the
@@ -884,6 +894,8 @@ void verify_local_cpu_capabilities(void)
 {
 	int i;
 	const struct arm64_cpu_capabilities *caps;
+
+	check_early_cpu_features();
 
 	/*
 	 * If we haven't computed the system capabilities, there is nothing
