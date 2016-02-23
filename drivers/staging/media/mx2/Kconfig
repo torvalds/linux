@@ -1,0 +1,12 @@
+config VIDEO_MX2
+	tristate "i.MX27 Camera Sensor Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA
+	depends on SOC_IMX27 || COMPILE_TEST
+	depends on HAS_DMA
+	select VIDEOBUF2_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the i.MX27 Camera Sensor Interface
+
+	  This driver is deprecated and will be removed soon unless someone
+	  will start the work to convert this driver to the vb2 framework
+	  and remove the soc-camera dependency.
