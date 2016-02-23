@@ -60,30 +60,30 @@ static void __init imr_self_test(void)
 	int ret;
 
 	/* Test zero zero. */
-	ret = imr_add_range(0, 0, 0, 0, false);
+	ret = imr_add_range(0, 0, 0, 0);
 	imr_self_test_result(ret < 0, "zero sized IMR\n");
 
 	/* Test exact overlap. */
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU);
 	imr_self_test_result(ret < 0, fmt_over, __va(base), __va(base + size));
 
 	/* Test overlap with base inside of existing. */
 	base += size - IMR_ALIGN;
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU);
 	imr_self_test_result(ret < 0, fmt_over, __va(base), __va(base + size));
 
 	/* Test overlap with end inside of existing. */
 	base -= size + IMR_ALIGN * 2;
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU);
 	imr_self_test_result(ret < 0, fmt_over, __va(base), __va(base + size));
 
 	/* Test that a 1 KiB IMR @ zero with read/write all will bomb out. */
 	ret = imr_add_range(0, IMR_ALIGN, IMR_READ_ACCESS_ALL,
-			    IMR_WRITE_ACCESS_ALL, false);
+			    IMR_WRITE_ACCESS_ALL);
 	imr_self_test_result(ret < 0, "1KiB IMR @ 0x00000000 - access-all\n");
 
 	/* Test that a 1 KiB IMR @ zero with CPU only will work. */
-	ret = imr_add_range(0, IMR_ALIGN, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(0, IMR_ALIGN, IMR_CPU, IMR_CPU);
 	imr_self_test_result(ret >= 0, "1KiB IMR @ 0x00000000 - cpu-access\n");
 	if (ret >= 0) {
 		ret = imr_remove_range(0, IMR_ALIGN);
@@ -92,8 +92,7 @@ static void __init imr_self_test(void)
 
 	/* Test 2 KiB works. */
 	size = IMR_ALIGN * 2;
-	ret = imr_add_range(0, size, IMR_READ_ACCESS_ALL,
-			    IMR_WRITE_ACCESS_ALL, false);
+	ret = imr_add_range(0, size, IMR_READ_ACCESS_ALL, IMR_WRITE_ACCESS_ALL);
 	imr_self_test_result(ret >= 0, "2KiB IMR @ 0x00000000\n");
 	if (ret >= 0) {
 		ret = imr_remove_range(0, size);

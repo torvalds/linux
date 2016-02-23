@@ -134,11 +134,9 @@ static int imr_read(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
  * @idev:	pointer to imr_device structure.
  * @imr_id:	IMR entry to write.
  * @imr:	IMR structure representing address and access masks.
- * @lock:	indicates if the IMR lock bit should be applied.
  * @return:	0 on success or error code passed from mbi_iosf on failure.
  */
-static int imr_write(struct imr_device *idev, u32 imr_id,
-		     struct imr_regs *imr, bool lock)
+static int imr_write(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
 {
 	unsigned long flags;
 	u32 reg = imr_id * IMR_NUM_REGS + idev->reg_base;
@@ -161,15 +159,6 @@ static int imr_write(struct imr_device *idev, u32 imr_id,
 	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->wmask);
 	if (ret)
 		goto failed;
-
-	/* Lock bit must be set separately to addr_lo address bits. */
-	if (lock) {
-		imr->addr_lo |= IMR_LOCK;
-		ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE,
-				     reg - IMR_NUM_REGS, imr->addr_lo);
-		if (ret)
-			goto failed;
-	}
 
 	local_irq_restore(flags);
 	return 0;
@@ -322,11 +311,10 @@ static inline int imr_address_overlap(phys_addr_t addr, struct imr_regs *imr)
  * @size:	physical size of region in bytes must be aligned to 1KiB.
  * @read_mask:	read access mask.
  * @write_mask:	write access mask.
- * @lock:	indicates whether or not to permanently lock this region.
  * @return:	zero on success or negative value indicating error.
  */
 int imr_add_range(phys_addr_t base, size_t size,
-		  unsigned int rmask, unsigned int wmask, bool lock)
+		  unsigned int rmask, unsigned int wmask)
 {
 	phys_addr_t end;
 	unsigned int i;
@@ -399,7 +387,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 	imr.rmask = rmask;
 	imr.wmask = wmask;
 
-	ret = imr_write(idev, reg, &imr, lock);
+	ret = imr_write(idev, reg, &imr);
 	if (ret < 0) {
 		/*
 		 * In the highly unlikely event iosf_mbi_write failed
@@ -410,7 +398,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 		imr.addr_hi = 0;
 		imr.rmask = IMR_READ_ACCESS_ALL;
 		imr.wmask = IMR_WRITE_ACCESS_ALL;
-		imr_write(idev, reg, &imr, false);
+		imr_write(idev, reg, &imr);
 	}
 failed:
 	mutex_unlock(&idev->lock);
@@ -506,7 +494,7 @@ static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
 	imr.rmask = IMR_READ_ACCESS_ALL;
 	imr.wmask = IMR_WRITE_ACCESS_ALL;
 
-	ret = imr_write(idev, reg, &imr, false);
+	ret = imr_write(idev, reg, &imr);
 
 failed:
 	mutex_unlock(&idev->lock);
@@ -587,7 +575,7 @@ static void __init imr_fixup_memmap(struct imr_device *idev)
 	 * We don't round up @size since it is already PAGE_SIZE aligned.
 	 * See vmlinux.lds.S for details.
 	 */
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU);
 	if (ret < 0) {
 		pr_err("unable to setup IMR for kernel: %zu KiB (%lx - %lx)\n",
 			size / 1024, start, end);
