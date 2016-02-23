@@ -473,7 +473,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 	s32 result = 0;
 	struct wid wid_list[32];
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	u8 wid_cnt = 0;
+	int wid_cnt = 0;
 
 	down(&hif_drv->sem_cfg_values);
 
