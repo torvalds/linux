@@ -114,20 +114,23 @@ static struct dst_ops vrf_dst_ops = {
 #if IS_ENABLED(CONFIG_IPV6)
 static bool check_ipv6_frame(const struct sk_buff *skb)
 {
-	const struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb->data;
-	size_t hlen = sizeof(*ipv6h);
+	const struct ipv6hdr *ipv6h;
+	struct ipv6hdr _ipv6h;
 	bool rc = true;
 
-	if (skb->len < hlen)
+	ipv6h = skb_header_pointer(skb, 0, sizeof(_ipv6h), &_ipv6h);
+	if (!ipv6h)
 		goto out;
 
 	if (ipv6h->nexthdr == NEXTHDR_ICMP) {
 		const struct icmp6hdr *icmph;
+		struct icmp6hdr _icmph;
 
-		if (skb->len < hlen + sizeof(*icmph))
+		icmph = skb_header_pointer(skb, sizeof(_ipv6h),
+					   sizeof(_icmph), &_icmph);
+		if (!icmph)
 			goto out;
 
-		icmph = (struct icmp6hdr *)(skb->data + sizeof(*ipv6h));
 		switch (icmph->icmp6_type) {
 		case NDISC_ROUTER_SOLICITATION:
 		case NDISC_ROUTER_ADVERTISEMENT:
