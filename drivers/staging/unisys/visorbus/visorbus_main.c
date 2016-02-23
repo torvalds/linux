@@ -1197,17 +1197,14 @@ fix_vbus_dev_info(struct visor_device *visordev)
 static int
 create_bus_instance(struct visor_device *dev)
 {
-	int rc;
 	int id = dev->chipset_bus_no;
 	struct spar_vbus_headerinfo *hdr_info;
 
 	POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 
 	hdr_info = kzalloc(sizeof(*hdr_info), GFP_KERNEL);
-	if (!hdr_info) {
-		rc = -1;
-		goto away;
-	}
+	if (!hdr_info)
+		return -ENOMEM;
 
 	dev_set_name(&dev->device, "visorbus%d", id);
 	dev->device.bus = &visorbus_type;
@@ -1217,8 +1214,8 @@ create_bus_instance(struct visor_device *dev)
 	if (device_register(&dev->device) < 0) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, id,
 				 POSTCODE_SEVERITY_ERR);
-		rc = -1;
-		goto away_mem;
+		kfree(hdr_info);
+		return -ENODEV;
 	}
 
 	if (get_vbus_header_info(dev->visorchannel, hdr_info) >= 0) {
@@ -1234,11 +1231,6 @@ create_bus_instance(struct visor_device *dev)
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
 	dev_set_drvdata(&dev->device, dev);
 	return 0;
-
-away_mem:
-	kfree(hdr_info);
-away:
-	return rc;
 }
 
 /** Remove a device instance for the visor bus itself.
