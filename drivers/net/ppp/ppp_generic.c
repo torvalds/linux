@@ -2429,13 +2429,15 @@ ppp_set_compress(struct ppp *ppp, unsigned long arg)
 	unsigned char ccp_option[CCP_MAX_OPTION_LENGTH];
 
 	err = -EFAULT;
-	if (copy_from_user(&data, (void __user *) arg, sizeof(data)) ||
-	    (data.length <= CCP_MAX_OPTION_LENGTH &&
-	     copy_from_user(ccp_option, (void __user *) data.ptr, data.length)))
+	if (copy_from_user(&data, (void __user *) arg, sizeof(data)))
 		goto out;
+	if (data.length > CCP_MAX_OPTION_LENGTH)
+		goto out;
+	if (copy_from_user(ccp_option, (void __user *) data.ptr, data.length))
+		goto out;
+
 	err = -EINVAL;
-	if (data.length > CCP_MAX_OPTION_LENGTH ||
-	    ccp_option[1] < 2 || ccp_option[1] > data.length)
+	if (data.length < 2 || ccp_option[1] < 2 || ccp_option[1] > data.length)
 		goto out;
 
 	cp = try_then_request_module(
