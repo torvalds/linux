@@ -1038,13 +1038,6 @@ static int xlr_net_probe(struct platform_device *pdev)
 		priv->port_id = (pdev->id * 4) + port;
 		priv->nd = (struct xlr_net_data *)pdev->dev.platform_data;
 		res = platform_get_resource(pdev, IORESOURCE_MEM, port);
-
-		if (res == NULL) {
-			pr_err("No memory resource for MAC %d\n",
-			       priv->port_id);
-			err = -ENODEV;
-			goto err_gmac;
-		}
 		priv->base_addr = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(priv->base_addr)) {
 			err = PTR_ERR(priv->base_addr);
