@@ -158,7 +158,8 @@ static int gb_camera_set_power_mode(struct gb_camera *gcam, bool hs)
 
 struct ap_csi_config_request {
 	__u8 csi_id;
-	__u8 clock_mode;
+	__u8 flags;
+#define GB_CAMERA_CSI_FLAG_CLOCK_CONTINUOUS 0x01
 	__u8 num_lanes;
 	__u8 padding;
 	__le32 bus_freq;
@@ -267,7 +268,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 
 	if (nstreams) {
 		csi_cfg.csi_id = 1;
-		csi_cfg.clock_mode = 0;
+		csi_cfg.flags = 0;
 		csi_cfg.num_lanes = 4;
 		csi_cfg.bus_freq = cpu_to_le32(960000000);
 		csi_cfg.lines_per_second = resp->lines_per_second;
