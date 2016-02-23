@@ -178,6 +178,16 @@
 			};
 		};
 
+		gsbi@1a200000 {
+			qcom,mode = <GSBI_PROT_SPI>;
+			status = "okay";
+			spi4: spi@1a280000 {
+				status = "okay";
+				num-cs = <1>;
+				cs-gpios = <&tlmm_pinmux 53 0>;
+			};
+		};
+
 		gsbi@16500000 {
 			status = "ok";
 			qcom,mode = <GSBI_PROT_UART_W_FC>;
