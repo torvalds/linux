@@ -418,4 +418,20 @@ int perf_hist_config(const char *var, const char *value);
 
 void perf_hpp_list__init(struct perf_hpp_list *list);
 
+enum hierarchy_move_dir {
+	HMD_NORMAL,
+	HMD_FORCE_SIBLING,
+	HMD_FORCE_CHILD,
+};
+
+struct rb_node *rb_hierarchy_last(struct rb_node *node);
+struct rb_node *__rb_hierarchy_next(struct rb_node *node,
+				    enum hierarchy_move_dir hmd);
+struct rb_node *rb_hierarchy_prev(struct rb_node *node);
+
+static inline struct rb_node *rb_hierarchy_next(struct rb_node *node)
+{
+	return __rb_hierarchy_next(node, HMD_NORMAL);
+}
+
 #endif	/* __PERF_HIST_H */

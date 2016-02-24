@@ -1500,6 +1500,62 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 	output_resort(hists, prog, symbol_conf.use_callchain);
 }
 
+static bool can_goto_child(struct hist_entry *he, enum hierarchy_move_dir hmd)
+{
+	if (he->leaf || hmd == HMD_FORCE_SIBLING)
+		return false;
+
+	if (he->unfolded || hmd == HMD_FORCE_CHILD)
+		return true;
+
+	return false;
+}
+
+struct rb_node *rb_hierarchy_last(struct rb_node *node)
+{
+	struct hist_entry *he = rb_entry(node, struct hist_entry, rb_node);
+
+	while (can_goto_child(he, HMD_NORMAL)) {
+		node = rb_last(&he->hroot_out);
+		he = rb_entry(node, struct hist_entry, rb_node);
+	}
+	return node;
+}
+
+struct rb_node *__rb_hierarchy_next(struct rb_node *node, enum hierarchy_move_dir hmd)
+{
+	struct hist_entry *he = rb_entry(node, struct hist_entry, rb_node);
+
+	if (can_goto_child(he, hmd))
+		node = rb_first(&he->hroot_out);
+	else
+		node = rb_next(node);
+
+	while (node == NULL) {
+		he = he->parent_he;
+		if (he == NULL)
+			break;
+
+		node = rb_next(&he->rb_node);
+	}
+	return node;
+}
+
+struct rb_node *rb_hierarchy_prev(struct rb_node *node)
+{
+	struct hist_entry *he = rb_entry(node, struct hist_entry, rb_node);
+
+	node = rb_prev(node);
+	if (node)
+		return rb_hierarchy_last(node);
+
+	he = he->parent_he;
+	if (he == NULL)
+		return NULL;
+
+	return &he->rb_node;
+}
+
 static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h,
 				       enum hist_filter filter)
 {
