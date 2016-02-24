@@ -23,41 +23,10 @@
  */
 #include "ctxgf100.h"
 
-static const struct gf100_gr_init
-gm206_grctx_init_gpc_unk_1[] = {
-	{ 0x418600,   1, 0x04, 0x0000007f },
-	{ 0x418684,   1, 0x04, 0x0000001f },
-	{ 0x418700,   1, 0x04, 0x00000002 },
-	{ 0x418704,   1, 0x04, 0x00000080 },
-	{ 0x418708,   1, 0x04, 0x40000000 },
-	{ 0x41870c,   2, 0x04, 0x00000000 },
-	{ 0x418728,   1, 0x04, 0x00300020 },
-	{}
-};
-
-static const struct gf100_gr_pack
-gm206_grctx_pack_gpc[] = {
-	{ gm107_grctx_init_gpc_unk_0 },
-	{ gm200_grctx_init_prop_0 },
-	{ gm206_grctx_init_gpc_unk_1 },
-	{ gm200_grctx_init_setup_0 },
-	{ gf100_grctx_init_zcull_0 },
-	{ gk208_grctx_init_crstr_0 },
-	{ gm200_grctx_init_gpm_0 },
-	{ gm200_grctx_init_gpc_unk_2 },
-	{ gf100_grctx_init_gcc_0 },
-	{}
-};
-
 const struct gf100_grctx_func
 gm206_grctx = {
 	.main  = gm200_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
-	.hub   = gm200_grctx_pack_hub,
-	.gpc   = gm206_grctx_pack_gpc,
-	.zcull = gf100_grctx_pack_zcull,
-	.tpc   = gm200_grctx_pack_tpc,
-	.ppc   = gm200_grctx_pack_ppc,
 	.icmd  = gm200_grctx_pack_icmd,
 	.mthd  = gm200_grctx_pack_mthd,
 	.bundle = gm107_grctx_generate_bundle,
