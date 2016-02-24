@@ -2874,11 +2874,13 @@ static struct intel_uncore_type bdx_uncore_sbox = {
 	.format_group		= &hswep_uncore_sbox_format_group,
 };
 
+#define BDX_MSR_UNCORE_SBOX	3
+
 static struct intel_uncore_type *bdx_msr_uncores[] = {
 	&bdx_uncore_ubox,
 	&bdx_uncore_cbox,
-	&bdx_uncore_sbox,
 	&hswep_uncore_pcu,
+	&bdx_uncore_sbox,
 	NULL,
 };
 
@@ -2887,6 +2889,10 @@ void bdx_uncore_cpu_init(void)
 	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
+
+	/* BDX-DE doesn't have SBOX */
+	if (boot_cpu_data.x86_model == 86)
+		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 }
 
 static struct intel_uncore_type bdx_uncore_ha = {
