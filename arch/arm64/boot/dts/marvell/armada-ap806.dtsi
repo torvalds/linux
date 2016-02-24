@@ -179,23 +179,6 @@
 
 			};
 
-			coreclk: clk@0x6F8204 {
-				compatible = "marvell,armada-ap806-core-clock";
-				reg = <0x6F8204 0x04>;
-				#clock-cells = <1>;
-				clock-output-names = "ddr", "ring", "cpu";
-			};
-
-			ringclk: clk@0x6F8250 {
-				compatible = "marvell,armada-ap806-ring-clock";
-				reg = <0x6F8250 0x04>;
-				#clock-cells = <1>;
-				clock-output-names = "ring-0", "ring-2",
-						     "ring-3", "ring-4",
-						     "ring-5";
-				clocks = <&coreclk 1>;
-			};
-
 			xor0@400000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x400000 0x1000>,
@@ -226,6 +209,26 @@
 				      <0x470000 0x1000>;
 				msi-parent = <&gic_v2m0>;
 				dma-coherent;
+			};
+
+			dfx-server@6f8000 {
+				compatible = "simple-mfd", "syscon";
+				reg = <0x6f8000 0x70000>;
+
+				coreclk: clk@204 {
+					compatible = "marvell,armada-ap806-core-clock";
+					#clock-cells = <1>;
+					clock-output-names = "ddr", "ring", "cpu";
+				};
+
+				ringclk: clk@250 {
+					compatible = "marvell,armada-ap806-ring-clock";
+					#clock-cells = <1>;
+					clock-output-names = "ring-0", "ring-2",
+							     "ring-3", "ring-4",
+							     "ring-5";
+					clocks = <&coreclk 1>;
+				};
 			};
 		};
 	};
