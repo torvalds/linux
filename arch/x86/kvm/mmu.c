@@ -1336,21 +1336,27 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 		kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
 }
 
-static bool rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
+bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
+				    struct kvm_memory_slot *slot, u64 gfn)
 {
-	struct kvm_memory_slot *slot;
 	struct kvm_rmap_head *rmap_head;
 	int i;
 	bool write_protected = false;
 
-	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-
 	for (i = PT_PAGE_TABLE_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
 		rmap_head = __gfn_to_rmap(gfn, i, slot);
-		write_protected |= __rmap_write_protect(vcpu->kvm, rmap_head, true);
+		write_protected |= __rmap_write_protect(kvm, rmap_head, true);
 	}
 
 	return write_protected;
+}
+
+static bool rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
+{
+	struct kvm_memory_slot *slot;
+
+	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
+	return kvm_mmu_slot_gfn_write_protect(vcpu->kvm, slot, gfn);
 }
 
 static bool kvm_zap_rmapp(struct kvm *kvm, struct kvm_rmap_head *rmap_head)
