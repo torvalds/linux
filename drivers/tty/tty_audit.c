@@ -144,14 +144,8 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 	if (tty_audit_push())
 		return;
 
-	if (audit_enabled) {
-		kuid_t auid;
-		unsigned int sessionid;
-
-		auid = audit_get_loginuid(current);
-		sessionid = audit_get_sessionid(current);
+	if (audit_enabled)
 		tty_audit_log("ioctl=TIOCSTI", dev, &ch, 1);
-	}
 }
 
 /**
