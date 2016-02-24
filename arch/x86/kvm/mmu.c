@@ -1870,6 +1870,8 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 	return nr_unsync_leaf;
 }
 
+#define INVALID_INDEX (-1)
+
 static int mmu_unsync_walk(struct kvm_mmu_page *sp,
 			   struct kvm_mmu_pages *pvec)
 {
@@ -1877,7 +1879,7 @@ static int mmu_unsync_walk(struct kvm_mmu_page *sp,
 	if (!sp->unsync_children)
 		return 0;
 
-	mmu_pages_add(pvec, sp, 0);
+	mmu_pages_add(pvec, sp, INVALID_INDEX);
 	return __mmu_unsync_walk(sp, pvec);
 }
 
@@ -2026,6 +2028,8 @@ static int mmu_pages_first(struct kvm_mmu_pages *pvec,
 	if (pvec->nr == 0)
 		return 0;
 
+	WARN_ON(pvec->page[0].idx != INVALID_INDEX);
+
 	sp = pvec->page[0].sp;
 	level = sp->role.level;
 	WARN_ON(level == PT_PAGE_TABLE_LEVEL);
@@ -2050,6 +2054,7 @@ static void mmu_pages_clear_parents(struct mmu_page_path *parents)
 		if (!sp)
 			return;
 
+		WARN_ON(idx == INVALID_INDEX);
 		clear_unsync_child_bit(sp, idx);
 		level++;
 	} while (!sp->unsync_children);
