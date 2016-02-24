@@ -1987,8 +1987,7 @@ static void kvm_sync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
 			continue;
 
 		WARN_ON(s->role.level != PT_PAGE_TABLE_LEVEL);
-		kvm_unlink_unsync_page(vcpu->kvm, s);
-		if (!__kvm_sync_page(vcpu, s, &invalid_list, false))
+		if (!kvm_sync_page(vcpu, s, &invalid_list))
 			flush = true;
 	}
 
