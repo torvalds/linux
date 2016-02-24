@@ -29,10 +29,10 @@
 #include "qed_mcp.h"
 #include "qed_hw.h"
 
-static const char version[] =
-	"QLogic QL4xxx 40G/100G Ethernet Driver qed " DRV_MODULE_VERSION "\n";
+static char version[] =
+	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
 
-MODULE_DESCRIPTION("QLogic 25G/40G/50G/100G Core Module");
+MODULE_DESCRIPTION("QLogic FastLinQ 4xxxx Core Module");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 

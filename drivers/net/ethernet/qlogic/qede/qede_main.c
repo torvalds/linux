@@ -39,10 +39,10 @@
 
 #include "qede.h"
 
-static const char version[] = "QLogic QL4xxx 40G/100G Ethernet Driver qede "
-			      DRV_MODULE_VERSION "\n";
+static char version[] =
+	"QLogic FastLinQ 4xxxx Ethernet Driver qede " DRV_MODULE_VERSION "\n";
 
-MODULE_DESCRIPTION("QLogic 40G/100G Ethernet Driver");
+MODULE_DESCRIPTION("QLogic FastLinQ 4xxxx Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
