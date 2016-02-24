@@ -4578,6 +4578,20 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
 	return 0;
 }
 
+/**
+ * pci_add_dma_alias - Add a DMA devfn alias for a device
+ * @dev: the PCI device for which alias is added
+ * @devfn: alias slot and function
+ *
+ * This helper encodes 8-bit devfn as bit number in dma_alias_mask.
+ * It should be called early, preferably as PCI fixup header quirk.
+ */
+void pci_add_dma_alias(struct pci_dev *dev, u8 devfn)
+{
+	dev->dma_alias_devfn = devfn;
+	dev->dev_flags |= PCI_DEV_FLAGS_DMA_ALIAS_DEVFN;
+}
+
 bool pci_device_is_present(struct pci_dev *pdev)
 {
 	u32 v;
