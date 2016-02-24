@@ -53,7 +53,7 @@ u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 
 	pstapriv->pallocated_stainfo_buf = kmalloc(sizeof(struct sta_info) *
 						   NUM_STA + 4, GFP_ATOMIC);
-	if (pstapriv->pallocated_stainfo_buf == NULL)
+	if (!pstapriv->pallocated_stainfo_buf)
 		return _FAIL;
 	pstapriv->pstainfo_buf = pstapriv->pallocated_stainfo_buf + 4 -
 		((addr_t)(pstapriv->pallocated_stainfo_buf) & 3);

@@ -281,10 +281,10 @@ void r8712_SetChannel(struct _adapter *pAdapter)
 	u16 code = GEN_CMD_CODE(_SetChannel);
 
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
-	if (pcmd == NULL)
+	if (!pcmd)
 		return;
 	pparm = kmalloc(sizeof(*pparm), GFP_ATOMIC);
-	if (pparm == NULL) {
+	if (!pparm) {
 		kfree(pcmd);
 		return;
 	}
