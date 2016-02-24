@@ -106,40 +106,61 @@ int dump_printf(const char *fmt, ...)
 	return ret;
 }
 
+static void trace_event_printer(enum binary_printer_ops op,
+				unsigned int val, void *extra)
+{
+	const char *color = PERF_COLOR_BLUE;
+	union perf_event *event = (union perf_event *)extra;
+	unsigned char ch = (unsigned char)val;
+
+	switch (op) {
+	case BINARY_PRINT_DATA_BEGIN:
+		printf(".");
+		color_fprintf(stdout, color, "\n. ... raw event: size %d bytes\n",
+				event->header.size);
+		break;
+	case BINARY_PRINT_LINE_BEGIN:
+		printf(".");
+		break;
+	case BINARY_PRINT_ADDR:
+		color_fprintf(stdout, color, "  %04x: ", val);
+		break;
+	case BINARY_PRINT_NUM_DATA:
+		color_fprintf(stdout, color, " %02x", val);
+		break;
+	case BINARY_PRINT_NUM_PAD:
+		color_fprintf(stdout, color, "   ");
+		break;
+	case BINARY_PRINT_SEP:
+		color_fprintf(stdout, color, "  ");
+		break;
+	case BINARY_PRINT_CHAR_DATA:
+		color_fprintf(stdout, color, "%c",
+			      isprint(ch) ? ch : '.');
+		break;
+	case BINARY_PRINT_CHAR_PAD:
+		color_fprintf(stdout, color, " ");
+		break;
+	case BINARY_PRINT_LINE_END:
+		color_fprintf(stdout, color, "\n");
+		break;
+	case BINARY_PRINT_DATA_END:
+		printf("\n");
+		break;
+	default:
+		break;
+	}
+}
+
 void trace_event(union perf_event *event)
 {
 	unsigned char *raw_event = (void *)event;
-	const char *color = PERF_COLOR_BLUE;
-	int i, j;
 
 	if (!dump_trace)
 		return;
 
-	printf(".");
-	color_fprintf(stdout, color, "\n. ... raw event: size %d bytes\n",
-		      event->header.size);
-
-	for (i = 0; i < event->header.size; i++) {
-		if ((i & 15) == 0) {
-			printf(".");
-			color_fprintf(stdout, color, "  %04x: ", i);
-		}
-
-		color_fprintf(stdout, color, " %02x", raw_event[i]);
-
-		if (((i & 15) == 15) || i == event->header.size-1) {
-			color_fprintf(stdout, color, "  ");
-			for (j = 0; j < 15-(i & 15); j++)
-				color_fprintf(stdout, color, "   ");
-			for (j = i & ~15; j <= i; j++) {
-				color_fprintf(stdout, color, "%c",
-					      isprint(raw_event[j]) ?
-					      raw_event[j] : '.');
-			}
-			color_fprintf(stdout, color, "\n");
-		}
-	}
-	printf(".\n");
+	print_binary(raw_event, event->header.size, 16,
+		     trace_event_printer, event);
 }
 
 static struct debug_variable {
