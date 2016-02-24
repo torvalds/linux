@@ -410,6 +410,76 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 	return hpp->buf - start;
 }
 
+static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
+					 struct perf_hpp *hpp,
+					 int nr_sort_key, struct hists *hists,
+					 FILE *fp)
+{
+	const char *sep = symbol_conf.field_sep;
+	struct perf_hpp_fmt *fmt;
+	char *buf = hpp->buf;
+	int ret, printed = 0;
+	bool first = true;
+
+	if (symbol_conf.exclude_other && !he->parent)
+		return 0;
+
+	ret = scnprintf(hpp->buf, hpp->size, "%*s", he->depth * HIERARCHY_INDENT, "");
+	advance_hpp(hpp, ret);
+
+	hists__for_each_format(he->hists, fmt) {
+		if (perf_hpp__is_sort_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
+			break;
+
+		/*
+		 * If there's no field_sep, we still need
+		 * to display initial '  '.
+		 */
+		if (!sep || !first) {
+			ret = scnprintf(hpp->buf, hpp->size, "%s", sep ?: "  ");
+			advance_hpp(hpp, ret);
+		} else
+			first = false;
+
+		if (perf_hpp__use_color() && fmt->color)
+			ret = fmt->color(fmt, hpp, he);
+		else
+			ret = fmt->entry(fmt, hpp, he);
+
+		ret = hist_entry__snprintf_alignment(he, hpp, fmt, ret);
+		advance_hpp(hpp, ret);
+	}
+
+	if (sep)
+		ret = scnprintf(hpp->buf, hpp->size, "%s", sep);
+	else
+		ret = scnprintf(hpp->buf, hpp->size, "%*s",
+				(nr_sort_key - 1) * HIERARCHY_INDENT + 2, "");
+	advance_hpp(hpp, ret);
+
+	/*
+	 * No need to call hist_entry__snprintf_alignment() since this
+	 * fmt is always the last column in the hierarchy mode.
+	 */
+	fmt = he->fmt;
+	if (perf_hpp__use_color() && fmt->color)
+		fmt->color(fmt, hpp, he);
+	else
+		fmt->entry(fmt, hpp, he);
+
+	printed += fprintf(fp, "%s\n", buf);
+
+	if (symbol_conf.use_callchain && he->leaf) {
+		u64 total = hists__total_period(hists);
+
+		printed += hist_entry_callchain__fprintf(he, total, 0, fp);
+		goto out;
+	}
+
+out:
+	return printed;
+}
+
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 			       struct hists *hists,
 			       char *bf, size_t bfsz, FILE *fp)
@@ -423,6 +493,13 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 
 	if (size == 0 || size > bfsz)
 		size = hpp.size = bfsz;
+
+	if (symbol_conf.report_hierarchy) {
+		int nr_sort = hists->hpp_list->nr_sort_keys;
+
+		return hist_entry__hierarchy_fprintf(he, &hpp, nr_sort,
+						     hists, fp);
+	}
 
 	hist_entry__snprintf(he, &hpp);
 
@@ -522,7 +599,7 @@ print_entries:
 		goto out;
 	}
 
-	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&hists->entries); nd; nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		float percent;
 

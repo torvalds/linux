@@ -437,4 +437,6 @@ static inline struct rb_node *rb_hierarchy_next(struct rb_node *node)
 	return __rb_hierarchy_next(node, HMD_NORMAL);
 }
 
+#define HIERARCHY_INDENT  3
+
 #endif	/* __PERF_HIST_H */
