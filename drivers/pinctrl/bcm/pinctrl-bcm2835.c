@@ -1040,7 +1040,7 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	pc->pctl_dev = pinctrl_register(&bcm2835_pinctrl_desc, dev, pc);
+	pc->pctl_dev = devm_pinctrl_register(dev, &bcm2835_pinctrl_desc, pc);
 	if (IS_ERR(pc->pctl_dev)) {
 		gpiochip_remove(&pc->gpio_chip);
 		return PTR_ERR(pc->pctl_dev);
@@ -1058,7 +1058,6 @@ static int bcm2835_pinctrl_remove(struct platform_device *pdev)
 {
 	struct bcm2835_pinctrl *pc = platform_get_drvdata(pdev);
 
-	pinctrl_unregister(pc->pctl_dev);
 	gpiochip_remove(&pc->gpio_chip);
 
 	return 0;
