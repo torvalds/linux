@@ -503,6 +503,18 @@ static struct pci_ops vmd_ops = {
 	.write		= vmd_pci_write,
 };
 
+static void vmd_attach_resources(struct vmd_dev *vmd)
+{
+	vmd->dev->resource[VMD_MEMBAR1].child = &vmd->resources[1];
+	vmd->dev->resource[VMD_MEMBAR2].child = &vmd->resources[2];
+}
+
+static void vmd_detach_resources(struct vmd_dev *vmd)
+{
+	vmd->dev->resource[VMD_MEMBAR1].child = NULL;
+	vmd->dev->resource[VMD_MEMBAR2].child = NULL;
+}
+
 /*
  * VMD domains start at 0x1000 to not clash with ACPI _SEG domains.
  */
@@ -559,6 +571,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		.start = res->start,
 		.end   = res->end,
 		.flags = flags,
+		.parent = res,
 	};
 
 	res = &vmd->dev->resource[VMD_MEMBAR2];
@@ -571,6 +584,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		.start = res->start + 0x2000,
 		.end   = res->end,
 		.flags = flags,
+		.parent = res,
 	};
 
 	sd->domain = vmd_find_free_domain();
@@ -595,6 +609,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		return -ENODEV;
 	}
 
+	vmd_attach_resources(vmd);
 	vmd_setup_dma_ops(vmd);
 	dev_set_msi_domain(&vmd->bus->dev, vmd->irq_domain);
 	pci_rescan_bus(vmd->bus);
@@ -691,6 +706,7 @@ static void vmd_remove(struct pci_dev *dev)
 {
 	struct vmd_dev *vmd = pci_get_drvdata(dev);
 
+	vmd_detach_resources(vmd);
 	pci_set_drvdata(dev, NULL);
 	sysfs_remove_link(&vmd->dev->dev.kobj, "domain");
 	pci_stop_root_bus(vmd->bus);
