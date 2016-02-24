@@ -138,8 +138,6 @@ int gf100_gr_init(struct gf100_gr *);
 
 int gk104_gr_init(struct gf100_gr *);
 
-int gk20a_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
-		  int, struct nvkm_gr **);
 int gk20a_gr_init(struct gf100_gr *);
 
 int gm200_gr_init(struct gf100_gr *);
@@ -210,6 +208,9 @@ int gk20a_gr_aiv_to_init(struct gf100_gr *, const char *,
 			 struct gf100_gr_pack **);
 int gk20a_gr_av_to_method(struct gf100_gr *, const char *,
 			  struct gf100_gr_pack **);
+
+int gm200_gr_new_(const struct gf100_gr_func *, struct nvkm_device *, int,
+		  struct nvkm_gr **);
 
 /* register init value lists */
 

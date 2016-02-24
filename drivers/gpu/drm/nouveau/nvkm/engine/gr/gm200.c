@@ -351,6 +351,37 @@ gm200_gr_init(struct gf100_gr *gr)
 	return gm200_gr_init_ctxctl(gr);
 }
 
+int
+gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_gr **pgr)
+{
+	struct gf100_gr *gr;
+	int ret;
+
+	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+		return -ENOMEM;
+	*pgr = &gr->base;
+
+	ret = gf100_gr_ctor(func, device, index, gr);
+	if (ret)
+		return ret;
+
+	if ((ret = gf100_gr_ctor_fw(gr, "gr/fecs_inst", &gr->fuc409c)) ||
+	    (ret = gf100_gr_ctor_fw(gr, "gr/fecs_data", &gr->fuc409d)))
+		return ret;
+	if ((ret = gf100_gr_ctor_fw(gr, "gr/gpccs_inst", &gr->fuc41ac)) ||
+	    (ret = gf100_gr_ctor_fw(gr, "gr/gpccs_data", &gr->fuc41ad)))
+		return ret;
+
+	if ((ret = gk20a_gr_av_to_init(gr, "gr/sw_nonctx", &gr->fuc_sw_nonctx)) ||
+	    (ret = gk20a_gr_aiv_to_init(gr, "gr/sw_ctx", &gr->fuc_sw_ctx)) ||
+	    (ret = gk20a_gr_av_to_init(gr, "gr/sw_bundle_init", &gr->fuc_bundle)) ||
+	    (ret = gk20a_gr_av_to_method(gr, "gr/sw_method_init", &gr->fuc_method)))
+		return ret;
+
+	return 0;
+}
+
 static const struct gf100_gr_func
 gm200_gr = {
 	.init = gm200_gr_init,
@@ -369,5 +400,5 @@ gm200_gr = {
 int
 gm200_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gf100_gr_new_(&gm200_gr, device, index, pgr);
+	return gm200_gr_new_(&gm200_gr, device, index, pgr);
 }

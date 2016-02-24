@@ -309,9 +309,23 @@ gk20a_gr_init(struct gf100_gr *gr)
 	return gf100_gr_init_ctxctl(gr);
 }
 
+static const struct gf100_gr_func
+gk20a_gr = {
+	.init = gk20a_gr_init,
+	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,
+	.ppc_nr = 1,
+	.grctx = &gk20a_grctx,
+	.sclass = {
+		{ -1, -1, FERMI_TWOD_A },
+		{ -1, -1, KEPLER_INLINE_TO_MEMORY_A },
+		{ -1, -1, KEPLER_C, &gf100_fermi },
+		{ -1, -1, KEPLER_COMPUTE_A },
+		{}
+	}
+};
+
 int
-gk20a_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_gr **pgr)
+gk20a_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
 	struct gf100_gr *gr;
 	int ret;
@@ -320,7 +334,7 @@ gk20a_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 		return -ENOMEM;
 	*pgr = &gr->base;
 
-	ret = gf100_gr_ctor(func, device, index, gr);
+	ret = gf100_gr_ctor(&gk20a_gr, device, index, gr);
 	if (ret)
 		return ret;
 
@@ -348,25 +362,4 @@ gk20a_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 
 
 	return 0;
-}
-
-static const struct gf100_gr_func
-gk20a_gr = {
-	.init = gk20a_gr_init,
-	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,
-	.ppc_nr = 1,
-	.grctx = &gk20a_grctx,
-	.sclass = {
-		{ -1, -1, FERMI_TWOD_A },
-		{ -1, -1, KEPLER_INLINE_TO_MEMORY_A },
-		{ -1, -1, KEPLER_C, &gf100_fermi },
-		{ -1, -1, KEPLER_COMPUTE_A },
-		{}
-	}
-};
-
-int
-gk20a_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
-{
-	return gk20a_gr_new_(&gk20a_gr, device, index, pgr);
 }
