@@ -2069,13 +2069,26 @@ static void add_event_to_ctx(struct perf_event *event,
 	event->tstamp_stopped = tstamp;
 }
 
-static void task_ctx_sched_out(struct perf_cpu_context *cpuctx,
-			       struct perf_event_context *ctx);
+static void ctx_sched_out(struct perf_event_context *ctx,
+			  struct perf_cpu_context *cpuctx,
+			  enum event_type_t event_type);
 static void
 ctx_sched_in(struct perf_event_context *ctx,
 	     struct perf_cpu_context *cpuctx,
 	     enum event_type_t event_type,
 	     struct task_struct *task);
+
+static void task_ctx_sched_out(struct perf_cpu_context *cpuctx,
+			       struct perf_event_context *ctx)
+{
+	if (!cpuctx->task_ctx)
+		return;
+
+	if (WARN_ON_ONCE(ctx != cpuctx->task_ctx))
+		return;
+
+	ctx_sched_out(ctx, cpuctx, EVENT_ALL);
+}
 
 static void perf_event_sched_in(struct perf_cpu_context *cpuctx,
 				struct perf_event_context *ctx,
@@ -2227,17 +2240,18 @@ static void __perf_event_enable(struct perf_event *event,
 	    event->state <= PERF_EVENT_STATE_ERROR)
 		return;
 
-	update_context_time(ctx);
+	if (ctx->is_active)
+		ctx_sched_out(ctx, cpuctx, EVENT_TIME);
+
 	__perf_event_mark_enabled(event);
 
 	if (!ctx->is_active)
 		return;
 
 	if (!event_filter_match(event)) {
-		if (is_cgroup_event(event)) {
-			perf_cgroup_set_timestamp(current, ctx); // XXX ?
+		if (is_cgroup_event(event))
 			perf_cgroup_defer_enabled(event);
-		}
+		ctx_sched_in(ctx, cpuctx, EVENT_TIME, current);
 		return;
 	}
 
@@ -2245,8 +2259,10 @@ static void __perf_event_enable(struct perf_event *event,
 	 * If the event is in a group and isn't the group leader,
 	 * then don't put it on unless the group is on.
 	 */
-	if (leader != event && leader->state != PERF_EVENT_STATE_ACTIVE)
+	if (leader != event && leader->state != PERF_EVENT_STATE_ACTIVE) {
+		ctx_sched_in(ctx, cpuctx, EVENT_TIME, current);
 		return;
+	}
 
 	task_ctx = cpuctx->task_ctx;
 	if (ctx->task)
@@ -2656,18 +2672,6 @@ void __perf_event_task_sched_out(struct task_struct *task,
 	 */
 	if (atomic_read(this_cpu_ptr(&perf_cgroup_events)))
 		perf_cgroup_sched_out(task, next);
-}
-
-static void task_ctx_sched_out(struct perf_cpu_context *cpuctx,
-			       struct perf_event_context *ctx)
-{
-	if (!cpuctx->task_ctx)
-		return;
-
-	if (WARN_ON_ONCE(ctx != cpuctx->task_ctx))
-		return;
-
-	ctx_sched_out(ctx, cpuctx, EVENT_ALL);
 }
 
 /*
