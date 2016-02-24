@@ -575,7 +575,7 @@ struct spar_io_channel_protocol {
  * room)
  */
 static inline  u16
-add_physinfo_entries(u32 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
+add_physinfo_entries(u64 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
 		     u16 max_pi_arr_entries, struct phys_info pi_arr[])
 {
 	u32 len;
