@@ -65,18 +65,36 @@ static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);
 static atomic_t reference_count = ATOMIC_INIT(0);
 
-static int gb_uart_receive_data(struct gb_tty *gb_tty,
-				struct gb_connection *connection,
-				struct gb_uart_recv_data_request *receive_data)
+static int gb_uart_receive_data_handler(struct gb_operation *op)
 {
+	struct gb_connection *connection = op->connection;
+	struct gb_tty *gb_tty = connection->private;
 	struct tty_port *port = &gb_tty->port;
+	struct gb_message *request = op->request;
+	struct gb_uart_recv_data_request *receive_data;
 	u16 recv_data_size;
 	int count;
 	unsigned long tty_flags = TTY_NORMAL;
 
-	count = gb_tty->buffer_payload_max - sizeof(*receive_data);
+	if (request->payload_size < sizeof(*receive_data)) {
+		dev_err(&connection->bundle->dev,
+				"short receive-data request received (%zu < %zu)\n",
+				request->payload_size, sizeof(*receive_data));
+		return -EINVAL;
+	}
+
+	receive_data = op->request->payload;
 	recv_data_size = le16_to_cpu(receive_data->size);
-	if (!recv_data_size || recv_data_size > count)
+
+	if (recv_data_size != request->payload_size - sizeof(*receive_data)) {
+		dev_err(&connection->bundle->dev,
+				"malformed receive-data request received (%u != %zu)\n",
+				recv_data_size,
+				request->payload_size - sizeof(*receive_data));
+		return -EINVAL;
+	}
+
+	if (!recv_data_size)
 		return -EINVAL;
 
 	if (receive_data->flags) {
@@ -126,14 +144,11 @@ static int gb_uart_serial_state_handler(struct gb_operation *op)
 static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_tty *gb_tty = connection->private;
-	struct gb_message *request = op->request;
 	int ret;
 
 	switch (type) {
 	case GB_UART_TYPE_RECEIVE_DATA:
-		ret = gb_uart_receive_data(gb_tty, connection,
-					   request->payload);
+		ret = gb_uart_receive_data_handler(op);
 		break;
 	case GB_UART_TYPE_SERIAL_STATE:
 		ret = gb_uart_serial_state_handler(op);
