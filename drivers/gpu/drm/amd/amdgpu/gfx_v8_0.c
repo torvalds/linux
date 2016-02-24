@@ -2613,7 +2613,7 @@ static u32 gfx_v8_0_get_rb_active_bitmap(struct amdgpu_device *adev)
 static void gfx_v8_0_setup_rb(struct amdgpu_device *adev)
 {
 	int i, j;
-	u32 data, tmp, num_rbs = 0;
+	u32 data;
 	u32 active_rbs = 0;
 
 	mutex_lock(&adev->grbm_idx_mutex);
@@ -2629,10 +2629,7 @@ static void gfx_v8_0_setup_rb(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	adev->gfx.config.backend_enable_mask = active_rbs;
-	tmp = active_rbs;
-	while (tmp >>= 1)
-		num_rbs++;
-	adev->gfx.config.num_rbs = num_rbs;
+	adev->gfx.config.num_rbs = hweight32(active_rbs);
 }
 
 /**
