@@ -440,7 +440,6 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
 	unsigned short data[8];
 	int bit, ret, i = 0;
-	unsigned long buffer_us, elapsed_us;
 	s64 time_a, time_b;
 	unsigned int alert;
 
@@ -464,8 +463,6 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 				return ret;
 
 			alert &= INA266_CVRF;
-			trace_printk("Conversion ready: %d\n", !!alert);
-
 		} while (!alert);
 
 	/*
@@ -490,14 +487,9 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	iio_push_to_buffers_with_timestamp(indio_dev,
 					   (unsigned int *)data, time_a);
 
-	buffer_us = (unsigned long)(time_b - time_a) / 1000;
-	elapsed_us = (unsigned long)(time_a - chip->prev_ns) / 1000;
-
-	trace_printk("uS: elapsed: %lu, buf: %lu\n", elapsed_us, buffer_us);
-
 	chip->prev_ns = time_a;
 
-	return buffer_us;
+	return (unsigned long)(time_b - time_a) / 1000;
 };
 
 static int ina2xx_capture_thread(void *data)
@@ -532,12 +524,13 @@ static int ina2xx_buffer_enable(struct iio_dev *indio_dev)
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
 	unsigned int sampling_us = SAMPLING_PERIOD(chip);
 
-	trace_printk("Enabling buffer w/ scan_mask %02x, freq = %d, avg =%u\n",
-		     (unsigned int)(*indio_dev->active_scan_mask),
-		     1000000/sampling_us, chip->avg);
+	dev_dbg(&indio_dev->dev, "Enabling buffer w/ scan_mask %02x, freq = %d, avg =%u\n",
+		(unsigned int)(*indio_dev->active_scan_mask),
+		1000000 / sampling_us, chip->avg);
 
-	trace_printk("Expected work period: %u us\n", sampling_us);
-	trace_printk("Async readout mode: %d\n", chip->allow_async_readout);
+	dev_dbg(&indio_dev->dev, "Expected work period: %u us\n", sampling_us);
+	dev_dbg(&indio_dev->dev, "Async readout mode: %d\n",
+		chip->allow_async_readout);
 
 	chip->prev_ns = iio_get_time_ns();
 
