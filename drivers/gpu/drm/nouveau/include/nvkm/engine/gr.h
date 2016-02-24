@@ -40,7 +40,7 @@ int gk110b_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gk208_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gk20a_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gm107_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
-int gm204_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gm200_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gm206_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gm20b_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 #endif

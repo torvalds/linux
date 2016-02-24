@@ -28,8 +28,8 @@
 
 static const struct gf100_gr_func
 gm206_gr = {
-	.init = gm204_gr_init,
-	.mmio = gm204_gr_pack_mmio,
+	.init = gm200_gr_init,
+	.mmio = gm200_gr_pack_mmio,
 	.ppc_nr = 2,
 	.grctx = &gm206_grctx,
 	.sclass = {

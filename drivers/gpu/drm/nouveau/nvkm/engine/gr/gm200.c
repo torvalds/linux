@@ -31,7 +31,7 @@
  ******************************************************************************/
 
 static const struct gf100_gr_init
-gm204_gr_init_main_0[] = {
+gm200_gr_init_main_0[] = {
 	{ 0x400080,   1, 0x04, 0x003003e2 },
 	{ 0x400088,   1, 0x04, 0xe007bfe7 },
 	{ 0x40008c,   1, 0x04, 0x00060000 },
@@ -47,7 +47,7 @@ gm204_gr_init_main_0[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_fe_0[] = {
+gm200_gr_init_fe_0[] = {
 	{ 0x40415c,   1, 0x04, 0x00000000 },
 	{ 0x404170,   1, 0x04, 0x00000000 },
 	{ 0x4041b4,   1, 0x04, 0x00000000 },
@@ -56,7 +56,7 @@ gm204_gr_init_fe_0[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_ds_0[] = {
+gm200_gr_init_ds_0[] = {
 	{ 0x40583c,   1, 0x04, 0x00000000 },
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x40584c,   1, 0x04, 0x00000001 },
@@ -67,7 +67,7 @@ gm204_gr_init_ds_0[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_sked_0[] = {
+gm200_gr_init_sked_0[] = {
 	{ 0x407010,   1, 0x04, 0x00000000 },
 	{ 0x407040,   1, 0x04, 0x80440434 },
 	{ 0x407048,   1, 0x04, 0x00000008 },
@@ -75,7 +75,7 @@ gm204_gr_init_sked_0[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_tpccs_0[] = {
+gm200_gr_init_tpccs_0[] = {
 	{ 0x419d60,   1, 0x04, 0x0000003f },
 	{ 0x419d88,   3, 0x04, 0x00000000 },
 	{ 0x419dc4,   1, 0x04, 0x00000000 },
@@ -95,7 +95,7 @@ gm204_gr_init_tpccs_0[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_pe_0[] = {
+gm200_gr_init_pe_0[] = {
 	{ 0x419900,   1, 0x04, 0x000000ff },
 	{ 0x419810,   1, 0x04, 0x00000000 },
 	{ 0x41980c,   1, 0x04, 0x00000010 },
@@ -108,7 +108,7 @@ gm204_gr_init_pe_0[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_sm_0[] = {
+gm200_gr_init_sm_0[] = {
 	{ 0x419e30,   1, 0x04, 0x000000ff },
 	{ 0x419e00,   1, 0x04, 0x00000000 },
 	{ 0x419ea0,   1, 0x04, 0x00000000 },
@@ -125,20 +125,20 @@ gm204_gr_init_sm_0[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_l1c_1[] = {
+gm200_gr_init_l1c_1[] = {
 	{ 0x419cf8,   2, 0x04, 0x00000000 },
 	{}
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_sm_1[] = {
+gm200_gr_init_sm_1[] = {
 	{ 0x419f74,   1, 0x04, 0x00055155 },
 	{ 0x419f80,   4, 0x04, 0x00000000 },
 	{}
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_l1c_2[] = {
+gm200_gr_init_l1c_2[] = {
 	{ 0x419ccc,   2, 0x04, 0x00000000 },
 	{ 0x419c80,   1, 0x04, 0x3f006022 },
 	{ 0x419c88,   1, 0x04, 0x00210000 },
@@ -146,7 +146,7 @@ gm204_gr_init_l1c_2[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_pes_0[] = {
+gm200_gr_init_pes_0[] = {
 	{ 0x41be50,   1, 0x04, 0x000000ff },
 	{ 0x41be04,   1, 0x04, 0x00000000 },
 	{ 0x41be08,   1, 0x04, 0x00000004 },
@@ -158,7 +158,7 @@ gm204_gr_init_pes_0[] = {
 };
 
 static const struct gf100_gr_init
-gm204_gr_init_be_0[] = {
+gm200_gr_init_be_0[] = {
 	{ 0x408890,   1, 0x04, 0x000000ff },
 	{ 0x40880c,   1, 0x04, 0x00000000 },
 	{ 0x408850,   1, 0x04, 0x00000004 },
@@ -184,15 +184,15 @@ gm204_gr_init_be_0[] = {
 };
 
 const struct gf100_gr_pack
-gm204_gr_pack_mmio[] = {
-	{ gm204_gr_init_main_0 },
-	{ gm204_gr_init_fe_0 },
+gm200_gr_pack_mmio[] = {
+	{ gm200_gr_init_main_0 },
+	{ gm200_gr_init_fe_0 },
 	{ gf100_gr_init_pri_0 },
 	{ gf100_gr_init_rstr2d_0 },
 	{ gf100_gr_init_pd_0 },
-	{ gm204_gr_init_ds_0 },
+	{ gm200_gr_init_ds_0 },
 	{ gm107_gr_init_scc_0 },
-	{ gm204_gr_init_sked_0 },
+	{ gm200_gr_init_sked_0 },
 	{ gk110_gr_init_cwd_0 },
 	{ gm107_gr_init_prop_0 },
 	{ gk208_gr_init_gpc_unk_0 },
@@ -203,25 +203,25 @@ gm204_gr_pack_mmio[] = {
 	{ gf100_gr_init_gpm_0 },
 	{ gm107_gr_init_gpc_unk_1 },
 	{ gf100_gr_init_gcc_0 },
-	{ gm204_gr_init_tpccs_0 },
+	{ gm200_gr_init_tpccs_0 },
 	{ gm107_gr_init_tex_0 },
-	{ gm204_gr_init_pe_0 },
+	{ gm200_gr_init_pe_0 },
 	{ gm107_gr_init_l1c_0 },
 	{ gf100_gr_init_mpc_0 },
-	{ gm204_gr_init_sm_0 },
-	{ gm204_gr_init_l1c_1 },
-	{ gm204_gr_init_sm_1 },
-	{ gm204_gr_init_l1c_2 },
-	{ gm204_gr_init_pes_0 },
+	{ gm200_gr_init_sm_0 },
+	{ gm200_gr_init_l1c_1 },
+	{ gm200_gr_init_sm_1 },
+	{ gm200_gr_init_l1c_2 },
+	{ gm200_gr_init_pes_0 },
 	{ gm107_gr_init_wwdx_0 },
 	{ gm107_gr_init_cbm_0 },
-	{ gm204_gr_init_be_0 },
+	{ gm200_gr_init_be_0 },
 	{}
 };
 
 const struct gf100_gr_pack *
-gm204_gr_data[] = {
-	gm204_gr_pack_mmio,
+gm200_gr_data[] = {
+	gm200_gr_pack_mmio,
 	NULL
 };
 
@@ -230,13 +230,13 @@ gm204_gr_data[] = {
  ******************************************************************************/
 
 static int
-gm204_gr_init_ctxctl(struct gf100_gr *gr)
+gm200_gr_init_ctxctl(struct gf100_gr *gr)
 {
 	return 0;
 }
 
 int
-gm204_gr_init(struct gf100_gr *gr)
+gm200_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
@@ -348,15 +348,15 @@ gm204_gr_init(struct gf100_gr *gr)
 
 	gf100_gr_zbc_init(gr);
 
-	return gm204_gr_init_ctxctl(gr);
+	return gm200_gr_init_ctxctl(gr);
 }
 
 static const struct gf100_gr_func
-gm204_gr = {
-	.init = gm204_gr_init,
-	.mmio = gm204_gr_pack_mmio,
+gm200_gr = {
+	.init = gm200_gr_init,
+	.mmio = gm200_gr_pack_mmio,
 	.ppc_nr = 2,
-	.grctx = &gm204_grctx,
+	.grctx = &gm200_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
@@ -367,7 +367,7 @@ gm204_gr = {
 };
 
 int
-gm204_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gm200_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gf100_gr_new_(&gm204_gr, device, index, pgr);
+	return gf100_gr_new_(&gm200_gr, device, index, pgr);
 }

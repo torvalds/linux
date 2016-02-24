@@ -143,7 +143,7 @@ int gk20a_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
 void gk20a_gr_dtor(struct gf100_gr *);
 int gk20a_gr_init(struct gf100_gr *);
 
-int gm204_gr_init(struct gf100_gr *);
+int gm200_gr_init(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 
@@ -280,5 +280,5 @@ extern const struct gf100_gr_init gm107_gr_init_wwdx_0[];
 extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
 void gm107_gr_init_bios(struct gf100_gr *);
 
-extern const struct gf100_gr_pack gm204_gr_pack_mmio[];
+extern const struct gf100_gr_pack gm200_gr_pack_mmio[];
 #endif

@@ -38,28 +38,28 @@ gm206_grctx_init_gpc_unk_1[] = {
 static const struct gf100_gr_pack
 gm206_grctx_pack_gpc[] = {
 	{ gm107_grctx_init_gpc_unk_0 },
-	{ gm204_grctx_init_prop_0 },
+	{ gm200_grctx_init_prop_0 },
 	{ gm206_grctx_init_gpc_unk_1 },
-	{ gm204_grctx_init_setup_0 },
+	{ gm200_grctx_init_setup_0 },
 	{ gf100_grctx_init_zcull_0 },
 	{ gk208_grctx_init_crstr_0 },
-	{ gm204_grctx_init_gpm_0 },
-	{ gm204_grctx_init_gpc_unk_2 },
+	{ gm200_grctx_init_gpm_0 },
+	{ gm200_grctx_init_gpc_unk_2 },
 	{ gf100_grctx_init_gcc_0 },
 	{}
 };
 
 const struct gf100_grctx_func
 gm206_grctx = {
-	.main  = gm204_grctx_generate_main,
+	.main  = gm200_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
-	.hub   = gm204_grctx_pack_hub,
+	.hub   = gm200_grctx_pack_hub,
 	.gpc   = gm206_grctx_pack_gpc,
 	.zcull = gf100_grctx_pack_zcull,
-	.tpc   = gm204_grctx_pack_tpc,
-	.ppc   = gm204_grctx_pack_ppc,
-	.icmd  = gm204_grctx_pack_icmd,
-	.mthd  = gm204_grctx_pack_mthd,
+	.tpc   = gm200_grctx_pack_tpc,
+	.ppc   = gm200_grctx_pack_ppc,
+	.icmd  = gm200_grctx_pack_icmd,
+	.mthd  = gm200_grctx_pack_mthd,
 	.bundle = gm107_grctx_generate_bundle,
 	.bundle_size = 0x3000,
 	.bundle_min_gpm_fifo_depth = 0x180,
