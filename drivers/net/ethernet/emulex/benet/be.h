@@ -72,6 +72,9 @@
 #define BE_MAX_MTU              (BE_MAX_JUMBO_FRAME_SIZE -	\
 				 (ETH_HLEN + ETH_FCS_LEN))
 
+/* Accommodate for QnQ configurations where VLAN insertion is enabled in HW */
+#define BE_MAX_GSO_SIZE		(65535 - 2 * VLAN_HLEN)
+
 #define BE_NUM_VLANS_SUPPORTED	64
 #define BE_MAX_EQD		128u
 #define	BE_MAX_TX_FRAG_COUNT	30
@@ -124,27 +127,27 @@ struct be_dma_mem {
 };
 
 struct be_queue_info {
-	struct be_dma_mem dma_mem;
-	u16 len;
-	u16 entry_size;	/* Size of an element in the queue */
-	u16 id;
-	u16 tail, head;
-	bool created;
+	u32 len;
+	u32 entry_size;	/* Size of an element in the queue */
+	u32 tail, head;
 	atomic_t used;	/* Number of valid elements in the queue */
+	u32 id;
+	struct be_dma_mem dma_mem;
+	bool created;
 };
 
-static inline u32 MODULO(u16 val, u16 limit)
+static inline u32 MODULO(u32 val, u32 limit)
 {
 	BUG_ON(limit & (limit - 1));
 	return val & (limit - 1);
 }
 
-static inline void index_adv(u16 *index, u16 val, u16 limit)
+static inline void index_adv(u32 *index, u32 val, u32 limit)
 {
 	*index = MODULO((*index + val), limit);
 }
 
-static inline void index_inc(u16 *index, u16 limit)
+static inline void index_inc(u32 *index, u32 limit)
 {
 	*index = MODULO((*index + 1), limit);
 }
@@ -169,7 +172,7 @@ static inline void queue_head_inc(struct be_queue_info *q)
 	index_inc(&q->head, q->len);
 }
 
-static inline void index_dec(u16 *index, u16 limit)
+static inline void index_dec(u32 *index, u32 limit)
 {
 	*index = MODULO((*index - 1), limit);
 }
