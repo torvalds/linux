@@ -677,18 +677,12 @@ static int spear300_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int spear300_pinctrl_remove(struct platform_device *pdev)
-{
-	return spear_pinctrl_remove(pdev);
-}
-
 static struct platform_driver spear300_pinctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = spear300_pinctrl_of_match,
 	},
 	.probe = spear300_pinctrl_probe,
-	.remove = spear300_pinctrl_remove,
 };
 
 static int __init spear300_pinctrl_init(void)
