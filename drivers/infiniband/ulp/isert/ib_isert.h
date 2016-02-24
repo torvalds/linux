@@ -180,7 +180,6 @@ struct isert_device;
 
 struct isert_conn {
 	enum iser_conn_state	state;
-	int			post_recv_buf_count;
 	u32			responder_resources;
 	u32			initiator_depth;
 	bool			pi_support;

@@ -65,6 +65,7 @@ isert_rdma_accept(struct isert_conn *isert_conn);
 struct rdma_cm_id *isert_setup_id(struct isert_np *isert_np);
 
 static void isert_release_work(struct work_struct *work);
+static void isert_wait4flush(struct isert_conn *isert_conn);
 
 static inline bool
 isert_prot_cmd(struct isert_conn *conn, struct se_cmd *cmd)
@@ -820,6 +821,25 @@ isert_put_conn(struct isert_conn *isert_conn)
 	kref_put(&isert_conn->kref, isert_release_kref);
 }
 
+static void
+isert_handle_unbound_conn(struct isert_conn *isert_conn)
+{
+	struct isert_np *isert_np = isert_conn->cm_id->context;
+
+	mutex_lock(&isert_np->mutex);
+	if (!list_empty(&isert_conn->node)) {
+		/*
+		 * This means iscsi doesn't know this connection
+		 * so schedule a cleanup ourselves
+		 */
+		list_del_init(&isert_conn->node);
+		isert_put_conn(isert_conn);
+		complete(&isert_conn->wait);
+		queue_work(isert_release_wq, &isert_conn->release_work);
+	}
+	mutex_unlock(&isert_np->mutex);
+}
+
 /**
  * isert_conn_terminate() - Initiate connection termination
  * @isert_conn: isert connection struct
@@ -837,24 +857,19 @@ isert_conn_terminate(struct isert_conn *isert_conn)
 {
 	int err;
 
-	switch (isert_conn->state) {
-	case ISER_CONN_TERMINATING:
-		break;
-	case ISER_CONN_UP:
-	case ISER_CONN_BOUND:
-	case ISER_CONN_FULL_FEATURE: /* FALLTHRU */
-		isert_info("Terminating conn %p state %d\n",
-			   isert_conn, isert_conn->state);
-		isert_conn->state = ISER_CONN_TERMINATING;
-		err = rdma_disconnect(isert_conn->cm_id);
-		if (err)
-			isert_warn("Failed rdma_disconnect isert_conn %p\n",
-				   isert_conn);
-		break;
-	default:
-		isert_warn("conn %p teminating in state %d\n",
-			   isert_conn, isert_conn->state);
-	}
+	if (isert_conn->state >= ISER_CONN_TERMINATING)
+		return;
+
+	isert_info("Terminating conn %p state %d\n",
+		   isert_conn, isert_conn->state);
+	isert_conn->state = ISER_CONN_TERMINATING;
+	err = rdma_disconnect(isert_conn->cm_id);
+	if (err)
+		isert_warn("Failed rdma_disconnect isert_conn %p\n",
+			   isert_conn);
+
+	isert_info("conn %p completing wait\n", isert_conn);
+	complete(&isert_conn->wait);
 }
 
 static int
@@ -888,30 +903,27 @@ static int
 isert_disconnected_handler(struct rdma_cm_id *cma_id,
 			   enum rdma_cm_event_type event)
 {
-	struct isert_np *isert_np = cma_id->context;
 	struct isert_conn *isert_conn = cma_id->qp->qp_context;
-	bool terminating = false;
 
 	mutex_lock(&isert_conn->mutex);
-	terminating = (isert_conn->state == ISER_CONN_TERMINATING);
-	isert_conn_terminate(isert_conn);
+	switch (isert_conn->state) {
+	case ISER_CONN_TERMINATING:
+		break;
+	case ISER_CONN_UP:
+		isert_conn_terminate(isert_conn);
+		isert_wait4flush(isert_conn);
+		isert_handle_unbound_conn(isert_conn);
+		break;
+	case ISER_CONN_BOUND:
+	case ISER_CONN_FULL_FEATURE: /* FALLTHRU */
+		iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
+		break;
+	default:
+		isert_warn("conn %p teminating in state %d\n",
+			   isert_conn, isert_conn->state);
+	}
 	mutex_unlock(&isert_conn->mutex);
 
-	isert_info("conn %p completing wait\n", isert_conn);
-	complete(&isert_conn->wait);
-
-	if (terminating)
-		goto out;
-
-	mutex_lock(&isert_np->mutex);
-	if (!list_empty(&isert_conn->node)) {
-		list_del_init(&isert_conn->node);
-		isert_put_conn(isert_conn);
-		queue_work(isert_release_wq, &isert_conn->release_work);
-	}
-	mutex_unlock(&isert_np->mutex);
-
-out:
 	return 0;
 }
 
@@ -985,13 +997,10 @@ isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 	rx_wr--;
 	rx_wr->next = NULL; /* mark end of work requests list */
 
-	isert_conn->post_recv_buf_count += count;
 	ret = ib_post_recv(isert_conn->qp, isert_conn->rx_wr,
 			   &rx_wr_failed);
-	if (ret) {
+	if (ret)
 		isert_err("ib_post_recv() failed with ret: %d\n", ret);
-		isert_conn->post_recv_buf_count -= count;
-	}
 
 	return ret;
 }
@@ -1007,12 +1016,9 @@ isert_post_recv(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc)
 	rx_wr.num_sge = 1;
 	rx_wr.next = NULL;
 
-	isert_conn->post_recv_buf_count++;
 	ret = ib_post_recv(isert_conn->qp, &rx_wr, &rx_wr_failed);
-	if (ret) {
+	if (ret)
 		isert_err("ib_post_recv() failed with ret: %d\n", ret);
-		isert_conn->post_recv_buf_count--;
-	}
 
 	return ret;
 }
@@ -1132,12 +1138,9 @@ isert_rdma_post_recvl(struct isert_conn *isert_conn)
 	rx_wr.sg_list = &sge;
 	rx_wr.num_sge = 1;
 
-	isert_conn->post_recv_buf_count++;
 	ret = ib_post_recv(isert_conn->qp, &rx_wr, &rx_wr_fail);
-	if (ret) {
+	if (ret)
 		isert_err("ib_post_recv() failed: %d\n", ret);
-		isert_conn->post_recv_buf_count--;
-	}
 
 	return ret;
 }
@@ -1633,7 +1636,6 @@ isert_rcv_completion(struct iser_rx_desc *desc,
 	ib_dma_sync_single_for_device(ib_dev, rx_dma, rx_buflen,
 				      DMA_FROM_DEVICE);
 
-	isert_conn->post_recv_buf_count--;
 }
 
 static int
@@ -2073,11 +2075,6 @@ isert_cq_comp_err(struct isert_conn *isert_conn, struct ib_wc *wc)
 			isert_unmap_tx_desc(desc, ib_dev);
 		else
 			isert_completion_put(desc, isert_cmd, ib_dev, true);
-	} else {
-		isert_conn->post_recv_buf_count--;
-		if (!isert_conn->post_recv_buf_count &&
-		    isert_conn->state >= ISER_CONN_BOUND)
-			iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
 	}
 }
 
