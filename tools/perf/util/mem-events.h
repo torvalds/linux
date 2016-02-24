@@ -22,4 +22,5 @@ extern struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX];
 int perf_mem_events__parse(const char *str);
 int perf_mem_events__init(void);
 
+char *perf_mem_events__name(int i);
 #endif /* __PERF_MEM_EVENTS_H */
