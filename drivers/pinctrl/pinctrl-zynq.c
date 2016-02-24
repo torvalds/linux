@@ -1195,22 +1195,13 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	pctrl->funcs = zynq_pmux_functions;
 	pctrl->nfuncs = ARRAY_SIZE(zynq_pmux_functions);
 
-	pctrl->pctrl = pinctrl_register(&zynq_desc, &pdev->dev, pctrl);
+	pctrl->pctrl = devm_pinctrl_register(&pdev->dev, &zynq_desc, pctrl);
 	if (IS_ERR(pctrl->pctrl))
 		return PTR_ERR(pctrl->pctrl);
 
 	platform_set_drvdata(pdev, pctrl);
 
 	dev_info(&pdev->dev, "zynq pinctrl initialized\n");
-
-	return 0;
-}
-
-static int zynq_pinctrl_remove(struct platform_device *pdev)
-{
-	struct zynq_pinctrl *pctrl = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pctrl->pctrl);
 
 	return 0;
 }
@@ -1227,7 +1218,6 @@ static struct platform_driver zynq_pinctrl_driver = {
 		.of_match_table = zynq_pinctrl_of_match,
 	},
 	.probe = zynq_pinctrl_probe,
-	.remove = zynq_pinctrl_remove,
 };
 
 static int __init zynq_pinctrl_init(void)

@@ -1883,7 +1883,7 @@ static int devm_pinctrl_dev_match(struct device *dev, void *res, void *data)
 {
 	struct pctldev **r = res;
 
-	if (WARN_ON(!r || !*r)
+	if (WARN_ON(!r || !*r))
 		return 0;
 
 	return *r == data;
