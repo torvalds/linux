@@ -776,21 +776,39 @@ static struct kvm_lpage_info *lpage_info_slot(gfn_t gfn,
 	return &slot->arch.lpage_info[level - 2][idx];
 }
 
+static void update_gfn_disallow_lpage_count(struct kvm_memory_slot *slot,
+					    gfn_t gfn, int count)
+{
+	struct kvm_lpage_info *linfo;
+	int i;
+
+	for (i = PT_DIRECTORY_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
+		linfo = lpage_info_slot(gfn, slot, i);
+		linfo->disallow_lpage += count;
+		WARN_ON(linfo->disallow_lpage < 0);
+	}
+}
+
+void kvm_mmu_gfn_disallow_lpage(struct kvm_memory_slot *slot, gfn_t gfn)
+{
+	update_gfn_disallow_lpage_count(slot, gfn, 1);
+}
+
+void kvm_mmu_gfn_allow_lpage(struct kvm_memory_slot *slot, gfn_t gfn)
+{
+	update_gfn_disallow_lpage_count(slot, gfn, -1);
+}
+
 static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *slot;
-	struct kvm_lpage_info *linfo;
 	gfn_t gfn;
-	int i;
 
 	gfn = sp->gfn;
 	slots = kvm_memslots_for_spte_role(kvm, sp->role);
 	slot = __gfn_to_memslot(slots, gfn);
-	for (i = PT_DIRECTORY_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
-		linfo = lpage_info_slot(gfn, slot, i);
-		linfo->disallow_lpage += 1;
-	}
+	kvm_mmu_gfn_disallow_lpage(slot, gfn);
 	kvm->arch.indirect_shadow_pages++;
 }
 
@@ -798,18 +816,12 @@ static void unaccount_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *slot;
-	struct kvm_lpage_info *linfo;
 	gfn_t gfn;
-	int i;
 
 	gfn = sp->gfn;
 	slots = kvm_memslots_for_spte_role(kvm, sp->role);
 	slot = __gfn_to_memslot(slots, gfn);
-	for (i = PT_DIRECTORY_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
-		linfo = lpage_info_slot(gfn, slot, i);
-		linfo->disallow_lpage -= 1;
-		WARN_ON(linfo->disallow_lpage < 0);
-	}
+	kvm_mmu_gfn_allow_lpage(slot, gfn);
 	kvm->arch.indirect_shadow_pages--;
 }
 
