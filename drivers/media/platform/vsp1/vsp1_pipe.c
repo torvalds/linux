@@ -23,6 +23,7 @@
 #include "vsp1_bru.h"
 #include "vsp1_dl.h"
 #include "vsp1_entity.h"
+#include "vsp1_hgo.h"
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_uds.h"
@@ -204,11 +205,18 @@ void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 		pipe->output = NULL;
 	}
 
+	if (pipe->hgo) {
+		struct vsp1_hgo *hgo = to_hgo(&pipe->hgo->subdev);
+
+		hgo->histo.pipe = NULL;
+	}
+
 	INIT_LIST_HEAD(&pipe->entities);
 	pipe->state = VSP1_PIPELINE_STOPPED;
 	pipe->buffers_ready = 0;
 	pipe->num_inputs = 0;
 	pipe->bru = NULL;
+	pipe->hgo = NULL;
 	pipe->lif = NULL;
 	pipe->uds = NULL;
 }
@@ -286,6 +294,11 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 				   VI6_DPR_NODE_UNUSED);
 	}
 
+	if (pipe->hgo)
+		vsp1_write(vsp1, VI6_DPR_HGO_SMPPT,
+			   (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
+			   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
+
 	v4l2_subdev_call(&pipe->output->entity.subdev, video, s_stream, 0);
 
 	return ret;
@@ -308,6 +321,9 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 		return;
 
 	vsp1_dlm_irq_frame_end(pipe->output->dlm);
+
+	if (pipe->hgo)
+		vsp1_hgo_frame_end(pipe->hgo);
 
 	if (pipe->frame_end)
 		pipe->frame_end(pipe);

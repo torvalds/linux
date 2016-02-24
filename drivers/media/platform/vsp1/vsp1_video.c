@@ -31,6 +31,7 @@
 #include "vsp1_bru.h"
 #include "vsp1_dl.h"
 #include "vsp1_entity.h"
+#include "vsp1_hgo.h"
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_uds.h"
@@ -601,6 +602,11 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 			pipe->lif = e;
 		} else if (e->type == VSP1_ENTITY_BRU) {
 			pipe->bru = e;
+		} else if (e->type == VSP1_ENTITY_HGO) {
+			struct vsp1_hgo *hgo = to_hgo(subdev);
+
+			pipe->hgo = e;
+			hgo->histo.pipe = pipe;
 		}
 	}
 

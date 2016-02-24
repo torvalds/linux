@@ -590,24 +590,38 @@
  */
 
 #define VI6_HGO_OFFSET			0x3000
+#define VI6_HGO_OFFSET_HOFFSET_SHIFT	16
+#define VI6_HGO_OFFSET_VOFFSET_SHIFT	0
 #define VI6_HGO_SIZE			0x3004
+#define VI6_HGO_SIZE_HSIZE_SHIFT	16
+#define VI6_HGO_SIZE_VSIZE_SHIFT	0
 #define VI6_HGO_MODE			0x3008
+#define VI6_HGO_MODE_STEP		(1 << 10)
+#define VI6_HGO_MODE_MAXRGB		(1 << 7)
+#define VI6_HGO_MODE_OFSB_R		(1 << 6)
+#define VI6_HGO_MODE_OFSB_G		(1 << 5)
+#define VI6_HGO_MODE_OFSB_B		(1 << 4)
+#define VI6_HGO_MODE_HRATIO_SHIFT	2
+#define VI6_HGO_MODE_VRATIO_SHIFT	0
 #define VI6_HGO_LB_TH			0x300c
 #define VI6_HGO_LBn_H(n)		(0x3010 + (n) * 8)
 #define VI6_HGO_LBn_V(n)		(0x3014 + (n) * 8)
-#define VI6_HGO_R_HISTO			0x3030
+#define VI6_HGO_R_HISTO(n)		(0x3030 + (n) * 4)
 #define VI6_HGO_R_MAXMIN		0x3130
 #define VI6_HGO_R_SUM			0x3134
 #define VI6_HGO_R_LB_DET		0x3138
-#define VI6_HGO_G_HISTO			0x3140
+#define VI6_HGO_G_HISTO(n)		(0x3140 + (n) * 4)
 #define VI6_HGO_G_MAXMIN		0x3240
 #define VI6_HGO_G_SUM			0x3244
 #define VI6_HGO_G_LB_DET		0x3248
-#define VI6_HGO_B_HISTO			0x3250
+#define VI6_HGO_B_HISTO(n)		(0x3250 + (n) * 4)
 #define VI6_HGO_B_MAXMIN		0x3350
 #define VI6_HGO_B_SUM			0x3354
 #define VI6_HGO_B_LB_DET		0x3358
+#define VI6_HGO_EXT_HIST_ADDR		0x335c
+#define VI6_HGO_EXT_HIST_DATA		0x3360
 #define VI6_HGO_REGRST			0x33fc
+#define VI6_HGO_REGRST_RCLEA		(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * HGT Control Registers
