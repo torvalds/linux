@@ -1645,7 +1645,7 @@ out:
 
 static bool is_orphaned_event(struct perf_event *event)
 {
-	return event->state == PERF_EVENT_STATE_EXIT;
+	return event->state == PERF_EVENT_STATE_DEAD;
 }
 
 static inline int pmu_filter_match(struct perf_event *event)
@@ -1732,7 +1732,6 @@ group_sched_out(struct perf_event *group_event,
 }
 
 #define DETACH_GROUP	0x01UL
-#define DETACH_STATE	0x02UL
 
 /*
  * Cross CPU call to remove a performance event
@@ -1752,8 +1751,6 @@ __perf_remove_from_context(struct perf_event *event,
 	if (flags & DETACH_GROUP)
 		perf_group_detach(event);
 	list_del_event(event, ctx);
-	if (flags & DETACH_STATE)
-		event->state = PERF_EVENT_STATE_EXIT;
 
 	if (!ctx->nr_events && ctx->is_active) {
 		ctx->is_active = 0;
@@ -3772,22 +3769,24 @@ int perf_event_release_kernel(struct perf_event *event)
 
 	ctx = perf_event_ctx_lock(event);
 	WARN_ON_ONCE(ctx->parent_ctx);
-	perf_remove_from_context(event, DETACH_GROUP | DETACH_STATE);
-	perf_event_ctx_unlock(event, ctx);
+	perf_remove_from_context(event, DETACH_GROUP);
 
+	raw_spin_lock_irq(&ctx->lock);
 	/*
-	 * At this point we must have event->state == PERF_EVENT_STATE_EXIT,
-	 * either from the above perf_remove_from_context() or through
-	 * perf_event_exit_event().
+	 * Mark this even as STATE_DEAD, there is no external reference to it
+	 * anymore.
 	 *
-	 * Therefore, anybody acquiring event->child_mutex after the below
-	 * loop _must_ also see this, most importantly inherit_event() which
-	 * will avoid placing more children on the list.
+	 * Anybody acquiring event->child_mutex after the below loop _must_
+	 * also see this, most importantly inherit_event() which will avoid
+	 * placing more children on the list.
 	 *
 	 * Thus this guarantees that we will in fact observe and kill _ALL_
 	 * child events.
 	 */
-	WARN_ON_ONCE(event->state != PERF_EVENT_STATE_EXIT);
+	event->state = PERF_EVENT_STATE_DEAD;
+	raw_spin_unlock_irq(&ctx->lock);
+
+	perf_event_ctx_unlock(event, ctx);
 
 again:
 	mutex_lock(&event->child_mutex);
@@ -4000,7 +3999,7 @@ static bool is_event_hup(struct perf_event *event)
 {
 	bool no_children;
 
-	if (event->state != PERF_EVENT_STATE_EXIT)
+	if (event->state > PERF_EVENT_STATE_EXIT)
 		return false;
 
 	mutex_lock(&event->child_mutex);
@@ -8727,7 +8726,7 @@ perf_event_exit_event(struct perf_event *child_event,
 	if (parent_event)
 		perf_group_detach(child_event);
 	list_del_event(child_event, child_ctx);
-	child_event->state = PERF_EVENT_STATE_EXIT; /* see perf_event_release_kernel() */
+	child_event->state = PERF_EVENT_STATE_EXIT; /* is_event_hup() */
 	raw_spin_unlock_irq(&child_ctx->lock);
 
 	/*
