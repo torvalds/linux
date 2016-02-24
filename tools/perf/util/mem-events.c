@@ -194,7 +194,7 @@ static const char * const snoop_access[] = {
 	"HitM",
 };
 
-void perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	size_t i, l = 0;
 	u64 m = PERF_MEM_SNOOP_NA;
@@ -212,12 +212,13 @@ void perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 			strcat(out, " or ");
 			l += 4;
 		}
-		strncat(out, snoop_access[i], sz - l);
-		l += strlen(snoop_access[i]);
+		l += scnprintf(out + l, sz - l, snoop_access[i]);
 	}
 
 	if (*out == '\0')
-		strcpy(out, "N/A");
+		l += scnprintf(out, sz - l, "N/A");
+
+	return l;
 }
 
 void perf_mem__lck_scnprintf(char *out, size_t sz __maybe_unused,
