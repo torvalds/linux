@@ -154,6 +154,7 @@ static struct s3c2410_uartcfg gta02_uartcfgs[] = {
 #define ADC_NOM_CHG_DETECT_1A 6
 #define ADC_NOM_CHG_DETECT_USB 43
 
+#ifdef CONFIG_PCF50633_ADC
 static void
 gta02_configure_pmu_for_charger(struct pcf50633 *pcf, void *unused, int res)
 {
@@ -174,6 +175,7 @@ gta02_configure_pmu_for_charger(struct pcf50633 *pcf, void *unused, int res)
 
 	pcf50633_mbc_usb_curlim_set(pcf, ma);
 }
+#endif
 
 static struct delayed_work gta02_charger_work;
 static int gta02_usb_vbus_draw;
