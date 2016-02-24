@@ -99,8 +99,8 @@ enum vcpu_sysreg {
 	TTBR1_EL1,	/* Translation Table Base Register 1 */
 	TCR_EL1,	/* Translation Control Register */
 	ESR_EL1,	/* Exception Syndrome Register */
-	AFSR0_EL1,	/* Auxilary Fault Status Register 0 */
-	AFSR1_EL1,	/* Auxilary Fault Status Register 1 */
+	AFSR0_EL1,	/* Auxiliary Fault Status Register 0 */
+	AFSR1_EL1,	/* Auxiliary Fault Status Register 1 */
 	FAR_EL1,	/* Fault Address Register */
 	MAIR_EL1,	/* Memory Attribute Indirection Register */
 	VBAR_EL1,	/* Vector Base Address Register */

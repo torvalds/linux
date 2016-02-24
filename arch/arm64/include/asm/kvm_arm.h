@@ -61,7 +61,7 @@
 
 /*
  * The bits we set in HCR:
- * RW:		64bit by default, can be overriden for 32bit VMs
+ * RW:		64bit by default, can be overridden for 32bit VMs
  * TAC:		Trap ACTLR
  * TSC:		Trap SMC
  * TVM:		Trap VM ops (until M+C set in SCTLR_EL1)
