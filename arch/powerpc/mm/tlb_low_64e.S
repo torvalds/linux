@@ -895,7 +895,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 BEGIN_MMU_FTR_SECTION
 virt_page_table_tlb_miss_done:
 
-	/* We have overriden MAS2:EPN but currently our primary TLB miss
+	/* We have overridden MAS2:EPN but currently our primary TLB miss
 	 * handler will always restore it so that should not be an issue,
 	 * if we ever optimize the primary handler to not write MAS2 on
 	 * some cases, we'll have to restore MAS2:EPN here based on the

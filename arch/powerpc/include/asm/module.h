@@ -19,7 +19,7 @@
  * Thanks to Paul M for explaining this.
  *
  * PPC can only do rel jumps += 32MB, and often the kernel and other
- * modules are furthur away than this.  So, we jump to a table of
+ * modules are further away than this.  So, we jump to a table of
  * trampolines attached to the module (the Procedure Linkage Table)
  * whenever that happens.
  */

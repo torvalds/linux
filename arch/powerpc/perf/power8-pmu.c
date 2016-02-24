@@ -415,7 +415,7 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 			pmc_inuse |= 1 << pmc;
 	}
 
-	/* In continous sampling mode, update SDAR on TLB miss */
+	/* In continuous sampling mode, update SDAR on TLB miss */
 	mmcra = MMCRA_SDAR_MODE_TLB;
 	mmcr1 = mmcr2 = 0;
 

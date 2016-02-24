@@ -1402,7 +1402,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		 * is a read DSCR attempt through a mfspr instruction, we
 		 * just emulate the instruction instead. This code path will
 		 * always emulate all the mfspr instructions till the user
-		 * has attempted atleast one mtspr instruction. This way it
+		 * has attempted at least one mtspr instruction. This way it
 		 * preserves the same behaviour when the user is accessing
 		 * the DSCR through privilege level only SPR number (0x11)
 		 * which is emulated through illegal instruction exception.

@@ -80,7 +80,7 @@ struct hv_24x7_result {
 	__u8 results_complete;
 	__be16 num_elements_returned;
 
-	/* This is a copy of @data_size from the coresponding hv_24x7_request */
+	/* This is a copy of @data_size from the corresponding hv_24x7_request */
 	__be16 result_element_data_size;
 	__u8 reserved[0x2];
 
