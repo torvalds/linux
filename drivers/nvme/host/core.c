@@ -184,7 +184,7 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 			goto out_unmap;
 		}
 
-		if (meta_buffer) {
+		if (meta_buffer && meta_len) {
 			struct bio_integrity_payload *bip;
 
 			meta = kmalloc(meta_len, GFP_KERNEL);
