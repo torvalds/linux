@@ -11,8 +11,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
-	model = "ARM Juno development board (r1)";
-	compatible = "arm,juno-r1", "arm,juno", "arm,vexpress";
+	model = "ARM Juno development board (r2)";
+	compatible = "arm,juno-r2", "arm,juno", "arm,vexpress";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -37,10 +37,10 @@
 		cpu-map {
 			cluster0 {
 				core0 {
-					cpu = <&A57_0>;
+					cpu = <&A72_0>;
 				};
 				core1 {
-					cpu = <&A57_1>;
+					cpu = <&A72_1>;
 				};
 			};
 
@@ -82,22 +82,22 @@
 			};
 		};
 
-		A57_0: cpu@0 {
-			compatible = "arm,cortex-a57","arm,armv8";
+		A72_0: cpu@0 {
+			compatible = "arm,cortex-a72","arm,armv8";
 			reg = <0x0 0x0>;
 			device_type = "cpu";
 			enable-method = "psci";
-			next-level-cache = <&A57_L2>;
+			next-level-cache = <&A72_L2>;
 			clocks = <&scpi_dvfs 0>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 
-		A57_1: cpu@1 {
-			compatible = "arm,cortex-a57","arm,armv8";
+		A72_1: cpu@1 {
+			compatible = "arm,cortex-a72","arm,armv8";
 			reg = <0x0 0x1>;
 			device_type = "cpu";
 			enable-method = "psci";
-			next-level-cache = <&A57_L2>;
+			next-level-cache = <&A72_L2>;
 			clocks = <&scpi_dvfs 0>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
@@ -142,7 +142,7 @@
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 
-		A57_L2: l2-cache0 {
+		A72_L2: l2-cache0 {
 			compatible = "cache";
 		};
 
@@ -151,12 +151,12 @@
 		};
 	};
 
-	pmu_a57 {
-		compatible = "arm,cortex-a57-pmu";
+	pmu_a72 {
+		compatible = "arm,cortex-a72-pmu";
 		interrupts = <GIC_SPI 02 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 06 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-affinity = <&A57_0>,
-				     <&A57_1>;
+		interrupt-affinity = <&A72_0>,
+				     <&A72_1>;
 	};
 
 	pmu_a53 {
