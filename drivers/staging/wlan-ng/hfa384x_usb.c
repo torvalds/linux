@@ -126,8 +126,6 @@
 #include <linux/usb.h>
 #include <linux/byteorder/generic.h>
 
-#define SUBMIT_URB(u, f)  usb_submit_urb(u, f)
-
 #include "p80211types.h"
 #include "p80211hdr.h"
 #include "p80211mgmt.h"
@@ -346,7 +344,7 @@ static int submit_rx_urb(hfa384x_t *hw, gfp_t memflags)
 	result = -ENOLINK;
 	if (!hw->wlandev->hwremoved &&
 	    !test_bit(WORK_RX_HALT, &hw->usb_flags)) {
-		result = SUBMIT_URB(&hw->rx_urb, memflags);
+		result = usb_submit_urb(&hw->rx_urb, memflags);
 
 		/* Check whether we need to reset the RX pipe */
 		if (result == -EPIPE) {
@@ -395,7 +393,7 @@ static int submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, gfp_t memflags)
 	if (netif_running(netdev)) {
 		if (!hw->wlandev->hwremoved &&
 		    !test_bit(WORK_TX_HALT, &hw->usb_flags)) {
-			result = SUBMIT_URB(tx_urb, memflags);
+			result = usb_submit_urb(tx_urb, memflags);
 
 			/* Test whether we need to reset the TX pipe */
 			if (result == -EPIPE) {
@@ -2925,7 +2923,7 @@ static void hfa384x_usbctlxq_run(hfa384x_t *hw)
 		hw->ctlx_urb.transfer_flags |= USB_QUEUE_BULK;
 
 		/* Now submit the URB and update the CTLX's state */
-		result = SUBMIT_URB(&hw->ctlx_urb, GFP_ATOMIC);
+		result = usb_submit_urb(&hw->ctlx_urb, GFP_ATOMIC);
 		if (result == 0) {
 			/* This CTLX is now running on the active queue */
 			head->state = CTLX_REQ_SUBMITTED;
