@@ -276,10 +276,10 @@ static void event_function_call(struct perf_event *event, event_f func, void *da
 		return;
 	}
 
-again:
 	if (task == TASK_TOMBSTONE)
 		return;
 
+again:
 	if (!task_function_call(task, event_function, &efs))
 		return;
 
@@ -289,13 +289,15 @@ again:
 	 * a concurrent perf_event_context_sched_out().
 	 */
 	task = ctx->task;
-	if (task != TASK_TOMBSTONE) {
-		if (ctx->is_active) {
-			raw_spin_unlock_irq(&ctx->lock);
-			goto again;
-		}
-		func(event, NULL, ctx, data);
+	if (task == TASK_TOMBSTONE) {
+		raw_spin_unlock_irq(&ctx->lock);
+		return;
 	}
+	if (ctx->is_active) {
+		raw_spin_unlock_irq(&ctx->lock);
+		goto again;
+	}
+	func(event, NULL, ctx, data);
 	raw_spin_unlock_irq(&ctx->lock);
 }
 
@@ -2116,49 +2118,68 @@ static void ctx_resched(struct perf_cpu_context *cpuctx,
 /*
  * Cross CPU call to install and enable a performance event
  *
- * Must be called with ctx->mutex held
+ * Very similar to remote_function() + event_function() but cannot assume that
+ * things like ctx->is_active and cpuctx->task_ctx are set.
  */
 static int  __perf_install_in_context(void *info)
 {
-	struct perf_event_context *ctx = info;
+	struct perf_event *event = info;
+	struct perf_event_context *ctx = event->ctx;
 	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
 	struct perf_event_context *task_ctx = cpuctx->task_ctx;
+	bool activate = true;
+	int ret = 0;
 
 	raw_spin_lock(&cpuctx->ctx.lock);
 	if (ctx->task) {
 		raw_spin_lock(&ctx->lock);
-		/*
-		 * If we hit the 'wrong' task, we've since scheduled and
-		 * everything should be sorted, nothing to do!
-		 */
 		task_ctx = ctx;
-		if (ctx->task != current)
+
+		/* If we're on the wrong CPU, try again */
+		if (task_cpu(ctx->task) != smp_processor_id()) {
+			ret = -ESRCH;
 			goto unlock;
+		}
 
 		/*
-		 * If task_ctx is set, it had better be to us.
+		 * If we're on the right CPU, see if the task we target is
+		 * current, if not we don't have to activate the ctx, a future
+		 * context switch will do that for us.
 		 */
-		WARN_ON_ONCE(cpuctx->task_ctx != ctx && cpuctx->task_ctx);
+		if (ctx->task != current)
+			activate = false;
+		else
+			WARN_ON_ONCE(cpuctx->task_ctx && cpuctx->task_ctx != ctx);
+
 	} else if (task_ctx) {
 		raw_spin_lock(&task_ctx->lock);
 	}
 
-	ctx_resched(cpuctx, task_ctx);
+	if (activate) {
+		ctx_sched_out(ctx, cpuctx, EVENT_TIME);
+		add_event_to_ctx(event, ctx);
+		ctx_resched(cpuctx, task_ctx);
+	} else {
+		add_event_to_ctx(event, ctx);
+	}
+
 unlock:
 	perf_ctx_unlock(cpuctx, task_ctx);
 
-	return 0;
+	return ret;
 }
 
 /*
- * Attach a performance event to a context
+ * Attach a performance event to a context.
+ *
+ * Very similar to event_function_call, see comment there.
  */
 static void
 perf_install_in_context(struct perf_event_context *ctx,
 			struct perf_event *event,
 			int cpu)
 {
-	struct task_struct *task = NULL;
+	struct task_struct *task = READ_ONCE(ctx->task);
 
 	lockdep_assert_held(&ctx->mutex);
 
@@ -2166,42 +2187,46 @@ perf_install_in_context(struct perf_event_context *ctx,
 	if (event->cpu != -1)
 		event->cpu = cpu;
 
-	/*
-	 * Installing events is tricky because we cannot rely on ctx->is_active
-	 * to be set in case this is the nr_events 0 -> 1 transition.
-	 *
-	 * So what we do is we add the event to the list here, which will allow
-	 * a future context switch to DTRT and then send a racy IPI. If the IPI
-	 * fails to hit the right task, this means a context switch must have
-	 * happened and that will have taken care of business.
-	 */
-	raw_spin_lock_irq(&ctx->lock);
-	task = ctx->task;
-
-	/*
-	 * If between ctx = find_get_context() and mutex_lock(&ctx->mutex) the
-	 * ctx gets destroyed, we must not install an event into it.
-	 *
-	 * This is normally tested for after we acquire the mutex, so this is
-	 * a sanity check.
-	 */
-	if (WARN_ON_ONCE(task == TASK_TOMBSTONE)) {
-		raw_spin_unlock_irq(&ctx->lock);
+	if (!task) {
+		cpu_function_call(cpu, __perf_install_in_context, event);
 		return;
 	}
 
-	if (ctx->is_active) {
-		update_context_time(ctx);
-		update_cgrp_time_from_event(event);
+	/*
+	 * Should not happen, we validate the ctx is still alive before calling.
+	 */
+	if (WARN_ON_ONCE(task == TASK_TOMBSTONE))
+		return;
+
+	/*
+	 * Installing events is tricky because we cannot rely on ctx->is_active
+	 * to be set in case this is the nr_events 0 -> 1 transition.
+	 */
+again:
+	/*
+	 * Cannot use task_function_call() because we need to run on the task's
+	 * CPU regardless of whether its current or not.
+	 */
+	if (!cpu_function_call(task_cpu(task), __perf_install_in_context, event))
+		return;
+
+	raw_spin_lock_irq(&ctx->lock);
+	task = ctx->task;
+	if (WARN_ON_ONCE(task == TASK_TOMBSTONE)) {
+		/*
+		 * Cannot happen because we already checked above (which also
+		 * cannot happen), and we hold ctx->mutex, which serializes us
+		 * against perf_event_exit_task_context().
+		 */
+		raw_spin_unlock_irq(&ctx->lock);
+		return;
 	}
-
-	add_event_to_ctx(event, ctx);
 	raw_spin_unlock_irq(&ctx->lock);
-
-	if (task)
-		task_function_call(task, __perf_install_in_context, ctx);
-	else
-		cpu_function_call(cpu, __perf_install_in_context, ctx);
+	/*
+	 * Since !ctx->is_active doesn't mean anything, we must IPI
+	 * unconditionally.
+	 */
+	goto again;
 }
 
 /*
