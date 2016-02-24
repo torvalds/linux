@@ -31,6 +31,8 @@ struct fw_scs1x {
 	u8 buffer[HSS1394_MAX_PACKET_SIZE];
 	bool transaction_running;
 	struct fw_transaction transaction;
+	unsigned int transaction_bytes;
+	bool error;
 	struct fw_device *fw_dev;
 };
 
@@ -125,8 +127,13 @@ static void scs_write_callback(struct fw_card *card, int rcode,
 {
 	struct fw_scs1x *scs = callback_data;
 
-	if (rcode == RCODE_GENERATION)
-		;	/* TODO: retry this packet */
+	if (!rcode_is_permanent_error(rcode)) {
+		/* Don't retry for this data. */
+		if (rcode == RCODE_COMPLETE)
+			scs->transaction_bytes = 0;
+	} else {
+		scs->error = true;
+	}
 
 	scs->transaction_running = false;
 	schedule_work(&scs->work);
@@ -177,11 +184,14 @@ static void scs_output_work(struct work_struct *work)
 		return;
 
 	stream = ACCESS_ONCE(scs->output);
-	if (!stream) {
+	if (!stream || scs->error) {
 		scs->output_idle = true;
 		wake_up(&scs->idle_wait);
 		return;
 	}
+
+	if (scs->transaction_bytes > 0)
+		goto retry;
 
 	i = scs->output_bytes;
 	for (;;) {
@@ -253,13 +263,16 @@ static void scs_output_work(struct work_struct *work)
 	scs->output_bytes = 1;
 	scs->output_escaped = false;
 
+	scs->transaction_bytes = i;
+retry:
 	scs->transaction_running = true;
 	generation = scs->fw_dev->generation;
 	smp_rmb(); /* node_id vs. generation */
 	fw_send_request(scs->fw_dev->card, &scs->transaction,
 			TCODE_WRITE_BLOCK_REQUEST, scs->fw_dev->node_id,
 			generation, scs->fw_dev->max_speed, HSS1394_ADDRESS,
-			scs->buffer, i, scs_write_callback, scs);
+			scs->buffer, scs->transaction_bytes,
+			scs_write_callback, scs);
 }
 
 static int midi_capture_open(struct snd_rawmidi_substream *stream)
@@ -309,6 +322,8 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *stream, int up)
 		scs->output_bytes = 1;
 		scs->output_escaped = false;
 		scs->output_idle = false;
+		scs->transaction_bytes = 0;
+		scs->error = false;
 
 		ACCESS_ONCE(scs->output) = stream;
 		schedule_work(&scs->work);
