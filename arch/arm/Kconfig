@@ -527,10 +527,10 @@ config ARCH_LPC32XX
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
+	select CLKSRC_LPC32XX
+	select COMMON_CLK
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
-	select HAVE_IDE
 	select USE_OF
 	help
 	  Support for the NXP LPC32XX family of processors
