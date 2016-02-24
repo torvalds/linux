@@ -825,7 +825,7 @@ isert_put_conn(struct isert_conn *isert_conn)
  * @isert_conn: isert connection struct
  *
  * Notes:
- * In case the connection state is FULL_FEATURE, move state
+ * In case the connection state is BOUND, move state
  * to TEMINATING and start teardown sequence (rdma_disconnect).
  * In case the connection state is UP, complete flush as well.
  *
@@ -841,6 +841,7 @@ isert_conn_terminate(struct isert_conn *isert_conn)
 	case ISER_CONN_TERMINATING:
 		break;
 	case ISER_CONN_UP:
+	case ISER_CONN_BOUND:
 	case ISER_CONN_FULL_FEATURE: /* FALLTHRU */
 		isert_info("Terminating conn %p state %d\n",
 			   isert_conn, isert_conn->state);
@@ -2075,7 +2076,8 @@ isert_cq_comp_err(struct isert_conn *isert_conn, struct ib_wc *wc)
 			isert_completion_put(desc, isert_cmd, ib_dev, true);
 	} else {
 		isert_conn->post_recv_buf_count--;
-		if (!isert_conn->post_recv_buf_count)
+		if (!isert_conn->post_recv_buf_count &&
+		    isert_conn->state >= ISER_CONN_BOUND)
 			iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
 	}
 }
@@ -3215,6 +3217,7 @@ accept_wait:
 
 	conn->context = isert_conn;
 	isert_conn->conn = conn;
+	isert_conn->state = ISER_CONN_BOUND;
 
 	isert_set_conn_info(np, conn, isert_conn);
 
