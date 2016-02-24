@@ -380,6 +380,28 @@ static int map_frag_to_bd(struct qede_dev *edev,
 	return 0;
 }
 
+/* +2 for 1st BD for headers and 2nd BD for headlen (if required) */
+#if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET)
+static bool qede_pkt_req_lin(struct qede_dev *edev, struct sk_buff *skb,
+			     u8 xmit_type)
+{
+	int allowed_frags = ETH_TX_MAX_BDS_PER_NON_LSO_PACKET - 1;
+
+	if (xmit_type & XMIT_LSO) {
+		int hlen;
+
+		hlen = skb_transport_header(skb) +
+		       tcp_hdrlen(skb) - skb->data;
+
+		/* linear payload would require its own BD */
+		if (skb_headlen(skb) > hlen)
+			allowed_frags--;
+	}
+
+	return (skb_shinfo(skb)->nr_frags > allowed_frags);
+}
+#endif
+
 /* Main transmit function */
 static
 netdev_tx_t qede_start_xmit(struct sk_buff *skb,
@@ -407,15 +429,21 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	txq = QEDE_TX_QUEUE(edev, txq_index);
 	netdev_txq = netdev_get_tx_queue(ndev, txq_index);
 
-	/* Current code doesn't support SKB linearization, since the max number
-	 * of skb frags can be passed in the FW HSI.
-	 */
-	BUILD_BUG_ON(MAX_SKB_FRAGS > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET);
-
 	WARN_ON(qed_chain_get_elem_left(&txq->tx_pbl) <
 			       (MAX_SKB_FRAGS + 1));
 
 	xmit_type = qede_xmit_type(edev, skb, &ipv6_ext);
+
+#if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET)
+	if (qede_pkt_req_lin(edev, skb, xmit_type)) {
+		if (skb_linearize(skb)) {
+			DP_NOTICE(edev,
+				  "SKB linearization failed - silently dropping this SKB\n");
+			dev_kfree_skb_any(skb);
+			return NETDEV_TX_OK;
+		}
+	}
+#endif
 
 	/* Fill the entry in the SW ring and the BDs in the FW ring */
 	idx = txq->sw_tx_prod & NUM_TX_BDS_MAX;
