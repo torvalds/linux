@@ -587,6 +587,7 @@ static void gb_tty_exit(void);
 
 static int gb_uart_connection_init(struct gb_connection *connection)
 {
+	size_t max_payload;
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;
 	int retval;
@@ -607,8 +608,13 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 		goto error_alloc;
 	}
 
-	gb_tty->buffer_payload_max =
-		gb_operation_get_payload_size_max(connection) -
+	max_payload = gb_operation_get_payload_size_max(connection);
+	if (max_payload < sizeof(struct gb_uart_send_data_request)) {
+		retval = -EINVAL;
+		goto error_payload;
+	}
+
+	gb_tty->buffer_payload_max = max_payload -
 			sizeof(struct gb_uart_send_data_request);
 
 	gb_tty->buffer = kzalloc(gb_tty->buffer_payload_max, GFP_KERNEL);
