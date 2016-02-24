@@ -558,6 +558,12 @@ ENTRY(imx7_suspend)
 	cmp	r7, #0x0
 	beq	ddr_retention_enter_out
 
+	/* disable STOP mode before entering LPSR */
+	ldr	r11, [r0, #PM_INFO_MX7_GPC_V_OFFSET]
+	ldr	r7, [r11]
+	bic	r7, #0xf
+	str	r7, [r11]
+
 	/* shut down vddsoc to enter lpsr mode */
 	ldr	r11, [r0, #PM_INFO_MX7_SNVS_V_OFFSET]
 	ldr	r7, [r11, #0x38]
