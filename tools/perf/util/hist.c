@@ -396,6 +396,9 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 		}
 		INIT_LIST_HEAD(&he->pairs.node);
 		thread__get(he->thread);
+
+		if (!symbol_conf.report_hierarchy)
+			he->leaf = true;
 	}
 
 	return he;
@@ -1049,6 +1052,114 @@ int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
  * collapse the histogram
  */
 
+static void hists__apply_filters(struct hists *hists, struct hist_entry *he);
+
+static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
+						 struct rb_root *root,
+						 struct hist_entry *he,
+						 struct perf_hpp_fmt *fmt)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct hist_entry *iter, *new;
+	int64_t cmp;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct hist_entry, rb_node_in);
+
+		cmp = fmt->collapse(fmt, iter, he);
+		if (!cmp) {
+			he_stat__add_stat(&iter->stat, &he->stat);
+			return iter;
+		}
+
+		if (cmp < 0)
+			p = &parent->rb_left;
+		else
+			p = &parent->rb_right;
+	}
+
+	new = hist_entry__new(he, true);
+	if (new == NULL)
+		return NULL;
+
+	hists__apply_filters(hists, new);
+	hists->nr_entries++;
+
+	/* save related format for output */
+	new->fmt = fmt;
+
+	/* some fields are now passed to 'new' */
+	if (perf_hpp__is_trace_entry(fmt))
+		he->trace_output = NULL;
+	else
+		new->trace_output = NULL;
+
+	if (perf_hpp__is_srcline_entry(fmt))
+		he->srcline = NULL;
+	else
+		new->srcline = NULL;
+
+	if (perf_hpp__is_srcfile_entry(fmt))
+		he->srcfile = NULL;
+	else
+		new->srcfile = NULL;
+
+	rb_link_node(&new->rb_node_in, parent, p);
+	rb_insert_color(&new->rb_node_in, root);
+	return new;
+}
+
+static int hists__hierarchy_insert_entry(struct hists *hists,
+					 struct rb_root *root,
+					 struct hist_entry *he)
+{
+	struct perf_hpp_fmt *fmt;
+	struct hist_entry *new_he = NULL;
+	struct hist_entry *parent = NULL;
+	int depth = 0;
+	int ret = 0;
+
+	hists__for_each_sort_list(hists, fmt) {
+		if (!perf_hpp__is_sort_entry(fmt) &&
+		    !perf_hpp__is_dynamic_entry(fmt))
+			continue;
+		if (perf_hpp__should_skip(fmt, hists))
+			continue;
+
+		/* insert copy of 'he' for each fmt into the hierarchy */
+		new_he = hierarchy_insert_entry(hists, root, he, fmt);
+		if (new_he == NULL) {
+			ret = -1;
+			break;
+		}
+
+		root = &new_he->hroot_in;
+		new_he->parent_he = parent;
+		new_he->depth = depth++;
+		parent = new_he;
+	}
+
+	if (new_he) {
+		new_he->leaf = true;
+
+		if (symbol_conf.use_callchain) {
+			callchain_cursor_reset(&callchain_cursor);
+			if (callchain_merge(&callchain_cursor,
+					    new_he->callchain,
+					    he->callchain) < 0)
+				ret = -1;
+		}
+	}
+
+	/* 'he' is no longer used */
+	hist_entry__delete(he);
+
+	/* return 0 (or -1) since it already applied filters */
+	return ret;
+}
+
 int hists__collapse_insert_entry(struct hists *hists, struct rb_root *root,
 				 struct hist_entry *he)
 {
@@ -1056,6 +1167,9 @@ int hists__collapse_insert_entry(struct hists *hists, struct rb_root *root,
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
 	int64_t cmp;
+
+	if (symbol_conf.report_hierarchy)
+		return hists__hierarchy_insert_entry(hists, root, he);
 
 	while (*p != NULL) {
 		parent = *p;

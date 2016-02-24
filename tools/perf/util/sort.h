@@ -96,9 +96,11 @@ struct hist_entry {
 	s32			socket;
 	s32			cpu;
 	u8			cpumode;
+	u8			depth;
 
 	/* We are added by hists__add_dummy_entry. */
 	bool			dummy;
+	bool			leaf;
 
 	char			level;
 	u8			filtered;
@@ -120,13 +122,22 @@ struct hist_entry {
 	char			*srcline;
 	char			*srcfile;
 	struct symbol		*parent;
-	struct rb_root		sorted_chain;
 	struct branch_info	*branch_info;
 	struct hists		*hists;
 	struct mem_info		*mem_info;
 	void			*raw_data;
 	u32			raw_size;
 	void			*trace_output;
+	struct perf_hpp_fmt	*fmt;
+	struct hist_entry	*parent_he;
+	union {
+		/* this is for hierarchical entry structure */
+		struct {
+			struct rb_root	hroot_in;
+			struct rb_root  hroot_out;
+		};				/* non-leaf entries */
+		struct rb_root	sorted_chain;	/* leaf entry has callchains */
+	};
 	struct callchain_root	callchain[0]; /* must be last member */
 };
 
