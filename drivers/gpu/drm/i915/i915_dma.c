@@ -1010,6 +1010,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mutex_init(&dev_priv->sb_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 	mutex_init(&dev_priv->av_mutex);
+	mutex_init(&dev_priv->wm.wm_mutex);
 
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
