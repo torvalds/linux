@@ -26,12 +26,6 @@
 
 #include <nvif/class.h>
 
-static void
-gk20a_gr_init_dtor(struct gf100_gr_pack *pack)
-{
-	vfree(pack);
-}
-
 struct gk20a_fw_av
 {
 	u32 addr;
@@ -273,15 +267,6 @@ gk20a_gr_init(struct gf100_gr *gr)
 	return gf100_gr_init_ctxctl(gr);
 }
 
-void
-gk20a_gr_dtor(struct gf100_gr *gr)
-{
-	gk20a_gr_init_dtor(gr->fuc_method);
-	gk20a_gr_init_dtor(gr->fuc_bundle);
-	gk20a_gr_init_dtor(gr->fuc_sw_ctx);
-	gk20a_gr_init_dtor(gr->fuc_sw_nonctx);
-}
-
 int
 gk20a_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 	      int index, struct nvkm_gr **pgr)
@@ -335,7 +320,6 @@ gk20a_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 
 static const struct gf100_gr_func
 gk20a_gr = {
-	.dtor = gk20a_gr_dtor,
 	.init = gk20a_gr_init,
 	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,
 	.ppc_nr = 1,

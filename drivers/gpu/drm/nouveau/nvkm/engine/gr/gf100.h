@@ -82,7 +82,7 @@ struct gf100_gr {
 
 	/*
 	 * Used if the register packs are loaded from NVIDIA fw instead of
-	 * using hardcoded arrays.
+	 * using hardcoded arrays. To be allocated with vzalloc().
 	 */
 	struct gf100_gr_pack *fuc_sw_nonctx;
 	struct gf100_gr_pack *fuc_sw_ctx;
@@ -140,7 +140,6 @@ int gk104_gr_init(struct gf100_gr *);
 
 int gk20a_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
 		  int, struct nvkm_gr **);
-void gk20a_gr_dtor(struct gf100_gr *);
 int gk20a_gr_init(struct gf100_gr *);
 
 int gm200_gr_init(struct gf100_gr *);

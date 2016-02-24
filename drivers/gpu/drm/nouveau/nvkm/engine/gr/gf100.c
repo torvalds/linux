@@ -1684,6 +1684,12 @@ gf100_gr_dtor_fw(struct gf100_gr_fuc *fuc)
 	fuc->data = NULL;
 }
 
+static void
+gf100_gr_dtor_init(struct gf100_gr_pack *pack)
+{
+	vfree(pack);
+}
+
 void *
 gf100_gr_dtor(struct nvkm_gr *base)
 {
@@ -1697,6 +1703,11 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	gf100_gr_dtor_fw(&gr->fuc409d);
 	gf100_gr_dtor_fw(&gr->fuc41ac);
 	gf100_gr_dtor_fw(&gr->fuc41ad);
+
+	gf100_gr_dtor_init(gr->fuc_bundle);
+	gf100_gr_dtor_init(gr->fuc_method);
+	gf100_gr_dtor_init(gr->fuc_sw_ctx);
+	gf100_gr_dtor_init(gr->fuc_sw_nonctx);
 
 	nvkm_memory_del(&gr->unk4188b8);
 	nvkm_memory_del(&gr->unk4188b4);
