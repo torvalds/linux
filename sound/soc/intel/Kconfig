@@ -194,6 +194,7 @@ config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
 	select SND_SOC_NAU8825
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
 	help
 	  This adds support for ASoC Onboard Codec I2S machine driver. This will
 	  create an alsa sound card for NAU88L25 + MAX98357A.
