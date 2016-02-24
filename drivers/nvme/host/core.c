@@ -1186,11 +1186,13 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 static void nvme_ns_remove(struct nvme_ns *ns)
 {
-	bool kill = nvme_io_incapable(ns->ctrl) &&
+	bool kill;
+
+	if (test_and_set_bit(NVME_NS_REMOVING, &ns->flags))
+		return;
+
+	kill = nvme_io_incapable(ns->ctrl) &&
 			!blk_queue_dying(ns->queue);
-
-	lockdep_assert_held(&ns->ctrl->namespaces_mutex);
-
 	if (kill) {
 		blk_set_queue_dying(ns->queue);
 
@@ -1213,7 +1215,9 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 		blk_mq_abort_requeue_list(ns->queue);
 		blk_cleanup_queue(ns->queue);
 	}
+	mutex_lock(&ns->ctrl->namespaces_mutex);
 	list_del_init(&ns->list);
+	mutex_unlock(&ns->ctrl->namespaces_mutex);
 	nvme_put_ns(ns);
 }
 
@@ -1307,10 +1311,8 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns, *next;
 
-	mutex_lock(&ctrl->namespaces_mutex);
 	list_for_each_entry_safe(ns, next, &ctrl->namespaces, list)
 		nvme_ns_remove(ns);
-	mutex_unlock(&ctrl->namespaces_mutex);
 }
 
 static DEFINE_IDA(nvme_instance_ida);

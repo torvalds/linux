@@ -114,6 +114,10 @@ struct nvme_ns {
 	bool ext;
 	u8 pi_type;
 	int type;
+	unsigned long flags;
+
+#define NVME_NS_REMOVING 0
+
 	u64 mode_select_num_blocks;
 	u32 mode_select_block_len;
 };
