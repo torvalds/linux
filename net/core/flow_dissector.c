@@ -340,8 +340,11 @@ mpls:
 	}
 
 	case htons(ETH_P_FCOE):
-		key_control->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
-		/* fall through */
+		if ((hlen - nhoff) < FCOE_HEADER_LEN)
+			goto out_bad;
+
+		nhoff += FCOE_HEADER_LEN;
+		goto out_good;
 	default:
 		goto out_bad;
 	}
