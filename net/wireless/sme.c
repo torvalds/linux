@@ -917,6 +917,12 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 
 	nl80211_send_disconnected(rdev, dev, reason, ie, ie_len, from_ap);
 
+	/* stop critical protocol if supported */
+	if (rdev->ops->crit_proto_stop && rdev->crit_proto_nlportid) {
+		rdev->crit_proto_nlportid = 0;
+		rdev_crit_proto_stop(rdev, wdev);
+	}
+
 	/*
 	 * Delete all the keys ... pairwise keys can't really
 	 * exist any more anyway, but default keys might.
