@@ -115,6 +115,16 @@ static void hub_conf_delayed_work(struct work_struct *work)
 		dev_warn(arche_pdata->dev, "failed to control hub device\n");
 }
 
+static void assert_wakedetect(struct arche_platform_drvdata *arche_pdata)
+{
+	/* Assert wake/detect = Detect event from AP */
+	gpio_direction_output(arche_pdata->wake_detect_gpio, 1);
+
+	/* Enable interrupt here, to read event back from SVC */
+	gpio_direction_input(arche_pdata->wake_detect_gpio);
+	enable_irq(arche_pdata->wake_detect_irq);
+}
+
 static irqreturn_t arche_platform_wd_irq_thread(int irq, void *devid)
 {
 	struct arche_platform_drvdata *arche_pdata = devid;
@@ -297,6 +307,8 @@ static ssize_t state_store(struct device *dev,
 			return count;
 
 		ret = arche_platform_coldboot_seq(arche_pdata);
+
+		assert_wakedetect(arche_pdata);
 	} else if (sysfs_streq(buf, "standby")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_STANDBY)
 			return count;
@@ -482,6 +494,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 		goto err_populate;
 	}
 
+	assert_wakedetect(arche_pdata);
 	INIT_DELAYED_WORK(&arche_pdata->delayed_work, hub_conf_delayed_work);
 
 	dev_info(dev, "Device registered successfully\n");
