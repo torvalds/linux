@@ -155,20 +155,6 @@ enum {
 	SIG = 2,
 };
 
-struct isert_rdma_wr {
-	struct isert_cmd	*isert_cmd;
-	enum iser_ib_op_code	iser_ib_op;
-	struct ib_sge		*ib_sge;
-	struct ib_sge		s_ib_sge;
-	int			rdma_wr_num;
-	struct ib_rdma_wr	*rdma_wr;
-	struct ib_rdma_wr	s_rdma_wr;
-	struct ib_sge		ib_sg[3];
-	struct isert_data_buf	data;
-	struct isert_data_buf	prot;
-	struct fast_reg_descriptor *fr_desc;
-};
-
 struct isert_cmd {
 	uint32_t		read_stag;
 	uint32_t		write_stag;
@@ -181,7 +167,16 @@ struct isert_cmd {
 	struct iscsi_cmd	*iscsi_cmd;
 	struct iser_tx_desc	tx_desc;
 	struct iser_rx_desc	*rx_desc;
-	struct isert_rdma_wr	rdma_wr;
+	enum iser_ib_op_code	iser_ib_op;
+	struct ib_sge		*ib_sge;
+	struct ib_sge		s_ib_sge;
+	int			rdma_wr_num;
+	struct ib_rdma_wr	*rdma_wr;
+	struct ib_rdma_wr	s_rdma_wr;
+	struct ib_sge		ib_sg[3];
+	struct isert_data_buf	data;
+	struct isert_data_buf	prot;
+	struct fast_reg_descriptor *fr_desc;
 	struct work_struct	comp_work;
 	struct scatterlist	sg;
 };
@@ -247,9 +242,8 @@ struct isert_device {
 	struct isert_comp	*comps;
 	int                     comps_used;
 	struct list_head	dev_node;
-	int			(*reg_rdma_mem)(struct iscsi_conn *conn,
-						    struct iscsi_cmd *cmd,
-						    struct isert_rdma_wr *wr);
+	int			(*reg_rdma_mem)(struct isert_cmd *isert_cmd,
+						struct iscsi_conn *conn);
 	void			(*unreg_rdma_mem)(struct isert_cmd *isert_cmd,
 						  struct isert_conn *isert_conn);
 };
