@@ -40,10 +40,11 @@ static int parse_record_events(const struct option *opt,
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 		struct perf_mem_event *e = &perf_mem_events[j];
 
-		fprintf(stderr, "%-20s%s",
-			e->tag, verbose ? "" : "\n");
-		if (verbose)
-			fprintf(stderr, " [%s]\n", e->name);
+		fprintf(stderr, "%-13s%-*s%s\n",
+			e->tag,
+			verbose ? 25 : 0,
+			verbose ? e->name : "",
+			e->supported ? ": available" : "");
 	}
 	exit(0);
 }
@@ -91,6 +92,12 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 		if (!perf_mem_events[j].record)
 			continue;
+
+		if (!perf_mem_events[j].supported) {
+			pr_err("failed: event '%s' not supported\n",
+			       perf_mem_events[j].name);
+			return -1;
+		}
 
 		rec_argv[i++] = "-e";
 		rec_argv[i++] = perf_mem_events[j].name;
@@ -354,6 +361,11 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL,
 		NULL
 	};
+
+	if (perf_mem_events__init()) {
+		pr_err("failed: memory events not supported\n");
+		return -1;
+	}
 
 	argc = parse_options_subcommand(argc, argv, mem_options, mem_subcommands,
 					mem_usage, PARSE_OPT_STOP_AT_NON_OPTION);
