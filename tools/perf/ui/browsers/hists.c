@@ -32,6 +32,7 @@ struct hist_browser {
 	bool		     show_headers;
 	float		     min_pcnt;
 	u64		     nr_non_filtered_entries;
+	u64		     nr_hierarchy_entries;
 	u64		     nr_callchain_rows;
 };
 
@@ -58,11 +59,11 @@ static int hist_browser__get_folding(struct hist_browser *browser)
 
 	for (nd = rb_first(&hists->entries);
 	     (nd = hists__filter_entries(nd, browser->min_pcnt)) != NULL;
-	     nd = rb_next(nd)) {
+	     nd = rb_hierarchy_next(nd)) {
 		struct hist_entry *he =
 			rb_entry(nd, struct hist_entry, rb_node);
 
-		if (he->unfolded)
+		if (he->leaf && he->unfolded)
 			unfolded_rows += he->nr_rows;
 	}
 	return unfolded_rows;
@@ -72,7 +73,9 @@ static u32 hist_browser__nr_entries(struct hist_browser *hb)
 {
 	u32 nr_entries;
 
-	if (hist_browser__has_filter(hb))
+	if (symbol_conf.report_hierarchy)
+		nr_entries = hb->nr_hierarchy_entries;
+	else if (hist_browser__has_filter(hb))
 		nr_entries = hb->nr_non_filtered_entries;
 	else
 		nr_entries = hb->hists->nr_entries;
@@ -247,6 +250,35 @@ static int callchain__count_rows(struct rb_root *chain)
 	return n;
 }
 
+static int hierarchy_count_rows(struct hist_browser *hb, struct hist_entry *he,
+				bool include_children)
+{
+	int count = 0;
+	struct rb_node *node;
+	struct hist_entry *child;
+
+	if (he->leaf)
+		return callchain__count_rows(&he->sorted_chain);
+
+	node = rb_first(&he->hroot_out);
+	while (node) {
+		float percent;
+
+		child = rb_entry(node, struct hist_entry, rb_node);
+		percent = hist_entry__get_percent_limit(child);
+
+		if (!child->filtered && percent >= hb->min_pcnt) {
+			count++;
+
+			if (include_children && child->unfolded)
+				count += hierarchy_count_rows(hb, child, true);
+		}
+
+		node = rb_next(node);
+	}
+	return count;
+}
+
 static bool hist_entry__toggle_fold(struct hist_entry *he)
 {
 	if (!he)
@@ -326,11 +358,17 @@ static void callchain__init_have_children(struct rb_root *root)
 
 static void hist_entry__init_have_children(struct hist_entry *he)
 {
-	if (!he->init_have_children) {
+	if (he->init_have_children)
+		return;
+
+	if (he->leaf) {
 		he->has_children = !RB_EMPTY_ROOT(&he->sorted_chain);
 		callchain__init_have_children(&he->sorted_chain);
-		he->init_have_children = true;
+	} else {
+		he->has_children = !RB_EMPTY_ROOT(&he->hroot_out);
 	}
+
+	he->init_have_children = true;
 }
 
 static bool hist_browser__toggle_fold(struct hist_browser *browser)
@@ -349,17 +387,41 @@ static bool hist_browser__toggle_fold(struct hist_browser *browser)
 		has_children = callchain_list__toggle_fold(cl);
 
 	if (has_children) {
+		int child_rows = 0;
+
 		hist_entry__init_have_children(he);
 		browser->b.nr_entries -= he->nr_rows;
-		browser->nr_callchain_rows -= he->nr_rows;
 
-		if (he->unfolded)
-			he->nr_rows = callchain__count_rows(&he->sorted_chain);
+		if (he->leaf)
+			browser->nr_callchain_rows -= he->nr_rows;
 		else
+			browser->nr_hierarchy_entries -= he->nr_rows;
+
+		if (symbol_conf.report_hierarchy)
+			child_rows = hierarchy_count_rows(browser, he, true);
+
+		if (he->unfolded) {
+			if (he->leaf)
+				he->nr_rows = callchain__count_rows(&he->sorted_chain);
+			else
+				he->nr_rows = hierarchy_count_rows(browser, he, false);
+
+			/* account grand children */
+			if (symbol_conf.report_hierarchy)
+				browser->b.nr_entries += child_rows - he->nr_rows;
+		} else {
+			if (symbol_conf.report_hierarchy)
+				browser->b.nr_entries -= child_rows - he->nr_rows;
+
 			he->nr_rows = 0;
+		}
 
 		browser->b.nr_entries += he->nr_rows;
-		browser->nr_callchain_rows += he->nr_rows;
+
+		if (he->leaf)
+			browser->nr_callchain_rows += he->nr_rows;
+		else
+			browser->nr_hierarchy_entries += he->nr_rows;
 
 		return true;
 	}
@@ -2025,17 +2087,18 @@ static void hist_browser__update_nr_entries(struct hist_browser *hb)
 	u64 nr_entries = 0;
 	struct rb_node *nd = rb_first(&hb->hists->entries);
 
-	if (hb->min_pcnt == 0) {
+	if (hb->min_pcnt == 0 && !symbol_conf.report_hierarchy) {
 		hb->nr_non_filtered_entries = hb->hists->nr_non_filtered_entries;
 		return;
 	}
 
 	while ((nd = hists__filter_entries(nd, hb->min_pcnt)) != NULL) {
 		nr_entries++;
-		nd = rb_next(nd);
+		nd = rb_hierarchy_next(nd);
 	}
 
 	hb->nr_non_filtered_entries = nr_entries;
+	hb->nr_hierarchy_entries = nr_entries;
 }
 
 static void hist_browser__update_percent_limit(struct hist_browser *hb,
