@@ -1118,12 +1118,13 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	/* destination address compression */
 	if (ipv6_daddr_type & IPV6_ADDR_MULTICAST) {
 		pr_debug("destination address is multicast: ");
+		iphc1 |= LOWPAN_IPHC_M;
 		if (dci) {
 			iphc1 |= lowpan_iphc_mcast_ctx_addr_compress(&hc_ptr,
 								     &dci_entry,
 								     &hdr->daddr);
+			iphc1 |= LOWPAN_IPHC_DAC;
 		} else {
-			iphc1 |= LOWPAN_IPHC_M;
 			iphc1 |= lowpan_iphc_mcast_addr_compress(&hc_ptr,
 								 &hdr->daddr);
 		}
