@@ -467,7 +467,7 @@ static bool AddReorderEntry(struct rx_ts_record *pTS,
 		else if (SN_EQUAL(pReorderEntry->SeqNum,
 			((struct rx_reorder_entry *)list_entry(pList->next,
 			struct rx_reorder_entry, List))->SeqNum))
-				return false;
+			return false;
 		else
 			break;
 	}
