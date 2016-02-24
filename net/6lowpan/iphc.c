@@ -482,7 +482,7 @@ static int lowpan_uncompress_multicast_ctx_daddr(struct sk_buff *skb,
 	ipaddr->s6_addr[0] = 0xFF;
 	fail = lowpan_fetch_skb(skb, &ipaddr->s6_addr[1], 2);
 	fail |= lowpan_fetch_skb(skb, &ipaddr->s6_addr[12], 4);
-	if (fail < 0)
+	if (fail)
 		return -EIO;
 
 	/* take prefix_len and network prefix from the context */
