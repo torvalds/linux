@@ -806,7 +806,7 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 		}
 	}
 
-	state->pctl = pinctrl_register(&tb10x_pindesc, dev, state);
+	state->pctl = devm_pinctrl_register(dev, &tb10x_pindesc, state);
 	if (IS_ERR(state->pctl)) {
 		dev_err(dev, "could not register TB10x pin driver\n");
 		ret = PTR_ERR(state->pctl);
@@ -824,7 +824,6 @@ static int tb10x_pinctrl_remove(struct platform_device *pdev)
 {
 	struct tb10x_pinctrl *state = platform_get_drvdata(pdev);
 
-	pinctrl_unregister(state->pctl);
 	mutex_destroy(&state->mutex);
 
 	return 0;
