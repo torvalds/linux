@@ -9,7 +9,7 @@
  * option) any later version.
  */
 
-#include <drmP.h>
+#include <drm/drmP.h>
 #include <drm/exynos_drm.h>
 
 #include <linux/dma-mapping.h>
