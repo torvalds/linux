@@ -1,10 +1,11 @@
 /*
- * SAMSUNG EXYNOS5422 SoC cpu device tree source
+ * SAMSUNG EXYNOS5420 SoC cpu device tree source
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * This file provides desired ordering for Exynos5422: CPU[0123] being the A7.
+ * This file provides desired ordering for Exynos5420 and Exynos5800
+ * boards: CPU[0123] being the A15.
  *
  * The Exynos5420, 5422 and 5800 actually share the same CPU configuration
  * but particular boards choose different booting order.
@@ -24,7 +25,44 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu0: cpu@100 {
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x0>;
+			clocks = <&clock CLK_ARM_CLK>;
+			clock-frequency = <1800000000>;
+			cci-control-port = <&cci_control1>;
+			operating-points-v2 = <&cluster_a15_opp_table>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x1>;
+			clock-frequency = <1800000000>;
+			cci-control-port = <&cci_control1>;
+			operating-points-v2 = <&cluster_a15_opp_table>;
+		};
+
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x2>;
+			clock-frequency = <1800000000>;
+			cci-control-port = <&cci_control1>;
+			operating-points-v2 = <&cluster_a15_opp_table>;
+		};
+
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0x3>;
+			clock-frequency = <1800000000>;
+			cci-control-port = <&cci_control1>;
+			operating-points-v2 = <&cluster_a15_opp_table>;
+		};
+
+		cpu4: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x100>;
@@ -34,7 +72,7 @@
 			operating-points-v2 = <&cluster_a7_opp_table>;
 		};
 
-		cpu1: cpu@101 {
+		cpu5: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x101>;
@@ -43,7 +81,7 @@
 			operating-points-v2 = <&cluster_a7_opp_table>;
 		};
 
-		cpu2: cpu@102 {
+		cpu6: cpu@102 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
@@ -52,50 +90,13 @@
 			operating-points-v2 = <&cluster_a7_opp_table>;
 		};
 
-		cpu3: cpu@103 {
+		cpu7: cpu@103 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x103>;
 			clock-frequency = <1000000000>;
 			cci-control-port = <&cci_control0>;
 			operating-points-v2 = <&cluster_a7_opp_table>;
-		};
-
-		cpu4: cpu@0 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			clocks = <&clock CLK_ARM_CLK>;
-			reg = <0x0>;
-			clock-frequency = <1800000000>;
-			cci-control-port = <&cci_control1>;
-			operating-points-v2 = <&cluster_a15_opp_table>;
-		};
-
-		cpu5: cpu@1 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0x1>;
-			clock-frequency = <1800000000>;
-			cci-control-port = <&cci_control1>;
-			operating-points-v2 = <&cluster_a15_opp_table>;
-		};
-
-		cpu6: cpu@2 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0x2>;
-			clock-frequency = <1800000000>;
-			cci-control-port = <&cci_control1>;
-			operating-points-v2 = <&cluster_a15_opp_table>;
-		};
-
-		cpu7: cpu@3 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0x3>;
-			clock-frequency = <1800000000>;
-			cci-control-port = <&cci_control1>;
-			operating-points-v2 = <&cluster_a15_opp_table>;
 		};
 	};
 };

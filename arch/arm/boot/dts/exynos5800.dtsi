@@ -23,6 +23,114 @@
 	compatible = "samsung,exynos5800-clock";
 };
 
+&cluster_a15_opp_table {
+	opp@1700000000 {
+		opp-microvolt = <1250000>;
+	};
+	opp@1600000000 {
+		opp-microvolt = <1250000>;
+	};
+	opp@1500000000 {
+		opp-microvolt = <1100000>;
+	};
+	opp@1400000000 {
+		opp-microvolt = <1100000>;
+	};
+	opp@1300000000 {
+		opp-microvolt = <1100000>;
+	};
+	opp@1200000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp@1100000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp@1000000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp@900000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp@800000000 {
+		opp-microvolt = <900000>;
+	};
+	opp@700000000 {
+		opp-microvolt = <900000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <900000>;
+		clock-latency-ns = <140000>;
+	};
+	opp@500000000 {
+		opp-hz = /bits/ 64 <500000000>;
+		opp-microvolt = <900000>;
+		clock-latency-ns = <140000>;
+	};
+	opp@400000000 {
+		opp-hz = /bits/ 64 <400000000>;
+		opp-microvolt = <900000>;
+		clock-latency-ns = <140000>;
+	};
+	opp@300000000 {
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <900000>;
+		clock-latency-ns = <140000>;
+	};
+	opp@200000000 {
+		opp-hz = /bits/ 64 <200000000>;
+		opp-microvolt = <900000>;
+		clock-latency-ns = <140000>;
+	};
+};
+
+&cluster_a7_opp_table {
+	opp@1300000000 {
+		opp-microvolt = <1250000>;
+	};
+	opp@1200000000 {
+		opp-microvolt = <1250000>;
+	};
+	opp@1100000000 {
+		opp-microvolt = <1250000>;
+	};
+	opp@1000000000 {
+		opp-microvolt = <1100000>;
+	};
+	opp@900000000 {
+		opp-microvolt = <1100000>;
+	};
+	opp@800000000 {
+		opp-microvolt = <1100000>;
+	};
+	opp@700000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp@600000000 {
+		opp-microvolt = <1000000>;
+	};
+	opp@500000000 {
+		opp-hz = /bits/ 64 <500000000>;
+		opp-microvolt = <1000000>;
+		clock-latency-ns = <140000>;
+	};
+	opp@400000000 {
+		opp-hz = /bits/ 64 <400000000>;
+		opp-microvolt = <1000000>;
+		clock-latency-ns = <140000>;
+	};
+	opp@300000000 {
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <900000>;
+		clock-latency-ns = <140000>;
+	};
+	opp@200000000 {
+		opp-hz = /bits/ 64 <200000000>;
+		opp-microvolt = <900000>;
+		clock-latency-ns = <140000>;
+	};
+};
+
 &mfc {
 	compatible = "samsung,mfc-v8";
 };

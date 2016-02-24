@@ -43,7 +43,7 @@
 			linux,code = <KEY_POWER>;
 			label = "power key";
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -58,7 +58,7 @@
 			interrupt-parent = <&gpx1>;
 			interrupts = <5 0>;
 			reg = <0x25>;
-			wakeup;
+			wakeup-source;
 
 			muic: max77836-muic {
 				compatible = "maxim,max77836-muic";
@@ -246,7 +246,7 @@
 		interrupt-parent = <&gpx0>;
 		interrupts = <7 0>;
 		reg = <0x66>;
-		wakeup;
+		wakeup-source;
 
 		s2mps14_osc: clocks {
 			compatible = "samsung,s2mps14-clk";
