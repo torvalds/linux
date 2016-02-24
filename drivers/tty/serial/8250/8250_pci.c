@@ -3800,6 +3800,20 @@ static const struct pci_device_id blacklist[] = {
 	{ PCI_DEVICE(0x1c00, 0x3250), }, /* WCH CH382 2S1P */
 	{ PCI_DEVICE(0x1c00, 0x3470), }, /* WCH CH384 4S */
 
+	/* Moxa Smartio MUE boards handled by 8250_moxa */
+	{ PCI_VDEVICE(MOXA, 0x1024), },
+	{ PCI_VDEVICE(MOXA, 0x1025), },
+	{ PCI_VDEVICE(MOXA, 0x1045), },
+	{ PCI_VDEVICE(MOXA, 0x1144), },
+	{ PCI_VDEVICE(MOXA, 0x1160), },
+	{ PCI_VDEVICE(MOXA, 0x1161), },
+	{ PCI_VDEVICE(MOXA, 0x1182), },
+	{ PCI_VDEVICE(MOXA, 0x1183), },
+	{ PCI_VDEVICE(MOXA, 0x1322), },
+	{ PCI_VDEVICE(MOXA, 0x1342), },
+	{ PCI_VDEVICE(MOXA, 0x1381), },
+	{ PCI_VDEVICE(MOXA, 0x1683), },
+
 	/* Intel platforms with MID UART */
 	{ PCI_VDEVICE(INTEL, 0x081b), },
 	{ PCI_VDEVICE(INTEL, 0x081c), },

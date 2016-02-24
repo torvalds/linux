@@ -404,6 +404,16 @@ config SERIAL_8250_MID
 	  present on the UART found on Intel Medfield SOC and various other
 	  Intel platforms.
 
+config SERIAL_8250_MOXA
+	tristate "MOXA SmartIO MUE support"
+	depends on SERIAL_8250 && PCI
+	help
+	  Say Y here if you have a Moxa SmartIO MUE multiport serial card.
+	  If unsure, say N.
+
+	  This driver can also be built as a module. The module will be called
+	  8250_moxa. If you want to do that, say M here.
+
 config SERIAL_OF_PLATFORM
 	tristate "Devicetree based probing for 8250 ports"
 	depends on SERIAL_8250 && OF
