@@ -2362,15 +2362,18 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum intel_display_power_domain power_domain;
 	u32 tmp;
+	bool ret;
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_is_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
+
+	ret = false;
 
 	tmp = I915_READ(intel_dp->output_reg);
 
 	if (!(tmp & DP_PORT_EN))
-		return false;
+		goto out;
 
 	if (IS_GEN7(dev) && port == PORT_A) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
@@ -2381,7 +2384,9 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 			u32 trans_dp = I915_READ(TRANS_DP_CTL(p));
 			if (TRANS_DP_PIPE_TO_PORT(trans_dp) == port) {
 				*pipe = p;
-				return true;
+				ret = true;
+
+				goto out;
 			}
 		}
 
@@ -2393,7 +2398,12 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 		*pipe = PORT_TO_PIPE(tmp);
 	}
 
-	return true;
+	ret = true;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static void intel_dp_get_config(struct intel_encoder *encoder,
