@@ -46,9 +46,9 @@ static int pisosr_gpio_refresh(struct pisosr_gpio *gpio)
 	mutex_lock(&gpio->lock);
 
 	if (gpio->load_gpio) {
-		gpiod_set_value(gpio->load_gpio, 1);
+		gpiod_set_value_cansleep(gpio->load_gpio, 1);
 		udelay(1); /* registers load time (~10ns) */
-		gpiod_set_value(gpio->load_gpio, 0);
+		gpiod_set_value_cansleep(gpio->load_gpio, 0);
 		udelay(1); /* registers recovery time (~5ns) */
 	}
 
