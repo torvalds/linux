@@ -64,8 +64,17 @@ static void remote_function(void *data)
 	struct task_struct *p = tfc->p;
 
 	if (p) {
-		tfc->ret = -EAGAIN;
-		if (task_cpu(p) != smp_processor_id() || !task_curr(p))
+		/* -EAGAIN */
+		if (task_cpu(p) != smp_processor_id())
+			return;
+
+		/*
+		 * Now that we're on right CPU with IRQs disabled, we can test
+		 * if we hit the right task without races.
+		 */
+
+		tfc->ret = -ESRCH; /* No such (running) process */
+		if (p != current)
 			return;
 	}
 
@@ -92,13 +101,17 @@ task_function_call(struct task_struct *p, remote_function_f func, void *info)
 		.p	= p,
 		.func	= func,
 		.info	= info,
-		.ret	= -ESRCH, /* No such (running) process */
+		.ret	= -EAGAIN,
 	};
+	int ret;
 
-	if (task_curr(p))
-		smp_call_function_single(task_cpu(p), remote_function, &data, 1);
+	do {
+		ret = smp_call_function_single(task_cpu(p), remote_function, &data, 1);
+		if (!ret)
+			ret = data.ret;
+	} while (ret == -EAGAIN);
 
-	return data.ret;
+	return ret;
 }
 
 /**
@@ -169,19 +182,6 @@ static bool is_kernel_event(struct perf_event *event)
  *    rely on ctx->is_active and therefore cannot use event_function_call().
  *    See perf_install_in_context().
  *
- * This is because we need a ctx->lock serialized variable (ctx->is_active)
- * to reliably determine if a particular task/context is scheduled in. The
- * task_curr() use in task_function_call() is racy in that a remote context
- * switch is not a single atomic operation.
- *
- * As is, the situation is 'safe' because we set rq->curr before we do the
- * actual context switch. This means that task_curr() will fail early, but
- * we'll continue spinning on ctx->is_active until we've passed
- * perf_event_task_sched_out().
- *
- * Without this ctx->lock serialized variable we could have race where we find
- * the task (and hence the context) would not be active while in fact they are.
- *
  * If ctx->nr_events, then ctx->is_active and cpuctx->task_ctx are set.
  */
 
@@ -212,7 +212,7 @@ static int event_function(void *info)
 	 */
 	if (ctx->task) {
 		if (ctx->task != current) {
-			ret = -EAGAIN;
+			ret = -ESRCH;
 			goto unlock;
 		}
 
