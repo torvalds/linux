@@ -136,6 +136,38 @@
 				marvell,spi-base = <128>, <136>, <144>, <152>;
 			};
 
+			xor0@400000 {
+				compatible = "marvell,mv-xor-v2";
+				reg = <0x400000 0x1000>,
+				      <0x410000 0x1000>;
+				msi-parent = <&gic_v2m0>;
+				dma-coherent;
+			};
+
+			xor1@420000 {
+				compatible = "marvell,mv-xor-v2";
+				reg = <0x420000 0x1000>,
+				      <0x430000 0x1000>;
+				msi-parent = <&gic_v2m0>;
+				dma-coherent;
+			};
+
+			xor2@440000 {
+				compatible = "marvell,mv-xor-v2";
+				reg = <0x440000 0x1000>,
+				      <0x450000 0x1000>;
+				msi-parent = <&gic_v2m0>;
+				dma-coherent;
+			};
+
+			xor3@460000 {
+				compatible = "marvell,mv-xor-v2";
+				reg = <0x460000 0x1000>,
+				      <0x470000 0x1000>;
+				msi-parent = <&gic_v2m0>;
+				dma-coherent;
+			};
+
 			spi0: spi@510600 {
 				compatible = "marvell,armada-380-spi";
 				reg = <0x510600 0x50>;
@@ -177,38 +209,6 @@
 				clocks = <&ringclk 2>;
 				status = "disabled";
 
-			};
-
-			xor0@400000 {
-				compatible = "marvell,mv-xor-v2";
-				reg = <0x400000 0x1000>,
-				      <0x410000 0x1000>;
-				msi-parent = <&gic_v2m0>;
-				dma-coherent;
-			};
-
-			xor1@420000 {
-				compatible = "marvell,mv-xor-v2";
-				reg = <0x420000 0x1000>,
-				      <0x430000 0x1000>;
-				msi-parent = <&gic_v2m0>;
-				dma-coherent;
-			};
-
-			xor2@440000 {
-				compatible = "marvell,mv-xor-v2";
-				reg = <0x440000 0x1000>,
-				      <0x450000 0x1000>;
-				msi-parent = <&gic_v2m0>;
-				dma-coherent;
-			};
-
-			xor3@460000 {
-				compatible = "marvell,mv-xor-v2";
-				reg = <0x460000 0x1000>,
-				      <0x470000 0x1000>;
-				msi-parent = <&gic_v2m0>;
-				dma-coherent;
 			};
 
 			dfx-server@6f8000 {
