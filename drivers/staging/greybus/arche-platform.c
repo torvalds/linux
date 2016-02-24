@@ -21,6 +21,15 @@
 
 #include <linux/usb/usb3613.h>
 
+enum svc_wakedetect_state {
+	WD_STATE_IDLE,			/* Default state = pulled high/low */
+	WD_STATE_BOOT_INIT,		/* WD = falling edge (low) */
+	WD_STATE_COLDBOOT_TRIG,		/* WD = rising edge (high), > 30msec */
+	WD_STATE_STANDBYBOOT_TRIG,	/* As of now not used ?? */
+	WD_STATE_COLDBOOT_START,	/* Cold boot process started */
+	WD_STATE_STANDBYBOOT_START,	/* Not used */
+};
+
 struct arche_platform_drvdata {
 	/* Control GPIO signals to and from AP <=> SVC */
 	int svc_reset_gpio;
@@ -39,6 +48,8 @@ struct arche_platform_drvdata {
 	int num_apbs;
 
 	struct delayed_work delayed_work;
+	enum svc_wakedetect_state wake_detect_state;
+
 	struct device *dev;
 };
 
@@ -145,6 +156,7 @@ static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pda
 		/* Send disconnect/detach event to SVC */
 		gpio_set_value(arche_pdata->wake_detect_gpio, 0);
 		usleep_range(100, 200);
+		arche_pdata->wake_detect_state = WD_STATE_IDLE;
 
 		clk_disable_unprepare(arche_pdata->svc_ref_clk);
 	}
@@ -328,6 +340,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	}
 	/* deassert wake detect */
 	gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
+	arche_pdata->wake_detect_state = WD_STATE_IDLE;
 
 	arche_pdata->dev = &pdev->dev;
 
