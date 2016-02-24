@@ -133,8 +133,6 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	set_page_writeback(page);
 	fio.old_blkaddr = dn->data_blkaddr;
 	write_data_page(dn, &fio);
-	set_data_blkaddr(dn);
-	f2fs_update_extent_cache(dn);
 	f2fs_wait_on_page_writeback(page, DATA, true);
 	if (dirty)
 		inode_dec_dirty_pages(dn->inode);

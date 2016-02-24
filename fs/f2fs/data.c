@@ -300,6 +300,13 @@ void set_data_blkaddr(struct dnode_of_data *dn)
 		dn->node_changed = true;
 }
 
+void f2fs_update_data_blkaddr(struct dnode_of_data *dn, block_t blkaddr)
+{
+	dn->data_blkaddr = blkaddr;
+	set_data_blkaddr(dn);
+	f2fs_update_extent_cache(dn);
+}
+
 int reserve_new_block(struct dnode_of_data *dn)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
@@ -1110,8 +1117,6 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		trace_f2fs_do_write_data_page(page, IPU);
 	} else {
 		write_data_page(&dn, fio);
-		set_data_blkaddr(&dn);
-		f2fs_update_extent_cache(&dn);
 		trace_f2fs_do_write_data_page(page, OPU);
 		set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 		if (page->index == 0)

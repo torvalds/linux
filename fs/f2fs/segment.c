@@ -1429,7 +1429,7 @@ void write_data_page(struct dnode_of_data *dn, struct f2fs_io_info *fio)
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 	do_write_page(&sum, fio);
-	dn->data_blkaddr = fio->new_blkaddr;
+	f2fs_update_data_blkaddr(dn, fio->new_blkaddr);
 }
 
 void rewrite_data_page(struct f2fs_io_info *fio)
@@ -1518,9 +1518,7 @@ void f2fs_replace_block(struct f2fs_sb_info *sbi, struct dnode_of_data *dn,
 	__f2fs_replace_block(sbi, &sum, old_addr, new_addr,
 					recover_curseg, recover_newaddr);
 
-	dn->data_blkaddr = new_addr;
-	set_data_blkaddr(dn);
-	f2fs_update_extent_cache(dn);
+	f2fs_update_data_blkaddr(dn, new_addr);
 }
 
 void f2fs_wait_on_page_writeback(struct page *page,

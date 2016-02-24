@@ -624,9 +624,7 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 	fio.new_blkaddr = newaddr;
 	f2fs_submit_page_mbio(&fio);
 
-	dn.data_blkaddr = fio.new_blkaddr;
-	set_data_blkaddr(&dn);
-	f2fs_update_extent_cache(&dn);
+	f2fs_update_data_blkaddr(&dn, newaddr);
 	set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 	if (page->index == 0)
 		set_inode_flag(F2FS_I(inode), FI_FIRST_BLOCK_WRITTEN);

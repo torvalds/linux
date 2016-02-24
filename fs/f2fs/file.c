@@ -857,10 +857,8 @@ static int __exchange_data_block(struct inode *inode, pgoff_t src,
 	} else {
 		new_addr = dn.data_blkaddr;
 		if (!is_checkpointed_data(sbi, new_addr)) {
-			dn.data_blkaddr = NULL_ADDR;
 			/* do not invalidate this block address */
-			set_data_blkaddr(&dn);
-			f2fs_update_extent_cache(&dn);
+			f2fs_update_data_blkaddr(&dn, NULL_ADDR);
 			do_replace = true;
 		}
 		f2fs_put_dnode(&dn);
@@ -911,9 +909,7 @@ static int __exchange_data_block(struct inode *inode, pgoff_t src,
 
 err_out:
 	if (!get_dnode_of_data(&dn, src, LOOKUP_NODE)) {
-		dn.data_blkaddr = new_addr;
-		set_data_blkaddr(&dn);
-		f2fs_update_extent_cache(&dn);
+		f2fs_update_data_blkaddr(&dn, new_addr);
 		f2fs_put_dnode(&dn);
 	}
 	return ret;
@@ -1053,12 +1049,7 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 
 			if (dn.data_blkaddr != NEW_ADDR) {
 				invalidate_blocks(sbi, dn.data_blkaddr);
-
-				dn.data_blkaddr = NEW_ADDR;
-				set_data_blkaddr(&dn);
-
-				dn.data_blkaddr = NULL_ADDR;
-				f2fs_update_extent_cache(&dn);
+				f2fs_update_data_blkaddr(&dn, NEW_ADDR);
 			}
 			f2fs_put_dnode(&dn);
 			f2fs_unlock_op(sbi);
