@@ -416,7 +416,7 @@ int pxa2xx_pinctrl_init(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	pctl->pctl_dev = pinctrl_register(&pctl->desc, &pdev->dev, pctl);
+	pctl->pctl_dev = devm_pinctrl_register(&pdev->dev, &pctl->desc, pctl);
 	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
 		return PTR_ERR(pctl->pctl_dev);
