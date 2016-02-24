@@ -116,34 +116,9 @@ static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_ARGB8888_1X32,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
-	struct vsp1_sru *sru = to_sru(subdev);
 
-	if (code->pad == SRU_PAD_SINK) {
-		if (code->index >= ARRAY_SIZE(codes))
-			return -EINVAL;
-
-		code->code = codes[code->index];
-	} else {
-		struct v4l2_subdev_pad_config *config;
-		struct v4l2_mbus_framefmt *format;
-
-		/* The SRU can't perform format conversion, the sink format is
-		 * always identical to the source format.
-		 */
-		if (code->index)
-			return -EINVAL;
-
-		config = vsp1_entity_get_pad_config(&sru->entity, cfg,
-						    code->which);
-		if (!config)
-			return -EINVAL;
-
-		format = vsp1_entity_get_pad_format(&sru->entity, config,
-						    SRU_PAD_SINK);
-		code->code = format->code;
-	}
-
-	return 0;
+	return vsp1_subdev_enum_mbus_code(subdev, cfg, code, codes,
+					  ARRAY_SIZE(codes));
 }
 
 static int sru_enum_frame_size(struct v4l2_subdev *subdev,

@@ -141,6 +141,52 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
+/*
+ * vsp1_subdev_enum_mbus_code - Subdev pad enum_mbus_code handler
+ * @subdev: V4L2 subdevice
+ * @cfg: V4L2 subdev pad configuration
+ * @code: Media bus code enumeration
+ * @codes: Array of supported media bus codes
+ * @ncodes: Number of supported media bus codes
+ *
+ * This function implements the subdev enum_mbus_code pad operation for entities
+ * that do not support format conversion. It enumerates the given supported
+ * media bus codes on the sink pad and reports a source pad format identical to
+ * the sink pad.
+ */
+int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
+			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_mbus_code_enum *code,
+			       const unsigned int *codes, unsigned int ncodes)
+{
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+
+	if (code->pad == 0) {
+		if (code->index >= ncodes)
+			return -EINVAL;
+
+		code->code = codes[code->index];
+	} else {
+		struct v4l2_subdev_pad_config *config;
+		struct v4l2_mbus_framefmt *format;
+
+		/* The entity can't perform format conversion, the sink format
+		 * is always identical to the source format.
+		 */
+		if (code->index)
+			return -EINVAL;
+
+		config = vsp1_entity_get_pad_config(entity, cfg, code->which);
+		if (!config)
+			return -EINVAL;
+
+		format = vsp1_entity_get_pad_format(entity, config, 0);
+		code->code = format->code;
+	}
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * Media Operations
  */

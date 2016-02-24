@@ -71,34 +71,9 @@ static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_AHSV8888_1X32,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
-	struct vsp1_lut *lut = to_lut(subdev);
 
-	if (code->pad == LUT_PAD_SINK) {
-		if (code->index >= ARRAY_SIZE(codes))
-			return -EINVAL;
-
-		code->code = codes[code->index];
-	} else {
-		struct v4l2_subdev_pad_config *config;
-		struct v4l2_mbus_framefmt *format;
-
-		/* The LUT can't perform format conversion, the sink format is
-		 * always identical to the source format.
-		 */
-		if (code->index)
-			return -EINVAL;
-
-		config = vsp1_entity_get_pad_config(&lut->entity, cfg,
-						    code->which);
-		if (!config)
-			return -EINVAL;
-
-		format = vsp1_entity_get_pad_format(&lut->entity, config,
-						    LUT_PAD_SINK);
-		code->code = format->code;
-	}
-
-	return 0;
+	return vsp1_subdev_enum_mbus_code(subdev, cfg, code, codes,
+					  ARRAY_SIZE(codes));
 }
 
 static int lut_enum_frame_size(struct v4l2_subdev *subdev,

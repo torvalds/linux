@@ -76,31 +76,9 @@ static int bru_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_ARGB8888_1X32,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
-	struct vsp1_bru *bru = to_bru(subdev);
 
-	if (code->pad == BRU_PAD_SINK(0)) {
-		if (code->index >= ARRAY_SIZE(codes))
-			return -EINVAL;
-
-		code->code = codes[code->index];
-	} else {
-		struct v4l2_subdev_pad_config *config;
-		struct v4l2_mbus_framefmt *format;
-
-		if (code->index)
-			return -EINVAL;
-
-		config = vsp1_entity_get_pad_config(&bru->entity, cfg,
-						    code->which);
-		if (!config)
-			return -EINVAL;
-
-		format = vsp1_entity_get_pad_format(&bru->entity, config,
-						    BRU_PAD_SINK(0));
-		code->code = format->code;
-	}
-
-	return 0;
+	return vsp1_subdev_enum_mbus_code(subdev, cfg, code, codes,
+					  ARRAY_SIZE(codes));
 }
 
 static int bru_enum_frame_size(struct v4l2_subdev *subdev,
