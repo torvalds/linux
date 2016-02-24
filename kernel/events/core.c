@@ -321,7 +321,13 @@ enum event_type_t {
  * perf_sched_events : >0 events exist
  * perf_cgroup_events: >0 per-cpu cgroup events exist on this cpu
  */
-struct static_key_deferred perf_sched_events __read_mostly;
+
+static void perf_sched_delayed(struct work_struct *work);
+DEFINE_STATIC_KEY_FALSE(perf_sched_events);
+static DECLARE_DELAYED_WORK(perf_sched_work, perf_sched_delayed);
+static DEFINE_MUTEX(perf_sched_mutex);
+static atomic_t perf_sched_count;
+
 static DEFINE_PER_CPU(atomic_t, perf_cgroup_events);
 static DEFINE_PER_CPU(int, perf_sched_cb_usages);
 
@@ -3536,10 +3542,20 @@ static void unaccount_event(struct perf_event *event)
 	if (has_branch_stack(event))
 		dec = true;
 
-	if (dec)
-		static_key_slow_dec_deferred(&perf_sched_events);
+	if (dec) {
+		if (!atomic_add_unless(&perf_sched_count, -1, 1))
+			schedule_delayed_work(&perf_sched_work, HZ);
+	}
 
 	unaccount_event_cpu(event, event->cpu);
+}
+
+static void perf_sched_delayed(struct work_struct *work)
+{
+	mutex_lock(&perf_sched_mutex);
+	if (atomic_dec_and_test(&perf_sched_count))
+		static_branch_disable(&perf_sched_events);
+	mutex_unlock(&perf_sched_mutex);
 }
 
 /*
@@ -7780,8 +7796,28 @@ static void account_event(struct perf_event *event)
 	if (is_cgroup_event(event))
 		inc = true;
 
-	if (inc)
-		static_key_slow_inc(&perf_sched_events.key);
+	if (inc) {
+		if (atomic_inc_not_zero(&perf_sched_count))
+			goto enabled;
+
+		mutex_lock(&perf_sched_mutex);
+		if (!atomic_read(&perf_sched_count)) {
+			static_branch_enable(&perf_sched_events);
+			/*
+			 * Guarantee that all CPUs observe they key change and
+			 * call the perf scheduling hooks before proceeding to
+			 * install events that need them.
+			 */
+			synchronize_sched();
+		}
+		/*
+		 * Now that we have waited for the sync_sched(), allow further
+		 * increments to by-pass the mutex.
+		 */
+		atomic_inc(&perf_sched_count);
+		mutex_unlock(&perf_sched_mutex);
+	}
+enabled:
 
 	account_event_cpu(event, event->cpu);
 }
@@ -9343,9 +9379,6 @@ void __init perf_event_init(void)
 
 	ret = init_hw_breakpoint();
 	WARN(ret, "hw_breakpoint initialization failed with: %d", ret);
-
-	/* do not patch jump label more than once per second */
-	jump_label_rate_limit(&perf_sched_events, HZ);
 
 	/*
 	 * Build time assertion that we keep the data_head at the intended
