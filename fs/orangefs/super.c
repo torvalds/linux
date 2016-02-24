@@ -229,12 +229,12 @@ int orangefs_remount(struct super_block *sb)
 		     new_op->upcall.req.fs_mount.orangefs_config_server);
 
 	/*
-	 * we assume that the calling function has already acquire the
+	 * we assume that the calling function has already acquired the
 	 * request_mutex to prevent other operations from bypassing
 	 * this one
 	 */
 	ret = service_operation(new_op, "orangefs_remount",
-		ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_SEMAPHORE);
+		ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_MUTEX);
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "orangefs_remount: mount got return value of %d\n",
 		     ret);

@@ -56,7 +56,6 @@ int service_operation(struct orangefs_kernel_op_s *op,
 		      int flags)
 {
 	long timeout = MAX_SCHEDULE_TIMEOUT;
-	/* flags to modify behavior */
 	int ret = 0;
 
 	DEFINE_WAIT(wait_entry);
@@ -74,14 +73,20 @@ retry_servicing:
 		     current->comm,
 		     current->pid);
 
-	if (!(flags & ORANGEFS_OP_NO_SEMAPHORE)) {
+	/*
+	 * If ORANGEFS_OP_NO_MUTEX was set in flags, we need to avoid
+	 * aquiring the request_mutex because we're servicing a
+	 * high priority remount operation and the request_mutex is
+	 * already taken.
+	 */
+	if (!(flags & ORANGEFS_OP_NO_MUTEX)) {
 		if (flags & ORANGEFS_OP_INTERRUPTIBLE)
 			ret = mutex_lock_interruptible(&request_mutex);
 		else
 			ret = mutex_lock_killable(&request_mutex);
 		/*
 		 * check to see if we were interrupted while waiting for
-		 * semaphore
+		 * mutex
 		 */
 		if (ret < 0) {
 			op->downcall.status = ret;
@@ -95,6 +100,7 @@ retry_servicing:
 	spin_lock(&orangefs_request_list_lock);
 	spin_lock(&op->lock);
 	set_op_state_waiting(op);
+	/* add high priority remount op to the front of the line. */
 	if (flags & ORANGEFS_OP_PRIORITY)
 		list_add(&op->list, &orangefs_request_list);
 	else
@@ -109,7 +115,7 @@ retry_servicing:
 	}
 	spin_unlock(&orangefs_request_list_lock);
 
-	if (!(flags & ORANGEFS_OP_NO_SEMAPHORE))
+	if (!(flags & ORANGEFS_OP_NO_MUTEX))
 		mutex_unlock(&request_mutex);
 
 	ret = wait_for_matching_downcall(op, timeout,
@@ -132,10 +138,17 @@ retry_servicing:
 
 	/* failed to get matching downcall */
 	if (ret == -ETIMEDOUT) {
-		gossip_err("orangefs: %s -- wait timed out; aborting attempt.\n",
+		gossip_err("%s: %s -- wait timed out; aborting attempt.\n",
+			   __func__,
 			   op_name);
 	}
+
+	/*
+	 * remove waiting ops from the request list or
+	 * remove in-progress ops from the in-progress list.
+	 */
 	orangefs_clean_up_interrupted_operation(op);
+
 	op->downcall.status = ret;
 	/* retry if operation has not been serviced and if requested */
 	if (ret == -EAGAIN) {
@@ -148,11 +161,12 @@ retry_servicing:
 			     op_name,
 			     op->attempts);
 
+		/*
+		 * io ops (ops that use the shared memory buffer) have
+		 * to be returned to their caller for a retry. Other ops
+		 * can just be recycled here.
+		 */
 		if (!op->uses_shared_memory)
-			/*
-			 * this operation doesn't use the shared memory
-			 * system
-			 */
 			goto retry_servicing;
 	}
 
@@ -268,7 +282,8 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 	long n;
 
 	if (interruptible)
-		n = wait_for_completion_interruptible_timeout(&op->waitq, timeout);
+		n = wait_for_completion_interruptible_timeout(&op->waitq,
+							      timeout);
 	else
 		n = wait_for_completion_killable_timeout(&op->waitq, timeout);
 

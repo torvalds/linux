@@ -603,7 +603,7 @@ extern wait_queue_head_t orangefs_bufmap_init_waitq;
 #define ORANGEFS_OP_INTERRUPTIBLE 1   /* service_operation() is interruptible */
 #define ORANGEFS_OP_PRIORITY      2   /* service_operation() is high priority */
 #define ORANGEFS_OP_CANCELLATION  4   /* this is a cancellation */
-#define ORANGEFS_OP_NO_SEMAPHORE  8   /* don't acquire semaphore */
+#define ORANGEFS_OP_NO_MUTEX      8   /* don't acquire request_mutex */
 #define ORANGEFS_OP_ASYNC         16  /* Queue it, but don't wait */
 
 int service_operation(struct orangefs_kernel_op_s *op,

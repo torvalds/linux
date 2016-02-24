@@ -590,7 +590,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		 * remount all mounted orangefs volumes to regain the lost
 		 * dynamic mount tables (if any) -- NOTE: this is done
 		 * without keeping the superblock list locked due to the
-		 * upcall/downcall waiting.  also, the request semaphore is
+		 * upcall/downcall waiting.  also, the request mutex is
 		 * used to ensure that no operations will be serviced until
 		 * all of the remounts are serviced (to avoid ops between
 		 * mounts to fail)
