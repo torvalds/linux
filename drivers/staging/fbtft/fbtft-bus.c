@@ -157,7 +157,7 @@ int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 	}
 
 	while (remain) {
-		to_copy = remain > tx_array_size ? tx_array_size : remain;
+		to_copy = min(tx_array_size, remain);
 		dev_dbg(par->info->device, "    to_copy=%zu, remain=%zu\n",
 						to_copy, remain - to_copy);
 
@@ -201,7 +201,7 @@ int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 	tx_array_size = par->txbuf.len / 2;
 
 	while (remain) {
-		to_copy = remain > tx_array_size ? tx_array_size : remain;
+		to_copy = min(tx_array_size, remain);
 		dev_dbg(par->info->device, "    to_copy=%zu, remain=%zu\n",
 						to_copy, remain - to_copy);
 

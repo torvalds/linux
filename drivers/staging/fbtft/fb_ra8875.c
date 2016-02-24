@@ -277,7 +277,7 @@ static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 		startbyte_size = 1;
 
 	while (remain) {
-		to_copy = remain > tx_array_size ? tx_array_size : remain;
+		to_copy = min(tx_array_size, remain);
 		dev_dbg(par->info->device, "    to_copy=%zu, remain=%zu\n",
 			to_copy, remain - to_copy);
 
