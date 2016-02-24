@@ -25,7 +25,7 @@ int perf_mem_events__init(void);
 char *perf_mem_events__name(int i);
 
 struct mem_info;
-void perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
+int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 void perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 void perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 void perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info);

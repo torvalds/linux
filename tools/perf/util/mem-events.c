@@ -95,7 +95,7 @@ static const char * const tlb_access[] = {
 	"Fault",
 };
 
-void perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	size_t l = 0, i;
 	u64 m = PERF_MEM_TLB_NA;
@@ -120,15 +120,16 @@ void perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 			strcat(out, " or ");
 			l += 4;
 		}
-		strncat(out, tlb_access[i], sz - l);
-		l += strlen(tlb_access[i]);
+		l += scnprintf(out + l, sz - l, tlb_access[i]);
 	}
 	if (*out == '\0')
-		strcpy(out, "N/A");
+		l += scnprintf(out, sz - l, "N/A");
 	if (hit)
-		strncat(out, " hit", sz - l);
+		l += scnprintf(out + l, sz - l, " hit");
 	if (miss)
-		strncat(out, " miss", sz - l);
+		l += scnprintf(out + l, sz - l, " miss");
+
+	return l;
 }
 
 static const char * const mem_lvl[] = {
