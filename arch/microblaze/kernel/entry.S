@@ -208,9 +208,7 @@ syscall_debug_table:
 	mfs	r11, rmsr;		/* save MSR */			\
 	swi	r11, r1, PT_MSR;
 
-#define RESTORE_REGS \
-	lwi	r11, r1, PT_MSR;					\
-	mts	rmsr , r11;						\
+#define RESTORE_REGS_GP \
 	lwi	r2, r1, PT_R2;	/* restore SDA */		\
 	lwi	r3, r1, PT_R3;					\
 	lwi	r4, r1, PT_R4;					\
@@ -241,6 +239,11 @@ syscall_debug_table:
 	lwi	r29, r1, PT_R29;					\
 	lwi	r30, r1, PT_R30;					\
 	lwi	r31, r1, PT_R31;	/* Restore cur task reg */
+
+#define RESTORE_REGS \
+	lwi	r11, r1, PT_MSR;					\
+	mts	rmsr , r11;						\
+	RESTORE_REGS_GP
 
 #define SAVE_STATE	\
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* save stack */	\
