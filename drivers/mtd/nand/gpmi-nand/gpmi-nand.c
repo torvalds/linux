@@ -1008,6 +1008,7 @@ static void gpmi_free_dma_buffer(struct gpmi_nand_data *this)
 
 	this->cmd_buffer	= NULL;
 	this->data_buffer_dma	= NULL;
+	this->raw_buffer	= NULL;
 	this->page_buffer_virt	= NULL;
 	this->page_buffer_size	=  0;
 }
