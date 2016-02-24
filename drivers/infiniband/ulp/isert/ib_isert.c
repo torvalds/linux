@@ -1041,7 +1041,6 @@ isert_create_send_desc(struct isert_conn *isert_conn,
 	tx_desc->iser_header.flags = ISCSI_CTRL;
 
 	tx_desc->num_sge = 1;
-	tx_desc->isert_cmd = isert_cmd;
 
 	if (tx_desc->tx_sg[0].lkey != device->pd->local_dma_lkey) {
 		tx_desc->tx_sg[0].lkey = device->pd->local_dma_lkey;
@@ -1882,7 +1881,7 @@ isert_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct isert_conn *isert_conn = wc->qp->qp_context;
 	struct isert_device *device = isert_conn->device;
 	struct iser_tx_desc *desc = cqe_to_tx_desc(wc->wr_cqe);
-	struct isert_cmd *isert_cmd = desc->isert_cmd;
+	struct isert_cmd *isert_cmd = tx_desc_to_cmd(desc);
 	struct se_cmd *cmd = &isert_cmd->iscsi_cmd->se_cmd;
 	int ret = 0;
 
@@ -1916,7 +1915,7 @@ isert_rdma_read_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct isert_conn *isert_conn = wc->qp->qp_context;
 	struct isert_device *device = isert_conn->device;
 	struct iser_tx_desc *desc = cqe_to_tx_desc(wc->wr_cqe);
-	struct isert_cmd *isert_cmd = desc->isert_cmd;
+	struct isert_cmd *isert_cmd = tx_desc_to_cmd(desc);
 	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	int ret = 0;
@@ -2009,7 +2008,7 @@ isert_send_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct isert_conn *isert_conn = wc->qp->qp_context;
 	struct ib_device *ib_dev = isert_conn->cm_id->device;
 	struct iser_tx_desc *tx_desc = cqe_to_tx_desc(wc->wr_cqe);
-	struct isert_cmd *isert_cmd = tx_desc->isert_cmd;
+	struct isert_cmd *isert_cmd = tx_desc_to_cmd(tx_desc);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		isert_print_wc(wc, "send");
@@ -2338,8 +2337,6 @@ isert_map_rdma(struct isert_cmd *isert_cmd, struct iscsi_conn *conn)
 	struct ib_sge *ib_sge;
 	u32 offset, data_len, data_left, rdma_write_max, va_offset = 0;
 	int ret = 0, i, ib_sge_cnt;
-
-	isert_cmd->tx_desc.isert_cmd = isert_cmd;
 
 	offset = isert_cmd->iser_ib_op == ISER_IB_RDMA_READ ?
 			cmd->write_data_done : 0;
@@ -2701,8 +2698,6 @@ isert_reg_rdma(struct isert_cmd *isert_cmd, struct iscsi_conn *conn)
 	u32 offset;
 	int ret = 0;
 	unsigned long flags;
-
-	isert_cmd->tx_desc.isert_cmd = isert_cmd;
 
 	offset = isert_cmd->iser_ib_op == ISER_IB_RDMA_READ ?
 			cmd->write_data_done : 0;

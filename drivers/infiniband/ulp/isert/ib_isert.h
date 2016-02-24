@@ -110,7 +110,6 @@ struct iser_tx_desc {
 	struct ib_sge	tx_sg[2];
 	struct ib_cqe	tx_cqe;
 	int		num_sge;
-	struct isert_cmd *isert_cmd;
 	struct ib_send_wr send_wr;
 } __packed;
 
@@ -180,6 +179,11 @@ struct isert_cmd {
 	struct work_struct	comp_work;
 	struct scatterlist	sg;
 };
+
+static inline struct isert_cmd *tx_desc_to_cmd(struct iser_tx_desc *desc)
+{
+	return container_of(desc, struct isert_cmd, tx_desc);
+}
 
 struct isert_device;
 
