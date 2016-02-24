@@ -99,12 +99,15 @@ static void qed_free_pci(struct qed_dev *cdev)
 	pci_disable_device(pdev);
 }
 
+#define PCI_REVISION_ID_ERROR_VAL	0xff
+
 /* Performs PCI initializations as well as initializing PCI-related parameters
  * in the device structrue. Returns 0 in case of success.
  */
 static int qed_init_pci(struct qed_dev *cdev,
 			struct pci_dev *pdev)
 {
+	u8 rev_id;
 	int rc;
 
 	cdev->pdev = pdev;
@@ -138,6 +141,14 @@ static int qed_init_pci(struct qed_dev *cdev,
 		pci_save_state(pdev);
 	}
 
+	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
+	if (rev_id == PCI_REVISION_ID_ERROR_VAL) {
+		DP_NOTICE(cdev,
+			  "Detected PCI device error [rev_id 0x%x]. Probably due to prior indication. Aborting.\n",
+			  rev_id);
+		rc = -ENODEV;
+		goto err2;
+	}
 	if (!pci_is_pcie(pdev)) {
 		DP_NOTICE(cdev, "The bus is not PCI Express\n");
 		rc = -EIO;
