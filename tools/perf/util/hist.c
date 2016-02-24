@@ -1560,6 +1560,27 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 				       enum hist_filter filter)
 {
 	h->filtered &= ~(1 << filter);
+
+	if (symbol_conf.report_hierarchy) {
+		struct hist_entry *parent = h->parent_he;
+
+		while (parent) {
+			he_stat__add_stat(&parent->stat, &h->stat);
+
+			parent->filtered &= ~(1 << filter);
+
+			if (parent->filtered)
+				goto next;
+
+			/* force fold unfiltered entry for simplicity */
+			parent->unfolded = false;
+			parent->row_offset = 0;
+			parent->nr_rows = 0;
+next:
+			parent = parent->parent_he;
+		}
+	}
+
 	if (h->filtered)
 		return;
 
@@ -1645,28 +1666,92 @@ static void hists__filter_by_type(struct hists *hists, int type, filter_fn_t fil
 	}
 }
 
+static void hists__filter_hierarchy(struct hists *hists, int type, const void *arg)
+{
+	struct rb_node *nd;
+
+	hists->stats.nr_non_filtered_samples = 0;
+
+	hists__reset_filter_stats(hists);
+	hists__reset_col_len(hists);
+
+	nd = rb_first(&hists->entries);
+	while (nd) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+		int ret;
+
+		ret = hist_entry__filter(h, type, arg);
+
+		/*
+		 * case 1. non-matching type
+		 * zero out the period, set filter marker and move to child
+		 */
+		if (ret < 0) {
+			memset(&h->stat, 0, sizeof(h->stat));
+			h->filtered |= (1 << type);
+
+			nd = __rb_hierarchy_next(&h->rb_node, HMD_FORCE_CHILD);
+		}
+		/*
+		 * case 2. matched type (filter out)
+		 * set filter marker and move to next
+		 */
+		else if (ret == 1) {
+			h->filtered |= (1 << type);
+
+			nd = __rb_hierarchy_next(&h->rb_node, HMD_FORCE_SIBLING);
+		}
+		/*
+		 * case 3. ok (not filtered)
+		 * add period to hists and parents, erase the filter marker
+		 * and move to next sibling
+		 */
+		else {
+			hists__remove_entry_filter(hists, h, type);
+
+			nd = __rb_hierarchy_next(&h->rb_node, HMD_FORCE_SIBLING);
+		}
+	}
+}
+
 void hists__filter_by_thread(struct hists *hists)
 {
-	hists__filter_by_type(hists, HIST_FILTER__THREAD,
-			      hists__filter_entry_by_thread);
+	if (symbol_conf.report_hierarchy)
+		hists__filter_hierarchy(hists, HIST_FILTER__THREAD,
+					hists->thread_filter);
+	else
+		hists__filter_by_type(hists, HIST_FILTER__THREAD,
+				      hists__filter_entry_by_thread);
 }
 
 void hists__filter_by_dso(struct hists *hists)
 {
-	hists__filter_by_type(hists, HIST_FILTER__DSO,
-			      hists__filter_entry_by_dso);
+	if (symbol_conf.report_hierarchy)
+		hists__filter_hierarchy(hists, HIST_FILTER__DSO,
+					hists->dso_filter);
+	else
+		hists__filter_by_type(hists, HIST_FILTER__DSO,
+				      hists__filter_entry_by_dso);
 }
 
 void hists__filter_by_symbol(struct hists *hists)
 {
-	hists__filter_by_type(hists, HIST_FILTER__SYMBOL,
-			      hists__filter_entry_by_symbol);
+	if (symbol_conf.report_hierarchy)
+		hists__filter_hierarchy(hists, HIST_FILTER__SYMBOL,
+					hists->symbol_filter_str);
+	else
+		hists__filter_by_type(hists, HIST_FILTER__SYMBOL,
+				      hists__filter_entry_by_symbol);
 }
 
 void hists__filter_by_socket(struct hists *hists)
 {
-	hists__filter_by_type(hists, HIST_FILTER__SOCKET,
-			      hists__filter_entry_by_socket);
+	if (symbol_conf.report_hierarchy)
+		hists__filter_hierarchy(hists, HIST_FILTER__SOCKET,
+					&hists->socket_filter);
+	else
+		hists__filter_by_type(hists, HIST_FILTER__SOCKET,
+				      hists__filter_entry_by_socket);
 }
 
 void events_stats__inc(struct events_stats *stats, u32 type)
