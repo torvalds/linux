@@ -943,7 +943,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		if (kvm_vcpu_read_guest_atomic(vcpu, pte_gpa, &gpte,
 					       sizeof(pt_element_t)))
-			return -EINVAL;
+			return 0;
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
 			vcpu->kvm->tlbs_dirty++;
@@ -975,7 +975,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			 host_writable);
 	}
 
-	return !nr_present;
+	return nr_present;
 }
 
 #undef pt_element_t

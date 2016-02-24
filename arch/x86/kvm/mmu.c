@@ -1784,7 +1784,7 @@ static void mark_unsync(u64 *spte)
 static int nonpaging_sync_page(struct kvm_vcpu *vcpu,
 			       struct kvm_mmu_page *sp)
 {
-	return 1;
+	return 0;
 }
 
 static void nonpaging_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
@@ -1916,20 +1916,20 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 		if ((_sp)->role.direct || (_sp)->role.invalid) {} else
 
 /* @sp->gfn should be write-protected at the call site */
-static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			   struct list_head *invalid_list)
+static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+			    struct list_head *invalid_list)
 {
 	if (sp->role.cr4_pae != !!is_pae(vcpu)) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
-		return 1;
+		return false;
 	}
 
-	if (vcpu->arch.mmu.sync_page(vcpu, sp)) {
+	if (vcpu->arch.mmu.sync_page(vcpu, sp) == 0) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
-		return 1;
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
 static void kvm_mmu_flush_or_zap(struct kvm_vcpu *vcpu,
@@ -1947,14 +1947,14 @@ static void kvm_mmu_flush_or_zap(struct kvm_vcpu *vcpu,
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
 
-static int kvm_sync_page_transient(struct kvm_vcpu *vcpu,
-				   struct kvm_mmu_page *sp)
+static bool kvm_sync_page_transient(struct kvm_vcpu *vcpu,
+				    struct kvm_mmu_page *sp)
 {
 	LIST_HEAD(invalid_list);
 	int ret;
 
 	ret = __kvm_sync_page(vcpu, sp, &invalid_list);
-	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, !ret);
+	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, ret);
 
 	return ret;
 }
@@ -1966,7 +1966,7 @@ static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point) { }
 static void mmu_audit_disable(void) { }
 #endif
 
-static int kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			 struct list_head *invalid_list)
 {
 	kvm_unlink_unsync_page(vcpu->kvm, sp);
@@ -1985,8 +1985,7 @@ static void kvm_sync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
 			continue;
 
 		WARN_ON(s->role.level != PT_PAGE_TABLE_LEVEL);
-		if (!kvm_sync_page(vcpu, s, &invalid_list))
-			flush = true;
+		flush |= kvm_sync_page(vcpu, s, &invalid_list);
 	}
 
 	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
@@ -2084,9 +2083,7 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 			kvm_flush_remote_tlbs(vcpu->kvm);
 
 		for_each_sp(pages, sp, parents, i) {
-			if (!kvm_sync_page(vcpu, sp, &invalid_list))
-				flush = true;
-
+			flush |= kvm_sync_page(vcpu, sp, &invalid_list);
 			mmu_pages_clear_parents(&parents);
 		}
 		kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
@@ -2145,7 +2142,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		if (sp->role.word != role.word)
 			continue;
 
-		if (sp->unsync && kvm_sync_page_transient(vcpu, sp))
+		if (sp->unsync && !kvm_sync_page_transient(vcpu, sp))
 			break;
 
 		if (sp->unsync_children)
