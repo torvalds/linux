@@ -82,6 +82,8 @@
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
+extern const char *spaces;
+extern const char *dots;
 extern char buildid_dir[];
 
 /* On most systems <limits.h> would have given us this, but
