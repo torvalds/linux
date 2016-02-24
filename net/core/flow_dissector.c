@@ -178,15 +178,16 @@ ip:
 
 		ip_proto = iph->protocol;
 
-		if (!dissector_uses_key(flow_dissector,
-					FLOW_DISSECTOR_KEY_IPV4_ADDRS))
-			break;
+		if (dissector_uses_key(flow_dissector,
+				       FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+			key_addrs = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+							      target_container);
 
-		key_addrs = skb_flow_dissector_target(flow_dissector,
-			      FLOW_DISSECTOR_KEY_IPV4_ADDRS, target_container);
-		memcpy(&key_addrs->v4addrs, &iph->saddr,
-		       sizeof(key_addrs->v4addrs));
-		key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+			memcpy(&key_addrs->v4addrs, &iph->saddr,
+			       sizeof(key_addrs->v4addrs));
+			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+		}
 
 		if (ip_is_fragment(iph)) {
 			key_control->flags |= FLOW_DIS_IS_FRAGMENT;
@@ -219,13 +220,12 @@ ipv6:
 
 		if (dissector_uses_key(flow_dissector,
 				       FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
-			struct flow_dissector_key_ipv6_addrs *key_ipv6_addrs;
+			key_addrs = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+							      target_container);
 
-			key_ipv6_addrs = skb_flow_dissector_target(flow_dissector,
-								   FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-								   target_container);
-
-			memcpy(key_ipv6_addrs, &iph->saddr, sizeof(*key_ipv6_addrs));
+			memcpy(&key_addrs->v6addrs, &iph->saddr,
+			       sizeof(key_addrs->v6addrs));
 			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 		}
 
@@ -339,8 +339,11 @@ mpls:
 	}
 
 	case htons(ETH_P_FCOE):
-		key_control->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
-		/* fall through */
+		if ((hlen - nhoff) < FCOE_HEADER_LEN)
+			goto out_bad;
+
+		nhoff += FCOE_HEADER_LEN;
+		goto out_good;
 	default:
 		goto out_bad;
 	}
@@ -447,13 +450,12 @@ ip_proto_again:
 		key_control->flags |= FLOW_DIS_IS_FRAGMENT;
 
 		nhoff += sizeof(_fh);
+		ip_proto = fh->nexthdr;
 
 		if (!(fh->frag_off & htons(IP6_OFFSET))) {
 			key_control->flags |= FLOW_DIS_FIRST_FRAG;
-			if (flags & FLOW_DISSECTOR_F_PARSE_1ST_FRAG) {
-				ip_proto = fh->nexthdr;
+			if (flags & FLOW_DISSECTOR_F_PARSE_1ST_FRAG)
 				goto ip_proto_again;
-			}
 		}
 		goto out_good;
 	}
@@ -739,6 +741,11 @@ u32 __skb_get_poff(const struct sk_buff *skb, void *data,
 		   const struct flow_keys *keys, int hlen)
 {
 	u32 poff = keys->control.thoff;
+
+	/* skip L4 headers for fragments after the first */
+	if ((keys->control.flags & FLOW_DIS_IS_FRAGMENT) &&
+	    !(keys->control.flags & FLOW_DIS_FIRST_FRAG))
+		return poff;
 
 	switch (keys->basic.ip_proto) {
 	case IPPROTO_TCP: {
