@@ -1761,28 +1761,18 @@ static int update_output_state(struct drm_atomic_state *state,
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
-	int ret, i, j;
+	int ret, i;
 
 	ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
 			       state->acquire_ctx);
 	if (ret)
 		return ret;
 
-	/* First grab all affected connector/crtc states. */
-	for (i = 0; i < set->num_connectors; i++) {
-		conn_state = drm_atomic_get_connector_state(state,
-							    set->connectors[i]);
-		if (IS_ERR(conn_state))
-			return PTR_ERR(conn_state);
-	}
+	/* First disable all connectors on the target crtc. */
+	ret = drm_atomic_add_affected_connectors(state, set->crtc);
+	if (ret)
+		return ret;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		ret = drm_atomic_add_affected_connectors(state, crtc);
-		if (ret)
-			return ret;
-	}
-
-	/* Then recompute connector->crtc links and crtc enabling state. */
 	for_each_connector_in_state(state, connector, conn_state, i) {
 		if (conn_state->crtc == set->crtc) {
 			ret = drm_atomic_set_crtc_for_connector(conn_state,
@@ -1790,16 +1780,19 @@ static int update_output_state(struct drm_atomic_state *state,
 			if (ret)
 				return ret;
 		}
+	}
 
-		for (j = 0; j < set->num_connectors; j++) {
-			if (set->connectors[j] == connector) {
-				ret = drm_atomic_set_crtc_for_connector(conn_state,
-									set->crtc);
-				if (ret)
-					return ret;
-				break;
-			}
-		}
+	/* Then set all connectors from set->connectors on the target crtc */
+	for (i = 0; i < set->num_connectors; i++) {
+		conn_state = drm_atomic_get_connector_state(state,
+							    set->connectors[i]);
+		if (IS_ERR(conn_state))
+			return PTR_ERR(conn_state);
+
+		ret = drm_atomic_set_crtc_for_connector(conn_state,
+							set->crtc);
+		if (ret)
+			return ret;
 	}
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
