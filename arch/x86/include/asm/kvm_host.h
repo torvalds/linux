@@ -704,6 +704,7 @@ struct kvm_arch {
 	 */
 	struct list_head active_mmu_pages;
 	struct list_head zapped_obsolete_pages;
+	struct kvm_page_track_notifier_head track_notifier_head;
 
 	struct list_head assigned_dev_head;
 	struct iommu_domain *iommu_domain;

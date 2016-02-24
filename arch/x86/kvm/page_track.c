@@ -150,3 +150,73 @@ bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 
 	return !!ACCESS_ONCE(slot->arch.gfn_track[mode][index]);
 }
+
+void kvm_page_track_init(struct kvm *kvm)
+{
+	struct kvm_page_track_notifier_head *head;
+
+	head = &kvm->arch.track_notifier_head;
+	init_srcu_struct(&head->track_srcu);
+	INIT_HLIST_HEAD(&head->track_notifier_list);
+}
+
+/*
+ * register the notifier so that event interception for the tracked guest
+ * pages can be received.
+ */
+void
+kvm_page_track_register_notifier(struct kvm *kvm,
+				 struct kvm_page_track_notifier_node *n)
+{
+	struct kvm_page_track_notifier_head *head;
+
+	head = &kvm->arch.track_notifier_head;
+
+	spin_lock(&kvm->mmu_lock);
+	hlist_add_head_rcu(&n->node, &head->track_notifier_list);
+	spin_unlock(&kvm->mmu_lock);
+}
+
+/*
+ * stop receiving the event interception. It is the opposed operation of
+ * kvm_page_track_register_notifier().
+ */
+void
+kvm_page_track_unregister_notifier(struct kvm *kvm,
+				   struct kvm_page_track_notifier_node *n)
+{
+	struct kvm_page_track_notifier_head *head;
+
+	head = &kvm->arch.track_notifier_head;
+
+	spin_lock(&kvm->mmu_lock);
+	hlist_del_rcu(&n->node);
+	spin_unlock(&kvm->mmu_lock);
+	synchronize_srcu(&head->track_srcu);
+}
+
+/*
+ * Notify the node that write access is intercepted and write emulation is
+ * finished at this time.
+ *
+ * The node should figure out if the written page is the one that node is
+ * interested in by itself.
+ */
+void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
+			  int bytes)
+{
+	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_notifier_node *n;
+	int idx;
+
+	head = &vcpu->kvm->arch.track_notifier_head;
+
+	if (hlist_empty(&head->track_notifier_list))
+		return;
+
+	idx = srcu_read_lock(&head->track_srcu);
+	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
+		if (n->track_write)
+			n->track_write(vcpu, gpa, new, bytes);
+	srcu_read_unlock(&head->track_srcu, idx);
+}
