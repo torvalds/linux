@@ -1451,11 +1451,80 @@ static int hists_browser__scnprintf_headers(struct hist_browser *browser, char *
 	return ret;
 }
 
+static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *browser, char *buf, size_t size)
+{
+	struct hists *hists = browser->hists;
+	struct perf_hpp dummy_hpp = {
+		.buf    = buf,
+		.size   = size,
+	};
+	struct perf_hpp_fmt *fmt;
+	size_t ret = 0;
+	int column = 0;
+	int nr_sort_keys = hists->hpp_list->nr_sort_keys;
+	bool first = true;
+
+	ret = scnprintf(buf, size, " ");
+	if (advance_hpp_check(&dummy_hpp, ret))
+		return ret;
+
+	hists__for_each_format(hists, fmt) {
+		if (column++ < browser->b.horiz_scroll)
+			continue;
+
+		if (perf_hpp__is_sort_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
+			break;
+
+		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
+		if (advance_hpp_check(&dummy_hpp, ret))
+			break;
+
+		ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "  ");
+		if (advance_hpp_check(&dummy_hpp, ret))
+			break;
+	}
+
+	ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "%*s",
+			(nr_sort_keys - 1) * HIERARCHY_INDENT, "");
+	if (advance_hpp_check(&dummy_hpp, ret))
+		return ret;
+
+	hists__for_each_format(hists, fmt) {
+		if (!perf_hpp__is_sort_entry(fmt) && !perf_hpp__is_dynamic_entry(fmt))
+			continue;
+		if (perf_hpp__should_skip(fmt, hists))
+			continue;
+
+		if (first) {
+			first = false;
+		} else {
+			ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, " / ");
+			if (advance_hpp_check(&dummy_hpp, ret))
+				break;
+		}
+
+		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
+		dummy_hpp.buf[ret] = '\0';
+		rtrim(dummy_hpp.buf);
+
+		ret = strlen(dummy_hpp.buf);
+		if (advance_hpp_check(&dummy_hpp, ret))
+			break;
+	}
+
+	return ret;
+}
+
 static void hist_browser__show_headers(struct hist_browser *browser)
 {
 	char headers[1024];
 
-	hists_browser__scnprintf_headers(browser, headers, sizeof(headers));
+	if (symbol_conf.report_hierarchy)
+		hists_browser__scnprintf_hierarchy_headers(browser, headers,
+							   sizeof(headers));
+	else
+		hists_browser__scnprintf_headers(browser, headers,
+						 sizeof(headers));
 	ui_browser__gotorc(&browser->b, 0, 0);
 	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
 	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
