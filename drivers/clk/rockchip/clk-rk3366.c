@@ -425,6 +425,8 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(0, "pclk_pd_pmu", "gpll", CLK_IGNORE_UNUSED,
 			RK3368_CLKSEL_CON(10), 0, 5, DFLAGS,
 			RK3368_CLKGATE_CON(7), 9, GFLAGS),
+	GATE(SCLK_PVTM_PMU, "sclk_pvtm_pmu", "xin24m", 0,
+			RK3368_CLKGATE_CON(7), 3, GFLAGS),
 
 	COMPOSITE(0, "sclk_gpu_core_src", mux_pll_src_cpll_gpll_usb_npll_p, 0,
 			RK3368_CLKSEL_CON(14), 6, 2, MFLAGS, 0, 5, DFLAGS,
