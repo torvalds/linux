@@ -82,6 +82,7 @@ libperf-y += parse-branch-options.o
 libperf-y += parse-regs-options.o
 libperf-y += term.o
 libperf-y += help-unknown-cmd.o
+libperf-y += mem-events.o
 
 libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o

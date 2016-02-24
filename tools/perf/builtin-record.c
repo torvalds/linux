@@ -32,6 +32,7 @@
 #include "util/parse-branch-options.h"
 #include "util/parse-regs-options.h"
 #include "util/llvm-utils.h"
+#include "util/bpf-loader.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -533,6 +534,16 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	if (record__open(rec) != 0) {
 		err = -1;
+		goto out_child;
+	}
+
+	err = bpf__apply_obj_config();
+	if (err) {
+		char errbuf[BUFSIZ];
+
+		bpf__strerror_apply_obj_config(err, errbuf, sizeof(errbuf));
+		pr_err("ERROR: Apply config to BPF failed: %s\n",
+			 errbuf);
 		goto out_child;
 	}
 

@@ -72,8 +72,17 @@ enum {
 	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
+struct parse_events_array {
+	size_t nr_ranges;
+	struct {
+		unsigned int start;
+		size_t length;
+	} *ranges;
+};
+
 struct parse_events_term {
 	char *config;
+	struct parse_events_array array;
 	union {
 		char *str;
 		u64  num;
@@ -99,6 +108,7 @@ struct parse_events_evlist {
 	int			   idx;
 	int			   nr_groups;
 	struct parse_events_error *error;
+	struct perf_evlist	  *evlist;
 };
 
 struct parse_events_terms {
@@ -119,6 +129,7 @@ int parse_events_term__clone(struct parse_events_term **new,
 			     struct parse_events_term *term);
 void parse_events_terms__delete(struct list_head *terms);
 void parse_events_terms__purge(struct list_head *terms);
+void parse_events__clear_array(struct parse_events_array *a);
 int parse_events__modifier_event(struct list_head *list, char *str, bool add);
 int parse_events__modifier_group(struct list_head *list, char *event_mod);
 int parse_events_name(struct list_head *list, char *name);
@@ -129,12 +140,14 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 int parse_events_load_bpf(struct parse_events_evlist *data,
 			  struct list_head *list,
 			  char *bpf_file_name,
-			  bool source);
+			  bool source,
+			  struct list_head *head_config);
 /* Provide this function for perf test */
 struct bpf_object;
 int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 			      struct list_head *list,
-			      struct bpf_object *obj);
+			      struct bpf_object *obj,
+			      struct list_head *head_config);
 int parse_events_add_numeric(struct parse_events_evlist *data,
 			     struct list_head *list,
 			     u32 type, u64 config,

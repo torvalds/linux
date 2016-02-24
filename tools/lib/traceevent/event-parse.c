@@ -1951,6 +1951,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		   strcmp(token, "*") == 0 ||
 		   strcmp(token, "^") == 0 ||
 		   strcmp(token, "/") == 0 ||
+		   strcmp(token, "%") == 0 ||
 		   strcmp(token, "<") == 0 ||
 		   strcmp(token, ">") == 0 ||
 		   strcmp(token, "<=") == 0 ||
@@ -3688,6 +3689,9 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 			break;
 		case '/':
 			val = left / right;
+			break;
+		case '%':
+			val = left % right;
 			break;
 		case '*':
 			val = left * right;

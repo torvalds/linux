@@ -58,6 +58,8 @@ enum perf_output_field {
 	PERF_OUTPUT_IREGS	    = 1U << 14,
 	PERF_OUTPUT_BRSTACK	    = 1U << 15,
 	PERF_OUTPUT_BRSTACKSYM	    = 1U << 16,
+	PERF_OUTPUT_DATA_SRC	    = 1U << 17,
+	PERF_OUTPUT_WEIGHT	    = 1U << 18,
 };
 
 struct output_option {
@@ -81,6 +83,8 @@ struct output_option {
 	{.str = "iregs", .field = PERF_OUTPUT_IREGS},
 	{.str = "brstack", .field = PERF_OUTPUT_BRSTACK},
 	{.str = "brstacksym", .field = PERF_OUTPUT_BRSTACKSYM},
+	{.str = "data_src", .field = PERF_OUTPUT_DATA_SRC},
+	{.str = "weight",   .field = PERF_OUTPUT_WEIGHT},
 };
 
 /* default set to maintain compatibility with current format */
@@ -131,7 +135,8 @@ static struct {
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_PERIOD,
+			      PERF_OUTPUT_PERIOD |  PERF_OUTPUT_ADDR |
+			      PERF_OUTPUT_DATA_SRC | PERF_OUTPUT_WEIGHT,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -240,6 +245,16 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	if (PRINT_FIELD(ADDR) &&
 		perf_evsel__do_check_stype(evsel, PERF_SAMPLE_ADDR, "ADDR",
 					   PERF_OUTPUT_ADDR, allow_user_set))
+		return -EINVAL;
+
+	if (PRINT_FIELD(DATA_SRC) &&
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_DATA_SRC, "DATA_SRC",
+					PERF_OUTPUT_DATA_SRC))
+		return -EINVAL;
+
+	if (PRINT_FIELD(WEIGHT) &&
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_WEIGHT, "WEIGHT",
+					PERF_OUTPUT_WEIGHT))
 		return -EINVAL;
 
 	if (PRINT_FIELD(SYM) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR)) {
@@ -672,6 +687,12 @@ static void process_event(struct perf_script *script, union perf_event *event,
 				    sample->raw_data, sample->raw_size);
 	if (PRINT_FIELD(ADDR))
 		print_sample_addr(event, sample, thread, attr);
+
+	if (PRINT_FIELD(DATA_SRC))
+		printf("%16" PRIx64, sample->data_src);
+
+	if (PRINT_FIELD(WEIGHT))
+		printf("%16" PRIu64, sample->weight);
 
 	if (PRINT_FIELD(IP)) {
 		if (!symbol_conf.use_callchain)

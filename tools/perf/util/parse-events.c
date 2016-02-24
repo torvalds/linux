@@ -363,7 +363,7 @@ static int config_attr(struct perf_event_attr *attr,
 
 int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2,
-			   struct parse_events_error *error,
+			   struct parse_events_error *err,
 			   struct list_head *head_config)
 {
 	struct perf_event_attr attr;
@@ -425,7 +425,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	attr.type = PERF_TYPE_HW_CACHE;
 
 	if (head_config) {
-		if (config_attr(&attr, head_config, error,
+		if (config_attr(&attr, head_config, err,
 				config_term_common))
 			return -EINVAL;
 
@@ -581,6 +581,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 struct __add_bpf_event_param {
 	struct parse_events_evlist *data;
 	struct list_head *list;
+	struct list_head *head_config;
 };
 
 static int add_bpf_event(struct probe_trace_event *tev, int fd,
@@ -597,7 +598,8 @@ static int add_bpf_event(struct probe_trace_event *tev, int fd,
 		 tev->group, tev->event, fd);
 
 	err = parse_events_add_tracepoint(&new_evsels, &evlist->idx, tev->group,
-					  tev->event, evlist->error, NULL);
+					  tev->event, evlist->error,
+					  param->head_config);
 	if (err) {
 		struct perf_evsel *evsel, *tmp;
 
@@ -622,11 +624,12 @@ static int add_bpf_event(struct probe_trace_event *tev, int fd,
 
 int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 			      struct list_head *list,
-			      struct bpf_object *obj)
+			      struct bpf_object *obj,
+			      struct list_head *head_config)
 {
 	int err;
 	char errbuf[BUFSIZ];
-	struct __add_bpf_event_param param = {data, list};
+	struct __add_bpf_event_param param = {data, list, head_config};
 	static bool registered_unprobe_atexit = false;
 
 	if (IS_ERR(obj) || !obj) {
@@ -672,17 +675,99 @@ errout:
 	return err;
 }
 
+static int
+parse_events_config_bpf(struct parse_events_evlist *data,
+			struct bpf_object *obj,
+			struct list_head *head_config)
+{
+	struct parse_events_term *term;
+	int error_pos;
+
+	if (!head_config || list_empty(head_config))
+		return 0;
+
+	list_for_each_entry(term, head_config, list) {
+		char errbuf[BUFSIZ];
+		int err;
+
+		if (term->type_term != PARSE_EVENTS__TERM_TYPE_USER) {
+			snprintf(errbuf, sizeof(errbuf),
+				 "Invalid config term for BPF object");
+			errbuf[BUFSIZ - 1] = '\0';
+
+			data->error->idx = term->err_term;
+			data->error->str = strdup(errbuf);
+			return -EINVAL;
+		}
+
+		err = bpf__config_obj(obj, term, data->evlist, &error_pos);
+		if (err) {
+			bpf__strerror_config_obj(obj, term, data->evlist,
+						 &error_pos, err, errbuf,
+						 sizeof(errbuf));
+			data->error->help = strdup(
+"Hint:\tValid config terms:\n"
+"     \tmap:[<arraymap>].value<indices>=[value]\n"
+"     \tmap:[<eventmap>].event<indices>=[event]\n"
+"\n"
+"     \twhere <indices> is something like [0,3...5] or [all]\n"
+"     \t(add -v to see detail)");
+			data->error->str = strdup(errbuf);
+			if (err == -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUE)
+				data->error->idx = term->err_val;
+			else
+				data->error->idx = term->err_term + error_pos;
+			return err;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Split config terms:
+ * perf record -e bpf.c/call-graph=fp,map:array.value[0]=1/ ...
+ *  'call-graph=fp' is 'evt config', should be applied to each
+ *  events in bpf.c.
+ * 'map:array.value[0]=1' is 'obj config', should be processed
+ * with parse_events_config_bpf.
+ *
+ * Move object config terms from the first list to obj_head_config.
+ */
+static void
+split_bpf_config_terms(struct list_head *evt_head_config,
+		       struct list_head *obj_head_config)
+{
+	struct parse_events_term *term, *temp;
+
+	/*
+	 * Currectly, all possible user config term
+	 * belong to bpf object. parse_events__is_hardcoded_term()
+	 * happends to be a good flag.
+	 *
+	 * See parse_events_config_bpf() and
+	 * config_term_tracepoint().
+	 */
+	list_for_each_entry_safe(term, temp, evt_head_config, list)
+		if (!parse_events__is_hardcoded_term(term))
+			list_move_tail(&term->list, obj_head_config);
+}
+
 int parse_events_load_bpf(struct parse_events_evlist *data,
 			  struct list_head *list,
 			  char *bpf_file_name,
-			  bool source)
+			  bool source,
+			  struct list_head *head_config)
 {
+	int err;
 	struct bpf_object *obj;
+	LIST_HEAD(obj_head_config);
+
+	if (head_config)
+		split_bpf_config_terms(head_config, &obj_head_config);
 
 	obj = bpf__prepare_load(bpf_file_name, source);
 	if (IS_ERR(obj)) {
 		char errbuf[BUFSIZ];
-		int err;
 
 		err = PTR_ERR(obj);
 
@@ -700,7 +785,18 @@ int parse_events_load_bpf(struct parse_events_evlist *data,
 		return err;
 	}
 
-	return parse_events_load_bpf_obj(data, list, obj);
+	err = parse_events_load_bpf_obj(data, list, obj, head_config);
+	if (err)
+		return err;
+	err = parse_events_config_bpf(data, obj, &obj_head_config);
+
+	/*
+	 * Caller doesn't know anything about obj_head_config,
+	 * so combine them together again before returnning.
+	 */
+	if (head_config)
+		list_splice_tail(&obj_head_config, head_config);
+	return err;
 }
 
 static int
@@ -840,10 +936,6 @@ void parse_events__shrink_config_terms(void)
 {
 	config_term_shrinked = true;
 }
-
-typedef int config_term_func_t(struct perf_event_attr *attr,
-			       struct parse_events_term *term,
-			       struct parse_events_error *err);
 
 static int config_term_common(struct perf_event_attr *attr,
 			      struct parse_events_term *term,
@@ -1485,9 +1577,10 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 		 struct parse_events_error *err)
 {
 	struct parse_events_evlist data = {
-		.list  = LIST_HEAD_INIT(data.list),
-		.idx   = evlist->nr_entries,
-		.error = err,
+		.list   = LIST_HEAD_INIT(data.list),
+		.idx    = evlist->nr_entries,
+		.error  = err,
+		.evlist = evlist,
 	};
 	int ret;
 
@@ -2163,6 +2256,8 @@ void parse_events_terms__purge(struct list_head *terms)
 	struct parse_events_term *term, *h;
 
 	list_for_each_entry_safe(term, h, terms, list) {
+		if (term->array.nr_ranges)
+			free(term->array.ranges);
 		list_del_init(&term->list);
 		free(term);
 	}
@@ -2174,6 +2269,11 @@ void parse_events_terms__delete(struct list_head *terms)
 		return;
 	parse_events_terms__purge(terms);
 	free(terms);
+}
+
+void parse_events__clear_array(struct parse_events_array *a)
+{
+	free(a->ranges);
 }
 
 void parse_events_evlist_error(struct parse_events_evlist *data,

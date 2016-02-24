@@ -286,36 +286,35 @@ struct sort_entry sort_sym = {
 
 /* --sort srcline */
 
+static char *hist_entry__get_srcline(struct hist_entry *he)
+{
+	struct map *map = he->ms.map;
+
+	if (!map)
+		return SRCLINE_UNKNOWN;
+
+	return get_srcline(map->dso, map__rip_2objdump(map, he->ip),
+			   he->ms.sym, true);
+}
+
 static int64_t
 sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	if (!left->srcline) {
-		if (!left->ms.map)
-			left->srcline = SRCLINE_UNKNOWN;
-		else {
-			struct map *map = left->ms.map;
-			left->srcline = get_srcline(map->dso,
-					   map__rip_2objdump(map, left->ip),
-						    left->ms.sym, true);
-		}
-	}
-	if (!right->srcline) {
-		if (!right->ms.map)
-			right->srcline = SRCLINE_UNKNOWN;
-		else {
-			struct map *map = right->ms.map;
-			right->srcline = get_srcline(map->dso,
-					     map__rip_2objdump(map, right->ip),
-						     right->ms.sym, true);
-		}
-	}
+	if (!left->srcline)
+		left->srcline = hist_entry__get_srcline(left);
+	if (!right->srcline)
+		right->srcline = hist_entry__get_srcline(right);
+
 	return strcmp(right->srcline, left->srcline);
 }
 
 static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
 					size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcline);
+	if (!he->srcline)
+		he->srcline = hist_entry__get_srcline(he);
+
+	return repsep_snprintf(bf, size, "%-.*s", width, he->srcline);
 }
 
 struct sort_entry sort_srcline = {
@@ -329,10 +328,13 @@ struct sort_entry sort_srcline = {
 
 static char no_srcfile[1];
 
-static char *get_srcfile(struct hist_entry *e)
+static char *hist_entry__get_srcfile(struct hist_entry *e)
 {
 	char *sf, *p;
 	struct map *map = e->ms.map;
+
+	if (!map)
+		return no_srcfile;
 
 	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
 			 e->ms.sym, false, true);
@@ -350,25 +352,21 @@ static char *get_srcfile(struct hist_entry *e)
 static int64_t
 sort__srcfile_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	if (!left->srcfile) {
-		if (!left->ms.map)
-			left->srcfile = no_srcfile;
-		else
-			left->srcfile = get_srcfile(left);
-	}
-	if (!right->srcfile) {
-		if (!right->ms.map)
-			right->srcfile = no_srcfile;
-		else
-			right->srcfile = get_srcfile(right);
-	}
+	if (!left->srcfile)
+		left->srcfile = hist_entry__get_srcfile(left);
+	if (!right->srcfile)
+		right->srcfile = hist_entry__get_srcfile(right);
+
 	return strcmp(right->srcfile, left->srcfile);
 }
 
 static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
 					size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcfile);
+	if (!he->srcfile)
+		he->srcfile = hist_entry__get_srcfile(he);
+
+	return repsep_snprintf(bf, size, "%-.*s", width, he->srcfile);
 }
 
 struct sort_entry sort_srcfile = {
@@ -485,9 +483,6 @@ sort__trace_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (right->trace_output == NULL)
 		right->trace_output = get_trace_output(right);
 
-	hists__new_col_len(left->hists, HISTC_TRACE, strlen(left->trace_output));
-	hists__new_col_len(right->hists, HISTC_TRACE, strlen(right->trace_output));
-
 	return strcmp(right->trace_output, left->trace_output);
 }
 
@@ -498,11 +493,11 @@ static int hist_entry__trace_snprintf(struct hist_entry *he, char *bf,
 
 	evsel = hists_to_evsel(he->hists);
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
-		return scnprintf(bf, size, "%-*.*s", width, width, "N/A");
+		return scnprintf(bf, size, "%-.*s", width, "N/A");
 
 	if (he->trace_output == NULL)
 		he->trace_output = get_trace_output(he);
-	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->trace_output);
+	return repsep_snprintf(bf, size, "%-.*s", width, he->trace_output);
 }
 
 struct sort_entry sort_trace = {
@@ -843,7 +838,6 @@ static const char * const tlb_access[] = {
 	"Walker",
 	"Fault",
 };
-#define NUM_TLB_ACCESS (sizeof(tlb_access)/sizeof(const char *))
 
 static int hist_entry__tlb_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
@@ -865,7 +859,7 @@ static int hist_entry__tlb_snprintf(struct hist_entry *he, char *bf,
 	/* already taken care of */
 	m &= ~(PERF_MEM_TLB_HIT|PERF_MEM_TLB_MISS);
 
-	for (i = 0; m && i < NUM_TLB_ACCESS; i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(tlb_access); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 		if (l) {
@@ -920,7 +914,6 @@ static const char * const mem_lvl[] = {
 	"I/O",
 	"Uncached",
 };
-#define NUM_MEM_LVL (sizeof(mem_lvl)/sizeof(const char *))
 
 static int hist_entry__lvl_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
@@ -942,7 +935,7 @@ static int hist_entry__lvl_snprintf(struct hist_entry *he, char *bf,
 	/* already taken care of */
 	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
 
-	for (i = 0; m && i < NUM_MEM_LVL; i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 		if (l) {
@@ -988,7 +981,6 @@ static const char * const snoop_access[] = {
 	"Hit",
 	"HitM",
 };
-#define NUM_SNOOP_ACCESS (sizeof(snoop_access)/sizeof(const char *))
 
 static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
@@ -1003,7 +995,7 @@ static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 	if (he->mem_info)
 		m = he->mem_info->data_src.mem_snoop;
 
-	for (i = 0; m && i < NUM_SNOOP_ACCESS; i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 		if (l) {
@@ -1018,12 +1010,6 @@ static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 		strcpy(out, "N/A");
 
 	return repsep_snprintf(bf, size, "%-*s", width, out);
-}
-
-static inline  u64 cl_address(u64 address)
-{
-	/* return the cacheline of the address */
-	return (address & ~(cacheline_size - 1));
 }
 
 static int64_t
@@ -1835,6 +1821,20 @@ bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *fmt)
 	return fmt->cmp == __sort__hde_cmp;
 }
 
+static bool __sort__hde_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+{
+	struct hpp_dynamic_entry *hde_a;
+	struct hpp_dynamic_entry *hde_b;
+
+	if (!perf_hpp__is_dynamic_entry(a) || !perf_hpp__is_dynamic_entry(b))
+		return false;
+
+	hde_a = container_of(a, struct hpp_dynamic_entry, hpp);
+	hde_b = container_of(b, struct hpp_dynamic_entry, hpp);
+
+	return hde_a->field == hde_b->field;
+}
+
 static void hde_free(struct perf_hpp_fmt *fmt)
 {
 	struct hpp_dynamic_entry *hde;
@@ -1867,6 +1867,7 @@ __alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field)
 	hde->hpp.cmp = __sort__hde_cmp;
 	hde->hpp.collapse = __sort__hde_cmp;
 	hde->hpp.sort = __sort__hde_cmp;
+	hde->hpp.equal = __sort__hde_equal;
 	hde->hpp.free = hde_free;
 
 	INIT_LIST_HEAD(&hde->hpp.list);

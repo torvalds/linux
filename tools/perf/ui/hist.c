@@ -645,6 +645,9 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 	if (perf_hpp__is_sort_entry(fmt))
 		return perf_hpp__reset_sort_width(fmt, hists);
 
+	if (perf_hpp__is_dynamic_entry(fmt))
+		return;
+
 	BUG_ON(fmt->idx >= PERF_HPP__MAX_INDEX);
 
 	switch (fmt->idx) {

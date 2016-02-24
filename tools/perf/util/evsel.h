@@ -364,6 +364,14 @@ static inline bool perf_evsel__is_function_event(struct perf_evsel *evsel)
 #undef FUNCTION_EVENT
 }
 
+static inline bool perf_evsel__is_bpf_output(struct perf_evsel *evsel)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+
+	return (attr->config == PERF_COUNT_SW_BPF_OUTPUT) &&
+		(attr->type == PERF_TYPE_SOFTWARE);
+}
+
 struct perf_attr_details {
 	bool freq;
 	bool verbose;
