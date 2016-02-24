@@ -61,11 +61,10 @@
 				ISERT_MAX_RX_MISC_PDUS)
 
 #define ISER_RX_PAD_SIZE	(ISCSI_DEF_MAX_RECV_SEG_LEN + 4096 - \
-		(ISER_RX_PAYLOAD_SIZE + sizeof(u64) + sizeof(struct ib_sge)))
+		(ISER_RX_PAYLOAD_SIZE + sizeof(u64) + sizeof(struct ib_sge) + \
+		 sizeof(struct ib_cqe)))
 
 #define ISCSI_ISER_SG_TABLESIZE		256
-#define ISER_FASTREG_LI_WRID		0xffffffffffffffffULL
-#define ISER_BEACON_WRID               0xfffffffffffffffeULL
 
 enum isert_desc_type {
 	ISCSI_TX_CONTROL,
@@ -94,8 +93,14 @@ struct iser_rx_desc {
 	char		data[ISCSI_DEF_MAX_RECV_SEG_LEN];
 	u64		dma_addr;
 	struct ib_sge	rx_sg;
+	struct ib_cqe	rx_cqe;
 	char		pad[ISER_RX_PAD_SIZE];
 } __packed;
+
+static inline struct iser_rx_desc *cqe_to_rx_desc(struct ib_cqe *cqe)
+{
+	return container_of(cqe, struct iser_rx_desc, rx_cqe);
+}
 
 struct iser_tx_desc {
 	struct iser_ctrl iser_header;
@@ -103,10 +108,17 @@ struct iser_tx_desc {
 	enum isert_desc_type type;
 	u64		dma_addr;
 	struct ib_sge	tx_sg[2];
+	struct ib_cqe	tx_cqe;
 	int		num_sge;
 	struct isert_cmd *isert_cmd;
 	struct ib_send_wr send_wr;
 } __packed;
+
+static inline struct iser_tx_desc *cqe_to_tx_desc(struct ib_cqe *cqe)
+{
+	return container_of(cqe, struct iser_tx_desc, tx_cqe);
+}
+
 
 enum isert_indicator {
 	ISERT_PROTECTED		= 1 << 0,
@@ -217,17 +229,13 @@ struct isert_conn {
  *
  * @device:     pointer to device handle
  * @cq:         completion queue
- * @wcs:        work completion array
  * @active_qps: Number of active QPs attached
  *              to completion context
- * @work:       completion work handle
  */
 struct isert_comp {
 	struct isert_device     *device;
 	struct ib_cq		*cq;
-	struct ib_wc		 wcs[16];
 	int                      active_qps;
-	struct work_struct	 work;
 };
 
 struct isert_device {
