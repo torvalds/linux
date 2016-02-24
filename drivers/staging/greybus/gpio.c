@@ -651,7 +651,11 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	gpio = &ggc->chip;
 
 	gpio->label = "greybus_gpio";
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+	gpio->parent = &connection->bundle->dev;
+#else
 	gpio->dev = &connection->bundle->dev;
+#endif
 	gpio->owner = THIS_MODULE;
 
 	gpio->request = gb_gpio_request;
