@@ -1,7 +1,7 @@
 /*
  * DHD PROP_TXSTATUS Module.
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_wlfc.c 557502 2015-05-19 06:32:03Z $
+ * $Id: dhd_wlfc.c 599648 2015-11-16 09:33:00Z $
  *
  */
 

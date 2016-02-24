@@ -1,7 +1,7 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -59,12 +59,11 @@ static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
 #endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
-//extern int sdio_reset_comm(struct mmc_card *card);
 
 /* workaround to simply return 0 as suggested by Broadcom */
 static int sdio_reset_comm(struct mmc_card *card)
 {
-        return 0;
+	return 0;
 }
 
 #define DEFAULT_SDIO_F2_BLKSIZE		512

@@ -1,7 +1,7 @@
 /*
  * SDIO access interface for drivers - linux specific (pci only)
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_linux.c 461443 2014-03-12 02:40:59Z $
+ * $Id: bcmsdh_linux.c 599866 2015-11-17 03:16:31Z $
  */
 
 /**
@@ -342,6 +342,8 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 		(int)bcmsdh_osinfo->oob_irq_num, (int)bcmsdh_osinfo->oob_irq_flags));
 	bcmsdh_osinfo->oob_irq_handler = oob_irq_handler;
 	bcmsdh_osinfo->oob_irq_handler_context = oob_irq_handler_context;
+	bcmsdh_osinfo->oob_irq_enabled = TRUE;
+	bcmsdh_osinfo->oob_irq_registered = TRUE;
 #if defined(CONFIG_ARCH_ODIN)
 	err = odin_gpio_sms_request_irq(bcmsdh_osinfo->oob_irq_num, wlan_oob_irq,
 		bcmsdh_osinfo->oob_irq_flags, "bcmsdh_sdmmc", bcmsdh);
@@ -351,14 +353,14 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 #endif /* defined(CONFIG_ARCH_ODIN) */
 	if (err) {
 		SDLX_MSG(("%s: request_irq failed with %d\n", __FUNCTION__, err));
+		bcmsdh_osinfo->oob_irq_enabled = FALSE;
+		bcmsdh_osinfo->oob_irq_registered = FALSE;
 		return err;
 	}
 
 		err = enable_irq_wake(bcmsdh_osinfo->oob_irq_num);
 		if (!err)
 			bcmsdh_osinfo->oob_irq_wake_enabled = TRUE;
-	bcmsdh_osinfo->oob_irq_enabled = TRUE;
-	bcmsdh_osinfo->oob_irq_registered = TRUE;
 	return err;
 }
 

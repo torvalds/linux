@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 driver
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c 589976 2015-10-01 07:01:27Z $
+ * $Id: wl_cfg80211.c 614516 2016-01-22 13:45:21Z $
  */
 /* */
 #include <typedefs.h>
@@ -269,13 +269,6 @@ common_iface_combinations[] = {
 
 #define CUSTOM_RETRY_MASK 0xff000000 /* Mask for retry counter of custom dwell time */
 #define LONG_LISTEN_TIME 2000
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
-#define STA_INFO_BIT(info) (1ul << NL80211_STA_ ## info)
-#else
-#define STA_INFO_BIT(info) (STATION_ ## info)
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) */
-
 /*
  * cfg80211_ops api/callback list
  */
@@ -1309,14 +1302,19 @@ static chanspec_t wl_cfg80211_get_shared_freq(struct wiphy *wiphy)
 	struct wl_bss_info *bss = NULL;
 
 	if ((err = wldev_ioctl(dev, WLC_GET_BSSID, &bssid, sizeof(bssid), false))) {
+		struct channel_info ci;
 		/* STA interface is not associated. So start the new interface on a temp
 		 * channel . Later proper channel will be applied by the above framework
 		 * via set_channel (cfg80211 API).
 		 */
-		WL_DBG(("Not associated. Return a temp channel. \n"));
-		return wl_ch_host_to_driver(WL_P2P_TEMP_CHAN);
-	}
+		WL_DBG(("Not associated. Return first channel from supported channel list. \n"));
+		if (!wldev_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci), false)) {
+			return wl_ch_host_to_driver(ci.hw_channel);
+		} else {
 
+			return wl_ch_host_to_driver(WL_P2P_TEMP_CHAN);
+		}
+	}
 
 	*(u32 *) cfg->extra_buf = htod32(WL_EXTRA_BUF_MAX);
 	if ((err = wldev_ioctl(dev, WLC_GET_BSS_INFO, cfg->extra_buf,
@@ -7634,7 +7632,7 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 	/* If this is not provided cfg stack will get disconnect
 	* during suspend.
 	*/
-	brcm_wowlan_config = kmalloc(sizeof(struct cfg80211_wowlan), GFP_KERNEL);
+	brcm_wowlan_config = kzalloc(sizeof(struct cfg80211_wowlan), GFP_KERNEL);
 	if (brcm_wowlan_config) {
 		brcm_wowlan_config->disconnect = true;
 		brcm_wowlan_config->gtk_rekey_failure = true;
@@ -7643,7 +7641,6 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 		brcm_wowlan_config->patterns = NULL;
 		brcm_wowlan_config->n_patterns = 0;
 		brcm_wowlan_config->tcp = NULL;
-		brcm_wowlan_config->nd_config = NULL;
 	} else {
 		WL_ERR(("Can not allocate memory for brcm_wowlan_config,"
 			" So wiphy->wowlan_config is set to NULL\n"));
@@ -8078,6 +8075,9 @@ exit:
 	sinfo.filled = 0;
 	if (((event == WLC_E_ASSOC_IND) || (event == WLC_E_REASSOC_IND)) &&
 		reason == DOT11_SC_SUCCESS) {
+		/* Linux ver >= 4.0 assoc_req_ies_len is used instead of
+		 * STATION_INFO_ASSOC_REQ_IES flag
+		 */
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0))
 		sinfo.filled = STA_INFO_BIT(INFO_ASSOC_REQ_IES);
 #endif /*  (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) */
@@ -8127,10 +8127,12 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	u16 flags = ntoh16(e->flags);
 	u32 status =  ntoh32(e->status);
 	bool active;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
 	struct ieee80211_channel *channel = NULL;
 	struct wiphy *wiphy = bcmcfg_to_wiphy(cfg);
 	u32 chanspec, chan;
 	u32 freq, band;
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0) */
 
 	if (event == WLC_E_JOIN) {
 		WL_DBG(("joined in IBSS network\n"));
@@ -8140,6 +8142,7 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	}
 	if (event == WLC_E_JOIN || event == WLC_E_START ||
 		(event == WLC_E_LINK && (flags == WLC_EVENT_MSG_LINK))) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
 		err = wldev_iovar_getint(ndev, "chanspec", (s32 *)&chanspec);
 		if (unlikely(err)) {
 			WL_ERR(("Could not get chanspec %d\n", err));
@@ -8149,6 +8152,7 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		band = (chan <= CH_MAX_2G_CHANNEL) ? IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 		freq = ieee80211_channel_to_frequency(chan, band);
 		channel = ieee80211_get_channel(wiphy, freq);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0) */
 		if (wl_get_drv_status(cfg, CONNECTED, ndev)) {
 			/* ROAM or Redundant */
 			u8 *cur_bssid = wl_read_prof(cfg, ndev, WL_PROF_BSSID);
@@ -8162,7 +8166,11 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 			wl_get_assoc_ies(cfg, ndev);
 			wl_update_prof(cfg, ndev, NULL, (void *)&e->addr, WL_PROF_BSSID);
 			wl_update_bss_info(cfg, ndev, false);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
 			cfg80211_ibss_joined(ndev, (s8 *)&e->addr, channel, GFP_KERNEL);
+#else
+			cfg80211_ibss_joined(ndev, (s8 *)&e->addr, GFP_KERNEL);
+#endif
 		}
 		else {
 			/* New connection */
@@ -8171,7 +8179,11 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 			wl_get_assoc_ies(cfg, ndev);
 			wl_update_prof(cfg, ndev, NULL, (void *)&e->addr, WL_PROF_BSSID);
 			wl_update_bss_info(cfg, ndev, false);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
 			cfg80211_ibss_joined(ndev, (s8 *)&e->addr, channel, GFP_KERNEL);
+#else
+			cfg80211_ibss_joined(ndev, (s8 *)&e->addr, GFP_KERNEL);
+#endif
 			wl_set_drv_status(cfg, CONNECTED, ndev);
 			active = true;
 			wl_update_prof(cfg, ndev, NULL, (void *)&active, WL_PROF_ACT);
@@ -11622,8 +11634,8 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 #endif 
 	DNGL_FUNC(dhd_cfg80211_down, (cfg));
 
-	/* Avoid deadlock from wl_cfg80211_down */
 	if (!dhd_download_fw_on_driverload) {
+		/* Avoid deadlock from wl_cfg80211_down */
 		mutex_unlock(&cfg->usr_sync);
 		wl_destroy_event_handler(cfg);
 		mutex_lock(&cfg->usr_sync);

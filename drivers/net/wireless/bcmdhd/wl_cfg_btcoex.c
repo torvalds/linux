@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 driver - Dongle Host Driver (DHD) related
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -34,12 +34,6 @@
 #include <dhd.h>
 #include <dhdioctl.h>
 #include <wlioctl.h>
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
-#define strnicmp(str1, str2, len) strncasecmp((str1), (str2), (len))
-#else
-#define strnicmp(str1, str2, len) strnicmp((str1), (str2), (len))
-#endif
 
 #ifdef PKT_FILTER_SUPPORT
 extern uint dhd_pkt_filter_enable;

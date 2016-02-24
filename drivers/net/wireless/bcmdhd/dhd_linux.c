@@ -2,7 +2,7 @@
  * Broadcom Dongle Host Driver (DHD), Linux-specific network interface
  * Basically selected code segments from usb-cdc.c and usb-rndis.c
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 589976 2015-10-01 07:01:27Z $
+ * $Id: dhd_linux.c 615742 2016-01-28 12:53:11Z $
  */
 
 #include <typedefs.h>
@@ -5768,7 +5768,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 	}
 
 #ifdef WL_CFG80211
-	if ((dhd->dhd_state & DHD_ATTACH_STATE_CFG80211)) {
+	if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
 		wl_cfg80211_down(NULL);
 	}
 #endif /* WL_CFG80211 */

@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 Vendor Extension Code
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -93,7 +93,7 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 	skb = cfg80211_vendor_event_alloc(wiphy, NULL, len, event_id, kflags);
 #else
 	skb = cfg80211_vendor_event_alloc(wiphy, len, event_id, kflags);
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) */
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) */
 	if (!skb) {
 		WL_ERR(("skb alloc failed"));
 		return -ENOMEM;
