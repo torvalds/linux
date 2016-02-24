@@ -884,6 +884,129 @@ static int mlx5e_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static __u32 mlx5e_get_wol_supported(struct mlx5_core_dev *mdev)
+{
+	__u32 ret = 0;
+
+	if (MLX5_CAP_GEN(mdev, wol_g))
+		ret |= WAKE_MAGIC;
+
+	if (MLX5_CAP_GEN(mdev, wol_s))
+		ret |= WAKE_MAGICSECURE;
+
+	if (MLX5_CAP_GEN(mdev, wol_a))
+		ret |= WAKE_ARP;
+
+	if (MLX5_CAP_GEN(mdev, wol_b))
+		ret |= WAKE_BCAST;
+
+	if (MLX5_CAP_GEN(mdev, wol_m))
+		ret |= WAKE_MCAST;
+
+	if (MLX5_CAP_GEN(mdev, wol_u))
+		ret |= WAKE_UCAST;
+
+	if (MLX5_CAP_GEN(mdev, wol_p))
+		ret |= WAKE_PHY;
+
+	return ret;
+}
+
+static __u32 mlx5e_refomrat_wol_mode_mlx5_to_linux(u8 mode)
+{
+	__u32 ret = 0;
+
+	if (mode & MLX5_WOL_MAGIC)
+		ret |= WAKE_MAGIC;
+
+	if (mode & MLX5_WOL_SECURED_MAGIC)
+		ret |= WAKE_MAGICSECURE;
+
+	if (mode & MLX5_WOL_ARP)
+		ret |= WAKE_ARP;
+
+	if (mode & MLX5_WOL_BROADCAST)
+		ret |= WAKE_BCAST;
+
+	if (mode & MLX5_WOL_MULTICAST)
+		ret |= WAKE_MCAST;
+
+	if (mode & MLX5_WOL_UNICAST)
+		ret |= WAKE_UCAST;
+
+	if (mode & MLX5_WOL_PHY_ACTIVITY)
+		ret |= WAKE_PHY;
+
+	return ret;
+}
+
+static u8 mlx5e_refomrat_wol_mode_linux_to_mlx5(__u32 mode)
+{
+	u8 ret = 0;
+
+	if (mode & WAKE_MAGIC)
+		ret |= MLX5_WOL_MAGIC;
+
+	if (mode & WAKE_MAGICSECURE)
+		ret |= MLX5_WOL_SECURED_MAGIC;
+
+	if (mode & WAKE_ARP)
+		ret |= MLX5_WOL_ARP;
+
+	if (mode & WAKE_BCAST)
+		ret |= MLX5_WOL_BROADCAST;
+
+	if (mode & WAKE_MCAST)
+		ret |= MLX5_WOL_MULTICAST;
+
+	if (mode & WAKE_UCAST)
+		ret |= MLX5_WOL_UNICAST;
+
+	if (mode & WAKE_PHY)
+		ret |= MLX5_WOL_PHY_ACTIVITY;
+
+	return ret;
+}
+
+static void mlx5e_get_wol(struct net_device *netdev,
+			  struct ethtool_wolinfo *wol)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 mlx5_wol_mode;
+	int err;
+
+	memset(wol, 0, sizeof(*wol));
+
+	wol->supported = mlx5e_get_wol_supported(mdev);
+	if (!wol->supported)
+		return;
+
+	err = mlx5_query_port_wol(mdev, &mlx5_wol_mode);
+	if (err)
+		return;
+
+	wol->wolopts = mlx5e_refomrat_wol_mode_mlx5_to_linux(mlx5_wol_mode);
+}
+
+static int mlx5e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	__u32 wol_supported = mlx5e_get_wol_supported(mdev);
+	u32 mlx5_wol_mode;
+
+	if (!wol_supported)
+		return -ENOTSUPP;
+
+	if (wol->wolopts & ~wol_supported)
+		return -EINVAL;
+
+	mlx5_wol_mode = mlx5e_refomrat_wol_mode_linux_to_mlx5(wol->wolopts);
+
+	return mlx5_set_port_wol(mdev, mlx5_wol_mode);
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -908,4 +1031,6 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_pauseparam    = mlx5e_get_pauseparam,
 	.set_pauseparam    = mlx5e_set_pauseparam,
 	.get_ts_info       = mlx5e_get_ts_info,
+	.get_wol	   = mlx5e_get_wol,
+	.set_wol	   = mlx5e_set_wol,
 };

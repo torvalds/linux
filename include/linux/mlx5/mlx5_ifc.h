@@ -166,6 +166,8 @@ enum {
 	MLX5_CMD_OP_SET_L2_TABLE_ENTRY            = 0x829,
 	MLX5_CMD_OP_QUERY_L2_TABLE_ENTRY          = 0x82a,
 	MLX5_CMD_OP_DELETE_L2_TABLE_ENTRY         = 0x82b,
+	MLX5_CMD_OP_SET_WOL_ROL                   = 0x830,
+	MLX5_CMD_OP_QUERY_WOL_ROL                 = 0x831,
 	MLX5_CMD_OP_CREATE_TIR                    = 0x900,
 	MLX5_CMD_OP_MODIFY_TIR                    = 0x901,
 	MLX5_CMD_OP_DESTROY_TIR                   = 0x902,
@@ -729,7 +731,19 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_1bf[0x3];
 	u8         log_max_msg[0x5];
-	u8         reserved_at_1c7[0x18];
+	u8         reserved_at_1c7[0x4];
+	u8         max_tc[0x4];
+	u8         reserved_at_1cf[0x6];
+	u8         rol_s[0x1];
+	u8         rol_g[0x1];
+	u8         reserved_at_1d7[0x1];
+	u8         wol_s[0x1];
+	u8         wol_g[0x1];
+	u8         wol_a[0x1];
+	u8         wol_b[0x1];
+	u8         wol_m[0x1];
+	u8         wol_u[0x1];
+	u8         wol_p[0x1];
 
 	u8         stat_rate_support[0x10];
 	u8         reserved_at_1ef[0xc];
@@ -6871,6 +6885,54 @@ struct mlx5_ifc_mtt_bits {
 	u8         rd_en[0x1];
 };
 
+struct mlx5_ifc_query_wol_rol_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x10];
+	u8         rol_mode[0x8];
+	u8         wol_mode[0x8];
+
+	u8         reserved_at_60[0x20];
+};
+
+struct mlx5_ifc_query_wol_rol_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_set_wol_rol_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_set_wol_rol_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         rol_mode_valid[0x1];
+	u8         wol_mode_valid[0x1];
+	u8         reserved_at_42[0xe];
+	u8         rol_mode[0x8];
+	u8         wol_mode[0x8];
+
+	u8         reserved_at_60[0x20];
+};
+
 enum {
 	MLX5_INITIAL_SEG_NIC_INTERFACE_FULL_DRIVER  = 0x0,
 	MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED     = 0x1,
@@ -7059,6 +7121,51 @@ struct mlx5_ifc_modify_flow_table_in_bits {
 	u8         table_miss_id[0x18];
 
 	u8         reserved_at_100[0x100];
+};
+
+struct mlx5_ifc_ets_tcn_config_reg_bits {
+	u8         g[0x1];
+	u8         b[0x1];
+	u8         r[0x1];
+	u8         reserved_at_3[0x9];
+	u8         group[0x4];
+	u8         reserved_at_10[0x9];
+	u8         bw_allocation[0x7];
+
+	u8         reserved_at_20[0xc];
+	u8         max_bw_units[0x4];
+	u8         reserved_at_30[0x8];
+	u8         max_bw_value[0x8];
+};
+
+struct mlx5_ifc_ets_global_config_reg_bits {
+	u8         reserved_at_0[0x2];
+	u8         r[0x1];
+	u8         reserved_at_3[0x1d];
+
+	u8         reserved_at_20[0xc];
+	u8         max_bw_units[0x4];
+	u8         reserved_at_30[0x8];
+	u8         max_bw_value[0x8];
+};
+
+struct mlx5_ifc_qetc_reg_bits {
+	u8                                         reserved_at_0[0x8];
+	u8                                         port_number[0x8];
+	u8                                         reserved_at_10[0x30];
+
+	struct mlx5_ifc_ets_tcn_config_reg_bits    tc_configuration[0x8];
+	struct mlx5_ifc_ets_global_config_reg_bits global_configuration;
+};
+
+struct mlx5_ifc_qtct_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         port_number[0x8];
+	u8         reserved_at_10[0xd];
+	u8         prio[0x3];
+
+	u8         reserved_at_20[0x1d];
+	u8         tclass[0x3];
 };
 
 #endif /* MLX5_IFC_H */
