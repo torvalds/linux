@@ -220,13 +220,12 @@ ipv6:
 
 		if (dissector_uses_key(flow_dissector,
 				       FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
-			struct flow_dissector_key_ipv6_addrs *key_ipv6_addrs;
+			key_addrs = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+							      target_container);
 
-			key_ipv6_addrs = skb_flow_dissector_target(flow_dissector,
-								   FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-								   target_container);
-
-			memcpy(key_ipv6_addrs, &iph->saddr, sizeof(*key_ipv6_addrs));
+			memcpy(&key_addrs->v6addrs, &iph->saddr,
+			       sizeof(key_addrs->v6addrs));
 			key_control->addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 		}
 
