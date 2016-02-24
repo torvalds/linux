@@ -188,11 +188,12 @@ struct orangefs_kernel_op_s {
 	__u64 tag;
 
 	/*
-	 * Set uses_shared_memory to 1 if this operation uses shared memory.
-	 * If true, then a retry on the op must also get a new shared memory
-	 * buffer and re-populate it.  Cancels don't care - it only matters
-	 * for service_operation() retry logics and cancels don't go through
-	 * it anymore.
+	 * Set uses_shared_memory to non zero if this operation uses
+	 * shared memory. If true, then a retry on the op must also
+	 * get a new shared memory buffer and re-populate it.
+	 * Cancels don't care - it only matters for service_operation()
+	 * retry logics and cancels don't go through it anymore. It
+	 * safely stays non-zero when we use it as slot_to_free.
 	 */
 	union {
 		int uses_shared_memory;
@@ -204,8 +205,6 @@ struct orangefs_kernel_op_s {
 
 	struct completion waitq;
 	spinlock_t lock;
-
-	/* VFS aio fields */
 
 	int attempts;
 
