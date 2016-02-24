@@ -1170,9 +1170,8 @@ static int lpc18xx_create_group_func_map(struct device *dev,
 	u16 pins[ARRAY_SIZE(lpc18xx_pins)];
 	int func, ngroups, i;
 
-	for (func = 0; func < FUNC_MAX; ngroups = 0, func++) {
-
-		for (i = 0; i < ARRAY_SIZE(lpc18xx_pins); i++) {
+	for (func = 0; func < FUNC_MAX; func++) {
+		for (ngroups = 0, i = 0; i < ARRAY_SIZE(lpc18xx_pins); i++) {
 			if (lpc18xx_valid_pin_function(i, func))
 				pins[ngroups++] = i;
 		}
