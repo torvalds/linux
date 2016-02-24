@@ -301,7 +301,7 @@ static pgoff_t __get_first_dirty_index(struct address_space *mapping,
 	pagevec_init(&pvec, 0);
 	nr_pages = pagevec_lookup_tag(&pvec, mapping, &pgofs,
 					PAGECACHE_TAG_DIRTY, 1);
-	pgofs = nr_pages ? pvec.pages[0]->index : LONG_MAX;
+	pgofs = nr_pages ? pvec.pages[0]->index : ULONG_MAX;
 	pagevec_release(&pvec);
 	return pgofs;
 }

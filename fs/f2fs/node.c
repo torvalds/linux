@@ -1238,7 +1238,7 @@ int sync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,
 
 next_step:
 	index = 0;
-	end = LONG_MAX;
+	end = ULONG_MAX;
 
 	while (index <= end) {
 		int i, nr_pages;
@@ -1354,7 +1354,7 @@ continue_unlock:
 
 int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 {
-	pgoff_t index = 0, end = LONG_MAX;
+	pgoff_t index = 0, end = ULONG_MAX;
 	struct pagevec pvec;
 	int ret2 = 0, ret = 0;
 

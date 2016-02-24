@@ -282,7 +282,7 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 						long nr_to_write)
 {
 	struct address_space *mapping = META_MAPPING(sbi);
-	pgoff_t index = 0, end = LONG_MAX, prev = LONG_MAX;
+	pgoff_t index = 0, end = ULONG_MAX, prev = ULONG_MAX;
 	struct pagevec pvec;
 	long nwritten = 0;
 	struct writeback_control wbc = {
@@ -305,7 +305,7 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 
-			if (prev == LONG_MAX)
+			if (prev == ULONG_MAX)
 				prev = page->index - 1;
 			if (nr_to_write != LONG_MAX && page->index != prev + 1) {
 				pagevec_release(&pvec);
@@ -1077,8 +1077,8 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	if (unlikely(f2fs_cp_error(sbi)))
 		return -EIO;
 
-	filemap_fdatawait_range(NODE_MAPPING(sbi), 0, LONG_MAX);
-	filemap_fdatawait_range(META_MAPPING(sbi), 0, LONG_MAX);
+	filemap_fdatawait_range(NODE_MAPPING(sbi), 0, LLONG_MAX);
+	filemap_fdatawait_range(META_MAPPING(sbi), 0, LLONG_MAX);
 
 	/* update user_block_counts */
 	sbi->last_valid_block_count = sbi->total_valid_block_count;
