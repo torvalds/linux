@@ -314,6 +314,7 @@ again:
 enum event_type_t {
 	EVENT_FLEXIBLE = 0x1,
 	EVENT_PINNED = 0x2,
+	EVENT_TIME = 0x4,
 	EVENT_ALL = EVENT_FLEXIBLE | EVENT_PINNED,
 };
 
@@ -1294,16 +1295,18 @@ static u64 perf_event_time(struct perf_event *event)
 
 /*
  * Update the total_time_enabled and total_time_running fields for a event.
- * The caller of this function needs to hold the ctx->lock.
  */
 static void update_event_times(struct perf_event *event)
 {
 	struct perf_event_context *ctx = event->ctx;
 	u64 run_end;
 
+	lockdep_assert_held(&ctx->lock);
+
 	if (event->state < PERF_EVENT_STATE_INACTIVE ||
 	    event->group_leader->state < PERF_EVENT_STATE_INACTIVE)
 		return;
+
 	/*
 	 * in cgroup mode, time_enabled represents
 	 * the time the event was enabled AND active
@@ -2349,24 +2352,33 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 	}
 
 	ctx->is_active &= ~event_type;
+	if (!(ctx->is_active & EVENT_ALL))
+		ctx->is_active = 0;
+
 	if (ctx->task) {
 		WARN_ON_ONCE(cpuctx->task_ctx != ctx);
 		if (!ctx->is_active)
 			cpuctx->task_ctx = NULL;
 	}
 
-	update_context_time(ctx);
-	update_cgrp_time_from_cpuctx(cpuctx);
-	if (!ctx->nr_active)
+	is_active ^= ctx->is_active; /* changed bits */
+
+	if (is_active & EVENT_TIME) {
+		/* update (and stop) ctx time */
+		update_context_time(ctx);
+		update_cgrp_time_from_cpuctx(cpuctx);
+	}
+
+	if (!ctx->nr_active || !(is_active & EVENT_ALL))
 		return;
 
 	perf_pmu_disable(ctx->pmu);
-	if ((is_active & EVENT_PINNED) && (event_type & EVENT_PINNED)) {
+	if (is_active & EVENT_PINNED) {
 		list_for_each_entry(event, &ctx->pinned_groups, group_entry)
 			group_sched_out(event, cpuctx, ctx);
 	}
 
-	if ((is_active & EVENT_FLEXIBLE) && (event_type & EVENT_FLEXIBLE)) {
+	if (is_active & EVENT_FLEXIBLE) {
 		list_for_each_entry(event, &ctx->flexible_groups, group_entry)
 			group_sched_out(event, cpuctx, ctx);
 	}
@@ -2740,7 +2752,7 @@ ctx_sched_in(struct perf_event_context *ctx,
 	if (likely(!ctx->nr_events))
 		return;
 
-	ctx->is_active |= event_type;
+	ctx->is_active |= (event_type | EVENT_TIME);
 	if (ctx->task) {
 		if (!is_active)
 			cpuctx->task_ctx = ctx;
@@ -2748,18 +2760,24 @@ ctx_sched_in(struct perf_event_context *ctx,
 			WARN_ON_ONCE(cpuctx->task_ctx != ctx);
 	}
 
-	now = perf_clock();
-	ctx->timestamp = now;
-	perf_cgroup_set_timestamp(task, ctx);
+	is_active ^= ctx->is_active; /* changed bits */
+
+	if (is_active & EVENT_TIME) {
+		/* start ctx time */
+		now = perf_clock();
+		ctx->timestamp = now;
+		perf_cgroup_set_timestamp(task, ctx);
+	}
+
 	/*
 	 * First go through the list and put on any pinned groups
 	 * in order to give them the best chance of going on.
 	 */
-	if (!(is_active & EVENT_PINNED) && (event_type & EVENT_PINNED))
+	if (is_active & EVENT_PINNED)
 		ctx_pinned_sched_in(ctx, cpuctx);
 
 	/* Then walk through the lower prio flexible groups */
-	if (!(is_active & EVENT_FLEXIBLE) && (event_type & EVENT_FLEXIBLE))
+	if (is_active & EVENT_FLEXIBLE)
 		ctx_flexible_sched_in(ctx, cpuctx);
 }
 
