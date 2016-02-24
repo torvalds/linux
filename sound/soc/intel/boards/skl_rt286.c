@@ -64,7 +64,6 @@ static const struct snd_soc_dapm_widget skylake_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("DMIC2", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
-	SND_SOC_DAPM_SINK("WoV Sink"),
 	SND_SOC_DAPM_SPK("HDMI1", NULL),
 	SND_SOC_DAPM_SPK("HDMI2", NULL),
 	SND_SOC_DAPM_SPK("HDMI3", NULL),
@@ -84,8 +83,6 @@ static const struct snd_soc_dapm_route skylake_rt286_map[] = {
 	/* digital mics */
 	{"DMIC1 Pin", NULL, "DMIC2"},
 	{"DMic", NULL, "SoC DMIC"},
-
-	{"WoV Sink", NULL, "hwd_in sink"},
 
 	{"HDMI1", NULL, "hif5 Output"},
 	{"HDMI2", NULL, "hif6 Output"},
@@ -139,7 +136,6 @@ static int skylake_rt286_codec_init(struct snd_soc_pcm_runtime *rtd)
 	rt286_mic_detect(codec, &skylake_headset);
 
 	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
-	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "WoV Sink");
 
 	return 0;
 }
