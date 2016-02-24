@@ -583,7 +583,6 @@ isert_init_conn(struct isert_conn *isert_conn)
 	INIT_LIST_HEAD(&isert_conn->node);
 	init_completion(&isert_conn->login_comp);
 	init_completion(&isert_conn->login_req_comp);
-	init_completion(&isert_conn->wait);
 	kref_init(&isert_conn->kref);
 	mutex_init(&isert_conn->mutex);
 	spin_lock_init(&isert_conn->pool_lock);
@@ -834,7 +833,6 @@ isert_handle_unbound_conn(struct isert_conn *isert_conn)
 		 */
 		list_del_init(&isert_conn->node);
 		isert_put_conn(isert_conn);
-		complete(&isert_conn->wait);
 		queue_work(isert_release_wq, &isert_conn->release_work);
 	}
 	mutex_unlock(&isert_np->mutex);
@@ -867,9 +865,6 @@ isert_conn_terminate(struct isert_conn *isert_conn)
 	if (err)
 		isert_warn("Failed rdma_disconnect isert_conn %p\n",
 			   isert_conn);
-
-	isert_info("conn %p completing wait\n", isert_conn);
-	complete(&isert_conn->wait);
 }
 
 static int
@@ -3273,8 +3268,6 @@ static void isert_release_work(struct work_struct *work)
 						     release_work);
 
 	isert_info("Starting release conn %p\n", isert_conn);
-
-	wait_for_completion(&isert_conn->wait);
 
 	mutex_lock(&isert_conn->mutex);
 	isert_conn->state = ISER_CONN_DOWN;

@@ -201,7 +201,6 @@ struct isert_conn {
 	struct ib_qp		*qp;
 	struct isert_device	*device;
 	struct mutex		mutex;
-	struct completion	wait;
 	struct completion	wait_comp_err;
 	struct kref		kref;
 	struct list_head	fr_pool;
