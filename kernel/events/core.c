@@ -3143,6 +3143,7 @@ static void perf_event_enable_on_exec(int ctxn)
 
 	cpuctx = __get_cpu_context(ctx);
 	perf_ctx_lock(cpuctx, ctx);
+	ctx_sched_out(ctx, cpuctx, EVENT_TIME);
 	list_for_each_entry(event, &ctx->event_list, event_entry)
 		enabled |= event_enable_on_exec(event, ctx);
 
