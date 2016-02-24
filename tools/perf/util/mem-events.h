@@ -23,4 +23,7 @@ int perf_mem_events__parse(const char *str);
 int perf_mem_events__init(void);
 
 char *perf_mem_events__name(int i);
+
+struct mem_info;
+void perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 #endif /* __PERF_MEM_EVENTS_H */

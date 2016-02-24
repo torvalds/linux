@@ -8,6 +8,7 @@
 #include <api/fs/fs.h>
 #include "mem-events.h"
 #include "debug.h"
+#include "symbol.h"
 
 #define E(t, n, s) { .tag = t, .name = n, .sysfs_name = s }
 
@@ -82,4 +83,50 @@ int perf_mem_events__init(void)
 	}
 
 	return found ? 0 : -ENOENT;
+}
+
+static const char * const tlb_access[] = {
+	"N/A",
+	"HIT",
+	"MISS",
+	"L1",
+	"L2",
+	"Walker",
+	"Fault",
+};
+
+void perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+{
+	size_t l = 0, i;
+	u64 m = PERF_MEM_TLB_NA;
+	u64 hit, miss;
+
+	sz -= 1; /* -1 for null termination */
+	out[0] = '\0';
+
+	if (mem_info)
+		m = mem_info->data_src.mem_dtlb;
+
+	hit = m & PERF_MEM_TLB_HIT;
+	miss = m & PERF_MEM_TLB_MISS;
+
+	/* already taken care of */
+	m &= ~(PERF_MEM_TLB_HIT|PERF_MEM_TLB_MISS);
+
+	for (i = 0; m && i < ARRAY_SIZE(tlb_access); i++, m >>= 1) {
+		if (!(m & 0x1))
+			continue;
+		if (l) {
+			strcat(out, " or ");
+			l += 4;
+		}
+		strncat(out, tlb_access[i], sz - l);
+		l += strlen(tlb_access[i]);
+	}
+	if (*out == '\0')
+		strcpy(out, "N/A");
+	if (hit)
+		strncat(out, " hit", sz - l);
+	if (miss)
+		strncat(out, " miss", sz - l);
 }

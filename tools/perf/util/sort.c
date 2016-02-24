@@ -6,6 +6,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include <traceevent/event-parse.h>
+#include "mem-events.h"
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -829,53 +830,12 @@ sort__tlb_cmp(struct hist_entry *left, struct hist_entry *right)
 	return (int64_t)(data_src_r.mem_dtlb - data_src_l.mem_dtlb);
 }
 
-static const char * const tlb_access[] = {
-	"N/A",
-	"HIT",
-	"MISS",
-	"L1",
-	"L2",
-	"Walker",
-	"Fault",
-};
-
 static int hist_entry__tlb_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
 	char out[64];
-	size_t sz = sizeof(out) - 1; /* -1 for null termination */
-	size_t l = 0, i;
-	u64 m = PERF_MEM_TLB_NA;
-	u64 hit, miss;
 
-	out[0] = '\0';
-
-	if (he->mem_info)
-		m = he->mem_info->data_src.mem_dtlb;
-
-	hit = m & PERF_MEM_TLB_HIT;
-	miss = m & PERF_MEM_TLB_MISS;
-
-	/* already taken care of */
-	m &= ~(PERF_MEM_TLB_HIT|PERF_MEM_TLB_MISS);
-
-	for (i = 0; m && i < ARRAY_SIZE(tlb_access); i++, m >>= 1) {
-		if (!(m & 0x1))
-			continue;
-		if (l) {
-			strcat(out, " or ");
-			l += 4;
-		}
-		strncat(out, tlb_access[i], sz - l);
-		l += strlen(tlb_access[i]);
-	}
-	if (*out == '\0')
-		strcpy(out, "N/A");
-	if (hit)
-		strncat(out, " hit", sz - l);
-	if (miss)
-		strncat(out, " miss", sz - l);
-
+	perf_mem__tlb_scnprintf(out, sizeof(out), he->mem_info);
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
