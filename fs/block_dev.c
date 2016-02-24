@@ -29,7 +29,6 @@
 #include <linux/log2.h>
 #include <linux/cleancache.h>
 #include <linux/dax.h>
-#include <linux/badblocks.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -501,7 +500,7 @@ long bdev_direct_access(struct block_device *bdev, struct blk_dax_ctl *dax)
 	sector += get_start_sect(bdev);
 	if (sector % (PAGE_SIZE / 512))
 		return -EINVAL;
-	avail = ops->direct_access(bdev, sector, &dax->addr, &dax->pfn);
+	avail = ops->direct_access(bdev, sector, &dax->addr, &dax->pfn, size);
 	if (!avail)
 		return -ERANGE;
 	if (avail > 0 && avail & ~PAGE_MASK)
@@ -561,7 +560,6 @@ EXPORT_SYMBOL_GPL(bdev_dax_supported);
  */
 bool bdev_dax_capable(struct block_device *bdev)
 {
-	struct gendisk *disk = bdev->bd_disk;
 	struct blk_dax_ctl dax = {
 		.size = PAGE_SIZE,
 	};
@@ -575,15 +573,6 @@ bool bdev_dax_capable(struct block_device *bdev)
 
 	dax.sector = bdev->bd_part->nr_sects - (PAGE_SIZE / 512);
 	if (bdev_direct_access(bdev, &dax) < 0)
-		return false;
-
-	/*
-	 * If the device has known bad blocks, force all I/O through the
-	 * driver / page cache.
-	 *
-	 * TODO: support finer grained dax error handling
-	 */
-	if (disk->bb && disk->bb->count)
 		return false;
 
 	return true;
