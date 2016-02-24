@@ -399,10 +399,8 @@ hal_ReadEFuse_WiFi(struct rtw_adapter *padapter,
 	}
 
 	efuseTbl = kmalloc(EFUSE_MAP_LEN_8723A, GFP_KERNEL);
-	if (!efuseTbl) {
-		DBG_8723A("%s: alloc efuseTbl fail!\n", __func__);
+	if (!efuseTbl)
 		return;
-	}
 	/*  0xff will be efuse default value instead of 0x00. */
 	memset(efuseTbl, 0xFF, EFUSE_MAP_LEN_8723A);
 
@@ -491,10 +489,8 @@ hal_ReadEFuse_BT(struct rtw_adapter *padapter,
 	}
 
 	efuseTbl = kmalloc(EFUSE_BT_MAP_LEN, GFP_KERNEL);
-	if (!efuseTbl) {
-		DBG_8723A("%s: efuseTbl malloc fail!\n", __func__);
+	if (!efuseTbl)
 		return;
-	}
 	/*  0xff will be efuse default value instead of 0x00. */
 	memset(efuseTbl, 0xFF, EFUSE_BT_MAP_LEN);
 
