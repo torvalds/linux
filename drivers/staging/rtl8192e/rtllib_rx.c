@@ -1829,7 +1829,6 @@ static inline void rtllib_extract_country_ie(
 		if (IS_EQUAL_CIE_SRC(ieee, addr2))
 			UPDATE_CIE_WATCHDOG(ieee);
 	}
-
 }
 
 static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
@@ -1902,7 +1901,6 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 				       info_element->data,
 				       network->bssht.bdHTInfoLen);
 			}
-
 		}
 	}
 
