@@ -231,12 +231,6 @@ gm200_gr_data[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-static int
-gm200_gr_init_ctxctl(struct gf100_gr *gr)
-{
-	return 0;
-}
-
 int
 gm200_gr_init(struct gf100_gr *gr)
 {
@@ -350,7 +344,7 @@ gm200_gr_init(struct gf100_gr *gr)
 
 	gf100_gr_zbc_init(gr);
 
-	return gm200_gr_init_ctxctl(gr);
+	return gf100_gr_init_ctxctl(gr);
 }
 
 int

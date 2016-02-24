@@ -1,1 +1,2 @@
 nvkm-y += nvkm/subdev/secboot/base.o
+nvkm-y += nvkm/subdev/secboot/gm200.o
