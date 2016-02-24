@@ -53,7 +53,7 @@ MODULE_PARM_DESC(debug, " Default debug msglevel");
 static const struct qed_eth_ops *qed_ops;
 
 #define CHIP_NUM_57980S_40		0x1634
-#define CHIP_NUM_57980S_10		0x1635
+#define CHIP_NUM_57980S_10		0x1666
 #define CHIP_NUM_57980S_MF		0x1636
 #define CHIP_NUM_57980S_100		0x1644
 #define CHIP_NUM_57980S_50		0x1654
