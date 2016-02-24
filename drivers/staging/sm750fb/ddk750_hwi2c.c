@@ -63,7 +63,7 @@ static long hw_i2c_wait_tx_done(void)
 		timeout--;
 
 	if (timeout == 0)
-		return (-1);
+		return -1;
 
 	return 0;
 }
@@ -248,7 +248,7 @@ int sm750_hw_i2c_write_reg(
 	if (hw_i2c_write_data(addr, 2, value) == 2)
 		return 0;
 
-	return (-1);
+	return -1;
 }
 
 #endif

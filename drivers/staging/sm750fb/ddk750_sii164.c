@@ -236,7 +236,7 @@ long sii164InitChip(
 	}
 
 	/* Return -1 if initialization fails. */
-	return (-1);
+	return -1;
 }
 
 
