@@ -2780,13 +2780,17 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 	}
 
 	if (link->link_up) {
-		DP_NOTICE(edev, "Link is up\n");
-		netif_tx_start_all_queues(edev->ndev);
-		netif_carrier_on(edev->ndev);
+		if (!netif_carrier_ok(edev->ndev)) {
+			DP_NOTICE(edev, "Link is up\n");
+			netif_tx_start_all_queues(edev->ndev);
+			netif_carrier_on(edev->ndev);
+		}
 	} else {
-		DP_NOTICE(edev, "Link is down\n");
-		netif_tx_disable(edev->ndev);
-		netif_carrier_off(edev->ndev);
+		if (netif_carrier_ok(edev->ndev)) {
+			DP_NOTICE(edev, "Link is down\n");
+			netif_tx_disable(edev->ndev);
+			netif_carrier_off(edev->ndev);
+		}
 	}
 }
 
