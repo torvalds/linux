@@ -609,7 +609,7 @@ static int nsp_gpio_register_pinconf(struct nsp_gpio *chip)
 	pctldesc->npins = gc->ngpio;
 	pctldesc->confops = &nsp_pconf_ops;
 
-	chip->pctl = pinctrl_register(pctldesc, chip->dev, chip);
+	chip->pctl = devm_pinctrl_register(chip->dev, pctldesc, chip);
 	if (IS_ERR(chip->pctl)) {
 		dev_err(chip->dev, "unable to register pinctrl device\n");
 		return PTR_ERR(chip->pctl);
