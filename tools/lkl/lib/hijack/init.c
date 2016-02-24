@@ -1,3 +1,5 @@
+
+
 /*
  * system calls hijack code
  * Copyright (c) 2015 Hajime Tazaki
@@ -26,6 +28,9 @@
 
 #include "xlate.h"
 
+/* Mount points are named after filesystem types so they should never
+ * be longer than ~6 characters. */
+#define MAX_FSTYPE_LEN 50
 
 int parse_mac_str(char *mac_str, __lkl__u8 mac[LKL_ETH_ALEN])
 {
@@ -53,6 +58,85 @@ int parse_mac_str(char *mac_str, __lkl__u8 mac[LKL_ETH_ALEN])
 	}
 
 	return 1;
+}
+
+
+/* We don't have an easy way to make FILE*s out of our fds, so we
+ * can't use e.g. fgets */
+static int dump_file(char *path)
+{
+	int ret = -1, bytes_read = 0;
+	char str[1024] = { 0 };
+	int fd;
+
+	fd = lkl_sys_open(path, O_RDONLY, 0);
+
+	if (fd < 0) {
+		fprintf(stderr, "dump_file lkl_sys_open %s: %s\n",
+			path, lkl_strerror(fd));
+		return -1;
+	}
+
+	/* Need to print this out in order to make sense of the output */
+	printf("Reading from %s:\n==========\n", path);
+	while ((ret = lkl_sys_read(fd, str, sizeof(str) - 1)) > 0)
+		bytes_read += printf("%s", str);
+	printf("==========\n");
+
+	if (ret) {
+		fprintf(stderr, "dump_file lkl_sys_read %s: %s\n",
+			path, lkl_strerror(ret));
+		return -1;
+	}
+
+	return 0;
+}
+
+/* For simplicity, if we want to mount a filesystem of a particular
+ * type, we'll create a directory under / with the name of the type;
+ * e.g. we'll have our sysfs as /sysfs */
+static int mount_fs(char *fstype)
+{
+	char dir[MAX_FSTYPE_LEN] = "/";
+	int flags = 0, ret = 0;
+
+	strncat(dir, fstype, MAX_FSTYPE_LEN - 1);
+
+	/* Create with regular umask */
+	ret = lkl_sys_mkdir(dir, 0xff);
+	if (ret) {
+		fprintf(stderr, "mount_fs mkdir %s: %s\n", dir,
+			lkl_strerror(ret));
+		return -1;
+	}
+
+	/* We have no use for nonzero flags right now */
+	ret = lkl_sys_mount(dir, dir, fstype, flags, NULL);
+	if (ret) {
+		fprintf(stderr, "mount_fs mount %s as %s: %s\n",
+			dir, fstype, strerror(ret));
+		return -1;
+	}
+
+	return 0;
+}
+
+static void mount_cmds_exec(char *_cmds, int (*callback)(char*))
+{
+	char *saveptr, *token;
+	int ret = 0;
+	char *cmds = strdup(_cmds);
+	token = strtok_r(cmds, ",", &saveptr);
+
+	while (token && !ret) {
+		ret = callback(token);
+		token = strtok_r(NULL, ",", &saveptr);
+	}
+
+	if (ret)
+		fprintf(stderr, "mount_cmds_exec: failed parsing %s\n", _cmds);
+
+	free(cmds);
 }
 
 int init_tap(char *tap, char *mac_str)
@@ -110,6 +194,7 @@ hijack_init(void)
 	char *netmask_len = getenv("LKL_HIJACK_NET_NETMASK_LEN");
 	char *gateway = getenv("LKL_HIJACK_NET_GATEWAY");
 	char *debug = getenv("LKL_HIJACK_DEBUG");
+	char *mount = getenv("LKL_HIJACK_MOUNT");
 
 	if (tap) {
 		nd_id = init_tap(tap, mac_str);
@@ -178,12 +263,19 @@ hijack_init(void)
 					lkl_strerror(ret));
 		}
 	}
+
+	if (mount)
+		mount_cmds_exec(mount, mount_fs);
 }
 
 void __attribute__((destructor))
 hijack_fini(void)
 {
 	int i;
+	char *dump = getenv("LKL_HIJACK_DUMP");
+
+	if (dump)
+		mount_cmds_exec(dump, dump_file);
 
 	for (i = 0; i < LKL_FD_OFFSET; i++)
 		lkl_sys_close(i);
