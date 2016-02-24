@@ -1034,18 +1034,19 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		goto clk_prepare_enable_error;
 	}
 
-	atmel_pioctrl->pinctrl_dev = pinctrl_register(&atmel_pinctrl_desc,
-						      &pdev->dev,
-						      atmel_pioctrl);
-	if (!atmel_pioctrl->pinctrl_dev) {
+	atmel_pioctrl->pinctrl_dev = devm_pinctrl_register(&pdev->dev,
+							   &atmel_pinctrl_desc,
+							   atmel_pioctrl);
+	if (IS_ERR(atmel_pioctrl->pinctrl_dev)) {
+		ret = PTR_ERR(atmel_pioctrl->pinctrl_dev);
 		dev_err(dev, "pinctrl registration failed\n");
-		goto pinctrl_register_error;
+		goto clk_unprep;
 	}
 
 	ret = gpiochip_add_data(atmel_pioctrl->gpio_chip, atmel_pioctrl);
 	if (ret) {
 		dev_err(dev, "failed to add gpiochip\n");
-		goto gpiochip_add_error;
+		goto clk_unprep;
 	}
 
 	ret = gpiochip_add_pin_range(atmel_pioctrl->gpio_chip, dev_name(dev),
@@ -1059,14 +1060,14 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 
 	return 0;
 
-clk_prepare_enable_error:
-	irq_domain_remove(atmel_pioctrl->irq_domain);
-pinctrl_register_error:
-	clk_disable_unprepare(atmel_pioctrl->clk);
-gpiochip_add_error:
-	pinctrl_unregister(atmel_pioctrl->pinctrl_dev);
 gpiochip_add_pin_range_error:
 	gpiochip_remove(atmel_pioctrl->gpio_chip);
+
+clk_unprep:
+	clk_disable_unprepare(atmel_pioctrl->clk);
+
+clk_prepare_enable_error:
+	irq_domain_remove(atmel_pioctrl->irq_domain);
 
 	return ret;
 }
@@ -1077,7 +1078,6 @@ int atmel_pinctrl_remove(struct platform_device *pdev)
 
 	irq_domain_remove(atmel_pioctrl->irq_domain);
 	clk_disable_unprepare(atmel_pioctrl->clk);
-	pinctrl_unregister(atmel_pioctrl->pinctrl_dev);
 	gpiochip_remove(atmel_pioctrl->gpio_chip);
 
 	return 0;
