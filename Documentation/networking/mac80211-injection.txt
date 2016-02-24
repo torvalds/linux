@@ -37,8 +37,8 @@ radiotap headers and used to control injection:
    HT rate for the transmission (only for devices without own rate control).
    Also some flags are parsed
 
-   IEEE80211_TX_RC_SHORT_GI: use short guard interval
-   IEEE80211_TX_RC_40_MHZ_WIDTH: send in HT40 mode
+   IEEE80211_RADIOTAP_MCS_SGI: use short guard interval
+   IEEE80211_RADIOTAP_MCS_BW_40: send in HT40 mode
 
  * IEEE80211_RADIOTAP_DATA_RETRIES
 
