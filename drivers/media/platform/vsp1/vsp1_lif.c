@@ -54,32 +54,9 @@ static int lif_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct vsp1_lif *lif = to_lif(subdev);
-	struct v4l2_subdev_pad_config *config;
-	struct v4l2_mbus_framefmt *format;
-
-	config = vsp1_entity_get_pad_config(&lif->entity, cfg, fse->which);
-	if (!config)
-		return -EINVAL;
-
-	format = vsp1_entity_get_pad_format(&lif->entity, config, LIF_PAD_SINK);
-
-	if (fse->index || fse->code != format->code)
-		return -EINVAL;
-
-	if (fse->pad == LIF_PAD_SINK) {
-		fse->min_width = LIF_MIN_SIZE;
-		fse->max_width = LIF_MAX_SIZE;
-		fse->min_height = LIF_MIN_SIZE;
-		fse->max_height = LIF_MAX_SIZE;
-	} else {
-		fse->min_width = format->width;
-		fse->max_width = format->width;
-		fse->min_height = format->height;
-		fse->max_height = format->height;
-	}
-
-	return 0;
+	return vsp1_subdev_enum_frame_size(subdev, cfg, fse, LIF_MIN_SIZE,
+					   LIF_MIN_SIZE, LIF_MAX_SIZE,
+					   LIF_MAX_SIZE);
 }
 
 static int lif_set_format(struct v4l2_subdev *subdev,

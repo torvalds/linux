@@ -53,34 +53,10 @@ static int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
 				     struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
-	struct v4l2_subdev_pad_config *config;
-	struct v4l2_mbus_framefmt *format;
 
-	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, fse->which);
-	if (!config)
-		return -EINVAL;
-
-	format = vsp1_entity_get_pad_format(&rwpf->entity, config, fse->pad);
-
-	if (fse->index || fse->code != format->code)
-		return -EINVAL;
-
-	if (fse->pad == RWPF_PAD_SINK) {
-		fse->min_width = RWPF_MIN_WIDTH;
-		fse->max_width = rwpf->max_width;
-		fse->min_height = RWPF_MIN_HEIGHT;
-		fse->max_height = rwpf->max_height;
-	} else {
-		/* The size on the source pad are fixed and always identical to
-		 * the size on the sink pad.
-		 */
-		fse->min_width = format->width;
-		fse->max_width = format->width;
-		fse->min_height = format->height;
-		fse->max_height = format->height;
-	}
-
-	return 0;
+	return vsp1_subdev_enum_frame_size(subdev, cfg, fse, RWPF_MIN_WIDTH,
+					   RWPF_MIN_HEIGHT, rwpf->max_width,
+					   rwpf->max_height);
 }
 
 static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,

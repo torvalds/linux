@@ -187,6 +187,58 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 	return 0;
 }
 
+/*
+ * vsp1_subdev_enum_frame_size - Subdev pad enum_frame_size handler
+ * @subdev: V4L2 subdevice
+ * @cfg: V4L2 subdev pad configuration
+ * @fse: Frame size enumeration
+ * @min_width: Minimum image width
+ * @min_height: Minimum image height
+ * @max_width: Maximum image width
+ * @max_height: Maximum image height
+ *
+ * This function implements the subdev enum_frame_size pad operation for
+ * entities that do not support scaling or cropping. It reports the given
+ * minimum and maximum frame width and height on the sink pad, and a fixed
+ * source pad size identical to the sink pad.
+ */
+int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_frame_size_enum *fse,
+				unsigned int min_width, unsigned int min_height,
+				unsigned int max_width, unsigned int max_height)
+{
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+	struct v4l2_subdev_pad_config *config;
+	struct v4l2_mbus_framefmt *format;
+
+	config = vsp1_entity_get_pad_config(entity, cfg, fse->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(entity, config, fse->pad);
+
+	if (fse->index || fse->code != format->code)
+		return -EINVAL;
+
+	if (fse->pad == 0) {
+		fse->min_width = min_width;
+		fse->max_width = max_width;
+		fse->min_height = min_height;
+		fse->max_height = max_height;
+	} else {
+		/* The size on the source pad are fixed and always identical to
+		 * the size on the sink pad.
+		 */
+		fse->min_width = format->width;
+		fse->max_width = format->width;
+		fse->min_height = format->height;
+		fse->max_height = format->height;
+	}
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * Media Operations
  */

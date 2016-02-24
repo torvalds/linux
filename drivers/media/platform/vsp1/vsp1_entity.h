@@ -134,5 +134,10 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_mbus_code_enum *code,
 			       const unsigned int *codes, unsigned int ncodes);
+int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_frame_size_enum *fse,
+				unsigned int min_w, unsigned int min_h,
+				unsigned int max_w, unsigned int max_h);
 
 #endif /* __VSP1_ENTITY_H__ */

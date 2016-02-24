@@ -80,35 +80,9 @@ static int lut_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct vsp1_lut *lut = to_lut(subdev);
-	struct v4l2_subdev_pad_config *config;
-	struct v4l2_mbus_framefmt *format;
-
-	config = vsp1_entity_get_pad_config(&lut->entity, cfg, fse->which);
-	if (!config)
-		return -EINVAL;
-
-	format = vsp1_entity_get_pad_format(&lut->entity, config, fse->pad);
-
-	if (fse->index || fse->code != format->code)
-		return -EINVAL;
-
-	if (fse->pad == LUT_PAD_SINK) {
-		fse->min_width = LUT_MIN_SIZE;
-		fse->max_width = LUT_MAX_SIZE;
-		fse->min_height = LUT_MIN_SIZE;
-		fse->max_height = LUT_MAX_SIZE;
-	} else {
-		/* The size on the source pad are fixed and always identical to
-		 * the size on the sink pad.
-		 */
-		fse->min_width = format->width;
-		fse->max_width = format->width;
-		fse->min_height = format->height;
-		fse->max_height = format->height;
-	}
-
-	return 0;
+	return vsp1_subdev_enum_frame_size(subdev, cfg, fse, LUT_MIN_SIZE,
+					   LUT_MIN_SIZE, LUT_MAX_SIZE,
+					   LUT_MAX_SIZE);
 }
 
 static int lut_set_format(struct v4l2_subdev *subdev,
