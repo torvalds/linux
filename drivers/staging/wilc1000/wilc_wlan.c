@@ -21,7 +21,6 @@ static inline void release_bus(struct wilc *wilc, BUS_RELEASE_T release)
 
 static void wilc_wlan_txq_remove(struct wilc *wilc, struct txq_entry_t *tqe)
 {
-
 	if (tqe == wilc->txq_head) {
 		wilc->txq_head = tqe->next;
 		if (wilc->txq_head)
@@ -248,7 +247,6 @@ static inline void tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 
 				add_tcp_pending_ack(ack_no, i, tqe);
 			}
-
 		}
 	}
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
@@ -429,7 +427,6 @@ static struct txq_entry_t *wilc_wlan_txq_get_next(struct wilc *wilc,
 
 static int wilc_wlan_rxq_add(struct wilc *wilc, struct rxq_entry_t *rqe)
 {
-
 	if (wilc->quit)
 		return 0;
 
@@ -450,7 +447,6 @@ static int wilc_wlan_rxq_add(struct wilc *wilc, struct rxq_entry_t *rqe)
 
 static struct rxq_entry_t *wilc_wlan_rxq_remove(struct wilc *wilc)
 {
-
 	if (wilc->rxq_head) {
 		struct rxq_entry_t *rqe;
 
