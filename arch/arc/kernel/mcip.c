@@ -54,11 +54,6 @@ static void mcip_ipi_send(int cpu)
 		__mcip_cmd(CMD_INTRPT_GENERATE_IRQ, cpu);
 
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
-
-#ifdef CONFIG_ARC_IPI_DBG
-	if (ipi_was_pending)
-		pr_info("IPI ACK delayed from cpu %d\n", cpu);
-#endif
 }
 
 static void mcip_ipi_clear(int irq)
