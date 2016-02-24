@@ -728,8 +728,10 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 		return 0;
 	}
 
-	if (page_fault_handle_page_track(vcpu, error_code, walker.gfn))
+	if (page_fault_handle_page_track(vcpu, error_code, walker.gfn)) {
+		shadow_page_table_clear_flood(vcpu, addr);
 		return 1;
+	}
 
 	vcpu->arch.write_fault_to_shadow_pgtable = false;
 

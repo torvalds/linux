@@ -285,7 +285,7 @@ struct kvm_mmu_page {
 #endif
 
 	/* Number of writes since the last time traversal visited this page.  */
-	int write_flooding_count;
+	atomic_t write_flooding_count;
 };
 
 struct kvm_pio_request {
