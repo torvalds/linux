@@ -1947,18 +1947,6 @@ static void kvm_mmu_flush_or_zap(struct kvm_vcpu *vcpu,
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
 
-static bool kvm_sync_page_transient(struct kvm_vcpu *vcpu,
-				    struct kvm_mmu_page *sp)
-{
-	LIST_HEAD(invalid_list);
-	int ret;
-
-	ret = __kvm_sync_page(vcpu, sp, &invalid_list);
-	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, ret);
-
-	return ret;
-}
-
 #ifdef CONFIG_KVM_MMU_AUDIT
 #include "mmu_audit.c"
 #else
@@ -1974,21 +1962,21 @@ static bool kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 }
 
 /* @gfn should be write-protected at the call site */
-static void kvm_sync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
+static bool kvm_sync_pages(struct kvm_vcpu *vcpu, gfn_t gfn,
+			   struct list_head *invalid_list)
 {
 	struct kvm_mmu_page *s;
-	LIST_HEAD(invalid_list);
-	bool flush = false;
+	bool ret = false;
 
 	for_each_gfn_indirect_valid_sp(vcpu->kvm, s, gfn) {
 		if (!s->unsync)
 			continue;
 
 		WARN_ON(s->role.level != PT_PAGE_TABLE_LEVEL);
-		flush |= kvm_sync_page(vcpu, s, &invalid_list);
+		ret |= kvm_sync_page(vcpu, s, invalid_list);
 	}
 
-	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
+	return ret;
 }
 
 struct mmu_page_path {
@@ -2119,6 +2107,8 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	unsigned quadrant;
 	struct kvm_mmu_page *sp;
 	bool need_sync = false;
+	bool flush = false;
+	LIST_HEAD(invalid_list);
 
 	role = vcpu->arch.mmu.base_role;
 	role.level = level;
@@ -2142,8 +2132,16 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		if (sp->role.word != role.word)
 			continue;
 
-		if (sp->unsync && !kvm_sync_page_transient(vcpu, sp))
-			break;
+		if (sp->unsync) {
+			/* The page is good, but __kvm_sync_page might still end
+			 * up zapping it.  If so, break in order to rebuild it.
+			 */
+			if (!__kvm_sync_page(vcpu, sp, &invalid_list))
+				break;
+
+			WARN_ON(!list_empty(&invalid_list));
+			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+		}
 
 		if (sp->unsync_children)
 			kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
@@ -2173,11 +2171,13 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 			kvm_flush_remote_tlbs(vcpu->kvm);
 
 		if (level > PT_PAGE_TABLE_LEVEL && need_sync)
-			kvm_sync_pages(vcpu, gfn);
+			flush |= kvm_sync_pages(vcpu, gfn, &invalid_list);
 	}
 	sp->mmu_valid_gen = vcpu->kvm->arch.mmu_valid_gen;
 	clear_page(sp->spt);
 	trace_kvm_mmu_get_page(sp, true);
+
+	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
 	return sp;
 }
 
