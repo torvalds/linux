@@ -17,9 +17,14 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/time.h>
 #include "arche_platform.h"
 
 #include <linux/usb/usb3613.h>
+
+#define WD_COLDBOOT_PULSE_WIDTH_MS	30
 
 enum svc_wakedetect_state {
 	WD_STATE_IDLE,			/* Default state = pulled high/low */
@@ -49,6 +54,9 @@ struct arche_platform_drvdata {
 
 	struct delayed_work delayed_work;
 	enum svc_wakedetect_state wake_detect_state;
+	int wake_detect_irq;
+	spinlock_t lock;
+	unsigned long wake_detect_start;
 
 	struct device *dev;
 };
@@ -56,6 +64,18 @@ struct arche_platform_drvdata {
 static inline void svc_reset_onoff(unsigned int gpio, bool onoff)
 {
 	gpio_set_value(gpio, onoff);
+}
+
+static int apb_cold_boot(struct device *dev, void *data)
+{
+	int ret;
+
+	ret = apb_ctrl_coldboot(dev);
+	if (ret)
+		dev_warn(dev, "failed to coldboot\n");
+
+	/*Child nodes are independent, so do not exit coldboot operation */
+	return 0;
 }
 
 static int apb_fw_flashing_state(struct device *dev, void *data)
@@ -93,6 +113,86 @@ static void hub_conf_delayed_work(struct work_struct *work)
 	/* Enable HUB3613 into HUB mode. */
 	if (usb3613_hub_mode_ctrl(true))
 		dev_warn(arche_pdata->dev, "failed to control hub device\n");
+}
+
+static irqreturn_t arche_platform_wd_irq_thread(int irq, void *devid)
+{
+	struct arche_platform_drvdata *arche_pdata = devid;
+	unsigned long flags;
+
+	spin_lock_irqsave(&arche_pdata->lock, flags);
+	if (arche_pdata->wake_detect_state != WD_STATE_COLDBOOT_TRIG) {
+		/* Something is wrong */
+		spin_unlock_irqrestore(&arche_pdata->lock, flags);
+		return IRQ_HANDLED;
+	}
+
+	arche_pdata->wake_detect_state = WD_STATE_COLDBOOT_START;
+	spin_unlock_irqrestore(&arche_pdata->lock, flags);
+
+	/* Bring APB out of reset: cold boot sequence */
+	device_for_each_child(arche_pdata->dev, NULL, apb_cold_boot);
+
+	spin_lock_irqsave(&arche_pdata->lock, flags);
+	/* USB HUB configuration */
+	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
+	arche_pdata->wake_detect_state = WD_STATE_IDLE;
+	spin_unlock_irqrestore(&arche_pdata->lock, flags);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
+{
+	struct arche_platform_drvdata *arche_pdata = devid;
+	unsigned long flags;
+
+	spin_lock_irqsave(&arche_pdata->lock, flags);
+
+	if (gpio_get_value(arche_pdata->wake_detect_gpio)) {
+		/* wake/detect rising */
+
+		/*
+		 * If wake/detect line goes high after low, within less than
+		 * 30msec, then standby boot sequence is initiated, which is not
+		 * supported/implemented as of now. So ignore it.
+		 */
+		if (arche_pdata->wake_detect_state == WD_STATE_BOOT_INIT) {
+			if (time_before(jiffies,
+					arche_pdata->wake_detect_start +
+					msecs_to_jiffies(WD_COLDBOOT_PULSE_WIDTH_MS))) {
+				/* No harm with cancellation, even if not pending */
+				cancel_delayed_work(&arche_pdata->delayed_work);
+				arche_pdata->wake_detect_state = WD_STATE_IDLE;
+			} else {
+				/* Check we are not in middle of irq thread already */
+				if (arche_pdata->wake_detect_state !=
+						WD_STATE_COLDBOOT_START) {
+					arche_pdata->wake_detect_state =
+						WD_STATE_COLDBOOT_TRIG;
+					spin_unlock_irqrestore(&arche_pdata->lock, flags);
+					return IRQ_WAKE_THREAD;
+				}
+			}
+		}
+	} else {
+		/* wake/detect falling */
+		if (arche_pdata->wake_detect_state == WD_STATE_IDLE) {
+			arche_pdata->wake_detect_start = jiffies;
+			/* No harm with cancellation even if it is not pending*/
+			cancel_delayed_work(&arche_pdata->delayed_work);
+			/*
+			 * In the begining, when wake/detect goes low (first time), we assume
+			 * it is meant for coldboot and set the flag. If wake/detect line stays low
+			 * beyond 30msec, then it is coldboot else fallback to standby boot.
+			 */
+			arche_pdata->wake_detect_state = WD_STATE_BOOT_INIT;
+		}
+	}
+
+	spin_unlock_irqrestore(&arche_pdata->lock, flags);
+
+	return IRQ_HANDLED;
 }
 
 static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
@@ -148,6 +248,8 @@ static void arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_
 
 static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pdata)
 {
+	unsigned long flags;
+
 	if (arche_pdata->state == ARCHE_PLATFORM_STATE_OFF)
 		return;
 
@@ -156,7 +258,9 @@ static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pda
 		/* Send disconnect/detach event to SVC */
 		gpio_set_value(arche_pdata->wake_detect_gpio, 0);
 		usleep_range(100, 200);
+		spin_lock_irqsave(&arche_pdata->lock, flags);
 		arche_pdata->wake_detect_state = WD_STATE_IDLE;
+		spin_unlock_irqrestore(&arche_pdata->lock, flags);
 
 		clk_disable_unprepare(arche_pdata->svc_ref_clk);
 	}
@@ -343,6 +447,22 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->wake_detect_state = WD_STATE_IDLE;
 
 	arche_pdata->dev = &pdev->dev;
+
+	spin_lock_init(&arche_pdata->lock);
+	arche_pdata->wake_detect_irq =
+		gpio_to_irq(arche_pdata->wake_detect_gpio);
+
+	ret = devm_request_threaded_irq(dev, arche_pdata->wake_detect_irq,
+			arche_platform_wd_irq,
+			arche_platform_wd_irq_thread,
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+			dev_name(dev), arche_pdata);
+	if (ret) {
+		dev_err(dev, "failed to request wake detect IRQ %d\n", ret);
+		return ret;
+	}
+	/* Enable it only after  sending wake/detect event */
+	disable_irq(arche_pdata->wake_detect_irq);
 
 	ret = device_create_file(dev, &dev_attr_state);
 	if (ret) {
