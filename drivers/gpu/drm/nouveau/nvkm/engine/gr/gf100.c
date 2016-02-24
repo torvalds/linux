@@ -1762,15 +1762,6 @@ gf100_gr_ctor(const struct gf100_gr_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
-	if (gr->firmware) {
-		nvkm_info(&gr->base.engine.subdev, "using external firmware\n");
-		if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fuc409c) ||
-		    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fuc409d) ||
-		    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->fuc41ac) ||
-		    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->fuc41ad))
-			return -ENODEV;
-	}
-
 	return 0;
 }
 
@@ -1779,10 +1770,25 @@ gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 	      int index, struct nvkm_gr **pgr)
 {
 	struct gf100_gr *gr;
+	int ret;
+
 	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
 		return -ENOMEM;
 	*pgr = &gr->base;
-	return gf100_gr_ctor(func, device, index, gr);
+
+	ret = gf100_gr_ctor(func, device, index, gr);
+	if (ret)
+		return ret;
+
+	if (gr->firmware) {
+		if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fuc409c) ||
+		    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fuc409d) ||
+		    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->fuc41ac) ||
+		    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->fuc41ad))
+			return -ENODEV;
+	}
+
+	return 0;
 }
 
 int

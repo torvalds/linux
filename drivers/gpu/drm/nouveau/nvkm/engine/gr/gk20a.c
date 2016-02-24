@@ -283,6 +283,12 @@ gk20a_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
+	if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fuc409c) ||
+	    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fuc409d) ||
+	    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->fuc41ac) ||
+	    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->fuc41ad))
+		return -ENODEV;
+
 	ret = gf100_gr_ctor_fw(gr, "sw_nonctx", &fuc);
 	if (ret)
 		return ret;
