@@ -164,6 +164,7 @@ config SND_SOC_INTEL_SKL_RT286_MACH
 	select SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_RT286
 	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
 	help
 	   This adds support for ASoC machine driver for Skylake platforms
 	   with RT286 I2S audio codec.
