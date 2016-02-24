@@ -209,14 +209,12 @@ struct isert_conn {
 	struct ib_qp		*qp;
 	struct isert_device	*device;
 	struct mutex		mutex;
-	struct completion	wait_comp_err;
 	struct kref		kref;
 	struct list_head	fr_pool;
 	int			fr_pool_size;
 	/* lock to protect fastreg pool */
 	spinlock_t		pool_lock;
 	struct work_struct	release_work;
-	struct ib_recv_wr       beacon;
 	bool                    logout_posted;
 	bool                    snd_w_inv;
 };
