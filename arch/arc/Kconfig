@@ -12,8 +12,6 @@ config ARC
 	select BUILDTIME_EXTABLE_SORT
 	select COMMON_CLK
 	select CLONE_BACKWARDS
-	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
-	select DEVTMPFS if !INITRAMFS_SOURCE=""
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_FIND_FIRST_BIT
@@ -275,14 +273,6 @@ config ARC_DCCM_BASE
 	default "0xA0000000"
 	depends on ARC_HAS_DCCM
 
-config ARC_HAS_HW_MPY
-	bool "Use Hardware Multiplier (Normal or Faster XMAC)"
-	default y
-	help
-	  Influences how gcc generates code for MPY operations.
-	  If enabled, MPYxx insns are generated, provided by Standard/XMAC
-	  Multipler. Otherwise software multipy lib is used
-
 choice
 	prompt "MMU Version"
 	default ARC_MMU_V3 if ARC_CPU_770
@@ -541,14 +531,6 @@ config ARC_DBG_TLB_MISS_COUNT
 	help
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
-
-if SMP
-
-config ARC_IPI_DBG
-	bool "Debug Inter Core interrupts"
-	default n
-
-endif
 
 endif
 
