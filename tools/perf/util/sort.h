@@ -245,6 +245,7 @@ struct sort_entry {
 	int64_t	(*se_sort)(struct hist_entry *, struct hist_entry *);
 	int	(*se_snprintf)(struct hist_entry *he, char *bf, size_t size,
 			       unsigned int width);
+	int	(*se_filter)(struct hist_entry *he, int type, const void *arg);
 	u8	se_width_idx;
 };
 

@@ -305,6 +305,8 @@ bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_srcline_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_srcfile_entry(struct perf_hpp_fmt *fmt);
 
+int hist_entry__filter(struct hist_entry *he, int type, const void *arg);
+
 static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format,
 					 struct hists *hists)
 {
