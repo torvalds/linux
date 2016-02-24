@@ -266,7 +266,7 @@ static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pda
 	/* If in fw_flashing mode, then no need to repeate things again */
 	if (arche_pdata->state != ARCHE_PLATFORM_STATE_FW_FLASHING) {
 		/* Send disconnect/detach event to SVC */
-		gpio_set_value(arche_pdata->wake_detect_gpio, 0);
+		gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
 		usleep_range(100, 200);
 		spin_lock_irqsave(&arche_pdata->lock, flags);
 		arche_pdata->wake_detect_state = WD_STATE_IDLE;
