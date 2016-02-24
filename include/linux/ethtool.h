@@ -12,6 +12,7 @@
 #ifndef _LINUX_ETHTOOL_H
 #define _LINUX_ETHTOOL_H
 
+#include <linux/bitmap.h>
 #include <linux/compat.h>
 #include <uapi/linux/ethtool.h>
 
@@ -39,9 +40,6 @@ struct compat_ethtool_rxnfc {
 #endif /* CONFIG_COMPAT */
 
 #include <linux/rculist.h>
-
-extern int __ethtool_get_settings(struct net_device *dev,
-				  struct ethtool_cmd *cmd);
 
 /**
  * enum ethtool_phys_id_state - indicator state for physical identification
@@ -97,13 +95,74 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 	return index % n_rx_rings;
 }
 
+/* number of link mode bits/ulongs handled internally by kernel */
+#define __ETHTOOL_LINK_MODE_MASK_NBITS			\
+	(__ETHTOOL_LINK_MODE_LAST + 1)
+
+/* declare a link mode bitmap */
+#define __ETHTOOL_DECLARE_LINK_MODE_MASK(name)		\
+	DECLARE_BITMAP(name, __ETHTOOL_LINK_MODE_MASK_NBITS)
+
+/* drivers must ignore base.cmd and base.link_mode_masks_nwords
+ * fields, but they are allowed to overwrite them (will be ignored).
+ */
+struct ethtool_link_ksettings {
+	struct ethtool_link_settings base;
+	struct {
+		__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
+		__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
+		__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
+	} link_modes;
+};
+
+/**
+ * ethtool_link_ksettings_zero_link_mode - clear link_ksettings link mode mask
+ *   @ptr : pointer to struct ethtool_link_ksettings
+ *   @name : one of supported/advertising/lp_advertising
+ */
+#define ethtool_link_ksettings_zero_link_mode(ptr, name)		\
+	bitmap_zero((ptr)->link_modes.name, __ETHTOOL_LINK_MODE_MASK_NBITS)
+
+/**
+ * ethtool_link_ksettings_add_link_mode - set bit in link_ksettings
+ * link mode mask
+ *   @ptr : pointer to struct ethtool_link_ksettings
+ *   @name : one of supported/advertising/lp_advertising
+ *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
+ * (not atomic, no bound checking)
+ */
+#define ethtool_link_ksettings_add_link_mode(ptr, name, mode)		\
+	__set_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
+
+/**
+ * ethtool_link_ksettings_test_link_mode - test bit in ksettings link mode mask
+ *   @ptr : pointer to struct ethtool_link_ksettings
+ *   @name : one of supported/advertising/lp_advertising
+ *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
+ * (not atomic, no bound checking)
+ *
+ * Returns true/false.
+ */
+#define ethtool_link_ksettings_test_link_mode(ptr, name, mode)		\
+	test_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
+
+extern int
+__ethtool_get_link_ksettings(struct net_device *dev,
+			     struct ethtool_link_ksettings *link_ksettings);
+
+/* DEPRECATED, use __ethtool_get_link_ksettings */
+extern int __ethtool_get_settings(struct net_device *dev,
+				  struct ethtool_cmd *cmd);
+
 /**
  * struct ethtool_ops - optional netdev operations
- * @get_settings: Get various device settings including Ethernet link
+ * @get_settings: DEPRECATED, use %get_link_ksettings/%set_link_ksettings
+ *	API. Get various device settings including Ethernet link
  *	settings. The @cmd parameter is expected to have been cleared
- *	before get_settings is called. Returns a negative error code or
- *	zero.
- * @set_settings: Set various device settings including Ethernet link
+ *	before get_settings is called. Returns a negative error code
+ *	or zero.
+ * @set_settings: DEPRECATED, use %get_link_ksettings/%set_link_ksettings
+ *	API. Set various device settings including Ethernet link
  *	settings.  Returns a negative error code or zero.
  * @get_drvinfo: Report driver/device information.  Should only set the
  *	@driver, @version, @fw_version and @bus_info fields.  If not
@@ -211,6 +270,19 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
  *	queue has this number, ignore the inapplicable fields.
  *	Returns a negative error code or zero.
+ * @get_link_ksettings: When defined, takes precedence over the
+ *	%get_settings method. Get various device settings
+ *	including Ethernet link settings. The %cmd and
+ *	%link_mode_masks_nwords fields should be ignored (use
+ *	%__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter), any
+ *	change to them will be overwritten by kernel. Returns a
+ *	negative error code or zero.
+ * @set_link_ksettings: When defined, takes precedence over the
+ *	%set_settings method. Set various device settings including
+ *	Ethernet link settings. The %cmd and %link_mode_masks_nwords
+ *	fields should be ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS
+ *	instead of the latter), any change to them will be overwritten
+ *	by kernel. Returns a negative error code or zero.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -293,6 +365,9 @@ struct ethtool_ops {
 					  struct ethtool_coalesce *);
 	int	(*set_per_queue_coalesce)(struct net_device *, u32,
 					  struct ethtool_coalesce *);
-
+	int	(*get_link_ksettings)(struct net_device *,
+				      struct ethtool_link_ksettings *);
+	int	(*set_link_ksettings)(struct net_device *,
+				      const struct ethtool_link_ksettings *);
 };
 #endif /* _LINUX_ETHTOOL_H */
