@@ -248,6 +248,8 @@ static void he_stat__decay(struct he_stat *he_stat)
 	/* XXX need decay for weight too? */
 }
 
+static void hists__delete_entry(struct hists *hists, struct hist_entry *he);
+
 static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 {
 	u64 prev_period = he->stat.period;
@@ -263,21 +265,45 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 
 	diff = prev_period - he->stat.period;
 
-	hists->stats.total_period -= diff;
-	if (!he->filtered)
-		hists->stats.total_non_filtered_period -= diff;
+	if (!he->depth) {
+		hists->stats.total_period -= diff;
+		if (!he->filtered)
+			hists->stats.total_non_filtered_period -= diff;
+	}
+
+	if (!he->leaf) {
+		struct hist_entry *child;
+		struct rb_node *node = rb_first(&he->hroot_out);
+		while (node) {
+			child = rb_entry(node, struct hist_entry, rb_node);
+			node = rb_next(node);
+
+			if (hists__decay_entry(hists, child))
+				hists__delete_entry(hists, child);
+		}
+	}
 
 	return he->stat.period == 0;
 }
 
 static void hists__delete_entry(struct hists *hists, struct hist_entry *he)
 {
-	rb_erase(&he->rb_node, &hists->entries);
+	struct rb_root *root_in;
+	struct rb_root *root_out;
 
-	if (sort__need_collapse)
-		rb_erase(&he->rb_node_in, &hists->entries_collapsed);
-	else
-		rb_erase(&he->rb_node_in, hists->entries_in);
+	if (he->parent_he) {
+		root_in  = &he->parent_he->hroot_in;
+		root_out = &he->parent_he->hroot_out;
+	} else {
+		if (sort__need_collapse)
+			root_in = &hists->entries_collapsed;
+		else
+			root_in = hists->entries_in;
+		root_out = &hists->entries;
+	}
+
+	rb_erase(&he->rb_node_in, root_in);
+	rb_erase(&he->rb_node, root_out);
 
 	--hists->nr_entries;
 	if (!he->filtered)
