@@ -4590,6 +4590,8 @@ void pci_add_dma_alias(struct pci_dev *dev, u8 devfn)
 {
 	dev->dma_alias_devfn = devfn;
 	dev->dev_flags |= PCI_DEV_FLAGS_DMA_ALIAS_DEVFN;
+	dev_info(&dev->dev, "Enabling fixed DMA alias to %02x.%d\n",
+		 PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
 
 bool pci_device_is_present(struct pci_dev *pdev)
