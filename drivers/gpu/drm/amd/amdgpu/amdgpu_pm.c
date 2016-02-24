@@ -596,9 +596,6 @@ force:
 	/* update display watermarks based on new power state */
 	amdgpu_display_bandwidth_update(adev);
 
-	adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
-	adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
-
 	/* wait for the rings to drain */
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
@@ -616,6 +613,9 @@ force:
 
 	/* update displays */
 	amdgpu_dpm_display_configuration_changed(adev);
+
+	adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
+	adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
 
 	if (adev->pm.funcs->force_performance_level) {
 		if (adev->pm.dpm.thermal_active) {
