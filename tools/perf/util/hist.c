@@ -1666,9 +1666,47 @@ static void hists__filter_by_type(struct hists *hists, int type, filter_fn_t fil
 	}
 }
 
+static void resort_filtered_entry(struct rb_root *root, struct hist_entry *he)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct hist_entry *iter;
+	struct rb_root new_root = RB_ROOT;
+	struct rb_node *nd;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct hist_entry, rb_node);
+
+		if (hist_entry__sort(he, iter) > 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&he->rb_node, parent, p);
+	rb_insert_color(&he->rb_node, root);
+
+	if (he->leaf || he->filtered)
+		return;
+
+	nd = rb_first(&he->hroot_out);
+	while (nd) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		nd = rb_next(nd);
+		rb_erase(&h->rb_node, &he->hroot_out);
+
+		resort_filtered_entry(&new_root, h);
+	}
+
+	he->hroot_out = new_root;
+}
+
 static void hists__filter_hierarchy(struct hists *hists, int type, const void *arg)
 {
 	struct rb_node *nd;
+	struct rb_root new_root = RB_ROOT;
 
 	hists->stats.nr_non_filtered_samples = 0;
 
@@ -1712,6 +1750,22 @@ static void hists__filter_hierarchy(struct hists *hists, int type, const void *a
 			nd = __rb_hierarchy_next(&h->rb_node, HMD_FORCE_SIBLING);
 		}
 	}
+
+	/*
+	 * resort output after applying a new filter since filter in a lower
+	 * hierarchy can change periods in a upper hierarchy.
+	 */
+	nd = rb_first(&hists->entries);
+	while (nd) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		nd = rb_next(nd);
+		rb_erase(&h->rb_node, &hists->entries);
+
+		resort_filtered_entry(&new_root, h);
+	}
+
+	hists->entries = new_root;
 }
 
 void hists__filter_by_thread(struct hists *hists)
