@@ -183,3 +183,37 @@ void perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	if (miss)
 		strncat(out, " miss", sz - l);
 }
+
+static const char * const snoop_access[] = {
+	"N/A",
+	"None",
+	"Miss",
+	"Hit",
+	"HitM",
+};
+
+void perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+{
+	size_t i, l = 0;
+	u64 m = PERF_MEM_SNOOP_NA;
+
+	sz -= 1; /* -1 for null termination */
+	out[0] = '\0';
+
+	if (mem_info)
+		m = mem_info->data_src.mem_snoop;
+
+	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
+		if (!(m & 0x1))
+			continue;
+		if (l) {
+			strcat(out, " or ");
+			l += 4;
+		}
+		strncat(out, snoop_access[i], sz - l);
+		l += strlen(snoop_access[i]);
+	}
+
+	if (*out == '\0')
+		strcpy(out, "N/A");
+}

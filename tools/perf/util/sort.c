@@ -886,41 +886,12 @@ sort__snoop_cmp(struct hist_entry *left, struct hist_entry *right)
 	return (int64_t)(data_src_r.mem_snoop - data_src_l.mem_snoop);
 }
 
-static const char * const snoop_access[] = {
-	"N/A",
-	"None",
-	"Miss",
-	"Hit",
-	"HitM",
-};
-
 static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
 	char out[64];
-	size_t sz = sizeof(out) - 1; /* -1 for null termination */
-	size_t i, l = 0;
-	u64 m = PERF_MEM_SNOOP_NA;
 
-	out[0] = '\0';
-
-	if (he->mem_info)
-		m = he->mem_info->data_src.mem_snoop;
-
-	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
-		if (!(m & 0x1))
-			continue;
-		if (l) {
-			strcat(out, " or ");
-			l += 4;
-		}
-		strncat(out, snoop_access[i], sz - l);
-		l += strlen(snoop_access[i]);
-	}
-
-	if (*out == '\0')
-		strcpy(out, "N/A");
-
+	perf_mem__snp_scnprintf(out, sizeof(out), he->mem_info);
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
