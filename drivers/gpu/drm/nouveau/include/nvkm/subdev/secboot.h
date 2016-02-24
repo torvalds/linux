@@ -54,5 +54,6 @@ int nvkm_secboot_reset(struct nvkm_secboot *, u32 falcon);
 int nvkm_secboot_start(struct nvkm_secboot *, u32 falcon);
 
 int gm200_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
+int gm20b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 
 #endif
