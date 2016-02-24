@@ -36,10 +36,10 @@
  */
 static int port_cost(struct net_device *dev)
 {
-	struct ethtool_cmd ecmd;
+	struct ethtool_link_ksettings ecmd;
 
-	if (!__ethtool_get_settings(dev, &ecmd)) {
-		switch (ethtool_cmd_speed(&ecmd)) {
+	if (!__ethtool_get_link_ksettings(dev, &ecmd)) {
+		switch (ecmd.base.speed) {
 		case SPEED_10000:
 			return 2;
 		case SPEED_1000:
