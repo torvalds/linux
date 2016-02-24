@@ -3362,14 +3362,6 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 	isert_info("Starting conn %p\n", isert_conn);
 
 	mutex_lock(&isert_conn->mutex);
-	/*
-	 * Only wait for wait_comp_err if the isert_conn made it
-	 * into full feature phase..
-	 */
-	if (isert_conn->state == ISER_CONN_INIT) {
-		mutex_unlock(&isert_conn->mutex);
-		return;
-	}
 	isert_conn_terminate(isert_conn);
 	mutex_unlock(&isert_conn->mutex);
 
