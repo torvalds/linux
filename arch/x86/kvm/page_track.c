@@ -135,3 +135,18 @@ void kvm_slot_page_track_remove_page(struct kvm *kvm,
 	 */
 	kvm_mmu_gfn_allow_lpage(slot, gfn);
 }
+
+/*
+ * check if the corresponding access on the specified guest page is tracked.
+ */
+bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
+			      enum kvm_page_track_mode mode)
+{
+	struct kvm_memory_slot *slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
+	int index = gfn_to_index(gfn, slot->base_gfn, PT_PAGE_TABLE_LEVEL);
+
+	if (WARN_ON(!page_track_mode_is_valid(mode)))
+		return false;
+
+	return !!ACCESS_ONCE(slot->arch.gfn_track[mode][index]);
+}
