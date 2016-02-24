@@ -238,12 +238,6 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 		gpu_write(gpu, REG_A4XX_RBBM_CLOCK_DELAY_HLSQ, val);
 	}
 
-	if (!adreno_is_a430(adreno_gpu)) {
-		ret = adreno_hw_init(gpu);
-		if (ret)
-			return ret;
-	}
-
 	/* setup access protection: */
 	gpu_write(gpu, REG_A4XX_CP_PROTECT_CTRL, 0x00000007);
 
