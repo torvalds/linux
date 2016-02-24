@@ -1422,9 +1422,7 @@ static int __init bcm281xx_pinctrl_probe(struct platform_device *pdev)
 	bcm281xx_pinctrl_desc.pins = bcm281xx_pinctrl.pins;
 	bcm281xx_pinctrl_desc.npins = bcm281xx_pinctrl.npins;
 
-	pctl = pinctrl_register(&bcm281xx_pinctrl_desc,
-				&pdev->dev,
-				pdata);
+	pctl = devm_pinctrl_register(&pdev->dev, &bcm281xx_pinctrl_desc, pdata);
 	if (IS_ERR(pctl)) {
 		dev_err(&pdev->dev, "Failed to register pinctrl\n");
 		return PTR_ERR(pctl);
