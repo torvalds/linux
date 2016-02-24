@@ -3754,8 +3754,18 @@ static void put_event(struct perf_event *event)
  */
 int perf_event_release_kernel(struct perf_event *event)
 {
-	struct perf_event_context *ctx;
+	struct perf_event_context *ctx = event->ctx;
 	struct perf_event *child, *tmp;
+
+	/*
+	 * If we got here through err_file: fput(event_file); we will not have
+	 * attached to a context yet.
+	 */
+	if (!ctx) {
+		WARN_ON_ONCE(event->attach_state &
+				(PERF_ATTACH_CONTEXT|PERF_ATTACH_GROUP));
+		goto no_ctx;
+	}
 
 	if (!is_kernel_event(event))
 		perf_remove_from_owner(event);
@@ -3832,8 +3842,8 @@ again:
 	}
 	mutex_unlock(&event->child_mutex);
 
-	/* Must be the last reference */
-	put_event(event);
+no_ctx:
+	put_event(event); /* Must be the 'last' reference */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(perf_event_release_kernel);
