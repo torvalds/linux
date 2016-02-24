@@ -510,6 +510,50 @@ static const struct iwl_tt_params iwl_mvm_default_tt_params = {
 	.support_tx_backoff = true,
 };
 
+int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget)
+{
+	struct iwl_mvm_ctdp_cmd cmd = {
+		.operation = cpu_to_le32(op),
+		.budget = cpu_to_le32(budget),
+		.window_size = 0,
+	};
+	int ret;
+	u32 status;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, WIDE_ID(PHY_OPS_GROUP,
+						       CTDP_CONFIG_CMD),
+					  sizeof(cmd), &cmd, &status);
+
+	if (ret) {
+		IWL_ERR(mvm, "cTDP command failed (err=%d)\n", ret);
+		return ret;
+	}
+
+	switch (op) {
+	case CTDP_CMD_OPERATION_START:
+#ifdef CONFIG_THERMAL
+		mvm->cooling_dev.cur_state = budget;
+#endif /* CONFIG_THERMAL */
+		break;
+	case CTDP_CMD_OPERATION_REPORT:
+		IWL_DEBUG_TEMP(mvm, "cTDP avg energy in mWatt = %d\n", status);
+		/* when the function is called with CTDP_CMD_OPERATION_REPORT
+		 * option the function should return the average budget value
+		 * that is received from the FW.
+		 * The budget can't be less or equal to 0, so it's possible
+		 * to distinguish between error values and budgets.
+		 */
+		return status;
+	case CTDP_CMD_OPERATION_STOP:
+		IWL_DEBUG_TEMP(mvm, "cTDP stopped successfully\n");
+		break;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_THERMAL
 static int compare_temps(const void *a, const void *b)
 {
@@ -737,40 +781,6 @@ static const u32 iwl_mvm_cdev_budgets[] = {
 	200,	/* cooling state 18 */
 	150,	/* cooling state 19 */
 };
-
-int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget)
-{
-	struct iwl_mvm_ctdp_cmd cmd = {
-		.operation = cpu_to_le32(op),
-		.budget = cpu_to_le32(budget),
-		.window_size = 0,
-	};
-	int ret;
-	u32 status;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, WIDE_ID(PHY_OPS_GROUP,
-						       CTDP_CONFIG_CMD),
-					  sizeof(cmd), &cmd, &status);
-
-	if (ret) {
-		IWL_ERR(mvm, "cTDP command failed (err=%d)\n", ret);
-		return ret;
-	}
-
-	/* can happen if the registration failed */
-	if (!mvm->cooling_dev.cdev)
-		return -EINVAL;
-
-	if (op == CTDP_CMD_OPERATION_START)
-		mvm->cooling_dev.cur_state = budget;
-
-	else if (op == CTDP_CMD_OPERATION_REPORT)
-		IWL_DEBUG_TEMP(mvm, "cTDP avg energy in mWatt = %d\n", status);
-
-	return 0;
-}
 
 static int iwl_mvm_tcool_get_max_state(struct thermal_cooling_device *cdev,
 				       unsigned long *state)
