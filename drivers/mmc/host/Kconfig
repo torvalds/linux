@@ -561,7 +561,7 @@ config MMC_TMIO
 config MMC_SDHI
 	tristate "SH-Mobile SDHI SD/SDIO controller support"
 	depends on SUPERH || ARM || ARM64
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	select MMC_TMIO_CORE
 	help
 	  This provides support for the SDHI SD/SDIO controller found in
@@ -674,7 +674,7 @@ config MMC_DW_ROCKCHIP
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
 	depends on HAS_DMA
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	help
 	  This selects the MMC Host Interface controller (MMCIF).
 
