@@ -527,7 +527,7 @@ int x509_decode_time(time64_t *_t,  size_t hdrlen,
 	if (day < 1 || day > mon_len ||
 	    hour > 23 ||
 	    min > 59 ||
-	    sec > 59)
+	    sec > 60) /* ISO 8601 permits leap seconds [X.680 46.3] */
 		goto invalid_time;
 
 	*_t = mktime64(year, mon, day, hour, min, sec);
