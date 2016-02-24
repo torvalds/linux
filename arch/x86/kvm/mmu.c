@@ -1932,8 +1932,22 @@ static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		return 1;
 	}
 
-	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	return 0;
+}
+
+static void kvm_mmu_flush_or_zap(struct kvm_vcpu *vcpu,
+				 struct list_head *invalid_list,
+				 bool remote_flush, bool local_flush)
+{
+	if (!list_empty(invalid_list)) {
+		kvm_mmu_commit_zap_page(vcpu->kvm, invalid_list);
+		return;
+	}
+
+	if (remote_flush)
+		kvm_flush_remote_tlbs(vcpu->kvm);
+	else if (local_flush)
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
 
 static int kvm_sync_page_transient(struct kvm_vcpu *vcpu,
@@ -1943,8 +1957,7 @@ static int kvm_sync_page_transient(struct kvm_vcpu *vcpu,
 	int ret;
 
 	ret = __kvm_sync_page(vcpu, sp, &invalid_list, false);
-	if (ret)
-		kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
+	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, !ret);
 
 	return ret;
 }
@@ -1975,17 +1988,11 @@ static void kvm_sync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
 
 		WARN_ON(s->role.level != PT_PAGE_TABLE_LEVEL);
 		kvm_unlink_unsync_page(vcpu->kvm, s);
-		if ((s->role.cr4_pae != !!is_pae(vcpu)) ||
-			(vcpu->arch.mmu.sync_page(vcpu, s))) {
-			kvm_mmu_prepare_zap_page(vcpu->kvm, s, &invalid_list);
-			continue;
-		}
-		flush = true;
+		if (!__kvm_sync_page(vcpu, s, &invalid_list, false))
+			flush = true;
 	}
 
-	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
-	if (flush)
-		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
 }
 
 struct mmu_page_path {
@@ -2071,6 +2078,7 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 
 	while (mmu_unsync_walk(parent, &pages)) {
 		bool protected = false;
+		bool flush = false;
 
 		for_each_sp(pages, sp, parents, i)
 			protected |= rmap_write_protect(vcpu, sp->gfn);
@@ -2079,10 +2087,12 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 			kvm_flush_remote_tlbs(vcpu->kvm);
 
 		for_each_sp(pages, sp, parents, i) {
-			kvm_sync_page(vcpu, sp, &invalid_list);
+			if (!kvm_sync_page(vcpu, sp, &invalid_list))
+				flush = true;
+
 			mmu_pages_clear_parents(&parents);
 		}
-		kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
+		kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
 		cond_resched_lock(&vcpu->kvm->mmu_lock);
 	}
 }
@@ -4186,21 +4196,6 @@ static bool need_remote_flush(u64 old, u64 new)
 	old ^= shadow_nx_mask;
 	new ^= shadow_nx_mask;
 	return (old & ~new & PT64_PERM_MASK) != 0;
-}
-
-static void kvm_mmu_flush_or_zap(struct kvm_vcpu *vcpu,
-				 struct list_head *invalid_list,
-				 bool remote_flush, bool local_flush)
-{
-	if (!list_empty(invalid_list)) {
-		kvm_mmu_commit_zap_page(vcpu->kvm, invalid_list);
-		return;
-	}
-
-	if (remote_flush)
-		kvm_flush_remote_tlbs(vcpu->kvm);
-	else if (local_flush)
-		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
 
 static u64 mmu_pte_write_fetch_gpte(struct kvm_vcpu *vcpu, gpa_t *gpa,
