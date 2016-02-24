@@ -396,6 +396,164 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	gtk_container_add(GTK_CONTAINER(window), view);
 }
 
+static void perf_gtk__add_hierarchy_entries(struct hists *hists,
+					    struct rb_root *root,
+					    GtkTreeStore *store,
+					    GtkTreeIter *parent,
+					    struct perf_hpp *hpp,
+					    float min_pcnt)
+{
+	int col_idx = 0;
+	struct rb_node *node;
+	struct hist_entry *he;
+	struct perf_hpp_fmt *fmt;
+	u64 total = hists__total_period(hists);
+
+	for (node = rb_first(root); node; node = rb_next(node)) {
+		GtkTreeIter iter;
+		float percent;
+
+		he = rb_entry(node, struct hist_entry, rb_node);
+		if (he->filtered)
+			continue;
+
+		percent = hist_entry__get_percent_limit(he);
+		if (percent < min_pcnt)
+			continue;
+
+		gtk_tree_store_append(store, &iter, parent);
+
+		col_idx = 0;
+		hists__for_each_format(hists, fmt) {
+			if (perf_hpp__is_sort_entry(fmt) ||
+			    perf_hpp__is_dynamic_entry(fmt))
+				break;
+
+			if (fmt->color)
+				fmt->color(fmt, hpp, he);
+			else
+				fmt->entry(fmt, hpp, he);
+
+			gtk_tree_store_set(store, &iter, col_idx++, hpp->buf, -1);
+		}
+
+		fmt = he->fmt;
+		if (fmt->color)
+			fmt->color(fmt, hpp, he);
+		else
+			fmt->entry(fmt, hpp, he);
+
+		gtk_tree_store_set(store, &iter, col_idx, rtrim(hpp->buf), -1);
+
+		if (!he->leaf) {
+			perf_gtk__add_hierarchy_entries(hists, &he->hroot_out,
+							store, &iter, hpp,
+							min_pcnt);
+		}
+
+		if (symbol_conf.use_callchain && he->leaf) {
+			if (callchain_param.mode == CHAIN_GRAPH_REL)
+				total = symbol_conf.cumulate_callchain ?
+					he->stat_acc->period : he->stat.period;
+
+			perf_gtk__add_callchain(&he->sorted_chain, store, &iter,
+						col_idx, total);
+		}
+	}
+
+}
+
+static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
+				     float min_pcnt)
+{
+	struct perf_hpp_fmt *fmt;
+	GType col_types[MAX_COLUMNS];
+	GtkCellRenderer *renderer;
+	GtkTreeStore *store;
+	GtkWidget *view;
+	int col_idx;
+	int nr_cols = 0;
+	char s[512];
+	char buf[512];
+	bool first = true;
+	struct perf_hpp hpp = {
+		.buf		= s,
+		.size		= sizeof(s),
+	};
+
+	hists__for_each_format(hists, fmt) {
+		if (perf_hpp__is_sort_entry(fmt) ||
+		    perf_hpp__is_dynamic_entry(fmt))
+			break;
+
+		col_types[nr_cols++] = G_TYPE_STRING;
+	}
+	col_types[nr_cols++] = G_TYPE_STRING;
+
+	store = gtk_tree_store_newv(nr_cols, col_types);
+	view = gtk_tree_view_new();
+	renderer = gtk_cell_renderer_text_new();
+
+	col_idx = 0;
+	hists__for_each_format(hists, fmt) {
+		if (perf_hpp__is_sort_entry(fmt) ||
+		    perf_hpp__is_dynamic_entry(fmt))
+			break;
+
+		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
+							    -1, fmt->name,
+							    renderer, "markup",
+							    col_idx++, NULL);
+	}
+
+	/* construct merged column header since sort keys share single column */
+	buf[0] = '\0';
+	hists__for_each_format(hists ,fmt) {
+		if (!perf_hpp__is_sort_entry(fmt) &&
+		    !perf_hpp__is_dynamic_entry(fmt))
+			continue;
+		if (perf_hpp__should_skip(fmt, hists))
+			continue;
+
+		if (first)
+			first = false;
+		else
+			strcat(buf, " / ");
+
+		fmt->header(fmt, &hpp, hists_to_evsel(hists));
+		strcat(buf, rtrim(hpp.buf));
+	}
+
+	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
+						    -1, buf,
+						    renderer, "markup",
+						    col_idx++, NULL);
+
+	for (col_idx = 0; col_idx < nr_cols; col_idx++) {
+		GtkTreeViewColumn *column;
+
+		column = gtk_tree_view_get_column(GTK_TREE_VIEW(view), col_idx);
+		gtk_tree_view_column_set_resizable(column, TRUE);
+
+		if (col_idx == 0) {
+			gtk_tree_view_set_expander_column(GTK_TREE_VIEW(view),
+							  column);
+		}
+	}
+
+	gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(store));
+	g_object_unref(GTK_TREE_MODEL(store));
+
+	perf_gtk__add_hierarchy_entries(hists, &hists->entries, store,
+					NULL, &hpp, min_pcnt);
+
+	gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(view), TRUE);
+
+	g_signal_connect(view, "row-activated",
+			 G_CALLBACK(on_row_activated), NULL);
+	gtk_container_add(GTK_CONTAINER(window), view);
+}
+
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 				  const char *help,
 				  struct hist_browser_timer *hbt __maybe_unused,
@@ -463,7 +621,10 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 							GTK_POLICY_AUTOMATIC,
 							GTK_POLICY_AUTOMATIC);
 
-		perf_gtk__show_hists(scrolled_window, hists, min_pcnt);
+		if (symbol_conf.report_hierarchy)
+			perf_gtk__show_hierarchy(scrolled_window, hists, min_pcnt);
+		else
+			perf_gtk__show_hists(scrolled_window, hists, min_pcnt);
 
 		tab_label = gtk_label_new(evname);
 
