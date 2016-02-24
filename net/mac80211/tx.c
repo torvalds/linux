@@ -1691,7 +1691,7 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 	bool rate_found = false;
 	u8 rate_retries = 0;
 	u16 rate_flags = 0;
-	u8 mcs_known, mcs_flags;
+	u8 mcs_known, mcs_flags, mcs_bw;
 	u16 vht_known;
 	u8 vht_mcs = 0, vht_nss = 0;
 	int i;
@@ -1769,8 +1769,9 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 			    mcs_flags & IEEE80211_RADIOTAP_MCS_SGI)
 				rate_flags |= IEEE80211_TX_RC_SHORT_GI;
 
+			mcs_bw = mcs_flags & IEEE80211_RADIOTAP_MCS_BW_MASK;
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_BW &&
-			    mcs_flags & IEEE80211_RADIOTAP_MCS_BW_40)
+			    mcs_bw == IEEE80211_RADIOTAP_MCS_BW_40)
 				rate_flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 			break;
 
