@@ -211,7 +211,5 @@ extern const struct gf100_gr_init gk208_grctx_init_crstr_0[];
 extern const struct gf100_gr_init gm107_grctx_init_gpc_unk_0[];
 extern const struct gf100_gr_init gm107_grctx_init_wwdx_0[];
 
-extern const struct gf100_gr_pack gm200_grctx_pack_icmd[];
-
 extern const struct gf100_gr_pack gm200_grctx_pack_mthd[];
 #endif

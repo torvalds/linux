@@ -27,7 +27,6 @@ const struct gf100_grctx_func
 gm206_grctx = {
 	.main  = gm200_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
-	.icmd  = gm200_grctx_pack_icmd,
 	.mthd  = gm200_grctx_pack_mthd,
 	.bundle = gm107_grctx_generate_bundle,
 	.bundle_size = 0x3000,
