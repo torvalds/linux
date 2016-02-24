@@ -195,6 +195,4 @@ struct tegra_pinctrl_soc_data {
 
 int tegra_pinctrl_probe(struct platform_device *pdev,
 			const struct tegra_pinctrl_soc_data *soc_data);
-int tegra_pinctrl_remove(struct platform_device *pdev);
-
 #endif

@@ -2077,7 +2077,6 @@ static struct platform_driver tegra124_pinctrl_driver = {
 		.of_match_table = tegra124_pinctrl_of_match,
 	},
 	.probe = tegra124_pinctrl_probe,
-	.remove = tegra_pinctrl_remove,
 };
 module_platform_driver(tegra124_pinctrl_driver);
 
