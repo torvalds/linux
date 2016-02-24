@@ -203,6 +203,14 @@ void gf100_gr_icmd(struct gf100_gr *, const struct gf100_gr_pack *);
 void gf100_gr_mthd(struct gf100_gr *, const struct gf100_gr_pack *);
 int  gf100_gr_init_ctxctl(struct gf100_gr *);
 
+/* external bundles loading functions */
+int gk20a_gr_av_to_init(struct gf100_gr *, const char *,
+			struct gf100_gr_pack **);
+int gk20a_gr_aiv_to_init(struct gf100_gr *, const char *,
+			 struct gf100_gr_pack **);
+int gk20a_gr_av_to_method(struct gf100_gr *, const char *,
+			  struct gf100_gr_pack **);
+
 /* register init value lists */
 
 extern const struct gf100_gr_init gf100_gr_init_main_0[];
