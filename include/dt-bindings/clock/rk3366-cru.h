@@ -92,6 +92,7 @@
 #define SCLK_HEVC_CORE		126
 #define SCLK_VIP_SRC		127
 #define SCLK_VIP_OUT		128
+#define SCLK_PVTM_PMU		129
 
 #define DCLK_VOP_FULL		170
 #define DCLK_VOP_LITE		171
