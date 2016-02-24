@@ -36,9 +36,7 @@
 /* Constant PDU lengths calculations */
 #define ISER_HEADERS_LEN	(sizeof(struct iser_ctrl) + \
 				 sizeof(struct iscsi_hdr))
-#define ISER_RECV_DATA_SEG_LEN	8192
-#define ISER_RX_PAYLOAD_SIZE	(ISER_HEADERS_LEN + ISER_RECV_DATA_SEG_LEN)
-#define ISER_RX_LOGIN_SIZE	(ISER_HEADERS_LEN + ISCSI_DEF_MAX_RECV_SEG_LEN)
+#define ISER_RX_PAYLOAD_SIZE	(ISER_HEADERS_LEN + ISCSI_DEF_MAX_RECV_SEG_LEN)
 
 /* QP settings */
 /* Maximal bounds on received asynchronous PDUs */
@@ -62,7 +60,7 @@
 				ISERT_MAX_TX_MISC_PDUS	+ \
 				ISERT_MAX_RX_MISC_PDUS)
 
-#define ISER_RX_PAD_SIZE	(ISER_RECV_DATA_SEG_LEN + 4096 - \
+#define ISER_RX_PAD_SIZE	(ISCSI_DEF_MAX_RECV_SEG_LEN + 4096 - \
 		(ISER_RX_PAYLOAD_SIZE + sizeof(u64) + sizeof(struct ib_sge)))
 
 #define ISCSI_ISER_SG_TABLESIZE		256
@@ -93,7 +91,7 @@ enum iser_conn_state {
 struct iser_rx_desc {
 	struct iser_ctrl iser_header;
 	struct iscsi_hdr iscsi_header;
-	char		data[ISER_RECV_DATA_SEG_LEN];
+	char		data[ISCSI_DEF_MAX_RECV_SEG_LEN];
 	u64		dma_addr;
 	struct ib_sge	rx_sg;
 	char		pad[ISER_RX_PAD_SIZE];

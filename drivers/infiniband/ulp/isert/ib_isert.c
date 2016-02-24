@@ -596,7 +596,7 @@ isert_free_login_buf(struct isert_conn *isert_conn)
 	struct ib_device *ib_dev = isert_conn->device->ib_device;
 
 	ib_dma_unmap_single(ib_dev, isert_conn->login_rsp_dma,
-			    ISER_RX_LOGIN_SIZE, DMA_TO_DEVICE);
+			    ISER_RX_PAYLOAD_SIZE, DMA_TO_DEVICE);
 	ib_dma_unmap_single(ib_dev, isert_conn->login_req_dma,
 			    ISCSI_DEF_MAX_RECV_SEG_LEN,
 			    DMA_FROM_DEVICE);
@@ -610,7 +610,7 @@ isert_alloc_login_buf(struct isert_conn *isert_conn,
 	int ret;
 
 	isert_conn->login_buf = kzalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
-					ISER_RX_LOGIN_SIZE, GFP_KERNEL);
+					ISER_RX_PAYLOAD_SIZE, GFP_KERNEL);
 	if (!isert_conn->login_buf) {
 		isert_err("Unable to allocate isert_conn->login_buf\n");
 		return -ENOMEM;
@@ -637,7 +637,7 @@ isert_alloc_login_buf(struct isert_conn *isert_conn,
 
 	isert_conn->login_rsp_dma = ib_dma_map_single(ib_dev,
 					(void *)isert_conn->login_rsp_buf,
-					ISER_RX_LOGIN_SIZE, DMA_TO_DEVICE);
+					ISER_RX_PAYLOAD_SIZE, DMA_TO_DEVICE);
 
 	ret = ib_dma_mapping_error(ib_dev, isert_conn->login_rsp_dma);
 	if (ret) {
@@ -1122,7 +1122,7 @@ isert_rdma_post_recvl(struct isert_conn *isert_conn)
 
 	memset(&sge, 0, sizeof(struct ib_sge));
 	sge.addr = isert_conn->login_req_dma;
-	sge.length = ISER_RX_LOGIN_SIZE;
+	sge.length = ISER_RX_PAYLOAD_SIZE;
 	sge.lkey = isert_conn->device->pd->local_dma_lkey;
 
 	isert_dbg("Setup sge: addr: %llx length: %d 0x%08x\n",
@@ -1596,7 +1596,7 @@ isert_rcv_completion(struct iser_rx_desc *desc,
 
 	if ((char *)desc == isert_conn->login_req_buf) {
 		rx_dma = isert_conn->login_req_dma;
-		rx_buflen = ISER_RX_LOGIN_SIZE;
+		rx_buflen = ISER_RX_PAYLOAD_SIZE;
 		isert_dbg("login_buf: Using rx_dma: 0x%llx, rx_buflen: %d\n",
 			 rx_dma, rx_buflen);
 	} else {
