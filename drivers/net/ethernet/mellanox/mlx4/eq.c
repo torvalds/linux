@@ -940,9 +940,10 @@ static void __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev, struct mlx4_eq *eq)
 
 	if (!priv->eq_table.uar_map[index]) {
 		priv->eq_table.uar_map[index] =
-			ioremap(pci_resource_start(dev->persist->pdev, 2) +
-				((eq->eqn / 4) << PAGE_SHIFT),
-				PAGE_SIZE);
+			ioremap(
+				pci_resource_start(dev->persist->pdev, 2) +
+				((eq->eqn / 4) << (dev->uar_page_shift)),
+				(1 << (dev->uar_page_shift)));
 		if (!priv->eq_table.uar_map[index]) {
 			mlx4_err(dev, "Couldn't map EQ doorbell for EQN 0x%06x\n",
 				 eq->eqn);
