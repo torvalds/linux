@@ -12,6 +12,7 @@
 #define RX_QUEUE_IDX 0
 #define TX_QUEUE_IDX 1
 #define NUM_QUEUES (TX_QUEUE_IDX + 1)
+#define QUEUE_DEPTH 32
 
 #ifdef DEBUG
 #define bad_request(s) do {			\
@@ -143,11 +144,10 @@ static struct lkl_mutex_t **init_queue_locks(int num_queues)
 	if (!ret)
 		return NULL;
 
-	memset(ret, 0, sizeof(struct lkl_mutex_t*) * num_queues);
 	for (i = 0; i < num_queues; i++) {
 		ret[i] = lkl_host_ops.mutex_alloc();
 		if (!ret[i]) {
-			free_queue_locks(ret, num_queues);
+			free_queue_locks(ret, i);
 			return NULL;
 		}
 	}
@@ -193,7 +193,7 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	 * could init the queues in virtio_dev_setup to help enforce
 	 * this, but netdevs are the only flavor that need these
 	 * locks, so it's better to do it here. */
-	ret = virtio_dev_setup(&dev->dev, NUM_QUEUES, 32);
+	ret = virtio_dev_setup(&dev->dev, NUM_QUEUES, QUEUE_DEPTH);
 
 	if (ret)
 		goto out_free;
