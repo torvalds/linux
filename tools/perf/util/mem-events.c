@@ -238,3 +238,18 @@ int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 
 	return l;
 }
+
+int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+{
+	int i = 0;
+
+	i += perf_mem__lvl_scnprintf(out, sz, mem_info);
+	i += scnprintf(out + i, sz - i, "|SNP ");
+	i += perf_mem__snp_scnprintf(out + i, sz - i, mem_info);
+	i += scnprintf(out + i, sz - i, "|TLB ");
+	i += perf_mem__tlb_scnprintf(out + i, sz - i, mem_info);
+	i += scnprintf(out + i, sz - i, "|LCK ");
+	i += perf_mem__lck_scnprintf(out + i, sz - i, mem_info);
+
+	return i;
+}
