@@ -387,13 +387,13 @@ static int arche_platform_probe(struct platform_device *pdev)
 	ret = arche_platform_coldboot_seq(arche_pdata);
 	if (ret) {
 		dev_err(dev, "Failed to cold boot svc %d\n", ret);
-		return ret;
+		goto err_coldboot;
 	}
 
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to populate child nodes %d\n", ret);
-		return ret;
+		goto err_populate;
 	}
 
 	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
@@ -401,6 +401,12 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
+
+err_populate:
+	arche_platform_poweroff_seq(arche_pdata);
+err_coldboot:
+	device_remove_file(&pdev->dev, &dev_attr_state);
+	return ret;
 }
 
 static int arche_remove_child(struct device *dev, void *unused)
