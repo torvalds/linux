@@ -987,7 +987,7 @@ static int cygnus_pinmux_probe(struct platform_device *pdev)
 	cygnus_pinctrl_desc.pins = pins;
 	cygnus_pinctrl_desc.npins = num_pins;
 
-	pinctrl->pctl = pinctrl_register(&cygnus_pinctrl_desc, &pdev->dev,
+	pinctrl->pctl = devm_pinctrl_register(&pdev->dev, &cygnus_pinctrl_desc,
 			pinctrl);
 	if (IS_ERR(pinctrl->pctl)) {
 		dev_err(&pdev->dev, "unable to register Cygnus IOMUX pinctrl\n");
