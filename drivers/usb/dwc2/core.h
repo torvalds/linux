@@ -989,34 +989,11 @@ enum dwc2_halt_status {
  */
 extern int dwc2_core_reset(struct dwc2_hsotg *hsotg);
 extern int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg);
-extern void dwc2_core_host_init(struct dwc2_hsotg *hsotg);
 extern int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
 extern int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
 
 void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
 
-/*
- * Host core Functions.
- * The following functions support managing the DWC_otg controller in host
- * mode.
- */
-extern void dwc2_hc_init(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan);
-extern void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
-			 enum dwc2_halt_status halt_status);
-extern void dwc2_hc_cleanup(struct dwc2_hsotg *hsotg,
-			    struct dwc2_host_chan *chan);
-extern void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
-				   struct dwc2_host_chan *chan);
-extern void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
-					struct dwc2_host_chan *chan);
-extern int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
-				     struct dwc2_host_chan *chan);
-extern void dwc2_hc_do_ping(struct dwc2_hsotg *hsotg,
-			    struct dwc2_host_chan *chan);
-extern void dwc2_enable_host_interrupts(struct dwc2_hsotg *hsotg);
-extern void dwc2_disable_host_interrupts(struct dwc2_hsotg *hsotg);
-
-extern u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg);
 extern bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg);
 
 /*
@@ -1028,7 +1005,6 @@ extern void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, u16 bytes);
 extern void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num);
 extern void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg);
 
-extern int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup);
 extern void dwc2_enable_global_interrupts(struct dwc2_hsotg *hcd);
 extern void dwc2_disable_global_interrupts(struct dwc2_hsotg *hcd);
 

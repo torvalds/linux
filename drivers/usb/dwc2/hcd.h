@@ -430,6 +430,8 @@ struct hc_xfer_info {
 };
 #endif
 
+u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg);
+
 /* Gets the struct usb_hcd that contains a struct dwc2_hsotg */
 static inline struct usb_hcd *dwc2_hsotg_to_hcd(struct dwc2_hsotg *hsotg)
 {
@@ -450,6 +452,12 @@ static inline void disable_hc_int(struct dwc2_hsotg *hsotg, int chnum, u32 intr)
 	mask &= ~intr;
 	dwc2_writel(mask, hsotg->regs + HCINTMSK(chnum));
 }
+
+void dwc2_hc_cleanup(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan);
+void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
+		  enum dwc2_halt_status halt_status);
+void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
+				 struct dwc2_host_chan *chan);
 
 /*
  * Reads HPRT0 in preparation to modify. It keeps the WC bits 0 so that if they
