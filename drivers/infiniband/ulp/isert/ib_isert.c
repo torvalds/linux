@@ -2048,7 +2048,8 @@ is_isert_tx_desc(struct isert_conn *isert_conn, void *wr_id)
 	void *start = isert_conn->rx_descs;
 	int len = ISERT_QP_MAX_RECV_DTOS * sizeof(*isert_conn->rx_descs);
 
-	if (wr_id >= start && wr_id < start + len)
+	if ((wr_id >= start && wr_id < start + len) ||
+	    (wr_id == isert_conn->login_req_buf))
 		return false;
 
 	return true;
