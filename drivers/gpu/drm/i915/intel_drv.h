@@ -379,6 +379,7 @@ struct intel_crtc_state {
 	bool update_pipe; /* can a fast modeset be performed? */
 	bool disable_cxsr;
 	bool wm_changed; /* watermarks are updated */
+	bool fb_changed; /* fb on any of the planes is changed */
 
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
@@ -547,7 +548,6 @@ struct intel_crtc_atomic_commit {
 
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;
-	bool wait_vblank;
 	bool post_enable_primary;
 	unsigned update_sprite_watermarks;
 

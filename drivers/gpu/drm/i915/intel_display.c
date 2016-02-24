@@ -4792,9 +4792,6 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 		to_intel_crtc_state(crtc->base.state);
 	struct drm_device *dev = crtc->base.dev;
 
-	if (atomic->wait_vblank)
-		intel_wait_for_vblank(dev, crtc->pipe);
-
 	intel_frontbuffer_flip(dev, atomic->fb_bits);
 
 	crtc->wm.cxsr_allowed = true;
@@ -10942,6 +10939,12 @@ static bool page_flip_finished(struct intel_crtc *crtc)
 		return true;
 
 	/*
+	 * BDW signals flip done immediately if the plane
+	 * is disabled, even if the plane enable is already
+	 * armed to occur at the next vblank :(
+	 */
+
+	/*
 	 * A DSPSURFLIVE check isn't enough in case the mmio and CS flips
 	 * used the same base address. In that case the mmio flip might
 	 * have completed, but the CS hasn't even executed the flip yet.
@@ -11818,6 +11821,9 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	if (!was_visible && !visible)
 		return 0;
 
+	if (fb != old_plane_state->base.fb)
+		pipe_config->fb_changed = true;
+
 	turn_off = was_visible && (!visible || mode_changed);
 	turn_on = visible && (!was_visible || mode_changed);
 
@@ -11832,11 +11838,8 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		pipe_config->wm_changed = true;
 
 		/* must disable cxsr around plane enable/disable */
-		if (plane->type != DRM_PLANE_TYPE_CURSOR) {
-			if (is_crtc_enabled)
-				intel_crtc->atomic.wait_vblank = true;
+		if (plane->type != DRM_PLANE_TYPE_CURSOR)
 			pipe_config->disable_cxsr = true;
-		}
 	} else if (intel_wm_need_update(plane, plane_state)) {
 		pipe_config->wm_changed = true;
 	}
@@ -11850,14 +11853,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		intel_crtc->atomic.post_enable_primary = turn_on;
 		intel_crtc->atomic.update_fbc = true;
 
-		/*
-		 * BDW signals flip done immediately if the plane
-		 * is disabled, even if the plane enable is already
-		 * armed to occur at the next vblank :(
-		 */
-		if (turn_on && IS_BROADWELL(dev))
-			intel_crtc->atomic.wait_vblank = true;
-
 		break;
 	case DRM_PLANE_TYPE_CURSOR:
 		break;
@@ -11870,13 +11865,11 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		 */
 		if (IS_IVYBRIDGE(dev) &&
 		    needs_scaling(to_intel_plane_state(plane_state)) &&
-		    !needs_scaling(old_plane_state)) {
-			to_intel_crtc_state(crtc_state)->disable_lp_wm = true;
-		} else if (turn_off && !mode_changed) {
-			intel_crtc->atomic.wait_vblank = true;
+		    !needs_scaling(old_plane_state))
+			pipe_config->disable_lp_wm = true;
+		else if (turn_off && !mode_changed)
 			intel_crtc->atomic.update_sprite_watermarks |=
 				1 << i;
-		}
 
 		break;
 	}
@@ -13410,6 +13403,71 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	return ret;
 }
 
+static void intel_atomic_wait_for_vblanks(struct drm_device *dev,
+					  struct drm_i915_private *dev_priv,
+					  unsigned crtc_mask)
+{
+	unsigned last_vblank_count[I915_MAX_PIPES];
+	enum pipe pipe;
+	int ret;
+
+	if (!crtc_mask)
+		return;
+
+	for_each_pipe(dev_priv, pipe) {
+		struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+		if (!((1 << pipe) & crtc_mask))
+			continue;
+
+		ret = drm_crtc_vblank_get(crtc);
+		if (WARN_ON(ret != 0)) {
+			crtc_mask &= ~(1 << pipe);
+			continue;
+		}
+
+		last_vblank_count[pipe] = drm_crtc_vblank_count(crtc);
+	}
+
+	for_each_pipe(dev_priv, pipe) {
+		struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+		long lret;
+
+		if (!((1 << pipe) & crtc_mask))
+			continue;
+
+		lret = wait_event_timeout(dev->vblank[pipe].queue,
+				last_vblank_count[pipe] !=
+					drm_crtc_vblank_count(crtc),
+				msecs_to_jiffies(50));
+
+		WARN_ON(!lret);
+
+		drm_crtc_vblank_put(crtc);
+	}
+}
+
+static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
+{
+	/* fb updated, need to unpin old fb */
+	if (crtc_state->fb_changed)
+		return true;
+
+	/* wm changes, need vblank before final wm's */
+	if (crtc_state->wm_changed)
+		return true;
+
+	/*
+	 * cxsr is re-enabled after vblank.
+	 * This is already handled by crtc_state->wm_changed,
+	 * but added for clarity.
+	 */
+	if (crtc_state->disable_cxsr)
+		return true;
+
+	return false;
+}
+
 /**
  * intel_atomic_commit - commit validated state object
  * @dev: DRM device
@@ -13437,6 +13495,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	int ret = 0, i;
 	bool hw_check = intel_state->modeset;
 	unsigned long put_domains[I915_MAX_PIPES] = {};
+	unsigned crtc_vblank_mask = 0;
 
 	ret = intel_atomic_prepare_commit(dev, state, async);
 	if (ret) {
@@ -13510,8 +13569,9 @@ static int intel_atomic_commit(struct drm_device *dev,
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		bool modeset = needs_modeset(crtc->state);
-		bool update_pipe = !modeset &&
-			to_intel_crtc_state(crtc->state)->update_pipe;
+		struct intel_crtc_state *pipe_config =
+			to_intel_crtc_state(crtc->state);
+		bool update_pipe = !modeset && pipe_config->update_pipe;
 
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
@@ -13528,14 +13588,18 @@ static int intel_atomic_commit(struct drm_device *dev,
 		    (crtc->state->planes_changed || update_pipe))
 			drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 
-		intel_post_plane_update(intel_crtc);
+		if (pipe_config->base.active && needs_vblank_wait(pipe_config))
+			crtc_vblank_mask |= 1 << i;
 	}
 
 	/* FIXME: add subpixel order */
 
-	drm_atomic_helper_wait_for_vblanks(dev, state);
+	if (!state->legacy_cursor_update)
+		intel_atomic_wait_for_vblanks(dev, dev_priv, crtc_vblank_mask);
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		intel_post_plane_update(to_intel_crtc(crtc));
+
 		if (put_domains[i])
 			modeset_put_power_domains(dev_priv, put_domains[i]);
 	}
