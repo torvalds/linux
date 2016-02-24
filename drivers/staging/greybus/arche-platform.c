@@ -47,18 +47,6 @@ static inline void svc_reset_onoff(unsigned int gpio, bool onoff)
 	gpio_set_value(gpio, onoff);
 }
 
-static int apb_cold_boot(struct device *dev, void *data)
-{
-	int ret;
-
-	ret = apb_ctrl_coldboot(dev);
-	if (ret)
-		dev_warn(dev, "failed to coldboot\n");
-
-	/*Child nodes are independent, so do not exit coldboot operation */
-	return 0;
-}
-
 static int apb_fw_flashing_state(struct device *dev, void *data)
 {
 	int ret;
@@ -79,50 +67,17 @@ static int apb_poweroff(struct device *dev, void *data)
 }
 
 /**
- * svc_delayed_work - Time to give SVC to boot.
+ * hub_conf_delayed_work - Configures USB3613 device to HUB mode
+ *
+ * The idea here is to split the APB coldboot operation with slow HUB configuration,
+ * so that driver response to wake/detect event can be met.
+ * So expectation is, once code reaches here, means initial unipro linkup
+ * between APB<->Switch was successful, so now just take it to AP.
  */
-static void svc_delayed_work(struct work_struct *work)
+static void hub_conf_delayed_work(struct work_struct *work)
 {
 	struct arche_platform_drvdata *arche_pdata =
 		container_of(work, struct arche_platform_drvdata, delayed_work.work);
-	int timeout = 50;
-
-	/*
-	 * 1.   SVC and AP boot independently, with AP<-->SVC wake/detect pin
-	 *      deasserted (LOW in this case)
-	 * 2.1. SVC allows 360 milliseconds to elapse after switch boots to work
-	 *      around bug described in ENG-330.
-	 * 2.2. AP asserts wake/detect pin (HIGH) (this can proceed in parallel with 2.1)
-	 * 3.   SVC detects assertion of wake/detect pin, and sends "wake out" signal to AP
-	 * 4.   AP receives "wake out" signal, takes AP Bridges through their power
-	 *      on reset sequence as defined in the bridge ASIC reference manuals
-	 * 5. AP takes USB3613 through its power on reset sequence
-	 * 6. AP enumerates AP Bridges
-	 */
-	gpio_set_value(arche_pdata->wake_detect_gpio, 1);
-	gpio_direction_input(arche_pdata->wake_detect_gpio);
-	do {
-		/* Read the wake_detect GPIO, for WAKE_OUT event from SVC */
-		if (gpio_get_value(arche_pdata->wake_detect_gpio) == 0)
-			break;
-
-		msleep(100);
-	} while(timeout--);
-
-	if (timeout < 0) {
-		/* FIXME: We may want to limit retries here */
-		dev_warn(arche_pdata->dev,
-			"Timed out on wake/detect, rescheduling handshake\n");
-		gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
-		schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
-		return;
-	}
-
-	/* Bring APB out of reset: cold boot sequence */
-	device_for_each_child(arche_pdata->dev, NULL, apb_cold_boot);
-
-	/* re-assert wake_detect to confirm SVC WAKE_OUT */
-	gpio_direction_output(arche_pdata->wake_detect_gpio, 1);
 
 	/* Enable HUB3613 into HUB mode. */
 	if (usb3613_hub_mode_ctrl(true))
@@ -226,8 +181,6 @@ static ssize_t state_store(struct device *dev,
 			return count;
 
 		ret = arche_platform_coldboot_seq(arche_pdata);
-		/* Give enough time for SVC to boot and then handshake with SVC */
-		schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
 	} else if (sysfs_streq(buf, "standby")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_STANDBY)
 			return count;
@@ -396,8 +349,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 		goto err_populate;
 	}
 
-	INIT_DELAYED_WORK(&arche_pdata->delayed_work, svc_delayed_work);
-	schedule_delayed_work(&arche_pdata->delayed_work, msecs_to_jiffies(2000));
+	INIT_DELAYED_WORK(&arche_pdata->delayed_work, hub_conf_delayed_work);
 
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
