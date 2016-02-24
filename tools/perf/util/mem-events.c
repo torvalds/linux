@@ -149,7 +149,7 @@ static const char * const mem_lvl[] = {
 	"Uncached",
 };
 
-void perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	size_t i, l = 0;
 	u64 m =  PERF_MEM_LVL_NA;
@@ -174,15 +174,16 @@ void perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 			strcat(out, " or ");
 			l += 4;
 		}
-		strncat(out, mem_lvl[i], sz - l);
-		l += strlen(mem_lvl[i]);
+		l += scnprintf(out + l, sz - l, mem_lvl[i]);
 	}
 	if (*out == '\0')
-		strcpy(out, "N/A");
+		l += scnprintf(out, sz - l, "N/A");
 	if (hit)
-		strncat(out, " hit", sz - l);
+		l += scnprintf(out + l, sz - l, " hit");
 	if (miss)
-		strncat(out, " miss", sz - l);
+		l += scnprintf(out + l, sz - l, " miss");
+
+	return l;
 }
 
 static const char * const snoop_access[] = {
