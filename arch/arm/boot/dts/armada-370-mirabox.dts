@@ -200,7 +200,7 @@
 &pinctrl {
 	pwr_led_pin: pwr-led-pin {
 		marvell,pins = "mpp63";
-		marvell,function = "gpo";
+		marvell,function = "gpio";
 	};
 
 	stat_led_pins: stat-led-pins {
