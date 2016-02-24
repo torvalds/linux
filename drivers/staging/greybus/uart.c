@@ -103,13 +103,32 @@ static int gb_uart_receive_data(struct gb_tty *gb_tty,
 	return 0;
 }
 
-static int gb_uart_request_recv(u8 type, struct gb_operation *op)
+static int gb_uart_serial_state_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_tty *gb_tty = connection->private;
 	struct gb_message *request = op->request;
 	struct gb_uart_serial_state_request *serial_state;
-	int ret = 0;
+
+	if (request->payload_size < sizeof(*serial_state)) {
+		dev_err(&connection->bundle->dev,
+				"short serial-state event received (%zu < %zu)\n",
+				request->payload_size, sizeof(*serial_state));
+		return -EINVAL;
+	}
+
+	serial_state = request->payload;
+	gb_tty->ctrlin = serial_state->control;
+
+	return 0;
+}
+
+static int gb_uart_request_recv(u8 type, struct gb_operation *op)
+{
+	struct gb_connection *connection = op->connection;
+	struct gb_tty *gb_tty = connection->private;
+	struct gb_message *request = op->request;
+	int ret;
 
 	switch (type) {
 	case GB_UART_TYPE_RECEIVE_DATA:
@@ -117,8 +136,7 @@ static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 					   request->payload);
 		break;
 	case GB_UART_TYPE_SERIAL_STATE:
-		serial_state = request->payload;
-		gb_tty->ctrlin = serial_state->control;
+		ret = gb_uart_serial_state_handler(op);
 		break;
 	default:
 		dev_err(&connection->bundle->dev,
