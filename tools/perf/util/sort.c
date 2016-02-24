@@ -858,60 +858,12 @@ sort__lvl_cmp(struct hist_entry *left, struct hist_entry *right)
 	return (int64_t)(data_src_r.mem_lvl - data_src_l.mem_lvl);
 }
 
-static const char * const mem_lvl[] = {
-	"N/A",
-	"HIT",
-	"MISS",
-	"L1",
-	"LFB",
-	"L2",
-	"L3",
-	"Local RAM",
-	"Remote RAM (1 hop)",
-	"Remote RAM (2 hops)",
-	"Remote Cache (1 hop)",
-	"Remote Cache (2 hops)",
-	"I/O",
-	"Uncached",
-};
-
 static int hist_entry__lvl_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
 	char out[64];
-	size_t sz = sizeof(out) - 1; /* -1 for null termination */
-	size_t i, l = 0;
-	u64 m =  PERF_MEM_LVL_NA;
-	u64 hit, miss;
 
-	if (he->mem_info)
-		m  = he->mem_info->data_src.mem_lvl;
-
-	out[0] = '\0';
-
-	hit = m & PERF_MEM_LVL_HIT;
-	miss = m & PERF_MEM_LVL_MISS;
-
-	/* already taken care of */
-	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
-
-	for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
-		if (!(m & 0x1))
-			continue;
-		if (l) {
-			strcat(out, " or ");
-			l += 4;
-		}
-		strncat(out, mem_lvl[i], sz - l);
-		l += strlen(mem_lvl[i]);
-	}
-	if (*out == '\0')
-		strcpy(out, "N/A");
-	if (hit)
-		strncat(out, " hit", sz - l);
-	if (miss)
-		strncat(out, " miss", sz - l);
-
+	perf_mem__lvl_scnprintf(out, sizeof(out), he->mem_info);
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 

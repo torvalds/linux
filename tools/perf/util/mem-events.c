@@ -130,3 +130,56 @@ void perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	if (miss)
 		strncat(out, " miss", sz - l);
 }
+
+static const char * const mem_lvl[] = {
+	"N/A",
+	"HIT",
+	"MISS",
+	"L1",
+	"LFB",
+	"L2",
+	"L3",
+	"Local RAM",
+	"Remote RAM (1 hop)",
+	"Remote RAM (2 hops)",
+	"Remote Cache (1 hop)",
+	"Remote Cache (2 hops)",
+	"I/O",
+	"Uncached",
+};
+
+void perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+{
+	size_t i, l = 0;
+	u64 m =  PERF_MEM_LVL_NA;
+	u64 hit, miss;
+
+	if (mem_info)
+		m  = mem_info->data_src.mem_lvl;
+
+	sz -= 1; /* -1 for null termination */
+	out[0] = '\0';
+
+	hit = m & PERF_MEM_LVL_HIT;
+	miss = m & PERF_MEM_LVL_MISS;
+
+	/* already taken care of */
+	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
+
+	for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
+		if (!(m & 0x1))
+			continue;
+		if (l) {
+			strcat(out, " or ");
+			l += 4;
+		}
+		strncat(out, mem_lvl[i], sz - l);
+		l += strlen(mem_lvl[i]);
+	}
+	if (*out == '\0')
+		strcpy(out, "N/A");
+	if (hit)
+		strncat(out, " hit", sz - l);
+	if (miss)
+		strncat(out, " miss", sz - l);
+}
