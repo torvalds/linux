@@ -217,3 +217,19 @@ void perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	if (*out == '\0')
 		strcpy(out, "N/A");
 }
+
+void perf_mem__lck_scnprintf(char *out, size_t sz __maybe_unused,
+			     struct mem_info *mem_info)
+{
+	u64 mask = PERF_MEM_LOCK_NA;
+
+	if (mem_info)
+		mask = mem_info->data_src.mem_lock;
+
+	if (mask & PERF_MEM_LOCK_NA)
+		strncat(out, "N/A", 3);
+	else if (mask & PERF_MEM_LOCK_LOCKED)
+		strncat(out, "Yes", 3);
+	else
+		strncat(out, "No", 2);
+}

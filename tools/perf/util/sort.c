@@ -795,19 +795,9 @@ sort__locked_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__locked_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	const char *out;
-	u64 mask = PERF_MEM_LOCK_NA;
+	char out[10];
 
-	if (he->mem_info)
-		mask = he->mem_info->data_src.mem_lock;
-
-	if (mask & PERF_MEM_LOCK_NA)
-		out = "N/A";
-	else if (mask & PERF_MEM_LOCK_LOCKED)
-		out = "Yes";
-	else
-		out = "No";
-
+	perf_mem__lck_scnprintf(out, sizeof(out), he->mem_info);
 	return repsep_snprintf(bf, size, "%.*s", width, out);
 }
 
