@@ -1159,9 +1159,12 @@ restart:
 	r = le16_to_cpu(ACCESS_ONCE(rxq->rb_stts->closed_rb_num)) & 0x0FFF;
 	i = rxq->read;
 
+	/* W/A 9000 device step A0 wrap-around bug */
+	r &= (rxq->queue_size - 1);
+
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IWL_DEBUG_RX(trans, "HW = SW = %d\n", r);
+		IWL_DEBUG_RX(trans, "Q %d: HW = SW = %d\n", rxq->id, r);
 
 	while (i != r) {
 		struct iwl_rx_mem_buffer *rxb;
@@ -1174,15 +1177,18 @@ restart:
 			 * used_bd is a 32 bit but only 12 are used to retrieve
 			 * the vid
 			 */
-			u16 vid = (u16)le32_to_cpu(rxq->used_bd[i]);
+			u16 vid = le32_to_cpu(rxq->used_bd[i]) & 0x0FFF;
 
+			if (WARN(vid >= ARRAY_SIZE(trans_pcie->global_table),
+				 "Invalid rxb index from HW %u\n", (u32)vid))
+				goto out;
 			rxb = trans_pcie->global_table[vid];
 		} else {
 			rxb = rxq->queue[i];
 			rxq->queue[i] = NULL;
 		}
 
-		IWL_DEBUG_RX(trans, "rxbuf: HW = %d, SW = %d\n", r, i);
+		IWL_DEBUG_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
 		iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency);
 
 		i = (i + 1) & (rxq->queue_size - 1);
@@ -1245,7 +1251,7 @@ restart:
 			goto restart;
 		}
 	}
-
+out:
 	/* Backtrack one entry */
 	rxq->read = i;
 	spin_unlock(&rxq->lock);
@@ -1300,6 +1306,9 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 	struct msix_entry *entry = dev_id;
 	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
 	struct iwl_trans *trans = trans_pcie->trans;
+
+	if (WARN_ON(entry->entry >= trans->num_rx_queues))
+		return IRQ_NONE;
 
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);
 
