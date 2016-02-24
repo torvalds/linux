@@ -245,23 +245,23 @@ static void tipc_node_get(struct tipc_node *node)
  */
 static struct tipc_node *tipc_node_find(struct net *net, u32 addr)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 	struct tipc_node *node;
+	unsigned int thash = tipc_hashfn(addr);
 
 	if (unlikely(!in_own_cluster_exact(net, addr)))
 		return NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(node, &tn->node_htable[tipc_hashfn(addr)],
-				 hash) {
-		if (node->addr == addr) {
-			tipc_node_get(node);
-			rcu_read_unlock();
-			return node;
-		}
+	hlist_for_each_entry_rcu(node, &tn->node_htable[thash], hash) {
+		if (node->addr != addr)
+			continue;
+		if (!kref_get_unless_zero(&node->kref))
+			node = NULL;
+		break;
 	}
 	rcu_read_unlock();
-	return NULL;
+	return node;
 }
 
 static void tipc_node_read_lock(struct tipc_node *n)
