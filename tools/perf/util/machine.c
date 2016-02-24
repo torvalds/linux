@@ -361,7 +361,7 @@ out_err:
 }
 
 /*
- * Caller must eventually drop thread->refcnt returned with a successfull
+ * Caller must eventually drop thread->refcnt returned with a successful
  * lookup/new thread inserted.
  */
 static struct thread *____machine__findnew_thread(struct machine *machine,
