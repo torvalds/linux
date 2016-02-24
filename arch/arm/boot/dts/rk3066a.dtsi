@@ -61,11 +61,13 @@
 			reg = <0x0>;
 			operating-points = <
 				/* kHz    uV */
-				1008000 1075000
-				 816000 1025000
-				 600000 1025000
-				 504000 1000000
-				 312000  975000
+				1416000 1300000
+				1200000 1175000
+				1008000 1125000
+				816000  1125000
+				600000  1100000
+				504000  1100000
+				312000  1075000
 			>;
 			clock-latency = <40000>;
 			clocks = <&cru ARMCLK>;
@@ -188,6 +190,16 @@
 		clock-names = "timer", "pclk";
 	};
 
+	tsadc: tsadc@20060000 {
+		compatible = "rockchip,rk3066-tsadc";
+		reg = <0x20060000 0x100>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "saradc", "apb_pclk";
+		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+		#io-channel-cells = <1>;
+		status = "disabled";
+	};
+
 	usbphy: phy {
 		compatible = "rockchip,rk3066a-usb-phy", "rockchip,rk3288-usb-phy";
 		rockchip,grf = <&grf>;
@@ -200,6 +212,7 @@
 			reg = <0x17c>;
 			clocks = <&cru SCLK_OTGPHY0>;
 			clock-names = "phyclk";
+			#clock-cells = <0>;
 		};
 
 		usbphy1: usb-phy1 {
@@ -207,6 +220,7 @@
 			reg = <0x188>;
 			clocks = <&cru SCLK_OTGPHY1>;
 			clock-names = "phyclk";
+			#clock-cells = <0>;
 		};
 	};
 
