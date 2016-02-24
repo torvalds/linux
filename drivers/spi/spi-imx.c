@@ -106,7 +106,6 @@ struct spi_imx_data {
 	unsigned int txfifo; /* number of words pushed in tx FIFO */
 
 	/* DMA */
-	unsigned int dma_finished;
 	bool usedma;
 	u32 wml;
 	struct completion dma_rx_completion;
@@ -324,14 +323,10 @@ static void __maybe_unused mx51_ecspi_intctrl(struct spi_imx_data *spi_imx, int 
 
 static void __maybe_unused mx51_ecspi_trigger(struct spi_imx_data *spi_imx)
 {
-	u32 reg = readl(spi_imx->base + MX51_ECSPI_CTRL);
+	u32 reg;
 
-	if (!spi_imx->usedma)
-		reg |= MX51_ECSPI_CTRL_XCH;
-	else if (!spi_imx->dma_finished)
-		reg |= MX51_ECSPI_CTRL_SMC;
-	else
-		reg &= ~MX51_ECSPI_CTRL_SMC;
+	reg = readl(spi_imx->base + MX51_ECSPI_CTRL);
+	reg |= MX51_ECSPI_CTRL_XCH;
 	writel(reg, spi_imx->base + MX51_ECSPI_CTRL);
 }
 
@@ -370,6 +365,9 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	}
 	if (config->mode & SPI_CS_HIGH)
 		cfg |= MX51_ECSPI_CONFIG_SSBPOL(config->cs);
+
+	if (spi_imx->usedma)
+		ctrl |= MX51_ECSPI_CTRL_SMC;
 
 	/* CTRL register always go first to bring out controller from reset */
 	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
@@ -1012,9 +1010,6 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	reinit_completion(&spi_imx->dma_rx_completion);
 	reinit_completion(&spi_imx->dma_tx_completion);
 
-	/* Trigger the cspi module. */
-	spi_imx->dma_finished = 0;
-
 	/*
 	 * Set these order to avoid potential RX overflow. The overflow may
 	 * happen if we enable SPI HW before starting RX DMA due to rescheduling
@@ -1025,7 +1020,6 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	 */
 	dma_async_issue_pending(master->dma_rx);
 	dma_async_issue_pending(master->dma_tx);
-	spi_imx->devtype_data->trigger(spi_imx);
 
 	transfer_timeout = spi_imx_calculate_timeout(spi_imx, transfer->len);
 
@@ -1045,9 +1039,6 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 			dmaengine_terminate_all(master->dma_rx);
 		}
 	}
-
-	spi_imx->dma_finished = 1;
-	spi_imx->devtype_data->trigger(spi_imx);
 
 	if (!timeout)
 		ret = -ETIMEDOUT;
