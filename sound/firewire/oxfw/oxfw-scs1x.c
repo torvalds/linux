@@ -32,6 +32,7 @@ struct fw_scs1x {
 	bool transaction_running;
 	struct fw_transaction transaction;
 	unsigned int transaction_bytes;
+	bool error;
 	struct fw_device *fw_dev;
 };
 
@@ -126,8 +127,13 @@ static void scs_write_callback(struct fw_card *card, int rcode,
 {
 	struct fw_scs1x *scs = callback_data;
 
-	if (rcode != RCODE_GENERATION)
-		scs->transaction_bytes = 0;
+	if (!rcode_is_permanent_error(rcode)) {
+		/* Don't retry for this data. */
+		if (rcode == RCODE_COMPLETE)
+			scs->transaction_bytes = 0;
+	} else {
+		scs->error = true;
+	}
 
 	scs->transaction_running = false;
 	schedule_work(&scs->work);
@@ -178,7 +184,7 @@ static void scs_output_work(struct work_struct *work)
 		return;
 
 	stream = ACCESS_ONCE(scs->output);
-	if (!stream) {
+	if (!stream || scs->error) {
 		scs->output_idle = true;
 		wake_up(&scs->idle_wait);
 		return;
@@ -317,6 +323,7 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *stream, int up)
 		scs->output_escaped = false;
 		scs->output_idle = false;
 		scs->transaction_bytes = 0;
+		scs->error = false;
 
 		ACCESS_ONCE(scs->output) = stream;
 		schedule_work(&scs->work);
