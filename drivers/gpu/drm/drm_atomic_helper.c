@@ -215,21 +215,15 @@ steal_encoder(struct drm_atomic_state *state,
 }
 
 static int
-update_connector_routing(struct drm_atomic_state *state, int conn_idx)
+update_connector_routing(struct drm_atomic_state *state,
+			 struct drm_connector *connector,
+			 struct drm_connector_state *connector_state)
 {
 	const struct drm_connector_helper_funcs *funcs;
 	struct drm_encoder *new_encoder;
 	struct drm_crtc *encoder_crtc;
-	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
 	struct drm_crtc_state *crtc_state;
 	int idx, ret;
-
-	connector = state->connectors[conn_idx];
-	connector_state = state->connector_states[conn_idx];
-
-	if (!connector)
-		return 0;
 
 	DRM_DEBUG_ATOMIC("Updating routing for [CONNECTOR:%d:%s]\n",
 			 connector->base.id,
@@ -494,7 +488,8 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		 * drivers must set crtc->mode_changed themselves when connector
 		 * properties need to be updated.
 		 */
-		ret = update_connector_routing(state, i);
+		ret = update_connector_routing(state, connector,
+					       connector_state);
 		if (ret)
 			return ret;
 	}
