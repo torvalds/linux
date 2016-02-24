@@ -301,6 +301,9 @@ void perf_hpp__append_sort_keys(struct perf_hpp_list *list);
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *hists);
+bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_srcline_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_srcfile_entry(struct perf_hpp_fmt *fmt);
 
 static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format,
 					 struct hists *hists)
