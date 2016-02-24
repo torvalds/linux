@@ -256,12 +256,9 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 #define MX51_ECSPI_INT_RREN		(1 <<  3)
 
 #define MX51_ECSPI_DMA      0x14
-#define MX51_ECSPI_DMA_TX_WML_OFFSET	0
-#define MX51_ECSPI_DMA_TX_WML_MASK	0x3F
-#define MX51_ECSPI_DMA_RX_WML_OFFSET	16
-#define MX51_ECSPI_DMA_RX_WML_MASK	(0x3F << 16)
-#define MX51_ECSPI_DMA_RXT_WML_OFFSET	24
-#define MX51_ECSPI_DMA_RXT_WML_MASK	(0x3F << 24)
+#define MX51_ECSPI_DMA_TX_WML(wml)	((wml) & 0x3f)
+#define MX51_ECSPI_DMA_RX_WML(wml)	(((wml) & 0x3f) << 16)
+#define MX51_ECSPI_DMA_RXT_WML(wml)	(((wml) & 0x3f) << 24)
 
 #define MX51_ECSPI_DMA_TEDEN		(1 << 7)
 #define MX51_ECSPI_DMA_RXDEN		(1 << 23)
@@ -408,9 +405,9 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	 * and enable DMA request.
 	 */
 
-	writel(spi_imx->wml << MX51_ECSPI_DMA_RX_WML_OFFSET |
-		spi_imx->wml << MX51_ECSPI_DMA_TX_WML_OFFSET |
-		spi_imx->wml << MX51_ECSPI_DMA_RXT_WML_OFFSET |
+	writel(MX51_ECSPI_DMA_RX_WML(spi_imx->wml) |
+		MX51_ECSPI_DMA_TX_WML(spi_imx->wml) |
+		MX51_ECSPI_DMA_RXT_WML(spi_imx->wml) |
 		MX51_ECSPI_DMA_TEDEN | MX51_ECSPI_DMA_RXDEN |
 		MX51_ECSPI_DMA_RXTDEN, spi_imx->base + MX51_ECSPI_DMA);
 
