@@ -1013,6 +1013,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	on this subframe
  * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
  *	is stored in the @ampdu_delimiter_crc field)
+ * @RX_FLAG_MIC_STRIPPED: The mic was stripped of this packet. Decryption was
+ *	done by the hardware
  * @RX_FLAG_LDPC: LDPC was used
  * @RX_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
  * @RX_FLAG_10MHZ: 10 MHz (half channel) was used
@@ -1059,6 +1061,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_5MHZ			= BIT(29),
 	RX_FLAG_AMSDU_MORE		= BIT(30),
 	RX_FLAG_RADIOTAP_VENDOR_DATA	= BIT(31),
+	RX_FLAG_MIC_STRIPPED            = BIT_ULL(32),
 };
 
 #define RX_FLAG_STBC_SHIFT		26
@@ -1113,7 +1116,7 @@ struct ieee80211_rx_status {
 	u64 mactime;
 	u32 device_timestamp;
 	u32 ampdu_reference;
-	u32 flag;
+	u64 flag;
 	u16 freq;
 	u8 vht_flag;
 	u8 rate_idx;
