@@ -1295,6 +1295,8 @@ extern void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg);
 extern void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2);
 extern int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
 #define dwc2_is_device_connected(hsotg) (hsotg->connected)
+int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg);
+int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg);
 #else
 static inline int dwc2_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -1312,6 +1314,10 @@ static inline int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
 							int testmode)
 { return 0; }
 #define dwc2_is_device_connected(hsotg) (0)
+static inline int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
@@ -1320,6 +1326,8 @@ extern int dwc2_hcd_get_future_frame_number(struct dwc2_hsotg *hsotg, int us);
 extern void dwc2_hcd_connect(struct dwc2_hsotg *hsotg);
 extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force);
 extern void dwc2_hcd_start(struct dwc2_hsotg *hsotg);
+int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg);
+int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg);
 #else
 static inline int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 { return 0; }
@@ -1332,6 +1340,11 @@ static inline void dwc2_hcd_start(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_remove(struct dwc2_hsotg *hsotg) {}
 static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
+static inline int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+
 #endif
 
 #endif /* __DWC2_CORE_H__ */

@@ -3433,3 +3433,67 @@ void dwc2_hcd_remove(struct dwc2_hsotg *hsotg)
 	kfree(hsotg->frame_num_array);
 #endif
 }
+
+/**
+ * dwc2_backup_host_registers() - Backup controller host registers.
+ * When suspending usb bus, registers needs to be backuped
+ * if controller power is disabled once suspended.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hregs_backup *hr;
+	int i;
+
+	dev_dbg(hsotg->dev, "%s\n", __func__);
+
+	/* Backup Host regs */
+	hr = &hsotg->hr_backup;
+	hr->hcfg = dwc2_readl(hsotg->regs + HCFG);
+	hr->haintmsk = dwc2_readl(hsotg->regs + HAINTMSK);
+	for (i = 0; i < hsotg->core_params->host_channels; ++i)
+		hr->hcintmsk[i] = dwc2_readl(hsotg->regs + HCINTMSK(i));
+
+	hr->hprt0 = dwc2_read_hprt0(hsotg);
+	hr->hfir = dwc2_readl(hsotg->regs + HFIR);
+	hr->valid = true;
+
+	return 0;
+}
+
+/**
+ * dwc2_restore_host_registers() - Restore controller host registers.
+ * When resuming usb bus, device registers needs to be restored
+ * if controller power were disabled.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hregs_backup *hr;
+	int i;
+
+	dev_dbg(hsotg->dev, "%s\n", __func__);
+
+	/* Restore host regs */
+	hr = &hsotg->hr_backup;
+	if (!hr->valid) {
+		dev_err(hsotg->dev, "%s: no host registers to restore\n",
+			__func__);
+		return -EINVAL;
+	}
+	hr->valid = false;
+
+	dwc2_writel(hr->hcfg, hsotg->regs + HCFG);
+	dwc2_writel(hr->haintmsk, hsotg->regs + HAINTMSK);
+
+	for (i = 0; i < hsotg->core_params->host_channels; ++i)
+		dwc2_writel(hr->hcintmsk[i], hsotg->regs + HCINTMSK(i));
+
+	dwc2_writel(hr->hprt0, hsotg->regs + HPRT0);
+	dwc2_writel(hr->hfir, hsotg->regs + HFIR);
+	hsotg->frame_number = 0;
+
+	return 0;
+}
