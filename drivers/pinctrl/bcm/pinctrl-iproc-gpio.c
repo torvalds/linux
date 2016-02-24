@@ -623,18 +623,13 @@ static int iproc_gpio_register_pinconf(struct iproc_gpio *chip)
 	pctldesc->npins = gc->ngpio;
 	pctldesc->confops = &iproc_pconf_ops;
 
-	chip->pctl = pinctrl_register(pctldesc, chip->dev, chip);
+	chip->pctl = devm_pinctrl_register(chip->dev, pctldesc, chip);
 	if (IS_ERR(chip->pctl)) {
 		dev_err(chip->dev, "unable to register pinctrl device\n");
 		return PTR_ERR(chip->pctl);
 	}
 
 	return 0;
-}
-
-static void iproc_gpio_unregister_pinconf(struct iproc_gpio *chip)
-{
-	pinctrl_unregister(chip->pctl);
 }
 
 static const struct of_device_id iproc_gpio_of_match[] = {
@@ -720,7 +715,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 					   handle_simple_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(dev, "no GPIO irqchip\n");
-			goto err_unregister_pinconf;
+			goto err_rm_gpiochip;
 		}
 
 		gpiochip_set_chained_irqchip(gc, &iproc_gpio_irq_chip, irq,
@@ -728,9 +723,6 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-
-err_unregister_pinconf:
-	iproc_gpio_unregister_pinconf(chip);
 
 err_rm_gpiochip:
 	gpiochip_remove(gc);
