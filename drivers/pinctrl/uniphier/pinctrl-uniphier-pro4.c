@@ -1552,7 +1552,6 @@ MODULE_DEVICE_TABLE(of, ph1_pro4_pinctrl_match);
 
 static struct platform_driver ph1_pro4_pinctrl_driver = {
 	.probe = ph1_pro4_pinctrl_probe,
-	.remove = uniphier_pinctrl_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = ph1_pro4_pinctrl_match,

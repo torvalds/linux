@@ -1261,7 +1261,6 @@ MODULE_DEVICE_TABLE(of, proxstream2_pinctrl_match);
 
 static struct platform_driver proxstream2_pinctrl_driver = {
 	.probe = proxstream2_pinctrl_probe,
-	.remove = uniphier_pinctrl_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = proxstream2_pinctrl_match,
