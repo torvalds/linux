@@ -809,29 +809,12 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	spinlock_t *ptl;
 	pgste_t old, new;
 	pte_t *ptep;
-	bool unlocked;
 
 	down_read(&mm->mmap_sem);
-retry:
-	unlocked = false;
 	ptep = get_locked_pte(mm, addr, &ptl);
 	if (unlikely(!ptep)) {
 		up_read(&mm->mmap_sem);
 		return -EFAULT;
-	}
-	if (!(pte_val(*ptep) & _PAGE_INVALID) &&
-	     (pte_val(*ptep) & _PAGE_PROTECT)) {
-		pte_unmap_unlock(ptep, ptl);
-		/*
-		 * We do not really care about unlocked. We will retry either
-		 * way. But this allows fixup_user_fault to enable userfaultfd.
-		 */
-		if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE,
-				     &unlocked)) {
-			up_read(&mm->mmap_sem);
-			return -EFAULT;
-		}
-		goto retry;
 	}
 
 	new = old = pgste_get_lock(ptep);
