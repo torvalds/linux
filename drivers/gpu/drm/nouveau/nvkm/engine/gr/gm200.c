@@ -24,6 +24,8 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <subdev/secboot.h>
+
 #include <nvif/class.h>
 
 /*******************************************************************************
@@ -366,12 +368,19 @@ gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
-	if ((ret = gf100_gr_ctor_fw(gr, "gr/fecs_inst", &gr->fuc409c)) ||
-	    (ret = gf100_gr_ctor_fw(gr, "gr/fecs_data", &gr->fuc409d)))
-		return ret;
-	if ((ret = gf100_gr_ctor_fw(gr, "gr/gpccs_inst", &gr->fuc41ac)) ||
-	    (ret = gf100_gr_ctor_fw(gr, "gr/gpccs_data", &gr->fuc41ad)))
-		return ret;
+	/* Load firmwares for non-secure falcons */
+	if (!nvkm_secboot_is_managed(device->secboot,
+				     NVKM_SECBOOT_FALCON_FECS)) {
+		if ((ret = gf100_gr_ctor_fw(gr, "gr/fecs_inst", &gr->fuc409c)) ||
+		    (ret = gf100_gr_ctor_fw(gr, "gr/fecs_data", &gr->fuc409d)))
+			return ret;
+	}
+	if (!nvkm_secboot_is_managed(device->secboot,
+				     NVKM_SECBOOT_FALCON_GPCCS)) {
+		if ((ret = gf100_gr_ctor_fw(gr, "gr/gpccs_inst", &gr->fuc41ac)) ||
+		    (ret = gf100_gr_ctor_fw(gr, "gr/gpccs_data", &gr->fuc41ad)))
+			return ret;
+	}
 
 	if ((ret = gk20a_gr_av_to_init(gr, "gr/sw_nonctx", &gr->fuc_sw_nonctx)) ||
 	    (ret = gk20a_gr_aiv_to_init(gr, "gr/sw_ctx", &gr->fuc_sw_ctx)) ||
