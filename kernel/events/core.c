@@ -2158,13 +2158,15 @@ perf_install_in_context(struct perf_event_context *ctx,
 	 */
 	raw_spin_lock_irq(&ctx->lock);
 	task = ctx->task;
+
 	/*
-	 * Worse, we cannot even rely on the ctx actually existing anymore. If
-	 * between find_get_context() and perf_install_in_context() the task
-	 * went through perf_event_exit_task() its dead and we should not be
-	 * adding new events.
+	 * If between ctx = find_get_context() and mutex_lock(&ctx->mutex) the
+	 * ctx gets destroyed, we must not install an event into it.
+	 *
+	 * This is normally tested for after we acquire the mutex, so this is
+	 * a sanity check.
 	 */
-	if (task == TASK_TOMBSTONE) {
+	if (WARN_ON_ONCE(task == TASK_TOMBSTONE)) {
 		raw_spin_unlock_irq(&ctx->lock);
 		return;
 	}
@@ -8389,8 +8391,17 @@ SYSCALL_DEFINE5(perf_event_open,
 	if (move_group) {
 		gctx = group_leader->ctx;
 		mutex_lock_double(&gctx->mutex, &ctx->mutex);
+		if (gctx->task == TASK_TOMBSTONE) {
+			err = -ESRCH;
+			goto err_locked;
+		}
 	} else {
 		mutex_lock(&ctx->mutex);
+	}
+
+	if (ctx->task == TASK_TOMBSTONE) {
+		err = -ESRCH;
+		goto err_locked;
 	}
 
 	if (!perf_event_validate_size(event)) {
@@ -8563,12 +8574,14 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 
 	WARN_ON_ONCE(ctx->parent_ctx);
 	mutex_lock(&ctx->mutex);
+	if (ctx->task == TASK_TOMBSTONE) {
+		err = -ESRCH;
+		goto err_unlock;
+	}
+
 	if (!exclusive_event_installable(event, ctx)) {
-		mutex_unlock(&ctx->mutex);
-		perf_unpin_context(ctx);
-		put_ctx(ctx);
 		err = -EBUSY;
-		goto err_free;
+		goto err_unlock;
 	}
 
 	perf_install_in_context(ctx, event, cpu);
@@ -8577,6 +8590,10 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 
 	return event;
 
+err_unlock:
+	mutex_unlock(&ctx->mutex);
+	perf_unpin_context(ctx);
+	put_ctx(ctx);
 err_free:
 	free_event(event);
 err:
