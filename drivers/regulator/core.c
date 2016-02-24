@@ -3917,7 +3917,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		if (ret != 0) {
 			rdev_err(rdev, "Failed to request enable GPIO%d: %d\n",
 				 config->ena_gpio, ret);
-			goto wash;
+			goto clean;
 		}
 	}
 
@@ -3929,7 +3929,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	ret = device_register(&rdev->dev);
 	if (ret != 0) {
 		put_device(&rdev->dev);
-		goto clean;
+		goto wash;
 	}
 
 	dev_set_drvdata(&rdev->dev, rdev);
@@ -3972,13 +3972,13 @@ unset_supplies:
 
 scrub:
 	regulator_ena_gpio_free(rdev);
-
-wash:
 	device_unregister(&rdev->dev);
 	/* device core frees rdev */
 	rdev = ERR_PTR(ret);
 	goto out;
 
+wash:
+	regulator_ena_gpio_free(rdev);
 clean:
 	kfree(rdev);
 	rdev = ERR_PTR(ret);
