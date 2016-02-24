@@ -1318,6 +1318,86 @@ void hists__inc_stats(struct hists *hists, struct hist_entry *h)
 	hists->stats.total_period += h->stat.period;
 }
 
+static void hierarchy_insert_output_entry(struct rb_root *root,
+					  struct hist_entry *he)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct hist_entry *iter;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct hist_entry, rb_node);
+
+		if (hist_entry__sort(he, iter) > 0)
+			p = &parent->rb_left;
+		else
+			p = &parent->rb_right;
+	}
+
+	rb_link_node(&he->rb_node, parent, p);
+	rb_insert_color(&he->rb_node, root);
+}
+
+static void hists__hierarchy_output_resort(struct hists *hists,
+					   struct ui_progress *prog,
+					   struct rb_root *root_in,
+					   struct rb_root *root_out,
+					   u64 min_callchain_hits,
+					   bool use_callchain)
+{
+	struct rb_node *node;
+	struct hist_entry *he;
+
+	*root_out = RB_ROOT;
+	node = rb_first(root_in);
+
+	while (node) {
+		he = rb_entry(node, struct hist_entry, rb_node_in);
+		node = rb_next(node);
+
+		hierarchy_insert_output_entry(root_out, he);
+
+		if (prog)
+			ui_progress__update(prog, 1);
+
+		if (!he->leaf) {
+			hists__hierarchy_output_resort(hists, prog,
+						       &he->hroot_in,
+						       &he->hroot_out,
+						       min_callchain_hits,
+						       use_callchain);
+			hists->nr_entries++;
+			if (!he->filtered) {
+				hists->nr_non_filtered_entries++;
+				hists__calc_col_len(hists, he);
+			}
+
+			continue;
+		}
+
+		/* only update stat for leaf entries to avoid duplication */
+		hists__inc_stats(hists, he);
+		if (!he->filtered)
+			hists__calc_col_len(hists, he);
+
+		if (!use_callchain)
+			continue;
+
+		if (callchain_param.mode == CHAIN_GRAPH_REL) {
+			u64 total = he->stat.period;
+
+			if (symbol_conf.cumulate_callchain)
+				total = he->stat_acc->period;
+
+			min_callchain_hits = total * (callchain_param.min_percent / 100);
+		}
+
+		callchain_param.sort(&he->sorted_chain, he->callchain,
+				     min_callchain_hits, &callchain_param);
+	}
+}
+
 static void __hists__insert_output_entry(struct rb_root *entries,
 					 struct hist_entry *he,
 					 u64 min_callchain_hits,
@@ -1369,6 +1449,17 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 
 	min_callchain_hits = callchain_total * (callchain_param.min_percent / 100);
 
+	hists__reset_stats(hists);
+	hists__reset_col_len(hists);
+
+	if (symbol_conf.report_hierarchy) {
+		return hists__hierarchy_output_resort(hists, prog,
+						      &hists->entries_collapsed,
+						      &hists->entries,
+						      min_callchain_hits,
+						      use_callchain);
+	}
+
 	if (sort__need_collapse)
 		root = &hists->entries_collapsed;
 	else
@@ -1376,9 +1467,6 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 
 	next = rb_first(root);
 	hists->entries = RB_ROOT;
-
-	hists__reset_stats(hists);
-	hists__reset_col_len(hists);
 
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node_in);
