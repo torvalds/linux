@@ -61,6 +61,7 @@ enum perf_output_field {
 	PERF_OUTPUT_BRSTACKSYM	    = 1U << 16,
 	PERF_OUTPUT_DATA_SRC	    = 1U << 17,
 	PERF_OUTPUT_WEIGHT	    = 1U << 18,
+	PERF_OUTPUT_BPF_OUTPUT	    = 1U << 19,
 };
 
 struct output_option {
@@ -86,6 +87,7 @@ struct output_option {
 	{.str = "brstacksym", .field = PERF_OUTPUT_BRSTACKSYM},
 	{.str = "data_src", .field = PERF_OUTPUT_DATA_SRC},
 	{.str = "weight",   .field = PERF_OUTPUT_WEIGHT},
+	{.str = "bpf-output",   .field = PERF_OUTPUT_BPF_OUTPUT},
 };
 
 /* default set to maintain compatibility with current format */
@@ -106,7 +108,7 @@ static struct {
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
 			      PERF_OUTPUT_PERIOD,
 
-		.invalid_fields = PERF_OUTPUT_TRACE,
+		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
 
 	[PERF_TYPE_SOFTWARE] = {
@@ -116,7 +118,7 @@ static struct {
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_PERIOD,
+			      PERF_OUTPUT_PERIOD | PERF_OUTPUT_BPF_OUTPUT,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -126,7 +128,7 @@ static struct {
 
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 				  PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
-				  PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE,
+				  PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE
 	},
 
 	[PERF_TYPE_RAW] = {
@@ -139,7 +141,7 @@ static struct {
 			      PERF_OUTPUT_PERIOD |  PERF_OUTPUT_ADDR |
 			      PERF_OUTPUT_DATA_SRC | PERF_OUTPUT_WEIGHT,
 
-		.invalid_fields = PERF_OUTPUT_TRACE,
+		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
 
 	[PERF_TYPE_BREAKPOINT] = {
@@ -151,7 +153,7 @@ static struct {
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
 			      PERF_OUTPUT_PERIOD,
 
-		.invalid_fields = PERF_OUTPUT_TRACE,
+		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
 };
 
@@ -624,6 +626,84 @@ static void print_sample_flags(u32 flags)
 	printf("  %-4s ", str);
 }
 
+struct printer_data {
+	int line_no;
+	bool hit_nul;
+	bool is_printable;
+};
+
+static void
+print_sample_bpf_output_printer(enum binary_printer_ops op,
+				unsigned int val,
+				void *extra)
+{
+	unsigned char ch = (unsigned char)val;
+	struct printer_data *printer_data = extra;
+
+	switch (op) {
+	case BINARY_PRINT_DATA_BEGIN:
+		printf("\n");
+		break;
+	case BINARY_PRINT_LINE_BEGIN:
+		printf("%17s", !printer_data->line_no ? "BPF output:" :
+						        "           ");
+		break;
+	case BINARY_PRINT_ADDR:
+		printf(" %04x:", val);
+		break;
+	case BINARY_PRINT_NUM_DATA:
+		printf(" %02x", val);
+		break;
+	case BINARY_PRINT_NUM_PAD:
+		printf("   ");
+		break;
+	case BINARY_PRINT_SEP:
+		printf("  ");
+		break;
+	case BINARY_PRINT_CHAR_DATA:
+		if (printer_data->hit_nul && ch)
+			printer_data->is_printable = false;
+
+		if (!isprint(ch)) {
+			printf("%c", '.');
+
+			if (!printer_data->is_printable)
+				break;
+
+			if (ch == '\0')
+				printer_data->hit_nul = true;
+			else
+				printer_data->is_printable = false;
+		} else {
+			printf("%c", ch);
+		}
+		break;
+	case BINARY_PRINT_CHAR_PAD:
+		printf(" ");
+		break;
+	case BINARY_PRINT_LINE_END:
+		printf("\n");
+		printer_data->line_no++;
+		break;
+	case BINARY_PRINT_DATA_END:
+	default:
+		break;
+	}
+}
+
+static void print_sample_bpf_output(struct perf_sample *sample)
+{
+	unsigned int nr_bytes = sample->raw_size;
+	struct printer_data printer_data = {0, false, true};
+
+	print_binary(sample->raw_data, nr_bytes, 8,
+		     print_sample_bpf_output_printer, &printer_data);
+
+	if (printer_data.is_printable && printer_data.hit_nul)
+		printf("%17s \"%s\"\n", "BPF string:",
+		       (char *)(sample->raw_data));
+}
+
 struct perf_script {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -730,6 +810,9 @@ static void process_event(struct perf_script *script, union perf_event *event,
 		print_sample_brstack(event, sample, thread, attr);
 	else if (PRINT_FIELD(BRSTACKSYM))
 		print_sample_brstacksym(event, sample, thread, attr);
+
+	if (perf_evsel__is_bpf_output(evsel) && PRINT_FIELD(BPF_OUTPUT))
+		print_sample_bpf_output(sample);
 
 	printf("\n");
 }
