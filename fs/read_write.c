@@ -17,6 +17,7 @@
 #include <linux/splice.h>
 #include <linux/compat.h>
 #include <linux/mount.h>
+#include <linux/fs.h>
 #include "internal.h"
 
 #include <asm/uaccess.h>
@@ -183,7 +184,7 @@ loff_t no_seek_end_llseek(struct file *file, loff_t offset, int whence)
 	switch (whence) {
 	case SEEK_SET: case SEEK_CUR:
 		return generic_file_llseek_size(file, offset, whence,
-						~0ULL, 0);
+						OFFSET_MAX, 0);
 	default:
 		return -EINVAL;
 	}
