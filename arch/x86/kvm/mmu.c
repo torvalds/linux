@@ -789,7 +789,7 @@ static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 	slot = __gfn_to_memslot(slots, gfn);
 	for (i = PT_DIRECTORY_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
 		linfo = lpage_info_slot(gfn, slot, i);
-		linfo->write_count += 1;
+		linfo->disallow_lpage += 1;
 	}
 	kvm->arch.indirect_shadow_pages++;
 }
@@ -807,31 +807,32 @@ static void unaccount_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 	slot = __gfn_to_memslot(slots, gfn);
 	for (i = PT_DIRECTORY_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
 		linfo = lpage_info_slot(gfn, slot, i);
-		linfo->write_count -= 1;
-		WARN_ON(linfo->write_count < 0);
+		linfo->disallow_lpage -= 1;
+		WARN_ON(linfo->disallow_lpage < 0);
 	}
 	kvm->arch.indirect_shadow_pages--;
 }
 
-static int __has_wrprotected_page(gfn_t gfn, int level,
-				  struct kvm_memory_slot *slot)
+static bool __mmu_gfn_lpage_is_disallowed(gfn_t gfn, int level,
+					  struct kvm_memory_slot *slot)
 {
 	struct kvm_lpage_info *linfo;
 
 	if (slot) {
 		linfo = lpage_info_slot(gfn, slot, level);
-		return linfo->write_count;
+		return !!linfo->disallow_lpage;
 	}
 
-	return 1;
+	return true;
 }
 
-static int has_wrprotected_page(struct kvm_vcpu *vcpu, gfn_t gfn, int level)
+static bool mmu_gfn_lpage_is_disallowed(struct kvm_vcpu *vcpu, gfn_t gfn,
+					int level)
 {
 	struct kvm_memory_slot *slot;
 
 	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-	return __has_wrprotected_page(gfn, level, slot);
+	return __mmu_gfn_lpage_is_disallowed(gfn, level, slot);
 }
 
 static int host_mapping_level(struct kvm *kvm, gfn_t gfn)
@@ -897,7 +898,7 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn,
 	max_level = min(kvm_x86_ops->get_lpage_level(), host_level);
 
 	for (level = PT_DIRECTORY_LEVEL; level <= max_level; ++level)
-		if (__has_wrprotected_page(large_gfn, level, slot))
+		if (__mmu_gfn_lpage_is_disallowed(large_gfn, level, slot))
 			break;
 
 	return level - 1;
@@ -2503,7 +2504,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		 * be fixed if guest refault.
 		 */
 		if (level > PT_PAGE_TABLE_LEVEL &&
-		    has_wrprotected_page(vcpu, gfn, level))
+		    mmu_gfn_lpage_is_disallowed(vcpu, gfn, level))
 			goto done;
 
 		spte |= PT_WRITABLE_MASK | SPTE_MMU_WRITEABLE;
@@ -2768,7 +2769,7 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
 	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn) &&
 	    level == PT_PAGE_TABLE_LEVEL &&
 	    PageTransCompound(pfn_to_page(pfn)) &&
-	    !has_wrprotected_page(vcpu, gfn, PT_DIRECTORY_LEVEL)) {
+	    !mmu_gfn_lpage_is_disallowed(vcpu, gfn, PT_DIRECTORY_LEVEL)) {
 		unsigned long mask;
 		/*
 		 * mmu_notifier_retry was successful and we hold the

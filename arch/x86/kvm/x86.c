@@ -7879,6 +7879,7 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 	int i;
 
 	for (i = 0; i < KVM_NR_PAGE_SIZES; ++i) {
+		struct kvm_lpage_info *linfo;
 		unsigned long ugfn;
 		int lpages;
 		int level = i + 1;
@@ -7893,15 +7894,16 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 		if (i == 0)
 			continue;
 
-		slot->arch.lpage_info[i - 1] = kvm_kvzalloc(lpages *
-					sizeof(*slot->arch.lpage_info[i - 1]));
-		if (!slot->arch.lpage_info[i - 1])
+		linfo = kvm_kvzalloc(lpages * sizeof(*linfo));
+		if (!linfo)
 			goto out_free;
 
+		slot->arch.lpage_info[i - 1] = linfo;
+
 		if (slot->base_gfn & (KVM_PAGES_PER_HPAGE(level) - 1))
-			slot->arch.lpage_info[i - 1][0].write_count = 1;
+			linfo[0].disallow_lpage = 1;
 		if ((slot->base_gfn + npages) & (KVM_PAGES_PER_HPAGE(level) - 1))
-			slot->arch.lpage_info[i - 1][lpages - 1].write_count = 1;
+			linfo[lpages - 1].disallow_lpage = 1;
 		ugfn = slot->userspace_addr >> PAGE_SHIFT;
 		/*
 		 * If the gfn and userspace address are not aligned wrt each
@@ -7913,7 +7915,7 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 			unsigned long j;
 
 			for (j = 0; j < lpages; ++j)
-				slot->arch.lpage_info[i - 1][j].write_count = 1;
+				linfo[j].disallow_lpage = 1;
 		}
 	}
 
