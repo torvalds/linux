@@ -6,7 +6,9 @@ which can be used by on-board peripheral for MSI interrupts.
 
 Required properties:
 
-- compatible           : The value here should contain "marvell,odmi-controller".
+- compatible           : The value here should contain:
+
+    "marvell,ap806-odmi-controller", "marvell,odmi-controller".
 
 - interrupt,controller : Identifies the node as an interrupt controller.
 
@@ -29,7 +31,8 @@ Required properties:
 Example:
 
 	odmi: odmi@300000 {
-		compatible = "marvell,odmi-controller";
+		compatible = "marvell,ap806-odm-controller",
+			     "marvell,odmi-controller";
 		interrupt-controller;
 		msi-controller;
 		marvell,odmi-frames = <4>;
