@@ -2170,12 +2170,12 @@ perf_install_in_context(struct perf_event_context *ctx,
 		raw_spin_unlock_irq(&ctx->lock);
 		return;
 	}
-	update_context_time(ctx);
-	/*
-	 * Update cgrp time only if current cgrp matches event->cgrp.
-	 * Must be done before calling add_event_to_ctx().
-	 */
-	update_cgrp_time_from_event(event);
+
+	if (ctx->is_active) {
+		update_context_time(ctx);
+		update_cgrp_time_from_event(event);
+	}
+
 	add_event_to_ctx(event, ctx);
 	raw_spin_unlock_irq(&ctx->lock);
 
