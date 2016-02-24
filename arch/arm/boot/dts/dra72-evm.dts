@@ -17,7 +17,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x40000000>; /* 1024 MB */
+		reg = <0x0 0x80000000 0x0 0x40000000>; /* 1024 MB */
 	};
 
 	aliases {
