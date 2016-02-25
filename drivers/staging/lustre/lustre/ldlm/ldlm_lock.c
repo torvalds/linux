@@ -337,16 +337,6 @@ static int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 	ldlm_lock_remove_from_lru(lock);
 	class_handle_unhash(&lock->l_handle);
 
-#if 0
-	/* Wake anyone waiting for this lock */
-	/* FIXME: I should probably add yet another flag, instead of using
-	 * l_export to only call this on clients */
-	if (lock->l_export)
-		class_export_put(lock->l_export);
-	lock->l_export = NULL;
-	if (lock->l_export && lock->l_completion_ast)
-		lock->l_completion_ast(lock, 0);
-#endif
 	return 1;
 }
 
