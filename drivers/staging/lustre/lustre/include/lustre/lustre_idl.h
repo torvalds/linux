@@ -2006,11 +2006,11 @@ void lustre_swab_lquota_lvb(struct lquota_lvb *lvb);
 #define lvb_glb_ver  lvb_id_may_rel /* current version of the global index */
 
 /* op codes */
-typedef enum {
+enum quota_cmd {
 	QUOTA_DQACQ	= 601,
 	QUOTA_DQREL	= 602,
 	QUOTA_LAST_OPC
-} quota_cmd_t;
+};
 #define QUOTA_FIRST_OPC	QUOTA_DQACQ
 
 /*
