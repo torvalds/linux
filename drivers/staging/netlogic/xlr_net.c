@@ -130,7 +130,7 @@ static void xlr_net_fmn_handler(int bkt, int src_stnid, int size, int code,
 	struct xlr_net_priv *priv;
 	u32 port, length;
 	unsigned char *addr;
-	struct xlr_adapter *adapter = (struct xlr_adapter *)arg;
+	struct xlr_adapter *adapter = arg;
 
 	length = (msg->msg0 >> 40) & 0x3fff;
 	if (length == 0) {
