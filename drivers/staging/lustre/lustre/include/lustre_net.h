@@ -76,7 +76,8 @@
  * In order for the client and server to properly negotiate the maximum
  * possible transfer size, PTLRPC_BULK_OPS_COUNT must be a power-of-two
  * value.  The client is free to limit the actual RPC size for any bulk
- * transfer via cl_max_pages_per_rpc to some non-power-of-two value. */
+ * transfer via cl_max_pages_per_rpc to some non-power-of-two value.
+ */
 #define PTLRPC_BULK_OPS_BITS	2
 #define PTLRPC_BULK_OPS_COUNT	(1U << PTLRPC_BULK_OPS_BITS)
 /**
@@ -85,7 +86,8 @@
  * protocol limitation on the maximum RPC size that can be used by any
  * RPC sent to that server in the future.  Instead, the server should
  * use the negotiated per-client ocd_brw_size to determine the bulk
- * RPC count. */
+ * RPC count.
+ */
 #define PTLRPC_BULK_OPS_MASK	(~((__u64)PTLRPC_BULK_OPS_COUNT - 1))
 
 /**
@@ -419,16 +421,18 @@ struct ptlrpc_reply_state {
 	/** A spinlock to protect the reply state flags */
 	spinlock_t		rs_lock;
 	/** Reply state flags */
-	unsigned long	  rs_difficult:1;     /* ACK/commit stuff */
+	unsigned long	  rs_difficult:1; /* ACK/commit stuff */
 	unsigned long	  rs_no_ack:1;    /* no ACK, even for
-						  difficult requests */
+					   * difficult requests
+					   */
 	unsigned long	  rs_scheduled:1;     /* being handled? */
 	unsigned long	  rs_scheduled_ever:1;/* any schedule attempts? */
 	unsigned long	  rs_handled:1;  /* been handled yet? */
 	unsigned long	  rs_on_net:1;   /* reply_out_callback pending? */
 	unsigned long	  rs_prealloc:1; /* rs from prealloc list */
 	unsigned long	  rs_committed:1;/* the transaction was committed
-					  * and the rs was dispatched */
+					  * and the rs was dispatched
+					  */
 	/** Size of the state */
 	int		    rs_size;
 	/** opcode */
@@ -1181,7 +1185,7 @@ struct nrs_fifo_req {
  * purpose of this object is to hold references to the request's resources
  * for the lifetime of the request, and to hold properties that policies use
  * use for determining the request's scheduling priority.
- * */
+ */
 struct ptlrpc_nrs_request {
 	/**
 	 * The request's resource hierarchy.
@@ -1321,15 +1325,17 @@ struct ptlrpc_request {
 		/* do not resend request on -EINPROGRESS */
 		rq_no_retry_einprogress:1,
 		/* allow the req to be sent if the import is in recovery
-		 * status */
+		 * status
+		 */
 		rq_allow_replay:1;
 
 	unsigned int rq_nr_resend;
 
 	enum rq_phase rq_phase; /* one of RQ_PHASE_* */
 	enum rq_phase rq_next_phase; /* one of RQ_PHASE_* to be used next */
-	atomic_t rq_refcount;/* client-side refcount for SENT race,
-				    server-side refcount for multiple replies */
+	atomic_t rq_refcount; /* client-side refcount for SENT race,
+			       * server-side refcount for multiple replies
+			       */
 
 	/** Portal to which this request would be sent */
 	short rq_request_portal;  /* XXX FIXME bug 249 */
@@ -1363,7 +1369,8 @@ struct ptlrpc_request {
 
 	/**
 	 * security and encryption data
-	 * @{ */
+	 * @{
+	 */
 	struct ptlrpc_cli_ctx   *rq_cli_ctx;     /**< client's half ctx */
 	struct ptlrpc_svc_ctx   *rq_svc_ctx;     /**< server's half ctx */
 	struct list_head	       rq_ctx_chain;   /**< link to waited ctx */
@@ -1477,7 +1484,8 @@ struct ptlrpc_request {
 
 	/** when request must finish. volatile
 	 * so that servers' early reply updates to the deadline aren't
-	 * kept in per-cpu cache */
+	 * kept in per-cpu cache
+	 */
 	volatile time64_t rq_deadline;
 	/** when req reply unlink must finish. */
 	time64_t rq_reply_deadline;
@@ -1678,7 +1686,8 @@ do {									  \
 /**
  * This is the debug print function you need to use to print request structure
  * content into lustre debug log.
- * for most callers (level is a constant) this is resolved at compile time */
+ * for most callers (level is a constant) this is resolved at compile time
+ */
 #define DEBUG_REQ(level, req, fmt, args...)				   \
 do {									  \
 	if ((level) & (D_ERROR | D_WARNING)) {				\
@@ -2101,7 +2110,8 @@ struct ptlrpc_service_part {
 	/** NRS head for regular requests */
 	struct ptlrpc_nrs		scp_nrs_reg;
 	/** NRS head for HP requests; this is only valid for services that can
-	 *  handle HP requests */
+	 *  handle HP requests
+	 */
 	struct ptlrpc_nrs	       *scp_nrs_hp;
 
 	/** AT stuff */
@@ -2460,7 +2470,8 @@ struct ptlrpc_service_thr_conf {
 	/* "soft" limit for total threads number */
 	unsigned int			tc_nthrs_max;
 	/* user specified threads number, it will be validated due to
-	 * other members of this structure. */
+	 * other members of this structure.
+	 */
 	unsigned int			tc_nthrs_user;
 	/* set NUMA node affinity for service threads */
 	unsigned int			tc_cpu_affinity;

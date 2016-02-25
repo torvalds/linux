@@ -387,7 +387,8 @@ static inline void obd_ioctl_freedata(char *buf, int len)
  */
 
 /* Until such time as we get_info the per-stripe maximum from the OST,
- * we define this to be 2T - 4k, which is the ext3 maxbytes. */
+ * we define this to be 2T - 4k, which is the ext3 maxbytes.
+ */
 #define LUSTRE_STRIPE_MAXBYTES 0x1fffffff000ULL
 
 /* Special values for remove LOV EA from disk */

@@ -71,50 +71,41 @@ struct lu_fld_target {
 struct lu_server_fld {
 	/**
 	 * super sequence controller export, needed to forward fld
-	 * lookup  request. */
+	 * lookup  request.
+	 */
 	struct obd_export       *lsf_control_exp;
 
-	/**
-	 * Client FLD cache. */
+	/** Client FLD cache. */
 	struct fld_cache	*lsf_cache;
 
-	/**
-	 * Protect index modifications */
+	/** Protect index modifications */
 	struct mutex		lsf_lock;
 
-	/**
-	 * Fld service name in form "fld-srv-lustre-MDTXXX" */
+	/** Fld service name in form "fld-srv-lustre-MDTXXX" */
 	char		     lsf_name[LUSTRE_MDT_MAXNAMELEN];
 
 };
 
 struct lu_client_fld {
-	/**
-	 * Client side debugfs entry. */
+	/** Client side debugfs entry. */
 	struct dentry		*lcf_debugfs_entry;
 
-	/**
-	 * List of exports client FLD knows about. */
+	/** List of exports client FLD knows about. */
 	struct list_head	       lcf_targets;
 
-	/**
-	 * Current hash to be used to chose an export. */
+	/** Current hash to be used to chose an export. */
 	struct lu_fld_hash      *lcf_hash;
 
-	/**
-	 * Exports count. */
+	/** Exports count. */
 	int		      lcf_count;
 
-	/**
-	 * Lock protecting exports list and fld_hash. */
+	/** Lock protecting exports list and fld_hash. */
 	spinlock_t		 lcf_lock;
 
-	/**
-	 * Client FLD cache. */
+	/** Client FLD cache. */
 	struct fld_cache	*lcf_cache;
 
-	/**
-	 * Client fld debugfs entry name. */
+	/** Client fld debugfs entry name. */
 	char			 lcf_name[LUSTRE_MDT_MAXNAMELEN];
 
 	int			 lcf_flags;

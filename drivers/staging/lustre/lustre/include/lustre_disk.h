@@ -65,7 +65,8 @@
 /****************** mount command *********************/
 
 /* The lmd is only used internally by Lustre; mount simply passes
-   everything as string options */
+ * everything as string options
+ */
 
 #define LMD_MAGIC    0xbdacbd03
 #define LMD_PARAMS_MAXLEN	4096
@@ -79,23 +80,26 @@ struct lustre_mount_data {
 	int	lmd_recovery_time_soft;
 	int	lmd_recovery_time_hard;
 	char      *lmd_dev;	   /* device name */
-	char      *lmd_profile;       /* client only */
+	char      *lmd_profile;    /* client only */
 	char      *lmd_mgssec;	/* sptlrpc flavor to mgs */
-	char      *lmd_opts;	  /* lustre mount options (as opposed to
-					 _device_ mount options) */
+	char      *lmd_opts;	/* lustre mount options (as opposed to
+				 * _device_ mount options)
+				 */
 	char      *lmd_params;	/* lustre params */
-	__u32     *lmd_exclude;       /* array of OSTs to ignore */
-	char	*lmd_mgs;	   /* MGS nid */
-	char	*lmd_osd_type;      /* OSD type */
+	__u32     *lmd_exclude; /* array of OSTs to ignore */
+	char	*lmd_mgs;	/* MGS nid */
+	char	*lmd_osd_type;  /* OSD type */
 };
 
 #define LMD_FLG_SERVER		0x0001	/* Mounting a server */
 #define LMD_FLG_CLIENT		0x0002	/* Mounting a client */
 #define LMD_FLG_ABORT_RECOV	0x0008	/* Abort recovery */
 #define LMD_FLG_NOSVC		0x0010	/* Only start MGS/MGC for servers,
-					   no other services */
-#define LMD_FLG_NOMGS		0x0020	/* Only start target for servers, reusing
-					   existing MGS services */
+					 * no other services
+					 */
+#define LMD_FLG_NOMGS		0x0020	/* Only start target for servers,
+					 * reusing existing MGS services
+					 */
 #define LMD_FLG_WRITECONF	0x0040	/* Rewrite config log */
 #define LMD_FLG_NOIR		0x0080	/* NO imperative recovery */
 #define LMD_FLG_NOSCRUB		0x0100	/* Do not trigger scrub automatically */
@@ -135,7 +139,8 @@ struct lustre_sb_info {
 	char			  lsi_osd_type[16];
 	char			  lsi_fstype[16];
 	struct backing_dev_info   lsi_bdi;     /* each client mountpoint needs
-						  own backing_dev_info */
+						* own backing_dev_info
+						*/
 };
 
 #define LSI_UMOUNT_FAILOVER	      0x00200000

@@ -45,18 +45,22 @@
 #include "lprocfs_status.h"
 
 #define OBD_STATFS_NODELAY      0x0001  /* requests should be send without delay
-					 * and resends for avoid deadlocks */
+					 * and resends for avoid deadlocks
+					 */
 #define OBD_STATFS_FROM_CACHE   0x0002  /* the statfs callback should not update
-					 * obd_osfs_age */
+					 * obd_osfs_age
+					 */
 #define OBD_STATFS_PTLRPCD      0x0004  /* requests will be sent via ptlrpcd
 					 * instead of a specific set. This
 					 * means that we cannot rely on the set
 					 * interpret routine to be called.
 					 * lov_statfs_fini() must thus be called
-					 * by the request interpret routine */
+					 * by the request interpret routine
+					 */
 #define OBD_STATFS_FOR_MDT0	0x0008	/* The statfs is only for retrieving
-					 * information from MDT0. */
-#define OBD_FL_PUNCH    0x00000001      /* To indicate it is punch operation */
+					 * information from MDT0.
+					 */
+#define OBD_FL_PUNCH	    0x00000001  /* To indicate it is punch operation */
 
 /* OBD Device Declarations */
 extern struct obd_device *obd_devs[MAX_OBD_DEVICES];
@@ -160,8 +164,9 @@ struct config_llog_data {
 	struct mutex		    cld_lock;
 	int			 cld_type;
 	unsigned int		cld_stopping:1, /* we were told to stop
-						     * watching */
-				    cld_lostlock:1; /* lock not requeued */
+						 * watching
+						 */
+				cld_lostlock:1; /* lock not requeued */
 	char			cld_logname[0];
 };
 
@@ -275,7 +280,8 @@ void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid);
 #define CTXTP(ctxt, op) (ctxt)->loc_logops->lop_##op
 
 /* Ensure obd_setup: used for cleanup which must be called
-   while obd is stopping */
+ * while obd is stopping
+ */
 static inline int obd_check_dev(struct obd_device *obd)
 {
 	if (!obd) {
@@ -558,7 +564,8 @@ static inline int obd_cleanup(struct obd_device *obd)
 static inline void obd_cleanup_client_import(struct obd_device *obd)
 {
 	/* If we set up but never connected, the
-	   client import will not have been cleaned. */
+	 * client import will not have been cleaned.
+	 */
 	down_write(&obd->u.cli.cl_sem);
 	if (obd->u.cli.cl_import) {
 		struct obd_import *imp;
@@ -778,7 +785,8 @@ static inline int obd_setattr_rqset(struct obd_export *exp,
 }
 
 /* This adds all the requests into @set if @set != NULL, otherwise
-   all requests are sent asynchronously without waiting for response. */
+ * all requests are sent asynchronously without waiting for response.
+ */
 static inline int obd_setattr_async(struct obd_export *exp,
 				    struct obd_info *oinfo,
 				    struct obd_trans_info *oti,
@@ -848,7 +856,8 @@ static inline int obd_connect(const struct lu_env *env,
 {
 	int rc;
 	__u64 ocf = data ? data->ocd_connect_flags : 0; /* for post-condition
-						   * check */
+							 * check
+							 */
 
 	rc = obd_check_dev_active(obd);
 	if (rc)
@@ -871,8 +880,7 @@ static inline int obd_reconnect(const struct lu_env *env,
 				void *localdata)
 {
 	int rc;
-	__u64 ocf = d ? d->ocd_connect_flags : 0; /* for post-condition
-						   * check */
+	__u64 ocf = d ? d->ocd_connect_flags : 0; /* for post-condition check */
 
 	rc = obd_check_dev_active(obd);
 	if (rc)
@@ -1013,7 +1021,8 @@ static inline int obd_destroy_export(struct obd_export *exp)
 
 /* @max_age is the oldest time in jiffies that we accept using a cached data.
  * If the cache is older than @max_age we will get a new value from the
- * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness. */
+ * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness.
+ */
 static inline int obd_statfs_async(struct obd_export *exp,
 				   struct obd_info *oinfo,
 				   __u64 max_age,
@@ -1072,7 +1081,8 @@ static inline int obd_statfs_rqset(struct obd_export *exp,
 
 /* @max_age is the oldest time in jiffies that we accept using a cached data.
  * If the cache is older than @max_age we will get a new value from the
- * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness. */
+ * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness.
+ */
 static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 			     struct obd_statfs *osfs, __u64 max_age,
 			     __u32 flags)
@@ -1204,9 +1214,10 @@ static inline int obd_notify(struct obd_device *obd,
 		return rc;
 
 	/* the check for async_recov is a complete hack - I'm hereby
-	   overloading the meaning to also mean "this was called from
-	   mds_postsetup".  I know that my mds is able to handle notifies
-	   by this point, and it needs to get them to execute mds_postrecov. */
+	 * overloading the meaning to also mean "this was called from
+	 * mds_postsetup".  I know that my mds is able to handle notifies
+	 * by this point, and it needs to get them to execute mds_postrecov.
+	 */
 	if (!obd->obd_set_up && !obd->obd_async_recov) {
 		CDEBUG(D_HA, "obd %s not set up\n", obd->obd_name);
 		return -EINVAL;
@@ -1758,7 +1769,8 @@ struct lwp_register_item {
 /* I'm as embarrassed about this as you are.
  *
  * <shaver> // XXX do not look into _superhack with remaining eye
- * <shaver> // XXX if this were any uglier, I'd get my own show on MTV */
+ * <shaver> // XXX if this were any uglier, I'd get my own show on MTV
+ */
 extern int (*ptlrpc_put_connection_superhack)(struct ptlrpc_connection *c);
 
 /* obd_mount.c */

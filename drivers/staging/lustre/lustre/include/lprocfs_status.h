@@ -175,7 +175,8 @@ struct lprocfs_percpu {
 enum lprocfs_stats_flags {
 	LPROCFS_STATS_FLAG_NONE     = 0x0000, /* per cpu counter */
 	LPROCFS_STATS_FLAG_NOPERCPU = 0x0001, /* stats have no percpu
-					       * area and need locking */
+					       * area and need locking
+					       */
 	LPROCFS_STATS_FLAG_IRQ_SAFE = 0x0002, /* alloc need irq safe */
 };
 
@@ -196,7 +197,8 @@ struct lprocfs_stats {
 	unsigned short			ls_biggest_alloc_num;
 	enum lprocfs_stats_flags	ls_flags;
 	/* Lock used when there are no percpu stats areas; For percpu stats,
-	 * it is used to protect ls_biggest_alloc_num change */
+	 * it is used to protect ls_biggest_alloc_num change
+	 */
 	spinlock_t			ls_lock;
 
 	/* has ls_num of counter headers */
@@ -611,9 +613,10 @@ int lprocfs_single_release(struct inode *, struct file *);
 int lprocfs_seq_release(struct inode *, struct file *);
 
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
-  proc entries; otherwise, you will define name##_seq_write function also for
-  a read-write proc entry, and then call LPROC_SEQ_SEQ instead. Finally,
-  call ldebugfs_obd_seq_create(obd, filename, 0444, &name#_fops, data); */
+ * proc entries; otherwise, you will define name##_seq_write function also for
+ * a read-write proc entry, and then call LPROC_SEQ_SEQ instead. Finally,
+ * call ldebugfs_obd_seq_create(obd, filename, 0444, &name#_fops, data);
+ */
 #define __LPROC_SEQ_FOPS(name, custom_seq_write)			\
 static int name##_single_open(struct inode *inode, struct file *file)	\
 {									\

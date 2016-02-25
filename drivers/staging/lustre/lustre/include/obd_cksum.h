@@ -63,7 +63,8 @@ static inline unsigned char cksum_obd2cfs(enum cksum_type cksum_type)
  * In case of an unsupported types/flags we fall back to ADLER
  * because that is supported by all clients since 1.8
  *
- * In case multiple algorithms are supported the best one is used. */
+ * In case multiple algorithms are supported the best one is used.
+ */
 static inline u32 cksum_type_pack(enum cksum_type cksum_type)
 {
 	unsigned int    performance = 0, tmp;
@@ -139,14 +140,16 @@ static inline enum cksum_type cksum_types_supported_client(void)
  * Currently, calling cksum_type_pack() with a mask will return the fastest
  * checksum type due to its benchmarking at libcfs module load.
  * Caution is advised, however, since what is fastest on a single client may
- * not be the fastest or most efficient algorithm on the server.  */
+ * not be the fastest or most efficient algorithm on the server.
+ */
 static inline enum cksum_type cksum_type_select(enum cksum_type cksum_types)
 {
 	return cksum_type_unpack(cksum_type_pack(cksum_types));
 }
 
 /* Checksum algorithm names. Must be defined in the same order as the
- * OBD_CKSUM_* flags. */
+ * OBD_CKSUM_* flags.
+ */
 #define DECLARE_CKSUM_NAME char *cksum_name[] = {"crc32", "adler", "crc32c"}
 
 #endif /* __OBD_H */

@@ -123,7 +123,8 @@ struct obd_export {
 	 */
 	spinlock_t		  exp_lock;
 	/** Compatibility flags for this export are embedded into
-	 *  exp_connect_data */
+	 *  exp_connect_data
+	 */
 	struct obd_connect_data   exp_connect_data;
 	enum obd_option	   exp_flags;
 	unsigned long	     exp_failed:1,

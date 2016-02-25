@@ -90,7 +90,8 @@ struct lov_stripe_md {
 	pid_t	    lsm_lock_owner; /* debugging */
 
 	/* maximum possible file size, might change as OSTs status changes,
-	 * e.g. disconnected, deactivated */
+	 * e.g. disconnected, deactivated
+	 */
 	__u64	    lsm_maxbytes;
 	struct {
 		/* Public members. */
@@ -159,7 +160,8 @@ struct obd_info {
 	/* An update callback which is called to update some data on upper
 	 * level. E.g. it is used for update lsm->lsm_oinfo at every received
 	 * request in osc level for enqueue requests. It is also possible to
-	 * update some caller data from LOV layer if needed. */
+	 * update some caller data from LOV layer if needed.
+	 */
 	obd_enqueue_update_f    oi_cb_up;
 };
 
@@ -240,7 +242,8 @@ struct client_obd {
 	struct obd_import       *cl_import; /* ptlrpc connection state */
 	int		      cl_conn_count;
 	/* max_mds_easize is purely a performance thing so we don't have to
-	 * call obd_size_diskmd() all the time. */
+	 * call obd_size_diskmd() all the time.
+	 */
 	int			 cl_default_mds_easize;
 	int			 cl_max_mds_easize;
 	int			 cl_default_mds_cookiesize;
@@ -260,7 +263,8 @@ struct client_obd {
 	/* since we allocate grant by blocks, we don't know how many grant will
 	 * be used to add a page into cache. As a solution, we reserve maximum
 	 * grant before trying to dirty a page and unreserve the rest.
-	 * See osc_{reserve|unreserve}_grant for details. */
+	 * See osc_{reserve|unreserve}_grant for details.
+	 */
 	long		 cl_reserved_grant;
 	struct list_head cl_cache_waiters; /* waiting for cache/grant */
 	unsigned long	 cl_next_shrink_grant;   /* jiffies */
@@ -268,14 +272,16 @@ struct client_obd {
 	int		 cl_grant_shrink_interval; /* seconds */
 
 	/* A chunk is an optimal size used by osc_extent to determine
-	 * the extent size. A chunk is max(PAGE_CACHE_SIZE, OST block size) */
+	 * the extent size. A chunk is max(PAGE_CACHE_SIZE, OST block size)
+	 */
 	int		  cl_chunkbits;
 	int		  cl_chunk;
 	int		  cl_extent_tax; /* extent overhead, by bytes */
 
 	/* keep track of objects that have lois that contain pages which
 	 * have been queued for async brw.  this lock also protects the
-	 * lists of osc_client_pages that hang off of the loi */
+	 * lists of osc_client_pages that hang off of the loi
+	 */
 	/*
 	 * ->cl_loi_list_lock protects consistency of
 	 * ->cl_loi_{ready,read,write}_list. ->ap_make_ready() and
@@ -379,8 +385,7 @@ struct echo_client_obd {
 
 /* Generic subset of OSTs */
 struct ost_pool {
-	__u32	      *op_array;      /* array of index of
-						   lov_obd->lov_tgts */
+	__u32	      *op_array;      /* array of index of lov_obd->lov_tgts */
 	unsigned int	op_count;      /* number of OSTs in the array */
 	unsigned int	op_size;       /* allocated size of lp_array */
 	struct rw_semaphore op_rw_sem;     /* to protect ost_pool use */
@@ -413,14 +418,16 @@ struct lov_qos {
 	struct lov_qos_rr   lq_rr;	  /* round robin qos data */
 	unsigned long       lq_dirty:1,     /* recalc qos data */
 			    lq_same_space:1,/* the ost's all have approx.
-					       the same space avail */
+					     * the same space avail
+					     */
 			    lq_reset:1,     /* zero current penalties */
 			    lq_statfs_in_progress:1; /* statfs op in
 							progress */
 	/* qos statfs data */
 	struct lov_statfs_data *lq_statfs_data;
-	wait_queue_head_t	 lq_statfs_waitq; /* waitqueue to notify statfs
-					      * requests completion */
+	wait_queue_head_t lq_statfs_waitq; /* waitqueue to notify statfs
+					    * requests completion
+					    */
 };
 
 struct lov_tgt_desc {
@@ -450,14 +457,14 @@ struct pool_desc {
 	struct list_head	    pool_list;	      /* serial access */
 	struct dentry		*pool_debugfs_entry;	/* file in debugfs */
 	struct obd_device    *pool_lobd;	/* obd of the lov/lod to which
-						*  this pool belongs */
+						 * this pool belongs
+						 */
 };
 
 struct lov_obd {
 	struct lov_desc	 desc;
 	struct lov_tgt_desc   **lov_tgts;	      /* sparse array */
-	struct ost_pool	 lov_packed;	    /* all OSTs in a packed
-							  array */
+	struct ost_pool	 lov_packed;	    /* all OSTs in a packed array */
 	struct mutex		lov_lock;
 	struct obd_connect_data lov_ocd;
 	atomic_t	    lov_refcount;
@@ -698,14 +705,14 @@ struct obd_device {
 	unsigned long obd_attached:1,      /* finished attach */
 		      obd_set_up:1,	/* finished setup */
 		      obd_version_recov:1, /* obd uses version checking */
-		      obd_replayable:1,    /* recovery is enabled; inform clients */
-		      obd_no_transno:1,    /* no committed-transno notification */
+		      obd_replayable:1,/* recovery is enabled; inform clients */
+		      obd_no_transno:1,  /* no committed-transno notification */
 		      obd_no_recov:1,      /* fail instead of retry messages */
 		      obd_stopping:1,      /* started cleanup */
 		      obd_starting:1,      /* started setup */
 		      obd_force:1,	 /* cleanup with > 0 obd refcount */
-		      obd_fail:1,	  /* cleanup with failover */
-		      obd_async_recov:1,   /* allow asynchronous orphan cleanup */
+		      obd_fail:1,	 /* cleanup with failover */
+		      obd_async_recov:1, /* allow asynchronous orphan cleanup */
 		      obd_no_conn:1,       /* deny new connections */
 		      obd_inactive:1,      /* device active/inactive
 					    * (for sysfs status only!!)
@@ -713,7 +720,8 @@ struct obd_device {
 		      obd_no_ir:1,	 /* no imperative recovery. */
 		      obd_process_conf:1;  /* device is processing mgs config */
 	/* use separate field as it is set in interrupt to don't mess with
-	 * protection of other bits using _bh lock */
+	 * protection of other bits using _bh lock
+	 */
 	unsigned long obd_recovery_expired:1;
 	/* uuid-export hash body */
 	struct cfs_hash	     *obd_uuid_hash;
@@ -906,7 +914,8 @@ struct md_op_data {
 	__u32		   op_npages;
 
 	/* used to transfer info between the stacks of MD client
-	 * see enum op_cli_flags */
+	 * see enum op_cli_flags
+	 */
 	__u32			op_cli_flags;
 
 	/* File object data version for HSM release, on client */
@@ -958,7 +967,8 @@ struct obd_ops {
 	/* connect to the target device with given connection
 	 * data. @ocd->ocd_connect_flags is modified to reflect flags actually
 	 * granted by the target, which are guaranteed to be a subset of flags
-	 * asked for. If @ocd == NULL, use default parameters. */
+	 * asked for. If @ocd == NULL, use default parameters.
+	 */
 	int (*connect)(const struct lu_env *env,
 		       struct obd_export **exp, struct obd_device *src,
 		       struct obd_uuid *cluuid, struct obd_connect_data *ocd,
@@ -1054,7 +1064,8 @@ struct obd_ops {
 	/*
 	 * NOTE: If adding ops, add another LPROCFS_OBD_OP_INIT() line
 	 * to lprocfs_alloc_obd_stats() in obdclass/lprocfs_status.c.
-	 * Also, add a wrapper function in include/linux/obd_class.h. */
+	 * Also, add a wrapper function in include/linux/obd_class.h.
+	 */
 };
 
 enum {
@@ -1298,7 +1309,8 @@ static inline bool filename_is_volatile(const char *name, int namelen, int *idx)
 	return true;
 bad_format:
 	/* bad format of mdt idx, we cannot return an error
-	 * to caller so we use hash algo */
+	 * to caller so we use hash algo
+	 */
 	CERROR("Bad volatile file name format: %s\n",
 	       name + LUSTRE_VOLATILE_HDR_LEN);
 	return false;

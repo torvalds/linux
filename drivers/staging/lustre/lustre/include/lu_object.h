@@ -166,7 +166,8 @@ struct lu_device_operations {
  */
 enum loc_flags {
 	/* This is a new object to be allocated, or the file
-	 * corresponding to the object does not exists. */
+	 * corresponding to the object does not exists.
+	 */
 	LOC_F_NEW	= 0x00000001,
 };
 
@@ -895,7 +896,8 @@ enum lu_xattr_flags {
 /** @} helpers */
 
 /** \name lu_context
- * @{ */
+ * @{
+ */
 
 /** For lu_context health-checks */
 enum lu_context_state {

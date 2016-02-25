@@ -241,7 +241,8 @@ struct llog_ctxt {
 	struct obd_llog_group   *loc_olg; /* group containing that ctxt */
 	struct obd_export       *loc_exp; /* parent "disk" export (e.g. MDS) */
 	struct obd_import       *loc_imp; /* to use in RPC's: can be backward
-					     pointing import */
+					   * pointing import
+					   */
 	struct llog_operations  *loc_logops;
 	struct llog_handle      *loc_handle;
 	struct mutex		 loc_mutex; /* protect loc_imp */

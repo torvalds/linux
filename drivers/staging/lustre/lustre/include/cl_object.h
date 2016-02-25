@@ -157,7 +157,8 @@ struct cl_device {
 };
 
 /** \addtogroup cl_object cl_object
- * @{ */
+ * @{
+ */
 /**
  * "Data attributes" of cl_object. Data attributes can be updated
  * independently for a sub-object, and top-object's attributes are calculated
@@ -288,13 +289,14 @@ struct cl_object_conf {
 
 enum {
 	/** configure layout, set up a new stripe, must be called while
-	 * holding layout lock. */
+	 * holding layout lock.
+	 */
 	OBJECT_CONF_SET = 0,
 	/** invalidate the current stripe configuration due to losing
-	 * layout lock. */
+	 * layout lock.
+	 */
 	OBJECT_CONF_INVALIDATE = 1,
-	/** wait for old layout to go away so that new layout can be
-	 * set up. */
+	/** wait for old layout to go away so that new layout can be set up. */
 	OBJECT_CONF_WAIT = 2
 };
 
@@ -393,7 +395,8 @@ struct cl_object_operations {
  */
 struct cl_object_header {
 	/** Standard lu_object_header. cl_object::co_lu::lo_header points
-	 * here. */
+	 * here.
+	 */
 	struct lu_object_header  coh_lu;
 	/** \name locks
 	 * \todo XXX move locks below to the separate cache-lines, they are
@@ -464,7 +467,8 @@ struct cl_object_header {
 #define CL_PAGE_EOF ((pgoff_t)~0ull)
 
 /** \addtogroup cl_page cl_page
- * @{ */
+ * @{
+ */
 
 /** \struct cl_page
  * Layered client page.
@@ -687,12 +691,14 @@ enum cl_page_state {
 
 enum cl_page_type {
 	/** Host page, the page is from the host inode which the cl_page
-	 * belongs to. */
+	 * belongs to.
+	 */
 	CPT_CACHEABLE = 1,
 
 	/** Transient page, the transient cl_page is used to bind a cl_page
 	 *  to vmpage which is not belonging to the same object of cl_page.
-	 *  it is used in DirectIO, lockless IO and liblustre. */
+	 *  it is used in DirectIO, lockless IO and liblustre.
+	 */
 	CPT_TRANSIENT,
 };
 
@@ -728,7 +734,8 @@ struct cl_page {
 	/** Parent page, NULL for top-level page. Immutable after creation. */
 	struct cl_page	  *cp_parent;
 	/** Lower-layer page. NULL for bottommost page. Immutable after
-	 * creation. */
+	 * creation.
+	 */
 	struct cl_page	  *cp_child;
 	/**
 	 * Page state. This field is const to avoid accidental update, it is
@@ -1126,7 +1133,8 @@ static inline int __page_in_use(const struct cl_page *page, int refc)
 /** @} cl_page */
 
 /** \addtogroup cl_lock cl_lock
- * @{ */
+ * @{
+ */
 /** \struct cl_lock
  *
  * Extent locking on the client.
@@ -1641,7 +1649,8 @@ struct cl_lock {
 struct cl_lock_slice {
 	struct cl_lock		  *cls_lock;
 	/** Object slice corresponding to this lock slice. Immutable after
-	 * creation. */
+	 * creation.
+	 */
 	struct cl_object		*cls_obj;
 	const struct cl_lock_operations *cls_ops;
 	/** Linkage into cl_lock::cll_layers. Immutable after creation. */
@@ -1885,7 +1894,8 @@ struct cl_2queue {
 /** @} cl_page_list */
 
 /** \addtogroup cl_io cl_io
- * @{ */
+ * @{
+ */
 /** \struct cl_io
  * I/O
  *
@@ -2284,7 +2294,8 @@ enum cl_fsync_mode {
 	/** discard all of dirty pages in a specific file range */
 	CL_FSYNC_DISCARD = 2,
 	/** start writeback and make sure they have reached storage before
-	 * return. OST_SYNC RPC must be issued and finished */
+	 * return. OST_SYNC RPC must be issued and finished
+	 */
 	CL_FSYNC_ALL   = 3
 };
 
@@ -2403,7 +2414,8 @@ struct cl_io {
 /** @} cl_io */
 
 /** \addtogroup cl_req cl_req
- * @{ */
+ * @{
+ */
 /** \struct cl_req
  * Transfer.
  *
@@ -2582,7 +2594,8 @@ enum cache_stats_item {
 	/** how many entities are in the cache right now */
 	CS_total,
 	/** how many entities in the cache are actively used (and cannot be
-	 * evicted) right now */
+	 * evicted) right now
+	 */
 	CS_busy,
 	/** how many entities were created at all */
 	CS_create,
@@ -2725,7 +2738,8 @@ void cl_req_slice_add(struct cl_req *req, struct cl_req_slice *slice,
 /** @} helpers */
 
 /** \defgroup cl_object cl_object
- * @{ */
+ * @{
+ */
 struct cl_object *cl_object_top (struct cl_object *o);
 struct cl_object *cl_object_find(const struct lu_env *env, struct cl_device *cd,
 				 const struct lu_fid *fid,
@@ -2770,7 +2784,8 @@ static inline void *cl_object_page_slice(struct cl_object *clob,
 /** @} cl_object */
 
 /** \defgroup cl_page cl_page
- * @{ */
+ * @{
+ */
 enum {
 	CLP_GANG_OKAY = 0,
 	CLP_GANG_RESCHED,
@@ -2888,7 +2903,8 @@ void cl_lock_descr_print(const struct lu_env *env, void *cookie,
 /** @} cl_page */
 
 /** \defgroup cl_lock cl_lock
- * @{ */
+ * @{
+ */
 
 struct cl_lock *cl_lock_hold(const struct lu_env *env, const struct cl_io *io,
 			     const struct cl_lock_descr *need,
@@ -2966,7 +2982,8 @@ int cl_lock_enqueue_wait(const struct lu_env *env, struct cl_lock *lock,
  *
  * cl_use_try()     NONE	 cl_lock_operations::clo_use()     CLS_HELD
  *
- * @{ */
+ * @{
+ */
 
 int   cl_wait       (const struct lu_env *env, struct cl_lock *lock);
 void  cl_unuse      (const struct lu_env *env, struct cl_lock *lock);
@@ -3019,7 +3036,8 @@ unsigned long cl_lock_weigh(const struct lu_env *env, struct cl_lock *lock);
 /** @} cl_lock */
 
 /** \defgroup cl_io cl_io
- * @{ */
+ * @{
+ */
 
 int   cl_io_init	 (const struct lu_env *env, struct cl_io *io,
 			  enum cl_io_type iot, struct cl_object *obj);
@@ -3094,7 +3112,8 @@ do {									\
 /** @} cl_io */
 
 /** \defgroup cl_page_list cl_page_list
- * @{ */
+ * @{
+ */
 
 /**
  * Last page in the page list.
@@ -3137,7 +3156,8 @@ void cl_2queue_init_page(struct cl_2queue *queue, struct cl_page *page);
 /** @} cl_page_list */
 
 /** \defgroup cl_req cl_req
- * @{ */
+ * @{
+ */
 struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 			    enum cl_req_type crt, int nr_objects);
 
@@ -3214,7 +3234,8 @@ void cl_sync_io_note(struct cl_sync_io *anchor, int ioret);
  *       - cl_env_reexit(cl_env_reenter had to be called priorly)
  *
  * \see lu_env, lu_context, lu_context_key
- * @{ */
+ * @{
+ */
 
 struct cl_env_nest {
 	int   cen_refcheck;

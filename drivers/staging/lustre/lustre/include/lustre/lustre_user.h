@@ -85,9 +85,8 @@ struct obd_statfs {
 	__u32	   os_namelen;
 	__u64	   os_maxbytes;
 	__u32	   os_state;       /**< obd_statfs_state OS_STATE_* flag */
-	__u32	   os_fprecreated;	/* objs available now to the caller */
-					/* used in QoS code to find preferred
-					 * OSTs */
+	__u32	   os_fprecreated; /* objs available now to the caller */
+				   /* used in QoS code to find preferred OSTs */
 	__u32	   os_spare2;
 	__u32	   os_spare3;
 	__u32	   os_spare4;
@@ -135,7 +134,8 @@ struct filter_fid_old {
 
 /* Userspace should treat lu_fid as opaque, and only use the following methods
  * to print or parse them.  Other functions (e.g. compare, swab) could be moved
- * here from lustre_idl.h if needed. */
+ * here from lustre_idl.h if needed.
+ */
 struct lu_fid;
 
 /**
@@ -266,7 +266,8 @@ struct ost_id {
 /* Define O_LOV_DELAY_CREATE to be a mask that is not useful for regular
  * files, but are unlikely to be used in practice and are not harmful if
  * used incorrectly.  O_NOCTTY and FASYNC are only meaningful for character
- * devices and are safe for use on new files (See LU-812, LU-4209). */
+ * devices and are safe for use on new files (See LU-812, LU-4209).
+ */
 #define O_LOV_DELAY_CREATE	(O_NOCTTY | FASYNC)
 
 #define LL_FILE_IGNORE_LOCK     0x00000001
@@ -302,7 +303,8 @@ struct ost_id {
  * The limit of 12 pages is somewhat arbitrary, but is a reasonably large
  * allocation that is sufficient for the current generation of systems.
  *
- * (max buffer size - lov+rpc header) / sizeof(struct lov_ost_data_v1) */
+ * (max buffer size - lov+rpc header) / sizeof(struct lov_ost_data_v1)
+ */
 #define LOV_MAX_STRIPE_COUNT 2000  /* ((12 * 4096 - 256) / 24) */
 #define LOV_ALL_STRIPES       0xffff /* only valid for directories */
 #define LOV_V1_INSANE_STRIPE_COUNT 65532 /* maximum stripe count bz13933 */
@@ -323,9 +325,11 @@ struct lov_user_md_v1 {	   /* LOV EA user data (host-endian) */
 	__u16 lmm_stripe_count;   /* num stripes in use for this object */
 	union {
 		__u16 lmm_stripe_offset;  /* starting stripe offset in
-					   * lmm_objects, use when writing */
+					   * lmm_objects, use when writing
+					   */
 		__u16 lmm_layout_gen;     /* layout generation number
-					   * used when reading */
+					   * used when reading
+					   */
 	};
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 } __attribute__((packed,  __may_alias__));
@@ -338,9 +342,11 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 	__u16 lmm_stripe_count;   /* num stripes in use for this object */
 	union {
 		__u16 lmm_stripe_offset;  /* starting stripe offset in
-					   * lmm_objects, use when writing */
+					   * lmm_objects, use when writing
+					   */
 		__u16 lmm_layout_gen;     /* layout generation number
-					   * used when reading */
+					   * used when reading
+					   */
 	};
 	char  lmm_pool_name[LOV_MAXPOOLNAME]; /* pool name */
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
@@ -444,7 +450,8 @@ static inline char *obd_uuid2str(const struct obd_uuid *uuid)
 {
 	if (uuid->uuid[sizeof(*uuid) - 1] != '\0') {
 		/* Obviously not safe, but for printfs, no real harm done...
-		   we're always null-terminated, even in a race. */
+		 * we're always null-terminated, even in a race.
+		 */
 		static char temp[sizeof(*uuid)];
 
 		memcpy(temp, uuid->uuid, sizeof(*uuid) - 1);
@@ -455,8 +462,9 @@ static inline char *obd_uuid2str(const struct obd_uuid *uuid)
 }
 
 /* Extract fsname from uuid (or target name) of a target
-   e.g. (myfs-OST0007_UUID -> myfs)
-   see also deuuidify. */
+ * e.g. (myfs-OST0007_UUID -> myfs)
+ * see also deuuidify.
+ */
 static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 {
 	char *p;
@@ -469,7 +477,8 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 }
 
 /* printf display format
-   e.g. printf("file FID is "DFID"\n", PFID(fid)); */
+ * e.g. printf("file FID is "DFID"\n", PFID(fid));
+ */
 #define FID_NOBRACE_LEN 40
 #define FID_LEN (FID_NOBRACE_LEN + 2)
 #define DFID_NOBRACE "%#llx:0x%x:0x%x"
@@ -480,7 +489,8 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 	(fid)->f_ver
 
 /* scanf input parse format -- strip '[' first.
-   e.g. sscanf(fidstr, SFID, RFID(&fid)); */
+ * e.g. sscanf(fidstr, SFID, RFID(&fid));
+ */
 #define SFID "0x%llx:0x%x:0x%x"
 #define RFID(fid)     \
 	&((fid)->f_seq), \
@@ -698,7 +708,8 @@ static inline const char *changelog_type2str(int type)
 #define CLF_HSM_LAST	15
 
 /* Remove bits higher than _h, then extract the value
- * between _h and _l by shifting lower weigth to bit 0. */
+ * between _h and _l by shifting lower weigth to bit 0.
+ */
 #define CLF_GET_BITS(_b, _h, _l) (((_b << (CLF_HSM_LAST - _h)) & 0xFFFF) \
 				   >> (CLF_HSM_LAST - _h + _l))
 
@@ -775,7 +786,8 @@ struct changelog_rec {
 struct changelog_ext_rec {
 	__u16			cr_namelen;
 	__u16			cr_flags; /**< (flags & CLF_FLAGMASK) |
-						CLF_EXT_VERSION */
+					   *	CLF_EXT_VERSION
+					   */
 	__u32			cr_type;  /**< \a changelog_rec_type */
 	__u64			cr_index; /**< changelog record number */
 	__u64			cr_prev;  /**< last index for this target fid */
@@ -835,7 +847,8 @@ struct ioc_data_version {
 };
 
 #define LL_DV_NOFLUSH 0x01   /* Do not take READ EXTENT LOCK before sampling
-				version. Dirty caches are left unchanged. */
+			      * version. Dirty caches are left unchanged.
+			      */
 
 #ifndef offsetof
 # define offsetof(typ, memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
@@ -1095,7 +1108,8 @@ struct hsm_action_list {
 	__u32 padding1;
 	char  hal_fsname[0];   /* null-terminated */
 	/* struct hsm_action_item[hal_count] follows, aligned on 8-byte
-	   boundaries. See hai_zero */
+	 * boundaries. See hai_zero
+	 */
 } __packed;
 
 #ifndef HAVE_CFS_SIZE_ROUND

@@ -250,7 +250,8 @@ struct ldlm_pool {
 	/** Current biggest client lock volume. Protected by pl_lock. */
 	__u64			pl_client_lock_volume;
 	/** Lock volume factor. SLV on client is calculated as following:
-	 *  server_slv * lock_volume_factor. */
+	 *  server_slv * lock_volume_factor.
+	 */
 	atomic_t		pl_lock_volume_factor;
 	/** Time when last SLV from server was obtained. */
 	time64_t		pl_recalc_time;
@@ -501,7 +502,8 @@ struct ldlm_glimpse_work {
 	struct list_head		 gl_list; /* linkage to other gl work structs */
 	__u32			 gl_flags;/* see LDLM_GL_WORK_* below */
 	union ldlm_gl_desc	*gl_desc; /* glimpse descriptor to be packed in
-					   * glimpse callback request */
+					   * glimpse callback request
+					   */
 };
 
 /** The ldlm_glimpse_work is allocated on the stack and should not be freed. */
@@ -510,8 +512,9 @@ struct ldlm_glimpse_work {
 /** Interval node data for each LDLM_EXTENT lock. */
 struct ldlm_interval {
 	struct interval_node	li_node;  /* node for tree management */
-	struct list_head		li_group; /* the locks which have the same
-					   * policy - group of the policy */
+	struct list_head	li_group; /* the locks which have the same
+					   * policy - group of the policy
+					   */
 };
 
 #define to_ldlm_interval(n) container_of(n, struct ldlm_interval, li_node)
@@ -537,7 +540,8 @@ enum ldlm_cancel_flags {
 	LCF_ASYNC      = 0x1, /* Cancel locks asynchronously. */
 	LCF_LOCAL      = 0x2, /* Cancel locks locally, not notifing server */
 	LCF_BL_AST     = 0x4, /* Cancel locks marked as LDLM_FL_BL_AST
-			       * in the same RPC */
+			       * in the same RPC
+			       */
 };
 
 struct ldlm_flock {
@@ -839,12 +843,14 @@ struct ldlm_resource {
 
 	/**
 	 * protected by lr_lock
-	 * @{ */
+	 * @{
+	 */
 	/** List of locks in granted state */
 	struct list_head		lr_granted;
 	/**
 	 * List of locks that could not be granted due to conflicts and
-	 * that are waiting for conflicts to go away */
+	 * that are waiting for conflicts to go away
+	 */
 	struct list_head		lr_waiting;
 	/** @} */
 
@@ -1036,7 +1042,8 @@ typedef int (*ldlm_res_iterator_t)(struct ldlm_resource *, void *);
  *
  * LDLM provides for a way to iterate through every lock on a resource or
  * namespace or every resource in a namespace.
- * @{ */
+ * @{
+ */
 int ldlm_resource_iterate(struct ldlm_namespace *, const struct ldlm_res_id *,
 			  ldlm_iterator_t iter, void *data);
 /** @} ldlm_iterator */
@@ -1214,7 +1221,8 @@ int ldlm_lock_change_resource(struct ldlm_namespace *, struct ldlm_lock *,
  * These AST handlers are typically used for server-side local locks and are
  * also used by client-side lock handlers to perform minimum level base
  * processing.
- * @{ */
+ * @{
+ */
 int ldlm_completion_ast_async(struct ldlm_lock *lock, __u64 flags, void *data);
 int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data);
 /** @} ldlm_local_ast */
@@ -1222,7 +1230,8 @@ int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data);
 /** \defgroup ldlm_cli_api API to operate on locks from actual LDLM users.
  * These are typically used by client and server (*_local versions)
  * to obtain and release locks.
- * @{ */
+ * @{
+ */
 int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 		     struct ldlm_enqueue_info *einfo,
 		     const struct ldlm_res_id *res_id,

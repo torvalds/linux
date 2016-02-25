@@ -90,7 +90,8 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 	 * done, then set rpcl_it to MDC_FAKE_RPCL_IT.  Once that is set
 	 * it will only be cleared when all fake requests are finished.
 	 * Only when all fake requests are finished can normal requests
-	 * be sent, to ensure they are recoverable again. */
+	 * be sent, to ensure they are recoverable again.
+	 */
  again:
 	mutex_lock(&lck->rpcl_mutex);
 
@@ -105,7 +106,8 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 	 * just turned off but there are still requests in progress.
 	 * Wait until they finish.  It doesn't need to be efficient
 	 * in this extremely rare case, just have low overhead in
-	 * the common case when it isn't true. */
+	 * the common case when it isn't true.
+	 */
 	while (unlikely(lck->rpcl_it == MDC_FAKE_RPCL_IT)) {
 		mutex_unlock(&lck->rpcl_mutex);
 		schedule_timeout(cfs_time_seconds(1) / 4);
