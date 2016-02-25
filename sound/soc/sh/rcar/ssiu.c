@@ -115,13 +115,12 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	}
 
 	if (rsnd_ssi_use_busif(io)) {
-		u32 val = rsnd_get_dalign(mod, io);
-
 		rsnd_mod_write(mod, SSI_BUSIF_ADINR,
 			       rsnd_get_adinr_bit(mod, io) |
 			       rsnd_get_adinr_chan(mod, io));
 		rsnd_mod_write(mod, SSI_BUSIF_MODE,  1);
-		rsnd_mod_write(mod, SSI_BUSIF_DALIGN, val);
+		rsnd_mod_write(mod, SSI_BUSIF_DALIGN,
+			       rsnd_get_dalign(mod, io));
 	}
 
 	return 0;
