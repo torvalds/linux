@@ -777,6 +777,32 @@ static int dwc_otg_gadget_start(struct usb_gadget *g,
 
 static int dwc_otg_gadget_stop(struct usb_gadget *g)
 {
+	struct gadget_wrapper *d;
+	struct usb_ep *ep;
+	s8 dev_endpoints;
+	int i;
+
+	if (!g)
+		return -ENODEV;
+
+	d = container_of(g, struct gadget_wrapper, gadget);
+
+	/* all endpoints should be shutdown */
+	dev_endpoints = d->pcd->core_if->dev_if->num_in_eps;
+	for (i = 0; i < dev_endpoints; i++) {
+		ep = &d->in_ep[i];
+		ep_disable(ep);
+	}
+
+	dev_endpoints = d->pcd->core_if->dev_if->num_out_eps;
+	for (i = 0; i < dev_endpoints; i++) {
+		ep = &d->out_ep[i];
+		ep_disable(ep);
+	}
+
+	gadget_wrapper->driver = NULL;
+	gadget_wrapper->gadget.dev.driver = NULL;
+
 	return 0;
 }
 
@@ -1139,6 +1165,7 @@ void gadget_add_eps(struct gadget_wrapper *d)
 	ep = &d->ep0;
 
 	/* Init the usb_ep structure. */
+	ep->caps.type_control = true;
 	ep->name = names[0];
 	ep->ops = (struct usb_ep_ops *)&dwc_otg_pcd_ep_ops;
 
@@ -1146,7 +1173,7 @@ void gadget_add_eps(struct gadget_wrapper *d)
 	 * @todo NGS: What should the max packet size be set to
 	 * here?  Before EP type is set?
 	 */
-	ep->maxpacket = MAX_PACKET_SIZE;
+	usb_ep_set_maxpacket_limit(ep, MAX_EP0_SIZE);
 	dwc_otg_pcd_ep_enable(d->pcd, NULL, ep);
 
 	list_add_tail(&ep->ep_list, &d->gadget.ep_list);
@@ -1160,6 +1187,10 @@ void gadget_add_eps(struct gadget_wrapper *d)
 		ep = &d->in_ep[i];
 
 		/* Init the usb_ep structure. */
+		ep->caps.dir_in = true;
+		ep->caps.type_iso = true;
+		ep->caps.type_bulk = true;
+		ep->caps.type_int = true;
 		ep->name = names[d->pcd->in_ep[i].dwc_ep.num];
 		ep->ops = (struct usb_ep_ops *)&dwc_otg_pcd_ep_ops;
 
@@ -1167,7 +1198,7 @@ void gadget_add_eps(struct gadget_wrapper *d)
 		 * @todo NGS: What should the max packet size be set to
 		 * here?  Before EP type is set?
 		 */
-		ep->maxpacket = MAX_PACKET_SIZE;
+		usb_ep_set_maxpacket_limit(ep, MAX_PACKET_SIZE);
 		list_add_tail(&ep->ep_list, &d->gadget.ep_list);
 	}
 
@@ -1177,6 +1208,10 @@ void gadget_add_eps(struct gadget_wrapper *d)
 		ep = &d->out_ep[i];
 
 		/* Init the usb_ep structure. */
+		ep->caps.dir_out = true;
+		ep->caps.type_iso = true;
+		ep->caps.type_bulk = true;
+		ep->caps.type_int = true;
 		ep->name = names[15 + d->pcd->out_ep[i].dwc_ep.num];
 		ep->ops = (struct usb_ep_ops *)&dwc_otg_pcd_ep_ops;
 
@@ -1184,8 +1219,7 @@ void gadget_add_eps(struct gadget_wrapper *d)
 		 * @todo NGS: What should the max packet size be set to
 		 * here?  Before EP type is set?
 		 */
-		ep->maxpacket = MAX_PACKET_SIZE;
-
+		usb_ep_set_maxpacket_limit(ep, MAX_PACKET_SIZE);
 		list_add_tail(&ep->ep_list, &d->gadget.ep_list);
 	}
 
