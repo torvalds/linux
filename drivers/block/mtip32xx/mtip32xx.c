@@ -2917,9 +2917,7 @@ static int mtip_service_thread(void *data)
 		 * is in progress nor error handling is active
 		 */
 		wait_event_interruptible(port->svc_wait, (port->flags) &&
-			!(port->flags & MTIP_PF_PAUSE_IO));
-
-		set_bit(MTIP_PF_SVC_THD_ACTIVE_BIT, &port->flags);
+			(port->flags & MTIP_PF_SVC_THD_WORK));
 
 		if (kthread_should_stop() ||
 			test_bit(MTIP_PF_SVC_THD_STOP_BIT, &port->flags))
@@ -2928,6 +2926,8 @@ static int mtip_service_thread(void *data)
 		if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 				&dd->dd_flag)))
 			goto st_out;
+
+		set_bit(MTIP_PF_SVC_THD_ACTIVE_BIT, &port->flags);
 
 restart_eh:
 		/* Demux bits: start with error handling */
