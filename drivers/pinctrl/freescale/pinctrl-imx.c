@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -24,6 +25,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/slab.h>
+#include <linux/regmap.h>
 
 #include "../core.h"
 #include "pinctrl-imx.h"
@@ -718,10 +720,12 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 int imx_pinctrl_probe(struct platform_device *pdev,
 		      struct imx_pinctrl_soc_info *info)
 {
+	struct regmap_config config = { .name = "gpr" };
 	struct device_node *dev_np = pdev->dev.of_node;
 	struct device_node *np;
 	struct imx_pinctrl *ipctl;
 	struct resource *res;
+	struct regmap *gpr;
 	int ret, i;
 
 	if (!info || !info->pins || !info->npins) {
@@ -729,6 +733,12 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		return -EINVAL;
 	}
 	info->dev = &pdev->dev;
+
+	if (info->gpr_compatible) {
+		gpr = syscon_regmap_lookup_by_compatible(info->gpr_compatible);
+		if (!IS_ERR(gpr))
+			regmap_attach_dev(&pdev->dev, gpr, &config);
+	}
 
 	/* Create state holders etc for this driver */
 	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);
