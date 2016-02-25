@@ -99,7 +99,8 @@ static int __init init_lustre_lite(void)
 
 	/* print an address of _any_ initialized kernel symbol from this
 	 * module, to allow debugging with gdb that doesn't support data
-	 * symbols from modules.*/
+	 * symbols from modules.
+	 */
 	CDEBUG(D_INFO, "Lustre client module (%p).\n",
 	       &lustre_super_operations);
 
@@ -146,7 +147,8 @@ static int __init init_lustre_lite(void)
 	cfs_get_random_bytes(seed, sizeof(seed));
 
 	/* Nodes with small feet have little entropy. The NID for this
-	 * node gives the most entropy in the low bits */
+	 * node gives the most entropy in the low bits
+	 */
 	for (i = 0;; i++) {
 		if (LNetGetId(i, &lnet_id) == -ENOENT)
 			break;

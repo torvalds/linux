@@ -120,7 +120,8 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 
 			/* this is too bad. Someone is trying to write the
 			 * page w/o holding inode mutex. This means we can
-			 * add dirty pages into cache during truncate */
+			 * add dirty pages into cache during truncate
+			 */
 			CERROR("Proc %s is dirtying page w/o inode lock, this will break truncate\n",
 			       current->comm);
 			dump_stack();
@@ -239,7 +240,8 @@ int ll_prepare_write(struct file *file, struct page *vmpage, unsigned from,
 			ll_cl_fini(lcc);
 		}
 		/* returning 0 in prepare assumes commit must be called
-		 * afterwards */
+		 * afterwards
+		 */
 	} else {
 		result = PTR_ERR(lcc);
 	}
@@ -295,8 +297,8 @@ static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);
  * to get an ra budget that is larger than the remaining readahead pages
  * and reach here at exactly the same time. They will compute /a ret to
  * consume the remaining pages, but will fail at atomic_add_return() and
- * get a zero ra window, although there is still ra space remaining. - Jay */
-
+ * get a zero ra window, although there is still ra space remaining. - Jay
+ */
 static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 				     struct ra_io_arg *ria,
 				     unsigned long pages)
@@ -306,7 +308,8 @@ static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 
 	/* If read-ahead pages left are less than 1M, do not do read-ahead,
 	 * otherwise it will form small read RPC(< 1M), which hurt server
-	 * performance a lot. */
+	 * performance a lot.
+	 */
 	ret = min(ra->ra_max_pages - atomic_read(&ra->ra_cur_pages), pages);
 	if (ret < 0 || ret < min_t(long, PTLRPC_MAX_BRW_PAGES, pages)) {
 		ret = 0;
@@ -323,7 +326,8 @@ static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 	 * branch is more expensive than subtracting zero from the result.
 	 *
 	 * Strided read is left unaligned to avoid small fragments beyond
-	 * the RPC boundary from needing an extra read RPC. */
+	 * the RPC boundary from needing an extra read RPC.
+	 */
 	if (ria->ria_pages == 0) {
 		long beyond_rpc = (ria->ria_start + ret) % PTLRPC_MAX_BRW_PAGES;
 
@@ -514,13 +518,15 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 /* Limit this to the blocksize instead of PTLRPC_BRW_MAX_SIZE, since we don't
  * know what the actual RPC size is.  If this needs to change, it makes more
  * sense to tune the i_blkbits value for the file based on the OSTs it is
- * striped over, rather than having a constant value for all files here. */
+ * striped over, rather than having a constant value for all files here.
+ */
 
 /* RAS_INCREASE_STEP should be (1UL << (inode->i_blkbits - PAGE_CACHE_SHIFT)).
  * Temporarily set RAS_INCREASE_STEP to 1MB. After 4MB RPC is enabled
  * by default, this should be adjusted corresponding with max_read_ahead_mb
  * and max_read_ahead_per_file_mb otherwise the readahead budget can be used
- * up quickly which will affect read performance significantly. See LU-2816 */
+ * up quickly which will affect read performance significantly. See LU-2816
+ */
 #define RAS_INCREASE_STEP(inode) (ONE_MB_BRW_SIZE >> PAGE_CACHE_SHIFT)
 
 static inline int stride_io_mode(struct ll_readahead_state *ras)
@@ -599,7 +605,8 @@ static int ras_inside_ra_window(unsigned long idx, struct ra_io_arg *ria)
 	/* If ria_length == ria_pages, it means non-stride I/O mode,
 	 * idx should always inside read-ahead window in this case
 	 * For stride I/O mode, just check whether the idx is inside
-	 * the ria_pages. */
+	 * the ria_pages.
+	 */
 	return ria->ria_length == 0 || ria->ria_length == ria->ria_pages ||
 	       (idx >= ria->ria_stoff && (idx - ria->ria_stoff) %
 		ria->ria_length < ria->ria_pages);
@@ -633,11 +640,13 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 		} else if (stride_ria) {
 			/* If it is not in the read-ahead window, and it is
 			 * read-ahead mode, then check whether it should skip
-			 * the stride gap */
+			 * the stride gap
+			 */
 			pgoff_t offset;
 			/* FIXME: This assertion only is valid when it is for
 			 * forward read-ahead, it will be fixed when backward
-			 * read-ahead is implemented */
+			 * read-ahead is implemented
+			 */
 			LASSERTF(page_idx > ria->ria_stoff, "Invalid page_idx %lu rs %lu re %lu ro %lu rl %lu rp %lu\n",
 				 page_idx,
 				 ria->ria_start, ria->ria_end, ria->ria_stoff,
@@ -720,7 +729,8 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 		 */
 		/* Note: we only trim the RPC, instead of extending the RPC
 		 * to the boundary, so to avoid reading too much pages during
-		 * random reading. */
+		 * random reading.
+		 */
 		rpc_boundary = (end + 1) & (~(PTLRPC_MAX_BRW_PAGES - 1));
 		if (rpc_boundary > 0)
 			rpc_boundary--;
@@ -773,7 +783,8 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	 * the ras we need to go back and update the ras so that the
 	 * next read-ahead tries from where we left off.  we only do so
 	 * if the region we failed to issue read-ahead on is still ahead
-	 * of the app and behind the next index to start read-ahead from */
+	 * of the app and behind the next index to start read-ahead from
+	 */
 	CDEBUG(D_READA, "ra_end %lu end %lu stride end %lu \n",
 	       ra_end, end, ria->ria_end);
 
@@ -879,7 +890,8 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 }
 
 /* Stride Read-ahead window will be increased inc_len according to
- * stride I/O pattern */
+ * stride I/O pattern
+ */
 static void ras_stride_increase_window(struct ll_readahead_state *ras,
 				       struct ll_ra_info *ra,
 				       unsigned long inc_len)
@@ -950,7 +962,8 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	 * or reads to some other part of the file.  Secondly if we get a
 	 * read-ahead miss that we think we've previously issued.  This can
 	 * be a symptom of there being so many read-ahead pages that the VM is
-	 * reclaiming it before we get to it. */
+	 * reclaiming it before we get to it.
+	 */
 	if (!index_in_window(index, ras->ras_last_readpage, 8, 8)) {
 		zero = 1;
 		ll_ra_stats_inc_sbi(sbi, RA_STAT_DISTANT_READPAGE);
@@ -967,7 +980,8 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	 * file up to ra_max_pages_per_file.  This is simply a best effort
 	 * and only occurs once per open file.  Normal RA behavior is reverted
 	 * to for subsequent IO.  The mmap case does not increment
-	 * ras_requests and thus can never trigger this behavior. */
+	 * ras_requests and thus can never trigger this behavior.
+	 */
 	if (ras->ras_requests == 2 && !ras->ras_request_index) {
 		__u64 kms_pages;
 
@@ -1013,14 +1027,16 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 			    stride_io_mode(ras)) {
 				/*If stride-RA hit cache miss, the stride dector
 				 *will not be reset to avoid the overhead of
-				 *redetecting read-ahead mode */
+				 *redetecting read-ahead mode
+				 */
 				if (index != ras->ras_last_readpage + 1)
 					ras->ras_consecutive_pages = 0;
 				ras_reset(inode, ras, index);
 				RAS_CDEBUG(ras);
 			} else {
 				/* Reset both stride window and normal RA
-				 * window */
+				 * window
+				 */
 				ras_reset(inode, ras, index);
 				ras->ras_consecutive_pages++;
 				ras_stride_reset(ras);
@@ -1029,7 +1045,8 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 		} else if (stride_io_mode(ras)) {
 			/* If this is contiguous read but in stride I/O mode
 			 * currently, check whether stride step still is valid,
-			 * if invalid, it will reset the stride ra window*/
+			 * if invalid, it will reset the stride ra window
+			 */
 			if (!index_in_stride_window(ras, index)) {
 				/* Shrink stride read-ahead window to be zero */
 				ras_stride_reset(ras);
@@ -1045,7 +1062,8 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	if (stride_io_mode(ras))
 		/* Since stride readahead is sensitive to the offset
 		 * of read-ahead, so we use original offset here,
-		 * instead of ras_window_start, which is RPC aligned */
+		 * instead of ras_window_start, which is RPC aligned
+		 */
 		ras->ras_next_readahead = max(index, ras->ras_next_readahead);
 	else
 		ras->ras_next_readahead = max(ras->ras_window_start,
@@ -1053,7 +1071,8 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	RAS_CDEBUG(ras);
 
 	/* Trigger RA in the mmap case where ras_consecutive_requests
-	 * is not incremented and thus can't be used to trigger RA */
+	 * is not incremented and thus can't be used to trigger RA
+	 */
 	if (!ras->ras_window_len && ras->ras_consecutive_pages == 4) {
 		ras->ras_window_len = RAS_INCREASE_STEP(inode);
 		goto out_unlock;
@@ -1151,14 +1170,16 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 		/* Flush page failed because the extent is being written out.
 		 * Wait for the write of extent to be finished to avoid
 		 * breaking kernel which assumes ->writepage should mark
-		 * PageWriteback or clean the page. */
+		 * PageWriteback or clean the page.
+		 */
 		result = cl_sync_file_range(inode, offset,
 					    offset + PAGE_CACHE_SIZE - 1,
 					    CL_FSYNC_LOCAL, 1);
 		if (result > 0) {
 			/* actually we may have written more than one page.
 			 * decreasing this page because the caller will count
-			 * it. */
+			 * it.
+			 */
 			wbc->nr_to_write -= result - 1;
 			result = 0;
 		}
@@ -1208,7 +1229,8 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	if (sbi->ll_umounting)
 		/* if the mountpoint is being umounted, all pages have to be
 		 * evicted to avoid hitting LBUG when truncate_inode_pages()
-		 * is called later on. */
+		 * is called later on.
+		 */
 		ignore_layout = 1;
 	result = cl_sync_file_range(inode, start, end, mode, ignore_layout);
 	if (result > 0) {

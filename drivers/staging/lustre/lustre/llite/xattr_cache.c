@@ -23,7 +23,8 @@
  */
 struct ll_xattr_entry {
 	struct list_head	xe_list;    /* protected with
-					     * lli_xattrs_list_rwsem */
+					     * lli_xattrs_list_rwsem
+					     */
 	char			*xe_name;   /* xattr name, \0-terminated */
 	char			*xe_value;  /* xattr value */
 	unsigned		xe_namelen; /* strlen(xe_name) + 1 */
@@ -280,7 +281,8 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 
 	mutex_lock(&lli->lli_xattrs_enq_lock);
 	/* inode may have been shrunk and recreated, so data is gone, match lock
-	 * only when data exists. */
+	 * only when data exists.
+	 */
 	if (ll_xattr_cache_valid(lli)) {
 		/* Try matching first. */
 		mode = ll_take_md_lock(inode, MDS_INODELOCK_XATTR, &lockh, 0,

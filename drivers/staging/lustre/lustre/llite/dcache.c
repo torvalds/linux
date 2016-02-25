@@ -80,7 +80,8 @@ static void ll_release(struct dentry *de)
  * This avoids a race where ll_lookup_it() instantiates a dentry, but we get
  * an AST before calling d_revalidate_it().  The dentry still exists (marked
  * INVALID) so d_lookup() matches it, but we have no lock on it (so
- * lock_match() fails) and we spin around real_lookup(). */
+ * lock_match() fails) and we spin around real_lookup().
+ */
 static int ll_dcompare(const struct dentry *parent, const struct dentry *dentry,
 		       unsigned int len, const char *str,
 		       const struct qstr *name)
@@ -117,7 +118,8 @@ static inline int return_if_equal(struct ldlm_lock *lock, void *data)
 /* find any ldlm lock of the inode in mdc and lov
  * return 0    not find
  *	1    find one
- *      < 0    error */
+ *      < 0    error
+ */
 static int find_cbdata(struct inode *inode)
 {
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
@@ -163,10 +165,12 @@ static int ll_ddelete(const struct dentry *de)
 	/* Disable this piece of code temporarily because this is called
 	 * inside dcache_lock so it's not appropriate to do lots of work
 	 * here. ATTENTION: Before this piece of code enabling, LU-2487 must be
-	 * resolved. */
+	 * resolved.
+	 */
 #if 0
 	/* if not ldlm lock for this inode, set i_nlink to 0 so that
-	 * this inode can be recycled later b=20433 */
+	 * this inode can be recycled later b=20433
+	 */
 	if (d_really_is_positive(de) && !find_cbdata(d_inode(de)))
 		clear_nlink(d_inode(de));
 #endif
@@ -216,7 +220,8 @@ void ll_intent_drop_lock(struct lookup_intent *it)
 		ldlm_lock_decref(&handle, it->d.lustre.it_lock_mode);
 
 		/* bug 494: intent_release may be called multiple times, from
-		 * this thread and we don't want to double-decref this lock */
+		 * this thread and we don't want to double-decref this lock
+		 */
 		it->d.lustre.it_lock_mode = 0;
 		if (it->d.lustre.it_remote_lock_mode != 0) {
 			handle.cookie = it->d.lustre.it_remote_lock_handle;
@@ -294,7 +299,8 @@ void ll_lookup_finish_locks(struct lookup_intent *it, struct inode *inode)
 	if (it->it_op == IT_LOOKUP || it->it_op == IT_GETATTR) {
 		/* on 2.6 there are situation when several lookups and
 		 * revalidations may be requested during single operation.
-		 * therefore, we don't release intent here -bzzz */
+		 * therefore, we don't release intent here -bzzz
+		 */
 		ll_intent_drop_lock(it);
 	}
 }

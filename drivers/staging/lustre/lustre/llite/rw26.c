@@ -145,7 +145,8 @@ static int ll_releasepage(struct page *vmpage, RELEASEPAGE_ARG_TYPE gfp_mask)
 		/* If we can't allocate an env we won't call cl_page_put()
 		 * later on which further means it's impossible to drop
 		 * page refcount by cl_page, so ask kernel to not free
-		 * this page. */
+		 * this page.
+		 */
 		return 0;
 
 	page = cl_vmpage_page(vmpage, obj);
@@ -212,7 +213,8 @@ static inline int ll_get_user_pages(int rw, unsigned long user_addr,
 }
 
 /*  ll_free_user_pages - tear down page struct array
- *  @pages: array of page struct pointers underlying target buffer */
+ *  @pages: array of page struct pointers underlying target buffer
+ */
 static void ll_free_user_pages(struct page **pages, int npages, int do_dirty)
 {
 	int i;
@@ -266,7 +268,8 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 		do_io = true;
 
 		/* check the page type: if the page is a host page, then do
-		 * write directly */
+		 * write directly
+		 */
 		if (clp->cp_type == CPT_CACHEABLE) {
 			struct page *vmpage = cl_page_vmpage(env, clp);
 			struct page *src_page;
@@ -284,14 +287,16 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 			kunmap_atomic(src);
 
 			/* make sure page will be added to the transfer by
-			 * cl_io_submit()->...->vvp_page_prep_write(). */
+			 * cl_io_submit()->...->vvp_page_prep_write().
+			 */
 			if (rw == WRITE)
 				set_page_dirty(vmpage);
 
 			if (rw == READ) {
 				/* do not issue the page for read, since it
 				 * may reread a ra page which has NOT uptodate
-				 * bit set. */
+				 * bit set.
+				 */
 				cl_page_disown(env, io, clp);
 				do_io = false;
 			}
@@ -359,7 +364,8 @@ static ssize_t ll_direct_IO_26_seg(const struct lu_env *env, struct cl_io *io,
  * kmalloc limit.  We need to fit all of the brw_page structs, each one
  * representing PAGE_SIZE worth of user data, into a single buffer, and
  * then truncate this to be a full-sized RPC.  For 4kB PAGE_SIZE this is
- * up to 22MB for 128kB kmalloc and up to 682MB for 4MB kmalloc. */
+ * up to 22MB for 128kB kmalloc and up to 682MB for 4MB kmalloc.
+ */
 #define MAX_DIO_SIZE ((MAX_MALLOC / sizeof(struct brw_page) * PAGE_CACHE_SIZE) & \
 		      ~(DT_MAX_BRW_SIZE - 1))
 static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
@@ -433,7 +439,8 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 			 * for the request, shrink it to a smaller
 			 * PAGE_SIZE multiple and try again.
 			 * We should always be able to kmalloc for a
-			 * page worth of page pointers = 4MB on i386. */
+			 * page worth of page pointers = 4MB on i386.
+			 */
 			if (result == -ENOMEM &&
 			    size > (PAGE_CACHE_SIZE / sizeof(*pages)) *
 				   PAGE_CACHE_SIZE) {

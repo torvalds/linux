@@ -232,7 +232,8 @@ static int vvp_page_prep_write(const struct lu_env *env,
 	LASSERT(!PageDirty(vmpage));
 
 	/* ll_writepage path is not a sync write, so need to set page writeback
-	 * flag */
+	 * flag
+	 */
 	if (!pg->cp_sync_io)
 		set_page_writeback(vmpage);
 
@@ -356,15 +357,15 @@ static int vvp_page_make_ready(const struct lu_env *env,
 	lock_page(vmpage);
 	if (clear_page_dirty_for_io(vmpage)) {
 		LASSERT(pg->cp_state == CPS_CACHED);
-		/* This actually clears the dirty bit in the radix
-		 * tree. */
+		/* This actually clears the dirty bit in the radix tree. */
 		set_page_writeback(vmpage);
 		vvp_write_pending(cl2ccc(slice->cpl_obj),
 				cl2ccc_page(slice));
 		CL_PAGE_HEADER(D_PAGE, env, pg, "readied\n");
 	} else if (pg->cp_state == CPS_PAGEOUT) {
 		/* is it possible for osc_flush_async_page() to already
-		 * make it ready? */
+		 * make it ready?
+		 */
 		result = -EALREADY;
 	} else {
 		CL_PAGE_DEBUG(D_ERROR, env, pg, "Unexpecting page state %d.\n",

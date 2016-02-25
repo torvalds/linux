@@ -379,7 +379,8 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 				 &it.d.lustre.it_lock_handle, dir, NULL);
 	} else {
 		/* for cross-ref object, l_ast_data of the lock may not be set,
-		 * we reset it here */
+		 * we reset it here
+		 */
 		md_set_lock_data(ll_i2sbi(dir)->ll_md_exp, &lockh.cookie,
 				 dir, NULL);
 	}
@@ -737,8 +738,9 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 	}
 
 	/* In the following we use the fact that LOV_USER_MAGIC_V1 and
-	 LOV_USER_MAGIC_V3 have the same initial fields so we do not
-	 need to make the distinction between the 2 versions */
+	 * LOV_USER_MAGIC_V3 have the same initial fields so we do not
+	 * need to make the distinction between the 2 versions
+	 */
 	if (set_default && mgc->u.cli.cl_mgc_mgsexp) {
 		char *param = NULL;
 		char *buf;
@@ -929,7 +931,8 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 		}
 
 		/* Store it the hsm_copy for later copytool use.
-		 * Always modified even if no lsm. */
+		 * Always modified even if no lsm.
+		 */
 		copy->hc_data_version = data_version;
 	}
 
@@ -1006,11 +1009,13 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 		}
 
 		/* Store it the hsm_copy for later copytool use.
-		 * Always modified even if no lsm. */
+		 * Always modified even if no lsm.
+		 */
 		hpk.hpk_data_version = data_version;
 
 		/* File could have been stripped during archiving, so we need
-		 * to check anyway. */
+		 * to check anyway.
+		 */
 		if ((copy->hc_hai.hai_action == HSMA_ARCHIVE) &&
 		    (copy->hc_data_version != data_version)) {
 			CDEBUG(D_HSM, "File data version mismatched. File content was changed during archiving. "
@@ -1022,7 +1027,8 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 			 * the cdt will loop on retried archive requests.
 			 * The policy engine will ask for a new archive later
 			 * when the file will not be modified for some tunable
-			 * time */
+			 * time
+			 */
 			/* we do not notify caller */
 			hpk.hpk_flags &= ~HP_FLAG_RETRY;
 			/* hpk_errval must be >= 0 */
@@ -1150,7 +1156,8 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 			return rc;
 		}
 		/* If QIF_SPACE is not set, client should collect the
-		 * space usage from OSSs by itself */
+		 * space usage from OSSs by itself
+		 */
 		if (cmd == Q_GETQUOTA &&
 		    !(oqctl->qc_dqblk.dqb_valid & QIF_SPACE) &&
 		    !oqctl->qc_dqblk.dqb_curspace) {
@@ -1201,7 +1208,8 @@ out:
 
 /* This function tries to get a single name component,
  * to send to the server. No actual path traversal involved,
- * so we limit to NAME_MAX */
+ * so we limit to NAME_MAX
+ */
 static char *ll_getname(const char __user *filename)
 {
 	int ret = 0, len;
@@ -1803,7 +1811,8 @@ out_quotactl:
 		hpk.hpk_data_version = 0;
 
 		/* File may not exist in Lustre; all progress
-		 * reported to Lustre root */
+		 * reported to Lustre root
+		 */
 		rc = obd_iocontrol(cmd, sbi->ll_md_exp, sizeof(hpk), &hpk,
 				   NULL);
 		return rc;

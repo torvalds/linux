@@ -237,7 +237,8 @@ int ll_setxattr(struct dentry *dentry, const char *name,
 
 		/* Attributes that are saved via getxattr will always have
 		 * the stripe_offset as 0.  Instead, the MDS should be
-		 * allowed to pick the starting OST index.   b=17846 */
+		 * allowed to pick the starting OST index.   b=17846
+		 */
 		if (lump && lump->lmm_stripe_offset == 0)
 			lump->lmm_stripe_offset = -1;
 
@@ -480,7 +481,8 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 
 		if (size == 0 && S_ISDIR(inode->i_mode)) {
 			/* XXX directory EA is fix for now, optimize to save
-			 * RPC transfer */
+			 * RPC transfer
+			 */
 			rc = sizeof(struct lov_user_md);
 			goto out;
 		}
@@ -495,7 +497,8 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 			}
 		} else {
 			/* LSM is present already after lookup/getattr call.
-			 * we need to grab layout lock once it is implemented */
+			 * we need to grab layout lock once it is implemented
+			 */
 			rc = obd_packmd(ll_i2dtexp(inode), &lmm, lsm);
 			lmmsize = rc;
 		}
@@ -508,7 +511,8 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 			/* used to call ll_get_max_mdsize() forward to get
 			 * the maximum buffer size, while some apps (such as
 			 * rsync 3.0.x) care much about the exact xattr value
-			 * size */
+			 * size
+			 */
 			rc = lmmsize;
 			goto out;
 		}
@@ -524,7 +528,8 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 		memcpy(lump, lmm, lmmsize);
 		/* do not return layout gen for getxattr otherwise it would
 		 * confuse tar --xattr by recognizing layout gen as stripe
-		 * offset when the file is restored. See LU-2809. */
+		 * offset when the file is restored. See LU-2809.
+		 */
 		lump->lmm_layout_gen = 0;
 
 		rc = lmmsize;

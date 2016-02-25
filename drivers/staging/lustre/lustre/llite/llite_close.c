@@ -76,7 +76,8 @@ void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
 
 /** Queues DONE_WRITING if
  * - done writing is allowed;
- * - inode has no no dirty pages; */
+ * - inode has no no dirty pages;
+ */
 void ll_queue_done_writing(struct inode *inode, unsigned long flags)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -106,7 +107,8 @@ void ll_queue_done_writing(struct inode *inode, unsigned long flags)
 		 * close() happen, epoch is closed as the inode is marked as
 		 * LLIF_EPOCH_PENDING. When pages are written inode should not
 		 * be inserted into the queue again, clear this flag to avoid
-		 * it. */
+		 * it.
+		 */
 		lli->lli_flags &= ~LLIF_DONE_WRITING;
 
 		wake_up(&lcq->lcq_waitq);
@@ -147,7 +149,8 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 			LASSERT(*och);
 			LASSERT(!lli->lli_pending_och);
 			/* Inode is dirty and there is no pending write done
-			 * request yet, DONE_WRITE is to be sent later. */
+			 * request yet, DONE_WRITE is to be sent later.
+			 */
 			lli->lli_flags |= LLIF_EPOCH_PENDING;
 			lli->lli_pending_och = *och;
 			spin_unlock(&lli->lli_lock);
@@ -159,7 +162,8 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		if (flags & LLIF_DONE_WRITING) {
 			/* Some pages are still dirty, it is early to send
 			 * DONE_WRITE. Wait until all pages will be flushed
-			 * and try DONE_WRITE again later. */
+			 * and try DONE_WRITE again later.
+			 */
 			LASSERT(!(lli->lli_flags & LLIF_DONE_WRITING));
 			lli->lli_flags |= LLIF_DONE_WRITING;
 			spin_unlock(&lli->lli_lock);
@@ -187,7 +191,8 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		}
 
 		/* There is a pending DONE_WRITE -- close epoch with no
-		 * attribute change. */
+		 * attribute change.
+		 */
 		if (lli->lli_flags & LLIF_EPOCH_PENDING) {
 			spin_unlock(&lli->lli_lock);
 			goto out;
@@ -295,7 +300,8 @@ static void ll_done_writing(struct inode *inode)
 	rc = md_done_writing(ll_i2sbi(inode)->ll_md_exp, op_data, NULL);
 	if (rc == -EAGAIN)
 		/* MDS has instructed us to obtain Size-on-MDS attribute from
-		 * OSTs and send setattr to back to MDS. */
+		 * OSTs and send setattr to back to MDS.
+		 */
 		rc = ll_som_update(inode, op_data);
 	else if (rc)
 		CERROR("inode %lu mdc done_writing failed: rc = %d\n",

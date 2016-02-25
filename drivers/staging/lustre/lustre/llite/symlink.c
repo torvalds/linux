@@ -59,7 +59,8 @@ static int ll_readlink_internal(struct inode *inode,
 		*symname = lli->lli_symlink_name;
 		/* If the total CDEBUG() size is larger than a page, it
 		 * will print a warning to the console, avoid this by
-		 * printing just the last part of the symlink. */
+		 * printing just the last part of the symlink.
+		 */
 		CDEBUG(D_INODE, "using cached symlink %s%.*s, len = %d\n",
 		       print_limit < symlen ? "..." : "", print_limit,
 		       (*symname) + symlen - print_limit, symlen);

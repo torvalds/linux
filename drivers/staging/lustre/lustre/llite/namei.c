@@ -180,7 +180,8 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 		__u64 bits = lock->l_policy_data.l_inodebits.bits;
 
 		/* Inode is set to lock->l_resource->lr_lvb_inode
-		 * for mdc - bug 24555 */
+		 * for mdc - bug 24555
+		 */
 		LASSERT(!lock->l_ast_data);
 
 		if (!inode)
@@ -202,7 +203,8 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 		}
 
 		/* For OPEN locks we differentiate between lock modes
-		 * LCK_CR, LCK_CW, LCK_PR - bug 22891 */
+		 * LCK_CR, LCK_CW, LCK_PR - bug 22891
+		 */
 		if (bits & MDS_INODELOCK_OPEN)
 			ll_have_md_lock(inode, &bits, lock->l_req_mode);
 
@@ -285,7 +287,8 @@ __u32 ll_i2suppgid(struct inode *i)
 /* Pack the required supplementary groups into the supplied groups array.
  * If we don't need to use the groups from the target inode(s) then we
  * instead pack one or more groups from the user's supplementary group
- * array in case it might be useful.  Not needed if doing an MDS-side upcall. */
+ * array in case it might be useful.  Not needed if doing an MDS-side upcall.
+ */
 void ll_i2gids(__u32 *suppgids, struct inode *i1, struct inode *i2)
 {
 	LASSERT(i1);
@@ -388,7 +391,8 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 	int rc = 0;
 
 	/* NB 1 request reference will be taken away by ll_intent_lock()
-	 * when I return */
+	 * when I return
+	 */
 	CDEBUG(D_DENTRY, "it %p it_disposition %x\n", it,
 	       it->d.lustre.it_disposition);
 	if (!it_disposition(it, DISP_LOOKUP_NEG)) {
@@ -399,13 +403,14 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		ll_set_lock_data(ll_i2sbi(parent)->ll_md_exp, inode, it, &bits);
 
 		/* We used to query real size from OSTs here, but actually
-		   this is not needed. For stat() calls size would be updated
-		   from subsequent do_revalidate()->ll_inode_revalidate_it() in
-		   2.4 and
-		   vfs_getattr_it->ll_getattr()->ll_inode_revalidate_it() in 2.6
-		   Everybody else who needs correct file size would call
-		   ll_glimpse_size or some equivalent themselves anyway.
-		   Also see bug 7198. */
+		 * this is not needed. For stat() calls size would be updated
+		 * from subsequent do_revalidate()->ll_inode_revalidate_it() in
+		 * 2.4 and
+		 * vfs_getattr_it->ll_getattr()->ll_inode_revalidate_it() in 2.6
+		 * Everybody else who needs correct file size would call
+		 * ll_glimpse_size or some equivalent themselves anyway.
+		 * Also see bug 7198.
+		 */
 	}
 
 	/* Only hash *de if it is unhashed (new dentry).
@@ -422,8 +427,9 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		*de = alias;
 	} else if (!it_disposition(it, DISP_LOOKUP_NEG)  &&
 		   !it_disposition(it, DISP_OPEN_CREATE)) {
-		/* With DISP_OPEN_CREATE dentry will
-		   instantiated in ll_create_it. */
+		/* With DISP_OPEN_CREATE dentry will be
+		 * instantiated in ll_create_it.
+		 */
 		LASSERT(!d_inode(*de));
 		d_instantiate(*de, inode);
 	}
@@ -672,7 +678,8 @@ static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)
 
 	/* We asked for a lock on the directory, but were granted a
 	 * lock on the inode.  Since we finally have an inode pointer,
-	 * stuff it in the lock. */
+	 * stuff it in the lock.
+	 */
 	CDEBUG(D_DLMTRACE, "setting l_ast_data to inode %p (%lu/%u)\n",
 	       inode, inode->i_ino, inode->i_generation);
 	ll_set_lock_data(sbi->ll_md_exp, inode, it, NULL);
@@ -867,7 +874,8 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	/* The MDS sent back the EA because we unlinked the last reference
 	 * to this file. Use this EA to unlink the objects on the OST.
 	 * It's opaque so we don't swab here; we leave it to obd_unpackmd() to
-	 * check it is complete and sensible. */
+	 * check it is complete and sensible.
+	 */
 	eadata = req_capsule_server_sized_get(&request->rq_pill, &RMF_MDT_MD,
 					      body->eadatasize);
 	LASSERT(eadata);
@@ -917,7 +925,8 @@ out:
 /* ll_unlink() doesn't update the inode with the new link count.
  * Instead, ll_ddelete() and ll_d_iput() will update it based upon if there
  * is any lock existing. They will recycle dentries and inodes based upon locks
- * too. b=20433 */
+ * too. b=20433
+ */
 static int ll_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct ptlrpc_request *request = NULL;

@@ -105,7 +105,8 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 		return ERR_PTR(rc);
 
 	/* Because inode is NULL, ll_prep_md_op_data can not
-	 * be used here. So we allocate op_data ourselves */
+	 * be used here. So we allocate op_data ourselves
+	 */
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
 	if (!op_data)
 		return ERR_PTR(-ENOMEM);
@@ -209,7 +210,8 @@ static int ll_nfs_get_name_filldir(struct dir_context *ctx, const char *name,
 				   unsigned type)
 {
 	/* It is hack to access lde_fid for comparison with lgd_fid.
-	 * So the input 'name' must be part of the 'lu_dirent'. */
+	 * So the input 'name' must be part of the 'lu_dirent'.
+	 */
 	struct lu_dirent *lde = container_of0(name, struct lu_dirent, lde_name);
 	struct ll_getname_data *lgd =
 		container_of(ctx, struct ll_getname_data, ctx);

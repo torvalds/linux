@@ -78,7 +78,8 @@ static bool can_populate_pages(const struct lu_env *env, struct cl_io *io,
 	case CIT_READ:
 	case CIT_WRITE:
 		/* don't need lock here to check lli_layout_gen as we have held
-		 * extent lock and GROUP lock has to hold to swap layout */
+		 * extent lock and GROUP lock has to hold to swap layout
+		 */
 		if (ll_layout_version_get(lli) != cio->cui_layout_gen) {
 			io->ci_need_restart = 1;
 			/* this will return application a short read/write */
@@ -134,7 +135,8 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		 */
 		rc = ll_layout_restore(ccc_object_inode(obj));
 		/* if restore registration failed, no restart,
-		 * we will return -ENODATA */
+		 * we will return -ENODATA
+		 */
 		/* The layout will change after restore, so we need to
 		 * block on layout lock hold by the MDT
 		 * as MDT will not send new layout in lvb (see LU-3124)
@@ -164,8 +166,7 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 			       DFID" layout changed from %d to %d.\n",
 			       PFID(lu_object_fid(&obj->co_lu)),
 			       cio->cui_layout_gen, gen);
-			/* today successful restore is the only possible
-			 * case */
+			/* today successful restore is the only possible case */
 			/* restore was done, clear restoring state */
 			ll_i2info(ccc_object_inode(obj))->lli_flags &=
 				~LLIF_FILE_RESTORING;
@@ -456,7 +457,8 @@ static void vvp_io_setattr_end(const struct lu_env *env,
 
 	if (cl_io_is_trunc(io))
 		/* Truncate in memory pages - they must be clean pages
-		 * because osc has already notified to destroy osc_extents. */
+		 * because osc has already notified to destroy osc_extents.
+		 */
 		vvp_do_vmtruncate(inode, io->u.ci_setattr.sa_attr.lvb_size);
 
 	inode_unlock(inode);
@@ -529,7 +531,8 @@ static int vvp_io_read_start(const struct lu_env *env,
 				vio->u.splice.cui_flags);
 		/* LU-1109: do splice read stripe by stripe otherwise if it
 		 * may make nfsd stuck if this read occupied all internal pipe
-		 * buffers. */
+		 * buffers.
+		 */
 		io->ci_continue = 0;
 		break;
 	default:
@@ -689,13 +692,15 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 	size = i_size_read(inode);
 	/* Though we have already held a cl_lock upon this page, but
-	 * it still can be truncated locally. */
+	 * it still can be truncated locally.
+	 */
 	if (unlikely((vmpage->mapping != inode->i_mapping) ||
 		     (page_offset(vmpage) > size))) {
 		CDEBUG(D_PAGE, "llite: fault and truncate race happened!\n");
 
 		/* return +1 to stop cl_io_loop() and ll_fault() will catch
-		 * and retry. */
+		 * and retry.
+		 */
 		result = 1;
 		goto out;
 	}
@@ -736,7 +741,8 @@ static int vvp_io_fault_start(const struct lu_env *env,
 	}
 
 	/* if page is going to be written, we should add this page into cache
-	 * earlier. */
+	 * earlier.
+	 */
 	if (fio->ft_mkwrite) {
 		wait_on_page_writeback(vmpage);
 		if (set_page_dirty(vmpage)) {
@@ -750,7 +756,8 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 			/* Do not set Dirty bit here so that in case IO is
 			 * started before the page is really made dirty, we
-			 * still have chance to detect it. */
+			 * still have chance to detect it.
+			 */
 			result = cl_page_cache_add(env, io, page, CRT_WRITE);
 			LASSERT(cl_page_is_owned(page, io));
 
@@ -803,7 +810,8 @@ static int vvp_io_fsync_start(const struct lu_env *env,
 {
 	/* we should mark TOWRITE bit to each dirty page in radix tree to
 	 * verify pages have been written, but this is difficult because of
-	 * race. */
+	 * race.
+	 */
 	return 0;
 }
 
@@ -1153,7 +1161,8 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 
 		count = io->u.ci_rw.crw_count;
 		/* "If nbyte is 0, read() will return 0 and have no other
-		 *  results."  -- Single Unix Spec */
+		 *  results."  -- Single Unix Spec
+		 */
 		if (count == 0)
 			result = 1;
 		else
@@ -1173,20 +1182,23 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 
 	/* ignore layout change for generic CIT_MISC but not for glimpse.
 	 * io context for glimpse must set ci_verify_layout to true,
-	 * see cl_glimpse_size0() for details. */
+	 * see cl_glimpse_size0() for details.
+	 */
 	if (io->ci_type == CIT_MISC && !io->ci_verify_layout)
 		io->ci_ignore_layout = 1;
 
 	/* Enqueue layout lock and get layout version. We need to do this
 	 * even for operations requiring to open file, such as read and write,
-	 * because it might not grant layout lock in IT_OPEN. */
+	 * because it might not grant layout lock in IT_OPEN.
+	 */
 	if (result == 0 && !io->ci_ignore_layout) {
 		result = ll_layout_refresh(inode, &cio->cui_layout_gen);
 		if (result == -ENOENT)
 			/* If the inode on MDS has been removed, but the objects
 			 * on OSTs haven't been destroyed (async unlink), layout
 			 * fetch will return -ENOENT, we'd ignore this error
-			 * and continue with dirty flush. LU-3230. */
+			 * and continue with dirty flush. LU-3230.
+			 */
 			result = 0;
 		if (result < 0)
 			CERROR("%s: refresh file layout " DFID " error %d.\n",

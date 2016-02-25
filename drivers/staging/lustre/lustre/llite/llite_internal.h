@@ -93,9 +93,10 @@ struct ll_remote_perm {
 	gid_t		   lrp_gid;
 	uid_t		   lrp_fsuid;
 	gid_t		   lrp_fsgid;
-	int		     lrp_access_perm; /* MAY_READ/WRITE/EXEC, this
-						    is access permission with
-						    lrp_fsuid/lrp_fsgid. */
+	int		   lrp_access_perm; /* MAY_READ/WRITE/EXEC, this
+					     * is access permission with
+					     * lrp_fsuid/lrp_fsgid.
+					     */
 };
 
 enum lli_flags {
@@ -106,7 +107,8 @@ enum lli_flags {
 	/* DONE WRITING is allowed. */
 	LLIF_DONE_WRITING       = (1 << 2),
 	/* Sizeon-on-MDS attributes are changed. An attribute update needs to
-	 * be sent to MDS. */
+	 * be sent to MDS.
+	 */
 	LLIF_SOM_DIRTY	  = (1 << 3),
 	/* File data is modified. */
 	LLIF_DATA_MODIFIED      = (1 << 4),
@@ -130,7 +132,8 @@ struct ll_inode_info {
 	/* identifying fields for both metadata and data stacks. */
 	struct lu_fid		   lli_fid;
 	/* Parent fid for accessing default stripe data on parent directory
-	 * for allocating OST objects after a mknod() and later open-by-FID. */
+	 * for allocating OST objects after a mknod() and later open-by-FID.
+	 */
 	struct lu_fid		   lli_pfid;
 
 	struct list_head	      lli_close_list;
@@ -139,11 +142,13 @@ struct ll_inode_info {
 
 	/* handle is to be sent to MDS later on done_writing and setattr.
 	 * Open handle data are needed for the recovery to reconstruct
-	 * the inode state on the MDS. XXX: recovery is not ready yet. */
+	 * the inode state on the MDS. XXX: recovery is not ready yet.
+	 */
 	struct obd_client_handle       *lli_pending_och;
 
 	/* We need all three because every inode may be opened in different
-	 * modes */
+	 * modes
+	 */
 	struct obd_client_handle       *lli_mds_read_och;
 	struct obd_client_handle       *lli_mds_write_och;
 	struct obd_client_handle       *lli_mds_exec_och;
@@ -160,7 +165,8 @@ struct ll_inode_info {
 	spinlock_t			lli_agl_lock;
 
 	/* Try to make the d::member and f::member are aligned. Before using
-	 * these members, make clear whether it is directory or not. */
+	 * these members, make clear whether it is directory or not.
+	 */
 	union {
 		/* for directory */
 		struct {
@@ -171,13 +177,15 @@ struct ll_inode_info {
 			/* since parent-child threads can share the same @file
 			 * struct, "opendir_key" is the token when dir close for
 			 * case of parent exit before child -- it is me should
-			 * cleanup the dir readahead. */
+			 * cleanup the dir readahead.
+			 */
 			void			   *d_opendir_key;
 			struct ll_statahead_info       *d_sai;
 			/* protect statahead stuff. */
 			spinlock_t			d_sa_lock;
-			/* "opendir_pid" is the token when lookup/revalid
-			 * -- I am the owner of dir statahead. */
+			/* "opendir_pid" is the token when lookup/revalidate
+			 * -- I am the owner of dir statahead.
+			 */
 			pid_t			   d_opendir_pid;
 		} d;
 
@@ -303,7 +311,8 @@ static inline struct ll_inode_info *ll_i2info(struct inode *inode)
 }
 
 /* default to about 40meg of readahead on a given system.  That much tied
- * up in 512k readahead requests serviced at 40ms each is about 1GB/s. */
+ * up in 512k readahead requests serviced at 40ms each is about 1GB/s.
+ */
 #define SBI_DEFAULT_READAHEAD_MAX (40UL << (20 - PAGE_CACHE_SHIFT))
 
 /* default to read-ahead full files smaller than 2MB on the second read */
@@ -342,11 +351,13 @@ struct ra_io_arg {
 	unsigned long ria_end;    /* end offset of read-ahead*/
 	/* If stride read pattern is detected, ria_stoff means where
 	 * stride read is started. Note: for normal read-ahead, the
-	 * value here is meaningless, and also it will not be accessed*/
+	 * value here is meaningless, and also it will not be accessed
+	 */
 	pgoff_t ria_stoff;
 	/* ria_length and ria_pages are the length and pages length in the
 	 * stride I/O mode. And they will also be used to check whether
-	 * it is stride I/O read-ahead in the read-ahead pages*/
+	 * it is stride I/O read-ahead in the read-ahead pages
+	 */
 	unsigned long ria_length;
 	unsigned long ria_pages;
 };
@@ -453,7 +464,8 @@ struct eacl_table {
 
 struct ll_sb_info {
 	/* this protects pglist and ra_info.  It isn't safe to
-	 * grab from interrupt contexts */
+	 * grab from interrupt contexts
+	 */
 	spinlock_t		  ll_lock;
 	spinlock_t		  ll_pp_extent_lock; /* pp_extent entry*/
 	spinlock_t		  ll_process_lock; /* ll_rw_process_info */
@@ -500,13 +512,16 @@ struct ll_sb_info {
 	/* metadata stat-ahead */
 	unsigned int	      ll_sa_max;     /* max statahead RPCs */
 	atomic_t		  ll_sa_total;   /* statahead thread started
-						  * count */
+						  * count
+						  */
 	atomic_t		  ll_sa_wrong;   /* statahead thread stopped for
-						  * low hit ratio */
+						  * low hit ratio
+						  */
 	atomic_t		  ll_agl_total;  /* AGL thread started count */
 
-	dev_t		     ll_sdev_orig; /* save s_dev before assign for
-						 * clustered nfs */
+	dev_t			  ll_sdev_orig; /* save s_dev before assign for
+						 * clustered nfs
+						 */
 	struct rmtacl_ctl_table   ll_rct;
 	struct eacl_table	 ll_et;
 	__kernel_fsid_t		  ll_fsid;
@@ -617,13 +632,15 @@ struct ll_file_data {
 	__u32 fd_flags;
 	fmode_t fd_omode;
 	/* openhandle if lease exists for this file.
-	 * Borrow lli->lli_och_mutex to protect assignment */
+	 * Borrow lli->lli_och_mutex to protect assignment
+	 */
 	struct obd_client_handle *fd_lease_och;
 	struct obd_client_handle *fd_och;
 	struct file *fd_file;
 	/* Indicate whether need to report failure when close.
 	 * true: failure is known, not report again.
-	 * false: unknown failure, should report. */
+	 * false: unknown failure, should report.
+	 */
 	bool fd_write_failed;
 };
 
@@ -1105,39 +1122,44 @@ static inline u64 rce_ops2valid(int ops)
 struct ll_statahead_info {
 	struct inode	   *sai_inode;
 	atomic_t	    sai_refcount;   /* when access this struct, hold
-						 * refcount */
+					     * refcount
+					     */
 	unsigned int	    sai_generation; /* generation for statahead */
 	unsigned int	    sai_max;	/* max ahead of lookup */
 	__u64		   sai_sent;       /* stat requests sent count */
 	__u64		   sai_replied;    /* stat requests which received
-						 * reply */
+					    * reply
+					    */
 	__u64		   sai_index;      /* index of statahead entry */
 	__u64		   sai_index_wait; /* index of entry which is the
-						 * caller is waiting for */
+					    * caller is waiting for
+					    */
 	__u64		   sai_hit;	/* hit count */
 	__u64		   sai_miss;       /* miss count:
-						 * for "ls -al" case, it includes
-						 * hidden dentry miss;
-						 * for "ls -l" case, it does not
-						 * include hidden dentry miss.
-						 * "sai_miss_hidden" is used for
-						 * the later case.
-						 */
+					    * for "ls -al" case, it includes
+					    * hidden dentry miss;
+					    * for "ls -l" case, it does not
+					    * include hidden dentry miss.
+					    * "sai_miss_hidden" is used for
+					    * the later case.
+					    */
 	unsigned int	    sai_consecutive_miss; /* consecutive miss */
 	unsigned int	    sai_miss_hidden;/* "ls -al", but first dentry
-						 * is not a hidden one */
+					     * is not a hidden one
+					     */
 	unsigned int	    sai_skip_hidden;/* skipped hidden dentry count */
 	unsigned int	    sai_ls_all:1,   /* "ls -al", do stat-ahead for
-						 * hidden entries */
+					     * hidden entries
+					     */
 				sai_agl_valid:1;/* AGL is valid for the dir */
-	wait_queue_head_t	     sai_waitq;      /* stat-ahead wait queue */
+	wait_queue_head_t	sai_waitq;      /* stat-ahead wait queue */
 	struct ptlrpc_thread    sai_thread;     /* stat-ahead thread */
 	struct ptlrpc_thread    sai_agl_thread; /* AGL thread */
-	struct list_head	      sai_entries;    /* entry list */
-	struct list_head	      sai_entries_received; /* entries returned */
-	struct list_head	      sai_entries_stated;   /* entries stated */
-	struct list_head	      sai_entries_agl; /* AGL entries to be sent */
-	struct list_head	      sai_cache[LL_SA_CACHE_SIZE];
+	struct list_head	sai_entries;    /* entry list */
+	struct list_head	sai_entries_received; /* entries returned */
+	struct list_head	sai_entries_stated;   /* entries stated */
+	struct list_head	sai_entries_agl; /* AGL entries to be sent */
+	struct list_head	sai_cache[LL_SA_CACHE_SIZE];
 	spinlock_t		sai_cache_lock[LL_SA_CACHE_SIZE];
 	atomic_t		sai_cache_count; /* entry count in cache */
 };
@@ -1311,13 +1333,15 @@ int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 /** direct write pages */
 struct ll_dio_pages {
 	/** page array to be written. we don't support
-	 * partial pages except the last one. */
+	 * partial pages except the last one.
+	 */
 	struct page **ldp_pages;
 	/* offset of each page */
 	loff_t       *ldp_offsets;
 	/** if ldp_offsets is NULL, it means a sequential
 	 * pages to be written, then this is the file offset
-	 * of the * first page. */
+	 * of the first page.
+	 */
 	loff_t	ldp_start_offset;
 	/** how many bytes are to be written. */
 	size_t	ldp_size;
@@ -1359,7 +1383,8 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		 * remote MDT, where the object is, will grant
 		 * UPDATE|PERM lock. The inode will be attached to both
 		 * LOOKUP and PERM locks, so revoking either locks will
-		 * case the dcache being cleared */
+		 * case the dcache being cleared
+		 */
 		if (it->d.lustre.it_remote_lock_mode) {
 			handle.cookie = it->d.lustre.it_remote_lock_handle;
 			CDEBUG(D_DLMTRACE, "setting l_data to inode %p(%lu/%u) for remote lock %#llx\n",

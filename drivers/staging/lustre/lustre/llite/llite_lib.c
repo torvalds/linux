@@ -204,7 +204,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_MDC_LIGHTWEIGHT))
 		/* flag mdc connection as lightweight, only used for test
-		 * purpose, use with care */
+		 * purpose, use with care
+		 */
 		data->ocd_connect_flags |= OBD_CONNECT_LIGHTWEIGHT;
 
 	data->ocd_ibits_known = MDS_INODELOCK_FULL;
@@ -252,7 +253,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	/* For mount, we only need fs info from MDT0, and also in DNE, it
 	 * can make sure the client can be mounted as long as MDT0 is
-	 * available */
+	 * available
+	 */
 	err = obd_statfs(NULL, sbi->ll_md_exp, osfs,
 			cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			OBD_STATFS_FOR_MDT0);
@@ -265,7 +267,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	 * we can access the MDC export directly and exp_connect_flags will
 	 * be non-zero, but if accessing an upgraded 2.1 server it will
 	 * have the correct flags filled in.
-	 * XXX: fill in the LMV exp_connect_flags from MDC(s). */
+	 * XXX: fill in the LMV exp_connect_flags from MDC(s).
+	 */
 	valid = exp_connect_flags(sbi->ll_md_exp) & CLIENT_CONNECT_MDT_REQD;
 	if (exp_connect_flags(sbi->ll_md_exp) != 0 &&
 	    valid != CLIENT_CONNECT_MDT_REQD) {
@@ -382,7 +385,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		/* OBD_CONNECT_CKSUM should always be set, even if checksums are
 		 * disabled by default, because it can still be enabled on the
 		 * fly via /sys. As a consequence, we still need to come to an
-		 * agreement on the supported algorithms at connect time */
+		 * agreement on the supported algorithms at connect time
+		 */
 		data->ocd_connect_flags |= OBD_CONNECT_CKSUM;
 
 		if (OBD_FAIL_CHECK(OBD_FAIL_OSC_CKSUM_ADLER_ONLY))
@@ -453,7 +457,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 #endif
 
 	/* make root inode
-	 * XXX: move this to after cbd setup? */
+	 * XXX: move this to after cbd setup?
+	 */
 	valid = OBD_MD_FLGETATTR | OBD_MD_FLBLOCKS;
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
 		valid |= OBD_MD_FLRMTPERM;
@@ -543,9 +548,11 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	/* We set sb->s_dev equal on all lustre clients in order to support
 	 * NFS export clustering.  NFSD requires that the FSID be the same
-	 * on all clients. */
+	 * on all clients.
+	 */
 	/* s_dev is also used in lt_compare() to compare two fs, but that is
-	 * only a node-local comparison. */
+	 * only a node-local comparison.
+	 */
 	uuid = obd_get_uuid(sbi->ll_md_exp);
 	if (uuid) {
 		sb->s_dev = get_uuid2int(uuid->uuid, strlen(uuid->uuid));
@@ -625,7 +632,8 @@ static void client_common_put_super(struct super_block *sb)
 	obd_disconnect(sbi->ll_dt_exp);
 	sbi->ll_dt_exp = NULL;
 	/* wait till all OSCs are gone, since cl_cache is accessing sbi.
-	 * see LU-2543. */
+	 * see LU-2543.
+	 */
 	obd_zombie_barrier();
 
 	ldebugfs_unregister_mountpoint(sbi);
@@ -646,7 +654,8 @@ void ll_kill_super(struct super_block *sb)
 	sbi = ll_s2sbi(sb);
 	/* we need to restore s_dev from changed for clustered NFS before
 	 * put_super because new kernels have cached s_dev and change sb->s_dev
-	 * in put_super not affected real removing devices */
+	 * in put_super not affected real removing devices
+	 */
 	if (sbi) {
 		sb->s_dev = sbi->ll_sdev_orig;
 		sbi->ll_umounting = 1;
@@ -889,8 +898,9 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	sb->s_d_op = &ll_d_ops;
 
 	/* Generate a string unique to this super, in case some joker tries
-	   to mount the same fs at two mount points.
-	   Use the address of the super itself.*/
+	 * to mount the same fs at two mount points.
+	 * Use the address of the super itself.
+	 */
 	cfg->cfg_instance = sb;
 	cfg->cfg_uuid = lsi->lsi_llsbi->ll_sb_uuid;
 	cfg->cfg_callback = class_config_llog_handler;
@@ -963,7 +973,8 @@ void ll_put_super(struct super_block *sb)
 	}
 
 	/* We need to set force before the lov_disconnect in
-	   lustre_common_put_super, since l_d cleans up osc's as well. */
+	 * lustre_common_put_super, since l_d cleans up osc's as well.
+	 */
 	if (force) {
 		next = 0;
 		while ((obd = class_devices_in_group(&sbi->ll_sb_uuid,
@@ -1114,7 +1125,8 @@ static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 		if (rc == -ENOENT) {
 			clear_nlink(inode);
 			/* Unlinked special device node? Or just a race?
-			 * Pretend we done everything. */
+			 * Pretend we did everything.
+			 */
 			if (!S_ISREG(inode->i_mode) &&
 			    !S_ISDIR(inode->i_mode)) {
 				ia_valid = op_data->op_attr.ia_valid;
@@ -1137,7 +1149,8 @@ static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 
 	ia_valid = op_data->op_attr.ia_valid;
 	/* inode size will be in cl_setattr_ost, can't do it now since dirty
-	 * cache is not cleared yet. */
+	 * cache is not cleared yet.
+	 */
 	op_data->op_attr.ia_valid &= ~(TIMES_SET_FLAGS | ATTR_SIZE);
 	rc = simple_setattr(dentry, &op_data->op_attr);
 	op_data->op_attr.ia_valid = ia_valid;
@@ -1173,7 +1186,8 @@ static int ll_setattr_done_writing(struct inode *inode,
 	rc = md_done_writing(ll_i2sbi(inode)->ll_md_exp, op_data, mod);
 	if (rc == -EAGAIN)
 		/* MDS has instructed us to obtain Size-on-MDS attribute
-		 * from OSTs and send setattr to back to MDS. */
+		 * from OSTs and send setattr to back to MDS.
+		 */
 		rc = ll_som_update(inode, op_data);
 	else if (rc)
 		CERROR("inode %lu mdc truncate failed: rc = %d\n",
@@ -1220,7 +1234,8 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 
 		/* The maximum Lustre file size is variable, based on the
 		 * OST maximum object size and number of stripes.  This
-		 * needs another check in addition to the VFS check above. */
+		 * needs another check in addition to the VFS check above.
+		 */
 		if (attr->ia_size > ll_file_maxbytes(inode)) {
 			CDEBUG(D_INODE, "file "DFID" too large %llu > %llu\n",
 			       PFID(&lli->lli_fid), attr->ia_size,
@@ -1268,7 +1283,8 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	}
 
 	/* We always do an MDS RPC, even if we're only changing the size;
-	 * only the MDS knows whether truncate() should fail with -ETXTBUSY */
+	 * only the MDS knows whether truncate() should fail with -ETXTBUSY
+	 */
 
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
 	if (!op_data)
@@ -1302,7 +1318,8 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	/* if not in HSM import mode, clear size attr for released file
 	 * we clear the attribute send to MDT in op_data, not the original
 	 * received from caller in attr which is used later to
-	 * decide return code */
+	 * decide return code
+	 */
 	if (file_is_released && (attr->ia_valid & ATTR_SIZE) && !hsm_import)
 		op_data->op_attr.ia_valid &= ~ATTR_SIZE;
 
@@ -1340,7 +1357,8 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 * extent lock (new_size:EOF for truncate).  It may seem
 		 * excessive to send mtime/atime updates to OSTs when not
 		 * setting times to past, but it is necessary due to possible
-		 * time de-synchronization between MDT inode and OST objects */
+		 * time de-synchronization between MDT inode and OST objects
+		 */
 		if (attr->ia_valid & ATTR_SIZE)
 			down_write(&lli->lli_trunc_sem);
 		rc = cl_setattr_ost(inode, attr);
@@ -1468,7 +1486,8 @@ int ll_statfs(struct dentry *de, struct kstatfs *sfs)
 	/* We need to downshift for all 32-bit kernels, because we can't
 	 * tell if the kernel is being called via sys_statfs64() or not.
 	 * Stop before overflowing f_bsize - in which case it is better
-	 * to just risk EOVERFLOW if caller is using old sys_statfs(). */
+	 * to just risk EOVERFLOW if caller is using old sys_statfs().
+	 */
 	if (sizeof(long) < 8) {
 		while (osfs.os_blocks > ~0UL && sfs->f_bsize < 0x40000000) {
 			sfs->f_bsize <<= 1;
@@ -1602,7 +1621,8 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 			/* As it is possible a blocking ast has been processed
 			 * by this time, we need to check there is an UPDATE
 			 * lock on the client and set LLIF_MDS_SIZE_LOCK holding
-			 * it. */
+			 * it.
+			 */
 			mode = ll_take_md_lock(inode, MDS_INODELOCK_UPDATE,
 					       &lockh, LDLM_FL_CBPENDING,
 					       LCK_CR | LCK_CW |
@@ -1615,7 +1635,8 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 					       inode->i_ino, lli->lli_flags);
 				} else {
 					/* Use old size assignment to avoid
-					 * deadlock bz14138 & bz14326 */
+					 * deadlock bz14138 & bz14326
+					 */
 					i_size_write(inode, body->size);
 					spin_lock(&lli->lli_lock);
 					lli->lli_flags |= LLIF_MDS_SIZE_LOCK;
@@ -1625,7 +1646,8 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 			}
 		} else {
 			/* Use old size assignment to avoid
-			 * deadlock bz14138 & bz14326 */
+			 * deadlock bz14138 & bz14326
+			 */
 			i_size_write(inode, body->size);
 
 			CDEBUG(D_VFSTRACE, "inode=%lu, updating i_size %llu\n",
@@ -1655,7 +1677,8 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 	/* Core attributes from the MDS first.  This is a new inode, and
 	 * the VFS doesn't zero times in the core inode so we have to do
 	 * it ourselves.  They will be overwritten by either MDS or OST
-	 * attributes - we just need to make sure they aren't newer. */
+	 * attributes - we just need to make sure they aren't newer.
+	 */
 	LTIME_S(inode->i_mtime) = 0;
 	LTIME_S(inode->i_atime) = 0;
 	LTIME_S(inode->i_ctime) = 0;
@@ -1689,7 +1712,8 @@ void ll_delete_inode(struct inode *inode)
 
 	if (S_ISREG(inode->i_mode) && lli->lli_clob)
 		/* discard all dirty pages before truncating them, required by
-		 * osc_extent implementation at LU-1030. */
+		 * osc_extent implementation at LU-1030.
+		 */
 		cl_sync_file_range(inode, 0, OBD_OBJECT_EOF,
 				   CL_FSYNC_DISCARD, 1);
 
@@ -1984,7 +2008,8 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 	 * 1. proc1: mdt returns a lsm but not granting layout
 	 * 2. layout was changed by another client
 	 * 3. proc2: refresh layout and layout lock granted
-	 * 4. proc1: to apply a stale layout */
+	 * 4. proc1: to apply a stale layout
+	 */
 	if (it && it->d.lustre.it_lock_mode != 0) {
 		struct lustre_handle lockh;
 		struct ldlm_lock *lock;
@@ -2097,7 +2122,8 @@ int ll_process_config(struct lustre_cfg *lcfg)
 	LASSERT(s2lsi((struct super_block *)sb)->lsi_lmd->lmd_magic == LMD_MAGIC);
 
 	/* Note we have not called client_common_fill_super yet, so
-	   proc fns must be able to handle that! */
+	 * proc fns must be able to handle that!
+	 */
 	rc = class_process_proc_param(PARAM_LLITE, lvars.obd_vars,
 				      lcfg, sb);
 	if (rc > 0)
@@ -2146,7 +2172,8 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 
 	/* If the file is being opened after mknod() (normally due to NFS)
 	 * try to use the default stripe data from parent directory for
-	 * allocating OST objects.  Try to pass the parent FID to MDS. */
+	 * allocating OST objects.  Try to pass the parent FID to MDS.
+	 */
 	if (opc == LUSTRE_OPC_CREATE && i1 == i2 && S_ISREG(i2->i_mode) &&
 	    !ll_i2info(i2)->lli_has_smd) {
 		struct ll_inode_info *lli = ll_i2info(i2);
@@ -2237,7 +2264,8 @@ char *ll_get_fsname(struct super_block *sb, char *buf, int buflen)
 	if (!buf) {
 		/* this means the caller wants to use static buffer
 		 * and it doesn't care about race. Usually this is
-		 * in error reporting path */
+		 * in error reporting path
+		 */
 		buf = fsname_static;
 		buflen = sizeof(fsname_static);
 	}

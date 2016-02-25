@@ -494,7 +494,8 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 
 		if (unlikely(atomic_read(&sai->sai_refcount) > 0)) {
 			/* It is race case, the interpret callback just hold
-			 * a reference count */
+			 * a reference count
+			 */
 			spin_unlock(&lli->lli_sa_lock);
 			return;
 		}
@@ -631,7 +632,8 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 		LASSERT(fid_is_zero(&minfo->mi_data.op_fid2));
 
 		/* XXX: No fid in reply, this is probably cross-ref case.
-		 * SA can't handle it yet. */
+		 * SA can't handle it yet.
+		 */
 		if (body->valid & OBD_MD_MDS) {
 			rc = -EAGAIN;
 			goto out;
@@ -672,7 +674,8 @@ out:
 	/* The "ll_sa_entry_to_stated()" will drop related ldlm ibits lock
 	 * reference count by calling "ll_intent_drop_lock()" in spite of the
 	 * above operations failed or not. Do not worry about calling
-	 * "ll_intent_drop_lock()" more than once. */
+	 * "ll_intent_drop_lock()" more than once.
+	 */
 	rc = ll_sa_entry_to_stated(sai, entry,
 				   rc < 0 ? SA_ENTRY_INVA : SA_ENTRY_SUCC);
 	if (rc == 0 && entry->se_index == sai->sai_index_wait)
@@ -698,7 +701,8 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 		/* release ibits lock ASAP to avoid deadlock when statahead
 		 * thread enqueues lock on parent in readdir and another
 		 * process enqueues lock on child with parent lock held, eg.
-		 * unlink. */
+		 * unlink.
+		 */
 		handle = it->d.lustre.it_lock_handle;
 		ll_intent_drop_lock(it);
 	}
@@ -736,7 +740,8 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 			/* Release the async ibits lock ASAP to avoid deadlock
 			 * when statahead thread tries to enqueue lock on parent
 			 * for readpage and other tries to enqueue lock on child
-			 * with parent's lock held, for example: unlink. */
+			 * with parent's lock held, for example: unlink.
+			 */
 			entry->se_handle = handle;
 			wakeup = list_empty(&sai->sai_entries_received);
 			list_add_tail(&entry->se_list,
@@ -947,7 +952,8 @@ static int ll_agl_thread(void *arg)
 	if (thread_is_init(thread))
 		/* If someone else has changed the thread state
 		 * (e.g. already changed to SVC_STOPPING), we can't just
-		 * blindly overwrite that setting. */
+		 * blindly overwrite that setting.
+		 */
 		thread_set_flags(thread, SVC_RUNNING);
 	spin_unlock(&plli->lli_agl_lock);
 	wake_up(&thread->t_ctl_waitq);
@@ -963,7 +969,8 @@ static int ll_agl_thread(void *arg)
 
 		spin_lock(&plli->lli_agl_lock);
 		/* The statahead thread maybe help to process AGL entries,
-		 * so check whether list empty again. */
+		 * so check whether list empty again.
+		 */
 		if (!list_empty(&sai->sai_entries_agl)) {
 			clli = list_entry(sai->sai_entries_agl.next,
 					  struct ll_inode_info, lli_agl_list);
@@ -1048,7 +1055,8 @@ static int ll_statahead_thread(void *arg)
 	if (thread_is_init(thread))
 		/* If someone else has changed the thread state
 		 * (e.g. already changed to SVC_STOPPING), we can't just
-		 * blindly overwrite that setting. */
+		 * blindly overwrite that setting.
+		 */
 		thread_set_flags(thread, SVC_RUNNING);
 	spin_unlock(&plli->lli_sa_lock);
 	wake_up(&thread->t_ctl_waitq);
@@ -1136,7 +1144,8 @@ interpret_it:
 
 			/* If no window for metadata statahead, but there are
 			 * some AGL entries to be triggered, then try to help
-			 * to process the AGL entries. */
+			 * to process the AGL entries.
+			 */
 			if (sa_sent_full(sai)) {
 				spin_lock(&plli->lli_agl_lock);
 				while (!list_empty(&sai->sai_entries_agl)) {
@@ -1364,7 +1373,8 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 
 			hash = le64_to_cpu(ent->lde_hash);
 			/* The ll_get_dir_page() can return any page containing
-			 * the given hash which may be not the start hash. */
+			 * the given hash which may be not the start hash.
+			 */
 			if (unlikely(hash < pos))
 				continue;
 
@@ -1650,7 +1660,8 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	 * but as soon as we expose the sai by attaching it to the lli that
 	 * default reference can be dropped by another thread calling
 	 * ll_stop_statahead. We need to take a local reference to protect
-	 * the sai buffer while we intend to access it. */
+	 * the sai buffer while we intend to access it.
+	 */
 	ll_sai_get(sai);
 	lli->lli_sai = sai;
 
@@ -1666,7 +1677,8 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		thread_set_flags(thread, SVC_STOPPED);
 		thread_set_flags(&sai->sai_agl_thread, SVC_STOPPED);
 		/* Drop both our own local reference and the default
-		 * reference from allocation time. */
+		 * reference from allocation time.
+		 */
 		ll_sai_put(sai);
 		ll_sai_put(sai);
 		LASSERT(!lli->lli_sai);

@@ -151,8 +151,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 
 		LASSERT(cio->cui_cl.cis_io == io);
 
-		/* mmap lock must be MANDATORY it has to cache
-		 * pages. */
+		/* mmap lock must be MANDATORY it has to cache pages. */
 		io->ci_lockreq = CILR_MANDATORY;
 		cio->cui_fd = fd;
 	} else {
@@ -199,7 +198,8 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 
 	/* we grab lli_trunc_sem to exclude truncate case.
 	 * Otherwise, we could add dirty pages into osc cache
-	 * while truncate is on-going. */
+	 * while truncate is on-going.
+	 */
 	inode = ccc_object_inode(io->ci_obj);
 	lli = ll_i2info(inode);
 	down_read(&lli->lli_trunc_sem);
@@ -220,7 +220,8 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 
 			/* page was truncated and lock was cancelled, return
 			 * ENODATA so that VM_FAULT_NOPAGE will be returned
-			 * to handle_mm_fault(). */
+			 * to handle_mm_fault().
+			 */
 			if (result == 0)
 				result = -ENODATA;
 		} else if (!PageDirty(vmpage)) {
@@ -313,7 +314,8 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 		result = cl_io_loop(env, io);
 
 		/* ft_flags are only valid if we reached
-		 * the call to filemap_fault */
+		 * the call to filemap_fault
+		 */
 		if (vio->u.fault.fault.ft_flags_valid)
 			fault_ret = vio->u.fault.fault.ft_flags;
 
@@ -342,9 +344,10 @@ static int ll_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int result;
 	sigset_t set;
 
-	/* Only SIGKILL and SIGTERM is allowed for fault/nopage/mkwrite
+	/* Only SIGKILL and SIGTERM are allowed for fault/nopage/mkwrite
 	 * so that it can be killed by admin but not cause segfault by
-	 * other signals. */
+	 * other signals.
+	 */
 	set = cfs_block_sigsinv(sigmask(SIGKILL) | sigmask(SIGTERM));
 
 restart:
@@ -445,7 +448,8 @@ static void ll_vm_close(struct vm_area_struct *vma)
 }
 
 /* XXX put nice comment here.  talk about __free_pte -> dirty pages and
- * nopage's reference passing to the pte */
+ * nopage's reference passing to the pte
+ */
 int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 {
 	int rc = -ENOENT;
