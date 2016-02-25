@@ -3595,6 +3595,28 @@ static int mtip_block_getgeo(struct block_device *dev,
 	return 0;
 }
 
+static int mtip_block_open(struct block_device *dev, fmode_t mode)
+{
+	struct driver_data *dd;
+
+	if (dev && dev->bd_disk) {
+		dd = (struct driver_data *) dev->bd_disk->private_data;
+
+		if (dd) {
+			if (test_bit(MTIP_DDF_REMOVAL_BIT,
+							&dd->dd_flag)) {
+				return -ENODEV;
+			}
+			return 0;
+		}
+	}
+	return -ENODEV;
+}
+
+void mtip_block_release(struct gendisk *disk, fmode_t mode)
+{
+}
+
 /*
  * Block device operation function.
  *
@@ -3602,6 +3624,8 @@ static int mtip_block_getgeo(struct block_device *dev,
  * layer.
  */
 static const struct block_device_operations mtip_block_ops = {
+	.open		= mtip_block_open,
+	.release	= mtip_block_release,
 	.ioctl		= mtip_block_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= mtip_block_compat_ioctl,
@@ -4427,7 +4451,7 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	struct driver_data *dd = pci_get_drvdata(pdev);
 	unsigned long flags, to;
 
-	set_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag);
+	set_bit(MTIP_DDF_REMOVAL_BIT, &dd->dd_flag);
 
 	spin_lock_irqsave(&dev_lock, flags);
 	list_del_init(&dd->online_list);
@@ -4444,12 +4468,18 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	} while (atomic_read(&dd->irq_workers_active) != 0 &&
 		time_before(jiffies, to));
 
+	fsync_bdev(dd->bdev);
+
 	if (atomic_read(&dd->irq_workers_active) != 0) {
 		dev_warn(&dd->pdev->dev,
 			"Completion workers still active!\n");
 	}
 
-	blk_mq_stop_hw_queues(dd->queue);
+	if (dd->sr)
+		blk_mq_stop_hw_queues(dd->queue);
+
+	set_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag);
+
 	/* Clean up the block layer. */
 	mtip_block_remove(dd);
 
