@@ -606,7 +606,7 @@ static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 
 	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
 		hwmgr->hwmgr_func->set_pp_table == NULL)
-			return -EINVAL;
+		return -EINVAL;
 
 	return hwmgr->hwmgr_func->set_pp_table(hwmgr, buf, size);
 }
@@ -623,7 +623,7 @@ static int pp_dpm_force_clock_level(void *handle,
 
 	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
 			hwmgr->hwmgr_func->force_clock_level == NULL)
-				return -EINVAL;
+		return -EINVAL;
 
 	return hwmgr->hwmgr_func->force_clock_level(hwmgr, type, level);
 }
