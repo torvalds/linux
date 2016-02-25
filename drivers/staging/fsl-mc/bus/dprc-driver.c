@@ -407,7 +407,7 @@ static irqreturn_t dprc_irq0_handler_thread(int irq_num, void *arg)
 {
 	int error;
 	u32 status;
-	struct device *dev = (struct device *)arg;
+	struct device *dev = arg;
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
 	struct fsl_mc_io *mc_io = mc_dev->mc_io;
