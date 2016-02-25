@@ -1110,7 +1110,6 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	res->lr_ns_bucket  = cfs_hash_bd_extra_get(ns->ns_rs_hash, &bd);
 	res->lr_name       = *name;
 	res->lr_type       = type;
-	res->lr_most_restr = LCK_NL;
 
 	cfs_hash_bd_lock(ns->ns_rs_hash, &bd, 1);
 	hnode = (version == cfs_hash_bd_version_get(&bd)) ?  NULL :
