@@ -2659,7 +2659,7 @@ void lustre_swab_lov_desc(struct lov_desc *ld);
  *   LDLM requests:
  */
 /* opcodes -- MUST be distinct from OST/MDS opcodes */
-typedef enum {
+enum ldlm_cmd {
 	LDLM_ENQUEUE     = 101,
 	LDLM_CONVERT     = 102,
 	LDLM_CANCEL      = 103,
@@ -2668,7 +2668,7 @@ typedef enum {
 	LDLM_GL_CALLBACK = 106,
 	LDLM_SET_INFO    = 107,
 	LDLM_LAST_OPC
-} ldlm_cmd_t;
+};
 #define LDLM_FIRST_OPC LDLM_ENQUEUE
 
 #define RES_NAME_SIZE 4
