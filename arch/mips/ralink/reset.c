@@ -61,7 +61,7 @@ static int ralink_reset_device(struct reset_controller_dev *rcdev,
 	return ralink_deassert_device(rcdev, id);
 }
 
-static struct reset_control_ops reset_ops = {
+static const struct reset_control_ops reset_ops = {
 	.reset = ralink_reset_device,
 	.assert = ralink_assert_device,
 	.deassert = ralink_deassert_device,
