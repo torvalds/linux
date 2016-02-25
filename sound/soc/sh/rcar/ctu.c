@@ -60,7 +60,7 @@ static void rsnd_ctu_value_init(struct rsnd_dai_stream *io,
 {
 	rsnd_mod_write(mod, CTU_CTUIR, 1);
 
-	rsnd_mod_write(mod, CTU_ADINR, rsnd_get_adinr_chan(mod, io));
+	rsnd_mod_write(mod, CTU_ADINR, rsnd_runtime_channel_original(io));
 
 	rsnd_mod_write(mod, CTU_CPMDR, 0);
 	rsnd_mod_write(mod, CTU_SCMDR, 0);

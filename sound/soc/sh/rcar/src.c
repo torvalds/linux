@@ -205,7 +205,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	 *	SRC_ADINR
 	 */
 	adinr = rsnd_get_adinr_bit(mod, io) |
-		rsnd_get_adinr_chan(mod, io);
+		rsnd_runtime_channel_original(io);
 
 	/*
 	 *	SRC_IFSCR / SRC_IFSVR

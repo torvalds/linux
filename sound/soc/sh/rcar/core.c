@@ -224,13 +224,36 @@ int rsnd_get_slot_num(struct rsnd_dai_stream *io)
 	return rdai->slots_num;
 }
 
-int rsnd_get_slot_width(struct rsnd_dai_stream *io)
+int rsnd_runtime_channel_original(struct rsnd_dai_stream *io)
 {
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	int chan = runtime->channels;
 
-	/* Multi channel Mode */
-	if (rsnd_ssi_multi_slaves_runtime(io))
+	return runtime->channels;
+}
+
+int rsnd_runtime_channel_after_ctu(struct rsnd_dai_stream *io)
+{
+	int chan = rsnd_runtime_channel_original(io);
+	struct rsnd_mod *ctu_mod = rsnd_io_to_mod_ctu(io);
+
+	if (ctu_mod) {
+		u32 converted_chan = rsnd_ctu_converted_channel(ctu_mod);
+
+		if (converted_chan)
+			return converted_chan;
+	}
+
+	return chan;
+}
+
+int rsnd_runtime_channel_for_ssi(struct rsnd_dai_stream *io)
+{
+	int chan = rsnd_io_is_play(io) ?
+		rsnd_runtime_channel_after_ctu(io) :
+		rsnd_runtime_channel_original(io);
+
+	/* Use Multi SSI */
+	if (rsnd_runtime_is_ssi_multi(io))
 		chan /= rsnd_get_slot_num(io);
 
 	/* TDM Extend Mode needs 8ch */
@@ -238,6 +261,21 @@ int rsnd_get_slot_width(struct rsnd_dai_stream *io)
 		chan = 8;
 
 	return chan;
+}
+
+int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io)
+{
+	int slots = rsnd_get_slot_num(io);
+	int chan = rsnd_io_is_play(io) ?
+		rsnd_runtime_channel_after_ctu(io) :
+		rsnd_runtime_channel_original(io);
+
+	return (chan >= 6) && (slots > 1);
+}
+
+int rsnd_runtime_is_ssi_tdm(struct rsnd_dai_stream *io)
+{
+	return rsnd_runtime_channel_for_ssi(io) >= 6;
 }
 
 /*
@@ -259,29 +297,6 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	dev_warn(dev, "not supported sample bits\n");
 
 	return 0;
-}
-
-u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 chan = runtime->channels;
-
-	switch (chan) {
-	case 1:
-	case 2:
-	case 4:
-	case 6:
-	case 8:
-		break;
-	default:
-		dev_warn(dev, "not supported channel\n");
-		chan = 0;
-		break;
-	}
-
-	return chan;
 }
 
 /*

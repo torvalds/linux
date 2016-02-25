@@ -105,7 +105,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	if (rsnd_get_slot_width(io) >= 6) {
+	if (rsnd_runtime_is_ssi_tdm(io)) {
 		/*
 		 * TDM Extend Mode
 		 * see
@@ -117,7 +117,9 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	if (rsnd_ssi_use_busif(io)) {
 		rsnd_mod_write(mod, SSI_BUSIF_ADINR,
 			       rsnd_get_adinr_bit(mod, io) |
-			       rsnd_get_adinr_chan(mod, io));
+			       (rsnd_io_is_play(io) ?
+				rsnd_runtime_channel_after_ctu(io) :
+				rsnd_runtime_channel_original(io)));
 		rsnd_mod_write(mod, SSI_BUSIF_MODE,  1);
 		rsnd_mod_write(mod, SSI_BUSIF_DALIGN,
 			       rsnd_get_dalign(mod, io));

@@ -180,11 +180,8 @@ static u32 rsnd_ssi_run_mods(struct rsnd_dai_stream *io)
 
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
 {
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	u32 mask = rsnd_ssi_multi_slaves(io);
-
-	if (mask && (runtime->channels >= 6))
-		return mask;
+	if (rsnd_runtime_is_ssi_multi(io))
+		return rsnd_ssi_multi_slaves(io);
 
 	return 0;
 }
@@ -198,7 +195,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
-	int slots = rsnd_get_slot_width(io);
+	int chan = rsnd_runtime_channel_for_ssi(io);
 	int j, ret;
 	int ssi_clk_mul_table[] = {
 		1, 2, 4, 8, 16, 6, 12,
@@ -231,10 +228,10 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 
 		/*
 		 * this driver is assuming that
-		 * system word is 32bit x slots
+		 * system word is 32bit x chan
 		 * see rsnd_ssi_init()
 		 */
-		main_rate = rate * 32 * slots * ssi_clk_mul_table[j];
+		main_rate = rate * 32 * chan * ssi_clk_mul_table[j];
 
 		ret = rsnd_adg_ssi_clk_try_start(mod, main_rate);
 		if (0 == ret) {
@@ -289,7 +286,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	u32 wsr;
 	int is_tdm;
 
-	is_tdm = (rsnd_get_slot_width(io) >= 6) ? 1 : 0;
+	is_tdm = rsnd_runtime_is_ssi_tdm(io);
 
 	/*
 	 * always use 32bit system word.

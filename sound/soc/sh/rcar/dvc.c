@@ -116,7 +116,7 @@ static void rsnd_dvc_volume_init(struct rsnd_dai_stream *io,
 	u32 vrdbr = 0;
 
 	adinr = rsnd_get_adinr_bit(mod, io) |
-		rsnd_get_adinr_chan(mod, io);
+		rsnd_runtime_channel_after_ctu(io);
 
 	/* Enable Digital Volume, Zero Cross Mute Mode */
 	dvucr |= 0x101;

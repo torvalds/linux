@@ -51,7 +51,7 @@ static void rsnd_mix_volume_init(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, MIX_MIXIR, 1);
 
 	/* General Information */
-	rsnd_mod_write(mod, MIX_ADINR, rsnd_get_adinr_chan(mod, io));
+	rsnd_mod_write(mod, MIX_ADINR, rsnd_runtime_channel_after_ctu(io));
 
 	/* volume step */
 	rsnd_mod_write(mod, MIX_MIXMR, 0);

@@ -193,7 +193,6 @@ void rsnd_force_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
 u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
-u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
 
 /*
@@ -356,8 +355,13 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 void rsnd_set_slot(struct rsnd_dai *rdai,
 		   int slots, int slots_total);
 int rsnd_get_slot(struct rsnd_dai_stream *io);
-int rsnd_get_slot_width(struct rsnd_dai_stream *io);
 int rsnd_get_slot_num(struct rsnd_dai_stream *io);
+
+int rsnd_runtime_channel_original(struct rsnd_dai_stream *io);
+int rsnd_runtime_channel_after_ctu(struct rsnd_dai_stream *io);
+int rsnd_runtime_channel_for_ssi(struct rsnd_dai_stream *io);
+int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io);
+int rsnd_runtime_is_ssi_tdm(struct rsnd_dai_stream *io);
 
 /*
  *	R-Car sound DAI
