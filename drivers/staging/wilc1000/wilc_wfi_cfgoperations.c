@@ -479,7 +479,7 @@ static void CfgScanResult(enum scan_event scan_event,
 int wilc_connecting;
 
 static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
-			     tstrConnectInfo *pstrConnectInfo,
+			     struct connect_info *pstrConnectInfo,
 			     u8 u8MacStatus,
 			     tstrDisconnectNotifInfo *pstrDisconnectNotifInfo,
 			     void *pUserVoid)

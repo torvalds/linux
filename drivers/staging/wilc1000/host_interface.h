@@ -172,7 +172,7 @@ typedef void (*wilc_scan_result)(enum scan_event, struct network_info *,
 				 void *, void *);
 
 typedef void (*wilc_connect_result)(enum conn_event,
-				     tstrConnectInfo *,
+				     struct connect_info *,
 				     u8,
 				     tstrDisconnectNotifInfo *,
 				     void *);

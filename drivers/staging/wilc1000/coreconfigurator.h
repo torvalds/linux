@@ -105,14 +105,14 @@ struct connect_resp_info {
 	u16 ies_len;
 };
 
-typedef struct {
+struct connect_info {
 	u8 au8bssid[6];
 	u8 *pu8ReqIEs;
 	size_t ReqIEsLen;
 	u8 *pu8RespIEs;
 	u16 u16RespIEsLen;
 	u16 u16ConnectStatus;
-} tstrConnectInfo;
+};
 
 typedef struct {
 	u16 u16reason;
