@@ -2401,7 +2401,7 @@ out:
 
 static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 {
-	struct net_device *dev = (struct net_device *) netdev;
+	struct net_device *dev = netdev;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags;
 	u32 inta;
