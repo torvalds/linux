@@ -57,16 +57,16 @@ struct ll_iattr {
 
 #define CLIENT_OBD_LIST_LOCK_DEBUG 1
 
-typedef struct {
+struct client_obd_lock {
 	spinlock_t		lock;
 
 	unsigned long       time;
 	struct task_struct *task;
 	const char	 *func;
 	int		 line;
-} client_obd_lock_t;
+};
 
-static inline void __client_obd_list_lock(client_obd_lock_t *lock,
+static inline void __client_obd_list_lock(struct client_obd_lock *lock,
 					  const char *func, int line)
 {
 	unsigned long cur = jiffies;
@@ -106,7 +106,7 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 #define client_obd_list_lock(lock) \
 	__client_obd_list_lock(lock, __func__, __LINE__)
 
-static inline void client_obd_list_unlock(client_obd_lock_t *lock)
+static inline void client_obd_list_unlock(struct client_obd_lock *lock)
 {
 	LASSERT(lock->task);
 	lock->task = NULL;
@@ -114,12 +114,12 @@ static inline void client_obd_list_unlock(client_obd_lock_t *lock)
 	spin_unlock(&lock->lock);
 }
 
-static inline void client_obd_list_lock_init(client_obd_lock_t *lock)
+static inline void client_obd_list_lock_init(struct client_obd_lock *lock)
 {
 	spin_lock_init(&lock->lock);
 }
 
-static inline void client_obd_list_lock_done(client_obd_lock_t *lock)
+static inline void client_obd_list_lock_done(struct client_obd_lock *lock)
 {}
 
 #endif /* __LINUX_OBD_H */
