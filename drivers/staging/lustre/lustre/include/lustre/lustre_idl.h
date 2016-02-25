@@ -2158,11 +2158,6 @@ void lustre_swab_mdt_rec_setattr(struct mdt_rec_setattr *sa);
 #define MDS_ATTR_FROM_OPEN  0x4000ULL /* = 16384, called from open path, ie O_TRUNC */
 #define MDS_ATTR_BLOCKS     0x8000ULL /* = 32768 */
 
-#ifndef FMODE_READ
-#define FMODE_READ	       00000001
-#define FMODE_WRITE	      00000002
-#endif
-
 #define MDS_FMODE_CLOSED	 00000000
 #define MDS_FMODE_EXEC	   00000004
 /* IO Epoch is opened on a closed file. */
