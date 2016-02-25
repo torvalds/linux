@@ -481,6 +481,30 @@ int pinctrl_get_group_pins(struct pinctrl_dev *pctldev, const char *pin_group,
 }
 EXPORT_SYMBOL_GPL(pinctrl_get_group_pins);
 
+struct pinctrl_gpio_range *
+pinctrl_find_gpio_range_from_pin_nolock(struct pinctrl_dev *pctldev,
+					unsigned int pin)
+{
+	struct pinctrl_gpio_range *range;
+
+	/* Loop over the ranges */
+	list_for_each_entry(range, &pctldev->gpio_ranges, node) {
+		/* Check if we're in the valid range */
+		if (range->pins) {
+			int a;
+			for (a = 0; a < range->npins; a++) {
+				if (range->pins[a] == pin)
+					return range;
+			}
+		} else if (pin >= range->pin_base &&
+			   pin < range->pin_base + range->npins)
+			return range;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(pinctrl_find_gpio_range_from_pin_nolock);
+
 /**
  * pinctrl_find_gpio_range_from_pin() - locate the GPIO range for a pin
  * @pctldev: the pin controller device to look in
@@ -493,22 +517,9 @@ pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 	struct pinctrl_gpio_range *range;
 
 	mutex_lock(&pctldev->mutex);
-	/* Loop over the ranges */
-	list_for_each_entry(range, &pctldev->gpio_ranges, node) {
-		/* Check if we're in the valid range */
-		if (range->pins) {
-			int a;
-			for (a = 0; a < range->npins; a++) {
-				if (range->pins[a] == pin)
-					goto out;
-			}
-		} else if (pin >= range->pin_base &&
-			   pin < range->pin_base + range->npins)
-			goto out;
-	}
-	range = NULL;
-out:
+	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
 	mutex_unlock(&pctldev->mutex);
+
 	return range;
 }
 EXPORT_SYMBOL_GPL(pinctrl_find_gpio_range_from_pin);
