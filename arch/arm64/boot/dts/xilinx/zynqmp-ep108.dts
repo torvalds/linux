@@ -13,8 +13,8 @@
 
 /dts-v1/;
 
-/include/ "zynqmp.dtsi"
-/include/ "zynqmp-ep108-clk.dtsi"
+#include "zynqmp.dtsi"
+#include "zynqmp-ep108-clk.dtsi"
 
 / {
 	model = "ZynqMP EP108";
