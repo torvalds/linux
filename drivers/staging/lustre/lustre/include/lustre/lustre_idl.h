@@ -3039,15 +3039,6 @@ struct llog_size_change_rec {
 	struct llog_rec_tail	lsc_tail;
 } __packed;
 
-#define CHANGELOG_MAGIC 0xca103000
-
-/** \a changelog_rec_type's that can't be masked */
-#define CHANGELOG_MINMASK (1 << CL_MARK)
-/** bits covering all \a changelog_rec_type's */
-#define CHANGELOG_ALLMASK 0XFFFFFFFF
-/** default \a changelog_rec_type mask */
-#define CHANGELOG_DEFMASK CHANGELOG_ALLMASK & ~(1 << CL_ATIME | 1 << CL_CLOSE)
-
 /* changelog llog name, needed by client replicators */
 #define CHANGELOG_CATALOG "changelog_catalog"
 
@@ -3068,8 +3059,6 @@ struct llog_changelog_ext_rec {
 	struct changelog_ext_rec cr;
 	struct llog_rec_tail     cr_tail; /**< for_sizezof_only */
 } __packed;
-
-#define CHANGELOG_USER_PREFIX "cl"
 
 struct llog_changelog_user_rec {
 	struct llog_rec_hdr   cur_hdr;
