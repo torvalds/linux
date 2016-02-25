@@ -598,6 +598,12 @@
 				     <0x0 0x2d 0x1>,
 				     <0x0 0x2e 0x1>,
 				     <0x0 0x2f 0x1>;
+			interrupt-parent = <&gic>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			apm,nr-gpios = <22>;
+			apm,nr-irqs = <8>;
+			apm,irq-start = <8>;
 		};
 
 		sgenet0: ethernet@1f610000 {
