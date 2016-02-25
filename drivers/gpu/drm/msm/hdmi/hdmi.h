@@ -70,6 +70,8 @@ struct hdmi {
 	struct clk **pwr_clks;
 
 	struct hdmi_phy *phy;
+	struct device *phy_dev;
+
 	struct i2c_adapter *i2c;
 	struct drm_connector *connector;
 	struct drm_bridge *bridge;

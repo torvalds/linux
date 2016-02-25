@@ -81,10 +81,44 @@ static void hdmi_destroy(struct hdmi *hdmi)
 	if (phy)
 		phy->funcs->destroy(phy);
 
+	if (hdmi->phy_dev) {
+		put_device(hdmi->phy_dev);
+		hdmi->phy = NULL;
+		hdmi->phy_dev = NULL;
+	}
+
 	if (hdmi->i2c)
 		hdmi_i2c_destroy(hdmi->i2c);
 
 	platform_set_drvdata(hdmi->pdev, NULL);
+}
+
+static int hdmi_get_phy(struct hdmi *hdmi)
+{
+	struct platform_device *pdev = hdmi->pdev;
+	struct platform_device *phy_pdev;
+	struct device_node *phy_node;
+
+	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
+	if (!phy_node) {
+		dev_err(&pdev->dev, "cannot find phy device\n");
+		return -ENXIO;
+	}
+
+	phy_pdev = of_find_device_by_node(phy_node);
+	if (phy_pdev)
+		hdmi->phy = platform_get_drvdata(phy_pdev);
+
+	of_node_put(phy_node);
+
+	if (!phy_pdev || !hdmi->phy) {
+		dev_err(&pdev->dev, "phy driver is not ready\n");
+		return -EPROBE_DEFER;
+	}
+
+	hdmi->phy_dev = get_device(&phy_pdev->dev);
+
+	return 0;
 }
 
 /* construct hdmi at bind/probe time, grab all the resources.  If
@@ -227,6 +261,12 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 		ret = PTR_ERR(hdmi->i2c);
 		dev_err(&pdev->dev, "failed to get i2c: %d\n", ret);
 		hdmi->i2c = NULL;
+		goto fail;
+	}
+
+	ret = hdmi_get_phy(hdmi);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get phy\n");
 		goto fail;
 	}
 
