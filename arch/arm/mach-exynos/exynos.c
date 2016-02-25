@@ -11,14 +11,11 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/kernel.h>
-#include <linux/serial_s3c.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/pm_domain.h>
 #include <linux/irqchip.h>
 #include <linux/soc/samsung/exynos-regs-pmu.h>
 
@@ -26,7 +23,6 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/memory.h>
 
 #include <mach/map.h>
 
