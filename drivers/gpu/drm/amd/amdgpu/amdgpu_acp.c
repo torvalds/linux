@@ -240,12 +240,10 @@ static int acp_poweron(struct generic_pm_domain *genpd)
 static struct device *get_mfd_cell_dev(const char *device_name, int r)
 {
 	char auto_dev_name[25];
-	char buf[8];
 	struct device *dev;
 
-	sprintf(buf, ".%d.auto", r);
-	strcpy(auto_dev_name, device_name);
-	strcat(auto_dev_name, buf);
+	snprintf(auto_dev_name, sizeof(auto_dev_name),
+		 "%s.%d.auto", device_name, r);
 	dev = bus_find_device_by_name(&platform_bus_type, NULL, auto_dev_name);
 	dev_info(dev, "device %s added to pm domain\n", auto_dev_name);
 
