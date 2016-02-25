@@ -183,7 +183,8 @@ restart_fixup:
 			}
 
 			/* we could have overlap over next
-			 * range too. better restart. */
+			 * range too. better restart.
+			 */
 			goto restart_fixup;
 		}
 
@@ -302,7 +303,8 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 	const u32 mdt = range->lsr_index;
 
 	/* this is overlap case, these case are checking overlapping with
-	 * prev range only. fixup will handle overlapping with next range. */
+	 * prev range only. fixup will handle overlapping with next range.
+	 */
 
 	if (f_curr->fce_range.lsr_index == mdt) {
 		f_curr->fce_range.lsr_start = min(f_curr->fce_range.lsr_start,
@@ -317,7 +319,8 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 	} else if (new_start <= f_curr->fce_range.lsr_start &&
 			f_curr->fce_range.lsr_end <= new_end) {
 		/* case 1: new range completely overshadowed existing range.
-		 *	 e.g. whole range migrated. update fld cache entry */
+		 *	 e.g. whole range migrated. update fld cache entry
+		 */
 
 		f_curr->fce_range = *range;
 		kfree(f_new);

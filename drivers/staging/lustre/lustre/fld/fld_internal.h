@@ -67,8 +67,7 @@ struct lu_fld_hash {
 struct fld_cache_entry {
 	struct list_head	       fce_lru;
 	struct list_head	       fce_list;
-	/**
-	 * fld cache entries are sorted on range->lsr_start field. */
+	/** fld cache entries are sorted on range->lsr_start field. */
 	struct lu_seq_range      fce_range;
 };
 
@@ -79,32 +78,25 @@ struct fld_cache {
 	 */
 	rwlock_t		 fci_lock;
 
-	/**
-	 * Cache shrink threshold */
+	/** Cache shrink threshold */
 	int		      fci_threshold;
 
-	/**
-	 * Preferred number of cached entries */
+	/** Preferred number of cached entries */
 	int		      fci_cache_size;
 
-	/**
-	 * Current number of cached entries. Protected by \a fci_lock */
+	/** Current number of cached entries. Protected by \a fci_lock */
 	int		      fci_cache_count;
 
-	/**
-	 * LRU list fld entries. */
+	/** LRU list fld entries. */
 	struct list_head	       fci_lru;
 
-	/**
-	 * sorted fld entries. */
+	/** sorted fld entries. */
 	struct list_head	       fci_entries_head;
 
-	/**
-	 * Cache statistics. */
+	/** Cache statistics. */
 	struct fld_stats	 fci_stat;
 
-	/**
-	 * Cache name used for debug and messages. */
+	/** Cache name used for debug and messages. */
 	char		     fci_name[LUSTRE_MDT_MAXNAMELEN];
 	unsigned int		 fci_no_shrink:1;
 };

@@ -58,7 +58,8 @@
 #include "fld_internal.h"
 
 /* TODO: these 3 functions are copies of flow-control code from mdc_lib.c
- * It should be common thing. The same about mdc RPC lock */
+ * It should be common thing. The same about mdc RPC lock
+ */
 static int fld_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 {
 	int rc;
@@ -124,7 +125,8 @@ fld_rrb_scan(struct lu_client_fld *fld, u64 seq)
 	 * it should go to index 0 directly, instead of calculating
 	 * hash again, and also if other MDTs is not being connected,
 	 * the fld lookup requests(for seq on MDT0) should not be
-	 * blocked because of other MDTs */
+	 * blocked because of other MDTs
+	 */
 	if (fid_seq_is_norm(seq))
 		hash = fld_rrb_hash(fld, seq);
 	else
@@ -139,7 +141,8 @@ again:
 	if (hash != 0) {
 		/* It is possible the remote target(MDT) are not connected to
 		 * with client yet, so we will refer this to MDT0, which should
-		 * be connected during mount */
+		 * be connected during mount
+		 */
 		hash = 0;
 		goto again;
 	}
