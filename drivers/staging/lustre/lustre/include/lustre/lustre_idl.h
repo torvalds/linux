@@ -2065,7 +2065,7 @@ typedef enum {
  * Do not exceed 63
  */
 
-typedef enum {
+enum mdt_reint_cmd {
 	REINT_SETATTR  = 1,
 	REINT_CREATE   = 2,
 	REINT_LINK     = 3,
@@ -2076,7 +2076,7 @@ typedef enum {
 	REINT_RMENTRY  = 8,
 //      REINT_WRITE    = 9,
 	REINT_MAX
-} mds_reint_t, mdt_reint_t;
+};
 
 void lustre_swab_generic_32s(__u32 *val);
 
