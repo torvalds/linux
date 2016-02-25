@@ -107,7 +107,8 @@ ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
 		lock->l_flags |= LDLM_FL_LOCAL_ONLY | LDLM_FL_CBPENDING;
 
 		/* when reaching here, it is under lock_res_and_lock(). Thus,
-		   need call the nolock version of ldlm_lock_decref_internal*/
+		 * need call the nolock version of ldlm_lock_decref_internal
+		 */
 		ldlm_lock_decref_internal_nolock(lock, mode);
 	}
 
@@ -159,13 +160,15 @@ static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
 	*err = ELDLM_OK;
 
 	/* No blocking ASTs are sent to the clients for
-	 * Posix file & record locks */
+	 * Posix file & record locks
+	 */
 	req->l_blocking_ast = NULL;
 
 reprocess:
 	if ((*flags == LDLM_FL_WAIT_NOREPROC) || (mode == LCK_NL)) {
 		/* This loop determines where this processes locks start
-		 * in the resource lr_granted list. */
+		 * in the resource lr_granted list.
+		 */
 		list_for_each(tmp, &res->lr_granted) {
 			lock = list_entry(tmp, struct ldlm_lock,
 					      l_res_link);
@@ -180,7 +183,8 @@ reprocess:
 		lockmode_verify(mode);
 
 		/* This loop determines if there are existing locks
-		 * that conflict with the new lock request. */
+		 * that conflict with the new lock request.
+		 */
 		list_for_each(tmp, &res->lr_granted) {
 			lock = list_entry(tmp, struct ldlm_lock,
 					      l_res_link);
@@ -238,8 +242,8 @@ reprocess:
 	}
 
 	/* Scan the locks owned by this process that overlap this request.
-	 * We may have to merge or split existing locks. */
-
+	 * We may have to merge or split existing locks.
+	 */
 	if (!ownlocks)
 		ownlocks = &res->lr_granted;
 
@@ -253,7 +257,8 @@ reprocess:
 			/* If the modes are the same then we need to process
 			 * locks that overlap OR adjoin the new lock. The extra
 			 * logic condition is necessary to deal with arithmetic
-			 * overflow and underflow. */
+			 * overflow and underflow.
+			 */
 			if ((new->l_policy_data.l_flock.start >
 			     (lock->l_policy_data.l_flock.end + 1))
 			    && (lock->l_policy_data.l_flock.end !=
@@ -327,11 +332,13 @@ reprocess:
 		 * with the request but this would complicate the reply
 		 * processing since updates to req get reflected in the
 		 * reply. The client side replays the lock request so
-		 * it must see the original lock data in the reply. */
+		 * it must see the original lock data in the reply.
+		 */
 
 		/* XXX - if ldlm_lock_new() can sleep we should
 		 * release the lr_lock, allocate the new lock,
-		 * and restart processing this lock. */
+		 * and restart processing this lock.
+		 */
 		if (!new2) {
 			unlock_res_and_lock(req);
 			new2 = ldlm_lock_create(ns, &res->lr_name, LDLM_FLOCK,
@@ -396,7 +403,8 @@ reprocess:
 	if (*flags != LDLM_FL_WAIT_NOREPROC) {
 		/* The only one possible case for client-side calls flock
 		 * policy function is ldlm_flock_completion_ast inside which
-		 * carries LDLM_FL_WAIT_NOREPROC flag. */
+		 * carries LDLM_FL_WAIT_NOREPROC flag.
+		 */
 		CERROR("Illegal parameter for client-side-only module.\n");
 		LBUG();
 	}
@@ -404,7 +412,8 @@ reprocess:
 	/* In case we're reprocessing the requested lock we can't destroy
 	 * it until after calling ldlm_add_ast_work_item() above so that laawi()
 	 * can bump the reference count on \a req. Otherwise \a req
-	 * could be freed before the completion AST can be sent.  */
+	 * could be freed before the completion AST can be sent.
+	 */
 	if (added)
 		ldlm_flock_destroy(req, mode, *flags);
 
@@ -458,7 +467,8 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	/* Import invalidation. We need to actually release the lock
 	 * references being held, so that it can go away. No point in
 	 * holding the lock even if app still believes it has it, since
-	 * server already dropped it anyway. Only for granted locks too. */
+	 * server already dropped it anyway. Only for granted locks too.
+	 */
 	if ((lock->l_flags & (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) ==
 	    (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) {
 		if (lock->l_req_mode == lock->l_granted_mode &&
@@ -539,7 +549,8 @@ granted:
 	} else if (flags & LDLM_FL_TEST_LOCK) {
 		/* fcntl(F_GETLK) request */
 		/* The old mode was saved in getlk->fl_type so that if the mode
-		 * in the lock changes we can decref the appropriate refcount.*/
+		 * in the lock changes we can decref the appropriate refcount.
+		 */
 		ldlm_flock_destroy(lock, getlk->fl_type, LDLM_FL_WAIT_NOREPROC);
 		switch (lock->l_granted_mode) {
 		case LCK_PR:
@@ -558,7 +569,8 @@ granted:
 		__u64 noreproc = LDLM_FL_WAIT_NOREPROC;
 
 		/* We need to reprocess the lock to do merges or splits
-		 * with existing locks owned by this process. */
+		 * with existing locks owned by this process.
+		 */
 		ldlm_process_flock_lock(lock, &noreproc, 1, &err, NULL);
 	}
 	unlock_res_and_lock(lock);
@@ -575,7 +587,8 @@ void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
 	lpolicy->l_flock.pid = wpolicy->l_flock.lfw_pid;
 	/* Compat code, old clients had no idea about owner field and
 	 * relied solely on pid for ownership. Introduced in LU-104, 2.1,
-	 * April 2011 */
+	 * April 2011
+	 */
 	lpolicy->l_flock.owner = wpolicy->l_flock.lfw_pid;
 }
 

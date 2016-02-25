@@ -62,7 +62,8 @@
  * is the "highest lock".  This function returns the new KMS value.
  * Caller must hold lr_lock already.
  *
- * NB: A lock on [x,y] protects a KMS of up to y + 1 bytes! */
+ * NB: A lock on [x,y] protects a KMS of up to y + 1 bytes!
+ */
 __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 {
 	struct ldlm_resource *res = lock->l_resource;
@@ -72,7 +73,8 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 
 	/* don't let another thread in ldlm_extent_shift_kms race in
 	 * just after we finish and take our lock into account in its
-	 * calculation of the kms */
+	 * calculation of the kms
+	 */
 	lock->l_flags |= LDLM_FL_KMS_IGNORE;
 
 	list_for_each(tmp, &res->lr_granted) {
@@ -85,7 +87,8 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 			return old_kms;
 
 		/* This extent _has_ to be smaller than old_kms (checked above)
-		 * so kms can only ever be smaller or the same as old_kms. */
+		 * so kms can only ever be smaller or the same as old_kms.
+		 */
 		if (lck->l_policy_data.l_extent.end + 1 > kms)
 			kms = lck->l_policy_data.l_extent.end + 1;
 	}
@@ -191,7 +194,8 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 	res->lr_itree[idx].lit_size++;
 
 	/* even though we use interval tree to manage the extent lock, we also
-	 * add the locks into grant list, for debug purpose, .. */
+	 * add the locks into grant list, for debug purpose, ..
+	 */
 	ldlm_resource_add_lock(res, &res->lr_granted, lock);
 }
 

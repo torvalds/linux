@@ -56,7 +56,8 @@ LIST_HEAD(ldlm_srv_namespace_list);
 struct mutex ldlm_cli_namespace_lock;
 /* Client Namespaces that have active resources in them.
  * Once all resources go away, ldlm_poold moves such namespaces to the
- * inactive list */
+ * inactive list
+ */
 LIST_HEAD(ldlm_cli_active_namespace_list);
 /* Client namespaces that don't have any locks in them */
 static LIST_HEAD(ldlm_cli_inactive_namespace_list);
@@ -66,7 +67,8 @@ static struct dentry *ldlm_ns_debugfs_dir;
 struct dentry *ldlm_svc_debugfs_dir;
 
 /* during debug dump certain amount of granted locks for one resource to avoid
- * DDOS. */
+ * DDOS.
+ */
 static unsigned int ldlm_dump_granted_max = 256;
 
 static ssize_t
@@ -275,7 +277,8 @@ static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
 		ldlm_cancel_lru(ns, 0, LCF_ASYNC, LDLM_CANCEL_PASSED);
 
 		/* Make sure that LRU resize was originally supported before
-		 * turning it on here. */
+		 * turning it on here.
+		 */
 		if (lru_resize &&
 		    (ns->ns_orig_connect_flags & OBD_CONNECT_LRU_RESIZE)) {
 			CDEBUG(D_DLMTRACE,
@@ -749,7 +752,8 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 		struct lustre_handle lockh;
 
 		/* First, we look for non-cleaned-yet lock
-		 * all cleaned locks are marked by CLEANED flag. */
+		 * all cleaned locks are marked by CLEANED flag.
+		 */
 		lock_res(res);
 		list_for_each(tmp, q) {
 			lock = list_entry(tmp, struct ldlm_lock,
@@ -769,7 +773,8 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 		}
 
 		/* Set CBPENDING so nothing in the cancellation path
-		 * can match this lock. */
+		 * can match this lock.
+		 */
 		lock->l_flags |= LDLM_FL_CBPENDING;
 		lock->l_flags |= LDLM_FL_FAILED;
 		lock->l_flags |= flags;
@@ -782,7 +787,8 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 			/* This is a little bit gross, but much better than the
 			 * alternative: pretend that we got a blocking AST from
 			 * the server, so that when the lock is decref'd, it
-			 * will go away ... */
+			 * will go away ...
+			 */
 			unlock_res(res);
 			LDLM_DEBUG(lock, "setting FL_LOCAL_ONLY");
 			if (lock->l_completion_ast)
@@ -873,7 +879,8 @@ force_wait:
 				  atomic_read(&ns->ns_bref) == 0, &lwi);
 
 		/* Forced cleanups should be able to reclaim all references,
-		 * so it's safe to wait forever... we can't leak locks... */
+		 * so it's safe to wait forever... we can't leak locks...
+		 */
 		if (force && rc == -ETIMEDOUT) {
 			LCONSOLE_ERROR("Forced cleanup waiting for %s namespace with %d resources in use, (rc=%d)\n",
 				       ldlm_ns_name(ns),
@@ -943,7 +950,8 @@ static void ldlm_namespace_unregister(struct ldlm_namespace *ns,
 	LASSERT(!list_empty(&ns->ns_list_chain));
 	/* Some asserts and possibly other parts of the code are still
 	 * using list_empty(&ns->ns_list_chain). This is why it is
-	 * important to use list_del_init() here. */
+	 * important to use list_del_init() here.
+	 */
 	list_del_init(&ns->ns_list_chain);
 	ldlm_namespace_nr_dec(client);
 	mutex_unlock(ldlm_namespace_lock(client));
@@ -963,7 +971,8 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 	ldlm_namespace_unregister(ns, ns->ns_client);
 	/* Fini pool _before_ parent proc dir is removed. This is important as
 	 * ldlm_pool_fini() removes own proc dir which is child to @dir.
-	 * Removing it after @dir may cause oops. */
+	 * Removing it after @dir may cause oops.
+	 */
 	ldlm_pool_fini(&ns->ns_pool);
 
 	ldlm_namespace_debugfs_unregister(ns);
@@ -971,7 +980,8 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 	cfs_hash_putref(ns->ns_rs_hash);
 	/* Namespace \a ns should be not on list at this time, otherwise
 	 * this will cause issues related to using freed \a ns in poold
-	 * thread. */
+	 * thread.
+	 */
 	LASSERT(list_empty(&ns->ns_list_chain));
 	kfree(ns);
 	ldlm_put_ref();
@@ -1050,7 +1060,8 @@ static struct ldlm_resource *ldlm_resource_new(void)
 	lu_ref_init(&res->lr_reference);
 
 	/* The creator of the resource must unlock the mutex after LVB
-	 * initialization. */
+	 * initialization.
+	 */
 	mutex_init(&res->lr_lvb_mutex);
 	mutex_lock(&res->lr_lvb_mutex);
 
@@ -1166,7 +1177,8 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	/* Let's see if we happened to be the very first resource in this
 	 * namespace. If so, and this is a client namespace, we need to move
 	 * the namespace into the active namespaces list to be patrolled by
-	 * the ldlm_poold. */
+	 * the ldlm_poold.
+	 */
 	if (ns_refcount == 1) {
 		mutex_lock(ldlm_namespace_lock(LDLM_NAMESPACE_CLIENT));
 		ldlm_namespace_move_to_active_locked(ns, LDLM_NAMESPACE_CLIENT);

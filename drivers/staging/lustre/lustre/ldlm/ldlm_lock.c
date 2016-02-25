@@ -326,9 +326,11 @@ static int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 
 	if (lock->l_export && lock->l_export->exp_lock_hash) {
 		/* NB: it's safe to call cfs_hash_del() even lock isn't
-		 * in exp_lock_hash. */
+		 * in exp_lock_hash.
+		 */
 		/* In the function below, .hs_keycmp resolves to
-		 * ldlm_export_lock_keycmp() */
+		 * ldlm_export_lock_keycmp()
+		 */
 		/* coverity[overrun-buffer-val] */
 		cfs_hash_del(lock->l_export->exp_lock_hash,
 			     &lock->l_remote_handle, &lock->l_exp_hash);
@@ -540,7 +542,8 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 		return NULL;
 
 	/* It's unlikely but possible that someone marked the lock as
-	 * destroyed after we did handle2object on it */
+	 * destroyed after we did handle2object on it
+	 */
 	if (flags == 0 && ((lock->l_flags & LDLM_FL_DESTROYED) == 0)) {
 		lu_ref_add(&lock->l_reference, "handle", current);
 		return lock;
@@ -600,7 +603,8 @@ static void ldlm_add_bl_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
 		LDLM_DEBUG(lock, "lock incompatible; sending blocking AST.");
 		lock->l_flags |= LDLM_FL_AST_SENT;
 		/* If the enqueuing client said so, tell the AST recipient to
-		 * discard dirty data, rather than writing back. */
+		 * discard dirty data, rather than writing back.
+		 */
 		if (new->l_flags & LDLM_FL_AST_DISCARD_DATA)
 			lock->l_flags |= LDLM_FL_DISCARD_DATA;
 		LASSERT(list_empty(&lock->l_bl_ast));
@@ -769,7 +773,8 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 	if (lock->l_flags & LDLM_FL_LOCAL &&
 	    !lock->l_readers && !lock->l_writers) {
 		/* If this is a local lock on a server namespace and this was
-		 * the last reference, cancel the lock. */
+		 * the last reference, cancel the lock.
+		 */
 		CDEBUG(D_INFO, "forcing cancel of local lock\n");
 		lock->l_flags |= LDLM_FL_CBPENDING;
 	}
@@ -777,7 +782,8 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 	if (!lock->l_readers && !lock->l_writers &&
 	    (lock->l_flags & LDLM_FL_CBPENDING)) {
 		/* If we received a blocked AST and this was the last reference,
-		 * run the callback. */
+		 * run the callback.
+		 */
 
 		LDLM_DEBUG(lock, "final decref done on cbpending lock");
 
@@ -798,7 +804,8 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 		LDLM_DEBUG(lock, "add lock into lru list");
 
 		/* If this is a client-side namespace and this was the last
-		 * reference, put it on the LRU. */
+		 * reference, put it on the LRU.
+		 */
 		ldlm_lock_add_to_lru(lock);
 		unlock_res_and_lock(lock);
 
@@ -807,7 +814,8 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 
 		/* Call ldlm_cancel_lru() only if EARLY_CANCEL and LRU RESIZE
 		 * are not supported by the server, otherwise, it is done on
-		 * enqueue. */
+		 * enqueue.
+		 */
 		if (!exp_connect_cancelset(lock->l_conn_export) &&
 		    !ns_connect_lru_resize(ns))
 			ldlm_cancel_lru(ns, 0, LCF_ASYNC, 0);
@@ -910,7 +918,8 @@ static void search_granted_lock(struct list_head *queue,
 				if (lock->l_policy_data.l_inodebits.bits ==
 				    req->l_policy_data.l_inodebits.bits) {
 					/* insert point is last lock of
-					 * the policy group */
+					 * the policy group
+					 */
 					prev->res_link =
 						&policy_end->l_res_link;
 					prev->mode_link =
@@ -931,7 +940,8 @@ static void search_granted_lock(struct list_head *queue,
 			}  /* loop over policy groups within the mode group */
 
 			/* insert point is last lock of the mode group,
-			 * new policy group is started */
+			 * new policy group is started
+			 */
 			prev->res_link = &mode_end->l_res_link;
 			prev->mode_link = &mode_end->l_sl_mode;
 			prev->policy_link = &req->l_sl_policy;
@@ -943,7 +953,8 @@ static void search_granted_lock(struct list_head *queue,
 	}
 
 	/* insert point is last lock on the queue,
-	 * new mode group and new policy group are started */
+	 * new mode group and new policy group are started
+	 */
 	prev->res_link = queue->prev;
 	prev->mode_link = &req->l_sl_mode;
 	prev->policy_link = &req->l_sl_policy;
@@ -1053,7 +1064,8 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 			break;
 
 		/* Check if this lock can be matched.
-		 * Used by LU-2919(exclusive open) for open lease lock */
+		 * Used by LU-2919(exclusive open) for open lease lock
+		 */
 		if (ldlm_is_excl(lock))
 			continue;
 
@@ -1062,7 +1074,8 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 		 * if it passes in CBPENDING and the lock still has users.
 		 * this is generally only going to be used by children
 		 * whose parents already hold a lock so forward progress
-		 * can still happen. */
+		 * can still happen.
+		 */
 		if (lock->l_flags & LDLM_FL_CBPENDING &&
 		    !(flags & LDLM_FL_CBPENDING))
 			continue;
@@ -1086,7 +1099,8 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 			continue;
 
 		/* We match if we have existing lock with same or wider set
-		   of bits. */
+		 * of bits.
+		 */
 		if (lock->l_resource->lr_type == LDLM_IBITS &&
 		     ((lock->l_policy_data.l_inodebits.bits &
 		      policy->l_inodebits.bits) !=
@@ -1515,7 +1529,8 @@ enum ldlm_error ldlm_lock_enqueue(struct ldlm_namespace *ns,
 	if (lock->l_req_mode == lock->l_granted_mode) {
 		/* The server returned a blocked lock, but it was granted
 		 * before we got a chance to actually enqueue it.  We don't
-		 * need to do anything else. */
+		 * need to do anything else.
+		 */
 		*flags &= ~(LDLM_FL_BLOCK_GRANTED |
 			    LDLM_FL_BLOCK_CONV | LDLM_FL_BLOCK_WAIT);
 		goto out;
@@ -1528,7 +1543,8 @@ enum ldlm_error ldlm_lock_enqueue(struct ldlm_namespace *ns,
 		LBUG();
 
 	/* Some flags from the enqueue want to make it into the AST, via the
-	 * lock's l_flags. */
+	 * lock's l_flags.
+	 */
 	lock->l_flags |= *flags & LDLM_FL_AST_DISCARD_DATA;
 
 	/*
@@ -1609,14 +1625,16 @@ ldlm_work_cp_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	 * This can't happen with the blocking_ast, however, because we
 	 * will never call the local blocking_ast until we drop our
 	 * reader/writer reference, which we won't do until we get the
-	 * reply and finish enqueueing. */
+	 * reply and finish enqueueing.
+	 */
 
 	/* nobody should touch l_cp_ast */
 	lock_res_and_lock(lock);
 	list_del_init(&lock->l_cp_ast);
 	LASSERT(lock->l_flags & LDLM_FL_CP_REQD);
 	/* save l_completion_ast since it can be changed by
-	 * mds_intent_policy(), see bug 14225 */
+	 * mds_intent_policy(), see bug 14225
+	 */
 	completion_callback = lock->l_completion_ast;
 	lock->l_flags &= ~LDLM_FL_CP_REQD;
 	unlock_res_and_lock(lock);
@@ -1737,7 +1755,8 @@ int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 	/* We create a ptlrpc request set with flow control extension.
 	 * This request set will use the work_ast_lock function to produce new
 	 * requests and will send a new request each time one completes in order
-	 * to keep the number of requests in flight to ns_max_parallel_ast */
+	 * to keep the number of requests in flight to ns_max_parallel_ast
+	 */
 	arg->set = ptlrpc_prep_fcset(ns->ns_max_parallel_ast ? : UINT_MAX,
 				     work_ast_lock, arg);
 	if (!arg->set) {
@@ -1803,7 +1822,8 @@ void ldlm_lock_cancel(struct ldlm_lock *lock)
 	ns  = ldlm_res_to_ns(res);
 
 	/* Please do not, no matter how tempting, remove this LBUG without
-	 * talking to me first. -phik */
+	 * talking to me first. -phik
+	 */
 	if (lock->l_readers || lock->l_writers) {
 		LDLM_ERROR(lock, "lock still has references");
 		LBUG();
@@ -1819,7 +1839,8 @@ void ldlm_lock_cancel(struct ldlm_lock *lock)
 		ldlm_pool_del(&ns->ns_pool, lock);
 
 	/* Make sure we will not be called again for same lock what is possible
-	 * if not to zero out lock->l_granted_mode */
+	 * if not to zero out lock->l_granted_mode
+	 */
 	lock->l_granted_mode = LCK_MINMODE;
 	unlock_res_and_lock(lock);
 }

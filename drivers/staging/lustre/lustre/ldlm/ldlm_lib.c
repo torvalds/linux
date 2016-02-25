@@ -219,7 +219,8 @@ EXPORT_SYMBOL(client_import_find_conn);
 void client_destroy_import(struct obd_import *imp)
 {
 	/* Drop security policy instance after all RPCs have finished/aborted
-	 * to let all busy contexts be released. */
+	 * to let all busy contexts be released.
+	 */
 	class_import_get(imp);
 	class_destroy_import(imp);
 	sptlrpc_import_sec_put(imp);
@@ -245,7 +246,8 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	int rc;
 
 	/* In a more perfect world, we would hang a ptlrpc_client off of
-	 * obd_type and just use the values from there. */
+	 * obd_type and just use the values from there.
+	 */
 	if (!strcmp(name, LUSTRE_OSC_NAME)) {
 		rq_portal = OST_REQUEST_PORTAL;
 		rp_portal = OSC_REPLY_PORTAL;
@@ -348,7 +350,8 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	/* This value may be reduced at connect time in
 	 * ptlrpc_connect_interpret() . We initialize it to only
 	 * 1MB until we know what the performance looks like.
-	 * In the future this should likely be increased. LU-1431 */
+	 * In the future this should likely be increased. LU-1431
+	 */
 	cli->cl_max_pages_per_rpc = min_t(int, PTLRPC_MAX_BRW_PAGES,
 					  LNET_MTU >> PAGE_CACHE_SHIFT);
 
@@ -545,14 +548,16 @@ int client_disconnect_export(struct obd_export *exp)
 
 	/* Mark import deactivated now, so we don't try to reconnect if any
 	 * of the cleanup RPCs fails (e.g. LDLM cancel, etc).  We don't
-	 * fully deactivate the import, or that would drop all requests. */
+	 * fully deactivate the import, or that would drop all requests.
+	 */
 	spin_lock(&imp->imp_lock);
 	imp->imp_deactive = 1;
 	spin_unlock(&imp->imp_lock);
 
 	/* Some non-replayable imports (MDS's OSCs) are pinged, so just
 	 * delete it regardless.  (It's safe to delete an import that was
-	 * never added.) */
+	 * never added.)
+	 */
 	(void)ptlrpc_pinger_del_import(imp);
 
 	if (obd->obd_namespace) {
@@ -564,7 +569,8 @@ int client_disconnect_export(struct obd_export *exp)
 	}
 
 	/* There's no need to hold sem while disconnecting an import,
-	 * and it may actually cause deadlock in GSS. */
+	 * and it may actually cause deadlock in GSS.
+	 */
 	up_write(&cli->cl_sem);
 	rc = ptlrpc_disconnect_import(imp, 0);
 	down_write(&cli->cl_sem);
@@ -573,7 +579,8 @@ int client_disconnect_export(struct obd_export *exp)
 
 out_disconnect:
 	/* Use server style - class_disconnect should be always called for
-	 * o_disconnect. */
+	 * o_disconnect.
+	 */
 	err = class_disconnect(exp);
 	if (!rc && err)
 		rc = err;
@@ -592,7 +599,8 @@ int target_pack_pool_reply(struct ptlrpc_request *req)
 	struct obd_device *obd;
 
 	/* Check that we still have all structures alive as this may
-	 * be some late RPC at shutdown time. */
+	 * be some late RPC at shutdown time.
+	 */
 	if (unlikely(!req->rq_export || !req->rq_export->exp_obd ||
 		     !exp_connect_lru_resize(req->rq_export))) {
 		lustre_msg_set_slv(req->rq_repmsg, 0);
@@ -697,7 +705,8 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 		 * reply ref until ptlrpc_handle_rs() is done
 		 * with the reply state (if the send was successful, there
 		 * would have been +1 ref for the net, which
-		 * reply_out_callback leaves alone) */
+		 * reply_out_callback leaves alone)
+		 */
 		rs->rs_on_net = 0;
 		ptlrpc_rs_addref(rs);
 	}

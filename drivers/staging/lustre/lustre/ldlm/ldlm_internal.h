@@ -96,7 +96,8 @@ enum {
 	LDLM_CANCEL_SHRINK = 1 << 2, /* Cancel locks from shrinker. */
 	LDLM_CANCEL_LRUR   = 1 << 3, /* Cancel locks from lru resize. */
 	LDLM_CANCEL_NO_WAIT = 1 << 4 /* Cancel locks w/o blocking (neither
-				      * sending nor waiting for any rpcs) */
+				      * sending nor waiting for any rpcs)
+				      */
 };
 
 int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,

@@ -194,7 +194,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 				goto out;
 			}
 		} else if (ldlm_has_layout(lock)) { /* for layout lock, lvb has
-						     * variable length */
+						     * variable length
+						     */
 			void *lvb_data;
 
 			lvb_data = kzalloc(lvb_len, GFP_NOFS);
@@ -224,7 +225,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	}
 
 	/* If we receive the completion AST before the actual enqueue returned,
-	 * then we might need to switch lock modes, resources, or extents. */
+	 * then we might need to switch lock modes, resources, or extents.
+	 */
 	if (dlm_req->lock_desc.l_granted_mode != lock->l_req_mode) {
 		lock->l_req_mode = dlm_req->lock_desc.l_granted_mode;
 		LDLM_DEBUG(lock, "completion AST, new lock mode");
@@ -256,7 +258,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 
 	if (dlm_req->lock_flags & LDLM_FL_AST_SENT) {
 		/* BL_AST locks are not needed in LRU.
-		 * Let ldlm_cancel_lru() be fast. */
+		 * Let ldlm_cancel_lru() be fast.
+		 */
 		ldlm_lock_remove_from_lru(lock);
 		lock->l_flags |= LDLM_FL_CBPENDING | LDLM_FL_BL_AST;
 		LDLM_DEBUG(lock, "completion AST includes blocking AST");
@@ -276,8 +279,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 
 	LDLM_DEBUG(lock, "callback handler finished, about to run_ast_work");
 
-	/* Let Enqueue to call osc_lock_upcall() and initialize
-	 * l_ast_data */
+	/* Let Enqueue to call osc_lock_upcall() and initialize l_ast_data */
 	OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_CP_ENQ_RACE, 2);
 
 	ldlm_run_ast_work(ns, &ast_list, LDLM_WORK_CP_AST);
@@ -371,7 +373,8 @@ static int __ldlm_bl_to_thread(struct ldlm_bl_work_item *blwi,
 	wake_up(&blp->blp_waitq);
 
 	/* can not check blwi->blwi_flags as blwi could be already freed in
-	   LCF_ASYNC mode */
+	 * LCF_ASYNC mode
+	 */
 	if (!(cancel_flags & LCF_ASYNC))
 		wait_for_completion(&blwi->blwi_comp);
 
@@ -541,7 +544,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	/* Requests arrive in sender's byte order.  The ptlrpc service
 	 * handler has already checked and, if necessary, byte-swapped the
 	 * incoming request message body, but I am responsible for the
-	 * message buffers. */
+	 * message buffers.
+	 */
 
 	/* do nothing for sec context finalize */
 	if (lustre_msg_get_opc(req->rq_reqmsg) == SEC_CTX_FINI)
@@ -603,7 +607,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	}
 
 	/* Force a known safe race, send a cancel to the server for a lock
-	 * which the server has already started a blocking callback on. */
+	 * which the server has already started a blocking callback on.
+	 */
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CANCEL_BL_CB_RACE) &&
 	    lustre_msg_get_opc(req->rq_reqmsg) == LDLM_BL_CALLBACK) {
 		rc = ldlm_cli_cancel(&dlm_req->lock_handle[0], 0);
@@ -633,7 +638,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		/* If somebody cancels lock and cache is already dropped,
 		 * or lock is failed before cp_ast received on client,
 		 * we can tell the server we have no lock. Otherwise, we
-		 * should send cancel after dropping the cache. */
+		 * should send cancel after dropping the cache.
+		 */
 		if (((lock->l_flags & LDLM_FL_CANCELING) &&
 		    (lock->l_flags & LDLM_FL_BL_DONE)) ||
 		    (lock->l_flags & LDLM_FL_FAILED)) {
@@ -647,7 +653,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 			return 0;
 		}
 		/* BL_AST locks are not needed in LRU.
-		 * Let ldlm_cancel_lru() be fast. */
+		 * Let ldlm_cancel_lru() be fast.
+		 */
 		ldlm_lock_remove_from_lru(lock);
 		lock->l_flags |= LDLM_FL_BL_AST;
 	}
@@ -660,7 +667,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	 * But we'd also like to be able to indicate in the reply that we're
 	 * cancelling right now, because it's unused, or have an intent result
 	 * in the reply, so we might have to push the responsibility for sending
-	 * the reply down into the AST handlers, alas. */
+	 * the reply down into the AST handlers, alas.
+	 */
 
 	switch (lustre_msg_get_opc(req->rq_reqmsg)) {
 	case LDLM_BL_CALLBACK:
@@ -809,7 +817,8 @@ static int ldlm_bl_thread_main(void *arg)
 			/* The special case when we cancel locks in LRU
 			 * asynchronously, we pass the list of locks here.
 			 * Thus locks are marked LDLM_FL_CANCELING, but NOT
-			 * canceled locally yet. */
+			 * canceled locally yet.
+			 */
 			count = ldlm_cli_cancel_list_local(&blwi->blwi_head,
 							   blwi->blwi_count,
 							   LCF_BL_AST);
@@ -1116,7 +1125,8 @@ void ldlm_exit(void)
 	kmem_cache_destroy(ldlm_resource_slab);
 	/* ldlm_lock_put() use RCU to call ldlm_lock_free, so need call
 	 * synchronize_rcu() to wait a grace period elapsed, so that
-	 * ldlm_lock_free() get a chance to be called. */
+	 * ldlm_lock_free() get a chance to be called.
+	 */
 	synchronize_rcu();
 	kmem_cache_destroy(ldlm_lock_slab);
 	kmem_cache_destroy(ldlm_interval_slab);
