@@ -1164,16 +1164,18 @@ out:
 }
 
 static void vxlan_parse_gbp_hdr(struct vxlanhdr *unparsed,
-				struct vxlan_metadata *md,
-				struct metadata_dst *tun_dst)
+				struct sk_buff *skb, u32 vxflags,
+				struct vxlan_metadata *md)
 {
 	struct vxlanhdr_gbp *gbp = (struct vxlanhdr_gbp *)unparsed;
+	struct metadata_dst *tun_dst;
 
 	if (!(unparsed->vx_flags & VXLAN_HF_GBP))
 		goto out;
 
 	md->gbp = ntohs(gbp->policy_id);
 
+	tun_dst = (struct metadata_dst *)skb_dst(skb);
 	if (tun_dst)
 		tun_dst->u.tun_info.key.tun_flags |= TUNNEL_VXLAN_OPT;
 
@@ -1183,19 +1185,18 @@ static void vxlan_parse_gbp_hdr(struct vxlanhdr *unparsed,
 	if (gbp->policy_applied)
 		md->gbp |= VXLAN_GBP_POLICY_APPLIED;
 
+	/* In flow-based mode, GBP is carried in dst_metadata */
+	if (!(vxflags & VXLAN_F_COLLECT_METADATA))
+		skb->mark = md->gbp;
 out:
 	unparsed->vx_flags &= ~VXLAN_GBP_USED_BITS;
 }
 
-static void vxlan_rcv(struct vxlan_dev *vxlan, struct vxlan_sock *vs,
-		      struct sk_buff *skb, struct vxlan_metadata *md,
-		      struct metadata_dst *tun_dst)
+static bool vxlan_set_mac(struct vxlan_dev *vxlan,
+			  struct vxlan_sock *vs,
+			  struct sk_buff *skb)
 {
-	struct iphdr *oip = NULL;
-	struct ipv6hdr *oip6 = NULL;
-	struct pcpu_sw_netstats *stats;
 	union vxlan_addr saddr;
-	int err = 0;
 
 	skb_reset_mac_header(skb);
 	skb->protocol = eth_type_trans(skb, vxlan->dev);
@@ -1203,82 +1204,60 @@ static void vxlan_rcv(struct vxlan_dev *vxlan, struct vxlan_sock *vs,
 
 	/* Ignore packet loops (and multicast echo) */
 	if (ether_addr_equal(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))
-		goto drop;
+		return false;
 
-	/* Get data from the outer IP header */
+	/* Get address from the outer IP header */
 	if (vxlan_get_sk_family(vs) == AF_INET) {
-		oip = ip_hdr(skb);
-		saddr.sin.sin_addr.s_addr = oip->saddr;
+		saddr.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
 		saddr.sa.sa_family = AF_INET;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		oip6 = ipv6_hdr(skb);
-		saddr.sin6.sin6_addr = oip6->saddr;
+		saddr.sin6.sin6_addr = ipv6_hdr(skb)->saddr;
 		saddr.sa.sa_family = AF_INET6;
 #endif
 	}
 
-	if (tun_dst) {
-		skb_dst_set(skb, (struct dst_entry *)tun_dst);
-		tun_dst = NULL;
-	}
-
 	if ((vxlan->flags & VXLAN_F_LEARN) &&
 	    vxlan_snoop(skb->dev, &saddr, eth_hdr(skb)->h_source))
-		goto drop;
+		return false;
 
-	skb_reset_network_header(skb);
-	/* In flow-based mode, GBP is carried in dst_metadata */
-	if (!(vs->flags & VXLAN_F_COLLECT_METADATA))
-		skb->mark = md->gbp;
+	return true;
+}
 
-	if (oip6)
-		err = IP6_ECN_decapsulate(oip6, skb);
-	if (oip)
-		err = IP_ECN_decapsulate(oip, skb);
+static bool vxlan_ecn_decapsulate(struct vxlan_sock *vs, void *oiph,
+				  struct sk_buff *skb)
+{
+	int err = 0;
 
-	if (unlikely(err)) {
-		if (log_ecn_error) {
-			if (oip6)
-				net_info_ratelimited("non-ECT from %pI6\n",
-						     &oip6->saddr);
-			if (oip)
-				net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
-						     &oip->saddr, oip->tos);
-		}
-		if (err > 1) {
-			++vxlan->dev->stats.rx_frame_errors;
-			++vxlan->dev->stats.rx_errors;
-			goto drop;
-		}
+	if (vxlan_get_sk_family(vs) == AF_INET)
+		err = IP_ECN_decapsulate(oiph, skb);
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		err = IP6_ECN_decapsulate(oiph, skb);
+#endif
+
+	if (unlikely(err) && log_ecn_error) {
+		if (vxlan_get_sk_family(vs) == AF_INET)
+			net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+					     &((struct iphdr *)oiph)->saddr,
+					     ((struct iphdr *)oiph)->tos);
+		else
+			net_info_ratelimited("non-ECT from %pI6\n",
+					     &((struct ipv6hdr *)oiph)->saddr);
 	}
-
-	stats = this_cpu_ptr(vxlan->dev->tstats);
-	u64_stats_update_begin(&stats->syncp);
-	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
-	u64_stats_update_end(&stats->syncp);
-
-	gro_cells_receive(&vxlan->gro_cells, skb);
-
-	return;
-drop:
-	if (tun_dst)
-		dst_release((struct dst_entry *)tun_dst);
-
-	/* Consume bad packet */
-	kfree_skb(skb);
+	return err <= 1;
 }
 
 /* Callback from net/ipv4/udp.c to receive packets */
-static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
+static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 {
-	struct metadata_dst *tun_dst = NULL;
+	struct pcpu_sw_netstats *stats;
 	struct vxlan_dev *vxlan;
 	struct vxlan_sock *vs;
 	struct vxlanhdr unparsed;
 	struct vxlan_metadata _md;
 	struct vxlan_metadata *md = &_md;
+	void *oiph;
 
 	/* Need Vxlan and inner Ethernet header to be present */
 	if (!pskb_may_pull(skb, VXLAN_HLEN))
@@ -1310,6 +1289,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	if (vxlan_collect_metadata(vs)) {
 		__be32 vni = vxlan_vni(vxlan_hdr(skb)->vx_vni);
+		struct metadata_dst *tun_dst;
 
 		tun_dst = udp_tun_rx_dst(skb, vxlan_get_sk_family(vs), TUNNEL_KEY,
 					 vxlan_vni_to_tun_id(vni), sizeof(*md));
@@ -1318,6 +1298,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 			goto drop;
 
 		md = ip_tunnel_info_opts(&tun_dst->u.tun_info);
+
+		skb_dst_set(skb, (struct dst_entry *)tun_dst);
 	} else {
 		memset(md, 0, sizeof(*md));
 	}
@@ -1329,7 +1311,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		if (!vxlan_remcsum(&unparsed, skb, vs->flags))
 			goto drop;
 	if (vs->flags & VXLAN_F_GBP)
-		vxlan_parse_gbp_hdr(&unparsed, md, tun_dst);
+		vxlan_parse_gbp_hdr(&unparsed, skb, vs->flags, md);
 
 	if (unparsed.vx_flags || unparsed.vx_vni) {
 		/* If there are any unprocessed flags remaining treat
@@ -1343,13 +1325,28 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	vxlan_rcv(vxlan, vs, skb, md, tun_dst);
+	if (!vxlan_set_mac(vxlan, vs, skb))
+		goto drop;
+
+	oiph = skb_network_header(skb);
+	skb_reset_network_header(skb);
+
+	if (!vxlan_ecn_decapsulate(vs, oiph, skb)) {
+		++vxlan->dev->stats.rx_frame_errors;
+		++vxlan->dev->stats.rx_errors;
+		goto drop;
+	}
+
+	stats = this_cpu_ptr(vxlan->dev->tstats);
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_packets++;
+	stats->rx_bytes += skb->len;
+	u64_stats_update_end(&stats->syncp);
+
+	gro_cells_receive(&vxlan->gro_cells, skb);
 	return 0;
 
 drop:
-	if (tun_dst)
-		dst_release((struct dst_entry *)tun_dst);
-
 	/* Consume bad packet */
 	kfree_skb(skb);
 	return 0;
@@ -2648,7 +2645,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 	/* Mark socket as an encapsulation socket. */
 	tunnel_cfg.sk_user_data = vs;
 	tunnel_cfg.encap_type = 1;
-	tunnel_cfg.encap_rcv = vxlan_udp_encap_recv;
+	tunnel_cfg.encap_rcv = vxlan_rcv;
 	tunnel_cfg.encap_destroy = NULL;
 
 	setup_udp_tunnel_sock(net, sock, &tunnel_cfg);
