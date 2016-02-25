@@ -149,22 +149,22 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 
 	switch (nr_pri_bits) {
 	case 7:
-		 write_gicreg(cpu_if->vgic_ap1r[3], ICH_AP1R3_EL2);
-		 write_gicreg(cpu_if->vgic_ap1r[2], ICH_AP1R2_EL2);
-	case 6:
-		 write_gicreg(cpu_if->vgic_ap1r[1], ICH_AP1R1_EL2);
-	default:
-		 write_gicreg(cpu_if->vgic_ap1r[0], ICH_AP1R0_EL2);
-	}	 	                           
-		 	                           
-	switch (nr_pri_bits) {
-	case 7:
 		 write_gicreg(cpu_if->vgic_ap0r[3], ICH_AP0R3_EL2);
 		 write_gicreg(cpu_if->vgic_ap0r[2], ICH_AP0R2_EL2);
 	case 6:
 		 write_gicreg(cpu_if->vgic_ap0r[1], ICH_AP0R1_EL2);
 	default:
 		 write_gicreg(cpu_if->vgic_ap0r[0], ICH_AP0R0_EL2);
+	}
+
+	switch (nr_pri_bits) {
+	case 7:
+		 write_gicreg(cpu_if->vgic_ap1r[3], ICH_AP1R3_EL2);
+		 write_gicreg(cpu_if->vgic_ap1r[2], ICH_AP1R2_EL2);
+	case 6:
+		 write_gicreg(cpu_if->vgic_ap1r[1], ICH_AP1R1_EL2);
+	default:
+		 write_gicreg(cpu_if->vgic_ap1r[0], ICH_AP1R0_EL2);
 	}
 
 	switch (max_lr_idx) {
