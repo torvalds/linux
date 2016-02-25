@@ -1507,11 +1507,6 @@ void lustre_assert_wire_constants(void)
 	LASSERTF((int)sizeof(union lquota_id) == 16, "found %lld\n",
 		 (long long)(int)sizeof(union lquota_id));
 
-	LASSERTF(QUOTABLOCK_BITS == 10, "found %lld\n",
-		 (long long)QUOTABLOCK_BITS);
-	LASSERTF(QUOTABLOCK_SIZE == 1024, "found %lld\n",
-		 (long long)QUOTABLOCK_SIZE);
-
 	/* Checks for struct obd_quotactl */
 	LASSERTF((int)sizeof(struct obd_quotactl) == 112, "found %lld\n",
 		 (long long)(int)sizeof(struct obd_quotactl));
