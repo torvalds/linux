@@ -453,6 +453,19 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	return 0;
 }
 
+static int hisi_sas_slave_configure(struct scsi_device *sdev)
+{
+	struct domain_device *dev = sdev_to_domain_dev(sdev);
+	int ret = sas_slave_configure(sdev);
+
+	if (ret)
+		return ret;
+	if (!dev_is_sata(dev))
+		sas_change_queue_depth(sdev, 64);
+
+	return 0;
+}
+
 static void hisi_sas_scan_start(struct Scsi_Host *shost)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
@@ -990,7 +1003,7 @@ static struct scsi_host_template hisi_sas_sht = {
 	.name			= DRV_NAME,
 	.queuecommand		= sas_queuecommand,
 	.target_alloc		= sas_target_alloc,
-	.slave_configure	= sas_slave_configure,
+	.slave_configure	= hisi_sas_slave_configure,
 	.scan_finished		= hisi_sas_scan_finished,
 	.scan_start		= hisi_sas_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
