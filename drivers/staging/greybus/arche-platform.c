@@ -94,6 +94,10 @@ static int apb_poweroff(struct device *dev, void *data)
 {
 	apb_ctrl_poweroff(dev);
 
+	/* Enable HUB3613 into HUB mode. */
+	if (usb3613_hub_mode_ctrl(false))
+		dev_warn(dev, "failed to control hub device\n");
+
 	return 0;
 }
 
@@ -142,6 +146,7 @@ static irqreturn_t arche_platform_wd_irq_thread(int irq, void *devid)
 
 	/* It should complete power cycle, so first make sure it is poweroff */
 	device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
+
 	/* Bring APB out of reset: cold boot sequence */
 	device_for_each_child(arche_pdata->dev, NULL, apb_cold_boot);
 
@@ -301,10 +306,6 @@ static ssize_t state_store(struct device *dev,
 
 		arche_platform_poweroff_seq(arche_pdata);
 
-		ret = usb3613_hub_mode_ctrl(false);
-		if (ret)
-			dev_warn(arche_pdata->dev, "failed to control hub device\n");
-			/* TODO: Should we do anything more here ?? */
 	} else if (sysfs_streq(buf, "active")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_ACTIVE)
 			return count;
@@ -326,11 +327,6 @@ static ssize_t state_store(struct device *dev,
 		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
 
 		arche_platform_poweroff_seq(arche_pdata);
-
-		ret = usb3613_hub_mode_ctrl(false);
-		if (ret)
-			dev_warn(arche_pdata->dev, "failed to control hub device\n");
-			/* TODO: Should we do anything more here ?? */
 
 		arche_platform_fw_flashing_seq(arche_pdata);
 
