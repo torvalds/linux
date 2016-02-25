@@ -296,10 +296,10 @@ struct ldlm_valblock_ops {
  * LDLM pools related, type of lock pool in the namespace.
  * Greedy means release cached locks aggressively
  */
-typedef enum {
+enum ldlm_appetite {
 	LDLM_NAMESPACE_GREEDY = 1 << 0,
 	LDLM_NAMESPACE_MODEST = 1 << 1
-} ldlm_appetite_t;
+};
 
 struct ldlm_ns_bucket {
 	/** back pointer to namespace */
@@ -440,7 +440,7 @@ struct ldlm_namespace {
 	/** LDLM pool structure for this namespace */
 	struct ldlm_pool	ns_pool;
 	/** Definition of how eagerly unused locks will be released from LRU */
-	ldlm_appetite_t		ns_appetite;
+	enum ldlm_appetite	ns_appetite;
 
 	/** Limit of parallel AST RPC count. */
 	unsigned		ns_max_parallel_ast;
@@ -1176,7 +1176,7 @@ void ldlm_unlink_lock_skiplist(struct ldlm_lock *req);
 /* resource.c */
 struct ldlm_namespace *
 ldlm_namespace_new(struct obd_device *obd, char *name,
-		   ldlm_side_t client, ldlm_appetite_t apt,
+		   ldlm_side_t client, enum ldlm_appetite apt,
 		   ldlm_ns_type_t ns_type);
 int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags);
 void ldlm_namespace_get(struct ldlm_namespace *ns);

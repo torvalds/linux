@@ -621,7 +621,7 @@ static void ldlm_namespace_register(struct ldlm_namespace *ns,
  */
 struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 					  ldlm_side_t client,
-					  ldlm_appetite_t apt,
+					  enum ldlm_appetite apt,
 					  ldlm_ns_type_t ns_type)
 {
 	struct ldlm_namespace *ns = NULL;
