@@ -348,6 +348,7 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 #else
 			dev_dbg(dev, "Ignoring MSTP %s to prevent disabling\n",
 				mod->name);
+			kfree(clock);
 			return;
 #endif
 		}
