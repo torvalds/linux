@@ -221,7 +221,6 @@ visorbus_release_busdevice(struct device *xdev)
 {
 	struct visor_device *dev = dev_get_drvdata(xdev);
 
-	dev_set_drvdata(xdev, NULL);
 	kfree(dev);
 }
 
