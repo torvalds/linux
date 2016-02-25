@@ -61,6 +61,7 @@ enum {
 	SATA_CHAN_ENAB		= 0x40, /* SATA channel enable */
 	SATA_INT_GATE		= 0x41, /* SATA interrupt gating */
 	SATA_NATIVE_MODE	= 0x42, /* Native mode enable */
+	SVIA_MISC_3		= 0x46,	/* Miscellaneous Control III */
 	PATA_UDMA_TIMING	= 0xB3, /* PATA timing for DMA/ cable detect */
 	PATA_PIO_TIMING		= 0xAB, /* PATA timing register */
 
@@ -71,6 +72,8 @@ enum {
 	NATIVE_MODE_ALL		= (1 << 7) | (1 << 6) | (1 << 5) | (1 << 4),
 
 	SATA_EXT_PHY		= (1 << 6), /* 0==use PATA, 1==ext phy */
+
+	SATA_HOTPLUG		= (1 << 5), /* enable IRQ on hotplug */
 };
 
 struct svia_priv {
@@ -553,6 +556,37 @@ static void svia_wd_fix(struct pci_dev *pdev)
 	pci_write_config_byte(pdev, 0x52, tmp8 | BIT(2));
 }
 
+static irqreturn_t vt6421_interrupt(int irq, void *dev_instance)
+{
+	struct ata_host *host = dev_instance;
+	irqreturn_t rc = ata_bmdma_interrupt(irq, dev_instance);
+
+	/* if the IRQ was not handled, it might be a hotplug IRQ */
+	if (rc != IRQ_HANDLED) {
+		u32 serror;
+		unsigned long flags;
+
+		spin_lock_irqsave(&host->lock, flags);
+		/* check for hotplug on port 0 */
+		svia_scr_read(&host->ports[0]->link, SCR_ERROR, &serror);
+		if (serror & SERR_PHYRDY_CHG) {
+			ata_ehi_hotplugged(&host->ports[0]->link.eh_info);
+			ata_port_freeze(host->ports[0]);
+			rc = IRQ_HANDLED;
+		}
+		/* check for hotplug on port 1 */
+		svia_scr_read(&host->ports[1]->link, SCR_ERROR, &serror);
+		if (serror & SERR_PHYRDY_CHG) {
+			ata_ehi_hotplugged(&host->ports[1]->link.eh_info);
+			ata_port_freeze(host->ports[1]);
+			rc = IRQ_HANDLED;
+		}
+		spin_unlock_irqrestore(&host->lock, flags);
+	}
+
+	return rc;
+}
+
 static void vt6421_error_handler(struct ata_port *ap)
 {
 	struct svia_priv *hpriv = ap->host->private_data;
@@ -608,6 +642,16 @@ static void svia_configure(struct pci_dev *pdev, int board_id,
 			(int) tmp8);
 		tmp8 |= NATIVE_MODE_ALL;
 		pci_write_config_byte(pdev, SATA_NATIVE_MODE, tmp8);
+	}
+
+	/* enable IRQ on hotplug */
+	pci_read_config_byte(pdev, SVIA_MISC_3, &tmp8);
+	if ((tmp8 & SATA_HOTPLUG) != SATA_HOTPLUG) {
+		dev_dbg(&pdev->dev,
+			"enabling SATA hotplug (0x%x)\n",
+			(int) tmp8);
+		tmp8 |= SATA_HOTPLUG;
+		pci_write_config_byte(pdev, SVIA_MISC_3, tmp8);
 	}
 
 	/*
@@ -698,8 +742,12 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	svia_configure(pdev, board_id, hpriv);
 
 	pci_set_master(pdev);
-	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
-				 IRQF_SHARED, &svia_sht);
+	if (board_id == vt6421)
+		return ata_host_activate(host, pdev->irq, vt6421_interrupt,
+					 IRQF_SHARED, &svia_sht);
+	else
+		return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
+					 IRQF_SHARED, &svia_sht);
 }
 
 #ifdef CONFIG_PM_SLEEP
