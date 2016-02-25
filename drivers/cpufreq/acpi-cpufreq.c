@@ -434,7 +434,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		} else {
 			pr_debug("Already at target state (P%d)\n",
 				next_perf_state);
-			goto out;
+			return 0;
 		}
 	}
 
@@ -456,8 +456,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		cmd.val = (u32) perf->states[next_perf_state].control;
 		break;
 	default:
-		result = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	/* cpufreq holds the hotplug lock, so we are safe from here on */
@@ -480,7 +479,6 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	if (!result)
 		perf->state = next_perf_state;
 
-out:
 	return result;
 }
 
