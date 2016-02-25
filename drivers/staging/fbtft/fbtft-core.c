@@ -736,8 +736,11 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 		goto alloc_fail;
 
 	if (display->gamma_num && display->gamma_len) {
-		gamma_curves = devm_kzalloc(dev, display->gamma_num * display->gamma_len * sizeof(gamma_curves[0]),
-						GFP_KERNEL);
+		gamma_curves = devm_kcalloc(dev,
+					    display->gamma_num *
+					    display->gamma_len,
+					    sizeof(gamma_curves[0]),
+					    GFP_KERNEL);
 		if (!gamma_curves)
 			goto alloc_fail;
 	}
