@@ -1527,8 +1527,6 @@ error_modules:
 error_iss:
 	omap4iss_put(iss);
 error:
-	platform_set_drvdata(pdev, NULL);
-
 	mutex_destroy(&iss->iss_mutex);
 
 	return ret;
