@@ -198,11 +198,11 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 	for (engn = 0; engn < ARRAY_SIZE(fifo->engine); engn++) {
 		u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x08));
 		u32 busy = (stat & 0x80000000);
-		u32 next = (stat & 0x07ff0000) >> 16;
+		u32 next = (stat & 0x0fff0000) >> 16;
 		u32 chsw = (stat & 0x00008000);
 		u32 save = (stat & 0x00004000);
 		u32 load = (stat & 0x00002000);
-		u32 prev = (stat & 0x000007ff);
+		u32 prev = (stat & 0x00000fff);
 		u32 chid = load ? next : prev;
 		(void)save;
 
