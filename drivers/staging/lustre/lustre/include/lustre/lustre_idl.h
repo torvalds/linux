@@ -700,9 +700,9 @@ static inline int ostid_to_fid(struct lu_fid *fid, struct ost_id *ostid,
 		 * of 1M objects/s/OST for 9 years, or combinations thereof.
 		 */
 		if (ostid_id(ostid) >= IDIF_MAX_OID) {
-			 CERROR("bad MDT0 id, "DOSTID" ost_idx:%u\n",
-				POSTID(ostid), ost_idx);
-			 return -EBADF;
+			CERROR("bad MDT0 id, " DOSTID " ost_idx:%u\n",
+			       POSTID(ostid), ost_idx);
+			return -EBADF;
 		}
 		fid->f_seq = fid_idif_seq(ostid_id(ostid), ost_idx);
 		/* truncate to 32 bits by assignment */
@@ -3154,7 +3154,7 @@ static inline void lustre_get_wire_obdo(struct obd_connect_data *ocd,
 	__u32 local_flags = 0;
 
 	if (lobdo->o_valid & OBD_MD_FLFLAGS)
-		 local_flags = lobdo->o_flags & OBD_FL_LOCAL_MASK;
+		local_flags = lobdo->o_flags & OBD_FL_LOCAL_MASK;
 
 	*lobdo = *wobdo;
 	if (local_flags != 0) {

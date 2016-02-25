@@ -577,7 +577,7 @@ EXPORT_SYMBOL(lprocfs_stats_collect);
 #define flag2str(flag, first)						\
 	do {								\
 		if (imp->imp_##flag)					\
-		     seq_printf(m, "%s" #flag, first ? "" : ", ");	\
+			seq_printf(m, "%s" #flag, first ? "" : ", ");	\
 	} while (0)
 static int obd_import_flags2str(struct obd_import *imp, struct seq_file *m)
 {

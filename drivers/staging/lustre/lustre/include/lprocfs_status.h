@@ -276,7 +276,7 @@ static inline int opcode_offset(__u32 opc)
 			OPC_RANGE(OST));
 	} else if (opc < FLD_LAST_OPC) {
 		/* FLD opcode */
-		 return (opc - FLD_FIRST_OPC +
+		return (opc - FLD_FIRST_OPC +
 			OPC_RANGE(SEC) +
 			OPC_RANGE(SEQ) +
 			OPC_RANGE(QUOTA) +

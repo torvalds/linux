@@ -473,7 +473,7 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 	buf[buflen - 1] = '\0';
 	p = strrchr(buf, '-');
 	if (p)
-	   *p = '\0';
+		*p = '\0';
 }
 
 /* printf display format

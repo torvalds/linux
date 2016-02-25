@@ -2435,7 +2435,7 @@ static int osc_statfs_interpret(const struct lu_env *env,
 		 * aware of the problem and takes care
 		 * of the clean up
 		 */
-		 return rc;
+		return rc;
 
 	if ((rc == -ENOTCONN || rc == -EAGAIN) &&
 	    (aa->aa_oi->oi_flags & OBD_STATFS_NODELAY)) {

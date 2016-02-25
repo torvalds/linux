@@ -779,9 +779,9 @@ int lov_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	if (desc->ld_magic != LOV_DESC_MAGIC) {
 		if (desc->ld_magic == __swab32(LOV_DESC_MAGIC)) {
-			    CDEBUG(D_OTHER, "%s: Swabbing lov desc %p\n",
-				   obd->obd_name, desc);
-			    lustre_swab_lov_desc(desc);
+			CDEBUG(D_OTHER, "%s: Swabbing lov desc %p\n",
+			       obd->obd_name, desc);
+			lustre_swab_lov_desc(desc);
 		} else {
 			CERROR("%s: Bad lov desc magic: %#x\n",
 			       obd->obd_name, desc->ld_magic);
@@ -1051,7 +1051,7 @@ static int lov_create(const struct lu_env *env, struct obd_export *exp,
 	/* Recreate a specific object id at the given OST index */
 	if ((src_oa->o_valid & OBD_MD_FLFLAGS) &&
 	    (src_oa->o_flags & OBD_FL_RECREATE_OBJS)) {
-		 rc = lov_recreate(exp, src_oa, ea, oti);
+		rc = lov_recreate(exp, src_oa, ea, oti);
 	}
 
 	obd_putref(exp->exp_obd);

@@ -1038,7 +1038,7 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 			 * can pass it down the stack
 			 */
 			if (strnchr(key, keylen, '.'))
-			    return -ENOSYS;
+				return -ENOSYS;
 			CERROR("%s: unknown param %s\n",
 			       (char *)lustre_cfg_string(lcfg, 0), key);
 			/* rc = -EINVAL;	continue parsing other params */

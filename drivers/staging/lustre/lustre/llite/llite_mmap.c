@@ -119,7 +119,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 	 */
 	env = cl_env_nested_get(nest);
 	if (IS_ERR(env))
-		 return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EINVAL);
 
 	*env_ret = env;
 

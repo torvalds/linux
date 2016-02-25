@@ -248,7 +248,7 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 	cl_2queue_init(queue);
 	for (i = 0; i < page_count; i++) {
 		if (pv->ldp_offsets)
-		    file_offset = pv->ldp_offsets[i];
+			file_offset = pv->ldp_offsets[i];
 
 		LASSERT(!(file_offset & (page_size - 1)));
 		clp = cl_page_find(env, obj, cl_index(obj, file_offset),

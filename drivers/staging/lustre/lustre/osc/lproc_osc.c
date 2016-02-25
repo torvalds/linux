@@ -422,8 +422,8 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 		if (((1 << i) & obd->u.cli.cl_supp_cksum_types) == 0)
 			continue;
 		if (!strcmp(kernbuf, cksum_name[i])) {
-		       obd->u.cli.cl_cksum_type = 1 << i;
-		       return count;
+			obd->u.cli.cl_cksum_type = 1 << i;
+			return count;
 		}
 	}
 	return -EINVAL;

@@ -381,9 +381,9 @@ static int index_in_window(unsigned long index, unsigned long point,
 	unsigned long start = point - before, end = point + after;
 
 	if (start > point)
-	       start = 0;
+		start = 0;
 	if (end < point)
-	       end = ~0;
+		end = ~0;
 
 	return start <= index && index <= end;
 }

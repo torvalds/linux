@@ -228,7 +228,7 @@ static void *pool_proc_start(struct seq_file *s, loff_t *pos)
 
 		i = 0;
 		do {
-		     ptr = pool_proc_next(s, &iter, &i);
+			ptr = pool_proc_next(s, &iter, &i);
 		} while ((i < *pos) && ptr);
 		return ptr;
 	}

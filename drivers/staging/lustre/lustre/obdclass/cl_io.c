@@ -329,32 +329,31 @@ static void cl_io_locks_sort(struct cl_io *io)
 int cl_queue_match(const struct list_head *queue,
 		   const struct cl_lock_descr *need)
 {
-       struct cl_io_lock_link *scan;
+	struct cl_io_lock_link *scan;
 
-       list_for_each_entry(scan, queue, cill_linkage) {
-	       if (cl_lock_descr_match(&scan->cill_descr, need))
-		       return 1;
-       }
-       return 0;
+	list_for_each_entry(scan, queue, cill_linkage) {
+		if (cl_lock_descr_match(&scan->cill_descr, need))
+			return 1;
+	}
+	return 0;
 }
 EXPORT_SYMBOL(cl_queue_match);
 
 static int cl_queue_merge(const struct list_head *queue,
 			  const struct cl_lock_descr *need)
 {
-       struct cl_io_lock_link *scan;
+	struct cl_io_lock_link *scan;
 
-       list_for_each_entry(scan, queue, cill_linkage) {
-	       if (cl_lock_descr_cmp(&scan->cill_descr, need))
-		       continue;
-	       cl_lock_descr_merge(&scan->cill_descr, need);
-	       CDEBUG(D_VFSTRACE, "lock: %d: [%lu, %lu]\n",
-		      scan->cill_descr.cld_mode, scan->cill_descr.cld_start,
-		      scan->cill_descr.cld_end);
-	       return 1;
-       }
-       return 0;
-
+	list_for_each_entry(scan, queue, cill_linkage) {
+		if (cl_lock_descr_cmp(&scan->cill_descr, need))
+			continue;
+		cl_lock_descr_merge(&scan->cill_descr, need);
+		CDEBUG(D_VFSTRACE, "lock: %d: [%lu, %lu]\n",
+		       scan->cill_descr.cld_mode, scan->cill_descr.cld_start,
+		       scan->cill_descr.cld_end);
+		return 1;
+	}
+	return 0;
 }
 
 static int cl_lockset_match(const struct cl_lockset *set,
@@ -916,14 +915,14 @@ int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
 		 * clean pages), count them as completed to avoid infinite
 		 * wait.
 		 */
-		 cl_page_list_for_each(pg, &queue->c2_qin) {
+		cl_page_list_for_each(pg, &queue->c2_qin) {
 			pg->cp_sync_io = NULL;
 			cl_sync_io_note(anchor, 1);
-		 }
+		}
 
-		 /* wait for the IO to be finished. */
-		 rc = cl_sync_io_wait(env, io, &queue->c2_qout,
-				      anchor, timeout);
+		/* wait for the IO to be finished. */
+		rc = cl_sync_io_wait(env, io, &queue->c2_qout,
+				     anchor, timeout);
 	} else {
 		LASSERT(list_empty(&queue->c2_qout.pl_pages));
 		cl_page_list_for_each(pg, &queue->c2_qin)
