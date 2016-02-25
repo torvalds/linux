@@ -133,10 +133,8 @@ struct ll_inode_info {
 	 * for allocating OST objects after a mknod() and later open-by-FID. */
 	struct lu_fid		   lli_pfid;
 
-	struct list_head		      lli_close_list;
-	/* open count currently used by capability only, indicate whether
-	 * capability needs renewal */
-	atomic_t		    lli_open_count;
+	struct list_head	      lli_close_list;
+
 	unsigned long		      lli_rmtperm_time;
 
 	/* handle is to be sent to MDS later on done_writing and setattr.
