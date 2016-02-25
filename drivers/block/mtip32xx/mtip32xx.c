@@ -173,7 +173,13 @@ static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 {
 	struct request *rq;
 
+	if (mtip_check_surprise_removal(dd->pdev))
+		return NULL;
+
 	rq = blk_mq_alloc_request(dd->queue, 0, BLK_MQ_REQ_RESERVED);
+	if (IS_ERR(rq))
+		return NULL;
+
 	return blk_mq_rq_to_pdu(rq);
 }
 
@@ -575,6 +581,8 @@ static void mtip_completion(struct mtip_port *port,
 		dev_warn(&port->dd->pdev->dev,
 			"Internal command %d completed with TFE\n", tag);
 
+	command->comp_func = NULL;
+	command->comp_data = NULL;
 	complete(waiting);
 }
 
@@ -1009,12 +1017,14 @@ static bool mtip_pause_ncq(struct mtip_port *port,
  *
  * @port    Pointer to port data structure
  * @timeout Max duration to wait (ms)
+ * @atomic  gfp_t flag to indicate blockable context or not
  *
  * return value
  *	0	Success
  *	-EBUSY  Commands still active
  */
-static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
+static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout,
+								gfp_t atomic)
 {
 	unsigned long to;
 	unsigned int n;
@@ -1025,15 +1035,20 @@ static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 	to = jiffies + msecs_to_jiffies(timeout);
 	do {
 		if (test_bit(MTIP_PF_SVC_THD_ACTIVE_BIT, &port->flags) &&
-			test_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags)) {
+			test_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags) &&
+			atomic == GFP_KERNEL) {
 			msleep(20);
 			continue; /* svc thd is actively issuing commands */
 		}
 
-		msleep(100);
+		if (atomic == GFP_KERNEL)
+			msleep(100);
+		else {
+			cpu_relax();
+			udelay(100);
+		}
+
 		if (mtip_check_surprise_removal(port->dd->pdev))
-			goto err_fault;
-		if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &port->dd->dd_flag))
 			goto err_fault;
 
 		/*
@@ -1096,6 +1111,10 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 	}
 
 	int_cmd = mtip_get_int_command(dd);
+	if (!int_cmd) {
+		dbg_printk(MTIP_DRV_NAME "Unable to allocate tag for PIO cmd\n");
+		return -EFAULT;
+	}
 
 	set_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
 
@@ -1108,7 +1127,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 		if (fis->command != ATA_CMD_STANDBYNOW1) {
 			/* wait for io to complete if non atomic */
 			if (mtip_quiesce_io(port,
-					MTIP_QUIESCE_IO_TIMEOUT_MS) < 0) {
+				MTIP_QUIESCE_IO_TIMEOUT_MS, atomic) < 0) {
 				dev_warn(&dd->pdev->dev,
 					"Failed to quiesce IO\n");
 				mtip_put_int_command(dd, int_cmd);
@@ -3347,10 +3366,6 @@ static int mtip_standby_drive(struct driver_data *dd)
  */
 static int mtip_hw_exit(struct driver_data *dd)
 {
-	/*
-	 * Send standby immediate (E0h) to the drive so that it
-	 * saves its state.
-	 */
 	if (!dd->sr) {
 		/* de-initialize the port. */
 		mtip_deinit_port(dd->port);
@@ -3967,7 +3982,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 	if (rv) {
 		dev_err(&dd->pdev->dev,
 			"Unable to allocate request queue\n");
-		goto block_queue_alloc_init_error;
+		goto block_queue_alloc_tag_error;
 	}
 
 	/* Allocate the request queue. */
@@ -4079,8 +4094,9 @@ kthread_run_error:
 read_capacity_error:
 init_hw_cmds_error:
 	blk_cleanup_queue(dd->queue);
-	blk_mq_free_tag_set(&dd->tags);
 block_queue_alloc_init_error:
+	blk_mq_free_tag_set(&dd->tags);
+block_queue_alloc_tag_error:
 	mtip_hw_debugfs_exit(dd);
 disk_index_error:
 	spin_lock(&rssd_index_lock);
@@ -4095,6 +4111,22 @@ alloc_disk_error:
 
 protocol_init_error:
 	return rv;
+}
+
+static void mtip_no_dev_cleanup(struct request *rq, void *data, bool reserv)
+{
+	struct driver_data *dd = (struct driver_data *)data;
+	struct mtip_cmd *cmd;
+
+	if (likely(!reserv))
+		blk_mq_complete_request(rq, -ENODEV);
+	else if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &dd->port->flags)) {
+
+		cmd = mtip_cmd_from_tag(dd, MTIP_TAG_INTERNAL);
+		if (cmd->comp_func)
+			cmd->comp_func(dd->port, MTIP_TAG_INTERNAL,
+					cmd, -ENODEV);
+	}
 }
 
 /*
@@ -4128,11 +4160,22 @@ static int mtip_block_remove(struct driver_data *dd)
 		}
 	}
 
-	if (!dd->sr)
-		mtip_standby_drive(dd);
+	if (!dd->sr) {
+		/*
+		 * Explicitly wait here for IOs to quiesce,
+		 * as mtip_standby_drive usually won't wait for IOs.
+		 */
+		if (!mtip_quiesce_io(dd->port, MTIP_QUIESCE_IO_TIMEOUT_MS,
+								GFP_KERNEL))
+			mtip_standby_drive(dd);
+	}
 	else
 		dev_info(&dd->pdev->dev, "device %s surprise removal\n",
 						dd->disk->disk_name);
+
+	blk_mq_freeze_queue_start(dd->queue);
+	blk_mq_stop_hw_queues(dd->queue);
+	blk_mq_all_tag_busy_iter(dd->tags.tags[0], mtip_no_dev_cleanup, dd);
 
 	/*
 	 * Delete our gendisk structure. This also removes the device
@@ -4548,16 +4591,15 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	} while (atomic_read(&dd->irq_workers_active) != 0 &&
 		time_before(jiffies, to));
 
-	fsync_bdev(dd->bdev);
+	if (!dd->sr)
+		fsync_bdev(dd->bdev);
 
 	if (atomic_read(&dd->irq_workers_active) != 0) {
 		dev_warn(&dd->pdev->dev,
 			"Completion workers still active!\n");
 	}
 
-	if (dd->sr)
-		blk_mq_stop_hw_queues(dd->queue);
-
+	blk_set_queue_dying(dd->queue);
 	set_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag);
 
 	/* Clean up the block layer. */
