@@ -379,7 +379,7 @@ static int prism2mib_bytearea2pstr(struct mibrec *mib,
 				   void *data)
 {
 	int result;
-	p80211pstrd_t *pstr = (p80211pstrd_t *) data;
+	p80211pstrd_t *pstr = data;
 	u8 bytebuf[MIB_TMP_MAXLEN];
 
 	if (isget) {
