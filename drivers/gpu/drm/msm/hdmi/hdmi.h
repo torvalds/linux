@@ -139,24 +139,64 @@ static inline u32 hdmi_qfprom_read(struct hdmi *hdmi, u32 reg)
 }
 
 /*
- * The phy appears to be different, for example between 8960 and 8x60,
- * so split the phy related functions out and load the correct one at
- * runtime:
+ * hdmi phy:
  */
-
 struct hdmi_phy_funcs {
 	void (*destroy)(struct hdmi_phy *phy);
 	void (*powerup)(struct hdmi_phy *phy, unsigned long int pixclock);
 	void (*powerdown)(struct hdmi_phy *phy);
 };
 
+enum hdmi_phy_type {
+	MSM_HDMI_PHY_8x60,
+	MSM_HDMI_PHY_8960,
+	MSM_HDMI_PHY_8x74,
+	MSM_HDMI_PHY_MAX,
+};
+
+struct hdmi_phy_cfg {
+	enum hdmi_phy_type type;
+	void (*powerup)(struct hdmi_phy *phy, unsigned long int pixclock);
+	void (*powerdown)(struct hdmi_phy *phy);
+	const char * const *reg_names;
+	int num_regs;
+	const char * const *clk_names;
+	int num_clks;
+};
+
+extern const struct hdmi_phy_cfg hdmi_phy_8x60_cfg;
+extern const struct hdmi_phy_cfg hdmi_phy_8960_cfg;
+extern const struct hdmi_phy_cfg hdmi_phy_8x74_cfg;
+
 struct hdmi_phy {
+	struct platform_device *pdev;
+	void __iomem *mmio;
+	struct hdmi_phy_cfg *cfg;
 	const struct hdmi_phy_funcs *funcs;
+	struct regulator **regs;
+	struct clk **clks;
 };
 
 struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi);
 struct hdmi_phy *hdmi_phy_8x60_init(struct hdmi *hdmi);
 struct hdmi_phy *hdmi_phy_8x74_init(struct hdmi *hdmi);
+
+static inline void hdmi_phy_write(struct hdmi_phy *phy, u32 reg, u32 data)
+{
+	msm_writel(data, phy->mmio + reg);
+}
+
+static inline u32 hdmi_phy_read(struct hdmi_phy *phy, u32 reg)
+{
+	return msm_readl(phy->mmio + reg);
+}
+
+int hdmi_phy_resource_enable(struct hdmi_phy *phy);
+void hdmi_phy_resource_disable(struct hdmi_phy *phy);
+void hdmi_phy_powerup(struct hdmi_phy *phy, unsigned long int pixclock);
+void hdmi_phy_powerdown(struct hdmi_phy *phy);
+void __init hdmi_phy_driver_register(void);
+void __exit hdmi_phy_driver_unregister(void);
 
 /*
  * audio:

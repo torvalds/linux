@@ -12,6 +12,7 @@ msm-y := \
 	hdmi/hdmi_connector.o \
 	hdmi/hdmi_hdcp.o \
 	hdmi/hdmi_i2c.o \
+	hdmi/hdmi_phy.o \
 	hdmi/hdmi_phy_8960.o \
 	hdmi/hdmi_phy_8x60.o \
 	hdmi/hdmi_phy_8x74.o \
