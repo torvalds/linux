@@ -345,7 +345,7 @@ static void activate_packet_queue(struct iowait *wait, int reason)
 
 static void sdma_kmem_cache_ctor(void *obj)
 {
-	struct user_sdma_txreq *tx = (struct user_sdma_txreq *)obj;
+	struct user_sdma_txreq *tx = obj;
 
 	memset(tx, 0, sizeof(*tx));
 }
