@@ -559,11 +559,11 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 		if (!pstrWFIDrv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;
 		if ((pstrWFIDrv->IFC_UP) && (dev == wl->vif[1]->ndev)) {
-			pstrDisconnectNotifInfo->u16reason = 3;
+			pstrDisconnectNotifInfo->reason = 3;
 		} else if ((!pstrWFIDrv->IFC_UP) && (dev == wl->vif[1]->ndev)) {
-			pstrDisconnectNotifInfo->u16reason = 1;
+			pstrDisconnectNotifInfo->reason = 1;
 		}
-		cfg80211_disconnected(dev, pstrDisconnectNotifInfo->u16reason, pstrDisconnectNotifInfo->ie,
+		cfg80211_disconnected(dev, pstrDisconnectNotifInfo->reason, pstrDisconnectNotifInfo->ie,
 				      pstrDisconnectNotifInfo->ie_len, false,
 				      GFP_KERNEL);
 	}

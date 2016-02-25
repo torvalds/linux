@@ -115,7 +115,7 @@ struct connect_info {
 };
 
 struct disconnect_info {
-	u16 u16reason;
+	u16 reason;
 	u8 *ie;
 	size_t ie_len;
 };

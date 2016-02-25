@@ -1552,7 +1552,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 				Handle_ScanDone(vif, SCAN_EVENT_ABORTED);
 			}
 
-			strDisconnectNotifInfo.u16reason = 0;
+			strDisconnectNotifInfo.reason = 0;
 			strDisconnectNotifInfo.ie = NULL;
 			strDisconnectNotifInfo.ie_len = 0;
 
@@ -1889,7 +1889,7 @@ static void Handle_Disconnect(struct wilc_vif *vif)
 
 		memset(&strDisconnectNotifInfo, 0, sizeof(struct disconnect_info));
 
-		strDisconnectNotifInfo.u16reason = 0;
+		strDisconnectNotifInfo.reason = 0;
 		strDisconnectNotifInfo.ie = NULL;
 		strDisconnectNotifInfo.ie_len = 0;
 
