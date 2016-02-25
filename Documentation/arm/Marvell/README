@@ -118,6 +118,19 @@ EBU Armada family
   Linux kernel mach directory: arch/arm/mach-mvebu
   Linux kernel plat directory: none
 
+EBU Armada family ARMv8
+-----------------------
+
+  Armada 3710/3720 Flavors:
+	88F3710
+	88F3720
+
+  Core: ARM Cortex A53 (ARMv8)
+
+  Homepage     : http://www.marvell.com/embedded-processors/armada-3700/
+
+  Device tree descritpion located in arch/arm64/boot/dts/marvell/armada-37*
+
 Avanta family
 -------------
 
