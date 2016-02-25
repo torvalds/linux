@@ -58,15 +58,10 @@ struct fld_stats {
 	__u64   fst_inflight;
 };
 
-typedef int (*fld_hash_func_t) (struct lu_client_fld *, __u64);
-
-typedef struct lu_fld_target *
-(*fld_scan_func_t) (struct lu_client_fld *, __u64);
-
 struct lu_fld_hash {
 	const char	      *fh_name;
-	fld_hash_func_t	  fh_hash_func;
-	fld_scan_func_t	  fh_scan_func;
+	int (*fh_hash_func)(struct lu_client_fld *, __u64);
+	struct lu_fld_target *(*fh_scan_func)(struct lu_client_fld *, __u64);
 };
 
 struct fld_cache_entry {
