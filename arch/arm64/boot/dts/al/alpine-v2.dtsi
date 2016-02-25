@@ -139,6 +139,16 @@
 			/* 32 bit non prefetchable memory space */
 			ranges = <0x2000000 0x0 0xfe000000 0x0 0xfe000000 0x0 0x1000000>;
 			bus-range = <0x00 0x00>;
+			msi-parent = <&msix>;
+		};
+
+		msix: msix@fbe00000 {
+			compatible = "al,alpine-msix";
+			reg = <0x0 0xfbe00000 0x0 0x100000>;
+			interrupt-controller;
+			msi-controller;
+			al,msi-base-spi = <160>;
+			al,msi-num-spis = <160>;
 		};
 
 		io-fabric {
