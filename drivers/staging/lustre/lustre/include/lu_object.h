@@ -164,11 +164,11 @@ struct lu_device_operations {
 /**
  * For lu_object_conf flags
  */
-typedef enum {
+enum loc_flags {
 	/* This is a new object to be allocated, or the file
 	 * corresponding to the object does not exists. */
 	LOC_F_NEW	= 0x00000001,
-} loc_flags_t;
+};
 
 /**
  * Object configuration, describing particulars of object being created. On
@@ -179,7 +179,7 @@ struct lu_object_conf {
 	/**
 	 * Some hints for obj find and alloc.
 	 */
-	loc_flags_t     loc_flags;
+	enum loc_flags     loc_flags;
 };
 
 /**
