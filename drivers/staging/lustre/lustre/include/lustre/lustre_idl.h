@@ -3550,7 +3550,7 @@ void lustre_swab_layout_intent(struct layout_intent *li);
  */
 struct hsm_progress_kernel {
 	/* Field taken from struct hsm_progress */
-	lustre_fid		hpk_fid;
+	struct lu_fid		hpk_fid;
 	__u64			hpk_cookie;
 	struct hsm_extent	hpk_extent;
 	__u16			hpk_flags;
