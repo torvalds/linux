@@ -1135,7 +1135,6 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 	iounmap(sm750_dev->pvMem);
 	kfree(g_settings);
 	kfree(sm750_dev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static int __init lynxfb_setup(char *options)
