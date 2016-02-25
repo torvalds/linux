@@ -336,10 +336,6 @@ void lustre_assert_wire_constants(void)
 	CLASSERT(LUSTRE_RES_ID_QUOTA_SEQ_OFF == 2);
 	CLASSERT(LUSTRE_RES_ID_QUOTA_VER_OID_OFF == 3);
 	CLASSERT(LUSTRE_RES_ID_HSH_OFF == 3);
-	CLASSERT(LQUOTA_TYPE_USR == 0);
-	CLASSERT(LQUOTA_TYPE_GRP == 1);
-	CLASSERT(LQUOTA_RES_MD == 1);
-	CLASSERT(LQUOTA_RES_DT == 2);
 	LASSERTF(OBD_PING == 400, "found %lld\n",
 		 (long long)OBD_PING);
 	LASSERTF(OBD_LOG_CANCEL == 401, "found %lld\n",
@@ -1608,46 +1604,6 @@ void lustre_assert_wire_constants(void)
 		Q_GETOQUOTA);
 	LASSERTF(Q_FINVALIDATE == 0x800104, "found 0x%.8x\n",
 		Q_FINVALIDATE);
-
-	/* Checks for struct lquota_acct_rec */
-	LASSERTF((int)sizeof(struct lquota_acct_rec) == 16, "found %lld\n",
-		 (long long)(int)sizeof(struct lquota_acct_rec));
-	LASSERTF((int)offsetof(struct lquota_acct_rec, bspace) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct lquota_acct_rec, bspace));
-	LASSERTF((int)sizeof(((struct lquota_acct_rec *)0)->bspace) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct lquota_acct_rec *)0)->bspace));
-	LASSERTF((int)offsetof(struct lquota_acct_rec, ispace) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct lquota_acct_rec, ispace));
-	LASSERTF((int)sizeof(((struct lquota_acct_rec *)0)->ispace) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct lquota_acct_rec *)0)->ispace));
-
-	/* Checks for struct lquota_glb_rec */
-	LASSERTF((int)sizeof(struct lquota_glb_rec) == 32, "found %lld\n",
-		 (long long)(int)sizeof(struct lquota_glb_rec));
-	LASSERTF((int)offsetof(struct lquota_glb_rec, qbr_hardlimit) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct lquota_glb_rec, qbr_hardlimit));
-	LASSERTF((int)sizeof(((struct lquota_glb_rec *)0)->qbr_hardlimit) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct lquota_glb_rec *)0)->qbr_hardlimit));
-	LASSERTF((int)offsetof(struct lquota_glb_rec, qbr_softlimit) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct lquota_glb_rec, qbr_softlimit));
-	LASSERTF((int)sizeof(((struct lquota_glb_rec *)0)->qbr_softlimit) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct lquota_glb_rec *)0)->qbr_softlimit));
-	LASSERTF((int)offsetof(struct lquota_glb_rec, qbr_time) == 16, "found %lld\n",
-		 (long long)(int)offsetof(struct lquota_glb_rec, qbr_time));
-	LASSERTF((int)sizeof(((struct lquota_glb_rec *)0)->qbr_time) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct lquota_glb_rec *)0)->qbr_time));
-	LASSERTF((int)offsetof(struct lquota_glb_rec, qbr_granted) == 24, "found %lld\n",
-		 (long long)(int)offsetof(struct lquota_glb_rec, qbr_granted));
-	LASSERTF((int)sizeof(((struct lquota_glb_rec *)0)->qbr_granted) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct lquota_glb_rec *)0)->qbr_granted));
-
-	/* Checks for struct lquota_slv_rec */
-	LASSERTF((int)sizeof(struct lquota_slv_rec) == 8, "found %lld\n",
-		 (long long)(int)sizeof(struct lquota_slv_rec));
-	LASSERTF((int)offsetof(struct lquota_slv_rec, qsr_granted) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct lquota_slv_rec, qsr_granted));
-	LASSERTF((int)sizeof(((struct lquota_slv_rec *)0)->qsr_granted) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct lquota_slv_rec *)0)->qsr_granted));
 
 	/* Checks for struct idx_info */
 	LASSERTF((int)sizeof(struct idx_info) == 80, "found %lld\n",

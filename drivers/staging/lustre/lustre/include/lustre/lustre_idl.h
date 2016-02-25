@@ -1819,58 +1819,6 @@ do {					\
 	Q_COPY(out, in, qc_dqblk);	\
 } while (0)
 
-/* Quota types currently supported */
-enum {
-	LQUOTA_TYPE_USR	= 0x00, /* maps to USRQUOTA */
-	LQUOTA_TYPE_GRP	= 0x01, /* maps to GRPQUOTA */
-	LQUOTA_TYPE_MAX
-};
-
-/* There are 2 different resource types on which a quota limit can be enforced:
- * - inodes on the MDTs
- * - blocks on the OSTs */
-enum {
-	LQUOTA_RES_MD		= 0x01, /* skip 0 to avoid null oid in FID */
-	LQUOTA_RES_DT		= 0x02,
-	LQUOTA_LAST_RES,
-	LQUOTA_FIRST_RES	= LQUOTA_RES_MD
-};
-
-#define LQUOTA_NR_RES (LQUOTA_LAST_RES - LQUOTA_FIRST_RES + 1)
-
-/*
- * Space accounting support
- * Format of an accounting record, providing disk usage information for a given
- * user or group
- */
-struct lquota_acct_rec { /* 16 bytes */
-	__u64 bspace;  /* current space in use */
-	__u64 ispace;  /* current # inodes in use */
-};
-
-/*
- * Global quota index support
- * Format of a global record, providing global quota settings for a given quota
- * identifier
- */
-struct lquota_glb_rec { /* 32 bytes */
-	__u64 qbr_hardlimit; /* quota hard limit, in #inodes or kbytes */
-	__u64 qbr_softlimit; /* quota soft limit, in #inodes or kbytes */
-	__u64 qbr_time;      /* grace time, in seconds */
-	__u64 qbr_granted;   /* how much is granted to slaves, in #inodes or
-			      * kbytes */
-};
-
-/*
- * Slave index support
- * Format of a slave record, recording how much space is granted to a given
- * slave
- */
-struct lquota_slv_rec { /* 8 bytes */
-	__u64 qsr_granted; /* space granted to the slave for the key=ID,
-			    * in #inodes or kbytes */
-};
-
 /* Data structures associated with the quota locks */
 
 /* Glimpse descriptor used for the index & per-ID quota locks */
