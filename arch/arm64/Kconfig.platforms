@@ -2,6 +2,7 @@ menu "Platform selection"
 
 config ARCH_ALPINE
 	bool "Annapurna Labs Alpine platform"
+	select ALPINE_MSI
 	help
 	  This enables support for the Annapurna Labs Alpine
 	  Soc family.
