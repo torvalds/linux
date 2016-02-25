@@ -1623,12 +1623,7 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 
 	/* MAC doesn't support 1000T Half */
 	phydev->supported &= ~SUPPORTED_1000baseT_Half;
-	phydev->supported |= (SUPPORTED_10baseT_Half |
-			      SUPPORTED_10baseT_Full |
-			      SUPPORTED_100baseT_Half |
-			      SUPPORTED_100baseT_Full |
-			      SUPPORTED_1000baseT_Full |
-			      SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+
 	genphy_config_aneg(phydev);
 
 	phy_start(phydev);
