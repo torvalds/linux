@@ -566,9 +566,9 @@ enum {
 /* hdr + MDT index */
 #define LUSTRE_VOLATILE_IDX	LUSTRE_VOLATILE_HDR":%.4X:"
 
-typedef enum lustre_quota_version {
+enum lustre_quota_version {
 	LUSTRE_QUOTA_V2 = 1
-} lustre_quota_version_t;
+};
 
 /* XXX: same as if_dqinfo struct in kernel */
 struct obd_dqinfo {
