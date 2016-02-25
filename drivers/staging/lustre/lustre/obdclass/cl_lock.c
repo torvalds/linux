@@ -935,7 +935,8 @@ int cl_lock_state_wait(const struct lu_env *env, struct cl_lock *lock)
 	if (result == 0) {
 		/* To avoid being interrupted by the 'non-fatal' signals
 		 * (SIGCHLD, for instance), we'd block them temporarily.
-		 * LU-305 */
+		 * LU-305
+		 */
 		blocked = cfs_block_sigsinv(LUSTRE_FATAL_SIGS);
 
 		init_waitqueue_entry(&waiter, current);
@@ -946,7 +947,8 @@ int cl_lock_state_wait(const struct lu_env *env, struct cl_lock *lock)
 		LASSERT(cl_lock_nr_mutexed(env) == 0);
 
 		/* Returning ERESTARTSYS instead of EINTR so syscalls
-		 * can be restarted if signals are pending here */
+		 * can be restarted if signals are pending here
+		 */
 		result = -ERESTARTSYS;
 		if (likely(!OBD_FAIL_CHECK(OBD_FAIL_LOCK_STATE_WAIT_INTR))) {
 			schedule();
@@ -1170,7 +1172,8 @@ int cl_enqueue_try(const struct lu_env *env, struct cl_lock *lock,
 			/* kick layers. */
 			result = cl_enqueue_kick(env, lock, io, flags);
 			/* For AGL case, the cl_lock::cll_state may
-			 * become CLS_HELD already. */
+			 * become CLS_HELD already.
+			 */
 			if (result == 0 && lock->cll_state == CLS_QUEUING)
 				cl_lock_state_set(env, lock, CLS_ENQUEUED);
 			break;
@@ -1300,7 +1303,8 @@ int cl_unuse_try(const struct lu_env *env, struct cl_lock *lock)
 	}
 
 	/* Only if the lock is in CLS_HELD or CLS_ENQUEUED state, it can hold
-	 * underlying resources. */
+	 * underlying resources.
+	 */
 	if (!(lock->cll_state == CLS_HELD || lock->cll_state == CLS_ENQUEUED)) {
 		cl_lock_user_del(env, lock);
 		return 0;
@@ -1777,13 +1781,15 @@ struct cl_lock *cl_lock_at_pgoff(const struct lu_env *env,
 	lock = NULL;
 
 	need->cld_mode = CLM_READ; /* CLM_READ matches both READ & WRITE, but
-				    * not PHANTOM */
+				    * not PHANTOM
+				    */
 	need->cld_start = need->cld_end = index;
 	need->cld_enq_flags = 0;
 
 	spin_lock(&head->coh_lock_guard);
 	/* It is fine to match any group lock since there could be only one
-	 * with a uniq gid and it conflicts with all other lock modes too */
+	 * with a uniq gid and it conflicts with all other lock modes too
+	 */
 	list_for_each_entry(scan, &head->coh_locks, cll_linkage) {
 		if (scan != except &&
 		    (scan->cll_descr.cld_mode == CLM_GROUP ||
@@ -1798,7 +1804,8 @@ struct cl_lock *cl_lock_at_pgoff(const struct lu_env *env,
 		    (canceld || !(scan->cll_flags & CLF_CANCELLED)) &&
 		    (pending || !(scan->cll_flags & CLF_CANCELPEND))) {
 			/* Don't increase cs_hit here since this
-			 * is just a helper function. */
+			 * is just a helper function.
+			 */
 			cl_lock_get_trust(scan);
 			lock = scan;
 			break;
@@ -1843,7 +1850,8 @@ static int check_and_discard_cb(const struct lu_env *env, struct cl_io *io,
 			/* Cache the first-non-overlapped index so as to skip
 			 * all pages within [index, clt_fn_index). This
 			 * is safe because if tmp lock is canceled, it will
-			 * discard these pages. */
+			 * discard these pages.
+			 */
 			info->clt_fn_index = tmp->cll_descr.cld_end + 1;
 			if (tmp->cll_descr.cld_end == CL_PAGE_EOF)
 				info->clt_fn_index = CL_PAGE_EOF;

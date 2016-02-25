@@ -260,7 +260,8 @@ repeat:
 
 		/* NB: when rec->lrh_len is accessed it is already swabbed
 		 * since it is used at the "end" of the loop and the rec
-		 * swabbing is done at the beginning of the loop. */
+		 * swabbing is done at the beginning of the loop.
+		 */
 		for (rec = (struct llog_rec_hdr *)buf;
 		     (char *)rec < buf + LLOG_CHUNK_SIZE;
 		     rec = (struct llog_rec_hdr *)((char *)rec + rec->lrh_len)) {
@@ -377,7 +378,8 @@ int llog_process_or_fork(const struct lu_env *env,
 		struct task_struct *task;
 
 		/* The new thread can't use parent env,
-		 * init the new one in llog_process_thread_daemonize. */
+		 * init the new one in llog_process_thread_daemonize.
+		 */
 		lpi->lpi_env = NULL;
 		init_completion(&lpi->lpi_completion);
 		task = kthread_run(llog_process_thread_daemonize, lpi,

@@ -88,7 +88,8 @@ int __llog_ctxt_put(const struct lu_env *env, struct llog_ctxt *ctxt)
 	spin_unlock(&obd->obd_dev_lock);
 
 	/* obd->obd_starting is needed for the case of cleanup
-	 * in error case while obd is starting up. */
+	 * in error case while obd is starting up.
+	 */
 	LASSERTF(obd->obd_starting == 1 ||
 		 obd->obd_stopping == 1 || obd->obd_set_up == 0,
 		 "wrong obd state: %d/%d/%d\n", !!obd->obd_starting,

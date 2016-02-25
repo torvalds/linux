@@ -508,7 +508,8 @@ static int __init init_obdclass(void)
 
 	/* Default the dirty page cache cap to 1/2 of system memory.
 	 * For clients with less memory, a larger fraction is needed
-	 * for other purposes (mostly for BGL). */
+	 * for other purposes (mostly for BGL).
+	 */
 	if (totalram_pages <= 512 << (20 - PAGE_CACHE_SHIFT))
 		obd_max_dirty_pages = totalram_pages / 4;
 	else
@@ -543,8 +544,6 @@ static int __init init_obdclass(void)
 	return err;
 }
 
-/* liblustre doesn't call cleanup_obdclass, apparently.  we carry on in this
- * ifdef to the end of the file to cover module and versioning goo.*/
 static void cleanup_obdclass(void)
 {
 	int i;

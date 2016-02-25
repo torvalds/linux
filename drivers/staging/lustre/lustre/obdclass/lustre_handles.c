@@ -143,7 +143,8 @@ void *class_handle2object(__u64 cookie)
 	LASSERT(handle_hash);
 
 	/* Be careful when you want to change this code. See the
-	 * rcu_read_lock() definition on top this file. - jxiong */
+	 * rcu_read_lock() definition on top this file. - jxiong
+	 */
 	bucket = handle_hash + (cookie & HANDLE_HASH_MASK);
 
 	rcu_read_lock();

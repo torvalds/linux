@@ -44,6 +44,7 @@
 #include "../include/obd_support.h"
 #include "../include/lustre_fid.h"
 #include <linux/list.h>
+#include <linux/sched.h>
 #include "../include/cl_object.h"
 #include "cl_internal.h"
 
@@ -308,7 +309,8 @@ static void cl_io_locks_sort(struct cl_io *io)
 							   &prev->cill_linkage);
 					done = 0;
 					continue; /* don't change prev: it's
-						   * still "previous" */
+						   * still "previous"
+						   */
 				case -1: /* already in order */
 					break;
 				}
@@ -419,7 +421,8 @@ static int cl_lockset_lock(const struct lu_env *env, struct cl_io *io,
 	list_for_each_entry_safe(link, temp, &set->cls_todo, cill_linkage) {
 		if (!cl_lockset_match(set, &link->cill_descr)) {
 			/* XXX some locking to guarantee that locks aren't
-			 * expanded in between. */
+			 * expanded in between.
+			 */
 			result = cl_lockset_lock_one(env, io, set, link);
 			if (result != 0)
 				break;
@@ -1053,7 +1056,8 @@ EXPORT_SYMBOL(cl_page_list_init);
 void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page)
 {
 	/* it would be better to check that page is owned by "current" io, but
-	 * it is not passed here. */
+	 * it is not passed here.
+	 */
 	LASSERT(page->cp_owner);
 	LINVRNT(plist->pl_owner == current);
 
@@ -1510,9 +1514,6 @@ void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
 }
 EXPORT_SYMBOL(cl_req_attr_set);
 
-/* XXX complete(), init_completion(), and wait_for_completion(), until they are
- * implemented in libcfs. */
-# include <linux/sched.h>
 
 /**
  * Initialize synchronous io wait anchor, for transfer of \a nrpages pages.

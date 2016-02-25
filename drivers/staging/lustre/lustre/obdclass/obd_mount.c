@@ -283,9 +283,10 @@ int lustre_start_mgc(struct super_block *sb)
 		recov_bk = 0;
 
 		/* Try all connections, but only once (again).
-		   We don't want to block another target from starting
-		   (using its local copy of the log), but we do want to connect
-		   if at all possible. */
+		 * We don't want to block another target from starting
+		 * (using its local copy of the log), but we do want to connect
+		 * if at all possible.
+		 */
 		recov_bk++;
 		CDEBUG(D_MOUNT, "%s: Set MGC reconnect %d\n", mgcname,
 		       recov_bk);
@@ -375,7 +376,8 @@ int lustre_start_mgc(struct super_block *sb)
 		goto out_free;
 
 	/* Keep a refcount of servers/clients who started with "mount",
-	   so we know when we can get rid of the mgc. */
+	 * so we know when we can get rid of the mgc.
+	 */
 	atomic_set(&obd->u.cli.cl_mgc_refcount, 1);
 
 	/* We connect to the MGS at setup, and don't disconnect until cleanup */
@@ -403,7 +405,8 @@ int lustre_start_mgc(struct super_block *sb)
 
 out:
 	/* Keep the mgc info in the sb. Note that many lsi's can point
-	   to the same mgc.*/
+	 * to the same mgc.
+	 */
 	lsi->lsi_mgc = obd;
 out_free:
 	mutex_unlock(&mgc_start_lock);
@@ -432,7 +435,8 @@ static int lustre_stop_mgc(struct super_block *sb)
 	LASSERT(atomic_read(&obd->u.cli.cl_mgc_refcount) > 0);
 	if (!atomic_dec_and_test(&obd->u.cli.cl_mgc_refcount)) {
 		/* This is not fatal, every client that stops
-		   will call in here. */
+		 * will call in here.
+		 */
 		CDEBUG(D_MOUNT, "mgc still has %d references.\n",
 		       atomic_read(&obd->u.cli.cl_mgc_refcount));
 		rc = -EBUSY;
@@ -440,19 +444,20 @@ static int lustre_stop_mgc(struct super_block *sb)
 	}
 
 	/* The MGC has no recoverable data in any case.
-	 * force shutdown set in umount_begin */
+	 * force shutdown set in umount_begin
+	 */
 	obd->obd_no_recov = 1;
 
 	if (obd->u.cli.cl_mgc_mgsexp) {
 		/* An error is not fatal, if we are unable to send the
-		   disconnect mgs ping evictor cleans up the export */
+		 * disconnect mgs ping evictor cleans up the export
+		 */
 		rc = obd_disconnect(obd->u.cli.cl_mgc_mgsexp);
 		if (rc)
 			CDEBUG(D_MOUNT, "disconnect failed %d\n", rc);
 	}
 
-	/* Save the obdname for cleaning the nid uuids, which are
-	   obdname_XX */
+	/* Save the obdname for cleaning the nid uuids, which are obdname_XX */
 	len = strlen(obd->obd_name) + 6;
 	niduuid = kzalloc(len, GFP_NOFS);
 	if (niduuid) {
@@ -545,7 +550,8 @@ static int lustre_free_lsi(struct super_block *sb)
 }
 
 /* The lsi has one reference for every server that is using the disk -
-   e.g. MDT, MGS, and potentially MGC */
+ * e.g. MDT, MGS, and potentially MGC
+ */
 static int lustre_put_lsi(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
@@ -597,9 +603,10 @@ static int server_name2fsname(const char *svname, char *fsname,
 }
 
 /* Get the index from the obd name.
-   rc = server type, or
-   rc < 0  on error
-   if endptr isn't NULL it is set to end of name */
+ *  rc = server type, or
+ * rc < 0  on error
+ * if endptr isn't NULL it is set to end of name
+ */
 static int server_name2index(const char *svname, __u32 *idx,
 			     const char **endptr)
 {
@@ -658,7 +665,8 @@ int lustre_common_put_super(struct super_block *sb)
 			return rc;
 		}
 		/* BUSY just means that there's some other obd that
-		   needs the mgc.  Let him clean it up. */
+		 * needs the mgc.  Let him clean it up.
+		 */
 		CDEBUG(D_MOUNT, "MGC still in use\n");
 	}
 	/* Drop a ref to the mounted disk */
@@ -728,8 +736,9 @@ static int lmd_make_exclusion(struct lustre_mount_data *lmd, const char *ptr)
 	int rc = 0, devmax;
 
 	/* The shortest an ost name can be is 8 chars: -OST0000.
-	   We don't actually know the fsname at this time, so in fact
-	   a user could specify any fsname. */
+	 * We don't actually know the fsname at this time, so in fact
+	 * a user could specify any fsname.
+	 */
 	devmax = strlen(ptr) / 8 + 1;
 
 	/* temp storage until we figure out how many we have */
@@ -753,7 +762,8 @@ static int lmd_make_exclusion(struct lustre_mount_data *lmd, const char *ptr)
 			       (uint)(s2-s1), s1, rc);
 		s1 = s2;
 		/* now we are pointing at ':' (next exclude)
-		   or ',' (end of excludes) */
+		 * or ',' (end of excludes)
+		 */
 		if (lmd->lmd_exclude_count >= devmax)
 			break;
 	}
@@ -906,10 +916,12 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 			s1++;
 
 		/* Client options are parsed in ll_options: eg. flock,
-		   user_xattr, acl */
+		 * user_xattr, acl
+		 */
 
 		/* Parse non-ldiskfs options here. Rather than modifying
-		   ldiskfs, we just zero these out here */
+		 * ldiskfs, we just zero these out here
+		 */
 		if (strncmp(s1, "abort_recov", 11) == 0) {
 			lmd->lmd_flags |= LMD_FLG_ABORT_RECOV;
 			clear++;
@@ -937,7 +949,8 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 				   sizeof(PARAM_MGSNODE) - 1) == 0) {
 			s2 = s1 + sizeof(PARAM_MGSNODE) - 1;
 			/* Assume the next mount opt is the first
-			   invalid nid we get to. */
+			 * invalid nid we get to.
+			 */
 			rc = lmd_parse_mgs(lmd, &s2);
 			if (rc)
 				goto invalid;
@@ -997,11 +1010,13 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 			clear++;
 		}
 		/* Linux 2.4 doesn't pass the device, so we stuck it at the
-		   end of the options. */
+		 * end of the options.
+		 */
 		else if (strncmp(s1, "device=", 7) == 0) {
 			devname = s1 + 7;
 			/* terminate options right before device.  device
-			   must be the last one. */
+			 * must be the last one.
+			 */
 			*s1 = '\0';
 			break;
 		}
@@ -1133,7 +1148,8 @@ static int lustre_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* If error happens in fill_super() call, @lsi will be killed there.
-	 * This is why we do not put it here. */
+	 * This is why we do not put it here.
+	 */
 	goto out;
 out:
 	if (rc) {
@@ -1148,7 +1164,8 @@ out:
 }
 
 /* We can't call ll_fill_super by name because it lives in a module that
-   must be loaded after this one. */
+ * must be loaded after this one.
+ */
 void lustre_register_client_fill_super(int (*cfs)(struct super_block *sb,
 						  struct vfsmount *mnt))
 {

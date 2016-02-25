@@ -532,7 +532,8 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 	*version = ver;
 	bkt = cfs_hash_bd_extra_get(s->ls_obj_hash, bd);
 	/* cfs_hash_bd_peek_locked is a somehow "internal" function
-	 * of cfs_hash, it doesn't add refcount on object. */
+	 * of cfs_hash, it doesn't add refcount on object.
+	 */
 	hnode = cfs_hash_bd_peek_locked(s->ls_obj_hash, bd, (void *)f);
 	if (!hnode) {
 		lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_MISS);

@@ -381,7 +381,8 @@ int class_name2dev(const char *name)
 
 		if (obd && strcmp(name, obd->obd_name) == 0) {
 			/* Make sure we finished attaching before we give
-			   out any references */
+			 * out any references
+			 */
 			LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
 			if (obd->obd_attached) {
 				read_unlock(&obd_dev_lock);
@@ -456,8 +457,9 @@ struct obd_device *class_num2obd(int num)
 EXPORT_SYMBOL(class_num2obd);
 
 /* Search for a client OBD connected to tgt_uuid.  If grp_uuid is
-   specified, then only the client with that uuid is returned,
-   otherwise any client connected to the tgt is returned. */
+ * specified, then only the client with that uuid is returned,
+ * otherwise any client connected to the tgt is returned.
+ */
 struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
 					  const char *typ_name,
 					  struct obd_uuid *grp_uuid)
@@ -488,9 +490,10 @@ struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
 EXPORT_SYMBOL(class_find_client_obd);
 
 /* Iterate the obd_device list looking devices have grp_uuid. Start
-   searching at *next, and if a device is found, the next index to look
-   at is saved in *next. If next is NULL, then the first matching device
-   will always be returned. */
+ * searching at *next, and if a device is found, the next index to look
+ * at is saved in *next. If next is NULL, then the first matching device
+ * will always be returned.
+ */
 struct obd_device *class_devices_in_group(struct obd_uuid *grp_uuid, int *next)
 {
 	int i;
@@ -708,7 +711,8 @@ EXPORT_SYMBOL(class_export_put);
 
 /* Creates a new export, adds it to the hash table, and returns a
  * pointer to it. The refcount is 2: one for the hash reference, and
- * one for the pointer returned by this function. */
+ * one for the pointer returned by this function.
+ */
 struct obd_export *class_new_export(struct obd_device *obd,
 				    struct obd_uuid *cluuid)
 {
@@ -891,8 +895,9 @@ static void init_imp_at(struct imp_at *at)
 	at_init(&at->iat_net_latency, 0, 0);
 	for (i = 0; i < IMP_AT_MAX_PORTALS; i++) {
 		/* max service estimates are tracked on the server side, so
-		   don't use the AT history here, just use the last reported
-		   val. (But keep hist for proc histogram, worst_ever) */
+		 * don't use the AT history here, just use the last reported
+		 * val. (But keep hist for proc histogram, worst_ever)
+		 */
 		at_init(&at->iat_service_estimate[i], INITIAL_CONNECT_TIMEOUT,
 			AT_FLG_NOHIST);
 	}
@@ -931,7 +936,8 @@ struct obd_import *class_new_import(struct obd_device *obd)
 	init_imp_at(&imp->imp_at);
 
 	/* the default magic is V2, will be used in connect RPC, and
-	 * then adjusted according to the flags in request/reply. */
+	 * then adjusted according to the flags in request/reply.
+	 */
 	imp->imp_msg_magic = LUSTRE_MSG_MAGIC_V2;
 
 	return imp;
@@ -994,9 +1000,10 @@ EXPORT_SYMBOL(__class_export_del_lock_ref);
 #endif
 
 /* A connection defines an export context in which preallocation can
-   be managed. This releases the export pointer reference, and returns
-   the export handle, so the export refcount is 1 when this function
-   returns. */
+ * be managed. This releases the export pointer reference, and returns
+ * the export handle, so the export refcount is 1 when this function
+ * returns.
+ */
 int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 		  struct obd_uuid *cluuid)
 {
@@ -1024,7 +1031,8 @@ EXPORT_SYMBOL(class_connect);
  * and if disconnect really need
  * 2 - removing from hash
  * 3 - in client_unlink_export
- * The export pointer passed to this function can destroyed */
+ * The export pointer passed to this function can destroyed
+ */
 int class_disconnect(struct obd_export *export)
 {
 	int already_disconnected;
@@ -1041,7 +1049,8 @@ int class_disconnect(struct obd_export *export)
 
 	/* class_cleanup(), abort_recovery(), and class_fail_export()
 	 * all end up in here, and if any of them race we shouldn't
-	 * call extra class_export_puts(). */
+	 * call extra class_export_puts().
+	 */
 	if (already_disconnected)
 		goto no_disconn;
 
@@ -1081,7 +1090,8 @@ void class_fail_export(struct obd_export *exp)
 
 	/* Most callers into obd_disconnect are removing their own reference
 	 * (request, for example) in addition to the one from the hash table.
-	 * We don't have such a reference here, so make one. */
+	 * We don't have such a reference here, so make one.
+	 */
 	class_export_get(exp);
 	rc = obd_disconnect(exp);
 	if (rc)

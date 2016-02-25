@@ -102,7 +102,8 @@ int obd_ioctl_getdata(char **buf, int *len, void __user *arg)
 	/* When there are lots of processes calling vmalloc on multi-core
 	 * system, the high lock contention will hurt performance badly,
 	 * obdfilter-survey is an example, which relies on ioctl. So we'd
-	 * better avoid vmalloc on ioctl path. LU-66 */
+	 * better avoid vmalloc on ioctl path. LU-66
+	 */
 	*buf = libcfs_kvzalloc(hdr.ioc_len, GFP_NOFS);
 	if (!*buf) {
 		CERROR("Cannot allocate control buffer of len %d\n",

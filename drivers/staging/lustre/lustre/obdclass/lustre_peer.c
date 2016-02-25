@@ -93,7 +93,8 @@ int lustre_uuid_to_peer(const char *uuid, lnet_nid_t *peer_nid, int index)
 EXPORT_SYMBOL(lustre_uuid_to_peer);
 
 /* Add a nid to a niduuid.  Multiple nids can be added to a single uuid;
-   LNET will choose the best one. */
+ * LNET will choose the best one.
+ */
 int class_add_uuid(const char *uuid, __u64 nid)
 {
 	struct uuid_nid_data *data, *entry;
