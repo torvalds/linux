@@ -32,6 +32,6 @@ struct qcom_reset_controller {
 #define to_qcom_reset_controller(r) \
 	container_of(r, struct qcom_reset_controller, rcdev);
 
-extern struct reset_control_ops qcom_reset_ops;
+extern const struct reset_control_ops qcom_reset_ops;
 
 #endif
