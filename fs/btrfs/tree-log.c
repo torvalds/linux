@@ -4500,7 +4500,22 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&BTRFS_I(inode)->log_mutex);
 
-	btrfs_get_logged_extents(inode, &logged_list, start, end);
+	/*
+	 * Collect ordered extents only if we are logging data. This is to
+	 * ensure a subsequent request to log this inode in LOG_INODE_ALL mode
+	 * will process the ordered extents if they still exists at the time,
+	 * because when we collect them we test and set for the flag
+	 * BTRFS_ORDERED_LOGGED to prevent multiple log requests to process the
+	 * same ordered extents. The consequence for the LOG_INODE_ALL log mode
+	 * not processing the ordered extents is that we end up logging the
+	 * corresponding file extent items, based on the extent maps in the
+	 * inode's extent_map_tree's modified_list, without logging the
+	 * respective checksums (since the may still be only attached to the
+	 * ordered extents and have not been inserted in the csum tree by
+	 * btrfs_finish_ordered_io() yet).
+	 */
+	if (inode_only == LOG_INODE_ALL)
+		btrfs_get_logged_extents(inode, &logged_list, start, end);
 
 	/*
 	 * a brute force approach to making sure we get the most uptodate
