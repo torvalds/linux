@@ -713,7 +713,7 @@ static void release_everything(struct rtsx_dev *dev)
 /* Thread to carry out delayed SCSI-device scanning */
 static int rtsx_scan_thread(void *__dev)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)__dev;
+	struct rtsx_dev *dev = __dev;
 	struct rtsx_chip *chip = dev->chip;
 
 	/* Wait for the timeout to expire or for a disconnect */
