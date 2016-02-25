@@ -644,7 +644,7 @@ static void frontend_init(struct budget *budget)
 		}
 
 	case 0x101c: { /* TT S2-1600 */
-			struct stv6110x_devctl *ctl;
+			const struct stv6110x_devctl *ctl;
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
 			msleep(50);
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
@@ -697,7 +697,7 @@ static void frontend_init(struct budget *budget)
 		break;
 
 	case 0x1020: { /* Omicom S2 */
-			struct stv6110x_devctl *ctl;
+			const struct stv6110x_devctl *ctl;
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
 			msleep(50);
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);

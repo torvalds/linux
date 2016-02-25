@@ -2669,7 +2669,7 @@ free_mem:
 }
 EXPORT_SYMBOL(dib0090_fw_register);
 
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
-MODULE_AUTHOR("Olivier Grenie <olivier.grenie@dibcom.fr>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
+MODULE_AUTHOR("Olivier Grenie <olivier.grenie@parrot.com>");
 MODULE_DESCRIPTION("Driver for the DiBcom 0090 base-band RF Tuner");
 MODULE_LICENSE("GPL");

@@ -58,7 +58,7 @@ static const char * const dnames[] = {
 #define DVB_MAX_IDS		MAX_DVB_MINORS
 #else
 #define DVB_MAX_IDS		4
-#define nums2minor(num,type,id)	((num << 6) | (id << 4) | type)
+#define nums2minor(num, type, id)	((num << 6) | (id << 4) | type)
 #define MAX_DVB_MINORS		(DVB_MAX_ADAPTERS*64)
 #endif
 
@@ -85,7 +85,7 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 		file->private_data = dvbdev;
 		replace_fops(file, new_fops);
 		if (file->f_op->open)
-			err = file->f_op->open(inode,file);
+			err = file->f_op->open(inode, file);
 		up_read(&minor_rwsem);
 		mutex_unlock(&dvbdev_mutex);
 		return err;
@@ -352,7 +352,7 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 	ret = media_device_register_entity(dvbdev->adapter->mdev,
 					   dvbdev->entity);
 	if (ret)
-		return (ret);
+		return ret;
 
 	printk(KERN_DEBUG "%s: media entity '%s' registered.\n",
 		__func__, dvbdev->entity->name);
@@ -620,8 +620,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 			return -ENOMEM;
 		adap->conn = conn;
 
-		adap->conn_pads = kcalloc(1, sizeof(*adap->conn_pads),
-					    GFP_KERNEL);
+		adap->conn_pads = kzalloc(sizeof(*adap->conn_pads), GFP_KERNEL);
 		if (!adap->conn_pads)
 			return -ENOMEM;
 
@@ -661,7 +660,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	if (ntuner && ndemod) {
 		ret = media_create_pad_links(mdev,
 					     MEDIA_ENT_F_TUNER,
-					     tuner, TUNER_PAD_IF_OUTPUT,
+					     tuner, TUNER_PAD_OUTPUT,
 					     MEDIA_ENT_F_DTV_DEMOD,
 					     demod, 0, MEDIA_LNK_FL_ENABLED,
 					     false);
@@ -868,7 +867,7 @@ int dvb_usercopy(struct file *file,
 			parg = sbuf;
 		} else {
 			/* too big to allocate from stack */
-			mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
+			mbuf = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
 			if (NULL == mbuf)
 				return -ENOMEM;
 			parg = mbuf;

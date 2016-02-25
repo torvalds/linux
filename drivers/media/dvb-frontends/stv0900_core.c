@@ -1859,9 +1859,9 @@ static int stv0900_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0900_get_frontend(struct dvb_frontend *fe)
+static int stv0900_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0900_state *state = fe->demodulator_priv;
 	struct stv0900_internal *intp = state->internal;
 	enum fe_stv0900_demod_num demod = state->demod;

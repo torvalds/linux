@@ -14,10 +14,6 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -226,6 +222,7 @@ void snd_tea575x_set_freq(struct snd_tea575x *tea)
 	snd_tea575x_write(tea, tea->val);
 	tea->freq = snd_tea575x_val_to_freq(tea, tea->val);
 }
+EXPORT_SYMBOL(snd_tea575x_set_freq);
 
 /*
  * Linux Video interface
@@ -582,25 +579,11 @@ int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 
 	return 0;
 }
+EXPORT_SYMBOL(snd_tea575x_init);
 
 void snd_tea575x_exit(struct snd_tea575x *tea)
 {
 	video_unregister_device(&tea->vd);
 	v4l2_ctrl_handler_free(tea->vd.ctrl_handler);
 }
-
-static int __init alsa_tea575x_module_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_tea575x_module_exit(void)
-{
-}
-
-module_init(alsa_tea575x_module_init)
-module_exit(alsa_tea575x_module_exit)
-
-EXPORT_SYMBOL(snd_tea575x_init);
 EXPORT_SYMBOL(snd_tea575x_exit);
-EXPORT_SYMBOL(snd_tea575x_set_freq);
