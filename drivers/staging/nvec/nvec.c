@@ -141,7 +141,7 @@ static int nvec_status_notifier(struct notifier_block *nb,
 {
 	struct nvec_chip *nvec = container_of(nb, struct nvec_chip,
 						nvec_status_notifier);
-	unsigned char *msg = (unsigned char *)data;
+	unsigned char *msg = data;
 
 	if (event_type != NVEC_CNTL)
 		return NOTIFY_DONE;
