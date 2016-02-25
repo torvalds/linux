@@ -94,7 +94,7 @@ $(TEST_TARGETS): tests/boot
 
 # because of libdl, liblkl-hijack will not compile on windows
 # fortunately, the test target will handle a missing libhijack.so correctly
-ifeq (,$(filter $(OUTPUT_FORMAT),pe-i386))
+ifeq (,$(filter $(OUTPUT_FORMAT),pe-i386 elf32-littlearm))
   test: liblkl-hijack$(SOSUF)
 endif
 
@@ -117,7 +117,8 @@ cpfromfs$(EXESUF): cptofs$(EXESUF)
 
 # because of argp and fuse, none of the binaries will compile on windows
 # because of libdl, liblkl-hijack will not compile on windows
-ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386))
+# arm-android neither for the moment
+ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 elf32-littlearm))
   all: $(filter-out liblkl-hijack$(SOSUF), $(ALL_LIBRARIES))
 else
   all: $(ALL_PROGRAMS) $(ALL_LIBRARIES)
