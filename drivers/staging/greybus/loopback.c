@@ -969,7 +969,6 @@ static int gb_loopback_fn(void *data)
 		if (gb->async) {
 			if (type == GB_LOOPBACK_TYPE_PING) {
 				error = gb_loopback_async_ping(gb);
-				gb_loopback_calculate_stats(gb);
 			} else if (type == GB_LOOPBACK_TYPE_TRANSFER) {
 				error = gb_loopback_async_transfer(gb, size);
 			} else if (type == GB_LOOPBACK_TYPE_SINK) {
