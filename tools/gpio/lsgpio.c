@@ -116,10 +116,10 @@ int list_device(const char *device_name)
 			fprintf(stdout, " \"%s\"", linfo.name);
 		else
 			fprintf(stdout, " unnamed");
-		if (linfo.label[0])
-			fprintf(stdout, " \"%s\"", linfo.label);
+		if (linfo.consumer[0])
+			fprintf(stdout, " \"%s\"", linfo.consumer);
 		else
-			fprintf(stdout, " unlabeled");
+			fprintf(stdout, " unused");
 		if (linfo.flags) {
 			fprintf(stdout, " [");
 			print_flags(linfo.flags);

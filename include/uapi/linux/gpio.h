@@ -15,8 +15,9 @@
 
 /**
  * struct gpiochip_info - Information about a certain GPIO chip
- * @name: the name of this GPIO chip
- * @label: a functional name for this GPIO chip
+ * @name: the Linux kernel name of this GPIO chip
+ * @label: a functional name for this GPIO chip, such as a product
+ * number, may be NULL
  * @lines: number of GPIO lines on this chip
  */
 struct gpiochip_info {
@@ -34,20 +35,21 @@ struct gpiochip_info {
 
 /**
  * struct gpioline_info - Information about a certain GPIO line
- * @line_offset: the local offset on this GPIO device, fill in when
- * requesting information from the kernel
+ * @line_offset: the local offset on this GPIO device, fill this in when
+ * requesting the line information from the kernel
  * @flags: various flags for this line
- * @name: the name of this GPIO line
- * @label: a functional name for this GPIO line
- * @kernel: this GPIO is in use by the kernel
- * @out: this GPIO is an output line (false means it is an input)
- * @active_low: this GPIO is active low
+ * @name: the name of this GPIO line, such as the output pin of the line on the
+ * chip, a rail or a pin header name on a board, as specified by the gpio
+ * chip, may be NULL
+ * @consumer: a functional name for the consumer of this GPIO line as set by
+ * whatever is using it, will be NULL if there is no current user but may
+ * also be NULL if the consumer doesn't set this up
  */
 struct gpioline_info {
 	__u32 line_offset;
 	__u32 flags;
 	char name[32];
-	char label[32];
+	char consumer[32];
 };
 
 #define GPIO_GET_CHIPINFO_IOCTL _IOR('o', 0x01, struct gpiochip_info)

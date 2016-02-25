@@ -368,11 +368,11 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			lineinfo.name[0] = '\0';
 		}
 		if (desc->label) {
-			strncpy(lineinfo.label, desc->label,
-				sizeof(lineinfo.label));
-			lineinfo.label[sizeof(lineinfo.label)-1] = '\0';
+			strncpy(lineinfo.consumer, desc->label,
+				sizeof(lineinfo.consumer));
+			lineinfo.consumer[sizeof(lineinfo.consumer)-1] = '\0';
 		} else {
-			lineinfo.label[0] = '\0';
+			lineinfo.consumer[0] = '\0';
 		}
 
 		/*
