@@ -1073,7 +1073,6 @@ static int lov_destroy(const struct lu_env *env, struct obd_export *exp,
 	struct lov_request_set *set;
 	struct obd_info oinfo;
 	struct lov_request *req;
-	struct list_head *pos;
 	struct lov_obd *lov;
 	int rc = 0, err = 0;
 
@@ -1093,9 +1092,7 @@ static int lov_destroy(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		goto out;
 
-	list_for_each(pos, &set->set_list) {
-		req = list_entry(pos, struct lov_request, rq_link);
-
+	list_for_each_entry(req, &set->set_list, rq_link) {
 		if (oa->o_valid & OBD_MD_FLCOOKIE)
 			oti->oti_logcookies = set->set_cookies + req->rq_stripe;
 
@@ -1140,7 +1137,6 @@ static int lov_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
 {
 	struct lov_request_set *lovset;
 	struct lov_obd *lov;
-	struct list_head *pos;
 	struct lov_request *req;
 	int rc = 0, err;
 
@@ -1160,9 +1156,7 @@ static int lov_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
 	       POSTID(&oinfo->oi_md->lsm_oi), oinfo->oi_md->lsm_stripe_count,
 	       oinfo->oi_md->lsm_stripe_size);
 
-	list_for_each(pos, &lovset->set_list) {
-		req = list_entry(pos, struct lov_request, rq_link);
-
+	list_for_each_entry(req, &lovset->set_list, rq_link) {
 		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
 		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
 		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
@@ -1214,7 +1208,6 @@ static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 {
 	struct lov_request_set *set;
 	struct lov_request *req;
-	struct list_head *pos;
 	struct lov_obd *lov;
 	int rc = 0;
 
@@ -1238,9 +1231,7 @@ static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 	       oinfo->oi_md->lsm_stripe_count,
 	       oinfo->oi_md->lsm_stripe_size);
 
-	list_for_each(pos, &set->set_list) {
-		req = list_entry(pos, struct lov_request, rq_link);
-
+	list_for_each_entry(req, &set->set_list, rq_link) {
 		if (oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE)
 			oti->oti_logcookies = set->set_cookies + req->rq_stripe;
 
@@ -1335,7 +1326,6 @@ static int lov_statfs_async(struct obd_export *exp, struct obd_info *oinfo,
 	struct obd_device      *obd = class_exp2obd(exp);
 	struct lov_request_set *set;
 	struct lov_request *req;
-	struct list_head *pos;
 	struct lov_obd *lov;
 	int rc = 0;
 
@@ -1346,8 +1336,7 @@ static int lov_statfs_async(struct obd_export *exp, struct obd_info *oinfo,
 	if (rc)
 		return rc;
 
-	list_for_each(pos, &set->set_list) {
-		req = list_entry(pos, struct lov_request, rq_link);
+	list_for_each_entry(req, &set->set_list, rq_link) {
 		rc = obd_statfs_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
 				      &req->rq_oi, max_age, rqset);
 		if (rc)

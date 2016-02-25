@@ -190,7 +190,6 @@ out:
 
 static int common_attr_done(struct lov_request_set *set)
 {
-	struct list_head *pos;
 	struct lov_request *req;
 	struct obdo *tmp_oa;
 	int rc = 0, attrset = 0;
@@ -207,9 +206,7 @@ static int common_attr_done(struct lov_request_set *set)
 		goto out;
 	}
 
-	list_for_each(pos, &set->set_list) {
-		req = list_entry(pos, struct lov_request, rq_link);
-
+	list_for_each_entry(req, &set->set_list, rq_link) {
 		if (!req->rq_complete || req->rq_rc)
 			continue;
 		if (req->rq_oi.oi_oa->o_valid == 0)   /* inactive stripe */
