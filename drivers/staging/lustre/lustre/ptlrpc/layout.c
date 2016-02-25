@@ -522,16 +522,6 @@ static const struct req_msg_field *llog_origin_handle_next_block_server[] = {
 	&RMF_EADATA
 };
 
-static const struct req_msg_field *obd_idx_read_client[] = {
-	&RMF_PTLRPC_BODY,
-	&RMF_IDX_INFO
-};
-
-static const struct req_msg_field *obd_idx_read_server[] = {
-	&RMF_PTLRPC_BODY,
-	&RMF_IDX_INFO
-};
-
 static const struct req_msg_field *ost_body_only[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_OST_BODY
@@ -647,7 +637,6 @@ static const struct req_msg_field *mdt_hsm_request[] = {
 static struct req_format *req_formats[] = {
 	&RQF_OBD_PING,
 	&RQF_OBD_SET_INFO,
-	&RQF_OBD_IDX_READ,
 	&RQF_SEC_CTX,
 	&RQF_MGS_TARGET_REG,
 	&RQF_MGS_SET_INFO,
@@ -1068,10 +1057,6 @@ struct req_msg_field RMF_FIEMAP_VAL =
 	DEFINE_MSGF("fiemap", 0, -1, lustre_swab_fiemap, NULL);
 EXPORT_SYMBOL(RMF_FIEMAP_VAL);
 
-struct req_msg_field RMF_IDX_INFO =
-	DEFINE_MSGF("idx_info", 0, sizeof(struct idx_info),
-		    lustre_swab_idx_info, NULL);
-EXPORT_SYMBOL(RMF_IDX_INFO);
 struct req_msg_field RMF_HSM_USER_STATE =
 	DEFINE_MSGF("hsm_user_state", 0, sizeof(struct hsm_user_state),
 		    lustre_swab_hsm_user_state, NULL);
@@ -1149,12 +1134,6 @@ EXPORT_SYMBOL(RQF_OBD_PING);
 struct req_format RQF_OBD_SET_INFO =
 	DEFINE_REQ_FMT0("OBD_SET_INFO", obd_set_info_client, empty);
 EXPORT_SYMBOL(RQF_OBD_SET_INFO);
-
-/* Read index file through the network */
-struct req_format RQF_OBD_IDX_READ =
-	DEFINE_REQ_FMT0("OBD_IDX_READ",
-			obd_idx_read_client, obd_idx_read_server);
-EXPORT_SYMBOL(RQF_OBD_IDX_READ);
 
 struct req_format RQF_SEC_CTX =
 	DEFINE_REQ_FMT0("SEC_CTX", empty, empty);

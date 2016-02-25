@@ -1846,20 +1846,6 @@ void lustre_swab_fiemap(struct ll_user_fiemap *fiemap)
 }
 EXPORT_SYMBOL(lustre_swab_fiemap);
 
-void lustre_swab_idx_info(struct idx_info *ii)
-{
-	__swab32s(&ii->ii_magic);
-	__swab32s(&ii->ii_flags);
-	__swab16s(&ii->ii_count);
-	__swab32s(&ii->ii_attrs);
-	lustre_swab_lu_fid(&ii->ii_fid);
-	__swab64s(&ii->ii_version);
-	__swab64s(&ii->ii_hash_start);
-	__swab64s(&ii->ii_hash_end);
-	__swab16s(&ii->ii_keysize);
-	__swab16s(&ii->ii_recsize);
-}
-
 void lustre_swab_mdt_rec_reint (struct mdt_rec_reint *rr)
 {
 	__swab32s(&rr->rr_opcode);

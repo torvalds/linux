@@ -130,7 +130,6 @@ void req_layout_fini(void);
 extern struct req_format RQF_OBD_PING;
 extern struct req_format RQF_OBD_SET_INFO;
 extern struct req_format RQF_SEC_CTX;
-extern struct req_format RQF_OBD_IDX_READ;
 /* MGS req_format */
 extern struct req_format RQF_MGS_TARGET_REG;
 extern struct req_format RQF_MGS_SET_INFO;
@@ -249,7 +248,6 @@ extern struct req_msg_field RMF_SETINFO_KEY;
 extern struct req_msg_field RMF_GETINFO_VAL;
 extern struct req_msg_field RMF_GETINFO_VALLEN;
 extern struct req_msg_field RMF_GETINFO_KEY;
-extern struct req_msg_field RMF_IDX_INFO;
 extern struct req_msg_field RMF_CLOSE_DATA;
 
 /*
