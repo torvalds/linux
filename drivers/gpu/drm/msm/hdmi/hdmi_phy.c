@@ -127,6 +127,9 @@ static int hdmi_phy_pll_init(struct platform_device *pdev,
 	case MSM_HDMI_PHY_8960:
 		ret = hdmi_pll_8960_init(pdev);
 		break;
+	case MSM_HDMI_PHY_8996:
+		ret = hdmi_pll_8996_init(pdev);
+		break;
 	/*
 	 * we don't have PLL support for these, don't report an error for now
 	 */
@@ -202,6 +205,8 @@ static const struct of_device_id hdmi_phy_dt_match[] = {
 	  .data = &hdmi_phy_8x74_cfg },
 	{ .compatible = "qcom,hdmi-phy-8084",
 	  .data = &hdmi_phy_8x74_cfg },
+	{ .compatible = "qcom,hdmi-phy-8996",
+	  .data = &hdmi_phy_8996_cfg },
 	{}
 };
 
