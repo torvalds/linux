@@ -855,8 +855,9 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 
 	hdmi->ddc = inno_hdmi_i2c_adapter(hdmi);
 	if (IS_ERR(hdmi->ddc)) {
+		ret = PTR_ERR(hdmi->ddc);
 		hdmi->ddc = NULL;
-		return PTR_ERR(hdmi->ddc);
+		return ret;
 	}
 
 	/*
