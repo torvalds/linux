@@ -3837,7 +3837,7 @@ void rtl8821ae_update_channel_access_setting(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	u8 wireless_mode = mac->mode;
+	u16 wireless_mode = mac->mode;
 	u8 sifs_timer, r2t_sifs;
 
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SLOT_TIME,
