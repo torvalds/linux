@@ -63,7 +63,7 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	gc->parent = dev;
 	gc->owner = THIS_MODULE;
 
-	ret = gpiochip_add_data(gc, NULL);
+	ret = devm_gpiochip_add_data(dev, gc, NULL);
 	if (ret) {
 		dev_err(dev, "%s: gpiochip_add failed\n",
 			dev->of_node->full_name);
