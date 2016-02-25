@@ -340,6 +340,8 @@ struct atcs_pref_req_output {
 #       define ATPX_FIXED_NOT_SUPPORTED                            (1 << 9)
 #       define ATPX_DYNAMIC_DGPU_POWER_OFF_SUPPORTED               (1 << 10)
 #       define ATPX_DGPU_REQ_POWER_FOR_DISPLAYS                    (1 << 11)
+#       define ATPX_DGPU_CAN_DRIVE_DISPLAYS                        (1 << 12)
+#       define ATPX_MS_HYBRID_GFX_SUPPORTED                        (1 << 14)
 #define ATPX_FUNCTION_POWER_CONTROL                                0x2
 /* ARG0: ATPX_FUNCTION_POWER_CONTROL
  * ARG1:
