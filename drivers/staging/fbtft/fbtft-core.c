@@ -985,8 +985,6 @@ int fbtft_register_framebuffer(struct fb_info *fb_info)
 reg_fail:
 	if (par->fbtftops.unregister_backlight)
 		par->fbtftops.unregister_backlight(par);
-	if (spi)
-		spi_set_drvdata(spi, NULL);
 
 	return ret;
 }
@@ -1004,10 +1002,7 @@ EXPORT_SYMBOL(fbtft_register_framebuffer);
 int fbtft_unregister_framebuffer(struct fb_info *fb_info)
 {
 	struct fbtft_par *par = fb_info->par;
-	struct spi_device *spi = par->spi;
 
-	if (spi)
-		spi_set_drvdata(spi, NULL);
 	if (par->fbtftops.unregister_backlight)
 		par->fbtftops.unregister_backlight(par);
 	fbtft_sysfs_exit(par);
