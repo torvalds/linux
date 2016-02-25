@@ -367,7 +367,6 @@ static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mt7623_pinctrl_probe,
 	.driver = {
 		.name = "mediatek-mt7623-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = mt7623_pctrl_match,
 	},
 };
