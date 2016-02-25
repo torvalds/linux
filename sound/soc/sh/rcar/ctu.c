@@ -14,6 +14,7 @@
 
 struct rsnd_ctu {
 	struct rsnd_mod mod;
+	int channels;
 };
 
 #define rsnd_ctu_nr(priv) ((priv)->ctu_nr)
@@ -22,6 +23,9 @@ struct rsnd_ctu {
 	     ((i) < rsnd_ctu_nr(priv)) &&				\
 		     ((pos) = (struct rsnd_ctu *)(priv)->ctu + i);	\
 	     i++)
+
+#define rsnd_mod_to_ctu(_mod)	\
+	container_of((_mod), struct rsnd_ctu, mod)
 
 #define rsnd_ctu_get(priv, id) ((struct rsnd_ctu *)(priv->ctu) + id)
 
@@ -35,6 +39,13 @@ static void rsnd_ctu_halt(struct rsnd_mod *mod)
 {
 	rsnd_mod_write(mod, CTU_CTUIR, 1);
 	rsnd_mod_write(mod, CTU_SWRSR, 0);
+}
+
+int rsnd_ctu_converted_channel(struct rsnd_mod *mod)
+{
+	struct rsnd_ctu *ctu = rsnd_mod_to_ctu(mod);
+
+	return ctu->channels;
 }
 
 static int rsnd_ctu_probe_(struct rsnd_mod *mod,
@@ -116,11 +127,49 @@ static int rsnd_ctu_quit(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int rsnd_ctu_hw_params(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
+			      struct snd_pcm_substream *substream,
+			      struct snd_pcm_hw_params *fe_params)
+{
+	struct rsnd_ctu *ctu = rsnd_mod_to_ctu(mod);
+	struct snd_soc_pcm_runtime *fe = substream->private_data;
+
+	/*
+	 * CTU assumes that it is used under DPCM if user want to use
+	 * channel transfer. Then, CTU should be FE.
+	 * And then, this function will be called *after* BE settings.
+	 * this means, each BE already has fixuped hw_params.
+	 * see
+	 *	dpcm_fe_dai_hw_params()
+	 *	dpcm_be_dai_hw_params()
+	 */
+	ctu->channels = 0;
+	if (fe->dai_link->dynamic) {
+		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+		struct device *dev = rsnd_priv_to_dev(priv);
+		struct snd_soc_dpcm *dpcm;
+		struct snd_pcm_hw_params *be_params;
+		int stream = substream->stream;
+
+		list_for_each_entry(dpcm, &fe->dpcm[stream].be_clients, list_be) {
+			be_params = &dpcm->hw_params;
+			if (params_channels(fe_params) != params_channels(be_params))
+				ctu->channels = params_channels(be_params);
+		}
+
+		dev_dbg(dev, "CTU convert channels %d\n", ctu->channels);
+	}
+
+	return 0;
+}
+
 static struct rsnd_mod_ops rsnd_ctu_ops = {
 	.name		= CTU_NAME,
 	.probe		= rsnd_ctu_probe_,
 	.init		= rsnd_ctu_init,
 	.quit		= rsnd_ctu_quit,
+	.hw_params	= rsnd_ctu_hw_params,
 };
 
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)
