@@ -858,6 +858,7 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 static void gb_connection_recv_response(struct gb_connection *connection,
 			u16 operation_id, u8 result, void *data, size_t size)
 {
+	struct gb_operation_msg_hdr *header;
 	struct gb_operation *operation;
 	struct gb_message *message;
 	int errno = gb_operation_status_map(result);
@@ -872,11 +873,12 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	}
 
 	message = operation->response;
-	message_size = sizeof(*message->header) + message->payload_size;
+	header = message->header;
+	message_size = sizeof(*header) + message->payload_size;
 	if (!errno && size != message_size) {
 		dev_err(&connection->hd->dev,
 			"%s: malformed response 0x%02x received (%zu != %zu)\n",
-			connection->name, message->header->type, size,
+			connection->name, header->type, size,
 			message_size);
 		errno = -EMSGSIZE;
 	}
@@ -884,11 +886,11 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 
 	/* We must ignore the payload if a bad status is returned */
 	if (errno)
-		size = sizeof(*message->header);
+		size = sizeof(*header);
 
 	/* The rest will be handled in work queue context */
 	if (gb_operation_result_set(operation, errno)) {
-		memcpy(message->header, data, size);
+		memcpy(header, data, size);
 		queue_work(gb_operation_completion_wq, &operation->work);
 	}
 
