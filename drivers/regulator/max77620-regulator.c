@@ -62,13 +62,9 @@ enum max77620_regulator_type {
 
 struct max77620_regulator_info {
 	u8 type;
-	u32 min_uV;
-	u32 max_uV;
-	u32 step_uV;
 	u8 fps_addr;
 	u8 volt_addr;
 	u8 cfg_addr;
-	u8 volt_mask;
 	u8 power_mode_mask;
 	u8 power_mode_shift;
 	u8 remote_sense_addr;
@@ -92,7 +88,6 @@ struct max77620_regulator {
 	struct regmap *rmap;
 	struct max77620_regulator_info *rinfo[MAX77620_NUM_REGS];
 	struct max77620_regulator_pdata reg_pdata[MAX77620_NUM_REGS];
-	struct regulator_desc *rdesc[MAX77620_NUM_REGS];
 	int enable_power_mode[MAX77620_NUM_REGS];
 	int current_power_mode[MAX77620_NUM_REGS];
 	int active_fps_src[MAX77620_NUM_REGS];
@@ -596,15 +591,11 @@ static struct regulator_ops max77620_regulator_ops = {
 		_step_uV, _rs_add, _rs_mask)				\
 	[MAX77620_REGULATOR_ID_##_id] = {				\
 		.type = MAX77620_REGULATOR_TYPE_SD,			\
-		.volt_mask = MAX77620_##_volt_mask##_VOLT_MASK,		\
 		.volt_addr = MAX77620_REG_##_id,			\
 		.cfg_addr = MAX77620_REG_##_id##_CFG,			\
 		.fps_addr = MAX77620_REG_FPS_##_id,			\
 		.remote_sense_addr = _rs_add,				\
 		.remote_sense_mask = MAX77620_SD_CNF2_ROVS_EN_##_rs_mask, \
-		.min_uV = _min_uV,					\
-		.max_uV = _max_uV,					\
-		.step_uV = _step_uV,					\
 		.power_mode_mask = MAX77620_SD_POWER_MODE_MASK,		\
 		.power_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,	\
 		.desc = {						\
@@ -628,14 +619,10 @@ static struct regulator_ops max77620_regulator_ops = {
 #define RAIL_LDO(_id, _name, _sname, _type, _min_uV, _max_uV, _step_uV) \
 	[MAX77620_REGULATOR_ID_##_id] = {				\
 		.type = MAX77620_REGULATOR_TYPE_LDO_##_type,		\
-		.volt_mask = MAX77620_LDO_VOLT_MASK,			\
 		.volt_addr = MAX77620_REG_##_id##_CFG,			\
 		.cfg_addr = MAX77620_REG_##_id##_CFG2,			\
 		.fps_addr = MAX77620_REG_FPS_##_id,			\
 		.remote_sense_addr = 0xFF,				\
-		.min_uV = _min_uV,					\
-		.max_uV = _max_uV,					\
-		.step_uV = _step_uV,					\
 		.power_mode_mask = MAX77620_LDO_POWER_MODE_MASK,	\
 		.power_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,	\
 		.desc = {						\
@@ -736,7 +723,6 @@ static int max77620_regulator_probe(struct platform_device *pdev)
 		rdesc = &rinfo[id].desc;
 		pmic->rinfo[id] = &max77620_regs_info[id];
 		pmic->enable_power_mode[id] = MAX77620_POWER_MODE_NORMAL;
-		pmic->rdesc[id] = rdesc;
 
 		ret = max77620_read_slew_rate(pmic, id);
 		if (ret < 0)
