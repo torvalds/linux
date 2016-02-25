@@ -73,6 +73,12 @@
 		rtic_d = &rtic_d;
 		sec_mon = &sec_mon;
 
+		raideng = &raideng;
+		raideng_jr0 = &raideng_jr0;
+		raideng_jr1 = &raideng_jr1;
+		raideng_jr2 = &raideng_jr2;
+		raideng_jr3 = &raideng_jr3;
+
 		fman0 = &fman0;
 		fman1 = &fman1;
 		ethernet0 = &enet0;
