@@ -106,7 +106,7 @@ struct connect_resp_info {
 };
 
 struct connect_info {
-	u8 au8bssid[6];
+	u8 bssid[6];
 	u8 *pu8ReqIEs;
 	size_t ReqIEsLen;
 	u8 *pu8RespIEs;

@@ -521,12 +521,12 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 			bool bNeedScanRefresh = false;
 			u32 i;
 
-			memcpy(priv->au8AssociatedBss, pstrConnectInfo->au8bssid, ETH_ALEN);
+			memcpy(priv->au8AssociatedBss, pstrConnectInfo->bssid, ETH_ALEN);
 
 
 			for (i = 0; i < last_scanned_cnt; i++) {
 				if (memcmp(last_scanned_shadow[i].bssid,
-					   pstrConnectInfo->au8bssid,
+					   pstrConnectInfo->bssid,
 					   ETH_ALEN) == 0) {
 					unsigned long now = jiffies;
 
@@ -543,7 +543,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 				refresh_scan(priv, 1, true);
 		}
 
-		cfg80211_connect_result(dev, pstrConnectInfo->au8bssid,
+		cfg80211_connect_result(dev, pstrConnectInfo->bssid,
 					pstrConnectInfo->pu8ReqIEs, pstrConnectInfo->ReqIEsLen,
 					pstrConnectInfo->pu8RespIEs, pstrConnectInfo->u16RespIEsLen,
 					u16ConnectStatus, GFP_KERNEL);
