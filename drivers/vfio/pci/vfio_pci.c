@@ -664,12 +664,11 @@ static long vfio_pci_ioctl(void *device_data,
 				info.cap_offset = 0;
 			} else {
 				vfio_info_cap_shift(&caps, sizeof(info));
-				ret = copy_to_user((void __user *)arg +
-						   sizeof(info), caps.buf,
-						   caps.size);
-				if (ret) {
+				if (copy_to_user((void __user *)arg +
+						  sizeof(info), caps.buf,
+						  caps.size)) {
 					kfree(caps.buf);
-					return ret;
+					return -EFAULT;
 				}
 				info.cap_offset = sizeof(info);
 			}
