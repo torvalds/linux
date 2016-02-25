@@ -1657,7 +1657,7 @@ static inline int md_cancel_unused(struct obd_export *exp,
 				   const struct lu_fid *fid,
 				   ldlm_policy_data_t *policy,
 				   enum ldlm_mode mode,
-				   ldlm_cancel_flags_t flags,
+				   enum ldlm_cancel_flags flags,
 				   void *opaque)
 {
 	int rc;

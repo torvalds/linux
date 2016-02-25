@@ -533,12 +533,12 @@ struct ldlm_interval_tree {
 #define LUSTRE_TRACKS_LOCK_EXP_REFS (0)
 
 /** Cancel flags. */
-typedef enum {
+enum ldlm_cancel_flags {
 	LCF_ASYNC      = 0x1, /* Cancel locks asynchronously. */
 	LCF_LOCAL      = 0x2, /* Cancel locks locally, not notifing server */
 	LCF_BL_AST     = 0x4, /* Cancel locks marked as LDLM_FL_BL_AST
 			       * in the same RPC */
-} ldlm_cancel_flags_t;
+};
 
 struct ldlm_flock {
 	__u64 start;
@@ -1245,24 +1245,26 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			  struct lustre_handle *lockh, int rc);
 int ldlm_cli_update_pool(struct ptlrpc_request *req);
 int ldlm_cli_cancel(struct lustre_handle *lockh,
-		    ldlm_cancel_flags_t cancel_flags);
+		    enum ldlm_cancel_flags cancel_flags);
 int ldlm_cli_cancel_unused(struct ldlm_namespace *, const struct ldlm_res_id *,
-			   ldlm_cancel_flags_t flags, void *opaque);
+			   enum ldlm_cancel_flags flags, void *opaque);
 int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 				    const struct ldlm_res_id *res_id,
 				    ldlm_policy_data_t *policy,
 				    enum ldlm_mode mode,
-				    ldlm_cancel_flags_t flags,
+				    enum ldlm_cancel_flags flags,
 				    void *opaque);
 int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
 			       ldlm_policy_data_t *policy,
 			       enum ldlm_mode mode, __u64 lock_flags,
-			       ldlm_cancel_flags_t cancel_flags, void *opaque);
+			       enum ldlm_cancel_flags cancel_flags,
+			       void *opaque);
 int ldlm_cli_cancel_list_local(struct list_head *cancels, int count,
-			       ldlm_cancel_flags_t flags);
+			       enum ldlm_cancel_flags flags);
 int ldlm_cli_cancel_list(struct list_head *head, int count,
-			 struct ptlrpc_request *req, ldlm_cancel_flags_t flags);
+			 struct ptlrpc_request *req,
+			 enum ldlm_cancel_flags flags);
 /** @} ldlm_cli_api */
 
 /* mds/handler.c */

@@ -2491,7 +2491,7 @@ static int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 
 static int lmv_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
 			     ldlm_policy_data_t *policy, enum ldlm_mode mode,
-			     ldlm_cancel_flags_t flags, void *opaque)
+			     enum ldlm_cancel_flags flags, void *opaque)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;

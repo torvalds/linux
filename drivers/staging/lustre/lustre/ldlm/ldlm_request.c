@@ -860,7 +860,7 @@ static void ldlm_cancel_pack(struct ptlrpc_request *req,
  * handles of locks given in \a cancels list. */
 static int ldlm_cli_cancel_req(struct obd_export *exp,
 			       struct list_head *cancels,
-			       int count, ldlm_cancel_flags_t flags)
+			       int count, enum ldlm_cancel_flags flags)
 {
 	struct ptlrpc_request *req = NULL;
 	struct obd_import *imp;
@@ -1003,7 +1003,7 @@ EXPORT_SYMBOL(ldlm_cli_update_pool);
  * Lock must not have any readers or writers by this time.
  */
 int ldlm_cli_cancel(struct lustre_handle *lockh,
-		    ldlm_cancel_flags_t cancel_flags)
+		    enum ldlm_cancel_flags cancel_flags)
 {
 	struct obd_export *exp;
 	int avail, flags, count = 1;
@@ -1053,7 +1053,7 @@ EXPORT_SYMBOL(ldlm_cli_cancel);
  * Return the number of cancelled locks.
  */
 int ldlm_cli_cancel_list_local(struct list_head *cancels, int count,
-			       ldlm_cancel_flags_t flags)
+			       enum ldlm_cancel_flags flags)
 {
 	LIST_HEAD(head);
 	struct ldlm_lock *lock, *next;
@@ -1423,7 +1423,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 
 int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
 			  struct list_head *cancels, int count, int max,
-			  ldlm_cancel_flags_t cancel_flags, int flags)
+			  enum ldlm_cancel_flags cancel_flags, int flags)
 {
 	int added;
 
@@ -1442,7 +1442,7 @@ int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
  * callback will be performed in this function.
  */
 int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,
-		    ldlm_cancel_flags_t cancel_flags,
+		    enum ldlm_cancel_flags cancel_flags,
 		    int flags)
 {
 	LIST_HEAD(cancels);
@@ -1467,7 +1467,8 @@ int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
 			       ldlm_policy_data_t *policy,
 			       enum ldlm_mode mode, __u64 lock_flags,
-			       ldlm_cancel_flags_t cancel_flags, void *opaque)
+			       enum ldlm_cancel_flags cancel_flags,
+			       void *opaque)
 {
 	struct ldlm_lock *lock;
 	int count = 0;
@@ -1525,7 +1526,8 @@ EXPORT_SYMBOL(ldlm_cancel_resource_local);
  * Destroy \a cancels at the end.
  */
 int ldlm_cli_cancel_list(struct list_head *cancels, int count,
-			 struct ptlrpc_request *req, ldlm_cancel_flags_t flags)
+			 struct ptlrpc_request *req,
+			 enum ldlm_cancel_flags flags)
 {
 	struct ldlm_lock *lock;
 	int res = 0;
@@ -1580,7 +1582,7 @@ int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 				    const struct ldlm_res_id *res_id,
 				    ldlm_policy_data_t *policy,
 				    enum ldlm_mode mode,
-				    ldlm_cancel_flags_t flags,
+				    enum ldlm_cancel_flags flags,
 				    void *opaque)
 {
 	struct ldlm_resource *res;
@@ -1636,7 +1638,7 @@ static int ldlm_cli_hash_cancel_unused(struct cfs_hash *hs,
  * to notify the server. */
 int ldlm_cli_cancel_unused(struct ldlm_namespace *ns,
 			   const struct ldlm_res_id *res_id,
-			   ldlm_cancel_flags_t flags, void *opaque)
+			   enum ldlm_cancel_flags flags, void *opaque)
 {
 	struct ldlm_cli_cancel_arg arg = {
 		.lc_flags       = flags,

@@ -120,7 +120,7 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	       struct ptlrpc_request **request);
 int mdc_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
 		      ldlm_policy_data_t *policy, enum ldlm_mode mode,
-		      ldlm_cancel_flags_t flags, void *opaque);
+		      enum ldlm_cancel_flags flags, void *opaque);
 
 int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 			struct lu_fid *fid, __u64 *bits);

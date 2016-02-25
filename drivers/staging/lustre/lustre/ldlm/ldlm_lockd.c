@@ -107,7 +107,7 @@ struct ldlm_bl_work_item {
 	struct list_head	      blwi_head;
 	int		     blwi_count;
 	struct completion	blwi_comp;
-	ldlm_cancel_flags_t     blwi_flags;
+	enum ldlm_cancel_flags  blwi_flags;
 	int		     blwi_mem_pressure;
 };
 
@@ -353,7 +353,7 @@ static int ldlm_callback_reply(struct ptlrpc_request *req, int rc)
 }
 
 static int __ldlm_bl_to_thread(struct ldlm_bl_work_item *blwi,
-			       ldlm_cancel_flags_t cancel_flags)
+			       enum ldlm_cancel_flags cancel_flags)
 {
 	struct ldlm_bl_pool *blp = ldlm_state->ldlm_bl_pool;
 
@@ -383,7 +383,7 @@ static inline void init_blwi(struct ldlm_bl_work_item *blwi,
 			     struct ldlm_lock_desc *ld,
 			     struct list_head *cancels, int count,
 			     struct ldlm_lock *lock,
-			     ldlm_cancel_flags_t cancel_flags)
+			     enum ldlm_cancel_flags cancel_flags)
 {
 	init_completion(&blwi->blwi_comp);
 	INIT_LIST_HEAD(&blwi->blwi_head);
@@ -417,7 +417,7 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 			     struct ldlm_lock_desc *ld,
 			     struct ldlm_lock *lock,
 			     struct list_head *cancels, int count,
-			     ldlm_cancel_flags_t cancel_flags)
+			     enum ldlm_cancel_flags cancel_flags)
 {
 	if (cancels && count == 0)
 		return 0;
@@ -451,7 +451,7 @@ int ldlm_bl_to_thread_lock(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 
 int ldlm_bl_to_thread_list(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 			   struct list_head *cancels, int count,
-			   ldlm_cancel_flags_t cancel_flags)
+			   enum ldlm_cancel_flags cancel_flags)
 {
 	return ldlm_bl_to_thread(ns, ld, NULL, cancels, count, cancel_flags);
 }

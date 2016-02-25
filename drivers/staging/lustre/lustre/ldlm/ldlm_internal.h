@@ -100,10 +100,10 @@ enum {
 };
 
 int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,
-		    ldlm_cancel_flags_t sync, int flags);
+		    enum ldlm_cancel_flags sync, int flags);
 int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
 			 struct list_head *cancels, int count, int max,
-			 ldlm_cancel_flags_t cancel_flags, int flags);
+			 enum ldlm_cancel_flags cancel_flags, int flags);
 extern int ldlm_enqueue_min;
 
 /* ldlm_resource.c */
@@ -154,7 +154,7 @@ int ldlm_bl_to_thread_lock(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 int ldlm_bl_to_thread_list(struct ldlm_namespace *ns,
 			   struct ldlm_lock_desc *ld,
 			   struct list_head *cancels, int count,
-			   ldlm_cancel_flags_t cancel_flags);
+			   enum ldlm_cancel_flags cancel_flags);
 
 void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 			     struct ldlm_lock_desc *ld, struct ldlm_lock *lock);

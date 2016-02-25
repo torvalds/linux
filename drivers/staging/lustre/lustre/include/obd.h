@@ -1167,7 +1167,7 @@ struct md_ops {
 
 	int (*cancel_unused)(struct obd_export *, const struct lu_fid *,
 			     ldlm_policy_data_t *, enum ldlm_mode,
-			     ldlm_cancel_flags_t flags, void *opaque);
+			     enum ldlm_cancel_flags flags, void *opaque);
 
 	int (*get_remote_perm)(struct obd_export *, const struct lu_fid *,
 			       __u32, struct ptlrpc_request **);
