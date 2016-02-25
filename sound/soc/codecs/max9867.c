@@ -156,6 +156,8 @@ static inline int get_ni_value(int mclk, int rate)
 		if (ni_div[i].mclk >= mclk)
 			break;
 	}
+	if (i == ARRAY_SIZE(ni_div))
+		return -EINVAL;
 
 	switch (rate) {
 	case 8000:
