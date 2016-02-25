@@ -75,7 +75,8 @@
 } while (0)
 
 /* This is a callback from the llog_* functions.
- * Assumes caller has already pushed us into the kernel context. */
+ * Assumes caller has already pushed us into the kernel context.
+ */
 static int llog_client_open(const struct lu_env *env,
 			    struct llog_handle *lgh, struct llog_logid *logid,
 			    char *name, enum llog_open_param open_param)
@@ -316,8 +317,9 @@ static int llog_client_close(const struct lu_env *env,
 			     struct llog_handle *handle)
 {
 	/* this doesn't call LLOG_ORIGIN_HANDLE_CLOSE because
-	   the servers all close the file at the end of every
-	   other LLOG_ RPC. */
+	 *  the servers all close the file at the end of every
+	 * other LLOG_ RPC.
+	 */
 	return 0;
 }
 

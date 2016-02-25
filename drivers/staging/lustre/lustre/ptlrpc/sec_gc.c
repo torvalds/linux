@@ -166,11 +166,13 @@ again:
 		 * is not optimal. we perhaps want to use balanced binary tree
 		 * to trace each sec as order of expiry time.
 		 * another issue here is we wakeup as fixed interval instead of
-		 * according to each sec's expiry time */
+		 * according to each sec's expiry time
+		 */
 		mutex_lock(&sec_gc_mutex);
 		list_for_each_entry(sec, &sec_gc_list, ps_gc_list) {
 			/* if someone is waiting to be deleted, let it
-			 * proceed as soon as possible. */
+			 * proceed as soon as possible.
+			 */
 			if (atomic_read(&sec_gc_wait_del)) {
 				CDEBUG(D_SEC, "deletion pending, start over\n");
 				mutex_unlock(&sec_gc_mutex);

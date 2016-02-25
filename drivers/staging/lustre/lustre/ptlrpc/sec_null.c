@@ -258,7 +258,8 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		 * imp_replay_list traversing threads. See LU-3333
 		 * This is a bandaid at best, we really need to deal with this
 		 * in request enlarging code before unpacking that's already
-		 * there */
+		 * there
+		 */
 		if (req->rq_import)
 			spin_lock(&req->rq_import->imp_lock);
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqlen);

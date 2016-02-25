@@ -241,7 +241,8 @@ void ptlrpcd_add_req(struct ptlrpc_request *req)
 		l_wait_event(req->rq_set_waitq, !req->rq_set, &lwi);
 	} else if (req->rq_set) {
 		/* If we have a valid "rq_set", just reuse it to avoid double
-		 * linked. */
+		 * linked.
+		 */
 		LASSERT(req->rq_phase == RQ_PHASE_NEW);
 		LASSERT(req->rq_send_state == LUSTRE_IMP_REPLAY);
 
@@ -319,7 +320,8 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 		rc |= ptlrpc_check_set(env, set);
 
 	/* NB: ptlrpc_check_set has already moved completed request at the
-	 * head of seq::set_requests */
+	 * head of seq::set_requests
+	 */
 	list_for_each_safe(pos, tmp, &set->set_requests) {
 		req = list_entry(pos, struct ptlrpc_request, rq_set_chain);
 		if (req->rq_phase != RQ_PHASE_COMPLETE)
@@ -337,7 +339,8 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 		rc = atomic_read(&set->set_new_count);
 
 		/* If we have nothing to do, check whether we can take some
-		 * work from our partner threads. */
+		 * work from our partner threads.
+		 */
 		if (rc == 0 && pc->pc_npartners > 0) {
 			struct ptlrpcd_ctl *partner;
 			struct ptlrpc_request_set *ps;

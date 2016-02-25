@@ -445,7 +445,8 @@ int sptlrpc_req_ctx_switch(struct ptlrpc_request *req,
 
 	/* alloc new request buffer
 	 * we don't need to alloc reply buffer here, leave it to the
-	 * rest procedure of ptlrpc */
+	 * rest procedure of ptlrpc
+	 */
 	if (reqmsg_size != 0) {
 		rc = sptlrpc_cli_alloc_reqbuf(req, reqmsg_size);
 		if (!rc) {
@@ -798,7 +799,8 @@ void sptlrpc_req_set_flavor(struct ptlrpc_request *req, int opcode)
 	spin_unlock(&sec->ps_lock);
 
 	/* force SVC_NULL for context initiation rpc, SVC_INTG for context
-	 * destruction rpc */
+	 * destruction rpc
+	 */
 	if (unlikely(req->rq_ctx_init))
 		flvr_set_svc(&req->rq_flvr.sf_rpc, SPTLRPC_SVC_NULL);
 	else if (unlikely(req->rq_ctx_fini))
@@ -1688,7 +1690,8 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 		return 0;
 
 	/* client side export has no imp_reverse, skip
-	 * FIXME maybe we should check flavor this as well??? */
+	 * FIXME maybe we should check flavor this as well???
+	 */
 	if (!exp->exp_imp_reverse)
 		return 0;
 
@@ -1702,11 +1705,13 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	 * the first req with the new flavor, then treat it as current flavor,
 	 * adapt reverse sec according to it.
 	 * note the first rpc with new flavor might not be with root ctx, in
-	 * which case delay the sec_adapt by leaving exp_flvr_adapt == 1. */
+	 * which case delay the sec_adapt by leaving exp_flvr_adapt == 1.
+	 */
 	if (unlikely(exp->exp_flvr_changed) &&
 	    flavor_allowed(&exp->exp_flvr_old[1], req)) {
 		/* make the new flavor as "current", and old ones as
-		 * about-to-expire */
+		 * about-to-expire
+		 */
 		CDEBUG(D_SEC, "exp %p: just changed: %x->%x\n", exp,
 		       exp->exp_flvr.sf_rpc, exp->exp_flvr_old[1].sf_rpc);
 		flavor = exp->exp_flvr_old[1];
@@ -1742,10 +1747,12 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	}
 
 	/* if it equals to the current flavor, we accept it, but need to
-	 * dealing with reverse sec/ctx */
+	 * dealing with reverse sec/ctx
+	 */
 	if (likely(flavor_allowed(&exp->exp_flvr, req))) {
 		/* most cases should return here, we only interested in
-		 * gss root ctx init */
+		 * gss root ctx init
+		 */
 		if (!req->rq_auth_gss || !req->rq_ctx_init ||
 		    (!req->rq_auth_usr_root && !req->rq_auth_usr_mdt &&
 		     !req->rq_auth_usr_ost)) {
@@ -1755,7 +1762,8 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 
 		/* if flavor just changed, we should not proceed, just leave
 		 * it and current flavor will be discovered and replaced
-		 * shortly, and let _this_ rpc pass through */
+		 * shortly, and let _this_ rpc pass through
+		 */
 		if (exp->exp_flvr_changed) {
 			LASSERT(exp->exp_flvr_adapt);
 			spin_unlock(&exp->exp_lock);
@@ -1809,7 +1817,8 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	}
 
 	/* now it doesn't match the current flavor, the only chance we can
-	 * accept it is match the old flavors which is not expired. */
+	 * accept it is match the old flavors which is not expired.
+	 */
 	if (exp->exp_flvr_changed == 0 && exp->exp_flvr_expire[1]) {
 		if (exp->exp_flvr_expire[1] >= ktime_get_real_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[1], req)) {

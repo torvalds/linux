@@ -114,7 +114,8 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 		if (req->rq_transno > last_transno) {
 			/* Since the imp_committed_list is immutable before
 			 * all of it's requests being replayed, it's safe to
-			 * use a cursor to accelerate the search */
+			 * use a cursor to accelerate the search
+			 */
 			imp->imp_replay_cursor = imp->imp_replay_cursor->next;
 
 			while (imp->imp_replay_cursor !=
@@ -137,7 +138,8 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	}
 
 	/* All the requests in committed list have been replayed, let's replay
-	 * the imp_replay_list */
+	 * the imp_replay_list
+	 */
 	if (!req) {
 		list_for_each_safe(tmp, pos, &imp->imp_replay_list) {
 			req = list_entry(tmp, struct ptlrpc_request,
@@ -152,7 +154,8 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	/* If need to resend the last sent transno (because a reconnect
 	 * has occurred), then stop on the matching req and send it again.
 	 * If, however, the last sent transno has been committed then we
-	 * continue replay from the next request. */
+	 * continue replay from the next request.
+	 */
 	if (req && imp->imp_resend_replay)
 		lustre_msg_add_flags(req->rq_reqmsg, MSG_RESENT);
 
@@ -249,7 +252,8 @@ void ptlrpc_request_handle_notconn(struct ptlrpc_request *failed_req)
 	}
 
 	/* Wait for recovery to complete and resend. If evicted, then
-	   this request will be errored out later.*/
+	 * this request will be errored out later.
+	 */
 	spin_lock(&failed_req->rq_lock);
 	if (!failed_req->rq_no_resend)
 		failed_req->rq_resend = 1;
@@ -271,13 +275,15 @@ int ptlrpc_set_import_active(struct obd_import *imp, int active)
 	LASSERT(obd);
 
 	/* When deactivating, mark import invalid, and abort in-flight
-	 * requests. */
+	 * requests.
+	 */
 	if (!active) {
 		LCONSOLE_WARN("setting import %s INACTIVE by administrator request\n",
 			      obd2cli_tgt(imp->imp_obd));
 
 		/* set before invalidate to avoid messages about imp_inval
-		 * set without imp_deactive in ptlrpc_import_delay_req */
+		 * set without imp_deactive in ptlrpc_import_delay_req
+		 */
 		spin_lock(&imp->imp_lock);
 		imp->imp_deactive = 1;
 		spin_unlock(&imp->imp_lock);

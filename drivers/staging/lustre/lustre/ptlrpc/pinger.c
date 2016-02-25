@@ -257,11 +257,12 @@ static int ptlrpc_pinger_main(void *arg)
 		/* Wait until the next ping time, or until we're stopped. */
 		time_to_next_wake = pinger_check_timeout(this_ping);
 		/* The ping sent by ptlrpc_send_rpc may get sent out
-		   say .01 second after this.
-		   ptlrpc_pinger_sending_on_import will then set the
-		   next ping time to next_ping + .01 sec, which means
-		   we will SKIP the next ping at next_ping, and the
-		   ping will get sent 2 timeouts from now!  Beware. */
+		 * say .01 second after this.
+		 * ptlrpc_pinger_sending_on_import will then set the
+		 * next ping time to next_ping + .01 sec, which means
+		 * we will SKIP the next ping at next_ping, and the
+		 * ping will get sent 2 timeouts from now!  Beware.
+		 */
 		CDEBUG(D_INFO, "next wakeup in " CFS_DURATION_T " (%ld)\n",
 		       time_to_next_wake,
 		       cfs_time_add(this_ping,

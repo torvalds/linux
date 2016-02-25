@@ -133,7 +133,8 @@ EXPORT_SYMBOL(lustre_msg_size_v2);
  * NOTE: this should only be used for NEW requests, and should always be
  *       in the form of a v2 request.  If this is a connection to a v1
  *       target then the first buffer will be stripped because the ptlrpc
- *       data is part of the lustre_msg_v1 header. b=14043 */
+ *       data is part of the lustre_msg_v1 header. b=14043
+ */
 int lustre_msg_size(__u32 magic, int count, __u32 *lens)
 {
 	__u32 size[] = { sizeof(struct ptlrpc_body) };
@@ -157,7 +158,8 @@ int lustre_msg_size(__u32 magic, int count, __u32 *lens)
 EXPORT_SYMBOL(lustre_msg_size);
 
 /* This is used to determine the size of a buffer that was already packed
- * and will correctly handle the different message formats. */
+ * and will correctly handle the different message formats.
+ */
 int lustre_packed_msg_size(struct lustre_msg *msg)
 {
 	switch (msg->lm_magic) {
@@ -267,7 +269,8 @@ lustre_get_emerg_rs(struct ptlrpc_service_part *svcpt)
 
 		spin_unlock(&svcpt->scp_rep_lock);
 		/* If we cannot get anything for some long time, we better
-		 * bail out instead of waiting infinitely */
+		 * bail out instead of waiting infinitely
+		 */
 		lwi = LWI_TIMEOUT(cfs_time_seconds(10), NULL, NULL);
 		rc = l_wait_event(svcpt->scp_rep_waitq,
 				  !list_empty(&svcpt->scp_rep_idle), &lwi);
@@ -676,7 +679,8 @@ int lustre_msg_buflen(struct lustre_msg *m, int n)
 EXPORT_SYMBOL(lustre_msg_buflen);
 
 /* NB return the bufcount for lustre_msg_v2 format, so if message is packed
- * in V1 format, the result is one bigger. (add struct ptlrpc_body). */
+ * in V1 format, the result is one bigger. (add struct ptlrpc_body).
+ */
 int lustre_msg_bufcount(struct lustre_msg *m)
 {
 	switch (m->lm_magic) {
@@ -797,7 +801,8 @@ __u32 lustre_msg_get_flags(struct lustre_msg *msg)
 	/* no break */
 	default:
 		/* flags might be printed in debug code while message
-		 * uninitialized */
+		 * uninitialized
+		 */
 		return 0;
 	}
 }
@@ -1030,7 +1035,8 @@ int lustre_msg_get_status(struct lustre_msg *msg)
 	/* no break */
 	default:
 		/* status might be printed in debug code while message
-		 * uninitialized */
+		 * uninitialized
+		 */
 		return -EINVAL;
 	}
 }
@@ -1366,7 +1372,8 @@ void lustre_msg_set_jobid(struct lustre_msg *msg, char *jobid)
 		struct ptlrpc_body *pb;
 
 		/* Don't set jobid for ldlm ast RPCs, they've been shrunk.
-		 * See the comment in ptlrpc_request_pack(). */
+		 * See the comment in ptlrpc_request_pack().
+		 */
 		if (!opc || opc == LDLM_BL_CALLBACK ||
 		    opc == LDLM_CP_CALLBACK || opc == LDLM_GL_CALLBACK)
 			return;
@@ -1486,7 +1493,8 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *b)
 	 * clients and servers without ptlrpc_body_v2 (< 2.3)
 	 * do not swab any fields beyond pb_jobid, as we are
 	 * using this swab function for both ptlrpc_body
-	 * and ptlrpc_body_v2. */
+	 * and ptlrpc_body_v2.
+	 */
 	CLASSERT(offsetof(typeof(*b), pb_jobid) != 0);
 }
 EXPORT_SYMBOL(lustre_swab_ptlrpc_body);
@@ -1500,7 +1508,8 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 	__swab32s(&ocd->ocd_index);
 	__swab32s(&ocd->ocd_brw_size);
 	/* ocd_blocksize and ocd_inodespace don't need to be swabbed because
-	 * they are 8-byte values */
+	 * they are 8-byte values
+	 */
 	__swab16s(&ocd->ocd_grant_extent);
 	__swab32s(&ocd->ocd_unused);
 	__swab64s(&ocd->ocd_transno);
@@ -1510,7 +1519,8 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 	/* Fields after ocd_cksum_types are only accessible by the receiver
 	 * if the corresponding flag in ocd_connect_flags is set. Accessing
 	 * any field after ocd_maxbytes on the receiver without a valid flag
-	 * may result in out-of-bound memory access and kernel oops. */
+	 * may result in out-of-bound memory access and kernel oops.
+	 */
 	if (ocd->ocd_connect_flags & OBD_CONNECT_MAX_EASIZE)
 		__swab32s(&ocd->ocd_max_easize);
 	if (ocd->ocd_connect_flags & OBD_CONNECT_MAXBYTES)
@@ -1970,7 +1980,8 @@ static void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d)
 {
 	/* the lock data is a union and the first two fields are always an
 	 * extent so it's ok to process an LDLM_EXTENT and LDLM_FLOCK lock
-	 * data the same way. */
+	 * data the same way.
+	 */
 	__swab64s(&d->l_extent.start);
 	__swab64s(&d->l_extent.end);
 	__swab64s(&d->l_extent.gid);

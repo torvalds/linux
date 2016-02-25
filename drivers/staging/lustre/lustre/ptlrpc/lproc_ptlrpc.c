@@ -306,7 +306,8 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
 
 	/* This sanity check is more of an insanity check; we can still
 	 * hose a kernel by allowing the request history to grow too
-	 * far. */
+	 * far.
+	 */
 	bufpages = (svc->srv_buf_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (val > totalram_pages / (2 * bufpages))
 		return -ERANGE;
@@ -737,7 +738,8 @@ ptlrpc_lprocfs_svc_req_history_seek(struct ptlrpc_service_part *svcpt,
 		 * recent), search from it onwards.
 		 * Since the service history is LRU (i.e. culled reqs will
 		 * be near the head), we shouldn't have to do long
-		 * re-scans */
+		 * re-scans
+		 */
 		LASSERTF(srhi->srhi_seq == srhi->srhi_req->rq_history_seq,
 			 "%s:%d: seek seq %llu, request seq %llu\n",
 			 svcpt->scp_service->srv_name, svcpt->scp_cpt,
@@ -915,7 +917,8 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 		 * here.  The request could contain any old crap, so you
 		 * must be just as careful as the service's request
 		 * parser. Currently I only print stuff here I know is OK
-		 * to look at coz it was set up in request_in_callback()!!! */
+		 * to look at coz it was set up in request_in_callback()!!!
+		 */
 		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%lld:%lds(%+lds) ",
 			   req->rq_history_seq, nidstr,
 			   libcfs_id2str(req->rq_peer), req->rq_xid,

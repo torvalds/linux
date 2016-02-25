@@ -43,9 +43,6 @@
 #include "../../include/linux/libcfs/libcfs.h"
 #include "ptlrpc_internal.h"
 
-/* XXX: This is just for liblustre. Remove the #if defined directive when the
- * "cfs_" prefix is dropped from cfs_list_head. */
-
 /**
  * NRS core object.
  */
@@ -1358,7 +1355,8 @@ void ptlrpc_nrs_req_finalize(struct ptlrpc_request *req)
 	if (req->rq_nrq.nr_initialized) {
 		nrs_resource_put_safe(req->rq_nrq.nr_res_ptrs);
 		/* no protection on bit nr_initialized because no
-		 * contention at this late stage */
+		 * contention at this late stage
+		 */
 		req->rq_nrq.nr_finalized = 1;
 	}
 }

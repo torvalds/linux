@@ -264,7 +264,8 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 		}
 	} else {
 		/* whether we sent with bulk or not, we expect the same
-		 * in reply, except for early reply */
+		 * in reply, except for early reply
+		 */
 		if (!req->rq_early &&
 		    !equi(req->rq_pack_bulk == 1,
 			  phdr->ph_flags & PLAIN_FL_BULK)) {
@@ -673,7 +674,8 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		 * imp_replay_list traversing threads. See LU-3333
 		 * This is a bandaid at best, we really need to deal with this
 		 * in request enlarging code before unpacking that's already
-		 * there */
+		 * there
+		 */
 		if (req->rq_import)
 			spin_lock(&req->rq_import->imp_lock);
 
