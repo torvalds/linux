@@ -530,20 +530,25 @@ err_cache:
  * invalid operation type for all protocols, and this is enforced
  * here.
  */
-struct gb_operation *gb_operation_create(struct gb_connection *connection,
-					u8 type, size_t request_size,
-					size_t response_size,
-					gfp_t gfp)
+struct gb_operation *
+gb_operation_create_flags(struct gb_connection *connection,
+				u8 type, size_t request_size,
+				size_t response_size, unsigned long flags,
+				gfp_t gfp)
 {
 	if (WARN_ON_ONCE(type == GB_OPERATION_TYPE_INVALID))
 		return NULL;
 	if (WARN_ON_ONCE(type & GB_MESSAGE_TYPE_RESPONSE))
 		type &= ~GB_MESSAGE_TYPE_RESPONSE;
 
+	if (WARN_ON_ONCE(flags & ~GB_OPERATION_FLAG_USER_MASK))
+		flags &= GB_OPERATION_FLAG_USER_MASK;
+
 	return gb_operation_create_common(connection, type,
-					request_size, response_size, 0, gfp);
+						request_size, response_size,
+						flags, gfp);
 }
-EXPORT_SYMBOL_GPL(gb_operation_create);
+EXPORT_SYMBOL_GPL(gb_operation_create_flags);
 
 size_t gb_operation_get_payload_size_max(struct gb_connection *connection)
 {
@@ -875,12 +880,22 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	message = operation->response;
 	header = message->header;
 	message_size = sizeof(*header) + message->payload_size;
-	if (!errno && size != message_size) {
+	if (!errno && size > message_size) {
 		dev_err(&connection->hd->dev,
-			"%s: malformed response 0x%02x received (%zu != %zu)\n",
-			connection->name, header->type, size,
-			message_size);
+				"%s: malformed response 0x%02x received (%zu > %zu)\n",
+				connection->name, header->type,
+				size, message_size);
 		errno = -EMSGSIZE;
+	} else if (!errno && size < message_size) {
+		if (gb_operation_short_response_allowed(operation)) {
+			message->payload_size = size - sizeof(*header);
+		} else {
+			dev_err(&connection->hd->dev,
+					"%s: short response 0x%02x received (%zu < %zu)\n",
+					connection->name, header->type,
+					size, message_size);
+			errno = -EMSGSIZE;
+		}
 	}
 	trace_gb_message_recv_response(operation->response);
 
