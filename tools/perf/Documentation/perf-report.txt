@@ -401,6 +401,9 @@ include::itrace.txt[]
 --raw-trace::
 	When displaying traceevent output, do not use print fmt or plugins.
 
+--hierarchy::
+	Enable hierarchical output.
+
 include::callchain-overhead-calculation.txt[]
 
 SEE ALSO

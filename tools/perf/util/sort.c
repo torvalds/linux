@@ -6,6 +6,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include <traceevent/event-parse.h>
+#include "mem-events.h"
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -89,10 +90,21 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 			       width, width, comm ?: "");
 }
 
+static int hist_entry__thread_filter(struct hist_entry *he, int type, const void *arg)
+{
+	const struct thread *th = arg;
+
+	if (type != HIST_FILTER__THREAD)
+		return -1;
+
+	return th && he->thread != th;
+}
+
 struct sort_entry sort_thread = {
 	.se_header	= "  Pid:Command",
 	.se_cmp		= sort__thread_cmp,
 	.se_snprintf	= hist_entry__thread_snprintf,
+	.se_filter	= hist_entry__thread_filter,
 	.se_width_idx	= HISTC_THREAD,
 };
 
@@ -130,6 +142,7 @@ struct sort_entry sort_comm = {
 	.se_collapse	= sort__comm_collapse,
 	.se_sort	= sort__comm_sort,
 	.se_snprintf	= hist_entry__comm_snprintf,
+	.se_filter	= hist_entry__thread_filter,
 	.se_width_idx	= HISTC_COMM,
 };
 
@@ -179,10 +192,21 @@ static int hist_entry__dso_snprintf(struct hist_entry *he, char *bf,
 	return _hist_entry__dso_snprintf(he->ms.map, bf, size, width);
 }
 
+static int hist_entry__dso_filter(struct hist_entry *he, int type, const void *arg)
+{
+	const struct dso *dso = arg;
+
+	if (type != HIST_FILTER__DSO)
+		return -1;
+
+	return dso && (!he->ms.map || he->ms.map->dso != dso);
+}
+
 struct sort_entry sort_dso = {
 	.se_header	= "Shared Object",
 	.se_cmp		= sort__dso_cmp,
 	.se_snprintf	= hist_entry__dso_snprintf,
+	.se_filter	= hist_entry__dso_filter,
 	.se_width_idx	= HISTC_DSO,
 };
 
@@ -276,11 +300,22 @@ static int hist_entry__sym_snprintf(struct hist_entry *he, char *bf,
 					 he->level, bf, size, width);
 }
 
+static int hist_entry__sym_filter(struct hist_entry *he, int type, const void *arg)
+{
+	const char *sym = arg;
+
+	if (type != HIST_FILTER__SYMBOL)
+		return -1;
+
+	return sym && (!he->ms.sym || !strstr(he->ms.sym->name, sym));
+}
+
 struct sort_entry sort_sym = {
 	.se_header	= "Symbol",
 	.se_cmp		= sort__sym_cmp,
 	.se_sort	= sort__sym_sort,
 	.se_snprintf	= hist_entry__sym_snprintf,
+	.se_filter	= hist_entry__sym_filter,
 	.se_width_idx	= HISTC_SYMBOL,
 };
 
@@ -439,10 +474,21 @@ static int hist_entry__socket_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%*.*d", width, width-3, he->socket);
 }
 
+static int hist_entry__socket_filter(struct hist_entry *he, int type, const void *arg)
+{
+	int sk = *(const int *)arg;
+
+	if (type != HIST_FILTER__SOCKET)
+		return -1;
+
+	return sk >= 0 && he->socket != sk;
+}
+
 struct sort_entry sort_socket = {
 	.se_header      = "Socket",
 	.se_cmp	        = sort__socket_cmp,
 	.se_snprintf    = hist_entry__socket_snprintf,
+	.se_filter      = hist_entry__socket_filter,
 	.se_width_idx	= HISTC_SOCKET,
 };
 
@@ -529,6 +575,18 @@ static int hist_entry__dso_from_snprintf(struct hist_entry *he, char *bf,
 		return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");
 }
 
+static int hist_entry__dso_from_filter(struct hist_entry *he, int type,
+				       const void *arg)
+{
+	const struct dso *dso = arg;
+
+	if (type != HIST_FILTER__DSO)
+		return -1;
+
+	return dso && (!he->branch_info || !he->branch_info->from.map ||
+		       he->branch_info->from.map->dso != dso);
+}
+
 static int64_t
 sort__dso_to_cmp(struct hist_entry *left, struct hist_entry *right)
 {
@@ -547,6 +605,18 @@ static int hist_entry__dso_to_snprintf(struct hist_entry *he, char *bf,
 						 bf, size, width);
 	else
 		return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");
+}
+
+static int hist_entry__dso_to_filter(struct hist_entry *he, int type,
+				     const void *arg)
+{
+	const struct dso *dso = arg;
+
+	if (type != HIST_FILTER__DSO)
+		return -1;
+
+	return dso && (!he->branch_info || !he->branch_info->to.map ||
+		       he->branch_info->to.map->dso != dso);
 }
 
 static int64_t
@@ -610,10 +680,35 @@ static int hist_entry__sym_to_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, "N/A");
 }
 
+static int hist_entry__sym_from_filter(struct hist_entry *he, int type,
+				       const void *arg)
+{
+	const char *sym = arg;
+
+	if (type != HIST_FILTER__SYMBOL)
+		return -1;
+
+	return sym && !(he->branch_info && he->branch_info->from.sym &&
+			strstr(he->branch_info->from.sym->name, sym));
+}
+
+static int hist_entry__sym_to_filter(struct hist_entry *he, int type,
+				       const void *arg)
+{
+	const char *sym = arg;
+
+	if (type != HIST_FILTER__SYMBOL)
+		return -1;
+
+	return sym && !(he->branch_info && he->branch_info->to.sym &&
+		        strstr(he->branch_info->to.sym->name, sym));
+}
+
 struct sort_entry sort_dso_from = {
 	.se_header	= "Source Shared Object",
 	.se_cmp		= sort__dso_from_cmp,
 	.se_snprintf	= hist_entry__dso_from_snprintf,
+	.se_filter	= hist_entry__dso_from_filter,
 	.se_width_idx	= HISTC_DSO_FROM,
 };
 
@@ -621,6 +716,7 @@ struct sort_entry sort_dso_to = {
 	.se_header	= "Target Shared Object",
 	.se_cmp		= sort__dso_to_cmp,
 	.se_snprintf	= hist_entry__dso_to_snprintf,
+	.se_filter	= hist_entry__dso_to_filter,
 	.se_width_idx	= HISTC_DSO_TO,
 };
 
@@ -628,6 +724,7 @@ struct sort_entry sort_sym_from = {
 	.se_header	= "Source Symbol",
 	.se_cmp		= sort__sym_from_cmp,
 	.se_snprintf	= hist_entry__sym_from_snprintf,
+	.se_filter	= hist_entry__sym_from_filter,
 	.se_width_idx	= HISTC_SYMBOL_FROM,
 };
 
@@ -635,6 +732,7 @@ struct sort_entry sort_sym_to = {
 	.se_header	= "Target Symbol",
 	.se_cmp		= sort__sym_to_cmp,
 	.se_snprintf	= hist_entry__sym_to_snprintf,
+	.se_filter	= hist_entry__sym_to_filter,
 	.se_width_idx	= HISTC_SYMBOL_TO,
 };
 
@@ -794,19 +892,9 @@ sort__locked_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__locked_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	const char *out;
-	u64 mask = PERF_MEM_LOCK_NA;
+	char out[10];
 
-	if (he->mem_info)
-		mask = he->mem_info->data_src.mem_lock;
-
-	if (mask & PERF_MEM_LOCK_NA)
-		out = "N/A";
-	else if (mask & PERF_MEM_LOCK_LOCKED)
-		out = "Yes";
-	else
-		out = "No";
-
+	perf_mem__lck_scnprintf(out, sizeof(out), he->mem_info);
 	return repsep_snprintf(bf, size, "%.*s", width, out);
 }
 
@@ -829,53 +917,12 @@ sort__tlb_cmp(struct hist_entry *left, struct hist_entry *right)
 	return (int64_t)(data_src_r.mem_dtlb - data_src_l.mem_dtlb);
 }
 
-static const char * const tlb_access[] = {
-	"N/A",
-	"HIT",
-	"MISS",
-	"L1",
-	"L2",
-	"Walker",
-	"Fault",
-};
-
 static int hist_entry__tlb_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
 	char out[64];
-	size_t sz = sizeof(out) - 1; /* -1 for null termination */
-	size_t l = 0, i;
-	u64 m = PERF_MEM_TLB_NA;
-	u64 hit, miss;
 
-	out[0] = '\0';
-
-	if (he->mem_info)
-		m = he->mem_info->data_src.mem_dtlb;
-
-	hit = m & PERF_MEM_TLB_HIT;
-	miss = m & PERF_MEM_TLB_MISS;
-
-	/* already taken care of */
-	m &= ~(PERF_MEM_TLB_HIT|PERF_MEM_TLB_MISS);
-
-	for (i = 0; m && i < ARRAY_SIZE(tlb_access); i++, m >>= 1) {
-		if (!(m & 0x1))
-			continue;
-		if (l) {
-			strcat(out, " or ");
-			l += 4;
-		}
-		strncat(out, tlb_access[i], sz - l);
-		l += strlen(tlb_access[i]);
-	}
-	if (*out == '\0')
-		strcpy(out, "N/A");
-	if (hit)
-		strncat(out, " hit", sz - l);
-	if (miss)
-		strncat(out, " miss", sz - l);
-
+	perf_mem__tlb_scnprintf(out, sizeof(out), he->mem_info);
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
@@ -898,60 +945,12 @@ sort__lvl_cmp(struct hist_entry *left, struct hist_entry *right)
 	return (int64_t)(data_src_r.mem_lvl - data_src_l.mem_lvl);
 }
 
-static const char * const mem_lvl[] = {
-	"N/A",
-	"HIT",
-	"MISS",
-	"L1",
-	"LFB",
-	"L2",
-	"L3",
-	"Local RAM",
-	"Remote RAM (1 hop)",
-	"Remote RAM (2 hops)",
-	"Remote Cache (1 hop)",
-	"Remote Cache (2 hops)",
-	"I/O",
-	"Uncached",
-};
-
 static int hist_entry__lvl_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
 	char out[64];
-	size_t sz = sizeof(out) - 1; /* -1 for null termination */
-	size_t i, l = 0;
-	u64 m =  PERF_MEM_LVL_NA;
-	u64 hit, miss;
 
-	if (he->mem_info)
-		m  = he->mem_info->data_src.mem_lvl;
-
-	out[0] = '\0';
-
-	hit = m & PERF_MEM_LVL_HIT;
-	miss = m & PERF_MEM_LVL_MISS;
-
-	/* already taken care of */
-	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
-
-	for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
-		if (!(m & 0x1))
-			continue;
-		if (l) {
-			strcat(out, " or ");
-			l += 4;
-		}
-		strncat(out, mem_lvl[i], sz - l);
-		l += strlen(mem_lvl[i]);
-	}
-	if (*out == '\0')
-		strcpy(out, "N/A");
-	if (hit)
-		strncat(out, " hit", sz - l);
-	if (miss)
-		strncat(out, " miss", sz - l);
-
+	perf_mem__lvl_scnprintf(out, sizeof(out), he->mem_info);
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
@@ -974,41 +973,12 @@ sort__snoop_cmp(struct hist_entry *left, struct hist_entry *right)
 	return (int64_t)(data_src_r.mem_snoop - data_src_l.mem_snoop);
 }
 
-static const char * const snoop_access[] = {
-	"N/A",
-	"None",
-	"Miss",
-	"Hit",
-	"HitM",
-};
-
 static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
 	char out[64];
-	size_t sz = sizeof(out) - 1; /* -1 for null termination */
-	size_t i, l = 0;
-	u64 m = PERF_MEM_SNOOP_NA;
 
-	out[0] = '\0';
-
-	if (he->mem_info)
-		m = he->mem_info->data_src.mem_snoop;
-
-	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
-		if (!(m & 0x1))
-			continue;
-		if (l) {
-			strcat(out, " or ");
-			l += 4;
-		}
-		strncat(out, snoop_access[i], sz - l);
-		l += strlen(snoop_access[i]);
-	}
-
-	if (*out == '\0')
-		strcpy(out, "N/A");
-
+	perf_mem__snp_scnprintf(out, sizeof(out), he->mem_info);
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
@@ -1518,6 +1488,39 @@ bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format)
 	return format->header == __sort__hpp_header;
 }
 
+bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt)
+{
+	struct hpp_sort_entry *hse;
+
+	if (!perf_hpp__is_sort_entry(fmt))
+		return false;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+	return hse->se == &sort_trace;
+}
+
+bool perf_hpp__is_srcline_entry(struct perf_hpp_fmt *fmt)
+{
+	struct hpp_sort_entry *hse;
+
+	if (!perf_hpp__is_sort_entry(fmt))
+		return false;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+	return hse->se == &sort_srcline;
+}
+
+bool perf_hpp__is_srcfile_entry(struct perf_hpp_fmt *fmt)
+{
+	struct hpp_sort_entry *hse;
+
+	if (!perf_hpp__is_sort_entry(fmt))
+		return false;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+	return hse->se == &sort_srcfile;
+}
+
 static bool __sort__hpp_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 {
 	struct hpp_sort_entry *hse_a;
@@ -1590,6 +1593,22 @@ static struct perf_hpp_fmt *__hpp_dimension__alloc_hpp(struct hpp_dimension *hd)
 	}
 
 	return fmt;
+}
+
+int hist_entry__filter(struct hist_entry *he, int type, const void *arg)
+{
+	struct perf_hpp_fmt *fmt;
+	struct hpp_sort_entry *hse;
+
+	fmt = he->fmt;
+	if (fmt == NULL || !perf_hpp__is_sort_entry(fmt))
+		return -1;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+	if (hse->se->se_filter == NULL)
+		return -1;
+
+	return hse->se->se_filter(he, type, arg);
 }
 
 static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd)

@@ -811,6 +811,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "only show processor socket that match with this filter"),
 	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
 		    "Show raw trace event output (do not use print fmt or plugins)"),
+	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
+		    "Show entries in a hierarchy"),
 	OPT_END()
 	};
 	struct perf_data_file file = {
@@ -918,6 +920,21 @@ repeat:
 		}
 		sort__mode = SORT_MODE__MEMORY;
 		symbol_conf.cumulate_callchain = false;
+	}
+
+	if (symbol_conf.report_hierarchy) {
+		/* disable incompatible options */
+		symbol_conf.event_group = false;
+		symbol_conf.cumulate_callchain = false;
+
+		if (field_order) {
+			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
+			parse_options_usage(report_usage, options, "F", 1);
+			parse_options_usage(NULL, options, "hierarchy", 0);
+			goto error;
+		}
+
+		sort__need_collapse = true;
 	}
 
 	/* Force tty output for header output and per-thread stat. */

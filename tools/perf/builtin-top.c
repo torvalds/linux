@@ -1214,6 +1214,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		     parse_branch_stack),
 	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
 		    "Show raw trace event output (do not use print fmt or plugins)"),
+	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
+		    "Show entries in a hierarchy"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
@@ -1239,6 +1241,19 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	    perf_evlist__add_default(top.evlist) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out_delete_evlist;
+	}
+
+	if (symbol_conf.report_hierarchy) {
+		/* disable incompatible options */
+		symbol_conf.event_group = false;
+		symbol_conf.cumulate_callchain = false;
+
+		if (field_order) {
+			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
+			parse_options_usage(top_usage, options, "fields", 0);
+			parse_options_usage(NULL, options, "hierarchy", 0);
+			goto out_delete_evlist;
+		}
 	}
 
 	sort__mode = SORT_MODE__TOP;

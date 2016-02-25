@@ -237,6 +237,7 @@ struct perf_hpp_fmt {
 struct perf_hpp_list {
 	struct list_head fields;
 	struct list_head sorts;
+	int nr_sort_keys;
 };
 
 extern struct perf_hpp_list perf_hpp_list;
@@ -301,6 +302,11 @@ void perf_hpp__append_sort_keys(struct perf_hpp_list *list);
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *hists);
+bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_srcline_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_srcfile_entry(struct perf_hpp_fmt *fmt);
+
+int hist_entry__filter(struct hist_entry *he, int type, const void *arg);
 
 static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format,
 					 struct hists *hists)
@@ -414,5 +420,23 @@ int parse_filter_percentage(const struct option *opt __maybe_unused,
 int perf_hist_config(const char *var, const char *value);
 
 void perf_hpp_list__init(struct perf_hpp_list *list);
+
+enum hierarchy_move_dir {
+	HMD_NORMAL,
+	HMD_FORCE_SIBLING,
+	HMD_FORCE_CHILD,
+};
+
+struct rb_node *rb_hierarchy_last(struct rb_node *node);
+struct rb_node *__rb_hierarchy_next(struct rb_node *node,
+				    enum hierarchy_move_dir hmd);
+struct rb_node *rb_hierarchy_prev(struct rb_node *node);
+
+static inline struct rb_node *rb_hierarchy_next(struct rb_node *node)
+{
+	return __rb_hierarchy_next(node, HMD_NORMAL);
+}
+
+#define HIERARCHY_INDENT  3
 
 #endif	/* __PERF_HIST_H */
