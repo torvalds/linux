@@ -1250,11 +1250,8 @@ CNTR_ELEM(#name, \
 
 u64 read_csr(const struct hfi1_devdata *dd, u32 offset)
 {
-	u64 val;
-
 	if (dd->flags & HFI1_PRESENT) {
-		val = readq((void __iomem *)dd->kregbase + offset);
-		return val;
+		return readq((void __iomem *)dd->kregbase + offset);
 	}
 	return -1;
 }
