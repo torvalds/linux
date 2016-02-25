@@ -102,7 +102,6 @@ void gm200_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gm200_grctx_generate_tpcid(struct gf100_gr *);
 void gm200_grctx_generate_405b60(struct gf100_gr *);
 
-extern const struct gf100_grctx_func gm206_grctx;
 extern const struct gf100_grctx_func gm20b_grctx;
 
 /* context init value lists */
