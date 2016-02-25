@@ -247,8 +247,6 @@ void hfi1_pcie_ddcleanup(struct hfi1_devdata *dd)
 		iounmap(dd->rcvarray_wc);
 	if (dd->piobase)
 		iounmap(dd->piobase);
-
-	pci_set_drvdata(dd->pcidev, NULL);
 }
 
 /*
