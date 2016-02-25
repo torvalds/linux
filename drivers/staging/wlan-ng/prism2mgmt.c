@@ -375,7 +375,7 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 
 	int count;
 
-	req = (struct p80211msg_dot11req_scan_results *) msgp;
+	req = msgp;
 
 	req->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 
