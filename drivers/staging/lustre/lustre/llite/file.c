@@ -3071,10 +3071,8 @@ int ll_inode_permission(struct inode *inode, int mask)
 {
 	int rc = 0;
 
-#ifdef MAY_NOT_BLOCK
 	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
-#endif
 
        /* as root inode are NOT getting validated in lookup operation,
 	* need to do it before permission check. */
