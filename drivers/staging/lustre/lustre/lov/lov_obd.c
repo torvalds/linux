@@ -1560,9 +1560,8 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			osc_obd->obd_force = obddev->obd_force;
 			err = obd_iocontrol(cmd, lov->lov_tgts[i]->ltd_exp,
 					    len, karg, uarg);
-			if (err == -ENODATA && cmd == OBD_IOC_POLL_QUOTACHECK) {
+			if (err == -ENODATA && cmd == OBD_IOC_POLL_QUOTACHECK)
 				return err;
-			}
 			if (err) {
 				if (lov->lov_tgts[i]->ltd_active) {
 					CDEBUG(err == -ENOTTY ?
