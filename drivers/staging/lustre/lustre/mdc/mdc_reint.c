@@ -65,7 +65,8 @@ static int mdc_reint(struct ptlrpc_request *request,
 
 /* Find and cancel locally locks matched by inode @bits & @mode in the resource
  * found by @fid. Found locks are added into @cancel list. Returns the amount of
- * locks added to @cancels list. */
+ * locks added to @cancels list.
+ */
 int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    struct list_head *cancels, enum ldlm_mode mode,
 			    __u64 bits)
@@ -81,7 +82,8 @@ int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 	 *
 	 * This distinguishes from a case when ELC is not supported originally,
 	 * when we still want to cancel locks in advance and just cancel them
-	 * locally, without sending any RPC. */
+	 * locally, without sending any RPC.
+	 */
 	if (exp_connect_cancelset(exp) && !ns_connect_cancelset(ns))
 		return 0;
 
@@ -258,7 +260,8 @@ rebuild:
 	ptlrpc_request_set_replen(req);
 
 	/* ask ptlrpc not to resend on EINPROGRESS since we have our own retry
-	 * logic here */
+	 * logic here
+	 */
 	req->rq_no_retry_einprogress = 1;
 
 	if (resends) {
@@ -276,7 +279,8 @@ rebuild:
 		goto resend;
 	} else if (rc == -EINPROGRESS) {
 		/* Retry create infinitely until succeed or get other
-		 * error code. */
+		 * error code.
+		 */
 		ptlrpc_req_finished(req);
 		resends++;
 

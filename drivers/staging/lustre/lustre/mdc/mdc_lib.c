@@ -489,7 +489,8 @@ static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 
 /* We record requests in flight in cli->cl_r_in_flight here.
  * There is only one write rpc possible in mdc anyway. If this to change
- * in the future - the code may need to be revisited. */
+ * in the future - the code may need to be revisited.
+ */
 int mdc_enter_request(struct client_obd *cli)
 {
 	int rc = 0;

@@ -63,7 +63,8 @@ static inline int mdc_queue_wait(struct ptlrpc_request *req)
 
 	/* mdc_enter_request() ensures that this client has no more
 	 * than cl_max_rpcs_in_flight RPCs simultaneously inf light
-	 * against an MDT. */
+	 * against an MDT.
+	 */
 	rc = mdc_enter_request(cli);
 	if (rc != 0)
 		return rc;
@@ -813,7 +814,8 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 
 	/* To avoid a livelock (bug 7034), we need to send CLOSE RPCs to a
 	 * portal whose threads are not taking any DLM locks and are therefore
-	 * always progressing */
+	 * always progressing
+	 */
 	req->rq_request_portal = MDS_READPAGE_PORTAL;
 	ptlrpc_at_set_req_timeout(req);
 
@@ -827,7 +829,8 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 
 		DEBUG_REQ(D_HA, mod->mod_open_req, "matched open");
 		/* We no longer want to preserve this open for replay even
-		 * though the open was committed. b=3632, b=3633 */
+		 * though the open was committed. b=3632, b=3633
+		 */
 		spin_lock(&mod->mod_open_req->rq_lock);
 		mod->mod_open_req->rq_replay = 0;
 		spin_unlock(&mod->mod_open_req->rq_lock);
@@ -884,7 +887,8 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		if (rc != 0)
 			mod->mod_close_req = NULL;
 		/* Since now, mod is accessed through open_req only,
-		 * thus close req does not keep a reference on mod anymore. */
+		 * thus close req does not keep a reference on mod anymore.
+		 */
 		obd_mod_put(mod);
 	}
 	*request = req;
@@ -918,7 +922,8 @@ static int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
 		mod->mod_close_req = req;
 		DEBUG_REQ(D_HA, mod->mod_open_req, "matched setattr");
 		/* We no longer want to preserve this setattr for replay even
-		 * though the open was committed. b=3632, b=3633 */
+		 * though the open was committed. b=3632, b=3633
+		 */
 		spin_lock(&mod->mod_open_req->rq_lock);
 		mod->mod_open_req->rq_replay = 0;
 		spin_unlock(&mod->mod_open_req->rq_lock);
@@ -950,7 +955,8 @@ static int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
 		mdc_free_open(mod);
 
 		/* Since now, mod is accessed through setattr req only,
-		 * thus DW req does not keep a reference on mod anymore. */
+		 * thus DW req does not keep a reference on mod anymore.
+		 */
 		obd_mod_put(mod);
 	}
 
@@ -1608,7 +1614,8 @@ static int mdc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 	ptlrpc_request_set_replen(req);
 
 	/* the next poll will find -ENODATA, that means quotacheck is
-	 * going on */
+	 * going on
+	 */
 	cli->cl_qchk_stat = -ENODATA;
 	rc = ptlrpc_queue_wait(req);
 	if (rc)
@@ -1908,7 +1915,8 @@ static int mdc_get_info_rpc(struct obd_export *exp,
 
 	rc = ptlrpc_queue_wait(req);
 	/* -EREMOTE means the get_info result is partial, and it needs to
-	 * continue on another MDT, see fid2path part in lmv_iocontrol */
+	 * continue on another MDT, see fid2path part in lmv_iocontrol
+	 */
 	if (rc == 0 || rc == -EREMOTE) {
 		tmp = req_capsule_server_get(&req->rq_pill, &RMF_GETINFO_VAL);
 		memcpy(val, tmp, vallen);
@@ -2247,7 +2255,8 @@ static int mdc_cancel_for_recovery(struct ldlm_lock *lock)
 
 	/* FIXME: if we ever get into a situation where there are too many
 	 * opened files with open locks on a single node, then we really
-	 * should replay these open locks to reget it */
+	 * should replay these open locks to reget it
+	 */
 	if (lock->l_policy_data.l_inodebits.bits & MDS_INODELOCK_OPEN)
 		return 0;
 
