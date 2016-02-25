@@ -112,6 +112,7 @@ struct hisi_sas_slot {
 	int	cmplt_queue;
 	int	cmplt_queue_slot;
 	int	idx;
+	int	abort;
 	void	*cmd_hdr;
 	dma_addr_t cmd_hdr_dma;
 	void	*status_buffer;
@@ -120,6 +121,7 @@ struct hisi_sas_slot {
 	dma_addr_t command_table_dma;
 	struct hisi_sas_sge_page *sge_page;
 	dma_addr_t sge_page_dma;
+	struct work_struct abort_slot;
 };
 
 struct hisi_sas_tmf_task {
