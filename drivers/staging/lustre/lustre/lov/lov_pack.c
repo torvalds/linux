@@ -185,7 +185,7 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 			return -ENOMEM;
 	}
 
-	CDEBUG(D_INFO, "lov_packmd: LOV_MAGIC 0x%08X, lmm_size = %d \n",
+	CDEBUG(D_INFO, "lov_packmd: LOV_MAGIC 0x%08X, lmm_size = %d\n",
 	       lmm_magic, lmm_size);
 
 	lmmv1 = *lmmp;

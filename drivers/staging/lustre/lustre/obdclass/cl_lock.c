@@ -1453,7 +1453,7 @@ int cl_wait(const struct lu_env *env, struct cl_lock *lock)
 
 	LINVRNT(cl_lock_invariant(env, lock));
 	LASSERTF(lock->cll_state == CLS_ENQUEUED || lock->cll_state == CLS_HELD,
-		 "Wrong state %d \n", lock->cll_state);
+		 "Wrong state %d\n", lock->cll_state);
 	LASSERT(lock->cll_holds > 0);
 
 	do {

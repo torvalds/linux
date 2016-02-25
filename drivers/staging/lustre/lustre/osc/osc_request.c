@@ -843,7 +843,7 @@ void osc_update_next_shrink(struct client_obd *cli)
 {
 	cli->cl_next_shrink_grant =
 		cfs_time_shift(cli->cl_grant_shrink_interval);
-	CDEBUG(D_CACHE, "next time %ld to shrink grant \n",
+	CDEBUG(D_CACHE, "next time %ld to shrink grant\n",
 	       cli->cl_next_shrink_grant);
 }
 
@@ -1014,7 +1014,7 @@ static int osc_add_shrink_grant(struct client_obd *client)
 			client->cl_import->imp_obd->obd_name, rc);
 		return rc;
 	}
-	CDEBUG(D_CACHE, "add grant client %s \n",
+	CDEBUG(D_CACHE, "add grant client %s\n",
 	       client->cl_import->imp_obd->obd_name);
 	osc_update_next_shrink(client);
 	return 0;

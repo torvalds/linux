@@ -367,7 +367,7 @@ void ll_ra_stats_inc(struct address_space *mapping, enum ra_stat which)
 #define RAS_CDEBUG(ras) \
 	CDEBUG(D_READA,						      \
 	       "lrp %lu cr %lu cp %lu ws %lu wl %lu nra %lu r %lu ri %lu"    \
-	       "csr %lu sf %lu sp %lu sl %lu \n",			    \
+	       "csr %lu sf %lu sp %lu sl %lu\n",			    \
 	       ras->ras_last_readpage, ras->ras_consecutive_requests,	\
 	       ras->ras_consecutive_pages, ras->ras_window_start,	    \
 	       ras->ras_window_len, ras->ras_next_readahead,		 \
@@ -575,7 +575,7 @@ stride_pg_count(pgoff_t st_off, unsigned long st_len, unsigned long st_pgs,
 	if (end_left > st_pgs)
 		end_left = st_pgs;
 
-	CDEBUG(D_READA, "start %llu, end %llu start_left %lu end_left %lu \n",
+	CDEBUG(D_READA, "start %llu, end %llu start_left %lu end_left %lu\n",
 	       start, end, start_left, end_left);
 
 	if (start == end)
@@ -655,7 +655,7 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 			offset = offset % (ria->ria_length);
 			if (offset > ria->ria_pages) {
 				page_idx += ria->ria_length - offset;
-				CDEBUG(D_READA, "i %lu skip %lu \n", page_idx,
+				CDEBUG(D_READA, "i %lu skip %lu\n", page_idx,
 				       ria->ria_length - offset);
 				continue;
 			}
@@ -785,7 +785,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	 * if the region we failed to issue read-ahead on is still ahead
 	 * of the app and behind the next index to start read-ahead from
 	 */
-	CDEBUG(D_READA, "ra_end %lu end %lu stride end %lu \n",
+	CDEBUG(D_READA, "ra_end %lu end %lu stride end %lu\n",
 	       ra_end, end, ria->ria_end);
 
 	if (ra_end != end + 1) {

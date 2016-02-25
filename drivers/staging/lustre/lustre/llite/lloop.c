@@ -307,7 +307,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	rw = first->bi_rw;
 	bio = &lo->lo_bio;
 	while (*bio && (*bio)->bi_rw == rw) {
-		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u \n",
+		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u\n",
 		       (unsigned long long)(*bio)->bi_iter.bi_sector,
 		       (*bio)->bi_iter.bi_size,
 		       page_count, (*bio)->bi_vcnt);
