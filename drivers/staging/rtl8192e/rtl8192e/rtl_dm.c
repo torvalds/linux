@@ -994,8 +994,7 @@ static void _rtl92e_dm_check_tx_power_tracking_tssi(struct net_device *dev)
 
 
 	 if (tx_power_track_counter >= 180) {
-		queue_delayed_work_rsl(priv->priv_wq,
-				       &priv->txpower_tracking_wq, 0);
+		schedule_delayed_work(&priv->txpower_tracking_wq, 0);
 		tx_power_track_counter = 0;
 	}
 
@@ -1028,7 +1027,7 @@ static void _rtl92e_dm_check_tx_power_tracking_thermal(struct net_device *dev)
 		return;
 	}
 	netdev_info(dev, "===============>Schedule TxPowerTrackingWorkItem\n");
-	queue_delayed_work_rsl(priv->priv_wq, &priv->txpower_tracking_wq, 0);
+	schedule_delayed_work(&priv->txpower_tracking_wq, 0);
 	TM_Trigger = 0;
 
 }
@@ -2121,7 +2120,7 @@ static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	queue_delayed_work_rsl(priv->priv_wq, &priv->rfpath_check_wq, 0);
+	schedule_delayed_work(&priv->rfpath_check_wq, 0);
 }
 
 

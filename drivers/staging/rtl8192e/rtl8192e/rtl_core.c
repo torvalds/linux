@@ -437,7 +437,7 @@ static int _rtl92e_qos_handle_probe_response(struct r8192_priv *priv,
 			network->qos_data.old_param_count =
 				network->qos_data.param_count;
 	priv->rtllib->wmm_acm = network->qos_data.wmm_acm;
-			queue_work_rsl(priv->priv_wq, &priv->qos_activate);
+			schedule_work(&priv->qos_activate);
 			RT_TRACE(COMP_QOS,
 				 "QoS parameters change call qos_activate\n");
 		}
@@ -446,7 +446,7 @@ static int _rtl92e_qos_handle_probe_response(struct r8192_priv *priv,
 		       &def_qos_parameters, size);
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
-			queue_work_rsl(priv->priv_wq, &priv->qos_activate);
+			schedule_work(&priv->qos_activate);
 			RT_TRACE(COMP_QOS,
 				 "QoS was disabled call qos_activate\n");
 		}
@@ -465,7 +465,7 @@ static int _rtl92e_handle_beacon(struct net_device *dev,
 
 	_rtl92e_qos_handle_probe_response(priv, 1, network);
 
-	queue_delayed_work_rsl(priv->priv_wq, &priv->update_beacon_wq, 0);
+	schedule_delayed_work(&priv->update_beacon_wq, 0);
 	return 0;
 
 }
@@ -512,7 +512,7 @@ static int _rtl92e_qos_assoc_resp(struct r8192_priv *priv,
 		 network->flags, priv->rtllib->current_network.qos_data.active);
 	if (set_qos_param == 1) {
 		rtl92e_dm_init_edca_turbo(priv->rtllib->dev);
-		queue_work_rsl(priv->priv_wq, &priv->qos_activate);
+		schedule_work(&priv->qos_activate);
 	}
 	return 0;
 }
@@ -1002,7 +1002,6 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	priv->priv_wq = create_workqueue(DRV_NAME);
 	INIT_WORK_RSL(&priv->reset_wq, (void *)_rtl92e_restart, dev);
 	INIT_WORK_RSL(&priv->rtllib->ips_leave_wq, (void *)rtl92e_ips_leave_wq,
 		      dev);
@@ -1536,7 +1535,7 @@ static void _rtl92e_watchdog_timer_cb(unsigned long data)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
 
-	queue_delayed_work_rsl(priv->priv_wq, &priv->watch_dog_wq, 0);
+	schedule_delayed_work(&priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer, jiffies +
 		  msecs_to_jiffies(RTLLIB_WATCH_DOG_TIME));
 }
@@ -2161,8 +2160,8 @@ static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv)
 *****************************************************************************/
 static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv)
 {
-	cancel_delayed_work(&priv->watch_dog_wq);
-	cancel_delayed_work(&priv->update_beacon_wq);
+	cancel_delayed_work_sync(&priv->watch_dog_wq);
+	cancel_delayed_work_sync(&priv->update_beacon_wq);
 	cancel_delayed_work(&priv->rtllib->hw_sleep_wq);
 	cancel_work_sync(&priv->reset_wq);
 	cancel_work_sync(&priv->qos_activate);
@@ -2693,7 +2692,7 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 		priv = rtllib_priv(dev);
 
 		del_timer_sync(&priv->gpio_polling_timer);
-		cancel_delayed_work(&priv->gpio_change_rf_wq);
+		cancel_delayed_work_sync(&priv->gpio_change_rf_wq);
 		priv->polling_timer_on = 0;
 		_rtl92e_down(dev, true);
 		rtl92e_dm_deinit(dev);
@@ -2701,7 +2700,6 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 			vfree(priv->pFirmware);
 			priv->pFirmware = NULL;
 		}
-		destroy_workqueue(priv->priv_wq);
 		_rtl92e_free_rx_ring(dev);
 		for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
 			_rtl92e_free_tx_ring(dev, i);
@@ -2783,7 +2781,7 @@ void rtl92e_check_rfctrl_gpio_timer(unsigned long data)
 
 	priv->polling_timer_on = 1;
 
-	queue_delayed_work_rsl(priv->priv_wq, &priv->gpio_change_rf_wq, 0);
+	schedule_delayed_work(&priv->gpio_change_rf_wq, 0);
 
 	mod_timer(&priv->gpio_polling_timer, jiffies +
 		  msecs_to_jiffies(RTLLIB_WATCH_DOG_TIME));
