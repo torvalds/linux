@@ -141,22 +141,6 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
 
 #ifdef HAVE_JUMP_LABEL
 extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
-
-static inline bool nf_hook_list_active(struct list_head *hook_list,
-				       u_int8_t pf, unsigned int hook)
-{
-	if (__builtin_constant_p(pf) &&
-	    __builtin_constant_p(hook))
-		return static_key_false(&nf_hooks_needed[pf][hook]);
-
-	return !list_empty(hook_list);
-}
-#else
-static inline bool nf_hook_list_active(struct list_head *hook_list,
-				       u_int8_t pf, unsigned int hook)
-{
-	return !list_empty(hook_list);
-}
 #endif
 
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state);
@@ -177,9 +161,18 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 int (*okfn)(struct net *, struct sock *, struct sk_buff *),
 				 int thresh)
 {
-	struct list_head *hook_list = &net->nf.hooks[pf][hook];
+	struct list_head *hook_list;
 
-	if (nf_hook_list_active(hook_list, pf, hook)) {
+#ifdef HAVE_JUMP_LABEL
+	if (__builtin_constant_p(pf) &&
+	    __builtin_constant_p(hook) &&
+	    !static_key_false(&nf_hooks_needed[pf][hook]))
+		return 1;
+#endif
+
+	hook_list = &net->nf.hooks[pf][hook];
+
+	if (!list_empty(hook_list)) {
 		struct nf_hook_state state;
 
 		nf_hook_state_init(&state, hook_list, hook, thresh,
