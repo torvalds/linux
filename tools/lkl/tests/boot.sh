@@ -24,10 +24,13 @@ if [ -c /dev/net/tun ]; then
 fi;
 
 if file ./boot | grep PE32; then
-    WINE=wine
+    WRAP=wine
+elif file ./boot | grep ARM; then
+    WRAP=qemu-arm-static
 fi
 
-${TEST_CMD} $WINE ./boot -d $file -t $fstype $tap_args $LKL_TEST_DEBUG $@ || err=$?
+
+${TEST_CMD} $WRAP ./boot -d $file -t $fstype $tap_args $LKL_TEST_DEBUG $@ || err=$?
 
 if [ -c /dev/net/tun ]; then
     sudo ip tuntap del dev lkl_boot mode tap || true
