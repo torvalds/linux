@@ -102,8 +102,6 @@ static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 	sbi->ll_ra_info.ra_max_pages = sbi->ll_ra_info.ra_max_pages_per_file;
 	sbi->ll_ra_info.ra_max_read_ahead_whole_pages =
 					   SBI_DEFAULT_READAHEAD_WHOLE_MAX;
-	INIT_LIST_HEAD(&sbi->ll_conn_chain);
-	INIT_LIST_HEAD(&sbi->ll_orphan_dentry_list);
 
 	ll_generate_random_uuid(uuid);
 	class_uuid_unparse(uuid, &sbi->ll_sb_uuid);
@@ -625,8 +623,6 @@ static void client_common_put_super(struct super_block *sb)
 	ll_close_thread_shutdown(sbi->ll_lcq);
 
 	cl_sb_fini(sb);
-
-	list_del(&sbi->ll_conn_chain);
 
 	obd_fid_fini(sbi->ll_dt_exp->exp_obd);
 	obd_disconnect(sbi->ll_dt_exp);

@@ -478,10 +478,8 @@ struct ll_sb_info {
 	int		       ll_flags;
 	unsigned int		  ll_umounting:1,
 				  ll_xattr_cache_enabled:1;
-	struct list_head		ll_conn_chain; /* per-conn chain of SBs */
 	struct lustre_client_ocd  ll_lco;
 
-	struct list_head		ll_orphan_dentry_list; /*please don't ask -p*/
 	struct ll_close_queue    *ll_lcq;
 
 	struct lprocfs_stats     *ll_stats; /* lprocfs stats counter */
