@@ -244,6 +244,7 @@ static int ccp_aes_cmac_import(struct ahash_request *req, const void *in)
 	/* 'in' may not be aligned so memcpy to local variable */
 	memcpy(&state, in, sizeof(state));
 
+	memset(rctx, 0, sizeof(*rctx));
 	rctx->null_msg = state.null_msg;
 	memcpy(rctx->iv, state.iv, sizeof(rctx->iv));
 	rctx->buf_count = state.buf_count;
