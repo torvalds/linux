@@ -600,6 +600,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		htb_activate(q, cl);
 	}
 
+	qdisc_qstats_backlog_inc(sch, skb);
 	sch->q.qlen++;
 	return NET_XMIT_SUCCESS;
 }
@@ -889,6 +890,7 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 ok:
 		qdisc_bstats_update(sch, skb);
 		qdisc_unthrottled(sch);
+		qdisc_qstats_backlog_dec(sch, skb);
 		sch->q.qlen--;
 		return skb;
 	}
@@ -955,6 +957,7 @@ static unsigned int htb_drop(struct Qdisc *sch)
 			unsigned int len;
 			if (cl->un.leaf.q->ops->drop &&
 			    (len = cl->un.leaf.q->ops->drop(cl->un.leaf.q))) {
+				sch->qstats.backlog -= len;
 				sch->q.qlen--;
 				if (!cl->un.leaf.q->q.qlen)
 					htb_deactivate(q, cl);
@@ -984,12 +987,12 @@ static void htb_reset(struct Qdisc *sch)
 			}
 			cl->prio_activity = 0;
 			cl->cmode = HTB_CAN_SEND;
-
 		}
 	}
 	qdisc_watchdog_cancel(&q->watchdog);
 	__skb_queue_purge(&q->direct_queue);
 	sch->q.qlen = 0;
+	sch->qstats.backlog = 0;
 	memset(q->hlevel, 0, sizeof(q->hlevel));
 	memset(q->row_mask, 0, sizeof(q->row_mask));
 	for (i = 0; i < TC_HTB_NUMPRIO; i++)
