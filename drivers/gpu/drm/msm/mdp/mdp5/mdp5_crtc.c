@@ -468,13 +468,6 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
 	request_pending(crtc, PENDING_FLIP);
 }
 
-static int mdp5_crtc_set_property(struct drm_crtc *crtc,
-		struct drm_property *property, uint64_t val)
-{
-	// XXX
-	return -EINVAL;
-}
-
 static void get_roi(struct drm_crtc *crtc, uint32_t *roi_w, uint32_t *roi_h)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
@@ -625,7 +618,7 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = mdp5_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
-	.set_property = mdp5_crtc_set_property,
+	.set_property = drm_atomic_helper_crtc_set_property,
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
