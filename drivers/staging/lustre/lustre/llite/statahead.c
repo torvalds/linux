@@ -49,13 +49,13 @@
 
 #define SA_OMITTED_ENTRY_MAX 8ULL
 
-typedef enum {
+enum se_stat {
 	/** negative values are for error cases */
 	SA_ENTRY_INIT = 0,      /** init entry */
 	SA_ENTRY_SUCC = 1,      /** stat succeed */
 	SA_ENTRY_INVA = 2,      /** invalid entry */
 	SA_ENTRY_DEST = 3,      /** entry to be destroyed */
-} se_stat_t;
+};
 
 struct ll_sa_entry {
 	/* link into sai->sai_entries */
@@ -71,7 +71,7 @@ struct ll_sa_entry {
 	/* low layer ldlm lock handle */
 	__u64		   se_handle;
 	/* entry status */
-	se_stat_t	       se_stat;
+	enum se_stat	   se_stat;
 	/* entry size, contains name */
 	int		     se_size;
 	/* pointer to async getattr enqueue info */
@@ -366,7 +366,7 @@ ll_sa_entry_fini(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
  */
 static void
 do_sa_entry_to_stated(struct ll_statahead_info *sai,
-		      struct ll_sa_entry *entry, se_stat_t stat)
+		      struct ll_sa_entry *entry, enum se_stat stat)
 {
 	struct ll_sa_entry *se;
 	struct list_head	 *pos = &sai->sai_entries_stated;
@@ -392,7 +392,7 @@ do_sa_entry_to_stated(struct ll_statahead_info *sai,
  */
 static int
 ll_sa_entry_to_stated(struct ll_statahead_info *sai,
-		      struct ll_sa_entry *entry, se_stat_t stat)
+		      struct ll_sa_entry *entry, enum se_stat stat)
 {
 	struct ll_inode_info *lli = ll_i2info(sai->sai_inode);
 	int		   ret = 1;
