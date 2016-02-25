@@ -544,7 +544,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 		}
 
 		cfg80211_connect_result(dev, pstrConnectInfo->bssid,
-					pstrConnectInfo->pu8ReqIEs, pstrConnectInfo->ReqIEsLen,
+					pstrConnectInfo->req_ies, pstrConnectInfo->ReqIEsLen,
 					pstrConnectInfo->pu8RespIEs, pstrConnectInfo->u16RespIEsLen,
 					u16ConnectStatus, GFP_KERNEL);
 	} else if (enuConnDisconnEvent == CONN_DISCONN_EVENT_DISCONN_NOTIF)    {
