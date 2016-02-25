@@ -33,8 +33,8 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	__be16 new_protocol, bool is_ipv6)
 {
 	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
+	bool remcsum, need_csum, offload_csum, ufo;
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	bool remcsum, need_csum, offload_csum;
 	struct udphdr *uh = udp_hdr(skb);
 	u16 mac_offset = skb->mac_header;
 	__be16 protocol = skb->protocol;
@@ -62,6 +62,8 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	remcsum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TUNNEL_REMCSUM);
 	skb->remcsum_offload = remcsum;
 
+	ufo = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
+
 	/* Try to offload checksum if possible */
 	offload_csum = !!(need_csum &&
 			  (skb->dev->features &
@@ -74,9 +76,9 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	 * outer one so strip the existing checksum feature flags and
 	 * instead set the flag based on our outer checksum offload value.
 	 */
-	if (remcsum) {
+	if (remcsum || ufo) {
 		features &= ~NETIF_F_CSUM_MASK;
-		if (offload_csum)
+		if (!need_csum || offload_csum)
 			features |= NETIF_F_HW_CSUM;
 	}
 
@@ -229,6 +231,13 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		uh->check = CSUM_MANGLED_0;
 
 	skb->ip_summed = CHECKSUM_NONE;
+
+	/* If there is no outer header we can fake a checksum offload
+	 * due to the fact that we have already done the checksum in
+	 * software prior to segmenting the frame.
+	 */
+	if (!skb->encap_hdr_csum)
+		features |= NETIF_F_HW_CSUM;
 
 	/* Fragment the skb. IP headers of the fragments are updated in
 	 * inet_gso_segment()

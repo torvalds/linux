@@ -24,7 +24,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	__be16 protocol = skb->protocol;
 	u16 mac_len = skb->mac_len;
 	int gre_offset, outer_hlen;
-	bool need_csum;
+	bool need_csum, ufo;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
 				~(SKB_GSO_TCPV4 |
@@ -58,7 +58,19 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	need_csum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_GRE_CSUM);
 	skb->encap_hdr_csum = need_csum;
 
+	ufo = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
+
 	features &= skb->dev->hw_enc_features;
+
+	/* The only checksum offload we care about from here on out is the
+	 * outer one so strip the existing checksum feature flags based
+	 * on the fact that we will be computing our checksum in software.
+	 */
+	if (ufo) {
+		features &= ~NETIF_F_CSUM_MASK;
+		if (!need_csum)
+			features |= NETIF_F_HW_CSUM;
+	}
 
 	/* segment inner packet. */
 	segs = skb_mac_gso_segment(skb, features);
@@ -75,8 +87,11 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		struct gre_base_hdr *greh;
 		__be32 *pcsum;
 
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
+		/* Set up inner headers if we are offloading inner checksum */
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			skb_reset_inner_headers(skb);
+			skb->encapsulation = 1;
+		}
 
 		skb->mac_len = mac_len;
 		skb->protocol = protocol;
