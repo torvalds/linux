@@ -3436,13 +3436,13 @@ union lu_page {
 };
 
 /* security opcodes */
-typedef enum {
+enum sec_cmd {
 	SEC_CTX_INIT	    = 801,
 	SEC_CTX_INIT_CONT       = 802,
 	SEC_CTX_FINI	    = 803,
 	SEC_LAST_OPC,
 	SEC_FIRST_OPC	   = SEC_CTX_INIT
-} sec_cmd_t;
+};
 
 /*
  * capa related definitions
