@@ -494,9 +494,9 @@ int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 			    struct switchdev_trans *trans);
 int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan);
-int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *vid);
-int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
-			   unsigned long *ports, unsigned long *untagged);
+int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
+			     struct switchdev_obj_port_vlan *vlan,
+			     int (*cb)(struct switchdev_obj *obj));
 int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 			       const struct switchdev_obj_port_fdb *fdb,
 			       struct switchdev_trans *trans);
