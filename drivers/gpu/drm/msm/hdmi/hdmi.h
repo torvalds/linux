@@ -27,9 +27,17 @@
 #include "msm_drv.h"
 #include "hdmi.xml.h"
 
+#define HDMI_MAX_NUM_GPIO	6
 
 struct hdmi_phy;
 struct hdmi_platform_config;
+
+struct hdmi_gpio_data {
+	int num;
+	bool output;
+	int value;
+	const char *label;
+};
 
 struct hdmi_audio {
 	bool enabled;
@@ -110,8 +118,7 @@ struct hdmi_platform_config {
 	int pwr_clk_cnt;
 
 	/* gpio's: */
-	int ddc_clk_gpio, ddc_data_gpio, hpd_gpio, mux_en_gpio, mux_sel_gpio;
-	int mux_lpm_gpio;
+	struct hdmi_gpio_data gpios[HDMI_MAX_NUM_GPIO];
 };
 
 void hdmi_set_mode(struct hdmi *hdmi, bool power_on);

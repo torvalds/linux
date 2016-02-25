@@ -81,114 +81,54 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 {
 	struct device *dev = &hdmi->pdev->dev;
 	const struct hdmi_platform_config *config = hdmi->config;
-	int ret;
+	int ret, i;
 
 	if (on) {
-		if (config->ddc_clk_gpio != -1) {
-			ret = gpio_request(config->ddc_clk_gpio, "HDMI_DDC_CLK");
-			if (ret) {
-				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_DDC_CLK", config->ddc_clk_gpio, ret);
-				goto error1;
+		for (i = 0; i < HDMI_MAX_NUM_GPIO; i++) {
+			struct hdmi_gpio_data gpio = config->gpios[i];
+
+			if (gpio.num != -1) {
+				ret = gpio_request(gpio.num, gpio.label);
+				if (ret) {
+					dev_err(dev,
+						"'%s'(%d) gpio_request failed: %d\n",
+						gpio.label, gpio.num, ret);
+					goto err;
+				}
+
+				if (gpio.output) {
+					gpio_direction_output(gpio.num,
+							      gpio.value);
+				} else {
+					gpio_direction_input(gpio.num);
+					gpio_set_value_cansleep(gpio.num,
+								gpio.value);
+				}
 			}
-			gpio_set_value_cansleep(config->ddc_clk_gpio, 1);
 		}
 
-		if (config->ddc_data_gpio != -1) {
-			ret = gpio_request(config->ddc_data_gpio, "HDMI_DDC_DATA");
-			if (ret) {
-				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_DDC_DATA", config->ddc_data_gpio, ret);
-				goto error2;
-			}
-			gpio_set_value_cansleep(config->ddc_data_gpio, 1);
-		}
-
-		ret = gpio_request(config->hpd_gpio, "HDMI_HPD");
-		if (ret) {
-			dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-				"HDMI_HPD", config->hpd_gpio, ret);
-			goto error3;
-		}
-		gpio_direction_input(config->hpd_gpio);
-		gpio_set_value_cansleep(config->hpd_gpio, 1);
-
-		if (config->mux_en_gpio != -1) {
-			ret = gpio_request(config->mux_en_gpio, "HDMI_MUX_EN");
-			if (ret) {
-				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_MUX_EN", config->mux_en_gpio, ret);
-				goto error4;
-			}
-			gpio_set_value_cansleep(config->mux_en_gpio, 1);
-		}
-
-		if (config->mux_sel_gpio != -1) {
-			ret = gpio_request(config->mux_sel_gpio, "HDMI_MUX_SEL");
-			if (ret) {
-				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_MUX_SEL", config->mux_sel_gpio, ret);
-				goto error5;
-			}
-			gpio_set_value_cansleep(config->mux_sel_gpio, 0);
-		}
-
-		if (config->mux_lpm_gpio != -1) {
-			ret = gpio_request(config->mux_lpm_gpio,
-					"HDMI_MUX_LPM");
-			if (ret) {
-				dev_err(dev,
-					"'%s'(%d) gpio_request failed: %d\n",
-					"HDMI_MUX_LPM",
-					config->mux_lpm_gpio, ret);
-				goto error6;
-			}
-			gpio_set_value_cansleep(config->mux_lpm_gpio, 1);
-		}
 		DBG("gpio on");
 	} else {
-		if (config->ddc_clk_gpio != -1)
-			gpio_free(config->ddc_clk_gpio);
+		for (i = 0; i < HDMI_MAX_NUM_GPIO; i++) {
+			struct hdmi_gpio_data gpio = config->gpios[i];
 
-		if (config->ddc_data_gpio != -1)
-			gpio_free(config->ddc_data_gpio);
+			if (gpio.output) {
+				int value = gpio.value ? 0 : 1;
 
-		gpio_free(config->hpd_gpio);
+				gpio_set_value_cansleep(gpio.num, value);
+			}
 
-		if (config->mux_en_gpio != -1) {
-			gpio_set_value_cansleep(config->mux_en_gpio, 0);
-			gpio_free(config->mux_en_gpio);
-		}
+			gpio_free(gpio.num);
+		};
 
-		if (config->mux_sel_gpio != -1) {
-			gpio_set_value_cansleep(config->mux_sel_gpio, 1);
-			gpio_free(config->mux_sel_gpio);
-		}
-
-		if (config->mux_lpm_gpio != -1) {
-			gpio_set_value_cansleep(config->mux_lpm_gpio, 0);
-			gpio_free(config->mux_lpm_gpio);
-		}
 		DBG("gpio off");
 	}
 
 	return 0;
+err:
+	while (i--)
+		gpio_free(config->gpios[i].num);
 
-error6:
-	if (config->mux_sel_gpio != -1)
-		gpio_free(config->mux_sel_gpio);
-error5:
-	if (config->mux_en_gpio != -1)
-		gpio_free(config->mux_en_gpio);
-error4:
-	gpio_free(config->hpd_gpio);
-error3:
-	if (config->ddc_data_gpio != -1)
-		gpio_free(config->ddc_data_gpio);
-error2:
-	if (config->ddc_clk_gpio != -1)
-		gpio_free(config->ddc_clk_gpio);
-error1:
 	return ret;
 }
 
@@ -345,10 +285,13 @@ static enum drm_connector_status detect_reg(struct hdmi *hdmi)
 			connector_status_connected : connector_status_disconnected;
 }
 
+#define HPD_GPIO_INDEX	2
 static enum drm_connector_status detect_gpio(struct hdmi *hdmi)
 {
 	const struct hdmi_platform_config *config = hdmi->config;
-	return gpio_get_value(config->hpd_gpio) ?
+	struct hdmi_gpio_data hpd_gpio = config->gpios[HPD_GPIO_INDEX];
+
+	return gpio_get_value(hpd_gpio.num) ?
 			connector_status_connected :
 			connector_status_disconnected;
 }

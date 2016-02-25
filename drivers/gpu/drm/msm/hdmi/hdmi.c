@@ -388,7 +388,21 @@ static struct hdmi_platform_config hdmi_tx_8996_config = {
 		.hpd_freq      = hpd_clk_freq_8x74,
 };
 
-static int get_gpio(struct device *dev, struct device_node *of_node, const char *name)
+static const struct {
+	const char *name;
+	const bool output;
+	const int value;
+	const char *label;
+} hdmi_gpio_pdata[] = {
+	{ "qcom,hdmi-tx-ddc-clk", true, 1, "HDMI_DDC_CLK" },
+	{ "qcom,hdmi-tx-ddc-data", true, 1, "HDMI_DDC_DATA" },
+	{ "qcom,hdmi-tx-hpd", false, 1, "HDMI_HPD" },
+	{ "qcom,hdmi-tx-mux-en", true, 1, "HDMI_MUX_EN" },
+	{ "qcom,hdmi-tx-mux-sel", true, 0, "HDMI_MUX_SEL" },
+	{ "qcom,hdmi-tx-mux-lpm", true, 1, "HDMI_MUX_LPM" },
+};
+
+static int get_gpio(struct device_node *of_node, const char *name)
 {
 	int gpio = of_get_named_gpio(of_node, name, 0);
 	if (gpio < 0) {
@@ -410,6 +424,7 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	static struct hdmi_platform_config *hdmi_cfg;
 	struct hdmi *hdmi;
 	struct device_node *of_node = dev->of_node;
+	int i;
 
 	hdmi_cfg = (struct hdmi_platform_config *)
 			of_device_get_match_data(dev);
@@ -420,12 +435,14 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	hdmi_cfg->mmio_name     = "core_physical";
 	hdmi_cfg->qfprom_mmio_name = "qfprom_physical";
-	hdmi_cfg->ddc_clk_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-ddc-clk");
-	hdmi_cfg->ddc_data_gpio = get_gpio(dev, of_node, "qcom,hdmi-tx-ddc-data");
-	hdmi_cfg->hpd_gpio      = get_gpio(dev, of_node, "qcom,hdmi-tx-hpd");
-	hdmi_cfg->mux_en_gpio   = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-en");
-	hdmi_cfg->mux_sel_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-sel");
-	hdmi_cfg->mux_lpm_gpio  = get_gpio(dev, of_node, "qcom,hdmi-tx-mux-lpm");
+
+	for (i = 0; i < HDMI_MAX_NUM_GPIO; i++) {
+		hdmi_cfg->gpios[i].num = get_gpio(of_node,
+						hdmi_gpio_pdata[i].name);
+		hdmi_cfg->gpios[i].output = hdmi_gpio_pdata[i].output;
+		hdmi_cfg->gpios[i].value = hdmi_gpio_pdata[i].value;
+		hdmi_cfg->gpios[i].label = hdmi_gpio_pdata[i].label;
+	}
 
 	dev->platform_data = hdmi_cfg;
 
