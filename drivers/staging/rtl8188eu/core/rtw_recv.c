@@ -141,7 +141,7 @@ struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 		}
 	}
 
-	return (struct recv_frame *)hdr;
+	return hdr;
 }
 
 struct recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
@@ -240,7 +240,7 @@ void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfre
 
 		plist = plist->next;
 
-		rtw_free_recvframe((struct recv_frame *)hdr, pfree_recv_queue);
+		rtw_free_recvframe(hdr, pfree_recv_queue);
 	}
 
 	spin_unlock(&pframequeue->lock);
@@ -1417,7 +1417,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 	phead = get_list_head(defrag_q);
 	plist = phead->next;
 	pfhdr = container_of(plist, struct recv_frame, list);
-	prframe = (struct recv_frame *)pfhdr;
+	prframe = pfhdr;
 	list_del_init(&(prframe->list));
 
 	if (curfragnum != pfhdr->attrib.frag_num) {
@@ -1437,7 +1437,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 
 	while (phead != plist) {
 		pnfhdr = container_of(plist, struct recv_frame, list);
-		pnextrframe = (struct recv_frame *)pnfhdr;
+		pnextrframe = pnfhdr;
 
 		/* check the fragment sequence  (2nd ~n fragment frame) */
 
@@ -1780,7 +1780,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 	/*  Check if there is any packet need indicate. */
 	while (!list_empty(phead)) {
 		prhdr = container_of(plist, struct recv_frame, list);
-		prframe = (struct recv_frame *)prhdr;
+		prframe = prhdr;
 		pattrib = &prframe->attrib;
 
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
