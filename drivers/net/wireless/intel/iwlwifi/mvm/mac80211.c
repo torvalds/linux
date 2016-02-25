@@ -70,7 +70,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
 #include <linux/if_arp.h>
-#include <linux/devcoredump.h>
 #include <linux/time.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
@@ -86,7 +85,6 @@
 #include "testmode.h"
 #include "iwl-fw-error-dump.h"
 #include "iwl-prph.h"
-#include "iwl-csr.h"
 #include "iwl-nvm-parse.h"
 #include "fw-dbg.h"
 
@@ -2142,7 +2140,6 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 				bss_conf->txpower);
 		iwl_mvm_set_tx_power(mvm, vif, bss_conf->txpower);
 	}
-
 }
 
 static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
