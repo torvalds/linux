@@ -2018,7 +2018,7 @@ enum quota_cmd {
  */
 
 /* opcodes */
-typedef enum {
+enum mds_cmd {
 	MDS_GETATTR		= 33,
 	MDS_GETATTR_NAME	= 34,
 	MDS_CLOSE		= 35,
@@ -2049,7 +2049,7 @@ typedef enum {
 	MDS_HSM_CT_UNREGISTER	= 60,
 	MDS_SWAP_LAYOUTS	= 61,
 	MDS_LAST_OPC
-} mds_cmd_t;
+};
 
 #define MDS_FIRST_OPC    MDS_GETATTR
 
