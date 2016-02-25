@@ -2382,7 +2382,8 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	ASSIGN_CTX_REG(reg_state, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(ring),
 		       _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
 					  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-					  CTX_CTRL_RS_CTX_ENABLE));
+					  (HAS_RESOURCE_STREAMER(dev) ?
+					    CTX_CTRL_RS_CTX_ENABLE : 0)));
 	ASSIGN_CTX_REG(reg_state, CTX_RING_HEAD, RING_HEAD(ring->mmio_base), 0);
 	ASSIGN_CTX_REG(reg_state, CTX_RING_TAIL, RING_TAIL(ring->mmio_base), 0);
 	/* Ring buffer start address is not known until the buffer is pinned.
