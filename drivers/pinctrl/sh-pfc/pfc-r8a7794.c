@@ -4530,6 +4530,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_DU0_DISP, FN_QPOLA, FN_CC50_STATE30, 0,
 		/* IP6_3_2 [2] */
 		FN_DU0_EXODDF_DU0_ODDF_DISP_CDE, FN_QCPV_QDE, FN_CC50_STATE29,
+		0,
 		/* IP6_1_0 [2] */
 		FN_DU0_EXVSYNC_DU0_VSYNC, FN_QSTB_QHE, FN_CC50_STATE28, 0, }
 	},
