@@ -398,10 +398,8 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 	do_gettimeofday(&ts);
 	operation = gb_operation_create(gb->connection, type, request_size,
 					response_size, GFP_KERNEL);
-	if (!operation) {
-		ret = -ENOMEM;
-		goto error;
-	}
+	if (!operation)
+		return -ENOMEM;
 
 	if (request_size)
 		memcpy(operation->request->payload, request, request_size);
@@ -410,6 +408,7 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 	if (ret) {
 		dev_err(&gb->connection->bundle->dev,
 			"synchronous operation failed: %d\n", ret);
+		goto out_put_operation;
 	} else {
 		if (response_size == operation->response->payload_size) {
 			memcpy(response, operation->response->payload,
@@ -419,17 +418,19 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 				"response size %zu expected %d\n",
 				operation->response->payload_size,
 				response_size);
+			ret = -EINVAL;
+			goto out_put_operation;
 		}
 	}
 
-	gb_operation_put(operation);
-
-error:
 	do_gettimeofday(&te);
 
 	/* Calculate the total time the message took */
 	gb_loopback_push_latency_ts(gb, &ts, &te);
 	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
+
+out_put_operation:
+	gb_operation_put(operation);
 
 	return ret;
 }
@@ -988,8 +989,9 @@ static int gb_loopback_fn(void *data)
 
 			if (error)
 				gb->error++;
+			else
+				gb_loopback_calculate_stats(gb);
 			gb->iteration_count++;
-			gb_loopback_calculate_stats(gb);
 		}
 		send_count++;
 		if (us_wait)
