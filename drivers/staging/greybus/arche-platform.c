@@ -140,6 +140,8 @@ static irqreturn_t arche_platform_wd_irq_thread(int irq, void *devid)
 	arche_pdata->wake_detect_state = WD_STATE_COLDBOOT_START;
 	spin_unlock_irqrestore(&arche_pdata->lock, flags);
 
+	/* It should complete power cycle, so first make sure it is poweroff */
+	device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
 	/* Bring APB out of reset: cold boot sequence */
 	device_for_each_child(arche_pdata->dev, NULL, apb_cold_boot);
 
