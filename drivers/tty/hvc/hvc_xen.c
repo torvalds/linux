@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/serial_core.h>
 
 #include <asm/io.h>
 #include <asm/xen/hypervisor.h>
@@ -664,3 +665,18 @@ void xen_raw_printk(const char *fmt, ...)
 
 	xen_raw_console_write(buf);
 }
+
+static void xenboot_earlycon_write(struct console *console,
+				  const char *string,
+				  unsigned len)
+{
+	dom0_write_console(0, string, len);
+}
+
+static int __init xenboot_earlycon_setup(struct earlycon_device *device,
+					    const char *opt)
+{
+	device->con->write = xenboot_earlycon_write;
+	return 0;
+}
+EARLYCON_DECLARE(xenboot, xenboot_earlycon_setup);
