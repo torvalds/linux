@@ -388,6 +388,17 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
+			emac_rgmii_pins: emac0@0 {
+				allwinner,pins = "PD0", "PD1", "PD2", "PD3",
+						"PD4", "PD5", "PD7",
+						"PD8", "PD9", "PD10", "PD11",
+						"PD12", "PD13", "PD14", "PD15",
+						"PD16", "PD17";
+				allwinner,function = "emac";
+				allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PA4", "PA5";
 				allwinner,function = "uart0";
@@ -500,6 +511,19 @@
 			resets = <&apb2_rst 19>;
 			dmas = <&dma 9>, <&dma 9>;
 			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		emac: ethernet@1c30000 {
+			compatible = "allwinner,sun8i-h3-emac";
+			reg = <0x01c30000 0x104>;
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&ahb_rst 17>;
+			reset-names = "ahb";
+			clocks = <&bus_gates 17>, <&ephy>;
+			clock-names = "ahb", "tx";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
