@@ -1151,7 +1151,7 @@ static inline int can_merge_pages(struct brw_page *p1, struct brw_page *p2)
 
 static u32 osc_checksum_bulk(int nob, u32 pg_count,
 			     struct brw_page **pga, int opc,
-			     cksum_type_t cksum_type)
+			     enum cksum_type cksum_type)
 {
 	__u32 cksum;
 	int i = 0;
@@ -1355,7 +1355,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 		    !sptlrpc_flavor_has_bulk(&req->rq_flvr)) {
 			/* store cl_cksum_type in a local variable since
 			 * it can be changed via lprocfs */
-			cksum_type_t cksum_type = cli->cl_cksum_type;
+			enum cksum_type cksum_type = cli->cl_cksum_type;
 
 			if ((body->oa.o_valid & OBD_MD_FLFLAGS) == 0) {
 				oa->o_flags &= OBD_FL_LOCAL_MASK;
@@ -1414,11 +1414,11 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 static int check_write_checksum(struct obdo *oa, const lnet_process_id_t *peer,
 				__u32 client_cksum, __u32 server_cksum, int nob,
 				u32 page_count, struct brw_page **pga,
-				cksum_type_t client_cksum_type)
+				enum cksum_type client_cksum_type)
 {
 	__u32 new_cksum;
 	char *msg;
-	cksum_type_t cksum_type;
+	enum cksum_type cksum_type;
 
 	if (server_cksum == client_cksum) {
 		CDEBUG(D_PAGE, "checksum %x confirmed\n", client_cksum);
@@ -1549,7 +1549,7 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 		__u32 server_cksum = body->oa.o_cksum;
 		char *via = "";
 		char *router = "";
-		cksum_type_t cksum_type;
+		enum cksum_type cksum_type;
 
 		cksum_type = cksum_type_unpack(body->oa.o_valid&OBD_MD_FLFLAGS ?
 					       body->oa.o_flags : 0);

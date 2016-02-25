@@ -1408,11 +1408,11 @@ void lustre_swab_connect(struct obd_connect_data *ocd);
  * Please update DECLARE_CKSUM_NAME/OBD_CKSUM_ALL in obd.h when adding a new
  * algorithm and also the OBD_FL_CKSUM* flags.
  */
-typedef enum {
+enum cksum_type {
 	OBD_CKSUM_CRC32  = 0x00000001,
 	OBD_CKSUM_ADLER  = 0x00000002,
 	OBD_CKSUM_CRC32C = 0x00000004,
-} cksum_type_t;
+};
 
 /*
  *   OST requests: OBDO & OBD request records
