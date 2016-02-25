@@ -133,7 +133,7 @@ ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
  *     would be collected and ASTs sent.
  */
 static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
-				   int first_enq, ldlm_error_t *err,
+				   int first_enq, enum ldlm_error *err,
 				   struct list_head *work_list)
 {
 	struct ldlm_resource *res = req->l_resource;
@@ -449,7 +449,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	struct obd_import	      *imp = NULL;
 	struct ldlm_flock_wait_data     fwd;
 	struct l_wait_info	      lwi;
-	ldlm_error_t		    err;
+	enum ldlm_error		    err;
 	int			     rc = 0;
 
 	CDEBUG(D_DLMTRACE, "flags: 0x%llx data: %p getlk: %p\n",

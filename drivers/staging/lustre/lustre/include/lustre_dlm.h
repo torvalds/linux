@@ -69,7 +69,7 @@ struct obd_device;
 /**
  * LDLM non-error return states
  */
-typedef enum {
+enum ldlm_error {
 	ELDLM_OK = 0,
 
 	ELDLM_LOCK_CHANGED = 300,
@@ -80,7 +80,7 @@ typedef enum {
 
 	ELDLM_NAMESPACE_EXISTS = 400,
 	ELDLM_BAD_NAMESPACE    = 401
-} ldlm_error_t;
+};
 
 /**
  * LDLM namespace type.
@@ -1019,7 +1019,7 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 } while (0)
 
 typedef int (*ldlm_processing_policy)(struct ldlm_lock *lock, __u64 *flags,
-				      int first_enq, ldlm_error_t *err,
+				      int first_enq, enum ldlm_error *err,
 				      struct list_head *work_list);
 
 /**
@@ -1105,7 +1105,7 @@ static inline int ldlm_res_lvbo_update(struct ldlm_resource *res,
 	return 0;
 }
 
-int ldlm_error2errno(ldlm_error_t error);
+int ldlm_error2errno(enum ldlm_error error);
 
 #if LUSTRE_TRACKS_LOCK_EXP_REFS
 void ldlm_dump_export_locks(struct obd_export *exp);

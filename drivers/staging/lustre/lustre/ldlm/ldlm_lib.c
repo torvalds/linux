@@ -733,7 +733,7 @@ enum ldlm_mode lck_compat_array[] = {
  * Rather arbitrary mapping from LDLM error codes to errno values. This should
  * not escape to the user level.
  */
-int ldlm_error2errno(ldlm_error_t error)
+int ldlm_error2errno(enum ldlm_error error)
 {
 	int result;
 
@@ -761,7 +761,7 @@ int ldlm_error2errno(ldlm_error_t error)
 		break;
 	default:
 		if (((int)error) < 0)  /* cast to signed type */
-			result = error; /* as ldlm_error_t can be unsigned */
+			result = error; /* as enum ldlm_error can be unsigned */
 		else {
 			CERROR("Invalid DLM result code: %d\n", error);
 			result = -EPROTO;

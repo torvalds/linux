@@ -1512,9 +1512,9 @@ out:
  * Does not block. As a result of enqueue the lock would be put
  * into granted or waiting list.
  */
-ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
-			       struct ldlm_lock **lockp,
-			       void *cookie, __u64 *flags)
+enum ldlm_error ldlm_lock_enqueue(struct ldlm_namespace *ns,
+				  struct ldlm_lock **lockp,
+				  void *cookie, __u64 *flags)
 {
 	struct ldlm_lock *lock = *lockp;
 	struct ldlm_resource *res = lock->l_resource;
