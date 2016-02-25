@@ -661,7 +661,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		}
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		    task->task_status.stat == SAM_STAT_GOOD) {
+		     task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
 			res = TMF_RESP_FUNC_COMPLETE;
 			break;
 		}
