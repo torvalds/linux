@@ -97,7 +97,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 {
 	assert(xm);		/* we don't gen exact zeros (probably should) */
 
-	assert((xm >> (DP_FBITS + 1 + 3)) == 0);	/* no execess */
+	assert((xm >> (DP_FBITS + 1 + 3)) == 0);	/* no excess */
 	assert(xm & (DP_HIDDEN_BIT << 3));
 
 	if (xe < DP_EMIN) {
@@ -165,7 +165,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 	/* strip grs bits */
 	xm >>= 3;
 
-	assert((xm >> (DP_FBITS + 1)) == 0);	/* no execess */
+	assert((xm >> (DP_FBITS + 1)) == 0);	/* no excess */
 	assert(xe >= DP_EMIN);
 
 	if (xe > DP_EMAX) {
@@ -198,7 +198,7 @@ union ieee754dp ieee754dp_format(int sn, int xe, u64 xm)
 			ieee754_setcx(IEEE754_UNDERFLOW);
 		return builddp(sn, DP_EMIN - 1 + DP_EBIAS, xm);
 	} else {
-		assert((xm >> (DP_FBITS + 1)) == 0);	/* no execess */
+		assert((xm >> (DP_FBITS + 1)) == 0);	/* no excess */
 		assert(xm & DP_HIDDEN_BIT);
 
 		return builddp(sn, xe + DP_EBIAS, xm & ~DP_HIDDEN_BIT);
