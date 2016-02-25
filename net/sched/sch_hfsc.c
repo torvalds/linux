@@ -895,9 +895,10 @@ static void
 hfsc_purge_queue(struct Qdisc *sch, struct hfsc_class *cl)
 {
 	unsigned int len = cl->qdisc->q.qlen;
+	unsigned int backlog = cl->qdisc->qstats.backlog;
 
 	qdisc_reset(cl->qdisc);
-	qdisc_tree_decrease_qlen(cl->qdisc, len);
+	qdisc_tree_reduce_backlog(cl->qdisc, len, backlog);
 }
 
 static void
