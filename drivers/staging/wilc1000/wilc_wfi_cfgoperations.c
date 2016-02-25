@@ -545,7 +545,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 
 		cfg80211_connect_result(dev, pstrConnectInfo->bssid,
 					pstrConnectInfo->req_ies, pstrConnectInfo->req_ies_len,
-					pstrConnectInfo->resp_ies, pstrConnectInfo->u16RespIEsLen,
+					pstrConnectInfo->resp_ies, pstrConnectInfo->resp_ies_len,
 					u16ConnectStatus, GFP_KERNEL);
 	} else if (enuConnDisconnEvent == CONN_DISCONN_EVENT_DISCONN_NOTIF)    {
 		wilc_optaining_ip = false;

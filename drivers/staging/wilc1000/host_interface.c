@@ -1467,7 +1467,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 
 						if (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE) {
 							if (pstrConnectRespInfo->ies) {
-								strConnectInfo.u16RespIEsLen = pstrConnectRespInfo->ies_len;
+								strConnectInfo.resp_ies_len = pstrConnectRespInfo->ies_len;
 								strConnectInfo.resp_ies = kmalloc(pstrConnectRespInfo->ies_len, GFP_KERNEL);
 								memcpy(strConnectInfo.resp_ies, pstrConnectRespInfo->ies,
 								       pstrConnectRespInfo->ies_len);

@@ -110,7 +110,7 @@ struct connect_info {
 	u8 *req_ies;
 	size_t req_ies_len;
 	u8 *resp_ies;
-	u16 u16RespIEsLen;
+	u16 resp_ies_len;
 	u16 u16ConnectStatus;
 };
 
