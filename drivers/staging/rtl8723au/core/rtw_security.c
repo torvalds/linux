@@ -1619,7 +1619,7 @@ exit:
 
 void rtw_use_tkipkey_handler23a(void *FunctionContext)
 {
-	struct rtw_adapter *padapter = (struct rtw_adapter *)FunctionContext;
+	struct rtw_adapter *padapter = FunctionContext;
 
 	RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
 		 "^^^%s ^^^\n", __func__);
