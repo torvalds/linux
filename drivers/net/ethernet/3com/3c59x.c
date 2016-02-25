@@ -2461,7 +2461,7 @@ boomerang_interrupt(int irq, void *dev_id)
 					int i;
 					pci_unmap_single(VORTEX_PCI(vp),
 							le32_to_cpu(vp->tx_ring[entry].frag[0].addr),
-							le32_to_cpu(vp->tx_ring[entry].frag[0].length),
+							le32_to_cpu(vp->tx_ring[entry].frag[0].length)&0xFFF,
 							PCI_DMA_TODEVICE);
 
 					for (i=1; i<=skb_shinfo(skb)->nr_frags; i++)
