@@ -746,7 +746,8 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 	cleanup = 4;
 
 	/* if echo client is to be stacked upon ost device, the next is
-	 * NULL since ost is not a clio device so far */
+	 * NULL since ost is not a clio device so far
+	 */
 	if (next && !lu_device_is_cl(next))
 		next = NULL;
 
@@ -965,7 +966,8 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 	}
 
 	/* In the function below, .hs_keycmp resolves to
-	 * lu_obj_hop_keycmp() */
+	 * lu_obj_hop_keycmp()
+	 */
 	/* coverity[overrun-buffer-val] */
 	obj = cl_object_find(env, echo_dev2cl(d), fid, &conf->eoc_cl);
 	if (IS_ERR(obj)) {
@@ -1164,7 +1166,8 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 		cl_page_list_add(&queue->c2_qin, clp);
 
 		/* drop the reference count for cl_page_find, so that the page
-		 * will be freed in cl_2queue_fini. */
+		 * will be freed in cl_2queue_fini.
+		 */
 		cl_page_put(env, clp);
 		cl_page_clip(env, clp, 0, page_size);
 
