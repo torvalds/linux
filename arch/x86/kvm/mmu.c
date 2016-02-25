@@ -2059,24 +2059,31 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 	struct mmu_page_path parents;
 	struct kvm_mmu_pages pages;
 	LIST_HEAD(invalid_list);
+	bool flush = false;
 
 	while (mmu_unsync_walk(parent, &pages)) {
 		bool protected = false;
-		bool flush = false;
 
 		for_each_sp(pages, sp, parents, i)
 			protected |= rmap_write_protect(vcpu, sp->gfn);
 
-		if (protected)
+		if (protected) {
 			kvm_flush_remote_tlbs(vcpu->kvm);
+			flush = false;
+		}
 
 		for_each_sp(pages, sp, parents, i) {
 			flush |= kvm_sync_page(vcpu, sp, &invalid_list);
 			mmu_pages_clear_parents(&parents);
 		}
-		kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
-		cond_resched_lock(&vcpu->kvm->mmu_lock);
+		if (need_resched() || spin_needbreak(&vcpu->kvm->mmu_lock)) {
+			kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
+			cond_resched_lock(&vcpu->kvm->mmu_lock);
+			flush = false;
+		}
 	}
+
+	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
 }
 
 static void __clear_sp_write_flooding_count(struct kvm_mmu_page *sp)
