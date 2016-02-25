@@ -278,7 +278,8 @@ struct lan78xx_net {
 	int			link_on;
 	u8			mdix_ctrl;
 
-	u32			devid;
+	u32			chipid;
+	u32			chiprev;
 	struct mii_bus		*mdiobus;
 };
 
@@ -471,7 +472,7 @@ static int lan78xx_read_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 	 */
 	ret = lan78xx_read_reg(dev, HW_CFG, &val);
 	saved = val;
-	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000) {
+	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
 		val &= ~(HW_CFG_LED1_EN_ | HW_CFG_LED0_EN_);
 		ret = lan78xx_write_reg(dev, HW_CFG, val);
 	}
@@ -505,7 +506,7 @@ static int lan78xx_read_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 
 	retval = 0;
 exit:
-	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000)
+	if (dev->chipid == ID_REV_CHIP_ID_7800_)
 		ret = lan78xx_write_reg(dev, HW_CFG, saved);
 
 	return retval;
@@ -539,7 +540,7 @@ static int lan78xx_write_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 	 */
 	ret = lan78xx_read_reg(dev, HW_CFG, &val);
 	saved = val;
-	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000) {
+	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
 		val &= ~(HW_CFG_LED1_EN_ | HW_CFG_LED0_EN_);
 		ret = lan78xx_write_reg(dev, HW_CFG, val);
 	}
@@ -587,7 +588,7 @@ static int lan78xx_write_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 
 	retval = 0;
 exit:
-	if ((dev->devid & ID_REV_CHIP_ID_MASK_) == 0x78000000)
+	if (dev->chipid == ID_REV_CHIP_ID_7800_)
 		ret = lan78xx_write_reg(dev, HW_CFG, saved);
 
 	return retval;
@@ -1555,9 +1556,9 @@ static int lan78xx_mdio_init(struct lan78xx_net *dev)
 	snprintf(dev->mdiobus->id, MII_BUS_ID_SIZE, "usb-%03d:%03d",
 		 dev->udev->bus->busnum, dev->udev->devnum);
 
-	switch (dev->devid & ID_REV_CHIP_ID_MASK_) {
-	case 0x78000000:
-	case 0x78500000:
+	switch (dev->chipid) {
+	case ID_REV_CHIP_ID_7800_:
+	case ID_REV_CHIP_ID_7850_:
 		/* set to internal PHY id */
 		dev->mdiobus->phy_mask = ~(1 << 1);
 		break;
@@ -1918,7 +1919,8 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 
 	/* save DEVID for later usage */
 	ret = lan78xx_read_reg(dev, ID_REV, &buf);
-	dev->devid = buf;
+	dev->chipid = (buf & ID_REV_CHIP_ID_MASK_) >> 16;
+	dev->chiprev = buf & ID_REV_CHIP_REV_MASK_;
 
 	/* Respond to the IN token with a NAK */
 	ret = lan78xx_read_reg(dev, USB_CFG0, &buf);
