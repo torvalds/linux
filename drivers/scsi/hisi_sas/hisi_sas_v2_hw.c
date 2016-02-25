@@ -1299,6 +1299,13 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			ts->stat = SAS_DATA_UNDERRUN;
 			break;
 		}
+		case TRANS_TX_ERR_FRAME_TXED:
+		{
+			/* This will request a retry */
+			ts->stat = SAS_QUEUE_FULL;
+			slot->abort = 1;
+			break;
+		}
 		case TRANS_TX_OPEN_FAIL_WITH_IT_NEXUS_LOSS:
 		case TRANS_TX_ERR_PHY_NOT_ENABLE:
 		case TRANS_TX_OPEN_CNX_ERR_BY_OTHER:
@@ -1491,11 +1498,13 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot,
 
 	if ((complete_hdr->dw0 & CMPLT_HDR_ERX_MSK) &&
 		(!(complete_hdr->dw0 & CMPLT_HDR_RSPNS_XFRD_MSK))) {
-		dev_dbg(dev, "%s slot %d has error info 0x%x\n",
-			__func__, slot->cmplt_queue_slot,
-			complete_hdr->dw0 & CMPLT_HDR_ERX_MSK);
 
 		slot_err_v2_hw(hisi_hba, task, slot);
+		if (unlikely(slot->abort)) {
+			queue_work(hisi_hba->wq, &slot->abort_slot);
+			/* immediately return and do not complete */
+			return ts->stat;
+		}
 		goto out;
 	}
 
