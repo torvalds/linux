@@ -164,6 +164,9 @@ int lkl_printf(const char *fmt, ...)
 	va_list args, copy;
 	int n;
 
+	if (!lkl_host_ops.print)
+		return 0;
+
 	va_start(args, fmt);
 	va_copy(copy, args);
 	n = vsnprintf(NULL, 0, fmt, copy);
