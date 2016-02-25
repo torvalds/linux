@@ -98,7 +98,6 @@ struct hdmi {
 
 /* platform config data (ie. from DT, or pdata) */
 struct hdmi_platform_config {
-	struct hdmi_phy *(*phy_init)(struct hdmi *hdmi);
 	const char *mmio_name;
 	const char *qfprom_mmio_name;
 
@@ -143,11 +142,6 @@ static inline u32 hdmi_qfprom_read(struct hdmi *hdmi, u32 reg)
 /*
  * hdmi phy:
  */
-struct hdmi_phy_funcs {
-	void (*destroy)(struct hdmi_phy *phy);
-	void (*powerup)(struct hdmi_phy *phy, unsigned long int pixclock);
-	void (*powerdown)(struct hdmi_phy *phy);
-};
 
 enum hdmi_phy_type {
 	MSM_HDMI_PHY_8x60,
@@ -178,10 +172,6 @@ struct hdmi_phy {
 	struct regulator **regs;
 	struct clk **clks;
 };
-
-struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi);
-struct hdmi_phy *hdmi_phy_8x60_init(struct hdmi *hdmi);
-struct hdmi_phy *hdmi_phy_8x74_init(struct hdmi *hdmi);
 
 static inline void hdmi_phy_write(struct hdmi_phy *phy, u32 reg, u32 data)
 {
