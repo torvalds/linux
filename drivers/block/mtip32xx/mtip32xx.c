@@ -233,15 +233,9 @@ static void mtip_async_complete(struct mtip_port *port,
 			"Command tag %d failed due to TFE\n", tag);
 	}
 
-	/* Unmap the DMA scatter list entries */
-	dma_unmap_sg(&dd->pdev->dev, cmd->sg, cmd->scatter_ents, cmd->direction);
-
 	rq = mtip_rq_from_tag(dd, tag);
 
-	if (unlikely(cmd->unaligned))
-		up(&port->cmd_slot_unal);
-
-	blk_mq_end_request(rq, status ? -EIO : 0);
+	blk_mq_complete_request(rq, status);
 }
 
 /*
@@ -2889,6 +2883,42 @@ static int mtip_ftl_rebuild_poll(struct driver_data *dd)
 	return -EFAULT;
 }
 
+static void mtip_softirq_done_fn(struct request *rq)
+{
+	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	struct driver_data *dd = rq->q->queuedata;
+
+	/* Unmap the DMA scatter list entries */
+	dma_unmap_sg(&dd->pdev->dev, cmd->sg, cmd->scatter_ents,
+							cmd->direction);
+
+	if (unlikely(cmd->unaligned))
+		up(&dd->port->cmd_slot_unal);
+
+	blk_mq_end_request(rq, rq->errors);
+}
+
+static void mtip_abort_cmd(struct request *req, void *data,
+							bool reserved)
+{
+	struct driver_data *dd = data;
+
+	dbg_printk(MTIP_DRV_NAME " Aborting request, tag = %d\n", req->tag);
+
+	clear_bit(req->tag, dd->port->cmds_to_issue);
+	req->errors = -EIO;
+	mtip_softirq_done_fn(req);
+}
+
+static void mtip_queue_cmd(struct request *req, void *data,
+							bool reserved)
+{
+	struct driver_data *dd = data;
+
+	set_bit(req->tag, dd->port->cmds_to_issue);
+	blk_abort_request(req);
+}
+
 /*
  * service thread to issue queued commands
  *
@@ -2901,7 +2931,7 @@ static int mtip_ftl_rebuild_poll(struct driver_data *dd)
 static int mtip_service_thread(void *data)
 {
 	struct driver_data *dd = (struct driver_data *)data;
-	unsigned long slot, slot_start, slot_wrap;
+	unsigned long slot, slot_start, slot_wrap, to;
 	unsigned int num_cmd_slots = dd->slot_groups * 32;
 	struct mtip_port *port = dd->port;
 
@@ -2937,6 +2967,32 @@ restart_eh:
 
 		if (test_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags))
 			goto restart_eh;
+
+		if (test_bit(MTIP_PF_TO_ACTIVE_BIT, &port->flags)) {
+			to = jiffies + msecs_to_jiffies(5000);
+
+			do {
+				mdelay(100);
+			} while (atomic_read(&dd->irq_workers_active) != 0 &&
+				time_before(jiffies, to));
+
+			if (atomic_read(&dd->irq_workers_active) != 0)
+				dev_warn(&dd->pdev->dev,
+					"Completion workers still active!");
+
+			spin_lock(dd->queue->queue_lock);
+			blk_mq_all_tag_busy_iter(*dd->tags.tags,
+							mtip_queue_cmd, dd);
+			spin_unlock(dd->queue->queue_lock);
+
+			set_bit(MTIP_PF_ISSUE_CMDS_BIT, &dd->port->flags);
+
+			if (mtip_device_reset(dd))
+				blk_mq_all_tag_busy_iter(*dd->tags.tags,
+							mtip_abort_cmd, dd);
+
+			clear_bit(MTIP_PF_TO_ACTIVE_BIT, &dd->port->flags);
+		}
 
 		if (test_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags)) {
 			slot = 1;
@@ -3803,11 +3859,33 @@ static int mtip_init_cmd(void *data, struct request *rq, unsigned int hctx_idx,
 	return 0;
 }
 
+static enum blk_eh_timer_return mtip_cmd_timeout(struct request *req,
+								bool reserved)
+{
+	struct driver_data *dd = req->q->queuedata;
+	int ret = BLK_EH_RESET_TIMER;
+
+	if (reserved)
+		goto exit_handler;
+
+	if (test_bit(req->tag, dd->port->cmds_to_issue))
+		goto exit_handler;
+
+	if (test_and_set_bit(MTIP_PF_TO_ACTIVE_BIT, &dd->port->flags))
+		goto exit_handler;
+
+	wake_up_interruptible(&dd->port->svc_wait);
+exit_handler:
+	return ret;
+}
+
 static struct blk_mq_ops mtip_mq_ops = {
 	.queue_rq	= mtip_queue_rq,
 	.map_queue	= blk_mq_map_queue,
 	.init_request	= mtip_init_cmd,
 	.exit_request	= mtip_free_cmd,
+	.complete	= mtip_softirq_done_fn,
+	.timeout        = mtip_cmd_timeout,
 };
 
 /*
@@ -3883,6 +3961,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 	dd->tags.numa_node = dd->numa_node;
 	dd->tags.flags = BLK_MQ_F_SHOULD_MERGE;
 	dd->tags.driver_data = dd;
+	dd->tags.timeout = MTIP_NCQ_CMD_TIMEOUT_MS;
 
 	rv = blk_mq_alloc_tag_set(&dd->tags);
 	if (rv) {
