@@ -264,15 +264,15 @@ static int max77620_read_slew_rate(struct max77620_regulator *pmic, int id)
 	int slew_rate;
 	int ret;
 
+	ret = regmap_read(pmic->rmap, rinfo->cfg_addr, &rval);
+	if (ret < 0) {
+		dev_err(pmic->dev, "Register 0x%02x read failed: %d\n",
+			rinfo->cfg_addr, ret);
+		return ret;
+	}
+
 	switch (rinfo->type) {
 	case MAX77620_REGULATOR_TYPE_SD:
-		ret = regmap_read(pmic->rmap, rinfo->cfg_addr, &rval);
-		if (ret < 0) {
-			dev_err(pmic->dev, "Register 0x%02x read failed: %d\n",
-				rinfo->cfg_addr, ret);
-			return ret;
-		}
-
 		slew_rate = (rval >> MAX77620_SD_SR_SHIFT) & 0x3;
 		switch (slew_rate) {
 		case 0:
@@ -291,12 +291,6 @@ static int max77620_read_slew_rate(struct max77620_regulator *pmic, int id)
 		rinfo->desc.ramp_delay = slew_rate;
 		break;
 	default:
-		ret = regmap_read(pmic->rmap, rinfo->cfg_addr, &rval);
-		if (ret < 0) {
-			dev_err(pmic->dev, "Register 0x%02x read failed: %d\n",
-				rinfo->cfg_addr, ret);
-			return ret;
-		}
 		slew_rate = rval & 0x1;
 		switch (slew_rate) {
 		case 0:
