@@ -287,6 +287,4 @@ extern const struct gf100_gr_init gm107_gr_init_l1c_0[];
 extern const struct gf100_gr_init gm107_gr_init_wwdx_0[];
 extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
 void gm107_gr_init_bios(struct gf100_gr *);
-
-extern const struct gf100_gr_pack gm200_gr_pack_mmio[];
 #endif
