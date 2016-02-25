@@ -266,7 +266,7 @@ config GPIO_LYNXPOINT
 
 config GPIO_MB86S7X
 	bool "GPIO support for Fujitsu MB86S7x Platforms"
-	depends on ARCH_MB86S7X
+	depends on ARCH_MB86S7X || COMPILE_TEST
 	help
 	  Say yes here to support the GPIO controller in Fujitsu MB86S70 SoCs.
 
