@@ -1016,7 +1016,7 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 		}
 	}
 
-	if (change)
+	if (change && cfg->update)
 		cfg->update(cfg->io, mod);
 
 	return change;
