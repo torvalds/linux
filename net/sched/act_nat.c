@@ -31,6 +31,8 @@
 
 #define NAT_TAB_MASK	15
 
+static int nat_net_id;
+
 static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 	[TCA_NAT_PARMS]	= { .len = sizeof(struct tc_nat) },
 };
@@ -38,6 +40,7 @@ static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
 	struct nlattr *tb[TCA_NAT_MAX + 1];
 	struct tc_nat *parm;
 	int ret = 0, err;
@@ -54,9 +57,9 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 	parm = nla_data(tb[TCA_NAT_PARMS]);
 
-	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*p),
-				      bind, false);
+	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+		ret = tcf_hash_create(tn, parm->index, est, a,
+				      sizeof(*p), bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
@@ -79,7 +82,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	spin_unlock_bh(&p->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(a);
+		tcf_hash_insert(tn, a);
 
 	return ret;
 }
@@ -274,6 +277,22 @@ nla_put_failure:
 	return -1;
 }
 
+static int tcf_nat_walker(struct net *net, struct sk_buff *skb,
+			  struct netlink_callback *cb, int type,
+			  struct tc_action *a)
+{
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
+
+	return tcf_generic_walker(tn, skb, cb, type, a);
+}
+
+static int tcf_nat_search(struct net *net, struct tc_action *a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
+
+	return tcf_hash_search(tn, a, index);
+}
+
 static struct tc_action_ops act_nat_ops = {
 	.kind		=	"nat",
 	.type		=	TCA_ACT_NAT,
@@ -281,6 +300,29 @@ static struct tc_action_ops act_nat_ops = {
 	.act		=	tcf_nat,
 	.dump		=	tcf_nat_dump,
 	.init		=	tcf_nat_init,
+	.walk		=	tcf_nat_walker,
+	.lookup		=	tcf_nat_search,
+};
+
+static __net_init int nat_init_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
+
+	return tc_action_net_init(tn, &act_nat_ops, NAT_TAB_MASK);
+}
+
+static void __net_exit nat_exit_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, nat_net_id);
+
+	tc_action_net_exit(tn);
+}
+
+static struct pernet_operations nat_net_ops = {
+	.init = nat_init_net,
+	.exit = nat_exit_net,
+	.id   = &nat_net_id,
+	.size = sizeof(struct tc_action_net),
 };
 
 MODULE_DESCRIPTION("Stateless NAT actions");
@@ -288,12 +330,12 @@ MODULE_LICENSE("GPL");
 
 static int __init nat_init_module(void)
 {
-	return tcf_register_action(&act_nat_ops, NAT_TAB_MASK);
+	return tcf_register_action(&act_nat_ops, &nat_net_ops);
 }
 
 static void __exit nat_cleanup_module(void)
 {
-	tcf_unregister_action(&act_nat_ops);
+	tcf_unregister_action(&act_nat_ops, &nat_net_ops);
 }
 
 module_init(nat_init_module);
