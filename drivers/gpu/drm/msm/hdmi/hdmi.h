@@ -198,6 +198,15 @@ void hdmi_phy_powerdown(struct hdmi_phy *phy);
 void __init hdmi_phy_driver_register(void);
 void __exit hdmi_phy_driver_unregister(void);
 
+#ifdef CONFIG_COMMON_CLK
+int hdmi_pll_8960_init(struct platform_device *pdev);
+#else
+int hdmi_pll_8960_init(struct platform_device *pdev);
+{
+	return -ENODEV;
+}
+#endif
+
 /*
  * audio:
  */
