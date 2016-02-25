@@ -734,7 +734,7 @@ int rtsx_transfer_data_partial(struct rtsx_chip *chip, u8 card,
 		return -EIO;
 
 	if (use_sg) {
-		struct scatterlist *sg = (struct scatterlist *)buf;
+		struct scatterlist *sg = buf;
 
 		err = rtsx_transfer_sglist_adma_partial(chip, card, sg, use_sg,
 							index, offset, (int)len,
