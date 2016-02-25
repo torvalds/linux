@@ -233,6 +233,7 @@ static int ccp_sha_import(struct ahash_request *req, const void *in)
 	/* 'in' may not be aligned so memcpy to local variable */
 	memcpy(&state, in, sizeof(state));
 
+	memset(rctx, 0, sizeof(*rctx));
 	rctx->type = state.type;
 	rctx->msg_bits = state.msg_bits;
 	rctx->first = state.first;
