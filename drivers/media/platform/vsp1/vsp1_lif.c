@@ -107,23 +107,6 @@ static int lif_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int lif_get_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
-{
-	struct vsp1_lif *lif = to_lif(subdev);
-	struct v4l2_subdev_pad_config *config;
-
-	config = vsp1_entity_get_pad_config(&lif->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
-
-	fmt->format = *vsp1_entity_get_pad_format(&lif->entity, config,
-						  fmt->pad);
-
-	return 0;
-}
-
 static int lif_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
@@ -173,7 +156,7 @@ static struct v4l2_subdev_pad_ops lif_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = lif_enum_mbus_code,
 	.enum_frame_size = lif_enum_frame_size,
-	.get_fmt = lif_get_format,
+	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = lif_set_format,
 };
 

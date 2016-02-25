@@ -129,23 +129,6 @@ static struct v4l2_rect *bru_get_compose(struct vsp1_bru *bru,
 	return v4l2_subdev_get_try_compose(&bru->entity.subdev, cfg, pad);
 }
 
-static int bru_get_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
-{
-	struct vsp1_bru *bru = to_bru(subdev);
-	struct v4l2_subdev_pad_config *config;
-
-	config = vsp1_entity_get_pad_config(&bru->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
-
-	fmt->format = *vsp1_entity_get_pad_format(&bru->entity, config,
-						  fmt->pad);
-
-	return 0;
-}
-
 static void bru_try_format(struct vsp1_bru *bru,
 			   struct v4l2_subdev_pad_config *config,
 			   unsigned int pad, struct v4l2_mbus_framefmt *fmt)
@@ -292,7 +275,7 @@ static struct v4l2_subdev_pad_ops bru_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = bru_enum_mbus_code,
 	.enum_frame_size = bru_enum_frame_size,
-	.get_fmt = bru_get_format,
+	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = bru_set_format,
 	.get_selection = bru_get_selection,
 	.set_selection = bru_set_selection,

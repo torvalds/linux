@@ -184,23 +184,6 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int sru_get_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
-{
-	struct vsp1_sru *sru = to_sru(subdev);
-	struct v4l2_subdev_pad_config *config;
-
-	config = vsp1_entity_get_pad_config(&sru->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
-
-	fmt->format = *vsp1_entity_get_pad_format(&sru->entity, config,
-						  fmt->pad);
-
-	return 0;
-}
-
 static void sru_try_format(struct vsp1_sru *sru,
 			   struct v4l2_subdev_pad_config *config,
 			   unsigned int pad, struct v4l2_mbus_framefmt *fmt)
@@ -285,7 +268,7 @@ static struct v4l2_subdev_pad_ops sru_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = sru_enum_mbus_code,
 	.enum_frame_size = sru_enum_frame_size,
-	.get_fmt = sru_get_format,
+	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = sru_set_format,
 };
 

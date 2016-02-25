@@ -90,23 +90,6 @@ static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int hsit_get_format(struct v4l2_subdev *subdev,
-			   struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
-{
-	struct vsp1_hsit *hsit = to_hsit(subdev);
-	struct v4l2_subdev_pad_config *config;
-
-	config = vsp1_entity_get_pad_config(&hsit->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
-
-	fmt->format = *vsp1_entity_get_pad_format(&hsit->entity, config,
-						  fmt->pad);
-
-	return 0;
-}
-
 static int hsit_set_format(struct v4l2_subdev *subdev,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
@@ -154,7 +137,7 @@ static struct v4l2_subdev_pad_ops hsit_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = hsit_enum_mbus_code,
 	.enum_frame_size = hsit_enum_frame_size,
-	.get_fmt = hsit_get_format,
+	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = hsit_set_format,
 };
 

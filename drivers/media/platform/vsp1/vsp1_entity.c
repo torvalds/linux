@@ -116,6 +116,31 @@ int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
 	return 0;
 }
 
+/*
+ * vsp1_subdev_get_pad_format - Subdev pad get_fmt handler
+ * @subdev: V4L2 subdevice
+ * @cfg: V4L2 subdev pad configuration
+ * @fmt: V4L2 subdev format
+ *
+ * This function implements the subdev get_fmt pad operation. It can be used as
+ * a direct drop-in for the operation handler.
+ */
+int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
+			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_format *fmt)
+{
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+	struct v4l2_subdev_pad_config *config;
+
+	config = vsp1_entity_get_pad_config(entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	fmt->format = *vsp1_entity_get_pad_format(entity, config, fmt->pad);
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * Media Operations
  */
