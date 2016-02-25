@@ -70,7 +70,7 @@ static int sunxi_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static struct reset_control_ops sunxi_reset_ops = {
+static const struct reset_control_ops sunxi_reset_ops = {
 	.assert		= sunxi_reset_assert,
 	.deassert	= sunxi_reset_deassert,
 };
