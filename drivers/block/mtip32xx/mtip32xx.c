@@ -699,7 +699,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 			fail_reason = "thermal shutdown";
 		}
 		if (buf[288] == 0xBF) {
-			set_bit(MTIP_DDF_SEC_LOCK_BIT, &dd->dd_flag);
+			set_bit(MTIP_DDF_REBUILD_FAILED_BIT, &dd->dd_flag);
 			dev_info(&dd->pdev->dev,
 				"Drive indicates rebuild has failed. Secure erase required.\n");
 			fail_all_ncq_cmds = 1;
@@ -1000,6 +1000,7 @@ static bool mtip_pause_ncq(struct mtip_port *port,
 			(fis->features == 0x27 || fis->features == 0x72 ||
 			 fis->features == 0x62 || fis->features == 0x26))) {
 		clear_bit(MTIP_DDF_SEC_LOCK_BIT, &port->dd->dd_flag);
+		clear_bit(MTIP_DDF_REBUILD_FAILED_BIT, &port->dd->dd_flag);
 		/* Com reset after secure erase or lowlevel format */
 		mtip_restart_port(port);
 		clear_bit(MTIP_PF_SE_ACTIVE_BIT, &port->flags);
@@ -1166,6 +1167,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 		if ((rv = wait_for_completion_interruptible_timeout(
 				&wait,
 				msecs_to_jiffies(timeout))) <= 0) {
+
 			if (rv == -ERESTARTSYS) { /* interrupted */
 				dev_err(&dd->pdev->dev,
 					"Internal command [%02X] was interrupted after %u ms\n",
@@ -3084,7 +3086,7 @@ static int mtip_hw_get_identify(struct driver_data *dd)
 		if (buf[288] == 0xBF) {
 			dev_info(&dd->pdev->dev,
 				"Drive indicates rebuild has failed.\n");
-			/* TODO */
+			set_bit(MTIP_DDF_REBUILD_FAILED_BIT, &dd->dd_flag);
 		}
 	}
 
@@ -3687,10 +3689,9 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 				rq_data_dir(rq))) {
 			return -ENODATA;
 		}
-		if (unlikely(test_bit(MTIP_DDF_SEC_LOCK_BIT, &dd->dd_flag)))
+		if (unlikely(test_bit(MTIP_DDF_SEC_LOCK_BIT, &dd->dd_flag) ||
+			test_bit(MTIP_DDF_REBUILD_FAILED_BIT, &dd->dd_flag)))
 			return -ENODATA;
-		if (test_bit(MTIP_DDF_REBUILD_FAILED_BIT, &dd->dd_flag))
-			return -ENXIO;
 	}
 
 	if (rq->cmd_flags & REQ_DISCARD) {
