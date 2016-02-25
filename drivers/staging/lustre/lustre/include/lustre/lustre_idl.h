@@ -2820,7 +2820,7 @@ void lustre_swab_ldlm_reply(struct ldlm_reply *r);
 /*
  * Opcodes for mountconf (mgs and mgc)
  */
-typedef enum {
+enum mgs_cmd {
 	MGS_CONNECT = 250,
 	MGS_DISCONNECT,
 	MGS_EXCEPTION,	 /* node died, etc. */
@@ -2829,7 +2829,7 @@ typedef enum {
 	MGS_SET_INFO,
 	MGS_CONFIG_READ,
 	MGS_LAST_OPC
-} mgs_cmd_t;
+};
 #define MGS_FIRST_OPC MGS_CONNECT
 
 #define MGS_PARAM_MAXLEN 1024
