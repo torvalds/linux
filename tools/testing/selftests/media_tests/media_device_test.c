@@ -19,7 +19,7 @@
  * seconds.
  *
  * Usage:
- *	sudo ./media_devkref_test -d /dev/mediaX
+ *	sudo ./media_device_test -d /dev/mediaX
  *
  *	While test is running, remove the device and
  *	ensure there are no use after free errors and
