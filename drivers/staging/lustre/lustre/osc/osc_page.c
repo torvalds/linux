@@ -105,7 +105,8 @@ static void osc_page_transfer_add(const struct lu_env *env,
 	struct osc_object *obj = cl2osc(opg->ops_cl.cpl_obj);
 
 	/* ops_lru and ops_inflight share the same field, so take it from LRU
-	 * first and then use it as inflight. */
+	 * first and then use it as inflight.
+	 */
 	osc_lru_del(osc_cli(obj), opg, false);
 
 	spin_lock(&obj->oo_seatbelt);
@@ -133,7 +134,8 @@ static int osc_page_cache_add(const struct lu_env *env,
 
 	/* for sync write, kernel will wait for this page to be flushed before
 	 * osc_io_end() is called, so release it earlier.
-	 * for mkwrite(), it's known there is no further pages. */
+	 * for mkwrite(), it's known there is no further pages.
+	 */
 	if (cl_io_is_sync_write(io) || cl_io_is_mkwrite(io)) {
 		if (oio->oi_active) {
 			osc_extent_release(env, oio->oi_active);
@@ -359,7 +361,8 @@ static int osc_page_cancel(const struct lu_env *env,
 	LINVRNT(osc_page_protected(env, opg, CLM_READ, 0));
 
 	/* Check if the transferring against this page
-	 * is completed, or not even queued. */
+	 * is completed, or not even queued.
+	 */
 	if (opg->ops_transfer_pinned)
 		/* FIXME: may not be interrupted.. */
 		rc = osc_cancel_async_page(env, opg);
@@ -423,7 +426,8 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 	 * creates temporary pages outside of a lock.
 	 */
 	/* ops_inflight and ops_lru are the same field, but it doesn't
-	 * hurt to initialize it twice :-) */
+	 * hurt to initialize it twice :-)
+	 */
 	INIT_LIST_HEAD(&opg->ops_inflight);
 	INIT_LIST_HEAD(&opg->ops_lru);
 
@@ -482,7 +486,8 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 static DECLARE_WAIT_QUEUE_HEAD(osc_lru_waitq);
 static atomic_t osc_lru_waiters = ATOMIC_INIT(0);
 /* LRU pages are freed in batch mode. OSC should at least free this
- * number of pages to avoid running out of LRU budget, and.. */
+ * number of pages to avoid running out of LRU budget, and..
+ */
 static const int lru_shrink_min = 2 << (20 - PAGE_CACHE_SHIFT);  /* 2M */
 /* free this number at most otherwise it will take too long time to finish. */
 static const int lru_shrink_max = 32 << (20 - PAGE_CACHE_SHIFT); /* 32M */
@@ -491,7 +496,8 @@ static const int lru_shrink_max = 32 << (20 - PAGE_CACHE_SHIFT); /* 32M */
  * we should free slots aggressively. In this way, slots are freed in a steady
  * step to maintain fairness among OSCs.
  *
- * Return how many LRU pages should be freed. */
+ * Return how many LRU pages should be freed.
+ */
 static int osc_cache_too_much(struct client_obd *cli)
 {
 	struct cl_client_cache *cache = cli->cl_cache;
@@ -503,7 +509,8 @@ static int osc_cache_too_much(struct client_obd *cli)
 		return min(pages, lru_shrink_max);
 
 	/* if it's going to run out LRU slots, we should free some, but not
-	 * too much to maintain fairness among OSCs. */
+	 * too much to maintain fairness among OSCs.
+	 */
 	if (atomic_read(cli->cl_lru_left) < cache->ccc_lru_max >> 4) {
 		unsigned long tmp;
 
@@ -531,7 +538,8 @@ static int discard_pagevec(const struct lu_env *env, struct cl_io *io,
 			/* free LRU page only if nobody is using it.
 			 * This check is necessary to avoid freeing the pages
 			 * having already been removed from LRU and pinned
-			 * for IO. */
+			 * for IO.
+			 */
 			if (!cl_page_in_use(page)) {
 				cl_page_unmap(env, io, page);
 				cl_page_discard(env, io, page);
@@ -621,11 +629,13 @@ int osc_lru_shrink(struct client_obd *cli, int target)
 
 		/* move this page to the end of list as it will be discarded
 		 * soon. The page will be finally removed from LRU list in
-		 * osc_page_delete().  */
+		 * osc_page_delete().
+		 */
 		list_move_tail(&opg->ops_lru, &cli->cl_lru_list);
 
 		/* it's okay to grab a refcount here w/o holding lock because
-		 * it has to grab cl_lru_list_lock to delete the page. */
+		 * it has to grab cl_lru_list_lock to delete the page.
+		 */
 		cl_page_get(page);
 		pvec[index++] = page;
 		if (++count >= target)
@@ -676,7 +686,8 @@ static void osc_lru_add(struct client_obd *cli, struct osc_page *opg)
 }
 
 /* delete page from LRUlist. The page can be deleted from LRUlist for two
- * reasons: redirtied or deleted from page cache. */
+ * reasons: redirtied or deleted from page cache.
+ */
 static void osc_lru_del(struct client_obd *cli, struct osc_page *opg, bool del)
 {
 	if (opg->ops_in_lru) {
@@ -698,7 +709,8 @@ static void osc_lru_del(struct client_obd *cli, struct osc_page *opg, bool del)
 			 * this osc occupies too many LRU pages and kernel is
 			 * stealing one of them.
 			 * cl_lru_shrinkers is to avoid recursive call in case
-			 * we're already in the context of osc_lru_shrink(). */
+			 * we're already in the context of osc_lru_shrink().
+			 */
 			if (atomic_read(&cli->cl_lru_shrinkers) == 0 &&
 			    !memory_pressure_get())
 				osc_lru_shrink(cli, osc_cache_too_much(cli));
@@ -735,7 +747,8 @@ static int osc_lru_reclaim(struct client_obd *cli)
 		atomic_read(&cli->cl_lru_busy));
 
 	/* Reclaim LRU slots from other client_obd as it can't free enough
-	 * from its own. This should rarely happen. */
+	 * from its own. This should rarely happen.
+	 */
 	spin_lock(&cache->ccc_lru_lock);
 	LASSERT(!list_empty(&cache->ccc_lru));
 
@@ -793,7 +806,8 @@ static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
 		cond_resched();
 
 		/* slowest case, all of caching pages are busy, notifying
-		 * other OSCs that we're lack of LRU slots. */
+		 * other OSCs that we're lack of LRU slots.
+		 */
 		atomic_inc(&osc_lru_waiters);
 
 		gen = atomic_read(&cli->cl_lru_in_list);

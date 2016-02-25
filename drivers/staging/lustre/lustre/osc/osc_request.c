@@ -628,7 +628,8 @@ int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
 
 /* Find and cancel locally locks matched by @mode in the resource found by
  * @objid. Found locks are added into @cancel list. Returns the amount of
- * locks added to @cancels list. */
+ * locks added to @cancels list.
+ */
 static int osc_resource_get_unused(struct obd_export *exp, struct obdo *oa,
 				   struct list_head *cancels,
 				   enum ldlm_mode mode, __u64 lock_flags)
@@ -643,7 +644,8 @@ static int osc_resource_get_unused(struct obd_export *exp, struct obdo *oa,
 	 *
 	 * This distinguishes from a case when ELC is not supported originally,
 	 * when we still want to cancel locks in advance and just cancel them
-	 * locally, without sending any RPC. */
+	 * locally, without sending any RPC.
+	 */
 	if (exp_connect_cancelset(exp) && !ns_connect_cancelset(ns))
 		return 0;
 
@@ -722,7 +724,8 @@ static int osc_create(const struct lu_env *env, struct obd_export *exp,
  * If the client dies, or the OST is down when the object should be destroyed,
  * the records are not cancelled, and when the OST reconnects to the MDS next,
  * it will retrieve the llog unlink logs and then sends the log cancellation
- * cookies to the MDS after committing destroy transactions. */
+ * cookies to the MDS after committing destroy transactions.
+ */
 static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 		       struct obdo *oa, struct lov_stripe_md *ea,
 		       struct obd_trans_info *oti, struct obd_export *md_export)
@@ -768,7 +771,8 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 	/* If osc_destroy is for destroying the unlink orphan,
 	 * sent from MDT to OST, which should not be blocked here,
 	 * because the process might be triggered by ptlrpcd, and
-	 * it is not good to block ptlrpcd thread (b=16006)*/
+	 * it is not good to block ptlrpcd thread (b=16006
+	 **/
 	if (!(oa->o_flags & OBD_FL_DELORPHAN)) {
 		req->rq_interpret_reply = osc_destroy_interpret;
 		if (!osc_can_send_destroy(cli)) {
@@ -809,7 +813,8 @@ static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 			    (long)(obd_max_dirty_pages + 1))) {
 		/* The atomic_read() allowing the atomic_inc() are
 		 * not covered by a lock thus they may safely race and trip
-		 * this CERROR() unless we add in a small fudge factor (+1). */
+		 * this CERROR() unless we add in a small fudge factor (+1).
+		 */
 		CERROR("dirty %d - %d > system dirty_max %d\n",
 		       atomic_read(&obd_dirty_pages),
 		       atomic_read(&obd_dirty_transit_pages),
@@ -899,7 +904,8 @@ static void osc_shrink_grant_local(struct client_obd *cli, struct obdo *oa)
 /* Shrink the current grant, either from some large amount to enough for a
  * full set of in-flight RPCs, or if we have already shrunk to that limit
  * then to enough for a single RPC.  This avoids keeping more grant than
- * needed, and avoids shrinking the grant piecemeal. */
+ * needed, and avoids shrinking the grant piecemeal.
+ */
 static int osc_shrink_grant(struct client_obd *cli)
 {
 	__u64 target_bytes = (cli->cl_max_rpcs_in_flight + 1) *
@@ -921,7 +927,8 @@ int osc_shrink_grant_to_target(struct client_obd *cli, __u64 target_bytes)
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	/* Don't shrink if we are already above or below the desired limit
 	 * We don't want to shrink below a single RPC, as that will negatively
-	 * impact block allocation and long-term performance. */
+	 * impact block allocation and long-term performance.
+	 */
 	if (target_bytes < cli->cl_max_pages_per_rpc << PAGE_CACHE_SHIFT)
 		target_bytes = cli->cl_max_pages_per_rpc << PAGE_CACHE_SHIFT;
 
@@ -969,7 +976,8 @@ static int osc_should_shrink_grant(struct client_obd *client)
 	if (cfs_time_aftereq(time, next_shrink - 5 * CFS_TICK)) {
 		/* Get the current RPC size directly, instead of going via:
 		 * cli_brw_size(obd->u.cli.cl_import->imp_obd->obd_self_export)
-		 * Keep comment here so that it can be found by searching. */
+		 * Keep comment here so that it can be found by searching.
+		 */
 		int brw_size = client->cl_max_pages_per_rpc << PAGE_CACHE_SHIFT;
 
 		if (client->cl_import->imp_state == LUSTRE_IMP_FULL &&
@@ -1039,7 +1047,8 @@ static void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 		      cli->cl_import->imp_obd->obd_name, cli->cl_avail_grant,
 		      ocd->ocd_grant, cli->cl_dirty);
 		/* workaround for servers which do not have the patch from
-		 * LU-2679 */
+		 * LU-2679
+		 */
 		cli->cl_avail_grant = ocd->ocd_grant;
 	}
 
@@ -1059,7 +1068,8 @@ static void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 /* We assume that the reason this OSC got a short read is because it read
  * beyond the end of a stripe file; i.e. lustre is reading a sparse file
  * via the LOV, and it _knows_ it's reading inside the file, it's just that
- * this stripe never got written at or beyond this stripe offset yet. */
+ * this stripe never got written at or beyond this stripe offset yet.
+ */
 static void handle_short_read(int nob_read, u32 page_count,
 			      struct brw_page **pga)
 {
@@ -1138,7 +1148,8 @@ static inline int can_merge_pages(struct brw_page *p1, struct brw_page *p2)
 				  OBD_BRW_SYNC | OBD_BRW_ASYNC|OBD_BRW_NOQUOTA);
 
 		/* warn if we try to combine flags that we don't know to be
-		 * safe to combine */
+		 * safe to combine
+		 */
 		if (unlikely((p1->flag & mask) != (p2->flag & mask))) {
 			CWARN("Saw flags 0x%x and 0x%x in the same brw, please report this at http://bugs.whamcloud.com/\n",
 			      p1->flag, p2->flag);
@@ -1173,7 +1184,8 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 		int count = pga[i]->count > nob ? nob : pga[i]->count;
 
 		/* corrupt the data before we compute the checksum, to
-		 * simulate an OST->client data error */
+		 * simulate an OST->client data error
+		 */
 		if (i == 0 && opc == OST_READ &&
 		    OBD_FAIL_CHECK(OBD_FAIL_OSC_CHECKSUM_RECEIVE)) {
 			unsigned char *ptr = kmap(pga[i]->pg);
@@ -1204,7 +1216,8 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 		cfs_crypto_hash_final(hdesc, NULL, NULL);
 
 	/* For sending we only compute the wrong checksum instead
-	 * of corrupting the data so it is still correct on a redo */
+	 * of corrupting the data so it is still correct on a redo
+	 */
 	if (opc == OST_WRITE && OBD_FAIL_CHECK(OBD_FAIL_OSC_CHECKSUM_SEND))
 		cksum++;
 
@@ -1265,7 +1278,8 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 	req->rq_request_portal = OST_IO_PORTAL; /* bug 7198 */
 	ptlrpc_at_set_req_timeout(req);
 	/* ask ptlrpc not to resend on EINPROGRESS since BRWs have their own
-	 * retry logic */
+	 * retry logic
+	 */
 	req->rq_no_retry_einprogress = 1;
 
 	desc = ptlrpc_prep_bulk_imp(req, page_count,
@@ -1292,7 +1306,8 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 	 * that might be send for this request.  The actual number is decided
 	 * when the RPC is finally sent in ptlrpc_register_bulk(). It sends
 	 * "max - 1" for old client compatibility sending "0", and also so the
-	 * the actual maximum is a power-of-two number, not one less. LU-1431 */
+	 * the actual maximum is a power-of-two number, not one less. LU-1431
+	 */
 	ioobj_max_brw_set(ioobj, desc->bd_md_max_brw);
 	LASSERT(page_count > 0);
 	pg_prev = pga[0];
@@ -1354,7 +1369,8 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 		if (cli->cl_checksum &&
 		    !sptlrpc_flavor_has_bulk(&req->rq_flvr)) {
 			/* store cl_cksum_type in a local variable since
-			 * it can be changed via lprocfs */
+			 * it can be changed via lprocfs
+			 */
 			enum cksum_type cksum_type = cli->cl_cksum_type;
 
 			if ((body->oa.o_valid & OBD_MD_FLFLAGS) == 0) {
@@ -1374,7 +1390,8 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 			oa->o_flags |= cksum_type_pack(cksum_type);
 		} else {
 			/* clear out the checksum flag, in case this is a
-			 * resend but cl_checksum is no longer set. b=11238 */
+			 * resend but cl_checksum is no longer set. b=11238
+			 */
 			oa->o_valid &= ~OBD_MD_FLCKSUM;
 		}
 		oa->o_cksum = body->oa.o_cksum;
@@ -1637,12 +1654,14 @@ static int osc_brw_redo_request(struct ptlrpc_request *request,
 		}
 	}
 	/* New request takes over pga and oaps from old request.
-	 * Note that copying a list_head doesn't work, need to move it... */
+	 * Note that copying a list_head doesn't work, need to move it...
+	 */
 	aa->aa_resends++;
 	new_req->rq_interpret_reply = request->rq_interpret_reply;
 	new_req->rq_async_args = request->rq_async_args;
 	/* cap resend delay to the current request timeout, this is similar to
-	 * what ptlrpc does (see after_reply()) */
+	 * what ptlrpc does (see after_reply())
+	 */
 	if (aa->aa_resends > new_req->rq_timeout)
 		new_req->rq_sent = ktime_get_real_seconds() + new_req->rq_timeout;
 	else
@@ -1668,7 +1687,8 @@ static int osc_brw_redo_request(struct ptlrpc_request *request,
 	/* XXX: This code will run into problem if we're going to support
 	 * to add a series of BRW RPCs into a self-defined ptlrpc_request_set
 	 * and wait for all of them to be finished. We should inherit request
-	 * set from old request. */
+	 * set from old request.
+	 */
 	ptlrpcd_add_req(new_req);
 
 	DEBUG_REQ(D_INFO, new_req, "new request");
@@ -1724,7 +1744,8 @@ static int brw_interpret(const struct lu_env *env,
 	rc = osc_brw_fini_request(req, rc);
 	CDEBUG(D_INODE, "request %p aa %p rc %d\n", req, aa, rc);
 	/* When server return -EINPROGRESS, client should always retry
-	 * regardless of the number of times the bulk was resent already. */
+	 * regardless of the number of times the bulk was resent already.
+	 */
 	if (osc_recoverable_error(rc)) {
 		if (req->rq_import_generation !=
 		    req->rq_import->imp_generation) {
@@ -1797,7 +1818,8 @@ static int brw_interpret(const struct lu_env *env,
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	/* We need to decrement before osc_ap_completion->osc_wake_cache_waiters
 	 * is called so we know whether to go to sync BRWs or wait for more
-	 * RPCs to complete */
+	 * RPCs to complete
+	 */
 	if (lustre_msg_get_opc(req->rq_reqmsg) == OST_WRITE)
 		cli->cl_w_in_flight--;
 	else
@@ -1937,7 +1959,8 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	 * we race with setattr (locally or in queue at OST).  If OST gets
 	 * later setattr before earlier BRW (as determined by the request xid),
 	 * the OST will not use BRW timestamps.  Sadly, there is no obvious
-	 * way to do this in a single call.  bug 10150 */
+	 * way to do this in a single call.  bug 10150
+	 */
 	body = req_capsule_client_get(&req->rq_pill, &RMF_OST_BODY);
 	crattr->cra_oa = &body->oa;
 	cl_req_attr_set(env, clerq, crattr,
@@ -1954,7 +1977,8 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	aa->aa_clerq = clerq;
 
 	/* queued sync pages can be torn down while the pages
-	 * were between the pending list and the rpc */
+	 * were between the pending list and the rpc
+	 */
 	tmp = NULL;
 	list_for_each_entry(oap, &aa->aa_oaps, oap_rpc_item) {
 		/* only one oap gets a request reference */
@@ -2006,7 +2030,8 @@ out:
 			kmem_cache_free(obdo_cachep, oa);
 		kfree(pga);
 		/* this should happen rarely and is pretty bad, it makes the
-		 * pending list not follow the dirty order */
+		 * pending list not follow the dirty order
+		 */
 		while (!list_empty(ext_list)) {
 			ext = list_entry(ext_list->next, struct osc_extent,
 					     oe_link);
@@ -2062,7 +2087,8 @@ static int osc_set_data_with_check(struct lustre_handle *lockh,
 /* find any ldlm lock of the inode in osc
  * return 0    not find
  *	1    find one
- *      < 0    error */
+ *      < 0    error
+ */
 static int osc_find_cbdata(struct obd_export *exp, struct lov_stripe_md *lsm,
 			   ldlm_iterator_t replace, void *data)
 {
@@ -2124,18 +2150,21 @@ static int osc_enqueue_interpret(const struct lu_env *env,
 	__u64 *flags = aa->oa_flags;
 
 	/* Make a local copy of a lock handle and a mode, because aa->oa_*
-	 * might be freed anytime after lock upcall has been called. */
+	 * might be freed anytime after lock upcall has been called.
+	 */
 	lustre_handle_copy(&handle, aa->oa_lockh);
 	mode = aa->oa_ei->ei_mode;
 
 	/* ldlm_cli_enqueue is holding a reference on the lock, so it must
-	 * be valid. */
+	 * be valid.
+	 */
 	lock = ldlm_handle2lock(&handle);
 
 	/* Take an additional reference so that a blocking AST that
 	 * ldlm_cli_enqueue_fini() might post for a failed lock, is guaranteed
 	 * to arrive after an upcall has been executed by
-	 * osc_enqueue_fini(). */
+	 * osc_enqueue_fini().
+	 */
 	ldlm_lock_addref(&handle, mode);
 
 	/* Let CP AST to grant the lock first. */
@@ -2182,7 +2211,8 @@ struct ptlrpc_request_set *PTLRPCD_SET = (void *)1;
  * others may take a considerable amount of time in a case of ost failure; and
  * when other sync requests do not get released lock from a client, the client
  * is excluded from the cluster -- such scenarious make the life difficult, so
- * release locks just after they are obtained. */
+ * release locks just after they are obtained.
+ */
 int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		     __u64 *flags, ldlm_policy_data_t *policy,
 		     struct ost_lvb *lvb, int kms_valid,
@@ -2199,7 +2229,8 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	int rc;
 
 	/* Filesystem lock extents are extended to page boundaries so that
-	 * dealing with the page cache is a little smoother.  */
+	 * dealing with the page cache is a little smoother.
+	 */
 	policy->l_extent.start -= policy->l_extent.start & ~CFS_PAGE_MASK;
 	policy->l_extent.end |= ~CFS_PAGE_MASK;
 
@@ -2223,7 +2254,8 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	 *
 	 * At some point we should cancel the read lock instead of making them
 	 * send us a blocking callback, but there are problems with canceling
-	 * locks out from other users right now, too. */
+	 * locks out from other users right now, too.
+	 */
 	mode = einfo->ei_mode;
 	if (einfo->ei_mode == LCK_PR)
 		mode |= LCK_PW;
@@ -2235,7 +2267,8 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		if ((agl != 0) && !(matched->l_flags & LDLM_FL_LVB_READY)) {
 			/* For AGL, if enqueue RPC is sent but the lock is not
 			 * granted, then skip to process this strpe.
-			 * Return -ECANCELED to tell the caller. */
+			 * Return -ECANCELED to tell the caller.
+			 */
 			ldlm_lock_decref(lockh, mode);
 			LDLM_LOCK_PUT(matched);
 			return -ECANCELED;
@@ -2244,19 +2277,22 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		if (osc_set_lock_data_with_check(matched, einfo)) {
 			*flags |= LDLM_FL_LVB_READY;
 			/* addref the lock only if not async requests and PW
-			 * lock is matched whereas we asked for PR. */
+			 * lock is matched whereas we asked for PR.
+			 */
 			if (!rqset && einfo->ei_mode != mode)
 				ldlm_lock_addref(lockh, LCK_PR);
 			if (intent) {
 				/* I would like to be able to ASSERT here that
 				 * rss <= kms, but I can't, for reasons which
-				 * are explained in lov_enqueue() */
+				 * are explained in lov_enqueue()
+				 */
 			}
 
 			/* We already have a lock, and it's referenced.
 			 *
 			 * At this point, the cl_lock::cll_state is CLS_QUEUING,
-			 * AGL upcall may change it to CLS_HELD directly. */
+			 * AGL upcall may change it to CLS_HELD directly.
+			 */
 			(*upcall)(cookie, ELDLM_OK);
 
 			if (einfo->ei_mode != mode)
@@ -2344,14 +2380,16 @@ int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		return -EIO;
 
 	/* Filesystem lock extents are extended to page boundaries so that
-	 * dealing with the page cache is a little smoother */
+	 * dealing with the page cache is a little smoother
+	 */
 	policy->l_extent.start -= policy->l_extent.start & ~CFS_PAGE_MASK;
 	policy->l_extent.end |= ~CFS_PAGE_MASK;
 
 	/* Next, search for already existing extent locks that will cover us */
 	/* If we're trying to read, we also search for an existing PW lock.  The
 	 * VFS and page cache already protect us locally, so lots of readers/
-	 * writers can share a single PW lock. */
+	 * writers can share a single PW lock.
+	 */
 	rc = mode;
 	if (mode == LCK_PR)
 		rc |= LCK_PW;
@@ -2395,7 +2433,8 @@ static int osc_statfs_interpret(const struct lu_env *env,
 		 * due to issues at a higher level (LOV).
 		 * Exit immediately since the caller is
 		 * aware of the problem and takes care
-		 * of the clean up */
+		 * of the clean up
+		 */
 		 return rc;
 
 	if ((rc == -ENOTCONN || rc == -EAGAIN) &&
@@ -2433,7 +2472,8 @@ static int osc_statfs_async(struct obd_export *exp,
 	 * extra calls into the filesystem if that isn't necessary (e.g.
 	 * during mount that would help a bit).  Having relative timestamps
 	 * is not so great if request processing is slow, while absolute
-	 * timestamps are not ideal because they need time synchronization. */
+	 * timestamps are not ideal because they need time synchronization.
+	 */
 	req = ptlrpc_request_alloc(obd->u.cli.cl_import, &RQF_OST_STATFS);
 	if (!req)
 		return -ENOMEM;
@@ -2471,8 +2511,9 @@ static int osc_statfs(const struct lu_env *env, struct obd_export *exp,
 	struct obd_import *imp = NULL;
 	int rc;
 
-	/*Since the request might also come from lprocfs, so we need
-	 *sync this with client_disconnect_export Bug15684*/
+	/* Since the request might also come from lprocfs, so we need
+	 * sync this with client_disconnect_export Bug15684
+	 */
 	down_read(&obd->u.cli.cl_sem);
 	if (obd->u.cli.cl_import)
 		imp = class_import_get(obd->u.cli.cl_import);
@@ -2485,7 +2526,8 @@ static int osc_statfs(const struct lu_env *env, struct obd_export *exp,
 	 * extra calls into the filesystem if that isn't necessary (e.g.
 	 * during mount that would help a bit).  Having relative timestamps
 	 * is not so great if request processing is slow, while absolute
-	 * timestamps are not ideal because they need time synchronization. */
+	 * timestamps are not ideal because they need time synchronization.
+	 */
 	req = ptlrpc_request_alloc(imp, &RQF_OST_STATFS);
 
 	class_import_put(imp);
@@ -2543,7 +2585,8 @@ static int osc_getstripe(struct lov_stripe_md *lsm,
 		return -ENODATA;
 
 	/* we only need the header part from user space to get lmm_magic and
-	 * lmm_stripe_count, (the header part is common to v1 and v3) */
+	 * lmm_stripe_count, (the header part is common to v1 and v3)
+	 */
 	lum_size = sizeof(struct lov_user_md_v1);
 	if (copy_from_user(&lum, lump, lum_size))
 		return -EFAULT;
@@ -2558,7 +2601,8 @@ static int osc_getstripe(struct lov_stripe_md *lsm,
 	LASSERT(sizeof(lum.lmm_objects[0]) == sizeof(lumk->lmm_objects[0]));
 
 	/* we can use lov_mds_md_size() to compute lum_size
-	 * because lov_user_md_vX and lov_mds_md_vX have the same size */
+	 * because lov_user_md_vX and lov_mds_md_vX have the same size
+	 */
 	if (lum.lmm_stripe_count > 0) {
 		lum_size = lov_mds_md_size(lum.lmm_stripe_count, lum.lmm_magic);
 		lumk = kzalloc(lum_size, GFP_NOFS);
@@ -2878,11 +2922,12 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		return -EINVAL;
 
 	/* We pass all other commands directly to OST. Since nobody calls osc
-	   methods directly and everybody is supposed to go through LOV, we
-	   assume lov checked invalid values for us.
-	   The only recognised values so far are evict_by_nid and mds_conn.
-	   Even if something bad goes through, we'd get a -EINVAL from OST
-	   anyway. */
+	 * methods directly and everybody is supposed to go through LOV, we
+	 * assume lov checked invalid values for us.
+	 * The only recognised values so far are evict_by_nid and mds_conn.
+	 * Even if something bad goes through, we'd get a -EINVAL from OST
+	 * anyway.
+	 */
 
 	req = ptlrpc_request_alloc(imp, KEY_IS(KEY_GRANT_SHRINK) ?
 						&RQF_OST_SET_GRANT_INFO :
@@ -3022,7 +3067,8 @@ static int osc_import_event(struct obd_device *obd,
 			/* Reset grants */
 			cli = &obd->u.cli;
 			/* all pages go to failing rpcs due to the invalid
-			 * import */
+			 * import
+			 */
 			osc_io_unplug(env, cli, NULL);
 
 			ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
@@ -3296,7 +3342,8 @@ static int __init osc_init(void)
 
 	/* print an address of _any_ initialized kernel symbol from this
 	 * module, to allow debugging with gdb that doesn't support data
-	 * symbols from modules.*/
+	 * symbols from modules.
+	 */
 	CDEBUG(D_INFO, "Lustre OSC module (%p).\n", &osc_caches);
 
 	rc = lu_kmem_init(osc_caches);

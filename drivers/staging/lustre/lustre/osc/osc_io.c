@@ -272,7 +272,8 @@ static int osc_io_prepare_write(const struct lu_env *env,
 		/* this page contains `invalid' data, but who cares?
 		 * nobody can access the invalid data.
 		 * in osc_io_commit_write(), we're going to write exact
-		 * [from, to) bytes of this page to OST. -jay */
+		 * [from, to) bytes of this page to OST. -jay
+		 */
 		cl_page_export(env, slice->cpl_page, 1);
 
 	return result;
@@ -596,7 +597,8 @@ static int osc_io_fsync_start(const struct lu_env *env,
 		 * send OST_SYNC RPC. This is bad because it causes extents
 		 * to be written osc by osc. However, we usually start
 		 * writeback before CL_FSYNC_ALL so this won't have any real
-		 * problem. */
+		 * problem.
+		 */
 		rc = osc_cache_wait_range(env, osc, start, end);
 		if (result == 0)
 			result = rc;

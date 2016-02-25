@@ -154,7 +154,8 @@ static void osc_lock_detach(const struct lu_env *env, struct osc_lock *olck)
 
 	olck->ols_lock = NULL;
 	/* wb(); --- for all who checks (ols->ols_lock != NULL) before
-	 * call to osc_lock_detach() */
+	 * call to osc_lock_detach()
+	 */
 	dlmlock->l_ast_data = NULL;
 	olck->ols_handle.cookie = 0ULL;
 	spin_unlock(&osc_ast_guard);
@@ -169,7 +170,8 @@ static void osc_lock_detach(const struct lu_env *env, struct osc_lock *olck)
 		/* Must get the value under the lock to avoid possible races. */
 		old_kms = cl2osc(obj)->oo_oinfo->loi_kms;
 		/* Update the kms. Need to loop all granted locks.
-		 * Not a problem for the client */
+		 * Not a problem for the client
+		 */
 		attr->cat_kms = ldlm_extent_shift_kms(dlmlock, old_kms);
 
 		cl_object_attr_set(env, obj, attr, CAT_KMS);
@@ -362,7 +364,8 @@ static void osc_lock_lvb_update(const struct lu_env *env, struct osc_lock *olck,
 		*lvb = *(struct ost_lvb *)dlmlock->l_lvb_data;
 		size = lvb->lvb_size;
 		/* Extend KMS up to the end of this lock and no further
-		 * A lock on [x,y] means a KMS of up to y + 1 bytes! */
+		 * A lock on [x,y] means a KMS of up to y + 1 bytes!
+		 */
 		if (size > dlmlock->l_policy_data.l_extent.end)
 			size = dlmlock->l_policy_data.l_extent.end + 1;
 		if (size >= oinfo->loi_kms) {
@@ -426,7 +429,8 @@ static void osc_lock_granted(const struct lu_env *env, struct osc_lock *olck,
 		 * to take a semaphore on a parent lock. This is safe, because
 		 * spin-locks are needed to protect consistency of
 		 * dlmlock->l_*_mode and LVB, and we have finished processing
-		 * them. */
+		 * them.
+		 */
 		unlock_res_and_lock(dlmlock);
 		cl_lock_modify(env, lock, descr);
 		cl_lock_signal(env, lock);
@@ -467,7 +471,8 @@ static void osc_lock_upcall0(const struct lu_env *env, struct osc_lock *olck)
 	olck->ols_hold = 1;
 
 	/* lock reference taken by ldlm_handle2lock_long() is owned by
-	 * osc_lock and released in osc_lock_detach() */
+	 * osc_lock and released in osc_lock_detach()
+	 */
 	lu_ref_add(&dlmlock->l_reference, "osc_lock", olck);
 	olck->ols_has_ref = 1;
 }
@@ -545,7 +550,8 @@ static int osc_lock_upcall(void *cookie, int errcode)
 			/* For AGL case, the RPC sponsor may exits the cl_lock
 			*  processing without wait() called before related OSC
 			*  lock upcall(). So update the lock status according
-			*  to the enqueue result inside AGL upcall(). */
+			*  to the enqueue result inside AGL upcall().
+			*/
 			if (olck->ols_agl) {
 				lock->cll_flags |= CLF_FROM_UPCALL;
 				cl_wait_try(env, lock);
@@ -568,7 +574,8 @@ static int osc_lock_upcall(void *cookie, int errcode)
 
 		lu_ref_del(&lock->cll_reference, "upcall", lock);
 		/* This maybe the last reference, so must be called after
-		 * cl_lock_mutex_put(). */
+		 * cl_lock_mutex_put().
+		 */
 		cl_lock_put(env, lock);
 
 		cl_env_nested_put(&nest, env);
@@ -854,7 +861,8 @@ static int osc_ldlm_glimpse_ast(struct ldlm_lock *dlmlock, void *data)
 			 * BTW, it's okay for cl_lock to be cancelled during
 			 * this period because server can handle this race.
 			 * See ldlm_server_glimpse_ast() for details.
-			 * cl_lock_mutex_get(env, lock); */
+			 * cl_lock_mutex_get(env, lock);
+			 */
 			cap = &req->rq_pill;
 			req_capsule_extend(cap, &RQF_LDLM_GL_CALLBACK);
 			req_capsule_set_size(cap, &RMF_DLM_LVB, RCL_SERVER,
@@ -1014,7 +1022,8 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 	LASSERT(cl_lock_is_mutexed(lock));
 
 	/* make it enqueue anyway for glimpse lock, because we actually
-	 * don't need to cancel any conflicting locks. */
+	 * don't need to cancel any conflicting locks.
+	 */
 	if (olck->ols_glimpse)
 		return 0;
 
@@ -1048,7 +1057,8 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 		 * imagine that client has PR lock on [0, 1000], and thread T0
 		 * is doing lockless IO in [500, 1500] region. Concurrent
 		 * thread T1 can see lockless data in [500, 1000], which is
-		 * wrong, because these data are possibly stale. */
+		 * wrong, because these data are possibly stale.
+		 */
 		if (!lockless && osc_lock_compatible(olck, scan_ols))
 			continue;
 
@@ -1120,7 +1130,8 @@ static int osc_lock_enqueue(const struct lu_env *env,
 			struct ldlm_enqueue_info *einfo = &ols->ols_einfo;
 
 			/* lock will be passed as upcall cookie,
-			 * hold ref to prevent to be released. */
+			 * hold ref to prevent to be released.
+			 */
 			cl_lock_hold_add(env, lock, "upcall", lock);
 			/* a user for lock also */
 			cl_lock_user_add(env, lock);
@@ -1171,7 +1182,8 @@ static int osc_lock_wait(const struct lu_env *env,
 		} else if (olck->ols_agl) {
 			if (lock->cll_flags & CLF_FROM_UPCALL)
 				/* It is from enqueue RPC reply upcall for
-				 * updating state. Do not re-enqueue. */
+				 * updating state. Do not re-enqueue.
+				 */
 				return -ENAVAIL;
 			olck->ols_state = OLS_NEW;
 		} else {
@@ -1232,7 +1244,8 @@ static int osc_lock_use(const struct lu_env *env,
 		LASSERT(lock->cll_state == CLS_INTRANSIT);
 		LASSERT(lock->cll_users > 0);
 		/* set a flag for osc_dlm_blocking_ast0() to signal the
-		 * lock.*/
+		 * lock.
+		 */
 		olck->ols_ast_wait = 1;
 		rc = CLO_WAIT;
 	}
@@ -1315,7 +1328,8 @@ static void osc_lock_cancel(const struct lu_env *env,
 		/* Now that we're the only user of dlm read/write reference,
 		 * mostly the ->l_readers + ->l_writers should be zero.
 		 * However, there is a corner case.
-		 * See bug 18829 for details.*/
+		 * See bug 18829 for details.
+		 */
 		do_cancel = (dlmlock->l_readers == 0 &&
 			     dlmlock->l_writers == 0);
 		dlmlock->l_flags |= LDLM_FL_CBPENDING;
@@ -1514,7 +1528,8 @@ static void osc_lock_lockless_state(const struct lu_env *env,
 		lock->ols_owner = oio;
 
 		/* set the io to be lockless if this lock is for io's
-		 * host object */
+		 * host object
+		 */
 		if (cl_object_same(oio->oi_cl.cis_obj, slice->cls_obj))
 			oio->oi_lockless = 1;
 	}

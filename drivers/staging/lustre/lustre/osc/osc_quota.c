@@ -47,10 +47,12 @@ int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[])
 		oqi = cfs_hash_lookup(cli->cl_quota_hash[type], &qid[type]);
 		if (oqi) {
 			/* do not try to access oqi here, it could have been
-			 * freed by osc_quota_setdq() */
+			 * freed by osc_quota_setdq()
+			 */
 
 			/* the slot is busy, the user is about to run out of
-			 * quota space on this OST */
+			 * quota space on this OST
+			 */
 			CDEBUG(D_QUOTA, "chkdq found noquota for %s %d\n",
 			       type == USRQUOTA ? "user" : "grout", qid[type]);
 			return NO_QUOTA;
@@ -84,7 +86,8 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 		oqi = cfs_hash_lookup(cli->cl_quota_hash[type], &qid[type]);
 		if ((flags & FL_QUOTA_FLAG(type)) != 0) {
 			/* This ID is getting close to its quota limit, let's
-			 * switch to sync I/O */
+			 * switch to sync I/O
+			 */
 			if (oqi)
 				continue;
 
@@ -108,7 +111,8 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 			       qid[type], rc);
 		} else {
 			/* This ID is now off the hook, let's remove it from
-			 * the hash table */
+			 * the hash table
+			 */
 			if (!oqi)
 				continue;
 
@@ -297,8 +301,8 @@ int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 
-	/* the next poll will find -ENODATA, that means quotacheck is
-	 * going on */
+	/* the next poll will find -ENODATA, that means quotacheck is going on
+	 */
 	cli->cl_qchk_stat = -ENODATA;
 	rc = ptlrpc_queue_wait(req);
 	if (rc)
