@@ -1819,37 +1819,6 @@ do {					\
 	Q_COPY(out, in, qc_dqblk);	\
 } while (0)
 
-/* Body of quota request used for quota acquire/release RPCs between quota
- * master (aka QMT) and slaves (ak QSD). */
-struct quota_body {
-	struct lu_fid	qb_fid;     /* FID of global index packing the pool ID
-				      * and type (data or metadata) as well as
-				      * the quota type (user or group). */
-	union lquota_id	qb_id;      /* uid or gid or directory FID */
-	__u32		qb_flags;   /* see below */
-	__u32		qb_padding;
-	__u64		qb_count;   /* acquire/release count (kbytes/inodes) */
-	__u64		qb_usage;   /* current slave usage (kbytes/inodes) */
-	__u64		qb_slv_ver; /* slave index file version */
-	struct lustre_handle	qb_lockh;     /* per-ID lock handle */
-	struct lustre_handle	qb_glb_lockh; /* global lock handle */
-	__u64		qb_padding1[4];
-};
-
-/* When the quota_body is used in the reply of quota global intent
- * lock (IT_QUOTA_CONN) reply, qb_fid contains slave index file FID. */
-#define qb_slv_fid	qb_fid
-/* qb_usage is the current qunit (in kbytes/inodes) when quota_body is used in
- * quota reply */
-#define qb_qunit	qb_usage
-
-#define QUOTA_DQACQ_FL_ACQ	0x1  /* acquire quota */
-#define QUOTA_DQACQ_FL_PREACQ	0x2  /* pre-acquire */
-#define QUOTA_DQACQ_FL_REL	0x4  /* release quota */
-#define QUOTA_DQACQ_FL_REPORT	0x8  /* report usage */
-
-void lustre_swab_quota_body(struct quota_body *b);
-
 /* Quota types currently supported */
 enum {
 	LQUOTA_TYPE_USR	= 0x00, /* maps to USRQUOTA */

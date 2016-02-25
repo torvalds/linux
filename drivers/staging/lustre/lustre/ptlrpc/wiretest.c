@@ -3720,50 +3720,6 @@ void lustre_assert_wire_constants(void)
 	LASSERTF((int)sizeof(((struct ll_fiemap_info_key *)0)->fiemap) == 32, "found %lld\n",
 		 (long long)(int)sizeof(((struct ll_fiemap_info_key *)0)->fiemap));
 
-	/* Checks for struct quota_body */
-	LASSERTF((int)sizeof(struct quota_body) == 112, "found %lld\n",
-		 (long long)(int)sizeof(struct quota_body));
-	LASSERTF((int)offsetof(struct quota_body, qb_fid) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_fid));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_fid) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_fid));
-	LASSERTF((int)offsetof(struct quota_body, qb_id) == 16, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_id));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_id) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_id));
-	LASSERTF((int)offsetof(struct quota_body, qb_flags) == 32, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_flags));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_flags) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_flags));
-	LASSERTF((int)offsetof(struct quota_body, qb_padding) == 36, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_padding));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_padding) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_padding));
-	LASSERTF((int)offsetof(struct quota_body, qb_count) == 40, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_count));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_count) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_count));
-	LASSERTF((int)offsetof(struct quota_body, qb_usage) == 48, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_usage));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_usage) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_usage));
-	LASSERTF((int)offsetof(struct quota_body, qb_slv_ver) == 56, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_slv_ver));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_slv_ver) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_slv_ver));
-	LASSERTF((int)offsetof(struct quota_body, qb_lockh) == 64, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_lockh));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_lockh) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_lockh));
-	LASSERTF((int)offsetof(struct quota_body, qb_glb_lockh) == 72, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_glb_lockh));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_glb_lockh) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_glb_lockh));
-	LASSERTF((int)offsetof(struct quota_body, qb_padding1[4]) == 112, "found %lld\n",
-		 (long long)(int)offsetof(struct quota_body, qb_padding1[4]));
-	LASSERTF((int)sizeof(((struct quota_body *)0)->qb_padding1[4]) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct quota_body *)0)->qb_padding1[4]));
-
 	/* Checks for struct mgs_target_info */
 	LASSERTF((int)sizeof(struct mgs_target_info) == 4544, "found %lld\n",
 		 (long long)(int)sizeof(struct mgs_target_info));
