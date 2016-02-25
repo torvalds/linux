@@ -157,14 +157,15 @@ static ssize_t name##_avg_show(struct device *dev,		\
 {									\
 	struct gb_loopback_stats *stats;				\
 	struct gb_loopback *gb;						\
-	u64 avg;							\
-	u32 count, rem;							\
+	u64 avg, rem;							\
+	u32 count;							\
 	gb = dev_get_drvdata(dev);			\
 	stats = &gb->name;					\
 	count = stats->count ? stats->count : 1;			\
-	avg = stats->sum + count / 2;	/* round closest */		\
+	avg = stats->sum;						\
 	rem = do_div(avg, count);					\
-	return sprintf(buf, "%llu.%06u\n", avg, 1000000 * rem / count);	\
+	rem = 1000000 * rem / count;					\
+	return sprintf(buf, "%llu.%06u\n", avg, (u32)rem);		\
 }									\
 static DEVICE_ATTR_RO(name##_avg)
 
