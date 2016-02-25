@@ -605,6 +605,16 @@ static int xen_cons_init(void)
 }
 console_initcall(xen_cons_init);
 
+#ifdef CONFIG_X86
+static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len)
+{
+	if (xen_cpuid_base())
+		outsb(0xe9, str, len);
+}
+#else
+static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len) { }
+#endif
+
 #ifdef CONFIG_EARLY_PRINTK
 static int __init xenboot_setup_console(struct console *console, char *string)
 {
@@ -624,8 +634,10 @@ static void xenboot_write_console(struct console *console, const char *string,
 	unsigned int linelen, off = 0;
 	const char *pos;
 
-	if (!xen_pv_domain())
+	if (!xen_pv_domain()) {
+		xen_hvm_early_write(0, string, len);
 		return;
+	}
 
 	dom0_write_console(0, string, len);
 
@@ -661,17 +673,10 @@ void xen_raw_console_write(const char *str)
 
 	if (xen_domain()) {
 		rc = dom0_write_console(0, str, len);
-#ifdef CONFIG_X86
-		if (rc == -ENOSYS && xen_hvm_domain())
-			goto outb_print;
-
-	} else if (xen_cpuid_base()) {
-		int i;
-outb_print:
-		for (i = 0; i < len; i++)
-			outb(str[i], 0xe9);
-#endif
+		if (rc != -ENOSYS || !xen_hvm_domain())
+			return;
 	}
+	xen_hvm_early_write(0, str, len);
 }
 
 void xen_raw_printk(const char *fmt, ...)
