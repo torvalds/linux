@@ -1419,7 +1419,7 @@ enum cksum_type {
  */
 
 /* opcodes */
-typedef enum {
+enum ost_cmd {
 	OST_REPLY      =  0,       /* reply ? */
 	OST_GETATTR    =  1,
 	OST_SETATTR    =  2,
@@ -1440,7 +1440,7 @@ typedef enum {
 	OST_QUOTACTL   = 19,
 	OST_QUOTA_ADJUST_QUNIT = 20, /* not used since 2.4 */
 	OST_LAST_OPC
-} ost_cmd_t;
+};
 #define OST_FIRST_OPC  OST_REPLY
 
 enum obdo_flags {
