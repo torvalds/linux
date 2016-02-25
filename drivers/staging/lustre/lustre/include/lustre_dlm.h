@@ -318,7 +318,7 @@ enum {
 	LDLM_NSS_LAST
 };
 
-typedef enum {
+enum ldlm_ns_type {
 	/** invalid type */
 	LDLM_NS_TYPE_UNKNOWN    = 0,
 	/** mdc namespace */
@@ -333,7 +333,7 @@ typedef enum {
 	LDLM_NS_TYPE_MGC,
 	/** mgs namespace */
 	LDLM_NS_TYPE_MGT,
-} ldlm_ns_type_t;
+};
 
 /**
  * LDLM Namespace.
@@ -1177,7 +1177,7 @@ void ldlm_unlink_lock_skiplist(struct ldlm_lock *req);
 struct ldlm_namespace *
 ldlm_namespace_new(struct obd_device *obd, char *name,
 		   ldlm_side_t client, enum ldlm_appetite apt,
-		   ldlm_ns_type_t ns_type);
+		   enum ldlm_ns_type ns_type);
 int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);

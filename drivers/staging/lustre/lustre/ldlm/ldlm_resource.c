@@ -554,7 +554,7 @@ static struct cfs_hash_ops ldlm_ns_fid_hash_ops = {
 };
 
 struct ldlm_ns_hash_def {
-	ldlm_ns_type_t  nsd_type;
+	enum ldlm_ns_type nsd_type;
 	/** hash bucket bits */
 	unsigned	nsd_bkt_bits;
 	/** hash bits */
@@ -622,7 +622,7 @@ static void ldlm_namespace_register(struct ldlm_namespace *ns,
 struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 					  ldlm_side_t client,
 					  enum ldlm_appetite apt,
-					  ldlm_ns_type_t ns_type)
+					  enum ldlm_ns_type ns_type)
 {
 	struct ldlm_namespace *ns = NULL;
 	struct ldlm_ns_bucket *nsb;

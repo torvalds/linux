@@ -241,7 +241,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	struct obd_uuid server_uuid;
 	int rq_portal, rp_portal, connect_op;
 	char *name = obddev->obd_type->typ_name;
-	ldlm_ns_type_t ns_type = LDLM_NS_TYPE_UNKNOWN;
+	enum ldlm_ns_type ns_type = LDLM_NS_TYPE_UNKNOWN;
 	int rc;
 
 	/* In a more perfect world, we would hang a ptlrpc_client off of
