@@ -91,19 +91,20 @@ static struct nf_hook_ops *mangle_ops __read_mostly;
 static int __net_init ip6table_mangle_net_init(struct net *net)
 {
 	struct ip6t_replace *repl;
+	int ret;
 
 	repl = ip6t_alloc_initial_table(&packet_mangler);
 	if (repl == NULL)
 		return -ENOMEM;
-	net->ipv6.ip6table_mangle =
-		ip6t_register_table(net, &packet_mangler, repl);
+	ret = ip6t_register_table(net, &packet_mangler, repl, mangle_ops,
+				  &net->ipv6.ip6table_mangle);
 	kfree(repl);
-	return PTR_ERR_OR_ZERO(net->ipv6.ip6table_mangle);
+	return ret;
 }
 
 static void __net_exit ip6table_mangle_net_exit(struct net *net)
 {
-	ip6t_unregister_table(net, net->ipv6.ip6table_mangle);
+	ip6t_unregister_table(net, net->ipv6.ip6table_mangle, mangle_ops);
 }
 
 static struct pernet_operations ip6table_mangle_net_ops = {

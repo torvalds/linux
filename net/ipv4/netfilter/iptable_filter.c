@@ -54,6 +54,7 @@ module_param(forward, bool, 0000);
 static int __net_init iptable_filter_net_init(struct net *net)
 {
 	struct ipt_replace *repl;
+	int err;
 
 	repl = ipt_alloc_initial_table(&packet_filter);
 	if (repl == NULL)
@@ -62,15 +63,15 @@ static int __net_init iptable_filter_net_init(struct net *net)
 	((struct ipt_standard *)repl->entries)[1].target.verdict =
 		forward ? -NF_ACCEPT - 1 : -NF_DROP - 1;
 
-	net->ipv4.iptable_filter =
-		ipt_register_table(net, &packet_filter, repl);
+	err = ipt_register_table(net, &packet_filter, repl, filter_ops,
+				 &net->ipv4.iptable_filter);
 	kfree(repl);
-	return PTR_ERR_OR_ZERO(net->ipv4.iptable_filter);
+	return err;
 }
 
 static void __net_exit iptable_filter_net_exit(struct net *net)
 {
-	ipt_unregister_table(net, net->ipv4.iptable_filter);
+	ipt_unregister_table(net, net->ipv4.iptable_filter, filter_ops);
 }
 
 static struct pernet_operations iptable_filter_net_ops = {

@@ -24,10 +24,11 @@
 
 extern void ipt_init(void) __init;
 
-extern struct xt_table *ipt_register_table(struct net *net,
-					   const struct xt_table *table,
-					   const struct ipt_replace *repl);
-extern void ipt_unregister_table(struct net *net, struct xt_table *table);
+int ipt_register_table(struct net *net, const struct xt_table *table,
+		       const struct ipt_replace *repl,
+		       const struct nf_hook_ops *ops, struct xt_table **res);
+void ipt_unregister_table(struct net *net, struct xt_table *table,
+			  const struct nf_hook_ops *ops);
 
 /* Standard entry. */
 struct ipt_standard {

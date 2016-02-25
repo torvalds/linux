@@ -54,19 +54,20 @@ static struct nf_hook_ops *sectbl_ops __read_mostly;
 static int __net_init iptable_security_net_init(struct net *net)
 {
 	struct ipt_replace *repl;
+	int ret;
 
 	repl = ipt_alloc_initial_table(&security_table);
 	if (repl == NULL)
 		return -ENOMEM;
-	net->ipv4.iptable_security =
-		ipt_register_table(net, &security_table, repl);
+	ret = ipt_register_table(net, &security_table, repl, sectbl_ops,
+				 &net->ipv4.iptable_security);
 	kfree(repl);
-	return PTR_ERR_OR_ZERO(net->ipv4.iptable_security);
+	return ret;
 }
 
 static void __net_exit iptable_security_net_exit(struct net *net)
 {
-	ipt_unregister_table(net, net->ipv4.iptable_security);
+	ipt_unregister_table(net, net->ipv4.iptable_security, sectbl_ops);
 }
 
 static struct pernet_operations iptable_security_net_ops = {

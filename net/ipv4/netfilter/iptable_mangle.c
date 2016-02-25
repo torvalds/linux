@@ -96,19 +96,20 @@ static struct nf_hook_ops *mangle_ops __read_mostly;
 static int __net_init iptable_mangle_net_init(struct net *net)
 {
 	struct ipt_replace *repl;
+	int ret;
 
 	repl = ipt_alloc_initial_table(&packet_mangler);
 	if (repl == NULL)
 		return -ENOMEM;
-	net->ipv4.iptable_mangle =
-		ipt_register_table(net, &packet_mangler, repl);
+	ret = ipt_register_table(net, &packet_mangler, repl, mangle_ops,
+				 &net->ipv4.iptable_mangle);
 	kfree(repl);
-	return PTR_ERR_OR_ZERO(net->ipv4.iptable_mangle);
+	return ret;
 }
 
 static void __net_exit iptable_mangle_net_exit(struct net *net)
 {
-	ipt_unregister_table(net, net->ipv4.iptable_mangle);
+	ipt_unregister_table(net, net->ipv4.iptable_mangle, mangle_ops);
 }
 
 static struct pernet_operations iptable_mangle_net_ops = {

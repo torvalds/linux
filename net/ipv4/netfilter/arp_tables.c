@@ -1780,9 +1780,11 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 	return ret;
 }
 
-struct xt_table *arpt_register_table(struct net *net,
-				     const struct xt_table *table,
-				     const struct arpt_replace *repl)
+int arpt_register_table(struct net *net,
+			const struct xt_table *table,
+			const struct arpt_replace *repl,
+			const struct nf_hook_ops *ops,
+			struct xt_table **res)
 {
 	int ret;
 	struct xt_table_info *newinfo;
@@ -1791,10 +1793,8 @@ struct xt_table *arpt_register_table(struct net *net,
 	struct xt_table *new_table;
 
 	newinfo = xt_alloc_table_info(repl->size);
-	if (!newinfo) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!newinfo)
+		return -ENOMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
@@ -1809,15 +1809,18 @@ struct xt_table *arpt_register_table(struct net *net,
 		ret = PTR_ERR(new_table);
 		goto out_free;
 	}
-	return new_table;
+
+	WRITE_ONCE(*res, new_table);
+
+	return ret;
 
 out_free:
 	xt_free_table_info(newinfo);
-out:
-	return ERR_PTR(ret);
+	return ret;
 }
 
-void arpt_unregister_table(struct xt_table *table)
+void arpt_unregister_table(struct net *net, struct xt_table *table,
+			   const struct nf_hook_ops *ops)
 {
 	struct xt_table_info *private;
 	void *loc_cpu_entry;
