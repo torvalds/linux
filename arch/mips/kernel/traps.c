@@ -2214,7 +2214,7 @@ void __init trap_init(void)
 
 	/*
 	 * Copy the generic exception handlers to their final destination.
-	 * This will be overriden later as suitable for a particular
+	 * This will be overridden later as suitable for a particular
 	 * configuration.
 	 */
 	set_handler(0x180, &except_vec3_generic, 0x80);

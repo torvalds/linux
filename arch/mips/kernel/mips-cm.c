@@ -24,7 +24,7 @@ static char *cm2_tr[8] = {
 	"0x04", "cpc", "0x06", "0x07"
 };
 
-/* CM3 Tag ECC transation type */
+/* CM3 Tag ECC transaction type */
 static char *cm3_tr[16] = {
 	[0x0] = "ReqNoData",
 	[0x1] = "0x1",
