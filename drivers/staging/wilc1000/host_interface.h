@@ -174,7 +174,7 @@ typedef void (*wilc_scan_result)(enum scan_event, struct network_info *,
 typedef void (*wilc_connect_result)(enum conn_event,
 				     struct connect_info *,
 				     u8,
-				     tstrDisconnectNotifInfo *,
+				     struct disconnect_info *,
 				     void *);
 
 typedef void (*wilc_remain_on_chan_expired)(void *, u32);

@@ -114,11 +114,11 @@ struct connect_info {
 	u16 status;
 };
 
-typedef struct {
+struct disconnect_info {
 	u16 u16reason;
 	u8 *ie;
 	size_t ie_len;
-} tstrDisconnectNotifInfo;
+};
 
 s32 wilc_parse_network_info(u8 *msg_buffer,
 			    struct network_info **ret_network_info);

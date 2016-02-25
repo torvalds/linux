@@ -1411,7 +1411,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 	u8 u8MacStatusReasonCode;
 	u8 u8MacStatusAdditionalInfo;
 	struct connect_info strConnectInfo;
-	tstrDisconnectNotifInfo strDisconnectNotifInfo;
+	struct disconnect_info strDisconnectNotifInfo;
 	s32 s32Err = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -1545,7 +1545,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 			hif_drv->usr_conn_req.ies = NULL;
 		} else if ((u8MacStatus == MAC_DISCONNECTED) &&
 			   (hif_drv->hif_state == HOST_IF_CONNECTED)) {
-			memset(&strDisconnectNotifInfo, 0, sizeof(tstrDisconnectNotifInfo));
+			memset(&strDisconnectNotifInfo, 0, sizeof(struct disconnect_info));
 
 			if (hif_drv->usr_scan_req.scan_result) {
 				del_timer(&hif_drv->scan_timer);
@@ -1885,9 +1885,9 @@ static void Handle_Disconnect(struct wilc_vif *vif)
 	if (result) {
 		netdev_err(vif->ndev, "Failed to send dissconect\n");
 	} else {
-		tstrDisconnectNotifInfo strDisconnectNotifInfo;
+		struct disconnect_info strDisconnectNotifInfo;
 
-		memset(&strDisconnectNotifInfo, 0, sizeof(tstrDisconnectNotifInfo));
+		memset(&strDisconnectNotifInfo, 0, sizeof(struct disconnect_info));
 
 		strDisconnectNotifInfo.u16reason = 0;
 		strDisconnectNotifInfo.ie = NULL;

@@ -481,7 +481,7 @@ int wilc_connecting;
 static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 			     struct connect_info *pstrConnectInfo,
 			     u8 u8MacStatus,
-			     tstrDisconnectNotifInfo *pstrDisconnectNotifInfo,
+			     struct disconnect_info *pstrDisconnectNotifInfo,
 			     void *pUserVoid)
 {
 	struct wilc_priv *priv;
