@@ -2,7 +2,7 @@
 # Renesas SH and SH Mobile PINCTRL drivers
 #
 
-if ARCH_SHMOBILE || SUPERH
+if ARCH_RENESAS || SUPERH
 
 config PINCTRL_SH_PFC
 	select PINMUX
