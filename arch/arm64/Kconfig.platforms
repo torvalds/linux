@@ -1,5 +1,11 @@
 menu "Platform selection"
 
+config ARCH_ALPINE
+	bool "Annapurna Labs Alpine platform"
+	help
+	  This enables support for the Annapurna Labs Alpine
+	  Soc family.
+
 config ARCH_BCM_IPROC
 	bool "Broadcom iProc SoC Family"
 	help
