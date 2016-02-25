@@ -700,12 +700,10 @@ DRIVER_ATTR_version(struct device_driver *xdrv, char *buf)
 static int
 register_driver_attributes(struct visor_driver *drv)
 {
-	int rc;
 	struct driver_attribute version =
 	    __ATTR(version, S_IRUGO, DRIVER_ATTR_version, NULL);
 	drv->version_attr = version;
-	rc = driver_create_file(&drv->driver, &drv->version_attr);
-	return rc;
+	return driver_create_file(&drv->driver, &drv->version_attr);
 }
 
 static void
