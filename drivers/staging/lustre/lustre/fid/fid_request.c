@@ -95,7 +95,8 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 		 * precreating objects on this OST), and it will send the
 		 * request to MDT0 here, so we can not keep resending the
 		 * request here, otherwise if MDT0 is failed(umounted),
-		 * it can not release the export of MDT0 */
+		 * it can not release the export of MDT0
+		 */
 		if (seq->lcs_type == LUSTRE_SEQ_DATA)
 			req->rq_no_delay = req->rq_no_resend = 1;
 		debug_mask = D_CONSOLE;
@@ -152,7 +153,8 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 		/* If meta server return -EINPROGRESS or EAGAIN,
 		 * it means meta server might not be ready to
 		 * allocate super sequence from sequence controller
-		 * (MDT0)yet */
+		 * (MDT0)yet
+		 */
 		rc = seq_client_rpc(seq, &seq->lcs_space,
 				    SEQ_ALLOC_META, "meta");
 	} while (rc == -EINPROGRESS || rc == -EAGAIN);
