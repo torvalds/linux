@@ -63,6 +63,14 @@ static inline long long lkl_sys_lseek(unsigned int fd, __lkl__kernel_loff_t off,
 const char *lkl_strerror(int err);
 
 /**
+ * lkl_perror - prints a string describing the given error code
+ *
+ * @msg - prefix for the error message
+ * @err - error code
+ */
+void lkl_perror(char *msg, int err);
+
+/**
  * lkl_disk - host disk handle
  *
  * @fd - a POSIX file descriptor that can be used by preadv/pwritev
