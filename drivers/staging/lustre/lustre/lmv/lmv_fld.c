@@ -58,7 +58,8 @@ int lmv_fld_lookup(struct lmv_obd *lmv,
 	int rc;
 
 	/* FIXME: Currently ZFS still use local seq for ROOT unfortunately, and
-	 * this fid_is_local check should be removed once LU-2240 is fixed */
+	 * this fid_is_local check should be removed once LU-2240 is fixed
+	 */
 	LASSERTF((fid_seq_in_fldb(fid_seq(fid)) ||
 		  fid_seq_is_local_file(fid_seq(fid))) &&
 		 fid_is_sane(fid), DFID" is insane!\n", PFID(fid));

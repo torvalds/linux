@@ -110,11 +110,13 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	if (parent_fid) {
 		/* The parent fid is only for remote open to
 		 * check whether the open is from OBF,
-		 * see mdt_cross_open */
+		 * see mdt_cross_open
+		 */
 		LASSERT(it->it_op & IT_OPEN);
 		op_data->op_fid2 = *parent_fid;
 		/* Add object FID to op_fid3, in case it needs to check stale
-		 * (M_CHECK_STALE), see mdc_finish_intent_lock */
+		 * (M_CHECK_STALE), see mdc_finish_intent_lock
+		 */
 		op_data->op_fid3 = body->fid1;
 	}
 
@@ -173,7 +175,8 @@ static int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 		return PTR_ERR(tgt);
 
 	/* If it is ready to open the file by FID, do not need
-	 * allocate FID at all, otherwise it will confuse MDT */
+	 * allocate FID at all, otherwise it will confuse MDT
+	 */
 	if ((it->it_op & IT_CREAT) &&
 	    !(it->it_flags & MDS_OPEN_BY_FID)) {
 		/*
