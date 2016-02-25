@@ -598,7 +598,8 @@ deliver:
 				if (unlikely(err != NET_XMIT_SUCCESS)) {
 					if (net_xmit_drop_count(err)) {
 						qdisc_qstats_drop(sch);
-						qdisc_tree_decrease_qlen(sch, 1);
+						qdisc_tree_reduce_backlog(sch, 1,
+									  qdisc_pkt_len(skb));
 					}
 				}
 				goto tfifo_dequeue;

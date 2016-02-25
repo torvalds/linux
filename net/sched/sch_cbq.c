@@ -1909,7 +1909,7 @@ static int cbq_delete(struct Qdisc *sch, unsigned long arg)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = (struct cbq_class *)arg;
-	unsigned int qlen;
+	unsigned int qlen, backlog;
 
 	if (cl->filters || cl->children || cl == &q->link)
 		return -EBUSY;
@@ -1917,8 +1917,9 @@ static int cbq_delete(struct Qdisc *sch, unsigned long arg)
 	sch_tree_lock(sch);
 
 	qlen = cl->q->q.qlen;
+	backlog = cl->q->qstats.backlog;
 	qdisc_reset(cl->q);
-	qdisc_tree_decrease_qlen(cl->q, qlen);
+	qdisc_tree_reduce_backlog(cl->q, qlen, backlog);
 
 	if (cl->next_alive)
 		cbq_deactivate_class(cl);

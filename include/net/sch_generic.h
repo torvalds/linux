@@ -396,7 +396,8 @@ struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 			      struct Qdisc *qdisc);
 void qdisc_reset(struct Qdisc *qdisc);
 void qdisc_destroy(struct Qdisc *qdisc);
-void qdisc_tree_decrease_qlen(struct Qdisc *qdisc, unsigned int n);
+void qdisc_tree_reduce_backlog(struct Qdisc *qdisc, unsigned int n,
+			       unsigned int len);
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  const struct Qdisc_ops *ops);
 struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
@@ -716,7 +717,7 @@ static inline struct Qdisc *qdisc_replace(struct Qdisc *sch, struct Qdisc *new,
 	old = *pold;
 	*pold = new;
 	if (old != NULL) {
-		qdisc_tree_decrease_qlen(old, old->q.qlen);
+		qdisc_tree_reduce_backlog(old, old->q.qlen, old->qstats.backlog);
 		qdisc_reset(old);
 	}
 	sch_tree_unlock(sch);

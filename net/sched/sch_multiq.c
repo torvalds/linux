@@ -218,7 +218,8 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 		if (q->queues[i] != &noop_qdisc) {
 			struct Qdisc *child = q->queues[i];
 			q->queues[i] = &noop_qdisc;
-			qdisc_tree_decrease_qlen(child, child->q.qlen);
+			qdisc_tree_reduce_backlog(child, child->q.qlen,
+						  child->qstats.backlog);
 			qdisc_destroy(child);
 		}
 	}
@@ -238,8 +239,9 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 				q->queues[i] = child;
 
 				if (old != &noop_qdisc) {
-					qdisc_tree_decrease_qlen(old,
-								 old->q.qlen);
+					qdisc_tree_reduce_backlog(old,
+								  old->q.qlen,
+								  old->qstats.backlog);
 					qdisc_destroy(old);
 				}
 				sch_tree_unlock(sch);
