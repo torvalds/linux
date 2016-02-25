@@ -83,30 +83,16 @@ gate_desc idt_table[NR_VECTORS] __page_aligned_bss;
 DECLARE_BITMAP(used_vectors, NR_VECTORS);
 EXPORT_SYMBOL_GPL(used_vectors);
 
-static inline void conditional_sti(struct pt_regs *regs)
+static inline void cond_local_irq_enable(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
 }
 
-static inline void preempt_conditional_sti(struct pt_regs *regs)
-{
-	preempt_count_inc();
-	if (regs->flags & X86_EFLAGS_IF)
-		local_irq_enable();
-}
-
-static inline void conditional_cli(struct pt_regs *regs)
+static inline void cond_local_irq_disable(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_disable();
-}
-
-static inline void preempt_conditional_cli(struct pt_regs *regs)
-{
-	if (regs->flags & X86_EFLAGS_IF)
-		local_irq_disable();
-	preempt_count_dec();
 }
 
 void ist_enter(struct pt_regs *regs)
@@ -286,7 +272,7 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
-		conditional_sti(regs);
+		cond_local_irq_enable(regs);
 		do_trap(trapnr, signr, str, regs, error_code,
 			fill_trap_info(regs, signr, trapnr, &info));
 	}
@@ -368,7 +354,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
 		return;
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 
 	if (!user_mode(regs))
 		die("bounds", regs, error_code);
@@ -443,7 +429,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	struct task_struct *tsk;
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 
 	if (v8086_mode(regs)) {
 		local_irq_enable();
@@ -517,9 +503,11 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	 * as we may switch to the interrupt stack.
 	 */
 	debug_stack_usage_inc();
-	preempt_conditional_sti(regs);
+	preempt_disable();
+	cond_local_irq_enable(regs);
 	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, error_code, NULL);
-	preempt_conditional_cli(regs);
+	cond_local_irq_disable(regs);
+	preempt_enable_no_resched();
 	debug_stack_usage_dec();
 exit:
 	ist_exit(regs);
@@ -648,12 +636,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_inc();
 
 	/* It's safe to allow irq's after DR6 has been saved */
-	preempt_conditional_sti(regs);
+	preempt_disable();
+	cond_local_irq_enable(regs);
 
 	if (v8086_mode(regs)) {
 		handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code,
 					X86_TRAP_DB);
-		preempt_conditional_cli(regs);
+		cond_local_irq_disable(regs);
+		preempt_enable_no_resched();
 		debug_stack_usage_dec();
 		goto exit;
 	}
@@ -673,7 +663,8 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	si_code = get_si_code(tsk->thread.debugreg6);
 	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
 		send_sigtrap(tsk, regs, error_code, si_code);
-	preempt_conditional_cli(regs);
+	cond_local_irq_disable(regs);
+	preempt_enable_no_resched();
 	debug_stack_usage_dec();
 
 exit:
@@ -696,7 +687,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, SIGFPE) == NOTIFY_STOP)
 		return;
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 
 	if (!user_mode(regs)) {
 		if (!fixup_exception(regs)) {
@@ -743,7 +734,7 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 dotraplinkage void
 do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 }
 
 dotraplinkage void
@@ -756,7 +747,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 	if (read_cr0() & X86_CR0_EM) {
 		struct math_emu_info info = { };
 
-		conditional_sti(regs);
+		cond_local_irq_enable(regs);
 
 		info.regs = regs;
 		math_emulate(&info);
@@ -765,7 +756,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 #endif
 	fpu__restore(&current->thread.fpu); /* interrupts still off */
 #ifdef CONFIG_X86_32
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 #endif
 }
 NOKPROBE_SYMBOL(do_device_not_available);

@@ -11,6 +11,7 @@
 #include <asm/msr.h>
 #include <asm/processor-flags.h>
 #include <asm/page_types.h>
+#include <asm/frame.h>
 
 #define SAVE_XMM			\
 	mov %rsp, %rax;			\
@@ -74,6 +75,7 @@
 	.endm
 
 ENTRY(efi_call)
+	FRAME_BEGIN
 	SAVE_XMM
 	mov (%rsp), %rax
 	mov 8(%rax), %rax
@@ -88,6 +90,7 @@ ENTRY(efi_call)
 	RESTORE_PGT
 	addq $48, %rsp
 	RESTORE_XMM
+	FRAME_END
 	ret
 ENDPROC(efi_call)
 

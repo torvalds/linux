@@ -26,6 +26,7 @@
 #include <asm/traps.h>
 #include <asm/vdso.h>
 #include <asm/uaccess.h>
+#include <asm/cpufeature.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -268,6 +269,7 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 /* Called with IRQs disabled. */
 __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 {
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	u32 cached_flags;
 
 	if (IS_ENABLED(CONFIG_PROVE_LOCKING) && WARN_ON(!irqs_disabled()))
@@ -275,11 +277,21 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 
 	lockdep_sys_exit();
 
-	cached_flags =
-		READ_ONCE(pt_regs_to_thread_info(regs)->flags);
+	cached_flags = READ_ONCE(ti->flags);
 
 	if (unlikely(cached_flags & EXIT_TO_USERMODE_LOOP_FLAGS))
 		exit_to_usermode_loop(regs, cached_flags);
+
+#ifdef CONFIG_COMPAT
+	/*
+	 * Compat syscalls set TS_COMPAT.  Make sure we clear it before
+	 * returning to user mode.  We need to clear it *after* signal
+	 * handling, because syscall restart has a fixup for compat
+	 * syscalls.  The fixup is exercised by the ptrace_syscall_32
+	 * selftest.
+	 */
+	ti->status &= ~TS_COMPAT;
+#endif
 
 	user_enter();
 }
@@ -332,17 +344,35 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
 	if (unlikely(cached_flags & SYSCALL_EXIT_WORK_FLAGS))
 		syscall_slow_exit_work(regs, cached_flags);
 
-#ifdef CONFIG_COMPAT
-	/*
-	 * Compat syscalls set TS_COMPAT.  Make sure we clear it before
-	 * returning to user mode.
-	 */
-	ti->status &= ~TS_COMPAT;
-#endif
-
 	local_irq_disable();
 	prepare_exit_to_usermode(regs);
 }
+
+#ifdef CONFIG_X86_64
+__visible void do_syscall_64(struct pt_regs *regs)
+{
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	unsigned long nr = regs->orig_ax;
+
+	local_irq_enable();
+
+	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY)
+		nr = syscall_trace_enter(regs);
+
+	/*
+	 * NB: Native and x32 syscalls are dispatched from the same
+	 * table.  The only functional difference is the x32 bit in
+	 * regs->orig_ax, which changes the behavior of some syscalls.
+	 */
+	if (likely((nr & __SYSCALL_MASK) < NR_syscalls)) {
+		regs->ax = sys_call_table[nr & __SYSCALL_MASK](
+			regs->di, regs->si, regs->dx,
+			regs->r10, regs->r8, regs->r9);
+	}
+
+	syscall_return_slowpath(regs);
+}
+#endif
 
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 /*

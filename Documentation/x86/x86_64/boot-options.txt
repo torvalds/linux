@@ -60,6 +60,8 @@ Machine check
 		threshold to 1. Enabling this may make memory predictive failure
 		analysis less effective if the bios sets thresholds for memory
 		errors since we will not see details for all errors.
+   mce=recovery
+		Force-enable recoverable machine check code paths
 
    nomce (for compatibility with i386): same as mce=off
 

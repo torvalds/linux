@@ -13,6 +13,7 @@
 #include <linux/bug.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
+#include <asm/frame.h>
 
 static inline int paravirt_enabled(void)
 {
@@ -756,15 +757,19 @@ static __always_inline void __ticket_unlock_kick(struct arch_spinlock *lock,
  * call. The return value in rax/eax will not be saved, even for void
  * functions.
  */
+#define PV_THUNK_NAME(func) "__raw_callee_save_" #func
 #define PV_CALLEE_SAVE_REGS_THUNK(func)					\
 	extern typeof(func) __raw_callee_save_##func;			\
 									\
 	asm(".pushsection .text;"					\
-	    ".globl __raw_callee_save_" #func " ; "			\
-	    "__raw_callee_save_" #func ": "				\
+	    ".globl " PV_THUNK_NAME(func) ";"				\
+	    ".type " PV_THUNK_NAME(func) ", @function;"			\
+	    PV_THUNK_NAME(func) ":"					\
+	    FRAME_BEGIN							\
 	    PV_SAVE_ALL_CALLER_REGS					\
 	    "call " #func ";"						\
 	    PV_RESTORE_ALL_CALLER_REGS					\
+	    FRAME_END							\
 	    "ret;"							\
 	    ".popsection")
 
