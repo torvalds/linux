@@ -73,13 +73,7 @@ static int dsmark_graft(struct Qdisc *sch, unsigned long arg,
 			new = &noop_qdisc;
 	}
 
-	sch_tree_lock(sch);
-	*old = p->q;
-	p->q = new;
-	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
-	qdisc_reset(*old);
-	sch_tree_unlock(sch);
-
+	*old = qdisc_replace(sch, new, &p->q);
 	return 0;
 }
 
