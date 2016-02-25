@@ -2918,13 +2918,13 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size);
  * Opcodes for multiple servers.
  */
 
-typedef enum {
+enum obd_cmd {
 	OBD_PING = 400,
 	OBD_LOG_CANCEL,
 	OBD_QC_CALLBACK,
 	OBD_IDX_READ,
 	OBD_LAST_OPC
-} obd_cmd_t;
+};
 #define OBD_FIRST_OPC OBD_PING
 
 /* catalog of log objects */
