@@ -16,12 +16,12 @@ ${hijack_script} ip route
 
 echo "== ping test=="
 cp `which ping` .
-${script_dir}/../bin/${hijack_script} ./ping 127.0.0.1 -c 2
+${hijack_script} ./ping 127.0.0.1 -c 2
 rm ping
 
 echo "== ping6 test=="
 cp `which ping6` .
-${script_dir}/../bin/${hijack_script} ./ping6 ::1 -c 2
+${hijack_script} ./ping6 ::1 -c 2
 rm ping6
 
 echo "== TAP tests =="
