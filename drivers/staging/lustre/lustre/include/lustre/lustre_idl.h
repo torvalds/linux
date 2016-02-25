@@ -2950,7 +2950,7 @@ struct llog_catid {
 #define LLOG_OP_MAGIC 0x10600000
 #define LLOG_OP_MASK  0xfff00000
 
-typedef enum {
+enum llog_op_type {
 	LLOG_PAD_MAGIC		= LLOG_OP_MAGIC | 0x00000,
 	OST_SZ_REC		= LLOG_OP_MAGIC | 0x00f00,
 	/* OST_RAID1_REC	= LLOG_OP_MAGIC | 0x01000, never used */
@@ -2970,7 +2970,7 @@ typedef enum {
 	HSM_AGENT_REC		= LLOG_OP_MAGIC | 0x80000,
 	LLOG_HDR_MAGIC		= LLOG_OP_MAGIC | 0x45539,
 	LLOG_LOGID_MAGIC	= LLOG_OP_MAGIC | 0x4553b,
-} llog_op_type;
+};
 
 #define LLOG_REC_HDR_NEEDS_SWABBING(r) \
 	(((r)->lrh_type & __swab32(LLOG_OP_MASK)) == __swab32(LLOG_OP_MAGIC))
