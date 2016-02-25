@@ -401,8 +401,6 @@ void __init mem_init(void)
 #ifdef CONFIG_COMPAT
 	BUILD_BUG_ON(TASK_SIZE_32			> TASK_SIZE_64);
 #endif
-	BUILD_BUG_ON(TASK_SIZE_64			> MODULES_VADDR);
-	BUG_ON(TASK_SIZE_64				> MODULES_VADDR);
 
 	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
 		extern int sysctl_overcommit_memory;
