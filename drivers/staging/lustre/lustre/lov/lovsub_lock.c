@@ -148,7 +148,8 @@ static void lovsub_lock_descr_map(const struct cl_lock_descr *in,
 {
 	pgoff_t size; /* stripe size in pages */
 	pgoff_t skip; /* how many pages in every stripe are occupied by
-		       * "other" stripes */
+		       * "other" stripes
+		       */
 	pgoff_t start;
 	pgoff_t end;
 
@@ -284,7 +285,8 @@ static int lovsub_lock_delete_one(const struct lu_env *env,
 	switch (parent->cll_state) {
 	case CLS_ENQUEUED:
 		/* See LU-1355 for the case that a glimpse lock is
-		 * interrupted by signal */
+		 * interrupted by signal
+		 */
 		LASSERT(parent->cll_flags & CLF_CANCELLED);
 		break;
 	case CLS_QUEUING:

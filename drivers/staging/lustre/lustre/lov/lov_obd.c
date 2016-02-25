@@ -61,7 +61,8 @@
 #include "lov_internal.h"
 
 /* Keep a refcount of lov->tgt usage to prevent racing with addition/deletion.
-   Any function that expects lov_tgts to remain stationary must take a ref. */
+ * Any function that expects lov_tgts to remain stationary must take a ref.
+ */
 static void lov_getref(struct obd_device *obd)
 {
 	struct lov_obd *lov = &obd->u.lov;
@@ -96,7 +97,8 @@ static void lov_putref(struct obd_device *obd)
 			list_add(&tgt->ltd_kill, &kill);
 			/* XXX - right now there is a dependency on ld_tgt_count
 			 * being the maximum tgt index for computing the
-			 * mds_max_easize. So we can't shrink it. */
+			 * mds_max_easize. So we can't shrink it.
+			 */
 			lov_ost_pool_remove(&lov->lov_packed, i);
 			lov->lov_tgts[i] = NULL;
 			lov->lov_death_row--;
@@ -158,7 +160,8 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 	if (activate) {
 		tgt_obd->obd_no_recov = 0;
 		/* FIXME this is probably supposed to be
-		   ptlrpc_set_import_active.  Horrible naming. */
+		 * ptlrpc_set_import_active.  Horrible naming.
+		 */
 		ptlrpc_activate_import(imp);
 	}
 
@@ -315,7 +318,8 @@ static int lov_disconnect(struct obd_export *exp)
 	}
 
 	/* Let's hold another reference so lov_del_obd doesn't spin through
-	   putref every time */
+	 * putref every time
+	 */
 	obd_getref(obd);
 
 	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
@@ -480,7 +484,8 @@ static int lov_notify(struct obd_device *obd, struct obd_device *watched,
 				continue;
 
 			/* don't send sync event if target not
-			 * connected/activated */
+			 * connected/activated
+			 */
 			if (is_sync &&  !lov->lov_tgts[i]->ltd_active)
 				continue;
 
@@ -595,8 +600,9 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 
 	if (lov->lov_connects == 0) {
 		/* lov_connect hasn't been called yet. We'll do the
-		   lov_connect_obd on this target when that fn first runs,
-		   because we don't know the connect flags yet. */
+		 * lov_connect_obd on this target when that fn first runs,
+		 * because we don't know the connect flags yet.
+		 */
 		return 0;
 	}
 
@@ -701,8 +707,9 @@ static void __lov_del_obd(struct obd_device *obd, struct lov_tgt_desc *tgt)
 	kfree(tgt);
 
 	/* Manual cleanup - no cleanup logs to clean up the osc's.  We must
-	   do it ourselves. And we can't do it from lov_cleanup,
-	   because we just lost our only reference to it. */
+	 * do it ourselves. And we can't do it from lov_cleanup,
+	 * because we just lost our only reference to it.
+	 */
 	if (osc_obd)
 		class_manual_cleanup(osc_obd);
 }
@@ -858,7 +865,8 @@ static int lov_cleanup(struct obd_device *obd)
 		/* free pool structs */
 		CDEBUG(D_INFO, "delete pool %p\n", pool);
 		/* In the function below, .hs_keycmp resolves to
-		 * pool_hashkey_keycmp() */
+		 * pool_hashkey_keycmp()
+		 */
 		/* coverity[overrun-buffer-val] */
 		lov_pool_del(obd, pool->pool_name);
 	}
@@ -878,8 +886,9 @@ static int lov_cleanup(struct obd_device *obd)
 			if (lov->lov_tgts[i]->ltd_active ||
 			    atomic_read(&lov->lov_refcount))
 			    /* We should never get here - these
-			       should have been removed in the
-			     disconnect. */
+			     * should have been removed in the
+			     * disconnect.
+			     */
 				CERROR("lov tgt %d not cleaned! deathrow=%d, lovrc=%d\n",
 				       i, lov->lov_death_row,
 				       atomic_read(&lov->lov_refcount));
@@ -1197,7 +1206,8 @@ static int lov_setattr_interpret(struct ptlrpc_request_set *rqset,
 }
 
 /* If @oti is given, the request goes from MDS and responses from OSTs are not
-   needed. Otherwise, a client is waiting for responses. */
+ * needed. Otherwise, a client is waiting for responses.
+ */
 static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 			     struct obd_trans_info *oti,
 			     struct ptlrpc_request_set *rqset)
@@ -1270,7 +1280,8 @@ static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 /* find any ldlm lock of the inode in lov
  * return 0    not find
  *	1    find one
- *      < 0    error */
+ *      < 0    error
+ */
 static int lov_find_cbdata(struct obd_export *exp,
 			   struct lov_stripe_md *lsm, ldlm_iterator_t it,
 			   void *data)
@@ -1366,7 +1377,8 @@ static int lov_statfs(const struct lu_env *env, struct obd_export *exp,
 	int rc = 0;
 
 	/* for obdclass we forbid using obd_statfs_rqset, but prefer using async
-	 * statfs requests */
+	 * statfs requests
+	 */
 	set = ptlrpc_prep_set();
 	if (!set)
 		return -ENOMEM;
@@ -1542,7 +1554,8 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 				continue;
 
 			/* ll_umount_begin() sets force flag but for lov, not
-			 * osc. Let's pass it through */
+			 * osc. Let's pass it through
+			 */
 			osc_obd = class_exp2obd(lov->lov_tgts[i]->ltd_exp);
 			osc_obd->obd_force = obddev->obd_force;
 			err = obd_iocontrol(cmd, lov->lov_tgts[i]->ltd_exp,
@@ -1620,7 +1633,8 @@ static u64 fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
 		return -EINVAL;
 
 	/* If we have finished mapping on previous device, shift logical
-	 * offset to start of next device */
+	 * offset to start of next device
+	 */
 	if ((lov_stripe_intersects(lsm, stripe_no, fm_start, fm_end,
 				   &lun_start, &lun_end)) != 0 &&
 				   local_end < lun_end) {
@@ -1628,7 +1642,8 @@ static u64 fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
 		*start_stripe = stripe_no;
 	} else {
 		/* This is a special value to indicate that caller should
-		 * calculate offset in next stripe. */
+		 * calculate offset in next stripe.
+		 */
 		fm_end_offset = 0;
 		*start_stripe = (stripe_no + 1) % lsm->lsm_stripe_count;
 	}
@@ -1796,7 +1811,8 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 
 		/* If this is a continuation FIEMAP call and we are on
 		 * starting stripe then lun_start needs to be set to
-		 * fm_end_offset */
+		 * fm_end_offset
+		 */
 		if (fm_end_offset != 0 && cur_stripe == start_stripe)
 			lun_start = fm_end_offset;
 
@@ -1818,7 +1834,8 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 		len_mapped_single_call = 0;
 
 		/* If the output buffer is very large and the objects have many
-		 * extents we may need to loop on a single OST repeatedly */
+		 * extents we may need to loop on a single OST repeatedly
+		 */
 		ost_eof = 0;
 		ost_done = 0;
 		do {
@@ -1874,7 +1891,8 @@ inactive_tgt:
 			if (ext_count == 0) {
 				ost_done = 1;
 				/* If last stripe has hole at the end,
-				 * then we need to return */
+				 * then we need to return
+				 */
 				if (cur_stripe_wrap == last_stripe) {
 					fiemap->fm_mapped_extents = 0;
 					goto finish;
@@ -1896,7 +1914,8 @@ inactive_tgt:
 				ost_done = 1;
 
 			/* Clear the EXTENT_LAST flag which can be present on
-			 * last extent */
+			 * last extent
+			 */
 			if (lcl_fm_ext[ext_count-1].fe_flags & FIEMAP_EXTENT_LAST)
 				lcl_fm_ext[ext_count - 1].fe_flags &=
 							    ~FIEMAP_EXTENT_LAST;
@@ -1925,7 +1944,8 @@ inactive_tgt:
 
 finish:
 	/* Indicate that we are returning device offsets unless file just has
-	 * single stripe */
+	 * single stripe
+	 */
 	if (lsm->lsm_stripe_count > 1)
 		fiemap->fm_flags |= FIEMAP_FLAG_DEVICE_ORDER;
 
@@ -1933,7 +1953,8 @@ finish:
 		goto skip_last_device_calc;
 
 	/* Check if we have reached the last stripe and whether mapping for that
-	 * stripe is done. */
+	 * stripe is done.
+	 */
 	if (cur_stripe_wrap == last_stripe) {
 		if (ost_done || ost_eof)
 			fiemap->fm_extents[current_extent - 1].fe_flags |=
@@ -1978,10 +1999,12 @@ static int lov_get_info(const struct lu_env *env, struct obd_export *exp,
 
 		/* XXX This is another one of those bits that will need to
 		 * change if we ever actually support nested LOVs.  It uses
-		 * the lock's export to find out which stripe it is. */
+		 * the lock's export to find out which stripe it is.
+		 */
 		/* XXX - it's assumed all the locks for deleted OSTs have
 		 * been cancelled. Also, the export for deleted OSTs will
-		 * be NULL and won't match the lock's export. */
+		 * be NULL and won't match the lock's export.
+		 */
 		for (i = 0; i < lsm->lsm_stripe_count; i++) {
 			loi = lsm->lsm_oinfo[i];
 			if (lov_oinfo_is_dummy(loi))
@@ -2317,7 +2340,8 @@ static int __init lov_init(void)
 
 	/* print an address of _any_ initialized kernel symbol from this
 	 * module, to allow debugging with gdb that doesn't support data
-	 * symbols from modules.*/
+	 * symbols from modules.
+	 */
 	CDEBUG(D_INFO, "Lustre LOV module (%p).\n", &lov_caches);
 
 	rc = lu_kmem_init(lov_caches);

@@ -135,7 +135,8 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 		 * Do not leave the object in cache to avoid accessing
 		 * freed memory. This is because osc_object is referring to
 		 * lov_oinfo of lsm_stripe_data which will be freed due to
-		 * this failure. */
+		 * this failure.
+		 */
 		cl_object_kill(env, stripe);
 		cl_object_put(env, stripe);
 		return -EIO;
@@ -174,7 +175,8 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 		old_lov = cl2lov(lu2cl(old_obj));
 		if (old_lov->lo_layout_invalid) {
 			/* the object's layout has already changed but isn't
-			 * refreshed */
+			 * refreshed
+			 */
 			lu_object_unhash(env, &stripe->co_lu);
 			result = -EAGAIN;
 		} else {
@@ -243,7 +245,8 @@ static int lov_init_raid0(const struct lu_env *env,
 			subconf->u.coc_oinfo = oinfo;
 			LASSERTF(subdev, "not init ost %d\n", ost_idx);
 			/* In the function below, .hs_keycmp resolves to
-			 * lu_obj_hop_keycmp() */
+			 * lu_obj_hop_keycmp()
+			 */
 			/* coverity[overrun-buffer-val] */
 			stripe = lov_sub_find(env, subdev, ofid, subconf);
 			if (!IS_ERR(stripe)) {
@@ -310,7 +313,8 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 	cl_object_put(env, sub);
 
 	/* ... wait until it is actually destroyed---sub-object clears its
-	 * ->lo_sub[] slot in lovsub_object_fini() */
+	 * ->lo_sub[] slot in lovsub_object_fini()
+	 */
 	if (r0->lo_sub[idx] == los) {
 		waiter = &lov_env_info(env)->lti_waiter;
 		init_waitqueue_entry(waiter, current);
@@ -318,7 +322,8 @@ static void lov_subobject_kill(const struct lu_env *env, struct lov_object *lov,
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		while (1) {
 			/* this wait-queue is signaled at the end of
-			 * lu_object_free(). */
+			 * lu_object_free().
+			 */
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			spin_lock(&r0->lo_sub_lock);
 			if (r0->lo_sub[idx] == los) {
@@ -465,7 +470,8 @@ static int lov_attr_get_raid0(const struct lu_env *env, struct cl_object *obj,
 	 * context, and this function is called in ccc_lock_state(), it will
 	 * hit this assertion.
 	 * Anyway, it's still okay to call attr_get w/o type guard as layout
-	 * can't go if locks exist. */
+	 * can't go if locks exist.
+	 */
 	/* LASSERT(atomic_read(&lsm->lsm_refc) > 1); */
 
 	if (!r0->lo_attr_valid) {
@@ -475,7 +481,8 @@ static int lov_attr_get_raid0(const struct lu_env *env, struct cl_object *obj,
 
 		memset(lvb, 0, sizeof(*lvb));
 		/* XXX: timestamps can be negative by sanity:test_39m,
-		 * how can it be? */
+		 * how can it be?
+		 */
 		lvb->lvb_atime = LLONG_MIN;
 		lvb->lvb_ctime = LLONG_MIN;
 		lvb->lvb_mtime = LLONG_MIN;
@@ -845,7 +852,8 @@ static int lov_attr_get(const struct lu_env *env, struct cl_object *obj,
 			struct cl_attr *attr)
 {
 	/* do not take lock, as this function is called under a
-	 * spin-lock. Layout is protected from changing by ongoing IO. */
+	 * spin-lock. Layout is protected from changing by ongoing IO.
+	 */
 	return LOV_2DISPATCH_NOLOCK(cl2lov(obj), llo_getattr, env, obj, attr);
 }
 

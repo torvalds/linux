@@ -225,7 +225,8 @@ static int common_attr_done(struct lov_request_set *set)
 	if ((set->set_oi->oi_oa->o_valid & OBD_MD_FLEPOCH) &&
 	    (set->set_oi->oi_md->lsm_stripe_count != attrset)) {
 		/* When we take attributes of some epoch, we require all the
-		 * ost to be active. */
+		 * ost to be active.
+		 */
 		CERROR("Not all the stripes had valid attrs\n");
 		rc = -EIO;
 		goto out;
@@ -256,7 +257,8 @@ int lov_fini_getattr_set(struct lov_request_set *set)
 }
 
 /* The callback for osc_getattr_async that finalizes a request info when a
- * response is received. */
+ * response is received.
+ */
 static int cb_getattr_update(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
@@ -458,7 +460,8 @@ int lov_update_setattr_set(struct lov_request_set *set,
 }
 
 /* The callback for osc_setattr_async that finalizes a request info when a
- * response is received. */
+ * response is received.
+ */
 static int cb_setattr_update(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
@@ -646,7 +649,8 @@ static void lov_update_statfs(struct obd_statfs *osfs,
 }
 
 /* The callback for osc_statfs_async that finalizes a request info when a
- * response is received. */
+ * response is received.
+ */
 static int cb_statfs_update(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
@@ -666,7 +670,8 @@ static int cb_statfs_update(void *cookie, int rc)
 	lov_sfs = oinfo->oi_osfs;
 	success = atomic_read(&set->set_success);
 	/* XXX: the same is done in lov_update_common_set, however
-	   lovset->set_exp is not initialized. */
+	 * lovset->set_exp is not initialized.
+	 */
 	lov_update_set(set, lovreq, rc);
 	if (rc)
 		goto out;
@@ -724,7 +729,8 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 		}
 
 		/* skip targets that have been explicitly disabled by the
-		 * administrator */
+		 * administrator
+		 */
 		if (!lov->lov_tgts[i]->ltd_exp) {
 			CDEBUG(D_HA, "lov idx %d administratively disabled\n", i);
 			continue;

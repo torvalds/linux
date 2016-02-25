@@ -160,7 +160,8 @@ static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
 			 * to remember the subio. This is because lock is able
 			 * to be cached, but this is not true for IO. This
 			 * further means a sublock might be referenced in
-			 * different io context. -jay */
+			 * different io context. -jay
+			 */
 
 			sublock = cl_lock_hold(subenv->lse_env, subenv->lse_io,
 					       descr, "lov-parent", parent);
@@ -477,7 +478,8 @@ static int lov_lock_enqueue_one(const struct lu_env *env, struct lov_lock *lck,
 	result = cl_enqueue_try(env, sublock, io, enqflags);
 	if ((sublock->cll_state == CLS_ENQUEUED) && !(enqflags & CEF_AGL)) {
 		/* if it is enqueued, try to `wait' on it---maybe it's already
-		 * granted */
+		 * granted
+		 */
 		result = cl_wait_try(env, sublock);
 		if (result == CLO_REENQUEUED)
 			result = CLO_WAIT;
@@ -518,7 +520,8 @@ static int lov_sublock_fill(const struct lu_env *env, struct cl_lock *parent,
 		} else {
 			kmem_cache_free(lov_lock_link_kmem, link);
 			/* other thread allocated sub-lock, or enqueue is no
-			 * longer going on */
+			 * longer going on
+			 */
 			cl_lock_mutex_put(env, parent);
 			cl_lock_unhold(env, sublock, "lov-parent", parent);
 			cl_lock_mutex_get(env, parent);
@@ -575,7 +578,8 @@ static int lov_lock_enqueue(const struct lu_env *env,
 		if (!sub) {
 			result = lov_sublock_fill(env, lock, io, lck, i);
 			/* lov_sublock_fill() released @lock mutex,
-			 * restart. */
+			 * restart.
+			 */
 			break;
 		}
 		sublock = sub->lss_cl.cls_lock;
@@ -603,7 +607,8 @@ static int lov_lock_enqueue(const struct lu_env *env,
 					/* take recursive mutex of sublock */
 					cl_lock_mutex_get(env, sublock);
 					/* need to release all locks in closure
-					 * otherwise it may deadlock. LU-2683.*/
+					 * otherwise it may deadlock. LU-2683.
+					 */
 					lov_sublock_unlock(env, sub, closure,
 							   subenv);
 					/* sublock and parent are held. */
@@ -647,7 +652,8 @@ static int lov_lock_unuse(const struct lu_env *env,
 
 		/* top-lock state cannot change concurrently, because single
 		 * thread (one that released the last hold) carries unlocking
-		 * to the completion. */
+		 * to the completion.
+		 */
 		LASSERT(slice->cls_lock->cll_state == CLS_INTRANSIT);
 		lls = &lck->lls_sub[i];
 		sub = lls->sub_lock;
@@ -693,7 +699,8 @@ static void lov_lock_cancel(const struct lu_env *env,
 
 		/* top-lock state cannot change concurrently, because single
 		 * thread (one that released the last hold) carries unlocking
-		 * to the completion. */
+		 * to the completion.
+		 */
 		lls = &lck->lls_sub[i];
 		sub = lls->sub_lock;
 		if (!sub)
@@ -773,8 +780,9 @@ again:
 		if (result != 0)
 			break;
 	}
-	/* Each sublock only can be reenqueued once, so will not loop for
-	 * ever. */
+	/* Each sublock only can be reenqueued once, so will not loop
+	 * forever.
+	 */
 	if (result == 0 && reenqueued != 0)
 		goto again;
 	cl_lock_closure_fini(closure);
@@ -823,7 +831,8 @@ static int lov_lock_use(const struct lu_env *env,
 								 i, 1, rc);
 			} else if (sublock->cll_state == CLS_NEW) {
 				/* Sub-lock might have been canceled, while
-				 * top-lock was cached. */
+				 * top-lock was cached.
+				 */
 				result = -ESTALE;
 				lov_sublock_release(env, lck, i, 1, result);
 			}
@@ -928,7 +937,8 @@ static int lov_lock_fits_into(const struct lu_env *env,
 	LASSERT(lov->lls_nr > 0);
 
 	/* for top lock, it's necessary to match enq flags otherwise it will
-	 * run into problem if a sublock is missing and reenqueue. */
+	 * run into problem if a sublock is missing and reenqueue.
+	 */
 	if (need->cld_enq_flags != lov->lls_orig.cld_enq_flags)
 		return 0;
 

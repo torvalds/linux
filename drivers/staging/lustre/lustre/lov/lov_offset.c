@@ -114,7 +114,8 @@ u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size,
  * this function returns < 0 when the offset was "before" the stripe and
  * was moved forward to the start of the stripe in question;  0 when it
  * falls in the stripe and no shifting was done; > 0 when the offset
- * was outside the stripe and was pulled back to its final byte. */
+ * was outside the stripe and was pulled back to its final byte.
+ */
 int lov_stripe_offset(struct lov_stripe_md *lsm, u64 lov_off,
 		      int stripeno, u64 *obdoff)
 {
@@ -209,7 +210,8 @@ u64 lov_size_to_stripe(struct lov_stripe_md *lsm, u64 file_size,
 
 /* given an extent in an lov and a stripe, calculate the extent of the stripe
  * that is contained within the lov extent.  this returns true if the given
- * stripe does intersect with the lov extent. */
+ * stripe does intersect with the lov extent.
+ */
 int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 			  u64 start, u64 end, u64 *obd_start, u64 *obd_end)
 {
@@ -223,7 +225,8 @@ int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 
 	/* this stripe doesn't intersect the file extent when neither
 	 * start or the end intersected the stripe and obd_start and
-	 * obd_end got rounded up to the save value. */
+	 * obd_end got rounded up to the save value.
+	 */
 	if (start_side != 0 && end_side != 0 && *obd_start == *obd_end)
 		return 0;
 
@@ -234,7 +237,8 @@ int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 	 * in the wrong direction and touch it up.
 	 * interestingly, this can't underflow since end must be > start
 	 * if we passed through the previous check.
-	 * (should we assert for that somewhere?) */
+	 * (should we assert for that somewhere?)
+	 */
 	if (end_side != 0)
 		(*obd_end)--;
 

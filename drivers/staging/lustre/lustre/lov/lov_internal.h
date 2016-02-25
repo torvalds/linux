@@ -43,7 +43,8 @@
 /* lov_do_div64(a, b) returns a % b, and a = a / b.
  * The 32-bit code is LOV-specific due to knowing about stripe limits in
  * order to reduce the divisor to a 32-bit number.  If the divisor is
- * already a 32-bit value the compiler handles this directly. */
+ * already a 32-bit value the compiler handles this directly.
+ */
 #if BITS_PER_LONG == 64
 # define lov_do_div64(n, base) ({					\
 	uint64_t __base = (base);					\
@@ -92,7 +93,8 @@ struct lov_request_set {
 	atomic_t			set_refcount;
 	struct obd_export		*set_exp;
 	/* XXX: There is @set_exp already, however obd_statfs gets obd_device
-	   only. */
+	 * only.
+	 */
 	struct obd_device		*set_obd;
 	int				set_count;
 	atomic_t			set_completes;

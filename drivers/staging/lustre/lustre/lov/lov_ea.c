@@ -162,7 +162,8 @@ static int lsm_destroy_plain(struct lov_stripe_md *lsm, struct obdo *oa,
 }
 
 /* Find minimum stripe maxbytes value.  For inactive or
- * reconnecting targets use LUSTRE_STRIPE_MAXBYTES. */
+ * reconnecting targets use LUSTRE_STRIPE_MAXBYTES.
+ */
 static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
 {
 	struct obd_import *imp = tgt->ltd_obd->u.cli.cl_import;

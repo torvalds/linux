@@ -204,7 +204,8 @@ static void *pool_proc_start(struct seq_file *s, loff_t *pos)
 	if ((pool_tgt_count(pool) == 0) ||
 	    (*pos >= pool_tgt_count(pool))) {
 		/* iter is not created, so stop() has no way to
-		 * find pool to dec ref */
+		 * find pool to dec ref
+		 */
 		lov_pool_putref(pool);
 		return NULL;
 	}
@@ -217,7 +218,8 @@ static void *pool_proc_start(struct seq_file *s, loff_t *pos)
 	iter->idx = 0;
 
 	/* we use seq_file private field to memorized iterator so
-	 * we can free it at stop() */
+	 * we can free it at stop()
+	 */
 	/* /!\ do not forget to restore it to pool before freeing it */
 	s->private = iter;
 	if (*pos > 0) {
@@ -239,10 +241,12 @@ static void pool_proc_stop(struct seq_file *s, void *v)
 
 	/* in some cases stop() method is called 2 times, without
 	 * calling start() method (see seq_read() from fs/seq_file.c)
-	 * we have to free only if s->private is an iterator */
+	 * we have to free only if s->private is an iterator
+	 */
 	if ((iter) && (iter->magic == POOL_IT_MAGIC)) {
 		/* we restore s->private so next call to pool_proc_start()
-		 * will work */
+		 * will work
+		 */
 		s->private = iter->pool;
 		lov_pool_putref(iter->pool);
 		kfree(iter);

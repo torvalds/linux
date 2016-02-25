@@ -141,7 +141,8 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 
 	if (lsm) {
 		/* If we are just sizing the EA, limit the stripe count
-		 * to the actual number of OSTs in this filesystem. */
+		 * to the actual number of OSTs in this filesystem.
+		 */
 		if (!lmmp) {
 			stripe_count = lov_get_stripecnt(lov, lmm_magic,
 							lsm->lsm_stripe_count);
@@ -155,7 +156,8 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 		/* No need to allocate more than maximum supported stripes.
 		 * Anyway, this is pretty inaccurate since ld_tgt_count now
 		 * represents max index and we should rely on the actual number
-		 * of OSTs instead */
+		 * of OSTs instead
+		 */
 		stripe_count = lov_mds_md_max_stripe_count(
 			lov->lov_ocd.ocd_max_easize, lmm_magic);
 
@@ -241,7 +243,8 @@ __u16 lov_get_stripecnt(struct lov_obd *lov, __u32 magic, __u16 stripe_count)
 		stripe_count = 1;
 
 	/* stripe count is based on whether ldiskfs can handle
-	 * larger EA sizes */
+	 * larger EA sizes
+	 */
 	if (lov->lov_ocd.ocd_connect_flags & OBD_CONNECT_MAX_EASIZE &&
 	    lov->lov_ocd.ocd_max_easize)
 		max_stripes = lov_mds_md_max_stripe_count(
@@ -397,7 +400,8 @@ int lov_getstripe(struct obd_export *exp, struct lov_stripe_md *lsm,
 	set_fs(KERNEL_DS);
 
 	/* we only need the header part from user space to get lmm_magic and
-	 * lmm_stripe_count, (the header part is common to v1 and v3) */
+	 * lmm_stripe_count, (the header part is common to v1 and v3)
+	 */
 	lum_size = sizeof(struct lov_user_md_v1);
 	if (copy_from_user(&lum, lump, lum_size)) {
 		rc = -EFAULT;
