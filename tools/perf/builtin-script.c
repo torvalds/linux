@@ -1212,23 +1212,6 @@ static struct script_spec *script_spec__find(const char *spec)
 	return NULL;
 }
 
-static struct script_spec *script_spec__findnew(const char *spec,
-						struct scripting_ops *ops)
-{
-	struct script_spec *s = script_spec__find(spec);
-
-	if (s)
-		return s;
-
-	s = script_spec__new(spec, ops);
-	if (!s)
-		return NULL;
-
-	script_spec__add(s);
-
-	return s;
-}
-
 int script_spec_register(const char *spec, struct scripting_ops *ops)
 {
 	struct script_spec *s;
@@ -1237,9 +1220,11 @@ int script_spec_register(const char *spec, struct scripting_ops *ops)
 	if (s)
 		return -1;
 
-	s = script_spec__findnew(spec, ops);
+	s = script_spec__new(spec, ops);
 	if (!s)
 		return -1;
+	else
+		script_spec__add(s);
 
 	return 0;
 }
