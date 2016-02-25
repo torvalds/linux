@@ -111,7 +111,7 @@ struct connect_info {
 	size_t req_ies_len;
 	u8 *resp_ies;
 	u16 resp_ies_len;
-	u16 u16ConnectStatus;
+	u16 status;
 };
 
 typedef struct {

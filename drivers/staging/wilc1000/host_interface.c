@@ -1463,9 +1463,9 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 					if (s32Err) {
 						netdev_err(vif->ndev, "wilc_parse_assoc_resp_info() returned error %d\n", s32Err);
 					} else {
-						strConnectInfo.u16ConnectStatus = pstrConnectRespInfo->status;
+						strConnectInfo.status = pstrConnectRespInfo->status;
 
-						if (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE) {
+						if (strConnectInfo.status == SUCCESSFUL_STATUSCODE) {
 							if (pstrConnectRespInfo->ies) {
 								strConnectInfo.resp_ies_len = pstrConnectRespInfo->ies_len;
 								strConnectInfo.resp_ies = kmalloc(pstrConnectRespInfo->ies_len, GFP_KERNEL);
@@ -1483,7 +1483,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 			}
 
 			if ((u8MacStatus == MAC_CONNECTED) &&
-			    (strConnectInfo.u16ConnectStatus != SUCCESSFUL_STATUSCODE))	{
+			    (strConnectInfo.status != SUCCESSFUL_STATUSCODE))	{
 				netdev_err(vif->ndev, "Received MAC status is MAC_CONNECTED while the received status code in Asoc Resp is not SUCCESSFUL_STATUSCODE\n");
 				eth_zero_addr(wilc_connected_ssid);
 			} else if (u8MacStatus == MAC_DISCONNECTED)    {
@@ -1495,7 +1495,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 				memcpy(strConnectInfo.bssid, hif_drv->usr_conn_req.bssid, 6);
 
 				if ((u8MacStatus == MAC_CONNECTED) &&
-				    (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE))	{
+				    (strConnectInfo.status == SUCCESSFUL_STATUSCODE))	{
 					memcpy(hif_drv->assoc_bssid,
 					       hif_drv->usr_conn_req.bssid, ETH_ALEN);
 				}
@@ -1517,7 +1517,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 							  hif_drv->usr_conn_req.arg);
 
 			if ((u8MacStatus == MAC_CONNECTED) &&
-			    (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE))	{
+			    (strConnectInfo.status == SUCCESSFUL_STATUSCODE))	{
 				wilc_set_power_mgmt(vif, 0, 0);
 
 				hif_drv->hif_state = HOST_IF_CONNECTED;

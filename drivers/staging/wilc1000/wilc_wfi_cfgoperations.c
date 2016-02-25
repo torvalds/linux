@@ -502,10 +502,10 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 	if (enuConnDisconnEvent == CONN_DISCONN_EVENT_CONN_RESP) {
 		u16 u16ConnectStatus;
 
-		u16ConnectStatus = pstrConnectInfo->u16ConnectStatus;
+		u16ConnectStatus = pstrConnectInfo->status;
 
 		if ((u8MacStatus == MAC_DISCONNECTED) &&
-		    (pstrConnectInfo->u16ConnectStatus == SUCCESSFUL_STATUSCODE)) {
+		    (pstrConnectInfo->status == SUCCESSFUL_STATUSCODE)) {
 			u16ConnectStatus = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			wilc_wlan_set_bssid(priv->dev, NullBssid,
 					    STATION_MODE);
