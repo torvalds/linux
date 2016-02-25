@@ -217,14 +217,14 @@ event_def: event_pmu |
 	   event_bpf_file
 
 event_pmu:
-PE_NAME '/' event_config '/'
+PE_NAME opt_event_config
 {
 	struct parse_events_evlist *data = _data;
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(data, list, $1, $3));
-	parse_events_terms__delete($3);
+	ABORT_ON(parse_events_add_pmu(data, list, $1, $2));
+	parse_events_terms__delete($2);
 	$$ = list;
 }
 |
