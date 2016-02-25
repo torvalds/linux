@@ -33,7 +33,7 @@ static inline struct spinand_state *mtd_to_state(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct spinand_info *info = nand_get_controller_data(chip);
-	struct spinand_state *state = (struct spinand_state *)info->priv;
+	struct spinand_state *state = info->priv;
 
 	return state;
 }
@@ -749,7 +749,7 @@ static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct spinand_info *info = nand_get_controller_data(chip);
-	struct spinand_state *state = (struct spinand_state *)info->priv;
+	struct spinand_state *state = info->priv;
 
 	switch (command) {
 	/*
