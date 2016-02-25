@@ -1212,6 +1212,14 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 			ts->stat = SAS_NAK_R_ERR;
 			break;
 		}
+		case TRANS_TX_CREDIT_TIMEOUT_ERR:
+		case TRANS_TX_CLOSE_NORMAL_ERR:
+		{
+			/* This will request a retry */
+			ts->stat = SAS_QUEUE_FULL;
+			slot->abort = 1;
+			break;
+		}
 		default:
 		{
 			ts->stat = SAM_STAT_CHECK_CONDITION;
@@ -1319,6 +1327,11 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 		!(cmplt_hdr_data & CMPLT_HDR_RSPNS_XFRD_MSK)) {
 
 		slot_err_v1_hw(hisi_hba, task, slot);
+		if (unlikely(slot->abort)) {
+			queue_work(hisi_hba->wq, &slot->abort_slot);
+			/* immediately return and do not complete */
+			return ts->stat;
+		}
 		goto out;
 	}
 
