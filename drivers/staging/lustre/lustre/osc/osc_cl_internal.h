@@ -522,7 +522,7 @@ static inline struct cl_object *osc2cl(const struct osc_object *obj)
 	return (struct cl_object *)&obj->oo_cl;
 }
 
-static inline ldlm_mode_t osc_cl_lock2ldlm(enum cl_lock_mode mode)
+static inline enum ldlm_mode osc_cl_lock2ldlm(enum cl_lock_mode mode)
 {
 	LASSERT(mode == CLM_READ || mode == CLM_WRITE || mode == CLM_GROUP);
 	if (mode == CLM_READ)
@@ -533,7 +533,7 @@ static inline ldlm_mode_t osc_cl_lock2ldlm(enum cl_lock_mode mode)
 		return LCK_GROUP;
 }
 
-static inline enum cl_lock_mode osc_ldlm2cl_lock(ldlm_mode_t mode)
+static inline enum cl_lock_mode osc_ldlm2cl_lock(enum ldlm_mode mode)
 {
 	LASSERT(mode == LCK_PR || mode == LCK_PW || mode == LCK_GROUP);
 	if (mode == LCK_PR)

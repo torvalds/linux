@@ -631,7 +631,7 @@ int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
  * locks added to @cancels list. */
 static int osc_resource_get_unused(struct obd_export *exp, struct obdo *oa,
 				   struct list_head *cancels,
-				   ldlm_mode_t mode, __u64 lock_flags)
+				   enum ldlm_mode mode, __u64 lock_flags)
 {
 	struct ldlm_namespace *ns = exp->exp_obd->obd_namespace;
 	struct ldlm_res_id res_id;
@@ -2195,7 +2195,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	struct ptlrpc_request *req = NULL;
 	int intent = *flags & LDLM_FL_HAS_INTENT;
 	__u64 match_lvb = (agl != 0 ? 0 : LDLM_FL_LVB_READY);
-	ldlm_mode_t mode;
+	enum ldlm_mode mode;
 	int rc;
 
 	/* Filesystem lock extents are extended to page boundaries so that
@@ -2338,7 +2338,7 @@ int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 {
 	struct obd_device *obd = exp->exp_obd;
 	__u64 lflags = *flags;
-	ldlm_mode_t rc;
+	enum ldlm_mode rc;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_MATCH))
 		return -EIO;
@@ -2733,7 +2733,7 @@ out:
 		struct ldlm_res_id res_id;
 		ldlm_policy_data_t policy;
 		struct lustre_handle lockh;
-		ldlm_mode_t mode = 0;
+		enum ldlm_mode mode = 0;
 		struct ptlrpc_request *req;
 		struct ll_user_fiemap *reply;
 		char *tmp;

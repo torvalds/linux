@@ -144,7 +144,7 @@ struct ldlm_interval *ldlm_interval_detach(struct ldlm_lock *l)
 	return list_empty(&n->li_group) ? n : NULL;
 }
 
-static inline int lock_mode_to_index(ldlm_mode_t mode)
+static inline int lock_mode_to_index(enum ldlm_mode mode)
 {
 	int index;
 

@@ -92,7 +92,7 @@ ldlm_flocks_overlap(struct ldlm_lock *lock, struct ldlm_lock *new)
 }
 
 static inline void
-ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
+ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
 {
 	LDLM_DEBUG(lock, "ldlm_flock_destroy(mode: %d, flags: 0x%llx)",
 		   mode, flags);
@@ -143,7 +143,7 @@ static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
 	struct ldlm_lock *lock = NULL;
 	struct ldlm_lock *new = req;
 	struct ldlm_lock *new2 = NULL;
-	ldlm_mode_t mode = req->l_req_mode;
+	enum ldlm_mode mode = req->l_req_mode;
 	int added = (mode == LCK_NL);
 	int overlaps = 0;
 	int splitted = 0;

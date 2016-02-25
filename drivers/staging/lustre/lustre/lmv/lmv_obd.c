@@ -1846,7 +1846,8 @@ lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 	 NULL)
 
 static int lmv_early_cancel(struct obd_export *exp, struct md_op_data *op_data,
-			    int op_tgt, ldlm_mode_t mode, int bits, int flag)
+			    int op_tgt, enum ldlm_mode mode, int bits,
+			    int flag)
 {
 	struct lu_fid	  *fid = md_op_data_fid(op_data, flag);
 	struct obd_device      *obd = exp->exp_obd;
@@ -2489,7 +2490,7 @@ static int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 }
 
 static int lmv_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
-			     ldlm_policy_data_t *policy, ldlm_mode_t mode,
+			     ldlm_policy_data_t *policy, enum ldlm_mode mode,
 			     ldlm_cancel_flags_t flags, void *opaque)
 {
 	struct obd_device       *obd = exp->exp_obd;
@@ -2523,14 +2524,16 @@ static int lmv_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
 	return rc;
 }
 
-static ldlm_mode_t lmv_lock_match(struct obd_export *exp, __u64 flags,
-				  const struct lu_fid *fid, ldlm_type_t type,
-				  ldlm_policy_data_t *policy, ldlm_mode_t mode,
-				  struct lustre_handle *lockh)
+static enum ldlm_mode lmv_lock_match(struct obd_export *exp, __u64 flags,
+				     const struct lu_fid *fid,
+				     enum ldlm_type type,
+				     ldlm_policy_data_t *policy,
+				     enum ldlm_mode mode,
+				     struct lustre_handle *lockh)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
-	ldlm_mode_t	      rc;
+	enum ldlm_mode	      rc;
 	int		      i;
 
 	CDEBUG(D_INODE, "Lock match for "DFID"\n", PFID(fid));

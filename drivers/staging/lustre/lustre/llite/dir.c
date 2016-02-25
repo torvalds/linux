@@ -332,7 +332,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 	struct lustre_handle lockh;
 	struct lu_dirpage *dp;
 	struct page *page;
-	ldlm_mode_t mode;
+	enum ldlm_mode mode;
 	int rc;
 	__u64 start = 0;
 	__u64 end = 0;

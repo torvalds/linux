@@ -718,7 +718,7 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 }
 EXPORT_SYMBOL(target_send_reply);
 
-ldlm_mode_t lck_compat_array[] = {
+enum ldlm_mode lck_compat_array[] = {
 	[LCK_EX]	= LCK_COMPAT_EX,
 	[LCK_PW]	= LCK_COMPAT_PW,
 	[LCK_PR]	= LCK_COMPAT_PR,

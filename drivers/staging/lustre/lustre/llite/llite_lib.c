@@ -1598,7 +1598,7 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 		if (exp_connect_som(ll_i2mdexp(inode)) &&
 		    S_ISREG(inode->i_mode)) {
 			struct lustre_handle lockh;
-			ldlm_mode_t mode;
+			enum ldlm_mode mode;
 
 			/* As it is possible a blocking ast has been processed
 			 * by this time, we need to check there is an UPDATE

@@ -266,7 +266,7 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 				  struct lookup_intent *oit,
 				  struct ptlrpc_request **req)
 {
-	ldlm_mode_t mode;
+	enum ldlm_mode mode;
 	struct lustre_handle lockh = { 0 };
 	struct md_op_data *op_data;
 	struct ll_inode_info *lli = ll_i2info(inode);

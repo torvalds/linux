@@ -90,7 +90,7 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		struct ptlrpc_request **req, __u64 extra_lock_flags);
 
 int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
-			    struct list_head *cancels, ldlm_mode_t mode,
+			    struct list_head *cancels, enum ldlm_mode  mode,
 			    __u64 bits);
 /* mdc/mdc_request.c */
 int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
@@ -119,7 +119,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	       struct ptlrpc_request **request);
 int mdc_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
-		      ldlm_policy_data_t *policy, ldlm_mode_t mode,
+		      ldlm_policy_data_t *policy, enum ldlm_mode mode,
 		      ldlm_cancel_flags_t flags, void *opaque);
 
 int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
@@ -129,10 +129,10 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 			     struct md_enqueue_info *minfo,
 			     struct ldlm_enqueue_info *einfo);
 
-ldlm_mode_t mdc_lock_match(struct obd_export *exp, __u64 flags,
-			   const struct lu_fid *fid, ldlm_type_t type,
-			   ldlm_policy_data_t *policy, ldlm_mode_t mode,
-			   struct lustre_handle *lockh);
+enum ldlm_mode mdc_lock_match(struct obd_export *exp, __u64 flags,
+			      const struct lu_fid *fid, enum ldlm_type type,
+			      ldlm_policy_data_t *policy, enum ldlm_mode mode,
+			      struct lustre_handle *lockh);
 
 static inline int mdc_prep_elc_req(struct obd_export *exp,
 				   struct ptlrpc_request *req, int opc,

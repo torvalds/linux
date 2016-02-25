@@ -2687,7 +2687,7 @@ static inline int ldlm_res_eq(const struct ldlm_res_id *res0,
 }
 
 /* lock types */
-typedef enum {
+enum ldlm_mode {
 	LCK_MINMODE = 0,
 	LCK_EX      = 1,
 	LCK_PW      = 2,
@@ -2698,17 +2698,17 @@ typedef enum {
 	LCK_GROUP   = 64,
 	LCK_COS     = 128,
 	LCK_MAXMODE
-} ldlm_mode_t;
+};
 
 #define LCK_MODE_NUM    8
 
-typedef enum {
+enum ldlm_type {
 	LDLM_PLAIN     = 10,
 	LDLM_EXTENT    = 11,
 	LDLM_FLOCK     = 12,
 	LDLM_IBITS     = 13,
 	LDLM_MAX_TYPE
-} ldlm_type_t;
+};
 
 #define LDLM_MIN_TYPE LDLM_PLAIN
 
@@ -2768,15 +2768,15 @@ struct ldlm_intent {
 void lustre_swab_ldlm_intent(struct ldlm_intent *i);
 
 struct ldlm_resource_desc {
-	ldlm_type_t lr_type;
+	enum ldlm_type lr_type;
 	__u32 lr_padding;       /* also fix lustre_swab_ldlm_resource_desc */
 	struct ldlm_res_id lr_name;
 };
 
 struct ldlm_lock_desc {
 	struct ldlm_resource_desc l_resource;
-	ldlm_mode_t l_req_mode;
-	ldlm_mode_t l_granted_mode;
+	enum ldlm_mode l_req_mode;
+	enum ldlm_mode l_granted_mode;
 	ldlm_wire_policy_data_t l_policy_data;
 };
 

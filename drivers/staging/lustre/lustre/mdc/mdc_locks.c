@@ -151,13 +151,13 @@ int mdc_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
 	return 0;
 }
 
-ldlm_mode_t mdc_lock_match(struct obd_export *exp, __u64 flags,
-			   const struct lu_fid *fid, ldlm_type_t type,
-			   ldlm_policy_data_t *policy, ldlm_mode_t mode,
-			   struct lustre_handle *lockh)
+enum ldlm_mode mdc_lock_match(struct obd_export *exp, __u64 flags,
+			      const struct lu_fid *fid, enum ldlm_type type,
+			      ldlm_policy_data_t *policy, enum ldlm_mode mode,
+			      struct lustre_handle *lockh)
 {
 	struct ldlm_res_id res_id;
-	ldlm_mode_t rc;
+	enum ldlm_mode rc;
 
 	fid_build_reg_res_name(fid, &res_id);
 	/* LU-4405: Clear bits not supported by server */
@@ -170,7 +170,7 @@ ldlm_mode_t mdc_lock_match(struct obd_export *exp, __u64 flags,
 int mdc_cancel_unused(struct obd_export *exp,
 		      const struct lu_fid *fid,
 		      ldlm_policy_data_t *policy,
-		      ldlm_mode_t mode,
+		      enum ldlm_mode mode,
 		      ldlm_cancel_flags_t flags,
 		      void *opaque)
 {
@@ -1036,7 +1036,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 	struct ldlm_res_id res_id;
 	struct lustre_handle lockh;
 	ldlm_policy_data_t policy;
-	ldlm_mode_t mode;
+	enum ldlm_mode mode;
 
 	if (it->d.lustre.it_lock_handle) {
 		lockh.cookie = it->d.lustre.it_lock_handle;

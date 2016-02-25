@@ -2780,11 +2780,12 @@ ll_file_noflock(struct file *file, int cmd, struct file_lock *file_lock)
  * \param l_req_mode [IN] searched lock mode
  * \retval boolean, true iff all bits are found
  */
-int ll_have_md_lock(struct inode *inode, __u64 *bits,  ldlm_mode_t l_req_mode)
+int ll_have_md_lock(struct inode *inode, __u64 *bits,
+		    enum ldlm_mode l_req_mode)
 {
 	struct lustre_handle lockh;
 	ldlm_policy_data_t policy;
-	ldlm_mode_t mode = (l_req_mode == LCK_MINMODE) ?
+	enum ldlm_mode mode = (l_req_mode == LCK_MINMODE) ?
 				(LCK_CR|LCK_CW|LCK_PR|LCK_PW) : l_req_mode;
 	struct lu_fid *fid;
 	__u64 flags;
@@ -2820,13 +2821,13 @@ int ll_have_md_lock(struct inode *inode, __u64 *bits,  ldlm_mode_t l_req_mode)
 	return *bits == 0;
 }
 
-ldlm_mode_t ll_take_md_lock(struct inode *inode, __u64 bits,
-			    struct lustre_handle *lockh, __u64 flags,
-			    ldlm_mode_t mode)
+enum ldlm_mode ll_take_md_lock(struct inode *inode, __u64 bits,
+			       struct lustre_handle *lockh, __u64 flags,
+			       enum ldlm_mode mode)
 {
 	ldlm_policy_data_t policy = { .l_inodebits = {bits} };
 	struct lu_fid *fid;
-	ldlm_mode_t rc;
+	enum ldlm_mode rc;
 
 	fid = &ll_i2info(inode)->lli_fid;
 	CDEBUG(D_INFO, "trying to match res "DFID"\n", PFID(fid));
@@ -3356,8 +3357,8 @@ out:
  * Apply the layout to the inode. Layout lock is held and will be released
  * in this function.
  */
-static int ll_layout_lock_set(struct lustre_handle *lockh, ldlm_mode_t mode,
-				struct inode *inode, __u32 *gen, bool reconf)
+static int ll_layout_lock_set(struct lustre_handle *lockh, enum ldlm_mode mode,
+			      struct inode *inode, __u32 *gen, bool reconf)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_sb_info    *sbi = ll_i2sbi(inode);
@@ -3479,7 +3480,7 @@ int ll_layout_refresh(struct inode *inode, __u32 *gen)
 	struct md_op_data     *op_data;
 	struct lookup_intent   it;
 	struct lustre_handle   lockh;
-	ldlm_mode_t	       mode;
+	enum ldlm_mode	       mode;
 	struct ldlm_enqueue_info einfo = {
 		.ei_type = LDLM_IBITS,
 		.ei_mode = LCK_CR,

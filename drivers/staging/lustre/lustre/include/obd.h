@@ -1160,13 +1160,13 @@ struct md_ops {
 				      struct obd_client_handle *);
 	int (*set_lock_data)(struct obd_export *, __u64 *, void *, __u64 *);
 
-	ldlm_mode_t (*lock_match)(struct obd_export *, __u64,
-				  const struct lu_fid *, ldlm_type_t,
-				  ldlm_policy_data_t *, ldlm_mode_t,
-				  struct lustre_handle *);
+	enum ldlm_mode (*lock_match)(struct obd_export *, __u64,
+				     const struct lu_fid *, enum ldlm_type,
+				     ldlm_policy_data_t *, enum ldlm_mode,
+				     struct lustre_handle *);
 
 	int (*cancel_unused)(struct obd_export *, const struct lu_fid *,
-			     ldlm_policy_data_t *, ldlm_mode_t,
+			     ldlm_policy_data_t *, enum ldlm_mode,
 			     ldlm_cancel_flags_t flags, void *opaque);
 
 	int (*get_remote_perm)(struct obd_export *, const struct lu_fid *,

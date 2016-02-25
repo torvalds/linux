@@ -331,7 +331,8 @@ static void failed_lock_cleanup(struct ldlm_namespace *ns,
  * Called after receiving reply from server.
  */
 int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
-			  ldlm_type_t type, __u8 with_policy, ldlm_mode_t mode,
+			  enum ldlm_type type, __u8 with_policy,
+			  enum ldlm_mode mode,
 			  __u64 *flags, void *lvb, __u32 lvb_len,
 			  struct lustre_handle *lockh, int rc)
 {
@@ -1465,7 +1466,7 @@ int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,
 int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
 			       ldlm_policy_data_t *policy,
-			       ldlm_mode_t mode, __u64 lock_flags,
+			       enum ldlm_mode mode, __u64 lock_flags,
 			       ldlm_cancel_flags_t cancel_flags, void *opaque)
 {
 	struct ldlm_lock *lock;
@@ -1578,7 +1579,7 @@ EXPORT_SYMBOL(ldlm_cli_cancel_list);
 int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 				    const struct ldlm_res_id *res_id,
 				    ldlm_policy_data_t *policy,
-				    ldlm_mode_t mode,
+				    enum ldlm_mode mode,
 				    ldlm_cancel_flags_t flags,
 				    void *opaque)
 {

@@ -1065,7 +1065,8 @@ static struct ldlm_resource *ldlm_resource_new(void)
  */
 struct ldlm_resource *
 ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
-		  const struct ldlm_res_id *name, ldlm_type_t type, int create)
+		  const struct ldlm_res_id *name, enum ldlm_type type,
+		  int create)
 {
 	struct hlist_node     *hnode;
 	struct ldlm_resource *res;

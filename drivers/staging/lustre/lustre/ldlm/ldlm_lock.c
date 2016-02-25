@@ -91,7 +91,7 @@ static ldlm_policy_local_to_wire_t ldlm_policy_local_to_wire[] = {
 /**
  * Converts lock policy from local format to on the wire lock_desc format
  */
-static void ldlm_convert_policy_to_wire(ldlm_type_t type,
+static void ldlm_convert_policy_to_wire(enum ldlm_type type,
 					const ldlm_policy_data_t *lpolicy,
 					ldlm_wire_policy_data_t *wpolicy)
 {
@@ -105,7 +105,7 @@ static void ldlm_convert_policy_to_wire(ldlm_type_t type,
 /**
  * Converts lock policy from on the wire lock_desc format to local format
  */
-void ldlm_convert_policy_to_local(struct obd_export *exp, ldlm_type_t type,
+void ldlm_convert_policy_to_local(struct obd_export *exp, enum ldlm_type type,
 				  const ldlm_wire_policy_data_t *wpolicy,
 				  ldlm_policy_data_t *lpolicy)
 {
@@ -1046,7 +1046,7 @@ void ldlm_grant_lock(struct ldlm_lock *lock, struct list_head *work_list)
  * comment above ldlm_lock_match
  */
 static struct ldlm_lock *search_queue(struct list_head *queue,
-				      ldlm_mode_t *mode,
+				      enum ldlm_mode *mode,
 				      ldlm_policy_data_t *policy,
 				      struct ldlm_lock *old_lock,
 				      __u64 flags, int unref)
@@ -1055,7 +1055,7 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 	struct list_head       *tmp;
 
 	list_for_each(tmp, queue) {
-		ldlm_mode_t match;
+		enum ldlm_mode match;
 
 		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
 
@@ -1188,10 +1188,12 @@ EXPORT_SYMBOL(ldlm_lock_allow_match);
  * keep caller code unchanged), the context failure will be discovered by
  * caller sometime later.
  */
-ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
-			    const struct ldlm_res_id *res_id, ldlm_type_t type,
-			    ldlm_policy_data_t *policy, ldlm_mode_t mode,
-			    struct lustre_handle *lockh, int unref)
+enum ldlm_mode ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
+			       const struct ldlm_res_id *res_id,
+			       enum ldlm_type type,
+			       ldlm_policy_data_t *policy,
+			       enum ldlm_mode mode,
+			       struct lustre_handle *lockh, int unref)
 {
 	struct ldlm_resource *res;
 	struct ldlm_lock *lock, *old_lock = NULL;
@@ -1313,11 +1315,11 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 }
 EXPORT_SYMBOL(ldlm_lock_match);
 
-ldlm_mode_t ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
-					__u64 *bits)
+enum ldlm_mode ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
+					   __u64 *bits)
 {
 	struct ldlm_lock *lock;
-	ldlm_mode_t mode = 0;
+	enum ldlm_mode mode = 0;
 
 	lock = ldlm_handle2lock(lockh);
 	if (lock) {
@@ -1449,8 +1451,8 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
  */
 struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 				   const struct ldlm_res_id *res_id,
-				   ldlm_type_t type,
-				   ldlm_mode_t mode,
+				   enum ldlm_type type,
+				   enum ldlm_mode mode,
 				   const struct ldlm_callback_suite *cbs,
 				   void *data, __u32 lvb_len,
 				   enum lvb_type lvb_type)
