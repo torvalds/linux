@@ -196,6 +196,11 @@ static int msm_unload(struct drm_device *dev)
 	}
 
 	drm_kms_helper_poll_fini(dev);
+
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	if (fbdev && priv->fbdev)
+		msm_fbdev_free(dev);
+#endif
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
 

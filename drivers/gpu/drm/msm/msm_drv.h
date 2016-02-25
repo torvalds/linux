@@ -240,6 +240,7 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd);
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
+void msm_fbdev_free(struct drm_device *dev);
 
 struct hdmi;
 int hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
