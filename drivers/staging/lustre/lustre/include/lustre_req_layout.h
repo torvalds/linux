@@ -146,7 +146,6 @@ extern struct req_format RQF_MDS_GETSTATUS;
 extern struct req_format RQF_MDS_SYNC;
 extern struct req_format RQF_MDS_GETXATTR;
 extern struct req_format RQF_MDS_GETATTR;
-extern struct req_format RQF_UPDATE_OBJ;
 
 /*
  * This is format of direct (non-intent) MDS_GETATTR_NAME request.
@@ -322,9 +321,6 @@ extern struct req_msg_field RMF_MGS_CONFIG_RES;
 /* generic uint32 */
 extern struct req_msg_field RMF_U32;
 
-/* OBJ update format */
-extern struct req_msg_field RMF_UPDATE;
-extern struct req_msg_field RMF_UPDATE_REPLY;
 /** @} req_layout */
 
 #endif /* _LUSTRE_REQ_LAYOUT_H__ */

@@ -284,19 +284,6 @@ static inline int opcode_offset(__u32 opc)
 			OPC_RANGE(LDLM) +
 			OPC_RANGE(MDS) +
 			OPC_RANGE(OST));
-	} else if (opc < UPDATE_LAST_OPC) {
-		/* update opcode */
-		return (opc - UPDATE_FIRST_OPC +
-			OPC_RANGE(FLD) +
-			OPC_RANGE(SEC) +
-			OPC_RANGE(SEQ) +
-			OPC_RANGE(QUOTA) +
-			OPC_RANGE(LLOG) +
-			OPC_RANGE(OBD) +
-			OPC_RANGE(MGS) +
-			OPC_RANGE(LDLM) +
-			OPC_RANGE(MDS) +
-			OPC_RANGE(OST));
 	} else {
 		/* Unknown Opcode */
 		return -1;
@@ -312,8 +299,7 @@ static inline int opcode_offset(__u32 opc)
 			    OPC_RANGE(SEC)  + \
 			    OPC_RANGE(SEQ)  + \
 			    OPC_RANGE(SEC)  + \
-			    OPC_RANGE(FLD)  + \
-			    OPC_RANGE(UPDATE))
+			    OPC_RANGE(FLD))
 
 #define EXTRA_MAX_OPCODES ((PTLRPC_LAST_CNTR - PTLRPC_FIRST_CNTR)  + \
 			    OPC_RANGE(EXTRA))

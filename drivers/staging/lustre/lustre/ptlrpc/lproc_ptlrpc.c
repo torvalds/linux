@@ -131,7 +131,6 @@ static struct ll_rpc_opcode {
 	{ SEC_CTX_INIT_CONT, "sec_ctx_init_cont" },
 	{ SEC_CTX_FINI,     "sec_ctx_fini" },
 	{ FLD_QUERY,	"fld_query" },
-	{ UPDATE_OBJ,	    "update_obj" },
 };
 
 static struct ll_eopcode {

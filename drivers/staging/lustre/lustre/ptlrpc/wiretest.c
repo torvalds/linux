@@ -333,10 +333,6 @@ void lustre_assert_wire_constants(void)
 	CLASSERT(LDLM_MAX_TYPE == 14);
 	CLASSERT(LUSTRE_RES_ID_SEQ_OFF == 0);
 	CLASSERT(LUSTRE_RES_ID_VER_OID_OFF == 1);
-	LASSERTF(UPDATE_OBJ == 1000, "found %lld\n",
-		 (long long)UPDATE_OBJ);
-	LASSERTF(UPDATE_LAST_OPC == 1001, "found %lld\n",
-		 (long long)UPDATE_LAST_OPC);
 	CLASSERT(LUSTRE_RES_ID_QUOTA_SEQ_OFF == 2);
 	CLASSERT(LUSTRE_RES_ID_QUOTA_VER_OID_OFF == 3);
 	CLASSERT(LUSTRE_RES_ID_HSH_OFF == 3);
@@ -437,30 +433,6 @@ void lustre_assert_wire_constants(void)
 		(unsigned)LMAC_NOT_IN_OI);
 	LASSERTF(LMAC_FID_ON_OST == 0x00000008UL, "found 0x%.8xUL\n",
 		(unsigned)LMAC_FID_ON_OST);
-	LASSERTF(OBJ_CREATE == 1, "found %lld\n",
-		 (long long)OBJ_CREATE);
-	LASSERTF(OBJ_DESTROY == 2, "found %lld\n",
-		 (long long)OBJ_DESTROY);
-	LASSERTF(OBJ_REF_ADD == 3, "found %lld\n",
-		 (long long)OBJ_REF_ADD);
-	LASSERTF(OBJ_REF_DEL == 4, "found %lld\n",
-		 (long long)OBJ_REF_DEL);
-	LASSERTF(OBJ_ATTR_SET == 5, "found %lld\n",
-		 (long long)OBJ_ATTR_SET);
-	LASSERTF(OBJ_ATTR_GET == 6, "found %lld\n",
-		 (long long)OBJ_ATTR_GET);
-	LASSERTF(OBJ_XATTR_SET == 7, "found %lld\n",
-		 (long long)OBJ_XATTR_SET);
-	LASSERTF(OBJ_XATTR_GET == 8, "found %lld\n",
-		 (long long)OBJ_XATTR_GET);
-	LASSERTF(OBJ_INDEX_LOOKUP == 9, "found %lld\n",
-		 (long long)OBJ_INDEX_LOOKUP);
-	LASSERTF(OBJ_INDEX_LOOKUP == 9, "found %lld\n",
-		 (long long)OBJ_INDEX_LOOKUP);
-	LASSERTF(OBJ_INDEX_INSERT == 10, "found %lld\n",
-		 (long long)OBJ_INDEX_INSERT);
-	LASSERTF(OBJ_INDEX_DELETE == 11, "found %lld\n",
-		 (long long)OBJ_INDEX_DELETE);
 
 	/* Checks for struct ost_id */
 	LASSERTF((int)sizeof(struct ost_id) == 16, "found %lld\n",
@@ -4431,60 +4403,4 @@ void lustre_assert_wire_constants(void)
 	LASSERTF(sizeof(((struct hsm_user_import *)0)->hui_archive_id) == 4,
 		 "found %lld\n",
 	      (long long)sizeof(((struct hsm_user_import *)0)->hui_archive_id));
-
-	/* Checks for struct update_buf */
-	LASSERTF((int)sizeof(struct update_buf) == 8, "found %lld\n",
-		 (long long)(int)sizeof(struct update_buf));
-	LASSERTF((int)offsetof(struct update_buf, ub_magic) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct update_buf, ub_magic));
-	LASSERTF((int)sizeof(((struct update_buf *)0)->ub_magic) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct update_buf *)0)->ub_magic));
-	LASSERTF((int)offsetof(struct update_buf, ub_count) == 4, "found %lld\n",
-		 (long long)(int)offsetof(struct update_buf, ub_count));
-	LASSERTF((int)sizeof(((struct update_buf *)0)->ub_count) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct update_buf *)0)->ub_count));
-	LASSERTF((int)offsetof(struct update_buf, ub_bufs) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct update_buf, ub_bufs));
-	LASSERTF((int)sizeof(((struct update_buf *)0)->ub_bufs) == 0, "found %lld\n",
-		 (long long)(int)sizeof(((struct update_buf *)0)->ub_bufs));
-
-	/* Checks for struct update_reply */
-	LASSERTF((int)sizeof(struct update_reply) == 8, "found %lld\n",
-		 (long long)(int)sizeof(struct update_reply));
-	LASSERTF((int)offsetof(struct update_reply, ur_version) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct update_reply, ur_version));
-	LASSERTF((int)sizeof(((struct update_reply *)0)->ur_version) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct update_reply *)0)->ur_version));
-	LASSERTF((int)offsetof(struct update_reply, ur_count) == 4, "found %lld\n",
-		 (long long)(int)offsetof(struct update_reply, ur_count));
-	LASSERTF((int)sizeof(((struct update_reply *)0)->ur_count) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct update_reply *)0)->ur_count));
-	LASSERTF((int)offsetof(struct update_reply, ur_lens) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct update_reply, ur_lens));
-	LASSERTF((int)sizeof(((struct update_reply *)0)->ur_lens) == 0, "found %lld\n",
-		 (long long)(int)sizeof(((struct update_reply *)0)->ur_lens));
-
-	/* Checks for struct update */
-	LASSERTF((int)sizeof(struct update) == 56, "found %lld\n",
-		 (long long)(int)sizeof(struct update));
-	LASSERTF((int)offsetof(struct update, u_type) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct update, u_type));
-	LASSERTF((int)sizeof(((struct update *)0)->u_type) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct update *)0)->u_type));
-	LASSERTF((int)offsetof(struct update, u_batchid) == 4, "found %lld\n",
-		 (long long)(int)offsetof(struct update, u_batchid));
-	LASSERTF((int)sizeof(((struct update *)0)->u_batchid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct update *)0)->u_batchid));
-	LASSERTF((int)offsetof(struct update, u_fid) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct update, u_fid));
-	LASSERTF((int)sizeof(((struct update *)0)->u_fid) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct update *)0)->u_fid));
-	LASSERTF((int)offsetof(struct update, u_lens) == 24, "found %lld\n",
-		 (long long)(int)offsetof(struct update, u_lens));
-	LASSERTF((int)sizeof(((struct update *)0)->u_lens) == 32, "found %lld\n",
-		 (long long)(int)sizeof(((struct update *)0)->u_lens));
-	LASSERTF((int)offsetof(struct update, u_bufs) == 56, "found %lld\n",
-		 (long long)(int)offsetof(struct update, u_bufs));
-	LASSERTF((int)sizeof(((struct update *)0)->u_bufs) == 0, "found %lld\n",
-		 (long long)(int)sizeof(((struct update *)0)->u_bufs));
 }
