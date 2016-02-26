@@ -303,7 +303,7 @@ static int sd_read_data(struct rtsx_chip *chip,
 
 	if (cmd_len) {
 		dev_dbg(rtsx_dev(chip), "SD/MMC CMD %d\n", cmd[0] - 0x40);
-		for (i = 0; i < (cmd_len < 6 ? cmd_len : 6); i++)
+		for (i = 0; i < (min(cmd_len, 6)); i++)
 			rtsx_add_cmd(chip, WRITE_REG_CMD, REG_SD_CMD0 + i,
 				     0xFF, cmd[i]);
 	}
@@ -383,7 +383,7 @@ static int sd_write_data(struct rtsx_chip *chip, u8 trans_mode,
 
 	if (cmd_len) {
 		dev_dbg(rtsx_dev(chip), "SD/MMC CMD %d\n", cmd[0] - 0x40);
-		for (i = 0; i < (cmd_len < 6 ? cmd_len : 6); i++) {
+		for (i = 0; i < (min(cmd_len, 6)); i++) {
 			rtsx_add_cmd(chip, WRITE_REG_CMD,
 				     REG_SD_CMD0 + i, 0xFF, cmd[i]);
 		}
