@@ -46,7 +46,6 @@
 #define HOST_IF_MSG_DEL_BA_SESSION              34
 #define HOST_IF_MSG_Q_IDLE                      35
 #define HOST_IF_MSG_DEL_ALL_STA                 36
-#define HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS      37
 #define HOST_IF_MSG_SET_TX_POWER		38
 #define HOST_IF_MSG_GET_TX_POWER		39
 #define HOST_IF_MSG_EXIT                        100
@@ -2581,37 +2580,6 @@ ERRORHANDLER:
 	kfree(wid.val);
 }
 
-static s32 Handle_DelAllRxBASessions(struct wilc_vif *vif,
-				     struct ba_session_info *strHostIfBASessionInfo)
-{
-	s32 result = 0;
-	struct wid wid;
-	char *ptr = NULL;
-
-	wid.id = (u16)WID_DEL_ALL_RX_BA;
-	wid.type = WID_STR;
-	wid.val = kmalloc(BLOCK_ACK_REQ_SIZE, GFP_KERNEL);
-	wid.size = BLOCK_ACK_REQ_SIZE;
-	ptr = wid.val;
-	*ptr++ = 0x14;
-	*ptr++ = 0x3;
-	*ptr++ = 0x2;
-	memcpy(ptr, strHostIfBASessionInfo->bssid, ETH_ALEN);
-	ptr += ETH_ALEN;
-	*ptr++ = strHostIfBASessionInfo->tid;
-	*ptr++ = 0;
-	*ptr++ = 32;
-
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-
-	kfree(wid.val);
-
-	up(&hif_sema_wait_response);
-
-	return result;
-}
-
 static void handle_set_tx_pwr(struct wilc_vif *vif, u8 tx_pwr)
 {
 	int ret;
@@ -2827,10 +2795,6 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_SET_MULTICAST_FILTER:
 			Handle_SetMulticastFilter(msg.vif, &msg.body.multicast_info);
-			break;
-
-		case HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS:
-			Handle_DelAllRxBASessions(msg.vif, &msg.body.session_info);
 			break;
 
 		case HOST_IF_MSG_DEL_ALL_STA:
