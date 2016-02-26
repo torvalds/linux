@@ -297,6 +297,17 @@ static int kszphy_config_init(struct phy_device *phydev)
 	if (priv->led_mode >= 0)
 		kszphy_setup_led(phydev, type->led_mode_reg, priv->led_mode);
 
+	if (phy_interrupt_is_valid(phydev)) {
+		int ctl = phy_read(phydev, MII_BMCR);
+
+		if (ctl < 0)
+			return ctl;
+
+		ret = phy_write(phydev, MII_BMCR, ctl & ~BMCR_ANENABLE);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 
