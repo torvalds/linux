@@ -53,8 +53,7 @@ void vvp_write_pending(struct ccc_object *club, struct ccc_page *page)
 	spin_lock(&lli->lli_lock);
 	lli->lli_flags |= LLIF_SOM_DIRTY;
 	if (page && list_empty(&page->cpg_pending_linkage))
-		list_add(&page->cpg_pending_linkage,
-			     &club->cob_pending_list);
+		list_add(&page->cpg_pending_linkage, &club->cob_pending_list);
 	spin_unlock(&lli->lli_lock);
 }
 
@@ -322,7 +321,7 @@ static struct ll_inode_info *ll_close_next_lli(struct ll_close_queue *lcq)
 
 	if (!list_empty(&lcq->lcq_head)) {
 		lli = list_entry(lcq->lcq_head.next, struct ll_inode_info,
-				     lli_close_list);
+				 lli_close_list);
 		list_del_init(&lli->lli_close_list);
 	} else if (atomic_read(&lcq->lcq_stop))
 		lli = ERR_PTR(-EALREADY);

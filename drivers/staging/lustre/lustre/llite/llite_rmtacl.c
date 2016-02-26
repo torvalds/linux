@@ -98,7 +98,7 @@ static void rce_free(struct rmtacl_ctl_entry *rce)
 }
 
 static struct rmtacl_ctl_entry *__rct_search(struct rmtacl_ctl_table *rct,
-					   pid_t key)
+					     pid_t key)
 {
 	struct rmtacl_ctl_entry *rce;
 	struct list_head *head = &rct->rct_entries[rce_hashfunc(key)];
@@ -172,7 +172,7 @@ void rct_fini(struct rmtacl_ctl_table *rct)
 	for (i = 0; i < RCE_HASHES; i++)
 		while (!list_empty(&rct->rct_entries[i])) {
 			rce = list_entry(rct->rct_entries[i].next,
-					     struct rmtacl_ctl_entry, rce_list);
+					 struct rmtacl_ctl_entry, rce_list);
 			rce_free(rce);
 		}
 	spin_unlock(&rct->rct_lock);
@@ -208,7 +208,7 @@ void ee_free(struct eacl_entry *ee)
 }
 
 static struct eacl_entry *__et_search_del(struct eacl_table *et, pid_t key,
-					struct lu_fid *fid, int type)
+					  struct lu_fid *fid, int type)
 {
 	struct eacl_entry *ee;
 	struct list_head *head = &et->et_entries[ee_hashfunc(key)];
@@ -290,7 +290,7 @@ void et_fini(struct eacl_table *et)
 	for (i = 0; i < EE_HASHES; i++)
 		while (!list_empty(&et->et_entries[i])) {
 			ee = list_entry(et->et_entries[i].next,
-					    struct eacl_entry, ee_list);
+					struct eacl_entry, ee_list);
 			ee_free(ee);
 		}
 	spin_unlock(&et->et_lock);

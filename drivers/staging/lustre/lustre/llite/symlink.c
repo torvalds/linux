@@ -91,7 +91,7 @@ static int ll_readlink_internal(struct inode *inode,
 	LASSERT(symlen != 0);
 	if (body->eadatasize != symlen) {
 		CERROR("inode %lu: symlink length %d not expected %d\n",
-			inode->i_ino, body->eadatasize - 1, symlen - 1);
+		       inode->i_ino, body->eadatasize - 1, symlen - 1);
 		rc = -EPROTO;
 		goto failed;
 	}

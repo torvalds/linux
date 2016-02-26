@@ -183,8 +183,7 @@ static int ll_ddelete(const struct dentry *de)
 int ll_d_init(struct dentry *de)
 {
 	CDEBUG(D_DENTRY, "ldd on dentry %pd (%p) parent %p inode %p refc %d\n",
-		de, de, de->d_parent, d_inode(de),
-		d_count(de));
+	       de, de, de->d_parent, d_inode(de), d_count(de));
 
 	if (!de->d_fsdata) {
 		struct ll_dentry_data *lld;

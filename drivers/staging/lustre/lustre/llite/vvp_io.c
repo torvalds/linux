@@ -68,7 +68,7 @@ int cl_is_normalio(const struct lu_env *env, const struct cl_io *io)
  * have to acquire group lock.
  */
 static bool can_populate_pages(const struct lu_env *env, struct cl_io *io,
-				struct inode *inode)
+			       struct inode *inode)
 {
 	struct ll_inode_info	*lli = ll_i2info(inode);
 	struct ccc_io		*cio = ccc_env_io(env);
@@ -501,8 +501,8 @@ static int vvp_io_read_start(const struct lu_env *env,
 		goto out;
 
 	LU_OBJECT_HEADER(D_INODE, env, &obj->co_lu,
-			"Read ino %lu, %lu bytes, offset %lld, size %llu\n",
-			inode->i_ino, cnt, pos, i_size_read(inode));
+			 "Read ino %lu, %lu bytes, offset %lld, size %llu\n",
+			 inode->i_ino, cnt, pos, i_size_read(inode));
 
 	/* turn off the kernel's read-ahead */
 	cio->cui_fd->fd_file->f_ra.ra_pages = 0;
@@ -527,8 +527,8 @@ static int vvp_io_read_start(const struct lu_env *env,
 		break;
 	case IO_SPLICE:
 		result = generic_file_splice_read(file, &pos,
-				vio->u.splice.cui_pipe, cnt,
-				vio->u.splice.cui_flags);
+						  vio->u.splice.cui_pipe, cnt,
+						  vio->u.splice.cui_flags);
 		/* LU-1109: do splice read stripe by stripe otherwise if it
 		 * may make nfsd stuck if this read occupied all internal pipe
 		 * buffers.
@@ -1202,8 +1202,8 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 			result = 0;
 		if (result < 0)
 			CERROR("%s: refresh file layout " DFID " error %d.\n",
-				ll_get_fsname(inode->i_sb, NULL, 0),
-				PFID(lu_object_fid(&obj->co_lu)), result);
+			       ll_get_fsname(inode->i_sb, NULL, 0),
+			       PFID(lu_object_fid(&obj->co_lu)), result);
 	}
 
 	return result;

@@ -481,8 +481,8 @@ out:
 }
 
 static int ll_write_begin(struct file *file, struct address_space *mapping,
-			 loff_t pos, unsigned len, unsigned flags,
-			 struct page **pagep, void **fsdata)
+			  loff_t pos, unsigned len, unsigned flags,
+			  struct page **pagep, void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	struct page *page;
@@ -519,8 +519,8 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 
 #ifdef CONFIG_MIGRATION
 static int ll_migratepage(struct address_space *mapping,
-			 struct page *newpage, struct page *page,
-			 enum migrate_mode mode
+			  struct page *newpage, struct page *page,
+			  enum migrate_mode mode
 		)
 {
 	/* Always fail page migration until we have a proper implementation */

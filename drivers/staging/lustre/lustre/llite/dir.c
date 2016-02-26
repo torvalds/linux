@@ -355,7 +355,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		struct md_op_data *op_data;
 
 		op_data = ll_prep_md_op_data(NULL, dir, dir, NULL, 0, 0,
-		LUSTRE_OPC_ANY, NULL);
+					     LUSTRE_OPC_ANY, NULL);
 		if (IS_ERR(op_data))
 			return (void *)op_data;
 
@@ -368,8 +368,8 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		if (request)
 			ptlrpc_req_finished(request);
 		if (rc < 0) {
-			CERROR("lock enqueue: "DFID" at %llu: rc %d\n",
-				PFID(ll_inode2fid(dir)), hash, rc);
+			CERROR("lock enqueue: " DFID " at %llu: rc %d\n",
+			       PFID(ll_inode2fid(dir)), hash, rc);
 			return ERR_PTR(rc);
 		}
 

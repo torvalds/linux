@@ -113,8 +113,8 @@ static int __init init_lustre_lite(void)
 		goto out_cache;
 
 	ll_file_data_slab = kmem_cache_create("ll_file_data",
-						 sizeof(struct ll_file_data), 0,
-						 SLAB_HWCACHE_ALIGN, NULL);
+					      sizeof(struct ll_file_data), 0,
+					      SLAB_HWCACHE_ALIGN, NULL);
 	if (!ll_file_data_slab)
 		goto out_cache;
 

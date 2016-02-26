@@ -287,11 +287,8 @@ static inline void ll_layout_version_set(struct ll_inode_info *lli, __u32 gen)
 
 int ll_xattr_cache_destroy(struct inode *inode);
 
-int ll_xattr_cache_get(struct inode *inode,
-			const char *name,
-			char *buffer,
-			size_t size,
-			__u64 valid);
+int ll_xattr_cache_get(struct inode *inode, const char *name,
+		       char *buffer, size_t size, __u64 valid);
 
 /*
  * Locking to guarantee consistency of non-atomic updates to long long i_size,
@@ -970,8 +967,8 @@ int ll_close_thread_start(struct ll_close_queue **lcq_ret);
 
 int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last);
 int ll_file_mmap(struct file *file, struct vm_area_struct *vma);
-void policy_from_vma(ldlm_policy_data_t *policy,
-		struct vm_area_struct *vma, unsigned long addr, size_t count);
+void policy_from_vma(ldlm_policy_data_t *policy, struct vm_area_struct *vma,
+		     unsigned long addr, size_t count);
 struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 			       size_t count);
 

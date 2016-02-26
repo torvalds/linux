@@ -254,8 +254,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	 * available
 	 */
 	err = obd_statfs(NULL, sbi->ll_md_exp, osfs,
-			cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
-			OBD_STATFS_FOR_MDT0);
+			 cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+			 OBD_STATFS_FOR_MDT0);
 	if (err)
 		goto out_md_fid;
 
@@ -536,7 +536,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		CERROR("%s: can't make root dentry\n",
-			ll_get_fsname(sb, NULL, 0));
+		       ll_get_fsname(sb, NULL, 0));
 		err = -ENOMEM;
 		goto out_lock_cn_cb;
 	}
@@ -601,7 +601,7 @@ int ll_get_default_mdsize(struct ll_sb_info *sbi, int *lmmsize)
 
 	size = sizeof(int);
 	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_DEFAULT_EASIZE),
-			 KEY_DEFAULT_EASIZE, &size, lmmsize, NULL);
+			  KEY_DEFAULT_EASIZE, &size, lmmsize, NULL);
 	if (rc)
 		CERROR("Get default mdsize error rc %d\n", rc);
 
@@ -1100,7 +1100,7 @@ void ll_clear_inode(struct inode *inode)
 #define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
 
 static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
-		  struct md_open_data **mod)
+			 struct md_open_data **mod)
 {
 	struct lustre_md md;
 	struct inode *inode = d_inode(dentry);
@@ -1215,11 +1215,11 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	int rc = 0, rc1 = 0;
 
 	CDEBUG(D_VFSTRACE,
-		"%s: setattr inode %p/fid:"DFID
-		" from %llu to %llu, valid %x, hsm_import %d\n",
-		ll_get_fsname(inode->i_sb, NULL, 0), inode,
-		PFID(&lli->lli_fid), i_size_read(inode), attr->ia_size,
-		attr->ia_valid, hsm_import);
+	       "%s: setattr inode %p/fid:" DFID
+	       " from %llu to %llu, valid %x, hsm_import %d\n",
+	       ll_get_fsname(inode->i_sb, NULL, 0), inode,
+	       PFID(&lli->lli_fid), i_size_read(inode), attr->ia_size,
+	       attr->ia_valid, hsm_import);
 
 	if (attr->ia_valid & ATTR_SIZE) {
 		/* Check new size against VFS/VM file size limit and rlimit */
@@ -1826,7 +1826,7 @@ int ll_flush_ctx(struct inode *inode)
 	struct ll_sb_info  *sbi = ll_i2sbi(inode);
 
 	CDEBUG(D_SEC, "flush context for user %d\n",
-		      from_kuid(&init_user_ns, current_uid()));
+	       from_kuid(&init_user_ns, current_uid()));
 
 	obd_set_info_async(NULL, sbi->ll_md_exp,
 			   sizeof(KEY_FLUSH_CTX), KEY_FLUSH_CTX,
@@ -2127,9 +2127,9 @@ int ll_process_config(struct lustre_cfg *lcfg)
 
 /* this function prepares md_op_data hint for passing ot down to MD stack. */
 struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
-				       struct inode *i1, struct inode *i2,
-				       const char *name, int namelen,
-				       int mode, __u32 opc, void *data)
+				      struct inode *i1, struct inode *i2,
+				      const char *name, int namelen,
+				      int mode, __u32 opc, void *data)
 {
 	if (namelen > ll_i2sbi(i1)->ll_namelen)
 		return ERR_PTR(-ENAMETOOLONG);

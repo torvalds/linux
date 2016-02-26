@@ -462,9 +462,9 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 		/* difficult - have to ask OSCs to drop LRU slots. */
 		tmp = diff << 1;
 		rc = obd_set_info_async(NULL, sbi->ll_dt_exp,
-				sizeof(KEY_CACHE_LRU_SHRINK),
-				KEY_CACHE_LRU_SHRINK,
-				sizeof(tmp), &tmp, NULL);
+					sizeof(KEY_CACHE_LRU_SHRINK),
+					KEY_CACHE_LRU_SHRINK,
+					sizeof(tmp), &tmp, NULL);
 		if (rc < 0)
 			break;
 	}
@@ -1000,7 +1000,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 		CWARN("Error adding the extent_stats file\n");
 
 	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry,
-				  "extents_stats_per_process",
+				 "extents_stats_per_process",
 				 0644, &ll_rw_extents_stats_pp_fops, sbi);
 	if (rc)
 		CWARN("Error adding the extents_stats_per_process file\n");
@@ -1034,7 +1034,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 				     llite_opcode_table[id].opname, ptr);
 	}
 	err = ldebugfs_register_stats(sbi->ll_debugfs_entry, "stats",
-				     sbi->ll_stats);
+				      sbi->ll_stats);
 	if (err)
 		goto out;
 
@@ -1050,7 +1050,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 				     ra_stat_string[id], "pages");
 
 	err = ldebugfs_register_stats(sbi->ll_debugfs_entry, "read_ahead_stats",
-				     sbi->ll_ra_stats);
+				      sbi->ll_ra_stats);
 	if (err)
 		goto out;
 
@@ -1104,7 +1104,7 @@ void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi)
 #define pct(a, b) (b ? a * 100 / b : 0)
 
 static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
-				   struct seq_file *seq, int which)
+				    struct seq_file *seq, int which)
 {
 	unsigned long read_tot = 0, write_tot = 0, read_cum, write_cum;
 	unsigned long start, end, r, w;

@@ -626,8 +626,8 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 	RIA_DEBUG(ria);
 
 	stride_ria = ria->ria_length > ria->ria_pages && ria->ria_pages > 0;
-	for (page_idx = ria->ria_start; page_idx <= ria->ria_end &&
-			*reserved_pages > 0; page_idx++) {
+	for (page_idx = ria->ria_start;
+	     page_idx <= ria->ria_end && *reserved_pages > 0; page_idx++) {
 		if (ras_inside_ra_window(page_idx, ria)) {
 			/* If the page is inside the read-ahead window*/
 			rc = ll_read_ahead_page(env, io, queue,
@@ -869,7 +869,7 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 	unsigned long stride_gap = index - ras->ras_last_readpage - 1;
 
 	if (!stride_io_mode(ras) && (stride_gap != 0 ||
-	     ras->ras_consecutive_stride_requests == 0)) {
+	    ras->ras_consecutive_stride_requests == 0)) {
 		ras->ras_stride_pages = ras->ras_consecutive_pages;
 		ras->ras_stride_length = stride_gap+ras->ras_consecutive_pages;
 	}

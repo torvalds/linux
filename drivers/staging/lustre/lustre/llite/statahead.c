@@ -284,7 +284,7 @@ ll_sa_entry_get_byindex(struct ll_statahead_info *sai, __u64 index)
 }
 
 static void ll_sa_entry_cleanup(struct ll_statahead_info *sai,
-				 struct ll_sa_entry *entry)
+				struct ll_sa_entry *entry)
 {
 	struct md_enqueue_info *minfo = entry->se_minfo;
 	struct ptlrpc_request  *req   = entry->se_req;
@@ -303,7 +303,7 @@ static void ll_sa_entry_cleanup(struct ll_statahead_info *sai,
 }
 
 static void ll_sa_entry_put(struct ll_statahead_info *sai,
-			     struct ll_sa_entry *entry)
+			    struct ll_sa_entry *entry)
 {
 	if (atomic_dec_and_test(&entry->se_refcount)) {
 		CDEBUG(D_READA, "free sa entry %.*s(%p) index %llu\n",
@@ -514,8 +514,8 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 			      PFID(&lli->lli_fid),
 			      sai->sai_sent, sai->sai_replied);
 
-		list_for_each_entry_safe(entry, next,
-					     &sai->sai_entries, se_link)
+		list_for_each_entry_safe(entry, next, &sai->sai_entries,
+					 se_link)
 			do_sa_entry_fini(sai, entry);
 
 		LASSERT(list_empty(&sai->sai_entries));
@@ -745,7 +745,7 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 			entry->se_handle = handle;
 			wakeup = list_empty(&sai->sai_entries_received);
 			list_add_tail(&entry->se_list,
-					  &sai->sai_entries_received);
+				      &sai->sai_entries_received);
 		}
 		sai->sai_replied++;
 		spin_unlock(&lli->lli_sa_lock);
@@ -1013,8 +1013,8 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 	       sai, parent);
 
 	plli = ll_i2info(d_inode(parent));
-	task = kthread_run(ll_agl_thread, parent,
-			       "ll_agl_%u", plli->lli_opendir_pid);
+	task = kthread_run(ll_agl_thread, parent, "ll_agl_%u",
+			   plli->lli_opendir_pid);
 	if (IS_ERR(task)) {
 		CERROR("can't start ll_agl thread, rc: %ld\n", PTR_ERR(task));
 		thread_set_flags(thread, SVC_STOPPED);
@@ -1583,7 +1583,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 					struct dentry *alias;
 
 					alias = ll_splice_alias(inode,
-								   *dentryp);
+								*dentryp);
 					if (IS_ERR(alias)) {
 						ll_sai_unplug(sai, entry);
 						return PTR_ERR(alias);
@@ -1592,7 +1592,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 				} else if (d_inode(*dentryp) != inode) {
 					/* revalidate, but inode is recreated */
 					CDEBUG(D_READA,
-					      "stale dentry %pd inode %lu/%u, statahead inode %lu/%u\n",
+					       "stale dentry %pd inode %lu/%u, statahead inode %lu/%u\n",
 					      *dentryp,
 					      d_inode(*dentryp)->i_ino,
 					      d_inode(*dentryp)->i_generation,

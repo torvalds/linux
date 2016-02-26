@@ -133,8 +133,8 @@ static int ll_xattr_cache_add(struct list_head *cache,
 	xattr->xe_vallen = xattr_val_len;
 	list_add(&xattr->xe_list, cache);
 
-	CDEBUG(D_CACHE, "set: [%s]=%.*s\n", xattr_name,
-		xattr_val_len, xattr_val);
+	CDEBUG(D_CACHE, "set: [%s]=%.*s\n", xattr_name, xattr_val_len,
+	       xattr_val);
 
 	return 0;
 err_value:
@@ -191,7 +191,7 @@ static int ll_xattr_cache_list(struct list_head *cache,
 
 	list_for_each_entry_safe(xattr, tmp, cache, xe_list) {
 		CDEBUG(D_CACHE, "list: buffer=%p[%d] name=%s\n",
-			xld_buffer, xld_tail, xattr->xe_name);
+		       xld_buffer, xld_tail, xattr->xe_name);
 
 		if (xld_buffer) {
 			xld_size -= xattr->xe_namelen;
@@ -381,9 +381,9 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	}
 	/* do not need swab xattr data */
 	xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
-						body->eadatasize);
+					     body->eadatasize);
 	xval = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS,
-						body->aclsize);
+					    body->aclsize);
 	xsizes = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS_LENS,
 					      body->max_mdsize * sizeof(__u32));
 	if (!xdata || !xval || !xsizes) {
@@ -469,11 +469,8 @@ out_destroy:
  * \retval -ERANGE  the buffer is not large enough
  * \retval -ENODATA no such attr or the list is empty
  */
-int ll_xattr_cache_get(struct inode *inode,
-			const char *name,
-			char *buffer,
-			size_t size,
-			__u64 valid)
+int ll_xattr_cache_get(struct inode *inode, const char *name, char *buffer,
+		       size_t size, __u64 valid)
 {
 	struct lookup_intent oit = { .it_op = IT_GETXATTR };
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -502,7 +499,7 @@ int ll_xattr_cache_get(struct inode *inode,
 			if (size != 0) {
 				if (size >= xattr->xe_vallen)
 					memcpy(buffer, xattr->xe_value,
-						xattr->xe_vallen);
+					       xattr->xe_vallen);
 				else
 					rc = -ERANGE;
 			}

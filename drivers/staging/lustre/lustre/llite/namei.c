@@ -120,9 +120,9 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 			if (S_ISREG(inode->i_mode) &&
 			    !ll_i2info(inode)->lli_clob) {
 				CDEBUG(D_INODE,
-					"%s: apply lsm %p to inode "DFID".\n",
-					ll_get_fsname(sb, NULL, 0), md->lsm,
-					PFID(ll_inode2fid(inode)));
+				       "%s: apply lsm %p to inode " DFID ".\n",
+				       ll_get_fsname(sb, NULL, 0), md->lsm,
+				       PFID(ll_inode2fid(inode)));
 				rc = cl_file_inode_init(inode, md);
 			}
 			if (rc != 0) {
@@ -1016,7 +1016,7 @@ static int ll_symlink(struct inode *dir, struct dentry *dentry,
 	       dir, 3000, oldname);
 
 	err = ll_new_node(dir, dentry, oldname, S_IFLNK | S_IRWXUGO,
-			0, LUSTRE_OPC_SYMLINK);
+			  0, LUSTRE_OPC_SYMLINK);
 
 	if (!err)
 		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_SYMLINK, 1);

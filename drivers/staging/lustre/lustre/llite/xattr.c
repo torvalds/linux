@@ -135,7 +135,7 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 
 	/* b15587: ignore security.capability xattr for now */
 	if ((xattr_type == XATTR_SECURITY_T &&
-	    strcmp(name, "security.capability") == 0))
+	     strcmp(name, "security.capability") == 0))
 		return 0;
 
 	/* LU-549:  Disable security.selinux when selinux is disabled */
@@ -311,7 +311,7 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 
 	/* b15587: ignore security.capability xattr for now */
 	if ((xattr_type == XATTR_SECURITY_T &&
-	    strcmp(name, "security.capability") == 0))
+	     strcmp(name, "security.capability") == 0))
 		return -ENODATA;
 
 	/* LU-549:  Disable security.selinux when selinux is disabled */
@@ -397,7 +397,7 @@ getxattr_nocache:
 
 		if (size < body->eadatasize) {
 			CERROR("server bug: replied size %u > %u\n",
-				body->eadatasize, (int)size);
+			       body->eadatasize, (int)size);
 			rc = -ERANGE;
 			goto out;
 		}
@@ -409,7 +409,7 @@ getxattr_nocache:
 
 		/* do not need swab xattr data */
 		xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
-							body->eadatasize);
+						     body->eadatasize);
 		if (!xdata) {
 			rc = -EFAULT;
 			goto out;

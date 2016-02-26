@@ -54,8 +54,8 @@
 static const struct vm_operations_struct ll_file_vm_ops;
 
 void policy_from_vma(ldlm_policy_data_t *policy,
-			    struct vm_area_struct *vma, unsigned long addr,
-			    size_t count)
+		     struct vm_area_struct *vma, unsigned long addr,
+		     size_t count)
 {
 	policy->l_extent.start = ((addr - vma->vm_start) & CFS_PAGE_MASK) +
 				 (vma->vm_pgoff << PAGE_CACHE_SHIFT);

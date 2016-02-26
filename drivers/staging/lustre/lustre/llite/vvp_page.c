@@ -263,7 +263,7 @@ static void vvp_vmpage_error(struct inode *inode, struct page *vmpage, int ioret
 			set_bit(AS_EIO, &inode->i_mapping->flags);
 
 		if ((ioret == -ESHUTDOWN || ioret == -EINTR) &&
-		     obj->cob_discard_page_warned == 0) {
+		    obj->cob_discard_page_warned == 0) {
 			obj->cob_discard_page_warned = 1;
 			ll_dirty_page_discard_warn(vmpage, ioret);
 		}
@@ -359,8 +359,7 @@ static int vvp_page_make_ready(const struct lu_env *env,
 		LASSERT(pg->cp_state == CPS_CACHED);
 		/* This actually clears the dirty bit in the radix tree. */
 		set_page_writeback(vmpage);
-		vvp_write_pending(cl2ccc(slice->cpl_obj),
-				cl2ccc_page(slice));
+		vvp_write_pending(cl2ccc(slice->cpl_obj), cl2ccc_page(slice));
 		CL_PAGE_HEADER(D_PAGE, env, pg, "readied\n");
 	} else if (pg->cp_state == CPS_PAGEOUT) {
 		/* is it possible for osc_flush_async_page() to already
@@ -531,7 +530,7 @@ static const struct cl_page_operations vvp_transient_page_ops = {
 };
 
 int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
-		struct cl_page *page, struct page *vmpage)
+		  struct cl_page *page, struct page *vmpage)
 {
 	struct ccc_page *cpg = cl_object_page_slice(obj, page);
 
@@ -544,14 +543,13 @@ int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 	if (page->cp_type == CPT_CACHEABLE) {
 		SetPagePrivate(vmpage);
 		vmpage->private = (unsigned long)page;
-		cl_page_slice_add(page, &cpg->cpg_cl, obj,
-				&vvp_page_ops);
+		cl_page_slice_add(page, &cpg->cpg_cl, obj, &vvp_page_ops);
 	} else {
 		struct ccc_object *clobj = cl2ccc(obj);
 
 		LASSERT(!inode_trylock(clobj->cob_inode));
 		cl_page_slice_add(page, &cpg->cpg_cl, obj,
-				&vvp_transient_page_ops);
+				  &vvp_transient_page_ops);
 		clobj->cob_transient_pages++;
 	}
 	return 0;
