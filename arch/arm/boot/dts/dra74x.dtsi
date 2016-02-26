@@ -76,7 +76,6 @@
 				interrupt-names = "peripheral",
 						  "host",
 						  "otg";
-				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
 			};
