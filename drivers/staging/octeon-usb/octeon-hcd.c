@@ -2383,6 +2383,90 @@ static int cvmx_usb_get_frame_number(struct octeon_hcd *usb)
 	return frame_number;
 }
 
+static void cvmx_usb_transfer_control(struct octeon_hcd *usb,
+				      struct cvmx_usb_pipe *pipe,
+				      struct cvmx_usb_transaction *transaction,
+				      union cvmx_usbcx_hccharx usbc_hcchar,
+				      int buffer_space_left,
+				      int bytes_in_last_packet)
+{
+	switch (transaction->stage) {
+	case CVMX_USB_STAGE_NON_CONTROL:
+	case CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE:
+		/* This should be impossible */
+		cvmx_usb_complete(usb, pipe, transaction,
+				  CVMX_USB_STATUS_ERROR);
+		break;
+	case CVMX_USB_STAGE_SETUP:
+		pipe->pid_toggle = 1;
+		if (cvmx_usb_pipe_needs_split(usb, pipe)) {
+			transaction->stage =
+				CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE;
+		} else {
+			struct usb_ctrlrequest *header =
+				cvmx_phys_to_ptr(transaction->control_header);
+			if (header->wLength)
+				transaction->stage = CVMX_USB_STAGE_DATA;
+			else
+				transaction->stage = CVMX_USB_STAGE_STATUS;
+		}
+		break;
+	case CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE:
+		{
+			struct usb_ctrlrequest *header =
+				cvmx_phys_to_ptr(transaction->control_header);
+			if (header->wLength)
+				transaction->stage = CVMX_USB_STAGE_DATA;
+			else
+				transaction->stage = CVMX_USB_STAGE_STATUS;
+		}
+		break;
+	case CVMX_USB_STAGE_DATA:
+		if (cvmx_usb_pipe_needs_split(usb, pipe)) {
+			transaction->stage = CVMX_USB_STAGE_DATA_SPLIT_COMPLETE;
+			/*
+			 * For setup OUT data that are splits,
+			 * the hardware doesn't appear to count
+			 * transferred data. Here we manually
+			 * update the data transferred
+			 */
+			if (!usbc_hcchar.s.epdir) {
+				if (buffer_space_left < pipe->max_packet)
+					transaction->actual_bytes +=
+						buffer_space_left;
+				else
+					transaction->actual_bytes +=
+						pipe->max_packet;
+			}
+		} else if ((buffer_space_left == 0) ||
+			   (bytes_in_last_packet < pipe->max_packet)) {
+			pipe->pid_toggle = 1;
+			transaction->stage = CVMX_USB_STAGE_STATUS;
+		}
+		break;
+	case CVMX_USB_STAGE_DATA_SPLIT_COMPLETE:
+		if ((buffer_space_left == 0) ||
+		    (bytes_in_last_packet < pipe->max_packet)) {
+			pipe->pid_toggle = 1;
+			transaction->stage = CVMX_USB_STAGE_STATUS;
+		} else {
+			transaction->stage = CVMX_USB_STAGE_DATA;
+		}
+		break;
+	case CVMX_USB_STAGE_STATUS:
+		if (cvmx_usb_pipe_needs_split(usb, pipe))
+			transaction->stage =
+				CVMX_USB_STAGE_STATUS_SPLIT_COMPLETE;
+		else
+			cvmx_usb_complete(usb, pipe, transaction,
+					  CVMX_USB_STATUS_OK);
+		break;
+	case CVMX_USB_STAGE_STATUS_SPLIT_COMPLETE:
+		cvmx_usb_complete(usb, pipe, transaction, CVMX_USB_STATUS_OK);
+		break;
+	}
+}
+
 /**
  * Poll a channel for status
  *
@@ -2656,92 +2740,10 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 
 		switch (transaction->type) {
 		case CVMX_USB_TRANSFER_CONTROL:
-			switch (transaction->stage) {
-			case CVMX_USB_STAGE_NON_CONTROL:
-			case CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE:
-				/* This should be impossible */
-				cvmx_usb_complete(usb, pipe, transaction,
-						  CVMX_USB_STATUS_ERROR);
-				break;
-			case CVMX_USB_STAGE_SETUP:
-				pipe->pid_toggle = 1;
-				if (cvmx_usb_pipe_needs_split(usb, pipe))
-					transaction->stage =
-						CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE;
-				else {
-					struct usb_ctrlrequest *header =
-						cvmx_phys_to_ptr(transaction->control_header);
-					if (header->wLength)
-						transaction->stage =
-							CVMX_USB_STAGE_DATA;
-					else
-						transaction->stage =
-							CVMX_USB_STAGE_STATUS;
-				}
-				break;
-			case CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE:
-				{
-					struct usb_ctrlrequest *header =
-						cvmx_phys_to_ptr(transaction->control_header);
-					if (header->wLength)
-						transaction->stage =
-							CVMX_USB_STAGE_DATA;
-					else
-						transaction->stage =
-							CVMX_USB_STAGE_STATUS;
-				}
-				break;
-			case CVMX_USB_STAGE_DATA:
-				if (cvmx_usb_pipe_needs_split(usb, pipe)) {
-					transaction->stage =
-						CVMX_USB_STAGE_DATA_SPLIT_COMPLETE;
-					/*
-					 * For setup OUT data that are splits,
-					 * the hardware doesn't appear to count
-					 * transferred data. Here we manually
-					 * update the data transferred
-					 */
-					if (!usbc_hcchar.s.epdir) {
-						if (buffer_space_left < pipe->max_packet)
-							transaction->actual_bytes +=
-								buffer_space_left;
-						else
-							transaction->actual_bytes +=
-								pipe->max_packet;
-					}
-				} else if ((buffer_space_left == 0) ||
-					   (bytes_in_last_packet <
-					    pipe->max_packet)) {
-					pipe->pid_toggle = 1;
-					transaction->stage =
-						CVMX_USB_STAGE_STATUS;
-				}
-				break;
-			case CVMX_USB_STAGE_DATA_SPLIT_COMPLETE:
-				if ((buffer_space_left == 0) ||
-				    (bytes_in_last_packet < pipe->max_packet)) {
-					pipe->pid_toggle = 1;
-					transaction->stage =
-						CVMX_USB_STAGE_STATUS;
-				} else {
-					transaction->stage =
-						CVMX_USB_STAGE_DATA;
-				}
-				break;
-			case CVMX_USB_STAGE_STATUS:
-				if (cvmx_usb_pipe_needs_split(usb, pipe))
-					transaction->stage =
-						CVMX_USB_STAGE_STATUS_SPLIT_COMPLETE;
-				else
-					cvmx_usb_complete(usb, pipe,
-							  transaction,
-							  CVMX_USB_STATUS_OK);
-				break;
-			case CVMX_USB_STAGE_STATUS_SPLIT_COMPLETE:
-				cvmx_usb_complete(usb, pipe, transaction,
-						  CVMX_USB_STATUS_OK);
-				break;
-			}
+			cvmx_usb_transfer_control(usb, pipe, transaction,
+						  usbc_hcchar,
+						  buffer_space_left,
+						  bytes_in_last_packet);
 			break;
 		case CVMX_USB_TRANSFER_BULK:
 		case CVMX_USB_TRANSFER_INTERRUPT:
