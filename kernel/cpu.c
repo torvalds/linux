@@ -57,6 +57,7 @@ struct cpuhp_step {
 };
 
 static struct cpuhp_step cpuhp_bp_states[];
+static struct cpuhp_step cpuhp_ap_states[];
 
 /**
  * cpuhp_invoke_callback _ Invoke the callbacks for a given state
@@ -304,6 +305,12 @@ static int notify_online(unsigned int cpu)
 	return 0;
 }
 
+static int notify_starting(unsigned int cpu)
+{
+	cpu_notify(CPU_STARTING, cpu);
+	return 0;
+}
+
 static int bringup_cpu(unsigned int cpu)
 {
 	struct task_struct *idle = idle_thread_get(cpu);
@@ -421,9 +428,17 @@ static int notify_down_prepare(unsigned int cpu)
 	return err;
 }
 
+static int notify_dying(unsigned int cpu)
+{
+	cpu_notify(CPU_DYING, cpu);
+	return 0;
+}
+
 /* Take this CPU down. */
 static int take_cpu_down(void *_param)
 {
+	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
+	enum cpuhp_state target = max((int)st->target, CPUHP_AP_OFFLINE);
 	int err, cpu = smp_processor_id();
 
 	/* Ensure this CPU doesn't handle any more interrupts. */
@@ -431,7 +446,12 @@ static int take_cpu_down(void *_param)
 	if (err < 0)
 		return err;
 
-	cpu_notify(CPU_DYING, cpu);
+	/* Invoke the former CPU_DYING callbacks */
+	for (; st->state > target; st->state--) {
+		struct cpuhp_step *step = cpuhp_ap_states + st->state;
+
+		cpuhp_invoke_callback(cpu, st->state, step->teardown);
+	}
 	/* Give up timekeeping duties */
 	tick_handover_do_timer();
 	/* Park the stopper thread */
@@ -512,6 +532,7 @@ static int notify_dead(unsigned int cpu)
 #define notify_down_prepare	NULL
 #define takedown_cpu		NULL
 #define notify_dead		NULL
+#define notify_dying		NULL
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -613,6 +634,28 @@ static struct notifier_block smpboot_thread_notifier = {
 void smpboot_thread_init(void)
 {
 	register_cpu_notifier(&smpboot_thread_notifier);
+}
+
+/**
+ * notify_cpu_starting(cpu) - call the CPU_STARTING notifiers
+ * @cpu: cpu that just started
+ *
+ * This function calls the cpu_chain notifiers with CPU_STARTING.
+ * It must be called by the arch code on the new cpu, before the new cpu
+ * enables interrupts and before the "boot" cpu returns from __cpu_up().
+ */
+void notify_cpu_starting(unsigned int cpu)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+	enum cpuhp_state target = min((int)st->target, CPUHP_AP_ONLINE);
+
+	while (st->state < target) {
+		struct cpuhp_step *step;
+
+		st->state++;
+		step = cpuhp_ap_states + st->state;
+		cpuhp_invoke_callback(cpu, st->state, step->startup);
+	}
 }
 
 static void undo_cpu_up(unsigned int cpu, struct cpuhp_cpu_state *st)
@@ -842,19 +885,6 @@ core_initcall(cpu_hotplug_pm_sync_init);
 
 #endif /* CONFIG_PM_SLEEP_SMP */
 
-/**
- * notify_cpu_starting(cpu) - call the CPU_STARTING notifiers
- * @cpu: cpu that just started
- *
- * This function calls the cpu_chain notifiers with CPU_STARTING.
- * It must be called by the arch code on the new cpu, before the new cpu
- * enables interrupts and before the "boot" cpu returns from __cpu_up().
- */
-void notify_cpu_starting(unsigned int cpu)
-{
-	cpu_notify(CPU_STARTING, cpu);
-}
-
 #endif /* CONFIG_SMP */
 
 /* Boot processor state steps */
@@ -879,13 +909,34 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 	[CPUHP_BRINGUP_CPU] = {
 		.name			= "cpu:bringup",
 		.startup		= bringup_cpu,
+		.teardown		= NULL,
+	},
+	[CPUHP_TEARDOWN_CPU] = {
+		.name			= "cpu:teardown",
+		.startup		= NULL,
 		.teardown		= takedown_cpu,
-		.skip_onerr		= true,
 	},
 	[CPUHP_NOTIFY_ONLINE] = {
 		.name			= "notify:online",
 		.startup		= notify_online,
 		.teardown		= notify_down_prepare,
+	},
+#endif
+	[CPUHP_ONLINE] = {
+		.name			= "online",
+		.startup		= NULL,
+		.teardown		= NULL,
+	},
+};
+
+/* Application processor state steps */
+static struct cpuhp_step cpuhp_ap_states[] = {
+#ifdef CONFIG_SMP
+	[CPUHP_AP_NOTIFY_STARTING] = {
+		.name			= "notify:starting",
+		.startup		= notify_starting,
+		.teardown		= notify_dying,
+		.skip_onerr		= true,
 	},
 #endif
 	[CPUHP_ONLINE] = {
