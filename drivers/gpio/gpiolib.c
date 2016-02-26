@@ -206,58 +206,43 @@ EXPORT_SYMBOL_GPL(gpiod_get_direction);
  */
 static int gpiodev_add_to_list(struct gpio_device *gdev)
 {
-	struct gpio_device *iterator;
-	struct gpio_device *previous = NULL;
-
-	if (!gdev->chip)
-		return -EINVAL;
+	struct gpio_device *prev, *next;
 
 	if (list_empty(&gpio_devices)) {
+		/* initial entry in list */
 		list_add_tail(&gdev->list, &gpio_devices);
 		return 0;
 	}
 
-	list_for_each_entry(iterator, &gpio_devices, list) {
-		if (iterator->base >= gdev->base + gdev->ngpio) {
-			/*
-			 * Iterator is the first GPIO chip so there is no
-			 * previous one
-			 */
-			if (!previous) {
-				goto found;
-			} else {
-				/*
-				 * We found a valid range(means
-				 * [base, base + ngpio - 1]) between previous
-				 * and iterator chip.
-				 */
-				if (previous->base + previous->ngpio
-				    <= gdev->base)
-					goto found;
-			}
-		}
-		previous = iterator;
-	}
-
-	/*
-	 * We are beyond the last chip in the list and iterator now
-	 * points to the head.
-	 * Let iterator point to the last chip in the list.
-	 */
-
-	iterator = list_last_entry(&gpio_devices, struct gpio_device, list);
-	if (iterator->base + iterator->ngpio <= gdev->base) {
-		list_add(&gdev->list, &iterator->list);
+	next = list_entry(gpio_devices.next, struct gpio_device, list);
+	if (gdev->base + gdev->ngpio <= next->base) {
+		/* add before first entry */
+		list_add(&gdev->list, &gpio_devices);
 		return 0;
 	}
 
-	dev_err(&gdev->dev,
-	       "GPIO integer space overlap, cannot add chip\n");
-	return -EBUSY;
+	prev = list_entry(gpio_devices.prev, struct gpio_device, list);
+	if (prev->base + prev->ngpio <= gdev->base) {
+		/* add behind last entry */
+		list_add_tail(&gdev->list, &gpio_devices);
+		return 0;
+	}
 
-found:
-	list_add_tail(&gdev->list, &iterator->list);
-	return 0;
+	list_for_each_entry_safe(prev, next, &gpio_devices, list) {
+		/* at the end of the list */
+		if (&next->list == &gpio_devices)
+			break;
+
+		/* add between prev and next */
+		if (prev->base + prev->ngpio <= gdev->base
+				&& gdev->base + gdev->ngpio <= next->base) {
+			list_add(&gdev->list, &prev->list);
+			return 0;
+		}
+	}
+
+	dev_err(&gdev->dev, "GPIO integer space overlap, cannot add chip\n");
+	return -EBUSY;
 }
 
 /**
