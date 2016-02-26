@@ -395,6 +395,7 @@ config GPIO_TB10X
 config GPIO_TS4800
 	tristate "TS-4800 DIO blocks and compatibles"
 	depends on OF_GPIO
+	depends on SOC_IMX51 || COMPILE_TEST
 	select GPIO_GENERIC
 	help
 	  This driver support TS-4800 FPGA GPIO controllers.
