@@ -34,7 +34,7 @@
 	};
 
 	chosen {
-		bootargs = "earlyprintk root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait";
+		bootargs = "earlycon root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait";
 		stdout-path = "serial0:115200n8";
 	};
 };
