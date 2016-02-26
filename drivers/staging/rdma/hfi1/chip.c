@@ -13943,6 +13943,50 @@ static int obtain_boardname(struct hfi1_devdata *dd)
 	return 0;
 }
 
+/*
+ * Check the interrupt registers to make sure that they are mapped correctly.
+ * It is intended to help user identify any mismapping by VMM when the driver
+ * is running in a VM. This function should only be called before interrupt
+ * is set up properly.
+ *
+ * Return 0 on success, -EINVAL on failure.
+ */
+static int check_int_registers(struct hfi1_devdata *dd)
+{
+	u64 reg;
+	u64 all_bits = ~(u64)0;
+	u64 mask;
+
+	/* Clear CceIntMask[0] to avoid raising any interrupts */
+	mask = read_csr(dd, CCE_INT_MASK);
+	write_csr(dd, CCE_INT_MASK, 0ull);
+	reg = read_csr(dd, CCE_INT_MASK);
+	if (reg)
+		goto err_exit;
+
+	/* Clear all interrupt status bits */
+	write_csr(dd, CCE_INT_CLEAR, all_bits);
+	reg = read_csr(dd, CCE_INT_STATUS);
+	if (reg)
+		goto err_exit;
+
+	/* Set all interrupt status bits */
+	write_csr(dd, CCE_INT_FORCE, all_bits);
+	reg = read_csr(dd, CCE_INT_STATUS);
+	if (reg != all_bits)
+		goto err_exit;
+
+	/* Restore the interrupt mask */
+	write_csr(dd, CCE_INT_CLEAR, all_bits);
+	write_csr(dd, CCE_INT_MASK, mask);
+
+	return 0;
+err_exit:
+	write_csr(dd, CCE_INT_MASK, mask);
+	dd_dev_err(dd, "Interrupt registers not properly mapped by VMM\n");
+	return -EINVAL;
+}
+
 /**
  * Allocate and initialize the device structure for the hfi.
  * @dev: the pci_dev for hfi1_ib device
@@ -13967,6 +14011,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		"RTL FPGA emulation",
 		"Functional simulator"
 	};
+	struct pci_dev *parent = pdev->bus->self;
 
 	dd = hfi1_alloc_devdata(pdev, NUM_IB_PORTS *
 				sizeof(struct hfi1_pportdata));
@@ -14044,6 +14089,17 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 			& CCE_REVISION_CHIP_REV_MAJOR_MASK;
 	dd->minrev = (dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT)
 			& CCE_REVISION_CHIP_REV_MINOR_MASK;
+
+	/*
+	 * Check interrupt registers mapping if the driver has no access to
+	 * the upstream component. In this case, it is likely that the driver
+	 * is running in a VM.
+	 */
+	if (!parent) {
+		ret = check_int_registers(dd);
+		if (ret)
+			goto bail_cleanup;
+	}
 
 	/*
 	 * obtain the hardware ID - NOT related to unit, which is a
