@@ -1,0 +1,34 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/* DTS file for USB Certification at i.mx6ul 14x14 evk board */
+
+#include "imx6ul-14x14-evk.dts"
+
+/ {
+	regulators {
+		reg_usb_otg2_vbus: regulator@3 {
+		compatible = "regulator-fixed";
+		reg = <3>;
+		regulator-name = "usb_otg2_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		};
+	};
+};
+
+&usbotg2 {
+	vbus-supply = <&reg_usb_otg2_vbus>; /* hardware rework is needed */
+	tpl-support;
+};
+
+&tsc {
+	status = "disabled";
+};
