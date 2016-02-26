@@ -762,6 +762,7 @@ void cpuhp_report_idle_dead(void)
 	BUG_ON(st->state != CPUHP_AP_OFFLINE);
 	st->state = CPUHP_AP_IDLE_DEAD;
 	complete(&st->done);
+	rcu_report_dead(smp_processor_id());
 }
 
 #else

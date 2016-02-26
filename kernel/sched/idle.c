@@ -220,8 +220,6 @@ static void cpu_idle_loop(void)
 			rmb();
 
 			if (cpu_is_offline(smp_processor_id())) {
-				rcu_cpu_notify(NULL, CPU_DYING_IDLE,
-					       (void *)(long)smp_processor_id());
 				cpuhp_report_idle_dead();
 				arch_cpu_idle_dead();
 			}
