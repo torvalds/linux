@@ -1125,7 +1125,7 @@ static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 	new->fmt = fmt;
 
 	/* some fields are now passed to 'new' */
-	if (perf_hpp__is_trace_entry(fmt))
+	if (perf_hpp__is_trace_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
 		he->trace_output = NULL;
 	else
 		new->trace_output = NULL;

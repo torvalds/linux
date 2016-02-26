@@ -1764,6 +1764,9 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	if (hde->raw_trace)
 		goto raw_field;
 
+	if (!he->trace_output)
+		he->trace_output = get_trace_output(he);
+
 	field = hde->field;
 	namelen = strlen(field->name);
 	str = he->trace_output;
