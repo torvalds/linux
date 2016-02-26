@@ -49,6 +49,7 @@
 #include <linux/jiffies.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
+#include <net/devlink.h>
 #include <net/switchdev.h>
 #include <generated/utsrelease.h>
 
@@ -1351,7 +1352,9 @@ static const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct devlink_port *devlink_port;
 	struct net_device *dev;
 	bool usable;
 	size_t bytes;
@@ -1417,6 +1420,14 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 		goto port_not_usable;
 	}
 
+	devlink_port = &mlxsw_sp_port->devlink_port;
+	err = devlink_port_register(devlink, devlink_port, local_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to register devlink port\n",
+			mlxsw_sp_port->local_port);
+		goto err_devlink_port_register;
+	}
+
 	err = mlxsw_sp_port_system_port_mapping_set(mlxsw_sp_port);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set system port mapping\n",
@@ -1457,6 +1468,8 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 		goto err_register_netdev;
 	}
 
+	devlink_port_type_eth_set(devlink_port, dev);
+
 	err = mlxsw_sp_port_vlan_init(mlxsw_sp_port);
 	if (err)
 		goto err_port_vlan_init;
@@ -1472,6 +1485,8 @@ err_port_admin_status_set:
 err_port_mtu_set:
 err_port_swid_set:
 err_port_system_port_mapping_set:
+	devlink_port_unregister(&mlxsw_sp_port->devlink_port);
+err_devlink_port_register:
 port_not_usable:
 err_port_module_check:
 err_dev_addr_init:
@@ -1505,10 +1520,14 @@ static void mlxsw_sp_port_vports_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	struct devlink_port *devlink_port;
 
 	if (!mlxsw_sp_port)
 		return;
+	devlink_port = &mlxsw_sp_port->devlink_port;
+	devlink_port_type_clear(devlink_port);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
+	devlink_port_unregister(devlink_port);
 	mlxsw_sp_port_vports_fini(mlxsw_sp_port);
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	free_percpu(mlxsw_sp_port->pcpu_stats);

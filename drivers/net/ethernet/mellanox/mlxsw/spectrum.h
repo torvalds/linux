@@ -43,6 +43,7 @@
 #include <linux/if_vlan.h>
 #include <linux/list.h>
 #include <net/switchdev.h>
+#include <net/devlink.h>
 
 #include "port.h"
 #include "core.h"
@@ -162,6 +163,7 @@ struct mlxsw_sp_port {
 	unsigned long *untagged_vlans;
 	/* VLAN interfaces */
 	struct list_head vports_list;
+	struct devlink_port devlink_port;
 };
 
 static inline struct mlxsw_sp_port *
