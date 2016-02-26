@@ -560,9 +560,13 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 	struct tcmu_dev *udev = cmd->tcmu_dev;
 
 	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
-		/* cmd has been completed already from timeout, just reclaim data
-		   ring space */
+		/*
+		 * cmd has been completed already from timeout, just reclaim
+		 * data ring space and free cmd
+		 */
 		free_data_area(udev, cmd);
+
+		kmem_cache_free(tcmu_cmd_cache, cmd);
 		return;
 	}
 
@@ -976,12 +980,12 @@ err_vzalloc:
 	return ret;
 }
 
-static int tcmu_check_pending_cmd(int id, void *p, void *data)
+static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
 {
-	struct tcmu_cmd *cmd = p;
-
-	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags))
+	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
+		kmem_cache_free(tcmu_cmd_cache, cmd);
 		return 0;
+	}
 	return -EINVAL;
 }
 
@@ -996,6 +1000,8 @@ static void tcmu_dev_call_rcu(struct rcu_head *p)
 static void tcmu_free_device(struct se_device *dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(dev);
+	struct tcmu_cmd *cmd;
+	bool all_expired = true;
 	int i;
 
 	del_timer_sync(&udev->timeout);
@@ -1004,10 +1010,13 @@ static void tcmu_free_device(struct se_device *dev)
 
 	/* Upper layer should drain all requests before calling this */
 	spin_lock_irq(&udev->commands_lock);
-	i = idr_for_each(&udev->commands, tcmu_check_pending_cmd, NULL);
+	idr_for_each_entry(&udev->commands, cmd, i) {
+		if (tcmu_check_and_free_pending_cmd(cmd) != 0)
+			all_expired = false;
+	}
 	idr_destroy(&udev->commands);
 	spin_unlock_irq(&udev->commands_lock);
-	WARN_ON(i);
+	WARN_ON(!all_expired);
 
 	/* Device was configured */
 	if (udev->uio_info.uio_dev) {
