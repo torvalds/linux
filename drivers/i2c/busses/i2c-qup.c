@@ -372,6 +372,38 @@ static void qup_i2c_set_write_mode(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 	}
 }
 
+static int check_for_fifo_space(struct qup_i2c_dev *qup)
+{
+	int ret;
+
+	ret = qup_i2c_change_state(qup, QUP_PAUSE_STATE);
+	if (ret)
+		goto out;
+
+	ret = qup_i2c_wait_ready(qup, QUP_OUT_FULL,
+				 RESET_BIT, 4 * ONE_BYTE);
+	if (ret) {
+		/* Fifo is full. Drain out the fifo */
+		ret = qup_i2c_change_state(qup, QUP_RUN_STATE);
+		if (ret)
+			goto out;
+
+		ret = qup_i2c_wait_ready(qup, QUP_OUT_NOT_EMPTY,
+					 RESET_BIT, 256 * ONE_BYTE);
+		if (ret) {
+			dev_err(qup->dev, "timeout for fifo out full");
+			goto out;
+		}
+
+		ret = qup_i2c_change_state(qup, QUP_PAUSE_STATE);
+		if (ret)
+			goto out;
+	}
+
+out:
+	return ret;
+}
+
 static int qup_i2c_issue_write(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 {
 	u32 addr = msg->addr << 1;
@@ -390,8 +422,7 @@ static int qup_i2c_issue_write(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 
 	while (qup->pos < msg->len) {
 		/* Check that there's space in the FIFO for our pair */
-		ret = qup_i2c_wait_ready(qup, QUP_OUT_FULL, RESET_BIT,
-					 4 * ONE_BYTE);
+		ret = check_for_fifo_space(qup);
 		if (ret)
 			return ret;
 
@@ -412,6 +443,8 @@ static int qup_i2c_issue_write(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 		qup->pos++;
 		idx++;
 	}
+
+	ret = qup_i2c_change_state(qup, QUP_RUN_STATE);
 
 	return ret;
 }
@@ -441,12 +474,9 @@ static int qup_i2c_send_data(struct qup_i2c_dev *qup, int tlen, u8 *tbuf,
 	int ret = 0;
 
 	while (len > 0) {
-		ret = qup_i2c_wait_ready(qup, QUP_OUT_FULL,
-					 RESET_BIT, 4 * ONE_BYTE);
-		if (ret) {
-			dev_err(qup->dev, "timeout for fifo out full");
+		ret = check_for_fifo_space(qup);
+		if (ret)
 			return ret;
-		}
 
 		t = (len >= 4) ? 4 : len;
 
@@ -464,6 +494,8 @@ static int qup_i2c_send_data(struct qup_i2c_dev *qup, int tlen, u8 *tbuf,
 		val = 0;
 		len -= 4;
 	}
+
+	ret = qup_i2c_change_state(qup, QUP_RUN_STATE);
 
 	return ret;
 }
