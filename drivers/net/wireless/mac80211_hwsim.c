@@ -1909,6 +1909,7 @@ static void hw_scan_work(struct work_struct *work)
 		/* send probes */
 		for (i = 0; i < req->n_ssids; i++) {
 			struct sk_buff *probe;
+			struct ieee80211_mgmt *mgmt;
 
 			probe = ieee80211_probereq_get(hwsim->hw,
 						       hwsim->scan_addr,
@@ -1917,6 +1918,10 @@ static void hw_scan_work(struct work_struct *work)
 						       req->ie_len);
 			if (!probe)
 				continue;
+
+			mgmt = (struct ieee80211_mgmt *) probe->data;
+			memcpy(mgmt->da, req->bssid, ETH_ALEN);
+			memcpy(mgmt->bssid, req->bssid, ETH_ALEN);
 
 			if (req->ie_len)
 				memcpy(skb_put(probe, req->ie_len), req->ie,
