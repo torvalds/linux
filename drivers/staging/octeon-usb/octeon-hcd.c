@@ -3553,7 +3553,7 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	const char *clock_type;
 	int i;
 
-	if (dev->of_node == NULL) {
+	if (!dev->of_node) {
 		dev_err(dev, "Error: empty of_node\n");
 		return -ENXIO;
 	}
@@ -3599,7 +3599,7 @@ static int octeon_usb_probe(struct platform_device *pdev)
 		initialize_flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND;
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res_mem == NULL) {
+	if (!res_mem) {
 		dev_err(dev, "found no memory resource\n");
 		return -ENXIO;
 	}
