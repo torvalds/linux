@@ -1881,7 +1881,7 @@ void free_pio_map(struct hfi1_devdata *dd)
 	/* Free PIO map if allocated */
 	if (rcu_access_pointer(dd->pio_map)) {
 		spin_lock_irq(&dd->pio_map_lock);
-		kfree(rcu_access_pointer(dd->pio_map));
+		pio_map_free(rcu_access_pointer(dd->pio_map));
 		RCU_INIT_POINTER(dd->pio_map, NULL);
 		spin_unlock_irq(&dd->pio_map_lock);
 		synchronize_rcu();

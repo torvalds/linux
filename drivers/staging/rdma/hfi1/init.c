@@ -1324,6 +1324,8 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 	dd->num_send_contexts = 0;
 	kfree(dd->send_contexts);
 	dd->send_contexts = NULL;
+	kfree(dd->hw_to_sw);
+	dd->hw_to_sw = NULL;
 	kfree(dd->boardname);
 	vfree(dd->events);
 	vfree(dd->status);
