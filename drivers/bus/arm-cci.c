@@ -1077,12 +1077,9 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 	 */
 	for (idx = 0; idx <= CCI_PMU_CNTR_LAST(cci_pmu); idx++) {
 		struct perf_event *event = events->events[idx];
-		struct hw_perf_event *hw_counter;
 
 		if (!event)
 			continue;
-
-		hw_counter = &event->hw;
 
 		/* Did this counter overflow? */
 		if (!(pmu_read_register(cci_pmu, idx, CCI_PMU_OVRFLW) &
