@@ -221,18 +221,71 @@ contains the "downcall" which expresses the results of the request.
 
 The slab allocator is used to keep a cache of op structures handy.
 
-The life cycle of a typical op goes like this:
+At init time the kernel module defines and initializes a request list
+and an in_progress hash table to keep track of all the ops that are
+in flight at any given time.
 
-  - obtain and initialize an op structure from the op_cache.
+Ops are stateful:
 
-  - queue the op to the pvfs device so that its upcall data can be
-    read by userspace.
+ * unknown  - op was just initialized
+ * waiting  - op is on request_list (upward bound)
+ * inprogr  - op is in progress (waiting for downcall)
+ * serviced - op has matching downcall; ok
+ * purged   - op has to start a timer since client-core
+              exited uncleanly before servicing op
+ * given up - submitter has given up waiting for it
 
-  - wait for userspace to write downcall data back to the pvfs device.
+When some arbitrary userspace program needs to perform a
+filesystem operation on Orangefs (readdir, I/O, create, whatever)
+an op structure is initialized and tagged with a distinguishing ID
+number. The upcall part of the op is filled out, and the op is
+passed to the "service_operation" function.
 
-  - consume the downcall and return the op struct to the op_cache.
+Service_operation changes the op's state to "waiting", puts
+it on the request list, and signals the Orangefs file_operations.poll
+function through a wait queue. Userspace is polling the pseudo-device
+and thus becomes aware of the upcall request that needs to be read.
 
-Some ops are atypical with respect to their payloads: readdir and io ops.
+When the Orangefs file_operations.read function is triggered, the
+request list is searched for an op that seems ready-to-process.
+The op is removed from the request list. The tag from the op and
+the filled-out upcall struct are copy_to_user'ed back to userspace.
+
+If any of these (and some additional protocol) copy_to_users fail,
+the op's state is set to "waiting" and the op is added back to
+the request list. Otherwise, the op's state is changed to "in progress",
+and the op is hashed on its tag and put onto the end of a list in the
+in_progress hash table at the index the tag hashed to.
+
+When userspace has assembled the response to the upcall, it
+writes the response, which includes the distinguishing tag, back to
+the pseudo device in a series of io_vecs. This triggers the Orangefs
+file_operations.write_iter function to find the op with the associated
+tag and remove it from the in_progress hash table. As long as the op's
+state is not "canceled" or "given up", its state is set to "serviced".
+The file_operations.write_iter function returns to the waiting vfs,
+and back to service_operation through wait_for_matching_downcall.
+
+Service operation returns to its caller with the op's downcall
+part (the response to the upcall) filled out.
+
+The "client-core" is the bridge between the kernel module and
+userspace. The client-core is a daemon. The client-core has an
+associated watchdog daemon. If the client-core is ever signaled
+to die, the watchdog daemon restarts the client-core. Even though
+the client-core is restarted "right away", there is a period of
+time during such an event that the client-core is dead. A dead client-core
+can't be triggered by the Orangefs file_operations.poll function.
+Ops that pass through service_operation during a "dead spell" can timeout
+on the wait queue and one attempt is made to recycle them. Obviously,
+if the client-core stays dead too long, the arbitrary userspace processes
+trying to use Orangefs will be negatively affected. Waiting ops
+that can't be serviced will be removed from the request list and
+have their states set to "given up". In-progress ops that can't 
+be serviced will be removed from the in_progress hash table and
+have their states set to "given up".
+
+Readdir and I/O ops are atypical with respect to their payloads.
 
   - readdir ops use the smaller of the two pre-allocated pre-partitioned
     memory buffers. The readdir buffer is only available to userspace.
@@ -311,7 +364,7 @@ particular response.
     jamb everything needed to represent a pvfs2_readdir_response_t into
     the readdir buffer descriptor specified in the upcall.
 
-writev() on /dev/pvfs2-req is used to pass responses to the requests
+Userspace uses writev() on /dev/pvfs2-req to pass responses to the requests
 made by the kernel side.
 
 A buffer_list containing:

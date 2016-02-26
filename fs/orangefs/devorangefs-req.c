@@ -404,8 +404,8 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 
 wakeup:
 	/*
-	 * tell the vfs op waiting on a waitqueue
-	 * that this op is done
+	 * Return to vfs waitqueue, and back to service_operation
+	 * through wait_for_matching_downcall. 
 	 */
 	spin_lock(&op->lock);
 	if (unlikely(op_is_cancel(op))) {
