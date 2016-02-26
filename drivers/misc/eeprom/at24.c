@@ -56,7 +56,6 @@
 
 struct at24_data {
 	struct at24_platform_data chip;
-	struct memory_accessor macc;
 	int use_smbus;
 	int use_smbus_write;
 
@@ -410,30 +409,6 @@ static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
 /*-------------------------------------------------------------------------*/
 
 /*
- * This lets other kernel code access the eeprom data. For example, it
- * might hold a board's Ethernet address, or board-specific calibration
- * data generated on the manufacturing floor.
- */
-
-static ssize_t at24_macc_read(struct memory_accessor *macc, char *buf,
-			 off_t offset, size_t count)
-{
-	struct at24_data *at24 = container_of(macc, struct at24_data, macc);
-
-	return at24_read(at24, buf, offset, count);
-}
-
-static ssize_t at24_macc_write(struct memory_accessor *macc, const char *buf,
-			  off_t offset, size_t count)
-{
-	struct at24_data *at24 = container_of(macc, struct at24_data, macc);
-
-	return at24_write(at24, buf, offset, count);
-}
-
-/*-------------------------------------------------------------------------*/
-
-/*
  * Provide a regmap interface, which is registered with the NVMEM
  * framework
 */
@@ -600,15 +575,11 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->chip = chip;
 	at24->num_addresses = num_addresses;
 
-	at24->macc.read = at24_macc_read;
-
 	writable = !(chip.flags & AT24_FLAG_READONLY);
 	if (writable) {
 		if (!use_smbus || use_smbus_write) {
 
 			unsigned write_max = chip.page_size;
-
-			at24->macc.write = at24_macc_write;
 
 			if (write_max > io_limit)
 				write_max = io_limit;
@@ -683,7 +654,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	/* export data to kernel code */
 	if (chip.setup)
-		chip.setup(&at24->macc, chip.context);
+		chip.setup(at24->nvmem, chip.context);
 
 	return 0;
 
