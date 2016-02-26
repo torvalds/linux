@@ -811,8 +811,8 @@ static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct in6_addr *ipaddr,
 		goto out;
 	}
 
-	WARN_ON_ONCE("context found but no address mode matched\n");
-	return -EINVAL;
+	WARN_ONCE(1, "context found but no address mode matched\n");
+	return LOWPAN_IPHC_DAM_00;
 out:
 
 	if (sam)
