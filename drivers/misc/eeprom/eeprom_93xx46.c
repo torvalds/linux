@@ -19,7 +19,8 @@
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/sysfs.h>
+#include <linux/nvmem-provider.h>
+#include <linux/regmap.h>
 #include <linux/eeprom_93xx46.h>
 
 #define OP_START	0x4
@@ -41,9 +42,12 @@ static const struct eeprom_93xx46_devtype_data atmel_at93c46d_data = {
 struct eeprom_93xx46_dev {
 	struct spi_device *spi;
 	struct eeprom_93xx46_platform_data *pdata;
-	struct bin_attribute bin;
 	struct mutex lock;
+	struct regmap_config regmap_config;
+	struct nvmem_config nvmem_config;
+	struct nvmem_device *nvmem;
 	int addrlen;
+	int size;
 };
 
 static inline bool has_quirk_single_word_read(struct eeprom_93xx46_dev *edev)
@@ -57,16 +61,17 @@ static inline bool has_quirk_instruction_length(struct eeprom_93xx46_dev *edev)
 }
 
 static ssize_t
-eeprom_93xx46_bin_read(struct file *filp, struct kobject *kobj,
-		       struct bin_attribute *bin_attr,
-		       char *buf, loff_t off, size_t count)
+eeprom_93xx46_read(struct eeprom_93xx46_dev *edev, char *buf,
+		   unsigned off, size_t count)
 {
-	struct eeprom_93xx46_dev *edev;
-	struct device *dev;
 	ssize_t ret = 0;
 
-	dev = kobj_to_dev(kobj);
-	edev = dev_get_drvdata(dev);
+	if (unlikely(off >= edev->size))
+		return 0;
+	if ((off + count) > edev->size)
+		count = edev->size - off;
+	if (unlikely(!count))
+		return count;
 
 	mutex_lock(&edev->lock);
 
@@ -226,16 +231,17 @@ eeprom_93xx46_write_word(struct eeprom_93xx46_dev *edev,
 }
 
 static ssize_t
-eeprom_93xx46_bin_write(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
-			char *buf, loff_t off, size_t count)
+eeprom_93xx46_write(struct eeprom_93xx46_dev *edev, const char *buf,
+		    loff_t off, size_t count)
 {
-	struct eeprom_93xx46_dev *edev;
-	struct device *dev;
 	int i, ret, step = 1;
 
-	dev = kobj_to_dev(kobj);
-	edev = dev_get_drvdata(dev);
+	if (unlikely(off >= edev->size))
+		return -EFBIG;
+	if ((off + count) > edev->size)
+		count = edev->size - off;
+	if (unlikely(!count))
+		return count;
 
 	/* only write even number of bytes on 16-bit devices */
 	if (edev->addrlen == 6) {
@@ -271,6 +277,49 @@ eeprom_93xx46_bin_write(struct file *filp, struct kobject *kobj,
 	eeprom_93xx46_ew(edev, 0);
 	return ret ? : count;
 }
+
+/*
+ * Provide a regmap interface, which is registered with the NVMEM
+ * framework
+*/
+static int eeprom_93xx46_regmap_read(void *context, const void *reg,
+				     size_t reg_size, void *val,
+				     size_t val_size)
+{
+	struct eeprom_93xx46_dev *eeprom_93xx46 = context;
+	off_t offset = *(u32 *)reg;
+	int err;
+
+	err = eeprom_93xx46_read(eeprom_93xx46, val, offset, val_size);
+	if (err)
+		return err;
+	return 0;
+}
+
+static int eeprom_93xx46_regmap_write(void *context, const void *data,
+				      size_t count)
+{
+	struct eeprom_93xx46_dev *eeprom_93xx46 = context;
+	const char *buf;
+	u32 offset;
+	size_t len;
+	int err;
+
+	memcpy(&offset, data, sizeof(offset));
+	buf = (const char *)data + sizeof(offset);
+	len = count - sizeof(offset);
+
+	err = eeprom_93xx46_write(eeprom_93xx46, buf, offset, len);
+	if (err)
+		return err;
+	return 0;
+}
+
+static const struct regmap_bus eeprom_93xx46_regmap_bus = {
+	.read = eeprom_93xx46_regmap_read,
+	.write = eeprom_93xx46_regmap_write,
+	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
+};
 
 static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 {
@@ -431,6 +480,7 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 {
 	struct eeprom_93xx46_platform_data *pd;
 	struct eeprom_93xx46_dev *edev;
+	struct regmap *regmap;
 	int err;
 
 	if (spi->dev.of_node) {
@@ -464,19 +514,34 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	edev->spi = spi_dev_get(spi);
 	edev->pdata = pd;
 
-	sysfs_bin_attr_init(&edev->bin);
-	edev->bin.attr.name = "eeprom";
-	edev->bin.attr.mode = S_IRUSR;
-	edev->bin.read = eeprom_93xx46_bin_read;
-	edev->bin.size = 128;
-	if (!(pd->flags & EE_READONLY)) {
-		edev->bin.write = eeprom_93xx46_bin_write;
-		edev->bin.attr.mode |= S_IWUSR;
+	edev->size = 128;
+
+	edev->regmap_config.reg_bits = 32;
+	edev->regmap_config.val_bits = 8;
+	edev->regmap_config.reg_stride = 1;
+	edev->regmap_config.max_register = edev->size - 1;
+
+	regmap = devm_regmap_init(&spi->dev, &eeprom_93xx46_regmap_bus, edev,
+				  &edev->regmap_config);
+	if (IS_ERR(regmap)) {
+		dev_err(&spi->dev, "regmap init failed\n");
+		err = PTR_ERR(regmap);
+		goto fail;
 	}
 
-	err = sysfs_create_bin_file(&spi->dev.kobj, &edev->bin);
-	if (err)
+	edev->nvmem_config.name = dev_name(&spi->dev);
+	edev->nvmem_config.dev = &spi->dev;
+	edev->nvmem_config.read_only = pd->flags & EE_READONLY;
+	edev->nvmem_config.root_only = true;
+	edev->nvmem_config.owner = THIS_MODULE;
+	edev->nvmem_config.compat = true;
+	edev->nvmem_config.base_dev = &spi->dev;
+
+	edev->nvmem = nvmem_register(&edev->nvmem_config);
+	if (IS_ERR(edev->nvmem)) {
+		err = PTR_ERR(edev->nvmem);
 		goto fail;
+	}
 
 	dev_info(&spi->dev, "%d-bit eeprom %s\n",
 		(pd->flags & EE_ADDR8) ? 8 : 16,
@@ -498,10 +563,11 @@ static int eeprom_93xx46_remove(struct spi_device *spi)
 {
 	struct eeprom_93xx46_dev *edev = spi_get_drvdata(spi);
 
+	nvmem_unregister(edev->nvmem);
+
 	if (!(edev->pdata->flags & EE_READONLY))
 		device_remove_file(&spi->dev, &dev_attr_erase);
 
-	sysfs_remove_bin_file(&spi->dev.kobj, &edev->bin);
 	kfree(edev);
 	return 0;
 }

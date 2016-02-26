@@ -78,6 +78,8 @@ config EEPROM_93CX6
 config EEPROM_93XX46
 	tristate "Microwire EEPROM 93XX46 support"
 	depends on SPI && SYSFS
+	select REGMAP
+	select NVMEM
 	help
 	  Driver for the microwire EEPROM chipsets 93xx46x. The driver
 	  supports both read and write commands and also the command to
