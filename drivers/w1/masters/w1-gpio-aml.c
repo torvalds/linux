@@ -19,6 +19,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/delay.h>
 
 #include <linux/amlogic/aml_gpio_consumer.h>
 
@@ -35,6 +36,26 @@ MODULE_PARM_DESC(w1_gpio_pin,"\n odroid gpio number for 1-wire\n");
 
 module_param(w1_gpio_pullup,int,0644);
 MODULE_PARM_DESC(w1_gpio_pullup,"\n odroid gpio number for 1-wire ext_pullup\n");
+
+static u8 w1_gpio_set_pullup(void *data, int delay)
+{
+	struct w1_gpio_platform_data *pdata = data;
+
+	if (delay) {
+		pdata->pullup_duration = delay;
+	} else {
+		if (pdata->pullup_duration) {
+			amlogic_gpio_direction_output(pdata->pin, 1, MODULE_NAME);
+
+			msleep(pdata->pullup_duration);
+
+			amlogic_gpio_direction_input(pdata->pin, MODULE_NAME);
+		}
+		pdata->pullup_duration = 0;
+	}
+
+	return 0;
+}
 
 static void w1_gpio_write_bit_dir(void *data, u8 bit)
 {
@@ -143,6 +164,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	} else {
 		amlogic_gpio_direction_input(pdata->pin, MODULE_NAME);
 		master->write_bit = w1_gpio_write_bit_dir;
+		master->set_pullup = w1_gpio_set_pullup;
 	}
 
 	err = w1_add_master_device(master);
