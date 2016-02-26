@@ -2989,8 +2989,8 @@ static int cvmx_usb_poll(struct octeon_hcd *usb)
 		 */
 		octeon_usb_port_callback(usb);
 		/* Clear the port change bits */
-		usbc_hprt.u32 = cvmx_usb_read_csr32(usb,
-						    CVMX_USBCX_HPRT(usb->index));
+		usbc_hprt.u32 =
+			cvmx_usb_read_csr32(usb, CVMX_USBCX_HPRT(usb->index));
 		usbc_hprt.s.prtena = 0;
 		cvmx_usb_write_csr32(usb, CVMX_USBCX_HPRT(usb->index),
 				     usbc_hprt.u32);
