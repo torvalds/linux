@@ -118,6 +118,7 @@ enum {
 
 
 #ifdef CONFIG_SMP
+extern bool cpuhp_tasks_frozen;
 /* Need to know about CPUs going up/down? */
 #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE)
 #define cpu_notifier(fn, pri) {					\
@@ -177,6 +178,7 @@ extern void cpu_maps_update_done(void);
 #define cpu_notifier_register_done	cpu_maps_update_done
 
 #else	/* CONFIG_SMP */
+#define cpuhp_tasks_frozen	0
 
 #define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
 #define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
