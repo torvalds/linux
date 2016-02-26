@@ -1841,6 +1841,10 @@ int clk_set_phase(struct clk *clk, int degrees)
 
 	clk_prepare_lock();
 
+	/* bail early if nothing to do */
+	if (degrees == clk->core->phase)
+		goto out;
+
 	trace_clk_set_phase(clk->core, degrees);
 
 	if (clk->core->ops->set_phase)
@@ -1851,6 +1855,7 @@ int clk_set_phase(struct clk *clk, int degrees)
 	if (!ret)
 		clk->core->phase = degrees;
 
+out:
 	clk_prepare_unlock();
 
 	return ret;
