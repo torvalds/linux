@@ -433,7 +433,6 @@ EXPORT_SYMBOL(ptlrpc_fail_import);
 
 int ptlrpc_reconnect_import(struct obd_import *imp)
 {
-#ifdef ENABLE_PINGER
 	struct l_wait_info lwi;
 	int secs = cfs_time_seconds(obd_timeout);
 	int rc;
@@ -449,33 +448,6 @@ int ptlrpc_reconnect_import(struct obd_import *imp)
 	CDEBUG(D_HA, "%s: recovery finished s:%s\n", obd2cli_tgt(imp->imp_obd),
 	       ptlrpc_import_state_name(imp->imp_state));
 	return rc;
-#else
-	ptlrpc_set_import_discon(imp, 0);
-	/* Force a new connect attempt */
-	ptlrpc_invalidate_import(imp);
-	/* Do a fresh connect next time by zeroing the handle */
-	ptlrpc_disconnect_import(imp, 1);
-	/* Wait for all invalidate calls to finish */
-	if (atomic_read(&imp->imp_inval_count) > 0) {
-		int rc;
-		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
-
-		rc = l_wait_event(imp->imp_recovery_waitq,
-				  (atomic_read(&imp->imp_inval_count) == 0),
-				  &lwi);
-		if (rc)
-			CERROR("Interrupted, inval=%d\n",
-			       atomic_read(&imp->imp_inval_count));
-	}
-
-	/* Allow reconnect attempts */
-	imp->imp_obd->obd_no_recov = 0;
-	/* Remove 'invalid' flag */
-	ptlrpc_activate_import(imp);
-	/* Attempt a new connect */
-	ptlrpc_recover_import(imp, NULL, 0);
-	return 0;
-#endif
 }
 EXPORT_SYMBOL(ptlrpc_reconnect_import);
 
