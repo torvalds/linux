@@ -48,12 +48,14 @@ static DEFINE_PER_CPU(struct cpuhp_cpu_state, cpuhp_state);
  * @teardown:	Teardown function of the step
  * @skip_onerr:	Do not invoke the functions on error rollback
  *		Will go away once the notifiers	are gone
+ * @cant_stop:	Bringup/teardown can't be stopped at this step
  */
 struct cpuhp_step {
 	const char	*name;
 	int		(*startup)(unsigned int cpu);
 	int		(*teardown)(unsigned int cpu);
 	bool		skip_onerr;
+	bool		cant_stop;
 };
 
 static DEFINE_MUTEX(cpuhp_state_mutex);
@@ -558,7 +560,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	if (num_online_cpus() == 1)
 		return -EBUSY;
 
-	if (!cpu_online(cpu))
+	if (!cpu_present(cpu))
 		return -EINVAL;
 
 	cpu_hotplug_begin();
@@ -683,16 +685,25 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 
 	cpu_hotplug_begin();
 
-	if (cpu_online(cpu) || !cpu_present(cpu)) {
+	if (!cpu_present(cpu)) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	/* Let it fail before we try to bring the cpu up */
-	idle = idle_thread_get(cpu);
-	if (IS_ERR(idle)) {
-		ret = PTR_ERR(idle);
+	/*
+	 * The caller of do_cpu_up might have raced with another
+	 * caller. Ignore it for now.
+	 */
+	if (st->state >= target)
 		goto out;
+
+	if (st->state == CPUHP_OFFLINE) {
+		/* Let it fail before we try to bring the cpu up */
+		idle = idle_thread_get(cpu);
+		if (IS_ERR(idle)) {
+			ret = PTR_ERR(idle);
+			goto out;
+		}
 	}
 
 	cpuhp_tasks_frozen = tasks_frozen;
@@ -909,27 +920,32 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.name			= "threads:create",
 		.startup		= smpboot_create_threads,
 		.teardown		= NULL,
+		.cant_stop		= true,
 	},
 	[CPUHP_NOTIFY_PREPARE] = {
 		.name			= "notify:prepare",
 		.startup		= notify_prepare,
 		.teardown		= notify_dead,
 		.skip_onerr		= true,
+		.cant_stop		= true,
 	},
 	[CPUHP_BRINGUP_CPU] = {
 		.name			= "cpu:bringup",
 		.startup		= bringup_cpu,
 		.teardown		= NULL,
+		.cant_stop		= true,
 	},
 	[CPUHP_TEARDOWN_CPU] = {
 		.name			= "cpu:teardown",
 		.startup		= NULL,
 		.teardown		= takedown_cpu,
+		.cant_stop		= true,
 	},
 	[CPUHP_NOTIFY_ONLINE] = {
 		.name			= "notify:online",
 		.startup		= notify_online,
 		.teardown		= notify_down_prepare,
+		.cant_stop		= true,
 	},
 #endif
 	[CPUHP_ONLINE] = {
@@ -947,6 +963,7 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.startup		= notify_starting,
 		.teardown		= notify_dying,
 		.skip_onerr		= true,
+		.cant_stop		= true,
 	},
 #endif
 	[CPUHP_ONLINE] = {
@@ -979,6 +996,46 @@ static ssize_t show_cpuhp_state(struct device *dev,
 }
 static DEVICE_ATTR(state, 0444, show_cpuhp_state, NULL);
 
+static ssize_t write_cpuhp_target(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, dev->id);
+	struct cpuhp_step *sp;
+	int target, ret;
+
+	ret = kstrtoint(buf, 10, &target);
+	if (ret)
+		return ret;
+
+#ifdef CONFIG_CPU_HOTPLUG_STATE_CONTROL
+	if (target < CPUHP_OFFLINE || target > CPUHP_ONLINE)
+		return -EINVAL;
+#else
+	if (target != CPUHP_OFFLINE && target != CPUHP_ONLINE)
+		return -EINVAL;
+#endif
+
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
+
+	mutex_lock(&cpuhp_state_mutex);
+	sp = cpuhp_get_step(target);
+	ret = !sp->name || sp->cant_stop ? -EINVAL : 0;
+	mutex_unlock(&cpuhp_state_mutex);
+	if (ret)
+		return ret;
+
+	if (st->state < target)
+		ret = do_cpu_up(dev->id, target);
+	else
+		ret = do_cpu_down(dev->id, target);
+
+	unlock_device_hotplug();
+	return ret ? ret : count;
+}
+
 static ssize_t show_cpuhp_target(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -986,7 +1043,7 @@ static ssize_t show_cpuhp_target(struct device *dev,
 
 	return sprintf(buf, "%d\n", st->target);
 }
-static DEVICE_ATTR(target, 0444, show_cpuhp_target, NULL);
+static DEVICE_ATTR(target, 0644, show_cpuhp_target, write_cpuhp_target);
 
 static struct attribute *cpuhp_cpu_attrs[] = {
 	&dev_attr_state.attr,
@@ -1007,7 +1064,7 @@ static ssize_t show_cpuhp_states(struct device *dev,
 	int i;
 
 	mutex_lock(&cpuhp_state_mutex);
-	for (i = 0; i <= CPUHP_ONLINE; i++) {
+	for (i = CPUHP_OFFLINE; i <= CPUHP_ONLINE; i++) {
 		struct cpuhp_step *sp = cpuhp_get_step(i);
 
 		if (sp->name) {
