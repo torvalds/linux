@@ -33,6 +33,7 @@
 #include "util/stat.h"
 #include "trace-event.h"
 #include "util/parse-events.h"
+#include "util/bpf-loader.h"
 
 #include <libaudit.h>
 #include <stdlib.h>
@@ -2585,6 +2586,16 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = perf_evlist__open(evlist);
 	if (err < 0)
 		goto out_error_open;
+
+	err = bpf__apply_obj_config();
+	if (err) {
+		char errbuf[BUFSIZ];
+
+		bpf__strerror_apply_obj_config(err, errbuf, sizeof(errbuf));
+		pr_err("ERROR: Apply config to BPF failed: %s\n",
+			 errbuf);
+		goto out_error_open;
+	}
 
 	/*
 	 * Better not use !target__has_task() here because we need to cover the
