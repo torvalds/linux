@@ -78,6 +78,7 @@ struct hists {
 	u16			col_len[HISTC_NR_COLS];
 	int			socket_filter;
 	struct perf_hpp_list	*hpp_list;
+	int			nr_sort_keys;
 };
 
 struct hist_entry_iter;

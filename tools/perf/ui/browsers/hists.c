@@ -1547,7 +1547,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 	struct perf_hpp_fmt *fmt;
 	size_t ret = 0;
 	int column = 0;
-	int nr_sort_keys = hists->hpp_list->nr_sort_keys;
+	int nr_sort_keys = hists->nr_sort_keys;
 	bool first = true;
 
 	ret = scnprintf(buf, size, " ");
@@ -1632,7 +1632,7 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 	u16 header_offset = 0;
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
-	int nr_sort = hb->hists->hpp_list->nr_sort_keys;
+	int nr_sort = hb->hists->nr_sort_keys;
 
 	if (hb->show_headers) {
 		hist_browser__show_headers(hb);
@@ -1969,7 +1969,7 @@ static int hist_browser__fprintf(struct hist_browser *browser, FILE *fp)
 	struct rb_node *nd = hists__filter_entries(rb_first(browser->b.entries),
 						   browser->min_pcnt);
 	int printed = 0;
-	int nr_sort = browser->hists->hpp_list->nr_sort_keys;
+	int nr_sort = browser->hists->nr_sort_keys;
 
 	while (nd) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);

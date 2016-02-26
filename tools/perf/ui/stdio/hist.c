@@ -495,7 +495,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 		size = hpp.size = bfsz;
 
 	if (symbol_conf.report_hierarchy) {
-		int nr_sort = hists->hpp_list->nr_sort_keys;
+		int nr_sort = hists->nr_sort_keys;
 
 		return hist_entry__hierarchy_fprintf(he, &hpp, nr_sort,
 						     hists, fp);
@@ -529,7 +529,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 	unsigned header_width = 0;
 	struct perf_hpp_fmt *fmt;
 
-	nr_sort = hists->hpp_list->nr_sort_keys;
+	nr_sort = hists->nr_sort_keys;
 
 	/* preserve max indent depth for column headers */
 	print_hierarchy_indent(sep, nr_sort, spaces, fp);
@@ -728,7 +728,7 @@ print_entries:
 		 * display "no entry >= x.xx%" message.
 		 */
 		if (!h->leaf && !hist_entry__has_hierarchy_children(h, min_pcnt)) {
-			int nr_sort = hists->hpp_list->nr_sort_keys;
+			int nr_sort = hists->nr_sort_keys;
 
 			print_hierarchy_indent(sep, nr_sort + h->depth + 1, spaces, fp);
 			fprintf(fp, "%*sno entry >= %.2f%%\n", indent, "", min_pcnt);

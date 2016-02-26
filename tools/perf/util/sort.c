@@ -2633,6 +2633,9 @@ out:
 int setup_sorting(struct perf_evlist *evlist)
 {
 	int err;
+	struct hists *hists;
+	struct perf_evsel *evsel;
+	struct perf_hpp_fmt *fmt;
 
 	err = __setup_sorting(evlist);
 	if (err < 0)
@@ -2642,6 +2645,22 @@ int setup_sorting(struct perf_evlist *evlist)
 		err = sort_dimension__add("parent", evlist);
 		if (err < 0)
 			return err;
+	}
+
+	evlist__for_each(evlist, evsel) {
+		hists = evsel__hists(evsel);
+		hists->nr_sort_keys = perf_hpp_list.nr_sort_keys;
+
+		/*
+		 * If dynamic entries were used, it might add multiple
+		 * entries to each evsel for a single field name.  Set
+		 * actual number of sort keys for each hists.
+		 */
+		perf_hpp_list__for_each_sort_list(&perf_hpp_list, fmt) {
+			if (perf_hpp__is_dynamic_entry(fmt) &&
+			    !perf_hpp__defined_dynamic_entry(fmt, hists))
+				hists->nr_sort_keys--;
+		}
 	}
 
 	reset_dimensions();
