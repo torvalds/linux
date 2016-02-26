@@ -340,8 +340,7 @@ static void release_inactive_stripe_list(struct r5conf *conf,
 					 int hash)
 {
 	int size;
-	unsigned long do_wakeup = 0;
-	int i = 0;
+	bool do_wakeup = false;
 	unsigned long flags;
 
 	if (hash == NR_STRIPE_HASH_LOCKS) {
@@ -362,19 +361,15 @@ static void release_inactive_stripe_list(struct r5conf *conf,
 			    !list_empty(list))
 				atomic_dec(&conf->empty_inactive_list_nr);
 			list_splice_tail_init(list, conf->inactive_list + hash);
-			do_wakeup |= 1 << hash;
+			do_wakeup = true;
 			spin_unlock_irqrestore(conf->hash_locks + hash, flags);
 		}
 		size--;
 		hash--;
 	}
 
-	for (i = 0; i < NR_STRIPE_HASH_LOCKS; i++) {
-		if (do_wakeup & (1 << i))
-			wake_up(&conf->wait_for_stripe[i]);
-	}
-
 	if (do_wakeup) {
+		wake_up(&conf->wait_for_stripe);
 		if (atomic_read(&conf->active_stripes) == 0)
 			wake_up(&conf->wait_for_quiescent);
 		if (conf->retry_read_aligned)
@@ -687,15 +682,14 @@ raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 			if (!sh) {
 				set_bit(R5_INACTIVE_BLOCKED,
 					&conf->cache_state);
-				wait_event_exclusive_cmd(
-					conf->wait_for_stripe[hash],
+				wait_event_lock_irq(
+					conf->wait_for_stripe,
 					!list_empty(conf->inactive_list + hash) &&
 					(atomic_read(&conf->active_stripes)
 					 < (conf->max_nr_stripes * 3 / 4)
 					 || !test_bit(R5_INACTIVE_BLOCKED,
 						      &conf->cache_state)),
-					spin_unlock_irq(conf->hash_locks + hash),
-					spin_lock_irq(conf->hash_locks + hash));
+					*(conf->hash_locks + hash));
 				clear_bit(R5_INACTIVE_BLOCKED,
 					  &conf->cache_state);
 			} else {
@@ -719,9 +713,6 @@ raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 			spin_unlock(&conf->device_lock);
 		}
 	} while (sh == NULL);
-
-	if (!list_empty(conf->inactive_list + hash))
-		wake_up(&conf->wait_for_stripe[hash]);
 
 	spin_unlock_irq(conf->hash_locks + hash);
 	return sh;
@@ -2204,7 +2195,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	cnt = 0;
 	list_for_each_entry(nsh, &newstripes, lru) {
 		lock_device_hash_lock(conf, hash);
-		wait_event_exclusive_cmd(conf->wait_for_stripe[hash],
+		wait_event_cmd(conf->wait_for_stripe,
 				    !list_empty(conf->inactive_list + hash),
 				    unlock_device_hash_lock(conf, hash),
 				    lock_device_hash_lock(conf, hash));
@@ -6522,9 +6513,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	seqcount_init(&conf->gen_lock);
 	mutex_init(&conf->cache_size_mutex);
 	init_waitqueue_head(&conf->wait_for_quiescent);
-	for (i = 0; i < NR_STRIPE_HASH_LOCKS; i++) {
-		init_waitqueue_head(&conf->wait_for_stripe[i]);
-	}
+	init_waitqueue_head(&conf->wait_for_stripe);
 	init_waitqueue_head(&conf->wait_for_overlap);
 	INIT_LIST_HEAD(&conf->handle_list);
 	INIT_LIST_HEAD(&conf->hold_list);
