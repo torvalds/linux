@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
-#include <linux/sysfs.h>
 #include <linux/mod_devicetable.h>
 #include <linux/log2.h>
 #include <linux/bitops.h>
@@ -23,6 +22,8 @@
 #include <linux/of.h>
 #include <linux/acpi.h>
 #include <linux/i2c.h>
+#include <linux/nvmem-provider.h>
+#include <linux/regmap.h>
 #include <linux/platform_data/at24.h>
 
 /*
@@ -64,11 +65,14 @@ struct at24_data {
 	 * but not from changes by other I2C masters.
 	 */
 	struct mutex lock;
-	struct bin_attribute bin;
 
 	u8 *writebuf;
 	unsigned write_max;
 	unsigned num_addresses;
+
+	struct regmap_config regmap_config;
+	struct nvmem_config nvmem_config;
+	struct nvmem_device *nvmem;
 
 	/*
 	 * Some chips tie up multiple I2C addresses; dummy devices reserve
@@ -283,17 +287,6 @@ static ssize_t at24_read(struct at24_data *at24,
 	return retval;
 }
 
-static ssize_t at24_bin_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t off, size_t count)
-{
-	struct at24_data *at24;
-
-	at24 = dev_get_drvdata(kobj_to_dev(kobj));
-	return at24_read(at24, buf, off, count);
-}
-
-
 /*
  * Note that if the hardware write-protect pin is pulled high, the whole
  * chip is normally write protected. But there are plenty of product
@@ -414,16 +407,6 @@ static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
 	return retval;
 }
 
-static ssize_t at24_bin_write(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t off, size_t count)
-{
-	struct at24_data *at24;
-
-	at24 = dev_get_drvdata(kobj_to_dev(kobj));
-	return at24_write(at24, buf, off, count);
-}
-
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -447,6 +430,49 @@ static ssize_t at24_macc_write(struct memory_accessor *macc, const char *buf,
 
 	return at24_write(at24, buf, offset, count);
 }
+
+/*-------------------------------------------------------------------------*/
+
+/*
+ * Provide a regmap interface, which is registered with the NVMEM
+ * framework
+*/
+static int at24_regmap_read(void *context, const void *reg, size_t reg_size,
+			    void *val, size_t val_size)
+{
+	struct at24_data *at24 = context;
+	off_t offset = *(u32 *)reg;
+	int err;
+
+	err = at24_read(at24, val, offset, val_size);
+	if (err)
+		return err;
+	return 0;
+}
+
+static int at24_regmap_write(void *context, const void *data, size_t count)
+{
+	struct at24_data *at24 = context;
+	const char *buf;
+	u32 offset;
+	size_t len;
+	int err;
+
+	memcpy(&offset, data, sizeof(offset));
+	buf = (const char *)data + sizeof(offset);
+	len = count - sizeof(offset);
+
+	err = at24_write(at24, buf, offset, len);
+	if (err)
+		return err;
+	return 0;
+}
+
+static const struct regmap_bus at24_regmap_bus = {
+	.read = at24_regmap_read,
+	.write = at24_regmap_write,
+	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
+};
 
 /*-------------------------------------------------------------------------*/
 
@@ -481,6 +507,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct at24_data *at24;
 	int err;
 	unsigned i, num_addresses;
+	struct regmap *regmap;
 
 	if (client->dev.platform_data) {
 		chip = *(struct at24_platform_data *)client->dev.platform_data;
@@ -573,16 +600,6 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->chip = chip;
 	at24->num_addresses = num_addresses;
 
-	/*
-	 * Export the EEPROM bytes through sysfs, since that's convenient.
-	 * By default, only root should see the data (maybe passwords etc)
-	 */
-	sysfs_bin_attr_init(&at24->bin);
-	at24->bin.attr.name = "eeprom";
-	at24->bin.attr.mode = chip.flags & AT24_FLAG_IRUGO ? S_IRUGO : S_IRUSR;
-	at24->bin.read = at24_bin_read;
-	at24->bin.size = chip.byte_len;
-
 	at24->macc.read = at24_macc_read;
 
 	writable = !(chip.flags & AT24_FLAG_READONLY);
@@ -592,9 +609,6 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			unsigned write_max = chip.page_size;
 
 			at24->macc.write = at24_macc_write;
-
-			at24->bin.write = at24_bin_write;
-			at24->bin.attr.mode |= S_IWUSR;
 
 			if (write_max > io_limit)
 				write_max = io_limit;
@@ -627,14 +641,38 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
-	err = sysfs_create_bin_file(&client->dev.kobj, &at24->bin);
-	if (err)
+	at24->regmap_config.reg_bits = 32;
+	at24->regmap_config.val_bits = 8;
+	at24->regmap_config.reg_stride = 1;
+	at24->regmap_config.max_register = chip.byte_len - 1;
+
+	regmap = devm_regmap_init(&client->dev, &at24_regmap_bus, at24,
+				  &at24->regmap_config);
+	if (IS_ERR(regmap)) {
+		dev_err(&client->dev, "regmap init failed\n");
+		err = PTR_ERR(regmap);
 		goto err_clients;
+	}
+
+	at24->nvmem_config.name = dev_name(&client->dev);
+	at24->nvmem_config.dev = &client->dev;
+	at24->nvmem_config.read_only = !writable;
+	at24->nvmem_config.root_only = true;
+	at24->nvmem_config.owner = THIS_MODULE;
+	at24->nvmem_config.compat = true;
+	at24->nvmem_config.base_dev = &client->dev;
+
+	at24->nvmem = nvmem_register(&at24->nvmem_config);
+
+	if (IS_ERR(at24->nvmem)) {
+		err = PTR_ERR(at24->nvmem);
+		goto err_clients;
+	}
 
 	i2c_set_clientdata(client, at24);
 
-	dev_info(&client->dev, "%zu byte %s EEPROM, %s, %u bytes/write\n",
-		at24->bin.size, client->name,
+	dev_info(&client->dev, "%u byte %s EEPROM, %s, %u bytes/write\n",
+		chip.byte_len, client->name,
 		writable ? "writable" : "read-only", at24->write_max);
 	if (use_smbus == I2C_SMBUS_WORD_DATA ||
 	    use_smbus == I2C_SMBUS_BYTE_DATA) {
@@ -663,7 +701,8 @@ static int at24_remove(struct i2c_client *client)
 	int i;
 
 	at24 = i2c_get_clientdata(client);
-	sysfs_remove_bin_file(&client->dev.kobj, &at24->bin);
+
+	nvmem_unregister(at24->nvmem);
 
 	for (i = 1; i < at24->num_addresses; i++)
 		i2c_unregister_device(at24->client[i]);
