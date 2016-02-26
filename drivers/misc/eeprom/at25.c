@@ -29,7 +29,6 @@
 
 struct at25_data {
 	struct spi_device	*spi;
-	struct memory_accessor	mem;
 	struct mutex		lock;
 	struct spi_eeprom	chip;
 	struct bin_attribute	bin;
@@ -281,26 +280,6 @@ at25_bin_write(struct file *filp, struct kobject *kobj,
 
 /*-------------------------------------------------------------------------*/
 
-/* Let in-kernel code access the eeprom data. */
-
-static ssize_t at25_mem_read(struct memory_accessor *mem, char *buf,
-			 off_t offset, size_t count)
-{
-	struct at25_data *at25 = container_of(mem, struct at25_data, mem);
-
-	return at25_ee_read(at25, buf, offset, count);
-}
-
-static ssize_t at25_mem_write(struct memory_accessor *mem, const char *buf,
-			  off_t offset, size_t count)
-{
-	struct at25_data *at25 = container_of(mem, struct at25_data, mem);
-
-	return at25_ee_write(at25, buf, offset, count);
-}
-
-/*-------------------------------------------------------------------------*/
-
 static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 {
 	u32 val;
@@ -415,21 +394,16 @@ static int at25_probe(struct spi_device *spi)
 	at25->bin.attr.name = "eeprom";
 	at25->bin.attr.mode = S_IRUSR;
 	at25->bin.read = at25_bin_read;
-	at25->mem.read = at25_mem_read;
 
 	at25->bin.size = at25->chip.byte_len;
 	if (!(chip.flags & EE_READONLY)) {
 		at25->bin.write = at25_bin_write;
 		at25->bin.attr.mode |= S_IWUSR;
-		at25->mem.write = at25_mem_write;
 	}
 
 	err = sysfs_create_bin_file(&spi->dev.kobj, &at25->bin);
 	if (err)
 		return err;
-
-	if (chip.setup)
-		chip.setup(&at25->mem, chip.context);
 
 	dev_info(&spi->dev, "%Zd %s %s eeprom%s, pagesize %u\n",
 		(at25->bin.size < 1024)
