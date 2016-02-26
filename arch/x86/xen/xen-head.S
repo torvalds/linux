@@ -38,6 +38,15 @@
 	__INIT
 ENTRY(startup_xen)
 	cld
+
+	/* Clear .bss */
+	xor %eax,%eax
+	mov $__bss_start, %_ASM_DI
+	mov $__bss_stop, %_ASM_CX
+	sub %_ASM_DI, %_ASM_CX
+	shr $__ASM_SEL(2, 3), %_ASM_CX
+	rep __ASM_SIZE(stos)
+
 #ifdef CONFIG_X86_32
 	mov %esi,xen_start_info
 	mov $init_thread_union+THREAD_SIZE,%esp
