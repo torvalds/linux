@@ -407,19 +407,20 @@ static struct config_item_type target_stat_scsi_lu_cit = {
  */
 void target_stat_setup_dev_default_groups(struct se_device *dev)
 {
-	struct config_group *dev_stat_grp = &dev->dev_stat_grps.stat_group;
-
 	config_group_init_type_name(&dev->dev_stat_grps.scsi_dev_group,
 			"scsi_dev", &target_stat_scsi_dev_cit);
+	configfs_add_default_group(&dev->dev_stat_grps.scsi_dev_group,
+			&dev->dev_stat_grps.stat_group);
+
 	config_group_init_type_name(&dev->dev_stat_grps.scsi_tgt_dev_group,
 			"scsi_tgt_dev", &target_stat_scsi_tgt_dev_cit);
+	configfs_add_default_group(&dev->dev_stat_grps.scsi_tgt_dev_group,
+			&dev->dev_stat_grps.stat_group);
+
 	config_group_init_type_name(&dev->dev_stat_grps.scsi_lu_group,
 			"scsi_lu", &target_stat_scsi_lu_cit);
-
-	dev_stat_grp->default_groups[0] = &dev->dev_stat_grps.scsi_dev_group;
-	dev_stat_grp->default_groups[1] = &dev->dev_stat_grps.scsi_tgt_dev_group;
-	dev_stat_grp->default_groups[2] = &dev->dev_stat_grps.scsi_lu_group;
-	dev_stat_grp->default_groups[3] = NULL;
+	configfs_add_default_group(&dev->dev_stat_grps.scsi_lu_group,
+			&dev->dev_stat_grps.stat_group);
 }
 
 /*
@@ -818,19 +819,20 @@ static struct config_item_type target_stat_scsi_transport_cit = {
  */
 void target_stat_setup_port_default_groups(struct se_lun *lun)
 {
-	struct config_group *port_stat_grp = &lun->port_stat_grps.stat_group;
-
 	config_group_init_type_name(&lun->port_stat_grps.scsi_port_group,
 			"scsi_port", &target_stat_scsi_port_cit);
+	configfs_add_default_group(&lun->port_stat_grps.scsi_port_group,
+			&lun->port_stat_grps.stat_group);
+
 	config_group_init_type_name(&lun->port_stat_grps.scsi_tgt_port_group,
 			"scsi_tgt_port", &target_stat_scsi_tgt_port_cit);
+	configfs_add_default_group(&lun->port_stat_grps.scsi_tgt_port_group,
+			&lun->port_stat_grps.stat_group);
+
 	config_group_init_type_name(&lun->port_stat_grps.scsi_transport_group,
 			"scsi_transport", &target_stat_scsi_transport_cit);
-
-	port_stat_grp->default_groups[0] = &lun->port_stat_grps.scsi_port_group;
-	port_stat_grp->default_groups[1] = &lun->port_stat_grps.scsi_tgt_port_group;
-	port_stat_grp->default_groups[2] = &lun->port_stat_grps.scsi_transport_group;
-	port_stat_grp->default_groups[3] = NULL;
+	configfs_add_default_group(&lun->port_stat_grps.scsi_transport_group,
+			&lun->port_stat_grps.stat_group);
 }
 
 /*
@@ -1351,14 +1353,13 @@ static struct config_item_type target_stat_scsi_att_intr_port_cit = {
  */
 void target_stat_setup_mappedlun_default_groups(struct se_lun_acl *lacl)
 {
-	struct config_group *ml_stat_grp = &lacl->ml_stat_grps.stat_group;
-
 	config_group_init_type_name(&lacl->ml_stat_grps.scsi_auth_intr_group,
 			"scsi_auth_intr", &target_stat_scsi_auth_intr_cit);
+	configfs_add_default_group(&lacl->ml_stat_grps.scsi_auth_intr_group,
+			&lacl->ml_stat_grps.stat_group);
+
 	config_group_init_type_name(&lacl->ml_stat_grps.scsi_att_intr_port_group,
 			"scsi_att_intr_port", &target_stat_scsi_att_intr_port_cit);
-
-	ml_stat_grp->default_groups[0] = &lacl->ml_stat_grps.scsi_auth_intr_group;
-	ml_stat_grp->default_groups[1] = &lacl->ml_stat_grps.scsi_att_intr_port_group;
-	ml_stat_grp->default_groups[2] = NULL;
+	configfs_add_default_group(&lacl->ml_stat_grps.scsi_att_intr_port_group,
+			&lacl->ml_stat_grps.stat_group);
 }

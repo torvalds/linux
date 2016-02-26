@@ -96,7 +96,8 @@ struct config_group {
 	struct config_item		cg_item;
 	struct list_head		cg_children;
 	struct configfs_subsystem 	*cg_subsys;
-	struct config_group		**default_groups;
+	struct list_head		default_groups;
+	struct list_head		group_entry;
 };
 
 extern void config_group_init(struct config_group *group);
@@ -122,6 +123,12 @@ static inline void config_group_put(struct config_group *group)
 extern struct config_item *config_group_find_item(struct config_group *,
 						  const char *);
 
+
+static inline void configfs_add_default_group(struct config_group *new_group,
+		struct config_group *group)
+{
+	list_add_tail(&new_group->group_entry, &group->default_groups);
+}
 
 struct configfs_attribute {
 	const char		*ca_name;
@@ -250,6 +257,8 @@ void configfs_unregister_subsystem(struct configfs_subsystem *subsys);
 int configfs_register_group(struct config_group *parent_group,
 			    struct config_group *group);
 void configfs_unregister_group(struct config_group *group);
+
+void configfs_remove_default_groups(struct config_group *group);
 
 struct config_group *
 configfs_register_default_group(struct config_group *parent_group,

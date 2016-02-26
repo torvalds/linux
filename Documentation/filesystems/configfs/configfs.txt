@@ -250,7 +250,8 @@ child item.
 		struct config_item		cg_item;
 		struct list_head		cg_children;
 		struct configfs_subsystem 	*cg_subsys;
-		struct config_group		**default_groups;
+		struct list_head		default_groups;
+		struct list_head		group_entry;
 	};
 
 	void config_group_init(struct config_group *group);
@@ -420,15 +421,15 @@ These automatic subgroups, or default groups, do not preclude other
 children of the parent group.  If ct_group_ops->make_group() exists,
 other child groups can be created on the parent group directly.
 
-A configfs subsystem specifies default groups by filling in the
-NULL-terminated array default_groups on the config_group structure.
-Each group in that array is populated in the configfs tree at the same
+A configfs subsystem specifies default groups by adding them using the
+configfs_add_default_group() function to the parent config_group
+structure.  Each added group is populated in the configfs tree at the same
 time as the parent group.  Similarly, they are removed at the same time
 as the parent.  No extra notification is provided.  When a ->drop_item()
 method call notifies the subsystem the parent group is going away, it
 also means every default group child associated with that parent group.
 
-As a consequence of this, default_groups cannot be removed directly via
+As a consequence of this, default groups cannot be removed directly via
 rmdir(2).  They also are not considered when rmdir(2) on the parent
 group is checking for children.
 
