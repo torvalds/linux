@@ -662,15 +662,4 @@ static inline void orangefs_i_size_write(struct inode *inode, loff_t i_size)
 #endif
 }
 
-static inline unsigned int diff(struct timeval *end, struct timeval *begin)
-{
-	if (end->tv_usec < begin->tv_usec) {
-		end->tv_usec += 1000000;
-		end->tv_sec--;
-	}
-	end->tv_sec -= begin->tv_sec;
-	end->tv_usec -= begin->tv_usec;
-	return (end->tv_sec * 1000000) + end->tv_usec;
-}
-
 #endif /* __ORANGEFSKERNEL_H */
