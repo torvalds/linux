@@ -92,6 +92,7 @@ enum ctype {
 	CT_UNALIGNED_LOAD_STORE_WRITE,
 	CT_OVERWRITE_ALLOCATION,
 	CT_WRITE_AFTER_FREE,
+	CT_READ_AFTER_FREE,
 	CT_SOFTLOCKUP,
 	CT_HARDLOCKUP,
 	CT_SPINLOCKUP,
@@ -129,6 +130,7 @@ static char* cp_type[] = {
 	"UNALIGNED_LOAD_STORE_WRITE",
 	"OVERWRITE_ALLOCATION",
 	"WRITE_AFTER_FREE",
+	"READ_AFTER_FREE",
 	"SOFTLOCKUP",
 	"HARDLOCKUP",
 	"SPINLOCKUP",
@@ -415,6 +417,42 @@ static void lkdtm_do_action(enum ctype which)
 		kfree(data);
 		schedule();
 		memset(data, 0x78, len);
+		break;
+	}
+	case CT_READ_AFTER_FREE: {
+		int *base, *val, saw;
+		size_t len = 1024;
+		/*
+		 * The slub allocator uses the first word to store the free
+		 * pointer in some configurations. Use the middle of the
+		 * allocation to avoid running into the freelist
+		 */
+		size_t offset = (len / sizeof(*base)) / 2;
+
+		base = kmalloc(len, GFP_KERNEL);
+		if (!base)
+			break;
+
+		val = kmalloc(len, GFP_KERNEL);
+		if (!val)
+			break;
+
+		*val = 0x12345678;
+		base[offset] = *val;
+		pr_info("Value in memory before free: %x\n", base[offset]);
+
+		kfree(base);
+
+		pr_info("Attempting bad read from freed memory\n");
+		saw = base[offset];
+		if (saw != *val) {
+			/* Good! Poisoning happened, so declare a win. */
+			pr_info("Memory correctly poisoned, calling BUG\n");
+			BUG();
+		}
+		pr_info("Memory was not poisoned\n");
+
+		kfree(val);
 		break;
 	}
 	case CT_SOFTLOCKUP:
