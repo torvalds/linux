@@ -287,6 +287,10 @@ struct kvmppc_ops {
 	long (*arch_vm_ioctl)(struct file *filp, unsigned int ioctl,
 			      unsigned long arg);
 	int (*hcall_implemented)(unsigned long hcall);
+	int (*irq_bypass_add_producer)(struct irq_bypass_consumer *,
+				       struct irq_bypass_producer *);
+	void (*irq_bypass_del_producer)(struct irq_bypass_consumer *,
+					struct irq_bypass_producer *);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;
