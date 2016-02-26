@@ -573,10 +573,8 @@ static int rfkill_rk_probe(struct platform_device *pdev)
     pdata->type = RFKILL_TYPE_BLUETOOTH;
 
 	rfkill = devm_kzalloc(&pdev->dev, sizeof(*rfkill), GFP_KERNEL);
-	if (!rfkill) {
-        kfree(pdata);
+	if (!rfkill)
 		return -ENOMEM;
-    }
 
 	rfkill->pdata = pdata;
     rfkill->pdev = pdev;
@@ -705,7 +703,6 @@ static int rfkill_rk_remove(struct platform_device *pdev)
     if (gpio_is_valid(rfkill->pdata->poweron_gpio.io))
         gpio_free(rfkill->pdata->poweron_gpio.io);
 
-    kfree(rfkill);
     g_rfkill = NULL;
 
 	return 0;
