@@ -893,6 +893,21 @@ EXPORT_SYMBOL_GPL(kvmppc_xics_hcall);
 
 /* -- Initialisation code etc. -- */
 
+static void xics_debugfs_irqmap(struct seq_file *m,
+				struct kvmppc_passthru_irqmap *pimap)
+{
+	int i;
+
+	if (!pimap)
+		return;
+	seq_printf(m, "========\nPIRQ mappings: %d maps\n===========\n",
+				pimap->n_mapped);
+	for (i = 0; i < pimap->n_mapped; i++)  {
+		seq_printf(m, "r_hwirq=%x, v_hwirq=%x\n",
+			pimap->mapped[i].r_hwirq, pimap->mapped[i].v_hwirq);
+	}
+}
+
 static int xics_debug_show(struct seq_file *m, void *private)
 {
 	struct kvmppc_xics *xics = m->private;
@@ -913,6 +928,8 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	t_rm_reject = 0;
 	t_check_resend = 0;
 	t_reject = 0;
+
+	xics_debugfs_irqmap(m, kvm->arch.pimap);
 
 	seq_printf(m, "=========\nICP state\n=========\n");
 
