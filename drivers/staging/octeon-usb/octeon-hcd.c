@@ -2526,6 +2526,55 @@ static void cvmx_usb_transfer_intr(struct octeon_hcd *usb,
 	}
 }
 
+static void cvmx_usb_transfer_isoc(struct octeon_hcd *usb,
+				   struct cvmx_usb_pipe *pipe,
+				   struct cvmx_usb_transaction *transaction,
+				   int buffer_space_left,
+				   int bytes_in_last_packet,
+				   int bytes_this_transfer)
+{
+	if (cvmx_usb_pipe_needs_split(usb, pipe)) {
+		/*
+		 * ISOCHRONOUS OUT splits don't require a complete split stage.
+		 * Instead they use a sequence of begin OUT splits to transfer
+		 * the data 188 bytes at a time. Once the transfer is complete,
+		 * the pipe sleeps until the next schedule interval.
+		 */
+		if (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT) {
+			/*
+			 * If no space left or this wasn't a max size packet
+			 * then this transfer is complete. Otherwise start it
+			 * again to send the next 188 bytes
+			 */
+			if (!buffer_space_left || (bytes_this_transfer < 188)) {
+				pipe->next_tx_frame += pipe->interval;
+				cvmx_usb_complete(usb, pipe, transaction,
+						  CVMX_USB_STATUS_OK);
+			}
+			return;
+		}
+		if (transaction->stage ==
+		    CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE) {
+			/*
+			 * We are in the incoming data phase. Keep getting data
+			 * until we run out of space or get a small packet
+			 */
+			if ((buffer_space_left == 0) ||
+			    (bytes_in_last_packet < pipe->max_packet)) {
+				pipe->next_tx_frame += pipe->interval;
+				cvmx_usb_complete(usb, pipe, transaction,
+						  CVMX_USB_STATUS_OK);
+			}
+		} else {
+			transaction->stage =
+				CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE;
+		}
+	} else {
+		pipe->next_tx_frame += pipe->interval;
+		cvmx_usb_complete(usb, pipe, transaction, CVMX_USB_STATUS_OK);
+	}
+}
+
 /**
  * Poll a channel for status
  *
@@ -2815,59 +2864,10 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 					       bytes_in_last_packet);
 			break;
 		case CVMX_USB_TRANSFER_ISOCHRONOUS:
-			if (cvmx_usb_pipe_needs_split(usb, pipe)) {
-				/*
-				 * ISOCHRONOUS OUT splits don't require a
-				 * complete split stage. Instead they use a
-				 * sequence of begin OUT splits to transfer the
-				 * data 188 bytes at a time. Once the transfer
-				 * is complete, the pipe sleeps until the next
-				 * schedule interval
-				 */
-				if (pipe->transfer_dir ==
-				    CVMX_USB_DIRECTION_OUT) {
-					/*
-					 * If no space left or this wasn't a max
-					 * size packet then this transfer is
-					 * complete. Otherwise start it again to
-					 * send the next 188 bytes
-					 */
-					if (!buffer_space_left ||
-					    (bytes_this_transfer < 188)) {
-						pipe->next_tx_frame +=
-							pipe->interval;
-						cvmx_usb_complete(usb, pipe,
-								  transaction,
-								  CVMX_USB_STATUS_OK);
-					}
-				} else {
-					if (transaction->stage ==
-					    CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE) {
-						/*
-						 * We are in the incoming data
-						 * phase. Keep getting data
-						 * until we run out of space or
-						 * get a small packet
-						 */
-						if ((buffer_space_left == 0) ||
-						    (bytes_in_last_packet <
-						     pipe->max_packet)) {
-							pipe->next_tx_frame +=
-								pipe->interval;
-							cvmx_usb_complete(usb,
-									  pipe,
-									  transaction,
-									  CVMX_USB_STATUS_OK);
-						}
-					} else
-						transaction->stage =
-							CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE;
-				}
-			} else {
-				pipe->next_tx_frame += pipe->interval;
-				cvmx_usb_complete(usb, pipe, transaction,
-						  CVMX_USB_STATUS_OK);
-			}
+			cvmx_usb_transfer_isoc(usb, pipe, transaction,
+					       buffer_space_left,
+					       bytes_in_last_packet,
+					       bytes_this_transfer);
 			break;
 		}
 	} else if (usbc_hcint.s.nak) {
