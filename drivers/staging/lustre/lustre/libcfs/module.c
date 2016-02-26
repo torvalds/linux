@@ -66,10 +66,6 @@
 #include "../../include/linux/lnet/lnet.h"
 #include "tracefile.h"
 
-MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
-MODULE_DESCRIPTION("Portals v3.1");
-MODULE_LICENSE("GPL");
-
 static struct dentry *lnet_debugfs_root;
 
 /* called when opening /dev/device */
@@ -668,7 +664,10 @@ static void exit_libcfs_module(void)
 		pr_err("LustreError: libcfs_debug_cleanup: %d\n", rc);
 }
 
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
+MODULE_DESCRIPTION("Portals v3.1");
 MODULE_VERSION("1.0.0");
+MODULE_LICENSE("GPL");
 
 module_init(init_libcfs_module);
 module_exit(exit_libcfs_module);
