@@ -124,7 +124,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	} while (ast_read32(ast, 0x10000) != 0x01);
 	data = ast_read32(ast, 0x10004);
 
-	if (data & 0x400)
+	if (data & 0x40)
 		ast->dram_bus_width = 16;
 	else
 		ast->dram_bus_width = 32;
