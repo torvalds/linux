@@ -486,6 +486,74 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 
 static void snapshot_sig_handler(int sig);
 
+static int record__synthesize(struct record *rec)
+{
+	struct perf_session *session = rec->session;
+	struct machine *machine = &session->machines.host;
+	struct perf_data_file *file = &rec->file;
+	struct record_opts *opts = &rec->opts;
+	struct perf_tool *tool = &rec->tool;
+	int fd = perf_data_file__fd(file);
+	int err = 0;
+
+	if (file->is_pipe) {
+		err = perf_event__synthesize_attrs(tool, session,
+						   process_synthesized_event);
+		if (err < 0) {
+			pr_err("Couldn't synthesize attrs.\n");
+			goto out;
+		}
+
+		if (have_tracepoints(&rec->evlist->entries)) {
+			/*
+			 * FIXME err <= 0 here actually means that
+			 * there were no tracepoints so its not really
+			 * an error, just that we don't need to
+			 * synthesize anything.  We really have to
+			 * return this more properly and also
+			 * propagate errors that now are calling die()
+			 */
+			err = perf_event__synthesize_tracing_data(tool,	fd, rec->evlist,
+								  process_synthesized_event);
+			if (err <= 0) {
+				pr_err("Couldn't record tracing data.\n");
+				goto out;
+			}
+			rec->bytes_written += err;
+		}
+	}
+
+	if (rec->opts.full_auxtrace) {
+		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,
+					session, process_synthesized_event);
+		if (err)
+			goto out;
+	}
+
+	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
+						 machine);
+	WARN_ONCE(err < 0, "Couldn't record kernel reference relocation symbol\n"
+			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+			   "Check /proc/kallsyms permission or run as root.\n");
+
+	err = perf_event__synthesize_modules(tool, process_synthesized_event,
+					     machine);
+	WARN_ONCE(err < 0, "Couldn't record kernel module information.\n"
+			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+			   "Check /proc/modules permission or run as root.\n");
+
+	if (perf_guest) {
+		machines__process_guests(&session->machines,
+					 perf_event__synthesize_guest_os, tool);
+	}
+
+	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
+					    process_synthesized_event, opts->sample_address,
+					    opts->proc_map_timeout);
+out:
+	return err;
+}
+
 static int __cmd_record(struct record *rec, int argc, const char **argv)
 {
 	int err;
@@ -580,61 +648,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	machine = &session->machines.host;
 
-	if (file->is_pipe) {
-		err = perf_event__synthesize_attrs(tool, session,
-						   process_synthesized_event);
-		if (err < 0) {
-			pr_err("Couldn't synthesize attrs.\n");
-			goto out_child;
-		}
-
-		if (have_tracepoints(&rec->evlist->entries)) {
-			/*
-			 * FIXME err <= 0 here actually means that
-			 * there were no tracepoints so its not really
-			 * an error, just that we don't need to
-			 * synthesize anything.  We really have to
-			 * return this more properly and also
-			 * propagate errors that now are calling die()
-			 */
-			err = perf_event__synthesize_tracing_data(tool,	fd, rec->evlist,
-								  process_synthesized_event);
-			if (err <= 0) {
-				pr_err("Couldn't record tracing data.\n");
-				goto out_child;
-			}
-			rec->bytes_written += err;
-		}
-	}
-
-	if (rec->opts.full_auxtrace) {
-		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,
-					session, process_synthesized_event);
-		if (err)
-			goto out_delete_session;
-	}
-
-	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
-						 machine);
-	WARN_ONCE(err < 0, "Couldn't record kernel reference relocation symbol\n"
-			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
-			   "Check /proc/kallsyms permission or run as root.\n");
-
-	err = perf_event__synthesize_modules(tool, process_synthesized_event,
-					     machine);
-	WARN_ONCE(err < 0, "Couldn't record kernel module information.\n"
-			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
-			   "Check /proc/modules permission or run as root.\n");
-
-	if (perf_guest) {
-		machines__process_guests(&session->machines,
-					 perf_event__synthesize_guest_os, tool);
-	}
-
-	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
-					    process_synthesized_event, opts->sample_address,
-					    opts->proc_map_timeout);
-	if (err != 0)
+	err = record__synthesize(rec);
+	if (err < 0)
 		goto out_child;
 
 	if (rec->realtime_prio) {
