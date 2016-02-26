@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_dma.h>
@@ -254,6 +255,9 @@ struct xilinx_vdma_device {
 	container_of(chan, struct xilinx_vdma_chan, common)
 #define to_vdma_tx_descriptor(tx) \
 	container_of(tx, struct xilinx_vdma_tx_descriptor, async_tx)
+#define xilinx_vdma_poll_timeout(chan, reg, val, cond, delay_us, timeout_us) \
+	readl_poll_timeout(chan->xdev->regs + chan->ctrl_offset + reg, val, \
+			   cond, delay_us, timeout_us)
 
 /* IO accessors */
 static inline u32 vdma_read(struct xilinx_vdma_chan *chan, u32 reg)
@@ -550,18 +554,17 @@ static bool xilinx_vdma_is_idle(struct xilinx_vdma_chan *chan)
  */
 static void xilinx_vdma_halt(struct xilinx_vdma_chan *chan)
 {
-	int loop = XILINX_VDMA_LOOP_COUNT;
+	int err = 0;
+	u32 val;
 
 	vdma_ctrl_clr(chan, XILINX_VDMA_REG_DMACR, XILINX_VDMA_DMACR_RUNSTOP);
 
 	/* Wait for the hardware to halt */
-	do {
-		if (vdma_ctrl_read(chan, XILINX_VDMA_REG_DMASR) &
-		    XILINX_VDMA_DMASR_HALTED)
-			break;
-	} while (loop--);
+	err = xilinx_vdma_poll_timeout(chan, XILINX_VDMA_REG_DMASR, val,
+				      (val & XILINX_VDMA_DMASR_HALTED), 0,
+				      XILINX_VDMA_LOOP_COUNT);
 
-	if (!loop) {
+	if (err) {
 		dev_err(chan->dev, "Cannot stop channel %p: %x\n",
 			chan, vdma_ctrl_read(chan, XILINX_VDMA_REG_DMASR));
 		chan->err = true;
@@ -576,18 +579,17 @@ static void xilinx_vdma_halt(struct xilinx_vdma_chan *chan)
  */
 static void xilinx_vdma_start(struct xilinx_vdma_chan *chan)
 {
-	int loop = XILINX_VDMA_LOOP_COUNT;
+	int err = 0;
+	u32 val;
 
 	vdma_ctrl_set(chan, XILINX_VDMA_REG_DMACR, XILINX_VDMA_DMACR_RUNSTOP);
 
 	/* Wait for the hardware to start */
-	do {
-		if (!(vdma_ctrl_read(chan, XILINX_VDMA_REG_DMASR) &
-		      XILINX_VDMA_DMASR_HALTED))
-			break;
-	} while (loop--);
+	err = xilinx_vdma_poll_timeout(chan, XILINX_VDMA_REG_DMASR, val,
+				      !(val & XILINX_VDMA_DMASR_HALTED), 0,
+				      XILINX_VDMA_LOOP_COUNT);
 
-	if (!loop) {
+	if (err) {
 		dev_err(chan->dev, "Cannot start channel %p: %x\n",
 			chan, vdma_ctrl_read(chan, XILINX_VDMA_REG_DMASR));
 
@@ -754,21 +756,17 @@ static void xilinx_vdma_complete_descriptor(struct xilinx_vdma_chan *chan)
  */
 static int xilinx_vdma_reset(struct xilinx_vdma_chan *chan)
 {
-	int loop = XILINX_VDMA_LOOP_COUNT;
+	int err = 0;
 	u32 tmp;
 
 	vdma_ctrl_set(chan, XILINX_VDMA_REG_DMACR, XILINX_VDMA_DMACR_RESET);
 
-	tmp = vdma_ctrl_read(chan, XILINX_VDMA_REG_DMACR) &
-		XILINX_VDMA_DMACR_RESET;
-
 	/* Wait for the hardware to finish reset */
-	do {
-		tmp = vdma_ctrl_read(chan, XILINX_VDMA_REG_DMACR) &
-			XILINX_VDMA_DMACR_RESET;
-	} while (loop-- && tmp);
+	err = xilinx_vdma_poll_timeout(chan, XILINX_VDMA_REG_DMACR, tmp,
+				      !(tmp & XILINX_VDMA_DMACR_RESET), 0,
+				      XILINX_VDMA_LOOP_COUNT);
 
-	if (!loop) {
+	if (err) {
 		dev_err(chan->dev, "reset timeout, cr %x, sr %x\n",
 			vdma_ctrl_read(chan, XILINX_VDMA_REG_DMACR),
 			vdma_ctrl_read(chan, XILINX_VDMA_REG_DMASR));
@@ -777,7 +775,7 @@ static int xilinx_vdma_reset(struct xilinx_vdma_chan *chan)
 
 	chan->err = false;
 
-	return 0;
+	return err;
 }
 
 /**
