@@ -688,6 +688,7 @@ static int take_cpu_down(void *_param)
 
 static int takedown_cpu(unsigned int cpu)
 {
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	int err;
 
 	/*
@@ -733,10 +734,8 @@ static int takedown_cpu(unsigned int cpu)
 	 *
 	 * Wait for the stop thread to go away.
 	 */
-	while (!per_cpu(cpu_dead_idle, cpu))
-		cpu_relax();
-	smp_mb(); /* Read from cpu_dead_idle before __cpu_die(). */
-	per_cpu(cpu_dead_idle, cpu) = false;
+	wait_for_completion(&st->done);
+	BUG_ON(st->state != CPUHP_AP_IDLE_DEAD);
 
 	/* Interrupts are moved away from the dying cpu, reenable alloc/free */
 	irq_unlock_sparse();
@@ -754,6 +753,15 @@ static int notify_dead(unsigned int cpu)
 	cpu_notify_nofail(CPU_DEAD, cpu);
 	check_for_tasks(cpu);
 	return 0;
+}
+
+void cpuhp_report_idle_dead(void)
+{
+	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
+
+	BUG_ON(st->state != CPUHP_AP_OFFLINE);
+	st->state = CPUHP_AP_IDLE_DEAD;
+	complete(&st->done);
 }
 
 #else
