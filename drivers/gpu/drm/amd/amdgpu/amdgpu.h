@@ -769,8 +769,9 @@ struct amdgpu_ib {
 	uint32_t			*ptr;
 	struct amdgpu_fence		*fence;
 	struct amdgpu_user_fence        *user;
-	bool				grabbed_vmid;
 	struct amdgpu_vm		*vm;
+	unsigned			vm_id;
+	uint64_t			vm_pd_addr;
 	struct amdgpu_ctx		*ctx;
 	uint32_t			gds_base, gds_size;
 	uint32_t			gws_base, gws_size;
@@ -877,10 +878,10 @@ struct amdgpu_vm_pt {
 };
 
 struct amdgpu_vm_id {
-	unsigned		id;
-	uint64_t		pd_gpu_addr;
+	struct amdgpu_vm_manager_id	*mgr_id;
+	uint64_t			pd_gpu_addr;
 	/* last flushed PD/PT update */
-	struct fence	        *flushed_updates;
+	struct fence			*flushed_updates;
 };
 
 struct amdgpu_vm {
@@ -954,10 +955,11 @@ void amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm, struct list_head *duplicates);
 void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm);
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
-		      struct amdgpu_sync *sync, struct fence *fence);
+		      struct amdgpu_sync *sync, struct fence *fence,
+		      unsigned *vm_id, uint64_t *vm_pd_addr);
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
-		     struct amdgpu_vm *vm,
-		     struct fence *updates);
+		     unsigned vmid,
+		     uint64_t pd_addr);
 uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm);

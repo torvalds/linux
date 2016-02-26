@@ -2043,8 +2043,7 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	else
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw |
-		(ib->vm ? (ib->vm->ids[ring->idx].id << 24) : 0);
+	control |= ib->length_dw | (ib->vm_id << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
@@ -2072,8 +2071,7 @@ static void gfx_v7_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 
 	header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw |
-			   (ib->vm ? (ib->vm->ids[ring->idx].id << 24) : 0);
+	control |= ib->length_dw | (ib->vm_id << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
