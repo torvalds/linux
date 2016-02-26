@@ -443,15 +443,13 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 	brd->PrintDriver.termios = NULL;
 }
 
-/*=======================================================================
- *
+/*
  *	dgnc_wmove - Write data to transmit queue.
  *
  *		ch	- Pointer to channel structure.
  *		buf	- Pointer to characters to be moved.
  *		n	- Number of characters to move.
- *
- *=======================================================================*/
+ */
 static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
 {
 	int	remain;
@@ -489,13 +487,11 @@ static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
 	ch->ch_w_head = head;
 }
 
-/*=======================================================================
- *
+/*
  *      dgnc_input - Process received data.
  *
  *	      ch      - Pointer to channel structure.
- *
- *=======================================================================*/
+ */
 void dgnc_input(struct channel_t *ch)
 {
 	struct dgnc_board *bd;
