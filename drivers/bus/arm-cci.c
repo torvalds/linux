@@ -673,7 +673,7 @@ static int cci550_validate_hw_event(struct cci_pmu *cci_pmu,
  * with the event period and mark them ready before we enable
  * PMU.
  */
-void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
+static void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
 {
 	int i;
 	struct cci_pmu_hw_events *cci_hw = &cci_pmu->hw_events;
@@ -1038,7 +1038,7 @@ static void pmu_read(struct perf_event *event)
 	pmu_event_update(event);
 }
 
-void pmu_event_set_period(struct perf_event *event)
+static void pmu_event_set_period(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	/*
