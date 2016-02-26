@@ -109,12 +109,7 @@ static void ll_invalidatepage(struct page *vmpage, unsigned int offset,
 	}
 }
 
-#ifdef HAVE_RELEASEPAGE_WITH_INT
-#define RELEASEPAGE_ARG_TYPE int
-#else
-#define RELEASEPAGE_ARG_TYPE gfp_t
-#endif
-static int ll_releasepage(struct page *vmpage, RELEASEPAGE_ARG_TYPE gfp_mask)
+static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 {
 	struct cl_env_nest nest;
 	struct lu_env     *env;
