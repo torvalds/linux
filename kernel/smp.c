@@ -569,6 +569,7 @@ void __init smp_init(void)
 	unsigned int cpu;
 
 	idle_threads_init();
+	cpuhp_threads_init();
 
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {

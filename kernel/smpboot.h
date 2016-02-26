@@ -17,4 +17,6 @@ int smpboot_create_threads(unsigned int cpu);
 int smpboot_park_threads(unsigned int cpu);
 int smpboot_unpark_threads(unsigned int cpu);
 
+void __init cpuhp_threads_init(void);
+
 #endif
