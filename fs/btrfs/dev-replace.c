@@ -802,7 +802,7 @@ static int btrfs_dev_replace_kthread(void *data)
 	struct btrfs_ioctl_dev_replace_args *status_args;
 	u64 progress;
 
-	status_args = kzalloc(sizeof(*status_args), GFP_NOFS);
+	status_args = kzalloc(sizeof(*status_args), GFP_KERNEL);
 	if (status_args) {
 		btrfs_dev_replace_status(fs_info, status_args);
 		progress = status_args->status.progress_1000;

@@ -5361,7 +5361,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 		goto out;
 	}
 
-	tmp_buf = kmalloc(left_root->nodesize, GFP_NOFS);
+	tmp_buf = kmalloc(left_root->nodesize, GFP_KERNEL);
 	if (!tmp_buf) {
 		ret = -ENOMEM;
 		goto out;
