@@ -3768,6 +3768,8 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->create_listen = nes_create_listen;
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
 	nesibdev->ibdev.get_port_immutable   = nes_port_immutable;
+	memcpy(nesibdev->ibdev.iwcm->ifname, netdev->name,
+	       sizeof(nesibdev->ibdev.iwcm->ifname));
 
 	return nesibdev;
 }
