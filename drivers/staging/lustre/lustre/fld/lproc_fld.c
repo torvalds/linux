@@ -61,8 +61,7 @@ fld_debugfs_targets_seq_show(struct seq_file *m, void *unused)
 	struct lu_fld_target *target;
 
 	spin_lock(&fld->lcf_lock);
-	list_for_each_entry(target,
-				&fld->lcf_targets, ft_chain)
+	list_for_each_entry(target, &fld->lcf_targets, ft_chain)
 		seq_printf(m, "%s\n", fld_target_name(target));
 	spin_unlock(&fld->lcf_lock);
 

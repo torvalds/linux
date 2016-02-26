@@ -148,7 +148,7 @@ again:
 	}
 
 	CERROR("%s: Can't find target by hash %d (seq %#llx). Targets (%d):\n",
-		fld->lcf_name, hash, seq, fld->lcf_count);
+	       fld->lcf_name, hash, seq, fld->lcf_count);
 
 	list_for_each_entry(target, &fld->lcf_targets, ft_chain) {
 		const char *srv_name = target->ft_srv ?
@@ -217,11 +217,11 @@ int fld_client_add_target(struct lu_client_fld *fld,
 
 	if (fld->lcf_flags != LUSTRE_FLD_INIT) {
 		CERROR("%s: Attempt to add target %s (idx %llu) on fly - skip it\n",
-			fld->lcf_name, name, tar->ft_idx);
+		       fld->lcf_name, name, tar->ft_idx);
 		return 0;
 	}
 	CDEBUG(D_INFO, "%s: Adding target %s (idx %llu)\n",
-			fld->lcf_name, name, tar->ft_idx);
+	       fld->lcf_name, name, tar->ft_idx);
 
 	target = kzalloc(sizeof(*target), GFP_NOFS);
 	if (!target)
@@ -244,8 +244,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 	target->ft_srv = tar->ft_srv;
 	target->ft_idx = tar->ft_idx;
 
-	list_add_tail(&target->ft_chain,
-			  &fld->lcf_targets);
+	list_add_tail(&target->ft_chain, &fld->lcf_targets);
 
 	fld->lcf_count++;
 	spin_unlock(&fld->lcf_lock);
@@ -260,8 +259,7 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 	struct lu_fld_target *target, *tmp;
 
 	spin_lock(&fld->lcf_lock);
-	list_for_each_entry_safe(target, tmp,
-				     &fld->lcf_targets, ft_chain) {
+	list_for_each_entry_safe(target, tmp, &fld->lcf_targets, ft_chain) {
 		if (target->ft_idx == idx) {
 			fld->lcf_count--;
 			list_del(&target->ft_chain);
@@ -376,8 +374,7 @@ void fld_client_fini(struct lu_client_fld *fld)
 	struct lu_fld_target *target, *tmp;
 
 	spin_lock(&fld->lcf_lock);
-	list_for_each_entry_safe(target, tmp,
-				     &fld->lcf_targets, ft_chain) {
+	list_for_each_entry_safe(target, tmp, &fld->lcf_targets, ft_chain) {
 		fld->lcf_count--;
 		list_del(&target->ft_chain);
 		if (target->ft_exp)
@@ -467,7 +464,7 @@ int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 	LASSERT(target);
 
 	CDEBUG(D_INFO, "%s: Lookup fld entry (seq: %#llx) on target %s (idx %llu)\n",
-			fld->lcf_name, seq, fld_target_name(target), target->ft_idx);
+	       fld->lcf_name, seq, fld_target_name(target), target->ft_idx);
 
 	res.lsr_start = seq;
 	fld_range_set_type(&res, flags);

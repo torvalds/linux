@@ -233,7 +233,7 @@ static int fld_cache_shrink(struct fld_cache *cache)
 	}
 
 	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by %d entries\n",
-			cache->fci_name, num);
+	       cache->fci_name, num);
 
 	return 0;
 }
@@ -294,8 +294,8 @@ static void fld_cache_punch_hole(struct fld_cache *cache,
  * handle range overlap in fld cache.
  */
 static void fld_cache_overlap_handle(struct fld_cache *cache,
-				struct fld_cache_entry *f_curr,
-				struct fld_cache_entry *f_new)
+				     struct fld_cache_entry *f_curr,
+				     struct fld_cache_entry *f_new)
 {
 	const struct lu_seq_range *range = &f_new->fce_range;
 	const u64 new_start  = range->lsr_start;
@@ -402,8 +402,8 @@ static int fld_cache_insert_nolock(struct fld_cache *cache,
 	list_for_each_entry_safe(f_curr, n, head, fce_list) {
 		/* add list if next is end of list */
 		if (new_end < f_curr->fce_range.lsr_start ||
-		   (new_end == f_curr->fce_range.lsr_start &&
-		    new_flags != f_curr->fce_range.lsr_flags))
+		    (new_end == f_curr->fce_range.lsr_start &&
+		     new_flags != f_curr->fce_range.lsr_flags))
 			break;
 
 		prev = &f_curr->fce_list;
@@ -460,8 +460,8 @@ struct fld_cache_entry
 	head = &cache->fci_entries_head;
 	list_for_each_entry(flde, head, fce_list) {
 		if (range->lsr_start == flde->fce_range.lsr_start ||
-		   (range->lsr_end == flde->fce_range.lsr_end &&
-		    range->lsr_flags == flde->fce_range.lsr_flags)) {
+		    (range->lsr_end == flde->fce_range.lsr_end &&
+		     range->lsr_flags == flde->fce_range.lsr_flags)) {
 			got = flde;
 			break;
 		}
