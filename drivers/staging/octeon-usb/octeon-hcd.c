@@ -2467,6 +2467,40 @@ static void cvmx_usb_transfer_control(struct octeon_hcd *usb,
 	}
 }
 
+static void cvmx_usb_transfer_bulk(struct octeon_hcd *usb,
+				   struct cvmx_usb_pipe *pipe,
+				   struct cvmx_usb_transaction *transaction,
+				   union cvmx_usbcx_hcintx usbc_hcint,
+				   int buffer_space_left,
+				   int bytes_in_last_packet)
+{
+	/*
+	 * The only time a bulk transfer isn't complete when it finishes with
+	 * an ACK is during a split transaction. For splits we need to continue
+	 * the transfer if more data is needed.
+	 */
+	if (cvmx_usb_pipe_needs_split(usb, pipe)) {
+		if (transaction->stage == CVMX_USB_STAGE_NON_CONTROL)
+			transaction->stage =
+				CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE;
+		else if (buffer_space_left &&
+			 (bytes_in_last_packet == pipe->max_packet))
+			transaction->stage = CVMX_USB_STAGE_NON_CONTROL;
+		else
+			cvmx_usb_complete(usb, pipe, transaction,
+					  CVMX_USB_STATUS_OK);
+	} else {
+		if ((pipe->device_speed == CVMX_USB_SPEED_HIGH) &&
+		    (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT) &&
+		    (usbc_hcint.s.nak))
+			pipe->flags |= CVMX_USB_PIPE_FLAGS_NEED_PING;
+		if (!buffer_space_left ||
+		    (bytes_in_last_packet < pipe->max_packet))
+			cvmx_usb_complete(usb, pipe, transaction,
+					  CVMX_USB_STATUS_OK);
+	}
+}
+
 /**
  * Poll a channel for status
  *
@@ -2746,6 +2780,10 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 						  bytes_in_last_packet);
 			break;
 		case CVMX_USB_TRANSFER_BULK:
+			cvmx_usb_transfer_bulk(usb, pipe, transaction,
+					       usbc_hcint, buffer_space_left,
+					       bytes_in_last_packet);
+			break;
 		case CVMX_USB_TRANSFER_INTERRUPT:
 			/*
 			 * The only time a bulk transfer isn't complete when it
