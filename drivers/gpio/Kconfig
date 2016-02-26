@@ -280,7 +280,7 @@ config GPIO_MM_LANTIQ
 
 config GPIO_MOXART
 	bool "MOXART GPIO support"
-	depends on ARCH_MOXART
+	depends on ARCH_MOXART || COMPILE_TEST
 	select GPIO_GENERIC
 	help
 	  Select this option to enable GPIO driver for
