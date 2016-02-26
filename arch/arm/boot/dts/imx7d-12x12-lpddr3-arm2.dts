@@ -157,8 +157,9 @@
 &ecspi1 {
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 19 0>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_ecspi1_1 &pinctrl_ecspi1_cs_1>;
+	pinctrl-1 = <&pinctrl_ecspi1_1 &pinctrl_ecspi1_cs_1>;
 	status = "disabled";
 
 	spi_flash1: m25p80@0 {
