@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2015 MediaTek Inc.
- * Author: Erin.Lo <erin.lo@mediatek.com>
+ * Copyright (c) 2016 MediaTek Inc.
+ * Author: John Crispin <blogic@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,16 +15,15 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "skeleton64.dtsi"
-#include "mt2701-pinfunc.h"
 
 / {
-	compatible = "mediatek,mt2701";
+	compatible = "mediatek,mt7623";
 	interrupt-parent = <&sysirq>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-method = "mediatek,mt81xx-tz-smp";
+		enable-method = "mediatek,mt6589-smp";
 
 		cpu@0 {
 			device_type = "cpu";
@@ -45,17 +44,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x3>;
-		};
-	};
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		trustzone-bootinfo@80002000 {
-			compatible = "mediatek,trustzone-bootinfo";
-			reg = <0 0x80002000 0 0x1000>;
 		};
 	};
 
@@ -86,32 +74,14 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
-	pio: pinctrl@10005000 {
-		compatible = "mediatek,mt2701-pinctrl";
-		reg = <0 0x1000b000 0 0x1000>;
-		mediatek,pctl-regmap = <&syscfg_pctl_a>;
-		pins-are-numbered;
-		gpio-controller;
-		#gpio-cells = <2>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
-		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
-	syscfg_pctl_a: syscfg@10005000 {
-		compatible = "mediatek,mt2701-pctl-a-syscfg", "syscon";
-		reg = <0 0x10005000 0 0x1000>;
-	};
-
 	watchdog: watchdog@10007000 {
-		compatible = "mediatek,mt2701-wdt",
+		compatible = "mediatek,mt7623-wdt",
 			     "mediatek,mt6589-wdt";
 		reg = <0 0x10007000 0 0x100>;
 	};
 
 	timer: timer@10008000 {
-		compatible = "mediatek,mt2701-timer",
+		compatible = "mediatek,mt7623-timer",
 			     "mediatek,mt6577-timer";
 		reg = <0 0x10008000 0 0x80>;
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_LOW>;
@@ -120,7 +90,7 @@
 	};
 
 	sysirq: interrupt-controller@10200100 {
-		compatible = "mediatek,mt2701-sysirq",
+		compatible = "mediatek,mt7623-sysirq",
 			     "mediatek,mt6577-sysirq";
 		interrupt-controller;
 		#interrupt-cells = <3>;
@@ -140,7 +110,7 @@
 	};
 
 	uart0: serial@11002000 {
-		compatible = "mediatek,mt2701-uart",
+		compatible = "mediatek,mt7623-uart",
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11002000 0 0x400>;
 		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
@@ -149,7 +119,7 @@
 	};
 
 	uart1: serial@11003000 {
-		compatible = "mediatek,mt2701-uart",
+		compatible = "mediatek,mt7623-uart",
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11003000 0 0x400>;
 		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_LOW>;
@@ -158,7 +128,7 @@
 	};
 
 	uart2: serial@11004000 {
-		compatible = "mediatek,mt2701-uart",
+		compatible = "mediatek,mt7623-uart",
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11004000 0 0x400>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_LOW>;
@@ -167,7 +137,7 @@
 	};
 
 	uart3: serial@11005000 {
-		compatible = "mediatek,mt2701-uart",
+		compatible = "mediatek,mt7623-uart",
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11005000 0 0x400>;
 		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_LOW>;
