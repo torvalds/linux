@@ -329,10 +329,74 @@ static int bringup_cpu(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * Hotplug state machine related functions
+ */
+static void undo_cpu_down(unsigned int cpu, struct cpuhp_cpu_state *st,
+			  struct cpuhp_step *steps)
+{
+	for (st->state++; st->state < st->target; st->state++) {
+		struct cpuhp_step *step = steps + st->state;
+
+		if (!step->skip_onerr)
+			cpuhp_invoke_callback(cpu, st->state, step->startup);
+	}
+}
+
+static int cpuhp_down_callbacks(unsigned int cpu, struct cpuhp_cpu_state *st,
+				struct cpuhp_step *steps, enum cpuhp_state target)
+{
+	enum cpuhp_state prev_state = st->state;
+	int ret = 0;
+
+	for (; st->state > target; st->state--) {
+		struct cpuhp_step *step = steps + st->state;
+
+		ret = cpuhp_invoke_callback(cpu, st->state, step->teardown);
+		if (ret) {
+			st->target = prev_state;
+			undo_cpu_down(cpu, st, steps);
+			break;
+		}
+	}
+	return ret;
+}
+
+static void undo_cpu_up(unsigned int cpu, struct cpuhp_cpu_state *st,
+			struct cpuhp_step *steps)
+{
+	for (st->state--; st->state > st->target; st->state--) {
+		struct cpuhp_step *step = steps + st->state;
+
+		if (!step->skip_onerr)
+			cpuhp_invoke_callback(cpu, st->state, step->teardown);
+	}
+}
+
+static int cpuhp_up_callbacks(unsigned int cpu, struct cpuhp_cpu_state *st,
+			      struct cpuhp_step *steps, enum cpuhp_state target)
+{
+	enum cpuhp_state prev_state = st->state;
+	int ret = 0;
+
+	while (st->state < target) {
+		struct cpuhp_step *step;
+
+		st->state++;
+		step = steps + st->state;
+		ret = cpuhp_invoke_callback(cpu, st->state, step->startup);
+		if (ret) {
+			st->target = prev_state;
+			undo_cpu_up(cpu, st, steps);
+			break;
+		}
+	}
+	return ret;
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 EXPORT_SYMBOL(register_cpu_notifier);
 EXPORT_SYMBOL(__register_cpu_notifier);
-
 void unregister_cpu_notifier(struct notifier_block *nb)
 {
 	cpu_maps_update_begin();
@@ -537,15 +601,6 @@ static int notify_dead(unsigned int cpu)
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void undo_cpu_down(unsigned int cpu, struct cpuhp_cpu_state *st)
-{
-	for (st->state++; st->state < st->target; st->state++) {
-		struct cpuhp_step *step = cpuhp_bp_states + st->state;
-
-		if (!step->skip_onerr)
-			cpuhp_invoke_callback(cpu, st->state, step->startup);
-	}
-}
 
 /* Requires cpu_add_remove_lock to be held */
 static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
@@ -567,16 +622,8 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 
 	prev_state = st->state;
 	st->target = target;
-	for (; st->state > st->target; st->state--) {
-		struct cpuhp_step *step = cpuhp_bp_states + st->state;
+	ret = cpuhp_down_callbacks(cpu, st, cpuhp_bp_states, target);
 
-		ret = cpuhp_invoke_callback(cpu, st->state, step->teardown);
-		if (ret) {
-			st->target = prev_state;
-			undo_cpu_down(cpu, st);
-			break;
-		}
-	}
 	hasdied = prev_state != st->state && st->state == CPUHP_OFFLINE;
 
 	cpu_hotplug_done();
@@ -645,22 +692,12 @@ static int cpuhp_set_cpu_active(unsigned int cpu)
 	return 0;
 }
 
-static void undo_cpu_up(unsigned int cpu, struct cpuhp_cpu_state *st)
-{
-	for (st->state--; st->state > st->target; st->state--) {
-		struct cpuhp_step *step = cpuhp_bp_states + st->state;
-
-		if (!step->skip_onerr)
-			cpuhp_invoke_callback(cpu, st->state, step->teardown);
-	}
-}
-
 /* Requires cpu_add_remove_lock to be held */
 static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	struct task_struct *idle;
-	int prev_state, ret = 0;
+	int ret = 0;
 
 	cpu_hotplug_begin();
 
@@ -687,20 +724,8 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 
 	cpuhp_tasks_frozen = tasks_frozen;
 
-	prev_state = st->state;
 	st->target = target;
-	while (st->state < st->target) {
-		struct cpuhp_step *step;
-
-		st->state++;
-		step = cpuhp_bp_states + st->state;
-		ret = cpuhp_invoke_callback(cpu, st->state, step->startup);
-		if (ret) {
-			st->target = prev_state;
-			undo_cpu_up(cpu, st);
-			break;
-		}
-	}
+	ret = cpuhp_up_callbacks(cpu, st, cpuhp_bp_states, target);
 out:
 	cpu_hotplug_done();
 	return ret;
