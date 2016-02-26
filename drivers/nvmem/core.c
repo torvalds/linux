@@ -161,6 +161,53 @@ static const struct attribute_group *nvmem_ro_dev_groups[] = {
 	NULL,
 };
 
+/* default read/write permissions, root only */
+static struct bin_attribute bin_attr_rw_root_nvmem = {
+	.attr	= {
+		.name	= "nvmem",
+		.mode	= S_IWUSR | S_IRUSR,
+	},
+	.read	= bin_attr_nvmem_read,
+	.write	= bin_attr_nvmem_write,
+};
+
+static struct bin_attribute *nvmem_bin_rw_root_attributes[] = {
+	&bin_attr_rw_root_nvmem,
+	NULL,
+};
+
+static const struct attribute_group nvmem_bin_rw_root_group = {
+	.bin_attrs	= nvmem_bin_rw_root_attributes,
+};
+
+static const struct attribute_group *nvmem_rw_root_dev_groups[] = {
+	&nvmem_bin_rw_root_group,
+	NULL,
+};
+
+/* read only permission, root only */
+static struct bin_attribute bin_attr_ro_root_nvmem = {
+	.attr	= {
+		.name	= "nvmem",
+		.mode	= S_IRUSR,
+	},
+	.read	= bin_attr_nvmem_read,
+};
+
+static struct bin_attribute *nvmem_bin_ro_root_attributes[] = {
+	&bin_attr_ro_root_nvmem,
+	NULL,
+};
+
+static const struct attribute_group nvmem_bin_ro_root_group = {
+	.bin_attrs	= nvmem_bin_ro_root_attributes,
+};
+
+static const struct attribute_group *nvmem_ro_root_dev_groups[] = {
+	&nvmem_bin_ro_root_group,
+	NULL,
+};
+
 static void nvmem_release(struct device *dev)
 {
 	struct nvmem_device *nvmem = to_nvmem_device(dev);
@@ -355,8 +402,14 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->read_only = of_property_read_bool(np, "read-only") |
 			   config->read_only;
 
-	nvmem->dev.groups = nvmem->read_only ? nvmem_ro_dev_groups :
-					       nvmem_rw_dev_groups;
+	if (config->root_only)
+		nvmem->dev.groups = nvmem->read_only ?
+			nvmem_ro_root_dev_groups :
+			nvmem_rw_root_dev_groups;
+	else
+		nvmem->dev.groups = nvmem->read_only ?
+			nvmem_ro_dev_groups :
+			nvmem_rw_dev_groups;
 
 	device_initialize(&nvmem->dev);
 

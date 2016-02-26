@@ -23,6 +23,7 @@ struct nvmem_config {
 	const struct nvmem_cell_info	*cells;
 	int			ncells;
 	bool			read_only;
+	bool			root_only;
 };
 
 #if IS_ENABLED(CONFIG_NVMEM)
