@@ -1839,14 +1839,15 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 /**
  * Find a pipe that is ready to be scheduled to hardware.
  * @usb:	 USB device state populated by cvmx_usb_initialize().
- * @list:	 Pipe list to search
+ * @xfer_type:	 Transfer type
  *
  * Returns: Pipe or NULL if none are ready
  */
 static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
 		struct cvmx_usb_state *usb,
-		struct list_head *list)
+		enum cvmx_usb_transfer xfer_type)
 {
+	struct list_head *list = usb->active_pipes + xfer_type;
 	u64 current_frame = usb->frame_number;
 	struct cvmx_usb_pipe *pipe;
 
@@ -1915,17 +1916,17 @@ static void cvmx_usb_schedule(struct cvmx_usb_state *usb, int is_sof)
 			 * beginning of the frame
 			 */
 			pipe = cvmx_usb_find_ready_pipe(usb,
-							usb->active_pipes + CVMX_USB_TRANSFER_ISOCHRONOUS);
+							CVMX_USB_TRANSFER_ISOCHRONOUS);
 			if (likely(!pipe))
 				pipe = cvmx_usb_find_ready_pipe(usb,
-								usb->active_pipes + CVMX_USB_TRANSFER_INTERRUPT);
+								CVMX_USB_TRANSFER_INTERRUPT);
 		}
 		if (likely(!pipe)) {
 			pipe = cvmx_usb_find_ready_pipe(usb,
-							usb->active_pipes + CVMX_USB_TRANSFER_CONTROL);
+							CVMX_USB_TRANSFER_CONTROL);
 			if (likely(!pipe))
 				pipe = cvmx_usb_find_ready_pipe(usb,
-								usb->active_pipes + CVMX_USB_TRANSFER_BULK);
+								CVMX_USB_TRANSFER_BULK);
 		}
 		if (!pipe)
 			break;
