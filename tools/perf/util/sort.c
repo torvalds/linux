@@ -1816,6 +1816,11 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 
 	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
 
+	if (b == NULL) {
+		update_dynamic_len(hde, a);
+		return 0;
+	}
+
 	field = hde->field;
 	if (field->flags & FIELD_IS_DYNAMIC) {
 		unsigned long long dyn;
@@ -1830,9 +1835,6 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 	} else {
 		offset = field->offset;
 		size = field->size;
-
-		update_dynamic_len(hde, a);
-		update_dynamic_len(hde, b);
 	}
 
 	return memcmp(a->raw_data + offset, b->raw_data + offset, size);

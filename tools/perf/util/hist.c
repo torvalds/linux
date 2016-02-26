@@ -1371,6 +1371,10 @@ static void hierarchy_insert_output_entry(struct rb_root *root,
 
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, root);
+
+	/* update column width of dynamic entry */
+	if (perf_hpp__is_dynamic_entry(he->fmt))
+		he->fmt->sort(he->fmt, he, NULL);
 }
 
 static void hists__hierarchy_output_resort(struct hists *hists,
@@ -1440,6 +1444,7 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	struct rb_node **p = &entries->rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
+	struct perf_hpp_fmt *fmt;
 
 	if (use_callchain) {
 		if (callchain_param.mode == CHAIN_GRAPH_REL) {
@@ -1466,6 +1471,12 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, entries);
+
+	perf_hpp_list__for_each_sort_list(&perf_hpp_list, fmt) {
+		if (perf_hpp__is_dynamic_entry(fmt) &&
+		    perf_hpp__defined_dynamic_entry(fmt, he->hists))
+			fmt->sort(fmt, he, NULL);  /* update column width */
+	}
 }
 
 static void output_resort(struct hists *hists, struct ui_progress *prog,
