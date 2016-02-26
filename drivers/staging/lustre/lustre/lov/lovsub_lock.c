@@ -455,7 +455,7 @@ int lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
 	struct lovsub_lock *lsk;
 	int result;
 
-	lsk = kmem_cache_alloc(lovsub_lock_kmem, GFP_NOFS | __GFP_ZERO);
+	lsk = kmem_cache_zalloc(lovsub_lock_kmem, GFP_NOFS);
 	if (lsk) {
 		INIT_LIST_HEAD(&lsk->lss_parents);
 		cl_lock_slice_add(lock, &lsk->lss_cl, obj, &lovsub_lock_ops);

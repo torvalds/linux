@@ -899,7 +899,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	struct lov_object *lov;
 	struct lu_object  *obj;
 
-	lov = kmem_cache_alloc(lov_object_kmem, GFP_NOFS | __GFP_ZERO);
+	lov = kmem_cache_zalloc(lov_object_kmem, GFP_NOFS);
 	if (lov) {
 		obj = lov2lu(lov);
 		lu_object_init(obj, NULL, dev);

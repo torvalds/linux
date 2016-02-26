@@ -143,7 +143,7 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 	struct lovsub_object *los;
 	struct lu_object     *obj;
 
-	los = kmem_cache_alloc(lovsub_object_kmem, GFP_NOFS | __GFP_ZERO);
+	los = kmem_cache_zalloc(lovsub_object_kmem, GFP_NOFS);
 	if (los) {
 		struct cl_object_header *hdr;
 

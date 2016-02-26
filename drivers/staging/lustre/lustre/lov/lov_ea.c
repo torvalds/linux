@@ -100,7 +100,7 @@ struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
 		return NULL;
 
 	for (i = 0; i < stripe_count; i++) {
-		loi = kmem_cache_alloc(lov_oinfo_slab, GFP_NOFS | __GFP_ZERO);
+		loi = kmem_cache_zalloc(lov_oinfo_slab, GFP_NOFS);
 		if (!loi)
 			goto err;
 		lsm->lsm_oinfo[i] = loi;
