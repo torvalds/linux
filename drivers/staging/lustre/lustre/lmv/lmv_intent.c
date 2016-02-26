@@ -271,7 +271,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 	op_data->op_bias &= ~MDS_CROSS_REF;
 
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
-			     flags, reqp, cb_blocking, extra_lock_flags);
+			    flags, reqp, cb_blocking, extra_lock_flags);
 
 	if (rc < 0 || !*reqp)
 		return rc;
