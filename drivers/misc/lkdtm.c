@@ -411,12 +411,21 @@ static void lkdtm_do_action(enum ctype which)
 		break;
 	}
 	case CT_WRITE_AFTER_FREE: {
+		int *base;
 		size_t len = 1024;
-		u32 *data = kmalloc(len, GFP_KERNEL);
+		/*
+		 * The slub allocator uses the first word to store the free
+		 * pointer in some configurations. Use the middle of the
+		 * allocation to avoid running into the freelist
+		 */
+		size_t offset = (len / sizeof(*base)) / 2;
 
-		kfree(data);
-		schedule();
-		memset(data, 0x78, len);
+		base = kmalloc(len, GFP_KERNEL);
+		pr_info("Allocated memory %p-%p\n", base, &base[offset * 2]);
+		kfree(base);
+		pr_info("Attempting bad write to freed memory at %p\n",
+			&base[offset]);
+		base[offset] = 0x0abcdef0;
 		break;
 	}
 	case CT_READ_AFTER_FREE: {
