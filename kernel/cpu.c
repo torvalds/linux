@@ -228,6 +228,43 @@ static int cpu_notify(unsigned long val, unsigned int cpu)
 	return __cpu_notify(val, cpu, -1, NULL);
 }
 
+/* Notifier wrappers for transitioning to state machine */
+static int notify_prepare(unsigned int cpu)
+{
+	int nr_calls = 0;
+	int ret;
+
+	ret = __cpu_notify(CPU_UP_PREPARE, cpu, -1, &nr_calls);
+	if (ret) {
+		nr_calls--;
+		printk(KERN_WARNING "%s: attempt to bring up CPU %u failed\n",
+				__func__, cpu);
+		__cpu_notify(CPU_UP_CANCELED, cpu, nr_calls, NULL);
+	}
+	return ret;
+}
+
+static int notify_online(unsigned int cpu)
+{
+	cpu_notify(CPU_ONLINE, cpu);
+	return 0;
+}
+
+static int bringup_cpu(unsigned int cpu)
+{
+	struct task_struct *idle = idle_thread_get(cpu);
+	int ret;
+
+	/* Arch-specific enabling code. */
+	ret = __cpu_up(cpu, idle);
+	if (ret) {
+		cpu_notify(CPU_UP_CANCELED, cpu);
+		return ret;
+	}
+	BUG_ON(!cpu_online(cpu));
+	return 0;
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 
 static void cpu_notify_nofail(unsigned long val, unsigned int cpu)
@@ -481,7 +518,7 @@ void smpboot_thread_init(void)
 static int _cpu_up(unsigned int cpu, int tasks_frozen)
 {
 	struct task_struct *idle;
-	int ret, nr_calls = 0;
+	int ret;
 
 	cpu_hotplug_begin();
 
@@ -496,33 +533,21 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen)
 		goto out;
 	}
 
+	cpuhp_tasks_frozen = tasks_frozen;
+
 	ret = smpboot_create_threads(cpu);
 	if (ret)
 		goto out;
 
-	cpuhp_tasks_frozen = tasks_frozen;
+	ret = notify_prepare(cpu);
+	if (ret)
+		goto out;
 
-	ret = __cpu_notify(CPU_UP_PREPARE, cpu, -1, &nr_calls);
-	if (ret) {
-		nr_calls--;
-		pr_warn("%s: attempt to bring up CPU %u failed\n",
-			__func__, cpu);
-		goto out_notify;
-	}
+	ret = bringup_cpu(cpu);
+	if (ret)
+		goto out;
 
-	/* Arch-specific enabling code. */
-	ret = __cpu_up(cpu, idle);
-
-	if (ret != 0)
-		goto out_notify;
-	BUG_ON(!cpu_online(cpu));
-
-	/* Now call notifier in preparation. */
-	cpu_notify(CPU_ONLINE, cpu);
-
-out_notify:
-	if (ret != 0)
-		__cpu_notify(CPU_UP_CANCELED, cpu, nr_calls, NULL);
+	notify_online(cpu);
 out:
 	cpu_hotplug_done();
 
