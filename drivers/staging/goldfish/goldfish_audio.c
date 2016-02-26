@@ -344,11 +344,18 @@ static int goldfish_audio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id goldfish_audio_of_match[] = {
+	{ .compatible = "google,goldfish-audio", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, goldfish_audio_of_match);
+
 static struct platform_driver goldfish_audio_driver = {
 	.probe		= goldfish_audio_probe,
 	.remove		= goldfish_audio_remove,
 	.driver = {
-		.name = "goldfish_audio"
+		.name = "goldfish_audio",
+		.of_match_table = goldfish_audio_of_match,
 	}
 };
 
