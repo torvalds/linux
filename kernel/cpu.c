@@ -56,6 +56,7 @@ struct cpuhp_step {
 	bool		skip_onerr;
 };
 
+static DEFINE_MUTEX(cpuhp_state_mutex);
 static struct cpuhp_step cpuhp_bp_states[];
 static struct cpuhp_step cpuhp_ap_states[];
 
@@ -954,6 +955,105 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.teardown		= NULL,
 	},
 };
+
+static bool cpuhp_is_ap_state(enum cpuhp_state state)
+{
+	return (state > CPUHP_AP_OFFLINE && state < CPUHP_AP_ONLINE);
+}
+
+static struct cpuhp_step *cpuhp_get_step(enum cpuhp_state state)
+{
+	struct cpuhp_step *sp;
+
+	sp = cpuhp_is_ap_state(state) ? cpuhp_ap_states : cpuhp_bp_states;
+	return sp + state;
+}
+
+#if defined(CONFIG_SYSFS) && defined(CONFIG_HOTPLUG_CPU)
+static ssize_t show_cpuhp_state(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, dev->id);
+
+	return sprintf(buf, "%d\n", st->state);
+}
+static DEVICE_ATTR(state, 0444, show_cpuhp_state, NULL);
+
+static ssize_t show_cpuhp_target(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, dev->id);
+
+	return sprintf(buf, "%d\n", st->target);
+}
+static DEVICE_ATTR(target, 0444, show_cpuhp_target, NULL);
+
+static struct attribute *cpuhp_cpu_attrs[] = {
+	&dev_attr_state.attr,
+	&dev_attr_target.attr,
+	NULL
+};
+
+static struct attribute_group cpuhp_cpu_attr_group = {
+	.attrs = cpuhp_cpu_attrs,
+	.name = "hotplug",
+	NULL
+};
+
+static ssize_t show_cpuhp_states(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	ssize_t cur, res = 0;
+	int i;
+
+	mutex_lock(&cpuhp_state_mutex);
+	for (i = 0; i <= CPUHP_ONLINE; i++) {
+		struct cpuhp_step *sp = cpuhp_get_step(i);
+
+		if (sp->name) {
+			cur = sprintf(buf, "%3d: %s\n", i, sp->name);
+			buf += cur;
+			res += cur;
+		}
+	}
+	mutex_unlock(&cpuhp_state_mutex);
+	return res;
+}
+static DEVICE_ATTR(states, 0444, show_cpuhp_states, NULL);
+
+static struct attribute *cpuhp_cpu_root_attrs[] = {
+	&dev_attr_states.attr,
+	NULL
+};
+
+static struct attribute_group cpuhp_cpu_root_attr_group = {
+	.attrs = cpuhp_cpu_root_attrs,
+	.name = "hotplug",
+	NULL
+};
+
+static int __init cpuhp_sysfs_init(void)
+{
+	int cpu, ret;
+
+	ret = sysfs_create_group(&cpu_subsys.dev_root->kobj,
+				 &cpuhp_cpu_root_attr_group);
+	if (ret)
+		return ret;
+
+	for_each_possible_cpu(cpu) {
+		struct device *dev = get_cpu_device(cpu);
+
+		if (!dev)
+			continue;
+		ret = sysfs_create_group(&dev->kobj, &cpuhp_cpu_attr_group);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+device_initcall(cpuhp_sysfs_init);
+#endif
 
 /*
  * cpu_bit_bitmap[] is a special, "compressed" data structure that
