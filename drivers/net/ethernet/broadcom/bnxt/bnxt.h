@@ -986,6 +986,7 @@ struct bnxt {
 #define BNXT_VXLAN_DEL_PORT_SP_EVENT	5
 #define BNXT_RESET_TASK_SP_EVENT	6
 #define BNXT_RST_RING_SP_EVENT		7
+#define BNXT_HWRM_PF_UNLOAD_SP_EVENT	8
 
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
