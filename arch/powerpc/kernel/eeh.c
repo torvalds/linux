@@ -268,13 +268,6 @@ static void *eeh_dump_pe_log(void *data, void *flag)
 	struct eeh_dev *edev, *tmp;
 	size_t *plen = flag;
 
-	/* If the PE's config space is blocked, 0xFF's will be
-	 * returned. It's pointless to collect the log in this
-	 * case.
-	 */
-	if (pe->state & EEH_PE_CFG_BLOCKED)
-		return NULL;
-
 	eeh_pe_for_each_dev(pe, edev, tmp)
 		*plen += eeh_dump_dev_log(edev, pci_regs_buf + *plen,
 					  EEH_PCI_REGS_LOG_LEN - *plen);
