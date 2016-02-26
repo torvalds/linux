@@ -76,8 +76,6 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 
 	spin_lock_init(&rdi->lkey_table.lock);
 
-	rdi->lkey_table.max = 1 << lkey_table_size;
-
 	/* ensure generation is at least 4 bits */
 	if (lkey_table_size > RVT_MAX_LKEY_TABLE_BITS) {
 		rvt_pr_warn(rdi, "lkey bits %u too large, reduced to %u\n",
@@ -85,6 +83,7 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 		rdi->dparms.lkey_table_size = RVT_MAX_LKEY_TABLE_BITS;
 		lkey_table_size = rdi->dparms.lkey_table_size;
 	}
+	rdi->lkey_table.max = 1 << lkey_table_size;
 	lk_tab_size = rdi->lkey_table.max * sizeof(*rdi->lkey_table.table);
 	rdi->lkey_table.table = (struct rvt_mregion __rcu **)
 			       vmalloc_node(lk_tab_size, rdi->dparms.node);
