@@ -204,6 +204,8 @@ int hv_init(void)
 	       sizeof(int) * NR_CPUS);
 	memset(hv_context.event_dpc, 0,
 	       sizeof(void *) * NR_CPUS);
+	memset(hv_context.msg_dpc, 0,
+	       sizeof(void *) * NR_CPUS);
 	memset(hv_context.clk_evt, 0,
 	       sizeof(void *) * NR_CPUS);
 
@@ -415,6 +417,13 @@ int hv_synic_alloc(void)
 		}
 		tasklet_init(hv_context.event_dpc[cpu], vmbus_on_event, cpu);
 
+		hv_context.msg_dpc[cpu] = kmalloc(size, GFP_ATOMIC);
+		if (hv_context.msg_dpc[cpu] == NULL) {
+			pr_err("Unable to allocate event dpc\n");
+			goto err;
+		}
+		tasklet_init(hv_context.msg_dpc[cpu], vmbus_on_msg_dpc, cpu);
+
 		hv_context.clk_evt[cpu] = kzalloc(ced_size, GFP_ATOMIC);
 		if (hv_context.clk_evt[cpu] == NULL) {
 			pr_err("Unable to allocate clock event device\n");
@@ -456,6 +465,7 @@ err:
 static void hv_synic_free_cpu(int cpu)
 {
 	kfree(hv_context.event_dpc[cpu]);
+	kfree(hv_context.msg_dpc[cpu]);
 	kfree(hv_context.clk_evt[cpu]);
 	if (hv_context.synic_event_page[cpu])
 		free_page((unsigned long)hv_context.synic_event_page[cpu]);
