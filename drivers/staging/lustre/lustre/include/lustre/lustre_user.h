@@ -552,22 +552,6 @@ enum {
 	RMT_RGETFACL    = 4
 };
 
-#ifdef NEED_QUOTA_DEFS
-#ifndef QIF_BLIMITS
-#define QIF_BLIMITS     1
-#define QIF_SPACE       2
-#define QIF_ILIMITS     4
-#define QIF_INODES      8
-#define QIF_BTIME       16
-#define QIF_ITIME       32
-#define QIF_LIMITS      (QIF_BLIMITS | QIF_ILIMITS)
-#define QIF_USAGE       (QIF_SPACE | QIF_INODES)
-#define QIF_TIMES       (QIF_BTIME | QIF_ITIME)
-#define QIF_ALL	 (QIF_LIMITS | QIF_USAGE | QIF_TIMES)
-#endif
-
-#endif /* !__KERNEL__ */
-
 /* lustre volatile file support
  * file name header: .^L^S^T^R:volatile"
  */
