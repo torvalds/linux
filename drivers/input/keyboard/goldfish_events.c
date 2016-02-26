@@ -178,10 +178,17 @@ static int events_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id goldfish_events_of_match[] = {
+	{ .compatible = "google,goldfish-events-keypad", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, goldfish_events_of_match);
+
 static struct platform_driver events_driver = {
 	.probe	= events_probe,
 	.driver	= {
 		.name	= "goldfish_events",
+		.of_match_table = goldfish_events_of_match,
 	},
 };
 
