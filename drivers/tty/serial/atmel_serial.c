@@ -2761,14 +2761,47 @@ err:
 	return ret;
 }
 
+/*
+ * Even if the driver is not modular, it makes sense to be able to
+ * unbind a device: there can be many bound devices, and there are
+ * situations where dynamic binding and unbinding can be useful.
+ *
+ * For example, a connected device can require a specific firmware update
+ * protocol that needs bitbanging on IO lines, but use the regular serial
+ * port in the normal case.
+ */
+static int atmel_serial_remove(struct platform_device *pdev)
+{
+	struct uart_port *port = platform_get_drvdata(pdev);
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	int ret = 0;
+
+	tasklet_kill(&atmel_port->tasklet);
+
+	device_init_wakeup(&pdev->dev, 0);
+
+	ret = uart_remove_one_port(&atmel_uart, port);
+
+	kfree(atmel_port->rx_ring.buf);
+
+	/* "port" is allocated statically, so we shouldn't free it */
+
+	clear_bit(port->line, atmel_ports_in_use);
+
+	clk_put(atmel_port->clk);
+	atmel_port->clk = NULL;
+
+	return ret;
+}
+
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
+	.remove		= atmel_serial_remove,
 	.suspend	= atmel_serial_suspend,
 	.resume		= atmel_serial_resume,
 	.driver		= {
 		.name			= "atmel_usart",
 		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),
-		.suppress_bind_attrs    = true,
 	},
 };
 
