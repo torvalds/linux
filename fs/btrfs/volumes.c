@@ -2967,7 +2967,7 @@ static int insert_balance_item(struct btrfs_root *root,
 	}
 
 	key.objectid = BTRFS_BALANCE_OBJECTID;
-	key.type = BTRFS_BALANCE_ITEM_KEY;
+	key.type = BTRFS_TEMPORARY_ITEM_KEY;
 	key.offset = 0;
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
@@ -3016,7 +3016,7 @@ static int del_balance_item(struct btrfs_root *root)
 	}
 
 	key.objectid = BTRFS_BALANCE_OBJECTID;
-	key.type = BTRFS_BALANCE_ITEM_KEY;
+	key.type = BTRFS_TEMPORARY_ITEM_KEY;
 	key.offset = 0;
 
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
@@ -3868,7 +3868,7 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 		return -ENOMEM;
 
 	key.objectid = BTRFS_BALANCE_OBJECTID;
-	key.type = BTRFS_BALANCE_ITEM_KEY;
+	key.type = BTRFS_TEMPORARY_ITEM_KEY;
 	key.offset = 0;
 
 	ret = btrfs_search_slot(NULL, fs_info->tree_root, &key, path, 0, 0);
@@ -6706,8 +6706,8 @@ int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 		int item_size;
 		struct btrfs_dev_stats_item *ptr;
 
-		key.objectid = 0;
-		key.type = BTRFS_DEV_STATS_KEY;
+		key.objectid = BTRFS_DEV_STATS_OBJECTID;
+		key.type = BTRFS_PERSISTENT_ITEM_KEY;
 		key.offset = device->devid;
 		ret = btrfs_search_slot(NULL, dev_root, &key, path, 0, 0);
 		if (ret) {
@@ -6754,8 +6754,8 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 	int ret;
 	int i;
 
-	key.objectid = 0;
-	key.type = BTRFS_DEV_STATS_KEY;
+	key.objectid = BTRFS_DEV_STATS_OBJECTID;
+	key.type = BTRFS_PERSISTENT_ITEM_KEY;
 	key.offset = device->devid;
 
 	path = btrfs_alloc_path();
