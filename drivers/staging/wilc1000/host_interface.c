@@ -41,7 +41,6 @@
 #define HOST_IF_MSG_GET_STATISTICS              31
 #define HOST_IF_MSG_SET_MULTICAST_FILTER        32
 #define HOST_IF_MSG_DEL_BA_SESSION              34
-#define HOST_IF_MSG_Q_IDLE                      35
 #define HOST_IF_MSG_DEL_ALL_STA                 36
 #define HOST_IF_MSG_SET_TX_POWER		38
 #define HOST_IF_MSG_GET_TX_POWER		39
@@ -753,12 +752,6 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 ERRORHANDLER:
 	up(&hif_drv->sem_cfg_values);
 	return result;
-}
-
-static void Handle_wait_msg_q_empty(void)
-{
-	wilc_initialized = 0;
-	up(&hif_sema_wait_response);
 }
 
 static s32 Handle_ScanDone(struct wilc_vif *vif,
@@ -2549,10 +2542,6 @@ static int hostIFthread(void *pvArg)
 		}
 
 		switch (msg.id) {
-		case HOST_IF_MSG_Q_IDLE:
-			Handle_wait_msg_q_empty();
-			break;
-
 		case HOST_IF_MSG_SCAN:
 			Handle_Scan(msg.vif, &msg.body.scan_info);
 			break;
