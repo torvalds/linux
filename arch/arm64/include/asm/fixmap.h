@@ -20,6 +20,7 @@
 #include <linux/sizes.h>
 #include <asm/boot.h>
 #include <asm/page.h>
+#include <asm/pgtable-prot.h>
 
 /*
  * Here we define all the compile-time 'special' virtual
