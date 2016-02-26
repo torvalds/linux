@@ -330,11 +330,19 @@ static int goldfish_tty_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id goldfish_tty_of_match[] = {
+	{ .compatible = "google,goldfish-tty", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, goldfish_tty_of_match);
+
 static struct platform_driver goldfish_tty_platform_driver = {
 	.probe = goldfish_tty_probe,
 	.remove = goldfish_tty_remove,
 	.driver = {
-		.name = "goldfish_tty"
+		.name = "goldfish_tty",
+		.of_match_table = goldfish_tty_of_match,
 	}
 };
 
