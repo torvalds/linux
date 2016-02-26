@@ -88,8 +88,16 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	 * This has been the behavior pre-win8. This is not
 	 * perf issue and having all channel messages delivered on CPU 0
 	 * would be ok.
+	 * For post win8 hosts, we support receiving channel messagges on
+	 * all the CPUs. This is needed for kexec to work correctly where
+	 * the CPU attempting to connect may not be CPU 0.
 	 */
-	msg->target_vcpu = 0;
+	if (version >= VERSION_WIN8_1) {
+		msg->target_vcpu = hv_context.vp_index[get_cpu()];
+		put_cpu();
+	} else {
+		msg->target_vcpu = 0;
+	}
 
 	/*
 	 * Add to list before we send the request since we may
