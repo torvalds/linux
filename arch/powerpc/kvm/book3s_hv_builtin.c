@@ -321,6 +321,7 @@ static struct kvmppc_irq_map *get_irqmap(struct kvmppc_passthru_irqmap *pimap,
  * Returns:
  *	0 if no interrupt is pending
  *	1 if an interrupt is pending that needs to be handled by the host
+ *	2 Passthrough that needs completion in the host
  *	-1 if there was a guest wakeup IPI (which has now been cleared)
  *	-2 if there is PCI passthrough external interrupt that was handled
  */

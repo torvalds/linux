@@ -751,7 +751,7 @@ long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
 	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr);
 
 	if (check_too_hard(xics, icp) == H_TOO_HARD)
-		return 1;
+		return 2;
 	else
 		return -2;
 }

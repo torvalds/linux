@@ -469,6 +469,7 @@ static inline struct kvmppc_passthru_irqmap *kvmppc_get_passthru_irqmap(
 extern void kvmppc_alloc_host_rm_ops(void);
 extern void kvmppc_free_host_rm_ops(void);
 extern void kvmppc_free_pimap(struct kvm *kvm);
+extern int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall);
 extern void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu);
 extern int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server);
 extern int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args);
@@ -489,6 +490,8 @@ static inline struct kvmppc_passthru_irqmap *kvmppc_get_passthru_irqmap(
 static inline void kvmppc_alloc_host_rm_ops(void) {};
 static inline void kvmppc_free_host_rm_ops(void) {};
 static inline void kvmppc_free_pimap(struct kvm *kvm) {};
+static inline int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
+	{ return 0; }
 static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 	{ return 0; }
 static inline void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu) { }
