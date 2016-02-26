@@ -75,7 +75,7 @@ retry_servicing:
 
 	/*
 	 * If ORANGEFS_OP_NO_MUTEX was set in flags, we need to avoid
-	 * aquiring the request_mutex because we're servicing a
+	 * acquiring the request_mutex because we're servicing a
 	 * high priority remount operation and the request_mutex is
 	 * already taken.
 	 */
@@ -91,7 +91,8 @@ retry_servicing:
 		if (ret < 0) {
 			op->downcall.status = ret;
 			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "orangefs: service_operation interrupted.\n");
+				     "%s: service_operation interrupted.\n",
+				     __func__);
 			return ret;
 		}
 	}
@@ -127,9 +128,9 @@ retry_servicing:
 		     ret,
 		     op);
 
+	/* got matching downcall; make sure status is in errno format */
 	if (!ret) {
 		spin_unlock(&op->lock);
-		/* got matching downcall; make sure status is in errno format */
 		op->downcall.status =
 		    orangefs_normalize_to_errno(op->downcall.status);
 		ret = op->downcall.status;
@@ -144,8 +145,8 @@ retry_servicing:
 	}
 
 	/*
-	 * remove waiting ops from the request list or
-	 * remove in-progress ops from the in-progress list.
+	 * remove a waiting op from the request list or
+	 * remove an in-progress op from the in-progress list.
 	 */
 	orangefs_clean_up_interrupted_operation(op);
 
@@ -179,6 +180,7 @@ out:
 	return ret;
 }
 
+/* This can get called on an I/O op if it had a bad service_operation. */
 bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
 {
 	u64 tag = op->tag;
@@ -206,23 +208,31 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
 	spin_unlock(&op->lock);
 	spin_unlock(&orangefs_request_list_lock);
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_debug(GOSSIP_WAIT_DEBUG,
 		     "Attempting ORANGEFS operation cancellation of tag %llu\n",
 		     llu(tag));
 	return true;
 }
 
-static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
+/*
+ * Change an op to the "given up" state and remove it from its list.
+ */
+static void
+	orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
 {
 	/*
 	 * handle interrupted cases depending on what state we were in when
-	 * the interruption is detected.  there is a coarse grained lock
-	 * across the operation.
+	 * the interruption is detected.
 	 *
 	 * Called with op->lock held.
 	 */
+
+	/*
+	 * List manipulation code elsewhere will ignore ops that
+	 * have been given up upon.
+	 */
 	op->op_state |= OP_VFS_STATE_GIVEN_UP;
-	/* from that point on it can't be moved by anybody else */
+
 	if (list_empty(&op->list)) {
 		/* caught copying to/from daemon */
 		BUG_ON(op_state_serviced(op));
@@ -259,12 +269,12 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
 }
 
 /*
- * sleeps on waitqueue waiting for matching downcall.
- * if client-core finishes servicing, then we are good to go.
+ * Sleeps on waitqueue waiting for matching downcall.
+ * If client-core finishes servicing, then we are good to go.
  * else if client-core exits, we get woken up here, and retry with a timeout
  *
- * Post when this call returns to the caller, the specified op will no
- * longer be on any list or htable.
+ * When this call returns to the caller, the specified op will no
+ * longer be in either the in_progress hash table or on the request list.
  *
  * Returns 0 on success and -errno on failure
  * Errors are:
@@ -281,6 +291,12 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 {
 	long n;
 
+	/*
+	 * There's a "schedule_timeout" inside of these wait
+	 * primitives, during which the op is out of the hands of the
+	 * user process that needs something done and is being
+	 * manipulated by the client-core process.
+	 */
 	if (interruptible)
 		n = wait_for_completion_interruptible_timeout(&op->waitq,
 							      timeout);

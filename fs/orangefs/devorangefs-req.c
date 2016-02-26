@@ -46,6 +46,10 @@ static void orangefs_devreq_add_op(struct orangefs_kernel_op_s *op)
 	list_add_tail(&op->list, &htable_ops_in_progress[index]);
 }
 
+/*
+ * find the op with this tag and remove it from the in progress
+ * hash table.
+ */
 static struct orangefs_kernel_op_s *orangefs_devreq_remove_op(__u64 tag)
 {
 	struct orangefs_kernel_op_s *op, *next;
@@ -190,8 +194,10 @@ restart:
 		return -EAGAIN;
 	}
 
-	gossip_debug(GOSSIP_DEV_DEBUG, "orangefs: reading op tag %llu %s\n",
-		     llu(cur_op->tag), get_opname_string(cur_op));
+	gossip_debug(GOSSIP_DEV_DEBUG, "%s: reading op tag %llu %s\n",
+		     __func__,
+		     llu(cur_op->tag),
+		     get_opname_string(cur_op));
 
 	/*
 	 * Such an op should never be on the list in the first place. If so, we
@@ -204,6 +210,7 @@ restart:
 		spin_unlock(&orangefs_request_list_lock);
 		return -EAGAIN;
 	}
+
 	list_del_init(&cur_op->list);
 	spin_unlock(&orangefs_request_list_lock);
 
@@ -323,6 +330,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		return -EPROTO;
 	}
 
+	/* remove the op from the in progress hash table */
 	op = orangefs_devreq_remove_op(head.tag);
 	if (!op) {
 		gossip_err("WARNING: No one's waiting for tag %llu\n",
@@ -486,15 +494,7 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 	gossip_debug(GOSSIP_DEV_DEBUG, "ORANGEFS Device Close: Filesystem(s) %s\n",
 		     (unmounted ? "UNMOUNTED" : "MOUNTED"));
 
-	/*
-	 * Walk through the list of ops in the request list, mark them
-	 * as purged and wake them up.
-	 */
 	purge_waiting_ops();
-	/*
-	 * Walk through the hash table of in progress operations; mark
-	 * them as purged and wake them up
-	 */
 	purge_inprogress_ops();
 
 	orangefs_bufmap_run_down();

@@ -119,10 +119,10 @@ static int __init orangefs_init(void)
 	if (gossip_debug_mask != 0)
 		kernel_mask_set_mod_init = true;
 
-	/* print information message to the system log */
-	pr_info("orangefs: orangefs_init called with debug mask: :%s: :%llx:\n",
-	       kernel_debug_string,
-	       (unsigned long long)gossip_debug_mask);
+	pr_info("%s: called with debug mask: :%s: :%llx:\n",
+		__func__,
+		kernel_debug_string,
+		(unsigned long long)gossip_debug_mask);
 
 	ret = bdi_init(&orangefs_backing_dev_info);
 
@@ -147,7 +147,8 @@ static int __init orangefs_init(void)
 	/* Initialize the orangefsdev subsystem. */
 	ret = orangefs_dev_init();
 	if (ret < 0) {
-		gossip_err("orangefs: could not initialize device subsystem %d!\n",
+		gossip_err("%s: could not initialize device subsystem %d!\n",
+			   __func__,
 			   ret);
 		goto cleanup_inode;
 	}
