@@ -58,6 +58,10 @@
 
 #define MLXSW_SP_MID_MAX 7000
 
+#define MLXSW_SP_PORTS_PER_CLUSTER_MAX 4
+
+#define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
+
 struct mlxsw_sp_port;
 
 struct mlxsw_sp_upper {
@@ -151,7 +155,8 @@ struct mlxsw_sp_port {
 	   learning_sync:1,
 	   uc_flood:1,
 	   bridged:1,
-	   lagged:1;
+	   lagged:1,
+	   split:1;
 	u16 pvid;
 	u16 lag_id;
 	struct {
