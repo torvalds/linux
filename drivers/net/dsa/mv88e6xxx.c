@@ -1458,6 +1458,41 @@ loadpurge:
 	return _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_STU_LOAD_PURGE);
 }
 
+static int _mv88e6xxx_fid_new(struct dsa_switch *ds, u16 *fid)
+{
+	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
+	struct mv88e6xxx_vtu_stu_entry vlan;
+	int err;
+
+	bitmap_zero(fid_bitmap, MV88E6XXX_N_FID);
+
+	/* Set every FID bit used by the VLAN entries */
+	err = _mv88e6xxx_vtu_vid_write(ds, GLOBAL_VTU_VID_MASK);
+	if (err)
+		return err;
+
+	do {
+		err = _mv88e6xxx_vtu_getnext(ds, &vlan);
+		if (err)
+			return err;
+
+		if (!vlan.valid)
+			break;
+
+		set_bit(vlan.fid, fid_bitmap);
+	} while (vlan.vid < GLOBAL_VTU_VID_MASK);
+
+	/* The reset value 0x000 is used to indicate that multiple address
+	 * databases are not needed. Return the next positive available.
+	 */
+	*fid = find_next_zero_bit(fid_bitmap, MV88E6XXX_N_FID, 1);
+	if (unlikely(*fid == MV88E6XXX_N_FID))
+		return -ENOSPC;
+
+	/* Clear the database */
+	return _mv88e6xxx_atu_flush(ds, *fid, true);
+}
+
 static int _mv88e6xxx_vtu_new(struct dsa_switch *ds, u16 vid,
 			      struct mv88e6xxx_vtu_stu_entry *entry)
 {
@@ -1465,9 +1500,12 @@ static int _mv88e6xxx_vtu_new(struct dsa_switch *ds, u16 vid,
 	struct mv88e6xxx_vtu_stu_entry vlan = {
 		.valid = true,
 		.vid = vid,
-		.fid = vid, /* We use one FID per VLAN */
 	};
-	int i;
+	int i, err;
+
+	err = _mv88e6xxx_fid_new(ds, &vlan.fid);
+	if (err)
+		return err;
 
 	/* exclude all ports except the CPU and DSA ports */
 	for (i = 0; i < ps->num_ports; ++i)
@@ -1478,7 +1516,6 @@ static int _mv88e6xxx_vtu_new(struct dsa_switch *ds, u16 vid,
 	if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
 	    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds)) {
 		struct mv88e6xxx_vtu_stu_entry vstp;
-		int err;
 
 		/* Adding a VTU entry requires a valid STU entry. As VSTP is not
 		 * implemented, only one STU entry is needed to cover all VTU
@@ -1498,11 +1535,6 @@ static int _mv88e6xxx_vtu_new(struct dsa_switch *ds, u16 vid,
 			if (err)
 				return err;
 		}
-
-		/* Clear all MAC addresses from the new database */
-		err = _mv88e6xxx_atu_flush(ds, vlan.fid, true);
-		if (err)
-			return err;
 	}
 
 	*entry = vlan;
@@ -1789,8 +1821,14 @@ static int _mv88e6xxx_port_fdb_load(struct dsa_switch *ds, int port,
 				    u8 state)
 {
 	struct mv88e6xxx_atu_entry entry = { 0 };
+	struct mv88e6xxx_vtu_stu_entry vlan;
+	int err;
 
-	entry.fid = vid; /* We use one FID per VLAN */
+	err = _mv88e6xxx_vtu_get(ds, vid, &vlan, false);
+	if (err)
+		return err;
+
+	entry.fid = vlan.fid;
 	entry.state = state;
 	ether_addr_copy(entry.mac, addr);
 	if (state != GLOBAL_ATU_DATA_STATE_UNUSED) {

@@ -355,6 +355,8 @@
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
 
+#define MV88E6XXX_N_FID		4096
+
 struct mv88e6xxx_switch_id {
 	u16 id;
 	char *name;
