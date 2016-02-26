@@ -2515,7 +2515,6 @@ struct ptlrpc_service *ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 
 int ptlrpc_start_threads(struct ptlrpc_service *svc);
 int ptlrpc_unregister_service(struct ptlrpc_service *service);
-int liblustre_check_services(void *arg);
 
 int ptlrpc_hr_init(void);
 void ptlrpc_hr_fini(void);
