@@ -709,25 +709,7 @@ static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
 	if (dev->event_handler)
 		dev->event_handler(dev);
 
-	msg->header.message_type = HVMSG_NONE;
-
-	/*
-	 * Make sure the write to MessageType (ie set to
-	 * HVMSG_NONE) happens before we read the
-	 * MessagePending and EOMing. Otherwise, the EOMing
-	 * will not deliver any more messages since there is
-	 * no empty slot
-	 */
-	mb();
-
-	if (msg->header.message_flags.msg_pending) {
-		/*
-		 * This will cause message queue rescan to
-		 * possibly deliver another msg from the
-		 * hypervisor
-		 */
-		wrmsrl(HV_X64_MSR_EOM, 0);
-	}
+	vmbus_signal_eom(msg);
 }
 
 static void vmbus_on_msg_dpc(unsigned long data)
@@ -765,25 +747,7 @@ static void vmbus_on_msg_dpc(unsigned long data)
 		entry->message_handler(hdr);
 
 msg_handled:
-	msg->header.message_type = HVMSG_NONE;
-
-	/*
-	 * Make sure the write to MessageType (ie set to
-	 * HVMSG_NONE) happens before we read the
-	 * MessagePending and EOMing. Otherwise, the EOMing
-	 * will not deliver any more messages since there is
-	 * no empty slot
-	 */
-	mb();
-
-	if (msg->header.message_flags.msg_pending) {
-		/*
-		 * This will cause message queue rescan to
-		 * possibly deliver another msg from the
-		 * hypervisor
-		 */
-		wrmsrl(HV_X64_MSR_EOM, 0);
-	}
+	vmbus_signal_eom(msg);
 }
 
 static void vmbus_isr(void)

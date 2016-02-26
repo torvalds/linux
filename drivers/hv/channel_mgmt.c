@@ -614,15 +614,7 @@ static void vmbus_wait_for_unload(void)
 		if (hdr->msgtype == CHANNELMSG_UNLOAD_RESPONSE)
 			unloaded = true;
 
-		msg->header.message_type = HVMSG_NONE;
-		/*
-		 * header.message_type needs to be written before we do
-		 * wrmsrl() below.
-		 */
-		mb();
-
-		if (msg->header.message_flags.msg_pending)
-			wrmsrl(HV_X64_MSR_EOM, 0);
+		vmbus_signal_eom(msg);
 
 		if (unloaded)
 			break;
