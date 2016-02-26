@@ -659,7 +659,7 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 	struct lu_env *env;
 	struct cl_env *cle;
 
-	cle = kmem_cache_alloc(cl_env_kmem, GFP_NOFS | __GFP_ZERO);
+	cle = kmem_cache_zalloc(cl_env_kmem, GFP_NOFS);
 	if (cle) {
 		int rc;
 
