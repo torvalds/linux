@@ -15,8 +15,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <crypto/hash_info.h>
-
 #include "ima.h"
 #include "ima_template_lib.h"
 
