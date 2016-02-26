@@ -620,8 +620,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 
 		if (i == 0)
 			break;
-		else
-			vmm_table[i] = 0x0;
+		vmm_table[i] = 0x0;
 
 		acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
 		counter = 0;
