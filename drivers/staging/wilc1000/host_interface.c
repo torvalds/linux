@@ -33,7 +33,6 @@
 #define HOST_IF_MSG_REGISTER_FRAME              21
 #define HOST_IF_MSG_LISTEN_TIMER_FIRED          22
 #define HOST_IF_MSG_SET_WFIDRV_HANDLER          24
-#define HOST_IF_MSG_SET_MAC_ADDRESS             25
 #define HOST_IF_MSG_GET_MAC_ADDRESS             26
 #define HOST_IF_MSG_SET_OPERATION_MODE          27
 #define HOST_IF_MSG_SET_IPADDRESS               28
@@ -411,30 +410,6 @@ static s32 handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 	}
 
 	return result;
-}
-
-static void handle_set_mac_address(struct wilc_vif *vif,
-				   struct set_mac_addr *set_mac_addr)
-{
-	int ret = 0;
-	struct wid wid;
-	u8 *mac_buf;
-
-	mac_buf = kmemdup(set_mac_addr->mac_addr, ETH_ALEN, GFP_KERNEL);
-	if (!mac_buf)
-		return;
-
-	wid.id = (u16)WID_MAC_ADDR;
-	wid.type = WID_STR;
-	wid.val = mac_buf;
-	wid.size = ETH_ALEN;
-
-	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-	if (ret)
-		netdev_err(vif->ndev, "Failed to set mac address\n");
-
-	kfree(mac_buf);
 }
 
 static s32 handle_get_mac_address(struct wilc_vif *vif,
@@ -2652,11 +2627,6 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_GET_IPADDRESS:
 			handle_get_ip_address(vif, msg.body.ip_info.idx);
-			break;
-
-		case HOST_IF_MSG_SET_MAC_ADDRESS:
-			handle_set_mac_address(msg.vif,
-					       &msg.body.set_mac_info);
 			break;
 
 		case HOST_IF_MSG_GET_MAC_ADDRESS:
