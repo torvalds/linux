@@ -426,11 +426,10 @@ static inline void lprocfs_stats_unlock(struct lprocfs_stats *stats, int opc,
 
 	case LPROCFS_GET_SMP_ID:
 		if (stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) {
-			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE) {
+			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
 				spin_unlock_irqrestore(&stats->ls_lock, *flags);
-			} else {
+			else
 				spin_unlock(&stats->ls_lock);
-			}
 		} else {
 			put_cpu();
 		}
@@ -438,11 +437,10 @@ static inline void lprocfs_stats_unlock(struct lprocfs_stats *stats, int opc,
 
 	case LPROCFS_GET_NUM_CPU:
 		if (stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) {
-			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE) {
+			if (stats->ls_flags & LPROCFS_STATS_FLAG_IRQ_SAFE)
 				spin_unlock_irqrestore(&stats->ls_lock, *flags);
-			} else {
+			else
 				spin_unlock(&stats->ls_lock);
-			}
 		}
 		return;
 	}
