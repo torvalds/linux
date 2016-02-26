@@ -116,7 +116,7 @@ void *ccc_key_init(const struct lu_context *ctx, struct lu_context_key *key)
 {
 	struct ccc_thread_info *info;
 
-	info = kmem_cache_alloc(ccc_thread_kmem, GFP_NOFS | __GFP_ZERO);
+	info = kmem_cache_zalloc(ccc_thread_kmem, GFP_NOFS);
 	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -135,7 +135,7 @@ void *ccc_session_key_init(const struct lu_context *ctx,
 {
 	struct ccc_session *session;
 
-	session = kmem_cache_alloc(ccc_session_kmem, GFP_NOFS | __GFP_ZERO);
+	session = kmem_cache_zalloc(ccc_session_kmem, GFP_NOFS);
 	if (!session)
 		session = ERR_PTR(-ENOMEM);
 	return session;
@@ -251,7 +251,7 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct ccc_req *vrq;
 	int result;
 
-	vrq = kmem_cache_alloc(ccc_req_kmem, GFP_NOFS | __GFP_ZERO);
+	vrq = kmem_cache_zalloc(ccc_req_kmem, GFP_NOFS);
 	if (vrq) {
 		cl_req_slice_add(req, &vrq->crq_cl, dev, &ccc_req_ops);
 		result = 0;
@@ -327,7 +327,7 @@ struct lu_object *ccc_object_alloc(const struct lu_env *env,
 	struct ccc_object *vob;
 	struct lu_object  *obj;
 
-	vob = kmem_cache_alloc(ccc_object_kmem, GFP_NOFS | __GFP_ZERO);
+	vob = kmem_cache_zalloc(ccc_object_kmem, GFP_NOFS);
 	if (vob) {
 		struct cl_object_header *hdr;
 
@@ -396,7 +396,7 @@ int ccc_lock_init(const struct lu_env *env,
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 
-	clk = kmem_cache_alloc(ccc_lock_kmem, GFP_NOFS | __GFP_ZERO);
+	clk = kmem_cache_zalloc(ccc_lock_kmem, GFP_NOFS);
 	if (clk) {
 		cl_lock_slice_add(lock, &clk->clk_cl, obj, lkops);
 		result = 0;
