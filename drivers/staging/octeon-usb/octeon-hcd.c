@@ -99,35 +99,35 @@ enum cvmx_usb_direction {
 };
 
 /**
- * enum cvmx_usb_complete - possible callback function status codes
+ * enum cvmx_usb_status - possible callback function status codes
  *
- * @CVMX_USB_COMPLETE_SUCCESS:	  The transaction / operation finished without
+ * @CVMX_USB_STATUS_SUCCESS:	  The transaction / operation finished without
  *				  any errors
- * @CVMX_USB_COMPLETE_SHORT:	  FIXME: This is currently not implemented
- * @CVMX_USB_COMPLETE_CANCEL:	  The transaction was canceled while in flight
+ * @CVMX_USB_STATUS_SHORT:	  FIXME: This is currently not implemented
+ * @CVMX_USB_STATUS_CANCEL:	  The transaction was canceled while in flight
  *				  by a user call to cvmx_usb_cancel
- * @CVMX_USB_COMPLETE_ERROR:	  The transaction aborted with an unexpected
+ * @CVMX_USB_STATUS_ERROR:	  The transaction aborted with an unexpected
  *				  error status
- * @CVMX_USB_COMPLETE_STALL:	  The transaction received a USB STALL response
+ * @CVMX_USB_STATUS_STALL:	  The transaction received a USB STALL response
  *				  from the device
- * @CVMX_USB_COMPLETE_XACTERR:	  The transaction failed with an error from the
+ * @CVMX_USB_STATUS_XACTERR:	  The transaction failed with an error from the
  *				  device even after a number of retries
- * @CVMX_USB_COMPLETE_DATATGLERR: The transaction failed with a data toggle
+ * @CVMX_USB_STATUS_DATATGLERR:	  The transaction failed with a data toggle
  *				  error even after a number of retries
- * @CVMX_USB_COMPLETE_BABBLEERR:  The transaction failed with a babble error
- * @CVMX_USB_COMPLETE_FRAMEERR:	  The transaction failed with a frame error
+ * @CVMX_USB_STATUS_BABBLEERR:	  The transaction failed with a babble error
+ * @CVMX_USB_STATUS_FRAMEERR:	  The transaction failed with a frame error
  *				  even after a number of retries
  */
-enum cvmx_usb_complete {
-	CVMX_USB_COMPLETE_SUCCESS,
-	CVMX_USB_COMPLETE_SHORT,
-	CVMX_USB_COMPLETE_CANCEL,
-	CVMX_USB_COMPLETE_ERROR,
-	CVMX_USB_COMPLETE_STALL,
-	CVMX_USB_COMPLETE_XACTERR,
-	CVMX_USB_COMPLETE_DATATGLERR,
-	CVMX_USB_COMPLETE_BABBLEERR,
-	CVMX_USB_COMPLETE_FRAMEERR,
+enum cvmx_usb_status {
+	CVMX_USB_STATUS_SUCCESS,
+	CVMX_USB_STATUS_SHORT,
+	CVMX_USB_STATUS_CANCEL,
+	CVMX_USB_STATUS_ERROR,
+	CVMX_USB_STATUS_STALL,
+	CVMX_USB_STATUS_XACTERR,
+	CVMX_USB_STATUS_DATATGLERR,
+	CVMX_USB_STATUS_BABBLEERR,
+	CVMX_USB_STATUS_FRAMEERR,
 };
 
 /**
@@ -166,7 +166,7 @@ struct cvmx_usb_port_status {
 struct cvmx_usb_iso_packet {
 	int offset;
 	int length;
-	enum cvmx_usb_complete status;
+	enum cvmx_usb_status status;
 };
 
 /**
@@ -1954,7 +1954,7 @@ done:
 }
 
 static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
-					     enum cvmx_usb_complete status,
+					     enum cvmx_usb_status status,
 					     struct cvmx_usb_pipe *pipe,
 					     struct cvmx_usb_transaction
 						*transaction,
@@ -1965,7 +1965,7 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 	struct usb_hcd *hcd = octeon_to_hcd(priv);
 	struct device *dev = hcd->self.controller;
 
-	if (likely(status == CVMX_USB_COMPLETE_SUCCESS))
+	if (likely(status == CVMX_USB_STATUS_SUCCESS))
 		urb->actual_length = bytes_transferred;
 	else
 		urb->actual_length = 0;
@@ -1986,7 +1986,7 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 		/* Recalculate the transfer size by adding up each packet */
 		urb->actual_length = 0;
 		for (i = 0; i < urb->number_of_packets; i++) {
-			if (iso_packet[i].status == CVMX_USB_COMPLETE_SUCCESS) {
+			if (iso_packet[i].status == CVMX_USB_STATUS_SUCCESS) {
 				urb->iso_frame_desc[i].status = 0;
 				urb->iso_frame_desc[i].actual_length =
 					iso_packet[i].length;
@@ -2006,32 +2006,32 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 	}
 
 	switch (status) {
-	case CVMX_USB_COMPLETE_SUCCESS:
+	case CVMX_USB_STATUS_SUCCESS:
 		urb->status = 0;
 		break;
-	case CVMX_USB_COMPLETE_CANCEL:
+	case CVMX_USB_STATUS_CANCEL:
 		if (urb->status == 0)
 			urb->status = -ENOENT;
 		break;
-	case CVMX_USB_COMPLETE_STALL:
+	case CVMX_USB_STATUS_STALL:
 		dev_dbg(dev, "status=stall pipe=%p transaction=%p size=%d\n",
 			pipe, transaction, bytes_transferred);
 		urb->status = -EPIPE;
 		break;
-	case CVMX_USB_COMPLETE_BABBLEERR:
+	case CVMX_USB_STATUS_BABBLEERR:
 		dev_dbg(dev, "status=babble pipe=%p transaction=%p size=%d\n",
 			pipe, transaction, bytes_transferred);
 		urb->status = -EPIPE;
 		break;
-	case CVMX_USB_COMPLETE_SHORT:
+	case CVMX_USB_STATUS_SHORT:
 		dev_dbg(dev, "status=short pipe=%p transaction=%p size=%d\n",
 			pipe, transaction, bytes_transferred);
 		urb->status = -EREMOTEIO;
 		break;
-	case CVMX_USB_COMPLETE_ERROR:
-	case CVMX_USB_COMPLETE_XACTERR:
-	case CVMX_USB_COMPLETE_DATATGLERR:
-	case CVMX_USB_COMPLETE_FRAMEERR:
+	case CVMX_USB_STATUS_ERROR:
+	case CVMX_USB_STATUS_XACTERR:
+	case CVMX_USB_STATUS_DATATGLERR:
+	case CVMX_USB_STATUS_FRAMEERR:
 		dev_dbg(dev, "status=%d pipe=%p transaction=%p size=%d\n",
 			status, pipe, transaction, bytes_transferred);
 		urb->status = -EPROTO;
@@ -2057,7 +2057,7 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 static void cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 				      struct cvmx_usb_pipe *pipe,
 				      struct cvmx_usb_transaction *transaction,
-				      enum cvmx_usb_complete complete_code)
+				      enum cvmx_usb_status complete_code)
 {
 	/* If this was a split then clear our split in progress marker */
 	if (usb->active_split == transaction)
@@ -2077,7 +2077,7 @@ static void cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 		 * next one
 		 */
 		if ((transaction->iso_number_packets > 1) &&
-		    (complete_code == CVMX_USB_COMPLETE_SUCCESS)) {
+		    (complete_code == CVMX_USB_STATUS_SUCCESS)) {
 			/* No bytes transferred for this packet as of yet */
 			transaction->actual_bytes = 0;
 			/* One less ISO waiting to transfer */
@@ -2326,7 +2326,7 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 		}
 	}
 	cvmx_usb_perform_complete(usb, pipe, transaction,
-				  CVMX_USB_COMPLETE_CANCEL);
+				  CVMX_USB_STATUS_CANCEL);
 	return 0;
 }
 
@@ -2588,7 +2588,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 		 * such case we just need to fail every transaction.
 		 */
 		cvmx_usb_perform_complete(usb, pipe, transaction,
-					  CVMX_USB_COMPLETE_ERROR);
+					  CVMX_USB_STATUS_ERROR);
 		return 0;
 	}
 
@@ -2601,7 +2601,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 		 */
 		pipe->pid_toggle = 0;
 		cvmx_usb_perform_complete(usb, pipe, transaction,
-					  CVMX_USB_COMPLETE_STALL);
+					  CVMX_USB_STATUS_STALL);
 	} else if (usbc_hcint.s.xacterr) {
 		/*
 		 * XactErr as a response means the device signaled
@@ -2609,15 +2609,15 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 		 * toggle errors cause these.
 		 */
 		cvmx_usb_perform_complete(usb, pipe, transaction,
-					  CVMX_USB_COMPLETE_XACTERR);
+					  CVMX_USB_STATUS_XACTERR);
 	} else if (usbc_hcint.s.bblerr) {
 		/* Babble Error (BblErr) */
 		cvmx_usb_perform_complete(usb, pipe, transaction,
-					  CVMX_USB_COMPLETE_BABBLEERR);
+					  CVMX_USB_STATUS_BABBLEERR);
 	} else if (usbc_hcint.s.datatglerr) {
 		/* Data toggle error */
 		cvmx_usb_perform_complete(usb, pipe, transaction,
-					  CVMX_USB_COMPLETE_DATATGLERR);
+					  CVMX_USB_STATUS_DATATGLERR);
 	} else if (usbc_hcint.s.nyet) {
 		/*
 		 * NYET as a response is only allowed in three cases: as a
@@ -2635,7 +2635,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 			    (bytes_in_last_packet < pipe->max_packet))
 				cvmx_usb_perform_complete(usb, pipe,
 							  transaction,
-							  CVMX_USB_COMPLETE_SUCCESS);
+							  CVMX_USB_STATUS_SUCCESS);
 		} else {
 			/*
 			 * Split transactions retry the split complete 4 times
@@ -2675,7 +2675,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 				/* This should be impossible */
 				cvmx_usb_perform_complete(usb, pipe,
 							  transaction,
-							  CVMX_USB_COMPLETE_ERROR);
+							  CVMX_USB_STATUS_ERROR);
 				break;
 			case CVMX_USB_STAGE_SETUP:
 				pipe->pid_toggle = 1;
@@ -2749,12 +2749,12 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 				else
 					cvmx_usb_perform_complete(usb, pipe,
 								  transaction,
-								  CVMX_USB_COMPLETE_SUCCESS);
+								  CVMX_USB_STATUS_SUCCESS);
 				break;
 			case CVMX_USB_STAGE_STATUS_SPLIT_COMPLETE:
 				cvmx_usb_perform_complete(usb, pipe,
 							  transaction,
-							  CVMX_USB_COMPLETE_SUCCESS);
+							  CVMX_USB_STATUS_SUCCESS);
 				break;
 			}
 			break;
@@ -2784,7 +2784,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 					cvmx_usb_perform_complete(usb,
 								  pipe,
 								  transaction,
-								  CVMX_USB_COMPLETE_SUCCESS);
+								  CVMX_USB_STATUS_SUCCESS);
 				}
 			} else {
 				if ((pipe->device_speed ==
@@ -2804,7 +2804,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 							pipe->interval;
 					cvmx_usb_perform_complete(usb, pipe,
 								  transaction,
-								  CVMX_USB_COMPLETE_SUCCESS);
+								  CVMX_USB_STATUS_SUCCESS);
 				}
 			}
 			break;
@@ -2832,7 +2832,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 							pipe->interval;
 						cvmx_usb_perform_complete(usb,
 									  pipe, transaction,
-									  CVMX_USB_COMPLETE_SUCCESS);
+									  CVMX_USB_STATUS_SUCCESS);
 					}
 				} else {
 					if (transaction->stage ==
@@ -2851,7 +2851,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 							cvmx_usb_perform_complete(usb,
 										  pipe,
 										  transaction,
-										  CVMX_USB_COMPLETE_SUCCESS);
+										  CVMX_USB_STATUS_SUCCESS);
 						}
 					} else
 						transaction->stage =
@@ -2861,7 +2861,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 				pipe->next_tx_frame += pipe->interval;
 				cvmx_usb_perform_complete(usb, pipe,
 							  transaction,
-							  CVMX_USB_COMPLETE_SUCCESS);
+							  CVMX_USB_STATUS_SUCCESS);
 			}
 			break;
 		}
@@ -2898,7 +2898,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 			 * sets when the cable is unplugged
 			 */
 			cvmx_usb_perform_complete(usb, pipe, transaction,
-						  CVMX_USB_COMPLETE_ERROR);
+						  CVMX_USB_STATUS_ERROR);
 		}
 	}
 	return 0;
@@ -3178,8 +3178,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 					urb->iso_frame_desc[i].offset;
 				iso_packet[i].length =
 					urb->iso_frame_desc[i].length;
-				iso_packet[i].status =
-					CVMX_USB_COMPLETE_ERROR;
+				iso_packet[i].status = CVMX_USB_STATUS_ERROR;
 			}
 			/*
 			 * Store a pointer to the list in the URB setup_packet
