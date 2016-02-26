@@ -973,6 +973,14 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	},
 };
 
+/* Sanity check for callbacks */
+static int cpuhp_cb_check(enum cpuhp_state state)
+{
+	if (state <= CPUHP_OFFLINE || state >= CPUHP_ONLINE)
+		return -EINVAL;
+	return 0;
+}
+
 static bool cpuhp_is_ap_state(enum cpuhp_state state)
 {
 	return (state > CPUHP_AP_OFFLINE && state < CPUHP_AP_ONLINE);
@@ -985,6 +993,222 @@ static struct cpuhp_step *cpuhp_get_step(enum cpuhp_state state)
 	sp = cpuhp_is_ap_state(state) ? cpuhp_ap_states : cpuhp_bp_states;
 	return sp + state;
 }
+
+static void cpuhp_store_callbacks(enum cpuhp_state state,
+				  const char *name,
+				  int (*startup)(unsigned int cpu),
+				  int (*teardown)(unsigned int cpu))
+{
+	/* (Un)Install the callbacks for further cpu hotplug operations */
+	struct cpuhp_step *sp;
+
+	mutex_lock(&cpuhp_state_mutex);
+	sp = cpuhp_get_step(state);
+	sp->startup = startup;
+	sp->teardown = teardown;
+	sp->name = name;
+	mutex_unlock(&cpuhp_state_mutex);
+}
+
+static void *cpuhp_get_teardown_cb(enum cpuhp_state state)
+{
+	return cpuhp_get_step(state)->teardown;
+}
+
+/* Helper function to run callback on the target cpu */
+static void cpuhp_on_cpu_cb(void *__cb)
+{
+	int (*cb)(unsigned int cpu) = __cb;
+
+	BUG_ON(cb(smp_processor_id()));
+}
+
+/*
+ * Call the startup/teardown function for a step either on the AP or
+ * on the current CPU.
+ */
+static int cpuhp_issue_call(int cpu, enum cpuhp_state state,
+			    int (*cb)(unsigned int), bool bringup)
+{
+	int ret;
+
+	if (!cb)
+		return 0;
+
+	/*
+	 * This invokes the callback directly for now. In a later step we
+	 * convert that to use cpuhp_invoke_callback().
+	 */
+	if (cpuhp_is_ap_state(state)) {
+		/*
+		 * Note, that a function called on the AP is not
+		 * allowed to fail.
+		 */
+		if (cpu_online(cpu))
+			smp_call_function_single(cpu, cpuhp_on_cpu_cb, cb, 1);
+		return 0;
+	}
+
+	/*
+	 * The non AP bound callbacks can fail on bringup. On teardown
+	 * e.g. module removal we crash for now.
+	 */
+	ret = cb(cpu);
+	BUG_ON(ret && !bringup);
+	return ret;
+}
+
+/*
+ * Called from __cpuhp_setup_state on a recoverable failure.
+ *
+ * Note: The teardown callbacks for rollback are not allowed to fail!
+ */
+static void cpuhp_rollback_install(int failedcpu, enum cpuhp_state state,
+				   int (*teardown)(unsigned int cpu))
+{
+	int cpu;
+
+	if (!teardown)
+		return;
+
+	/* Roll back the already executed steps on the other cpus */
+	for_each_present_cpu(cpu) {
+		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+		int cpustate = st->state;
+
+		if (cpu >= failedcpu)
+			break;
+
+		/* Did we invoke the startup call on that cpu ? */
+		if (cpustate >= state)
+			cpuhp_issue_call(cpu, state, teardown, false);
+	}
+}
+
+/*
+ * Returns a free for dynamic slot assignment of the Online state. The states
+ * are protected by the cpuhp_slot_states mutex and an empty slot is identified
+ * by having no name assigned.
+ */
+static int cpuhp_reserve_state(enum cpuhp_state state)
+{
+	enum cpuhp_state i;
+
+	mutex_lock(&cpuhp_state_mutex);
+	for (i = CPUHP_ONLINE_DYN; i <= CPUHP_ONLINE_DYN_END; i++) {
+		if (cpuhp_bp_states[i].name)
+			continue;
+
+		cpuhp_bp_states[i].name = "Reserved";
+		mutex_unlock(&cpuhp_state_mutex);
+		return i;
+	}
+	mutex_unlock(&cpuhp_state_mutex);
+	WARN(1, "No more dynamic states available for CPU hotplug\n");
+	return -ENOSPC;
+}
+
+/**
+ * __cpuhp_setup_state - Setup the callbacks for an hotplug machine state
+ * @state:	The state to setup
+ * @invoke:	If true, the startup function is invoked for cpus where
+ *		cpu state >= @state
+ * @startup:	startup callback function
+ * @teardown:	teardown callback function
+ *
+ * Returns 0 if successful, otherwise a proper error code
+ */
+int __cpuhp_setup_state(enum cpuhp_state state,
+			const char *name, bool invoke,
+			int (*startup)(unsigned int cpu),
+			int (*teardown)(unsigned int cpu))
+{
+	int cpu, ret = 0;
+	int dyn_state = 0;
+
+	if (cpuhp_cb_check(state) || !name)
+		return -EINVAL;
+
+	get_online_cpus();
+
+	/* currently assignments for the ONLINE state are possible */
+	if (state == CPUHP_ONLINE_DYN) {
+		dyn_state = 1;
+		ret = cpuhp_reserve_state(state);
+		if (ret < 0)
+			goto out;
+		state = ret;
+	}
+
+	cpuhp_store_callbacks(state, name, startup, teardown);
+
+	if (!invoke || !startup)
+		goto out;
+
+	/*
+	 * Try to call the startup callback for each present cpu
+	 * depending on the hotplug state of the cpu.
+	 */
+	for_each_present_cpu(cpu) {
+		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+		int cpustate = st->state;
+
+		if (cpustate < state)
+			continue;
+
+		ret = cpuhp_issue_call(cpu, state, startup, true);
+		if (ret) {
+			cpuhp_rollback_install(cpu, state, teardown);
+			cpuhp_store_callbacks(state, NULL, NULL, NULL);
+			goto out;
+		}
+	}
+out:
+	put_online_cpus();
+	if (!ret && dyn_state)
+		return state;
+	return ret;
+}
+EXPORT_SYMBOL(__cpuhp_setup_state);
+
+/**
+ * __cpuhp_remove_state - Remove the callbacks for an hotplug machine state
+ * @state:	The state to remove
+ * @invoke:	If true, the teardown function is invoked for cpus where
+ *		cpu state >= @state
+ *
+ * The teardown callback is currently not allowed to fail. Think
+ * about module removal!
+ */
+void __cpuhp_remove_state(enum cpuhp_state state, bool invoke)
+{
+	int (*teardown)(unsigned int cpu) = cpuhp_get_teardown_cb(state);
+	int cpu;
+
+	BUG_ON(cpuhp_cb_check(state));
+
+	get_online_cpus();
+
+	if (!invoke || !teardown)
+		goto remove;
+
+	/*
+	 * Call the teardown callback for each present cpu depending
+	 * on the hotplug state of the cpu. This function is not
+	 * allowed to fail currently!
+	 */
+	for_each_present_cpu(cpu) {
+		struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+		int cpustate = st->state;
+
+		if (cpustate >= state)
+			cpuhp_issue_call(cpu, state, teardown, false);
+	}
+remove:
+	cpuhp_store_callbacks(state, NULL, NULL, NULL);
+	put_online_cpus();
+}
+EXPORT_SYMBOL(__cpuhp_remove_state);
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_HOTPLUG_CPU)
 static ssize_t show_cpuhp_state(struct device *dev,
