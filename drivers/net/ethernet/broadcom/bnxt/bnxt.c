@@ -3805,7 +3805,7 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 			    resp->hwrm_intf_upd);
 		netdev_warn(bp->dev, "Please update firmware with HWRM interface 1.0.0 or newer.\n");
 	}
-	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "bc %d.%d.%d rm %d.%d.%d",
+	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "%d.%d.%d/%d.%d.%d",
 		 resp->hwrm_fw_maj, resp->hwrm_fw_min, resp->hwrm_fw_bld,
 		 resp->hwrm_intf_maj, resp->hwrm_intf_min, resp->hwrm_intf_upd);
 
@@ -5725,7 +5725,6 @@ static int bnxt_probe_phy(struct bnxt *bp)
 {
 	int rc = 0;
 	struct bnxt_link_info *link_info = &bp->link_info;
-	char phy_ver[PHY_VER_STR_LEN];
 
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
@@ -5745,11 +5744,6 @@ static int bnxt_probe_phy(struct bnxt *bp)
 		link_info->req_duplex = link_info->duplex_setting;
 		link_info->req_flow_ctrl = link_info->force_pause_setting;
 	}
-	snprintf(phy_ver, PHY_VER_STR_LEN, " ph %d.%d.%d",
-		 link_info->phy_ver[0],
-		 link_info->phy_ver[1],
-		 link_info->phy_ver[2]);
-	strcat(bp->fw_ver_str, phy_ver);
 	return rc;
 }
 
