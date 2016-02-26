@@ -1082,36 +1082,20 @@ static ssize_t show_port_type(struct device *dev,
 	return strlen(buf);
 }
 
-static ssize_t set_port_type(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
+static int __set_port_type(struct mlx4_port_info *info,
+			   enum mlx4_port_type port_type)
 {
-	struct mlx4_port_info *info = container_of(attr, struct mlx4_port_info,
-						   port_attr);
 	struct mlx4_dev *mdev = info->dev;
 	struct mlx4_priv *priv = mlx4_priv(mdev);
 	enum mlx4_port_type types[MLX4_MAX_PORTS];
 	enum mlx4_port_type new_types[MLX4_MAX_PORTS];
-	static DEFINE_MUTEX(set_port_type_mutex);
 	int i;
 	int err = 0;
 
-	mutex_lock(&set_port_type_mutex);
-
-	if (!strcmp(buf, "ib\n"))
-		info->tmp_type = MLX4_PORT_TYPE_IB;
-	else if (!strcmp(buf, "eth\n"))
-		info->tmp_type = MLX4_PORT_TYPE_ETH;
-	else if (!strcmp(buf, "auto\n"))
-		info->tmp_type = MLX4_PORT_TYPE_AUTO;
-	else {
-		mlx4_err(mdev, "%s is not supported port type\n", buf);
-		err = -EINVAL;
-		goto err_out;
-	}
-
 	mlx4_stop_sense(mdev);
 	mutex_lock(&priv->port_mutex);
+	info->tmp_type = port_type;
+
 	/* Possible type is always the one that was delivered */
 	mdev->caps.possible_type[info->port] = info->tmp_type;
 
@@ -1153,6 +1137,37 @@ static ssize_t set_port_type(struct device *dev,
 out:
 	mlx4_start_sense(mdev);
 	mutex_unlock(&priv->port_mutex);
+
+	return err;
+}
+
+static ssize_t set_port_type(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct mlx4_port_info *info = container_of(attr, struct mlx4_port_info,
+						   port_attr);
+	struct mlx4_dev *mdev = info->dev;
+	enum mlx4_port_type port_type;
+	static DEFINE_MUTEX(set_port_type_mutex);
+	int err;
+
+	mutex_lock(&set_port_type_mutex);
+
+	if (!strcmp(buf, "ib\n")) {
+		port_type = MLX4_PORT_TYPE_IB;
+	} else if (!strcmp(buf, "eth\n")) {
+		port_type = MLX4_PORT_TYPE_ETH;
+	} else if (!strcmp(buf, "auto\n")) {
+		port_type = MLX4_PORT_TYPE_AUTO;
+	} else {
+		mlx4_err(mdev, "%s is not supported port type\n", buf);
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	err = __set_port_type(info, port_type);
+
 err_out:
 	mutex_unlock(&set_port_type_mutex);
 
@@ -3685,6 +3700,35 @@ err_disable_pdev:
 	return err;
 }
 
+static int mlx4_devlink_port_type_set(struct devlink_port *devlink_port,
+				      enum devlink_port_type port_type)
+{
+	struct mlx4_port_info *info = container_of(devlink_port,
+						   struct mlx4_port_info,
+						   devlink_port);
+	enum mlx4_port_type mlx4_port_type;
+
+	switch (port_type) {
+	case DEVLINK_PORT_TYPE_AUTO:
+		mlx4_port_type = MLX4_PORT_TYPE_AUTO;
+		break;
+	case DEVLINK_PORT_TYPE_ETH:
+		mlx4_port_type = MLX4_PORT_TYPE_ETH;
+		break;
+	case DEVLINK_PORT_TYPE_IB:
+		mlx4_port_type = MLX4_PORT_TYPE_IB;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return __set_port_type(info, mlx4_port_type);
+}
+
+static const struct devlink_ops mlx4_devlink_ops = {
+	.port_type_set	= mlx4_devlink_port_type_set,
+};
+
 static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct devlink *devlink;
@@ -3694,7 +3738,7 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	printk_once(KERN_INFO "%s", mlx4_version);
 
-	devlink = devlink_alloc(NULL, sizeof(*priv));
+	devlink = devlink_alloc(&mlx4_devlink_ops, sizeof(*priv));
 	if (!devlink)
 		return -ENOMEM;
 	priv = devlink_priv(devlink);
