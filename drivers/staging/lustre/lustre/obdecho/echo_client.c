@@ -392,7 +392,7 @@ static int echo_lock_init(const struct lu_env *env,
 {
 	struct echo_lock *el;
 
-	el = kmem_cache_alloc(echo_lock_kmem, GFP_NOFS | __GFP_ZERO);
+	el = kmem_cache_zalloc(echo_lock_kmem, GFP_NOFS);
 	if (el) {
 		cl_lock_slice_add(lock, &el->el_cl, obj, &echo_lock_ops);
 		el->el_object = cl2echo_obj(obj);
@@ -562,7 +562,7 @@ static struct lu_object *echo_object_alloc(const struct lu_env *env,
 
 	/* we're the top dev. */
 	LASSERT(!hdr);
-	eco = kmem_cache_alloc(echo_object_kmem, GFP_NOFS | __GFP_ZERO);
+	eco = kmem_cache_zalloc(echo_object_kmem, GFP_NOFS);
 	if (eco) {
 		struct cl_object_header *hdr = &eco->eo_hdr;
 
@@ -625,7 +625,7 @@ static void *echo_thread_key_init(const struct lu_context *ctx,
 {
 	struct echo_thread_info *info;
 
-	info = kmem_cache_alloc(echo_thread_kmem, GFP_NOFS | __GFP_ZERO);
+	info = kmem_cache_zalloc(echo_thread_kmem, GFP_NOFS);
 	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -656,7 +656,7 @@ static void *echo_session_key_init(const struct lu_context *ctx,
 {
 	struct echo_session_info *session;
 
-	session = kmem_cache_alloc(echo_session_kmem, GFP_NOFS | __GFP_ZERO);
+	session = kmem_cache_zalloc(echo_session_kmem, GFP_NOFS);
 	if (!session)
 		session = ERR_PTR(-ENOMEM);
 	return session;
