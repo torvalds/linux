@@ -32,7 +32,6 @@
 #define HOST_IF_MSG_REMAIN_ON_CHAN              20
 #define HOST_IF_MSG_REGISTER_FRAME              21
 #define HOST_IF_MSG_LISTEN_TIMER_FIRED          22
-#define HOST_IF_MSG_GET_LINKSPEED               23
 #define HOST_IF_MSG_SET_WFIDRV_HANDLER          24
 #define HOST_IF_MSG_SET_MAC_ADDRESS             25
 #define HOST_IF_MSG_GET_MAC_ADDRESS             26
@@ -247,7 +246,6 @@ static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 static bool scan_while_connected;
 
 static s8 rssi;
-static s8 link_speed;
 static u8 set_ip[2][4];
 static u8 get_ip[2][4];
 static u32 inactive_time;
@@ -1970,27 +1968,6 @@ static void Handle_GetRssi(struct wilc_vif *vif)
 	up(&vif->hif_drv->sem_get_rssi);
 }
 
-static void Handle_GetLinkspeed(struct wilc_vif *vif)
-{
-	s32 result = 0;
-	struct wid wid;
-
-	link_speed = 0;
-
-	wid.id = (u16)WID_LINKSPEED;
-	wid.type = WID_CHAR;
-	wid.val = &link_speed;
-	wid.size = sizeof(char);
-
-	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result) {
-		netdev_err(vif->ndev, "Failed to get LINKSPEED value\n");
-		result = -EFAULT;
-	}
-
-}
-
 static s32 Handle_GetStatistics(struct wilc_vif *vif,
 				struct rf_info *pstrStatistics)
 {
@@ -2677,10 +2654,6 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_GET_RSSI:
 			Handle_GetRssi(msg.vif);
-			break;
-
-		case HOST_IF_MSG_GET_LINKSPEED:
-			Handle_GetLinkspeed(msg.vif);
 			break;
 
 		case HOST_IF_MSG_GET_STATISTICS:
