@@ -20,7 +20,6 @@
 #define HOST_IF_MSG_SET_CHANNEL                 7
 #define HOST_IF_MSG_DISCONNECT                  8
 #define HOST_IF_MSG_GET_RSSI                    9
-#define HOST_IF_MSG_GET_CHNL                    10
 #define HOST_IF_MSG_ADD_BEACON                  11
 #define HOST_IF_MSG_DEL_BEACON                  12
 #define HOST_IF_MSG_ADD_STATION                 13
@@ -249,7 +248,6 @@ static bool scan_while_connected;
 
 static s8 rssi;
 static s8 link_speed;
-static u8 ch_no;
 static u8 set_ip[2][4];
 static u8 get_ip[2][4];
 static u32 inactive_time;
@@ -1952,27 +1950,6 @@ void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
 		wilc_disconnect(vif, 1);
 }
 
-static s32 Handle_GetChnl(struct wilc_vif *vif)
-{
-	s32 result = 0;
-	struct wid wid;
-
-	wid.id = (u16)WID_CURRENT_CHANNEL;
-	wid.type = WID_CHAR;
-	wid.val = (s8 *)&ch_no;
-	wid.size = sizeof(char);
-
-	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-
-	if (result) {
-		netdev_err(vif->ndev, "Failed to get channel number\n");
-		result = -EFAULT;
-	}
-
-	return result;
-}
-
 static void Handle_GetRssi(struct wilc_vif *vif)
 {
 	s32 result = 0;
@@ -2709,10 +2686,6 @@ static int hostIFthread(void *pvArg)
 		case HOST_IF_MSG_GET_STATISTICS:
 			Handle_GetStatistics(msg.vif,
 					     (struct rf_info *)msg.body.data);
-			break;
-
-		case HOST_IF_MSG_GET_CHNL:
-			Handle_GetChnl(msg.vif);
 			break;
 
 		case HOST_IF_MSG_ADD_BEACON:
