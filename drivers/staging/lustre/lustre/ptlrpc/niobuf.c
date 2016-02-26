@@ -507,11 +507,11 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	 */
 	LASSERT(!request->rq_receiving_reply);
 	LASSERT(!((lustre_msg_get_flags(request->rq_reqmsg) & MSG_REPLAY) &&
-		(request->rq_import->imp_state == LUSTRE_IMP_FULL)));
+		  (request->rq_import->imp_state == LUSTRE_IMP_FULL)));
 
 	if (unlikely(obd && obd->obd_fail)) {
 		CDEBUG(D_HA, "muting rpc for failed imp obd %s\n",
-			obd->obd_name);
+		       obd->obd_name);
 		/* this prevents us from waiting in ptlrpc_queue_wait */
 		spin_lock(&request->rq_lock);
 		request->rq_err = 1;

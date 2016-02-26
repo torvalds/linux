@@ -163,7 +163,7 @@ struct ptlrpc_nrs_request *nrs_fifo_req_get(struct ptlrpc_nrs_policy *policy,
 
 	nrq = unlikely(list_empty(&head->fh_list)) ? NULL :
 	      list_entry(head->fh_list.next, struct ptlrpc_nrs_request,
-			     nr_u.fifo.fr_list);
+			 nr_u.fifo.fr_list);
 
 	if (likely(!peek && nrq)) {
 		struct ptlrpc_request *req = container_of(nrq,

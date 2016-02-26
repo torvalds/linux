@@ -890,12 +890,12 @@ EXPORT_SYMBOL(RMF_SYMTGT);
 
 struct req_msg_field RMF_TGTUUID =
 	DEFINE_MSGF("tgtuuid", RMF_F_STRING, sizeof(struct obd_uuid) - 1, NULL,
-	NULL);
+		    NULL);
 EXPORT_SYMBOL(RMF_TGTUUID);
 
 struct req_msg_field RMF_CLUUID =
 	DEFINE_MSGF("cluuid", RMF_F_STRING, sizeof(struct obd_uuid) - 1, NULL,
-	NULL);
+		    NULL);
 EXPORT_SYMBOL(RMF_CLUUID);
 
 struct req_msg_field RMF_STRING =
@@ -1030,7 +1030,7 @@ EXPORT_SYMBOL(RMF_RCS);
 
 struct req_msg_field RMF_EAVALS_LENS =
 	DEFINE_MSGF("eavals_lens", RMF_F_STRUCT_ARRAY, sizeof(__u32),
-		lustre_swab_generic_32s, NULL);
+		    lustre_swab_generic_32s, NULL);
 EXPORT_SYMBOL(RMF_EAVALS_LENS);
 
 struct req_msg_field RMF_OBD_ID =
@@ -1141,17 +1141,17 @@ EXPORT_SYMBOL(RQF_SEC_CTX);
 
 struct req_format RQF_MGS_TARGET_REG =
 	DEFINE_REQ_FMT0("MGS_TARGET_REG", mgs_target_info_only,
-			 mgs_target_info_only);
+			mgs_target_info_only);
 EXPORT_SYMBOL(RQF_MGS_TARGET_REG);
 
 struct req_format RQF_MGS_SET_INFO =
 	DEFINE_REQ_FMT0("MGS_SET_INFO", mgs_set_info,
-			 mgs_set_info);
+			mgs_set_info);
 EXPORT_SYMBOL(RQF_MGS_SET_INFO);
 
 struct req_format RQF_MGS_CONFIG_READ =
 	DEFINE_REQ_FMT0("MGS_CONFIG_READ", mgs_config_read_client,
-			 mgs_config_read_server);
+			mgs_config_read_server);
 EXPORT_SYMBOL(RQF_MGS_CONFIG_READ);
 
 struct req_format RQF_SEQ_QUERY =
@@ -1516,32 +1516,32 @@ EXPORT_SYMBOL(RQF_OST_STATFS);
 
 struct req_format RQF_OST_SET_GRANT_INFO =
 	DEFINE_REQ_FMT0("OST_SET_GRANT_INFO", ost_grant_shrink_client,
-			 ost_body_only);
+			ost_body_only);
 EXPORT_SYMBOL(RQF_OST_SET_GRANT_INFO);
 
 struct req_format RQF_OST_GET_INFO_GENERIC =
 	DEFINE_REQ_FMT0("OST_GET_INFO", ost_get_info_generic_client,
-					ost_get_info_generic_server);
+			ost_get_info_generic_server);
 EXPORT_SYMBOL(RQF_OST_GET_INFO_GENERIC);
 
 struct req_format RQF_OST_GET_INFO_LAST_ID =
 	DEFINE_REQ_FMT0("OST_GET_INFO_LAST_ID", ost_get_info_generic_client,
-						ost_get_last_id_server);
+			ost_get_last_id_server);
 EXPORT_SYMBOL(RQF_OST_GET_INFO_LAST_ID);
 
 struct req_format RQF_OST_GET_INFO_LAST_FID =
 	DEFINE_REQ_FMT0("OST_GET_INFO_LAST_FID", obd_set_info_client,
-						 ost_get_last_fid_server);
+			ost_get_last_fid_server);
 EXPORT_SYMBOL(RQF_OST_GET_INFO_LAST_FID);
 
 struct req_format RQF_OST_SET_INFO_LAST_FID =
 	DEFINE_REQ_FMT0("OST_SET_INFO_LAST_FID", obd_set_info_client,
-						 empty);
+			empty);
 EXPORT_SYMBOL(RQF_OST_SET_INFO_LAST_FID);
 
 struct req_format RQF_OST_GET_INFO_FIEMAP =
 	DEFINE_REQ_FMT0("OST_GET_INFO_FIEMAP", ost_get_fiemap_client,
-					       ost_get_fiemap_server);
+			ost_get_fiemap_server);
 EXPORT_SYMBOL(RQF_OST_GET_INFO_FIEMAP);
 
 #if !defined(__REQ_LAYOUT_USER__)
@@ -1733,8 +1733,8 @@ int req_capsule_server_pack(struct req_capsule *pill)
 			       pill->rc_area[RCL_SERVER], NULL);
 	if (rc != 0) {
 		DEBUG_REQ(D_ERROR, pill->rc_req,
-		       "Cannot pack %d fields in format `%s': ",
-		       count, fmt->rf_name);
+			  "Cannot pack %d fields in format `%s': ",
+			  count, fmt->rf_name);
 	}
 	return rc;
 }
@@ -1751,9 +1751,8 @@ static int __req_capsule_offset(const struct req_capsule *pill,
 	int offset;
 
 	offset = field->rmf_offset[pill->rc_fmt->rf_idx][loc];
-	LASSERTF(offset > 0, "%s:%s, off=%d, loc=%d\n",
-			    pill->rc_fmt->rf_name,
-			    field->rmf_name, offset, loc);
+	LASSERTF(offset > 0, "%s:%s, off=%d, loc=%d\n", pill->rc_fmt->rf_name,
+		 field->rmf_name, offset, loc);
 	offset--;
 
 	LASSERT(0 <= offset && offset < REQ_MAX_FIELD_NR);
@@ -2213,7 +2212,7 @@ void req_capsule_shrink(struct req_capsule *pill,
 	msg = __req_msg(pill, loc);
 	len = lustre_msg_buflen(msg, offset);
 	LASSERTF(newlen <= len, "%s:%s, oldlen=%d, newlen=%d\n",
-				fmt->rf_name, field->rmf_name, len, newlen);
+		 fmt->rf_name, field->rmf_name, len, newlen);
 
 	if (loc == RCL_CLIENT)
 		pill->rc_req->rq_reqlen = lustre_shrink_msg(msg, offset, newlen,

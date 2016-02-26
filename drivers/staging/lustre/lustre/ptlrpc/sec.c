@@ -610,7 +610,7 @@ again:
 
 	if (sec->ps_flvr.sf_rpc != req->rq_flvr.sf_rpc) {
 		CDEBUG(D_SEC, "req %p: flavor has changed %x -> %x\n",
-		      req, req->rq_flvr.sf_rpc, sec->ps_flvr.sf_rpc);
+		       req, req->rq_flvr.sf_rpc, sec->ps_flvr.sf_rpc);
 		req_off_ctx_list(req, ctx);
 		sptlrpc_req_replace_dead_ctx(req);
 		ctx = req->rq_cli_ctx;
@@ -1996,8 +1996,8 @@ int sptlrpc_svc_alloc_rs(struct ptlrpc_request *req, int msglen)
 		   msglen + sizeof(struct ptlrpc_reply_state)) {
 			/* Just return failure if the size is too big */
 			CERROR("size of message is too big (%zd), %d allowed",
-				msglen + sizeof(struct ptlrpc_reply_state),
-				svcpt->scp_service->srv_max_reply_size);
+			       msglen + sizeof(struct ptlrpc_reply_state),
+			       svcpt->scp_service->srv_max_reply_size);
 			return -ENOMEM;
 		}
 

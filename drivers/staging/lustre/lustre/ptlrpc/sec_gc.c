@@ -109,7 +109,7 @@ static void sec_process_ctx_list(void)
 
 	while (!list_empty(&sec_gc_ctx_list)) {
 		ctx = list_entry(sec_gc_ctx_list.next,
-				     struct ptlrpc_cli_ctx, cc_gc_chain);
+				 struct ptlrpc_cli_ctx, cc_gc_chain);
 		list_del_init(&ctx->cc_gc_chain);
 		spin_unlock(&sec_gc_ctx_list_lock);
 
@@ -131,7 +131,7 @@ static void sec_do_gc(struct ptlrpc_sec *sec)
 
 	if (unlikely(sec->ps_gc_next == 0)) {
 		CDEBUG(D_SEC, "sec %p(%s) has 0 gc time\n",
-		      sec, sec->ps_policy->sp_name);
+		       sec, sec->ps_policy->sp_name);
 		return;
 	}
 

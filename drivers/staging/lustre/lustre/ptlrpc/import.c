@@ -140,7 +140,7 @@ static void deuuidify(char *uuid, const char *prefix, char **uuid_start,
 		return;
 
 	if (!strncmp(*uuid_start + *uuid_len - strlen(UUID_STR),
-		    UUID_STR, strlen(UUID_STR)))
+		     UUID_STR, strlen(UUID_STR)))
 		*uuid_len -= strlen(UUID_STR);
 }
 
@@ -344,18 +344,18 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 				rc = 0;
 			} else {
 				list_for_each_safe(tmp, n,
-						       &imp->imp_sending_list) {
+						   &imp->imp_sending_list) {
 					req = list_entry(tmp,
-							     struct ptlrpc_request,
-							     rq_list);
+							 struct ptlrpc_request,
+							 rq_list);
 					DEBUG_REQ(D_ERROR, req,
 						  "still on sending list");
 				}
 				list_for_each_safe(tmp, n,
-						       &imp->imp_delayed_list) {
+						   &imp->imp_delayed_list) {
 					req = list_entry(tmp,
-							     struct ptlrpc_request,
-							     rq_list);
+							 struct ptlrpc_request,
+							 rq_list);
 					DEBUG_REQ(D_ERROR, req,
 						  "still on delayed list");
 				}
@@ -511,7 +511,7 @@ static int import_select_connection(struct obd_import *imp)
 		 */
 		if ((conn->oic_last_attempt == 0) ||
 		    cfs_time_beforeq_64(conn->oic_last_attempt,
-				       imp->imp_last_success_conn)) {
+					imp->imp_last_success_conn)) {
 			imp_conn = conn;
 			tried_all = 0;
 			break;
@@ -1032,8 +1032,7 @@ finish:
 
 		spin_lock(&imp->imp_lock);
 		list_del(&imp->imp_conn_current->oic_item);
-		list_add(&imp->imp_conn_current->oic_item,
-			     &imp->imp_conn_list);
+		list_add(&imp->imp_conn_current->oic_item, &imp->imp_conn_list);
 		imp->imp_last_success_conn =
 			imp->imp_conn_current->oic_last_attempt;
 
@@ -1366,7 +1365,7 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 		 */
 		class_import_get(imp);
 		task = kthread_run(ptlrpc_invalidate_import_thread, imp,
-				     "ll_imp_inval");
+				   "ll_imp_inval");
 		if (IS_ERR(task)) {
 			class_import_put(imp);
 			CERROR("error starting invalidate thread: %d\n", rc);

@@ -454,7 +454,7 @@ static const char *nrs_state2str(enum ptlrpc_nrs_pol_state state)
  * \param[out] info  Holds returned status information
  */
 static void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
-				struct ptlrpc_nrs_pol_info *info)
+				       struct ptlrpc_nrs_pol_info *info)
 {
 	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
@@ -518,8 +518,7 @@ again:
 
 		pol_idx = 0;
 
-		list_for_each_entry(policy, &nrs->nrs_policy_list,
-					pol_list) {
+		list_for_each_entry(policy, &nrs->nrs_policy_list, pol_list) {
 			LASSERT(pol_idx < num_pols);
 
 			nrs_policy_get_info_locked(policy, &tmp);
@@ -590,7 +589,7 @@ again:
 	 *	    active: 0
 	 */
 	seq_printf(m, "%s\n",
-		      !hp ?  "\nregular_requests:" : "high_priority_requests:");
+		   !hp ?  "\nregular_requests:" : "high_priority_requests:");
 
 	for (pol_idx = 0; pol_idx < num_pols; pol_idx++) {
 		seq_printf(m,  "  - name: %s\n"
@@ -970,7 +969,7 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 
 	if (AT_OFF) {
 		seq_printf(m, "adaptive timeouts off, using obd_timeout %u\n",
-			       obd_timeout);
+			   obd_timeout);
 		return 0;
 	}
 
@@ -981,8 +980,8 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 		s2dhms(&ts, ktime_get_real_seconds() - worstt);
 
 		seq_printf(m, "%10s : cur %3u  worst %3u (at %lld, "
-			      DHMS_FMT" ago) ", "service",
-			      cur, worst, (s64)worstt, DHMS_VARS(&ts));
+			   DHMS_FMT " ago) ", "service",
+			   cur, worst, (s64)worstt, DHMS_VARS(&ts));
 
 		lprocfs_at_hist_helper(m, &svcpt->scp_at_estimate);
 	}
@@ -1297,7 +1296,7 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 EXPORT_SYMBOL(lprocfs_rd_pinger_recov);
 
 int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
-		      size_t count, loff_t *off)
+			    size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &obd->u.cli;

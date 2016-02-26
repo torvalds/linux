@@ -299,8 +299,8 @@ ptlrpc_server_post_idle_rqbds(struct ptlrpc_service_part *svcpt)
 		}
 
 		rqbd = list_entry(svcpt->scp_rqbd_idle.next,
-				      struct ptlrpc_request_buffer_desc,
-				      rqbd_list);
+				  struct ptlrpc_request_buffer_desc,
+				  rqbd_list);
 		list_del(&rqbd->rqbd_list);
 
 		/* assume we will post successfully */
@@ -770,8 +770,8 @@ static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 		 */
 		while (svcpt->scp_hist_nrqbds > svc->srv_hist_nrqbds_cpt_max) {
 			rqbd = list_entry(svcpt->scp_hist_rqbds.next,
-					      struct ptlrpc_request_buffer_desc,
-					      rqbd_list);
+					  struct ptlrpc_request_buffer_desc,
+					  rqbd_list);
 
 			list_del(&rqbd->rqbd_list);
 			svcpt->scp_hist_nrqbds--;
@@ -781,7 +781,7 @@ static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 			 */
 			list_for_each(tmp, &rqbd->rqbd_reqs) {
 				req = list_entry(tmp, struct ptlrpc_request,
-						     rq_list);
+						 rq_list);
 				/* Track the highest culled req seq */
 				if (req->rq_history_seq >
 				    svcpt->scp_hist_seq_culled) {
@@ -795,8 +795,8 @@ static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 
 			list_for_each_safe(tmp, nxt, &rqbd->rqbd_reqs) {
 				req = list_entry(rqbd->rqbd_reqs.next,
-						     struct ptlrpc_request,
-						     rq_list);
+						 struct ptlrpc_request,
+						 rq_list);
 				list_del(&req->rq_list);
 				ptlrpc_server_free_request(req);
 			}
@@ -808,8 +808,7 @@ static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 			 */
 			LASSERT(atomic_read(&rqbd->rqbd_req.rq_refcount) ==
 				0);
-			list_add_tail(&rqbd->rqbd_list,
-					  &svcpt->scp_rqbd_idle);
+			list_add_tail(&rqbd->rqbd_list, &svcpt->scp_rqbd_idle);
 		}
 
 		spin_unlock(&svcpt->scp_lock);
@@ -957,12 +956,11 @@ static int ptlrpc_at_add_timed(struct ptlrpc_request *req)
 		/* latest rpcs will have the latest deadlines in the list,
 		 * so search backward.
 		 */
-		list_for_each_entry_reverse(rq,
-						&array->paa_reqs_array[index],
-						rq_timed_list) {
+		list_for_each_entry_reverse(rq, &array->paa_reqs_array[index],
+					    rq_timed_list) {
 			if (req->rq_deadline >= rq->rq_deadline) {
 				list_add(&req->rq_timed_list,
-					     &rq->rq_timed_list);
+					 &rq->rq_timed_list);
 				break;
 			}
 		}
@@ -970,8 +968,7 @@ static int ptlrpc_at_add_timed(struct ptlrpc_request *req)
 
 	/* Add the request at the head of the list */
 	if (list_empty(&req->rq_timed_list))
-		list_add(&req->rq_timed_list,
-			     &array->paa_reqs_array[index]);
+		list_add(&req->rq_timed_list, &array->paa_reqs_array[index]);
 
 	spin_lock(&req->rq_lock);
 	req->rq_at_linked = 1;
@@ -1179,9 +1176,8 @@ static void ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	count = array->paa_count;
 	while (count > 0) {
 		count -= array->paa_reqs_count[index];
-		list_for_each_entry_safe(rq, n,
-					     &array->paa_reqs_array[index],
-					     rq_timed_list) {
+		list_for_each_entry_safe(rq, n, &array->paa_reqs_array[index],
+					 rq_timed_list) {
 			if (rq->rq_deadline > now + at_early_margin) {
 				/* update the earliest deadline */
 				if (deadline == -1 ||
@@ -1229,7 +1225,7 @@ static void ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	 */
 	while (!list_empty(&work_list)) {
 		rq = list_entry(work_list.next, struct ptlrpc_request,
-				    rq_timed_list);
+				rq_timed_list);
 		list_del_init(&rq->rq_timed_list);
 
 		if (ptlrpc_at_send_early_reply(rq) == 0)
@@ -1278,8 +1274,7 @@ static int ptlrpc_server_hpreq_init(struct ptlrpc_service_part *svcpt,
 		}
 
 		spin_lock_bh(&req->rq_export->exp_rpc_lock);
-		list_add(&req->rq_exp_list,
-			     &req->rq_export->exp_hp_rpcs);
+		list_add(&req->rq_exp_list, &req->rq_export->exp_hp_rpcs);
 		spin_unlock_bh(&req->rq_export->exp_rpc_lock);
 	}
 
@@ -1479,7 +1474,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	}
 
 	req = list_entry(svcpt->scp_req_incoming.next,
-			     struct ptlrpc_request, rq_list);
+			 struct ptlrpc_request, rq_list);
 	list_del_init(&req->rq_list);
 	svcpt->scp_nreqs_incoming--;
 	/* Consider this still a "queued" request as far as stats are
@@ -2062,7 +2057,7 @@ static int ptlrpc_main(void *arg)
 			continue;
 
 		CERROR("Failed to post rqbd for %s on CPT %d: %d\n",
-			svc->srv_name, svcpt->scp_cpt, rc);
+		       svc->srv_name, svcpt->scp_cpt, rc);
 		goto out_srv_fini;
 	}
 
@@ -2235,9 +2230,8 @@ static int ptlrpc_hr_main(void *arg)
 		while (!list_empty(&replies)) {
 			struct ptlrpc_reply_state *rs;
 
-			rs = list_entry(replies.prev,
-					    struct ptlrpc_reply_state,
-					    rs_list);
+			rs = list_entry(replies.prev, struct ptlrpc_reply_state,
+					rs_list);
 			list_del_init(&rs->rs_list);
 			ptlrpc_handle_rs(rs);
 		}
@@ -2268,8 +2262,8 @@ static void ptlrpc_stop_hr_threads(void)
 		if (!hrp->hrp_thrs)
 			continue; /* uninitialized */
 		wait_event(ptlrpc_hr.hr_waitq,
-			       atomic_read(&hrp->hrp_nstopped) ==
-			       atomic_read(&hrp->hrp_nstarted));
+			   atomic_read(&hrp->hrp_nstopped) ==
+			   atomic_read(&hrp->hrp_nstarted));
 	}
 }
 
@@ -2287,17 +2281,16 @@ static int ptlrpc_start_hr_threads(void)
 			struct task_struct *task;
 
 			task = kthread_run(ptlrpc_hr_main,
-						 &hrp->hrp_thrs[j],
-						 "ptlrpc_hr%02d_%03d",
-						 hrp->hrp_cpt,
-						 hrt->hrt_id);
+					   &hrp->hrp_thrs[j],
+					   "ptlrpc_hr%02d_%03d",
+					   hrp->hrp_cpt, hrt->hrt_id);
 			if (IS_ERR(task)) {
 				rc = PTR_ERR(task);
 				break;
 			}
 		}
 		wait_event(ptlrpc_hr.hr_waitq,
-			       atomic_read(&hrp->hrp_nstarted) == j);
+			   atomic_read(&hrp->hrp_nstarted) == j);
 
 		if (rc < 0) {
 			CERROR("cannot start reply handler thread %d:%d: rc = %d\n",
@@ -2330,7 +2323,7 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 
 	while (!list_empty(&svcpt->scp_threads)) {
 		thread = list_entry(svcpt->scp_threads.next,
-					struct ptlrpc_thread, t_link);
+				    struct ptlrpc_thread, t_link);
 		if (thread_is_stopped(thread)) {
 			list_del(&thread->t_link);
 			list_add(&thread->t_link, &zombie);
@@ -2691,7 +2684,7 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 		spin_lock(&svcpt->scp_rep_lock);
 		while (!list_empty(&svcpt->scp_rep_active)) {
 			rs = list_entry(svcpt->scp_rep_active.next,
-					    struct ptlrpc_reply_state, rs_list);
+					struct ptlrpc_reply_state, rs_list);
 			spin_lock(&rs->rs_lock);
 			ptlrpc_schedule_difficult_reply(rs);
 			spin_unlock(&rs->rs_lock);
@@ -2704,7 +2697,7 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 		 */
 		while (!list_empty(&svcpt->scp_req_incoming)) {
 			req = list_entry(svcpt->scp_req_incoming.next,
-					     struct ptlrpc_request, rq_list);
+					 struct ptlrpc_request, rq_list);
 
 			list_del(&req->rq_list);
 			svcpt->scp_nreqs_incoming--;
@@ -2730,16 +2723,16 @@ ptlrpc_service_purge_all(struct ptlrpc_service *svc)
 
 		while (!list_empty(&svcpt->scp_rqbd_idle)) {
 			rqbd = list_entry(svcpt->scp_rqbd_idle.next,
-					      struct ptlrpc_request_buffer_desc,
-					      rqbd_list);
+					  struct ptlrpc_request_buffer_desc,
+					  rqbd_list);
 			ptlrpc_free_rqbd(rqbd);
 		}
 		ptlrpc_wait_replies(svcpt);
 
 		while (!list_empty(&svcpt->scp_rep_idle)) {
 			rs = list_entry(svcpt->scp_rep_idle.next,
-					    struct ptlrpc_reply_state,
-					    rs_list);
+					struct ptlrpc_reply_state,
+					rs_list);
 			list_del(&rs->rs_list);
 			kvfree(rs);
 		}

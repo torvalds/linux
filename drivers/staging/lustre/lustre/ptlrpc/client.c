@@ -557,7 +557,7 @@ ptlrpc_prep_req_from_pool(struct ptlrpc_request_pool *pool)
 	}
 
 	request = list_entry(pool->prp_req_list.next, struct ptlrpc_request,
-				 rq_list);
+			     rq_list);
 	list_del_init(&request->rq_list);
 	spin_unlock(&pool->prp_lock);
 
@@ -725,7 +725,7 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
 		LASSERTF((unsigned long)imp > 0x1000, "%p", imp);
 		LASSERT(imp != LP_POISON);
 		LASSERTF((unsigned long)imp->imp_client > 0x1000, "%p",
-			imp->imp_client);
+			 imp->imp_client);
 		LASSERT(imp->imp_client != LP_POISON);
 
 		request->rq_import = class_import_get(imp);
@@ -896,8 +896,7 @@ void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 			 RQ_PHASE_COMPLETE : RQ_PHASE_NEW;
 	list_for_each(tmp, &set->set_requests) {
 		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request,
-				       rq_set_chain);
+			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 
 		LASSERT(req->rq_phase == expected_phase);
 		n++;
@@ -909,8 +908,7 @@ void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 
 	list_for_each_safe(tmp, next, &set->set_requests) {
 		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request,
-				       rq_set_chain);
+			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 		list_del_init(&req->rq_set_chain);
 
 		LASSERT(req->rq_phase == expected_phase);
@@ -1331,8 +1329,8 @@ static int after_reply(struct ptlrpc_request *req)
 			struct ptlrpc_request *last;
 
 			last = list_entry(imp->imp_replay_list.prev,
-					      struct ptlrpc_request,
-					      rq_replay_list);
+					  struct ptlrpc_request,
+					  rq_replay_list);
 			/*
 			 * Requests with rq_replay stay on the list even if no
 			 * commit is expected.
@@ -1475,8 +1473,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 	INIT_LIST_HEAD(&comp_reqs);
 	list_for_each_safe(tmp, next, &set->set_requests) {
 		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request,
-				       rq_set_chain);
+			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 		struct obd_import *imp = req->rq_import;
 		int unregistered = 0;
 		int rc = 0;
@@ -1618,8 +1615,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					 */
 					list_del_init(&req->rq_list);
 					list_add_tail(&req->rq_list,
-							  &imp->
-							  imp_delayed_list);
+						      &imp->imp_delayed_list);
 					spin_unlock(&imp->imp_lock);
 					continue;
 				}
@@ -1627,7 +1623,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 				if (status != 0) {
 					req->rq_status = status;
 					ptlrpc_rqphase_move(req,
-						RQ_PHASE_INTERPRET);
+							    RQ_PHASE_INTERPRET);
 					spin_unlock(&imp->imp_lock);
 					goto interpret;
 				}
@@ -1642,7 +1638,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 
 				list_del_init(&req->rq_list);
 				list_add_tail(&req->rq_list,
-						  &imp->imp_sending_list);
+					      &imp->imp_sending_list);
 
 				spin_unlock(&imp->imp_lock);
 
@@ -1944,8 +1940,7 @@ int ptlrpc_expired_set(void *data)
 	/* A timeout expired. See which reqs it applies to...  */
 	list_for_each(tmp, &set->set_requests) {
 		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request,
-				       rq_set_chain);
+			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 
 		/* don't expire request waiting for context */
 		if (req->rq_wait_ctx)
@@ -2001,8 +1996,7 @@ void ptlrpc_interrupted_set(void *data)
 
 	list_for_each(tmp, &set->set_requests) {
 		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request,
-				       rq_set_chain);
+			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 
 		if (req->rq_phase != RQ_PHASE_RPC &&
 		    req->rq_phase != RQ_PHASE_UNREGISTERING)
@@ -2075,7 +2069,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 	else
 		list_for_each(tmp, &set->set_requests) {
 			req = list_entry(tmp, struct ptlrpc_request,
-					     rq_set_chain);
+					 rq_set_chain);
 			if (req->rq_phase == RQ_PHASE_NEW)
 				(void)ptlrpc_send_new_req(req);
 		}
@@ -2149,7 +2143,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 		if (rc == 0 && atomic_read(&set->set_remaining) == 0) {
 			list_for_each(tmp, &set->set_requests) {
 				req = list_entry(tmp, struct ptlrpc_request,
-						     rq_set_chain);
+						 rq_set_chain);
 				spin_lock(&req->rq_lock);
 				req->rq_invalid_rqset = 1;
 				spin_unlock(&req->rq_lock);
@@ -2568,8 +2562,7 @@ void ptlrpc_retain_replayable_request(struct ptlrpc_request *req,
 	ptlrpc_request_addref(req);
 	list_for_each_prev(tmp, &imp->imp_replay_list) {
 		struct ptlrpc_request *iter =
-			list_entry(tmp, struct ptlrpc_request,
-				       rq_replay_list);
+			list_entry(tmp, struct ptlrpc_request, rq_replay_list);
 
 		/*
 		 * We may have duplicate transnos if we create and then
@@ -2842,8 +2835,7 @@ void ptlrpc_abort_set(struct ptlrpc_request_set *set)
 
 	list_for_each_safe(pos, tmp, &set->set_requests) {
 		struct ptlrpc_request *req =
-			list_entry(pos, struct ptlrpc_request,
-				       rq_set_chain);
+			list_entry(pos, struct ptlrpc_request, rq_set_chain);
 
 		spin_lock(&req->rq_lock);
 		if (req->rq_phase != RQ_PHASE_RPC) {

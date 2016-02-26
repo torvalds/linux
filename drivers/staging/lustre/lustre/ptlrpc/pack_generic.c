@@ -280,7 +280,7 @@ lustre_get_emerg_rs(struct ptlrpc_service_part *svcpt)
 	}
 
 	rs = list_entry(svcpt->scp_rep_idle.next,
-			    struct ptlrpc_reply_state, rs_list);
+			struct ptlrpc_reply_state, rs_list);
 	list_del(&rs->rs_list);
 
 	spin_unlock(&svcpt->scp_rep_lock);
@@ -1908,7 +1908,7 @@ static void print_lum(struct lov_user_md *lum)
 	CDEBUG(D_OTHER, "\tlmm_stripe_size: %#x\n", lum->lmm_stripe_size);
 	CDEBUG(D_OTHER, "\tlmm_stripe_count: %#x\n", lum->lmm_stripe_count);
 	CDEBUG(D_OTHER, "\tlmm_stripe_offset/lmm_layout_gen: %#x\n",
-			lum->lmm_stripe_offset);
+	       lum->lmm_stripe_offset);
 }
 
 static void lustre_swab_lmm_oi(struct ost_id *oi)

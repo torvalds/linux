@@ -207,11 +207,10 @@ static int ptlrpcd_steal_rqset(struct ptlrpc_request_set *des,
 	if (likely(!list_empty(&src->set_new_requests))) {
 		list_for_each_safe(pos, tmp, &src->set_new_requests) {
 			req = list_entry(pos, struct ptlrpc_request,
-					     rq_set_chain);
+					 rq_set_chain);
 			req->rq_set = des;
 		}
-		list_splice_init(&src->set_new_requests,
-				     &des->set_requests);
+		list_splice_init(&src->set_new_requests, &des->set_requests);
 		rc = atomic_read(&src->set_new_count);
 		atomic_add(rc, &des->set_remaining);
 		atomic_set(&src->set_new_count, 0);
@@ -285,9 +284,9 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 		spin_lock(&set->set_new_req_lock);
 		if (likely(!list_empty(&set->set_new_requests))) {
 			list_splice_init(&set->set_new_requests,
-					     &set->set_requests);
+					 &set->set_requests);
 			atomic_add(atomic_read(&set->set_new_count),
-				       &set->set_remaining);
+				   &set->set_remaining);
 			atomic_set(&set->set_new_count, 0);
 			/*
 			 * Need to calculate its timeout.

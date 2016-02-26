@@ -304,7 +304,7 @@ static void nrs_policy_put_locked(struct ptlrpc_nrs_policy *policy)
 
 	policy->pol_ref--;
 	if (unlikely(policy->pol_ref == 0 &&
-	    policy->pol_state == NRS_POL_STATE_STOPPING))
+		     policy->pol_state == NRS_POL_STATE_STOPPING))
 		nrs_policy_stop0(policy);
 }
 
@@ -319,7 +319,7 @@ static void nrs_policy_put(struct ptlrpc_nrs_policy *policy)
  * Find and return a policy by name.
  */
 static struct ptlrpc_nrs_policy *nrs_policy_find_locked(struct ptlrpc_nrs *nrs,
-							 char *name)
+							char *name)
 {
 	struct ptlrpc_nrs_policy *tmp;
 
@@ -797,7 +797,7 @@ static void ptlrpc_nrs_req_add_nolock(struct ptlrpc_request *req)
 	 */
 	if (unlikely(list_empty(&policy->pol_list_queued)))
 		list_add_tail(&policy->pol_list_queued,
-				  &policy->pol_nrs->nrs_policy_queued);
+			      &policy->pol_nrs->nrs_policy_queued);
 }
 
 /**
@@ -978,8 +978,7 @@ again:
 	nrs = nrs_svcpt2nrs(svcpt, hp);
 	nrs->nrs_stopping = 1;
 
-	list_for_each_entry_safe(policy, tmp, &nrs->nrs_policy_list,
-				     pol_list) {
+	list_for_each_entry_safe(policy, tmp, &nrs->nrs_policy_list, pol_list) {
 		rc = nrs_policy_unregister(nrs, policy->pol_desc->pd_name);
 		LASSERT(rc == 0);
 	}
@@ -1100,7 +1099,7 @@ static int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 	LASSERT(conf->nc_ops);
 	LASSERT(conf->nc_compat);
 	LASSERT(ergo(conf->nc_compat == nrs_policy_compat_one,
-		conf->nc_compat_svc_name));
+		     conf->nc_compat_svc_name));
 	LASSERT(ergo((conf->nc_flags & PTLRPC_NRS_FL_REG_EXTERN) != 0,
 		     conf->nc_owner));
 
@@ -1414,7 +1413,7 @@ static void nrs_request_removed(struct ptlrpc_nrs_policy *policy)
 			policy->pol_nrs->nrs_req_queued);
 
 		list_move_tail(&policy->pol_list_queued,
-				   &policy->pol_nrs->nrs_policy_queued);
+			       &policy->pol_nrs->nrs_policy_queued);
 	}
 }
 
@@ -1446,8 +1445,7 @@ ptlrpc_nrs_req_get_nolock0(struct ptlrpc_service_part *svcpt, bool hp,
 	 * Always try to drain requests from all NRS polices even if they are
 	 * inactive, because the user can change policy status at runtime.
 	 */
-	list_for_each_entry(policy, &nrs->nrs_policy_queued,
-				pol_list_queued) {
+	list_for_each_entry(policy, &nrs->nrs_policy_queued, pol_list_queued) {
 		nrq = nrs_request_get(policy, peek, force);
 		if (nrq) {
 			if (likely(!peek)) {
@@ -1599,8 +1597,7 @@ void ptlrpc_nrs_fini(void)
 	struct ptlrpc_nrs_pol_desc *desc;
 	struct ptlrpc_nrs_pol_desc *tmp;
 
-	list_for_each_entry_safe(desc, tmp, &nrs_core.nrs_policies,
-				     pd_list) {
+	list_for_each_entry_safe(desc, tmp, &nrs_core.nrs_policies, pd_list) {
 		list_del_init(&desc->pd_list);
 		kfree(desc);
 	}

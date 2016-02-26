@@ -107,8 +107,7 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	/* Replay all the committed open requests on committed_list first */
 	if (!list_empty(&imp->imp_committed_list)) {
 		tmp = imp->imp_committed_list.prev;
-		req = list_entry(tmp, struct ptlrpc_request,
-				     rq_replay_list);
+		req = list_entry(tmp, struct ptlrpc_request, rq_replay_list);
 
 		/* The last request on committed_list hasn't been replayed */
 		if (req->rq_transno > last_transno) {
@@ -195,8 +194,7 @@ int ptlrpc_resend(struct obd_import *imp)
 		return -1;
 	}
 
-	list_for_each_entry_safe(req, next, &imp->imp_sending_list,
-				     rq_list) {
+	list_for_each_entry_safe(req, next, &imp->imp_sending_list, rq_list) {
 		LASSERTF((long)req > PAGE_CACHE_SIZE && req != LP_POISON,
 			 "req %p bad\n", req);
 		LASSERTF(req->rq_type != LI_POISON, "req %p freed\n", req);

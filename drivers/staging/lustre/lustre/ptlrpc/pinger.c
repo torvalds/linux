@@ -242,7 +242,7 @@ static int ptlrpc_pinger_main(void *arg)
 		list_for_each(iter, &pinger_imports) {
 			struct obd_import *imp =
 				list_entry(iter, struct obd_import,
-					       imp_pinger_chain);
+					   imp_pinger_chain);
 
 			ptlrpc_pinger_process_import(imp, this_ping);
 			/* obd_timeout might have changed */
@@ -404,7 +404,8 @@ EXPORT_SYMBOL(ptlrpc_pinger_del_import);
  * be called when timeout happens.
  */
 static struct timeout_item *ptlrpc_new_timeout(int time,
-	enum timeout_event event, timeout_cb_t cb, void *data)
+					       enum timeout_event event,
+					       timeout_cb_t cb, void *data)
 {
 	struct timeout_item *ti;
 
