@@ -2783,7 +2783,7 @@ static void lmv_exit(void)
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
-MODULE_DESCRIPTION("Lustre Logical Metadata Volume OBD driver");
+MODULE_DESCRIPTION("Lustre Logical Metadata Volume");
 MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
 

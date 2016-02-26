@@ -2925,7 +2925,7 @@ ksocknal_module_init(void)
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
-MODULE_DESCRIPTION("Kernel TCP Socket LND v3.0.0");
+MODULE_DESCRIPTION("TCP Socket LNet Network Driver");
 MODULE_VERSION("2.7.0");
 MODULE_LICENSE("GPL");
 

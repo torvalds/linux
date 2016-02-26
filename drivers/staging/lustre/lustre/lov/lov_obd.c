@@ -2366,7 +2366,7 @@ static void /*__exit*/ lov_exit(void)
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
-MODULE_DESCRIPTION("Lustre Logical Object Volume OBD driver");
+MODULE_DESCRIPTION("Lustre Logical Object Volume");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(LUSTRE_VERSION_STRING);
 
