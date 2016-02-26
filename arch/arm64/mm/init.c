@@ -54,7 +54,7 @@
  * executes, which assigns it its actual value. So use a default value
  * that cannot be mistaken for a real physical address.
  */
-phys_addr_t memstart_addr __read_mostly = ~0ULL;
+s64 memstart_addr __read_mostly = -1;
 phys_addr_t arm64_dma_phys_limit __read_mostly;
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -188,7 +188,7 @@ void __init arm64_memblock_init(void)
 	 * linear mapping. Take care not to clip the kernel which may be
 	 * high in memory.
 	 */
-	memblock_remove(max(memstart_addr + linear_region_size, __pa(_end)),
+	memblock_remove(max_t(u64, memstart_addr + linear_region_size, __pa(_end)),
 			ULLONG_MAX);
 	if (memblock_end_of_DRAM() > linear_region_size)
 		memblock_remove(0, memblock_end_of_DRAM() - linear_region_size);
