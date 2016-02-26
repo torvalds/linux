@@ -1400,8 +1400,13 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 		if (fmt->color) {
 			width -= fmt->color(fmt, &hpp, entry);
 		} else {
+			int i = 0;
+
 			width -= fmt->entry(fmt, &hpp, entry);
-			ui_browser__printf(&browser->b, "%s", s);
+			ui_browser__printf(&browser->b, "%s", ltrim(s));
+
+			while (isspace(s[i++]))
+				width++;
 		}
 	}
 
@@ -1576,6 +1581,8 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 		return ret;
 
 	hists__for_each_format(hists, fmt) {
+		char *start;
+
 		if (!perf_hpp__is_sort_entry(fmt) && !perf_hpp__is_dynamic_entry(fmt))
 			continue;
 		if (perf_hpp__should_skip(fmt, hists))
@@ -1593,7 +1600,12 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 		dummy_hpp.buf[ret] = '\0';
 		rtrim(dummy_hpp.buf);
 
-		ret = strlen(dummy_hpp.buf);
+		start = ltrim(dummy_hpp.buf);
+		ret = strlen(start);
+
+		if (start != dummy_hpp.buf)
+			memmove(dummy_hpp.buf, start, ret + 1);
+
 		if (advance_hpp_check(&dummy_hpp, ret))
 			break;
 	}
