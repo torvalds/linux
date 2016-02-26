@@ -2093,19 +2093,56 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 			       struct net_device *bridge)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u16 fid;
+	int i, err;
+
+	mutex_lock(&ps->smi_mutex);
+
+	/* Get or create the bridge FID and assign it to the port */
+	for (i = 0; i < ps->num_ports; ++i)
+		if (ps->ports[i].bridge_dev == bridge)
+			break;
+
+	if (i < ps->num_ports)
+		err = _mv88e6xxx_port_fid_get(ds, i, &fid);
+	else
+		err = _mv88e6xxx_fid_new(ds, &fid);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_port_fid_set(ds, port, fid);
+	if (err)
+		goto unlock;
 
 	ps->ports[port].bridge_dev = bridge;
+unlock:
+	mutex_unlock(&ps->smi_mutex);
 
-	return 0;
+	return err;
 }
 
 int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u16 fid;
+	int err;
+
+	mutex_lock(&ps->smi_mutex);
+
+	/* Give the port a fresh Filtering Information Database */
+	err = _mv88e6xxx_fid_new(ds, &fid);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_port_fid_set(ds, port, fid);
+	if (err)
+		goto unlock;
 
 	ps->ports[port].bridge_dev = NULL;
+unlock:
+	mutex_unlock(&ps->smi_mutex);
 
-	return 0;
+	return err;
 }
 
 static int mv88e6xxx_setup_port_default_vlan(struct dsa_switch *ds, int port)
