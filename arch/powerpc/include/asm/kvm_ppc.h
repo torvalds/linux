@@ -457,8 +457,18 @@ static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.irq_type == KVMPPC_IRQ_XICS;
 }
+
+static inline struct kvmppc_passthru_irqmap *kvmppc_get_passthru_irqmap(
+				struct kvm *kvm)
+{
+	if (kvm)
+		return kvm->arch.pimap;
+	return NULL;
+}
+
 extern void kvmppc_alloc_host_rm_ops(void);
 extern void kvmppc_free_host_rm_ops(void);
+extern void kvmppc_free_pimap(struct kvm *kvm);
 extern void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu);
 extern int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server);
 extern int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args);
@@ -470,8 +480,12 @@ extern int kvmppc_xics_connect_vcpu(struct kvm_device *dev,
 extern void kvmppc_xics_ipi_action(void);
 extern int h_ipi_redirect;
 #else
+static inline struct kvmppc_passthru_irqmap *kvmppc_get_passthru_irqmap(
+				struct kvm *kvm)
+	{ return NULL; }
 static inline void kvmppc_alloc_host_rm_ops(void) {};
 static inline void kvmppc_free_host_rm_ops(void) {};
+static inline void kvmppc_free_pimap(struct kvm *kvm) {};
 static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 	{ return 0; }
 static inline void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu) { }
