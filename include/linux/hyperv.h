@@ -1251,6 +1251,7 @@ u64 hv_do_hypercall(u64 control, void *input, void *output);
 
 struct hv_util_service {
 	u8 *recv_buffer;
+	void *channel;
 	void (*util_cb)(void *);
 	int (*util_init)(struct hv_util_service *);
 	void (*util_deinit)(void);
