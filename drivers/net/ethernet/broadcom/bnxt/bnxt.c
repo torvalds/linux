@@ -2638,6 +2638,9 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 	/* Ring channel doorbell */
 	writel(1, bp->bar0 + 0x100);
 
+	if (!timeout)
+		timeout = DFLT_HWRM_CMD_TIMEOUT;
+
 	i = 0;
 	if (intr_process) {
 		/* Wait until hwrm response cmpl interrupt is processed */
@@ -3808,6 +3811,10 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "bc %d.%d.%d rm %d.%d.%d",
 		 resp->hwrm_fw_maj, resp->hwrm_fw_min, resp->hwrm_fw_bld,
 		 resp->hwrm_intf_maj, resp->hwrm_intf_min, resp->hwrm_intf_upd);
+
+	bp->hwrm_cmd_timeout = le16_to_cpu(resp->def_req_timeout);
+	if (!bp->hwrm_cmd_timeout)
+		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
