@@ -75,4 +75,9 @@
 
 &i2c0 {
 	status = "okay";
+
+	eeprom@54 {
+		compatible = "st,24c64";
+		reg = <0x54>;
+	};
 };
