@@ -1117,7 +1117,7 @@ static int convert__config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 int bt_convert__perf2ctf(const char *input, const char *path, bool force)

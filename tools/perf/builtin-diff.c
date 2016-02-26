@@ -1264,8 +1264,6 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (ret < 0)
 		return ret;
 
-	perf_config(perf_default_config, NULL);
-
 	argc = parse_options(argc, argv, options, diff_usage, 0);
 
 	if (symbol__init(NULL) < 0)
