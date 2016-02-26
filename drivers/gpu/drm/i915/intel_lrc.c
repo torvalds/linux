@@ -270,6 +270,9 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 
+	if (IS_GEN8(dev) || IS_GEN9(dev))
+		ring->idle_lite_restore_wa = ~0;
+
 	ring->disable_lite_restore_wa = (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
 					IS_BXT_REVID(dev, 0, BXT_REVID_A1)) &&
 					(ring->id == VCS || ring->id == VCS2);
@@ -373,8 +376,6 @@ static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
 	rq0->elsp_submitted++;
 
 	/* You must always write both descriptors in the order below. */
-	spin_lock(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
 	I915_WRITE_FW(RING_ELSP(ring), upper_32_bits(desc[1]));
 	I915_WRITE_FW(RING_ELSP(ring), lower_32_bits(desc[1]));
 
@@ -384,11 +385,18 @@ static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
 
 	/* ELSP is a wo register, use another nearby reg for posting */
 	POSTING_READ_FW(RING_EXECLIST_STATUS_LO(ring));
-	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
-	spin_unlock(&dev_priv->uncore.lock);
 }
 
-static int execlists_update_context(struct drm_i915_gem_request *rq)
+static void
+execlists_update_context_pdps(struct i915_hw_ppgtt *ppgtt, u32 *reg_state)
+{
+	ASSIGN_CTX_PDP(ppgtt, reg_state, 3);
+	ASSIGN_CTX_PDP(ppgtt, reg_state, 2);
+	ASSIGN_CTX_PDP(ppgtt, reg_state, 1);
+	ASSIGN_CTX_PDP(ppgtt, reg_state, 0);
+}
+
+static void execlists_update_context(struct drm_i915_gem_request *rq)
 {
 	struct intel_engine_cs *ring = rq->ring;
 	struct i915_hw_ppgtt *ppgtt = rq->ctx->ppgtt;
@@ -396,19 +404,13 @@ static int execlists_update_context(struct drm_i915_gem_request *rq)
 
 	reg_state[CTX_RING_TAIL+1] = rq->tail;
 
-	if (ppgtt && !USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
-		/* True 32b PPGTT with dynamic page allocation: update PDP
-		 * registers and point the unallocated PDPs to scratch page.
-		 * PML4 is allocated during ppgtt init, so this is not needed
-		 * in 48-bit mode.
-		 */
-		ASSIGN_CTX_PDP(ppgtt, reg_state, 3);
-		ASSIGN_CTX_PDP(ppgtt, reg_state, 2);
-		ASSIGN_CTX_PDP(ppgtt, reg_state, 1);
-		ASSIGN_CTX_PDP(ppgtt, reg_state, 0);
-	}
-
-	return 0;
+	/* True 32b PPGTT with dynamic page allocation: update PDP
+	 * registers and point the unallocated PDPs to scratch page.
+	 * PML4 is allocated during ppgtt init, so this is not needed
+	 * in 48-bit mode.
+	 */
+	if (ppgtt && !USES_FULL_48BIT_PPGTT(ppgtt->base.dev))
+		execlists_update_context_pdps(ppgtt, reg_state);
 }
 
 static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
@@ -422,10 +424,10 @@ static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
 	execlists_elsp_write(rq0, rq1);
 }
 
-static void execlists_context_unqueue(struct intel_engine_cs *ring)
+static void execlists_context_unqueue__locked(struct intel_engine_cs *ring)
 {
 	struct drm_i915_gem_request *req0 = NULL, *req1 = NULL;
-	struct drm_i915_gem_request *cursor = NULL, *tmp = NULL;
+	struct drm_i915_gem_request *cursor, *tmp;
 
 	assert_spin_locked(&ring->execlist_lock);
 
@@ -434,9 +436,6 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 	 * without the irqs may get lost and a GPU Hang may occur.
 	 */
 	WARN_ON(!intel_irqs_enabled(ring->dev->dev_private));
-
-	if (list_empty(&ring->execlist_queue))
-		return;
 
 	/* Try to read in pairs */
 	list_for_each_entry_safe(cursor, tmp, &ring->execlist_queue,
@@ -452,37 +451,48 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 			req0 = cursor;
 		} else {
 			req1 = cursor;
+			WARN_ON(req1->elsp_submitted);
 			break;
 		}
 	}
 
-	if (IS_GEN8(ring->dev) || IS_GEN9(ring->dev)) {
+	if (unlikely(!req0))
+		return;
+
+	if (req0->elsp_submitted & ring->idle_lite_restore_wa) {
 		/*
-		 * WaIdleLiteRestore: make sure we never cause a lite
-		 * restore with HEAD==TAIL
+		 * WaIdleLiteRestore: make sure we never cause a lite restore
+		 * with HEAD==TAIL.
+		 *
+		 * Apply the wa NOOPS to prevent ring:HEAD == req:TAIL as we
+		 * resubmit the request. See gen8_emit_request() for where we
+		 * prepare the padding after the end of the request.
 		 */
-		if (req0->elsp_submitted) {
-			/*
-			 * Apply the wa NOOPS to prevent ring:HEAD == req:TAIL
-			 * as we resubmit the request. See gen8_emit_request()
-			 * for where we prepare the padding after the end of the
-			 * request.
-			 */
-			struct intel_ringbuffer *ringbuf;
+		struct intel_ringbuffer *ringbuf;
 
-			ringbuf = req0->ctx->engine[ring->id].ringbuf;
-			req0->tail += 8;
-			req0->tail &= ringbuf->size - 1;
-		}
+		ringbuf = req0->ctx->engine[ring->id].ringbuf;
+		req0->tail += 8;
+		req0->tail &= ringbuf->size - 1;
 	}
-
-	WARN_ON(req1 && req1->elsp_submitted);
 
 	execlists_submit_requests(req0, req1);
 }
 
-static bool execlists_check_remove_request(struct intel_engine_cs *ring,
-					   u32 request_id)
+static void execlists_context_unqueue(struct intel_engine_cs *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	spin_lock(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
+
+	execlists_context_unqueue__locked(ring);
+
+	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
+	spin_unlock(&dev_priv->uncore.lock);
+}
+
+static unsigned int
+execlists_check_remove_request(struct intel_engine_cs *ring, u32 request_id)
 {
 	struct drm_i915_gem_request *head_req;
 
@@ -492,33 +502,41 @@ static bool execlists_check_remove_request(struct intel_engine_cs *ring,
 					    struct drm_i915_gem_request,
 					    execlist_link);
 
-	if (head_req != NULL) {
-		if (intel_execlists_ctx_id(head_req->ctx, ring) == request_id) {
-			WARN(head_req->elsp_submitted == 0,
-			     "Never submitted head request\n");
+	if (!head_req)
+		return 0;
 
-			if (--head_req->elsp_submitted <= 0) {
-				list_move_tail(&head_req->execlist_link,
-					       &ring->execlist_retired_req_list);
-				return true;
-			}
-		}
-	}
+	if (unlikely(intel_execlists_ctx_id(head_req->ctx, ring) != request_id))
+		return 0;
 
-	return false;
+	WARN(head_req->elsp_submitted == 0, "Never submitted head request\n");
+
+	if (--head_req->elsp_submitted > 0)
+		return 0;
+
+	list_move_tail(&head_req->execlist_link,
+		       &ring->execlist_retired_req_list);
+
+	return 1;
 }
 
-static void get_context_status(struct intel_engine_cs *ring,
-			       u8 read_pointer,
-			       u32 *status, u32 *context_id)
+static u32
+get_context_status(struct intel_engine_cs *ring, unsigned int read_pointer,
+		   u32 *context_id)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 status;
 
-	if (WARN_ON(read_pointer >= GEN8_CSB_ENTRIES))
-		return;
+	read_pointer %= GEN8_CSB_ENTRIES;
 
-	*status = I915_READ(RING_CONTEXT_STATUS_BUF_LO(ring, read_pointer));
-	*context_id = I915_READ(RING_CONTEXT_STATUS_BUF_HI(ring, read_pointer));
+	status = I915_READ_FW(RING_CONTEXT_STATUS_BUF_LO(ring, read_pointer));
+
+	if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
+		return 0;
+
+	*context_id = I915_READ_FW(RING_CONTEXT_STATUS_BUF_HI(ring,
+							      read_pointer));
+
+	return status;
 }
 
 /**
@@ -532,30 +550,27 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	u32 status_pointer;
-	u8 read_pointer;
-	u8 write_pointer;
+	unsigned int read_pointer, write_pointer;
 	u32 status = 0;
 	u32 status_id;
-	u32 submit_contexts = 0;
+	unsigned int submit_contexts = 0;
 
-	status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(ring));
+	spin_lock(&ring->execlist_lock);
+
+	spin_lock(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
+
+	status_pointer = I915_READ_FW(RING_CONTEXT_STATUS_PTR(ring));
 
 	read_pointer = ring->next_context_status_buffer;
 	write_pointer = GEN8_CSB_WRITE_PTR(status_pointer);
 	if (read_pointer > write_pointer)
 		write_pointer += GEN8_CSB_ENTRIES;
 
-	spin_lock(&ring->execlist_lock);
-
 	while (read_pointer < write_pointer) {
+		status = get_context_status(ring, ++read_pointer, &status_id);
 
-		get_context_status(ring, ++read_pointer % GEN8_CSB_ENTRIES,
-				   &status, &status_id);
-
-		if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
-			continue;
-
-		if (status & GEN8_CTX_STATUS_PREEMPTED) {
+		if (unlikely(status & GEN8_CTX_STATUS_PREEMPTED)) {
 			if (status & GEN8_CTX_STATUS_LITE_RESTORE) {
 				if (execlists_check_remove_request(ring, status_id))
 					WARN(1, "Lite Restored request removed from queue\n");
@@ -563,37 +578,36 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 				WARN(1, "Preemption without Lite Restore\n");
 		}
 
-		if ((status & GEN8_CTX_STATUS_ACTIVE_IDLE) ||
-		    (status & GEN8_CTX_STATUS_ELEMENT_SWITCH)) {
-			if (execlists_check_remove_request(ring, status_id))
-				submit_contexts++;
-		}
+		if (status & (GEN8_CTX_STATUS_ACTIVE_IDLE |
+		    GEN8_CTX_STATUS_ELEMENT_SWITCH))
+			submit_contexts +=
+				execlists_check_remove_request(ring, status_id);
 	}
 
-	if (ring->disable_lite_restore_wa) {
-		/* Prevent a ctx to preempt itself */
-		if ((status & GEN8_CTX_STATUS_ACTIVE_IDLE) &&
-		    (submit_contexts != 0))
-			execlists_context_unqueue(ring);
-	} else if (submit_contexts != 0) {
-		execlists_context_unqueue(ring);
+	if (submit_contexts) {
+		if (!ring->disable_lite_restore_wa ||
+		    (status & GEN8_CTX_STATUS_ACTIVE_IDLE))
+			execlists_context_unqueue__locked(ring);
 	}
-
-	spin_unlock(&ring->execlist_lock);
-
-	if (unlikely(submit_contexts > 2))
-		DRM_ERROR("More than two context complete events?\n");
 
 	ring->next_context_status_buffer = write_pointer % GEN8_CSB_ENTRIES;
 
 	/* Update the read pointer to the old write pointer. Manual ringbuffer
 	 * management ftw </sarcasm> */
-	I915_WRITE(RING_CONTEXT_STATUS_PTR(ring),
-		   _MASKED_FIELD(GEN8_CSB_READ_PTR_MASK,
-				 ring->next_context_status_buffer << 8));
+	I915_WRITE_FW(RING_CONTEXT_STATUS_PTR(ring),
+		      _MASKED_FIELD(GEN8_CSB_READ_PTR_MASK,
+				    ring->next_context_status_buffer << 8));
+
+	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
+	spin_unlock(&dev_priv->uncore.lock);
+
+	spin_unlock(&ring->execlist_lock);
+
+	if (unlikely(submit_contexts > 2))
+		DRM_ERROR("More than two context complete events?\n");
 }
 
-static int execlists_context_queue(struct drm_i915_gem_request *request)
+static void execlists_context_queue(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *ring = request->ring;
 	struct drm_i915_gem_request *cursor;
@@ -630,8 +644,6 @@ static int execlists_context_queue(struct drm_i915_gem_request *request)
 		execlists_context_unqueue(ring);
 
 	spin_unlock_irq(&ring->execlist_lock);
-
-	return 0;
 }
 
 static int logical_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
@@ -1550,7 +1562,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u8 next_context_status_buffer_hw;
+	unsigned int next_context_status_buffer_hw;
 
 	lrc_setup_hardware_status_page(ring,
 				dev_priv->kernel_context->engine[ring->id].state);
@@ -2013,6 +2025,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 		ring->status_page.obj = NULL;
 	}
 
+	ring->idle_lite_restore_wa = 0;
 	ring->disable_lite_restore_wa = false;
 	ring->ctx_desc_template = 0;
 
@@ -2439,10 +2452,7 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 		 * With dynamic page allocation, PDPs may not be allocated at
 		 * this point. Point the unallocated PDPs to the scratch page
 		 */
-		ASSIGN_CTX_PDP(ppgtt, reg_state, 3);
-		ASSIGN_CTX_PDP(ppgtt, reg_state, 2);
-		ASSIGN_CTX_PDP(ppgtt, reg_state, 1);
-		ASSIGN_CTX_PDP(ppgtt, reg_state, 0);
+		execlists_update_context_pdps(ppgtt, reg_state);
 	}
 
 	if (ring->id == RCS) {
