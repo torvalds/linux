@@ -666,7 +666,7 @@ static void exit_libcfs_module(void)
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Portals v3.1");
-MODULE_VERSION("1.0.0");
+MODULE_VERSION(LIBCFS_VERSION);
 MODULE_LICENSE("GPL");
 
 module_init(init_libcfs_module);

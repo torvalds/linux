@@ -1890,8 +1890,8 @@ static void /*__exit*/ obdecho_exit(void)
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Testing Echo OBD driver");
-MODULE_LICENSE("GPL");
 MODULE_VERSION(LUSTRE_VERSION_STRING);
+MODULE_LICENSE("GPL");
 
 module_init(obdecho_init);
 module_exit(obdecho_exit);

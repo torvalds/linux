@@ -150,8 +150,8 @@ error:
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("LNet Selftest");
+MODULE_VERSION("2.7.0");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.9.0");
 
 module_init(lnet_selftest_init);
 module_exit(lnet_selftest_fini);

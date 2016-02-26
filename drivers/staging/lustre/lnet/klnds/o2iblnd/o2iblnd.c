@@ -2868,6 +2868,7 @@ static int __init kiblnd_module_init(void)
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Kernel OpenIB gen2 LND v2.00");
+MODULE_VERSION("2.7.0");
 MODULE_LICENSE("GPL");
 
 module_init(kiblnd_module_init);

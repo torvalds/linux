@@ -225,8 +225,8 @@ fini_lnet(void)
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("LNet v3.1");
+MODULE_VERSION(LNET_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.0");
 
 module_init(init_lnet);
 module_exit(fini_lnet);

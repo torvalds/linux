@@ -466,8 +466,8 @@ static void __exit fid_mod_exit(void)
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre FID Module");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1.0");
 
 module_init(fid_mod_init);
 module_exit(fid_mod_exit);
