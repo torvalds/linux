@@ -68,6 +68,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "ld_slow",     VCPU_STAT(ld_slow) },
 	{ "st",          VCPU_STAT(st) },
 	{ "st_slow",     VCPU_STAT(st_slow) },
+	{ "pthru_all",       VCPU_STAT(pthru_all) },
+	{ "pthru_host",      VCPU_STAT(pthru_host) },
+	{ "pthru_bad_aff",   VCPU_STAT(pthru_bad_aff) },
 	{ NULL }
 };
 

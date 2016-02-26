@@ -716,11 +716,19 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 		icp->rm_eoied_irq = irq;
 	}
 
-	if (state->host_irq && state->intr_cpu != -1) {
-		int pcpu = cpu_first_thread_sibling(raw_smp_processor_id());
-		if (state->intr_cpu != pcpu)
-			xics_opal_rm_set_server(state->host_irq, pcpu);
-		state->intr_cpu = -1;
+	if (state->host_irq) {
+		++vcpu->stat.pthru_all;
+		if (state->intr_cpu != -1) {
+			int pcpu = raw_smp_processor_id();
+
+			pcpu = cpu_first_thread_sibling(pcpu);
+			++vcpu->stat.pthru_host;
+			if (state->intr_cpu != pcpu) {
+				++vcpu->stat.pthru_bad_aff;
+				xics_opal_rm_set_server(state->host_irq, pcpu);
+			}
+			state->intr_cpu = -1;
+		}
 	}
  bail:
 	return check_too_hard(xics, icp);
