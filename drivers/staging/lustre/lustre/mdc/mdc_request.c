@@ -165,7 +165,7 @@ static int mdc_getattr_common(struct obd_export *exp,
 }
 
 static int mdc_getattr(struct obd_export *exp, struct md_op_data *op_data,
-		struct ptlrpc_request **request)
+		       struct ptlrpc_request **request)
 {
 	struct ptlrpc_request *req;
 	int		    rc;
@@ -207,7 +207,7 @@ static int mdc_getattr(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static int mdc_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
-		     struct ptlrpc_request **request)
+			    struct ptlrpc_request **request)
 {
 	struct ptlrpc_request *req;
 	int		    rc;
@@ -1036,8 +1036,8 @@ restart_bulk:
 
 	if (req->rq_bulk->bd_nob_transferred & ~LU_PAGE_MASK) {
 		CERROR("Unexpected # bytes transferred: %d (%ld expected)\n",
-			req->rq_bulk->bd_nob_transferred,
-			PAGE_CACHE_SIZE * op_data->op_npages);
+		       req->rq_bulk->bd_nob_transferred,
+		       PAGE_CACHE_SIZE * op_data->op_npages);
 		ptlrpc_req_finished(req);
 		return -EPROTO;
 	}
@@ -1815,7 +1815,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		/* copy UUID */
 		if (copy_to_user(data->ioc_pbuf2, obd2cli_tgt(obd),
 				 min_t(size_t, data->ioc_plen2,
-					       sizeof(struct obd_uuid)))) {
+				       sizeof(struct obd_uuid)))) {
 			rc = -EFAULT;
 			goto out;
 		}
@@ -1828,7 +1828,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		if (copy_to_user(data->ioc_pbuf1, &stat_buf,
 				 min_t(size_t, data->ioc_plen1,
-					       sizeof(stat_buf)))) {
+				       sizeof(stat_buf)))) {
 			rc = -EFAULT;
 			goto out;
 		}

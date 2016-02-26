@@ -366,7 +366,7 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 	LIST_HEAD(cancels);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
-					&RQF_LDLM_INTENT_GETXATTR);
+				   &RQF_LDLM_INTENT_GETXATTR);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
@@ -386,14 +386,12 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 	mdc_pack_body(req, &op_data->op_fid1, op_data->op_valid, maxdata, -1,
 		      0);
 
-	req_capsule_set_size(&req->rq_pill, &RMF_EADATA,
-				RCL_SERVER, maxdata);
+	req_capsule_set_size(&req->rq_pill, &RMF_EADATA, RCL_SERVER, maxdata);
 
-	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS,
-				RCL_SERVER, maxdata);
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS, RCL_SERVER, maxdata);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS_LENS,
-				RCL_SERVER, maxdata);
+			     RCL_SERVER, maxdata);
 
 	ptlrpc_request_set_replen(req);
 
@@ -439,8 +437,8 @@ static struct ptlrpc_request *mdc_intent_unlink_pack(struct obd_export *exp,
 }
 
 static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
-						    struct lookup_intent *it,
-						    struct md_op_data *op_data)
+						      struct lookup_intent *it,
+						     struct md_op_data *op_data)
 {
 	struct ptlrpc_request *req;
 	struct obd_device     *obddev = class_exp2obd(exp);
@@ -498,7 +496,7 @@ static struct ptlrpc_request *mdc_intent_layout_pack(struct obd_export *exp,
 	int rc;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
-				&RQF_LDLM_INTENT_LAYOUT);
+				   &RQF_LDLM_INTENT_LAYOUT);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
@@ -718,7 +716,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		void *lmm;
 
 		LDLM_DEBUG(lock, "layout lock returned by: %s, lvb_len: %d\n",
-			ldlm_it2str(it->it_op), lvb_len);
+			   ldlm_it2str(it->it_op), lvb_len);
 
 		lmm = libcfs_kvzalloc(lvb_len, GFP_NOFS);
 		if (!lmm) {
@@ -1094,7 +1092,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 		}
 
 		mode = mdc_lock_match(exp, LDLM_FL_BLOCK_GRANTED, fid,
-				       LDLM_IBITS, &policy,
+				      LDLM_IBITS, &policy,
 				      LCK_CR | LCK_CW | LCK_PR | LCK_PW,
 				      &lockh);
 	}
@@ -1264,9 +1262,9 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 	__u64		    flags = LDLM_FL_HAS_INTENT;
 
 	CDEBUG(D_DLMTRACE,
-		"name: %.*s in inode "DFID", intent: %s flags %#Lo\n",
-		op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
-		ldlm_it2str(it->it_op), it->it_flags);
+	       "name: %.*s in inode " DFID ", intent: %s flags %#Lo\n",
+	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
+	       ldlm_it2str(it->it_op), it->it_flags);
 
 	fid_build_reg_res_name(&op_data->op_fid1, &res_id);
 	req = mdc_intent_getattr_pack(exp, it, op_data);

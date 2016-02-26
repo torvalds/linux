@@ -53,7 +53,7 @@ void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff, __u32 size,
 void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
 		      struct md_op_data *data, int ea_size);
 void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		     void *ea, int ealen, void *ea2, int ea2len);
+		      void *ea, int ealen, void *ea2, int ea2len);
 void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		     const void *data, int datalen, __u32 mode, __u32 uid,
 		     __u32 gid, cfs_cap_t capability, __u64 rdev);

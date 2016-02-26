@@ -422,7 +422,7 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 						 &cancels, LCK_EX,
 						 MDS_INODELOCK_LOOKUP);
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID4) &&
-	     (fid_is_sane(&op_data->op_fid4)))
+	    (fid_is_sane(&op_data->op_fid4)))
 		count += mdc_resource_get_unused(exp, &op_data->op_fid4,
 						 &cancels, LCK_EX,
 						 MDS_INODELOCK_FULL);
