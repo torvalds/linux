@@ -278,7 +278,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 				palmas_usb->id_irq,
 				NULL, palmas_id_irq_handler,
 				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
-				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				IRQF_ONESHOT,
 				"palmas_usb_id", palmas_usb);
 		if (status < 0) {
 			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
@@ -316,7 +316,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 				palmas_usb->vbus_irq, NULL,
 				palmas_vbus_irq_handler,
 				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
-				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				IRQF_ONESHOT,
 				"palmas_usb_vbus", palmas_usb);
 		if (status < 0) {
 			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
