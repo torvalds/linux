@@ -1582,6 +1582,31 @@ struct rb_node *rb_hierarchy_prev(struct rb_node *node)
 	return &he->rb_node;
 }
 
+bool hist_entry__has_hierarchy_children(struct hist_entry *he, float limit)
+{
+	struct rb_node *node;
+	struct hist_entry *child;
+	float percent;
+
+	if (he->leaf)
+		return false;
+
+	node = rb_first(&he->hroot_out);
+	child = rb_entry(node, struct hist_entry, rb_node);
+
+	while (node && child->filtered) {
+		node = rb_next(node);
+		child = rb_entry(node, struct hist_entry, rb_node);
+	}
+
+	if (node)
+		percent = hist_entry__get_percent_limit(child);
+	else
+		percent = 0;
+
+	return node && percent >= limit;
+}
+
 static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h,
 				       enum hist_filter filter)
 {

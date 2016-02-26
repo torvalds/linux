@@ -643,6 +643,28 @@ unsigned int hists__sort_list_width(struct hists *hists)
 	return ret;
 }
 
+unsigned int hists__overhead_width(struct hists *hists)
+{
+	struct perf_hpp_fmt *fmt;
+	int ret = 0;
+	bool first = true;
+	struct perf_hpp dummy_hpp;
+
+	hists__for_each_format(hists, fmt) {
+		if (perf_hpp__is_sort_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
+			break;
+
+		if (first)
+			first = false;
+		else
+			ret += 2;
+
+		ret += fmt->width(fmt, &dummy_hpp, hists_to_evsel(hists));
+	}
+
+	return ret;
+}
+
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 {
 	if (perf_hpp__is_sort_entry(fmt))

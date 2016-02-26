@@ -410,6 +410,7 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 #endif
 
 unsigned int hists__sort_list_width(struct hists *hists);
+unsigned int hists__overhead_width(struct hists *hists);
 
 void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 			  struct perf_sample *sample, bool nonany_branch_mode);
@@ -438,5 +439,7 @@ static inline struct rb_node *rb_hierarchy_next(struct rb_node *node)
 }
 
 #define HIERARCHY_INDENT  3
+
+bool hist_entry__has_hierarchy_children(struct hist_entry *he, float limit);
 
 #endif	/* __PERF_HIST_H */
