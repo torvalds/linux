@@ -138,10 +138,10 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 
 	pinned = 0;
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(vma, &ggtt->base.active_list, mm_list)
+	list_for_each_entry(vma, &ggtt->base.active_list, vm_link)
 		if (vma->pin_count)
 			pinned += vma->node.size;
-	list_for_each_entry(vma, &ggtt->base.inactive_list, mm_list)
+	list_for_each_entry(vma, &ggtt->base.inactive_list, vm_link)
 		if (vma->pin_count)
 			pinned += vma->node.size;
 	mutex_unlock(&dev->struct_mutex);
@@ -272,7 +272,7 @@ drop_pages(struct drm_i915_gem_object *obj)
 	int ret;
 
 	drm_gem_object_reference(&obj->base);
-	list_for_each_entry_safe(vma, next, &obj->vma_list, vma_link)
+	list_for_each_entry_safe(vma, next, &obj->vma_list, obj_link)
 		if (i915_vma_unbind(vma))
 			break;
 
@@ -2416,7 +2416,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	list_move_tail(&obj->ring_list[ring->id], &ring->active_list);
 	i915_gem_request_assign(&obj->last_read_req[ring->id], req);
 
-	list_move_tail(&vma->mm_list, &vma->vm->active_list);
+	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 }
 
 static void
@@ -2454,9 +2454,9 @@ i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int ring)
 	list_move_tail(&obj->global_list,
 		       &to_i915(obj->base.dev)->mm.bound_list);
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (!list_empty(&vma->mm_list))
-			list_move_tail(&vma->mm_list, &vma->vm->inactive_list);
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (!list_empty(&vma->vm_link))
+			list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 	}
 
 	i915_gem_request_assign(&obj->last_fenced_req, NULL);
@@ -3317,7 +3317,7 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	int ret;
 
-	if (list_empty(&vma->vma_link))
+	if (list_empty(&vma->obj_link))
 		return 0;
 
 	if (!drm_mm_node_allocated(&vma->node)) {
@@ -3351,7 +3351,7 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 	vma->vm->unbind_vma(vma);
 	vma->bound = 0;
 
-	list_del_init(&vma->mm_list);
+	list_del_init(&vma->vm_link);
 	if (i915_is_ggtt(vma->vm)) {
 		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
 			obj->map_and_fenceable = false;
@@ -3609,7 +3609,7 @@ search_free:
 		goto err_remove_node;
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	list_add_tail(&vma->mm_list, &vm->inactive_list);
+	list_add_tail(&vma->vm_link, &vm->inactive_list);
 
 	return vma;
 
@@ -3774,7 +3774,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	/* And bump the LRU for this access */
 	vma = i915_gem_obj_to_ggtt(obj);
 	if (vma && drm_mm_node_allocated(&vma->node) && !obj->active)
-		list_move_tail(&vma->mm_list,
+		list_move_tail(&vma->vm_link,
 			       &to_i915(obj->base.dev)->gtt.base.inactive_list);
 
 	return 0;
@@ -3809,7 +3809,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	 * catch the issue of the CS prefetch crossing page boundaries and
 	 * reading an invalid PTE on older architectures.
 	 */
-	list_for_each_entry_safe(vma, next, &obj->vma_list, vma_link) {
+	list_for_each_entry_safe(vma, next, &obj->vma_list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
@@ -3872,7 +3872,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 			 */
 		}
 
-		list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		list_for_each_entry(vma, &obj->vma_list, obj_link) {
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
@@ -3882,7 +3882,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		}
 	}
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link)
+	list_for_each_entry(vma, &obj->vma_list, obj_link)
 		vma->node.color = cache_level;
 	obj->cache_level = cache_level;
 
@@ -4556,7 +4556,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	trace_i915_gem_object_destroy(obj);
 
-	list_for_each_entry_safe(vma, next, &obj->vma_list, vma_link) {
+	list_for_each_entry_safe(vma, next, &obj->vma_list, obj_link) {
 		int ret;
 
 		vma->pin_count = 0;
@@ -4613,7 +4613,7 @@ struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 				     struct i915_address_space *vm)
 {
 	struct i915_vma *vma;
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL &&
 		    vma->vm == vm)
 			return vma;
@@ -4630,7 +4630,7 @@ struct i915_vma *i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
 	if (WARN_ONCE(!view, "no view specified"))
 		return ERR_PTR(-EINVAL);
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link)
+	list_for_each_entry(vma, &obj->vma_list, obj_link)
 		if (vma->vm == ggtt &&
 		    i915_ggtt_view_equal(&vma->ggtt_view, view))
 			return vma;
@@ -4651,7 +4651,7 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 	if (!i915_is_ggtt(vm))
 		i915_ppgtt_put(i915_vm_to_ppgtt(vm));
 
-	list_del(&vma->vma_link);
+	list_del(&vma->obj_link);
 
 	kmem_cache_free(to_i915(vma->obj->base.dev)->vmas, vma);
 }
@@ -5201,7 +5201,7 @@ u64 i915_gem_obj_offset(struct drm_i915_gem_object *o,
 
 	WARN_ON(vm == &dev_priv->mm.aliasing_ppgtt->base);
 
-	list_for_each_entry(vma, &o->vma_list, vma_link) {
+	list_for_each_entry(vma, &o->vma_list, obj_link) {
 		if (i915_is_ggtt(vma->vm) &&
 		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
 			continue;
@@ -5220,7 +5220,7 @@ u64 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
 	struct i915_address_space *ggtt = i915_obj_to_ggtt(o);
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &o->vma_list, vma_link)
+	list_for_each_entry(vma, &o->vma_list, obj_link)
 		if (vma->vm == ggtt &&
 		    i915_ggtt_view_equal(&vma->ggtt_view, view))
 			return vma->node.start;
@@ -5234,7 +5234,7 @@ bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
 {
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &o->vma_list, vma_link) {
+	list_for_each_entry(vma, &o->vma_list, obj_link) {
 		if (i915_is_ggtt(vma->vm) &&
 		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
 			continue;
@@ -5251,7 +5251,7 @@ bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
 	struct i915_address_space *ggtt = i915_obj_to_ggtt(o);
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &o->vma_list, vma_link)
+	list_for_each_entry(vma, &o->vma_list, obj_link)
 		if (vma->vm == ggtt &&
 		    i915_ggtt_view_equal(&vma->ggtt_view, view) &&
 		    drm_mm_node_allocated(&vma->node))
@@ -5264,7 +5264,7 @@ bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o)
 {
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &o->vma_list, vma_link)
+	list_for_each_entry(vma, &o->vma_list, obj_link)
 		if (drm_mm_node_allocated(&vma->node))
 			return true;
 
@@ -5281,7 +5281,7 @@ unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
 
 	BUG_ON(list_empty(&o->vma_list));
 
-	list_for_each_entry(vma, &o->vma_list, vma_link) {
+	list_for_each_entry(vma, &o->vma_list, obj_link) {
 		if (i915_is_ggtt(vma->vm) &&
 		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
 			continue;
@@ -5294,7 +5294,7 @@ unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
 bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-	list_for_each_entry(vma, &obj->vma_list, vma_link)
+	list_for_each_entry(vma, &obj->vma_list, obj_link)
 		if (vma->pin_count > 0)
 			return true;
 

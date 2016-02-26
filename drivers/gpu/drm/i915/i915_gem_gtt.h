@@ -194,9 +194,9 @@ struct i915_vma {
 	struct i915_ggtt_view ggtt_view;
 
 	/** This object's place on the active/inactive lists */
-	struct list_head mm_list;
+	struct list_head vm_link;
 
-	struct list_head vma_link; /* Link in the object's VMA list */
+	struct list_head obj_link; /* Link in the object's VMA list */
 
 	/** This vma's place in the batchbuffer or on the eviction list */
 	struct list_head exec_list;

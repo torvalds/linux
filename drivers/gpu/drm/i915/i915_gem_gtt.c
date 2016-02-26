@@ -2758,7 +2758,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 		}
 		vma->bound |= GLOBAL_BIND;
 		__i915_vma_set_map_and_fenceable(vma);
-		list_add_tail(&vma->mm_list, &ggtt_vm->inactive_list);
+		list_add_tail(&vma->vm_link, &ggtt_vm->inactive_list);
 	}
 
 	/* Clear any non-preallocated blocks */
@@ -3258,7 +3258,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	vm = &dev_priv->gtt.base;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		flush = false;
-		list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		list_for_each_entry(vma, &obj->vma_list, obj_link) {
 			if (vma->vm != vm)
 				continue;
 
@@ -3314,8 +3314,8 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&vma->vma_link);
-	INIT_LIST_HEAD(&vma->mm_list);
+	INIT_LIST_HEAD(&vma->vm_link);
+	INIT_LIST_HEAD(&vma->obj_link);
 	INIT_LIST_HEAD(&vma->exec_list);
 	vma->vm = vm;
 	vma->obj = obj;
@@ -3323,7 +3323,7 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	if (i915_is_ggtt(vm))
 		vma->ggtt_view = *ggtt_view;
 
-	list_add_tail(&vma->vma_link, &obj->vma_list);
+	list_add_tail(&vma->obj_link, &obj->vma_list);
 	if (!i915_is_ggtt(vm))
 		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 

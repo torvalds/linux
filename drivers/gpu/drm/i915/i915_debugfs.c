@@ -117,9 +117,8 @@ static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
 	u64 size = 0;
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (i915_is_ggtt(vma->vm) &&
-		    drm_mm_node_allocated(&vma->node))
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (i915_is_ggtt(vma->vm) && drm_mm_node_allocated(&vma->node))
 			size += vma->node.size;
 	}
 
@@ -155,7 +154,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (vma->pin_count > 0)
 			pin_count++;
 	}
@@ -164,7 +163,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (display)");
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx",
 			   i915_is_ggtt(vma->vm) ? "g" : "pp",
 			   vma->node.start, vma->node.size);
@@ -230,7 +229,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	}
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(vma, head, mm_list) {
+	list_for_each_entry(vma, head, vm_link) {
 		seq_printf(m, "   ");
 		describe_obj(m, vma->obj);
 		seq_printf(m, "\n");
@@ -342,7 +341,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 		stats->shared += obj->base.size;
 
 	if (USES_FULL_PPGTT(obj->base.dev)) {
-		list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		list_for_each_entry(vma, &obj->vma_list, obj_link) {
 			struct i915_hw_ppgtt *ppgtt;
 
 			if (!drm_mm_node_allocated(&vma->node))
@@ -454,12 +453,12 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&vm->active_list, mm_list);
+	count_vmas(&vm->active_list, vm_link);
 	seq_printf(m, "  %u [%u] active objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&vm->inactive_list, mm_list);
+	count_vmas(&vm->inactive_list, vm_link);
 	seq_printf(m, "  %u [%u] inactive objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
