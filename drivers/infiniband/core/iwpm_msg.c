@@ -88,7 +88,7 @@ int iwpm_register_pid(struct iwpm_dev_data *pm_msg, u8 nl_client)
 	ret = ibnl_put_attr(skb, nlh, sizeof(u32), &msg_seq, IWPM_NLA_REG_PID_SEQ);
 	if (ret)
 		goto pid_query_error;
-	ret = ibnl_put_attr(skb, nlh, IWPM_IFNAME_SIZE,
+	ret = ibnl_put_attr(skb, nlh, IFNAMSIZ,
 				pm_msg->if_name, IWPM_NLA_REG_IF_NAME);
 	if (ret)
 		goto pid_query_error;
