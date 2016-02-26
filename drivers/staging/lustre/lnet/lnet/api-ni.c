@@ -1389,7 +1389,8 @@ failed:
  * lnet_lib_exit() after a call to lnet_lib_init(), if and only if the
  * latter returned 0. It must be called exactly once.
  *
- * \return 0 on success, and -ve on failures.
+ * \retval 0 on success
+ * \retval -ve on failures.
  */
 int lnet_lib_init(void)
 {
