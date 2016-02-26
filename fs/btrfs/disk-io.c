@@ -110,8 +110,7 @@ int __init btrfs_end_io_wq_init(void)
 
 void btrfs_end_io_wq_exit(void)
 {
-	if (btrfs_end_io_wq_cache)
-		kmem_cache_destroy(btrfs_end_io_wq_cache);
+	kmem_cache_destroy(btrfs_end_io_wq_cache);
 }
 
 /*

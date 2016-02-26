@@ -20,8 +20,7 @@ int __init extent_map_init(void)
 
 void extent_map_exit(void)
 {
-	if (extent_map_cache)
-		kmem_cache_destroy(extent_map_cache);
+	kmem_cache_destroy(extent_map_cache);
 }
 
 /**

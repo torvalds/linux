@@ -148,8 +148,7 @@ int __init btrfs_prelim_ref_init(void)
 
 void btrfs_prelim_ref_exit(void)
 {
-	if (btrfs_prelim_ref_cache)
-		kmem_cache_destroy(btrfs_prelim_ref_cache);
+	kmem_cache_destroy(btrfs_prelim_ref_cache);
 }
 
 /*
@@ -566,17 +565,14 @@ static void __merge_refs(struct list_head *head, int mode)
 		struct __prelim_ref *pos2 = pos1, *tmp;
 
 		list_for_each_entry_safe_continue(pos2, tmp, head, list) {
-			struct __prelim_ref *xchg, *ref1 = pos1, *ref2 = pos2;
+			struct __prelim_ref *ref1 = pos1, *ref2 = pos2;
 			struct extent_inode_elem *eie;
 
 			if (!ref_for_same_block(ref1, ref2))
 				continue;
 			if (mode == 1) {
-				if (!ref1->parent && ref2->parent) {
-					xchg = ref1;
-					ref1 = ref2;
-					ref2 = xchg;
-				}
+				if (!ref1->parent && ref2->parent)
+					swap(ref1, ref2);
 			} else {
 				if (ref1->parent != ref2->parent)
 					continue;
