@@ -803,7 +803,7 @@ int osc_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct osc_req *or;
 	int result;
 
-	or = kmem_cache_alloc(osc_req_kmem, GFP_NOFS | __GFP_ZERO);
+	or = kmem_cache_zalloc(osc_req_kmem, GFP_NOFS);
 	if (or) {
 		cl_req_slice_add(req, &or->or_cl, dev, &osc_req_ops);
 		result = 0;

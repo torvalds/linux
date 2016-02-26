@@ -122,7 +122,7 @@ static void *osc_key_init(const struct lu_context *ctx,
 {
 	struct osc_thread_info *info;
 
-	info = kmem_cache_alloc(osc_thread_kmem, GFP_NOFS | __GFP_ZERO);
+	info = kmem_cache_zalloc(osc_thread_kmem, GFP_NOFS);
 	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -147,7 +147,7 @@ static void *osc_session_init(const struct lu_context *ctx,
 {
 	struct osc_session *info;
 
-	info = kmem_cache_alloc(osc_session_kmem, GFP_NOFS | __GFP_ZERO);
+	info = kmem_cache_zalloc(osc_session_kmem, GFP_NOFS);
 	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;

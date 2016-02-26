@@ -1567,7 +1567,7 @@ int osc_lock_init(const struct lu_env *env,
 	struct osc_lock *clk;
 	int result;
 
-	clk = kmem_cache_alloc(osc_lock_kmem, GFP_NOFS | __GFP_ZERO);
+	clk = kmem_cache_zalloc(osc_lock_kmem, GFP_NOFS);
 	if (clk) {
 		__u32 enqflags = lock->cll_descr.cld_enq_flags;
 

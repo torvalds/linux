@@ -30,7 +30,7 @@ static inline struct osc_quota_info *osc_oqi_alloc(u32 id)
 {
 	struct osc_quota_info *oqi;
 
-	oqi = kmem_cache_alloc(osc_quota_kmem, GFP_NOFS | __GFP_ZERO);
+	oqi = kmem_cache_zalloc(osc_quota_kmem, GFP_NOFS);
 	if (oqi)
 		oqi->oqi_id = id;
 

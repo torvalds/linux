@@ -255,7 +255,7 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 	struct osc_object *osc;
 	struct lu_object *obj;
 
-	osc = kmem_cache_alloc(osc_object_kmem, GFP_NOFS | __GFP_ZERO);
+	osc = kmem_cache_zalloc(osc_object_kmem, GFP_NOFS);
 	if (osc) {
 		obj = osc2lu(osc);
 		lu_object_init(obj, NULL, dev);
