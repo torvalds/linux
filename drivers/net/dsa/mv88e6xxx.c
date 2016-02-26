@@ -1458,8 +1458,8 @@ loadpurge:
 	return _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_STU_LOAD_PURGE);
 }
 
-static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
-				struct mv88e6xxx_vtu_stu_entry *entry)
+static int _mv88e6xxx_vtu_new(struct dsa_switch *ds, u16 vid,
+			      struct mv88e6xxx_vtu_stu_entry *entry)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_vtu_stu_entry vlan = {
@@ -1507,6 +1507,35 @@ static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
 
 	*entry = vlan;
 	return 0;
+}
+
+static int _mv88e6xxx_vtu_get(struct dsa_switch *ds, u16 vid,
+			      struct mv88e6xxx_vtu_stu_entry *entry, bool creat)
+{
+	int err;
+
+	if (!vid)
+		return -EINVAL;
+
+	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
+	if (err)
+		return err;
+
+	err = _mv88e6xxx_vtu_getnext(ds, entry);
+	if (err)
+		return err;
+
+	if (entry->vid != vid || !entry->valid) {
+		if (!creat)
+			return -EOPNOTSUPP;
+		/* -ENOENT would've been more appropriate, but switchdev expects
+		 * -EOPNOTSUPP to inform bridge about an eventual software VLAN.
+		 */
+
+		err = _mv88e6xxx_vtu_new(ds, vid, entry);
+	}
+
+	return err;
 }
 
 static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
@@ -1593,19 +1622,9 @@ static int _mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 	struct mv88e6xxx_vtu_stu_entry vlan;
 	int err;
 
-	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
+	err = _mv88e6xxx_vtu_get(ds, vid, &vlan, true);
 	if (err)
 		return err;
-
-	err = _mv88e6xxx_vtu_getnext(ds, &vlan);
-	if (err)
-		return err;
-
-	if (vlan.vid != vid || !vlan.valid) {
-		err = _mv88e6xxx_vlan_init(ds, vid, &vlan);
-		if (err)
-			return err;
-	}
 
 	vlan.data[port] = untagged ?
 		GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED :
@@ -1647,16 +1666,12 @@ static int _mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 	struct mv88e6xxx_vtu_stu_entry vlan;
 	int i, err;
 
-	err = _mv88e6xxx_vtu_vid_write(ds, vid - 1);
+	err = _mv88e6xxx_vtu_get(ds, vid, &vlan, false);
 	if (err)
 		return err;
 
-	err = _mv88e6xxx_vtu_getnext(ds, &vlan);
-	if (err)
-		return err;
-
-	if (vlan.vid != vid || !vlan.valid ||
-	    vlan.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+	/* Tell switchdev if this VLAN is handled in software */
+	if (vlan.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 		return -EOPNOTSUPP;
 
 	vlan.data[port] = GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
