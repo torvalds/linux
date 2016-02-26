@@ -24,6 +24,9 @@ struct nvmem_config {
 	int			ncells;
 	bool			read_only;
 	bool			root_only;
+	/* To be only used by old driver/misc/eeprom drivers */
+	bool			compat;
+	struct device		*base_dev;
 };
 
 #if IS_ENABLED(CONFIG_NVMEM)
@@ -44,5 +47,4 @@ static inline int nvmem_unregister(struct nvmem_device *nvmem)
 }
 
 #endif /* CONFIG_NVMEM */
-
 #endif  /* ifndef _LINUX_NVMEM_PROVIDER_H */
