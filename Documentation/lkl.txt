@@ -94,6 +94,64 @@ following command:
 
     $ make CROSS_COMPILE=i686-w64-mingw32- tools/lkl
 
+LKL hijack library
+------------------
+
+LKL hijack library (liblkl-hijack.so) is used to replace system calls used by an
+application on the fly so that the application can use LKL instead of the kernel
+of host operating system. LD_PRELOAD is used to dynamically override system calls
+with this library when you execute a program.
+
+You can usually use this library via a wrapper script.
+
+    $ cd tools/lkl
+    $ ./bin/lkl-hijack.sh ip address show
+
+There are environmental variables to configure the behavior of LKL. The followings
+are the list of those variable for your environment.
+
+* LKL_HIJACK_NET_TAP
+
+  an interface name for tap device in host operating system to connect to LKL.
+```
+    $ LKL_HIJACK_NET_TAP=tap0 lkl-hijack.sh ip address show
+```
+* LKL_HIJACK_NET_IP
+
+  the IP address of the interface specified by LKL_HIJACK_NET_TAP.
+```
+    $ LKL_HIJACK_NET_IP=198.51.100.5 lkl-hijack.sh ip address show
+```
+* LKL_HIJACK_NET_NETMASK_LEN
+
+  the network mask length of the interface specified by LKL_HIJACK_NET_TAP.
+```
+    $ LKL_HIJACK_NET_IP=198.51.100.5 LKL_HIJACK_NET_NETMASK_LEN=24 lkl-hijack.sh ip address show
+```
+* LKL_HIJACK_NET_MAC
+
+  the MAC address of the interface specified by LKL_HIJACK_NET_TAP.
+```
+    $ LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" lkl-hijack.sh ip address show
+```
+* LKL_HIJACK_NET_GATEWAY
+
+  the gateway IP address of LKL network stack.
+```
+     $ LKL_HIJACK_NET_GATEWAY=198.51.100.5 lkl-hijack.sh ip address show
+```
+* LKL_HIJACK_NET_MTU
+
+  the MTU size of the interface specified by LKL_HIJACK_NET_TAP.
+```
+     $ LKL_HIJACK_NET_MTU=1280 lkl-hijack.sh ip address show
+```
+* LKL_HIJACK_DEBUG
+
+  increate the verbose level of debug information.
+```
+     $ LKL_HIJACK_DEBUG=1 lkl-hijack.sh ip address show
+```
 
 FAQ
 ---
