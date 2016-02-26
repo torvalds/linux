@@ -2477,12 +2477,7 @@ static void hist_browser__update_percent_limit(struct hist_browser *hb,
 				     min_callchain_hits, &callchain_param);
 
 next:
-		/*
-		 * Tentatively set unfolded so that the rb_hierarchy_next()
-		 * can toggle children of folded entries too.
-		 */
-		he->unfolded = he->has_children;
-		nd = rb_hierarchy_next(nd);
+		nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD);
 
 		/* force to re-evaluate folding state of callchains */
 		he->init_have_children = false;
