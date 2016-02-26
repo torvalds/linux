@@ -162,6 +162,7 @@ struct dso {
 	u8		 loaded;
 	u8		 rel;
 	u8		 build_id[BUILD_ID_SIZE];
+	u64		 text_offset;
 	const char	 *short_name;
 	const char	 *long_name;
 	u16		 long_name_len;
