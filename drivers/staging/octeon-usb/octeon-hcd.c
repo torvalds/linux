@@ -1858,6 +1858,33 @@ static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
 	return NULL;
 }
 
+static struct cvmx_usb_pipe *cvmx_usb_next_pipe(struct octeon_hcd *usb,
+						int is_sof)
+{
+	struct cvmx_usb_pipe *pipe;
+
+	/* Find a pipe needing service. */
+	if (is_sof) {
+		/*
+		 * Only process periodic pipes on SOF interrupts. This way we
+		 * are sure that the periodic data is sent in the beginning of
+		 * the frame.
+		 */
+		pipe = cvmx_usb_find_ready_pipe(usb,
+						CVMX_USB_TRANSFER_ISOCHRONOUS);
+		if (pipe)
+			return pipe;
+		pipe = cvmx_usb_find_ready_pipe(usb,
+						CVMX_USB_TRANSFER_INTERRUPT);
+		if (pipe)
+			return pipe;
+	}
+	pipe = cvmx_usb_find_ready_pipe(usb, CVMX_USB_TRANSFER_CONTROL);
+	if (pipe)
+		return pipe;
+	return cvmx_usb_find_ready_pipe(usb, CVMX_USB_TRANSFER_BULK);
+}
+
 /**
  * Called whenever a pipe might need to be scheduled to the
  * hardware.
@@ -1897,27 +1924,7 @@ static void cvmx_usb_schedule(struct octeon_hcd *usb, int is_sof)
 		if (unlikely(channel > 7))
 			break;
 
-		/* Find a pipe needing service */
-		pipe = NULL;
-		if (is_sof) {
-			/*
-			 * Only process periodic pipes on SOF interrupts. This
-			 * way we are sure that the periodic data is sent in the
-			 * beginning of the frame
-			 */
-			pipe = cvmx_usb_find_ready_pipe(usb,
-							CVMX_USB_TRANSFER_ISOCHRONOUS);
-			if (likely(!pipe))
-				pipe = cvmx_usb_find_ready_pipe(usb,
-								CVMX_USB_TRANSFER_INTERRUPT);
-		}
-		if (likely(!pipe)) {
-			pipe = cvmx_usb_find_ready_pipe(usb,
-							CVMX_USB_TRANSFER_CONTROL);
-			if (likely(!pipe))
-				pipe = cvmx_usb_find_ready_pipe(usb,
-								CVMX_USB_TRANSFER_BULK);
-		}
+		pipe = cvmx_usb_next_pipe(usb, is_sof);
 		if (!pipe)
 			break;
 
