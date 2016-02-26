@@ -33,6 +33,7 @@
 #include "util/parse-regs-options.h"
 #include "util/llvm-utils.h"
 #include "util/bpf-loader.h"
+#include "asm/bug.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -615,17 +616,15 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 						 machine);
-	if (err < 0)
-		pr_err("Couldn't record kernel reference relocation symbol\n"
-		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
-		       "Check /proc/kallsyms permission or run as root.\n");
+	WARN_ONCE(err < 0, "Couldn't record kernel reference relocation symbol\n"
+			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+			   "Check /proc/kallsyms permission or run as root.\n");
 
 	err = perf_event__synthesize_modules(tool, process_synthesized_event,
 					     machine);
-	if (err < 0)
-		pr_err("Couldn't record kernel module information.\n"
-		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
-		       "Check /proc/modules permission or run as root.\n");
+	WARN_ONCE(err < 0, "Couldn't record kernel module information.\n"
+			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+			   "Check /proc/modules permission or run as root.\n");
 
 	if (perf_guest) {
 		machines__process_guests(&session->machines,
