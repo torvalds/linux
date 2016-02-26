@@ -750,7 +750,7 @@ static int ricoh619_rtc_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 	
 //	printk(KERN_INFO "PMU: %s register rtc device \n", __func__);
-	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				       &ricoh619_rtc_ops, THIS_MODULE);
 
 	// set interrupt and enable it
@@ -800,18 +800,11 @@ static int ricoh619_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 fail:
-	if (!IS_ERR_OR_NULL(rtc->rtc))
-		rtc_device_unregister(rtc->rtc);
-	kfree(rtc);
 	return err;
 }
 
 static int ricoh619_rtc_remove(struct platform_device *pdev)
 {
-	struct ricoh619_rtc *rtc = dev_get_drvdata(&pdev->dev);
-
-	rtc_device_unregister(rtc->rtc);
-	kfree(rtc);
 	return 0;
 }
 

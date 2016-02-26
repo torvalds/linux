@@ -2285,17 +2285,14 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	gSecondsCnt = get_seconds();
 	/*data = kzalloc(sizeof(*data), GFP_KERNEL);*/
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (data == NULL) {
+	if (data == NULL)
 		ret = -ENOMEM;
-		goto err_data_alloc_failed;
-	}
 
 	/*pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);*/
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (pdata == NULL) {
+	if (pdata == NULL)
 		ret = -ENOMEM;
-		goto err_pdata_alloc_failed;
-	}
+
 	memset(data, 0, sizeof(struct rk30_adc_battery_data));
 	gBatteryData = data;
 	platform_set_drvdata(pdev, data);
@@ -2470,12 +2467,6 @@ err_dcirq_failed:
 
 #endif
 err_io_init:
-
-err_pdata_alloc_failed:
-	kfree(pdata);
-err_data_alloc_failed:
-	kfree(data);
-
 	printk("rk30_adc_battery: error!\n");
     
 	return ret;
@@ -2500,8 +2491,6 @@ static int rk30_adc_battery_remove(struct platform_device *pdev)
 	power_supply_unregister(&data ->bat);
 	if (batt_gpio_is_valid(pdata->dc_det_pin))
 		free_irq(gpio_to_irq(pdata->dc_det_pin), data);
-
-	kfree(data);
 	
 	return 0;
 }

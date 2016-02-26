@@ -1300,22 +1300,16 @@ static int bq27320_battery_probe(struct i2c_client *client,
 	
 	bq27320_powersupply_init(di);
 	retval = power_supply_register(&client->dev, &di->bat);
-	if (retval) {
+	if (retval)
 		dev_err(&client->dev, "failed to register battery\n");
-		goto batt_failed_4;
-	}
-	
+
 	retval = power_supply_register(&client->dev, &di->usb);
-	if (retval) {
+	if (retval)
 		dev_err(&client->dev, "failed to register ac\n");
-		goto batt_failed_4;
-	}
 
 	retval = power_supply_register(&client->dev, &di->ac);
-	if (retval) {
+	if (retval)
 		dev_err(&client->dev, "failed to register ac\n");
-		goto batt_failed_4;
-	}
 
 	 g_bq27320_i2c_client = client;
 		
@@ -1333,8 +1327,6 @@ static int bq27320_battery_probe(struct i2c_client *client,
 	
 	return 0;
 
-batt_failed_4:
-	kfree(di);
 batt_failed_3:
 	driver_remove_file(&(bq27320_battery_driver.driver), &driver_attr_state);
 batt_failed_2:
@@ -1354,7 +1346,6 @@ static int bq27320_battery_remove(struct i2c_client *client)
 	kfree(di->bat.name);
 	kfree(di->usb.name);
 	kfree(di->ac.name);
-	kfree(di);
 	return 0;
 }
 

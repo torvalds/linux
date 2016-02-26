@@ -608,8 +608,7 @@ static void bq24296_battery_shutdown(struct i2c_client *client)
 
 static int bq24296_battery_remove(struct i2c_client *client)
 {
-	struct bq24296_device_info *di = i2c_get_clientdata(client);
-	kfree(di);
+
 	return 0;
 }
 

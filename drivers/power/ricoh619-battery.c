@@ -4504,7 +4504,6 @@ static int ricoh619_battery_probe(struct platform_device *pdev)
 	return 0;
 
 out:
-	kfree(info);
 	return ret;
 }
 
@@ -4608,7 +4607,6 @@ static int ricoh619_battery_remove(struct platform_device *pdev)
 #endif
 
 	power_supply_unregister(&info->battery);
-	kfree(info);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }

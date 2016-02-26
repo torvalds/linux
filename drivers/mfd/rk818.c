@@ -1381,7 +1381,6 @@ static int  rk818_i2c_remove(struct i2c_client *i2c)
 		if (rk818->rdev[i])
 			regulator_unregister(rk818->rdev[i]);
 	i2c_set_clientdata(i2c, NULL);
-	kfree(rk818);
 
 	return 0;
 }

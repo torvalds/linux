@@ -775,9 +775,10 @@ static int act8931_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata) {
 		act8931->num_regulators = ACT8931_NUM_REGULATORS;
-		act8931->rdev = kcalloc(ACT8931_NUM_REGULATORS,
-					sizeof(struct regulator_dev *),
-					GFP_KERNEL);
+		act8931->rdev = devm_kcalloc(act8931->dev,
+					     ACT8931_NUM_REGULATORS,
+					     sizeof(struct regulator_dev *),
+					     GFP_KERNEL);
 		if (!act8931->rdev)
 			return -ENOMEM;
 
@@ -857,9 +858,7 @@ static int act8931_i2c_remove(struct i2c_client *i2c)
 	for (i = 0; i < act8931->num_regulators; i++)
 		if (act8931->rdev[i])
 			regulator_unregister(act8931->rdev[i]);
-	kfree(act8931->rdev);
 	i2c_set_clientdata(i2c, NULL);
-	kfree(act8931);
 
 	return 0;
 }

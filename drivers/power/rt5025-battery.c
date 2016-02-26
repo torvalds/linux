@@ -1716,7 +1716,6 @@ static int rt5025_battery_remove(struct platform_device *pdev)
 	power_supply_unregister(&bi->battery);
 	cancel_delayed_work(&bi->monitor_work);
 	wake_lock_destroy(&bi->monitor_wake_lock);
-	kfree(bi);
 	RTINFO("\n");
 	return 0;
 }
