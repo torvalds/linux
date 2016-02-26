@@ -6,11 +6,13 @@ modes. It provides power-gating controllers for SoC and CPU power-islands.
 
 Required properties:
 - name : Should be pmc
-- compatible : For Tegra20, must contain "nvidia,tegra20-pmc".  For Tegra30,
-  must contain "nvidia,tegra30-pmc".  For Tegra114, must contain
-  "nvidia,tegra114-pmc".  For Tegra124, must contain "nvidia,tegra124-pmc".
-  Otherwise, must contain "nvidia,<chip>-pmc", plus at least one of the
-  above, where <chip> is tegra132.
+- compatible : Should contain one of the following:
+	For Tegra20 must contain "nvidia,tegra20-pmc".
+	For Tegra30 must contain "nvidia,tegra30-pmc".
+	For Tegra114 must contain "nvidia,tegra114-pmc"
+	For Tegra124 must contain "nvidia,tegra124-pmc"
+	For Tegra132 must contain "nvidia,tegra124-pmc"
+	For Tegra210 must contain "nvidia,tegra210-pmc"
 - reg : Offset and length of the register set for the device
 - clocks : Must contain an entry for each entry in clock-names.
   See ../clocks/clock-bindings.txt for details.
