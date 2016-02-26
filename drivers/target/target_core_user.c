@@ -303,6 +303,11 @@ static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
 	}
 }
 
+static void free_data_area(struct tcmu_dev *udev, size_t length)
+{
+	UPDATE_HEAD(udev->data_tail, length, udev->data_size);
+}
+
 static void gather_and_free_data_area(struct tcmu_dev *udev,
 	struct scatterlist *data_sg, unsigned int data_nents)
 {
@@ -323,7 +328,7 @@ static void gather_and_free_data_area(struct tcmu_dev *udev,
 		tcmu_flush_dcache_range(from, copy_bytes);
 		memcpy(to, from, copy_bytes);
 
-		UPDATE_HEAD(udev->data_tail, copy_bytes, udev->data_size);
+		free_data_area(udev, copy_bytes);
 
 		/* Uh oh, wrapped the data buffer for this sg's data */
 		if (sg->length != copy_bytes) {
@@ -336,8 +341,7 @@ static void gather_and_free_data_area(struct tcmu_dev *udev,
 			tcmu_flush_dcache_range(from, copy_bytes);
 			memcpy(to_skip, from, copy_bytes);
 
-			UPDATE_HEAD(udev->data_tail,
-				copy_bytes, udev->data_size);
+			free_data_area(udev, copy_bytes);
 		}
 		kunmap_atomic(to - sg->offset);
 	}
@@ -543,24 +547,22 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
 		/* cmd has been completed already from timeout, just reclaim data
 		   ring space */
-		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
+		free_data_area(udev, cmd->data_length);
 		return;
 	}
 
 	if (entry->hdr.uflags & TCMU_UFLAG_UNKNOWN_OP) {
-		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
+		free_data_area(udev, cmd->data_length);
 		pr_warn("TCMU: Userspace set UNKNOWN_OP flag on se_cmd %p\n",
 			cmd->se_cmd);
 		entry->rsp.scsi_status = SAM_STAT_CHECK_CONDITION;
 	} else if (entry->rsp.scsi_status == SAM_STAT_CHECK_CONDITION) {
 		memcpy(se_cmd->sense_buffer, entry->rsp.sense_buffer,
 			       se_cmd->scsi_sense_length);
-
-		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
+		free_data_area(udev, cmd->data_length);
 	} else if (se_cmd->se_cmd_flags & SCF_BIDI) {
 		/* Discard data_out buffer */
-		UPDATE_HEAD(udev->data_tail,
-			(size_t)se_cmd->t_data_sg->length, udev->data_size);
+		free_data_area(udev, (size_t)se_cmd->t_data_sg->length);
 
 		/* Get Data-In buffer */
 		gather_and_free_data_area(udev,
@@ -569,7 +571,7 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 		gather_and_free_data_area(udev,
 			se_cmd->t_data_sg, se_cmd->t_data_nents);
 	} else if (se_cmd->data_direction == DMA_TO_DEVICE) {
-		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
+		free_data_area(udev, cmd->data_length);
 	} else if (se_cmd->data_direction != DMA_NONE) {
 		pr_warn("TCMU: data direction was %d!\n",
 			se_cmd->data_direction);
