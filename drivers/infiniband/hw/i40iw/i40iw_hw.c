@@ -553,17 +553,17 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 	info->ipv4_valid = cminfo->ipv4;
 	ether_addr_copy(info->mac_addr, iwdev->netdev->dev_addr);
 	info->qp_num = cpu_to_le32(dev->ilq->qp_id);
-	info->dest_port = cpu_to_le16(cminfo->map_loc_port);
-	info->dest_ip[0] = cpu_to_le32(cminfo->map_loc_addr[0]);
-	info->dest_ip[1] = cpu_to_le32(cminfo->map_loc_addr[1]);
-	info->dest_ip[2] = cpu_to_le32(cminfo->map_loc_addr[2]);
-	info->dest_ip[3] = cpu_to_le32(cminfo->map_loc_addr[3]);
+	info->dest_port = cpu_to_le16(cminfo->loc_port);
+	info->dest_ip[0] = cpu_to_le32(cminfo->loc_addr[0]);
+	info->dest_ip[1] = cpu_to_le32(cminfo->loc_addr[1]);
+	info->dest_ip[2] = cpu_to_le32(cminfo->loc_addr[2]);
+	info->dest_ip[3] = cpu_to_le32(cminfo->loc_addr[3]);
 	if (etype == I40IW_QHASH_TYPE_TCP_ESTABLISHED) {
-		info->src_port = cpu_to_le16(cminfo->map_rem_port);
-		info->src_ip[0] = cpu_to_le32(cminfo->map_rem_addr[0]);
-		info->src_ip[1] = cpu_to_le32(cminfo->map_rem_addr[1]);
-		info->src_ip[2] = cpu_to_le32(cminfo->map_rem_addr[2]);
-		info->src_ip[3] = cpu_to_le32(cminfo->map_rem_addr[3]);
+		info->src_port = cpu_to_le16(cminfo->rem_port);
+		info->src_ip[0] = cpu_to_le32(cminfo->rem_addr[0]);
+		info->src_ip[1] = cpu_to_le32(cminfo->rem_addr[1]);
+		info->src_ip[2] = cpu_to_le32(cminfo->rem_addr[2]);
+		info->src_ip[3] = cpu_to_le32(cminfo->rem_addr[3]);
 	}
 	if (cmnode) {
 		cqp_request->callback_fcn = i40iw_send_syn_cqp_callback;

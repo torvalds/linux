@@ -208,207 +208,6 @@ static inline void i40iw_fill_sockaddr6(struct i40iw_cm_node *cm_node,
 }
 
 /**
- * i40iw_set_sockaddr - Record ip addr and tcp port in a sockaddr storage
- * @ip_addr: v4/v6 ip addr
- * @port: tcp port
- * @addr: sockaddr to store ip/tcp info
- */
-static void i40iw_set_sockaddr(u32 *ip_addr,
-			       u16 port,
-			       struct sockaddr_storage *addr,
-			       bool ipv4)
-{
-	if (ipv4) {
-		struct sockaddr_in *in4_addr = (struct sockaddr_in *)addr;
-
-		in4_addr->sin_family = AF_INET;
-		in4_addr->sin_addr.s_addr = htonl(ip_addr[0]);
-		in4_addr->sin_port = htons(port);
-	} else {
-		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)addr;
-
-		in6_addr->sin6_family = AF_INET6;
-		i40iw_copy_ip_htonl(in6_addr->sin6_addr.in6_u.u6_addr32,
-				    ip_addr);
-		in6_addr->sin6_port = htons(port);
-	}
-}
-
-/**
- * i40iw_get_sockaddr - Get ip addr and tcp port from a sockaddr storage
- * @addr: sockaddr to get ip/tcp info
- * @ip_addr: v4/v6 ip addr
- * @port: tcp port
- */
-static void i40iw_get_addrinfo(struct sockaddr_storage *addr, u32 *ip_addr, u16 *port)
-{
-	if (addr->ss_family == AF_INET) {
-		struct sockaddr_in *in4_addr = (struct sockaddr_in *)addr;
-
-		ip_addr[0] = ntohl(in4_addr->sin_addr.s_addr);
-		*port = ntohs(in4_addr->sin_port);
-	} else {
-		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)addr;
-
-		i40iw_copy_ip_ntohl(ip_addr,
-				    in6_addr->sin6_addr.in6_u.u6_addr32);
-		*port = ntohs(in6_addr->sin6_port);
-	}
-}
-
-/**
- * i40iw_is_wildcard - Check if it is a wildcard ip address
- * @addr: sockaddr containing the ip to check
- */
-static bool i40iw_is_wildcard(struct sockaddr_storage *addr)
-{
-	if (addr->ss_family == AF_INET) {
-		struct sockaddr_in *in4_addr = (struct sockaddr_in *)addr;
-
-		return (in4_addr->sin_addr.s_addr == INADDR_ANY);
-	} else {
-		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)addr;
-
-		return (ipv6_addr_type(&in6_addr->sin6_addr) == IPV6_ADDR_ANY);
-	}
-}
-
-/**
- * i40iw_create_mapinfo - Create a mapinfo object in the port mapper data base
- * @cm_info: contains ip/tcp info
- */
-static int i40iw_create_mapinfo(struct i40iw_cm_info *cm_info)
-{
-	struct sockaddr_storage local_sockaddr;
-	struct sockaddr_storage mapped_sockaddr;
-
-	i40iw_set_sockaddr(cm_info->loc_addr, cm_info->loc_port,
-			   &local_sockaddr, cm_info->ipv4);
-	i40iw_set_sockaddr(cm_info->map_loc_addr, cm_info->map_loc_port,
-			   &mapped_sockaddr, cm_info->ipv4);
-	return iwpm_create_mapinfo(&local_sockaddr,
-				   &mapped_sockaddr,
-				   RDMA_NL_I40IW);
-}
-
-/**
- * i40iw_remove_mapinfo - Remove a mapinfo object
- * @cm_info: contains ip/tcp info
- *
- * Removes a mapinfo object from the port mapper data base
- * and sends a remove mapping message to the userspace port mapper
- */
-static int i40iw_remove_mapinfo(struct i40iw_cm_info *cm_info)
-{
-	struct sockaddr_storage local_sockaddr;
-	struct sockaddr_storage mapped_sockaddr;
-
-	i40iw_set_sockaddr(cm_info->loc_addr, cm_info->loc_port,
-			   &local_sockaddr, cm_info->ipv4);
-	i40iw_set_sockaddr(cm_info->map_loc_addr, cm_info->map_loc_port,
-			   &mapped_sockaddr, cm_info->ipv4);
-
-	iwpm_remove_mapinfo(&local_sockaddr, &mapped_sockaddr);
-	return iwpm_remove_mapping(&local_sockaddr, RDMA_NL_I40IW);
-}
-
-/**
- * i40iw_form_reg_msg - Form a port mapper message with dev info
- * @iwdev: iWarp device
- * @pm_msg: msg to record device data
- */
-static void i40iw_form_reg_msg(struct i40iw_device *iwdev, struct iwpm_dev_data *pm_msg)
-{
-	memcpy(pm_msg->dev_name, iwdev->iwibdev->ibdev.name, IWPM_DEVNAME_SIZE);
-	memcpy(pm_msg->if_name, iwdev->netdev->name, IWPM_IFNAME_SIZE);
-}
-
-/**
- * i40iw_form_pm_msg - Form a port mapper message with mapping info
- * @cm_info: contains ip/tcp info
- * @pm_msg: msg to record ip/tcp info
- */
-static void i40iw_form_pm_msg(struct i40iw_cm_info *cm_info,
-			      struct iwpm_sa_data *pm_msg)
-{
-	i40iw_set_sockaddr(cm_info->loc_addr, cm_info->loc_port,
-			   &pm_msg->loc_addr, cm_info->ipv4);
-	i40iw_set_sockaddr(cm_info->rem_addr, cm_info->rem_port,
-			   &pm_msg->rem_addr, cm_info->ipv4);
-}
-
-/**
- * i40iw_record_pm_msg - Record the received mapping info
- * @cm_info: ip/tcp info to be updated with mapped info
- * @pm_msg: received msg with mapped ip/tcp
- */
-static void i40iw_record_pm_msg(struct i40iw_cm_info *cm_info,
-				struct iwpm_sa_data *pm_msg,
-				bool remote)
-{
-	i40iw_get_addrinfo(&pm_msg->mapped_loc_addr,
-			   cm_info->map_loc_addr,
-			   &cm_info->map_loc_port);
-	if (remote) {
-		i40iw_get_addrinfo(&pm_msg->mapped_rem_addr,
-				   cm_info->map_rem_addr, &cm_info->map_rem_port);
-		if (i40iw_is_wildcard(&pm_msg->mapped_rem_addr))
-			memcpy(cm_info->map_rem_addr, cm_info->rem_addr,
-			       sizeof(cm_info->map_rem_addr));
-	}
-}
-
-/**
- * i40iw_get_reminfo - Get the address info of the remote connecting peer
- * @cm_node: provides mapped ip/tcp info (local and remote)
- *
- * Gets the actual non-mapped ip/tcp info of the remote connecting peer
- * from the port mapper data base
- */
-static int i40iw_get_remote_addr(struct i40iw_cm_node *cm_node)
-{
-	struct sockaddr_storage mapped_loc_addr, mapped_rem_addr;
-	struct sockaddr_storage remote_addr;
-	int ret;
-
-	i40iw_set_sockaddr(cm_node->map_loc_addr,
-			   cm_node->map_loc_port,
-			   &mapped_loc_addr,
-			   cm_node->ipv4);
-	i40iw_set_sockaddr(cm_node->map_rem_addr,
-			   cm_node->map_rem_port,
-			   &mapped_rem_addr,
-			   cm_node->ipv4);
-	ret = iwpm_get_remote_info(&mapped_loc_addr,
-				   &mapped_rem_addr,
-				   &remote_addr,
-				   RDMA_NL_I40IW);
-	if (ret)
-		i40iw_debug(cm_node->dev,
-			    I40IW_DEBUG_CM,
-			    "Unable to find remote peer address info\n");
-	else
-		i40iw_get_addrinfo(&remote_addr,
-				   cm_node->rem_addr,
-				   &cm_node->rem_port);
-	return ret;
-}
-
-/**
- * i40iw_init_mapinfo - Initialize the mapped ip/tcp info
- * @cm_info: ip/tcp info (actual and mapped)
-*/
-static void i40iw_init_mapinfo(struct i40iw_cm_info *cm_info)
-{
-	memcpy(cm_info->map_loc_addr, cm_info->loc_addr,
-	       sizeof(cm_info->map_loc_addr));
-	memcpy(cm_info->map_rem_addr, cm_info->rem_addr,
-	       sizeof(cm_info->map_rem_addr));
-	cm_info->map_loc_port = cm_info->loc_port;
-	cm_info->map_rem_port = cm_info->rem_port;
-}
-
-/**
  * i40iw_get_addr_info
  * @cm_node: contains ip/tcp info
  * @cm_info: to get a copy of the cm_node ip/tcp info
@@ -420,12 +219,8 @@ static void i40iw_get_addr_info(struct i40iw_cm_node *cm_node,
 	cm_info->vlan_id = cm_node->vlan_id;
 	memcpy(cm_info->loc_addr, cm_node->loc_addr, sizeof(cm_info->loc_addr));
 	memcpy(cm_info->rem_addr, cm_node->rem_addr, sizeof(cm_info->rem_addr));
-	memcpy(cm_info->map_loc_addr, cm_node->map_loc_addr, sizeof(cm_info->map_loc_addr));
-	memcpy(cm_info->map_rem_addr, cm_node->map_rem_addr, sizeof(cm_info->map_rem_addr));
 	cm_info->loc_port = cm_node->loc_port;
 	cm_info->rem_port = cm_node->rem_port;
-	cm_info->map_loc_port = cm_node->map_loc_port;
-	cm_info->map_rem_port = cm_node->map_rem_port;
 }
 
 /**
@@ -438,9 +233,9 @@ static inline void i40iw_get_cmevent_info(struct i40iw_cm_node *cm_node,
 					  struct iw_cm_id *cm_id,
 					  struct iw_cm_event *event)
 {
-	memcpy(&event->local_addr, &cm_id->local_addr,
+	memcpy(&event->local_addr, &cm_id->m_local_addr,
 	       sizeof(event->local_addr));
-	memcpy(&event->remote_addr, &cm_id->remote_addr,
+	memcpy(&event->remote_addr, &cm_id->m_remote_addr,
 	       sizeof(event->remote_addr));
 	if (cm_node) {
 		event->private_data = (void *)cm_node->pdata_buf;
@@ -666,9 +461,8 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 		iph->frag_off = htons(0x4000);
 		iph->ttl = 0x40;
 		iph->protocol = IPPROTO_TCP;
-
-		iph->saddr = htonl(cm_node->map_loc_addr[0]);
-		iph->daddr = htonl(cm_node->map_rem_addr[0]);
+		iph->saddr = htonl(cm_node->loc_addr[0]);
+		iph->daddr = htonl(cm_node->rem_addr[0]);
 	} else {
 		sqbuf->ipv4 = false;
 		ip6h = (struct ipv6hdr *)buf;
@@ -692,15 +486,14 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 		ip6h->payload_len = htons(packetsize - sizeof(*ip6h));
 		ip6h->nexthdr = 6;
 		ip6h->hop_limit = 128;
-
 		i40iw_copy_ip_htonl(ip6h->saddr.in6_u.u6_addr32,
-				    cm_node->map_loc_addr);
+				    cm_node->loc_addr);
 		i40iw_copy_ip_htonl(ip6h->daddr.in6_u.u6_addr32,
-				    cm_node->map_rem_addr);
+				    cm_node->rem_addr);
 	}
 
-	tcph->source = htons(cm_node->map_loc_port);
-	tcph->dest = htons(cm_node->map_rem_port);
+	tcph->source = htons(cm_node->loc_port);
+	tcph->dest = htons(cm_node->rem_port);
 
 	tcph->seq = htonl(cm_node->tcp_cntxt.loc_seq_num);
 
@@ -1079,7 +872,6 @@ static int i40iw_send_mpa_request(struct i40iw_cm_node *cm_node)
 		i40iw_pr_err("sq_buf == NULL\n");
 		return -1;
 	}
-
 	return i40iw_schedule_cm_timer(cm_node, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
 }
 
@@ -1635,10 +1427,10 @@ struct i40iw_cm_node *i40iw_find_node(struct i40iw_cm_core *cm_core,
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
 	list_for_each_entry(cm_node, hte, list) {
-		if (!memcmp(cm_node->map_loc_addr, loc_addr, sizeof(cm_node->map_loc_addr)) &&
-		    (cm_node->map_loc_port == loc_port) &&
-		    !memcmp(cm_node->map_rem_addr, rem_addr, sizeof(cm_node->map_rem_addr)) &&
-		    (cm_node->map_rem_port == rem_port)) {
+		if (!memcmp(cm_node->loc_addr, loc_addr, sizeof(cm_node->loc_addr)) &&
+		    (cm_node->loc_port == loc_port) &&
+		    !memcmp(cm_node->rem_addr, rem_addr, sizeof(cm_node->rem_addr)) &&
+		    (cm_node->rem_port == rem_port)) {
 			if (add_refcnt)
 				atomic_inc(&cm_node->ref_count);
 			spin_unlock_irqrestore(&cm_core->ht_lock, flags);
@@ -1664,8 +1456,7 @@ static struct i40iw_cm_listener *i40iw_find_listener(
 						     u16 dst_port,
 						     u16 vlan_id,
 						     enum i40iw_cm_listener_state
-						     listener_state,
-						     bool mapped)
+						     listener_state)
 {
 	struct i40iw_cm_listener *listen_node;
 	static const u32 ip_zero[4] = { 0, 0, 0, 0 };
@@ -1676,13 +1467,8 @@ static struct i40iw_cm_listener *i40iw_find_listener(
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
 	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
-		if (mapped) {
-			memcpy(listen_addr, listen_node->map_loc_addr, sizeof(listen_addr));
-			listen_port = listen_node->map_loc_port;
-		} else {
-			memcpy(listen_addr, listen_node->loc_addr, sizeof(listen_addr));
-			listen_port = listen_node->loc_port;
-		}
+		memcpy(listen_addr, listen_node->loc_addr, sizeof(listen_addr));
+		listen_port = listen_node->loc_port;
 		/* compare node pair, return node handle if a match */
 		if ((!memcmp(listen_addr, dst_addr, sizeof(listen_addr)) ||
 		     !memcmp(listen_addr, ip_zero, sizeof(listen_addr))) &&
@@ -1732,7 +1518,7 @@ static bool i40iw_listen_port_in_use(struct i40iw_cm_core *cm_core, u16 port)
 
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
 	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
-		if (listen_node->map_loc_port == port) {
+		if (listen_node->loc_port == port) {
 			ret = true;
 			break;
 		}
@@ -1774,8 +1560,6 @@ static enum i40iw_status_code i40iw_del_multiple_qhash(
 				    child_listen_node->loc_port,
 				    child_listen_node->vlan_id);
 		list_del(pos);
-		memcpy(cm_info->map_loc_addr, child_listen_node->map_loc_addr,
-		       sizeof(cm_info->map_loc_addr));
 		memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
 		       sizeof(cm_info->loc_addr));
 		cm_info->vlan_id = child_listen_node->vlan_id;
@@ -1902,11 +1686,6 @@ static enum i40iw_status_code i40iw_add_mqh_6(struct i40iw_device *iwdev,
 
 				i40iw_copy_ip_ntohl(child_listen_node->loc_addr,
 						    ifp->addr.in6_u.u6_addr32);
-				i40iw_copy_ip_ntohl(child_listen_node->map_loc_addr,
-						    ifp->addr.in6_u.u6_addr32);
-
-				memcpy(cm_info->map_loc_addr, child_listen_node->map_loc_addr,
-				       sizeof(cm_info->map_loc_addr));
 				memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
 				       sizeof(cm_info->loc_addr));
 
@@ -1983,10 +1762,6 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 				       sizeof(*child_listen_node));
 
 				child_listen_node->loc_addr[0] = ntohl(ifa->ifa_address);
-				child_listen_node->map_loc_addr[0] = ntohl(ifa->ifa_address);
-
-				memcpy(cm_info->map_loc_addr, child_listen_node->map_loc_addr,
-				       sizeof(cm_info->map_loc_addr));
 				memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
 				       sizeof(cm_info->loc_addr));
 
@@ -2095,19 +1870,15 @@ static int i40iw_dec_refcnt_listen(struct i40iw_cm_core *cm_core,
 		spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 
 		if (listener->iwdev) {
-			if (apbvt_del && !i40iw_listen_port_in_use(cm_core, listener->map_loc_port))
+			if (apbvt_del && !i40iw_listen_port_in_use(cm_core, listener->loc_port))
 				i40iw_manage_apbvt(listener->iwdev,
-						   listener->map_loc_port,
+						   listener->loc_port,
 						   I40IW_MANAGE_APBVT_DEL);
 
 			memcpy(nfo.loc_addr, listener->loc_addr, sizeof(nfo.loc_addr));
-			memcpy(nfo.map_loc_addr, listener->map_loc_addr, sizeof(nfo.map_loc_addr));
 			nfo.loc_port = listener->loc_port;
-			nfo.map_loc_port = listener->map_loc_port;
 			nfo.ipv4 = listener->ipv4;
 			nfo.vlan_id = listener->vlan_id;
-
-			i40iw_remove_mapinfo(&nfo);
 
 			if (!list_empty(&listener->child_listen_list)) {
 				i40iw_del_multiple_qhash(listener->iwdev, &nfo, listener);
@@ -2372,14 +2143,8 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 	cm_node->vlan_id = cm_info->vlan_id;
 	memcpy(cm_node->loc_addr, cm_info->loc_addr, sizeof(cm_node->loc_addr));
 	memcpy(cm_node->rem_addr, cm_info->rem_addr, sizeof(cm_node->rem_addr));
-	memcpy(cm_node->map_loc_addr, cm_info->map_loc_addr,
-	       sizeof(cm_node->map_loc_addr));
-	memcpy(cm_node->map_rem_addr, cm_info->map_rem_addr,
-	       sizeof(cm_node->map_rem_addr));
 	cm_node->loc_port = cm_info->loc_port;
 	cm_node->rem_port = cm_info->rem_port;
-	cm_node->map_loc_port = cm_info->map_loc_port;
-	cm_node->map_rem_port = cm_info->map_rem_port;
 
 	cm_node->mpa_frame_rev = iwdev->mpa_version;
 	cm_node->send_rdma0_op = SEND_RDMA_READ_ZERO;
@@ -2410,26 +2175,26 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 	     (!cm_node->ipv4 && i40iw_ipv6_is_loopback(cm_node->loc_addr,
 						       cm_node->rem_addr))) {
 		arpindex = i40iw_arp_table(iwdev,
-					   cm_node->map_rem_addr,
+					   cm_node->rem_addr,
 					   false,
 					   NULL,
 					   I40IW_ARP_RESOLVE);
 	} else {
 		oldarpindex = i40iw_arp_table(iwdev,
-					      cm_node->map_rem_addr,
+					      cm_node->rem_addr,
 					      false,
 					      NULL,
 					      I40IW_ARP_RESOLVE);
 		if (cm_node->ipv4)
 			arpindex = i40iw_addr_resolve_neigh(iwdev,
-							    cm_info->map_loc_addr[0],
-							    cm_info->map_rem_addr[0],
+							    cm_info->loc_addr[0],
+							    cm_info->rem_addr[0],
 							    oldarpindex);
 #if IS_ENABLED(CONFIG_IPV6)
 		else
 			arpindex = i40iw_addr_resolve_neigh_ipv6(iwdev,
-								 cm_info->map_loc_addr,
-								 cm_info->map_rem_addr,
+								 cm_info->loc_addr,
+								 cm_info->rem_addr,
 								 oldarpindex);
 #endif
 	}
@@ -2473,13 +2238,12 @@ static void i40iw_rem_ref_cm_node(struct i40iw_cm_node *cm_node)
 	if (cm_node->listener) {
 		i40iw_dec_refcnt_listen(cm_core, cm_node->listener, 0, true);
 	} else {
-		if (!i40iw_listen_port_in_use(cm_core, htons(cm_node->map_loc_port)) &&
+		if (!i40iw_listen_port_in_use(cm_core, htons(cm_node->loc_port)) &&
 		    cm_node->apbvt_set && cm_node->iwdev) {
 			i40iw_manage_apbvt(cm_node->iwdev,
-					   cm_node->map_loc_port,
+					   cm_node->loc_port,
 					   I40IW_MANAGE_APBVT_DEL);
 			i40iw_get_addr_info(cm_node, &nfo);
-			i40iw_remove_mapinfo(&nfo);
 			if (cm_node->qhash_set) {
 				i40iw_manage_qhash(cm_node->iwdev,
 						   &nfo,
@@ -2499,7 +2263,6 @@ static void i40iw_rem_ref_cm_node(struct i40iw_cm_node *cm_node)
 		cm_node->iwqp = NULL;
 	} else if (cm_node->qhash_set) {
 		i40iw_get_addr_info(cm_node, &nfo);
-		i40iw_remove_mapinfo(&nfo);
 		i40iw_manage_qhash(cm_node->iwdev,
 				   &nfo,
 				   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
@@ -2916,7 +2679,6 @@ static int i40iw_handle_ack_pkt(struct i40iw_cm_node *cm_node,
 		cm_node->state = I40IW_CM_STATE_ESTABLISHED;
 		if (datasize) {
 			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
-			i40iw_get_remote_addr(cm_node);
 			i40iw_handle_rcv_mpa(cm_node, rbuf);
 		}
 		break;
@@ -3028,17 +2790,13 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 					struct i40iw_cm_info *cm_info)
 {
 	struct i40iw_cm_listener *listener;
-	struct iwpm_dev_data pm_reg_msg;
-	struct iwpm_sa_data pm_msg;
-	int iwpm_err;
 	unsigned long flags;
 
 	/* cannot have multiple matching listeners */
 	listener = i40iw_find_listener(cm_core, cm_info->loc_addr,
 				       cm_info->loc_port,
 				       cm_info->vlan_id,
-				       I40IW_CM_LISTENER_EITHER_STATE,
-				       false);
+				       I40IW_CM_LISTENER_EITHER_STATE);
 	if (listener &&
 	    (listener->listener_state == I40IW_CM_LISTENER_ACTIVE_STATE)) {
 		atomic_dec(&listener->ref_count);
@@ -3049,32 +2807,13 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 	}
 
 	if (!listener) {
-		i40iw_form_reg_msg(iwdev, &pm_reg_msg);
-		iwpm_err = iwpm_register_pid(&pm_reg_msg, RDMA_NL_I40IW);
-		if (iwpm_err)
-			i40iw_pr_err("PM register fail err = %d\n",
-				     iwpm_err);
-
-		if (iwpm_valid_pid() && !iwpm_err) {
-			i40iw_form_pm_msg(cm_info, &pm_msg);
-			iwpm_err = iwpm_add_mapping(&pm_msg, RDMA_NL_I40IW);
-			if (iwpm_err)
-				i40iw_pr_err("PM query fail err = %d\n",
-					     iwpm_err);
-			else
-				i40iw_record_pm_msg(cm_info, &pm_msg, false);
-		}
-
 		/* create a CM listen node (1/2 node to compare incoming traffic to) */
 		listener = kzalloc(sizeof(*listener), GFP_ATOMIC);
 		if (!listener)
 			return NULL;
 		cm_core->stats_listen_nodes_created++;
 		memcpy(listener->loc_addr, cm_info->loc_addr, sizeof(listener->loc_addr));
-		memcpy(listener->map_loc_addr, cm_info->map_loc_addr,
-		       sizeof(listener->map_loc_addr));
 		listener->loc_port = cm_info->loc_port;
-		listener->map_loc_port = cm_info->map_loc_port;
 
 		INIT_LIST_HEAD(&listener->child_listen_list);
 
@@ -3134,19 +2873,16 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 	if (!memcmp(cm_info->loc_addr, cm_info->rem_addr, sizeof(cm_info->loc_addr))) {
 		loopback_remotelistener = i40iw_find_listener(
 						cm_core,
-						cm_info->map_rem_addr,
-						cm_node->map_rem_port,
+						cm_info->rem_addr,
+						cm_node->rem_port,
 						cm_node->vlan_id,
-						I40IW_CM_LISTENER_ACTIVE_STATE,
-						true);
+						I40IW_CM_LISTENER_ACTIVE_STATE);
 		if (!loopback_remotelistener) {
 			i40iw_create_event(cm_node, I40IW_CM_EVENT_ABORTED);
 		} else {
 			loopback_cm_info = *cm_info;
 			loopback_cm_info.loc_port = cm_info->rem_port;
 			loopback_cm_info.rem_port = cm_info->loc_port;
-			loopback_cm_info.map_loc_port = cm_info->map_rem_port;
-			loopback_cm_info.map_rem_port = cm_info->map_loc_port;
 			loopback_cm_info.cm_id = loopback_remotelistener->cm_id;
 			loopback_cm_info.ipv4 = cm_info->ipv4;
 			loopback_remotenode = i40iw_make_cm_node(cm_core,
@@ -3385,13 +3121,11 @@ void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf)
 	}
 	cm_info.loc_port = ntohs(tcph->dest);
 	cm_info.rem_port = ntohs(tcph->source);
-	i40iw_init_mapinfo(&cm_info);
-
 	cm_node = i40iw_find_node(cm_core,
-				  cm_info.map_rem_port,
-				  cm_info.map_rem_addr,
-				  cm_info.map_loc_port,
-				  cm_info.map_loc_addr,
+				  cm_info.rem_port,
+				  cm_info.rem_addr,
+				  cm_info.loc_port,
+				  cm_info.loc_addr,
 				  true);
 
 	if (!cm_node) {
@@ -3401,11 +3135,10 @@ void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf)
 			return;
 		listener =
 		    i40iw_find_listener(cm_core,
-					cm_info.map_loc_addr,
-					cm_info.map_loc_port,
+					cm_info.loc_addr,
+					cm_info.loc_port,
 					cm_info.vlan_id,
-					I40IW_CM_LISTENER_ACTIVE_STATE,
-					true);
+					I40IW_CM_LISTENER_ACTIVE_STATE);
 		if (!listener) {
 			cm_info.cm_id = NULL;
 			i40iw_debug(cm_core->dev,
@@ -3532,27 +3265,27 @@ static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
 		tcp_info->vlan_tag = cpu_to_le16(cm_node->vlan_id);
 	}
 	if (cm_node->ipv4) {
-		tcp_info->src_port = cpu_to_le16(cm_node->map_loc_port);
-		tcp_info->dst_port = cpu_to_le16(cm_node->map_rem_port);
+		tcp_info->src_port = cpu_to_le16(cm_node->loc_port);
+		tcp_info->dst_port = cpu_to_le16(cm_node->rem_port);
 
-		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_node->map_rem_addr[0]);
-		tcp_info->local_ipaddr3 = cpu_to_le32(cm_node->map_loc_addr[0]);
+		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_node->rem_addr[0]);
+		tcp_info->local_ipaddr3 = cpu_to_le32(cm_node->loc_addr[0]);
 		tcp_info->arp_idx = cpu_to_le32(i40iw_arp_table(iwqp->iwdev,
 								&tcp_info->dest_ip_addr3,
 								true,
 								NULL,
 								I40IW_ARP_RESOLVE));
 	} else {
-		tcp_info->src_port = cpu_to_le16(cm_node->map_loc_port);
-		tcp_info->dst_port = cpu_to_le16(cm_node->map_rem_port);
-		tcp_info->dest_ip_addr0 = cpu_to_le32(cm_node->map_rem_addr[0]);
-		tcp_info->dest_ip_addr1 = cpu_to_le32(cm_node->map_rem_addr[1]);
-		tcp_info->dest_ip_addr2 = cpu_to_le32(cm_node->map_rem_addr[2]);
-		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_node->map_rem_addr[3]);
-		tcp_info->local_ipaddr0 = cpu_to_le32(cm_node->map_loc_addr[0]);
-		tcp_info->local_ipaddr1 = cpu_to_le32(cm_node->map_loc_addr[1]);
-		tcp_info->local_ipaddr2 = cpu_to_le32(cm_node->map_loc_addr[2]);
-		tcp_info->local_ipaddr3 = cpu_to_le32(cm_node->map_loc_addr[3]);
+		tcp_info->src_port = cpu_to_le16(cm_node->loc_port);
+		tcp_info->dst_port = cpu_to_le16(cm_node->rem_port);
+		tcp_info->dest_ip_addr0 = cpu_to_le32(cm_node->rem_addr[0]);
+		tcp_info->dest_ip_addr1 = cpu_to_le32(cm_node->rem_addr[1]);
+		tcp_info->dest_ip_addr2 = cpu_to_le32(cm_node->rem_addr[2]);
+		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_node->rem_addr[3]);
+		tcp_info->local_ipaddr0 = cpu_to_le32(cm_node->loc_addr[0]);
+		tcp_info->local_ipaddr1 = cpu_to_le32(cm_node->loc_addr[1]);
+		tcp_info->local_ipaddr2 = cpu_to_le32(cm_node->loc_addr[2]);
+		tcp_info->local_ipaddr3 = cpu_to_le32(cm_node->loc_addr[3]);
 		tcp_info->arp_idx = cpu_to_le32(i40iw_arp_table(
 							iwqp->iwdev,
 							&tcp_info->dest_ip_addr0,
@@ -4023,11 +3756,8 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct sockaddr_in *raddr;
 	struct sockaddr_in6 *laddr6;
 	struct sockaddr_in6 *raddr6;
-	struct iwpm_dev_data pm_reg_msg;
-	struct iwpm_sa_data pm_msg;
 	int apbvt_set = 0;
 	enum i40iw_status_code status;
-	int iwpm_err;
 
 	ibqp = i40iw_get_qp(cm_id->device, conn_param->qpn);
 	if (!ibqp)
@@ -4039,10 +3769,10 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (!iwdev)
 		return -EINVAL;
 
-	laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	raddr = (struct sockaddr_in *)&cm_id->remote_addr;
-	laddr6 = (struct sockaddr_in6 *)&cm_id->local_addr;
-	raddr6 = (struct sockaddr_in6 *)&cm_id->remote_addr;
+	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
+	raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
+	laddr6 = (struct sockaddr_in6 *)&cm_id->m_local_addr;
+	raddr6 = (struct sockaddr_in6 *)&cm_id->m_remote_addr;
 
 	if (!(laddr->sin_port) || !(raddr->sin_port))
 		return -EINVAL;
@@ -4071,30 +3801,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		cm_info.rem_port = ntohs(raddr6->sin6_port);
 		i40iw_netdev_vlan_ipv6(cm_info.loc_addr, &cm_info.vlan_id, NULL);
 	}
-	i40iw_init_mapinfo(&cm_info);
 	cm_info.cm_id = cm_id;
-
-	i40iw_form_reg_msg(iwdev, &pm_reg_msg);
-	iwpm_err = iwpm_register_pid(&pm_reg_msg, RDMA_NL_I40IW);
-	if (iwpm_err)
-		i40iw_pr_err("PM register fail err = %d\n",
-			     iwpm_err);
-
-	if (iwpm_valid_pid() && !iwpm_err) {
-		i40iw_form_pm_msg(&cm_info, &pm_msg);
-		iwpm_err = iwpm_add_and_query_mapping(&pm_msg, RDMA_NL_I40IW);
-		if (iwpm_err)
-			i40iw_pr_err("PM query fail err = %d\n",
-				     iwpm_err);
-		else
-			i40iw_record_pm_msg(&cm_info, &pm_msg, true);
-	}
-
-	if (i40iw_create_mapinfo(&cm_info)) {
-		i40iw_pr_err("Fail to create mapinfo\n");
-		return -ENOMEM;
-	}
-
 	if ((cm_info.ipv4 && (laddr->sin_addr.s_addr != raddr->sin_addr.s_addr)) ||
 	    (!cm_info.ipv4 && memcmp(laddr6->sin6_addr.in6_u.u6_addr32,
 				     raddr6->sin6_addr.in6_u.u6_addr32,
@@ -4105,14 +3812,11 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 					    I40IW_QHASH_MANAGE_TYPE_ADD,
 					    NULL,
 					    true);
-		if (status) {
-			i40iw_remove_mapinfo(&cm_info);
+		if (status)
 			return -EINVAL;
-		}
 	}
-	status = i40iw_manage_apbvt(iwdev, cm_info.map_loc_port, I40IW_MANAGE_APBVT_ADD);
+	status = i40iw_manage_apbvt(iwdev, cm_info.loc_port, I40IW_MANAGE_APBVT_ADD);
 	if (status) {
-		i40iw_remove_mapinfo(&cm_info);
 		i40iw_manage_qhash(iwdev,
 				   &cm_info,
 				   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
@@ -4137,12 +3841,10 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 				   false);
 
 		if (apbvt_set && !i40iw_listen_port_in_use(&iwdev->cm_core,
-							   cm_info.map_loc_port))
+							   cm_info.loc_port))
 			i40iw_manage_apbvt(iwdev,
-					   cm_info.map_loc_port,
+					   cm_info.loc_port,
 					   I40IW_MANAGE_APBVT_DEL);
-
-		i40iw_remove_mapinfo(&cm_info);
 		cm_id->rem_ref(cm_id);
 		iwdev->cm_core.stats_connect_errs++;
 		return -ENOMEM;
@@ -4181,8 +3883,8 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	if (!iwdev)
 		return -EINVAL;
 
-	laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	laddr6 = (struct sockaddr_in6 *)&cm_id->local_addr;
+	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
+	laddr6 = (struct sockaddr_in6 *)&cm_id->m_local_addr;
 	memset(&cm_info, 0, sizeof(cm_info));
 	if (laddr->sin_family == AF_INET) {
 		cm_info.ipv4 = true;
@@ -4206,7 +3908,6 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		else
 			wildcard = true;
 	}
-	i40iw_init_mapinfo(&cm_info);
 	cm_info.backlog = backlog;
 	cm_info.cm_id = cm_id;
 
@@ -4219,8 +3920,6 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	cm_id->provider_data = cm_listen_node;
 
 	if (!cm_listen_node->reused_node) {
-		if (i40iw_create_mapinfo(&cm_info))
-			goto error;
 		if (wildcard) {
 			if (cm_info.ipv4)
 				ret = i40iw_add_mqh_4(iwdev,
@@ -4234,7 +3933,7 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 				goto error;
 
 			ret = i40iw_manage_apbvt(iwdev,
-						 cm_info.map_loc_port,
+						 cm_info.loc_port,
 						 I40IW_MANAGE_APBVT_ADD);
 
 			if (ret)
@@ -4250,7 +3949,7 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 				goto error;
 			cm_listen_node->qhash_set = true;
 			ret = i40iw_manage_apbvt(iwdev,
-						 cm_info.map_loc_port,
+						 cm_info.loc_port,
 						 I40IW_MANAGE_APBVT_ADD);
 			if (ret)
 				goto error;

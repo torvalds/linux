@@ -102,17 +102,6 @@ static struct notifier_block i40iw_net_notifier = {
 
 static int i40iw_notifiers_registered;
 
-/* registered port mapper netlink callbacks */
-static struct ibnl_client_cbs i40iw_nl_cb_table[] = {
-	[RDMA_NL_IWPM_REG_PID] = {.dump = iwpm_register_pid_cb},
-	[RDMA_NL_IWPM_ADD_MAPPING] = {.dump = iwpm_add_mapping_cb},
-	[RDMA_NL_IWPM_QUERY_MAPPING] = {.dump = iwpm_add_and_query_mapping_cb},
-	[RDMA_NL_IWPM_REMOTE_INFO] = {.dump = iwpm_remote_info_cb},
-	[RDMA_NL_IWPM_HANDLE_ERR] = {.dump = iwpm_mapping_error_cb},
-	[RDMA_NL_IWPM_MAPINFO] = {.dump = iwpm_mapping_info_cb},
-	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb}
-};
-
 /**
  * i40iw_find_i40e_handler - find a handler given a client info
  * @ldev: pointer to a client info
@@ -1903,13 +1892,6 @@ static int __init i40iw_init_module(void)
 	i40iw_client.type = I40E_CLIENT_IWARP;
 	spin_lock_init(&i40iw_handler_lock);
 	ret = i40e_register_client(&i40iw_client);
-	ret = iwpm_init(RDMA_NL_I40IW);
-	if (ret)
-		i40iw_pr_err("Port mapper initialization failed\n");
-	ret = ibnl_add_client(RDMA_NL_I40IW, RDMA_NL_IWPM_NUM_OPS,
-			      i40iw_nl_cb_table);
-	if (ret)
-		i40iw_pr_err("Failed to add netlink callback\n");
 	return ret;
 }
 
@@ -1922,8 +1904,6 @@ static int __init i40iw_init_module(void)
 static void __exit i40iw_exit_module(void)
 {
 	i40e_unregister_client(&i40iw_client);
-	ibnl_remove_client(RDMA_NL_I40IW);
-	iwpm_exit(RDMA_NL_I40IW);
 }
 
 module_init(i40iw_init_module);

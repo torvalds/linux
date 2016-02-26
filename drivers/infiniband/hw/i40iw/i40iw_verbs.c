@@ -2342,11 +2342,14 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.iwcm->reject = i40iw_reject;
 	iwibdev->ibdev.iwcm->create_listen = i40iw_create_listen;
 	iwibdev->ibdev.iwcm->destroy_listen = i40iw_destroy_listen;
+	memcpy(iwibdev->ibdev.iwcm->ifname, netdev->name,
+	       sizeof(iwibdev->ibdev.iwcm->ifname));
 	iwibdev->ibdev.get_port_immutable   = i40iw_port_immutable;
 	iwibdev->ibdev.poll_cq = i40iw_poll_cq;
 	iwibdev->ibdev.req_notify_cq = i40iw_req_notify_cq;
 	iwibdev->ibdev.post_send = i40iw_post_send;
 	iwibdev->ibdev.post_recv = i40iw_post_recv;
+
 	return iwibdev;
 }
 
