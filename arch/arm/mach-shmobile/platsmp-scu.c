@@ -17,6 +17,10 @@
 #include <asm/smp_scu.h>
 #include "common.h"
 
+
+static phys_addr_t shmobile_scu_base_phys;
+static void __iomem *shmobile_scu_base;
+
 static int shmobile_smp_scu_notifier_call(struct notifier_block *nfb,
 					  unsigned long action, void *hcpu)
 {
@@ -26,7 +30,7 @@ static int shmobile_smp_scu_notifier_call(struct notifier_block *nfb,
 	case CPU_UP_PREPARE:
 		/* For this particular CPU register SCU SMP boot vector */
 		shmobile_smp_hook(cpu, virt_to_phys(shmobile_boot_scu),
-				  (unsigned long)shmobile_scu_base);
+				  shmobile_scu_base_phys);
 		break;
 	};
 
@@ -37,13 +41,15 @@ static struct notifier_block shmobile_smp_scu_notifier = {
 	.notifier_call = shmobile_smp_scu_notifier_call,
 };
 
-void __init shmobile_smp_scu_prepare_cpus(unsigned int max_cpus)
+void __init shmobile_smp_scu_prepare_cpus(phys_addr_t scu_base_phys,
+					  unsigned int max_cpus)
 {
 	/* install boot code shared by all CPUs */
 	shmobile_boot_fn = virt_to_phys(shmobile_smp_boot);
-	shmobile_boot_arg = MPIDR_HWID_BITMASK;
 
 	/* enable SCU and cache coherency on booting CPU */
+	shmobile_scu_base_phys = scu_base_phys;
+	shmobile_scu_base = ioremap(scu_base_phys, PAGE_SIZE);
 	scu_enable(shmobile_scu_base);
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
 

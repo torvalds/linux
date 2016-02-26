@@ -45,8 +45,7 @@ static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	/* setup EMEV2 specific SCU bits */
-	shmobile_scu_base = ioremap(EMEV2_SCU_BASE, PAGE_SIZE);
-	shmobile_smp_scu_prepare_cpus(max_cpus);
+	shmobile_smp_scu_prepare_cpus(EMEV2_SCU_BASE, max_cpus);
 }
 
 const struct smp_operations emev2_smp_ops __initconst = {
