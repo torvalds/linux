@@ -223,8 +223,7 @@ static int osc_lock_unuse(const struct lu_env *env,
 		/*
 		 * Move lock into OLS_RELEASED state before calling
 		 * osc_cancel_base() so that possible synchronous cancellation
-		 * (that always happens e.g., for liblustre) sees that lock is
-		 * released.
+		 * sees that lock is released.
 		 */
 		ols->ols_state = OLS_RELEASED;
 		return osc_lock_unhold(ols);

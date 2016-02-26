@@ -54,7 +54,7 @@
 #define LL_MAX_BLKSIZE	  (1UL<<LL_MAX_BLKSIZE_BITS)
 
 /*
- * This is embedded into liblustre and llite super-blocks to keep track of
+ * This is embedded into llite super-blocks to keep track of
  * connect flags (capabilities) supported by all imports given mount is
  * connected to.
  */

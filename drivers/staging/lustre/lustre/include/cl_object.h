@@ -697,7 +697,7 @@ enum cl_page_type {
 
 	/** Transient page, the transient cl_page is used to bind a cl_page
 	 *  to vmpage which is not belonging to the same object of cl_page.
-	 *  it is used in DirectIO, lockless IO and liblustre.
+	 *  it is used in DirectIO and lockless IO.
 	 */
 	CPT_TRANSIENT,
 };
@@ -2282,7 +2282,7 @@ enum cl_io_lock_dmd {
 	CILR_MANDATORY = 0,
 	/** Layers are free to decide between local and global locking. */
 	CILR_MAYBE,
-	/** Never lock: there is no cache (e.g., liblustre). */
+	/** Never lock: there is no cache (e.g., lockless IO). */
 	CILR_NEVER
 };
 

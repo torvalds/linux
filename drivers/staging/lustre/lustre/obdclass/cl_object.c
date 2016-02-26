@@ -483,7 +483,6 @@ EXPORT_SYMBOL(cl_site_stats_print);
  * because Lustre code may call into other fs which has certain assumptions
  * about journal_info. Currently following fields in task_struct are identified
  * can be used for this purpose:
- *  - cl_env: for liblustre.
  *  - tux_info: only on RedHat kernel.
  *  - ...
  * \note As long as we use task_struct to store cl_env, we assume that once

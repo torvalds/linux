@@ -658,7 +658,7 @@ enum obd_notify_event {
 
 /*
  * Data structure used to pass obd_notify()-event to non-obd listeners (llite
- * and liblustre being main examples).
+ * being main example).
  */
 struct obd_notify_upcall {
 	int (*onu_upcall)(struct obd_device *host, struct obd_device *watched,
