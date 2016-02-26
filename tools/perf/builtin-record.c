@@ -324,7 +324,10 @@ try_again:
 		} else {
 			pr_err("failed to mmap with %d (%s)\n", errno,
 				strerror_r(errno, msg, sizeof(msg)));
-			rc = -errno;
+			if (errno)
+				rc = -errno;
+			else
+				rc = -EINVAL;
 		}
 		goto out;
 	}
