@@ -235,7 +235,7 @@ static inline void read_extra_bytes(struct pio_buf *pbuf,
 	while (nbytes) {
 		/* find the number of bytes in this u64 */
 		room = 8 - off;	/* this u64 has room for this many bytes */
-		xbytes = nbytes > room ? room : nbytes;
+		xbytes = min(room, nbytes);
 
 		/*
 		 * shift down to zero lower bytes, shift up to zero upper
@@ -565,7 +565,7 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 		/* calculate the end of data or end of block, whichever
 		   comes first */
 		send = pbuf->start + PIO_BLOCK_SIZE;
-		xend = send < dend ? send : dend;
+		xend = min(send, dend);
 
 		/* shift up to SOP=1 space */
 		dest += SOP_DISTANCE;
@@ -659,7 +659,7 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 		/* calculate the end of data or end of block, whichever
 		   comes first */
 		send = pbuf->start + PIO_BLOCK_SIZE;
-		xend = send < dend ? send : dend;
+		xend = min(send, dend);
 
 		/* shift up to SOP=1 space */
 		dest += SOP_DISTANCE;
