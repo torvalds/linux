@@ -125,7 +125,7 @@ enum {
 
 #define grf_writel(offset, v)	do { \
 	writel_relaxed(v, RK_GRF_VIRT + offset); \
-	dsb(); \
+	dsb(sy); \
 	} while (0)
 
 struct rk3036_tve {

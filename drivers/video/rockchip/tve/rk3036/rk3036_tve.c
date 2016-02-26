@@ -437,7 +437,6 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 		rk3036_tve->inputformat = INPUT_FORMAT_YUV;
 	} else {
 		dev_err(&pdev->dev, "It is not a valid tv encoder!");
-		kfree(rk3036_tve);
 		return -ENOMEM;
 	}
 
