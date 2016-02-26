@@ -100,6 +100,7 @@ static int __init uniphier_smp_prepare_trampoline(unsigned int max_cpus)
 
 	np = of_find_compatible_node(NULL, NULL,
 				"socionext,uniphier-system-bus-controller");
+	of_node_put(np);
 	ret = of_address_to_resource(np, 1, &res);
 	if (ret) {
 		pr_err("failed to get resource of system-bus-controller\n");
