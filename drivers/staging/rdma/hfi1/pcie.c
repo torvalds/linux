@@ -362,6 +362,7 @@ static void update_lbus_info(struct hfi1_devdata *dd)
 int pcie_speeds(struct hfi1_devdata *dd)
 {
 	u32 linkcap;
+	struct pci_dev *parent = dd->pcidev->bus->self;
 
 	if (!pci_is_pcie(dd->pcidev)) {
 		dd_dev_err(dd, "Can't find PCI Express capability!\n");
@@ -382,7 +383,7 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	/*
 	 * bus->max_bus_speed is set from the bridge's linkcap Max Link Speed
 	 */
-	if (dd->pcidev->bus->max_bus_speed != PCIE_SPEED_8_0GT) {
+	if (parent && dd->pcidev->bus->max_bus_speed != PCIE_SPEED_8_0GT) {
 		dd_dev_info(dd, "Parent PCIe bridge does not support Gen3\n");
 		dd->link_gen3_capable = 0;
 	}
@@ -471,6 +472,12 @@ static void tune_pcie_caps(struct hfi1_devdata *dd)
 	}
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
+	/*
+	 * The driver cannot perform the tuning if it does not have
+	 * access to the upstream component.
+	 */
+	if (!parent)
+		return;
 	if (!pci_is_root_bus(parent->bus)) {
 		dd_dev_info(dd, "Parent not root\n");
 		return;
@@ -939,7 +946,7 @@ static void write_xmt_margin(struct hfi1_devdata *dd, const char *fname)
  */
 int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 {
-	struct pci_dev *parent;
+	struct pci_dev *parent = dd->pcidev->bus->self;
 	u64 fw_ctrl;
 	u64 reg, therm;
 	u32 reg32, fs, lf;
@@ -979,6 +986,16 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 			    pcie_force ? "re-doing anyway" : "skipping");
 		if (!pcie_force)
 			return 0;
+	}
+
+	/*
+	 * The driver cannot do the transition if it has no access to the
+	 * upstream component
+	 */
+	if (!parent) {
+		dd_dev_info(dd, "%s: No upstream, Can't do gen3 transition\n",
+			    __func__);
+		return 0;
 	}
 
 	/*
@@ -1157,7 +1174,6 @@ retry:
 	 * that it is Gen3 capable earlier.
 	 */
 	dd_dev_info(dd, "%s: setting parent target link speed\n", __func__);
-	parent = dd->pcidev->bus->self;
 	pcie_capability_read_word(parent, PCI_EXP_LNKCTL2, &lnkctl2);
 	dd_dev_info(dd, "%s: ..old link control2: 0x%x\n", __func__,
 		    (u32)lnkctl2);

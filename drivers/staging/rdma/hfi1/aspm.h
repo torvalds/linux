@@ -72,6 +72,13 @@ static inline bool aspm_hw_l1_supported(struct hfi1_devdata *dd)
 	struct pci_dev *parent = dd->pcidev->bus->self;
 	u32 up, dn;
 
+	/*
+	 * If the driver does not have access to the upstream component,
+	 * it cannot support ASPM L1 at all.
+	 */
+	if (!parent)
+		return false;
+
 	pcie_capability_read_dword(dd->pcidev, PCI_EXP_LNKCAP, &dn);
 	dn = ASPM_L1_SUPPORTED(dn);
 
@@ -98,6 +105,13 @@ static inline void aspm_hw_enable_l1(struct hfi1_devdata *dd)
 {
 	struct pci_dev *parent = dd->pcidev->bus->self;
 
+	/*
+	 * If the driver does not have access to the upstream component,
+	 * it cannot support ASPM L1 at all.
+	 */
+	if (!parent)
+		return;
+
 	/* Enable ASPM L1 first in upstream component and then downstream */
 	pcie_capability_clear_and_set_word(parent, PCI_EXP_LNKCTL,
 					   PCI_EXP_LNKCTL_ASPMC,
@@ -114,8 +128,9 @@ static inline void aspm_hw_disable_l1(struct hfi1_devdata *dd)
 	/* Disable ASPM L1 first in downstream component and then upstream */
 	pcie_capability_clear_and_set_word(dd->pcidev, PCI_EXP_LNKCTL,
 					   PCI_EXP_LNKCTL_ASPMC, 0x0);
-	pcie_capability_clear_and_set_word(parent, PCI_EXP_LNKCTL,
-					   PCI_EXP_LNKCTL_ASPMC, 0x0);
+	if (parent)
+		pcie_capability_clear_and_set_word(parent, PCI_EXP_LNKCTL,
+						   PCI_EXP_LNKCTL_ASPMC, 0x0);
 }
 
 static inline void aspm_enable(struct hfi1_devdata *dd)
