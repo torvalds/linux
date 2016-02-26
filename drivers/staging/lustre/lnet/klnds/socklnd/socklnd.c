@@ -2889,14 +2889,12 @@ ksocknal_startup(lnet_ni_t *ni)
 	return -ENETDOWN;
 }
 
-static void __exit
-ksocknal_module_fini(void)
+static void __exit ksocklnd_exit(void)
 {
 	lnet_unregister_lnd(&the_ksocklnd);
 }
 
-static int __init
-ksocknal_module_init(void)
+static int __init ksocklnd_init(void)
 {
 	int rc;
 
@@ -2929,5 +2927,5 @@ MODULE_DESCRIPTION("TCP Socket LNet Network Driver");
 MODULE_VERSION("2.7.0");
 MODULE_LICENSE("GPL");
 
-module_init(ksocknal_module_init);
-module_exit(ksocknal_module_fini);
+module_init(ksocklnd_init);
+module_exit(ksocklnd_exit);

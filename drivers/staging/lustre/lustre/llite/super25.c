@@ -89,7 +89,7 @@ MODULE_ALIAS_FS("lustre");
 
 void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg));
 
-static int __init init_lustre_lite(void)
+static int __init lustre_init(void)
 {
 	lnet_process_id_t lnet_id;
 	struct timespec64 ts;
@@ -188,7 +188,7 @@ out_cache:
 	return rc;
 }
 
-static void __exit exit_lustre_lite(void)
+static void __exit lustre_exit(void)
 {
 	lustre_register_client_fill_super(NULL);
 	lustre_register_kill_super_cb(NULL);
@@ -213,5 +213,5 @@ MODULE_DESCRIPTION("Lustre Client File System");
 MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
 
-module_init(init_lustre_lite);
-module_exit(exit_lustre_lite);
+module_init(lustre_init);
+module_exit(lustre_exit);

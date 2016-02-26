@@ -1386,13 +1386,12 @@ failed:
  * Initialize LNet library.
  *
  * Automatically called at module loading time. Caller has to call
- * lnet_exit() after a call to lnet_init(), if and only if the
+ * lnet_lib_exit() after a call to lnet_lib_init(), if and only if the
  * latter returned 0. It must be called exactly once.
  *
  * \return 0 on success, and -ve on failures.
  */
-int
-lnet_init(void)
+int lnet_lib_init(void)
 {
 	int rc;
 
@@ -1451,11 +1450,10 @@ lnet_init(void)
 /**
  * Finalize LNet library.
  *
- * \pre lnet_init() called with success.
+ * \pre lnet_lib_init() called with success.
  * \pre All LNet users called LNetNIFini() for matching LNetNIInit() calls.
  */
-void
-lnet_fini(void)
+void lnet_lib_exit(void)
 {
 	LASSERT(!the_lnet.ln_refcount);
 

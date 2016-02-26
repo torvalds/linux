@@ -450,7 +450,7 @@ int client_fid_fini(struct obd_device *obd)
 }
 EXPORT_SYMBOL(client_fid_fini);
 
-static int __init fid_mod_init(void)
+static int __init fid_init(void)
 {
 	seq_debugfs_dir = ldebugfs_register(LUSTRE_SEQ_NAME,
 					    debugfs_lustre_root,
@@ -458,7 +458,7 @@ static int __init fid_mod_init(void)
 	return PTR_ERR_OR_ZERO(seq_debugfs_dir);
 }
 
-static void __exit fid_mod_exit(void)
+static void __exit fid_exit(void)
 {
 	if (!IS_ERR_OR_NULL(seq_debugfs_dir))
 		ldebugfs_remove(&seq_debugfs_dir);
@@ -469,5 +469,5 @@ MODULE_DESCRIPTION("Lustre File IDentifier");
 MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
 
-module_init(fid_mod_init);
-module_exit(fid_mod_exit);
+module_init(fid_init);
+module_exit(fid_exit);

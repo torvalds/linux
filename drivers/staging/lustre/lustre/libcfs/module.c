@@ -585,7 +585,7 @@ static void lustre_remove_debugfs(void)
 	lnet_debugfs_root = NULL;
 }
 
-static int init_libcfs_module(void)
+static int libcfs_init(void)
 {
 	int rc;
 
@@ -641,7 +641,7 @@ cleanup_cpu:
 	return rc;
 }
 
-static void exit_libcfs_module(void)
+static void libcfs_exit(void)
 {
 	int rc;
 
@@ -669,5 +669,5 @@ MODULE_DESCRIPTION("Lustre helper library");
 MODULE_VERSION(LIBCFS_VERSION);
 MODULE_LICENSE("GPL");
 
-module_init(init_libcfs_module);
-module_exit(exit_libcfs_module);
+module_init(libcfs_init);
+module_exit(libcfs_exit);

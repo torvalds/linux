@@ -450,8 +450,8 @@ lnet_ni_t *lnet_net2ni(__u32 net);
 
 extern int portal_rotor;
 
-int lnet_init(void);
-void lnet_fini(void);
+int lnet_lib_init(void);
+void lnet_lib_exit(void);
 
 int lnet_notify(lnet_ni_t *ni, lnet_nid_t peer, int alive, unsigned long when);
 void lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive,

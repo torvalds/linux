@@ -473,7 +473,7 @@ static int obd_init_checks(void)
 extern int class_procfs_init(void);
 extern int class_procfs_clean(void);
 
-static int __init init_obdclass(void)
+static int __init obdclass_init(void)
 {
 	int i, err;
 
@@ -543,7 +543,7 @@ static int __init init_obdclass(void)
 	return err;
 }
 
-static void cleanup_obdclass(void)
+static void obdclass_exit(void)
 {
 	int i;
 
@@ -580,5 +580,5 @@ MODULE_DESCRIPTION("Lustre Class Driver");
 MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
 
-module_init(init_obdclass);
-module_exit(cleanup_obdclass);
+module_init(obdclass_init);
+module_exit(obdclass_exit);

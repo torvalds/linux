@@ -485,7 +485,7 @@ void fld_client_flush(struct lu_client_fld *fld)
 }
 EXPORT_SYMBOL(fld_client_flush);
 
-static int __init fld_mod_init(void)
+static int __init fld_init(void)
 {
 	fld_debugfs_dir = ldebugfs_register(LUSTRE_FLD_NAME,
 					    debugfs_lustre_root,
@@ -493,7 +493,7 @@ static int __init fld_mod_init(void)
 	return PTR_ERR_OR_ZERO(fld_debugfs_dir);
 }
 
-static void __exit fld_mod_exit(void)
+static void __exit fld_exit(void)
 {
 	if (!IS_ERR_OR_NULL(fld_debugfs_dir))
 		ldebugfs_remove(&fld_debugfs_dir);
@@ -504,5 +504,5 @@ MODULE_DESCRIPTION("Lustre FID Location Database");
 MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
 
-module_init(fld_mod_init)
-module_exit(fld_mod_exit)
+module_init(fld_init)
+module_exit(fld_exit)

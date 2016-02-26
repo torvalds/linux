@@ -2840,12 +2840,12 @@ net_failed:
 	return -ENETDOWN;
 }
 
-static void __exit kiblnd_module_fini(void)
+static void __exit ko2iblnd_exit(void)
 {
 	lnet_unregister_lnd(&the_o2iblnd);
 }
 
-static int __init kiblnd_module_init(void)
+static int __init ko2iblnd_init(void)
 {
 	int rc;
 
@@ -2871,5 +2871,5 @@ MODULE_DESCRIPTION("OpenIB gen2 LNet Network Driver");
 MODULE_VERSION("2.7.0");
 MODULE_LICENSE("GPL");
 
-module_init(kiblnd_module_init);
-module_exit(kiblnd_module_fini);
+module_init(ko2iblnd_init);
+module_exit(ko2iblnd_exit);
