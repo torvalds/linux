@@ -3539,13 +3539,16 @@ static void bnxt_hwrm_set_coal_params(struct bnxt *bp, u32 max_bufs,
 int bnxt_hwrm_set_coal(struct bnxt *bp)
 {
 	int i, rc = 0;
-	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req = {0};
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_rx = {0},
+							   req_tx = {0}, *req;
 	u16 max_buf, max_buf_irq;
 	u16 buf_tmr, buf_tmr_irq;
 	u32 flags;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS,
-			       -1, -1);
+	bnxt_hwrm_cmd_hdr_init(bp, &req_rx,
+			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
+	bnxt_hwrm_cmd_hdr_init(bp, &req_tx,
+			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
 
 	/* Each rx completion (2 records) should be DMAed immediately.
 	 * DMA 1/4 of the completion buffers at a time.
@@ -3569,13 +3572,31 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
 
 	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
-				  buf_tmr_irq << 16 | buf_tmr, flags, &req);
+				  buf_tmr_irq << 16 | buf_tmr, flags, &req_rx);
+
+	/* max_buf must not be zero */
+	max_buf = clamp_t(u16, bp->tx_coal_bufs, 1, 63);
+	max_buf_irq = clamp_t(u16, bp->tx_coal_bufs_irq, 1, 63);
+	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal_ticks);
+	/* buf timer set to 1/4 of interrupt timer */
+	buf_tmr = max_t(u16, buf_tmr / 4, 1);
+	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal_ticks_irq);
+	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
+
+	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
+	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
+				  buf_tmr_irq << 16 | buf_tmr, flags, &req_tx);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
-		req.ring_id = cpu_to_le16(bp->grp_info[i].cp_fw_ring_id);
+		struct bnxt_napi *bnapi = bp->bnapi[i];
 
-		rc = _hwrm_send_message(bp, &req, sizeof(req),
+		req = &req_rx;
+		if (!bnapi->rx_ring)
+			req = &req_tx;
+		req->ring_id = cpu_to_le16(bp->grp_info[i].cp_fw_ring_id);
+
+		rc = _hwrm_send_message(bp, req, sizeof(*req),
 					HWRM_CMD_TIMEOUT);
 		if (rc)
 			break;
@@ -5310,10 +5331,15 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->tx_ring_size = BNXT_DEFAULT_TX_RING_SIZE;
 
 	/* tick values in micro seconds */
-	bp->rx_coal_ticks = 4;
-	bp->rx_coal_bufs = 20;
+	bp->rx_coal_ticks = 12;
+	bp->rx_coal_bufs = 30;
 	bp->rx_coal_ticks_irq = 1;
 	bp->rx_coal_bufs_irq = 2;
+
+	bp->tx_coal_ticks = 25;
+	bp->tx_coal_bufs = 30;
+	bp->tx_coal_ticks_irq = 2;
+	bp->tx_coal_bufs_irq = 2;
 
 	init_timer(&bp->timer);
 	bp->timer.data = (unsigned long)bp;

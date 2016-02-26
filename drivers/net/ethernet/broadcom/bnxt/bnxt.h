@@ -968,10 +968,15 @@ struct bnxt {
 	__le16			vxlan_fw_dst_port_id;
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
+
 	u16			rx_coal_ticks;
 	u16			rx_coal_ticks_irq;
 	u16			rx_coal_bufs;
 	u16			rx_coal_bufs_irq;
+	u16			tx_coal_ticks;
+	u16			tx_coal_ticks_irq;
+	u16			tx_coal_bufs;
+	u16			tx_coal_bufs_irq;
 
 #define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
 

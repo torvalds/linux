@@ -47,6 +47,11 @@ static int bnxt_get_coalesce(struct net_device *dev,
 	coal->rx_coalesce_usecs_irq = bp->rx_coal_ticks_irq;
 	coal->rx_max_coalesced_frames_irq = bp->rx_coal_bufs_irq / 2;
 
+	coal->tx_coalesce_usecs = bp->tx_coal_ticks;
+	coal->tx_max_coalesced_frames = bp->tx_coal_bufs;
+	coal->tx_coalesce_usecs_irq = bp->tx_coal_ticks_irq;
+	coal->tx_max_coalesced_frames_irq = bp->tx_coal_bufs_irq;
+
 	return 0;
 }
 
@@ -61,6 +66,11 @@ static int bnxt_set_coalesce(struct net_device *dev,
 	bp->rx_coal_bufs = coal->rx_max_coalesced_frames * 2;
 	bp->rx_coal_ticks_irq = coal->rx_coalesce_usecs_irq;
 	bp->rx_coal_bufs_irq = coal->rx_max_coalesced_frames_irq * 2;
+
+	bp->tx_coal_ticks = coal->tx_coalesce_usecs;
+	bp->tx_coal_bufs = coal->tx_max_coalesced_frames;
+	bp->tx_coal_ticks_irq = coal->tx_coalesce_usecs_irq;
+	bp->tx_coal_bufs_irq = coal->tx_max_coalesced_frames_irq;
 
 	if (netif_running(dev))
 		rc = bnxt_hwrm_set_coal(bp);
