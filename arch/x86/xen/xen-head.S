@@ -47,13 +47,9 @@ ENTRY(startup_xen)
 	shr $__ASM_SEL(2, 3), %_ASM_CX
 	rep __ASM_SIZE(stos)
 
-#ifdef CONFIG_X86_32
-	mov %esi,xen_start_info
-	mov $init_thread_union+THREAD_SIZE,%esp
-#else
-	mov %rsi,xen_start_info
-	mov $init_thread_union+THREAD_SIZE,%rsp
-#endif
+	mov %_ASM_SI, xen_start_info
+	mov $init_thread_union+THREAD_SIZE, %_ASM_SP
+
 	jmp xen_start_kernel
 
 	__FINIT
