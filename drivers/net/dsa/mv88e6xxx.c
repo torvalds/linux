@@ -1458,13 +1458,81 @@ loadpurge:
 	return _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_STU_LOAD_PURGE);
 }
 
+static int _mv88e6xxx_port_fid(struct dsa_switch *ds, int port, u16 *new,
+			       u16 *old)
+{
+	u16 fid;
+	int ret;
+
+	/* Port's default FID bits 3:0 are located in reg 0x06, offset 12 */
+	ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_BASE_VLAN);
+	if (ret < 0)
+		return ret;
+
+	fid = (ret & PORT_BASE_VLAN_FID_3_0_MASK) >> 12;
+
+	if (new) {
+		ret &= ~PORT_BASE_VLAN_FID_3_0_MASK;
+		ret |= (*new << 12) & PORT_BASE_VLAN_FID_3_0_MASK;
+
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_BASE_VLAN,
+					   ret);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Port's default FID bits 11:4 are located in reg 0x05, offset 0 */
+	ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_CONTROL_1);
+	if (ret < 0)
+		return ret;
+
+	fid |= (ret & PORT_CONTROL_1_FID_11_4_MASK) << 4;
+
+	if (new) {
+		ret &= ~PORT_CONTROL_1_FID_11_4_MASK;
+		ret |= (*new >> 4) & PORT_CONTROL_1_FID_11_4_MASK;
+
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_CONTROL_1,
+					   ret);
+		if (ret < 0)
+			return ret;
+
+		netdev_dbg(ds->ports[port], "FID %d (was %d)\n", *new, fid);
+	}
+
+	if (old)
+		*old = fid;
+
+	return 0;
+}
+
+static int _mv88e6xxx_port_fid_get(struct dsa_switch *ds, int port, u16 *fid)
+{
+	return _mv88e6xxx_port_fid(ds, port, NULL, fid);
+}
+
+static int _mv88e6xxx_port_fid_set(struct dsa_switch *ds, int port, u16 fid)
+{
+	return _mv88e6xxx_port_fid(ds, port, &fid, NULL);
+}
+
 static int _mv88e6xxx_fid_new(struct dsa_switch *ds, u16 *fid)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
 	struct mv88e6xxx_vtu_stu_entry vlan;
-	int err;
+	int i, err;
 
 	bitmap_zero(fid_bitmap, MV88E6XXX_N_FID);
+
+	/* Set every FID bit used by the (un)bridged ports */
+	for (i = 0; i < ps->num_ports; ++i) {
+		err = _mv88e6xxx_port_fid_get(ds, i, fid);
+		if (err)
+			return err;
+
+		set_bit(*fid, fid_bitmap);
+	}
 
 	/* Set every FID bit used by the VLAN entries */
 	err = _mv88e6xxx_vtu_vid_write(ds, GLOBAL_VTU_VID_MASK);
@@ -1824,7 +1892,11 @@ static int _mv88e6xxx_port_fdb_load(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_vtu_stu_entry vlan;
 	int err;
 
-	err = _mv88e6xxx_vtu_get(ds, vid, &vlan, false);
+	/* Null VLAN ID corresponds to the port private database */
+	if (vid == 0)
+		err = _mv88e6xxx_port_fid_get(ds, port, &vlan.fid);
+	else
+		err = _mv88e6xxx_vtu_get(ds, vid, &vlan, false);
 	if (err)
 		return err;
 
@@ -1843,10 +1915,6 @@ int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 			       const struct switchdev_obj_port_fdb *fdb,
 			       struct switchdev_trans *trans)
 {
-	/* We don't use per-port FDB */
-	if (fdb->vid == 0)
-		return -EOPNOTSUPP;
-
 	/* We don't need any dynamic resource from the kernel (yet),
 	 * so skip the prepare phase.
 	 */
@@ -1982,9 +2050,19 @@ int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_vtu_stu_entry vlan = {
 		.vid = GLOBAL_VTU_VID_MASK, /* all ones */
 	};
+	u16 fid;
 	int err;
 
 	mutex_lock(&ps->smi_mutex);
+
+	/* Dump port's default Filtering Information Database (VLAN ID 0) */
+	err = _mv88e6xxx_port_fid_get(ds, port, &fid);
+	if (err)
+		goto unlock;
+
+	err = _mv88e6xxx_port_fdb_dump_one(ds, fid, 0, port, fdb, cb);
+	if (err)
+		goto unlock;
 
 	/* Dump VLANs' Filtering Information Databases */
 	err = _mv88e6xxx_vtu_vid_write(ds, vlan.vid);
@@ -2286,9 +2364,13 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	if (ret)
 		goto abort;
 
-	/* Port based VLAN map: do not give each port its own address
+	/* Port based VLAN map: give each port its own address
 	 * database, and allow every port to egress frames on all other ports.
 	 */
+	ret = _mv88e6xxx_port_fid_set(ds, port, port + 1);
+	if (ret)
+		goto abort;
+
 	reg = BIT(ps->num_ports) - 1; /* all ports */
 	reg &= ~BIT(port); /* except itself */
 	ret = _mv88e6xxx_port_vlan_map_set(ds, port, reg);
