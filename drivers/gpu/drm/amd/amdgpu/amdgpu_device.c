@@ -1336,14 +1336,23 @@ static int amdgpu_suspend(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	/* ungate SMC block first */
+	r = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_SMC,
+					 AMD_CG_STATE_UNGATE);
+	if (r) {
+		DRM_ERROR("set_clockgating_state(ungate) SMC failed %d\n",r);
+	}
+
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_block_status[i].valid)
 			continue;
 		/* ungate blocks so that suspend can properly shut them down */
-		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-								    AMD_CG_STATE_UNGATE);
-		if (r) {
-			DRM_ERROR("set_clockgating_state(ungate) %d failed %d\n", i, r);
+		if (i != AMD_IP_BLOCK_TYPE_SMC) {
+			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+									    AMD_CG_STATE_UNGATE);
+			if (r) {
+				DRM_ERROR("set_clockgating_state(ungate) %d failed %d\n", i, r);
+			}
 		}
 		/* XXX handle errors */
 		r = adev->ip_blocks[i].funcs->suspend(adev);
