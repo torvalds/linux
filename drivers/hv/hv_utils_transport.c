@@ -310,6 +310,9 @@ struct hvutil_transport *hvutil_transport_init(const char *name,
 	return hvt;
 
 err_free_hvt:
+	spin_lock(&hvt_list_lock);
+	list_del(&hvt->list);
+	spin_unlock(&hvt_list_lock);
 	kfree(hvt);
 	return NULL;
 }
