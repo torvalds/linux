@@ -99,3 +99,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
 };
+
+&gpmc {
+	ranges = <0 0 0x30000000 0x01000000>;   /* CS0: 16MB for NAND */
+};
