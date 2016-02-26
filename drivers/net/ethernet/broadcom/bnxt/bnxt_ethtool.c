@@ -1141,7 +1141,7 @@ static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
 	req.dir_ordinal = cpu_to_le16(ordinal);
 	req.dir_ext = cpu_to_le16(ext);
 	req.opt_ordinal = NVM_FIND_DIR_ENTRY_REQ_OPT_ORDINAL_EQ;
-	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc == 0) {
 		if (index)
 			*index = le16_to_cpu(output->dir_idx);
