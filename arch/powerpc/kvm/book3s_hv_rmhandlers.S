@@ -1198,6 +1198,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 * -1 A guest wakeup IPI (which has now been cleared)
 	 *    In either case, we return to guest to deliver any pending
 	 *    guest interrupts.
+	 *
+	 * -2 A PCI passthrough external interrupt was handled
+	 *    (interrupt was delivered directly to guest)
+	 *    Return to guest to deliver any pending guest interrupts.
 	 */
 
 	cmpdi	r3, 0
@@ -2352,6 +2356,8 @@ machine_check_realmode:
  *	0 if nothing needs to be done
  *	1 if something happened that needs to be handled by the host
  *	-1 if there was a guest wakeup (IPI or msgsnd)
+ *	-2 if we handled a PCI passthrough interrupt (returned by
+ *		kvmppc_read_intr only)
  *
  * Also sets r12 to the interrupt vector for any interrupt that needs
  * to be handled now by the host (0x500 for external interrupt), or zero.

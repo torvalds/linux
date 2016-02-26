@@ -478,6 +478,9 @@ extern int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval);
 extern int kvmppc_xics_connect_vcpu(struct kvm_device *dev,
 			struct kvm_vcpu *vcpu, u32 cpu);
 extern void kvmppc_xics_ipi_action(void);
+extern long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu, u32 xirr,
+				 struct kvmppc_irq_map *irq_map,
+				 struct kvmppc_passthru_irqmap *pimap);
 extern int h_ipi_redirect;
 #else
 static inline struct kvmppc_passthru_irqmap *kvmppc_get_passthru_irqmap(
