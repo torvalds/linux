@@ -2501,6 +2501,31 @@ static void cvmx_usb_transfer_bulk(struct octeon_hcd *usb,
 	}
 }
 
+static void cvmx_usb_transfer_intr(struct octeon_hcd *usb,
+				   struct cvmx_usb_pipe *pipe,
+				   struct cvmx_usb_transaction *transaction,
+				   int buffer_space_left,
+				   int bytes_in_last_packet)
+{
+	if (cvmx_usb_pipe_needs_split(usb, pipe)) {
+		if (transaction->stage == CVMX_USB_STAGE_NON_CONTROL) {
+			transaction->stage =
+				CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE;
+		} else if (buffer_space_left &&
+			   (bytes_in_last_packet == pipe->max_packet)) {
+			transaction->stage = CVMX_USB_STAGE_NON_CONTROL;
+		} else {
+			pipe->next_tx_frame += pipe->interval;
+			cvmx_usb_complete(usb, pipe, transaction,
+					  CVMX_USB_STATUS_OK);
+		}
+	} else if (!buffer_space_left ||
+		   (bytes_in_last_packet < pipe->max_packet)) {
+		pipe->next_tx_frame += pipe->interval;
+		cvmx_usb_complete(usb, pipe, transaction, CVMX_USB_STATUS_OK);
+	}
+}
+
 /**
  * Poll a channel for status
  *
@@ -2785,52 +2810,9 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 					       bytes_in_last_packet);
 			break;
 		case CVMX_USB_TRANSFER_INTERRUPT:
-			/*
-			 * The only time a bulk transfer isn't complete when it
-			 * finishes with an ACK is during a split transaction.
-			 * For splits we need to continue the transfer if more
-			 * data is needed
-			 */
-			if (cvmx_usb_pipe_needs_split(usb, pipe)) {
-				if (transaction->stage ==
-				    CVMX_USB_STAGE_NON_CONTROL) {
-					transaction->stage =
-						CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE;
-				} else if (buffer_space_left &&
-					   (bytes_in_last_packet ==
-					   pipe->max_packet)) {
-					transaction->stage =
-						CVMX_USB_STAGE_NON_CONTROL;
-				} else {
-					if (transaction->type ==
-					    CVMX_USB_TRANSFER_INTERRUPT)
-						pipe->next_tx_frame +=
-							pipe->interval;
-					cvmx_usb_complete(usb, pipe,
-							  transaction,
-							  CVMX_USB_STATUS_OK);
-				}
-			} else {
-				if ((pipe->device_speed ==
-				     CVMX_USB_SPEED_HIGH) &&
-				    (pipe->transfer_type ==
-				     CVMX_USB_TRANSFER_BULK) &&
-				    (pipe->transfer_dir ==
-				     CVMX_USB_DIRECTION_OUT) &&
-				    (usbc_hcint.s.nak))
-					pipe->flags |=
-						CVMX_USB_PIPE_FLAGS_NEED_PING;
-				if (!buffer_space_left ||
-				    (bytes_in_last_packet < pipe->max_packet)) {
-					if (transaction->type ==
-					    CVMX_USB_TRANSFER_INTERRUPT)
-						pipe->next_tx_frame +=
-							pipe->interval;
-					cvmx_usb_complete(usb, pipe,
-							  transaction,
-							  CVMX_USB_STATUS_OK);
-				}
-			}
+			cvmx_usb_transfer_intr(usb, pipe, transaction,
+					       buffer_space_left,
+					       bytes_in_last_packet);
 			break;
 		case CVMX_USB_TRANSFER_ISOCHRONOUS:
 			if (cvmx_usb_pipe_needs_split(usb, pipe)) {
