@@ -937,7 +937,7 @@ struct md_enqueue_info {
 	struct lustre_handle    mi_lockh;
 	struct inode	   *mi_dir;
 	int (*mi_cb)(struct ptlrpc_request *req,
-		struct md_enqueue_info *minfo, int rc);
+		     struct md_enqueue_info *minfo, int rc);
 	__u64		   mi_cbdata;
 	unsigned int	    mi_generation;
 };
@@ -1206,9 +1206,9 @@ struct lsm_operations {
 	void (*lsm_stripe_by_offset)(struct lov_stripe_md *, int *, u64 *,
 				     u64 *);
 	int (*lsm_lmm_verify)(struct lov_mds_md *lmm, int lmm_bytes,
-			       __u16 *stripe_count);
+			      __u16 *stripe_count);
 	int (*lsm_unpackmd)(struct lov_obd *lov, struct lov_stripe_md *lsm,
-			     struct lov_mds_md *lmm);
+			    struct lov_mds_md *lmm);
 };
 
 extern const struct lsm_operations lsm_v1_ops;

@@ -435,7 +435,7 @@ fid_extract_from_res_name(struct lu_fid *fid, const struct ldlm_res_id *res)
  */
 static inline struct ldlm_res_id *
 fid_build_quota_res_name(const struct lu_fid *glb_fid, union lquota_id *qid,
-		      struct ldlm_res_id *res)
+			 struct ldlm_res_id *res)
 {
 	fid_build_reg_res_name(glb_fid, res);
 	res->name[LUSTRE_RES_ID_QUOTA_SEQ_OFF] = fid_seq(&qid->qid_fid);

@@ -322,7 +322,7 @@ struct cl_object_operations {
 	 *	 to be used instead of newly created.
 	 */
 	int  (*coo_page_init)(const struct lu_env *env, struct cl_object *obj,
-				struct cl_page *page, struct page *vmpage);
+			      struct cl_page *page, struct page *vmpage);
 	/**
 	 * Initialize lock slice for this layer. Called top-to-bottom through
 	 * every object layer when a new cl_lock is instantiated. Layer
@@ -849,7 +849,7 @@ struct cl_page_operations {
 	 * \return the underlying VM page. Optional.
 	 */
 	struct page *(*cpo_vmpage)(const struct lu_env *env,
-				  const struct cl_page_slice *slice);
+				   const struct cl_page_slice *slice);
 	/**
 	 * Called when \a io acquires this page into the exclusive
 	 * ownership. When this method returns, it is guaranteed that the is
@@ -2051,8 +2051,8 @@ struct cl_io_operations {
 		 *
 		 * \see cl_io_operations::cio_iter_fini()
 		 */
-		int (*cio_iter_init) (const struct lu_env *env,
-				      const struct cl_io_slice *slice);
+		int (*cio_iter_init)(const struct lu_env *env,
+				     const struct cl_io_slice *slice);
 		/**
 		 * Finalize io iteration.
 		 *
@@ -2062,8 +2062,8 @@ struct cl_io_operations {
 		 *
 		 * \see cl_io_operations::cio_iter_init()
 		 */
-		void (*cio_iter_fini) (const struct lu_env *env,
-				       const struct cl_io_slice *slice);
+		void (*cio_iter_fini)(const struct lu_env *env,
+				      const struct cl_io_slice *slice);
 		/**
 		 * Collect locks for the current iteration of io.
 		 *
@@ -2073,8 +2073,8 @@ struct cl_io_operations {
 		 * cl_io_lock_add(). Once all locks are collected, they are
 		 * sorted and enqueued in the proper order.
 		 */
-		int  (*cio_lock) (const struct lu_env *env,
-				  const struct cl_io_slice *slice);
+		int  (*cio_lock)(const struct lu_env *env,
+				 const struct cl_io_slice *slice);
 		/**
 		 * Finalize unlocking.
 		 *
@@ -2099,8 +2099,8 @@ struct cl_io_operations {
 		 * Called top-to-bottom at the end of io loop. Here layer
 		 * might wait for an unfinished asynchronous io.
 		 */
-		void (*cio_end)  (const struct lu_env *env,
-				  const struct cl_io_slice *slice);
+		void (*cio_end)(const struct lu_env *env,
+				const struct cl_io_slice *slice);
 		/**
 		 * Called bottom-to-top to notify layers that read/write IO
 		 * iteration finished, with \a nob bytes transferred.
@@ -2111,8 +2111,8 @@ struct cl_io_operations {
 		/**
 		 * Called once per io, bottom-to-top to release io resources.
 		 */
-		void (*cio_fini) (const struct lu_env *env,
-				  const struct cl_io_slice *slice);
+		void (*cio_fini)(const struct lu_env *env,
+				 const struct cl_io_slice *slice);
 	} op[CIT_OP_NR];
 	struct {
 		/**
@@ -2232,7 +2232,7 @@ struct cl_io_lock_link {
 	struct cl_lock      *cill_lock;
 	/** optional destructor */
 	void	       (*cill_fini)(const struct lu_env *env,
-					struct cl_io_lock_link *link);
+				    struct cl_io_lock_link *link);
 };
 
 /**
@@ -2613,7 +2613,7 @@ struct cache_stats {
 };
 
 /** These are not exported so far */
-void cache_stats_init (struct cache_stats *cs, const char *name);
+void cache_stats_init(struct cache_stats *cs, const char *name);
 
 /**
  * Client-side site. This represents particular client stack. "Global"
@@ -2637,8 +2637,8 @@ struct cl_site {
 	atomic_t	  cs_locks_state[CLS_NR];
 };
 
-int  cl_site_init (struct cl_site *s, struct cl_device *top);
-void cl_site_fini (struct cl_site *s);
+int  cl_site_init(struct cl_site *s, struct cl_device *top);
+void cl_site_fini(struct cl_site *s);
 void cl_stack_fini(const struct lu_env *env, struct cl_device *cl);
 
 /**
@@ -2740,26 +2740,26 @@ void cl_req_slice_add(struct cl_req *req, struct cl_req_slice *slice,
 /** \defgroup cl_object cl_object
  * @{
  */
-struct cl_object *cl_object_top (struct cl_object *o);
+struct cl_object *cl_object_top(struct cl_object *o);
 struct cl_object *cl_object_find(const struct lu_env *env, struct cl_device *cd,
 				 const struct lu_fid *fid,
 				 const struct cl_object_conf *c);
 
 int  cl_object_header_init(struct cl_object_header *h);
-void cl_object_put	(const struct lu_env *env, struct cl_object *o);
-void cl_object_get	(struct cl_object *o);
-void cl_object_attr_lock  (struct cl_object *o);
+void cl_object_put(const struct lu_env *env, struct cl_object *o);
+void cl_object_get(struct cl_object *o);
+void cl_object_attr_lock(struct cl_object *o);
 void cl_object_attr_unlock(struct cl_object *o);
-int  cl_object_attr_get   (const struct lu_env *env, struct cl_object *obj,
-			   struct cl_attr *attr);
-int  cl_object_attr_set   (const struct lu_env *env, struct cl_object *obj,
-			   const struct cl_attr *attr, unsigned valid);
-int  cl_object_glimpse    (const struct lu_env *env, struct cl_object *obj,
-			   struct ost_lvb *lvb);
-int  cl_conf_set	  (const struct lu_env *env, struct cl_object *obj,
-			   const struct cl_object_conf *conf);
-void cl_object_prune      (const struct lu_env *env, struct cl_object *obj);
-void cl_object_kill       (const struct lu_env *env, struct cl_object *obj);
+int  cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
+			struct cl_attr *attr);
+int  cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
+			const struct cl_attr *attr, unsigned valid);
+int  cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
+		       struct ost_lvb *lvb);
+int  cl_conf_set(const struct lu_env *env, struct cl_object *obj,
+		 const struct cl_object_conf *conf);
+void cl_object_prune(const struct lu_env *env, struct cl_object *obj);
+void cl_object_kill(const struct lu_env *env, struct cl_object *obj);
 
 /**
  * Returns true, iff \a o0 and \a o1 are slices of the same object.
@@ -2796,34 +2796,26 @@ enum {
 /* callback of cl_page_gang_lookup() */
 typedef int   (*cl_page_gang_cb_t)  (const struct lu_env *, struct cl_io *,
 				     struct cl_page *, void *);
-int	     cl_page_gang_lookup (const struct lu_env *env,
-				     struct cl_object *obj,
-				     struct cl_io *io,
-				     pgoff_t start, pgoff_t end,
-				     cl_page_gang_cb_t cb, void *cbdata);
-struct cl_page *cl_page_lookup      (struct cl_object_header *hdr,
-				     pgoff_t index);
-struct cl_page *cl_page_find	(const struct lu_env *env,
-				     struct cl_object *obj,
-				     pgoff_t idx, struct page *vmpage,
-				     enum cl_page_type type);
-struct cl_page *cl_page_find_sub    (const struct lu_env *env,
-				     struct cl_object *obj,
-				     pgoff_t idx, struct page *vmpage,
+int cl_page_gang_lookup(const struct lu_env *env, struct cl_object *obj,
+			struct cl_io *io, pgoff_t start, pgoff_t end,
+			cl_page_gang_cb_t cb, void *cbdata);
+struct cl_page *cl_page_lookup(struct cl_object_header *hdr, pgoff_t index);
+struct cl_page *cl_page_find(const struct lu_env *env, struct cl_object *obj,
+			     pgoff_t idx, struct page *vmpage,
+			     enum cl_page_type type);
+struct cl_page *cl_page_find_sub(const struct lu_env *env,
+				 struct cl_object *obj,
+				 pgoff_t idx, struct page *vmpage,
 				     struct cl_page *parent);
-void	    cl_page_get	 (struct cl_page *page);
-void	    cl_page_put	 (const struct lu_env *env,
-				     struct cl_page *page);
-void	    cl_page_print       (const struct lu_env *env, void *cookie,
-				     lu_printer_t printer,
-				     const struct cl_page *pg);
-void	    cl_page_header_print(const struct lu_env *env, void *cookie,
-				     lu_printer_t printer,
-				     const struct cl_page *pg);
-struct page     *cl_page_vmpage      (const struct lu_env *env,
-				     struct cl_page *page);
-struct cl_page *cl_vmpage_page      (struct page *vmpage, struct cl_object *obj);
-struct cl_page *cl_page_top	 (struct cl_page *page);
+void cl_page_get(struct cl_page *page);
+void cl_page_put(const struct lu_env *env, struct cl_page *page);
+void cl_page_print(const struct lu_env *env, void *cookie, lu_printer_t printer,
+		   const struct cl_page *pg);
+void cl_page_header_print(const struct lu_env *env, void *cookie,
+			  lu_printer_t printer, const struct cl_page *pg);
+struct page *cl_page_vmpage(const struct lu_env *env, struct cl_page *page);
+struct cl_page *cl_vmpage_page(struct page *vmpage, struct cl_object *obj);
+struct cl_page *cl_page_top(struct cl_page *page);
 
 const struct cl_page_slice *cl_page_at(const struct cl_page *page,
 				       const struct lu_device_type *dtype);
@@ -2835,17 +2827,17 @@ const struct cl_page_slice *cl_page_at(const struct cl_page *page,
  */
 /** @{ */
 
-int  cl_page_own	(const struct lu_env *env,
-			 struct cl_io *io, struct cl_page *page);
-int  cl_page_own_try    (const struct lu_env *env,
-			 struct cl_io *io, struct cl_page *page);
-void cl_page_assume     (const struct lu_env *env,
-			 struct cl_io *io, struct cl_page *page);
-void cl_page_unassume   (const struct lu_env *env,
-			 struct cl_io *io, struct cl_page *pg);
-void cl_page_disown     (const struct lu_env *env,
-			 struct cl_io *io, struct cl_page *page);
-int  cl_page_is_owned   (const struct cl_page *pg, const struct cl_io *io);
+int cl_page_own(const struct lu_env *env,
+		struct cl_io *io, struct cl_page *page);
+int cl_page_own_try(const struct lu_env *env,
+		    struct cl_io *io, struct cl_page *page);
+void cl_page_assume(const struct lu_env *env,
+		    struct cl_io *io, struct cl_page *page);
+void cl_page_unassume(const struct lu_env *env,
+		      struct cl_io *io, struct cl_page *pg);
+void cl_page_disown(const struct lu_env *env,
+		    struct cl_io *io, struct cl_page *page);
+int cl_page_is_owned(const struct cl_page *pg, const struct cl_io *io);
 
 /** @} ownership */
 
@@ -2856,19 +2848,19 @@ int  cl_page_is_owned   (const struct cl_page *pg, const struct cl_io *io);
  * tracking transfer state.
  */
 /** @{ */
-int  cl_page_prep       (const struct lu_env *env, struct cl_io *io,
-			 struct cl_page *pg, enum cl_req_type crt);
-void cl_page_completion (const struct lu_env *env,
-			 struct cl_page *pg, enum cl_req_type crt, int ioret);
-int  cl_page_make_ready (const struct lu_env *env, struct cl_page *pg,
-			 enum cl_req_type crt);
-int  cl_page_cache_add  (const struct lu_env *env, struct cl_io *io,
-			 struct cl_page *pg, enum cl_req_type crt);
-void cl_page_clip       (const struct lu_env *env, struct cl_page *pg,
-			 int from, int to);
-int  cl_page_cancel     (const struct lu_env *env, struct cl_page *page);
-int  cl_page_flush      (const struct lu_env *env, struct cl_io *io,
-			 struct cl_page *pg);
+int cl_page_prep(const struct lu_env *env, struct cl_io *io,
+		 struct cl_page *pg, enum cl_req_type crt);
+void cl_page_completion(const struct lu_env *env,
+			struct cl_page *pg, enum cl_req_type crt, int ioret);
+int cl_page_make_ready(const struct lu_env *env, struct cl_page *pg,
+		       enum cl_req_type crt);
+int cl_page_cache_add(const struct lu_env *env, struct cl_io *io,
+		      struct cl_page *pg, enum cl_req_type crt);
+void cl_page_clip(const struct lu_env *env, struct cl_page *pg,
+		  int from, int to);
+int cl_page_cancel(const struct lu_env *env, struct cl_page *page);
+int cl_page_flush(const struct lu_env *env, struct cl_io *io,
+		  struct cl_page *pg);
 
 /** @} transfer */
 
@@ -2877,24 +2869,22 @@ int  cl_page_flush      (const struct lu_env *env, struct cl_io *io,
  * Functions to discard, delete and export a cl_page.
  */
 /** @{ */
-void    cl_page_discard      (const struct lu_env *env, struct cl_io *io,
-			      struct cl_page *pg);
-void    cl_page_delete       (const struct lu_env *env, struct cl_page *pg);
-int     cl_page_unmap	(const struct lu_env *env, struct cl_io *io,
-			      struct cl_page *pg);
-int     cl_page_is_vmlocked  (const struct lu_env *env,
-			      const struct cl_page *pg);
-void    cl_page_export       (const struct lu_env *env,
-			      struct cl_page *pg, int uptodate);
-int     cl_page_is_under_lock(const struct lu_env *env, struct cl_io *io,
-			      struct cl_page *page);
-loff_t  cl_offset	    (const struct cl_object *obj, pgoff_t idx);
-pgoff_t cl_index	     (const struct cl_object *obj, loff_t offset);
-int     cl_page_size	 (const struct cl_object *obj);
-int     cl_pages_prune       (const struct lu_env *env, struct cl_object *obj);
+void cl_page_discard(const struct lu_env *env, struct cl_io *io,
+		     struct cl_page *pg);
+void cl_page_delete(const struct lu_env *env, struct cl_page *pg);
+int cl_page_unmap(const struct lu_env *env, struct cl_io *io,
+		  struct cl_page *pg);
+int cl_page_is_vmlocked(const struct lu_env *env, const struct cl_page *pg);
+void cl_page_export(const struct lu_env *env, struct cl_page *pg, int uptodate);
+int cl_page_is_under_lock(const struct lu_env *env, struct cl_io *io,
+			  struct cl_page *page);
+loff_t cl_offset(const struct cl_object *obj, pgoff_t idx);
+pgoff_t cl_index(const struct cl_object *obj, loff_t offset);
+int cl_page_size(const struct cl_object *obj);
+int cl_pages_prune(const struct lu_env *env, struct cl_object *obj);
 
-void cl_lock_print      (const struct lu_env *env, void *cookie,
-			 lu_printer_t printer, const struct cl_lock *lock);
+void cl_lock_print(const struct lu_env *env, void *cookie,
+		   lu_printer_t printer, const struct cl_lock *lock);
 void cl_lock_descr_print(const struct lu_env *env, void *cookie,
 			 lu_printer_t printer,
 			 const struct cl_lock_descr *descr);
@@ -2933,19 +2923,19 @@ static inline struct cl_lock *cl_lock_at_page(const struct lu_env *env,
 const struct cl_lock_slice *cl_lock_at(const struct cl_lock *lock,
 				       const struct lu_device_type *dtype);
 
-void  cl_lock_get       (struct cl_lock *lock);
-void  cl_lock_get_trust (struct cl_lock *lock);
-void  cl_lock_put       (const struct lu_env *env, struct cl_lock *lock);
-void  cl_lock_hold_add  (const struct lu_env *env, struct cl_lock *lock,
-			 const char *scope, const void *source);
+void cl_lock_get(struct cl_lock *lock);
+void cl_lock_get_trust(struct cl_lock *lock);
+void cl_lock_put(const struct lu_env *env, struct cl_lock *lock);
+void cl_lock_hold_add(const struct lu_env *env, struct cl_lock *lock,
+		      const char *scope, const void *source);
 void cl_lock_hold_release(const struct lu_env *env, struct cl_lock *lock,
 			  const char *scope, const void *source);
-void  cl_lock_unhold    (const struct lu_env *env, struct cl_lock *lock,
-			 const char *scope, const void *source);
-void  cl_lock_release   (const struct lu_env *env, struct cl_lock *lock,
-			 const char *scope, const void *source);
-void  cl_lock_user_add  (const struct lu_env *env, struct cl_lock *lock);
-void  cl_lock_user_del  (const struct lu_env *env, struct cl_lock *lock);
+void cl_lock_unhold(const struct lu_env *env, struct cl_lock *lock,
+		    const char *scope, const void *source);
+void cl_lock_release(const struct lu_env *env, struct cl_lock *lock,
+		     const char *scope, const void *source);
+void cl_lock_user_add(const struct lu_env *env, struct cl_lock *lock);
+void cl_lock_user_del(const struct lu_env *env, struct cl_lock *lock);
 
 int cl_lock_is_intransit(struct cl_lock *lock);
 
@@ -2985,50 +2975,50 @@ int cl_lock_enqueue_wait(const struct lu_env *env, struct cl_lock *lock,
  * @{
  */
 
-int   cl_wait       (const struct lu_env *env, struct cl_lock *lock);
-void  cl_unuse      (const struct lu_env *env, struct cl_lock *lock);
-int   cl_enqueue_try(const struct lu_env *env, struct cl_lock *lock,
-		     struct cl_io *io, __u32 flags);
-int   cl_unuse_try  (const struct lu_env *env, struct cl_lock *lock);
-int   cl_wait_try   (const struct lu_env *env, struct cl_lock *lock);
-int   cl_use_try    (const struct lu_env *env, struct cl_lock *lock, int atomic);
+int cl_wait(const struct lu_env *env, struct cl_lock *lock);
+void cl_unuse(const struct lu_env *env, struct cl_lock *lock);
+int cl_enqueue_try(const struct lu_env *env, struct cl_lock *lock,
+		   struct cl_io *io, __u32 flags);
+int cl_unuse_try(const struct lu_env *env, struct cl_lock *lock);
+int cl_wait_try(const struct lu_env *env, struct cl_lock *lock);
+int cl_use_try(const struct lu_env *env, struct cl_lock *lock, int atomic);
 
 /** @} statemachine */
 
-void cl_lock_signal      (const struct lu_env *env, struct cl_lock *lock);
-int  cl_lock_state_wait  (const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_state_set   (const struct lu_env *env, struct cl_lock *lock,
-			  enum cl_lock_state state);
-int  cl_queue_match      (const struct list_head *queue,
-			  const struct cl_lock_descr *need);
+void cl_lock_signal(const struct lu_env *env, struct cl_lock *lock);
+int cl_lock_state_wait(const struct lu_env *env, struct cl_lock *lock);
+void cl_lock_state_set(const struct lu_env *env, struct cl_lock *lock,
+		       enum cl_lock_state state);
+int cl_queue_match(const struct list_head *queue,
+		   const struct cl_lock_descr *need);
 
-void cl_lock_mutex_get  (const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_mutex_put  (const struct lu_env *env, struct cl_lock *lock);
-int  cl_lock_is_mutexed (struct cl_lock *lock);
-int  cl_lock_nr_mutexed (const struct lu_env *env);
-int  cl_lock_discard_pages(const struct lu_env *env, struct cl_lock *lock);
-int  cl_lock_ext_match  (const struct cl_lock_descr *has,
-			 const struct cl_lock_descr *need);
-int  cl_lock_descr_match(const struct cl_lock_descr *has,
-			 const struct cl_lock_descr *need);
-int  cl_lock_mode_match (enum cl_lock_mode has, enum cl_lock_mode need);
-int  cl_lock_modify     (const struct lu_env *env, struct cl_lock *lock,
-			 const struct cl_lock_descr *desc);
+void cl_lock_mutex_get(const struct lu_env *env, struct cl_lock *lock);
+void cl_lock_mutex_put(const struct lu_env *env, struct cl_lock *lock);
+int cl_lock_is_mutexed(struct cl_lock *lock);
+int cl_lock_nr_mutexed(const struct lu_env *env);
+int cl_lock_discard_pages(const struct lu_env *env, struct cl_lock *lock);
+int cl_lock_ext_match(const struct cl_lock_descr *has,
+		      const struct cl_lock_descr *need);
+int cl_lock_descr_match(const struct cl_lock_descr *has,
+			const struct cl_lock_descr *need);
+int cl_lock_mode_match(enum cl_lock_mode has, enum cl_lock_mode need);
+int cl_lock_modify(const struct lu_env *env, struct cl_lock *lock,
+		   const struct cl_lock_descr *desc);
 
-void cl_lock_closure_init (const struct lu_env *env,
-			   struct cl_lock_closure *closure,
-			   struct cl_lock *origin, int wait);
-void cl_lock_closure_fini (struct cl_lock_closure *closure);
-int  cl_lock_closure_build(const struct lu_env *env, struct cl_lock *lock,
-			   struct cl_lock_closure *closure);
-void cl_lock_disclosure   (const struct lu_env *env,
-			   struct cl_lock_closure *closure);
-int  cl_lock_enclosure    (const struct lu_env *env, struct cl_lock *lock,
-			   struct cl_lock_closure *closure);
+void cl_lock_closure_init(const struct lu_env *env,
+			  struct cl_lock_closure *closure,
+			  struct cl_lock *origin, int wait);
+void cl_lock_closure_fini(struct cl_lock_closure *closure);
+int cl_lock_closure_build(const struct lu_env *env, struct cl_lock *lock,
+			  struct cl_lock_closure *closure);
+void cl_lock_disclosure(const struct lu_env *env,
+			struct cl_lock_closure *closure);
+int cl_lock_enclosure(const struct lu_env *env, struct cl_lock *lock,
+		      struct cl_lock_closure *closure);
 
 void cl_lock_cancel(const struct lu_env *env, struct cl_lock *lock);
 void cl_lock_delete(const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_error (const struct lu_env *env, struct cl_lock *lock, int error);
+void cl_lock_error(const struct lu_env *env, struct cl_lock *lock, int error);
 void cl_locks_prune(const struct lu_env *env, struct cl_object *obj, int wait);
 
 unsigned long cl_lock_weigh(const struct lu_env *env, struct cl_lock *lock);
@@ -3039,37 +3029,37 @@ unsigned long cl_lock_weigh(const struct lu_env *env, struct cl_lock *lock);
  * @{
  */
 
-int   cl_io_init	 (const struct lu_env *env, struct cl_io *io,
-			  enum cl_io_type iot, struct cl_object *obj);
-int   cl_io_sub_init     (const struct lu_env *env, struct cl_io *io,
-			  enum cl_io_type iot, struct cl_object *obj);
-int   cl_io_rw_init      (const struct lu_env *env, struct cl_io *io,
-			  enum cl_io_type iot, loff_t pos, size_t count);
-int   cl_io_loop	 (const struct lu_env *env, struct cl_io *io);
+int cl_io_init(const struct lu_env *env, struct cl_io *io,
+	       enum cl_io_type iot, struct cl_object *obj);
+int cl_io_sub_init(const struct lu_env *env, struct cl_io *io,
+		   enum cl_io_type iot, struct cl_object *obj);
+int cl_io_rw_init(const struct lu_env *env, struct cl_io *io,
+		  enum cl_io_type iot, loff_t pos, size_t count);
+int cl_io_loop(const struct lu_env *env, struct cl_io *io);
 
-void  cl_io_fini	 (const struct lu_env *env, struct cl_io *io);
-int   cl_io_iter_init    (const struct lu_env *env, struct cl_io *io);
-void  cl_io_iter_fini    (const struct lu_env *env, struct cl_io *io);
-int   cl_io_lock	 (const struct lu_env *env, struct cl_io *io);
-void  cl_io_unlock       (const struct lu_env *env, struct cl_io *io);
-int   cl_io_start	(const struct lu_env *env, struct cl_io *io);
-void  cl_io_end	  (const struct lu_env *env, struct cl_io *io);
-int   cl_io_lock_add     (const struct lu_env *env, struct cl_io *io,
-			  struct cl_io_lock_link *link);
-int   cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
-			   struct cl_lock_descr *descr);
-int   cl_io_read_page    (const struct lu_env *env, struct cl_io *io,
-			  struct cl_page *page);
-int   cl_io_prepare_write(const struct lu_env *env, struct cl_io *io,
-			  struct cl_page *page, unsigned from, unsigned to);
-int   cl_io_commit_write (const struct lu_env *env, struct cl_io *io,
-			  struct cl_page *page, unsigned from, unsigned to);
-int   cl_io_submit_rw    (const struct lu_env *env, struct cl_io *io,
-			  enum cl_req_type iot, struct cl_2queue *queue);
-int   cl_io_submit_sync  (const struct lu_env *env, struct cl_io *io,
-			  enum cl_req_type iot, struct cl_2queue *queue,
-			  long timeout);
-int   cl_io_is_going     (const struct lu_env *env);
+void cl_io_fini(const struct lu_env *env, struct cl_io *io);
+int cl_io_iter_init(const struct lu_env *env, struct cl_io *io);
+void cl_io_iter_fini(const struct lu_env *env, struct cl_io *io);
+int cl_io_lock(const struct lu_env *env, struct cl_io *io);
+void cl_io_unlock(const struct lu_env *env, struct cl_io *io);
+int cl_io_start(const struct lu_env *env, struct cl_io *io);
+void cl_io_end(const struct lu_env *env, struct cl_io *io);
+int cl_io_lock_add(const struct lu_env *env, struct cl_io *io,
+		   struct cl_io_lock_link *link);
+int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
+			 struct cl_lock_descr *descr);
+int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
+		    struct cl_page *page);
+int cl_io_prepare_write(const struct lu_env *env, struct cl_io *io,
+			struct cl_page *page, unsigned from, unsigned to);
+int cl_io_commit_write(const struct lu_env *env, struct cl_io *io,
+		       struct cl_page *page, unsigned from, unsigned to);
+int cl_io_submit_rw(const struct lu_env *env, struct cl_io *io,
+		    enum cl_req_type iot, struct cl_2queue *queue);
+int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
+		      enum cl_req_type iot, struct cl_2queue *queue,
+		      long timeout);
+int cl_io_is_going(const struct lu_env *env);
 
 /**
  * True, iff \a io is an O_APPEND write(2).
@@ -3136,21 +3126,20 @@ static inline struct cl_page *cl_page_list_last(struct cl_page_list *plist)
 #define cl_page_list_for_each_safe(page, temp, list)		    \
 	list_for_each_entry_safe((page), (temp), &(list)->pl_pages, cp_batch)
 
-void cl_page_list_init   (struct cl_page_list *plist);
-void cl_page_list_add    (struct cl_page_list *plist, struct cl_page *page);
-void cl_page_list_move   (struct cl_page_list *dst, struct cl_page_list *src,
-			  struct cl_page *page);
-void cl_page_list_splice (struct cl_page_list *list,
-			  struct cl_page_list *head);
-void cl_page_list_disown (const struct lu_env *env,
-			  struct cl_io *io, struct cl_page_list *plist);
+void cl_page_list_init(struct cl_page_list *plist);
+void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page);
+void cl_page_list_move(struct cl_page_list *dst, struct cl_page_list *src,
+		       struct cl_page *page);
+void cl_page_list_splice(struct cl_page_list *list, struct cl_page_list *head);
+void cl_page_list_disown(const struct lu_env *env,
+			 struct cl_io *io, struct cl_page_list *plist);
 
-void cl_2queue_init     (struct cl_2queue *queue);
-void cl_2queue_disown   (const struct lu_env *env,
-			 struct cl_io *io, struct cl_2queue *queue);
-void cl_2queue_discard  (const struct lu_env *env,
-			 struct cl_io *io, struct cl_2queue *queue);
-void cl_2queue_fini     (const struct lu_env *env, struct cl_2queue *queue);
+void cl_2queue_init(struct cl_2queue *queue);
+void cl_2queue_disown(const struct lu_env *env,
+		      struct cl_io *io, struct cl_2queue *queue);
+void cl_2queue_discard(const struct lu_env *env,
+		       struct cl_io *io, struct cl_2queue *queue);
+void cl_2queue_fini(const struct lu_env *env, struct cl_2queue *queue);
 void cl_2queue_init_page(struct cl_2queue *queue, struct cl_page *page);
 
 /** @} cl_page_list */
@@ -3161,16 +3150,17 @@ void cl_2queue_init_page(struct cl_2queue *queue, struct cl_page *page);
 struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 			    enum cl_req_type crt, int nr_objects);
 
-void cl_req_page_add  (const struct lu_env *env, struct cl_req *req,
-		       struct cl_page *page);
-void cl_req_page_done (const struct lu_env *env, struct cl_page *page);
-int  cl_req_prep      (const struct lu_env *env, struct cl_req *req);
-void cl_req_attr_set  (const struct lu_env *env, struct cl_req *req,
-		       struct cl_req_attr *attr, u64 flags);
+void cl_req_page_add(const struct lu_env *env, struct cl_req *req,
+		     struct cl_page *page);
+void cl_req_page_done(const struct lu_env *env, struct cl_page *page);
+int  cl_req_prep(const struct lu_env *env, struct cl_req *req);
+void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
+		     struct cl_req_attr *attr, u64 flags);
 void cl_req_completion(const struct lu_env *env, struct cl_req *req, int ioret);
 
 /** \defgroup cl_sync_io cl_sync_io
- * @{ */
+ * @{
+ */
 
 /**
  * Anchor for synchronous transfer. This is allocated on a stack by thread
@@ -3242,15 +3232,15 @@ struct cl_env_nest {
 	void *cen_cookie;
 };
 
-struct lu_env *cl_env_get	(int *refcheck);
-struct lu_env *cl_env_alloc      (int *refcheck, __u32 tags);
-struct lu_env *cl_env_nested_get (struct cl_env_nest *nest);
-void	   cl_env_put	(struct lu_env *env, int *refcheck);
-void	   cl_env_nested_put (struct cl_env_nest *nest, struct lu_env *env);
-void	  *cl_env_reenter    (void);
-void	   cl_env_reexit     (void *cookie);
-void	   cl_env_implant    (struct lu_env *env, int *refcheck);
-void	   cl_env_unplant    (struct lu_env *env, int *refcheck);
+struct lu_env *cl_env_get(int *refcheck);
+struct lu_env *cl_env_alloc(int *refcheck, __u32 tags);
+struct lu_env *cl_env_nested_get(struct cl_env_nest *nest);
+void cl_env_put(struct lu_env *env, int *refcheck);
+void cl_env_nested_put(struct cl_env_nest *nest, struct lu_env *env);
+void *cl_env_reenter(void);
+void cl_env_reexit(void *cookie);
+void cl_env_implant(struct lu_env *env, int *refcheck);
+void cl_env_unplant(struct lu_env *env, int *refcheck);
 
 /** @} cl_env */
 

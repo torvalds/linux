@@ -2382,14 +2382,14 @@ void ptlrpc_at_set_req_timeout(struct ptlrpc_request *req);
 struct ptlrpc_request *ptlrpc_request_alloc(struct obd_import *imp,
 					    const struct req_format *format);
 struct ptlrpc_request *ptlrpc_request_alloc_pool(struct obd_import *imp,
-					    struct ptlrpc_request_pool *,
-					    const struct req_format *format);
+						 struct ptlrpc_request_pool *,
+						 const struct req_format *);
 void ptlrpc_request_free(struct ptlrpc_request *request);
 int ptlrpc_request_pack(struct ptlrpc_request *request,
 			__u32 version, int opcode);
-struct ptlrpc_request *ptlrpc_request_alloc_pack(struct obd_import *imp,
-						const struct req_format *format,
-						__u32 version, int opcode);
+struct ptlrpc_request *ptlrpc_request_alloc_pack(struct obd_import *,
+						 const struct req_format *,
+						 __u32, int);
 int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 			     __u32 version, int opcode, char **bufs,
 			     struct ptlrpc_cli_ctx *ctx);
@@ -2509,10 +2509,9 @@ struct ptlrpc_service_conf {
  */
 void ptlrpc_dispatch_difficult_reply(struct ptlrpc_reply_state *rs);
 void ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs);
-struct ptlrpc_service *ptlrpc_register_service(
-				struct ptlrpc_service_conf *conf,
-				struct kset *parent,
-				struct dentry *debugfs_entry);
+struct ptlrpc_service *ptlrpc_register_service(struct ptlrpc_service_conf *conf,
+					       struct kset *parent,
+					       struct dentry *debugfs_entry);
 
 int ptlrpc_start_threads(struct ptlrpc_service *svc);
 int ptlrpc_unregister_service(struct ptlrpc_service *service);
@@ -2545,7 +2544,7 @@ int ptlrpc_reconnect_import(struct obd_import *imp);
 int ptlrpc_buf_need_swab(struct ptlrpc_request *req, const int inout,
 			 int index);
 void ptlrpc_buf_set_swabbed(struct ptlrpc_request *req, const int inout,
-				int index);
+			    int index);
 int ptlrpc_unpack_rep_msg(struct ptlrpc_request *req, int len);
 int ptlrpc_unpack_req_msg(struct ptlrpc_request *req, int len);
 

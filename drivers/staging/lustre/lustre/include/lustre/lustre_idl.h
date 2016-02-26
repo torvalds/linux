@@ -638,15 +638,13 @@ static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 {
 	if (fid_seq_is_mdt0(ostid_seq(oi))) {
 		if (oid >= IDIF_MAX_OID) {
-			CERROR("Bad %llu to set "DOSTID"\n",
-				oid, POSTID(oi));
+			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
 			return;
 		}
 		oi->oi.oi_id = oid;
 	} else {
 		if (oid > OBIF_MAX_OID) {
-			CERROR("Bad %llu to set "DOSTID"\n",
-				oid, POSTID(oi));
+			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
 			return;
 		}
 		oi->oi_fid.f_oid = oid;
@@ -716,8 +714,8 @@ static inline int ostid_to_fid(struct lu_fid *fid, struct ost_id *ostid,
 		* pass the FID through, no conversion needed.
 		*/
 		if (ostid->oi_fid.f_ver != 0) {
-			CERROR("bad MDT0 id, "DOSTID" ost_idx:%u\n",
-				POSTID(ostid), ost_idx);
+			CERROR("bad MDT0 id, " DOSTID " ost_idx:%u\n",
+			       POSTID(ostid), ost_idx);
 			return -EBADF;
 		}
 		*fid = ostid->oi_fid;

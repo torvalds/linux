@@ -87,10 +87,10 @@ int class_name2dev(const char *name);
 struct obd_device *class_name2obd(const char *name);
 int class_uuid2dev(struct obd_uuid *uuid);
 struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
-					  const char *typ_name,
-					  struct obd_uuid *grp_uuid);
+					 const char *typ_name,
+					 struct obd_uuid *grp_uuid);
 struct obd_device *class_devices_in_group(struct obd_uuid *grp_uuid,
-					   int *next);
+					  int *next);
 struct obd_device *class_num2obd(int num);
 
 int class_notify_sptlrpc_conf(const char *fsname, int namelen);
@@ -198,7 +198,7 @@ extern void (*class_export_dump_hook)(struct obd_export *);
 struct obd_export *class_export_get(struct obd_export *exp);
 void class_export_put(struct obd_export *exp);
 struct obd_export *class_new_export(struct obd_device *obddev,
-				struct obd_uuid *cluuid);
+				    struct obd_uuid *cluuid);
 void class_unlink_export(struct obd_export *exp);
 
 struct obd_import *class_import_get(struct obd_import *);
@@ -208,7 +208,7 @@ void class_destroy_import(struct obd_import *exp);
 
 void class_put_type(struct obd_type *type);
 int class_connect(struct lustre_handle *conn, struct obd_device *obd,
-		struct obd_uuid *cluuid);
+		  struct obd_uuid *cluuid);
 int class_disconnect(struct obd_export *exp);
 void class_fail_export(struct obd_export *exp);
 int class_manual_cleanup(struct obd_device *obd);
@@ -1351,7 +1351,7 @@ static inline int md_getattr(struct obd_export *exp, struct md_op_data *op_data,
 }
 
 static inline int md_null_inode(struct obd_export *exp,
-				   const struct lu_fid *fid)
+				const struct lu_fid *fid)
 {
 	int rc;
 
@@ -1734,7 +1734,7 @@ void class_uuid_unparse(class_uuid_t in, struct obd_uuid *out);
 /* lustre_peer.c    */
 int lustre_uuid_to_peer(const char *uuid, lnet_nid_t *peer_nid, int index);
 int class_add_uuid(const char *uuid, __u64 nid);
-int class_del_uuid (const char *uuid);
+int class_del_uuid(const char *uuid);
 int class_check_uuid(struct obd_uuid *uuid, __u64 nid);
 void class_init_uuidlist(void);
 void class_exit_uuidlist(void);
