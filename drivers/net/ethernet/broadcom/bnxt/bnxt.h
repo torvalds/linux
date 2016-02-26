@@ -968,13 +968,12 @@ struct bnxt {
 	__le16			vxlan_fw_dst_port_id;
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
-	u16			coal_ticks;
-	u16			coal_ticks_irq;
-	u16			coal_bufs;
-	u16			coal_bufs_irq;
+	u16			rx_coal_ticks;
+	u16			rx_coal_ticks_irq;
+	u16			rx_coal_bufs;
+	u16			rx_coal_bufs_irq;
 
 #define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
-#define BNXT_COAL_TIMER_TO_USEC(x) ((x) * 2 / 25)
 
 	struct work_struct	sp_task;
 	unsigned long		sp_event;

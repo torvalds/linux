@@ -3532,20 +3532,25 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS,
 			       -1, -1);
 
-	/* Each rx completion (2 records) should be DMAed immediately */
-	max_buf = min_t(u16, bp->coal_bufs / 4, 2);
+	/* Each rx completion (2 records) should be DMAed immediately.
+	 * DMA 1/4 of the completion buffers at a time.
+	 */
+	max_buf = min_t(u16, bp->rx_coal_bufs / 4, 2);
 	/* max_buf must not be zero */
 	max_buf = clamp_t(u16, max_buf, 1, 63);
-	max_buf_irq = clamp_t(u16, bp->coal_bufs_irq, 1, 63);
-	buf_tmr = max_t(u16, bp->coal_ticks / 4, 1);
-	buf_tmr_irq = max_t(u16, bp->coal_ticks_irq, 1);
+	max_buf_irq = clamp_t(u16, bp->rx_coal_bufs_irq, 1, 63);
+	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal_ticks);
+	/* buf timer set to 1/4 of interrupt timer */
+	buf_tmr = max_t(u16, buf_tmr / 4, 1);
+	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal_ticks_irq);
+	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
 
 	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
 
 	/* RING_IDLE generates more IRQs for lower latency.  Enable it only
 	 * if coal_ticks is less than 25 us.
 	 */
-	if (BNXT_COAL_TIMER_TO_USEC(bp->coal_ticks) < 25)
+	if (bp->rx_coal_ticks < 25)
 		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
 
 	req.flags = cpu_to_le16(flags);
@@ -3553,9 +3558,10 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	req.num_cmpl_dma_aggr_during_int = cpu_to_le16(max_buf_irq);
 	req.cmpl_aggr_dma_tmr = cpu_to_le16(buf_tmr);
 	req.cmpl_aggr_dma_tmr_during_int = cpu_to_le16(buf_tmr_irq);
-	req.int_lat_tmr_min = cpu_to_le16(buf_tmr);
-	req.int_lat_tmr_max = cpu_to_le16(bp->coal_ticks);
-	req.num_cmpl_aggr_int = cpu_to_le16(bp->coal_bufs);
+	/* Minimum time between 2 interrupts set to buf_tmr x 2 */
+	req.int_lat_tmr_min = cpu_to_le16(buf_tmr * 2);
+	req.int_lat_tmr_max = cpu_to_le16(buf_tmr * 4);
+	req.num_cmpl_aggr_int = cpu_to_le16(max_buf * 4);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -5295,10 +5301,11 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->rx_ring_size = BNXT_DEFAULT_RX_RING_SIZE;
 	bp->tx_ring_size = BNXT_DEFAULT_TX_RING_SIZE;
 
-	bp->coal_ticks = BNXT_USEC_TO_COAL_TIMER(4);
-	bp->coal_bufs = 20;
-	bp->coal_ticks_irq = BNXT_USEC_TO_COAL_TIMER(1);
-	bp->coal_bufs_irq = 2;
+	/* tick values in micro seconds */
+	bp->rx_coal_ticks = 4;
+	bp->rx_coal_bufs = 20;
+	bp->rx_coal_ticks_irq = 1;
+	bp->rx_coal_bufs_irq = 2;
 
 	init_timer(&bp->timer);
 	bp->timer.data = (unsigned long)bp;

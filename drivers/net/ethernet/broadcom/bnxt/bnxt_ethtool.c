@@ -41,12 +41,11 @@ static int bnxt_get_coalesce(struct net_device *dev,
 
 	memset(coal, 0, sizeof(*coal));
 
-	coal->rx_coalesce_usecs =
-		max_t(u16, BNXT_COAL_TIMER_TO_USEC(bp->coal_ticks), 1);
-	coal->rx_max_coalesced_frames = bp->coal_bufs / 2;
-	coal->rx_coalesce_usecs_irq =
-		max_t(u16, BNXT_COAL_TIMER_TO_USEC(bp->coal_ticks_irq), 1);
-	coal->rx_max_coalesced_frames_irq = bp->coal_bufs_irq / 2;
+	coal->rx_coalesce_usecs = bp->rx_coal_ticks;
+	/* 2 completion records per rx packet */
+	coal->rx_max_coalesced_frames = bp->rx_coal_bufs / 2;
+	coal->rx_coalesce_usecs_irq = bp->rx_coal_ticks_irq;
+	coal->rx_max_coalesced_frames_irq = bp->rx_coal_bufs_irq / 2;
 
 	return 0;
 }
@@ -57,11 +56,11 @@ static int bnxt_set_coalesce(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	int rc = 0;
 
-	bp->coal_ticks = BNXT_USEC_TO_COAL_TIMER(coal->rx_coalesce_usecs);
-	bp->coal_bufs = coal->rx_max_coalesced_frames * 2;
-	bp->coal_ticks_irq =
-		BNXT_USEC_TO_COAL_TIMER(coal->rx_coalesce_usecs_irq);
-	bp->coal_bufs_irq = coal->rx_max_coalesced_frames_irq * 2;
+	bp->rx_coal_ticks = coal->rx_coalesce_usecs;
+	/* 2 completion records per rx packet */
+	bp->rx_coal_bufs = coal->rx_max_coalesced_frames * 2;
+	bp->rx_coal_ticks_irq = coal->rx_coalesce_usecs_irq;
+	bp->rx_coal_bufs_irq = coal->rx_max_coalesced_frames_irq * 2;
 
 	if (netif_running(dev))
 		rc = bnxt_hwrm_set_coal(bp);
