@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <linux/goldfish.h>
 
 MODULE_AUTHOR("Google, Inc.");
