@@ -16,6 +16,7 @@
 #include <linux/node.h>
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
+#include <linux/cpuhotplug.h>
 
 struct device;
 struct device_node;
@@ -26,6 +27,9 @@ struct cpu {
 	int hotpluggable;	/* creates sysfs control file if hotpluggable */
 	struct device dev;
 };
+
+extern void boot_cpu_init(void);
+extern void boot_cpu_state_init(void);
 
 extern int register_cpu(struct cpu *cpu, int num);
 extern struct device *get_cpu_device(unsigned cpu);
@@ -266,11 +270,6 @@ extern void enable_nonboot_cpus(void);
 static inline int disable_nonboot_cpus(void) { return 0; }
 static inline void enable_nonboot_cpus(void) {}
 #endif /* !CONFIG_PM_SLEEP_SMP */
-
-enum cpuhp_state {
-	CPUHP_OFFLINE,
-	CPUHP_ONLINE,
-};
 
 void cpu_startup_entry(enum cpuhp_state state);
 

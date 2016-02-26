@@ -22,9 +22,63 @@
 #include <linux/lockdep.h>
 #include <linux/tick.h>
 #include <linux/irq.h>
+
 #include <trace/events/power.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/cpuhp.h>
 
 #include "smpboot.h"
+
+/**
+ * cpuhp_cpu_state - Per cpu hotplug state storage
+ * @state:	The current cpu state
+ * @target:	The target state
+ */
+struct cpuhp_cpu_state {
+	enum cpuhp_state	state;
+	enum cpuhp_state	target;
+};
+
+static DEFINE_PER_CPU(struct cpuhp_cpu_state, cpuhp_state);
+
+/**
+ * cpuhp_step - Hotplug state machine step
+ * @name:	Name of the step
+ * @startup:	Startup function of the step
+ * @teardown:	Teardown function of the step
+ * @skip_onerr:	Do not invoke the functions on error rollback
+ *		Will go away once the notifiers	are gone
+ */
+struct cpuhp_step {
+	const char	*name;
+	int		(*startup)(unsigned int cpu);
+	int		(*teardown)(unsigned int cpu);
+	bool		skip_onerr;
+};
+
+static struct cpuhp_step cpuhp_bp_states[];
+
+/**
+ * cpuhp_invoke_callback _ Invoke the callbacks for a given state
+ * @cpu:	The cpu for which the callback should be invoked
+ * @step:	The step in the state machine
+ * @cb:		The callback function to invoke
+ *
+ * Called from cpu hotplug and from the state register machinery
+ */
+static int cpuhp_invoke_callback(unsigned int cpu, enum cpuhp_state step,
+				 int (*cb)(unsigned int))
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+	int ret = 0;
+
+	if (cb) {
+		trace_cpuhp_enter(cpu, st->target, step, cb);
+		ret = cb(cpu);
+		trace_cpuhp_exit(cpu, st->state, step, ret);
+	}
+	return ret;
+}
 
 #ifdef CONFIG_SMP
 /* Serializes the updates to cpu_online_mask, cpu_present_mask */
@@ -454,10 +508,29 @@ static int notify_dead(unsigned int cpu)
 	return 0;
 }
 
+#else
+#define notify_down_prepare	NULL
+#define takedown_cpu		NULL
+#define notify_dead		NULL
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+static void undo_cpu_down(unsigned int cpu, struct cpuhp_cpu_state *st)
+{
+	for (st->state++; st->state < st->target; st->state++) {
+		struct cpuhp_step *step = cpuhp_bp_states + st->state;
+
+		if (!step->skip_onerr)
+			cpuhp_invoke_callback(cpu, st->state, step->startup);
+	}
+}
+
 /* Requires cpu_add_remove_lock to be held */
 static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 {
-	int err;
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+	int prev_state, ret = 0;
+	bool hasdied = false;
 
 	if (num_online_cpus() == 1)
 		return -EBUSY;
@@ -469,20 +542,25 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 
 	cpuhp_tasks_frozen = tasks_frozen;
 
-	err = notify_down_prepare(cpu);
-	if (err)
-		goto out_release;
-	err = takedown_cpu(cpu);
-	if (err)
-		goto out_release;
+	prev_state = st->state;
+	st->target = CPUHP_OFFLINE;
+	for (; st->state > st->target; st->state--) {
+		struct cpuhp_step *step = cpuhp_bp_states + st->state;
 
-	notify_dead(cpu);
+		ret = cpuhp_invoke_callback(cpu, st->state, step->teardown);
+		if (ret) {
+			st->target = prev_state;
+			undo_cpu_down(cpu, st);
+			break;
+		}
+	}
+	hasdied = prev_state != st->state && st->state == CPUHP_OFFLINE;
 
-out_release:
 	cpu_hotplug_done();
-	if (!err)
+	/* This post dead nonsense must die */
+	if (!ret && hasdied)
 		cpu_notify_nofail(CPU_POST_DEAD, cpu);
-	return err;
+	return ret;
 }
 
 int cpu_down(unsigned int cpu)
@@ -537,11 +615,22 @@ void smpboot_thread_init(void)
 	register_cpu_notifier(&smpboot_thread_notifier);
 }
 
+static void undo_cpu_up(unsigned int cpu, struct cpuhp_cpu_state *st)
+{
+	for (st->state--; st->state > st->target; st->state--) {
+		struct cpuhp_step *step = cpuhp_bp_states + st->state;
+
+		if (!step->skip_onerr)
+			cpuhp_invoke_callback(cpu, st->state, step->teardown);
+	}
+}
+
 /* Requires cpu_add_remove_lock to be held */
 static int _cpu_up(unsigned int cpu, int tasks_frozen)
 {
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	struct task_struct *idle;
-	int ret;
+	int prev_state, ret = 0;
 
 	cpu_hotplug_begin();
 
@@ -550,6 +639,7 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen)
 		goto out;
 	}
 
+	/* Let it fail before we try to bring the cpu up */
 	idle = idle_thread_get(cpu);
 	if (IS_ERR(idle)) {
 		ret = PTR_ERR(idle);
@@ -558,22 +648,22 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen)
 
 	cpuhp_tasks_frozen = tasks_frozen;
 
-	ret = smpboot_create_threads(cpu);
-	if (ret)
-		goto out;
+	prev_state = st->state;
+	st->target = CPUHP_ONLINE;
+	while (st->state < st->target) {
+		struct cpuhp_step *step;
 
-	ret = notify_prepare(cpu);
-	if (ret)
-		goto out;
-
-	ret = bringup_cpu(cpu);
-	if (ret)
-		goto out;
-
-	notify_online(cpu);
+		st->state++;
+		step = cpuhp_bp_states + st->state;
+		ret = cpuhp_invoke_callback(cpu, st->state, step->startup);
+		if (ret) {
+			st->target = prev_state;
+			undo_cpu_up(cpu, st);
+			break;
+		}
+	}
 out:
 	cpu_hotplug_done();
-
 	return ret;
 }
 
@@ -767,6 +857,44 @@ void notify_cpu_starting(unsigned int cpu)
 
 #endif /* CONFIG_SMP */
 
+/* Boot processor state steps */
+static struct cpuhp_step cpuhp_bp_states[] = {
+	[CPUHP_OFFLINE] = {
+		.name			= "offline",
+		.startup		= NULL,
+		.teardown		= NULL,
+	},
+#ifdef CONFIG_SMP
+	[CPUHP_CREATE_THREADS]= {
+		.name			= "threads:create",
+		.startup		= smpboot_create_threads,
+		.teardown		= NULL,
+	},
+	[CPUHP_NOTIFY_PREPARE] = {
+		.name			= "notify:prepare",
+		.startup		= notify_prepare,
+		.teardown		= notify_dead,
+		.skip_onerr		= true,
+	},
+	[CPUHP_BRINGUP_CPU] = {
+		.name			= "cpu:bringup",
+		.startup		= bringup_cpu,
+		.teardown		= takedown_cpu,
+		.skip_onerr		= true,
+	},
+	[CPUHP_NOTIFY_ONLINE] = {
+		.name			= "notify:online",
+		.startup		= notify_online,
+		.teardown		= notify_down_prepare,
+	},
+#endif
+	[CPUHP_ONLINE] = {
+		.name			= "online",
+		.startup		= NULL,
+		.teardown		= NULL,
+	},
+};
+
 /*
  * cpu_bit_bitmap[] is a special, "compressed" data structure that
  * represents all NR_CPUS bits binary values of 1<<nr.
@@ -825,4 +953,26 @@ void init_cpu_possible(const struct cpumask *src)
 void init_cpu_online(const struct cpumask *src)
 {
 	cpumask_copy(&__cpu_online_mask, src);
+}
+
+/*
+ * Activate the first processor.
+ */
+void __init boot_cpu_init(void)
+{
+	int cpu = smp_processor_id();
+
+	/* Mark the boot cpu "present", "online" etc for SMP and UP case */
+	set_cpu_online(cpu, true);
+	set_cpu_active(cpu, true);
+	set_cpu_present(cpu, true);
+	set_cpu_possible(cpu, true);
+}
+
+/*
+ * Must be called _AFTER_ setting up the per_cpu areas
+ */
+void __init boot_cpu_state_init(void)
+{
+	per_cpu_ptr(&cpuhp_state, smp_processor_id())->state = CPUHP_ONLINE;
 }
