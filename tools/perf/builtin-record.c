@@ -468,6 +468,29 @@ static void record__init_features(struct record *rec)
 	perf_header__clear_feat(&session->header, HEADER_STAT);
 }
 
+static void
+record__finish_output(struct record *rec)
+{
+	struct perf_data_file *file = &rec->file;
+	int fd = perf_data_file__fd(file);
+
+	if (file->is_pipe)
+		return;
+
+	rec->session->header.data_size += rec->bytes_written;
+	file->size = lseek(perf_data_file__fd(file), 0, SEEK_CUR);
+
+	if (!rec->no_buildid) {
+		process_buildids(rec);
+
+		if (rec->buildid_all)
+			dsos__hit_all(rec->session);
+	}
+	perf_session__write_header(rec->session, rec->evlist, fd, true);
+
+	return;
+}
+
 static volatile int workload_exec_errno;
 
 /*
@@ -785,18 +808,8 @@ out_child:
 	/* this will be recalculated during process_buildids() */
 	rec->samples = 0;
 
-	if (!err && !file->is_pipe) {
-		rec->session->header.data_size += rec->bytes_written;
-		file->size = lseek(perf_data_file__fd(file), 0, SEEK_CUR);
-
-		if (!rec->no_buildid) {
-			process_buildids(rec);
-
-			if (rec->buildid_all)
-				dsos__hit_all(rec->session);
-		}
-		perf_session__write_header(rec->session, rec->evlist, fd, true);
-	}
+	if (!err)
+		record__finish_output(rec);
 
 	if (!err && !quiet) {
 		char samples[128];
