@@ -595,6 +595,19 @@ out:
 	return ret;
 }
 
+static inline void clean_chip_info(void)
+{
+	kfree(chips);
+	kfree(core_to_chip_map);
+}
+
+static inline void unregister_all_notifiers(void)
+{
+	opal_message_notifier_unregister(OPAL_MSG_OCC,
+					 &powernv_cpufreq_opal_nb);
+	unregister_reboot_notifier(&powernv_cpufreq_reboot_nb);
+}
+
 static int __init powernv_cpufreq_init(void)
 {
 	int rc = 0;
@@ -605,30 +618,35 @@ static int __init powernv_cpufreq_init(void)
 
 	/* Discover pstates from device tree and init */
 	rc = init_powernv_pstates();
-	if (rc) {
-		pr_info("powernv-cpufreq disabled. System does not support PState control\n");
-		return rc;
-	}
+	if (rc)
+		goto out;
 
 	/* Populate chip info */
 	rc = init_chip_info();
 	if (rc)
-		return rc;
+		goto out;
 
 	register_reboot_notifier(&powernv_cpufreq_reboot_nb);
 	opal_message_notifier_register(OPAL_MSG_OCC, &powernv_cpufreq_opal_nb);
-	return cpufreq_register_driver(&powernv_cpufreq_driver);
+
+	rc = cpufreq_register_driver(&powernv_cpufreq_driver);
+	if (!rc)
+		return 0;
+
+	pr_info("Failed to register the cpufreq driver (%d)\n", rc);
+	unregister_all_notifiers();
+	clean_chip_info();
+out:
+	pr_info("Platform driver disabled. System does not support PState control\n");
+	return rc;
 }
 module_init(powernv_cpufreq_init);
 
 static void __exit powernv_cpufreq_exit(void)
 {
-	unregister_reboot_notifier(&powernv_cpufreq_reboot_nb);
-	opal_message_notifier_unregister(OPAL_MSG_OCC,
-					 &powernv_cpufreq_opal_nb);
-	kfree(chips);
-	kfree(core_to_chip_map);
 	cpufreq_unregister_driver(&powernv_cpufreq_driver);
+	unregister_all_notifiers();
+	clean_chip_info();
 }
 module_exit(powernv_cpufreq_exit);
 
