@@ -3764,7 +3764,7 @@ F:	include/drm/exynos*
 F:	include/uapi/drm/exynos*
 
 DRM DRIVERS FOR FREESCALE DCU
-M:	Jianwei Wang <jianwei.wang.chn@gmail.com>
+M:	Stefan Agner <stefan@agner.ch>
 M:	Alison Wang <alison.wang@freescale.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
