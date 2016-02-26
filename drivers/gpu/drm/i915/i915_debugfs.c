@@ -118,7 +118,7 @@ static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (i915_is_ggtt(vma->vm) && drm_mm_node_allocated(&vma->node))
+		if (vma->is_ggtt && drm_mm_node_allocated(&vma->node))
 			size += vma->node.size;
 	}
 
@@ -165,12 +165,11 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx",
-			   i915_is_ggtt(vma->vm) ? "g" : "pp",
+			   vma->is_ggtt ? "g" : "pp",
 			   vma->node.start, vma->node.size);
-		if (i915_is_ggtt(vma->vm))
-			seq_printf(m, ", type: %u)", vma->ggtt_view.type);
-		else
-			seq_puts(m, ")");
+		if (vma->is_ggtt)
+			seq_printf(m, ", type: %u", vma->ggtt_view.type);
+		seq_puts(m, ")");
 	}
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
@@ -347,7 +346,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
-			if (i915_is_ggtt(vma->vm)) {
+			if (vma->is_ggtt) {
 				stats->global += obj->base.size;
 				continue;
 			}

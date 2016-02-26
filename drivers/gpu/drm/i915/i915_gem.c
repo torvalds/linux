@@ -3336,8 +3336,7 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 			return ret;
 	}
 
-	if (i915_is_ggtt(vma->vm) &&
-	    vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
+	if (vma->is_ggtt && vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
 		i915_gem_object_finish_gtt(obj);
 
 		/* release the fence reg _after_ flushing */
@@ -3352,7 +3351,7 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 	vma->bound = 0;
 
 	list_del_init(&vma->vm_link);
-	if (i915_is_ggtt(vma->vm)) {
+	if (vma->is_ggtt) {
 		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
 			obj->map_and_fenceable = false;
 		} else if (vma->ggtt_view.pages) {
@@ -4639,17 +4638,14 @@ struct i915_vma *i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
 
 void i915_gem_vma_destroy(struct i915_vma *vma)
 {
-	struct i915_address_space *vm = NULL;
 	WARN_ON(vma->node.allocated);
 
 	/* Keep the vma as a placeholder in the execbuffer reservation lists */
 	if (!list_empty(&vma->exec_list))
 		return;
 
-	vm = vma->vm;
-
-	if (!i915_is_ggtt(vm))
-		i915_ppgtt_put(i915_vm_to_ppgtt(vm));
+	if (!vma->is_ggtt)
+		i915_ppgtt_put(i915_vm_to_ppgtt(vma->vm));
 
 	list_del(&vma->obj_link);
 
@@ -5202,7 +5198,7 @@ u64 i915_gem_obj_offset(struct drm_i915_gem_object *o,
 	WARN_ON(vm == &dev_priv->mm.aliasing_ppgtt->base);
 
 	list_for_each_entry(vma, &o->vma_list, obj_link) {
-		if (i915_is_ggtt(vma->vm) &&
+		if (vma->is_ggtt &&
 		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
 			continue;
 		if (vma->vm == vm)
@@ -5235,7 +5231,7 @@ bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &o->vma_list, obj_link) {
-		if (i915_is_ggtt(vma->vm) &&
+		if (vma->is_ggtt &&
 		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
 			continue;
 		if (vma->vm == vm && drm_mm_node_allocated(&vma->node))
@@ -5282,7 +5278,7 @@ unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
 	BUG_ON(list_empty(&o->vma_list));
 
 	list_for_each_entry(vma, &o->vma_list, obj_link) {
-		if (i915_is_ggtt(vma->vm) &&
+		if (vma->is_ggtt &&
 		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
 			continue;
 		if (vma->vm == vm)

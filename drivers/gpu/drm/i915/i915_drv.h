@@ -3156,18 +3156,11 @@ bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj);
 /* Some GGTT VM helpers */
 #define i915_obj_to_ggtt(obj) \
 	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->gtt.base)
-static inline bool i915_is_ggtt(struct i915_address_space *vm)
-{
-	struct i915_address_space *ggtt =
-		&((struct drm_i915_private *)(vm)->dev->dev_private)->gtt.base;
-	return vm == ggtt;
-}
 
 static inline struct i915_hw_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)
 {
 	WARN_ON(i915_is_ggtt(vm));
-
 	return container_of(vm, struct i915_hw_ppgtt, base);
 }
 

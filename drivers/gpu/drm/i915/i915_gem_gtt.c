@@ -3198,6 +3198,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	}
 
 	gtt->base.dev = dev;
+	gtt->base.is_ggtt = true;
 
 	ret = gtt->gtt_probe(dev, &gtt->base.total, &gtt->stolen_size,
 			     &gtt->mappable_base, &gtt->mappable_end);
@@ -3319,13 +3320,14 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->exec_list);
 	vma->vm = vm;
 	vma->obj = obj;
+	vma->is_ggtt = i915_is_ggtt(vm);
 
 	if (i915_is_ggtt(vm))
 		vma->ggtt_view = *ggtt_view;
+	else
+		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 
 	list_add_tail(&vma->obj_link, &obj->vma_list);
-	if (!i915_is_ggtt(vm))
-		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 
 	return vma;
 }
@@ -3598,13 +3600,9 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		return 0;
 
 	if (vma->bound == 0 && vma->vm->allocate_va_range) {
-		trace_i915_va_alloc(vma->vm,
-				    vma->node.start,
-				    vma->node.size,
-				    VM_TO_TRACE_NAME(vma->vm));
-
 		/* XXX: i915_vma_pin() will fix this +- hack */
 		vma->pin_count++;
+		trace_i915_va_alloc(vma);
 		ret = vma->vm->allocate_va_range(vma->vm,
 						 vma->node.start,
 						 vma->node.size);
