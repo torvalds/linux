@@ -361,9 +361,9 @@ void __init mem_init(void)
 #endif
 		  "    modules : 0x%16lx - 0x%16lx   (%6ld MB)\n"
 		  "    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n"
-		  "      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n"
 		  "      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n"
 		  "    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n"
+		  "      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n"
 		  "      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n"
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 		  "    vmemmap : 0x%16lx - 0x%16lx   (%6ld GB maximum)\n"
@@ -377,9 +377,9 @@ void __init mem_init(void)
 #endif
 		  MLM(MODULES_VADDR, MODULES_END),
 		  MLG(VMALLOC_START, VMALLOC_END),
-		  MLK_ROUNDUP(__init_begin, __init_end),
 		  MLK_ROUNDUP(_text, __start_rodata),
 		  MLK_ROUNDUP(__start_rodata, _etext),
+		  MLK_ROUNDUP(__init_begin, __init_end),
 		  MLK_ROUNDUP(_sdata, _edata),
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 		  MLG((unsigned long)vmemmap,
