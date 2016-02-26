@@ -202,6 +202,18 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	io-domains {
+		compatible = "rockchip,rk3366-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		lcdc-supply = <&vcc_io>;
+		dvpts-supply = <&vcc_18>;
+		wifibt-supply = <&vccio_wl>;
+		audio-supply = <&vcc_io>;
+		sdcard-supply = <&vccio_sd>;
+		tphdsor-supply = <&vcc_io>;
+	};
 };
 
 &emmc {
