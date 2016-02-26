@@ -1145,10 +1145,6 @@ void intel_lr_context_unpin(struct intel_context *ctx,
 	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine->id].state;
 
 	WARN_ON(!mutex_is_locked(&ctx->i915->dev->struct_mutex));
-
-	if (WARN_ON_ONCE(!ctx_obj))
-		return;
-
 	if (--ctx->engine[engine->id].pin_count == 0) {
 		kunmap(kmap_to_page(ctx->engine[engine->id].lrc_reg_state));
 		intel_unpin_ringbuffer_obj(ctx->engine[engine->id].ringbuf);
