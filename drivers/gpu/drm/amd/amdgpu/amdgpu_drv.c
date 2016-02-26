@@ -83,6 +83,8 @@ int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_enable_semaphores = 0;
 int amdgpu_powerplay = -1;
+unsigned amdgpu_pcie_gen_cap = 0;
+unsigned amdgpu_pcie_lane_cap = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -169,6 +171,12 @@ module_param_named(enable_semaphores, amdgpu_enable_semaphores, int, 0644);
 MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
 module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 #endif
+
+MODULE_PARM_DESC(pcie_gen_cap, "PCIE Gen Caps (0: autodetect (default))");
+module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);
+
+MODULE_PARM_DESC(pcie_lane_cap, "PCIE Lane Caps (0: autodetect (default))");
+module_param_named(pcie_lane_cap, amdgpu_pcie_lane_cap, uint, 0444);
 
 static struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK

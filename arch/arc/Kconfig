@@ -338,6 +338,19 @@ config ARC_PAGE_SIZE_4K
 
 endchoice
 
+choice
+	prompt "MMU Super Page Size"
+	depends on ISA_ARCV2 && TRANSPARENT_HUGEPAGE
+	default ARC_HUGEPAGE_2M
+
+config ARC_HUGEPAGE_2M
+	bool "2MB"
+
+config ARC_HUGEPAGE_16M
+	bool "16MB"
+
+endchoice
+
 if ISA_ARCOMPACT
 
 config ARC_COMPACT_IRQ_LEVELS
@@ -410,7 +423,7 @@ config ARC_HAS_RTC
 	default n
 	depends on !SMP
 
-config ARC_HAS_GRTC
+config ARC_HAS_GFRC
 	bool "SMP synchronized 64-bit cycle counter"
 	default y
 	depends on SMP
@@ -566,6 +579,12 @@ endmenu
 endmenu	 # "ARC Architecture Configuration"
 
 source "mm/Kconfig"
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	default "12" if ARC_HUGEPAGE_16M
+	default "11"
+
 source "net/Kconfig"
 source "drivers/Kconfig"
 source "fs/Kconfig"

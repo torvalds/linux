@@ -85,6 +85,38 @@ enum amd_powergating_state {
 	AMD_PG_STATE_UNGATE,
 };
 
+/* CG flags */
+#define AMD_CG_SUPPORT_GFX_MGCG			(1 << 0)
+#define AMD_CG_SUPPORT_GFX_MGLS			(1 << 1)
+#define AMD_CG_SUPPORT_GFX_CGCG			(1 << 2)
+#define AMD_CG_SUPPORT_GFX_CGLS			(1 << 3)
+#define AMD_CG_SUPPORT_GFX_CGTS			(1 << 4)
+#define AMD_CG_SUPPORT_GFX_CGTS_LS		(1 << 5)
+#define AMD_CG_SUPPORT_GFX_CP_LS		(1 << 6)
+#define AMD_CG_SUPPORT_GFX_RLC_LS		(1 << 7)
+#define AMD_CG_SUPPORT_MC_LS			(1 << 8)
+#define AMD_CG_SUPPORT_MC_MGCG			(1 << 9)
+#define AMD_CG_SUPPORT_SDMA_LS			(1 << 10)
+#define AMD_CG_SUPPORT_SDMA_MGCG		(1 << 11)
+#define AMD_CG_SUPPORT_BIF_LS			(1 << 12)
+#define AMD_CG_SUPPORT_UVD_MGCG			(1 << 13)
+#define AMD_CG_SUPPORT_VCE_MGCG			(1 << 14)
+#define AMD_CG_SUPPORT_HDP_LS			(1 << 15)
+#define AMD_CG_SUPPORT_HDP_MGCG			(1 << 16)
+
+/* PG flags */
+#define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
+#define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
+#define AMD_PG_SUPPORT_GFX_DMG			(1 << 2)
+#define AMD_PG_SUPPORT_UVD			(1 << 3)
+#define AMD_PG_SUPPORT_VCE			(1 << 4)
+#define AMD_PG_SUPPORT_CP			(1 << 5)
+#define AMD_PG_SUPPORT_GDS			(1 << 6)
+#define AMD_PG_SUPPORT_RLC_SMU_HS		(1 << 7)
+#define AMD_PG_SUPPORT_SDMA			(1 << 8)
+#define AMD_PG_SUPPORT_ACP			(1 << 9)
+#define AMD_PG_SUPPORT_SAMU			(1 << 10)
+
 enum amd_pm_state_type {
 	/* not used for dpm */
 	POWER_STATE_TYPE_DEFAULT,
