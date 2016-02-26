@@ -231,6 +231,12 @@ int amlsd_get_platform_data(struct platform_device* pdev,
 		// pdata->cd = of_amlsd_detect;
 		pdata->irq_init = of_amlsd_irq_init;
         pdata->ro = of_amlsd_ro;
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	    if (disable_uhs) {
+	            pdata->f_max = 40000000;
+	    }
+#endif
     }
     return 0;
 }
