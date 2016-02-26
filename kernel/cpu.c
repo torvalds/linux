@@ -329,6 +329,14 @@ static int notify_starting(unsigned int cpu)
 	return 0;
 }
 
+static int bringup_wait_for_ap(unsigned int cpu)
+{
+	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+
+	wait_for_completion(&st->done);
+	return st->result;
+}
+
 static int bringup_cpu(unsigned int cpu)
 {
 	struct task_struct *idle = idle_thread_get(cpu);
@@ -340,8 +348,9 @@ static int bringup_cpu(unsigned int cpu)
 		cpu_notify(CPU_UP_CANCELED, cpu);
 		return ret;
 	}
+	ret = bringup_wait_for_ap(cpu);
 	BUG_ON(!cpu_online(cpu));
-	return 0;
+	return ret;
 }
 
 /*
@@ -470,7 +479,7 @@ static void cpuhp_thread_fun(unsigned int cpu)
 		}
 	} else {
 		/* Cannot happen .... */
-		BUG_ON(st->state < CPUHP_KICK_AP_THREAD);
+		BUG_ON(st->state < CPUHP_AP_ONLINE_IDLE);
 
 		/* Regular hotplug work */
 		if (st->state < st->target)
@@ -780,7 +789,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	 * If the current CPU state is in the range of the AP hotplug thread,
 	 * then we need to kick the thread.
 	 */
-	if (st->state >= CPUHP_KICK_AP_THREAD) {
+	if (st->state > CPUHP_TEARDOWN_CPU) {
 		ret = cpuhp_kick_ap_work(cpu);
 		/*
 		 * The AP side has done the error rollback already. Just
@@ -793,11 +802,11 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 		 * We might have stopped still in the range of the AP hotplug
 		 * thread. Nothing to do anymore.
 		 */
-		if (st->state >= CPUHP_KICK_AP_THREAD)
+		if (st->state > CPUHP_TEARDOWN_CPU)
 			goto out;
 	}
 	/*
-	 * The AP brought itself down below CPUHP_KICK_AP_THREAD. So we need
+	 * The AP brought itself down to CPUHP_TEARDOWN_CPU. So we need
 	 * to do the further cleanups.
 	 */
 	ret = cpuhp_down_callbacks(cpu, st, cpuhp_bp_states, target);
@@ -859,18 +868,32 @@ void notify_cpu_starting(unsigned int cpu)
 
 /*
  * Called from the idle task. We need to set active here, so we can kick off
- * the stopper thread.
+ * the stopper thread and unpark the smpboot threads. If the target state is
+ * beyond CPUHP_AP_ONLINE_IDLE we kick cpuhp thread and let it bring up the
+ * cpu further.
  */
-static int cpuhp_set_cpu_active(unsigned int cpu)
+void cpuhp_online_idle(enum cpuhp_state state)
 {
-	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
+	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
+	unsigned int cpu = smp_processor_id();
+
+	/* Happens for the boot cpu */
+	if (state != CPUHP_AP_ONLINE_IDLE)
+		return;
+
+	st->state = CPUHP_AP_ONLINE_IDLE;
 
 	/* The cpu is marked online, set it active now */
 	set_cpu_active(cpu, true);
-	/* Unpark the stopper thread and the hotplug thread */
+	/* Unpark the stopper thread and the hotplug thread of this cpu */
 	stop_machine_unpark(cpu);
 	kthread_unpark(st->thread);
-	return 0;
+
+	/* Should we go further up ? */
+	if (st->target > CPUHP_AP_ONLINE_IDLE)
+		__cpuhp_kick_ap_work(st);
+	else
+		complete(&st->done);
 }
 
 /* Requires cpu_add_remove_lock to be held */
@@ -910,7 +933,7 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 	 * If the current CPU state is in the range of the AP hotplug thread,
 	 * then we need to kick the thread once more.
 	 */
-	if (st->state >= CPUHP_KICK_AP_THREAD) {
+	if (st->state > CPUHP_BRINGUP_CPU) {
 		ret = cpuhp_kick_ap_work(cpu);
 		/*
 		 * The AP side has done the error rollback already. Just
@@ -922,10 +945,10 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 
 	/*
 	 * Try to reach the target state. We max out on the BP at
-	 * CPUHP_KICK_AP_THREAD. After that the AP hotplug thread is
+	 * CPUHP_BRINGUP_CPU. After that the AP hotplug thread is
 	 * responsible for bringing it up to the target state.
 	 */
-	target = min((int)target, CPUHP_KICK_AP_THREAD);
+	target = min((int)target, CPUHP_BRINGUP_CPU);
 	ret = cpuhp_up_callbacks(cpu, st, cpuhp_bp_states, target);
 out:
 	cpu_hotplug_done();
@@ -1146,22 +1169,7 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown		= takedown_cpu,
 		.cant_stop		= true,
 	},
-	[CPUHP_CPU_SET_ACTIVE] = {
-		.name			= "cpu:active",
-		.startup		= cpuhp_set_cpu_active,
-		.teardown		= NULL,
-	},
-	[CPUHP_KICK_AP_THREAD] = {
-		.name			= "cpuhp:kickthread",
-		.startup		= cpuhp_kick_ap_work,
-		.teardown		= cpuhp_kick_ap_work,
-	},
 #endif
-	[CPUHP_BP_ONLINE] = {
-		.name			= "online",
-		.startup		= NULL,
-		.teardown		= NULL,
-	},
 };
 
 /* Application processor state steps */
@@ -1204,7 +1212,7 @@ static bool cpuhp_is_ap_state(enum cpuhp_state state)
 {
 	if (state >= CPUHP_AP_OFFLINE && state <= CPUHP_AP_ONLINE)
 		return true;
-	return state > CPUHP_BP_ONLINE;
+	return state > CPUHP_BRINGUP_CPU;
 }
 
 static struct cpuhp_step *cpuhp_get_step(enum cpuhp_state state)

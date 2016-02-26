@@ -10,9 +10,6 @@ enum cpuhp_state {
 	CPUHP_AP_NOTIFY_STARTING,
 	CPUHP_AP_ONLINE,
 	CPUHP_TEARDOWN_CPU,
-	CPUHP_CPU_SET_ACTIVE,
-	CPUHP_KICK_AP_THREAD,
-	CPUHP_BP_ONLINE,
 	CPUHP_AP_ONLINE_IDLE,
 	CPUHP_AP_SMPBOOT_THREADS,
 	CPUHP_AP_NOTIFY_ONLINE,
@@ -85,5 +82,11 @@ static inline void cpuhp_remove_state_nocalls(enum cpuhp_state state)
 {
 	__cpuhp_remove_state(state, false);
 }
+
+#ifdef CONFIG_SMP
+void cpuhp_online_idle(enum cpuhp_state state);
+#else
+static inline void cpuhp_online_idle(enum cpuhp_state state) { }
+#endif
 
 #endif
