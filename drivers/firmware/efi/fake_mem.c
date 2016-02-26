@@ -57,6 +57,7 @@ static int __init cmp_fake_mem(const void *x1, const void *x2)
 void __init efi_fake_memmap(void)
 {
 	u64 start, end, m_start, m_end, m_attr;
+	struct efi_memory_map_data data;
 	int new_nr_map = efi.memmap.nr_map;
 	efi_memory_desc_t *md;
 	phys_addr_t new_memmap_phy;
@@ -180,12 +181,14 @@ void __init efi_fake_memmap(void)
 	}
 
 	/* swap into new EFI memmap */
-	efi_unmap_memmap();
-	efi.memmap.map = new_memmap;
-	efi.memmap.phys_map = new_memmap_phy;
-	efi.memmap.nr_map = new_nr_map;
-	efi.memmap.map_end = efi.memmap.map + efi.memmap.nr_map * efi.memmap.desc_size;
-	set_bit(EFI_MEMMAP, &efi.flags);
+	early_memunmap(new_memmap, efi.memmap.desc_size * new_nr_map);
+	efi_memmap_unmap();
+
+	data.phys_map = new_memmap_phy;
+	data.size = efi.memmap.desc_size * new_nr_map;
+	data.desc_version = efi.memmap.desc_version;
+	data.desc_size = efi.memmap.desc_size;
+	efi_memmap_init_early(&data);
 
 	/* print new EFI memmap */
 	efi_print_memmap();

@@ -211,12 +211,11 @@ static __init void reserve_regions(void)
 			memblock_mark_nomap(paddr, size);
 
 	}
-
-	set_bit(EFI_MEMMAP, &efi.flags);
 }
 
 void __init efi_init(void)
 {
+	struct efi_memory_map_data data;
 	struct efi_fdt_params params;
 
 	/* Grab UEFI information placed in FDT by stub */
@@ -225,9 +224,12 @@ void __init efi_init(void)
 
 	efi_system_table = params.system_table;
 
-	efi.memmap.phys_map = params.mmap;
-	efi.memmap.map = early_memremap_ro(params.mmap, params.mmap_size);
-	if (efi.memmap.map == NULL) {
+	data.desc_version = params.desc_ver;
+	data.desc_size = params.desc_size;
+	data.size = params.mmap_size;
+	data.phys_map = params.mmap;
+
+	if (efi_memmap_init_early(&data) < 0) {
 		/*
 		* If we are booting via UEFI, the UEFI memory map is the only
 		* description of memory we have, so there is little point in
@@ -235,9 +237,6 @@ void __init efi_init(void)
 		*/
 		panic("Unable to map EFI memory map.\n");
 	}
-	efi.memmap.map_end = efi.memmap.map + params.mmap_size;
-	efi.memmap.desc_size = params.desc_size;
-	efi.memmap.desc_version = params.desc_ver;
 
 	WARN(efi.memmap.desc_version != 1,
 	     "Unexpected EFI_MEMORY_DESCRIPTOR version %ld",
@@ -248,7 +247,7 @@ void __init efi_init(void)
 
 	reserve_regions();
 	efi_memattr_init();
-	early_memunmap(efi.memmap.map, params.mmap_size);
+	efi_memmap_unmap();
 
 	memblock_reserve(params.mmap & PAGE_MASK,
 			 PAGE_ALIGN(params.mmap_size +

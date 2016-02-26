@@ -114,7 +114,7 @@ static int __init arm_enable_runtime_services(void)
 
 	pr_info("Remapping and enabling EFI services.\n");
 
-	mapsize = efi.memmap.map_end - efi.memmap.map;
+	mapsize = efi.memmap.desc_size * efi.memmap.nr_map;
 
 	efi.memmap.map = memremap(efi.memmap.phys_map, mapsize, MEMREMAP_WB);
 	if (!efi.memmap.map) {

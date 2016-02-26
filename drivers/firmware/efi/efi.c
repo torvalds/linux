@@ -544,6 +544,52 @@ int __init efi_config_init(efi_config_table_type_t *arch_tables)
 	return ret;
 }
 
+/**
+ * efi_memmap_init_early - Map the EFI memory map data structure
+ * @data: EFI memory map data
+ *
+ * Use early_memremap() to map the passed in EFI memory map and assign
+ * it to efi.memmap.
+ */
+int __init efi_memmap_init_early(struct efi_memory_map_data *data)
+{
+	struct efi_memory_map map;
+
+	if (efi_enabled(EFI_PARAVIRT))
+		return 0;
+
+	map.phys_map = data->phys_map;
+
+	map.map = early_memremap(data->phys_map, data->size);
+	if (!map.map) {
+		pr_err("Could not map the memory map!\n");
+		return -ENOMEM;
+	}
+
+	map.nr_map = data->size / data->desc_size;
+	map.map_end = map.map + data->size;
+
+	map.desc_version = data->desc_version;
+	map.desc_size = data->desc_size;
+
+	set_bit(EFI_MEMMAP, &efi.flags);
+
+	efi.memmap = map;
+
+	return 0;
+}
+
+void __init efi_memmap_unmap(void)
+{
+	unsigned long size;
+
+	size = efi.memmap.desc_size * efi.memmap.nr_map;
+
+	early_memunmap(efi.memmap.map, size);
+	efi.memmap.map = NULL;
+	clear_bit(EFI_MEMMAP, &efi.flags);
+}
+
 #ifdef CONFIG_EFI_VARS_MODULE
 static int __init efi_load_efivars(void)
 {

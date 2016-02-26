@@ -287,7 +287,7 @@ void __init efi_free_boot_services(void)
 		free_bootmem_late(start, size);
 	}
 
-	efi_unmap_memmap();
+	efi_memmap_unmap();
 }
 
 /*
@@ -365,7 +365,7 @@ void __init efi_apply_memmap_quirks(void)
 	 */
 	if (!efi_runtime_supported()) {
 		pr_info("Setup done, disabling due to 32/64-bit mismatch\n");
-		efi_unmap_memmap();
+		efi_memmap_unmap();
 	}
 
 	/* UV2+ BIOS has a fix for this issue.  UV1 still needs the quirk. */

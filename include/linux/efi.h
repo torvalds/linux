@@ -669,6 +669,18 @@ typedef struct {
 	unsigned long tables;
 } efi_system_table_t;
 
+/*
+ * Architecture independent structure for describing a memory map for the
+ * benefit of efi_memmap_init_early(), saving us the need to pass four
+ * parameters.
+ */
+struct efi_memory_map_data {
+	phys_addr_t phys_map;
+	unsigned long size;
+	unsigned long desc_version;
+	unsigned long desc_size;
+};
+
 struct efi_memory_map {
 	phys_addr_t phys_map;
 	void *map;
@@ -900,6 +912,10 @@ static inline efi_status_t efi_query_variable_store(u32 attributes,
 }
 #endif
 extern void __iomem *efi_lookup_mapped_addr(u64 phys_addr);
+
+extern int __init efi_memmap_init_early(struct efi_memory_map_data *data);
+extern void __init efi_memmap_unmap(void);
+
 extern int efi_config_init(efi_config_table_type_t *arch_tables);
 #ifdef CONFIG_EFI_ESRT
 extern void __init efi_esrt_init(void);
