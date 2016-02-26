@@ -3138,6 +3138,9 @@ void __init of_clk_init(const struct of_device_id *matches)
 	for_each_matching_node_and_match(np, matches, &match) {
 		struct clock_provider *parent;
 
+		if (!of_device_is_available(np))
+			continue;
+
 		parent = kzalloc(sizeof(*parent), GFP_KERNEL);
 		if (!parent) {
 			list_for_each_entry_safe(clk_provider, next,
