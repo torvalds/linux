@@ -51,5 +51,6 @@
 	no-1-8-v;
 	non-removable;
 	cd-post;
+	pm-ignore-notify;
 	wifi-host; /* add hook for SD card detect mechanism for BCMDHD driver */
 };

@@ -78,5 +78,6 @@
 	no-1-8-v;
 	non-removable;
 	cd-post;
+	pm-ignore-notify;
 	wifi-host;
 };

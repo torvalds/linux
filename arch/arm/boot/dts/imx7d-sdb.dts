@@ -1153,6 +1153,7 @@
 	keep-power-in-suspend;
 	non-removable;
 	cd-post;
+	pm-ignore-notify;
 	wifi-host;
 	status = "okay";
 };
