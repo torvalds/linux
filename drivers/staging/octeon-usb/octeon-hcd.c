@@ -342,8 +342,9 @@ struct cvmx_usb_tx_fifo {
 };
 
 /**
- * struct cvmx_usb_state - the state of the USB block
+ * struct octeon_hcd - the state of the USB block
  *
+ * lock:		   Serialization lock.
  * init_flags:		   Flags passed to initialize.
  * index:		   Which USB block this is for.
  * idle_hardware_channels: Bit set for every idle hardware channel.
@@ -358,7 +359,8 @@ struct cvmx_usb_tx_fifo {
  * frame_number:	   Increments every SOF interrupt for time keeping.
  * active_split:	   Points to the current active split, or NULL.
  */
-struct cvmx_usb_state {
+struct octeon_hcd {
+	spinlock_t lock; /* serialization lock */
 	int init_flags;
 	int index;
 	int idle_hardware_channels;
@@ -372,11 +374,6 @@ struct cvmx_usb_state {
 	struct cvmx_usb_transaction *active_split;
 	struct cvmx_usb_tx_fifo periodic;
 	struct cvmx_usb_tx_fifo nonperiodic;
-};
-
-struct octeon_hcd {
-	spinlock_t lock;
-	struct cvmx_usb_state usb;
 };
 
 /* This macro spins on a register waiting for it to reach a condition. */
@@ -432,11 +429,6 @@ struct octeon_temp_buffer {
 	void *orig_buffer;
 	u8 data[0];
 };
-
-static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
-{
-	return container_of(p, struct octeon_hcd, usb);
-}
 
 static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
 {
@@ -548,7 +540,7 @@ static void octeon_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
  *
  * Returns: Result of the read
  */
-static inline u32 cvmx_usb_read_csr32(struct cvmx_usb_state *usb, u64 address)
+static inline u32 cvmx_usb_read_csr32(struct octeon_hcd *usb, u64 address)
 {
 	u32 result = cvmx_read64_uint32(address ^ 4);
 	return result;
@@ -563,7 +555,7 @@ static inline u32 cvmx_usb_read_csr32(struct cvmx_usb_state *usb, u64 address)
  * @address: 64bit address to write
  * @value:   Value to write
  */
-static inline void cvmx_usb_write_csr32(struct cvmx_usb_state *usb,
+static inline void cvmx_usb_write_csr32(struct octeon_hcd *usb,
 					u64 address, u32 value)
 {
 	cvmx_write64_uint32(address ^ 4, value);
@@ -579,7 +571,7 @@ static inline void cvmx_usb_write_csr32(struct cvmx_usb_state *usb,
  *
  * Returns: Non zero if we need to do split transactions
  */
-static inline int cvmx_usb_pipe_needs_split(struct cvmx_usb_state *usb,
+static inline int cvmx_usb_pipe_needs_split(struct octeon_hcd *usb,
 					    struct cvmx_usb_pipe *pipe)
 {
 	return pipe->device_speed != CVMX_USB_SPEED_HIGH &&
@@ -600,7 +592,7 @@ static inline int cvmx_usb_get_data_pid(struct cvmx_usb_pipe *pipe)
 	return 0; /* Data0 */
 }
 
-static void cvmx_fifo_setup(struct cvmx_usb_state *usb)
+static void cvmx_fifo_setup(struct octeon_hcd *usb)
 {
 	union cvmx_usbcx_ghwcfg3 usbcx_ghwcfg3;
 	union cvmx_usbcx_gnptxfsiz npsiz;
@@ -658,7 +650,7 @@ static void cvmx_fifo_setup(struct cvmx_usb_state *usb)
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
+static int cvmx_usb_shutdown(struct octeon_hcd *usb)
 {
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 
@@ -687,12 +679,12 @@ static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
  * off in the disabled state.
  *
  * @dev:	 Pointer to struct device for logging purposes.
- * @usb:	 Pointer to struct cvmx_usb_state.
+ * @usb:	 Pointer to struct octeon_hcd.
  *
  * Returns: 0 or a negative error code.
  */
 static int cvmx_usb_initialize(struct device *dev,
-			       struct cvmx_usb_state *usb)
+			       struct octeon_hcd *usb)
 {
 	int channel;
 	int divisor;
@@ -958,7 +950,7 @@ retry:
  *
  * @usb: USB device state populated by cvmx_usb_initialize().
  */
-static void cvmx_usb_reset_port(struct cvmx_usb_state *usb)
+static void cvmx_usb_reset_port(struct octeon_hcd *usb)
 {
 	usb->usbcx_hprt.u32 = cvmx_usb_read_csr32(usb,
 						  CVMX_USBCX_HPRT(usb->index));
@@ -995,7 +987,7 @@ static void cvmx_usb_reset_port(struct cvmx_usb_state *usb)
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_disable(struct cvmx_usb_state *usb)
+static int cvmx_usb_disable(struct octeon_hcd *usb)
 {
 	/* Disable the port */
 	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt,
@@ -1014,8 +1006,7 @@ static int cvmx_usb_disable(struct cvmx_usb_state *usb)
  *
  * Returns: Port status information
  */
-static struct cvmx_usb_port_status cvmx_usb_get_status(
-		struct cvmx_usb_state *usb)
+static struct cvmx_usb_port_status cvmx_usb_get_status(struct octeon_hcd *usb)
 {
 	union cvmx_usbcx_hprt usbc_hprt;
 	struct cvmx_usb_port_status result;
@@ -1086,7 +1077,7 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(
  *
  * Returns: A non-NULL value is a pipe. NULL means an error.
  */
-static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
+static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct octeon_hcd *usb,
 						int device_addr,
 						int endpoint_num,
 						enum cvmx_usb_speed
@@ -1154,7 +1145,7 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
  *
  * @usb:	USB device state populated by cvmx_usb_initialize().
  */
-static void cvmx_usb_poll_rx_fifo(struct cvmx_usb_state *usb)
+static void cvmx_usb_poll_rx_fifo(struct octeon_hcd *usb)
 {
 	union cvmx_usbcx_grxstsph rx_status;
 	int channel;
@@ -1204,7 +1195,7 @@ static void cvmx_usb_poll_rx_fifo(struct cvmx_usb_state *usb)
  * Returns: Non zero if the hardware fifo was too small and needs
  *	    to be serviced again.
  */
-static int cvmx_usb_fill_tx_hw(struct cvmx_usb_state *usb,
+static int cvmx_usb_fill_tx_hw(struct octeon_hcd *usb,
 			       struct cvmx_usb_tx_fifo *fifo, int available)
 {
 	/*
@@ -1259,7 +1250,7 @@ static int cvmx_usb_fill_tx_hw(struct cvmx_usb_state *usb,
  *
  * @usb:	USB device state populated by cvmx_usb_initialize().
  */
-static void cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
+static void cvmx_usb_poll_tx_fifo(struct octeon_hcd *usb)
 {
 	if (usb->periodic.head != usb->periodic.tail) {
 		union cvmx_usbcx_hptxsts tx_status;
@@ -1296,7 +1287,7 @@ static void cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
  * @usb:	  USB device state populated by cvmx_usb_initialize().
  * @channel:	  Channel number to get packet from
  */
-static void cvmx_usb_fill_tx_fifo(struct cvmx_usb_state *usb, int channel)
+static void cvmx_usb_fill_tx_fifo(struct octeon_hcd *usb, int channel)
 {
 	union cvmx_usbcx_hccharx hcchar;
 	union cvmx_usbcx_hcspltx usbc_hcsplt;
@@ -1350,12 +1341,11 @@ static void cvmx_usb_fill_tx_fifo(struct cvmx_usb_state *usb, int channel)
  * @channel:	  Channel to setup
  * @pipe:	  Pipe for control transaction
  */
-static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
+static void cvmx_usb_start_channel_control(struct octeon_hcd *usb,
 					   int channel,
 					   struct cvmx_usb_pipe *pipe)
 {
-	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
-	struct usb_hcd *hcd = octeon_to_hcd(priv);
+	struct usb_hcd *hcd = octeon_to_hcd(usb);
 	struct device *dev = hcd->self.controller;
 	struct cvmx_usb_transaction *transaction =
 		list_first_entry(&pipe->transactions, typeof(*transaction),
@@ -1499,7 +1489,7 @@ static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
  * @channel:	  Channel to setup
  * @pipe:	  Pipe to start
  */
-static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
+static void cvmx_usb_start_channel(struct octeon_hcd *usb, int channel,
 				   struct cvmx_usb_pipe *pipe)
 {
 	struct cvmx_usb_transaction *transaction =
@@ -1844,7 +1834,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
  * Returns: Pipe or NULL if none are ready
  */
 static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
-		struct cvmx_usb_state *usb,
+		struct octeon_hcd *usb,
 		enum cvmx_usb_transfer xfer_type)
 {
 	struct list_head *list = usb->active_pipes + xfer_type;
@@ -1875,7 +1865,7 @@ static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
  * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @is_sof:	 True if this schedule was called on a SOF interrupt.
  */
-static void cvmx_usb_schedule(struct cvmx_usb_state *usb, int is_sof)
+static void cvmx_usb_schedule(struct octeon_hcd *usb, int is_sof)
 {
 	int channel;
 	struct cvmx_usb_pipe *pipe;
@@ -1953,7 +1943,7 @@ done:
 			cvmx_usbcx_gintmsk, sofmsk, need_sof);
 }
 
-static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
+static void octeon_usb_urb_complete_callback(struct octeon_hcd *usb,
 					     enum cvmx_usb_status status,
 					     struct cvmx_usb_pipe *pipe,
 					     struct cvmx_usb_transaction
@@ -1961,8 +1951,7 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 					     int bytes_transferred,
 					     struct urb *urb)
 {
-	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
-	struct usb_hcd *hcd = octeon_to_hcd(priv);
+	struct usb_hcd *hcd = octeon_to_hcd(usb);
 	struct device *dev = hcd->self.controller;
 
 	if (likely(status == CVMX_USB_STATUS_OK))
@@ -2037,10 +2026,10 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 		urb->status = -EPROTO;
 		break;
 	}
-	usb_hcd_unlink_urb_from_ep(octeon_to_hcd(priv), urb);
-	spin_unlock(&priv->lock);
-	usb_hcd_giveback_urb(octeon_to_hcd(priv), urb, urb->status);
-	spin_lock(&priv->lock);
+	usb_hcd_unlink_urb_from_ep(octeon_to_hcd(usb), urb);
+	spin_unlock(&usb->lock);
+	usb_hcd_giveback_urb(octeon_to_hcd(usb), urb, urb->status);
+	spin_lock(&usb->lock);
 }
 
 /**
@@ -2054,7 +2043,7 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
  * @complete_code:
  *		 Completion code
  */
-static void cvmx_usb_complete(struct cvmx_usb_state *usb,
+static void cvmx_usb_complete(struct octeon_hcd *usb,
 			      struct cvmx_usb_pipe *pipe,
 			      struct cvmx_usb_transaction *transaction,
 			      enum cvmx_usb_status complete_code)
@@ -2123,7 +2112,7 @@ static void cvmx_usb_complete(struct cvmx_usb_state *usb,
  * Returns: Transaction or NULL on failure.
  */
 static struct cvmx_usb_transaction *cvmx_usb_submit_transaction(
-				struct cvmx_usb_state *usb,
+				struct octeon_hcd *usb,
 				struct cvmx_usb_pipe *pipe,
 				enum cvmx_usb_transfer type,
 				u64 buffer,
@@ -2184,7 +2173,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_transaction(
  * Returns: A submitted transaction or NULL on failure.
  */
 static struct cvmx_usb_transaction *cvmx_usb_submit_bulk(
-						struct cvmx_usb_state *usb,
+						struct octeon_hcd *usb,
 						struct cvmx_usb_pipe *pipe,
 						struct urb *urb)
 {
@@ -2208,7 +2197,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_bulk(
  * Returns: A submitted transaction or NULL on failure.
  */
 static struct cvmx_usb_transaction *cvmx_usb_submit_interrupt(
-						struct cvmx_usb_state *usb,
+						struct octeon_hcd *usb,
 						struct cvmx_usb_pipe *pipe,
 						struct urb *urb)
 {
@@ -2233,7 +2222,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_interrupt(
  * Returns: A submitted transaction or NULL on failure.
  */
 static struct cvmx_usb_transaction *cvmx_usb_submit_control(
-						struct cvmx_usb_state *usb,
+						struct octeon_hcd *usb,
 						struct cvmx_usb_pipe *pipe,
 						struct urb *urb)
 {
@@ -2264,7 +2253,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_control(
  * Returns: A submitted transaction or NULL on failure.
  */
 static struct cvmx_usb_transaction *cvmx_usb_submit_isochronous(
-						struct cvmx_usb_state *usb,
+						struct octeon_hcd *usb,
 						struct cvmx_usb_pipe *pipe,
 						struct urb *urb)
 {
@@ -2294,7 +2283,7 @@ static struct cvmx_usb_transaction *cvmx_usb_submit_isochronous(
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
+static int cvmx_usb_cancel(struct octeon_hcd *usb,
 			   struct cvmx_usb_pipe *pipe,
 			   struct cvmx_usb_transaction *transaction)
 {
@@ -2338,7 +2327,7 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb,
+static int cvmx_usb_cancel_all(struct octeon_hcd *usb,
 			       struct cvmx_usb_pipe *pipe)
 {
 	struct cvmx_usb_transaction *transaction, *next;
@@ -2362,7 +2351,7 @@ static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb,
  * Returns: 0 or a negative error code. EBUSY is returned if the pipe has
  *	    outstanding transfers.
  */
-static int cvmx_usb_close_pipe(struct cvmx_usb_state *usb,
+static int cvmx_usb_close_pipe(struct octeon_hcd *usb,
 			       struct cvmx_usb_pipe *pipe)
 {
 	/* Fail if the pipe has pending transactions */
@@ -2383,7 +2372,7 @@ static int cvmx_usb_close_pipe(struct cvmx_usb_state *usb,
  *
  * Returns: USB frame number
  */
-static int cvmx_usb_get_frame_number(struct cvmx_usb_state *usb)
+static int cvmx_usb_get_frame_number(struct octeon_hcd *usb)
 {
 	int frame_number;
 	union cvmx_usbcx_hfnum usbc_hfnum;
@@ -2402,10 +2391,9 @@ static int cvmx_usb_get_frame_number(struct cvmx_usb_state *usb)
  *
  * Returns: Zero on success
  */
-static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
+static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 {
-	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
-	struct usb_hcd *hcd = octeon_to_hcd(priv);
+	struct usb_hcd *hcd = octeon_to_hcd(usb);
 	struct device *dev = hcd->self.controller;
 	union cvmx_usbcx_hcintx usbc_hcint;
 	union cvmx_usbcx_hctsizx usbc_hctsiz;
@@ -2899,13 +2887,11 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 	return 0;
 }
 
-static void octeon_usb_port_callback(struct cvmx_usb_state *usb)
+static void octeon_usb_port_callback(struct octeon_hcd *usb)
 {
-	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
-
-	spin_unlock(&priv->lock);
-	usb_hcd_poll_rh_status(octeon_to_hcd(priv));
-	spin_lock(&priv->lock);
+	spin_unlock(&usb->lock);
+	usb_hcd_poll_rh_status(octeon_to_hcd(usb));
+	spin_lock(&usb->lock);
 }
 
 /**
@@ -2918,7 +2904,7 @@ static void octeon_usb_port_callback(struct cvmx_usb_state *usb)
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_poll(struct cvmx_usb_state *usb)
+static int cvmx_usb_poll(struct octeon_hcd *usb)
 {
 	union cvmx_usbcx_hfnum usbc_hfnum;
 	union cvmx_usbcx_gintsts usbc_gintsts;
@@ -3019,12 +3005,12 @@ static inline struct octeon_hcd *hcd_to_octeon(struct usb_hcd *hcd)
 
 static irqreturn_t octeon_usb_irq(struct usb_hcd *hcd)
 {
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
+	struct octeon_hcd *usb = hcd_to_octeon(hcd);
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	cvmx_usb_poll(&priv->usb);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_lock_irqsave(&usb->lock, flags);
+	cvmx_usb_poll(usb);
+	spin_unlock_irqrestore(&usb->lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -3041,16 +3027,16 @@ static void octeon_usb_stop(struct usb_hcd *hcd)
 
 static int octeon_usb_get_frame_number(struct usb_hcd *hcd)
 {
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
+	struct octeon_hcd *usb = hcd_to_octeon(hcd);
 
-	return cvmx_usb_get_frame_number(&priv->usb);
+	return cvmx_usb_get_frame_number(usb);
 }
 
 static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 				  struct urb *urb,
 				  gfp_t mem_flags)
 {
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
+	struct octeon_hcd *usb = hcd_to_octeon(hcd);
 	struct device *dev = hcd->self.controller;
 	struct cvmx_usb_transaction *transaction = NULL;
 	struct cvmx_usb_pipe *pipe;
@@ -3060,11 +3046,11 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	int rc;
 
 	urb->status = 0;
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&usb->lock, flags);
 
 	rc = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&usb->lock, flags);
 		return rc;
 	}
 
@@ -3130,7 +3116,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 				dev = dev->parent;
 			}
 		}
-		pipe = cvmx_usb_open_pipe(&priv->usb, usb_pipedevice(urb->pipe),
+		pipe = cvmx_usb_open_pipe(usb, usb_pipedevice(urb->pipe),
 					  usb_pipeendpoint(urb->pipe), speed,
 					  le16_to_cpu(ep->desc.wMaxPacketSize)
 					  & 0x7ff,
@@ -3144,7 +3130,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 					  split_device, split_port);
 		if (!pipe) {
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_unlock_irqrestore(&usb->lock, flags);
 			dev_dbg(dev, "Failed to create pipe\n");
 			return -ENOMEM;
 		}
@@ -3181,7 +3167,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			 * this saves us a bunch of logic.
 			 */
 			urb->setup_packet = (char *)iso_packet;
-			transaction = cvmx_usb_submit_isochronous(&priv->usb,
+			transaction = cvmx_usb_submit_isochronous(usb,
 								  pipe, urb);
 			/*
 			 * If submit failed we need to free our private packet
@@ -3197,29 +3183,29 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		dev_dbg(dev, "Submit interrupt to %d.%d\n",
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe));
-		transaction = cvmx_usb_submit_interrupt(&priv->usb, pipe, urb);
+		transaction = cvmx_usb_submit_interrupt(usb, pipe, urb);
 		break;
 	case PIPE_CONTROL:
 		dev_dbg(dev, "Submit control to %d.%d\n",
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe));
-		transaction = cvmx_usb_submit_control(&priv->usb, pipe, urb);
+		transaction = cvmx_usb_submit_control(usb, pipe, urb);
 		break;
 	case PIPE_BULK:
 		dev_dbg(dev, "Submit bulk to %d.%d\n",
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe));
-		transaction = cvmx_usb_submit_bulk(&priv->usb, pipe, urb);
+		transaction = cvmx_usb_submit_bulk(usb, pipe, urb);
 		break;
 	}
 	if (!transaction) {
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&usb->lock, flags);
 		dev_dbg(dev, "Failed to submit\n");
 		return -ENOMEM;
 	}
 	urb->hcpriv = transaction;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&usb->lock, flags);
 	return 0;
 }
 
@@ -3227,24 +3213,24 @@ static int octeon_usb_urb_dequeue(struct usb_hcd *hcd,
 				  struct urb *urb,
 				  int status)
 {
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
+	struct octeon_hcd *usb = hcd_to_octeon(hcd);
 	unsigned long flags;
 	int rc;
 
 	if (!urb->dev)
 		return -EINVAL;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&usb->lock, flags);
 
 	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
 	if (rc)
 		goto out;
 
 	urb->status = status;
-	cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
+	cvmx_usb_cancel(usb, urb->ep->hcpriv, urb->hcpriv);
 
 out:
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&usb->lock, flags);
 
 	return rc;
 }
@@ -3255,28 +3241,28 @@ static void octeon_usb_endpoint_disable(struct usb_hcd *hcd,
 	struct device *dev = hcd->self.controller;
 
 	if (ep->hcpriv) {
-		struct octeon_hcd *priv = hcd_to_octeon(hcd);
+		struct octeon_hcd *usb = hcd_to_octeon(hcd);
 		struct cvmx_usb_pipe *pipe = ep->hcpriv;
 		unsigned long flags;
 
-		spin_lock_irqsave(&priv->lock, flags);
-		cvmx_usb_cancel_all(&priv->usb, pipe);
-		if (cvmx_usb_close_pipe(&priv->usb, pipe))
+		spin_lock_irqsave(&usb->lock, flags);
+		cvmx_usb_cancel_all(usb, pipe);
+		if (cvmx_usb_close_pipe(usb, pipe))
 			dev_dbg(dev, "Closing pipe %p failed\n", pipe);
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&usb->lock, flags);
 		ep->hcpriv = NULL;
 	}
 }
 
 static int octeon_usb_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
+	struct octeon_hcd *usb = hcd_to_octeon(hcd);
 	struct cvmx_usb_port_status port_status;
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	port_status = cvmx_usb_get_status(&priv->usb);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_lock_irqsave(&usb->lock, flags);
+	port_status = cvmx_usb_get_status(usb);
+	spin_unlock_irqrestore(&usb->lock, flags);
 	buf[0] = 0;
 	buf[0] = port_status.connect_change << 1;
 
@@ -3286,10 +3272,9 @@ static int octeon_usb_hub_status_data(struct usb_hcd *hcd, char *buf)
 static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				  u16 wIndex, char *buf, u16 wLength)
 {
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
+	struct octeon_hcd *usb = hcd_to_octeon(hcd);
 	struct device *dev = hcd->self.controller;
 	struct cvmx_usb_port_status usb_port_status;
-	struct cvmx_usb_state *usb = &priv->usb;
 	int port_status;
 	struct usb_hub_descriptor *desc;
 	unsigned long flags;
@@ -3316,9 +3301,9 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
 			dev_dbg(dev, " ENABLE\n");
-			spin_lock_irqsave(&priv->lock, flags);
-			cvmx_usb_disable(&priv->usb);
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_lock_irqsave(&usb->lock, flags);
+			cvmx_usb_disable(usb);
+			spin_unlock_irqrestore(&usb->lock, flags);
 			break;
 		case USB_PORT_FEAT_SUSPEND:
 			dev_dbg(dev, " SUSPEND\n");
@@ -3335,20 +3320,18 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_C_CONNECTION:
 			dev_dbg(dev, " C_CONNECTION\n");
 			/* Clears drivers internal connect status change flag */
-			spin_lock_irqsave(&priv->lock, flags);
-			priv->usb.port_status =
-				cvmx_usb_get_status(&priv->usb);
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_lock_irqsave(&usb->lock, flags);
+			usb->port_status = cvmx_usb_get_status(usb);
+			spin_unlock_irqrestore(&usb->lock, flags);
 			break;
 		case USB_PORT_FEAT_C_RESET:
 			dev_dbg(dev, " C_RESET\n");
 			/*
 			 * Clears the driver's internal Port Reset Change flag.
 			 */
-			spin_lock_irqsave(&priv->lock, flags);
-			priv->usb.port_status =
-				cvmx_usb_get_status(&priv->usb);
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_lock_irqsave(&usb->lock, flags);
+			usb->port_status = cvmx_usb_get_status(usb);
+			spin_unlock_irqrestore(&usb->lock, flags);
 			break;
 		case USB_PORT_FEAT_C_ENABLE:
 			dev_dbg(dev, " C_ENABLE\n");
@@ -3356,10 +3339,9 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			 * Clears the driver's internal Port Enable/Disable
 			 * Change flag.
 			 */
-			spin_lock_irqsave(&priv->lock, flags);
-			priv->usb.port_status =
-				cvmx_usb_get_status(&priv->usb);
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_lock_irqsave(&usb->lock, flags);
+			usb->port_status = cvmx_usb_get_status(usb);
+			spin_unlock_irqrestore(&usb->lock, flags);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			dev_dbg(dev, " C_SUSPEND\n");
@@ -3372,10 +3354,9 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_C_OVER_CURRENT:
 			dev_dbg(dev, " C_OVER_CURRENT\n");
 			/* Clears the driver's overcurrent Change flag */
-			spin_lock_irqsave(&priv->lock, flags);
-			priv->usb.port_status =
-				cvmx_usb_get_status(&priv->usb);
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_lock_irqsave(&usb->lock, flags);
+			usb->port_status = cvmx_usb_get_status(usb);
+			spin_unlock_irqrestore(&usb->lock, flags);
 			break;
 		default:
 			dev_dbg(dev, " UNKNOWN\n");
@@ -3405,9 +3386,9 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			return -EINVAL;
 		}
 
-		spin_lock_irqsave(&priv->lock, flags);
-		usb_port_status = cvmx_usb_get_status(&priv->usb);
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_lock_irqsave(&usb->lock, flags);
+		usb_port_status = cvmx_usb_get_status(usb);
+		spin_unlock_irqrestore(&usb->lock, flags);
 		port_status = 0;
 
 		if (usb_port_status.connect_change) {
@@ -3470,16 +3451,16 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			/*
 			 * Program the port power bit to drive VBUS on the USB.
 			 */
-			spin_lock_irqsave(&priv->lock, flags);
+			spin_lock_irqsave(&usb->lock, flags);
 			USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index),
 					cvmx_usbcx_hprt, prtpwr, 1);
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_unlock_irqrestore(&usb->lock, flags);
 			return 0;
 		case USB_PORT_FEAT_RESET:
 			dev_dbg(dev, " RESET\n");
-			spin_lock_irqsave(&priv->lock, flags);
-			cvmx_usb_reset_port(&priv->usb);
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_lock_irqsave(&usb->lock, flags);
+			cvmx_usb_reset_port(usb);
+			spin_unlock_irqrestore(&usb->lock, flags);
 			return 0;
 		case USB_PORT_FEAT_INDICATOR:
 			dev_dbg(dev, " INDICATOR\n");
@@ -3524,7 +3505,7 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	struct device_node *usbn_node;
 	int irq = platform_get_irq(pdev, 0);
 	struct device *dev = &pdev->dev;
-	struct octeon_hcd *priv;
+	struct octeon_hcd *usb;
 	struct usb_hcd *hcd;
 	u32 clock_rate = 48000000;
 	bool is_crystal_clock = false;
@@ -3623,31 +3604,31 @@ static int octeon_usb_probe(struct platform_device *pdev)
 		return -1;
 	}
 	hcd->uses_new_polling = 1;
-	priv = (struct octeon_hcd *)hcd->hcd_priv;
+	usb = (struct octeon_hcd *)hcd->hcd_priv;
 
-	spin_lock_init(&priv->lock);
+	spin_lock_init(&usb->lock);
 
-	priv->usb.init_flags = initialize_flags;
+	usb->init_flags = initialize_flags;
 
 	/* Initialize the USB state structure */
-	priv->usb.index = usb_num;
-	INIT_LIST_HEAD(&priv->usb.idle_pipes);
-	for (i = 0; i < ARRAY_SIZE(priv->usb.active_pipes); i++)
-		INIT_LIST_HEAD(&priv->usb.active_pipes[i]);
+	usb->index = usb_num;
+	INIT_LIST_HEAD(&usb->idle_pipes);
+	for (i = 0; i < ARRAY_SIZE(usb->active_pipes); i++)
+		INIT_LIST_HEAD(&usb->active_pipes[i]);
 
 	/* Due to an errata, CN31XX doesn't support DMA */
 	if (OCTEON_IS_MODEL(OCTEON_CN31XX)) {
-		priv->usb.init_flags |= CVMX_USB_INITIALIZE_FLAGS_NO_DMA;
+		usb->init_flags |= CVMX_USB_INITIALIZE_FLAGS_NO_DMA;
 		/* Only use one channel with non DMA */
-		priv->usb.idle_hardware_channels = 0x1;
+		usb->idle_hardware_channels = 0x1;
 	} else if (OCTEON_IS_MODEL(OCTEON_CN5XXX)) {
 		/* CN5XXX have an errata with channel 3 */
-		priv->usb.idle_hardware_channels = 0xf7;
+		usb->idle_hardware_channels = 0xf7;
 	} else {
-		priv->usb.idle_hardware_channels = 0xff;
+		usb->idle_hardware_channels = 0xff;
 	}
 
-	status = cvmx_usb_initialize(dev, &priv->usb);
+	status = cvmx_usb_initialize(dev, usb);
 	if (status) {
 		dev_dbg(dev, "USB initialization failed with %d\n", status);
 		kfree(hcd);
@@ -3672,13 +3653,13 @@ static int octeon_usb_remove(struct platform_device *pdev)
 	int status;
 	struct device *dev = &pdev->dev;
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
+	struct octeon_hcd *usb = hcd_to_octeon(hcd);
 	unsigned long flags;
 
 	usb_remove_hcd(hcd);
-	spin_lock_irqsave(&priv->lock, flags);
-	status = cvmx_usb_shutdown(&priv->usb);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_lock_irqsave(&usb->lock, flags);
+	status = cvmx_usb_shutdown(usb);
+	spin_unlock_irqrestore(&usb->lock, flags);
 	if (status)
 		dev_dbg(dev, "USB shutdown failed with %d\n", status);
 
