@@ -372,7 +372,6 @@ static int rockchip_hdmiv1_probe(struct platform_device *pdev)
 failed1:
 	rockchip_hdmi_unregister(hdmi_dev->hdmi);
 failed:
-	kfree(hdmi_dev);
 	hdmi_dev = NULL;
 	dev_err(&pdev->dev, "rk3288 hdmi probe error.\n");
 	return ret;
