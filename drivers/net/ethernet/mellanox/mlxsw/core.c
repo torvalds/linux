@@ -785,6 +785,38 @@ static void mlxsw_core_debugfs_fini(struct mlxsw_core *mlxsw_core)
 	debugfs_remove_recursive(mlxsw_core->dbg_dir);
 }
 
+static int mlxsw_devlink_port_split(struct devlink *devlink,
+				    unsigned int port_index,
+				    unsigned int count)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+
+	if (port_index >= MLXSW_PORT_MAX_PORTS)
+		return -EINVAL;
+	if (!mlxsw_core->driver->port_split)
+		return -EOPNOTSUPP;
+	return mlxsw_core->driver->port_split(mlxsw_core->driver_priv,
+					      port_index, count);
+}
+
+static int mlxsw_devlink_port_unsplit(struct devlink *devlink,
+				      unsigned int port_index)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+
+	if (port_index >= MLXSW_PORT_MAX_PORTS)
+		return -EINVAL;
+	if (!mlxsw_core->driver->port_unsplit)
+		return -EOPNOTSUPP;
+	return mlxsw_core->driver->port_unsplit(mlxsw_core->driver_priv,
+						port_index);
+}
+
+static const struct devlink_ops mlxsw_devlink_ops = {
+	.port_split	= mlxsw_devlink_port_split,
+	.port_unsplit	= mlxsw_devlink_port_unsplit,
+};
+
 int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 				   const struct mlxsw_bus *mlxsw_bus,
 				   void *bus_priv)
@@ -800,7 +832,7 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (!mlxsw_driver)
 		return -EINVAL;
 	alloc_size = sizeof(*mlxsw_core) + mlxsw_driver->priv_size;
-	devlink = devlink_alloc(NULL, alloc_size);
+	devlink = devlink_alloc(&mlxsw_devlink_ops, alloc_size);
 	if (!devlink) {
 		err = -ENOMEM;
 		goto err_devlink_alloc;
