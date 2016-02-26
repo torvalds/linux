@@ -173,6 +173,10 @@
 
 };
 
+&refclk {
+	clock-frequency = <24576000>;
+};
+
 &serial3 {
 	interrupts = <0 29 4>;
 };

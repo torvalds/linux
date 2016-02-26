@@ -45,6 +45,13 @@
 /include/ "skeleton.dtsi"
 
 / {
+	clocks {
+		refclk: ref {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+		};
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;

@@ -68,6 +68,12 @@
 	};
 
 	clocks {
+		refclk: ref {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24576000>;
+		};
+
 		arm_timer_clk: arm_timer_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
