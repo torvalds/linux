@@ -231,6 +231,23 @@ static inline size_t head_to_end(size_t head, size_t size)
 	return size - head;
 }
 
+static inline void new_iov(struct iovec **iov, int *iov_cnt,
+			   struct tcmu_dev *udev)
+{
+	struct iovec *iovec;
+
+	if (*iov_cnt != 0)
+		(*iov)++;
+	(*iov_cnt)++;
+
+	iovec = *iov;
+	memset(iovec, 0, sizeof(struct iovec));
+
+	/* Even iov_base is relative to mb_addr */
+	iovec->iov_base = (void __user *) udev->data_off +
+		udev->data_head;
+}
+
 #define UPDATE_HEAD(head, used, size) smp_store_release(&head, ((head % size) + used) % size)
 
 static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
@@ -242,6 +259,10 @@ static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
 	size_t copy_bytes;
 	struct scatterlist *sg;
 
+	if (data_nents == 0)
+		return;
+
+	new_iov(iov, iov_cnt, udev);
 	for_each_sg(data_sg, sg, data_nents, i) {
 		copy_bytes = min_t(size_t, sg->length,
 				 head_to_end(udev->data_head, udev->data_size));
@@ -253,12 +274,7 @@ static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
 			tcmu_flush_dcache_range(to, copy_bytes);
 		}
 
-		/* Even iov_base is relative to mb_addr */
-		(*iov)->iov_len = copy_bytes;
-		(*iov)->iov_base = (void __user *) udev->data_off +
-						udev->data_head;
-		(*iov_cnt)++;
-		(*iov)++;
+		(*iov)->iov_len += copy_bytes;
 
 		UPDATE_HEAD(udev->data_head, copy_bytes, udev->data_size);
 
@@ -268,9 +284,8 @@ static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
 
 			copy_bytes = sg->length - copy_bytes;
 
+			new_iov(iov, iov_cnt, udev);
 			(*iov)->iov_len = copy_bytes;
-			(*iov)->iov_base = (void __user *) udev->data_off +
-							udev->data_head;
 
 			if (copy_data) {
 				to = (void *) udev->mb_addr +
@@ -279,8 +294,6 @@ static void alloc_and_scatter_data_area(struct tcmu_dev *udev,
 				tcmu_flush_dcache_range(to, copy_bytes);
 			}
 
-			(*iov_cnt)++;
-			(*iov)++;
 
 			UPDATE_HEAD(udev->data_head,
 				copy_bytes, udev->data_size);
@@ -393,12 +406,10 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	 * Must be a certain minimum size for response sense info, but
 	 * also may be larger if the iov array is large.
 	 *
-	 * iovs = sgl_nents+1, for end-of-ring case, plus another 1
-	 * b/c size == offsetof one-past-element.
+	 * 3 iovs since we can describe the whole continuous are using one
+	 * for data, one for bidi and one more in the case of wrap.
 	*/
-	base_command_size = max(offsetof(struct tcmu_cmd_entry,
-					 req.iov[se_cmd->t_bidi_data_nents +
-						 se_cmd->t_data_nents + 2]),
+	base_command_size = max(offsetof(struct tcmu_cmd_entry, req.iov[3]),
 				sizeof(struct tcmu_cmd_entry));
 	command_size = base_command_size
 		+ round_up(scsi_command_size(se_cmd->t_task_cdb), TCMU_OP_ALIGN_SIZE);
