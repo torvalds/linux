@@ -829,9 +829,9 @@ static void saa7134_media_release(struct saa7134_dev *dev)
 #endif
 }
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
 static void saa7134_create_entities(struct saa7134_dev *dev)
 {
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	int ret, i;
 	struct media_entity *entity;
 	struct media_entity *decoder = NULL;
@@ -951,8 +951,8 @@ static void saa7134_create_entities(struct saa7134_dev *dev)
 		if (ret < 0)
 			pr_err("failed to register input entity %d!\n", i);
 	}
-#endif
 }
+#endif
 
 static struct video_device *vdev_init(struct saa7134_dev *dev,
 				      struct video_device *template,
