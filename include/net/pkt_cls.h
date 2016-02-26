@@ -394,6 +394,9 @@ struct tc_cls_u32_offload {
 
 static inline bool tc_should_offload(struct net_device *dev)
 {
+	if (!(dev->features & NETIF_F_HW_TC))
+		return false;
+
 	return dev->netdev_ops->ndo_setup_tc;
 }
 
