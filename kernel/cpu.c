@@ -666,6 +666,19 @@ void notify_cpu_starting(unsigned int cpu)
 	}
 }
 
+/*
+ * Called from the idle task. We need to set active here, so we can kick off
+ * the stopper thread.
+ */
+static int cpuhp_set_cpu_active(unsigned int cpu)
+{
+	/* The cpu is marked online, set it active now */
+	set_cpu_active(cpu, true);
+	/* Unpark the stopper thread */
+	stop_machine_unpark(cpu);
+	return 0;
+}
+
 static void undo_cpu_up(unsigned int cpu, struct cpuhp_cpu_state *st)
 {
 	for (st->state--; st->state > st->target; st->state--) {
@@ -940,6 +953,11 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.startup		= NULL,
 		.teardown		= takedown_cpu,
 		.cant_stop		= true,
+	},
+	[CPUHP_CPU_SET_ACTIVE] = {
+		.name			= "cpu:active",
+		.startup		= cpuhp_set_cpu_active,
+		.teardown		= NULL,
 	},
 	[CPUHP_NOTIFY_ONLINE] = {
 		.name			= "notify:online",
