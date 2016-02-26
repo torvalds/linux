@@ -18,3 +18,5 @@ obj-$(CONFIG_SOC_AM43XX)		+= $(clk-common) dpll3xxx.o clk-43xx.o
 ifdef CONFIG_ATAGS
 obj-$(CONFIG_ARCH_OMAP3)                += clk-3xxx-legacy.o
 endif
+
+obj-$(CONFIG_COMMON_CLK_TI_ADPLL)	+= adpll.o
