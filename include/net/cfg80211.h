@@ -1455,6 +1455,7 @@ struct cfg80211_ssid {
  * @mac_addr_mask: MAC address mask used with randomisation, bits that
  *	are 0 in the mask should be randomised, bits that are 1 should
  *	be taken from the @mac_addr
+ * @bssid: BSSID to scan for (most commonly, the wildcard BSSID)
  */
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1471,6 +1472,7 @@ struct cfg80211_scan_request {
 
 	u8 mac_addr[ETH_ALEN] __aligned(2);
 	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
+	u8 bssid[ETH_ALEN] __aligned(2);
 
 	/* internal */
 	struct wiphy *wiphy;

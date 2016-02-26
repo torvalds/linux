@@ -1293,6 +1293,8 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 		if (wiphy->bands[i])
 			creq->rates[i] = (1 << wiphy->bands[i]->n_bitrates) - 1;
 
+	eth_broadcast_addr(creq->bssid);
+
 	rdev->scan_req = creq;
 	err = rdev_scan(rdev, creq);
 	if (err) {

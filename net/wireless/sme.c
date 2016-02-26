@@ -119,6 +119,8 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 		wdev->conn->params.ssid_len);
 	request->ssids[0].ssid_len = wdev->conn->params.ssid_len;
 
+	eth_broadcast_addr(request->bssid);
+
 	request->wdev = wdev;
 	request->wiphy = &rdev->wiphy;
 	request->scan_start = jiffies;
