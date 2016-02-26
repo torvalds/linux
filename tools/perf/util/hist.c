@@ -1002,6 +1002,10 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 	int64_t cmp = 0;
 
 	hists__for_each_sort_list(hists, fmt) {
+		if (perf_hpp__is_dynamic_entry(fmt) &&
+		    !perf_hpp__defined_dynamic_entry(fmt, hists))
+			continue;
+
 		cmp = fmt->cmp(fmt, left, right);
 		if (cmp)
 			break;
@@ -1018,6 +1022,10 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 	int64_t cmp = 0;
 
 	hists__for_each_sort_list(hists, fmt) {
+		if (perf_hpp__is_dynamic_entry(fmt) &&
+		    !perf_hpp__defined_dynamic_entry(fmt, hists))
+			continue;
+
 		cmp = fmt->collapse(fmt, left, right);
 		if (cmp)
 			break;
