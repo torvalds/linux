@@ -417,7 +417,7 @@ static void lkdtm_do_action(enum ctype which)
 		break;
 	}
 	case CT_WRITE_AFTER_FREE: {
-		int *base;
+		int *base, *again;
 		size_t len = 1024;
 		/*
 		 * The slub allocator uses the first word to store the free
@@ -428,10 +428,16 @@ static void lkdtm_do_action(enum ctype which)
 
 		base = kmalloc(len, GFP_KERNEL);
 		pr_info("Allocated memory %p-%p\n", base, &base[offset * 2]);
-		kfree(base);
 		pr_info("Attempting bad write to freed memory at %p\n",
 			&base[offset]);
+		kfree(base);
 		base[offset] = 0x0abcdef0;
+		/* Attempt to notice the overwrite. */
+		again = kmalloc(len, GFP_KERNEL);
+		kfree(again);
+		if (again != base)
+			pr_info("Hmm, didn't get the same memory range.\n");
+
 		break;
 	}
 	case CT_READ_AFTER_FREE: {
@@ -462,7 +468,7 @@ static void lkdtm_do_action(enum ctype which)
 		saw = base[offset];
 		if (saw != *val) {
 			/* Good! Poisoning happened, so declare a win. */
-			pr_info("Memory correctly poisoned, calling BUG\n");
+			pr_info("Memory correctly poisoned (%x)\n", saw);
 			BUG();
 		}
 		pr_info("Memory was not poisoned\n");
@@ -480,6 +486,11 @@ static void lkdtm_do_action(enum ctype which)
 		schedule();
 		pr_info("Attempting bad write to the buddy page after free\n");
 		memset((void *)p, 0x78, PAGE_SIZE);
+		/* Attempt to notice the overwrite. */
+		p = __get_free_page(GFP_KERNEL);
+		free_page(p);
+		schedule();
+
 		break;
 	}
 	case CT_READ_BUDDY_AFTER_FREE: {
@@ -503,7 +514,7 @@ static void lkdtm_do_action(enum ctype which)
 		saw = base[0];
 		if (saw != *val) {
 			/* Good! Poisoning happened, so declare a win. */
-			pr_info("Buddy page correctly poisoned, calling BUG\n");
+			pr_info("Memory correctly poisoned (%x)\n", saw);
 			BUG();
 		}
 		pr_info("Buddy page was not poisoned\n");
