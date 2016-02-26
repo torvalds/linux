@@ -16,13 +16,25 @@ ${hijack_script} ip route
 
 echo "== ping test=="
 cp `which ping` .
-${script_dir}/../bin/${hijack_script} ./ping 127.0.0.1 -c 2
+${hijack_script} ./ping 127.0.0.1 -c 2
 rm ping
 
 echo "== ping6 test=="
 cp `which ping6` .
-${script_dir}/../bin/${hijack_script} ./ping6 ::1 -c 2
+${hijack_script} ./ping6 ::1 -c 2
 rm ping6
+
+echo "== Mount/dump tests =="
+# Need to say || true because ip -h returns < 0
+ans=$(LKL_HIJACK_MOUNT=proc,sysfs\
+  LKL_HIJACK_DUMP=/sysfs/class/net/lo/mtu,/sysfs/class/net/lo/dev_id\
+  LKL_HIJACK_DEBUG=1\
+  ${hijack_script} ip -h) || true
+# Need to grab the end because something earlier on prints out this
+# number
+echo "$ans" | tail -n 15 | grep "65536" # lo's MTU
+# lo's dev id
+echo "$ans" | grep "0x0"        # lo's dev_id
 
 echo "== TAP tests =="
 if [ -c /dev/net/tun ]; then
