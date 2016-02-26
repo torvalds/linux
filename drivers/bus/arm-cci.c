@@ -758,8 +758,8 @@ static u32 pmu_read_register(struct cci_pmu *cci_pmu, int idx, unsigned int offs
 static void pmu_write_register(struct cci_pmu *cci_pmu, u32 value,
 			       int idx, unsigned int offset)
 {
-	return writel_relaxed(value, cci_pmu->base +
-			      CCI_PMU_CNTR_BASE(cci_pmu->model, idx) + offset);
+	writel_relaxed(value, cci_pmu->base +
+		       CCI_PMU_CNTR_BASE(cci_pmu->model, idx) + offset);
 }
 
 static void pmu_disable_counter(struct cci_pmu *cci_pmu, int idx)
