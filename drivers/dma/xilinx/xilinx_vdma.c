@@ -648,6 +648,10 @@ static void xilinx_vdma_start_transfer(struct xilinx_vdma_chan *chan)
 	else
 		reg &= ~XILINX_VDMA_DMACR_FRAMECNT_EN;
 
+	/* Configure channel to allow number frame buffers */
+	vdma_ctrl_write(chan, XILINX_VDMA_REG_FRMSTORE,
+			chan->desc_pendingcount);
+
 	/*
 	 * With SG, start with circular mode, so that BDs can be fetched.
 	 * In direct register mode, if not parking, enable circular mode
